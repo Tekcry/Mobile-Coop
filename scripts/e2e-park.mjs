@@ -41,16 +41,10 @@ try {
   const badge = await G(() => ({ any: !!document.querySelector('.main-menu .badge'), level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits') }));
   assert(!badge.any && !badge.level && !badge.credits, `no profile badge, level or credits (${JSON.stringify(badge)})`);
   const keys = await G(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
-  assert(['missions', 'coop', 'training', 'freeroam', 'loadout', 'settings', 'feedback'].every((k) => keys.includes(k)) && !keys.includes('legacy'), `the flat main menu (${keys})`);
-
-  await menuClick(page, 'Missions');
-  await page.waitForSelector('.missions-screen .ms-item');
-  const mk = await G(() => ({ n: document.querySelectorAll('.missions-screen .ms-item').length, total: window.__missions.length, play: !!document.querySelector('.play-screen') }));
-  assert(mk.n === mk.total && mk.n > 0 && !mk.play, `slice 4: Missions lists the campaign cards, no Play hub (${JSON.stringify(mk)})`);
-  await G(() => window.__app.screens.pop());
-  await menuClick(page, 'Free roam');
-  await page.waitForSelector('.freeroam-screen .ms-item');
-  assert((await G(() => document.querySelectorAll('.freeroam-screen .ms-item').length)) > 0, 'Free roam lists the sandbox maps');
+  assert(JSON.stringify(keys) === JSON.stringify(['sectorops', 'coop', 'loadout', 'settings', 'feedback']), `the flat main menu: Sector Ops, Co-op, Loadout, Settings, Feedback (${keys})`);
+  await menuClick(page, 'Sector Ops');
+  await page.waitForSelector('.briefing-screen [data-key="deploy"]');
+  assert((await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length)) >= 3, 'Sector Ops opens its briefing with the sectors');
   await G(() => window.__app.screens.pop());
 
   // Loadout (slice 4, D-11: the issued kit, read only; the old screen stays under ?legacy=1)
@@ -73,20 +67,26 @@ try {
   await page.waitForFunction(() => !!document.querySelector('.lobby-screen') && !!window.__coop, null, { timeout: 15000 });
   const lob = await G(async () => {
     const s = window.__coop.session;
-    const row = [...document.querySelectorAll('.lobby-screen .row-choice')].find((r) => /Mode/.test(r.textContent));
-    const arrows = row.querySelectorAll('.choice-arrow');
+    const mode0 = s.mode;
+    const map0 = s.map;
+    const row = () => [...document.querySelectorAll('.lobby-screen .row-choice')].find((r) => /Mode/.test(r.textContent));
     const seen = [];
+    const maps = {};
     for (let i = 0; i < 8; i++) {
-      const v = row.querySelector('.choice-val').textContent;
+      const v = row().querySelector('.choice-val').textContent;
       if (seen.includes(v)) break;
       seen.push(v);
+      maps[v] = s.map;
+      const arrows = row().querySelectorAll('.choice-arrow');
       arrows[arrows.length - 1].click();
       await new Promise((r) => setTimeout(r, 80));
     }
-    return { mode: s.mode, seen };
+    return { mode0, map0, seen, maps };
   });
-  assert(lob.mode === 'infiltration', `a new room starts on Infiltration (${lob.mode})`);
-  assert(JSON.stringify([...lob.seen].sort()) === JSON.stringify(['Free Roam', 'Infiltration']), `the lobby lists Infiltration and Free Roam (${lob.seen})`);
+  // (sector-ops slice 3) co-op is the campaign: Marlow Yard in Course mode by default; the host can switch to Sector Ops
+  assert(lob.mode0 === 'course' && lob.map0 === 'ctcourse', `a new room starts on the campaign, Marlow Yard (${lob.mode0}, ${lob.map0})`);
+  assert(JSON.stringify(lob.seen) === JSON.stringify(['Campaign', 'Sector Ops']), `the lobby lists Campaign and Sector Ops (${lob.seen})`);
+  assert(lob.maps['Sector Ops'] === 'warehouseOps', `Sector Ops runs on the Warehouse sectors (${JSON.stringify(lob.maps)})`);
 
   // saves are untouched by parking: the export keeps its internal magic and an exported file imports (what e2e-progression
   // checked, now that it is a legacy suite), the campaign's loadout choice included
@@ -108,6 +108,18 @@ try {
   await L.waitForSelector('.main-menu');
   const lbadge = await GL(() => ({ level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits') }));
   assert(lbadge.level && lbadge.credits, 'the profile badge shows level and credits');
+  // (sector-ops slice 1) Missions, Training and Free roam only with ?legacy=1
+  const lkeys = await GL(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
+  assert(['sectorops', 'missions', 'coop', 'training', 'freeroam', 'loadout', 'settings', 'feedback', 'legacy'].every((k) => lkeys.includes(k)), `the legacy main menu keeps Missions, Training and Free roam (${lkeys})`);
+  await menuClick(L, 'Missions');
+  await L.waitForSelector('.missions-screen .ms-item');
+  const mk = await GL(() => ({ n: document.querySelectorAll('.missions-screen .ms-item').length, total: window.__missions.length }));
+  assert(mk.n === mk.total && mk.n > 0, `Missions lists the campaign cards (${JSON.stringify(mk)})`);
+  await GL(() => window.__app.screens.pop());
+  await menuClick(L, 'Free roam');
+  await L.waitForSelector('.freeroam-screen .ms-item');
+  assert((await GL(() => document.querySelectorAll('.freeroam-screen .ms-item').length)) > 0, 'Free roam lists the sandbox maps');
+  await GL(() => window.__app.screens.pop());
   await menuClick(L, 'Legacy');
   await L.waitForSelector('.play-screen');
   const lmodes = await playModes(L);

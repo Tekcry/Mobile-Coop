@@ -13,6 +13,7 @@ import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
 import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
+import type { SecWire } from '../game/ctDevices';
 import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
@@ -500,6 +501,11 @@ export class CoopHost implements NetAttachment {
   /** Course mode: the course state, locks and lights to every client. */
   course(w: CourseWire): void {
     this.s.send({ t: 'course', ...w });
+  }
+
+  /** Sector Ops: the cameras, jams and alarm stage to every client (objectives and banners go as items and events). */
+  sector(sec: SecWire): void {
+    this.s.send({ t: 'sector', sec });
   }
 
   /** (locomotion step 13) A client's door-peek crack: in reach (door centre within 1.5 m of its feet), closed and

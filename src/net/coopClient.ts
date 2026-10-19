@@ -21,6 +21,7 @@ import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
+import { CtDevices } from '../game/ctDevices';
 import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
@@ -58,6 +59,8 @@ export class CoopClient implements NetAttachment {
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
   private items = new Map<string, Interactable>();
+  /** Sector Ops: the client's mirror of the cameras and lasers. */
+  private sec: CtDevices | null = null;
 
   constructor(
     private g: GameState,
@@ -78,6 +81,16 @@ export class CoopClient implements NetAttachment {
         if (e.phase === 'start') this.tdKind = e.kind;
       }));
       this.offs.push(() => feed.dispose(), () => disposeClientCourse(g));
+    }
+    if (g.opts.mode === 'sector') {
+      // Sector Ops: the cameras and lasers as the host's `sector` message drives them; our jam goes to the host
+      const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+      this.sec = ct;
+      g.ctDev = ct;
+      this.offs.push(() => {
+        ct.dispose();
+        g.ctDev = null;
+      });
     }
     g.explosions.onLocalBlast = (p) => {
       this.lastBlast = { p: p.clone(), t: this.time };
@@ -117,6 +130,9 @@ export class CoopClient implements NetAttachment {
         break;
       case 'course':
         applyCourseWire(this.g, msg);
+        break;
+      case 'sector':
+        if (msg.sec) this.sec?.apply(msg.sec);
         break;
       case 'end':
         this.onEndMsg(msg.stats);
@@ -551,6 +567,7 @@ export class CoopClient implements NetAttachment {
 
   frameUpdate(dt: number): void {
     if (this.inCourse) clientCourseFrame(this.g, dt);
+    this.sec?.frame(dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     for (const tg of this.targets.values()) tg.sync();
@@ -584,7 +601,7 @@ export class CoopClient implements NetAttachment {
   }
   /** Course mode (CT prototype B3): the held jammer's target for the host. */
   sendJam(tgt: string): void {
-    if (this.inCourse) this.s.toHost({ t: 'jam', tgt });
+    if (this.inCourse || this.sec) this.s.toHost({ t: 'jam', tgt });
   }
   private get inCourse(): boolean {
     return this.g.opts.mode === 'course';

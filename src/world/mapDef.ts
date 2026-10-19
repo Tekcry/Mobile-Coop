@@ -9,6 +9,7 @@ import type { LaserDef } from '../game/jammer';
 import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
+import type { SectorDef } from '../game/sectors';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -90,7 +91,9 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course')[];
+  modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector')[];
+  /** Sector Ops (feature/sector-ops): the sectors in play order (maps that run the `sector` mode). */
+  sectors?: readonly SectorDef[];
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
   art?: VoxelArt;

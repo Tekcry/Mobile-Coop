@@ -177,30 +177,22 @@ try {
   }
 
   console.log('play setup + in-game pause flow');
-  // (menu-ui slice 1: the flat main menu; Missions opens the play setup on Infiltration)
-  for (let i = 0; i < 8 && !/^Missions/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/^Missions/.test(await focusedText(page)), 'menu wraps / reaches Missions');
+  // (sector-ops slice 1: the main menu starts on Sector Ops, which opens its briefing)
+  for (let i = 0; i < 8 && !/^Sector Ops/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/^Sector Ops/.test(await focusedText(page)), 'menu wraps / reaches Sector Ops');
   await press(page, BTN.A);
-  assert(await q('.missions-screen'), 'A opens the missions list');
-  await press(page, BTN.A);
-  assert(await q('.briefing-screen'), 'A on a mission opens its briefing');
-  assert(/Start mission/.test(await focusedText(page)), 'the briefing opens on Start');
+  assert(await q('.briefing-screen'), 'A on Sector Ops opens its briefing');
+  assert(/^Start/.test(await focusedText(page)), 'the briefing opens on Start');
   // difficulty by pad (G106: CT's fixed levels, no sliders): d-pad up to Difficulty, right = Normal -> Realistic
   for (let i = 0; i < 6 && !/Difficulty/.test(await focusedText(page)); i++) await press(page, BTN.UP);
   assert(/Difficulty/.test(await focusedText(page)), `the pad reaches the Difficulty row (${await focusedText(page)})`);
   await press(page, BTN.RIGHT);
   const cd = await page.evaluate(() => ({ choice: document.querySelector('.briefing-screen [data-diff="choice"]')?.textContent ?? '', sliders: document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length }));
   assert(/Realistic/.test(cd.choice) && cd.sliders === 0, `d-pad right picks Realistic; no custom sliders (${JSON.stringify(cd)})`);
-  // back out, then Free roam (the level picked carries over) and Start
   await press(page, BTN.B);
-  await press(page, BTN.B);
-  assert(await q('.main-menu'), 'B twice returns to the main menu');
-  assert(await focusTo(page, /Free roam/), 'focus Free roam');
-  await press(page, BTN.A);
-  assert(await q('.freeroam-screen'), 'A opens the free roam list');
-  await press(page, BTN.A);
-  assert(await q('.briefing-screen') && /^Start/.test(await focusedText(page)), 'A on a map opens its briefing on Start');
-  await press(page, BTN.A);
+  assert(await q('.main-menu'), 'B returns to the main menu');
+  // the checks below need an empty map (Free roam, only behind ?legacy=1 now): the test hook starts it at the level picked
+  await page.evaluate(() => window.__play('warehouse', 'sandbox', 'realistic'));
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);

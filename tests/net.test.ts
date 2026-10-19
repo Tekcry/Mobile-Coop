@@ -357,8 +357,8 @@ describe('net session', () => {
     expect(host.players.size).toBe(2);
     expect(host.allReady).toBe(false);
     // a new room defaults to Infiltration, not the parked Hunter (the client hears it in the lobby)
-    expect(host.mode).toBe('infiltration');
-    expect(cli.mode).toBe('infiltration');
+    expect(host.mode).toBe('course');
+    expect(cli.mode).toBe('course');
     cli.setReady(true);
     expect(host.allReady).toBe(true);
     let started: unknown = null;
@@ -393,14 +393,14 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 21 is refused; version 22 joins (22 = the two-person rope, B7)', () => {
-    expect(PROTOCOL_VERSION).toBe(22);
+  it('a peer on protocol version 22 is refused; version 23 joins (23 = Sector Ops)', () => {
+    expect(PROTOCOL_VERSION).toBe(23);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 21, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 22, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 22, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 23, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -423,6 +423,8 @@ describe('net session', () => {
   it('rooms cap at four players', () => {
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    // (a new room is the two-player campaign since sector-ops; the cap of four is the parked modes')
+    host.setSettings('infiltration', 'warehouse', 'normal');
     for (const id of ['A', 'B', 'C']) new NetSession(h.make(id), 'client', 'ABCDE', prof(id));
     const fifth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
@@ -485,7 +487,7 @@ import { MOVE_MODES, dropBadWallMove, packMoveState, sanitizeMoveState, emptyMov
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(22);
+    expect(PROTOCOL_VERSION).toBe(23);
   });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
@@ -669,7 +671,7 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
   });
   it('PROTOCOL_VERSION is 17; leftHand (128) and low (64) round-trip on a wall state', async () => {
     const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(22);
+    expect(PROTOCOL_VERSION).toBe(23);
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
@@ -713,8 +715,8 @@ describe('step 13: door peek on the wire', () => {
     expect(dcr.length).toBeLessThanOrEqual(MAX_DOORS);
     expect(new Set(dcr).size).toBe(dcr.length);
   });
-  it('PROTOCOL_VERSION is 22', () => {
-    expect(PROTOCOL_VERSION).toBe(22);
+  it('PROTOCOL_VERSION is 23', () => {
+    expect(PROTOCOL_VERSION).toBe(23);
   });
 });
 
@@ -789,7 +791,7 @@ describe('course messages (T1b)', () => {
   });
   it('the course takes two players and the protocol was bumped', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(22);
+    expect(PROTOCOL_VERSION).toBe(23);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

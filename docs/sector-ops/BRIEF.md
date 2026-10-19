@@ -1,6 +1,6 @@
 # Sector Ops and the prototype menu - brief
 
-Set by the orchestrator, 2026-10-19. Branch `feature/sector-ops` (off master 884c195, 4.6.2), folder
+Set by the orchestrator, 2026-10-19. Branch `feature/sector-ops` (off master 884c195, 4.6.2; master 4.6.4 merged in), folder
 `C:/NightShift/Mobile-Coop-sector-ops`. Job format: BRIEF (this file), PLAN, STATE (CLAUDE.md "Sessions" once PR #15
 merges). Prototype effort only: no refining, no art pass (the goal rule).
 
@@ -20,6 +20,19 @@ change mode to deniable ops too). Ask questions as needed."
 - **M3:** a sector is completed by **its objective, then its exit**. Kills are optional, so a ghost run (no kills, never
   seen) is always possible.
 - **M4:** the mode is named **Sector Ops** (never "Deniable Ops" or any Splinter Cell name, CLAUDE.md "No Splinter Cell IP").
+- **M5** (2026-10-19, via the orchestrator): "split existing, but maximise guards on duty per section (clear the previous
+  section once through it), hence i was thinking maybe add new sections to allow an adjoining room or hallway that can
+  load the next area. I would want an many guards as possible patrolling in each section. Im not opposed to a quick
+  prototype level with 5 different sections, all related to the map but different to eachother (section 1 is external
+  courtyard, breaking in. section 2 making way through lobby or service entrance. section 3 making way through offices or
+  warehouse - these are all only examples. base of off existing deniable ops missions but to suit chaos theory style
+  gameplay. conviction was meant for action mainly)"
+- **M5b** (2026-10-19, via the orchestrator): "Research deniable ops and create a comprehensive plan before building if it
+  will result in an easier build." Michael approves the plan before slice 2 starts.
+- **M6** (2026-10-19, via the orchestrator): aim for 20-25 patrolling guards per section, then measure. `MAX_ALIVE = 12`
+  (G46, FU-11) is an unmeasured placeholder: raise it for Sector Ops only (a per-mode cap, other modes unchanged). A
+  `perf.mjs` run on the Sector Ops map with a section's full guard count is "pending PC run"; the count is adjusted from
+  it. Software-GL tests run each section with fewer guards through a test flag.
 
 ## Goal
 1. **Main menu: only Sector Ops and Co-op**, plus Loadout, Settings and Feedback.
@@ -74,3 +87,27 @@ the game.
 - Sector Ops runs solo through every Warehouse sector to the result, and can be ghosted.
 - Co-op hosts Marlow Yard by room code, or switches to Sector Ops.
 - One PR to master. The orchestrator runs the full e2e and merges it.
+
+## Assumed decisions (job lead; each with how to undo)
+- **A1 (first cut, superseded by M5):** slice 2's first cut is four sectors on a copy of the Warehouse
+  (`warehouseOps`), gated in order by exit zones, no new geometry. It ships on this branch as the mode's skeleton and is
+  rebuilt to the five-section plan (`PLAN.md`) once Michael approves it. Undo: `src/world/maps/warehouseSectors.ts`.
+- **A2 (gating, first cut):** a sector's guards spawn when it starts; its exit is a zone that opens after the objective.
+  The plan replaces it with connectors (`PLAN.md` section 3).
+- **A3 (alarm):** CT's alarm stage (G125, 3 stages, never ends the run) plus Hunter's reinforcement rule: a guard's alarm
+  or a camera at full awareness raises the stage by one; each stage sends 2 guards in, hunting, from the section's
+  entry. Undo: `SectorMode.onAlarm` returns false.
+- **A4 (Ghost):** Ghost = 0 kills and 0 times spotted (guard detections plus camera alarms). Knock-outs do not break
+  it; a Ghost run scores +2000. Undo: count `knockouts` in `SectorMode.result`.
+- **A5 (lives):** 3 lives; a down respawns at the sector's start (the connector in the plan). Undo: `SECTOR.lives`.
+- **A6 (suite):** a new required suite `e2e-sectorops`, since e2e-modes went to LEGACY in #15 (the orchestrator agreed).
+- **A7 (test hook):** `window.__play(map, mode, difficulty)` starts a match; e2e-pad uses it for the free-roam match the
+  main menu no longer offers. Undo: drop the hook and the e2e-pad line.
+- **A8 (lobby):** a map set by a test or dev tab that the lobby's list leaves out (Course on courselab) stays listed for
+  that room, so e2e-course keeps working.
+- **A9 (co-op Sector Ops):** two players (like the course); the client mirrors cameras and lasers from a `sector`
+  message (protocol 23); objectives, markers and banners use the existing item and event mirror.
+
+## Level-design exceptions (prototype depth, logged)
+- No map spec, scale sheet or light plan for `warehouseOps`; placeholder geometry; camera and laser placement by eye,
+  lines of sight not audited.

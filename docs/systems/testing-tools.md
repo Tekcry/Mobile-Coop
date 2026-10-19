@@ -161,9 +161,13 @@ behind a VPN adapter).
   plant, rescue + escort, sabotage, extraction, results rating) and failure (the no-detection rule, three downs) on the
   Warehouse missions (Ledger, Courier, Blackout, Cold Storage); routes per objective; no style bars (3 with `LEGACY=1`);
   Hunter's alarm doubles the hostiles
-- `e2e-park` the legacy-off menus (title Night Shift, badge without level / credits, Play lists Infiltration and Free
-  Roam, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept across a reload, a new co-op
-  room on Infiltration, save export / import) and the legacy-on menus (Hunter default)
+- `e2e-sectorops` Sector Ops on `warehouseOps`: a solo walk through every sector (the exit shut before the objective, hack /
+  grab / download, the exit starts the next) to the result line with Ghost (AI and cameras held still), and an alarm
+  (stage up, reinforcements hunting, a kill breaks the Ghost)
+- `e2e-park` the legacy-off menus (title Night Shift, badge without level / credits, the main menu Sector Ops / Co-op / Loadout /
+  Settings / Feedback, the Sector Ops briefing, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept
+  across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the
+  legacy-on menus (Hunter default; Missions and Free roam listed)
 - `e2e-coop` two pages over `?net=local`, opened with `legacy=1`: lobby, a Hunter match (puppet alert levels, door sync,
   a client door use and takedown, kept / hidden bodies, pings both ways, a client gas cloud, a dual takedown, a client
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's

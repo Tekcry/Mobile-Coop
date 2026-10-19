@@ -13,8 +13,8 @@ import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/c
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 
-/** 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 22;
+/** 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 23;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -25,16 +25,16 @@ export const MAX_ITEMS = 128;
 export const MAX_DOORS = 256;
 const WORLD = 400;
 
-/** Co-op: free roam, Hunter (`clear`), Infiltration, the training course. */
+/** Co-op: free roam, Hunter (`clear`), Infiltration, the training course (the campaign), Sector Ops. */
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
-export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course';
-export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course'];
-/** The training course takes exactly two players (P1 host, P2 client). */
+export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector';
+export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course', 'sector'];
+/** The training course and Sector Ops take two players (P1 host, P2 client; G2). */
 export const COURSE_MAX = 2;
 /** Players a mode takes. */
-export const capacity = (m: NetMode): number => (m === 'course' ? COURSE_MAX : COOP_MAX);
+export const capacity = (m: NetMode): number => (m === 'course' || m === 'sector' ? COURSE_MAX : COOP_MAX);
 import { parseDifficulty, type Difficulty } from '../ai/archetypes';
 export type { Difficulty };
 
@@ -173,6 +173,8 @@ export type Msg =
   | { t: 'blast'; x: number; y: number; z: number }
   /** Training course state (host -> all): when it changes or every COURSE_SEND. */
   | ({ t: 'course' } & CourseWire)
+  /** Sector Ops: the cameras' clock, jams and alarm stage (host -> all), on change and every 0.5 s. */
+  | { t: 'sector'; sec?: SecWire }
   /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
   | { t: 'ctick'; verb: ClientVerb }
   /** (CT prototype B3) A client's held pistol jammer: the device it aims at ('' = released); sent on change and every 0.25 s while held. */
@@ -512,6 +514,8 @@ export function parseMessage(raw: unknown): Msg | null {
       const crack = bool(raw.crack);
       return i === null || crack === null ? null : { t: 'door', i, crack };
     }
+    case 'sector':
+      return { t: 'sector', ...secWire(raw.sec) };
     case 'course':
       return parseCourse(raw);
     case 'ctick': {

@@ -42,9 +42,9 @@ export class NetSession {
   readonly events = new EventBus<SessionEvents>();
   readonly players = new Map<string, PlayerInfo>();
   hostId: string | null;
-  /** A new room's mode: Infiltration (the host's lobby sets its mission; `?legacy=1` hosts switch to the parked Hunter). */
-  mode: NetMode = 'infiltration';
-  map = 'warehouse';
+  /** A new room's mode: the campaign, Marlow Yard in Course mode (sector-ops slice 3; `?legacy=1` hosts switch to the parked Hunter). */
+  mode: NetMode = 'course';
+  map = 'ctcourse';
   difficulty: Difficulty = 'normal';
   mission = '';
   weather: WeatherChoice = 'clear';

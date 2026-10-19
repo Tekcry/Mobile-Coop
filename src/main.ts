@@ -131,32 +131,47 @@ async function boot(): Promise<void> {
     } else brightness();
   };
 
-  // menu-ui MD6: the flat main menu. Until the Missions / Training / Free roam screens exist (steps 07+), Missions and
-  // Free roam open the Play screen preset to that mode. Continue waits for a mission checkpoint save (hidden until then).
+  // menu-ui MD6: the flat main menu. Sector Ops (feature/sector-ops): the main menu is Sector Ops, Co-op, Loadout,
+  // Settings and Feedback; Missions, Training and Free roam stay behind `?legacy=1`.
+  const sectorMap = getMap('warehouseOps');
   MainMenuScreen.entries.push(
     (a) => ({
-      key: 'missions',
-      label: 'Missions',
+      key: 'sectorops',
+      label: 'Sector Ops',
       order: 10,
-      counter: () => `${MISSIONS.length}`,
-      ctx: 'The campaign. Pick a mission, read the briefing, choose your way in.',
-      action: () => a.screens.push(new MissionsScreen(a, (o) => startGame(o))),
+      counter: () => `${sectorMap.sectors?.length ?? 0}`,
+      ctx: 'Solo or co-op: the Warehouse in sectors, each harder than the last. Objective, then exit. Kills optional.',
+      action: () => a.screens.push(new BriefingScreen(a, (o) => startGame(o), { kind: 'sector', map: sectorMap })),
     }),
-    () => ({
-      key: 'training',
-      label: 'Training',
-      order: 17,
-      ctx: 'Drills on the Fallow bunker course.',
-      locked: () => 'The bunker is being rebuilt on the new moves. Training returns after the prototype.',
-      action: () => {},
-    }),
-    (a) => ({
-      key: 'freeroam',
-      label: 'Free roam',
-      order: 18,
-      ctx: 'No guards. Explore a map with the full kit.',
-      action: () => a.screens.push(new FreeRoamScreen(a, (o) => startGame(o))),
-    }),
+  );
+  if (flags.legacy) {
+    MainMenuScreen.entries.push(
+      (a) => ({
+        key: 'missions',
+        label: 'Missions',
+        order: 12,
+        counter: () => `${MISSIONS.length}`,
+        ctx: 'The campaign. Pick a mission, read the briefing, choose your way in.',
+        action: () => a.screens.push(new MissionsScreen(a, (o) => startGame(o))),
+      }),
+      () => ({
+        key: 'training',
+        label: 'Training',
+        order: 17,
+        ctx: 'Drills on the Fallow bunker course.',
+        locked: () => 'The bunker is being rebuilt on the new moves. Training returns after the prototype.',
+        action: () => {},
+      }),
+      (a) => ({
+        key: 'freeroam',
+        label: 'Free roam',
+        order: 18,
+        ctx: 'No guards. Explore a map with the full kit.',
+        action: () => a.screens.push(new FreeRoamScreen(a, (o) => startGame(o))),
+      }),
+    );
+  }
+  MainMenuScreen.entries.push(
     (a) => ({ key: 'loadout', label: 'Loadout', order: 20, ctx: flags.legacy ? 'Weapons, attachments and gadget for the next mission.' : 'The kit issued for the mission: weapons, attachments and gadget.', action: () => a.screens.push(flags.legacy ? new LoadoutScreen(a) : new KitScreen(a)) }),
     (a) => ({ key: 'settings', label: 'Settings', order: 80, ctx: 'Controls, graphics, sound, accessibility and save data.', action: () => a.screens.push(new SettingsScreen(a)) }),
     (a) => ({
@@ -192,7 +207,7 @@ async function boot(): Promise<void> {
       key: 'coop',
       label: 'Co-op',
       counter: () => (navigator.onLine ? '' : 'Offline'),
-      ctx: 'Two to four players with a room code. The Fallow bunker is the co-op tutorial.',
+      ctx: 'Two players with a room code. The campaign starts at Marlow Yard, the training course. The host can switch to Sector Ops.',
       order: 15,
       action: () =>
         void loadCoop()
@@ -271,6 +286,9 @@ async function boot(): Promise<void> {
   };
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
+  // tests: start a match from the menu (Free roam left the main menu with sector-ops slice 1; e2e-pad still walks it)
+  (window as unknown as { __play: (map: string, mode: GameOptions['mode'], difficulty?: string) => void }).__play = (map, mode, difficulty) =>
+    startGame({ map: getMap(map), mode, seed: 1, difficulty: parseDifficulty(difficulty) });
 
   // dev only (the level editor's walk test): the editor's unsaved campus, fetched before the map builds; the production
   // build drops this branch and its module
@@ -278,12 +296,14 @@ async function boot(): Promise<void> {
   if (editorWalk) await editorWalk.loadDraft();
   // the training course over `?net=local` (dev tabs, tests): the first tab hosts the map's room, the next joins it; the
   // dev solo flag (`&course=solo`) boots it single player instead
-  const localCourse = !!flags.autostart && flags.mode === 'course' && flags.coop && flags.net === 'local' && !courseSoloFlag();
-  if (localCourse) {
+  // (sector-ops slice 3: Sector Ops the same way, `?net=local&autostart=warehouseOps&mode=sector`)
+  const localMode = flags.mode === 'course' && !courseSoloFlag() ? 'course' : flags.mode === 'sector' ? 'sector' : null;
+  const localCourse = !!flags.autostart && !!localMode && flags.coop && flags.net === 'local';
+  if (localCourse && localMode) {
     goToMenu();
     const mapId = getMap(flags.autostart!).id;
     void loadCoop()
-      .then((m) => m.autoLocalCourse(app, coopApi, mapId))
+      .then((m) => m.autoLocalCourse(app, coopApi, mapId, localMode))
       .catch((e: unknown) => {
         console.error(e);
         app.toasts.show('Co-op unavailable', 'warn');

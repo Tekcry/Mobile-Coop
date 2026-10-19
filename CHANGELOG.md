@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - Sector Ops (feature/sector-ops)
+- Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.
+  Sector Ops opens a briefing (the sectors, Difficulty, Weather, Start).
+- Sector Ops (first cut, to be rebuilt to the five-section plan in `docs/sector-ops/PLAN.md`): a copy of the Warehouse
+  in four sectors played in order, each an objective (hack, grab or download) and then its exit; guards spawn per
+  sector; cameras and laser bands (the CT devices, the pistol jammer blinds them); being spotted raises the alarm stage
+  and sends guards in; 3 lives; the result line shows time, kills, times spotted and Ghost. `?autostart=warehouseOps&mode=sector`.
+- Co-op is the campaign: a new room hosts Marlow Yard in Course mode; the host can switch to Sector Ops (two players).
+  Hunter, Infiltration and Free Roam only with `?legacy=1`. The Co-op entry no longer calls the Fallow bunker the
+  tutorial. Protocol 23 (the `sector` mode and message: the client mirrors cameras and lasers).
+- Tests: a new required suite `e2e-sectorops`; e2e-menus, e2e-park and e2e-pad follow the new menu and lobby.
+
 ## 4.6.4 - Docs: the laptop is a second heavy slot; roadmap is state only (2026-10-19)
 - CLAUDE.md "Machines": two heavy slots, the laptop at low priority, everything headless and invisible (Michael).
 - docs/ROADMAP.md keeps state only; its rules moved to CLAUDE.md "Sessions". Sector Ops and the co-op test fix on the roadmap.
