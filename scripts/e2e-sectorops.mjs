@@ -202,7 +202,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
 // the alarm are armed again and a second panel alarm works.
 console.log('sector ops: a guard raises the live section\'s alarm panel, again after a restart');
 await run(PARAMS, async ({ G, sim }) => {
-  await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; });
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
   await sim(0.5);
   const S = await sections(G);
   await G(() => { const m = window.__sector; m.run.downloading = true; m.run.download(999); });

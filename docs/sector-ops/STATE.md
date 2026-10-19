@@ -4,11 +4,14 @@
 runner serve CT Core first; while CT Core holds the lock, the desktop runs light commands only (tsc, eslint on files,
 targeted vitest) and the suites go to the laptop runner ("Night Shift | Character Build": branch, commit, suites).
 
-**Now:** slice 2 (M7: 3 sections, A12 cut; M8 routes and takedown spots). Step 1 (pure run, connectors, despawn,
-per-mode cap, stars record) and step 2 (geometry, 3 sections, connectors, checkpoint restart) are green on the laptop
-(9b0a254c). Step 3 (stars UI, co-op syringes, the client's live section; protocol 24) is half committed (2fa5a154) and
-being finished.
-**Next:** finish step 3, laptop run, a fresh checker for the slice (one fix round), shots, then the PR to master.
+**Now:** slice 2 built (M7: 3 sections, A12 cut; M8 routes and takedown spots; stars; syringes; protocol 24). Checker
+FAIL on 2079cb14 (alarm panels across sections), one fix round (c1f93ed7, A24), fresh checker PASS
+(`check-slice2-fix.md`). Laptop at c1f93ed7: check, smoke, e2e-sectorops, e2e-stealth-ai, e2e-coop pass. The full
+`npm run e2e` for the PR is on the laptop runner.
+**Next:** full e2e green, then the PR to master; the orchestrator merges (a minor version) and Michael sees it on
+/preview/.
+**Polish list (after Michael plays it):** `step2-report.md` and `step3-report.md` "Polish list", `check-slice2.md`
+items 5 (a restart resets guards, devices, panels and camera meters, not doors or lamps), `check-slice2-fix.md`.
 **Open:**
 - Perf with each section's full guard count (10 / 10 / 11, A13; the 32 cap is a ceiling, not a target): pending PC
   run (`perf.mjs`, PLAN section 6). The counts come from it (M6).
