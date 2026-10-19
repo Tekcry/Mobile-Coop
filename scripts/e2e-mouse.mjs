@@ -83,7 +83,7 @@ const EDGE_HARNESS = () => {
   const s = segs[d.i];
   const k = d.end > 0 ? d.len - 0.8 : 0.8;
   const yaw = Math.atan2(-s.nx, -s.nz);
-  g.player.controller.teleport(new V(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+  g.player.controller.teleport(new V(s.ax + s.tx * k + s.nx * 0.75, s.y + 0.05, s.az + s.tz * k + s.nz * 0.75), yaw);
   g.player.cam.yaw = yaw;
   g.player.cam.pitch = 0;
   a.loop.stepHeadless(0.3, 120);
@@ -120,7 +120,7 @@ const CORNER_SETUP = () => {
     if (g.wallCore.active) g.wallCore.leave('test');
     step(20);
     g.player.controller.clearCrouchToggle();
-    g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+    g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.75, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.75), yaw);
     g.player.cam.yaw = yaw;
     g.player.cam.pitch = 0;
     step(18);
@@ -169,7 +169,7 @@ const WALL_HARNESS = () => {
   }
   const s = segs[seg];
   const yaw = Math.atan2(-s.nx, -s.nz);
-  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.85, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.85), yaw);
+  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.75, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.75), yaw);
   g.player.cam.yaw = yaw;
   g.player.cam.pitch = 0;
   a.loop.stepHeadless(0.3, 120);

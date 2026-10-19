@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 13:40 Sydney (slice A done and on /ct/).
+Updated 2026-10-19 14:15 Sydney (slice A on /ct/, origin/master merged).
 
 ## Resume
 New local session, Opus, medium effort:
@@ -29,29 +29,31 @@ Log of every slice: `LOG.md`. Polish list (not worked on until Michael says): `P
 - Master has all overnight work: PR #9 merged (2e141075): movement A1-A5, posture P1-P1c, playtest 1 fixes F1a / F1b,
   CT training course `ctcourse` B1-B8 (all 8 stations with real co-op moves, revive, finish), T1 / T2 test clean-up.
   Protocol 22. /ct/ was moved by the orchestrator to 7e6229d for Michael's playtest 2.
-- Branch after #9: docs-only commits (STATE, RULES: orchestrator reporting and heavy slot). Master also has PR #10
-  (CLAUDE.md "Orchestrator"): merge origin/master into this branch after slice A (docs only).
 - Michael's playtest 2 notes and approved plan: `PLAYTEST-2.md`.
 
-## Slice A (playtest 2) - DONE 2026-10-19 (report `A-PLAYTEST2.md`)
-Committed and pushed to the branch and /ct/. Check green, smoke / move / wall / pad / foley pass. The walking bob is NOT
-fixed (rig `pelvisDrop`, leg geometry): it moves to B+C. e2e-ctcourse passes stations 1-6 on this branch (the station 2
-legUp hang the orchestrator saw on master bd59f32 does not happen here) and then hits the 600 s suite cap at station 7:
-rerun with `E2E_SUITE_TIMEOUT=900` after the master merge; if station 2 hangs after the merge, it came from master
-(anim-cleanup or phone-launch) and gets its own slice.
+## Slice A (playtest 2) - DONE 2026-10-19 (report `A-PLAYTEST2.md`, e9fd03c6)
+The walking bob is NOT fixed (rig `pelvisDrop`, leg geometry): it moves to B+C.
+
+## Master merged (bccc96cf, 2026-10-19 14:00: anim-cleanup #12, phone-launch #13, menu #11)
+Clean merge; check green (1751 unit tests). Slice A's wall reach 0.5 m: wall-entry teleports in e2e-netmove, e2e-mouse,
+e2e-stealth-ai, anim-audit, anim-sheet moved 0.85 -> 0.75 m out (mouse, stealth-ai pass). Co-op test waits are owned by
+**Character Build** (laptop, untilSim, PR #15 process audit): do not edit e2e-ctcourse / e2e-net-lib waits; tell the
+orchestrator first if e2e-ctcourse must change. Findings sent to it: ctcourse station 2 is a wall-clock wait (the host
+reaches the hang after 12 s at ~280 ms SwiftShader frames; with 30 s and a 900 s cap the whole course passes, 728 s);
+netmove "stacked on one wall" (0.62 m along, 0.41 m apart) repeats, same lag. When #15 lands: take its e2e-mouse /
+e2e-pad and re-apply 0.75 only where a wall entry is left. Tests per slice after #15: e2e:quick + e2e-ctcourse, plus
+coop and netmove when src/net, src/player or src/game change.
+Versions (G183): master sets the version per PR; never bump package.json here.
 
 ## Next
-1. Merge origin/master (anim-cleanup PR #12 b08cc176, phone-launch PR #13, PR #10 docs; expect overlaps in
-   characterRig.ts, animGraph.ts (slice A's `sightPos` swap fix vs anim-cleanup's shoulder swap), src/weapons/*,
-   remoteAvatar.ts). Then check, e2e-ctcourse (900 s cap), e2e-netmove (holster budget 550 ms from master).
-2. Scanner rule (Michael): no HP cost when the partner never started; 10 HP stays for a late or abandoned hack.
-3. Slices **B+C** (the arm / hand freeze ends with anim-cleanup in master), with the walking bob from slice A: ADS against the CT footage (aim view unchanged
+1. Scanner rule (Michael): no HP cost when the partner never started; 10 HP stays for a late or abandoned hack.
+2. Slices **B+C**, with the walking bob from slice A: ADS against the CT footage (aim view unchanged
    when crouched for every weapon; upper body tight, not wrist-only tilting; arms less outstretched; natural pistol
    aim); legs in line with the body walking, running and turning; crouch hands and legs from the CT references.
-4. Then **D+E** (re-check against anim-cleanup first; Michael played without it): rifle and pistol holstering; hanging
+3. Then **D+E** (re-check against anim-cleanup first; Michael played without it): rifle and pistol holstering; hanging
    shimmy with wider, slower hands; vertical pipe climb (legs swing upside down, hands backwards); ledge climb-up onto
    the knees, not floating.
-5. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
+4. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
 
 ## Answered (Michael via the orchestrator, 2026-10-19; DECISIONS.md)
 Wheel stays LB hold; no lethal / non-lethal switch; gun drawn, A reloads (kept); scanners: no HP cost when the partner

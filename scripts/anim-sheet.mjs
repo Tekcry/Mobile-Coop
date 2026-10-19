@@ -106,7 +106,7 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
     }
     if (!found) throw new Error(`no free ${wall.low ? 'low' : 'high'} wall on Proving`);
     const k = wall.k < 0 ? found.len + wall.k : wall.k;
-    pos = [found.ax + found.tx * k + found.nx * 0.85, found.az + found.tz * k + found.nz * 0.85];
+    pos = [found.ax + found.tx * k + found.nx * 0.75, found.az + found.tz * k + found.nz * 0.75];
     yaw = Math.atan2(-found.nx, -found.nz);
     y = found.y + 0.05;
   }
