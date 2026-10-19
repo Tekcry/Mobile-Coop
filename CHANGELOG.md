@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.8.0 - Menu notes: black launch screen, goggle flicker, menu weapons and poses (2026-10-19, PR #27)
+- Launch (M1, M2, notes 1-2): one black screen with the NIGHT / SHIFT wordmark only, held until Wren's hero model,
+  both weapon meshes and the shaders are ready (`src/world/menuGate.ts`: a stall timeout of 12 s with no bytes
+  arriving, a hard cap of 120 s, never stranded); then only the press prompt fades in. The title stage is pure black;
+  the press fades the wordmark and prompt out, Wren's goggles flicker on in full darkness with no menu on screen, then
+  the light rises on the close-up and the main menu fades in (M3; a second press skips to the lit menu, A3; launch only).
+- Music: the menu theme decodes at boot and plays on the title, or starts on the first key, click or pad press when
+  autoplay is blocked.
+- Main menu: Back no longer returns to the title (A1). The Pause menu's Controls item is gone; Settings > Controls is the
+  one place (A2). Settings > Gameplay drops the Default shoulder row (CT: the camera is always over the right shoulder
+  when holstered); the Controls screen lists the CT trigger and mouse verbs (holstered knockout / lethal palm strike,
+  drawn secondary / primary fire; right click draws and holsters).
+- Hero quality (note 4): the menu close-ups always draw the hero LOD on desktop presets (no fix needed; the jump was the
+  LOD2 -> LOD0 -> hero load order, now behind the load gate); read-back `MenuState.heroLod`.
+- Menu weapons (notes 5-6): the Blender rifle and pistol on Wren in every title and main-menu shot, one held at low or
+  compressed ready, the other holstered or on the back (`src/world/menuPoses.ts`; new shots W1, W2); the void no
+  longer shows a lone magazine or placeholder gun; a unit guard keeps the support hand off the magazine.
+- Tactical shot (M4): W3 joins the main-menu deck, Wren on the sights with the rifle shouldered (Michael's pick X5 of
+  the slice 4b mock-ups). The green goggle-spill spot in the face shots is gone: it reflected as a stray glow on the
+  goggle housing and helmet above the lenses; the lens flicker itself is unchanged.
+- Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; `tests/titleSequence.test.ts`; e2e-menus checks the load
+  gate, the dark title, the prompt fade, the sequence and the skip; e2e-pad follows the shorter Pause menu and the pad skip; GPU script `scripts/menu-boot-shots.mjs`.
+
 ## 4.7.5 - lightField heap check stable under load (2026-10-19, PR #26)
 - tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
   compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it

@@ -60,6 +60,12 @@ const sameBoxes = async (scope) => {
 try {
   await page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
   await frames(page, 5);
+  // (menu-notes notes 2 / 4) the load screen held the menu until Wren's close-up LOD was drawn (`?gfx=min`: LOD2)
+  const gate = await G(() => { const s = window.__app.current; return { gate: s.bootGate, lod: s.heroLod, want: s.heroLodWanted, hold: window.__app.bootHold }; });
+  console.log(`load screen gate: ${gate.gate}`);
+  // ('ready', or the 12 s automation cap: software GL under load may not finish compiling in time, so a cap expiry is
+  // logged, not failed; an error, a stall or a stranded hold fails)
+  assert((gate.gate.startsWith('ready') || /^timeout: .*cap of 12 s/.test(gate.gate)) && gate.lod === gate.want && !gate.hold, `load screen: the menu shows with Wren's close-up LOD drawn (${JSON.stringify(gate)})`);
 
   console.log('main menu: keyboard');
   assert((await fk()) === 'sectorops', `default focus Sector Ops (${await fk()})`);
@@ -91,10 +97,12 @@ try {
   await mouseBack();
   assert((await top()) === 'main-menu' && (await fk()) === 'settings', 'mouse button 4 is Back');
   const mm = await sameBoxes('.main-menu');
-  assert(mm.n > 6 && mm.moved === 0, `main menu: a device switch moves nothing (${mm.n} boxes, ${mm.moved} moved)`);
-  // every legend item by click: Back (the title is off under automation: stays), Select opens the focused item
-  await clickAt('.main-menu .ms-lg[data-legend="back"]');
-  assert((await top()) === 'main-menu', 'the Back legend on the root menu stays (no title under automation)');
+  assert(mm.n >= 6 && mm.moved === 0, `main menu: a device switch moves nothing (${mm.n} boxes, ${mm.moved} moved)`); // (5 items since 4.7.0 + the Select legend; menu-notes A1 dropped Back)
+  // (menu-notes A1) the root menu has no Back legend item and Back does nothing (no way back to the title)
+  assert(await G(() => !document.querySelector('.main-menu .ms-lg[data-legend="back"]')), 'the root menu legend has no Back item');
+  await key('Escape');
+  assert((await top()) === 'main-menu', 'Back on the root menu stays on the main menu');
+  // every legend item by click: Select opens the focused item
   await clickAt('.main-menu .ms-lg[data-legend="confirm"]');
   assert((await top()) === 'settings-screen', 'the Select legend confirms the focused item');
 
@@ -219,7 +227,7 @@ try {
   // slice 6: the cinematic background - the shot hook, the fast clock, navigation during a fade, reduced motion
   console.log('cinematic background');
   const shotOf = (P) => P.evaluate(() => ({ id: window.__app.current?.shotId, n: window.__app.current?.shotChanges ?? -1, fade: window.__app.current?.shotFade ?? 0 }));
-  assert(/^(T2|H[1-6])$/.test((await shotOf(page)).id), `the main menu runs a cinematic shot (${(await shotOf(page)).id})`);
+  assert(/^(T2|H[1-6]|W[1-3])$/.test((await shotOf(page)).id), `the main menu runs a cinematic shot (${(await shotOf(page)).id})`);
   {
     const F = await launch({ url, params: 'menuShot=H3', viewport: { width: 1280, height: 720 } });
     try {
@@ -271,6 +279,60 @@ try {
       assert(rm.id === 'T2' && rm.n === 0 && rm.fade === 0, `reduced motion holds T2 (${JSON.stringify(rm)})`);
       const pe = F.errors.filter((e) => (e.startsWith('[pageerror]') || e.startsWith('[error]')) && !e.includes('GPU stall') && !e.includes('swiftshader'));
       assert(!pe.length, `no page errors (${pe.join(' | ')})`);
+    } finally {
+      await F.browser.close();
+    }
+  }
+  // (menu-notes slice 4a, M1) the title in full darkness until the press; the press strikes the goggle, then the lights
+  // come up and T2 opens the main menu (light state read back from MenuState.titleLight; pixels are a GPU check)
+  {
+    const F = await launch({ url, params: 'title=1', viewport: { width: 1280, height: 720 } });
+    try {
+      await F.page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && window.__app.screens.top?.el.classList.contains('title-screen'), null, { timeout: 90000 });
+      // (M2) the prompt has faded in after the load (the wordmark-only boot itself: menu-boot-shots.mjs)
+      await F.page.waitForFunction(() => getComputedStyle(document.querySelector('.title-screen .ts-press')).filter === 'none', null, { timeout: 10000, polling: 100 }).catch(() => {});
+      const pr = await F.page.evaluate(() => ({ wait: !!document.querySelector('.title-screen.ts-wait'), f: getComputedStyle(document.querySelector('.title-screen .ts-press')).filter }));
+      assert(!pr.wait && pr.f === 'none', `the press prompt fades in once the menu is ready (${JSON.stringify(pr)})`);
+      const tl = () => F.page.evaluate(() => window.__app.current?.titleLight);
+      const dk = await tl();
+      assert(dk?.phase === 'dark' && dk.lit === 0 && dk.glow === 0 && dk.spots === 0 && dk.hemi === 0 && dk.ambient === 0 && dk.clear === 0 && dk.goggle === 0 && dk.lens === 0, `the title is dark: no light, no goggle (${JSON.stringify(dk)})`);
+      await F.page.keyboard.press('Space');
+      await F.page.waitForFunction(() => window.__app.current?.titleLight?.phase !== 'dark', null, { timeout: 10000 }).catch(() => {});
+      // (slice 4c, M3) the title stays on top as a clear layer (prompt and wordmark fading out), no menu under it, while
+      // the goggle strikes; the music is not asked to start again (it began on the press)
+      await F.page.waitForTimeout(500);
+      const sq = await F.page.evaluate(() => ({
+        phase: window.__app.current?.titleLight?.phase,
+        top: window.__app.screens.top?.el.classList[1],
+        seq: window.__app.screens.top?.seqPhase,
+        card: getComputedStyle(document.querySelector('.title-screen .ts-card')).opacity,
+        menu: document.querySelector('.main-menu')?.hidden,
+      }));
+      assert((sq.phase === 'ignite' || sq.phase === 'done') && sq.top === 'title-screen' && sq.seq === 'seq' && sq.menu === true, `the press strikes the goggle in the dark with no menu UI (${JSON.stringify(sq)})`);
+      assert(sq.card === '0' || sq.phase === 'done', `the prompt and wordmark have faded out (${sq.card})`);
+      // the menu is in once the lights are up (input blocked until then)
+      await F.page.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 60000 }).catch(() => {});
+      const up = await tl();
+      const sid = await F.page.evaluate(() => window.__app.current?.shotId);
+      const topIn = await F.page.evaluate(() => window.__app.screens.top?.el.classList[1]);
+      assert(topIn === 'main-menu' && up?.phase === 'done' && up.lit === 1 && up.spots > 0 && sid === 'T2', `then the lights are up, T2 opens and the main menu is in (${topIn}, ${JSON.stringify(up)}, ${sid})`);
+    } finally {
+      await F.browser.close();
+    }
+  }
+  // (slice 4c fix, A3) a mouse start then Enter during the black: the skip lands on the lit menu, nothing opened
+  {
+    const F = await launch({ url, params: 'title=1', viewport: { width: 1280, height: 720 } });
+    try {
+      await F.page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && window.__app.screens.top?.el.classList.contains('title-screen'), null, { timeout: 90000 });
+      await F.page.waitForTimeout(1000);
+      await F.page.click('.title-screen .ts-press');
+      await F.page.waitForTimeout(400);
+      await F.page.keyboard.press('Enter');
+      await F.page.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 10000 }).catch(() => {});
+      await F.page.waitForTimeout(300);
+      const s = await F.page.evaluate(() => ({ top: window.__app.screens.top?.el.classList[1], depth: window.__app.screens.depth, f: window.__app.nav.focused?.dataset.key, phase: window.__app.current?.titleLight?.phase }));
+      assert(s.top === 'main-menu' && s.depth === 1 && s.f === 'sectorops' && s.phase === 'done', `click to start, Enter skips to the lit main menu and opens nothing (${JSON.stringify(s)})`);
     } finally {
       await F.browser.close();
     }
@@ -330,7 +392,8 @@ try {
     assert((await mtop()) === 'pause-screen' && (await mkey()) === 'resume', 'pause opens on the field terminal with Resume focused');
     assert(await GM(() => getComputedStyle(document.querySelector('.hud')).display === 'none'), 'the HUD hides while paused');
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
-    assert(keys === 'resume,objectives,settings,controls,report-feedback,quit', `pause items (${keys})`);
+    // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
+    assert(keys === 'resume,objectives,settings,report-feedback,quit', `pause items (${keys})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));

@@ -94,17 +94,25 @@ export function loadPlayLods(f: OperatorFigure): void {
 
 /**
  * The menu's order: LOD2 (on screen in a moment), LOD0, LOD1 parsed ahead of a match, then the close-up LOD (the hero),
- * last so it never holds up the files play needs (`?gfx=min`: LOD2 only).
+ * last so it never holds up the files play needs (`?gfx=min`: LOD2 only). Resolves when the whole chain has settled
+ * (loaded or failed; never rejects): the menu's load screen waits for it (menu-notes note 2).
  */
-export function loadMenuLods(f: OperatorFigure, prefetch: (url: string) => Promise<unknown>): void {
+export function loadMenuLods(f: OperatorFigure, prefetch: (url: string) => Promise<unknown>): Promise<void> {
   // (11e fix r1, A109) once the play LODs are in, they go into the offline cache (through the worker), then the hero
   const warm = (): Promise<number> => warmPlayLods(playLodUrls(f.manifest, MIN_LODS));
   if (MIN_LODS) {
-    f.load(LOD_2).catch((e: unknown) => warnLoad(e, f)).finally(() => void warm());
-    return;
+    return f
+      .load(LOD_2)
+      .catch((e: unknown) => warnLoad(e, f))
+      .then(warm)
+      .then(
+        () => {},
+        () => {},
+      );
   }
   const lod1 = f.manifest.urls[2];
-  f.load(LOD_2)
+  return f
+    .load(LOD_2)
     .then(() => f.load(LOD_0))
     .then(() => (lod1 ? prefetch(lod1) : null))
     .then(warm)

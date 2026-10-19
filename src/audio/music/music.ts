@@ -20,6 +20,11 @@ export class Music {
     this.score.menu();
   }
 
+  /** (menu-notes note 2) The menu is loading behind the boot screen: decode the theme now, start it with `menu()`. */
+  preloadMenu(): void {
+    this.score.preloadMenu();
+  }
+
   /** A match starts. */
   mission(): void {
     this.score.mission();
