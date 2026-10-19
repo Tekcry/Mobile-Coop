@@ -34,8 +34,8 @@ describe('attach specs', () => {
       expect(s.allow.drop).toBe(true);
       expect(s.holster).toBe(true);
     }
-    // stated bands: shimmy ~1.2 m/s, pipe climb ~0.9, crawl ~0.9, ladder 1.6 rungs/s
-    expect(ATTACH.ledge.speed).toBeCloseTo(1.2);
+    // stated bands: shimmy ~0.7 m/s (ct-prototype D2b, Michael; was 1.2), pipe climb ~0.9, crawl ~0.9, ladder 1.6 rungs/s
+    expect(ATTACH.ledge.speed).toBeCloseTo(0.7);
     expect(ATTACH.pipeV.speed).toBeCloseTo(0.9);
     expect(ATTACH.duct.speed).toBeCloseTo(0.9);
     expect(ATTACH.ladder.speed / 0.3).toBeCloseTo(LADDER_RUNG_RATE);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GripStepper, type GripConfig } from '../src/player/gripStepper';
 import { AttachGrips, ARM_SWEEP_RATE, minReachSwing } from '../src/player/attachGrips';
 import { proportions } from '../src/player/proportions';
+import { ATTACH } from '../src/player/attach';
 import { findJumpTarget, ledgeContinuation, generateLedges, makeLedge, TraversalAnchors, type AnchorBox, type Ladder, type Ledge, type PipeHorizontal } from '../src/world/anchors';
 
 const lip = (): GripConfig => ({ offL: -0.22, offR: 0.22, slack: 0.12, swingTime: 0.13, lead: 1, grid: 0, gridOrigin: 0, min: 0, max: 10 });
@@ -45,25 +46,41 @@ describe('grip stepper', () => {
     expect(g.steps).toBeGreaterThan(10);
   });
 
-  it('(ct-prototype D2) the ledge shimmy: wider, longer reaches; at the start the trailing hand goes first', () => {
-    const cfg: GripConfig = { offL: -0.24, offR: 0.24, slack: 0.14, swingTime: 0.18, lead: 0.8, grid: 0, gridOrigin: 0, min: 0, max: 20 };
+  it('(ct-prototype D2b) the ledge shimmy at its table speed: one hand at a time, ~1.8 reaches a second per hand, in reach', () => {
+    const v = ATTACH.ledge.speed;
+    const cfg: GripConfig = { offL: -0.26, offR: 0.26, slack: 0.08, swingTime: 0.28, lead: 0, leadTime: 0.42, overlap: false, alternate: 0.02, grid: 0, gridOrigin: 0, min: 0, max: 20 };
     const g = new GripStepper(cfg);
     g.reset(2);
     let first: 'L' | 'R' | null = null;
+    let both = false;
     let body = 2;
+    let lo = 0;
+    let hi = 0;
     for (let i = 0; i < 4 * 120; i++) {
-      body += 1.2 / 120;
-      g.update(1 / 120, body, 1.2);
+      body += v / 120;
+      g.update(1 / 120, body, v);
       if (!first && g.L.swing >= 0) first = 'L';
       if (!first && g.R.swing >= 0) first = 'R';
+      if (g.L.swing >= 0 && g.R.swing >= 0) both = true;
+      // planted hands relative to the body: the trailing (left) never past -0.42, the leading (right) never past 0.4
+      if (i > 120 && g.L.swing < 0) lo = Math.min(lo, g.L.at - body);
+      if (i > 120 && g.R.swing < 0) hi = Math.max(hi, g.R.at - body);
     }
     // moving +: the left hand trails, so it lets go first (a tie at the start)
     expect(first).toBe('L');
-    // fewer, longer reaches than the old ledge set (~5 a second per hand): 4 s, both hands
-    expect(g.steps).toBeLessThan(38);
-    const r = shimmy(g, cfg, body, 1.2, 3);
+    expect(both).toBe(false);
+    // ~1.8 reaches a second per hand (4 s, both hands; was ~5 at 1.2 m/s)
+    expect(g.steps).toBeGreaterThanOrEqual(10);
+    expect(g.steps).toBeLessThanOrEqual(15);
+    expect(lo).toBeGreaterThan(-0.42);
+    expect(hi).toBeLessThan(0.4);
+    // stopping: the last reach lands no further out than its spot plus the slack
+    g.update(1 / 120, body, 0);
+    for (let i = 0; i < 120; i++) g.update(1 / 120, body, 0);
+    expect(Math.abs(g.R.at - body)).toBeLessThan(0.26 + cfg.slack + 0.01);
+    const r = shimmy(g, cfg, body, v, 3);
     expect(r.slid).toBe(false);
-    expect(r.maxErr).toBeLessThan(cfg.slack + 1.2 * cfg.swingTime + 0.02);
+    expect(r.maxErr).toBeLessThan(cfg.slack + v * cfg.swingTime + 0.02);
   });
 
   it('(ct-prototype D+E fix r1) offsets of the same sign (drainpipe hands / feet) still step from a tie', () => {

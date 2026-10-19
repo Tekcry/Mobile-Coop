@@ -70,7 +70,8 @@ export const ATTACH: Record<AttachKind, AttachSpec> = {
   ladder: { axis: 'vertical', speed: LADDER_RUNG_RATE * 0.3, accel: 6, dead: 0.25, enter: 0.35, exit: 0.45, camera: 'ladder', allow: { ...NO }, holster: true },
   pipeV: { axis: 'vertical', speed: 0.9, accel: 6, dead: 0.25, enter: 0.35, exit: 0.45, camera: 'pipe', allow: { ...NO, takedown: true }, holster: true },
   pipeH: { axis: 'along', speed: 1.0, accel: 6, dead: 0.25, enter: 0.3, exit: 0.35, camera: 'pipeH', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
-  ledge: { axis: 'along', speed: 1.2, accel: 8, dead: 0.25, enter: 0.3, exit: 0.4, camera: 'hang', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
+  // (ct-prototype D2b, Michael: slower, so the hands step slower and wider) the hang shimmy, was 1.2 m/s
+  ledge: { axis: 'along', speed: 0.7, accel: 8, dead: 0.25, enter: 0.3, exit: 0.4, camera: 'hang', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
   duct: { axis: 'path', speed: 0.9, accel: 6, dead: 0.2, enter: 0.45, exit: 0.45, camera: 'duct', allow: { ...NO, takedown: true, gadgets: true }, holster: true },
   zipline: { axis: 'auto', speed: ZIP_SPEED, accel: ZIP_ACCEL, dead: 0, enter: 0.3, exit: 0.3, camera: 'zipline', allow: { ...NO, sidearm: true, takedown: true, traverse: false }, holster: true },
   // (3.2.0) the Chaos Theory split jump: braced between two walls, no travel; a sidearm from it

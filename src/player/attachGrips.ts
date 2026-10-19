@@ -153,6 +153,10 @@ export class AttachGrips {
     const h = this.hands.cfg;
     const f = this.feet.cfg;
     this.handSwingMin = 0;
+    // (ct-prototype D2b) the ledge's one-at-a-time, speed-led reach; every other anchor keeps the quick hand-over-hand
+    h.overlap = true;
+    h.leadTime = 0;
+    h.alternate = undefined;
     switch (a.kind) {
       case 'pipeH': {
         // facing along the pipe: the right hand leads, the left a hand's width behind (a shuffle along it)
@@ -172,20 +176,22 @@ export class AttachGrips {
         // which way along the axis is the body's right (the right hand grips on that side)
         const p = attachPose(a, s, face, height, this.ap);
         const sgn = a.tx * Math.cos(p.yaw) - a.tz * Math.sin(p.yaw) >= 0 ? 1 : -1;
-        // (ct-prototype D2, Michael: "hands move too quickly ... should be wider") hands a little wider apart (±0.24, was
-        // 0.22), longer reaches (slack 0.14, was 0.12) that take longer (0.18 s, was 0.13) with a higher lift and outward
-        // arc (alongLip). At the unchanged 1.2 m/s shimmy the hands cannot go much slower: the brief's ~2 reaches a second
-        // one at a time needs ~0.7 m reaches, and every slower set tried (0.22-0.3 s, one at a time or 55-65 % overlap)
-        // left a waiting hand off its grip, crossing under the body or past the arm's reach (e2e-traverse grip reach
-        // 4-33 cm). Slower hands need a slower shimmy (DE-ANIM.md).
-        h.offL = -0.24 * k * sgn;
-        h.offR = 0.24 * k * sgn;
-        h.slack = 0.14;
-        h.swingTime = 0.18;
+        // (ct-prototype D2 / D2b, Michael: "hands move too quickly ... should be wider"; then the shimmy slowed to 0.7 m/s)
+        // slow reaches strictly one hand at a time, back to back (alternate: 0.28 s each, was 0.13 s at 50 % overlap), each
+        // ~0.39 m along the lip at full speed: ~1.8 reaches a second per hand (was ~5). The re-grip lands ahead by the speed
+        // lead (0.42 s of travel), not by the slack, so a reach taken as she stops lands on its spot instead of past the
+        // arm's reach; a short slack (0.08) starts the first reach early so the waiting hand never drifts under the body
+        h.offL = -0.26 * k * sgn;
+        h.offR = 0.26 * k * sgn;
+        h.slack = 0.08;
+        h.swingTime = 0.28;
         h.grid = 0;
         h.min = 0.08;
         h.max = a.len - 0.08;
-        h.lead = 0.8;
+        h.lead = 0;
+        h.leadTime = 0.42;
+        h.overlap = false;
+        h.alternate = 0.02;
         break;
       }
       case 'ladder':

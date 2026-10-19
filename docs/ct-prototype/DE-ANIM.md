@@ -76,6 +76,31 @@ functions (`attachGripWeight`, `climbUpFootWeight` in moveState.ts). Remotes sti
   (The first fix attempt, which also reordered ladders, failed e2e-netmove "ladder after a climb: ankleL 0.288";
   restricting the rule to ledges fixed it.)
 
+## D2b Hang shimmy at 0.7 m/s (Michael's answer)
+- Speed: `ATTACH.ledge.speed` 1.2 -> 0.7 m/s (attach.ts). tests/attach.test.ts states the new band; e2e-traverse reads
+  the speed from the game (`ac.m.spec.speed`) for its band (0.71-1.08 x, as the old 0.85-1.3 at 1.2) and scales its
+  timed walks along the lip (jump across, corner) by 1.2 / speed; the walk back past the drainpipe now drops off until
+  free (at 0.7 m/s it could end mid-transfer, where one drop press waited).
+- Hands, strictly one at a time, back to back: ±0.26 (was 0.24), reach 0.28 s (0.18), ~0.39 m per reach at full speed:
+  ~1.8 reaches a second per hand (was ~5 at 1.2 m/s). Lift 9 cm and outward arc 8 cm kept.
+  - New in gripStepper.ts: `leadTime` (the re-grip lands ahead by |speed| x 0.42 s, not by the slack: at full speed
+    each hand lands ~0.1 m ahead of its spot, and a reach taken as she stops lands on its spot instead of past the
+    arm's reach) and `alternate` (once a hand lands the other goes as soon as it trails 2 cm, so the reaches run back
+    to back instead of a waiting hand drifting a whole reach). A hand ahead of its spot never steps while moving. The
+    first reach after a grab runs at twice the pace, so the other hand is not left behind while the body speeds up.
+  - Slack 0.08 (only the first reach and a restart wait on it). The brief's slack 0.22-0.26 left the waiting hand at
+    the start ~0.35 m off its spot, under the body (e2e-traverse reach 4-7 cm).
+  - Planted hands stay between -0.42 and +0.40 m of the body (new unit test), against ~0.34 / 0.42 before.
+- e2e-traverse "shimmy: hands reach their grips": fixed, not relaxed: 1.6 cm (limit 3; was 3.3). The 3.3 cm was the
+  leading hand left planted from the grab while the trailing one reached: at the start both hands reached their slack
+  together and one waited a full reach. The quick first reach fixes it.
+- Ladders, drainpipes and pipes are unchanged (`alternate` and `leadTime` are set on ledges only).
+- Sheets: `traverse/hang-shimmy-dense-0.6..1.4` (after the grab, both hands alternating every ~0.3 s; one hand up and out
+  at a time) and hang-shimmy-0.5/1.2/2.2.
+- Results (final build, solo on 4193): `npm run check` passes (156 files, 1753 tests, 1 skipped);
+  e2e-traverse ok (50 s, every check, shimmy 0.68 m/s, reach 1.6 cm), e2e-clip ok, e2e-ctcourse ok (649 s), e2e-netmove ok
+  (248 s), e2e-coop ok (205 s). No wire change (speed and hands are shared code).
+
 ## Files
 src/weapons/weaponModel.ts, src/anim/animGraph.ts, src/anim/clips/actions.ts, src/anim/clips/traverse.ts,
 src/player/characterRig.ts, src/player/attachGrips.ts, src/player/gripStepper.ts, src/player/attachController.ts,

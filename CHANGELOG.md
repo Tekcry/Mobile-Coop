@@ -6,6 +6,8 @@
   shimmy's reaches are a little wider, longer and higher (slower hands need a slower shimmy, open); drainpipe knees
   bend up and forward and the feet stay under the hips; the ledge climb-up (1.1 s) pulls up on held hands, puts a knee
   on the top, then stands.
+- Slice D2b (Michael): the hang shimmy slows to 0.7 m/s (was 1.2) with slow, wide reaches one hand at a time, about
+  two a second per hand.
 
 ## 4.6.5 - Co-op test fix: reliable co-op suites (2026-10-19, PR #17)
 The process audit's section 2 (Michael approved; `docs/coop-tests/`). Tests only, no game change.

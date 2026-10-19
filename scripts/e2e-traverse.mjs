@@ -105,7 +105,7 @@ const setup = () =>
       const a = ac.m.anchor;
       return {
         x: c.pos.x, y: c.pos.y, z: c.pos.z, yaw: c.yaw, grounded: c.grounded,
-        attached: ac.active, kind: a?.kind ?? null, id: a?.id ?? -1, nx: a?.nx ?? 0, nz: a?.nz ?? 0, phase: ac.m.phase, s: ac.m.s, v: ac.m.v,
+        attached: ac.active, kind: a?.kind ?? null, spd: ac.m.spec?.speed ?? 0, id: a?.id ?? -1, nx: a?.nx ?? 0, nz: a?.nz ?? 0, phase: ac.m.phase, s: ac.m.s, v: ac.m.v,
         held: !!st.player.rig.heldWeapon, cam: st.player.cam.attach, trav: st.player.pose.traverse,
         hint: ac.hint ? `${ac.hint.anchor.kind}:${ac.hint.entry}` : ac.lower ? `${ac.lower.anchor.kind}:${ac.lower.entry}` : null,
         prompt: st.hud.world.label('vault'), jumpPrompt: st.hud.world.label('jumpTo'), dropPrompt: st.hud.world.label('drop'),
@@ -250,10 +250,13 @@ try {
   }
   i = await I();
   assert(seenPipe && i.kind === 'ledge' && i.x < 27.6, `shimmying past the pipe climbs onto it and back off beyond (pipe ${seenPipe}, x ${f2(i.x)})`);
-  await tap(BTN.B);
-  await run(1.2);
+  // (ct-prototype D2b) drop off until free: at the slower shimmy the walk back can end mid-transfer, where a drop waits
+  for (let k = 0; k < 4 && (await I()).attached; k++) {
+    await tap(BTN.B);
+    await run(1.2);
+  }
 
-  // --- ledge from below: grab, shimmy at ~1.2 m/s with locked hands, corner, jump across, climb up
+  // --- ledge from below: grab, shimmy at the table speed (ATTACH.ledge, ~0.7 m/s) with locked hands, corner, jump across, climb up
   await tp(25.45, 0, 16, Math.PI / 2);
   await run(0.4);
   i = await I();
@@ -268,13 +271,16 @@ try {
   r = await run(0.8, -1, 0);
   i = await I();
   const sh = Math.abs(i.z - z0) / 0.8;
-  assert(sh > 0.85 && sh < 1.3, `shimmies at ~1.2 m/s (${f2(sh)})`);
+  // (ct-prototype D2b) the band from the game's table (0.71-1.08 x, the old 0.85-1.3 at 1.2 m/s)
+  assert(sh > i.spd * 0.71 && sh < i.spd * 1.08, `shimmies at ~${f2(i.spd)} m/s (${f2(sh)})`);
   contacts(r, 'shimmy');
   // jump across: hanging near the end, the stick towards the next block shows the target, Y jumps
   const blockB = i.id;
-  await run(0.3, -0.7, 0);
+  // (ct-prototype D2b) the walks along the lip were timed for 1.2 m/s: the same distances at the table speed
+  const ks = 1.2 / i.spd;
+  await run(0.3 * ks, -0.7, 0);
   i = await I();
-  r = await run(0.25, -1, 0);
+  r = await run(0.25 * ks, -1, 0);
   i = await I();
   assert(i.jump >= 0 && i.jumpPrompt === 'Jump', `jump target marked under the stick ("${i.jumpPrompt}")`);
   await page.evaluate(() => { window.__pad.axis(0, -1); });
@@ -283,7 +289,7 @@ try {
   i = await I();
   assert(i.attached && i.kind === 'ledge' && i.id !== blockB && i.z > 18.9, `jumped across to the next block (z ${f2(i.z)})`);
   // corner: shimmy on round the outside corner onto the north face
-  r = await run(3, -1, 0);
+  r = await run(3 * ks, -1, 0);
   i = await I();
   assert(i.attached && i.kind === 'ledge' && i.nz > 0.9, `wrapped round the outside corner (normal ${f2(i.nx)}, ${f2(i.nz)})`);
   await tap(BTN.Y);
