@@ -904,7 +904,8 @@ Each map's documents also include:
 ## 8. Platform and performance
 
 - **Desktop only** (G12): the installable PWA in a desktop browser, pad first, then keyboard and mouse. Button prompts
-  swap at once when a pad connects or disconnects. Automatic tests run as a desktop (G13).
+  swap at once when a pad connects or disconnects. Automatic tests run as a desktop (G13). A phone can launch it for
+  testing only (G182): minimum settings, the UI scaled to fit, a Bluetooth pad; no touch controls, checks or tests.
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14).
 - **Gameplay reads only** collision, occupancy, anchors, the light bake and the noise model. It never reads graphics
   presets, LOD, voxel layers or the governor.

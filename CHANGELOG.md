@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased - phone-launch (feature/phone-launch)
+- A phone can launch the game for testing only (G182): the minimum settings (`?gfx=min`, no Auto detection, no
+  governor) and the menus and HUD scaled down to fit its screen. No touch controls; a Bluetooth pad drives it. Untested.
+
 ## Unreleased - anim-cleanup (feature/anim-cleanup)
 
 Prototype pass over Wren's animations (Michael, 2026-10-19): accurate, believable, no clipping. `docs/anim-cleanup/`.
