@@ -36,7 +36,7 @@ Last updated: 2026-10-19 16:30 Sydney.
 | --- | --- | --- | --- | --- |
 | Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | CT Core D + E (first priority); Sector Ops slice 2 on spare capacity |
 | CT Core Build | desktop | `feature/ct-prototype` | First priority. B + C on /ct/ (87514ed1); master 4.6.5 merged; slices D + E | D + E on /ct/ for Michael |
-| Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 merged (4.6.6). Between requests: give the unit tests that time out under load (posture, rig, lightField, netSim and others) their own timeouts | Next runner request |
+| Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 (4.6.6) and #20 unit timeouts (4.6.8) merged. Idle between requests | Next runner request |
 | Sector Ops Build | desktop | `feature/sector-ops` | Low priority, spare capacity only. Slice 2: 3 Warehouse sections (M7, A12, M8: multiple routes, room to isolate guards) | Slice 2 on a preview |
 
 ## Next (in order)
@@ -60,7 +60,8 @@ Last updated: 2026-10-19 16:30 Sydney.
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
 - WebGPU (Michael, 2026-10-19: measure first): the Sector Ops perf run on the PC (full section, 20-25 guards) decides. If rendering is the bottleneck, a 1-day WebGPU trial behind a flag (Babylon 9 WebGPUEngine, snapshot rendering; shader conversion bundled, no CDN). If the sim is the bottleneck, WebGPU does not help. Not before the core-loop playtest.
 - Cleanup job (Wren loose ends), after the core-loop playtest.
-- Test fixes: known flaky suites (e2e-coop, e2e-pad and others), pre-existing e2e-kestrel / camera-bounds failures.
+- Test fixes: e2e-pad (known flaky); lightField "allocation-free under a loop" fails its heap check when the machine is
+  loaded (passes alone; skip under load or warm up longer, #20 STATE); pre-existing e2e-kestrel / camera-bounds failures.
 - The older follow-up list in `docs/progress.md` (medkit stations, missing sounds, music revision, art guide, one folder
   per map, Kestrel, Fallow bunker rebuild).
 
@@ -73,6 +74,7 @@ Last updated: 2026-10-19 16:30 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #20 | 4.6.8: unit tests survive a loaded machine (120 s timeout, settings.test save race fixed) |
 | 2026-10-19 | #19 | 4.6.7: the laptop is the test runner; co-op training first, Sector Ops on spare capacity |
 | 2026-10-19 | #18 | 4.6.6: e2e-menus slider check waits on the condition (no game change) |
 | 2026-10-19 | #17 | 4.6.5: co-op test fix (coop, netmove, ctcourse reliable; only e2e-pad flaky) |

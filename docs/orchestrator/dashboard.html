@@ -76,7 +76,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Updated 2026-10-19 16:50 Sydney · master v4.6.7 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
+    <span class="eyebrow">Updated 2026-10-19 17:55 Sydney · master v4.6.8 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
     <h1>Night Shift roadmap</h1>
     <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Visual pass last. No refining before your core-loop playtest.</p>
   </header>
@@ -103,7 +103,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
       </div>
       <div class="row">
         <div><div class="name">Character Build</div><div class="meta">laptop · test runner</div><span class="pill test">Testing</span></div>
-        <div><p>The laptop test runner: runs CT Core's (first) and Sector Ops' logic e2e when the desktop is busy. Between requests: slow unit tests get their own timeouts. Slider fix merged (#18, 4.6.6).</p>
+        <div><p>The laptop test runner: runs CT Core's (first) and Sector Ops' logic e2e when the desktop is busy. Slider fix (#18) and unit test timeouts (#20) merged. Next up: Sector Ops' step 2 check and suites.</p>
           <p class="next-cp">Next: <b>the next test request</b></p></div>
       </div>
       <div class="row">
@@ -117,7 +117,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section>
     <h2>Next <span class="count">in order</span></h2>
     <ol class="queue">
-      <li>Playtest 2 slices B + C (on /ct/ now), then D + E: holstering, hanging shimmy, pipe climb, ledge climb-up <span class="owner">CT Core</span></li>
+      <li><span class="gate">Your turn now:</span> playtest 2 slices B + C on /ct/ (aim view when crouched, upper body, arms in, pistol aim, legs, crouch); then D + E: holstering, hanging shimmy, pipe climb, ledge climb-up <span class="owner">CT Core</span></li>
       <li><span class="gate">Your core-loop playtest</span> of Marlow Yard in co-op. Refining starts only after this. <span class="owner">You</span></li>
       <li>Selection wheel restyle <span class="owner">CT Core</span></li>
       <li>Menu notes: title music, load screen, hero LOD, magazine clipping, weapon poses, merged Controls <span class="owner">Menu</span></li>
@@ -138,10 +138,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </section>
 
   <section>
-    <h2>Done <span class="count">17 PRs</span></h2>
+    <h2>Done <span class="count">18 PRs</span></h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Date</th><th>PR</th><th>What</th></tr></thead>
       <tbody>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/20">#20</a></td><td>4.6.8 · Unit tests survive a busy machine; a settings test race fixed</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/19">#19</a></td><td>4.6.7 · Laptop is the test runner; co-op training first, Sector Ops on spare capacity</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/18">#18</a></td><td>4.6.6 · e2e-menus slider check waits on the condition</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/17">#17</a></td><td>4.6.5 · Co-op test fix: coop, netmove, ctcourse reliable; only e2e-pad flaky</td></tr>
