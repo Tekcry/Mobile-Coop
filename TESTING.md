@@ -50,6 +50,22 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
 
+### Playtest 2 changes (controller, CT prototype; /ct/)
+- [ ] D-pad up / down set the walk speed; speed 2 is the slowest and a stick pushed nearly to the rim walks at it.
+  Aiming looks noticeably slower than before.
+- [ ] Back to a wall, shuffle to each end: the camera swings to the side you move to. The wall's open side is your
+  shoulder; swap, leave the wall and aim: the side you chose stays, and the next mission starts on it.
+- [ ] Swap shoulders while aiming: no gun flick. Press A from a short distance (under 0.5 m): you settle onto the wall
+  without sliding; from further away it does nothing.
+- [ ] Footsteps at speeds 1-2 (crouched 1-3) are quiet and the noise meter is silent; a run is louder on both.
+- [ ] ADS frames the same standing and crouched, rifle and pistol; aim up and down: the chest leans, the wrists stay
+  straight. Legs stay under the body walking, running and turning on the spot; crouch idle, walk and aim look right.
+- [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way.
+- [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
+  Ledge climb-up: pull up, a knee on the top, stand. A team boost climb-up still works.
+- [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
+  10 HP.
+
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
 - [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab

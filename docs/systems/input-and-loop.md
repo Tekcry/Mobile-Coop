@@ -44,7 +44,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `settings.keys`; `assignBind` puts a key on a second action as a warned conflict (A71); `KeyboardMouseSource` rebuilds its
   map when the keys change, `captureNext` for the rebinding UI. Fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs,
   1-7 gadgets, LMB fire, RMB aim, the mouse wheel (maximum gear). Mouse look uses raw input via `unadjustedMovement` where
-  supported (`mouse.adsMultiplier`).
+  supported (`mouse.adsMultiplier`, default 0.3 since playtest 2; a saved old default 0.55 / 0.6 migrates, custom values stay;
+  the pad uses the same `ADS_LOOK`).
 - Prompts (`ui/prompts.ts` `promptHtml`) emit Xbox, PlayStation, Nintendo and key glyphs; the body classes
   (`input-gamepad`, `pad-ps`, `pad-nin`) show the pad glyph whenever a pad is the last device used, keys for KBM.
   `keyLabels` follow the bindings. Gamepad look: 30 ms smoothing (acceleration inside the smoothing).
@@ -109,7 +110,9 @@ and the code together.
   `controller.maxGear` is the rocker gear.
 - The HUD gear pips are removed (CT prototype M1, G107): the speed rocker has no on-screen indicator.
 - Raw stick 50% / 80% / 100% at maximum 5 gives gears 2 / 4 / 5 (pad radial dead zone 0.15).
-- The speed numbers are starting values (G10): standing 0.2 / 0.75 / 2.0 / 3.0 / 4.2, crouched 0.4 / 0.85 / 1.5 / 2.1 / 2.6 m/s (`GEARS`).
+- The speed numbers are starting values (G10): standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s (`GEARS`;
+  playtest 2 re-spaced them so the old speed 2 is the slowest). The stick reaches the D-pad speed from 0.9 of its travel
+  (`GEARS.fullPush`).
 
 ### Rumble (step 17; local only, D8)
 - `config/rumble.ts` `RUMBLE` `{strong, weak, ms}`: landing soft / roll / heavy, takedown done, elbow hit, shot suppressed /

@@ -88,7 +88,8 @@ licences: `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model 
 - **Foley lab** (`?foleylab=1`, `audio/foley/foleyLab.ts`): every surface and gait as a looping walk, the landings and
   moves on buttons, and "Old synth" for an A/B against the previous steps.
 - Decided, not built yet: one run sound for every running speed, the walk / run switch reset to the CT speeds and the
-  `sprint` gait removed (G62; `RUN_FROM` 2.1 m/s today); your own steps play very softly when guards cannot hear them,
+  `sprint` gait removed (G62; `RUN_FROM` 2.1 m/s today); your own steps play very softly when guards cannot hear them (built, playtest 2: the own-step volume follows the noise
+  radius, `stepVolume`, 0.07 silent to 0.42 at the loudest run),
   and the sound meter shows what guards hear (G61); a separate Footsteps volume slider for testing (G60); one shared
   foot-touched-the-ground event for footsteps and rumble (G67; today foley counts `Player.footPlants` beside the
   rumble's `onFootPlant`).

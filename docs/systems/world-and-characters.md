@@ -143,7 +143,10 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   pose, head-first lean (head ~60 ms ahead, body/weapon out ~0.2 s, back ~0.2 s; gated by the 0.18 s open-left hand
   switch `EDGE_HAND_TIME`, dormant until step 12b drives `rig.openLeft`),
   breathing, recoil, heel-strike compression (`HEEL_KICK`), hit flinch (`rig.hit`, recovers 0.3-0.6 s). State
-  switches trigger the `Inertializer` (offset decays critically damped per channel group, 120-250 ms).
+  switches trigger the `Inertializer` (offset decays critically damped per channel group, 120-250 ms). Playtest 2: the
+  chest carries the aim (`AIM_CHEST`), the stance half-width on foot is capped at 1.1 hip half-widths, the pelvis drop is
+  held at walking pace and above (`PELVIS_HOLD`, less bob; not while hanging or climbing), and a draw / holster keeps the
+  hand on the grip (`CharacterRig.weaponTravel`).
 - Gait style: `GAIT_STYLE` (`clips/locomotion.ts`) keeps height smooth (small loading dip and rise, smaller still at
   jog / sprint) and shows the weight in hip sway and twist; armed, the body carries a tactical `HUNCH` (chest well
   forward over the hips, knees bent, head up; deeper at a wall; `crouch`: bent over the knees, half of it

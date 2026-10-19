@@ -1,11 +1,22 @@
 # Changelog
 
 ## Unreleased - ct-prototype
+- Slice A (playtest 2, `docs/ct-prototype/A-PLAYTEST2.md`): the five speeds are re-spaced so the old speed 2 is the
+  slowest (standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s; D-pad up / down sets
+  them and the stick reaches that speed from 0.9 of its travel); ADS look is 70 % less sensitive; the corner peek swings
+  to the side you move to; the wall's open side becomes your shoulder and the last shoulder swap is kept for the next
+  mission; a shoulder swap while aiming no longer flicks the gun up; back to wall needs you within 0.5 m (was 0.9) and
+  settles faster, no slide; your own footsteps follow the noise meter (quiet when silent, 0.07 to 0.42 volume).
+- Scanners: a hack whose partner never started resets both with no cost; a late or abandoned hack still costs 10 HP.
+- Slices B+C (playtest 2, `docs/ct-prototype/BC-ANIM.md`): the ADS view is the same standing and crouched, for rifle
+  and pistol; the chest carries the aim with the stock closer to the shoulder and the elbows tucked; the pistol is held
+  closer to the eye line; the stance is narrower (legs stay under the body walking, running and turning, crouched too);
+  the crouched gun sits closer to the body; less body bob at walking pace.
 - Slices D+E (playtest 2, `docs/ct-prototype/DE-ANIM.md`): draw / holster keep the trigger hand on the gun the whole
   way (the rifle out at the shoulder, not head height; the pistol waits in the holster for the hand); the hanging
-  shimmy's reaches are a little wider, longer and higher (slower hands need a slower shimmy, open); drainpipe knees
-  bend up and forward and the feet stay under the hips; the ledge climb-up (1.1 s) pulls up on held hands, puts a knee
-  on the top, then stands.
+  shimmy's reaches are a little wider, longer and higher (D2b below slows it); drainpipe knees bend
+  up and forward and the feet stay under the hips; the ledge climb-up (1.1 s) pulls up on held hands, puts a knee on the
+  top, then stands.
 - Slice D2b (Michael): the hang shimmy slows to 0.7 m/s (was 1.2) with slow, wide reaches one hand at a time, about
   two a second per hand.
 
