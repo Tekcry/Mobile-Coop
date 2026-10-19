@@ -15,8 +15,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The game boots to the Night Shift title; the menu theme starts after the first button press.
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
-- [ ] Play lists Infiltration and Free Roam only (Hunter and Mission appear only with `?legacy=1`). The Difficulty row
-  offers Rookie, Normal, Realistic and Perfectionist, with no sliders.
+- [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
+  `?legacy=1`). Sector Ops opens the op list (the Warehouse with four stars), then its briefing: the sectors listed,
+  Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
+- [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
+  you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
+  there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
+- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
+  and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
+  partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength; Settings > Accessibility > Controls: rebind a verb (A),
   clear a slot (Y), a conflict shows a warning, reset restores the defaults.

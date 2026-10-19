@@ -26,6 +26,8 @@ export interface AlarmPanel {
   /** Facing (out of the wall). */
   yaw: number;
   disabled: boolean;
+  /** (Sector Ops) The section the panel belongs to: it works only while that section is live. */
+  section?: number;
 }
 
 /** Where a user stands to work the panel (writes `out`). */

@@ -5,7 +5,7 @@ export interface Flags {
   /** Skip menus and boot straight into a map (dev convenience). */
   autostart: string | null;
   /** Mode for autostart. `course` with `?net=local` hosts / joins a same-device co-op room (`autoLocalCourse`). */
-  mode: 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | null;
+  mode: 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector' | null;
   /** Infiltration: mission id and insertion id for autostart. */
   mission: string | null;
   insertion: string | null;
@@ -48,6 +48,8 @@ export interface Flags {
   foleyLab: boolean;
   /** `?weaponlab=1` opens the weapon lab (gun sounds, a debug screen) after boot. */
   weaponLab: boolean;
+  /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
+  sectorGuards: number | null;
 }
 
 function readParams(): URLSearchParams {
@@ -81,7 +83,7 @@ export const flags: Flags = {
   debug: params.get('debug') === '1',
   autostart: params.get('autostart'),
   // Hunter is the 2.0 name for Clear (both work)
-  mode: params.get('mode') === 'hunter' ? 'clear' : ((['sandbox', 'mission', 'clear', 'infiltration', 'course'] as const).find((m) => m === params.get('mode')) ?? null),
+  mode: params.get('mode') === 'hunter' ? 'clear' : ((['sandbox', 'mission', 'clear', 'infiltration', 'course', 'sector'] as const).find((m) => m === params.get('mode')) ?? null),
   mission: params.get('mission'),
   loadout: params.get('loadout')?.split(',').filter(Boolean) ?? null,
   insertion: params.get('insertion'),
@@ -104,4 +106,5 @@ export const flags: Flags = {
   musicLab: params.get('musiclab') === '1',
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
+  sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
 };

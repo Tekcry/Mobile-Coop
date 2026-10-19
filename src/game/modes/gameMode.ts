@@ -6,8 +6,8 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { Vector3 } from '../../core/babylon';
 import type { Interactable } from '../interactables';
 
-/** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`. */
-export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course';
+/** `clear` is Hunter (`?mode=hunter` too); `infiltration` runs a `MissionDef`; `sector` is Sector Ops. */
+export type ModeId = 'sandbox' | 'mission' | 'clear' | 'infiltration' | 'course' | 'sector';
 
 export interface SessionStats {
   mode: ModeId;
@@ -68,6 +68,8 @@ export interface GameMode {
   /** An enemy came (back) into play: a knocked-out one woken by a squadmate, or reinforcements. */
   onEnemyJoined?(e: Enemy): void;
   onPlayerDeath(): void;
+  /** Co-op host: a downed player cannot be revived (window over, no revives left) while a partner is still up. */
+  onPlayerOut?(): void;
   /** The alarm went off; return true when the mode brings its own reinforcements (Hunter doubles the count). */
   onAlarm?(at: Vector3): boolean;
   /** An interactable the mode put down was used. */

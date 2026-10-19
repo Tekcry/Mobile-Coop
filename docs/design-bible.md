@@ -552,6 +552,11 @@ take Kestrel's Mission 1 size until Kestrel is decided after the research (G53, 
 
 **Mission 8** has no traitor and no player-versus-player finale (G9; Section 5.15).
 
+**Sector Ops** (G184-G190) is the prototype's second mode beside the campaign: the Warehouse in sections joined by
+connectors, rising difficulty with cameras and lasers, objective then exit, ghosting always possible, no lives (revive
+syringes in co-op, checkpoint restarts), difficulty stars per op, and several routes with room to isolate guards. Michael's
+playground for movement and gunplay; prototype effort, below the co-op training course in priority (G191).
+
 ### 5.9 Co-op (P6)
 
 Implementation: `docs/systems/coop.md`.

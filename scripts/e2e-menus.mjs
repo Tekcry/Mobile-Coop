@@ -62,13 +62,13 @@ try {
   await frames(page, 5);
 
   console.log('main menu: keyboard');
-  assert((await fk()) === 'missions', `default focus Missions (${await fk()})`);
+  assert((await fk()) === 'sectorops', `default focus Sector Ops (${await fk()})`);
   await key('ArrowDown');
   const k1 = await fk();
   await key('KeyS');
   const k2 = await fk();
   await key('KeyW');
-  assert(k1 !== 'missions' && k2 !== k1 && (await fk()) === k1, `arrows and WASD move the focus (${k1}, ${k2}, back to ${await fk()})`);
+  assert(k1 !== 'sectorops' && k2 !== k1 && (await fk()) === k1, `arrows and WASD move the focus (${k1}, ${k2}, back to ${await fk()})`);
   await key('ArrowUp');
   await key('ArrowUp');
   const wrapped = await fk();
@@ -276,20 +276,22 @@ try {
     }
   }
 
-  // slice 4: missions, briefing, free roam, issued kit
+  // slice 4 (sector-ops slice 1): Sector Ops and its briefing, the issued kit; Missions, Training and Free roam only
+  // with ?legacy=1 (e2e-park)
   await key('Escape');
   assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
-  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="missions"]')));
+  const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
+  assert(menuKeys === 'sectorops,coop,loadout,settings,feedback', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback (${menuKeys})`);
+  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="sectorops"]')));
   await key('Enter');
-  assert((await top()) === 'missions-screen', 'Enter opens Missions');
-  const n = await G(() => document.querySelectorAll('.missions-screen .ms-item').length);
-  assert(n === (await G(() => window.__missions.length)) && n > 1, `a card per mission (${n})`);
-  const k0 = await fk();
-  await key('ArrowDown');
-  assert((await fk()) !== k0 && /^m-/.test(await fk()), 'Down moves to the next mission');
-  assert((await G(() => document.querySelector('.missions-screen .ms-ctx')?.textContent ?? '')).length > 20, 'the mission context shows its text');
+  // (sector-ops M7) Sector Ops opens the op list: the Warehouse with its four difficulty stars
+  assert((await top()) === 'sectorops-screen' && (await fk()) === 'op-warehouseOps', `Enter opens the op list on the Warehouse (${await top()}, ${await fk()})`);
+  const opStars = await G(() => document.querySelector('.sectorops-screen [data-op="warehouseOps"] .ms-ctr')?.textContent ?? '');
+  assert(/^[★☆]{4}$/.test(opStars), `the op shows four difficulty stars (${opStars})`);
   await key('Enter');
-  assert((await top()) === 'briefing-screen' && (await fk()) === 'deploy', `Enter opens the briefing on Start (${await fk()})`);
+  assert((await top()) === 'briefing-screen' && (await fk()) === 'deploy', `the op opens the Sector Ops briefing on Start (${await fk()})`);
+  const nSec = await G(() => document.querySelectorAll('.briefing-screen .br-obj li').length);
+  assert(nSec >= 3, `the briefing lists the sectors (${nSec})`);
   const diff0 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
   await key('ArrowUp');
   await key('ArrowUp');
@@ -297,22 +299,15 @@ try {
   await key('ArrowRight');
   const diff1 = await G(() => document.querySelector('.briefing-screen [data-diff="choice"] .choice-val').textContent);
   assert(diff0 === 'Normal' && diff1 === 'Realistic' && (await G(() => document.querySelectorAll('.briefing-screen [data-diff]:not([data-diff="choice"])').length)) === 0, `four fixed levels, no Custom (${diff0} -> ${diff1})`);
-  assert((await G(() => !!document.querySelector('.briefing-screen .br-obj li'))), 'the objectives show in the briefing');
+  await key('ArrowLeft');
   await G(() => window.__app.input.setMode('gamepad'));
   await press(page, BTN.B);
   await frames(page, 3);
-  assert((await top()) === 'missions-screen', 'B: Briefing back to Missions');
-  await G(() => window.__app.input.setMode('kbm'));
-  await page.locator('.missions-screen [data-legend="back"]').click();
+  assert((await top()) === 'sectorops-screen', 'B: Briefing back to the op list');
+  await press(page, BTN.B);
   await frames(page, 3);
-  assert((await top()) === 'main-menu', 'the legend Back returns to the main menu');
-  await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="freeroam"]')));
-  await key('Enter');
-  assert((await top()) === 'freeroam-screen', 'Free roam opens its list');
-  await key('Enter');
-  assert((await top()) === 'briefing-screen' && !(await G(() => !!document.querySelector('.briefing-screen [data-diff]'))), 'a map opens a briefing without difficulty');
-  await key('Escape');
-  await key('Escape');
+  assert((await top()) === 'main-menu', 'B: the op list back to the main menu');
+  await G(() => window.__app.input.setMode('kbm'));
   await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="loadout"]')));
   await key('Enter');
   assert((await top()) === 'kit-screen', 'Loadout opens the issued kit');

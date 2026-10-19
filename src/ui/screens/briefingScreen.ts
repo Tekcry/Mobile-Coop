@@ -16,7 +16,7 @@ export const STARS = (n: number): string => '★'.repeat(n) + '☆'.repeat(Math.
 /** The difficulty last picked in the menus (one of the four fixed levels, G106). */
 let lastDifficulty: Difficulty = 'normal';
 
-export type BriefingTarget = { kind: 'mission'; mission: MissionDef } | { kind: 'freeroam'; map: MapDef };
+export type BriefingTarget = { kind: 'mission'; mission: MissionDef } | { kind: 'freeroam'; map: MapDef } | { kind: 'sector'; map: MapDef };
 
 /**
  * menu-ui slice 4 (step 07): the briefing. A mission shows its text, objectives and rules, then Insertion, Difficulty
@@ -31,7 +31,7 @@ export class BriefingScreen extends MenuScreen {
   private rows: HTMLElement;
 
   constructor(private app: App, private start: (o: GameOptions) => void, private target: BriefingTarget) {
-    super('briefing-screen', target.kind === 'mission' ? ['Mission', 'Briefing'] : ['Free', 'Roam']);
+    super('briefing-screen', target.kind === 'mission' ? ['Mission', 'Briefing'] : target.kind === 'sector' ? ['Sector', 'Ops'] : ['Free', 'Roam']);
     if (target.kind === 'mission') {
       this.map = MAPS.find((m) => m.id === target.mission.map)!;
       this.insertion = target.mission.insertions[0]!.id;
@@ -48,6 +48,17 @@ export class BriefingScreen extends MenuScreen {
     const t = this.target;
     if (t.kind === 'freeroam') {
       return h('div', { class: 'br-doc' }, h('h2', { class: 'br-name', text: t.map.name }), h('p', { text: t.map.description }), h('p', { class: 'br-dim', text: 'No guards. Every weapon.' }));
+    }
+    if (t.kind === 'sector') {
+      return h(
+        'div',
+        { class: 'br-doc' },
+        h('h2', { class: 'br-name', text: t.map.name }),
+        h('p', { text: 'Clear each section in order: its objective, then through its connector room into the next. Kills are optional. Being spotted raises the alarm and brings more guards. Go down and the section restarts at the last checkpoint.' }),
+        h('h4', { text: 'Sections' }),
+        h('ul', { class: 'br-obj' }, ...(t.map.sectors ?? []).map((s, i) => h('li', { text: `${i + 1}. ${s.name}: ${s.objective.label}` }))),
+        h('p', { class: 'br-dim', text: 'No kills and never spotted: Ghost.' }),
+      );
     }
     const m = t.mission;
     const rec = this.app.save.get().missions[m.id];
@@ -76,6 +87,8 @@ export class BriefingScreen extends MenuScreen {
           'Where you enter the map. Each way in changes which guards see you first.',
         ),
       );
+    }
+    if (t.kind !== 'freeroam') {
       for (const r of difficultyRows(() => this.difficulty, (v) => (lastDifficulty = this.difficulty = v))) {
         out.push(describe(r, 'Difficulty', 'Rookie, Normal, Realistic or Perfectionist. Changes guard sight, hearing, aim and reaction.', 'difficulty'));
       }
@@ -95,6 +108,8 @@ export class BriefingScreen extends MenuScreen {
     const weather = this.map.weathers?.includes(this.weather) ? this.weather : undefined;
     if (t.kind === 'mission') {
       this.start({ map: this.map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: t.mission.id, insertion: this.insertion, weather });
+    } else if (t.kind === 'sector') {
+      this.start({ map: this.map, mode: 'sector', difficulty: this.difficulty, seed: 1, weather });
     } else {
       this.start({ map: this.map, mode: 'sandbox', difficulty: this.difficulty, seed: Math.floor(Math.random() * 1e6), weather });
     }
