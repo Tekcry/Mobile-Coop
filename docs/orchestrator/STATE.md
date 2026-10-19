@@ -1,4 +1,4 @@
-# Orchestrator - resume point (2026-10-19 16:30 Sydney)
+# Orchestrator - resume point (2026-10-19 20:45 Sydney)
 
 Read CLAUDE.md (above all "Sessions": the orchestrator, machines, test tiers, versions) and docs/ROADMAP.md first.
 Work folder for orchestrator docs: C:\NightShift\Mobile-Coop-menu (branch feature/menu; merge origin/master into it
@@ -19,15 +19,15 @@ before each docs batch, then a PR to master as a patch version).
   (ROADMAP.md "Priority").
 
 ## Master
-v4.6.8 (#20). Tags v4.0.0-v4.6.8. Done today: #12 anim-cleanup 4.5.0, #13 phone launch 4.6.0, #11 docs 4.6.1,
+v4.7.0 (#21, fca0e267). Tags v4.0.0-v4.7.0. Done today: #12 anim-cleanup 4.5.0, #13 phone launch 4.6.0, #11 docs 4.6.1,
 #14 versions 4.6.2, #15 process audit 4.6.3, #16 laptop slot rule 4.6.4, #17 co-op test fix 4.6.5 (KNOWN_FLAKY is
-e2e-pad only now), #18 e2e-menus slider fix 4.6.6 (30eda5e6), #19 test runner rule 4.6.7, #20 unit timeouts 4.6.8 (global 120 s testTimeout).
+e2e-pad only now), #18 e2e-menus slider fix 4.6.6 (30eda5e6), #19 test runner rule 4.6.7, #20 unit timeouts 4.6.8 (global 120 s testTimeout), #21 Sector Ops 4.7.0 (G184-G191; e2e-traverse grate tap is a master flake, 1 in 3).
 
 ## Sessions (all report to "Night Shift | Orchestrator"; every session was cleared once at 16:00)
 | Session | Where | Address | Job now |
 | --- | --- | --- | --- |
 | CT Core Build | desktop, C:/NightShift/Mobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | First priority. D + E on /ct/ (0f91b0f0, 18:45). D2b running: shimmy 0.7 m/s with slower, wider hands (Michael 18:50) and the e2e-traverse shimmy reach (3.3 cm vs 3 cm). /ct/ moves only for D2b alone, else after Michael's B-E notes. |
-| Sector Ops Build | desktop, C:/NightShift/Mobile-Coop-sector-ops, feature/sector-ops | `Night Shift | Sector Ops Build` (local) | Low priority, spare capacity only (16:30). Slice 2 for 3 sections (M7): step 1 pushed (ca7fcfd2), step 2 (geometry, connectors, checkpoint) building. A11 (stars in kv `sector:ops`) and A12 (re-cut: service entrance / racking / factory floor + mezzanine + offices) kept by Michael, plus M8 (relayed 16:20): multiple routes to each objective and through each section, guards spread so one can be taken out silently away from the others; room to manoeuvre beats guard count. Check M8 when reviewing slice 2. |
+| Sector Ops Build | desktop, C:/NightShift/Mobile-Coop-sector-ops, feature/sector-ops | `Night Shift | Sector Ops Build` (local) | Done: #21 merged as 4.7.0 (20:40), on /preview/. Idle until the PC perf run with full guard counts (G187). |
 | Character Build | laptop (second heavy slot) | bridge `session_015wU8VbanFb8zVwRuSMa9x7` (delivery confirmed 16:00) | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): runs CT Core's, then Sector Ops', logic e2e on pushed commits in C:/NightShift/Mobile-Coop-testrun. #18 and #20 merged; idle between requests. |
 | Menu Notes Build | desktop, C:/NightShift/Mobile-Coop-menu-notes, feature/menu-notes | `Night Shift | Menu Notes Build` (local_52bd477a, Remote Control on) | Michael's 7 walk-test menu notes (docs/menu-notes/START.md, started 18:55 from master 4.6.8). Lock order: CT Core, Menu Notes, Sector Ops. PR to master (minor). |
 
@@ -35,8 +35,8 @@ Known clashes to handle at merge time:
 - Closed: e2e-coop starts its matches through the session API, not the lobby, so Sector Ops hiding Infiltration does
   not affect it (passed on feature/sector-ops e20c3f30 with protocol 24). No edit.
 - Sector Ops merged 4.6.8 (e20c3f30, #18's e2e-menus wait kept).
-- Net protocol: Sector Ops bumped it to 24 (syringes, client live section); CT Core also edits src/net (remoteAvatar.ts).
-  Whichever merges second takes the next protocol number and reruns e2e-coop / e2e-netmove / e2e-ctcourse.
+- Net protocol: master is at 24 (Sector Ops, 4.7.0) (syringes, client live section); CT Core also edits src/net (remoteAvatar.ts).
+  CT Core takes 25 if it changes the wire; it merges master 4.7.0 first, and and reruns e2e-coop / e2e-netmove / e2e-ctcourse.
 
 ## Waiting on Michael
 - Delete the merged branch feature/ct-research (`git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research`).
@@ -45,7 +45,7 @@ Known clashes to handle at merge time:
 ## Next for the orchestrator
 1. Laptop runner: Character Build serves CT Core first. Open from #20: lightField's heap check fails under load (ROADMAP "Later").
 2. CT Core's D + E (first priority), then the ct-prototype PR to master once Michael has walked the slices (a minor step).
-3. Sector Ops (spare capacity): slice 2 for 3 sections, then its PR (a minor step; fix e2e-coop's match at that merge).
+3. Sector Ops: merged (4.7.0). Next for it: the PC perf run with full guard counts (G187), when the desktop is free.
 4. Republish the dashboard after every roadmap change: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw (source
    docs/orchestrator/dashboard.html; publish with `url`; it declares `db`; answers in collection `answers`).
 
@@ -59,5 +59,5 @@ Known clashes to handle at merge time:
 
 ## Resume prompt
 ```
-Orchestrator: resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git pull origin master first). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Check what each session has reported since 16:30 (CT Core, Sector Ops, Character Build), then carry on with "Next for the orchestrator". Give me one step at a time.
+Orchestrator: resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git pull origin master first). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Check what each session has reported since 20:45 (CT Core, Sector Ops, Character Build), then carry on with "Next for the orchestrator". Give me one step at a time.
 ```

@@ -12,7 +12,7 @@ bunker fully functional and running, but sector ops can at least run when there 
 course (CT Core) comes first for the desktop lock, the laptop test runner and the orchestrator's reviews; Sector Ops
 runs only on spare capacity and yields the desktop lock whenever CT Core needs it.
 
-Last updated: 2026-10-19 16:30 Sydney.
+Last updated: 2026-10-19 20:45 Sydney.
 
 ## Waiting on Michael
 1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
@@ -38,7 +38,7 @@ Last updated: 2026-10-19 16:30 Sydney.
 | CT Core Build | desktop | `feature/ct-prototype` | First priority. B + C on /ct/ (87514ed1); master 4.6.5 merged; slices D + E | D + E on /ct/ for Michael |
 | Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 (4.6.6) and #20 unit timeouts (4.6.8) merged. Idle between requests | Next runner request |
 | Menu Notes Build | desktop | `feature/menu-notes` | Michael's walk-test menu notes (Next 5; Michael 18:40: "can you do the other menu fixes"): title music, load screen with preloaded hero and shaders, no way back to the title, hero quality, magazine clip, rifle and pistol in the menu, one Controls menu. Behind CT Core for the desktop lock; logic e2e on the laptop runner | PR to master (minor) |
-| Sector Ops Build | desktop | `feature/sector-ops` | Low priority, spare capacity only. Slice 2: 3 Warehouse sections (M7, A12, M8: multiple routes, room to isolate guards) | Slice 2 on a preview |
+| Sector Ops Build | desktop | - | Done: #21 merged (4.7.0, Sector Ops on /preview/). Idle until the PC perf run (full guard counts) | PC perf run |
 
 ## Next (in order)
 1. **Playtest 2 slices B + C** (CT Core): aiming compared with the CT footage (view unchanged when crouched,
@@ -52,16 +52,13 @@ Last updated: 2026-10-19 16:30 Sydney.
    a Night Shift load screen; no way back to "press any key"; confirm the hero LOD; the hand clipping the magazine in the
    idle; rifle and pistol in the menu with holding and idle poses; merge Controls and Settings > Controls.
 6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
-7. **Sector Ops** (low priority, spare capacity only; `docs/sector-ops/`): the prototype menu (Sector Ops and Co-op),
-   Sector Ops on 3 Warehouse sections (M7) with multiple routes and room to isolate guards (M8), then its PR (a minor
-   step).
 
 ## Later (after the prototype)
 - Moth as player 2's character (2-3 days; goggle purple; a scratch prototype first, when nothing urgent waits).
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
 - WebGPU (Michael, 2026-10-19: measure first): the Sector Ops perf run on the PC (full section, 20-25 guards) decides. If rendering is the bottleneck, a 1-day WebGPU trial behind a flag (Babylon 9 WebGPUEngine, snapshot rendering; shader conversion bundled, no CDN). If the sim is the bottleneck, WebGPU does not help. Not before the core-loop playtest.
 - Cleanup job (Wren loose ends), after the core-loop playtest.
-- Test fixes: e2e-pad (known flaky); lightField "allocation-free under a loop" fails its heap check when the machine is
+- Test fixes: e2e-pad (known flaky); e2e-traverse "a tap kicks the grate in" fails 1 in 3 on master (Character Build, feature/traverse-kick); lightField "allocation-free under a loop" fails its heap check when the machine is
   loaded (passes alone; skip under load or warm up longer, #20 STATE); pre-existing e2e-kestrel / camera-bounds failures.
 - The older follow-up list in `docs/progress.md` (medkit stations, missing sounds, music revision, art guide, one folder
   per map, Kestrel, Fallow bunker rebuild).
@@ -75,6 +72,7 @@ Last updated: 2026-10-19 16:30 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #21 | 4.7.0: Sector Ops (3 Warehouse sections, connectors, stars, revive syringes), the prototype menu, co-op mode switch (G184-G191) |
 | 2026-10-19 | #20 | 4.6.8: unit tests survive a loaded machine (120 s timeout, settings.test save race fixed) |
 | 2026-10-19 | #19 | 4.6.7: the laptop is the test runner; co-op training first, Sector Ops on spare capacity |
 | 2026-10-19 | #18 | 4.6.6: e2e-menus slider check waits on the condition (no game change) |
