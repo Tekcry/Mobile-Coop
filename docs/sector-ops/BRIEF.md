@@ -46,6 +46,13 @@ change mode to deniable ops too). Ask questions as needed."
   - **Difficulty stars per op:** each op has difficulty levels shown as stars. Completing an op on a difficulty fills its
     star, and the op selector shows the filled stars when an op is highlighted. Completion is saved in IndexedDB: a
     save-shape change, so bump `SAVE_VERSION` with a migration and a test using a literal old save (CLAUDE.md).
+- **M8** (2026-10-19, via the orchestrator, on A11 / A12): "leave as is, although make sure the geometry and layout is
+  altered to offer multiple paths to objective and throughout the level. having so many guards in one small area will be
+  difficult to manage, there must be room to maneuver and take them out silently away from others." So: every section
+  offers 2-3 routes to its objective and its exit (floor, a high route, a side route through rooms or vents), with
+  geometry added where the Warehouse gives one line; patrols in separate pockets and loops, each with a spot where a
+  takedown is out of the other guards' sight; room to manoeuvre comes before the guard count (lower it and log it).
+  A check proves it per section (routes, and per patrol its out-of-sight takedown spot).
 
 ## Goal
 1. **Main menu: only Sector Ops and Co-op**, plus Loadout, Settings and Feedback.
@@ -120,6 +127,21 @@ the game.
   that room, so e2e-course keeps working.
 - **A9 (co-op Sector Ops):** two players (like the course); the client mirrors cameras and lasers from a `sector`
   message (protocol 23); objectives, markers and banners use the existing item and event mirror.
+- **A10 (syringes):** revive syringes per op by difficulty: Rookie 3, Normal 2, Realistic 1, Perfectionist 1
+  (`SECTOR.syringes`). Undo: edit that table.
+- **A11 (stars record):** the difficulty stars live in a new kv key `sector:ops` (`src/save/sectorRecord.ts`), like the
+  course record (C9): no profile shape change, so no `SAVE_VERSION` bump (M7's note assumed a profile change). Undo: move
+  the record into the profile with a bump, a migration and a literal-old-save test; delete `sectorRecord.ts`.
+- **A12 (3 sections re-cut):** the survey found the manager's office at ground level and a dead end, and the deck alone
+  holds 8-10 guards, so the 3 sections are: 1 the service entrance (yard, dock, dispatch, workshop, corridor), 2 the
+  racking aisles, 3 the factory floor with the mezzanine and the offices (stairs, ladder, zipline and pipe kept; 20+
+  guards). C2 is a vestibule in the dock into the racking, C3 the ground-floor office from the racking onto the floor.
+  Undo: the section data and the `buildWarehouse` options in `warehouseOps.ts`.
+- **A13-A19 (step 2, detail and undo in `step2-report.md`):** A13 guards 10 / 10 / 11 per section, not 18-24: M8's
+  out-of-sight takedown rule (checked by `src/game/sectorCheck.ts`) fits no more with the added cover; the PC perf run
+  still sets the ceiling (M6, pending). A14 the M8 cover and route pieces placed by eye. A15 no dog in section 1. A16 the
+  plant room has one door. A17 connectors find doors by their centres. A18 the shots are JPEG. A19 the connector cycle
+  counts only living players.
 
 ## Level-design exceptions (prototype depth, logged)
 - No map spec, scale sheet or light plan for `warehouseOps`; placeholder geometry; camera and laser placement by eye,

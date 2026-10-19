@@ -140,7 +140,7 @@ async function boot(): Promise<void> {
       label: 'Sector Ops',
       order: 10,
       counter: () => `${sectorMap.sectors?.length ?? 0}`,
-      ctx: 'Solo or co-op: the Warehouse in sectors, each harder than the last. Objective, then exit. Kills optional.',
+      ctx: 'Solo or co-op: the Warehouse in sections, each harder than the last. Objective, then exit. Kills optional.',
       action: () => a.screens.push(new BriefingScreen(a, (o) => startGame(o), { kind: 'sector', map: sectorMap })),
     }),
   );

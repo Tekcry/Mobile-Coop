@@ -36,6 +36,17 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
 - Difficulty: CT's fixed levels only (G106): Rookie, Normal, Realistic, Perfectionist (`DifficultyPreset`,
   `ai/archetypes.ts`); no sliders, no alarm-tolerance setting. In co-op the host's level runs on both pages.
 
+## Sector Ops (`sector`, feature/sector-ops)
+- Main menu entry, solo or co-op (`?autostart=warehouseOps&mode=sector`). Map `warehouseOps` (`world/maps/warehouseOps.ts`:
+  `buildWarehouse(b, opts)` with the openings between sections walled, the connector rooms and the M8 pieces; the plain
+  Warehouse calls it with no options and is unchanged). Data in `world/maps/warehouseSectors.ts` (sections, guards with
+  their `takedownSpot`, routes, reinforcement points, `perStage`, devices tagged `section`).
+- Pure: `game/sectors.ts` (`SectorRun`, `ConnectorMachine`: locked, open, cycling, sealed; `restartSection`),
+  `game/sectorCheck.ts` (`SightWorld`: eye-height sight lines through the level's pieces, the M8 takedown check;
+  tests only). Mode: `game/modes/sectorMode.ts` (doors by position, `loadSection` / `unloadSection`, `CtDevices.setLive`,
+  alarm stage from the run, restart after `RESTART_DELAY` 2.5 s with everyone down, extraction and result). The live
+  guard cap is `SECTOR.maxAlive` (32) for this mode only; `?sectorGuards=N` caps the guards per section.
+
 ## The Fallow training course (`course`)
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's
   `MapLayout.course`; co-op only (host P1, client P2; `?autostart=courselab&mode=course` single player for tests); radio

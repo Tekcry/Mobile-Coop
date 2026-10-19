@@ -161,9 +161,13 @@ behind a VPN adapter).
   plant, rescue + escort, sabotage, extraction, results rating) and failure (the no-detection rule, three downs) on the
   Warehouse missions (Ledger, Courier, Blackout, Cold Storage); routes per objective; no style bars (3 with `LEGACY=1`);
   Hunter's alarm doubles the hostiles
-- `e2e-sectorops` Sector Ops on `warehouseOps`: a solo walk through every sector (the exit shut before the objective, hack /
-  grab / download, the exit starts the next) to the result line with Ghost (AI and cameras held still), and an alarm
-  (stage up, reinforcements hunting, a kill breaks the Ghost)
+- `e2e-sectorops` Sector Ops on `warehouseOps` with `?sectorGuards=4`: a solo walk through the three sections (the near
+  door locked before the objective, hack / grab / download, the connector cycle: near door locked, guards, bodies and
+  devices unloaded, the next section's guards in, the far door open, the checkpoint moved) to the extraction and the
+  result line with Ghost (AI and cameras held still); an alarm (stage up, reinforcements hunting, a kill breaks the
+  Ghost); a solo down in section 2 (the section restarts at C2: guards reset, objective open, alarm back); the nav check
+  (every walked leg of every route has a nav path, each section's objective and exit are reachable, the next section is
+  reached only through the connector). `SECTOR_SHOTS=<dir>` adds three layout shots (software GL).
 - `e2e-park` the legacy-off menus (title Night Shift, badge without level / credits, the main menu Sector Ops / Co-op / Loadout /
   Settings / Feedback, the Sector Ops briefing, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept
   across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the

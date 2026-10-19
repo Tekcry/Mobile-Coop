@@ -112,6 +112,8 @@ export interface LaserDef {
   label?: string;
   /** (CT prototype B4) A course flag that switches the laser off for good (a far-side release switch). */
   offFlag?: string;
+  /** Sector Ops: the section the laser belongs to (live only while that section is; none = always live). */
+  section?: number;
 }
 
 export const LASER = {

@@ -17,6 +17,19 @@
   `EnemyManager.despawn` / `despawnAll` and a per-mode live cap `maxAlive` (12 everywhere, Sector Ops 32 from step 2);
   the difficulty stars record (`src/save/sectorRecord.ts`, a kv key, no SAVE_VERSION bump). Unit tests moved to
   `tests/` (the first cut's `src/game/sectors.test.ts` was never run by Vitest).
+- Sector Ops slice 2 step 2 (the three sections, M7, M8): the Warehouse in three sections sealed from each other but for
+  their connector rooms: 1 the service entrance (yard, dock, dispatch, workshop, corridor; download at the workshop
+  terminal), C2 a vestibule in the dock, 2 the racking aisles (take the case), C3 the ground-floor office, 3 the factory
+  floor, the mezzanine and the manager's office (hack on the deck), extraction by the freight lift. The connector cycle
+  locks the near door, unloads the section (guards, bodies, its cameras and lasers), loads the next behind the far door
+  and opens it; the connector is the checkpoint. No lives: everyone down restarts the section there (its guards,
+  objective, devices and alarm stage reset; tallies kept). Per M8 the sections were re-laid with pockets (loads parked in
+  the cross aisle, chicanes, a stores cage, a plant room, a split floor, deck crates) and new ways through (a rack-top
+  route with ladders and planks, a manager's office door onto the floor, crates under the zipline gap): three routes
+  per section, every guard in its own pocket with a takedown spot no other guard sees (10, 10 and 11 guards). Alarm
+  reinforcements come from the section's own points (2, 2 and 3 per stage). Sector Ops raises the live guard cap to 32.
+  `?sectorGuards=N` caps the guards per section (dev, tests). `buildWarehouse(b, opts)`: the plain Warehouse is
+  unchanged.
 
 ## 4.6.4 - Docs: the laptop is a second heavy slot; roadmap is state only (2026-10-19)
 - CLAUDE.md "Machines": two heavy slots, the laptop at low priority, everything headless and invisible (Michael).

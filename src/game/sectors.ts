@@ -40,14 +40,37 @@ export interface SectorZone {
 
 /** The room into the next section (PLAN section 3). */
 export interface ConnectorDef extends SectorZone {
-  /** Door ids (`Doors`): the near door (from this section) and the far door (into the next). Step 2 builds the rooms;
-   *  the first cut has none. */
-  nearDoor?: string;
-  farDoor?: string;
-  /** The near doorway's plan centre [x, z]: the cycle waits while someone stands in it (`inDoorway`). */
+  /**
+   * The near doorway's plan centre [x, z] (from this section): the cycle waits while someone stands in it
+   * (`inDoorway`). Doors are found by their centres (`Doors.nearest`), never by id (ids are build order).
+   */
   nearAt?: [number, number];
+  /** The far doorway's plan centre [x, z] (into the next section). */
+  farAt?: [number, number];
+  /** More doorways of the next section that stay locked until this connector seals (side rooms off the connector). */
+  sealUnlocks?: [number, number][];
   /** Where a restart puts the players once the connector has sealed (the next section's checkpoint). */
   checkpoint: Pose;
+}
+
+/** A route waypoint: [x, z] on the ground, or [x, z, y] on a raised floor (rack tops, the deck). */
+export type RoutePt = readonly [number, number] | readonly [number, number, number];
+
+/**
+ * A named way through a section (M8): waypoints from the start (or checkpoint) to the objective (`pts[obj]`) and on to
+ * the connector or the extraction. `climbs` lists the legs (i: pts[i] -> pts[i + 1]) taken by a ladder, a hop, a vault,
+ * a climb or a cable that the guards' nav grid does not walk (the e2e nav check skips them).
+ */
+export interface SectorRoute {
+  name: string;
+  pts: readonly RoutePt[];
+  obj: number;
+  climbs?: readonly number[];
+}
+
+/** A section guard (M8): its slot, and the spot [x, z] where a player can take it down out of every other guard's sight. */
+export interface SectorGuard extends SquadSlot {
+  takedownSpot: [number, number];
 }
 
 export interface SectorDef {
@@ -61,9 +84,13 @@ export interface SectorDef {
   /** The run's end (the last section only): every living player inside ends it. */
   extract?: SectorZone;
   /** The guards that spawn when the section loads (holding, unaware). */
-  guards: SquadSlot[];
-  /** Where alarm reinforcements come in (x, z). */
-  reinforce: [number, number];
+  guards: SectorGuard[];
+  /** Where alarm reinforcements come in (x, z; taken in turn), inside the section. */
+  reinforce: [number, number][];
+  /** Guards each alarm stage sends in here (A3). */
+  perStage: number;
+  /** The ways to the objective and on to the exit (M8: at least 2). */
+  routes: SectorRoute[];
 }
 
 /** Tuning (prototype values). */
@@ -86,8 +113,8 @@ export const SECTOR = {
   /** Every living player in the extraction zone this long (s) ends the run. */
   extractHold: 0.5,
   /**
-   * The per-mode live guard cap (M6): a section's 26 guards plus 6 alarm reinforcements (alarmMax x perStage). The
-   * co-op snapshot carries at most `MAX_ENEMIES` (32, `net/protocol.ts`), so this never goes above it.
+   * The per-mode live guard cap (M6): a section's guards plus its alarm reinforcements (alarmMax x the section's
+   * perStage). The co-op snapshot carries at most `MAX_ENEMIES` (32, `net/protocol.ts`), so this never goes above it.
    */
   maxAlive: 32,
   /** Revive syringes per op by difficulty (M7, A10): co-op only; solo restarts the section at its checkpoint. */
@@ -309,7 +336,7 @@ export class SectorRun {
 
   /** An alarm (A3): up one stage (capped); returns how many guards it sends in (0 once capped). */
   raiseAlarm(): number {
-    const a = alarmStep(this.alarm);
+    const a = alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage);
     this.alarm = a.stage;
     return a.send;
   }
@@ -358,10 +385,10 @@ function setPose(out: Pose, p: Pose): void {
   out.yaw = p.yaw;
 }
 
-/** The next alarm stage (capped) and how many guards it sends in (0 once capped). */
-export function alarmStep(stage: number): { stage: number; send: number } {
+/** The next alarm stage (capped) and how many guards it sends in (0 once capped; `perStage` per section, A3). */
+export function alarmStep(stage: number, perStage: number = SECTOR.perStage): { stage: number; send: number } {
   if (stage >= SECTOR.alarmMax) return { stage, send: 0 };
-  return { stage: stage + 1, send: SECTOR.perStage };
+  return { stage: stage + 1, send: perStage };
 }
 
 export interface SectorTally {

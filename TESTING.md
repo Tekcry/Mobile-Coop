@@ -18,8 +18,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
   `?legacy=1`). Sector Ops opens its briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic,
   Perfectionist, no sliders), Weather, Start.
-- [ ] Sector Ops: each sector's objective, then its exit, starts the next; the last exit shows time, kills, times
-  spotted and GHOST when there were none. Being seen raises ALARM STAGE and more guards come.
+- [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
+  you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
+  there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength; Settings > Accessibility > Controls: rebind a verb (A),

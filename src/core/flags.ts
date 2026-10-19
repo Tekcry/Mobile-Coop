@@ -48,6 +48,8 @@ export interface Flags {
   foleyLab: boolean;
   /** `?weaponlab=1` opens the weapon lab (gun sounds, a debug screen) after boot. */
   weaponLab: boolean;
+  /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
+  sectorGuards: number | null;
 }
 
 function readParams(): URLSearchParams {
@@ -104,4 +106,5 @@ export const flags: Flags = {
   musicLab: params.get('musiclab') === '1',
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
+  sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
 };

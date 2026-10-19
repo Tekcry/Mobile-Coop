@@ -54,8 +54,8 @@ export class BriefingScreen extends MenuScreen {
         'div',
         { class: 'br-doc' },
         h('h2', { class: 'br-name', text: t.map.name }),
-        h('p', { text: 'Clear each sector in order: its objective, then its exit. Kills are optional. Being spotted raises the alarm and brings more guards.' }),
-        h('h4', { text: 'Sectors' }),
+        h('p', { text: 'Clear each section in order: its objective, then through its connector room into the next. Kills are optional. Being spotted raises the alarm and brings more guards. Go down and the section restarts at the last checkpoint.' }),
+        h('h4', { text: 'Sections' }),
         h('ul', { class: 'br-obj' }, ...(t.map.sectors ?? []).map((s, i) => h('li', { text: `${i + 1}. ${s.name}: ${s.objective.label}` }))),
         h('p', { class: 'br-dim', text: 'No kills and never spotted: Ghost.' }),
       );
