@@ -22,6 +22,7 @@ Format: `N. Item - destination - status`.
 23. **Ring airfoil** (`docs/systems/ct-toolkit.md` 3.8). CT's gadget set is settled by the CT co-op research (G76).
 24. **Knife** (`docs/systems/ct-toolkit.md` 3.10: knife takedown and cutting). Its role is settled by the CT co-op research (G76).
 25. **A30 must judge fire stairs per building** (`rooms[].building`). Today A30 compares floor heights only, so a fire stair in one building counts as serving a level of the other (`docs/kestrel/schema.md` section 6). Destination: Kestrel tools, when Kestrel resumes (G53).
+26. **Phone is launch-only and untested (G182).** A phone opens the game on the minimum settings with the UI scaled to its screen and a Bluetooth pad as the input; no touch controls, no phone checks or tests, no device runs. Destination: none (testing only).
 
 ## Flaky e2e suites
 
@@ -41,7 +42,10 @@ reliable and then required (G51; the test fixes job in `docs/progress.md`).
   found by the weapons job (2026-10-19); for the test fixes job or the camera tuning.
 - **e2e-foley** - the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants against >= 4). Retuned with the CT prototype's speeds.
 - **e2e-bunker** - "the partner teleported across the host's spot is never solid" fails intermittently (training REVIEW-NOTES T5b2 under load; in the consolidation 2 of 4 solo runs failed with 6-13 frames solid, 2 passed). Suspect: host-page timing in the desktop browser context (snapshot gaps near the 0.3 s stall rule). The co-op test fixes job (G51) looks at it with e2e-coop and e2e-netmove.
-- **e2e-anim (not flaky, a known issue)** - the draw from holstered pops: the rifle from the back slot and the pistol from the thigh reach the hand inside the 8-frame swap fade (`src/anim/animGraph.ts` draw path, `SWAP_FADE`), up to ~0.14 per frame on the right hand. Live in the campaign rifle draw since before the merge; exposed when the sandbox lost the SMG (it drew from the sling). The holster to the back when a sprint starts pops the same way (sprint is removed, loco M20 Q8). The transitions check reports the 'aim' (draw) and 'sprint' steps as KNOWN ISSUE and asserts every other step. Fixed by the CT prototype's draw (G103: 0.6 / 0.75 s raise), then the step is asserted again.
+- **e2e-anim draw pop (fixed in feature/anim-cleanup)** - the draw from holstered popped (~0.14 per frame on the right
+  hand inside the swap fade). The draw / holster now carries the gun along a path in the trigger hand to the back mount
+  and the holster (WeaponModel travel): max 0.083 per frame, asserted < 0.1 like every other transition; the arm still
+  hits its joint-rate limit on some frames (reported).
 
 ## Pending input
 

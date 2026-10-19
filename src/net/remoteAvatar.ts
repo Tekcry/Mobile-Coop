@@ -25,6 +25,7 @@ import { RAPPEL } from '../config/movement';
 import { attachGripWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
+import { clearGripAxis } from '../player/attachGrips';
 
 /** Rope slots per remote (`Ropes` keys). */
 let ropeKeys = 0;
@@ -229,6 +230,8 @@ export class RemoteAvatar {
       crackedHandle(a, side, mv!.ph, DOOR.openAngle, this.doorHand);
       const reach = mv!.sub & 1 ? this.rig.reachL : this.rig.reachR;
       const other = mv!.sub & 1 ? this.rig.reachR : this.rig.reachL;
+      // (anim-cleanup) a door handle is not a grip axis
+      clearGripAxis(reach);
       reach.x = this.doorHand.x;
       reach.y = this.doorHand.y;
       reach.z = this.doorHand.z;

@@ -31,7 +31,7 @@ import {
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
+import { DROP, GRENADE, LAND, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { CLIMB, CLIMB_UP, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { effortSpeed } from './effort';
@@ -985,7 +985,7 @@ export class AnimGraph {
     this.reloadW = approach(this.reloadW, i.reload >= 0 ? 1 : 0, 0.08 * mass, dt);
     if (i.reload >= 0 || this.reloadW > 0.01) {
       const rt = i.reload >= 0 ? i.reload : 1;
-      overClip(src, i.reloadEmpty ? RELOAD_EMPTY : RELOAD_TACTICAL, rt, this.reloadW);
+      overClip(src, reloadClipFor(mass, i.reloadEmpty), rt, this.reloadW);
       this.slot(i.reloadEmpty ? 'reload empty' : 'reload', this.reloadW, rt);
       // held a little further out while reloading: the support arm reaches the magazine with the elbow clear of
       // the chest (compact guns hunched at a wall would fold it in)

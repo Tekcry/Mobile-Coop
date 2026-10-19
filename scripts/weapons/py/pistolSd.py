@@ -126,6 +126,9 @@ def build():
                   x0, x1, 0.0004, 1)
     W.profile('mag-plate', 'polymer', [(back(-0.086) - 0.0006, -0.0850, 0.002), (front(-0.086) + 0.0012, -0.0850), (front(-0.086) + 0.0028, -0.0930, 0.002),
                                        (back(-0.086) - 0.0014, -0.0930, 0.002)], -0.0140, 0.0140, 0.0010, 2)
+    # (anim-cleanup) the magazine body inside the grip (seen only when it is pulled for a reload)
+    W.profile('mag', 'cerakote', [(back(-0.085) + 0.0045, -0.085), (front(-0.085) - 0.0035, -0.085), (front(0.0) - 0.0035, 0.0, 0.002),
+                                  (back(0.0) + 0.0045, 0.0, 0.002)], -0.0105, 0.0105, 0.0008, 1)
 
     # --- controls: slide stop (left), takedown levers, magazine release, the jammer's ambidextrous paddle
     W.profile('slide-stop', 'nitride', [(0.0120, 0.0195), (0.0400, 0.0195), (0.0400, 0.0225, 0.001), (0.0245, 0.0232), (0.0195, 0.0262, 0.0015),

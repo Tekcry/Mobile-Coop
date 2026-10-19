@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased - phone-launch (feature/phone-launch)
+- A phone can launch the game for testing only (G182): the minimum settings (`?gfx=min`, no Auto detection, no
+  governor) and the menus and HUD scaled down to fit its screen. No touch controls; a Bluetooth pad drives it. Untested.
+
+## Unreleased - anim-cleanup (feature/anim-cleanup)
+
+Prototype pass over Wren's animations (Michael, 2026-10-19): accurate, believable, no clipping. `docs/anim-cleanup/`.
+
+- **Draw and holster:** the current gun is put away before the next comes out. The rifle travels over the right shoulder
+  onto the back plate stud, the pistol into the thigh holster, along a curved path clear of the head and trunk
+  (`WeaponModel.beginTravel` / `travel`, `TRAVEL_VIA`, `TRAVEL_OUT`; beats `TRAVEL_OUT` / `TRAVEL_IN` in
+  `playerWeapons.ts`). The draw pop is gone (e2e-anim asserts the draw).
+- **Reloads with real magazines:** a separate magazine mesh leaves the gun with the support hand, goes to its pouch
+  (rifle: chest; pistol: left hip), a fresh one is seated; an empty reload works the charging handle or racks the slide
+  (`reloadClipFor`, pistol clips; a swap or a grenade mid-reload cancels it cleanly).
+- **Shoulder swap moves the gun:** on the left shoulder the gun goes to the left hand once it is settled
+  (`weapons.handSwitchOk`); the partner sees it (ground MoveState sub bit 128, `SHOULDER_LEFT_SUB`; it was protocol 18,
+  counted in today's 22).
+- **Hands on the real geometry:** ladder rungs, drainpipes, pipes, ledge lips, the zipline cable, the rappel rope and fence
+  rails: the palm sits on the surface and the fingers wrap it (`attachGrips` grip axes, `CharacterRig.solveWorldGrip`);
+  rungs and fence wires take a fixed overhand grip.
+- **Hand shapes:** trigger, support, wrap and relaxed shapes blend from Wren's morph targets; free hands hang lightly curled.
+- Crouched ready hands sit by the thighs (`READY_HANDS` crouch values, with CT Core's P1c).
+
 ## Unreleased - weapons (feature/weapons)
 Placeholder weapons that look real at a glance, held and carried believably (Michael, 2026-10-19: "Holding weapons and
 holstering should at least look believable but only prototype quick run").

@@ -966,3 +966,12 @@ gadgets, and vision mode. Single button only toggles that one vision selected." 
 session, 2026-10-18); "no time slow" relayed from the main session (2026-10-19). Assumed placement (feel A1): the menu
 on LB hold, LB tap switches weapon, the vision toggle on D-pad left. (Replaces G100's cycle order and the goggle part
 of G96's exact CT layout.)
+
+**G182. A phone can launch the game, for testing only.** A phone or tablet (touch as its main pointer) opens the game
+on the minimum settings (`?gfx=min`: every feature off, DPR 1, the lowest operator LOD, no governor, no Auto
+detection), with the 1280 x 720 menu and HUD layout scaled down to fit its screen; the canvas fills the screen in
+either orientation inside the safe areas. No touch controls: a Bluetooth pad (or keyboard) drives it. No phone checks,
+tests, LODs, art or budgets. Gameplay never reads it. Michael: "i also want the phone to be able to launch the game,
+but always minimum settings, no touch controls, and no time spent on it. display should also automatically fit the
+iphone screen. but it absolutely is testing only, and does not need any checks or testing." (relayed by the
+orchestrator, 2026-10-19.) (Narrows G12 for launching only; desktop stays the only supported platform.)

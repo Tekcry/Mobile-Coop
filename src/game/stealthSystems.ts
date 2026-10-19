@@ -10,6 +10,7 @@ import type { GameState } from './gameState';
 import { DOOR, type DoorState } from '../world/doors';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
+import { clearGripAxis } from '../player/attachGrips';
 
 /** Noise radii (m): a bulb shot out, a body put down. */
 const SHOT_LIGHT_NOISE = 5;
@@ -350,6 +351,9 @@ export class StealthSystems {
     if (!b) return;
     b.knees(this.kneeL, this.kneeR);
     const rig = this.g.player.rig;
+    // (anim-cleanup) a carried body's knees are not a grip axis
+    clearGripAxis(rig.reachR);
+    clearGripAxis(rig.reachL);
     rig.reachR.x = this.kneeR.x;
     rig.reachR.y = this.kneeR.y;
     rig.reachR.z = this.kneeR.z;

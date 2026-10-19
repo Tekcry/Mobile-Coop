@@ -54,7 +54,7 @@ const res = await page.evaluate(([only, log]) => {
         if (dc < chest) { chest = dc; acc.chestAt = z; }
       }
     }
-    if (window.__dbg && (head < -0.01 || chest < -0.02)) acc.log.push(`t ${acc.n} HEAD ${(head * 100).toFixed(1)} TRUNK ${(chest * 100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} push ${(p.rig.gunPush * 100).toFixed(1)} raise ${p.carry.raise.toFixed(2)}`);
+    if (window.__dbg && (head < -0.01 || chest < -0.02)) acc.log.push(`t ${acc.n} HEAD ${(head * 100).toFixed(1)} TRUNK ${(chest * 100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} push ${(p.rig.gunPush * 100).toFixed(1)} raise ${p.carry.raise.toFixed(2)} w ${g.weapons.current?.def?.id} sw ${g.weapons.swapT?.toFixed?.(2)} travel ${!!g.weapons.current?.model?.travelling} pitch ${p.cam.pitch.toFixed(2)}`);
     // limbs: elbows outside the trunk, knees and feet never through each other (positions forced fresh)
     for (const n of [rig.hipL, rig.kneeL, rig.ankleL, rig.hipR, rig.kneeR, rig.ankleR, rig.shoulderL, rig.elbowL, rig.shoulderR, rig.elbowR]) n.computeWorldMatrix(true);
     for (const e of [rig.elbowL, rig.elbowR]) acc.minElbow = Math.min(acc.minElbow, segDist(e.getAbsolutePosition(), pv, nk) - 0.1);
@@ -121,7 +121,7 @@ const res = await page.evaluate(([only, log]) => {
   const run = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; check(acc); } return acc; };
   const move = (x, y) => st.setMove('t', x, y);
   const S = {
-    'aim every weapon': () => { tp(0, -14, Math.PI / 2); const acc = run(0.1); for (let i = 0; i < g.weapons.slots.length; i++) { st.tap('swapNext'); run(1.2); st.set('t', 'ads', true); const r = run(1.6, (t) => { p.cam.pitch = -0.7 + t * 0.9; }); st.set('t', 'ads', false); for (const k of ['n', 'wall', 'leg']) acc[k] += r[k]; acc.maxPen = Math.max(acc.maxPen, r.maxPen); acc.minLeg = Math.min(acc.minLeg, r.minLeg); acc.minHead = Math.min(acc.minHead, r.minHead); acc.minChest = Math.min(acc.minChest, r.minChest); } p.cam.pitch = 0; return acc; },
+    'aim every weapon': () => { tp(0, -14, Math.PI / 2); const acc = run(0.1); for (let i = 0; i < g.weapons.slots.length; i++) { st.tap('swapNext'); run(1.2); st.set('t', 'ads', true); const r = run(1.6, (t) => { p.cam.pitch = -0.7 + t * 0.9; }); st.set('t', 'ads', false); for (const k of ['n', 'wall', 'leg']) acc[k] += r[k]; acc.maxPen = Math.max(acc.maxPen, r.maxPen); acc.minLeg = Math.min(acc.minLeg, r.minLeg); acc.minHead = Math.min(acc.minHead, r.minHead); acc.minChest = Math.min(acc.minChest, r.minChest); if (r.chestAt !== undefined && r.minChest <= acc.minChest) acc.chestAt = r.chestAt; acc.log.push(...r.log); } p.cam.pitch = 0; return acc; },
     'aim walking + crouched': () => { tp(0, -14, Math.PI / 2); st.set('t', 'ads', true); const r1 = run(1.5, () => move(0.7, 0.7)); st.tap('crouch'); const r2 = run(1.5, () => move(-0.7, 0.5)); st.set('t', 'ads', false); r1.n += r2.n; r1.minHead = Math.min(r1.minHead, r2.minHead); r1.minChest = Math.min(r1.minChest, r2.minChest); r1.minLeg = Math.min(r1.minLeg, r2.minLeg); r1.wall += r2.wall; r1.leg += r2.leg; return r1; },
     'walk wall left': () => { tp(-8.3, 0.5, 0); return run(2.5, () => move(0, 0.5)); },
     'walk wall right': () => { tp(-8.3, 4.5, Math.PI); return run(2.5, () => move(0, 0.5)); },

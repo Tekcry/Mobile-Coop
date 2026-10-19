@@ -1,0 +1,249 @@
+<title>Night Shift Roadmap</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a build board. Waiting-on-you first, then live sessions as rows, the ordered queue, later, done. */
+:root {
+  --bg: #f2f4f3; --surface: #ffffff; --fg: #15201b; --muted: #5b6b64; --line: #d4dcd8;
+  --accent: #1f7a52; --accent-soft: #e1f0e8; --warn: #9a5b00; --warn-soft: #fbefdc; --idle: #6b7280; --idle-soft: #eceef0;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1110; --surface: #121a18; --fg: #e3ebe7; --muted: #92a39b; --line: #24302c;
+  --accent: #5fd39a; --accent-soft: #15291f; --warn: #e8b05c; --warn-soft: #2b2112; --idle: #9aa3ad; --idle-soft: #1b2222; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0b1110; --surface: #121a18; --fg: #e3ebe7; --muted: #92a39b; --line: #24302c;
+  --accent: #5fd39a; --accent-soft: #15291f; --warn: #e8b05c; --warn-soft: #2b2112; --idle: #9aa3ad; --idle-soft: #1b2222; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 900px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 32px; }
+header { display: grid; gap: 6px; }
+.eyebrow, .label { font: 500 11px/1.2 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 700 42px/1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+h2 { font: 700 22px/1.1 var(--f-display); letter-spacing: .05em; text-transform: uppercase; margin: 0 0 12px; display: flex; gap: 10px; align-items: baseline; }
+h2 .count { font: 500 12px var(--f-mono); color: var(--muted); letter-spacing: 0; }
+p { margin: 0; }
+.goal { color: var(--muted); max-width: 70ch; }
+ol, ul { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.waiting { background: var(--warn-soft); border: 1px solid var(--line); border-left: 3px solid var(--warn); padding: 18px 20px; }
+.waiting li::marker { color: var(--warn); font-weight: 600; }
+.who { font: 12px var(--f-mono); color: var(--muted); }
+.board { display: grid; gap: 10px; }
+.row { background: var(--surface); border: 1px solid var(--line); padding: 14px 16px; display: grid; grid-template-columns: 190px 1fr; gap: 6px 18px; }
+.row > div { min-width: 0; }
+.name { font: 600 15px var(--f-body); }
+.meta { font: 12px var(--f-mono); color: var(--muted); }
+.pill { display: inline-block; font: 600 10px/1 var(--f-mono); letter-spacing: .07em; text-transform: uppercase; padding: 4px 7px; border-radius: 99px; margin-top: 6px; }
+.pill.run { background: var(--accent-soft); color: var(--accent); }
+.pill.test { background: var(--warn-soft); color: var(--warn); }
+.next-cp { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.next-cp b { color: var(--fg); font-weight: 500; }
+.queue li { padding-left: 4px; }
+.queue li::marker { font: 700 16px var(--f-display); color: var(--accent); }
+.queue .owner { font: 12px var(--f-mono); color: var(--muted); }
+.gate { background: var(--accent-soft); padding: 2px 6px; font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 500 11px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.num { font: 13px var(--f-mono); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.later { color: var(--muted); }
+.previews { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.previews div { background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; display: grid; gap: 4px; min-width: 0; }
+a { color: var(--accent); }
+.qhint { font-size: 14px; color: var(--muted); margin-bottom: 14px; }
+.qs { gap: 14px; }
+.qs li::marker { color: var(--warn); font-weight: 600; }
+.q { display: grid; gap: 8px; }
+.q-text { font-weight: 500; }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.opt { font: 500 13px var(--f-body); padding: 6px 12px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 99px; cursor: pointer; }
+.opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.opt:focus-visible, .save:focus-visible, .note:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.q-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.note { flex: 1 1 260px; min-width: 0; font: 14px var(--f-body); padding: 7px 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 4px; }
+.save { font: 600 13px var(--f-body); padding: 7px 14px; border: 0; border-radius: 4px; background: var(--fg); color: var(--bg); cursor: pointer; }
+.save:disabled { opacity: .45; cursor: default; }
+.status { font: 12px var(--f-mono); color: var(--muted); }
+.status.ok { color: var(--accent); }
+.status.err { color: var(--warn); }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+@media (max-width: 620px) { h1 { font-size: 32px; } .row, .previews { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Updated 2026-10-19 12:45 Sydney · source: docs/ROADMAP.md on master</span>
+    <h1>Night Shift roadmap</h1>
+    <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Visual pass last. No refining before your core-loop playtest.</p>
+  </header>
+
+  <section class="waiting">
+    <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
+    <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
+    <ol class="qs" id="qs"></ol>
+    <p class="qhint">Also yours: delete the merged branch feature/ct-research (safe; auto mode blocked the orchestrator). Run <code>git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research</code>.</p>
+  </section>
+
+  <section>
+    <h2>Now <span class="count">3 sessions</span></h2>
+    <div class="board">
+      <div class="row">
+        <div><div class="name">Orchestrator</div><div class="meta">desktop · this roadmap</div><span class="pill run">Running</span></div>
+        <div><p>Plans, reviews and merges into master, moves /preview/, keeps the sessions in step.</p>
+          <p class="next-cp">Next: <b>merge anim-cleanup's PR, then move /preview/ to master</b></p></div>
+      </div>
+      <div class="row">
+        <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype</div><span class="pill run">Building</span></div>
+        <div><p>Playtest 2 slice A, controls and camera: D-pad walk speed with speed 2 the slowest, aim sensitivity 70 % lower, peek direction, shoulder memory, no swap flick, back-to-wall snap, quieter footsteps, no walk bob.</p>
+          <p class="next-cp">Next: <b>slice A on /ct/ for you to feel</b></p></div>
+      </div>
+      <div class="row">
+        <div><div class="name">Character Build</div><div class="meta">laptop · feature/anim-cleanup</div><span class="pill test">Testing</span></div>
+        <div><p>anim-cleanup: full e2e on the desktop (holster timing fixes in review).</p>
+          <p class="next-cp">Next: <b>PR to master, merged by the orchestrator</b></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Next <span class="count">in order</span></h2>
+    <ol class="queue">
+      <li>Anim clean-up into master <span class="owner">Character Build</span></li>
+      <li>Playtest 2 slices B + C: aiming against the CT footage (view unchanged when crouched, upper body tight, arms in, natural pistol aim); legs in line with the body; crouch hands and legs <span class="owner">CT Core</span></li>
+      <li>Playtest 2 slices D + E: holstering; hanging shimmy with wider, slower hands; vertical pipe climb; ledge climb-up onto the knees <span class="owner">CT Core</span></li>
+      <li><span class="gate">Your core-loop playtest</span> of the co-op training course. Refining starts only after this. <span class="owner">You</span></li>
+      <li>Selection wheel restyle: slightly bigger, not just boxes, original <span class="owner">CT Core</span></li>
+      <li>Menu notes: music from the title screen, preload with a load screen, no way back to the title, hero quality check, hand clipping the magazine, rifle and pistol poses in the menu, merge Controls with Settings <span class="owner">Menu</span></li>
+      <li>Visual pass on the training level: lighting, materials, dressing <span class="owner">Last</span></li>
+    </ol>
+  </section>
+
+  <section class="later">
+    <h2>Later</h2>
+    <ul>
+      <li>Moth as player 2 (2-3 days; purple goggle; a scratch prototype first, when nothing urgent waits)</li>
+      <li>Cleanup job (Wren loose ends), after your core-loop playtest</li>
+      <li>GPU perf checks on the PC: menu, weapon meshes, low-preset budgets</li>
+      <li>Test fixes: flaky suites, the old Kestrel and camera-bounds failures</li>
+      <li>The older backlog: medkit stations, missing sounds, music revision, art guide, Kestrel, Fallow bunker</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Done <span class="count">7 PRs</span></h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Date</th><th>PR</th><th>What</th></tr></thead>
+      <tbody>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/9">#9</a></td><td>CT prototype: posture, CT controls, selection wheel, 8-station co-op course, revive</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/8">#8</a></td><td>Menu: menus, dialog fixes, cinematic hero background</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/6">#6</a></td><td>CLAUDE.md "Current goal"</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/7">#7</a></td><td>Weapons: rifle, pistol with jammer, knife, holds and carry</td></tr>
+        <tr><td class="num">18 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/5">#5</a></td><td>Wren is the player character (both players)</td></tr>
+        <tr><td class="num">18 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/4">#4</a></td><td>CT co-op research and the prototype plan</td></tr>
+        <tr><td class="num">17 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/3">#3</a></td><td>4.0.0 consolidation</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Previews</h2>
+    <div class="previews">
+      <div><span class="label">/preview/ · master</span><a href="https://tekcry.github.io/Mobile-Coop/preview/">tekcry.github.io/Mobile-Coop/preview/</a><span class="meta">Moved by the orchestrator after each merge</span></div>
+      <div><span class="label">/ct/ · feature/ct-prototype</span><a href="https://tekcry.github.io/Mobile-Coop/ct/">tekcry.github.io/Mobile-Coop/ct/</a><span class="meta">Moved by CT Core after each slice</span></div>
+    </div>
+  </section>
+
+  <footer>Every session reports to the orchestrator, which updates docs/ROADMAP.md and republishes this page. Git is the source of truth.</footer>
+</div>
+
+<script>
+const QUESTIONS = [];
+const state = {};      // id -> { choice, note } being edited
+const saved = {};      // id -> stored doc body
+let db = null;
+const list = document.getElementById('qs');
+const hint = document.getElementById('qhint');
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function build() {
+  for (const q of QUESTIONS) {
+    state[q.id] = { choice: '', note: '' };
+    const li = el('li'); const box = el('div', 'q');
+    const t = el('div', 'q-text', q.text + ' '); t.append(el('span', 'who', q.who)); box.append(t);
+    if (q.opts.length) {
+      const opts = el('div', 'opts');
+      for (const o of q.opts) {
+        const b = el('button', 'opt', o); b.type = 'button'; b.setAttribute('aria-pressed', 'false'); b.dataset.q = q.id; b.dataset.v = o;
+        b.addEventListener('click', () => { state[q.id].choice = state[q.id].choice === o ? '' : o; paint(q.id); });
+        opts.append(b);
+      }
+      box.append(opts);
+    }
+    const row = el('div', 'q-row');
+    const note = el('input', 'note'); note.type = 'text'; note.id = 'note-' + q.id; note.placeholder = q.opts.length ? 'Note (optional)' : 'Your answer';
+    note.setAttribute('aria-label', 'Note for: ' + q.text);
+    note.addEventListener('input', () => { state[q.id].note = note.value; paint(q.id); });
+    const save = el('button', 'save', 'Save'); save.type = 'button'; save.id = 'save-' + q.id;
+    save.addEventListener('click', () => store(q.id));
+    const st = el('span', 'status'); st.id = 'st-' + q.id;
+    row.append(note, save, st); box.append(row); li.append(box); list.append(li);
+  }
+}
+
+function paint(id) {
+  const s = state[id], sv = saved[id];
+  for (const b of list.querySelectorAll('.opt[data-q="' + id + '"]')) b.setAttribute('aria-pressed', String(b.dataset.v === s.choice));
+  const changed = !sv || sv.choice !== s.choice || sv.note !== s.note;
+  const save = document.getElementById('save-' + id);
+  save.disabled = !db || !changed || (!s.choice && !s.note.trim());
+  const st = document.getElementById('st-' + id);
+  if (!db) { st.textContent = ''; st.className = 'status'; }
+  else if (sv && !changed) { st.textContent = 'Saved'; st.className = 'status ok'; }
+  else if (sv) { st.textContent = 'Unsaved change'; st.className = 'status'; }
+  else { st.textContent = ''; st.className = 'status'; }
+  const open = QUESTIONS.filter((q) => !saved[q.id]).length;
+  document.getElementById('qcount').textContent = open ? open + ' open' : 'all answered';
+}
+
+async function store(id) {
+  const s = state[id], st = document.getElementById('st-' + id), save = document.getElementById('save-' + id);
+  save.disabled = true; st.textContent = 'Saving…'; st.className = 'status';
+  const q = QUESTIONS.find((x) => x.id === id);
+  try {
+    await db.doc('answers/' + id).set({ question: q.text, choice: s.choice, note: s.note.trim(), savedAt: new Date().toISOString() });
+  } catch (e) {
+    st.textContent = 'Not saved: ' + (e && e.code === 'permission_denied' ? 'only the owner can answer' : 'try again'); st.className = 'status err';
+    save.disabled = false;
+  }
+}
+
+build();
+for (const q of QUESTIONS) paint(q.id);
+hint.textContent = 'Connecting to the answer store…';
+
+(async () => {
+  for (let i = 0; i < 30 && !window.claude; i++) await new Promise((r) => setTimeout(r, 100));
+  try { db = window.claude ? await window.claude.use('db') : null; } catch { db = null; }
+  if (!db) { hint.textContent = 'Answers can only be saved when you open this page signed in to claude.ai. Meanwhile, reply to the orchestrator in chat.'; for (const q of QUESTIONS) paint(q.id); return; }
+  hint.textContent = 'Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.';
+  db.collection('answers').onSnapshot((snap) => {
+    for (const d of snap.docs) {
+      const body = d.data() || {};
+      const prev = saved[d.id];
+      saved[d.id] = { choice: String(body.choice || ''), note: String(body.note || '') };
+      if (!state[d.id]) continue;
+      // adopt the stored answer unless this view has an unsaved edit of its own
+      const s = state[d.id];
+      const editing = prev ? (s.choice !== prev.choice || s.note !== prev.note) : (s.choice || s.note);
+      if (!editing) { s.choice = saved[d.id].choice; s.note = saved[d.id].note; const n = document.getElementById('note-' + d.id); if (n) n.value = s.note; }
+    }
+    for (const q of QUESTIONS) paint(q.id);
+  }, () => { hint.textContent = 'The answer store stopped responding. Reload the page to answer.'; });
+  for (const q of QUESTIONS) paint(q.id);
+})();
+</script>

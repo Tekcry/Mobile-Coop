@@ -4,7 +4,7 @@
  * once per scene into a hidden source mesh and a PBR material, and every weapon of that kind in the scene shares its
  * geometry and material. Gameplay never reads these meshes (muzzle, hand points and extents come from weapons.json).
  */
-import { Color3, Mesh, PBRMaterial, VertexData, type Scene, type TransformNode } from '../core/babylon';
+import { Color3, Mesh, PBRMaterial, Quaternion, VertexData, type Scene, type TransformNode } from '../core/babylon';
 import type { GlbModel } from '../operators/lab/glb';
 import { loadModel, texture } from '../operators/runtime/figure';
 import { pageLeaving } from '../operators/runtime/offline';
@@ -19,13 +19,30 @@ export function weaponMeshUrl(id: string): string {
 
 interface WeaponAsset {
   source: Mesh;
+  /** (anim-cleanup) The magazine as its own mesh (`<id>-mag` in the file), when the weapon has one. */
+  mag: Mesh | null;
   material: PBRMaterial;
 }
 
 const ASSETS = new WeakMap<Scene, Map<string, Promise<WeaponAsset>>>();
 
+function sourceMesh(scene: Scene, g: GlbModel['meshes'][number], name: string): Mesh {
+  const source = new Mesh(name, scene);
+  const vd = new VertexData();
+  vd.positions = g.positions;
+  vd.normals = g.normals;
+  vd.uvs = g.uvs;
+  if (g.tangents) vd.tangents = g.tangents;
+  vd.indices = g.indices as unknown as number[];
+  vd.applyToMesh(source, false);
+  source.setEnabled(false);
+  source.isPickable = false;
+  return source;
+}
+
 function build(scene: Scene, model: GlbModel, id: string): WeaponAsset {
-  const g = model.meshes[0];
+  const g = model.meshes.find((x) => x.name === id) ?? model.meshes[0];
+  const gm = model.meshes.find((x) => x.name === `${id}-mag`) ?? null;
   const m = model.materials[0];
   if (!g || !m) throw new Error(`weapon mesh ${id}: empty file`);
   const mat = new PBRMaterial(`wpn-mesh-${id}`, scene);
@@ -54,18 +71,10 @@ function build(scene: Scene, model: GlbModel, id: string): WeaponAsset {
   mat.directIntensity = Math.PI;
   mat.backFaceCulling = false;
   mat.twoSidedLighting = true;
-  const source = new Mesh(`wpn-mesh-${id}-src`, scene);
-  const vd = new VertexData();
-  vd.positions = g.positions;
-  vd.normals = g.normals;
-  vd.uvs = g.uvs;
-  if (g.tangents) vd.tangents = g.tangents;
-  vd.indices = g.indices as unknown as number[];
-  vd.applyToMesh(source, false);
-  source.setEnabled(false);
-  source.isPickable = false;
+  const source = sourceMesh(scene, g, `wpn-mesh-${id}-src`);
+  const mag = gm ? sourceMesh(scene, gm, `wpn-mesh-${id}-mag-src`) : null;
   scene.onDisposeObservable.addOnce(() => mat.dispose(false, true));
-  return { source, material: mat };
+  return { source, mag, material: mat };
 }
 
 function asset(scene: Scene, id: string): Promise<WeaponAsset> | null {
@@ -90,7 +99,7 @@ function asset(scene: Scene, id: string): Promise<WeaponAsset> | null {
  * geometry and material). Returns false when the item has no mesh in the bundle. A failed load is logged once and the
  * weapon keeps its proxy parts; `alive()` false (the weapon was disposed meanwhile) drops the result.
  */
-export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, alive: () => boolean, ready: (m: Mesh) => void): boolean {
+export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, alive: () => boolean, ready: (m: Mesh, mag: Mesh | null) => void): boolean {
   const p = asset(scene, id);
   if (!p) return false;
   p.then((a) => {
@@ -101,7 +110,17 @@ export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, 
     m.parent = parent;
     m.isPickable = false;
     m.receiveShadows = true;
-    ready(m);
+    let mag: Mesh | null = null;
+    if (a.mag) {
+      mag = new Mesh(`wpn-mesh-${id}-mag`, scene);
+      a.mag.geometry!.applyToMesh(mag);
+      mag.material = a.material;
+      mag.parent = parent;
+      mag.isPickable = false;
+      mag.receiveShadows = true;
+      mag.rotationQuaternion = Quaternion.Identity();
+    }
+    ready(m, mag);
   }).catch((e: unknown) => {
     if (!pageLeaving() && !scene.isDisposed) console.warn(`[weapons] ${id} mesh failed to load`, e);
   });

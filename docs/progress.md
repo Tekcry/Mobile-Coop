@@ -1,5 +1,7 @@
 # Night Shift - progress
 
+**Current status, the queue and what waits on Michael: `docs/ROADMAP.md` (owned by the orchestrator session, 2026-10-19).** The tables below are history and the older follow-up backlog.
+
 Where the project stands: the ordered job list (G90) and the current state. Michael's decisions: `docs/DECISIONS.md`.
 Design: `docs/design-bible.md`. Each job updates its row when it starts, opens its PR and is merged. The old Phase 0-7
 table and the phase logs are history: `docs/archive/progress-phases.md`; phase numbers survive only as chapter names.
@@ -29,6 +31,7 @@ Follow-ups, after the research and the prototype (one line each; their order is 
 | Operators: `feature/operators` merges master and opens its own PR (G75); its open items stay there | `feature/operators` | Running on its own branch, not in 4.0.0 |
 | Wren replaces the player body for both players now (G123, replaces G70); then the weapon step; body proportion fixes for every character (G72) | feature/operators PR | Merged (PR #5) |
 | Weapons: placeholder kit meshes (rifle with launcher, pistol with jammer, knife), believable holds and carry on Wren (`docs/weapons/`) | `feature/weapons` (`Mobile-Coop-weapons`) | Merged (PR #7; G177, G178) |
+| Animation clean-up (Michael, 2026-10-19): weapon handling (aim, reload with magazines, sequential equip / holster to the real mounts, shoulder swap), then Wren-specific animation audit, traversal and wall contacts against CT footage, hand shapes, transitions; prototype level: accurate, believable, no clipping (`docs/anim-cleanup/`) | `feature/anim-cleanup` (`Mobile-Coop-anim-cleanup`) | PR to master (Michael, 2026-10-19: land it before CT Core's next slices); open audits in `docs/anim-cleanup/POLISH.md` |
 | Original goggle and menu symbol (G69, "soon"); goggle on the brow when off, over the eyes when on (G73) | `feature/goggle` (proposed) | Not started |
 | Fallow bunker rebuilt on the CT moves, every jump and reach re-checked (G79), starting from Michael's walkthrough notes | `feature/bunker-walkthrough` | After the prototype |
 | Missing sounds: guards' footsteps, then ambience, then the rest (G66) | - | After the prototype |

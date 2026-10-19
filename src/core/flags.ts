@@ -17,8 +17,11 @@ export interface Flags {
   room: string | null;
   /** Coop transport: 'local' = BroadcastChannel between tabs (tests), default WebRTC. */
   net: 'local' | 'webrtc';
-  /** Graphics override for this page (tests; not saved): 'min' = everything off at DPR 1, or a preset. */
+  /** Graphics override for this page (tests; not saved): 'min' = everything off at DPR 1, or a preset. A phone gets
+   *  'min' unless the page names one (G182). */
   gfx: 'min' | 'low' | 'medium' | 'high' | 'ultra' | 'epic' | null;
+  /** (G182) A phone or tablet (touch as the main pointer): testing only; minimum settings, a small-screen UI scale. */
+  phone: boolean;
   /** 3.0 voxel world (`?voxels=0`: the blockout's boxes, for comparisons). */
   voxels: boolean;
   /** 3.2 baked lamps (`?baked=0`: real lights and shadow maps, for comparisons). */
@@ -57,6 +60,15 @@ function readParams(): URLSearchParams {
 
 const params = readParams();
 
+/** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: always the minimum settings. */
+function readPhone(): boolean {
+  try {
+    return (globalThis.navigator?.maxTouchPoints ?? 0) > 0 && globalThis.matchMedia?.('(pointer: coarse)').matches === true;
+  } catch {
+    return false;
+  }
+}
+
 function readSpawn(v: string | null): Flags['spawn'] {
   const p = v?.split(',') ?? [];
   if (p.length !== 4) return null;
@@ -76,7 +88,8 @@ export const flags: Flags = {
   difficulty: params.get('difficulty'),
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
-  gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
+  phone: readPhone(),
+  gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'min' : null),
   voxels: params.get('voxels') !== '0',
   baked: params.get('baked') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,

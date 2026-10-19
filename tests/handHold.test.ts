@@ -43,3 +43,25 @@ describe('hand holds (feature/weapons)', () => {
     }
   });
 });
+
+describe('world grips: holdInto (anim-cleanup slice 3)', () => {
+  it('matches solveHold for the same frames, and rotates the palm offset by the same rotation', async () => {
+    const { holdInto } = await import('../src/player/handHold');
+    for (const [hand, s] of [[WREN_HANDS.R, 1], [WREN_HANDS.L, -1]] as [HandFrame, 1 | -1][]) {
+      const h = HOLDS.tube;
+      const ref = solveHold(hand, h, s);
+      const out = new Float64Array(7);
+      expect(holdInto(hand, h.d[0] * s, h.d[1], h.d[2], h.n[0] * s, h.n[1], h.n[2], out)).toBe(true);
+      const dq = Math.abs(out[0]! * ref.q[0] + out[1]! * ref.q[1] + out[2]! * ref.q[2] + out[3]! * ref.q[3]);
+      expect(dq).toBeGreaterThan(0.9999);
+      const p = rotateQ(ref.q, hand.palm);
+      for (let k = 0; k < 3; k++) expect(out[4 + k]!).toBeCloseTo(p[k]!, 6);
+    }
+  });
+  it('refuses a degenerate frame (palm normal along the knuckles) instead of returning a broken rotation', async () => {
+    const { holdInto } = await import('../src/player/handHold');
+    const out = new Float64Array(7);
+    expect(holdInto(WREN_HANDS.R, 0, 1, 0, 0, 1, 0, out)).toBe(false);
+    expect(holdInto(WREN_HANDS.R, 0, 0, 0, 1, 0, 0, out)).toBe(false);
+  });
+});

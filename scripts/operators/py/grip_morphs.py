@@ -78,6 +78,11 @@ GRIPS = {
     'gripR': {'side': 'R', 'fingers': [(22, 34, 18), (62, 88, 48), (64, 90, 50), (66, 92, 52)], 'thumb': (6, 16, 12), 'thumbIn': 12},
     # support hand round a 50 mm tube or cupping a pistol grip: all four wrapped, a little more open
     'gripL': {'side': 'L', 'fingers': [(48, 62, 34), (52, 66, 36), (54, 68, 38), (56, 70, 40)], 'thumb': (20, 24, 16), 'thumbIn': 30},
+    # (anim-cleanup) the right hand closed round a rung, pipe, line or knife handle: every finger wrapped (no trigger)
+    'wrapR': {'side': 'R', 'fingers': [(52, 68, 38), (54, 70, 40), (56, 72, 40), (58, 74, 42)], 'thumb': (20, 24, 16), 'thumbIn': 30},
+    # (anim-cleanup) relaxed hands (hanging, free): fingers lightly curled, thumb in (not the flat bind pose)
+    'relaxR': {'side': 'R', 'fingers': [(12, 18, 10), (16, 22, 12), (18, 24, 14), (20, 26, 14)], 'thumb': (6, 10, 6), 'thumbIn': 10},
+    'relaxL': {'side': 'L', 'fingers': [(12, 18, 10), (16, 22, 12), (18, 24, 14), (20, 26, 14)], 'thumb': (6, 10, 6), 'thumbIn': 10},
 }
 
 

@@ -181,6 +181,10 @@ Overrides SPEC 3.3 and the SPEC 7 rows for the flip mount and the "square goggle
 (Recommended)". Ledge, wall-jump and climb positions use a fixed gameplay height (`GAMEPLAY_HEIGHT` 1.75) for every
 player; Wren's body is drawn lifted onto her grips. Recorded in master's docs/DECISIONS.md as G176. Replaces A105.
 
+**D35 PR #5 merged on Michael's word (2026-10-18).** Michael: "merge"; asked how (his standing rule is that Claude
+never merges into master), "Merge commit (Recommended)". The orchestrator merged Tekcry/Mobile-Coop#5 into master as
+9295c65 (merge commit); feature/operators is kept for the cleanup, the placeholder weapons and Moth.
+
 **D33 Wren in the game first; hero model in the menu (2026-10-18, during step 11d/11e).** Michael: "I want wren in the
 game first. We will clean up changes later while the game is built." (D32 relabels, 11c doc fixes, the stowed goggle
 export and other polish become cleanup after the PR; 11d and 11e share one independent check before the PR.) The
