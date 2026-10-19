@@ -1,64 +1,76 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-18.
+Updated 2026-10-19 11:45 Sydney (before Michael clears the orchestrator conversation).
 
-## Current goal (Michael, 2026-10-19; master CLAUDE.md "Current goal", PR #6) - overrides slower wording below
-A fully functional 2-player co-op training level, playable end to end, as soon as possible:
-- Wren as the character for both players, with basic animations.
-- Basic weapons: Blender scratch builds, realistic at a glance but quick (feature/weapons, laptop session; the
-  existing weapon carry stands in until they merge, do not wait for them).
-- All co-op moves and the required CT moves; lights and shadows working (light parity).
-- Pure CT (G1, `docs/ct-research`, G124-G160) except Michael's recorded decisions, including the Blacklist-style
-  selection wheel for weapons, gadgets and vision modes, no time slow (G181).
-- A visual pass comes last, to make it prettier.
+## Resume
+New local session, Opus, medium effort:
+```
+CT core feel job: RESUME. Work only in C:\NightShift\Mobile-Coop-ct-prototype on feature/ct-prototype (git pull --ff-only). Read CLAUDE.md, docs/ct-prototype/RULES.md and STATE.md, then carry on from STATE "Next". Report to "Night Shift | Orchestrator". No em dashes.
+```
+Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md` G179-G181 (this job's G entries).
+Log of every slice: `LOG.md`. Polish list (not worked on until Michael says): `POLISH.md`.
 
-No refining (feel tuning, animation polish, perf tuning, detail art) until Michael has playtested the core loop.
-Checkers block only on broken or unplayable work; cosmetic notes go on `POLISH.md`. At most 1 fix round per slice
-unless broken. Quick e2e per slice (`npm run e2e:quick`, one test run at a time on this PC: a timing failure under
-load is load first), the full e2e at the PR. The Opus leg fix only if it breaks play or looks obviously broken.
+## Rules that bind now (details in RULES.md)
+- Current goal (master CLAUDE.md): a fully playable 2-player co-op training level, pure CT except Michael's decisions;
+  no refining before Michael playtests; checkers block only on broken / unplayable work.
+- Report to the session **"Night Shift | Orchestrator"** (master PR #10): message it when a slice starts, finishes
+  (with /ct/ pushed), a PR opens, Michael is needed, or you are blocked. Only it edits `docs/ROADMAP.md`. Michael
+  answers questions on its dashboard; it forwards them.
+- **One heavy slot** on the desktop: before any `npm run check`, full vitest, build, e2e or GPU shot, check
+  `C:\NightShift\heavy.lock`; if present wait (re-check every few minutes) and do light work; if absent write
+  "CT Core Build | <job> | <time>", run, delete it after. At 11:45 the orchestrator held it (anim-cleanup full e2e on
+  port 4192, expected done about 12:45) and will message when it frees it.
+- Per slice: implementer (Sonnet medium; Opus for network-sync-heavy or stuck work), independent read-only check,
+  at most 1 fix round, `npm run check` and the slice's e2e (one suite at a time, port 4193), commit (all changed paths
+  after the off-limits check), push feature/ct-prototype, then `git push origin feature/ct-prototype:ct-movement`
+  (/ct/) unless the orchestrator / Michael has frozen /ct/.
+- Do not touch arms / hands / solveArm / wrists / grips / AIM_POCKET / weaponPivot / draw-holster mounts / READY_HANDS
+  until feature/anim-cleanup is in master (Character Build session owns them).
 
-## Overnight run (Michael, 2026-10-19, "no stop until told")
-- Per slice: build, an independent check (blocks only on broken / unplayable), at most 1 fix round, `npm run check`,
-  `npm run e2e:quick`, commit, push, `git push origin feature/ct-prototype:ct-movement`. Time box about 90 min.
-- A decision that is genuinely Michael's: write it as a question in `WALKTHROUGH.md`, take the simplest reversible
-  option, carry on.
-- By 09:30 Sydney: the best playable state on ct-movement, with `WALKTHROUGH.md` (how to start, what to try, known
-  broken, open questions, polish list). From 09:30 until Michael says otherwise: do NOT push ct-movement; push
-  feature/ct-prototype only.
+## Where things stand
+- Master has all overnight work: PR #9 merged (2e141075): movement A1-A5, posture P1-P1c, playtest 1 fixes F1a / F1b,
+  CT training course `ctcourse` B1-B8 (all 8 stations with real co-op moves, revive, finish), T1 / T2 test clean-up.
+  Protocol 22. /ct/ was moved by the orchestrator to 7e6229d for Michael's playtest 2.
+- Branch after #9: docs-only commits (STATE, RULES: orchestrator reporting and heavy slot). Master also has PR #10
+  (CLAUDE.md "Orchestrator"): merge origin/master into this branch after slice A (docs only).
+- Michael's playtest 2 notes and approved plan: `PLAYTEST-2.md`.
 
-- Job docs created (RULES, FEEL-PLAN, STATE, LOG, OWNER-NOTES, DECISIONS). The job plan is `FEEL-PLAN.md`; `PLAN.md`
-  is the research's whole prototype plan (from master).
-- Research in (2026-10-18): CT co-op research merged to master (PR #4, a22a9c0) and merged into this branch. Read from
-  master now (`docs/DECISIONS.md` G124-G160, `docs/ct-research/`); the research folder paths in the start prompt are
-  superseded. Applied to this job (`FEEL-PLAN.md`): G159 manual camera, G137 strict corner peek (tighten the wall-peek
-  camera), G160 tense sneak crouch, G155 one-hit palm strike on every guard (no heavies or dogs), G135 per-player
-  goggle lamp colour, G152 held jammer (kit work after core feel unless it touches the pistol draw), G150 core feel
-  first, G158 Sonnet medium implementers. The "findings for Michael to confirm" list is not decisions.
-- Step 0 code review: done (`REVIEW.md`); Michael's picks in `DECISIONS.md`.
-- A2.1 (cleanup + camera rewrite) built and committed (`A2-CAMERA.md`). STOPPED for Michael to play the camera.
-- A1.1 turn follow and A3 wall, doors, pad built (`A1-TURN.md`, `A3-WALL-DOORS.md`), on /ct/, awaiting Michael's play. Next: A4 strike and grab; A5 goggles;
-  then phase 2, the co-op training bunker B0-B8 (`FEEL-PLAN.md`, G179). One stop per slice while Michael is awake;
-  overnight runs only when he says. Every slice also pushed to `ct-movement` (`/ct/`).
-- Playtest checklist (Michael's verdicts and notes, saved in its db collection `notes`, read with ArtifactData list): https://claude.ai/artifact/RA6bgQpeq1xALCXLviRLNp . Movement A1-A5 built once (prototype pass) and feature/menu merged (7078807), all on /ct/. Phase 2: B0 survey done (`B0-BUNKER-SURVEY.md`), Michael picked a fresh compact level; B1 spec and greybox built (`B1-CTCOURSE.md`), on /ct/, awaiting Michael's walk test; next B2 leg-up and CT relay. Open: strike button RT vs LT (Michael to say what CT used).
-- Wren: feature/operators has no PR yet; posture waits.
-- Open from M1 (see `M1.md`, "Open for the core feel job"): rerun e2e-netmove, e2e-pad, e2e-mouse alone; frozen stance
-  not on the wire; Settings "Sprint hold / toggle" row (menu job), stale `.tac-gear` CSS, unused `sprintHold`.
+## Slice A (playtest 2) - IN PROGRESS, uncommitted
+A Sonnet implementer was mid-run at 11:45 (an e2e runner on port 4193). Scope (PLAYTEST-2.md, slice A): D-pad up / down
+= walk speed with speed 2 the slowest; ADS sensitivity 0.3 of explore; corner peek inverted; chosen shoulder carried
+into aiming and back to the follow camera; no upward flick on a shoulder swap; back-to-wall snap from about 0.5 m with
+no slide; own footsteps scaled to the noise meter (much quieter); no camera bob.
+Uncommitted files in the working tree at 11:45: scripts/e2e-move.mjs, scripts/e2e-wall.mjs, src/anim/animGraph.ts,
+src/audio/gameAudio.ts, src/config/movement.ts, src/core/settings.ts, src/game/gameState.ts, src/player/movement.ts,
+src/player/speedGears.ts, src/player/wallController.ts, tests/analogGear.test.ts, tests/animAudit.test.ts,
+tests/speedGears.test.ts, tests/wallController.test.ts, new tests/stepVolume.test.ts. No report yet
+(`A-PLAYTEST2.md` not written). If the session ends before the agent hands back: keep these edits, read the diff,
+finish what is missing from the scope list (peek inversion, shoulder carry and swap flick live in
+shoulderCamera.ts / camera config and were not yet touched at 11:45), write `A-PLAYTEST2.md`, wait for the heavy slot,
+run `npm run check` and e2e smoke, move, wall, pad, foley one at a time, independent check, commit, push branch and /ct/
+(if not frozen), then message the orchestrator.
 
-## Merge order to master (Michael via the main session, 2026-10-19)
-Weapons (#7) and Wren (#5) are on master; the menu PR (feature/menu, hero menu slice 6, dialog fixes) merges next.
-After Michael's 10:00 walkthrough: merge origin/master into feature/ct-prototype (expect overlaps in characterRig.ts,
-animGraph.ts PISTOL_REACH / READY_HANDS, src/weapons/*, remoteAvatar.ts; menu touches menuScene.ts, babylon.ts,
-styles.css, settingsScreen.ts, postStack.ts), run checks, then open the PR to master for Michael. Protocol 22 stands.
-feature/anim-cleanup merges master once after that.
+## Next
+1. Finish slice A (above), push, report to the orchestrator.
+2. Merge origin/master (PR #10, docs) into the branch.
+3. When the orchestrator says feature/anim-cleanup is in master: merge origin/master (expect overlaps in characterRig.ts,
+   animGraph.ts, src/weapons/*, remoteAvatar.ts), then slices **B+C**: ADS against the CT footage (aim view unchanged
+   when crouched for every weapon; upper body tight, not wrist-only tilting; arms less outstretched; natural pistol
+   aim); legs in line with the body walking, running and turning; crouch hands and legs from the CT references.
+4. Then **D+E** (re-check against anim-cleanup first; Michael played without it): rifle and pistol holstering; hanging
+   shimmy with wider, slower hands; vertical pipe climb (legs swing upside down, hands backwards); ledge climb-up onto
+   the knees, not floating.
+5. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
 
-## Now (2026-10-19 08:40)
-- /ct/ (ct-movement) holds a169dc45 for Michael's 10:00 walkthrough (`WALKTHROUGH.md`); e2e-ctcourse passed end to
-  end. Do NOT push ct-movement from 09:30 until Michael says otherwise.
-- All 8 course stations have their real co-op moves; movement pass A1-A5, posture P1-P1c, fixes F1a / F1b done.
-- Running: T1 stale e2e assertion clean-up (branch only).
-- Next after the walkthrough: Michael's notes, then merge origin/master (weapons #7, menu PR) and open the PR.
+## Open questions for Michael (sent to the orchestrator's dashboard)
+1. Selection wheel button: LB hold (now) or a D-pad hold as in his screenshot?
+2. A lethal / non-lethal centre switch on the wheel (not built; LT knockout / RT lethal covers it)?
+3. With a gun drawn A reloads, so doors and the grab menu need a holster first: keep (CT) or interact on A always?
+4. Scanners: the finisher pays 10 HP if the partner never starts: keep or no cost?
 
-## 2026-10-19 after the walkthrough
-- PR #9 merged into master (2e141075). Playtest 2 notes: `PLAYTEST-2.md`.
-- Slice A (playtest 2: speed, ADS sensitivity, peek, shoulder carry, swap flick, wall snap, footsteps, no bob) running.
-- Next: B+C after the main session merges feature/anim-cleanup into master (pull master first); D+E held until then.
+## Known issues worth remembering
+- T1 possible bugs: ledge-grab / ledge "Hang" / rappel world prompts read empty; keyboard Space then hold E does not
+  start a vent unscrew in the harness.
+- e2e-coop known flaky (X-tap shape like ctcourse's fixed draw); e2e-kestrel and e2e-camera-bounds level U pre-existing.
+- Full `npm run e2e` at 2 jobs is load-sensitive: rerun failures alone before reading into them.
+- Throw, hang-down and rope have no bespoke animations; goggle looks need a GPU review.
