@@ -309,7 +309,8 @@ try {
     try { await until(P, cond, null, 5000, what); } finally { await P.evaluate((b) => window.__pad.set(b, 0), btn); }
   };
   const RB = 5;
-  const crouchOn = async (P) => { await holdUntil(P, 1, () => window.__app.current.player.controller.crouched, 'crouches'); await wait(150); };
+  // (co-op test fix) stand first: a player still crouching reads as "crouches" before the B press lands (e2e-ctcourse)
+  const crouchOn = async (P) => { await until(P, () => !window.__app.current.player.controller.crouched, null, 3000, 'stands before the crouch').catch(() => {}); await holdUntil(P, 1, () => window.__app.current.player.controller.crouched, 'crouches'); await wait(150); };
   await allowTeleport(A);
   await GB(() => { for (const a of window.__app.current.net.avatars?.values?.() ?? []) a.allowTeleport?.(3); });
   await placeTeam(B, 4, 27.05, 0);

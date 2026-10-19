@@ -81,6 +81,10 @@ async function holdUntil(P, btn, cond, what, arg, timeout = 20000) {
 }
 const padReady = (P) => P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); window.__app.current.player.controller.clearCrouchToggle(); });
 async function crouch(P) {
+  // (co-op test fix) a player still crouched from the last station (station 4 ends with the client landing crouched;
+  // `padReady` clears the toggle but the body takes a moment to stand) read as "crouches" at once, the B press was let
+  // go before it landed and the player then stood up: wait to stand first, then press
+  await until(P, () => !window.__app.current.player.controller.crouched, null, 3000, 'stands before the crouch').catch(() => {});
   await holdUntil(P, 1, () => window.__app.current.player.controller.crouched, 'crouches');
   await waitSim(150);
 }
