@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.9.0 - Marlow Yard co-op walkthrough fixes (2026-10-20, PR #30)
+Marlow Yard walkthrough fixes for the 2-player co-op test (S1; audit `docs/course-ready/AUDIT.md`, 0 blockers,
+8 confusing, 14 minor).
+- Each station's task shows as the course HUD step line on both screens (bays without drills).
+- A radio line names the next step when a station opens (unbolt, camera pocket, laser release, roof plates, hatch
+  hack, scanners).
+- Station 2: the bolt counts any player past the door leaf as the bolt side; once unbolted the "Unbolt" item turns off
+  so the door menu shows on both sides (back on a bay restart).
+- Panel and radio text name pad and keyboard buttons; station 3 says how to get the pistol out and to holster before
+  the door; station 4 places the red release; station 5 says the way out after the hack; shorter panel 5.
+- The station 3 blind spot is pale blue-grey (the airlock pads stay green); leg-up squares sit on the tested spot at
+  stations 2, 5 and 7; a lone roof-plate press hints "Partner: press the other plate now"; the host's banner says who
+  is down.
+- Co-op: a course bay restart also brings an alive partner back to the checkpoint (no partner shut out by relocked
+  gates). No wire change.
+
 ## 4.8.2 - Sector Ops: a checkpoint restart is a clean start (2026-10-20, PR #29)
 - Sector Ops: a checkpoint restart is a clean start of the section (M9). The guards' shared memory goes back to its
   match-start state (`EnemyManager.resetMemory`: alarm, last known position and chase field, sighting flags, flanker,

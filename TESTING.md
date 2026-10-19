@@ -35,6 +35,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
+  station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
+  an alive partner back to the airlock too.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores

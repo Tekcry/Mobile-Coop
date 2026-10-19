@@ -1174,8 +1174,9 @@ export class CoopHost implements NetAttachment {
       const p = at.add(new Vector3(Math.sin(i * 2.1) * 1.2, 0, Math.cos(i * 2.1) * 1.2));
       i++;
       if (!r.alive) this.reviveOne(r.id, p);
-      else if (this.g.mode?.id === 'sector') {
-        // (sector-ops step 3) a section restart is a clean retry: a partner still up comes back to the checkpoint too
+      else if (this.g.mode?.id === 'sector' || this.g.mode?.id === 'course') {
+        // (sector-ops step 3) a section restart is a clean retry: a partner still up comes back to the checkpoint too;
+        // (course-ready F3) the course's bay restart too, so the relocked gates never shut an alive partner out
         r.revive(p, 2);
         this.push({ e: 'revive', player: r.id, x: p.x, y: p.y, z: p.z });
       }

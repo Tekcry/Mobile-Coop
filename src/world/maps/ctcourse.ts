@@ -35,6 +35,15 @@ const MID = CT_W / 2;
 
 export const bayX = (i: number): number => CT_PITCH * i;
 
+/** The airlock pads' floor colour and the station 3 blind spot's (distinct: course-ready F5). */
+export const AIRLOCK_PAD_COLOR = '#2f6b4a';
+export const S3_POCKET_COLOR = '#6f8296';
+/**
+ * The leg-up spot (bay x offset, z) at stations 2, 5 and 7, where the striped square sits: the booster's tested spot
+ * (e2e-ctcourse `legUp(x0 + 8.0, 3 / 3.6)`), 0.5 m from the 1 m walls' face (0.85 m from the annex lip), beside the door.
+ */
+export const LEGUP_SPOT: readonly [number, number] = [8.0, 3.5];
+
 /** Obstacle wall heights by station (1-based; none for the panel station). */
 const OBST_H: Record<number, number> = { 2: LEDGE, 3: 3.2, 4: 3.5, 5: 4.0, 6: 3.2, 7: LEDGE, 8: 3.5 };
 
@@ -92,16 +101,53 @@ function mark(b: LevelBuilder, x: number, z: number, w = 1.6, d = 1.6, color = W
   b.box(x, 0.01, z, w, 0.02, d, color, 0, 0, false);
 }
 
-/** The panel text of each station (an optional read: what to do here). */
+/** A panel's text is at most this many characters (its banner shows for 1.8 s; course-ready F18). */
+export const PANEL_TEXT_MAX = 120;
+
+/** The panel text of each station (an optional read: what to do here). Pad and keyboard words (course-ready F14). */
 export const PANEL_TEXT: readonly string[] = [
-  'Step onto the green pad at the end with your partner to go on',
-  'Wall: crouch + Co-op Action boosts your partner up; they open the far door',
-  'Camera: hold LT with the pistol drawn on the camera and stand still; your partner walks to the blind spot under it, then swaps',
-  'Laser: a beam costs health. Stand and press Co-op to throw your partner over; they hit the release beyond',
-  'Annex: boost up, relay your partner, press both roof plates. Then crouch at the hatch facing it and press Co-op: lower your partner to hack the panel',
-  'Scanners: one each. Press A at your scanner and stay; both hacks must finish within 1.5 s. Start together when both ready lights are green',
-  'High wall: leg-up one; on top, stand facing back down and press Co-op to drop a rope; your partner climbs it',
+  'Step onto the airlock pad at the end with your partner to go on',
+  'Wall: crouch + Co-op (RB / F) boosts your partner; Y / Space climbs up. They unbolt the door (A / E) on the far side',
+  'Camera: LB / Tab to the pistol, X / RMB draws it; hold LT / Z on the camera. Partner: into the blind spot, then swap',
+  'Laser: a beam costs health. Stand, Co-op (RB / F) throws your partner over; they press the red release on the left fence',
+  'Annex: leg-up and relay onto the roof (Y / Space climbs up). Press both roof plates (A / E) together',
+  'Scanners: one each. Press A / E at your scanner and stay; both hacks must finish within 1.5 s. Start on two green lights',
+  'High wall: leg-up one; on top, face back down and Co-op (RB / F) drops a rope. Partner: climb it, Y / Space at the top',
   'Last wall: through the doorway, then both of you into the lit zone to finish',
+];
+
+/** LANTERN's line as each station starts (<= 90 characters). */
+export const RADIO_ENTER: readonly string[] = [
+  'Marlow Yard. Both of you onto the airlock pad at the end, then through.',
+  'Wall one. Crouch + Co-op (RB / F): a leg-up. Unbolt the far door from the other side.',
+  'Camera. LB / Tab to the pistol, X draws, hold LT / Z on it. Partner: the blind spot.',
+  'Laser line. Stand, Co-op (RB / F): throw your partner. Red release on the left fence.',
+  'Annex roof: leg-up and relay. Then both roof plates together.',
+  'Two scanners, one each. Start the hacks together (A / E) and stay put. A fail hurts.',
+  'High wall. Leg-up one; the one on top drops a rope (RB / F) for the other.',
+  'Last wall. Cross, then both of you into the lit zone.',
+];
+
+/** LANTERN's line when a station's gate opens, keyed by gate id: it names the next step (course-ready F2). */
+export const GATE_RADIO: Readonly<Record<string, string>> = {
+  'g-s2': 'Unbolted. Open the door for your partner.',
+  'g-s3': 'Door unlocked. Holster first (X / RMB), then open it (A / E).',
+  'g-s4': 'Laser down. Both of you through, then onto the airlock pad.',
+  'g-s5': 'Plates done. Crouch at the hatch, face it, Co-op (RB / F): lower your partner to hack.',
+  'g-s5-grid': 'Grid open. Off the roof, in the front door, through the grid to the airlock.',
+  'g-s6': 'Scanners synced. Door open. On to the airlock pad.',
+};
+
+/** Each station's task, the HUD's step line while the bay has no drills (<= 90 characters; course-ready F1). */
+export const OBJECTIVE_TEXT: readonly string[] = [
+  'Read the panel if you like, then both of you onto the airlock pad.',
+  'Leg-up your partner over the wall (crouch, RB / F); they unbolt the door on the far side.',
+  'Jam the camera (pistol, hold LT / Z) while your partner reaches the blind spot. Then swap.',
+  'Throw your partner over the laser (RB / F); they press the red release on the left fence.',
+  'Leg-up and relay onto the roof, press both plates, lower your partner through the hatch.',
+  'One at each scanner: press A / E together and stay until both hacks finish.',
+  'Leg-up one onto the wall; on top, face back down and drop the rope (RB / F) for the other.',
+  'Through the doorway, then both of you into the lit zone to finish.',
 ];
 
 function courseDef(): CourseDef {
@@ -110,8 +156,9 @@ function courseDef(): CourseDef {
       case 1:
         return [];
       case 2:
-        // B2: the door is bolted from the far side; the boosted player opens it for the partner (CT's first wall)
-        return [{ kind: 'bolt', id: 'g-s2', doorId: 'S2-door', side: [1, 0], at: [bayX(1) + CT_OBST + 0.9, DOOR_Z0 + DOOR_W / 2] }];
+        // B2: the door is bolted from the far side; the boosted player opens it for the partner (CT's first wall). The side
+        // test is at the door plane (course-ready F7): any feet past the leaf count as the bolt side; the near side is refused
+        return [{ kind: 'bolt', id: 'g-s2', doorId: 'S2-door', side: [1, 0], at: [bayX(1) + CT_OBST, DOOR_Z0 + DOOR_W / 2] }];
       case 3:
         // B3: the door opens once BOTH stand in the camera's blind spot (the pass zone): one has to jam it for the other
         return [{ kind: 'flag', id: 'g-s3', flag: S3_FLAG, doorId: 'S3-door' }];
@@ -137,32 +184,27 @@ function courseDef(): CourseDef {
         return [{ kind: 'timedHold', id: `g-s${n}`, holdId: `h-s${n}`, doorId: `S${n}-door` }];
     }
   };
-  const radio: Record<number, string> = {
-    1: 'Marlow Yard. Both of you on the green pad at the end, then through the airlock.',
-    2: 'Wall one. Crouch + Co-op action: a leg-up. Open the far door.',
-    3: 'Camera. Pistol out, hold LT on it, stand still. Partner: go to the blind spot, then swap.',
-    4: 'Laser line. Stand, Co-op: throw your partner over it. Release on the far side.',
-    5: 'Annex roof: leg-up and relay. Both plates. Then lower one through the hatch: hack.',
-    6: 'Two scanners, one each. Start the hacks together and stay put. A failed hack hurts.',
-    7: 'High wall. Leg-up one; the one on top drops a rope for the other.',
-    8: 'Last wall. Cross, then both of you into the lit zone.',
-  };
   const bays: BayDef[] = [];
   for (let n = 1; n <= 8; n++) {
+    const own = gates(n);
     bays.push({
       id: `S${n}`,
       entry: n === 1 ? 'start' : `A${n - 1}`,
       exit: n === 8 ? 'end' : `A${n}`,
       squad: [],
       // one optional panel per station (F1b, Michael's pick): it only says what to do, no gate waits on it
-      gates: [...gates(n), { kind: 'pickup', id: `g-p${n}`, switchId: `sw-p${n}`, flag: `panel-${n}`, perPlayer: false }],
-      radio: [{ at: 'enter', text: radio[n]! }],
+      gates: [...own, { kind: 'pickup', id: `g-p${n}`, switchId: `sw-p${n}`, flag: `panel-${n}`, perPlayer: false }],
+      radio: [
+        { at: 'enter', text: RADIO_ENTER[n - 1]! },
+        ...own.flatMap((g) => (GATE_RADIO[g.id] ? [{ at: g.id, text: GATE_RADIO[g.id]! }] : [])),
+      ],
       drills: [],
       elements: [],
     });
   }
   return {
     id: 'ctcourse',
+    objectives: OBJECTIVE_TEXT.map((text, i) => ({ id: `o-s${i + 1}`, bay: `S${i + 1}`, text })),
     airlocks: Array.from({ length: 7 }, (_, i) => {
       const n = i + 1;
       return { id: `A${n}`, box: [bayX(i) + CT_BAY, 4, bayX(i) + CT_BAY + 6, 10] as [number, number, number, number], floorY: 0, nearDoor: `A${n}-near`, farDoor: `A${n}-far` };
@@ -220,7 +262,7 @@ export const ctcourse: MapDef = {
         doors[`A${n}-far`] = crossWall(b, x0 + CT_PITCH, FENCE);
         b.wallX(4, x0 + CT_BAY, x0 + CT_PITCH, [], FENCE, DARK);
         b.wallX(10, x0 + CT_BAY, x0 + CT_PITCH, [], FENCE, DARK);
-        mark(b, x0 + CT_BAY + 3, MID, 4, 4, '#2f6b4a');
+        mark(b, x0 + CT_BAY + 3, MID, 4, 4, AIRLOCK_PAD_COLOR);
       }
       if (n === 4) {
         // B4: a wide gap in the wall, closed only by the laser band (layout.lasers); no door
@@ -230,7 +272,7 @@ export const ctcourse: MapDef = {
       } else if (n === 7) {
         // B7: the 4.4 m wall, 1 m thick (a top to stand on and hold the rope), full width, no door
         b.wallZ(x0 + CT_OBST, 0, CT_W, [], OBST_H[7]!, WALL, 1.0);
-        mark(b, x0 + CT_OBST - 1.6, MID);
+        mark(b, x0 + LEGUP_SPOT[0], LEGUP_SPOT[1], 1, 1);
       } else if (n === 8) {
         // B8: the last wall keeps its doorway open (no door, no console): the end is both players in the exit zone
         const h = OBST_H[8]!;
@@ -241,7 +283,9 @@ export const ctcourse: MapDef = {
         const h = OBST_H[n]!;
         // station 2 is a 1 m thick wall (a top deep enough to climb onto, LEDGE.climbDepth); the rest keep the thin one
         doors[`S${n}-door`] = crossWall(b, x0 + CT_OBST, h, n === 2 ? 1.0 : 0.3);
-        mark(b, x0 + CT_OBST - 1.6, MID);
+        // stations 2 and 5: the near square marks the tested leg-up spot beside the door (course-ready F11)
+        if (n === 2 || n === 5) mark(b, x0 + LEGUP_SPOT[0], LEGUP_SPOT[1], 1, 1);
+        else mark(b, x0 + CT_OBST - 1.6, MID);
         mark(b, x0 + CT_OBST + 1.6, MID);
       }
     }
@@ -258,7 +302,8 @@ export const ctcourse: MapDef = {
 
     // 3 Camera: the real camera device (layout.security) sits over the door; the blind spot under it is marked
     let x0 = bayX(2);
-    mark(b, (S3_POCKET.box[0] + S3_POCKET.box[2]) / 2, MID, S3_POCKET.box[2] - S3_POCKET.box[0], S3_POCKET.box[3] - S3_POCKET.box[1], '#2f6b4a');
+    // a pale blue-grey, not the airlock pads' green (course-ready F5)
+    mark(b, (S3_POCKET.box[0] + S3_POCKET.box[2]) / 2, MID, S3_POCKET.box[2] - S3_POCKET.box[0], S3_POCKET.box[3] - S3_POCKET.box[1], S3_POCKET_COLOR);
     b.light({ x: x0 + 6, y: 3.0, z: MID, radius: 7, intensity: 0.9 });
 
     // 4 Laser line (B4): the laser band (layout.lasers) across the wall's gap; the release switch is on the far side

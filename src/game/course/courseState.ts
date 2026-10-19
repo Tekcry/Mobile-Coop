@@ -42,6 +42,8 @@ export type StatKind = Exclude<keyof BayStats, 'time'>;
 export const REFUSE_PARTNER = 'Wait for your partner';
 export const REFUSE_REVIVE = 'Revive first';
 export const REFUSE_BOLT = 'Bolted from the other side';
+/** A lone press of one half of a pair gate (course-ready F17): the partner must press the other half within the window. */
+export const REFUSE_PAIR = 'Partner: press the other plate now';
 /** The airlock status while one player stands on the pad (R6, D46): shown to both players. */
 export const AIR_WAITING = 'Waiting for partner';
 /** The airlock status while it cycles (the rear door shut and locked). */
@@ -247,7 +249,7 @@ export class CourseState {
           }
           break;
         case 'pair':
-          if (!g.open && (d.a === id || d.b === id)) this.pressPair(g, id === d.a, p);
+          if (!g.open && (d.a === id || d.b === id)) refusal = this.pressPair(g, id === d.a, p) ?? refusal;
           break;
         case 'pickup':
           if (d.switchId === id) {
@@ -462,6 +464,14 @@ export class CourseState {
     return false;
   }
 
+  /**
+   * Is a bolt gate's "Unbolt" item live (course-ready F8)? Only while the bolt is shut and the course runs: once unbolted it
+   * must not stay the nearest item and hide the door menu; a bay restart shuts the bolt and brings it back.
+   */
+  boltUsable(gateId: string): boolean {
+    return !this.over && !this.isGateOpen(gateId);
+  }
+
   airlockPhase(id: string): AirlockPhase | null {
     return this.airById.get(id)?.phase ?? null;
   }
@@ -667,8 +677,9 @@ export class CourseState {
     this.events.push(open ? { t: 'gateOpened', gate: g.def.id } : { t: 'gateClosed', gate: g.def.id });
   }
 
-  private pressPair(g: GateRt, isA: boolean, p: PlayerIdx): void {
-    if (g.def.kind !== 'pair') return;
+  /** One half of a pair gate pressed: opens it with the other half inside the window, else the lone-press hint (F17). */
+  private pressPair(g: GateRt, isA: boolean, p: PlayerIdx): string | null {
+    if (g.def.kind !== 'pair') return null;
     const win = (g.def.window ?? PAIR_WINDOW) + 1e-9;
     if (isA) {
       g.ta = this.clock;
@@ -678,9 +689,9 @@ export class CourseState {
       g.pb = p;
     }
     const other = isA ? g.tb : g.ta;
-    if (other < 0) return;
+    if (other < 0) return REFUSE_PAIR;
     // two different players, unless the dev solo flag lets one work both halves (A6)
-    if (!this.solo && (isA ? g.pb : g.pa) === p) return;
+    if (!this.solo && (isA ? g.pb : g.pa) === p) return REFUSE_PAIR;
     if (this.clock - other <= win) {
       if (g.def.flag !== undefined && !this.flags.has(g.def.flag)) {
         this.flags.add(g.def.flag);
@@ -688,8 +699,11 @@ export class CourseState {
         this.events.push({ t: 'flagSet', flag: g.def.flag });
       }
       this.setOpen(g, true);
-    } else if (isA) g.tb = -1;
+      return null;
+    }
+    if (isA) g.tb = -1;
     else g.ta = -1;
+    return REFUSE_PAIR;
   }
 
   private tickOne(d: DrillDef, p: PlayerIdx): void {
