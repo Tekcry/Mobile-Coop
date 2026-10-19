@@ -31,6 +31,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 - Held guard (08:20): "The guard cannot be let go either, only knocked out. Killed, or used as human shield (aiming pistol)". No release; interrogating keeps the hold.
 - Held menu (08:25): "There is no back to game option once the grab is initiated." While holding, hold-A shows only INTERROGATE (when the guard has information).
 - Keep going (08:45): "Don't stop any works, just keep going regardless of time until I say to stop." Resumed: course-ready S2 lighting pass + S3 walkthrough guide. CT Core: PR 2 (#32), PR 3 interrogation guard in Marlow Yard (08:40: "Add one in Marlow Yard"), then the audit's remaining gaps. Ledge / pipe / window takedowns keep one KNOCK OUT row (08:40). Warehouse stays paused. Laptop low priority from 09:30.
+- Test speed (09:55): "Are any of the suite tests causing consistent problems that should be diagnosed and fixed? i dont want us to got bogged down waiting for them if they are inefficient". New job test-speed (Character Build, laptop, feature/test-speed): co-op suites on sim time or exclusive, e2e-ctcourse split, e2e-stealth condition wait, e2e-pad fixed or parked, netmove door-peek ankle checked; goal a full run at E2E_JOBS=2 in 15-20 min with no reruns.
 - Action menu (23:20): "the action menu that shows up requires holding A and selecting which option you would like to proceed with, including returning to game (no action). I want it to be identical." CT Core.
 - Overnight merges (23:15): green, reviewed PRs merge without asking tonight (lightfield-heap, Menu Notes, Sector Ops restart); not the ct-prototype PR.
 - Selection wheel stays on LB hold; no lethal / non-lethal switch (LT / RT covers it); with a gun drawn A reloads (CT).
@@ -88,6 +89,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #33 | 4.12.0: Marlow Yard prototype light pass (19 -> 29 baked lights, light-field test, GPU shots) and the walkthrough guide docs/course-ready/WALKTHROUGH.md |
 | 2026-10-20 | #32 | 4.11.0: CT movement 2: grab / hold / knockout / carry (G7), the hold-A action menu with Michael's guard rules (G5), walls and doors with the wall knee (G6) |
 | 2026-10-20 | #31 | 4.10.0: CT prototype into master: CT controls and posture, slices A-F, the footage audit (docs/ct-prototype/audit/AUDIT.md) and slices G1 legs and gait, G2 aim and weapons, G3 camera (shoulder 0.15, FOV 86), G4 traversal; G5-G7 next |
 | 2026-10-20 | #30 | 4.9.0: Marlow Yard co-op walkthrough fixes (course-ready S1: per-station HUD step, radio cues, bay restart brings the partner back); lighting pass S2 and guide S3 parked |
