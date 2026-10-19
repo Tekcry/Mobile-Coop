@@ -518,12 +518,16 @@ try {
   assert(!i.attached, 'keyboard: crouch lets go');
 
   // --- a grate kicked in: quick and loud (fresh match, so the grate is closed again)
-  await page.reload();
-  await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
-  // (3.2.2: the match exists only once its shaders are compiled on the loading screen)
-  await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 });
-  await frames(page, 5);
-  await setup();
+  const freshMatch = async () => {
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
+    // (3.2.2: the match exists only once its shaders are compiled on the loading screen)
+    await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 });
+    await frames(page, 5);
+    await setup();
+  };
+  const grateOpen = () => page.evaluate(() => window.__tr.st().world.breakables.isOpen(`grate:${window.__tr.st().world.level.anchors.ducts[0].id}:entry`));
+  await freshMatch();
   await page.evaluate(() => window.__pad.connect());
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);
@@ -546,9 +550,17 @@ try {
   const after = await page.evaluate(() => ({ vent: window.__tr.st().traversal.attachCtl.vent, open: window.__tr.st().world.breakables.isOpen(`grate:${window.__tr.st().world.level.anchors.ducts[0].id}:entry`) }));
   // prototype: revisit - Space then E held does not start the vent on the keyboard in this harness (the pad path passes); skipped, see T1-TESTS.md
   void held; void after;
+  // The keyboard section runs on real frames and sometimes opens the grate itself (Space starts the vent; when E's
+  // hold is not seen, the release is a kick). An open grate is entered without a kick, silently, so the kick check
+  // below would read noise 0: give it a closed grate again.
+  if (await grateOpen()) {
+    console.log('  (the keyboard vent opened the grate: fresh match for the kick)');
+    await freshMatch();
+  }
   await page.evaluate(() => { window.__app.loop.manual = true; window.__pad.connect(); });
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);
+  assert(!(await grateOpen()), 'the grate is closed before the kick');
   const kick = await page.evaluate(() => {
     const st = window.__tr.st();
     window.__tr.tap(3);
