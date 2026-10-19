@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - ct-prototype
+## 4.11.0 - CT movement 2: grab, hold and knockout, the hold-A action menu, walls and doors (2026-10-20, PR #32)
 - G5 the hold-A action menu (`docs/ct-prototype/G5-REPORT.md`, Michael: "requires holding A and selecting which option you
   would like to proceed with, including returning to game (no action). I want it to be identical."): with anything in
   reach a list sits top right under INTERACT; holding A turns the header to BACK TO GAME with row 1 highlighted, the
