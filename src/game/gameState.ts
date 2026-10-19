@@ -83,7 +83,8 @@ import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel } from './vision';
 import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
-import type { CtDevices } from './ctDevices';
+import type { CtDevices, SecWire } from './ctDevices';
+import type { SectorNetExtra } from './sectors';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
@@ -102,6 +103,7 @@ import { hyp2 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { CourseMode } from './modes/courseMode';
+import { SectorMode } from './modes/sectorMode';
 import type { CourseWire } from './course/courseWire';
 import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
@@ -179,6 +181,13 @@ export interface NetAttachment {
   shadows?(b: BlobShadows): void;
   /** Host, course mode: send the `course` message to every client. */
   course?(w: CourseWire): void;
+  /** Host, Sector Ops: send the devices' state (cameras, jams, alarm stage) and the step 3 extras (live section, door
+   *  locks, shot cameras, syringes) to every client. */
+  sector?(sec: SecWire, extra: SectorNetExtra): void;
+  /** Host, Sector Ops: revive syringes left this op (co-op only). */
+  revivesLeft?(): number;
+  /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
+  releaseHolds?(): void;
   /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
   sendJam?(tgt: string): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
@@ -552,7 +561,9 @@ export class GameState implements AppState {
             ? new InfiltrationMode(this)
             : opts.mode === 'course'
               ? new CourseMode(this)
-              : new MissionMode(this);
+              : opts.mode === 'sector'
+                ? new SectorMode(this)
+                : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -775,6 +786,17 @@ export class GameState implements AppState {
     this.localRef.speed = this.player.controller.speed;
     this.localRef.crouched = this.player.controller.crouched;
     return [this.localRef, ...this.remotePlayers()];
+  }
+
+  /** `playerRefs()` into a reused array (per-tick callers: no allocation). */
+  playerRefsInto(out: PlayerRef[]): PlayerRef[] {
+    this.localRef.speed = this.player.controller.speed;
+    this.localRef.crouched = this.player.controller.crouched;
+    out.length = 0;
+    out.push(this.localRef);
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length; i++) out.push(rs[i]!);
+    return out;
   }
 
   anyPlayerAlive(): boolean {
@@ -2690,7 +2712,7 @@ export class GameState implements AppState {
     };
     const blips: Blip[] = [];
     // Hunter / Infiltration: no enemy blips (find them yourself) unless the HQ radar is bought (within its range)
-    const stealthMode = this.mode instanceof ClearMode || this.mode instanceof InfiltrationMode;
+    const stealthMode = this.mode instanceof ClearMode || this.mode instanceof InfiltrationMode || this.mode instanceof SectorMode;
     const radar = stealthMode ? this.hq.radar : Infinity;
     let enemyBlips = 0;
     if (radar > 0) {

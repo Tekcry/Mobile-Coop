@@ -122,7 +122,13 @@ export interface CtHooks {
 export class CtDevices {
   readonly cams: CameraUnit[] = [];
   readonly lasers: LaserRt[] = [];
+  /** The jam targets that are live (Sector Ops: only the live section's devices). */
   readonly targets: JamTarget[] = [];
+  private readonly allTargets: JamTarget[] = [];
+  /** Sector Ops: devices of a section that is not live (off and blind; lasers dark and harmless). */
+  private readonly dead = new Set<string>();
+  /** Sector Ops: the live section (-1 none; devices without a section are always live). */
+  liveSection = -1;
   readonly jam: [JamState, JamState] = [newJam(), newJam()];
   /** Target each player jams now ('' none). */
   readonly jamId: [string, string] = ['', ''];
@@ -176,13 +182,14 @@ export class CtDevices {
         this.view.addCamera(c);
       }
     }
-    for (const c of this.cams) this.targets.push({ id: c.def.id, kind: 'camera', x: c.x, y: c.y, z: c.z });
+    for (const c of this.cams) this.allTargets.push({ id: c.def.id, kind: 'camera', x: c.x, y: c.y, z: c.z });
     for (const def of lay.lasers ?? []) {
       this.lasers.push({ def, meshes: this.buildBeams(def), on: true });
       const base = def.floorY ?? 0;
       const ym = def.ys.reduce((a, b) => a + b, 0) / Math.max(1, def.ys.length);
-      this.targets.push({ id: def.id, kind: 'laser', x: (def.x1 + def.x2) / 2, y: base + ym, z: (def.z1 + def.z2) / 2 });
+      this.allTargets.push({ id: def.id, kind: 'laser', x: (def.x1 + def.x2) / 2, y: base + ym, z: (def.z1 + def.z2) / 2 });
     }
+    for (const t of this.allTargets) this.targets.push(t);
     const sd = lay.scanners?.[0];
     const devs = lay.course?.devices;
     const da = sd && devs?.[sd.a];
@@ -316,6 +323,60 @@ export class CtDevices {
     return out;
   }
 
+  /**
+   * Sector Ops (feature/sector-ops): only the devices of section `section` work (tagged `section` in the map data;
+   * untagged devices always work). The others' cameras go off and blind, their lasers dark and harmless, and they are
+   * no jam targets. -1: no section's devices. Not on a hot path (a section loads or unloads).
+   */
+  setLive(section: number): void {
+    this.liveSection = section;
+    this.dead.clear();
+    for (const c of this.cams) if (c.def.section !== undefined && c.def.section !== section) this.dead.add(c.def.id);
+    for (const l of this.lasers) if (l.def.section !== undefined && l.def.section !== section) this.dead.add(l.def.id);
+    this.targets.length = 0;
+    for (const t of this.allTargets) if (!this.dead.has(t.id)) this.targets.push(t);
+    this.changed = true;
+    this.applyJam();
+  }
+
+  /**
+   * (Sector Ops restart, step 3) The cameras of `section` that were shot out come back (a restart is a clean retry).
+   * Not on a hot path.
+   */
+  repair(section: number): void {
+    for (const c of this.cams) {
+      if (c.def.section !== undefined && c.def.section !== section) continue;
+      // every camera of the section forgets what it had seen (a meter latched full too)
+      for (const m of c.meters.values()) m.meter = m.sinceSeen = m.full = m.stage = 0;
+      if (c.mode !== 'destroyed') continue;
+      c.repair();
+      this.camOff.delete(c.def.id);
+    }
+    this.applyJam();
+    this.changed = true;
+  }
+
+  /** Host: the ids of the cameras shot out, into `out` (cleared first). */
+  destroyedIds(out: string[]): string[] {
+    out.length = 0;
+    for (const c of this.cams) if (c.mode === 'destroyed') out.push(c.def.id);
+    return out;
+  }
+
+  /** Client: the host's shot-out cameras (`dn`): those break here too, the others are repaired. */
+  applyDestroyed(dn: readonly string[]): void {
+    for (const c of this.cams) {
+      const down = dn.includes(c.def.id);
+      if (down && c.mode !== 'destroyed') c.destroy();
+      else if (!down && c.mode === 'destroyed') c.repair();
+    }
+  }
+
+  /** The device works now (Sector Ops: its section is live). */
+  live(id: string): boolean {
+    return !this.dead.has(id);
+  }
+
   /** The jam list changed since the last call (the host sends the `course` message at once). */
   takeChanged(): boolean {
     const c = this.changed;
@@ -445,7 +506,7 @@ export class CtDevices {
     for (let i = 0; i < this.cams.length; i++) {
       const c = this.cams[i]!;
       const id = c.def.id;
-      if (this.jammed(id)) {
+      if (this.jammed(id) || this.dead.has(id)) {
         if (c.mode === 'online') {
           c.setMode('off');
           this.camOff.add(id);
@@ -458,7 +519,7 @@ export class CtDevices {
     for (let i = 0; i < this.lasers.length; i++) {
       const l = this.lasers[i]!;
       const off = l.def.offFlag !== undefined && !!this.hooks.has?.(l.def.offFlag);
-      const on = !off && !this.jammed(l.def.id);
+      const on = !off && !this.jammed(l.def.id) && !this.dead.has(l.def.id);
       if (on === l.on) continue;
       l.on = on;
       for (let k = 0; k < l.meshes.length; k++) l.meshes[k]!.setEnabled(on);
@@ -541,7 +602,7 @@ export class CtDevices {
     for (let i = 0; i < this.cams.length; i++) {
       const c = this.cams[i]!;
       c.clock = s.ck;
-      c.setMode(this.jammed(c.def.id) ? 'off' : 'online');
+      c.setMode(this.jammed(c.def.id) || this.dead.has(c.def.id) ? 'off' : 'online');
     }
     this.applyJam();
   }
@@ -562,8 +623,9 @@ export class CtDevices {
       alarm: this.alarm,
       hits: this.hits,
       pick: this.localPick,
-      cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
-      lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on })),
+      cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, live: this.live(c.def.id), stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
+      lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id) })),
+      live: this.liveSection,
       range: CAMERA.range,
       scan: this.scanDebug(),
     };

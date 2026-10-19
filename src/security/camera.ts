@@ -182,6 +182,13 @@ export class CameraUnit {
     for (const m of this.meters.values()) m.meter = m.sinceSeen = m.full = m.stage = 0;
   }
 
+  /** (Sector Ops restart) A shot camera back in service, seeing, its meters at zero. */
+  repair(): void {
+    if (this.mode !== 'destroyed') return;
+    this.mode = 'online';
+    for (const m of this.meters.values()) m.meter = m.sinceSeen = m.full = m.stage = 0;
+  }
+
   setMode(mode: Exclude<CameraMode, 'destroyed'>): void {
     if (this.mode === 'destroyed') return;
     this.mode = mode;

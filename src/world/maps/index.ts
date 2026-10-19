@@ -7,6 +7,7 @@ import { bunker } from './bunker';
 import { ctcourse } from './ctcourse';
 import { flags } from '../../core/flags';
 import { warehouse } from './warehouse';
+import { warehouseOps } from './warehouseOps';
 
 /**
  * The listed maps (3.0): Warehouse runs every mode; Proving Grounds is the basic test range (Free
@@ -14,7 +15,7 @@ import { warehouse } from './warehouse';
  * supporting a mode is its default. Parked maps: `parked.ts` (not imported). The retired maps (Exchange, Trunk Annex,
  * Dead Line v1 / v2) were deleted in the consolidation (`docs/consolidation/deleted-maps.md`).
  */
-export const MAPS: MapDef[] = [warehouse, provingGrounds, kestrel, seclab, ctcourse, courselab, ...(flags.legacy ? [bunker] : [])];
+export const MAPS: MapDef[] = [warehouse, warehouseOps, provingGrounds, kestrel, seclab, ctcourse, courselab, ...(flags.legacy ? [bunker] : [])];
 
 export function getMap(id: string): MapDef {
   return MAPS.find((m) => m.id === id) ?? provingGrounds;
