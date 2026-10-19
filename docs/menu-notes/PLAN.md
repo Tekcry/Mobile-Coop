@@ -10,3 +10,4 @@ Loop: docs/systems/session-method.md (Opus implementer, fresh Opus checker, at m
 | End | - | CHANGELOG "Unreleased - menu-notes", TESTING.md lines, docs/systems/ui.md; full `npm run e2e` on the PR head; PR | full e2e |
 | 4a | M1 | Title in full darkness (lights and exposure, no rim, glow or silhouette); the first press starts the goggle flicker-on on the existing close-up, with the music; launch only | check, smoke, e2e-menus; GPU shots of the dark title and the flicker |
 | 4b | M1 | 6-8 tactical shot mock-ups (hero, weapons, menu poses) on one labelled GPU contact sheet for Michael; build only his picks | GPU contact sheet |
+| 4c | M3 | On the press: prompt and wordmark fade out, black with no UI while the goggles flicker, then light rises and the menu fades in; a second press skips (A3) | check, e2e-menus, e2e-pad; GPU s4 frames |
