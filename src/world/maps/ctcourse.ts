@@ -270,14 +270,18 @@ export const ctcourse: MapDef = {
     b.wallZ(length, 0, CT_W, [], FENCE, DARK);
     const doors: Record<string, number> = {};
     const devices: Record<string, CourseDevice> = {};
-    const lamp = (x: number): void => void b.light({ x, y: 5, z: MID, radius: 13, intensity: 0.9 });
+    const lamp = (x: number, y = 5, intensity = 0.9): void => void b.light({ x, y, z: MID, radius: 13, intensity });
 
     for (let i = 0; i < 8; i++) {
       const n = i + 1;
       const x0 = bayX(i);
       lamp(x0 + 4);
-      lamp(x0 + 12.5);
+      // (course-ready S2) station 5: lamp B is a mast over the annex roof, so bodies on the roof (plates, relay lip, hatch) read lit
+      if (n === 5) lamp(x0 + 12.5, 6.8, 1.1);
+      else lamp(x0 + 12.5);
       if (i < 7) {
+        // (course-ready S2) the airlock's utility lamp: the green pad and both doors readable; its 6 m walls and shut doors keep it in
+        b.light({ x: x0 + CT_BAY + 3, y: 4.6, z: MID, radius: 7, intensity: 0.5 });
         // the airlock A(n): cross walls at both planes, side walls, the pockets beside it are sealed void
         doors[`A${n}-near`] = crossWall(b, x0 + CT_BAY, FENCE);
         doors[`A${n}-far`] = crossWall(b, x0 + CT_PITCH, FENCE);
@@ -320,6 +324,8 @@ export const ctcourse: MapDef = {
     }
 
     // 2 Leg-up wall (4.4 ledge band, 1 m thick): a bolt on the far side of the door (B2)
+    // (course-ready S2) a small wall-top lamp over the far side: the wall top, the drop and the bolt / door area
+    b.light({ x: bayX(1) + CT_OBST + 0.9, y: 6.6, z: 5.0, radius: 7, intensity: 0.5 });
 
     // 3 Camera: the real camera device (layout.security) sits over the door; the blind spot under it is marked
     let x0 = bayX(2);
@@ -347,7 +353,9 @@ export const ctcourse: MapDef = {
     b.box((hx0 + hx1) / 2, LEDGE + 0.01, hz1 + 0.75, 1.2, 0.02, 1.0, WARN, 0, 0, false);
     doors['S5-grid'] = crossWall(b, x0 + 12.5, 4.0);
     b.light({ x: x0 + 11, y: 3.4, z: MID, radius: 8, intensity: 0.9 });
-    b.light({ x: x0 + 14.2, y: 3.4, z: MID, radius: 8, intensity: 0.9 });
+    // (course-ready S2) back room: the lamp moved south over the hack panel, a second one north over the medkit
+    b.light({ x: x0 + 14.2, y: 3.4, z: 3.0, radius: 8, intensity: 0.9 });
+    b.light({ x: x0 + 14.6, y: 3.4, z: 11.5, radius: 6, intensity: 0.9 });
     // both players must be ON the roof (leg-up one, relay the other) to press the roof plates together
     devices['sw-s5-a'] = dev(x0 + 11, 3.6, SOUTH, 'Roof plate A (press with B)', LEDGE);
     devices['sw-s5-b'] = dev(x0 + 11, CT_W - 3.6, NORTH, 'Roof plate B (press with A)', LEDGE);
@@ -368,6 +376,8 @@ export const ctcourse: MapDef = {
     // 7 (B7) Rope wall: 4.4 m solid; the holder's striped strip on its top; a far-side return stair (1.1 m rises) so a
     // player alone on the far side can always climb back (never stranded)
     x0 = bayX(6);
+    // (course-ready S2) a wall-top lamp over the holder strip, above a standing holder's head
+    b.light({ x: x0 + CT_OBST, y: 6.6, z: MID, radius: 5, intensity: 0.6 });
     b.box(x0 + CT_OBST, LEDGE + 0.01, MID, 0.9, 0.02, 3, WARN, 0, 0, false);
     for (let k = 1; k <= 3; k++) {
       const h = 1.1 * (4 - k);

@@ -6,6 +6,15 @@
   and he says two short lines of his own (where the two wall medkits are) as subtitle; asked once, no menu again. A guard's
   information is `Enemy.info` (`src/ai/guardInfo.ts`, set from a squad slot's `info`); no wire change.
 
+## 4.12.0 - Marlow Yard light pass and walkthrough guide (2026-10-20, PR #33)
+Marlow Yard prototype light pass and the walkthrough guide (S2, S3; `docs/course-ready/LIGHT.md`, `WALKTHROUGH.md`).
+- Lamps in all seven airlocks (the pads read lit, nothing spills out with the doors shut), on the station 2 and 7 wall
+  tops, over the station 5 roof (raised lamp), in its back room (hack panel) and at its medkit: 19 -> 29 baked lights.
+  The pools between the yard lamps and the station 3 camera bay are unchanged.
+- `tests/ctcourseLight.test.ts` builds the real light field and checks every must-see spot and the dark pools.
+- `scripts/shots-ctcourse.mjs`: headless GPU shots per station (Michael's PC, port 4189, `E2E_GPU=1`), the light meter
+  checked against the field at each.
+
 ## 4.11.0 - CT movement 2: grab, hold and knockout, the hold-A action menu, walls and doors (2026-10-20, PR #32)
 - G5 the hold-A action menu (`docs/ct-prototype/G5-REPORT.md`, Michael: "requires holding A and selecting which option you
   would like to proceed with, including returning to game (no action). I want it to be identical."): with anything in
