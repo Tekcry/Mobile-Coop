@@ -1,7 +1,7 @@
 # Co-op test fix - state
 
 **Now (2026-10-19):** done; PR #17 to master is open (https://github.com/Tekcry/Mobile-Coop/pull/17), waiting for the orchestrator's review
-and merge. Steps 1-6 done on `feature/coop-tests` (rebased onto master 4.6.3, 3bd51675).
+and merge. Steps 1-6 done on `feature/coop-tests` (rebased onto master 4.6.4, 59f7a0da).
 
 **Next:** nothing in this job unless the PR review asks for changes. If it does: make them here, rerun the touched
 suites alone on the laptop (one runner, `E2E_JOBS=1`, BelowNormal, port 4191, `C:/NightShift/heavy.lock`), push, tell
