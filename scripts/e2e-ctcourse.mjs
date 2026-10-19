@@ -5,23 +5,17 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3) station 3 is the real camera (held jammer, jam and pass), station 4 has a real laser. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
+import { until, waitSim, setSimPages, NET_VIEWPORT } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
 const PITCH = 22;
 const Q = 'net=local&autostart=ctcourse&mode=course';
 
-// (G13) polled from here: the in-page polling does not run on a background page
-async function until(page, fn, arg, timeout = 15000, what = 'condition') {
-  const t0 = Date.now();
-  for (;;) {
-    if (await page.evaluate(`!!(${fn})(${JSON.stringify(arg) ?? 'undefined'})`).catch(() => false)) return;
-    if (Date.now() - t0 > timeout) throw new Error(`timed out waiting for ${what}`);
-    await new Promise((r) => setTimeout(r, 50));
-  }
-}
+// (co-op test fix) `until` and the pauses are e2e-net-lib's: polled from Node (G13), timed on both pages' sim clocks
+// (the sim runs slower than real time on software GL; a wall-clock timeout expired mid-move, e.g. station 2's leg-up)
 
-const { browser, ctx, page: A, errors: eA } = await launch({ url, params: Q });
+const { browser, ctx, page: A, errors: eA } = await launch({ url, params: Q, viewport: NET_VIEWPORT });
 let B = null;
 let eB = [];
 const GA = (f, a) => A.evaluate(f, a);
@@ -87,14 +81,18 @@ async function holdUntil(P, btn, cond, what, arg, timeout = 20000) {
 }
 const padReady = (P) => P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); window.__app.current.player.controller.clearCrouchToggle(); });
 async function crouch(P) {
+  // (co-op test fix) a player still crouched from the last station (station 4 ends with the client landing crouched;
+  // `padReady` clears the toggle but the body takes a moment to stand) read as "crouches" at once, the B press was let
+  // go before it landed and the player then stood up: wait to stand first, then press
+  await until(P, () => !window.__app.current.player.controller.crouched, null, 3000, 'stands before the crouch').catch(() => {});
   await holdUntil(P, 1, () => window.__app.current.player.controller.crouched, 'crouches');
-  await new Promise((r) => setTimeout(r, 150));
+  await waitSim(150);
 }
 /** The client crouches and offers, the host takes the leg-up: the host ends hanging on the ledge in front of the client. */
 async function legUp(x, z, what) {
   await moveClient(x, z);
   await moveHost(x - 0.8, z);
-  await new Promise((r) => setTimeout(r, 500));
+  await waitSim(500);
   await padReady(B);
   await padReady(A);
   await crouch(B);
@@ -146,11 +144,11 @@ async function aimAt(P, x, y, z) {
       c.yaw = Math.atan2(dx, dz);
       c.pitch = Math.atan2(dy, Math.hypot(dx, dz));
     }, [x, y, z]);
-    await new Promise((r) => setTimeout(r, 120));
+    await waitSim(120);
   }
 }
 const lt = (P, on) => P.evaluate((on) => window.__pad.set(6, on ? 1 : 0), on);
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms) => waitSim(ms);
 
 /** Station 3: the camera. Seen it raises the alarm stage; the held jammer blinds it on both pages; jam and pass, then swap. */
 async function station3(x0) {
@@ -285,7 +283,7 @@ async function hangDown(x0) {
   await GA(([x, z]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, 4.5, z), Math.PI); }, [hx, hatchZ1 + 0.45]);
   await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.4; }, [hx, hatchZ1 + 0.45], 15000, 'course sees the host at the hatch');
   await moveClient(hx, hatchZ1 + 1.4, 4.5);
-  await new Promise((r) => setTimeout(r, 500));
+  await waitSim(500);
   await padReady(A);
   await padReady(B);
   await crouch(A);
@@ -342,7 +340,7 @@ async function station7(x0) {
   await GA(([x, z]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, 4.5, z), -Math.PI / 2); }, [hx, 3]);
   await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.4 && f[1] > 4.2; }, [hx, 3], 15000, 'course sees the host on the wall top');
   await moveClient(x0 + 7.6, 3);
-  await new Promise((r) => setTimeout(r, 500));
+  await waitSim(500);
   await padReady(A);
   await padReady(B);
   const offer = async (what) => {
@@ -374,7 +372,7 @@ async function station7(x0) {
   const down = await GB(() => { const g = window.__app.current; return { y: g.player.controller.pos.y, hp: g.target.health.hp, alive: g.player.alive }; });
   assert(down.y < 0.3 && down.alive, `station 7: let go, the client is back on the floor unharmed (y ${down.y.toFixed(2)})`);
   // again, all the way up: tops out beside the holder
-  await new Promise((r) => setTimeout(r, 1200));
+  await waitSim(1200);
   await padReady(A);
   await padReady(B);
   await offer('second');
@@ -388,7 +386,7 @@ async function station7(x0) {
     await B.evaluate(() => window.__pad.axis(1, 0));
   }
   await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'station 7: the holder is free once the partner is up');
-  await new Promise((r) => setTimeout(r, 400));
+  await waitSim(400);
   const up = await GB(() => { const g = window.__app.current; const c = g.player.controller; return { y: c.pos.y, x: c.pos.x, st: g.team.state }; });
   assert(up.y > 4.2 && up.st === 'none', `station 7: the client stands on the wall top beside the holder (y ${up.y.toFixed(2)})`);
   console.log(`  rope: client topped out at x ${up.x.toFixed(2)} y ${up.y.toFixed(2)}`);
@@ -446,7 +444,7 @@ async function openGate(n, i) {
     await legUp(x0 + 8.0, 3.6, 'station 5');
     const lipId = await GA(() => window.__app.current.traversal.attach.anchor.id);
     await moveClient(x0 + 8.0, 3.6);
-    await new Promise((r) => setTimeout(r, 400));
+    await waitSim(400);
     await holdUntil(A, RB, () => window.__app.current.team.state === 'relayOffer', 'station 5: the hanging host offers the relay');
     await until(B, () => !!window.__app.current.team.offer?.relay, null, 8000, 'station 5: the client is offered the relay');
     await holdUntil(B, RB, () => window.__app.current.team.count.ladders >= 1, 'station 5: the client climbs the relay');
@@ -510,7 +508,7 @@ async function station8(x0) {
   }, clientId);
   await until(B, () => !window.__app.current.player.alive, null, 5000, 'station 8: the client is down');
   await until(B, () => /DOWN - revive in \d+ s/.test(document.querySelector('.hud-down-timer')?.textContent ?? ''), null, 8000, 'station 8: the downed client sees the revive countdown');
-  await new Promise((r) => setTimeout(r, 2500));
+  await waitSim(2500);
   const left = await GA((id) => window.__app.current.net.reviveClock.remaining(id), clientId);
   assert(left > 15 && left < 30, `station 8: the 30 s window runs on the host (sim time) (${left.toFixed(1)} s left)`);
   await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); it.onUse(it); }, clientId);
@@ -534,6 +532,7 @@ try {
   const opened = await openPage(ctx, url, Q);
   B = opened.page;
   eB = opened.errors;
+  setSimPages([A, B]);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, 60000, `${tag} in the ctcourse match`);
   pumpOn = true;
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
@@ -561,7 +560,7 @@ try {
   const zx = PITCH * 7 + 13.5;
   await moveHost(zx, 7);
   await moveClient(PITCH * 7 + 12, 1.5);
-  await new Promise((r) => setTimeout(r, 600));
+  await waitSim(600);
   assert(!(await GA(() => window.__app.current.isEnded)), 'one player in the exit zone does not end the course');
   await moveClient(zx + 0.5, 6);
   await until(A, () => window.__app.current.isEnded, null, 15000, 'the course ends with both in the zone');
