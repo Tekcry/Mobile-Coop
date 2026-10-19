@@ -22,9 +22,9 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 | Change | Runs | Where |
 | --- | --- | --- |
 | Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
-| A step | `npm run check` once at the step's end + the suites the step names, or `e2e:quick` | desktop; the laptop runs `check` only |
-| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop |
-| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop |
+| A step | `npm run check` once at the step's end + the suites the step names, or `e2e:quick` | desktop, or the laptop test runner when the desktop lock is held (CLAUDE.md "Machines") |
+| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
+| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
 | Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
 - One runner per machine: never two e2e runners, or a `check` beside a full run (the 2026-10-19 full run overlapped
   another job's runner and an orphan `check` and read 30-60 % slow).

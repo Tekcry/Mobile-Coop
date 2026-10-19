@@ -94,7 +94,7 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
       if (speed > 0) expect(corr, `${name} ${msg}`).toBeGreaterThan(0);
     }
     scene.dispose();
-  }, 60000);
+  });
 
   it('(fix 21-2) thighGear: true iff a visible weapon is holstered on the thigh', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -129,5 +129,5 @@ describe('holstered arms (D5.6 trained posture, M14 relaxed)', () => {
     expect(rig.thighGear).toBe(false);
     rifle.dispose();
     scene.dispose();
-  }, 60000);
+  });
 });
