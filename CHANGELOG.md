@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.8.2 - Sector Ops: a checkpoint restart is a clean start (2026-10-20, PR #29)
+- Sector Ops: a checkpoint restart is a clean start of the section (M9). The guards' shared memory goes back to its
+  match-start state (`EnemyManager.resetMemory`: alarm, last known position and chase field, sighting flags, flanker,
+  squads, AI clocks) and the section's guards load unaware on their routes. The loadout recorded when the section began
+  comes back with every gun reloaded (no reload animation) and the gadgets restored (`weapons/loadoutSnapshot.ts`);
+  grenades in flight and gadgets in the world (noisemakers, gas, mines, cams) go; doors the player opened are no longer
+  noticed by the new guards. The alert / caution music fades out and the section starts in Calm (`Music.calm`). Health
+  is full with the respawn.
+- Co-op: the client records its own loadout as each section goes live and restores it on the host's restart banner
+  (no wire change, A1).
+- Sector Ops issues the campaign kit like Infiltration: the rifle comes with its suppressor (A62), as the Kit screen and
+  the co-op lobby already showed it (A2). Before this its shots were loud in Sector Ops and put every guard in earshot
+  into combat.
+
 ## 4.8.1 - Menu boot time measured (2026-10-19, PR #28)
 Docs only. The 4.8.0 load gate adds about 0.9 s to boot-to-menu under software GL (median 1.72 s vs 0.78 s on
 4.7.5); match boots skip it; no e2e helper change (docs/menu-notes/STATE.md).

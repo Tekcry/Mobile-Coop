@@ -229,6 +229,8 @@ export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: Weapon
  * Weapons for a match from the profile (sandbox: a fixed set, still with your upgrades; Infiltration, the campaign:
  * the loadout mapped onto the curated arsenal at use, `config/arsenal.ts`, bible 5.6). `campaignOpen`:
  * `campaignUnlocked(flags.legacy)`, so ?legacy=1 Infiltration issues the save as is, the same as its lobby loadout (D8).
+ * (sector-restart, M9, A2) Sector Ops issues the campaign kit too: its rifle comes suppressed (A62), as the Kit screen
+ * and the co-op lobby loadout already show it.
  */
 export function loadoutEntries(
   s: SaveData,
@@ -236,7 +238,7 @@ export function loadoutEntries(
   campaignOpen: boolean,
   skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>,
 ): LoadoutEntry[] {
-  const campaign = mode === 'infiltration' && campaignOpen;
+  const campaign = (mode === 'infiltration' || mode === 'sector') && campaignOpen;
   const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'pistolSd'] : lobbyLoadout(s, campaign);
   return ids.map((id) => {
     const att = campaign ? campaignAttachments(id, s.weapons[id].attachments) : [...s.weapons[id].attachments];

@@ -35,6 +35,11 @@ export class Music {
     this.score.update(dt, game);
   }
 
+  /** (sector-restart) A checkpoint restart: the alert / caution music fades out and the match is back in Calm. */
+  calm(): void {
+    this.score.calm();
+  }
+
   stop(): void {
     this.score.stop();
   }

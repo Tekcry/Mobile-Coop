@@ -145,6 +145,19 @@ export class GameMusic {
     for (let i = 0; i < acts.length; i++) this.apply(acts[i]!, ctx);
   }
 
+  /**
+   * (sector-restart, M9) A checkpoint restart: whatever plays (Cautious, Alert, Evasion) fades out over the match's
+   * fade-out (`MISSION_OUT`) and the director starts again in Calm (silence), as at the start of a match; the decoded
+   * tracks stay. The hysteresis then climbs from Calm as usual.
+   */
+  calm(): void {
+    if (this.mode !== 'mission') return;
+    this.stopMission(MISSION_OUT);
+    this.game = 'calm';
+    this.sinceTick = 0;
+    this.director.reset(this.audio.ctx?.currentTime ?? 0);
+  }
+
   /** Leaving: everything fades out. */
   stop(): void {
     this.mode = 'off';
