@@ -1,12 +1,16 @@
 # Sector Ops checkpoint restart - state
 
-**Now:** branch and docs set up (master 4.7.2); the implementer is finding the cause and building the clean restart.
-**Next:** light checks on the desktop, `npm run check` + e2e-sectorops on the laptop runner, a fresh checker (one fix
-round), the full e2e, the PR (a patch).
-**Open:** none yet.
+**Now:** built (92ccfec6, `REPORT.md`): the cause was the Sector Ops rifle issued without its suppressor (A2), plus
+music, leftover gadgets and door memory, and no fresh kit. Light checks pass. The laptop runner has check + smoke,
+e2e-sectorops, e2e-coop, e2e-netmove, e2e-combat, e2e-ctcourse, e2e-score on 92ccfec6; a fresh checker writes
+`CHECK.md`.
+**Next:** one fix round from the runner and the checker, then the full e2e on the head, then the PR (a patch).
+**Open:** doors and shot-out lamps stay as they were at a restart (polish); the co-op client's restart cue is the
+banner (A1).
 
 ## Done
-- 2026-10-19: M9 recorded; branch `feature/sector-restart` from master ce1da1a3 (4.7.2); npm ci.
+- 2026-10-19: M9 recorded; branch `feature/sector-restart` from master ce1da1a3 (4.7.2); npm ci. The clean restart built
+  (92ccfec6), A1-A4.
 
 ## Resume prompt
 ```
