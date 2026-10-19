@@ -36,3 +36,7 @@ Marlow Yard ready for Michael's 2-player co-op walkthrough in the morning on /ct
 ## Assumed decisions
 - A1. "Coop bunker/training" means Marlow Yard (`ctcourse`), the co-op training level named in CLAUDE.md, not the
   parked Fallow bunker. Undo: run the same pass on `bunker` under `?legacy=1`.
+- A2. `src/game/modes/courseMode.ts` counts as this job's file (course mode; no open branch touches it). Undo: hand
+  its changes to whoever the orchestrator names.
+- A3. The station 2 wall top gets a lamp too (the boosted player climbs and drops there; the survey had it at 0.30,
+  near black). Undo: delete that `b.light` call in `ctcourse.ts`.

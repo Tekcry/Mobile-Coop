@@ -8,6 +8,7 @@ S1 fixes, S2 light pass, S3 walkthrough guide and PR.
 
 ## Open
 - npm ci waits for the desktop heavy lock (held by CT Core at 23:24).
+- Deadline (Michael via the orchestrator, 23:55): PR to master open with its test tier green by 05:30; Michael tests /preview/ (master). Short on time: cut light scope, never the walkthrough fixes.
 
 ## Done
 - 2026-10-19: worktree and branch from master 4.7.5 (3a07eee9); BRIEF, PLAN, STATE.
