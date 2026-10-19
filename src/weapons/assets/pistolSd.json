@@ -13,6 +13,7 @@
   "grip-panel",
   "grip-panel.001",
   "mag-plate",
+  "mag",
   "slide-stop",
   "slide-stop-pin",
   "takedown",
@@ -29,7 +30,7 @@
   "supp-collar",
   "suppressor"
  ],
- "triangles": 9676,
+ "triangles": 9776,
  "bounds": {
   "min": [
    -0.0165,
@@ -68,7 +69,7 @@
  "surface": {
   "grip": {
    "inside": "grip",
-   "mm": 11.7
+   "mm": 6.9
   },
   "foregrip": {
    "inside": null,
@@ -80,7 +81,7 @@
   },
   "mag": {
    "inside": "grip",
-   "mm": 11.7
+   "mm": 6.9
   }
  },
  "partBounds": {
@@ -226,6 +227,18 @@
     0.014,
     -0.085,
     0.0088
+   ]
+  ],
+  "mag": [
+   [
+    -0.0105,
+    -0.085,
+    -0.0369
+   ],
+   [
+    0.0105,
+    0,
+    0.0303
    ]
   ],
   "slide-stop": [
@@ -410,9 +423,13 @@
   ]
  },
  "glb": {
-  "vertices": 10894,
-  "triangles": 9676,
-  "bytes": 3087592
+  "vertices": 11050,
+  "triangles": 9776,
+  "meshes": [
+   "pistolSd",
+   "pistolSd-mag"
+  ],
+  "bytes": 3092808
  },
  "textures": {
   "albedo": "pistolSd-albedo.png",
@@ -695,21 +712,21 @@
   "files": [
    {
     "kind": "albedo",
-    "bytes": 703112,
-    "pngBytes": 682110
+    "bytes": 733435,
+    "pngBytes": 709910
    },
    {
     "kind": "orm",
-    "bytes": 928252,
-    "pngBytes": 927619
+    "bytes": 932474,
+    "pngBytes": 938295
    },
    {
     "kind": "normal",
-    "bytes": 630015,
-    "pngBytes": 836859
+    "bytes": 600780,
+    "pngBytes": 793961
    }
   ],
-  "glbBytes": 2902584
+  "glbBytes": 2917532
  },
- "builtSeconds": 604
+ "builtSeconds": 18
 }

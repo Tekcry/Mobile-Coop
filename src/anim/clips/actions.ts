@@ -18,9 +18,11 @@ export const RELOAD_TACTICAL = makeClip({
   keys: {
     offGrip: [0, 1, 0.08, 1, 0.14, 0, 0.84, 0, 0.92, 1],
     offMag: [0, 0, 0.1, 0, 0.16, 1, 0.24, 1, 0.32, 0, 0.5, 0, 0.58, 1, 0.74, 1, 0.84, 0],
-    hLX: [0, -0.06, 0.32, -0.1, 0.42, -0.13, 0.5, -0.1],
-    hLY: [0, 1.2, 0.32, 1.02, 0.42, 0.97, 0.5, 1.08],
-    hLZ: [0, 0.2, 0.32, 0.14, 0.42, 0.12, 0.5, 0.18],
+    // (anim-cleanup) the stripped magazine down to the chest pouch (Wren's rifle pouches, low on the chest plate left
+    // of centre, base plates up: the hand above it), swapped there for a fresh one (`pouch`), back up to the well
+    hLX: [0, -0.06, 0.32, -0.08, 0.38, -0.07, 0.46, -0.07, 0.52, -0.05],
+    hLY: [0, 1.2, 0.32, 1.17, 0.38, 1.22, 0.46, 1.22, 0.52, 1.16],
+    hLZ: [0, 0.2, 0.32, 0.22, 0.38, 0.2, 0.46, 0.2, 0.52, 0.24],
     wpRoll: [0, 0, 0.1, 0.38, 0.62, 0.42, 0.72, 0.3, 0.9, 0.05, 1, 0],
     wpPitch: [0, 0, 0.1, 0.22, 0.62, 0.25, 0.66, 0.2, 0.68, 0.27, 0.9, 0.05, 1, 0],
     wpY: [0, 0, 0.1, -0.05, 0.64, -0.05, 0.66, -0.03, 0.69, -0.06, 0.9, -0.01, 1, 0],
@@ -28,7 +30,7 @@ export const RELOAD_TACTICAL = makeClip({
     hdPitch: [0, 0, 0.12, 0.18, 0.3, 0.12, 0.42, 0.28, 0.56, 0.18, 0.7, 0.15, 0.9, 0],
     spPitch: [0, 0, 0.66, 0, 0.68, 0.025, 0.72, 0],
   },
-  events: { magOut: 0.24, magIn: 0.66 },
+  events: { magOut: 0.24, pouch: 0.42, magIn: 0.66 },
 });
 
 /** Empty reload (rifle 3.1 s): as tactical, then the off hand runs the charging handle. */
@@ -37,10 +39,12 @@ export const RELOAD_EMPTY = makeClip({
   duration: 1,
   keys: {
     offGrip: [0, 1, 0.07, 1, 0.12, 0, 0.86, 0, 0.94, 1],
-    offMag: [0, 0, 0.09, 0, 0.14, 1, 0.2, 1, 0.27, 0, 0.44, 0, 0.5, 1, 0.6, 1, 0.66, 0],
-    hLX: [0, -0.06, 0.27, -0.1, 0.36, -0.13, 0.44, -0.1, 0.66, 0.0, 0.72, 0.07, 0.78, 0.07, 0.84, 0.0],
-    hLY: [0, 1.2, 0.27, 1.02, 0.36, 0.97, 0.44, 1.08, 0.66, 1.3, 0.72, 1.4, 0.78, 1.4, 0.84, 1.3],
-    hLZ: [0, 0.2, 0.27, 0.14, 0.36, 0.12, 0.44, 0.18, 0.66, 0.22, 0.72, 0.17, 0.77, 0.06, 0.8, 0.12, 0.84, 0.2],
+    // (anim-cleanup) after the seat the off hand goes on to the charging handle (the rig's magPoint moves there:
+    // playerWeapons) and runs it, then back to the foregrip
+    offMag: [0, 0, 0.09, 0, 0.14, 1, 0.2, 1, 0.27, 0, 0.44, 0, 0.5, 1, 0.6, 1, 0.64, 0.6, 0.68, 1, 0.82, 1, 0.86, 0],
+    hLX: [0, -0.06, 0.27, -0.08, 0.32, -0.07, 0.4, -0.07, 0.46, -0.05],
+    hLY: [0, 1.2, 0.27, 1.17, 0.32, 1.22, 0.4, 1.22, 0.46, 1.16],
+    hLZ: [0, 0.2, 0.27, 0.22, 0.32, 0.2, 0.4, 0.2, 0.46, 0.24],
     wpRoll: [0, 0, 0.09, 0.38, 0.6, 0.42, 0.66, 0.15, 0.82, 0.12, 0.94, 0.02, 1, 0],
     wpPitch: [0, 0, 0.09, 0.22, 0.5, 0.25, 0.54, 0.2, 0.56, 0.27, 0.66, 0.1, 0.77, 0.06, 0.8, 0.12, 0.94, 0.03, 1, 0],
     wpY: [0, 0, 0.09, -0.05, 0.52, -0.05, 0.54, -0.03, 0.57, -0.06, 0.8, -0.03, 0.94, -0.01, 1, 0],
@@ -48,16 +52,62 @@ export const RELOAD_EMPTY = makeClip({
     hdPitch: [0, 0, 0.1, 0.18, 0.27, 0.12, 0.36, 0.28, 0.48, 0.18, 0.66, 0.08, 0.9, 0],
     spPitch: [0, 0, 0.54, 0, 0.56, 0.025, 0.6, 0, 0.77, 0, 0.79, -0.02, 0.82, 0],
   },
-  events: { magOut: 0.2, magIn: 0.54, charge: 0.78 },
+  events: { magOut: 0.2, pouch: 0.36, magIn: 0.54, charge: 0.78 },
 });
+
+/**
+ * (anim-cleanup) Pistol reloads: the off hand strips the magazine from the bottom of the grip, takes it to Wren's pistol
+ * magazine pouch on the left hip (9 o'clock, base plates forward), comes back with a fresh one and seats it; the empty
+ * reload then racks the slide (the off hand over the slide's rear). The gun tilts less than the rifle.
+ */
+export const RELOAD_PISTOL_TACTICAL = makeClip({
+  name: 'reloadPistolTactical',
+  duration: 1,
+  keys: {
+    offGrip: [0, 1, 0.08, 1, 0.14, 0, 0.84, 0, 0.92, 1],
+    offMag: [0, 0, 0.1, 0, 0.16, 1, 0.24, 1, 0.3, 0, 0.52, 0, 0.58, 1, 0.74, 1, 0.84, 0],
+    hLX: [0, -0.1, 0.3, -0.16, 0.36, -0.21, 0.46, -0.21, 0.52, -0.12],
+    hLY: [0, 1.15, 0.3, 1.06, 0.36, 1.03, 0.46, 1.03, 0.52, 1.12],
+    hLZ: [0, 0.2, 0.3, 0.1, 0.36, 0.05, 0.46, 0.05, 0.52, 0.18],
+    wpRoll: [0, 0, 0.1, 0.25, 0.62, 0.28, 0.72, 0.2, 0.9, 0.04, 1, 0],
+    wpPitch: [0, 0, 0.1, 0.12, 0.62, 0.14, 0.66, 0.1, 0.7, 0.16, 0.9, 0.03, 1, 0],
+    wpZ: [0, 0, 0.1, -0.06, 0.9, -0.05, 1, 0],
+    hdPitch: [0, 0, 0.12, 0.16, 0.3, 0.1, 0.42, 0.22, 0.56, 0.16, 0.7, 0.12, 0.9, 0],
+  },
+  events: { magOut: 0.24, pouch: 0.41, magIn: 0.66 },
+});
+
+export const RELOAD_PISTOL_EMPTY = makeClip({
+  name: 'reloadPistolEmpty',
+  duration: 1,
+  keys: {
+    offGrip: [0, 1, 0.07, 1, 0.12, 0, 0.86, 0, 0.94, 1],
+    offMag: [0, 0, 0.09, 0, 0.14, 1, 0.2, 1, 0.26, 0, 0.44, 0, 0.5, 1, 0.6, 1, 0.64, 0.6, 0.68, 1, 0.82, 1, 0.86, 0],
+    hLX: [0, -0.1, 0.26, -0.16, 0.31, -0.21, 0.39, -0.21, 0.45, -0.12],
+    hLY: [0, 1.15, 0.26, 1.06, 0.31, 1.03, 0.39, 1.03, 0.45, 1.12],
+    hLZ: [0, 0.2, 0.26, 0.1, 0.31, 0.05, 0.39, 0.05, 0.45, 0.18],
+    wpRoll: [0, 0, 0.09, 0.25, 0.6, 0.28, 0.66, 0.1, 0.94, 0.02, 1, 0],
+    wpPitch: [0, 0, 0.09, 0.12, 0.5, 0.14, 0.54, 0.1, 0.56, 0.16, 0.66, 0.06, 0.94, 0.02, 1, 0],
+    wpZ: [0, 0, 0.09, -0.06, 0.94, -0.04, 1, 0],
+    hdPitch: [0, 0, 0.1, 0.16, 0.26, 0.1, 0.36, 0.22, 0.48, 0.16, 0.66, 0.08, 0.9, 0],
+  },
+  events: { magOut: 0.2, pouch: 0.35, magIn: 0.54, charge: 0.78 },
+});
+
+/** (anim-cleanup) The reload clip for a weapon (pistols by their light mass factor) and kind. */
+export function reloadClipFor(weight: number, empty: boolean): ReturnType<typeof makeClip> {
+  const pistol = weight < 0.85;
+  return pistol ? (empty ? RELOAD_PISTOL_EMPTY : RELOAD_PISTOL_TACTICAL) : empty ? RELOAD_EMPTY : RELOAD_TACTICAL;
+}
 
 /** Where the right hand goes to holster / draw, per carry slot (body space: x right, y up, z forward). */
 export type SwapReach = 'backL' | 'backC' | 'backR' | 'sling' | 'thigh';
 const REACH: Record<SwapReach, [number, number, number]> = {
-  // over the shoulder to the upper half of the gun on the back
-  backL: [-0.06, 1.55, -0.18],
-  backC: [0.0, 1.55, -0.2],
-  backR: [0.08, 1.5, -0.2],
+  // (anim-cleanup) behind the back to the pistol grip of the gun hung on the back plate (the rifle is carried there
+  // over the right shoulder in the trigger hand: WeaponModel travel)
+  backL: [0.02, 1.26, -0.12],
+  backC: [0.08, 1.26, -0.12],
+  backR: [0.14, 1.26, -0.12],
   // across to the left-hip sling
   sling: [-0.16, 1.0, 0.1],
   // down to the right thigh holster
@@ -72,23 +122,28 @@ function swapClip(from: SwapReach, to: SwapReach) {
     name: `swap ${from}>${to}`,
     duration: 1,
     keys: {
-      grip: [0, 1, 0.12, 1, 0.22, 0, 0.8, 0, 0.88, 1],
+      // (anim-cleanup) the trigger hand keeps the grip while the gun travels to its slot (to 0.38) and from the next
+      // slot to the aim pocket (0.5-0.8: WeaponModel travel); empty only between the two slots, round the outside of the
+      // body (never through the hip)
+      grip: [0, 1, 0.38, 1, 0.41, 0, 0.47, 0, 0.5, 1, 1, 1],
       offGrip: [0, 1, 0.1, 0, 0.86, 0, 0.94, 1],
-      // out to the outgoing gun's slot (holstered at 0.38), on to the incoming one's (taken at 0.58), then
+      // out to the outgoing gun's slot (holstered at 0.38), on to the incoming one's (taken at 0.5), then
       // up to the aim pocket (in the pocket at 0.8)
-      hRX: [0, 0.18, 0.26, f[0], 0.38, f[0], 0.52, t[0], 0.6, t[0], 0.8, 0.18],
-      hRY: [0, 1.25, 0.26, f[1], 0.38, f[1], 0.52, t[1], 0.6, t[1], 0.8, 1.25],
-      hRZ: [0, 0.25, 0.26, f[2], 0.38, f[2], 0.52, t[2], 0.6, t[2], 0.8, 0.25],
-      hLX: [0, -0.18, 1, -0.18],
-      hLY: [0, 1.05, 0.5, 1.0, 1, 1.05],
-      hLZ: [0, 0.12, 1, 0.12],
+      hRX: [0, 0.18, 0.26, f[0], 0.38, f[0], 0.44, Math.max(f[0], t[0]) + 0.12, 0.5, t[0], 0.6, t[0], 0.8, 0.18],
+      hRY: [0, 1.25, 0.26, f[1], 0.38, f[1], 0.44, (f[1] + t[1]) / 2, 0.5, t[1], 0.6, t[1], 0.8, 1.25],
+      hRZ: [0, 0.25, 0.26, f[2], 0.38, f[2], 0.44, (f[2] + t[2]) / 2, 0.5, t[2], 0.6, t[2], 0.8, 0.25],
+      // the support hand hangs relaxed at the side (the arm's own length below the shoulder), out of the gun's way, and
+      // comes up for the grip as the gun reaches the pocket
+      hLX: [0, -0.2, 0.2, -0.21, 0.7, -0.21, 1, -0.16],
+      hLY: [0, 1.0, 0.2, 0.88, 0.7, 0.88, 1, 1.1],
+      hLZ: [0, 0.1, 0.2, 0.05, 0.7, 0.05, 1, 0.14],
       wpPitch: [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
       // the chest turns towards the reach (right shoulder / left hip / right thigh)
       spYaw: [0, 0, 0.26, BACK(from) ? 0.16 : from === 'sling' ? -0.3 : 0.08, 0.38, BACK(from) ? 0.18 : from === 'sling' ? -0.32 : 0.1, 0.56, BACK(to) ? 0.14 : to === 'sling' ? -0.3 : 0.08, 1, 0],
       spPitch: [0, 0, 0.35, BACK(from) ? 0 : 0.16, 0.56, BACK(to) ? 0 : 0.14, 1, 0],
       hdPitch: [0, 0, 0.35, 0.08, 1, 0],
     },
-    events: { holstered: 0.38, drawn: 0.58 },
+    events: { holstered: 0.38, drawn: 0.5 },
   });
 }
 

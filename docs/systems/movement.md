@@ -147,6 +147,12 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   the neck flexes onto the stock (`NECK_WELD`), the shoulders lift (`SHOULDER_WELD`). Ready poses (`READY_POSES`): low,
   compressed, high; back to a wall `WALL_READY` (muzzle down along the wall; `AnimInput.wall`, `WALL_STANCE`, the support
   hand on the wall via `RigTargets.offWall` -> `CharacterRig.wallHand`).
+- Draw / holster travel (anim-cleanup): the outgoing gun leaves the aim pocket at `TRAVEL_OUT` of the swap and reaches its
+  slot at `SWAP_HOLSTER`; the next leaves its slot at `TRAVEL_IN` and is in the pocket at `SWAP_HOLD`. `WeaponModel.travel`
+  moves the grip along a cubic curve through `TRAVEL_VIA` (back: over the right shoulder; thigh: out by the hip) to Wren's
+  mounts (`WREN_BACK_MOUNT`, `WREN_HOLSTER`). A swap or holster cancels a running reload (`cancelReload`).
+- Shoulder swap: on the left shoulder (`rig.openLeft`) the gun changes hands once `weapons.handSwitchOk` (settled, no reload,
+  no travel); co-op carries it as ground `MoveState.sub` bit 128 (`SHOULDER_LEFT_SUB`).
 
 ## Camera
 - `config/camera.ts` `CAMERA` + `framing()`: free orbit; lowered, looking around only turns the head
@@ -228,6 +234,10 @@ To be replaced by the CT door menu (G97); this is the current build.
   `BuiltLevel.anchors`. Helpers: `closestOn`, `reach`, `nearestInReach`, `anchorsNear`, `hangPoint` (`HANG.drop` 1.9 m,
   `HANG.out` 0.22 m), `lipGrips`, `nearestRung`, `ductPoint`, `ledgeContinuation`, `findJumpTarget`. Climbers stand
   `CLIMB_STANDOFF` 0.28 m off the rungs / pipe. `REACH.grabMax` 2.7, `LEDGE.climbDepth` 0.38.
+- World grips (anim-cleanup): `AttachGrips.gripAxes` gives each hand target the real geometry's axis, radius and a point on
+  it (rung, pipe, ledge lip, zipline cable, rappel rope, fence rail); `CharacterRig.solveWorldGrip` puts the palm on the
+  surface (`PALM_DEPTH` 0.014) with the fingers wrapped, reach capped at 96 %. Rungs and fence wires use a fixed overhand
+  grip. Reach writers that are not grips (takedowns, stealth, remote avatars) clear the axis.
 - `player/attach.ts` (pure): `AttachMachine` (none -> enter -> on -> exit) with `ATTACH` specs per kind (axis, speed,
   enter / exit times, camera preset, `allow` sidearm / takedown / drop / traverse / gadgets, `holster`); `axisInput`,
   `attachPose`, `attachRange`, `update` (reports `edge`). Gameplay calls pass `GAMEPLAY_HEIGHT` (1.75, G176), never the

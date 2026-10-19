@@ -14,6 +14,7 @@ import { assignCarrySlots, type CarrySlot } from './carrySlots';
 import { withAttachments } from '../progression/attachments';
 import { GrenadePouches } from './grenadePouches';
 import { KnifeModel } from './knifeModel';
+import { reloadClipFor } from '../anim/clips/actions';
 import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
@@ -66,6 +67,13 @@ const SWAP_TIME = 0.9;
 const SWAP_HOLSTER = 0.38;
 const SWAP_TAKE = 0.58;
 const SWAP_HOLD = 0.8;
+/**
+ * (anim-cleanup) The draw / holster travel beats: the outgoing gun leaves the aim pocket at TRAVEL_OUT and reaches its
+ * slot at SWAP_HOLSTER in the trigger hand; the next one leaves its slot at TRAVEL_IN and is in the pocket at SWAP_HOLD
+ * (actions.ts swap clip: the hand holds the grip over both spans, empty only between the slots).
+ */
+const TRAVEL_OUT = 0.06;
+const TRAVEL_IN = 0.5;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
 const GRENADE_RELEASE = 0.68;
@@ -229,7 +237,7 @@ export class PlayerWeapons {
   setStowed(v: boolean): void {
     if (v === this.stowed) return;
     this.stowed = v;
-    this.reloadT = -1;
+    this.cancelReload();
     const rig = this.player.rig;
     if (v) {
       if (this.swapT >= 0 && this.swapPhase >= 2) {
@@ -339,6 +347,8 @@ export class PlayerWeapons {
     for (let j = 0; j < this.slots.length; j++) {
       if (j === held) continue;
       const m = this.slots[j]!.model;
+      // (anim-cleanup) a reload cut short: the magazine goes back in before the gun is put away
+      m.magSeated();
       const slot = this.carrySlots[j];
       if (slot) m.holster(rig, slot);
       else m.setVisible(false);
@@ -442,9 +452,18 @@ export class PlayerWeapons {
           // so the holster just stops and it comes straight back up. (21w, PC-PASS 42) No jump into the draw half of
           // the clip (that moved the hand 12 cm and the gun 30 cm in one frame): the swap overlay fades out from where
           // it was and the aim pocket takes the gun back.
-          this.swapT = -1;
-          this.swapPhase = 0;
-          this.aimDriven = false;
+          const m = this.slots[this.held]!.model;
+          if (m.travelling) {
+            // (anim-cleanup) already on its way to the slot: it travels back from where it is to the aim pocket
+            m.beginTravel(this.player.rig, this.carrySlots[this.held]!, true);
+            this.swapT = SWAP_TIME * TRAVEL_IN;
+            this.swapPhase = 2;
+            this.aimDriven = false;
+          } else {
+            this.swapT = -1;
+            this.swapPhase = 0;
+            this.aimDriven = false;
+          }
         }
       }
     }
@@ -457,7 +476,7 @@ export class PlayerWeapons {
     const swapPress = inp.pressed('swapNext') || inp.pressed('swapPrev') || (target >= 0 && target !== this.index);
     if (swapPress && this.slots.length > 1 && !this.throwing && !(this.stowed && this.attachMode)) {
       const d = inp.pressed('swapNext') ? 1 : -1;
-      this.reloadT = -1;
+      this.cancelReload();
       this.aimDriven = false;
       this.index = target >= 0 && target < this.slots.length && !inp.pressed('swapNext') && !inp.pressed('swapPrev') ? target : (this.index + d + this.slots.length) % this.slots.length;
       if (this.stowed) {
@@ -492,16 +511,39 @@ export class PlayerWeapons {
       } else this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
-      const f = this.swapT / SWAP_TIME;
+      let f = this.swapT / SWAP_TIME;
+      // (anim-cleanup) the outgoing gun travels to its slot in the trigger hand (no teleport, never across the face)
+      const out = this.held >= 0 ? this.slots[this.held] : undefined;
+      // (check fix r1) a gun still in (or easing out of) the left hand waits in the pocket until it is back in the right
+      if (this.swapPhase === 0 && f >= TRAVEL_OUT && !out?.model.travelling && (this.player.rig.weaponHand < 0 || this.player.rig.handSwitching)) {
+        this.swapT = SWAP_TIME * TRAVEL_OUT;
+        f = TRAVEL_OUT;
+      }
+      if (this.swapPhase === 0 && out && f >= TRAVEL_OUT && f < SWAP_HOLSTER && out.model.canTravel(this.carrySlots[this.held] ?? null) && this.player.rig.weaponHand > 0 && !this.player.rig.handSwitching) {
+        if (!out.model.travelling) out.model.beginTravel(this.player.rig, this.carrySlots[this.held]!, false);
+        out.model.travel(this.player.rig, (f - TRAVEL_OUT) / (SWAP_HOLSTER - TRAVEL_OUT));
+      }
       if (this.swapPhase === 0 && f >= SWAP_HOLSTER) {
         this.swapPhase = 1;
         this.holsterAll(-1);
       }
       // stowed: hold at the holstered beat (hands empty) until drawn again
       if (this.stowed && this.swapPhase >= 1) this.swapT = SWAP_TIME * SWAP_HOLSTER;
-      else if (this.swapPhase === 1 && f >= SWAP_TAKE) {
-        this.swapPhase = 2;
-        this.slots[this.index]!.model.inHand(this.player.rig);
+      else if (this.swapPhase === 1) {
+        // (anim-cleanup) the next gun leaves its slot in the trigger hand and travels to the aim pocket
+        const next = this.slots[this.index]!;
+        const from = this.carrySlots[this.index] ?? null;
+        if (next.model.canTravel(from) && f >= TRAVEL_IN) {
+          this.swapPhase = 2;
+          next.model.beginTravel(this.player.rig, from!, true);
+        } else if (!next.model.canTravel(from) && f >= SWAP_TAKE) {
+          this.swapPhase = 2;
+          next.model.inHand(this.player.rig);
+        }
+      }
+      if (this.swapPhase === 2) {
+        const m = this.slots[this.index]!.model;
+        if (m.travelling) m.travel(this.player.rig, (f - TRAVEL_IN) / (SWAP_HOLD - TRAVEL_IN));
       }
       if (this.swapPhase === 2 && f >= SWAP_HOLD) {
         this.swapPhase = 3;
@@ -524,6 +566,8 @@ export class PlayerWeapons {
       if (this.grenadeT >= GRENADE_TIME) this.grenadeT = -1;
     }
 
+    // (anim-cleanup) the magazine and the support hand's reload points follow the reload (seated when there is none)
+    this.reloadVisuals(s);
     // reload
     if (this.reloadT >= 0) {
       this.reloadT -= dt;
@@ -570,6 +614,43 @@ export class PlayerWeapons {
     this.shoot();
   }
 
+  /**
+   * (anim-cleanup) Through a reload the magazine goes from the well to the left hand, to the pouch and back, and is
+   * seated (WeaponModel.magFollow, the clip's beats); the support hand's magazine point is the weapon's `magHold`, then on
+   * an empty reload its charging handle / slide, pulled back along `chargePull` round the `charge` beat and let go.
+   */
+  private reloadVisuals(s: WeaponSlot): void {
+    const rig = this.player.rig;
+    const def = s.def;
+    const ev = reloadClipFor(def.weight ?? classWeight(def.class), this.reloadEmpty).events;
+    const rt = this.reloadT >= 0 ? 1 - this.reloadT / this.reloadTotal : -1;
+    s.model.magFollow(rig, rt, ev.magOut ?? 0, ev.magIn ?? 1);
+    if (!rig.heldWeapon || rig.heldWeapon !== s.model.node) return;
+    const mh = def.magHold;
+    const ch = def.charge;
+    const at = ev.charge ?? -1;
+    if (rt >= 0 && this.reloadEmpty && ch && at > 0 && rt >= (ev.magIn ?? 1) + 0.04) {
+      // pulled back over the 0.06 before the beat, let go (snaps forward) over the 0.03 after
+      const back = rt < at ? Math.max(0, (rt - (at - 0.06)) / 0.06) : Math.max(0, 1 - (rt - at) / 0.03);
+      rig.magPoint.set(ch[0], ch[1], ch[2] + (def.chargePull ?? 0) * back * back * (3 - 2 * back));
+    } else if (mh) rig.magPoint.set(mh[0], mh[1], mh[2]);
+  }
+
+  /**
+   * (anim-cleanup, check fix r1) A reload cut short (a swap, a stow for a ladder or a hang, a throw): the magazine goes
+   * back into the gun it came from at once and the hand lets it go, before the gun is put away.
+   */
+  private cancelReload(): void {
+    if (this.reloadT >= 0) this.slots[this.held]?.model.magSeated();
+    this.reloadT = -1;
+    this.player.rig.holdingMag = false;
+  }
+
+  /** (anim-cleanup) The weapon may change hands (the shoulder swap) only settled in the aim pocket, never mid-reload. */
+  get handSwitchOk(): boolean {
+    return this.swapT < 0 && this.reloadT < 0 && !this.stowed;
+  }
+
   /** Tactical reload (a round still chambered) or the longer empty reload (charging handle). */
   private startReload(): void {
     const s = this.current;
@@ -594,7 +675,7 @@ export class PlayerWeapons {
     if (!g.take()) return false;
     this.throwKind = g.selected;
     this.grenadeCd = GRENADE.cooldown;
-    this.reloadT = -1;
+    this.cancelReload();
     this.grenadeT = 0;
     this.grenadeThrown = false;
     return true;

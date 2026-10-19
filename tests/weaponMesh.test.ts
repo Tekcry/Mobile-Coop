@@ -18,6 +18,14 @@ describe('weapon meshes', () => {
     expect(built).toContain('rifle');
   });
 
+  it('the guns carry their magazine as a mesh of its own (a reload pulls it: anim-cleanup)', () => {
+    for (const id of ['rifle', 'pistolSd'].filter((x) => built.includes(x as never))) {
+      const glb = readFileSync(`src/weapons/assets/${id}.glb`);
+      const json = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString('utf8')) as { meshes: { name: string }[] };
+      expect(json.meshes.map((m) => m.name)).toEqual([id, `${id}-mag`]);
+    }
+  });
+
   for (const id of built) {
     describe(id, () => {
       const r = report(id);
