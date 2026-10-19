@@ -180,8 +180,11 @@ try {
     const tick = () => { window.__holdFrames++; if (window.__holdFrames < 1e6) requestAnimationFrame(tick); };
     tick();
   });
+  // wait on the condition, not wall time: the repeat runs on frames, which stall under load
   await G((b) => window.__pad.set(b, 1), BTN.RIGHT);
-  await page.waitForTimeout(3200);
+  await page
+    .waitForFunction(() => window.__fast > 0 && window.__app.settings.get().audio.sfx > 0.2, null, { timeout: 15000, polling: 100 })
+    .catch(() => {});
   await G((b) => window.__pad.set(b, 0), BTN.RIGHT);
   await frames(page, 3);
   const hold = await G(() => ({ fast: window.__fast, v: window.__app.settings.get().audio.sfx, frames: window.__holdFrames, shot: window.__app.current?.shotId, fade: window.__app.current?.shotFade }));
@@ -372,7 +375,7 @@ try {
       g.stats.bonuses = ['No alarms'];
       g.endSession(true, 'done');
     });
-    await P.waitForSelector('.results-screen', { timeout: 15000 });
+    await P.waitForSelector('.results-screen', { timeout: 60000 }); // a hang guard: a 1.8 s timer, then a push; frames stall under load
     await frames(P, 4);
     const res = await GM(() => ({
       keys: [...document.querySelectorAll('.results-screen .ms-item')].map((b) => b.dataset.key).join(','),
