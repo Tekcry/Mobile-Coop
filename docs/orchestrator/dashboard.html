@@ -82,7 +82,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </header>
 
   <section class="waiting">
-    <h2>Waiting on you <span class="count" id="qcount">8</span></h2>
+    <h2>Waiting on you <span class="count" id="qcount">10</span></h2>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
     <ol class="qs" id="qs"></ol>
   </section>
@@ -168,6 +168,8 @@ const QUESTIONS = [
   { id: 'flicker-replay', who: 'Menu', text: 'Replay the goggle flicker on the title after a match?', opts: ['Only at launch', 'Replay after a match'] },
   { id: 'moth', who: 'Blocks Moth', text: 'Moth: direction (D24) and goggle colour. Amber fails the colour-blindness rule. Write your answer in the note.', opts: [] },
   { id: 'cleanup-go', who: 'Character Build', text: 'Cleanup job (Wren integration fixes, about 3-5 h): go?', opts: ['Go', 'Not yet'] },
+  { id: 'goggle-surround', who: 'Goggle', text: 'Which goggle "surround" did you mean? The device is the 3D housing round the lenses on Wren\'s face. The screen is the dark rounded edge of the night-vision picture (CT has no heavy tunnel).', opts: ['The device', 'The screen edge', 'Both'] },
+  { id: 'goggle-direction', who: 'Goggle', text: 'Goggle device direction (all original): A, the current housing made slim and rounded with the lenses standing proud (least work); B, a brow bar with two square optic blocks 30-40 mm forward (closest to CT in profile); C, one wide front window (most original, least CT).', opts: ['A: slim shroud', 'B: brow bar + blocks', 'C: wide window'] },
   { id: 'ct-research-delete', who: 'Orchestrator', text: 'Delete the merged branch feature/ct-research? The raw research stays as a tag.', opts: ['Delete it', 'Keep it'] },
 ];
 const state = {};      // id -> { choice, note } being edited

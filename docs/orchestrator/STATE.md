@@ -22,6 +22,7 @@ Read CLAUDE.md "Orchestrator" and docs/ROADMAP.md first. Work folder for docs PR
    and push /ct/. One of its runs on port 4193 overlapped mine briefly (it started before the lock).
 3. **Character Build** (laptop, light work only): planning the goggle surround redesign on feature/goggle
    (docs/goggle/BRIEF.md, PLAN.md). It's idle otherwise. Messages to it go over a bridge and delivery isn't confirmed.
+5. **Goggle plan** (feature/goggle 4c8e630, docs/goggle/): two questions on the dashboard (which surround; direction A/B/C). Screen-edge fix is laptop-safe; the device build is desktop work.
 4. **PR #11** (docs: machine rule, heavy.lock, this file, the dashboard source): merge when GitHub's check passes.
 
 ## Dashboard
