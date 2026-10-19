@@ -12,10 +12,12 @@ bunker fully functional and running, but sector ops can at least run when there 
 course (CT Core) comes first for the desktop lock, the laptop test runner and the orchestrator's reviews; Sector Ops
 runs only on spare capacity and yields the desktop lock whenever CT Core needs it.
 
-Last updated: 2026-10-19 21:40 Sydney.
+Last updated: 2026-10-19 21:55 Sydney.
 
 ## Waiting on Michael
-1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
+1. New CT footage for the movement fine-tuning (legs, rigid upper body in ADS tilting at the hips, shimmy swing,
+   drainpipe, pistol aim). Michael: "Still not an accurate recreation of CT movement. I will take more recordings."
+2. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
    auto mode blocked the orchestrator, so Michael runs
    `git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research`.
 
@@ -35,10 +37,10 @@ Last updated: 2026-10-19 21:40 Sydney.
 | Session | Machine | Branch | Doing | Next checkpoint |
 | --- | --- | --- | --- | --- |
 | Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | CT Core D + E (first priority); Sector Ops slice 2 on spare capacity |
-| CT Core Build | desktop | `feature/ct-prototype` | First priority. B + C on /ct/ (87514ed1); master 4.6.5 merged; slices D + E | D + E on /ct/ for Michael |
+| CT Core Build | desktop | `feature/ct-prototype` | First priority. Michael walked /ct/ (624fca6b): every item "Not right" (docs/ct-prototype/WALK-2026-10-19.md). Slice on the clear items now; fine-tuning waits for his new CT footage | Clear-items slice on /ct/ |
 | Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 (4.6.6) and #20 unit timeouts (4.6.8) merged. Idle between requests | Next runner request |
-| Menu Notes Build | desktop | `feature/menu-notes` | Michael's walk-test menu notes (Next 5; Michael 18:40: "can you do the other menu fixes"): title music, load screen with preloaded hero and shaders, no way back to the title, hero quality, magazine clip, rifle and pistol in the menu, one Controls menu. Behind CT Core for the desktop lock; logic e2e on the laptop runner | PR to master (minor) |
-| Sector Ops Build | desktop | - | Done: #21 merged (4.7.0, Sector Ops on /preview/). Idle until the PC perf run (full guard counts) | PC perf run |
+| Menu Notes Build | desktop | `feature/menu-notes` | Menu notes done plus M1-M4 (black launch screen, flicker in the dark, menu shot X5, forehead glow removed); tests green on the laptop | Full e2e, then PR (minor) |
+| Sector Ops Build | desktop | `feature/sector-restart` | Spare capacity. Michael's bug (M9): a checkpoint restart must be a clean start (guards unalerted, alert music fades, gun reloaded) | PR (patch); then the PC perf run |
 
 ## Next (in order)
 1. **Playtest 2 slices B + C** (CT Core): aiming compared with the CT footage (view unchanged when crouched,
