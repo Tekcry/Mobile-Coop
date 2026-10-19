@@ -1,6 +1,6 @@
 # Co-op test fix - state
 
-**Now (2026-10-19):** done; the PR to master is open (see ROADMAP / the PR list), waiting for the orchestrator's review
+**Now (2026-10-19):** done; PR #17 to master is open (https://github.com/Tekcry/Mobile-Coop/pull/17), waiting for the orchestrator's review
 and merge. Steps 1-6 done on `feature/coop-tests` (rebased onto master 4.6.3, 3bd51675).
 
 **Next:** nothing in this job unless the PR review asks for changes. If it does: make them here, rerun the touched
@@ -32,7 +32,7 @@ the orchestrator.
 
 ## Resume prompt
 ```
-Co-op test fix: RESUME. Folder C:/NightShift/Mobile-Coop-coop-tests, branch feature/coop-tests (its PR to master is
+Co-op test fix: RESUME. Folder C:/NightShift/Mobile-Coop-coop-tests, branch feature/coop-tests (PR #17 to master is
 open). Read CLAUDE.md, then docs/coop-tests/BRIEF.md and docs/coop-tests/STATE.md. Report to the Night Shift |
 Orchestrator session and wait for its instructions: the job is done unless the PR review asks for changes. Laptop
 rules: heavy work one at a time with C:/NightShift/heavy.lock, E2E_JOBS=1, BelowNormal priority, headless, no GPU or
