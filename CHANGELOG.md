@@ -1,9 +1,10 @@
 # Changelog
 
 ## Unreleased - lightField heap check under load (feature/lightfield-heap)
-- tests/lightField "allocation-free under a loop" is stable under load: smaller rounds (no scavenge inside one), up to
-  40 of them with yields so the optimizing compiler can finish, the control's largest round and the field's smallest.
-  Same limits. It failed `npm run check` on a busy laptop (the field read 42 B a query before optimization). Tests only.
+- tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
+  compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it
+  is never optimized away (272 B a query every run, was 63-272). Same limits. It failed `npm run check` on a busy
+  laptop (41.97 < 39.54). Tests only.
 
 ## 4.7.0 - Sector Ops: prototype menu, 3-section Sector Ops, co-op mode switch (2026-10-19, PR #21)
 - Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.

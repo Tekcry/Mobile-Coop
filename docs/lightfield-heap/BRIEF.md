@@ -10,21 +10,32 @@ nothing per query beyond V8 boxing a returned double (`BOXED_BUDGET` 64 B; `body
 clearly below one real allocation (a 3-vector control, 32 B margin).
 
 ## Cause
-The measurement, not the field. Two skews, seen in the loaded runs of the unit-timeouts and menus-slider jobs:
-- The background compiler had not installed the optimized loop after the fixed warm-up, so the field's doubles were
-  still boxed: 35-42 B a query (alone: about 0).
+The measurement, not the field. Three skews, seen in loaded runs (unit-timeouts, menus-slider) and in this job's own
+measurements (the "bytes per query" line, `vitest run tests/lightField.test.ts --silent=false`):
+- The background compiler had not installed the optimized loop after the fixed warm-up, so the field read high
+  (35-42 B a query; optimized it is a steady 32.4 B, two boxed doubles).
 - A scavenge inside the control round (20000 x a vector, about 1.4 MB) shrank new space, so the control read low
   (15 B; the relative check then needed a negative number).
+- The control's vector never escaped its loop, so a fully optimized control was partly scalar-replaced: 63-72 B
+  instead of 272 B. Against the field's 32.4 B that leaves about 31-40 B, so `level < ctl - 32` failed whenever the
+  control got fully optimized and the field did not (41.97 < 39.54).
 
 ## Fix
 Tests only, same asserts and limits:
-- Rounds of 5000 queries (the control about 0.4 MB, under the 1 MB minimum semi-space, so no scavenge fits after the
-  `gc()` that starts each round).
-- Up to 40 rounds with a 25 ms yield between them so the compiler can finish; the field keeps its smallest round and
-  stops once that meets its limit; the control keeps its largest round (it is measured first and sets the field's
-  target).
-- What it guards is unchanged: a query that allocates an object (16 B+ each, plus the boxed result) can never read
-  under the limits in any round, and with no scavenge in a round a smaller number cannot be an artefact.
+- Rounds of 5000 queries, each after a `gc()`. A scavenge inside a round can only make a reading lower; the field
+  rounds allocate (almost) nothing, and a low control reading would make the relative check stricter, not looser.
+- Up to 40 rounds with a 25 ms yield between them so the compiler can finish. Each measurement keeps its smallest round
+  (the optimized code; the strict side). The field queries stop once their smallest meets their limit; the control
+  runs all 40.
+- The control's vector goes into a 64-slot ring, so it escapes and cannot be optimized away: it is the real
+  allocation it stands for, 272.4 B every run.
+- What it guards is unchanged: a query that allocates an object can never read under `BOXED_BUDGET` (64 B; bodyLevel
+  128 B) in any round, and the field still has to sit at least 32 B under one real allocation.
+
+## Measured (laptop)
+With e2e-menus running alongside, 6 runs, and alone, 3 runs: levelAt 32.4, bodyLevel 113.2-121.0, control 272.4 B a
+query, every run. Before (same harness, the old measurement): the control read 62.7 B once and the check failed
+(32.38 < 30.73).
 
 ## Verify
 `npm run check` 5 times with an e2e suite running alongside (laptop, BelowNormal, `C:/NightShift/heavy.lock`); the
