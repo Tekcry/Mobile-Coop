@@ -1,23 +1,23 @@
 # lightField heap check under load - state
 
-**Now (2026-10-19 22:20, paused for Michael's account switch):** the fix is committed and pushed (e0984128). Not done:
-the 5 loaded `npm run check` runs on the final code, and the PR.
+**Now (2026-10-19 23:05):** done. The 5 loaded runs on the final code passed; PR to master open. The orchestrator
+sets the version and merges.
 
-**Where the verification stands:**
-- 5 loaded `npm run check` runs on the first version (6016e700): 5/5 PASS (unit run 13-21 s, e2e-menus alongside).
-  Superseded by the later changes, so they do not count.
-- Measured with `npx vitest run tests/lightField.test.ts --silent=false` on d5cf34fc (control rounds of 5000):
-  e2e-menus alongside 6/6 PASS and alone 3/3 PASS; levelAt 32.4, bodyLevel 113.2-121.0, control 272.4 B a query
-  every run.
-- e0984128 (the control's rounds cut to 2000 so no scavenge fits in one; comments): not run yet.
+**Verification on the final code** (8800152a = e0984128 + this STATE; laptop, BelowNormal, port 4191,
+`E2E_JOBS=1`, laptop `heavy.lock`, `node scripts/run-e2e.mjs e2e-menus` running alongside from
+`Mobile-Coop-testrun`):
+| Run | `npm run check` | unit run | e2e-menus (load) | lightField `--silent=false`: levelAt / bodyLevel / control B a query |
+| --- | --- | --- | --- | --- |
+| 1 | PASS 152 s | 1780 passed, 14.7 s | ok 108 s | 32.4 / 113.2 / 273.0 |
+| 2 | PASS 157 s | 1780 passed, 78.5 s | ok 118 s | 32.4 / 113.2 / 273.0 |
+| 3 | PASS 173 s | 1780 passed, 84.3 s | ok 127 s | 37.2 / 122.8 / 277.8 |
+| 4 | PASS 159 s | 1780 passed, 13.0 s | ok 118 s | 32.4 / 113.2 / 273.0 |
+| 5 | PASS 177 s | 1780 passed, 48.4 s | ok 142 s | 32.4 / 113.2 / 273.0 |
 
-**Next (resume):**
-1. On the laptop, take `C:/NightShift/heavy.lock` and run at BelowNormal, port 4191, `E2E_JOBS=1`: 5 times, with
-   `node scripts/run-e2e.mjs e2e-menus` running alongside from another built worktree (`npm run check` rebuilds
-   `dist`, so the load must not serve this folder's `dist`): `npm run check`, then
-   `npx vitest run tests/lightField.test.ts --silent=false` and log its "bytes per query" line. All 5 must pass.
-2. Record the runs here; push; open one PR to master titled "lightfield-heap: the allocation check is stable under
-   load"; tell the orchestrator. The orchestrator sets the version.
+5/5 PASS. The unit run inside `npm run check` ran under the load each time; the e2e-menus load ended before the
+build finished, so the standalone lightField reading after each check ran unloaded.
+
+**Next:** none for this job. Open: none.
 
 ## Resume prompt
 ```
@@ -29,6 +29,7 @@ then Sector Ops come before this job. Report to "Night Shift | Orchestrator" whe
 ```
 
 ## Done
+- 2026-10-19: 5/5 loaded `npm run check` runs on the final code (8800152a) PASS; PR to master.
 - 2026-10-19: e0984128: the control's rounds are 2000 queries (about 0.5 MB, under the 1 MB minimum semi-space).
 - 2026-10-19: d5cf34fc: every reading keeps its smallest round; the control's vector escapes into a 64-slot ring (a
   fully optimized control read 63 B and failed the relative check, 32.38 < 30.73).
