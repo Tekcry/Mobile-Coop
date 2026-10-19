@@ -4,6 +4,53 @@
 - e2e-traverse: the grate-kick check gets a closed grate. The keyboard vent section before it sometimes kicked the
   grate open on real frames, so the kick check entered an open duct silently (noise 0, about 1 run in 3). Tests only.
 
+
+## 4.7.0 - Sector Ops: prototype menu, 3-section Sector Ops, co-op mode switch (2026-10-19, PR #21)
+- Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.
+  Sector Ops opens the op list (each op's difficulty stars), then the op's briefing (its sections, Difficulty, Weather,
+  Start).
+- Sector Ops (`?autostart=warehouseOps&mode=sector`), solo or co-op: the Warehouse in three sections played in order,
+  joined by connector rooms that are the checkpoints. Each section has an objective (download, grab, hack), its own
+  guards, cameras, laser bands and alarm panel; being spotted raises the alarm stage and sends guards in. No lives:
+  solo, going down restarts the section at its checkpoint; co-op revives with the op's syringes. Completing the op
+  fills its difficulty star. The result line shows time, kills, times spotted and Ghost. Details per step below.
+- Co-op is the campaign: a new room hosts Marlow Yard in Course mode; the host can switch to Sector Ops (two players).
+  Hunter, Infiltration and Free Roam only with `?legacy=1`. The Co-op entry no longer calls the Fallow bunker the
+  tutorial. Protocol 24 (the `sector` mode and message: the client mirrors the live section's devices and door locks).
+- Tests: a new required suite `e2e-sectorops`; e2e-menus, e2e-park and e2e-pad follow the new menu and lobby.
+- Sector Ops slice 2 step 1 (logic): sections and connectors (`ConnectorMachine`: locked, open, cycling, sealed; the
+  near door waits for a clear doorway), the run with a carried-over alarm stage, checkpoints and `restartSection` (no
+  lives, M7; a down respawns at the checkpoint until step 2 restarts the section); revive syringes per difficulty;
+  `EnemyManager.despawn` / `despawnAll` and a per-mode live cap `maxAlive` (12 everywhere, Sector Ops 32 from step 2);
+  the difficulty stars record (`src/save/sectorRecord.ts`, a kv key, no SAVE_VERSION bump). Unit tests moved to
+  `tests/` (the first cut's `src/game/sectors.test.ts` was never run by Vitest).
+- Sector Ops slice 2 step 2 (the three sections, M7, M8): the Warehouse in three sections sealed from each other but for
+  their connector rooms: 1 the service entrance (yard, dock, dispatch, workshop, corridor; download at the workshop
+  terminal), C2 a vestibule in the dock, 2 the racking aisles (take the case), C3 the ground-floor office, 3 the factory
+  floor, the mezzanine and the manager's office (hack on the deck), extraction by the freight lift. The connector cycle
+  locks the near door, unloads the section (guards, bodies, its cameras and lasers), loads the next behind the far door
+  and opens it; the connector is the checkpoint. No lives: everyone down restarts the section there (its guards,
+  objective, devices and alarm stage reset; tallies kept). Per M8 the sections were re-laid with pockets (loads parked in
+  the cross aisle, chicanes, a stores cage, a plant room, a split floor, deck crates) and new ways through (a rack-top
+  route with ladders and planks, a manager's office door onto the floor, crates under the zipline gap): three routes
+  per section, every guard in its own pocket with a takedown spot no other guard sees (10, 10 and 11 guards). Alarm
+  reinforcements come from the section's own points (2, 2 and 3 per stage). Sector Ops raises the live guard cap to 32.
+  `?sectorGuards=N` caps the guards per section (dev, tests). `buildWarehouse(b, opts)`: the plain Warehouse is
+  unchanged.
+- Sector Ops slice 2 step 3 (stars, syringes, co-op, M7): Sector Ops opens an op list (the Warehouse for now; every map
+  with sections appears) with four difficulty stars, filled for each difficulty the op was completed on, and the best
+  time per difficulty in the context panel; the main menu entry and the host's lobby Map row show the stars too.
+  Completing a run saves its star (solo and co-op host; the co-op client saves its own, without a time). Co-op: a
+  downed player is revived by the partner while the op's syringes last (Rookie 3, Normal 2, Realistic 1, Perfectionist
+  1), shown as "Syringes n" on the HUD; with none left, or the 30 s window over, the section restarts at the checkpoint
+  and both players come back there. The connector and the extraction wait for every player, a downed one too (revive
+  them first). The client sees only the live section's cameras and lasers, the host's door locks and shot-out cameras.
+  Guards the client holds are let go before a section unloads. A camera shot out comes back on a restart. Protocol 24.
+- Sector Ops fix round: only the live section's alarm panel works (panels tagged by section; section 2 has its own),
+  and the panel alarm is armed again on every section load and restart (it used to latch once per run and send guards
+  to panels behind locked connector doors). The far door opens silently (no door noise for the new guards). A restart
+  also clears the section's camera meters and re-arms disabled panels.
+
 ## 4.6.8 - Unit test timeouts under load (2026-10-19, PR #20)
 - Vitest's test timeout is 120 s (was the 5 s default): under load (an e2e run alongside) the unit run is about 10x
   slower and heavy tests timed out. Per-test timeouts under 120 s are dropped (readyHands, menuShots, score).

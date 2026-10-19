@@ -21,7 +21,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 13. A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 24 (24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -111,3 +111,16 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Friendly fire in the course (D38, G49 pending the research): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
   makes partners hostile in course mode; host `Hitboxes` + `RemotePlayer.shootable`, client `PartnerTarget`, `blast`
   carry team damage; a partner at zero is downed and revivable.
+
+## Sector Ops wire (`sector`)
+- `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
+  every 0.5 s: `sec` (`SecWire`: camera clock, jams, charges, alarm stage) and (protocol 24) `ls` the live section (-1
+  during a connector cycle), `lk` the locked door indices, `dn` the camera ids shot out, `sy` the revive syringes left.
+  The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
+  or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
+  snapshot's `info`. Objectives, markers and banners use the item and event mirror.
+- Revives are the op's syringes (`CoopHost.reviveClock.cap = syringesFor(difficulty)`, `revivesLeft()`). `goOut`
+  outside the course calls `GameMode.onPlayerOut` (Sector Ops restarts the section); `onRespawn` in Sector Ops also
+  brings a partner still up to the checkpoint (`revive` event). Before a section unloads or restarts the mode calls
+  `releaseHolds()`: every guard a client holds is released and the client gets `tdDenied` (its takedown or grab
+  aborts); despawned guards leave the client by the snapshot's stale sweep (about 0.5 s).

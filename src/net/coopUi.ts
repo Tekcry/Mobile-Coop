@@ -9,7 +9,6 @@ import { Osk } from '../ui/osk';
 import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
-import { isListedMap } from '../world/maps/listed';
 import { MISSIONS, missionById } from '../game/missions';
 import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, type LocalProfile, type StartInfo } from './session';
@@ -19,6 +18,7 @@ import { createTrysteroTransport } from './trysteroTransport';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
+import { loadSectorRecord, starsOf, starsText, type SectorRecord } from '../save/sectorRecord';
 import { courseAllBaysFlag } from '../game/modes/courseMode';
 
 /** What the coop UI needs from the app shell (main.ts), so this module never imports it. */
@@ -251,17 +251,28 @@ class JoinScreen extends MenuScreen {
 }
 
 const MODE_OPTS: { value: NetMode; label: string }[] = [
+  { value: 'course', label: 'Campaign' },
+  { value: 'sector', label: 'Sector Ops' },
   { value: 'clear', label: 'Hunter' },
   { value: 'infiltration', label: 'Infiltration' },
   { value: 'sandbox', label: 'Free Roam' },
-  { value: 'course', label: 'Training course' },
 ];
-/** 3.5: Infiltration and Free Roam; Hunter only with `?legacy=1` (the mode already set stays listed). */
+/** The campaign's first (and for now only) level: Marlow Yard in Course mode (sector-ops M1). */
+const CAMPAIGN_MAP = 'ctcourse';
+/**
+ * (sector-ops slice 3) The campaign and Sector Ops; Hunter, Infiltration and Free Roam only with `?legacy=1` (the mode
+ * already set stays listed).
+ */
 function lobbyModes(current: NetMode): typeof MODE_OPTS {
-  // the training course only when a listed map offers it (D22)
-  const shown = visibleModes(MODE_OPTS, flags.legacy).filter((m) => m.value !== 'course' || MAPS.some((x) => isListedMap(x.id) && x.modes.includes('course')));
+  const shown = flags.legacy ? visibleModes(MODE_OPTS, true) : MODE_OPTS.filter((m) => m.value === 'course' || m.value === 'sector');
   const cur = MODE_OPTS.find((m) => m.value === current);
   return cur && !shown.includes(cur) ? [...shown, cur] : shown;
+}
+/** The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab and bunker with `?legacy=1`). */
+function lobbyMaps(mode: NetMode): typeof MAPS {
+  const all = MAPS.filter((m) => m.modes.includes(mode));
+  if (mode !== 'course' || flags.legacy) return all;
+  return all.filter((m) => m.id === CAMPAIGN_MAP);
 }
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
@@ -390,7 +401,11 @@ class LobbyScreen extends MenuScreen {
     if (infil) {
       const m = missionById(s.mission) ?? MISSIONS[0]!;
       if (s.mission !== m.id || s.map !== m.map) s.setSettings(s.mode, m.map, s.difficulty, m.id);
-    } else if (!maps.some((m) => m.id === s.map)) s.setSettings(s.mode, maps[0]!.id, s.difficulty);
+    } else if (!maps.some((m) => m.id === s.map)) s.setSettings(s.mode, (lobbyMaps(s.mode)[0] ?? maps[0]!).id, s.difficulty);
+    // the host's pick (a map already set that the list leaves out, by a test or a dev tab, stays listed)
+    const cur = maps.find((m) => m.id === s.map);
+    const pick = lobbyMaps(s.mode);
+    const shownMaps = cur && !pick.includes(cur) ? [...pick, cur] : pick;
     const set = (mode: NetMode, map: string, d: Difficulty, mission = s.mission): void => {
       s.setSettings(mode, map, d, mission);
       const idx = Array.from(this.opts.children).indexOf(this.c.app.nav.focused as HTMLElement);
@@ -401,10 +416,10 @@ class LobbyScreen extends MenuScreen {
       if (idx >= 0) this.c.app.nav.setRoot(this.el, el ?? null);
     };
     this.opts.replaceChildren(
-      choice('Mode', lobbyModes(s.mode), () => s.mode, (v) => set(v, s.map, s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '')),
+      choice('Mode', lobbyModes(s.mode), () => s.mode, (v) => set(v, MAPS.find((m) => m.id === s.map)?.modes.includes(v) ? s.map : (lobbyMaps(v)[0]?.id ?? s.map), s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '')),
       infil
         ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
-        : choice('Map', maps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
+        : choice('Map', shownMaps.map((m) => ({ value: m.id, label: this.mapLabel(m.id, m.name) })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
       // the host's difficulty row updates in place (no rebuild)
       ...difficultyRows(
         () => s.difficulty,
@@ -451,6 +466,20 @@ class LobbyScreen extends MenuScreen {
       s.courseBay = Number(v) || 1;
     });
   }
+  /** (sector-ops M7) Sector Ops: the host's map row shows each op's difficulty stars (the host's record). */
+  private mapLabel(id: string, name: string): string {
+    if (this.c.session.mode !== 'sector') return name;
+    if (this.sectorRec === null) {
+      this.sectorRec = undefined;
+      void loadSectorRecord().then((r) => {
+        this.sectorRec = r;
+        if (this.c.session.mode === 'sector') this.buildOpts();
+      });
+    }
+    return this.sectorRec ? `${name}  ${starsText(starsOf(this.sectorRec, id))}` : name;
+  }
+  /** The host's Sector Ops record (null: not read yet; undefined: loading). */
+  private sectorRec: SectorRecord | null | undefined = null;
   /** The host's course record (null: not read yet; undefined: loading). */
   private courseRec: CourseRecord | null | undefined = null;
 
@@ -541,11 +570,10 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   }
   if (app.screens.top === wait) app.screens.pop();
   const session = new NetSession(transport, role, code, api.profile());
-  // a new room starts on Infiltration (the session default) with the first mission; `?legacy=1` keeps the parked Hunter
+  // a new room starts on the campaign, Marlow Yard in Course mode (sector-ops slice 3); `?legacy=1` keeps the parked Hunter
   if (role === 'host') {
-    const m = MISSIONS[0]!;
-    if (flags.legacy) session.setSettings('clear', session.map, session.difficulty);
-    else session.setSettings('infiltration', m.map, session.difficulty, m.id);
+    if (flags.legacy) session.setSettings('clear', 'warehouse', session.difficulty);
+    else session.setSettings('course', CAMPAIGN_MAP, session.difficulty, '');
   }
   const c = adopt(app, api, session);
   if (role === 'client') {
@@ -588,7 +616,7 @@ export function autoRoomCode(map: string): string {
  * fixed room with Course mode set, every later tab joins it and readies; the host starts the course once a partner is
  * in and everyone is ready (once: a later match starts from the lobby as usual).
  */
-export async function autoLocalCourse(app: App, api: CoopApi, map: string): Promise<void> {
+export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode: 'course' | 'sector' = 'course'): Promise<void> {
   const code = autoRoomCode(map);
   // a client session hears an open room's lobby (the host answers its hello) within the probe window
   const probe = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile());
@@ -607,7 +635,7 @@ export async function autoLocalCourse(app: App, api: CoopApi, map: string): Prom
   }
   await probe.leave();
   const session = new NetSession(createLocalTransport(roomId(code)), 'host', code, api.profile());
-  session.setSettings('course', map, session.difficulty, '');
+  session.setSettings(mode, map, session.difficulty, '');
   adopt(app, api, session);
   const off = session.events.on('lobby', () => {
     if (session.phase !== 'lobby' || session.players.size < 2 || !session.allReady || session.overCapacity) return;

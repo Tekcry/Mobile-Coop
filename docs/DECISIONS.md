@@ -986,3 +986,40 @@ and preview builds carry the master version they were last merged with, and the 
 (`v4.6.2 · a1b2c3d`, `PREVIEW CT` on /ct/), so any build traces to one commit. 4.1.0-4.6.1 were numbered after the
 fact in merge order (#5 4.1.0, #7 4.2.0, #6 4.2.1, #8 4.3.0, #9 4.4.0, #10 4.4.1, #12 4.5.0, #13 4.6.0, #11 4.6.1).
 CLAUDE.md's "one minor version per phase" line is updated in the process audit.
+
+**G184. The prototype menu: Sector Ops and Co-op.** Michael (2026-10-19, Sector Ops M1, M4): the main menu offers only
+Sector Ops and Co-op, plus Loadout, Settings and Feedback; Missions, Training and Free Roam stay behind `?legacy=1`.
+Co-op is the campaign, which for now is the training bunker, Marlow Yard (`ctcourse`, Course mode); the host can switch
+the co-op match to Sector Ops. The mode is called Sector Ops, never by a Splinter Cell name.
+
+**G185. Sector Ops is Michael's playground.** Michael (2026-10-19, M2, M3): an original take on Conviction's Deniable
+Ops at Chaos Theory pace, solo or co-op, for testing movement and gunplay without a partner. The Warehouse is expanded
+into sections of rising difficulty with cameras and lasers. A section is done by its objective, then its exit; kills
+are optional, so a ghost run is always possible. Prototype effort only.
+
+**G186. Sections joined by connectors.** Michael (2026-10-19, M5, M7): distinct sections joined by connector rooms that
+load the next section and unload the last, so each section can hold as many guards as the budget allows. Three
+sections first, from the existing Warehouse (service entrance, racking aisles, factory floor with the mezzanine and
+offices); the courtyard, annex and roof come after Michael has played it. Research and a plan came first (M5b).
+
+**G187. Guard counts are measured, per mode.** Michael (2026-10-19, M6): aim for 20-25 patrolling guards per section,
+then measure on the PC. `MAX_ALIVE = 12` stays for the other modes; Sector Ops has its own cap (32, the ceiling, not a
+target). The PC perf run with full counts sets the number.
+
+**G188. No lives; revive syringes and checkpoints.** Michael (2026-10-19, M7): in co-op a downed player is revived by
+the partner with a limited revive syringe; if both are down, or in solo, the run restarts at the last checkpoint (the
+connector).
+
+**G189. Difficulty stars per op.** Michael (2026-10-19, M7): each op has difficulty levels shown as stars; finishing an
+op on a difficulty fills its star, shown when the op is highlighted. Stored in its own IndexedDB kv key (`sector:ops`,
+like the course record), so the save shape does not change.
+
+**G190. Room to manoeuvre beats guard count.** Michael (2026-10-19, M8): "make sure the geometry and layout is altered
+to offer multiple paths to objective and throughout the level. having so many guards in one small area will be
+difficult to manage, there must be room to maneuver and take them out silently away from others." Every section has
+2-3 routes to its objective and exit; patrols sit in separate pockets, each with a takedown spot out of the other
+guards' sight; the count drops before the spacing does (10 / 10 / 11 in the first cut). A check proves it per section.
+
+**G191. Co-op training first, Sector Ops on spare capacity.** Michael (2026-10-19): "Sector ops should be low priority
+over anything else. I want to get coop training bunker fully functional and running, but sector ops can at least run
+when there is opportunity."

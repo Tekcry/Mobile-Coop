@@ -13,6 +13,8 @@ import { noiseRadius } from '../player/movement';
 import { defaultHq, hqStats } from '../progression/suit';
 import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
+import type { SecWire } from '../game/ctDevices';
+import { syringesFor, type SectorNetExtra } from '../game/sectors';
 import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
@@ -140,6 +142,8 @@ export class CoopHost implements NetAttachment {
     this.ff = mode === 'course';
     if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
+    // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty
+    if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty);
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
     for (const p of s.players.values()) if (p.id !== s.selfId) this.addRemote(p);
@@ -334,6 +338,8 @@ export class CoopHost implements NetAttachment {
     this.g.hud.feedItem(`${nm} is out until the checkpoint`, 'warn');
     if (id === this.s.selfId) this.g.hud.setDownTimer('OUT - wait for the checkpoint');
     if (this.g.mode?.id === 'course') this.g.mode.onPlayerDeath();
+    // (sector-ops step 3) Sector Ops: an operator out restarts the section at its checkpoint
+    else this.g.mode?.onPlayerOut?.();
   }
 
   /** (B8) A partner's revive in the course counts on the results (team and the reviver). */
@@ -500,6 +506,25 @@ export class CoopHost implements NetAttachment {
   /** Course mode: the course state, locks and lights to every client. */
   course(w: CourseWire): void {
     this.s.send({ t: 'course', ...w });
+  }
+
+  /** Sector Ops: the cameras, jams and alarm stage to every client (objectives and banners go as items and events). */
+  sector(sec: SecWire, extra: SectorNetExtra): void {
+    this.s.send({ t: 'sector', sec, ...extra });
+  }
+
+  /** Sector Ops: the syringes left this op (the revive cap less the revives used). */
+  revivesLeft(): number {
+    return Math.max(0, this.reviveClock.cap - this.reviveClock.used);
+  }
+
+  /** Sector Ops (step 3): every guard a client holds is let go and the client told (`tdDenied` aborts its takedown or
+   *  grab), before the section's guards are despawned. */
+  releaseHolds(): void {
+    for (const [eid, s] of this.seized) {
+      this.push({ e: 'tdDenied', player: s.by, enemy: eid });
+      this.release(eid);
+    }
   }
 
   /** (locomotion step 13) A client's door-peek crack: in reach (door centre within 1.5 m of its feet), closed and
@@ -1146,9 +1171,14 @@ export class CoopHost implements NetAttachment {
     this.g.hud.setDownTimer(null);
     let i = 1;
     for (const r of this.remotes.values()) {
-      if (r.alive) continue;
-      this.reviveOne(r.id, at.add(new Vector3(Math.sin(i * 2.1) * 1.2, 0, Math.cos(i * 2.1) * 1.2)));
+      const p = at.add(new Vector3(Math.sin(i * 2.1) * 1.2, 0, Math.cos(i * 2.1) * 1.2));
       i++;
+      if (!r.alive) this.reviveOne(r.id, p);
+      else if (this.g.mode?.id === 'sector') {
+        // (sector-ops step 3) a section restart is a clean retry: a partner still up comes back to the checkpoint too
+        r.revive(p, 2);
+        this.push({ e: 'revive', player: r.id, x: p.x, y: p.y, z: p.z });
+      }
     }
   }
 
