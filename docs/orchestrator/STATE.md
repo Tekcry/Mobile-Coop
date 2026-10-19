@@ -1,4 +1,4 @@
-# Orchestrator - resume point (2026-10-19 20:45 Sydney)
+# Orchestrator - resume point (2026-10-19 21:40 Sydney)
 
 Read CLAUDE.md (above all "Sessions": the orchestrator, machines, test tiers, versions) and docs/ROADMAP.md first.
 Work folder for orchestrator docs: C:\NightShift\Mobile-Coop-menu (branch feature/menu; merge origin/master into it
@@ -19,14 +19,14 @@ before each docs batch, then a PR to master as a patch version).
   (ROADMAP.md "Priority").
 
 ## Master
-v4.7.0 (#21, fca0e267). Tags v4.0.0-v4.7.0. Done today: #12 anim-cleanup 4.5.0, #13 phone launch 4.6.0, #11 docs 4.6.1,
+v4.7.2 (#23, ce1da1a3). Tags v4.0.0-v4.7.2. Done today: #12 anim-cleanup 4.5.0, #13 phone launch 4.6.0, #11 docs 4.6.1,
 #14 versions 4.6.2, #15 process audit 4.6.3, #16 laptop slot rule 4.6.4, #17 co-op test fix 4.6.5 (KNOWN_FLAKY is
-e2e-pad only now), #18 e2e-menus slider fix 4.6.6 (30eda5e6), #19 test runner rule 4.6.7, #20 unit timeouts 4.6.8 (global 120 s testTimeout), #21 Sector Ops 4.7.0 (G184-G191; e2e-traverse grate tap is a master flake, 1 in 3).
+e2e-pad only now), #18 e2e-menus slider fix 4.6.6 (30eda5e6), #19 test runner rule 4.6.7, #20 unit timeouts 4.6.8 (global 120 s testTimeout), #21 Sector Ops 4.7.0 (G184-G191; e2e-traverse grate tap flake fixed in #22 4.7.1), #23 build label commit 4.7.2.
 
 ## Sessions (all report to "Night Shift | Orchestrator"; every session was cleared once at 16:00)
 | Session | Where | Address | Job now |
 | --- | --- | --- | --- |
-| CT Core Build | desktop, C:/NightShift/Mobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | First priority. D + E on /ct/ (0f91b0f0, 18:45). D2b running: shimmy 0.7 m/s with slower, wider hands (Michael 18:50) and the e2e-traverse shimmy reach (3.3 cm vs 3 cm). /ct/ moves only for D2b alone, else after Michael's B-E notes. |
+| CT Core Build | desktop, C:/NightShift/Mobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | First priority. Idle until Michael's walk notes. /ct/ = 624fca6b (4.7.0 merged; moved by the orchestrator 21:15 because Marlow Yard was not in the 4.6.5 menu). PR prepared. Open for it: the keyboard vent kick (T1). |
 | Sector Ops Build | desktop, C:/NightShift/Mobile-Coop-sector-ops, feature/sector-ops | `Night Shift | Sector Ops Build` (local) | Done: #21 merged as 4.7.0 (20:40), on /preview/. Idle until the PC perf run with full guard counts (G187). |
 | Character Build | laptop (second heavy slot) | bridge `session_015wU8VbanFb8zVwRuSMa9x7` (delivery confirmed 16:00) | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): runs CT Core's, then Sector Ops', logic e2e on pushed commits in C:/NightShift/Mobile-Coop-testrun. #18 and #20 merged; idle between requests. |
 | Menu Notes Build | desktop, C:/NightShift/Mobile-Coop-menu-notes, feature/menu-notes | `Night Shift | Menu Notes Build` (local_52bd477a, Remote Control on) | Michael's 7 walk-test menu notes (docs/menu-notes/START.md, started 18:55 from master 4.6.8). Lock order: CT Core, Menu Notes, Sector Ops. PR to master (minor). |
@@ -59,5 +59,5 @@ Known clashes to handle at merge time:
 
 ## Resume prompt
 ```
-Orchestrator: resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git pull origin master first). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Check what each session has reported since 20:45 (CT Core, Sector Ops, Character Build), then carry on with "Next for the orchestrator". Give me one step at a time.
+Orchestrator: resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git pull origin master first). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Check what each session has reported since 21:40 (CT Core, Sector Ops, Character Build), then carry on with "Next for the orchestrator". Give me one step at a time.
 ```

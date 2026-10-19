@@ -12,7 +12,7 @@ bunker fully functional and running, but sector ops can at least run when there 
 course (CT Core) comes first for the desktop lock, the laptop test runner and the orchestrator's reviews; Sector Ops
 runs only on spare capacity and yields the desktop lock whenever CT Core needs it.
 
-Last updated: 2026-10-19 20:45 Sydney.
+Last updated: 2026-10-19 21:40 Sydney.
 
 ## Waiting on Michael
 1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
@@ -58,7 +58,7 @@ Last updated: 2026-10-19 20:45 Sydney.
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
 - WebGPU (Michael, 2026-10-19: measure first): the Sector Ops perf run on the PC (full section, 20-25 guards) decides. If rendering is the bottleneck, a 1-day WebGPU trial behind a flag (Babylon 9 WebGPUEngine, snapshot rendering; shader conversion bundled, no CDN). If the sim is the bottleneck, WebGPU does not help. Not before the core-loop playtest.
 - Cleanup job (Wren loose ends), after the core-loop playtest.
-- Test fixes: e2e-pad (known flaky); e2e-traverse "a tap kicks the grate in" fails 1 in 3 on master (Character Build, feature/traverse-kick); lightField "allocation-free under a loop" fails its heap check when the machine is
+- Test fixes: e2e-pad (known flaky); the keyboard vent: Space then an unseen E hold counts as a kick (T1, CT Core); lightField "allocation-free under a loop" fails its heap check when the machine is
   loaded (passes alone; skip under load or warm up longer, #20 STATE); pre-existing e2e-kestrel / camera-bounds failures.
 - The older follow-up list in `docs/progress.md` (medkit stations, missing sounds, music revision, art guide, one folder
   per map, Kestrel, Fallow bunker rebuild).
@@ -72,6 +72,8 @@ Last updated: 2026-10-19 20:45 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #23 | 4.7.2: the version label shows the build's own commit (preview slots showed master's) |
+| 2026-10-19 | #22 | 4.7.1: e2e-traverse grate kick gets a closed grate (flake fixed; the keyboard vent kick is open for CT Core) |
 | 2026-10-19 | #21 | 4.7.0: Sector Ops (3 Warehouse sections, connectors, stars, revive syringes), the prototype menu, co-op mode switch (G184-G191) |
 | 2026-10-19 | #20 | 4.6.8: unit tests survive a loaded machine (120 s timeout, settings.test save race fixed) |
 | 2026-10-19 | #19 | 4.6.7: the laptop is the test runner; co-op training first, Sector Ops on spare capacity |
