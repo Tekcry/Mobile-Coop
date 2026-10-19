@@ -17,7 +17,8 @@ export class ReviveClock {
 
   constructor(
     readonly window = REVIVE_WINDOW,
-    readonly cap = REVIVES_PER_MISSION,
+    /** Revives per mission (Sector Ops sets its syringes per difficulty, A10). */
+    public cap = REVIVES_PER_MISSION,
   ) {}
 
   /** Can one more revive happen this mission? */

@@ -68,6 +68,8 @@ export interface GameMode {
   /** An enemy came (back) into play: a knocked-out one woken by a squadmate, or reinforcements. */
   onEnemyJoined?(e: Enemy): void;
   onPlayerDeath(): void;
+  /** Co-op host: a downed player cannot be revived (window over, no revives left) while a partner is still up. */
+  onPlayerOut?(): void;
   /** The alarm went off; return true when the mode brings its own reinforcements (Hunter doubles the count). */
   onAlarm?(at: Vector3): boolean;
   /** An interactable the mode put down was used. */

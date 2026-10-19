@@ -28,6 +28,7 @@ import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
+import { markCompleted } from '../save/sectorRecord';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -132,7 +133,7 @@ export class CoopClient implements NetAttachment {
         applyCourseWire(this.g, msg);
         break;
       case 'sector':
-        if (msg.sec) this.sec?.apply(msg.sec);
+        this.onSector(msg);
         break;
       case 'end':
         this.onEndMsg(msg.stats);
@@ -514,9 +515,32 @@ export class CoopClient implements NetAttachment {
     }
   }
 
+  /**
+   * Sector Ops (A9, step 3): the host's devices for the live section only (others off), its door locks, its shot-out
+   * cameras.
+   */
+  private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
+    const ct = this.sec;
+    if (ct) {
+      if (msg.ls !== undefined && msg.ls !== ct.liveSection) ct.setLive(msg.ls);
+      if (msg.dn) ct.applyDestroyed(msg.dn);
+      if (msg.sec) ct.apply(msg.sec);
+    }
+    if (msg.lk) {
+      const doors = this.g.world.doors;
+      for (const d of doors.list) {
+        const on = msg.lk.includes(d.index);
+        if (d.anchor.locked !== on) doors.setLocked(d, on);
+      }
+    }
+    // the HUD line (section, alarm, syringes) comes with the snapshot's `info` (the host's mode info, mirrored)
+  }
+
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
     const end = clampEnd(raw, this.time);
+    // (sector-ops step 3, M7) a completed op fills this player's star too (no best time: the host keeps the clock)
+    if (this.g.opts.mode === 'sector' && end.won) void markCompleted(this.g.world.map.id, this.g.opts.difficulty ?? 'normal', 0);
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
     if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
     this.g.endSession(end.won, end.subtitle);

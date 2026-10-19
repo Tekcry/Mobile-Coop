@@ -84,6 +84,7 @@ import { visionLabel } from './vision';
 import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
 import type { CtDevices, SecWire } from './ctDevices';
+import type { SectorNetExtra } from './sectors';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
@@ -180,8 +181,13 @@ export interface NetAttachment {
   shadows?(b: BlobShadows): void;
   /** Host, course mode: send the `course` message to every client. */
   course?(w: CourseWire): void;
-  /** Host, Sector Ops: send the devices' state (cameras, jams, alarm stage) to every client. */
-  sector?(sec: SecWire): void;
+  /** Host, Sector Ops: send the devices' state (cameras, jams, alarm stage) and the step 3 extras (live section, door
+   *  locks, shot cameras, syringes) to every client. */
+  sector?(sec: SecWire, extra: SectorNetExtra): void;
+  /** Host, Sector Ops: revive syringes left this op (co-op only). */
+  revivesLeft?(): number;
+  /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
+  releaseHolds?(): void;
   /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
   sendJam?(tgt: string): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */

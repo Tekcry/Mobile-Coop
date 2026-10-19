@@ -339,6 +339,36 @@ export class CtDevices {
     this.applyJam();
   }
 
+  /**
+   * (Sector Ops restart, step 3) The cameras of `section` that were shot out come back (a restart is a clean retry).
+   * Not on a hot path.
+   */
+  repair(section: number): void {
+    for (const c of this.cams) {
+      if (c.mode !== 'destroyed' || (c.def.section !== undefined && c.def.section !== section)) continue;
+      c.repair();
+      this.camOff.delete(c.def.id);
+    }
+    this.applyJam();
+    this.changed = true;
+  }
+
+  /** Host: the ids of the cameras shot out, into `out` (cleared first). */
+  destroyedIds(out: string[]): string[] {
+    out.length = 0;
+    for (const c of this.cams) if (c.mode === 'destroyed') out.push(c.def.id);
+    return out;
+  }
+
+  /** Client: the host's shot-out cameras (`dn`): those break here too, the others are repaired. */
+  applyDestroyed(dn: readonly string[]): void {
+    for (const c of this.cams) {
+      const down = dn.includes(c.def.id);
+      if (down && c.mode !== 'destroyed') c.destroy();
+      else if (!down && c.mode === 'destroyed') c.repair();
+    }
+  }
+
   /** The device works now (Sector Ops: its section is live). */
   live(id: string): boolean {
     return !this.dead.has(id);

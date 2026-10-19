@@ -22,11 +22,14 @@ import {
   exitZone,
   inDoorway,
   inZone,
+  sectorInfoHtml,
   sectorResult,
   type ConnectorInput,
+  type SectorNetExtra,
   type SectorDef,
 } from '../sectors';
 import { killScore } from './score';
+import { markCompleted } from '../../save/sectorRecord';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
 const SPAWN_MIN_DIST = 7;
@@ -84,6 +87,7 @@ export class SectorMode implements GameMode {
   private secT = 0;
   private prevMaxAlive = -1;
   private infoKey = '';
+
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
 
@@ -158,6 +162,8 @@ export class SectorMode implements GameMode {
   private unloadSection(): void {
     const g = this.g;
     if (g.takedown.active) g.takedown.reset();
+    // co-op: guards a client holds (grab, hostage) are let go and the client told, before they despawn
+    g.net?.releaseHolds?.();
     this.pending.length = 0;
     g.enemyMgr?.despawnAll();
     this.ct?.setLive(-1);
@@ -225,18 +231,19 @@ export class SectorMode implements GameMode {
   private exitStep(dt: number, s: SectorDef, refs: readonly PlayerRef[]): void {
     const zone = exitZone(s);
     if (!zone) return;
-    let alive = 0;
+    // A20: every player counts, a downed one too (revive them first, or they lie inside): nobody is ever left in an
+    // unloaded section
+    let players = 0;
     let inside = 0;
     let doorway = false;
     const c = s.connector;
     for (let i = 0; i < refs.length; i++) {
       const r = refs[i]!;
-      if (!r.target.alive) continue;
-      alive++;
+      players++;
       if (inZone(zone, r.feet.x, r.feet.y, r.feet.z)) inside++;
       if (c && inDoorway(c, r.feet.x, r.feet.z)) doorway = true;
     }
-    const all = alive > 0 && inside === alive;
+    const all = players > 0 && inside === players;
     if (this.run.phase === 'extract') {
       if (this.run.extractStep(dt, all)) this.complete();
       return;
@@ -333,6 +340,8 @@ export class SectorMode implements GameMode {
     this.its.length = 0;
     g.hud.setObjective('');
     g.events.emit('operationComplete', {});
+    // M7: the op's star for this difficulty (and the best time), solo or the co-op host
+    void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
     g.hud.banner('SECTORS CLEAR', this.result().ghost ? 'GHOST' : '', 2600);
     g.slowBeat(0.4, 0.5);
     g.letterbox(2.6);
@@ -364,6 +373,8 @@ export class SectorMode implements GameMode {
     this.restarts++;
     this.unloadSection();
     this.loadSection(this.run.index);
+    // a camera shot out in the section comes back: the restart is a clean retry (step 3)
+    this.ct?.repair(this.run.index);
     if (this.ct) this.ct.alarm = this.run.alarm;
     this.beginSection();
     const cp = this.run.checkpoint;
@@ -392,7 +403,8 @@ export class SectorMode implements GameMode {
       this.secT -= dt;
       if (ct.takeChanged() || this.secT <= 0) {
         this.secT = SEC_SEND;
-        g.net?.sector?.(ct.wire());
+        const net = g.net;
+        if (net?.sector) net.sector(ct.wire(), this.netExtra(ct));
       }
     }
     if (this.restartT >= 0) {
@@ -424,10 +436,12 @@ export class SectorMode implements GameMode {
     const n = this.run.defs.length;
     const i = Math.min(n, this.run.index + 1);
     const a = this.run.alarm;
-    const key = `${i}/${n}/${a}`;
+    // co-op: the revive syringes left (M7); solo shows none (a down restarts the section)
+    const sy = this.g.net?.revivesLeft?.() ?? -1;
+    const key = `${i}/${n}/${a}/${sy}`;
     if (key === this.infoKey) return;
     this.infoKey = key;
-    this.g.hud.setModeInfo(`<span>Section <b>${i}/${n}</b></span><span>Alarm <b>${a}/${SECTOR.alarmMax}</b></span>`);
+    this.g.hud.setModeInfo(sectorInfoHtml(i, n, a, sy < 0 ? null : sy));
   }
 
   onEnemyKilled(e: Enemy, h: HitInfo): void {
@@ -439,6 +453,23 @@ export class SectorMode implements GameMode {
     if (this.g.anyPlayerAlive() || this.endT >= 0 || this.restartT >= 0) return;
     this.g.hud.banner('DOWN', 'Restarting from checkpoint', 2200);
     this.restartT = RESTART_DELAY;
+  }
+
+  /** Co-op host: an operator went down with no syringe left (or the revive window ran out): the section restarts. */
+  onPlayerOut(): void {
+    if (this.endT >= 0 || this.restartT >= 0) return;
+    this.g.hud.banner('OPERATOR OUT', 'Restarting from checkpoint', 2200);
+    this.restartT = RESTART_DELAY;
+  }
+
+  /**
+   * Co-op: the live section, the locked doors, the cameras shot out and the syringes left. New arrays each send (every
+   * 0.5 s or on a change, not per tick): a delayed transport may hold the message.
+   */
+  private netExtra(ct: CtDevices): SectorNetExtra {
+    const lk: number[] = [];
+    for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0 };
   }
 
   /** Co-op host: the client's held jammer target. */

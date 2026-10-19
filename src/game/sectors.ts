@@ -409,3 +409,28 @@ export function sectorResult(t: SectorTally): { ghost: boolean; line: string } {
   const ghost = t.kills === 0 && t.spotted === 0;
   return { ghost, line: `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${ghost ? '  ·  GHOST' : ''}` };
 }
+
+/** Co-op revive syringes for an op on `preset` (M7, A10); an unknown preset reads as Normal. */
+export function syringesFor(preset: DifficultyPreset | undefined): number {
+  return SECTOR.syringes[preset ?? 'normal'] ?? SECTOR.syringes.normal;
+}
+
+/**
+ * The HUD mode info: "Section i/n", "Alarm a/max" and, in co-op, the revive syringes left (`syringes` null: solo, not
+ * shown). Host and client build it the same way.
+ */
+export function sectorInfoHtml(section: number, sections: number, alarm: number, syringes: number | null): string {
+  const sy = syringes === null ? '' : `<span>Syringes <b>${Math.max(0, syringes)}</b></span>`;
+  return `<span>Section <b>${section}/${sections}</b></span><span>Alarm <b>${alarm}/${SECTOR.alarmMax}</b></span>${sy}`;
+}
+
+/**
+ * (step 3, A9) What the host's `sector` message carries besides the devices (`sec`): the live section (`ls`, -1 none),
+ * the locked door indices (`lk`), the cameras shot out (`dn`) and the revive syringes left (`sy`).
+ */
+export interface SectorNetExtra {
+  ls: number;
+  lk: number[];
+  dn: string[];
+  sy: number;
+}
