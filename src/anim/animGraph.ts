@@ -333,7 +333,8 @@ export const AIM_ELBOW_TUCK = 0.6;
  * (no neck dip, no head roll onto the gun).
  */
 export const PISTOL_REACH = { x: -0.09, y: -0.06, z: 0.15, lean: 0.08 };
-export const SIGHT_HEAD = { roll: 0.15 };
+/** `peekFull`: (G2 fix) the head lean (rad) at which a raised pistol keeps the full head roll and neck dip at a wall-edge peek. */
+export const SIGHT_HEAD = { roll: 0.15, peekFull: 0.2 };
 /**
  * Per-shot recoil on the body (rad / m per unit kick, divided by the mass factor). (CT prototype G2, AUDIT-AIM row 11) CT
  * shows no visible flip: the front sight and head move < 1 % of the frame (< 0.5 deg) on the shot frames (111953 3.87,
@@ -1005,11 +1006,15 @@ export class AnimGraph {
       // (G2, AUDIT-AIM row 5) the chest forward over the raised pistol (it leaned back with the hips forward)
       src[CH.spPitch] = src[CH.spPitch]! + pistolK * PISTOL_REACH.lean;
     }
-    // (G2) the head rolls onto a stock only: a pistol has none
-    src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS * (1 - pistolW);
+    // (G2) the head rolls onto a stock only: a pistol has none. (G2 fix) Except leaning out at a wall-edge peek: the head
+    // rolls out past the edge over the raised pistol as it did before G2 (head first, the chest behind the edge: G36 / A3,
+    // e2e-stealth-ai wall peek), eased in with the head's lean
+    const peekHeadK = smoothstep(Math.abs(hd) / SIGHT_HEAD.peekFull);
+    src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS * (1 - pistolW * (1 - peekHeadK));
     this.out.weld = sightPos;
     this.out.sightDrop = -PISTOL_REACH.y * pistolW;
-    this.out.stockWeld = 1 - pistolW;
+    // (G2 fix) and the neck dips onto the raised pistol at the peek (the head out past the edge with the gun, as before G2)
+    this.out.stockWeld = 1 - pistolW * (1 - peekHeadK);
     this.out.aimW = raiseW;
     // landing roll: the whole body turns over forward about the hips
     this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;

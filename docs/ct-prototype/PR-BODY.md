@@ -1,67 +1,58 @@
-# PR draft: ct-prototype playtest 2 (slices A, scanners, B+C, D+E, D2b)
+# CT prototype: playtest 2 fixes, slice F and the CT footage movement pass (G1-G4)
 
-Title suggestion: `CT prototype: playtest 2 fixes (speeds, ADS, wall, legs, holster, hang and climb-up)`
-
-Version: not set here; the orchestrator sets it at merge (G183, minor step). Since PR #9.
+Version: not set here; the orchestrator sets it at merge (G183, minor step). Since PR #9. No wire change
+(PROTOCOL_VERSION 24). Settings gain `padV` (F7) and `camV` (G3), each with a migration and a literal old-settings test.
 
 ## Summary
-- **Slice A** (`docs/ct-prototype/A-PLAYTEST2.md`): five speeds re-spaced so the old speed 2 is the slowest (the D-pad sets
-  them, the stick reaches that speed from 0.9 of its travel); ADS look 0.3; corner peek side fixed; the wall's open side
-  is the shoulder and the last swap is saved; no flick on a shoulder swap; back to wall within 0.5 m; own footsteps follow
-  the noise radius. Wall-entry test teleports moved 0.85 -> 0.75 m in the affected suites.
-- **Scanners** (fd963a1c): a hack whose partner never started resets both at no cost; late or abandoned still 10 HP.
-- **Slices B+C** (`docs/ct-prototype/BC-ANIM.md`): ADS framing the same standing and crouched; chest carries the aim,
-  stock closer, elbows tucked; pistol reach pulled in; stance half-width capped at 1.1 hip half-widths; crouched armed
-  push-out halved; pelvis drop held at walking pace (bob).
-- **Slices D+E** (`docs/ct-prototype/DE-ANIM.md`): the grip stays on the gun through draw / holster, rifle path out at
-  the shoulder; wider ledge hand reaches; drainpipe knee pole up, planted foot lift capped; ledge climb-up 1.1 s with a
-  knee plant (team climb-ups keep `CLIMB_UP_TEAM`). Fix round 1 repaired a drainpipe regression from a new tie rule.
-- **Slice D2b** (`docs/ct-prototype/DE-ANIM.md`, D2b): hang shimmy 0.7 m/s, hands one at a time back to back
-  (`alternate`, `leadTime`); e2e-traverse shimmy reach 3.3 -> 1.6 cm.
-- No wire change (PROTOCOL_VERSION untouched). Docs: CHANGELOG, TESTING, `docs/systems/` movement, input-and-loop,
-  audio, world-and-characters.
+- **Footage audit** (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"):
+  all 90 CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`); every move measured against ours
+  (`docs/ct-prototype/audit/`: locomotion, camera, aim, walls, traversal, action menu, two EXTRA files for the gaps, two
+  COVERAGE maps tying every catalogue move to an audit row; `AUDIT.md` the plan). Where the footage disagrees with an
+  earlier number, the footage wins (Michael 00:50).
+- **G1 legs and gait** (`G1-REPORT.md`): legs turn with the body, narrow planted feet, upright walk, run 4.5 m/s at 4.7
+  steps/s with a lean and bank, quick kneel on a crouched stop, crouch knees off the floor, drop landing, the tense
+  sneak near unaware guards (new).
+- **G2 aim and weapons** (`G2-REPORT.md`): rifle draw 0.3 s, muzzle up at the shoulder; holster 0.15 s; diagonal back
+  sling; rigid aimed upper body; lower compact pistol; recoil about 6x smaller; holstered swap selection only.
+- **G3 camera** (`G3-REPORT.md`): FOV 86 and shoulder 0.15 (Michael: "Match CT"); open spaces 2.8 m, tight 1.8 m; aim
+  head on the left with the reticle clear; slower wall pull-in; door push-in while passing; traversal cameras centred.
+- **G4 traversal** (`G4-REPORT.md`): drainpipe rhythm and paired feet, shimmy 0.5 m/s with a pendulum, climb-up ends
+  crouched (stand on a held stick), ladder 1.7 rungs/s with a 1.2 s top mount, rappel 0.6 m/s, vent crawl-out. A crouch a
+  move adds by itself (or one being stood up from) counts as standing for co-op offers.
+- **Slice F** (`F-REPORT.md`): shoulder always right holstered, crouched aim camera follows the body, crouch idle kneels,
+  corner lean from the edge with a camera slide, climb-up knees then stand, rifle draw without a low dip, pad D-pad
+  migration.
+- **Playtest 2 slices A, B+C, D+E, D2b**, scanners (earlier entries in CHANGELOG "Unreleased - ct-prototype").
 
-## Michael's decisions
-These job rows (`docs/ct-prototype/DECISIONS.md`, 2026-10-19) move to `docs/DECISIONS.md` as G entries at merge:
-- Walkthrough questions (relayed by the orchestrator, not verbatim): wheel stays LB hold; no lethal / non-lethal switch
-  (LT / RT is enough); gun drawn, A reloads (kept); scanners: no HP cost when the partner never started, 10 HP for a late
-  or abandoned hack (built).
-- Hang shimmy speed (relayed by the orchestrator, not verbatim): slow to about 0.7 m/s so the hands step slower and
-  wider (was 1.2 m/s; slice D2b).
-- Playtest 2 plan (STATE, "Michael's answers so far"): "Yes, go" (slices A, B+C, D+E; menu and visual items later).
+## Michael's decisions (move to docs/DECISIONS.md as G entries at merge)
+Job rows in `docs/ct-prototype/DECISIONS.md` dated 2026-10-19 / 20: the walkthrough answers, the shimmy speed, the
+playtest-2 walk, the overnight footage brief (23:15 / 23:20), the morning expectation (23:45), movement only and
+review every animation (00:40 / 00:45 / 00:50: shoulder 0.15, FOV 86, footage wins), every movement aspect (00:55),
+every movement in the videos (01:05). Assumed A2 (footage beats earlier numbers) confirmed 00:50.
 
 ## Tests
-Full e2e on the PR head: pending.
-- A: `npm run check` green (1747 unit tests); smoke, e2e-move, e2e-wall, e2e-pad, e2e-foley pass; e2e-ctcourse
-  stations 1-6 pass, then the 600 s cap.
-- B+C: tsc clean; unit anim suites pass; smoke, e2e-anim, e2e-move, e2e-weapons-carry, e2e-pad, e2e-ctcourse pass
-  (implementer's run); independent check, no blockers.
-- D+E: `npm run check` green (1753 tests); solo e2e-anim, e2e-clip, e2e-ct-warehouse, e2e-netmove, e2e-ctcourse (647 s),
-  e2e-coop, e2e-menus pass.
-- D2b: `npm run check` green (1753); solo e2e-traverse (every check, shimmy 0.68 m/s), e2e-clip, e2e-ctcourse (649 s),
-  e2e-netmove, e2e-coop pass; independent check PASS.
+- Full `npm run e2e` on the PR head: E2E_LINE
+- `npm run check` green on every slice commit (latest 1838 unit tests).
+- Slice tiers: F on 637d41d5 / ee12d3e4; G1 + G3 on 0675cb12 (laptop ctcourse, coop, netmove pass; desktop quick set
+  pass after the fix round); G2 + G4 + fix rounds on 3cf58345 / e84776d4 (see `STATE.md`).
+- Independent Opus checks: F PASS; G1 + G3 PASS; G2 one block (a reversed holster swept through the body) fixed; G4
+  and the fix rounds PASS.
+- GPU contact sheets: `docs/ct-prototype/shots/f`, `g1`, `g2`, `g3`, `g4`.
 
 ## Known open items
-- e2e-pad "stick speeds 2/4/5" is known flaky (same on the clean head).
-- D2b: the shimmy sheets' camera hides the left hand; a hand clamped at the lip end falls through to the other hand
-  (untested).
-- D+E: rifle draw clearance -1.5 cm vs the -2 cm e2e-clip limit; rifle holster hand still about chin height mid travel;
-  climb-up hands let go as the knee comes on; drainpipe hands at chest height (judge live).
-- B+C partly judged: chest pitch spread (sheets are level), legs in turns (turnFollow landing limit loosened -0.35 ->
-  -0.5, marked "prototype: revisit"), crouch vs CT footage, bob not measured in cm; crouched aim keeps the standing pivot
-  height (check under low ceilings).
-- Corner peek direction and swap feel not verified by eye; remotes still see the weapon in the right hand on the left
-  shoulder (no aim side on the wire).
-- e2e-netmove "stacked on one wall" fails alone on wall-clock lag; e2e-ctcourse needs the 900 s cap on SwiftShader.
-- Corner-takedown loops in e2e-wall / e2e-pad skip a guard spawn the level moved more than 0.5 m (root cause not found).
+- e2e-pad is known flaky; e2e-stealth's look-input waits are wall-clock (pass solo); e2e-camera-bounds level U fails on
+  master too (legacy).
+- Measured gaps still open (audit files): walk head travel 3.2-4.4 cm vs CT 2-3; shimmy hand cycle 0.8 s vs 1.0;
+  drainpipe 0.9 m/s vs CT cadence ~0.45; corner peek 0.35 / 0.3 s vs 0.2 / 0.17 (e2e-wall's 6 cm cap); the scope view,
+  rope climb, floor trap, shaft descent, crouched climb-over, goggle-touch animation, free jump arcs, guard door timing,
+  the hold-A action menu (G5), walls and doors (G6) and grab / hold / knockout (G7) are not built yet.
+- Polish lists: `POLISH.md`.
 
-## Try on /ct/
-- D-pad up / down walk speeds (speed 2 slowest); ADS sensitivity; back to a wall and shuffle to each edge (peek side); the
-  shoulder you chose carried into aiming and back; swap shoulders while aiming (no flick); A at a wall from a short
-  distance.
-- Footsteps against the noise meter; ADS standing and crouched, rifle and pistol; legs walking, running, turning;
-  crouch hands and legs.
-- Draw / holster rifle and pistol; hang shimmy; drainpipe climb and top; ledge climb-up (knee plant); a team boost
-  climb-up; scanners with the partner never starting, and late.
+## Try
+- Walk, jog, run, turn on the spot, stop; crouch and stop (kneel); creep near an unaware guard (tense sneak).
+- The camera in the yard vs the airlocks; aim rifle and pistol (head left, reticle clear); FOV 86.
+- Draw / holster the rifle quickly and repeatedly; the pistol hold.
+- Drainpipe, shimmy, ledge climb-up (crouched end, hold the stick to stand), ladder up / down / top, rappel; the co-op
+  rope after a climb-up.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
