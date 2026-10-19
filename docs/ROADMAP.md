@@ -88,6 +88,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #32 | 4.11.0: CT movement 2: grab / hold / knockout / carry (G7), the hold-A action menu with Michael's guard rules (G5), walls and doors with the wall knee (G6) |
 | 2026-10-20 | #31 | 4.10.0: CT prototype into master: CT controls and posture, slices A-F, the footage audit (docs/ct-prototype/audit/AUDIT.md) and slices G1 legs and gait, G2 aim and weapons, G3 camera (shoulder 0.15, FOV 86), G4 traversal; G5-G7 next |
 | 2026-10-20 | #30 | 4.9.0: Marlow Yard co-op walkthrough fixes (course-ready S1: per-station HUD step, radio cues, bay restart brings the partner back); lighting pass S2 and guide S3 parked |
 | 2026-10-20 | #29 | 4.8.2: Sector Ops checkpoint restart is a clean start (M9) |
