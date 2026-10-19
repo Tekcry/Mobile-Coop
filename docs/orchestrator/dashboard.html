@@ -76,7 +76,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Updated 2026-10-19 22:55 Sydney · master v4.7.3 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
+    <span class="eyebrow">Updated 2026-10-19 23:30 Sydney · master v4.7.5 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
     <h1>Night Shift roadmap</h1>
     <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Visual pass last. No refining before your core-loop playtest.</p>
   </header>
@@ -84,7 +84,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section class="waiting">
     <h2>Waiting on you <span class="count" id="qcount">0</span></h2>
     <ol>
-      <li><b>New CT footage</b> for the movement fine-tuning: legs, rigid upper body in ADS tilting at the hips, shimmy swing, drainpipe, pistol aim. <span class="who">CT Core</span></li>
+      <li><b>Morning:</b> walk slice F on /ct/ (your walk-note fixes), then try the new launch screen on /preview/ once Menu Notes is merged (label v4.8.0). <span class="who">You</span></li>
       <li><b>Prune old branches and worktrees</b> when you like: the list is in docs/process-audit/REPORT.md section 5. <span class="who">You</span></li>
     </ol>
     <p class="qhint" id="qhint">Pick an answer, add a note if you like, then Save. The orchestrator reads your answers and passes them on.</p>
@@ -96,23 +96,23 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <div class="board">
       <div class="row">
         <div><div class="name">Orchestrator</div><div class="meta">desktop · this roadmap</div><span class="pill run">Running</span></div>
-        <div><p>Moved to the new Claude account at 22:40: every session restarted from git. Reviews and merges into master, moves /preview/, keeps the sessions in step.</p>
+        <div><p>Moved to the new Claude account at 22:40. Overnight: merges the green PRs (Menu Notes 4.8.0, Sector Ops patch) with your go-ahead. Reviews and merges into master, moves /preview/, keeps the sessions in step.</p>
           <p class="next-cp">Next: <b>Menu Notes' PR, then lightfield-heap and Sector Ops as they turn green</b></p></div>
       </div>
       <div class="row">
         <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype · first priority</div><span class="pill test">Testing</span></div>
-        <div><p>Slice F from your walk notes: shoulder always right when holstered, crouched aim camera follows the body down, crouch idle kneels, corner lean only to the open side, climb-up hands hold until the knee, rifle draw without the dip, D-pad speed prompts. Code done; checks and e2e running on the desktop.</p>
-          <p class="next-cp">Next: <b>slice F on /ct/ for you to walk</b></p></div>
+        <div><p>Slice F from your walk notes: shoulder always right when holstered, crouched aim camera follows the body down, crouch idle kneels, corner lean only to the open side, climb-up hands hold until the knee, rifle draw without the dip, D-pad speed prompts. Checks and the laptop co-op suites pass. Then overnight: your 88 clips catalogued, our movement audited against them and rebuilt to match (original code), and the hold-A action menu made identical to CT.</p>
+          <p class="next-cp">Next: <b>slice F on /ct/; then the catalogue and the audit</b></p></div>
       </div>
       <div class="row">
         <div><div class="name">Menu Notes Build</div><div class="meta">desktop · feature/menu-notes</div><span class="pill test">Testing</span></div>
-        <div><p>All menu notes built, plus the black launch screen, goggles flickering on in the dark, the X5 menu shot and the forehead glow removed. Now: two small fixes from CT Core (remove Default shoulder, correct the LT / RT line in Controls) and the full e2e on the laptop.</p>
+        <div><p>All menu notes built, plus the black launch screen, goggles flickering on in the dark, the X5 menu shot and the forehead glow removed. CT Core's two fixes done (Default shoulder removed, Controls LT / RT text corrected). Full e2e running on the laptop.</p>
           <p class="next-cp">Next: <b>its PR to master (4.8.0)</b></p></div>
       </div>
       <div class="row">
         <div><div class="name">Character Build</div><div class="meta">laptop · test runner</div><span class="pill test">Testing</span></div>
-        <div><p>Runs logic e2e for CT Core, Menu Notes, then Sector Ops, when the desktop is busy. Its own job between requests: the lightField heap check made stable under load (5 loaded runs, then a PR).</p>
-          <p class="next-cp">Next: <b>Menu Notes' full e2e; the lightfield-heap PR</b></p></div>
+        <div><p>Runs logic e2e for CT Core, Menu Notes, then Sector Ops, when the desktop is busy. Its lightField heap fix is merged (4.7.5).</p>
+          <p class="next-cp">Next: <b>Menu Notes' full e2e, then Sector Ops'</b></p></div>
       </div>
       <div class="row">
         <div><div class="name">Sector Ops Build</div><div class="meta">desktop · feature/sector-restart · spare capacity</div><span class="pill run">Building</span></div>
@@ -125,8 +125,8 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section>
     <h2>Next <span class="count">in order</span></h2>
     <ol class="queue">
-      <li><span class="gate">Your turn when ready:</span> walk slice F on /ct/ (the clear items from your walk notes) <span class="owner">CT Core</span></li>
-      <li>Movement fine-tuning from your new CT footage <span class="owner">CT Core</span></li>
+      <li><span class="gate">Your turn in the morning:</span> walk slice F on /ct/ <span class="owner">CT Core</span></li>
+      <li>Movement rebuilt to match your CT footage: catalogue, audit, slices; the hold-A action menu <span class="owner">CT Core</span></li>
       <li><span class="gate">Your core-loop playtest</span> of Marlow Yard in co-op. Refining starts only after this. <span class="owner">You</span></li>
       <li>Selection wheel restyle: slightly bigger, not just boxes, original <span class="owner">CT Core</span></li>
       <li>Visual pass on the training level <span class="owner">Last</span></li>
@@ -145,10 +145,12 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </section>
 
   <section>
-    <h2>Done <span class="count">22 PRs</span></h2>
+    <h2>Done <span class="count">23 PRs</span></h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Date</th><th>PR</th><th>What</th></tr></thead>
       <tbody>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/26">#26</a></td><td>4.7.5 · Light test stable on a busy machine</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/25">#25</a></td><td>4.7.4 · New Claude account, new dashboard</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/24">#24</a></td><td>4.7.3 · Your walk notes recorded, account handover, roadmap</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/23">#23</a></td><td>4.7.2 · The version label shows the build's own commit</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/22">#22</a></td><td>4.7.1 · Flaky grate-kick test fixed</td></tr>
