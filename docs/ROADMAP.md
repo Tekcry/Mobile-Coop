@@ -4,7 +4,7 @@ The one place that says what is happening, what comes next and what waits on Mic
 session ("Night Shift | Orchestrator"): it is the only session that edits this file. Every other session reports to the
 orchestrator when it starts, finishes a slice, opens a PR or gets stuck; the orchestrator updates this file and merges.
 Machines (Michael, 2026-10-19): every CPU or GPU heavy task (e2e, full test runs, builds in loops, GPU shots, Blender, heavy subagents) runs on the desktop, where the orchestrator and CT Core run. The laptop session (Character Build) does light work only: docs, planning, small edits. One heavy job at a time on the desktop (lock file C:/NightShift/heavy.lock); the orchestrator sets the order.
-Merges (Michael, 2026-10-19): the orchestrator merges reviewed, green PRs into master without asking; master is always the most up-to-date version with every finished update. It asks only when unsure.
+Merges (Michael, 2026-10-19): the orchestrator merges reviewed, green PRs into master without asking; master is always the most up-to-date version with every finished update. It asks only when unsure. Every merge gets the next version first (G183: a job or feature is a minor step, a fix or docs a patch; CHANGELOG heading, tag v4.x.y on the merge commit).
 Detail lives in each job's own docs (linked). Live page: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw
 
 Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training level with Wren, basic animations, basic

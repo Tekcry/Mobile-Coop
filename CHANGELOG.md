@@ -1,10 +1,20 @@
 # Changelog
 
-## Unreleased - phone-launch (feature/phone-launch)
+## 4.6.2 - Version numbers you can read (2026-10-19)
+- Every merge to master gets the next version (G183): a job or feature is a minor step, a fix or docs-only merge a
+  patch. The in-game label (title screen, main menu, playtest notes) adds the build's commit: `v4.6.2 · a1b2c3d`, with
+  `PREVIEW CT` on /ct/. Versions 4.1.0-4.6.1 below were numbered after the fact, in merge order; each master release
+  has a git tag (`v4.6.2`).
+
+## 4.6.1 - Orchestrator docs (2026-10-19, PR #11)
+- Roadmap, machine rule (heavy work on the desktop, heavy.lock), the orchestrator's resume point and dashboard source,
+  Michael's dashboard answers (G-level decisions in ROADMAP "Decided"), Moth's goggle purple (bible 5.14).
+
+## 4.6.0 - Phone launch for testing (2026-10-19, PR #13)
 - A phone can launch the game for testing only (G182): the minimum settings (`?gfx=min`, no Auto detection, no
   governor) and the menus and HUD scaled down to fit its screen. No touch controls; a Bluetooth pad drives it. Untested.
 
-## Unreleased - anim-cleanup (feature/anim-cleanup)
+## 4.5.0 - Animation clean-up (2026-10-19, PR #12)
 
 Prototype pass over Wren's animations (Michael, 2026-10-19): accurate, believable, no clipping. `docs/anim-cleanup/`.
 
@@ -24,7 +34,17 @@ Prototype pass over Wren's animations (Michael, 2026-10-19): accurate, believabl
 - **Hand shapes:** trigger, support, wrap and relaxed shapes blend from Wren's morph targets; free hands hang lightly curled.
 - Crouched ready hands sit by the thighs (`READY_HANDS` crouch values, with CT Core's P1c).
 
-## Unreleased - weapons (feature/weapons)
+## 4.4.1 - Docs: roadmap, merge approvals, walk-test menu notes (2026-10-19, PR #10)
+
+## 4.4.0 - CT prototype (2026-10-19, PR #9)
+- Posture, CT controls, the selection wheel, the 8-station co-op training course, revive. `docs/ct-prototype/`.
+
+## 4.3.0 - Menus (2026-10-19, PR #8)
+- Arkham-plan menus, dialog fixes, the cinematic hero background. `docs/menu-ui/`.
+
+## 4.2.1 - CLAUDE.md "Current goal" (2026-10-19, PR #6)
+
+## 4.2.0 - Weapons (2026-10-19, PR #7)
 Placeholder weapons that look real at a glance, held and carried believably (Michael, 2026-10-19: "Holding weapons and
 holstering should at least look believable but only prototype quick run").
 
@@ -42,7 +62,7 @@ holstering should at least look believable but only prototype quick run").
 - Guards keep their guns (A6). Gameplay unchanged: muzzle, hand points and carry extents still come from weapons.json
   (the rifle's support point moved back to the launcher sleeve's rear, its proxy parts follow the mesh).
 
-## Unreleased - Wren, the player character (one minor step at merge, G93)
+## 4.1.0 - Wren, the player character (2026-10-18, PR #5)
 Operators run (feature/operators): Wren replaces the player body for every player (G123: "I want wren in to replace the
 existing character anyway; before the prototype is done", "Both play as Wren").
 
@@ -78,7 +98,7 @@ existing character anyway; before the prototype is done", "Both play as Wren").
   player is Wren; e2e-desktop drives Wren's head fade and goggle glow directly. `@babylonjs/ktx2decoder` is a runtime
   dependency (the game transcodes her KTX2 textures).
 
-## 4.0.0 - Consolidation (Unreleased until Michael merges; G84, G93)
+## 4.0.0 - Consolidation (2026-10-18, PR #3)
 One branch with all finished and paused work, one vision (docs/DECISIONS.md, G1-G118). The entries below this one are
 the merged branches' own notes, kept as their history.
 
