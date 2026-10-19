@@ -279,6 +279,14 @@ export class MenuState implements AppState {
   /** (menu-notes slice 4a, debug hook) Stops the shot director's clock (the GPU scripts freeze a moment of the goggle
    *  flicker for a still); the hand-held drift runs on. */
   debugPause = false;
+  /** (menu-notes slice 4c) Seconds until the title's lights are fully up (the title's press sequence waits on it). */
+  get titleLeftS(): number {
+    return this.director.titleLeftS;
+  }
+  /** (menu-notes slice 4c, A3) The second press: the goggle strike jumps to the lit main menu. */
+  skipTitle(): void {
+    this.director.skipTitle();
+  }
   /** (menu-notes slice 4a, debug hook) The title's light state, read back for the scripts: the phase ('dark' until the
    *  press), seconds since the press, the lights' level and goggle level the director asks for, and what the stage
    *  applied: the sum of the three spots' intensities, the hemi, the scene ambient, the clear colour, the goggle level

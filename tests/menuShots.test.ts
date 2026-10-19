@@ -164,6 +164,30 @@ describe('menu shot director', () => {
       expect(d.fade).toBe(0);
     });
 
+    // (menu-notes slice 4c, M3 / A3) the title's press sequence waits on titleLeftS; a second press skips
+    it('counts down to the lights being up, and a skip jumps to the lit main menu on the next update', () => {
+      const d = createDirector({ seed: 1, reducedMotion: false, context: 'main' });
+      expect(d.titleLeftS).toBe(0);
+      d.setContext('title');
+      d.update(1);
+      expect(d.titleLeftS).toBe(IGNITE_S);
+      d.setContext('main');
+      d.update(1);
+      expect(d.titleLeftS).toBeCloseTo(IGNITE_S - 1, 5);
+      expect(d.lit).toBe(0);
+      d.skipTitle();
+      d.update(1 / 60);
+      expect(d.titlePhase).toBe('done');
+      expect(d.titleLeftS).toBe(0);
+      expect(d.lit).toBe(1);
+      expect(d.glow).toBe(-1);
+      expect(d.shot.id).toBe('T2');
+      expect(d.context).toBe('main');
+      // a skip with no title does nothing
+      d.skipTitle();
+      expect(d.titlePhase).toBe('done');
+    });
+
     it('takes the whole strike in about 5 s and reads as pure levels', () => {
       expect(IGNITE_S).toBeGreaterThan(3);
       expect(IGNITE_S).toBeLessThan(6);

@@ -97,7 +97,7 @@ try {
   await mouseBack();
   assert((await top()) === 'main-menu' && (await fk()) === 'settings', 'mouse button 4 is Back');
   const mm = await sameBoxes('.main-menu');
-  assert(mm.n > 6 && mm.moved === 0, `main menu: a device switch moves nothing (${mm.n} boxes, ${mm.moved} moved)`);
+  assert(mm.n >= 6 && mm.moved === 0, `main menu: a device switch moves nothing (${mm.n} boxes, ${mm.moved} moved)`); // (5 items since 4.7.0 + the Select legend; menu-notes A1 dropped Back)
   // (menu-notes A1) the root menu has no Back legend item and Back does nothing (no way back to the title)
   assert(await G(() => !document.querySelector('.main-menu .ms-lg[data-legend="back"]')), 'the root menu legend has no Back item');
   await key('Escape');
@@ -298,13 +298,41 @@ try {
       assert(dk?.phase === 'dark' && dk.lit === 0 && dk.glow === 0 && dk.spots === 0 && dk.hemi === 0 && dk.ambient === 0 && dk.clear === 0 && dk.goggle === 0 && dk.lens === 0, `the title is dark: no light, no goggle (${JSON.stringify(dk)})`);
       await F.page.keyboard.press('Space');
       await F.page.waitForFunction(() => window.__app.current?.titleLight?.phase !== 'dark', null, { timeout: 10000 }).catch(() => {});
-      const ig = await tl();
-      const topNow = await F.page.evaluate(() => window.__app.screens.top?.el.classList[1]);
-      assert((ig?.phase === 'ignite' || ig?.phase === 'done') && topNow !== 'title-screen', `the press dismisses the title and strikes the goggle (${ig?.phase}, top ${topNow})`);
-      await F.page.waitForFunction(() => window.__app.current?.titleLight?.phase === 'done', null, { timeout: 60000 }).catch(() => {});
+      // (slice 4c, M3) the title stays on top as a clear layer (prompt and wordmark fading out), no menu under it, while
+      // the goggle strikes; the music is not asked to start again (it began on the press)
+      await F.page.waitForTimeout(500);
+      const sq = await F.page.evaluate(() => ({
+        phase: window.__app.current?.titleLight?.phase,
+        top: window.__app.screens.top?.el.classList[1],
+        seq: window.__app.screens.top?.seqPhase,
+        card: getComputedStyle(document.querySelector('.title-screen .ts-card')).opacity,
+        menu: document.querySelector('.main-menu')?.hidden,
+      }));
+      assert((sq.phase === 'ignite' || sq.phase === 'done') && sq.top === 'title-screen' && sq.seq === 'seq' && sq.menu === true, `the press strikes the goggle in the dark with no menu UI (${JSON.stringify(sq)})`);
+      assert(sq.card === '0' || sq.phase === 'done', `the prompt and wordmark have faded out (${sq.card})`);
+      // the menu is in once the lights are up (input blocked until then)
+      await F.page.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 60000 }).catch(() => {});
       const up = await tl();
       const sid = await F.page.evaluate(() => window.__app.current?.shotId);
-      assert(up?.phase === 'done' && up.lit === 1 && up.spots > 0 && sid === 'T2', `then the lights are up and T2 opens the main menu (${JSON.stringify(up)}, ${sid})`);
+      const topIn = await F.page.evaluate(() => window.__app.screens.top?.el.classList[1]);
+      assert(topIn === 'main-menu' && up?.phase === 'done' && up.lit === 1 && up.spots > 0 && sid === 'T2', `then the lights are up, T2 opens and the main menu is in (${topIn}, ${JSON.stringify(up)}, ${sid})`);
+    } finally {
+      await F.browser.close();
+    }
+  }
+  // (slice 4c fix, A3) a mouse start then Enter during the black: the skip lands on the lit menu, nothing opened
+  {
+    const F = await launch({ url, params: 'title=1', viewport: { width: 1280, height: 720 } });
+    try {
+      await F.page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && window.__app.screens.top?.el.classList.contains('title-screen'), null, { timeout: 90000 });
+      await F.page.waitForTimeout(1000);
+      await F.page.click('.title-screen .ts-press');
+      await F.page.waitForTimeout(400);
+      await F.page.keyboard.press('Enter');
+      await F.page.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 10000 }).catch(() => {});
+      await F.page.waitForTimeout(300);
+      const s = await F.page.evaluate(() => ({ top: window.__app.screens.top?.el.classList[1], depth: window.__app.screens.depth, f: window.__app.nav.focused?.dataset.key, phase: window.__app.current?.titleLight?.phase }));
+      assert(s.top === 'main-menu' && s.depth === 1 && s.f === 'sectorops' && s.phase === 'done', `click to start, Enter skips to the lit main menu and opens nothing (${JSON.stringify(s)})`);
     } finally {
       await F.browser.close();
     }

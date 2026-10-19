@@ -12,6 +12,7 @@ import { flags } from './core/flags';
 import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
 import { gateLimits } from './world/menuGate';
+import { IGNITE_S } from './world/menuShots';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { TitleScreen } from './ui/screens/titleScreen';
 import { SettingsScreen } from './ui/screens/settingsScreen';
@@ -129,7 +130,8 @@ async function boot(): Promise<void> {
     // (menu-ui slice 6) the cinematic background follows the screen on top: the title holds S1, the lobby keeps the stage
     ms.screenContext = () => {
       const c = app.screens.top?.el.classList;
-      return c?.contains('title-screen') ? 'title' : c?.contains('lobby-screen') ? 'lobby' : 'main';
+      // (menu-notes slice 4c) the title pressed (`ts-seq`) reads as the main menu: the goggle strikes while it stays on top
+      return c?.contains('title-screen') ? (c.contains('ts-seq') ? 'main' : 'title') : c?.contains('lobby-screen') ? 'lobby' : 'main';
     };
     showSavedOperator(app);
     app.onAvatarStyle = () => {
@@ -164,7 +166,39 @@ async function boot(): Promise<void> {
     let title: TitleScreen | null = null;
     if (titleAllowed && !titleShown) {
       titleShown = true;
-      title = new TitleScreen(brightness);
+      // (menu-notes slice 4c, M3) the press: the title's prompt and wordmark fade out and it stays on top (black, no menu,
+      // taking every input) while the goggle strikes; the main menu fades in under it over the last of the light rise,
+      // then the title pops. A second press skips to the lit menu (A3). The music is untouched (it starts on the press).
+      let unsub: (() => void) | null = null;
+      const revealMenu = (fadeS: number): void => {
+        const el = menu.el;
+        el.classList.remove('under');
+        // (no `screen-in` slide: the fade is the entrance; the animation comes back once the menu is next covered)
+        el.style.animation = 'none';
+        if (fadeS > 0 && el.hidden) {
+          el.style.opacity = '0';
+          el.hidden = false;
+          void el.offsetWidth;
+          el.style.transition = `opacity ${fadeS.toFixed(2)}s ease-out`;
+          el.style.opacity = '1';
+        } else {
+          el.style.transition = 'none';
+          el.style.opacity = '';
+          el.hidden = false;
+        }
+        unsub ??= app.screens.onChange(() => {
+          if (!el.hidden && el.isConnected) return;
+          el.style.animation = el.style.transition = el.style.opacity = '';
+          unsub?.();
+        });
+      };
+      title = new TitleScreen(brightness, {
+        maxS: IGNITE_S,
+        leftS: () => (app.current === ms ? ms.titleLeftS : 0),
+        paused: () => app.current === ms && ms.debugPause,
+        skip: () => ms.skipTitle(),
+        reveal: revealMenu,
+      });
       app.screens.push(title);
       // (menu-notes slice 4a, M2) the title's wordmark takes over from the boot's in the same place: the boot (black, no
       // status) drops under the screens and keeps the stage hidden until the reveal; the prompt fades in then

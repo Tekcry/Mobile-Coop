@@ -4,8 +4,10 @@
 //    lines (hidden on this path) are still logged with their times. Every frame from the reveal for 4 s reads which LOD
 //    Wren is drawn at (`MenuState.heroLod`): it must be the close-up LOD (`heroLodWanted`) from the first frame (no pop).
 //    (menu-notes slice 4a) Then the dark title (s4-title-dark, and s4-title-dark-stage with the UI hidden: its pixels
-//    must be black), a press, stills from just after the press through the goggle strike (flicker done at 2.8 s) (each frozen with `MenuState.debugPause`) and the
-//    first main-menu frame (s4-menu-first), with the light read-back (`MenuState.titleLight`) and the audio state.
+//    must be black), a press (s4-press: the prompt and wordmark fading out), stills through the goggle strike (each frozen
+//    with `MenuState.debugPause`; slice 4c: no menu UI on any) to the flicker done (2.8 s) and the lights rising (3.9 s),
+//    the menu fading in (s4-menu-in) and the first full main-menu frame (s4-menu-first), with the light read-back
+//    (`MenuState.titleLight`) and the audio state.
 // 2. A hero close-up (H1, frozen) with the LOD read-back.
 // `bootCap=60`: the gate may wait up to 60 s (the 12 s automation cap is for the logic suites).
 // Needs a server on E2E_PORT serving dist/. GPU run (Michael's PC): E2E_GPU=1 SHOT_GFX=high. Files: <outDir>/s2-*.png, s4-*.png.
@@ -176,12 +178,33 @@ try {
     console.log(`saved ${out}/s4-title-dark.png and s4-title-dark-stage.png (stage pixels: max ${px.max} / 255, ${px.lit} above 2); light ${JSON.stringify(dk)}; audio ${JSON.stringify(await audio())}`);
     if (dk?.phase !== 'dark' || dk.spots !== 0 || dk.lens !== 0 || dk.goggle !== 0) fail(`the title's light is not off (${JSON.stringify(dk)})`);
     if (px.max > 3) fail(`the dark title's stage is not black (max ${px.max} / 255, ${px.lit} pixels above 2)`);
-    // the press: the title goes, the goggle strikes (and the theme starts here if autoplay held it back)
+    // (menu-notes slice 4c, M3) the press: the prompt and wordmark fade out, the title stays on top as a clear layer, no
+    // menu UI (list, legend, tagline, version) while the goggle strikes in the dark; the theme starts here if autoplay held
+    // it back. `ui()` reads what is on screen above the stage.
+    const ui = () =>
+      page.evaluate(() => {
+        const vis = (e) => !!e && !e.closest('[hidden]') && getComputedStyle(e).display !== 'none' && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().width > 0;
+        const mm = document.querySelector('.main-menu');
+        const card = document.querySelector('.title-screen .ts-card');
+        return {
+          top: window.__app.screens.top?.el.classList[1],
+          seq: window.__app.screens.top?.seqPhase ?? '',
+          menu: vis(mm) ? Number(getComputedStyle(mm).opacity) : 0,
+          items: [...document.querySelectorAll('.main-menu .ms-item, .main-menu .ms-legend, .main-menu .tagline, .main-menu .version')].filter(vis).length,
+          card: card ? Number(getComputedStyle(card).opacity) : 0,
+        };
+      });
     await page.keyboard.press('Space');
-    await page.waitForFunction(() => window.__app.current?.titleLight?.phase !== 'dark', null, { timeout: 5000 }).catch(() => {});
-    console.log(`after the press: light ${JSON.stringify(await light())}, audio ${JSON.stringify(await audio())}`);
-    // moments of the strike (director seconds after the press), each frozen with the debug pause for its still
-    for (const [name, at] of [['press', 0.05], ['flicker-1', 0.24], ['flicker-2', 0.66], ['flicker-3', 0.86], ['flicker-4', 1.7], ['flicker-done', 2.8], ['lights-rising', 3.9]]) {
+    // the press still: the fade-out (0.35 s, CSS) part-way, the director not paused
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: `${out}/s4-press.png` });
+    const pu = await ui();
+    console.log(`saved ${out}/s4-press.png (prompt and wordmark fading: card opacity ${pu.card.toFixed(2)}, ${JSON.stringify(pu)}); light ${JSON.stringify(await light())}, audio ${JSON.stringify(await audio())}`);
+    if (pu.top !== 'title-screen' || pu.seq !== 'seq') fail(`the press did not start the sequence under the title (${JSON.stringify(pu)})`);
+    if (pu.menu > 0 || pu.items > 0) fail(`menu UI shows on the press (${JSON.stringify(pu)})`);
+    // moments of the strike (director seconds after the press), each frozen with the debug pause for its still (the pause
+    // also holds the title's sequence, so the menu waits): no menu UI on any, the prompt and wordmark gone
+    for (const [name, at] of [['flicker-1', 0.24], ['flicker-2', 0.66], ['flicker-3', 0.86], ['flicker-4', 1.7], ['flicker-done', 2.8], ['lights-rising', 3.9]]) {
       const got = await page.evaluate(
         (s) =>
           new Promise((res) => {
@@ -199,16 +222,30 @@ try {
       );
       await page.waitForTimeout(120);
       await page.screenshot({ path: `${out}/s4-${name}.png` });
+      const u = await ui();
       await page.evaluate(() => {
         if (window.__app.current) window.__app.current.debugPause = false;
       });
-      console.log(`saved ${out}/s4-${name}.png (at ${got?.igniteT?.toFixed(2)} s: goggle ${got?.glow?.toFixed(2)}, lights ${got?.lit?.toFixed(2)}, phase ${got?.phase})`);
+      console.log(`saved ${out}/s4-${name}.png (at ${got?.igniteT?.toFixed(2)} s: goggle ${got?.glow?.toFixed(2)}, lights ${got?.lit?.toFixed(2)}, phase ${got?.phase}; UI ${JSON.stringify(u)})`);
+      if (got?.phase !== 'ignite') fail(`${name}: the strike is not running (${got?.phase})`);
+      if (u.menu > 0 || u.items > 0) fail(`${name}: menu UI shows during the strike (${JSON.stringify(u)})`);
+      if (u.card > 0.02) fail(`${name}: the prompt / wordmark still shows (opacity ${u.card})`);
     }
-    await page.waitForFunction(() => window.__app.current?.titleLight?.phase === 'done' && window.__app.current?.shotId === 'T2', null, { timeout: 15000 }).catch(() => {});
+    // the menu fading in over the last of the light rise (CSS fade on the wall clock: shot at once, no pause)
+    await page.waitForFunction(() => { const m = document.querySelector('.main-menu'); return (m && !m.hidden) || window.__app.current?.titleLight?.phase === 'done'; }, null, { timeout: 15000, polling: 'raf' }).catch(() => {});
+    await page.screenshot({ path: `${out}/s4-menu-in.png` });
+    const mi = await ui();
+    const ml = await light();
+    console.log(`saved ${out}/s4-menu-in.png (menu opacity ${mi.menu.toFixed(2)}, lights ${ml?.lit?.toFixed(2)}, phase ${ml?.phase}, top ${mi.top})`);
+    if (mi.top !== 'title-screen') console.log('  (note: the menu was already in when the fade still was taken)');
+    await page.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu') && window.__app.current?.titleLight?.phase === 'done' && window.__app.current?.shotId === 'T2', null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(100);
     const done = await light();
+    const fu = await ui();
     await page.screenshot({ path: `${out}/s4-menu-first.png` });
-    console.log(`saved ${out}/s4-menu-first.png (shot ${await page.evaluate(() => window.__app.current?.shotId)}, light ${JSON.stringify(done)})`);
+    console.log(`saved ${out}/s4-menu-first.png (shot ${await page.evaluate(() => window.__app.current?.shotId)}, light ${JSON.stringify(done)}, UI ${JSON.stringify(fu)})`);
     if (done?.phase !== 'done' || done.lit !== 1) fail(`the lights did not come up into the main menu (${JSON.stringify(done)})`);
+    if (fu.top !== 'main-menu' || fu.menu < 0.99 || fu.items < 5) fail(`the main menu is not fully in (${JSON.stringify(fu)})`);
   }
 
   // the hero close-up, frozen

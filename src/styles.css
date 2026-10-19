@@ -3827,6 +3827,16 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
 .title-screen.ts-wait .version {
   filter: opacity(0);
 }
+/* (menu-notes slice 4c, M3) the press: the prompt and the wordmark fade out (TITLE_OUT_S in titleSequence.ts) and the
+   title stays on top as a clear layer (the stage is black then) while the goggle strikes; no menu under it yet */
+.screen.title-screen.ts-seq {
+  background: transparent;
+}
+.title-screen.ts-seq .ts-card,
+.title-screen.ts-seq .version {
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+}
 .title-screen .ts-card,
 .boot .boot-mark {
   position: absolute;

@@ -725,6 +725,28 @@ try {
     }
   }
 
+  console.log('title press by pad (menu-notes slice 4c, M3 / A3): A strikes the goggle with no menu, a second A skips to the lit menu');
+  {
+    const T = await launch({ url, params: 'title=1' });
+    try {
+      const P = T.page;
+      const G = (f, a) => P.evaluate(f, a);
+      await P.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && window.__app.screens.top?.el.classList.contains('title-screen'), null, { timeout: 90000 });
+      await G(() => window.__pad.connect());
+      await press(P, BTN.A);
+      const s1 = await G(() => ({ top: window.__app.screens.top?.el.classList[1], seq: window.__app.screens.top?.seqPhase, menu: document.querySelector('.main-menu')?.hidden }));
+      assert(s1.top === 'title-screen' && s1.seq === 'seq' && s1.menu === true, `A on the title starts the strike, no menu yet, the press is not a skip (${JSON.stringify(s1)})`);
+      await P.waitForTimeout(400);
+      await press(P, BTN.A);
+      await P.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 10000 }).catch(() => {});
+      await P.waitForFunction(() => window.__app.current?.titleLight?.phase === 'done', null, { timeout: 10000 }).catch(() => {});
+      const s2 = await G(() => ({ top: window.__app.screens.top?.el.classList[1], phase: window.__app.current?.titleLight?.phase, lit: window.__app.current?.titleLight?.lit, f: window.__app.nav.focused?.dataset.key, depth: window.__app.screens.depth }));
+      assert(s2.top === 'main-menu' && s2.phase === 'done' && s2.lit === 1 && s2.f === 'sectorops' && s2.depth === 1, `a second A skips to the lit main menu, nothing selected (${JSON.stringify(s2)})`);
+    } finally {
+      await T.browser.close();
+    }
+  }
+
   console.log('disconnect');
   await page.evaluate(() => window.__pad.disconnect());
   // the pad is noticed on the next poll; under software GL a frame can take a while

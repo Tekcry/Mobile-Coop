@@ -129,8 +129,12 @@ export interface Director {
   readonly lit: number;
   /** (slice 4a) The goggle level 0..1 the title phase sets, or -1: the shot decides (its `goggleOn`). */
   readonly glow: number;
+  /** (slice 4c) Seconds until the title's lights are fully up: the whole strike while dark, 0 once done / no title. */
+  readonly titleLeftS: number;
   update(dtS: number): void;
   setContext(c: MenuContext): void;
+  /** (slice 4c, A3) A second press during the strike: straight to the lit main menu on the next update. */
+  skipTitle(): void;
 }
 
 const smooth = (x: number): number => x * x * (3 - 2 * x);
@@ -258,6 +262,18 @@ class ShotDirector implements Director {
     }
     this.context = c;
     this.enter(c);
+  }
+
+  get titleLeftS(): number {
+    if (this.titlePhase === 'dark') return IGNITE_S;
+    return this.titlePhase === 'ignite' ? Math.max(0, IGNITE_S - this.igniteT) : 0;
+  }
+
+  skipTitle(): void {
+    if (this.titlePhase !== 'dark' && this.titlePhase !== 'ignite') return;
+    this.titlePhase = 'ignite';
+    this.igniteT = IGNITE_S;
+    this.pending ??= 'main';
   }
 
   /** (slice 4a) The lights are up: the shots run as before. */
