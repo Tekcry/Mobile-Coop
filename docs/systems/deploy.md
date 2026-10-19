@@ -7,8 +7,9 @@ CLAUDE.md "Sessions" (who merges).
 - Master is the live game and the only base. Every job works on its own branch `feature/<job>`, cut from master, in
   its own folder `C:/NightShift/Mobile-Coop-<job>`, and ends in one PR to master.
 - Merging: the orchestrator merges green PRs without asking (Michael, 2026-10-19); when auto mode blocks the merge,
-  Michael merges. Master always holds every finished update; the orchestrator asks Michael when unsure. The orchestrator sets the version in the PR just before it merges (G183): a job or feature is a minor step,
-  a fix or docs-only merge a patch; the merge commit gets the tag `v4.x.y`.
+  Michael merges. Master always holds every finished update; the orchestrator asks Michael when unsure. The
+  orchestrator sets the version in the PR just before it merges (G183): a job or feature is a minor step, a fix or
+  docs-only merge a patch; the merge commit gets the tag `v4.x.y`.
 - `dev` and `ct-movement` are not work branches (the old `ct-movement` -> `dev` -> `master` flow is history, G83). They
   are the pointer branches for two preview slots (below). Deleting any branch is Michael's call.
 
