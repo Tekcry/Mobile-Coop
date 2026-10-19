@@ -41,7 +41,7 @@ Active jobs (each resume prompt is in that job's STATE.md, fenced, at the end):
   propose a card or give him the paste-in prompt.
 
 ## Master
-v4.8.0 (#27, e67ebd73). Tags v4.0.0-v4.8.0. /preview/ = dev = e67ebd73. Today: #12 4.5.0, #13 4.6.0, #11 4.6.1, #14 4.6.2, #15 4.6.3, #16 4.6.4,
+v4.8.1 (#28, 494a591c). Tags v4.0.0-v4.8.1. /preview/ = dev = 494a591c. Menu Notes finished (session stopped); Michael to prune feature/menu-notes, feature/menu-boot-time and their worktrees. Today: #12 4.5.0, #13 4.6.0, #11 4.6.1, #14 4.6.2, #15 4.6.3, #16 4.6.4,
 #17 4.6.5, #18 4.6.6, #19 4.6.7, #20 4.6.8, #21 Sector Ops 4.7.0 (G184-G191), #22 grate-kick flake 4.7.1, #23 build
 label commit 4.7.2. /preview/ = dev = ce1da1a3. /ct/ = ct-movement = 624fca6b (v4.7.0 PREVIEW CT; moved by the
 orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu).
