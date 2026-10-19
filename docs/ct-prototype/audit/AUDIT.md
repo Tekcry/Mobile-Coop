@@ -32,4 +32,4 @@ rail vault and beam walk (not measured).
 Every catalogue entry is mapped to an audit row or marked MISSING, clip by clip: `COVERAGE-NEW.md` (26 new clips: 153
 grouped rows, ~103 covered, 24 partial, 22 missing items) and `COVERAGE-OLD.md` (old catalogue as corrected: 162 moves,
 15 missing items M1-M15, 21 partial P1-P15). The missing and partial items are measured in `AUDIT-EXTRA-NEW.md` and
-`AUDIT-EXTRA-OLD.md` (in progress). Text-only mapping: frame checks live in the area files.
+`AUDIT-EXTRA-OLD.md` (23 and 25 measured rows: goggle touch, rolls from a crouch run, ladder mount / top-out, crawl exit, shaft descent, free jumps, enemy doors, camera pull-in, crouch spin, HUD noise bar). Text-only mapping: frame checks live in the area files.
