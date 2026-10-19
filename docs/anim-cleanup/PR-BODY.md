@@ -20,9 +20,16 @@ A prototype pass over Wren's animations (Michael, 2026-10-19): accurate, believa
 - `npm run check`: passes (lint 0 errors, 1746 unit tests, build).
 - Independent checks: slice 1 (weapon handling) and slice 3 (traversal grips) each passed after one fix round; the
   merge with feature/ct-prototype c628e32 (T1/T2) and master passed a fresh check with no blockers.
-- Full software-GL e2e: run by the orchestrator on the desktop (Michael: no heavy runs on the laptop). A partial laptop
-  run under load passed 30 suites; traverse (drainpipe grip 3.2 cm) and netmove (holster-to-stow 766 ms) failed there
-  and are to be confirmed on the desktop; camera-bounds and kestrel also fail on master.
+- Full software-GL e2e on the desktop (228d78e, 2 at a time, 62 min): all suites pass except seven. The failures, rerun
+  alone on 812a75f2:
+  - e2e-traverse and e2e-ct pass alone. The drainpipe grip needed a 3-frame settle window (812a75f2), and the fence
+    rattle was load.
+  - e2e-netmove's holster check passes after its budget was corrected (4c465e3c: 400 ms -> HOLSTER_TIME 550 ms, a test
+    bug from master).
+  - Pre-existing on master: e2e-coop, e2e-netmove and e2e-ctcourse also fail alone on a master build (bd59f32, the same
+    day). coop times out on the client's draw state, netmove fails a later attached-state step, and ctcourse fails at
+    station 2 "the host hangs on the ledge" on both. e2e-kestrel and e2e-camera-bounds fail on master as before
+    (docs/backlog.md). The branch makes none of them worse; they go to the process audit and CT Core.
 
 ## Pending PC run
 - Performance budgets (`docs/systems/performance.md`).
