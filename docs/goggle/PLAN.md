@@ -1,5 +1,14 @@
 # Goggle job - plan
 
+## Resume point (2026-10-19)
+- **State:** plan only; BRIEF.md and this PLAN are written, no code. Waiting for Michael's two answers (section 6), which
+  the orchestrator put on its dashboard.
+- **Report to** the Night Shift | Orchestrator session (CLAUDE.md "Orchestrator"): step start / end, PR, Michael needed,
+  blocked. It owns `docs/ROADMAP.md` and merges the PR.
+- **Laptop = light work only** (Michael, 2026-10-19): docs, planning, small code edits. No e2e, full test runs, builds
+  in loops, Blender renders or heavy subagents; those run on the desktop (steps marked "desktop" below).
+- **Next:** with Michael's answers, record them in `docs/goggle/DECISIONS.md`, then step 2 and / or step 3 of section 5.
+
 Read BRIEF.md first. The laptop writes docs and small code edits; the Blender build, the LODs, the KTX2 pass and every
 GPU check run on Michael's desktop (Michael, 2026-10-19).
 
