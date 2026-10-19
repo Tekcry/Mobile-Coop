@@ -4,7 +4,7 @@ Read CLAUDE.md (above all "Sessions": the orchestrator, machines, test tiers, ve
 Work folder for orchestrator docs: C:\NightShift\Mobile-Coop-menu (branch feature/menu; merge origin/master into it
 before each docs batch, then a PR to master as a patch version).
 
-## Account switch (Michael, 21:45: "I will be out of context soon, can I easily start these projects in another account")
+## Account switch (start prompts for every session: docs/orchestrator/NEW-ACCOUNT.md) (Michael, 21:45: "I will be out of context soon, can I easily start these projects in another account")
 Everything needed to resume is in git: this file, docs/ROADMAP.md, and each job's `docs/<job>/STATE.md` with its own
 resume prompt. What does not carry over to a new Claude account:
 - Sessions and their names. Claude Desktop sessions belong to the account that started them. In the new account, start
