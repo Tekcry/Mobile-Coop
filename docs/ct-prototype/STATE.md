@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 21:00 Sydney (clean point: master 4.7.0 merged at 7d0310cc, slices D+E and D2b; /ct/ at 624fca6b, moved by the orchestrator so Co-op > Host reaches Marlow Yard).
+Updated 2026-10-19 21:45 Sydney (slice F starting; master 4.7.2 merged at 8882261b, slices D+E and D2b; /ct/ at 624fca6b, moved by the orchestrator so Co-op > Host reaches Marlow Yard).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -59,9 +59,16 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
   e2e-netmove, e2e-coop pass.
 
 ## Next
-1. Michael's re-test of playtest 2 on /ct/ (A, B+C, D+E, D2b). His notes come through the orchestrator and fold into
-   the next slice.
-2. Master 4.7.0 merged (7d0310cc: #21 Sector Ops, protocol 24; a wire change here takes 25): check green (desktop);
+1. **Slice F** (in progress, started 2026-10-19 ~21:45): Michael's walk notes are in `WALK-2026-10-19.md` (every item
+   "Not right"; he is recording new CT footage). `F-BRIEF.md` takes only the clear items: F1 shoulder always right when
+   holstered, a left swap lasts only while aiming; F2 crouched ADS camera follows the body down; F3 crouch idle kneels;
+   F4 corner lean only toward the open side, camera slides sideways; F5 climb-up hands hold until the knee, no hop; F6
+   rifle draw without the low-ready dip; F7 answer "D pad left and right is speed?" (speed is D-pad up / down and the
+   stick; make prompts agree; menu-screen text goes to Menu Notes). Fine-tuning items wait for the footage (listed in
+   the brief). Loop: Opus implementer from F-BRIEF -> independent Opus check -> at most 1 fix round -> check + e2e ->
+   commit, push, /ct/, report `F-REPORT.md` to the orchestrator with the F7 answer. If resuming mid-slice: `git status`
+   shows the implementer's uncommitted work; read F-REPORT.md if it exists, then run the check step.
+2. Master 4.7.2 merged at 8882261b (#22 traverse kick, #23 build sha). Earlier: master 4.7.0 merged (7d0310cc: #21 Sector Ops, protocol 24; a wire change here takes 25): check green (desktop);
    laptop runner smoke, e2e-ctcourse, e2e-coop, e2e-netmove, e2e-traverse all pass. e2e-traverse "a tap kicks the
    grate in" is a master flake (Character Build, feature/traverse-kick): ignore it.
    PR prep done (fcfc433c, master 4.6.8 merged at 75b789ab): CHANGELOG "Unreleased - ct-prototype" covers A to D2b,
