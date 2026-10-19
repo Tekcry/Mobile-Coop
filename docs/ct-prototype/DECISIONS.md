@@ -31,3 +31,4 @@ Michael's words quoted verbatim; they move to `docs/DECISIONS.md` as G entries a
 
 ## Assumed
 | A1 | Selection menu on LB hold (weapons, gadgets, vision mode), LB tap switches weapon; vision toggle on D-pad left; D-pad right free (gadget quick use if one is selected); D-pad up / down speed | Undo: move the toggle to D-pad right or the menu to another button in `padBinds.ts` |
+| A2 | (overnight audit) Where the footage contradicts an earlier recorded number (G103 raise timing, the F1a ADS camera offset), the footage wins (Michael 23:45 "operate identically to those recorded"); the explore shoulder offset 0.32 and the FOV 75 stay until Michael answers (audit/AUDIT.md questions) | Undo: restore the old constant named in each slice report |
