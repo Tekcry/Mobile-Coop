@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.8.1 - Menu boot time measured (2026-10-19, PR #28)
+Docs only. The 4.8.0 load gate adds about 0.9 s to boot-to-menu under software GL (median 1.72 s vs 0.78 s on
+4.7.5); match boots skip it; no e2e helper change (docs/menu-notes/STATE.md).
+
 ## 4.8.0 - Menu notes: black launch screen, goggle flicker, menu weapons and poses (2026-10-19, PR #27)
 - Launch (M1, M2, notes 1-2): one black screen with the NIGHT / SHIFT wordmark only, held until Wren's hero model,
   both weapon meshes and the shaders are ready (`src/world/menuGate.ts`: a stall timeout of 12 s with no bytes
