@@ -80,6 +80,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #27 | 4.8.0: menu notes: black launch screen, goggle flicker in the dark, menu shot X5, weapons and poses in the menu, title music, one Controls place |
 | 2026-10-19 | #26 | 4.7.5: lightField heap check stable under load (tests only) |
 | 2026-10-19 | #25 | 4.7.4: orchestrator docs, new Claude account and dashboard |
 | 2026-10-19 | #24 | 4.7.3: orchestrator docs, walk notes, account handover |
