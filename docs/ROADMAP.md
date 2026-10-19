@@ -13,8 +13,8 @@ Michael has playtested the core loop.
 Last updated: 2026-10-19 12:40 Sydney.
 
 ## Waiting on Michael
-1. Goggle device direction A / B / C: Character Build is making quick scratch prototypes of each (feature/goggle);
-   pick once they are on the dashboard.
+1. Goggle device direction A / B / C: scratch prototypes at https://claude.ai/artifact/U1Def8Sunm2LfnBPA6xSte (feature/goggle docs/goggle/prototypes/options.html);
+   pick on the dashboard.
 2. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
    auto mode blocked the orchestrator, so Michael runs
    `git -C C:/NightShift/Mobile-Coop-menu push origin --delete feature/ct-research`.
