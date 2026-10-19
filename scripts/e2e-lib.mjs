@@ -238,18 +238,49 @@ export function frames(page, n = 3) {
   );
 }
 
-export async function press(page, btn) {
-  await page.evaluate((b) => window.__pad.set(b, 1), btn);
-  await frames(page, 3);
-  await page.evaluate((b) => window.__pad.set(b, 0), btn);
+/**
+ * (test-speed) Hold a pad button or stick for exactly one input poll: `on()` now, `off()` right after the game's next
+ * `input.poll` has read it. A hold of a few rendered frames lasted long enough in real time on a loaded machine for the
+ * menu's nav repeat (wall-clock) to step twice (e2e-pad "left stick moves focus down", 2026-10-20). Pages without the
+ * app's input yet, or a poll that never comes (5 s), fall back to the old 3-frame hold.
+ */
+async function onePoll(page, kind, i, v) {
+  const polled = await page.evaluate(([kind, i, v]) => new Promise((res) => {
+    const set = (x) => (kind === 'axis' ? window.__pad.axis(i, x) : window.__pad.set(i, x));
+    const inp = window.__app?.input;
+    set(v);
+    if (!inp?.poll) return res(false);
+    const orig = inp.poll;
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      if (inp.poll === wrap) inp.poll = orig;
+      set(0);
+      res(ok);
+    };
+    const wrap = function (...a) {
+      const r = orig.apply(this, a);
+      finish(true);
+      return r;
+    };
+    inp.poll = wrap;
+    setTimeout(() => finish(false), 5000);
+  }), [kind, i, v]);
+  if (!polled) {
+    await page.evaluate(([kind, i, v]) => (kind === 'axis' ? window.__pad.axis(i, v) : window.__pad.set(i, v)), [kind, i, v]);
+    await frames(page, 3);
+    await page.evaluate(([kind, i]) => (kind === 'axis' ? window.__pad.axis(i, 0) : window.__pad.set(i, 0)), [kind, i]);
+  }
   await frames(page, 3);
 }
 
+export async function press(page, btn) {
+  await onePoll(page, 'button', btn, 1);
+}
+
 export async function stick(page, axis, v) {
-  await page.evaluate(([a, x]) => window.__pad.axis(a, x), [axis, v]);
-  await frames(page, 3);
-  await page.evaluate((a) => window.__pad.axis(a, 0), axis);
-  await frames(page, 3);
+  await onePoll(page, 'axis', axis, v);
 }
 
 export function focusedText(page) {

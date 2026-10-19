@@ -45,6 +45,14 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
     const ls = [g.hands.L, g.hands.R, g.feet.L, g.feet.R];
     return ls.every((l, i) => l.swing < 0 && (gp[i] === null || Number.isNaN(gp[i]) || Math.abs(l.at - gp[i]) < 0.01));
   }, null, { timeout: 8000, polling: 100 }).catch(() => {});
+  // (test-speed) and the host's copy settled too (its joints still for 0.3 s of sim): under load its pose and feet were
+  // still on their way when sampled (doorPeek ankle 10.8-12.9 cm in loaded runs, 2-2.5 cm alone)
+  for (let k = 0; k < 20; k++) {
+    const a = (await remoteJoints()).j;
+    await wait(300);
+    const b = (await remoteJoints()).j;
+    if (Math.max(...joints.map((n) => err(a[n], b[n]))) < 0.01) break;
+  }
   await wait(300);
   const [loc, rem] = [await localJoints(), await remoteJoints()];
   const errs = Object.fromEntries(joints.map((n) => [n, +err(loc[n], rem.j[n]).toFixed(3)]));

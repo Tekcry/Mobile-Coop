@@ -385,7 +385,21 @@ async function station7(x0) {
   await padReady(A);
   await padReady(B);
   await offer('second');
-  await B.evaluate(() => window.__pad.axis(1, -1));
+  // (test-speed) the stick lets go on the step the climber tops out (the page's own fixed step), not when the next poll
+  // from here sees it: under load that was a second of game time later, and the client walked on off the far side
+  await B.evaluate(() => {
+    const st = window.__app.current;
+    const t0 = st.team.count.tops;
+    const orig = st.fixedUpdate.bind(st);
+    st.fixedUpdate = (dt) => {
+      orig(dt);
+      if (st.team.count.tops > t0) {
+        window.__pad.axis(1, 0);
+        st.fixedUpdate = orig;
+      }
+    };
+    window.__pad.axis(1, -1);
+  });
   try {
     await until(B, () => window.__app.current.team.count.tops >= 1, null, 40000, 'station 7: the client climbs to the top and tops out').catch(async (e) => {
       console.error(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, rope: g.team.rope, pos: [c.pos.x, c.pos.y, c.pos.z] }); }));
