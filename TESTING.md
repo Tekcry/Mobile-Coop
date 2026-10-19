@@ -49,6 +49,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Moving: the stick sets the pace up to the speed gear (d-pad up / down); B crouches; a stop holds the stride, then
   settles (CT prototype). A part-pushed stick is a silent walk; a full stick at the default gear is audible.
 - [ ] A at a wall puts your back to it; slide along it, stop at the edge, A to leave (CT prototype).
+- [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
+  menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.
 - [ ] Y climbs and uses: ladders, drainpipes, ledges (shimmy, climb up), pipes, ducts, windows, the split jump, wall jump,
   rappel and fences on the Proving CT course.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
@@ -100,6 +102,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   reticle clear; FOV 86 (a saved 75 moves once).
 - [ ] Rifle draw: muzzle up at the right shoulder, then down onto the line (no chest hold); holster near instant; aim,
   release and aim again quickly: no sweep through the body. Pistol: lower, compact two-handed hold.
+- [ ] Walls (G6): crouch on a wall and slide: side-on, hand on the knee; reverse: she turns through; stop: she kneels.
+  Open a door: a step to the latch, hand on the leaf; stealth open is slower. Grab a guard (G7): pull-in, forearm on
+  the throat, walk him (slow), knock out (lowered), pick up a body (2 s lift), carry (slow), drop.
+- [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
+  on BACK TO GAME (nothing); a quick tap runs row 1; grab a guard and hold A for knock out / interrogate / kill.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 

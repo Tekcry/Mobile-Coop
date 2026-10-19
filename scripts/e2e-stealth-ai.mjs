@@ -731,16 +731,22 @@ try {
       // opened quietly by hand: a creak (2 m), then he can see through
       t.tp(-0.95, 11.2, 0);
       t.step(0.2);
-      const offer = (document.querySelector('.hud-interact')?.textContent ?? '').trim();
+      // (G5) the CT context menu top right: header INTERACT over the door set
+      const offer = [...document.querySelectorAll('.hud-ctx.show .ctx-head, .hud-ctx.show .ctx-row')].filter((x) => x.style.display !== 'none').map((x) => x.textContent).join(' / ');
       g.noise = 0;
-      // (A3, G19) A at a closed door opens the door menu; A again picks Open (the first entry)
+      // (A3, G19; G5) a scripted tap at a closed door opens the door set latched; a second tap picks Open (row 1)
       st.tap('interact');
       t.step(0.1);
       const menuOpen = g.doorMenu.open;
       st.tap('interact');
       t.step(0.1);
-      const quiet = g.noise;
-      t.step(1.4);
+      // (G6, AUDIT-WALLS row 4, 052349) Open is a short move: the step to the latch side, the leaf 0.8 s after the pick
+      // swinging 0.75 s: the creak is heard over the move, the door open by 1.55 s
+      let quiet = g.noise;
+      for (let i = 0; i < 19; i++) {
+        t.step(0.1);
+        quiet = Math.max(quiet, g.noise);
+      }
       const open = d.open;
       t.tp(-0.95, 9.8, 0);
       let seen = 0;
@@ -799,7 +805,7 @@ try {
       return { dbg, blocked, offer, menuOpen, quiet, open, seen, bash, bashed, sprintOpened, koBehind, through, dOpen: d.target };
     });
     assert(r.blocked === 0, `a closed door blocks sight (${r.blocked.toFixed(2)})`);
-    assert(/Door options/.test(r.offer) && r.menuOpen, `at a door: the door menu (${r.offer})`);
+    assert(r.offer.startsWith('Interact / Open door / ') && r.offer.includes('Bash door') && r.menuOpen, `at a door: the context menu lists the door set (${r.offer})`);
     assert(r.quiet > 0 && r.quiet <= 2.5, `opening by hand is a quiet creak (${r.quiet.toFixed(1)} m)`);
     assert(r.open === 1 && r.seen > 0, `once open he sees through (seen ${r.seen.toFixed(2)}, open ${r.open}, quiet ${r.quiet})`);
     assert(!r.sprintOpened, 'running into a door does nothing special (G97)');

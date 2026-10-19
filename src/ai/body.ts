@@ -3,7 +3,7 @@ import { CharacterRig } from '../player/characterRig';
 import type { World } from '../world/world';
 import type { EnemyDef } from './enemyDefs';
 import { Ragdoll } from './ragdoll';
-import { attachToShoulder, hoistAt, layAt, slideAt } from './carryPose';
+import { attachToShoulder, captureLying, hoistAt, slideAt } from './carryPose';
 
 let nextBody = 1;
 
@@ -129,27 +129,22 @@ export class Body {
    *  off the floor's list (carried). `hoist` then lifts it to the shoulder socket. */
   private hoistFrom = new Vector3();
   private hoistQ = new Quaternion();
+  private hoistJ: Quaternion[] = Array.from({ length: 16 }, () => new Quaternion());
   beginHoist(): void {
     const rig0 = this.rig;
     if (!rig0) return;
-    const yaw = this.liftPoints(headV, headV, headV);
-    rig0.hips.computeWorldMatrix(true);
-    const hp = rig0.hips.getAbsolutePosition();
-    const hx = hp.x;
-    const hy = Math.max(hp.y, this.pos.y);
-    const hz = hp.z;
-    this.disposeRig();
+    // (G7 fix round) the fresh rig takes the corpse's pose as it lies (it was straightened in one frame)
     const rig = buildBodyRig(this.scene, this.world, this.def, `${this.id}-carried`);
-    layAt(rig, hx, hy, hz, yaw, this.hoistQ);
-    this.hoistFrom.copyFrom(rig.root.position);
+    captureLying(rig0, rig, this.hoistQ, this.hoistFrom, this.hoistJ);
+    this.disposeRig();
     this.rig = rig;
     this.carried = true;
     this.found = false;
   }
 
-  /** (G7) The hoist at `k` 0..1 toward `socket` (a node on the carrier's chest at the carry socket). */
-  hoist(socket: TransformNode, k: number): void {
-    if (this.rig && this.carried && !this.rig.root.parent) hoistAt(this.rig, this.hoistFrom, this.hoistQ, socket, k);
+  /** (G7) The hoist at `k` 0..1 toward `socket` (a node on the carrier's chest at the carry socket), `side` the shoulder. */
+  hoist(socket: TransformNode, side: number, k: number): void {
+    if (this.rig && this.carried && !this.rig.root.parent) hoistAt(this.rig, this.hoistFrom, this.hoistQ, this.hoistJ, socket, side, k);
   }
 
   /** (G7) The hoist done: onto the carrier's shoulder for the carry. */

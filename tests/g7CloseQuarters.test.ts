@@ -154,7 +154,7 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
       z += sp * dt;
       hero.root.position.set(0, 0, z);
       hero.root.rotation.y = 0;
-      guard.root.position.set(0, 0, z + GRAB.hold);
+      guard.root.position.set(GRAB.side, 0, z + GRAB.hold);
       guard.root.rotation.y = 0;
       guard.animate(dt, { speed: sp, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, velX: 0, velZ: sp });
       const nk = W(guard.neck as unknown as Node);
@@ -190,8 +190,55 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
     expect(r.heads, JSON.stringify(r)).toBeGreaterThan(hero.p.head.w * 0.5 + headR);
     // chests together but not through each other (torso joints at least a torso depth apart)
     expect(r.chest, JSON.stringify(r)).toBeGreaterThan(hero.p.chest.d * 0.5 + guard.p.chest.d * 0.5 - 0.03);
-    // feet never on top of each other (a foot is ~0.1 m wide)
-    expect(r.feet, JSON.stringify(r)).toBeGreaterThan(0.1);
+    // (fix round) his feet walk between hers (GRAB.side): ankles at least 0.085 m apart side to side (the 0.1 m wide
+    // soles may graze by ~1.5 cm when level, never on top of each other; the shins clear: the next test)
+    expect(r.feet, JSON.stringify(r)).toBeGreaterThan(0.085);
+  });
+
+  it('(fix round) the hostage walk at 0.7 m/s: her legs and feet never meet his, at any gait phase between them', async () => {
+    const { sc, make, defaultLook, grunt } = await scene();
+    let worst = 9;
+    let need = 0;
+    for (const off of [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]) {
+      const hero = make(defaultLook());
+      const guard = make(grunt.look, grunt.height);
+      need = hero.p.calf.r1 + guard.p.calf.r1;
+      let z = 0;
+      for (let n = 0; n < 240; n++) {
+        const t = n / 60;
+        const sp = 0.7;
+        z += sp / 60;
+        hero.root.position.set(0, 0, z);
+        guard.root.position.set(GRAB.side, 0, z + GRAB.hold);
+        const ph = (t * 0.9) % 1;
+        hero.animate(1 / 60, { speed: sp, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, bend: CQ.holdBend, velX: 0, velZ: sp, phase: ph });
+        guard.animate(1 / 60, { speed: sp, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, velX: 0, velZ: sp, phase: (ph + off) % 1 });
+        if (t < 1) continue;
+        for (const [k, a] of [[hero.kneeL, hero.ankleL], [hero.kneeR, hero.ankleR]] as const) {
+          const K = W(k as unknown as Node);
+          const A = W(a as unknown as Node);
+          const T = { x: A.x, y: A.y, z: A.z + hero.p.foot.len * 0.7 };
+          for (const [gk, ga] of [[guard.kneeL, guard.ankleL], [guard.kneeR, guard.ankleR]] as const) {
+            const GK = W(gk as unknown as Node);
+            const GA = W(ga as unknown as Node);
+            const GT = { x: GA.x, y: GA.y, z: GA.z + guard.p.foot.len * 0.7 };
+            for (let u = 0; u <= 1.001; u += 0.25) {
+              for (const [p0, p1] of [[K, A], [A, T]] as const) {
+                const px = p0.x + (p1.x - p0.x) * u;
+                const py = p0.y + (p1.y - p0.y) * u;
+                const pz = p0.z + (p1.z - p0.z) * u;
+                worst = Math.min(worst, segDist(px, py, pz, GK, GA), segDist(px, py, pz, GA, GT));
+              }
+            }
+          }
+        }
+      }
+      hero.dispose();
+      guard.dispose();
+    }
+    sc.dispose();
+    // shin and foot centre lines at least the two ankles' radii apart (straight in front it was 1-3 mm: legs through legs)
+    expect(worst, JSON.stringify({ worst, need })).toBeGreaterThan(need);
   });
 
   it('the remote hold hands sit within a few cm of the owner\'s (MoveState only, no guard rig)', async () => {
@@ -201,7 +248,7 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
     cq.seize(false, 0);
     cq.set('hostage');
     guard.emote = (_r, t) => cq.pose(t) ?? undefined;
-    guard.root.position.set(0, 0, GRAB.hold);
+    guard.root.position.set(GRAB.side, 0, GRAB.hold);
     for (let n = 0; n < 60; n++) guard.animate(1 / 60, { speed: 0, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 });
     const nk = W(guard.neck as unknown as Node);
     const sr = W(guard.shoulderR as unknown as Node);
@@ -210,7 +257,7 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
     holdHandTargets(nk.x, nk.y, nk.z, sr.x, sr.y, sr.z, 0, L, R);
     const lL = { x: 0, y: 0, z: 0 };
     const lR = { x: 0, y: 0, z: 0 };
-    holdHandsLocal(GRAB.hold, lL, lR);
+    holdHandsLocal(GRAB.hold, GRAB.side, lL, lR);
     sc.dispose();
     expect(dist(L, lL), JSON.stringify({ L, lL })).toBeLessThan(0.08);
     expect(dist(R, lR), JSON.stringify({ R, lR })).toBeLessThan(0.08);
@@ -219,8 +266,8 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
   for (const headRight of [true, false]) {
     it(`the hoist from the floor to the shoulder never passes through the carrier, nor under the floor (head to his ${headRight ? 'right: right shoulder' : 'left: left shoulder'})`, async () => {
       const { sc, make, defaultLook, grunt } = await scene();
-      const { TransformNode, Quaternion } = await import('../src/core/babylon');
-      const { layAt, hoistAt, socketLocal, attachToShoulder, slideAt } = await import('../src/ai/carryPose');
+      const { TransformNode, Quaternion, Vector3 } = await import('../src/core/babylon');
+      const { layAt, hoistAt, socketLocal, attachToShoulder, slideAt, captureLying, SOCKET_YAW } = await import('../src/ai/carryPose');
       const hero = make(defaultLook());
       const body = make(grunt.look, grunt.height);
       const p = hero.p;
@@ -230,28 +277,52 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
       const sx = p.shoulderHalf * 0.75 * side;
       const sy = p.y.shoulder - chestY + 0.12;
       // the body lies across in front of the kneeling carrier (the step-in: 0.5 m from its chest)
+      // (fix round) a corpse lying as a ragdoll leaves it (knees and hips bent, an arm out), copied onto the carried rig
+      const corpse = make(grunt.look, grunt.height);
       const q0 = new Quaternion();
-      layAt(body, -0.15 * side, 0.12, CQ.liftSide, (side * Math.PI) / 2, q0);
-      const from = body.root.position.clone();
+      layAt(corpse, -0.15 * side, 0.12, CQ.liftSide, (side * Math.PI) / 2, q0);
+      Quaternion.RotationYawPitchRollToRef(0, -0.6, 0.1, corpse.hipL.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, 0.9, 0, corpse.kneeL.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, -0.3, -0.6, corpse.shoulderR.rotationQuaternion!);
+      const from = new Vector3();
+      const fromJ = Array.from({ length: 16 }, () => new Quaternion());
+      captureLying(corpse, body, q0, from, fromJ);
+      // no pop: every joint of the carried rig where the corpse's is
+      let pop = 0;
+      for (const k of ['hips', 'torso', 'headNode', 'kneeL', 'ankleL', 'wristR', 'ankleR'] as const) pop = Math.max(pop, dist(W(corpse[k] as unknown as Node), W(body[k] as unknown as Node)));
+      expect(pop, 'capture pop').toBeLessThan(0.02);
+      corpse.dispose();
       const sock = new TransformNode('sock', sc);
       sock.parent = hero.torso;
       const s = { th: 0, x: 0, y: 0, z: 0 };
       socketLocal(body, sx, sy, s);
-      sock.rotation.set(s.th, 0, 0);
+      sock.rotation.set(s.th, SOCKET_YAW, 0);
       sock.position.set(s.x, s.y, s.z);
       const lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0 };
       const dt = 1 / 60;
       let crouch = 1;
-      const r: Record<string, unknown> & { head: number; floor: number; torso: number } = { head: 9, floor: 9, torso: 9 };
+      const r: Record<string, unknown> & { head: number; floor: number; torso: number; legsUp: number; heroLegs: number } = { head: 9, floor: 9, torso: 9, legsUp: -9, heroLegs: 9 };
       const parts = [body.headNode, body.torso, body.hips, body.kneeL, body.kneeR, body.ankleL, body.ankleR];
       const check = (t: number): void => {
         const hh = W(hero.headNode as unknown as Node);
         const hip = W(hero.hips as unknown as Node);
         const nk = W(hero.neck as unknown as Node);
+        // the body's ankles never above its pelvis (legs kept down: they swung up across her chest)
+        const bh = W(body.hips as unknown as Node);
+        const lu = Math.max(W(body.ankleL as unknown as Node).y - bh.y, W(body.ankleR as unknown as Node).y - bh.y);
+        // (lying, before the hoist takes it, a bent knee may stand above the pelvis)
+        if ((lc.hoist > 0.15 || t > 3) && lu > r.legsUp) { r.legsUp = lu; r.legsAt = t.toFixed(2); }
+        // her legs (hip - knee - ankle) never through its trunk (pelvis to chest)
+        const bt = W(body.torso as unknown as Node);
+        for (const [a0, a1] of [[hero.hipL, hero.kneeL], [hero.kneeL, hero.ankleL], [hero.hipR, hero.kneeR], [hero.kneeR, hero.ankleR]] as const) {
+          const A0 = W(a0 as unknown as Node);
+          const A1 = W(a1 as unknown as Node);
+          for (let u = 0; u <= 1.001; u += 0.25) r.heroLegs = Math.min(r.heroLegs, segDist(A0.x + (A1.x - A0.x) * u, A0.y + (A1.y - A0.y) * u, A0.z + (A1.z - A0.z) * u, bh, bt));
+        }
         for (const nd of parts) {
           const b = W(nd as unknown as Node);
           r.head = Math.min(r.head, dist(b, hh));
-          r.floor = Math.min(r.floor, b.y);
+          if (b.y < r.floor) { r.floor = b.y; r.floorAt = [t.toFixed(2), parts.indexOf(nd)]; }
           // the carrier's trunk as a segment from the hips to the neck
           const dd = segDist(b.x, b.y, b.z, hip, nk);
           if (dd < r.torso) {
@@ -267,7 +338,7 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
         crouch = lc.crouch ? Math.min(1, crouch + dt / 0.22) : Math.max(0, crouch - dt / 0.25);
         hero.animate(dt, { speed: 0, localX: 0, localZ: 1, grounded: true, crouch, aimPitch: 0, aim: 0, kick: 0, armed: false, kneel: false, bend: lc.bend, bendDrop: lc.drop });
         if (lc.atBody) continue;
-        if (t < CQ.liftRise) hoistAt(body, from, q0, sock, lc.hoist);
+        if (t < CQ.liftRise) hoistAt(body, from, q0, fromJ, sock, side, lc.hoist);
         else if (body.root.parent !== hero.torso) attachToShoulder(body, hero.torso, sx, sy);
         check(t);
       }
@@ -282,6 +353,8 @@ describe('G7 close quarters: the real rigs (NullEngine), no clipping', () => {
       expect(r.head, JSON.stringify(r)).toBeGreaterThan(0.17);
       expect(r.floor, JSON.stringify(r)).toBeGreaterThan(0.02);
       expect(r.torso, JSON.stringify(r)).toBeGreaterThan(0.1);
+      expect(r.legsUp, JSON.stringify(r)).toBeLessThan(0.05);
+      expect(r.heroLegs, JSON.stringify(r)).toBeGreaterThan(0.15);
     });
   }
 });

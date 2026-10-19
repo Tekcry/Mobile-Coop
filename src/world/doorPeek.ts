@@ -16,8 +16,12 @@ export const DOOR_PEEK = {
   /** The door's face within this of the body (m) and the body facing it within `cone` (rad, 60 deg). */
   reach: 1.0,
   cone: Math.PI / 3,
-  /** Settle onto the frame (s). */
-  settle: 0.25,
+  /** Settle onto the frame (s). (G6, AUDIT-WALLS row 14, 052349 @ 13.6-18.6: picked 14.1, the step to the latch side
+   *  and the hand up 14.4-14.8, the camera in at about 15.0, the leaf starts about 15.6: 1.5 s after the pick; ours
+   *  cracked 0.25 s after it) `settle` 0.25 -> 0.5, then `crackDelay` s with the hand on the handle and the view moving
+   *  in before the crack (0.7: the leaf at 1.2 s, short of CT's 1.5 so the co-op suites' waits keep their slack). */
+  settle: 0.5,
+  crackDelay: 0.7,
   /** Stick pulled back held this long closes (s); pushed in past `push` opens. */
   backHold: 0.2,
   back: -0.5,
@@ -143,7 +147,7 @@ export function hostCrackOk(d: PeekDoor, fx: number, fz: number, on: boolean): b
   return !d.anchor.locked && hyp2(d.cx - fx, d.cz - fz) <= DOOR_PEEK.hostReach;
 }
 
-export type DoorPeekPhase = 'off' | 'settle' | 'crack' | 'peek' | 'closing';
+export type DoorPeekPhase = 'off' | 'settle' | 'ready' | 'crack' | 'peek' | 'closing';
 
 /** One step's input, door-relative. */
 export interface DoorPeekInput {
@@ -180,7 +184,9 @@ export class DoorPeekCore {
 
   /** The view at the crack (0..1): in through the crack, out while closing. */
   view(): number {
-    if (this.phase === 'crack') return Math.min(1, this.t / DOOR_CRACK.crackTime);
+    // (G6) the view moves in before the leaf (CT: the camera at the door 0.6 s before the crack)
+    if (this.phase === 'ready') return Math.min(1, this.t / DOOR_PEEK.crackDelay);
+    if (this.phase === 'crack') return 1;
     if (this.phase === 'peek') return 1;
     if (this.phase === 'closing') return Math.max(0, 1 - this.t / DOOR_CRACK.closeTime);
     return 0;
@@ -229,6 +235,17 @@ export class DoorPeekCore {
           this.t = 0;
           return PEEK_ACT.none;
         }
+        this.phase = 'ready';
+        this.t = 0;
+      }
+      return PEEK_ACT.none;
+    }
+    if (this.phase === 'ready') {
+      if (i.context) {
+        this.reset();
+        return PEEK_ACT.none;
+      }
+      if (this.t >= DOOR_PEEK.crackDelay - 1e-6) {
         this.phase = 'crack';
         this.t = 0;
         return PEEK_ACT.crackOn;

@@ -23,6 +23,10 @@ const G7 = {
 };
 const G7_PRESS = "a.input.state.tap('interact');";
 const G7_PICK = (i) => `g.grabMenu.sel = ${i}; a.input.state.tap('interact');`;
+/** (CT prototype G6) The Proving shed door: the body 0.8 m in front of it on its push side (or the pull side), facing it;
+ *  the Open pick runs the door-open move directly (the menu's own input is G5's). */
+const G6_DOOR = (pull) => `const d = g.world.doors.list[0]; const an = d.anchor; const nx = Math.cos(an.yaw); const nz = -Math.sin(an.yaw); const side = ${pull ? 1 : -1} * an.swing; const V = g.player.position.constructor; const yaw = Math.atan2(-nx * side, -nz * side); g.player.controller.teleport(new V(d.cx + nx * side * 0.8, an.hinge.y + 0.05, d.cz + nz * side * 0.8), yaw); g.player.cam.yaw = yaw; g.player.cam.pitch = 0;`;
+const G6_OPEN = "g['startDoorOpen'](0, () => g.world.doors.open(g.world.doors.list[0], 'quiet'));";
 
 /** Scenario: setup (once) and per-frame input (time t in s since the first frame). */
 const SCENARIOS = {
@@ -37,6 +41,13 @@ const SCENARIOS = {
   lift: { ...G7, pre: 2.75, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({}) },
   carrywalk: { ...G7, pre: 5.0, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({ y: 1 }) },
   carrydrop: { ...G7, pre: 5.0, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({}), at: { 0: "a.input.state.tap('interact');" } },
+  // (CT prototype G6, AUDIT-WALLS row 4) the normal door open: the step to the latch side, the hand on the leaf, the swing
+  dooropen: { pre: 0.6, at0: G6_DOOR(false), input: () => ({}), at: { 0: G6_OPEN } },
+  dooropenpull: { pre: 0.6, at0: G6_DOOR(true), input: () => ({}), at: { 0: G6_OPEN } },
+  // (G6, rows 1 / 18) crouched on the wall and sliding: the side-on crouch-walk with the hand on the knee, and the reversal
+  wallcrouchslide: { wall: { low: false, k: 2.5 }, pre: 1.8, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');" }, input: (t) => ({ x: t < 0.7 ? 1 : t < 1.4 ? -1 : 0 }) },
+  // (G6, row 12) aiming at a wall 0.45 m in front: the rifle up muzzle-high
+  aimwall: { wall: { low: false, k: 2.5, out: 0.45 }, pre: 0.6, input: () => ({ ads: true }) },
   walk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
   jog: { pos: [-8, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }) },
   sneak: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.4 }, input: () => ({ y: 0.4 }), at0: "a.input.state.tap('crouch');" },
@@ -78,17 +89,18 @@ const SCENARIOS = {
   wallcrouch: { wall: { low: false, k: 2.5 }, pre: 1.8, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');" }, input: () => ({}) },
   wallslide: { wall: { low: false, k: 2.5 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t < 1.2 ? 1 : 0 }) },
   wallslideleft: { wall: { low: false, k: -2.5 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t < 1.2 ? -1 : 0 }) },
-  walledge: { wall: { low: false, k: -1.2 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: () => ({ x: 1 }) },
-  walledgeleft: { wall: { low: false, k: 1.2 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: () => ({ x: -1 }) },
+  // (G6) the slide is 0.35 m/s now: the warm-up slides 2.4 s toward the edge (it stopped short of it at 1.2 s)
+  walledge: { wall: { low: false, k: -1.2 }, pre: 3.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 ? 1 : 0 }), input: () => ({ x: 1 }) },
+  walledgeleft: { wall: { low: false, k: 1.2 }, pre: 3.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 ? -1 : 0 }), input: () => ({ x: -1 }) },
   // (PC1) at the edge (slid there in the warm-up, stick released), then aim: the lean-out with its edge grip
-  walledgeaim: { wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({ ads: true }) },
-  walledgeleftaim: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
-  walledgeaimp: { weapon: 'pistol', wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({ ads: true }) },
-  walledgeleftaimp: { weapon: 'pistol', wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
+  walledgeaim: { wall: { low: false, k: -1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? 1 : 0 }), input: () => ({ ads: true }) },
+  walledgeleftaim: { wall: { low: false, k: 1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? -1 : 0 }), input: () => ({ ads: true }) },
+  walledgeaimp: { weapon: 'pistol', wall: { low: false, k: -1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? 1 : 0 }), input: () => ({ ads: true }) },
+  walledgeleftaimp: { weapon: 'pistol', wall: { low: false, k: 1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? -1 : 0 }), input: () => ({ ads: true }) },
   // (F4) at each edge (slid there in the warm-up, stick released), the camera swung one way then the other: the body
   // leans only to the open side, the camera slides past the edge as the look turns toward it
-  walledgelook: { wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
-  walledgeleftlook: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
+  walledgelook: { wall: { low: false, k: -1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? 1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
+  walledgeleftlook: { wall: { low: false, k: 1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? -1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
   lowwall: { wall: { low: true, k: 0.8 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t > 0.6 && t < 1.2 ? 1 : 0 }) },
   aim: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ ads: true }) },
   // (CT prototype G2, AUDIT-AIM row 18) the aim walk forward and the aimed strafe: head and gun hold still in CT (050541)
@@ -143,7 +155,8 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon, y0 }) => {
     }
     if (!found) throw new Error(`no free ${wall.low ? 'low' : 'high'} wall on Proving`);
     const k = wall.k < 0 ? found.len + wall.k : wall.k;
-    pos = [found.ax + found.tx * k + found.nx * 0.75, found.az + found.tz * k + found.nz * 0.75];
+    const out = wall.out ?? 0.75;
+    pos = [found.ax + found.tx * k + found.nx * out, found.az + found.tz * k + found.nz * out];
     yaw = Math.atan2(-found.nx, -found.nz);
     y = found.y + 0.05;
   }

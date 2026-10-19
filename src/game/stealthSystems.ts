@@ -1,7 +1,7 @@
 import { TransformNode, Vector3 } from '../core/babylon';
 import type { MoveOverride } from '../player/playerController';
 import { CQ, dropCurve, liftCurve, type DropState, type LiftState } from './closeQuarters';
-import { socketLocal } from '../ai/carryPose';
+import { SOCKET_YAW, socketLocal } from '../ai/carryPose';
 import type { Body } from '../ai/body';
 import { BODY } from '../ai/bodies';
 import { ALARM, type AlarmPanel } from '../ai/alarm';
@@ -240,6 +240,9 @@ export class StealthSystems {
     const c = g.player.controller;
     this.carry = b;
     this.liftT = 0;
+    // (G7 fix round) CT stands up with the body: a crouch toggle from before the lift is cleared (one pressed while
+    // carrying stays)
+    c.standUp();
     this.hoisting = false;
     const it = this.bodyIts.get(b);
     if (it) this.ints.setEnabled(it, false);
@@ -613,7 +616,7 @@ export class StealthSystems {
         rig.reachL.w = w * 0.9;
         return;
       }
-      if (this.hoisting) b.hoist(this.socketNode(b), lc.hoist);
+      if (this.hoisting) b.hoist(this.socketNode(b), this.carrySide, lc.hoist);
     } else if (this.dropT >= 0) {
       b.slide(this.shoulderX(), this.shoulderY(), this.dc.slide);
       w = this.dc.hands;
@@ -649,7 +652,7 @@ export class StealthSystems {
     const view = b.view;
     if (view) {
       socketLocal(view, this.shoulderX(), this.shoulderY(), this.sockL);
-      n.rotation.set(this.sockL.th, 0, 0);
+      n.rotation.set(this.sockL.th, SOCKET_YAW, 0);
       n.position.set(this.sockL.x, this.sockL.y, this.sockL.z);
     }
     return n;

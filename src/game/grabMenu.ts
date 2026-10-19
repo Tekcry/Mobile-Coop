@@ -1,14 +1,17 @@
 /**
- * (CT prototype A4, G23, G43, G180) The Chaos Theory grab menu, Babylon-free. The ground takedown button grabs a guard
- * from behind; while holding him this short list opens in the HUD: Knock out, Kill, Carry (knock out and shoulder the
- * body), Interrogate (G7: the free hand at his jaw for 1.5 s, the hold goes on) and the stub Force to device (no scanner
- * hook yet). The game reads `pick()` and
- * acts; the HUD draws `labels()`. Stub entries do nothing but say so (the menu stays open).
+ * (CT prototype A4, G23, G43, G180; G5) The Chaos Theory grab options, Babylon-free. Since G5 they are the rows of
+ * the one context menu (`contextMenu.ts`) while a guard is held: Knock out, Kill, Carry (knock out and shoulder the
+ * body), the stub Force to device (no scanner hook yet) and Interrogate (G7: the free hand at his jaw for 1.5 s, the
+ * hold goes on). Hold A, pick, let go; B (crouch) or Y lets the guard go. The game reads the run row and acts.
  */
 
 import type { ButtonAction } from '../input/actions';
+import { CTX_BACK, type ContextMenu } from './contextMenu';
 
 export type GrabOpt = 'knockout' | 'kill' | 'carry' | 'device' | 'interrogate';
+
+/** The row kind of the grab set in the context menu. */
+export const GRAB_KIND = 'grab';
 
 export const GRAB_OPT_LABEL: Readonly<Record<GrabOpt, string>> = {
   knockout: 'Knock out',
@@ -25,31 +28,42 @@ export function grabOptReady(o: GrabOpt): boolean {
 
 export const GRAB_OPTS: readonly GrabOpt[] = ['knockout', 'kill', 'carry', 'device', 'interrogate'];
 
-export class GrabMenu {
-  open = false;
-  sel = 0;
+/** Add the grab set to the menu (`ref` = the index in `GRAB_OPTS`). */
+export function addGrabRows(m: ContextMenu): void {
+  for (let i = 0; i < GRAB_OPTS.length; i++) {
+    const o = GRAB_OPTS[i]!;
+    m.add(GRAB_KIND, o, i, GRAB_OPT_LABEL[o]);
+  }
+}
+
+/** (F1b) What the held-guard list passes through to the player while it is not held open: the draw / aim / fire
+ *  actions (the move is copied too). */
+export const GRAB_PASS: readonly ButtonAction[] = ['ads', 'draw', 'fire', 'altFire', 'reload', 'zoom', 'shoulderSwap'];
+
+/**
+ * (G5) The grab set as seen from outside (tests, tools): `open` while the grab rows are listed (passive or held),
+ * `sel` the highlighted grab option; writing `sel` opens the list latched on that row (the next A press runs it).
+ */
+export class GrabMenuView {
   readonly opts: readonly GrabOpt[] = GRAB_OPTS;
+  constructor(private m: ContextMenu) {}
 
-  show(): void {
-    this.open = true;
-    this.sel = 0;
+  get open(): boolean {
+    return this.m.state !== 'none' && this.m.has(GRAB_KIND);
   }
 
-  move(dir: number): void {
-    if (!this.open) return;
-    this.sel = (this.sel + (dir > 0 ? 1 : -1) + this.opts.length) % this.opts.length;
+  get sel(): number {
+    const m = this.m;
+    if (m.state !== 'active' || m.sel === CTX_BACK) return 0;
+    const o = m.opts[m.sel];
+    return o && o.kind === GRAB_KIND ? o.ref : 0;
   }
 
-  /** The highlighted option. A working option closes the menu; a stub leaves it open and is returned for its message. */
-  pick(): GrabOpt | null {
-    if (!this.open) return null;
-    const o = this.opts[this.sel] ?? null;
-    if (o && grabOptReady(o)) this.close();
-    return o;
-  }
-
-  close(): void {
-    this.open = false;
+  set sel(i: number) {
+    const o = GRAB_OPTS[i];
+    if (!o) return;
+    const at = this.m.find(GRAB_KIND, o, i);
+    if (at >= 0) this.m.select(at);
   }
 
   labels(out: string[] = []): string[] {
@@ -57,26 +71,4 @@ export class GrabMenu {
     for (const o of this.opts) out.push(GRAB_OPT_LABEL[o]);
     return out;
   }
-}
-
-
-/** (F1b) What the held-guard menu passes through to the player: the draw / aim / fire actions (the move is copied too). */
-export const GRAB_PASS: readonly ButtonAction[] = ['ads', 'draw', 'fire', 'altFire', 'reload', 'zoom', 'shoulderSwap'];
-
-/** The slice of the input a menu step reads. */
-export interface MenuNavInput {
-  pressed(a: ButtonAction): boolean;
-  readonly move: { readonly x: number; readonly y: number };
-}
-
-/**
- * (F1b) The menu selection step, +1 down / -1 up / 0 none. D-pad up / down (the speed actions: also the wheel and = / -)
- * always move the pick. The stick / arrow taps (`uiUp` / `uiDown`) move it only when the operator is not walking
- * (`walking` menus: the held-guard menu keeps the stick for walking, so a pushed stick never also navigates).
- */
-export function menuNavDir(inp: MenuNavInput, walking: boolean): number {
-  const still = !walking || Math.abs(inp.move.x) + Math.abs(inp.move.y) < 0.25;
-  if (inp.pressed('speedDown') || (still && inp.pressed('uiDown'))) return 1;
-  if (inp.pressed('speedUp') || (still && inp.pressed('uiUp'))) return -1;
-  return 0;
 }

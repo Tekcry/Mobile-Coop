@@ -62,6 +62,10 @@ export const GRAB = {
   /** The hostage held this far in front, pelvis to pelvis (m; row 11: about 0.3 m, was 0.42 held loose); the sidearm's
    *  spread while holding (x). */
   hold: 0.32,
+  /** (G7 fix round) ...and this far to the operator's side (m, + right): his feet walk between hers (straight in front
+   *  the two pairs of feet shared their lanes and her lead foot met his rear leg; tests/g7CloseQuarters sweeps the gait
+   *  phases). To her left: her right (pistol) side stays clear. */
+  side: -0.1,
   spreadMul: 1.2,
   /** (G43, row 21: kill from the hold is not in the footage) The lethal finisher from the hold (s), kept. */
   killTime: 0.5,

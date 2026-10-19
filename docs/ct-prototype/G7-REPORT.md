@@ -71,8 +71,8 @@ e2e-stealth-ai, e2e-stealth, e2e-ct pass; on the final build e2e-takedown, e2e-s
   NullEngine check in phase passes at >= 0.1 m; the live gaits are out of phase). The hostage can still be pushed into
   a wall at 0.32 m (he is not solid to the operator, as before).
 - Left-shoulder carries exist (a body lying head to the left); CT only shows the right.
-- The carried body's drape is the 3.2.0 pose (kept): in `carrywalk-side` its legs hang behind the carrier; CT's fireman's
-  carry hangs the legs down the front and the head down the back. Worth swapping in a follow-up (`carryPose.ts`).
+- (Fix round) The carried body now faces Wren with its hips flexed over her shoulder (the 3.2.0 drape faced away in a
+  back-bend). Its arms still swing out level for a moment mid-hoist (~1.2 s in `lift-side`) before they hang.
 - Black spheres appeared near a settled ragdoll in the `carrydrop` debug sheet after landing (not seen in the final
   sheet; possibly ragdoll or debug geometry): worth a look in a render.
 - Carry camera unchanged; the partner sees no carry.
@@ -95,3 +95,39 @@ e2e-stealth-ai, e2e-stealth, e2e-ct pass; on the final build e2e-takedown, e2e-s
   e2e-netmove (MoveState), plus the slice tier (`e2e:quick`, e2e-ctcourse) and `npm run check` before the commit.
 - Checker focus: no allocation added per frame (closures and objects are preallocated; the old per-step `override`
   objects and per-frame emote objects are gone from the grab path), the host / client grab parity, and the stale sheets.
+
+## Fix round (2026-10-20, after the independent check PASS at 1b161338)
+All in the takedown / grab / carry files; G6's wall / door edits in the same files were left alone.
+1. **Put down** (`carrydrop`): the body slips 0.32 m out to the carry side with its legs kept folded over the shoulder
+   (`slideAt`; unfolding them swung the legs out level), then the ragdoll takes it. A crouch toggle left from before the
+   lift is cleared at pick-up (`c.standUp()`, as CT stands up with the body); one pressed while carrying stays.
+2. **Lift**: no pop at 0.8 s: the carried rig copies the corpse's pose as it lies (`captureLying`, joint by joint). The
+   hoist is two halves (`hoistAt`): drawn up off the floor to hang upright against her front, legs down (0-0.5), then
+   tipped over her shoulder with the hips folding so the legs go down her front (0.5-1). The feet never go under the
+   floor (`hoistAt` lifts the root by any shortfall). The carry drape now faces her with the hips flexed (`SOCKET_YAW`,
+   hips -2.37 rad; the 3.2.0 pose faced away in a 136 deg back-bend), its torso hanging ~0.3 rad behind vertical
+   (`CARRY_TILT` 0.35 -> 0.08 on top of her 0.38 rad bend; 0.35 laid it out near flat behind her).
+3. **Hostage walk**: the guard is held 0.1 m to her left (`GRAB.side`; owner, co-op host and remote hands alike). In the
+   NullEngine sweep of 8 gait phases between them, straight in front the shins and feet centre lines met (1-3 mm); offset,
+   they stay >= 8.7 cm apart (ankle radii 7 cm). Forward offsets made no difference. The 0.1 m wide soles may still graze
+   by about 1.5 cm when they are exactly level.
+4. **Client view of a host knockout**: the client's puppet of the host's hostage is posed from the host avatar's
+   MoveState (`RemoteAvatar.holdTid / holdPh / holdSub` -> `CoopClient` -> `EnemyPuppet.remoteHeld`). It now shows the
+   hostage hold, interrogation and kill, and is lowered with the knockout's own phase. Before, it stood normally and only
+   crouched when the snapshot's crouch bit flipped at half way. No wire change.
+5. `EnemyPuppet` keeps its rifle and hides it while seized or held, shown again on release or denial (as `Enemy`).
+6. Not done: the guard's fists on the forearm (front view). He has FK arms only; putting the hands on her forearm needs
+   hand IK on the guard rig plus a guard rifle without hands. His hands stay up at chin height, about 0.1 m ahead of the
+   forearm.
+
+Tests: `tests/g7CloseQuarters.test.ts` 13 pass: new leg test over 8 phases; hoist checks for no capture pop (< 2 cm),
+ankles never above the pelvis once lifting, Wren's legs >= 0.15 m from its trunk through the hoist and the slide.
+`scripts/e2e-takedown.mjs`: the hostage's spot now includes the 0.1 m side offset.
+Checks: tsc and eslint clean on these files; vitest g7 / takedown / grabMenu / net / netSim / moveState pass in a G7-only
+copy. In the shared tree `tests/grabMenu.test.ts`, `tests/net.test.ts` and `npm run build` fail on the concurrent G5 / G6
+menu and wall edits (`doorMenu` / `grabMenu` exports, the wall lean), not on G7. So the build, e2e and sheets ran from a
+G7-only copy (HEAD 1b161338 plus these fix-round files, in the scratchpad): build ok; e2e-takedown and e2e-stealth-ai
+pass on port 4195. Sheets re-rendered from it: `holdwalk` (side, front34), `holdidle-front34`, `lift` (side, front34),
+`carrywalk-side`, `carrydrop` (side, front34). `dist/` in the shared tree is not rebuilt.
+Job lead: once G5 / G6 settle, `npm run build` in the shared tree and run e2e-takedown, e2e-stealth-ai, e2e-coop and
+e2e-netmove (the puppet and host changes).

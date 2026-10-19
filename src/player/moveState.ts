@@ -8,6 +8,7 @@
  */
 import type { TraverseKind } from '../anim/animGraph';
 import { CLIMB_UP_CROUCH_K } from '../anim/clips/traverse';
+import { WALL } from './wallController';
 
 /** Every mode on the wire, in a fixed order (an index is a u8). Later phases append, never reorder. */
 export const MOVE_MODES = [
@@ -293,7 +294,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       if (peek > 0 && mv.sub & (4 | 8)) {
         const side = mv.sub & 4 ? -1 : 1;
         const pe = peek * peek * (3 - 2 * peek);
-        out.lean = side * 0.45 * pe;
+        // (G6) the owner's `rigLean` (WALL.peekLean, AUDIT-WALLS row 9)
+        out.lean = side * WALL.peekLean * pe;
       }
       // (step 12b, D9) the open-left weapon hand (only with the left edge bit)
       out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;

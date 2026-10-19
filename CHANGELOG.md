@@ -1,6 +1,24 @@
 # Changelog
 
 ## Unreleased - ct-prototype
+- G5 the hold-A action menu (`docs/ct-prototype/G5-REPORT.md`, Michael: "requires holding A and selecting which option you
+  would like to proceed with, including returning to game (no action). I want it to be identical."): with anything in
+  reach a list sits top right under INTERACT; holding A turns the header to BACK TO GAME with row 1 highlighted, the
+  stick / D-pad (wheel or W / S on keyboard and mouse) moves it, and releasing A runs that row (BACK TO GAME does
+  nothing); a quick tap runs row 1; rows with a hold time (hacks, medkits, alarms, revive) fill while A stays on them.
+  One menu replaces the separate door and grab menus; doors list OPEN DOOR, OPEN DOOR STEALTH, BASH DOOR, OPTIC CABLE.
+- G6 walls, corners and doors (`docs/ct-prototype/G6-REPORT.md`, against the CT footage): crouched on a wall Wren turns
+  side-on toward where she is going and crouch-walks along it bent over her knees with a hand on her knee (Michael: "holds
+  knee when up against wall"), turning through facing out when she reverses (0.45 s); standing she sinks into a
+  semi-crouch and turns her chest and head toward the slide; wall slides are 0.35 m/s standing (was 0.47) and 0.5 m/s
+  crouched (was 0.41) at the spawn gear; the turn onto a wall is quick at first; at a wall edge the peek is a small lean
+  with the hips and body stepping out, so the head ends just past the frame (it stopped short); aiming at a wall half a
+  metre away brings the rifle up muzzle-high; low cover uses the same side-on crouch. Doors: Open from the door menu is
+  a short move (a step to the latch side, a hand on the door, the door opening 0.8 s after the pick), the leaf swings
+  fast then eases to 88 deg (was a slow start to 100); Stealth open steps in and holds the handle before the crack
+  (1.2 s after the pick, was 0.25 s) and the stick opens it a little slower; guards push doors open in 0.4 s (was 0.7)
+  and a door a guard opened swings shut in 0.35 s. Co-op: the partner's copy poses the same from the existing wall
+  state (no wire change).
 - G7 grab, hold, knockout and carry (`docs/ct-prototype/G7-REPORT.md`, against the CT footage): the grab from behind
   steps in over 0.42 s (rising out of a crouch, legs stepping) and pulls the guard back against the chest over 0.6 s
   before the hold and its menu (~1 s, CT ~1-1.2 s); the guard struggles from the contact, not the press, his rifle out

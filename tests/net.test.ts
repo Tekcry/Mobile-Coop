@@ -665,7 +665,8 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
   });
   it('the peek bit poses the rig lean toward the edge side; the old lean bit (32) poses nothing', () => {
     const p = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 16 | 4 }, 0, emptyMovePose());
-    expect(p.lean).toBeCloseTo(-0.45, 6);
+    // (G6, AUDIT-WALLS row 9, 052021: CT leans 10-15 deg) the owner's WALL.peekLean 0.45 -> 0.2
+    expect(p.lean).toBeCloseTo(-0.2, 6);
     const q = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 32 | 8, r: 1 }, 0, emptyMovePose());
     expect(q.lean).toBe(0);
   });

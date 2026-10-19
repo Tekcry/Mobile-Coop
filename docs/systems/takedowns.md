@@ -5,7 +5,9 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
 ## Decided direction
 - Decided, not built yet (G43, G23): the ground takedown button grabs first; from CT's grab menu the player then chooses
   knock out, kill or (later) interrogate. No stealth / kill selector. Drop, ledge, window and pipe takedowns keep tap /
-  hold. Code: a grab from behind exists (below); other ground takedowns decide by tap / hold at the press.
+  hold. Code: a grab from behind exists (below); (ct-prototype G5) other ground takedowns go through the hold-A action
+  menu (`src/game/contextMenu.ts`): holding A lists KNOCK OUT / KILL with BACK TO GAME, releasing runs the highlighted
+  row, a quick tap runs row 1 (no tap / hold lethality any more).
 - Decided, not built yet (G42, loco M20 Q4 / Q4b, M25 (5)): the close strike is a palm strike, a one-hit knockout from any
   side on every human guard, recovery about 1.4 s; dogs cannot be palm-struck. How heavies are taken out follows the CT
   co-op research (G49). Code: the elbow strike below (aware facing guards and heavies from the front only stagger).
@@ -35,7 +37,7 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
 
 ## Grab and hostage (3.2.0 phase 4; CT prototype G7)
 - `GRAB` (G7, AUDIT-WALLS rows 5, 11: `approach` 0.42 s step-in, `pull` 0.6 s pull-in, `speedCap` 0.75 m/s, hostage held
-  `hold` 0.32 m in front, `killTime` 0.5 s; sidearm spread x1.2, shove stagger 1 s, guards hesitate 1.5 s), `GRAB_KINDS`
+  `hold` 0.32 m in front and `side` 0.1 m to her left (her feet between his), `killTime` 0.5 s; sidearm spread x1.2, shove stagger 1 s, guards hesitate 1.5 s), `GRAB_KINDS`
   (`behind`), `contactDelay` (when the victim's struggle starts: the plan's approach, derived from where the attacker
   stands, so the co-op host poses a client's victim alike). `TakedownController` grab (`active.grab`): stage 0 the
   step-in (kinematic override, `crouch: false`, the legs step from the measured speed: `pose.freeGait`), stage 1 the

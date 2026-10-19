@@ -350,8 +350,8 @@ export class TakedownController {
       const k = ease((a.t - plan.approach) / GRAB.pull);
       const fx = Math.sin(plan.faceYaw);
       const fz = Math.cos(plan.faceYaw);
-      const hx = plan.alignX + fx * GRAB.hold;
-      const hz = plan.alignZ + fz * GRAB.hold;
+      const hx = plan.alignX + fx * GRAB.hold + fz * GRAB.side;
+      const hz = plan.alignZ + fz * GRAB.hold - fx * GRAB.side;
       const dy = gr.vYaw0 + wrapPi(plan.faceYaw - gr.vYaw0) * k;
       e.holdAt(a.vFrom.x + (hx - a.vFrom.x) * k, a.vFrom.y, a.vFrom.z + (hz - a.vFrom.z) * k, dy);
       this.bend = CQ.holdBend * k;
@@ -370,7 +370,7 @@ export class TakedownController {
     const fx = Math.sin(c.yaw);
     const fz = Math.cos(c.yaw);
     const sw = holdSway(gr.holdT, 1 - Math.min(1, c.speed / 0.3));
-    e.holdAt(c.pos.x + fx * GRAB.hold + fz * sw, c.pos.y, c.pos.z + fz * GRAB.hold - fx * sw, c.yaw);
+    e.holdAt(c.pos.x + fx * GRAB.hold + fz * (sw + GRAB.side), c.pos.y, c.pos.z + fz * GRAB.hold - fx * (sw + GRAB.side), c.yaw);
     this.bend = CQ.holdBend;
     this.sway = sw;
     if (gr.strikeT >= 0) {

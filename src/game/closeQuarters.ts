@@ -383,13 +383,13 @@ const NOMINAL = proportions('average', 1.78);
  * the right hand on his right shoulder. The owner reads the guard's own neck and shoulder (`TakedownController`); the
  * guard stands `hold` m in front, leaning back, so these sit within a few cm of the owner's.
  */
-export function holdHandsLocal(hold: number, outL: { x: number; y: number; z: number }, outR: { x: number; y: number; z: number }): void {
+export function holdHandsLocal(hold: number, side: number, outL: { x: number; y: number; z: number }, outR: { x: number; y: number; z: number }): void {
   const p = NOMINAL;
   // his neck leans back ~0.04 m with the hostage chest pose
-  outL.x = 0.08;
+  outL.x = side + 0.08;
   outL.y = p.y.neck - 0.06;
   outL.z = hold - 0.04 + 0.08;
-  outR.x = p.shoulderHalf;
+  outR.x = side + p.shoulderHalf;
   outR.y = p.y.shoulder + 0.03;
   outR.z = hold - 0.06;
 }

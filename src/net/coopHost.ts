@@ -1063,7 +1063,9 @@ export class CoopHost implements NetAttachment {
             e.holdAsHostage();
             e.setSolid(false);
           }
-          e.holdAt(by.feet.x + Math.sin(yaw) * GRAB.hold, by.feet.y, by.feet.z + Math.cos(yaw) * GRAB.hold, yaw);
+          const sy = Math.sin(yaw);
+          const cy = Math.cos(yaw);
+          e.holdAt(by.feet.x + sy * GRAB.hold + cy * GRAB.side, by.feet.y, by.feet.z + cy * GRAB.hold - sy * GRAB.side, yaw);
           // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
           else if (mv.ph > 0 && !(mv.sub & 1)) {

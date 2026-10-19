@@ -71,6 +71,11 @@ export interface RigPose {
   wallNx?: number;
   wallNz?: number;
   wallFace?: number;
+  /** (G6) How far the posed body is turned off facing out from the wall (|sin|, 0 square .. 1 side-on: the crouched
+   *  side-on stance, AUDIT-WALLS row 1). */
+  wallTurn?: number;
+  /** (G6) A wall right in front of the raised weapon (0..1, `wallBlockK`). */
+  wallBlock?: number;
   /** Lean around an edge (-1 left .. 1 right), hips planted. */
   lean?: number;
   /** (step 12b, D10) World height the head centre stays under (a low-wall side lean: the wall top); unset = none.
@@ -296,6 +301,10 @@ const HOLSTER_ELBOW_OUT = 0.8;
 const HOLSTER_OUT_RATE = 8;
 /** (step 21) Scratch body-space point for the ready-hands shoulder. */
 const readyShTmp = { x: 0, y: 0, z: 0 };
+/** (G6, AUDIT-WALLS row 18) The knee hand: the wrist this far (m) over the knee joint and ahead of it along the body
+ *  (the palm on the kneecap, fingers over the front); the wall-side wrist `shin` of the way from knee to ankle and
+ *  `shinFwd` m in front of the shin. Starting values (to check on the contact sheets). */
+const KNEE_HAND = { up: 0.09, fwd: 0.03, shin: 0.45, shinFwd: 0.12 };
 const legHint = new Vector3();
 const legPole = new Vector3();
 /**
@@ -750,6 +759,8 @@ export class CharacterRig {
   private restShift = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
   private readyRf = 0;
+  /** (G6) The graph's knee hand this frame (RigTargets.kneeHand: signed side x weight). */
+  private kneeHandW = 0;
   /** (BC note 2) Aim raise weight this frame (tucks the elbows). */
   private aimK = 0;
   private readySh: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
@@ -1302,6 +1313,8 @@ export class CharacterRig {
     i.landing = s.landing ?? 0;
     i.wall = s.wall ?? false;
     i.wallSide = s.wallSide ?? 0;
+    i.wallTurn = s.wallTurn ?? 0;
+    i.wallBlock = s.wallBlock ?? 0;
     i.lean = s.lean ?? 0;
     this.headCap = s.headCap;
     // (ct-prototype D+E fix r1) a climbUp that starts with the hands on world grips (a ledge / drainpipe hang, local or a
@@ -1916,6 +1929,7 @@ export class CharacterRig {
     const leftGrips = this.handBlend > 0.5;
     // (locomotion step 21, M14) the ready hands hang from the real shoulders (the rig's own pelvis drop, head cap, twist)
     this.readyRf = t.readyFollow;
+    this.kneeHandW = t.kneeHand;
     this.aimK = t.aimW;
     this.readySh = t.readyShoulder;
     // (fix 21-2) the holster-out elbow eases with the gear (a draw clears thighGear while the hands still hang)
@@ -2050,6 +2064,24 @@ export class CharacterRig {
       target.x += (S.x - tmpF.x) * this.readyRf;
       target.y += (S.y - tmpF.y) * this.readyRf;
       target.z += (S.z - tmpF.z) * this.readyRf;
+    }
+    // (G6, AUDIT-WALLS row 18) crouched side-on at a wall: the open-side hand rests on the top of its posed knee (the wrist
+    // KNEE_HAND.up over the joint, a little ahead), the wall-side hand low by its shin, clear in front of it
+    const kh = this.kneeHandW;
+    if (kh !== 0) {
+      const own = (kh > 0 ? 1 : -1) === side;
+      const knee = side > 0 ? this.kneeR : this.kneeL;
+      const ankle = side > 0 ? this.ankleR : this.ankleL;
+      fresh(knee);
+      fresh(ankle);
+      const kp = knee.getAbsolutePosition();
+      const fwd = this.dirToWorld(0, 0, 1, tmpPole);
+      if (own) tmpC.set(kp.x + fwd.x * KNEE_HAND.fwd, kp.y + KNEE_HAND.up, kp.z + fwd.z * KNEE_HAND.fwd);
+      else {
+        const ap = ankle.getAbsolutePosition();
+        tmpC.set(kp.x + (ap.x - kp.x) * KNEE_HAND.shin + fwd.x * KNEE_HAND.shinFwd, kp.y + (ap.y - kp.y) * KNEE_HAND.shin, kp.z + (ap.z - kp.z) * KNEE_HAND.shin + fwd.z * KNEE_HAND.shinFwd);
+      }
+      Vector3.LerpToRef(target, tmpC, Math.min(1, Math.abs(kh)), target);
     }
     if (gripW > 0 && this.heldWeapon) {
       const m = this.heldWeapon.getWorldMatrix();

@@ -1,5 +1,5 @@
 // Takedowns on the night Warehouse (Clear rules): ground behind / front / side (side only on a
-// calm guard), tap = non-lethal (knocked out) / hold = lethal, the attacker aligned within 5 cm, interrupted by
+// calm guard), (G5) the context menu's KNOCK OUT (a tap of A) / KILL (hold A, down, let go), the attacker aligned within 5 cm, interrupted by
 // damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
 // from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
@@ -52,6 +52,18 @@ try {
         if (hold > 0) a.loop.stepHeadless(hold, 120);
         st.set('t', 'interact', false);
       },
+      /** (G5) Hold A (the context menu opens on row 1), step the highlight `rows` down, let go (the row runs). */
+      menu(rows) {
+        st.set('t', 'interact', true);
+        a.loop.stepHeadless(1 / 60, 120);
+        for (let i = 0; i < rows; i++) {
+          st.tap('uiDown');
+          a.loop.stepHeadless(1 / 60, 120);
+        }
+        st.set('t', 'interact', false);
+        a.loop.stepHeadless(1 / 60, 120);
+        return g.ctxMenu.state;
+      },
       /** (A4) With the grab menu open: select `opt` and press A (the menu arms once A is up). */
       pick(opt) {
         const m = g.grabMenu;
@@ -101,7 +113,7 @@ try {
       t.pick('knockout');
       t.run(1.0);
       const ko = em.bodies.find((b) => !b.lethal) !== undefined && !e.alive;
-      // front, held: lethal
+      // front: (G5) the menu's second row, KILL: lethal
       t.reset();
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, Math.PI);
@@ -109,7 +121,8 @@ try {
       e2.passive = true;
       t.step(0.4);
       const offer2 = g.takedown.offer?.plan.kind;
-      t.press(0.4);
+      const rows2 = g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label).join(' / ');
+      t.menu(1);
       t.run(1.4);
       const lethal = em.bodies.find((b) => b.lethal) !== undefined && !e2.alive;
       // side: only on a calm guard
@@ -143,7 +156,7 @@ try {
       e5.update = () => {};
       t.step(0.2);
       const calledOffer = g.takedown.offer?.plan.kind ?? null;
-      return { offer, prompt, grabbed, aligned: run.aligned, ko, offer2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
+      return { offer, prompt, grabbed, aligned: run.aligned, ko, offer2, rows2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
     });
     assert(r.spotted && r.seenOffer === null, `a guard in combat who saw you offers no takedown (${r.seenOffer}, spotted ${r.spotted})`);
     assert(r.calledOffer === 'front', `one alerted without seeing you still can be taken (${r.calledOffer})`);
@@ -151,7 +164,7 @@ try {
     assert(r.aligned < 0.05, `the attacker is aligned within 5 cm (${(r.aligned * 100).toFixed(1)} cm)`);
     assert(r.grabbed, 'from behind: grabbed and held');
     assert(r.ko, 'grab menu Knock out: he is knocked out');
-    assert(r.offer2 === 'front' && r.lethal, `from the front, held: lethal (${r.offer2}, ${r.lethal})`);
+    assert(r.offer2 === 'front' && r.rows2 === 'Knock out / Kill' && r.lethal, `from the front, the menu's Kill: lethal (${r.offer2}, ${r.rows2}, ${r.lethal})`);
     assert(r.sideCalm === 'side' && r.sideAlert === null, `from the side only while he is calm (${r.sideCalm} / ${r.sideAlert})`);
   });
 
@@ -177,7 +190,8 @@ try {
       const fx = Math.sin(c.yaw);
       const fz = Math.cos(c.yaw);
       // (G7, row 11: held pelvis to pelvis about 0.3 m, GRAB.hold 0.32; was 0.42)
-      const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.32), e.pos.z - (c.pos.z + fz * 0.32));
+      // (fix round: and 0.1 m to her left, GRAB.side, so his feet walk between hers)
+      const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.32 - fz * 0.1), e.pos.z - (c.pos.z + fz * 0.32 + fx * 0.1));
       // a stub entry does nothing and the menu stays open
       t.pick('device');
       t.step(0.2);

@@ -1,17 +1,23 @@
 /**
- * (CT prototype A3, G19, G97) The Chaos Theory door context menu, Babylon-free. A at a closed door opens a short list
- * (the player stands still): Open, Stealth open (the door peek: a slow crack, the stick pushes it further), Bash (loud;
- * knocks out a guard right behind the door) and the Optic cable (a stub: not built yet). The game reads `pick()` and
- * acts; the HUD draws `labels()`. Locked doors get no menu (no lock picking or breaking in the game yet, G180 note).
+ * (CT prototype A3, G19, G97; G5) The Chaos Theory door options, Babylon-free. Since G5 they are rows of the one
+ * context menu (`contextMenu.ts`): at a closed, unlocked door OPEN DOOR, OPEN DOOR STEALTH (the door peek: a slow
+ * crack, the stick pushes it further; only when the peek is on offer), BASH DOOR (loud; knocks out a guard right
+ * behind the door) and OPTIC CABLE (a stub: not built yet). An open door's item lists CLOSE DOOR. Locked doors list
+ * nothing (no lock picking or breaking in the game yet, G180 note).
  */
+
+import { CTX_BACK, type ContextMenu } from './contextMenu';
 
 export type DoorOpt = 'open' | 'stealth' | 'bash' | 'optic';
 
+/** The row kind of the door set in the context menu. */
+export const DOOR_KIND = 'door';
+
 export const DOOR_OPT_LABEL: Readonly<Record<DoorOpt, string>> = {
-  open: 'Open',
-  stealth: 'Stealth open',
-  bash: 'Bash',
-  optic: 'Optic cable (not yet)',
+  open: 'Open door',
+  stealth: 'Open door stealth',
+  bash: 'Bash door',
+  optic: 'Optic cable',
 };
 
 /** Bash: a guard within this behind the leaf (m, along the door's normal on the far side) and within the leaf's span
@@ -25,6 +31,12 @@ export function doorMenuOptions(stealthOk: boolean, out: DoorOpt[] = []): DoorOp
   if (stealthOk) out.push('stealth');
   out.push('bash', 'optic');
   return out;
+}
+
+/** Add the door set of door `door` to the menu (CT order; `latch`: a scripted tap opens the list, as before G5). */
+export function addDoorRows(m: ContextMenu, door: number, stealthOk: boolean, opts: DoorOpt[]): void {
+  doorMenuOptions(stealthOk, opts);
+  for (const o of opts) m.add(DOOR_KIND, o, door, DOOR_OPT_LABEL[o], 0, true);
 }
 
 /** A guard (x, z) is behind the door for a body on the `side` (+1 / -1 of the leaf plane): on the far side within
@@ -41,41 +53,21 @@ export function guardBehindDoor(a: { hinge: { x: number; z: number }; yaw: numbe
   return across > 0 && across <= DOOR_BASH.behind && along >= -DOOR_BASH.span && along <= a.width + DOOR_BASH.span;
 }
 
-export class DoorMenu {
-  open = false;
-  door = -1;
-  sel = 0;
+/** (G5) The door set as seen from outside (tests, tools): open while the held / latched list shows a door set. */
+export class DoorMenuView {
+  /** The door options listed this step (in row order). */
   readonly opts: DoorOpt[] = [];
+  constructor(private m: ContextMenu) {}
 
-  show(door: number, stealthOk: boolean): void {
-    this.open = true;
-    this.door = door;
-    this.sel = 0;
-    doorMenuOptions(stealthOk, this.opts);
+  get open(): boolean {
+    return this.m.state === 'active' && this.m.has(DOOR_KIND);
   }
 
-  /** Move the selection (wraps). */
-  move(dir: number): void {
-    if (!this.open || !this.opts.length) return;
-    this.sel = (this.sel + (dir > 0 ? 1 : -1) + this.opts.length) % this.opts.length;
-  }
-
-  /** The highlighted option; closes the menu. */
-  pick(): DoorOpt | null {
-    if (!this.open) return null;
-    const o = this.opts[this.sel] ?? null;
-    this.close();
-    return o;
-  }
-
-  close(): void {
-    this.open = false;
-    this.door = -1;
-  }
-
-  labels(out: string[] = []): string[] {
-    out.length = 0;
-    for (const o of this.opts) out.push(DOOR_OPT_LABEL[o]);
-    return out;
+  /** The highlighted door option's index in `opts` (-1: BACK TO GAME or another row). */
+  get sel(): number {
+    const m = this.m;
+    if (m.state !== 'active' || m.sel === CTX_BACK) return -1;
+    const o = m.opts[m.sel];
+    return o && o.kind === DOOR_KIND ? this.opts.indexOf(o.opt as DoorOpt) : -1;
   }
 }
