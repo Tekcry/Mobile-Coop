@@ -74,6 +74,13 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
    action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
    Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
+   **Progress (00:00):** clips in `pc/ct-work/clips/*.mp4`; CT sheets `pc/ct-work/sheets/` (new, 2 fps) and
+   `sheets-old/` (1 fps) from `scripts/ct-ref/sheets.sh`; catalogue drafts by six Sonnet agents into
+   `pc/ct-work/catalogue/{new,old}-N.md` (lists `*.list`); our-side sheets into `pc/ct-work/ours/`. Next: merge the drafts
+   into `docs/ct-prototype/FOOTAGE-CATALOGUE.md`, then the audit (Opus, per area) into `docs/ct-prototype/AUDIT.md`.
+   **Michael 23:55 (via the orchestrator):** everything in one build on master by morning: at 04:30 merge origin/master and
+   feature/course-ready, full `npm run e2e` on the PR head, update `PR-BODY.md`, `gh pr create`, message the orchestrator
+   by 06:00 (no version bump). After that, slices go to /ct/ only, not into the PR.
 2. **Slice F done** (2026-10-19 23:45, `F-REPORT.md`): F1-F7 built, check green, e2e tier green (laptop: ctcourse,
    coop, netmove on 637d41d5), sheets in `shots/f/`, independent check PASS. On /ct/. Polish in POLISH.md.
 3. Master 4.7.2 merged at 8882261b (#22 traverse kick, #23 build sha). Earlier: master 4.7.0 merged (7d0310cc: #21 Sector Ops, protocol 24; a wire change here takes 25): check green (desktop);
