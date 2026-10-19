@@ -6,7 +6,7 @@
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until as untilNet, waitSim, setSimPages, NET_VIEWPORT } from './e2e-net-lib.mjs';
+import { until as untilNet, waitSim, setSimPages } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => waitSim(ms);
@@ -24,7 +24,9 @@ async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   }
 }
 
-const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local', viewport: NET_VIEWPORT });
+// (the default 1280 x 640 window: the lobby is clicked, and the menus lay out at 1280 x 720 at least, so a smaller
+// window puts "Start mission" outside it)
+const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local' });
 let B = null;
 let eB = [];
 try {
@@ -622,7 +624,8 @@ try {
   await shut(A);
   assert(true, 'closing clears the crack on the host');
   // wall medkit stations (G20 / G98; carried kits are gone): a client uses the host's station, the host heals its
-  // host-authoritative health (+40), the client mirrors it and both pages show the station spent
+  // host-authoritative health (G119 / G180: by difficulty, full on Normal; `stationHeal`), the client mirrors it and both
+  // pages show the station spent. (co-op test fix: the check read +40, the number before G180)
   console.log('wall medkit station: the host heals a client, shown spent on both pages');
   {
     // (the remote the host runs for this client, by its id)
@@ -639,10 +642,10 @@ try {
     });
     await until(B, () => !!window.__app.current.interactables?.items.find((i) => i.id === 'medkit-e2e' && i.enabled), null, 8000, 'client mirrors the wall medkit');
     await GB(() => window.__app.current.interactables.items.find((i) => i.id === 'medkit-e2e').onUse());
-    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return Math.abs(r.health.hp - 90) < 0.01 && it.done && !it.enabled; }, null, 8000, 'host: the client healed to 90, the station spent');
-    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return Math.abs(g.target.health.hp - 90) < 0.01 && (!it || !it.enabled); }, null, 8000, 'client: 90 hp, the station shown spent');
+    await until(A, () => { const g = window.__app.current; const r = g.net.remotes.get(window.__bid); const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); return r.health.hp >= r.health.maxHp - 0.01 && it.done && !it.enabled; }, null, 8000, 'host: the client healed to full (Normal), the station spent');
+    await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); const h = g.target.health; return h.hp >= h.maxHp - 0.01 && (!it || !it.enabled); }, null, 8000, 'client: full health, the station shown spent');
     await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 100; });
-    assert(true, 'a client at a wall medkit is healed by the host (+40, mirrored) and the station shows spent on both pages');
+    assert(true, 'a client at a wall medkit is healed by the host (full on Normal, mirrored) and the station shows spent on both pages');
   }
 
   await toLobby();

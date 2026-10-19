@@ -10,7 +10,7 @@
 // T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
 // course session with no clicks (the walk URLs).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
-import { until, setSimPages, NET_VIEWPORT } from './e2e-net-lib.mjs';
+import { until, setSimPages } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -19,7 +19,8 @@ let failed = false;
 // (co-op test fix) `until` is e2e-net-lib's: polled from Node (G13), timed on both pages' sim clocks in a match. The
 // fixed pauses (`wait`) stay wall time here: the suite passes, and its latency checks are measured in wall time.
 
-const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local', viewport: NET_VIEWPORT });
+// (the default window: the lobby is clicked; the menus need 1280 x 720 of layout, see e2e-coop)
+const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local' });
 let B = null;
 let eB = [];
 const GA = (f, a) => A.evaluate(f, a);

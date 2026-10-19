@@ -77,7 +77,9 @@ export async function waitSim(ms) {
   }
 }
 
-/** The two-page suites' viewport: fewer pixels a frame on software GL (no check here reads pixels). */
+/** The two-page suites' viewport where no lobby is clicked after the join (e2e-netmove, e2e-ctcourse): fewer pixels a
+ * frame on software GL. The menus lay out at 1280 x 720 at least, so suites that click through the lobby (e2e-coop,
+ * e2e-course) keep e2e-lib's default 1280 x 640. */
 export const NET_VIEWPORT = { width: 960, height: 480 };
 
 /** The wrists, ankles and head: the joints e2e-netmove compares (10 cm). */

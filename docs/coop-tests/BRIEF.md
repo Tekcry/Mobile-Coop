@@ -32,4 +32,14 @@ e2e-coop, e2e-netmove and e2e-ctcourse pass alone and in a full run, then leave 
   e2e-stealth-ai, anim-audit and anim-sheet.
 
 ## Decisions
-Michael: M1 the laptop runs this job's e2e (above). Assumed: none yet.
+Michael: M1 the laptop runs this job's e2e (above).
+
+Assumed:
+- **A1 e2e-coop's matches are Infiltration (the Ledger) and Free Roam, not Course.** The hit, kill-credit, takedown,
+  grab and revive checks need guards; Free Roam and Marlow Yard have none. Infiltration is not parked: it is the
+  legacy-off default mode (`src/core/legacy.ts:22`, `defaultMode(false)` = `'infiltration'`; the co-op lobby lists it
+  without `?legacy=1`), and it reads the mission data in `src/game/missions.ts`, not the parked Mission mode
+  (`missionMode.ts`). The Ledger only gives bonuses for staying undetected, so the shots never end the match. The
+  orchestrator's condition (2026-10-19): keep Infiltration only if it runs legacy-off and is not gated by the parked
+  Mission framework; it does both. Undo: run the lobby, revive, leave, malformed and offline checks in Course on
+  `ctcourse`, and move the guard checks into an `e2e-coop:legacy` part.
