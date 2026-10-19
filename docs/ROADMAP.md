@@ -45,6 +45,12 @@ Last updated: 2026-10-19 13:45 Sydney.
    archived. Opus, High; about half a day. Flaky suites (Michael, 2026-10-19): the audit finds each cause; then a fix
    job on the desktop makes e2e-coop, e2e-netmove and e2e-ctcourse reliable (all three fail alone on master bd59f32);
    flaky or failing suites outside the training level move to the legacy run instead of being fixed.
+1d. **Sector Ops and the prototype menu** (new desktop session "Night Shift | Sector Ops"; Michael, 2026-10-19,
+   docs/sector-ops/BRIEF.md on feature/sector-ops): the main menu offers only Sector Ops and Co-op (plus Loadout,
+   Settings, Feedback; Missions / Training / Free Roam behind ?legacy=1). Sector Ops (original, after Conviction's
+   Deniable Ops at CT pace): the Warehouse in 3-4 sectors of rising difficulty with cameras and lasers, each sector an
+   objective then its exit, ghosting possible, solo or co-op; Michael's playground. Co-op is the campaign: Marlow Yard
+   (Course) by room code, the host can switch to Sector Ops. Prototype effort only.
 2. **Playtest 2 slices B + C** (CT Core, after 1): aiming compared with the CT footage (view unchanged when crouched,
    upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
    crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
