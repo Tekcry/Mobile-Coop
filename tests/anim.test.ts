@@ -142,8 +142,9 @@ describe('graph', () => {
     j.crouch = 1;
     j.kneel = true;
     for (let k = 0; k < 90; k++) h.update(1 / 60, j);
-    expect(h.out.stance.rZ).toBeLessThan(-0.2);
-    expect(h.out.stance.lZ).toBeGreaterThan(0.2);
+    // (P1c) no idle kneel: the footage holds a two-foot squat (POSTURE.kneel = false)
+    expect(Math.abs(h.out.stance.rZ)).toBeLessThan(0.2);
+    expect(Math.abs(h.out.stance.lZ)).toBeLessThan(0.2);
   });
   it('(step 21, A10) heel strikes add no pelvis kick: one loading dip per step from the clip', () => {
     const g = new AnimGraph(proportions());
@@ -181,7 +182,7 @@ describe('graph', () => {
     expect(5.8 / WEAPON_SETTLE_OMEGA).toBeLessThanOrEqual(0.2 + 1e-9);
     expect(KNEEL_FADE).toBeGreaterThanOrEqual(0.1);
     expect(KNEEL_FADE).toBeLessThanOrEqual(0.25);
-    expect(MOVEMENT.standTime).toBeGreaterThanOrEqual(0.3);
+    expect(MOVEMENT.standTime).toBeGreaterThanOrEqual(0.2); // prototype: CT toggle ~0.2-0.25 s (was 0.3)
     expect(ENEMY_MOTION.standTime).toBeGreaterThanOrEqual(0.3);
   });
   it('(step 21, D2) breathing only after 2 s still, none moving or aiming; no free-running weapon sway', () => {

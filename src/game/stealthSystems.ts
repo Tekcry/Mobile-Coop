@@ -7,14 +7,22 @@ import type { EnemyKind } from '../ai/enemyDefs';
 import { lightOnRay, type LightRegistry } from '../world/lights';
 import type { Interactable, Interactables } from './interactables';
 import type { GameState } from './gameState';
-import type { DoorState } from '../world/doors';
+import { DOOR, type DoorState } from '../world/doors';
+import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
 
 /** Noise radii (m): a bulb shot out, a body put down. */
 const SHOT_LIGHT_NOISE = 5;
 const DROP_NOISE = 3;
+/** (A3, G41) A guard's door is shut this long (s) after he is clear of it. Starting value. */
+const DOOR_GUARD_CLOSE = 1.5;
 /** Door noise radii (m): eased open / shut by hand, bashed open at a sprint. */
 const DOOR_QUIET_NOISE = 2;
+/** (F1b, door-4, G41) A calm guard this close, facing it, with a clear line, notices a door the player left open. */
+const DOOR_NOTICE_RANGE = 9;
+const DOOR_NOTICE_COS = 0.2;
+/** Seconds between notice checks. */
+const DOOR_NOTICE_EVERY = 0.25;
 const DOOR_BASH_NOISE = 10;
 
 /**
@@ -35,7 +43,15 @@ export class StealthSystems {
   private dropIt: Interactable;
   private kneeL = new Vector3();
   private doorIts: { d: DoorState; it: Interactable }[] = [];
+  /** (A3, G41) Seconds a door a guard opened has stood open and clear (index -> s). A calm guard's door is shut behind him. */
+  private guardOpened = new Map<number, number>();
   private kneeR = new Vector3();
+  /** (F1b, door-4) Doors the player opened and nobody has dealt with (door index set). A guard who sees one open raises
+   *  suspicion and then shuts it (the G41 close). */
+  private playerOpened = new Set<number>();
+  private noticeT = 0;
+  private noticeA = new Vector3();
+  private noticeB = new Vector3();
 
   constructor(
     private g: GameState,
@@ -93,8 +109,19 @@ export class StealthSystems {
         g.events.emit('door', { how: 'quiet', x: d.cx, z: d.cz, vol: 0.3 });
         return;
       }
+      if (how === 'drive') {
+        g.events.emit('door', { how: 'quiet', x: d.cx, z: d.cz, vol: 0.3 });
+        this.playerOpened.add(d.index);
+        return;
+      }
       g.events.emit('door', { how, x: d.cx, z: d.cz });
-      if (how === 'enemy') return;
+      if (how === 'enemy') {
+        this.guardOpened.set(d.index, 0);
+        this.playerOpened.delete(d.index);
+        return;
+      }
+      if (how === 'close') this.playerOpened.delete(d.index);
+      else this.playerOpened.add(d.index);
       const r = how === 'bash' ? DOOR_BASH_NOISE : DOOR_QUIET_NOISE;
       this.noise(r, new Vector3(d.cx, d.anchor.hinge.y, d.cz));
     };
@@ -132,6 +159,11 @@ export class StealthSystems {
     return this.ints.nearest(feet, 1.5, 'hide') ?? this.dropIt;
   }
 
+  /** (A4) The grab menu's Carry: shoulder this body now. */
+  pickUpBody(b: Body): void {
+    this.pickUp(b);
+  }
+
   private pickUp(b: Body): void {
     if (this.carry || !b.present || this.g.traversal.active) return;
     const rig = this.g.player.rig;
@@ -141,7 +173,6 @@ export class StealthSystems {
     this.carry = b;
     const it = this.bodyIts.get(b);
     if (it) this.ints.setEnabled(it, false);
-    this.g.player.controller.cancelSprint();
     this.g.events.emit('body', { action: 'pickup' });
   }
 
@@ -236,6 +267,40 @@ export class StealthSystems {
     }
   }
 
+  /**
+   * (F1b, door-4, G41) A calm guard within range, facing a door the player opened (open past the shut threshold), with
+   * a clear line to it, notices: he hears it as a noise at the door (suspicion, he comes to look) and the door joins
+   * the ones guards shut behind a calm patrol.
+   */
+  private noticeOpenDoors(dt: number): void {
+    this.noticeT -= dt;
+    if (this.noticeT > 0) return;
+    this.noticeT = DOOR_NOTICE_EVERY;
+    const doors = this.g.world.doors.list;
+    for (const i of this.playerOpened) {
+      const d = doors[i];
+      if (!d || d.target === 0 || d.open <= DOOR.driveShut) {
+        if (!d || d.target === 0) this.playerOpened.delete(i);
+        continue;
+      }
+      for (const e of this.em.enemies) {
+        if (!e.alive || e.alerted) continue;
+        const dx = d.cx - e.pos.x;
+        const dz = d.cz - e.pos.z;
+        const dist = hyp2(dx, dz);
+        if (dist > DOOR_NOTICE_RANGE || Math.abs(d.anchor.hinge.y - e.pos.y) > 1.5) continue;
+        if (dist > 0.5 && (Math.sin(e.yaw) * dx + Math.cos(e.yaw) * dz) / dist < DOOR_NOTICE_COS) continue;
+        this.noticeA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+        this.noticeB.set(d.cx, d.anchor.hinge.y + 1.2, d.cz);
+        if (!this.g.ballistics.clear(this.noticeA, this.noticeB, G.STATIC)) continue;
+        e.hear(d.cx, d.cz, DOOR_NOTICE_RANGE + 2);
+        this.guardOpened.set(i, 0);
+        this.playerOpened.delete(i);
+        break;
+      }
+    }
+  }
+
   /** Someone (the player or an enemy) stands within `r` of (x, z). */
   private occupied(x: number, z: number, r: number): boolean {
     const p = this.g.player.position;
@@ -247,14 +312,22 @@ export class StealthSystems {
   /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. */
   fixedUpdate(): void {
     for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
-    // sprinting into a closed door bashes it open
-    const pc = this.g.player.controller;
-    if (pc.dashing && pc.speed > 3) {
-      const dr = this.g.world.doors.nearest(pc.pos.x, pc.pos.z, 1.1);
-      if (dr && dr.target === 0) {
-        const vx = Math.sin(pc.yaw);
-        const vz = Math.cos(pc.yaw);
-        if ((dr.cx - pc.pos.x) * vx + (dr.cz - pc.pos.z) * vz > 0) this.g.world.doors.open(dr, 'bash');
+    if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
+    // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
+    // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
+    if (this.guardOpened.size && !this.em.anyAlerted) {
+      for (const [i, t] of this.guardOpened) {
+        const d = this.g.world.doors.list[i];
+        if (!d || d.target === 0) {
+          this.guardOpened.delete(i);
+          continue;
+        }
+        if (this.occupied(d.cx, d.cz, 2.2)) {
+          this.guardOpened.set(i, 0);
+          continue;
+        }
+        this.guardOpened.set(i, t + 1 / 60);
+        if (t > DOOR_GUARD_CLOSE && this.g.world.doors.close(d, (x, z, r) => this.occupied(x, z, r))) this.guardOpened.delete(i);
       }
     }
     for (const [b, it] of this.bodyIts) {
@@ -268,7 +341,6 @@ export class StealthSystems {
       this.dropCarried();
       return;
     }
-    c.cancelSprint();
     c.speedCap = Math.min(c.speedCap, BODY.carrySpeed);
   }
 

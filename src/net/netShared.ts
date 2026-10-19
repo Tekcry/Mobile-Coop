@@ -12,7 +12,6 @@ export function localFlags(g: GameState): number {
   if (c.isRolling) f |= PF.roll;
   if (c.grounded) f |= PF.grounded;
   if (!p.alive) f |= PF.dead;
-  if (c.sprinting) f |= PF.sprint;
   if (g.weapons.current.stats.noise <= 0.6) f |= PF.quiet;
   if (c.steps === 'silent') f |= PF.silent;
   // (3.2.0) traversal drives the step: the host's speed check allows their paces (glides, runs, vaults)

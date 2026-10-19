@@ -745,6 +745,14 @@ export class Enemy implements Damageable {
     this.die(h, false);
   }
 
+  /** (F1a) Killed outright by a melee finisher (the lethal palm strike): down like a kill, armour and the heavy plates
+   *  ignored, no alert. */
+  killOutright(h: HitInfo): void {
+    if (!this.alive) return;
+    this.health.damage(this.health.hp);
+    this.die(h, true);
+  }
+
   /** Fixed-step brain + movement. */
   update(dt: number): void {
     if (!this.alive) return;
@@ -1734,6 +1742,8 @@ export class Enemy implements Damageable {
     rp.velX = this.vel.x;
     rp.velZ = this.vel.z;
     rp.goalYaw = m.goalYaw;
+    // (A1.2) not aiming and walking forward: the stride runs along the facing (no strafe / back clip on a patrol turn)
+    rp.stride = !rp.wall && aiming < 0.5 && rp.localZ > 0.5 ? 'facing' : 'velocity';
     rp.traverse = this.climbing ? 'climb' : 'none';
     rp.traverseT = this.climbT;
     if (this.climbing) rp.aim = 0;

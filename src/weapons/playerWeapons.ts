@@ -167,6 +167,11 @@ export class PlayerWeapons {
     return this.slots[this.index]!;
   }
 
+  /** The selected weapon's slot index (the selection wheel marks it). */
+  get slotIndex(): number {
+    return this.index;
+  }
+
   /** Fired within the last 0.2 s (coop animation flag). */
   get firingRecently(): boolean {
     return this.sinceShot < 0.2;
@@ -345,13 +350,30 @@ export class PlayerWeapons {
     return this.carrySlots[i] ?? 'backC';
   }
 
+  private switchTarget = -1;
+
+  /** (F1a) Swap to the gun at slot `i` (the selection wheel): the swap runs on the next step. */
+  switchTo(i: number): void {
+    if (i >= 0 && i < this.slots.length) this.switchTarget = i;
+  }
+
+  /** (F1a, CT) R3 / B zoomed in: only a scoped weapon, only while aiming; normal aim never zooms (G29). */
+  zoomOn = false;
+
+  /** Aim camera for the current weapon: no zoom (G29) except a marksman scope toggled on with the zoom button; the camera blends in a little ahead of the draw (G103). */
+  private applyAimCamera(): void {
+    const cam = this.player.cam;
+    cam.adsZoom = this.current.scoped && this.zoomOn ? this.current.stats.adsZoom : 1;
+    cam.adsInTime = drawTimeFor(this.current.def.class) * 0.9;
+  }
+
   private equip(i: number): void {
     this.held = i;
     this.holsterAll(i);
     this.slots[i]!.model.hold(this.player.rig);
     this.index = i;
     const d = this.current.def;
-    this.player.cam.adsZoom = this.current.stats.adsZoom;
+    this.applyAimCamera();
     this.player.controller.speedMul = d.moveSpeedMult;
   }
 
@@ -400,6 +422,9 @@ export class PlayerWeapons {
       }
     }
     if (!this.player.ads) this.drawLock = false;
+    if (!this.player.ads || !this.current.scoped) this.zoomOn = false;
+    else if (inp.pressed('zoom')) this.zoomOn = !this.zoomOn;
+    this.applyAimCamera();
     if (this.attachMode) {
       if (this.stowed) this.draw.holster();
       else if (!this.swapping) this.draw.drawn();
@@ -426,17 +451,20 @@ export class PlayerWeapons {
 
     // swap (pressing again mid-swap keeps cycling)
     // (step 09: marks are gone and the gun is drawn only while aiming, so RB swaps while aiming too)
-    const swapPress = inp.pressed('swapNext') || inp.pressed('swapPrev');
+    // (F1a) the selection wheel names a gun (`switchTo`); LB tap / T is the next one
+    const target = this.switchTarget;
+    this.switchTarget = -1;
+    const swapPress = inp.pressed('swapNext') || inp.pressed('swapPrev') || (target >= 0 && target !== this.index);
     if (swapPress && this.slots.length > 1 && !this.throwing && !(this.stowed && this.attachMode)) {
       const d = inp.pressed('swapNext') ? 1 : -1;
       this.reloadT = -1;
       this.aimDriven = false;
-      this.index = (this.index + d + this.slots.length) % this.slots.length;
+      this.index = target >= 0 && target < this.slots.length && !inp.pressed('swapNext') && !inp.pressed('swapPrev') ? target : (this.index + d + this.slots.length) % this.slots.length;
       if (this.stowed) {
         // (step 09 fix 4) holstered, the selection is the weapon carried at the ready: its move speed and zoom
         // apply now (as a drawn swap's equip would), not the last drawn gun's - holstering never changes the gait
         this.player.controller.speedMul = this.current.def.moveSpeedMult;
-        this.player.cam.adsZoom = this.current.stats.adsZoom;
+        this.applyAimCamera();
       }
       if (this.swapT < 0) {
         this.swapT = 0;

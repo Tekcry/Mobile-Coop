@@ -195,7 +195,10 @@ export class DebugOverlay {
       pivotStand: [1.2, 1.9, 0.02],
       height: [-0.4, 0.4, 0.02],
       leanShift: [0, 0.8, 0.02],
-      dashBoom: [0, 0.8, 0.05],
+      aimEyeDrop: [0, 0.3, 0.01],
+      adsInTime: [0.2, 1.2, 0.05],
+      swapRate: [5, 30, 0.5],
+      swapArc: [0, 1, 0.05],
     });
     table('Weapon carry', CARRY as unknown as Record<string, number>, {
       raiseTime: [0.05, 0.4, 0.01],

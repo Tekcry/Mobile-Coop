@@ -44,24 +44,27 @@ describe('stick maths', () => {
 
 describe('gamepad mapping', () => {
   it('maps the standard layout to gameplay and UI actions', () => {
+    // (F1a) the CT pad: A interact, X draw, RB co-op action, Start pause
     const f = mapPad(snap({ [PAD.A]: 1, [PAD.X]: 1, [PAD.RB]: 1, [PAD.START]: 1 }), tuning);
-    expect(f.buttons.cover).toBe(true);
+    expect(f.buttons.interact).toBe(true);
+    expect(f.buttons.cover).toBeUndefined();
     expect(f.buttons.jump).toBeUndefined();
     expect(f.buttons.uiConfirm).toBe(true);
-    expect(f.buttons.reload).toBe(true);
-    expect(f.buttons.swapNext).toBe(true);
+    expect(f.buttons.draw).toBe(true);
+    expect(f.buttons.coop).toBe(true);
     expect(f.buttons.uiTabNext).toBe(true);
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
   });
-  it('B is crouch in game and back in menus; Y traverse + interact; d-pad speed gears, gadget and wheel (3.2.0)', () => {
+  it('B is crouch in game and back in menus; Y jump only; L3 back-to-wall; d-pad vision, gadget and speed gears (A3)', () => {
     const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.DOWN]: 1, [PAD.LEFT]: 1, [PAD.RIGHT]: 1 }), tuning);
-    expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
+    expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.jump).toBe(true);
+    expect(f.buttons.interact).toBeUndefined();
     expect(f.buttons.cover).toBeUndefined();
-    expect(f.buttons.speedUp && f.buttons.speedDown && f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
-    // ping (D-pad left tap) comes from the source's tap / hold, not the raw mapping
-    expect(f.buttons.ping).toBeFalsy();
-    expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBe(true);
+    expect(f.buttons.vision && f.buttons.grenade && f.buttons.speedUp && f.buttons.speedDown && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
+    expect(mapPad(snap({ [PAD.LS]: 1 }), tuning).buttons.cover).toBe(true);
+    expect(mapPad(snap({ [PAD.LB]: 1 }), tuning).buttons.gadgetWheel).toBe(true);
+    expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBeUndefined();
   });
   it('tap / hold: a release before the hold time is a tap, a hold fires once per press', () => {
     const t = new TapHold(0.15);
@@ -73,11 +76,11 @@ describe('gamepad mapping', () => {
     expect(t.update(true, 1.2)).toBe('hold');
     expect(t.update(true, 1.5)).toBeNull();
     expect(t.update(false, 1.6)).toBeNull();
-    // the wheel hold is the D-pad left's tap window; the View hold is the swap hold
+    // the wheel hold: LB held this long opens the gadget wheel
     expect(WHEEL_HOLD).toBeCloseTo(0.15);
   });
-  it('triggers: RT fires, LT aims, respecting dead zone', () => {
-    expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, ads: true });
+  it('triggers: RT fires, LT is the knockout / secondary fire (altFire), respecting dead zone', () => {
+    expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, altFire: true });
     expect(mapPad(snap({ [PAD.RT]: 0.05 }), tuning).buttons.fire).toBeUndefined();
   });
   it('left stick: up is forward; right stick: up looks up unless inverted', () => {
@@ -212,7 +215,7 @@ describe('binding table (docs/systems/input-and-loop.md)', () => {
     ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab' })[code] ?? code.replace(/^Key/, '');
 
   it('has a row per verb', () => {
-    expect(rows.length).toBeGreaterThanOrEqual(20);
+    expect(rows.length).toBeGreaterThanOrEqual(19);
     for (const r of rows) expect(ticks(r[1]!).length, r[0]).toBeGreaterThan(0);
   });
 
@@ -267,7 +270,8 @@ describe('menu bindings (menu-ui slice 2, SPEC 4.2, MD11)', () => {
     const m = keyActionMap(defaultBinds());
     expect(m.get('Space')).toContain('uiConfirm');
     expect(m.get('KeyR')).toEqual(expect.arrayContaining(['reload', 'uiX']));
-    expect(m.get('KeyF')).toEqual(expect.arrayContaining(['interact', 'uiAlt']));
+    // (CT prototype A3, G96) F is the co-op action in play; its menu role (Y) is unchanged
+    expect(m.get('KeyF')).toEqual(expect.arrayContaining(['coop', 'uiAlt']));
     expect(m.get('KeyE')).toContain('uiTabNext');
     expect(m.get('KeyE')).not.toContain('uiAlt');
     expect(m.get('Escape')).toContain('uiBack');

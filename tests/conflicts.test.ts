@@ -13,10 +13,10 @@ describe('binding conflicts (step 18)', () => {
     expect(findConflicts(defaultBinds())).toEqual([]);
   });
 
-  it('allowed pairs pass: Traverse and Use on one key both raise interact', () => {
+  it('(A3) Jump and Interact are separate verbs now: one key on both is a conflict', () => {
     const k = defaultBinds();
-    expect(assignBind(k, 'use', 0, 'KeyE')).toBe('traverse');
-    expect(findConflicts(k)).toEqual([]);
+    expect(assignBind(k, 'interact', 0, 'Space')).toBe('jump');
+    expect(findConflicts(k)).toEqual([{ a: 'jump', b: 'interact', input: 'Space' }]);
   });
 
   it('menu keys are their own group', () => {
@@ -32,13 +32,13 @@ describe('binding conflicts (step 18)', () => {
 
   it('pad: reload onto B clashes with crouch, once per pair; onto LT with the fixed aim', () => {
     const b = defaultPadBinds();
-    assignPadBind(b, 'reload', 0, PAD.B);
-    assignPadBind(b, 'reload', 1, PAD.B);
+    assignPadBind(b, 'draw', 0, PAD.B);
+    assignPadBind(b, 'draw', 1, PAD.B);
     const c = findConflicts(padAll(b));
-    expect(c).toEqual([{ a: 'crouch', b: 'reload', input: PAD.B }]);
-    expect([...conflictIds(c)].sort()).toEqual(['crouch', 'reload']);
-    assignPadBind(b, 'reload', 0, PAD.LT);
-    expect(findConflicts(padAll(b))).toEqual([{ a: 'reload', b: 'aim', input: PAD.LT }]);
+    expect(c).toEqual([{ a: 'crouch', b: 'draw', input: PAD.B }]);
+    expect([...conflictIds(c)].sort()).toEqual(['crouch', 'draw']);
+    assignPadBind(b, 'draw', 0, PAD.LT);
+    expect(findConflicts(padAll(b))).toEqual([{ a: 'draw', b: 'aim', input: PAD.LT }]);
   });
 
   it('keyboard: two verbs on one key and on two keys still report one conflict per pair', () => {
@@ -47,7 +47,7 @@ describe('binding conflicts (step 18)', () => {
     expect(assignBind(k, 'reload', 1, 'ControlLeft')).toBe('crouch');
     expect(k.crouch).toEqual(['KeyC', 'ControlLeft']);
     expect(findConflicts(k)).toEqual([{ a: 'crouch', b: 'reload', input: 'KeyC' }]);
-    assignBind(k, 'sprint', 0, 'KeyC');
+    assignBind(k, 'wall', 0, 'KeyC');
     expect(findConflicts(k).length).toBe(3);
   });
 });

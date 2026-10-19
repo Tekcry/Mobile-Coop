@@ -41,6 +41,8 @@ export interface MotionInput {
    * at once, no planted pivots, travel turns at `CT.turnRate`.
    */
   ct: boolean;
+  /** (CT prototype M1) The stick is at the slowest speed: pulled behind the body it walks backwards (free movement). */
+  slowest?: boolean;
 }
 
 export function emptyMotionInput(): MotionInput {
@@ -81,12 +83,34 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   return (M.stepLen0 + M.stepLenK * Math.max(0, speed)) * (1 - 0.4 * lateral * lateral);
 }
 
+/** (A1.2) One step per this much body turn (rad): a spin is the walk cycle on a tight circle, ~4 steps per 360 (footage 051339). */
+export const TURN_STEP = Math.PI / 2;
+/** (A1.2) Turning faster than this (rad/s) steps the feet even at no pace (a spin at a crawl still steps). */
+export const TURN_GAIT_MIN = 1.0;
+
+/**
+ * (A1.2) Gait rate (cycles/s) from ground distance AND body turning: the larger of the linear rate (two steps per
+ * cycle) and one step per `TURN_STEP` of yaw. Straight walking is unchanged; a 450 deg/s spin is 2.5 cycles/s (a step
+ * per 0.2 s). `max`, not a sum: a run turn keeps its cadence.
+ */
+export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0): number {
+  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral)) : 0;
+  const ang = Math.abs(yawRate) > TURN_GAIT_MIN ? Math.abs(yawRate) / (2 * TURN_STEP) : 0;
+  return lin > ang ? lin : ang;
+}
+
 /**
  * Root speed multiplier through a stride (phase 0..1, two steps per cycle): a small dip at each heel
  * strike (phase 0 and 0.5) and a swell mid-stance; averages exactly 1 over a step.
  */
 export function rootModulation(phase: number, M: MotionTuning = MOVEMENT): number {
   return 1 - M.rootDip * Math.cos(phase * TAU * 2);
+}
+
+/** Smoothstep of a 0..1 value. */
+function smoothUnit(t: number): number {
+  const x = t <= 0 ? 0 : t >= 1 ? 1 : t;
+  return x * x * (3 - 2 * x);
 }
 
 /** Smooth 0..1 ease (cubic in-out). */
@@ -122,8 +146,13 @@ export class MotionDriver {
   private pivotZ = 0;
   /** (step 22) Chaos Theory pace (x, m/s) and its rate (v, m/s^2), critically damped. */
   private paceSpring = new Spring();
-  /** (step 22) A Chaos Theory pivot has braked onto its planted foot and pushes off the new way. */
-  private pivotPlanted = false;
+  /** (CT prototype M1) Walking backwards at the slowest speed (the velocity runs opposite the facing). */
+  backward = false;
+  /** (A1.2) Where the body is turning to: the stick heading while free and pushed, else the facing (caps the planner's yaw prediction). */
+  faceGoal = 0;
+  /** (A1.2) The stick heading last step (NaN: none) and its smoothed sweep rate (rad/s). */
+  private stickPrev = Number.NaN;
+  private stickRate = 0;
 
   constructor(yaw = 0) {
     this.yaw = yaw;
@@ -154,6 +183,7 @@ export class MotionDriver {
     this.vx = this.vz = this.ax = this.az = this.outX = this.outZ = 0;
     this.paceSpring.reset(0);
     this.heading = Number.NaN;
+    this.backward = false;
     this.yaw = yaw;
     this.yawRate = 0;
     this.go('idle');
@@ -168,7 +198,7 @@ export class MotionDriver {
     if (dt <= 0) return;
     this.stateT += dt;
     if (i.ct) {
-      this.stepCt(dt, i, M);
+      this.stepCt(dt, i);
       this.finish(dt, i, M);
       return;
     }
@@ -289,63 +319,69 @@ export class MotionDriver {
   }
 
   /**
-   * Chaos Theory velocity with moderate momentum (locomotion step 22, M14 N6, A88). The pace follows the stick's
-   * through a critically damped spring (95% of a start within `CT.startTime`, 98% of a stop within `CT.stopTime`;
-   * it never overshoots, D5.2), the travel direction swings toward the stick with a time constant that grows to
-   * `CT.turnTime` / 3 at `CT.turnFullSpeed` (turn inertia; at a sneak it follows at once), and a reversal at pace
-   * (`CT.reverseDot`, over `CT.pivotSpeed`) brakes into a planted pivot (D5.4): the pace falls to a plant, the
-   * direction flips there and pushes off the new way, the state holding `pivot` for at least `pivotTime` so the
-   * pivot clip plays through. States: `move`, `stop` (released, still sliding), `pivot`, `idle`.
+   * (CT prototype M1) Chaos Theory body velocity. The pace follows the stick's through a critically damped spring
+   * (95% of a start within `CT.startTime`, 98% of a stop within `CT.stopTime`: ~0.3 m of slide from a run, no closing
+   * step, G26). Free (not aiming) the body moves along its FACING and turns toward the stick at `CT.turnRate`: no
+   * stationary pivot (the stick held on the spot walks a tight circle), a flick 180 or a run reversal is one smooth
+   * ~0.4 s turn with the pace dipping through it (G25, G33). Only at the slowest speed does a stick pulled behind the
+   * body (over `CT.backAngle`) walk backwards at `CT.backSpeed` instead of turning. Aiming: strafe-locked, the
+   * velocity follows the stick directly. States: `move`, `stop` (released, still sliding), `idle`.
    */
-  private stepCt(dt: number, i: MotionInput, M: MotionTuning): void {
+  private stepCt(dt: number, i: MotionInput): void {
     const want = hyp2(i.vx, i.vz);
     const px = this.vx;
     const pz = this.vz;
     let sp = this.speed;
     const pushed = want > 0.05;
+    const free = i.faceTravel && !i.aiming;
     let target = pushed ? want : 0;
+    if (!free) this.backward = false;
+    this.faceGoal = this.yaw;
+    if (!pushed || !free) {
+      this.stickPrev = Number.NaN;
+      this.stickRate = 0;
+    }
     if (pushed) {
       const th = Math.atan2(i.vx, i.vz);
-      if (Number.isNaN(this.heading) || sp < 0.05) this.heading = th;
-      const d = wrapPi(th - this.heading);
-      if (this.state === 'pivot') {
-        if (!this.pivotPlanted) {
-          // braking onto the planted foot; a stick swung back the old way cancels the pivot
-          if (Math.cos(d) > 0) this.go('move');
-          else target = 0;
-          if (sp < CT.turnSnapSpeed) {
-            this.pivotPlanted = true;
-            this.heading = th;
-          }
+      if (this.state !== 'move') this.go('move');
+      if (free) {
+        // (A1.2) a stick swept round (a held spin) leads its own heading: the goal runs ahead by its sweep rate x 0.25 s
+        // (a flick is one jump, not a sweep: per-step changes over 0.3 rad do not count)
+        const dTh = Number.isNaN(this.stickPrev) ? 0 : wrapPi(th - this.stickPrev);
+        this.stickPrev = th;
+        const sw = Math.abs(dTh) > 0.3 ? 0 : dTh / dt;
+        this.stickRate += (sw - this.stickRate) * (1 - Math.exp(-dt / 0.1));
+        this.faceGoal = wrapPi(th + Math.max(-1, Math.min(1, this.stickRate * 0.25)));
+        const d = wrapPi(th - this.yaw);
+        const ad = Math.abs(d);
+        // the slowest speed walks backwards when the stick is pulled behind; any faster speed turns round
+        if (i.slowest && (ad > CT.backAngle || (this.backward && ad > CT.backExit))) {
+          this.backward = true;
+          target = CT.backSpeed;
         } else {
-          this.heading = th;
-          if (this.stateT >= M.pivotTime) this.go('move');
+          this.backward = false;
+          // the pace dips through a big turn and recovers as the body comes round
+          target *= 1 - CT.turnDip * smoothUnit(ad / Math.PI);
         }
-      } else if (sp > CT.pivotSpeed && Math.cos(d) < CT.reverseDot) {
-        this.go('pivot');
-        this.pivotPlanted = false;
-        this.pivotX = i.vx;
-        this.pivotZ = i.vz;
-        target = 0;
-      } else {
-        if (this.state !== 'move') this.go('move');
-        // turn inertia: none at a sneak, full from `turnFullSpeed`
-        const k = Math.max(0, Math.min(1, (sp - CT.turnSnapSpeed) / (CT.turnFullSpeed - CT.turnSnapSpeed)));
-        const tau = (CT.turnTime / 3) * k;
-        this.heading = tau > 1e-4 ? wrapPi(this.heading + d * (1 - Math.exp(-dt / tau))) : th;
-      }
-    } else if (this.state === 'move' || this.state === 'pivot' || this.state === 'start') this.go(sp > 0.02 ? 'stop' : 'idle');
+        if (sp < 0.05 && !this.backward) this.heading = this.yaw;
+        else if (sp < 0.05) this.heading = wrapPi(this.yaw + Math.PI);
+      } else this.heading = th;
+    } else if (this.state === 'move') this.go(sp > 0.02 ? 'stop' : 'idle');
     // the pace: one critically damped spring, quicker down than up (a carry or reset elsewhere re-seeds it)
     if (Math.abs(this.paceSpring.x - sp) > 1e-6) this.paceSpring.reset(sp);
     const omega = target < sp ? CT_STOP_W / CT.stopTime : CT_START_W / CT.startTime;
     sp = this.paceSpring.step(target, omega, dt);
-    // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every gear)
+    // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every speed)
     if (sp < 0 || (target === 0 && sp < CT_REST)) {
       sp = 0;
       this.paceSpring.reset(0);
     }
     if (!pushed && sp === 0 && this.state === 'stop') this.go('idle');
-    const h = Number.isNaN(this.heading) ? this.yaw : this.heading;
+    // the velocity direction: along the facing (or straight behind it), the stick's while aiming, kept while stopping
+    let h = this.heading;
+    if (free && pushed) h = this.backward ? wrapPi(this.yaw + Math.PI) : this.yaw;
+    else if (Number.isNaN(h)) h = this.yaw;
+    if (free && pushed) this.heading = h;
     this.vx = Math.sin(h) * sp;
     this.vz = Math.cos(h) * sp;
     // the spring keeps its exact pace (the vector round trip would re-seed it every step)
@@ -355,7 +391,7 @@ export class MotionDriver {
   }
 
   /**
-   * (step 22) Distance (m) the Chaos Theory pace still covers once released: the spring's remaining travel from its
+   * Distance (m) the Chaos Theory pace still covers once released: the spring's remaining travel from its
    * pace x and rate v, 2 x / w + v / w^2 (for the stop's landing prediction).
    */
   ctStopDistance(): number {
@@ -369,9 +405,10 @@ export class MotionDriver {
   private finish(dt: number, i: MotionInput, M: MotionTuning): void {
     // --- gait clock and stride modulation
     const sp = this.speed;
-    if (sp > 0.02) {
-      const lat = Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp);
-      this.phase = (this.phase + (sp / (2 * stepLength(sp, M, lat))) * dt) % 1;
+    // (A1.2) the clock counts body turning as well as distance: one step per 90 deg (a spin at a crawl still steps)
+    if (sp > 0.02 || Math.abs(this.yawRate) > TURN_GAIT_MIN) {
+      const lat = sp > 0.02 ? Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp) : 0;
+      this.phase = (this.phase + gaitRate(sp, this.yawRate, M, lat) * dt) % 1;
     }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;
@@ -410,15 +447,25 @@ export class MotionDriver {
     if (i.faceTravel && !i.aiming) {
       // face where we are going; standing still, hold the facing (the camera orbits freely)
       const want = hyp2(i.vx, i.vz);
+      if (i.ct) {
+        // (CT prototype M1) turns toward the stick at one smooth rate; released or walking backwards it holds the facing
+        if (want > 0.05 && !this.backward) {
+          // (A1.1) the cap scales with speed: ~450 deg/s up to a jog, ~350 deg/s at the full run (footage 300-400)
+          const k = Math.max(0, Math.min(1, (sp - CT.turnSlowFrom) / (CT.turnSlowTo - CT.turnSlowFrom)));
+          this.turnToward(wrapPi(Math.atan2(i.vx, i.vz) - this.yaw), CT.turnRate + (CT.turnRateRun - CT.turnRate) * k, CT.turnAccel, dt);
+        }
+        else this.yawRate = 0;
+        return;
+      }
       const moving = want > 0.05 || sp > 0.3;
       const target = want > 0.05 && this.state !== 'pivot' ? Math.atan2(i.vx, i.vz) : sp > 0.3 ? Math.atan2(this.vx, this.vz) : this.yaw;
       if (!moving) {
         this.yawRate = 0;
         return;
       }
-      let rate = i.ct ? CT.turnRate : travelRate(sp, i.sprinting, M);
+      let rate = travelRate(sp, i.sprinting, M);
       if (this.state === 'pivot') rate = Math.max(rate, Math.PI / M.pivotTime);
-      this.turnToward(wrapPi(target - this.yaw), rate, i.ct ? CT.turnAccel : M.turnAccel, dt);
+      this.turnToward(wrapPi(target - this.yaw), rate, M.turnAccel, dt);
       return;
     }
     const still = sp < 0.15 && (this.state === 'idle' || this.state === 'start');

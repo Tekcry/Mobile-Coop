@@ -1231,6 +1231,46 @@ body {
 .hud-interact.show {
   display: flex;
 }
+.hud-doormenu {
+  position: absolute;
+  /* F1b: top right, left of the minimap (not the middle of the screen) */
+  right: calc(var(--sar) + min(140px, calc(30 * var(--vh))) + 22px);
+  top: calc(var(--sat) + 14px);
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  background: rgba(10, 13, 18, 0.78);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.hud-doormenu.show {
+  display: flex;
+}
+.hud-doormenu .dm-title {
+  font-size: 0.8em;
+  opacity: 0.6;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hud-doormenu .dm-opt {
+  padding: 4px 10px;
+  border-radius: 6px;
+  opacity: 0.75;
+}
+.hud-doormenu .dm-opt.sel {
+  background: rgba(63, 193, 255, 0.28);
+  opacity: 1;
+}
+.hud-doormenu .dm-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8em;
+  opacity: 0.7;
+  margin-top: 2px;
+}
 .hud-feed {
   position: absolute;
   right: calc(var(--sar) + 12px);
@@ -1845,75 +1885,141 @@ body {
 .mouse-capture-hint[hidden] {
   display: none;
 }
-/* gadget wheel (phase 5): above the world prompts, below menus */
+/* selection wheel (F1a, G181): over the live game, above the world prompts, below menus. Teal translucent tiles. */
 .gadget-wheel {
   position: fixed;
   inset: 0;
   z-index: 13;
-  pointer-events: auto;
-  background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15) 60%);
-  touch-action: none;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 12, 14, 0.5), rgba(0, 0, 0, 0.12) 62%);
+  font-family: var(--font-menu);
 }
 .gadget-wheel[hidden],
 .gadget-feed[hidden] {
   display: none;
 }
-.gw-ring {
+.sw-ring {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(calc(62 * var(--vh)), 360px);
-  height: min(calc(62 * var(--vh)), 360px);
+  width: min(calc(70 * var(--vh)), 420px);
+  height: min(calc(70 * var(--vh)), 420px);
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(150, 240, 235, 0.14);
 }
-.gw-slot {
+.sw-tile {
   position: absolute;
-  width: 64px;
+  width: 84px;
   height: 64px;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  background: rgba(10, 14, 18, 0.78);
-  color: var(--c, #fff);
+  border: 1px solid rgba(190, 245, 240, 0.35);
+  background: rgba(24, 120, 128, 0.34);
+  color: var(--c, #7fe8e0);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  pointer-events: auto;
+  gap: 2px;
 }
-.gw-slot.sel {
-  border-color: rgba(255, 255, 255, 0.7);
+.sw-tile[hidden] {
+  display: none;
 }
-.gw-slot.hl {
-  border-color: var(--c, #fff);
-  transform: translate(-50%, -50%) scale(1.15);
-  box-shadow: 0 0 14px var(--c, #fff);
+.sw-tile.sel {
+  border-color: rgba(255, 255, 255, 0.75);
 }
-.gw-slot.empty {
+.sw-tile.hl {
+  background: rgba(40, 200, 205, 0.62);
+  border-color: #fff;
+  transform: translate(-50%, -50%) scale(1.14);
+  box-shadow: 0 0 16px rgba(80, 240, 235, 0.55);
+  z-index: 2;
+}
+.sw-tile.empty {
   opacity: 0.35;
 }
-.gw-count {
-  position: absolute;
-  right: 2px;
-  bottom: 0;
-  font-size: 13px;
+.sw-glyph {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  letter-spacing: 0.06em;
 }
-.gw-name {
+.sw-sub,
+.sw-gun {
+  font-size: 15px;
+}
+.sw-count {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+.sw-stack {
   position: absolute;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-size: 16px;
+  top: -34%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sw-vis {
+  width: 96px;
+  padding: 3px 0;
+  text-align: center;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.08em;
+  color: rgba(190, 245, 240, 0.8);
+  border: 1px solid rgba(190, 245, 240, 0.3);
+  background: rgba(24, 120, 128, 0.3);
+}
+.sw-vis.sel {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+.sw-vis.hl {
+  color: #fff;
+  background: rgba(40, 200, 205, 0.62);
+  border-color: #fff;
+}
+.sw-label {
+  position: absolute;
+  left: calc(50% + min(calc(35 * var(--vh)), 210px) + 70px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.sw-label-name {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
+}
+.sw-label-mode {
+  color: #5fe8e0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sw-hint {
+  position: absolute;
+  left: 4vw;
+  bottom: 12vh;
+  max-width: 24ch;
+  padding: 8px 12px;
+  color: #d6f5f2;
+  font-size: 15px;
+  line-height: 1.3;
+  background: rgba(10, 40, 44, 0.6);
+  border-left: 3px solid #3bd0c8;
 }
 /* remote camera feed (sticky cam) */
 .gadget-feed {

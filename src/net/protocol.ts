@@ -11,8 +11,9 @@ import { packMoveState, sanitizeMoveState, type MoveState } from '../player/move
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
+import type { SecWire } from '../game/ctDevices';
 
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 22;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -50,7 +51,7 @@ export interface PlayerInfo {
 /** Bit flags in player state. */
 /** Player flags; `silent`: footsteps make no noise this moment (climbing, vaults);
  *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
-export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
+export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, /* 64 was the sprint (removed, protocol 14) */ quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
 
 export interface PlayerState {
   id: string;
@@ -145,9 +146,10 @@ export type Msg =
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
-  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'end'; partner: string; target: number; s: number; gy: number }
-  /** The host started a team move: `a` climbs, `b` is braced. */
-  | { t: 'tstart'; kind: 'boost' | 'ladder'; a: string; b: string; target: number; s: number; t0: number }
+  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'throw' | 'hang' | 'rope' | 'hangEnd' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
+  /** The host started a team move: `a` climbs, `b` is braced. (CT prototype B4, protocol 19) `throw`: `a` is thrown
+   *  over the standing `b` to the landing `l` (feet; a `tmove` throw claims it as `lx`, `gy`, `lz`). */
+  | { t: 'tstart'; kind: 'boost' | 'ladder' | 'throw' | 'hang' | 'rope'; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
   /** The host refused `a`'s request. */
   | { t: 'tdeny'; a: string; reason: string }
   /**
@@ -159,8 +161,8 @@ export type Msg =
   | { t: 'cmove'; kind: CKind; id: number; target: string }
   | { t: 'cstart'; kind: CKind; a: string; id: number; target: string; t0: number }
   | { t: 'cdeny'; a: string; id: number; kind: CKind; reason: CDenyReason }
-  /** The human ladder of `a` (top) and `b` (bottom) ended. */
-  | { t: 'tend'; a: string; b: string }
+  /** The human ladder of `a` (top) and `b` (bottom) ended. (B5, protocol 20) `k`: a hang-down ended: pulled up or dropped. */
+  | { t: 'tend'; a: string; b: string; k?: 'pull' | 'drop' }
   /** Client ping (the host relays it to everyone). */
   | { t: 'ping'; x: number; y: number; z: number; target: string }
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
@@ -172,6 +174,8 @@ export type Msg =
   | ({ t: 'course' } & CourseWire)
   /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
   | { t: 'ctick'; verb: ClientVerb }
+  /** (CT prototype B3) A client's held pistol jammer: the device it aims at ('' = released); sent on change and every 0.25 s while held. */
+  | { t: 'jam'; tgt: string }
   | { t: 'end'; stats: EndStats }
   | { t: 'bye'; reason: string };
 
@@ -384,6 +388,24 @@ const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
+/** (CT prototype B3) The `sec` field of a course message: the jam list and charges, clamped. */
+function secWire(v: unknown): { sec?: SecWire } {
+  if (!isObj(v)) return {};
+  const j = Array.isArray(v.j) ? v.j : [];
+  const ch = Array.isArray(v.ch) ? v.ch : [];
+  const sc: unknown[] | null = Array.isArray(v.sc) ? v.sc : null;
+  return {
+    sec: {
+      ck: num(v.ck, 0, 1e6) ?? 0,
+      j: [id(j[0]) ?? '', id(j[1]) ?? ''],
+      ch: [num(ch[0], 0, 120) ?? 0, num(ch[1], 0, 120) ?? 0],
+      al: Math.round(num(v.al, 0, 9) ?? 0),
+      // (B6) the scanner pair: phases 0-3, occupied bits 0-3, progress in tenths of a second
+      ...(sc ? { sc: [0, 1, 2, 3, 4].map((i) => Math.round(num(sc[i], 0, i < 3 ? 3 : 100) ?? 0)) } : {}),
+    },
+  };
+}
+
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
@@ -449,7 +471,7 @@ function parseCourse(raw: Obj): Msg | null {
     const g = num(x[0], -1, 4096);
     if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
   }
-  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)) };
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec) };
 }
 
 /** Validate an incoming message. Returns null for anything malformed. */
@@ -495,6 +517,11 @@ export function parseMessage(raw: unknown): Msg | null {
       const verb = oneOf(raw.verb, CLIENT_VERBS);
       return verb ? { t: 'ctick', verb } : null;
     }
+    case 'jam': {
+      if (raw.tgt === '') return { t: 'jam', tgt: '' };
+      const tgt = id(raw.tgt);
+      return tgt ? { t: 'jam', tgt } : null;
+    }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);
       const x = num(raw.x, -WORLD, WORLD);
@@ -510,17 +537,34 @@ export function parseMessage(raw: unknown): Msg | null {
       return { t: 'ping', x, y, z, target: id(raw.target) ?? '' };
     }
     case 'tmove': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'end'] as const);
+      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang', 'rope', 'hangEnd', 'end'] as const);
       const partner = raw.partner === '' ? '' : id(raw.partner);
       if (!kind || partner === null) return null;
-      return { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
+      const out: Extract<Msg, { t: 'tmove' }> = { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
+      if (kind === 'throw' || kind === 'hang' || kind === 'rope') {
+        const lx = num(raw.lx, -WORLD, WORLD);
+        const lz = num(raw.lz, -WORLD, WORLD);
+        if (lx === null || lz === null) return null;
+        out.lx = lx;
+        out.lz = lz;
+      }
+      return out;
     }
     case 'tstart': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder'] as const);
+      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang', 'rope'] as const);
       const a = id(raw.a);
       const b = id(raw.b);
       if (!kind || !a || !b) return null;
-      return { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
+      const out: Extract<Msg, { t: 'tstart' }> = { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
+      if (kind === 'throw' || kind === 'hang' || kind === 'rope') {
+        const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
+        const lx = la ? num(la[0], -WORLD, WORLD) : null;
+        const ly = la ? num(la[1], -50, 100) : null;
+        const lz = la ? num(la[2], -WORLD, WORLD) : null;
+        if (lx === null || ly === null || lz === null) return null;
+        out.l = [lx, ly, lz];
+      }
+      return out;
     }
     case 'tdeny': {
       const a = id(raw.a);
@@ -553,7 +597,9 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'tend': {
       const a = id(raw.a);
       const b = id(raw.b);
-      return a && b ? { t: 'tend', a, b } : null;
+      if (!a || !b) return null;
+      const k = oneOf(raw.k, ['pull', 'drop'] as const);
+      return k ? { t: 'tend', a, b, k } : { t: 'tend', a, b };
     }
     case 'td': {
       const target = id(raw.target);

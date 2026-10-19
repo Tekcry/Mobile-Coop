@@ -11,7 +11,7 @@
  * Per-step and per-query paths use indexed loops and allocate nothing (conventions.md hot paths).
  */
 import { AIRLOCK_CYCLE, AIRLOCK_DOORWAY_CLEAR, AIRLOCK_Y_TOL, PAIR_WINDOW, RESTART_DELAY, TIMED_HOLD_AFTER } from '../../config/course';
-import { airlockPad, gateDoors, leadOf, type AirlockDef, type BayDef, type CourseDef, type DrillDef, type GateDef, type PlayerIdx } from './courseDef';
+import { airlockPad, exitZoneReady, gateDoors, inExitZone, leadOf, type AirlockDef, type BayDef, type CourseDef, type DrillDef, type GateDef, type PlayerIdx } from './courseDef';
 
 export type AirlockPhase = 'open' | 'waiting' | 'ready' | 'cycling' | 'sealed';
 
@@ -310,12 +310,26 @@ export class CourseState {
   /** The players reached the end (the exit lift): refuses like an airlock while drills are open. */
   finish(): string | null {
     if (this.over || this.currentBay.exit !== 'end') return null;
-    const why = this.drillRefusal();
+    const why = this.finishRefusal();
     if (why) return why;
     this.done[this.bay] = true;
     this.over = true;
     this.events.push({ t: 'courseDone' });
     return null;
+  }
+
+  /** Why the course cannot finish yet: open drills, a downed player, or (with an exit zone) not both players in it. */
+  finishRefusal(): string | null {
+    const why = this.drillRefusal();
+    if (why) return why;
+    const z = this.def.exitZone;
+    if (!z) return null;
+    if (this.anyDowned()) return REFUSE_REVIVE;
+    return exitZoneReady(this.inExit(z, 0), this.inExit(z, 1), this.solo) ? null : REFUSE_PARTNER;
+  }
+
+  private inExit(z: NonNullable<CourseDef['exitZone']>, p: PlayerIdx): boolean {
+    return inExitZone(z, this.feet[p * 3]!, this.feet[p * 3 + 1]!, this.feet[p * 3 + 2]!, AIRLOCK_Y_TOL);
   }
 
   /** Start at bay `n` (1-based, D20): earlier bays done, their airlocks sealed, checkpoint at bay n's entry airlock. */
@@ -386,6 +400,8 @@ export class CourseState {
     }
     const a = this.airById.get(this.currentBay.exit);
     if (a && a.phase !== 'sealed') this.stepAirlock(a, dt);
+    // the exit zone (G138): both players in it ends the course (the "Finish" device is the fallback without a zone)
+    if (this.def.exitZone && this.currentBay.exit === 'end' && this.finishRefusal() === null) this.finish();
     const bothDown = this.solo ? this.downed[0] || this.downed[1] : this.downed[0] && this.downed[1];
     if (bothDown) {
       this.downT += dt;

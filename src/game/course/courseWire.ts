@@ -4,6 +4,7 @@
  * client-reported drill verbs (DECISIONS C10) with their rate limit.
  */
 import type { PackedCourse } from './courseState';
+import type { SecWire } from '../ctDevices';
 
 export interface CourseWire {
   s: PackedCourse;
@@ -18,6 +19,8 @@ export interface CourseWire {
   rl?: string;
   /** Radio line counter (0 = none yet this match). */
   rln?: number;
+  /** (CT prototype B3) The cameras' clock, who jams what, the charges and the alarm stage. */
+  sec?: SecWire;
 }
 
 /**

@@ -359,86 +359,169 @@ describe('motion driver: Chaos Theory feel (3.2.0, player)', () => {
       for (let k = 0; k < a.length; k++) expect(Math.abs(a[k]! - b[k]!)).toBeLessThan(0.03);
     }
   });
-  it('a gear change mid-move re-targets within CT.startTime; a reversal at pace is a planted pivot', () => {
+  it('a speed change mid-move re-targets within CT.startTime', () => {
     const d = new MotionDriver();
-    run(d, 0.6, (i) => {
+    run(d, 1, (i) => {
       ct(i);
-      i.vz = 1.65;
+      i.vz = 2.0;
     }, 60);
     let reached = -1;
-    run(d, 0.4, (i) => {
+    run(d, 0.6, (i) => {
       ct(i);
-      i.vz = 3.15;
+      i.vz = 3.0;
     }, 60, (t) => {
-      if (reached < 0 && d.speed >= 1.65 + (3.15 - 1.65) * 0.95) reached = t;
+      if (reached < 0 && d.speed >= 2.0 + (3.0 - 2.0) * 0.95) reached = t;
     });
     expect(reached).toBeGreaterThan(0);
     expect(reached).toBeLessThanOrEqual(CT.startTime + 1 / 60 + 1e-9);
-    // (step 22, D5.4) reverse at pace: brake into a planted pivot (never sliding backwards before the plant), then
-    // push off the new way
+  });
+  it('(CT prototype M1, G33) a run reversal is one continuous turn of about 0.37 s: no brake, plant or pivot, the pace dips and recovers', () => {
+    const d = new MotionDriver();
+    run(d, 1.2, (i) => {
+      ct(i);
+      i.vz = 4.2;
+    }, 60);
     let pivot = false;
-    let back = -1;
-    let slidBack = false;
-    run(d, 0.8, (i) => {
-      ct(i);
-      i.vz = -3.15;
-    }, 60, (t) => {
-      pivot ||= d.state === 'pivot';
-      if (d.vz < -1e-9 && d.speed > CT.turnSnapSpeed && back < 0 && d.state === 'pivot' && d.stateT < 0.05) slidBack = true;
-      if (back < 0 && d.vz <= -3.15 * 0.95) back = t;
-    });
-    expect(pivot).toBe(true);
-    expect(slidBack).toBe(false);
-    expect(back).toBeGreaterThan(0);
-    expect(back).toBeLessThanOrEqual(CT.stopTime + CT.startTime + 0.05);
-  });
-  it('(step 22, M14) turn inertia: at pace the travel swings to the stick over CT.turnTime, at a sneak at once', () => {
-    const d = new MotionDriver();
-    run(d, 0.6, (i) => {
-      ct(i);
-      i.vz = 2.3;
-    }, 60);
-    const angles: number[] = [];
+    let done = -1;
     let minSp = 9;
-    run(d, 0.3, (i) => {
+    let lastYaw = d.yaw;
+    let dir = 0;
+    let reversed = false;
+    run(d, 1, (i) => {
       ct(i);
-      i.vx = 2.3;
-    }, 60, () => {
-      angles.push(Math.atan2(d.vx, d.vz));
+      i.vz = -4.2;
+    }, 60, (t) => {
+      pivot ||= d.state === 'pivot' || d.state === 'stop';
       minSp = Math.min(minSp, d.speed);
+      // the yaw only ever turns one way
+      const dy = wrapPi(d.yaw - lastYaw);
+      if (Math.abs(dy) > 1e-6) {
+        if (dir !== 0 && Math.sign(dy) !== dir && done < 0) reversed = true;
+        dir = Math.sign(dy);
+      }
+      lastYaw = d.yaw;
+      if (done < 0 && Math.abs(wrapPi(d.yaw - Math.PI)) < 0.05) done = t;
     });
-    expect(angles[0]!).toBeGreaterThan(0.05);
-    expect(angles[0]!).toBeLessThan(Math.PI / 4);
-    const k95 = angles.findIndex((a) => a >= (Math.PI / 2) * 0.95);
-    expect(k95).toBeGreaterThan(0);
-    expect((k95 + 1) / 60).toBeLessThanOrEqual(CT.turnTime + 1 / 60);
-    expect(minSp).toBeGreaterThan(2.3 * 0.95);
-    // a sneak turns with the stick at once
-    const e = new MotionDriver();
-    run(e, 0.6, (i) => {
-      ct(i);
-      i.vz = 0.3;
-    }, 60);
-    run(e, 1 / 60, (i) => {
-      ct(i);
-      i.vx = 0.3;
-    }, 60);
-    expect(Math.atan2(e.vx, e.vz)).toBeCloseTo(Math.PI / 2, 6);
+    expect(pivot).toBe(false);
+    expect(reversed).toBe(false);
+    expect(done).toBeGreaterThan(0.3);
+    expect(done).toBeLessThanOrEqual(0.45);
+    expect(minSp).toBeLessThan(4.2 * 0.7);
+    expect(d.speed).toBeGreaterThan(4.2 * 0.9);
   });
-  it('travel turns at up to CT.turnRate (720 deg/s), faster than the 2.x travel rate', () => {
+  it('(G25) no stationary pivot: the stick spun on the spot walks a tight circle, never a pivot or a stepped turn', () => {
     const d = new MotionDriver();
-    run(d, 0.5, (i) => {
+    const i = emptyMotionInput();
+    ct(i);
+    let x = 0;
+    let z = 0;
+    let far = 0;
+    let bad = false;
+    const dt = 1 / 60;
+    // the slowest speed (0.2 m/s, standing) with the stick going round at about one turn a second
+    for (let k = 0; k < 150; k++) {
+      const a = k * dt * 6;
+      i.vx = Math.sin(a) * 0.2;
+      i.vz = Math.cos(a) * 0.2;
+      i.yaw = d.yaw;
+      d.step(dt, i);
+      bad ||= d.state === 'pivot' || d.state === 'turn';
+      x += d.outX * dt;
+      z += d.outZ * dt;
+      far = Math.max(far, Math.hypot(x, z));
+    }
+    expect(bad).toBe(false);
+    expect(d.state).toBe('move');
+    // a tiny circle: the 2.5 s of spinning never takes it more than 0.3 m from where it started
+    expect(far).toBeLessThan(0.3);
+  });
+  it('(G25, G33) a flick 180 is one smooth turn of about 0.4 s at up to CT.turnRate', () => {
+    const d = new MotionDriver();
+    run(d, 1, (i) => {
       ct(i);
-      i.vz = 2.8;
+      i.vz = 2.0;
     }, 120);
     let maxRate = 0;
-    run(d, 0.6, (i) => {
+    let done = -1;
+    run(d, 0.8, (i) => {
       ct(i);
-      i.vx = 2.8;
-    }, 120, () => (maxRate = Math.max(maxRate, Math.abs(d.yawRate))));
+      i.vz = -2.0;
+    }, 120, (t) => {
+      maxRate = Math.max(maxRate, Math.abs(d.yawRate));
+      if (done < 0 && Math.abs(wrapPi(d.yaw - Math.PI)) < 0.03) done = t;
+    });
     expect(maxRate).toBeLessThanOrEqual(CT.turnRate + 1e-6);
-    expect(maxRate).toBeGreaterThan(MOVEMENT.turnTravelSlow * 1.05);
-    expect(Math.abs(wrapPi(d.yaw - Math.PI / 2))).toBeLessThan(0.01);
+    expect(done).toBeGreaterThan(0.33);
+    expect(done).toBeLessThanOrEqual(0.5);
+  });
+  it('(A1.1) the turn-rate cap scales with speed: about 450 deg/s at a walk, 350 at the full run', () => {
+    const peak = (v: number): number => {
+      const d = new MotionDriver();
+      run(d, 1.2, (i) => {
+        ct(i);
+        i.vz = v;
+      }, 120);
+      let m = 0;
+      // a quarter turn, so the pace has not dipped far when the rate peaks
+      run(d, 0.3, (i) => {
+        ct(i);
+        i.vx = v;
+        i.vz = 0;
+      }, 120, () => {
+        m = Math.max(m, Math.abs(d.yawRate));
+      });
+      return m;
+    };
+    const walk = peak(2.0);
+    const runRate = peak(4.2);
+    expect(walk).toBeGreaterThan(CT.turnRate * 0.95);
+    expect(walk).toBeLessThanOrEqual(CT.turnRate + 1e-6);
+    expect(runRate).toBeLessThan(walk * 0.95);
+    expect(runRate).toBeGreaterThan(CT.turnRateRun * 0.9);
+  });
+  it('(G25) only at the slowest speed does the stick pulled behind walk backwards (about 0.5 m/s, facing held); faster it turns round', () => {
+    const d = new MotionDriver();
+    run(d, 1, (i) => {
+      ct(i);
+      i.slowest = true;
+      i.vz = -0.2;
+    }, 60);
+    expect(d.vz).toBeCloseTo(-CT.backSpeed, 1);
+    expect(d.backward).toBe(true);
+    expect(Math.abs(wrapPi(d.yaw))).toBeLessThan(1e-6);
+    // the stick back round to the front releases it
+    run(d, 1, (i) => {
+      ct(i);
+      i.slowest = true;
+      i.vz = 0.2;
+    }, 60);
+    expect(d.backward).toBe(false);
+    expect(d.vz).toBeGreaterThan(0);
+    // not the slowest speed: it turns round
+    const e = new MotionDriver();
+    run(e, 1.5, (i) => {
+      ct(i);
+      i.vz = -0.75;
+    }, 60);
+    expect(e.backward).toBe(false);
+    expect(Math.abs(wrapPi(e.yaw - Math.PI))).toBeLessThan(0.05);
+  });
+  it('(G26) a stop from a run slides at most about 0.3 m, with no closing step, and lands within CT.stopTime', () => {
+    const d = new MotionDriver();
+    run(d, 1.5, (i) => {
+      ct(i);
+      i.vz = 4.2;
+    }, 60);
+    let dist = 0;
+    let rest = -1;
+    run(d, 1, ct, 60, (t) => {
+      dist += d.outZ / 60;
+      if (rest < 0 && d.speed === 0) rest = t;
+    });
+    expect(dist).toBeLessThanOrEqual(0.32);
+    expect(rest).toBeGreaterThan(0);
+    expect(rest).toBeLessThanOrEqual(CT.stopTime + 2 / 60);
+    expect(d.state).toBe('idle');
   });
   it('without the flag (enemies, cover moves) the driver keeps its 2.x behaviour', () => {
     const d = new MotionDriver();
@@ -462,8 +545,7 @@ describe('enemy tuning is pinned (3.2.0: standalone literals)', () => {
     turnTravelSlow: 9.42477796076938, turnTravelFast: 5.235987755982989, turnAim: 1.9198621771937625, turnAccel: 12,
     turnSprint: 1.2, turnMoving: 2.4, turnChunk: 0.785, turnChunkTime: 0.3, turnThreshold: 0.45, twistMax: 1.3,
     pivotTime: 0.6, pivotMinSpeed: 0.45, crouchTime: 0.25, kneelTime: 0.3, standTime: 0.3, airControl: 0.05,
-    standHeight: 1.75, crouchHeight: 1.15, radius: 0.3, maxStep: 0.42, camFollow: 16, camShoulder: 15.5, camAds: 19,
-    recentreDelay: 1.5, recentreRate: 1.6,
+    standHeight: 1.75, crouchHeight: 1.15, radius: 0.3, maxStep: 0.42,
   };
   it('ENEMY_MOTION and ENEMY_CALM_MOTION hold the 3.1.0 values', () => {
     expect(Object.keys(ENEMY_MOTION).sort()).toEqual(Object.keys(PINNED).sort());

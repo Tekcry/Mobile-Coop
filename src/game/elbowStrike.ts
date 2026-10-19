@@ -1,5 +1,5 @@
 /**
- * (locomotion step 10) The Chaos Theory elbow strike (bible 5.4): fire while the weapon is holstered. Pure and
+ * (locomotion step 10) The Chaos Theory palm strike (G42 / G155, prototype A4; the file keeps its old name): fire while the weapon is holstered. Pure and
  * unit-tested: the tuning, the result table, the 0.9 s timeline and the reach / cone test. The controller
  * (`strikeController.ts`) and the co-op host (`committedMoves.ts`) run on it.
  */
@@ -7,51 +7,46 @@ import { hyp2 } from '../core/mathx';
 
 export const STRIKE = {
   /** Reach (m) from the striker's feet to the guard's. */
-  reach: 1.2,
-  /** Full cone (rad, 90 deg): the guard within 45 deg either side of the strike's facing. */
-  cone: Math.PI / 2,
-  /** Seconds from the press to contact. */
-  hitAt: 0.5,
-  /** Recovery after contact (s); a whiff leaves the striker exposed for all of it. */
-  recover: 0.4,
+  reach: 1.3,
+  /** Full cone (rad, 140 deg, F1b): the guard within 70 deg either side of the strike's facing, any side of him. */
+  cone: (Math.PI * 140) / 180,
+  /** Seconds from the press to contact (F1b: shorter wind-up, strike-2 "too slow"). */
+  hitAt: 0.08,
+  /** Recovery after contact (s): free about 0.6 s after contact (F1b; the footage / loco M25 had 1.4). */
+  recover: 0.6,
+  /** A whiff (the guard left the reach during the wind-up) frees the operator this long after the contact time (s). */
+  whiffRecover: 0.3,
+  /** Extra reach (m) at contact for the local player: a guard who stepped away during the wind-up is still hit. */
+  contactSlack: 0.3,
   /** Anticipation (s) at the start: the wind-up the requester plays on the press. */
-  anticipation: 0.15,
-  /** A struck aware guard staggers this long (s); a second strike inside it knocks him out. */
-  stagger: 1.0,
+  anticipation: 0.06,
   /** Noise radius (m) of a strike that connects. */
   noise: 4,
   /** Root motion cap (m): the body never lunges further than this. */
-  lunge: 0.3,
+  lunge: 0.4,
   /** Client prediction: no host reply in this long (s) cancels; the cancel blends back in `blendBack` s. */
   replyTimeout: 0.4,
   blendBack: 0.12,
   /** The host's lag slack (m) on the reach for a client's strike. */
-  lagSlack: 0.6,
+  lagSlack: 0.8,
 } as const;
 
-/** The whole move (s): anticipation, the strike to contact at 0.5 s, the recovery to 0.9 s. */
+/** The whole move (s): contact at 0.08 s, free by about 0.7 s (a whiff ends sooner). */
 export const STRIKE_DUR = STRIKE.hitAt + STRIKE.recover;
+/** A whiff's length (s). */
+export const STRIKE_WHIFF_DUR = STRIKE.hitAt + STRIKE.whiffRecover;
 
-export type StrikeResult = 'ko' | 'stagger';
+export type StrikeResult = 'ko';
 
+/** Kept for callers; unused (G42 / G155: the palm strike is a one-hit knockout from any side on every guard). */
 export interface StrikeVictimView {
-  /** Not unaware (suspicious and above). */
-  aware: boolean;
-  /** Guard facing . direction guard -> striker: > 0.5 = he faces the striker (within 60 deg). */
-  facingDot: number;
-  heavy: boolean;
-  /** Still staggered by an earlier strike. */
-  staggered: boolean;
+  aware?: boolean;
+  facingDot?: number;
 }
 
-/** The bible 5.4 table: unaware (any side), side / behind, or a second strike inside the stagger -> knocked out;
- *  aware and facing -> staggered; a heavy from the front is only ever staggered. */
-export function resolveStrike(v: StrikeVictimView): StrikeResult {
-  const facing = v.facingDot > 0.5;
-  if (v.heavy && facing) return 'stagger';
-  if (v.staggered) return 'ko';
-  if (!v.aware) return 'ko';
-  return facing ? 'stagger' : 'ko';
+/** G42 / G155: the palm strike knocks out any guard in one hit, from any side, aware or not. No stagger, no heavies. */
+export function resolveStrike(_v?: StrikeVictimView): StrikeResult {
+  return 'ko';
 }
 
 /** Facing dot of a guard (yaw `gy`, at gx, gz) towards a striker at sx, sz (1 = looking straight at him). */

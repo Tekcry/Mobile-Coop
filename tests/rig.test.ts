@@ -369,12 +369,11 @@ describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
 
   it('low-wall side lean: the head centre stays under the wall top (headCap), both edges', async () => {
     const { scene, rig, Vector3 } = await setup();
-    const { wallHeadCap } = await import('../src/player/wallController');
     // (A51) a 1.1 m low wall: the deepest crouch sink (0.3 m) keeps the head under walls from about 1.07 m up
     const top = 1.1;
     for (const left of [false, true]) {
       rig.openLeft = left;
-      for (let k = 0; k < 120; k++) rig.animate(1 / 60, { ...edgePose(left, 1), headCap: wallHeadCap(0, top) });
+      for (let k = 0; k < 120; k++) rig.animate(1 / 60, { ...edgePose(left, 1), headCap: top - 0.14 });
       const h = rig.posedHead(new Vector3());
       expect(h.y).toBeLessThan(top - 0.1);
     }

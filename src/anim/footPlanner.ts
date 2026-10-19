@@ -33,6 +33,8 @@ export interface FootState {
   landed: boolean;
   /** Distance a locked foot was dragged (should stay ~0). */
   slide: number;
+  /** (A1.2) Yaw a planted foot was turned by the twist cap (rad; should stay ~0). */
+  scrub: number;
   // swing internals
   fromX: number;
   fromY: number;
@@ -60,7 +62,7 @@ export interface FootState {
 }
 
 function newFoot(): FootState {
-  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, fromPitch: 0, roll: 0, landed: false, slide: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, edgeK: 1, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, init: false };
+  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, fromPitch: 0, roll: 0, landed: false, slide: 0, scrub: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, edgeK: 1, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, init: false };
 }
 
 export interface PlannerInput {
@@ -120,11 +122,29 @@ export interface PlannerInput {
   turnStep: number;
   /** Ground height under a point, or null (keeps the root height). */
   ground: ((x: number, z: number, yFrom: number) => number | null) | null;
+  /** (A1.2) Body yaw rate (rad/s): landings are predicted along the turn. */
+  yawRate: number;
+  /** (A1.2) Where the body is turning to (rad); NaN = unknown (a remote: the prediction caps at +-90 deg). */
+  faceGoal: number;
+  /**
+   * (A1.2) 'facing': free movement, the stride runs along the facing (no sideways or backwards steps except the slowest
+   * back walk). 'velocity': aiming, wall, cover: the stride follows the velocity.
+   */
+  stride: 'facing' | 'velocity';
+  /** (A1.2) The pelvis yaw (rad; NaN = the body yaw): the no-crossing rules are measured in its frame. */
+  pelvisYaw: number;
 }
 
 export function emptyPlannerInput(): PlannerInput {
-  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, wallNx: 0, wallNz: 0, wallD: NaN, turnStep: Infinity, ground: null };
+  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, wallNx: 0, wallNz: 0, wallD: NaN, turnStep: 0.9, ground: null, yawRate: 0, faceGoal: NaN, stride: 'velocity', pelvisYaw: NaN };
 }
+
+/**
+ * (A1.2) Legs follow the body in turns: the largest planted-foot yaw from the body (`twistMax`, rad, 52 deg), the
+ * least lateral gap between the feet in the pelvis frame for an airborne foot (`minGapAny`, m) within `nearAlong` m
+ * front to back, and the most a foot turns in one swing (`maxSwingYaw`, rad).
+ */
+export const TURN_FOLLOW = { twistMax: 0.9, minGapAny: 0.08, nearAlong: 0.25, maxSwingYaw: 3.4, earlySwap: 0.85 } as const;
 
 /** A pinned foot further than this (m) from its pin steps onto it. */
 export const PIN_TOL = 0.04;
@@ -136,12 +156,6 @@ export const PIN_TOL = 0.04;
  */
 export const HEEL_ROLL = { pitch: 0.12, time: 0.1, maxSpeed: 1.7 } as const;
 
-/**
- * (step 22, M14) The eased stop's closing step: a leftover swing more than `min` m behind its stance spot carries on
- * to it at `lift` x the idle lift, over the idle step time scaled by its distance (all of it from `full` m).
- */
-const CLOSE_STEP = { min: 0.05, lift: 0.6, full: 0.3 } as const;
-
 /** Idle stepping thresholds. */
 export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6, swingGap: 0.1, swingNear: 0.18 };
 
@@ -151,16 +165,9 @@ const wrap = (a: number): number => {
   return a > Math.PI ? a - TAU : a < -Math.PI ? a + TAU : a;
 };
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+const clampAbs = (a: number, m: number): number => (a > m ? m : a < -m ? -m : a);
 /** (locomotion step 21, A80) A start's first steps (s): the trailing foot may toe off early at any speed. */
 const START_TOE_OFF = 1.2;
-/**
- * (locomotion step 22, M14) A planted foot turned more than `PIVOT_TURN` (rad) from the body: the reversal pivot (A88)
- * has turned the body over it and pushes off the other way (the travel within 60 deg of the foot's heel). While the other foot is in the air it holds its spot out
- * to `PIVOT_REACH` x its reach instead of being dragged after the body (turn180 footSlideR 6.7 cm); a toe-off there
- * would be a flight phase (pelvis jump 29 cm).
- */
-const PIVOT_TURN = 1.2;
-const PIVOT_REACH = 1.15;
 /** (fix 21-2) Still this long (s) before a move counts as a new start. */
 const START_STILL = 0.25;
 /** (fix 21-2) Time (s) over which a taken-over early toe-off's gap to the clock's swing fades out. */
@@ -202,6 +209,7 @@ export class FootPlanner {
       f.swing = -1;
       f.pitch = 0;
       f.slide = 0;
+      f.scrub = 0;
       f.init = true;
     }
   }
@@ -219,11 +227,6 @@ export class FootPlanner {
     this.iz = rz - lx * s + lz * c;
   }
 
-  /** Root-space lateral coordinate of a world point. */
-  private lateral(i: PlannerInput, x: number, z: number): number {
-    return (x - i.rootX) * Math.cos(i.yaw) - (z - i.rootZ) * Math.sin(i.yaw);
-  }
-
   update(i: PlannerInput): void {
     if (!this.L.init) this.reset(i);
     this.L.landed = this.R.landed = false;
@@ -238,11 +241,10 @@ export class FootPlanner {
       }
     }
     if (!i.moving && this.wasMoving && i.quickStop > 0) {
-      // instant stop: a swing left over from moving sets down within `quickStop` where it was aiming
+      // (G26) the feet freeze: a swing left over from moving sets straight down where it is within `quickStop`, no closing step
       for (let k = 0; k < 2; k++) {
         const f = k === 0 ? this.L : this.R;
         if (f.contact || f.swing < 0) continue;
-        if (this.closeStep(f, i, k === 0 ? -1 : 1)) continue;
         this.setDown(f, i);
       }
       this.quick = true;
@@ -255,6 +257,56 @@ export class FootPlanner {
     if (i.moving) this.updateMoving(i);
     else this.updateIdle(i);
     if (this.L.contact && this.R.contact) this.quick = false;
+    if (i.moving && Number.isNaN(i.wallD)) this.twistCap(i);
+    this.uncross(i);
+  }
+
+  /** (A1.2) The pelvis yaw the turn rules measure in. */
+  private pelvis(i: PlannerInput): number {
+    return Number.isNaN(i.pelvisYaw) ? i.yaw : i.pelvisYaw;
+  }
+
+  /** (A1.2) A planted foot never twists more than TURN_FOLLOW.twistMax from the body: it turns on the spot (counted). */
+  private twistCap(i: PlannerInput): void {
+    // (measured from the body yaw: a foot lands ~47 deg ahead and toes off ~47 deg behind in a full-rate spin; the pelvis
+    // trails up to 20 deg, so from the pelvis a fresh landing reads up to ~67 deg for a moment)
+    const py = i.yaw;
+    for (let k = 0; k < 2; k++) {
+      const f = k === 0 ? this.L : this.R;
+      if (!f.contact) continue;
+      const d = wrap(f.yaw - py);
+      const m = TURN_FOLLOW.twistMax;
+      if (d > m || d < -m) {
+        const to = py + (d > 0 ? m : -m);
+        f.scrub += Math.abs(wrap(to - f.yaw));
+        f.yaw = wrap(to);
+      }
+    }
+  }
+
+  /**
+   * (A1.2) Hard no-crossing post-pass in the pelvis frame: an airborne foot within TURN_FOLLOW.nearAlong front to back of
+   * the other is pushed outward to at least TURN_FOLLOW.minGapAny from it; a planted foot is never moved.
+   */
+  private uncross(i: PlannerInput): void {
+    const py = this.pelvis(i);
+    const c = Math.cos(py);
+    const s = Math.sin(py);
+    const L = this.L;
+    const R = this.R;
+    if (L.contact && R.contact) return;
+    const along = (L.x - R.x) * s + (L.z - R.z) * c;
+    if (along > TURN_FOLLOW.nearAlong || along < -TURN_FOLLOW.nearAlong) return;
+    const gap = (R.x - L.x) * c - (R.z - L.z) * s;
+    const bad = TURN_FOLLOW.minGapAny - gap;
+    if (bad <= 0) return;
+    // the airborne foot moves (both airborne: each half)
+    const kL = L.contact ? 0 : R.contact ? 1 : 0.5;
+    const kR = 1 - kL;
+    L.x -= bad * kL * c;
+    L.z += bad * kL * s;
+    R.x += bad * kR * c;
+    R.z -= bad * kR * s;
   }
 
   // --- moving: contacts from the gait clock -------------------------------------------------
@@ -289,11 +341,36 @@ export class FootPlanner {
         const toLand = (1 - s) * f.stepDur;
         // land ahead by at most what the leg can reach (at a sprint half a stance would overreach: the
         // foot lands nearer and toes off early instead)
-        const v = hyp2(i.velX, i.velZ);
+        // (A1.2) facing mode: the stride runs along the facing at the facing-projected pace (backwards only on the slow
+        // back walk), and the root is predicted on the turn's arc (chord at the mid yaw), not on the velocity's tangent
+        let vx = i.velX;
+        let vz = i.velZ;
+        const fy = Math.sin(i.yaw);
+        const fz = Math.cos(i.yaw);
+        if (i.stride === 'facing') {
+          const along = vx * fy + vz * fz;
+          const vf = along >= 0 || !this.backWalk(i) ? Math.max(0, along) : along;
+          vx = fy * vf;
+          vz = fz * vf;
+        }
+        const v = hyp2(vx, vz);
         const ahead = Math.min(i.duty * i.cycleTime * 0.5 * v, i.reach * 0.75);
         const lead = toLand + (v > 1e-3 ? ahead / v : 0);
-        let rx = i.rootX + i.velX * lead;
-        let rz = i.rootZ + i.velZ * lead;
+        const cap = Number.isNaN(i.faceGoal) ? Math.PI / 2 : Math.abs(wrap(i.faceGoal - i.yaw));
+        const dy = clampAbs(i.yawRate * lead, cap);
+        let rx: number;
+        let rz: number;
+        if (i.stride === 'facing' && dy !== 0) {
+          const ha = i.yaw + dy * 0.5;
+          const vf = vx * fy + vz * fz;
+          rx = i.rootX + Math.sin(ha) * vf * lead;
+          rz = i.rootZ + Math.cos(ha) * vf * lead;
+        } else {
+          rx = i.rootX + vx * lead;
+          rz = i.rootZ + vz * lead;
+        }
+        // the foot lands at the predicted mid-stance yaw: half the stance's turn ahead at touchdown, half behind at toe-off
+        const landYaw = wrap(i.yaw + clampAbs(i.yawRate * (toLand + 0.5 * i.duty * i.cycleTime), cap));
         let clamped = false;
         if (i.rest) {
           // distance matching: do not land beyond where the body will stop
@@ -306,7 +383,7 @@ export class FootPlanner {
         }
         const prevToX = f.toX;
         const prevToZ = f.toZ;
-        this.aim(f, i, side, rx, rz, i.yaw);
+        this.aim(f, i, side, rx, rz, landYaw);
         // an early toe-off already in the air goes on from its progress to land on the clock (restarting from
         // the clock's 0 snaps the foot back to where it left the ground and the pelvis drops to reach it)
         const sp = f.swBase + (1 - f.swBase) * s;
@@ -442,10 +519,32 @@ export class FootPlanner {
   private holdOrStep(f: FootState, i: PlannerInput, side: -1 | 1): void {
     // (step 11) turned well away from the body (a turn onto a wall): step round with it, one foot at a time
     const o = side < 0 ? this.R : this.L;
-    if (o.contact && Math.abs(wrap(f.yaw - i.yaw)) > i.turnStep) {
+    // (A1.2) the rules also fire while the other foot is nearly down: it lands now (an early swap, never both in the air)
+    // (only a rule step: a clock swing landed early would restart its window at once)
+    const swap = !o.contact && o.swing >= TURN_FOLLOW.earlySwap && o.swBase < 0 && !this.quick;
+    const turned = Math.abs(wrap(f.yaw - i.yaw)) > i.turnStep;
+    const c = Math.cos(i.yaw);
+    const sn = Math.sin(i.yaw);
+    const ox = o.contact ? o.x : o.toX;
+    const oz = o.contact ? o.z : o.toZ;
+    const crossed = ((f.x - ox) * c - (f.z - oz) * sn) * side < PLANNER.minGap * 0.5;
+    if ((o.contact || swap) && (turned || crossed)) {
+      if (!o.contact) this.land(o);
+    }
+    if (o.contact && turned) {
       this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
       this.aim(f, i, side, i.rootX, i.rootZ, i.yaw);
       return;
+    }
+    // (A1.1) the body has turned round the planted feet until they are side by side or crossed in its frame (a tight
+    // circle): this foot steps round to its own side
+    if (o.contact) {
+      const gap = ((f.x - o.x) * c - (f.z - o.z) * sn) * side;
+      if (gap < PLANNER.minGap * 0.5) {
+        this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
+        this.aim(f, i, side, i.rootX, i.rootZ, i.yaw);
+        return;
+      }
     }
     // measured from under its own hip (the foot's stance spot), not the root centre: a side-step's
     // trailing foot is a hip width further from the centre than the leg is actually stretched
@@ -467,16 +566,10 @@ export class FootPlanner {
       this.aim(f, i, side, i.rootX + i.velX * f.stepDur, i.rootZ + i.velZ * f.stepDur, i.yaw);
       return;
     }
-    // (step 22, M14) the reversal pivot: the planted foot turned back under a body pushing off the other way holds its
-    // spot to a longer reach while the other foot is still in the air (no flight phase; the clock lifts it next)
-    const pivotReach =
-      !o.contact && Math.abs(wrap(f.yaw - i.yaw)) > PIVOT_TURN && i.velX * Math.sin(f.yaw) + i.velZ * Math.cos(f.yaw) < -0.5 * hyp2(i.velX, i.velZ)
-        ? reach * PIVOT_REACH
-        : reach;
-    if (hyp2(dx, dz) > pivotReach) {
+    if (hyp2(dx, dz) > reach) {
       // out of reach while locked: drag (counted) back to the reach limit; a real step follows
       const d = hyp2(dx, dz);
-      const k = pivotReach / d;
+      const k = reach / d;
       const nx = hx + dx * k;
       const nz = hz + dz * k;
       f.slide += hyp2(nx - f.x, nz - f.z);
@@ -508,16 +601,35 @@ export class FootPlanner {
     let tz = this.iz;
     // no crossing: keep a gap from the other foot along the body's lateral axis
     const other = side < 0 ? this.R : this.L;
-    const latT = this.lateral(i, tx, tz);
-    const latO = this.lateral(i, other.contact ? other.x : other.toX, other.contact ? other.z : other.toZ);
+    // (A1.1) measured in the landing foot's own frame (the yaw it lands at), not the body's current one: the body
+    // yaw moves ~90 deg per 0.2 s in a fast turn
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const ox = other.contact ? other.x : other.toX;
+    const oz = other.contact ? other.z : other.toZ;
+    const latT = (tx - rx) * c - (tz - rz) * s;
+    const latO = (ox - rx) * c - (oz - rz) * s;
     const gapNeed = PLANNER.minGap;
     const bad = side < 0 ? latT - (latO - gapNeed) : latO + gapNeed - latT;
     if (bad > 0) {
-      const c = Math.cos(i.yaw);
-      const s = Math.sin(i.yaw);
       const shift = side < 0 ? -bad : bad;
       tx += shift * c;
       tz += -shift * s;
+    }
+    // (A1.2) and against the other foot where it is now, in the current pelvis frame, when they land near each other
+    const py = this.pelvis(i);
+    const pc = Math.cos(py);
+    const ps = Math.sin(py);
+    const oxN = other.x;
+    const ozN = other.z;
+    const alongP = (tx - oxN) * ps + (tz - ozN) * pc;
+    if (alongP < TURN_FOLLOW.nearAlong && alongP > -TURN_FOLLOW.nearAlong) {
+      const gapP = ((tx - oxN) * pc - (tz - ozN) * ps) * side;
+      const badP = gapNeed - gapP;
+      if (badP > 0) {
+        tx += badP * side * pc;
+        tz -= badP * side * ps;
+      }
     }
     // limit the step length from where the foot left the ground
     const sx = tx - f.fromX;
@@ -582,6 +694,12 @@ export class FootPlanner {
     return g === null ? Number.NaN : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
   }
 
+  /** (A1.2) The slow back walk: travelling against the facing at under 0.9 m/s. */
+  private backWalk(i: PlannerInput): boolean {
+    const v = hyp2(i.velX, i.velZ);
+    return v < 0.9 && i.velX * Math.sin(i.yaw) + i.velZ * Math.cos(i.yaw) < -0.7 * v;
+  }
+
   private pinned(i: PlannerInput, side: -1 | 1): boolean {
     return side < 0 ? !Number.isNaN(i.pinLX) : !Number.isNaN(i.pinRX);
   }
@@ -603,37 +721,6 @@ export class FootPlanner {
       f.probeT = 0.08;
       f.toY = this.groundAt(i, f.toX, f.toZ);
     }
-  }
-
-  /**
-   * (locomotion step 22, M14) The closing step of an eased Chaos Theory stop: a swing left over when the feet stop
-   * stepping that is still behind its stance spot under the stopping body carries on to it, so the stop ends with the
-   * body over both feet. Setting it down where it was left it mid-stride behind the body (a 0.6 m stagger) and the
-   * idle squaring step then lifted the front foot while the body stood over the gap (flat-stand5 balance 20 cm). A
-   * swing already at or past its spot sets down where it is (`setDown`, never pulled back down a stair).
-   */
-  private closeStep(f: FootState, i: PlannerInput, side: -1 | 1): boolean {
-    if (i.hold || this.pinned(i, side)) return false;
-    const v = hyp2(i.velX, i.velZ);
-    const dx = v > 1e-3 ? i.velX / v : Math.sin(i.goalYaw);
-    const dz = v > 1e-3 ? i.velZ / v : Math.cos(i.goalYaw);
-    this.ideal(i, side, i.rootX, i.rootZ, i.goalYaw);
-    const behind = (this.ix - f.x) * dx + (this.iz - f.z) * dz;
-    if (behind < CLOSE_STEP.min) return false;
-    f.fromX = f.x;
-    f.fromY = f.y;
-    f.fromZ = f.z;
-    f.fromYaw = f.yaw;
-    f.probeT = 0;
-    this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
-    f.stepLift = PLANNER.idleLift * CLOSE_STEP.lift;
-    f.fromPitch = f.pitch;
-    f.stepT = 0;
-    f.stepDur = Math.max(i.quickStop, PLANNER.idleStepTime * Math.min(1, behind / CLOSE_STEP.full));
-    f.swing = 0;
-    f.swBase = -1;
-    f.offBase = -1;
-    return true;
   }
 
   /** Instant stop: a foot in the air sets straight down where it is, over `quickStop` (the stride it stopped in). */
@@ -675,12 +762,15 @@ export class FootPlanner {
     // it, so the feet never brush; the ends of the swing stay where they are
     const o = f === this.L ? this.R : this.L;
     if (o.contact) {
-      const c = Math.cos(i.yaw);
-      const sn = Math.sin(i.yaw);
+      // (A1.2) in the current pelvis frame, and a window that widens with the turn rate
+      const py = this.pelvis(i);
+      const c = Math.cos(py);
+      const sn = Math.sin(py);
       const along = (f.x - o.x) * sn + (f.z - o.z) * c;
-      if (along < PLANNER.swingNear && along > -PLANNER.swingNear) {
-        const latF = this.lateral(i, f.x, f.z);
-        const latO = this.lateral(i, o.x, o.z);
+      const near = PLANNER.swingNear * (1 + Math.min(1.5, Math.abs(i.yawRate) * 0.2));
+      if (along < near && along > -near) {
+        const latF = (f.x - i.rootX) * c - (f.z - i.rootZ) * sn;
+        const latO = (o.x - i.rootX) * c - (o.z - i.rootZ) * sn;
         const bad = f === this.L ? latF - (latO - PLANNER.swingGap) : latO + PLANNER.swingGap - latF;
         if (bad > 0) {
           const shift = (f === this.L ? -bad : bad) * Math.sin(Math.PI * s);
@@ -689,7 +779,15 @@ export class FootPlanner {
         }
       }
     }
-    f.yaw = f.fromYaw + wrap(f.toYaw - f.fromYaw) * h;
+    // (A1.2) the foot turns the way the body turns (past 115 deg the shortest way could swing it through the other leg),
+    // at most TURN_FOLLOW.maxSwingYaw a swing (the landing yaw is held there too)
+    let dy = wrap(f.toYaw - f.fromYaw);
+    if ((dy > 2 || dy < -2) && Math.abs(i.yawRate) > 1 && Math.sign(dy) !== Math.sign(i.yawRate)) dy += TAU * Math.sign(i.yawRate);
+    if (dy > TURN_FOLLOW.maxSwingYaw || dy < -TURN_FOLLOW.maxSwingYaw) {
+      dy = clampAbs(dy, TURN_FOLLOW.maxSwingYaw);
+      f.toYaw = wrap(f.fromYaw + dy);
+    }
+    f.yaw = wrap(f.fromYaw + dy * h);
     // toe-off then heel strike: toe down early, toe up just before landing
     // (locomotion step 21, A80) the toe-off pitch eases in over the first tenth of the swing: it started at 0.45 rad
     // (26 deg) on the lift frame, an ankle snap of 25-36 deg a frame once the pelvis stopped dropping for the swing

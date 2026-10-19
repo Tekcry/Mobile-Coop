@@ -144,17 +144,17 @@ describe('door peek core', () => {
 });
 
 describe('MoveState doorPeek', () => {
-  it('is appended at index 27 and round-trips (a in range, sub bit 1, ph the crack)', () => {
-    expect(MOVE_MODES.indexOf('doorPeek')).toBe(27);
+  it('is at index 26 (A3: swat removed) and round-trips (a in range, sub bit 1, ph the crack)', () => {
+    expect(MOVE_MODES.indexOf('doorPeek')).toBe(26);
     const mv = sanitizeMoveState(packMoveState({ m: 'doorPeek', a: 3, s: 0, sub: 1, ph: 0.12, tid: '', g: 2, r: 0, ay: 0, dw: 0 }), 4096, 4096, 10)!;
     expect(mv.m).toBe('doorPeek');
     expect(mv.a).toBe(3);
     expect(mv.sub).toBe(1);
     expect(mv.ph).toBeCloseTo(0.12);
-    expect(sanitizeMoveState({ m: 27, a: 10, sub: 0 }, 4096, 4096, 10)).toBeNull();
-    expect(sanitizeMoveState({ m: 27, a: -1, sub: 0 })).toBeNull();
-    expect(sanitizeMoveState({ m: 27, a: 2, sub: 0xff })!.sub).toBe(1);
-    const s = { mv: sanitizeMoveState({ m: 27, a: 5 })! };
+    expect(sanitizeMoveState({ m: 26, a: 10, sub: 0 }, 4096, 4096, 10)).toBeNull();
+    expect(sanitizeMoveState({ m: 26, a: -1, sub: 0 })).toBeNull();
+    expect(sanitizeMoveState({ m: 26, a: 2, sub: 0xff })!.sub).toBe(1);
+    const s = { mv: sanitizeMoveState({ m: 26, a: 5 })! };
     expect(dropBadDoorMove(s, 4)).toBe(true);
     expect(s.mv).toBeUndefined();
     expect(poseFromMoveState(mv, 1, emptyMovePose()).wall).toBe(false);

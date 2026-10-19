@@ -202,12 +202,12 @@ try {
   assert(!(await G(() => window.__app.input.gamepad.capturing)) && (await top()) === 'controls-screen', 'Start cancels it, the screen stays');
   await press(page, BTN.RB);
   await G(() => window.__app.input.setMode('kbm'));
-  await G(() => window.__app.nav.focus(document.querySelector('.controls-screen .tab-panel.active .kb-key[data-bind="ping:0"]')));
+  await G(() => window.__app.nav.focus(document.querySelector('.controls-screen .tab-panel.active .kb-key[data-bind="coop:0"]')));
   await key('Enter');
   const capK = await G(() => window.__app.input.kbm.capturing);
   await key('Escape');
-  const after = await G(() => ({ cap: window.__app.input.kbm.capturing, ping: window.__app.settings.get().keys.ping.join() }));
-  assert(capK && !after.cap && after.ping === 'KeyZ' && (await top()) === 'controls-screen', `keyboard: Esc cancels a capture (${JSON.stringify(after)})`);
+  const after = await G(() => ({ cap: window.__app.input.kbm.capturing, ping: window.__app.settings.get().keys.coop.join() }));
+  assert(capK && !after.cap && after.ping === 'KeyF,PageDown' && (await top()) === 'controls-screen', `keyboard: Esc cancels a capture (${JSON.stringify(after)})`);
   const rm = await sameBoxes('.controls-screen');
   assert(rm.n > 10 && rm.moved === 0, `remap: a device switch moves nothing (${rm.n} boxes, ${rm.moved} moved)`);
   await key('Escape');

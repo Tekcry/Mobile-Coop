@@ -1,16 +1,12 @@
 import type { ButtonAction } from './actions';
-import { detectPadStyle, GAME_BINDINGS, mapPad, TapHold, type PadStyle } from './gamepadMapping';
+import { detectPadStyle, GAME_BINDINGS, mapPad, type PadStyle } from './gamepadMapping';
 import { PAD_BUTTON_COUNT, padBindTable, type PadBinds } from './padBinds';
-import { WHEEL_HOLD, type InputState } from './inputState';
+import type { InputState } from './inputState';
 import { NavRepeater } from './navRepeat';
 import type { Settings } from '../core/settings';
 
 /** (menu-ui slice 2, G22 / MD13) The button that cancels a capture: Menu / Start (B stays bindable). */
 export const CAPTURE_CANCEL_BTN = 9;
-/** How long X must be held to swap weapons instead of reloading (seconds, app clock). */
-export const SWAP_HOLD = 0.35;
-/** X held this long (s) counts as a hold (aiming: the next weapon, A55; not aiming: free, the carried medkit is gone, G98). */
-export const X_HOLD = 0.4;
 const SRC = 'pad';
 const NAV_DIRS: ButtonAction[] = ['uiUp', 'uiDown', 'uiLeft', 'uiRight'];
 /** Radians per second at sensitivity 1, full deflection. */
@@ -32,10 +28,8 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  /** X: tap reload / hold while aiming swap (A55; a hold not aiming is free); D-pad left: tap ping / hold the gadget wheel; View: tap goggles (a hold does nothing). */
-  private xBtn = new TapHold(X_HOLD);
-  private leftBtn = new TapHold(WHEEL_HOLD);
-  private viewBtn = new TapHold(SWAP_HOLD);
+  /** (F1a) A while drawn: reload (edge memory). */
+  private aWas = false;
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
   private lastTimestamps = new Map<number, number>();
@@ -138,26 +132,24 @@ export class GamepadSource {
 
     if (frame.active) this.events.onActive();
 
+    // (F1a, CT) the weapon drawn (the aiming mode): A reloads instead of interacting, LT is the secondary fire (a stub:
+    // it is the held pistol jammer, `altFire` read by `CtDevices`, B3); holstered, LT is the knockout (read by the strike)
+    const drawn = this.adsActive;
+    const aNow = frame.buttons.interact === true;
+    if (drawn && aNow && !this.aWas) this.state.tap('reload');
+    this.aWas = aNow;
     for (const a of [
-      'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause',
-      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
+      'fire', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
+      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown', 'altFire',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
     ] as const) {
-      this.state.set(SRC, a, frame.buttons[a] === true);
+      const on = frame.buttons[a] === true;
+      this.state.set(SRC, a, on);
     }
+    this.state.set(SRC, 'interact', aNow && !drawn);
     for (const d of NAV_DIRS) {
       if (this.repeaters.get(d)!.update(frame.buttons[d] === true, now)) this.state.tap(d);
     }
-    // X: tap = reload (on release); hold while aiming = the next weapon (A55); a hold not aiming does nothing (G98)
-    const x = this.xBtn.update(frame.buttons.reload === true, now);
-    if (x === 'hold') {
-      if (this.adsActive) this.state.tap('swapNext');
-    }
-    else if (x === 'tap') this.state.tap('reload');
-    // D-pad left: held, the gadget wheel opens after WHEEL_HOLD (gadget system); let go sooner, a co-op ping
-    if (this.leftBtn.update(frame.buttons.gadgetWheel === true, now) === 'tap') this.state.tap('ping');
-    // View: tap = goggles (on release); a hold is free (emotes deleted, G24)
-    if (this.viewBtn.update(frame.buttons.vision === true, now) === 'tap') this.state.tap('vision');
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;
     const k = 1 - Math.exp(-dt / LOOK_SMOOTH);

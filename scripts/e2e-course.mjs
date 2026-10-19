@@ -473,7 +473,7 @@ if (!failed) {
   try {
     await A.close().catch(() => {});
     if (B) await B.close().catch(() => {});
-    const { page: F, errors: eF } = await openPage(ctx, url, 'autostart=bunker&mode=course');
+    const { page: F, errors: eF } = await openPage(ctx, url, 'autostart=bunker&mode=course&legacy=1');
     await until(F, () => !!window.__app?.current?.player && !!window.__course?.state, null, 40000, 'Fallow course match');
     await wait(1500);
     const st = await F.evaluate(() => ({ mode: window.__app.current.opts?.mode, map: window.__app.current.opts?.map?.id, net: !!window.__app.current.net, bay: window.__course.debug().bay }));

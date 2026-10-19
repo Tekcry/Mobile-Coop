@@ -70,17 +70,35 @@ void main(void) {
     vec3 p;
     vec3 ga;
     if (vk < 1.5) {
-      p = thermalColor(mix(l, s, ${SENSOR_GRAIN.softThermal.toFixed(3)}));
-      ga = vec3(sensorAmp(${SENSOR_GRAIN.thermal.toFixed(3)}, ${SENSOR_GRAIN.litThermal.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722))));
+      float tl = mix(l, s, ${SENSOR_GRAIN.softThermal.toFixed(3)});
+      p = thermalColor(tl);
+      ga = vec3(thermalGrain(heatOf(tl)));
     } else {
       p = electroColor(mix(l, s, ${SENSOR_GRAIN.softElectro.toFixed(3)}));
       ga = vec3(${SENSOR_GRAIN.electroTint.map((x) => x.toFixed(3)).join(", ")}) * sensorAmp(${SENSOR_GRAIN.electro.toFixed(3)}, ${SENSOR_GRAIN.litElectro.toFixed(3)}, dot(p, vec3(0.2126, 0.7152, 0.0722)));
     }
     // (step 21v, A87) animated sensor grain, luminance-weighted (SENSOR_GRAIN)
     p += sensorNoise(vUV, aspect, time) * ga;
+    if (vk > 1.5) {
+      // (F1b, gog-4) electro: live devices (the bright pixels) fuzz and flicker with interference: coarse noise, scan
+      // lines drifting up the screen, and a stuttering dropout
+      float dv = smoothstep(0.35, 0.75, l);
+      float fz = sensorNoise(vUV * 1.7 + 0.31, aspect * 0.35, time * 2.0);
+      float ln = sin(vUV.y * 520.0 + time * 55.0);
+      p += vec3(0.55, 0.75, 1.0) * dv * (fz * 0.9 + ln * 0.08);
+      p *= 1.0 - dv * 0.35 * smoothstep(0.55, 1.0, fract(sin(floor(time * 14.0) * 12.9898) * 43758.5453));
+    }
     vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
     p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
     c.rgb = max(p, 0.0);
+  }
+  if (vk > 0.5 || nv > 0.0) {
+    // (F1b, gog-1) the goggle lens: a faint round outline, the picture dimmer outside the circle
+    vec2 le = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
+    float lr = length(le);
+    float lensOut = smoothstep(0.455, 0.5, lr);
+    float rim = smoothstep(0.012, 0.0, abs(lr - 0.468));
+    c.rgb = mix(c.rgb, c.rgb * 0.3, lensOut * 0.7) + vec3(0.05, 0.09, 0.08) * rim;
   }
   if (feed > 0.0) {
     float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));

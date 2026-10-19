@@ -205,8 +205,9 @@ for (const look of LOOKS) {
       });
       g.scene.onAfterRenderObservable.remove(obs);
       const bloom = { runs: g.nightBloom.runs - runs0, glow: !!g.nightBloom.glow, scale: g.nightBloom.glowScale };
+      const night = g.vision.night;
       g.vision.set('off');
-      return { moved, n, night: g.vision.night, bloom };
+      return { moved, n, night, bloom };
     });
     assert(mv.bloom.runs >= mv.n - 2 && mv.bloom.glow && mv.bloom.scale > 0, `${look.name}: night vision's bloom runs every frame (${JSON.stringify(mv.bloom)})`);
     assert(mv.night > 0.5 && mv.moved >= mv.n - 1, `${look.name}: turning in night vision, every frame reads as moving (${JSON.stringify(mv)})`);
