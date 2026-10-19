@@ -1,9 +1,10 @@
 # Menu notes - state
 
 ## Now (2026-10-19 22:55, resumed in the new account)
-Master 4.7.3 merged in (CHANGELOG conflict only): PR head c32eb324. Desktop heavy.lock held by CT Core (slice F,
+Master 4.7.3 merged in (CHANGELOG conflict only, c32eb324), then the orchestrator's two CT Core menu items (4ae2d2f2:
+no Default shoulder row; the Controls screen lists the CT trigger and mouse verbs). Desktop heavy.lock held by CT Core (slice F,
 22:42), so the full PR run (`E2E_PORT=4191 E2E_JOBS=1 E2E_SUITE_TIMEOUT=900 npm run e2e`) was requested from Character
-Build on the laptop at c32eb324 (22:55). Waiting for its reply; the boot-time check (Next 2) waits for the desktop lock.
+Build on the laptop, now at 4ae2d2f2 with `npm run check` (23:10). Waiting for its reply; the boot-time check (Next 2) waits for the desktop lock.
 The PR is NOT open yet.
 
 Before the resume (21:55): every note and M1-M4 built and committed (048c9d89 last code).
@@ -16,7 +17,7 @@ full run uses `E2E_SUITE_TIMEOUT=900` (ctcourse alone is ~650 s). The ctcourse r
 STOPPED at station 5 for the account switch: not finished. heavy.lock released, port 4191 freed.
 
 ## Next
-1. The full run on c32eb324 from the laptop runner (requested 22:55). If the laptop cannot take it, take the desktop
+1. The full run on 4ae2d2f2 from the laptop runner (requested 23:10). If the laptop cannot take it, take the desktop
    heavy.lock when CT Core frees it, `npm run build`, then
    `E2E_PORT=4191 E2E_JOBS=2 E2E_SUITE_TIMEOUT=900 npm run e2e` on the PR head.
 2. Boot time check (orchestrator ask): the slice 2 gate holds the menu until the hero, weapons and shaders are ready.
