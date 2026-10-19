@@ -33,6 +33,19 @@ change mode to deniable ops too). Ask questions as needed."
   (G46, FU-11) is an unmeasured placeholder: raise it for Sector Ops only (a per-mode cap, other modes unchanged). A
   `perf.mjs` run on the Sector Ops map with a section's full guard count is "pending PC run"; the count is adjusted from
   it. Software-GL tests run each section with fewer guards through a test flag.
+- **M7** (2026-10-19, via the orchestrator): **plan approved, cut to 3 sections first.** Asked whether 2.5 days was for a
+  functional prototype only, Michael picked "3 sections first": the three sections from the existing Warehouse geometry
+  (service entrance, warehouse floor, offices / mezzanine as the third) with their connectors. The new courtyard, annex
+  and roof come after he has played it. Michael: "also no lives, you can be revived by a player in coop using the
+  limited revive syringes, or in solo you just die and start from checkpoint. each op has difficulty levels (stars) and
+  it fills stars based off difficulty level, so you can see just by hovering over the map that you have completed it
+  before on a certain difficulty/". So:
+  - **No lives** (replaces A5). In co-op a downed player is revived by the partner with a limited revive syringe (the CT
+    prototype's revive; a few syringes per op). If both are down, or in solo, the run restarts at the last checkpoint
+    (the connector).
+  - **Difficulty stars per op:** each op has difficulty levels shown as stars. Completing an op on a difficulty fills its
+    star, and the op selector shows the filled stars when an op is highlighted. Completion is saved in IndexedDB: a
+    save-shape change, so bump `SAVE_VERSION` with a migration and a test using a literal old save (CLAUDE.md).
 
 ## Goal
 1. **Main menu: only Sector Ops and Co-op**, plus Loadout, Settings and Feedback.
@@ -99,7 +112,7 @@ the game.
   entry. Undo: `SectorMode.onAlarm` returns false.
 - **A4 (Ghost):** Ghost = 0 kills and 0 times spotted (guard detections plus camera alarms). Knock-outs do not break
   it; a Ghost run scores +2000. Undo: count `knockouts` in `SectorMode.result`.
-- **A5 (lives):** 3 lives; a down respawns at the sector's start (the connector in the plan). Undo: `SECTOR.lives`.
+- **A5 (lives):** replaced by M7 (no lives: co-op revive syringes, solo restarts at the checkpoint).
 - **A6 (suite):** a new required suite `e2e-sectorops`, since e2e-modes went to LEGACY in #15 (the orchestrator agreed).
 - **A7 (test hook):** `window.__play(map, mode, difficulty)` starts a match; e2e-pad uses it for the free-roam match the
   main menu no longer offers. Undo: drop the hook and the e2e-pad line.

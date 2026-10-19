@@ -1,8 +1,9 @@
 # Sector Ops - plan
 
 Job lead: "Night Shift | Sector Ops Build", 2026-10-19. Ask and answers: `BRIEF.md` (M1-M6). Research: `RESEARCH.md`.
-Prototype effort only (the goal rule): placeholder geometry, no art pass, no feel tuning. Status: **waiting for
-Michael's approval before slice 2** (M5b). Slice 1 (menus) and slice 3 (co-op mode switch) do not depend on it.
+Prototype effort only (the goal rule): placeholder geometry, no art pass, no feel tuning. Status: **approved by Michael 2026-10-19 with M7: build 3 sections first** (the existing Warehouse's service entrance,
+floor and offices with connectors C2, C3; the courtyard, annex and roof wait until he has played it). No lives and
+difficulty stars per op (M7, BRIEF.md). Earlier status: waiting for Michael's approval before slice 2 (M5b). Slice 1 (menus) and slice 3 (co-op mode switch) do not depend on it.
 
 ## 1. What we take from the research, and what we change
 Facts and sources: `RESEARCH.md` (the guide sites refused direct fetches; most facts come from summaries and reviews).
