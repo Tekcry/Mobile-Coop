@@ -1,7 +1,8 @@
 /**
  * (CT prototype A4, G23, G43, G180) The Chaos Theory grab menu, Babylon-free. The ground takedown button grabs a guard
  * from behind; while holding him this short list opens in the HUD: Knock out, Kill, Carry (knock out and shoulder the
- * body), and the stubs Force to device (no scanner hook yet) and Interrogate (later). The game reads `pick()` and
+ * body), Interrogate (G7: the free hand at his jaw for 1.5 s, the hold goes on) and the stub Force to device (no scanner
+ * hook yet). The game reads `pick()` and
  * acts; the HUD draws `labels()`. Stub entries do nothing but say so (the menu stays open).
  */
 
@@ -14,12 +15,12 @@ export const GRAB_OPT_LABEL: Readonly<Record<GrabOpt, string>> = {
   kill: 'Kill',
   carry: 'Carry',
   device: 'Force to device (not yet)',
-  interrogate: 'Interrogate (later)',
+  interrogate: 'Interrogate',
 };
 
 /** Options that work today. */
 export function grabOptReady(o: GrabOpt): boolean {
-  return o === 'knockout' || o === 'kill' || o === 'carry';
+  return o === 'knockout' || o === 'kill' || o === 'carry' || o === 'interrogate';
 }
 
 export const GRAB_OPTS: readonly GrabOpt[] = ['knockout', 'kill', 'carry', 'device', 'interrogate'];

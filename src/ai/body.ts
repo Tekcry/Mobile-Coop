@@ -3,6 +3,7 @@ import { CharacterRig } from '../player/characterRig';
 import type { World } from '../world/world';
 import type { EnemyDef } from './enemyDefs';
 import { Ragdoll } from './ragdoll';
+import { attachToShoulder, hoistAt, layAt, slideAt } from './carryPose';
 
 let nextBody = 1;
 
@@ -16,11 +17,7 @@ export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: st
   return rig;
 }
 
-/** Carried over the shoulder: torso down the back, legs down the front, arms hanging (joint Euler x). */
-const CARRY_TILT = 0.35;
-const CARRY_HIP = 2.37;
-const CARRY_KNEE = 0.6;
-const CARRY_SHOULDER = 2.79;
+const headV = new Vector3();
 
 /**
  * A downed enemy (killed or knocked out): a settled ragdoll that stays where it fell (or a still body when no
@@ -100,31 +97,69 @@ export class Body {
     this.pos.copyFrom(rig.hips.getAbsolutePosition());
   }
 
-  /** Pick up: the corpse goes, a fresh rig is posed over the carrier's shoulder (`chest` node of their rig). */
+  /** Pick up at once: the corpse goes, a fresh rig is posed over the carrier's shoulder (`chest` node of their rig). */
   pickUp(chest: TransformNode, shoulderX: number, shoulderY: number): CharacterRig {
     this.disposeRig();
     const rig = buildBodyRig(this.scene, this.world, this.def, `${this.id}-carried`);
-    const r = rig.root;
-    r.parent = chest;
-    const th = Math.PI + CARRY_TILT;
-    r.rotation.set(th, 0, 0);
-    // hips on the shoulder: the root (feet) sits up and forward of it
-    const hy = rig.p.y.hip;
-    r.position.set(shoulderX, shoulderY - hy * Math.cos(th), -hy * Math.sin(th));
-    const q = (n: TransformNode, x: number): void => {
-      Quaternion.RotationYawPitchRollToRef(0, x, 0, n.rotationQuaternion!);
-    };
-    q(rig.hipL, CARRY_HIP);
-    q(rig.hipR, CARRY_HIP - 0.12);
-    q(rig.kneeL, CARRY_KNEE);
-    q(rig.kneeR, CARRY_KNEE + 0.1);
-    q(rig.shoulderL, CARRY_SHOULDER);
-    q(rig.shoulderR, CARRY_SHOULDER + 0.1);
-    q(rig.neck, 0.35);
+    attachToShoulder(rig, chest, shoulderX, shoulderY);
     this.rig = rig;
     this.carried = true;
     this.found = false;
     return rig;
+  }
+
+  /** (G7) The lying body for the carrier's step-in and hands: its chest point, its shoulders; returns the way its head
+   *  points (rad, 0 = +Z). */
+  liftPoints(outChest: Vector3, outL: Vector3, outR: Vector3): number {
+    const rig = this.rig;
+    if (!rig) return 0;
+    rig.torso.computeWorldMatrix(true);
+    outChest.copyFrom(rig.torso.getAbsolutePosition());
+    rig.shoulderL.computeWorldMatrix(true);
+    outL.copyFrom(rig.shoulderL.getAbsolutePosition());
+    rig.shoulderR.computeWorldMatrix(true);
+    outR.copyFrom(rig.shoulderR.getAbsolutePosition());
+    rig.hips.computeWorldMatrix(true);
+    rig.headNode.computeWorldMatrix(true);
+    headV.copyFrom(rig.headNode.getAbsolutePosition()).subtractInPlace(rig.hips.getAbsolutePosition());
+    return Math.atan2(headV.x, headV.z);
+  }
+
+  /** (G7, row 6) The hoist begins: the corpse goes, a fresh rig lies straight where it lay (hips, head the same way),
+   *  off the floor's list (carried). `hoist` then lifts it to the shoulder socket. */
+  private hoistFrom = new Vector3();
+  private hoistQ = new Quaternion();
+  beginHoist(): void {
+    const rig0 = this.rig;
+    if (!rig0) return;
+    const yaw = this.liftPoints(headV, headV, headV);
+    rig0.hips.computeWorldMatrix(true);
+    const hp = rig0.hips.getAbsolutePosition();
+    const hx = hp.x;
+    const hy = Math.max(hp.y, this.pos.y);
+    const hz = hp.z;
+    this.disposeRig();
+    const rig = buildBodyRig(this.scene, this.world, this.def, `${this.id}-carried`);
+    layAt(rig, hx, hy, hz, yaw, this.hoistQ);
+    this.hoistFrom.copyFrom(rig.root.position);
+    this.rig = rig;
+    this.carried = true;
+    this.found = false;
+  }
+
+  /** (G7) The hoist at `k` 0..1 toward `socket` (a node on the carrier's chest at the carry socket). */
+  hoist(socket: TransformNode, k: number): void {
+    if (this.rig && this.carried && !this.rig.root.parent) hoistAt(this.rig, this.hoistFrom, this.hoistQ, socket, k);
+  }
+
+  /** (G7) The hoist done: onto the carrier's shoulder for the carry. */
+  shoulder(chest: TransformNode, shoulderX: number, shoulderY: number): void {
+    if (this.rig && this.carried) attachToShoulder(this.rig, chest, shoulderX, shoulderY);
+  }
+
+  /** (G7, row 8) Sliding off the shoulder at `k` 0..1 (the put down, before the ragdoll takes it). */
+  slide(shoulderX: number, shoulderY: number, k: number): void {
+    if (this.rig && this.carried && this.rig.root.parent) slideAt(this.rig, shoulderX, shoulderY, k);
   }
 
   /** Where the carried body's knees are (the carrier's hands go there). */

@@ -81,6 +81,10 @@ export interface RigPose {
   traverse?: TraverseKind;
   traverseT?: number;
   melee?: number;
+  /** (G7) Close quarters: the spine bent forward (rad), the pelvis dropped (m), the hold sway (m); see AnimInput. */
+  bend?: number;
+  bendDrop?: number;
+  sway?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
   /** Doorway check sweep 0..1, or < 0. */
@@ -1308,6 +1312,9 @@ export class CharacterRig {
     i.traverse = trav;
     i.traverseT = s.traverseT ?? 0;
     i.melee = s.melee ?? -1;
+    i.bend = s.bend ?? 0;
+    i.bendDrop = s.bendDrop ?? 0;
+    i.sway = s.sway ?? 0;
     i.tumble = s.tumble ?? 0;
     i.check = s.check ?? -1;
     i.phase = s.phase ?? -1;

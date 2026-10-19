@@ -26,7 +26,8 @@ import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
 import { hostCrackOk } from '../world/doorPeek';
-import { GRAB } from '../game/takedown';
+import { contactDelay, GRAB } from '../game/takedown';
+import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
@@ -117,6 +118,8 @@ export class CoopHost implements NetAttachment {
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held. */
   private seized = new Map<string, { by: string; t: number; hostage?: boolean }>();
+  /** (G7) Scratch for a client hold's knockout pose. */
+  private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
   /** Shot noise edges per client. */
   private firing = new Map<string, number>();
   /** Course mode: per partner hit volumes the host's own shots resolve against. */
@@ -554,7 +557,8 @@ export class CoopHost implements NetAttachment {
         deny();
         return;
       }
-      e.beginTakedown(!m.lethal);
+      // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
+      e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
       this.seized.set(e.id, { by: r.id, t: 0 });
       return;
     }
@@ -1060,6 +1064,12 @@ export class CoopHost implements NetAttachment {
             e.setSolid(false);
           }
           e.holdAt(by.feet.x + Math.sin(yaw) * GRAB.hold, by.feet.y, by.feet.z + Math.cos(yaw) * GRAB.hold, yaw);
+          // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
+          if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
+          else if (mv.ph > 0 && !(mv.sub & 1)) {
+            const ko = koCurve(mv.ph, this.koTmp);
+            e.holdPose('ko', ko.limp, ko.lower);
+          } else if (mv.ph === 0) e.holdAsHostage();
           by.ref.shield = e;
           continue;
         }

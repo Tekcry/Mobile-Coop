@@ -67,7 +67,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] LT draws and aims, RT fires (no hip fire); RT while holstered strikes. X reloads, RB / LB swap between the two
   guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
 - [ ] D-pad right throws the gadget (hold aims); holding d-pad left opens the wheel (time slows).
-- [ ] Takedowns: Y behind an unaware guard; a drop takedown from a pipe or ledge; a body can be carried and hidden.
+- [ ] Takedowns: Y behind an unaware guard (G7: the step-in and pull-in ~1 s, then the menu; walk him at a slow pace;
+  Knock out lowers him; Interrogate); a drop takedown from a pipe or ledge; a body takes 2 s to lift, carries at a slow
+  walk, opens a door, and is put down beside you or hidden.
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).

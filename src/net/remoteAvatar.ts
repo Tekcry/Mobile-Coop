@@ -28,6 +28,8 @@ import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, pos
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 import { clearGripAxis } from '../player/attachGrips';
+import { GRAB } from '../game/takedown';
+import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
 
 /** Rope slots per remote (`Ropes` keys). */
 let ropeKeys = 0;
@@ -45,6 +47,13 @@ export class RemoteAvatar {
   /** (step 13) The door-peek handle reach (world) and whether it is set. */
   private readonly doorHand = { x: 0, y: 0, z: 0 };
   private doorHandOn = false;
+  /** (G7) The hold hands are on (a grab), the bend over a held guard (rad, m), scratch. */
+  private grabHandOn = false;
+  private cqBend = 0;
+  private cqDrop = 0;
+  private hhL = { x: 0, y: 0, z: 0 };
+  private hhR = { x: 0, y: 0, z: 0 };
+  private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
   readonly buf = new SnapshotBuffer<PlayerState>(40, 0.25);
   readonly pos = new Vector3();
   yaw = 0;
@@ -249,6 +258,36 @@ export class RemoteAvatar {
       this.rig.reachL.w = this.rig.reachR.w = 0;
       this.doorHandOn = false;
     }
+    // (G7, AUDIT-WALLS rows 5, 19, 20) holding a guard: the owner's hold hands in the body frame (the hostage stands
+    // GRAB.hold in front on every machine), lowered with the knockout, the left hand to his jaw interrogating; the
+    // bend over him from the same MoveState numbers as the owner's
+    this.cqBend = 0;
+    this.cqDrop = 0;
+    if (mv?.m === 'grab' && !rp) {
+      const rg = this.rig;
+      holdHandsLocal(GRAB.hold, this.hhL, this.hhR);
+      const kill = (mv.sub & 1) !== 0;
+      const inter = (mv.sub & 2) !== 0;
+      let lower = 0;
+      this.cqBend = CQ.holdBend;
+      if (!kill && !inter && mv.ph > 0) {
+        const ko = koCurve(mv.ph, this.koTmp);
+        lower = ko.lower;
+        this.cqBend = CQ.holdBend + (CQ.koBend - CQ.holdBend) * ko.bend;
+        this.cqDrop = CQ.koDrop * ko.bend;
+      }
+      const e = inter ? ease(mv.ph / 0.12) * (1 - ease((mv.ph - 0.85) / 0.15)) : 0;
+      clearGripAxis(rg.reachL);
+      clearGripAxis(rg.reachR);
+      bodyPoint(this.pos.x, this.pos.y, this.pos.z, this.yaw, this.hhL.x, this.hhL.y - 0.38 * lower + 0.1 * e, this.hhL.z + 0.12 * lower + 0.02 * e, rg.reachL);
+      rg.reachL.w = 1;
+      bodyPoint(this.pos.x, this.pos.y, this.pos.z, this.yaw, this.hhR.x, this.hhR.y - 0.38 * lower, this.hhR.z + 0.12 * lower, rg.reachR);
+      rg.reachR.w = kill || mv.dw !== 0 ? 0 : 0.9;
+      this.grabHandOn = true;
+    } else if (this.grabHandOn) {
+      this.rig.reachL.w = this.rig.reachR.w = 0;
+      this.grabHandOn = false;
+    }
     // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
     // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
     // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top
@@ -416,6 +455,8 @@ export class RemoteAvatar {
       traverse: mp.traverse,
       traverseT: mp.traverseT,
       melee: mp.melee,
+      bend: this.cqBend,
+      bendDrop: this.cqDrop,
     });
     // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness
     const ra = mv?.m === 'rappel' ? this.world.level.anchors.all[mv.a] : null;

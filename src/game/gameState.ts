@@ -1044,8 +1044,8 @@ export class GameState implements AppState {
     const inputS = this.app.input.state;
     if (!inputS.pressed('interact')) this.interactSwallow = false;
     const pressI = inputS.pressed('interact') && !this.interactSwallow;
-    // a takedown on offer / running takes the button
-    if (this.takedown.offer || this.takedown.active) {
+    // a takedown on offer / running takes the button; (G7) so does a body being lifted or put down
+    if (this.takedown.offer || this.takedown.active || this.stealth?.busy) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = null;
       this.hud.setInteract(null);
@@ -1110,7 +1110,7 @@ export class GameState implements AppState {
     const m = this.grabMenu;
     const td = this.takedown;
     td.shovePressed = false;
-    const holding = td.hostage !== null && td.active?.grab?.strikeT === -1 && this.player.alive;
+    const holding = td.menuReady && this.player.alive;
     if (!holding) {
       if (m.open) m.close();
       this.hud.setDoorMenu(null, 0, 'grab');
@@ -1141,7 +1141,7 @@ export class GameState implements AppState {
     if (this.grabMenuArmed && real.pressed('interact')) {
       const o = m.pick();
       this.interactSwallow = true;
-      if (o === 'device' || o === 'interrogate') this.hud.feedItem(`${GRAB_OPT_LABEL[o]}: not built yet`, 'warn');
+      if (o === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[o]}: not built yet`, 'warn');
       else if (o) {
         td.menuPick = o;
         this.hud.setDoorMenu(null, 0, 'grab');
@@ -1531,7 +1531,7 @@ export class GameState implements AppState {
     }
     // (carry and grab set their caps again each step while they hold)
     this.player.controller.speedCap = Infinity;
-    this.stealth?.fixedUpdate();
+    this.stealth?.fixedUpdate(inp.pressed('crouch'));
     this.security?.fixedUpdate(dt);
     // (CT prototype B3) the held pistol jammer: LT / Z on a drawn pistol
     this.ctDev?.localStep(dt, inp.down('altFire'));
@@ -1541,6 +1541,15 @@ export class GameState implements AppState {
       // (A4) the grab menu feeds the hold (`menuPick`, and its cancel as the let-go)
       this.takedown.grabToggle = this.app.settings.get().gameplay.grabToggle;
       this.takedown.fixedUpdate(dt, inp.pressed('interact') && !this.strike.active, inp.down('interact'));
+    }
+    // (G7) close quarters: the bend over a held guard / a body, the hold's sway (the anim graph eases them)
+    {
+      const pz = this.player.pose;
+      const st = this.stealth;
+      pz.bend = this.takedown.bend + (st ? st.bend : 0);
+      pz.bendDrop = this.takedown.bendDrop + (st ? st.bendDrop : 0);
+      pz.sway = this.takedown.sway;
+      pz.freeGait = this.takedown.stepping || (st ? st.stepping : false);
     }
     // (locomotion step 10) fire while holstered: the elbow strike
     // (F1a, CT) holstered: RT / LMB = the lethal strike, LT / Z = the knockout (the palm strike); drawn they fire
@@ -2590,7 +2599,7 @@ export class GameState implements AppState {
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
       const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
       w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
-    } else if (host && this.takedown.active?.grab?.strikeT === -1) {
+    } else if (host && this.takedown.menuReady) {
       // (3.2.0) holding a hostage: tap knocks out, hold kills
       const ok = this.project(host.pos.x, host.pos.y + 1.95 * host.def.scale, host.pos.z);
       w.set('takedown', ok ? 'Held' : null, this.scr.x, this.scr.y);

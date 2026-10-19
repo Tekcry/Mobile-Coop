@@ -470,6 +470,10 @@ try {
       t.step(0.1);
       const carrying = !!g.stealth.carry;
       const stowed = g.weapons.stowed;
+      // (G7, AUDIT-WALLS row 6, 110936 @ 39.5-42.6) the lift onto the shoulder takes 2.0 s (was instant): no walking in it
+      const lifting = g.stealth.busy;
+      t.step(2.0);
+      const lifted = !!g.stealth.carry && !g.stealth.busy;
       st.setMove('t', 0, 1);
       st.tap('dash');
       t.step(1.5);
@@ -486,17 +490,20 @@ try {
       st.tap('interact');
       t.step(0.2);
       const again = !!g.stealth.carry;
+      t.step(2.0);
       t.tp(-21.6, -20.2, Math.PI);
       t.step(0.2);
       const hideOffer = g.interactTarget?.label;
       st.tap('interact');
       t.step(0.2);
       t.light(null);
-      return { offer, carrying, stowed, speed, dropped, again, hideOffer, hidden: g.stealth.bodiesHidden, present: em.bodies.filter((x) => x.present).length };
+      return { offer, carrying, stowed, lifting, lifted, speed, dropped, again, hideOffer, hidden: g.stealth.bodiesHidden, present: em.bodies.filter((x) => x.present).length };
     });
     assert(r.offer === 'Pick up body', `standing at a body offers to pick it up (${r.offer})`);
     assert(r.carrying && r.stowed, 'picking it up puts it on the shoulder and stows the weapon');
-    assert(r.speed < 2.4, `carrying is slow, no sprint (${r.speed.toFixed(2)} m/s)`);
+    assert(r.lifting && r.lifted, `the pick-up is a 2.0 s lift onto the shoulder (${r.lifting} / ${r.lifted})`);
+    // (G7, row 7, 110936 @ 44.0-45.5: CT 0.4-0.8 m/s; was < 2.4 against the old 2.2 cap)
+    assert(r.speed > 0.3 && r.speed < 0.85, `carrying is a slow walk, no sprint (${r.speed.toFixed(2)} m/s)`);
     assert(r.dropped, 'it can be put down again');
     assert(r.again, 'and picked up again');
     assert(r.hideOffer === 'Hide body', `at the dumpster: hide it (${r.hideOffer})`);

@@ -51,11 +51,20 @@ export const TAKEDOWN = {
 
 /** (3.2.0) The grab from behind and the human shield. */
 export const GRAB = {
-  /** Gears allowed while holding someone (the faster ones are capped to this). */
-  maxGear: 2,
-  /** The hostage held this far in front (m) and the sidearm's spread while holding (x). */
-  hold: 0.42,
+  /** (G7, AUDIT-WALLS row 11, 110936 @ 22.0-23.0) The hostage walk's speed cap (m/s; the speed, not the gear: CT's
+   *  0.7 m/s +- 0.2 against the old gear 2 cap of 1.4 m/s). A slower gear stays slower. */
+  speedCap: 0.75,
+  /** (G7, row 5, 110936 @ 5.9-7.1) Stepping in from behind (s; was the shared 0.22 s snap: 1.5 m in 0.35-0.45 s),
+   *  rising out of a crouch on the way; then the pull-in (s): the guard eased from where he stood back against the
+   *  chest, the hold settled ~1.0 s after the press (CT ~1.2 s, 052607 ~1 s). */
+  approach: 0.42,
+  pull: 0.6,
+  /** The hostage held this far in front, pelvis to pelvis (m; row 11: about 0.3 m, was 0.42 held loose); the sidearm's
+   *  spread while holding (x). */
+  hold: 0.32,
   spreadMul: 1.2,
+  /** (G43, row 21: kill from the hold is not in the footage) The lethal finisher from the hold (s), kept. */
+  killTime: 0.5,
   /** A shove: the guard staggers this long, then is alert. */
   shoveStagger: 1.0,
   /** Guards who see the operator with a hostage hold their fire this long, then aim at the exposed head only. */
@@ -71,6 +80,17 @@ export function grabDecides(toggle: boolean, pressed: boolean, holding: boolean)
 
 /** Kinds that start a grab (held, then knocked out / killed / shoved / let go) instead of a strike. */
 export const GRAB_KINDS: readonly TakedownKind[] = ['behind'];
+
+/**
+ * (G7) Seconds from a takedown's press to the attacker's contact (the victim's struggle starts there, not at the press):
+ * from behind on a guard on two legs the grab's `GRAB.approach`, else the ground takedown's `TAKEDOWN.approach`. Derived
+ * from the attacker's place against the victim's facing (`vyaw`), so the co-op host poses a client's victim the same
+ * way without wire data.
+ */
+export function contactDelay(ax: number, az: number, vx: number, vz: number, vyaw: number, quadruped: boolean): number {
+  const rel = Math.abs(wrap(Math.atan2(ax - vx, az - vz) - vyaw));
+  return !quadruped && rel > TAKEDOWN.behindCone ? GRAB.approach : TAKEDOWN.approach;
+}
 
 export interface TakedownInput {
   state: AttackerState;

@@ -14,8 +14,29 @@ const FRAMES = Number(framesArg);
 const INTERVAL = Number(intervalArg);
 const url = process.env.URL ?? `http://localhost:${process.env.E2E_PORT ?? 4173}/`;
 
+/** (G7) The close-quarters scenarios' map, spot and guard. */
+const G7 = {
+  params: 'autostart=warehouse&mode=clear',
+  pos: [2, -2.2],
+  yaw: 0,
+  at0: "g.target.health.invulnerable = true; g.mode.pending.length = 0; g.enemyMgr.clear(); const V = g.player.position.constructor; const e = g.enemyMgr.spawn('grunt', new V(2, 0, -1), false, 0); e.passive = true;",
+};
+const G7_PRESS = "a.input.state.tap('interact');";
+const G7_PICK = (i) => `g.grabMenu.sel = ${i}; a.input.state.tap('interact');`;
+
 /** Scenario: setup (once) and per-frame input (time t in s since the first frame). */
 const SCENARIOS = {
+  // (CT prototype G7) close quarters on the Warehouse (Proving has no guards): a calm grunt 1.2 m ahead facing away
+  // (as e2e-takedown); the grab (step-in + pull-in), the hostage walk, the knockout from the hold, interrogate, the
+  // body lift (grab -> Carry: the knockout, then the 2.0 s lift), the carry walk, the put down
+  grab: { ...G7, pre: 0.4, input: () => ({}), at: { 0: G7_PRESS } },
+  holdidle: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({}) },
+  holdwalk: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({ y: 1 }) },
+  holdko: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({}), at: { 0: G7_PICK(0) } },
+  interrogate: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({}), at: { 0: G7_PICK(4) } },
+  lift: { ...G7, pre: 2.75, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({}) },
+  carrywalk: { ...G7, pre: 5.0, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({ y: 1 }) },
+  carrydrop: { ...G7, pre: 5.0, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({}), at: { 0: "a.input.state.tap('interact');" } },
   walk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
   jog: { pos: [-8, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }) },
   sneak: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.4 }, input: () => ({ y: 0.4 }), at0: "a.input.state.tap('crouch');" },
@@ -86,7 +107,7 @@ const SCENARIOS = {
 
 const sc = SCENARIOS[scenario];
 if (!sc) throw new Error(`unknown scenario ${scenario}`);
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: sc.params ?? 'autostart=proving' });
 // (operators 11e) Wren's LOD0 on screen before anything is measured or drawn
 await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
 // (11e fix r1) never draw a sheet with no Wren on it: a timeout fails the run
@@ -203,7 +224,7 @@ for (let f = 0; f < FRAMES; f++) {
     const g = window.__app.current;
     const c = g.player.controller;
     const r = g.player.rig;
-    return `${c.motion.state} ${c.speed.toFixed(2)} ${r.planner.L.contact ? 'L' : '-'}${r.planner.R.contact ? 'R' : '-'}`;
+    return `${c.motion.state} ${c.speed.toFixed(2)} ${r.planner.L.contact ? 'L' : '-'}${r.planner.R.contact ? 'R' : '-'}${c.crouched ? ' C' : ''}${c.kneeling ? ' K' : ''}`;
   });
   await new Promise((r) => setTimeout(r, 30));
   const vp = page.viewportSize();

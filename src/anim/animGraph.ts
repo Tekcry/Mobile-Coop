@@ -141,11 +141,21 @@ export interface AnimInput {
   handSwap: number;
   /** Which hand holds the weapon: 1 right .. -1 left (the rig mirrors weapon x / yaw / roll by it). */
   hand: number;
+  /** (G7) Close quarters: the spine bent forward over a held guard / a body (rad), the pelvis dropped (m) and the
+   *  hold's side sway (m); eased here, so a hold or a carry starting or ending never pops the back. */
+  bend: number;
+  bendDrop: number;
+  sway: number;
 }
 
 /** (locomotion step 10) The elbow arc's hand overlay weight at melee phase `ph` 0..1 (in by 0.17, out from 0.62). */
 export function meleeHandW(ph: number): number {
   return smoothstep(ph / 0.167) * (1 - smoothstep((ph - 0.62) / 0.38));
+}
+
+/** (G7) An eased value within 1e-4 of its target is the target (the close-quarters layer switches off). */
+function settle(x: number, target: number): number {
+  return Math.abs(x - target) < 1e-4 ? target : x;
 }
 
 /** (step 10) The elbow arc's sweep 0 (wind-up, hand out to the side) .. 1 (contact, across the front). */
@@ -209,6 +219,9 @@ export function defaultInput(): AnimInput {
     intent: 0,
     handSwap: -1,
     hand: 1,
+    bend: 0,
+    bendDrop: 0,
+    sway: 0,
   };
 }
 
@@ -544,6 +557,10 @@ export class AnimGraph {
   private swapLastT = 0;
   /** Armed carriage weight (armed, or holstered with ready hands), eased ~0.25 s. */
   private carryW = 1;
+  /** (G7) The close-quarters bend (rad), pelvis drop (m) and sway (m), eased. */
+  private bendS = 0;
+  private bendDropS = 0;
+  private swayS = 0;
   /** Ready-hands weight (A42), eased ~0.25 s. */
   private readyW = 0;
   /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
@@ -1192,6 +1209,20 @@ export class AnimGraph {
       src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
       src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
       src[CH.pelY] = src[CH.pelY]! - 0.015 * wStrike;
+    }
+
+    // --- (G7, AUDIT-WALLS rows 6-8, 19, 20) close quarters: bent over a held guard / a body, the pelvis down under the
+    // weight (the feet stay planted: the knees take it), the hold's sway in the pelvis; the head keeps the eyes level
+    // with 0.6 of the bend. Eased (tau 0.12 s), so the knockout's bend and the lift's rise read as one motion
+    this.bendS = settle(approach(this.bendS, i.bend, 0.12, dt), i.bend);
+    this.bendDropS = settle(approach(this.bendDropS, i.bendDrop, 0.12, dt), i.bendDrop);
+    this.swayS = settle(approach(this.swayS, i.sway, 0.08, dt), i.sway);
+    if (this.bendS !== 0 || this.bendDropS !== 0 || this.swayS !== 0) {
+      src[CH.spPitch] = src[CH.spPitch]! + this.bendS * 0.7;
+      src[CH.pelPitch] = src[CH.pelPitch]! + this.bendS * 0.3;
+      src[CH.hdPitch] = src[CH.hdPitch]! - this.bendS * 0.6;
+      src[CH.pelY] = src[CH.pelY]! - this.bendDropS;
+      src[CH.pelX] = src[CH.pelX]! + this.swayS;
     }
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot

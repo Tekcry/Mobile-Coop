@@ -46,6 +46,13 @@ export interface PlayerPose {
   check: number;
   /** Takedown strike progress 0..1, or < 0. */
   melee: number;
+  /** (G7) Close quarters (a held guard, a body lifted / carried / put down): spine bend (rad), pelvis drop (m), the
+   *  hold's side sway (m). Set each fixed step by GameState from the takedown and stealth controllers. */
+  bend: number;
+  bendDrop: number;
+  sway: number;
+  /** (G7) A scripted step-in under a kinematic override: the legs step from the measured speed. */
+  freeGait: boolean;
   /** (3.2.0) Whole-body tumble about the hips (rad; pipe legs up / inverted), 0 = upright. */
   tumble: number;
 }
@@ -113,7 +120,7 @@ export class Player {
   /** (21w) The rig root's yaw (rate-limited on a wall). */
   private visYaw = 0;
   private wallHandPt: Vector3 | null = null;
-  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0 };
+  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0, bend: 0, bendDrop: 0, sway: 0, freeGait: false };
   /** Context flags for the ready position (set by the corner systems each step). */
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -388,11 +395,17 @@ export class Player {
     rp.slide = cp.slide;
     rp.check = cp.check;
     rp.melee = cp.melee;
+    rp.bend = cp.bend;
+    rp.bendDrop = cp.bendDrop;
+    rp.sway = cp.sway;
     rp.tumble = cp.tumble;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
-    rp.phase = c.renderPhase;
-    rp.motion = m.state;
-    rp.motionT = m.stateT;
+    // (G7) a scripted step-in (the grab, a takedown approach, the step to a body): the gait from the measured root speed
+    // (no motion driver runs under the override: its frozen clock slid the feet and left the legs a metre behind)
+    const freeGait = cp.freeGait && !!c.override?.kinematic;
+    rp.phase = freeGait ? -1 : c.renderPhase;
+    rp.motion = freeGait ? undefined : m.state;
+    rp.motionT = freeGait ? 0 : m.stateT;
     rp.quickStop = c.ct ? (c.stopEaseT >= 0 ? CT.stopEase : CT.stopBlend) : 0;
     rp.holdSpeed = c.stopHold ? c.holdSpeed : 0;
     const by = this.visYaw;

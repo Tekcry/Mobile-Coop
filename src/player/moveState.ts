@@ -379,6 +379,10 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
     case 'takedown':
       out.melee = mv.ph;
       return out;
+    case 'grab':
+      // (G7) the kill from the hold (sub bit 1): the blow's arc at the finisher's progress
+      if (mv.sub & 1) out.melee = mv.ph;
+      return out;
     case 'strike':
       // (step 10) the elbow arc with the hip turn (animGraph melee), the hands free (holstered)
       out.melee = mv.ph;

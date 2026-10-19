@@ -33,15 +33,40 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   team move, traversal, interact.
 - Co-op: the host approves a client's takedown (`td`); details in `docs/systems/coop.md`.
 
-## Grab and hostage (3.2.0 phase 4)
-- `GRAB` (gear 2 cap, hostage held 0.42 m in front, sidearm spread x1.2, shove stagger 1 s, guards hesitate 1.5 s),
-  `GRAB_KINDS` (`behind`). `TakedownController` grab (`active.grab`): approach, `hold` (no override, `speedCap` at gear 2,
-  the hostage at `holdAt`, `setSolid(false)`, `holdAsHostage` pose). A fresh press decides tap (knock out) / hold (kill) ->
-  `GRAB_STRIKE`; `gameplay.grabToggle` false makes letting go knock out (A70, `grabDecides`); `shovePressed` ->
-  `releaseTakedown(GRAB.shoveStagger)`. Counters in `grabs`.
+## Grab and hostage (3.2.0 phase 4; CT prototype G7)
+- `GRAB` (G7, AUDIT-WALLS rows 5, 11: `approach` 0.42 s step-in, `pull` 0.6 s pull-in, `speedCap` 0.75 m/s, hostage held
+  `hold` 0.32 m in front, `killTime` 0.5 s; sidearm spread x1.2, shove stagger 1 s, guards hesitate 1.5 s), `GRAB_KINDS`
+  (`behind`), `contactDelay` (when the victim's struggle starts: the plan's approach, derived from where the attacker
+  stands, so the co-op host poses a client's victim alike). `TakedownController` grab (`active.grab`): stage 0 the
+  step-in (kinematic override, `crouch: false`, the legs step from the measured speed: `pose.freeGait`), stage 1 the
+  pull-in (the guard eased from where he stood to the hold, turning to the operator's facing), stage 2 `hold` (no
+  override, `speedCap` min(gear, 0.75), the hostage at `holdAt` with the 2 cm sway, `setSolid(false)`, `holdAsHostage`).
+  The CT grab menu (`menuReady`: held, no finisher or interrogation running) picks Knock out (`CQ.koTime` 0.85 s: the
+  guard limp, lowered through his crouch, the operator bent over him, `holdPose('ko')`), Kill (0.5 s, the elbow arc),
+  Carry (the knockout, then the body lift), Interrogate (1.5 s, the left hand to his jaw, `holdPose('interrogate')`, the
+  hold and menu go on after; a neutral feed line until the level has lines); `shovePressed` ->
+  `releaseTakedown(GRAB.shoveStagger)`. Counters in `grabs` (`interrogated` too).
+- Poses (`game/closeQuarters.ts`, pure): `GuardCq` writes the held guard's upper body (seized, hostage with a 0.4 s flail
+  every 2-4 s, the knockout's limp, the interrogation) with a fixed joint set and a 0.25 s blend between modes, on the
+  host / solo `Enemy` and a client's `EnemyPuppet` alike; the held guard's gun is hidden while taken and his gait runs
+  from his held speed. The operator's hands: `holdHandTargets` (the left forearm across his throat, the right hand on his
+  right shoulder; a drawn sidearm keeps the hand on the gun), remotes `holdHandsLocal` (body frame, no guard rig). The
+  bend over him: `TakedownController.bend` / `bendDrop` / `sway` -> `PlayerPose` -> `AnimInput.bend` (eased in the graph).
+- Bodies (G7, AUDIT-WALLS rows 6-8): `StealthSystems` picks up through a 2.0 s committed lift (`liftCurve`: step in to the
+  chest, crouch with the hands under its shoulders to 0.8 s (crouch lets go), the hoist to the shoulder to 1.6 s,
+  settled at 2.0 s); the shoulder is the side the head lies (`carrySide`: a right-shoulder hoist of a body lying head to
+  the left swung its head through the carrier's back). `ai/carryPose.ts` poses the fresh carried rig (lying, the hoist
+  pivoting at the hips with a 0.3 m bow out in front, the socket, the slide off). Carry: `BODY.carrySpeed` 0.8 m/s, bent
+  0.38 rad; while carrying the interact is a hide spot, else a door in reach the operator faces (open / close only),
+  else "Drop body": a 0.8 s put down (`dropCurve`: the slide off to the side, the ragdoll at 0.4 s with a push of at most
+  3 m/s). `dropCarried` stays the instant drop (restart, carrier down). Tests: `tests/g7CloseQuarters.test.ts` (timelines
+  and NullEngine clipping checks of the hold and the hoist), e2e-takedown `grab`, e2e-stealth-ai `carry`.
 - While holding: the sidearm comes out one-handed (`attachSpread`); `localRef.shield` makes `Enemy.tryFire` hesitate, then
   aim at the head; rays include `G.ENEMY_HITBOX`, and a hit on the hostage is `HitInfo.shieldHit`.
-- Net: MoveState mode `grab` (`tid`); `CoopHost` keeps a client's seized guard at their offset and `ref.shield`.
+- Net: MoveState mode `grab` (`tid`; G7: `ph` the finisher's / interrogation's progress, `sub` bit 1 the kill, bit 2
+  interrogating, the same fields, PROTOCOL_VERSION unchanged); `CoopHost` keeps a client's seized guard at their offset
+  and `ref.shield` and lowers / turns him from `ph` / `sub`; `RemoteAvatar` poses the hold hands and the bend from them.
+  The carry has no MoveState (a partner sees no body on the shoulder, as before).
 
 ## Elbow strike (locomotion step 10)
 To be replaced by the palm strike (G42); this is the current build.

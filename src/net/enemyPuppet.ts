@@ -1,5 +1,6 @@
 import { Vector3, type Scene } from '../core/babylon';
-import type { CharacterRig } from '../player/characterRig';
+import type { CharacterRig, FkPose } from '../player/characterRig';
+import { GuardCq, seedOf, type GuardCqMode } from '../game/closeQuarters';
 import { buildEnemyRig } from '../ai/enemyRig';
 import { Hitboxes } from '../ai/hitboxes';
 import { DogModel } from '../ai/dogModel';
@@ -107,19 +108,32 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
 
   // --- takedown (local player) ---
 
-  beginTakedown(choke: boolean): void {
+  /** (G7) The held pose, the same code as the host's `Enemy` (`closeQuarters.GuardCq`). */
+  private readonly cq = new GuardCq();
+  private readonly cqEmote = (_r: CharacterRig, t: number): FkPose | undefined => this.cq.pose(t) ?? undefined;
+
+  beginTakedown(choke: boolean, delay = 0): void {
     if (!this.seized) this.onTakedown?.('start', !choke);
     this.seized = this.taken = true;
     const rig = this.rig;
     if (!rig) return;
-    rig.emote = (_r, t) => {
-      const k = Math.min(1, t * 5);
-      const w = Math.sin(t * 17) * 0.12 * k;
-      return choke
-        ? { neck: [-0.55 * k, 0, 0], shoulderL: [-1.9 * k, 0, -0.4 * k + w], shoulderR: [-1.9 * k, 0, 0.4 * k - w], elbowL: [0, 0, -1.7 * k], elbowR: [0, 0, 1.7 * k], pelvisLift: -0.08 * k }
-        : { neck: [0.35 * k, 0, 0], chest: [0.25 * k, 0, 0], shoulderL: [-0.8 * k, 0, -0.6 * k + w], shoulderR: [-0.8 * k, 0, 0.6 * k - w] };
-    };
+    this.cq.seed = seedOf(this.id);
+    this.cq.seize(!choke, delay);
+    rig.emote = this.cqEmote;
     rig.emoteTime = 0;
+  }
+
+  /** (G7) Held as a hostage here (the client's own grab): as the host's guard. */
+  holdAsHostage(): void {
+    if (this.rig && this.rig.emote === this.cqEmote) this.cq.set('hostage');
+  }
+
+  /** (G7) The knockout's limp / lowering, the interrogation. */
+  holdPose(mode: GuardCqMode, k: number, lower = 0): void {
+    if (!this.rig || this.rig.emote !== this.cqEmote) return;
+    this.cq.set(mode);
+    this.cq.k = k;
+    if (mode === 'ko') this.crouch = lower;
   }
 
   holdAt(x: number, y: number, z: number, yaw: number): void {

@@ -165,23 +165,48 @@ try {
       t.step(0.4);
       const lbl = g.hud.world.label('takedown');
       t.press();
-      t.step(0.5);
+      // (G7, AUDIT-WALLS row 5, 110936: the step-in 0.42 s then the 0.6 s pull-in; not held yet at 0.6 s)
+      t.step(0.6);
+      const early = g.takedown.hostage === e;
+      // the hold settles ~1.0-1.2 s after the press
+      t.step(0.6);
       const held = g.takedown.hostage === e;
       const menu = g.grabMenu.open;
       const labels = g.grabMenu.labels([]);
       const shield = g.localRef.shield === e;
       const fx = Math.sin(c.yaw);
       const fz = Math.cos(c.yaw);
-      const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.42), e.pos.z - (c.pos.z + fz * 0.42));
+      // (G7, row 11: held pelvis to pelvis about 0.3 m, GRAB.hold 0.32; was 0.42)
+      const front = Math.hypot(e.pos.x - (c.pos.x + fx * 0.32), e.pos.z - (c.pos.z + fz * 0.32));
       // a stub entry does nothing and the menu stays open
       t.pick('device');
       t.step(0.2);
       const stubStays = g.grabMenu.open && g.takedown.hostage === e;
+      // (G7, row 11, 110936 @ 22-23) the hostage walk: CT ~0.7 m/s (was gear 2, 1.4 m/s)
+      const st = window.__app.input.state;
+      st.setMove('t', 0, 1);
+      t.step(1.5);
+      const walk = c.speed;
+      st.setMove('t', 0, 0);
+      t.step(0.5);
+      // ("Missing entirely": interrogate) 1.5 s at his jaw, then the hold (and the menu) goes on
+      t.pick('interrogate');
+      t.step(0.3);
+      const inter = !g.grabMenu.open && g.takedown.hostage === e;
+      t.step(1.4);
+      const interDone = g.grabMenu.open && g.takedown.hostage === e && g.takedown.grabs.interrogated === 1;
       t.pick('knockout');
-      t.run(1.0);
+      // (G7, row 20: the knockout lowers him over 0.85 s)
+      t.step(0.5);
+      const lowering = e.alive && g.takedown.active !== null;
+      t.run(0.8);
       const ko = !e.alive && !g.takedown.active && g.localRef.shield === null && !g.grabMenu.open;
-      return { lbl, held, menu, labels, shield, front, stubStays, ko };
+      return { lbl, early, held, menu, labels, shield, front, stubStays, walk, inter, interDone, lowering, ko };
     });
+    assert(!r.early, 'the pull-in: not held yet 0.6 s after the press');
+    assert(r.walk > 0.3 && r.walk < 0.8, `the hostage walk is slow (${r.walk.toFixed(2)} m/s, CT ~0.7)`);
+    assert(r.inter && r.interDone, `Interrogate: the menu closes for it, the hold goes on after (${r.inter} / ${r.interDone})`);
+    assert(r.lowering, 'the knockout takes its time (he is lowered, not dropped)');
     assert(r.lbl === 'Grab', `the prompt from behind reads Grab ("${r.lbl}")`);
     assert(r.held && r.menu, 'A grabs and holds him, the grab menu opens');
     assert(r.labels[0] === 'Knock out' && r.labels[1] === 'Kill' && r.labels[2] === 'Carry', `menu: ${r.labels.join(' / ')}`);
@@ -200,7 +225,7 @@ try {
       const e = t.spawn(2, -1, 0);
       t.step(0.4);
       t.press();
-      t.step(0.5);
+      t.step(1.2);
       t.pick('kill');
       t.run(1.0);
       const killed = !e.alive && g.enemyMgr.bodies.some((b) => b.lethal);
@@ -209,17 +234,18 @@ try {
       const e1 = t.spawn(2, -1, 0);
       t.step(0.4);
       t.press();
-      t.step(0.5);
+      t.step(1.2);
       t.pick('carry');
-      t.run(2.0);
-      const carried = !e1.alive && g.stealth.carrying;
+      // (G7, rows 6 / 20: the 0.85 s knockout, then the 2.0 s lift onto the shoulder)
+      t.run(3.2);
+      const carried = !e1.alive && g.stealth.carrying && !g.stealth.busy && !!g.stealth.carry;
       t.reset();
       g.stealth.carry = null;
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, 0);
       t.step(0.4);
       t.press();
-      t.step(0.5);
+      t.step(1.2);
       st.set('t', 'crouch', true);
       t.step(1 / 60);
       st.set('t', 'crouch', false);

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased - ct-prototype
+- G7 grab, hold, knockout and carry (`docs/ct-prototype/G7-REPORT.md`, against the CT footage): the grab from behind
+  steps in over 0.42 s (rising out of a crouch, legs stepping) and pulls the guard back against the chest over 0.6 s
+  before the hold and its menu (~1 s, CT ~1-1.2 s); the guard struggles from the contact, not the press, his rifle out
+  of his hands; the hold has the left forearm across his throat and the right hand on his shoulder, his hands up at the
+  arm, the pair swaying a little and the guard flailing every 2-4 s; the hostage walk is capped at 0.75 m/s (was 1.4)
+  with him held 0.32 m in front (was 0.42) and walking with you; Knock out lowers him in front over 0.85 s with you bent
+  over him (was a 0.5 s drop); Interrogate works (your hand at his jaw for 1.5 s, the hold goes on); picking up a body
+  is a 2.0 s lift (step in, crouch with the hands under its shoulders, hoist it onto the shoulder on the side its head
+  lies, crouch lets go before the hoist) instead of a teleport; carrying is a 0.8 m/s walk (was 2.2) bent forward under
+  the weight and can open and close doors; putting it down is a 0.8 s slide off the shoulder to your side (was an
+  instant throw 0.7 m ahead). Co-op: the host and the partner pose the hold, its knockout and interrogation from the
+  existing MoveState fields (no wire change).
+
 ## 4.10.0 - CT prototype: CT controls, posture and movement matched to the footage (2026-10-20, PR #31)
 - Footage audit (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"): all 90
   of his CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`) and every move measured against ours

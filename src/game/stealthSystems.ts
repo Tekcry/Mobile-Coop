@@ -1,4 +1,7 @@
-import { Vector3 } from '../core/babylon';
+import { TransformNode, Vector3 } from '../core/babylon';
+import type { MoveOverride } from '../player/playerController';
+import { CQ, dropCurve, liftCurve, type DropState, type LiftState } from './closeQuarters';
+import { socketLocal } from '../ai/carryPose';
 import type { Body } from '../ai/body';
 import { BODY } from '../ai/bodies';
 import { ALARM, type AlarmPanel } from '../ai/alarm';
@@ -91,7 +94,7 @@ export class StealthSystems {
       ints.setEnabled(it, true);
     });
     // a free-standing item for "Drop body" (never added to the world list)
-    this.dropIt = { id: 'drop-body', kind: 'body', pos: new Vector3(), label: 'Drop body', holdTime: 0, enabled: true, done: false, progress: 0, node: null!, parts: [], light: null, onUse: () => this.dropCarried() };
+    this.dropIt = { id: 'drop-body', kind: 'body', pos: new Vector3(), label: 'Drop body', holdTime: 0, enabled: true, done: false, progress: 0, node: null!, parts: [], light: null, onUse: () => this.beginDrop() };
     // doors: open / close by hand, bash open at a sprint
     const doors = g.world.doors;
     for (const d of doors.list) {
@@ -131,7 +134,11 @@ export class StealthSystems {
       const it = this.bodyIts.get(b);
       if (it) ints.remove(it);
       this.bodyIts.delete(b);
-      if (this.carry === b) this.carry = null;
+      if (this.carry === b) {
+        this.carry = null;
+        this.endMotion();
+        this.release();
+      }
     };
     em.onBodyFound = (_e, b) => {
       g.events.emit('bodyFound', { x: b.pos.x, z: b.pos.z });
@@ -150,46 +157,224 @@ export class StealthSystems {
     this.bodyIts.set(b, it);
   }
 
+  /** A body on the shoulder, or (G7) being lifted to it / put down from it: hands busy, no traversal. */
   get carrying(): boolean {
-    return this.carry !== null;
+    return this.carry !== null || this.busy;
   }
 
-  /** While carrying: the interact target is a hiding spot in reach, else "Drop body". */
+  /** (G7) The lift or the put down is under way (committed: no interact, no movement). */
+  get busy(): boolean {
+    return this.liftT >= 0 || this.dropT >= 0;
+  }
+
+  /** While carrying: the interact target is a hiding spot in reach, (G7, row 7: CT opens and closes doors while
+   *  carrying, 052704 @ 9, 21-24) else a door in reach the operator faces (open / close only: no stealth open, bash or
+   *  optic cable), else "Drop body". Nothing while the lift or the put down runs. */
   carryTarget(feet: Vector3): Interactable | null {
-    if (!this.carry) return null;
-    return this.ints.nearest(feet, 1.5, 'hide') ?? this.dropIt;
+    if (!this.carry || this.busy) return null;
+    const hide = this.ints.nearest(feet, 1.5, 'hide');
+    if (hide) return hide;
+    const door = this.ints.nearest(feet, 1.5, 'door');
+    if (door) {
+      const c = this.g.player.controller;
+      const dx = door.pos.x - feet.x;
+      const dz = door.pos.z - feet.z;
+      const d = hyp2(dx, dz);
+      if (d < 0.05 || (Math.sin(c.yaw) * dx + Math.cos(c.yaw) * dz) / d > 0.3) return door;
+    }
+    return this.dropIt;
   }
 
-  /** (A4) The grab menu's Carry: shoulder this body now. */
+  /** (A4) The grab menu's Carry: shoulder this body now (through the lift). */
   pickUpBody(b: Body): void {
     this.pickUp(b);
   }
 
-  private pickUp(b: Body): void {
-    if (this.carry || !b.present || this.g.traversal.active) return;
+  // --- (G7, AUDIT-WALLS rows 6-8) the lift, the carry and the put down ---
+  /** Seconds into the lift / the put down (< 0: none). */
+  private liftT = -1;
+  private dropT = -1;
+  private hoisting = false;
+  private lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0 };
+  private dc: DropState = { slide: 0, bend: 0, drop: 0, hands: 0 };
+  private liftFrom = new Vector3();
+  private liftTo = new Vector3();
+  private liftYaw = 0;
+  private liftChest = new Vector3();
+  private liftL = new Vector3();
+  private liftR = new Vector3();
+  private liftKin = new Vector3();
+  private liftOv: MoveOverride = { kinematic: undefined, yaw: 0, turnRate: 8, crouch: true };
+  private liftEye = new Vector3();
+  private liftEye2 = new Vector3();
+  private socket: TransformNode | null = null;
+  private sockL = { th: 0, x: 0, y: 0, z: 0 };
+  /** The hero's bend (rad) and pelvis drop (m) this step (GameState hands them to the player pose). */
+  bend = 0;
+  bendDrop = 0;
+  /** (G7) Stepping in to the body under the override this step. */
+  stepping = false;
+
+  /** (G7) The shoulder the body goes on: 1 right (CT 110936, 052704), -1 left when it lies head to his left (a hoist
+   *  over the right shoulder swung the head through his back: tests/g7CloseQuarters). */
+  private carrySide = 1;
+
+  /** The carry socket's shoulder point in the operator's chest frame (x out to the right, y up from the chest node). */
+  private shoulderX(): number {
+    return this.g.player.rig.p.shoulderHalf * 0.75 * this.carrySide;
+  }
+
+  private shoulderY(): number {
     const rig = this.g.player.rig;
     const p = rig.p;
     const chestY = p.y.waist + 0.13 * (rig.height / 1.75);
-    b.pickUp(rig.torso, p.shoulderHalf * 0.75, p.y.shoulder - chestY + 0.12);
-    this.carry = b;
-    const it = this.bodyIts.get(b);
-    if (it) this.ints.setEnabled(it, false);
-    this.g.events.emit('body', { action: 'pickup' });
+    return p.y.shoulder - chestY + 0.12;
   }
 
-  /** Put the body down in front (a short ragdoll drop). */
+  /** (G7, row 6, 110936 @ 39.5-42.6) Pick up: a 2.0 s committed lift. Step in to the body's chest and crouch over it
+   *  with the hands at its shoulders (0-0.8 s; crouch cancels), hoist it up onto the right shoulder as he rises
+   *  (0.8-1.6 s), settle (to 2.0 s). Replaces the instant teleport onto the shoulder. */
+  private pickUp(b: Body): void {
+    if (this.carry || this.busy || !b.present || this.g.traversal.active) return;
+    const g = this.g;
+    const c = g.player.controller;
+    this.carry = b;
+    this.liftT = 0;
+    this.hoisting = false;
+    const it = this.bodyIts.get(b);
+    if (it) this.ints.setEnabled(it, false);
+    // kneel beside the chest on the side he stands, facing it; at most a metre's step, never through a wall
+    const yaw = b.liftPoints(this.liftChest, this.liftL, this.liftR);
+    const ch = this.liftChest;
+    const p = c.pos;
+    let px = -Math.cos(yaw);
+    let pz = Math.sin(yaw);
+    if ((p.x - ch.x) * px + (p.z - ch.z) * pz < 0) {
+      px = -px;
+      pz = -pz;
+    }
+    const to = this.liftTo;
+    to.set(ch.x + px * CQ.liftSide, p.y, ch.z + pz * CQ.liftSide);
+    const dx = to.x - p.x;
+    const dz = to.z - p.z;
+    const d = hyp2(dx, dz);
+    if (d > CQ.liftStepMax) to.set(p.x + (dx * CQ.liftStepMax) / d, p.y, p.z + (dz * CQ.liftStepMax) / d);
+    this.liftEye.set(p.x, p.y + 0.9, p.z);
+    this.liftEye2.set(to.x, to.y + 0.9, to.z);
+    if (!g.ballistics.clear(this.liftEye, this.liftEye2, G.STATIC)) to.copyFrom(p);
+    this.liftFrom.copyFrom(p);
+    this.liftYaw = Math.atan2(ch.x - to.x, ch.z - to.z);
+    // the head to his right: over the right shoulder (CT); to his left: the left one (mirrored)
+    this.carrySide = Math.sin(yaw) * Math.cos(this.liftYaw) - Math.cos(yaw) * Math.sin(this.liftYaw) >= 0 ? 1 : -1;
+    g.events.emit('body', { action: 'pickup' });
+  }
+
+  /** Put the body down at once (a restart, the carrier down): a short ragdoll drop in front. The interact's "Drop body"
+   *  is the 0.8 s put down (`beginDrop`). */
   dropCarried(): void {
     const b = this.carry;
+    this.endMotion();
     if (!b) return;
     const c = this.g.player.controller;
     const s = Math.sin(c.yaw);
     const co = Math.cos(c.yaw);
     const at = new Vector3(c.pos.x + s * 0.7, c.pos.y, c.pos.z + co * 0.7);
-    b.drop(new Vector3(s * 25, -8, co * 25), this.em.canRagdoll(), at, c.yaw + Math.PI / 2);
+    b.drop(new Vector3(s * CQ.dropImpulse, CQ.dropImpulseDown, co * CQ.dropImpulse), this.em.canRagdoll(), at, c.yaw + Math.PI / 2);
     this.carry = null;
     this.release();
     this.noise(DROP_NOISE, at);
     this.g.events.emit('body', { action: 'drop' });
+  }
+
+  /** (G7, row 8, 110936 @ 45.8-46.6) "Drop body": 0.8 s committed. The shoulder dips, the body rolls off it to the right
+   *  side and the ragdoll takes it at 0.6 s with a small push (was an instant 25 m/s throw 0.7 m in front). */
+  private beginDrop(): void {
+    if (!this.carry || this.busy) return;
+    this.dropT = 0;
+  }
+
+  /** The ragdoll takes the body off the shoulder (the put down's hand-over). */
+  private handOver(): void {
+    const b = this.carry;
+    if (!b) return;
+    const c = this.g.player.controller;
+    const s = Math.sin(c.yaw);
+    const co = Math.cos(c.yaw);
+    // his right (co, -s) on a right-shoulder carry (the left mirrored): the side the body was on
+    const sd = this.carrySide;
+    const at = new Vector3(c.pos.x + co * 0.5 * sd, c.pos.y, c.pos.z - s * 0.5 * sd);
+    const k = CQ.dropImpulse;
+    b.drop(new Vector3(co * k * sd + s * k * 0.3, CQ.dropImpulseDown, -s * k * sd + co * k * 0.3), this.em.canRagdoll(), at, c.yaw + Math.PI / 2);
+    this.carry = null;
+    this.noise(DROP_NOISE, at);
+    this.g.events.emit('body', { action: 'drop' });
+  }
+
+  /** Stop a lift / put down (its override and hands off). */
+  private endMotion(): void {
+    if (this.liftT >= 0 || this.dropT >= 0) {
+      const c = this.g.player.controller;
+      if (c.override === this.liftOv) c.override = null;
+    }
+    this.liftT = this.dropT = -1;
+    this.hoisting = false;
+  }
+
+  private holdStill(x: number, y: number, z: number, yaw: number, crouch: boolean): void {
+    const ov = this.liftOv;
+    this.liftKin.set(x, y, z);
+    ov.kinematic = this.liftKin;
+    ov.yaw = yaw;
+    ov.crouch = crouch;
+    this.g.player.controller.override = ov;
+  }
+
+  /** The lift's fixed step. */
+  private liftStep(crouchPressed: boolean): void {
+    const b = this.carry!;
+    const t = (this.liftT += 1 / 60);
+    const lc = liftCurve(t, this.lc);
+    const c = this.g.player.controller;
+    // still crouched at the body: crouch lets it go
+    if (crouchPressed && lc.atBody && t > 0.1) {
+      c.swallowCrouch = true;
+      this.endMotion();
+      this.carry = null;
+      this.release();
+      const it = this.bodyIts.get(b);
+      if (it) this.ints.setEnabled(it, b.present);
+      return;
+    }
+    const f = this.liftFrom;
+    const to = this.liftTo;
+    this.holdStill(f.x + (to.x - f.x) * lc.step, f.y, f.z + (to.z - f.z) * lc.step, this.liftYaw, lc.crouch);
+    this.stepping = lc.step < 1;
+    this.bend = lc.bend;
+    this.bendDrop = lc.drop;
+    if (!lc.atBody && !this.hoisting && !b.carried) {
+      b.beginHoist();
+      this.hoisting = true;
+    }
+    if (t >= CQ.liftRise && this.hoisting) {
+      b.shoulder(this.g.player.rig.torso, this.shoulderX(), this.shoulderY());
+      this.hoisting = false;
+    }
+    if (t >= CQ.lift) this.endMotion();
+  }
+
+  /** The put down's fixed step. */
+  private dropStep(): void {
+    const t = (this.dropT += 1 / 60);
+    const dc = dropCurve(t, this.dc);
+    const c = this.g.player.controller;
+    this.holdStill(c.pos.x, c.pos.y, c.pos.z, c.yaw, false);
+    this.bend = dc.bend;
+    this.bendDrop = dc.drop;
+    if (this.carry && t >= CQ.dropHand) this.handOver();
+    if (t >= CQ.drop) {
+      this.endMotion();
+      this.release();
+    }
   }
 
   /** Into the container in reach: gone for good, never found. */
@@ -264,6 +449,7 @@ export class StealthSystems {
     this.playerOpened.clear();
     this.guardOpened.clear();
     this.noticeT = 0;
+    this.endMotion();
     if (this.carry) {
       this.carry = null;
       this.release();
@@ -340,8 +526,11 @@ export class StealthSystems {
     return false;
   }
 
-  /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. */
-  fixedUpdate(): void {
+  /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. `crouchPressed`
+   *  (G7) lets go of a body still being reached for. */
+  fixedUpdate(crouchPressed = false): void {
+    this.bend = this.bendDrop = 0;
+    this.stepping = false;
     for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
@@ -363,35 +552,107 @@ export class StealthSystems {
     }
     for (const [b, it] of this.bodyIts) {
       it.pos.copyFrom(b.pos);
-      const show = b.present;
+      // (G7) the body being reached for is not offered again
+      const show = b.present && b !== this.carry;
       if (it.enabled !== show) this.ints.setEnabled(it, show);
     }
-    if (!this.carry) return;
-    const c = this.g.player.controller;
-    if (!this.g.player.alive) {
+    if (!this.g.player.alive && (this.carry || this.busy)) {
       this.dropCarried();
       return;
     }
+    if (this.dropT >= 0) {
+      this.dropStep();
+      return;
+    }
+    if (!this.carry) {
+      // (the body taken away mid-lift: a restart, a test)
+      if (this.liftT >= 0) this.endMotion();
+      return;
+    }
+    if (this.liftT >= 0) {
+      this.liftStep(crouchPressed);
+      return;
+    }
+    // (G7, row 7) carrying: slow (CT 0.4-0.8 m/s, was 2.2), bent forward under the weight
+    const c = this.g.player.controller;
     c.speedCap = Math.min(c.speedCap, BODY.carrySpeed);
+    this.bend = CQ.carryBend;
+    this.bendDrop = CQ.carryDrop;
   }
 
-  /** Render frame (before the player animates): the hands hold the victim's legs. */
+  /** Render frame (before the player animates): the hands on the body (its shoulders as he reaches for it, then its
+   *  legs over the shoulder); (G7) the hoist and the slide off the shoulder pose the carried rig. */
   frameUpdate(): void {
     const b = this.carry;
-    if (!b) return;
-    b.knees(this.kneeL, this.kneeR);
     const rig = this.g.player.rig;
+    if (!b) {
+      // the put down after the hand-over: the hands have let go
+      if (this.dropT >= 0) rig.reachL.w = rig.reachR.w = 0;
+      return;
+    }
     // (anim-cleanup) a carried body's knees are not a grip axis
     clearGripAxis(rig.reachR);
     clearGripAxis(rig.reachL);
+    let w = 1;
+    if (this.liftT >= 0) {
+      const lc = this.lc;
+      w = lc.hands;
+      if (lc.atBody) {
+        // crouched over it: the hands under its shoulders
+        b.liftPoints(this.liftChest, this.liftL, this.liftR);
+        const near = this.nearSide();
+        const a = near ? this.liftR : this.liftL;
+        const o = near ? this.liftL : this.liftR;
+        rig.reachR.x = a.x;
+        rig.reachR.y = a.y - 0.04;
+        rig.reachR.z = a.z;
+        rig.reachR.w = w;
+        rig.reachL.x = o.x;
+        rig.reachL.y = o.y - 0.04;
+        rig.reachL.z = o.z;
+        rig.reachL.w = w * 0.9;
+        return;
+      }
+      if (this.hoisting) b.hoist(this.socketNode(b), lc.hoist);
+    } else if (this.dropT >= 0) {
+      b.slide(this.shoulderX(), this.shoulderY(), this.dc.slide);
+      w = this.dc.hands;
+    }
+    b.knees(this.kneeL, this.kneeR);
     rig.reachR.x = this.kneeR.x;
     rig.reachR.y = this.kneeR.y;
     rig.reachR.z = this.kneeR.z;
-    rig.reachR.w = 1;
+    rig.reachR.w = w;
     rig.reachL.x = this.kneeL.x;
     rig.reachL.y = this.kneeL.y - 0.05;
     rig.reachL.z = this.kneeL.z;
-    rig.reachL.w = 0.8;
+    rig.reachL.w = 0.8 * w;
+  }
+
+  /** The body's right shoulder is the nearer one to the operator's right hand (lying either way up). */
+  private nearSide(): boolean {
+    const c = this.g.player.controller;
+    const s = Math.sin(c.yaw);
+    const co = Math.cos(c.yaw);
+    // the hero's right (co, -s): whichever body shoulder lies further that way takes the right hand
+    return (this.liftR.x - this.liftL.x) * co - (this.liftR.z - this.liftL.z) * s > 0;
+  }
+
+  /** The carry socket on the operator's chest (a node there at the socket's local transform), for the hoist. */
+  private socketNode(b: Body): TransformNode {
+    const torso = this.g.player.rig.torso;
+    let n = this.socket;
+    if (!n) {
+      n = this.socket = new TransformNode('carry-socket', torso.getScene());
+      n.parent = torso;
+    }
+    const view = b.view;
+    if (view) {
+      socketLocal(view, this.shoulderX(), this.shoulderY(), this.sockL);
+      n.rotation.set(this.sockL.th, 0, 0);
+      n.position.set(this.sockL.x, this.sockL.y, this.sockL.z);
+    }
+    return n;
   }
 
   /** Set every switch on a circuit to the registry's state (label and indicator too); no event, no noise. */
@@ -410,6 +671,8 @@ export class StealthSystems {
   }
 
   dispose(): void {
+    this.socket?.dispose();
+    this.socket = null;
     this.em.onBodyAdded = this.em.onBodyRemoved = this.em.onBodyFound = null;
     this.em.onRevived = null;
     this.em.onAlarm = null;

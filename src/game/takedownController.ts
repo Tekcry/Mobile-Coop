@@ -11,6 +11,9 @@ import type { GameState } from './gameState';
 import { grabRule } from '../ai/archetypes';
 import type { GrabOpt } from './grabMenu';
 import { clearGripAxis } from '../player/attachGrips';
+import { wrapPi } from '../anim/motion';
+import type { MoveOverride } from '../player/playerController';
+import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
@@ -29,12 +32,15 @@ interface GrabState {
   hold: boolean;
   /** Unused since A4 (the deciding press is the menu). */
   pressT: number;
-  /** The finishing strike under way (s; < 0: none). */
+  /** The finishing strike under way (s; < 0: none): the kill (`GRAB.killTime`) or (G7) the knockout that lowers him
+   *  (`CQ.koTime`). */
   strikeT: number;
+  /** (G7) The guard's facing at the press (he turns into the hold over the pull-in). */
+  vYaw0: number;
+  /** (G7) Seconds held (the idle sway), the interrogation under way (s; < 0: none). */
+  holdT: number;
+  interT: number;
 }
-
-/** The grab's finishing strike / choke (s). */
-const GRAB_STRIKE = 0.5;
 
 /** What a takedown needs from its victim: an `Enemy`, or a co-op client's puppet of the host's enemy. */
 export interface TakedownVictim {
@@ -47,13 +53,16 @@ export interface TakedownVictim {
   readonly level: AlertLevel;
   readonly bodyRig: CharacterRig;
   taken: boolean;
-  beginTakedown(choke: boolean): void;
+  /** Seized: the brain off; (G7) the struggle pose from `delay` s on (the attacker's contact). */
+  beginTakedown(choke: boolean, delay?: number): void;
   holdAt(x: number, y: number, z: number, yaw: number): void;
   releaseTakedown(stagger?: number): void;
   /** (3.2.0) Solid to the operator's body or not (a held hostage). */
   setSolid?(on: boolean): void;
   /** (3.2.0) Upright in the operator's hold (a human shield). */
   holdAsHostage?(): void;
+  /** (G7) The hold's pose: the knockout's limp `k` and lowering `lower`, the interrogation's progress `k`. */
+  holdPose?(mode: GuardCqMode, k: number, lower?: number): void;
   applyDamage(h: HitInfo): DamageResult;
   knockOut(h: HitInfo): void;
 }
@@ -79,7 +88,7 @@ export class TakedownController {
   private carryId = '';
   private carryT = 0;
   /** Grabs: held / knocked out / killed / shoved (stats, tests). */
-  grabs = { held: 0, ko: 0, killed: 0, shoved: 0, lost: 0 };
+  grabs = { held: 0, ko: 0, killed: 0, shoved: 0, lost: 0, interrogated: 0 };
   /** The press that started it is still held (pad / keyboard). */
   holding = false;
   /** Counts (stats / tests). */
@@ -89,8 +98,53 @@ export class TakedownController {
   private kin = new Vector3();
   private eye = new Vector3();
   private head = new Vector3();
+  /** (G7) The controller override, reused (no object per step). */
+  private ov: MoveOverride = { kinematic: undefined, yaw: 0, turnRate: 40, crouch: false };
+  private ko: KoState = { limp: 0, lower: 0, bend: 0 };
+  private hp = { x: 0, y: 0, z: 0 };
+  private hl = { x: 0, y: 0, z: 0 };
+  /** (G7) The hero's bend (rad, spine forward), pelvis drop (m) and the hold's side sway (m) this step: the anim graph
+   *  eases them (GameState hands them to the player pose). */
+  bend = 0;
+  bendDrop = 0;
+  sway = 0;
+  /** (G7) The attacker is stepping in under the override this step (the legs take steps from his speed). */
+  stepping = false;
 
   constructor(private g: GameState) {}
+
+  /** (G7) The grab menu may show: holding, no finisher or interrogation under way. */
+  get menuReady(): boolean {
+    const gr = this.active?.grab;
+    return !!gr && gr.hold && gr.strikeT < 0 && gr.interT < 0;
+  }
+
+  /** (G7) The MoveState numbers of a hold (`localMoveState` mode `grab`): `ph` the finisher's / interrogation's
+   *  progress, `sub` bit 1 the kill, bit 2 interrogating. Remotes and the co-op host pose from them. */
+  grabWire(out: { ph: number; sub: number }): void {
+    const gr = this.active?.grab;
+    out.ph = 0;
+    out.sub = 0;
+    if (!gr) return;
+    if (gr.strikeT >= 0) {
+      const lethal = this.active!.lethal;
+      out.ph = Math.min(1, gr.strikeT / (lethal ? GRAB.killTime : CQ.koTime));
+      out.sub = lethal ? 1 : 0;
+    } else if (gr.interT >= 0) {
+      out.ph = Math.min(1, gr.interT / CQ.interrogate);
+      out.sub = 2;
+    }
+  }
+
+  /** The attacker driven onto (x, y, z) facing `yaw`; `stand` (the grab) brings him out of a crouch. */
+  private override(x: number, y: number, z: number, yaw: number, stand: boolean): void {
+    this.kin.set(x, y, z);
+    const ov = this.ov;
+    ov.kinematic = this.kin;
+    ov.yaw = yaw;
+    ov.crouch = stand ? false : undefined;
+    this.g.player.controller.override = ov;
+  }
 
   /** Attacker state from back-to-wall (step 12: a high wall `wall`, a low one `wallLow`) / traversal. */
   private attackerState(): AttackerState {
@@ -118,6 +172,8 @@ export class TakedownController {
   /** Fixed step, before back-to-wall / traversal: find the offer, run an active takedown. Returns true while one runs. */
   fixedUpdate(dt: number, pressed: boolean, held: boolean): boolean {
     const g = this.g;
+    this.bend = this.bendDrop = this.sway = 0;
+    this.stepping = false;
     if (this.carryId) this.carryStep(dt);
     if (this.active) {
       this.holding = held;
@@ -148,7 +204,13 @@ export class TakedownController {
     }
     // (3.2.0) from behind on a guard on two legs: a grab, decided by a fresh press while holding them
     const grab = GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !o.lethalOnly && lethal === undefined;
-    o.e.beginTakedown(lethal !== true);
+    // (G7, AUDIT-WALLS row 5) the grab steps in over 0.42 s (CT 110936: 1.5 m in 0.35-0.45 s), rising out of a crouch
+    if (grab) {
+      o.plan.approach = GRAB.approach;
+      c.standUp();
+    }
+    // (G7) the victim struggles from the contact, not the press
+    o.e.beginTakedown(lethal !== true, o.plan.approach);
     this.active = {
       e: o.e,
       plan: o.plan,
@@ -158,7 +220,7 @@ export class TakedownController {
       from: c.pos.clone(),
       vFrom: o.e.pos.clone(),
       hp: g.target.health.hp,
-      grab: grab ? { hold: false, pressT: -1, strikeT: -1 } : null,
+      grab: grab ? { hold: false, pressT: -1, strikeT: -1, vYaw0: o.e.yaw, holdT: 0, interT: -1 } : null,
     };
     if (grab) this.grabs.held++;
     this.offer = null;
@@ -274,11 +336,26 @@ export class TakedownController {
         this.abort();
         return;
       }
+      const stage = grabStage(a.t, plan.approach, GRAB.pull);
       approachPoint(a.from.x, a.from.y, a.from.z, plan, Math.min(1, a.t / Math.max(0.01, plan.approach)), this.pt);
-      this.kin.set(this.pt.x, this.pt.y, this.pt.z);
-      c.override = { kinematic: this.kin, yaw: plan.faceYaw, turnRate: 40 };
-      e.holdAt(a.vFrom.x, a.vFrom.y, a.vFrom.z, plan.faceYaw);
-      if (a.t >= plan.approach) {
+      this.override(this.pt.x, this.pt.y, this.pt.z, plan.faceYaw, true);
+      if (stage === 0) {
+        this.stepping = true;
+        // (G7) he has not noticed yet: where he stood, facing his own way
+        e.holdAt(a.vFrom.x, a.vFrom.y, a.vFrom.z, gr.vYaw0);
+        return;
+      }
+      // (G7, row 5, 110936 @ 6.4-7.0) the pull-in: arm round the neck, the guard drawn back off his feet against the
+      // chest (from where he stood to the hold, turning to the operator's facing), flailing
+      const k = ease((a.t - plan.approach) / GRAB.pull);
+      const fx = Math.sin(plan.faceYaw);
+      const fz = Math.cos(plan.faceYaw);
+      const hx = plan.alignX + fx * GRAB.hold;
+      const hz = plan.alignZ + fz * GRAB.hold;
+      const dy = gr.vYaw0 + wrapPi(plan.faceYaw - gr.vYaw0) * k;
+      e.holdAt(a.vFrom.x + (hx - a.vFrom.x) * k, a.vFrom.y, a.vFrom.z + (hz - a.vFrom.z) * k, dy);
+      this.bend = CQ.holdBend * k;
+      if (stage === 2) {
         gr.hold = true;
         c.override = null;
         e.setSolid?.(false);
@@ -286,18 +363,53 @@ export class TakedownController {
       }
       return;
     }
-    // holding: a walk at most; the hostage stays in front, facing the way the operator does
-    c.speedCap = gearCap(Math.min(c.gear, GRAB.maxGear), c.crouched);
+    // holding: (G7, row 11) a slow walk at most (CT 0.7 m/s); the hostage stays in front, facing the way the operator
+    // does, the pair swaying a little while still (row 19)
+    c.speedCap = Math.min(gearCap(c.gear, c.crouched), GRAB.speedCap);
+    gr.holdT += dt;
     const fx = Math.sin(c.yaw);
     const fz = Math.cos(c.yaw);
-    e.holdAt(c.pos.x + fx * GRAB.hold, c.pos.y, c.pos.z + fz * GRAB.hold, c.yaw);
+    const sw = holdSway(gr.holdT, 1 - Math.min(1, c.speed / 0.3));
+    e.holdAt(c.pos.x + fx * GRAB.hold + fz * sw, c.pos.y, c.pos.z + fz * GRAB.hold - fx * sw, c.yaw);
+    this.bend = CQ.holdBend;
+    this.sway = sw;
     if (gr.strikeT >= 0) {
       gr.strikeT += dt / this.handsMul;
-      g.player.pose.melee = a.lethal ? Math.min(1, gr.strikeT / GRAB_STRIKE) : -1;
-      if (gr.strikeT >= GRAB_STRIKE) {
+      if (a.lethal) {
+        g.player.pose.melee = Math.min(1, gr.strikeT / GRAB.killTime);
+        if (gr.strikeT >= GRAB.killTime) {
+          c.speedCap = Infinity;
+          this.grabs.killed++;
+          this.finish();
+        }
+        return;
+      }
+      // (G7, row 20, 110936 @ 37.0-38.2) the knockout: he goes limp and is lowered in front, the operator bent over
+      // him with both hands still on him; he stands up again once the guard is down (the anim graph eases the bend)
+      g.player.pose.melee = -1;
+      c.speedCap = 0;
+      const ko = koCurve(Math.min(1, gr.strikeT / CQ.koTime), this.ko);
+      e.holdPose?.('ko', ko.limp, ko.lower);
+      this.bend = CQ.holdBend + (CQ.koBend - CQ.holdBend) * ko.bend;
+      this.bendDrop = CQ.koDrop * ko.bend;
+      if (gr.strikeT >= CQ.koTime) {
         c.speedCap = Infinity;
-        this.grabs[a.lethal ? 'killed' : 'ko']++;
+        this.grabs.ko++;
         this.finish();
+      }
+      return;
+    }
+    if (gr.interT >= 0) {
+      // ("Missing entirely": interrogate, 052607 @ 7-8) the free hand at his jaw, his head turned to the operator;
+      // the hold goes on (and the menu) after it
+      gr.interT += dt;
+      e.holdPose?.('interrogate', Math.min(1, gr.interT / CQ.interrogate));
+      if (gr.interT >= CQ.interrogate) {
+        gr.interT = -1;
+        e.holdAsHostage?.();
+        this.grabs.interrogated++;
+        // (the level's lines are not written yet: docs/story.md owns in-game text; a neutral feed line until then)
+        g.hud.feedItem('Interrogated: nothing new');
       }
       return;
     }
@@ -316,13 +428,17 @@ export class TakedownController {
     this.menuPick = null;
     if (pick === 'knockout' || pick === 'kill' || pick === 'carry') {
       a.lethal = pick === 'kill';
-      if (a.lethal) e.beginTakedown(false);
+      // (G7) the kill's struggle blends from the hold (a fresh seize snapped the arms to the rest pose first)
+      if (a.lethal) {
+        if (e.holdPose) e.holdPose('seizedLethal', 0);
+        else e.beginTakedown(false);
+      }
       if (pick === 'carry') {
         this.carryId = e.id;
         this.carryT = 1.5;
       }
       gr.strikeT = 0;
-    }
+    } else if (pick === 'interrogate') gr.interT = 0;
   }
 
   /** (A4) A carry pick: once the knocked-out guard's body exists, the operator shoulders it. */
@@ -344,7 +460,6 @@ export class TakedownController {
       return;
     }
     const { e, plan } = a;
-    const c = g.player.controller;
     a.t += dt / this.handsMul;
     // tap or hold: let go before `lethalHold` = non-lethal, still held then = lethal
     if (!a.decided) {
@@ -365,8 +480,8 @@ export class TakedownController {
     // attacker: along the path onto the aligned spot, facing the victim
     if (plan.kind !== 'below' && plan.kind !== 'window' && plan.kind !== 'inverted') {
       approachPoint(a.from.x, a.from.y, a.from.z, plan, kAp, this.pt);
-      this.kin.set(this.pt.x, this.pt.y, this.pt.z);
-      c.override = { kinematic: this.kin, yaw: plan.faceYaw, turnRate: 40 };
+      this.override(this.pt.x, this.pt.y, this.pt.z, plan.faceYaw, false);
+      this.stepping = kAp < 1;
     }
     // victim: held (behind / front: turned so the attacker is where the plan says), pulled where planned
     const vt = plan.victimTo;
@@ -391,12 +506,14 @@ export class TakedownController {
     const vr = a.e.bodyRig;
     vr.neck.computeWorldMatrix(true);
     const n = vr.neck.getAbsolutePosition();
-    // (3.2.0) holding a hostage: the left hand on their shoulder, the right free for the sidearm (until the strike)
-    const holdOnly = !!a.grab && a.grab.strikeT < 0;
-    const w = holdOnly ? (this.g.player.carry.raise > 0.2 ? 0 : 0.6) : a.lethal ? 0.5 : 1;
     // (anim-cleanup) a guard's neck and shoulder are not a grip axis
     clearGripAxis(rig.reachR);
     clearGripAxis(rig.reachL);
+    if (a.grab) {
+      this.grabHands(a.grab, n.x, n.y, n.z);
+      return;
+    }
+    const w = a.lethal ? 0.5 : 1;
     rig.reachR.x = n.x;
     rig.reachR.y = n.y - 0.05;
     rig.reachR.z = n.z;
@@ -406,7 +523,48 @@ export class TakedownController {
     rig.reachL.x = s.x;
     rig.reachL.y = s.y;
     rig.reachL.z = s.z;
-    rig.reachL.w = holdOnly ? 1 : w * 0.9;
+    rig.reachL.w = w * 0.9;
+  }
+
+  /**
+   * (G7, AUDIT-WALLS rows 5, 19, 20) The hands on a grabbed guard: reaching in over the end of the approach; then the
+   * left forearm across his throat (the hand at his right collarbone, in front of the neck), the right hand on his
+   * right shoulder (holstered; a drawn sidearm keeps the hand on the gun); through the knockout both stay on him as he
+   * is lowered; interrogating, the left hand goes to his jaw.
+   */
+  private grabHands(gr: GrabState, nx: number, ny: number, nz: number): void {
+    const a = this.active!;
+    const rig = this.g.player.rig;
+    const vr = a.e.bodyRig;
+    const yaw = a.e.yaw;
+    const s = Math.sin(yaw);
+    const c = Math.cos(yaw);
+    const contact = a.t >= a.plan.approach;
+    const on = gr.hold || contact ? 1 : ease((a.t / Math.max(0.01, a.plan.approach) - 0.55) / 0.45);
+    vr.shoulderR.computeWorldMatrix(true);
+    const sr = vr.shoulderR.getAbsolutePosition();
+    const hl = this.hl;
+    const hp = this.hp;
+    holdHandTargets(nx, ny, nz, sr.x, sr.y, sr.z, yaw, hl, hp);
+    if (gr.interT >= 0) {
+      const k = Math.min(1, gr.interT / CQ.interrogate);
+      const e = ease(k / 0.12) * (1 - ease((k - 0.85) / 0.15));
+      vr.headNode.computeWorldMatrix(true);
+      const h = vr.headNode.getAbsolutePosition();
+      hl.x += (h.x + s * 0.09 - hl.x) * e;
+      hl.y += (h.y - 0.07 - hl.y) * e;
+      hl.z += (h.z + c * 0.09 - hl.z) * e;
+    }
+    rig.reachL.x = hl.x;
+    rig.reachL.y = hl.y;
+    rig.reachL.z = hl.z;
+    rig.reachL.w = on;
+    const drawn = this.g.weapons.drawPhase !== 0;
+    rig.reachR.x = hp.x;
+    rig.reachR.y = hp.y;
+    rig.reachR.z = hp.z;
+    // (the kill's blow is the right arm's elbow arc: the hand leaves the shoulder for it)
+    rig.reachR.w = drawn || (gr.strikeT >= 0 && a.lethal) ? 0 : on * 0.9;
   }
 
   private release(): void {
