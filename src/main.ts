@@ -114,12 +114,12 @@ async function boot(): Promise<void> {
     app.screens.push(menu);
     void app.feedback.all().then((all) => menu.setCounter('feedback', all.length ? `${all.length}` : ''));
     // menu-ui MD2: the title screen once per launch (not after a match, not under automation unless `?title=1`); Back
-    // on the main menu returns to it. The brightness calibration follows the title on the first run.
+    // on the main menu no longer returns to it (menu-notes A1). The brightness calibration follows the title on the
+    // first run.
     const brightness = (): void => {
       if (!app.settings.get().video.brightnessSet && !navigator.webdriver && app.screens.top === menu) app.screens.push(new BrightnessScreen(app));
     };
     const titleAllowed = !navigator.webdriver || titleFlag;
-    MainMenuScreen.onBackToTitle = titleAllowed ? () => app.screens.push(new TitleScreen(() => {})) : null;
     // music project: `?musiclab=1` opens the lab over the menu (debug)
     if (flags.musicLab) void import('./audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app)));
     if (flags.foleyLab) void import('./audio/foley/foleyLab').then((m) => app.screens.push(new m.FoleyLabScreen(app)));

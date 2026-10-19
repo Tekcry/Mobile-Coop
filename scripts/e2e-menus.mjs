@@ -92,9 +92,11 @@ try {
   assert((await top()) === 'main-menu' && (await fk()) === 'settings', 'mouse button 4 is Back');
   const mm = await sameBoxes('.main-menu');
   assert(mm.n > 6 && mm.moved === 0, `main menu: a device switch moves nothing (${mm.n} boxes, ${mm.moved} moved)`);
-  // every legend item by click: Back (the title is off under automation: stays), Select opens the focused item
-  await clickAt('.main-menu .ms-lg[data-legend="back"]');
-  assert((await top()) === 'main-menu', 'the Back legend on the root menu stays (no title under automation)');
+  // (menu-notes A1) the root menu has no Back legend item and Back does nothing (no way back to the title)
+  assert(await G(() => !document.querySelector('.main-menu .ms-lg[data-legend="back"]')), 'the root menu legend has no Back item');
+  await key('Escape');
+  assert((await top()) === 'main-menu', 'Back on the root menu stays on the main menu');
+  // every legend item by click: Select opens the focused item
   await clickAt('.main-menu .ms-lg[data-legend="confirm"]');
   assert((await top()) === 'settings-screen', 'the Select legend confirms the focused item');
 
@@ -335,7 +337,8 @@ try {
     assert((await mtop()) === 'pause-screen' && (await mkey()) === 'resume', 'pause opens on the field terminal with Resume focused');
     assert(await GM(() => getComputedStyle(document.querySelector('.hud')).display === 'none'), 'the HUD hides while paused');
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
-    assert(keys === 'resume,objectives,settings,controls,report-feedback,quit', `pause items (${keys})`);
+    // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
+    assert(keys === 'resume,objectives,settings,report-feedback,quit', `pause items (${keys})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));

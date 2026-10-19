@@ -108,7 +108,7 @@ export class App {
       if (b && !b.classList.contains('blocked')) this.sfx.uiConfirm();
     });
     this.screens.onBack = () => this.sfx.uiBack();
-    this.input.events.on('mode', () => this.audio.ensure());
+    this.input.events.on('mode', () => this.audio.unlock());
 
     this.input.events.on('padConnected', ({ id }) => this.toasts.show(`Controller connected: ${shortPadName(id)}`, 'ok'));
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));
@@ -364,6 +364,7 @@ export class App {
       beforeFrame: (dt) => {
         this.time += dt;
         this.input.poll(this.time, dt);
+        if (!this.audio.running) this.audio.pollPad();
         if (this.screens.isOpen) this.screens.update(this.input.state, dt);
         this.loop.paused = !s.simulating;
       },
