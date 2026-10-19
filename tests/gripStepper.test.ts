@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GripStepper, type GripConfig } from '../src/player/gripStepper';
-import { AttachGrips, ARM_SWEEP_RATE, minReachSwing } from '../src/player/attachGrips';
+import { AttachGrips, ARM_SWEEP_RATE, CLIMB_HAND_SWING, minReachSwing } from '../src/player/attachGrips';
 import { proportions } from '../src/player/proportions';
 import { ATTACH } from '../src/player/attach';
 import { findJumpTarget, ledgeContinuation, generateLedges, makeLedge, TraversalAnchors, type AnchorBox, type Ladder, type Ledge, type PipeHorizontal } from '../src/world/anchors';
@@ -46,9 +46,10 @@ describe('grip stepper', () => {
     expect(g.steps).toBeGreaterThan(10);
   });
 
-  it('(ct-prototype D2b) the ledge shimmy at its table speed: one hand at a time, ~1.8 reaches a second per hand, in reach', () => {
+  it('(ct-prototype D2b, G4) the ledge shimmy at its table speed: one hand at a time, ~1.2 reaches a second per hand, in reach', () => {
     const v = ATTACH.ledge.speed;
-    const cfg: GripConfig = { offL: -0.26, offR: 0.26, slack: 0.08, swingTime: 0.28, lead: 0, leadTime: 0.42, overlap: false, alternate: 0.02, grid: 0, gridOrigin: 0, min: 0, max: 20 };
+    // (G4, CT 110522 65.3-69.9: a 1.0 s hand cycle at 0.5 m/s) the AttachGrips ledge set-up (was swing 0.28, lead 0.42 s, spots 0.26; now 0.32 s, 0.6 s, 0.25 m)
+    const cfg: GripConfig = { offL: -0.25, offR: 0.25, slack: 0.08, swingTime: 0.32, lead: 0, leadTime: 0.6, overlap: false, alternate: 0.02, grid: 0, gridOrigin: 0, min: 0, max: 20 };
     const g = new GripStepper(cfg);
     g.reset(2);
     let first: 'L' | 'R' | null = null;
@@ -62,25 +63,26 @@ describe('grip stepper', () => {
       if (!first && g.L.swing >= 0) first = 'L';
       if (!first && g.R.swing >= 0) first = 'R';
       if (g.L.swing >= 0 && g.R.swing >= 0) both = true;
-      // planted hands relative to the body: the trailing (left) never past -0.42, the leading (right) never past 0.4
+      // planted hands relative to the body: the trailing (left) never past -0.42, the leading (right) never past 0.6
       if (i > 120 && g.L.swing < 0) lo = Math.min(lo, g.L.at - body);
       if (i > 120 && g.R.swing < 0) hi = Math.max(hi, g.R.at - body);
     }
     // moving +: the left hand trails, so it lets go first (a tie at the start)
     expect(first).toBe('L');
     expect(both).toBe(false);
-    // ~1.8 reaches a second per hand (4 s, both hands; was ~5 at 1.2 m/s)
-    expect(g.steps).toBeGreaterThanOrEqual(10);
-    expect(g.steps).toBeLessThanOrEqual(15);
+    // ~1.2 reaches a second per hand (4 s, both hands; CT 1.0, D2b's 0.7 m/s ~1.8, was ~5 at 1.2 m/s)
+    expect(g.steps).toBeGreaterThanOrEqual(7);
+    expect(g.steps).toBeLessThanOrEqual(11);
     expect(lo).toBeGreaterThan(-0.42);
-    expect(hi).toBeLessThan(0.4);
+    expect(hi).toBeLessThan(0.6);
     // stopping: the last reach lands no further out than its spot plus the slack
     g.update(1 / 120, body, 0);
     for (let i = 0; i < 120; i++) g.update(1 / 120, body, 0);
-    expect(Math.abs(g.R.at - body)).toBeLessThan(0.26 + cfg.slack + 0.01);
+    expect(Math.abs(g.R.at - body)).toBeLessThan(0.25 + cfg.slack + 0.01);
     const r = shimmy(g, cfg, body, v, 3);
     expect(r.slid).toBe(false);
-    expect(r.maxErr).toBeLessThan(cfg.slack + v * cfg.swingTime + 0.02);
+    // (G4) behind its spot by at most the slack and a swing's travel, ahead by at most the speed lead (the 0.5 m reach)
+    expect(r.maxErr).toBeLessThan(Math.max(cfg.slack + v * cfg.swingTime, v * (cfg.leadTime ?? 0)) + 0.02);
   });
 
   it('(ct-prototype D+E fix r1) offsets of the same sign (drainpipe hands / feet) still step from a tie', () => {
@@ -196,15 +198,15 @@ describe('climb reach speed (operators step 11e)', () => {
       const g = new AttachGrips();
       g.setup(ladder, 0.3, 1, height);
       const rig = { reachL: zero(), reachR: zero(), plantL: zero(), plantR: zero(), height };
-      // the longest reach (slack + lead, rounded up a rung) at the arm's planned sweep rate
+      // the longest reach (slack + lead, rounded up a rung) at the arm's planned sweep rate; (G4) 2 rungs a reach
       const min = minReachSwing(g.hands.cfg.slack * (1 + g.hands.cfg.lead) + 0.15, height);
       const arm = proportions('average', height);
-      expect((1.5 * 0.6225) / (arm.upperArm.len + arm.forearm.len) / min).toBeCloseTo(ARM_SWEEP_RATE, 0);
+      expect((1.5 * (0.57 * 1.05 + 0.15)) / (arm.upperArm.len + arm.forearm.len) / min).toBeCloseTo(ARM_SWEEP_RATE, 0);
       g.update(1 / 120, ladder, 0.3, 1.5, 1, 1, rig); // sprint (1.5 m/s)
       expect(g.hands.cfg.swingTime).toBeGreaterThanOrEqual(min - 1e-9);
       expect(g.hands.cfg.swingTime).toBeGreaterThan(0.14);
-      g.update(1 / 120, ladder, 0.3, 0.9, 1, 1, rig); // walking pace: unchanged (0.18 s)
-      expect(g.hands.cfg.swingTime).toBeCloseTo(0.18, 5);
+      g.update(1 / 120, ladder, 0.3, ATTACH.ladder.speed, 1, 1, rig); // the climb's own pace: (G4) CT's 0.3 s reach
+      expect(g.hands.cfg.swingTime).toBeCloseTo(CLIMB_HAND_SWING, 5);
     }
     expect(minReachSwing(0.6, 1.68)).toBeGreaterThan(minReachSwing(0.6, 1.75));
   });

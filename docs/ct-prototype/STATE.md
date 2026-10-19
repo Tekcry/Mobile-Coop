@@ -74,11 +74,11 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
    action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
    Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
-   **Progress (00:55):** catalogue done (`FOOTAGE-CATALOGUE.md`); audit synthesis `audit/AUDIT.md` (slices G1-G6) with
-   six area files, being completed by the same six Opus agents (every animation state, estimates measured; Michael 00:45).
-   G1 (legs and gait) implementer (Opus) running from `audit/AUDIT-LOCOMOTION.md`, report `G1-REPORT.md`, sheets
-   `shots/g1/`. Then: check, e2e (laptop for long suites), Opus check, commit, /ct/; then G2 aim, G3 camera (Michael 00:50:
-   explore offset 0.15, FOV 86, footage wins), G4 traversal, G5 action menu, G6 walls. Movement is the only job tonight.
+   **Progress (~01:50):** audit complete (`audit/`: six area files, two EXTRA files, two COVERAGE maps; AUDIT.md the
+   slice plan). G1 + G3 committed unverified at 0675cb12 (`G1-REPORT.md`, `G3-REPORT.md`, sheets `shots/g1`, `shots/g3`;
+   job lead set shoulderAds 0.30 after the render); check green (1824); laptop: ctcourse / coop / netmove; desktop: quick
+   set (log in the scratchpad); Opus check running. G2 aim (Opus) building (`G2-REPORT.md`). Then: fix round, /ct/,
+   G4 traversal, G7 grab / hold / KO, G6 walls, G5 menu. Movement is the only job tonight.
    **Michael 23:55 (via the orchestrator):** everything in one build on master by morning: at 04:30 merge origin/master and
    feature/course-ready, full `npm run e2e` on the PR head, update `PR-BODY.md`, `gh pr create`, message the orchestrator
    by 06:00 (no version bump). After that, slices go to /ct/ only, not into the PR.

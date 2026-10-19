@@ -22,9 +22,10 @@ import {
   type WindowAnchor,
 } from '../world/anchors';
 import { FENCE, LEAP, RAPPEL } from '../config/movement';
-import { AttachMachine, attachPose, axisInput, GAMEPLAY_HEIGHT, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
+import { AttachMachine, attachPose, axisInput, GAMEPLAY_HEIGHT, LADDER_DOWN_RATE, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
 import { AttachGrips, VENT_LOWER_K } from './attachGrips';
 import { attachGripWeight, climbUpFootWeight } from './moveState';
+import { CLIMB_UP_CROUCH_K } from '../anim/clips/traverse';
 import { PipeHang, SPLIT, splitReach, WALL_JUMP, wallJumpReach, type PipeMode } from './splitJump';
 import type { Player } from './player';
 import type { MoveOverride } from './playerController';
@@ -63,9 +64,30 @@ export const UNSCREW_TIME = 1.2;
 const KICK_TAP = 0.3;
 /** Hold drop this long at a hangable edge to lower into a hang (s). */
 export const LOWER_HOLD = 0.3;
-/** Lowering in from the top (turn round, step out, drop to the hands) and stepping onto a ladder from its top (s). */
+/** Lowering in from the top (turn round, step out, drop to the hands) and stepping onto a ladder from its top (s).
+ *  (ct-prototype G4, AUDIT-EXTRA-NEW #6, CT 112102 16.2-17.4: crouched at the rim she turns to face away 0.4 s, then backs
+ *  over the lip feet first 0.8 s) the ladder's 0.6 -> 1.2 s: turned round over the first `LADDER_TOP_TURN`, the feet kept
+ *  inside the rim until then, lowered after. */
 const LOWER_TIME = 0.7;
-const LADDER_TOP_TIME = 0.6;
+export const LADDER_TOP_TIME = 1.2;
+export const LADDER_TOP_TURN = 0.33;
+/** (G4, AUDIT-EXTRA-NEW #7 / AUDIT-TRAVERSAL #11, CT 112102 21.2-22.0 and 12.2-13.2: hands on the rim, chest over, knee up,
+ *  crouched, 0.6-1.0 s) Over the top of a ladder (s, was the spec's 0.45 s blend, standing): the climb-up's knee over the
+ *  rim to its crouch, `LADDER_TOPOUT_IN` m in from the top (was 0.2), ending crouched. */
+export const LADDER_TOPOUT_TIME = 0.85;
+export const LADDER_TOPOUT_IN = 0.4;
+/** (G4, AUDIT-TRAVERSAL #12, CT 112102 7.5-8.03: she lets go near the bottom and drops) the drop control lets go of a
+ *  ladder with the feet under this height over its foot (m); higher up it still slides. */
+export const LADDER_DROP_MAX = 1.2;
+/** (G4, AUDIT-EXTRA-NEW #9, CT 110714 13.2-16.4: about 3 s from the lip to standing crouched) out of a wall vent (s, was the
+ *  spec's 0.45 s): crawling out over the first `DUCT_CRAWL_K`, rising to the crouch after. */
+export const DUCT_CRAWL_OUT = 2.5;
+export const DUCT_CRAWL_K = 0.4;
+/** (G4, AUDIT-TRAVERSAL #8, CT 110616 22.93-23.5 / 8.2-8.46) Grabbing a lip from the ground: a low lip 0.3 s, a full-reach
+ *  jump to one 2.4 m up 0.55 s (the enter blend, s; was 0.3 for every lip). */
+export function jumpGrabTime(lipOverFeet: number): number {
+  return 0.3 + 0.25 * Math.max(0, Math.min(1, (lipOverFeet - 2.0) / 0.4));
+}
 /** Dropping through a ceiling vent: lower this far on the hands first (m), over this share of the exit. */
 const VENT_LOWER = 1.5;
 /**
@@ -76,11 +98,19 @@ const VENT_LOWER = 1.5;
  * 1.1 -> 1.3 s: the pull-up and the knee plant keep their times in seconds (now k 0 - 0.6), the hands hold until the knee
  * is planted and let go after it (0.6 - 0.74, CLIMB_UP_HANDS), and the stand from the knee is one smooth rise over the
  * last 0.36 s (k 0.72 - 1, was 0.13 s for the last 0.35 m: the "jump"). Starting values (G10).
+ * (ct-prototype G4, AUDIT-TRAVERSAL #6, CT 110522 52.8-54.1, 110616 24.93-26.0: the knee on top at 0.4-0.5 s, crouched on
+ * top by 0.85 s, standing only with the stick held) 1.3 -> 0.85 s to the crouch on top, where it ends crouched (the crouch
+ * toggle on) unless the stick is held then: that stands up over `CLIMB_UP_STAND` more (the clip's last third).
  */
-export const CLIMB_UP_TIME = 1.3;
+export const CLIMB_UP_TIME = 0.85;
+export const CLIMB_UP_STAND = CLIMB_UP_TIME / CLIMB_UP_CROUCH_K - CLIMB_UP_TIME;
 /** (ct-prototype E2) The climb-up's root path: below the top by `lipDrop` at `k1`, on the top at `k2`; in from `fwd0`.
- *  (F5) The old k times scaled by 1.1 / 1.3 (the same seconds); the root never passes the top's height. */
-export const CLIMB_UP_PATH = { lipDrop: 1.2, k1: 0.34, k2: 0.59, fwd0: 0.51, fwdSpan: 0.34, outK: 0.55 };
+ *  (F5) The old k times scaled by 1.1 / 1.3 (the same seconds); the root never passes the top's height.
+ *  (G4) Over the whole 1.3 s exit (crouch + stand): the chest at the lip by k 0.2 (0.26 s), on the top with the knee by
+ *  0.38 (0.49 s), in over it from 0.33 to the crouch at CLIMB_UP_CROUCH_K. */
+export const CLIMB_UP_PATH = { lipDrop: 1.2, k1: 0.2, k2: 0.38, fwd0: 0.33, fwdSpan: CLIMB_UP_CROUCH_K - 0.33, outK: 0.36 };
+/** (G4) The stick counts as held for the stand at the end of a climb-up past this magnitude. */
+const STAND_STICK = 0.5;
 
 /** World prompt labels for what traverse / drop would do. */
 export const ATTACH_LABEL: Record<string, string> = {
@@ -348,7 +378,9 @@ export class AttachController {
     if (a.kind === 'pipeH') {
       face = pipeFace(a, this.input.camYaw);
     }
-    const t = enterTime ?? (r.entry === 'above' ? LOWER_TIME : r.entry === 'top' && a.kind === 'ladder' ? LADDER_TOP_TIME : undefined);
+    // (G4) a lip grabbed from the ground: the higher it is, the longer the jump up to it (jumpGrabTime)
+    const grab = r.entry === 'below' && a.kind === 'ledge' && this.player.controller.grounded ? jumpGrabTime(a.top - this.player.controller.pos.y) : undefined;
+    const t = enterTime ?? (r.entry === 'above' ? LOWER_TIME : r.entry === 'top' && a.kind === 'ladder' ? LADDER_TOP_TIME : grab);
     return this.attachTo(a, r.s, r.entry, face, t);
   }
 
@@ -468,9 +500,9 @@ export class AttachController {
       this.end.y = a.base.y;
       this.end.z = a.base.z - Math.cos(yaw) * 0.7;
     } else if (reason === 'top' && a.kind === 'ladder') {
-      this.end.x = a.top.x + Math.sin(a.facing) * 0.2;
+      this.end.x = a.top.x + Math.sin(a.facing) * LADDER_TOPOUT_IN;
       this.end.y = a.top.y;
-      this.end.z = a.top.z + Math.cos(a.facing) * 0.2;
+      this.end.z = a.top.z + Math.cos(a.facing) * LADDER_TOPOUT_IN;
     } else if (reason === 'top' && a.kind === 'rappel') {
       // back up over the edge onto the roof
       this.end.x = a.top.x - a.nx * 0.6;
@@ -499,9 +531,15 @@ export class AttachController {
         this.climbNz = l.nz;
       }
     }
-    // climbing up off a lip is a full pull-up (longer than the spec's blend)
-    this.m.beginExit(reason, reason === 'climb' ? CLIMB_UP_TIME : undefined);
+    // climbing up off a lip is a full pull-up (longer than the spec's blend): (G4) to the crouch, then the stand if the
+    // stick is held there (fixedUpdate); over the top of a ladder the climb-up's knee to its crouch
+    this.climbStand = false;
+    this.m.beginExit(reason, reason === 'climb' ? CLIMB_UP_TIME + CLIMB_UP_STAND : reason === 'top' && a.kind === 'ladder' ? LADDER_TOPOUT_TIME : undefined);
   }
+  /** (G4) A climb-up past its crouch on top is standing up (the stick was held there). */
+  private climbStand = false;
+  /** (G4) End this exit crouched (the crouch toggle set at the finish): a climb-up, a ladder top-out, a crawl out. */
+  private endCrouched = false;
 
   private finish(reason: ExitReason | null): void {
     const c = this.player.controller;
@@ -509,6 +547,12 @@ export class AttachController {
     const v = this.m.v;
     const r = this.m.finish() ?? reason;
     c.override = null;
+    // (G4) a climb-up / top-out / crawl out ends crouched on top (AUDIT-TRAVERSAL #6, #11, AUDIT-EXTRA-NEW #9); let go of a
+    // lip or a pipe by the hands, the drop lands into a held crouch (AUDIT-TRAVERSAL #9, CT 110522 71.6-71.95)
+    const hangDrop = r === 'drop' && !this.flipping && !!a && (a.kind === 'ledge' || a.kind === 'pipeH');
+    if (this.endCrouched || hangDrop) c.setCrouchToggle();
+    this.endCrouched = false;
+    this.climbStand = false;
     if (this.ventDrop > 0) {
       c.registerLanding(this.ventDrop, 0, 0);
       this.ventDrop = 0;
@@ -605,7 +649,8 @@ export class AttachController {
     this.end.x = ex;
     this.end.z = ez;
     this.end.y = fy ?? g.pos.y - 0.35;
-    this.m.beginExit('end');
+    // (G4) crawl out low, then rise to the crouch (DUCT_CRAWL_OUT, was the spec's 0.45 s)
+    this.m.beginExit('end', DUCT_CRAWL_OUT);
   }
 
   /** Fixed step while attached: input along the anchor, transfers, jumps, exits, root path. */
@@ -631,9 +676,11 @@ export class AttachController {
     }
     let rate: number | undefined;
     let axis = axisInput(a, sp, inp.moveX, inp.moveY, inp.camYaw, m.s);
-    if (a.kind === 'ladder' && inp.dropPressed) this.sliding = true;
+    // (G4) near the foot of a ladder the drop control lets go (LADDER_DROP_MAX); higher up it slides
+    const ladderLetGo = a.kind === 'ladder' && m.s < LADDER_DROP_MAX;
+    if (a.kind === 'ladder' && inp.dropPressed && !ladderLetGo) this.sliding = true;
     if (inp.moveY > 0.5) this.sliding = false;
-    if (a.kind === 'ladder' && (inp.dropHeld || this.sliding) && m.phase === 'on') {
+    if (a.kind === 'ladder' && (inp.dropHeld || this.sliding) && m.phase === 'on' && !(ladderLetGo && !this.sliding)) {
       axis = -1;
       rate = LADDER_SLIDE;
     } else if (a.kind === 'pipeV' && inp.moveY < -0.5 && jumpPressed && m.phase === 'on') {
@@ -643,6 +690,9 @@ export class AttachController {
     } else if (inp.sprintHeld && (a.kind === 'ladder' || a.kind === 'pipeV')) {
       // sprint held: a quick climb
       rate = a.kind === 'ladder' ? LADDER_SPRINT_RATE * a.rung : PIPE_SPRINT;
+    } else if (a.kind === 'ladder' && axis < 0) {
+      // (G4, AUDIT-EXTRA-NEW #4) climbing down is quicker than up (1.3x)
+      rate = LADDER_DOWN_RATE * 0.3;
     }
     if (a.kind === 'pipeH') {
       this.pipe.update(dt);
@@ -679,7 +729,7 @@ export class AttachController {
       else if (inp.dropPressed && this.pipe.mode === 'legsUp') this.startPipe(a, 'down');
       else if (inp.dropPressed && this.pipe.mode === 'inverted') this.flipDrop(a);
     } else if (m.phase === 'on') {
-      if (inp.dropPressed && sp.allow.drop && a.kind !== 'ladder') this.detach('drop');
+      if (inp.dropPressed && sp.allow.drop && (a.kind !== 'ladder' || ladderLetGo)) this.detach('drop');
       else if (jumpPressed && this.jump) this.jumpTo(this.jump);
       // a horizontal pipe with nothing to jump to: Y pulls the legs up over it
       else if (jumpPressed && a.kind === 'pipeH') this.startPipe(a, 'up');
@@ -694,8 +744,22 @@ export class AttachController {
       else if (edge !== 'none' && a.kind === 'duct') this.ductEnd(a, edge);
       if (!m.active) return;
     }
+    // (G4) a climb-up reaches its crouch on top: it ends there, crouched, unless the stick is held (then it stands up)
+    if (m.phase === 'exit' && m.exitReason === 'climb' && (a.kind === 'ledge' || a.kind === 'pipeV') && !this.climbStand && m.progress >= CLIMB_UP_CROUCH_K) {
+      if (hyp2(inp.moveX, inp.moveY) > STAND_STICK) this.climbStand = true;
+      else {
+        this.path();
+        this.endCrouched = true;
+        this.finish(null);
+        return;
+      }
+    }
     this.path();
-    if (m.phase === 'exit' && m.progress >= 1) this.finish(null);
+    if (m.phase === 'exit' && m.progress >= 1) {
+      // (G4) over a ladder's top and out of a wall vent she ends crouched
+      this.endCrouched = (a.kind === 'ladder' && m.exitReason === 'top') || (a.kind === 'duct' && m.exitReason === 'end' && this.ventDrop === 0);
+      this.finish(null);
+    }
   }
 
   /** The stick's push along a wall / fence tangent (tx, tz), camera relative (-1..1). */
@@ -860,8 +924,15 @@ export class AttachController {
       this.kin.set(p.x, p.y + (this.end.y - p.y) * t, p.z);
       tumble = PIPE_TUMBLE.inverted + Math.PI * smooth(k);
     } else if (m.phase === 'enter') {
-      if (m.entry === 'above' || (m.entry === 'top' && a.kind === 'ladder')) {
-        // turn round and step out over the lip / onto the ladder, then down to the hands
+      if (m.entry === 'top' && a.kind === 'ladder') {
+        // (G4) crouched at the rim she turns to face the ladder first (the feet stay where they were), then backs out
+        // over the lip and lowers feet first onto the rungs
+        const T = LADDER_TOP_TURN;
+        const out = smooth((k - T) / 0.4);
+        const down = smooth((k - T - 0.05) / (0.95 - T));
+        this.kin.set(f.x + (p.x - f.x) * out, f.y + (p.y - f.y) * down, f.z + (p.z - f.z) * out);
+      } else if (m.entry === 'above') {
+        // turn round and step out over the lip, then down to the hands
         const out = smooth(k / 0.55);
         const down = smooth((k - 0.3) / 0.7);
         this.kin.set(f.x + (p.x - f.x) * out, f.y + (p.y - f.y) * down, f.z + (p.z - f.z) * out);
@@ -874,7 +945,7 @@ export class AttachController {
         const arc = this.arc * Math.sin(Math.PI * k);
         this.kin.set(f.x + (p.x - f.x) * e, f.y + (p.y - f.y) * e + arc, f.z + (p.z - f.z) * e);
       }
-      yaw = this.fromYaw + angleTo(this.fromYaw, p.yaw) * smooth(k / 0.7);
+      yaw = this.fromYaw + angleTo(this.fromYaw, p.yaw) * smooth(k / (m.entry === 'top' && a.kind === 'ladder' ? LADDER_TOP_TURN : 0.7));
     } else if (m.phase === 'exit' && this.ventDrop > 0) {
       // through a ceiling vent: lower down through the hole on the hands, then let go and fall
       const low = Math.min(VENT_LOWER, this.ventDrop);
@@ -882,6 +953,12 @@ export class AttachController {
       const t = Math.min(1, k / VENT_LOWER_K);
       const y = k < VENT_LOWER_K ? p.y - low * (1 - (1 - t) * (1 - t)) : p.y - low - (this.ventDrop - low) * ((k - VENT_LOWER_K) / (1 - VENT_LOWER_K)) ** 2;
       this.kin.set(p.x, y, p.z);
+    } else if (m.phase === 'exit' && a.kind === 'duct' && m.exitReason === 'end') {
+      // (G4) out of a wall vent: crawl out low to the floor beyond (k 0 - DUCT_CRAWL_K), then rise in place to the crouch
+      const t = this.end;
+      const fwd = smooth(k / DUCT_CRAWL_K);
+      const y = p.y + (t.y - p.y) * smooth((k - 0.15) / (DUCT_CRAWL_K - 0.1));
+      this.kin.set(p.x + (t.x - p.x) * fwd, y, p.z + (t.z - p.z) * fwd);
     } else if (m.phase === 'exit') {
       // climbing up rises first, then steps in (like the mantle)
       const climb = m.exitReason === 'climb' || m.exitReason === 'top';
@@ -910,16 +987,22 @@ export class AttachController {
     ov.kinematic = this.kin;
     ov.yaw = yaw;
     ov.turnRate = 30;
-    ov.crouch = a.kind === 'duct';
+    // (G4) the body crouches into the end of a climb-up (unless it stands) and a ladder's top-out, so the crouch it ends in
+    // is the controller's own (no rise and sink at the hand-over)
+    const climbCrouch = m.phase === 'exit' && ((m.exitReason === 'climb' && (a.kind === 'ledge' || a.kind === 'pipeV') && !this.climbStand && k > 0.45) || (m.exitReason === 'top' && a.kind === 'ladder' && k > 0.6));
+    ov.crouch = a.kind === 'duct' || climbCrouch;
     c.override = ov;
     // pose family and cadence (the climb clips follow the hand steps)
     const pose = this.player.pose;
     pose.tumble = tumble;
     const pm = this.pipeMode;
+    // (G4) a drainpipe climbs as an inchworm (PIPE_CLIMB), not the ladder's cycle
     const fam: TraverseKind =
-      a.kind === 'ladder' || a.kind === 'pipeV'
+      a.kind === 'ladder'
         ? 'climb'
-        : a.kind === 'duct'
+        : a.kind === 'pipeV'
+          ? 'pipeClimb'
+          : a.kind === 'duct'
           ? 'crawl'
           : a.kind === 'split'
             ? 'split'
@@ -937,9 +1020,34 @@ export class AttachController {
                   ? 'pipeInv'
                   : 'hang';
     const climbOut = m.phase === 'exit' && (m.exitReason === 'climb' || m.exitReason === 'top') && !this.fenceFlip;
-    pose.traverse = climbOut ? (m.exitReason === 'climb' ? 'climbUp' : 'mantle') : this.ventDrop > 0 && m.phase === 'exit' ? (k < VENT_LOWER_K ? 'ventDrop' : 'drop') : fam;
+    // (G4) over a ladder's top: the climb-up's knee to its crouch (was the mantle, ending standing)
+    const ladderTop = climbOut && m.exitReason === 'top' && a.kind === 'ladder';
+    const crawlOut = m.phase === 'exit' && a.kind === 'duct' && m.exitReason === 'end' && this.ventDrop === 0;
+    // (G4) onto a ladder from its top: a mantle backwards (crouched at the rim through the turn, then lowered over it)
+    const topIn = m.phase === 'enter' && m.entry === 'top' && a.kind === 'ladder' && k < 0.85;
+    pose.traverse = climbOut ? (m.exitReason === 'climb' || ladderTop ? 'climbUp' : 'mantle') : crawlOut ? 'crawlOut' : topIn ? 'mantle' : this.ventDrop > 0 && m.phase === 'exit' ? (k < VENT_LOWER_K ? 'ventDrop' : 'drop') : fam;
     const fenceClimb = a.kind === 'fence' && fam === 'climb';
-    pose.traverseT = climbOut && !this.fenceFlip ? k : this.ventDrop > 0 && m.phase === 'exit' ? Math.min(1, k / VENT_LOWER_K) : fam === 'wallKick' || fam === 'vault' ? k : fenceClimb ? (this.u * 1.6 + m.s * 1.2) % 1 : fam === 'hang' || fam === 'split' || fam === 'pipeLegs' || fam === 'pipeInv' || fam === 'rappel' ? (fam === 'rappel' ? Math.max(0, this.swingT) : 0) : this.cadence();
+    pose.traverseT = ladderTop
+      ? k * CLIMB_UP_CROUCH_K
+      : climbOut || crawlOut
+        ? k
+        : topIn
+          ? 0.8 - 0.6 * smooth((k - LADDER_TOP_TURN) / (0.85 - LADDER_TOP_TURN))
+          : this.ventDrop > 0 && m.phase === 'exit'
+            ? Math.min(1, k / VENT_LOWER_K)
+            : fam === 'wallKick' || fam === 'vault'
+              ? k
+              : fenceClimb
+                ? (this.u * 1.6 + m.s * 1.2) % 1
+                : fam === 'split' || fam === 'pipeLegs' || fam === 'pipeInv' || fam === 'rappel'
+                  ? fam === 'rappel'
+                    ? Math.max(0, this.swingT)
+                    : 0
+                  : fam === 'hang'
+                    ? a.kind === 'ledge'
+                      ? this.cadence()
+                      : 0
+                    : this.cadence();
   }
   private ap2: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
 
@@ -1142,7 +1250,9 @@ export class AttachController {
     const k = m.progress;
     // (ct-prototype E2) a climb-up keeps the hands planted on the top until the knee is on (was released from k 0)
     const pullUp = m.exitReason === 'climb' && (a.kind === 'ledge' || a.kind === 'pipeV');
-    const w = m.phase === 'exit' || m.phase === 'enter' ? attachGripWeight(m.phase, k, pullUp) : 1;
+    // (G4) crawling out of a wall vent the hands leave the duct floor early (CRAWL_OUT_HANDS)
+    const crawlOut = m.phase === 'exit' && a.kind === 'duct' && m.exitReason === 'end' && this.ventDrop === 0;
+    const w = m.phase === 'exit' || m.phase === 'enter' ? attachGripWeight(m.phase, k, crawlOut ? 'crawlOut' : pullUp) : 1;
     this.grips.footW = climbUpFootWeight(pullUp && m.phase === 'exit', k);
     const vent = m.phase === 'exit' && this.ventDrop > 0 ? this.ventInfo : null;
     if (vent) {

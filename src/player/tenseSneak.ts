@@ -11,6 +11,9 @@ export interface TenseGuard {
   readonly pos: { readonly x: number; readonly z: number };
   readonly alive: boolean;
   readonly alerted: boolean;
+  /** (G1 fix) The guard's alert level (`ai/alertState.ts`): only 'unaware' counts (not suspicious, investigating,
+   *  searching, alert or cooling down). Absent: `alerted` alone decides. */
+  readonly level?: string;
 }
 
 let source: (() => readonly TenseGuard[]) | null = null;
@@ -25,7 +28,7 @@ export function unawareGuardNear(guards: readonly TenseGuard[], x: number, z: nu
   const r2 = radius * radius;
   for (let k = 0; k < guards.length; k++) {
     const g = guards[k]!;
-    if (!g.alive || g.alerted) continue;
+    if (!g.alive || g.alerted || (g.level !== undefined && g.level !== 'unaware')) continue;
     const dx = g.pos.x - x;
     const dz = g.pos.z - z;
     if (dx * dx + dz * dz < r2) return true;

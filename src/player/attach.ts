@@ -51,9 +51,16 @@ export interface AttachSpec {
   holster: boolean;
 }
 
-/** Ladders climb at this many rungs per second (the hand / foot cadence matches it), and faster with sprint held. */
-export const LADDER_RUNG_RATE = 3;
-export const LADDER_SPRINT_RATE = 5;
+/**
+ * Ladders climb at this many rungs per second (the hand / foot cadence matches it), and faster with sprint held.
+ * (ct-prototype G4, AUDIT-TRAVERSAL #10, CT 112102 9.19-10.66: a full cycle 1.2 s, each hand 2 rungs a reach) 3 -> 1.7
+ * rungs/s (0.51 m/s at 0.3 m rungs); sprint 5 -> 3 (estimate; G31 removed the sprint hold, kept for the table).
+ */
+export const LADDER_RUNG_RATE = 1.7;
+export const LADDER_SPRINT_RATE = 3;
+/** (G4, AUDIT-EXTRA-NEW #4, 112102 17.5-20.5: a hand cycle 0.8-0.95 s down against 1.2 s up) climbing down is 1.3x the
+ *  up rate (rungs/s). */
+export const LADDER_DOWN_RATE = LADDER_RUNG_RATE * 1.3;
 /** Drainpipes climb faster with sprint held (m/s). */
 export const PIPE_SPRINT = 1.35;
 /** Ladders: hold drop to slide down this fast (m/s). */
@@ -67,11 +74,13 @@ export const ZIP_ACCEL = 2.4;
 const NO: AttachAllow = { sidearm: false, takedown: false, drop: true, traverse: true, gadgets: false };
 
 export const ATTACH: Record<AttachKind, AttachSpec> = {
+  // (the top-out over the top rung has its own time: attachController LADDER_TOPOUT_TIME)
   ladder: { axis: 'vertical', speed: LADDER_RUNG_RATE * 0.3, accel: 6, dead: 0.25, enter: 0.35, exit: 0.45, camera: 'ladder', allow: { ...NO }, holster: true },
   pipeV: { axis: 'vertical', speed: 0.9, accel: 6, dead: 0.25, enter: 0.35, exit: 0.45, camera: 'pipe', allow: { ...NO, takedown: true }, holster: true },
   pipeH: { axis: 'along', speed: 1.0, accel: 6, dead: 0.25, enter: 0.3, exit: 0.35, camera: 'pipeH', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
-  // (ct-prototype D2b, Michael: slower, so the hands step slower and wider) the hang shimmy, was 1.2 m/s
-  ledge: { axis: 'along', speed: 0.7, accel: 8, dead: 0.25, enter: 0.3, exit: 0.4, camera: 'hang', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
+  // (ct-prototype D2b, Michael: slower, so the hands step slower and wider) the hang shimmy, was 1.2 m/s; (G4, AUDIT-TRAVERSAL
+  // #4, CT 110522 65.3-69.9: 0.5 m/s, a 1.0 s hand cycle) 0.7 -> 0.5 m/s
+  ledge: { axis: 'along', speed: 0.5, accel: 8, dead: 0.25, enter: 0.3, exit: 0.4, camera: 'hang', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
   duct: { axis: 'path', speed: 0.9, accel: 6, dead: 0.2, enter: 0.45, exit: 0.45, camera: 'duct', allow: { ...NO, takedown: true, gadgets: true }, holster: true },
   zipline: { axis: 'auto', speed: ZIP_SPEED, accel: ZIP_ACCEL, dead: 0, enter: 0.3, exit: 0.3, camera: 'zipline', allow: { ...NO, sidearm: true, takedown: true, traverse: false }, holster: true },
   // (3.2.0) the Chaos Theory split jump: braced between two walls, no travel; a sidearm from it

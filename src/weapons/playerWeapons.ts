@@ -403,6 +403,7 @@ export class PlayerWeapons {
     const s = this.current;
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
+    this.player.reloadQueued = this.reloadQueued;
     // holstered by aim and settled: no swap overlay (the free hands hang at the sides, unarmed)
     this.player.swapT = this.swapT >= 0 && !(this.stowed && !this.attachMode && this.swapPhase >= 1) ? this.swapT / SWAP_TIME : -1;
     this.pouches.setCount(this.grenades);
@@ -484,6 +485,15 @@ export class PlayerWeapons {
         // apply now (as a drawn swap's equip would), not the last drawn gun's - holstering never changes the gait
         this.player.controller.speedMul = this.current.def.moveSpeedMult;
         this.applyAimCamera();
+        // (CT prototype G2, AUDIT-AIM row 13) holstered and settled the swap is the selection only: CT's hero stays idle,
+        // arms at the sides, no body motion (051812 6-10.8); the next aim draws the new gun from its slot
+        if (!this.attachMode && (this.swapT < 0 || this.swapPhase >= 1)) {
+          this.swapT = SWAP_TIME * SWAP_HOLSTER;
+          this.swapPhase = 1;
+          this.player.swapFrom = this.player.swapTo = this.reach(this.index);
+          this.events.onSwap?.(this.current.def);
+          return;
+        }
       }
       if (this.swapT < 0) {
         this.swapT = 0;
@@ -769,7 +779,9 @@ export class PlayerWeapons {
     const k = recoilKick(def, s.stats, this.shotIndex++);
     const adsDamp = 1 - cam.ads * 0.35;
     cam.kick(k.pitch * DEG * adsDamp, k.yaw * DEG * adsDamp);
-    cam.shake(def.class === 'sniper' ? 0.25 : def.class === 'shotgun' ? 0.2 : 0.04);
+    // (CT prototype G2, AUDIT-AIM row 11) no camera shake on a rifle / pistol shot: CT's view holds still on the shot frames
+    // (111953 3.87, 6.27-6.33: < 0.5 deg); was 0.04
+    if (def.class === 'sniper' || def.class === 'shotgun') cam.shake(def.class === 'sniper' ? 0.25 : 0.2);
     this.bloom += def.spreadPerShot;
     this.shotFeel(s.stats.noise <= 0.6);
     this.events.onShot?.(def);

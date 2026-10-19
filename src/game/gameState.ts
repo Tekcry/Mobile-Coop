@@ -46,7 +46,7 @@ import { emptyStats, type GameMode, type ModeId, type SessionStats } from './mod
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
 import { roomAt } from '../world/rooms';
-import { camSpaceAt } from '../world/camSpaces';
+import { camSpaceAt, doorPassing } from '../world/camSpaces';
 import { CAMERA } from '../config/camera';
 import { ResultsScreen, type ResultsNav } from '../ui/screens/resultsScreen';
 import { EventBus } from '../core/events';
@@ -56,7 +56,7 @@ import { VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
 import { TraversalController } from '../player/traversal';
-import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
+import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
 import { GRAB } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
@@ -263,6 +263,9 @@ export class GameState implements AppState {
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
+  /** (G3) The feet last step (the camera's door passage reads the move across a doorway). */
+  private camPrevX = Number.NaN;
+  private camPrevZ = Number.NaN;
   /** Incoming fire pressure on the local player (near misses, impacts close by). */
   readonly suppression = new Suppression();
   /** Fraction of the player visible to the best-placed threat (0..1), and the current cover's quality. */
@@ -1493,9 +1496,16 @@ export class GameState implements AppState {
       const lay = this.world.layout;
       const fp = this.player.position;
       this.player.cam.space = camSpaceAt(lay.camSpaces, lay.camSize, fp.x, fp.y, fp.z);
-      // (G3) passing through an open doorway: the camera pushes in behind the shoulder (CT 110818)
+      // (G3) passing through an open doorway (moving across its frame, not standing by it): the camera pushes in
+      // behind the shoulder (CT 110818); the feet velocity from this step's move
       const door = this.world.doors.nearest(fp.x, fp.z, CAMERA.doorPassReach);
-      this.player.cam.doorPass = door && door.open > 0.5 ? 1 : 0;
+      const inv = dt > 0 && this.camPrevX === this.camPrevX ? 1 / dt : 0;
+      const vx = (fp.x - this.camPrevX) * inv;
+      const vz = (fp.z - this.camPrevZ) * inv;
+      this.camPrevX = fp.x;
+      this.camPrevZ = fp.z;
+      const a = door?.anchor;
+      this.player.cam.doorPass = door && a && door.open > 0.5 && doorPassing(fp.x, fp.z, vx, vz, a.hinge.x, a.hinge.z, a.yaw, a.width) ? 1 : 0;
     }
     // (carry and grab set their caps again each step while they hold)
     this.player.controller.speedCap = Infinity;
@@ -2594,7 +2604,7 @@ export class GameState implements AppState {
       if (j && this.project(j.grip.x, j.grip.y + 0.1, j.grip.z)) w.set('jumpTo', ATTACH_LABEL.jump!, this.scr.x, this.scr.y);
       else w.set('jumpTo', null, 0, 0);
       // drop (slide on a ladder): under the hands
-      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'rappel' ? (a.length - m.s <= RAPPEL.unhookHeight ? ATTACH_LABEL.unhook! : null) : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
+      const lbl = a.kind === 'ladder' ? (m.s < LADDER_DROP_MAX ? ATTACH_LABEL.drop! : 'Slide') : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'rappel' ? (a.length - m.s <= RAPPEL.unhookHeight ? ATTACH_LABEL.unhook! : null) : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
       const dropAt = a.kind === 'split' || (a.kind === 'pipeH' && ac.pipe.mode !== 'hands') ? this.player.position : null;
       if (on && lbl && (dropAt ? this.project(dropAt.x, dropAt.y + 0.3, dropAt.z) : this.project(hx, hy - 0.5, hz))) w.set('drop', lbl, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);

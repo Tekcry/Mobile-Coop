@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { camSpaceAt, probeOpen } from '../src/world/camSpaces';
+import { camSpaceAt, doorPassing, probeOpen } from '../src/world/camSpaces';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { bayX, ctcourse, CT_BAY, CT_OBST } from '../src/world/maps/ctcourse';
-import { CAMERA, exploreBoom } from '../src/config/camera';
+import { CAMERA, exploreBoom, framing } from '../src/config/camera';
 
 describe('camera spaces (G3, AUDIT-CAMERA rows 1 and 7)', () => {
   it('the smallest box wins, a feet-height range limits a box, outside every box the map default; no data is NaN', () => {
@@ -43,5 +43,20 @@ describe('camera spaces (G3, AUDIT-CAMERA rows 1 and 7)', () => {
     expect(exploreBoom(0, 0)).toBeCloseTo(1.8);
     expect(exploreBoom(0, 1)).toBeCloseTo(1.8);
     expect(exploreBoom(0.5, 0)).toBeCloseTo(2.3);
+  });
+  it('(fix round) open: the look-at point drops 0.25 m under the head holstered, none aiming', () => {
+    expect(framing(0, 0, CAMERA, 0).pivot - framing(0, 0, CAMERA, 1).pivot).toBeCloseTo(CAMERA.openDrop);
+    expect(framing(1, 0, CAMERA, 1).pivot).toBeCloseTo(framing(1, 0, CAMERA, 0).pivot);
+  });
+  it('(fix round) door passage: only moving across the doorway, not standing by it or walking past it', () => {
+    // a door hinged at (0, 0) along +z (yaw 0), 1 m wide: its plane is x = 0, the opening z 0..1
+    expect(doorPassing(0.3, 0.5, 1.2, 0, 0, 0, 0, 1)).toBe(true);
+    expect(doorPassing(-0.6, 0.5, 1.2, 0, 0, 0, 0, 1)).toBe(true);
+    // standing in it, or walking along the wall beside it
+    expect(doorPassing(0.3, 0.5, 0, 0, 0, 0, 0, 1)).toBe(false);
+    expect(doorPassing(0.3, 0.5, 0, 1.2, 0, 0, 0, 1)).toBe(false);
+    // off to the side of the opening, or too far from its plane
+    expect(doorPassing(0.3, 2, 1.2, 0, 0, 0, 0, 1)).toBe(false);
+    expect(doorPassing(1.5, 0.5, 1.2, 0, 0, 0, 0, 1)).toBe(false);
   });
 });

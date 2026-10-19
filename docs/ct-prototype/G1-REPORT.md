@@ -112,3 +112,43 @@ crouchrun, drop side / front, tense side / front, sneak).
 7. Drop off a ledge of a metre or more: a deep landing with the arms out.
 8. Sneak crouched at speed 1-2 within 5 m of an unaware guard: the tense sneak (long high-kneed steps, head up, a hand over
    the knife); stop there and she holds it instead of kneeling.
+
+## Fix round (after the independent check, on 0675cb12)
+Measured as above (real rig, NullEngine, 60 Hz). Every number is a starting value.
+
+| Item | Status | Change | Before -> after |
+| --- | --- | --- | --- |
+| 1 Walk knees and head travel | done at gear 2, near at gear 3 | the planted leg straight at mid-stance (`PELVIS_HOLD` 0.06 -> 0: no held drop), the dip taken by the feet instead: `HEEL_RAISE` from 0.5 -> 0.4 of the stance, 0.45 / 0.55 -> 0.6 rad; heel-first strike `HEEL_ROLL.pitch` 0.2 -> 0.3 up to 2.2 m/s (was 1.7); the rig's `heelLift` now also in the air (toe-up before the strike, the raised heel fading over the first 0.3 of the swing: the ankle target jumped 1-5 cm at strike and toe-off); `LAND_AHEAD` 0.45 -> 0.4 walking, `LAND_AHEAD_RUN` 0.35 from 2.2-3.0 m/s; WALK / CREEP duty 0.58 / 0.56 -> 0.54 / 0.56, pelY 0, clip dip 0.004 / 0.003. The camera already never bobs (G29) | walk 1.4: knee under the hip 28 -> ~11 deg (<= 20 over the +-5 cm window), head 4.9 -> 3.2 cm; walk 2.1: 38 -> 32 deg, 4.8 -> 4.4 cm; jog 4.1 -> 2.1 cm; run 3.5 -> 3.3 cm |
+| 2 Tense sneak | done | trigger: only guards at alert level 'unaware' (not suspicious, investigating, searching, alert or cooling down; `TenseGuard.level`); `TENSE_SNEAK` duty 0.5 -> 0.6, liftH 0.22 -> 0.3, pelY -0.42 -> -0.4, pelvis pitch 0.3 -> 0.22, head up 0.3 -> 0.4; `POSTURE.tenseLean` 0.6 -> 0.55 | swing knee flex peak ~155 deg with the foot 0.25 m up; rear knee at toe-off 63-72 deg (the foot 0.6 m back, the shin no longer flat); hips-to-neck lean 34 -> 30 deg |
+| 3 Crouch run rear leg | done | crouched the planted-foot reach 0.62 -> `CROUCH_REACH` 0.8 of the leg; `CROUCH_RUN` duty 0.46 -> 0.56 | rear foot to 0.58 m behind at toe-off, rear knee ~63 deg (was folded down, knee 0.17 m) ; knee min 0.18 m |
+| 4 Run start | done | `START_CLOCK`: for 0.5 s after a start from rest the driver's gait clock counts the target pace; the graph follows the driver's measured clock rate for the swings | first landing 0.40 -> 0.28 s (first stride 0.66 m, steady 0.73) |
+| 5 Scrub cap | done | `TURN_FOLLOW.scrubSpeed` 1.8 m/s (3 cm a frame at 60 Hz); a planted foot more than 2 cm outside the band steps back in (`BAND_STEP`). Test: per-frame planted move <= 3.2 / 1.7 cm at 60 / 120 Hz (was 7 / 4); the band bound in held 400 deg/s spins + 5 cm (a foot steps in after) | max per frame 3.7 -> 3.0 cm |
+| 6 Idle feet | done | `IDLE_STANCE` 0.065 m wider each side standing still, the lead 0.04 -> 0.05 m each way (fades with the move weight; not crouched, on a wall or in a traversal) | 0.20 -> 0.33 m apart, one foot 0.1 m ahead |
+| 7 e2e-anim aim strafe foot lock (1.03 cm) | fixed: 0.00 cm | the cause was the later landing (`LAND_AHEAD`) leaving the side-step's trailing foot past its reach, dragged: aimed / wall gaits (stride 'velocity') land half a stance ahead as before, keep the 3.2.0 soft knee 0.97 and pelvis hold (`PELVIS_HOLD_AIM` 0.7), and roll heel-toe / raise the heel only walking forward. Also: the band scrub and the 0.25 rad twist cap only while the facing turns (`BAND_TURN_TIME` 0.25 s); a planted leg is never asked past `REACH_HARD` 0.999 (estimate and an exact post-solve guard) | aim strafe 1.03 -> 0.00 cm, aim back 0.00 |
+| 8 e2e-clip window vault knees (4.3 cm) | fixed: 10.5 cm | traversals, walls and the air keep the 3.2.0 fore-aft foot stagger. The run then failed "landing roll: body into the world 11.9 cm": the deep landing no longer plays into a traversal (the roll) | e2e-clip passes |
+
+Also in this round: a jog or run stop no longer pulls a swing foot that was ahead back across the body (only a foot just
+off the ground behind is drawn in), and a stop frozen wider than `STOP_CLOSE` 0.45 m closes the rear foot in once under
+the body over 0.2 s; standing still the hips settle up to `REST_SHIFT` 0.22 m back over the feet (the slide leaves the
+frozen feet behind the capsule). This is a judgment call against G26 ("freeze mid-stride, no braking step"): the
+closing step only happens after the freeze, it is not a braking step, and CT stands in a small split within ~0.17 s
+(110038). Jog stop: peak dip 15 -> 13 cm, standing upright with the feet ~0.1 m apart by 0.45 s. Flag for Michael.
+
+Tests changed in this round: `tests/turnFollow.test.ts` (scrub cap, band bound), `tests/footPlanner.test.ts` (the stop:
+a trailing foot drawn in, a lunge closes in once, two landings at most), `tests/g1Locomotion.test.ts` (unaware-only
+trigger, idle feet 0.3-0.4 m, walk knee <= 22 deg and head <= 3.5 cm, turn head <= 4 cm, run start first landing
+<= 0.3 s).
+
+Still differs: walk gear 3 head travel 4.4 cm (CT ~2-3); the turn walk 3.4-4 cm; the stop is upright by ~0.45 s (CT
+~0.17 s); the tense sneak start radius is still a guess.
+
+e2e (this round, `E2E_PORT=4193 node scripts/run-e2e.mjs --serial e2e-anim e2e-clip`, built with `npx vite build` because
+G2's in-progress `tests/backDiagTravel.test.ts` breaks `npm run typecheck`): e2e-clip passes; e2e-anim passes foot
+locking (every gait 0.00 cm) and pose continuity (the kneel now comes on the stop, so standing up from it is tested: the
+kneel releases over at least `kneelTime` 0.3 s), and fails one assert: "draw / holster to the back mount continuous
+(0.137 per frame)", worst channel 15 (`wpPitch`) in the sprint segment's holster: the weapon layer G2 is editing, not
+the legs. Other fixes found on the way: a rule step that is 85 % done when the clock's swing opens lands where it is (it
+was teleported onto its target); in a Chaos Theory stop's slide a planted foot past its reach toes off instead of being
+dragged. Unit tests: all G1 files pass; `npm test` leaves `tests/attach.test.ts` (ledge shimmy speed 0.5 vs 0.7: not G1,
+`src/player/attach.ts` is another session's change). `tests/rig.test.ts` hand-switch now passes (it was the wall pose's
+pelvis hold, restored for the wall gaits).

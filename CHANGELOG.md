@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased - ct-prototype
+- G2 aiming and weapons (`docs/ct-prototype/G2-REPORT.md`, against the CT footage): the rifle is slung diagonally across
+  the back (stock at the right shoulder, muzzle down to the left hip) and draws round the right side, muzzle up at the
+  shoulder, then down onto the line, with no hold at the chest (about 0.4 s to settled); the holster is near instant
+  (0.15 s) and never swings the muzzle over the head; the aimed upper body is one rigid block that tilts at the hips;
+  the pistol is held lower and further out, under the sight line, and draws in 0.5 s; recoil shows no visible flip and
+  no shot shake; a swap while holstered is the selection only; a reload pressed while holstered draws straight to the
+  reload pose.
 - G1 legs and gait (`docs/ct-prototype/G1-REPORT.md`, against the CT footage): in turns the legs turn with the body
   (feet under the hips, no splay, no pelvis spike); an upright standing walk with near-straight knees and the heel rising
   onto the toes; the run quickens (~4.7 steps/s), leans from gear 4, pumps its arms, has a flight phase and banks into

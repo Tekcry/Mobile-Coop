@@ -70,6 +70,9 @@ const SCENARIOS = {
   walledgeleftlook: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
   lowwall: { wall: { low: true, k: 0.8 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t > 0.6 && t < 1.2 ? 1 : 0 }) },
   aim: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ ads: true }) },
+  // (CT prototype G2, AUDIT-AIM row 18) the aim walk forward and the aimed strafe: head and gun hold still in CT (050541)
+  aimwalk: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: 0.6 }, input: () => ({ ads: true, y: 0.6 }) },
+  aimstrafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
   // (BC) the aim crouched, and the pistol both ways
   aimcrouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   aimpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }) },

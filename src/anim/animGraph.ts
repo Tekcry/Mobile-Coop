@@ -34,7 +34,7 @@ import {
   WALK_STRAFE_R,
 } from './clips/locomotion';
 import { DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
-import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
+import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { effortSpeed } from './effort';
 
@@ -46,7 +46,7 @@ export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'w
 export type LowerState = (typeof LOWER_STATES)[number];
 /** Committed moves (vault .. hop) and the attached pose family (hang, climb, crawl: keyed over the climb
  *  cadence, `traverseT`). */
-export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop' | 'roll' | 'hang' | 'climb' | 'crawl' | 'climbUp' | 'ventDrop' | 'windowVault' | 'split' | 'wallKick' | 'pipeLegs' | 'pipeInv' | 'rappel' | 'brace';
+export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop' | 'roll' | 'hang' | 'climb' | 'pipeClimb' | 'crawl' | 'crawlOut' | 'climbUp' | 'ventDrop' | 'windowVault' | 'split' | 'wallKick' | 'pipeLegs' | 'pipeInv' | 'rappel' | 'brace';
 
 export interface AnimInput {
   /** Horizontal ground speed (m/s) and local movement direction (x right, z forward). */
@@ -256,6 +256,10 @@ export interface RigTargets {
   readyShoulder: V3;
   /** Cheek weld 0..1 (raised to aim): the neck bends the head down onto the stock, eyes stay on the aim. */
   weld: number;
+  /** (G2, AUDIT-AIM row 5) The sight line sits this far (m) below the eye at a full weld (a pistol held under the line). */
+  sightDrop: number;
+  /** (G2) Share of the weld that is a stock weld 0..1 (the neck dips onto the stock; a pistol has none). */
+  stockWeld: number;
   /** How far the weapon is raised onto the aim line 0..1 (lowered it follows the body, raised the aim). */
   aimW: number;
 }
@@ -280,6 +284,8 @@ export function emptyTargets(): RigTargets {
     readyFollow: 0,
     readyShoulder: { x: 0, y: 0, z: 0 },
     weld: 0,
+    sightDrop: 0,
+    stockWeld: 1,
     aimW: 0,
   };
 }
@@ -305,17 +311,36 @@ export const SIGHT_RAISE = { x: 0.08, y: 0.215, z: -0.05 };
  * (BC note 2) Raised, the aim is carried by the chest: the spine chain takes this share of the aim pitch (rad per rad) and
  * of the aim yaw on top of its usual share, so head, shoulders, arms and weapon stay one block and the wrists stay near
  * neutral (the weapon was turning at the wrists only). Starting values (G10).
+ * (CT prototype G2, AUDIT-AIM row 4, replaces BC's pitch 0.75) CT's aimed upper body is one rigid block that tilts at the
+ * hips (051543 15-30: head and rifle keep their place in the frame down to about 60 deg; 050541 the same walking): raised,
+ * the chest takes the WHOLE aim pitch (`pitch` 0.75 -> 1, the wrists stay neutral), the hips `hips` 0.35 of it (clamped
+ * to `hipsMax` rad; the rig's spine takes back 0.6 of the pelvis tilt, so the graph gives the spine the rest: chest = 0.4
+ * pelvis + spine), and the pelvis moves back `hipsBack` m per radian of hip tilt for balance (the feet stay planted). The
+ * head is world-stabilised by the rig (0.8 of the aim plus 0.4 of its channel: 0.98), so it needs no change. The split is
+ * a design value: CT never shows a third-person view of an aiming body.
  */
-export const AIM_CHEST = { pitch: 0.75, yaw: 0.3 };
+export const AIM_CHEST = { pitch: 1, yaw: 0.3, hips: 0.35, hipsMax: 0.35, hipsBack: 0.08 };
 /** (BC note 2) Raised, the elbow pole tucks in: share of the usual outward elbow swing that is removed at a full raise. */
 export const AIM_ELBOW_TUCK = 0.6;
 /**
  * (feature/weapons) A sidearm raised to the eye goes out to nearly arm's length in front of the face (CT's pistol aim:
  * two hands, arms out; Michael's reference shots), not into the rifle's cheek weld: added to SIGHT_RAISE by the
  * weapon's lightness (mass factor 0.7 pistol: all of it; 0.85 and heavier: none).
+ * (CT prototype G2, AUDIT-AIM row 5) CT holds it two-handed, compact and LOW: the hands below and right of the head at chin
+ * height, the gun under the sight line, the forearms rising from below (111908 2.2: hands x 0.39 / y 0.68 of the frame,
+ * head 0.22 / 0.45). x -0.07 -> -0.09, y 0.015 -> -0.06 (the sight line held this far below the eye: `sightDrop`), z 0.1
+ * -> 0.15 (a little further out, the elbows lower; G2 fix r1: 0.2 straightened the arms, CT's hold is compact); `lean` the chest forward over a raised pistol (it leaned back), no stock weld
+ * (no neck dip, no head roll onto the gun).
  */
-export const PISTOL_REACH = { x: -0.07, y: 0.015, z: 0.1 };
+export const PISTOL_REACH = { x: -0.09, y: -0.06, z: 0.15, lean: 0.08 };
 export const SIGHT_HEAD = { roll: 0.15 };
+/**
+ * Per-shot recoil on the body (rad / m per unit kick, divided by the mass factor). (CT prototype G2, AUDIT-AIM row 11) CT
+ * shows no visible flip: the front sight and head move < 1 % of the frame (< 0.5 deg) on the shot frames (111953 3.87,
+ * 6.27-6.33, 30 fps). flip 0.12 -> 0.02 (about 7 deg was 7x CT), back 0.05 -> 0.015 m, spine 0.05 -> 0.01, pelvis 0.015
+ * -> 0.003. Starting values.
+ */
+export const RECOIL = { flip: 0.02, back: 0.015, spine: 0.01, pelvis: 0.003 };
 
 /**
  * (locomotion step 21, D2) Weapon / kit stabilisation spring (rad/s): critically damped, settles to 2 % in 5.8 / omega
@@ -328,9 +353,10 @@ export const BREATH = { still: 2, fadeIn: 1.5, fadeOut: 0.05, amp: 0.008, rate: 
 /**
  * Tactical carriage with a weapon: the chest well forward over the hips, hips back, knees bent, head up (eyes
  * level) - never upright like a mannequin. More bent over moving along a wall and crouched (`crouch`: over the
- * knees); a little more leaning into a raised weapon.
+ * knees); a little more leaning into a raised weapon ((G2, AUDIT-AIM row 4) `aimOpen` 0.05 more off a wall, 0.1 in all: CT leans
+ * into the aim; at a wall edge the hand switch keeps the old 0.05, rig.test's pocket jerk bound).
  */
-export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.2, wallDrop: 0.06, aim: 0.05, crouch: 0.34 };
+export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.2, wallDrop: 0.06, aim: 0.05, aimOpen: 0.05, crouch: 0.34 };
 
 /**
  * (step 09, A42; step 21, D5.6 trained posture; M14 relaxed arms) Holstered hands on foot: the arms hang RELAXED AT THE
@@ -422,7 +448,7 @@ const GRIP_RATE = 5;
 /** Seconds the support hand takes to settle onto the wall. */
 const WALL_HAND_TIME = 0.42;
 
-const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, crawl: CRAWL, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
+const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, pipeClimb: PIPE_CLIMB, crawl: CRAWL, crawlOut: CRAWL_OUT, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
 
 /** Active-clip slots for the debug overlay timeline. */
 export interface ClipSlot {
@@ -458,6 +484,8 @@ export class AnimGraph {
   private kneelW = 0;
   /** (G1) Tense sneak weight 0..1 (eased with TENSE.tau). */
   private tenseW = 0;
+  /** (G1 fix) The driver's measured gait clock rate (cycles/s; 0 without a driver). */
+  private phRate = 0;
   /** (G1) Which knee the kneel puts down: 1 the right (left foot ahead, KNEEL), -1 the left (KNEEL_M); and the planner's
    *  lead foot this frame (left ahead of right in the body frame, m). */
   private kneelSide = 1;
@@ -651,9 +679,16 @@ export class AnimGraph {
     this.idleT += dt;
     // (G1, audit row 26) the tense sneak: crouched at a sneak pace close to an unaware guard (the caller tests the guard)
     this.tenseW += ((i.tense && i.crouch > 0.5 && i.speed <= TENSE.maxSpeed && i.grounded && !i.wall && i.traverse === 'none' ? 1 : 0) - this.tenseW) * (1 - Math.exp(-dt / TENSE.tau));
-    if (i.phase >= 0) this.phase = i.phase;
-    // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
-    else if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW) * dt) % 1;
+    if (i.phase >= 0) {
+      // (G1 fix, audit row 13) the driver's clock rate, measured (a start's clock runs ahead of the pace: MotionDriver START_CLOCK)
+      const d = (((i.phase - this.phase) % 1) + 1) % 1;
+      if (dt > 0 && d < 0.25) this.phRate += (d / dt - this.phRate) * (1 - Math.exp(-dt / 0.04));
+      this.phase = i.phase;
+    } else {
+      this.phRate = 0;
+      // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
+      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW) * dt) % 1;
+    }
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
     // (holding a Chaos Theory stop: the stride it stopped in stays, at the pace it stopped from)
@@ -701,7 +736,9 @@ export class AnimGraph {
     // (G1, audit row 4) kneeling from a standstill goes straight down into the kneel (no wide crouch squat on the way): it
     // starts with the crouch, not half way through it
     const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.05 && !i.wall;
-    const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
+    // (G1 fix) rising out of the kneel over at least kneelTime: the kneel now comes on the stop, so standing straight up
+    // from it is common, and the 1.2 rad toe flex let go in standTime stepped the ankle (e2e-anim pose continuity)
+    const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : Math.max(MOVEMENT.standTime, MOVEMENT.kneelTime));
     // (G1) a kneel starting: the foot that is ahead stays planted (a stop with the right foot ahead kneels on the left knee)
     if (wantKneel && this.kneelW <= 0) this.kneelSide = this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
@@ -781,13 +818,16 @@ export class AnimGraph {
     if (i.landing > 0.5 && this.landT < 0) {
       this.landT = 0;
       // (G1, audit row 18) a drop of about a metre and more (landing 0.82 at 1 m) lands deep, arms out
-      this.landK = smoothstep((i.landing - 0.6) / 0.25);
+      // (not into a traversal: a landing roll's tumble with the deep dip put the body 12 cm into the floor, e2e-clip)
+      this.landK = i.traverse === 'none' ? smoothstep((i.landing - 0.6) / 0.25) : 0;
     }
     if (this.landT >= 0) {
       const lk = this.landK;
       if (lk < 1) addClip(src, LAND, this.landT, 1 - lk);
       // (crouched already deep: the dip only takes it the rest of the way)
-      if (lk > 0) addClip(src, LAND_DEEP, this.landT, lk * (1 - 0.75 * crouchK));
+      // (a traversal taking over, the landing roll started on the next frame: the deep landing gives way to it)
+      if (i.traverse !== 'none') this.landK = 0;
+      if (lk > 0 && i.traverse === 'none') addClip(src, LAND_DEEP, this.landT, lk * (1 - 0.75 * crouchK));
       this.landT += dt;
       if (this.landT > (lk > 0 ? LAND_DEEP.duration : LAND.duration)) this.landT = -1;
     }
@@ -857,7 +897,7 @@ export class AnimGraph {
       const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW) * (1 - postureW) * this.hunchS;
       // crouched: bent well over the knees (half of it straightens into a raised weapon); not at a wall
       const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK * (1 - postureW);
-      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.aim * this.raiseS + crouchBend;
+      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + (HUNCH.aim + HUNCH.aimOpen * (1 - wallW)) * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
       src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - crouchBend * 0.7;
       src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6);
@@ -893,7 +933,12 @@ export class AnimGraph {
     // (footage 35-45), the run leans ~23 deg; lowered only (a raised weapon keeps its platform), off a wall or a traversal
     // (eased: a one-frame grounded flicker as the capsule stands up popped the spine 0.23 rad)
     const postureLean = this.leanS;
-    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * (0.45 * 0.35 + raise * (AIM_CHEST.pitch - 0.45 * 0.35)) + breath + this.dashS * 0.2 + crouchK * 0.08 + postureLean;
+    // (G2, AUDIT-AIM row 4) raised: one rigid block tilting at the hips (AIM_CHEST): the pelvis takes its share, the spine
+    // the rest of the whole aim pitch (the rig's chest = 0.4 pelvis + spine), the pelvis back a little for balance
+    const hipAim = clamp(-aimPitch * AIM_CHEST.hips * raise, -AIM_CHEST.hipsMax, AIM_CHEST.hipsMax);
+    src[CH.pelPitch] = src[CH.pelPitch]! + hipAim;
+    src[CH.pelZ] = src[CH.pelZ]! - AIM_CHEST.hipsBack * Math.sin(hipAim);
+    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * (0.45 * 0.35 + raise * (AIM_CHEST.pitch - 0.45 * 0.35)) - 0.4 * hipAim + breath + this.dashS * 0.2 + crouchK * 0.08 + postureLean;
     // raised, the chest blades towards the shooting shoulder (mirrored with the hand holding the weapon)
     // (21w, PC-PASS 42) continuous through the open-side hand switch (the sign flipped the chest, head and sight roll
     // in one frame at the half-way point)
@@ -950,21 +995,27 @@ export class AnimGraph {
     cc *= nw;
     src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + sightPos * SIGHT_RAISE.x;
     src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sightPos * SIGHT_RAISE.y;
-    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sightPos * SIGHT_RAISE.z;
-    const pistolK = clamp((0.85 - mass) / 0.15, 0, 1) * sightPos;
+    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * RECOIL.back) / Math.sqrt(mass) + sightPos * SIGHT_RAISE.z;
+    const pistolW = clamp((0.85 - mass) / 0.15, 0, 1);
+    const pistolK = pistolW * sightPos;
     if (pistolK > 0) {
       src[CH.wpX] = src[CH.wpX]! + pistolK * PISTOL_REACH.x;
       src[CH.wpY] = src[CH.wpY]! + pistolK * PISTOL_REACH.y;
       src[CH.wpZ] = src[CH.wpZ]! + pistolK * PISTOL_REACH.z;
+      // (G2, AUDIT-AIM row 5) the chest forward over the raised pistol (it leaned back with the hips forward)
+      src[CH.spPitch] = src[CH.spPitch]! + pistolK * PISTOL_REACH.lean;
     }
-    src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS;
+    // (G2) the head rolls onto a stock only: a pistol has none
+    src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS * (1 - pistolW);
     this.out.weld = sightPos;
+    this.out.sightDrop = -PISTOL_REACH.y * pistolW;
+    this.out.stockWeld = 1 - pistolW;
     this.out.aimW = raiseW;
     // landing roll: the whole body turns over forward about the hips
     this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
     const crPitch = cr.pitch * (1 - 0.6 * Math.min(1, Math.abs(bd)));
-    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * 0.12) / mass;
+    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * RECOIL.flip) / mass;
     src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + cr.yaw * cw * awayYaw) + check * 0.6 * ready;
     src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
     // bent over in a crouch the lowered muzzle comes up with the chest and the gun sits further out, clear of
@@ -975,8 +1026,8 @@ export class AnimGraph {
     src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.08;
     src[CH.wpY] = src[CH.wpY]! + bendK * 0.06;
     // recoil absorbed through the shoulder and spine
-    src[CH.spPitch] = src[CH.spPitch]! - rec * 0.05 / mass;
-    src[CH.pelPitch] = src[CH.pelPitch]! - rec * 0.015 / mass;
+    src[CH.spPitch] = src[CH.spPitch]! - (rec * RECOIL.spine) / mass;
+    src[CH.pelPitch] = src[CH.pelPitch]! - (rec * RECOIL.pelvis) / mass;
     // grip and off hand defaults (at a wall: off hand to the wall when settled and lowered)
     src[CH.grip] = i.armed ? 1 : 0;
     // (P1b, ct-measure-walls-doors-combat-vision.md s.1) back to the wall the arms HANG at the sides, hands mid-thigh and
@@ -1072,7 +1123,7 @@ export class AnimGraph {
     }
     // attached (hang, climb, crawl) the body belongs to the anchor pose and the hands to the grips: a weapon
     // stowed for it goes to its slot without the swap's reach
-    const attachedPose = i.traverse === 'hang' || i.traverse === 'climb' || i.traverse === 'crawl' || i.traverse === 'climbUp' || i.traverse === 'ventDrop' || i.traverse === 'split' || i.traverse === 'wallKick' || i.traverse === 'pipeLegs' || i.traverse === 'pipeInv' || i.traverse === 'rappel' || i.traverse === 'brace';
+    const attachedPose = i.traverse === 'hang' || i.traverse === 'climb' || i.traverse === 'pipeClimb' || i.traverse === 'crawl' || i.traverse === 'crawlOut' || i.traverse === 'climbUp' || i.traverse === 'ventDrop' || i.traverse === 'split' || i.traverse === 'wallKick' || i.traverse === 'pipeLegs' || i.traverse === 'pipeInv' || i.traverse === 'rappel' || i.traverse === 'brace';
     // (step 09) the swap clip overrides the chest and head pitch, so entering it from the carriage (hunched over a
     // raised weapon, or the holstered ready carry) would snap the spine by up to ~0.6 rad in one frame - more than
     // the inertializer hides. The overlay fades in over ~0.125 s (a holster from aim, a draw entering at the
@@ -1278,12 +1329,15 @@ export class AnimGraph {
     const wd = q[CH.width]!;
     const half = this.p.hipHalf * (i.traverse === 'none' && !i.wall ? 1 + clamp(wd - 1, -0.5, 0.4) * 0.25 : 1.2 * wd);
     const st = o.stance;
-    st.lX = (-half + q[CH.fLX]!) * k;
+    // (G1 fix, audit row 20) standing still on foot the feet sit ~0.3 m apart (CT 105509 @ 16-27: 0.3-0.4 m, one foot ~0.1 m ahead)
+    const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
+    st.lX = (-half - wide + q[CH.fLX]!) * k;
     // (G1) the support foot's lead (0.08 m) is a standing stance: moving, the feet run on even tracks (a lead made every
     // other landing reach further and dip the pelvis more: a limp in the bob)
-    const stag = 0.04 * (1 - this.moveW);
+    // (traversals, walls and the air keep the 3.2.0 stagger: a window vault tucked the knees together without it)
+    const stag = i.traverse !== 'none' || i.wall || !i.grounded ? 0.04 : IDLE_STANCE.lead * (1 - this.moveW);
     st.lZ = (0.01 + stag + q[CH.fLZ]!) * k;
-    st.rX = (half + q[CH.fRX]!) * k;
+    st.rX = (half + wide + q[CH.fRX]!) * k;
     st.rZ = (0.01 - stag + q[CH.fRZ]!) * k;
     st.lY = q[CH.fLY]! * k;
     st.rY = q[CH.fRY]! * k;
@@ -1300,7 +1354,8 @@ export class AnimGraph {
     const yr = canTurn ? Math.abs(i.yawRate) : 0;
     g.moving = (s > (i.motion === 'stop' ? 0.3 : 0.05) || yr > TURN_GAIT_MIN) && i.grounded;
     const tense = i.crouch > 0.5 ? this.tenseW : 0;
-    const rate = gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense);
+    // (G1 fix) moving on a driver's clock that runs ahead of the pace (a start), the swings keep to the clock
+    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense), i.motion === 'move' ? this.phRate : 0);
     g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
     const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense) : 0;
     const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
@@ -1341,6 +1396,9 @@ export class AnimGraph {
 
 const NEUTRAL_POSE: Pose = newPose();
 
+/** (G1 fix, audit row 20) The standing rest stance: `extra` (m) wider each side than the hips, the left foot `lead` (m) ahead and the right as far behind. */
+export const IDLE_STANCE = { extra: 0.065, lead: 0.05 } as const;
+
 /** (G1) Move a free hand target (channels x, y, z from `ch`) toward (x, y, z) by `w`. */
 function blendHand(q: Pose, ch: number, x: number, y: number, z: number, w: number): void {
   q[ch] = q[ch]! + (x - q[ch]!) * w;
@@ -1378,7 +1436,7 @@ const TURN_DUTY = 0.52;
 // (CT prototype G1) runFrom / runTo 2.0 / 4.2 -> 1.6 / 3.0 (audit row 8: the full run lean from gear 4); kneelLean 0.1 ->
 // 0.18 (row 4: the kneel's back ~15-20 deg forward); `crouchRunLean` (row 16) the crouch run's back, ~55 deg with the
 // pelvis, eased in over the top crouched gear; `tenseLean` (row 26) the tense sneak's back (0.6 rad, ~45 deg with the pelvis).
-export const POSTURE = { crouchLean: 0.74, kneelLean: 0.18, runLean: 0.37, kneel: true, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 1.6, runTo: 3.0, rate: 2.5, crouchRunLean: 0.95, tenseLean: 0.6 } as const;
+export const POSTURE = { crouchLean: 0.74, kneelLean: 0.18, runLean: 0.37, kneel: true, hunchArmed: 0.4, hunchHolstered: 0.05, runFrom: 1.6, runTo: 3.0, rate: 2.5, crouchRunLean: 0.95, tenseLean: 0.55 } as const;
 const LEAN_MAX = 0.09;
 /**
  * (CT prototype G1, audit row 12) Bank into a fast turn: roll = min(`max`, `k` x a^2) for the lateral acceleration a = speed x

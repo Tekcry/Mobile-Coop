@@ -28,7 +28,9 @@ describe('draw state (step 09)', () => {
     expect(d.update(DT, true, 0.4)).toBe(DRAW_DRAWING);
     timeTo(d, true, 0.4, DRAW_DRAWN);
     expect(d.update(DT, false, 0.4)).toBe(DRAW_HOLSTERING);
-    expect(d.remaining(0.4)).toBeGreaterThan(0.3);
+    // (G2) one frame into the (now 0.15 s, CT instant) holster: nearly all of it still to go
+    expect(d.remaining(0.4)).toBeGreaterThan(HOLSTER_TIME - 2 * DT);
+    expect(HOLSTER_TIME).toBeLessThanOrEqual(0.2);
   });
   it('release mid-draw reverses from the current progress', () => {
     const d = new DrawState();
@@ -38,9 +40,10 @@ describe('draw state (step 09)', () => {
     expect(t).toBeCloseTo(0.5 * HOLSTER_TIME, 1);
     // and pressed again mid-holster draws from where it is
     timeTo(d, true, 0.4, DRAW_DRAWN);
-    for (let i = 0; i < 6; i++) d.update(DT, false, 0.4);
+    // (G2) a third of the way down the 0.15 s holster: back up in about a third of the draw
+    for (let i = 0; i < Math.round(HOLSTER_TIME / 3 / DT); i++) d.update(DT, false, 0.4);
     expect(d.phase).toBe(DRAW_HOLSTERING);
-    expect(timeTo(d, true, 0.4, DRAW_DRAWN)).toBeLessThan(0.2);
+    expect(timeTo(d, true, 0.4, DRAW_DRAWN)).toBeLessThan(0.4 / 3 + 2 * DT);
   });
   it('aim is the only trigger: nothing without aim, whatever else happens', () => {
     const d = new DrawState();

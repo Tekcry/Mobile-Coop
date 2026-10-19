@@ -252,7 +252,7 @@ export class RemoteAvatar {
     // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
     // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
     // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top
-    // of the 0.4 s holster, so the remote stows within 0.6 s of the release)
+    // of the holster, HOLSTER_TIME 0.15 s since CT prototype G2, so the remote stows within ~0.3 s of the release)
     this.setWeapon(st.w, mv ? mv.dw === 0 || this.buf.latest()?.mv?.dw === 0 : false);
     const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     const inst = dt > 0 ? moved / dt : 0;
@@ -349,7 +349,7 @@ export class RemoteAvatar {
       // (ct-prototype E2) a climb-up holds the hands until the knee is on, the feet leave a drainpipe first
       const pullUp = sub.exit === 'climbUp' && (a.kind === 'ledge' || a.kind === 'pipeV');
       this.grips.footW = climbUpFootWeight(pullUp && sub.phase === 'exit', mv!.ph);
-      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph, pullUp), this.rig, vent, !follow);
+      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph, a.kind === 'duct' && sub.phase === 'exit' && sub.exit === 'none' ? 'crawlOut' : pullUp), this.rig, vent, !follow);
       // (G176) the rendered body sits off the gameplay root by its height's lift (visual only)
       r.position.x += this.grips.lift.x;
       r.position.y += this.grips.lift.y;

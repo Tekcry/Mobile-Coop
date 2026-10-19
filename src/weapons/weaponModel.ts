@@ -6,6 +6,7 @@ import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
 import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
 import { loadWeaponMesh } from './weaponMesh';
+import { diagTurn, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
 export interface WeaponMeshOptions {
@@ -88,6 +89,23 @@ const trG0 = new Vector3();
 const trG1 = new Vector3();
 const trG = new Vector3();
 const QUAT_ID = Quaternion.Identity();
+/** (G2) Diagonal sling scratch (no allocation in the travel). */
+const dStep: DiagTurnStep = { kind: 0, theta: 0, t: 0, from: 'start', to: 'end' };
+const dFrame: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+const dPos: number[] = [0, 0, 0];
+const dqA = new Quaternion();
+const dqB = new Quaternion();
+const dAx = new Vector3();
+const dAy = new Vector3();
+const dAz = new Vector3();
+/** A gun frame (x, y, z axes, 9 numbers) as a rotation. */
+function frameQuat(f: readonly number[], q: Quaternion): Quaternion {
+  dAx.set(f[0]!, f[1]!, f[2]!);
+  dAy.set(f[3]!, f[4]!, f[5]!);
+  dAz.set(f[6]!, f[7]!, f[8]!);
+  Quaternion.RotationQuaternionFromAxisToRef(dAx, dAy, dAz, q);
+  return q;
+}
 
 /** Builds a weapon from its data-driven primitive parts (instanced). */
 export class WeaponModel {
@@ -262,6 +280,8 @@ export class WeaponModel {
   /** The slot a travel goes to / comes from (null: none running). */
   private trSlot: CarrySlot | null = null;
   private trDraw = false;
+  /** (G2 fix r1) The travel left from `trSlot` itself (a draw from the slung gun), not from mid-holster (a reversal). */
+  private trFromSlot = false;
   /** (ct-prototype D1) The draw's u when the hand reached the grip (-1: not yet). */
   private trCatch = -1;
 
@@ -280,6 +300,7 @@ export class WeaponModel {
     this.node.computeWorldMatrix(true).multiplyToRef(trInv, trM);
     trM.decompose(trS, this.trQ0, this.trP0);
     this.owner = rig;
+    this.trFromSlot = this.slot === slot;
     this.slot = null;
     this.track(rig, false);
     this.node.parent = rig.torso;
@@ -319,7 +340,12 @@ export class WeaponModel {
     const sm = k * k * (3 - 2 * k);
     // (ct-prototype D1) the turn spread over the path: a holster from the start, a draw from 5 % (level in the pocket)
     const r = this.trDraw ? Math.max(0, Math.min(1, (sm - 0.05) / TRAVEL_TURN)) : Math.min(1, sm / TRAVEL_TURN);
-    Quaternion.SlerpToRef(this.trQ0, trQ, r, this.node.rotationQuaternion!);
+    // (G2, AUDIT-AIM rows 1-3) the diagonal sling turns through its keys (round the right side, muzzle up at the shoulder
+    // on a draw; muzzle down beside the hip on a holster), every other slot slerps straight to its end
+    // (G2 fix r1) a draw reversed mid-holster (the gun still in front of the body) slerps from where it is: the keyed
+    // draw turn starts from the slung frame, so taken from mid-holster it snapped the gun through the torso and swept it
+    if (useDiagTurn(slot, this.trDraw, this.trFromSlot)) this.diagTurnTo(this.node.rotationQuaternion!, this.trDraw, r);
+    else Quaternion.SlerpToRef(this.trQ0, trQ, r, this.node.rotationQuaternion!);
     // the grip's start and end (chest frame), and the curve through the waypoint
     trG.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
     trG.rotateByQuaternionToRef(this.trQ0, trG0).addInPlace(this.trP0);
@@ -348,6 +374,26 @@ export class WeaponModel {
     const pz = a * trG0.z + b * c1z + c * c2z + d * trG1.z;
     trG.rotateByQuaternionToRef(this.node.rotationQuaternion!, trG0);
     this.node.position.set(px - trG0.x, py - trG0.y, pz - trG0.z);
+  }
+
+  /** (G2) The diagonal sling's draw / holster turn at r (backDiag.diagTurn), into `q` (chest frame). */
+  private diagTurnTo(q: Quaternion, draw: boolean, r: number): void {
+    const st = diagTurn(draw, r, dStep);
+    if (st.kind === 0) {
+      frameQuat(planeFrame(st.theta, dFrame), q);
+      return;
+    }
+    this.diagKey(st.from, dqA);
+    this.diagKey(st.to, dqB);
+    Quaternion.SlerpToRef(dqA, dqB, st.t, q);
+  }
+
+  private diagKey(k: DiagKey, q: Quaternion): void {
+    if (k === 'start') q.copyFrom(this.trQ0);
+    else if (k === 'end') q.copyFrom(trQ);
+    else if (k === 'up') frameQuat(FRAME_UP, q);
+    else if (k === 'down') frameQuat(FRAME_DOWN, q);
+    else frameQuat(planeFrame(k === 'plane0' ? 0 : Math.PI, dFrame), q);
   }
 
   /** (anim-cleanup) Is a travel running. */
@@ -414,7 +460,17 @@ export class WeaponModel {
     const e = this.ext;
     const p = rig.p;
     const mount = isBackSlot(slot) && rig.backMount && this.def.backStud ? rig.backMount[slot as 'backL' | 'backC' | 'backR'] : null;
-    if (mount) {
+    if (slot === 'backC') {
+      // (CT prototype G2, AUDIT-AIM row 3) the centre long gun is slung DIAGONALLY across the back (CT 053525 / 053709 /
+      // 054237): the stock at the right shoulder blade, the muzzle down to the left hip, flat on the back plate (or the
+      // generic back) with the grip low on the right blade (backDiag.ts). The back plate's built socket (WREN_BACK_MOUNT
+      // backC) is left empty until the Blender kit gets a diagonal anchor.
+      n.parent = rig.torso;
+      frameQuat(planeFrame(slungTheta(), dFrame), n.rotationQuaternion!);
+      const backZ = rig.backMount ? rig.backMount.backC.origin[2]! : -p.chest.d / 2 - rig.backGear - CARRY_GAP;
+      slungPosition(this.def.grip, e.x1, backZ, dPos);
+      n.position.set(dPos[0]!, dPos[1]!, dPos[2]!);
+    } else if (mount) {
       // (feature/weapons) hung from the body's back plate socket by the gun's back stud: muzzle up, the left side flat to
       // the plate (its right side out), so the top faces the wearer's left and the pistol grip her right hand
       const st = this.def.backStud!;

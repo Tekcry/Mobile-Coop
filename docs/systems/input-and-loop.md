@@ -61,7 +61,7 @@ and the code together.
 |---|---|---|---|---|---|
 | Move | `move` | Left stick | Left stick | `forward` (W) `back` (S) `left` (A) `right` (D) | Analog gears within the maximum gear |
 | Look | `look` | Right stick | Right stick | Mouse | Free orbit |
-| Draw / holster (the aim toggle) | `draw` | X | Square / Y | `draw` (X); RMB | F1a, CT: drawn = the aiming mode (camera over the shoulder, no hold); a climb, a dash or death holsters. Draw 0.3 s pistol / 0.4 s rifle, holster 0.55 s |
+| Draw / holster (the aim toggle) | `draw` | X | Square / Y | `draw` (X); RMB | F1a, CT: drawn = the aiming mode (camera over the shoulder, no hold); a climb, a dash or death holsters. Draw 0.5 s pistol / 0.3 s rifle, holster 0.15 s (CT prototype G2, footage) |
 | Fire / lethal strike (holstered) | `fire` | RT | R2 / ZR | LMB | No hip fire. Holstered RT / LMB is the lethal palm strike (a kill; a co-op client's strike is a knockout on the host: stub) |
 | Knockout / secondary fire | `altFire` | LT | L2 / ZL | `knockout` (Z) | Holstered: the knockout palm strike. Drawn: secondary fire (a stub: fires like RT, no secondary fire exists yet) |
 | Reload | `reload` | A (drawn) | Cross / B (drawn) | `reload` (R) | The pad's A reloads instead of interacting while the weapon is drawn |

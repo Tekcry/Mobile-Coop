@@ -342,16 +342,18 @@ try {
   i = await I();
   assert(i.hint === 'rappel:above' && i.prompt === 'Rappel', `rappel offered at the roof edge (${i.hint}, "${i.prompt}")`);
   await tap(BTN.Y);
-  await run(1.0);
+  // (ct-prototype G4) hooking on takes RAPPEL.hookTime 1.8 s (CT 111731, was 0.8)
+  await run(2.0);
   i = await I();
   assert(i.attached && i.kind === 'rappel' && i.phase === 'on' && Math.abs(i.y - 4.7) < 0.1, `hooked on and over the edge (y ${f2(i.y)})`);
   assert(Math.cos(i.yaw) > 0.95, `facing the wall (yaw ${f2(i.yaw)})`);
   // (look at the wall: the prompts are on the body)
   await page.evaluate(() => { window.__app.current.player.cam.yaw = 0; });
   let y0 = i.y;
-  await run(1.0, 0, -1);
+  // (G4, CT 111731 6.0-11.6: 0.45-0.75 m/s) down 2.5 s at RAPPEL.descend 0.6 (was 1.6 m/s for 1 s), so the climb back has room
+  await run(2.5, 0, -1);
   i = await I();
-  assert(y0 - i.y > 1.3 && y0 - i.y < 1.75, `descends ~1.6 m/s (${f2(y0 - i.y)} m in 1 s)`);
+  assert((y0 - i.y) / 2.5 > 0.45 && (y0 - i.y) / 2.5 < 0.7, `descends ~0.6 m/s (${f2(y0 - i.y)} m in 2.5 s)`);
   y0 = i.y;
   await run(1.0, 0, 1);
   i = await I();
@@ -382,7 +384,7 @@ try {
   await run(0.8);
   // over to the window (sideways back to the middle), down to its height: kick through it
   await page.evaluate(() => { window.__app.current.traversal.attachCtl.u = 0; });
-  for (let k = 0; k < 40; k++) {
+  for (let k = 0; k < 90; k++) {
     i = await I();
     if (i.window >= 0) break;
     await run(0.1, 0, i.y > 1.2 ? -1 : 1);
@@ -397,11 +399,12 @@ try {
   await tp(24, 5.72, 26.9, Math.PI);
   await run(0.4);
   await tap(BTN.Y);
-  await run(1.0);
+  await run(2.0);
   await page.evaluate(() => { window.__app.current.traversal.attachCtl.u = 1.2; window.__app.current.player.cam.yaw = 0; });
   i = await I();
   assert(!i.drop, `no unhook high up ("${i.drop}")`);
-  await run(2.2, 0, -1);
+  // (G4) at RAPPEL.descend 0.6 m/s (was 2.2 s at 1.6)
+  await run(5.5, 0, -1);
   i = await I();
   assert(i.drop === 'Unhook' && i.y < 2.05, `Unhook offered near the floor (feet ${f2(i.y)})`);
   await tap(BTN.B);

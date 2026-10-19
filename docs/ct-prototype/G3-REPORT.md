@@ -94,3 +94,23 @@ for when it is.
 - Walk through an open airlock door: the camera pushes in behind the shoulder, then pulls back.
 - Settings: the FOV reads 86 (a saved 75 moved); pad vertical look 1.0.
 - Hang, ladder, drainpipe, rappel: centred framing.
+
+## Fix round (2026-10-20, after the independent check and commit 0675cb12)
+1. **Aim offset**: the job lead had set `shoulderAds` 0.17 -> 0.30 (at 0.17 the aimed head sat over the reticle).
+   Re-rendered `aim-ots`, `aimpistol-ots`, `aimcrouch-ots` at 0.30 / boom 0.40: head centre at x 0.27 (rifle), 0.28
+   (pistol, settled; mid-raise at 0.45 s it is at 0.12 while the body turns), 0.30 (crouched); the reticle is clear
+   (gun at x 0.40-0.47). CT 105845 @ 36.5: near 0.3. Kept 0.30 / 0.40; the lead's tactical test already holds 0.30.
+2. **Door push-in only while passing**: new pure `doorPassing` (`world/camSpaces.ts`): within 1 m of the doorway
+   plane, inside its width (+0.2 m), moving across the plane at 0.3 m/s or more. `gameState` gets the feet velocity
+   from the step's move (`camPrevX/Z`). Standing by an open door or walking past beside it no longer pushes in.
+   Test: `tests/camSpaces.test.ts`.
+3. **Feet cut in the yard**: new `CAMERA.openDrop` 0.25: in the open (holstered) the look-at point drops 0.25 m under
+   the head top. `shots/g3/yard-ctcourse.png` (in game, 2.8 m, 12 deg start pitch): head top y 0.41, feet y 0.92, the
+   whole body in frame (CT 111908 @ 18.5: 0.42 / 0.92). Aiming is unaffected (scaled by 1 - ads). Test:
+   `tests/camSpaces.test.ts`; `scripts/e2e-camera-bounds.mjs` yard heights -0.25 (1.43 / 2.390 / 0.470), not run.
+4. **`Doors.nearest`** (`src/world/doors.ts`): indexed loop, no iterator.
+5. **Debug sliders** (`src/ui/debugOverlay.ts`): `shoulderHip` / `shoulderAds` from 0 (step 0.01), `boomAds` from
+   0.2, new `boomOpen` 1.5-4.5.
+- Checks: `npx tsc --noEmit` (clean except G1's `tests/_g1probe.test.ts`), eslint on the changed files, vitest
+  camSpaces, cameraRigid, tactical, settings, doorPeek, doors pass. Build: `npm run build` trips on G1's probe file in
+  typecheck, so `npx vite build` (retried once while G2's `animGraph.ts` was mid-edit). No e2e.

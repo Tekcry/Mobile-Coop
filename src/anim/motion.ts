@@ -88,6 +88,12 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   return (s + (TENSE.step - s) * tense) * (1 - 0.4 * lateral * lateral);
 }
 
+/**
+ * (CT prototype G1 fix, audit row 13) A start's gait clock (CT 110117 @ 6.5-6.75: a full run stride within 0.25 s): for
+ * `time` s after a start from rest the clock counts `share` of the way from the pace to the target pace.
+ */
+export const START_CLOCK = { time: 0.5, share: 1 } as const;
+
 /** (A1.2) One step per this much body turn (rad): a spin is the walk cycle on a tight circle, ~4 steps per 360 (footage 051339). */
 export const TURN_STEP = Math.PI / 2;
 /** (A1.2) Turning faster than this (rad/s) steps the feet even at no pace (a spin at a crawl still steps). */
@@ -157,6 +163,9 @@ export class MotionDriver {
   faceGoal = 0;
   /** (G1) The tense sneak's weight 0..1 (eased with `TENSE.tau`), for the gait clock's step. */
   tense = 0;
+  /** (G1 fix) Time since a Chaos Theory start from rest (s; -1: none) and the pace the spring heads for (m/s). */
+  private startT = -1;
+  private wantPace = 0;
   /** (A1.2) The stick heading last step (NaN: none) and its smoothed sweep rate (rad/s). */
   private stickPrev = Number.NaN;
   private stickRate = 0;
@@ -348,6 +357,10 @@ export class MotionDriver {
       this.stickPrev = Number.NaN;
       this.stickRate = 0;
     }
+    // (G1 fix, audit row 13) a start from rest: the gait clock runs at the pace being reached, not the one reached yet
+    if (pushed && sp < 0.05 && this.state !== 'move') this.startT = 0;
+    else if (this.startT >= 0) this.startT = pushed ? this.startT + dt : -1;
+    if (this.startT > START_CLOCK.time) this.startT = -1;
     if (pushed) {
       const th = Math.atan2(i.vx, i.vz);
       if (this.state !== 'move') this.go('move');
@@ -378,6 +391,7 @@ export class MotionDriver {
     if (Math.abs(this.paceSpring.x - sp) > 1e-6) this.paceSpring.reset(sp);
     const omega = target < sp ? CT_STOP_W / CT.stopTime : CT_START_W / CT.startTime;
     sp = this.paceSpring.step(target, omega, dt);
+    this.wantPace = target;
     // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every speed)
     if (sp < 0 || (target === 0 && sp < CT_REST)) {
       sp = 0;
@@ -416,7 +430,9 @@ export class MotionDriver {
     // (A1.2) the clock counts body turning as well as distance: one step per 90 deg (a spin at a crawl still steps)
     if (sp > 0.02 || Math.abs(this.yawRate) > TURN_GAIT_MIN) {
       const lat = sp > 0.02 ? Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp) : 0;
-      this.phase = (this.phase + gaitRate(sp, this.yawRate, M, lat, this.tense) * dt) % 1;
+      // (G1 fix) in a start the clock runs START_CLOCK.share of the way to the target pace (the first step lands at ~0.25 s)
+      const spc = this.startT >= 0 && this.wantPace > sp ? sp + (this.wantPace - sp) * START_CLOCK.share : sp;
+      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense) * dt) % 1;
     }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;

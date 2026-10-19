@@ -341,10 +341,11 @@ export const PIPE = {
 // --- 3.2.0 phase 3: rappel and fences (`player/attachController.ts`)
 
 export const RAPPEL = {
-  /** Rope speeds (m/s): up, down, down with sprint held. */
+  /** Rope speeds (m/s): up, down, down with sprint held. (ct-prototype G4, AUDIT-TRAVERSAL #14, CT 111731 6.0-11.6: a slow
+   *  steady walk down, 0.45-0.75 m/s) down 1.6 -> 0.6, with sprint 3.0 -> 1.2 (estimates; G31 removed the sprint hold). */
   ascend: 1.0,
-  descend: 1.6,
-  descendSprint: 3.0,
+  descend: 0.6,
+  descendSprint: 1.2,
   /** Kick out from the wall: how far out the swing goes (m), how long it takes (s), how far sideways the stick takes
    *  it per kick and in all (m). */
   swingOut: 1.2,
@@ -356,8 +357,9 @@ export const RAPPEL = {
   /** Feet off the wall face (m) and the rope out where the body is just over the edge (m). */
   standoff: 0.5,
   minOut: 1.0,
-  /** Hooking on and stepping over the edge (s); reach to the rappel point from the roof (m). */
-  hookTime: 0.8,
+  /** Hooking on and stepping over the edge (s); reach to the rappel point from the roof (m). (G4, AUDIT-TRAVERSAL #13, CT
+   *  111731 2.0-4.2: steps over the edge and sits into the rope in about 2 s) 0.8 -> 1.8 s (estimate). */
+  hookTime: 1.8,
   reach: 0.9,
   /** Sidearm from the rope: yaw round the wall's outward normal, pitch band (rad). */
   aimYaw: (110 * Math.PI) / 180,

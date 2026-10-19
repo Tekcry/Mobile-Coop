@@ -174,11 +174,16 @@ const HEEL_BACK = 0.05;
 const HEEL_DOWN = 0.08;
 /** (G1) The ball of the foot ahead of the ankle (m): a planted foot rising onto its toes (`pitch` > 0) turns about it. */
 const TOE_BALL = 0.12;
-function heelLift(f: { contact: boolean; pitch: number }): number {
-  if (!f.contact) return 0;
-  if (f.pitch < 0) return -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN;
+function heelLift(f: { contact: boolean; pitch: number; swing: number }): number {
+  // (G1 fix) also in the air: the heel-first landing's toe-up (terminal swing) lifts the ankle as it will on the floor, and
+  // the toe-off's raised heel fades over the first 0.3 of the swing (the ankle target jumped 1-5 cm at strike and toe-off)
+  if (f.pitch < 0) return f.contact || f.swing > 0.5 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
+  if (f.pitch <= 0) return 0;
   // (G1, footPlanner HEEL_RAISE) heel up, toe on the floor: the ankle rises by the ball's lever
-  return f.pitch > 0 ? Math.sin(f.pitch) * TOE_BALL - (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
+  const toe = Math.sin(f.pitch) * TOE_BALL - (1 - Math.cos(f.pitch)) * HEEL_DOWN;
+  if (f.contact) return toe;
+  const u = f.swing < 0 ? 1 : Math.min(1, f.swing / 0.3);
+  return toe * (1 - u * u * (3 - 2 * u));
 }
 
 /**
@@ -208,7 +213,9 @@ export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
 /** (BC note 6) Extra release time constant (s) of the pelvis drop at a walking pace and above (bob damping). (CT prototype G1,
  *  audit rows 5 / 6) 0.7 -> 0.06: the held drop kept the walk on 30-60 deg knees all cycle; the toe raise (HEEL_RAISE) now
  *  keeps the dip small instead. Starting value. */
-export const PELVIS_HOLD = 0.06;
+export const PELVIS_HOLD = 0;
+/** (G1 fix) The 3.2.0 hold for the aimed / wall gaits (stride 'velocity'). */
+export const PELVIS_HOLD_AIM = 0.7;
 /** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
 export const NECK_WELD = 0.35;
 /** Shoulders lift into the stock at a full weld (m): the raised arms elevate the shoulder girdle. */
@@ -239,6 +246,8 @@ export const WRIST_SUPPORT: readonly [number, number, number] = [0.015, -0.055, 
 export const KNEE_OUT = 0.12;
 /** (ct-prototype E1) Climbing (ladder, drainpipe): the knee pole's up share (with forward 1): knees bend up and forward. */
 export const CLIMB_KNEE_UP = 0.5;
+/** (ct-prototype G4) Climbing, the knee pole's outward share at least this (the knees either side of the rungs / pipe). */
+export const CLIMB_KNEE_OUT = 0.45;
 /** (ct-prototype D1) After a draw / holster travel the hand's grip hold eases back to the graph's weight at this rate (1/s). */
 const TRAVEL_HOLD_RATE = 5;
 /** (ct-prototype E1) Climbing, a planted sole stays at least this far (m) below the hip joints' rest height (see `lYc`). */
@@ -255,6 +264,12 @@ const KNEE_LIFT_TAU = 0.4;
 /** (G1, audit row 5) Standing, a planted leg reaches up to this share of its length before the pelvis drops (was 0.97,
  *  ~28 deg of knee bend at every plant): CT's standing stance and walk keep the stance knee near straight (~9 deg at full reach). */
 export const SOFT_KNEE_STAND = 0.997;
+/** (G1 fix) The most of its length a planted leg is asked to reach (the IK's margin under full stretch). */
+const REACH_HARD = 0.999;
+/** (G1 fix) Crouched, the planted-foot reach as a share of the leg (standing 0.62). */
+const CROUCH_REACH = 0.8;
+/** (G1 fix) Standing still, the hips settle at most this far (m) fore-aft toward the feet's midpoint. */
+const REST_SHIFT = 0.22;
 
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
@@ -727,6 +742,8 @@ export class CharacterRig {
   private kneeFloor = KNEE_FLOOR;
   /** (G1) The pelvis lift held for the knee floor (m). */
   private kneeLift = 0;
+  /** (G1 fix) The hips' fore-aft shift over the still feet (m, body frame). */
+  private restShift = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
   private readyRf = 0;
   /** (BC note 2) Aim raise weight this frame (tucks the elbows). */
@@ -1413,7 +1430,9 @@ export class CharacterRig {
     pin.rest = s.restX !== undefined && s.restZ !== undefined && s.motion === 'stop' && !((s.quickStop ?? 0) > 0);
     pin.restX = s.restX ?? 0;
     pin.restZ = s.restZ ?? 0;
-    pin.reach = (this.p.thigh.len + this.p.calf.len) * 0.62;
+    // (G1 fix, audit row 16) crouched the hips sit low, so a planted leg reaches further back before it must toe off: the
+    // crouch run's rear leg trails long and straight (CT N4) instead of folding its knee down to the floor
+    pin.reach = (this.p.thigh.len + this.p.calf.len) * (0.62 + (CROUCH_REACH - 0.62) * Math.max(0, Math.min(1, i.crouch)));
     pin.quickStop = s.quickStop ?? 0;
     pin.hold = (s.holdSpeed ?? 0) > 0;
     pin.pinLX = this.footPins[0]!;
@@ -1636,7 +1655,7 @@ export class CharacterRig {
     // foot stepper) put a planted foot at hip height straight ahead: on a plant the lifted sole stays CLIMB_FOOT_BELOW
     // under the hip joints' rest height. (Taking the lift off altogether lowered the feet so far the pelvis sank away
     // from the hands: e2e-traverse drainpipe grip reach 4-8 cm.)
-    const climbing = this.input.traverse === 'climb';
+    const climbing = this.input.traverse === 'climb' || this.input.traverse === 'pipeClimb';
     const footCap = rp.y + this.bodyPivot + this.pelvisRest - CLIMB_FOOT_BELOW - p.y.ankle;
     const lYc = climbing && this.plantL.w > 0 ? Math.min(st.lY, Math.max(0, footCap - L.y)) : st.lY;
     const rYc = climbing && this.plantR.w > 0 ? Math.min(st.rY, Math.max(0, footCap - R.y)) : st.rY;
@@ -1646,11 +1665,26 @@ export class CharacterRig {
     // easing back up stays smooth
     const legFull = p.thigh.len + p.calf.len;
     // (G1) standing the soft knee is nearly straight; crouched (the pelvis far below any reach) it stays 0.97
-    const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : SOFT_KNEE_STAND - (SOFT_KNEE_STAND - 0.97) * Math.max(0, this.input.crouch * 2));
+    // (G1 fix) free movement only (stride 'facing'): aiming, strafing and the wall keep the 3.2.0 soft knee and pelvis hold
+    // (their wide side-steps need the slack: e2e-anim aim strafe foot lock)
+    const freeGait = this.pin.stride === 'facing';
+    const softStand = freeGait ? SOFT_KNEE_STAND : 0.97;
+    const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : softStand - (softStand - 0.97) * Math.max(0, this.input.crouch * 2));
     const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
+    // (G1 fix, audit row 9) standing still the body settles over its feet: a stop's slide leaves the frozen feet behind the
+    // capsule (up to ~0.3 m), so the hips come back toward the feet's midpoint (at most REST_SHIFT, eased); the same on a
+    // remote copy (from its own planted feet)
+    {
+      const still = !free && !t.gait.moving && !this.input.wall && L.contact && R.contact && this.input.crouch < 0.5;
+      const mid = ((L.x + R.x) * 0.5 - rp.x) * Math.sin(yaw) + ((L.z + R.z) * 0.5 - rp.z) * Math.cos(yaw);
+      const target = still ? Math.max(-REST_SHIFT, Math.min(REST_SHIFT, mid)) : 0;
+      this.restShift = approachTo(this.restShift, target, dt, 0.06);
+    }
+    const peZ = pe.z + this.restShift;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
     let need = 0;
+    let hard = 0;
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? L : R;
       // (locomotion step 21, D2 one low / one high per step, A80) a stepping foot in the air does not pull the
@@ -1691,7 +1725,7 @@ export class CharacterRig {
       }
       if (w <= 0) continue;
       const hx = pe.x + (k === 0 ? -p.hipHalf : p.hipHalf);
-      const dh = hyp2(f.x - (rp.x + hx * yc + pe.z * ys), f.z - (rp.z - hx * ys + pe.z * yc));
+      const dh = hyp2(f.x - (rp.x + hx * yc + peZ * ys), f.z - (rp.z - hx * ys + peZ * yc));
       // (G1) with the heel lift the IK target gets (the toe raise and heel roll lengthen the leg: no dip for them)
       const footY = f.y + p.y.ankle + (k === 0 ? lYc : rYc) + heelLift(f);
       const reachV = Math.sqrt(Math.max(0, len * len - dh * dh));
@@ -1699,10 +1733,14 @@ export class CharacterRig {
       if (!stepping) {
         if (k === 0) this.liftL = Math.max(0, fNeed);
         else this.liftR = Math.max(0, fNeed);
+        // (G1 fix) a planted leg is never asked past REACH_HARD of its length, whatever the drop's easing (with the soft
+        // knee near straight a lagging drop stretched the IK and the planted ankle slid ~1 cm: e2e-anim aim strafe)
+        if (f.contact) hard = Math.max(hard, hipY - footY - Math.sqrt(Math.max(0, legFull * legFull * REACH_HARD * REACH_HARD - dh * dh)));
       }
       need = Math.max(need, fNeed * w);
     }
     need = Math.max(0, Math.min(0.4, need));
+    hard = Math.max(0, Math.min(0.4, hard));
     // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
     const turned = Math.abs(this.input.tumble) > 0.3;
     if (turned) need = 0;
@@ -1710,9 +1748,10 @@ export class CharacterRig {
     // step: a growing need is still met at once (no overstretched leg), only the easing back up slows with speed
     // (ct-prototype D+E) on foot only: hanging / climbing (free feet) the body's speed is the shimmy or the climb, and a
     // held drop kept the pelvis (and the shoulders) low, the hands short of the lip (e2e-traverse shimmy grip reach 3 cm)
-    const fall = 0.08 + (free ? 0 : PELVIS_HOLD * Math.min(1, hyp2(this.velX, this.velZ) / 1.2));
+    const fall = 0.08 + (free ? 0 : (freeGait ? PELVIS_HOLD : PELVIS_HOLD_AIM) * Math.min(1, hyp2(this.velX, this.velZ) / 1.2));
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, fall);
-    this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
+    if (!turned && this.pelvisDrop < hard) this.pelvisDrop = hard;
+    this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, peZ);
     // (A1.2) the hips follow the legs (this.follow); the spine takes it back so the chest stays on the facing
     Quaternion.RotationYawPitchRollToRef(pe.yaw + this.follow, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
     // (on a wall the knees keep to the feet, as before)
@@ -1722,7 +1761,7 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4 - pe.yaw * 0.6 - this.follow, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.4, this.spine.rotationQuaternion!);
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
     // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
-    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
@@ -1748,6 +1787,32 @@ export class CharacterRig {
     // so the weapon below is placed against this frame's legs
     this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
     this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
+    // (G1 fix) exact reach guard on the solved hips: a planted foot the leg cannot reach (the drop above estimates the hip
+    // joints; a pelvis tilt or shift it does not see left the IK short and the planted ankle slid: e2e-anim aim strafe)
+    // lowers the hips by the shortfall and solves again
+    if (!free && !turned) {
+      const lim = legFull * REACH_HARD;
+      let short = 0;
+      for (let k = 0; k < 2; k++) {
+        const f = k === 0 ? L : R;
+        if (!f.contact) continue;
+        const H = (k === 0 ? this.hipL : this.hipR).getAbsolutePosition();
+        const ty = f.y + p.y.ankle + (k === 0 ? lYc : rYc) + heelLift(f);
+        const dh2 = (H.x - f.x) * (H.x - f.x) + (H.z - f.z) * (H.z - f.z);
+        const dv = H.y - ty;
+        if (dh2 + dv * dv <= lim * lim || dh2 >= lim * lim) continue;
+        short = Math.max(short, dv - Math.sqrt(lim * lim - dh2));
+      }
+      if (short > 1e-4) {
+        this.hips.position.y -= short;
+        this.pelvisDrop += short;
+        fresh(this.hips);
+        fresh(this.spine);
+        fresh(this.torso);
+        this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
+        this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
+      }
+    }
     // anatomy: a knee never sinks into the floor (deep kneel): lift the pelvis and solve again
     // (G1) moving crouched the rear knee stays KNEE_FLOOR_MOVING up (eased: the kneel lowers it to the floor smoothly)
     const kfT = !free && t.gait.moving && this.input.crouch > 0.5 && !this.input.kneel ? KNEE_FLOOR_MOVING : KNEE_FLOOR;
@@ -1829,7 +1894,7 @@ export class CharacterRig {
       freshBelow(this.heldWeapon, this.weaponPivot);
       // raised: the sight line comes level with the eye, closed loop on the posed head (any stance, hunch or
       // lean), so an aimed or fired weapon is always up at the eye, never down at the chest
-      if (t.weld > 0.01) this.sightToEye(t.weld);
+      if (t.weld > 0.01) this.sightToEye(t.weld, t.sightDrop);
       // self-collision: the weapon never passes through the trunk or the head (pushed out before the hands
       // take it, so the grips stay in the hands)
       this.gunPush = this.clearBody();
@@ -2192,7 +2257,11 @@ export class CharacterRig {
     const sn = Math.sin(poleYaw);
     // (ct-prototype E1) climbing a ladder / drainpipe the knee pole also points up (CLIMB_KNEE_UP): a raised foot's
     // hip-ankle line ran along the level pole and the knee flipped (legs "upside down"); now it bends up and forward
-    tmpPole.set(sn + side * out * c, this.input.traverse === 'climb' ? CLIMB_KNEE_UP : 0, c - side * out * sn);
+    // (ct-prototype G4) and out to the side (CLIMB_KNEE_OUT): the 2-rung ladder steps and the drainpipe's paired feet draw
+    // both knees up at once, and a forward-and-up pole brought them within 8 cm of each other (e2e-clip ladder)
+    const climbK = this.input.traverse === 'climb' || this.input.traverse === 'pipeClimb';
+    const o = climbK ? Math.max(out, CLIMB_KNEE_OUT) : out;
+    tmpPole.set(sn + side * o * c, climbK ? CLIMB_KNEE_UP : 0, c - side * o * sn);
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
     // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away
     // from the shin, the shin faces along the thigh; the pole only steers them when the leg is straight
@@ -2210,13 +2279,16 @@ export class CharacterRig {
     this.setWorldRot(ankle, knee, tmpQ3);
   }
 
-  /** Lift (or lower) the aim pocket so the weapon's sight line sits at the head centre (eye), by `w` 0..1. */
-  private sightToEye(w: number): void {
+  /**
+   * Lift (or lower) the aim pocket so the weapon's sight line sits at the head centre (eye), by `w` 0..1; (G2) `drop` m
+   * below it (a pistol held under the line, AUDIT-AIM row 5).
+   */
+  private sightToEye(w: number, drop: number): void {
     const g = this.gunSpan;
     const e = this.heldWeapon!.getWorldMatrix().m;
     const zc = (g.z0 + g.z1) * 0.5;
     const sightY = g.top * e[5]! + zc * e[9]! + e[13]!;
-    const dy = (posIn(this.headNode, headPt).y + SIGHT_EYE - sightY) * w;
+    const dy = (posIn(this.headNode, headPt).y + SIGHT_EYE - drop - sightY) * w;
     if (Math.abs(dy) < 2e-4) return;
     // world up -> the pocket's parent (torso) space
     (this.weaponPivot.parent as TransformNode).getWorldMatrix().invertToRef(clrM);

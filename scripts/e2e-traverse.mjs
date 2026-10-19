@@ -15,6 +15,8 @@ const setup = () =>
     tp(x, y, z, yaw) {
       const p = H.st().player;
       p.controller.teleport(new p.controller.pos.constructor(x, y, z), yaw);
+      // (ct-prototype G4) a climb-up, a top-out and a drop from a hang end crouched (CT): each set-up starts standing
+      p.controller.clearCrouchToggle();
       p.cam.yaw = yaw;
       p.cam.pitch = 0;
     },
@@ -147,7 +149,7 @@ try {
   await page.evaluate(() => window.__app.settings.update((d) => { d.gamepad.curve = 'linear'; d.gamepad.deadzoneLeft = 0; }));
   await run(0.5);
 
-  // --- ladder from the bottom: prompt, attach, climb at 1.6 rungs/s with locked hands and feet, step off the top
+  // --- ladder from the bottom: prompt, attach, climb at 1.7 rungs/s with locked hands and feet, step off the top
   await tp(25.2, 0, 11, Math.PI / 2);
   await run(0.4);
   let i = await I();
@@ -161,7 +163,8 @@ try {
   let r = await run(1.5, 0, 1);
   i = await I();
   const rate = (i.s - s0) / 1.5 / 0.3;
-  assert(rate > 2.6 && rate < 3.15, `climbs at ~3 rungs/s (${rate.toFixed(2)})`);
+  // (ct-prototype G4, CT 112102: 1.7 rungs/s, 2 rungs a reach; was 3)
+  assert(rate > 1.45 && rate < 1.85, `climbs at ~1.7 rungs/s (${rate.toFixed(2)})`);
   contacts(r, 'ladder');
   assert(r.maxFootDrift < 0.01, `ladder: planted feet locked on the rungs (${(r.maxFootDrift * 100).toFixed(2)} cm)`);
   // sprint held climbs faster (~5 rungs/s), contacts still locked
@@ -170,12 +173,15 @@ try {
   i = await I();
   const fast = (i.s - s1) / 0.6 / 0.3;
   // G31: sprint is gone, L3 held no longer speeds the climb
-  assert(i.attached && fast > 2.4 && fast < 3.3, `L3 held does not speed the climb, G31 (${fast.toFixed(2)} rungs/s)`);
+  assert(i.attached && fast > 1.4 && fast < 1.9, `L3 held does not speed the climb, G31 (${fast.toFixed(2)} rungs/s)`);
   contacts(r, 'ladder sprint');
   await runOff(8, 0, 1);
   await run(0.5);
   i = await I();
   assert(!i.attached && i.y > 3.5, `steps off at the top onto the tower (y ${f2(i.y)})`);
+  // (G4, CT 112102 21.2-22.0) over the top she ends crouched
+  assert(await page.evaluate(() => window.__tr.st().player.controller.crouched), 'the ladder top-out ends crouched');
+  await page.evaluate(() => window.__tr.st().player.controller.clearCrouchToggle());
   await run(1.2);
   i = await I();
   // (step 09) holstered unless aiming: off the ladder the weapon stays in its slot until aim draws it
@@ -199,11 +205,11 @@ try {
   i = await I();
   assert(!i.attached && i.y < 0.2, `stepped off at the bottom (y ${f2(i.y)})`);
 
-  // --- slide: climb a little, drop slides to the bottom fast
+  // --- slide: climb a little, drop slides to the bottom fast ((G4) above LADDER_DROP_MAX 1.2 m: below it B lets go)
   await tp(25.2, 0, 11, Math.PI / 2);
   await run(0.3);
   await tap(BTN.Y);
-  await run(1.8, 0, 1);
+  await run(3.2, 0, 1);
   const hi = (await I()).y;
   await tap(BTN.B);
   r = await run(0.5);
@@ -212,6 +218,17 @@ try {
   await run(1.5);
   i = await I();
   assert(!i.attached && i.y < 0.2, 'slid to the bottom and stepped off');
+  // (G4, CT 112102 7.5-8.03) low on the ladder B lets go and drops
+  await tp(25.2, 0, 11, Math.PI / 2);
+  await run(0.3);
+  await tap(BTN.Y);
+  await run(1.0, 0, 1);
+  i = await I();
+  assert(i.attached && i.s < 1.2 && i.dropPrompt === 'Drop', `low on the ladder the drop control lets go ("${i.dropPrompt}", feet ${f2(i.s)} m up)`);
+  await tap(BTN.B);
+  await run(1.0);
+  i = await I();
+  assert(!i.attached && i.grounded && i.y < 0.2, 'let go of the ladder near its foot, landed');
 
   // --- drainpipe: climb, onto the lip at the top, climb up
   await tp(27.8, 0, 8.95, 0);
@@ -296,6 +313,8 @@ try {
   await run(1.6);
   i = await I();
   assert(!i.attached && Math.abs(i.y - 2.3) < 0.1 && i.grounded, `climbed up on top (y ${f2(i.y)})`);
+  // (G4, CT 110522 / 110616) the stick released, the climb-up ends crouched on top
+  assert(await page.evaluate(() => window.__tr.st().player.controller.crouched), 'the climb-up ends crouched (stick released)');
 
   // --- lower into a hang from above: hold drop at the edge; then drop to the ground
   await tp(26.45, 2.3, 16, -Math.PI / 2);

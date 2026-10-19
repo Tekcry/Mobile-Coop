@@ -66,11 +66,11 @@ export const CROUCH_IDLE = makeClip({
 export const CREEP = makeClip({
   name: 'creep',
   cycle: true,
-  duty: 0.62,
+  duty: 0.56,
   liftH: 0.045,
   keys: {
     // (G1, audit rows 5 / 25) upright, knees only slightly bent: was -0.06
-    pelY: bob(-0.006, 0.008, 0.004),
+    pelY: bob(0, 0.003, 0.002),
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.02),
     pelYaw: twist(0.04),
@@ -83,11 +83,11 @@ export const CREEP = makeClip({
 export const WALK = makeClip({
   name: 'walk',
   cycle: true,
-  duty: 0.58,
+  duty: 0.54,
   liftH: 0.065,
   keys: {
     // (G1, audit rows 5 / 21) the standing walk is upright, the stance knee near straight: was -0.045 (a 30-40 deg bent walk)
-    pelY: bob(-0.004, 0.012, 0.006),
+    pelY: bob(0, 0.004, 0.002),
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelYaw: twist(0.06),
@@ -248,7 +248,7 @@ export const SNEAK = makeClip({
 export const CROUCH_RUN = makeClip({
   name: 'crouchRun',
   cycle: true,
-  duty: 0.46, // (G1) was 0.52
+  duty: 0.56, // (G1) was 0.52; (G1 fix) a long stance: the rear leg extends far back (CT N4)
   liftH: 0.085,
   keys: {
     pelY: bob(-0.31, 0.02, 0.01), // (P1) was -0.32; (G1, audit row 16) -0.38 -> -0.31: bent at the hips, the rear leg long behind
@@ -271,16 +271,16 @@ export const CROUCH_RUN = makeClip({
 export const TENSE_SNEAK = makeClip({
   name: 'tenseSneak',
   cycle: true,
-  duty: 0.5,
-  liftH: 0.22,
+  duty: 0.6, // (G1 fix) a long stance: the rear leg trails long and straight, not a shin flat over the floor
+  liftH: 0.3, // (G1 fix) the high knee lift (CT: the swing knee to about hip height)
   keys: {
-    pelY: bob(-0.42, 0.012, 0.006),
+    pelY: bob(-0.4, 0.012, 0.006),
     pelX: sway(SWAY_MAX),
     pelRoll: sway(0.03),
     pelYaw: twist(0.05),
     spYaw: twist(-0.045),
-    pelPitch: [0, 0.3, 0.5, 0.3],
-    hdPitch: [0, -0.3, 0.5, -0.3],
+    pelPitch: [0, 0.22, 0.5, 0.22],
+    hdPitch: [0, -0.4, 0.5, -0.4],
     width: [0, 1.5],
   },
 });

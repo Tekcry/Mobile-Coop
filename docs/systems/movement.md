@@ -74,6 +74,11 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   sneak (G160, `player/tenseSneak.ts`, `TENSE`): crouched at <= 1.4 m/s with an unaware guard within 5 m, 0.85 m steps,
   a high knee lift, the head up, one hand out for balance and the other over the knife; still there it holds the pose (no
   kneel). The remote copy asks the same guards (`setTenseSource`) and derives its landing from the snapshots.
+  G1 fix round: the legs turn with the body only while the facing turns (`BAND_TURN_TIME` 0.25 s; straight travel and
+  strafes stay world-locked), the band's scrub is capped at `TURN_FOLLOW.scrubSpeed` 1.8 m/s (3 cm a frame), a foot
+  outside it steps back in; only guards at alert level 'unaware' set off the tense sneak; a start's gait clock counts
+  the target pace for 0.5 s (`START_CLOCK`: the first step lands at ~0.28 s); a stop draws in only a trailing swing foot,
+  and a lunge wider than `STOP_CLOSE` 0.45 m closes the rear foot in once after the freeze.
 - Forward roll: crouch tapped standing at gear >= `rollGear` 5 (or sprinting) while moving >= 1.5 m/s
   (`TraversalController.canForwardRoll`) = `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m
   (shortened by a wall), comes up crouched; noise `CT.rollNoise` 2 m. HUD gear pips: `Hud.setGear` (`GEARS.pipsShow` 1.5 s).
@@ -182,13 +187,16 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   (0.15 m)"); pivot at the operators' head top 1.68 m (crouched 1.08). Open or tight comes from the map's camera spaces
   (`MapLayout.camSpaces` / `camSize`, `world/camSpaces.ts`; Marlow Yard: the yard and the annex roof open, the airlocks
   and the roofed annex tight), else from probes from the head (back clear past 3.5 m and both sides past 2.0 m, with
-  hysteresis); the weight eases on its own spring (`toTight` 6, `toOpen` 4 1/s). Aim: boom 0.40 m, shoulder 0.17 m, the
-  pivot 0.16 m under the head top (camera at 1.52 m, the head on screen 23 deg off axis), in over the weapon's time
+  hysteresis); the weight eases on its own spring (`toTight` 6, `toOpen` 4 1/s). In the open the look-at point drops
+  `openDrop` 0.25 m under the head (holstered): head top at 0.41 of the height, feet at 0.92 (CT 0.42 / 0.92). Aim: boom
+  0.40 m, shoulder 0.30 m (job lead; the head centre at x 0.27-0.30, the reticle clear), the pivot 0.16 m under the head
+  top (camera at 1.52 m), in over the weapon's time
   (0.35 s at most off a wall, `adsInWall`), fast out; crouched aim follows `aimCrouchShare` 0.68 of the crouch drop.
   Start pitch 12 deg down (the horizon at 0.30 of the height). FOV is horizontal at 16:9 (`video.fovH`, default 86 =
   CT's 55.7 deg vertical; Michael "Match CT (86)"; `camV` 1 moves a saved 75 to 86 and the pad's vertical look 0.8 to
-  1.0), Hor+. Through an open doorway (within 1.2 m of its centre) the boom pushes in to 0.8 m over 0.4 s and returns over
-  0.7 s (CT 110818, prototype).
+  1.0), Hor+. Passing through an open doorway (within 1 m of its plane and inside its width, moving across it at 0.3 m/s
+  or more: `world/camSpaces.ts` `doorPassing`) the boom pushes in to 0.8 m over 0.4 s and returns over 0.7 s once
+  through or stopped (CT 110818, prototype).
 - Wall and low-space safety (CAM): sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing,
   near plane only while close (`player/shoulderCamera.ts`, `player/cameraBounds.ts`). Tight spaces: the boom pulls in
   (`boomIn` 16 1/s; the cast still clamps it the same frame) and eases out slowly (`boomOut` 4, about 1.2 s; G3, CT
@@ -276,10 +284,11 @@ To be replaced by the CT door menu (G97); this is the current build.
 - `player/attach.ts` (pure): `AttachMachine` (none -> enter -> on -> exit) with `ATTACH` specs per kind (axis, speed,
   enter / exit times, camera preset, `allow` sidearm / takedown / drop / traverse / gadgets, `holster`); `axisInput`,
   `attachPose`, `attachRange`, `update` (reports `edge`). Gameplay calls pass `GAMEPLAY_HEIGHT` (1.75, G176), never the
-  drawn body's height; `attachLift` is the visual offset of a body of another height (grips and the rig root only). Ladder 3 rungs/s (`LADDER_RUNG_RATE`); sprint held
-  `LADDER_SPRINT_RATE` 5, drainpipe x`PIPE_SPRINT` (to be removed, G31); slide `LADDER_SLIDE`; zipline to `ZIP_SPEED` 6 m/s.
+  drawn body's height; `attachLift` is the visual offset of a body of another height (grips and the rig root only). Ladder 1.7 rungs/s up
+  (`LADDER_RUNG_RATE`, ct-prototype G4 from CT 112102; was 3), 1.3x that down (`LADDER_DOWN_RATE`); sprint held
+  `LADDER_SPRINT_RATE` 3, drainpipe x`PIPE_SPRINT` (to be removed, G31); slide `LADDER_SLIDE`; zipline to `ZIP_SPEED` 6 m/s.
 - `TraversalController.attach`: `attachTo(anchor, s, entry)`, `detach(reason)`; drives `override.kinematic`, sets
-  `pose.traverse` (`hang` / `climb` / `crawl`), stows the weapon (`PlayerWeapons.setStowed`) and sets `cam.attach`
+  `pose.traverse` (`hang` / `climb` / `pipeClimb` / `crawl` / `crawlOut`), stows the weapon (`PlayerWeapons.setStowed`) and sets `cam.attach`
   (`ATTACH_FRAMING`; G3 from the CT footage: hang / shimmy boom 3.5 centred at the body's middle, ladder centred,
   drainpipe 2.8 centred, rappel 3.0 centred, duct 0.45 m just behind the head (blend 0.4 s), the wall 2.0; the presets'
   `pitch` field is not read by the camera). While attached the graph skips the swap clip.
@@ -287,12 +296,24 @@ To be replaced by the CT door menu (G97); this is the current build.
   mantle is offered; at a hangable edge the drop control held `LOWER_HOLD` lowers in. Attached: drop lets go, traverse
   jumps (`findJumpTarget`: <= 2.5 m along the stick) or climbs up (`canClimb`); a lip's end continues round the corner;
   `sidePush` swings onto a lip beside a ladder / drainpipe; `passClimber`. Hands and feet step with `GripStepper` per render
-  frame. Playtest 2: the hang shimmy is 0.7 m/s (`ATTACH.ledge.speed`; was 1.2) with the hands reaching one at a time, back
-  to back (`alternate`, `leadTime`; ledges only; offsets +-0.26, 0.28 s reach, 9 cm lift, 8 cm arc). The ledge climb-up is
-  `CLIMB_UP_TIME` 1.3 s (slice F; was 1.1, 0.85 before D+E): pull up on held hands, a knee on the top (the hands let
-  go only after it, `CLIMB_UP_HANDS` 0.6 - 0.74), then one smooth stand over the last 0.36 s (no hop); team boost / relay / rope-top
-  climb-ups keep the old one-rise clip (`CLIMB_UP_TEAM`). Drainpipe and ladder knees bend up and forward
-  (`CLIMB_KNEE_UP`), the planted foot's lift is capped (`CLIMB_FOOT_BELOW`). Prompts (`GameState.anchorPrompts`): vault (Climb / Grab / Climb up), jumpTo, drop (Drop / Slide / Hang).
+  frame. (G4, matched to the CT footage, `docs/ct-prototype/G4-REPORT.md`) The hang shimmy is 0.5 m/s (`ATTACH.ledge.speed`;
+  D2b's 0.7, was 1.2) with the hands reaching one at a time, back to back (`alternate`, `leadTime` 0.6 s; ledges only;
+  offsets +-0.25, 0.32 s reach, 9 cm lift, 8 cm arc). Hanging from a lip the lower body swings sideways as a pendulum
+  (`AttachGrips.hangSwing`, `HANG_SWING`): the hips trail the hands' midpoint while shimmying and sway slowly at rest; the
+  swing reaches the looping HANG clip as `traverseT` (`AttachGrips.cadence`, remotes alike). Drainpipe: one reach per hand
+  about every second (slack 0.5, swing `CLIMB_HAND_SWING` 0.3 s) and one pair of feet that steps together after each hand
+  lands (`PIPE_FEET`), posed by `PIPE_CLIMB` (`pipeClimb`) from how drawn up the feet are. Ladder: each hand and foot moves
+  2 rungs a reach (slack 1.9 rungs), 0.3 s swings; mounting from the top `LADDER_TOP_TIME` 1.2 s (turned round first, then
+  lowered); over the top `LADDER_TOPOUT_TIME` 0.85 s with the climb-up's knee, ending crouched 0.4 m in; the drop control
+  lets go below `LADDER_DROP_MAX` 1.2 m (slides above it). The ledge climb-up is `CLIMB_UP_TIME` 0.85 s to a crouch on top
+  (the knee on at 0.47 s, the hands off after it, `CLIMB_UP_HANDS` 0.38 - 0.5 of the 1.3 s clip) and ends crouched unless
+  the stick is held there (then `CLIMB_UP_STAND` 0.45 s more); team boost / relay / rope-top climb-ups keep the old
+  one-rise clip (`CLIMB_UP_TEAM`). A drop from a lip / pipe lands crouched. A lip grabbed from the ground takes
+  `jumpGrabTime` (0.3 s low, 0.55 s at 2.4 m). Out of a wall vent `DUCT_CRAWL_OUT` 2.5 s (crawl out, rise to the crouch,
+  `CRAWL_OUT`). Rappel: hook on `RAPPEL.hookTime` 1.8 s, down 0.6 m/s. Drainpipe and ladder knees bend up, forward and out
+  (`CLIMB_KNEE_UP`, `CLIMB_KNEE_OUT`), the planted foot's lift is capped (`CLIMB_FOOT_BELOW`). Vaults and mantles at speed
+  take at least `MIN_TIME` 0.6 / 0.9 s; a vault onto a floor 0.3 m+ lower lands crouched. Prompts
+  (`GameState.anchorPrompts`): vault (Climb / Grab / Climb up), jumpTo, drop (Drop / Slide / Hang).
 - Landings (`player/movement.ts` `LANDING` / `landingKind` / `landingNoise`): a roll is a committed traversal, heavy =
   `landT` recovery; GameState makes landing / glass / kick noise. Falling past a lip: `fallProbe` (Y grabs). Windows:
   `windowProbe` -> a vault through, breaking the glass. Ducts: `AttachController.vent` (tap kick / hold unscrew), crawl,

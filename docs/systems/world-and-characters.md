@@ -183,13 +183,20 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   the kneel starts with the crouch, keeps the lead foot planted (`KNEEL_M` mirrored) and rests the forearm on the front
   thigh (`KNEEL_HANDS`); a fall of about a metre lands deep with the arms out (`LAND_DEEP`, `LAND_ARMS`); the tense sneak
   is `TENSE_SNEAK` with `TENSE_HANDS`. `tests/g1Locomotion.test.ts` drives the real rig on a NullEngine for these numbers.
+  G1 fix round: `PELVIS_HOLD` 0 (the walk's dip is taken by the heel and toe: `HEEL_RAISE` 0.6 rad from 0.4 of the
+  stance, the heel-first strike 0.3 rad, `heelLift` also in the air), `REACH_HARD` 0.999 (a planted leg is never asked
+  past full stretch), `REST_SHIFT` 0.22 m (standing still the hips settle over the frozen feet), `CROUCH_REACH` 0.8
+  (crouched, the rear leg trails long), `IDLE_STANCE` (feet ~0.33 m apart standing still).
 - Weapons (`config/weapons.json`: the CT kit (G76), the rifle 0.84 m and the suppressed pistol; guards carry these two
   models too;
   parts carry a `role`: barrel, receiver, grip, mag, ...; `modelExtents`): `WeaponModel.hold(rig)` (aim pocket,
   hands IK'd to `grip` / `foregrip` within 2 cm, magazine well from the mag part) / `holster(rig, slot)` /
   `inHand(rig)` (mid-swap). `weapons/carrySlots.ts` (pure; class-keyed, so the compact-gun and second-long-gun slots
   stay for CT's rifle attachments) gives every loadout weapon its own slot: long guns
-  vertical on the back (`backL/backC/backR`, muzzle up, thin side to the back, splayed from the butt, standing
+  on the back: the side slots vertical (`backL/backR`, muzzle up, thin side to the back, splayed from the butt), the
+  centre one (`backC`, CT prototype G2) slung DIAGONALLY like CT's (stock at the right shoulder blade, muzzle down to the
+  left hip, flat on the back plate; `weapons/backDiag.ts`: its draw sweeps round the right side, muzzle up at the
+  shoulder, then onto the line; its holster goes muzzle down, never up), standing
   off `rig.backGear` = vest / hood / backpack depth measured from the parts), compact guns on the left-hip
   `sling` (pushed out by the thigh after each pose via `rig.onPosed`), the pistol low on the right `thigh`
   (standing off `rig.thighOuter`); `GrenadePouches` on the belt. (feature/weapons) An operator body brings its own

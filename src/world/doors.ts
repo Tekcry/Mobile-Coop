@@ -286,7 +286,9 @@ export class Doors {
   nearest(x: number, z: number, r: number): DoorState | null {
     let best: DoorState | null = null;
     let bd = r;
-    for (const d of this.list) {
+    // (G3) indexed: the camera's door passage asks every step (hot path, no iterator)
+    for (let i = 0; i < this.list.length; i++) {
+      const d = this.list[i]!;
       const k = hyp2(d.cx - x, d.cz - z);
       if (k < bd) {
         bd = k;

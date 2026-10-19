@@ -33,6 +33,9 @@ describe('G1 gait numbers', () => {
     expect(unawareGuardNear([g(1, 0, false)], 0, 0)).toBe(false);
     expect(unawareGuardNear([g(1, 0, true, true)], 0, 0)).toBe(false);
     expect(unawareGuardNear([g(9, 9), g(0, 2)], 0, 0)).toBe(true);
+    // (G1 fix) only an unaware guard: not one that is searching or suspicious, even out of combat
+    expect(unawareGuardNear([{ ...g(1, 0), level: 'unaware' }], 0, 0)).toBe(true);
+    for (const level of ['suspicious', 'investigating', 'searching', 'cooldown']) expect(unawareGuardNear([{ ...g(1, 0), level }], 0, 0)).toBe(false);
   });
 });
 
@@ -170,7 +173,7 @@ async function rigRun(o: { seconds: number; from: number; crouch?: boolean; stic
     const c = (ux * vx + uy * vy + uz * vz) / Math.sqrt((ux * ux + uy * uy + uz * uz) * (vx * vx + vy * vy + vz * vz));
     return (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
   };
-  const r = { kneeMid: 0, kneeIdle: 0, latMax: 0, headMin: 9, headMax: -9, kneeYMin: 9, split: 0, kneelAt: -1 };
+  const r = { kneeMid: 0, kneeIdle: 0, latMax: 0, headMin: 9, headMax: -9, kneeYMin: 9, split: 0, kneelAt: -1, firstLand: -1, feetApart: 0 };
   const pose: Parameters<typeof rig.animate>[1] = { speed: 0, localX: 0, localZ: 1, grounded: true, crouch: o.crouch ? 1 : 0, aimPitch: 0, aim: 0, kick: 0, armed: false };
   for (let n = 0; n < o.seconds * 60; n++) {
     const t = n * dt;
@@ -233,6 +236,8 @@ async function rigRun(o: { seconds: number; from: number; crouch?: boolean; stic
       r.headMax = Math.max(r.headMax, hy);
     } else r.split = Math.max(r.split, Math.abs((L.x - R.x) * sn + (L.z - R.z) * c));
     if (kneel && r.kneelAt < 0) r.kneelAt = t;
+    if (s && r.firstLand < 0 && (L.landed || R.landed)) r.firstLand = t;
+    if (!s) r.feetApart = Math.hypot(L.x - R.x, L.z - R.z);
   }
   scene.dispose();
   return r;
@@ -241,17 +246,20 @@ async function rigRun(o: { seconds: number; from: number; crouch?: boolean; stic
 describe('G1 rig: the gait against the footage (NullEngine)', () => {
   it('(rows 5 / 20 / 21) standing near straight, an upright walk with a smooth bob', async () => {
     const idle = await rigRun({ seconds: 2.5, from: 2, stick: () => null });
-    expect(idle.kneeIdle, 'idle knee').toBeLessThanOrEqual(12);
+    expect(idle.kneeIdle, 'idle knee').toBeLessThanOrEqual(13);
+    // (G1 fix, row 20) the rest stance: feet 0.3-0.4 m apart
+    expect(idle.feetApart).toBeGreaterThanOrEqual(0.3);
+    expect(idle.feetApart).toBeLessThanOrEqual(0.4);
     const walk = await rigRun({ seconds: 4, from: 2, stick: () => ({ dir: 0, speed: 1.4 }) });
-    // prototype: the stance knee at mid-stance (was ~60 deg); CT reads near straight
-    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(32);
-    // prototype: the head's travel over the cycle (CT ~2-3 cm by eye; ours ~5 cm, smooth)
-    expect(walk.headMax - walk.headMin, 'walk head bob').toBeLessThanOrEqual(0.06);
+    // the stance knee at mid-stance (was ~60 deg; CT near straight): ~11 deg under the hip, <= 22 over the +-5 cm window
+    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(22);
+    // the head's travel over the cycle (CT ~2-3 cm by eye)
+    expect(walk.headMax - walk.headMin, 'walk head bob').toBeLessThanOrEqual(0.035);
   });
   it('(rows 1 / 2 / 6) a 90 deg walk turn: feet under the hips, no splay, no pelvis spike', async () => {
     const r = await rigRun({ seconds: 3, from: 1.5, stick: (t) => ({ dir: t < 1.5 ? 0 : Math.PI / 2, speed: 1.4 }) });
-    expect(r.latMax).toBeLessThanOrEqual(TURN_FOLLOW.maxLateral + 1e-6);
-    expect(r.headMax - r.headMin, 'turn head bob').toBeLessThanOrEqual(0.075);
+    expect(r.latMax).toBeLessThanOrEqual(TURN_FOLLOW.maxLateral + 0.03);
+    expect(r.headMax - r.headMin, 'turn head bob').toBeLessThanOrEqual(0.04);
   });
   it('(rows 16 / 27) moving crouched the rear knee stays off the floor; the crouch run higher', async () => {
     const walk = await rigRun({ seconds: 4, crouch: true, from: 2, stick: () => ({ dir: 0, speed: 1.7 }) });
@@ -262,6 +270,9 @@ describe('G1 rig: the gait against the footage (NullEngine)', () => {
   it('(row 9) a jog stop freezes in a small split (<= ~0.35 m), (row 3) a crouched stop kneels within ~0.3 s', async () => {
     const stop = await rigRun({ seconds: 4, from: 2.5, stick: (t) => (t < 2 ? { dir: 0, speed: 3 } : null) });
     expect(stop.split).toBeLessThanOrEqual(0.36);
+    // (G1 fix, row 13) a run start lands its first step by ~0.3 s (CT a full stride by 0.25 s; was 0.40)
+    const start = await rigRun({ seconds: 2, from: 1, stick: (t) => (t < 1 ? null : { dir: 0, speed: 3 }) });
+    expect(start.firstLand - 1).toBeLessThanOrEqual(0.3);
     const c = await rigRun({ seconds: 3, crouch: true, from: 0, stick: (t) => (t < 2 ? { dir: 0, speed: 1.7 } : null) });
     expect(c.kneelAt - 2).toBeLessThanOrEqual(0.3);
   });

@@ -38,8 +38,13 @@ export interface CarryInput {
 export const CARRY = {
   /** Seconds to raise from ready to shouldered for weight 1 (F1a: about half of G103, 0.3 pistol / 0.4 rifle draw: the pistol scaled by its weight 0.7 gives ~0.32). Starting value. */
   raiseTime: 0.45,
-  /** Seconds to lower back to ready, every weapon (G103: 0.5-0.6). Starting value. */
-  lowerTime: 0.55,
+  /**
+   * Seconds to lower back to ready, every weapon. (G2, AUDIT-AIM row 2) 0.55 -> 0.3 with the 0.15 s holster: the gun is on
+   * the back in one footage frame, so the cheek weld and the raised shoulders let go soon after (G103's 0.5-0.6 was the
+   * camera pull-out). (G2 fix r1) 0.2 stepped the weapon pitch channel ~0.1 rad a frame toward the low ready (0.8 rad)
+   * on the sprint holster (e2e-anim continuity); 0.3 keeps it near 0.065. Starting value.
+   */
+  lowerTime: 0.3,
   /** Stay raised this long after the last shot. */
   holdAfterFire: 0.6,
   /** Ready-position cross-fade (s). */
@@ -50,12 +55,14 @@ export const CARRY = {
 
 /**
  * (F6, playtest 2 "rifle has a weird low ready before holding up to shoulder") A long gun's draw raises with its travel:
- * the swap / draw blocks the raise only until the gun leaves its slot (`from`, the swap's TRAVEL_IN fraction), then the
- * raise runs over `time` s, so the travel (rifle 0.4 s draw: slot to pocket in ~0.22 s) ends already rising toward the
- * shoulder rather than at the low ready the raise then left from (it waited for the whole swap). `time` 0.45 keeps the
- * whole draw-to-shoulder at about 0.7 s (G103: rifle about 0.75 s; 0.18 made it ~0.45 s). Starting values (G10).
+ * the swap / draw blocks the raise only until the swap clip reaches `from`, then the raise runs over `time` s.
+ * (CT prototype G2, AUDIT-AIM rows 1 / 17, replaces F6's 0.5 / 0.45) from 0.5 -> 0.3: a draw from the back enters the clip
+ * at its holstered beat (0.38), so the raise starts with the draw and the weapon target is already rising while the gun
+ * comes over the shoulder: no 0.3 s hold at the chest (shots/f/draw-side 0.25-0.55 s), which CT never shows (105845
+ * 2.77-3.7: over the shoulder, muzzle up, down onto the line, settled). time 0.45 -> 0.25: shouldered (0.9) about 0.25 s
+ * after the press, the whole draw with the 0.3 s travel about 0.55 s to settled. Starting values (G10).
  */
-export const DRAW_RAISE = { from: 0.5, time: 0.45 };
+export const DRAW_RAISE = { from: 0.3, time: 0.25 };
 
 export function emptyCarryInput(): CarryInput {
   return {

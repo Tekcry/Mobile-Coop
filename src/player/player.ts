@@ -80,6 +80,8 @@ export class Player {
   alive = true;
   /** Reload progress 0..1 (or -1), set by PlayerWeapons for the animation layer. */
   reload = -1;
+  /** (G2, AUDIT-AIM row 16) A reload asked for while holstered (A43): the draw comes straight to the compressed ready. */
+  reloadQueued = false;
   /** Reload is the empty one; weapon swap and grenade throw progress 0..1 or -1 (set by PlayerWeapons). */
   reloadEmpty = false;
   swapT = -1;
@@ -233,9 +235,12 @@ export class Player {
     ci.dashing = c.weaponBlocked;
     // reloading, swapping and throwing all keep the weapon tucked in and down
     // (F6) a long gun's draw from the back raises with its travel once it leaves the slot (no low-ready dip first);
-    // the pistol's draw is unchanged (fine-tuning waits for footage)
-    const backDraw = this.swapT >= DRAW_RAISE.from && (this.swapTo === 'backL' || this.swapTo === 'backC' || this.swapTo === 'backR');
-    ci.reloading = this.reload >= 0 || (this.swapT >= 0 && !backDraw) || this.grenadeT >= 0;
+    // (CT prototype G2, AUDIT-AIM row 7) the pistol's draw from the holster raises with its travel too (it waited for the
+    // whole clip at the compressed ready: about 0.8 s to the eye; CT about 0.55 s)
+    // (G2, row 16) a reload asked for while holstered draws straight to the compressed ready (no low-ready pass)
+    // (a gun-to-gun swap keeps the raise until the next gun leaves its slot, 0.5: the hands are empty before it)
+    const backDraw = this.swapT >= (this.swapFrom === this.swapTo ? DRAW_RAISE.from : 0.5) && (this.swapTo === 'backL' || this.swapTo === 'backC' || this.swapTo === 'backR' || this.swapTo === 'thigh');
+    ci.reloading = this.reload >= 0 || this.reloadQueued || (this.swapT >= 0 && !backDraw) || this.grenadeT >= 0;
     ci.raiseTime = backDraw ? DRAW_RAISE.time : 0;
     ci.traversing = this.pose.traverse !== 'none' && !this.attachAim;
     ci.coverRaise = this.pose.lean !== 0;

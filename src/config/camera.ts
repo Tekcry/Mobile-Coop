@@ -19,6 +19,10 @@ export const CAMERA = {
    *  Open or tight comes from the map's camera spaces (`world/camSpaces.ts`), else from the probes below. */
   boomOpen: 2.8,
   boomCrouchOpen: 2.2,
+  /** (G3 fix round) In an open space the look-at point drops this far (m) under the head top (holstered), so the whole
+   *  body is in frame with the feet clear of the bottom edge: CT 111908 @18.5, head top at y 0.42, feet at 0.92 (at 2.8 m
+   *  and the 12 deg start pitch the feet sat at the frame edge). Starting value. */
+  openDrop: 0.25,
   /** Open-space weight rates (1/s, critically damped): into tight (about 0.8 s) and out to open (about 1.2 s). A 1.5 m
    *  step at the wall pull-in rate (`boomIn` 40) reads as a cut, so the space blends on its own spring; walls still pull
    *  the boom in at once through the sphere cast. Starting values. */
@@ -31,7 +35,8 @@ export const CAMERA = {
   /** Lateral offset of the camera from the head (m), towards the shoulder side. (G3, Michael 2026-10-20 "Match CT
    *  (0.15 m)", replaces F1a 0.32) explore 0.15: the spine at x 0.45-0.48. (G3, "Footage wins", replaces F1a 0.42) aim
    *  0.30 at the 0.40 boom (job lead, after the G3 render: at 0.17 the head, which moves onto the stock when aiming, sat at
-   *  x 0.5 over the reticle; 0.42 put it at x ~0.1; CT has its centre near x 0.3, 105845 @ 36.5). */
+   *  x 0.5 over the reticle; 0.42 put it at x ~0.1; CT has its centre near x 0.3, 105845 @ 36.5). G3 fix-round render:
+   *  head centre x 0.27 rifle, 0.28 pistol (settled), 0.30 crouched, the reticle clear; kept. */
   shoulderHip: 0.15,
   shoulderAds: 0.3,
   /** Pivot (look-at) height above the feet (m): the head top, one value for every operator (G38). (G3, AUDIT-CAMERA row 6)
@@ -87,9 +92,10 @@ export const CAMERA = {
    *  still clamps the boom the same frame (`boomActual` = min(spring, cast)), so the camera is never behind a wall. */
   boomIn: 16,
   boomOut: 4,
-  /** (G3, AUDIT-EXTRA-NEW row 19, CT 110818) Through an open door: within `doorPassReach` (m) of an open doorway's
-   *  centre the boom pushes in to `doorPassBoom` (m) over `doorPassIn` (s), holds, and returns over `doorPassOut` (s).
-   *  Prototype, starting values. */
+  /** (G3, AUDIT-EXTRA-NEW row 19, CT 110818) Through an open door: passing through its frame (`world/camSpaces.ts`
+   *  `doorPassing`: within 1 m of the doorway plane, across it at 0.3 m/s or more; the door looked up within
+   *  `doorPassReach` m of its centre) the boom pushes in to `doorPassBoom` (m) over `doorPassIn` (s), holds while passing,
+   *  and returns over `doorPassOut` (s). Prototype, starting values. */
   doorPassBoom: 0.8,
   doorPassReach: 1.2,
   doorPassIn: 0.4,
@@ -146,7 +152,8 @@ export function framing(ads: number, crouch: number, C = CAMERA, open = 0): { bo
     // (F2, playtest 2 "aiming camera doesn't follow body when crouching") the pivot follows the body down crouched, aiming
     // or not; the framing relative to the body (eye drop, boom, shoulder) is the same standing and crouched (BC note 1);
     // aiming, it follows the kneel's upright aim (`aimCrouchShare` of the crouch drop)
-    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch * (1 - ads * (1 - C.aimCrouchShare)) - C.aimEyeDrop * ads,
+    // (G3) in the open the look-at point drops under the head (holstered), the whole body in frame
+    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch * (1 - ads * (1 - C.aimCrouchShare)) - C.aimEyeDrop * ads - C.openDrop * open * (1 - ads),
   };
 }
 

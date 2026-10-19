@@ -49,3 +49,19 @@ export function probeOpen(backClear: number, leftClear: number, rightClear: numb
   const k = wasOpen ? hold : 1;
   return backClear >= back * k && leftClear >= side * k && rightClear >= side * k ? 1 : 0;
 }
+
+/**
+ * (G3 fix round, AUDIT-EXTRA-NEW row 19) Passing through a doorway: the feet within `reach` (m) of the doorway's plane
+ * and within its width (plus `margin`) along it, moving across the plane at `minSpeed` (m/s) or more (vx, vz: the feet
+ * velocity). Standing still or walking past beside the door is not a passage. The door: its hinge (hx, hz), `yaw`
+ * (the leaf runs along (sin yaw, cos yaw)) and `width`.
+ */
+export function doorPassing(px: number, pz: number, vx: number, vz: number, hx: number, hz: number, yaw: number, width: number, reach = 1.0, margin = 0.2, minSpeed = 0.3): boolean {
+  const tx = Math.sin(yaw);
+  const tz = Math.cos(yaw);
+  const along = (px - hx) * tx + (pz - hz) * tz;
+  if (along < -margin || along > width + margin) return false;
+  const across = (px - hx) * tz - (pz - hz) * tx;
+  if (Math.abs(across) > reach) return false;
+  return Math.abs(vx * tz - vz * tx) >= minSpeed;
+}
