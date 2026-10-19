@@ -76,7 +76,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Updated 2026-10-19 12:45 Sydney · source: docs/ROADMAP.md on master</span>
+    <span class="eyebrow">Updated 2026-10-19 15:00 Sydney · master v4.6.4 · source: docs/ROADMAP.md on master</span>
     <h1>Night Shift roadmap</h1>
     <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Visual pass last. No refining before your core-loop playtest.</p>
   </header>
@@ -89,22 +89,27 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </section>
 
   <section>
-    <h2>Now <span class="count">3 sessions</span></h2>
+    <h2>Now <span class="count">4 sessions</span></h2>
     <div class="board">
       <div class="row">
         <div><div class="name">Orchestrator</div><div class="meta">desktop · this roadmap</div><span class="pill run">Running</span></div>
-        <div><p>Plans, reviews and merges into master, moves /preview/, keeps the sessions in step.</p>
-          <p class="next-cp">Next: <b>merge anim-cleanup's PR, then move /preview/ to master</b></p></div>
+        <div><p>Plans, reviews and merges into master (each merge gets the next version), moves /preview/, keeps the sessions in step.</p>
+          <p class="next-cp">Next: <b>merge the co-op test fix, then Sector Ops and CT Core's slices</b></p></div>
       </div>
       <div class="row">
         <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype</div><span class="pill run">Building</span></div>
-        <div><p>Playtest 2 slice A, controls and camera: D-pad walk speed with speed 2 the slowest, aim sensitivity 70 % lower, peek direction, shoulder memory, no swap flick, back-to-wall snap, quieter footsteps, no walk bob.</p>
-          <p class="next-cp">Next: <b>slice A on /ct/ for you to feel</b></p></div>
+        <div><p>Slice A is on /ct/ (speeds, ADS feel, wall peek, swap). Scanner rule done. Now slices B + C: aiming framing, upper body, arms in, pistol hold, legs under the hips, crouch, walk bob.</p>
+          <p class="next-cp">Next: <b>B + C on /ct/ for you</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">Character Build</div><div class="meta">laptop · feature/anim-cleanup</div><span class="pill test">Testing</span></div>
-        <div><p>anim-cleanup: full e2e on the desktop (holster timing fixes in review).</p>
-          <p class="next-cp">Next: <b>PR to master, merged by the orchestrator</b></p></div>
+        <div><div class="name">Sector Ops Build</div><div class="meta">desktop · feature/sector-ops</div><span class="pill run">Building</span></div>
+        <div><p>Menu shows only Sector Ops and Co-op. Sector Ops: the Warehouse in sectors of rising difficulty (cameras, lasers), objective then exit, ghosting possible, solo or co-op. Co-op is the campaign: Marlow Yard by room code.</p>
+          <p class="next-cp">Next: <b>slice 1 (menus) for you</b></p></div>
+      </div>
+      <div class="row">
+        <div><div class="name">Character Build</div><div class="meta">laptop · feature/coop-tests</div><span class="pill test">Testing</span></div>
+        <div><p>Co-op test fix: waits on game time. coop, netmove, ctcourse now pass alone (3 rounds). Two full runs on the laptop, low priority, then the PR.</p>
+          <p class="next-cp">Next: <b>PR to master</b></p></div>
       </div>
     </div>
   </section>
@@ -112,13 +117,13 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section>
     <h2>Next <span class="count">in order</span></h2>
     <ol class="queue">
-      <li>Anim clean-up into master <span class="owner">Character Build</span></li>
-      <li>Playtest 2 slices B + C: aiming against the CT footage (view unchanged when crouched, upper body tight, arms in, natural pistol aim); legs in line with the body; crouch hands and legs <span class="owner">CT Core</span></li>
-      <li>Playtest 2 slices D + E: holstering; hanging shimmy with wider, slower hands; vertical pipe climb; ledge climb-up onto the knees <span class="owner">CT Core</span></li>
-      <li><span class="gate">Your core-loop playtest</span> of the co-op training course. Refining starts only after this. <span class="owner">You</span></li>
-      <li>Selection wheel restyle: slightly bigger, not just boxes, original <span class="owner">CT Core</span></li>
-      <li>Menu notes: music from the title screen, preload with a load screen, no way back to the title, hero quality check, hand clipping the magazine, rifle and pistol poses in the menu, merge Controls with Settings <span class="owner">Menu</span></li>
-      <li>Visual pass on the training level: lighting, materials, dressing <span class="owner">Last</span></li>
+      <li>Co-op test fix into master <span class="owner">Character Build</span></li>
+      <li>Sector Ops and the prototype menu: slices 1-3 <span class="owner">Sector Ops</span></li>
+      <li>Playtest 2 slices B + C, then D + E: holstering, hanging shimmy, pipe climb, ledge climb-up <span class="owner">CT Core</span></li>
+      <li><span class="gate">Your core-loop playtest</span> of Marlow Yard in co-op. Refining starts only after this. <span class="owner">You</span></li>
+      <li>Selection wheel restyle <span class="owner">CT Core</span></li>
+      <li>Menu notes: title music, load screen, hero LOD, magazine clipping, weapon poses, merged Controls <span class="owner">Menu</span></li>
+      <li>Visual pass on the training level <span class="owner">Last</span></li>
     </ol>
   </section>
 
@@ -128,16 +133,23 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
       <li>Moth as player 2 (2-3 days; purple goggle; a scratch prototype first, when nothing urgent waits)</li>
       <li>Cleanup job (Wren loose ends), after your core-loop playtest</li>
       <li>GPU perf checks on the PC: menu, weapon meshes, low-preset budgets</li>
-      <li>Test fixes: flaky suites, the old Kestrel and camera-bounds failures</li>
+      <li>Legacy suites (Kestrel, Hunter, Mission): parked, not fixed</li>
       <li>The older backlog: medkit stations, missing sounds, music revision, art guide, Kestrel, Fallow bunker</li>
     </ul>
   </section>
 
   <section>
-    <h2>Done <span class="count">7 PRs</span></h2>
+    <h2>Done <span class="count">14 PRs</span></h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Date</th><th>PR</th><th>What</th></tr></thead>
       <tbody>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/16">#16</a></td><td>4.6.4 · Laptop is a second heavy slot, headless; roadmap state only</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/15">#15</a></td><td>4.6.3 · Process audit: one rules file, test tiers, full e2e 62 to 26 min</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/14">#14</a></td><td>4.6.2 · Readable version numbers, the commit in the in-game label</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/11">#11</a></td><td>4.6.1 · Orchestrator docs</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/13">#13</a></td><td>4.6.0 · Phone launch for testing</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/12">#12</a></td><td>4.5.0 · Animation clean-up: weapon travel, reloads, shoulder swap, grips</td></tr>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/10">#10</a></td><td>4.4.1 · Docs: roadmap, merge approvals</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/9">#9</a></td><td>CT prototype: posture, CT controls, selection wheel, 8-station co-op course, revive</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/8">#8</a></td><td>Menu: menus, dialog fixes, cinematic hero background</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/6">#6</a></td><td>CLAUDE.md "Current goal"</td></tr>
