@@ -50,12 +50,16 @@ means this session only; the session running a job is its **job lead**.
 4. Authority order (G86): Michael > `docs/DECISIONS.md` > `docs/design-bible.md` > job and map docs (`docs/level-design.md`,
    the map's documents) > these docs > code. Every decision is also written into the bible.
 
-**Machines** (Michael, 2026-10-19). CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU shots, Blender,
-heavy subagents) runs only on the desktop (orchestrator, CT Core); the laptop session does light work only: docs,
-planning, small edits and one `npm run check`. One heavy job at a time on the desktop: before a heavy run, check
-`C:/NightShift/heavy.lock`; if absent, write "<session> | <job> | <start>" and delete it when done; if present, wait and
-do light work. The orchestrator sets the order. Cloud sessions run unit tests, logic e2e and design only; every GPU
-check there is "pending PC run".
+**Machines** (Michael, 2026-10-19). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
+shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
+slot, or on the laptop (Character Build), the second slot, which Michael is still using: there at BelowNormal priority
+and `E2E_JOBS=1`, so it never takes all his bandwidth, and never GPU or visual checks. One heavy job at a time per
+machine: before a heavy run, check that machine's `C:/NightShift/heavy.lock`; if absent, write "<session> | <job> |
+<start>" and delete it when done; if present, wait and do light work. All work on both machines is headless and
+invisible (Michael: "dont allow my mouse to be taken or random windows terminals to be made, all works must be headless
+and it shouldnt affect me"): never `E2E_HEADED`, no new terminal or console windows, no pointer lock or mouse capture,
+Blender only with `-b`, nothing that takes focus. The orchestrator sets the order. Cloud sessions run unit tests,
+logic e2e and design only; every GPU check there is "pending PC run".
 
 **A job.**
 - Start from master: branch `feature/<job>` in the folder `C:/NightShift/Mobile-Coop-<job>` (G94). The plain folder
