@@ -109,6 +109,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
+import { clearGripAxis } from '../player/attachGrips';
 
 export type { ModeId };
 
@@ -2128,9 +2129,10 @@ export class GameState implements AppState {
     pose.lean = w.phase === 'on' ? w.rigLean() : 0;
     // (step 12b, D9) the open side at a left edge: the weapon to the left hand / shoulder, blended by the rig over
     // EDGE_HAND_TIME (the remotes from WALL_SUB.leftHand)
-    // (F1a, cam-5) and on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; local only (the
-    // wire has no aim side, only the wall edge's leftHand bit, so remotes still see it in the right hand: stub)
-    pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0);
+    // (F1a, cam-5) on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; (anim-cleanup)
+    // only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload are
+    // right-handed), and the partner sees it (localMoveState: ground sub bit 128)
+    pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
@@ -2233,6 +2235,8 @@ export class GameState implements AppState {
       const dd = doors.list[dp.door]!;
       crackedHandle(dd.anchor, fr.side, Math.max(dd.open, dd.ajar), DOOR.openAngle, this.peekHand);
       const reach = fr.hingeRight ? rig.reachL : rig.reachR;
+      // (anim-cleanup) a door handle is not a grip axis
+      clearGripAxis(reach);
       reach.x = this.peekHand.x;
       reach.y = this.peekHand.y;
       reach.z = this.peekHand.z;

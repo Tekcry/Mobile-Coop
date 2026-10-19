@@ -35,6 +35,18 @@ const SCENARIOS = {
   // (PC1) drawn first: aim held from the warm-up (step 09 holsters by default), then the reload (mag set to 1: a full
   // mag ignores the press) / swap
   reload: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 1; a.input.state.tap('reload');" } },
+  // (anim-cleanup) the draw on an aim press from holstered (rifle on the back / pistol in the holster), the holster on release
+  draw: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, input: (t) => ({ ads: t >= 0 }) },
+  drawpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: (t) => ({ ads: t >= 0 }) },
+  holster: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, warm: { ads: true }, input: () => ({}) },
+  holsterpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', warm: { ads: true }, input: () => ({}) },
+  reloadempty: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 0; a.input.state.tap('reload');" } },
+  reloadpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, weapon: 'pistol', warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 1; a.input.state.tap('reload');" } },
+  reloadpistolempty: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, weapon: 'pistol', warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 0; a.input.state.tap('reload');" } },
+  // (anim-cleanup) the left shoulder (the shoulder swap) in motion: a swap, a reload and a holster from a left aim
+  swapleft: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, at0: "g.player.cam.shoulder = -1;", warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "a.input.state.tap('swapNext');" } },
+  reloadleft: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, at0: "g.player.cam.shoulder = -1;", warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "g.weapons.current.mag = 1; a.input.state.tap('reload');" } },
+  holsterleft: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, at0: "g.player.cam.shoulder = -1;", warm: { ads: true }, input: () => ({}) },
   swap: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.0, warm: { ads: true }, input: () => ({ ads: true }), at: { 0: "a.input.state.tap('swapNext');" } },
   holsterswap: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('swapNext');" } },
   grenade: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('grenade');" } },
@@ -122,13 +134,19 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
     const fy = fixCam ? yaw : p.controller.renderYaw;
     const fx = Math.sin(fy);
     const fz = Math.cos(fy);
-    const off = v === 'front' ? [fx * 3, fz * 3] : v === 'back' ? [-fx * 3, -fz * 3] : [fz * 3.1, -fx * 3.1];
-    c.position.set(r.x + off[0], r.y + 1.05, r.z + off[1]);
-    c.setTarget(new r.constructor(r.x, r.y + 0.85, r.z));
+    // (anim-cleanup) close views for hands and weapons: `left` (her left side), `front34` / `front34l` (front-right /
+    // front-left three-quarter), the distance and heights from SHEET_DIST / SHEET_CAM_Y / SHEET_TARGET_Y
+    const D = Number(globalThis.__sheetDist ?? 3);
+    const off = v === 'front' ? [fx * D, fz * D] : v === 'back' ? [-fx * D, -fz * D] : v === 'left' ? [-fz * D, fx * D]
+      : v === 'front34' ? [(fx + fz) * D * 0.7071, (fz - fx) * D * 0.7071] : v === 'front34l' ? [(fx - fz) * D * 0.7071, (fz + fx) * D * 0.7071]
+      : [fz * D * 1.033, -fx * D * 1.033];
+    c.position.set(r.x + off[0], r.y + Number(globalThis.__sheetCamY ?? 1.05), r.z + off[1]);
+    c.setTarget(new r.constructor(r.x + fx * 0.15, r.y + Number(globalThis.__sheetTargetY ?? 0.85), r.z + fz * 0.15));
   };
   a.loop.stepHeadless(0.3);
 }, { pos: sc.pos ?? [0, 0], yaw: sc.yaw ?? 0, wall: sc.wall ?? null, fixCam: !!sc.fixCam, weapon: sc.weapon ?? null });
 await page.evaluate((v) => (window.__view = v), view);
+await page.evaluate((o) => Object.assign(window, o), { __sheetDist: process.env.SHEET_DIST, __sheetCamY: process.env.SHEET_CAM_Y, __sheetTargetY: process.env.SHEET_TARGET_Y });
 
 const setInput = async (inp, code) =>
   page.evaluate(([inp, code]) => {

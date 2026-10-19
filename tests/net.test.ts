@@ -713,7 +713,7 @@ describe('step 13: door peek on the wire', () => {
     expect(dcr.length).toBeLessThanOrEqual(MAX_DOORS);
     expect(new Set(dcr).size).toBe(dcr.length);
   });
-  it('PROTOCOL_VERSION is 17', () => {
+  it('PROTOCOL_VERSION is 22', () => {
     expect(PROTOCOL_VERSION).toBe(22);
   });
 });

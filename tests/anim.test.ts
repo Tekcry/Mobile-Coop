@@ -4,7 +4,7 @@ import { addClip, makeClip, mirrorClip, overClip, sample } from '../src/anim/cli
 import { CH, Inertializer, newPose, NCH } from '../src/anim/pose';
 import { AnimGraph, BREATH, defaultInput, KNEEL_FADE, WEAPON_SETTLE_OMEGA } from '../src/anim/animGraph';
 import { proportions } from '../src/player/proportions';
-import { RELOAD_EMPTY, RELOAD_TACTICAL, SWAP, GRENADE } from '../src/anim/clips/actions';
+import { reloadClipFor, RELOAD_EMPTY, RELOAD_TACTICAL, SWAP, GRENADE } from '../src/anim/clips/actions';
 import { WALK, WALK_STRAFE_L, WALK_STRAFE_R, GAIT_STYLE, SWAY_MAX } from '../src/anim/clips/locomotion';
 import * as LOCO from '../src/anim/clips/locomotion';
 import { ENEMY_MOTION, MOVEMENT } from '../src/config/movement';
@@ -66,7 +66,18 @@ describe('clips', () => {
       expect(sample(c, 'offMag', c.events.magIn!)).toBeGreaterThan(0.5);
     }
     expect(RELOAD_EMPTY.events.charge).toBeGreaterThan(RELOAD_EMPTY.events.magIn!);
-    expect(sample(SWAP, 'grip', SWAP.events.holstered!)).toBeCloseTo(0);
+    // (anim-cleanup) the magazine goes out, to the pouch, back in, in that order, for both guns; pistols take theirs
+    for (const c of [RELOAD_TACTICAL, RELOAD_EMPTY, reloadClipFor(0.7, false), reloadClipFor(0.7, true)]) {
+      expect(c.events.magOut!).toBeLessThan(c.events.pouch!);
+      expect(c.events.pouch!).toBeLessThan(c.events.magIn!);
+    }
+    expect(reloadClipFor(0.7, false).name).toBe('reloadPistolTactical');
+    expect(reloadClipFor(1, true)).toBe(RELOAD_EMPTY);
+    // (anim-cleanup) the trigger hand carries the gun into its slot (holding at the holster beat), lets go between the
+    // slots, and holds the next one from the draw beat on (WeaponModel travel)
+    expect(sample(SWAP, 'grip', SWAP.events.holstered!)).toBeCloseTo(1);
+    expect(sample(SWAP, 'grip', 0.44)).toBeCloseTo(0);
+    expect(sample(SWAP, 'grip', SWAP.events.drawn!)).toBeCloseTo(1);
     expect(GRENADE.events.release).toBeGreaterThan(GRENADE.events.pin!);
   });
 });

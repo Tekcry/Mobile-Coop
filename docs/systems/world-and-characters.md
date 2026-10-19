@@ -56,6 +56,10 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
+- Wren's hands (weapons job, anim-cleanup): morph targets `gripR`, `gripL`, `wrapR`, `relaxR`, `relaxL` on her game files,
+  blended by `rig.handGrip` and `rig.rightTrigger` (trigger, support, wrap, relaxed). Magazines are a separate `<id>-mag`
+  mesh moved by the reload clips (`reloadClipFor`); the audit sheets are `scripts/anim-cleanup/sheets.mjs` and
+  `traverse-shots.mjs`.
 - `player/proportions.ts` (pure) is the single source of body sizes. Average build at 1.75 m (with the ANSUR II
   corrections of ops SPEC 4.3 A1, A3-A7 since operators step 11e, G72, every character):
 

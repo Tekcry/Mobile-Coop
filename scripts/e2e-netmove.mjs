@@ -237,17 +237,19 @@ try {
   // timestamps taken inside the pages: the client's sim (release to holstered, its own 0.4 s); the host's receipt of
   // the first dw 0 state (stamped as the packet is buffered) and the frame its copy stows the weapon. Network delivery
   // (VM latency) is not the remote pose's behaviour: the check is the client's holster time plus the host's receipt
-  // to stow, against the 0.4 s holster + 0.1 s interpolation + one host frame.
+  // to stow, against the 0.55 s holster (HOLSTER_TIME, CT draw timings A2.1) + 0.1 s interpolation + one host frame.
   await GA(() => {
     const r = window.__app.current.net.remotes.values().next().value;
     const av = r.avatar;
-    const t = (window.__holT = { recv: 0, stow: 0, frame: 0, last: 0 });
+    const t = (window.__holT = { recv: 0, stow: 0, frame: 0, last: 0, gap: 0, frames: 0 });
     const push = av.buf.push.bind(av.buf);
-    av.buf.push = (tm, st) => { if (!t.recv && st?.mv?.dw === 0) t.recv = performance.now(); return push(tm, st); };
+    // (anim-cleanup) gap: the receipt after the last host update; frames: host updates from the receipt to the stow
+    av.buf.push = (tm, st) => { if (!t.recv && st?.mv?.dw === 0) { t.recv = performance.now(); t.gap = t.last ? t.recv - t.last : 0; } return push(tm, st); };
     const upd = av.update.bind(av);
     av.update = (dt, rt) => {
       const now = performance.now();
       upd(dt, rt);
+      if (t.recv && !t.stow) t.frames++;
       if (t.recv && !t.stow && !av.rig.heldWeapon) { t.stow = now; t.frame = t.last ? now - t.last : 0; av.update = upd; av.buf.push = push; }
       t.last = now;
     };
@@ -268,10 +270,10 @@ try {
   const haT = await GA(() => window.__holT);
   const remMs = haT.stow - haT.recv;
   const holMs = hbT.sim * 1000 + remMs;
-  const limit = 400 + 1000 / 60 + 100 + Math.max(1000 / 60, haT.frame);
-  console.log(`    holster: client sim ${(hbT.sim * 1000).toFixed(0)} ms (wall ${hbT.dw0 - hbT.rel} ms), host receipt to stow ${remMs.toFixed(0)} ms (host frame ${haT.frame.toFixed(0)} ms)`);
+  const limit = 550 + 1000 / 60 + 100 + Math.max(1000 / 60, haT.frame);
+  console.log(`    holster: client sim ${(hbT.sim * 1000).toFixed(0)} ms (wall ${hbT.dw0 - hbT.rel} ms), host receipt to stow ${remMs.toFixed(0)} ms (host frame ${haT.frame.toFixed(0)} ms, receipt ${haT.gap.toFixed(0)} ms after an update, stowed on update ${haT.frames})`);
   assert(remMs <= 100 + Math.max(1000 / 60, haT.frame) + 1, `the host's copy stows within 0.1 s + one frame of receiving dw 0 (${remMs.toFixed(0)} ms)`);
-  assert(holMs <= limit, `holstered: client holster + host receipt to stow ${holMs.toFixed(0)} ms <= ${limit.toFixed(0)} ms (0.4 s holster + one sim step + 0.1 s + one frame)`);
+  assert(holMs <= limit, `holstered: client holster + host receipt to stow ${holMs.toFixed(0)} ms <= ${limit.toFixed(0)} ms (0.55 s holster + one sim step + 0.1 s + one frame)`);
   await compare('holstered', 'ground');
   await reset();
 

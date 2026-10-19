@@ -106,7 +106,7 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(1);
   });
 
-  it('PROTOCOL_VERSION is 17 (B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
+  it('PROTOCOL_VERSION is 22 (B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
     expect(PROTOCOL_VERSION).toBe(22);
   });
 
@@ -214,5 +214,16 @@ describe('shared posing code (3.2.0 phase 1)', () => {
     expect(ra.reachL.w).toBe(1);
     expect(a.cadence()).toBeGreaterThanOrEqual(0);
     expect(a.cadence()).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('the shoulder swap on the wire (anim-cleanup)', () => {
+  it('a ground state with the left-shoulder bit puts the partner weapon in the left hand; without it, the right', () => {
+    const mv = emptyMoveState();
+    mv.m = 'ground';
+    mv.sub = 128;
+    expect(poseFromMoveState(mv, 1, emptyMovePose()).leftHand).toBe(true);
+    mv.sub = 0;
+    expect(poseFromMoveState(mv, 1, emptyMovePose()).leftHand).toBe(false);
   });
 });

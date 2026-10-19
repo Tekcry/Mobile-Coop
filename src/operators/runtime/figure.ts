@@ -50,6 +50,8 @@ export interface RigLike {
   readonly ankleR: TransformNode;
   /** (feature/weapons) How closed each hand is round a grip, 0..1 (CharacterRig: the weapon grips, world grips). */
   readonly handGrip?: { readonly l: number; readonly r: number };
+  /** (anim-cleanup) The right hand is on a weapon's trigger grip (the trigger shape; else a full wrap). */
+  readonly rightTrigger?: boolean;
 }
 
 /** The rig's joint nodes in RIG_JOINTS order. */
@@ -293,9 +295,18 @@ interface LodInstance {
   /** (feature/weapons) The grip morph targets of this body's meshes, by hand. */
   gripR: MorphTarget[];
   gripL: MorphTarget[];
+  /** (anim-cleanup) The right hand's full wrap (world grips, a knife) and both hands' relaxed shape. */
+  wrapR: MorphTarget[];
+  relaxR: MorphTarget[];
+  relaxL: MorphTarget[];
 }
 
 const RANGE: [number, number] = [0, 0];
+
+/** (anim-cleanup) One influence on every target of a list (no allocation). */
+function setInfluence(ts: MorphTarget[], v: number): void {
+  for (let k = 0; k < ts.length; k++) ts[k]!.influence = v;
+}
 
 /** Every operator body alive (close-up cameras switch them to the hero, `setCloseCamera`). */
 export const LIVE_FIGURES = new Set<OperatorFigure>();
@@ -443,6 +454,9 @@ export class OperatorFigure {
     const meshes: Mesh[] = [];
     const gripR: MorphTarget[] = [];
     const gripL: MorphTarget[] = [];
+    const wrapR: MorphTarget[] = [];
+    const relaxR: MorphTarget[] = [];
+    const relaxL: MorphTarget[] = [];
     a.sources.forEach((src, i) => {
       const m = new Mesh(`${label}-${i}`, scene);
       src.geometry!.applyToMesh(m);
@@ -467,6 +481,9 @@ export class OperatorFigure {
           mgr.addTarget(t);
           if (nm === 'gripR') gripR.push(t);
           else if (nm === 'gripL') gripL.push(t);
+          else if (nm === 'wrapR') wrapR.push(t);
+          else if (nm === 'relaxR') relaxR.push(t);
+          else if (nm === 'relaxL') relaxL.push(t);
         });
         m.morphTargetManager = mgr;
       }
@@ -474,7 +491,7 @@ export class OperatorFigure {
     });
     const poser = new OperatorPoser(S);
     poser.setRest(this.rigRest);
-    const inst: LodInstance = { asset: a, root, nodes, skeleton, meshes, poser, glowMat, head, gripR, gripL };
+    const inst: LodInstance = { asset: a, root, nodes, skeleton, meshes, poser, glowMat, head, gripR, gripL, wrapR, relaxR, relaxL };
     this.applyGoggle(inst, this.goggle.pose);
     this.applyHead(inst);
     if (this.heatK > 0) this.applyHeat(inst);
@@ -531,8 +548,14 @@ export class OperatorFigure {
     // (feature/weapons) the fingers close round what the hands hold
     const hg = this.rigLike.handGrip;
     if (hg) {
-      for (let k = 0; k < l.gripR.length; k++) l.gripR[k]!.influence = hg.r;
-      for (let k = 0; k < l.gripL.length; k++) l.gripL[k]!.influence = hg.l;
+      // (anim-cleanup) the right hand: the trigger shape on a weapon's grip, a full wrap on anything else it holds; both
+      // hands relaxed (lightly curled) when free; a file without the wrap / relax targets keeps the trigger shape
+      const trig = this.rigLike.rightTrigger !== false || l.wrapR.length === 0 ? 1 : 0;
+      setInfluence(l.gripR, hg.r * trig);
+      setInfluence(l.wrapR, hg.r * (1 - trig));
+      setInfluence(l.gripL, hg.l);
+      setInfluence(l.relaxR, 1 - hg.r);
+      setInfluence(l.relaxL, 1 - hg.l);
     }
     if (l.glowMat && this.glowShown !== this.goggle.glow) {
       const k = this.goggle.glow;

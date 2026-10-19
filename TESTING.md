@@ -34,6 +34,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
+- [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
+  holster) before the next comes out; no gun passes through the head, chest or legs.
+- [ ] Reload (X): the magazine comes out in the support hand, goes to its pouch (rifle chest, pistol left hip) and a fresh
+  one goes in; on an empty gun she works the charging handle / racks the slide. Swapping mid-reload leaves no magazine in
+  the hand.
+- [ ] Swap shoulders while aiming: the gun moves to the other hand and shoulder; a partner sees the same.
+- [ ] Ladders, drainpipes, pipes, ledges, the zipline, rappel rope and fences: palms sit on the rung / pipe / lip / cable /
+  rope / rail with the fingers round it, no hand sunk in or floating.
 - [ ] LT draws and aims, RT fires (no hip fire); RT while holstered strikes. X reloads, RB / LB swap between the two
   guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
 - [ ] D-pad right throws the gadget (hold aims); holding d-pad left opens the wheel (time slows).
