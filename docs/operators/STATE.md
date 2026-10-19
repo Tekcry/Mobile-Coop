@@ -1,5 +1,7 @@
 # Operators run - state (resume point)
 
+> **History (process audit, 2026-10-19):** PR #5 merged; the cleanup job waits for Michael's core-loop playtest and Moth comes later (ROADMAP). Moth's goggle is purple (D36). The current state of every job is `docs/ROADMAP.md`.
+
 **Now:** Wren is the player for both players; steps 11c-11e passed; PR #5 was merged into master on Michael's word (D35,
 9295c65). Next after the merge: cleanup (D32 relabels, stowed goggle export, 11c doc fixes,
 carry offsets from Wren's own kit, hero VRAM after photo mode, checker notes in LOG), the Blender placeholder weapons

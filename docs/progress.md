@@ -1,5 +1,7 @@
 # Night Shift - progress
 
+> **History (process audit, 2026-10-19):** the job list moved to `docs/ROADMAP.md`; this file keeps the history and the older follow-up backlog. The current state of every job is `docs/ROADMAP.md`.
+
 **Current status, the queue and what waits on Michael: `docs/ROADMAP.md` (owned by the orchestrator session, 2026-10-19).** The tables below are history and the older follow-up backlog.
 
 Where the project stands: the ordered job list (G90) and the current state. Michael's decisions: `docs/DECISIONS.md`.

@@ -1,5 +1,7 @@
 # Animation clean-up - state (resume point)
 
+> **History (process audit, 2026-10-19):** PR #12 merged (4.5.0); the job is done. The current state of every job is `docs/ROADMAP.md`.
+
 **Now (2026-10-19):** done; PR #12 is open (feature/anim-cleanup → master), its check passed, and it waits for Michael
 to merge (the orchestrator's merge was blocked by auto mode). The desktop e2e is settled: traverse (drainpipe settle
 window, 812a75f2) and netmove's holster budget (4c465e3c) were fixed here; the remaining e2e-coop, e2e-netmove (ledge
