@@ -18,6 +18,8 @@ import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 import type { AudioEngine } from '../src/audio/audioEngine';
 import type { SectorDef } from '../src/game/sectors';
+import { PlayerWeapons } from '../src/weapons/playerWeapons';
+import { GadgetInventory } from '../src/game/gadgets';
 
 // (sector-restart, M9) a Sector Ops checkpoint restart is a clean start: the loadout as the section began (reloaded), the
 // guards' shared memory at its match-start state, the music back in Calm, and the rifle issued suppressed
@@ -150,6 +152,49 @@ describe('the Sector Ops kit (A2)', () => {
     expect(computeStats(WEAPONS.pistolSd, s.weapons.pistolSd.upgrades, kit.find((e) => e.id === 'pistolSd')!.mods).noise).toBeLessThanOrEqual(0.6);
     // ?legacy=1 (no campaign): the save as is
     expect(loadoutEntries(s, 'sector', false).find((e) => e.id === 'rifle')!.attachments).toEqual([]);
+  });
+});
+
+describe('PlayerWeapons.restoreCheckpoint (check fix 1)', () => {
+  it('ends a throw still in hand at the down: nothing leaves the hand after the respawn, the gadget is back', () => {
+    // a PlayerWeapons without a scene: only the fields the throw, the reload cut and the restore read
+    const w = Object.create(PlayerWeapons.prototype) as PlayerWeapons;
+    const player = { grenadeT: -1, aimLockTimer: 0, rig: { holdingMag: false } };
+    const gun = { def: WEAPONS.rifle, stats: { magSize: 30 }, mag: 30, reserve: 90, model: { magSeated: vi.fn() } };
+    Object.assign(w, {
+      player,
+      slots: [gun],
+      gadgets: new GadgetInventory(),
+      checkpointKit: new LoadoutSnapshot(),
+      held: 0,
+      index: 0,
+      infiniteAmmo: false,
+      grenadeCd: 0,
+      grenadeT: -1,
+      grenadeThrown: false,
+      reloadT: -1,
+      swapT: -1,
+      stowed: false,
+      attachMode: false,
+    });
+    w.gadgets.select('frag');
+    w.markCheckpoint();
+    const frags = w.gadgets.counts.frag;
+    // a frag is pulled (taken from the pouch), then the player goes down before its release
+    expect(w.useGadget()).toBe(true);
+    expect(w.throwing).toBe(true);
+    expect(w.gadgets.counts.frag).toBe(frags - 1);
+    const priv = w as unknown as { grenadeT: number; grenadeThrown: boolean; grenadeCd: number };
+    priv.grenadeT = 0.5;
+    player.grenadeT = 0.5 / 1.2;
+    player.aimLockTimer = 0.4;
+    expect(w.restoreCheckpoint()).toBe(true);
+    expect(w.throwing).toBe(false);
+    expect([priv.grenadeT, priv.grenadeThrown, priv.grenadeCd]).toEqual([-1, false, 0]);
+    expect([player.grenadeT, player.aimLockTimer]).toEqual([-1, 0]);
+    expect(w.gadgets.counts.frag).toBe(frags);
+    // a fresh throw works after the respawn (no cooldown or throw left over)
+    expect(w.useGadget()).toBe(true);
   });
 });
 

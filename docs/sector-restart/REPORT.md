@@ -65,3 +65,24 @@ New: `src/weapons/loadoutSnapshot.ts`, `tests/sectorRestart.test.ts`. Changed: `
 ## Polish list
 - The 2.5 s restart fade; a bar-aligned or shorter fade may sound better.
 - An optional "kit restored" feed line at the respawn.
+
+## Fix round (checker CHECK.md, 2026-10-19)
+- 1 (blocking): `PlayerWeapons.restoreCheckpoint` ends a throw still in hand at the down (grenadeT -1, grenadeThrown
+  false, grenadeCd 0, player.grenadeT -1, aimLockTimer 0): nothing leaves the hand after the respawn and the restored
+  count holds the gadget. Vitest: tests/sectorRestart.test.ts "PlayerWeapons.restoreCheckpoint (check fix 1)".
+- 2, 3: the e2e shot spot discriminates and avoids sight flakes. Reaches from `GameState.NOISE` (new static table:
+  shot 28, suppressed 0.6): every guard's whole path (route segments or post, plus its current position) >= 18 m
+  (16.8 + 1.2); the nearest guard's whole path <= 26 m (28 - 2); no line of sight from any path point (sampled every
+  1 m, eye 1.6 m) to the spot. Control in the same scenario: the same shot with the gun's noise forced to 1 alerts
+  the nearest guard (and sets the last known position).
+- Light checks: tsc clean; ESLint clean on the changed files; vitest sectorRestart 8 passed; node --check passes.
+- Risk: if no cell fits the band, the suite says so; widen the band or allow upper storeys.
+
+## Open items (added)
+- 4: in a restart during a running connector cycle, the client's kit snapshot can differ from the host's (the client
+  marks at CONN_LOAD via `ls`, the host at the far-door unlock). Needs every player down inside a sealed connector. A
+  restart counter in the `sector` message would settle it (wire change, PROTOCOL_VERSION 25).
+- 5: a client's frag / noisemaker sent in the latency window around the host's restart can still land on the fresh
+  guards (the host could drop client blast / gadget messages for a short window after a restart).
+- 6 (pre-existing on master, not this job): the co-op client never hears alert music (`gameAudio.ts:115` reads
+  `awareness(g.enemyMgr?.enemies)` and a client has no EnemyManager). Backlog line.

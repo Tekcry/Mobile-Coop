@@ -340,32 +340,85 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(k1.cur <= 0.6, `the gun in hand is suppressed (noise ${k1.cur})`);
   assert(JSON.stringify(k1.gad) === JSON.stringify(k0.gad), `the gadgets are back (${JSON.stringify(k1.gad)})`);
   assert(k1.music === 'calm', `the music is Calm again (${k1.music})`);
-  // a spot at least 18 m from every guard and its route, out of every guard's sight, on the ground floor
+  // (check fix, polish 2 and 3) the shot spot discriminates: every guard's whole path (its post, its route's segments
+  // and where it stands now) stays beyond a suppressed shot's reach, and the nearest guard's whole path inside a loud
+  // shot's reach, so a loud gun here would alert it; no point of any guard's path has a line of sight to the spot.
+  // The reaches come from the game's table (`GameState.NOISE`): suppressed at most shot x suppressed (16.8 m), loud
+  // shot x 1 (28 m); the band keeps a margin each side.
   const spot = await G(() => {
     const g = window.__app.current;
+    const N = g.constructor.NOISE;
+    const lo = N.shot * N.suppressed + 1.2;
+    const hi = N.shot - 2;
     const P = g.player.position.constructor;
     const nav = g.nav;
     const gs = g.enemyMgr.enemies.filter((e) => e.alive);
-    const pts = gs.map((e) => [e.pos.x, e.pos.z]);
-    for (const s of g.world.map.sectors[0].guards.slice(0, gs.length)) {
-      pts.push([s.x, s.z]);
-      for (const p of s.route ?? []) pts.push([p[0], p[1]]);
+    const slots = g.world.map.sectors[0].guards.slice(0, gs.length);
+    // each guard's path: its route (or its post) as segments, plus where it stands now
+    const paths = slots.map((s, i) => {
+      const pts = (s.route && s.route.length ? s.route : [[s.x, s.z]]).map((p) => [p[0], p[1]]);
+      const e = gs[i];
+      if (e) pts.push([e.pos.x, e.pos.z]);
+      return pts;
+    });
+    const segDist = (x, z, a, b) => {
+      const dx = b[0] - a[0];
+      const dz = b[1] - a[1];
+      const l2 = dx * dx + dz * dz;
+      const t = l2 > 0 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2)) : 0;
+      return Math.hypot(a[0] + dx * t - x, a[1] + dz * t - z);
+    };
+    // nearest and farthest distance from (x, z) to a path (the farthest is at a vertex)
+    const near = (x, z, pts) => {
+      let d = Math.hypot(pts[0][0] - x, pts[0][1] - z);
+      for (let k = 0; k + 1 < pts.length; k++) d = Math.min(d, segDist(x, z, pts[k], pts[k + 1]));
+      for (const p of pts) d = Math.min(d, Math.hypot(p[0] - x, p[1] - z));
+      return d;
+    };
+    const far = (x, z, pts) => Math.max(...pts.map((p) => Math.hypot(p[0] - x, p[1] - z)));
+    // sight samples along every path, every 1 m, at a guard's eye height
+    const samples = [];
+    for (const pts of paths) {
+      for (let k = 0; k < pts.length; k++) {
+        const a = pts[k];
+        const b = pts[k + 1] ?? a;
+        const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
+        for (let j = 0; j <= n; j++) samples.push([a[0] + ((b[0] - a[0]) * j) / n, a[1] + ((b[1] - a[1]) * j) / n]);
+      }
     }
+    const looker = gs[0];
     const eye = new P();
     const to = new P();
     for (let c = 0; c < nav.walk.length; c++) {
       if (!nav.isWalkable(c) || Math.abs(nav.height[c]) > 0.3) continue;
       const [x, z] = nav.center(c);
-      let dmin = 1e9;
-      for (const p of pts) dmin = Math.min(dmin, Math.hypot(p[0] - x, p[1] - z));
-      if (dmin < 18) continue;
+      let ni = -1;
+      let nd = 1e9;
+      let ok = true;
+      for (let i = 0; i < paths.length && ok; i++) {
+        const d = near(x, z, paths[i]);
+        if (d < lo) ok = false;
+        else if (d < nd) {
+          nd = d;
+          ni = i;
+        }
+      }
+      if (!ok || ni < 0 || far(x, z, paths[ni]) > hi) continue;
       to.set(x, nav.height[c] + 1.4, z);
-      if (gs.some((e) => e.losTo(e.eye(eye), to, 0.3))) continue;
-      return { x, y: nav.height[c], z, d: dmin };
+      let seen = false;
+      for (const s of samples) {
+        eye.set(s[0], 1.6, s[1]);
+        if (looker.losTo(eye, to, 0.3)) {
+          seen = true;
+          break;
+        }
+      }
+      if (seen) continue;
+      return { x, y: nav.height[c], z, nearest: gs[ni].id, near: nd, far: far(x, z, paths[ni]), lo, hi };
     }
     return null;
   });
-  assert(spot, 'a spot far from the guards and out of their sight exists');
+  assert(spot, 'a spot exists with the nearest guard\'s path between the suppressed and the loud reach, out of every guard\'s sight');
   await tp(G, spot.x, spot.y, spot.z, 0);
   await sim(0.5);
   const s0 = await G(() => ({ stage: window.__sector.debug().stage, raised: window.__app.current.enemyMgr.alarmRaised }));
@@ -387,6 +440,24 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(after.alerted === 0 && !after.lkp, `no guard is alerted by the suppressed shot (${JSON.stringify(after.levels)})`);
   assert(after.stage === s0.stage && after.raised === s0.raised, `the alarm stage is unchanged (${s0.stage} -> ${after.stage})`);
   assert(after.music !== 'alert', `the music stays out of Alert (${after.music})`);
+  // the control: the same gun at the same spot with its suppression off (noise 1, the loud path) does alert the nearest
+  // guard, so the check above could fail
+  const loud = await G(() => {
+    const w = window.__app.current.weapons;
+    const s = w.current;
+    const n0 = s.stats.noise;
+    s.stats.noise = 1;
+    w.shoot();
+    s.stats.noise = n0;
+    return n0;
+  });
+  await sim(0.5);
+  const ctl = await G((id) => {
+    const em = window.__app.current.enemyMgr;
+    const e = em.enemies.find((q) => q.id === id);
+    return { nearest: e ? e.alerted : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length, lkp: em.lkpValid };
+  }, spot.nearest);
+  assert(ctl.nearest === true && ctl.lkp, `control: the same shot unsuppressed alerts the nearest guard (${JSON.stringify(ctl)}, noise back to ${loud})`);
 });
 
 console.log('sector ops: nav (M8 routes, sealed sections)');

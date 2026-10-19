@@ -409,6 +409,13 @@ export class PlayerWeapons {
    */
   restoreCheckpoint(): boolean {
     if (!this.checkpointKit.taken) return false;
+    // (check fix 1) a throw still in hand at the down ends here: nothing leaves the hand after the respawn (the
+    // restored counts already hold the gadget it took)
+    this.grenadeT = -1;
+    this.grenadeThrown = false;
+    this.grenadeCd = 0;
+    this.player.grenadeT = -1;
+    this.player.aimLockTimer = 0;
     this.cancelReload();
     this.reloadQueued = false;
     this.cooldown = 0;

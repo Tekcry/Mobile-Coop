@@ -237,6 +237,9 @@ const PROMPT_Y = 0.55;
 /** Longest the loading screen waits for every material to compile (3.2.2). */
 const WARMUP_MAX_MS = 6000;
 export class GameState implements AppState {
+  /** The shot noise table (tests read it: a shot is heard to `shot` x the gun's noise stat; at or below `suppressed`
+   *  it only raises suspicion). */
+  static readonly NOISE = { shot: SHOT_NOISE, suppressed: SUPPRESSED_NOISE } as const;
   readonly scene: Scene;
   readonly player: Player;
   readonly registry = new DamageRegistry();
