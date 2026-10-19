@@ -38,7 +38,7 @@ Last updated: 2026-10-19 13:45 Sydney.
 | Character Build | laptop (light work only) | `feature/process-audit` | Process audit Phase 1: docs/process-audit/REPORT.md (report only) | Report to Michael for approval |
 
 ## Next (in order)
-1. **Process audit** (Character Build, laptop, light work, Phase 1 report in progress on feature/process-audit; runs alongside 2; Michael, 2026-10-19): report first,
+1. **Process audit** (Character Build, laptop, light work; Phase 1 report approved in full by Michael 2026-10-19, Phase 2 applying it on feature/process-audit, CLAUDE.md wording to Michael before merge; then the desktop co-op suite fix job; runs alongside 2; Michael, 2026-10-19): report first,
    cuts only after Michael approves. Every e2e suite with its time and what it covers for the training level (keep /
    merge / legacy / fix; e2e-coop and e2e-netmove must stop being "known flaky"); one test tier per kind of change;
    one set of session and prompting rules (CLAUDE.md, session-method, orchestrator, per-job STATE); stale docs
@@ -74,6 +74,7 @@ Last updated: 2026-10-19 13:45 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #14 | 4.6.2: version numbers follow the merges (G183), the in-game label shows the commit |
 | 2026-10-19 | #12 | Animation clean-up: weapon travel, reloads, shoulder swap, traversal grips, hand shapes |
 | 2026-10-19 | #13 | Phone launch for testing only (G182): minimum settings, UI fits the screen, pad input |
 | 2026-10-19 | #9 | CT prototype: posture, CT controls, selection wheel, 8-station co-op course, revive |
