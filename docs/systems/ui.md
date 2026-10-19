@@ -57,8 +57,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   position; `MenuState.prepare` (`world/menuGate.ts`, pure) holds it until the hero LOD is drawn, both weapon meshes
   are in and the stage's materials are ready (12 s with no bytes arriving, 120 s cap, 12 s under webdriver, `?bootCap=`
   override; errors still reveal). Then `TitleScreen.arm()` fades in only the prompt; presses before that are ignored.
-  The title stage is pure black (spots, hemi, ambient, goggle emissive at 0); the press strikes the goggle flicker-on on
-  T1, then the lights rise into T2 (launch only; after a match the stage is lit at once). Back on the main menu does
+  The title stage is pure black (spots, hemi, ambient, goggle emissive at 0). The press (`ui/titleSequence.ts`) fades the
+  wordmark and prompt out; the title stays on top, empty, while the goggles flicker on T1 in full darkness, then the
+  lights rise and the main menu fades in under it (M3); a second press skips to the lit menu (A3). Launch only; after a
+  match the stage is lit at once. No green spill light on the face (it read as a glow on the helmet, M4). Back on the main menu does
   nothing (A1). Read-backs: `MenuState.heroLod`, `heroLodWanted`, `bootGate`, `titleLight`. Match loads keep the
   status-line boot screen.
 - Menu void weapons (menu-notes notes 5-6): every void shot holds the Blender rifle or pistol (`world/menuPoses.ts`

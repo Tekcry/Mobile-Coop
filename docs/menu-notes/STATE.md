@@ -1,7 +1,7 @@
 # Menu notes - state
 
 ## Now
-Merge master 4.7.0, then slice 4b: tactical shot mock-up sheet for Michael (M1).
+All notes and M1-M4 built. Full `npm run e2e` on the PR head, then the PR to master.
 
 ## Next
 GPU contact sheets for slices 2 and 3 when the desktop heavy.lock is free (commands in SLICE3.md), then the end step
@@ -20,6 +20,8 @@ GPU contact sheets for slices 2 and 3 when the desktop heavy.lock is free (comma
 - A hold change between void shots glides (0.1-0.45 s) during the crossfade; snap on a shot change if it shows.
 
 ## Done
+- 2026-10-19: slice 4b (8 tactical candidates, sheet), Michael picked X5 (M4); slice 4c (M3: flicker in full darkness before the menu, skip A3; checker fix: Enter leak after a mouse start); slice 4d (X5 live as W3, candidates removed, green spill light removed = the forehead glow, menu-only). GPU sheet sheet-s4cd.png.
+- 2026-10-19: master 4.7.0 merged (44a0cb82).
 - 2026-10-19: worktree, BRIEF / PLAN / STATE.
 - 2026-10-19: slice 1 (c999919f): title music, Back on the main menu does nothing (A1), one Controls place (A2). Checker PASS.
 - 2026-10-19: slice 2: load screen gate (menuGate.ts, stall timeout with MB progress, launch title after the hero is drawn), hero LOD confirmed (no fix; the swap was load order), read-back heroLod. Checker 2 fixes, fix round, recheck PASS.

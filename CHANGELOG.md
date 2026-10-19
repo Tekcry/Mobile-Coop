@@ -4,7 +4,8 @@
 - Launch (M1, M2, notes 1-2): one black screen with the NIGHT / SHIFT wordmark only, held until Wren's hero model,
   both weapon meshes and the shaders are ready (`src/world/menuGate.ts`: a stall timeout of 12 s with no bytes
   arriving, a hard cap of 120 s, never stranded); then only the press prompt fades in. The title stage is pure black;
-  the press strikes Wren's goggle flicker-on in the dark on the goggle close-up, then the lights come up (launch only).
+  the press fades the wordmark and prompt out, Wren's goggles flicker on in full darkness with no menu on screen, then
+  the light rises on the close-up and the main menu fades in (M3; a second press skips to the lit menu, A3; launch only).
 - Music: the menu theme decodes at boot and plays on the title, or starts on the first key, click or pad press when
   autoplay is blocked.
 - Main menu: Back no longer returns to the title (A1). The Pause menu's Controls item is gone; Settings > Controls is the
@@ -17,8 +18,8 @@
 - Tactical shot (M4): W3 joins the main-menu deck, Wren on the sights with the rifle shouldered (Michael's pick X5 of
   the slice 4b mock-ups). The green goggle-spill spot in the face shots is gone: it reflected as a stray glow on the
   goggle housing and helmet above the lenses; the lens flicker itself is unchanged.
-- Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; e2e-menus checks the load gate, the dark
-  title and the prompt fade; e2e-pad follows the shorter Pause menu; GPU script `scripts/menu-boot-shots.mjs`.
+- Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; `tests/titleSequence.test.ts`; e2e-menus checks the load
+  gate, the dark title, the prompt fade, the sequence and the skip; e2e-pad follows the shorter Pause menu and the pad skip; GPU script `scripts/menu-boot-shots.mjs`.
 
 ## 4.7.0 - Sector Ops: prototype menu, 3-section Sector Ops, co-op mode switch (2026-10-19, PR #21)
 - Main menu: Sector Ops, Co-op, Loadout, Settings, Feedback. Missions, Training and Free roam only with `?legacy=1`.
