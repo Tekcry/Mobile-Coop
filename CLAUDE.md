@@ -58,7 +58,17 @@ machine: before a heavy run, check that machine's `C:/NightShift/heavy.lock`; if
 <start>" and delete it when done; if present, wait and do light work. All work on both machines is headless and
 invisible (Michael: "dont allow my mouse to be taken or random windows terminals to be made, all works must be headless
 and it shouldnt affect me"): never `E2E_HEADED`, no new terminal or console windows, no pointer lock or mouse capture,
-Blender only with `-b`, nothing that takes focus. The orchestrator sets the order. Cloud sessions run unit tests,
+Blender only with `-b`, nothing that takes focus. The orchestrator sets the order.
+
+**The laptop is the test runner** (Michael, 2026-10-19). When the desktop's `heavy.lock` is held, a desktop job lead
+does not wait: it pushes its branch and messages Character Build (bridge address in `docs/orchestrator/STATE.md`) with
+the branch, the commit and the suites to run (named suites, not `e2e:quick`, which reads local changes). Character
+Build runs them on the laptop in its own worktree `C:/NightShift/Mobile-Coop-testrun`, detached at that commit
+(`npm ci` only when `package-lock.json` changed), with `E2E_PORT=4191`, `E2E_JOBS=1`, BelowNormal and the laptop's
+`heavy.lock`, one request at a time, in the roadmap's priority order, then by arrival. It replies to the job lead with pass / fail per suite, the
+failing assert and the run time, and copies the orchestrator. Logic e2e only: GPU, perf and visual checks stay on the
+desktop. A result counts for the test tier only for the exact commit it ran on. Between requests Character Build works
+its own small jobs from the roadmap. Cloud sessions run unit tests,
 logic e2e and design only; every GPU check there is "pending PC run".
 
 **A job.**
@@ -87,9 +97,9 @@ logic e2e and design only; every GPU check there is "pending PC run".
 | Change | Runs | Where |
 | --- | --- | --- |
 | Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
-| A step | `npm run check` once at the step's end + the suites the step names, or `npm run e2e:quick` | desktop; the laptop runs `check` only |
-| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop |
-| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop |
+| A step | `npm run check` once at the step's end + the suites the step names, or `npm run e2e:quick` | desktop, or the laptop test runner when the desktop lock is held |
+| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
+| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
 | Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
 
 **Branches and previews.** Master is the live game and the only base (G83): one branch per job, cut from master, one
