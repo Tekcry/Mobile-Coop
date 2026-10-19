@@ -55,5 +55,5 @@ Known clashes to handle at merge time:
 
 ## Resume prompt
 ```
-Orchestrator: resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git pull origin master first). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Check what each session has reported since 15:30 (CT Core, Sector Ops, Character Build), then carry on with "Next for the orchestrator". Give me one step at a time.
+Orchestrator: resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git pull origin master first). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Check what each session has reported since 16:15 (CT Core, Sector Ops, Character Build), then carry on with "Next for the orchestrator". Give me one step at a time.
 ```
