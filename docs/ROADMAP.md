@@ -72,6 +72,8 @@ Last updated: 2026-10-19 22:55 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #25 | 4.7.4: orchestrator docs, new Claude account and dashboard |
+| 2026-10-19 | #24 | 4.7.3: orchestrator docs, walk notes, account handover |
 | 2026-10-19 | #23 | 4.7.2: the version label shows the build's own commit (preview slots showed master's) |
 | 2026-10-19 | #22 | 4.7.1: e2e-traverse grate kick gets a closed grate (flake fixed; the keyboard vent kick is open for CT Core) |
 | 2026-10-19 | #21 | 4.7.0: Sector Ops (3 Warehouse sections, connectors, stars, revive syringes), the prototype menu, co-op mode switch (G184-G191) |
