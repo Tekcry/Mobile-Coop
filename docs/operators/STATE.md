@@ -1,7 +1,7 @@
 # Operators run - state (resume point)
 
-**Now:** Wren is the player for both players; steps 11c-11e passed; the PR feature/operators -> master is open and waits
-for Michael (Claude never merges). Next after the merge: cleanup (D32 relabels, stowed goggle export, 11c doc fixes,
+**Now:** Wren is the player for both players; steps 11c-11e passed; PR #5 was merged into master on Michael's word (D35,
+9295c65). Next after the merge: cleanup (D32 relabels, stowed goggle export, 11c doc fixes,
 carry offsets from Wren's own kit, hero VRAM after photo mode, checker notes in LOG), the Blender placeholder weapons
 (main session's request: rifle with launcher tube and suppressor, suppressed pistol with jammer emitter, knife), then
 Moth (step 12: ask Michael Moth's direction first, D24; Moth's goggle colour vs bible 5.14 amber). Opus 5.5, High.

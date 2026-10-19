@@ -41,3 +41,18 @@ this menu job and the other sessions. Open items it was holding:
    Both are pointer branches only (G83: no direct work on them).
 7. The CT Core Works session (feature/ct-prototype, docs/ct-prototype/FEEL-PLAN.md) owns pure-CT movement then the
    Fallow co-op training bunker (G161, G162 on that branch); it stops after each slice while Michael is awake.
+
+## 2026-10-19 morning
+- Michael: "You have my approval to merge yourself as needed" (09:25). The main session merged PR #6 (goal) and PR #8
+  (menu) into master (99cd3f3) and moved `dev` (/preview/) to master. CT Core Build merges master next and opens its
+  PR; the main session reviews and merges it when it is green.
+
+## Michael's walk-test menu notes (2026-10-19, after gameplay fixes: "i would rather fix the gameplay/animation issues before playing around with the menu")
+- Music starts at the "press any key" title screen.
+- Preload shaders and the hero before showing it (it is jumpy while loading); a Night Shift load screen is fine.
+- No way back from the main menu to the "press any key" screen.
+- Check the menu model is really the full hero quality.
+- The hand clips the magazine in the menu idle stance.
+- Bring the rifle and pistol into the main menu, with holding and idle poses.
+- The Controls menu and Settings > Controls do the same thing: merge them.
+- (Gameplay notes went to CT Core Build: docs/ct-prototype/PLAYTEST-2.md on feature/ct-prototype.)

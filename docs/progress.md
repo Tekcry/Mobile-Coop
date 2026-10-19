@@ -1,5 +1,7 @@
 # Night Shift - progress
 
+**Current status, the queue and what waits on Michael: `docs/ROADMAP.md` (owned by the orchestrator session, 2026-10-19).** The tables below are history and the older follow-up backlog.
+
 Where the project stands: the ordered job list (G90) and the current state. Michael's decisions: `docs/DECISIONS.md`.
 Design: `docs/design-bible.md`. Each job updates its row when it starts, opens its PR and is merged. The old Phase 0-7
 table and the phase logs are history: `docs/archive/progress-phases.md`; phase numbers survive only as chapter names.
