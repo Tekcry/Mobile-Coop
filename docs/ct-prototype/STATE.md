@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 19:10 Sydney (clean point: master 4.6.5 merged, slices D+E on /ct/ at 0f91b0f0).
+Updated 2026-10-19 20:00 Sydney (clean point: master 4.6.5 merged, slices D+E and D2b on /ct/ at e5fc5870).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -52,18 +52,25 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
   Independent check blocked on a drainpipe regression (new tie rule froze limbs with all-positive offsets); fix round 1
   fixed it, plus the travel flag and the team clip. Check green (1753 tests); solo e2e-anim, e2e-clip,
   e2e-ct-warehouse, e2e-netmove, e2e-ctcourse (647 s, station 2 ledge passes), e2e-coop, e2e-menus pass.
+- **Slice D2b** (e5fc5870, Michael: shimmy about 0.7 m/s): `ATTACH.ledge.speed` 0.7; ledge hands +-0.26, 0.28 s
+  reaches one at a time (about 1.8 a second per hand), `leadTime` / `alternate` on ledges only, first reach after a
+  grab at double pace. e2e-traverse shimmy grip reach 3.3 -> 1.6 cm (limit kept at 3); e2e-traverse reads the speed
+  from the table. Independent check PASS. Check green (1753); solo e2e-traverse, e2e-clip, e2e-ctcourse (649 s),
+  e2e-netmove, e2e-coop pass.
 
 ## Next
-1. Michael's re-test of playtest 2 on /ct/ (A, B+C, D+E). His notes come through the orchestrator and fold into the
-   next slice.
-2. Waiting on Michael: hang shimmy speed. Slower, wider hands (about 2 reaches a second) need a slower shimmy
-   (0.6-0.8 m/s, now 1.2 m/s); at 1.2 m/s the reach would exceed the arm.
-3. Merge master again when the e2e-menus hold-repeat fix (Character Build, feature/menus-slider) lands.
-4. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
+1. Michael's re-test of playtest 2 on /ct/ (A, B+C, D+E, D2b). His notes come through the orchestrator and fold into
+   the next slice.
+2. Merge master again when the e2e-menus hold-repeat fix (Character Build, feature/menus-slider) lands.
+3. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
+   Menu notes are the "Menu Notes Build" session's (feature/menu-notes): stay out of src/ui and the menu hero.
+4. Protocol: Sector Ops took co-op protocol 24; whoever merges to master second takes the next number (no wire
+   change here so far).
 
-## Open items to watch (from slices A, B+C, D+E)
-- e2e-traverse fails "shimmy: hands reach their grips" 3.3 cm (limit 3): pre-existing (same on 82c8c6cb and before
-  B+C), needs an owner. e2e-pad "stick speeds 2/4/5" known flaky, same on the clean head.
+## Open items to watch (from slices A, B+C, D+E, D2b)
+- e2e-pad "stick speeds 2/4/5" known flaky, same on the clean head.
+- D2b: the shimmy sheets' camera hides the left hand (move it about 1.5 m along the lip in traverse-shots.mjs to show
+  the alternation); a hand clamped at the lip end falls through to the other hand (untested).
 - D+E: rifle draw clearance -1.5 cm vs the -2 cm e2e-clip limit; rifle holster hand still about chin height mid
   travel; climb-up hands let go as the knee comes on, not after; drainpipe hands at chest height (judge live); check a
   team boost climb-up on /ct/.
