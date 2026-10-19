@@ -23,6 +23,17 @@
 - Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; `tests/titleSequence.test.ts`; e2e-menus checks the load
   gate, the dark title, the prompt fade, the sequence and the skip; e2e-pad follows the shorter Pause menu and the pad skip; GPU script `scripts/menu-boot-shots.mjs`.
 
+## 4.7.5 - lightField heap check stable under load (2026-10-19, PR #26)
+- tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
+  compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it
+  is never optimized away (272 B a query every run, was 63-272). Same limits. It failed `npm run check` on a busy
+  laptop (41.97 < 39.54). Tests only.
+
+## 4.7.4 - Orchestrator docs: new Claude account (2026-10-19, PR #25)
+Docs only. Every session restarted in the new Claude account; the new dashboard
+(https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh); the roadmap and orchestrator state at 22:55 (CT Core slice F
+checks, Menu Notes fixes for CT Core, Sector Ops fix round, lightfield-heap runs).
+
 ## 4.7.3 - Orchestrator docs: walk notes, account handover, test runner and priority state (2026-10-19, PR #24)
 Docs only. Michael's playtest-2 walk notes (docs/ct-prototype/WALK-2026-10-19.md), the account-switch handover
 (docs/orchestrator/STATE.md), the roadmap (Menu Notes, Sector Ops restart bug M9, CT footage awaited), the menu notes
