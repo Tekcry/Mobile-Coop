@@ -152,3 +152,18 @@ going down in a section (restart at the room). `&sectorGuards=4` for a quiet run
 ## Polish list (cosmetic)
 - Placeholder boxes everywhere new; the C2 near door's leaf swings close to the forklift mast; the deck crate chicane
   is tight; camera placements by eye.
+
+## Fix round (2026-10-19, after the laptop run of 878b304a)
+The laptop ran `npm run check` (only unrelated unit timeouts failed), smoke, e2e-levels, e2e-anchors, e2e-lightbake,
+e2e-menus and e2e-park (all passed), and e2e-sectorops, which failed twice at C2:
+1. **"section 2 starts at the connector" failed:** the test was too short, not the mode. The cycle starts once the
+   1 s hold is met and runs `SECTOR.connectorCycle` (3 s) to UNLOCK_FAR, so about 4 s after the teleport. The suite
+   simmed 1.3 + 2.2 = 3.5 s; the debug output shows LOAD had fired (`live: 1`, still `cycling`). Fix: `sim(3.2)` after the
+   cycle check (4.5 s in all), in `scripts/e2e-sectorops.mjs`.
+2. **No nav path through C2 (6 legs at x -14.5):** both C2 doorways were 1.1 m gaps at x -15.05..-13.95. The nav grid's
+   0.5 m cells fall at x -14.75 and -14.25 there, each 0.30 m from a gap edge, under the agent radius 0.32, so neither
+   cell was walkable. The Warehouse's own 1.1 m gaps happen to line up with the cells; this one did not. Fix: both C2
+   gaps are 1.2 m (x -15.1..-13.9; cells 0.35 m clear), the doors are 1.2 m wide, and the doorway centres stay
+   (-14.5, -9) / (-14.5, -6). Every other new gap has at least one cell 0.35 m or more from both edges.
+- Light checks: `tsc` is clean; `vitest tests/sectors.test.ts tests/rooms.test.ts` gives 31 passed (the M8 sight check
+  still passes with the wider doorways). e2e-sectorops still has to be re-run on the runner.

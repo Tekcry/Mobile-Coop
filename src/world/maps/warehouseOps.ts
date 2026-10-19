@@ -34,10 +34,10 @@ function opsPieces(b: LevelBuilder): void {
   // ---- C2: the dock vestibule (x -16..-13, z -9..-6)
   b.wallZ(-16, -9, -6, [], H, WALL, T);
   b.wallZ(-13, -9, -6, [], H, WALL, T);
-  b.wallX(-9, -16, -13, [[-15.05, -13.95]], H, WALL, T);
+  b.wallX(-9, -16, -13, [[-15.1, -13.9]], H, WALL, T);
   // near door swings out into the dock, far door out into the racking (both away from the room)
-  b.door(-15.05, 0, -9, 1.1, Math.PI / 2, { swing: 1, locked: true, breachable: false });
-  b.door(-15.05, 0, -6, 1.1, Math.PI / 2, { swing: -1, locked: true, breachable: false });
+  b.door(-15.1, 0, -9, 1.2, Math.PI / 2, { swing: 1, locked: true, breachable: false });
+  b.door(-15.1, 0, -6, 1.2, Math.PI / 2, { swing: -1, locked: true, breachable: false });
 
   // ---- C3: the office. The near door in the x -4 wall swings out into the racking; the desk moves off its line.
   b.door(-4, 0, 14, 1.1, 0, { swing: -1, locked: true, breachable: false });
@@ -102,7 +102,7 @@ export const warehouseOps: MapDef = {
   build(b) {
     const lay = buildWarehouse(b, {
       gapsX4: [[-15, -13.9], [-10.5, -9.3], [14, 15.1]],
-      gapsZ6: [[-15.05, -13.95]],
+      gapsZ6: [[-15.1, -13.9]],
       hatch: false,
       gapsZ88: [],
       corridorDoor: false,
