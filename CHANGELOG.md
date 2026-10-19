@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - traverse kick flake (feature/traverse-kick)
+## 4.7.1 - e2e-traverse grate kick: a closed grate before the kick (2026-10-19, PR #22)
 - e2e-traverse: the grate-kick check gets a closed grate. The keyboard vent section before it sometimes kicked the
   grate open on real frames, so the kick check entered an open duct silently (noise 0, about 1 run in 3). Tests only.
 
