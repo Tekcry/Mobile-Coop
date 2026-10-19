@@ -3812,21 +3812,48 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   display: block;
   cursor: pointer;
   background: linear-gradient(90deg, rgba(4, 6, 7, 0.92) 0, rgba(4, 6, 7, 0.6) 34%, rgba(4, 6, 7, 0) 62%);
+  /* (menu-notes slice 4a, M2) no slide-in: its wordmark takes over from the boot's in the same place, unmoved */
+  animation: none;
 }
-.title-screen .ts-card {
+/* (M2) until the menu is ready only the wordmark shows; then the prompt (and the version and the slash) fade in.
+   (filter, not opacity: the prompt's pulse animates opacity) */
+.title-screen .ts-press,
+.title-screen .ts-slash,
+.title-screen .version {
+  transition: filter 0.9s ease;
+}
+.title-screen.ts-wait .ts-press,
+.title-screen.ts-wait .ts-slash,
+.title-screen.ts-wait .version {
+  filter: opacity(0);
+}
+/* (menu-notes slice 4c, M3) the press: the prompt and the wordmark fade out (TITLE_OUT_S in titleSequence.ts) and the
+   title stays on top as a clear layer (the stage is black then) while the goggle strikes; no menu under it yet */
+.screen.title-screen.ts-seq {
+  background: transparent;
+}
+.title-screen.ts-seq .ts-card,
+.title-screen.ts-seq .version {
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+}
+.title-screen .ts-card,
+.boot .boot-mark {
   position: absolute;
   left: 150px;
   top: 300px;
   text-transform: uppercase;
 }
-.title-screen .ts-l1 {
+.title-screen .ts-l1,
+.boot .boot-mark .ts-l1 {
   font-size: var(--fs-title-kicker);
   font-weight: 600;
   color: #9aa7a3;
   letter-spacing: 0.04em;
   line-height: 1;
 }
-.title-screen .ts-l2 {
+.title-screen .ts-l2,
+.boot .boot-mark .ts-l2 {
   font-size: var(--fs-title-name);
   font-weight: 700;
   color: #e9efec;
@@ -3879,6 +3906,8 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   background: var(--ink);
   align-items: flex-start;
   padding-left: 12vw;
+  /* (menu-notes note 2) the load screen fades into the title once the menu stage is ready */
+  transition: opacity 0.6s ease;
 }
 .boot .boot-title {
   display: flex;
@@ -3906,6 +3935,29 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   font-size: 15px;
   letter-spacing: 0.06em;
   color: var(--muted);
+}
+/* (menu-notes slice 4a, M2) the launch boot (class `launch`, while the title will follow): black with the title's
+   NIGHT / SHIFT wordmark only, in the title's place (the menu frame, as `:root .screens`); no status, no progress line.
+   `under`: once the title is up the boot drops below the screens (still over the stage), so the title's own wordmark
+   shows in the same place. Other boots (a match load, the menu after a match, no title) keep the ghost and the status. */
+.boot .boot-frame {
+  position: fixed;
+  left: 50%;
+  top: 0;
+  width: min(calc(calc(100 * var(--vw)) / var(--ui-scale, 1)), calc(calc(100 * var(--vh)) / var(--ui-scale, 1) * 16 / 9));
+  height: calc(calc(100 * var(--vh)) / var(--ui-scale, 1));
+  transform: scale(var(--ui-scale, 1)) translateX(-50%);
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.boot:not(.launch) .boot-frame,
+.boot.launch .boot-title,
+.boot.launch .boot-bar,
+.boot.launch #boot-status {
+  display: none;
+}
+.boot.launch.under {
+  z-index: 19;
 }
 
 /* =====================================================================================================

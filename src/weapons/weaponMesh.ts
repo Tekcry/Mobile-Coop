@@ -99,7 +99,7 @@ function asset(scene: Scene, id: string): Promise<WeaponAsset> | null {
  * geometry and material). Returns false when the item has no mesh in the bundle. A failed load is logged once and the
  * weapon keeps its proxy parts; `alive()` false (the weapon was disposed meanwhile) drops the result.
  */
-export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, alive: () => boolean, ready: (m: Mesh, mag: Mesh | null) => void): boolean {
+export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, alive: () => boolean, ready: (m: Mesh, mag: Mesh | null) => void, failed?: () => void): boolean {
   const p = asset(scene, id);
   if (!p) return false;
   p.then((a) => {
@@ -123,6 +123,7 @@ export function loadWeaponMesh(scene: Scene, id: string, parent: TransformNode, 
     ready(m, mag);
   }).catch((e: unknown) => {
     if (!pageLeaving() && !scene.isDisposed) console.warn(`[weapons] ${id} mesh failed to load`, e);
+    failed?.();
   });
   return true;
 }

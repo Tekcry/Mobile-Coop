@@ -80,10 +80,20 @@ export class GameMusic {
     return { menu: !!this.menuV, caution: !!this.cautionV, alert: !!this.alertV, evade: !!this.evadeV, ready: [...this.ready.keys()].sort().join(',') };
   }
 
+  /** (menu-notes note 2) Decode the menu theme ahead (the load screen): `menu()` then starts it at once. */
+  preloadMenu(): void {
+    void this.load('menu');
+  }
+
   /** The main menu: the menu theme, from its opening. */
   menu(): void {
     this.mode = 'menu';
     this.stopMission(MISSION_OUT);
+    // (menu-notes note 1) the theme decodes now, not after the first gesture: the title press then starts it at once
+    // instead of a second or two later on the main menu. The context is asked to run now too (it does where the browser
+    // allows autoplay); otherwise the first key, click or pad button (the title press, or any earlier input) starts it.
+    void this.load('menu');
+    this.audio.unlock();
     this.audio.whenReady(() => {
       void this.load('menu').then((d) => {
         if (!d || this.mode !== 'menu' || this.menuV) return;
