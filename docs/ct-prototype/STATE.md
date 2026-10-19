@@ -74,10 +74,11 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
    action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
    Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
-   **Progress (00:10):** catalogue done (`FOOTAGE-CATALOGUE.md`, 08df7e62; drafts in `pc/ct-work/catalogue/`). Audit
-   running: six Opus agents from `pc/ct-work/audit-brief.md` into `docs/ct-prototype/audit/AUDIT-{LOCOMOTION,CAMERA,AIM,
-   WALLS,TRAVERSAL,ACTIONMENU}.md` (our-side renders `pc/ct-work/ours/`). Next: synthesize `audit/AUDIT.md` (ranked slices),
-   then slices G1.. from it.
+   **Progress (00:55):** catalogue done (`FOOTAGE-CATALOGUE.md`); audit synthesis `audit/AUDIT.md` (slices G1-G6) with
+   six area files, being completed by the same six Opus agents (every animation state, estimates measured; Michael 00:45).
+   G1 (legs and gait) implementer (Opus) running from `audit/AUDIT-LOCOMOTION.md`, report `G1-REPORT.md`, sheets
+   `shots/g1/`. Then: check, e2e (laptop for long suites), Opus check, commit, /ct/; then G2 aim, G3 camera (Michael 00:50:
+   explore offset 0.15, FOV 86, footage wins), G4 traversal, G5 action menu, G6 walls. Movement is the only job tonight.
    **Michael 23:55 (via the orchestrator):** everything in one build on master by morning: at 04:30 merge origin/master and
    feature/course-ready, full `npm run e2e` on the PR head, update `PR-BODY.md`, `gh pr create`, message the orchestrator
    by 06:00 (no version bump). After that, slices go to /ct/ only, not into the PR.

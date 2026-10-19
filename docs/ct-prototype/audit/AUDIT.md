@@ -21,8 +21,8 @@ rail vault and beam walk (not measured).
 ## Assumed decisions (A-numbers in `../DECISIONS.md`)
 - Where the footage contradicts an earlier recorded number (G103 raise timing, the F1a camera offsets), the footage
   wins (Michael 23:45: "operate identically to those recorded"); each change says what it replaces so it can be undone.
-  Exception kept: the explore camera's shoulder offset 0.32 (Michael's own F1a ask) and the FOV stay until he answers.
+  Confirmed by Michael 00:50; the explore offset and FOV now follow CT too.
 
 ## Questions for Michael (morning)
-- Explore camera shoulder offset: CT measures ~0.15 m; you asked for 0.32 in F1a. Keep 0.32 or match CT?
-- FOV: CT's vertical view needs ~86 deg horizontal at 16:9; ours is 75. Match?
+- Explore camera shoulder offset: answered 00:50 "Match CT (0.15 m)" (G3).
+- FOV: answered 00:50 "Match CT (86)" (G3). Footage beats G103 / F1a: "Footage wins".
