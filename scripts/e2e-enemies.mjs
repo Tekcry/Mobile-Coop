@@ -98,7 +98,8 @@ await run('autostart=warehouse&mode=clear', [
         const crown = t.hit(e, 0, -1, 'head').dealt;
         return { kind, lethalOnly, label, front, back, face, crown, hp0 };
       });
-      assert(r.kind === 'front' && r.lethalOnly && /lethal/i.test(r.label), `a heavy from the front: only a lethal takedown (${r.kind}, "${r.label}")`);
+      // G155: no heavies, the strike drops everyone: a front offer no longer needs lethal only
+      assert(r.kind === 'front' && !r.lethalOnly, `a heavy from the front: a plain takedown offer, no lethal-only gate, G155 (${r.kind}, "${r.label}")`);
       assert(r.back > r.front * 2, `plates in front, an exposed back (front ${r.front.toFixed(1)} / back ${r.back.toFixed(1)})`);
       assert(r.face > r.crown, `the face plate is a weak point (${r.face.toFixed(1)} vs ${r.crown.toFixed(1)})`);
     },

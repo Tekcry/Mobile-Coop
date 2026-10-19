@@ -1,4 +1,4 @@
-// (F1a, G179) the selection wheel: segment from the stick angle, the vision stack, the cursor and the pick
+// (F1a, G181) the selection wheel: segment from the stick angle, the vision stack, the cursor and the pick
 import { describe, expect, it } from 'vitest';
 import { buildWheel, segmentAt, SelectionWheel, visionAt, wheelLabel, WHEEL_DEAD } from '../src/game/selectionWheel';
 import { VisionState } from '../src/game/vision';

@@ -914,9 +914,21 @@ body's height; Wren's body is lifted onto her grips visually (arms and IK adjust
 gameplay never reads it. Michael, asked whether Wren (1.68 m) should hang 7.6 cm higher: "Keep gameplay fixed
 (Recommended)" (2026-10-18, ops D34; with G38; replaces ops A105.)
 
-### Prototype goal (feature/ct-prototype, 2026-10-18; first written as G161-G162, renumbered at the Wren merge)
+**G177. Weapons are held properly and believably.** The players' guns are realistic placeholder meshes (rifle with an
+underbarrel launcher and suppressor, suppressed pistol with a jammer emitter, knife) and Wren's hands sit on them: palm on
+the grip, fingers round it, the support hand on the launcher tube, a believable stance. Michael: "I'd rather the character
+holds the gun properly. Make sure they line up and are believable at minimum. Stance must look believable also."
+(2026-10-19, weapons job; docs/weapons/DECISIONS.md A8-A11.)
 
-**G177. Pure-CT movement prototype, then the co-op training bunker.** The prototype is (1) pure-CT movement built once
+**G178. The rifle is carried where it can be drawn and put away quickly.** Holstered, the rifle hangs from Wren's back
+plate mount (not floating) and the pistol sits in her thigh holster; holding and holstering look believable at a
+prototype pass. Michael: "adjust how the rifle is holstered so it makes logical sense how the character can equip it
+quickly and holster quickly, it's just floating" and "Holding weapons and holstering should at least look believable but
+only prototype quick run" (2026-10-19, weapons job A12, A13; settles part of bible Section 11's carry question.)
+
+### Prototype goal (feature/ct-prototype, 2026-10-18; first written as G161-G162; renumbered G177-G179 at the Wren merge and G179-G181 at the weapons merge)
+
+**G179. Pure-CT movement prototype, then the co-op training bunker.** The prototype is (1) pure-CT movement built once
 to the footage numbers (M1-M4: body, manual camera, back-to-wall, doors and the CT pad layout, palm strike and grab,
 goggles), then (2) the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish
 by two players, with the co-op moves it needs (leg-up and ledge relay, held jammer on a camera, partner throw over a
@@ -934,7 +946,7 @@ ct coop bunker / coop training level." (Replaces G150's tune-until-sign-off and 
 loop; replaces Pumphouse Nine as the prototype level in docs/ct-prototype/PLAN.md; applies G78, G79, G80, G117, G130,
 G151, G152.)
 
-**G178. Pure CT: if CT had it, we use it.** Michael: "Pure ct, if it had it, we will use it." (relayed from the main
+**G180. Pure CT: if CT had it, we use it.** Michael: "Pure ct, if it had it, we will use it." (relayed from the main
 session, 2026-10-18.) It settles the research findings listed above for Michael to confirm:
 - CT's two-person rope (the partner climbs the held rope) is built in the bunker; it replaces G110's "no rope climb" for
   this move.
@@ -946,7 +958,7 @@ session, 2026-10-18.) It settles the research findings listed above for Michael 
 - G11: the five ideas CT has stay (guards relight lamps and investigate dead lights, paired searches, eavesdropping,
   lock picking with a noise cost, adaptive music); the four it does not have go.
 
-**G179. Selection wheel for weapons, gadgets and vision mode.** A Blacklist-style selection menu picks the weapon, the
+**G181. Selection wheel for weapons, gadgets and vision mode.** A Blacklist-style selection menu picks the weapon, the
 gadget and the vision mode; one button only turns the selected vision mode on and off (the goggle flip plays only on
 on / off, never between modes). No time slow while it is open. This one menu is Michael's exception to G1 and to the
 "Blacklist systems are history" rule. Michael: "incorporate blacklist style menu that allows selection of weapons,

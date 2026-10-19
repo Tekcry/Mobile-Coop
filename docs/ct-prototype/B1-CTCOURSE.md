@@ -4,7 +4,7 @@
 - New map `ctcourse` (Marlow Yard, `src/world/maps/ctcourse.ts`): 8 stations in CT order as 8 course bays, 7 airlocks between them (framework reused), start for 2 players, 2 wall medkits. Spec: `docs/ct-prototype/CTCOURSE-SPEC.md`.
 - Each obstacle is geometry plus a placeholder door gate (pair plates, timed-hold console, the annex's hack lever) so the course is completable; labels name the slice that replaces it.
 - Exit zone (G138): `CourseDef.exitZone`; `CourseState.update` finishes the course itself when both players are in it (`finishRefusal`: drills, downed, partner; pure helpers `inExitZone`, `exitZoneReady`). No "Finish" device on this map; maps without a zone keep the old device.
-- Medkits by difficulty (G178): `stationHeal(hp, maxHp, alive, difficulty?)` + `medkitFraction`; the game and the co-op host pass `opts.difficulty`. Without a difficulty arg the old +40 stays.
+- Medkits by difficulty (G180): `stationHeal(hp, maxHp, alive, difficulty?)` + `medkitFraction`; the game and the co-op host pass `opts.difficulty`. Without a difficulty arg the old +40 stays.
 - Course default map: `ctcourse` is the first course-capable map in `MAPS` (before courselab). Fallow parked: `?legacy=1` adds `bunker` to `MAPS` (`?legacy=1&autostart=bunker&mode=course`); nothing deleted.
 
 ## Numbers (all starting values)

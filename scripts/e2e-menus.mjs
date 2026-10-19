@@ -9,7 +9,9 @@ import { join } from 'node:path';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
-const { browser, page, errors } = await launch({ url, viewport: { width: 1920, height: 1080 } });
+// (slice 6) the parity checks hold the cheapest background shot (T2) so a software-GL frame rate never starves the
+// input timing; the cinematic block below launches its own pages for the cycling, the hooks and reduced motion
+const { browser, page, errors } = await launch({ url, params: 'menuShot=T2', viewport: { width: 1920, height: 1080 } });
 const G = (f, a) => page.evaluate(f, a);
 const key = async (k) => {
   await page.keyboard.press(k);
@@ -38,12 +40,16 @@ const mouseBack = async () => {
 };
 const boxes = (scope) =>
   G((s) => [...document.querySelectorAll(`${s} .ms-lg, ${s} [data-focus], ${s} .ms-bump, ${s} .tab`)].filter((e) => e.getClientRects().length).map((e) => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }), scope);
+// (slice 6) a short settle after each switch: two frames are only ~100 ms at a fast frame rate, inside the menu's CSS
+// transitions, so the boxes were read mid-transition
 const sameBoxes = async (scope) => {
   await G(() => window.__app.input.setMode('kbm'));
   await frames(page, 2);
+  await page.waitForTimeout(400);
   const a = await boxes(scope);
   await G(() => window.__app.input.setMode('gamepad'));
   await frames(page, 2);
+  await page.waitForTimeout(400);
   const b = await boxes(scope);
   await G(() => window.__app.input.setMode('kbm'));
   await frames(page, 2);
@@ -170,12 +176,15 @@ try {
     window.__fast = 0;
     window.__app.nav.focused.addEventListener('nav-adjust', (e) => void (window.__fast += e.detail.fast ? 1 : 0));
     window.__app.settings.update((d) => void (d.audio.sfx = 0));
+    window.__holdFrames = 0;
+    const tick = () => { window.__holdFrames++; if (window.__holdFrames < 1e6) requestAnimationFrame(tick); };
+    tick();
   });
   await G((b) => window.__pad.set(b, 1), BTN.RIGHT);
   await page.waitForTimeout(3200);
   await G((b) => window.__pad.set(b, 0), BTN.RIGHT);
   await frames(page, 3);
-  const hold = await G(() => ({ fast: window.__fast, v: window.__app.settings.get().audio.sfx }));
+  const hold = await G(() => ({ fast: window.__fast, v: window.__app.settings.get().audio.sfx, frames: window.__holdFrames, shot: window.__app.current?.shotId, fade: window.__app.current?.shotFade }));
   assert(hold.fast > 0 && hold.v > 0.2, `holding right repeats and accelerates (${JSON.stringify(hold)})`);
   await press(page, BTN.B);
   assert((await top()) === 'main-menu', 'B returns to the main menu');
@@ -203,6 +212,66 @@ try {
   assert(rm.n > 10 && rm.moved === 0, `remap: a device switch moves nothing (${rm.n} boxes, ${rm.moved} moved)`);
   await key('Escape');
   assert((await top()) === 'settings-screen', 'Esc: Remap back to Settings');
+
+  // slice 6: the cinematic background - the shot hook, the fast clock, navigation during a fade, reduced motion
+  console.log('cinematic background');
+  const shotOf = (P) => P.evaluate(() => ({ id: window.__app.current?.shotId, n: window.__app.current?.shotChanges ?? -1, fade: window.__app.current?.shotFade ?? 0 }));
+  assert(/^(T2|H[1-6])$/.test((await shotOf(page)).id), `the main menu runs a cinematic shot (${(await shotOf(page)).id})`);
+  {
+    const F = await launch({ url, params: 'menuShot=H3', viewport: { width: 1280, height: 720 } });
+    try {
+      await F.page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
+      await frames(F.page, 30);
+      const s = await shotOf(F.page);
+      assert(s.id === 'H3', `?menuShot=H3 reports H3 through the debug hook (${s.id})`);
+      const pe = F.errors.filter((e) => (e.startsWith('[pageerror]') || e.startsWith('[error]')) && !e.includes('GPU stall') && !e.includes('swiftshader'));
+      assert(!pe.length, `no page errors (${pe.join(' | ')})`);
+    } finally {
+      await F.browser.close();
+    }
+  }
+  {
+    const F = await launch({ url, params: 'menuClock=fast', viewport: { width: 1280, height: 720 } });
+    try {
+      await F.page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
+      const s0 = await shotOf(F.page);
+      await F.page.waitForFunction((n) => (window.__app.current?.shotChanges ?? 0) > n, s0.n, { timeout: 8000, polling: 100 });
+      const s1 = await shotOf(F.page);
+      assert(s1.n > s0.n && s1.id !== s0.id, `?menuClock=fast changes the shot within a few seconds (${s0.id} -> ${s1.id})`);
+      // during a fade the menu still moves: wait for black over the stage, move the focus in that frame
+      const r = await F.page.evaluate(
+        () =>
+          new Promise((res) => {
+            const t0 = performance.now();
+            const tick = () => {
+              const fade = window.__app.current?.shotFade ?? 0;
+              if (fade > 0.15) {
+                const before = window.__app.nav.focused?.dataset.key;
+                window.__app.nav.move('down');
+                res({ fade, before, after: window.__app.nav.focused?.dataset.key });
+              } else if (performance.now() - t0 > 10000) res({ fade, before: '', after: '' });
+              else requestAnimationFrame(tick);
+            };
+            tick();
+          }),
+      );
+      assert(r.fade > 0.15 && r.before && r.after && r.before !== r.after, `the menu is navigable during a transition (fade ${r.fade.toFixed(2)}, ${r.before} -> ${r.after})`);
+      await F.page.keyboard.press('ArrowDown');
+      await frames(F.page, 3);
+      assert((await F.page.evaluate(() => window.__app.nav.focused?.dataset.key)) !== r.after, 'a key press still moves the focus');
+      // reduced motion: S1 held, no changes, no fade
+      await F.page.emulateMedia({ reducedMotion: 'reduce' });
+      await F.page.reload();
+      await F.page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
+      await F.page.waitForTimeout(3000);
+      const rm = await shotOf(F.page);
+      assert(rm.id === 'T2' && rm.n === 0 && rm.fade === 0, `reduced motion holds T2 (${JSON.stringify(rm)})`);
+      const pe = F.errors.filter((e) => (e.startsWith('[pageerror]') || e.startsWith('[error]')) && !e.includes('GPU stall') && !e.includes('swiftshader'));
+      assert(!pe.length, `no page errors (${pe.join(' | ')})`);
+    } finally {
+      await F.browser.close();
+    }
+  }
 
   // slice 4: missions, briefing, free roam, issued kit
   await key('Escape');

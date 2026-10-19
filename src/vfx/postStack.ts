@@ -239,6 +239,8 @@ export class PostStack {
   /** Depth-of-field focus (m) and whether it is wanted now (aiming, menu operator). */
   focus = 10;
   focusOn = false;
+  /** (menu-ui slice 6) The depth of field's focal length (mm): a longer lens, a shallower field (the menu close-ups). */
+  lensMm = 50;
   /** The pause look's level 0..1 (`pauseLook.ts`): opens the field on `focus` (the local player) while paused. */
   pauseK = 0;
   /** Depth of field exists in this build (the Low preset has none: the pause screen uses a CSS overlay). */
@@ -495,6 +497,7 @@ export class PostStack {
       // (menu-ui MD14) the pause look opens the field on the player; the sim dt is 0 while paused, so ease on a nominal step
       const ap = pausing && (!own || own.enabled) ? Math.max(this.aperture, pauseAperture(this.pauseK)) : this.aperture;
       dof.fStop = fStopFor(ap);
+      dof.focalLength = this.lensMm;
       dof.focusDistance += (this.focus * 1000 - dof.focusDistance) * Math.min(1, (dt > 0 ? dt : pausing ? 1 / 30 : 0) * 10);
     }
   }

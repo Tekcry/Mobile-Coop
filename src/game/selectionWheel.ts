@@ -1,5 +1,5 @@
 /**
- * (CT prototype F1a, G179) The selection wheel (pure, unit-tested): a ring of segments, the vision modes stacked at the
+ * (CT prototype F1a, G181) The selection wheel (pure, unit-tested): a ring of segments, the vision modes stacked at the
  * top, then the guns, then the mission kit gadgets, clockwise. Held open over the live game (no time slow), the right
  * stick / mouse moves a cursor, release picks the highlighted item. Layout reference: docs/ct-prototype/WHEEL-REF.md.
  * Babylon-free; the DOM lives in `ui/hud/gadgetWheel.ts`, the open / close and the picks in `gadgetSystem.ts`.

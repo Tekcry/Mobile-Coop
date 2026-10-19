@@ -15,3 +15,8 @@ Michael's words: BRIEF.md. Assumed decisions (A1 onward), each with how to undo 
 - **A5. Five hand shapes as morph targets** (gripR trigger, gripL support, wrapR, relaxR, relaxL) on Wren's game files,
   not finger bones in the LODs (they keep the 23 game joints). Undo: re-export the LODs (operators pipeline) and drop
   the figure's blend.
+
+- **Folded into feature/ct-prototype (Michael, 2026-10-19).** Asked how the clean-up should reach the game, Michael:
+  "Fold into CT Core's PR #9 (Recommended)". This branch took in feature/ct-prototype c628e32 (T2) and is pushed onto
+  feature/ct-prototype as a fast-forward, so it ships in PR #9 and on /ct/; CT Core's slices B+C and D+E start on it.
+  The open audits (rappel, fence, vault, duct, split jump, crouched wrist) stay in POLISH.md for those slices.

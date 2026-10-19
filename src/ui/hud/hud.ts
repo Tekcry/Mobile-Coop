@@ -374,6 +374,23 @@ export class Hud {
     while (this.feed.children.length > 5) this.feed.firstChild?.remove();
   }
 
+  /** (CT prototype B8) The downed player's revive countdown (null hides it). Test hook: `.hud-down-timer`. */
+  private downEl: HTMLElement | null = null;
+  setDownTimer(text: string | null): void {
+    if (!text) {
+      if (this.downEl) this.downEl.style.display = 'none';
+      return;
+    }
+    if (!this.downEl) {
+      this.downEl = h('div', { class: 'hud-down-timer' });
+      this.downEl.style.cssText =
+        'position:absolute;left:50%;top:62%;transform:translateX(-50%);padding:6px 14px;background:rgba(0,0,0,.6);color:#ffb0a0;font:600 18px/1.2 sans-serif;letter-spacing:.06em;border-radius:4px;pointer-events:none;';
+      this.el.appendChild(this.downEl);
+    }
+    this.downEl.style.display = '';
+    if (this.downEl.textContent !== text) this.downEl.textContent = text;
+  }
+
   dispose(): void {
     this.el.remove();
     this.world.dispose();

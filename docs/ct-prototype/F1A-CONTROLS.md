@@ -2,7 +2,7 @@
 
 Branch `feature/ct-prototype`, nothing committed. Prototype only (G4): every number is a starting value (G10). Michael's
 picks: playtest 1 (cam-2, cam-3, cam-5, cam-6, pad-1, pad-2, gog-1 vision flip rule), "Yes, CT scheme", draw "About half",
-D-pad up / down speed, G179 selection wheel. Protocol stays 16 (no wire change).
+D-pad up / down speed, G181 selection wheel. Protocol stays 16 (no wire change).
 
 ## Final pad table (Xbox names)
 
@@ -58,7 +58,7 @@ D-pad up / down speed, G179 selection wheel. Protocol stays 16 (no wire change).
    `selected` on / off; `select()` (the wheel) switches live goggles to another mode with `change = 'switch'`
    (gog-1: the goggle flip belongs to `on` / `off` only). **Stub:** the flip visual itself is not rebuilt here (A5 made every
    change an instant cut; `VisionState.change` tells the future animation which kind of change it is).
-5. **Selection wheel (G179).** Pure logic `src/game/selectionWheel.ts` (ring build, `segmentAt`, vision stack by cursor
+5. **Selection wheel (G181).** Pure logic `src/game/selectionWheel.ts` (ring build, `segmentAt`, vision stack by cursor
    length, `SelectionWheel` cursor / pick, labels); open / close / picks in `GadgetSystem` (`sel`, `ring`, `applyPick`, no
    time slow, the left stick still walks, LB / Tab tap = next weapon via `inp.tap('swapNext')`); DOM in
    `src/ui/hud/gadgetWheel.ts` (the old gadget wheel class rewritten, the remote-feed overlay kept) with styles in

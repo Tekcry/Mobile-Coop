@@ -9,7 +9,7 @@ A fully functional 2-player co-op training level, playable end to end, as soon a
   existing weapon carry stands in until they merge, do not wait for them).
 - All co-op moves and the required CT moves; lights and shadows working (light parity).
 - Pure CT (G1, `docs/ct-research`, G124-G160) except Michael's recorded decisions, including the Blacklist-style
-  selection wheel for weapons, gadgets and vision modes, no time slow (G179).
+  selection wheel for weapons, gadgets and vision modes, no time slow (G181).
 - A visual pass comes last, to make it prettier.
 
 No refining (feel tuning, animation polish, perf tuning, detail art) until Michael has playtested the core loop.
@@ -37,9 +37,23 @@ load is load first), the full e2e at the PR. The Opus leg fix only if it breaks 
 - Step 0 code review: done (`REVIEW.md`); Michael's picks in `DECISIONS.md`.
 - A2.1 (cleanup + camera rewrite) built and committed (`A2-CAMERA.md`). STOPPED for Michael to play the camera.
 - A1.1 turn follow and A3 wall, doors, pad built (`A1-TURN.md`, `A3-WALL-DOORS.md`), on /ct/, awaiting Michael's play. Next: A4 strike and grab; A5 goggles;
-  then phase 2, the co-op training bunker B0-B8 (`FEEL-PLAN.md`, G177). One stop per slice while Michael is awake;
+  then phase 2, the co-op training bunker B0-B8 (`FEEL-PLAN.md`, G179). One stop per slice while Michael is awake;
   overnight runs only when he says. Every slice also pushed to `ct-movement` (`/ct/`).
 - Playtest checklist (Michael's verdicts and notes, saved in its db collection `notes`, read with ArtifactData list): https://claude.ai/artifact/RA6bgQpeq1xALCXLviRLNp . Movement A1-A5 built once (prototype pass) and feature/menu merged (7078807), all on /ct/. Phase 2: B0 survey done (`B0-BUNKER-SURVEY.md`), Michael picked a fresh compact level; B1 spec and greybox built (`B1-CTCOURSE.md`), on /ct/, awaiting Michael's walk test; next B2 leg-up and CT relay. Open: strike button RT vs LT (Michael to say what CT used).
 - Wren: feature/operators has no PR yet; posture waits.
 - Open from M1 (see `M1.md`, "Open for the core feel job"): rerun e2e-netmove, e2e-pad, e2e-mouse alone; frozen stance
   not on the wire; Settings "Sprint hold / toggle" row (menu job), stale `.tac-gear` CSS, unused `sprintHold`.
+
+## Merge order to master (Michael via the main session, 2026-10-19)
+Weapons (#7) and Wren (#5) are on master; the menu PR (feature/menu, hero menu slice 6, dialog fixes) merges next.
+After Michael's 10:00 walkthrough: merge origin/master into feature/ct-prototype (expect overlaps in characterRig.ts,
+animGraph.ts PISTOL_REACH / READY_HANDS, src/weapons/*, remoteAvatar.ts; menu touches menuScene.ts, babylon.ts,
+styles.css, settingsScreen.ts, postStack.ts), run checks, then open the PR to master for Michael. Protocol 22 stands.
+feature/anim-cleanup merges master once after that.
+
+## Now (2026-10-19 08:40)
+- /ct/ (ct-movement) holds a169dc45 for Michael's 10:00 walkthrough (`WALKTHROUGH.md`); e2e-ctcourse passed end to
+  end. Do NOT push ct-movement from 09:30 until Michael says otherwise.
+- All 8 course stations have their real co-op moves; movement pass A1-A5, posture P1-P1c, fixes F1a / F1b done.
+- Running: T1 stale e2e assertion clean-up (branch only).
+- Next after the walkthrough: Michael's notes, then merge origin/master (weapons #7, menu PR) and open the PR.

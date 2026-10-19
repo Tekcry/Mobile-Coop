@@ -289,7 +289,7 @@ try {
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);
-  // F1a controls (CT pad, G179): D-pad up / down the max-speed rocker, LB held opens the selection wheel (a tap switches
+  // F1a controls (CT pad, G181): D-pad up / down the max-speed rocker, LB held opens the selection wheel (a tap switches
   // weapon), D-pad left toggles the vision mode picked on the wheel
   const G = (f) => page.evaluate(f);
   const gear0 = await G(() => window.__app.current.player.controller.maxGear);

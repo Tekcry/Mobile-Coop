@@ -935,7 +935,8 @@ export class TeamController {
     else if (this.state === 'relayHold') this.end(false);
   }
 
-  private partnerPos(): Vector3 | null {
+  /** The partner's feet (its avatar), null when it is gone. (B8: the rope line reads it.) */
+  partnerPos(): Vector3 | null {
     for (const m of this.mates()) if (m.id === this.partner) return m.pos;
     return null;
   }

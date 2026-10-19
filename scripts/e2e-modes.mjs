@@ -63,9 +63,9 @@ await run('autostart=warehouse&mode=mission', async ({ page, G, sim }) => {
   }
   await go('cache');
   await sim(0.4);
-  await press(page, BTN.Y);
+  await press(page, BTN.A);
   await sim(0.3);
-  assert(await G(() => window.__app.current.interactables.items.find((i) => i.id === 'cache').done), 'Y grabs the intel');
+  assert(await G(() => window.__app.current.interactables.items.find((i) => i.id === 'cache').done), 'A grabs the intel (Y is jump)');
   const obj = await G(() => document.querySelector('.hud-objective')?.textContent);
   assert(/extraction/i.test(obj), `objective advances to extraction ("${obj}")`);
   await G(() => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'extract'); g.player.controller.teleport(it.pos.clone(), 0); });

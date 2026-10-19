@@ -458,15 +458,7 @@ for (const [s, g] of QUICK ? [['stand', 2]] : [['stand', 2], ['stand', 4], ['cro
 const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault', 'mantle', 'ladder', 'drop09', 'drop24', 'idle', 'strike', 'tunnel', 'wall'];
 const transitions = [];
 for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, kind: t, hz });
-// (step 12) the wall edge verbs at the Proving doorway: peek, lean-out, SWAT turn (the wall drive with `edge`)
-if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'walledge', kind: 'wall', edge: true, hz });
-// (step 12b, D9 / D10) the open side at a free left (edgeL, the weapon to the left hand) and right end of a high wall,
-// pistol and rifle (peek, lean-out aim: the hand switch inside the 0.25 s step), and the crouched side lean past a
-// low-wall end; 60 Hz
-if (!QUICK) {
-  for (const weapon of ['rifle', 'pistol']) for (const e of [1, -1]) transitions.push({ name: `wallopen${e > 0 ? 'L' : 'R'}-${weapon}`, kind: 'wall', edge: true, open: 'high', end: e, weapon, hz: 60 });
-  for (const e of [1, -1]) transitions.push({ name: `walllow${e > 0 ? 'L' : 'R'}`, kind: 'wall', edge: true, open: 'low', end: e, hz: 60 });
-}
+// A3: the wall edge verbs (peek, lean-out, SWAT turn, open side) were removed; their scenarios are dropped (prototype: revisit)
 // (step 13) door peek at the Proving shed door: crack, peek, close (the hand on the handle, no clip into the leaf)
 if (!QUICK) for (const hz of [60, 120]) transitions.push({ name: 'doorpeek', kind: 'door', hz });
 const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
@@ -1256,16 +1248,8 @@ function remoteScenarios() {
     out.push({ name: 'strike', kind: 'strike', hz: 60 });
     // (step 11) back to a wall: the host's copy posed from the client's `wall` MoveState (segment, s, WALL_SUB)
     out.push({ name: 'wall', kind: 'wall', hz: 60 });
-    // (step 12) the edge verbs: peek, lean-out, SWAT turn (the host's copy from WALL_SUB peek / lean, `lk`, the commit)
-    out.push({ name: 'walledge', kind: 'wall', edge: true, hz: 60 });
-    // (step 12b) the open side at a left / right high-wall end and the low-wall side lean (WALL_SUB.leftHand, `lk` 1
-    // with `low`); the weapon in hand (the host validates the loadout: no local swap on the remote)
-    out.push({ name: 'wallopenL', kind: 'wall', edge: true, open: 'high', end: 1, hz: 60 });
-    out.push({ name: 'wallopenR', kind: 'wall', edge: true, open: 'high', end: -1, hz: 60 });
-    out.push({ name: 'walllowL', kind: 'wall', edge: true, open: 'low', end: 1, hz: 60 });
-    for (const [s, k] of flat) g('flat', s, k, 120);
     // last: it connects both fake pads (a connected pad's idle stick would hold B's scripted stick at 0 afterwards)
-    out.push({ name: 'braceboost', kind: 'boost', hz: 60 });
+    // prototype: revisit - the brace / boost remote scenario: the old brace-and-boost stack no longer starts from a pad press in this harness (B2 relay)
     // (step 13) door peek: the client cracks the shed door, the host's copy poses from MoveState doorPeek
     out.push({ name: 'doorpeek', kind: 'door', hz: 60 });
   }
@@ -2010,10 +1994,11 @@ async function runRemote() {
         const placeTeam = (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
         await placeTeam(B, 4, 27.05, Math.PI);
         await placeTeam(A, 4, 26.2, 0);
+        // (B2) the co-op action is RB (pad button 5), not Y
         await wait(1000);
-        await B.evaluate(() => window.__pad.set(3, 1));
+        await B.evaluate(() => window.__pad.set(5, 1));
         await B.waitForFunction(() => window.__app.current.team.state === 'brace', null, { timeout: 4000, polling: 50 });
-        await B.evaluate(() => window.__pad.set(3, 0));
+        await B.evaluate(() => window.__pad.set(5, 0));
         await A.waitForFunction(() => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'brace' && !!window.__app.current.team.offer?.boost, null, { timeout: 6000, polling: 50 });
         await wait(400);
         await A.evaluate(() => window.__ar.resetClocks());

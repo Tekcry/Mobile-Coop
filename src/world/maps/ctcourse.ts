@@ -101,7 +101,7 @@ export const PANEL_TEXT: readonly string[] = [
   'Annex: boost up, relay your partner, press both roof plates. Then crouch at the hatch facing it and press Co-op: lower your partner to hack the panel',
   'Scanners: one each. Press A at your scanner and stay; both hacks must finish within 1.5 s. Start together when both ready lights are green',
   'High wall: leg-up one; on top, stand facing back down and press Co-op to drop a rope; your partner climbs it',
-  'Last wall: one holds the lift, then both into the lit zone',
+  'Last wall: through the doorway, then both of you into the lit zone to finish',
 ];
 
 function courseDef(): CourseDef {
@@ -130,6 +130,9 @@ function courseDef(): CourseDef {
           { kind: 'pair', id: 'g-s5', a: 'sw-s5-a', b: 'sw-s5-b', doorId: 'S5-door' },
           { kind: 'lever', id: 'g-s5-grid', switchId: 'sw-s5-hack', doorId: 'S5-grid' },
         ];
+      case 8:
+        // B8: the final beat: an open doorway in the last wall, then both players into the lit exit zone (G138)
+        return [];
       default:
         return [{ kind: 'timedHold', id: `g-s${n}`, holdId: `h-s${n}`, doorId: `S${n}-door` }];
     }
@@ -228,6 +231,12 @@ export const ctcourse: MapDef = {
         // B7: the 4.4 m wall, 1 m thick (a top to stand on and hold the rope), full width, no door
         b.wallZ(x0 + CT_OBST, 0, CT_W, [], OBST_H[7]!, WALL, 1.0);
         mark(b, x0 + CT_OBST - 1.6, MID);
+      } else if (n === 8) {
+        // B8: the last wall keeps its doorway open (no door, no console): the end is both players in the exit zone
+        const h = OBST_H[8]!;
+        b.wallZ(x0 + CT_OBST, 0, CT_W, [[DOOR_Z0, DOOR_Z0 + DOOR_W]], h, WALL, 0.3);
+        b.box(x0 + CT_OBST, (2.1 + h) / 2, DOOR_Z0 + DOOR_W / 2, 0.3, h - 2.1, DOOR_W, WALL);
+        mark(b, x0 + CT_OBST + 1.6, MID);
       } else if (n >= 2) {
         const h = OBST_H[n]!;
         // station 2 is a 1 m thick wall (a top deep enough to climb onto, LEDGE.climbDepth); the rest keep the thin one
@@ -299,9 +308,7 @@ export const ctcourse: MapDef = {
       b.box(x0 + CT_OBST + 0.5 + k - 0.5, h / 2, S7_STAIR_Z, 1.0, h, 1.2, CONC);
     }
 
-    // 8 Final wall and the lit exit zone
-    x0 = bayX(7);
-    devices['h-s8'] = dev(x0 + 5, 0.4, SOUTH, 'Hold lift (placeholder: final throw, B4)');
+    // 8 The lit exit zone (B8: the wall keeps an open doorway, built with the walls above)
     mark(b, (CT_EXIT_ZONE.box[0] + CT_EXIT_ZONE.box[2]) / 2, MID, CT_EXIT_ZONE.box[2] - CT_EXIT_ZONE.box[0], CT_EXIT_ZONE.box[3] - CT_EXIT_ZONE.box[1], '#2f8f5a');
 
     const navSeeds = Array.from({ length: 8 }, (_, i) => new Vector3(bayX(i) + 3, 0, MID));
@@ -314,7 +321,7 @@ export const ctcourse: MapDef = {
       props: [],
       objectives: [],
       pickups: [],
-      // wall medkit stations (G178): the annex (north wall, station 5) and before the last wall
+      // wall medkit stations (G180): the annex (north wall, station 5) and before the last wall
       medkitWalls: [
         { pos: new Vector3(bayX(4) + 15, 0, CT_W - 0.4), yaw: NORTH },
         { pos: new Vector3(bayX(7) + 2, 0, CT_W - 0.4), yaw: NORTH },

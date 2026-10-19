@@ -82,7 +82,7 @@ try {
       const open = g.gadgets.wheelOpen;
       const slow = a.loop.timeScale;
       const shown = document.querySelector('.selection-wheel:not([hidden])') !== null;
-      // (F1a, G179) the cursor on the flashbang segment (the right stick / mouse moves it); the left stick still walks, no time slow
+      // (F1a, G181) the cursor on the flashbang segment (the right stick / mouse moves it); the left stick still walks, no time slow
       const ring = g.gadgets.ring;
       const idx = ring.findIndex((s) => s.kind === 'gadget' && s.id === 'flash');
       const ang = (idx / ring.length) * Math.PI * 2;

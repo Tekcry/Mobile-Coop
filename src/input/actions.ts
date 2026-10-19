@@ -30,7 +30,7 @@ export const BUTTON_ACTIONS = [
   'gadgetWheel',
   'shoulderSwap',
   'dash',
-  /** Goggles (F1a, G179): toggle the vision mode selected on the wheel, on / off (never between modes). */
+  /** Goggles (F1a, G181): toggle the vision mode selected on the wheel, on / off (never between modes). */
   'vision',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',

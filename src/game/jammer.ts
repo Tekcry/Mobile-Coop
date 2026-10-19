@@ -179,3 +179,15 @@ export function nextAlarm(stage: number): number {
 export function inBox(box: readonly [number, number, number, number], x: number, z: number): boolean {
   return x >= Math.min(box[0], box[2]) && x <= Math.max(box[0], box[2]) && z >= Math.min(box[1], box[3]) && z <= Math.max(box[1], box[3]);
 }
+
+/**
+ * (B8, B3 polish 1) Re-arm the pass zones whose flag the course cleared (a bay restart deletes the bay's flags): a zone
+ * marked set while its flag is gone can set it again. No allocation (`has` is the course's flag test).
+ */
+export function rearmZones(set: Set<string>, zones: readonly { id: string; flag: string }[], has: (flag: string) => boolean): void {
+  if (set.size === 0) return;
+  for (let i = 0; i < zones.length; i++) {
+    const z = zones[i]!;
+    if (set.has(z.id) && !has(z.flag)) set.delete(z.id);
+  }
+}

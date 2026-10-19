@@ -61,3 +61,6 @@ Michael's words during the run (chat, 2026-10-19):
 - "I would consider these things game breaking, and would prefer to spend a little time cleaning them up so it's more
   believable. Holding weapons and holstering should at least look believable but only prototype quick run".
 
+- **Merged on Michael's word (2026-10-19).** Michael: "Approval to merge", then "Confirming you can merge pr7" (his
+  standing rule is that he merges; this is his explicit exception, as for PR #5). Merged as a merge commit, like PR #5.
+  His answers moved into docs/DECISIONS.md as G177 (holds) and G178 (carry).

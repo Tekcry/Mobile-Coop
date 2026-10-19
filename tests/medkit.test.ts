@@ -17,7 +17,7 @@ describe('wall medkit stations (G20 / G98)', () => {
   });
 });
 
-describe('wall medkits by difficulty (G178)', () => {
+describe('wall medkits by difficulty (G180)', () => {
   it('full on Normal, 50% on Hard, less on Expert', () => {
     expect(stationHeal(10, 100, true, 'normal')).toBe(100);
     expect(stationHeal(10, 100, true, 'realistic')).toBe(60);

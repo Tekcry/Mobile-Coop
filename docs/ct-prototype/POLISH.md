@@ -24,7 +24,7 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
 - Thermal thresholds tuned on the GPU (A5).
 
 ## Doors and wall
-- Lock picking (CT had it, G178; no code yet).
+- Lock picking (CT had it, G180; no code yet).
 - Optic cable (stub).
 
 ## Tests and tools
@@ -66,3 +66,6 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
   the lost-holder timeout (walkthrough: known issue, B / restart frees); narrow hatch probe.
 - B6 check polish (B6-CHECK.md, PASS): a `?? 100` hp fallback skips the floor; the first finisher pays 10 HP if the
   partner never starts (by design, walkthrough note); a damageMul above 1 would break the 1 HP floor.
+- B7 check polish (B7-CHECK.md, PASS): stale teamPairs entry after a lost-holder slide; hangPoint runs about 9 rays
+  every idle frame for a standing player with a mate within 12 m (perf); a rope offer replaces the throw at any
+  2.2-6 m edge; the climber clips the wall corner on top-out.

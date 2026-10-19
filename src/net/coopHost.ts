@@ -29,6 +29,8 @@ import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMove
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
 import { stationHeal } from '../game/medkit';
+import { ReviveClock } from '../game/reviveClock';
+import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
@@ -124,6 +126,11 @@ export class CoopHost implements NetAttachment {
   /** Free roam: respawn timers. */
   private respawnIn = new Map<string, number>();
   private reviveTime: number;
+  /** (B8, G126) 30 s revive window, 2 revives per mission; past either the player is out until the checkpoint. */
+  readonly reviveClock = new ReviveClock();
+  private readonly expired: string[] = [];
+  /** Whole seconds last written into each revive label (the label carries the countdown to every page). */
+  private reviveSec = new Map<string, number>();
 
   constructor(
     private g: GameState,
@@ -310,19 +317,52 @@ export class CoopHost implements NetAttachment {
       this.respawnIn.set(r.id, 3); // free roam
       return;
     }
-    if (this.anyoneUp(r.id) && this.g.interactables) this.addRevive(r.id, r.feet, r.avatar.info.name);
-    else this.g.mode.onPlayerDeath();
+    if (this.anyoneUp(r.id) && this.g.interactables) {
+      if (this.reviveClock.down(r.id)) this.addRevive(r.id, r.feet, r.avatar.info.name);
+      else this.goOut(r.id);
+    } else this.g.mode.onPlayerDeath();
+  }
+
+  /**
+   * (B8, G126) `id` cannot be revived (window over or no revives left): out until the next checkpoint. In the course
+   * the next checkpoint is the bay restart (the airlock needs both players), so the bay restarts.
+   */
+  private goOut(id: string): void {
+    this.dropRevive(id);
+    this.reviveClock.clear(id);
+    const nm = id === this.s.selfId ? this.name(id) : (this.remotes.get(id)?.avatar.info.name ?? 'Operator');
+    this.g.hud.feedItem(`${nm} is out until the checkpoint`, 'warn');
+    if (id === this.s.selfId) this.g.hud.setDownTimer('OUT - wait for the checkpoint');
+    if (this.g.mode?.id === 'course') this.g.mode.onPlayerDeath();
+  }
+
+  /** (B8) A partner's revive in the course counts on the results (team and the reviver). */
+  private courseRecordRevive(by: string | undefined): void {
+    if (this.g.mode?.id !== 'course') return;
+    const p = !by || by === 'local' || by === this.s.selfId ? 0 : 1;
+    (this.g.mode as CourseMode).state?.record('revives', 1, p);
   }
 
   /** A revive point on a downed player (held by a team-mate). */
   private addRevive(id: string, at: Vector3, name: string): void {
     const ints = this.g.interactables;
     if (!ints || this.revives.has(id)) return;
-    const it = ints.add(`revive-${id}`, 'revive', at, `Revive ${name}`, this.reviveTime);
+    const sec = Math.ceil(this.reviveClock.remaining(id));
+    const it = ints.add(`revive-${id}`, 'revive', at, sec > 0 ? `Revive ${name} (${sec})` : `Revive ${name}`, this.reviveTime);
     it.reach = 1.6;
     ints.setEnabled(it, true);
-    it.onUse = () => this.reviveOne(id, null);
+    it.onUse = (_it, by) => {
+      // (B8) a partner's revive counts against the mission cap; with none left the player is out
+      if (!this.reviveClock.revive(id)) {
+        this.goOut(id);
+        return;
+      }
+      this.courseRecordRevive(by);
+      this.reviveOne(id, null);
+    };
     this.revives.set(id, it);
+    this.reviveSec.set(id, sec);
+    if (id === this.s.selfId && sec > 0) this.g.hud.setDownTimer(`DOWN - revive in ${sec} s`);
   }
 
   private dropRevive(id: string): void {
@@ -330,12 +370,15 @@ export class CoopHost implements NetAttachment {
     if (!it) return;
     this.g.interactables?.remove(it);
     this.revives.delete(id);
+    this.reviveSec.delete(id);
   }
 
   /** Bring `id` back where it lies (or at `at`). */
   private reviveOne(id: string, at: Vector3 | null): void {
     this.dropRevive(id);
+    this.reviveClock.clear(id);
     if (id === this.s.selfId) {
+      this.g.hud.setDownTimer(null);
       if (this.g.player.alive) return;
       if (at) this.g.player.controller.teleport(at, this.g.player.cam.yaw);
       this.g.target.revive();
@@ -974,6 +1017,7 @@ export class CoopHost implements NetAttachment {
       if (at) it.pos.copyFrom(at);
       if (id === this.s.selfId ? this.g.player.alive : !r || r.alive) this.dropRevive(id);
     }
+    this.stepReviveClock(dt);
     for (const r of this.remotes.values()) r.ref.shield = null;
     for (const [eid, s] of this.seized) {
       s.t += dt;
@@ -1027,6 +1071,22 @@ export class CoopHost implements NetAttachment {
     }
   }
 
+  /** (B8) The revive windows: countdown labels (whole seconds), the host's own HUD timer, the out rule. */
+  private stepReviveClock(dt: number): void {
+    const ex = this.expired;
+    ex.length = 0;
+    this.reviveClock.step(dt, ex);
+    for (let i = 0; i < ex.length; i++) this.goOut(ex[i]!);
+    for (const [id, it] of this.revives) {
+      const sec = Math.ceil(this.reviveClock.remaining(id));
+      if (sec <= 0 || this.reviveSec.get(id) === sec) continue;
+      this.reviveSec.set(id, sec);
+      const nm = id === this.s.selfId ? this.name(id) : (this.remotes.get(id)?.avatar.info.name ?? 'Operator');
+      it.label = `Revive ${nm} (${sec})`;
+      if (id === this.s.selfId) this.g.hud.setDownTimer(`DOWN - revive in ${sec} s`);
+    }
+  }
+
   private readonly posedHeadTmp = new Vector3();
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
@@ -1067,6 +1127,12 @@ export class CoopHost implements NetAttachment {
     if (!g.mode) return false;
     // co-op: someone can still come and get you
     if (this.anyoneUp(this.s.selfId) && g.interactables) {
+      if (!this.reviveClock.down(this.s.selfId)) {
+        // (B8) no revives left: out until the checkpoint
+        g.hud.banner('DOWN', 'No revives left', 3000);
+        this.goOut(this.s.selfId);
+        return true;
+      }
       g.hud.banner('DOWN', 'A team-mate can revive you', 3000);
       this.addRevive(this.s.selfId, g.player.position, this.name(this.s.selfId));
       return true;
@@ -1076,6 +1142,8 @@ export class CoopHost implements NetAttachment {
 
   /** The host respawned at a checkpoint (co-op): everyone down comes back beside it. */
   onRespawn(at: Vector3): void {
+    this.reviveClock.checkpoint();
+    this.g.hud.setDownTimer(null);
     let i = 1;
     for (const r of this.remotes.values()) {
       if (r.alive) continue;
