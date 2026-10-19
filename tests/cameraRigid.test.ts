@@ -82,3 +82,33 @@ describe('rigid camera follow (A2.1)', () => {
     expect(done).toBeLessThan(0.6);
   });
 });
+
+describe('shoulder carry (playtest 2)', () => {
+  it('the wall side becomes the shoulder and stays after leaving the wall', async () => {
+    const { cam, feet } = await rig();
+    const dt = 1 / 60;
+    expect(cam.shoulder).toBe(1);
+    cam.attach = 'wall';
+    cam.wallSide = -1;
+    for (let i = 0; i < 30; i++) cam.update(dt, feet, 0);
+    cam.attach = null;
+    cam.wallSide = 0;
+    for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
+    expect(cam.shoulder).toBe(-1);
+    cam.adsTarget = 1;
+    for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
+    expect(cam.shoulder).toBe(-1);
+  });
+  it('a swap while aiming carries back to the follow camera', async () => {
+    const { cam, feet } = await rig();
+    const dt = 1 / 60;
+    cam.adsTarget = 1;
+    for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
+    cam.swapShoulder();
+    cam.adsTarget = 0;
+    for (let i = 0; i < 60; i++) cam.update(dt, feet, 0);
+    const right = Math.cos(cam.yaw) * (cam.camera.position.x - feet.x) - Math.sin(cam.yaw) * (cam.camera.position.z - feet.z);
+    expect(cam.shoulder).toBe(-1);
+    expect(right).toBeLessThan(0);
+  });
+});

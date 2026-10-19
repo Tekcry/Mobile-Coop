@@ -3,6 +3,8 @@ import type { App } from '../core/app';
 import { Vector3 } from '../core/babylon';
 import { awareness } from './score/game/adapter';
 import { gaitOf, type FoleyMove } from './foley/steps';
+import { noiseRadius, stepVolume } from '../player/movement';
+import { SURFACE_NOISE } from '../world/surfaces';
 import { CLASS_GUN, GUARD_GUN } from './weapons/guns';
 
 const FOLEY_MOVES: readonly string[] = ['vault', 'mantle', 'hop', 'drop', 'roll'] satisfies FoleyMove[];
@@ -137,9 +139,11 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
       plantsSeen = p.footPlants;
       if (p.alive && quietT <= 0 && (!cm || cm.kind === 'step')) {
         const crouch = c.crouched || c.steps === 'crouched';
-        // cover glides are 'silent' to guards: barely there; shuffles on the spot are soft
-        const scale = (c.steps === 'silent' ? 0.4 : 1) * (c.speed < 0.3 ? 0.5 : 1);
-        if (!fo.step(g.surface, gaitOf(c.speed, crouch, false), c.speed, p.footPlantSide, scale)) sfx.footstep(crouch ? 0.5 : scale, 0, g.surface);
+        // (playtest 2, G61) the volume follows the noise guards hear (the meter's radius): silent bands and cover glides
+        // are very soft, a run the loudest; shuffles on the spot are softer still
+        const radius = c.steps === 'silent' ? 0 : noiseRadius(c.speed, crouch) * SURFACE_NOISE[g.surface] * g.suit.noise;
+        const scale = stepVolume(radius) * (c.speed < 0.3 ? 0.5 : 1);
+        if (!fo.step(g.surface, gaitOf(c.speed, crouch, false), c.speed, p.footPlantSide, scale)) sfx.footstep(scale, 0, g.surface);
       }
     }
   };

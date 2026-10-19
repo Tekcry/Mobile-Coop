@@ -69,7 +69,7 @@ const EDGE_HARNESS = () => {
   const s = segs[d.i];
   const k = d.end > 0 ? d.len - 0.8 : 0.8;
   const yaw = Math.atan2(-s.nx, -s.nz);
-  g.player.controller.teleport(new V(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
+  g.player.controller.teleport(new V(s.ax + s.tx * k + s.nx * 0.75, s.y + 0.05, s.az + s.tz * k + s.nz * 0.75), yaw);
   g.player.cam.yaw = yaw;
   g.player.cam.pitch = 0;
   a.loop.stepHeadless(0.3, 120);
@@ -106,7 +106,7 @@ const CORNER_SETUP = () => {
     if (g.wallCore.active) g.wallCore.leave('test');
     step(20);
     g.player.controller.clearCrouchToggle();
-    g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+    g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.75, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.75), yaw);
     g.player.cam.yaw = yaw;
     g.player.cam.pitch = 0;
     step(18);
@@ -124,7 +124,8 @@ const CORNER_SETUP = () => {
     const z = s.bz + s.tz * 0.7 - s.nz * 0.45;
     const e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(s.tx, s.tz));
     step(2);
-    if (!g.takedown.offer || g.takedown.offer.e !== e) {
+    // (playtest 2) a spawn the level moved off the spot is not round this corner: next face
+    if (Math.hypot(e.pos.x - x, e.pos.z - z) > 0.5 || !g.takedown.offer || g.takedown.offer.e !== e) {
       g.enemyMgr.clear();
       continue;
     }
@@ -155,7 +156,7 @@ const WALL_HARNESS = () => {
   }
   const s = segs[seg];
   const yaw = Math.atan2(-s.nx, -s.nz);
-  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.85, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.85), yaw);
+  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.75, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.75), yaw);
   g.player.cam.yaw = yaw;
   g.player.cam.pitch = 0;
   a.loop.stepHeadless(0.3, 120);
@@ -684,11 +685,11 @@ try {
       });
       console.log(JSON.stringify(r));
       assert(r.max5 === 5, `D-pad up sets the maximum gear, capped at 5 (${r.max5})`);
-      assert(r.a50.g === 3 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> speeds 3 / 4 / 5 (CT M1) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
-      // (CT prototype M1) speeds 3 / 4 / 5 = 2.0 / 3.0 / 4.2 m/s
-      assert(Math.abs(r.a50.v - 2.0) < 0.15 && Math.abs(r.a80.v - 3.0) < 0.2 && Math.abs(r.a100.v - 4.2) < 0.25, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
+      assert(r.a50.g === 2 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> speeds 2 / 4 / 5 (playtest 2: full push from 90%) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
+      // (playtest 2) speeds 2 / 4 / 5 = 1.4 / 3.0 / 4.2 m/s
+      assert(Math.abs(r.a50.v - 1.4) < 0.15 && Math.abs(r.a80.v - 3.0) < 0.2 && Math.abs(r.a100.v - 4.2) < 0.25, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
       assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, still speed 5 (${JSON.stringify(r.sprint)})`);
-      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
+      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.2, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');
       assert(r.r3, 'L3 swaps the shoulder while aiming (X drew), not otherwise');
       assert(r.leftHand, 'the weapon goes to the left hand on the left shoulder');

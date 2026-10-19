@@ -32,7 +32,7 @@ export const CAMERA = {
   /** Shoulder swap while aiming: spring rate (1/s, critically damped: about 0.4 s to settle; measured 0.40 pistol / 0.43 rifle)
    *  and the pull-back at the mid-point (m; measured ~0.85 m behind at mid-swap against 0.4 at rest). */
   swapRate: 13,
-  swapArc: 0.45,
+  swapArc: 0.3,
   /** Stairs only: the vertical follow of the feet is low-passed at this rate (1/s) so steps do not shake the view; XZ is rigid. */
   stairRate: 14,
   /** Lean: the shoulder point follows the leaning upper body (m at full lean). */

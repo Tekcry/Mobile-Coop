@@ -23,6 +23,7 @@ Michael's words quoted verbatim; they move to `docs/DECISIONS.md` as G entries a
 | 2026-10-18 | Wall, doors, pad (review) | "Adjust, new pad (Recommended)": adjust wall and doors; rewrite the pad and key tables to CT's layout | - |
 | 2026-10-18 | Other areas (review) | "Adjust all (Recommended)": body, anim graph, strike and grab, goggles, co-op wire are adjusted | - |
 | 2026-10-18 | First round | "Cleanup + camera (Recommended)": delete auto recentre, aim assist, camera look-ahead; fix the stepAssist allocation; rerun e2e-netmove, e2e-pad, e2e-mouse; then the camera rewrite | - |
+| 2026-10-19 | Walkthrough questions (relayed by the orchestrator, not verbatim) | Wheel "LB hold, keep it"; lethal / non-lethal switch "no, LT / RT is enough"; gun drawn, A reloads "keep it"; scanners "no HP cost when the partner never started; keep the 10 HP for a late or abandoned hack" (a later slice) | - |
 
 ## Assumed
 | A1 | Selection menu on LB hold (weapons, gadgets, vision mode), LB tap switches weapon; vision toggle on D-pad left; D-pad right free (gadget quick use if one is selected); D-pad up / down speed | Undo: move the toggle to D-pad right or the menu to another button in `padBinds.ts` |

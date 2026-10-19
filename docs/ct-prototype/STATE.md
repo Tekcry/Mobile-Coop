@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 11:45 Sydney (before Michael clears the orchestrator conversation).
+Updated 2026-10-19 13:40 Sydney (slice A done and on /ct/).
 
 ## Resume
 New local session, Opus, medium effort:
@@ -18,14 +18,12 @@ Log of every slice: `LOG.md`. Polish list (not worked on until Michael says): `P
   answers questions on its dashboard; it forwards them.
 - **One heavy slot** on the desktop: before any `npm run check`, full vitest, build, e2e or GPU shot, check
   `C:\NightShift\heavy.lock`; if present wait (re-check every few minutes) and do light work; if absent write
-  "CT Core Build | <job> | <time>", run, delete it after. At 11:45 the orchestrator held it (anim-cleanup full e2e on
-  port 4192, expected done about 12:45) and will message when it frees it.
+  "CT Core Build | <job> | <time>", run, delete it after. The orchestrator messages when it holds or frees it.
 - Per slice: implementer (Sonnet medium; Opus for network-sync-heavy or stuck work), independent read-only check,
   at most 1 fix round, `npm run check` and the slice's e2e (one suite at a time, port 4193), commit (all changed paths
   after the off-limits check), push feature/ct-prototype, then `git push origin feature/ct-prototype:ct-movement`
   (/ct/) unless the orchestrator / Michael has frozen /ct/.
-- Do not touch arms / hands / solveArm / wrists / grips / AIM_POCKET / weaponPivot / draw-holster mounts / READY_HANDS
-  until feature/anim-cleanup is in master (Character Build session owns them).
+- anim-cleanup is in master (PR #12): the arm / hand freeze lifts once master is merged here.
 
 ## Where things stand
 - Master has all overnight work: PR #9 merged (2e141075): movement A1-A5, posture P1-P1c, playtest 1 fixes F1a / F1b,
@@ -35,26 +33,19 @@ Log of every slice: `LOG.md`. Polish list (not worked on until Michael says): `P
   (CLAUDE.md "Orchestrator"): merge origin/master into this branch after slice A (docs only).
 - Michael's playtest 2 notes and approved plan: `PLAYTEST-2.md`.
 
-## Slice A (playtest 2) - IN PROGRESS, uncommitted
-A Sonnet implementer was mid-run at 11:45 (an e2e runner on port 4193). Scope (PLAYTEST-2.md, slice A): D-pad up / down
-= walk speed with speed 2 the slowest; ADS sensitivity 0.3 of explore; corner peek inverted; chosen shoulder carried
-into aiming and back to the follow camera; no upward flick on a shoulder swap; back-to-wall snap from about 0.5 m with
-no slide; own footsteps scaled to the noise meter (much quieter); no camera bob.
-Uncommitted files in the working tree at 11:45: scripts/e2e-move.mjs, scripts/e2e-wall.mjs, src/anim/animGraph.ts,
-src/audio/gameAudio.ts, src/config/movement.ts, src/core/settings.ts, src/game/gameState.ts, src/player/movement.ts,
-src/player/speedGears.ts, src/player/wallController.ts, tests/analogGear.test.ts, tests/animAudit.test.ts,
-tests/speedGears.test.ts, tests/wallController.test.ts, new tests/stepVolume.test.ts. No report yet
-(`A-PLAYTEST2.md` not written). If the session ends before the agent hands back: keep these edits, read the diff,
-finish what is missing from the scope list (peek inversion, shoulder carry and swap flick live in
-shoulderCamera.ts / camera config and were not yet touched at 11:45), write `A-PLAYTEST2.md`, wait for the heavy slot,
-run `npm run check` and e2e smoke, move, wall, pad, foley one at a time, independent check, commit, push branch and /ct/
-(if not frozen), then message the orchestrator.
+## Slice A (playtest 2) - DONE 2026-10-19 (report `A-PLAYTEST2.md`)
+Committed and pushed to the branch and /ct/. Check green, smoke / move / wall / pad / foley pass. The walking bob is NOT
+fixed (rig `pelvisDrop`, leg geometry): it moves to B+C. e2e-ctcourse passes stations 1-6 on this branch (the station 2
+legUp hang the orchestrator saw on master bd59f32 does not happen here) and then hits the 600 s suite cap at station 7:
+rerun with `E2E_SUITE_TIMEOUT=900` after the master merge; if station 2 hangs after the merge, it came from master
+(anim-cleanup or phone-launch) and gets its own slice.
 
 ## Next
-1. Finish slice A (above), push, report to the orchestrator.
-2. Merge origin/master (PR #10, docs) into the branch.
-3. When the orchestrator says feature/anim-cleanup is in master: merge origin/master (expect overlaps in characterRig.ts,
-   animGraph.ts, src/weapons/*, remoteAvatar.ts), then slices **B+C**: ADS against the CT footage (aim view unchanged
+1. Merge origin/master (anim-cleanup PR #12 b08cc176, phone-launch PR #13, PR #10 docs; expect overlaps in
+   characterRig.ts, animGraph.ts (slice A's `sightPos` swap fix vs anim-cleanup's shoulder swap), src/weapons/*,
+   remoteAvatar.ts). Then check, e2e-ctcourse (900 s cap), e2e-netmove (holster budget 550 ms from master).
+2. Scanner rule (Michael): no HP cost when the partner never started; 10 HP stays for a late or abandoned hack.
+3. Slices **B+C** (the arm / hand freeze ends with anim-cleanup in master), with the walking bob from slice A: ADS against the CT footage (aim view unchanged
    when crouched for every weapon; upper body tight, not wrist-only tilting; arms less outstretched; natural pistol
    aim); legs in line with the body walking, running and turning; crouch hands and legs from the CT references.
 4. Then **D+E** (re-check against anim-cleanup first; Michael played without it): rifle and pistol holstering; hanging
@@ -62,11 +53,12 @@ run `npm run check` and e2e smoke, move, wall, pad, foley one at a time, indepen
    the knees, not floating.
 5. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
 
-## Open questions for Michael (sent to the orchestrator's dashboard)
-1. Selection wheel button: LB hold (now) or a D-pad hold as in his screenshot?
-2. A lethal / non-lethal centre switch on the wheel (not built; LT knockout / RT lethal covers it)?
-3. With a gun drawn A reloads, so doors and the grab menu need a holster first: keep (CT) or interact on A always?
-4. Scanners: the finisher pays 10 HP if the partner never starts: keep or no cost?
+## Answered (Michael via the orchestrator, 2026-10-19; DECISIONS.md)
+Wheel stays LB hold; no lethal / non-lethal switch; gun drawn, A reloads (kept); scanners: no HP cost when the partner
+never started, 10 HP stays for a late or abandoned hack. **To do in a later slice** (light code plus tests: station 6
+in the ctcourse scanner logic).
+- e2e-netmove's holster budget (400 ms) is stale against HOLSTER_TIME 0.55; the fix comes with the master merge
+  (feature/anim-cleanup). Expect that failure until then.
 
 ## Known issues worth remembering
 - T1 possible bugs: ledge-grab / ledge "Hang" / rappel world prompts read empty; keyboard Space then hold E does not

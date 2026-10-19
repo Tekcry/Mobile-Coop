@@ -250,7 +250,9 @@ export class ShoulderCamera {
     }
     // shoulder side: only the aim's swap changes it (G17); on a wall it follows the open side at the slower wall rate
     this.wallSideT = this.attach === 'wall' ? 0.8 : Math.max(0, this.wallSideT - dt);
-    const side = this.sSide.step(this.attach === 'wall' && this.wallSide !== 0 ? this.wallSide : this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : T.swapRate, dt);
+    // (playtest 2) the wall's side becomes the shoulder, so leaving the wall or aiming off it keeps the side in use
+    if (this.attach === 'wall' && this.wallSide !== 0) this.shoulder = this.wallSide > 0 ? 1 : -1;
+    const side = this.sSide.step(this.shoulder, this.wallSideT > 0 ? WALL_CAMERA.side : T.swapRate, dt);
     const leanS = this.sLean.step(this.lean, 8, dt);
     const recover = Math.min(1, dt * 9);
     this.recoilPitch -= this.recoilPitch * recover;

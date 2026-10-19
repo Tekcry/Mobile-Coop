@@ -78,11 +78,11 @@ your walkthrough.
 - A held stick spin can still pop the feet; idle knees slightly bent; head level, not slightly down.
 - 13 older e2e suites carry stale assertions from the control changes (test clean-up T1 before the PR).
 
-## Open questions for you
-1. Selection wheel button: LB hold (now; the D-pad is speed and vision) or a D-pad hold as in your screenshot?
-2. Lethal / non-lethal centre switch on the wheel: not built, since LT knockout / RT lethal covers it. Add it?
-3. With a gun drawn, A reloads: keep (CT), or interact on A always and reload elsewhere?
-4. Scanners: if your partner never starts their hack, the one who finished pays the 10 HP. Keep, or no cost then?
+## Answered questions (Michael, 2026-10-19)
+1. Selection wheel: LB hold, kept.
+2. Lethal / non-lethal switch: not added; LT / RT is enough.
+3. With a gun drawn, A reloads: kept.
+4. Scanners: no HP cost when the partner never started; the 10 HP stays for a late or abandoned hack (a later slice).
 
 ## Polish list
 `POLISH.md`: nothing there is worked on until you have played the core loop.

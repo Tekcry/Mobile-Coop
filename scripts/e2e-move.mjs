@@ -59,8 +59,8 @@ try {
     window.__ff();
   }), s);
   // (CT prototype M1) the five CT speeds
-  const STAND = [0.2, 0.75, 2.0, 3.0, 4.2];
-  const CROUCH = [0.4, 0.85, 1.5, 2.1, 2.6];
+  const STAND = [0.75, 1.4, 2.1, 3.0, 4.2];
+  const CROUCH = [0.85, 1.3, 1.7, 2.15, 2.6];
   for (const crouched of [false, true]) {
     // (locomotion step 17) the rocker sets the maximum gear 1-5 (no sprint, CT prototype M1)
     for (let g = 1; g <= 5; g++) {
@@ -83,7 +83,7 @@ try {
   await setGear(4);
   await settle(0.2);
   const half = await speedAt(0, -0.5);
-  assert(half > 0.6 && half < 0.9, `half stick at gear 4 (CT: snaps to speed 2, 0.75): the stick picks the speed (${half.toFixed(2)} m/s)`);
+  assert(half > 1.2 && half < 1.6, `half stick at gear 4 (snaps to speed 2, 1.4): the stick picks the speed (${half.toFixed(2)} m/s)`);
   await press(page, BTN.B);
   const keptCrouched = await GEAR();
   await press(page, BTN.B);

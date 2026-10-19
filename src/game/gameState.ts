@@ -371,6 +371,8 @@ export class GameState implements AppState {
     this.puppet = opts.net?.role === 'client';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
+    // (playtest 2) the shoulder last used while aiming is the one the next mission starts on (the setting follows it)
+    this.player.onShoulder = (side) => app.settings.update((d) => void (d.gameplay.defaultShoulder = side < 0 ? 'left' : 'right'));
     // (A5, G135) partner beacon: the host / solo player is player 1 (blue), a joiner player 2 (red)
     this.player.rig.setBeacon(this.puppet ? 2 : 1);
     this.vfx = new Vfx(this.scene);
@@ -2139,7 +2141,14 @@ export class GameState implements AppState {
     pose.wallGap = COVER_STANDOFF;
     pose.wallFace = g ? g.nx * g.ax + g.nz * g.az : 0;
     // at an edge the shoulder goes to the open side (the edge at b is the body's left)
-    pl.cam.wallSide = !w.active ? 0 : w.edge !== 0 ? (w.edge > 0 ? -1 : 1) : w.dir < 0 ? 1 : -1;
+    // (playtest 2, peek backwards) the shoulder goes to the side the body is going / peeking, read in the CAMERA's own frame
+    // (the free camera usually looks at the wall, so the body's left is the camera's right: the old body-frame side was inverted)
+    if (!w.active || !g) pl.cam.wallSide = 0;
+    else {
+      const sgn = w.edge !== 0 ? w.edge : w.dir;
+      const cy = pl.cam.yaw;
+      pl.cam.wallSide = sgn * (g.tx * Math.cos(cy) - g.tz * Math.sin(cy)) >= 0 ? 1 : -1;
+    }
     // (step 12, A3) the peek camera swing toward the edge (local only, never sent)
     pl.cam.wallPeek = w.phase === 'on' && w.peekOn ? 1 : 0;
     pl.cam.wallEdgeX = g && w.edge !== 0 ? w.edge * g.tx : 0;

@@ -49,31 +49,31 @@ describe('back-to-wall core (step 11)', () => {
     expect(links.nA[front]).toBe(-1);
   });
 
-  it('enters within 0.9 m and 100 deg; not from further or facing away', () => {
+  it('enters within 0.5 m (playtest 2) and 100 deg; not from further or facing away', () => {
     const w = core();
-    const i = inp(0, 0.2 + SO + 0.85, { context: true });
+    const i = inp(0, 0.2 + SO + 0.45, { context: true });
     w.update(1 / 60, i);
     expect(w.phase).toBe('entering');
     expect(w.seg).toBe(front);
     const far = core();
-    far.update(1 / 60, inp(0, 0.2 + SO + 0.95, { context: true }));
+    far.update(1 / 60, inp(0, 0.2 + SO + 0.55, { context: true }));
     expect(far.phase).toBe('off');
     const away = core();
-    away.update(1 / 60, inp(0, 0.2 + SO + 0.5, { context: true, lookX: 0, lookZ: 1 }));
+    away.update(1 / 60, inp(0, 0.2 + SO + 0.45, { context: true, lookX: 0, lookZ: 1 }));
     expect(away.phase).toBe('off');
     // 95 deg off (looking along the wall, slightly away): still inside the 100 deg cone
     const a = (95 * Math.PI) / 180;
     const along = core();
-    along.update(1 / 60, inp(0, 0.2 + SO + 0.5, { context: true, lookX: Math.sin(a), lookZ: -Math.cos(a) }));
+    along.update(1 / 60, inp(0, 0.2 + SO + 0.45, { context: true, lookX: Math.sin(a), lookZ: -Math.cos(a) }));
     expect(along.phase).toBe('entering');
   });
 
-  it('settles onto the body line in 0.2 s + 0.3 s/m (at most 0.45 s), easing in with no overshoot', () => {
+  it('settles onto the body line in 0.14 s + 0.2 s/m (at most 0.24 s), easing in with no overshoot', () => {
     const w = core();
-    const i = inp(0.5, 0.2 + SO + 0.6, { context: true });
+    const i = inp(0.5, 0.2 + SO + 0.4, { context: true });
     w.update(1 / 60, i);
     i.context = false;
-    expect(w.enterDur).toBeCloseTo(0.2 + 0.3 * 0.6, 2);
+    expect(w.enterDur).toBeCloseTo(0.14 + 0.2 * 0.4, 2);
     let minZ = i.z;
     let vMax = 0;
     for (let k = 0; k < 30; k++) {
@@ -85,10 +85,10 @@ describe('back-to-wall core (step 11)', () => {
     expect(Math.abs(i.z - (0.2 + SO))).toBeLessThan(0.01);
     // never past the standoff, and the peak pace a walk (1.5 x the mean of the eased path)
     expect(minZ).toBeGreaterThan(0.2 + SO - 0.005);
-    expect(vMax).toBeLessThan((1.5 * 0.6) / w.enterDur + 0.1);
+    expect(vMax).toBeLessThan((1.5 * 0.4) / w.enterDur + 0.1);
     const far = core();
-    far.update(1 / 60, inp(0.5, 0.2 + SO + 0.89, { context: true }));
-    expect(far.enterDur).toBeLessThanOrEqual(0.45);
+    far.update(1 / 60, inp(0.5, 0.2 + SO + 0.49, { context: true }));
+    expect(far.enterDur).toBeLessThanOrEqual(0.24);
   });
 
   it('a low wall is always crouched', () => {

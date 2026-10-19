@@ -140,10 +140,14 @@ export const GEARS = {
   spawn: 3,
   /**
    * (CT prototype M1, loco M20 Q8) Five analog speeds, no sprint (ct-measure-speeds-stops-posture.md); starting
-   * values, tune by feel (G10). Standing 0.2 / 0.75 / 2.0 / 3.0 / 4.2, crouched 0.4 / 0.85 / 1.5 / 2.1 / 2.6 m/s.
+   * values, tune by feel (G10). (Playtest 2: the old speed 2 is the slowest; still five steps, re-spaced.) Standing
+   * 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s.
    */
-  crouch: [0.4, 0.85, 1.5, 2.1, 2.6],
-  stand: [0.2, 0.75, 2.0, 3.0, 4.2],
+  crouch: [0.85, 1.3, 1.7, 2.15, 2.6],
+  stand: [0.75, 1.4, 2.1, 3.0, 4.2],
+  /** (Playtest 2) The stick reaches the D-pad speed (the maximum gear) from this magnitude up, so a stick that
+   *  never quite hits its rim still walks at the speed the D-pad set. */
+  fullPush: 0.9,
   /** Stick magnitude below which the operator stands still. */
   deadZone: 0.05,
 } as const;
@@ -221,12 +225,12 @@ export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]
 };
 
 /**
- * Footstep noise (`noiseRadius`, CT prototype M1, G40): the fastest pace that is still silent. Crouched speeds 1-3 (<= 1.5 m/s)
- * and standing speeds 1-2 (<= 0.75 m/s) are silent, with room for the stride's speed swell (`rootDip`); the rest rise.
+ * Footstep noise (`noiseRadius`, CT prototype M1, G40): the fastest pace that is still silent. Crouched speeds 1-3 (<= 1.7 m/s)
+ * and standing speeds 1-2 (<= 1.4 m/s) are silent, with room for the stride's speed swell (`rootDip`); the rest rise.
  */
 export const NOISE_QUIET = {
-  crouch: 1.7,
-  stand: 1.45,
+  crouch: 1.9,
+  stand: 1.65,
 };
 
 export type MovementKey = keyof typeof MOVEMENT;

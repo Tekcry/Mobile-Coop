@@ -1,5 +1,5 @@
 // (CT prototype A3: the CT shuffle 0.35 m/s, peek at once, no pull-away, no SWAT turn, no lean-out, aiming leaves.)
-// Locomotion step 11: back-to-wall. Proving Grounds: the context press enters within 0.9 m (a 0.2-0.45 s settle onto the
+// Locomotion step 11: back-to-wall. Proving Grounds: the context press enters within 0.5 m (a 0.2-0.45 s settle onto the
 // body line), the stick slides along the wall at the gear's pace (gear <= 4) and quieter than walking, the slide
 // stops at an outside end (edge flag), pulling the stick away leaves; MoveState `wall` from the core. Warehouse
 // (Clear): a guard in combat against a player held on a wall gets the flanker assignment and lobs a grenade to
@@ -93,13 +93,16 @@ async function proving() {
     await G(HARNESS);
     const seg = await G(() => window.__w.find(true, 60));
     assert(seg >= 0, `a free high wall on Proving (${seg})`);
+    await G((i) => { const s = window.__app.current.world.level.coverSegments[i]; window.__w.place(i, s.len / 2, 0.35 + 0.7); }, seg);
+    await G(() => window.__w.run(0.4, 0, 0, 'cover'));
+    assert((await G(() => window.__w.state())).phase === 'off', "no entry from 0.7 m (playtest 2: entry within 0.5 m)");
     // too far: 1.3 m past the body line - no entry
     await G((i) => { const s = window.__app.current.world.level.coverSegments[i]; window.__w.place(i, s.len / 2, 0.35 + 1.3); }, seg);
     await G(() => window.__w.run(0.4, 0, 0, 'cover'));
     let st = await G(() => window.__w.state());
     assert(st.phase === 'off', `no entry from 1.3 m (${st.phase})`);
-    // within 0.9 m: settles onto the body line in 0.2 s
-    await G((i) => { const s = window.__app.current.world.level.coverSegments[i]; window.__w.place(i, s.len / 2, 0.35 + 0.6); }, seg);
+    // within 0.5 m (playtest 2): settles onto the body line in ~0.2 s
+    await G((i) => { const s = window.__app.current.world.level.coverSegments[i]; window.__w.place(i, s.len / 2, 0.35 + 0.4); }, seg);
     await G(() => window.__w.run(1 / 60, 0, 0, 'cover'));
     st = await G(() => window.__w.state());
     assert(st.phase === 'entering', `the context press enters (${st.phase})`);
@@ -199,7 +202,7 @@ async function flank() {
     const r = await G((i) => {
       const g = window.__app.current;
       const s = g.world.level.coverSegments[i];
-      window.__w.place(i, s.len / 2, 0.35 + 0.5);
+      window.__w.place(i, s.len / 2, 0.35 + 0.4);
       window.__w.run(0.4, 0, 0, 'cover');
       const V = g.player.position.constructor;
       const em = g.enemyMgr;
@@ -263,7 +266,7 @@ async function edges() {
     assert(!!d, `the Proving doorway has a free wall end (${JSON.stringify(d)})`);
     const sx = d.end; // +t is the camera's right when facing the wall
     const k0 = d.end > 0 ? d.len - 0.8 : 0.8;
-    await G(([i, k]) => window.__w.place(i, k, 0.35 + 0.5), [d.i, k0]);
+    await G(([i, k]) => window.__w.place(i, k, 0.35 + 0.4), [d.i, k0]);
     await G(() => window.__w.run(0.6, 0, 0, 'cover'));
     await G((x) => window.__w.run(2.5, x, 0), sx);
     let st = await G(() => window.__w.state());
@@ -319,7 +322,7 @@ async function cornerTakedown() {
       for (let i = 0; i < segs.length; i++) {
         const s = segs[i];
         if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y - g.player.position.y) > 3) continue;
-        window.__w.place(i, s.len - 0.7, 0.35 + 0.5);
+        window.__w.place(i, s.len - 0.7, 0.35 + 0.45);
         window.__w.run(0.6, 0, 0, 'cover');
         if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
         window.__w.run(3.5, 1, 0);
@@ -329,6 +332,8 @@ async function cornerTakedown() {
         const z = s.bz + s.tz * 0.7 - s.nz * 0.45;
         const e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(s.tx, s.tz));
         window.__w.run(2 / 60);
+        // (playtest 2) a spawn the level moved off the spot is not round this corner: next face
+        if (Math.hypot(e.pos.x - x, e.pos.z - z) > 0.5) { g.enemyMgr.clear(); continue; }
         const offer = g.takedown.offer;
         if (!offer || offer.e !== e) { g.enemyMgr.clear(); continue; }
         const kind = offer.plan.kind;

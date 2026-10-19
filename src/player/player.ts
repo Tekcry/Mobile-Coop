@@ -119,6 +119,8 @@ export class Player {
   /** (locomotion step 17) A landing in a band (`LandingKind`: soft / roll / heavy) and a foot plant (rumble). */
   onLanding: ((kind: string) => void) | null = null;
   onFootPlant: (() => void) | null = null;
+  /** (Playtest 2) The shoulder was swapped while aiming: the new side (1 right, -1 left), so it can be remembered across missions. */
+  onShoulder: ((side: 1 | -1) => void) | null = null;
   private landingsSeen = 0;
   private wasGrounded = true;
   private fallSpeed = 0;
@@ -208,7 +210,10 @@ export class Player {
       this.adsWanted = false;
     }
     // G17: the shoulder swap works only while aiming
-    if (inp.pressed('shoulderSwap') && this.ads) this.cam.swapShoulder();
+    if (inp.pressed('shoulderSwap') && this.ads) {
+      this.cam.swapShoulder();
+      this.onShoulder?.(this.cam.shoulder);
+    }
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
 
     // weapon carry: ready position from context, raised only to aim or fire

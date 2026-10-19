@@ -4,7 +4,7 @@
  *
  * Candidates are the level's `CoverSegment`s (the same faces the AI uses): high faces (>= HIGH_MIN) standing or
  * crouched, low faces (LOW_MIN..LOW_MAX) always crouched. The body line runs `standoff` (`coverStandoff`) out from the
- * face. States: off, entering (a 0.2 s settle onto the face, at most 0.9 m away: no snap from a distance, no glide),
+ * face. States: off, entering (a 0.14-0.24 s settle onto the face, at most 0.5 m away: no snap from a distance, no glide),
  * on (the stick's along-wall component at the gear's pace, capped at gear 4; inside corners wrap; outside ends stop),
  * leaving (one short beat back to free movement).
  *
@@ -19,14 +19,14 @@ import type { CoverSpot } from '../game/tactics';
 import type { MoveOverride } from './playerController';
 
 export const WALL = {
-  /** Enter: the body line point at most this far (m), the face within this angle of the move or look direction. */
-  reach: 0.9,
+  /** Enter (playtest 2: was 0.9, snapped from too far and slid): the body line point at most this far (m), the face within this angle of the move or look direction. */
+  reach: 0.5,
   coneCos: Math.cos((100 * Math.PI) / 180),
   /** Settle onto the face (s): at least `enterTime`, plus `enterPerM` per metre of travel, at most `enterMax` (a
    *  step or two onto the wall, never a lunge: the peak pace stays near a walk and the feet keep up). */
-  enterTime: 0.2,
-  enterPerM: 0.3,
-  enterMax: 0.45,
+  enterTime: 0.14,
+  enterPerM: 0.2,
+  enterMax: 0.24,
   /** Settle tracking gain (1/s) onto the eased path, on top of its own velocity (no lag, so no catch-up overshoot). */
   enterGain: 12,
   /** (step 21w, M14, A83) The stick held into a high face no longer enters on its own: entry is an intentional context

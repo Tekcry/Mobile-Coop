@@ -856,6 +856,9 @@ export class AnimGraph {
     const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
     // raised: up to the eye
     const sight = raiseW;
+    // (playtest 2) the sight raise position is carried down with the hand swap: at the mid-point the weapon is on the
+    // compressed carry (ready = 1), and the full raise on top of it flicked the gun up high
+    const sightPos = sight * (1 - 0.5 * swapBump);
     // at a wall the ready is the wall tuck: muzzle down along the wall, turned away from it (the rig mirrors
     // yaw with the hand, so the away side is relative to the hand holding it)
     this.wallReadyW = approach(this.wallReadyW, atWall ? 1 : 0, 0.25, dt);
@@ -872,17 +875,17 @@ export class AnimGraph {
     cl *= nw;
     chh *= nw;
     cc *= nw;
-    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + sight * SIGHT_RAISE.x;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sight * SIGHT_RAISE.y;
-    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sight * SIGHT_RAISE.z;
-    const pistolK = clamp((0.85 - mass) / 0.15, 0, 1) * sight;
+    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + sightPos * SIGHT_RAISE.x;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sightPos * SIGHT_RAISE.y;
+    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sightPos * SIGHT_RAISE.z;
+    const pistolK = clamp((0.85 - mass) / 0.15, 0, 1) * sightPos;
     if (pistolK > 0) {
       src[CH.wpX] = src[CH.wpX]! + pistolK * PISTOL_REACH.x;
       src[CH.wpY] = src[CH.wpY]! + pistolK * PISTOL_REACH.y;
       src[CH.wpZ] = src[CH.wpZ]! + pistolK * PISTOL_REACH.z;
     }
     src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS;
-    this.out.weld = sight;
+    this.out.weld = sightPos;
     this.out.aimW = raiseW;
     // landing roll: the whole body turns over forward about the hips
     this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;

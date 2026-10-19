@@ -3,13 +3,14 @@ import { AnalogGear, GEAR_DOWN, GEAR_UP, GearState, MAX_ROCKER_GEAR, gearCap, st
 import { GEARS } from '../src/config/movement';
 
 /** Stick magnitude that gives speed v at maximum gear `max` (inverse of cap(max) x stickCurve). */
-const magFor = (v: number, max: number, crouched: boolean): number => GEARS.deadZone + (1 - GEARS.deadZone) * (v / gearCap(max, crouched));
+const magFor = (v: number, max: number, crouched: boolean): number => GEARS.deadZone + (1 - GEARS.deadZone) * GEARS.fullPush * (v / gearCap(max, crouched));
 
 describe('analog gear (locomotion step 17, D5.12)', () => {
   it('derives the threshold table from GEARS (midpoint +- 15% of the gap)', () => {
     // (CT prototype M1) from the five CT speeds
-    const stand = [[0.5575, 0.3925], [1.5625, 1.1875], [2.65, 2.35], [3.78, 3.42]];
-    const crouch = [[0.6925, 0.5575], [1.2725, 1.0775], [1.89, 1.71], [2.425, 2.275]];
+    // (playtest 2) the old speed 2 is the slowest: standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6
+    const stand = [[1.1725, 0.9775], [1.855, 1.645], [2.685, 2.415], [3.78, 3.42]];
+    const crouch = [[1.1425, 1.0075], [1.56, 1.44], [1.9925, 1.8575], [2.4425, 2.3075]];
     stand.forEach(([u, d], i) => {
       expect(GEAR_UP.stand[i]).toBeCloseTo(u!, 9);
       expect(GEAR_DOWN.stand[i]).toBeCloseTo(d!, 9);
@@ -27,6 +28,11 @@ describe('analog gear (locomotion step 17, D5.12)', () => {
     expect(a.update(5, false, magFor(1.2, 5, false))).toBe(2);
     expect(a.speed(false)).toBe(gearCap(2, false));
     expect(a.update(5, false, magFor(2.6, 5, false))).toBe(3);
+  });
+  it('a stick short of its rim reaches the D-pad speed from GEARS.fullPush (playtest 2)', () => {
+    const a = new AnalogGear();
+    expect(a.update(3, false, GEARS.deadZone + (1 - GEARS.deadZone) * GEARS.fullPush)).toBe(3);
+    expect(a.update(3, false, 0.6)).toBeLessThan(3);
   });
   it('any tilt past the dead zone gives gear 1; inside it, no gear', () => {
     const a = new AnalogGear();

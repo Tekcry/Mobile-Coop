@@ -102,12 +102,19 @@ export interface Settings {
   };
 }
 
+/** (Playtest 2) Look speed while aiming = 0.3 of the explore speed (70% less). A saved old default (0.55 pad, 0.6 mouse) follows it. */
+export const ADS_LOOK = 0.3;
+const adsLook = (v: unknown, d: number, lo: number): number => {
+  const n = num(v, d, lo, 1.5);
+  return n === 0.55 || n === 0.6 ? ADS_LOOK : n;
+};
+
 export function defaultSettings(): Settings {
   return {
     gamepad: {
       lookSensitivityX: 1,
       lookSensitivityY: 0.8,
-      adsMultiplier: 0.55,
+      adsMultiplier: ADS_LOOK,
       deadzoneLeft: 0.15,
       deadzoneRight: 0.12,
       triggerDeadzone: 0.08,
@@ -116,7 +123,7 @@ export function defaultSettings(): Settings {
       aimAssist: 'standard',
       vibration: true,
     },
-    mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
+    mouse: { sensitivity: 1, invertY: false, adsMultiplier: ADS_LOOK, raw: true },
     keys: defaultBinds(),
     pad: defaultPadBinds(),
     video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
@@ -235,7 +242,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     gamepad: {
       lookSensitivityX: num(g.lookSensitivityX, d.gamepad.lookSensitivityX, 0.1, 4),
       lookSensitivityY: num(g.lookSensitivityY, d.gamepad.lookSensitivityY, 0.1, 4),
-      adsMultiplier: num(g.adsMultiplier, d.gamepad.adsMultiplier, 0.1, 1.5),
+      adsMultiplier: adsLook(g.adsMultiplier, d.gamepad.adsMultiplier, 0.1),
       deadzoneLeft: num(g.deadzoneLeft, d.gamepad.deadzoneLeft, 0, 0.5),
       deadzoneRight: num(g.deadzoneRight, d.gamepad.deadzoneRight, 0, 0.5),
       triggerDeadzone: num(g.triggerDeadzone, d.gamepad.triggerDeadzone, 0, 0.5),
@@ -247,7 +254,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     mouse: {
       sensitivity: num(m.sensitivity, d.mouse.sensitivity, 0.1, 5),
       invertY: bool(m.invertY, d.mouse.invertY),
-      adsMultiplier: num(m.adsMultiplier, d.mouse.adsMultiplier, 0.2, 1.5),
+      adsMultiplier: adsLook(m.adsMultiplier, d.mouse.adsMultiplier, 0.2),
       raw: bool(m.raw, d.mouse.raw),
     },
     keys: sanitizeBinds(r.keys),
