@@ -290,4 +290,33 @@ describe('menu shot passes', () => {
     expect(fovs.size).toBeGreaterThanOrEqual(3);
     for (const h of HERO_SHOTS) if (h.id.startsWith('H')) expect(Math.min(Math.abs(h.from.alpha), Math.abs(h.to.alpha))).toBeGreaterThan(0.3);
   });
+
+  it('(slice 4b) the candidate shots X1-X8 stay out of the live deck, are reachable only by ?menuShot, and reset the pose', async () => {
+    const { CANDIDATES } = await import('../src/world/menuShots');
+    const { CANDIDATE_HERO_SHOTS } = await import('../src/world/menuSets');
+    const { applyMenuPose, menuPoseInput } = await import('../src/world/menuPoses');
+    expect(CANDIDATES.length).toBeGreaterThanOrEqual(6);
+    expect(CANDIDATES.length).toBeLessThanOrEqual(8);
+    const ids = new Set(CANDIDATE_HERO_SHOTS.map((h) => h.id));
+    for (const c of CANDIDATES) {
+      expect(c.contexts.length).toBe(0);
+      expect(ids.has(c.setup)).toBe(true);
+      expect(SHOTS.some((s) => s.id === c.id)).toBe(false);
+      const d = createDirector({ seed: 1, reducedMotion: false, context: 'main', force: c.id });
+      for (let i = 0; i < 100; i++) d.update(0.2);
+      expect(d.shot.id).toBe(c.id);
+    }
+    // the live deck never shows one
+    expect(sequence(3, 40).some((id) => id.startsWith('X'))).toBe(false);
+    // a candidate's body pose, then a live shot: everything back to the standing idle
+    const pose = menuPoseInput();
+    applyMenuPose(pose, 'rifle', 1, { crouch: 1, wall: { side: 1, face: 0.3 }, reload: 0.4, aim: 1 });
+    expect(pose.crouch).toBe(1);
+    expect(pose.wall).toBe(true);
+    applyMenuPose(pose, 'rifle', 1);
+    expect(pose.crouch).toBe(0);
+    expect(pose.wall).toBe(false);
+    expect(pose.reload).toBe(-1);
+    expect(pose.aim).toBe(0.05);
+  });
 });

@@ -28,6 +28,8 @@ const SHOTS = [
   // (menu-notes slice 3) the rifle and the pistol in her hands
   ['W1', 'W1', 0.5],
   ['W2', 'W2', 0.5],
+  // (menu-notes slice 4b) the candidate tactical shots (not in the live deck; `?menuShot=X1` etc.)
+  ...['X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8'].map((x) => [x, x, 0.5]),
 ].filter(([n]) => !only || only.includes(n));
 const HERO = 1 << 0;
 const LOD2 = 1 << 3;

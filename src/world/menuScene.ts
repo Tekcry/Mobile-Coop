@@ -36,7 +36,7 @@ import type { QualityLevel } from '../core/quality';
 import { PostStack } from '../vfx/postStack';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { flags } from '../core/flags';
-import { buildVoid, HERO_SHOTS, idleSway, lightCone, VOID_ORIGIN, VOID_YAW, type HeroShot, type SetLight, type VoidSet } from './menuSets';
+import { buildVoid, CANDIDATE_HERO_SHOTS, HERO_SHOTS, idleSway, lightCone, VOID_ORIGIN, VOID_YAW, type HeroShot, type SetLight, type VoidSet } from './menuSets';
 import { createDirector, easeInOut, goggleLevel, parseShotHooks, type Director, type MenuContext } from './menuShots';
 import { applyMenuPose, menuPoseInput, MENU_POSES, type MenuHold } from './menuPoses';
 
@@ -106,6 +106,8 @@ export class MenuState implements AppState {
   private readonly clock: number;
   private readonly sets = new Map<string, HeroShot>();
   private readonly voidSet: VoidSet;
+  /** (menu-notes slice 4b) The candidate shots' set pieces, built the first time a shot shows (debug `?menuShot=X1`). */
+  private readonly props = new Map<string, AbstractMesh[]>();
   /** The goggle's full glow (read once a body has loaded) and the scaled colour handed to the figure. */
   private glowFull: [number, number, number] | null = null;
   private readonly glowNow: [number, number, number] = [0, 0, 0];
@@ -215,6 +217,8 @@ export class MenuState implements AppState {
     // (slice 6) the void, built now: a shot change only moves the lights and the camera
     this.voidSet = buildVoid(scene);
     for (const h of HERO_SHOTS) this.sets.set(h.id, h);
+    // (menu-notes slice 4b) the candidate shots: no context plays them, only `?menuShot=X1` etc.
+    for (const h of CANDIDATE_HERO_SHOTS) this.sets.set(h.id, h);
     for (const m of scene.meshes) {
       m.isPickable = false;
       m.freezeWorldMatrix();
@@ -500,6 +504,30 @@ export class MenuState implements AppState {
     s.range = 40;
   }
 
+  /** (menu-notes slice 4b) Build a candidate shot's set pieces (dark boxes, a visible beam), relative to the void. */
+  private buildProps(set: HeroShot): AbstractMesh[] {
+    const o = VOID_ORIGIN;
+    const out: AbstractMesh[] = [];
+    (set.props ?? []).forEach((p, i) => {
+      if (p.kind === 'box') {
+        const b = CreateBox(`menuProp-${set.id}-${i}`, { width: p.size[0], height: p.size[1], depth: p.size[2] }, this.scene);
+        b.position.set(o.x + p.pos[0], o.y + p.pos[1], o.z + p.pos[2]);
+        b.material = flatMat(this.scene, p.hex ?? '#16181c', p.glow ? { emissive: p.glow } : {});
+        b.isPickable = false;
+        out.push(b);
+      } else {
+        const l = set.lights[p.light]!;
+        const pos = new Vector3(o.x + l.pos[0], o.y + l.pos[1], o.z + l.pos[2]);
+        const dir = new Vector3(l.at[0] - l.pos[0], l.at[1] - l.pos[1], l.at[2] - l.pos[2]).normalize();
+        const cone = lightCone(this.scene, `menuProp-${set.id}-${i}`, p.len, l.angle * 0.5, l.color, p.glow);
+        cone.rotationQuaternion = Quaternion.FromUnitVectorsToRef(new Vector3(0, -1, 0), dir, new Quaternion());
+        cone.position.copyFrom(pos).addInPlace(dir.scale(p.len / 2));
+        out.push(cone);
+      }
+    });
+    return out;
+  }
+
   /** Switch between the stage and the void and move the shared lights (no geometry is built). */
   private showSet(id: string): void {
     this.activeSet = id;
@@ -508,6 +536,9 @@ export class MenuState implements AppState {
     this.minResolution(!!set);
     for (const m of this.stageMeshes) m.setEnabled(!set);
     for (const m of this.voidSet.meshes) m.setEnabled(!!set);
+    // (slice 4b) a candidate shot's set pieces
+    for (const [pid, ms] of this.props) for (const m of ms) m.setEnabled(pid === id);
+    if (set?.props && !this.props.has(id)) this.props.set(id, this.buildProps(set));
     const bg = set?.backGlow;
     this.voidSet.glow.setEnabled(!!bg);
     if (bg) {
@@ -772,8 +803,9 @@ export class MenuState implements AppState {
       const r = this.rig;
       r.root.position.copyFrom(o);
       // the rig's idle breathes; a slow weight shift on top, and the weapon's own breath (menuPoses.ts)
-      r.root.rotation.y = VOID_YAW + idleSway(this.t2);
-      r.animate(dt, applyMenuPose(this.poseIn, hold, this.t2));
+      // (slice 4b) a candidate's body pose; at a wall the body holds still (the wall stance plants the feet)
+      r.root.rotation.y = VOID_YAW + (set.pose?.wall ? 0 : idleSway(this.t2));
+      r.animate(dt, applyMenuPose(this.poseIn, hold, this.t2, set.pose));
       this.figure?.update(this.scene.activeCamera);
     }
   }
