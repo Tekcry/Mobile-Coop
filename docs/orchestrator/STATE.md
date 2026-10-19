@@ -25,7 +25,7 @@ e2e-pad only now).
 | --- | --- | --- | --- |
 | CT Core Build | desktop, C:NightShiftMobile-Coop-ct-prototype, feature/ct-prototype | `Night Shift | CT Core Build` (local) | Master 4.6.4 merged (2b8179af); check + quick + ctcourse, then slices D + E (holstering, hanging shimmy, pipe climb, ledge climb-up). /ct/ = 87514ed1 (B + C). The scanner rule (fd963a1c) goes out with its next push. |
 | Sector Ops Build | desktop, C:NightShiftMobile-Coop-sector-ops, feature/sector-ops | `Night Shift | Sector Ops Build` (local) | Slice 2 for 3 sections (M7), PLAN.md section 5 build order; slices 1 (menus) and 3 (lobby) done on the branch |
-| Character Build | laptop (second heavy slot), C:/NightShift/Mobile-Coop-coop-tests | bridge `session_015wU8VbanFb8zVwRuSMa9x7` (new after the clear; delivery not confirmed) | e2e-menus slider fix (Michael chose it 16:00): branch feature/menus-slider, folder C:/NightShift/Mobile-Coop-menus-slider, docs/menus-slider/. PR to master as a patch. |
+| Character Build | laptop (second heavy slot), C:/NightShift/Mobile-Coop-coop-tests | bridge `session_015wU8VbanFb8zVwRuSMa9x7` (new after the clear; delivery confirmed 16:00) | e2e-menus slider fix (Michael chose it 16:00): branch feature/menus-slider, folder C:/NightShift/Mobile-Coop-menus-slider, docs/menus-slider/. PR to master as a patch. |
 
 Known clashes to handle at merge time:
 - Sector Ops' lobby hides Infiltration, which e2e-coop's match (A1, coop-tests) uses. When Sector Ops merges, e2e-coop
