@@ -61,8 +61,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   short `Ragdoll`; hide spots (`MapLayout.hideSpots`) remove it.
 - Lights: `PlayerWeapons.onRay` -> `StealthSystems.shotRay` -> `lightOnRay` + `LightRegistry.destroy`; `MapLayout.switches`
   toggle a `group`; both call `EnemyManager.lightsOut` (nearest calm enemy investigates, others `notice`). Flashlights:
-  `World` adds `FLASHLIGHTS` (4) on dark maps; guards get them while investigating / searching / hunting unseen where the
-  static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
+  `World` adds `FLASHLIGHTS` (4) on dark maps; human guards (`carriesTorch`: not dogs) get them while investigating / searching / hunting unseen where the
+  static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45; pure `torchRule` in `archetypes.ts`); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
   per torch) stops the beam at geometry.
 - Alarms: `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted enemy to work
   it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the `MapLayout.reinforce` point furthest from the
