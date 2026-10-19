@@ -29,4 +29,23 @@ Prototype effort only (CLAUDE.md "Current goal").
   laptop runner ("Night Shift | Character Build": branch, commit, suites).
 
 ## Assumed decisions (job lead; each with how to undo)
-- (none yet)
+- **A1 (co-op client restart cue, no wire change):** the client runs its side of the clean start (its own loadout
+  back, gadgets and grenades cleared, music calmed: `GameState.checkpointReset`) when the host's restart banner
+  arrives (`banner` event with `SECTOR_RESTART_TITLE`, `game/sectors.ts`), and records its loadout when the `sector`
+  message's live section `ls` moves on (and at the match start). Ammo and gadgets are the client's own, so the host
+  cannot restore them; health is the host's (full with the existing `revive` event). Undo: the two lines in
+  `CoopClient` (`case 'banner'`, `onSector`); a sturdier cue would be a restart counter in the `sector` message (a wire
+  change: PROTOCOL_VERSION 25).
+- **A2 (Sector Ops issues the campaign kit):** `loadoutEntries` maps the loadout onto the curated arsenal for `sector`
+  as for `infiltration`, so the rifle is issued with its suppressor (A62, bible 5.6), as the Kit screen and the co-op
+  lobby loadout already showed it. Before this the Sector Ops rifle was loud (noise 1 > 0.6): every guard within 28 m
+  went straight to combat. Undo: `mode === 'sector'` in `progression/profile.ts` `loadoutEntries`.
+- **A3 (the checkpoint loadout):** recorded when a section begins (the run start, then each time the far door
+  unlocks); a restart gives back each gun's magazine and reserve as recorded, then fills every magazine from its own
+  reserve (the rounds the section began with, no free ammo), and the gadget counts and selection. A restart while a
+  connector cycle was running (the next section loads) gives back the previous section's kit (the players are down;
+  their kit at that moment is the emptied one). Undo: `beginSection(kit)` in `sectorMode.ts`; full reserves instead:
+  `LoadoutSnapshot.restore`.
+- **A4 (what else a restart clears):** grenades in flight, gadgets in the world (`GadgetSystem.clearWorld`: noisemakers,
+  gas, mines, sticky cams), the stealth door memory (`StealthSystems.resetForRestart`), the noise meter and suppression.
+  Doors stay as they are and shot-out lamps stay out (polish list). Undo: lines in `GameState.checkpointReset`.

@@ -61,6 +61,18 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   load and restart `StealthSystems.setLiveAlarms(i)` leaves only that section's panel working (and re-arms one the
   player disabled) and `EnemyManager.resetAlarm()` lets a panel alarm be raised again (once per section load). The
   far door opens silently (`Doors.setOpen`, no door noise for the new section's guards).
+- A checkpoint restart is a clean start of the section (sector-restart, M9). `SectorMode.restartSection` runs
+  `EnemyManager.resetMemory()` (every guard, body and drone gone; the alarm, last known position and its chase field,
+  sighting flags, flanker, squads and the AI clocks back at their match-start state; the section's guards then load
+  unaware on their routes) and `GameState.checkpointReset()`: the loadout recorded when the section began
+  (`PlayerWeapons.markCheckpoint` in `beginSection`; pure `weapons/loadoutSnapshot.ts`) comes back with every gun
+  reloaded from its reserve and the gadgets as they were; grenades in flight and gadgets out in the world go; the
+  stealth leftovers go (`StealthSystems.resetForRestart`: doors the player opened are no longer noticed); the
+  `checkpointRestart` event fades the alert / caution music to Calm (`Music.calm`). Health is full with the respawn.
+  Co-op: the client records its loadout as each section goes live (the `sector` message's `ls`) and runs its own
+  `checkpointReset` on the host's restart banner (`SECTOR_RESTART_TITLE`; no wire change, A1). Sector Ops issues the
+  campaign kit like Infiltration: the rifle comes suppressed (A2, `loadoutEntries`). Doors and shot-out lamps stay as
+  they were (polish).
 
 ## The Fallow training course (`course`)
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's

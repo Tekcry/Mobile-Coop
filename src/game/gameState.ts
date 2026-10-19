@@ -812,6 +812,25 @@ export class GameState implements AppState {
     this.respawnT = seconds;
   }
 
+  /**
+   * (sector-restart, M9) The local side of a checkpoint restart (Sector Ops; the co-op client runs it too, on the host's
+   * restart banner): the loadout as the section began (every gun reloaded, the gadgets back; the suppressor is part of
+   * the gun), grenades in flight and gadgets out in the world gone (no noisemaker or gas left pulsing at the new
+   * guards), the stealth leftovers cleared, the noise meter and suppression at rest, and the music calmed
+   * (`checkpointRestart`). Health comes back full with the respawn. The guards' side is `EnemyManager.resetMemory`.
+   */
+  checkpointReset(): void {
+    this.weapons.restoreCheckpoint();
+    this.grenades.clear();
+    this.gadgets.clearWorld();
+    this.stealth?.resetForRestart();
+    this.suppression.reset();
+    this.evNoise = 0;
+    this.evNoiseT = 0;
+    this.noise = 0;
+    this.events.emit('checkpointRestart', {});
+  }
+
   /** End the session and show results (rewards are added by the progression hook). */
   endSession(won: boolean, subtitle: string): void {
     if (this.ended) return;

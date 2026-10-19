@@ -18,6 +18,7 @@ import { reloadClipFor } from '../anim/clips/actions';
 import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
+import { LoadoutSnapshot } from './loadoutSnapshot';
 
 const modelLength = (d: WeaponDef): number => {
   const e = modelExtents(d);
@@ -392,6 +393,28 @@ export class PlayerWeapons {
     const s = this.current;
     const c = this.player.controller;
     return playerSpreadDeg(s.def, s.stats, c.crouched, c.speed, this.bloom) * this.spreadMul * this.attachSpread;
+  }
+
+  /** (sector-restart, M9) The loadout when the current Sector Ops section began (`markCheckpoint`). */
+  readonly checkpointKit = new LoadoutSnapshot<GadgetId>();
+
+  /** (sector-restart) Record the loadout now: every gun's ammo, the gadgets carried and the one selected. */
+  markCheckpoint(): void {
+    this.checkpointKit.take(this.slots, this.gadgets);
+  }
+
+  /**
+   * (sector-restart, M9) A checkpoint restart: the loadout as the section began, every gun reloaded from its reserve at
+   * once (no reload animation; one running is cut short), the gadgets as they were. False before any checkpoint.
+   */
+  restoreCheckpoint(): boolean {
+    if (!this.checkpointKit.taken) return false;
+    this.cancelReload();
+    this.reloadQueued = false;
+    this.cooldown = 0;
+    this.queuedT = 0;
+    this.bloom = 0;
+    return this.checkpointKit.restore(this.slots, this.gadgets, this.infiniteAmmo);
   }
 
   addAmmo(fraction: number): void {
