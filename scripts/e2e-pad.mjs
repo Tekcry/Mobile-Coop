@@ -48,91 +48,6 @@ const STRIKE_HARNESS = () => {
     },
   };
 };
-// (locomotion step 12; A3: a free wall end by the Proving doorway) stand 0.5 m out from its high wall 0.8 m from the edge, facing it
-// (manual loop). `sx` is the stick x toward the edge (+t is the camera's right facing the wall).
-const EDGE_HARNESS = () => {
-  const a = window.__app;
-  const g = a.current;
-  a.loop.manual = true;
-  const V = g.player.position.constructor;
-  a.loop.stepHeadless(0.1, 120);
-  const L = g.wallCore.links;
-  const segs = g.world.level.coverSegments;
-  let d = null;
-  for (let i = 0; i < segs.length && !d; i++) {
-    const s = segs[i];
-    if (s.low || Math.abs(Math.abs(s.az) - 8) > 0.4 || Math.abs(s.nz) < 0.99) continue;
-    if (s.len < 1.5) continue;
-    if (L.kB[i] === 0) d = { i, end: 1, len: s.len };
-    else if (L.kA[i] === 0) d = { i, end: -1, len: s.len };
-  }
-  const s = segs[d.i];
-  const k = d.end > 0 ? d.len - 0.8 : 0.8;
-  const yaw = Math.atan2(-s.nx, -s.nz);
-  g.player.controller.teleport(new V(s.ax + s.tx * k + s.nx * 0.85, s.y + 0.05, s.az + s.tz * k + s.nz * 0.85), yaw);
-  g.player.cam.yaw = yaw;
-  g.player.cam.pitch = 0;
-  a.loop.stepHeadless(0.3, 120);
-  window.__ed = {
-    d,
-    sx: d.end,
-    step(n = 1) {
-      for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
-    },
-    st: () => { const w = g.wallCore; return { phase: w.phase, seg: w.seg, edge: w.edge, peekOn: w.peekOn, peek: w.peek, sub: w.sub(), mag: g.weapons.current.mag, cam: g.player.cam.wallPeek }; },
-  };
-  return d;
-};
-
-// (locomotion step 12) Warehouse (clear mode, guards cleared): back to a high wall at an outside edge with a guard round
-// it, until the takedown on offer is `corner` (manual loop). Returns the offer kind or null.
-const CORNER_SETUP = () => {
-  const a = window.__app;
-  const g = a.current;
-  a.loop.manual = true;
-  const step = (n) => { for (let k = 0; k < n; k++) a.loop.stepHeadless(1 / 60, 120); };
-  const V = g.player.position.constructor;
-  g.target.health.invulnerable = true;
-  g.mode.pending.length = 0;
-  g.enemyMgr.clear();
-  step(6);
-  window.__cn = { step, st: () => ({ td: !!g.takedown.active, kind: g.takedown.offer?.plan.kind ?? null }) };
-  const segs = g.world.level.coverSegments;
-  const L = g.wallCore.links;
-  for (let i = 0; i < segs.length; i++) {
-    const s = segs[i];
-    if (s.low || s.len < 2 || L.kB[i] !== 0 || Math.abs(s.y - g.player.position.y) > 3) continue;
-    const yaw = Math.atan2(-s.nx, -s.nz);
-    if (g.wallCore.active) g.wallCore.leave('test');
-    step(20);
-    g.player.controller.clearCrouchToggle();
-    g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
-    g.player.cam.yaw = yaw;
-    g.player.cam.pitch = 0;
-    step(18);
-    window.__app.input.state.tap('cover');
-    step(36);
-    if (g.wallCore.phase !== 'on' || g.wallCore.seg !== i) continue;
-    // slide to the edge at b (the camera's right), then release the stick
-    window.__pad.connect();
-    window.__pad.axis(0, 1);
-    step(200);
-    window.__pad.axis(0, 0);
-    step(4);
-    if (g.wallCore.edge !== 1) continue;
-    const x = s.bx + s.tx * 0.7 - s.nx * 0.45;
-    const z = s.bz + s.tz * 0.7 - s.nz * 0.45;
-    const e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(s.tx, s.tz));
-    step(2);
-    if (!g.takedown.offer || g.takedown.offer.e !== e) {
-      g.enemyMgr.clear();
-      continue;
-    }
-    return g.takedown.offer.plan.kind;
-  }
-  return null;
-};
-
 // (locomotion step 11) back to a wall on Proving: find a free high face, stand 0.5 m out facing it (manual loop)
 const WALL_HARNESS = () => {
   const a = window.__app;
@@ -496,70 +411,9 @@ try {
   await page.waitForTimeout(400);
   assert(await q('.main-menu'), 'quit returns to main menu');
 
-  console.log('palm strike (RT while holstered: lethal; LT: knockout)');
-  {
-    const S = await strikePage(launch, url);
-    try {
-      await S.page.evaluate(STRIKE_HARNESS);
-      const r = await S.page.evaluate(() => {
-        const g = window.__app.current;
-        const k = window.__sk;
-        window.__pad.connect();
-        const rt = () => {
-          window.__pad.set(7, 1);
-          k.step(2);
-          window.__pad.set(7, 0);
-          k.step(1);
-        };
-        const lt = () => {
-          window.__pad.set(6, 1);
-          k.step(2);
-          window.__pad.set(6, 0);
-          k.step(1);
-        };
-        const out = {};
-        // behind an unaware guard: killed at contact (about 0.12 s, F1a: RT is the lethal strike)
-        let e = k.setup('grunt', false, 0);
-        rt();
-        out.started = g.strike.active;
-        out.tKo = 3 / 60 + k.until(() => !e.alive, 1.5);
-        out.ko = !e.alive && !e.ko;
-        k.until(() => !g.strike.active, 2);
-        // LT is the knockout
-        e = k.setup('grunt', false, 0);
-        lt();
-        k.until(() => !e.alive, 1.5);
-        out.ltKo = !e.alive && e.ko;
-        k.until(() => !g.strike.active, 2);
-        // (A4, G42) an aware guard facing: one hit, no stagger
-        e = k.setup('grunt', true, Math.PI);
-        rt();
-        k.until(() => !e.alive, 1);
-        out.facing = { ko: !e.alive, stag: g.strike.count.stagger };
-        k.until(() => !g.strike.active, 2);
-        // (G155) a heavy from the front: one hit too
-        e = k.setup('heavy', true, Math.PI);
-        rt();
-        k.until(() => !e.alive, 1);
-        out.heavy = { alive: e.alive, ko: e.ko };
-        k.until(() => !g.strike.active, 2);
-        // (F1b) no guard in reach: the press swings at nothing no more
-        k.setup(null);
-        rt();
-        out.nothing = g.strike.active;
-        k.until(() => g.strike.active, 0.3);
-        out.nothingAfter = g.strike.active;
-        return out;
-      });
-      assert(r.started && r.ko && r.tKo <= 0.3, `RT holstered behind an unaware guard: killed in ${r.tKo.toFixed(2)} s (<= 0.3)`);
-      assert(r.ltKo, 'LT holstered: the knockout (the guard goes down knocked out, not killed)');
-      assert(r.facing.ko && r.facing.stag === 0, `RT on an aware guard facing: one hit (${JSON.stringify(r.facing)})`);
-      assert(!r.heavy.alive, `a heavy from the front: down too (${JSON.stringify(r.heavy)})`);
-      assert(!r.nothing && !r.nothingAfter, 'RT with no guard in reach: no strike starts (F1b)');
-    } finally {
-      await S.browser.close();
-    }
-  }
+  // (process audit, 2026-10-19) the gameplay sections that each opened their own match (palm strike, back to a wall,
+  // door menu, wall edge verb) are gone: the pad verb table below checks every button's action, and the behaviour is
+  // the system suites' (e2e-takedown, e2e-wall, e2e-stealth-ai)
   console.log('analog gear, rocker cap, rumble, pad verbs (step 17)');
   {
     const S = await strikePage(launch, url);
@@ -697,202 +551,39 @@ try {
       assert(r.shot.some((s) => ['0.12/0.20/45', '0.40/0.55/80'].includes(s)), `rumble on a shot (${r.shot})`);
       assert(r.elbow.includes('0.50/0.30/90'), `rumble on an elbow hit (${r.elbow})`);
       assert(r.tdDone && r.takedown.includes('0.60/0.40/150'), `rumble on a takedown (${r.tdDone}, offer ${r.tdOffer}, pad ${r.tdViaPad}, ${r.takedown})`);
+      // (process audit) every default pad verb (src/input/padBinds.ts, the CT pad) raises its action, as e2e-mouse's KBM
+      // table: the input state is wrapped to record and swallow what each button raises (no side effects in the match).
+      // The behaviour behind the verbs is the system suites' (e2e-wall, e2e-stealth-ai, e2e-takedown, e2e-ct).
+      const missed = await S.page.evaluate(() => {
+        const s = window.__app.input.state;
+        const P = window.__pad;
+        const k = window.__sk;
+        const acts = new Set();
+        s.set = function (src, a, d) {
+          if (d) acts.add(a);
+        };
+        s.tap = function (a) {
+          acts.add(a);
+        };
+        // [button, any of these actions]: A reloads while drawn; L3 swaps the shoulder while aiming
+        const PADV = [[0, 'interact', 'reload'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'altFire'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'speedUp'], [13, 'speedDown'], [14, 'vision'], [15, 'grenade']];
+        const out = [];
+        for (const [b, ...want] of PADV) {
+          acts.clear();
+          P.set(b, 1);
+          k.step(2);
+          P.set(b, 0);
+          k.step(2);
+          if (!want.some((a) => acts.has(a))) out.push(`${b}: ${[...acts].join('+') || 'nothing'}`);
+        }
+        delete s.set;
+        delete s.tap;
+        s.releaseAll();
+        return out;
+      });
+      assert(missed.length === 0, `every pad verb raises its action (missed: ${missed.join(', ') || 'none'})`);
     } finally {
       await S.browser.close();
-    }
-  }
-  console.log('back to a wall (L3 enters, stick slides, L3 leaves; A does not)');
-  {
-    const W = await launch({ url, params: 'autostart=proving' });
-    try {
-      await W.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
-      await W.page.evaluate(WALL_HARNESS);
-      const r = await W.page.evaluate(() => {
-        const k = window.__wl;
-        const A = () => {
-          window.__pad.set(10, 1);
-          k.step(2);
-          window.__pad.set(10, 0);
-          k.step(1);
-        };
-        window.__pad.connect();
-        k.step(2);
-        // A is the interact button: it does not enter the wall
-        window.__pad.set(0, 1);
-        k.step(2);
-        window.__pad.set(0, 0);
-        k.step(10);
-        const aNo = k.st();
-        A();
-        k.step(20);
-        const on = k.st();
-        window.__pad.axis(0, 1);
-        k.step(240);
-        window.__pad.axis(0, 0);
-        k.step(5);
-        const slid = k.st();
-        A();
-        k.step(10);
-        return { aNo, on, slid, off: k.st(), seg: k.seg };
-      });
-      assert(r.aNo.phase === 'off', `pad A does not enter the wall (${r.aNo.phase})`);
-      assert(r.on.phase === 'on' && r.on.seg === r.seg, `pad L3 enters back-to-wall (${JSON.stringify(r.on)})`);
-      assert(r.slid.phase === 'on' && Math.abs(r.slid.s - r.on.s) > 0.4, `the left stick slides along it at the CT shuffle (${r.on.s.toFixed(2)} -> ${r.slid.s.toFixed(2)})`);
-      assert(r.off.phase !== 'on' && r.off.last === 'context', `pad L3 again leaves (${JSON.stringify(r.off)})`);
-    } finally {
-      await W.browser.close();
-    }
-  }
-  console.log('door menu (A3, G19, G97): A at a door opens the menu; Stealth open peeks (right stick looks, stick back closes, forward opens); Open; Bash');
-  {
-    const W = await launch({ url, params: 'autostart=proving' });
-    try {
-      await W.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
-      const r = await W.page.evaluate(() => {
-        const a = window.__app;
-        const g = a.current;
-        a.loop.manual = true;
-        const V = g.player.position.constructor;
-        const d = g.world.doors.list[0];
-        if (!d) return null;
-        const an = d.anchor;
-        // the leaf's middle, 0.7 m out on the normal's side, facing it
-        const nx = Math.cos(an.yaw);
-        const nz = -Math.sin(an.yaw);
-        const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
-        const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
-        const yaw = Math.atan2(-nx, -nz);
-        const place = () => {
-          g.player.controller.teleport(new V(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), yaw);
-          g.player.cam.yaw = yaw;
-          g.player.cam.pitch = 0;
-          a.loop.stepHeadless(0.3, 120);
-        };
-        place();
-        const step = (n) => { for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120); };
-        const P = window.__pad;
-        const press = (b) => { P.set(b, 1); step(2); P.set(b, 0); step(1); };
-        // one menu step down: the left stick pushed down for a few frames (the D-pad would aim the gadget)
-        const down = () => { P.axis(1, 0.9); step(4); P.axis(1, 0); step(12); };
-        const st = () => ({ phase: g.doorPeek.phase, cracked: d.cracked, ajar: d.ajar, target: d.target, body: !!d.body, view: g.player.cam.doorPeek, look: Math.atan2(Math.sin(g.player.cam.yaw - g.player.cam.doorYaw), Math.cos(g.player.cam.yaw - g.player.cam.doorYaw)) });
-        P.connect();
-        step(2);
-        const closedAtStart = d.target === 0;
-        press(0);
-        step(6);
-        const menu = { open: g.doorMenu.open, opts: [...g.doorMenu.opts], sel: g.doorMenu.sel, ui: document.querySelector('.hud-doormenu')?.classList.contains('show') };
-        // B cancels it
-        press(1);
-        step(6);
-        const cancelled = !g.doorMenu.open && d.target === 0;
-        // stealth open (second entry): the peek
-        press(0);
-        step(6);
-        down();
-        const sel = g.doorMenu.sel;
-        press(0);
-        step(60);
-        const peek = st();
-        P.axis(2, 1);
-        step(40);
-        P.axis(2, 0);
-        step(2);
-        const looked = st();
-        // the stick pulled back (toward the body) closes the crack
-        P.axis(1, 1);
-        step(30);
-        P.axis(1, 0);
-        step(20);
-        const closed = st();
-        // the first entry: Open (the quiet creak)
-        press(0);
-        step(6);
-        press(0);
-        step(90);
-        const opened = st();
-        // Bash: shut the door, stand there again, the third entry (stealth is on offer, so two steps down)
-        g.world.doors.close(d, () => false);
-        step(90);
-        place();
-        step(10);
-        g.noise = 0;
-        press(0);
-        step(6);
-        down();
-        down();
-        const bashSel = g.doorMenu.opts[g.doorMenu.sel];
-        press(0);
-        step(6);
-        const noise = g.noise;
-        step(20);
-        return { closedAtStart, menu, cancelled, sel, peek, looked, closed, opened, bashSel, bash: st(), noise };
-      });
-      assert(!!r && r.closedAtStart, 'Proving has a closed door');
-      assert(r.menu.open && r.menu.opts.join() === 'open,stealth,bash,optic' && r.menu.sel === 0 && r.menu.ui, `A at a closed door opens the door menu (open, stealth open, bash, optic cable) (${JSON.stringify(r.menu)})`);
-      assert(r.cancelled, 'B cancels the menu, the door stays shut');
-      assert(r.sel === 1 && r.peek.phase === 'peek' && r.peek.cracked && Math.abs(r.peek.ajar - 0.12) < 0.01 && r.peek.target === 0 && r.peek.body && r.peek.view === 1, `Stealth open: the door peek, cracked 0.12, body kept (${JSON.stringify(r.peek)})`);
-      assert(Math.abs(r.looked.look) > 0.3 && Math.abs(r.looked.look) <= (35 * Math.PI) / 180 + 1e-3 && r.looked.phase === 'peek', `the right stick looks, within +-35 deg (${JSON.stringify(r.looked)})`);
-      assert(r.closed.phase === 'off' && !r.closed.cracked && r.closed.ajar === 0 && r.closed.body, `the stick pulled back closes the crack (${JSON.stringify(r.closed)})`);
-      assert(r.opened.target === 1 && !r.opened.cracked, `Open: the door swings open (${JSON.stringify(r.opened)})`);
-      // (the noise and the guard behind the door are checked in e2e-stealth-ai: this sandbox map has no guards or door noise)
-      assert(r.bashSel === 'bash' && r.bash.target === 1, `Bash: the door is bashed open (${r.bashSel}, target ${r.bash.target})`);
-    } finally {
-      await W.browser.close();
-    }
-  }
-  console.log('wall edge verb (step 12, D1; A3): stick-to-edge peek at once, X (draw) leaves the wall, A corner takedown');
-  {
-    const W = await launch({ url, params: 'autostart=proving' });
-    try {
-      await W.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
-      const d = await W.page.evaluate(EDGE_HARNESS);
-      assert(!!d, `the Proving doorway (${JSON.stringify(d)})`);
-      const r = await W.page.evaluate(() => {
-        const k = window.__ed;
-        const P = window.__pad;
-        const press = (b) => { P.set(b, 1); k.step(2); P.set(b, 0); k.step(1); };
-        P.connect();
-        k.step(2);
-        press(10);
-        k.step(30);
-        const on = k.st();
-        P.axis(0, k.sx);
-        // slide to the very end of the wall (the shuffle is slow), then release
-        for (let i = 0; i < 900 && !window.__app.current.wallCore.atEnd; i++) k.step(1);
-        P.axis(0, 0);
-        k.step(40);
-        // peek: the stick pushed toward the edge, at once
-        P.axis(0, k.sx);
-        k.step(8);
-        const peek = k.st();
-        P.axis(0, 0);
-        k.step(30);
-        // X: drawing the weapon (aiming) leaves the wall
-        P.set(2, 1);
-        k.step(3);
-        P.set(2, 0);
-        k.step(20);
-        const aim = k.st();
-        P.set(2, 1);
-        k.step(3);
-        P.set(2, 0);
-        k.step(30);
-        return { on, peek, aim };
-      });
-      assert(r.on.phase === 'on', `pad L3 enters the doorway wall (${JSON.stringify(r.on)})`);
-      assert(r.peek.peekOn && (r.peek.sub & 16) !== 0 && r.peek.cam === 1, `stick toward the edge: peek at once (${JSON.stringify(r.peek)})`);
-      assert(r.aim.phase !== 'on' && r.aim.phase !== 'entering', `X (draw) leaves the wall (${r.aim.phase})`);
-    } finally {
-      await W.browser.close();
-    }
-    const C = await launch({ url, params: 'autostart=warehouse&mode=clear' });
-    try {
-      await C.page.waitForFunction(() => !!window.__app?.current?.enemyMgr, null, { timeout: 60000 });
-      const kind = await C.page.evaluate(CORNER_SETUP);
-      const r = await C.page.evaluate(() => { const k = window.__cn; window.__pad.set(0, 1); k.step(2); window.__pad.set(0, 0); k.step(1); return k.st(); });
-      assert(kind === 'corner' && r.td, `pad A: the corner takedown from the wall edge runs (${kind}, ${JSON.stringify(r)})`);
-    } finally {
-      await C.browser.close();
     }
   }
   console.log('remap (step 18, D7): Controls > Controller by pad: clear R3, draw X -> R3, play; onto B warns; reset; crouch and wall hold / toggle');

@@ -5,12 +5,11 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
-const MAPS = [
-  ['proving', 'sandbox'],
-  ['warehouse', 'clear'],
-  // the training bunker (level-design 15: e2e-anchors covers the map; T5), in its sandbox mode (no airlocks to cycle)
-  ['bunker', 'sandbox'],
-];
+// (process audit, 2026-10-19) Proving only: the Warehouse (Hunter) and Fallow (`bunker`) are parked, and Marlow Yard
+// (`ctcourse`) places no anchors yet (its walls are team moves and generated lips). Add `ctcourse` when it places one;
+// `--only=warehouse` / `--only=bunker` still run a parked map by hand.
+const PARKED = { warehouse: ['warehouse', 'clear'], bunker: ['bunker', 'sandbox'] };
+const MAPS = [['proving', 'sandbox'], ...(PARKED[only] ? [PARKED[only]] : [])];
 // anchors.ts REACH.zip: a zipline's high end is grabbed within this (plan) of it
 const ZIP_REACH = 1.3;
 let failed = false;

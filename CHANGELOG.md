@@ -1,5 +1,23 @@
 # Changelog
 
+## 4.6.4 - Docs: the laptop is a second heavy slot; roadmap is state only (2026-10-19)
+- CLAUDE.md "Machines": two heavy slots, the laptop at low priority, everything headless and invisible (Michael).
+- docs/ROADMAP.md keeps state only; its rules moved to CLAUDE.md "Sessions". Sector Ops and the co-op test fix on the roadmap.
+
+## 4.6.3 - Process audit: test tiers, shorter e2e, one rules file (2026-10-19, PR #15)
+Michael approved the audit's report as written (2026-10-19; `docs/process-audit/REPORT.md`).
+- The full e2e run is the training level and the systems it stands on (estimated 62 -> about 28 minutes at two
+  suites at a time): the parked-content suites (Hunter / Mission, Fallow, Kestrel, the Warehouse routes and AI
+  archetypes) move to `npm run e2e:legacy`, the audio suites to `npm run e2e:audio`, the visual read-backs (darkness,
+  the Epic boot) to `npm run e2e:gpu` on Michael's PC, and the animation audit runs only from the quick map.
+- e2e-pad and e2e-mouse keep input (menus, capture, the verb tables, remap) and drop the gameplay sections their system
+  suites own; e2e-pad gains a pad verb table. e2e-course walks the gates once. `e2e:quick` no longer pulls the input
+  suites for every core or config change.
+- One set of rules in CLAUDE.md "Sessions" (orchestrator, machines, a job, test tiers, branches and previews), a
+  3-file job format (BRIEF, PLAN, STATE), a shared subagent preamble; deploy.md and session-method.md agree with it;
+  finished and parked job docs carry a history banner. The goggle job's records (M1-M3) and D36 (Moth's goggle is
+  purple) reach master.
+
 ## 4.6.2 - Version numbers you can read (2026-10-19)
 - Every merge to master gets the next version (G183): a job or feature is a minor step, a fix or docs-only merge a
   patch. The in-game label (title screen, main menu, playtest notes) adds the build's commit: `v4.6.2 · a1b2c3d`, with

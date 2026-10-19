@@ -14,29 +14,52 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `music:fetch` / `music:orch` (the score): download the CC0 sources (SHA-256 checked) into git-ignored caches and
   render the committed sprites / tracks (Windows: Media Foundation MP3). Only a change of takes needs them (audio.md).
 - `npm run e2e` - the REQUIRED suites (below); `npm run e2e:quick` - `smoke` + the suites covering the changed folders;
-  `npm run e2e:serial` - one at a time with live output; `npm run e2e:legacy` - the parked-content suites (report
-  only); `npm run e2e:editor` - the level editor suite (not required).
+  `npm run e2e:serial` - one at a time with live output; `npm run e2e:legacy` - the parked-content suites;
+  `npm run e2e:audio` - the audio suites; `npm run e2e:gpu` - the visual read-backs (Michael's PC, `E2E_GPU=1` only);
+  `npm run e2e:editor` - the level editor suite (not required).
+
+## Test tiers (process audit, approved by Michael 2026-10-19; CLAUDE.md "Sessions" is the rule)
+| Change | Runs | Where |
+| --- | --- | --- |
+| Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
+| A step | `npm run check` once at the step's end + the suites the step names, or `e2e:quick` | desktop; the laptop runs `check` only |
+| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop |
+| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop |
+| Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
+- One runner per machine: never two e2e runners, or a `check` beside a full run (the 2026-10-19 full run overlapped
+  another job's runner and an orphan `check` and read 30-60 % slow).
+- Asserts that copy a tuning value go stale when the table changes (the holster budget read 400 ms against
+  `HOLSTER_TIME` 0.55). Read the number from the game's own table (through `window.__app`) instead of a literal when a
+  suite is next touched. Known literals: e2e-netmove's walk-off (1.55 m in 6 s, crouched), e2e-ctcourse's 12 s leg-up
+  wait, e2e-traverse's pipe 0.85 / shimmy 1.2 / crawl 0.9 m/s and its drainpipe settle frames, e2e-ct's legs-up 0.5,
+  rappel 1.6 / 1.0, fence 0.9 / 0.6 m/s, e2e-move's top speed 4.2, e2e-wall's shuffle 0.27 / 0.35, e2e-anim's 0.08 s
+  and 720 deg/s, e2e-foley's >= 4 plants, and every wall-clock wait in the two-page suites (the co-op fix job).
 
 ## The runner (`scripts/run-e2e.mjs`)
 - Serves `dist/` once (`vite preview`; needs a prior `npm run build`) and runs the suites in a pool, each suite its own
   process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run). Each suite's
-  output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as four jobs (`e2e-desktop:1`..`:4`,
-  `--part=N`; its sections are independent).
+  output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as jobs `e2e-desktop:1`, `:2`, `:4`
+  (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
   cloud VMs (two suites at a time, G94).
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
   `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
-  changed folders (`COVERS` in the runner; an unmapped `src/` path, `e2e-lib` or `package.json` runs `CORE` = e2e-pad,
-  e2e-mouse, e2e-move, e2e-modes, e2e-combat); `--list` prints what would run. Jobs use the quick run; the full run at
-  the end of every job and before every merge.
-- REPORT list: `anim-audit` runs in `npm run e2e` and prints REPORT ONLY (never fails the run). LEGACY list (`--legacy`,
-  `LEGACY=1`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`; `e2e-lib` `openPage` then appends `legacy=1`.
-- Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-coop`, `e2e-netmove`, `e2e-darkness`,
-  `e2e-weapons-carry`, `e2e-pad`, `e2e-foley`, `e2e-bunker`. They always run; a failure prints KNOWN FLAKY and does not fail the run.
-  Any other failure counts only if it also fails in a solo rerun. Decided, not built yet (G51): a short job makes the two
-  co-op suites reliable, then they leave the list. e2e-foley leaves it when the CT prototype retunes its walk check; e2e-bunker (teleported-partner check) with the co-op test fixes. e2e-anim reports the draw / sprint-holster pop as KNOWN ISSUE until the CT prototype draw (docs/backlog.md).
-- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`; `--legacy` for `LEGACY=1`).
+  changed folders (`COVERS` in the runner, first match wins: `src/core/quality`, `display`, `settings` and `flags` by
+  file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
+  e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
+  suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
+- The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
+  on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
+  `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
+  `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
+  `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`. REPORT: `anim-audit`
+  (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
+- Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-coop`, `e2e-netmove` (until the co-op fix job),
+  `e2e-weapons-carry`, `e2e-pad` (until two clean full runs). They always run; a failure prints KNOWN FLAKY and does not
+  fail the run. Any other failure counts only if it also fails in a solo rerun.
+- Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name
+  (`e2e-wall:flanker`, `e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
   `stepHeadless`, screenshots).
 
@@ -74,11 +97,13 @@ behind a VPN adapter).
 ## The suites (REQUIRED unless marked)
 - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
-  gears, D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; remap capture (B held
-  until the capture ends); a pad disconnect falls back to keyboard and mouse; the Difficulty row by d-pad (fixed levels)
+  gears, D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; analog gears, rumble;
+  the pad verb table (every default button raises its action); remap capture (B held until the capture ends); a pad
+  disconnect falls back to keyboard and mouse; the Difficulty row by d-pad (fixed levels). (Process audit: the palm
+  strike, wall, door menu and edge verb sections went to their system suites.)
 - `e2e-mouse` mouse capture: a click captures (never fires), look, fire, wheel = speed gear, X swaps, = / -, Esc pauses,
-  Resume re-captures; the keyboard verb table; a wall medkit station on Proving (+40, spent, full health refused); the
-  Difficulty row by click
+  Resume re-captures; the keyboard verb table; N toggles vision; Controls remap. (Process audit: the palm strike, wall
+  medkit, wall, difficulty, edge verb, door menu and loadout sections went to their system suites.)
 - `e2e-move` (`gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept through stances, zero
   velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride (aiming lets go; crouched: no
   kneel), forward roll (0.7 s, ~3 m, crouched, 2 m noise), aim strafe / backstep, sprint toggle and aim ends a sprint
@@ -88,8 +113,8 @@ behind a VPN adapter).
   ledge grab, shimmy, jump across, outside corner, climb up, hold-B lower in, drop; horizontal pipe; landing bands (soft
   / roll / heavy + noise + recovery); grab while falling; zipline; open / glazed windows; duct unscrew, crawl, vent drop
   + roll, kick; keyboard E, crouch lets go, vent hold by key; planted hands / feet locked (< 1 cm), arms reach grips
-- `e2e-anchors` every placed anchor on every listed map (ladders, drainpipes, pipes, ziplines, ducts, windows both
-  sides) is offered from its approach and engages; hangable lips per map
+- `e2e-anchors` every placed anchor on Proving (ladders, drainpipes, pipes, ziplines, ducts, windows both sides) is
+  offered from its approach and engages; hangable lips (`--only=warehouse` / `--only=bunker` run a parked map by hand)
 - `e2e-stealth` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving, aiming, after a traversal,
   no residual offsets, level horizon after a shake)
 - `e2e-weapons-carry` Free Roam loadout (the two CT kit guns, plus a `pistolSd,rifle` loadout): back guns within 10 deg
@@ -101,13 +126,13 @@ behind a VPN adapter).
   drift / sprint FOV (CT prototype) / stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity
 - `e2e-lightbake` the Warehouse under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
   same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`); Epic draws the bake
-- `e2e-darkness` display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
+- `e2e-darkness` (GPU list) display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
   at field levels ~0.12 / 0.27 / 0.40 / 0.70, the camera 0.8 m in front, the HUD hidden; the screenshot centre as Rec.
   709 luma at Epic, night vision off and on (`REPORT=1` prints without asserting); turning with night vision on reads
   as moving every frame; night vision's bloom runs every frame
 - `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
   respawn
-- `e2e-modes` mission flow, ragdolls on Mission, enemy types on `proving&mode=mission`, Infiltration
+- `e2e-modes` (LEGACY) mission flow, ragdolls on Mission, enemy types on `proving&mode=mission`, Infiltration
 - `e2e-clip` traversal: no body point > 3 cm into the world while climbing, hanging, shimmying, crawling, dropping
   through a vent, vaulting a window, on a zipline or rolling; the weapon clipping sweep along a wall (both sides), crouch
   run, aim every weapon: no gun point inside the world (> 2 cm), gun clear of head, trunk, elbows; knees and feet apart
@@ -116,8 +141,8 @@ behind a VPN adapter).
   grenades / flanker (five alerted grunts on `proving&mode=mission`), footstep noise investigation, a wall muffles a noise
 - `e2e-wall` back-to-wall on Proving: entry reach, slide speed caps (CT prototype), quieter than walking, the
   outside-end stop with its edge flag, pull-away and context exits; Warehouse: two guards against a player on a wall (a
-  flanker after > 4 s, a grenade after > 6 s). e2e-netmove adds "wall", "wall crouch" and "stack"; e2e-pad and e2e-mouse
-  cover the verb
+  flanker after > 4 s, a grenade after > 6 s: `e2e-wall:flanker`, LEGACY). e2e-netmove adds "wall", "wall crouch" and
+  "stack"; the pad and keyboard verb tables cover the button
 - `e2e-stealth-ai` night Warehouse: shadow vs light detection, the arc warns first, no sight through walls, noise ->
   suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
   search ends, patrols
@@ -127,12 +152,12 @@ behind a VPN adapter).
 - `e2e-gadgets` wheel (hold opens + slows time, stick picks, release selects, mouse-mode slot click; ends in pad mode),
   arc preview, gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure (muffled
   behind a wall), sticky cam feed (operator still, ping, gas, back), mine
-- `e2e-enemies` heavy (plates, lethal-only frontal takedown), enforcer (shield, no frontal grab, pushes), sniper (laser,
+- `e2e-enemies` (LEGACY) heavy (plates, lethal-only frontal takedown), enforcer (shield, no frontal grab, pushes), sniper (laser,
   glint, relocates), dog (smell in the dark, takedown), drone operator (the enemy recon drone: spots, shot down, EMP),
   officer (buff, alarm first), radio check, callouts, Perfectionist
 - `e2e-levels` multi-level AI: three storeys per column, Warehouse ladder links both ways, a runner chasing the player
   up a rack ladder and back down
-- `e2e-missions` Infiltration objective types to success (download pauses away + noticed pulses, intel any order,
+- `e2e-missions` (LEGACY) Infiltration objective types to success (download pauses away + noticed pulses, intel any order,
   plant, rescue + escort, sabotage, extraction, results rating) and failure (the no-detection rule, three downs) on the
   Warehouse missions (Ledger, Courier, Blackout, Cold Storage); routes per objective; no style bars (3 with `LEGACY=1`);
   Hunter's alarm doubles the hostiles
@@ -149,13 +174,13 @@ behind a VPN adapter).
   rappel + rope, fence); team moves (the client braces and boosts the host onto the 4.2 m lip, the human ladder, a
   request without a braced partner is denied); wall, wall crouch, stack; lean-out at a wall end (CT prototype) (known
   flaky)
-- `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; every gate kind by host
-  and client, a forced both-down restart; door locks and the lamp group reach the client within 0.5 s; friendly fire
+- `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; a forced both-down
+  restart, then every gate kind by the client (the host's gates are e2e-ctcourse's); door locks and the lamp group reach the client within 0.5 s; friendly fire
   (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door
-- `e2e-bunker` two pages on `?net=local&autostart=bunker&mode=course`, Fallow by bay: B1 the objective list on both
+- `e2e-bunker` (LEGACY) two pages on `?net=local&autostart=bunker&mode=course`, Fallow by bay: B1 the objective list on both
   pages, every course prompt on the client, "Waiting for partner", the seal and the locked rear door; B2 a lane lever
   pulled by the client unlocks the doors on both pages
-- `e2e-ct-warehouse` the Warehouse CT routes (Hunter, guards frozen): drainpipe -> roof, rappel -> kick through the
+- `e2e-ct-warehouse` (LEGACY) the Warehouse CT routes (Hunter, guards frozen): drainpipe -> roof, rappel -> kick through the
   dispatch window, skylight drop, the pump house boost target, press wall jump, corridor split + drop, deck pipe + drop,
   yard fence + the nav path round it
 - `e2e-ct` the Proving CT course: the manual jump, split jump, wall jump, pipe facing along + legs up + inverted, the flip
@@ -164,35 +189,35 @@ behind a VPN adapter).
 - `e2e-feedback` playtest notes: Pause > Report feedback with the context, photo mode (frozen game, no HUD, free camera,
   take / retake / keep / cancel, two photos), IndexedDB after a reload, Settings > Feedback list, the HTML report
   download, photo mode on the menu stage
-- `e2e-desktop` (four parts) menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets, Custom, frame cap), the
+- `e2e-desktop` (parts 1, 2, 4; part 3, the Epic renderer in a match, is in the GPU list) menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets, Custom, frame cap), the
   benchmark (a short flight saved as feedback; every preset), Auto graphics (GPU name, `?detect=1&renderer=...`
   calibration, no re-measure), the frame governor stepping down, baked lamps, 16:10 / 21:9 / 32:9 windows, the Epic
   renderer in a match, every material within 16 textures, no `GameState` survives a release (`SHOTS=dir` saves shots)
 - `e2e-offline` service worker precache (every manifest entry), offline boot + match, backgrounding pauses, co-op offline
   state, a v1 save in IndexedDB migrated on boot with a backup
-- `e2e-security` (Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
+- `e2e-security` (LEGACY; Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
   a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
   player at its far pause; a shot camera stops detecting; desk and panel checks
-- `e2e-kestrel` (Kestrel-owned, covers `src/world/maps/kestrel*`): the B0 massing walk from
+- `e2e-kestrel` (LEGACY; Kestrel-owned, covers `src/world/maps/kestrel*`): the B0 massing walk from
   `docs/kestrel/kestrel.blocks.json`: spawn at `meta.entry`, a teleport per zone, the controller walks a tour (entry,
   stairs, roof and back), the camera's two rays along the tour (findings printed), the critical path crouched at gear 3
-- `e2e-camera-bounds` (Kestrel-owned, covers the camera files): on kestrel in sandbox every frame a ray from the head to
+- `e2e-camera-bounds` (LEGACY; Kestrel-owned, covers the camera files): on kestrel in sandbox every frame a ray from the head to
   the camera and to the four near-plane corners hits nothing: hugging both walls of the longest corridor and turning on
   each shoulder, every stair, crouched along level U (a 1.5 m test box while level U is not built), the open yard
   framing within 2% of the pre-CAM values
-- `e2e-music` the old V3 sketch picker (`?musiclab=1`): the picker comes first, each sketch loads its three stems, the
+- `e2e-music` (AUDIO) the old V3 sketch picker (`?musiclab=1`): the picker comes first, each sketch loads its three stems, the
   ladder moves the stem gains, every decoded loop joins without a seam, the playback cost, no console errors
-- `e2e-score` the V4 score: after the first click the menu theme plays and fades from full into a match; in a Warehouse
+- `e2e-score` (AUDIO) the V4 score: after the first click the menu theme plays and fades from full into a match; in a Warehouse
   match the mission tracks decode in the background, Calm is silent, a suspicious guard gives Cautious, an alerted one
   Alert (with Evasion alongside)
-- `e2e-weapon-audio` on Proving: the sprite decodes with a small alignment shift; automatic fire plays one shot per
+- `e2e-weapon-audio` (AUDIO) on Proving: the sprite decodes with a small alignment shift; automatic fire plays one shot per
   round with brass and stays under 24 voices; a suppressed rifle plays its suppressed bank and guards hear it less; a
   reload, a dry click and a shot 20 m away play; the weapon lab (`?weaponlab=1`) fires the two kit guns, an automatic
   run, a suppressed guard shot at 18 m, both reloads, brass and dry fire
-- `e2e-foley` on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (CT prototype;
-  known flaky: the walk check reads 3 or 4 plants against >= 4 at the step-22 speed), silence standing still, a drop
+- `e2e-foley` (AUDIO) on Proving: the sprite decodes; one foley step per real foot plant at a walk and a sprint (the walk
+  check reads 3 or 4 plants against >= 4 at the step-22 speed: parked, not fixed), silence standing still, a drop
   plays a landing, the guards' footstep noise unchanged; the foley lab (`?foleylab=1`) walks every surface
-- LEGACY (`npm run e2e:legacy`, report only): `e2e-progression` (Loadout by controller, upgrades, rewards, IndexedDB,
+- Also LEGACY (`npm run e2e:legacy`): `e2e-progression` (Loadout by controller, upgrades, rewards, IndexedDB,
   export / import), `e2e-cosmetics` (Loadout
   appearance by controller, live / locked previews, the Tag page, camo, in-game look), `e2e-clear` (Hunter on the
   Warehouse: "Enemies left N", "DOWN", the OPERATION COMPLETE stinger, results; doorway checks on Mission; no Training

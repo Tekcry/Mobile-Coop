@@ -1,7 +1,7 @@
 {
   "name": "mobile-coop",
   "private": true,
-  "version": "4.6.2",
+  "version": "4.6.4",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
@@ -15,6 +15,8 @@
     "icons": "node scripts/gen-icons.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:legacy": "node scripts/run-e2e.mjs --legacy",
+    "e2e:audio": "node scripts/run-e2e.mjs --audio",
+    "e2e:gpu": "node scripts/run-e2e.mjs --gpu",
     "e2e:serial": "node scripts/run-e2e.mjs --serial",
     "e2e:quick": "node scripts/run-e2e.mjs --quick",
     "check": "npm run lint && npm test && npm run build",
