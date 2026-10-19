@@ -20,15 +20,16 @@ import { mulberry } from '../core/rng';
 import { PartLibrary } from './partLibrary';
 import type { CharacterRig } from '../player/characterRig';
 import { CLOSE_CAMERAS } from '../operators/runtime/lodPick';
-import { LOD_HERO } from '../operators/runtime/manifest';
-import { forgetModel, loadModel, type OperatorFigure } from '../operators/runtime/figure';
+import { LOD_HERO, LOD_NAMES } from '../operators/runtime/manifest';
+import { gateInput, runGate, type GateLimits, type GateProbe } from './menuGate';
+import { forgetModel, loadModel, operatorBytes, type OperatorFigure } from '../operators/runtime/figure';
 import { loadMenuLods, operatorRig } from '../operators/runtime/playerFigure';
 import { wrenManifest } from '../operators/runtime/assets';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { setVoxelWeapons, WeaponModel } from '../weapons/weaponModel';
-import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
-import { carryKind } from '../weapons/carrySlots';
+import { WEAPON_IDS, WEAPONS, type WeaponId } from '../weapons/weaponDefs';
+import { carryKind, type CarrySlot } from '../weapons/carrySlots';
 import { withAttachments } from '../progression/attachments';
 import { camoById } from '../cosmetics/catalog';
 import type { QualityLevel } from '../core/quality';
@@ -37,6 +38,7 @@ import { SurfaceAtlas } from './surfaceAtlas';
 import { flags } from '../core/flags';
 import { buildVoid, HERO_SHOTS, idleSway, lightCone, VOID_ORIGIN, VOID_YAW, type HeroShot, type SetLight, type VoidSet } from './menuSets';
 import { createDirector, easeInOut, goggleLevel, parseShotHooks, type Director, type MenuContext } from './menuShots';
+import { applyMenuPose, menuPoseInput, MENU_POSES, type MenuHold } from './menuPoses';
 
 /** The diorama's lights: a warm key overhead in front of the operator, a cool rim behind, a lamp in the distance. */
 const LIGHTS: { pos: [number, number, number]; at: [number, number, number]; angle: number; intensity: number; color: [number, number, number]; cone: number }[] = [
@@ -54,8 +56,18 @@ export type MenuFraming = 'menu' | 'loadout' | 'weapon';
  *  (`menuSets.ts`); the loadout and
  *  the lobby keep today's stage. */
 export class MenuState implements AppState {
-  /** The menu stage (3.1: Auto graphics calibrates here). */
-  readonly menuStage = true;
+  /** The menu stage (3.1: Auto graphics calibrates here), once the load screen has gone (menu-notes note 2: the
+   *  loading frames are not measured). */
+  get menuStage(): boolean {
+    return this.revealed;
+  }
+  /** (menu-notes note 2) The load screen has gone (`prepare` settled). */
+  private revealed = false;
+  /** The close-up LOD's load failed / the menu's LOD chain settled (for the current figure). */
+  private closeUpFailed = false;
+  private chainDone = false;
+  private readonly gateIn = gateInput();
+  private gate = '';
   readonly scene: Scene;
   readonly simulating = true;
   readonly camera: ArcRotateCamera;
@@ -70,6 +82,10 @@ export class MenuState implements AppState {
   private figure: OperatorFigure | null = null;
   private weapon: WeaponModel | null = null;
   private weaponId: WeaponId = 'rifle';
+  /** (menu-notes slice 3) The other weapon (the pistol beside a long gun, or the rifle beside a pistol): in the void one
+   *  is in her hands and the other in its carry slot; on the stage it is out of sight. */
+  private sidearm: WeaponModel | null = null;
+  private sidearmId: WeaponId = 'pistolSd';
   /** Avatar yaw (rotated by stick / drag in the customiser). */
   previewYaw = Math.PI;
   private framing: MenuFraming = 'menu';
@@ -113,8 +129,13 @@ export class MenuState implements AppState {
   private snap = true;
   private readonly fadeEl: HTMLDivElement;
   private fadeShown = -1;
-  /** Holstered in the void; in the hands on the stage (loadout, lobby). null = not applied yet. */
-  private holstered: boolean | null = null;
+  /** (menu-notes slice 3) The weapons' arrangement: 'stage' (the loadout weapon in the hands) or the void shot's hold;
+   *  '' = not applied yet. */
+  private holdMode: '' | 'stage' | MenuHold = '';
+  /** The void's rig input (menuPoses.ts), reused every frame. */
+  private readonly poseIn = menuPoseInput();
+  /** What the weapons' visibility was last applied for (bits: in the void, primary mesh loaded, sidearm mesh loaded). */
+  private visBits = -1;
 
   constructor(engine: Engine) {
     const scene = new Scene(engine);
@@ -234,6 +255,122 @@ export class MenuState implements AppState {
   get shotContext(): MenuContext {
     return this.director.context;
   }
+  /** (menu-notes slice 3, debug hook) Both menu weapons show their Blender meshes (menu-shots6). */
+  get weaponsReady(): boolean {
+    return !!this.weapon?.mesh && !!this.sidearm?.mesh;
+  }
+  /** (menu-notes slice 3, debug hook) The weapons' arrangement: 'stage' or the void shot's hold. */
+  get weaponHold(): string {
+    return this.holdMode;
+  }
+  /** (menu-notes note 4, debug hook) The LOD Wren is drawn at now ('hero', 'lod0', 'lod1', 'lod2'; 'none' before one
+   *  has loaded) and the LOD the close-ups should draw ('hero' on every desktop preset, 'lod2' under `?gfx=min`). */
+  get heroLod(): string {
+    const c = this.figure?.current ?? -1;
+    return c >= 0 ? (LOD_NAMES[c] ?? 'none') : 'none';
+  }
+  get heroLodWanted(): string {
+    return this.figure ? (LOD_NAMES[this.figure.closeUpLod] ?? 'none') : 'none';
+  }
+  /** (menu-notes slice 4a, debug hook) Stops the shot director's clock (the GPU scripts freeze a moment of the goggle
+   *  flicker for a still); the hand-held drift runs on. */
+  debugPause = false;
+  /** (menu-notes slice 4c) Seconds until the title's lights are fully up (the title's press sequence waits on it). */
+  get titleLeftS(): number {
+    return this.director.titleLeftS;
+  }
+  /** (menu-notes slice 4c, A3) The second press: the goggle strike jumps to the lit main menu. */
+  skipTitle(): void {
+    this.director.skipTitle();
+  }
+  /** (menu-notes slice 4a, debug hook) The title's light state, read back for the scripts: the phase ('dark' until the
+   *  press), seconds since the press, the lights' level and goggle level the director asks for, and what the stage
+   *  applied: the sum of the three spots' intensities, the hemi, the scene ambient, the clear colour, the goggle level
+   *  set on the figure (-1 before a body loaded) and its lens tint now (rgb sum; 0 = no emissive, so no bloom). */
+  get titleLight(): { phase: string; igniteT: number; lit: number; glow: number; spots: number; hemi: number; ambient: number; clear: number; goggle: number; lens: number } {
+    const d = this.director;
+    const c = this.figure?.glowColour;
+    const a = this.scene.ambientColor;
+    const k = this.scene.clearColor;
+    return {
+      phase: d.titlePhase,
+      igniteT: d.igniteT,
+      lit: d.lit,
+      glow: d.glow,
+      spots: this.spots.reduce((s, l) => s + (l.isEnabled() ? l.intensity : 0), 0),
+      hemi: this.hemi.intensity,
+      ambient: a.r + a.g + a.b,
+      clear: k.r + k.g + k.b,
+      goggle: this.glowK,
+      lens: c ? c[0] + c[1] + c[2] : -1,
+    };
+  }
+  /** (menu-notes note 2, debug hook) The load screen gate: '' while it waits, 'ready', or 'timeout: <step> ...'. */
+  get bootGate(): string {
+    return this.gate;
+  }
+
+  /** Every enabled, visible mesh ready to draw (its shaders compiled with the lights as they are now, its textures in),
+   *  no texture still pending in the scene, and the post stack's effects compiled. Asking compiles what is missing. */
+  private drawReady(): boolean {
+    const scene = this.scene;
+    let ok = scene.getWaitingItemsCount() === 0;
+    for (const m of scene.meshes) {
+      if (!m.isEnabled() || !m.isVisible || !m.subMeshes?.length) continue;
+      // (no early exit: every material starts compiling at once)
+      if (!m.isReady(true)) ok = false;
+    }
+    for (const pp of scene.postProcesses) if (pp && !pp.isReady()) ok = false;
+    return ok;
+  }
+
+  /** The next rendered frame (true), or a tick of 100 ms when no frame comes (a hidden tab; false). */
+  private tick(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const obs = this.scene.onAfterRenderObservable;
+      const o = obs.addOnce(() => {
+        clearTimeout(id);
+        resolve(true);
+      });
+      const id = setTimeout(() => {
+        obs.remove(o);
+        resolve(false);
+      }, 100);
+    });
+  }
+
+  /**
+   * (menu-notes note 2) Resolves when the menu is ready to be seen (`menuGate.ts`): Wren's close-up LOD loaded and drawn,
+   * the weapons' meshes in, the shaders of the first shot compiled and a few frames rendered behind the boot screen.
+   * `report` gets the progress (0..1) and the status line. It gives up after `limits` (no progress, or the cap) and
+   * resolves with the reason, so a failed load never strands the player; a check that throws resolves 'error: ...'.
+   * Never rejects. Returns 'ready', 'timeout: ...', 'error: ...' or 'closed' (the menu went away meanwhile).
+   */
+  async prepare(report: (progress: number, text: string) => void, limits: GateLimits): Promise<string> {
+    const g0 = this.gateIn;
+    const probe: GateProbe = {
+      read: (g) => {
+        const f = this.figure;
+        g.loaded = f?.loaded ?? 0;
+        g.closeUp = f?.closeUpLod ?? LOD_HERO;
+        g.closeUpFailed = this.closeUpFailed;
+        g.chainDone = this.chainDone && !!f;
+        g.weaponsPending = !this.weapon || this.weapon.meshPending || !!this.sidearm?.meshPending;
+        g.onScreen = !!f && f.current === g.closeUp;
+        g.drawReady = this.drawReady();
+        g0.loaded = g.loaded;
+        g0.weaponsPending = g.weaponsPending;
+        g0.drawReady = g.drawReady;
+        return operatorBytes.received;
+      },
+      tick: () => this.tick(),
+      closed: () => this.scene.isDisposed,
+      describe: () => `drawn ${this.heroLod}, wanted ${this.heroLodWanted}, loaded bits ${g0.loaded}, weapons pending ${g0.weaponsPending}, draw ready ${g0.drawReady}`,
+    };
+    const why = await runGate(probe, report, limits);
+    this.revealed = true;
+    return (this.gate = why);
+  }
 
   /** Graphics settings: the key and rim lamps cast shadows, and the post stack (no volumetrics: the beams are
    *  their own cones here). */
@@ -285,6 +422,7 @@ export class MenuState implements AppState {
     if (key === this.shown && this.rig) return;
     this.shown = key;
     this.weapon?.dispose();
+    this.sidearm?.dispose();
     this.figure?.dispose();
     this.rig?.dispose();
     // voxel weapon (3.0; `?gfx=min`: the smooth parts); the operator is Wren (operators 11e, D31 / G123)
@@ -294,16 +432,27 @@ export class MenuState implements AppState {
     this.rig = op.rig;
     const fig = (this.figure = op.figure);
     fig.setVision('night', 1);
-    loadMenuLods(fig, loadModel);
+    this.chainDone = false;
+    this.closeUpFailed = false;
+    void loadMenuLods(fig, loadModel).then(() => {
+      if (this.figure === fig) this.chainDone = true;
+    });
     // (slice 6) the close-ups need the hero body: ask for it now, beside the progressive chain (the asset loads once;
-    // `?gfx=min` gets LOD2). A failed load keeps the lower LOD on screen.
-    fig.loadCloseUp().catch(() => {});
+    // `?gfx=min` gets LOD2). A failed load keeps the lower LOD on screen (and the load screen stops waiting for it).
+    fig.loadCloseUp().catch(() => {
+      if (this.figure === fig) this.closeUpFailed = true;
+    });
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
     this.weaponId = weapon;
     this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern, { mesh: true });
     this.weapon.hold(this.rig);
-    this.holstered = null;
+    // (menu-notes slice 3) the other weapon, the Blender mesh too: both are seen in the main menu's void
+    this.sidearmId = WEAPON_IDS.find((id) => id !== weapon) ?? weapon;
+    this.sidearm = new WeaponModel(this.scene, this.parts, WEAPONS[this.sidearmId], c.colors, this.rig.weaponPivot, c.pattern, { mesh: true });
+    this.sidearm.setVisible(false);
+    this.holdMode = '';
+    this.visBits = -1;
     this.glowFull = null;
     this.glowK = -1;
     this.weaponLight();
@@ -384,6 +533,8 @@ export class MenuState implements AppState {
       }
       this.hemi.intensity = 0;
       this.scene.clearColor.set(0, 0, 0, 1);
+      // (menu-notes slice 4a) no ambient term in the void: the dark title is black with the spots off
+      this.scene.ambientColor.set(0, 0, 0);
     } else {
       LIGHTS.forEach((l, i) => {
         const s = this.spots[i]!;
@@ -400,6 +551,7 @@ export class MenuState implements AppState {
         s.shadowEnabled = true;
       });
       this.scene.clearColor.set(0.02, 0.027, 0.043, 1);
+      this.scene.ambientColor.set(0.08, 0.09, 0.11);
       this.camera.fov = 0.8;
       this.stack.lensMm = 50;
       this.dutch(0);
@@ -450,24 +602,56 @@ export class MenuState implements AppState {
     }
   }
 
-  /** The weapon is hidden in the void (Michael 2026-10-19: the old voxel guns do not hold up in close-up; the Blender
-   *  weapons come later); on the stage it shows as before. */
+  /** (menu-notes slice 3) The Blender weapons show in the void (slice 6 hid the old voxel guns there: they did not hold
+   *  up in close-up). Until a weapon's mesh has loaded its proxy parts stand in, and those stay hidden in the void's
+   *  close-ups (they look broken there); on the stage everything shows as before. Applied only when something changed. */
   private weaponLight(): void {
-    if (!this.weapon) return;
-    const show = !this.sets.has(this.activeSet);
-    this.weapon.node.setEnabled(show);
-    // (the voxel group is not always under the node: hide what renders)
-    for (const m of this.weapon.renderMeshes) m.isVisible = show;
+    const inVoid = this.sets.has(this.activeSet);
+    const bits = (inVoid ? 1 : 0) | (this.weapon?.mesh ? 2 : 0) | (this.sidearm?.mesh ? 4 : 0);
+    if (bits === this.visBits) return;
+    this.visBits = bits;
+    for (const w of [this.weapon, this.sidearm]) {
+      if (!w) continue;
+      const show = !inVoid || w.mesh !== null;
+      // (the voxel group is not always under the node: hide what renders)
+      for (const m of w.renderMeshes) m.isVisible = show;
+    }
   }
 
-  /** Holster in the void, the weapon in the hands on the stage. */
-  private setHolstered(on: boolean): void {
-    if (on === this.holstered || !this.rig || !this.weapon) return;
-    this.holstered = on;
-    if (on) {
-      const k = carryKind(WEAPONS[this.weaponId].class);
-      this.weapon.holster(this.rig, k === 'pistol' ? 'thigh' : k === 'compact' ? 'sling' : 'backL');
-    } else this.weapon.hold(this.rig);
+  /** The carry slot of a menu weapon (as slice 6: the long gun on the back plate mount, the pistol in her holster). */
+  private static slotOf(id: WeaponId): CarrySlot {
+    const k = carryKind(WEAPONS[id].class);
+    return k === 'pistol' ? 'thigh' : k === 'compact' ? 'sling' : 'backL';
+  }
+
+  /**
+   * (menu-notes slice 3) Arrange the weapons: on the stage the loadout weapon in her hands and the other out of sight
+   * (the loadout and the lobby unchanged); in the void the shot's hold (menuPoses.ts) takes its weapon in the hands and
+   * the other one goes to its carry slot. Only on a change (a shot change sits in the black of the crossfade).
+   */
+  private setHoldMode(mode: 'stage' | MenuHold): void {
+    const rig = this.rig;
+    const a = this.weapon;
+    if (mode === this.holdMode || !rig || !a) return;
+    this.holdMode = mode;
+    const b = this.sidearm;
+    if (mode === 'stage') {
+      if (b) {
+        b.holster(rig, MenuState.slotOf(this.sidearmId));
+        b.setVisible(false);
+      }
+      a.hold(rig);
+    } else {
+      const pistol = MENU_POSES[mode].weapon === 'pistol';
+      const aIs = (carryKind(WEAPONS[this.weaponId].class) === 'pistol') === pistol;
+      const held = aIs || !b ? a : b;
+      const other = held === a ? b : a;
+      // the outgoing one into its slot first (it lets go of the rig's held weapon), then the incoming into the hands
+      if (other) other.holster(rig, MenuState.slotOf(other === a ? this.weaponId : this.sidearmId));
+      held.hold(rig);
+    }
+    this.visBits = -1;
+    this.weaponLight();
   }
 
   frameUpdate(dt: number): void {
@@ -477,7 +661,7 @@ export class MenuState implements AppState {
     const ctx: MenuContext = this.framing !== 'menu' ? 'loadout' : (this.screenContext?.() ?? 'main');
     const d = this.director;
     d.setContext(ctx);
-    d.update(dt * this.clock);
+    d.update(this.debugPause ? 0 : dt * this.clock);
     if (d.changes !== this.lastChanges) {
       this.lastChanges = d.changes;
       // no black over the change (the title carried into the main menu): ease the camera across
@@ -530,7 +714,7 @@ export class MenuState implements AppState {
   }
 
   /** (slice 6) A hero shot: the camera pass eased from its start to its end pose on the shot's lens, the moving lights,
-   *  the goggle power-on; Wren idle (breathing) and holstered. */
+   *  the goggle power-on; Wren idle (breathing) with the shot's weapon in her hands (menu-notes slice 3). */
   private cinematicFrame(dt: number, set: HeroShot): void {
     const cam = this.camera;
     const o = VOID_ORIGIN;
@@ -581,17 +765,26 @@ export class MenuState implements AppState {
     }
     this.dutch(set.roll ?? 0);
     const on = set.goggleOn;
-    // (a blended change keeps the glow where it was going: on)
-    const glow = on ? goggleLevel(t, on[0], on[1]) : 1;
+    const d = this.director;
+    // (a blended change keeps the glow where it was going: on). (menu-notes slice 4a) the title phase sets the glow and
+    // the lights' level: all 0 on the dark title (no key, rim or goggle), then the flicker, then up. (slice 4d, M4) The
+    // goggle's own lens emissive is its only glow: the green spill spot that followed it reflected as a hot dot on the
+    // goggle housing and helmet plate above the lenses (GLOW.md), so it is gone from the sets.
+    const glow = d.glow >= 0 ? d.glow : on ? goggleLevel(t, on[0], on[1]) : 1;
     this.setGlow(glow);
-    if (set.glowLight !== undefined) this.spots[set.glowLight]!.intensity = set.lights[set.glowLight]!.intensity * glow;
+    const lit = d.lit;
+    for (let i = 0; i < 3; i++) this.spots[i]!.intensity = set.lights[i]!.intensity * lit;
     if (this.rig) {
-      this.setHolstered(true);
+      // (menu-notes slice 3) the shot's hold: the rifle at low ready unless it names the pistol
+      const hold = set.hold ?? 'rifle';
+      this.setHoldMode(hold);
+      this.weaponLight();
       const r = this.rig;
       r.root.position.copyFrom(o);
-      // the rig's idle breathes; a slow weight shift on top
+      // the rig's idle breathes; a slow weight shift on top, and the weapon's own breath (menuPoses.ts)
+      // (slice 4d) W3 raises the rifle onto the aim line (menuPoses.ts `MenuPoseExtra`)
       r.root.rotation.y = VOID_YAW + idleSway(this.t2);
-      r.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 });
+      r.animate(dt, applyMenuPose(this.poseIn, hold, this.t2, set.pose));
       this.figure?.update(this.scene.activeCamera);
     }
   }
@@ -631,7 +824,7 @@ export class MenuState implements AppState {
     }
     this.aimW += ((this.framing === 'weapon' ? 0.9 : 0.05) - this.aimW) * Math.min(1, dt * 5);
     if (this.rig) {
-      this.setHolstered(false);
+      this.setHoldMode('stage');
       this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
       this.rig.root.rotation.y = this.framing === 'menu' ? Math.PI + 0.25 + Math.sin(this.t2 * 0.3) * 0.2 : this.previewYaw;
       this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: this.aimW, kick: 0 });

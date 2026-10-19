@@ -70,6 +70,8 @@ export class App {
   readonly feedback = new FeedbackStore();
   private state: AppState | null = null;
   private time = 0;
+  /** (menu-notes note 2) The boot screen is up over the menu (SPEC 7.1: no input): the screens are not updated. */
+  bootHold = false;
   /** Settings > Graphics > Run benchmark (set by main); a session goes on to its next run in a new match. */
   benchmark: ((kind?: BenchKind | BenchSession) => void) | null = null;
 
@@ -108,7 +110,7 @@ export class App {
       if (b && !b.classList.contains('blocked')) this.sfx.uiConfirm();
     });
     this.screens.onBack = () => this.sfx.uiBack();
-    this.input.events.on('mode', () => this.audio.ensure());
+    this.input.events.on('mode', () => this.audio.unlock());
 
     this.input.events.on('padConnected', ({ id }) => this.toasts.show(`Controller connected: ${shortPadName(id)}`, 'ok'));
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));
@@ -364,7 +366,8 @@ export class App {
       beforeFrame: (dt) => {
         this.time += dt;
         this.input.poll(this.time, dt);
-        if (this.screens.isOpen) this.screens.update(this.input.state, dt);
+        if (!this.audio.running) this.audio.pollPad();
+        if (this.screens.isOpen && !this.bootHold) this.screens.update(this.input.state, dt);
         this.loop.paused = !s.simulating;
       },
       fixedUpdate: (dt) => {

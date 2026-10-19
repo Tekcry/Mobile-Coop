@@ -254,6 +254,22 @@ export class StealthSystems {
     }
   }
 
+  /**
+   * (sector-restart, M9) A checkpoint restart: nothing the old guards or the player left behind draws the new guards.
+   * Doors the player opened are no longer "noticed" (a fresh guard does not come to look at them), the guard-opened door
+   * clock is dropped, and a carried body is let go of (the restart has removed it). The panels are re-armed by
+   * `setLiveAlarms` (the section load).
+   */
+  resetForRestart(): void {
+    this.playerOpened.clear();
+    this.guardOpened.clear();
+    this.noticeT = 0;
+    if (this.carry) {
+      this.carry = null;
+      this.release();
+    }
+  }
+
   /** The alarm went off: banner, horn, reinforcements at the map's entry points. */
   private onAlarm(p: AlarmPanel): void {
     const g = this.g;
