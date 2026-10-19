@@ -1,5 +1,7 @@
 # Consolidation handover (2026-10-17, account switch mid-run)
 
+> **History (process audit, 2026-10-19):** the consolidation run is finished (PR #3, 4.0.0). The current state of every job is `docs/ROADMAP.md`.
+
 Resume point for the consolidation run (M26 / M27, plan: docs/locomotion/CONSOLIDATE.md on feature/ct-locomotion).
 Work folder: C:\NightShift\Mobile-Coop-integrate, branch integrate/consolidate (pushed). Start folder:
 C:\NightShift\Mobile-Coop-locomotion, branch feature/ct-locomotion (STATE.md points here).

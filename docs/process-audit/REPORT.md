@@ -324,3 +324,43 @@ Not in Phase 2:
 - the co-op fixes (their own desktop job, section 2);
 - branch deletions (Michael);
 - the goggle merge (needs only a yes).
+
+## Phase 2 - applied (2026-10-19)
+Michael approved sections 1, 3, 4 and 5 as written (relayed by the orchestrator); section 2 (the co-op fixes) is its own
+desktop job. Applied on `feature/process-audit`:
+- **Section 1:**
+  - `run-e2e.mjs` lists (REQUIRED, LEGACY, AUDIO, GPU, REPORT), KNOWN_FLAKY, CORE and COVERS;
+  - `npm run e2e:audio` and `e2e:gpu`;
+  - the e2e-pad / e2e-mouse trims with a new pad verb table;
+  - e2e-course down to one gate walk; `e2e-wall:flanker`; e2e-anchors on Proving.
+- **Section 3:**
+  - the tiers in CLAUDE.md "Sessions" and `docs/systems/testing-tools.md`;
+  - the stale-literal list in testing-tools.md, for whoever next touches each suite;
+  - TESTING.md's release check.
+- **Section 4:**
+  - CLAUDE.md "Sessions" (replaces "Orchestrator", "Every session", "Running a job", "Branches"), with the changed lines
+    elsewhere;
+  - `docs/systems/session-method.md` (the job lead's loop) and `docs/systems/agent-preamble.md` (new);
+  - `docs/systems/deploy.md`, bible sections 9-10.
+- **Section 5:**
+  - history banners on locomotion, consolidation, training, menu-ui, kestrel (2), operators and anim-cleanup docs, and
+    `docs/progress.md`;
+  - `docs/backlog.md`'s flaky section;
+  - the goggle job's docs merged (D36, M1-M3).
+
+Where the work differs from the report's wording, and why:
+- **e2e-anchors:** Proving only, not Proving and `ctcourse`. Marlow Yard places no traversal anchors (its walls are
+  team moves and generated lips), so the suite would check nothing new there and boot an untried mode. Add it when the
+  map places one.
+- **`docs/ct-prototype/STATE.md`:** no banner. The job is live, and its branch replaces master's copy at its merge.
+- **`docs/ROADMAP.md`:** not edited, because the orchestrator owns it. The rules it carried now live in CLAUDE.md; the
+  orchestrator trims it to state only.
+- **The stale literal asserts:** listed, not rewritten. They pass today; each is changed when its suite is next
+  touched (the co-op ones in the co-op fix job).
+- **Previews:** recorded as what exists (G85's current form: `/preview/` and `/ct/` through the `dev` and
+  `ct-movement` pointer branches), not a workflow rewrite.
+- **Moved suites keep their old behaviour:** only the four original legacy suites get `LEGACY=1`; the others moved to
+  LEGACY run exactly as they did in REQUIRED.
+
+Not verified here (laptop, light work): no e2e run. The orchestrator runs the full e2e on the desktop before merging (the
+PR tier). Expect the full run at about 28 minutes, with e2e-coop and e2e-netmove still KNOWN FLAKY until the fix job.

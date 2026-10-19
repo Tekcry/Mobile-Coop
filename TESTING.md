@@ -67,11 +67,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] Close the host tab: the client is told and returns to the menu.
 
-## Release checklist (before Michael merges a job)
+## Release checklist (before a job merges)
 
 ### Checks
-- [ ] `npm run check` passes; `npm run e2e` passes (known-flaky suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread
-  desktop); GPU and perf checks run on Michael's PC (`E2E_GPU=1`), or are listed as "pending PC run".
+- [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
+  suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
+  `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".
 
 ### Offline and install
 - [ ] First visit online; wait for the "Ready to play offline" toast. Go offline, close the tab, reopen: the game boots,

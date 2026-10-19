@@ -1,5 +1,7 @@
 # Kestrel planning handover (2026-10-11)
 
+> **History (process audit, 2026-10-19):** Kestrel is paused (G53). The current state of every job is `docs/ROADMAP.md`.
+
 Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost. Read with RULES.md and progress.md. Where this file and the Claude Doc prompt pack differ, this file wins.
 
 ## Status (2026-10-11)

@@ -28,20 +28,23 @@ Format: `N. Item - destination - status`.
 
 `scripts/run-e2e.mjs` has these in `KNOWN_FLAKY`: they always run, a failure is printed "KNOWN FLAKY" and does not fail
 the run, a failure in any other suite does. Remove a suite from that list when it is fixed. Rerun a suspect alone
-(`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure. The co-op suites are made
-reliable and then required (G51; the test fixes job in `docs/progress.md`).
+(`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure.
 
-- **e2e-coop** - failed 1 of 4 full serial runs, about 1 of 5 alone (2026-10-09). Failure: "client grabs a host guard from behind": the match's guards re-alert after the steps before and the picked guard turns to face the client, so the offer becomes the front takedown. Kept fix: the picked guard's `update` is switched off (a statue) from the pick until the grab is held. **The statue covers the netcode only; guard perception and turning in co-op are not tested by this step.** Open: "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true).
-- **e2e-darkness** - failed on an idle machine in the Epic look (the driver compiles the probe card's shaders for seconds after first draw). Fixed in the test: wait for `scene.isReady()` and filter the driver's "glGetProgramiv: Program object expected" warning. Kept in the list until it has run clean for a few full runs.
-- **e2e-netmove** - timing failures under load: "ladder after a climb: host mode ground" (fixed in the test), "timed out waiting for host braces" (host frames 307-418 ms with other suites running; passed serially), and once "Execution context was destroyed", suspected to be the app reloading when a service worker activates externally (`src/pwa`). Blocking service workers in the test contexts makes every suite's "no console errors" check fail; not fixed.
-- **e2e-weapons-carry** - failed once (reason not captured), passed in every other run. Next step if it recurs: read `test-results/e2e/e2e-weapons-carry.log`.
-- **e2e-pad** - failed once, passed on rerun. Cause not investigated.
-- **e2e-kestrel, e2e-camera-bounds (not flaky, failing on master)** - both fail alone on master 9295c65 (the Wren merge)
+Process audit (2026-10-19, approved by Michael; `docs/process-audit/REPORT.md` section 2): the co-op suites are fixed
+by their own desktop job (the likely shared cause: wall-clock waits against a sim slower than real time on software
+GL); the rest are parked, not fixed. `KNOWN_FLAKY` is now e2e-coop, e2e-netmove, e2e-weapons-carry and e2e-pad.
+
+- **e2e-coop** (co-op fix job) - failed 1 of 4 full serial runs, about 1 of 5 alone (2026-10-09). Failure: "client grabs a host guard from behind": the match's guards re-alert after the steps before and the picked guard turns to face the client, so the offer becomes the front takedown. Kept fix: the picked guard's `update` is switched off (a statue) from the pick until the grab is held. **The statue covers the netcode only; guard perception and turning in co-op are not tested by this step.** Open: "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true).
+- **e2e-darkness** (moved to the GPU list: it reads final pixels) - failed on an idle machine in the Epic look (the driver compiles the probe card's shaders for seconds after first draw). Fixed in the test: wait for `scene.isReady()` and filter the driver's "glGetProgramiv: Program object expected" warning. Kept in the list until it has run clean for a few full runs.
+- **e2e-netmove** (co-op fix job; walk-off: the client walks off still crouched, REPORT.md 2) - timing failures under load: "ladder after a climb: host mode ground" (fixed in the test), "timed out waiting for host braces" (host frames 307-418 ms with other suites running; passed serially), and once "Execution context was destroyed", suspected to be the app reloading when a service worker activates externally (`src/pwa`). Blocking service workers in the test contexts makes every suite's "no console errors" check fail; not fixed.
+- **e2e-weapons-carry** (stays required; leaves the list after two clean full runs) - failed once (reason not captured), passed in every other run. Next step if it recurs: read `test-results/e2e/e2e-weapons-carry.log`.
+- **e2e-pad** (stays required, trimmed; leaves the list after two clean full runs) - failed once, passed on rerun. Cause not investigated.
+- **e2e-kestrel, e2e-camera-bounds (not flaky, failing on master; moved to LEGACY, Kestrel paused)** - both fail alone on master 9295c65 (the Wren merge)
   and on feature/weapons: kestrel "camera rays along the tour: ... 133 inside them go to P04"; camera-bounds "level U
   (U-Z4V): crouched, walking its length and turning, the camera stays between floor and ceiling". Camera vs level checks,
   found by the weapons job (2026-10-19); for the test fixes job or the camera tuning.
-- **e2e-foley** - the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants against >= 4). Retuned with the CT prototype's speeds.
-- **e2e-bunker** - "the partner teleported across the host's spot is never solid" fails intermittently (training REVIEW-NOTES T5b2 under load; in the consolidation 2 of 4 solo runs failed with 6-13 frames solid, 2 passed). Suspect: host-page timing in the desktop browser context (snapshot gaps near the 0.3 s stall rule). The co-op test fixes job (G51) looks at it with e2e-coop and e2e-netmove.
+- **e2e-foley** (moved to AUDIO, parked) - the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants against >= 4). Retuned with the CT prototype's speeds.
+- **e2e-bunker** (LEGACY, off the flaky list) - "the partner teleported across the host's spot is never solid" fails intermittently (training REVIEW-NOTES T5b2 under load; in the consolidation 2 of 4 solo runs failed with 6-13 frames solid, 2 passed). Suspect: host-page timing in the desktop browser context (snapshot gaps near the 0.3 s stall rule). The co-op test fixes job (G51) looks at it with e2e-coop and e2e-netmove.
 - **e2e-anim draw pop (fixed in feature/anim-cleanup)** - the draw from holstered popped (~0.14 per frame on the right
   hand inside the swap fade). The draw / holster now carries the gun along a path in the trigger hand to the back mount
   and the holster (WeaponModel travel): max 0.083 per frame, asserted < 0.1 like every other transition; the arm still

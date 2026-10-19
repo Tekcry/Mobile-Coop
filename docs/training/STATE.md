@@ -1,5 +1,7 @@
 # Training run - state
 
+> **History (process audit, 2026-10-19):** Fallow is parked behind `?legacy=1` (CT prototype B1); the training level is Marlow Yard (`ctcourse`). The current state of every job is `docs/ROADMAP.md`.
+
 Current step: PAUSED for Michael's walk 2 (after T5g); resume with walk-2 fixes, then TM
 Where the last step ran: cloud
 Last commit: see git log (T1a done)

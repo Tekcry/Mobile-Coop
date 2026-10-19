@@ -21,54 +21,75 @@ A fully functional 2-player co-op training level, playable end to end, as soon a
 
 Do not spend time refining (feel tuning, animation polish, perf tuning, detail art) until Michael has playtested the
 core gameplay loop. Checkers block only on broken or unplayable work; cosmetic notes go on a polish list in the job's
-docs. At most 1 fix round per slice unless the work is broken. Quick e2e per slice, the full e2e at the PR. This holds
+docs. At most 1 fix round per slice unless the work is broken. Tests follow the tiers in "Sessions". This holds
 until Michael lifts it.
 - A PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages, desktop only: pad first, then keyboard and mouse (G12).
 - Michael's decisions: `docs/DECISIONS.md` (G1, G2, ...). Design: `docs/design-bible.md`. Story and in-game text: `docs/story.md`.
-- Fallow (map `bunker`, `src/world/maps/bunker*.ts`, run docs `docs/training/`) is the co-op tutorial bunker and the
-  only training (G78, G111): course mode, `?autostart=bunker&mode=course`.
+- The co-op training level is Marlow Yard (map `ctcourse`, Course mode, `?autostart=ctcourse&mode=course`; CT prototype
+  B1, `docs/ct-prototype/`). Fallow (map `bunker`, `docs/training/`) is parked behind `?legacy=1`.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 
-## Orchestrator (Michael, 2026-10-19)
-One session, "Night Shift | Orchestrator", orchestrates the whole build: it owns `docs/ROADMAP.md` (the only session that
-edits it), plans and starts jobs, reviews and merges PRs into master (Michael: "You have my approval to merge yourself as
-needed"), moves `/preview/`, and keeps every session in step. Every other session messages the orchestrator when it
-starts, finishes a slice, opens a PR, needs Michael, or is blocked. No job starts unless it is on the roadmap.
-Machines (Michael, 2026-10-19): CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU shots, Blender,
-heavy subagents) runs only on the desktop (orchestrator, CT Core); the laptop session does light work only. One heavy job
-at a time on the desktop: before a heavy run, check `C:/NightShift/heavy.lock`; if absent, write "<session> | <job> | <start>"
-and delete it when done; if present, wait and do light work. The orchestrator sets the order.
+## Sessions (process audit, approved by Michael 2026-10-19)
+The only place for session, job, machine and test rules. `docs/systems/session-method.md` details the job lead's loop;
+`docs/ROADMAP.md` is state only (now, next, waiting on Michael, done).
 
-## Every session
+**The orchestrator.** One session, "Night Shift | Orchestrator", runs the whole build: it owns `docs/ROADMAP.md` (the
+only session that edits it), plans and starts jobs, reviews PRs and merges green ones into master (Michael: "You have
+my approval to merge yourself as needed"; when auto mode blocks the merge, Michael merges), sets the version at the
+merge (G183), moves `/preview/`, and keeps every session in step. Every other session messages it when it starts,
+finishes a slice, opens a PR, needs Michael, or is blocked. No job starts unless it is on the roadmap. "Orchestrator"
+means this session only; the session running a job is its **job lead**.
+
+**Every session.**
 1. Read this file.
-2. Read `docs/ROADMAP.md` (what is happening now, what is next, what waits on Michael).
-3. In a job: read the job's `RULES.md` and `STATE.md` (`docs/<job>/`), then only the bible sections, `docs/systems/*`
+2. Read `docs/ROADMAP.md`.
+3. In a job: read the job's `STATE.md` and `BRIEF.md` (`docs/<job>/`), then only the bible sections, `docs/systems/*`
    sections and files they name. Use `grep` and line ranges, not whole large files.
 4. Authority order (G86): Michael > `docs/DECISIONS.md` > `docs/design-bible.md` > job and map docs (`docs/level-design.md`,
    the map's documents) > these docs > code. Every decision is also written into the bible.
 
-## Running a job
-- Every multi-step job (code, map, audio, art, research) builds a quick prototype first when it needs a feel or look
-  decision, then runs the orchestrator method (G87): `docs/systems/session-method.md` (roles, loop, job docs, prompts).
-- Opus builds and checks; a lighter model only for mechanical chores (G88).
+**Machines** (Michael, 2026-10-19). CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU shots, Blender,
+heavy subagents) runs only on the desktop (orchestrator, CT Core); the laptop session does light work only: docs,
+planning, small edits and one `npm run check`. One heavy job at a time on the desktop: before a heavy run, check
+`C:/NightShift/heavy.lock`; if absent, write "<session> | <job> | <start>" and delete it when done; if present, wait and
+do light work. The orchestrator sets the order. Cloud sessions run unit tests, logic e2e and design only; every GPU
+check there is "pending PC run".
+
+**A job.**
 - Start from master: branch `feature/<job>` in the folder `C:/NightShift/Mobile-Coop-<job>` (G94). The plain folder
   `C:/NightShift/Mobile-Coop` stays on master: read and branch from it, never work in it.
 - Branch guard before every command that writes, in every agent:
   `cd /c/NightShift/Mobile-Coop-<job> && test "$(git rev-parse --abbrev-ref HEAD)" = feature/<job> && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-<job>"`.
-- The job's docs live in `docs/<job>/`: BRIEF, RULES, PLAN, STATE (resume point), LOG, DECISIONS (Michael's words; assumed
-  decisions A1, A2, ... with how to undo), OWNER-NOTES (start and resume prompts).
-- Tests: the port table below, one runner per port; `npm run e2e:quick` per step, the full `npm run e2e` before the PR.
-  GPU checks only on Michael's PC; elsewhere they are "pending PC run".
+- The job lead builds a quick prototype first when the job needs a feel or look decision (G4), then runs the loop in
+  `docs/systems/session-method.md` (G87): an implementer, a fresh checker, at most 1 fix round per slice while the
+  current goal holds. Opus builds and checks; a lighter model only for mechanical chores (G88). Subagents start from
+  `docs/systems/agent-preamble.md`.
+- Three files in `docs/<job>/`:
+  - `BRIEF.md`: the ask with Michael's words, the goal and limits; Michael's answers M1, M2, ... and assumed decisions
+    A1, A2, ... with how to undo.
+  - `PLAN.md`: the steps or slices (multi-step jobs only).
+  - `STATE.md`: the resume point (now, next, open), a dated done list, and the resume prompt in one fenced block.
+
+  Jobs started before 2026-10-19 keep their older files as history.
 - Unattended by default: assumed decisions are logged and the job carries on; ask Michael (native multiple choice) only
   before installing or downloading, or when a hard rule blocks the goal.
 - Finish: one PR to master; the orchestrator reviews and merges it (or Michael). At the merge the job's answers from
   Michael move into `docs/DECISIONS.md` with the next free G numbers (G89) and the orchestrator marks the job done in
   `docs/ROADMAP.md`.
 
-## Branches
-- Master is the live game and the only base (G83). One branch per job, cut from master, one PR each; the orchestrator session or Michael merges.
-  `ct-movement` and `dev` are retired.
-- Pages: the live game plus one preview slot that shows the job branch Michael chooses (G85). Detail: `docs/systems/deploy.md`.
+**Test tiers** (detail and the suite lists: `docs/systems/testing-tools.md`).
+| Change | Runs | Where |
+| --- | --- | --- |
+| Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
+| A step | `npm run check` once at the step's end + the suites the step names, or `npm run e2e:quick` | desktop; the laptop runs `check` only |
+| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop |
+| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop |
+| Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
+
+**Branches and previews.** Master is the live game and the only base (G83): one branch per job, cut from master, one
+PR each. Pages serves the live game, `/preview/` (master, through the pointer branch `dev`) and `/ct/` (the active
+prototype branch, through the pointer branch `ct-movement`, moved by that job); `dev` and `ct-movement` are not work
+branches. Detail: `docs/systems/deploy.md`. Deleting a branch is Michael's call.
 
 ## Commands
 - `npm run dev` - dev server
@@ -81,14 +102,17 @@ and delete it when done; if present, wait and do light work. The orchestrator se
   one browser each, `E2E_JOBS` at a time (default min(5, cores / 3); use `E2E_JOBS=2` on Michael's PC and cloud VMs, G94).
   Needs a prior `npm run build`. `npm run e2e:serial` runs one at a time with live output (debugging).
 - `npm run e2e:quick` - `smoke` plus the suites that cover the folders the change touched (working tree plus unpushed
-  commits). **Steps use the quick run; the full `npm run e2e` runs at the end of a job, before its PR.**
-- `npm run e2e:legacy` - the suites for parked content (Hunter, progression, cosmetics; report only)
+  commits). Which change runs what: the test tiers in "Sessions".
+- `npm run e2e:legacy` - the parked-content suites (Hunter / Mission, progression, cosmetics, Fallow, Kestrel, the
+  Warehouse routes and archetypes); `npm run e2e:audio` - the audio suites; `npm run e2e:gpu` - the visual read-backs
+  (Michael's PC only, `E2E_GPU=1`). None of them is in the full run.
 - GPU testing runs on Michael's PC only. Graphical and performance testing (perf budgets, contact sheets, visual parity
   and probe checks, beauty shots) runs there with `E2E_GPU=1` (hardware GPU: ANGLE D3D11 on Windows, GPU blocklist
   ignored; `perf.mjs` then uses the local budget profile). Cloud sessions run unit tests and logic e2e only (software GL,
   the default) and mark every GPU check "pending PC run"; they never claim a perf or visual result from SwiftShader.
-- Known-flaky suites (`docs/backlog.md`, "Flaky e2e suites") always run; their failures print as KNOWN FLAKY and do not
-  fail the run. Any other failure does.
+- Known-flaky suites (`docs/backlog.md`, "Flaky e2e suites": the co-op pair until the co-op fix job, e2e-pad and
+  e2e-weapons-carry until two clean full runs) always run; their failures print as KNOWN FLAKY and do not fail the run.
+  Any other failure does.
 - Suites, helper scripts (`perf`, `soak`, `shot`, `anim-sheet`) and the debug overlay: `docs/systems/testing-tools.md`.
   `?autostart=<mapId>&mode=<mode>` boots straight into a match (dev and tests). Uses the preinstalled Chromium.
 - Never run `npm run dev`, `npm run preview` or a watch mode from an agent; every shell command has a timeout.
@@ -129,21 +153,24 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
   UI art, art assets, the goggle and the music are original (G5, G69). No reference-game character, gear or organisation
   names anywhere: code, UI, specs, docs, research notes (G6). "Chaos Theory" / "CT" may name the reference; Michael's
   quotes stay verbatim (G114).
-- Desktop only: no phone or touch work (G12). The Kestrel editor keeps its phone launcher with no new work (G15).
+- Desktop only (G12): no phone or touch work, except that a phone can launch the game for testing on the minimum
+  settings (G182). The Kestrel editor keeps its phone launcher with no new work (G15).
 - Removed and parked systems (bible Section 6) get no new work.
 - Story is text radio and subtitles now, every line written so it can be voiced later (G82).
 - A job that changes an engine fact listed in `docs/level-design.md` Section 12 updates that section and lists the map decisions that relied on the old fact.
 
 ## Definition of done (every job)
-- `npm run check` passes; the e2e suites the job names pass, and the full required suite (`npm run e2e`) passes before the PR.
-- Performance budgets pass (`docs/systems/performance.md`, desktop).
-- Pure logic lives in Babylon-free modules with Vitest tests; each new player-facing system has an e2e suite or extends one.
+- `npm run check` passes; the e2e runs of the test tiers ("Sessions") pass.
+- Performance budgets pass (`docs/systems/performance.md`, desktop) for a job that touches rendering or hot paths; the
+  others skip them until Michael lifts the no-refining rule.
+- Pure logic lives in Babylon-free modules with Vitest tests; each new player-facing system extends the e2e suite that
+  owns its area (a new suite only when none does).
 - New or changed animations match the CT footage (G1) and meet the bible's animation realism standard.
-- Docs updated: `CHANGELOG.md`, `TESTING.md` (the short desktop checklist, G92), the relevant `docs/systems/*.md`,
-  `docs/progress.md` (job list).
-- Versions (G93): a job's CHANGELOG entries sit under "Unreleased - <job> (feature/<job>)" until Michael merges it; each
-  merged job is one minor step (4.1.0, 4.2.0, ...), a fix is a patch. The version in `package.json` and the heading are
-  set in the job's last commit when Michael says he is merging.
+- Docs updated: `CHANGELOG.md`, `TESTING.md` (the short desktop checklist, G92), the relevant `docs/systems/*.md`
+  (the orchestrator updates `docs/ROADMAP.md`).
+- Versions (G183): a job's CHANGELOG entries sit under "Unreleased - <job>" until its merge. Every merge to master gets
+  the next `4.MINOR.PATCH`, set by the orchestrator in the PR just before it merges: a job or feature (game change) is a
+  minor step, a fix or docs-only merge a patch. Jobs never bump `package.json` themselves.
 - A save-shape change bumps `SAVE_VERSION` with a migration and a test using a literal old save. A wire change bumps
   `PROTOCOL_VERSION` and the tests that assert it.
 - Commit and push the job branch, open or update its PR to master, report (done / not done, checks, open items), then STOP.
@@ -154,7 +181,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `core/` | Babylon import surface, engine, `GameLoop` (fixed 60 Hz sim), flags, `legacy` (parked modes), settings, quality / governor / display (pure parts) |
 | `input/` | Action map; gamepad and keyboard / mouse sources write one `InputState`; bindings, remapping and conflicts |
 | `ui/` | DOM overlay: screens, `FocusNav`, widgets, HUD, debug overlay |
-| `game/` | `GameState`, modes (Infiltration, the campaign mode; Free Roam `sandbox`; the Fallow `course` and its framework `course/`; Hunter `clear` and Mission, parked), takedowns, gadgets, wall medkit stations, tactics |
+| `game/` | `GameState`, modes (Infiltration, the campaign mode; Free Roam `sandbox`; Course mode `course` (Marlow Yard; Fallow parked) and its framework `course/`; Hunter `clear` and Mission, parked), takedowns, gadgets, wall medkit stations, tactics |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |
@@ -181,10 +208,12 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `docs/backlog.md` | Feedback inbox, flaky e2e suites | Adding feedback, judging a test failure |
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
-| `docs/locomotion/` | The movement run: CT research (`CT-RESEARCH.md`), the CT prototype plan (`PROTOTYPE-PLAN.md`), the consolidation plan (`CONSOLIDATE.md`) | The CT prototype job |
+| `docs/ct-prototype/` | The CT prototype job: the training course Marlow Yard (`CTCOURSE-SPEC.md`), slices, playtests | The CT prototype and training-level work |
+| `docs/locomotion/` | History: the movement run, its CT research (`CT-RESEARCH.md`), the first prototype plan (`PROTOTYPE-PLAN.md`) | Only for movement history |
 | `docs/consolidation/` | The consolidation run: audit, questions, Michael's answers, deletion logs | History of the 4.0.0 merge |
 | `docs/operators/` | The operators run (feature/operators): Wren and Moth, the offline art pipeline (`scripts/operators/`), its decisions D1 onward (G75) | Operator art and Wren in-game work |
-| `docs/training/` | The Fallow bunker run (spec, bays, features) | Bunker work |
+| `docs/training/` | History: the Fallow bunker run (parked behind `?legacy=1`) | Only if Fallow returns |
+| `docs/process-audit/` | The 2026-10-19 process audit: report, approved changes | Questions about the test lists or these rules |
 | `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |
 | `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |
 | `docs/research/` | Night vision and lamp research | Vision and light work |
@@ -195,7 +224,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |
 | `docs/systems/testing-tools.md` | Every e2e suite, helper scripts, debug overlay | Running or writing tests |
 | `docs/systems/deploy.md` | Branches and the Pages slots | Releases, preview builds |
-| `docs/systems/session-method.md` | How a job runs: prototype, then the orchestrator method; job docs and prompts | Starting or writing the prompt for any job |
+| `docs/systems/session-method.md`, `docs/systems/agent-preamble.md` | The job lead's loop (implementer, checker, fix round, prompts); the shared subagent preamble | Running a job or writing its prompts |
 | `docs/systems/input-and-loop.md` | Game loop, actions, pad and keyboard bindings | Input work |
 | `docs/systems/ui.md` | HUD, menus, display, feedback, photo mode | UI work |
 | `docs/systems/world-and-characters.md` | Maps, level builder, the shared character rig | Maps, rig, animation |
