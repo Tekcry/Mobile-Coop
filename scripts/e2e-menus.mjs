@@ -227,7 +227,7 @@ try {
   // slice 6: the cinematic background - the shot hook, the fast clock, navigation during a fade, reduced motion
   console.log('cinematic background');
   const shotOf = (P) => P.evaluate(() => ({ id: window.__app.current?.shotId, n: window.__app.current?.shotChanges ?? -1, fade: window.__app.current?.shotFade ?? 0 }));
-  assert(/^(T2|H[1-6]|W[12])$/.test((await shotOf(page)).id), `the main menu runs a cinematic shot (${(await shotOf(page)).id})`);
+  assert(/^(T2|H[1-6]|W[1-3])$/.test((await shotOf(page)).id), `the main menu runs a cinematic shot (${(await shotOf(page)).id})`);
   {
     const F = await launch({ url, params: 'menuShot=H3', viewport: { width: 1280, height: 720 } });
     try {

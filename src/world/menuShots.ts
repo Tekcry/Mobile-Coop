@@ -34,7 +34,8 @@ export interface ShotDef {
  * same shot carried on from the title without a cut, easing back to clear the list, held. Then H1-H6 equipment macros
  * in a seeded deck (goggle unit, front plate, magazine pouches, belt pouches, thigh holster, back plate), each its own angle,
  * lens and pass; every change crossfades through black. S6 loadout and S7 lobby keep today's stage. (menu-notes slice 3)
- * W1 / W2 join the deck: the rifle and the pistol in her hands (each hero shot names its hold, menuSets.ts).
+ * W1 / W2 join the deck: the rifle and the pistol in her hands (each hero shot names its hold, menuSets.ts). (slice 4d)
+ * W3 on the sights, the one tactical mock-up Michael picked (M4: "X5 only").
  */
 export const SHOTS: readonly ShotDef[] = [
   { id: 'T1', setup: 'T1', durS: 14, move: { kind: 'push', amount: 0.08 }, light: 'void', contexts: ['title'], solo: true, once: true },
@@ -48,24 +49,10 @@ export const SHOTS: readonly ShotDef[] = [
   // (menu-notes slice 3) the weapons in her hands: the rifle at low ready, the pistol at compressed ready
   { id: 'W1', setup: 'W1', durS: 12, move: { kind: 'arc', amount: 0.3 }, light: 'void', contexts: ['main'], solo: true },
   { id: 'W2', setup: 'W2', durS: 12, move: { kind: 'tilt', amount: 0.09 }, light: 'void', contexts: ['main'], solo: true },
+  // (menu-notes slice 4d, Michael's M4: "X5 only") on the sights: the rifle shouldered, aiming into the dark
+  { id: 'W3', setup: 'W3', durS: 12, move: { kind: 'arc', amount: 0.13 }, light: 'void', contexts: ['main'], solo: true },
   { id: 'S6', setup: 'stage', durS: 14, move: { kind: 'static', amount: 0 }, contexts: ['loadout'], solo: true },
   { id: 'S7', setup: 'stage', durS: 14, move: { kind: 'static', amount: 0 }, contexts: ['lobby'], solo: false },
-];
-
-/**
- * (menu-notes slice 4b, Michael's M1) The candidate tactical shots X1-X8 (menuSets.ts `CANDIDATE_HERO_SHOTS`): a mock-up
- * for Michael to pick from. No context shows them, so the live menu is unchanged; only `?menuShot=X1` etc. holds one.
- * To promote a pick: move its row into SHOTS with `contexts: ['main']` and its hero shot into HERO_SHOTS.
- */
-export const CANDIDATES: readonly ShotDef[] = [
-  { id: 'X1', setup: 'X1', durS: 12, move: { kind: 'push', amount: 0.3 }, light: 'void', contexts: [], solo: true },
-  { id: 'X2', setup: 'X2', durS: 12, move: { kind: 'track', amount: 0.22 }, light: 'void', contexts: [], solo: true },
-  { id: 'X3', setup: 'X3', durS: 12, move: { kind: 'push', amount: 0.4 }, light: 'void', contexts: [], solo: true },
-  { id: 'X4', setup: 'X4', durS: 12, move: { kind: 'push', amount: 0.12 }, light: 'void', contexts: [], solo: true },
-  { id: 'X5', setup: 'X5', durS: 12, move: { kind: 'arc', amount: 0.13 }, light: 'void', contexts: [], solo: true },
-  { id: 'X6', setup: 'X6', durS: 12, move: { kind: 'crane', amount: 0.3 }, light: 'void', contexts: [], solo: true },
-  { id: 'X7', setup: 'X7', durS: 12, move: { kind: 'crane', amount: 0.2 }, light: 'void', contexts: [], solo: true },
-  { id: 'X8', setup: 'X8', durS: 12, move: { kind: 'push', amount: 0.16 }, light: 'void', contexts: [], solo: true },
 ];
 
 /** Crossfade through black: the outgoing shot's last half and the incoming shot's first half (s). */
@@ -177,8 +164,7 @@ class ShotDirector implements Director {
     this.rng = mulberry(o.seed);
     this.reduced = o.reducedMotion;
     this.freezeT = o.freezeT ?? null;
-    // (slice 4b) the candidate shots are reachable only this way
-    this.forced = o.force ? (this.shots.find((s) => s.id === o.force) ?? CANDIDATES.find((s) => s.id === o.force) ?? null) : null;
+    this.forced = o.force ? (this.shots.find((s) => s.id === o.force) ?? null) : null;
     this.main = this.shots.filter((s) => s.contexts.includes('main'));
     if (!this.main.length) throw new Error('menuShots: no main shots');
     // the intro (T2) opens the cycle, else the first main shot in the table

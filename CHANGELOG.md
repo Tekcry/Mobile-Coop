@@ -14,6 +14,9 @@
 - Menu weapons (notes 5-6): the Blender rifle and pistol on Wren in every title and main-menu shot, one held at low or
   compressed ready, the other holstered or on the back (`src/world/menuPoses.ts`; new shots W1, W2); the void no
   longer shows a lone magazine or placeholder gun; a unit guard keeps the support hand off the magazine.
+- Tactical shot (M4): W3 joins the main-menu deck, Wren on the sights with the rifle shouldered (Michael's pick X5 of
+  the slice 4b mock-ups). The green goggle-spill spot in the face shots is gone: it reflected as a stray glow on the
+  goggle housing and helmet above the lenses; the lens flicker itself is unchanged.
 - Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; e2e-menus checks the load gate, the dark
   title and the prompt fade; e2e-pad follows the shorter Pause menu; GPU script `scripts/menu-boot-shots.mjs`.
 

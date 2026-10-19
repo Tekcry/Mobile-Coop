@@ -30,7 +30,7 @@ describe('menu shot director', () => {
       expect(s[0]).toBe('T2');
       expect(s.slice(1)).not.toContain('T2');
       for (let i = 1; i < s.length; i++) expect(s[i]).not.toBe(s[i - 1]);
-      expect(new Set(s)).toEqual(new Set(['T2', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'W1', 'W2']));
+      expect(new Set(s)).toEqual(new Set(['T2', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'W1', 'W2', 'W3']));
     }
   });
 
@@ -267,9 +267,9 @@ describe('menu hero shots', () => {
 
 describe('menu shot passes', () => {
   it('plays every main shot once per round (a deck), never the same twice in a row', () => {
-    // (menu-notes slice 3: W1 / W2 joined, n = 8)
+    // (menu-notes slice 3: W1 / W2 joined, n = 8; slice 4d: W3, n = 9)
     const n = SHOTS.filter((x) => x.contexts.includes('main') && !x.intro).length;
-    expect(n).toBe(8);
+    expect(n).toBe(9);
     const s = sequence(11, 1 + n * 8).slice(1);
     // a round is the shot carried over plus n - 1 new ones: windows of n starting every (n - 1)th shot hold no repeat
     expect(new Set(s.slice(0, n)).size).toBe(n);
@@ -315,32 +315,39 @@ describe('menu shot passes', () => {
     for (const h of HERO_SHOTS) if (h.id.startsWith('H')) expect(Math.min(Math.abs(h.from.alpha), Math.abs(h.to.alpha))).toBeGreaterThan(0.3);
   });
 
-  it('(slice 4b) the candidate shots X1-X8 stay out of the live deck, are reachable only by ?menuShot, and reset the pose', async () => {
-    const { CANDIDATES } = await import('../src/world/menuShots');
-    const { CANDIDATE_HERO_SHOTS } = await import('../src/world/menuSets');
+  it('(slice 4d, M4) W3 on the sights is in the main deck with the rifle raised; the X mock-ups are gone', async () => {
+    const { HERO_SHOTS } = await import('../src/world/menuSets');
     const { applyMenuPose, menuPoseInput } = await import('../src/world/menuPoses');
-    expect(CANDIDATES.length).toBeGreaterThanOrEqual(6);
-    expect(CANDIDATES.length).toBeLessThanOrEqual(8);
-    const ids = new Set(CANDIDATE_HERO_SHOTS.map((h) => h.id));
-    for (const c of CANDIDATES) {
-      expect(c.contexts.length).toBe(0);
-      expect(ids.has(c.setup)).toBe(true);
-      expect(SHOTS.some((s) => s.id === c.id)).toBe(false);
-      const d = createDirector({ seed: 1, reducedMotion: false, context: 'main', force: c.id });
-      for (let i = 0; i < 100; i++) d.update(0.2);
-      expect(d.shot.id).toBe(c.id);
-    }
-    // the live deck never shows one
-    expect(sequence(3, 40).some((id) => id.startsWith('X'))).toBe(false);
-    // a candidate's body pose, then a live shot: everything back to the standing idle
+    const w3 = SHOTS.find((s) => s.id === 'W3');
+    expect(w3?.contexts).toEqual(['main']);
+    const h = HERO_SHOTS.find((x) => x.id === 'W3');
+    expect(h?.hold).toBe('rifle');
+    expect(h?.pose?.aim).toBe(1);
+    expect(SHOTS.some((s) => s.id.startsWith('X'))).toBe(false);
+    expect(HERO_SHOTS.some((x) => x.id.startsWith('X'))).toBe(false);
+    expect(sequence(3, 40)).toContain('W3');
+    const f = createDirector({ seed: 1, reducedMotion: false, context: 'main', force: 'W3' });
+    for (let i = 0; i < 100; i++) f.update(0.2);
+    expect(f.shot.id).toBe('W3');
+    // the raise, then a shot with no pose: back to the hold's ready
     const pose = menuPoseInput();
-    applyMenuPose(pose, 'rifle', 1, { crouch: 1, wall: { side: 1, face: 0.3 }, reload: 0.4, aim: 1 });
-    expect(pose.crouch).toBe(1);
-    expect(pose.wall).toBe(true);
+    applyMenuPose(pose, 'rifle', 1, h?.pose);
+    expect(pose.aim).toBe(1);
     applyMenuPose(pose, 'rifle', 1);
+    expect(pose.aim).toBe(0.05);
     expect(pose.crouch).toBe(0);
     expect(pose.wall).toBe(false);
-    expect(pose.reload).toBe(-1);
-    expect(pose.aim).toBe(0.05);
+  });
+
+  it('(slice 4d, M4) no goggle spill light: no hero shot lights a spot with the goggle level (the glow above her goggle)', async () => {
+    const { HERO_SHOTS } = await import('../src/world/menuSets');
+    for (const h of HERO_SHOTS) expect('glowLight' in h, h.id).toBe(false);
+    // the face shots keep the key and the rim; their third spot is off
+    for (const id of ['T1', 'T2']) {
+      const l = HERO_SHOTS.find((x) => x.id === id)!.lights;
+      expect(l[0].intensity).toBeGreaterThan(0);
+      expect(l[1].intensity).toBeGreaterThan(0);
+      expect(l[2].intensity).toBe(0);
+    }
   });
 });

@@ -1,6 +1,7 @@
 // slice 6 shots only (the cinematic background): node scripts/menu-shots6.mjs [outDir] [names]
 // The title T1 before and after the goggle flickers on, the main menu's opening T2, the equipment macros H1-H6, and
-// (menu-notes slice 3) the weapon shots W1 (rifle, low ready) and W2 (pistol, compressed ready).
+// (menu-notes slice 3) the weapon shots W1 (rifle, low ready) and W2 (pistol, compressed ready), (slice 4d) W3 (rifle on the
+// sights, Michael's pick X5 from slice 4b).
 // Needs a server on E2E_PORT serving dist/ (`node node_modules/vite/bin/vite.js preview --port 4191 --strictPort --host 127.0.0.1`).
 // 1920 x 1080 PNGs. Software GL with `?gfx=min` (Wren's LOD2) by default: framing and light layout only. SHOT_GFX=<preset>
 // renders that preset (LOD0, then the hero LOD once loaded); E2E_GPU=1 uses the hardware GPU (Michael's PC).
@@ -28,8 +29,8 @@ const SHOTS = [
   // (menu-notes slice 3) the rifle and the pistol in her hands
   ['W1', 'W1', 0.5],
   ['W2', 'W2', 0.5],
-  // (menu-notes slice 4b) the candidate tactical shots (not in the live deck; `?menuShot=X1` etc.)
-  ...['X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8'].map((x) => [x, x, 0.5]),
+  // (menu-notes slice 4d) on the sights (was the slice 4b mock-up X5)
+  ['W3', 'W3', 0.5],
 ].filter(([n]) => !only || only.includes(n));
 const HERO = 1 << 0;
 const LOD2 = 1 << 3;
