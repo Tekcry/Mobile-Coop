@@ -68,6 +68,8 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
 - WebGPU (Michael, 2026-10-19: measure first): the Sector Ops perf run on the PC (full section, 20-25 guards) decides. If rendering is the bottleneck, a 1-day WebGPU trial behind a flag (Babylon 9 WebGPUEngine, snapshot rendering; shader conversion bundled, no CDN). If the sim is the bottleneck, WebGPU does not help. Not before the core-loop playtest.
 - Cleanup job (Wren loose ends), after the core-loop playtest.
+- Co-op client never draws guards' flashlights: torch state is not on the wire (light-parity gap, found by Sector Ops 2026-10-20; a wire change, protocol 25).
+- warehouse-redesign (paused, feature/warehouse-redesign 6393805a): dog flashlight fix (checker PASS), REVIEW.md, DRAFT SPEC.md with 11 proposed level-standard loosenings L1-L11 for Michael; sections 2-3 outline; greybox waits on decisions in its STATE (C1).
 - Test fixes: e2e-pad (known flaky); the keyboard vent: Space then an unseen E hold counts as a kick (T1, CT Core); lightField "allocation-free under a loop" fails its heap check when the machine is
   loaded (passes alone; skip under load or warm up longer, #20 STATE); pre-existing e2e-kestrel / camera-bounds failures.
 - The older follow-up list in `docs/progress.md` (medkit stations, missing sounds, music revision, art guide, one folder
@@ -82,6 +84,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #29 | 4.8.2: Sector Ops checkpoint restart is a clean start (M9) |
 | 2026-10-19 | #28 | 4.8.1: menu boot time measured (the gate adds about 0.9 s; docs only) |
 | 2026-10-19 | #27 | 4.8.0: menu notes: black launch screen, goggle flicker in the dark, menu shot X5, weapons and poses in the menu, title music, one Controls place |
 | 2026-10-19 | #26 | 4.7.5: lightField heap check stable under load (tests only) |
