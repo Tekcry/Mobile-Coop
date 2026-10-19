@@ -12,7 +12,10 @@ The test, not the game. The keyboard vent section just before the kick (its chec
 on real frames at the same grate: Space starts the vent and E is held to unscrew. When E's hold is not seen in time,
 the release counts as a kick, so the grate opens and the player attaches. The kick check then finds the grate already
 open, and `attachFrom` enters an open duct directly (`src/player/attachController.ts`, the `duct` branch), with no kick
-and no noise. The failing run's state matches: attached to duct 7 (ducts[0]) in 4 / 60 s, noise 0. The noise path
+and no noise. The failing run's state matches: attached to duct 7 (ducts[0]) in 4 / 60 s, noise 0. On the laptop the
+keyboard section opened the grate in 5 of 5 verify runs, so the old check mostly passed by luck: some other noise
+(most likely the landing after the teleport, which `eventNoise` keeps on the meter for 0.8 s) was still above 10
+when it read `st.noise`. The noise path
 itself (`breakables.open(key, 'kick')` -> `GameState.onBreakable` -> `eventNoise(10)`) is not dropped.
 
 ## Fix
