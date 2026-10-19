@@ -54,6 +54,7 @@ orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu)
 ## Overnight 2026-10-19 (Michael, 23:15-23:20, then bed)
 - Merges: "Yes, all tonight": merge #26, the Menu Notes PR (4.8.0) and the Sector Ops restart PR (patch) when green and reviewed, then tag and move /preview/. Not the ct-prototype PR. (#26 merged 23:14.)
 - CT Core: after slice F, catalogue the footage (C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/, 88 clip folders, complete), audit our movement against it and rebuild it to match, with original code (ROADMAP "Decided"). Plus the hold-A action menu, identical to CT. Briefed 23:16 and 23:21.
+- Machines (23:35): "You have full control of desktop and laptop and all processing power required between them when i go to bed." Laptop overnight: normal priority, E2E_JOBS=2; still headless, logic e2e only, one lock per machine. All four sessions told at 23:36.
 - Morning for Michael: walk slice F on /ct/; the overnight report.
 
 ## Waiting on Michael
