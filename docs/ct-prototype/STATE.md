@@ -74,10 +74,10 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
    action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
    Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
-   **Progress (00:00):** clips in `pc/ct-work/clips/*.mp4`; CT sheets `pc/ct-work/sheets/` (new, 2 fps) and
-   `sheets-old/` (1 fps) from `scripts/ct-ref/sheets.sh`; catalogue drafts by six Sonnet agents into
-   `pc/ct-work/catalogue/{new,old}-N.md` (lists `*.list`); our-side sheets into `pc/ct-work/ours/`. Next: merge the drafts
-   into `docs/ct-prototype/FOOTAGE-CATALOGUE.md`, then the audit (Opus, per area) into `docs/ct-prototype/AUDIT.md`.
+   **Progress (00:10):** catalogue done (`FOOTAGE-CATALOGUE.md`, 08df7e62; drafts in `pc/ct-work/catalogue/`). Audit
+   running: six Opus agents from `pc/ct-work/audit-brief.md` into `docs/ct-prototype/audit/AUDIT-{LOCOMOTION,CAMERA,AIM,
+   WALLS,TRAVERSAL,ACTIONMENU}.md` (our-side renders `pc/ct-work/ours/`). Next: synthesize `audit/AUDIT.md` (ranked slices),
+   then slices G1.. from it.
    **Michael 23:55 (via the orchestrator):** everything in one build on master by morning: at 04:30 merge origin/master and
    feature/course-ready, full `npm run e2e` on the PR head, update `PR-BODY.md`, `gh pr create`, message the orchestrator
    by 06:00 (no version bump). After that, slices go to /ct/ only, not into the PR.
