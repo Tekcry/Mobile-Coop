@@ -36,7 +36,7 @@ needed"), moves `/preview/`, and keeps every session in step. Every other sessio
 starts, finishes a slice, opens a PR, needs Michael, or is blocked. No job starts unless it is on the roadmap.
 Machines (Michael, 2026-10-19): CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU shots, Blender,
 heavy subagents) runs only on the desktop (orchestrator, CT Core); the laptop session does light work only. One heavy job
-at a time on the desktop: before a heavy run, check `C:NightShiftheavy.lock`; if absent, write "<session> | <job> | <start>"
+at a time on the desktop: before a heavy run, check `C:/NightShift/heavy.lock`; if absent, write "<session> | <job> | <start>"
 and delete it when done; if present, wait and do light work. The orchestrator sets the order.
 
 ## Every session
