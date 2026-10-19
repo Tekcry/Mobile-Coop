@@ -116,9 +116,8 @@ branches. Detail: `docs/systems/deploy.md`. Deleting a branch is Michael's call.
   and probe checks, beauty shots) runs there with `E2E_GPU=1` (hardware GPU: ANGLE D3D11 on Windows, GPU blocklist
   ignored; `perf.mjs` then uses the local budget profile). Cloud sessions run unit tests and logic e2e only (software GL,
   the default) and mark every GPU check "pending PC run"; they never claim a perf or visual result from SwiftShader.
-- Known-flaky suites (`docs/backlog.md`, "Flaky e2e suites": the co-op pair until the co-op fix job, e2e-pad and
-  e2e-weapons-carry until two clean full runs) always run; their failures print as KNOWN FLAKY and do not fail the run.
-  Any other failure does.
+- Known-flaky suites (`docs/backlog.md`, "Flaky e2e suites": e2e-pad, parked) always run; their failures print as
+  KNOWN FLAKY and do not fail the run. Any other failure does.
 - Suites, helper scripts (`perf`, `soak`, `shot`, `anim-sheet`) and the debug overlay: `docs/systems/testing-tools.md`.
   `?autostart=<mapId>&mode=<mode>` boots straight into a match (dev and tests). Uses the preinstalled Chromium.
 - Never run `npm run dev`, `npm run preview` or a watch mode from an agent; every shell command has a timeout.
