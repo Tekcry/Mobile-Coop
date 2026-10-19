@@ -12,6 +12,8 @@ bunker fully functional and running, but sector ops can at least run when there 
 course (CT Core) comes first for the desktop lock, the laptop test runner and the orchestrator's reviews; Sector Ops
 runs only on spare capacity and yields the desktop lock whenever CT Core needs it.
 
+Priority (Michael, 2026-10-20 10:30): "movement and animations are the top priority". CT Core (G8 keyframed clips, then movement gaps) has first claim on the desktop lock, the laptop runner and the orchestrator's reviews; everything else fits around it.
+
 Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restarted from git at 22:40).
 
 ## Waiting on Michael
