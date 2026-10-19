@@ -76,7 +76,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Updated 2026-10-19 17:55 Sydney · master v4.6.8 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
+    <span class="eyebrow">Updated 2026-10-19 20:50 Sydney · master v4.7.0 · co-op training first, Sector Ops on spare capacity · source: docs/ROADMAP.md on master</span>
     <h1>Night Shift roadmap</h1>
     <p class="goal">Goal: a fully functional 2-player co-op training level with Wren, basic animations, basic weapons, all co-op moves, lights and shadows, pure CT except your decisions. Visual pass last. No refining before your core-loop playtest.</p>
   </header>
@@ -89,27 +89,32 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </section>
 
   <section>
-    <h2>Now <span class="count">4 sessions</span></h2>
+    <h2>Now <span class="count">5 sessions</span></h2>
     <div class="board">
       <div class="row">
         <div><div class="name">Orchestrator</div><div class="meta">desktop · this roadmap</div><span class="pill run">Running</span></div>
         <div><p>Plans, reviews and merges into master (each merge gets the next version), moves /preview/, keeps the sessions in step.</p>
-          <p class="next-cp">Next: <b>CT Core's D + E (first priority)</b></p></div>
+          <p class="next-cp">Next: <b>your /ct/ notes to CT Core; Menu Notes' tactical shot sheet to you</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype · first priority</div><span class="pill run">Building</span></div>
-        <div><p>B + C are on /ct/ for you (aim, pistol, legs, crouch, walk bob). Now D + E: holster hand stays on the gun, wider and slower shimmy hands, drainpipe knee fix, ledge climb-up onto the knees. /ct/ stays on B + C until D + E are ready.</p>
-          <p class="next-cp">Next: <b>D + E on /ct/ for you</b></p></div>
+        <div><div class="name">CT Core Build</div><div class="meta">desktop · feature/ct-prototype · first priority</div><span class="pill test">Waiting on you</span></div>
+        <div><p>On /ct/ for you: B + C (aim, pistol, legs, crouch), D + E (holster hand on the gun, drainpipe knees, ledge climb-up onto the knee) and the slower 0.7 m/s shimmy with slower, wider hands. Its PR is prepared.</p>
+          <p class="next-cp">Next: <b>a slice from your notes, then its PR</b></p></div>
+      </div>
+      <div class="row">
+        <div><div class="name">Menu Notes Build</div><div class="meta">desktop · feature/menu-notes</div><span class="pill run">Building</span></div>
+        <div><p>Done: title music, no way back to the title, one Controls menu, rifle and pistol in the menu shots, magazine clip, preload behind the load screen. Now: the black launch screen (NIGHT SHIFT always, prompt fades in, goggles flicker on at the press).</p>
+          <p class="next-cp">Next: <b>6-8 tactical menu shot mockups for you to pick</b></p></div>
       </div>
       <div class="row">
         <div><div class="name">Character Build</div><div class="meta">laptop · test runner</div><span class="pill test">Testing</span></div>
-        <div><p>The laptop test runner: runs CT Core's (first) and Sector Ops' logic e2e when the desktop is busy. Slider fix (#18) and unit test timeouts (#20) merged. Next up: Sector Ops' step 2 check and suites.</p>
+        <div><p>Runs logic e2e for CT Core, then Menu Notes, when the desktop is busy. Between requests: the flaky grate-kick check in e2e-traverse.</p>
           <p class="next-cp">Next: <b>the next test request</b></p></div>
       </div>
       <div class="row">
-        <div><div class="name">Sector Ops Build</div><div class="meta">desktop · feature/sector-ops · low priority</div><span class="pill run">Building</span></div>
-        <div><p>Spare capacity only. Slice 2: 3 Warehouse sections (service entrance, racking aisles, factory floor with mezzanine and offices), several routes through each, guards spread so you can take one out away from the others.</p>
-          <p class="next-cp">Next: <b>slice 2 on a preview</b></p></div>
+        <div><div class="name">Sector Ops Build</div><div class="meta">desktop · done</div><span class="pill run">Merged</span></div>
+        <div><p>Sector Ops is on /preview/ (4.7.0): 3 Warehouse sections with connectors, several routes, guards you can isolate, no lives, revive syringes, difficulty stars.</p>
+          <p class="next-cp">Next: <b>the PC perf run with full guard counts</b></p></div>
       </div>
     </div>
   </section>
@@ -117,12 +122,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   <section>
     <h2>Next <span class="count">in order</span></h2>
     <ol class="queue">
-      <li><span class="gate">Your turn now:</span> playtest 2 slices B + C on /ct/ (aim view when crouched, upper body, arms in, pistol aim, legs, crouch); then D + E: holstering, hanging shimmy, pipe climb, ledge climb-up <span class="owner">CT Core</span></li>
+      <li><span class="gate">Your turn now:</span> playtest /ct/: B + C (aim view when crouched, upper body, arms in, pistol aim, legs, crouch) and D + E (holster, slower shimmy, drainpipe, ledge climb-up, team boost) <span class="owner">CT Core</span></li>
       <li><span class="gate">Your core-loop playtest</span> of Marlow Yard in co-op. Refining starts only after this. <span class="owner">You</span></li>
       <li>Selection wheel restyle <span class="owner">CT Core</span></li>
-      <li>Menu notes: title music, load screen, hero LOD, magazine clipping, weapon poses, merged Controls <span class="owner">Menu</span></li>
+      <li>Menu notes and the dark launch screen, then pick from the tactical shot mockups <span class="owner">Menu Notes</span></li>
       <li>Visual pass on the training level <span class="owner">Last</span></li>
-      <li>Sector Ops: slice 2 and its PR, on spare capacity <span class="owner">Sector Ops</span></li>
     </ol>
   </section>
 
@@ -138,10 +142,11 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </section>
 
   <section>
-    <h2>Done <span class="count">18 PRs</span></h2>
+    <h2>Done <span class="count">19 PRs</span></h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Date</th><th>PR</th><th>What</th></tr></thead>
       <tbody>
+        <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/21">#21</a></td><td>4.7.0 · Sector Ops: 3 Warehouse sections, the prototype menu, co-op mode switch</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/20">#20</a></td><td>4.6.8 · Unit tests survive a busy machine; a settings test race fixed</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/19">#19</a></td><td>4.6.7 · Laptop is the test runner; co-op training first, Sector Ops on spare capacity</td></tr>
         <tr><td class="num">19 Oct</td><td class="num"><a href="https://github.com/Tekcry/Mobile-Coop/pull/18">#18</a></td><td>4.6.6 · e2e-menus slider check waits on the condition</td></tr>
