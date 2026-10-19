@@ -3,13 +3,14 @@
 The one place that says what is happening, what comes next and what waits on Michael. Owned by the orchestrator
 session ("Night Shift | Orchestrator"): it is the only session that edits this file. Every other session reports to the
 orchestrator when it starts, finishes a slice, opens a PR or gets stuck; the orchestrator updates this file and merges.
+Machines (Michael, 2026-10-19): every CPU or GPU heavy task (e2e, full test runs, builds in loops, GPU shots, Blender, heavy subagents) runs on the desktop, where the orchestrator and CT Core run. The laptop session (Character Build) does light work only: docs, planning, small edits.
 Detail lives in each job's own docs (linked). Live page: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw
 
 Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training level with Wren, basic animations, basic
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
 Michael has playtested the core loop.
 
-Last updated: 2026-10-19 11:30 Sydney.
+Last updated: 2026-10-19 12:15 Sydney.
 
 ## Waiting on Michael
 1. Selection wheel button: LB hold (now) or a D-pad hold? (CT Core, WALKTHROUGH.md Q1)
@@ -26,7 +27,7 @@ Last updated: 2026-10-19 11:30 Sydney.
 | --- | --- | --- | --- | --- |
 | Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Merge anim-cleanup's PR; move /preview/ to master |
 | CT Core Build | desktop | `feature/ct-prototype` | Playtest 2 slice A: controls and camera (D-pad walk speed, speed 2 slowest, aim sensitivity -70 %, peek direction, shoulder memory, no swap flick, back-to-wall snap, quieter footsteps, no walk bob) | Slice A pushed to /ct/ for Michael |
-| Character Build | laptop (Remote Control) | `feature/anim-cleanup` | Full e2e and an independent check after merging master | PR to master; the orchestrator merges |
+| Character Build | laptop (light work only) | `feature/anim-cleanup` | PR body and docs; its full e2e now runs on the desktop (orchestrator) | PR to master; the orchestrator merges |
 
 ## Next (in order)
 1. **Anim clean-up into master** (Character Build): weapon handling to the real mounts, reload, hand shapes, traversal
