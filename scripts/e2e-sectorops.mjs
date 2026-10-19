@@ -457,7 +457,8 @@ await run(PARAMS, async ({ G, sim }) => {
     const e = em.enemies.find((q) => q.id === id);
     return { nearest: e ? e.alerted : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length, lkp: em.lkpValid };
   }, spot.nearest);
-  assert(ctl.nearest === true && ctl.lkp, `control: the same shot unsuppressed alerts the nearest guard (${JSON.stringify(ctl)}, noise back to ${loud})`);
+  // (not lkp: with no sighting since the restart and nobody hunting yet, EnemyManager.update forgets it on the next tick)
+  assert(ctl.nearest === true, `control: the same shot unsuppressed alerts the nearest guard (${JSON.stringify(ctl)}, noise back to ${loud})`);
 });
 
 console.log('sector ops: nav (M8 routes, sealed sections)');
