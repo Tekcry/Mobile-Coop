@@ -1,5 +1,6 @@
 // slice 6 shots only (the cinematic background): node scripts/menu-shots6.mjs [outDir] [names]
-// The title T1 before and after the goggle flickers on, the main menu's opening T2, the equipment macros H1-H6.
+// The title T1 before and after the goggle flickers on, the main menu's opening T2, the equipment macros H1-H6, and
+// (menu-notes slice 3) the weapon shots W1 (rifle, low ready) and W2 (pistol, compressed ready).
 // Needs a server on E2E_PORT serving dist/ (`node node_modules/vite/bin/vite.js preview --port 4191 --strictPort --host 127.0.0.1`).
 // 1920 x 1080 PNGs. Software GL with `?gfx=min` (Wren's LOD2) by default: framing and light layout only. SHOT_GFX=<preset>
 // renders that preset (LOD0, then the hero LOD once loaded); E2E_GPU=1 uses the hardware GPU (Michael's PC).
@@ -24,6 +25,9 @@ const SHOTS = [
   ['H4', 'H4', 0.5],
   ['H5', 'H5', 0.5],
   ['H6', 'H6', 0.5],
+  // (menu-notes slice 3) the rifle and the pistol in her hands
+  ['W1', 'W1', 0.5],
+  ['W2', 'W2', 0.5],
 ].filter(([n]) => !only || only.includes(n));
 const HERO = 1 << 0;
 const LOD2 = 1 << 3;
@@ -45,6 +49,10 @@ try {
     await page
       .waitForFunction((b) => ((window.__app.current?.figure?.loaded ?? 0) & b) !== 0, want, { timeout: 90000, polling: 250 })
       .catch(() => console.log(`(${name}: wanted LOD not loaded in time)`));
+    // (menu-notes slice 3) the Blender weapon meshes (the proxy parts stay hidden in the void until they load)
+    await page
+      .waitForFunction(() => window.__app.current?.weaponsReady === true, null, { timeout: 60000, polling: 250 })
+      .catch(() => console.log(`(${name}: weapon meshes not loaded in time)`));
     await page.waitForTimeout(3000);
     await frames(page, 20);
     const st = await page.evaluate(() => ({ id: window.__app.current?.shotId, loaded: window.__app.current?.figure?.loaded ?? 0 }));

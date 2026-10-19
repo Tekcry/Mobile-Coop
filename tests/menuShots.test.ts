@@ -30,7 +30,7 @@ describe('menu shot director', () => {
       expect(s[0]).toBe('T2');
       expect(s.slice(1)).not.toContain('T2');
       for (let i = 1; i < s.length; i++) expect(s[i]).not.toBe(s[i - 1]);
-      expect(new Set(s)).toEqual(new Set(['T2', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']));
+      expect(new Set(s)).toEqual(new Set(['T2', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'W1', 'W2']));
     }
   });
 
@@ -153,10 +153,13 @@ describe('menu hero shots', () => {
 
 describe('menu shot passes', () => {
   it('plays every main shot once per round (a deck), never the same twice in a row', () => {
-    const s = sequence(11, 1 + 6 * 8).slice(1);
-    // a round is the shot carried over plus five new ones: windows of six starting every fifth shot hold no repeat
-    expect(new Set(s.slice(0, 6)).size).toBe(6);
-    for (let r = 0; r < 7; r++) expect(new Set(s.slice(5 + r * 5, 5 + r * 5 + 6)).size).toBe(6);
+    // (menu-notes slice 3: W1 / W2 joined, n = 8)
+    const n = SHOTS.filter((x) => x.contexts.includes('main') && !x.intro).length;
+    expect(n).toBe(8);
+    const s = sequence(11, 1 + n * 8).slice(1);
+    // a round is the shot carried over plus n - 1 new ones: windows of n starting every (n - 1)th shot hold no repeat
+    expect(new Set(s.slice(0, n)).size).toBe(n);
+    for (let r = 0; r < 7; r++) expect(new Set(s.slice(n - 1 + r * (n - 1), n - 1 + r * (n - 1) + n)).size).toBe(n);
   });
 
   it('the equipment shots use at least four kinds of pass', () => {

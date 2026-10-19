@@ -16,6 +16,7 @@ import {
   Vector3,
   VertexBuffer,
 } from '../core/babylon';
+import type { MenuHold } from './menuPoses';
 
 type V3 = [number, number, number];
 
@@ -60,6 +61,9 @@ export interface HeroShot {
   goggleOn?: [number, number];
   /** The light (index) thrown by the goggle: its intensity follows the goggle level. */
   glowLight?: number;
+  /** (menu-notes slice 3) What Wren holds in the shot (menuPoses.ts); the other weapon sits in its carry slot. Default:
+   *  the rifle at low ready. */
+  hold?: MenuHold;
   /** A faint glow card far behind her (relative to her feet), seen past the silhouette. */
   backGlow?: { pos: V3; size: number; level: number };
 }
@@ -100,8 +104,8 @@ function macro(target: V3, camAlpha: number, side: number, key: number, keyUp: n
   ];
 }
 
-function equip(id: string, fov: number, from: CamPose, to: CamPose, lights: [SetLight, SetLight, SetLight], lensMm?: number, roll = 0): HeroShot {
-  return { id, fov: fov * DEG, from, to, frameX: 0.3, lights, lensMm, roll };
+function equip(id: string, fov: number, from: CamPose, to: CamPose, lights: [SetLight, SetLight, SetLight], lensMm?: number, roll = 0, hold?: MenuHold): HeroShot {
+  return { id, fov: fov * DEG, from, to, frameX: 0.3, lights, lensMm, roll, hold };
 }
 
 /** The title's light (also the main menu's opening hold): a low-key face, a rim, and the goggle's green thrown on the
@@ -116,7 +120,9 @@ const FACE: [SetLight, SetLight, SetLight] = [
  * T1 the title: Wren facing the lens, the face and goggle filling the frame right of centre; the goggle flickers on.
  * T2 the main menu's opening: the same shot carried on from the title (no cut), easing back a touch to clear the list,
  * held, before the equipment shots. H1-H6 equipment and armour macros (Michael: hard tactical pieces only, no straps or clothing), each its own angle,
- * lens and pass, none straight on.
+ * lens and pass, none straight on. (menu-notes slice 3) W1 / W2: the rifle and the pistol in her hands. Every shot names
+ * its `hold`: the rifle at low ready (T1, T2, H1, H5 with the pistol in the thigh holster, H6, W1), the pistol at low
+ * ready (H2-H4, so her front reads past it) or compressed ready (W2), the rifle then on her back plate mount.
  */
 export const HERO_SHOTS: readonly HeroShot[] = [
   {
@@ -141,15 +147,22 @@ export const HERO_SHOTS: readonly HeroShot[] = [
   // the goggle housing and its mount: low from her left front, a long lens arcing in
   equip('H1', 18, { alpha: 0.85, beta: 1.68, radius: 0.66, target: [0.03, 1.565, -0.17] }, { alpha: 0.55, beta: 1.64, radius: 0.6, target: [0.02, 1.565, -0.18] }, macro([0.02, 1.6, -0.12], 0.7, 1, 2.2, 0.9), 62, 0.07),
   // the plate carrier's front plate: low from her left, pushing in while the key slides down the plate
-  equip('H2', 22, { alpha: 0.75, beta: 1.72, radius: 0.75, target: [0.02, 1.22, -0.13] }, { alpha: 0.62, beta: 1.68, radius: 0.64, target: [0.02, 1.22, -0.14] }, macro([0.02, 1.22, -0.13], 0.7, -1, 4, 0.8, [0, 0.07, 0])),
+  equip('H2', 22, { alpha: 0.75, beta: 1.72, radius: 0.75, target: [0.02, 1.22, -0.13] }, { alpha: 0.62, beta: 1.68, radius: 0.64, target: [0.02, 1.22, -0.14] }, macro([0.02, 1.22, -0.13], 0.7, -1, 4, 0.8, [0, 0.07, 0]), undefined, 0, 'pistolLow'),
   // the magazine pouches on the carrier: low from her right, sliding across while the key sweeps over them
-  equip('H3', 22, { alpha: -0.7, beta: 1.74, radius: 0.72, target: [-0.05, 1.06, -0.13] }, { alpha: -0.55, beta: 1.7, radius: 0.68, target: [-0.02, 1.06, -0.14] }, macro([-0.03, 1.06, -0.13], -0.62, 1, 7, 0.5, [0.06, 0, 0]), undefined, -0.09),
+  equip('H3', 22, { alpha: -0.7, beta: 1.74, radius: 0.72, target: [-0.05, 1.06, -0.13] }, { alpha: -0.55, beta: 1.7, radius: 0.68, target: [-0.02, 1.06, -0.14] }, macro([-0.03, 1.06, -0.13], -0.62, 1, 7, 0.5, [0.06, 0, 0]), undefined, -0.09, 'pistolLow'),
   // the belt pouches: low three-quarter from her left, sliding along the belt under a grazing beam
-  equip('H4', 20, { alpha: 0.45, beta: 1.68, radius: 0.82, target: [-0.05, 0.9, -0.12] }, { alpha: 0.35, beta: 1.66, radius: 0.76, target: [-0.15, 0.9, -0.13] }, macro([-0.09, 0.87, -0.12], 0.4, -1, 3.5, 0.25, [0.12, 0, -0.04])),
+  equip('H4', 20, { alpha: 0.45, beta: 1.68, radius: 0.82, target: [-0.05, 0.9, -0.12] }, { alpha: 0.35, beta: 1.66, radius: 0.76, target: [-0.15, 0.9, -0.13] }, macro([-0.09, 0.87, -0.12], 0.4, -1, 3.5, 0.25, [0.12, 0, -0.04]), undefined, 0, 'pistolLow'),
   // the thigh holster and pocket on the right leg: from her right, arcing round the front
   equip('H5', 22, { alpha: -1.35, beta: 1.62, radius: 0.7, target: [-0.17, 0.72, -0.02] }, { alpha: -1.0, beta: 1.58, radius: 0.66, target: [-0.17, 0.74, -0.04] }, macro([-0.17, 0.73, -0.03], -1.18, -1, 2.6, 0.7), undefined, 0.12),
   // the back plate and the kit on it: high from behind her left shoulder, arcing round
   equip('H6', 26, { alpha: 2.55, beta: 1.2, radius: 0.95, target: [0.02, 1.25, 0.12] }, { alpha: 2.95, beta: 1.25, radius: 0.88, target: [0, 1.25, 0.12] }, macro([0.01, 1.25, 0.12], 2.75, 1, 7.5, 1.15)),
+  // (menu-notes slice 3) the weapons. W1 the rifle at low ready: low from her right front (its ejection side), arcing
+  // in along the receiver while the key slides down the gun from the grip towards the launcher. Set frame (she faces -z,
+  // her right is -x): the grip near [-0.09, 1.14, -0.27], the muzzle down and across to [0.19, 0.77, -0.67].
+  equip('W1', 30, { alpha: -0.8, beta: 1.68, radius: 1.25, target: [0, 1.02, -0.4] }, { alpha: -0.5, beta: 1.64, radius: 1.12, target: [0.02, 1.0, -0.42] }, macro([0, 1.02, -0.4], -0.65, 1, 4.5, 0.6, [0.1, -0.09, -0.1]), 55, -0.05, 'rifle'),
+  // W2 the pistol at compressed ready, her face and lit goggle above it: from her left, a slow push and tilt down from
+  // the goggle to the pistol (the grip near [0, 1.16, -0.2], the muzzle forward to [0.03, 1.06, -0.47])
+  equip('W2', 30, { alpha: 0.75, beta: 1.5, radius: 1.15, target: [0, 1.36, -0.22] }, { alpha: 0.5, beta: 1.56, radius: 1.0, target: [0.01, 1.27, -0.27] }, macro([0.01, 1.2, -0.3], 0.6, -1, 4, 0.7, [0, 0.08, 0.04]), 55, 0.06, 'pistol'),
 ];
 
 /** A visible light cone: additive, fading from the lamp to its far end (apex at the origin, along -Y). */

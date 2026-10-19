@@ -33,7 +33,8 @@ export interface ShotDef {
  * face and goggle filling the frame, the goggle flickering on (plays once, then holds). T2 the main menu's opening: the
  * same shot carried on from the title without a cut, easing back to clear the list, held. Then H1-H6 equipment macros
  * in a seeded deck (goggle unit, front plate, magazine pouches, belt pouches, thigh holster, back plate), each its own angle,
- * lens and pass; every change crossfades through black. S6 loadout and S7 lobby keep today's stage.
+ * lens and pass; every change crossfades through black. S6 loadout and S7 lobby keep today's stage. (menu-notes slice 3)
+ * W1 / W2 join the deck: the rifle and the pistol in her hands (each hero shot names its hold, menuSets.ts).
  */
 export const SHOTS: readonly ShotDef[] = [
   { id: 'T1', setup: 'T1', durS: 14, move: { kind: 'push', amount: 0.08 }, light: 'void', contexts: ['title'], solo: true, once: true },
@@ -44,6 +45,9 @@ export const SHOTS: readonly ShotDef[] = [
   { id: 'H4', setup: 'H4', durS: 12, move: { kind: 'track', amount: 0.15 }, light: 'void', contexts: ['main'], solo: true },
   { id: 'H5', setup: 'H5', durS: 11, move: { kind: 'orbit', amount: 0.35 }, light: 'void', contexts: ['main'], solo: true },
   { id: 'H6', setup: 'H6', durS: 11, move: { kind: 'arc', amount: 0.4 }, light: 'void', contexts: ['main'], solo: true },
+  // (menu-notes slice 3) the weapons in her hands: the rifle at low ready, the pistol at compressed ready
+  { id: 'W1', setup: 'W1', durS: 12, move: { kind: 'arc', amount: 0.3 }, light: 'void', contexts: ['main'], solo: true },
+  { id: 'W2', setup: 'W2', durS: 12, move: { kind: 'tilt', amount: 0.09 }, light: 'void', contexts: ['main'], solo: true },
   { id: 'S6', setup: 'stage', durS: 14, move: { kind: 'static', amount: 0 }, contexts: ['loadout'], solo: true },
   { id: 'S7', setup: 'stage', durS: 14, move: { kind: 'static', amount: 0 }, contexts: ['lobby'], solo: false },
 ];
