@@ -1,6 +1,7 @@
 # Warehouse redesign - state
 
-**Now:** job started 2026-10-19 23:50 (BRIEF M1-M4). Step 1 done (a3664216, checker PASS); step 2 (review) running.
+**Now:** job started 2026-10-19 23:50 (BRIEF M1-M4). Step 1 done (a3664216, checker PASS); step 2 done (346ac584,
+`REVIEW.md`); step 3 (`SPEC.md`, all 3 sections + a section 1 build sheet) running.
 **Next:** (1) dog light fix + test, committed; (2) `REVIEW.md`; (3) `SPEC.md` for all 3 sections; (4) section 1
 greybox, fresh checker, at most 1 fix round, `npm run check` + e2e-sectorops (laptop runner while the desktop lock is
 held); push; walk guide to the orchestrator; (5) the PR to master by 06:00 (M4; greybox not stable by 05:00: the fix and the spec only),
