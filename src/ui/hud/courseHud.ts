@@ -10,7 +10,7 @@
 import { h } from '../dom';
 import { keyLabels, promptHtml, type PromptButton } from '../prompts';
 import type { CourseState } from '../../game/course/courseState';
-import type { PlayerIdx } from '../../game/course/courseDef';
+import { bayObjective, type PlayerIdx } from '../../game/course/courseDef';
 
 const BUTTONS: readonly string[] = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'LS', 'START'];
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : '&quot;'));
@@ -76,7 +76,8 @@ export class CourseHud {
     const lastCell = (p: PlayerIdx): HTMLElement => h('td', { class: `ch-t${lastDone ? ' done' : ''}`, text: lastDone ? '✓' : '·', attrs: { 'data-p': String(p + 1) } });
     rows.push(h('tr', { class: !next && !lastDone ? 'cur' : '', attrs: { 'data-obj': 'exit' } }, h('td', { class: 'ch-n', text: last }), lastCell(0), lastCell(1)));
     this.table.replaceChildren(...rows);
-    const text = st.over ? 'Course complete.' : next ? next.text : bay.drills.length ? 'Objectives done. Both of you onto the airlock pad.' : '';
+    // (course-ready F1) a bay without drills shows its objective (the station's task) as the step line
+    const text = st.over ? 'Course complete.' : next ? next.text : bay.drills.length ? 'Objectives done. Both of you onto the airlock pad.' : (bayObjective(st.def, bay.id) ?? '');
     this.stepEl.innerHTML = stepHtml(text);
   }
 
