@@ -45,6 +45,11 @@ export class TitleScreen extends Screen {
     if (this.pending) this.continue();
   }
 
+  /** (menu-notes note 2) The load screen has gone: a key pressed while it was up does not skip the title. */
+  arm(): void {
+    this.pending = false;
+  }
+
   override onShow(): void {
     this.done = false;
     this.pending = false;

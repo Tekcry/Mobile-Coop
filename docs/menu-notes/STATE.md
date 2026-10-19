@@ -1,7 +1,7 @@
 # Menu notes - state
 
 ## Now
-Slice 2 (notes 2, 4): load screen held until the menu stage, the hero and the weapon meshes are ready; hero LOD check.
+Slice 4a (M1): title in full darkness, the first press starts the goggle flicker-on. Then 4b mock-ups.
 
 ## Next
 GPU contact sheets for slices 2 and 3 when the desktop heavy.lock is free (commands in SLICE3.md), then the end step
@@ -13,6 +13,8 @@ GPU contact sheets for slices 2 and 3 when the desktop heavy.lock is free (comma
   H5 holster, T1 / T2 face framing, the skinned hand near the magazine, no proxy parts or lone magazine.
 
 ## Polish list (non-blocking)
+- Load gate: a long gfx-high shader compile with no bytes arriving could hit the 12 s stall in menu-boot-shots; operator files fetched outside loadModel are not counted in the MB line; tick() allocates per frame during the gate; readCounted peaks at about twice the file size (preallocate from Content-Length).
+- The loadout and lobby stage still compiles its shaders on the first visit.
 - Pad-only player in a browser that blocks autoplay hears no title music until a key or click (Chromium limit).
 - menuPoses test: use PLAYER_HEIGHT, hyp3, note that the guard is pose-independent, add forearm samples.
 - A hold change between void shots glides (0.1-0.45 s) during the crossfade; snap on a shot change if it shows.
@@ -20,6 +22,7 @@ GPU contact sheets for slices 2 and 3 when the desktop heavy.lock is free (comma
 ## Done
 - 2026-10-19: worktree, BRIEF / PLAN / STATE.
 - 2026-10-19: slice 1 (c999919f): title music, Back on the main menu does nothing (A1), one Controls place (A2). Checker PASS.
+- 2026-10-19: slice 2: load screen gate (menuGate.ts, stall timeout with MB progress, launch title after the hero is drawn), hero LOD confirmed (no fix; the swap was load order), read-back heroLod. Checker 2 fixes, fix round, recheck PASS.
 - 2026-10-19: slice 3: rifle and pistol in the void shots (menuPoses.ts, W1 / W2), magazine leak and hand guard. Checker PASS (code); visuals pending.
 
 ## Resume prompt

@@ -55,9 +55,9 @@ try {
       .catch(() => console.log(`(${name}: weapon meshes not loaded in time)`));
     await page.waitForTimeout(3000);
     await frames(page, 20);
-    const st = await page.evaluate(() => ({ id: window.__app.current?.shotId, loaded: window.__app.current?.figure?.loaded ?? 0 }));
+    const st = await page.evaluate(() => ({ id: window.__app.current?.shotId, loaded: window.__app.current?.figure?.loaded ?? 0, lod: window.__app.current?.heroLod }));
     await page.screenshot({ path: `${out}/${prefix}-${name}.png`, timeout: 180000 }); // software GL under load is slow
-    console.log(`saved ${out}/${prefix}-${name}.png (shot ${st.id}, LOD mask ${st.loaded.toString(2)})`);
+    console.log(`saved ${out}/${prefix}-${name}.png (shot ${st.id}, LOD mask ${st.loaded.toString(2)}, drawn ${st.lod})`);
   }
   const e = errors.filter((x) => (x.startsWith('[pageerror]') || x.startsWith('[error]')) && !x.includes('GPU stall') && !x.includes('swiftshader'));
   if (e.length) {

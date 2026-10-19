@@ -80,6 +80,11 @@ export class GameMusic {
     return { menu: !!this.menuV, caution: !!this.cautionV, alert: !!this.alertV, evade: !!this.evadeV, ready: [...this.ready.keys()].sort().join(',') };
   }
 
+  /** (menu-notes note 2) Decode the menu theme ahead (the load screen): `menu()` then starts it at once. */
+  preloadMenu(): void {
+    void this.load('menu');
+  }
+
   /** The main menu: the menu theme, from its opening. */
   menu(): void {
     this.mode = 'menu';

@@ -11,6 +11,7 @@ import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
 import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
+import { gateLimits } from './world/menuGate';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { TitleScreen } from './ui/screens/titleScreen';
 import { SettingsScreen } from './ui/screens/settingsScreen';
@@ -40,6 +41,13 @@ import { camoById } from './cosmetics/catalog';
 /** menu-ui MD2: the title screen shows once per launch; `?autostart` skips it, `?title=1` shows it under automation. */
 let titleShown = !!flags.autostart;
 const titleFlag = new URLSearchParams(location.search).get('title') === '1';
+
+/** (menu-notes note 2) The menu's load screen: each goToMenu / match load counts up (a stale gate does not reveal), the
+ *  first menu of the launch, and how long the gate waits before it shows the menu anyway (`gateLimits`: patient while
+ *  bytes arrive, a stall or cap ends it so a failed load never strands the player; automation is short, `?bootCap=`). */
+let bootGen = 0;
+let menuShownOnce = false;
+const bootLimits = gateLimits(location.search, !!navigator.webdriver);
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -89,6 +97,19 @@ async function boot(): Promise<void> {
 
   const goToMenu = (): void => {
     app.screens.clear();
+    // (menu-notes note 2) the boot screen stays up until the menu stage is ready to be seen: Wren's close-up LOD loaded
+    // and drawn, the weapons in, the first shot's shaders compiled (MenuState.prepare). After a match too.
+    const gen = ++bootGen;
+    const first = !menuShownOnce;
+    menuShownOnce = true;
+    const base = first ? 0.8 : 0.1;
+    const bootEl = document.getElementById('boot');
+    bootEl?.classList.remove('done');
+    setBoot(base, 'Loading Wren…');
+    app.bootHold = true;
+    // (the mission's music fades now; the menu theme decodes during the load and starts as the menu appears)
+    if (app.music.state !== 'menu') app.music.stop();
+    app.music.preloadMenu();
     // (the match freed before the menu stage is built: its shaders are released with it)
     app.releaseState();
     const ms = new MenuState(app.engine);
@@ -106,7 +127,6 @@ async function boot(): Promise<void> {
         showSavedOperator(app);
       }
     };
-    app.music.menu();
     app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
     // (menu-ui MD19: the profile badge only with `?legacy=1`)
@@ -125,10 +145,36 @@ async function boot(): Promise<void> {
     if (flags.foleyLab) void import('./audio/foley/foleyLab').then((m) => app.screens.push(new m.FoleyLabScreen(app)));
     if (flags.weaponLab) void import('./audio/weapons/weaponLab').then((m) => app.screens.push(new m.WeaponLabScreen(app)));
     // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
+    let title: TitleScreen | null = null;
     if (titleAllowed && !titleShown) {
       titleShown = true;
-      app.screens.push(new TitleScreen(brightness));
-    } else brightness();
+      title = new TitleScreen(brightness);
+      app.screens.push(title);
+    }
+    // the reveal: the boot screen fades into the title (or the main menu), the menu takes input and the theme starts;
+    // the brightness calibration (first run, no title) waits for it too
+    // (prepare never rejects; the catch is a second guard so the boot screen can never be stranded)
+    void ms
+      .prepare((p, s) => {
+        if (gen === bootGen) setBoot(base + (1 - base) * p, s);
+      }, bootLimits)
+      .catch((e: unknown) => `error: ${e instanceof Error ? e.message : String(e)}`)
+      .then((why) => {
+        if (gen !== bootGen || app.current !== ms) return;
+        // (the boot screen and the input first: nothing below can keep the menu hidden)
+        app.bootHold = false;
+        title?.arm();
+        setBoot(1, 'Ready');
+        bootEl?.classList.add('done');
+        if (why !== 'ready') {
+          const msg = `[menu] the load screen gave up waiting and shows the menu: ${why}`;
+          // (under automation a note only: the suites count warnings; the reason is on MenuState.bootGate)
+          if (navigator.webdriver) console.info(msg);
+          else console.warn(msg);
+        }
+        app.music.menu();
+        if (!title) brightness();
+      });
   };
 
   // menu-ui MD6: the flat main menu. Until the Missions / Training / Free roam screens exist (steps 07+), Missions and
@@ -226,6 +272,9 @@ async function boot(): Promise<void> {
       gadget: base.gadget ?? sv.presets[sv.preset]?.gadget,
     };
     app.screens.clear();
+    // (a menu load screen still waiting is dropped: the match's loading owns the boot screen now)
+    bootGen++;
+    app.bootHold = false;
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
     const b = opts.benchmark;
@@ -301,8 +350,11 @@ async function boot(): Promise<void> {
   }
   app.start();
 
-  setBoot(1, 'Ready');
-  document.getElementById('boot')?.classList.add('done');
+  // (menu-notes note 2) the menu's own gate reveals it (goToMenu); a match boot keeps today's order
+  if (!menuShownOnce) {
+    setBoot(1, 'Ready');
+    document.getElementById('boot')?.classList.add('done');
+  }
 }
 
 boot().catch((err: unknown) => {

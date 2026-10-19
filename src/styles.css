@@ -3879,6 +3879,8 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   background: var(--ink);
   align-items: flex-start;
   padding-left: 12vw;
+  /* (menu-notes note 2) the load screen fades into the title once the menu stage is ready */
+  transition: opacity 0.6s ease;
 }
 .boot .boot-title {
   display: flex;

@@ -60,6 +60,12 @@ const sameBoxes = async (scope) => {
 try {
   await page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
   await frames(page, 5);
+  // (menu-notes notes 2 / 4) the load screen held the menu until Wren's close-up LOD was drawn (`?gfx=min`: LOD2)
+  const gate = await G(() => { const s = window.__app.current; return { gate: s.bootGate, lod: s.heroLod, want: s.heroLodWanted, hold: window.__app.bootHold }; });
+  console.log(`load screen gate: ${gate.gate}`);
+  // ('ready', or the 12 s automation cap: software GL under load may not finish compiling in time, so a cap expiry is
+  // logged, not failed; an error, a stall or a stranded hold fails)
+  assert((gate.gate.startsWith('ready') || /^timeout: .*cap of 12 s/.test(gate.gate)) && gate.lod === gate.want && !gate.hold, `load screen: the menu shows with Wren's close-up LOD drawn (${JSON.stringify(gate)})`);
 
   console.log('main menu: keyboard');
   assert((await fk()) === 'missions', `default focus Missions (${await fk()})`);

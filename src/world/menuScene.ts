@@ -20,8 +20,9 @@ import { mulberry } from '../core/rng';
 import { PartLibrary } from './partLibrary';
 import type { CharacterRig } from '../player/characterRig';
 import { CLOSE_CAMERAS } from '../operators/runtime/lodPick';
-import { LOD_HERO } from '../operators/runtime/manifest';
-import { forgetModel, loadModel, type OperatorFigure } from '../operators/runtime/figure';
+import { LOD_HERO, LOD_NAMES } from '../operators/runtime/manifest';
+import { gateInput, runGate, type GateLimits, type GateProbe } from './menuGate';
+import { forgetModel, loadModel, operatorBytes, type OperatorFigure } from '../operators/runtime/figure';
 import { loadMenuLods, operatorRig } from '../operators/runtime/playerFigure';
 import { wrenManifest } from '../operators/runtime/assets';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -55,8 +56,18 @@ export type MenuFraming = 'menu' | 'loadout' | 'weapon';
  *  (`menuSets.ts`); the loadout and
  *  the lobby keep today's stage. */
 export class MenuState implements AppState {
-  /** The menu stage (3.1: Auto graphics calibrates here). */
-  readonly menuStage = true;
+  /** The menu stage (3.1: Auto graphics calibrates here), once the load screen has gone (menu-notes note 2: the
+   *  loading frames are not measured). */
+  get menuStage(): boolean {
+    return this.revealed;
+  }
+  /** (menu-notes note 2) The load screen has gone (`prepare` settled). */
+  private revealed = false;
+  /** The close-up LOD's load failed / the menu's LOD chain settled (for the current figure). */
+  private closeUpFailed = false;
+  private chainDone = false;
+  private readonly gateIn = gateInput();
+  private gate = '';
   readonly scene: Scene;
   readonly simulating = true;
   readonly camera: ArcRotateCamera;
@@ -252,6 +263,81 @@ export class MenuState implements AppState {
   get weaponHold(): string {
     return this.holdMode;
   }
+  /** (menu-notes note 4, debug hook) The LOD Wren is drawn at now ('hero', 'lod0', 'lod1', 'lod2'; 'none' before one
+   *  has loaded) and the LOD the close-ups should draw ('hero' on every desktop preset, 'lod2' under `?gfx=min`). */
+  get heroLod(): string {
+    const c = this.figure?.current ?? -1;
+    return c >= 0 ? (LOD_NAMES[c] ?? 'none') : 'none';
+  }
+  get heroLodWanted(): string {
+    return this.figure ? (LOD_NAMES[this.figure.closeUpLod] ?? 'none') : 'none';
+  }
+  /** (menu-notes note 2, debug hook) The load screen gate: '' while it waits, 'ready', or 'timeout: <step> ...'. */
+  get bootGate(): string {
+    return this.gate;
+  }
+
+  /** Every enabled, visible mesh ready to draw (its shaders compiled with the lights as they are now, its textures in),
+   *  no texture still pending in the scene, and the post stack's effects compiled. Asking compiles what is missing. */
+  private drawReady(): boolean {
+    const scene = this.scene;
+    let ok = scene.getWaitingItemsCount() === 0;
+    for (const m of scene.meshes) {
+      if (!m.isEnabled() || !m.isVisible || !m.subMeshes?.length) continue;
+      // (no early exit: every material starts compiling at once)
+      if (!m.isReady(true)) ok = false;
+    }
+    for (const pp of scene.postProcesses) if (pp && !pp.isReady()) ok = false;
+    return ok;
+  }
+
+  /** The next rendered frame (true), or a tick of 100 ms when no frame comes (a hidden tab; false). */
+  private tick(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const obs = this.scene.onAfterRenderObservable;
+      const o = obs.addOnce(() => {
+        clearTimeout(id);
+        resolve(true);
+      });
+      const id = setTimeout(() => {
+        obs.remove(o);
+        resolve(false);
+      }, 100);
+    });
+  }
+
+  /**
+   * (menu-notes note 2) Resolves when the menu is ready to be seen (`menuGate.ts`): Wren's close-up LOD loaded and drawn,
+   * the weapons' meshes in, the shaders of the first shot compiled and a few frames rendered behind the boot screen.
+   * `report` gets the progress (0..1) and the status line. It gives up after `limits` (no progress, or the cap) and
+   * resolves with the reason, so a failed load never strands the player; a check that throws resolves 'error: ...'.
+   * Never rejects. Returns 'ready', 'timeout: ...', 'error: ...' or 'closed' (the menu went away meanwhile).
+   */
+  async prepare(report: (progress: number, text: string) => void, limits: GateLimits): Promise<string> {
+    const g0 = this.gateIn;
+    const probe: GateProbe = {
+      read: (g) => {
+        const f = this.figure;
+        g.loaded = f?.loaded ?? 0;
+        g.closeUp = f?.closeUpLod ?? LOD_HERO;
+        g.closeUpFailed = this.closeUpFailed;
+        g.chainDone = this.chainDone && !!f;
+        g.weaponsPending = !this.weapon || this.weapon.meshPending || !!this.sidearm?.meshPending;
+        g.onScreen = !!f && f.current === g.closeUp;
+        g.drawReady = this.drawReady();
+        g0.loaded = g.loaded;
+        g0.weaponsPending = g.weaponsPending;
+        g0.drawReady = g.drawReady;
+        return operatorBytes.received;
+      },
+      tick: () => this.tick(),
+      closed: () => this.scene.isDisposed,
+      describe: () => `drawn ${this.heroLod}, wanted ${this.heroLodWanted}, loaded bits ${g0.loaded}, weapons pending ${g0.weaponsPending}, draw ready ${g0.drawReady}`,
+    };
+    const why = await runGate(probe, report, limits);
+    this.revealed = true;
+    return (this.gate = why);
+  }
 
   /** Graphics settings: the key and rim lamps cast shadows, and the post stack (no volumetrics: the beams are
    *  their own cones here). */
@@ -313,10 +399,16 @@ export class MenuState implements AppState {
     this.rig = op.rig;
     const fig = (this.figure = op.figure);
     fig.setVision('night', 1);
-    loadMenuLods(fig, loadModel);
+    this.chainDone = false;
+    this.closeUpFailed = false;
+    void loadMenuLods(fig, loadModel).then(() => {
+      if (this.figure === fig) this.chainDone = true;
+    });
     // (slice 6) the close-ups need the hero body: ask for it now, beside the progressive chain (the asset loads once;
-    // `?gfx=min` gets LOD2). A failed load keeps the lower LOD on screen.
-    fig.loadCloseUp().catch(() => {});
+    // `?gfx=min` gets LOD2). A failed load keeps the lower LOD on screen (and the load screen stops waiting for it).
+    fig.loadCloseUp().catch(() => {
+      if (this.figure === fig) this.closeUpFailed = true;
+    });
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
     this.weaponId = weapon;
