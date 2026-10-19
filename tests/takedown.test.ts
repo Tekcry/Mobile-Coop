@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { approachPoint, GRAB, GRAB_KINDS, lethalFromHold, pickTakedown, TAKEDOWN, type TakedownInput } from '../src/game/takedown';
+import { approachPoint, contactDelay, GRAB, GRAB_KINDS, lethalFromHold, pickTakedown, TAKEDOWN, type TakedownInput } from '../src/game/takedown';
 
 const base = (o: Partial<TakedownInput> = {}): TakedownInput => ({ state: 'ground', ax: 0, ay: 0, az: 0, vx: 0, vy: 0, vz: 1.2, vyaw: 0, vCalm: true, los: true, ...o });
 
@@ -84,10 +84,23 @@ describe('Chaos Theory takedowns (3.2.0 phase 4)', () => {
   });
   it('the grab replaces the instant takedown from behind; its rules', () => {
     expect(GRAB_KINDS).toContain('behind');
-    expect(GRAB.maxGear).toBe(2);
+    // (G7, AUDIT-WALLS rows 5, 11) footage: the hostage walk is capped at CT's 0.7 m/s (was gear 2, 1.4 m/s), the step-in
+    // takes 0.42 s and the pull-in 0.6 s (was a 0.22 s snap), the guard held pelvis to pelvis about 0.3 m (was 0.42)
+    expect(GRAB.speedCap).toBeGreaterThanOrEqual(0.5);
+    expect(GRAB.speedCap).toBeLessThanOrEqual(0.9);
+    expect(GRAB.approach).toBeCloseTo(0.42);
+    expect(GRAB.pull).toBeCloseTo(0.6);
+    expect(GRAB.approach + GRAB.pull).toBeLessThanOrEqual(1.2);
+    expect(GRAB.hold).toBeCloseTo(0.32);
     expect(GRAB.spreadMul).toBeCloseTo(1.2);
     expect(GRAB.shoveStagger).toBeCloseTo(1.0);
     expect(GRAB.hesitate).toBeCloseTo(1.5);
+  });
+  it('(G7) the struggle starts at the contact: the grab from behind waits the grab approach, other sides the ground one', () => {
+    // guard at the origin facing +z; an attacker behind (-z) and in front (+z)
+    expect(contactDelay(0, -1.2, 0, 0, 0, false)).toBeCloseTo(GRAB.approach);
+    expect(contactDelay(0, 1.2, 0, 0, 0, false)).toBeCloseTo(TAKEDOWN.approach);
+    expect(contactDelay(0, -1.2, 0, 0, 0, true)).toBeCloseTo(TAKEDOWN.approach);
   });
 });
 

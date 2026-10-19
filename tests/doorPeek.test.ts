@@ -68,18 +68,24 @@ describe('door peek core', () => {
     for (let t = 0; t < s - 1e-9; t += 1 / 60) acts.push(c.update(1 / 60, input(o)));
     return acts;
   };
-  it('settles 0.25 s, cracks over 0.6 s, then peeks', () => {
+  // (G6, AUDIT-WALLS row 14, 052349 @ 13.6-18.6) the step and the hand up, the view in, then the leaf 1.2 s after the pick
+  it('settles 0.5 s, holds the handle 0.7 s while the view moves in, cracks over 0.6 s, then peeks', () => {
+    expect(DOOR_PEEK.settle).toBe(0.5);
+    expect(DOOR_PEEK.crackDelay).toBe(0.7);
     const c = new DoorPeekCore();
     expect(c.update(1 / 60, input({ context: true, candidate: 4 }))).toBe(PEEK_ACT.none);
     expect(c.phase).toBe('settle');
     expect(c.door).toBe(4);
-    const acts = run(c, 0.25);
-    expect(acts.filter((a) => a === PEEK_ACT.crackOn).length).toBe(1);
-    expect(c.phase).toBe('crack');
-    run(c, 0.3);
+    expect(run(c, 0.5)).not.toContain(PEEK_ACT.crackOn);
+    expect(c.phase).toBe('ready');
+    run(c, 0.35);
     expect(c.view()).toBeGreaterThan(0.4);
     expect(c.view()).toBeLessThan(0.6);
-    run(c, 0.32);
+    expect(c.handW()).toBe(1);
+    const acts = run(c, 0.35);
+    expect(acts.filter((a) => a === PEEK_ACT.crackOn).length).toBe(1);
+    expect(c.phase).toBe('crack');
+    run(c, 0.62);
     expect(c.phase).toBe('peek');
     expect(c.view()).toBe(1);
     expect(c.handW()).toBe(1);
@@ -93,7 +99,7 @@ describe('door peek core', () => {
   const peeking = (): DoorPeekCore => {
     const c = new DoorPeekCore();
     c.update(1 / 60, input({ context: true, candidate: 1 }));
-    run(c, 1);
+    run(c, 2);
     return c;
   };
   it('a second press closes over 0.4 s', () => {
@@ -167,7 +173,7 @@ describe('door peek fix r1', () => {
     expect(c.update(1 / 60, input({ context: true, candidate: 3, resume: true }))).toBe(PEEK_ACT.none);
     expect(c.phase).toBe('settle');
     let crackOn = 0;
-    for (let i = 0; i < 30; i++) if (c.update(1 / 60, input()) === PEEK_ACT.crackOn) crackOn++;
+    for (let i = 0; i < 40; i++) if (c.update(1 / 60, input()) === PEEK_ACT.crackOn) crackOn++;
     expect(crackOn).toBe(0);
     expect(c.phase).toBe('peek');
     expect(c.view()).toBe(1);
@@ -178,7 +184,7 @@ describe('door peek fix r1', () => {
     // the next peek on a closed door cracks as before
     c.update(1 / 60, input({ context: true, candidate: 3 }));
     let acts = 0;
-    for (let i = 0; i < 30; i++) if (c.update(1 / 60, input()) === PEEK_ACT.crackOn) acts++;
+    for (let i = 0; i < 90; i++) if (c.update(1 / 60, input()) === PEEK_ACT.crackOn) acts++;
     expect(acts).toBe(1);
   });
   it('a client ignores the snapshot un-crack for about a round trip after its prediction, then the host wins', () => {

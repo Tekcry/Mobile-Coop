@@ -7,6 +7,7 @@ import { AwarenessArcs } from './awareness';
 import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
+import { ContextMenuView } from './contextMenuView';
 
 export interface HudFrame {
   hp: number;
@@ -57,7 +58,8 @@ export class Hud {
   private roomEl: HTMLElement;
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
-  private doorMenuEl: HTMLElement;
+  /** (G5) The CT context action menu, top right. */
+  readonly ctx = new ContextMenuView();
   /** Cover / vault prompts, the cover badge and the cover-to-cover marker, on the world surfaces. */
   readonly world: WorldPrompts;
   private feed: HTMLElement;
@@ -139,7 +141,6 @@ export class Hud {
     this.roomEl = h('div', { class: 'hud-room' });
     this.bannerEl = h('div', { class: 'hud-banner' });
     this.interactEl = h('div', { class: 'hud-interact' });
-    this.doorMenuEl = h('div', { class: 'hud-doormenu' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
     this.suppressEl = h('div', { class: 'hud-suppress' });
@@ -156,7 +157,7 @@ export class Hud {
       h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
       this.interactEl,
-      this.doorMenuEl,
+      this.ctx.el,
       this.feed,
     );
     parent.appendChild(this.el);
@@ -303,16 +304,6 @@ export class Hud {
 
   setModeInfo(html: string): void {
     this.set('mode', html, () => (this.modeInfo.innerHTML = html));
-  }
-
-  /** (A3, G19) The CT door menu: the option labels with `sel` highlighted; null hides it. */
-  setDoorMenu(labels: readonly string[] | null, sel = 0, title = 'Door'): void {
-    this.set(`dmenu${title}`, labels ? `${sel}|${labels.join('|')}` : '', () => {
-      this.doorMenuEl.classList.toggle('show', !!labels);
-      this.doorMenuEl.innerHTML = labels
-        ? `<div class="dm-title">${title === 'grab' ? 'Held' : 'Door'}</div>` + labels.map((l, i) => `<div class="dm-opt${i === sel ? ' sel' : ''}">${l}</div>`).join('') + `<div class="dm-hint">${verbPromptHtml('interact', keyLabels.interact)}<span>select</span> ${verbPromptHtml('crouch', keyLabels.crouch)}<span>${title === 'grab' ? 'let go' : 'cancel'}</span></div>`
-        : '';
-    });
   }
 
   /** The use prompt; `progress` 0..1 draws the hold ring round the button glyph (-1 = a tap). */

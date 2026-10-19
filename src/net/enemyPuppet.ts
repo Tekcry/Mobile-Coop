@@ -1,5 +1,7 @@
 import { Vector3, type Scene } from '../core/babylon';
-import type { CharacterRig } from '../player/characterRig';
+import type { CharacterRig, FkPose } from '../player/characterRig';
+import type { WeaponModel } from '../weapons/weaponModel';
+import { GuardCq, koCurve, seedOf, type GuardCqMode, type KoState } from '../game/closeQuarters';
 import { buildEnemyRig } from '../ai/enemyRig';
 import { Hitboxes } from '../ai/hitboxes';
 import { DogModel } from '../ai/dogModel';
@@ -28,6 +30,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
   readonly pos = new Vector3();
   yaw = 0;
   rig: CharacterRig | null;
+  /** (G7 fix) His rifle (hidden while held, as the host's `Enemy`). */
+  private gun: WeaponModel | null = null;
   private dog: DogModel | null = null;
   private hitboxes: Hitboxes | null;
   private crouch = 0;
@@ -58,7 +62,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
     kind: EnemyState['k'],
   ) {
     this.def = ENEMIES[kind];
-    this.rig = buildEnemyRig(scene, world, this.def, `p${id}`).rig;
+    const built = buildEnemyRig(scene, world, this.def, `p${id}`);
+    this.rig = built.rig;
+    this.gun = built.gun;
     this.rig.setEnabled(false);
     if (this.def.quadruped) {
       this.dog = new DogModel(scene, world.parts, this.def.look.colors.torso, this.def.look.colors.accent);
@@ -107,19 +113,33 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
 
   // --- takedown (local player) ---
 
-  beginTakedown(choke: boolean): void {
+  /** (G7) The held pose, the same code as the host's `Enemy` (`closeQuarters.GuardCq`). */
+  private readonly cq = new GuardCq();
+  private readonly cqEmote = (_r: CharacterRig, t: number): FkPose | undefined => this.cq.pose(t) ?? undefined;
+
+  beginTakedown(choke: boolean, delay = 0): void {
     if (!this.seized) this.onTakedown?.('start', !choke);
     this.seized = this.taken = true;
     const rig = this.rig;
     if (!rig) return;
-    rig.emote = (_r, t) => {
-      const k = Math.min(1, t * 5);
-      const w = Math.sin(t * 17) * 0.12 * k;
-      return choke
-        ? { neck: [-0.55 * k, 0, 0], shoulderL: [-1.9 * k, 0, -0.4 * k + w], shoulderR: [-1.9 * k, 0, 0.4 * k - w], elbowL: [0, 0, -1.7 * k], elbowR: [0, 0, 1.7 * k], pelvisLift: -0.08 * k }
-        : { neck: [0.35 * k, 0, 0], chest: [0.25 * k, 0, 0], shoulderL: [-0.8 * k, 0, -0.6 * k + w], shoulderR: [-0.8 * k, 0, 0.6 * k - w] };
-    };
+    this.cq.seed = seedOf(this.id);
+    this.cq.seize(!choke, delay);
+    this.gun?.setVisible(false);
+    rig.emote = this.cqEmote;
     rig.emoteTime = 0;
+  }
+
+  /** (G7) Held as a hostage here (the client's own grab): as the host's guard. */
+  holdAsHostage(): void {
+    if (this.rig && this.rig.emote === this.cqEmote) this.cq.set('hostage');
+  }
+
+  /** (G7) The knockout's limp / lowering, the interrogation. */
+  holdPose(mode: GuardCqMode, k: number, lower = 0): void {
+    if (!this.rig || this.rig.emote !== this.cqEmote) return;
+    this.cq.set(mode);
+    this.cq.k = k;
+    if (mode === 'ko') this.crouch = lower;
   }
 
   holdAt(x: number, y: number, z: number, yaw: number): void {
@@ -131,8 +151,50 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
     if (!this.seized) return;
     this.seized = this.taken = false;
     if (this.rig) this.rig.emote = null;
+    this.gun?.setVisible(true);
     this.onTakedown?.('abort', false);
   }
+
+  /** (G7 fix) Held by the partner (the host's own grab, seen here): posed from the partner's MoveState as the host's
+   *  guard (`ph` the knockout's / interrogation's progress, `sub` bit 1 the kill, bit 2 interrogating). Called each
+   *  render frame while it lasts; `ph` < 0 lets go. */
+  remoteHeld(ph: number, sub: number): void {
+    const rig = this.rig;
+    if (!rig || this.taken) return;
+    if (ph < 0) {
+      if (this.remoteHold) {
+        this.remoteHold = false;
+        if (rig.emote === this.cqEmote) rig.emote = null;
+        this.gun?.setVisible(true);
+      }
+      return;
+    }
+    if (!this.remoteHold || rig.emote !== this.cqEmote) {
+      this.remoteHold = true;
+      this.cq.seed = seedOf(this.id);
+      this.cq.seize(false, 0);
+      rig.emote = this.cqEmote;
+      rig.emoteTime = 0;
+      this.gun?.setVisible(false);
+    }
+    if (sub & 2) {
+      this.cq.set('interrogate');
+      this.cq.k = ph;
+    } else if (ph > 0 && !(sub & 1)) {
+      const ko = koCurve(ph, this.koTmp);
+      this.cq.set('ko');
+      this.cq.k = ko.limp;
+      this.remoteLower = ko.lower;
+    } else {
+      this.cq.set(sub & 1 ? 'seizedLethal' : 'hostage');
+      this.remoteLower = 0;
+    }
+  }
+
+  /** (G7 fix) Held by the partner this frame (the crouch comes from the knockout's lowering, not the snapshot). */
+  private remoteHold = false;
+  private remoteLower = 0;
+  private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
 
   knockOut(h: HitInfo): void {
     void h;
@@ -144,6 +206,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
   deny(): void {
     this.seized = this.taken = false;
     if (this.rig) this.rig.emote = null;
+    this.gun?.setVisible(true);
   }
 
   /** The host decides about glints. */
@@ -168,7 +231,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
       this.yaw = s.yaw;
       this.al = s.state.al;
       const st = s.state.st;
-      this.crouch += ((st === 2 ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
+      // (G7 fix) held by the partner: lowered with the knockout's own phase (the snapshot's crouch bit flips at half way)
+      if (this.remoteHold) this.crouch = this.remoteLower;
+      else this.crouch += ((st === 2 ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
       this.aim += ((st === 1 || st === 2 ? 1 : 0.2) - this.aim) * Math.min(1, dt * 8);
     }
     if (!this.placed) {
@@ -203,7 +268,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
       grounded: true,
       crouch: this.crouch,
       aimPitch: 0,
-      aim: this.def.melee || this.taken ? 0 : this.aim,
+      aim: this.def.melee || this.taken || this.remoteHold ? 0 : this.aim,
       kick: this.def.melee ? 0 : this.kick,
       melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
     });

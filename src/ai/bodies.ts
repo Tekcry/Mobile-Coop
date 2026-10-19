@@ -16,8 +16,9 @@ export const BODY = {
   max: 12,
   /** Seconds a finder spends reviving a knocked-out victim. */
   reviveTime: 3,
-  /** Carrying: speed cap (m/s). */
-  carrySpeed: 2.2,
+  /** Carrying: speed cap (m/s). (G7, AUDIT-WALLS row 7, 110936 @ 44.0-45.5: 0.4-0.8 m/s against the corridor tiles;
+   *  was 2.2, a jog under 80 kg.) */
+  carrySpeed: 0.8,
   /** Interact reach to pick a body up (m). */
   reach: 1.4,
 } as const;

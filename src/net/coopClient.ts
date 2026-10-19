@@ -42,6 +42,8 @@ const INTERP_DELAY = 0.12;
  */
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
+  /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
+  private heldPuppet: EnemyPuppet | null = null;
   private puppets = new Map<string, EnemyPuppet>();
   private puppetList: EnemyPuppet[] = [];
   private targets = new Map<string, PartnerTarget>();
@@ -607,6 +609,19 @@ export class CoopClient implements NetAttachment {
     this.sec?.frame(dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
+    // (G7 fix) the partner holding one of the host's guards: his puppet posed from the partner's MoveState (hostage,
+    // the knockout's lowering, the interrogation), as the host poses him (no wire data)
+    let held: EnemyPuppet | null = null;
+    for (const a of this.avatars.values()) {
+      if (!a.holdTid) continue;
+      const p = this.puppets.get(a.holdTid);
+      if (!p) continue;
+      held = p;
+      p.remoteHeld(a.holdPh, a.holdSub);
+      break;
+    }
+    if (this.heldPuppet && this.heldPuppet !== held) this.heldPuppet.remoteHeld(-1, 0);
+    this.heldPuppet = held;
     for (const tg of this.targets.values()) tg.sync();
     for (let i = 0; i < this.blockers.length; i++) {
       const e = this.blockers[i]!;
