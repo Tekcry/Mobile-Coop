@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-20 04:00 Sydney (PR #31 open at 041dc655: F + G1-G4 + master 4.9.0; full e2e running on the desktop; G7 being built, uncommitted).
+Updated 2026-10-20 08:35 Sydney (PR #31 merged as 4.10.0; PR #32 open at 367197a0: G5-G7 + Michael 08:10-08:25 guard menu; slice tier running).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -74,12 +74,12 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
    action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
    Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
-   **Progress (04:00):** PR #31 (https://github.com/Tekcry/Mobile-Coop/pull/31) open at 041dc655 (origin/master 4.9.0
-   merged; check green 1881). Slices in it: F, G1, G2, G3, G4 (+ fix rounds, station 7 co-op crouch-intent fix be2ba814,
-   stealth-ai peek fix 83eb9016). Full `npm run e2e` running on the desktop (log in the scratchpad); then fill the e2e
-   line in the PR body. Do NOT push feature/ct-prototype until the orchestrator says #31 merged. G7 grab / hold / KO
-   (Opus) is being written in the working tree with no builds (dist is the PR run's); after the run: build, sheets
-   (`shots/g7`), e2e tier, Opus check, commit, second PR by ~08:30. Then G5 hold-A action menu, G6 walls / knee.
+   **Progress (08:35):** PR #31 merged (4.10.0, 5f283190). PR #32 (https://github.com/Tekcry/Mobile-Coop/pull/32) open
+   at 367197a0: G5 hold-A menu (with Michael 08:10 / 08:20 / 08:25: grab only, triggers KO / kill, no release, no BACK
+   TO GAME held), G6 walls / doors / wall knee, G7 grab / hold / KO / carry, fix rounds. Full e2e on 8ce58ee2 green
+   (ctcourse solo); slice tier on 367197a0 running (desktop e2e:quick, laptop coop / ctcourse / netmove): fill TIER_LINE
+   in docs/ct-prototype/PR2-BODY.md and the PR. Next after #32: the remaining audit gaps (scope view, rope climb, floor
+   trap, shaft, goggle touch, free jumps, crouched climb-over), each with a measured row in audit/.
    **Michael 23:55 (via the orchestrator):** everything in one build on master by morning: at 04:30 merge origin/master and
    feature/course-ready, full `npm run e2e` on the PR head, update `PR-BODY.md`, `gh pr create`, message the orchestrator
    by 06:00 (no version bump). After that, slices go to /ct/ only, not into the PR.

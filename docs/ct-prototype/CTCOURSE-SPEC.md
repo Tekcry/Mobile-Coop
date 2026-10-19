@@ -11,7 +11,7 @@ Yard 14 m wide (z 0-14), 170 m long. Bay `i` (0-7) spans `x = 22 i .. 22 i + 16`
 
 | # | CT drill | Footprint / height | Built now (gate) |
 | --- | --- | --- | --- |
-| 1 | Read the panel | open bay, one optional panel on the north fence (x 3.5) | no gate: both onto the A1 pad |
+| 1 | Read the panel; (PR 3) the training guard | open bay, one optional panel on the north fence (x 3.5); a passive training guard on his post at x 10.5, z 3.2 by the south fence, facing +x (his back to the start) | no gate: both onto the A1 pad; the guard is optional (grab him from behind, hold A: INTERROGATE) |
 | 2 | Leg-up over a wall | wall 4.4 m, 1 m thick (ledge band, G57); leg-up square at bay +8, z 3.5 | bolt `g-s2`: the boosted player unbolts S2-door from the far side (side test at the door plane x 31); then opens it for the partner |
 | 3 | Jam a camera | wall 3.2 m, camera over the door; blind-spot pocket (blue-grey) in front of it | flag `g-s3`: both in the pocket (one jams the camera with the pistol's held LT / Z) |
 | 4 | Partner throw over a laser | wall 3.5 m with a 6 m gap (z 4-10) closed by a 3-beam laser band; red release on the north fence (bay +12) | pickup `g-s4`: thrown player presses the release, the band goes off; jamming stays the alternative |
@@ -21,6 +21,7 @@ Yard 14 m wide (z 0-14), 170 m long. Bay `i` (0-7) spans `x = 22 i .. 22 i + 16`
 | 8 | Last wall, both extract | wall 3.5 m with an open doorway, lit exit zone (x 165.5-169.5, z 3-11), wall medkit before the wall | none: both in the exit zone ends the course |
 
 ## Rules and rulings used
+- **The training guard (PR 3, Michael 2026-10-20 08:40: "Add one in Marlow Yard").** Station 1 spawns one guard (`GUARD_SLOT` `s1-guard`, a `grunt`, `passive`: sees and hears nothing, stands his post until he is taken) at x 10.5, z 3.2, facing +x, so the players come up behind him from the start. He has information (`SquadSlot.info`, `src/ai/guardInfo.ts`): grabbed, hold A lists INTERROGATE, and he says two lines as subtitle: "Easy! There is a medkit on the north wall of the annex." / "And one on the north fence before the last wall. That is all I know." (true: the wall medkits of station 5 and station 8). Asked once, he gives no menu again; the hold ends only by knockout or kill. A bay restart respawns him fresh; the next bay's start removes him. Optional: no gate, drill or e2e route depends on him.
 - The course ends only when BOTH players stand in the exit zone and the drills are done (G138); a downed player refuses it ("Revive first"). The dev solo flag lets one player end it.
 - No bay has drills: the HUD step line shows the bay's objective (`CourseDef.objectives`, one per bay); LANTERN speaks a line at each bay start and when each station gate opens (radio keyed by gate id; a flag gate's line on its flag).
 - Text names pad and keyboard both (A / E, Co-op RB / F, LT / Z, Y / Space, X / RMB, LB / Tab). Radio and objectives are <= 90 characters, panels <= 120.
