@@ -7,7 +7,12 @@ Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training leve
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
 Michael has playtested the core loop.
 
-Last updated: 2026-10-19 14:55 Sydney.
+Priority (Michael, 2026-10-19 16:30): "Sector ops should be low priority over anything else. I want to get coop training
+bunker fully functional and running, but sector ops can at least run when there is opportunity." So the co-op training
+course (CT Core) comes first for the desktop lock, the laptop test runner and the orchestrator's reviews; Sector Ops
+runs only on spare capacity and yields the desktop lock whenever CT Core needs it.
+
+Last updated: 2026-10-19 16:30 Sydney.
 
 ## Waiting on Michael
 1. Delete the merged branch feature/ct-research: safe (docs in master via #4, raw in tag archive/ct-research-raw);
@@ -29,34 +34,31 @@ Last updated: 2026-10-19 14:55 Sydney.
 ## Now
 | Session | Machine | Branch | Doing | Next checkpoint |
 | --- | --- | --- | --- | --- |
-| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | Merge the co-op test fix and Sector Ops PRs; CT Core slices B + C |
-| CT Core Build | desktop | `feature/ct-prototype` | Slice A on /ct/ (1cb88756, master merged); scanner rule done; slices B + C (aiming, legs, crouch, walk bob) | B + C on /ct/ for Michael |
-| Character Build | laptop (second heavy slot) | `feature/coop-tests` | Co-op test fix: sim-time waits; coop, netmove, ctcourse reliable (solo rounds, then 2 laptop full runs) | PR to master |
-| Sector Ops Build | desktop | `feature/sector-ops` | Research, then slice 1 menus, 2 Sector Ops on the Warehouse, 3 co-op mode switch | Slice 1 for Michael |
+| Orchestrator | desktop | `docs/*`, reviews | This roadmap, reviews and merges, keeps the sessions in step | CT Core D + E (first priority); Sector Ops slice 2 on spare capacity |
+| CT Core Build | desktop | `feature/ct-prototype` | First priority. B + C on /ct/ (87514ed1); master 4.6.5 merged; slices D + E | D + E on /ct/ for Michael |
+| Character Build | laptop (second heavy slot) | test runner | The laptop test runner (CLAUDE.md "Machines", Michael 16:30): logic e2e for CT Core first, then Sector Ops; #18 merged (4.6.6). Between requests: give the unit tests that time out under load (posture, rig, lightField, netSim and others) their own timeouts | Next runner request |
+| Sector Ops Build | desktop | `feature/sector-ops` | Low priority, spare capacity only. Slice 2: 3 Warehouse sections (M7, A12, M8: multiple routes, room to isolate guards) | Slice 2 on a preview |
 
 ## Next (in order)
-1. **Co-op test fix** (Character Build, laptop; audit section 2, approved): `feature/coop-tests`.
-1d. **Sector Ops and the prototype menu** (new desktop session "Night Shift | Sector Ops"; Michael, 2026-10-19,
-   docs/sector-ops/BRIEF.md on feature/sector-ops): the main menu offers only Sector Ops and Co-op (plus Loadout,
-   Settings, Feedback; Missions / Training / Free Roam behind ?legacy=1). Sector Ops (original, after Conviction's
-   Deniable Ops at CT pace): the Warehouse in 3-4 sectors of rising difficulty with cameras and lasers, each sector an
-   objective then its exit, ghosting possible, solo or co-op; Michael's playground. Co-op is the campaign: Marlow Yard
-   (Course) by room code, the host can switch to Sector Ops. Prototype effort only.
-2. **Playtest 2 slices B + C** (CT Core, after 1): aiming compared with the CT footage (view unchanged when crouched,
+1. **Playtest 2 slices B + C** (CT Core): aiming compared with the CT footage (view unchanged when crouched,
    upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
    crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
-3. **Playtest 2 slices D + E** (CT Core): rifle and pistol holstering; hanging shimmy (wider, slower hands); vertical
+2. **Playtest 2 slices D + E** (CT Core): rifle and pistol holstering; hanging shimmy (wider, slower hands); vertical
    pipe climb; ledge climb-up onto the knees.
-4. **Michael's core-loop playtest** of the co-op training course on /ct/. Refining starts only after this (goal rule).
-5. **Selection wheel restyle**: slightly bigger, not just boxes, original (CT Core).
-6. **Menu notes** (menu job, `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
+3. **Michael's core-loop playtest** of the co-op training course on /ct/. Refining starts only after this (goal rule).
+4. **Selection wheel restyle**: slightly bigger, not just boxes, original (CT Core).
+5. **Menu notes** (menu job, `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
    a Night Shift load screen; no way back to "press any key"; confirm the hero LOD; the hand clipping the magazine in the
    idle; rifle and pistol in the menu with holding and idle poses; merge Controls and Settings > Controls.
-7. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
+6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
+7. **Sector Ops** (low priority, spare capacity only; `docs/sector-ops/`): the prototype menu (Sector Ops and Co-op),
+   Sector Ops on 3 Warehouse sections (M7) with multiple routes and room to isolate guards (M8), then its PR (a minor
+   step; at that merge e2e-coop's Infiltration match moves to Course or Sector Ops).
 
 ## Later (after the prototype)
 - Moth as player 2's character (2-3 days; goggle purple; a scratch prototype first, when nothing urgent waits).
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
+- WebGPU (Michael, 2026-10-19: measure first): the Sector Ops perf run on the PC (full section, 20-25 guards) decides. If rendering is the bottleneck, a 1-day WebGPU trial behind a flag (Babylon 9 WebGPUEngine, snapshot rendering; shader conversion bundled, no CDN). If the sim is the bottleneck, WebGPU does not help. Not before the core-loop playtest.
 - Cleanup job (Wren loose ends), after the core-loop playtest.
 - Test fixes: known flaky suites (e2e-coop, e2e-pad and others), pre-existing e2e-kestrel / camera-bounds failures.
 - The older follow-up list in `docs/progress.md` (medkit stations, missing sounds, music revision, art guide, one folder
@@ -71,6 +73,9 @@ Last updated: 2026-10-19 14:55 Sydney.
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-19 | #19 | 4.6.7: the laptop is the test runner; co-op training first, Sector Ops on spare capacity |
+| 2026-10-19 | #18 | 4.6.6: e2e-menus slider check waits on the condition (no game change) |
+| 2026-10-19 | #17 | 4.6.5: co-op test fix (coop, netmove, ctcourse reliable; only e2e-pad flaky) |
 | 2026-10-19 | #15 | 4.6.3: process audit (one rules file, test tiers, full e2e 62 -> 26 min) |
 | 2026-10-19 | #14 | 4.6.2: version numbers follow the merges (G183), the in-game label shows the commit |
 | 2026-10-19 | #12 | Animation clean-up: weapon travel, reloads, shoulder swap, traversal grips, hand shapes |

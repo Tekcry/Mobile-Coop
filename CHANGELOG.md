@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.6.7 - Laptop test runner; co-op training first (2026-10-19, PR #19)
+Docs only (Michael). The laptop (Character Build) runs the desktop jobs' logic e2e on pushed commits when the desktop
+lock is held (CLAUDE.md "Machines", test tiers). Priority: the co-op training course first, Sector Ops on spare capacity
+(ROADMAP.md). Dashboard and orchestrator state updated.
+
 ## 4.6.6 - e2e-menus slider fix: hold-repeat waits on the condition (2026-10-19, PR #18)
 - e2e-menus: holding right on the Effects slider waits until a fast step lands and sfx passes 0.2 (15 s cap)
   instead of a fixed 3.2 s; under load fewer frames ran in that time and the check failed. The results-screen wait
