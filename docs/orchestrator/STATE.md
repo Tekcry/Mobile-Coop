@@ -10,12 +10,11 @@ Read CLAUDE.md "Orchestrator" and docs/ROADMAP.md first. Work folder for docs PR
    Build). Mobile-Coop-integrate worktree now holds feature/process-audit (was integrate/consolidate, merged).
 1b. **Process audit** (feature/process-audit, docs/process-audit/BRIEF.md): Character Build writes REPORT.md (Phase 1,
    report only). Then Michael approves; then Phase 2; then a desktop fix job for the co-op suites.
-2. **CT Core Build** (desktop, feature/ct-prototype): slice A is built and waits for the heavy slot to run its checks
-   and push /ct/. One of its runs on port 4193 overlapped mine briefly (it started before the lock).
-3. **Character Build** (laptop, light work only): planning the goggle surround redesign on feature/goggle
-   (docs/goggle/BRIEF.md, PLAN.md). It's idle otherwise. Messages to it go over a bridge and delivery isn't confirmed.
-3b. **Goggle plan** (feature/goggle 4c8e630, docs/goggle/): two questions on the dashboard (which surround; direction A/B/C). Screen-edge fix is laptop-safe; the device build is desktop work.
-4. **PR #11** (docs: machine rule, heavy.lock, this file, the dashboard source): merge when GitHub's check passes.
+2. **CT Core Build** (desktop, feature/ct-prototype): holds heavy.lock for slice A checks, then pushes /ct/. Told to merge
+   master (anim-cleanup) before slices B + C, and that e2e-ctcourse fails on master at station 2.
+3. **Character Build** (laptop, light work only): the process audit. Goggle job parked (Michael kept the current
+   goggle; feature/goggle docs only, no PR). Messages go over a bridge; delivery is not confirmed.
+4. **PR #11** (feature/menu docs): merged by the orchestrator after each docs batch (Michael: merge green PRs).
 
 ## Dashboard
 - Live page: https://claude.ai/artifact/4iaH3gvBbw8utN1uBgysVw. Source: docs/orchestrator/dashboard.html (publish
