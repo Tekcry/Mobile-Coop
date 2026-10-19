@@ -49,6 +49,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Moving: the stick sets the pace up to the speed gear (d-pad up / down); B crouches; a stop holds the stride, then
   settles (CT prototype). A part-pushed stick is a silent walk; a full stick at the default gear is audible.
 - [ ] A at a wall puts your back to it; slide along it, stop at the edge, A to leave (CT prototype).
+- [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
+  menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.
 - [ ] Y climbs and uses: ladders, drainpipes, ledges (shimmy, climb up), pipes, ducts, windows, the split jump, wall jump,
   rappel and fences on the Proving CT course.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
@@ -67,7 +69,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] LT draws and aims, RT fires (no hip fire); RT while holstered strikes. X reloads, RB / LB swap between the two
   guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
 - [ ] D-pad right throws the gadget (hold aims); holding d-pad left opens the wheel (time slows).
-- [ ] Takedowns: Y behind an unaware guard; a drop takedown from a pipe or ledge; a body can be carried and hidden.
+- [ ] Takedowns: Y behind an unaware guard (G7: the step-in and pull-in ~1 s, then the menu; walk him at a slow pace;
+  Knock out lowers him; Interrogate); a drop takedown from a pipe or ledge; a body takes 2 s to lift, carries at a slow
+  walk, opens a door, and is put down beside you or hidden.
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
@@ -98,6 +102,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   reticle clear; FOV 86 (a saved 75 moves once).
 - [ ] Rifle draw: muzzle up at the right shoulder, then down onto the line (no chest hold); holster near instant; aim,
   release and aim again quickly: no sweep through the body. Pistol: lower, compact two-handed hold.
+- [ ] Walls (G6): crouch on a wall and slide: side-on, hand on the knee; reverse: she turns through; stop: she kneels.
+  Open a door: a step to the latch, hand on the leaf; stealth open is slower. Grab a guard (G7): pull-in, forearm on
+  the throat, walk him (slow), knock out (lowered), pick up a body (2 s lift), carry (slow), drop.
+- [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
+  on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (no one
+  has information yet), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 

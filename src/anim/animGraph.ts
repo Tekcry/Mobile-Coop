@@ -108,6 +108,11 @@ export interface AnimInput {
   wall: boolean;
   /** Which side the wall is on, in the character's frame (-1 left, 1 right, 0 none). */
   wallSide: number;
+  /** (G6) How far the posed body is turned off facing out from the wall (|sin|: 0 square .. 1 side-on). */
+  wallTurn: number;
+  /** (G6, AUDIT-WALLS row 12) A wall right in front of the raised weapon: 0 clear .. 1 at `WALL_BLOCK.near` m (the caller's
+   *  ray from the shoulder along the aim); the rifle comes up muzzle-high and pulled in. */
+  wallBlock: number;
   /** Lean around an edge: -1 left .. 1 right (hips planted). */
   lean: number;
   traverse: TraverseKind;
@@ -141,11 +146,21 @@ export interface AnimInput {
   handSwap: number;
   /** Which hand holds the weapon: 1 right .. -1 left (the rig mirrors weapon x / yaw / roll by it). */
   hand: number;
+  /** (G7) Close quarters: the spine bent forward over a held guard / a body (rad), the pelvis dropped (m) and the
+   *  hold's side sway (m); eased here, so a hold or a carry starting or ending never pops the back. */
+  bend: number;
+  bendDrop: number;
+  sway: number;
 }
 
 /** (locomotion step 10) The elbow arc's hand overlay weight at melee phase `ph` 0..1 (in by 0.17, out from 0.62). */
 export function meleeHandW(ph: number): number {
   return smoothstep(ph / 0.167) * (1 - smoothstep((ph - 0.62) / 0.38));
+}
+
+/** (G7) An eased value within 1e-4 of its target is the target (the close-quarters layer switches off). */
+function settle(x: number, target: number): number {
+  return Math.abs(x - target) < 1e-4 ? target : x;
 }
 
 /** (step 10) The elbow arc's sweep 0 (wind-up, hand out to the side) .. 1 (contact, across the front). */
@@ -193,6 +208,8 @@ export function defaultInput(): AnimInput {
     landing: 0,
     wall: false,
     wallSide: 0,
+    wallTurn: 0,
+    wallBlock: 0,
     lean: 0,
     traverse: 'none',
     traverseT: 0,
@@ -209,6 +226,9 @@ export function defaultInput(): AnimInput {
     intent: 0,
     handSwap: -1,
     hand: 1,
+    bend: 0,
+    bendDrop: 0,
+    sway: 0,
   };
 }
 
@@ -262,6 +282,10 @@ export interface RigTargets {
   stockWeld: number;
   /** How far the weapon is raised onto the aim line 0..1 (lowered it follows the body, raised the aim). */
   aimW: number;
+  /** (G6, AUDIT-WALLS row 18) Crouched side-on at a wall: the open-side hand on that knee (signed: 1 the right hand on
+   *  the right knee, -1 the left; magnitude the weight), the wall-side hand low by its shin. The rig places both on its
+   *  posed legs. */
+  kneeHand: number;
 }
 
 export function emptyTargets(): RigTargets {
@@ -287,6 +311,7 @@ export function emptyTargets(): RigTargets {
     sightDrop: 0,
     stockWeld: 1,
     aimW: 0,
+    kneeHand: 0,
   };
 }
 
@@ -437,7 +462,29 @@ export const WALL_BACK = { pel: 0.05, pelCrouch: 0.1, spine: 0.08, spineCrouch: 
 export const WALL_WIDTH = { stand: 0.12, crouch: 0.4 };
 /** (21w, M16) `pelYStand`: standing on a wall the pelvis rides higher (the step 21 idle's soft knees put the knees
  *  ~19 cm out from the hips and the feet ahead of the back: a lean back on the wall); crouched `pelY` as before. */
-export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.05, pelY: -0.03, pelYStand: 0, pelPitch: 0.05, spPitch: 0.03 };
+/** (G6, AUDIT-WALLS row 3, 051917 @ 14.0-17.8) Standing on a wall CT sinks into a semi-crouch (knees 35-45 deg) and turns
+ *  the chest 30-45 deg toward the travel while sliding (square only at rest and through the reversal): `pelYStand`
+ *  0 -> -0.08 m (replaces 21w M16's higher pelvis), `spYawSlide` (rad, by the slide pace) the chest toward the travel. */
+export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.05, pelY: -0.03, pelYStand: -0.08, pelPitch: 0.05, spPitch: 0.03, spYawSlide: 0.6 };
+/**
+ * (G6, AUDIT-WALLS rows 1 / 18, 051917 @ 29.0-34.0) The crouched side-on wall stance: the free crouch-walk carriage along
+ * the travel (the flat-back stance eases out by the body's turn, `wallTurn`), the spine `spine` rad more forward than
+ * the free crouch's lean (about 45 deg over the knees in all), the open-side hand on its knee (Michael 00:55 "holds knee
+ * when up against wall"), in over `handIn` s from `handAt` s on the wall. `turnFrom` / `turnTo`: the side-on share from
+ * the turn (|sin|) so the 0.45 s reversal passes through the square stance. At an edge the peek's lean goes forward
+ * (`leanFwd` of the lateral lean, rad per rad) past the edge the body faces. Starting values.
+ */
+export const WALL_SIDE_POSE = { spine: 0.14, turnFrom: 0.35, turnTo: 0.85, handAt: 0.15, handIn: 0.3, leanFwd: 1.2, narrow: 0.35 };
+/** (G6, AUDIT-WALLS row 9) The peek's hip shift onto the outer foot (m per rad of lean; was 0.17). */
+export const PEEK_HIP = 0.7;
+/** (G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3) Aiming at a wall 0.4-0.5 m away CT brings the rifle up near vertical,
+ *  muzzle up and pulled in: from `far` m to `near` m from the shoulder the weapon pitches up `pitch` rad and comes
+ *  `pull` m back, eased over about `time` s. The caller's ray: `wallBlockK`. Starting values. */
+export const WALL_BLOCK = { far: 0.65, near: 0.45, pitch: 1.2, pull: 0.15, time: 0.12 };
+/** (G6) The block amount 0..1 for the distance (m) to the first wall hit along the aim from the shoulder. */
+export function wallBlockK(dist: number): number {
+  return clamp((WALL_BLOCK.far - dist) / (WALL_BLOCK.far - WALL_BLOCK.near), 0, 1);
+}
 /** (step 09) Fade rate (1/s) of the swap overlay: in as a swap / draw / holster starts, out when it stops mid-clip. */
 const SWAP_FADE = 8;
 /** (step 09) Carriage ease (s) during a weapon-to-weapon swap: out before the reach to the slot (~0.2 s in). */
@@ -508,6 +555,11 @@ export class AnimGraph {
   private wallW = 0;
   /** Back-to-wall ready weight (eased ~0.25 s). */
   private wallReadyW = 0;
+  /** (G6) The side-on crouched wall stance's share (eased) and the knee hand's weight. */
+  private sideS = 0;
+  private kneeW = 0;
+  /** (G6) The eased weapon block at a wall (row 12). */
+  private blockS = 0;
 
   /** How far the body / weapon is leaned out (signed, follows the lean target). */
   get leanOut(): number {
@@ -544,6 +596,10 @@ export class AnimGraph {
   private swapLastT = 0;
   /** Armed carriage weight (armed, or holstered with ready hands), eased ~0.25 s. */
   private carryW = 1;
+  /** (G7) The close-quarters bend (rad), pelvis drop (m) and sway (m), eased. */
+  private bendS = 0;
+  private bendDropS = 0;
+  private swayS = 0;
   /** Ready-hands weight (A42), eased ~0.25 s. */
   private readyW = 0;
   /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
@@ -721,6 +777,14 @@ export class AnimGraph {
 
     // --- locomotion blend space, standing and crouched, then the posture blend
     const crouchK = clamp(i.crouch, 0, 1);
+    // (G6, AUDIT-WALLS row 1) the side-on crouched wall stance's share: from the body's turn off the wall (so the 0.45 s
+    // reversal passes through the square stance) and the crouch; held as the wall eases out (no flat-back blip on a leave)
+    const WS = WALL_SIDE_POSE;
+    const sideT = smoothstep((i.wallTurn - WS.turnFrom) / (WS.turnTo - WS.turnFrom)) * smoothstep((crouchK - 0.35) / 0.5);
+    this.sideS = atWall ? approach(this.sideS, sideT, 0.04, dt) : wallW > 0.01 ? this.sideS : 0;
+    const sideK = this.sideS;
+    /** The flat-back stance's weight (the side-on stance is the free crouch carriage on the travel axis). */
+    const flatW = wallW * (1 - sideK);
     const src = this.src;
     if (crouchK < 0.999) this.locomotion(this.stand, false, ph);
     if (crouchK > 0.001) this.locomotion(this.crouch, true, ph);
@@ -736,12 +800,18 @@ export class AnimGraph {
     // like CT ... character looks like a gorilla") back on: one knee down, upright and compact (POSTURE.kneelLean)
     // (G1, audit row 4) kneeling from a standstill goes straight down into the kneel (no wide crouch squat on the way): it
     // starts with the crouch, not half way through it
-    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.05 && !i.wall;
+    // (G6, AUDIT-WALLS row 1, 051917 @ 29.0: still side-on at a wall the trailing knee is near the floor) side-on the wall
+    // kneels as the free crouch does (the flat-back stance still never kneels)
+    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.05 && (!i.wall || sideK > 0.6);
     // (G1 fix) rising out of the kneel over at least kneelTime: the kneel now comes on the stop, so standing straight up
     // from it is common, and the 1.2 rad toe flex let go in standTime stepped the ankle (e2e-anim pose continuity)
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : Math.max(MOVEMENT.standTime, MOVEMENT.kneelTime));
     // (G1) a kneel starting: the foot that is ahead stays planted (a stop with the right foot ahead kneels on the left knee)
-    if (wantKneel && this.kneelW <= 0) this.kneelSide = this.lead < -0.05 ? -1 : 1;
+    // (G6 fix) side-on at a wall the wall-side knee goes down (CT 051917 @ 29.0: the trailing, inner knee near the floor,
+    // the open-side knee up under the knee hand), from the wall side alone: the planner's lead differs between the owner
+    // and the remote copy (their feet settle at different times), and a flipped kneel moved the knee hand 0.3 m
+    // (e2e-netmove wall crouch). Turned toward the travel the wall is on the travel side (wallSide 1: the right).
+    if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
     overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT, kw);
@@ -774,15 +844,20 @@ export class AnimGraph {
     // (21w, M16) weighted by the eased wall blend: leaving the wall the stance eases out with it (it dropped in one
     // frame: the leave's ~8 cm pelvis jump)
     if (wallW > 1e-4) {
-      const ws = (this.wallS || 1) * wallW;
+      // (G6) the flat-back parts ease out as the body turns side-on (flatW)
+      const ws = (this.wallS || 1) * flatW;
       const st = WALL_STANCE;
       src[CH.pelX] = src[CH.pelX]! + st.pelX * ws;
       src[CH.spRoll] = src[CH.spRoll]! + st.spRoll * ws;
       src[CH.pelRoll] = src[CH.pelRoll]! + st.pelRoll * ws;
       src[CH.hdRoll] = src[CH.hdRoll]! + st.hdRoll * ws;
-      src[CH.pelY] = src[CH.pelY]! + (st.pelYStand + (st.pelY - st.pelYStand) * crouchK) * wallW;
-      src[CH.pelPitch] = src[CH.pelPitch]! + st.pelPitch * wallW;
-      src[CH.spPitch] = src[CH.spPitch]! + st.spPitch * wallW;
+      src[CH.pelY] = src[CH.pelY]! + (st.pelYStand + (st.pelY - st.pelYStand) * crouchK) * flatW;
+      src[CH.pelPitch] = src[CH.pelPitch]! + st.pelPitch * flatW;
+      src[CH.spPitch] = src[CH.spPitch]! + st.spPitch * flatW;
+      // (G6, AUDIT-WALLS row 3) sliding standing the chest turns toward the travel (square at rest)
+      src[CH.spYaw] = src[CH.spYaw]! + (this.wallS || 0) * st.spYawSlide * this.moveW * (1 - crouchK) * flatW;
+      // (G6, row 1) side-on: bent well over the knees, deeper than the free crouch's lean
+      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW;
       // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
       this.tuckW = approach(this.tuckW, atWall && (i.reload >= 0 || i.swap >= 0 || i.grenade >= 0) ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
@@ -792,9 +867,12 @@ export class AnimGraph {
     if (wallW > 0) {
       // (step 11) shoulder blades back on the wall over the pelvis: the pelvis tips back a little and the chest
       // straightens (more crouched, where the crouch pose leans the trunk over the knees)
-      src[CH.pelPitch] = src[CH.pelPitch]! - (WALL_BACK.pel + WALL_BACK.pelCrouch * crouchK) * wallW;
-      src[CH.spPitch] = src[CH.spPitch]! - (WALL_BACK.spine + WALL_BACK.spineCrouch * crouchK) * wallW;
-      src[CH.width] = src[CH.width]! + (WALL_WIDTH.stand + (WALL_WIDTH.crouch - WALL_WIDTH.stand) * crouchK) * wallW;
+      src[CH.pelPitch] = src[CH.pelPitch]! - (WALL_BACK.pel + WALL_BACK.pelCrouch * crouchK) * flatW;
+      src[CH.spPitch] = src[CH.spPitch]! - (WALL_BACK.spine + WALL_BACK.spineCrouch * crouchK) * flatW;
+      src[CH.width] = src[CH.width]! + (WALL_WIDTH.stand + (WALL_WIDTH.crouch - WALL_WIDTH.stand) * crouchK) * flatW;
+      // (G6 fix, check BLOCK 3) side-on the knees stay narrow: the free crouch's wide knees put the wall-side knee into
+      // the face (side-on the stance width is across the wall)
+      src[CH.width] = src[CH.width]! - WALL_SIDE_POSE.narrow * sideK * wallW;
     }
 
     // --- traversal, slide, air, landing
@@ -875,7 +953,7 @@ export class AnimGraph {
     this.carryW = approach(this.carryW, carryOn ? 1 : 0, weaponSwap ? CARRY_SWAP_TAU : 0.25, dt);
     // (P1 posture; P1b) computed before the carriage hunch: the posture lean is the TOTAL torso pitch, so it replaces the
     // armed carriage hunch (spine 0.5 + crouch bend 0.34 stacked on it made a 70-90 deg quadruped crouch and a 43 deg run)
-    this.carriageS = approach(this.carriageS, i.grounded && i.traverse === 'none' ? 1 - wallW : 0, 0.08, dt);
+    this.carriageS = approach(this.carriageS, i.grounded && i.traverse === 'none' ? 1 - flatW : 0, 0.08, dt);
     const carriage = (1 - this.raiseS) * this.carriageS;
     const runK = smoothstep((i.speed - POSTURE.runFrom) / (POSTURE.runTo - POSTURE.runFrom)) * (1 - crouchK);
     // (rate-limited to POSTURE.rate: standing up out of the kneel snapped the crouch weight, a 0.23 rad spine pop)
@@ -895,9 +973,9 @@ export class AnimGraph {
       // (step 11) with the back to a wall the back stays flat on it: the hunch eases out with the wall weight
       // (P1c) CT stands upright (spine 3-5 deg) when holstered; only a weapon in hand keeps a light forward carriage
       this.hunchS = approach(this.hunchS, i.armed ? POSTURE.hunchArmed : POSTURE.hunchHolstered, 0.25, dt);
-      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - wallW) * (1 - postureW) * this.hunchS;
+      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK * (1 - flatW) * (1 - postureW) * this.hunchS;
       // crouched: bent well over the knees (half of it straightens into a raised weapon); not at a wall
-      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - wallW) * carryK * (1 - postureW);
+      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (1 - flatW) * carryK * (1 - postureW);
       src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + (HUNCH.aim + HUNCH.aimOpen * (1 - wallW)) * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
       src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - crouchBend * 0.7;
@@ -945,8 +1023,13 @@ export class AnimGraph {
     // in one frame at the half-way point)
     const handS = clamp(i.hand, -1, 1);
     src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * (0.6 + raise * AIM_CHEST.yaw) + raise * 0.2 * handS * (i.armed ? 1 : 0);
-    src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52;
-    src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;
+    // (G6, AUDIT-WALLS row 9) the peek: a small torso lean (WALL.peekLean) with the hips shifted onto the outer foot
+    // (PEEK_HIP); side-on (crouched, facing the edge) the same lean goes forward past the edge
+    const latK = 1 - sideK;
+    src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52 * latK;
+    src[CH.pelX] = src[CH.pelX]! + bd * PEEK_HIP * k * latK;
+    src[CH.spPitch] = src[CH.spPitch]! + Math.abs(bd) * 0.52 * WALL_SIDE_POSE.leanFwd * sideK;
+    src[CH.pelZ] = src[CH.pelZ]! + Math.abs(bd) * PEEK_HIP * k * sideK;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
     src[CH.hdPitch] = src[CH.hdPitch]! - aimPitch * 0.45;
     src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 * handS + check + hd * 0.12;
@@ -1011,7 +1094,9 @@ export class AnimGraph {
     // e2e-stealth-ai wall peek), eased in with the head's lean
     const peekHeadK = smoothstep(Math.abs(hd) / SIGHT_HEAD.peekFull);
     src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS * (1 - pistolW * (1 - peekHeadK));
-    this.out.weld = sightPos;
+    // (G6, row 12) blocked by a wall in front: no weld (the rifle is up off the eye)
+    this.blockS += clamp(i.wallBlock * raise - this.blockS, -dt / WALL_BLOCK.time, dt / WALL_BLOCK.time);
+    this.out.weld = sightPos * (1 - this.blockS);
     this.out.sightDrop = -PISTOL_REACH.y * pistolW;
     // (G2 fix) and the neck dips onto the raised pistol at the peek (the head out past the edge with the gun, as before G2)
     this.out.stockWeld = 1 - pistolW * (1 - peekHeadK);
@@ -1023,6 +1108,12 @@ export class AnimGraph {
     src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * RECOIL.flip) / mass;
     src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + cr.yaw * cw * awayYaw) + check * 0.6 * ready;
     src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
+    if (this.blockS > 0) {
+      // (G6, row 12) the muzzle up (pitch + is muzzle down) and the weapon pulled back toward the chest
+      src[CH.wpPitch] = src[CH.wpPitch]! - WALL_BLOCK.pitch * this.blockS;
+      src[CH.wpZ] = src[CH.wpZ]! - WALL_BLOCK.pull * this.blockS;
+      src[CH.wpY] = src[CH.wpY]! - 0.05 * this.blockS;
+    }
     // bent over in a crouch the lowered muzzle comes up with the chest and the gun sits further out, clear of
     // the thighs (the lowered weapon is oriented with the body, not the spine)
     // (the open-ground carries only: the wall tuck has its own pose)
@@ -1040,6 +1131,14 @@ export class AnimGraph {
     // lets go of the foregrip while still and lowered (settles over the first ~0.4 s); moving along the wall takes it
     // back to the weapon. No wall-hand contact (offWall stays 0; the rig's wallHand point is unused).
     const wallHang = atWall ? ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
+    // (G6, AUDIT-WALLS row 18, 051917 @ 29.07-30.23) side-on and crouched, the empty hands: the open-side hand on its knee
+    // through the slide too (the rig puts it on the posed knee); swapped over the reversal by the side (wallS) and the
+    // turn (the side-on share passes through 0 at square-on). Not with a weapon in the hands (it stays on the weapon).
+    const kneeT = atWall && !i.armed ? sideK * (1 - raise) * smoothstep((this.wallT - WALL_SIDE_POSE.handAt) / WALL_SIDE_POSE.handIn) : 0;
+    // (side-on toward the travel the wall is on the travel side: the open-side hand is the other one; signed and eased
+    // through 0, so on a reversal one hand lets go as the other takes its knee)
+    this.kneeW = approach(this.kneeW, (i.wallSide < 0 ? 1 : -1) * kneeT, 0.06, dt);
+    this.out.kneeHand = Math.abs(this.kneeW) < 1e-3 ? 0 : this.kneeW;
     src[CH.offGrip] = 1 - wallHang;
     src[CH.offMag] = 0;
     src[CH.offWall] = 0;
@@ -1105,7 +1204,8 @@ export class AnimGraph {
     // an arm swing; the wrist target is the footage hang (hands mid-thigh as far as the rig's arm length reaches)
     if (wallHang > 0) {
       const wx = p.shoulderHalf + WALL_ARMS.x;
-      const wy = shY - armLen * WALL_ARMS.reach;
+      // (G6) the hang follows the wall stance's pelvis drop (the semi-crouch, row 3: the hands hang from the lowered shoulders)
+      const wy = shY - armLen * WALL_ARMS.reach + (WALL_STANCE.pelYStand + (WALL_STANCE.pelY - WALL_STANCE.pelYStand) * crouchK) * flatW;
       src[CH.hLX] = src[CH.hLX]! + (-wx - src[CH.hLX]!) * wallHang;
       src[CH.hLY] = src[CH.hLY]! + (wy - src[CH.hLY]!) * wallHang;
       src[CH.hLZ] = src[CH.hLZ]! + (WALL_ARMS.z - src[CH.hLZ]!) * wallHang;
@@ -1192,6 +1292,20 @@ export class AnimGraph {
       src[CH.spYaw] = src[CH.spYaw]! + turn * 0.6;
       src[CH.hdYaw] = src[CH.hdYaw]! - turn * 0.5;
       src[CH.pelY] = src[CH.pelY]! - 0.015 * wStrike;
+    }
+
+    // --- (G7, AUDIT-WALLS rows 6-8, 19, 20) close quarters: bent over a held guard / a body, the pelvis down under the
+    // weight (the feet stay planted: the knees take it), the hold's sway in the pelvis; the head keeps the eyes level
+    // with 0.6 of the bend. Eased (tau 0.12 s), so the knockout's bend and the lift's rise read as one motion
+    this.bendS = settle(approach(this.bendS, i.bend, 0.12, dt), i.bend);
+    this.bendDropS = settle(approach(this.bendDropS, i.bendDrop, 0.12, dt), i.bendDrop);
+    this.swayS = settle(approach(this.swayS, i.sway, 0.08, dt), i.sway);
+    if (this.bendS !== 0 || this.bendDropS !== 0 || this.swayS !== 0) {
+      src[CH.spPitch] = src[CH.spPitch]! + this.bendS * 0.7;
+      src[CH.pelPitch] = src[CH.pelPitch]! + this.bendS * 0.3;
+      src[CH.hdPitch] = src[CH.hdPitch]! - this.bendS * 0.6;
+      src[CH.pelY] = src[CH.pelY]! - this.bendDropS;
+      src[CH.pelX] = src[CH.pelX]! + this.swayS;
     }
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot

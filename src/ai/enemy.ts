@@ -1,5 +1,6 @@
 import { Vector3, type Scene } from '../core/babylon';
-import type { CharacterRig } from '../player/characterRig';
+import type { CharacterRig, FkPose } from '../player/characterRig';
+import { GuardCq, seedOf, type GuardCqMode } from '../game/closeQuarters';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { buildEnemyRig } from './enemyRig';
 import { Hitboxes } from './hitboxes';
@@ -350,31 +351,44 @@ export class Enemy implements Damageable {
     this.rig.emoteTime = 0;
   }
 
-  /** Grabbed: the brain stops, the body struggles (arms up to the attacker's hold, head back). */
-  beginTakedown(choke: boolean): void {
+  /** (G7) The held pose (`closeQuarters.GuardCq`): seized, hostage, the knockout's limp, the interrogation. */
+  private readonly cq = new GuardCq();
+  private readonly cqEmote = (_r: CharacterRig, t: number): FkPose | undefined => this.cq.pose(t) ?? undefined;
+
+  /** Grabbed: the brain stops; (G7) the body struggles once the attacker reaches him, `delay` s after the press (arms up
+   *  to the attacker's hold, head back; the old pose started at the press and sank the feet 8 cm with a pelvis offset). */
+  beginTakedown(choke: boolean, delay = 0): void {
     this.taken = true;
     this.endLink();
     this.burstLeft = 0;
     this.windup = 0;
     this.vel.setAll(0);
-    this.rig.emote = (_r, t) => {
-      const k = Math.min(1, t * 5);
-      const w = Math.sin(t * 17) * 0.12 * k;
-      return choke
-        ? { neck: [-0.55 * k, 0, 0], shoulderL: [-1.9 * k, 0, -0.4 * k + w], shoulderR: [-1.9 * k, 0, 0.4 * k - w], elbowL: [0, 0, -1.7 * k], elbowR: [0, 0, 1.7 * k], pelvisLift: -0.08 * k }
-        : { neck: [0.35 * k, 0, 0], chest: [0.25 * k, 0, 0], shoulderL: [-0.8 * k, 0, -0.6 * k + w], shoulderR: [-0.8 * k, 0, 0.6 * k - w] };
-    };
+    this.cq.seed = seedOf(this.id);
+    this.cq.seize(!choke, delay);
+    // (G7) his rifle out of the posed hands (it floated at the hold); back on release
+    this.gun?.setVisible(false);
+    this.rig.emote = this.cqEmote;
     this.rig.emoteTime = 0;
   }
 
-  /** (3.2.0) Held as a hostage: upright against the operator's chest, head back, hands up at the arm round the neck. */
+  /** (3.2.0) Held as a hostage: upright against the operator's chest, head back, hands up at the arm round the neck;
+   *  (G7, row 19) a flail now and then. Blends from the seized pose (the emote clock runs on). */
   holdAsHostage(): void {
-    this.rig.emote = (_r, t) => {
-      const k = Math.min(1, t * 5);
-      const w = Math.sin(t * 11) * 0.06 * k;
-      return { neck: [-0.3 * k, w, 0], chest: [-0.08 * k, 0, 0], shoulderL: [-1.5 * k, 0, -0.35 * k + w], shoulderR: [-1.5 * k, 0, 0.35 * k - w], elbowL: [0, 0, -1.9 * k], elbowR: [0, 0, 1.9 * k] };
-    };
-    this.rig.emoteTime = 0;
+    if (this.rig.emote !== this.cqEmote) {
+      this.cq.seed = seedOf(this.id);
+      this.cq.seize(false, 0);
+      this.rig.emote = this.cqEmote;
+      this.rig.emoteTime = 0;
+    }
+    this.cq.set('hostage');
+  }
+
+  /** (G7) The hold's pose: the knockout (`k` the limp, `lower` his crouch as he is lowered) or the interrogation (`k`). */
+  holdPose(mode: GuardCqMode, k: number, lower = 0): void {
+    if (this.rig.emote !== this.cqEmote) return;
+    this.cq.set(mode);
+    this.cq.k = k;
+    if (mode === 'ko') this.crouch = lower;
   }
 
   /** (3.2.0) Held as a hostage: not solid to the operator's body (bullets still hit). */
@@ -382,8 +396,13 @@ export class Enemy implements Damageable {
     this.hitboxes.setSolid(on);
   }
 
-  /** Place the seized body (fixed step). */
+  /** Place the seized body (fixed step, 60 Hz). (G7) His velocity follows (eased), so a hostage walks with the hero
+   *  (the gait from his speed) instead of sliding on planted feet. */
   holdAt(x: number, y: number, z: number, yaw: number): void {
+    if (this.taken) {
+      this.vel.x += ((x - this.pos.x) * 60 - this.vel.x) * 0.35;
+      this.vel.z += ((z - this.pos.z) * 60 - this.vel.z) * 0.35;
+    }
     this.pos.set(x, y, z);
     this.yaw = yaw;
   }
@@ -394,6 +413,11 @@ export class Enemy implements Damageable {
     this.taken = false;
     this.hitboxes.setSolid(true);
     this.rig.emote = null;
+    this.crouch = 0;
+    this.vel.setAll(0);
+    this.gun?.setVisible(true);
+    // (G7) the held yaw is his facing now (the driver kept the one from before the seize)
+    this.motion.reset(this.yaw);
     this.stagger = stagger;
     this.alert();
   }
@@ -1727,21 +1751,23 @@ export class Enemy implements Damageable {
     rp.localZ = (this.vel.x * s + this.vel.z * c) * inv;
     rp.crouch = this.crouch;
     rp.aimPitch = this.aimPitch;
-    rp.aim = aiming;
+    rp.aim = this.taken ? 0 : aiming;
     rp.kick = this.def.melee ? 0 : this.kick;
     rp.melee = this.def.melee && this.kick > 0 ? 1 - this.kick : -1;
     rp.wall = this.coverPose === 'high';
     rp.wallSide = rp.wall ? this.coverWallSide : 0;
     rp.lean = this.coverPeek;
     rp.dash = !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5 ? 1 : 0;
-    rp.phase = m.phase;
-    rp.motion = m.state;
-    rp.motionT = m.stateT;
-    rp.accelFwd = m.ax * s + m.az * c;
-    rp.accelSide = m.ax * c - m.az * s;
+    // (G7) held (a hostage walked by the operator): no brain drives the motion driver, so the gait runs from his
+    // measured speed (`holdAt`), not a frozen clock
+    rp.phase = this.taken ? -1 : m.phase;
+    rp.motion = this.taken ? undefined : m.state;
+    rp.motionT = this.taken ? 0 : m.stateT;
+    rp.accelFwd = this.taken ? 0 : m.ax * s + m.az * c;
+    rp.accelSide = this.taken ? 0 : m.ax * c - m.az * s;
     rp.velX = this.vel.x;
     rp.velZ = this.vel.z;
-    rp.goalYaw = m.goalYaw;
+    rp.goalYaw = this.taken ? this.yaw : m.goalYaw;
     // (A1.2) not aiming and walking forward: the stride runs along the facing (no strafe / back clip on a patrol turn)
     rp.stride = !rp.wall && aiming < 0.5 && rp.localZ > 0.5 ? 'facing' : 'velocity';
     rp.traverse = this.climbing ? 'climb' : 'none';

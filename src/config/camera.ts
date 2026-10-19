@@ -206,9 +206,10 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
  * sent; bible "guards detect the body, never the camera"); the camera's pivot safety keeps it out of geometry.
  */
 export const WALL_CAMERA = {
-  /** (A3, G137) Strict peek: the camera pivot swings only 0.4 m past the body (was 0.6; the head itself goes out 0.35,
-   *  `WALL.peekOut`) and the view turns 12 deg (was 25), so the camera sees only a small slice past the corner. Starting
-   *  values (G10). Eases over `blend` s (F4: 0.55). */
+  /** (A3, G137) Strict peek: the camera pivot swings past the body (`offset`; the head itself goes out `WALL.peekOut`,
+   *  0.36 since G6) and the view turns `yaw` (18 deg since G3; was 12, then 25), so the camera sees only a small slice past
+   *  the corner. Starting values (G10). In over `blend`, out over `out` (G3 below). (G6, AUDIT-WALLS row 10: comment only;
+   *  the in / out times stay the camera audit's, AUDIT-CAMERA row 11.) */
   // (F4, playtest 2 "the camera needs to slide sideways") the camera slides toward the open side by how far the player
   // looks / pushes past the edge (`WallCore.peekView`): the pivot up to `offset` past the body, the shoulder offset
   // giving way to it and the boom in to `boom` (CT: 1.0-1.5 m from the head, ct-measure-walls-doors-combat-vision.md)

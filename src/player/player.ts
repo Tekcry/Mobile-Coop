@@ -17,7 +17,7 @@ import { CT, MOVEMENT } from '../config/movement';
 import { gearCap } from './speedGears';
 import { GEARS } from '../config/movement';
 import { G } from '../physics/groups';
-import { WALL_LOOK, WALL_TURN_RATE, wallHandPoint, wallRootPush } from './wallController';
+import { WALL, WALL_LOOK_PITCH, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHeadYaw, wallMoveK, wallRootPush, wallTurnRate, wallYawOffset } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
@@ -46,8 +46,18 @@ export interface PlayerPose {
   check: number;
   /** Takedown strike progress 0..1, or < 0. */
   melee: number;
+  /** (G7) Close quarters (a held guard, a body lifted / carried / put down): spine bend (rad), pelvis drop (m), the
+   *  hold's side sway (m). Set each fixed step by GameState from the takedown and stealth controllers. */
+  bend: number;
+  bendDrop: number;
+  sway: number;
+  /** (G7) A scripted step-in under a kinematic override: the legs step from the measured speed. */
+  freeGait: boolean;
   /** (3.2.0) Whole-body tumble about the hips (rad; pipe legs up / inverted), 0 = upright. */
   tumble: number;
+  /** (G6) The rig root's step toward a wall edge while peeking (world XZ, m; `WallCore.stX`). Visual only. */
+  wallStepX?: number;
+  wallStepZ?: number;
 }
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
@@ -107,13 +117,17 @@ export class Player {
    *  the trigger raise the carry (holstered, fire does nothing). */
   weaponDrawn = false;
   weaponWeight = 1;
+  /** (G6, AUDIT-WALLS row 12) A wall right in front of the raised weapon (0..1; set by GameState each fixed step). */
+  muzzleBlock = 0;
   /** Pose driven by back-to-wall / traversal / takedowns / team moves. */
   /** (step 11) Back-to-wall blend 0..1 (the rig's push onto the face) and the off hand's wall point. */
   private wallK = 0;
   /** (21w) The rig root's yaw (rate-limited on a wall). */
   private visYaw = 0;
+  /** (G6) Seconds on the wall this time (the settled side-on turn rate). */
+  private wallT = 0;
   private wallHandPt: Vector3 | null = null;
-  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0 };
+  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0, bend: 0, bendDrop: 0, sway: 0, freeGait: false };
   /** Context flags for the ready position (set by the corner systems each step). */
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -310,21 +324,29 @@ export class Player {
     // was ~44 deg in one frame): visual only, the capsule and gameplay keep the controller's yaw
     // (step 21w, A85: WALL_TURN_RATE, shared with the remote copy) keep limiting after the wall until the gap closes,
     // so a large turn just after leaving never snaps the rest in one frame
-    if (this.pose.wall || this.wallK > 0 || Math.abs(wrapPi(c.renderYaw - this.visYaw)) > 0.05) {
-      const d = wrapPi(c.renderYaw - this.visYaw);
-      const mx = WALL_TURN_RATE * dt;
+    // (G6) crouched on a wall the body turns side-on toward the travel (AUDIT-WALLS row 1: `wallYawOffset`), and the
+    // turn follows CT's curves (`wallTurnRate`: the front-loaded entry, the 0.45 s side-on reversal, the turn-out)
+    const cp = this.pose;
+    this.wallT = cp.wall ? this.wallT + dt : 0;
+    const visGoal = cp.wall ? wrapPi(c.renderYaw + wallYawOffset(c.crouchBlend, cp.wallSide)) : c.renderYaw;
+    if (cp.wall || this.wallK > 0 || Math.abs(wrapPi(visGoal - this.visYaw)) > 0.05) {
+      const d = wrapPi(visGoal - this.visYaw);
+      const mx = (cp.wall || this.wallK > 0 ? wallTurnRate(Math.abs(d), cp.wall, this.wallT >= WALL_TURN.settleT, c.crouchBlend) : WALL_TURN_RATE) * dt;
       this.visYaw = wrapPi(this.visYaw + Math.max(-mx, Math.min(mx, d)));
     } else this.visYaw = c.renderYaw;
     root.rotation.y = this.visYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
-    const cp = this.pose;
     // (step 11) back to a wall: the rig's back onto the face (the capsule keeps its standoff), the off hand on it
     this.wallK = Math.max(0, Math.min(1, this.wallK + (cp.wall ? dt : -dt) / 0.2));
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
-      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf, Math.min(Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))), Math.abs(this.rig.shoulderTurnSin(cp.wallNx, cp.wallNz))), this.rig.p.shoulderHalf) * wk;
+      // (G6) the larger of the body's turn and the shoulders' (the chest turned toward the travel, the side-on crouch)
+      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))), Math.abs(this.rig.shoulderTurnSin(cp.wallNx, cp.wallNz))), this.rig.p.shoulderHalf, c.crouchBlend) * wk;
       root.position.x -= cp.wallNx * push;
       root.position.z -= cp.wallNz * push;
+      // (G6, AUDIT-WALLS row 9) the peek's step toward the edge
+      root.position.x += (cp.wallStepX ?? 0) * wk;
+      root.position.z += (cp.wallStepZ ?? 0) * wk;
     }
     if (cp.wall) {
       const wh = (this.wallHandPt ??= new Vector3());
@@ -346,6 +368,17 @@ export class Player {
     rp.speed = c.speed;
     rp.localX = c.localMove.x;
     rp.localZ = c.localMove.z;
+    // (G6) the posed body's own frame: side-on on a wall the slide is a crouch-walk forward, not a sidestep (the
+    // controller's local move is in the capsule's frame, which keeps facing out)
+    const visOff = wrapPi(this.visYaw - c.renderYaw);
+    if (cp.wall && Math.abs(visOff) > 1e-3) {
+      const co = Math.cos(visOff);
+      const so = Math.sin(visOff);
+      rp.localX = c.localMove.x * co - c.localMove.z * so;
+      rp.localZ = c.localMove.x * so + c.localMove.z * co;
+    }
+    rp.wallTurn = cp.wall ? Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))) : 0;
+    rp.wallBlock = this.muzzleBlock;
     rp.grounded = c.grounded;
     rp.crouch = c.crouchBlend;
     rp.kneel = c.kneeling;
@@ -363,8 +396,13 @@ export class Player {
     rp.aimWorldPitch = inv ? this.cam.pitch : undefined;
     rp.lookYaw = Math.max(-1.1, Math.min(1.1, rel)) * 0.5 * (1 - raise);
     rp.lookPitch = Math.max(-0.6, Math.min(0.6, this.cam.pitch)) * 0.5 * (1 - raise);
-    // (step 11) on a wall the head turns along the slide (the facing side)
-    if (cp.wall) rp.lookYaw = cp.wallSide * WALL_LOOK * (1 - raise);
+    // (step 11) on a wall the head turns along the slide (the facing side); (G6, AUDIT-WALLS row 3) further and dropped
+    // forward while sliding, straight ahead side-on
+    if (cp.wall) {
+      const mk = wallMoveK(c.speed);
+      rp.lookYaw = wallHeadYaw(cp.wallSide, mk, c.crouchBlend, visOff, raise, Math.abs(cp.lean) / WALL.peekLean);
+      rp.lookPitch = rp.lookPitch - WALL_LOOK_PITCH * mk * (1 - raise);
+    }
     rp.aim = this.carry.raise;
     rp.carry = w;
     rp.weight = this.weaponWeight;
@@ -388,11 +426,20 @@ export class Player {
     rp.slide = cp.slide;
     rp.check = cp.check;
     rp.melee = cp.melee;
+    rp.bend = cp.bend;
+    rp.bendDrop = cp.bendDrop;
+    rp.sway = cp.sway;
     rp.tumble = cp.tumble;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
-    rp.phase = c.renderPhase;
-    rp.motion = m.state;
-    rp.motionT = m.stateT;
+    // (G7) a scripted step-in (the grab, a takedown approach, the step to a body): the gait from the measured root speed
+    // (no motion driver runs under the override: its frozen clock slid the feet and left the legs a metre behind)
+    const freeGait = cp.freeGait && !!c.override?.kinematic;
+    // (G6) side-on on a wall the crouch-walk's clock comes from the posed (forward) pace, as on the remote copy (the
+    // driver's clock is the capsule's sidestep cadence: long dragging strides)
+    const sideOn = cp.wall && (rp.wallTurn ?? 0) > 0.5;
+    rp.phase = freeGait || sideOn ? -1 : c.renderPhase;
+    rp.motion = freeGait ? undefined : m.state;
+    rp.motionT = freeGait ? 0 : m.stateT;
     rp.quickStop = c.ct ? (c.stopEaseT >= 0 ? CT.stopEase : CT.stopBlend) : 0;
     rp.holdSpeed = c.stopHold ? c.holdSpeed : 0;
     const by = this.visYaw;

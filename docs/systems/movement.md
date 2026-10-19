@@ -216,13 +216,29 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   (`WALL.stickEntry` false; `WallCore.stickEnter` keeps the old rule for tests). A stick held through a traversal, attach,
   fall or other blocking state does not count until released once (`stickArmed`). High faces (>= `HIGH_MIN` 1.6 m) keep the
   stance; crouch works on any high wall; low faces are always crouched. Body line = `COVER_STANDOFF` 0.35 m from the face.
-- Slide: `wallSlideSpeed`: 0 inside `WALL.slideDead` 0.2, then linear to `slideStand` 0.9 / `slideCrouch` 0.6 m/s at full
-  stick, never over the gear's cap; braked into an end. Joined ends within 0.1 m (`buildWallLinks`): an inside corner wraps,
+- Slide: `wallSlideSpeed`: 0 inside `WALL.slideDead` 0.2, then linear to `slideStand` 0.39 / `slideCrouch` 0.55 m/s at
+  full stick at gear 4 (0.35 / 0.5 at the spawn gear 3: G6, AUDIT-WALLS row 2, 051917; the crouched side-on crouch-walk is
+  faster than the standing shuffle), `slideGear1` 0.7 of it at gear 1; braked into an end. Joined ends within 0.1 m (`buildWallLinks`): an inside corner wraps,
   a flat join carries on, an outside end stops the body at `EDGE_MARGIN` (WALL_SUB edgeL / edgeR).
 - Leave: the context press again (`gameplay.wallToggle`), the stick pulled away > 0.7 held 0.3 s, jump, sprint, takedown,
   traversal, a team move, death.
-- Facing and pose: the body faces out; `pose.wall` (`WALL_STANCE`), the head turned along the slide (`WALL_LOOK`), the rig
-  pushed onto the face so the back sits <= 3 cm off it (`wallRootPush`), the off hand on the wall. Camera preset `wall`
+- Facing and pose: the capsule faces out (gameplay, camera, AI); the posed body (visual yaw, local and remote alike):
+  - standing (G6, AUDIT-WALLS row 3, 051917 @ 14-18): square to the wall in a semi-crouch (`WALL_STANCE.pelYStand` -0.08 m),
+    sliding the chest turns toward the travel (`spYawSlide` 0.6 rad by the pace) and the head 0.55 -> 1.3 rad toward it,
+    dropped 0.3 rad (`wallHeadYaw`, `WALL_LOOK_SLIDE`, `WALL_LOOK_PITCH`); hands hang (`WALL_ARMS`, following the pelvis);
+  - crouched (G6, rows 1 / 18, 051917 @ 29-34, Michael 00:55 "holds knee when up against wall"): SIDE-ON, turned
+    `WALL_SIDE.yaw` 1.45 rad (83 deg) toward the travel (`wallYawOffset`), the free crouch-walk carriage plus
+    `WALL_SIDE_POSE.spine` (trunk about 45 deg over the knees), the slide is a crouch-walk forward (the graph's local move in
+    the posed frame); the open-side hand on its knee (`RigTargets.kneeHand`, `KNEE_HAND` in the rig: on the posed knee,
+    held through the slide), the wall-side hand low by its shin; the side-on share (`AnimInput.wallTurn`) passes through
+    square-on, so a reversal turns through the flat-back stance in about 0.45 s and swaps the hands; low faces too (row 23:
+    CT shows a side-on crouch-walk beside low cover, never a flat-back pose);
+  - the rig's root comes onto the face by a turned-box reach (`wallRootPush`: half depth x |cos| + shoulder + `WALL_SIDE.arm`
+    x |sin|, from the larger of the body's and the shoulders' turn): the back <= 3 cm off it square, the wall-side shoulder
+    about 3-5 cm off it side-on;
+  - turns (`wallTurnRate`, `WALL_TURN`): the entry front-loaded (22 rad/s for the first 90 deg, then 8: 180 deg in about
+    0.27 s, row 15), the settled side-on reversal 6.4 rad/s (0.45 s), the rise to standing about 0.23 s (row 16), the turn
+    out of the wall 8 rad/s (AUDIT-EXTRA-OLD row 17; `WALL.leaveTime` 0.28 s). Camera preset `wall`
   (G3: boom 2.0, shoulder 0.15, the whole body; was 2.6 / 0.55), local only; the shoulder swap on the wall eases at `WALL_CAMERA.side` 5 1/s; e2e-wall
   bounds the camera to <= 6 cm per frame and checks it never sits behind geometry.
 - Stacking (D8): `stackClamp` keeps capsule centres >= 0.62 m apart along one segment (remotes' `wall` MoveStates via
@@ -234,9 +250,13 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 ## Wall edge verbs (locomotion steps 12 / 12b)
 - Edge: on the wall within `WALL.edgeReach` 0.35 m of an outside end. A doorway side is an edge whose coplanar neighbour
   starts 0.8-2.0 m beyond it (`buildWallLinks` `gapA` / `gapB`).
-- Peek: stopped on the end, the stick toward the edge (over `peekPush` 0.6) or the look past it held `peekHold` 0.25 s, not
-  while aiming; holds while the push stays over `peekKeep` 0.35; the head and near shoulder lean out (head <=
-  `WALL.peekOut` 0.25 m); the camera turns the view up to 25 deg toward the edge (local only). (Slice F) The body's side at
+- Peek: stopped on the end, the stick toward the edge (over `peekPush` 0.4) or the look past it, at once (A3), not while
+  aiming; holds while the push stays over `peekKeep` 0.25. (G6, AUDIT-WALLS row 9, 052021 @ 3.4-4.6) a small torso lean
+  `WALL.peekLean` 0.2 rad (CT 10-15 deg) with the hips onto the outer foot (`PEEK_HIP` 0.7 m per rad) and the rig's root
+  `peekStep` 0.2 m toward the edge (visual; the capsule stays), the head turned to the opening (`WALL_LOOK_PEEK` 1.45):
+  the head ends `WALL.peekOut` 0.36 m along the wall from the capsule, 0.14 m past the 0.22 m end stop (CT 0.15-0.25; the
+  old 0.45 rad lean put it 6 cm short), eased over `peekBlend` 0.3 s; side-on (crouched) the lean goes forward past the
+  edge; the camera turns the view up to 25 deg toward the edge (local only). (Slice F) The body's side at
   an edge is the edge's open side (`wallFacing`; remotes from the edge bits), never the camera; the camera slides past the
   edge by `WallCore.peekView` (`wallPeekView`: the stick's push toward the edge or the look past it, from `viewLook`
   0.2 to `peekLook`): the pivot up to `WALL_CAMERA.peek.offset`, the shoulder offset turning to the open side (edge
@@ -249,18 +269,43 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   or the rise; `wallHeadCap` keeps the head under the top (`LOW_HEAD_CLEAR` 0.14 m).
 - SWAT turn (removed by decision, loco M20 Q1): at a doorway edge, the context press with the stick toward the gap: a
   crouched committed move to the far wall (`swatDuration`, MoveState `swat`, host check `swatCommitOk`).
-- Remote yaw: the host's copy of a settled wall body eases toward the face normal at `WALL_TURN_RATE` 12 rad/s.
+- Remote yaw: the host's copy of a wall body eases toward the face normal plus the side-on offset at the owner's
+  `wallTurnRate` (the side from WALL_SUB: `wallSideFromSub`), and steps toward the edge with the peek bit as the owner.
+- Aiming at a wall (G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3): one ray from the shoulder along the aim (`player/wallBlock.ts`
+  `muzzleBlock`; the local player each fixed step, the remote copy each frame while raised); from 0.65 m to 0.45 m the rifle
+  comes up muzzle-high and 0.15 m back (`WALL_BLOCK`, `AnimInput.wallBlock`), no cheek weld. Pose only: firing is not
+  blocked yet.
 - Light parity (bible 5.1): the light meter samples the chest and the head at its real place (`LightField.bodyLevel`): the
   local body's peek offset; a remote's from its MoveState (`wallPeekOffset`, conservative). On the wall the meter's head
   sample and perception's exposure points are the posed rig's head and chest (`CharacterRig.posedHead` / `posedChest`), the
   same joints the hit volumes follow. Guards see the body, never the camera.
 
+## Door open (CT prototype G6, AUDIT-WALLS row 4)
+- The door menu's Open is a short committed move (`world/doorOpen.ts`, pure `DoorOpenCore`, `DOOR_OPEN`; `GameState.doorOpenStep`):
+  the body steps over `step` 0.5 s to a spot beside the latch (`doorOpenSpot`: 0.55 m off the leaf, 0.25 m in from the
+  latch edge, turned 35 deg toward the hinge; a leaf that swings toward the body: 0.3 m past the latch edge, out of its
+  sweep), the near hand rises onto the leaf (a push: the hinge-side hand, palm 0.22 m in from the latch edge; a pull: the
+  latch-side hand on the handle) and follows it, the door opens through its own call (the host's in co-op) `leafAt` 0.8 s
+  after the pick (052349: pick 5.15, leaf 5.95), the hand lets go at 65 deg (35 on a pull), the body is free about 1.6 s
+  after the pick. Damage, a takedown, an attach or death ends it.
+- Swing (`world/doors.ts`): `DOOR.openAngle` 1.53 rad (88 deg; was 1.75); a quiet open eases out (`quietShape`: 0.89 of the
+  swing over `quietTime` 0.75 s, CT 45 deg at 0.25 s and 78 at the swing end), then a drawn drift to the full angle over
+  `quietDrift` 2 s; `open` (doorway, light, sight) is 1 from the swing's end. A close starts from the drawn leaf
+  (`leafFraction`, `visMax`). A guard pushes a door open in `enemyTime` 0.4 s and a guard-opened door shuts in
+  `autoCloseTime` 0.35 s (AUDIT-EXTRA-OLD row 6, 052832); the player's close stays `closeTime` 0.8 s (row 17). When it
+  shuts is still `stealthSystems.ts` `DOOR_GUARD_CLOSE` 1.5 s after the doorway is clear (CT about 1.0 s; G7's file).
+- Remotes see the step (positions); the hand on the leaf is local only (no wire change).
+- Tests: `tests/doorOpen.test.ts`, `tests/doors.test.ts`; e2e-stealth-ai `doors`; anim-sheet `dooropen`, `dooropenpull`.
+
 ## Door peek (locomotion step 13, A25 / A52)
-To be replaced by the CT door menu (G97); this is the current build.
+The door menu's Stealth open starts it (A3).
 - Core: `world/doorPeek.ts` (pure, `DoorPeekCore`, `DOOR_PEEK`, `DOOR_CRACK`). Eligible (`doorPeekEligible`) at a closed,
   unlocked, uncracked door whose leaf is within 1.0 m and faced within 60 deg, grounded and in no other state.
-- Context press (`cover`: pad A, KBM Space): a 0.25 s settle onto the frame (hinge at one shoulder, the hand on the handle),
-  then the leaf cracks to 0.12 over 0.6 s, quiet.
+- (G6, AUDIT-WALLS row 14, 052349 @ 13.6-18.6: picked 14.1, the step and the hand up 14.4-14.8, the camera in at about
+  15.0, the leaf at about 15.6) a `DOOR_PEEK.settle` 0.5 s settle onto the frame (hinge at one shoulder, the hand on the
+  handle), `crackDelay` 0.7 s holding the handle while the view moves in (phase `ready`), then the leaf cracks to 0.12 over
+  0.6 s, quiet: the leaf moves 1.2 s after the pick (CT 1.5; kept shorter for the co-op suites' waits). The stick then
+  drives it at `DRIVE_RATE` 0.15 of the swing per second (13 deg/s; CT 12-18; was 0.2).
 - View (local only): `ShoulderCamera.doorPeek` eases the eye to the crack; no zoom (G3: `fovMul` 1, was 0.85); the look is clamped to +-35 deg
   around the door's normal (`clampPeekYaw`).
 - Exits: the context press again or the stick held back 0.2 s closes the crack (0.4 s, quiet); the stick pushed in or
