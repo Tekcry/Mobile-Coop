@@ -106,7 +106,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Open a door: a step to the latch, hand on the leaf; stealth open is slower. Grab a guard (G7): pull-in, forearm on
   the throat, walk him (slow), knock out (lowered), pick up a body (2 s lift), carry (slow), drop.
 - [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
-  on BACK TO GAME (nothing); a quick tap runs row 1; grab a guard and hold A for knock out / interrogate / kill.
+  on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (no one
+  has information yet), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 

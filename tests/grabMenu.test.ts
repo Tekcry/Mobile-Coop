@@ -1,54 +1,50 @@
 import { describe, expect, it } from 'vitest';
-import { addGrabRows, GRAB_KIND, GRAB_OPTS, GrabMenuView, grabOptReady } from '../src/game/grabMenu';
-import { ContextMenu, emptyCtxInput } from '../src/game/contextMenu';
+import { addGrabRows, GRAB_KIND, GRAB_OPTS, GrabMenuView, grabOptReady, grabTriggerPick, hasInfo } from '../src/game/grabMenu';
+import { ContextMenu } from '../src/game/contextMenu';
 
-const fill = (m: ContextMenu): void => {
-  m.begin();
-  addGrabRows(m);
-  m.end();
-};
-
-describe('grab options (A4, G23; G5 rows of the context menu)', () => {
-  it('lists knock out, kill, carry, then the stub and interrogate', () => {
+// (A4, G23; G5; Michael 2026-10-20 08:10: "once they are grabbed it can show interrogate (if they have information), and
+// rt or Lt to either knock out or kill ... It shouldn't have kill/knock out/carry in the list"; 08:20: "The guard cannot
+// be let go either"; 08:25: "There is no back to game option once the grab is initiated.")
+describe('held guard (G5, Michael 08:10 / 08:20 / 08:25)', () => {
+  it('the list holds only Interrogate, and only for a guard with information', () => {
     expect(GRAB_OPTS).toEqual(['knockout', 'kill', 'carry', 'device', 'interrogate']);
     const m = new ContextMenu();
-    const v = new GrabMenuView(m);
-    expect(v.labels()[3]).toContain('not yet');
-    // (G7) Interrogate works now (CT offers it as soon as the guard is held, 052607 @ 4-8)
-    expect(v.labels()[4]).toBe('Interrogate');
+    m.begin();
+    addGrabRows(m, false);
+    m.end();
+    expect(m.count).toBe(0);
+    m.begin();
+    addGrabRows(m, true);
+    m.end();
+    expect(m.count).toBe(1);
+    expect(m.opts[0]!.kind).toBe(GRAB_KIND);
+    expect(m.opts[0]!.opt).toBe('interrogate');
+    expect(m.opts[0]!.label).toBe('Interrogate');
+    // no guard data carries information yet
+    expect(hasInfo({})).toBe(false);
+    expect(hasInfo({ info: true })).toBe(true);
     expect(grabOptReady('device')).toBe(false);
-    expect(grabOptReady('interrogate')).toBe(true);
-    fill(m);
-    expect(m.count).toBe(5);
-    expect(m.opts.slice(0, 5).every((o, i) => o.kind === GRAB_KIND && o.ref === i && !o.latch)).toBe(true);
   });
 
-  it('the view is open while the rows are listed; writing sel opens the list latched on that row', () => {
-    const m = new ContextMenu();
-    const v = new GrabMenuView(m);
+  it('RT kills, LT knocks out, both only while not aiming (aimed they are the pistol)', () => {
+    expect(grabTriggerPick(true, false, false)).toBe('kill');
+    expect(grabTriggerPick(false, true, false)).toBe('knockout');
+    expect(grabTriggerPick(true, true, true)).toBeNull();
+    expect(grabTriggerPick(false, false, false)).toBeNull();
+  });
+
+  it('the view: open while holding; an armed sel runs on the next A press (scripts), disarmed when not holding', () => {
+    const v = new GrabMenuView(new ContextMenu());
     expect(v.open).toBe(false);
-    fill(m);
-    const i = emptyCtxInput();
-    m.step(i, 1 / 60);
+    v.holding = true;
     expect(v.open).toBe(true);
-    expect(m.state).toBe('passive');
     v.sel = 2;
-    expect(m.state).toBe('active');
-    expect(v.sel).toBe(2);
-    // a scripted tap (the e2e / tools path) runs it
-    fill(m);
-    i.pressed = true;
-    expect(m.opts[m.step(i, 1 / 60)]!.opt).toBe('carry');
-    // a held tap after `sel` = the real pad press: the release runs it
-    fill(m);
+    expect(v.takePick(false)).toBeNull();
+    expect(v.takePick(true)).toBe('carry');
+    expect(v.takePick(true)).toBeNull();
     v.sel = 0;
-    fill(m);
-    i.down = true;
-    expect(m.step(i, 1 / 60)).toBe(-1);
-    fill(m);
-    i.pressed = false;
-    i.down = false;
-    i.released = true;
-    expect(m.opts[m.step(i, 1 / 60)]!.opt).toBe('knockout');
+    v.holding = false;
+    expect(v.takePick(true)).toBeNull();
+    expect(v.labels()[4]).toBe('Interrogate');
   });
 });

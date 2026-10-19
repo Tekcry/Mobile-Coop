@@ -203,6 +203,31 @@ describe('context menu (G5)', () => {
     expect(m.swallow).toBe(true);
   });
 
+  it('a list with no BACK TO GAME (a held guard, Michael 08:25): the highlight stops at row 1, B does not close it', () => {
+    const m = new ContextMenu();
+    const i = emptyCtxInput();
+    const held = (): void => {
+      m.begin();
+      m.add('grab', 'interrogate', 4, 'Interrogate');
+      m.noBack = true;
+      m.end();
+    };
+    held();
+    m.step(press(i), DT);
+    hold(i).nav = -1;
+    held();
+    m.step(i, DT);
+    expect(m.sel).toBe(0);
+    i.nav = 0;
+    i.cancel = true;
+    held();
+    m.step(i, DT);
+    expect(m.state).toBe('active');
+    i.cancel = false;
+    held();
+    expect(m.step(release(i), DT)).toBe(0);
+  });
+
   it('B closes the held list with no action', () => {
     const m = new ContextMenu();
     const i = emptyCtxInput();

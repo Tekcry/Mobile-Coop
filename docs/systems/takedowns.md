@@ -3,11 +3,13 @@ Purpose: takedown kinds, the grab and hostage, and the close strike.
 Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible.md (Section 5.4).
 
 ## Decided direction
-- Decided, not built yet (G43, G23): the ground takedown button grabs first; from CT's grab menu the player then chooses
-  knock out, kill or (later) interrogate. No stealth / kill selector. Drop, ledge, window and pipe takedowns keep tap /
-  hold. Code: a grab from behind exists (below); (ct-prototype G5) other ground takedowns go through the hold-A action
-  menu (`src/game/contextMenu.ts`): holding A lists KNOCK OUT / KILL with BACK TO GAME, releasing runs the highlighted
-  row, a quick tap runs row 1 (no tap / hold lethality any more).
+- Built (G43, G23; ct-prototype G5 with Michael 2026-10-20 08:10, 08:20, 08:25): every takedown on offer is a row of
+  the hold-A action menu (`src/game/contextMenu.ts`). Behind a guard: GRAB CHARACTER (and BACK TO GAME). Other
+  takedowns: one named row, a knockout (Takedown; Drop attack; Pull over ledge; Pull through window; Choke); no KNOCK OUT
+  / KILL rows, the lethal close attack is RT's strike; a guard who only falls to a lethal one gets no row. No tap / hold
+  lethality any more. Michael: "It shouldn't have kill/knock out/carry in the list", "The guard cannot be let go
+  either, only knocked out. Killed, or used as human shield (aiming pistol)", "There is no back to game option once
+  the grab is initiated."
 - Decided, not built yet (G42, loco M20 Q4 / Q4b, M25 (5)): the close strike is a palm strike, a one-hit knockout from any
   side on every human guard, recovery about 1.4 s; dogs cannot be palm-struck. How heavies are taken out follows the CT
   co-op research (G49). Code: the elbow strike below (aware facing guards and heavies from the front only stagger).
@@ -43,11 +45,16 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   step-in (kinematic override, `crouch: false`, the legs step from the measured speed: `pose.freeGait`), stage 1 the
   pull-in (the guard eased from where he stood to the hold, turning to the operator's facing), stage 2 `hold` (no
   override, `speedCap` min(gear, 0.75), the hostage at `holdAt` with the 2 cm sway, `setSolid(false)`, `holdAsHostage`).
-  The CT grab menu (`menuReady`: held, no finisher or interrogation running) picks Knock out (`CQ.koTime` 0.85 s: the
-  guard limp, lowered through his crouch, the operator bent over him, `holdPose('ko')`), Kill (0.5 s, the elbow arc),
-  Carry (the knockout, then the body lift), Interrogate (1.5 s, the left hand to his jaw, `holdPose('interrogate')`, the
-  hold and menu go on after; a neutral feed line until the level has lines); `shovePressed` ->
-  `releaseTakedown(GRAB.shoveStagger)`. Counters in `grabs` (`interrogated` too).
+  While held (`menuReady`: held, no finisher or interrogation running; G5, Michael 08:10-08:25): RT (not aiming) is
+  Kill (0.5 s, the elbow arc), LT is Knock out (`CQ.koTime` 0.85 s: the guard limp, lowered through his crouch, the
+  operator bent over him, `holdPose('ko')`), aiming draws the pistol over his shoulder (the human shield); hold-A lists
+  only Interrogate (1.5 s, the left hand to his jaw, `holdPose('interrogate')`; the hold goes on after, a neutral feed
+  line until the level has lines) and only for a guard with information (`grabMenu.hasInfo`: no data carries any yet, so
+  no menu), with no BACK TO GAME. There is no let-go (the shove is removed): the hold ends only in the knockout or the
+  kill, or cleanly when the holder dies, the guard dies to something else (`abort`) or the match restarts (`reset`; a
+  co-op host still frees a client's guard when that client drops out or the section restarts). Carry (the knockout,
+  then the body lift) and the Force to device stub are not rows: scripts reach them through `grabMenu.sel` (the next A
+  press runs the armed pick); a knocked-out body is picked up by its own PICK UP BODY row. Counters in `grabs`.
 - Poses (`game/closeQuarters.ts`, pure): `GuardCq` writes the held guard's upper body (seized, hostage with a 0.4 s flail
   every 2-4 s, the knockout's limp, the interrogation) with a fixed joint set and a 0.25 s blend between modes, on the
   host / solo `Enemy` and a client's `EnemyPuppet` alike; the held guard's gun is hidden while taken and his gait runs

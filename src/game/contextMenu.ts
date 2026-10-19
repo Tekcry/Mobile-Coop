@@ -75,6 +75,10 @@ export class ContextMenu {
   version = 0;
   /** A press the menu took is still held: the other A readers ignore the button until it is let go. */
   swallow = false;
+  /** (Michael 2026-10-20 08:25, "There is no back to game option once the grab is initiated.") This step's list has
+   *  no BACK TO GAME row and no B cancel: the highlight stops at row 1. Set by the provider after `begin`. */
+  noBack = false;
+  private noBackWas = false;
   private building = 0;
   private dirty = false;
   private keyKind = '';
@@ -93,6 +97,7 @@ export class ContextMenu {
     this.keyRef = o ? o.ref : 0;
     this.building = 0;
     this.dirty = false;
+    this.noBack = false;
   }
 
   /** Add a row (ignored past `CTX_MAX`). Constant strings only: nothing is allocated. */
@@ -111,11 +116,12 @@ export class ContextMenu {
   /** Finish the list: an active highlight follows its row by id; a row that left the list sends it to BACK TO GAME
    *  (never onto another row: a guard turning must not turn KNOCK OUT into KILL under the thumb). */
   end(): void {
-    if (this.building !== this.count) this.dirty = true;
+    if (this.building !== this.count || this.noBack !== this.noBackWas) this.dirty = true;
+    this.noBackWas = this.noBack;
     this.count = this.building;
     if (this.state === 'active' && this.sel >= 0 && this.count > 0) {
       const at = this.find(this.keyKind, this.keyOpt, this.keyRef);
-      const next = at >= 0 ? at : CTX_BACK;
+      const next = at >= 0 ? at : this.noBack ? 0 : CTX_BACK;
       if (next !== this.sel) {
         this.sel = next;
         this.holdT = 0;
@@ -148,7 +154,7 @@ export class ContextMenu {
 
   /** Open the list latched on row `i` (`CTX_BACK` .. count - 1): the grab view's `sel`, tests. */
   select(i: number): void {
-    if (this.count === 0 || i < CTX_BACK || i >= this.count) return;
+    if (this.count === 0 || i < (this.noBack ? 0 : CTX_BACK) || i >= this.count) return;
     this.state = 'active';
     this.latched = true;
     this.sel = i;
@@ -201,12 +207,12 @@ export class ContextMenu {
       return this.opts[0]!.hold > 0 ? -1 : 0;
     }
     // active
-    if (i.cancel) {
+    if (i.cancel && !this.noBack) {
       this.close();
       return -1;
     }
     if (i.nav !== 0) {
-      const next = Math.max(CTX_BACK, Math.min(this.count - 1, this.sel + (i.nav > 0 ? 1 : -1)));
+      const next = Math.max(this.noBack ? 0 : CTX_BACK, Math.min(this.count - 1, this.sel + (i.nav > 0 ? 1 : -1)));
       if (next !== this.sel) {
         this.sel = next;
         this.holdT = 0;

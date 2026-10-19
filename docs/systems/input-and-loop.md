@@ -83,9 +83,10 @@ and the code together.
 
 ### The context action menu (CT prototype G5, `game/contextMenu.ts`, AUDIT-ACTIONMENU)
 - One list for everything in reach, refilled every fixed step (`GameState.contextMenuStep`, first in the step) by
-  providers in CT order: a held guard's set alone (Knock out, Kill, Carry, Force to device (stub), Interrogate;
-  `grabMenu.ts`), else the takedown on offer (GRAB CHARACTER from behind; KNOCK OUT / KILL for the other takedowns; KILL
-  alone where only a lethal one is allowed), the door set of the closed, unlocked door faced (OPEN DOOR, OPEN DOOR
+  providers in CT order: while a guard is held only INTERROGATE, for a guard with information (none have any yet, so no
+  menu), and no BACK TO GAME (Michael 2026-10-20 08:10 / 08:25; `grabMenu.ts`); else the takedown on offer (GRAB
+  CHARACTER from behind; one named row, a knockout, for the other takedowns; none where only a lethal one is allowed),
+  the door set of the closed, unlocked door faced (OPEN DOOR, OPEN DOOR
   STEALTH when the peek is on offer, BASH DOOR, OPTIC CABLE (stub); `doorMenu.ts`), then the item in reach or the carry
   target (its label; a door's own item reads OPEN DOOR / CLOSE DOOR).
 - States: none (nothing in reach); passive (the list shows, header INTERACT, no highlight, walking free); active (A
@@ -93,7 +94,8 @@ and the code together.
   highlight moves one row per step, no wrap: D-pad / mouse wheel / = - always; the stick, W / S and the arrows once the
   stick has been back under 0.25 since A went down (`CtxNav`; the pad's own stick repeat). BACK TO GAME is a row above
   row 1. Releasing A runs the highlighted row; on BACK TO GAME nothing. A quick tap runs row 1. B closes the held list
-  with no action; B or Y lets a held guard go (as before). A row with a hold time (a hack, a medkit station, an alarm
+  with no action. Holding a guard (Michael 08:10 / 08:20): RT kills, LT knocks out (not aiming; KBM LMB / Z), the aim
+  (X / RMB) draws the pistol over his shoulder (the human shield), nothing lets him go (B, Y, back do nothing). A row with a hold time (a hack, a medkit station, an alarm
   panel) fills while A stays on it and runs once full (a fill line on the row); let go early and nothing happens.
 - A belongs to the menu while a list is up or its press is still held (`ctxOwnsA`): the door peek, traversal's held use
   (vents) and the takedown press see it up. The menu stands aside (no list, A goes where it went before G5) while down,
@@ -103,7 +105,8 @@ and the code together.
   `onUse`), so co-op is unchanged (no wire change).
 - Scripted taps (`InputState.tap('interact')`: pressed with no down) keep the pre-G5 one-press controls for tests and
   tools: on a door set the tap opens the list latched and the next tap runs the highlight; elsewhere it runs row 1.
-  `g.grabMenu.sel = i` opens the list latched on that grab row; `g.doorMenu.open` / `.opts` and `g.grabMenu.open` /
+  `g.grabMenu.sel = i` arms that held-guard pick (`GRAB_OPTS` index: knock out, kill, carry, device, interrogate) and the
+  next A press runs it; `g.doorMenu.open` / `.opts` and `g.grabMenu.open` /
   `.labels()` read the list.
 - Not built: `access.holdToggle` does not latch the menu (it still works on the team-move direct path); locked doors
   list nothing (no PICK LOCK / BREAK LOCK yet); no traversal rows (rope, climb: Y does those).

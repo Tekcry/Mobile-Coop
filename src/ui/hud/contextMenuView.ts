@@ -50,11 +50,13 @@ export class ContextMenuView {
     }
     if (!show) return;
     const active = m.state === 'active';
-    if (active !== this.headActive) {
-      this.headActive = active;
-      this.headText.textContent = active ? 'Back to game' : 'Interact';
-      this.el.classList.toggle('active', active);
+    // (Michael 08:25) a list with no BACK TO GAME (a held guard) keeps the INTERACT header while A is held
+    const back = active && !m.noBack;
+    if (back !== this.headActive) {
+      this.headActive = back;
+      this.headText.textContent = back ? 'Back to game' : 'Interact';
     }
+    this.el.classList.toggle('active', active);
     this.head.classList.toggle('sel', active && m.sel === CTX_BACK);
     const k = m.holdK;
     for (let i = 0; i < CTX_MAX; i++) {

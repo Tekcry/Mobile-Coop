@@ -41,7 +41,7 @@ import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
-import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, type GrabOpt } from './grabMenu';
+import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { MissionMode } from './modes/missionMode';
@@ -59,7 +59,7 @@ import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
-import { GRAB, GRAB_KINDS } from './takedown';
+import { GRAB, GRAB_KINDS, type TakedownKind } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
 import type { TeamKind } from './teamMoves';
@@ -245,6 +245,19 @@ const IMPACT_NOISE = 4;
 /** (G5) Context menu row kinds of the takedown on offer and of the item in reach (doors and grabs: their modules). */
 const TD_KIND = 'td';
 const ITEM_KIND = 'item';
+/** (Michael 08:10) The one row of a takedown on offer that is not the grab: a knockout (RT's strike is the lethal one). */
+const TD_LABEL: Readonly<Record<TakedownKind, string>> = {
+  behind: 'Grab character',
+  front: 'Takedown',
+  side: 'Takedown',
+  overCover: 'Takedown',
+  corner: 'Takedown',
+  above: 'Drop attack',
+  drop: 'Drop attack',
+  below: 'Pull over ledge',
+  window: 'Pull through window',
+  inverted: 'Choke',
+};
 
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
 /** World prompts sit low on the surface they act on, at one height per surface (m above its base). */
@@ -1120,41 +1133,47 @@ export class GameState implements AppState {
 
   /**
    * (G5, AUDIT-ACTIONMENU) The CT context action menu, run first in the step. The providers fill one list in CT order:
-   * the held guard's set (Knock out, Kill, Carry, Force to device, Interrogate) alone while a guard is held, else the
-   * takedown on offer (GRAB CHARACTER from behind; KNOCK OUT / KILL for the other takedowns; KILL alone on a guard who
-   * only falls to a lethal one), the door set of the closed door faced, and the item in reach (or the carry target).
+   * while a guard is held only Interrogate, when he has information (none do yet: the list is empty); else the
+   * takedown on offer (GRAB CHARACTER from behind; one named row for the other takedowns, a knockout; none where only a
+   * lethal one is allowed: RT's lethal strike does those), the door set of the closed door faced, and the item in reach
+   * (or the carry target). Michael 08:10 / 08:20: no Knock out / Kill / Carry rows, RT kills and LT knocks out a held
+   * guard (not aiming), the aim makes him a human shield, and nothing lets him go; 08:25: the held list has no BACK TO
+   * GAME (`ContextMenu.noBack`), so with no information there is no menu at all.
    * The menu steps on A (hold = the list, release = run the highlighted row, BACK TO GAME = nothing) and the row runs
    * through the same calls as before G5 (`takedown.start`, `menuPick`, the door picks, the item's `onUse`), so co-op
    * goes the way it went. It stands aside (no list; A goes where it went before G5) while down, in a team move, a door
-   * peek, a remote view or the wheel, and while a takedown, a finisher or a lift runs. B or Y lets a held guard go.
+   * peek, a remote view or the wheel, and while a takedown, a finisher or a lift runs.
    */
   private contextMenuStep(dt: number, real: InputState): void {
     const m = this.ctxMenu;
     const td = this.takedown;
-    td.shovePressed = false;
     const aside = !this.player.alive || this.team.active || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
-    // B (crouch / back) or Y lets a held guard go: there is no way to get stuck in the hold; (G5) with the list held
-    // open, B only closes the list (as BACK TO GAME) and the guard stays held
-    const letGo = !aside && td.menuReady && m.state !== 'active' && (real.pressed('crouch') || real.pressed('uiBack') || real.pressed('jump'));
-    if (letGo) {
-      td.shovePressed = true;
-      this.player.controller.swallowCrouch = true;
-    }
+    // (Michael 08:10 / 08:20) a held guard: RT kills, LT knocks him out (not aiming: aimed, they fire the pistol over
+    // his shoulder); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
+    // B, Y and BACK TO GAME only close the list.
+    const holding = !aside && td.menuReady;
+    const gv = this.grabMenu;
+    gv.holding = holding;
+    const scripted = gv.takePick(real.pressed('interact'));
+    const trig = holding && m.state !== 'active' ? grabTriggerPick(real.pressed('fire'), real.pressed('altFire'), this.player.ads || this.player.adsWanted) : null;
+    const pick = scripted ?? trig;
+    if (pick === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[pick]}: not built yet`, 'warn');
+    else if (pick) td.menuPick = pick;
     m.begin();
     let it: Interactable | null = null;
     this.doorMenu.opts.length = 0;
-    if (!aside && !letGo) {
-      if (td.menuReady) addGrabRows(m);
+    if (!aside && !(pick && pick !== 'device')) {
+      if (holding) {
+        addGrabRows(m, td.hostage !== null && hasInfo(td.hostage));
+        // (Michael 08:25) once the grab is under way there is no BACK TO GAME
+        m.noBack = true;
+      }
       else {
         // the guard first (CT lists GRAB CHARACTER above a door's set, 052607)
         const o = td.offer;
-        if (o && !this.strike.active) {
-          if (o.lethalOnly) m.add(TD_KIND, 'kill', -1, 'Kill');
-          else if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped) m.add(TD_KIND, 'grab', -1, 'Grab character');
-          else {
-            m.add(TD_KIND, 'ko', -1, 'Knock out');
-            m.add(TD_KIND, 'kill', -1, 'Kill');
-          }
+        if (o && !this.strike.active && !o.lethalOnly) {
+          if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped) m.add(TD_KIND, 'grab', -1, 'Grab character');
+          else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts);
@@ -1178,7 +1197,8 @@ export class GameState implements AppState {
     const ci = this.ctxIn;
     const a = real.buttons.interact;
     ci.down = a.down;
-    ci.pressed = a.pressed;
+    // (a press that ran an armed pick is not the menu's)
+    ci.pressed = a.pressed && scripted === null;
     ci.released = a.released;
     const active = m.state === 'active';
     ci.nav = this.ctxNav.dir(active, real.pressed('speedUp'), real.pressed('speedDown'), real.pressed('uiUp'), real.pressed('uiDown'), hyp2(real.move.x, real.move.y));
@@ -1208,7 +1228,7 @@ export class GameState implements AppState {
     if (kind === TD_KIND) {
       if (!td.offer || td.active) return;
       if (opt === 'grab') td.start();
-      else td.start(opt === 'kill');
+      else td.start(false);
     } else if (kind === GRAB_KIND) {
       const g: GrabOpt | undefined = GRAB_OPTS[ref];
       if (g === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[g]}: not built yet`, 'warn');
@@ -2417,12 +2437,20 @@ export class GameState implements AppState {
     const nz = -Math.sin(a.yaw) * s.side;
     let need = 0;
     const L = DOOR_OPEN_RAY_OUT;
-    for (let i = 0; i < DOOR_OPEN_RAY_Y.length; i++) {
-      const h = DOOR_OPEN_RAY_Y[i]!;
-      A.set(s.x + nx * L, py + h, s.z + nz * L);
-      B.set(s.x - nx * 0.8, py + h, s.z - nz * 0.8);
-      // the face's distance in front of the spot: the hit distance from the ray's start, less the start's offset
-      need = Math.max(need, R - (b.hitDistance(A, B, MASK.WORLD) - L));
+    // (re-check BLOCK 3) also a capsule radius either side along the leaf (sin yaw, cos yaw): on the push side of a thick
+    // wall the centre ray passes through the opening and misses the latch jamb's corner beside the capsule
+    const tx = Math.sin(a.yaw) * R;
+    const tz = Math.cos(a.yaw) * R;
+    for (let k = -1; k <= 1; k++) {
+      const ox = tx * k;
+      const oz = tz * k;
+      for (let i = 0; i < DOOR_OPEN_RAY_Y.length; i++) {
+        const h = DOOR_OPEN_RAY_Y[i]!;
+        A.set(s.x + ox + nx * L, py + h, s.z + oz + nz * L);
+        B.set(s.x + ox - nx * 0.8, py + h, s.z + oz - nz * 0.8);
+        // the face's distance in front of the spot: the hit distance from the ray's start, less the start's offset
+        need = Math.max(need, R - (b.hitDistance(A, B, MASK.WORLD) - L));
+      }
     }
     if (need > 0) {
       s.x += nx * need;

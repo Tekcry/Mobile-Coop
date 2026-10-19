@@ -125,3 +125,34 @@ build, e2e and GPU shot.
    list not held still let him go. e2e-takedown "grab-kill-carry-letgo" asserts both.
 
 Checks: `npx tsc --noEmit` clean, eslint clean, vitest contextMenu / doorMenu / grabMenu / grabMenuNav 16 / 16; after `npm run build` (heavy.lock held) on port 4196: e2e-ct, e2e-takedown (with the new B check) and e2e-pad pass. Not committed.
+
+## Michael 08:10 (with 08:20 and 08:25)
+Verbatim: 08:10 "The action menu behind guard should only show grab or return, once they are grabbed it can show
+interrogate (if they have information), and rt or Lt to either knock out or kill, and aim button to aim pistol while
+holding them. It shouldn't have kill/knock out/carry in the list." 08:20 "The guard cannot be let go either, only
+knocked out. Killed, or used as human shield (aiming pistol)". 08:25 "There is no back to game option once the grab is
+initiated."
+- Behind a guard: GRAB CHARACTER (and BACK TO GAME). Other takedowns on offer: one named row, a knockout (Takedown,
+  Drop attack, Pull over ledge, Pull through window, Choke); no KNOCK OUT / KILL rows anywhere; the lethal close attack
+  is RT's palm strike (unchanged); a guard who only falls to a lethal takedown gets no row. Assumed (A, undo: drop the
+  rows in `GameState.contextMenuStep`): the non-grab takedowns keep one A row so the drop / pipe / window / corner moves
+  stay reachable.
+- Held: hold-A lists only INTERROGATE, only for a guard with information (`grabMenu.hasInfo`). No guard data carries
+  information yet, so today every guard has none and there is no menu at all while holding. No BACK TO GAME and no B
+  cancel on that list (`ContextMenu.noBack`); the HUD header stays INTERACT.
+- Triggers while holding, not aiming: RT (KBM LMB) kills, LT (KBM Z) knocks out (`grabTriggerPick`, CT: RT lethal, LT
+  non-lethal). Aiming (X / RMB) already drew the pistol over his shoulder (F1b): that is the human shield.
+- No let-go: the B / Y / back shove is removed (`GameState` no longer sets it, `TakedownController.shovePressed` and its
+  branch are gone). Interrogating keeps the hold. Clean ends kept: the holder dies, the guard dies to something else
+  (`abort`, also a co-op `kill` event), respawn / restart (`reset`), the co-op host freeing a client's guard when that
+  client drops out or the section restarts. The approach (before the hold) still breaks off if the attacker is hurt.
+- Carry is never a row: a knocked-out body is lifted by its own PICK UP BODY row (unchanged). Carry and the Force to
+  device stub stay reachable for scripts only: `g.grabMenu.sel = i` arms a pick and the next A press runs it (keeps
+  e2e-coop's `sel = 0` + tap, e2e-pad's `sel = 0` + A and the anim-sheet G7 scenarios working unchanged).
+- Tests: `tests/grabMenu.test.ts` (Interrogate only with information; the triggers; the armed pick),
+  `tests/contextMenu.test.ts` (a no-BACK list: the highlight stops at row 1, B does not close it), e2e-takedown (front:
+  one Takedown row knocks out; behind: only Grab character; held: no rows and no menu; LT knocks out; RT kills; B, Y and
+  back never let go, then LT ends it).
+- Docs: `docs/systems/takedowns.md`, `docs/systems/input-and-loop.md`, CHANGELOG's G5 entry, TESTING's action-menu line.
+
+Checks: `npx tsc --noEmit` clean; eslint clean; vitest contextMenu / doorMenu / grabMenu / grabMenuNav / holdToggle / g7CloseQuarters 35 / 35; after `npm run build` (heavy.lock held) on port 4196: e2e-takedown, e2e-ct, e2e-pad, e2e-mouse pass. Not run this round: e2e-coop, e2e-ctcourse, e2e-netmove (their calls are kept; worth one run before the merge). Not committed.

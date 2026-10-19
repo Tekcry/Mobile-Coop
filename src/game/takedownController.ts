@@ -26,7 +26,9 @@ const TRY = 3;
 /**
  * (3.2.0) A grab from behind: approaching (`hold` false), then holding the guard in front (the operator moves at a
  * walk); (A4, G23) the CT grab menu decides it (knock out, kill, carry; `GameState` feeds `menuPick`) and `strikeT`
- * times the finishing move; `shovePressed` (now: cancel the menu) lets them go staggering.
+ * times the finishing move. (Michael 2026-10-20 08:20: "The guard cannot be let go either, only knocked out. Killed, or
+ * used as human shield") there is no let-go: the hold ends only in the knockout or the kill (and cleanly when the
+ * holder dies, the guard dies to something else, or the match restarts: `abort` / `reset`).
  */
 interface GrabState {
   hold: boolean;
@@ -80,8 +82,6 @@ export class TakedownController {
   offer: { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null = null;
   /** Running; `decided` once tap / hold is known (released early = non-lethal, held through = lethal). */
   active: { e: TakedownVictim; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number; grab: GrabState | null } | null = null;
-  /** (A4) The grab menu's cancel (let the guard go, staggering) this step (set by GameState). */
-  shovePressed = false;
   /** (A4) The grab menu's pick this step (set by GameState, read and cleared by the hold). */
   menuPick: GrabOpt | null = null;
   /** (A4) A carry pick: the body to shoulder once it exists (enemy id, seconds left to find it). */
@@ -411,16 +411,6 @@ export class TakedownController {
         // (the level's lines are not written yet: docs/story.md owns in-game text; a neutral feed line until then)
         g.hud.feedItem('Interrogated: nothing new');
       }
-      return;
-    }
-    if (this.shovePressed) {
-      // (A4) the menu's cancel: let them go with a push, staggering, then alert
-      c.speedCap = Infinity;
-      e.holdAt(c.pos.x + fx * (GRAB.hold + 0.5), c.pos.y, c.pos.z + fz * (GRAB.hold + 0.5), c.yaw);
-      this.release();
-      e.releaseTakedown(GRAB.shoveStagger);
-      this.grabs.shoved++;
-      g.events.emit('takedown', { phase: 'abort', lethal: false, kind: 'grab' });
       return;
     }
     // (A4, G23) the CT grab menu's pick: knock out, kill, or carry (a knockout, then the body goes on the shoulder)

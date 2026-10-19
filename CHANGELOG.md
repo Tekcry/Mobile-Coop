@@ -7,6 +7,9 @@
   stick / D-pad (wheel or W / S on keyboard and mouse) moves it, and releasing A runs that row (BACK TO GAME does
   nothing); a quick tap runs row 1; rows with a hold time (hacks, medkits, alarms, revive) fill while A stays on them.
   One menu replaces the separate door and grab menus; doors list OPEN DOOR, OPEN DOOR STEALTH, BASH DOOR, OPTIC CABLE.
+  Michael 08:10 / 08:20 / 08:25: behind a guard the list is GRAB CHARACTER (and BACK TO GAME); once grabbed there is
+  no let-go and no BACK TO GAME: RT kills, LT knocks out, aiming holds him as a human shield, and hold-A lists only
+  INTERROGATE for a guard with information (none have any yet, so no menu); other takedowns are one row (a knockout).
 - G6 walls, corners and doors (`docs/ct-prototype/G6-REPORT.md`, against the CT footage): crouched on a wall Wren turns
   side-on toward where she is going and crouch-walks along it bent over her knees with a hand on her knee (Michael: "holds
   knee when up against wall"), turning through facing out when she reverses (0.45 s); standing she sinks into a
