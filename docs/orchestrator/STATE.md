@@ -20,6 +20,7 @@ Active jobs (each resume prompt is in that job's STATE.md, fenced, at the end):
 | Night Shift | CT Core Build | desktop, C:/NightShift/Mobile-Coop-ct-prototype, feature/ct-prototype | docs/ct-prototype/STATE.md | slice F (F1-F7) at 980a9695: check + e2e on the desktop lock since 22:42, then GPU sheets, independent check, /ct/ |
 | Night Shift | Menu Notes Build | desktop, C:/NightShift/Mobile-Coop-menu-notes, feature/menu-notes | docs/menu-notes/STATE.md | master 4.7.3 merged (c32eb324); CT Core's two menu fixes asked first; fixes done in 4ae2d2f2; check + full e2e on the laptop, then its PR |
 | Night Shift | Character Build | laptop, test runner (C:/NightShift/Mobile-Coop-testrun) | CLAUDE.md "Machines" + docs/lightfield-heap/STATE.md | runner (CT Core, Menu Notes, Sector Ops); own job lightfield-heap e0984128: 5 loaded runs from 22:44, then a PR |
+| Night Shift | Course Ready Build | desktop, C:/NightShift/Mobile-Coop-course-ready, feature/course-ready | docs/course-ready/STATE.md | new 23:48: walkthrough audit, fixes, lighting pass, WALKTHROUGH.md |
 | Night Shift | Sector Ops Build | desktop, C:/NightShift/Mobile-Coop-sector-restart, feature/sector-restart | docs/sector-restart/STATE.md | M9 fix round 839a3a07 in a fresh check; master merged (cb7e1061); suites queued on the laptop; then PR (patch) |
 
 ## How Michael works with the orchestrator
@@ -55,7 +56,8 @@ orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu)
 - Merges: "Yes, all tonight": merge #26, the Menu Notes PR (4.8.0) and the Sector Ops restart PR (patch) when green and reviewed, then tag and move /preview/. Not the ct-prototype PR. (#26 merged 23:14.)
 - CT Core: after slice F, catalogue the footage (C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/, 88 clip folders, complete), audit our movement against it and rebuild it to match, with original code (ROADMAP "Decided"). Plus the hold-A action menu, identical to CT. Briefed 23:16 and 23:21.
 - Machines (23:35): "You have full control of desktop and laptop and all processing power required between them when i go to bed." Laptop overnight: normal priority, E2E_JOBS=2; still headless, logic e2e only, one lock per machine. All four sessions told at 23:36.
-- Morning for Michael: walk slice F on /ct/; the overnight report.
+- 23:45-23:48: Michael's morning bar for movement, the course-ready job (started 23:48, session "Night Shift | Course Ready Build", local_4d5454d2), warehouse-redesign for Sector Ops after its PR, laptop low priority from 09:30 (ROADMAP "Decided" has his words). Runner order: CT Core, Course Ready, Menu Notes, Sector Ops.
+- Morning for Michael: the co-op walkthrough of Marlow Yard on /ct/ (docs/course-ready/WALKTHROUGH.md), slice F and the movement slices, the launch screen on /preview/ (4.8.0), the Warehouse section 1 greybox; the overnight report.
 
 ## Waiting on Michael
 - New CT footage for the movement fine-tuning (legs, upper body in ADS, shimmy swing, drainpipe, pistol).
