@@ -7,9 +7,11 @@ targeted vitest) and the suites go to the laptop runner ("Night Shift | Characte
 **Now:** slice 2 built (M7: 3 sections, A12 cut; M8 routes and takedown spots; stars; syringes; protocol 24). Checker
 FAIL on 2079cb14 (alarm panels across sections), one fix round (c1f93ed7, A24), fresh checker PASS
 (`check-slice2-fix.md`). Laptop at c1f93ed7: check, smoke, e2e-sectorops, e2e-stealth-ai, e2e-coop pass. The full
-`npm run e2e` for the PR is on the laptop runner.
-**Next:** full e2e green, then the PR to master; the orchestrator merges (a minor version) and Michael sees it on
-/preview/.
+`npm run e2e` (laptop, 7a263ecc, E2E_JOBS=1): 30 of 31 pass; e2e-traverse failed once ("a tap kicks the grate in",
+noise 0, on proving grounds, no code of this job on that path) and passed a solo rerun on the desktop (noise 10). PR to
+master open.
+**Next:** the orchestrator reviews and merges (a minor version); Michael sees it on /preview/. Then his playtest of the
+3 sections; the courtyard, annex and roof wait for it (M7).
 **Polish list (after Michael plays it):** `step2-report.md` and `step3-report.md` "Polish list", `check-slice2.md`
 items 5 (a restart resets guards, devices, panels and camera meters, not doors or lamps), `check-slice2-fix.md`.
 **Open:**
