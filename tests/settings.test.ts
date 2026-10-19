@@ -41,7 +41,12 @@ describe('settings: remap and hold / toggle (step 18)', () => {
   });
 
   it('round trip through SettingsStore and fake-indexeddb kv/settings', async () => {
-    const st = new SettingsStore((v) => dbPut('kv', 'settings', v));
+    let saved!: () => void;
+    const done = new Promise<void>((r) => (saved = r));
+    const st = new SettingsStore(async (v) => {
+      await dbPut('kv', 'settings', v);
+      saved();
+    });
     st.load(await dbGet('kv', 'settings'));
     expect(st.get().pad).toEqual(defaultPadBinds());
     st.update((d) => {
@@ -55,6 +60,8 @@ describe('settings: remap and hold / toggle (step 18)', () => {
     expect(back.get().pad.draw).toEqual([PAD.RS]);
     expect(back.get().gameplay.grabToggle).toBe(false);
     expect(back.get().gameplay.wallToggle).toBe(false);
+    // the debounced save (250 ms) lands inside this test: under load it fired during a later test and overwrote kv/settings
+    await done;
   });
 });describe('settings: removed fields load (consolidation: custom difficulty G106, carried medkit G98)', () => {
   it('a literal old record with customDifficulty and a medkit key binding loads without them', () => {

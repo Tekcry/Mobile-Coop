@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.6.8 - Unit test timeouts under load (2026-10-19, PR #20)
+- Vitest's test timeout is 120 s (was the 5 s default): under load (an e2e run alongside) the unit run is about 10x
+  slower and heavy tests timed out. Per-test timeouts under 120 s are dropped (readyHands, menuShots, score).
+- settings.test's round trip waits for its own debounced save, which under load overwrote kv/settings in a later test.
+- Tests only; what each test checks is unchanged.
+
 ## 4.6.7 - Laptop test runner; co-op training first (2026-10-19, PR #19)
 Docs only (Michael). The laptop (Character Build) runs the desktop jobs' logic e2e on pushed commits when the desktop
 lock is held (CLAUDE.md "Machines", test tiers). Priority: the co-op training course first, Sector Ops on spare capacity
