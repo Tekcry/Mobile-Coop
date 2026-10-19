@@ -29,6 +29,7 @@ Not in scope: the selection wheel restyle (CT Core, later), anything in gameplay
 
 ## Michael's answers
 - M1 (2026-10-19 19:55, through the orchestrator): "Can you mock up new tactical shots for the main menu. Keep the main/first view as the close up of wrens goggles flicking on. Can you change it so it's full darkness until pressing the start button, which causes wrens goggles to flicker on in the darkness. Adjust darkness to suit so you can't see wren at all until pressing the button." Done as slice 4a (title in full darkness, the first press starts the goggle flicker-on on the existing close-up; launch only) and slice 4b (6-8 tactical shot mock-ups on one contact sheet; only the shots Michael picks are built).
+- M2 (2026-10-19, on the slice 2 sheet, through the orchestrator): "Don't show any loading text, just fade in the press any button text when it's loaded." Asked whether NIGHT SHIFT should fade in with the prompt: "Night shift should be visible always, but prompt should fade in once loaded". Done in slice 4a: one black screen with the wordmark from boot, no status text or progress line, the load gate unchanged, only the prompt fades in when it opens (also on a gate failure or cap).
 
 ## Assumed decisions (undo in brackets)
 - A1 Note 3 read as "remove the way back": the main menu already returned to the title on Back (menu-ui MD2), so the
