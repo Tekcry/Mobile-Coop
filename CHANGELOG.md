@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - course-ready
+## 4.12.0 - Marlow Yard light pass and walkthrough guide (2026-10-20, PR #33)
 Marlow Yard prototype light pass and the walkthrough guide (S2, S3; `docs/course-ready/LIGHT.md`, `WALKTHROUGH.md`).
 - Lamps in all seven airlocks (the pads read lit, nothing spills out with the doors shut), on the station 2 and 7 wall
   tops, over the station 5 roof (raised lamp), in its back room (hack panel) and at its medkit: 19 -> 29 baked lights.
