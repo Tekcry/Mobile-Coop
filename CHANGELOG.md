@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - Sector Restart
+## 4.8.2 - Sector Ops: a checkpoint restart is a clean start (2026-10-20, PR #29)
 - Sector Ops: a checkpoint restart is a clean start of the section (M9). The guards' shared memory goes back to its
   match-start state (`EnemyManager.resetMemory`: alarm, last known position and chase field, sighting flags, flanker,
   squads, AI clocks) and the section's guards load unaware on their routes. The loadout recorded when the section began
