@@ -1,0 +1,56 @@
+{
+  "name": "walk",
+  "note": "(CT prototype G8) The standing walk, keyed by hand against the footage (105509 @ 33-34 front, 105949 @ 12.0-12.5 side) and the G8 Before numbers: feet under the body (track about 0.65 hip widths, the soles just clear of each other), knees together, arms hanging close and swinging opposite the legs (forward about 13 deg with the elbow at 27, back about 11 with it nearly straight), the pelvis a little low on the loading step and high at mid stance (the legs' reach gives the rest of the 2-3 cm bob), the hips over the planted foot, the shoulders turning against the hips. Angles in degrees in the body frame (x right, y up, z forward): pitch about x (+ the top forward), yaw about y (+ turns right), roll about z (+ the right side up). Pelvis offsets in cm from rest. Arms: flex (+ forward), abd (+ out), elbow (+ bent). Legs: flex (+ the knee forward), add (+ the foot in toward the midline), knee (+ bent), ankle (+ the toes up from the shin's line). Phase 0 is the left heel strike; keys 0-0.375 are mirrored onto 0.5-0.875.",
+  "duty": 0.54,
+  "liftH": 0.06,
+  "kneeOut": 0.02,
+  "carry": 5,
+  "mirror": true,
+  "frames": 32,
+  "keys": [
+    {
+      "phase": 0,
+      "pelvis": { "dx": 0, "dy": -0.2, "dz": 0, "yaw": 4, "pitch": 5, "roll": 0 },
+      "spine": { "yaw": 1.5, "pitch": 4, "roll": 0 },
+      "chest": { "yaw": -3.5, "pitch": 4, "roll": 0 },
+      "neck": { "yaw": 0, "pitch": 2, "roll": 0 },
+      "armL": { "flex": -11, "abd": 7, "elbow": 14 },
+      "armR": { "flex": 13, "abd": 6, "elbow": 27 },
+      "legL": { "flex": 22, "add": 1.7, "knee": 3, "ankle": 0 },
+      "legR": { "flex": -16, "add": 1.7, "knee": 30, "ankle": -12 }
+    },
+    {
+      "phase": 0.125,
+      "pelvis": { "dx": -0.7, "dy": -0.5, "dz": 0, "yaw": 2.5, "pitch": 5, "roll": -2 },
+      "spine": { "yaw": 1, "pitch": 4, "roll": 1 },
+      "chest": { "yaw": -2.5, "pitch": 4, "roll": 1 },
+      "neck": { "yaw": 0, "pitch": 2, "roll": 0 },
+      "armL": { "flex": -8, "abd": 7, "elbow": 16 },
+      "armR": { "flex": 10, "abd": 6, "elbow": 24 },
+      "legL": { "flex": 16, "add": 1.7, "knee": 14, "ankle": -2 },
+      "legR": { "flex": -10, "add": 1.7, "knee": 58, "ankle": -8 }
+    },
+    {
+      "phase": 0.25,
+      "pelvis": { "dx": -1.2, "dy": 0.3, "dz": 0, "yaw": 0, "pitch": 5, "roll": -2.5 },
+      "spine": { "yaw": 0, "pitch": 4, "roll": 1.2 },
+      "chest": { "yaw": 0, "pitch": 4, "roll": 1.2 },
+      "neck": { "yaw": 0, "pitch": 2, "roll": 0 },
+      "armL": { "flex": 2, "abd": 6, "elbow": 20 },
+      "armR": { "flex": 2, "abd": 6, "elbow": 20 },
+      "legL": { "flex": 4, "add": 1.7, "knee": 5, "ankle": 4 },
+      "legR": { "flex": 12, "add": 1.7, "knee": 35, "ankle": 4 }
+    },
+    {
+      "phase": 0.375,
+      "pelvis": { "dx": -0.8, "dy": 0.2, "dz": 0, "yaw": -2.5, "pitch": 5, "roll": -1 },
+      "spine": { "yaw": -1, "pitch": 4, "roll": 0.5 },
+      "chest": { "yaw": 2.5, "pitch": 4, "roll": 0.5 },
+      "neck": { "yaw": 0, "pitch": 2, "roll": 0 },
+      "armL": { "flex": 11, "abd": 6, "elbow": 25 },
+      "armR": { "flex": -8, "abd": 7, "elbow": 15 },
+      "legL": { "flex": -8, "add": 1.7, "knee": 6, "ankle": 10 },
+      "legR": { "flex": 24, "add": 1.7, "knee": 8, "ankle": 2 }
+    }
+  ]
+}

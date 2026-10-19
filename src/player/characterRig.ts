@@ -14,6 +14,7 @@ import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
+import { KA, KQ, type KeyedPose } from '../anim/keyed';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -263,6 +264,9 @@ const TRAVEL_HOLD_RATE = 5;
 const CLIMB_FOOT_BELOW = 0.35;
 /** Closest the two knee centres may come (m): two kneecaps side by side. */
 export const KNEE_GAP = 0.15;
+/** (CT prototype G8) Under the keyed walk the knees pass closer (its feet under the body, CT's narrow track): the bow-out
+ *  rule starts at this centre distance (m) instead (e2e-clip keeps them >= 9 cm apart). */
+export const KEYED_KNEE_GAP = 0.11;
 /** A knee's centre never goes lower than this above the floor (m): the kneecap rests on it. */
 export const KNEE_FLOOR = 0.05;
 /** (CT prototype G1, audit rows 16 / 27) Moving crouched (sneak, crouch walk, crouch run) the rear knee stays this high
@@ -325,6 +329,14 @@ function freshBelow(n: TransformNode, anchor: TransformNode): void {
 }
 
 const tmpQ = new Quaternion();
+// (G8) keyed walk temporaries
+const kP = new Quaternion();
+const kS = new Quaternion();
+const kT = new Quaternion();
+const kF = new Quaternion();
+const kSave = new Quaternion();
+const kV = new Vector3();
+const kH = new Vector3();
 /**
  * (operators step 11e) An elbow keeps this far (m) outside the trunk's half depth from the trunk line (pelvis -> neck
  * base). A rate-limited arm swinging from a back draw to the grip (G72's lower shoulder) passed the elbow through the
@@ -797,6 +809,13 @@ export class CharacterRig {
   private yawRateS = 0;
   /** (A1.2) Pelvis yaw toward the planted feet (rad, from the root), and the pelvis world yaw the knee poles use. */
   private follow = 0;
+  /** (G8) This frame's keyed walk weight on the body (after the free-movement gate) and the knee pole out-share. */
+  private keyWNow = 0;
+  /** (G8) The keyed walk's weight on the body this frame (tests, the debug trace). */
+  get keyedWalk(): number {
+    return this.keyWNow;
+  }
+  private kneeOutNow = KNEE_OUT;
   private pelvisWorldYaw = 0;
   /** (G6 fix) The legs' yaw override this frame (side-on at a wall: the body's), NaN = the planner's foot yaws. */
   private legYaw = Number.NaN;
@@ -1292,6 +1311,9 @@ export class CharacterRig {
     i.crouch = s.crouch;
     i.kneel = s.kneel ?? false;
     i.tense = s.tense ?? false;
+    // (G8) the keyed walk: free movement along the facing, not holding / carrying / lowering a body (the hostage walk
+    // keeps its own offset stance clear of the guard's legs: g7CloseQuarters)
+    i.keyedOk = s.stride === 'facing' && !((s.bend ?? 0) > 0) && !((s.bendDrop ?? 0) > 0);
     i.aimPitch = s.aimPitch;
     i.raise = s.aim;
     i.kick = s.kick;
@@ -1695,9 +1717,20 @@ export class CharacterRig {
     // (G1 fix) free movement only (stride 'facing'): aiming, strafing and the wall keep the 3.2.0 soft knee and pelvis hold
     // (their wide side-steps need the slack: e2e-anim aim strafe foot lock)
     const freeGait = this.pin.stride === 'facing';
+    // (CT prototype G8) the keyed walk (G8-PLAN.md) in free movement on foot: its pelvis offset, knee pole and (below) trunk
+    // and arms over the procedural pose; the feet stay the planner's (world-locked, slopes, turns)
+    const kw = freeGait && !free ? t.keyW : 0;
+    this.keyWNow = kw;
+    const kq = t.keyed;
+    const kk = p.height / 1.75;
+    const pex = pe.x + (kq.pel[0]! * kk - pe.x) * kw;
+    // (the height adds to the procedural one: the posture's knee bend and the legs' reach stay; the clip shapes the step)
+    const pey = pe.y + kq.pel[1]! * kk * kw;
+    const pez = pe.z + (kq.pel[2]! * kk - pe.z) * kw;
+    this.kneeOutNow = KNEE_OUT + (t.keyKneeOut - KNEE_OUT) * kw;
     const softStand = freeGait ? SOFT_KNEE_STAND : 0.97;
     const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : softStand - (softStand - 0.97) * Math.max(0, this.input.crouch * 2));
-    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
+    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pey - 0.03;
     // (G1 fix, audit row 9) standing still the body settles over its feet: a stop's slide leaves the frozen feet behind the
     // capsule (up to ~0.3 m), so the hips come back toward the feet's midpoint (at most REST_SHIFT, eased); the same on a
     // remote copy (from its own planted feet)
@@ -1707,7 +1740,7 @@ export class CharacterRig {
       const target = still ? Math.max(-REST_SHIFT, Math.min(REST_SHIFT, mid)) : 0;
       this.restShift = approachTo(this.restShift, target, dt, 0.06);
     }
-    const peZ = pe.z + this.restShift;
+    const peZ = pez + this.restShift;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
     let need = 0;
@@ -1751,7 +1784,7 @@ export class CharacterRig {
         if (up > 0) need = Math.max(need, (k === 0 ? this.liftL : this.liftR) * up * (1 - u * u * (3 - 2 * u)));
       }
       if (w <= 0) continue;
-      const hx = pe.x + (k === 0 ? -p.hipHalf : p.hipHalf);
+      const hx = pex + (k === 0 ? -p.hipHalf : p.hipHalf);
       const dh = hyp2(f.x - (rp.x + hx * yc + peZ * ys), f.z - (rp.z - hx * ys + peZ * yc));
       // (G1) with the heel lift the IK target gets (the toe raise and heel roll lengthen the leg: no dip for them)
       const footY = f.y + p.y.ankle + (k === 0 ? lYc : rYc) + heelLift(f);
@@ -1778,7 +1811,7 @@ export class CharacterRig {
     const fall = 0.08 + (free ? 0 : (freeGait ? PELVIS_HOLD : PELVIS_HOLD_AIM) * Math.min(1, hyp2(this.velX, this.velZ) / 1.2));
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, fall);
     if (!turned && this.pelvisDrop < hard) this.pelvisDrop = hard;
-    this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, peZ);
+    this.hips.position.set(pex, this.pelvisRest + pey - this.pelvisDrop, peZ);
     // (A1.2) the hips follow the legs (this.follow); the spine takes it back so the chest stays on the facing
     Quaternion.RotationYawPitchRollToRef(pe.yaw + this.follow, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
     // (on a wall the knees keep to the feet, as before)
@@ -1793,6 +1826,7 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
     // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
+    if (kw > 0) this.keyedTrunk(kq, kw);
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
@@ -1863,9 +1897,10 @@ export class CharacterRig {
     }
     // anatomy: the knees never knock through each other (side-steps, leaning out): bow them outward
     const kneeGap = Vector3.Distance(this.kneeL.getAbsolutePosition(), this.kneeR.getAbsolutePosition());
-    if (kneeGap < KNEE_GAP) {
+    const gapMin = KNEE_GAP + (KEYED_KNEE_GAP - KNEE_GAP) * kw;
+    if (kneeGap < gapMin) {
       // steeper bow the closer they came (a pole up to ~70 deg outward)
-      const bow = KNEE_OUT + (1 - kneeGap / KNEE_GAP) * 6;
+      const bow = this.kneeOutNow + (1 - kneeGap / gapMin) * 6;
       this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
       this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
     }
@@ -1987,6 +2022,12 @@ export class CharacterRig {
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
     this.limitJoint(this.elbowR, dt);
+    // (G8) the keyed walk's arms (free hands only: no grip, no world grip, no knee hand)
+    const kaw = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
+    if (kaw > 0) {
+      this.keyedArm(1, kaw * (1 - Math.min(1, this.reachR.w)), kq);
+      this.keyedArm(-1, kaw * (1 - Math.min(1, this.reachL.w)), kq);
+    }
     this.keepElbowOut(1);
     this.keepElbowOut(-1);
     // (G6 fix, check BLOCK 3) on a wall no elbow goes into the face (the crouched reversal's hands to the knee / shin)
@@ -1994,6 +2035,73 @@ export class CharacterRig {
       this.keepElbowOffWall(1);
       this.keepElbowOffWall(-1);
     }
+  }
+
+  /**
+   * (CT prototype G8) The keyed walk's trunk over the procedural one by `w`: the pelvis takes the keyed rotation with the
+   * turn follow on top (the hips follow the planted feet), the spine takes the follow back (the chest keeps the facing),
+   * chest and neck their keyed local rotations. No allocation.
+   */
+  private keyedTrunk(kq: KeyedPose, w: number): void {
+    const q = kq.q;
+    const P = KQ.pelvis;
+    kP.set(q[P]!, q[P + 1]!, q[P + 2]!, q[P + 3]!);
+    Quaternion.RotationYawPitchRollToRef(this.follow, 0, 0, kF);
+    kF.multiplyToRef(kP, kT);
+    Quaternion.SlerpToRef(this.hips.rotationQuaternion!, kT, w, this.hips.rotationQuaternion!);
+    const S = KQ.spine;
+    kS.set(q[S]!, q[S + 1]!, q[S + 2]!, q[S + 3]!);
+    Quaternion.RotationYawPitchRollToRef(-this.follow, 0, 0, kF);
+    Quaternion.InverseToRef(kP, kT);
+    kT.multiplyToRef(kF, kT);
+    kT.multiplyToRef(kP, kT);
+    kT.multiplyToRef(kS, kT);
+    Quaternion.SlerpToRef(this.spine.rotationQuaternion!, kT, w, this.spine.rotationQuaternion!);
+    const C = KQ.chest;
+    kT.set(q[C]!, q[C + 1]!, q[C + 2]!, q[C + 3]!);
+    Quaternion.SlerpToRef(this.torso.rotationQuaternion!, kT, w, this.torso.rotationQuaternion!);
+    const N = KQ.neck;
+    kT.set(q[N]!, q[N + 1]!, q[N + 2]!, q[N + 3]!);
+    Quaternion.SlerpToRef(this.neck.rotationQuaternion!, kT, w, this.neck.rotationQuaternion!);
+  }
+
+  /**
+   * (CT prototype G8) One keyed arm over the solved one by `w`: the upper arm turned onto the keyed elbow point and the
+   * forearm onto the keyed wrist point (both from the shoulder joint in the chest frame), with the rig's own bone frames
+   * (+Z toward the body's front), so the free hand keeps its orientation. No allocation.
+   */
+  private keyedArm(side: 1 | -1, w: number, kq: KeyedPose): void {
+    if (w <= 0) return;
+    const sh = side > 0 ? this.shoulderR : this.shoulderL;
+    const el = side > 0 ? this.elbowR : this.elbowL;
+    const wr = side > 0 ? this.wristR : this.wristL;
+    const a = kq.arm;
+    const kk = this.p.height / 1.75;
+    const eo = side > 0 ? KA.elbowR : KA.elbowL;
+    const wo = side > 0 ? KA.wristR : KA.wristL;
+    fresh(sh);
+    const S = sh.getAbsolutePosition();
+    const Rc = this.torso.absoluteRotationQuaternion;
+    this.dirToWorld(0, 0, 1, kH);
+    // upper arm onto the keyed elbow
+    kV.set(a[eo]! * kk, a[eo + 1]! * kk, a[eo + 2]! * kk);
+    kV.rotateByQuaternionToRef(Rc, kV);
+    kSave.copyFrom(sh.rotationQuaternion!);
+    boneRotation(kV, kH, tmpQ3);
+    this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
+    Quaternion.SlerpToRef(kSave, sh.rotationQuaternion!, w, sh.rotationQuaternion!);
+    fresh(sh);
+    fresh(el);
+    // forearm from where the elbow is now onto the keyed wrist
+    kV.set(a[wo]! * kk, a[wo + 1]! * kk, a[wo + 2]! * kk);
+    kV.rotateByQuaternionToRef(Rc, kV);
+    kV.addInPlace(S).subtractInPlace(el.getAbsolutePosition());
+    kSave.copyFrom(el.rotationQuaternion!);
+    boneRotation(kV, kH, tmpQ3);
+    this.setWorldRot(el, sh, tmpQ3);
+    Quaternion.SlerpToRef(kSave, el.rotationQuaternion!, w, el.rotationQuaternion!);
+    fresh(el);
+    fresh(wr);
   }
 
   /**
@@ -2382,7 +2490,7 @@ export class CharacterRig {
 
 
   /** Leg IK onto a world ankle target; the foot takes its world yaw and the swing / pose pitch. */
-  private solveLegWorld(hip: TransformNode, knee: TransformNode, ankle: TransformNode, x: number, y: number, z: number, footYaw: number, footPitch: number, side: number, out = KNEE_OUT): void {
+  private solveLegWorld(hip: TransformNode, knee: TransformNode, ankle: TransformNode, x: number, y: number, z: number, footYaw: number, footPitch: number, side: number, out = this.kneeOutNow): void {
     const p = this.p;
     if (!Number.isNaN(this.legYaw)) footYaw = this.legYaw;
     fresh(hip);

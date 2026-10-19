@@ -37,6 +37,8 @@ import { DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, ST
 import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { effortSpeed } from './effort';
+import { newKeyedPose, sampleKeyed, type KeyedPose } from './keyed';
+import { KEYED_WALK } from './clips/keyed/walk';
 
 
 export const FADE = 0.2;
@@ -60,6 +62,9 @@ export interface AnimInput {
   kneel: boolean;
   /** (G1, audit row 26) Close to an unaware guard: crouched at a sneak pace the tense sneak takes over (TENSE). */
   tense: boolean;
+  /** (CT prototype G8) The keyed walk may play: free movement along the facing with nothing in the arms' or body's way
+   *  (no close-quarters hold, carry or knockout bend); the rig sets it. Off by default (guards, scripted rigs). */
+  keyedOk: boolean;
   /** Aim pitch (up +) and aim yaw relative to the body (radians). */
   aimPitch: number;
   aimYaw: number;
@@ -183,6 +188,7 @@ export function defaultInput(): AnimInput {
     crouch: 0,
     kneel: false,
     tense: false,
+    keyedOk: false,
     aimPitch: 0,
     aimYaw: 0,
     raise: 0,
@@ -286,6 +292,13 @@ export interface RigTargets {
    *  the right knee, -1 the left; magnitude the weight), the wall-side hand low by its shin. The rig places both on its
    *  posed legs. */
   kneeHand: number;
+  /** (CT prototype G8) The keyed walk (`clips/keyed/walk.ts`, G8-PLAN.md): its weight on the body (pelvis, spine, chest,
+   *  neck, legs' track and knee pole) and on the free arms, its pose sampled on this frame's gait phase, and its knee
+   *  pole out-share. The rig blends toward it after its procedural solve. */
+  keyW: number;
+  keyArmW: number;
+  keyed: KeyedPose;
+  keyKneeOut: number;
 }
 
 export function emptyTargets(): RigTargets {
@@ -312,6 +325,10 @@ export function emptyTargets(): RigTargets {
     stockWeld: 1,
     aimW: 0,
     kneeHand: 0,
+    keyW: 0,
+    keyArmW: 0,
+    keyed: newKeyedPose(),
+    keyKneeOut: KEYED_WALK.kneeOut,
   };
 }
 
@@ -602,6 +619,8 @@ export class AnimGraph {
   private swayS = 0;
   /** Ready-hands weight (A42), eased ~0.25 s. */
   private readyW = 0;
+  /** (G8) The keyed walk's eased weight. */
+  private keyW = 0;
   /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
   private handClipW = 0;
   /** Ready-hands follow of the chest and pelvis (m, root space), eased by READY_HANDS.lag. */
@@ -1359,6 +1378,20 @@ export class AnimGraph {
     }
     // (G1) free-hand poses over the ready hands, in root space after the follow (pose units at 1.75 m)
     if (fw > 0.0001) this.freeHands(pose, fw, k, ph);
+    // (CT prototype G8) the keyed walk: standing, moving at walk pace, on foot (no wall, traversal, air, slide), not
+    // raised to aim or dashing; its arms only with free hands (holstered, no reload / swap / throw, no melee)
+    {
+      const es = effortSpeed(locoSpeed, false);
+      const B = KEYED_WALK_BAND;
+      const band = 1 - smoothstep((es - B.from) / (B.to - B.from));
+      const onFoot = i.keyedOk && i.grounded && i.traverse === 'none' && i.slide < 0 && !i.wall ? 1 : 0;
+      // (not turning on the spot: the turn's own stepping; last frame's turning share)
+      const kT = this.moveW * (1 - crouchK) * band * onFoot * (1 - wallW) * (1 - this.raiseS) * (1 - this.dashS) * (1 - o.gait.turning);
+      this.keyW = approach(this.keyW, kT, B.tau, dt);
+      o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
+      o.keyArmW = o.keyW * fw * (i.melee >= 0 ? 0 : 1);
+      if (o.keyW > 0) sampleKeyed(KEYED_WALK, ph, B.ampMin + (1 - B.ampMin) * clamp(es / 1.1, 0, 1), o.keyed);
+    }
     this.writeTargets(pose, i, k, ph);
     this.out.weaponBob = this.bobResidual;
     o.readyFollow = fw;
@@ -1446,7 +1479,9 @@ export class AnimGraph {
     // (BC note 4) on foot the feet stay under the hips (inside the body width): the clips' width scale only widens the stance
     // a quarter as much, capped at 1.1 hip half-widths (it was 1.2 x width: up to 1.6 crouched). Traversals keep their own width.
     const wd = q[CH.width]!;
-    const half = this.p.hipHalf * (i.traverse === 'none' && !i.wall ? 1 + clamp(wd - 1, -0.5, 0.4) * 0.25 : 1.2 * wd);
+    const half0 = this.p.hipHalf * (i.traverse === 'none' && !i.wall ? 1 + clamp(wd - 1, -0.5, 0.4) * 0.25 : 1.2 * wd);
+    // (CT prototype G8) the keyed walk's narrow track (the feet under the body, the soles just clear)
+    const half = half0 + (KEYED_WALK.half - half0) * o.keyW;
     const st = o.stance;
     // (G1 fix, audit row 20) standing still on foot the feet sit ~0.3 m apart (CT 105509 @ 16-27: 0.3-0.4 m, one foot ~0.1 m ahead)
     const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
@@ -1489,8 +1524,13 @@ export class AnimGraph {
     // (G1) the tense sneak's own contact timing and high knee lift
     const duty0 = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
     const lift0 = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
-    const duty = duty0 + (TENSE_SNEAK.duty - duty0) * tense;
-    const lift = lift0 + (TENSE_SNEAK.liftH - lift0) * tense;
+    const duty1 = duty0 + (TENSE_SNEAK.duty - duty0) * tense;
+    const lift1 = lift0 + (TENSE_SNEAK.liftH - lift0) * tense;
+    // (G8) the keyed walk's contact timing and swing lift
+    // (slower the stance is longer and the swing lower: KEYED_WALK_BAND.duty / lift at a standstill)
+    const kp = clamp(es / 1.1, 0, 1);
+    const duty = duty1 + (KEYED_WALK.duty + KEYED_WALK_BAND.slowDuty * (1 - kp) - duty1) * o.keyW;
+    const lift = lift1 + (KEYED_WALK.liftH * (1 - KEYED_WALK_BAND.slowLift * (1 - kp)) - lift1) * o.keyW;
     // (A1.2) a shorter stance in a turn: less body yaw over a planted foot
     g.duty = clamp(duty + (TURN_DUTY - duty) * g.turning, 0.4, 0.75);
     g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
@@ -1517,6 +1557,15 @@ const NEUTRAL_POSE: Pose = newPose();
 
 /** (G1 fix, audit row 20) The standing rest stance: `extra` (m) wider each side than the hips, the left foot `lead` (m) ahead and the right as far behind. */
 export const IDLE_STANCE = { extra: 0.065, lead: 0.05 } as const;
+
+/**
+ * (CT prototype G8) Where the keyed walk plays: at full weight up to `from` effort pace (GAIT_REF units: 1.1 is gear 2,
+ * 1.4 m/s), gone by `to` (2.0 is gear 3, 2.1 m/s: the procedural brisk / jog cycles take over); `ampMin` the cycle's
+ * share at a standstill (a slow walk swings less, full at gear 2); `tau` (s) the weight's easing (stance, wall, air,
+ * aim changes never pop); `slowDuty` the stance share added and `slowLift` the swing lift share taken off at a standstill
+ * (a slower walk keeps each foot down longer and lifts it less).
+ */
+export const KEYED_WALK_BAND = { from: 1.2, to: 1.8, ampMin: 0.5, tau: 0.08, slowDuty: 0.04, slowLift: 0.25 } as const;
 
 /** (G1) Move a free hand target (channels x, y, z from `ch`) toward (x, y, z) by `w`. */
 function blendHand(q: Pose, ch: number, x: number, y: number, z: number, w: number): void {

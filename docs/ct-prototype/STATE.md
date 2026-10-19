@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-20 08:35 Sydney (PR #31 merged as 4.10.0; PR #32 open at 367197a0: G5-G7 + Michael 08:10-08:25 guard menu; slice tier running).
+Updated 2026-10-20 10:20 Sydney (#34 PR 3 open, full e2e on the laptop; G8 animation feel is top priority, implementer running; H1 parked).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -74,12 +74,13 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
    action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
    Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
-   **Progress (08:35):** PR #31 merged (4.10.0, 5f283190). PR #32 (https://github.com/Tekcry/Mobile-Coop/pull/32) open
-   at 367197a0: G5 hold-A menu (with Michael 08:10 / 08:20 / 08:25: grab only, triggers KO / kill, no release, no BACK
-   TO GAME held), G6 walls / doors / wall knee, G7 grab / hold / KO / carry, fix rounds. Full e2e on 8ce58ee2 green
-   (ctcourse solo); slice tier on 367197a0 running (desktop e2e:quick, laptop coop / ctcourse / netmove): fill TIER_LINE
-   in docs/ct-prototype/PR2-BODY.md and the PR. Next after #32: the remaining audit gaps (scope view, rope climb, floor
-   trap, shaft, goggle touch, free jumps, crouched climb-over), each with a measured row in audit/.
+   **Progress (10:20):** #31 (4.10.0) and #32 (4.11.0) merged; #34 (PR 3, interrogation guard, head 3c70c0d9) open,
+   its full e2e running on the laptop; do not push feature/ct-prototype until the orchestrator says merged. Michael
+   10:10 (DECISIONS): the animations look weird and unnatural (crab-wide legs, elbows out, crouch idle too quick, the
+   knee hand upside down, stiff). G8 animation feel is top priority: Opus implementer, evidence sheets first
+   (`shots/g8/before`, `after`), measured track width / knees / elbows / cycles, then fixes, then a rig finding
+   (`G8-REPORT.md`). H1 parked on the local branch park/ct-h1-wip (88c37f71, unverified: walk head travel, the crouch-run
+   roll): reapply after G8 if still wanted. Then H2 traversal, H3 scope / goggle touch.
    **Michael 23:55 (via the orchestrator):** everything in one build on master by morning: at 04:30 merge origin/master and
    feature/course-ready, full `npm run e2e` on the PR head, update `PR-BODY.md`, `gh pr create`, message the orchestrator
    by 06:00 (no version bump). After that, slices go to /ct/ only, not into the PR.

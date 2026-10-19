@@ -53,6 +53,10 @@ const SCENARIOS = {
   sneak: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.4 }, input: () => ({ y: 0.4 }), at0: "a.input.state.tap('crouch');" },
   crouchrun: { pos: [-8, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('crouch');" },
   sprint: { pos: [-14, -14], yaw: Math.PI / 2, pre: 1.2, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('dash');" },
+  // (CT prototype G8) the top gear's run (4.5 m/s; CT has no sprint button: `sprint` above is the full-stick jog) and the
+  // top crouched gear (2.6 m/s)
+  run: { params: 'autostart=proving&gear=5', pos: [-16, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }) },
+  crouchrun5: { params: 'autostart=proving&gear=5', pos: [-12, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('crouch');" },
   start: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }) },
   stop: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 1 }, input: () => ({ y: 0 }) },
   // 3.2.0: the Chaos Theory stop holds the stride (crouched, and from a slow walk)

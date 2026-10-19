@@ -142,7 +142,8 @@ describe('graph', () => {
     const i = defaultInput();
     i.speed = 0.45;
     i.localZ = 1;
-    g.update(1 / 60, i);
+    // (G8) settled: the keyed walk's weight eases in (KEYED_WALK_BAND.tau); its stance is longer the slower it walks
+    for (let k = 0; k < 30; k++) g.update(1 / 60, i);
     const creep = { duty: g.out.gait.duty, lift: g.out.gait.liftH };
     i.speed = 1.4;
     for (let k = 0; k < 30; k++) g.update(1 / 60, i);
