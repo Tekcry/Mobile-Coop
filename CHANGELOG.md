@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - menu-notes (Michael's walk-test menu notes, `docs/menu-notes/`)
+## 4.8.0 - Menu notes: black launch screen, goggle flicker, menu weapons and poses (2026-10-19, PR #27)
 - Launch (M1, M2, notes 1-2): one black screen with the NIGHT / SHIFT wordmark only, held until Wren's hero model,
   both weapon meshes and the shaders are ready (`src/world/menuGate.ts`: a stall timeout of 12 s with no bytes
   arriving, a hard cap of 120 s, never stranded); then only the press prompt fades in. The title stage is pure black;
