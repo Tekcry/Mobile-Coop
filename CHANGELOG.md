@@ -6,6 +6,16 @@
 - settings.test's round trip waits for its own debounced save, which under load overwrote kv/settings in a later test.
 - Tests only; what each test checks is unchanged.
 
+## 4.6.7 - Laptop test runner; co-op training first (2026-10-19, PR #19)
+Docs only (Michael). The laptop (Character Build) runs the desktop jobs' logic e2e on pushed commits when the desktop
+lock is held (CLAUDE.md "Machines", test tiers). Priority: the co-op training course first, Sector Ops on spare capacity
+(ROADMAP.md). Dashboard and orchestrator state updated.
+
+## 4.6.6 - e2e-menus slider fix: hold-repeat waits on the condition (2026-10-19, PR #18)
+- e2e-menus: holding right on the Effects slider waits until a fast step lands and sfx passes 0.2 (15 s cap)
+  instead of a fixed 3.2 s; under load fewer frames ran in that time and the check failed. The results-screen wait
+  is a 60 s hang guard (was 15 s; it ran out under load). Tests only.
+
 ## 4.6.5 - Co-op test fix: reliable co-op suites (2026-10-19, PR #17)
 The process audit's section 2 (Michael approved; `docs/coop-tests/`). Tests only, no game change.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the game's own clock: on software GL
