@@ -4,8 +4,8 @@
 music, leftover gadgets and door memory, and no fresh kit. Light checks pass. The laptop runner has check + smoke,
 e2e-sectorops, e2e-coop, e2e-netmove, e2e-combat, e2e-ctcourse, e2e-score on 92ccfec6; a fresh checker writes
 `CHECK.md`.
-Checker FAIL (`CHECK.md`: a throw in hand at the down finished after the restart); the fix round is committed (see
-the git log after 0f29f130; `REPORT.md` "Fix round"): the throw ends at the restore, the e2e shot spot sits in the
+Checker FAIL (`CHECK.md`: a throw in hand at the down finished after the restart); the fix round is committed (839a3a07;
+`REPORT.md` "Fix round"): the throw ends at the restore, the e2e shot spot sits in the
 18-26 m band with a loud control shot. Light checks pass (tsc, ESLint, vitest sectorRestart 8/8).
 **Next:** (1) rerun the targeted Vitest files sectors, sectorStep3, enemyManagerDespawn, arsenal, score, net, gadgets,
 sectorRecord (light); (2) read the laptop runner's results on 92ccfec6 if they arrived, then send the fix-round head to
