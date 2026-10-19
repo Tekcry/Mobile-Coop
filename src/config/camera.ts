@@ -21,6 +21,10 @@ export const CAMERA = {
   pivotCrouch: MOVEMENT.crouchHeight,
   /** Aim: the pivot drops to eye height (m below the head top; measured: camera at eye height to head top). Starting value. */
   aimEyeDrop: 0.24,
+  /** (F2) Aiming crouched, the share of the crouch drop the pivot follows: from the kneel (F3) the aiming upper body is
+   *  upright, the head about 0.41 m below standing against the 0.6 m crouch drop (shots/f/aimcrouch-side); the full drop put
+   *  the camera behind her shoulder. Starting value (G10). */
+  aimCrouchShare: 0.68,
   /** Camera height relative to the pivot (m): 0, the camera orbits the head (the measured ~2.3 m height at the default ~17 deg down pitch comes from the pitch). */
   height: 0,
   /** Default pitch at spawn (rad, negative = looking down): about 17 deg down (measured). The player controls it after that. */
@@ -94,8 +98,9 @@ export function framing(ads: number, crouch: number, C = CAMERA): { boom: number
     boom: C.boomHip + (C.boomAds - C.boomHip) * ads,
     shoulder: C.shoulderHip + (C.shoulderAds - C.shoulderHip) * ads,
     // (F2, playtest 2 "aiming camera doesn't follow body when crouching") the pivot follows the body down crouched, aiming
-    // or not; the framing relative to the body (eye drop, boom, shoulder) is the same standing and crouched (BC note 1)
-    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch - C.aimEyeDrop * ads,
+    // or not; the framing relative to the body (eye drop, boom, shoulder) is the same standing and crouched (BC note 1);
+    // aiming, it follows the kneel's upright aim (`aimCrouchShare` of the crouch drop)
+    pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch * (1 - ads * (1 - C.aimCrouchShare)) - C.aimEyeDrop * ads,
   };
 }
 

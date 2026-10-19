@@ -5,7 +5,8 @@
 // vault, dash, strafe; back to a wall (step 11): wall, wallcrouch, wallslide, wallslideleft, walledge, walledgeleft, lowwall
 // (edge peek / lean both edges arrive with step 12); aimed edge lean-outs (PC1): walledgeaim, walledgeleftaim and their
 // pistol variants walledgeaimp, walledgeleftaimp. reload and swap run drawn (aim held: step 09 holsters by default);
-// holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put)
+// holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put); (F4)
+// walledgelook, walledgeleftlook: at an edge, the camera swung one way then the other
 import { launch, waitOperator } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -63,6 +64,10 @@ const SCENARIOS = {
   walledgeleftaim: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
   walledgeaimp: { weapon: 'pistol', wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({ ads: true }) },
   walledgeleftaimp: { weapon: 'pistol', wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
+  // (F4) at each edge (slid there in the warm-up, stick released), the camera swung one way then the other: the body
+  // leans only to the open side, the camera slides past the edge as the look turns toward it
+  walledgelook: { wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
+  walledgeleftlook: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
   lowwall: { wall: { low: true, k: 0.8 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t > 0.6 && t < 1.2 ? 1 : 0 }) },
   aim: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ ads: true }) },
   // (BC) the aim crouched, and the pistol both ways

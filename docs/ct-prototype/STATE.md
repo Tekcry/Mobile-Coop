@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-19 22:35 Sydney (slice F code WIP, unverified, not on /ct/; master 4.7.2 merged at 8882261b, slices D+E and D2b; /ct/ at 624fca6b, moved by the orchestrator so Co-op > Host reaches Marlow Yard).
+Updated 2026-10-19 23:45 Sydney (slice F verified and on /ct/; overnight: the footage catalogue, audit and movement slices, Michael 23:15 / 23:20; master 4.7.2 merged at 8882261b).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -32,6 +32,10 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
   step.
 
 ## Done today (2026-10-19)
+- **Slice F** (980a9695, 637d41d5 and the verify commit, `F-REPORT.md`, sheets `shots/f/`): shoulder always right
+  holstered, crouched ADS camera follows the body (`aimCrouchShare` 0.68), crouch idle kneels, corner lean from the
+  edge with a camera slide (0.55 s), climb-up knees then stand, rifle draw raises with its travel (0.45 s, G103), pad
+  D-pad migration (`padV`). Check green (1798); e2e tier green; check PASS.
 - **Slice A** (e9fd03c6, `A-PLAYTEST2.md`): speeds re-spaced from the old speed 2 (D-pad sets them; stick full push from
   0.9), ADS look 0.3, corner peek side in the camera frame, wall side becomes the shoulder and the last swap is saved as
   the default shoulder, swap flick +13 -> +4 cm, wall entry reach 0.5 m, own footsteps follow the noise radius,
@@ -59,29 +63,20 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
   e2e-netmove, e2e-coop pass.
 
 ## Next
-1. **Slice F** (in progress, started 2026-10-19 ~21:45): Michael's walk notes are in `WALK-2026-10-19.md` (every item
-   "Not right"; he is recording new CT footage). `F-BRIEF.md` takes only the clear items: F1 shoulder always right when
-   holstered, a left swap lasts only while aiming; F2 crouched ADS camera follows the body down; F3 crouch idle kneels;
-   F4 corner lean only toward the open side, camera slides sideways; F5 climb-up hands hold until the knee, no hop; F6
-   rifle draw without the low-ready dip; F7 answer "D pad left and right is speed?" (speed is D-pad up / down and the
-   stick; make prompts agree; menu-screen text goes to Menu Notes). Fine-tuning items wait for the footage (listed in
-   the brief). Loop: Opus implementer from F-BRIEF -> independent Opus check -> at most 1 fix round -> check + e2e ->
-   commit, push, /ct/, report `F-REPORT.md` to the orchestrator with the F7 answer.
-   **Where it stands (22:35, account switch): code for F1-F7 is written and committed as WIP (see git log "slice F
-   WIP"); NOT yet verified beyond typecheck, lint on changed files and 12 unit test files. NOT on /ct/** (ct-movement
-   stays 624fca6b). Status per item: `F-REPORT.md` "Status". Settings gained `padV` with a migration (literal A3 save
-   test); no wire change (protocol 24).
-   **Next, in order:** (a) heavy lock, `npm run check`; (b) e2e one at a time on 4193: e2e-wall, e2e-anim, e2e-clip,
-   e2e-traverse, e2e-weapons-carry, e2e-pad, e2e-move, then `npm run e2e:quick`, e2e-ctcourse, e2e-coop, e2e-netmove
-   (likely trouble: e2e-wall peek camera, e2e-clip / weapons-carry rifle clearance on the new draw, e2e-traverse
-   climb-up grip reach, e2e-netmove crouch kneel); fix failures; (c) GPU sheets into `shots/f/` (list in F-BRIEF);
-   (d) an independent Opus read-only check (blocks only on broken work / hard rules), at most 1 fix round; (e) commit,
-   push, `git push origin feature/ct-prototype:ct-movement`, then message the orchestrator with results and the F7
-   answer ("Your saved controller settings were from the A3 build, which had speed on D-pad left / right; this build
-   moves them to up / down and the stick, vision left, gadget right, unless you remapped them").
-   **For Menu Notes (via the orchestrator, their files):** `src/ui/screens/settingsScreen.ts:155` "Default shoulder"
-   row now does nothing (F1); `controlsScreen.ts:23` "LT / RT: Aim / fire" is wrong since F1a.
-2. Master 4.7.2 merged at 8882261b (#22 traverse kick, #23 build sha). Earlier: master 4.7.0 merged (7d0310cc: #21 Sector Ops, protocol 24; a wire change here takes 25): check green (desktop);
+1. **Overnight footage job** (Michael 23:15 / 23:20, verbatim in DECISIONS.md; lifts the no-refining rule for movement
+   only; both machines at full power, the desktop lock ours all night, long logic suites to Character Build at
+   E2E_JOBS=2). Order: (a) **catalogue** all 90 clips in `pc/ct-work/` (64 from 2026-10-17, of which 62 are in
+   `docs/locomotion/research/ct-footage-catalogue.md`: check those against the footage; 26 new
+   `clip_13570_20261019_*`, 6-77 s, 16 min): mp4s are in `pc/ct-work/clips/` (`scripts/ct-ref/convert-clips.sh`), contact
+   sheets next; report to the orchestrator. (b) **audit** our movement against the footage (animations, camera angles and
+   follow, speeds, timing, transitions; measured, with numbers); report. (c) **slices** closing the biggest visible gaps
+   first (legs, ADS upper body, shimmy, drainpipe, pistol aim, camera), each with the usual loop and onto /ct/; report
+   after each. (d) the **hold-A action menu** (CT: hold A opens it, pick an option, one returns to the game with no
+   action; find it in the footage) as its own slice. Unattended: assumed decisions as A-numbers. Do not open the PR.
+   Footage files stay in `pc/` (gitignored); only docs and small sheets are committed.
+2. **Slice F done** (2026-10-19 23:45, `F-REPORT.md`): F1-F7 built, check green, e2e tier green (laptop: ctcourse,
+   coop, netmove on 637d41d5), sheets in `shots/f/`, independent check PASS. On /ct/. Polish in POLISH.md.
+3. Master 4.7.2 merged at 8882261b (#22 traverse kick, #23 build sha). Earlier: master 4.7.0 merged (7d0310cc: #21 Sector Ops, protocol 24; a wire change here takes 25): check green (desktop);
    laptop runner smoke, e2e-ctcourse, e2e-coop, e2e-netmove, e2e-traverse all pass. e2e-traverse "a tap kicks the
    grate in" is a master flake (Character Build, feature/traverse-kick): ignore it.
    PR prep done (fcfc433c, master 4.6.8 merged at 75b789ab): CHANGELOG "Unreleased - ct-prototype" covers A to D2b,
@@ -90,9 +85,9 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
    nothing else running), fill the e2e line in PR-BODY.md, then
    `gh pr create --base master --head feature/ct-prototype --body-file docs/ct-prototype/PR-BODY.md` when the
    orchestrator says.
-3. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
+4. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
    Menu notes are the "Menu Notes Build" session's (feature/menu-notes): stay out of src/ui and the menu hero.
-4. Protocol: Sector Ops took co-op protocol 24; whoever merges to master second takes the next number (no wire
+5. Protocol: Sector Ops took co-op protocol 24; whoever merges to master second takes the next number (no wire
    change here so far).
 
 ## Open items to watch (from slices A, B+C, D+E, D2b)

@@ -20,8 +20,10 @@ Brief: `F-BRIEF.md`. Source: `WALK-2026-10-19.md`. Prototype pass: every number 
 - `framing()`: the pivot follows the body down crouched, aiming or not (`pivotStand + (pivotCrouch - pivotStand) * crouch
   - aimEyeDrop * ads`; B+C had faded the crouch share out with the aim). Boom 0.35, shoulder 0.42 and eye drop 0.24 are the
   same standing and crouched, so the framing relative to the body is unchanged; crouched it sits 0.6 m lower
-  (1.75 -> 1.15 capsule). The ceiling casts and low-space framing still clamp it.
-- Files: `src/config/camera.ts`. Tests: `tests/tactical.test.ts` (same boom / shoulder, pivot lower by the crouch drop).
+  (1.75 -> 1.15 capsule) holstered, and `aimCrouchShare` 0.68 of that (0.41 m) aiming: from the kneel the aiming upper
+  body is upright (head ~0.41 m below standing on `shots/f/aimcrouch-side`); the full drop put the camera behind her
+  shoulder (first render). The ceiling casts and low-space framing still clamp it.
+- Files: `src/config/camera.ts`. Tests: `tests/tactical.test.ts` (same boom / shoulder, aimed pivot lower by the share of the crouch drop).
 
 ## F3 Crouch idle kneels (done)
 - `POSTURE.kneel` back on (P1c had turned it off): crouched and still for `KNEEL_STILL` 0.25 s, the KNEEL clip blends in
@@ -42,7 +44,8 @@ Brief: `F-BRIEF.md`. Source: `WALK-2026-10-19.md`. Prototype pass: every number 
   from 0.2 and is full at `peekLook` 0.85), at the end only. The camera pivot slides up to 0.75 m past the body toward
   the open side by that amount, the shoulder offset turns to the open side (edge direction . camera right: continuous,
   no flip; 0 when looking straight past the edge) and the boom comes in to 1.4 m (`WALL_CAMERA.peek.boom`, CT measured
-  1.0-1.5 m). The 18 deg view turn and the head peek are unchanged.
+  1.0-1.5 m). The 18 deg view turn and the head peek are unchanged. The slide eases over 0.55 s (`WALL_CAMERA.peek.blend`,
+  was 0.3: moving pivot, boom and shoulder together over 0.3 s stepped the camera 9.6 cm a frame in e2e-wall, limit 6).
 - Files: `src/player/wallController.ts`, `src/player/shoulderCamera.ts`, `src/config/camera.ts`, `src/game/gameState.ts`,
   `src/player/moveState.ts`. Tests: `wallController.test.ts` (`wallFacing`, `wallPeekView`), `moveState.test.ts` (edge
   bits win), `cameraRigid.test.ts` (the slide goes toward the open side for three camera yaws).
@@ -63,10 +66,12 @@ Brief: `F-BRIEF.md`. Source: `WALK-2026-10-19.md`. Prototype pass: every number 
   the low / compressed ready pocket and only then raised over 0.45 s; the swap clip also pitched the gun 0.45 rad
   muzzle-down at 0.75.
 - Now a draw to a back slot raises once the gun leaves the slot (`DRAW_RAISE.from` 0.5 of the swap) over
-  `DRAW_RAISE.time` 0.18 s, so the travel (~0.22 s) ends at the shoulder (raise > 0.9); the swap clip's draw half keeps the
-  gun level for back slots. The pistol (thigh) draw is unchanged.
+  `DRAW_RAISE.time` 0.45 s, so the travel (~0.22 s) ends well up and still rising (raise ~0.58), shouldered about 0.6 s
+  into the draw (G103: rifle about 0.75 s; the first cut, 0.18 s, made it ~0.45 s and failed e2e-anim's raise window).
+  The swap clip's wpPitch is level from the slot (0.38) for back slots (a drop near 0.5 overlapped the raise: a 0.2 rad
+  one-frame pop in e2e-anim's draw continuity). The pistol (thigh) draw is unchanged.
 - Files: `src/weapons/weaponCarry.ts` (`raiseTime` input), `src/player/player.ts`, `src/anim/clips/actions.ts`. Tests:
-  `tactical.test.ts` (raise > 0.9 at 0.22 s with the draw raise, < 0.7 without).
+  `tactical.test.ts` (raise > 0.5 at 0.22 s and > 0.9 at 0.5 s with the draw raise, < 0.7 at 0.22 s without).
 
 ## F7 Speeds on the D-pad (done)
 - Answer for Michael: "Your saved controller settings were from the A3 build, which had speed on D-pad left / right; F1a
@@ -84,26 +89,22 @@ Brief: `F-BRIEF.md`. Source: `WALK-2026-10-19.md`. Prototype pass: every number 
   nothing: remove it); `controlsScreen.ts:23` fixed row "LT / RT: Aim / fire" is stale since F1a (X draws / aims; LT is the
   knockout / secondary fire).
 
-## Status (stopped 2026-10-19 22:30 for the account switch; nothing committed)
-- F1-F7: code done (all seven). Verified: `npx tsc --noEmit` clean, eslint clean on the changed files, and the unit
-  files run: cameraRigid, tactical, wallController, moveState, attach, teamMoves, anim, posture, posture-p1c, rig,
-  settings, settingsCover (all pass).
-- Not run: `npm run check` (full unit suite + build), every e2e, the GPU contact sheets. The heavy lock was held by Menu
-  Notes from 21:16 until 22:29; F never took it (no lock of ours to remove, no build or e2e started).
-- Files touched: src/anim/animGraph.ts, src/anim/clips/actions.ts, src/anim/clips/traverse.ts, src/config/camera.ts,
-  src/core/settings.ts, src/game/gameState.ts, src/input/padBinds.ts, src/net/remoteAvatar.ts,
-  src/player/attachController.ts, src/player/moveState.ts, src/player/player.ts, src/player/playerController.ts,
-  src/player/shoulderCamera.ts, src/player/wallController.ts, src/weapons/weaponCarry.ts, scripts/e2e-traverse.mjs;
-  tests anim, cameraRigid, moveState, posture-p1c, posture, settings, tactical, wallController; docs CHANGELOG.md (slice F
-  bullet), TESTING.md (playtest 2 lines), docs/systems/input-and-loop.md, docs/systems/movement.md, this report.
-- Next step, exact: take C:/NightShift/heavy.lock, `npm run check`; then on port 4193, one at a time,
-  `E2E_PORT=4193 E2E_SUITE_TIMEOUT=900 node scripts/run-e2e.mjs --serial <suite>` for e2e-wall, e2e-anim, e2e-clip,
-  e2e-traverse, e2e-weapons-carry, e2e-pad, e2e-move; then `npm run e2e:quick`, e2e-ctcourse, e2e-coop, e2e-netmove. Risks
-  to watch: e2e-wall peek camera (now driven by `peekView`), e2e-clip / e2e-weapons-carry rifle draw clearance (F6 raises
-  during the travel), e2e-traverse grip reach in the climb-up (hands held to k 0.6), e2e-netmove crouch idle (kneel).
-  Then the GPU sheets into docs/ct-prototype/shots/f/ (crouch idle kneel side / front, crouched ADS rifle / pistol vs
-  standing, corner lean both edges with the camera both ways, hang-climb-dense 0.6-1.6 s, rifle draw dense), then fill
-  this section with results.
+## Status (2026-10-19 23:40: verified, on /ct/)
+- Commits: 980a9695 (F1-F7 WIP), 637d41d5 (e2e fixes: peek blend, draw raise, clip pitch), then the crouched-aim share,
+  sheets and docs (this commit).
+- `npm run check` green (1798 unit tests + build) on the WIP; rerun before the push (below).
+- e2e (desktop, port 4193, solo unless noted): e2e-wall, e2e-anim (both failed first, fixed in 637d41d5), e2e-clip,
+  e2e-traverse, e2e-weapons-carry, e2e-move pass; e2e-pad only its KNOWN FLAKY "stick 50 / 80 / 100%" assert. The quick
+  set on 637d41d5 (two at a time, minus the long co-op suites): 22 pass; e2e-stealth failed under load, passed solo;
+  e2e-camera-bounds level U fails (a known master failure, docs/backlog.md, legacy); anim-audit report only. After the
+  crouched-aim share: e2e-move, e2e-stealth, e2e-wall, e2e-anim pass.
+- Laptop runner (Character Build) on 637d41d5: e2e-ctcourse 260 s, e2e-coop 96 s, e2e-netmove 118 s, all pass.
+- Sheets (E2E_GPU=1, `shots/f/`): crouch-side / -front (one knee down from about 0.5 s, back upright), aim / aimcrouch /
+  aimpistol / aimcrouchpistol -ots and aim / aimcrouch -side (re-rendered after the share), walledgelook /
+  walledgeleftlook -ots (camera swung each way: the body holds its stance, no flip; the -back views show nothing useful
+  at a wall), draw-side / -front (back to chest, level, to the shoulder by ~0.6 s, no dip), traverse/hang-climb-dense
+  0.6-1.7 s + report.json (grip 1 to 1.3 s, released by 1.4; knee on top at 1.3, then the stand).
+- Independent Opus check: PASS, no blockers. Its polish list is in POLISH.md (slice F).
 
 ## What Michael should try on /ct/
 - Aim, swap to the left shoulder (L3), holster (X): the camera goes back over the right shoulder; draw again: right.

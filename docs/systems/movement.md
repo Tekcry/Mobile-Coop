@@ -167,7 +167,8 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 - `config/camera.ts` `CAMERA` + `framing()`: free orbit; lowered, looking around only turns the head
   (`RigPose.lookYaw/lookPitch`); spine, arms and gun follow the camera only once raised. Framing: the operator in the left
   third (boom 2.2 / ADS 1.5, shoulder 0.62 / 0.58, pivot 1.62 / crouched 1.18; slice F: crouched ADS frames
-  from crouch height, the framing relative to the body the same as standing); back to a wall pulls back `coverBoom`. FOV
+  lower with the body, the full crouch drop holstered and `aimCrouchShare` 0.68 of it aiming from the upright kneel,
+  the framing relative to the body the same as standing); back to a wall pulls back `coverBoom`. FOV
   is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs per render frame: follow 80-150 ms with look-ahead, aim
   framing 150-250 ms, shoulder swap ~250 ms on an arc, optional auto-recentre (`gameplay.autoRecentre`), handheld drift
   (<= 0.15 deg), micro-bob (<= 1 cm), dash FOV and boom. G28 / G29 replace this framing (Decided direction above).
@@ -213,7 +214,7 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   an edge is the edge's open side (`wallFacing`; remotes from the edge bits), never the camera; the camera slides past the
   edge by `WallCore.peekView` (`wallPeekView`: the stick's push toward the edge or the look past it, from `viewLook`
   0.2 to `peekLook`): the pivot up to `WALL_CAMERA.peek.offset`, the shoulder offset turning to the open side (edge
-  direction . camera right, continuous) and the boom in to `peek.boom` 1.4 m.
+  direction . camera right, continuous) and the boom in to `peek.boom` 1.4 m, eased over `peek.blend` 0.55 s.
 - Lean-out (removed by decision, loco M20 Q1): aim at the end of a high wall steps the capsule `WALL.leanOut` 0.35 m past
   the end (MoveState `lk` 1); aim on a low wall rises over the top (`lk` 2). At a left edge the weapon goes to the left hand
   (`wallLeftHand`, `CharacterRig.openLeft`, `EDGE_HAND_TIME` 0.25 s). Low wall at an end: `lowAimKind` picks the side lean

@@ -171,12 +171,13 @@ describe('camera framing', () => {
     expect(ads.shoulder).toBeCloseTo(0.42);
     expect(ads.pivot).toBeLessThan(hip.pivot);
     expect(framing(0, 1).pivot).toBeCloseTo(MOVEMENT.crouchHeight);
-    // (F2) crouched aim frames from crouch height: the same framing relative to the body, the pivot lower by the crouch drop
+    // (F2) crouched aim follows the body down: the same framing relative to the body, the pivot lower by the kneel aim's
+    // share of the crouch drop (the aiming upper body is upright)
     const ac = framing(1, 1);
     expect(ac.boom).toBeCloseTo(ads.boom);
     expect(ac.shoulder).toBeCloseTo(ads.shoulder);
-    expect(ads.pivot - ac.pivot).toBeCloseTo(MOVEMENT.standHeight - MOVEMENT.crouchHeight);
-    expect(hip.pivot - ads.pivot).toBeCloseTo(framing(0, 1).pivot - ac.pivot);
+    expect(ads.pivot - ac.pivot).toBeCloseTo((MOVEMENT.standHeight - MOVEMENT.crouchHeight) * CAMERA.aimCrouchShare);
+    expect(ac.pivot).toBeLessThan(ads.pivot - 0.3);
     expect(CAMERA.fov).toBe(75);
   });
 });
