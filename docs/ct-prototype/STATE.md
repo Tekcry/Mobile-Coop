@@ -61,7 +61,12 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
 ## Next
 1. Michael's re-test of playtest 2 on /ct/ (A, B+C, D+E, D2b). His notes come through the orchestrator and fold into
    the next slice.
-2. Merge master again when the e2e-menus hold-repeat fix (Character Build, feature/menus-slider) lands.
+2. PR prep done (fcfc433c, master 4.6.8 merged at 75b789ab): CHANGELOG "Unreleased - ct-prototype" covers A to D2b,
+   TESTING.md "Playtest 2 changes", docs/systems movement / input-and-loop / audio / world-and-characters, and
+   `PR-BODY.md` (draft). After Michael's notes and their slice: full `npm run e2e` on the PR head (`E2E_JOBS=2`,
+   nothing else running), fill the e2e line in PR-BODY.md, then
+   `gh pr create --base master --head feature/ct-prototype --body-file docs/ct-prototype/PR-BODY.md` when the
+   orchestrator says.
 3. Later, not now: goggle surround redesign, weapon wheel restyle (bigger, not just boxes, original), menu items.
    Menu notes are the "Menu Notes Build" session's (feature/menu-notes): stay out of src/ui and the menu hero.
 4. Protocol: Sector Ops took co-op protocol 24; whoever merges to master second takes the next number (no wire
