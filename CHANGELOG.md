@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - ct-prototype
+## 4.13.0 - Marlow Yard interrogation guard (2026-10-20, PR #34)
 - PR 3 Interrogate (`docs/ct-prototype/PR3-INTERROGATE.md`, Michael: "Add one in Marlow Yard"): station 1 has a training guard
   (passive, on his post by the south fence facing away from the start) who has information; held, hold-A lists INTERROGATE,
   and he says two short lines of his own (where the two wall medkits are) as subtitle; asked once, no menu again. A guard's
