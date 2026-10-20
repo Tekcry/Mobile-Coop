@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - tuner-camera
+- Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
+  I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
+  rifle / pistol, back to wall, peek, climb / hang, vent / crawl, holding a guard) that follows the current state, with
+  sliders for distance behind, height, shoulder side offset, look-at height, FOV, aim zoom, transition blend time,
+  follow damping, boom pull-in rate and collision margin. A grey "today: ..." line under each slider shows the value
+  the game uses now. At default the camera is unchanged; the wall collision still applies after the sliders. Same
+  save, export, resets and pad control as the other sections. Detail: `docs/anim-tuner/CAMERA.md`.
+- The tuner's sections now come from a registry (`src/anim/tuneRegistry.ts`) so other jobs can add sections from
+  their own files; saves and exports are unchanged (API: `docs/anim-tuner/STATE.md`).
+
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
   D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after

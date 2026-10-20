@@ -456,6 +456,19 @@ try {
     await frames(P, 3);
     const tp2 = await GM(() => window.__animTune.pad());
     assert(tp2.mode === 'off' && (await GM(() => document.querySelector('.anim-tune').hidden)), `tuner: B closes it (${tp2.mode})`);
+    // (tuner-camera) the camera state's distance slider pulls the follow camera in live; its reset puts it back
+    await frames(P, 30);
+    const camG = await GM(() => window.__animTune.state.cam);
+    const camBoom = () => GM(() => window.__app.current.player.cam.boomActual);
+    const cb0 = await camBoom();
+    await GM((g) => window.__animTune.set(g, 'camBoomAdd', -0.8), camG);
+    await frames(P, 90);
+    const cb1 = await camBoom();
+    await GM((g) => window.__animTune.set(g, 'camBoomAdd', 0), camG);
+    await frames(P, 240);
+    const cb2 = await camBoom();
+    assert(camG.startsWith('cam.') && (cb1 < cb0 - 0.3 || cb0 < 1.2), `tuner: a camera distance slider (${camG}) pulls the camera in live (${cb0.toFixed(2)} -> ${cb1.toFixed(2)} m)`);
+    assert(Math.abs(cb2 - cb0) < 0.05, `tuner: the camera slider's reset puts the distance back (${cb0.toFixed(2)} -> ${cb2.toFixed(2)} m)`);
     // results
     await GM(() => {
       const g = window.__app.current;

@@ -127,6 +127,12 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   1 s), left stick X nudges (full tilt crosses the range in 2 s), LB / RB the focused section's group (follow off), Y
   the row's reset, A Export, B close, View (Select) the pad between tuner and game. The header's "PAD:" line shows the
   mode; the focused row has an amber outline. Follow waits while the tuner has the pad.
+- (tuner-camera) The panel's sections come from the section registry (`anim/tuneRegistry.ts`, API in
+  `docs/anim-tuner/STATE.md`): Body, Gun and Camera, then any section another file registers (the panel adds it), each
+  with the picker, follow, resets, save, export, log and pad control. Camera: a group per camera state (`cam.explore`
+  ... `cam.hold`, `selectCamGroup`) and ten offset / multiplier sliders on `config/camera.ts` values, read by
+  `ShoulderCamera.update` through `TUNE_CAM_CUR` (eased, identity at default); grey "today: ..." lines under the sliders.
+  Detail: `docs/anim-tuner/CAMERA.md`.
 
 ## Course HUD (Fallow, training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the

@@ -6,11 +6,14 @@ import { NavRepeater } from '../input/navRepeat';
  * active pad's buttons as a bit mask (bit i = W3C standard button i held) and the left stick X once per frame; it says
  * whether the pad is the tuner's this frame (`consume`: the game sees none of it) and what to do.
  *
- * Modes: `off` (panel closed), `tuner` (the pad drives the panel), `game` (the pad plays; View hands it back).
+ * Modes: `off` (panel closed), `tuner` (the pad drives the panel), `game` (the pad plays; View hands it back),
+ * `free` (tuner-camera: the free view runs and owns the pad; the panel reads the sticks, triggers, bumpers and D-pad
+ * itself; View hands the pad back to the panel, B turns the free view off). While the free view is on, View moves the
+ * pad between the panel and the free view (never the game).
  * After opening, closing or giving the pad back, every press is swallowed until all buttons are up (`quiet`), so the press
  * that opened the panel never exports and the B that closed it never crouches.
  */
-export type TunePadMode = 'off' | 'tuner' | 'game';
+export type TunePadMode = 'off' | 'tuner' | 'game' | 'free';
 
 export interface TunePadOut {
   /** The pad is the tuner's this frame: the game gets none of it. */
@@ -29,8 +32,10 @@ export interface TunePadOut {
   exportNow: boolean;
   /** B (edge): close the panel. */
   close: boolean;
-  /** View (edge): the pad moved between the tuner and the game this frame. */
+  /** View (edge): the pad moved between the tuner and the game (or the free view) this frame. */
   toggled: boolean;
+  /** (tuner-camera) B (edge) while the free view has the pad: turn the free view off (the pad goes back to the panel). */
+  freeOff: boolean;
 }
 
 const bit = (i: number): number => 1 << i;
@@ -44,12 +49,26 @@ export const TUNE_PAD_TOGGLE = PAD.SELECT;
 
 export class TunePadCtl {
   mode: TunePadMode = 'off';
-  readonly out: TunePadOut = { consume: false, move: 0, nudge: 0, stick: 0, group: 0, reset: false, exportNow: false, close: false, toggled: false };
+  readonly out: TunePadOut = { consume: false, move: 0, nudge: 0, stick: 0, group: 0, reset: false, exportNow: false, close: false, toggled: false, freeOff: false };
   private prev = 0;
   private quiet = false;
   private nudgeDir = 0;
   private nudgeStart = 0;
   private readonly rep = new NavRepeater(0.35, 0.06);
+  /** (tuner-camera) The free view is on: View alternates the panel and the free view. */
+  private freeOn = false;
+
+  /** (tuner-camera) The free view turned on (the pad goes to it) or off (the pad comes back to the panel). */
+  setFree(on: boolean): void {
+    this.freeOn = on;
+    if (this.mode === 'off') return;
+    const next = on ? 'free' : this.mode === 'free' ? 'tuner' : this.mode;
+    if (next !== this.mode) {
+      this.mode = next;
+      this.quiet = true;
+      this.nudgeDir = 0;
+    }
+  }
 
   /** The panel opened: the pad is the tuner's (once every button is up). */
   open(): void {
@@ -60,8 +79,9 @@ export class TunePadCtl {
 
   /** The panel closed: held pad buttons stay swallowed until released. */
   close(): void {
-    if (this.mode === 'tuner') this.quiet = true;
+    if (this.mode === 'tuner' || this.mode === 'free') this.quiet = true;
     this.mode = 'off';
+    this.freeOn = false;
   }
 
   /** One frame. `mask`: buttons held (bit per W3C index); `lx`: left stick X -1..1; `now`, `dt` in seconds. Returns the
@@ -77,6 +97,7 @@ export class TunePadCtl {
     o.exportNow = false;
     o.close = false;
     o.toggled = false;
+    o.freeOff = false;
     const pressed = mask & ~this.prev;
     this.prev = mask;
     if (this.quiet) {
@@ -88,7 +109,7 @@ export class TunePadCtl {
     }
     if (this.mode === 'off') return o;
     if (pressed & bit(TUNE_PAD_TOGGLE)) {
-      this.mode = this.mode === 'tuner' ? 'game' : 'tuner';
+      this.mode = this.mode === 'tuner' ? (this.freeOn ? 'free' : 'game') : 'tuner';
       // either way the rest of this press (and anything held with it) reaches nobody
       this.quiet = true;
       this.nudgeDir = 0;
@@ -99,6 +120,10 @@ export class TunePadCtl {
     }
     if (this.mode === 'game') return o;
     o.consume = true;
+    if (this.mode === 'free') {
+      if (pressed & bit(PAD.B)) o.freeOff = true;
+      return o;
+    }
     if (pressed & bit(PAD.B)) {
       o.close = true;
       return o;

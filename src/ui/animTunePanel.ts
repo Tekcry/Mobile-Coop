@@ -1,8 +1,8 @@
 import { Color3, CreateLineSystem, CreateSphere, StandardMaterial, Vector3, type LinesMesh, type Mesh, type Scene, type TransformNode } from '../core/babylon';
 import {
-  BODY_GROUPS,
-  GUN_GROUPS,
   TUNE_BODY,
+  TUNE_CAM,
+  TUNE_CAM_CUR,
   TUNE_CUR,
   TUNE_GUN,
   TUNE_HOOKS,
@@ -16,15 +16,17 @@ import {
   tuneExportName,
   tuneGet,
   tuneGroupChanged,
-  tuneHint,
   tuneLoad,
+  tuneNotes,
   tuneReset,
   tuneResetAll,
   tuneResetGroup,
   tuneSet,
   tuneSnapshot,
-  type TuneGroup,
 } from '../anim/tune';
+import { TUNE_REGISTRY_HOOKS, TUNE_SECTIONS, type TuneSection } from '../anim/tuneRegistry';
+import { FREE_DEMOS, FREE_IN, FREE_MODES, FREE_SCALES, FREE_VIEW, freeAxis, freeTimeScale, type FreeDemo, type FreeMode } from '../player/freeView';
+import { PAD } from '../input/gamepadMapping';
 import { loadAnimTune, saveAnimTune } from '../save/animTuneStore';
 import { download } from './fileOut';
 import { TunePadCtl } from './animTunePad';
@@ -35,13 +37,16 @@ export interface TuneRigView {
   gunSpan: { z1: number; bore: number };
 }
 
+/** (tuner-camera) One registered section's picker and rows (`anim/tuneRegistry.ts`). */
 interface Section {
+  reg: TuneSection;
   pick: HTMLSelectElement;
   rows: HTMLDivElement;
-  group: TuneGroup;
-  kind: 'body' | 'gun';
+  group: string;
 }
 
+/** (tuner-camera) The free view controls show (off until its second pass is checked). */
+const FREE_VIEW_UI = false;
 /** How far out along the barrel the marker ball sits (m). */
 const MARK_DIST = 12;
 const SAVE_DELAY = 400;
@@ -73,8 +78,8 @@ export class AnimTunePanel {
   /** A slider is held (mouse or touch): follow never rebuilds the rows under it. */
   private pressing = false;
   /** Follow's pending state per section and since when (ms): it switches once the state has held FOLLOW_HOLD_MS. */
-  private cand: string[] = ['', ''];
-  private candAt: number[] = [0, 0];
+  private cand: string[] = [];
+  private candAt: number[] = [];
   private changedOnly = false;
   private marker = false;
   private now: HTMLDivElement;
@@ -104,6 +109,13 @@ export class AnimTunePanel {
   /** Left stick nudge carried between frames (value units, below one step). */
   private stickAcc = 0;
   private readonly inputEv = new Event('input');
+  /** (tuner-camera) The loop whose time scale the slow-motion picker sets (set by the debug overlay). */
+  loop: { timeScale: number } | null = null;
+  /** The panel set a slow-motion scale (put back to 1 on close). */
+  private scaled = false;
+  private freeSel: HTMLSelectElement | null = null;
+  private timeSel: HTMLSelectElement | null = null;
+  private hudBox: HTMLInputElement | null = null;
 
   constructor() {
     const el = (this.el = document.createElement('div'));
@@ -185,6 +197,55 @@ export class AnimTunePanel {
       this.rebuildAll();
     });
     btn('Clear log', () => tuneClearLog());
+    // (tuner-camera) free view, demo loop, slow motion, hide HUD
+    const fbar = document.createElement('div');
+    fbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin:3px 0;';
+    // (tuner-camera) WIP: the free view is wired but unfinished (second pass); its controls stay hidden until then
+    fbar.hidden = !FREE_VIEW_UI;
+    const sel = (label: string, opts: readonly (string | number)[], cls: string, fn: (v: string) => void): HTMLSelectElement => {
+      const l = document.createElement('label');
+      l.style.cssText = 'display:flex;align-items:center;gap:2px;min-height:28px;';
+      const c = document.createElement('select');
+      c.className = cls;
+      c.style.cssText = 'font:inherit;color:#cfe;background:#123;border:1px solid rgba(255,255,255,0.25);min-height:28px;';
+      for (const v of opts) {
+        const o = document.createElement('option');
+        o.value = String(v);
+        o.textContent = String(v);
+        c.append(o);
+      }
+      c.addEventListener('change', () => {
+        fn(c.value);
+        c.blur();
+      });
+      l.append(label, c);
+      fbar.append(l);
+      return c;
+    };
+    this.freeSel = sel('free view', FREE_MODES, 'anim-tune-free', (v) => this.setFreeMode(v as FreeMode));
+    sel('demo', FREE_DEMOS, 'anim-tune-demo', (v) => (FREE_VIEW.demo = v as FreeDemo));
+    this.timeSel = sel('time', FREE_SCALES, 'anim-tune-time', (v) => this.setTimeScale(Number(v)));
+    {
+      const l = document.createElement('label');
+      l.style.cssText = 'display:flex;align-items:center;gap:2px;min-height:28px;';
+      const c = (this.hudBox = document.createElement('input'));
+      c.type = 'checkbox';
+      c.className = 'anim-tune-hidehud';
+      c.addEventListener('change', () => {
+        document.body.classList.toggle('tune-hide-hud', c.checked);
+        c.blur();
+      });
+      l.append(c, 'hide HUD');
+      fbar.append(l);
+    }
+    // the mouse wheel zooms the orbit (the panel's own wheel stops at the panel)
+    window.addEventListener(
+      'wheel',
+      (e) => {
+        if (this.open && FREE_VIEW.mode === 'orbit' && e.deltaY !== 0) FREE_IN.wheel += e.deltaY < 0 ? 1 : -1;
+      },
+      { passive: true },
+    );
     this.now = document.createElement('div');
     this.now.style.color = '#8fd3ff';
     this.info = document.createElement('div');
@@ -195,10 +256,11 @@ export class AnimTunePanel {
     this.shareOut.className = 'anim-tune-json';
     this.shareOut.style.cssText = 'width:100%;height:120px;box-sizing:border-box;font:inherit;color:#cfe;background:#012;';
     this.shareOut.addEventListener('focus', () => this.shareOut.select());
-    body.append(bar, this.shareOut, this.now, this.info);
+    body.append(bar, fbar, this.shareOut, this.now, this.info);
     el.append(head, this.padLine, body);
-    this.addSection('body', 'Body state', BODY_GROUPS, 'idle');
-    this.addSection('gun', 'Gun hold (weapon x state)', GUN_GROUPS, 'rifle.lowReady');
+    // (tuner-camera) every registered section, in registration order (Body, Gun, Camera, then any a later file adds)
+    for (const r of TUNE_SECTIONS) this.addSection(r);
+    TUNE_REGISTRY_HOOKS.added = (r) => this.addSection(r);
     document.body.appendChild(el);
     TUNE_HOOKS.changed = () => this.scheduleSave();
     // load the saved values (skipped if a slider already moved)
@@ -215,8 +277,15 @@ export class AnimTunePanel {
       cur: TUNE_CUR,
       local: TUNE_LOCAL,
       state: TUNE_STATE,
+      // (tuner-camera) the camera values, the free view and the sections
+      cam: TUNE_CAM,
+      camCur: TUNE_CAM_CUR,
+      sections: () => TUNE_SECTIONS.map((x) => x.id),
+      free: (m: FreeMode) => this.setFreeMode(m),
+      freeState: () => ({ mode: FREE_VIEW.mode, demo: FREE_VIEW.demo, pad: this.pad.mode, folded: this.folded }),
+      demo: (d: FreeDemo) => (FREE_VIEW.demo = d),
       get: tuneGet,
-      set: (g: TuneGroup, id: Parameters<typeof tuneSet>[1], v: number) => {
+      set: (g: string, id: string, v: number) => {
         const ok = tuneSet(g, id, v);
         this.rebuildAll();
         return ok;
@@ -230,9 +299,12 @@ export class AnimTunePanel {
     this.setPadLine();
   }
 
-  private addSection(kind: 'body' | 'gun', title: string, groups: readonly TuneGroup[], first: TuneGroup): void {
+  private addSection(reg: TuneSection): void {
+    const kind = reg.id;
+    const groups = reg.groups;
+    const first = groups[0] ?? '';
     const h = document.createElement('b');
-    h.textContent = title;
+    h.textContent = reg.label;
     h.style.cssText = 'display:block;margin-top:5px;color:#8fd3ff;';
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;gap:4px;align-items:center;margin:2px 0;';
@@ -253,11 +325,11 @@ export class AnimTunePanel {
     const rows = document.createElement('div');
     rows.className = `anim-tune-rows-${kind}`;
     rows.style.cssText = 'display:grid;gap:1px;';
-    const sec: Section = { pick, rows, group: first, kind };
+    const sec: Section = { reg, pick, rows, group: first };
     pick.addEventListener('change', () => {
       // (pass 3) a manual pick turns follow off (else the next state change would take it away again)
       this.setFollow(false);
-      sec.group = pick.value as TuneGroup;
+      sec.group = pick.value;
       this.rebuild(sec);
       pick.blur();
     });
@@ -268,6 +340,8 @@ export class AnimTunePanel {
     head.append(pick, reset);
     this.body.append(h, head, rows);
     this.sections.push(sec);
+    this.cand.push('');
+    this.candAt.push(0);
     this.rebuild(sec);
   }
 
@@ -285,7 +359,7 @@ export class AnimTunePanel {
     sec.rows.replaceChildren();
     if (sec.pick.value !== sec.group) sec.pick.value = sec.group;
     for (const o of Array.from(sec.pick.options)) {
-      const g = o.value as TuneGroup;
+      const g = o.value;
       o.textContent = tuneGroupChanged(g) ? `${g} *` : g;
     }
     const group = sec.group;
@@ -348,12 +422,11 @@ export class AnimTunePanel {
       });
       row.append(name, input, val, x);
       sec.rows.append(row);
-      // (pass 3) the real-world target, a small grey line under the slider
-      const hint = tuneHint(group, t.id);
-      if (hint) {
+      // (pass 3) the real-world target, (tuner-camera) the game's value today: small grey lines under the slider
+      for (const note of tuneNotes(group, t.id)) {
         const hl = document.createElement('div');
-        hl.className = 'anim-tune-hint';
-        hl.textContent = hint;
+        hl.className = note.startsWith('today:') ? 'anim-tune-hint anim-tune-today' : 'anim-tune-hint';
+        hl.textContent = note;
         hl.style.cssText = 'color:#8a98a4;font-size:9px;margin:-2px 0 2px 2px;';
         sec.rows.append(hl);
       }
@@ -388,7 +461,7 @@ export class AnimTunePanel {
     const now = performance.now();
     for (let k = 0; k < this.sections.length; k++) {
       const s = this.sections[k]!;
-      const cur = s.kind === 'body' ? TUNE_STATE.body : TUNE_STATE.gun;
+      const cur = s.reg.select?.(TUNE_STATE) ?? null;
       if (!cur) continue;
       if (force) {
         this.cand[k] = '';
@@ -448,6 +521,13 @@ export class AnimTunePanel {
   }
 
   hide(): void {
+    // (tuner-camera) closing ends the free view, shows the HUD and puts the time back
+    this.setFreeMode('off');
+    if (this.hudBox?.checked) {
+      this.hudBox.checked = false;
+      document.body.classList.remove('tune-hide-hud');
+    }
+    if (this.scaled) this.setTimeScale(1);
     this.open = false;
     this.el.hidden = true;
     this.pad.close();
@@ -473,8 +553,17 @@ export class AnimTunePanel {
     }
     const o = this.pad.update(mask, pad.axes[0] ?? 0, now, dt);
     if (!this.open) return o.consume;
+    // (tuner-camera) the free view's pad input while it has the pad
+    if (this.pad.mode === 'free' && !o.toggled && !o.freeOff) this.padFree(pad);
+    else this.clearFreeIn();
+    if (o.freeOff) {
+      this.setFreeMode('off');
+      return true;
+    }
     if (o.toggled) {
       this.stickAcc = 0;
+      // (tuner-camera) the panel folds while the free view has the pad and opens when the pad comes back
+      if (FREE_VIEW.mode !== 'off') this.setFolded(this.pad.mode === 'free');
       this.setPadLine();
       this.markPadFocus();
       return o.consume;
@@ -502,8 +591,52 @@ export class AnimTunePanel {
 
   private setPadLine(): void {
     const m = this.pad.mode;
+    const orbit = FREE_VIEW.mode === 'orbit';
     this.padLine.textContent =
-      m === 'game' ? 'PAD: game (View: back to the tuner)' : 'PAD: tuner  D-pad pick / nudge, stick X fast, LB / RB group, Y reset, A export, B close, View: game';
+      m === 'game'
+        ? 'PAD: game (View: back to the tuner)'
+        : m === 'free'
+          ? `PAD: free view (${FREE_VIEW.mode})  left stick ${orbit ? 'moves the player' : 'flies'}, right stick look, ${orbit ? 'LT / RT zoom, D-pad up / down height' : 'LB / RB down / up'}, B free view off, View: panel`
+          : `PAD: tuner  D-pad pick / nudge, stick X fast, LB / RB group, Y reset, A export, B close, View: ${FREE_VIEW.mode === 'off' ? 'game' : 'free view'}`;
+  }
+
+  /** (tuner-camera) The pad's sticks, triggers, bumpers and D-pad into the free view's input. No allocation. */
+  private padFree(pad: Gamepad): void {
+    const ax = pad.axes;
+    const b = pad.buttons;
+    FREE_IN.lx = freeAxis(ax[0] ?? 0);
+    FREE_IN.ly = -freeAxis(ax[1] ?? 0);
+    FREE_IN.rx = freeAxis(ax[2] ?? 0);
+    FREE_IN.ry = -freeAxis(ax[3] ?? 0);
+    FREE_IN.zoom = (b[PAD.RT]?.value ?? 0) - (b[PAD.LT]?.value ?? 0);
+    FREE_IN.rise = (b[PAD.RB]?.pressed ? 1 : 0) - (b[PAD.LB]?.pressed ? 1 : 0);
+    FREE_IN.nudge = (b[PAD.UP]?.pressed ? 1 : 0) - (b[PAD.DOWN]?.pressed ? 1 : 0);
+  }
+
+  private clearFreeIn(): void {
+    FREE_IN.lx = FREE_IN.ly = FREE_IN.rx = FREE_IN.ry = FREE_IN.zoom = FREE_IN.rise = FREE_IN.nudge = 0;
+  }
+
+  /** (tuner-camera) Free view off / orbit / fly: the game reads FREE_VIEW each frame; the pad goes to it and the panel folds. */
+  setFreeMode(m: FreeMode): void {
+    const was = FREE_VIEW.mode;
+    FREE_VIEW.mode = m;
+    if (this.freeSel && this.freeSel.value !== m) this.freeSel.value = m;
+    this.clearFreeIn();
+    FREE_IN.wheel = 0;
+    this.pad.setFree(m !== 'off');
+    if (m !== 'off' && was === 'off' && this.pad.mode === 'free') this.setFolded(true);
+    if (m === 'off' && was !== 'off') this.setFolded(false);
+    this.setPadLine();
+    this.markPadFocus();
+  }
+
+  /** (tuner-camera) Slow motion: the loop's time scale (the fixed step stays; 1, 0.5, 0.25, 0.1). */
+  private setTimeScale(v: number): void {
+    const s = freeTimeScale(v);
+    if (this.loop) this.loop.timeScale = s;
+    this.scaled = s !== 1;
+    if (this.timeSel && this.timeSel.value !== String(s)) this.timeSel.value = String(s);
   }
 
   private sliders(k: number): NodeListOf<HTMLInputElement> {
@@ -577,7 +710,7 @@ export class AnimTunePanel {
     if (!next) return;
     const id = this.padInput?.dataset.id ?? '';
     this.setFollow(false);
-    sec.group = next.value as TuneGroup;
+    sec.group = next.value;
     this.buildRows(sec);
     const list = this.sliders(this.padSec);
     for (let i = 0; i < list.length; i++) if (list[i]!.dataset.id === id) this.padIdx = i;
@@ -662,7 +795,12 @@ export class AnimTunePanel {
     this.syncFollow();
     if (!this.folded && nowMs >= this.nextInfo) {
       this.nextInfo = nowMs + 250;
-      this.now.textContent = `now: ${TUNE_STATE.body || '-'}  /  ${TUNE_STATE.gun || 'unarmed'}${this.follow ? '' : '  (follow off)'}`;
+      this.now.textContent = `now: ${TUNE_STATE.body || '-'}  /  ${TUNE_STATE.gun || 'unarmed'}  /  ${TUNE_STATE.cam || '-'}${this.follow ? '' : '  (follow off)'}`;
+      // (tuner-camera) the time picker shows the loop's scale (a match start or a slow beat resets it)
+      if (this.loop && this.timeSel) {
+        const ts = String(freeTimeScale(this.loop.timeScale));
+        if (this.timeSel.value !== ts && document.activeElement !== this.timeSel) this.timeSel.value = ts;
+      }
       this.info.textContent = `${tuneChanged().length} changed, ${TUNE_LOG.length} log entries`;
     }
     if (this.marker) this.drawMarker();

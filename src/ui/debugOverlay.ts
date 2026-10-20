@@ -123,6 +123,8 @@ export class DebugOverlay {
       if (e.code === 'F3') this.toggle();
     });
     this.animTune.rig = () => (this.crabPlayer?.() as unknown as { rig?: TuneRigView } | null)?.rig ?? null;
+    // (tuner-camera) the tuner's slow-motion picker sets the loop's time scale
+    this.animTune.loop = this.loop;
     // (anim-tuner pass 2) opened from the pause menu or Settings too: the Anim button shows its state
     this.animTune.onOpenChange = (on) => Array.from(this.tools.querySelectorAll('button')).find((b) => b.textContent === 'Anim')?.classList.toggle('on', on);
     engine.onEndFrameObservable.add(() => this.onFrame());

@@ -106,6 +106,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   repeats, faster after 1 s), the left stick X nudges faster; LB / RB change the group; Y resets the row; A exports.
   The player does not move, jump or fire meanwhile. View: "PAD: game", walk to check, View again to tune. B closes the
   panel and the player does not crouch from that press.
+- [ ] Animation tuner Camera (tuner-camera): the Camera section's picker follows explore / crouched / low ready / aim
+  rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
+  "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
+  Reset group puts it back; Export lists the `cam.` values.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than

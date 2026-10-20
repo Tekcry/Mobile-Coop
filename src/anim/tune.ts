@@ -12,8 +12,14 @@
  *
  * The panel (`ui/animTunePanel.ts`) edits the table, saves it to its own IndexedDB store (`save/animTuneStore.ts`) and
  * exports the changed values with a timestamped change log (`tuneExport`).
+ *
+ * (tuner-camera) A third set, the follow camera per camera state (`CAM_GROUPS`): offsets and multipliers on the values
+ * in `config/camera.ts`, read by `player/shoulderCamera.ts` through `TUNE_CAM_CUR` (the current camera group's values,
+ * eased in by `tuneCamStep` once per render frame). Visual only: the collision still applies after them.
  */
 import { CH } from './pose';
+import { ATTACH_FRAMING, CAMERA, WALL_CAMERA } from '../config/camera';
+import { registerTuneSection, TUNE_STATE_BAG } from './tuneRegistry';
 
 export const BODY_GROUPS = [
   'idle',
@@ -41,8 +47,22 @@ export type BodyGroup = (typeof BODY_GROUPS)[number];
 
 export const GUN_GROUPS = ['rifle.lowReady', 'rifle.aim', 'rifle.aimCrouch', 'pistol.lowReady', 'pistol.aim', 'pistol.aimCrouch'] as const;
 export type GunGroup = (typeof GUN_GROUPS)[number];
-export type TuneGroup = BodyGroup | GunGroup;
-export const ALL_GROUPS: readonly TuneGroup[] = [...BODY_GROUPS, ...GUN_GROUPS];
+/** (tuner-camera) The camera states (`selectCamGroup`). */
+export const CAM_GROUPS = [
+  'cam.explore',
+  'cam.exploreCrouch',
+  'cam.lowReady',
+  'cam.aimRifle',
+  'cam.aimPistol',
+  'cam.wall',
+  'cam.peek',
+  'cam.climb',
+  'cam.vent',
+  'cam.hold',
+] as const;
+export type CamGroup = (typeof CAM_GROUPS)[number];
+export type TuneGroup = BodyGroup | GunGroup | CamGroup;
+export const ALL_GROUPS: readonly TuneGroup[] = [...BODY_GROUPS, ...GUN_GROUPS, ...CAM_GROUPS];
 
 export const BODY_FIELDS = [
   'kneeFlexAdd',
@@ -75,7 +95,10 @@ export type BodyField = (typeof BODY_FIELDS)[number];
 
 export const GUN_FIELDS = ['gunFwd', 'gunUp', 'gunSide', 'gunPitch', 'gunYaw', 'gunCant', 'sightYAdd', 'headDropMul', 'tuckMul', 'glideTwistMul'] as const;
 export type GunField = (typeof GUN_FIELDS)[number];
-export type TuneField = BodyField | GunField;
+export const CAM_FIELDS = ['camBoomAdd', 'camHeightAdd', 'camSideAdd', 'camPivotAdd', 'camFovAdd', 'camZoomMul', 'camBlendMul', 'camFollowMul', 'camBoomRateMul', 'camPadAdd'] as const;
+export type CamField = (typeof CAM_FIELDS)[number];
+export type TuneField = BodyField | GunField | CamField;
+export type CamValues = Record<CamField, number>;
 
 export type BodyValues = Record<BodyField, number>;
 export type GunValues = Record<GunField, number>;
@@ -105,6 +128,10 @@ const ATTACHED: readonly BodyGroup[] = ['ladder', 'pipe', 'ledge', 'vent', 'craw
 const ALL_BODY: readonly BodyGroup[] = BODY_GROUPS;
 const ALL_GUN: readonly GunGroup[] = GUN_GROUPS;
 const AIM_GUN: readonly GunGroup[] = ['rifle.aim', 'rifle.aimCrouch', 'pistol.aim', 'pistol.aimCrouch'];
+const ALL_CAM: readonly CamGroup[] = CAM_GROUPS;
+const CAM_AIM: readonly CamGroup[] = ['cam.aimRifle', 'cam.aimPistol'];
+/** Every camera state with a blend of its own (the hold uses the explore camera's). */
+const CAM_BLEND: readonly CamGroup[] = CAM_GROUPS.filter((g) => g !== 'cam.hold');
 
 /** The registry: every slider. Defaults are identity (mul 1, add 0): nothing changes until a slider moves. */
 export const TUNABLES: readonly Tunable[] = [
@@ -143,7 +170,91 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'headDropMul', label: 'head drop to sights', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'characterRig: NECK_WELD (the neck flexes onto the stock)' },
   { id: 'tuckMul', label: 'elbow tuck (aim / low ready)', kind: 'mul', def: 1, min: 0, max: 1.6, step: 0.05, unit: 'x', groups: ALL_GUN, hook: 'characterRig solveArm: AIM_ELBOW_TUCK / READY_ELBOW_TUCK' },
   { id: 'glideTwistMul', label: 'glide hip twist cut', kind: 'mul', def: 1, min: 0, max: 1.5, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'animGraph: GLIDE.yawCut (aimed glide: the hips twist less)' },
+  // (tuner-camera) the follow camera per state: visual only, the collision still applies after them
+  { id: 'camBoomAdd', label: 'distance behind', kind: 'add', def: 0, min: -2, max: 3, step: 0.01, unit: 'm', groups: ALL_CAM, hook: 'shoulderCamera.update: the framing boom (framing() / ATTACH_FRAMING / WALL_CAMERA.peek.boom), before the min boom and the casts' },
+  { id: 'camHeightAdd', label: 'height (over the look-at)', kind: 'add', def: 0, min: -1, max: 1.5, step: 0.01, unit: 'm', groups: ALL_CAM, hook: 'shoulderCamera.update: CAMERA.height (the shoulder point over the pivot)' },
+  { id: 'camSideAdd', label: 'shoulder side offset', kind: 'add', def: 0, min: -0.6, max: 0.8, step: 0.005, unit: 'm', groups: ALL_CAM, hook: 'shoulderCamera.update: the framing shoulder (CAMERA.shoulderHip / shoulderAds, the preset shoulder, WALL_CAMERA.peek.shoulder); mirrors with the shoulder swap' },
+  { id: 'camPivotAdd', label: 'look-at height', kind: 'add', def: 0, min: -1, max: 1, step: 0.01, unit: 'm', groups: ALL_CAM, hook: 'shoulderCamera.update: the framing pivot (CAMERA.pivotStand / pivotCrouch / aimEyeDrop / openDrop, the preset pivot)' },
+  { id: 'camFovAdd', label: 'FOV (horizontal at 16:9)', kind: 'add', def: 0, min: -40, max: 30, step: 0.5, unit: 'deg', groups: ALL_CAM, hook: 'shoulderCamera.update: baseFovDeg (the video.fovH setting, CAMERA.fov 86)' },
+  { id: 'camZoomMul', label: 'aim zoom (FOV at full aim)', kind: 'mul', def: 1, min: 0.3, max: 1.3, step: 0.01, unit: 'x', groups: CAM_AIM, hook: 'shoulderCamera.update: adsZoom (1: no zoom, G29; a marksman scope sets it lower)' },
+  { id: 'camBlendMul', label: 'transition blend time', kind: 'mul', def: 1, min: 0.2, max: 4, step: 0.05, unit: 'x', groups: CAM_BLEND, hook: 'shoulderCamera.update: every camera blend while in this state (aim in adsInTime / adsInWall, aim out adsOutRate, open / tight toTight / toOpen, the preset blend, WALL_CAMERA.peek blend / out)' },
+  { id: 'camFollowMul', label: 'follow damping (vertical rate)', kind: 'mul', def: 1, min: 0.1, max: 4, step: 0.05, unit: 'x', groups: ALL_CAM, hook: 'shoulderCamera.update: CAMERA.stairRate (the feet height low-pass; XZ is rigid, G159)' },
+  { id: 'camBoomRateMul', label: 'boom pull-in / ease-out rate', kind: 'mul', def: 1, min: 0.1, max: 4, step: 0.05, unit: 'x', groups: ALL_CAM, hook: 'shoulderCamera.update: CAMERA.boomIn / boomOut (the cast still clamps the boom the same frame)' },
+  { id: 'camPadAdd', label: 'collision pull-in margin', kind: 'add', def: 0, min: -0.04, max: 0.4, step: 0.005, unit: 'm', groups: ALL_CAM, hook: 'shoulderCamera.update: CAMERA.castPad (the gap kept after a sphere hit; never below 0)' },
 ];
+
+const n2 = (v: number): string => String(Number(v.toFixed(2)));
+const AF = ATTACH_FRAMING;
+const PK = WALL_CAMERA.peek;
+const CAM_COMMON: Partial<Record<CamField, string>> = {
+  camHeightAdd: `${CAMERA.height} m`,
+  camFovAdd: `${CAMERA.fov} deg (setting video.fovH)`,
+  camFollowMul: `stairRate ${CAMERA.stairRate} 1/s (XZ rigid)`,
+  camBoomRateMul: `in ${CAMERA.boomIn} / out ${CAMERA.boomOut} 1/s`,
+  camPadAdd: `castPad ${CAMERA.castPad} m (sphere ${CAMERA.castRadius})`,
+};
+function exploreToday(crouch: boolean): Partial<Record<CamField, string>> {
+  const pv = crouch ? CAMERA.pivotCrouch : CAMERA.pivotStand;
+  return {
+    ...CAM_COMMON,
+    camBoomAdd: `${CAMERA.boomHip} tight / ${crouch ? CAMERA.boomCrouchOpen : CAMERA.boomOpen} open m`,
+    camSideAdd: `${CAMERA.shoulderHip} m`,
+    camPivotAdd: `${n2(pv)} m (open ${n2(pv - CAMERA.openDrop)})`,
+    camBlendMul: `space toTight ${CAMERA.toTight} / toOpen ${CAMERA.toOpen} 1/s`,
+  };
+}
+const AIM_TODAY: Partial<Record<CamField, string>> = {
+  ...CAM_COMMON,
+  camBoomAdd: `${CAMERA.boomAds} m`,
+  camSideAdd: `${CAMERA.shoulderAds} m`,
+  camPivotAdd: `${n2(CAMERA.pivotStand - CAMERA.aimEyeDrop)} m (head top - ${CAMERA.aimEyeDrop})`,
+  camZoomMul: 'x1 (no zoom, G29)',
+  camBlendMul: `adsInTime ${CAMERA.adsInTime} s (the weapon sets it), off a wall ${CAMERA.adsInWall} s`,
+};
+interface PresetLike {
+  boom: number;
+  shoulder: number;
+  pivot: number;
+  blend: number;
+}
+function presetToday(names: string, ...ps: PresetLike[]): Partial<Record<CamField, string>> {
+  const join = (f: (p: PresetLike) => number): string => ps.map(f).join(' / ');
+  const pre = names ? `${names}: ` : '';
+  return {
+    ...CAM_COMMON,
+    camBoomAdd: `${pre}${join((p) => p.boom)} m`,
+    camSideAdd: `${pre}${join((p) => p.shoulder)} m`,
+    camPivotAdd: `${pre}${join((p) => p.pivot)} m`,
+    camBlendMul: `${pre}${join((p) => p.blend)} s`,
+  };
+}
+const HOLD_TODAY = exploreToday(false);
+delete HOLD_TODAY.camBlendMul;
+
+/** (tuner-camera) The value the game uses today under each camera slider (from `config/camera.ts`; text only). */
+export const CAM_TODAY: Record<CamGroup, Partial<Record<CamField, string>>> = {
+  'cam.explore': exploreToday(false),
+  'cam.exploreCrouch': exploreToday(true),
+  'cam.lowReady': { ...exploreToday(false), camBlendMul: `aim out adsOutRate ${CAMERA.adsOutRate} 1/s` },
+  'cam.aimRifle': AIM_TODAY,
+  'cam.aimPistol': AIM_TODAY,
+  'cam.wall': presetToday('', AF.wall),
+  'cam.peek': {
+    ...CAM_COMMON,
+    camBoomAdd: `${PK.boom} m (at full peek)`,
+    camSideAdd: `${PK.shoulder} m (at full peek)`,
+    camPivotAdd: `${AF.wall.pivot} m (+${PK.offset} m out to the edge)`,
+    camBlendMul: `in ${PK.blend} / out ${PK.out} s`,
+  },
+  'cam.climb': presetToday('hang / ladder / pipe', AF.hang, AF.ladder, AF.pipe),
+  'cam.vent': presetToday('', AF.duct),
+  'cam.hold': HOLD_TODAY,
+};
+
+/** The game's value today under a camera slider, or ''. */
+export function tuneToday(group: TuneGroup, id: TuneField): string {
+  return (CAM_TODAY as Partial<Record<string, Partial<Record<string, string>>>>)[group]?.[id] ?? '';
+}
 
 /**
  * (pass 3) Real-world targets shown under the matching sliders (walk / jog / run; CT Core's reference numbers), so the
@@ -183,6 +294,7 @@ export function tuneHint(group: TuneGroup, id: TuneField): string {
 
 const TUNABLE_BY_ID = new Map<TuneField, Tunable>(TUNABLES.map((t) => [t.id, t]));
 
+/** A built-in slider by id (Body, Gun and Camera ids are unique across the three). */
 export function tunable(id: TuneField): Tunable {
   return TUNABLE_BY_ID.get(id)!;
 }
@@ -191,39 +303,16 @@ export function isGunGroup(g: string): g is GunGroup {
   return (GUN_GROUPS as readonly string[]).includes(g);
 }
 
-export function isTuneGroup(g: string): g is TuneGroup {
-  return (ALL_GROUPS as readonly string[]).includes(g);
+export function isCamGroup(g: string): g is CamGroup {
+  return (CAM_GROUPS as readonly string[]).includes(g);
 }
 
-/** The sliders a group shows (registry order). */
-export function tunablesFor(group: TuneGroup): Tunable[] {
-  return TUNABLES.filter((t) => t.groups.includes(group));
-}
-
-/** Whether `id` is a slider of `group`. */
-export function hasTunable(group: TuneGroup, id: string): id is TuneField {
-  const t = TUNABLE_BY_ID.get(id as TuneField);
-  return !!t && t.groups.includes(group);
-}
-
-function defBody(): BodyValues {
-  const o = {} as BodyValues;
+function defCur(): CurValues {
+  const o = { armSwingK: 1 } as CurValues;
   for (const f of BODY_FIELDS) o[f] = tunable(f).def;
-  return o;
-}
-function defGun(): GunValues {
-  const o = {} as GunValues;
   for (const f of GUN_FIELDS) o[f] = tunable(f).def;
   return o;
 }
-function defCur(): CurValues {
-  return { ...defBody(), ...defGun(), armSwingK: 1 };
-}
-
-/** The live values per body group (preallocated). */
-export const TUNE_BODY = Object.fromEntries(BODY_GROUPS.map((g) => [g, defBody()])) as Record<BodyGroup, BodyValues>;
-/** The live values per weapon x state (preallocated). */
-export const TUNE_GUN = Object.fromEntries(GUN_GROUPS.map((g) => [g, defGun()])) as Record<GunGroup, GunValues>;
 
 /** The identity values (never written). */
 export const TUNE_IDENTITY: Readonly<CurValues> = Object.freeze(defCur());
@@ -231,8 +320,54 @@ export const TUNE_IDENTITY: Readonly<CurValues> = Object.freeze(defCur());
 export const TUNE_CUR: CurValues = defCur();
 /** The local player's last selected values (kept after `tuneEnd`): for code outside the animate window. */
 export const TUNE_LOCAL: CurValues = defCur();
-/** What the local player is doing now (the panel's auto-follow); '' = no group (a vault, a ladder top-out, ...). */
-export const TUNE_STATE: { body: BodyGroup | ''; gun: GunGroup | '' } = { body: '', gun: '' };
+/** What the local player is doing now (the panel's auto-follow); '' = no group (a vault, a ladder top-out, ...). The
+ *  registry's state bag (a new section may add its own key). */
+export const TUNE_STATE = TUNE_STATE_BAG as { body: BodyGroup | ''; gun: GunGroup | ''; cam: CamGroup | '' } & Record<string, string>;
+
+const inSection = (groups: readonly string[]): Tunable[] => TUNABLES.filter((t) => t.groups.every((g) => groups.includes(g)));
+const EMPTY: readonly string[] = [];
+
+/** (tuner-camera) The three built-in sections, in panel order: Body, Gun, Camera (`tuneRegistry.ts`). */
+export const BODY_SECTION = registerTuneSection<BodyValues>({
+  id: 'body',
+  label: 'Body state',
+  groups: BODY_GROUPS,
+  tunables: inSection(BODY_GROUPS),
+  select: (s) => s.body || null,
+  notes: (g, id) => {
+    const h = tuneHint(g as TuneGroup, id as TuneField);
+    return h ? [h] : EMPTY;
+  },
+});
+export const GUN_SECTION = registerTuneSection<GunValues>({
+  id: 'gun',
+  label: 'Gun hold (weapon x state)',
+  groups: GUN_GROUPS,
+  tunables: inSection(GUN_GROUPS),
+  select: (s) => s.gun || null,
+});
+export const CAM_SECTION = registerTuneSection<CamValues>({
+  id: 'cam',
+  label: 'Camera (state)',
+  groups: CAM_GROUPS,
+  tunables: inSection(CAM_GROUPS),
+  select: (s) => s.cam || null,
+  notes: (g, id) => {
+    const t = tuneToday(g as TuneGroup, id as TuneField);
+    return t ? [`today: ${t}`] : EMPTY;
+  },
+});
+
+/** The live values per body group (preallocated; the registry's). */
+export const TUNE_BODY = BODY_SECTION.values as Record<BodyGroup, BodyValues>;
+/** The live values per weapon x state (preallocated). */
+export const TUNE_GUN = GUN_SECTION.values as Record<GunGroup, GunValues>;
+/** (tuner-camera) The live values per camera state (preallocated). */
+export const TUNE_CAM = CAM_SECTION.values as Record<CamGroup, CamValues>;
+/** The camera identity values (never written). */
+export const TUNE_CAM_IDENTITY: Readonly<CamValues> = CAM_SECTION.identity;
+/** The values the follow camera reads: the current camera group's, eased in (`tuneCamStep`); identity at default. */
+export const TUNE_CAM_CUR: CamValues = CAM_SECTION.cur;
 
 /** Gait-clip pose channel of the spine yaw (pose.ts CH.spYaw). */
 const SP_YAW = CH.spYaw;
@@ -524,160 +659,79 @@ export function tuneKeyedTwist(q: Float64Array, mean: Float32Array): void {
 }
 
 // ------------------------------------------------------------------------------------------
-// Edit, reset, change log, export, save (the panel; not hot)
+// (tuner-camera) The camera state and its values (hot path: no allocation)
 // ------------------------------------------------------------------------------------------
 
-export interface TuneChange {
-  /** ISO time of the first move in this entry. */
-  t: string;
-  group: TuneGroup;
-  id: TuneField;
-  from: number;
-  to: number;
-}
-
-/** The change log (oldest first). A run of moves of one slider within `LOG_MERGE_MS` is one entry. */
-export const TUNE_LOG: TuneChange[] = [];
-const LOG_MAX = 5000;
-const LOG_MERGE_MS = 1500;
-let lastLogAt = 0;
-
-/** Called after every change (the panel's debounced save). */
-export const TUNE_HOOKS: { changed: (() => void) | null } = { changed: null };
-
-function valuesOf(group: TuneGroup): Record<string, number> {
-  return (isGunGroup(group) ? TUNE_GUN[group] : TUNE_BODY[group as BodyGroup]) as Record<string, number>;
-}
-
-function round(v: number, step: number): number {
-  const d = Math.max(0, Math.min(6, Math.ceil(-Math.log10(step)) + 1));
-  return Number(v.toFixed(d));
-}
-
-export function tuneGet(group: TuneGroup, id: TuneField): number {
-  return valuesOf(group)[id]!;
-}
-
-/** Set one value (clamped to the slider's range); logs the change. False: not a slider of that group. */
-export function tuneSet(group: TuneGroup, id: TuneField, value: number, now = Date.now()): boolean {
-  if (!hasTunable(group, id) || !Number.isFinite(value)) return false;
-  const t = tunable(id);
-  const v = round(Math.max(t.min, Math.min(t.max, value)), t.step);
-  const vals = valuesOf(group);
-  const from = vals[id]!;
-  if (v === from) return true;
-  vals[id] = v;
-  const last = TUNE_LOG[TUNE_LOG.length - 1];
-  if (last && last.group === group && last.id === id && now - lastLogAt < LOG_MERGE_MS) last.to = v;
-  else {
-    TUNE_LOG.push({ t: new Date(now).toISOString(), group, id, from, to: v });
-    if (TUNE_LOG.length > LOG_MAX) TUNE_LOG.splice(0, TUNE_LOG.length - LOG_MAX);
+/**
+ * The camera group: the attach preset first (`wall`: the peek while sliding past an edge; `duct`: vent; any other:
+ * climb), then the body's hold / crawl / climb, the aim (by the held weapon), crouched, armed (low ready), else explore.
+ * `attach`: the camera's preset; `peek`: the wall peek (0..1); `ads`: the aim target (0 / 1); `body` / `gun`: TUNE_STATE.
+ */
+export function selectCamGroup(attach: string | null, peek: number, ads: number, crouch: number, body: string, gun: string): CamGroup {
+  if (attach) {
+    if (attach === 'wall') return peek > 0 ? 'cam.peek' : 'cam.wall';
+    if (attach === 'duct') return 'cam.vent';
+    return 'cam.climb';
   }
-  lastLogAt = now;
-  TUNE_HOOKS.changed?.();
-  return true;
+  if (body === 'hold') return 'cam.hold';
+  if (body === 'crawl' || body === 'vent') return 'cam.vent';
+  if (body === 'ladder' || body === 'pipe' || body === 'ledge' || body === 'hang') return 'cam.climb';
+  if (ads > 0) return gun.startsWith('pistol') ? 'cam.aimPistol' : 'cam.aimRifle';
+  if (crouch > 0.5) return 'cam.exploreCrouch';
+  if (gun !== '') return 'cam.lowReady';
+  return 'cam.explore';
 }
 
-export function tuneReset(group: TuneGroup, id: TuneField, now = Date.now()): void {
-  if (hasTunable(group, id)) tuneSet(group, id, tunable(id).def, now);
-}
+/** The rate (1/s) the camera's values ease to a new group's (or a moved slider's): about 0.4 s, so a state change glides. */
+export const CAM_EASE = 8;
+const CAM_KEYS: readonly CamField[] = CAM_FIELDS;
 
-export function tuneResetGroup(group: TuneGroup, now = Date.now()): void {
-  for (const t of tunablesFor(group)) tuneSet(group, t.id, t.def, now);
-}
-
-export function tuneResetAll(now = Date.now()): void {
-  for (const g of ALL_GROUPS) tuneResetGroup(g, now);
-}
-
-/** Whether a group has any value off its default. */
-export function tuneGroupChanged(group: TuneGroup): boolean {
-  return tunablesFor(group).some((t) => tuneGet(group, t.id) !== t.def);
-}
-
-export interface TuneValue {
-  group: TuneGroup;
-  id: TuneField;
-  label: string;
-  kind: 'mul' | 'add';
-  unit: string;
-  value: number;
-  default: number;
-}
-
-/** Every value off its default. */
-export function tuneChanged(): TuneValue[] {
-  const out: TuneValue[] = [];
-  for (const g of ALL_GROUPS) {
-    for (const t of tunablesFor(g)) {
-      const v = tuneGet(g, t.id);
-      if (v !== t.def) out.push({ group: g, id: t.id, label: t.label, kind: t.kind, unit: t.unit, value: v, default: t.def });
-    }
-  }
-  return out;
-}
-
-export const TUNE_EXPORT_MAGIC = 'night-shift-anim-tune';
-
-export interface TuneExport {
-  magic: typeof TUNE_EXPORT_MAGIC;
-  version: 1;
-  exported: string;
-  changed: TuneValue[];
-  log: TuneChange[];
-}
-
-/** The export: every changed value with its default, and the change log. */
-export function tuneExport(now = new Date()): TuneExport {
-  return { magic: TUNE_EXPORT_MAGIC, version: 1, exported: now.toISOString(), changed: tuneChanged(), log: TUNE_LOG.slice() };
-}
-
-/** `anim-tune-YYYY-MM-DD.json` (local date). */
-export function tuneExportName(now = new Date()): string {
-  const p = (n: number): string => String(n).padStart(2, '0');
-  return `anim-tune-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}.json`;
-}
-
-/** What the store keeps: the changed values per group, and the log. */
-export interface TuneSnapshot {
-  version: 1;
-  values: Record<string, Record<string, number>>;
-  log: TuneChange[];
-}
-
-export function tuneSnapshot(): TuneSnapshot {
-  const values: Record<string, Record<string, number>> = {};
-  for (const c of tuneChanged()) (values[c.group] ??= {})[c.id] = c.value;
-  return { version: 1, values, log: TUNE_LOG.slice() };
-}
-
-/** Load a saved snapshot (no log entries for the load; unknown groups / ids are skipped). */
-export function tuneLoad(s: unknown): void {
-  if (!s || typeof s !== 'object') return;
-  const snap = s as Partial<TuneSnapshot>;
-  const hook = TUNE_HOOKS.changed;
-  TUNE_HOOKS.changed = null;
-  try {
-    for (const g of ALL_GROUPS) for (const t of tunablesFor(g)) valuesOf(g)[t.id] = t.def;
-    for (const [g, vals] of Object.entries(snap.values ?? {})) {
-      if (!isTuneGroup(g) || !vals || typeof vals !== 'object') continue;
-      for (const [id, v] of Object.entries(vals)) {
-        if (!hasTunable(g, id) || typeof v !== 'number' || !Number.isFinite(v)) continue;
-        const t = tunable(id);
-        valuesOf(g)[id] = Math.max(t.min, Math.min(t.max, v));
-      }
-    }
-    TUNE_LOG.length = 0;
-    if (Array.isArray(snap.log)) for (const c of snap.log.slice(-LOG_MAX)) if (c && isTuneGroup(c.group) && hasTunable(c.group, c.id)) TUNE_LOG.push(c);
-    lastLogAt = 0;
-  } finally {
-    TUNE_HOOKS.changed = hook;
+/**
+ * Once per render frame, from the follow camera: select the camera group (TUNE_STATE.cam) and ease `TUNE_CAM_CUR` toward
+ * its values. At identity everywhere `TUNE_CAM_CUR` never moves (exact 0 / 1). No allocation.
+ */
+export function tuneCamStep(attach: string | null, peek: number, ads: number, crouch: number, dt: number): void {
+  const g = selectCamGroup(attach, peek, ads, crouch, TUNE_STATE.body, TUNE_STATE.gun);
+  TUNE_STATE.cam = g;
+  const src = TUNE_CAM[g];
+  const cur = TUNE_CAM_CUR;
+  const k = dt > 0 ? 1 - Math.exp(-CAM_EASE * dt) : 0;
+  for (let i = 0; i < CAM_KEYS.length; i++) {
+    const key = CAM_KEYS[i]!;
+    const t = src[key];
+    const c = cur[key];
+    if (c === t) continue;
+    const d = t - c;
+    cur[key] = Math.abs(d) < 1e-5 ? t : c + d * k;
   }
 }
 
-/** Clear the change log (keeps the values). */
-export function tuneClearLog(): void {
-  TUNE_LOG.length = 0;
-  lastLogAt = 0;
-  TUNE_HOOKS.changed?.();
-}
+// ------------------------------------------------------------------------------------------
+// Edit, reset, change log, export, save: the registry's (tuneRegistry.ts), re-exported for the older callers
+// ------------------------------------------------------------------------------------------
+
+export {
+  TUNE_EXPORT_MAGIC,
+  TUNE_HOOKS,
+  TUNE_LOG,
+  hasTunable,
+  isTuneGroup,
+  tunablesFor,
+  tuneChanged,
+  tuneClearLog,
+  tuneExport,
+  tuneExportName,
+  tuneGet,
+  tuneGroupChanged,
+  tuneLoad,
+  tuneNotes,
+  tuneReset,
+  tuneResetAll,
+  tuneResetGroup,
+  tuneSet,
+  tuneSnapshot,
+  type TuneChange,
+  type TuneExport,
+  type TuneSnapshot,
+  type TuneValue,
+} from './tuneRegistry';
