@@ -48,6 +48,9 @@ export interface RigLike {
   readonly hipR: TransformNode;
   readonly kneeR: TransformNode;
   readonly ankleR: TransformNode;
+  /** (anim-rig) The toe joints at the ball of each foot (pitched up as the planted foot rolls onto its ball). */
+  readonly toeL: TransformNode;
+  readonly toeR: TransformNode;
   /** (feature/weapons) How closed each hand is round a grip, 0..1 (CharacterRig: the weapon grips, world grips). */
   readonly handGrip?: { readonly l: number; readonly r: number };
   /** (anim-cleanup) The right hand is on a weapon's trigger grip (the trigger shape; else a full wrap). */
@@ -58,7 +61,7 @@ export interface RigLike {
 export function rigNodes(r: RigLike): TransformNode[] {
   return [
     r.root, r.body, r.hips, r.spine, r.torso, r.neck, r.headNode, r.shoulderL, r.elbowL, r.wristL, r.shoulderR,
-    r.elbowR, r.wristR, r.hipL, r.kneeL, r.ankleL, r.hipR, r.kneeR, r.ankleR,
+    r.elbowR, r.wristR, r.hipL, r.kneeL, r.ankleL, r.hipR, r.kneeR, r.ankleR, r.toeL, r.toeR,
   ];
 }
 

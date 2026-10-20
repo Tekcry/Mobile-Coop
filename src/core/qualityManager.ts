@@ -73,7 +73,9 @@ export class QualityManager {
 
   /** The frame cap: the setting. */
   private capNow(): number {
-    return this.settings.get().video.fpsCap;
+    const cap = this.settings.get().video.fpsCap;
+    // (phone-min) a phone never renders above 60 fps (heat)
+    return flags.phone ? (cap > 0 && cap < 60 ? cap : 60) : cap;
   }
 
   /** Pacing percentiles over the last 240 frames (reuses one object). */
@@ -196,6 +198,8 @@ export class QualityManager {
   private applyScale(): void {
     // (`?gfx=min`: DPR 1)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
+    // (phone-min) a phone: DPR 1 and a 0.75 render scale on the Low preset (cool and light)
+    else if (flags.phone) applyRenderScale(this.engine, this.ov?.scale ?? 0.75, 1);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
     else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), Infinity);

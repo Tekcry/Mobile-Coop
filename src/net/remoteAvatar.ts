@@ -5,7 +5,7 @@ import { tenseNear } from '../player/tenseSneak';
 import { WALL, WALL_LOOK_PITCH, WALL_SUB, WALL_TURN, wallHandPoint, wallHeadYaw, wallMoveK, wallPeekOffset, wallPoint, wallRootPush, wallSideFromSub, wallTurnRate, wallYawOffset } from '../player/wallController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { muzzleBlock } from '../player/wallBlock';
-import { Vector3 } from '../core/babylon';
+import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
 import type { CharacterRig } from '../player/characterRig';
 import type { OperatorFigure } from '../operators/runtime/figure';
 import { loadPlayLods, operatorRig, partnerFigureFrame } from '../operators/runtime/playerFigure';
@@ -15,7 +15,7 @@ import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { assignCarrySlots } from '../weapons/carrySlots';
 import { classWeight } from '../weapons/weaponCarry';
 import { GrenadePouches } from '../weapons/grenadePouches';
-import { MASK } from '../physics/groups';
+import { G, MASK } from '../physics/groups';
 import type { World } from '../world/world';
 import type { Vfx } from '../vfx/vfx';
 import type { Ballistics } from '../weapons/ballistics';
@@ -34,6 +34,8 @@ import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../g
 
 /** Rope slots per remote (`Ropes` keys). */
 let ropeKeys = 0;
+/** (doorPeek parity) The feet's floor probe filter, as the local player's rig (`Player`). */
+const GROUND_Q = { membership: G.PLAYER, collideWith: G.STATIC };
 
 /**
  * Another player's body, rendered from interpolated states: rig animation from speed / flags and (3.2.0) their
@@ -147,6 +149,19 @@ export class RemoteAvatar {
     loadPlayLods(this.figure);
     this.pouches = new GrenadePouches(world.parts, this.rig, undefined, false);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
+    // (doorPeek parity) the planted feet on the floor under them, as the owner's rig (without it they stood at the
+    // snapshot root: 2 cm up wherever the owner's capsule rests off the floor, e.g. at a door peek or on a wall)
+    const eng = world.scene.getPhysicsEngine() as PhysicsEngine | null;
+    if (eng) {
+      const rr = new PhysicsRaycastResult();
+      const ga = new Vector3();
+      const gb = new Vector3();
+      this.rig.groundProbe = (x, z, yFrom) => {
+        rr.reset();
+        eng.raycastToRef(ga.set(x, yFrom, z), gb.set(x, yFrom - 1.2, z), rr, GROUND_Q);
+        return rr.hasHit ? rr.hitPoint.y : null;
+      };
+    }
     this.rig.setEnabled(false);
   }
 
@@ -438,7 +453,7 @@ export class RemoteAvatar {
     const upside = mp.tumble > 2;
     // (F3) the crouch idle kneel, as the owner's controller decides it (crouched and still a moment, free on the ground)
     // (G6) and side-on crouched on a wall (the graph kneels there only side-on, as the owner's)
-    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && (mv?.m === 'ground' || mv?.m === 'wall') ? this.kneelT + dt : 0;
+    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && (mv?.m === 'ground' || mv?.m === 'wall' || mv?.m === 'doorPeek') ? this.kneelT + dt : 0;
     // (G1, audit row 26) the tense sneak: crouched on the ground near an unaware guard (the same guards as the owner's)
     const tense = this.crouch > 0.5 && mv?.m === 'ground' && tenseNear(this.pos.x, this.pos.z);
     // (G1, audit row 18) the landing clip from the fall the snapshots show (the owner's controller: recovery from 3 m/s)
@@ -474,8 +489,10 @@ export class RemoteAvatar {
       weight: this.weapon ? (WEAPONS[this.weapon].weight ?? classWeight(WEAPONS[this.weapon].class)) : 1,
       kick: this.kick,
       wall: mp.wall,
+      // (doorPeek parity) the door peek's feet on the stance spots when still, as the owner's
+      settleFeet: mp.settle,
       // (A1.2) as the owner: free movement strides along the facing (no faceGoal: the planner caps its turn guess)
-      stride: this.aim > 0.5 || mp.wall ? 'velocity' : 'facing',
+      stride: this.aim > 0.5 || mp.wall || mp.settle ? 'velocity' : 'facing',
       wallSide: mp.wallSide,
       wallTurn: mp.wall ? Math.abs(Math.sin(this.yaw - Math.atan2(this.wallNx, this.wallNz))) : 0,
       wallBlock: this.aim > 0.05 && mv && !upside ? muzzleBlock(this.ballistics, this.pos.x, this.pos.y, this.pos.z, this.yaw + mv.ay, this.pitch, this.crouch, this.blockA, this.blockB) : 0,

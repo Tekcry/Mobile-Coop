@@ -9,26 +9,26 @@ const KEYS: Record<PromptButton, string> = {
   X: 'X',
   Y: 'E',
   LB: 'Q',
-  LS: 'Shift',
+  LS: 'Caps',
   RB: 'E',
-  LT: 'Z',
+  LT: 'RMB',
   RT: 'LMB',
   START: 'Esc',
 };
 
 /** In-game keyboard labels from the player's bindings (set by the app; the defaults until then). */
 export const keyLabels = {
-  cover: 'Shift',
+  cover: 'Caps',
   traverse: 'Space',
   interact: 'E',
   crouch: 'C',
   reload: 'R',
-  /** (F1a) draw / holster, and the selection wheel key (hold). */
+  /** (anim-rework S1) holster / draw (tap; held: reload), and the selection wheel key (hold). */
   draw: 'X',
   wheel: 'Tab',
-  /** 3.2.0 speed gear (the wheel also steps it). */
-  speedUp: '=',
-  speedDown: '-',
+  /** (anim-rework S1, A1) run and creep (held). */
+  run: 'Shift',
+  creep: 'Alt',
   /** (CT prototype B2) the co-op action: team moves. */
   coop: 'F',
 };

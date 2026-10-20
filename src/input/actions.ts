@@ -2,11 +2,12 @@
 export const BUTTON_ACTIONS = [
   // gameplay
   'fire',
-  /** (F1a) Legacy: no source writes it now; the aim state is `Player.ads` (a toggle on `draw`). */
+  /** (anim-rework S1) The aim, held: pad LT (analog), RMB. From holstered it draws straight to the aim (the sling draw). */
   'ads',
-  /** (F1a, CT) X / RMB / key: draw or holster the weapon (a toggle; drawn = the aiming mode). */
+  /** (anim-rework S1) X / key X: a tap holsters or draws to low ready, held while drawn reloads (`Player.stance`). */
   'draw',
-  /** (F1a, CT) LT / Z: holstered the palm-strike knockout; drawn the secondary fire (a stub: fires like `fire`). */
+  /** KBM Z: the knockout (holstered: the palm strike; holding a guard: the choke); held on the drawn pistol it jams. No
+   *  pad button (anim-rework S1: LT is the aim; RT tap is the knockout). */
   'altFire',
   /** (F1a, CT) R3 / B: zoom in / out while aiming (a scoped weapon only). */
   'zoom',
@@ -36,9 +37,10 @@ export const BUTTON_ACTIONS = [
   'ping',
   /** Co-op action (CT, RB / F / PageDown): team moves (leg-up, ledge relay; the partner throw in B4). */
   'coop',
-  /** Chaos Theory speed gears (3.2.0): one gear up / down. */
-  'speedUp',
-  'speedDown',
+  /** (anim-rework S1) The held context menu's highlight one row up / down: pad D-pad up / down, the mouse wheel (fixed;
+   *  they were the speed gear before the analogue speed). */
+  'ctxUp',
+  'ctxDown',
   // ui
   'uiUp',
   'uiDown',

@@ -1,80 +1,70 @@
-# Orchestrator - resume point (2026-10-19 22:55 Sydney)
+# Orchestrator - resume point (2026-10-20 16:20 Sydney)
 
-Read CLAUDE.md (above all "Sessions": the orchestrator, machines, test tiers, versions) and docs/ROADMAP.md first.
-Work folder for orchestrator docs: C:\NightShift\Mobile-Coop-menu (branch feature/menu; merge origin/master into it
-before each docs batch, then a PR to master as a patch version).
+Read CLAUDE.md (above all "Sessions") and docs/ROADMAP.md first; the roadmap's "Decided" list holds every Michael answer
+from 2026-10-19 21:45 onward, verbatim. Work folder for orchestrator docs: C:\NightShift\Mobile-Coop-menu, branch
+feature/menu. Merge origin/master into it before each docs batch; the docs go to master in a docs PR (a patch) when
+convenient (feature/menu is many commits ahead of master today: open one docs PR soon).
 
-## Account switch: done (2026-10-19 22:40, new Claude account)
-All five sessions were restarted in the new account from docs/orchestrator/NEW-ACCOUNT.md, with the same titles and
-Remote Control on. Michael could not share the old dashboard, so the new one is https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh
-(source docs/orchestrator/dashboard.html, declares `db`, answers in collection `answers`, empty at 22:55). The old
-page (4iaH3gvBbw8utN1uBgysVw) and its answers stay in the old account; the answers are in git
-(docs/ct-prototype/WALK-2026-10-19.md). Character Build on the laptop is reachable over Remote Control
-("Night Shift | Character Build" in ListAgents); a desktop job lead that cannot see it sends its runner request to the
-orchestrator to relay. For a later switch, repeat NEW-ACCOUNT.md.
+## Master
+v4.14.0 (#37, cf73f8b5). Tags v4.0.0-v4.14.0. /preview/ = dev = cf73f8b5. /ct/ = ct-movement = 150dcfce (walk round 3b
+plus the F3 crab readout; CT Core moves it with each slice). Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh
+(source docs/orchestrator/dashboard.html; publish the same path; it declares `db`, answers in collection `answers`;
+update its version line and rows after each merge with the sed / node edits used in git history, then republish).
 
-Active jobs (each resume prompt is in that job's STATE.md, fenced, at the end):
-| Session title | Machine, folder, branch | Resume from | Where it stands (22:55) |
-| --- | --- | --- | --- |
-| Night Shift | Orchestrator | desktop, C:/NightShift/Mobile-Coop-menu, feature/menu | this file ("Resume prompt" below) | see "Next for the orchestrator" |
-| Night Shift | CT Core Build | desktop, C:/NightShift/Mobile-Coop-ct-prototype, feature/ct-prototype | docs/ct-prototype/STATE.md | slice F (F1-F7) at 980a9695: check + e2e on the desktop lock since 22:42, then GPU sheets, independent check, /ct/ |
-| Night Shift | Menu Notes Build | desktop, C:/NightShift/Mobile-Coop-menu-notes, feature/menu-notes | docs/menu-notes/STATE.md | master 4.7.3 merged (c32eb324); CT Core's two menu fixes asked first; fixes done in 4ae2d2f2; check + full e2e on the laptop, then its PR |
-| Night Shift | Character Build | laptop, test runner (C:/NightShift/Mobile-Coop-testrun) | CLAUDE.md "Machines" + docs/lightfield-heap/STATE.md | runner (CT Core, Menu Notes, Sector Ops); own job lightfield-heap e0984128: 5 loaded runs from 22:44, then a PR |
-| Night Shift | Sector Ops Build | desktop, C:/NightShift/Mobile-Coop-sector-restart, feature/sector-restart | docs/sector-restart/STATE.md | M9 fix round 839a3a07 in a fresh check; master merged (cb7e1061); suites queued on the laptop; then PR (patch) |
+## Priority (Michael)
+Movement and animation first (10:30, 13:50: "any spare bandwidth that can be used to speed it up should be used").
+CT movement references are dropped for movement and animation (13:30); the brief is docs/anim-rework/BRIEF.md.
+Laptop: low priority (BelowNormal, E2E_JOBS=1) until Michael says otherwise. Keep going until Michael says stop (08:45).
+
+## Sessions now (titles are the message addresses)
+| Session | Job(s), branch, folder | State (16:20) |
+| --- | --- | --- |
+| Night Shift \| CT Core Build | anim-rework slices 1-6 on feature/ct-prototype (C:/NightShift/Mobile-Coop-ct-prototype) | slice 1 (controls) round 3 ef3a3c01 + the station 3/4 test fix approved; laptop co-op run next, then /ct/ and a PR to master; slice 2 (holstered locomotion: starts, stops, turns, idles, the narrow walk) after |
+| Night Shift \| Course Ready Build (local_4d5454d2, I started it, I can clear it) | anim-guard (feature/anim-guard, PR base feature/ct-prototype), then the MPFB2 rebake on feature/anim-rig | guard clips 90d1c8bf, check running; MPFB2 approved by Michael 14:40 |
+| Night Shift \| Menu Notes Build | nv-pass (feature/nv-pass, C:/NightShift/Mobile-Coop-nv-pass) | slices 1-2 (look, wide goggle frame) 75c37d42 waiting for GPU shots; slice 3 the wheel carousel only after anim-rework slice 1 merges to master (give it the go) |
+| Night Shift \| Sector Ops Build | warehouse-s23 (feature/warehouse-s23, C:/NightShift/Mobile-Coop-warehouse-s23) | section 1 lamp pass + section 2 greybox f4facc1d; laptop run queued last; section 3 next; lowest priority |
+| Night Shift \| Character Build (laptop, Remote Control; it drops off sometimes, ListAgents shows it) | laptop test runner + test-speed (feature/test-speed) | test-speed done when two clean laptop full runs at E2E_JOBS=2; then PR to master |
+
+Relay rule: desktop job leads often cannot reach Character Build; the orchestrator relays runner requests with the full
+commit hash, and forwards results back.
+
+## Context clears (Michael 16:15: "i want to clear all the chats when they are ready to prevent context drifting")
+Every session was asked to reach a clean point, update its STATE with a fenced resume prompt and message "<name> ready
+to clear" with the prompt. Then: give Michael that prompt to paste after he clears it (he clears the sessions he
+started; the orchestrator can clear only Course Ready and itself, with clear_session, then sends the prompt as the first
+message). The orchestrator clears itself last, after giving Michael its own resume prompt (below).
+
+## Open PRs / merges to do
+- anim-guard PR into feature/ct-prototype (Course Ready) when its check passes: CI, then merge (no version: not master).
+- anim-rework slice 1 PR to master (CT Core): full e2e on its head (laptop through me), then a minor version.
+- nv-pass PR to master (minor) after its GPU check.
+- warehouse-s23 PR to master (minor) after section 2 (or 2+3) is green.
+- test-speed PR to master (patch).
+- A docs PR from feature/menu (patch).
+Merge procedure: scripts kept in the scratchpad were ad hoc; the steps are: check the PR head equals the tested commit
+(or the delta is docs only), merge origin/master into the branch in a temp worktree resolving only CHANGELOG / package
+conflicts (stop on any src conflict and check both-sides src files), `npm version <v> --no-git-tag-version`, rename the
+top "## Unreleased" heading to "## <v> - <title> (<date>, PR #<n>)", commit "<v>: version at merge (G183)", push, wait
+for CI (`gh run watch <id> --exit-status` in the background), `gh pr merge <n> --merge`, then tag and push `dev` as
+separate commands.
+
+## Known
+- e2e-netmove doorPeek fails on master-based branches until CT Core's remote-feet fix (e4d85253, on ct-prototype)
+  reaches master with the anim-rework PR: count it as known.
+- Co-op suites time out under load; accept a full run where the load failures pass solo on the same commit (test-speed
+  fixes this).
+- The co-op client never draws guards' flashlights (torch state not on the wire): later, a protocol bump.
 
 ## How Michael works with the orchestrator
 - Short, plain replies. Native multiple-choice questions only. Hyphens, not em dashes.
-- One step at a time. For every handoff: the exact paste-in prompt, the model and the effort, and an explicit "you can
-  clear X now".
-- He tests through the menus, never direct links: walk-test guides give menu paths and the version label to expect.
-- Merge green, reviewed PRs into master without asking (CLAUDE.md "Sessions"). Before each merge, set the next version
-  in the PR (G183): a job or feature is a minor step, a fix or docs a patch. Then tag `v4.x.y` on the merge commit and
-  fast-forward `dev` (/preview/): `git push origin <merge sha>:refs/heads/dev`.
-- GitHub auto-merge is off for the repo. Wait for CI with a background `gh run watch <run id> --exit-status` (a
-  `gh pr checks --watch` started before the run exists exits at once), then `gh pr merge <n> --merge --repo Tekcry/Mobile-Coop`.
-- Auto mode blocks branch deletion. It blocked `gh pr merge 18` once (16:25); after Michael said "You have my permission"
-  (16:40) it went through. Run the merge, the tag and the `dev` push as separate commands; chained, they were blocked.
-- Priority (Michael, 16:30): the co-op training course (CT Core) first; Sector Ops low priority, spare capacity only
-  (ROADMAP.md "Priority", G191). Desktop lock and laptop runner order: CT Core, Menu Notes, Sector Ops.
-- Start new sessions only from Michael's own words typed in the desktop app; over Remote Control the app refuses, so
-  propose a card or give him the paste-in prompt.
-
-## Master
-v4.7.3 (#24, 6e380c44). Tags v4.0.0-v4.7.3. /preview/ = dev = 6e380c44. Today: #12 4.5.0, #13 4.6.0, #11 4.6.1, #14 4.6.2, #15 4.6.3, #16 4.6.4,
-#17 4.6.5, #18 4.6.6, #19 4.6.7, #20 4.6.8, #21 Sector Ops 4.7.0 (G184-G191), #22 grate-kick flake 4.7.1, #23 build
-label commit 4.7.2. /preview/ = dev = ce1da1a3. /ct/ = ct-movement = 624fca6b (v4.7.0 PREVIEW CT; moved by the
-orchestrator at 21:15 because Marlow Yard was not reachable from the 4.6.5 menu).
-
-## Known clashes to handle at merge time
-- Net protocol: master is at 24 (Sector Ops). CT Core takes 25 if it changes the wire, and reruns e2e-coop /
-  e2e-netmove / e2e-ctcourse.
-- characterRig.ts: likely in CT Core's next slice; Menu Notes did not touch it (the forehead glow was a menu light).
-- Open for CT Core: the keyboard vent (Space starts it, an unseen E hold makes the release a kick; T1).
-
-## Waiting on Michael
-- New CT footage for the movement fine-tuning (legs, upper body in ADS, shimmy swing, drainpipe, pistol).
-- The audit's branch and worktree list (docs/process-audit/REPORT.md section 5) is for him to prune.
-
-## Next for the orchestrator
-1. CT Core: review its clear-items slice (WALK-2026-10-19.md "Clear now"), then pass Michael's footage on when it
-   arrives. The ct-prototype PR waits until Michael is happy with the movement, or until he asks for a merge.
-2. Menu Notes: review and merge its PR (a minor step, 4.8.0 if it is next). Relayed at 22:50 (fix before the full e2e): src/ui/screens/settingsScreen.ts:155 "Default shoulder" now does nothing (F1: holstered is always right; remove the row); src/ui/screens/controlsScreen.ts:23 "LT / RT: Aim / fire" is wrong since F1a (match CT Core's bindings). CT Core slice F WIP is at 980a9695 (check, e2e, sheets, independent check still to run); F7 answer given to Michael (old saved pad settings had speed on D-pad left / right; a settings migration moves them).
-3. Character Build: review and merge lightfield-heap (a patch).
-4. Sector Ops: the PC perf run with full guard counts (G187), when the desktop is free.
-5. Republish the dashboard after every roadmap change (https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh, source
-   docs/orchestrator/dashboard.html, publish the same file path; it declares `db`; answers in collection `answers`).
-
-## Decisions today, not obvious from the code
-- Laptop = second heavy slot (BelowNormal, E2E_JOBS=1), and the test runner for the desktop jobs (logic e2e only).
-  Everything headless and invisible. npm ci, builds and unit test runs count as heavy and take heavy.lock.
-- Co-op training course first, Sector Ops on spare capacity (G191).
-- WebGPU: measure first. The Sector Ops perf run on the PC decides; a 1-day trial only if rendering is the bottleneck.
-- The goggle redesign is parked (current goggle kept). Moth's goggle is purple (D36).
-- Launch screen (Menu Notes M1-M4): black with NIGHT SHIFT always visible, no loading text, the prompt fades in when
-  loaded; the press flickers the goggles on in full darkness, then the light rises and the menu fades in; menu shot X5
-  only; the forehead glow (a menu light reflection) removed.
+- One step at a time when he asks for it. For every handoff: the exact paste-in prompt, the model and the effort.
+- He tests through the menus, never direct links: give menu paths and the version label to expect.
+- Merge green, reviewed PRs without asking (CLAUDE.md, and his 23:55 / 08:45 go-aheads). If auto mode blocks a merge,
+  ask him in chat for permission.
+- Never trace CT animation frame by frame (IP; he accepted pose matching, then dropped CT references for movement).
+- Start new sessions only from his own words in the desktop app; a session cannot start one from a peer message.
 
 ## Resume prompt
 ```
-Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git pull origin master first, then merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. If this is a new Claude account, follow "Account switch" first. Check what each session has reported since 22:55 (CT Core, Menu Notes, Sector Ops, Character Build), then carry on with "Next for the orchestrator". Give me one step at a time.
+Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). Check what each session has reported (ListAgents for who is live; the job branches' STATE files), then carry on with "Open PRs / merges to do" and the context clears. Movement and animation are top priority. Short replies, native multiple choice only.
 ```

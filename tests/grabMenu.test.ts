@@ -26,11 +26,15 @@ describe('held guard (G5, Michael 08:10 / 08:20 / 08:25)', () => {
     expect(grabOptReady('device')).toBe(false);
   });
 
-  it('RT kills, LT knocks out, both only while not aiming (aimed they are the pistol)', () => {
-    expect(grabTriggerPick(true, false, false)).toBe('kill');
-    expect(grabTriggerPick(false, true, false)).toBe('knockout');
-    expect(grabTriggerPick(true, true, true)).toBeNull();
-    expect(grabTriggerPick(false, false, false)).toBeNull();
+  // (anim-rework S1, M3 "RT tap / hold") RT tap knocks out (the choke), RT hold kills; KBM Z knocks out; aimed (LT, the
+  // pistol shield) RT fires instead
+  it('RT tap knocks out, RT hold kills, Z knocks out, none while aiming (aimed RT is the pistol)', () => {
+    expect(grabTriggerPick('hold', false, false)).toBe('kill');
+    expect(grabTriggerPick('tap', false, false)).toBe('knockout');
+    expect(grabTriggerPick(null, true, false)).toBe('knockout');
+    expect(grabTriggerPick('hold', true, true)).toBeNull();
+    expect(grabTriggerPick('tap', false, true)).toBeNull();
+    expect(grabTriggerPick(null, false, false)).toBeNull();
   });
 
   it('the view: open while holding; an armed sel runs on the next A press (scripts), disarmed when not holding', () => {
