@@ -23,6 +23,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-19 dashboard)
+Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body maps each entry to its G number). Later entries stay here until the next fold.
 - Movement rebuild from the footage (23:15): "Catalogue them, audit, and update our movement system to match the recorded animatimations, movements camera angels, speeds, everything about movement. Must be exactly the same as the recorded movement, only made original by you." (23:20) "I expect a thorough audit of the movement system and have it replicated in my game using original code." This lifts the no-refining rule for movement. Footage: C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/ (gitignored; 88 clip folders, 62 from 2026-10-17, 26 new from 2026-10-19). CT Core, after slice F.
 - Morning bar (23:45): "my expectation in the morning is that night shift movement and animations will operate identically to those recorded. It should feel the exact same when i play it. I expect prototype animations for all of it, with no clipping and must be believable." Told: identical everywhere overnight is not realistic; the biggest gaps closed plus a measured list of what remains.
 - Co-op training walkthrough (23:45): "I also want coop bunker/training fully prepared for a coop walkthrough test, including prototype/light visual pass over it to ensure theres sufficient lighting where required." New job course-ready (Night Shift | Course Ready Build, feature/course-ready); movement keeps first claim on the desktop GPU (23:47).
@@ -127,6 +128,10 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
+| 2026-10-21 | #63 | 4.31.0: camera cue: faint red laser grid where a security camera looks (stronger in electro, pulses while seen, gone when jammed) |
+| 2026-10-21 | #76 | 4.30.2: decisions G192-G228 folded from the roadmap |
+| 2026-10-21 | #74 | 4.30.1: orchestrator docs, account handoff plan |
 | 2026-10-21 | #73 | 4.30.0: tuner bake script (scripts/anim-tune-bake.mjs): an export into the code defaults, dry-run diff, identity after bake; co-op / traversal sections manual |
 | 2026-10-21 | #71 | 4.29.0: Anim Studio PR 2: co-op pairs on one clock (leg-up, relay, throw, hang-down, rope, revive), guard hold pairs, traversal prop rig with 11 loops |
 | 2026-10-21 | #72 | 4.28.1: shots-ctcourse waits for sim time after each teleport (test script) |
