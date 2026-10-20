@@ -113,14 +113,16 @@ behind a VPN adapter).
 ## The suites (REQUIRED unless marked)
 - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
-  gears, D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; analog gears, rumble;
+  change no speed (anim-rework S1), the weapon states (X tap low ready / holster, LT held aims, A3 no fire at low ready,
+  X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
   the pad verb table (every default button raises its action); remap capture (B held until the capture ends); a pad
   disconnect falls back to keyboard and mouse; the Difficulty row by d-pad (fixed levels). (Process audit: the palm
   strike, wall, door menu and edge verb sections went to their system suites.)
-- `e2e-mouse` mouse capture: a click captures (never fires), look, fire, wheel = speed gear, X swaps, = / -, Esc pauses,
+- `e2e-mouse` mouse capture: a click captures (never fires), look, RMB held aims and LMB fires, let go low ready (no
+  fire), X holsters, the wheel and = / - change no speed, W / Shift + W / Alt + W walk / run / creep, T swaps, Esc pauses,
   Resume re-captures; the keyboard verb table; N toggles vision; Controls remap. (Process audit: the palm strike, wall
   medkit, wall, difficulty, edge verb, door menu and loadout sections went to their system suites.)
-- `e2e-move` (`gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept through stances, zero
+- `e2e-move` (`gear=none`: no cap) every named speed at its stick point both stances, half stick, the cap kept through stances, zero
   velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride (aiming lets go; crouched: no
   kneel), forward roll (0.7 s, ~3 m, crouched, 2 m noise), aim strafe / backstep, sprint toggle and aim ends a sprint
   (CT prototype), no free jump, kneel, contextual vault / climb / step / drop / hop, steps / slopes / stairs / tunnel /
@@ -140,6 +142,9 @@ behind a VPN adapter).
   step, the stride held, no planted pivot, 720 deg/s turns (CT prototype), lean into turns, stance and aim raise / lower
   times, weapon clip timings, foot locking (< 1 cm) in seven gaits, pose continuity, flinch, camera lag / blends / bob /
   drift / sprint FOV (CT prototype) / stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity
+  (anim-metrics) plus the anti-crab metrics per gait (knee separation, planted track, knee over ankle, slide, elbow
+  wing; report-only until `CRAB_GATES` turns a gait on; `CRAB_JSON=1` prints them as JSON; `CRAB_STATES=1` adds the walk sub-states at speeds 1-3;
+  `docs/anim-rework/METRICS.md`). The same metrics show live in the debug overlay (F3)
 - `e2e-lightbake` the Warehouse under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
   same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`); Epic draws the bake
 - `e2e-darkness` (GPU list) display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)

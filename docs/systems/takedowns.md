@@ -6,8 +6,8 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
 - Built (G43, G23; ct-prototype G5 with Michael 2026-10-20 08:10, 08:20, 08:25): every takedown on offer is a row of
   the hold-A action menu (`src/game/contextMenu.ts`). Behind a guard: GRAB CHARACTER (and BACK TO GAME). Other
   takedowns: one named row, a knockout (Takedown; Drop attack; Pull over ledge; Pull through window; Choke); no KNOCK OUT
-  / KILL rows, the lethal close attack is RT's strike; a guard who only falls to a lethal one gets no row. No tap / hold
-  lethality any more. Michael: "It shouldn't have kill/knock out/carry in the list", "The guard cannot be let go
+  / KILL rows, the close attack is RT's strike (anim-rework S1, M3: holstered, RT tap the knockout, RT held
+  `STANCE.rtHold` 0.35 s the kill; KBM LMB the same, Z the knockout); a guard who only falls to a lethal one gets no row. Michael: "It shouldn't have kill/knock out/carry in the list", "The guard cannot be let go
   either, only knocked out. Killed, or used as human shield (aiming pistol)", "There is no back to game option once
   the grab is initiated."
 - Decided, not built yet (G42, loco M20 Q4 / Q4b, M25 (5)): the close strike is a palm strike, a one-hit knockout from any
@@ -45,9 +45,10 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   step-in (kinematic override, `crouch: false`, the legs step from the measured speed: `pose.freeGait`), stage 1 the
   pull-in (the guard eased from where he stood to the hold, turning to the operator's facing), stage 2 `hold` (no
   override, `speedCap` min(gear, 0.75), the hostage at `holdAt` with the 2 cm sway, `setSolid(false)`, `holdAsHostage`).
-  While held (`menuReady`: held, no finisher or interrogation running; G5, Michael 08:10-08:25): RT (not aiming) is
-  Kill (0.5 s, the elbow arc), LT is Knock out (`CQ.koTime` 0.85 s: the guard limp, lowered through his crouch, the
-  operator bent over him, `holdPose('ko')`), aiming draws the pistol over his shoulder (the human shield); hold-A lists
+  While held (`menuReady`: held, no finisher or interrogation running; G5, Michael 08:10-08:25; anim-rework S1, M3): RT
+  held (not aiming) is Kill (0.5 s, the elbow arc), an RT tap (or KBM Z) is Knock out (`CQ.koTime` 0.85 s: the guard
+  limp, lowered through his crouch, the operator bent over him, `holdPose('ko')`), LT / RMB aims the pistol over his
+  shoulder (the human shield; RT then fires); hold-A lists
   only Interrogate (1.5 s, the left hand to his jaw, `holdPose('interrogate')`; the hold goes on after) and only for a guard
   with information (`grabMenu.hasInfo`, `src/ai/guardInfo.ts`: `Enemy.info`, set from the squad slot's `info`; a guard
   with none, or already asked, shows no menu), with no BACK TO GAME. (PR 3) Marlow Yard's station 1 has one such guard

@@ -48,8 +48,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   button: the pad works again without a reload.
 
 ### In a match (controller; Free Roam on Proving Grounds, then Infiltration on the Warehouse at night)
-- [ ] Moving: the stick sets the pace up to the speed gear (d-pad up / down); B crouches; a stop holds the stride, then
-  settles (CT prototype). A part-pushed stick is a silent walk; a full stick at the default gear is audible.
+- [ ] Moving (anim-rework S1): how far you push the stick sets the speed, smoothly from a creep to a run (no speed
+  buttons; d-pad up / down do nothing in play); most of the travel is creep / sneak / walk, the last fifth jogs and
+  runs. Keyboard: WASD walks, hold Left Shift to run, Left Alt to creep. B crouches; a stop holds the stride, then
+  settles. A part-pushed stick is silent; a full stick is audible.
+- [ ] Weapon states (anim-rework S1): X taps the gun out to low ready (explore camera) and away again; hold LT to aim
+  (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, a little slower.
+  RT fires only while aiming; holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
+  Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
+  things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming
+  alone does not jam, and RB not aiming the pistol is still the co-op action.
 - [ ] A at a wall puts your back to it; slide along it, stop at the edge, A to leave (CT prototype).
 - [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
   menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.
@@ -58,38 +66,49 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
+  glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
+  clear, a soft dark band only at the edges and corners).
+- [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
+  selects it. The wheel reopens on that mode. A off the vision slot does nothing.
 - [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
   holster) before the next comes out; no gun passes through the head, chest or legs.
-- [ ] Reload (X): the magazine comes out in the support hand, goes to its pouch (rifle chest, pistol left hip) and a fresh
+- [ ] Reload (hold X with the gun out; A no longer reloads): the magazine comes out in the support hand, goes to its pouch (rifle chest, pistol left hip) and a fresh
   one goes in; on an empty gun she works the charging handle / racks the slide. Swapping mid-reload leaves no magazine in
   the hand.
 - [ ] Swap shoulders while aiming: the gun moves to the other hand and shoulder; a partner sees the same.
 - [ ] Ladders, drainpipes, pipes, ledges, the zipline, rappel rope and fences: palms sit on the rung / pipe / lip / cable /
   rope / rail with the fingers round it, no hand sunk in or floating.
-- [ ] LT draws and aims, RT fires (no hip fire); RT while holstered strikes. X reloads, RB / LB swap between the two
-  guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
+- [ ] LT held aims, RT fires (no hip fire, none from low ready); RT while holstered strikes (tap knockout, hold kill).
+  Hold X to reload, LB tap switches between the two guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
 - [ ] D-pad right throws the gadget (hold aims); holding d-pad left opens the wheel (time slows).
-- [ ] Takedowns: Y behind an unaware guard (G7: the step-in and pull-in ~1 s, then the menu; walk him at a slow pace;
-  Knock out lowers him; Interrogate); a drop takedown from a pipe or ledge; a body takes 2 s to lift, carries at a slow
+- [ ] Takedowns: A behind an unaware guard, GRAB CHARACTER (G7: the step-in and pull-in ~1 s; walk him at a slow pace;
+  RT tap knocks him out and lowers him, RT hold kills, LT aims the pistol over his shoulder; Interrogate); a drop takedown from a pipe or ledge; a body takes 2 s to lift, carries at a slow
   walk, opens a door, and is put down beside you or hidden.
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
-- [ ] D-pad up / down set the walk speed; speed 2 is the slowest and a stick pushed nearly to the rim walks at it.
-  Aiming looks noticeably slower than before.
+- [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
+  before.
 - [ ] Back to a wall, shuffle to each end: the body leans only to the open side (swing the camera both ways: it never
   flips) and the camera slides past the edge as you look or push toward it. Holstered, the camera is always over the
   right shoulder; swap to the left while aiming, holster: it returns to the right and the next draw is on the right.
 - [ ] Swap shoulders while aiming: no gun flick. Press A from a short distance (under 0.5 m): you settle onto the wall
   without sliding; from further away it does nothing.
-- [ ] Footsteps at speeds 1-2 (crouched 1-3) are quiet and the noise meter is silent; a run is louder on both.
+- [ ] Footsteps from a creep to a sneak (crouched to the crouch walk) are quiet and the noise meter is silent; a run is
+  louder on both.
 - [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
   height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
   turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+- [ ] (anim-rework S2) Holstered, standing: push the stick slowly from a creep to full: the walk turns into a jog and a
+  run with no pop, the knees and feet stay under the hips (from the front the legs look near vertical), the arms hang
+  along the sides and swing a little more as you speed up, no lean until the run. Stand still: she breathes, shifts her
+  weight and looks round slowly. Start, stop, turn round from a standstill and change direction 90 / 180 deg at a walk
+  and a run: no foot slides, no hop.
 - [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
   comes from the back straight to the shoulder (no low-ready dip).
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.

@@ -56,12 +56,12 @@ describe('gamepad mapping', () => {
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
   });
-  it('B is crouch in game and back in menus; Y jump only; L3 back-to-wall; d-pad vision, gadget and speed gears (A3)', () => {
+  it('B is crouch in game and back in menus; Y jump only; L3 back-to-wall; d-pad vision, gadget; up / down the held context menu (anim-rework S1: no speed gears)', () => {
     const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.DOWN]: 1, [PAD.LEFT]: 1, [PAD.RIGHT]: 1 }), tuning);
     expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.jump).toBe(true);
     expect(f.buttons.interact).toBeUndefined();
     expect(f.buttons.cover).toBeUndefined();
-    expect(f.buttons.vision && f.buttons.grenade && f.buttons.speedUp && f.buttons.speedDown && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
+    expect(f.buttons.vision && f.buttons.grenade && f.buttons.ctxUp && f.buttons.ctxDown && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
     expect(mapPad(snap({ [PAD.LS]: 1 }), tuning).buttons.cover).toBe(true);
     expect(mapPad(snap({ [PAD.LB]: 1 }), tuning).buttons.gadgetWheel).toBe(true);
     expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBeUndefined();
@@ -79,9 +79,11 @@ describe('gamepad mapping', () => {
     // the wheel hold: LB held this long opens the gadget wheel
     expect(WHEEL_HOLD).toBeCloseTo(0.15);
   });
-  it('triggers: RT fires, LT is the knockout / secondary fire (altFire), respecting dead zone', () => {
-    expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, altFire: true });
+  it('triggers: RT fires, LT is the held aim (ads; anim-rework S1), respecting dead zone', () => {
+    expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, ads: true });
+    expect(mapPad(snap({ [PAD.LT]: 0.9 }), tuning).buttons.altFire).toBeUndefined();
     expect(mapPad(snap({ [PAD.RT]: 0.05 }), tuning).buttons.fire).toBeUndefined();
+    expect(mapPad(snap({ [PAD.LT]: 0.05 }), tuning).buttons.ads).toBeUndefined();
   });
   it('left stick: up is forward; right stick: up looks up unless inverted', () => {
     const f = mapPad(snap({}, [0, -1, 0, -1]), tuning);
@@ -212,7 +214,7 @@ describe('binding table (docs/systems/input-and-loop.md)', () => {
     L3: PAD.LS, R3: PAD.RS, 'D-pad up': PAD.UP, 'D-pad down': PAD.DOWN, 'D-pad left': PAD.LEFT, 'D-pad right': PAD.RIGHT,
   };
   const KEY_LABEL = (code: string): string =>
-    ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab' })[code] ?? code.replace(/^Key/, '');
+    ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', AltLeft: 'Left Alt', CapsLock: 'Caps Lock', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab' })[code] ?? code.replace(/^Key/, '');
 
   it('has a row per verb', () => {
     expect(rows.length).toBeGreaterThanOrEqual(19);

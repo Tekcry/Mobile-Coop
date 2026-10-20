@@ -12,6 +12,114 @@
 - `scripts/laptop-runner.ps1`: the laptop test runner (one request at a time, detached worktree, `heavy.lock`,
   BelowNormal, port 4191).
 
+## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
+- Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
+  2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear
+  pops). The walk is upright with the knees and feet under the hips and the arms hanging along the sides; the arm swing
+  grows with the pace and the forward lean comes in only toward the run. The run is 4.0 m/s (was 4.5) with longer
+  strides and fewer steps (3.2 a second, was 4.7; the walk 2.4, was 2.6). The idle breathes, shifts its weight and scans
+  with the head, feet about hip width, arms in. Starts no longer slide a foot, turns and direction changes no longer
+  slide the planted feet, a turn from a standstill no longer hops on both feet, and the hips trail the chest in turns.
+  The wide walk came from the foot planner pushing every left step 13 cm from the right foot; fixed. Crouched, drawn
+  and aiming movement are unchanged (slices 3 and 4). No wire change (PROTOCOL_VERSION 24).
+
+## 4.16.2 - Phones render at 75% of native resolution (2026-10-20, PR #53)
+- Phone (Michael 2026-10-20: "Cap resolution at 75%"): after 4.16.1 a Warehouse benchmark held 55-60 fps but fell to
+  26 fps late in the route. Phones now render at 75% of native, dynamic resolution down to 50% on long frames. Light
+  and shadows unchanged (Low preset), 60 fps cap. Desktop unchanged.
+
+## 4.16.1 - The 60 fps cap holds on 90 and 144 Hz screens; phones scale resolution to stay cool (2026-10-20, PR #51)
+- Frame cap: a deadline limiter (`capNext`) replaces the slack test, which let every frame through on a 90 Hz display
+  (a phone capped at 60 drew 66 fps, then throttled to ~20). A 60 cap now holds on 60, 90, 120 and 144 Hz.
+- Phone (Michael 2026-10-20: "FPS drops sharply on phone ... would be good to have it sit at 60 fps consistently"):
+  dynamic resolution in a match, native at rest, stepping down to half on long frames and back up with headroom.
+  Lamp light and shadows unchanged (Low preset). Desktop unchanged apart from the cap.
+
+## 4.16.0 - Night vision pass: realistic night vision, a wider goggle frame, the vision carousel (2026-10-20, PR #49)
+- Night vision (A1): modern green phosphor. The tube drive gamma 1.7 -> 1.3, green tint, dim green black, white clip from
+  0.85, stronger grain in the dark; `VISION_GAIN` 8 -> 6 with the darkness curve's floor eased up to `VISION_FLOOR` 1.0, so
+  deep dark reads and lit areas no longer clip. A frame auto-gain (`src/vfx/nightExposure.ts`) lifts dark frames (up to
+  x3) and eases bright ones down (to x0.6); lit rooms stay in its band.
+- Bodies no longer glow in night vision: the flat ambient fill on non-voxel surfaces is capped in the render path
+  (`BODY_FILL`, x0.35 facing up, less facing down); lamp light on a body is untouched. Light parity, the light field and
+  the bake are unchanged.
+- Night-vision bloom comes from real sources only: the bright pass compresses a half-float source first (threshold 0.8,
+  strength 1.4 -> 0.6), fixtures take `NV_BULB` 8 (electro stays x2.5), lit walls and bodies do not halo; the default
+  bloom is off while the goggles are on.
+- `?gfx=min` (no baked lamps, no lighting gain): the tube lifts its input (`postLift` 3) so night vision is never darker
+  than off.
+- Goggle frame: one wide, thin frame for night, thermal and electro (a rounded rectangle the shape of the screen, a faint
+  rim, corners about 30%); the clear area goes from about 44% to 89% of the screen at 16:9. It fades in with the
+  night-vision blend.
+- Selection wheel: with the vision slot lit, A (pad) / E (keyboard) steps night -> thermal -> electro -> night and
+  releasing LB / Tab selects it; the wheel opens on the current mode. The cursor-length pick is gone.
+- Tests: the `e2e-darkness` night-vision target at level 0.12 is 0.10-0.45 (A2; the probe card is a non-voxel surface),
+  and the probe prints the night-vision rgb. New `goggleFrame`, `nightExposure` and wheel carousel tests.
+- Scripts: the night-vision shot scripts (`scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`) refuse a port that already
+  answers, a dead preview or a served build that differs from `dist/`, and fail on a build or shot error.
+
+## 4.15.4 - The FPS overlay is a thin banner (2026-10-20, PR #48)
+- Settings > Graphics > Show FPS overlay (Michael 2026-10-20: "it takes up the whole screen. Can you make it a banner on
+  the top of the screen with only critical information"): one line centred along the top edge: FPS, average and worst
+  frame time, dropped frames, render resolution. F3 and `?debug=1` still open the full debug overlay.
+
+## 4.15.3 - The phone menu draws at High quality (2026-10-20, PR #46)
+- Phone menu (G182; Michael 2026-10-20: "menu hero should be best quality on phones if it doesn't cost much"): the
+  menu draws at the High preset on phones (lamp shadows, AO, bloom, depth of field) while play stays on Low; the hero
+  mesh was already the close-up LOD. Epic's TAA and full-res post are left out (heat). Desktop unchanged.
+
+## 4.15.2 - Phones at native resolution and 100% render scale (2026-10-20, PR #45)
+- Phone (testing launch, G182; Michael 2026-10-20: "Default phones to low settings but with shadows/light, native
+  resolution, 60fps cap, 100% resolution scaling"): phones now render at native resolution (device DPR) and a 1.0
+  render scale, still on the Low preset with the 60 fps cap. Desktop and the tests (`?gfx=min`) are unchanged.
+
+## 4.15.1 - Phones get basic lamp light and shadows, a 60 fps cap, no side bars (2026-10-20, PR #44)
+- Phone (testing launch, G182; Michael 2026-10-20): the Low preset instead of the bare test preset, so lamps light the
+  level and characters get contact shadows; DPR 1 and a 0.75 render scale; a 60 fps cap (heat). The menus fill a wide
+  phone screen (no 16:9 side bars). Desktop and the tests (`?gfx=min`) are unchanged.
+
+## 4.15.0 - New controls: analogue speed, holstered, low ready and aiming states, LT aim, X holster, RT strikes, the sling draw (2026-10-20, PR #43)
+- Controls (slice 1, `docs/anim-rework/BRIEF.md` section 1; Michael 2026-10-20): the left stick's deflection sets the
+  speed continuously from a creep to a run (`STICK_SPEED`: most of the travel is creep / sneak / walk, the last fifth
+  the jog and the run); no speed gears, no D-pad or mouse-wheel speed. Keyboard: WASD walks, Left Shift held runs, Left
+  Alt held creeps (A1); back to wall moved from Left Shift to Caps Lock. D-pad up / down and the wheel only step the held
+  context menu now; = / - are unbound.
+- Weapon states: holstered, low ready, aiming. LT (RMB) held aims, let go drops to low ready; X tap holsters / draws
+  (M1); X held with the gun out reloads (A2; nothing to reload: holsters); A always interacts and never reloads
+  (Michael 14:55: "Interact always"; KBM R still reloads); LT from holstered draws
+  straight to the aim through a slower sling draw (M2, the existing draw x 1.6 until slice 3's clip); RT fires only
+  while aiming (A3). Holstered or holding a guard: RT tap knocks out, RT hold kills (M3); KBM Z still knocks out; LT
+  while holding aims the pistol over his shoulder. Traversal and busy moves put the gun away and bring the state back
+  after (M4). The pistol jammer: hold the co-op button (pad RB, keyboard F / PgDn) while aiming the drawn pistol at a
+  camera or a laser (Michael 14:55: "Another button - what makes sense? RF?", read as RB); aiming alone never jams, and
+  no team move starts while aiming the pistol (nor its prompt). KBM Z is the knockout only. A KBM R reload from
+  holstered leaves the gun out at low ready; an X press that runs into a held context menu or the wheel is spent (no
+  holster); the split / inverted-hang sidearm aim no longer leaves the gun at low ready after the attach.
+- Settings: pad layout 3 and key layout 1 move an older save to the new defaults (the speed verbs and keys dropped,
+  back to wall off Left Shift); the Aim hold / toggle choice is removed (Michael 15:25: "Remove it"; LT is always held, a stored choice is dropped); a remapped binding that now clashes is named in a toast
+  once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
+
+### anim-metrics-2 (into feature/ct-prototype; shipped in 4.15.0)
+- Debug overlay (F3, or Settings > Graphics > Show FPS overlay): a live anti-crab readout during play: knee separation
+  over the hip width, the planted foot track, knee outside the ankle and elbow outside the shoulder, green inside the
+  ranges and red outside, with the gait and state. Allocation-free per frame (`crabFrame` in `src/anim/audit/metrics.ts`).
+- Tests: the `CRAB` ranges tightened to human gait data (knees 0.5-1.1 x the hips, planted feet within 7 cm of the line,
+  knees at most 3 cm outside the ankles, elbows at most 6 cm out; crouched 1.25 and 8 cm); `e2e-anim` with
+  `CRAB_STATES=1` measures the walk's sub-states at speeds 1-3. Findings in `docs/anim-rework/METRICS.md`: the aimed
+  strafe is the crab (knees 2-2.8x the hips, feet up to 53 cm off the line), then turns from a standstill, starts and
+  direction changes.
+
+### anim-metrics (into feature/ct-prototype; shipped in 4.15.0)
+- Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
+  and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,
+  ranges `CRAB` and per-gait `CRAB_GATES` in `limits.ts`, unit tests `tests/animCrabMetrics.test.ts`). `e2e-anim` prints
+  them for walk, jog, run, crouch and sneak, report-only until a gait's gate is on; today's values in
+  `docs/anim-rework/METRICS.md`.
+
+## 4.14.1 - Orchestrator docs: 2026-10-20 roadmap, the animation rework brief (2026-10-20, PR #42)
+Docs only. The roadmap and orchestrator state for 2026-10-20 (Michael's answers 08:10-16:15: the guard menu, keyframed
+clips, the anim-rework brief docs/anim-rework/BRIEF.md, nv-pass, warehouse-s23, test-speed, context clears) and the dashboard.
+
 ## 4.14.0 - Sector Ops: Warehouse section 1 rebuilt (three routes, logical guard posts) (2026-10-20, PR #37)
 - Dogs carry no flashlight (Michael, M1): only human guards take a torch slot when searching in the dark (pure
   `carriesTorch` / `torchRule` in `ai/archetypes.ts`, tested); a dog no longer lights the player or the meter.
@@ -30,6 +138,7 @@
   uses the camera's own look angles. The TAA history is also clamped to the current frame's neighbourhood, so fast arms
   and guns leave no trails. `scripts/ghost-strip.mjs` captures before / after frame strips on the GPU
   (`docs/ghost-fix/shots/`).
+
 ## 4.13.1 - Co-op fixes: the host draws on the joiner at High and Epic, the connecting label clears (2026-10-20, PR #35)
 - Co-op: the host was invisible on the joiner at High and Epic graphics (GPU). The baked-lamp material plugin broke a
   material clone while the partner figure loaded, so the figure never appeared. The plugin is no longer copied by a

@@ -1,10 +1,19 @@
-import { Color4, CreateLineSystem, SceneInstrumentation, Vector3, type Engine, type LinesMesh, type Scene } from '../core/babylon';
+import { Color4, CreateLineSystem, SceneInstrumentation, Vector3, type Engine, type LinesMesh, type Scene, type TransformNode } from '../core/babylon';
 import { CT, CT_RANGES, MOVEMENT, MOVEMENT_RANGES } from '../config/movement';
 import { CAMERA } from '../config/camera';
 import { CARRY } from '../weapons/weaponCarry';
 import { DEBUG_RIGS, DEBUG_VOLUMES } from './debugVolumes';
+import { CRAB_JOINTS, crabFrame, type CrabNow } from '../anim/audit/metrics';
+import { crabRanges } from '../anim/audit/limits';
 import type { GameLoop } from '../core/loop';
 import type { PacingSnapshot } from '../core/pacing';
+
+/** (anim-metrics-2) What the live crab readout reads from the player (set by the app; typed loosely, no player import). */
+export interface CrabPlayer {
+  rig: { [K in (typeof CRAB_JOINTS)[number]]: TransformNode } & { planner: { L: { contact: boolean }; R: { contact: boolean } } };
+  controller: { speed: number; crouched: boolean };
+  ads: boolean;
+}
 
 /**
  * FPS / frame-time overlay. Toggle with F3 or the settings switch.
@@ -13,6 +22,9 @@ import type { PacingSnapshot } from '../core/pacing';
 export class DebugOverlay {
   private el: HTMLDivElement;
   private visible = false;
+  /** The Settings "Show FPS overlay" banner: one line across the top, the critical numbers only (F3 and `?debug=1`
+   *  show the full overlay). */
+  private compact = false;
   private instr: SceneInstrumentation | null = null;
   private scene: Scene | null = null;
   private frameTimes: number[] = [];
@@ -35,6 +47,14 @@ export class DebugOverlay {
   /** Live traces (e.g. weapon bob): sampled every frame, drawn as a line graph. */
   private traces = new Map<string, { fn: () => number; scale: number; buf: number[]; color: string }>();
   private traceCanvas: HTMLCanvasElement;
+  /** (anim-metrics-2) The player the anti-crab readout measures (anim-rework BRIEF 5; `CRAB` in audit/limits.ts). */
+  crabPlayer: (() => CrabPlayer | null) | null = null;
+  private crabEl: HTMLDivElement;
+  private crabRows: HTMLSpanElement[] = [];
+  private readonly crabBuf = new Float64Array(30);
+  private readonly crabNow: CrabNow = { kneeSep: 0, trackL: 0, trackR: 0, bowL: 0, bowR: 0, wingL: 0, wingR: 0, hipWidth: 0 };
+  /** The worst of each since the last paint (track: planted frames only, kept until a foot plants again). */
+  private crab = { n: 0, kneeMin: 0, kneeMax: 0, trackL: 0, trackR: 0, planted: 0, bowL: 0, bowR: 0, wingL: 0, wingR: 0, speed: 0, crouched: false, ads: false };
 
   constructor(private engine: Engine, private loop: GameLoop) {
     this.el = document.createElement('div');
@@ -56,6 +76,15 @@ export class DebugOverlay {
     this.traceCanvas.width = 120;
     this.traceCanvas.height = 32;
     this.traceCanvas.className = 'debug-trace';
+    this.crabEl = document.createElement('div');
+    this.crabEl.className = 'debug-crab';
+    this.crabEl.hidden = true;
+    for (let i = 0; i < 5; i++) {
+      const row = document.createElement('span');
+      row.style.display = 'block';
+      this.crabRows.push(row);
+      this.crabEl.append(row);
+    }
     const btn = (label: string, fn: (b: HTMLButtonElement) => void): HTMLButtonElement => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -82,7 +111,7 @@ export class DebugOverlay {
       }),
     );
     this.buildTune();
-    this.el.append(this.text, this.graph, this.traceCanvas, this.tools, this.tune, this.warp);
+    this.el.append(this.text, this.crabEl, this.graph, this.traceCanvas, this.tools, this.tune, this.warp);
     document.body.appendChild(this.el);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') this.toggle();
@@ -291,8 +320,10 @@ export class DebugOverlay {
     if (this.visible && scene) this.instr = new SceneInstrumentation(scene);
   }
 
-  toggle(force?: boolean): void {
+  toggle(force?: boolean, compact = false): void {
     this.visible = force ?? !this.visible;
+    this.compact = compact;
+    this.el.classList.toggle('compact', compact);
     this.el.hidden = !this.visible;
     this.setScene(this.scene);
   }
@@ -306,7 +337,8 @@ export class DebugOverlay {
     const ft = now - this.last;
     this.last = now;
     if (!this.visible) return;
-    if (this.skeleton) this.drawSkeleton();
+    if (this.skeleton && !this.compact) this.drawSkeleton();
+    if (!this.compact) this.sampleCrab();
     for (const t of this.traces.values()) {
       t.buf.push(t.fn());
       if (t.buf.length > 120) t.buf.shift();
@@ -320,6 +352,14 @@ export class DebugOverlay {
     const worst = Math.max(...this.frameTimes);
     const s = this.scene;
     const pc = this.pacing?.();
+    if (this.compact) {
+      // (Michael 2026-10-20: "a banner on the top of the screen with only critical information")
+      const drops = pc ? `  |  drops ${(pc.dropShare * 100).toFixed(1)}%` : '';
+      this.text.textContent =
+        `FPS ${(1000 / avg).toFixed(0)}  |  ${avg.toFixed(1)} ms  |  max ${worst.toFixed(1)} ms${drops}  |  ` +
+        `${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}`;
+      return;
+    }
     const lines = [
       `FPS ${(1000 / avg).toFixed(0)}  avg ${avg.toFixed(1)}ms  max ${worst.toFixed(1)}ms`,
       pc
@@ -334,8 +374,79 @@ export class DebugOverlay {
     if (pc?.budgetMs) this.budgetMs = pc.budgetMs;
     for (const [k, fn] of this.extra) lines.push(`${k} ${fn()}`);
     this.text.textContent = lines.join('\n');
+    this.paintCrab();
     this.drawGraph();
     this.drawTraces();
+  }
+
+  /** (anim-metrics-2) Every frame while visible: the player's crab metrics, the worst kept until the next paint. No allocation. */
+  private sampleCrab(): void {
+    const p = this.crabPlayer?.();
+    if (!p) return;
+    const buf = this.crabBuf;
+    for (let i = 0; i < CRAB_JOINTS.length; i++) {
+      const n = p.rig[CRAB_JOINTS[i]!];
+      n.computeWorldMatrix(true);
+      const v = n.getAbsolutePosition();
+      buf[i * 3] = v.x;
+      buf[i * 3 + 1] = v.y;
+      buf[i * 3 + 2] = v.z;
+    }
+    const m = crabFrame(buf, this.crabNow);
+    if (!m.hipWidth) return;
+    const c = this.crab;
+    if (c.n === 0) {
+      c.kneeMin = c.kneeMax = m.kneeSep;
+      c.bowL = m.bowL;
+      c.bowR = m.bowR;
+      c.wingL = m.wingL;
+      c.wingR = m.wingR;
+      c.speed = 0;
+    }
+    c.n++;
+    c.kneeMin = Math.min(c.kneeMin, m.kneeSep);
+    c.kneeMax = Math.max(c.kneeMax, m.kneeSep);
+    c.bowL = Math.max(c.bowL, m.bowL);
+    c.bowR = Math.max(c.bowR, m.bowR);
+    c.wingL = Math.max(c.wingL, m.wingL);
+    c.wingR = Math.max(c.wingR, m.wingR);
+    c.speed = Math.max(c.speed, p.controller.speed);
+    c.crouched = p.controller.crouched;
+    c.ads = p.ads;
+    // the track counts planted feet: the first planted sample after a paint replaces the kept value
+    const pl = p.rig.planner;
+    if (pl.L.contact) {
+      c.trackL = c.planted & 1 ? Math.max(c.trackL, Math.abs(m.trackL)) : Math.abs(m.trackL);
+      c.planted |= 1;
+    }
+    if (pl.R.contact) {
+      c.trackR = c.planted & 2 ? Math.max(c.trackR, Math.abs(m.trackR)) : Math.abs(m.trackR);
+      c.planted |= 2;
+    }
+  }
+
+  /** (anim-metrics-2) The readout, 4 times a second: green inside the CRAB ranges, red outside. */
+  private paintCrab(): void {
+    const c = this.crab;
+    const show = !!this.crabPlayer?.() && c.n > 0;
+    this.crabEl.hidden = !show;
+    if (!show) return;
+    const r = crabRanges(c.crouched);
+    const cm = (v: number): string => (v * 100).toFixed(1);
+    const gait = c.speed < 0.15 ? 'idle' : c.crouched ? (c.speed < 1.2 ? 'sneak' : 'crouch') : c.speed < 2.2 ? 'walk' : c.speed < 3.7 ? 'jog' : 'run';
+    const row = (i: number, text: string, ok: boolean | null): void => {
+      const el = this.crabRows[i]!;
+      el.textContent = text;
+      el.style.color = ok === null ? '' : ok ? '#50e080' : '#ff5050';
+    };
+    row(0, `crab  ${gait}  ${c.crouched ? 'crouched' : 'standing'}, ${c.ads ? 'weapon out' : 'holstered'}  ${c.speed.toFixed(2)} m/s`, null);
+    row(1, `knees ${c.kneeMin.toFixed(2)}-${c.kneeMax.toFixed(2)} x hips (${r.kneeSep.min}-${r.kneeSep.max})`, c.kneeMin >= r.kneeSep.min && c.kneeMax <= r.kneeSep.max);
+    row(2, `track L ${cm(c.trackL)} R ${cm(c.trackR)} cm from the line (<= ${cm(r.trackHalf)})`, Math.max(c.trackL, c.trackR) <= r.trackHalf);
+    row(3, `knee outside ankle L ${cm(c.bowL)} R ${cm(c.bowR)} cm (<= ${cm(r.kneeBow)})`, Math.max(c.bowL, c.bowR) <= r.kneeBow);
+    row(4, `elbow outside shoulder L ${cm(c.wingL)} R ${cm(c.wingR)} cm (<= ${cm(r.elbowWing)})`, Math.max(c.wingL, c.wingR) <= r.elbowWing);
+    // the next window (the track keeps its last planted value until a foot plants again)
+    c.n = 0;
+    c.planted = 0;
   }
 
   private drawTraces(): void {

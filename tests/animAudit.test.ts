@@ -22,7 +22,8 @@ describe('anim audit limits', () => {
     const s60 = L.pelvisJumpByGear('stand', 60).map((v) => +(v * 100).toFixed(2));
     // (CT prototype M1) the five CT speeds
     // (G1, audit row 14) the run 4.2 -> 4.5 m/s
-    expect(s60).toEqual([3.25, 4.33, 5.5, 7, 9.5]);
+    // (anim-rework S2, M6) the run 4.5 -> 4.0 m/s
+    expect(s60).toEqual([3.25, 4.33, 5.5, 7, 8.67]);
     const c120 = L.pelvisJumpByGear('crouch', 120).map((v) => +(v * 100).toFixed(2));
     expect(c120).toEqual([2.71, 3.08, 3.42, 3.79, 4.17]);
   });

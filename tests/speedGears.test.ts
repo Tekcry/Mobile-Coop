@@ -8,7 +8,8 @@ describe('speed gears (3.2.0)', () => {
     // (CT prototype M1, loco M20 Q8) five analog speeds, no sprint (starting values, G10)
     // (playtest 2) the old speed 2 is the slowest: no 0.2 m/s gear, still five steps
     expect(GEARS.crouch).toEqual([0.85, 1.3, 1.7, 2.15, 2.6]);
-    expect(GEARS.stand).toEqual([0.75, 1.4, 2.1, 3.0, 4.5]);
+    // (anim-rework S2, M6 "full speed is too quick") the run 4.5 -> 4.0
+    expect(GEARS.stand).toEqual([0.75, 1.4, 2.1, 3.0, 4.0]);
     for (let g = 1; g <= 5; g++) {
       expect(gearCap(g, true)).toBe(GEARS.crouch[g - 1]);
       expect(gearCap(g, false)).toBe(GEARS.stand[g - 1]);
@@ -17,8 +18,11 @@ describe('speed gears (3.2.0)', () => {
     expect(clampGear(9)).toBe(5);
     expect(clampGear(Number.NaN)).toBe(GEARS.spawn);
   });
-  it('steps one gear at a time, clamps, keeps the gear and resets to the spawn gear', () => {
-    const g = new GearState();
+  it('the internal cap steps one gear at a time, clamps, keeps the gear and resets to the spawn cap', () => {
+    // (anim-rework S1) the cap spawns at 5 (no cap): no player control sets it, tests start lower with ?gear=N
+    const g = new GearState(3);
+    expect(new GearState().gear).toBe(5);
+    expect(GEARS.spawn).toBe(5);
     expect(g.gear).toBe(3);
     expect(g.step(1)).toBe(true);
     expect(g.gear).toBe(4);

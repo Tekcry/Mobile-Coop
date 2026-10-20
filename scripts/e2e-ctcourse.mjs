@@ -184,7 +184,16 @@ async function aimAt(P, x, y, z) {
     await waitSim(120);
   }
 }
-const lt = (P, on) => P.evaluate((on) => window.__pad.set(6, on ? 1 : 0), on);
+// (anim-rework slice 1, Michael 2026-10-20: "Another button - what makes sense? RF?") aiming alone no longer jams: the
+// pistol aims with LT, then the co-op button (RB, pad 5) held fires the jammer; off lets go of RB first, then LT
+const lt = async (P, on) => {
+  if (!on) await P.evaluate(() => window.__pad.set(5, 0));
+  await P.evaluate((on) => window.__pad.set(6, on ? 1 : 0), on);
+  if (on) {
+    await waitSim(300);
+    await P.evaluate(() => window.__pad.set(5, 1));
+  }
+};
 const sleep = (ms) => waitSim(ms);
 
 /** Station 3: the camera. Seen it raises the alarm stage; the held jammer blinds it on both pages; jam and pass, then swap. */
@@ -199,8 +208,8 @@ async function station3(x0) {
   await drawPistol(A);
   await drawPistol(B);
   // the host jams from where it stands (still), aiming at the camera
-  await aimAt(A, ...CAM);
   await lt(A, true);
+  await aimAt(A, ...CAM); // (anim-rework S1) aim once the aim camera is in
   await until(A, () => window.__ctdev.debug().jam[0] === 'cam-s3', null, 20000, 'station 3: the host jams the camera');
   await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 20000, 'station 3: the client page sees the camera blind');
   const dj = await dev(A);
@@ -212,8 +221,8 @@ async function station3(x0) {
   const dc = await dev(A);
   assert(dc.alarm === al && dc.cams[0].mode === 'off', 'station 3: the client crosses to the blind spot without the camera reacting');
   // swap: the client jams from the pocket, the host lets go and walks over
-  await aimAt(B, ...CAM);
   await lt(B, true);
+  await aimAt(B, ...CAM); // (anim-rework S1) aim once the aim camera is in
   await until(A, () => window.__ctdev.debug().jam[1] === 'cam-s3', null, 20000, 'station 3: the client jams the camera (the host sees it)');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go');
@@ -240,8 +249,8 @@ async function laserTest(x0) {
   await moveClient(x0 + 5, 12.4);
   await moveHost(x0 + 4, 7);
   await drawPistol(A);
-  await aimAt(A, x0 + 9, 0.9, 7);
   await lt(A, true);
+  await aimAt(A, x0 + 9, 0.9, 7); // (anim-rework S1) aim once the aim camera is in
   await until(A, () => window.__ctdev.debug().jam[0] === 'laser-s4', null, 20000, 'station 4: the host jams the laser');
   await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
   const hp2 = await hp();

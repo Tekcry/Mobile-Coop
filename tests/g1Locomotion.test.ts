@@ -9,17 +9,28 @@ import { unawareGuardNear } from '../src/player/tenseSneak';
 import { proportions } from '../src/player/proportions';
 
 describe('G1 gait numbers', () => {
-  it('(row 7) the step is capped at stepLenMax: the run quickens to ~4.7 steps/s at 4.5 m/s; guards keep theirs', () => {
-    expect(stepLength(2)).toBeCloseTo(0.7, 9);
-    expect(stepLength(GEARS.stand[4]!)).toBeCloseTo(MOVEMENT.stepLenMax, 9);
+  it('(row 7; anim-rework S2, M6) real-world steps: longer strides and fewer steps a second at the top end', () => {
+    // (M6 Michael 2026-10-20: "the leg strides should be further apart with less steps") 0.3 + 0.24 v on foot, the walk
+    // 0.3 + 0.2 v to 2.1 m/s (WALK_STEP; the CT 0.17 and the 0.95 m cap gone; crouched keeps 0.3 + 0.2 v): 0.58 m at
+    // 1.4 m/s, 1.02 m at the jog, 1.26 m at the 4 m/s run
+    expect(stepLength(1.4)).toBeCloseTo(0.58, 9);
+    expect(stepLength(2.1)).toBeCloseTo(0.72, 9);
+    expect(stepLength(2, MOVEMENT, 0, 0, 1)).toBeCloseTo(0.7, 9);
+    expect(stepLength(GEARS.stand[3]!)).toBeCloseTo(0.3 + 0.24 * GEARS.stand[3]!, 9);
+    // ~2.4 steps a second at a 1.4 m/s walk (was 2.6), ~2.9 at 2.1 m/s (was 3.2)
+    expect(2 * gaitRate(1.4, 0)).toBeGreaterThan(2.2);
+    expect(2 * gaitRate(1.4, 0)).toBeLessThan(2.5);
+    expect(2 * gaitRate(2.1, 0)).toBeLessThan(3.0);
+    // the run: ~3.2 steps a second (real-world running 2.7-3.1 at this pace; the CT cap ran 4.7)
+    expect(stepLength(GEARS.stand[4]!)).toBeLessThanOrEqual(MOVEMENT.stepLenMax);
     const stepsPerS = 2 * gaitRate(GEARS.stand[4]!, 0);
-    expect(stepsPerS).toBeGreaterThan(4.4);
-    expect(stepsPerS).toBeLessThan(5);
+    expect(stepsPerS).toBeGreaterThan(2.8);
+    expect(stepsPerS).toBeLessThan(3.4);
     expect(stepLength(5, ENEMY_MOTION)).toBeCloseTo(0.27 + 0.22 * 5, 9);
   });
-  it('(row 14) the run is 4.5 m/s', () => {
-    expect(GEARS.stand[4]).toBe(4.5);
-    expect(CT.turnSlowTo).toBe(4.5);
+  it('(row 14; anim-rework S2, M6 "full speed is too quick") the run is 4.0 m/s', () => {
+    expect(GEARS.stand[4]).toBe(4.0);
+    expect(CT.turnSlowTo).toBe(4.0);
   });
   it('(row 26) the tense sneak steps TENSE.step long', () => {
     expect(stepLength(1.1, MOVEMENT, 0, 1)).toBeCloseTo(TENSE.step, 9);
@@ -116,7 +127,7 @@ describe('G1 graph layers', () => {
     expect(g.out.gait.liftH).toBeGreaterThan(lift0 * 2);
     i.speed = 2.6;
     settle(g, i, 1);
-    expect(g.out.gait.cycleTime).toBeCloseTo(1 / gaitRate(2.6, 0), 2);
+    expect(g.out.gait.cycleTime).toBeCloseTo(1 / gaitRate(2.6, 0, MOVEMENT, 0, 0, 1), 2);
   });
   it('(row 18) a drop of a metre lands deep (~0.4 m dip); a small one keeps the shallow landing', () => {
     const dip = (landing: number) => {
@@ -247,12 +258,16 @@ describe('G1 rig: the gait against the footage (NullEngine)', () => {
   it('(rows 5 / 20 / 21) standing near straight, an upright walk with a smooth bob', async () => {
     const idle = await rigRun({ seconds: 2.5, from: 2, stick: () => null });
     expect(idle.kneeIdle, 'idle knee').toBeLessThanOrEqual(13);
-    // (G1 fix, row 20) the rest stance: feet 0.3-0.4 m apart
-    expect(idle.feetApart).toBeGreaterThanOrEqual(0.3);
-    expect(idle.feetApart).toBeLessThanOrEqual(0.4);
+    // (anim-rework S2) the rest stance: feet about hip width (BRIEF 3, the real-world standard; the CT 0.3-0.4 m read
+    // 15 cm a foot off the line, METRICS.md), the left a little ahead: 0.16-0.24 m between the ankles
+    expect(idle.feetApart).toBeGreaterThanOrEqual(0.16);
+    expect(idle.feetApart).toBeLessThanOrEqual(0.24);
     const walk = await rigRun({ seconds: 4, from: 2, stick: () => ({ dir: 0, speed: 1.4 }) });
-    // the stance knee at mid-stance (was ~60 deg; CT near straight): ~11 deg under the hip, <= 22 over the +-5 cm window
-    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(22);
+    // the stance knee at mid-stance (was ~60 deg; G1: CT near straight, <= 22). (CT prototype G8 round 2, Michael 10:55:
+    // CT's walk keeps the knees softly bent all the way through, lower and heavier; G8-WALK.md measures 105949 at the
+    // matched camera) the keyed walk holds the pelvis ~7 cm low: the stance knee bent, never locked, never a squat
+    expect(walk.kneeMid, 'walk mid-stance knee').toBeGreaterThanOrEqual(25);
+    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(55);
     // the head's travel over the cycle (CT ~2-3 cm by eye)
     expect(walk.headMax - walk.headMin, 'walk head bob').toBeLessThanOrEqual(0.035);
   });
@@ -272,7 +287,8 @@ describe('G1 rig: the gait against the footage (NullEngine)', () => {
     expect(stop.split).toBeLessThanOrEqual(0.36);
     // (G1 fix, row 13) a run start lands its first step by ~0.3 s (CT a full stride by 0.25 s; was 0.40)
     const start = await rigRun({ seconds: 2, from: 1, stick: (t) => (t < 1 ? null : { dir: 0, speed: 3 }) });
-    expect(start.firstLand - 1).toBeLessThanOrEqual(0.3);
+    // (anim-rework S2, M6: longer steps, a lower cadence) the first landing within ~0.35 s (was 0.3)
+    expect(start.firstLand - 1).toBeLessThanOrEqual(0.35);
     const c = await rigRun({ seconds: 3, crouch: true, from: 0, stick: (t) => (t < 2 ? { dir: 0, speed: 1.7 } : null) });
     expect(c.kneelAt - 2).toBeLessThanOrEqual(0.3);
   });

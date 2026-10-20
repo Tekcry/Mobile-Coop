@@ -11,7 +11,7 @@ has its own 1K set (A71: decimating with LOD0's atlas UVs kept stalls at twice t
 phone LOD. Every LOD is skinned by nearest body vertex (the Lab export's rule) except the rigid parts (D28, step 11b,
 rigid_skin.py: one bone or one fixed blend per part, identical on every vertex; they stay separate pieces below LOD0
 and carry their part id as the '_rigid' glTF attribute for operators:check); the game LODs carry the game joints only
-(finger weights go to the wrist, toe weights to the ankle). Every LOD carries the integration anchors (A40, A41) as
+(finger weights go to the wrist; anim-rig: toe weights to the toe joint at the ball, toeL / toeR). Every LOD carries the integration anchors (A40, A41) as
 empties parented to the joints that carry them.
 
 Writes <out>/export/<lod>/<op>-<lod>.glb (WebP inside), <out>/export/<lod>/textures/*.png (the KTX2 encoder input),
@@ -96,7 +96,7 @@ SHELL_SHARP_DEG = 30.0
 SHARP_SPLIT = {'lod0': 30.0}
 SHARP_ABOVE_Z = -1.0   # m: everywhere since the step 10 retry (A95; was 0.20: the split stopped at the boots)
 GAME_JOINTS = ['pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
-               'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR']
+               'hipL', 'knL', 'anL', 'toeL', 'hipR', 'knR', 'anR', 'toeR']  # anim-rig: the toe joints skinned
 
 CLOTH_PREFIX = ('suit', 'glove', 'hood', 'balaclava')
 CLOTH = {'thread', 'binding', 'loop', 'knit', 'ripstop', 'ripstop patch', 'softshell', 'softshell patch',
@@ -680,10 +680,12 @@ def game_joint(n):
         return 'wrL'
     if n.startswith('fingerR'):
         return 'wrR'
+    # anim-rig (docs/anim-rework/RIG.md): the toes ride the toe joint at the ball of the foot (was the ankle: a rigid
+    # foot). Undo: return 'anL' / 'anR' here and drop toeL / toeR from GAME_JOINTS.
     if n.startswith('toesL'):
-        return 'anL'
+        return 'toeL'
     if n.startswith('toesR'):
-        return 'anR'
+        return 'toeR'
     return n
 
 
@@ -766,6 +768,13 @@ for n in ANCHOR_BONE:
 sock = sim.get('waist_belt', {}).get('slingSocket')
 if 'slingSocket' not in anchor_world and sock:
     anchor_world['slingSocket'] = Matrix.Translation(Vector(sock['at']))
+# anim-rig (docs/anim-rework/RIG.md): the back sling socket, where a sling's rear end anchors: WREN_SLING.back
+# (src/operators/handFrame.ts) from the chest joint, game frame, on the back plate at the left shoulder blade.
+SLING_BACK = {'wren': (-0.078, 0.123, -0.1)}
+if op_id in SLING_BACK and 'chest' in rig.data.bones:
+    ANCHOR_BONE['slingBack'] = 'chest'
+    chest_at = rig.matrix_world @ rig.data.bones['chest'].head_local
+    anchor_world['slingBack'] = Matrix.Translation(chest_at + Vector(common.game_to_blender(SLING_BACK[op_id])))
 for n in list(ANCHOR_BONE):
     e = bpy.data.objects.get(n)
     if e is not None:

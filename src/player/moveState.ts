@@ -261,10 +261,12 @@ export interface MovePose {
   drawn: boolean;
   /** (step 12b, D9) The weapon in the left hand at a left wall edge (WALL_SUB.leftHand 128); the rig blends it. */
   leftHand: boolean;
+  /** (doorPeek parity) Still, the feet settle on the stance spots (`RigPose.settleFeet`): the door peek. */
+  settle: boolean;
 }
 
 export function emptyMovePose(): MovePose {
-  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false };
+  return { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false, leftHand: false, settle: false };
 }
 
 /**
@@ -282,6 +284,7 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   out.melee = -1;
   out.tumble = 0;
   out.drawn = mv.dw !== 0;
+  out.settle = false;
   // (anim-cleanup) on the ground the left-shoulder aim (the shoulder swap) sets the same bit as the wall's left hand
   out.leftHand = mv.m === 'ground' && (mv.sub & 128) !== 0;
   switch (mv.m) {
@@ -302,6 +305,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       return out;
     case 'doorPeek':
       // (step 13) the ground stance at the frame; the hand on the handle is a reach the remote sets from the door
+      // (doorPeek parity) the feet on the stance spots when still, as the owner (frame-rate independent)
+      out.settle = true;
       return out;
     case 'split':
       out.traverse = 'split';

@@ -1,6 +1,6 @@
 // (F1a, G181) the selection wheel: segment from the stick angle, the vision stack, the cursor and the pick
 import { describe, expect, it } from 'vitest';
-import { buildWheel, segmentAt, SelectionWheel, visionAt, wheelLabel, WHEEL_DEAD } from '../src/game/selectionWheel';
+import { buildWheel, nextVision, segmentAt, SelectionWheel, wheelLabel, WHEEL_DEAD } from '../src/game/selectionWheel';
 import { VisionState } from '../src/game/vision';
 
 const guns = [
@@ -31,13 +31,39 @@ describe('selection wheel (F1a)', () => {
     expect(segmentAt(0, 1, 0)).toBe(-1);
   });
 
-  it('the vision stack: pushed further out steps night, thermal, electro', () => {
-    expect(visionAt(0.4)).toBe('night');
-    expect(visionAt(0.7)).toBe('thermal');
-    expect(visionAt(1)).toBe('electro');
+  it('the vision carousel (nv-pass slice 3): night -> thermal -> electro -> night', () => {
+    expect(nextVision('night')).toBe('thermal');
+    expect(nextVision('thermal')).toBe('electro');
+    expect(nextVision('electro')).toBe('night');
   });
 
-  it('cursor and pick: vision mode by length, a gun, a gadget, nothing in the dead zone', () => {
+  it('A on the lit vision slot steps the mode; off the slot it does nothing; the wheel opens on the selected mode', () => {
+    const ring = buildWheel(guns, kit);
+    const w = new SelectionWheel();
+    w.begin('thermal');
+    expect(w.mode).toBe('thermal');
+    w.update(ring.length);
+    expect(w.cycle(ring)).toBe(false);
+    w.place(0, 0.45);
+    w.update(ring.length);
+    expect(w.cycle(ring)).toBe(true);
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'electro' });
+    expect(w.cycle(ring)).toBe(true);
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
+    // the cursor length no longer picks: out to the rim keeps the carousel's mode
+    w.place(0, 1);
+    w.update(ring.length);
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
+    const a = (2 / 5) * Math.PI * 2;
+    w.place(Math.sin(a), Math.cos(a));
+    w.update(ring.length);
+    expect(w.cycle(ring)).toBe(false);
+    expect(w.mode).toBe('night');
+    w.begin();
+    expect(w.mode).toBe('night');
+  });
+
+  it('cursor and pick: the vision slot, a gun, a gadget, nothing in the dead zone', () => {
     const ring = buildWheel(guns, kit);
     const w = new SelectionWheel();
     w.begin();
@@ -49,7 +75,7 @@ describe('selection wheel (F1a)', () => {
     expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
     w.place(0, 1);
     w.update(ring.length);
-    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'electro' });
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
     // segment 2 of 5 (the rifle): 144 deg clockwise from the top
     const a = (2 / 5) * Math.PI * 2;
     w.place(Math.sin(a), Math.cos(a));

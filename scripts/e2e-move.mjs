@@ -2,7 +2,7 @@
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-// (gear=none: the real spawn gear, 3)
+// (gear=none: the real spawn cap, 5 = none; anim-rework S1)
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving&gear=none' });
 let failed = false;
 const P = () => page.evaluate(() => { const c = window.__app.current.player.controller; return { x: c.pos.x, y: c.pos.y, z: c.pos.z, crouched: c.crouched, grounded: c.grounded }; });
@@ -38,14 +38,15 @@ try {
   const p0 = await P();
   assert(p0.grounded && Math.abs(p0.y) < 0.1, `spawned on ground (y=${p0.y.toFixed(2)})`);
 
-  // 3.2.0 Chaos Theory speed gears: spawn in gear 3; D-pad up / down step one gear; full stick = the gear's cap
+  // (anim-rework S1, Michael 2026-10-20: "remove the speed toggle, and allow full speed control via the analogue stick
+  // depending on how far you push the stick") no gears: the stick's deflection sets the speed through the STICK_SPEED
+  // curve; the five named speeds sit at travel 0.15 / 0.45 / 0.8 / 0.9 / 0.97 past the dead zone. The internal cap
+  // (tests only, `controller.gears`) spawns at 5 (none); D-pad up / down change nothing.
   const GEAR = () => page.evaluate(() => window.__app.current.player.controller.maxGear);
-  assert((await GEAR()) === 3, `spawns in gear 3 (${await GEAR()})`);
-  const setGear = async (n) => {
-    for (let i = 0; i < 6 && (await GEAR()) > n; i++) await press(page, BTN.DOWN);
-    for (let i = 0; i < 6 && (await GEAR()) < n; i++) await press(page, BTN.UP);
-    return GEAR();
-  };
+  assert((await GEAR()) === 5, `spawns with no speed cap (${await GEAR()})`);
+  await press(page, BTN.DOWN);
+  assert((await GEAR()) === 5, `D-pad down no longer steps a speed (${await GEAR()})`);
+  const setGear = (n) => page.evaluate((n) => { const c = window.__app.current.player.controller; c.gears.set(n); return c.maxGear; }, n);
   const speedAt = async (x, y, s = 0.8) => {
     await page.evaluate(([x, y]) => { window.__pad.axis(0, x); window.__pad.axis(1, y); }, [x, y]);
     await sim(s);
@@ -58,36 +59,38 @@ try {
     st.fixedUpdate = (dt) => { orig(dt); t += dt; sum += st.player.controller.speed; n++; if (t >= s) { st.fixedUpdate = orig; res(sum / n); } };
     window.__ff();
   }), s);
-  // (CT prototype M1) the five CT speeds
-  const STAND = [0.75, 1.4, 2.1, 3.0, 4.5];
+  // the five named speeds (creep / sneak / walk / jog / run) at their stick points (raw = (the dead zone 0.05 + 0.95 x travel) x 0.98)
+  const STAND = [0.75, 1.4, 2.1, 3.0, 4.0]; // (anim-rework S2, M6: the run 4.5 -> 4.0)
   const CROUCH = [0.85, 1.3, 1.7, 2.15, 2.6];
+  const AT = [0.15, 0.45, 0.8, 0.9, 0.985];
   for (const crouched of [false, true]) {
-    // (locomotion step 17) the rocker sets the maximum gear 1-5 (no sprint, CT prototype M1)
     for (let g = 1; g <= 5; g++) {
       await tp(-10, 0, -14, Math.PI / 2);
       await settle(0.2);
       if (crouched && !(await P()).crouched) await press(page, BTN.B);
       if (!crouched && (await P()).crouched) await press(page, BTN.B);
-      const got = await setGear(g);
-      await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, -1); });
+      // (the pad's outer dead zone: 0.98 of the rim reads as full)
+      const raw = (0.05 + 0.95 * AT[g - 1]) * 0.98;
+      await page.evaluate((raw) => { window.__pad.axis(0, 0); window.__pad.axis(1, -raw); }, raw);
       await sim(0.6);
       const v = await meanSpeed(0.5);
+      const g2 = await page.evaluate(() => window.__app.current.player.controller.gear);
       const want = (crouched ? CROUCH : STAND)[g - 1];
-      assert(got === g && Math.abs(v - want) < want * 0.06 + 0.03, `gear ${g} ${crouched ? 'crouched' : 'standing'}: ${v.toFixed(2)} m/s (cap ${want})`);
+      assert(g2 === g && Math.abs(v - want) < want * 0.06 + 0.03, `stick ${raw.toFixed(2)} ${crouched ? 'crouched' : 'standing'}: ${v.toFixed(2)} m/s (named speed ${g}, ${want})`);
       await settle(0.2);
     }
   }
   if ((await P()).crouched) await press(page, BTN.B);
-  // the stick scales the gear's cap (linear past a small dead zone); stance changes keep the gear
+  // half stick: between the sneak and the walk (no snapping); the internal cap holds through stance changes
   await tp(-10, 0, -14, Math.PI / 2);
   await setGear(4);
   await settle(0.2);
   const half = await speedAt(0, -0.5);
-  assert(half > 1.2 && half < 1.6, `half stick at gear 4 (snaps to speed 2, 1.4): the stick picks the speed (${half.toFixed(2)} m/s)`);
+  assert(half > 1.3 && half < 1.6, `half stick: ~1.45 m/s, between the sneak and the walk (${half.toFixed(2)} m/s)`);
   await press(page, BTN.B);
   const keptCrouched = await GEAR();
   await press(page, BTN.B);
-  assert(keptCrouched === 4 && (await GEAR()) === 4, 'crouching and standing keep the gear');
+  assert(keptCrouched === 4 && (await GEAR()) === 4, 'crouching and standing keep the internal cap');
   await settle(0.3);
   // not aiming the body faces where it goes: sideways runs at the full gear pace
   await tp(-10, 0, -14, Math.PI / 2);
@@ -104,6 +107,8 @@ try {
   const aimStrafe = await speedAt(1, 0, 1.0);
   const aimBack = await speedAt(0, 1, 1.0);
   await page.evaluate(() => window.__app.input.state.set('t', 'ads', false));
+  // (anim-rework S1) the aim let go drops to low ready: an X tap holsters again
+  await page.evaluate(() => window.__app.input.state.tap('draw'));
   assert(aimStrafe > 1.1 && aimStrafe < 1.35, `aiming: strafe 90% of 1.4 (${aimStrafe.toFixed(2)} m/s)`);
   assert(aimBack > 0.9 && aimBack < 1.12, `aiming: backstep 75% of 1.4 (${aimBack.toFixed(2)} m/s)`);
   await settle();
@@ -297,7 +302,7 @@ try {
   await settle(0.3);
   await press(page, BTN.B);
   await settle();
-  // (CT prototype M1: no sprint) the top speed standing is the run: 4.5 m/s (G1), standing, and it stops within 0.6 s of the release
+  // (CT prototype M1: no sprint) the top speed standing is the run: 4.0 m/s (G1 4.5, anim-rework S2 M6 4.0), standing, and it stops within 0.6 s of the release
   await press(page, BTN.B);
   await settle();
   await tp(0, 0, -14, Math.PI / 2);
@@ -312,7 +317,8 @@ try {
   await page.evaluate(() => { window.__pad.axis(1, 0); });
   await sim(0.6);
   const after = await page.evaluate(() => { const c = window.__app.current.player.controller; return { speed: c.speed, crouched: c.crouched, hold: c.stopHold }; });
-  assert(peak > 4.2 && peak < 5.0, `the top speed reaches ~4.5 m/s (${peak.toFixed(2)} peak)`);
+  // (anim-rework S2, M6 "full speed is too quick") the run 4.5 -> 4.0 m/s
+  assert(peak > 3.75 && peak < 4.5, `the top speed reaches ~4.0 m/s (${peak.toFixed(2)} peak)`);
   assert(after.speed < 0.1 && !after.crouched && after.hold, `releasing the stick stops within 0.6 s, feet frozen in the stride (speed ${after.speed.toFixed(2)})`);
   await settle();
 

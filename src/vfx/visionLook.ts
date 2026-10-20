@@ -72,12 +72,14 @@ export const SENSOR_GRAIN = {
   /** Peak-to-peak grain in output colour at black, per mode (step 14 had 0.04 thermal / electro, 0.075 night). */
   thermal: 0.26,
   electro: 0,
-  night: 0.035,
+  /** (nv-pass slice 1: 0.035 -> 0.06, with `litNight` 1 -> 0.4: an intensifier's scintillation is strongest where
+   *  there is least light; tinted with the phosphor in the post pass) */
+  night: 0.06,
   /** Share of the grain left at full output luma (luminance-weighted: hot bodies, live devices and lit phosphor stay
    *  clean enough to read; the cold / dark scene carries the noise). */
   litThermal: 1,
   litElectro: 0.45,
-  litNight: 1,
+  litNight: 0.4,
   /** Electro's grain is tinted with the phosphor (a grey grain over the green read as dirt). */
   electroTint: [0.7, 0.85, 1.0] as const,
   /** Softening: the share of the tap average mixed into the pixel's luma (thermal keeps step 14's 0.6). Night uses
@@ -177,3 +179,77 @@ float sensorNoise(highp vec2 uv, highp float aspect, highp float time) {
 float sensorAmp(float amp, float lit, float l) {
   return amp * (1.0 - (1.0 - lit) * clamp(l, 0.0, 1.0));
 }`;
+
+/**
+ * (nv-pass slice 2) The goggle frame: one wide, screen-shaped frame for night, thermal and electro (one goggle).
+ * Michael: "expand the goggle outline to be less intrusive and show more of the screen, it feels claustrophobic". Was a
+ * round lens (r 0.455-0.5 of screen height, outside it the picture x0.51, a rim at r 0.468) and an eyepiece vignette
+ * `mix(0.06, 1, smoothstep(0.8, 0.52, r))`: at 16:9 the clear circle was 56% of the width and the edges sat at x0.06.
+ * Now a rounded rectangle the shape of the screen (distances in screen heights, so the band is as wide on the sides as
+ * at the top at any aspect): full brightness to `fadeIn` inside the frame line, a soft falloff to `floor` at `fadeOut`
+ * outside it (only the corners get there), and a thin, faint rim just inside the line. The settings vignette is
+ * separate and unchanged. Rendering only. GLSL mirror: `GOGGLE_GLSL`.
+ */
+export const GOGGLE_FRAME = {
+  /** The frame line's distance outside the screen edge (screen heights; 0 = on the edge midpoints). */
+  over: 0,
+  /** Corner radius of the frame (screen heights; clamped to the half extents on a narrow screen). */
+  radius: 0.32,
+  /** Brightness at and past `fadeOut` (the very corners); never near-black (was 0.06). */
+  floor: 0.3,
+  /** Edge distance (inside +, screen heights) where the falloff starts (full brightness inside it) ... */
+  fadeIn: 0.06,
+  /** ... and where it reaches `floor` (outside the frame line: only the corners reach it). */
+  fadeOut: -0.1,
+  /** The rim: a thin line this far inside the frame line, this wide, added in this tint (was 0.05, 0.09, 0.08). */
+  rimAt: 0.008,
+  rimWidth: 0.004,
+  rimTint: [0.03, 0.05, 0.045] as const,
+} as const;
+
+/** Signed distance (screen heights, inside +) from the goggle frame line for a screen uv 0..1 (GLSL `goggleEdge`). */
+export function goggleEdge(u: number, v: number, aspect: number): number {
+  const g = GOGGLE_FRAME;
+  const hx = aspect * 0.5 + g.over;
+  const hy = 0.5 + g.over;
+  const r = Math.min(g.radius, hx, hy);
+  const qx = Math.abs((u - 0.5) * aspect) - hx + r;
+  const qy = Math.abs(v - 0.5) - hy + r;
+  const ox = Math.max(qx, 0);
+  const oy = Math.max(qy, 0);
+  return -(Math.sqrt(ox * ox + oy * oy) + Math.min(Math.max(qx, qy), 0) - r);
+}
+
+/** The frame's brightness factor (`floor`..1) for an edge distance (GLSL `goggleShade`). */
+export function goggleShade(e: number): number {
+  const g = GOGGLE_FRAME;
+  return g.floor + (1 - g.floor) * smooth(g.fadeOut, g.fadeIn, e);
+}
+
+/** The rim's weight 0..1 for an edge distance (GLSL `goggleRim`). */
+export function goggleRim(e: number): number {
+  const g = GOGGLE_FRAME;
+  return 1 - smooth(0, g.rimWidth, Math.abs(e - g.rimAt));
+}
+
+/** The frame's brightness factor at a screen uv 0..1 (`goggleShade(goggleEdge(u, v, aspect))`). */
+export function goggleFrame(u: number, v: number, aspect: number): number {
+  return goggleShade(goggleEdge(u, v, aspect));
+}
+
+/** GLSL mirror of `goggleEdge` / `goggleShade` / `goggleRim` and the rim tint (the cinematic pass). */
+export const GOGGLE_GLSL = `
+float goggleEdge(vec2 uv, float aspect) {
+  vec2 h = vec2(aspect * 0.5, 0.5) + ${f(GOGGLE_FRAME.over)};
+  float r = min(${f(GOGGLE_FRAME.radius)}, min(h.x, h.y));
+  vec2 q = abs((uv - 0.5) * vec2(aspect, 1.0)) - h + r;
+  return -(length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r);
+}
+float goggleShade(float e) {
+  return mix(${f(GOGGLE_FRAME.floor)}, 1.0, smoothstep(${f(GOGGLE_FRAME.fadeOut)}, ${f(GOGGLE_FRAME.fadeIn)}, e));
+}
+float goggleRim(float e) {
+  // (edge0 < edge1: GLSL leaves smoothstep undefined otherwise)
+  return 1.0 - smoothstep(0.0, ${f(GOGGLE_FRAME.rimWidth)}, abs(e - ${f(GOGGLE_FRAME.rimAt)}));
+}
+const vec3 goggleRimTint = ${v3(GOGGLE_FRAME.rimTint)};`;

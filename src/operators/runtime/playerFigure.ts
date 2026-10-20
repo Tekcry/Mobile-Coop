@@ -18,7 +18,7 @@ import { pageLeaving, warmPlayLods } from './offline';
 import { OperatorFigure, OperatorLibrary } from './figure';
 import { goggleColour, goggleSlot } from './goggle';
 import { wrenManifest } from './assets';
-import { WREN_BACK_MOUNT, WREN_HANDS, WREN_HOLSTER } from '../handFrame';
+import { WREN_BACK_MOUNT, WREN_HANDS, WREN_HOLSTER, WREN_SLING } from '../handFrame';
 
 type VoxelOpts = Parameters<typeof setVoxelBodies>[0];
 
@@ -75,6 +75,9 @@ export function operatorRig(scene: Scene, make: PartFactory, look: AvatarLook, n
   rig.thighMount = WREN_HOLSTER;
   // (feature/weapons) the long gun hangs from her back plate's receiver bar by its back stud
   rig.backMount = WREN_BACK_MOUNT;
+  // (anim-rig) the sling sockets on her own kit: the back plate at the left shoulder blade, the belt's hip socket
+  rig.slingBack.position.set(WREN_SLING.back[0], WREN_SLING.back[1], WREN_SLING.back[2]);
+  rig.slingHip.position.set(WREN_SLING.hip[0], WREN_SLING.hip[1], WREN_SLING.hip[2]);
   const figure = new OperatorFigure(operatorLibrary(scene), rig, wrenManifest(), name);
   if (casters) figure.onMeshes = (ms) => { for (const m of ms) casters(m); };
   return { rig, figure };

@@ -76,3 +76,11 @@ Cosmetic and feel items that do not block play. Nothing here is worked on until 
   squat at 0.3-0.4 s before the kneel blends in. Remote kneel: `speed < 0.15` without the owner's stopHold / stopEase
   checks (may kneel slightly earlier). F7 migration: a remapped verb on a migrated target (e.g. gearDown kept on LEFT)
   ends up sharing that button with the moved verb.
+- doorPeek parity (2026-10-20, e2e-netmove doorPeek): the host's copy had no floor probe (`RemoteAvatar` never set
+  `rig.groundProbe`), so its planted feet stood at the snapshot root, 2 cm up where the owner's capsule rests off the floor
+  (door peek, wall), and the pelvis and head with them; it also posed the peek with the free-movement stride (keyed walk,
+  pelvis follow) and kept whatever foot spots the approach and frame rate left. Fixed: the copy probes the floor as the
+  owner's rig; the door peek sets `RigPose.settleFeet` on both peers (still, the feet step onto the stance spots, as on a
+  wall) and the copy strides on the velocity as the owner under the override (`tests/doorPeekParity.test.ts`). Left: a
+  planted foot within the planner's PIN_TOL (4 cm) of its spot does not step, so each peer can keep up to 4 cm (seen 3.5 cm
+  at ankleR); a tighter settle tolerance would add a small fidget step.

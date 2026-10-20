@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capAllows, GRAPHICS_PRESETS, PRESET_DISPLAY, PRESET_IDS, presetOf, qualityLevel, MAX_SHADOW_CASTERS, shadowSpec, VOXEL_TIER } from '../src/core/quality';
+import { capAllows, capNext, GRAPHICS_PRESETS, PRESET_DISPLAY, PRESET_IDS, presetOf, qualityLevel, MAX_SHADOW_CASTERS, shadowSpec, VOXEL_TIER } from '../src/core/quality';
 import { defaultSettings, sanitizeSettings, setAuto, setGfx, setPreset } from '../src/core/settings';
 
 describe('graphics settings (3.0)', () => {
@@ -102,5 +102,29 @@ describe('graphics settings (3.0)', () => {
     expect(capAllows(16.6, 60, 8.33)).toBe(true);
     expect(capAllows(5, 0, 8.33)).toBe(true);
     expect(capAllows(6.9, 144, 6.94)).toBe(true);
+  });
+});
+
+describe('capNext (frame limiter by deadline)', () => {
+  const rate = (hz: number, cap: number): number => {
+    let next = 0;
+    let drawn = 0;
+    for (let i = 0; i < hz * 4; i++) {
+      const n = capNext(i * (1000 / hz), next, cap);
+      if (n >= 0) {
+        next = n;
+        drawn++;
+      }
+    }
+    return drawn / 4;
+  };
+  it('holds a 60 cap on 60, 90, 120 and 144 Hz displays', () => {
+    for (const hz of [60, 90, 120, 144]) expect(Math.abs(rate(hz, 60) - 60)).toBeLessThanOrEqual(1);
+  });
+  it('a 30 cap on 60 Hz draws every other frame', () => {
+    expect(rate(60, 30)).toBe(30);
+  });
+  it('restarts the clock after a long stall', () => {
+    expect(capNext(1000, 16.7, 60)).toBeCloseTo(1016.67, 1);
   });
 });

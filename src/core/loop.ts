@@ -1,5 +1,5 @@
 import type { Engine, Scene } from './babylon';
-import { capAllows } from './quality';
+import { capNext } from './quality';
 import { bgStepSeconds, type BgTickInput } from './bgTick';
 
 export const FIXED_DT = 1 / 60;
@@ -35,6 +35,8 @@ export class GameLoop {
   fpsCap = 0;
   displayMs = 1000 / 60;
   private lastT = 0;
+  /** The frame limiter's next render deadline (`capNext`; 0: none). */
+  private capT = 0;
   private lastRaf = 0;
   /** (coop-fix) The hidden-page tick worker (co-op only, `holdBackgroundTicks`); null outside a co-op match. */
   private bg: Worker | null = null;
@@ -154,7 +156,11 @@ export class GameLoop {
     const raf = this.lastRaf > 0 ? t0 - this.lastRaf : 0;
     this.lastRaf = t0;
     // frame limiter: skip display frames until the cap's interval has passed
-    if (this.fpsCap > 0 && this.lastT > 0 && !capAllows(t0 - this.lastT, this.fpsCap, this.displayMs)) return;
+    if (this.fpsCap > 0) {
+      const next = capNext(t0, this.capT, this.fpsCap);
+      if (next < 0) return;
+      this.capT = next;
+    } else this.capT = 0;
     const interval = this.lastT > 0 ? Math.min(t0 - this.lastT, 250) : this.engine.getDeltaTime();
     this.lastT = t0;
     this.frame(interval);

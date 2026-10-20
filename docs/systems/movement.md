@@ -37,14 +37,15 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 - Decided (G34): wall entry by button only (built). G37: the CT back-to-wall is the only wall move. G109: every operator
   moves the same. G110: no prone crawl, no rope climb. G56: crawl spaces are crouch-walked.
 
-## Speed gears and feel
-- Gears (`player/speedGears.ts` pure, `GEARS` in `config/movement.ts`): 5 gears (playtest 2: the old gear 2 is the slowest), spawn / respawn gear 3 (`GameState` resets
-  it on respawn; `?gear=N` for tests, `e2e-lib` adds `gear=4` unless a suite names one), kept through stance changes;
-  `PlayerController.gears`, `speedUp` / `speedDown` (pad D-pad up / down, keys `=` / `-`, mouse wheel). Target = gear cap
-  x `stickCurve` (dead zone 0.05, linear); the stick reaches the D-pad gear from `GEARS.fullPush` 0.9 of its travel. Aiming
-  capped at 1.4 / 1.0. No sprint gear. Analog snapping within the maximum gear: `docs/systems/input-and-loop.md`.
+## Speed and feel
+- (anim-rework S1) No gears: the stick's deflection sets the speed continuously through `STICK_SPEED`
+  (`config/movement.ts`; `stickSpeed` in `player/speedGears.ts`): the slowest creep 0.4 m/s at the dead-zone edge,
+  then the five named speeds below at travel 0.15 / 0.45 / 0.8 / 0.9 / 0.97; the keyboard walks at the walk point, Left
+  Shift held runs, Left Alt held creeps. `PlayerController.gears` is an internal cap only (5 = none; `?gear=N` for
+  tests, `e2e-lib` adds `gear=4` unless a suite names one), kept through stance changes, reset on respawn. Aiming capped
+  at 1.4 / 1.0. Detail: `docs/systems/input-and-loop.md`, "Analogue speed".
 
-  | Gear | 1 | 2 | 3 | 4 | 5 |
+  | Named speed | creep | sneak | walk | jog | run |
   | --- | --- | --- | --- | --- | --- |
   | Standing (m/s) | 0.75 | 1.4 | 2.1 | 3.0 | 4.5 (G1; was 4.2) |
   | Crouched (m/s) | 0.85 | 1.3 | 1.7 | 2.15 | 2.6 |
@@ -79,6 +80,18 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   outside it steps back in; only guards at alert level 'unaware' set off the tense sneak; a start's gait clock counts
   the target pace for 0.5 s (`START_CLOCK`: the first step lands at ~0.28 s); a stop draws in only a trailing swing foot,
   and a lunge wider than `STOP_CLOSE` 0.45 m closes the rear foot in once after the freeze.
+- (anim-rework S2, the real-world standard; `docs/anim-rework/S2-REPORT.md`) Standing free movement: the run is 4.0 m/s
+  (M6, was 4.5); steps are `0.3 + 0.24 v` up to `stepLenMax` 1.3 m (the walk `WALK_STEP.k` 0.2 to 2.1 m/s; crouched keeps
+  `CROUCH_STEP` 0.3 + 0.2 v, 0.95 m): 2.4 steps/s at 1.4 m/s, 2.9 at the jog, 3.2 at the run (was 4.7). A landing keeps
+  `FREE_GAP` 0.85 of the stance width from the other foot (was a fixed 13 cm, which pushed the left foot out: the wide
+  walk). Standing, a planted foot steps back into the band `TURN_FOLLOW.standMinLateral`..`standMaxLateral`
+  0.03-0.09 m and is never scrubbed through a turn or a direction change (the scrub runs only after `SPIN_SCRUB` 0.5 s of
+  continuous fast turning; crouched keeps the G1 band and scrub); a clock swing waits while the other foot is still in
+  the air from a rule step at a walk (no two-footed hop in a turn from a standstill); a planted heel rises at most
+  `HEEL_RISE` 6 rad/s (a start's first frame no longer drags the ankle); standing holstered the pelvis trails the
+  chest toward the planted feet by up to `PELVIS_FOLLOW_KEYED` 0.35 rad (the upper body turns first; crouched and drawn
+  keep `PELVIS_FOLLOW_MAX` 0.05, blended by `RigTargets.keyHol`). The rest stance is hip width (`IDLE_STANCE` extra 0;
+  standing holstered -0.015, lead 0.04).
 - Forward roll: crouch tapped standing at gear >= `rollGear` 5 (or sprinting) while moving >= 1.5 m/s
   (`TraversalController.canForwardRoll`) = `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m
   (shortened by a wall), comes up crouched; noise `CT.rollNoise` 2 m. HUD gear pips: `Hud.setGear` (`GEARS.pipsShow` 1.5 s).

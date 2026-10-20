@@ -4,7 +4,7 @@
  * or kill, and aim button to aim pistol while holding them. It shouldn't have kill/knock out/carry in the list." and
  * "The guard cannot be let go either, only knocked out. Killed, or used as human shield (aiming pistol)".
  * So the context menu (`contextMenu.ts`) lists only Interrogate while a guard is held, and only when he has information
- * (`hasInfo`: the Marlow Yard training guard of station 1 carries some, `ai/guardInfo.ts`; a guard without, or once asked, shows no menu); RT kills and LT knocks out (not aiming); the aim draws the
+ * (`hasInfo`: the Marlow Yard training guard of station 1 carries some, `ai/guardInfo.ts`; a guard without, or once asked, shows no menu); (anim-rework S1, M3) RT tap knocks out, RT hold kills (not aiming); LT aims the
  * pistol over his shoulder (the human shield). Nothing lets him go. The picks keep their ids (`GRAB_OPTS`, the
  * takedown's `menuPick`) for scripts and tools (`GrabMenuView.sel`); Carry (knock out, then shoulder) and the stub
  * Force to device are reachable only that way.
@@ -45,11 +45,15 @@ export function addGrabRows(m: ContextMenu, info: boolean): void {
   if (info) m.add(GRAB_KIND, 'interrogate', GRAB_INTERROGATE, GRAB_OPT_LABEL.interrogate);
 }
 
-/** The held guard's trigger finisher (Michael 08:10, CT: RT lethal, LT non-lethal at close range): not aiming only. */
-export function grabTriggerPick(fire: boolean, altFire: boolean, aiming: boolean): GrabOpt | null {
+/**
+ * The held guard's trigger finisher, not aiming only. (anim-rework S1, M3: "RT tap / hold") RT tap (`rt` 'tap') knocks
+ * him out (the choke), RT held (`rt` 'hold', `STANCE.rtHold`) kills; the KBM knockout key (Z, `altFire`) knocks out.
+ * (Was Michael 08:10: RT kills, LT knocks out; LT is the aim now, the pistol over his shoulder.)
+ */
+export function grabTriggerPick(rt: 'tap' | 'hold' | null, altFire: boolean, aiming: boolean): GrabOpt | null {
   if (aiming) return null;
-  if (fire) return 'kill';
-  if (altFire) return 'knockout';
+  if (rt === 'hold') return 'kill';
+  if (rt === 'tap' || altFire) return 'knockout';
   return null;
 }
 

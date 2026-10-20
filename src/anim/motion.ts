@@ -45,6 +45,8 @@ export interface MotionInput {
   slowest?: boolean;
   /** (G1, audit row 26) The tense sneak near an unaware guard: long deliberate steps (`TENSE.step`). */
   tense?: boolean;
+  /** (G8, A4) The stance's crouch blend 0..1 (the rig's): the standing walk's shorter steps fade with it (WALK_STEP). */
+  crouch?: number;
 }
 
 export function emptyMotionInput(): MotionInput {
@@ -77,13 +79,36 @@ export function wrapPi(a: number): number {
 const TURN_SETTLE = 0.12;
 
 /**
+ * (CT prototype G8, A4: footage wins) The player's standing walk takes CT's shorter steps: `stepLen0 + k * speed` up to
+ * `to` m/s (gear 3: 0.66 m at 2.1 m/s, ~3.2 steps a second; CT 105949 @ 12.13-12.45 ~0.66 m at ~3.1 steps a second at
+ * ~2 m/s; was 0.72 at 2.9), blended back to `stepLen0 + stepLenK * speed` by `blend` m/s (the jog at gear 4 and the run
+ * keep theirs). Standing only (`crouch` 0..1 fades it: the crouched gaits get their own clips). A pure function of the
+ * speed and the stance, so an owner's driver and a remote's graph count the same clock. Not for guards (ENEMY_MOTION).
+ */
+// (anim-rework S2, M6: the CT movement references dropped, "too many steps") k 0.17 -> 0.2: 0.58 m at 1.4 m/s (2.4 steps a
+// second, was 2.6), 0.72 m at 2.1 m/s; the full 0.24 line (0.64 m) lifted the walk's head bob over 3.5 cm and a 90 deg walk
+// turn's to 6 cm (g1Locomotion), so the walk keeps a little shorter step and the jog and run take the line
+/** (anim-rework S2, M6) The player's crouched step line (m: stepLen0 + k * speed, capped at max): the pre-M6 values. */
+export const CROUCH_STEP = { k: 0.2, max: 0.95 } as const;
+export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
+
+/**
  * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
  * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
  * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
  */
-export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0): number {
+export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0): number {
+  const v = Math.max(0, speed);
   // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
-  const s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * Math.max(0, speed));
+  let s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * v);
+  // (anim-rework S2, M6) the player's crouched gaits keep the old steps (CROUCH_STEP; slice 4 owns them)
+  if (M === MOVEMENT && crouch > 0) s += (Math.min(CROUCH_STEP.max, M.stepLen0 + CROUCH_STEP.k * v) - s) * Math.min(1, crouch);
+  // (CT prototype G8, A4) the player's standing walk steps shorter (WALK_STEP), blended back to the line by the jog
+  if (M === MOVEMENT && crouch < 1 && v < WALK_STEP.blend) {
+    const u = v <= WALK_STEP.to ? 0 : (v - WALK_STEP.to) / (WALK_STEP.blend - WALK_STEP.to);
+    const w = Math.min(s, M.stepLen0 + WALK_STEP.k * v);
+    s += (w - s) * (1 - u * u * (3 - 2 * u)) * (1 - Math.max(0, crouch));
+  }
   // (G1, audit row 26) the tense sneak's long deliberate steps, by its weight 0..1
   return (s + (TENSE.step - s) * tense) * (1 - 0.4 * lateral * lateral);
 }
@@ -104,8 +129,8 @@ export const TURN_GAIT_MIN = 1.0;
  * cycle) and one step per `TURN_STEP` of yaw. Straight walking is unchanged; a 450 deg/s spin is 2.5 cycles/s (a step
  * per 0.2 s). `max`, not a sum: a run turn keeps its cadence.
  */
-export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0): number {
-  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense)) : 0;
+export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0): number {
+  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense, crouch)) : 0;
   const ang = Math.abs(yawRate) > TURN_GAIT_MIN ? Math.abs(yawRate) / (2 * TURN_STEP) : 0;
   return lin > ang ? lin : ang;
 }
@@ -432,7 +457,7 @@ export class MotionDriver {
       const lat = sp > 0.02 ? Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp) : 0;
       // (G1 fix) in a start the clock runs START_CLOCK.share of the way to the target pace (the first step lands at ~0.25 s)
       const spc = this.startT >= 0 && this.wantPace > sp ? sp + (this.wantPace - sp) * START_CLOCK.share : sp;
-      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense) * dt) % 1;
+      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0) * dt) % 1;
     }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;

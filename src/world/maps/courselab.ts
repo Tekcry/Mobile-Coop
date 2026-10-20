@@ -88,7 +88,7 @@ export const courselab: MapDef = {
           gates: [{ kind: 'pickup', id: 'g-l1', switchId: 'sw-l1', flag: 'l1-panel', perPlayer: false }],
           radio: [{ at: 'enter', text: 'Courselab. Three drills, then both of you into the airlock.' }],
           drills: [
-            { id: 'l-gear', verb: 'gear', who: 'both', name: 'speed gear', text: 'Change your pace. Step your speed gear up or down.', marker: { x: 3, y: 1, z: 2 } },
+            { id: 'l-gear', verb: 'gear', who: 'both', name: 'pace', text: 'Change your pace. Push the stick further, or ease off it.', marker: { x: 3, y: 1, z: 2 } },
             { id: 'l-vault', verb: 'vault', who: 'either', name: 'vault', text: 'Low wall by the far corner. Run at it and press {Y:traverse} to go over.', marker: { x: 4, y: 1.2, z: 6.8 } },
             { id: 'l-switch', verb: 'switch', who: 'either', name: 'panel', text: 'Panel on the wall. Press it with {Y:traverse}. Thrilling, I know.', marker: 'sw-l1' },
           ],

@@ -267,11 +267,14 @@ try {
     const st = window.__app.current;
     const t = (window.__holT = { rel: Date.now(), sim: 0, dw0: 0 });
     st.player.forceAds = false;
+    // (anim-rework S1) letting go of the aim drops to low ready: an X tap holsters (only from low ready: X from holstered draws)
+    if (st.player.stance.base === 'lowReady') window.__app.input.state.tap('draw');
     const orig = st.fixedUpdate.bind(st);
     st.fixedUpdate = (dt) => {
       orig(dt);
       t.sim += dt;
-      if (st.weapons.drawPhase === 0) { t.dw0 = Date.now(); st.fixedUpdate = orig; res(); }
+      // (a 2 s cap of sim: a missed holster fails the timing asserts below instead of hanging the suite)
+      if (st.weapons.drawPhase === 0 || t.sim > 2) { t.dw0 = Date.now(); st.fixedUpdate = orig; res(); }
     };
   }));
   await until(A, () => window.__holT.stow > 0, null, 4000, 'host remote stowed');

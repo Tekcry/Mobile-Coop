@@ -1,6 +1,6 @@
 // PC keyboard + mouse: the mouse is captured (pointer lock) in a match. A click on the game captures it
 // (that click never fires) and hides the "click to capture" hint; captured, moving looks, left fires,
-// the wheel steps the speed gear (3.2.0; weapons are Q / X); losing the capture (Esc) pauses; clicking Resume
+// right holds the aim (anim-rework S1), the wheel no longer steps a speed; losing the capture (Esc) pauses; clicking Resume
 // captures it again. Every KBM verb raises its action; Controls remap. (Gameplay behaviour lives in the system suites.)
 import { launch, openPage, assert } from './e2e-lib.mjs';
 
@@ -65,66 +65,92 @@ try {
   // (step 09) no hip fire: LMB alone fires nothing; RMB draws, then LMB fires
   const magB = await mag();
   assert(magB === magA && (await dwNow()) === 0, `LMB alone (holstered) fires nothing (${magA} -> ${magB})`);
-  // (F1a, CT) RMB is the draw / holster toggle: one click draws, no button is held
+  // (anim-rework S1) RMB is the held aim: held from holstered it draws straight to the aim (the sling draw), LMB then
+  // fires; let go, the gun drops to low ready; X holsters
   await page.mouse.down({ button: 'right' });
-  await page.mouse.up({ button: 'right' });
   let drawn = false;
-  // (a loaded VM runs the page at a few frames a second: poll up to 8 s for the 0.4 s draw and the aim framing)
+  // (a loaded VM runs the page at a few frames a second: poll up to 8 s for the draw and the aim framing)
   for (let i = 0; i < 160 && !drawn; i++) {
     await page.waitForTimeout(50);
     drawn = (await page.evaluate(() => { const g = window.__app.current; return g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9; }));
   }
-  const dbg = await page.evaluate(() => { const g = window.__app.current; return { dw: g.weapons.drawPhase, cam: +g.player.cam.ads.toFixed(2), ads: g.player.ads }; });
-  assert(drawn, `an RMB click draws and aims, with no button held (${JSON.stringify(dbg)})`);
+  const dbg = await page.evaluate(() => { const g = window.__app.current; return { dw: g.weapons.drawPhase, cam: +g.player.cam.ads.toFixed(2), ads: g.player.ads, st: g.player.weaponState }; });
+  assert(drawn, `RMB held draws and aims (${JSON.stringify(dbg)})`);
   // (software GL frames are slow: hold until a shot lands, up to 3 s)
   await page.mouse.down();
   for (let i = 0; i < 30 && (await mag()) >= magB; i++) await page.waitForTimeout(100);
   await page.mouse.up();
   const magC = await mag();
-  assert(magC < magB, `drawn, LMB fires (${magB} -> ${magC})`);
-  await page.mouse.down({ button: 'right' });
+  assert(magC < magB, `aiming, LMB fires (${magB} -> ${magC})`);
   await page.mouse.up({ button: 'right' });
+  let low = null;
+  for (let i = 0; i < 60; i++) {
+    await page.waitForTimeout(50);
+    low = await page.evaluate(() => { const g = window.__app.current; return { st: g.player.weaponState, dw: g.weapons.drawPhase, ads: g.player.ads }; });
+    if (low.st === 'lowReady') break;
+  }
+  assert(low.st === 'lowReady' && low.dw === 2 && !low.ads, `RMB let go: low ready, the gun stays out (${JSON.stringify(low)})`);
+  // A3: no fire from low ready
+  const magD = await mag();
+  await page.mouse.down();
+  await page.waitForTimeout(400);
+  await page.mouse.up();
+  assert((await mag()) === magD, `low ready: LMB fires nothing (A3) (${magD} -> ${await mag()})`);
+  await page.keyboard.press('KeyX');
   for (let i = 0; i < 100 && (await dwNow()) !== 0; i++) await page.waitForTimeout(50);
-  assert((await dwNow()) === 0, 'a second RMB click holsters');
+  assert((await dwNow()) === 0, 'an X tap holsters');
   await page.waitForTimeout(600);
   const s0 = await st();
-  // wheel up: a faster gear, wheel down: a slower one (one notch, one gear); the weapon stays
+  // (anim-rework S1) the wheel no longer steps a speed (the held context menu's highlight only); the weapon stays
   await page.mouse.wheel(0, -120);
   await page.waitForTimeout(300);
   const up = await st();
   await page.mouse.wheel(0, 120);
   await page.waitForTimeout(300);
-  await page.mouse.wheel(0, 120);
-  await page.waitForTimeout(300);
   const down = await st();
-  assert(up.gear === Math.min(5, s0.gear + 1) && down.gear === Math.max(1, s0.gear - 1) && down.weapon === s0.weapon, `wheel steps the maximum gear (${s0.gear} -> ${up.gear} -> ${down.gear}), not the weapon (${s0.weapon} -> ${down.weapon})`);
-  // T swaps weapons now (X is the draw toggle, F1a)
+  assert(up.gear === s0.gear && down.gear === s0.gear && down.weapon === s0.weapon, `the wheel changes neither the speed (${s0.gear} -> ${up.gear} -> ${down.gear}) nor the weapon (${s0.weapon} -> ${down.weapon})`);
+  // T swaps weapons
   await page.keyboard.press('KeyT');
   await page.waitForTimeout(1200);
   s = await st();
   assert(s.weapon !== s0.weapon, `T swaps weapons (${s0.weapon} -> ${s.weapon})`);
-  // = / - step the gear too
-  const g0 = s.gear;
-  // (the page runs at a few frames a second on software GL: poll up to 2 s for the step instead of a fixed 150 ms)
-  const gearIs = async (want) => {
-    let g = (await st()).gear;
-    for (let i = 0; i < 40 && g !== want; i++) {
-      await page.waitForTimeout(50);
-      g = (await st()).gear;
-    }
-    return g;
-  };
-  await page.keyboard.press('Equal');
-  const g1 = await gearIs(Math.min(5, g0 + 1));
-  await page.keyboard.press('Minus');
-  const g2 = await gearIs(g0);
-  assert(g1 === Math.min(5, g0 + 1) && g2 === g0, `= / - step the gear (${g0} -> ${g1} -> ${g2})`);
+  // (anim-rework S1, A1) WASD walk, Left Shift held runs, Left Alt held creeps (the asked speed; the test cap off); = / - do nothing
+  {
+    await page.evaluate(() => window.__app.current.player.controller.gears.set(5));
+    const want = () => page.evaluate(() => window.__app.current.player.controller.wantSpeed);
+    const paceWith = async (mods) => {
+      for (const m of mods) await page.keyboard.down(m);
+      await page.keyboard.down('KeyW');
+      let v = 0;
+      for (let i = 0; i < 40; i++) {
+        await page.waitForTimeout(50);
+        v = await want();
+        if (v > 0) break;
+      }
+      await page.waitForTimeout(150);
+      v = await want();
+      await page.keyboard.up('KeyW');
+      for (const m of mods) await page.keyboard.up(m);
+      await page.waitForTimeout(200);
+      return v;
+    };
+    const walk = await paceWith([]);
+    const run = await paceWith(['ShiftLeft']);
+    const creep = await paceWith(['AltLeft']);
+    assert(Math.abs(walk - 2.1) < 0.05 && Math.abs(run - 4.0) < 0.05 && Math.abs(creep - 0.75) < 0.05, `W walks ${walk.toFixed(2)}, Shift + W runs ${run.toFixed(2)}, Alt + W creeps ${creep.toFixed(2)} m/s`);
+    const g0 = (await st()).gear;
+    await page.keyboard.press('Equal');
+    await page.keyboard.press('Minus');
+    await page.waitForTimeout(300);
+    assert((await st()).gear === g0, `= / - no longer step a speed (${g0} -> ${(await st()).gear})`);
+    await page.evaluate(() => window.__app.current.player.controller.gears.set(4));
+  }
   // (locomotion step 17, D1) every KBM verb in the binding table (docs/systems/input-and-loop.md) raises its action:
   // the input state is wrapped to record and swallow what each default key raises (no side effects in the match)
   {
     const KBM = [
-      ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['ShiftLeft', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
-      ['Equal', 'speedUp'], ['Minus', 'speedDown'], ['Space', 'jump'], ['KeyE', 'interact'], ['KeyR', 'reload'],
+      ['KeyW', 'move'], ['KeyS', 'move'], ['KeyA', 'move'], ['KeyD', 'move'], ['CapsLock', 'cover'], ['KeyC', 'crouch'], ['ControlLeft', 'crouch'],
+      ['Space', 'jump'], ['KeyE', 'interact'], ['KeyR', 'reload'],
       ['KeyX', 'draw'], ['KeyZ', 'altFire'], ['KeyB', 'zoom'], ['KeyT', 'swapNext'], ['KeyQ', 'swapPrev'], ['KeyG', 'grenade'], ['Tab', 'gadgetWheel'], ['KeyV', 'shoulderSwap'],
       ['KeyN', 'vision'], ['KeyF', 'coop'], ['PageDown', 'coop'], ['KeyP', 'pause'],
     ];

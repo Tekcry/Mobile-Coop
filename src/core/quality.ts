@@ -183,6 +183,19 @@ export const FPS_CAPS = [0, 30, 60, 90, 120, 144, 165, 240] as const;
  * Frame limiter (pure): given the time since the last rendered frame, should this display frame render?
  * Allows half a display interval of slack so a 60 cap on a 120 Hz display renders every other frame.
  */
+/**
+ * Frame limiter by deadline (pure): the time of this display frame and the next render deadline (0: none yet) give
+ * the next deadline when the frame renders, or -1 to skip it. Deadlines step by the cap's interval, so a 60 cap holds
+ * 60 on a 90 Hz display (2 frames of 3) as on 120 Hz (every other); a frame late by a whole interval restarts the
+ * clock. (A 90 Hz phone drew 90 fps under capAllows: its 5.6 ms slack let every 11.1 ms frame through.)
+ */
+export const CAP_SLACK_MS = 2;
+export function capNext(t: number, next: number, cap: number): number {
+  const want = 1000 / cap;
+  if (next > 0 && t < next - CAP_SLACK_MS) return -1;
+  return next > 0 && t - next < want ? next + want : t + want;
+}
+
 export function capAllows(sinceLastMs: number, cap: number, displayMs: number): boolean {
   if (cap <= 0) return true;
   const want = 1000 / cap;

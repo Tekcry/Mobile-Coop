@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandOf, BRIGHTNESS_MAX, BRIGHTNESS_MIN, CALIBRATION_GREY, calibrationGrey, DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, DARK_TARGETS, darkCurve, darkWeight, LEVEL_TO_RENDER, VISION_GAIN, VISION_TARGETS } from '../src/world/darkCurve';
+import { bandOf, BODY_FILL, bodyFillScale, BRIGHTNESS_MAX, BRIGHTNESS_MIN, CALIBRATION_GREY, calibrationGrey, DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, DARK_TARGETS, darkCurve, darkWeight, LEVEL_TO_RENDER, VISION_FLOOR, VISION_GAIN, VISION_TARGETS, visionAmount, visionDark } from '../src/world/darkCurve';
 import { LIGHT } from '../src/world/lights';
 import { LAMP_LEVEL_GAIN, LIGHT_GAIN } from '../src/world/lampMath';
 
@@ -18,9 +18,10 @@ describe('the darkness curve (3.6 Step 4b, bible L5 / L7)', () => {
     // the dark band's top is under the shadow threshold; the lit target over the lit one
     expect(DARK_TARGETS.find((t) => t.band === 'dark' && t.level > 0.2)!.level).toBeLessThan(LIGHT.shadow);
     expect(DARK_TARGETS.find((t) => t.band === 'lit')!.level).toBeGreaterThan(LIGHT.lit);
-    // night vision: the dark reads, light clips
-    expect(VISION_TARGETS[0]!.min).toBeGreaterThan(DARK_TARGETS[0]!.max * 5);
-    expect(VISION_TARGETS[1]!.min).toBeGreaterThanOrEqual(0.9);
+    // night vision: the dark reads, light is near white (nv-pass: the clip starts later; the card takes the capped body fill, BRIEF A2)
+    expect(VISION_TARGETS[0]!.min).toBeGreaterThanOrEqual(DARK_TARGETS[0]!.max * 2.5);
+    expect(VISION_TARGETS[1]!.min).toBeGreaterThanOrEqual(0.7);
+    expect(VISION_TARGETS[1]!.min).toBeGreaterThan(VISION_TARGETS[0]!.max);
   });
 
   it('is monotone, falls to its floor in the dark and is near its top above lit', () => {
@@ -50,6 +51,61 @@ describe('the darkness curve (3.6 Step 4b, bible L5 / L7)', () => {
       expect(darkCurve(0.12, p, VISION_GAIN)).toBeGreaterThan(darkCurve(0.7, p));
     }
     expect(VISION_GAIN).toBeGreaterThan(4);
+  });
+
+  it('night vision lifts the dark band nearly as much as the lit one (nv-pass slice 1)', () => {
+    expect(visionAmount(1)).toBe(0);
+    expect(visionAmount(VISION_GAIN)).toBe(1);
+    expect(visionAmount((1 + VISION_GAIN) / 2)).toBeCloseTo(0.5, 12);
+    for (const [, p] of SETS) {
+      // off: the look's own curve
+      expect(visionDark(p, 1)).toEqual(p);
+      const nv = visionDark(p, VISION_GAIN);
+      expect(nv.floor).toBeCloseTo(Math.min(VISION_FLOOR, p.top), 12);
+      expect(nv.top).toBe(p.top);
+      // still monotone, and never below the curve without the floor lift
+      let prev = -1;
+      for (let s = 0; s <= 2; s += 0.005) {
+        const c = darkCurve(s, nv, VISION_GAIN);
+        expect(c).toBeGreaterThanOrEqual(prev - 1e-12);
+        expect(c).toBeGreaterThanOrEqual(darkCurve(s, p, VISION_GAIN) - 1e-12);
+        prev = c;
+      }
+      // the deep dark (a lamp-less corner, level 0.02) gains more than the lit band, and more than before the lift
+      const dark = darkCurve(0.02, nv, VISION_GAIN) / darkCurve(0.02, p);
+      const lit = darkCurve(0.7, nv, VISION_GAIN) / darkCurve(0.7, p);
+      expect(dark).toBeGreaterThan(lit);
+      expect(darkCurve(0.02, nv, VISION_GAIN)).toBeGreaterThan(darkCurve(0.02, p, 8) * 1.5);
+      // but not flat: the lit band stays brighter than the dark one
+      expect(darkCurve(0.7, nv, VISION_GAIN)).toBeGreaterThan(darkCurve(0.12, nv, VISION_GAIN) * 4);
+      // an allocation-free form writes the scratch it is given
+      const out = { ...p };
+      expect(visionDark(p, VISION_GAIN, out)).toBe(out);
+    }
+  });
+
+  it('bodies under night vision: the flat fill is capped and hemisphere-shaded (nv-pass slice 1)', () => {
+    // off: untouched, whatever the normal
+    for (const ny of [-1, 0, 1]) expect(bodyFillScale(0, ny)).toBe(1);
+    // full night vision: at most `BODY_FILL.nv`, lit from above more than from below
+    expect(bodyFillScale(1, 1)).toBeCloseTo(BODY_FILL.nv, 12);
+    expect(bodyFillScale(1, -1)).toBeCloseTo(BODY_FILL.nv * BODY_FILL.wrap, 12);
+    expect(bodyFillScale(1, 0)).toBeLessThan(bodyFillScale(1, 1));
+    expect(bodyFillScale(1, 0)).toBeGreaterThan(bodyFillScale(1, -1));
+    // eased in with the goggles, monotone
+    let last = 2;
+    for (let k = 0; k <= 1.0001; k += 0.1) {
+      const s = bodyFillScale(k, 0.3);
+      expect(s).toBeLessThanOrEqual(last + 1e-12);
+      last = s;
+    }
+    // the fill's net night-vision lift stays well under the gain the walls get
+    expect(BODY_FILL.nv).toBeLessThan(0.5);
+    expect(BODY_FILL.wrap).toBeGreaterThan(0);
+    // the GLSL mirrors it
+    expect(DARK_GLSL).toContain('float nsBodyFill(float k, float ny)');
+    expect(DARK_GLSL).toContain(BODY_FILL.nv.toFixed(4));
+    expect(DARK_GLSL).toContain(BODY_FILL.wrap.toFixed(4));
   });
 
   it('the GLSL mirrors the formula', () => {
