@@ -130,7 +130,9 @@ describe('settings: an old record with a touch section (touch input removed)', (
     expect(s.keys.reload).toEqual(['KeyT']);
     expect(s.keys.crouch).toEqual(['KeyC', 'ControlLeft']);
     expect(s.pad.draw).toEqual([PAD.RS]);
-    expect(s.gamepad).toMatchObject({ lookSensitivityX: 1.4, lookSensitivityY: 1.1, deadzoneLeft: 0.2, invertY: true, aimAssist: 'low', vibration: false });
+    expect(s.gamepad).toMatchObject({ lookSensitivityX: 1.4, lookSensitivityY: 1.1, deadzoneLeft: 0.2, invertY: true, vibration: false });
+    // no aim assist (G16): the retired pad setting is dropped from an old settings object
+    expect(s.gamepad).not.toHaveProperty('aimAssist');
     expect(s.mouse).toMatchObject({ sensitivity: 1.7, invertY: true });
     expect(s.audio).toMatchObject({ master: 0.6, sfx: 0.9, music: 0.25, ui: 0.7 });
     // (anim-rework S1, Michael 15:25) no aim toggle: the stored adsToggle is dropped

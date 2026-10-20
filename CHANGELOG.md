@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased - no-aim-assist
+- No aim assist (G16): the last of it, the pad's `gamepad.aimAssist` setting (default "standard", read by nothing since
+  the aim-assist code went), is removed; an old stored value is dropped when settings load. Tests and the e2e helpers
+  that switched it off no longer touch it. No save change.
+
 ## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
 - Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
   [--dry-run] [--only section,...] [--allow-shared]` writes an export's values into the code defaults (body, gun, camera,
