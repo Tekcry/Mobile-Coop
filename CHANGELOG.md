@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - ghost-fix
+- No ghosting at Epic when drawing, aiming or holstering (Michael's playtest). The aim depth of field read the camera's
+  direction before the render, so Babylon saw a moving camera as still and Epic's TAA kept blending old frames; it now
+  uses the camera's own look angles. The TAA history is also clamped to the current frame's neighbourhood, so fast arms
+  and guns leave no trails. `scripts/ghost-strip.mjs` captures before / after frame strips on the GPU
+  (`docs/ghost-fix/shots/`).
+
 ## 4.13.0 - Marlow Yard interrogation guard (2026-10-20, PR #34)
 - PR 3 Interrogate (`docs/ct-prototype/PR3-INTERROGATE.md`, Michael: "Add one in Marlow Yard"): station 1 has a training guard
   (passive, on his post by the south fence facing away from the start) who has information; held, hold-A lists INTERROGATE,
