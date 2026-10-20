@@ -116,7 +116,7 @@ Edit the table and the code together.
 | Switch weapon (next) | `swapNext` | - | - | `nextWeapon` (T) | LB / Tab tap switches weapon (the wheel opens on a hold); also through the wheel |
 | Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button |
 | Quick-use selected gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | F1a: the gadget picked on the wheel; works holstered (G21) |
-| Selection wheel (G181) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects |
+| Selection wheel (G181) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top; A / E on the slot cycles them), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects |
 | Co-op action; jammer (aiming the pistol) | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button: team moves; held while aiming the drawn pistol, the jammer (Michael 14:55) |
 | Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G181: toggles the mode picked on the wheel (night first), never cycles between modes |
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |

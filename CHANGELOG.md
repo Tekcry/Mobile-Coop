@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased - nv-pass (feature/nv-pass)
+- Night vision (A1): modern green phosphor. The tube drive gamma 1.7 -> 1.3, green tint, dim green black, white clip from
+  0.85, stronger grain in the dark; `VISION_GAIN` 8 -> 6 with the darkness curve's floor eased up to `VISION_FLOOR` 1.0, so
+  deep dark reads and lit areas no longer clip. A frame auto-gain (`src/vfx/nightExposure.ts`) lifts dark frames (up to
+  x3) and eases bright ones down (to x0.6); lit rooms stay in its band.
+- Bodies no longer glow in night vision: the flat ambient fill on non-voxel surfaces is capped in the render path
+  (`BODY_FILL`, x0.35 facing up, less facing down); lamp light on a body is untouched. Light parity, the light field and
+  the bake are unchanged.
+- Night-vision bloom comes from real sources only: the bright pass compresses a half-float source first (threshold 0.8,
+  strength 1.4 -> 0.6), fixtures take `NV_BULB` 8 (electro stays x2.5), lit walls and bodies do not halo; the default
+  bloom is off while the goggles are on.
+- `?gfx=min` (no baked lamps, no lighting gain): the tube lifts its input (`postLift` 3) so night vision is never darker
+  than off.
+- Goggle frame: one wide, thin frame for night, thermal and electro (a rounded rectangle the shape of the screen, a faint
+  rim, corners about 30%); the clear area goes from about 44% to 89% of the screen at 16:9. It fades in with the
+  night-vision blend.
+- Selection wheel: with the vision slot lit, A (pad) / E (keyboard) steps night -> thermal -> electro -> night and
+  releasing LB / Tab selects it; the wheel opens on the current mode. The cursor-length pick is gone.
+- Tests: the `e2e-darkness` night-vision target at level 0.12 is 0.10-0.45 (A2; the probe card is a non-voxel surface),
+  and the probe prints the night-vision rgb. New `goggleFrame`, `nightExposure` and wheel carousel tests.
+- Scripts: the night-vision shot scripts (`scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`) refuse a port that already
+  answers, a dead preview or a served build that differs from `dist/`, and fail on a build or shot error.
+
 ## 4.15.1 - Phones get basic lamp light and shadows, a 60 fps cap, no side bars (2026-10-20, PR #44)
 - Phone (testing launch, G182; Michael 2026-10-20): the Low preset instead of the bare test preset, so lamps light the
   level and characters get contact shadows; DPR 1 and a 0.75 render scale; a 60 fps cap (heat). The menus fill a wide
