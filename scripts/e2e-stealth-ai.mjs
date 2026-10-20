@@ -817,8 +817,16 @@ try {
   // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
   // camera); (A3: the lean-out is gone)
   await scen('wall peek exposes the head', async () => {
-    const r = await G(() => {
+    const r = await G(async () => {
       const t = window.__t;
+      // (stealth-peek-wait) the loop is manual: real frames only render. The head and chest points follow the rig's
+      // posed bones, whose world positions a render refreshes, so a read right after stepHeadless could see an older
+      // pose and fail under full-run load (#65, #71; ok solo). Before each pose read: two real frames render, then one
+      // short sim step re-syncs the target and runs perception on the settled pose.
+      const settle = async () => {
+        await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+        t.step(0.1);
+      };
       const g = window.__app.current;
       const V = t.V;
       const P = window.__pad;
@@ -844,6 +852,7 @@ try {
         t.step(3.0);
         P.axis(0, 0);
         t.step(0.3);
+        await settle();
         if (g.wallCore.edge !== 1) continue;
         // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest
         const pt = new V();
@@ -866,6 +875,7 @@ try {
         P.axis(0, 1);
         // (A3, G36) the peek is at once; the rig's hand switch and lean ease the head out past the edge over about 0.6 s
         t.step(0.9);
+        await settle();
         const peekOn = g.wallCore.peekOn;
         const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
         if (!peekOn || !only.length) {
@@ -892,9 +902,11 @@ try {
           continue;
         }
         t.step(0.3);
+        await settle();
         const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] };
         P.axis(0, 0);
         t.step(0.5);
+        await settle();
         const back = { los: e.los };
         if (g.wallCore.active) g.wallCore.leave('test');
         return { i, hidden: hidden.length, only: only.length, peek, back };
