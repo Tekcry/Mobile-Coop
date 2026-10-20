@@ -34,6 +34,7 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
   (S6-KEYS.md: the choke needs root motion; wires #41's guard clips).
 
 ## Open items
+- Michael on /preview/ 4.17.0 (slice 2, played on the phone): "There is animation issues, almost worse than before. I will wait for the anim tuner to try adjust it first." No specifics; he tunes with Course Ready's anim-tuner (feature/anim-tuner) and exports values, folded in later. CT Core read of shots/s2/walk-side.png: the after walk is upright and narrow as asked, but stiff: the arms hang nearly still (little swing at 1.4 m/s), the knees near straight at contact and through stance, the trunk rigid, so it can read robotic. Likely first tuner knobs: arm swing at the walk, stance knee flex, trunk counter-rotation. The phone runs at a lower and varying frame rate, which shows planner steps more.
 - Slice 2 polish: 90 / 180 deg direction changes at 1.4-2.1 m/s open the knees to 1.3-1.4x and a knee 5-13 cm
   outside its ankle for a few frames (the 450 deg/s travel turn outruns two steps; gates change90 / change180 off);
   planner-only tight spins splay a standing planted foot up to 0.32 m (turnFollow.test.ts); the run's keyed trunk no
