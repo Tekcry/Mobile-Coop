@@ -7,10 +7,12 @@
  * from each path's own bake, registry and doors reads the same
  * level at lit, mid, dark and roofed points. Also: the smooth path's rain roof grid (`roofGrid`) stops rain under the
  * station 5 back room's roof and lets it fall in the open yard.
+ * (marlow-bunker) Marlow Yard is underground now: a ceiling over every cell, no moon, the open floor held at 0.30 by the
+ * fill (Michael), so its darkest reading is that floor (no dark band) and the rain roof covers every cell.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder, type LevelBuildOptions } from '../src/world/levelBuilder';
-import { bayX, ctcourse, CT_BAY } from '../src/world/maps/ctcourse';
+import { bayX, ctcourse, CT_BAY, CT_CEIL } from '../src/world/maps/ctcourse';
 import { warehouse } from '../src/world/maps/warehouse';
 import type { MapDef } from '../src/world/mapDef';
 import { dressingOn } from '../src/world/detailPass';
@@ -149,20 +151,21 @@ describe('smooth world: Marlow Yard light field, voxels on vs off', () => {
     }
   });
 
-  it('the samples cover lit, mid and dark readings, and the roofed back room', () => {
+  it('the samples cover lit and mid readings down to the course darkest (the 0.30 fill), and the roofed back room', () => {
     expect(sweep.length).toBeGreaterThan(1000);
     expect(sweep.some((v) => v >= LIGHT.lit), 'lit').toBe(true);
-    expect(sweep.some((v) => v < LIGHT.shadow), 'dark').toBe(true);
     expect(sweep.some((v) => v >= LIGHT.shadow && v < LIGHT.lit), 'mid').toBe(true);
+    // (marlow-bunker) no dark band in the bunker: the darkest reading is the fill floor (0.30, just over LIGHT.shadow)
+    expect(Math.min(...sweep), 'darkest').toBeCloseTo(ctcourse.theme.lightLevel ?? 0.75, 2);
     // the station 5 back room is under a roof (the rain grid below agrees)
     const g = roofGrid(off.light.shapes, off.light.lo, off.light.hi);
     expect(roofAt(g, 102.3, MID)).toBeGreaterThan(2.2);
   });
 
-  it('the smooth path rain roof: none over the open yard, a roof over the station 5 back room', () => {
+  it('the smooth path rain roof: a roof over every cell (the ceilings), and over the station 5 back room', () => {
     const g = roofGrid(off.light.shapes, off.light.lo, off.light.hi);
-    // the open yard: only the ground under the rain
-    expect(roofAt(g, bayX(0) + 4, MID)).toBeLessThan(0.5);
+    // (marlow-bunker) every cell: no rain under its ceiling slab (0.4 m, top at the ceiling + 0.4)
+    for (let i = 0; i < 8; i++) expect(roofAt(g, bayX(i) + 4, MID), `S${i + 1}`).toBeGreaterThan(CT_CEIL[i]!);
     // the back room: covered well above head height
     expect(roofAt(g, 102.3, MID)).toBeGreaterThan(2.2);
     // outside the grid: open

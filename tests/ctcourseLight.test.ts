@@ -3,11 +3,13 @@
  * with the pure bakers as `World.create` + `bakeLevelLight` do. Every must-see spot reads lit enough to see on screen,
  * the dark between the yard's pools stays dark, the airlock lamps stay inside their airlocks with the doors shut, the
  * station 3 camera bay is untouched and no 2 m column lists more lamps than the shaders hold.
+ * (marlow-bunker) The bunker's ceilings, lids and fittings keep those levels: no moon, the 0.30 floor is all fill, and every
+ * point stays within 0.08 of the course-ready tuning (`ctcourseLight.tuned.json`, `docs/marlow-bunker/LIGHT.md`).
  * `CTLIGHT_PRINT=1` prints every point's level (the table in LIGHT.md section 3).
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { bayX, ctcourse, CT_BAY, CT_OBST, S5_PANEL } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S5_PANEL } from '../src/world/maps/ctcourse';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE } from '../src/voxel/lampBake';
@@ -17,6 +19,7 @@ import { buildAmbientGrid } from '../src/world/ambientGrid';
 import { LightField, type FieldDoor } from '../src/world/lightField';
 import { moonLight } from '../src/world/lampMath';
 import { LIGHT } from '../src/world/lights';
+import tuned from './ctcourseLight.tuned.json';
 
 const b = new LevelBuilder();
 ctcourse.build(b, 0);
@@ -59,10 +62,10 @@ const lampId = (x: number, y: number, z: number): number => bake.lamps!.baked.id
 
 const MID = 7;
 /** The airlock lamps (L1-L7), the station 5 medkit lamp (L10), the station 7 and station 2 wall-top lamps (L11, L12). */
-const AIRLOCK_LAMPS = Array.from({ length: 7 }, (_, i) => [bayX(i) + CT_BAY + 3, 4.6, MID] as const);
-const S5_MEDKIT_LAMP = [bayX(4) + 14.6, 3.4, 11.5] as const;
-const S7_TOP_LAMP = [bayX(6) + CT_OBST, 6.6, MID] as const;
-const S2_TOP_LAMP = [bayX(1) + CT_OBST + 0.9, 6.6, 5.0] as const;
+const AIRLOCK_LAMPS = Array.from({ length: 7 }, (_, i) => [bayX(i) + CT_BAY + 3, AIRLOCK_LAMP_Y, MID] as const);
+const S5_MEDKIT_LAMP = [bayX(4) + 14.6, ANNEX_LAMP_Y, 11.5] as const;
+const S7_TOP_LAMP = [bayX(6) + CT_OBST, HIGH_LAMP_Y, MID] as const;
+const S2_TOP_LAMP = [bayX(1) + CT_OBST + 0.9, HIGH_LAMP_Y, 5.0] as const;
 const NEW_LAMPS = [...AIRLOCK_LAMPS, S5_MEDKIT_LAMP, S7_TOP_LAMP, S2_TOP_LAMP];
 
 /** A must-see point: a standing body (feet at y) or a surface point, its minimum, and whether the doors are shut. */
@@ -226,6 +229,35 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
 
   it('keeps every lamp under the bake box top', () => {
     for (const l of reg.lights) if (l.kind !== 'flashlight') expect(l.y + 0.2).toBeLessThanOrEqual(bake.hi[1]);
+  });
+
+  it('(marlow-bunker) underground: no moon, and the open floor still reads 0.30 (Michael kept it): all fill now', () => {
+    expect(moonLight(ctcourse.theme)).toBe(0);
+    expect(bake.moonLight).toBe(0);
+    const ids = bake.lamps!.baked.ids;
+    for (const id of ids) reg.setOn(id, false);
+    const pts: [number, number][] = [];
+    for (let i = 0; i < 8; i++) for (const [dx, z] of [[0.6, 0.6], [4, MID], [8.3, 13.4], [12.5, 3], [15.4, 13.4]] as const) pts.push([bayX(i) + dx, z]);
+    const lv = pts.map(([x, z]) => body(open, x, 0, z));
+    for (const id of ids) reg.setOn(id, true);
+    pts.forEach(([x, z], k) => expect(lv[k]!, `fill at ${x}, ${z}`).toBeCloseTo(0.3, 2));
+  });
+
+  it('(marlow-bunker) the levels the course was tuned on hold: every spot within 0.08, no band change but at its edge', () => {
+    const before = tuned.levels as Record<string, number>;
+    const now = new Map<string, number>([...SPOTS.map((p) => [p.name, readSpot(p)] as const), ...CORNERS.map(([name, x, z]) => [name, body(open, x, 0, z)] as const)]);
+    expect(now.size).toBe(Object.keys(before).length);
+    const band = (v: number): number => (v < LIGHT.shadow ? 0 : v < LIGHT.lit ? 1 : 2);
+    const nearEdge = (v: number): boolean => Math.min(Math.abs(v - LIGHT.shadow), Math.abs(v - LIGHT.lit)) <= 0.05;
+    const bad: string[] = [];
+    for (const [name, v] of now) {
+      const was = before[name];
+      if (was === undefined) bad.push(`${name}: not in the tuned table`);
+      else if (Math.abs(v - was) > 0.08) bad.push(`${name}: ${was} -> ${v.toFixed(2)}`);
+      // a band change only where both levels sit at the band's edge (the former moon shadows lift 0.25 -> 0.30)
+      else if (band(v) !== band(was) && !(nearEdge(v) && nearEdge(was))) bad.push(`${name}: band ${was} -> ${v.toFixed(2)}`);
+    }
+    expect(bad).toEqual([]);
   });
 
   it.runIf(process.env.CTLIGHT_PRINT === '1')('prints the levels', () => {

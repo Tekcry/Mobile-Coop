@@ -1,9 +1,64 @@
 # Changelog
 
-## Unreleased - stealth-peek-wait
+## 4.32.3 - e2e-stealth-ai wall peek picks its spot with the guard's own eye (2026-10-21, PR #78)
 - e2e-stealth-ai's wall peek block keeps a guard spot only if the spawned guard's own eye sees the peeking head and
   not the chest. It picked the spot with a 1.55 m eye guess, 4 cm below a grunt's eye, so the real guard could see the
   chest too and "the guard there sees the peeking head only" failed now and then (#65, #71). Test only.
+
+## 4.32.2 - The last of pad aim assist removed (G16) (2026-10-21, PR #77)
+- No aim assist (G16): the last of it, the pad's `gamepad.aimAssist` setting (default "standard", read by nothing since
+  the aim-assist code went), is removed; an old stored value is dropped when settings load. Tests and the e2e helpers
+  that switched it off no longer touch it. No save change.
+
+## 4.32.1 - GPU shot rows for Marlow's low cells, airlock lids and dressing; warehouse s1 view re-aimed (2026-10-21, PR #75)
+- Test scripts only: `scripts/shots-ctcourse.mjs` gains rows for two 4.5 m low cells, the 3.2 m airlock lid seen from
+  below and the S1 desk, S3 monitor wall and S8 coffer (they need the marlow-variety geometry, PR #62).
+  `scripts/lamps-shots.mjs` (Warehouse lamp look) is now tracked, with the section 1 workshop view re-aimed into the
+  room (it was behind a wall). GPU on #62 99349d64 and master: all 23 Marlow rows agree within 0.02.
+
+## 4.32.0 - Marlow Yard as an underground bunker: ceilings, lamp fittings, airlocks, lifts, station dressing (2026-10-21, PR #62)
+- Marlow Yard is an underground training bunker (Michael 2026-10-20, the approved audit shortlist;
+  `docs/marlow-bunker/`). Ceilings per test cell (low cells 4.5 m, the laser cell 5.5 m, the climbing and kill-house
+  halls 7.5 m), perimeter and airlock walls 6 -> 7.5 m, no moon, a dark sky and close fog. The open floor still reads
+  0.30 (all fill now, Michael's choice): every light level the course was tuned on is within 0.08 (`LIGHT.md`).
+- All 29 lamps have fittings, cool white: pendants on rods at today's heights in the high halls, flush strips in the
+  low cells and the laser cell (faintly red), flush panels in the kill-house, caged bulkheads under the airlocks' new
+  3.2 m lids (chamfered haunches). Compensated by measurement.
+- The station 3, 6 and 8 walls are bulkheads up to the ceiling; station 4's wall runs to its ceiling with a header from
+  4.6 m over the laser gap (the throw passes under it). No new climbs: under the ceilings the only lips are the
+  planned ones (S2 / S7 walls, the S5 roof front, the S7 stair); the 6 m perimeter lips once hangable from the high
+  wall tops are gone.
+- Dressing (no collision, no light change except the ribs and haunches near the ceiling): ceiling ribs, haunches, LED
+  strips, wall panel seams, a colour band per cell, door frames with status lamps, the entry lift (west) and the
+  goods lift (east); readability paint: the leg-up mark up the S2 / S5 / S7 wall faces, the S3 camera's sweep edges,
+  the S4 beam emitters, the S5 hatch cover, the S6 "pair" line, the S7 rope anchor.
+- Variety (marlow-variety, folded into this PR; Michael 2026-10-21, the marlow-bunker polish list;
+  `docs/marlow-variety/`): a sentry desk at the station 1 post and a blast-door frame round the entry lift; a monitor
+  wall in the camera cell; plant-room faces at the south pockets and one-way-glass instructor booths at A3 / A4;
+  plywood and painted windows on the kill-house; frames round the station 6 scanners and server racks; the station 7
+  stair painted as training blocks; a coffer with a faint green LED ring over the exit; a hazard frame on the laser
+  release; black and white hazard stripes on every door frame. No light change at the 196 test points, no new ledge
+  or climb (only the 2 m racks are solid, no lip), the routes stay clear.
+- Text: "fence" is "wall" (station 4 panel, radio and objective; the training guard's line); the spec carries the
+  bunker fiction and an element register.
+- GPU look (2026-10-21, Menu Notes): fittings and ceilings right, the floor between pools not darker than its value;
+  meter and field agree on all 17 rows once the shot script waits for sim time (#72).
+
+## 4.31.0 - Camera cue: a faint red laser grid where a security camera looks (2026-10-21, PR #63)
+- Security cameras show a faint red scan grid on the floor and walls they see, sweeping with the pan (Michael M1
+  "Always, faint"); stronger in electro vision, its edge pulses while the camera sees a player, it fades when the camera
+  is jammed, off or shot. Render only: same field, range and static-collider line of sight as detection, never a light.
+- Fix round: in electro the grid is a clear white lattice (it vanished in the post); the co-op client's grid pulses too
+  (the host's camera test run on both bodies, nothing sent); the cue's rays are cast per fixed step on both sides.
+
+## 4.30.2 - Decisions G192-G228 folded from the roadmap (2026-10-21, PR #76)
+- Docs only: Michael's answers from 2026-10-19 to 2026-10-21 move from `docs/ROADMAP.md` "Decided" into
+  `docs/DECISIONS.md` as G192-G228, each also in `docs/design-bible.md`.
+
+## 4.30.1 - Orchestrator docs: 2026-10-21 roadmap, STATE, account handoff plan (2026-10-21, PR #74)
+- Docs only: `docs/ROADMAP.md` (Michael's overnight answers, Done 4.21.0-4.30.0), `docs/orchestrator/STATE.md`,
+  `docs/orchestrator/HANDOFF.md` (the weekly-limit account switch), `docs/backlog.md` (GPU GL warning, e2e-stealth-ai
+  wall peek).
 
 ## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
 - Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
@@ -190,6 +245,7 @@
   hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
   item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
 
+
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
   D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
@@ -218,6 +274,7 @@
   touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
   Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
   at the top with arm swing amplitude and step length (cadence at the same speed).
+
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
