@@ -55,6 +55,36 @@ const pump = setInterval(async () => {
   pumping = false;
 }, 40);
 
+// (coop-fix) Is the partner's character drawn on page P: its meshes enabled and visible with real bounds and a finite
+// root. On the client the camera first faces the host and two frames render, so it is also in the active meshes and
+// the camera frustum (the camera is turned back after).
+const avatarDrawn = (P, side) =>
+  P.evaluate(async (side) => {
+    const g = window.__app.current;
+    const a = side === 'client' ? g.net.avatars.values().next().value : g.net.remotes.values().next().value.avatar;
+    const c = g.player.cam;
+    const was = [c.yaw, c.pitch];
+    if (side === 'client') {
+      c.yaw = Math.atan2(a.pos.x - g.player.position.x, a.pos.z - g.player.position.z);
+      c.pitch = 0;
+      await new Promise((r) => { requestAnimationFrame(() => requestAnimationFrame(r)); setTimeout(r, 3000); });
+    }
+    const cam = g.scene.activeCamera;
+    const r = a.rig.root;
+    r.computeWorldMatrix(true);
+    const ms = a.figure.renderMeshes.filter((m) => m.isEnabled());
+    const act = new Set(g.scene.getActiveMeshes().data);
+    const info = ms.map((m) => {
+      m.computeWorldMatrix(true);
+      const bb = m.getBoundingInfo().boundingBox;
+      return { en: m.isEnabled(), vis: m.isVisible && m.visibility > 0, active: act.has(m), inFrustum: cam.isInFrustum(m), size: bb.extendSizeWorld.length() };
+    });
+    const root = [r.position.x, r.position.y, r.position.z];
+    if (side === 'client') [c.yaw, c.pitch] = was;
+    const ok = root.every(Number.isFinite) && r.isEnabled() && ms.length > 0 && info.every((i) => i.en && i.vis) && info.some((i) => i.size > 0.5); // the body (about 1 m); small parts such as the lens are a few cm
+    return { ok, root, lod: a.figure.current, n: ms.length, info };
+  }, side);
+
 const use = (P, id) =>
   P.evaluate((id) => {
     const it = window.__app.current.interactables?.items.find((i) => i.id === id);
@@ -564,6 +594,18 @@ try {
   await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');
   assert((await hostDebug()).bay === FIRST - 1, `the course starts at station ${FIRST}`);
   await GA(() => { window.__app.current.target.damageMul = 0; });
+  // (coop-fix) the joiner draws the host's character, and its objective line leaves "Connecting to host" (Marlow Yard
+  // sets no objective: the host's empty one must still replace the placeholder)
+  await until(B, () => window.__app.current.net.avatars.size === 1, null, 10000, 'client has the host avatar');
+  await until(B, () => window.__app.current.net.avatars.values().next().value.figure.current >= 0, null, 20000, 'host figure LOD shown on the client');
+  const visB = await avatarDrawn(B, 'client');
+  assert(visB.ok, `host avatar drawn on the client (${JSON.stringify(visB)})`);
+  assert(visB.info.some((i) => i.inFrustum && i.active), `host avatar in the client camera's view (${JSON.stringify(visB)})`);
+  const objB = await GB(() => window.__app.current.hud.objectiveText);
+  assert(!/Connecting to host/.test(objB), `connecting label gone once in game (${objB})`);
+  await until(A, () => window.__app.current.net.remotes.values().next().value.avatar.figure.current >= 0, null, 20000, 'client figure LOD shown on the host');
+  const visA = await avatarDrawn(A, 'host');
+  assert(visA.ok, `client avatar drawn on the host (${JSON.stringify(visA)})`);
 
   if (FIRST === 1) {
     console.log('station 1: one optional panel; the client reads it, the host skips it, nobody is gated');

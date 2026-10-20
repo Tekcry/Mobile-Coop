@@ -616,6 +616,9 @@ export class CourseMode implements GameMode {
       if (!s) continue;
       const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
       if (!e) break;
+      // (PR 3) a training guard: sees and hears nothing, and may know something INTERROGATE can get out of him
+      if (s.passive) e.passive = true;
+      if (s.info) e.info = s.info;
       if (s.route) e.setPatrol({ points: s.route, wait: s.wait, waits: s.waits, faces: s.faces, start: s.start, loop: s.loop });
       this.squad.push(e);
     }

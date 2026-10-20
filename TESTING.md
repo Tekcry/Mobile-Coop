@@ -35,6 +35,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Co-op on the High or Epic preset, host and joiner in two windows (side by side, then one over the other): each
+  sees the other's character, and the joiner's "Connecting to host" goes away once in the match.
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
   station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
   an alive partner back to the airlock too.
@@ -106,8 +108,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Open a door: a step to the latch, hand on the leaf; stealth open is slower. Grab a guard (G7): pull-in, forearm on
   the throat, walk him (slow), knock out (lowered), pick up a body (2 s lift), carry (slow), drop.
 - [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
-  on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (no one
-  has information yet), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
+  on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (only the
+  Marlow Yard station 1 guard has information: hold A, INTERROGATE, two lines, then no menu again), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 

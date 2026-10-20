@@ -4,6 +4,10 @@ Version: not set here; the orchestrator sets it at merge (G183, minor step). Sin
 (PROTOCOL_VERSION 24).
 
 ## Summary
+- **Michael's guard-menu corrections** (08:10 / 08:20 / 08:25, verbatim in `docs/ct-prototype/DECISIONS.md`): behind a
+  guard the hold-A list is only GRAB CHARACTER / BACK TO GAME; once grabbed RT kills, LT knocks out, aim is the human
+  shield, the guard is never let go, there is no BACK TO GAME, and hold-A shows INTERROGATE only when the guard has
+  information (none do yet, so no menu). Assumed A3: ledge / pipe / window takedowns keep one KNOCK OUT row.
 - **G5 the hold-A action menu** (`docs/ct-prototype/G5-REPORT.md`; Michael: "requires holding A and selecting which
   option you would like to proceed with, including returning to game (no action). I want it to be identical."): one
   context menu for everything in reach. INTERACT list top right; hold A: BACK TO GAME on top with row 1 highlighted, the
@@ -20,11 +24,12 @@ Version: not set here; the orchestrator sets it at merge (G183, minor step). Sin
   doors, drop 0.8 s; fix round: drop and lift without clipping or pops, client knockout posed.
 
 ## Tests
-- `npm run check` green on the head (1922 unit tests).
-- Full `npm run e2e` on the head 8ce58ee2: E2E_LINE
+- `npm run check` green on the final head 367197a0 (1924 unit tests).
+- Full `npm run e2e` on 8ce58ee2 (desktop, E2E_JOBS=2, 42 min): all pass except e2e-ctcourse (900 s cap under load; PASS solo on the laptop on 8ce58ee2, 237 s), e2e-pad (known flaky) and e2e-stealth (look-input wait). Laptop solo on 8ce58ee2: e2e-netmove 121 s, e2e-ctcourse 237 s, e2e-coop 82 s, all pass.
+- Slice tier on the final head 367197a0 (Michael 08:10-08:25 guard menu + the door-open spot fix, both after the full run): TIER_LINE
 - Independent Opus checks: G7 PASS (then a clipping fix round); G5 + G6 + G7 fix: four blocks (menu row fallback, a
-  per-step iterator, the door-open step into thick walls, the crouched reversal clip), fixed in 8ce58ee2; re-check:
-  RECHECK_LINE.
+  per-step iterator, the door-open step into thick walls, the crouched reversal clip), fixed in 8ce58ee2; re-check: three
+  fixed, the fourth (the door-open spot on the push side of a thick wall) fixed in 367197a0.
 
 ## Known open items
 - Client guard doors swing at the player's times (0.75 / 0.8 s) where the host uses 0.4 / 0.35 s; the shared

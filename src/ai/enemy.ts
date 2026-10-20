@@ -32,16 +32,16 @@ import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
 import type { LightDef } from '../world/lights';
 import type { LightField } from '../world/lightField';
-import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, type DifficultyDef } from './archetypes';
+import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
+import type { GuardInfo } from './guardInfo';
 import { DogModel } from './dogModel';
 import type { InstancedMesh } from '../core/babylon';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
-/** A guard looking for something switches his torch on below this static light level; keeps it on below `TORCH_KEEP`. */
-export const TORCH_DARK = 0.35;
-export const TORCH_KEEP = 0.45;
+/** The torch thresholds live with the pure torch rule (`archetypes.ts`). */
+export { TORCH_DARK, TORCH_KEEP } from './archetypes';
 
 /** What enemies can target (local or remote players). */
 export interface PlayerRef {
@@ -531,6 +531,8 @@ export class Enemy implements Damageable {
 
   /** A passive guard: sees and hears nothing (the benchmark flight, tests). */
   passive = false;
+  /** (PR 3) What INTERROGATE gets out of him (null: nothing, or spent); set by the squad slot that spawned him. */
+  info: GuardInfo | null = null;
 
   /** The perception multiplier: difficulty, plus an officer close by. */
   private get perceptionMul(): number {
@@ -622,9 +624,8 @@ export class Enemy implements Damageable {
    *  field's static level where he stands (3.6: lamps count, not just the ambient); one already on stays on up to
    *  `TORCH_KEEP`, so walking through a lamp's pool does not flick it. */
   torchWanted(field: LightField, holding = false): boolean {
-    const lvl = this.aware.level;
-    const looking = lvl === 'investigating' || lvl === 'searching' || (lvl === 'alert' && !this.los);
-    return looking && field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z) < (holding ? TORCH_KEEP : TORCH_DARK);
+    // (warehouse-redesign M1) dogs carry no light: the rule says no before the field is read
+    return torchRule(this.def, this.aware.level, this.los, this.def.quadruped ? 1 : field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z), holding);
   }
 
   /** The flashlight follows the head: at eye height ahead of the face, pointing where it looks (a bit down). */

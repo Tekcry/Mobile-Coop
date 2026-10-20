@@ -527,7 +527,7 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(out.seals.every((s) => s.path && s.blocked > 0 && s.leak === null), `a section is reached only through its connector (${JSON.stringify(out.seals)})`);
 });
 
-// (optional, `SECTOR_SHOTS=<dir>`) layout shots for Michael: section 1's start, C2 from inside, section 3 from the deck.
+// (optional, `SECTOR_SHOTS=<dir>`) layout shots for Michael: section 1's start (the yard's south-west corner), C2 (the fire lobby) from inside, section 3 from the deck.
 // Software GL: layout only, never a visual verdict.
 if (process.env.SECTOR_SHOTS) {
   console.log('sector ops: layout shots');
@@ -543,7 +543,7 @@ if (process.env.SECTOR_SHOTS) {
       await frames(page, 12);
       await page.screenshot({ path: `${dir}/step2-${name}.jpg`, type: 'jpeg', quality: 80 });
     };
-    await shot('s1-start', -14.5, 0, -24, 0.35, 0.05);
+    await shot('s1-start', -20, 0, -24.6, 0.5, 0.05);
     await shot('c2-inside', -14.5, 0, -7.6, 0, 0.1);
     // through sections 1 and 2 (the objectives told done, the connectors cycled) onto the deck
     for (let i = 0; i < 2; i++) {

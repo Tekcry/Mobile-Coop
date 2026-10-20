@@ -12,6 +12,7 @@ import type { TakedownVictim } from '../game/takedownController';
 import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
 import type { EnemyState } from './protocol';
+import type { GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
 
 /** Wire alert level (`EnemyState.al & 3`) -> the local level a takedown reads. */
@@ -46,6 +47,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
   dead = false;
   /** Seized by the local player's takedown (position from `holdAt`, not the host). */
   taken = false;
+  /** (PR 3) What INTERROGATE gets out of him: the map slot he appeared at (`infoAtSpawn`, no wire data). */
+  info: GuardInfo | null = null;
   /** A takedown started on the host and not yet finished / aborted (the controller clears `taken` first). */
   private seized = false;
   /** Seconds since the host last mentioned this enemy. */

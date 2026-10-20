@@ -1133,7 +1133,7 @@ export class GameState implements AppState {
 
   /**
    * (G5, AUDIT-ACTIONMENU) The CT context action menu, run first in the step. The providers fill one list in CT order:
-   * while a guard is held only Interrogate, when he has information (none do yet: the list is empty); else the
+   * while a guard is held only Interrogate, when he has information (Marlow Yard's station 1 guard, until asked); else the
    * takedown on offer (GRAB CHARACTER from behind; one named row for the other takedowns, a knockout; none where only a
    * lethal one is allowed: RT's lethal strike does those), the door set of the closed door faced, and the item in reach
    * (or the carry target). Michael 08:10 / 08:20: no Knock out / Kill / Carry rows, RT kills and LT knocks out a held
@@ -2667,9 +2667,11 @@ export class GameState implements AppState {
     const st = this.stack;
     st.focusOn = this.player.ads;
     if (st.focusOn) {
-      const cam = this.player.cam.camera;
-      const o = cam.globalPosition;
-      const f = cam.getDirection(this.dofDir.set(0, 0, 1));
+      // (ghost-fix) the look direction from the camera's own angles, never `getDirection`: reading the active camera's
+      // matrices before the render marks its view current, Babylon then sees a moving camera as still and Epic's TAA
+      // keeps blending stale frames (ghosting while aiming; lighting.md, the night-vision smear)
+      const o = this.player.cam.camera.globalPosition;
+      const f = this.player.cam.forward;
       this.dofTo.set(o.x + f.x * 80, o.y + f.y * 80, o.z + f.z * 80);
       st.focus = Math.max(1, this.ballistics.hitDistance(o, this.dofTo, G.STATIC | G.ENEMY));
     }
@@ -2677,7 +2679,6 @@ export class GameState implements AppState {
     const cp = this.player.cam.camera.globalPosition;
     this.weather.frame(real, cp.x, cp.y, cp.z);
   }
-  private readonly dofDir = new Vector3();
   private readonly dofTo = new Vector3();
 
   private markerPt = new Vector3();
