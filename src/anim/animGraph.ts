@@ -48,6 +48,7 @@ import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
+import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
@@ -582,6 +583,8 @@ export class AnimGraph {
   /** Gait clock in use (driver's, or integrated from speed). */
   phase = 0;
   readonly out = emptyTargets();
+  /** (anim-studio) The Anim Studio's loop player (`studioDrive.ts`): set on one rig's graph inside the studio only. */
+  drive: StudioDrive | null = null;
   /** Final pose (after inertialization) and the pre-inertialization source. */
   readonly pose: Pose = newPose();
   private src: Pose = newPose();
@@ -1547,6 +1550,7 @@ export class AnimGraph {
     o.readyShoulder.x = p.shoulderHalf;
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
+    if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
     return o;
   }
 

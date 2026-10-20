@@ -119,7 +119,9 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
-import { demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, type DemoOut, type FreeMode } from '../player/freeView';
+import { demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
+import { StudioStage } from './studioStage';
+import { STUDIO_MAP_ID } from '../anim/studio';
 import { clearGripAxis } from '../player/attachGrips';
 import { setTenseSource } from '../player/tenseSneak';
 
@@ -374,6 +376,8 @@ export class GameState implements AppState {
   private freeT = 0;
   private freeCrouchCd = 0;
   private readonly demoOut: DemoOut = { x: 0, y: 0, ads: false, crouch: -1 };
+  /** (anim-studio) The Anim Studio stage (the `studio` map, single player only; null elsewhere). */
+  private studio: StudioStage | null = null;
   /** (F1b) what the held guard's menu passes through: the move and the aim / fire actions. */
   private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
@@ -777,6 +781,16 @@ export class GameState implements AppState {
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
+    // (anim-studio) the studio stage: single player only (never offered in a co-op session)
+    else if (opts.map.id === STUDIO_MAP_ID)
+      g.studio = new StudioStage({
+        player: g.player,
+        scene: g.scene,
+        world,
+        debug: app.debug,
+        drawPhase: () => g.weapons.drawPhase,
+        crouchToggle: () => app.settings.get().gameplay.crouchToggle,
+      });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
     await Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
@@ -1006,6 +1020,9 @@ export class GameState implements AppState {
     this.exited = true;
     this.padOff?.();
     this.hud.setVisible(true);
+    // (anim-studio) leaving the studio: the drives off, the guard figure gone, every studio switch reset
+    this.studio?.dispose();
+    this.studio = null;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
@@ -1080,7 +1097,7 @@ export class GameState implements AppState {
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
-        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice },
+        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice, inStudio: !!this.studio },
       ),
     );
   }
@@ -1510,7 +1527,8 @@ export class GameState implements AppState {
     }
     // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
     // the devices' buttons
-    const real = FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
+    // (anim-studio) the studio's loop player drives the game while it plays a loop
+    const real = this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
     this.time += dt;
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
@@ -1834,7 +1852,12 @@ export class GameState implements AppState {
     const rdt = loop.paused ? 0 : loop.manual ? dt : loop.realDt;
     const real = this.app.input.state;
     core.dt = rdt;
-    core.lookX = look.x + FREE_IN.rx * C.yawRate * rdt;
+    // (anim-studio) a camera snap (once) and the turntable's spin
+    if (FREE_VIEW.snap) {
+      freeSnap(FREE_VIEW.snap, this.player.rig.root.rotation.y, core);
+      FREE_VIEW.snap = '';
+    }
+    core.lookX = look.x + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt;
     core.lookY = look.y + FREE_IN.ry * C.pitchRate * rdt;
     look.x = look.y = 0;
     const up = (real.down('jump') ? 1 : 0) - (real.down('crouch') ? 1 : 0);
@@ -2146,6 +2169,8 @@ export class GameState implements AppState {
     const look = this.app.input.state.consumeLook();
     // (tuner-camera) the free view takes the look (and its own pad input) while it runs
     const free = this.freeFrame(dt, look);
+    // (anim-studio) the loop player: its choice onto the rigs, the circle's camera turn, scrub / step, the guard figure
+    this.studio?.frame(dt, look);
     // the wheel cursor / remote view takes the look
     const gadgetInput = this.gadgets.takesInput;
     if (gadgetInput) {
@@ -2171,7 +2196,7 @@ export class GameState implements AppState {
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
     this.gadgets.frameUpdate(dt);
     this.updateGadgetHud();
     this.hud.barks.update(dt, this.placeBark);
