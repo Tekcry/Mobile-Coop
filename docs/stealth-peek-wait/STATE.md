@@ -25,7 +25,7 @@ world matrix, so door / breakable bodies are where they should be; perception ra
 is sim-side.
 
 **Fix (this branch):** the original block, plus the spot check uses the spawned guard's own eye (`e.eye`).
-**Next:** e2e-stealth-ai solo 3x + once with e2e-ctcourse at E2E_JOBS=2, then the PR (patch).
+**Now (2026-10-21 ~10:45):** PR #78 open (dd73e3b8). Solo 5 of 6 ok (the first run after the build failed, assert lost), ok with e2e-ctcourse at E2E_JOBS=2. The orchestrator reviews and merges.
 
 **Open:** #67 (S2b) fails this block solo too ("edge peek ... null"): that is a game change there, not this flake.
 
