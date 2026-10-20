@@ -1,11 +1,12 @@
 # Warehouse redesign - state
 
-**Now:** RESUMED 2026-10-20 13:10 at the lowest priority (M5). Master 4.13.0 merged in. Decisions A2-A7 taken (BRIEF).
-Step 3 SPEC finishing (sections 2 and 3) and step 4 section 1 greybox running in parallel (disjoint files).
-**Next:** (2) section 1
-greybox (implementer on Sonnet from the build sheet, fresh Opus checker, at most 1 fix round, `npm run check` +
-e2e-sectorops); (3) push, walk guide and the PR to master (dog fix + spec + greybox) when the orchestrator says;
-the full `npm run e2e` on its head.
+**Now:** section 1 greybox built (5371c537), fresh checker PASS (`check-step4.md`), one fix round (2dba40b2): the DVR
+stand point clear of the door and guard 4 (the e2e-sectorops download fail on 5371c537), cabinet under the hatch, roof
+strips, guard 8's window, the time model matches the game. `npm run check` passed on 5371c537 (176 files, 1943 tests).
+SPEC final (defe864a). Walk guide `WALK.md`.
+**Next:** (1) e2e-sectorops (and the step suites) on the fix-round head, through the orchestrator to the laptop, or
+the desktop when its lock is free and CT Core is not waiting; (2) a failure in the fix: the step is OPEN with the
+evidence; (3) the PR waits for Michael's look at the direction (M5); then sections 2 and 3 from SPEC 2.2 / 2.3.
 **Open:** the co-op client never draws any guard's flashlight (torch state is not on the wire; pre-existing, light
 parity; for the orchestrator). Polish: calm guards read the light field each tick on dark maps (`check-step1.md`).
 
