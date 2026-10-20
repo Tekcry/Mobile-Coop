@@ -44,6 +44,14 @@ Results (17:50): test-speed run 6 on 7221641c CLEAN (all suites, e2e-pad include
 
 Restart order after the reset: the orchestrator first (Michael pastes its prompt), then CT Core, Sector Ops and Course Ready (cleared, with their own prompts). Character Build and Menu Notes (nv-pass) were cleared earlier and are only paused: message them to resume.
 
+## Overnight 2026-10-20 -> 21 (Michael ~23:50, going to bed)
+- Usage window reset ~23:45: "be mindful of token usage on all sessions ... want the leave things running overnight".
+- Michael approved overnight merges: "Yes, merge green PRs" (tuner #56, S2b walk fix, slices 4-6, wheel-ui, camera-cue,
+  smooth-world, the cloud jobs warehouse-lamps and marlow-bunker), each on its test tier; anything unsure waits.
+- Priorities: movement > finishing the co-op training bunker (Marlow Yard) > the campaign level. Warehouse rebuild
+  deferred. Guard AI runs in a cloud session on a second account (isolated; it opens a PR; I review and merge).
+- Laptop queue: tuner 66f9afba, camera-cue, smooth-world; wheel-ui d8c69347 passed.
+
 ## In flight at 2026-10-20 ~23:20 (second usage window ending)
 - Master 4.19.1 (b125599e) on /preview/. Merged today after the reset: 4.15.2-4.15.4, 4.16.0 nv-pass, 4.16.1-4.16.2, 4.17.0 slice 2, 4.18.0 warehouse-s23, 4.18.1 phone 50%, 4.19.0 slice 3, 4.19.1 test-speed.
 - PR #56 anim-tuner (Course Ready): full laptop e2e PASS on a361fdea; Course Ready is applying 5 review fixes (keyboard focus, follow-mode rebuild, pause wrap, takedown gameplay offset to visual, try/finally) + target-range hints. Michael: merge fast on desktop check + CI after that. Then Course Ready does the tuner pad-control patch (Michael approved).
