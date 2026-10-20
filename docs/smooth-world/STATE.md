@@ -10,13 +10,15 @@ Night Shift | Character Build: RESUME smooth-world. Work only in C:\NightShift\M
 ```
 
 ## Now
-- Built, checked (CHECK-REPORT.md: first check 1 blocking + 5 polish; one fix round; re-check PASS). lint 0 errors,
-  2098 unit tests, build pass. Pushed; PR open with e2e pending.
-- Waiting on: the laptop runner's `check;full` (E2E_JOBS=2) on the PR head; the desktop GPU before / after shots
-  (default vs `?voxels=1`: Marlow Yard and Warehouse, night vision, rain, a roofed room).
+- Desktop GPU shots at 1de3b40b: night vision OK; BLOCKING smooth walls brighter than voxel walls. Fix round 2
+  (9e90750c): the level fill and probe light follow the voxel sky formula (render-only sky bake); re-check 2 PASS.
+  Master 4.20.1 merged. lint 0 errors, 2101 unit tests, build pass (before the merge).
+- Waiting on: the laptop runner's `check;full` on the new head; the desktop GPU re-shoot (annex and rain-roof walls,
+  default vs `?voxels=1`) and e2e-desktop's 16-texture count at Epic (about 14 estimated on the smooth level).
+- Perf: not measured (the draw counter is cumulative, frame time sat at the vsync cap).
 
 ## Next
-1. Runner result: green -> tell the orchestrator; a failure -> fix (one round), push, re-request.
+1. Runner and re-shoot green -> tell the orchestrator; a failure -> fix, push, re-request.
 
 ## Open
 - Desktop GPU before / after shots (`?voxels=1` vs default) and perf numbers: the orchestrator or Menu Notes.
@@ -30,4 +32,5 @@ Night Shift | Character Build: RESUME smooth-world. Work only in C:\NightShift\M
 - 2026-10-20: worktree, BRIEF, STATE.
 - 2026-10-20: implementer (scope 1-6), checkpoint commit 7ac815ef.
 - 2026-10-20: check, fix round 12a602dd (night vision fill on the level, two-bake test, roof-grid moon cull), re-check PASS.
-- 2026-10-20: CHANGELOG, PR.
+- 2026-10-20: CHANGELOG, PR #58.
+- 2026-10-21: GPU shots fix round 2 (9e90750c), re-check 2 PASS, master 4.20.1 merged.

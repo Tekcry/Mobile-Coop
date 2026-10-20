@@ -377,6 +377,9 @@ export class SettingsScreen extends MenuScreen {
       desc(button('Resolutions', () => app.benchmark?.('resolutions'), { class: 'subtle', key: 'bench-res' }), 'The flight at each of this monitor\'s resolutions (in fullscreen).'),
       desc(button('Feature costs', () => app.benchmark?.('features'), { class: 'subtle', key: 'bench-features' }), 'Your settings, then each costly feature off in turn: what to cut on this device.'),
       desc(button(`Sustained (${BENCH.sustained / 60} min)`, () => app.benchmark?.('sustained'), { class: 'subtle', key: 'bench-sustained' }), 'The first minute against the last: a laptop slowing down once hot.'),
+      // (anim-tuner pass 2) the animation tuner without F3 (pad, phone)
+      grp('Developer'),
+      desc(button('Animation tuner (dev)', () => app.debug.animTune.show(), { class: 'subtle', key: 'anim-tuner' }), 'Opens the animation slider panel over the game (top right). It stays open in a match until you close it with its x.'),
     );
     return panel;
   }
