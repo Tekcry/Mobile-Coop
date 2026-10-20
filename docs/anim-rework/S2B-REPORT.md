@@ -129,3 +129,24 @@ src: `anim/animGraph.ts` (`KEYED_WALK_BAND.ampMin`), `anim/motion.ts` (`WALK_STE
 `config/movement.ts` (`stepLen0`, `stepLenK`), `player/characterRig.ts` (`SOFT_KNEE_WALK`, `SOFT_KNEE_TAU`, the eased
 `softMove`), `anim/clips/keyed/{walk,jog,run}.ts` (generated). Keys: `scripts/anim-keys/keys/{walk,jog,run}.json`. Tests:
 listed above. Docs: this report, `CHANGELOG.md`.
+
+## #67 parked (2026-10-21)
+- Fixed and pushed (2b9904c0): the e2e-anim pop "holstered running: crouch -> stand" (wristR 9.2 cm a frame, limit 7.5).
+  The crouch's speed cap sweeps the holstered keyed blend from the re-keyed jog arms to the walk arms in about 8 frames;
+  `KEYED_GAITS.paceTau` 0.1 s eases the pace the blend reads (`anim/animGraph.ts`, `sPace` before `keyedSet`). After: 5.1
+  cm; crouch 0.70x / 2.4 cm, sneak 0.68x / 1.8 cm, walk 0.75x / 2.6 cm (unchanged). e2e-anim, e2e-move, e2e-clip, check pass.
+- Open: e2e-stealth-ai "a peek past the edge exposes the head alone to spots round the corner (null)". Master passes it
+  on one spot only (cover segment 149, 1 head-only spot, the spawned guard at 0.25, -11.75). Cause, from
+  `scripts/probe-wall-peek.mjs` (segment 149, master 1760cf36 vs this branch): S2b's step line, `stepLen0` 0.36 /
+  `stepLenK` 0.25 (`src/config/movement.ts:51-52`) with `WALK_STEP` l0 0.42 / k 0.155 (`src/anim/motion.ts:99`), makes the
+  0.39 m/s wall slide's steps 0.46 m instead of 0.38 m, so the slide stops on other feet (left ankle 9.2 cm past the
+  edge, master -3.1). The peek's hip shift then leaves the head and chest 15.9 cm past the edge, master 13.8 cm. The
+  spawned guard then sees the chest too. Putting the three values back to master's (0.3 / 0.24, WALK_STEP 0.3 / 0.2)
+  gives master's pose exactly (head -18.0 -> 13.8 cm).
+- Tried, no effect: SOFT_KNEE_WALK back to 0.997; the old step line for `lateral` > 0.9 in `stepLength`; the graph's
+  gait clock on a wall with the crouched line (`i.wall ? 1 : crouch` at animGraph.ts:860 and :1959). The planner's
+  steps follow the MotionDriver's clock (`motion.ts:491`, `gaitRate(..., i.crouch ...)`), which has no wall input.
+- Next: give the MotionDriver input a wall flag (player -> driver) and, on a wall, use `CROUCH_STEP` (the pre-S2b line)
+  in `gaitRate` at motion.ts:491, as the crouched gaits do; or make the stealth check less marginal (it rides on one
+  spot). Then e2e-stealth-ai, e2e-wall, e2e-anim (CRAB_STATES=1), check. The master merge (4.27.0) and the tuneStep
+  patch (`tests/tuneStep.test.ts` 6 -> 4 cm) wait for that.
