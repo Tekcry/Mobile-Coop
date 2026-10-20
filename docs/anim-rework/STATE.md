@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-20 23:34 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-21 00:08 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -22,8 +22,17 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
   one check, PR to master, then master merged into feature/ct-prototype.
 - Slice 4 (crouched holstered set, the knee hand, crouched drawn, stand <-> crouch re-step): Opus implementer in this
   folder; report S4-REPORT.md.
-- Slice 5 (wire the S5 wall keys): Sector Ops on feature/anim-walls (folder C:/NightShift/Mobile-Coop-anim-walls, from
-  f46426a5), report S5-REPORT.md; CT Core merges it into feature/ct-prototype.
+- Slice 5 (walls): Sector Ops done at feature/anim-walls f67652cb (from f46426a5; S5-REPORT.md, check-s5.md PASS on the
+  code; npm run check pass, e2e-wall pass; sheets not made, GPU lock busy). Only the standing wall idle passes in play;
+  9 wall rows report-only. CT Core merges it after slice 4 is committed, then a wall round: footPlanner's side step at
+  the wall (feet cross, 39-53 cm out), knee-out 7.6 cm, peeks at keyed weight 0, crouched idle track 10.9 vs 10.5 cm, the
+  rig's keyed gate (`|| this.input.wall` instead of the keyDrawn >= 0.02 workaround), drawn-at-wall carrier flag,
+  knee-hand path ignoring crouched wrist frames.
+- Slice 6 (close quarters): briefed to Sector Ops 2026-10-21 on feature/anim-hold from master 4.20.0 (folder
+  C:/NightShift/Mobile-Coop-anim-hold, port 4193; hold branch of animGraph + new holdKeyed.ts, closeQuarters /
+  takedown hold parts; not footPlanner / motion / keyed / limits / characterRig outside the hold hand targets).
+- Master 4.20.0 has the anim tuner (multiplier hooks in animGraph, motion, characterRig): merge master into S2b and
+  feature/ct-prototype at commit time, keep the hooks.
 
 ## Next
 - Slice 4 (sneak, crouch walk and run, crouched idle with the knee hand; crouched holstered from A4 and crouched drawn):
