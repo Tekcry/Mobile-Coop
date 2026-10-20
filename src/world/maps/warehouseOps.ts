@@ -2,6 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { buildWarehouse, warehouse } from './warehouse';
+import { buildServiceS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './warehouseS1';
 import { WAREHOUSE_OPS_ALARMS, WAREHOUSE_OPS_LAMPS, WAREHOUSE_OPS_LASERS, WAREHOUSE_OPS_SECURITY, WAREHOUSE_SECTORS } from './warehouseSectors';
 
 const H = 3.2;
@@ -13,14 +14,14 @@ const STEEL = '#55606a';
 const DESK = '#8a6a4c';
 
 /**
- * The connector rooms (A12): C2, a vestibule in the dock against the z -6 wall (near door south into the dock, far
- * door north into the racking's south aisle); C3, the ground-floor office (near door in the x -4 wall from the racking,
+ * The connector rooms (A12): C2, the fire lobby in the lobby block against the z -6 compartment wall (near door south
+ * into the goods-in bay, far door north into the racking's south aisle); C3, the ground-floor office (near door in the x -4 wall from the racking,
  * far door the office door onto the factory floor). Exported for the mode and the tests: the doors are found by these
  * centres (`Doors.nearest`), never by id.
  */
 export const OPS_DOORS = {
-  /** C2 near (dock side) and far (racking side) doorway centres [x, z]. */
-  c2Near: [-14.5, -9] as [number, number],
+  /** C2 near (bay side) and far (racking side) doorway centres [x, z]. */
+  c2Near: [-14.5, -8.8] as [number, number],
   c2Far: [-14.5, -6] as [number, number],
   /** C3 near (racking side, x -4) and far (the office door onto the floor). */
   c3Near: [-4, 14.55] as [number, number],
@@ -29,27 +30,14 @@ export const OPS_DOORS = {
   manager: [2, 16.05] as [number, number],
 } as const;
 
-/** Sector Ops' own pieces (placeholder boxes): the connector rooms and the M8 routes and cover. */
+/** Sector Ops' own pieces (placeholder boxes): section 1 (`warehouseS1.ts`), the C3 office door and sections 2 and 3's M8 routes and cover. */
 function opsPieces(b: LevelBuilder): void {
-  // ---- C2: the dock vestibule (x -16..-13, z -9..-6)
-  b.wallZ(-16, -9, -6, [], H, WALL, T);
-  b.wallZ(-13, -9, -6, [], H, WALL, T);
-  b.wallX(-9, -16, -13, [[-15.1, -13.9]], H, WALL, T);
-  // near door swings out into the dock, far door out into the racking (both away from the room)
-  b.door(-15.1, 0, -9, 1.2, Math.PI / 2, { swing: 1, locked: true, breachable: false });
-  b.door(-15.1, 0, -6, 1.2, Math.PI / 2, { swing: -1, locked: true, breachable: false });
+  // ---- section 1 (the south band, C2 the fire lobby included)
+  buildServiceS1(b);
 
   // ---- C3: the office. The near door in the x -4 wall swings out into the racking; the desk moves off its line.
   b.door(-4, 0, 14, 1.1, 0, { swing: -1, locked: true, breachable: false });
   b.block(-2.2, 17.4, 1.6, 0.95, 0.7, DESK);
-
-  // ---- section 1 (M8): pockets. A row of shrink-wrapped loads splits the dock west / east; a tool rack splits the
-  // workshop (the terminal end is its own pocket); a parked pallet in the corridor breaks its long sight line; a
-  // second container in the east lot screens the gatehouse from the lane behind the first.
-  b.block(-13.4, -15.6, 1.2, 2.4, 4.4, SHRINK).block(-9, -11, 5.4, 2.4, 1.2, SHRINK);
-  b.block(15, -16.8, 0.6, 2.6, 2.4, STEEL);
-  b.block(17, -10.35, 1.2, 2.4, 1.0, CRATE).block(6, -9.4, 1.2, 2.4, 0.9, CRATE);
-  b.block(18.5, -24.6, 5, 2.6, 2.4, '#6e3d3d').block(3.2, -24.9, 1.2, 2.4, 2.2, CRATE);
 
   // ---- section 2 (M8): a high route over the racks. A ladder onto the west rack's south end and one off the east
   // rack's north end; planks bridge the rack tops across the aisles at z 11 (west rack to east rack). Loads parked in
@@ -87,10 +75,11 @@ function opsPieces(b: LevelBuilder): void {
 
 /**
  * Sector Ops on the Warehouse (feature/sector-ops A12, M7, M8): three sections in a row, each sealed from the next but
- * for its connector room. 1 the service entrance (yard, dock, dispatch, workshop, corridor), 2 the racking aisles,
+ * for its connector room. 1 the service entrance (yard, goods-in bay, trade offices, workshop; `warehouseS1.ts`), 2 the racking aisles,
  * 3 the factory floor with the mezzanine deck and the manager's office. The Warehouse's geometry with the openings
  * between sections walled (the x -4 gaps dock-floor and racking-floor, the z -8.8 corridor-floor gap and door, the
- * z -6 dock-racking openings and hatch), the connector rooms, and the M8 routes and cover (`opsPieces`).
+ * z -6 dock-racking openings and hatch), the connector rooms, and the M8 routes and cover (`opsPieces`). Section 1's south
+ * band is built by `warehouseS1.ts` (the Warehouse's own band is skipped: `southBand: false`).
  */
 export const warehouseOps: MapDef = {
   ...warehouse,
@@ -101,11 +90,8 @@ export const warehouseOps: MapDef = {
   sectors: WAREHOUSE_SECTORS,
   build(b) {
     const lay = buildWarehouse(b, {
-      gapsX4: [[-15, -13.9], [-10.5, -9.3], [14, 15.1]],
-      gapsZ6: [[-15.1, -13.9]],
-      hatch: false,
-      gapsZ88: [],
-      corridorDoor: false,
+      southBand: false,
+      gapsX4: [[14, 15.1]],
       gapsZ12: [[-1.5, -0.4], [4.6, 5.7]],
       officeSwing: 1,
       officeDesk: false,
@@ -115,8 +101,12 @@ export const warehouseOps: MapDef = {
       b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: 21, fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
     }
     // the sections' guards come from the mode, not the rooms (rooms stay for the HUD tag)
-    const rooms = (lay.rooms ?? []).map((r) => ({ ...r, squad: [] }));
-    // nav seeds: one per section and connector, and the deck, so the grid floods all of them
+    // (the south band's base rooms are dropped for section 1's own)
+    const gone = new Set(['dock', 'dispatch', 'workshop', 'corridor']);
+    const rooms = [...(lay.rooms ?? []).filter((r) => !gone.has(r.id)).map((r) => ({ ...r, squad: [] })), ...S1_ROOMS];
+    // a base item belongs to sections 2 and 3 (z -6 and up, or the floor east of the x -4 wall from z -8.8)
+    const north = (x: number, z: number): boolean => z >= -6 || (x > -4 && z >= -8.8);
+    // nav seeds: one per section and connector, and the deck, so the grid floods all of them (and section 1's levels)
     const navSeeds = [
       new Vector3(-14.5, 0, -7.5),
       new Vector3(-14.5, 0, 5.2),
@@ -124,9 +114,24 @@ export const warehouseOps: MapDef = {
       new Vector3(10, 0, 0),
       new Vector3(15, 2.6, 15),
       new Vector3(5, 0, 14),
+      ...S1_NAV_SEEDS,
     ];
     // alarm panels tagged by section (only the live section's work)
     const alarms = WAREHOUSE_OPS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], 0, a.at[1]), yaw: a.yaw, section: a.section }));
-    return { ...lay, rooms, navSeeds, alarms, security: WAREHOUSE_OPS_SECURITY, lasers: WAREHOUSE_OPS_LASERS };
+    return {
+      ...lay,
+      playerSpawns: S1_SPAWNS,
+      enemySpawns: lay.enemySpawns.filter((v) => v.z >= -6),
+      props: lay.props.filter((p) => north(p.pos.x, p.pos.z)),
+      objectives: lay.objectives.filter((o) => o.id !== 'termB' && o.id !== 'extract'),
+      pickups: [...(lay.pickups ?? []).filter((p) => north(p.pos.x, p.pos.z)), ...S1_PICKUPS],
+      hideSpots: [...(lay.hideSpots ?? []).filter((h) => north(h.pos.x, h.pos.z)), ...S1_HIDESPOTS],
+      switches: [...(lay.switches ?? []).filter((w) => north(w.pos.x, w.pos.z)), ...S1_SWITCHES],
+      rooms,
+      navSeeds,
+      alarms,
+      security: WAREHOUSE_OPS_SECURITY,
+      lasers: WAREHOUSE_OPS_LASERS,
+    };
   },
 };

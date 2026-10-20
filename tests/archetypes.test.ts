@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ARCHETYPE, DIFFICULTY, fromFront, glint, grabRule, heavyMult, parseDifficulty, radioCheck, shieldBlocks, smellRate, sniperRelocate } from '../src/ai/archetypes';
+import { ARCHETYPE, DIFFICULTY, TORCH_DARK, TORCH_KEEP, carriesTorch, fromFront, glint, grabRule, heavyMult, parseDifficulty, radioCheck, shieldBlocks, smellRate, sniperRelocate, torchRule } from '../src/ai/archetypes';
 import { BARK, BarkVoice, BARKS } from '../src/ai/barks';
 import { ENEMIES, ENEMY_KINDS, emptyKinds } from '../src/ai/enemyDefs';
 
@@ -61,6 +61,21 @@ describe('dog', () => {
     expect(ENEMIES.dog.quadruped).toBe(true);
     expect(ENEMIES.dog.melee).not.toBeNull();
     expect(ENEMIES.dog.height).toBeLessThan(1);
+  });
+  it('carries no flashlight; every human guard does (warehouse-redesign M1)', () => {
+    expect(carriesTorch(ENEMIES.dog)).toBe(false);
+    for (const k of ENEMY_KINDS) if (k !== 'dog') expect(carriesTorch(ENEMIES[k])).toBe(true);
+    // searching or hunting unseen in pitch dark: the guard switches his torch on, the dog never
+    for (const lvl of ['investigating', 'searching', 'alert']) {
+      expect(torchRule(ENEMIES.grunt, lvl, false, 0, false)).toBe(true);
+      expect(torchRule(ENEMIES.dog, lvl, false, 0, false)).toBe(false);
+      expect(torchRule(ENEMIES.dog, lvl, false, 0, true)).toBe(false);
+    }
+    // the guard's rule itself: calm, lit or in sight means no torch; one already on holds up to TORCH_KEEP
+    expect(torchRule(ENEMIES.grunt, 'unaware', false, 0, false)).toBe(false);
+    expect(torchRule(ENEMIES.grunt, 'alert', true, 0, false)).toBe(false);
+    expect(torchRule(ENEMIES.grunt, 'searching', false, TORCH_DARK, false)).toBe(false);
+    expect(torchRule(ENEMIES.grunt, 'searching', false, TORCH_DARK, true)).toBe(TORCH_DARK < TORCH_KEEP);
   });
 });
 

@@ -139,6 +139,26 @@ export function smellRate(dist: number, crouched: boolean): number {
   return D.smellRate * (1 - dist / r) * 2;
 }
 
+/** A guard looking for something switches his torch on below this static light level; keeps it on below `TORCH_KEEP`. */
+export const TORCH_DARK = 0.35;
+export const TORCH_KEEP = 0.45;
+
+/** Who carries a flashlight: human guards only; a dog (quadruped) has none (Michael, warehouse-redesign M1). */
+export function carriesTorch(def: { readonly quadruped: boolean }): boolean {
+  return !def.quadruped;
+}
+
+/**
+ * The torch rule: a carrier looking for something (investigating, searching, or alert without sight of the target)
+ * where the static light at his head is below `TORCH_DARK` (`TORCH_KEEP` for one already on, so a lamp's pool does not
+ * flick it). A dog never: it carries no light, so no light slot, no lit player and no light term in its perception.
+ */
+export function torchRule(def: { readonly quadruped: boolean }, level: string, los: boolean, headLight: number, holding: boolean): boolean {
+  if (!carriesTorch(def)) return false;
+  const looking = level === 'investigating' || level === 'searching' || (level === 'alert' && !los);
+  return looking && headLight < (holding ? TORCH_KEEP : TORCH_DARK);
+}
+
 /** Squad radio check: the members that do not answer (down: dead or knocked out). */
 export function radioCheck(members: readonly { id: string; up: boolean }[], out: string[]): string[] {
   out.length = 0;

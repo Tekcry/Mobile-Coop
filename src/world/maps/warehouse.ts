@@ -130,6 +130,12 @@ const ROOMS: RoomDef[] = [
  * added there come after the Warehouse's doors, so those keep their ids).
  */
 export interface WarehouseOpts {
+  /**
+   * The south band (the yard facade, dock, dispatch, workshop and corridor, z -18 to -6 and the yard's props and lights;
+   * default true). Sector Ops (warehouse-redesign) sets it false and builds section 1 itself (`warehouseS1.ts`); the
+   * x -4 wall then starts at z -6.
+   */
+  southBand?: boolean;
   /** Gaps in the x -4 wall (dock / racking | dispatch / corridor / floor / office). */
   gapsX4?: [number, number][];
   /** Gaps in the z -6 wall (dock | racking). */
@@ -161,6 +167,8 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.floor(0, -4, 54, 50, '#5a5e60', 0, 1);
   b.perimeter(-24, 24, -26, 18, 6, WALL_DARK);
   b.floor(0, 0, 48, 36, FLOOR, 0.02, 0.04);
+  const sb = o.southBand !== false;
+  if (sb) {
   // south facade: two roller doors at the dock, a personnel door into the workshop
   wallX(b, -18, -24, 24, [[-20, -17], [-12, -9], [0.6, 1.8], [10.9, 12.1], [17, 18.1]], WALL_DARK, 6);
   // dispatch window off the yard (glazed: breaking in is loud, but it skips the dock and its dog)
@@ -175,16 +183,21 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.box(-10.5, 5, -18, 3.2, 2, 0.32, WALL_DARK);
   b.box(17.55, 4.5, -18, 1.3, 3, 0.32, WALL_DARK);
   for (const x of [-20, -17, -12, -9]) b.box(x, 2.5, -18.2, 0.12, 5, 0.12, HAZARD, 0, 0, false);
+  }
 
   // interior walls (doors 1.1 m, double doors 1.6 m)
-  wallZ(b, -4, -18, 18, o.gapsX4 ?? [[-15, -13.9], [-10.5, -9.3], [-8.2, -7.1], [-2, -0.9], [8, 9.1], [14, 15.1]]);
+  const gx4 = o.gapsX4 ?? [[-15, -13.9], [-10.5, -9.3], [-8.2, -7.1], [-2, -0.9], [8, 9.1], [14, 15.1]];
+  if (sb) {
+  wallZ(b, -4, -18, 18, gx4);
   wallX(b, -6, -24, -4, o.gapsZ6 ?? [[-23.8, -22.6], [-16, -13], [-8, -6.9]]);
+  } else wallZ(b, -4, -6, 18, gx4);
   // an open hatch in the dark west corner: racking <-> dock behind the pallet stacks
-  if (o.hatch !== false) {
+  if (sb && o.hatch !== false) {
     b.box(-23.2, 0.45, -6, 1.2, 0.9, T, WALL);
     b.box(-23.2, 2.65, -6, 1.2, 1.1, T, WALL);
     b.windowAt(-23.2, 1.5, -6, 1.2, 1.2, 0, { sill: 0.9, open: true });
   }
+  if (sb) {
   wallX(b, -11, -4, 24, [[0, 1.1], [3.6, 4.8], [14, 15.1]]);
   // dispatch -> corridor: a glazed window (shatters through)
   b.box(4.2, 0.45, -11, 1.2, 0.9, T, WALL);
@@ -192,9 +205,11 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.windowAt(4.2, 1.5, -11, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: true });
   wallX(b, -8.8, -4, 24, o.gapsZ88 ?? [[2, 3.6], [18, 19.1]]);
   wallZ(b, 6, -18, -11, [[-16, -14.9]]);
+  }
   wallX(b, 12, -4, 8, o.gapsZ12 ?? [[-1.5, -0.4]]);
   wallZ(b, 2, 12, 18, [[15.5, 16.6]]);
 
+  if (sb) {
   // loading dock: pallet stacks, a forklift, dock plates and a staging line
   b.block(-21.5, -9, 1.2, 1.3, 1.2, CRATE).block(-21.5, -7.6, 1.2, 1.0, 1.2, CRATE);
   b.block(-6.5, -9.5, 1.2, 1.6, 1.2, CRATE);
@@ -225,6 +240,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.box(15, 4.4, -14.5, 17, 0.3, 0.3, BEAM, 0, 0, false);
   // service corridor: pipe runs along the ceiling line (visual)
   b.box(10, 2.95, -10.75, 27.6, 0.14, 0.14, PIPE, 0, 0, false).box(10, 2.75, -10.78, 27.6, 0.08, 0.08, '#7a5a3a', 0, 0, false);
+  }
 
   // racking aisles: four double-sided racks with a cross aisle, orange beams, pallets on top
   for (const x of [-20.5, -16.5, -12.5, -8.5]) {
@@ -324,10 +340,13 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   // doors (swing into the room side): office, manager's office, dispatch <-> workshop, two off the corridor
   b.door(-1.5, 0, 12, 1.1, Math.PI / 2, { swing: o.officeSwing ?? -1 });
   b.door(2, 0, 15.5, 1.1, 0, { swing: 1 });
+  if (sb) {
   b.door(6, 0, -16, 1.1, 0, { swing: -1 });
   if (o.corridorDoor !== false) b.door(18, 0, -8.8, 1.1, Math.PI / 2, { swing: 1 });
   b.door(14, 0, -11, 1.1, Math.PI / 2, { swing: -1 });
+  }
 
+  if (sb) {
   // a dumpster in the yard and a big cabinet in the dispatch office (hide bodies in them)
   b.block(-21.6, -21.8, 1.9, 1.2, 1.1, '#2f5a3c').box(-21.6, 1.25, -21.8, 1.95, 0.08, 1.15, '#244a30', 0, 0, false);
   b.block(-3.3, -17.3, 1.2, 2.0, 0.7, STEEL);
@@ -347,25 +366,29 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   for (const x of [-20.35, -16.65, -12.35, -8.65]) b.pillar(x, -18.5, 0.13, 0.7, HAZARD);
   // the lee of the trailer and the container is in deep shadow: a dark lane along the south fence
   b.ambientZone(-7.5, 12.5, -26, -23.8, 0.17, -1, 6);
+  }
 
   // roof with skylight strips and hanging lights (visual only: no collision, nav samples the floor)
   // (the south strip over the facade is a solid walkway between x -22 and 21: built with the Chaos Theory routes)
   for (let z = -18; z < 18; z += 6) {
+    if (!sb && z <= -12) continue; // Sector Ops: section 1 has its own walkable roof at 6.0 (warehouseS1)
     if (z === -18) b.box(-23, 6.15, z + 2.4, 2, 0.25, 4.8, ROOF, 0, 0, false).box(22.5, 6.15, z + 2.4, 3, 0.25, 4.8, ROOF, 0, 0, false);
     else b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);
   }
   // lamps: only some are on (pools of light, dark aisles between); each room's lamps are one circuit
   for (let x = -18; x <= 18; x += 9) {
-    for (let z = -15; z <= 15; z += 6) {
+    for (let z = sb ? -15 : -3; z <= 15; z += 6) {
       // a lit strip is the light's fixture (shoot anywhere along it; it goes dark), an unlit one is just a box
       if (LAMPS_ON.has(`${x},${z}`)) b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z), fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
       else b.box(x, 5.2, z, 0.25, 0.08, 2.6, LAMP_OFF, 0, 0, false);
     }
   }
   // floodlights over the dock doors and the workshop door, the yard is moonlit; indoors is dark
+  if (sb) {
   b.light({ kind: 'spot', x: -18.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
   b.light({ kind: 'spot', x: -10.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
   b.light({ kind: 'spot', x: 11.5, y: 4.6, z: -18.6, radius: 7, intensity: 0.8, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.3, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
+  }
   b.ambientZone(-24, 24, -18, 18, 0.12, -1, 6.2);
   // surfaces: a gravel yard, a steel mezzanine deck and rack tops, carpeted offices
   b.surface('gravel', -27, 27, -29, -18.2);
@@ -380,6 +403,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   // (split jump over the corridor patrol); a pipe from the mezzanine deck out over the factory floor
   // patrol (hands, legs up, inverted, drop attacks); the press (3.3 m, wall jump); a chain-link fence closing the
   // dark yard lane off from the east lot (climb it in the dark, or walk round through the lit gap by the facade)
+  if (sb) {
   const RT = 6.275;
   const roof0 = b.boxes.length;
   b.box(-0.5, 6.15, -15.675, 43, 0.25, 4.95, ROOF);
@@ -394,10 +418,11 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   // between them, the legs straight out
   b.block(9, -11, 5, 4.0, 0.34, WALL);
   b.block(9, -8.8, 5, 4.0, 0.34, WALL);
+  }
   // the deck pipe and its hangers from the roof
   b.pipeH(17, 13.3, 17, -0.2, 4.4, PIPE);
   for (const z of [10, 6, 2.6, 0.2]) b.box(17, 5.23, z, 0.05, 1.54, 0.05, PIPE, 0, 0, false);
-  b.fence(14.5, -25.85, 14.5, -22.3, 2.6);
+  if (sb) b.fence(14.5, -25.85, 14.5, -22.3, 2.6);
 
   // Sector Ops: its own pieces (connector rooms, routes, cover) after the Warehouse's
   o.extra?.(b);
