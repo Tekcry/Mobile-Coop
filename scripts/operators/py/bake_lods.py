@@ -768,6 +768,13 @@ for n in ANCHOR_BONE:
 sock = sim.get('waist_belt', {}).get('slingSocket')
 if 'slingSocket' not in anchor_world and sock:
     anchor_world['slingSocket'] = Matrix.Translation(Vector(sock['at']))
+# anim-rig (docs/anim-rework/RIG.md): the back sling socket, where a sling's rear end anchors: WREN_SLING.back
+# (src/operators/handFrame.ts) from the chest joint, game frame, on the back plate at the left shoulder blade.
+SLING_BACK = {'wren': (-0.078, 0.123, -0.1)}
+if op_id in SLING_BACK and 'chest' in rig.data.bones:
+    ANCHOR_BONE['slingBack'] = 'chest'
+    chest_at = rig.matrix_world @ rig.data.bones['chest'].head_local
+    anchor_world['slingBack'] = Matrix.Translation(chest_at + Vector(common.game_to_blender(SLING_BACK[op_id])))
 for n in list(ANCHOR_BONE):
     e = bpy.data.objects.get(n)
     if e is not None:
