@@ -22,6 +22,7 @@ Format: `N. Item - destination - status`.
 23. **Ring airfoil** (`docs/systems/ct-toolkit.md` 3.8). CT's gadget set is settled by the CT co-op research (G76).
 24. **Knife** (`docs/systems/ct-toolkit.md` 3.10: knife takedown and cutting). Its role is settled by the CT co-op research (G76).
 25. **A30 must judge fire stairs per building** (`rooms[].building`). Today A30 compares floor heights only, so a fire stair in one building counts as serving a level of the other (`docs/kestrel/schema.md` section 6). Destination: Kestrel tools, when Kestrel resumes (G53).
+27. **GPU-only GL warning on RT + TAAU + Panini (2026-10-21, Menu Notes GPU run).** e2e-desktop under `E2E_GPU=1` fails "ray traced + TAAU + Panini render without console errors" on master d537cbd8 and #58 alike: repeated "GL_INVALID_VALUE: glGetProgramiv: Program object expected" (ANGLE D3D11 only; software GL passes). Something queries a deleted program on that path. Fix the query, or let that assert ignore the warning if it is harmless.
 26. **Phone is launch-only and untested (G182).** A phone opens the game on the minimum settings with the UI scaled to its screen and a Bluetooth pad as the input; no touch controls, no phone checks or tests, no device runs. Destination: none (testing only).
 
 ## Flaky e2e suites
@@ -44,6 +45,10 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   the test: a 3-frame hold let the menu's real-time nav repeat step twice (now one input poll), the remap B landed with
   no capture listening, and fixed pauses before reading the connect toast and the locked row's toast (now condition
   waits). Still on `KNOWN_FLAKY` until it has run clean in more full runs; see the test-speed STATE "Runs".
+- **e2e-stealth-ai wall-peek block (watch, 2026-10-21)** - failed in laptop full runs (E2E_JOBS=1) on #65 (no assert
+  printed) and #71 ("the guard there sees the peeking head only": los true, head false); passed solo on both. On #67
+  (S2b) the edge peek fails solo too: real there. Suspect load timing in the peek sampling. Not on `KNOWN_FLAKY`; if it
+  fails a third time on a head without S2b, read its log and add a settle wait.
 - **e2e-kestrel, e2e-camera-bounds (not flaky, failing on master; moved to LEGACY, Kestrel paused)** - both fail alone on master 9295c65 (the Wren merge)
   and on feature/weapons: kestrel "camera rays along the tour: ... 133 inside them go to P04"; camera-bounds "level U
   (U-Z4V): crouched, walking its length and turning, the camera stays between floor and ceiling". Camera vs level checks,
