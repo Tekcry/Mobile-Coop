@@ -322,8 +322,8 @@ Implementation: `docs/systems/audio.md`.
 
 ### 5.3 Movement, stances, camera and traversal (P4)
 
-CT movement, measured from Michael's footage (loco M19, M20, M23, M25; research in `docs/locomotion/`). Implementation:
-`docs/systems/movement.md`. All numbers are starting values (Section 0). The CT movement references are dropped: all
+CT movement was first measured from Michael's footage (loco M19, M20, M23, M25; research in `docs/locomotion/`); G210 drops
+that reference. Implementation: `docs/systems/movement.md`. All numbers are starting values (Section 0). All
 movement and its animations follow a real-world trained-operator standard (G210, docs/anim-rework/BRIEF.md). Michael
 fine-tunes movement himself as needed; movement slices and research are off (G227, replaces G150's tune-until-sign-off).
 
@@ -400,8 +400,8 @@ Implementation: `docs/systems/takedowns.md`.
 - **The palm strike** (loco M20 Q4, G42): a one-hit knockout from any side on every human guard. Co-op missions have
   no heavies or dogs (G155). Recovery about 1.4 s (loco M25 (5)). A small noise
   event. Host-approved in co-op.
-- **The grab is the hub (G23, G43).** The ground takedown button grabs first; CT's grab menu then offers knock out, kill
-  or interrogate. There is no stealth / kill selector. From the grab: human shield, interrogate, use on a scanner.
+- **The grab is the hub (G23, G43).** The ground takedown button grabs first; the menu then offers interrogate; RT / LT knock
+  out or kill (G203). There is no stealth / kill selector. From the grab: human shield, interrogate, use on a scanner.
 - **Hold-A action menu (G198):** actions are picked from a menu opened by holding A, with a return-to-game row (CT).
 - **Behind a guard (G203):** the menu lists only grab and return; once held, interrogate shows when the guard has
   information, RT / LT knock out or kill, the aim button aims the pistol. Kill, knock out and carry are never rows.
@@ -770,7 +770,7 @@ and briefing crew, not playable (G112).
   weapons follow later from the same pipeline. Voxels are off by default (G223, replaces G68's voxel line). That
   branch keeps its own decisions and open items (G75).
 - **Wren is the player character** for both players, with no dev switch, before the prototype is done (G123, replaces
-  G70's "after the prototype, behind a dev switch"); the core-feel job tunes movement on her (G150); then the weapon
+  G70's "after the prototype, behind a dev switch"); Michael tunes movement on her himself (G227, replaces G150's core-feel job); then the weapon
   step. The shared-body proportion fixes apply to every character since Wren went in, and movement and climbing tests
   re-run (G72).
 - **Sizes:** Wren stays 1.68 m (G74). Operators differ in look and height only: one movement set, one capsule, one camera
@@ -926,7 +926,7 @@ spec template) and the standard's phases and gates.
   need light (G200).
 - Marlow Yard has one guard who can be interrogated (G206).
 - The Marlow Yard bunker pass takes the full shortlist of the Marlow Yard audit (ceilings, lamp fittings, airlocks,
-  dressing, walls to ceilings, paint, lifts, fiction) and keeps the open floor at 0.30 (G225).
+  dressing, walls to ceilings, paint, lifts, fiction) and keeps the open floor's light level at 0.30, just over the 0.28 shadow line (G225).
 - **Order (G224):** the co-op training bunker, then the first campaign level.
 - **Level standard changes:** the 12 changes the research proposes (design-kit-digest appendix) go to Michael item
   by item before the first real mission map (G157).
@@ -952,7 +952,8 @@ Each map's documents also include:
 
 - **Desktop only** (G12): the installable PWA in a desktop browser, pad first, then keyboard and mouse. Button prompts
   swap at once when a pad connects or disconnects. Automatic tests run as a desktop (G13). A phone can launch it for
-  testing only (G182): minimum settings, the UI scaled to fit, a Bluetooth pad; no touch controls, checks or tests.
+  testing only (G182): minimum settings, the UI scaled to fit, a Bluetooth pad; no touch controls, checks or tests, except
+  the anim tuner, the one touch exception (G220).
   The phone minimum keeps baked lamp light and one cheap character shadow, caps the frame rate for heat and fills any
   aspect with no letterbox (G215); the menu hero renders at High (G216); phones cap at 75% resolution, no WebGPU yet
   (G218).

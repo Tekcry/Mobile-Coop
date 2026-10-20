@@ -1120,12 +1120,13 @@ later drops the CT movement references.)
 getting worse. Can you ignore CT movement references." Analogue speed from the stick (no speed toggle); LT held aims;
 three states, holstered / low ready / aiming; X tap holsters; RT tap knocks out, RT hold kills; traversal auto-holsters
 and returns to the state. Every movement animation is reworked to a real-world trained-operator standard
-(docs/anim-rework/BRIEF.md). (Replaces the footage reference of G197, G199, G202 and G209, the speed rocker (loco M25
-(7)) and bible 5.12's CT-footage line; refines G21.)
+(docs/anim-rework/BRIEF.md). G1 (pure CT) still holds for the rest of the game (BRIEF). (Replaces the footage reference of
+G197, G199, G202, G208 ("keyed with the footage as reference") and G209, the speed rocker (loco M25 (7)) and bible 5.12's
+CT-footage line; refines G21.)
 
 **G211. MPFB2 in the desktop Blender, nothing bundled.** Michael (2026-10-20 14:40): "Yes, download it". The MakeHuman
 Blender add-on MPFB2 (GPL, official release only) is installed into the desktop Blender to rebake Wren's toe weights;
-nothing from it ships in the game; version, source and licences are recorded in docs/operators.
+nothing from it ships in the game (the add-on is a tool only; G167's no MPFB code in the game stands); version, source and licences are recorded in docs/operators.
 
 **G212. Jammer on RB while aiming; A interacts at low ready.** Michael (2026-10-20 14:55): "Another button - what makes
 sense? RF?" (read as RB) and "Interact always". The held jammer is on RB while the pistol is aimed (RB stays the co-op
@@ -1177,7 +1178,7 @@ were discussed, not chosen.
 issues, almost worse than before. I will wait for the anim tuner to try adjust it first." "Weapon wheel needs to adjust
 dynamically based on screen size. Also when is it getting a quick visual Ui pass to make it look better, like the
 reference." "Night vision is good now." The selection wheel scales to the screen and gets a quick original radial
-restyle after the reference; the FPS banner leaves the top HUD; the tuner opens from a menu and works by touch.
+restyle after the reference; the FPS banner leaves the top HUD; the tuner opens from a menu and works by touch (an exception to G182's no touch work and the no-touch rule).
 
 **G221. Warehouse lamps on ceilings, translucent roof sheets.** Michael (2026-10-20 ~22:30; paraphrased except the
 quote): lamps snapped to ceilings, 3 quick code fittings, translucent corrugated roof sheets in the open sections
@@ -1202,7 +1203,7 @@ scheduled.
 
 **G225. Marlow Yard bunker pass: the full audit shortlist.** Michael (2026-10-20 ~23:40; paraphrased): the full
 shortlist of docs/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint,
-lifts, fiction); keep the open floor at 0.30.
+lifts, fiction); keep the open floor at 0.30 (the open floor's light level, just over the 0.28 shadow line).
 
 **G226. Tuner v2: a stage to pose the body and the gun.** Michael (2026-10-21 ~00:20): "I want freedom to manipulate
 the body/animation as needed ... Possibly even a basic stage similar to the old main menu that allows me to make all
@@ -1214,7 +1215,8 @@ clip keys, and a weapon group (gun scale visual only, grip, support hand, finger
 **G227. Michael tunes movement himself; the animation system first.** Michael (2026-10-21 ~00:40): "Priority overnight
 is the animation system. Movement has become less important as I will manually fine tune everything as needed." and
 "Turn off movement slices and any research." Movement slices and movement research stop; Michael fine-tunes movement
-himself as needed, and the animation system and its tools come first.
+himself as needed, and the animation system and its tools come first. (The priority was set for the night of 2026-10-21.)
+(Replaces G150's tune-until-sign-off.)
 
 **G228. Tuner additions.** Michael (2026-10-21 ~01:15-01:20; his choices, paraphrased): smooth state changes, Import
 JSON, wider ranges (double-range toggle, typed values), a bake script (export into code defaults), a bypass button

@@ -10,7 +10,7 @@ switch, test ordering); keep design, gameplay, animation, tool, map and platform
 docs/design-bible.md (one line, right section). Do NOT edit docs/ROADMAP.md (orchestrator only): list the folded entries
 and their G numbers in the PR body. One writer, one fresh checker for wording faithfulness.
 
-**Now:** Opus writer running.
+**Now:** G192-G228 written, checker FIX (7 wording items, check.md), fix round applied; docs PR opened.
 **Next:** fresh checker; at most one fix round; docs PR; send the PR to the orchestrator; stop.
 
 ## Resume prompt
