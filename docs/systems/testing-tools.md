@@ -53,7 +53,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
   `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
-  `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`. REPORT: `anim-audit`
+  `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
 - Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-pad` only since the co-op test fix (2026-10-19). A suite
   on the list always runs; its failure prints KNOWN FLAKY and does not fail the run. Any other failure counts only if it also
@@ -136,6 +136,7 @@ behind a VPN adapter).
   at field levels ~0.12 / 0.27 / 0.40 / 0.70, the camera 0.8 m in front, the HUD hidden; the screenshot centre as Rec.
   709 luma at Epic, night vision off and on (`REPORT=1` prints without asserting); turning with night vision on reads
   as moving every frame; night vision's bloom runs every frame
+- `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
 - `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
   respawn
 - `e2e-modes` (LEGACY) mission flow, ragdolls on Mission, enemy types on `proving&mode=mission`, Infiltration

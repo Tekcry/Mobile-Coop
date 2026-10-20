@@ -131,3 +131,48 @@ pending the job lead's run.
 - CHECK.md item 1: the background-tick opt-out keys on `navigator.webdriver` (automated browsers, the e2e pumps), not
   on `?net=local`, so two-tab `?net=local` play (one tab always hidden) gets the fix too. Hand checks: a `?net=local`
   two-tab run with the host tab in the background, and a WebRTC run with one window over the other.
+
+## Bug 1 root cause and fix
+
+**Cause.** At gfx high and epic (GPU) the host was invisible on the joiner. `BakedLamps` (`src/world/bakedLamps.ts`)
+attaches a `LampPlugin` to every PBR material in the scene, including the shared figure asset materials. A figure loaded
+later clones its glow material (`src/operators/runtime/figure.ts:488`). `Material.clone` copies plugins by serialising
+them and rebuilding by class name (`Tools.Instantiate("BABYLON.LampPlugin")`). `LampPlugin` is not registered with
+Babylon, so the rebuild threw ("reading 'LampPlugin'"), and the whole partner figure load aborted ("[operators] Wren
+failed to load"). No figure, nothing drawn. Lower presets never hit it: the lamp plugin is not attached before the
+figure's materials are cloned there.
+
+**Evidence.** `scripts/repro-coop-avatar.mjs` (the real menu flow, two pages, GPU) at gfx high showed the console error
+and a host avatar with no meshes on the joiner. With the fix, the same run shows the host drawn and no errors
+(`docs/coop-fix/DIAGNOSIS-2.md`).
+
+**Fix.** `LampPlugin`'s constructor sets `this.doNotSerialize = true`. A cloned material carries no lamp plugin; the clone
+is a new material in the scene, so `BakedLamps.frame` sees the material count change and attaches its own plugin.
+
+**Tests.**
+- `tests/lampPluginClone.test.ts` (NullEngine, runs in node): a PBR material with a `LampPlugin` clones without
+  throwing, `doNotSerialize` is true, and the clone has no `BakedLamps` plugin.
+- `scripts/e2e-coop-gpu.mjs` (GPU list, `npm run e2e:gpu`, `E2E_GPU=1`, port 4189), a GPU suite from the repro: menu
+  flow at High (shared and separate contexts) and Epic (shared; `COOPGPU_ALL=1` adds separate). Fails on a "failed to
+  load" console message, a host avatar with no meshes or no LOD shown, the host not drawn on the joiner (meshes enabled,
+  visible, active, body bounds over 0.5 m), or "Connecting to host" still shown. Not run here (the GPU belongs to
+  Michael's PC); `node --check` passes.
+
+**Clone-path survey** (`src/`, outside the editor): the `doNotSerialize` fix covers every material clone; no path needs more.
+
+| Path | Meets a material with a LampPlugin? |
+| --- | --- |
+| `operators/runtime/figure.ts:488` `materials[glow].clone()` | Yes, this was the bug. Covered by the fix. |
+| `operators/runtime/figure.ts:230` `glowBase.clone()` | No, a `Color3`. |
+| `operators/lab/lab.ts:437` `m.clone(..., wireSolid)` and `:761` `body.clone('silhouette')` | Mesh clones: the material is shared, not cloned or serialised; the lab scene has no `BakedLamps`. Dev lab only. |
+| `voxel/voxelBody.ts:112` | A `Matrix` clone. |
+| `vfx/vfx.ts` `createInstance` | Instances share the base material; no serialisation. |
+| Guards (`ai/`), weapons, props, gadgets, `ui/screens/photoMode.ts`, menu hero (`world/menuScene.ts`) | Only `Vector3` / `Quaternion` clones. No material clone, `serialize`, `SerializationHelper`, `instantiateModelsToScene` or asset-container instantiate anywhere in `src/`. |
+
+Any future material clone is covered by the same flag.
+
+## GPU suite run (job lead, desktop, E2E_GPU=1, port 4189)
+- shared/high and shared/epic: every check ok (host drawn on the joiner at LOD 1, body 1.0 m, no load error, label
+  cleared). Before the fix the same flow logged "Wren failed to load ... LampPlugin" and the joiner's host had no meshes.
+- separate/high: the first page load was refused (ERR_CONNECTION_REFUSED) twice, also run alone, though the repro's
+  separate variant passed earlier; not diagnosed. Two-context variants are opt-in (`COOPGPU_ALL=1`). Open item.
