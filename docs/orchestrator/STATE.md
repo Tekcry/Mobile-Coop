@@ -1,89 +1,55 @@
-# Orchestrator - resume point (2026-10-20 16:20 Sydney)
+# Orchestrator - resume point (2026-10-21 ~01:10 Sydney)
 
-Read CLAUDE.md (above all "Sessions") and docs/ROADMAP.md first; the roadmap's "Decided" list holds every Michael answer
-from 2026-10-19 21:45 onward, verbatim. Work folder for orchestrator docs: C:\NightShift\Mobile-Coop-menu, branch
-feature/menu. Merge origin/master into it before each docs batch; the docs go to master in a docs PR (a patch) when
-convenient (feature/menu is many commits ahead of master today: open one docs PR soon).
+Read CLAUDE.md (above all "Sessions") and docs/ROADMAP.md first; the roadmap's "Decided" list holds Michael's answers
+verbatim. Work folder: C:\NightShift\Mobile-Coop-menu, branch feature/menu (orchestrator docs). Merge origin/master into
+it before each docs batch; the docs go to master in a docs PR (patch) when convenient: feature/menu is many commits
+ahead (open one docs PR soon; also rename the two stray "## Unreleased - anim-metrics" headings, fold the nv-pass and
+later job answers into DECISIONS with G numbers, and record G68's voxel clause replaced by smooth-world).
+Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-native (detached checkouts; reset --hard
+there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.19.1 (#57, b125599e: test-speed; #54 4.19.0 anim-rework slice 3, drawn movement; #55 4.18.1 phones fixed 50%; #50 4.18.0 warehouse-s23 sections 2-3 + S1 lamps; #52 4.17.0 anim-rework slice 2, holstered standing locomotion + M6 + unwired slice 3-6 keys; #53 4.16.2 phones at 75% res; #51 4.16.1 deadline fps cap, phone dynamic res; #49 4.16.0 nv-pass, night vision + goggle frame + vision carousel; #48 4.15.4 FPS banner; #46 4.15.3 phone menu at High; #45 4.15.2 phone native DPR + scale 1; Michael approved both merges). Tags v4.0.0-v4.19.1. /preview/ = dev = b125599e. New jobs: warehouse-lamps (cloud, local_510e3a67), camera-cue (Menu Notes after wheel-ui), smooth-world (Character Build). Open: #56 anim-tuner (Michael: merge fast on desktop tests + CI; waiting on the e2e-ctcourse 1200 s rerun time, 600 s+ was a red flag), then its pad-control patch; slice 4 CT Core; slice 5 Sector Ops on feature/anim-walls; wheel-ui needs a GPU window; test-speed PR from Character Build; anim-tuner PR: full laptop e2e first (Michael chose it over a fast merge), then ask him slice 3 (full e2e queued on the laptop), test-speed PR (Character Build), wheel-ui (Menu Notes, laptop run then a GPU window), anim-tuner (Course Ready). New job anim-tuner (Course Ready, feature/anim-tuner): F3 slider panel for gait / pose / gun-hold values, export JSON to Downloads. Phone: 4.16.1 bench 53 fps avg, 26 late; 4.16.2 untested. WebGPU for phone: no (Michael asked; answered: parked trial after the playtest). PR #52 slice 2: Michael approved merge on the laptop full e2e pass (eb5125d2); master moved since, I merge master in at the version step. TODO next docs PR: nv-pass answers into DECISIONS (G numbers). nv-pass: e2e-darkness NV min 0.10 approved (evidence: s12b sheet). The doorPeek fix is now in master. CHANGELOG has two stray "## Unreleased - anim-metrics" headings under 4.15.0 (from the side PRs): rename them in the next docs PR. /ct/ = ct-movement = 150dcfce (walk round 3b
-plus the F3 crab readout; CT Core moves it with each slice). Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh
-(source docs/orchestrator/dashboard.html; publish the same path; it declares `db`, answers in collection `answers`;
-update its version line and rows after each merge with the sed / node edits used in git history, then republish).
+v4.20.1 (#60, 6a4fb07f). Tags v4.0.0-v4.20.1. /preview/ = dev = 6a4fb07f. Merged since the 2026-10-20 reset, in order:
+4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
+4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
+4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60). /ct/ = ct-movement (CT Core).
+Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (source docs/orchestrator/dashboard.html; stale since
+2026-10-20, update when convenient).
 
-## Priority (Michael)
-Movement and animation first; it preempts everything (19:15: "Anything movement related should take priority over anything else": lock holders release at the next step, CT Core laptop requests interrupt test-speed) (10:30, 13:50: "any spare bandwidth that can be used to speed it up should be used").
-CT movement references are dropped for movement and animation (13:30); the brief is docs/anim-rework/BRIEF.md.
-Laptop and desktop: full bandwidth (Michael 2026-10-20 ~18:50: "you have full bandwidth of desktop and laptop again. Ix27m not using them"); laptop normal priority, E2E_JOBS=2; still headless, one heavy job per machine. Token use: lean (Michael ~18:45: "Make sure all sessions are conscious of token usage"). Keep going until Michael says stop (08:45).
+## Priority (Michael, 2026-10-21 ~00:40)
+"Priority overnight is the animation system. Movement has become less important as I will manually fine tune
+everything as needed." / "Turn off movement slices and any research." Then: finish the co-op training bunker (Marlow
+Yard), then the campaign level. Warehouse rebuild deferred (docs/reviews/warehouse-layout-review.md). Token use lean.
+Usage rule: "Auto trim when the 5 hour session reaches 90% and focus on tools only": at 5-hour >= 90% pause everything
+except the animation tools (Course Ready, Menu Notes tuner-v2) and the laptop runs they need. At 00:55: 5-hour 33%
+(reset ~05:00), weekly all models 73% (reset 2026-10-22 ~23:00).
+Overnight merges approved: "Yes, merge green PRs", each on its test tier; anything unsure waits for him.
 
-## Sessions now (titles are the message addresses)
-| Session | Job(s), branch, folder | State (16:20) |
+## Sessions and jobs (titles are the message addresses)
+| Session | Job, branch @ head | State (01:10) |
 | --- | --- | --- |
-| Night Shift \| CT Core Build | anim-rework slices 1-6 on feature/ct-prototype (C:/NightShift/Mobile-Coop-ct-prototype) | slice 1 (controls) round 3 ef3a3c01 + the station 3/4 test fix approved; laptop co-op run next, then /ct/ and a PR to master; slice 2 (holstered locomotion: starts, stops, turns, idles, the narrow walk) after |
-| Night Shift \| Course Ready Build (local_4d5454d2, I started it, I can clear it) | anim-guard (feature/anim-guard, PR base feature/ct-prototype), then the MPFB2 rebake on feature/anim-rig | guard clips 90d1c8bf, check running; MPFB2 approved by Michael 14:40 |
-| Night Shift \| Menu Notes Build | nv-pass (feature/nv-pass, C:/NightShift/Mobile-Coop-nv-pass) | slices 1-2 (look, wide goggle frame) 75c37d42 waiting for GPU shots; slice 3 the wheel carousel only after anim-rework slice 1 merges to master (give it the go) |
-| Night Shift \| Sector Ops Build | warehouse-s23 (feature/warehouse-s23, C:/NightShift/Mobile-Coop-warehouse-s23) | section 1 lamp pass + section 2 greybox f4facc1d; laptop run queued last; section 3 next; lowest priority |
-| Night Shift \| Character Build (laptop, Remote Control; it drops off sometimes, ListAgents shows it) | laptop test runner + test-speed (feature/test-speed) | test-speed done when two clean laptop full runs at E2E_JOBS=2; then PR to master |
+| Night Shift \| Course Ready Build (local_4d5454d2) | tuner-camera (feature/tuner-camera, not pushed yet): camera sliders per state + live free view (orbit, fly with demo loop, slow motion, hide HUD) + the tuner section registry (registerTuneSection; API in docs/anim-tuner/STATE.md); then Anim Studio PR(s): stage like the old menu void, loop player, viewing aids (skeleton, foot markers / trails, onion skin, F3 readout, camera snaps), undo / A-B / copy-paste / presets; then co-op pairs (both Wrens, guard) and traversal props | building |
+| Night Shift \| Menu Notes Build | tuner-v2 (feature/tuner-v2 @ d09b32ec): per-joint offsets with mirror lock, hand / foot placement, stepping controls (stuck feet), per-key editing exported as clip keys, Weapon group (gun scale visual only, grip, support hand, fingers); wire panels only via the registry once Course Ready sends its head. Also camera-cue (feature/camera-cue @ efa734d1): laptop run queued, GPU shots, fresh checker, PR | building |
+| Night Shift \| CT Core Build | lands built work only: S2b walk fix (feature/anim-s2b, PR soon) and slice 4 crouch + walls merge on feature/ct-prototype (@ d2ffd4a4, merge agent running) -> PRs; then tool support only (footPlanner hooks for tuner-v2) | finishing |
+| Night Shift \| Sector Ops Build | stopped (slice 6 not started; feature/anim-hold has STATE only) | idle |
+| Night Shift \| Character Build (laptop, Remote Control) | the test runner; queue: camera-cue efa734d1 (check + smoke stealth ctcourse sectorops coop netmove), wheel-ui 938393bf full e2e, smooth-world after its fix, warehouse-lamps after its fix | running |
+| Night Shift \| Character Build: smooth-world job (laptop, Remote Control) | smooth-world #58 (feature/smooth-world @ 1de3b40b): voxels off by default; GPU shots found smooth walls brighter than voxel at the same meter value (light parity): one fix round, then laptop full e2e + reshoot (Menu Notes' GPU window) | fixing |
+| Warehouse lights: ceiling fix + quick fittings (local_510e3a67) | warehouse-lamps #59 (@ a5b99613): e2e-sectorops failed, a hex colour undefined in a build loop (Color3.FromHexString in AO.build): fix round asked, then laptop rerun + a GPU look | fixing |
+| Marlow Yard bunker pass (local_37c97872, cloud) | marlow-bunker (feature/marlow-bunker @ 54fa3dbf): the full shortlist of docs/reviews/marlow-yard-audit.md, floor kept at 0.30; PR, then a GPU look | building |
 
-Relay rule: desktop job leads often cannot reach Character Build; the orchestrator relays runner requests with the full
-commit hash, and forwards results back.
+Open PRs: #58 smooth-world, #59 warehouse-lamps, #61 wheel-ui (checker PASS, laptop PASS on d8c69347; full e2e on
+938393bf queued). Not yet PRs: camera-cue, S2b, slice 4+5, tuner-camera, tuner-v2, marlow-bunker.
+Waiting on Michael: the guard AI job runs on his second account when it resets (prompt: docs/orchestrator/guard-ai-prompt.md;
+plan docs/reviews/guards-review.md); A5 aimed strafe 0.7 m/s is his call; his walk tests with the tuner.
+Reviews (suggestions only): docs/reviews/marlow-yard-audit.md, warehouse-layout-review.md, guards-review.md.
 
-## First after the reset (Michael 18:25)
-1. Phone follow-up (a 2-line patch, do it yourself as with #44): "Default phones to low settings but with shadows/light, native resolution, 60fps cap, 100% resolution scaling". So in src/core/qualityManager.ts applyScale, the flags.phone branch becomes native DPR and scale 1 (applyRenderScale(this.engine, this.ov?.scale ?? 1, Infinity)); keep the Low preset and the 60 fps cap. He said 4.15.1 "works better, no complaints".
-2. Restart the paused sessions: show Michael the prompts in docs/orchestrator/RESTART.md ONE AT A TIME (he does not remember them), wait for his "done" after each, then message Character Build and Menu Notes (nv-pass) to resume.
-3. Michael has movement feedback from /preview/ (4.15.1: slice 1 controls, walk round 3b): ask for it first and pass it to CT Core for slice 2.
-
-## Usage pause (2026-10-20 ~17:15)
-At 93% of the 5-hour window Michael was given prompts to clear and restart every session after the reset (CT Core, Sector Ops, Course Ready, the orchestrator; Character Build and nv-pass were already cleared). All sessions were told to pause until the orchestrator messages them after the reset: after the restart, message each one to resume (CT Core: slice 2; nv-pass: the checker result, then the carousel, which is now unblocked since slice 1 merged; Sector Ops: the lamp fix and section 3; Course Ready: the MPFB2 rebake; Character Build: test-speed).
-
-nv-pass (17:40): the checker said FIX on slices 1-2 (b1303393): met: bodies no longer bright, green tube, the frame 89% clear, light parity; not met: dark readability (the yard NV a flat murk, the Epic moonlit wall clipped) and ?gfx=min (NV darker than off in 2 of 9 views). Its committed "before" sheets are not master (re-shoot them). After the reset: one fix round (frame-level auto-gain, shot-script guards, min postLift), a GPU window, a fresh checker. It proposes lowering the e2e-darkness target 0.2 -> 0.10: ask for the evidence that 0.10 still means readable before agreeing (do not loosen a test just to pass).
-
-Before the reset (17:45) two cheap script-only jobs were started: Character Build test-speed full run 6 (E2E_JOBS=2; a clean run counts as 1 of the 2 needed) and nv-pass re-shooting the master "before" sheets (65bfe6f2). Both reply in one line; read their results from the sessions or their STATE files.
-
-Results (17:50): test-speed run 6 on 7221641c CLEAN (all suites, e2e-pad included, 1430 s): clean run 1 of 2. nv-pass re-shot the master before sheets at 65bfe6f2 (653fdad8). Both sessions paused.
-
-Restart order after the reset: the orchestrator first (Michael pastes its prompt), then CT Core, Sector Ops and Course Ready (cleared, with their own prompts). Character Build and Menu Notes (nv-pass) were cleared earlier and are only paused: message them to resume.
-
-## Overnight focus change (2026-10-21 ~00:40)
-Usage rule (Michael ~01:00): "Auto trim when the 5 hour session reaches 90% and focus on tools only": at 5-hour >= 90%, pause everything except the animation tools (Course Ready tuner-camera / Anim Studio, Menu Notes tuner-v2) and the laptop runs they need. Check get_usage on each wake.
-Usage at 00:55: 5-hour 33% (resets ~05:00), weekly all models 73% (resets 2026-10-22 ~23:00 Sydney); Michael: "No trimming" (run until a limit stops it). Michael: "Turn off movement slices and any research." The animation tools are the priority (Course Ready: tuner-camera, then Anim Studio; Menu Notes: tuner-v2). CT Core lands S2b and slice 4 (+ walls merge) as PRs on the checks in flight, then only tool support. Sector Ops stopped (slice 6 WIP on feature/anim-hold). No review agents. In flight and finishing: camera-cue, smooth-world (light-parity fix round), warehouse-lamps #59, marlow-bunker (cloud).
-
-## Overnight 2026-10-20 -> 21 (Michael ~23:50, going to bed)
-- Usage window reset ~23:45: "be mindful of token usage on all sessions ... want the leave things running overnight".
-- Michael approved overnight merges: "Yes, merge green PRs" (tuner #56, S2b walk fix, slices 4-6, wheel-ui, camera-cue,
-  smooth-world, the cloud jobs warehouse-lamps and marlow-bunker), each on its test tier; anything unsure waits.
-- Priorities: movement > finishing the co-op training bunker (Marlow Yard) > the campaign level. Warehouse rebuild
-  deferred. Guard AI waits for Michael's second account to reset (out of usage); he pastes the guard-ai cloud prompt then (feature/guard-ai from master, PR only; I review and merge).
-- Merged overnight: 4.20.0 (#56 anim-tuner), 4.20.1 (#60 tuner pad control, 6a4fb07f, /preview/). Course Ready on tuner-camera (camera sliders per state + live free view: orbit, fly, slow motion). Open: #58 smooth-world (laptop full e2e + Menu Notes GPU shots), tuner-pad (Course Ready), wheel-ui / camera-cue (Menu Notes), S2b + slices 4-6 (CT Core / Sector Ops), cloud warehouse-lamps and marlow-bunker.
-
-## In flight at 2026-10-20 ~23:20 (second usage window ending)
-- Master 4.19.1 (b125599e) on /preview/. Merged today after the reset: 4.15.2-4.15.4, 4.16.0 nv-pass, 4.16.1-4.16.2, 4.17.0 slice 2, 4.18.0 warehouse-s23, 4.18.1 phone 50%, 4.19.0 slice 3, 4.19.1 test-speed.
-- PR #56 anim-tuner (Course Ready): full laptop e2e PASS on a361fdea; Course Ready is applying 5 review fixes (keyboard focus, follow-mode rebuild, pause wrap, takedown gameplay offset to visual, try/finally) + target-range hints. Michael: merge fast on desktop check + CI after that. Then Course Ready does the tuner pad-control patch (Michael approved).
-- CT Core: S2b walk fixes as a small PR (feature/anim-s2b, from the walk review: arms, trunk counter-rotation, SOFT_KNEE_STAND 0.988, step length, weight transfer); slice 4 (crouch) on feature/ct-prototype. Merge S2b on its tier (ask Michael unless he pre-approves).
-- Sector Ops: slice 5 walls on feature/anim-walls (from f46426a5), reports to CT Core.
-- Menu Notes: wheel-ui (laptop PASS on 0ed8c2f5; 3 review fixes, then a GPU window, checker, PR); camera-cue implementer running (Michael: "Always, faint").
-- Cloud session warehouse-lamps (local_510e3a67): lamps to ceilings, 3 code fittings, translucent roof sheets, wall / ceiling detail and dead-space clutter; PR to master; GPU look pending a desktop run. After it: extra touches (fans, flicker, grime, dock, sound, accents).
-- smooth-world (voxels off by default): a card on the laptop for Michael to click; Character Build stays the runner.
-- Reviews (orchestrator subagents, read-only): Marlow Yard audit (first pass in: no ceilings, 29 floating lamps, 4.5 h shortlist; comprehensive version running), Sector Ops warehouse layout (bigger, believable, routes), guards (AI coordinator, purposeful patrols, slower, military model). Publish them as pages for Michael and let him pick.
-- Michael: the 0.7 m/s aimed strafe (A5) is his call; he walks 4.19.x via the list given at 4.19.0.
-
-## Context clears (Michael 16:15: "i want to clear all the chats when they are ready to prevent context drifting")
-Every session was asked to reach a clean point, update its STATE with a fenced resume prompt and message "<name> ready
-to clear" with the prompt. Then: give Michael that prompt to paste after he clears it (he clears the sessions he
-started; the orchestrator can clear only Course Ready and itself, with clear_session, then sends the prompt as the first
-message). The orchestrator clears itself last, after giving Michael its own resume prompt (below).
-
-## Open PRs / merges to do
-- nv-pass PR to master (minor) after its GPU check.
-- warehouse-s23 PR to master (minor) after section 2 (or 2+3) is green.
-- test-speed PR to master (patch).
-- phone-min: done by the orchestrator (#44, 4.15.1; Michael 18:00 "60 fps frame cap on phone"). Untested on a real phone: ask Michael how it runs (heat, shadows, no side bars). Worktree C:/NightShift/Mobile-Coop-phone-min can be removed.
-Merge procedure: scripts kept in the scratchpad were ad hoc; the steps are: check the PR head equals the tested commit
-(or the delta is docs only), merge origin/master into the branch in a temp worktree resolving only CHANGELOG / package
-conflicts (stop on any src conflict and check both-sides src files), `npm version <v> --no-git-tag-version`, rename the
-top "## Unreleased" heading to "## <v> - <title> (<date>, PR #<n>)", commit "<v>: version at merge (G183)", push, wait
-for CI (`gh run watch <id> --exit-status` in the background), `gh pr merge <n> --merge`, then tag and push `dev` as
-separate commands.
+## Merge procedure
+Check the PR head equals the tested commit (or the delta is docs only). In the scratch worktree: checkout --detach the
+branch, merge origin/master resolving only CHANGELOG / package conflicts (on any src conflict abort and send it back to
+the job lead), npm version <v> --no-git-tag-version, rename the top "## Unreleased - <job>" heading to
+"## <v> - <title> (<date>, PR #<n>)", commit "<v>: version at merge (G183)", push HEAD:<branch>, watch CI in the
+background (gh run watch <id> --exit-status), gh pr merge <n> --merge, then tag v<v> and push <merge>:refs/heads/dev as
+separate commands; update this file's Master line and the ROADMAP Done table.
 
 ## Known
 - e2e-netmove doorPeek fails on master-based branches until CT Core's remote-feet fix (e4d85253, on ct-prototype)
@@ -99,9 +65,11 @@ separate commands.
 - Merge green, reviewed PRs without asking (CLAUDE.md, and his 23:55 / 08:45 go-aheads). If auto mode blocks a merge,
   ask him in chat for permission.
 - Never trace CT animation frame by frame (IP; he accepted pose matching, then dropped CT references for movement).
-- Start new sessions only from his own words in the desktop app; a session cannot start one from a peer message.
+- Start new sessions only from his own words in the desktop app; a session cannot start one from a peer message. When the app refuses a start (an answer from a question dialog does not count as his words), propose a card (own_initiative) and tell him to click it.
+- A paste-in prompt is the turn's LAST message, never paired with a question dialog in the same turn.
+- Check the usage meter (mcp__ccd_session_mgmt__get_usage) when pacing.
 
 ## Resume prompt
 ```
-Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:NightShiftMobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). The usage window has just reset: every session was paused at 2026-10-20 ~17:15 (STATE "Usage pause"). First, ListAgents to see who is live; CT Core, Sector Ops and Course Ready are being restarted by Michael with their own prompts right after you, and Character Build and Menu Notes (nv-pass) are paused: message those two to resume (Character Build: test-speed, after reporting run 6; nv-pass: its fix round, then the carousel, which is unblocked now). Then carry on with "Open PRs / merges to do". Movement and animation are top priority. Short replies, native multiple choice only, hyphens not em dashes.
+Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). It is overnight 2026-10-21: the animation tools are the priority (Course Ready: tuner-camera, then Anim Studio; Menu Notes: tuner-v2); movement slices and research are off. Michael approved merging green PRs overnight on their test tiers. Check the usage meter (get_usage) on each wake: at 5-hour >= 90% pause everything except the animation tools. ListAgents, then carry on from "Sessions and jobs" and the open PRs using "Merge procedure". Short replies, native multiple choice only, hyphens not em dashes; every paste-in prompt states session title, model and effort and is the turn's last message.
 ```
