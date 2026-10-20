@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.29.0 - Anim Studio PR 2: co-op pairs, guard holds, traversal prop rig and loops (2026-10-21, PR #71)
+- Anim Studio pairs (Michael, via the orchestrator: "fine tune coop animations with the same freedom, traversal etc.
+  coop should show me both characters also"): each co-op team move plays with BOTH operators (two Wren puppets, Wren
+  herself hidden) on one clock, through the game's own paths and timing, no network: leg-up, ledge relay, partner throw,
+  hang-down, two-person rope and revive. Scrub, step and pause move both at once. The holds pair Wren's hold clips with
+  the guard's (idle + held hands, back + stumble, choke + sag, knife + collapse) on one clock; the Body section's hold
+  gap / side set their spacing.
+- New tuner sections (registry): one per co-op move with role A, role B and contact groups (body forward / up / side,
+  turn, lean, crouch, hand and foot grips, pose timing; contact offsets between the two, weighted by the move's contact
+  window), and Traversal moves (vault, mantle, step, climb-up, window, rappel, drop, hop, roll, wall kick, split) for the
+  moves the Body section has no state for. Live in real play for the local player's own role only; the partner always
+  plays the shared defaults; nothing goes on the wire; visual only.
+- The studio is a 28 m room with a traversal rig round the walls at the engine sizes: the co-op team block (4.4 m lip,
+  a rappel point), a 2.4 m ledge wall, a 1.0 m low wall, a platform with a ladder and a drainpipe, a horizontal pipe, a
+  hang bar, a vent duct, a window and a door. Traversal loops walk Wren to a prop and play the real move by synthesised
+  input, then reset and repeat: vault, ledge grab + shimmy + climb up, ladder up and over, drainpipe, pipe hand over hand,
+  hang bar legs up / inverted, vent, window, door, rappel, back to the wall.
+  Detail: `docs/anim-studio/REPORT-2.md`.
+
 ## 4.28.1 - shots-ctcourse waits for sim time after each teleport (2026-10-21, PR #72)
 - Test script only: `scripts/shots-ctcourse.mjs` waits 0.3 s of sim time (the game clock) after each teleport before
   reading the light meter and the light field. The meter updates every 0.1 s of sim time, and at Epic boot 800 ms of
