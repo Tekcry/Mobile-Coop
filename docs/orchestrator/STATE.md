@@ -35,6 +35,8 @@ nv-pass (17:40): the checker said FIX on slices 1-2 (b1303393): met: bodies no l
 
 Before the reset (17:45) two cheap script-only jobs were started: Character Build test-speed full run 6 (E2E_JOBS=2; a clean run counts as 1 of the 2 needed) and nv-pass re-shooting the master "before" sheets (65bfe6f2). Both reply in one line; read their results from the sessions or their STATE files.
 
+Results (17:50): test-speed run 6 on 7221641c CLEAN (all suites, e2e-pad included, 1430 s): clean run 1 of 2. nv-pass re-shot the master before sheets at 65bfe6f2 (653fdad8). Both sessions paused.
+
 Restart order after the reset: the orchestrator first (Michael pastes its prompt), then CT Core, Sector Ops and Course Ready (cleared, with their own prompts). Character Build and Menu Notes (nv-pass) were cleared earlier and are only paused: message them to resume.
 
 ## Context clears (Michael 16:15: "i want to clear all the chats when they are ready to prevent context drifting")
