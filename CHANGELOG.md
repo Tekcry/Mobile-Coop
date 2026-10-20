@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.15.4 - The FPS overlay is a thin banner (2026-10-20, PR #48)
+- Settings > Graphics > Show FPS overlay (Michael 2026-10-20: "it takes up the whole screen. Can you make it a banner on
+  the top of the screen with only critical information"): one line centred along the top edge: FPS, average and worst
+  frame time, dropped frames, render resolution. F3 and `?debug=1` still open the full debug overlay.
+
 ## 4.15.3 - The phone menu draws at High quality (2026-10-20, PR #46)
 - Phone menu (G182; Michael 2026-10-20: "menu hero should be best quality on phones if it doesn't cost much"): the
   menu draws at the High preset on phones (lamp shadows, AO, bloom, depth of field) while play stays on Low; the hero
