@@ -1,15 +1,18 @@
 # anim-tuner - state
 
 ## Now
-Implementer building the tuner (2026-10-20 evening).
+anim-tuner merged as 4.20.0 (PR #56). tuner-pad (pad control) PR open from feature/tuner-pad.
 
 ## Next
-1. Implementer: tuning table, hooks, panel, IndexedDB, export (report: docs/anim-tuner/REPORT.md).
-2. Fresh Opus check (docs/anim-tuner/CHECK.md), at most one fix round.
-3. `npm run check` + `npm run e2e:quick` (E2E_PORT 4191, under the desktop lock; laptop runner via the orchestrator if busy).
-4. Merge origin/feature/ct-prototype or master, PR to master (minor), message the orchestrator.
+1. The orchestrator merges tuner-pad on its tests + CI.
+2. Michael tunes and exports `anim-tune-<date>.json`; a later job folds the values into the defaults.
+
+## Open (polish list, CHECK.md)
+- The barrel marker allocates inside Babylon each frame while ticked; the panel and its DB are built at every boot.
+- e2e-ctcourse ran past 600 s on the desktop during the e2e:quick (laptop runs 240 s): watch the next full run.
 
 ## Done
+- 2026-10-20/21: implementer pass 1-3, check PASS, review fixes, master 4.19.1 merge (hooks re-applied, glideTwistMul), merged as 4.20.0 (#56); tuner-pad: pad control (D-pad pick / nudge, LB / RB state, Y reset, A export, B close, View hands the pad to the game), check + e2e-menus green.
 - 2026-10-20: worktree and branch from dedcfcc5; BRIEF.
 
 ## Resume prompt
