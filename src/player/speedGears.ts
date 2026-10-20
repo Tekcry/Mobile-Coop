@@ -148,8 +148,10 @@ export class AnalogGear {
 
   /** Returns the snapped gear (0 inside the dead zone). */
   update(maxGear: number, crouched: boolean, mag: number): number {
-    const c = stickCurve(mag);
-    if (c <= 0) {
+    const raw = stickCurve(mag);
+    // (playtest 2) the D-pad speed (maximum gear) is reached from GEARS.fullPush, not only at the rim
+    const c = Math.min(1, raw / GEARS.fullPush);
+    if (raw <= 0) {
       this.moving = false;
       this.gear = 1;
       return 0;

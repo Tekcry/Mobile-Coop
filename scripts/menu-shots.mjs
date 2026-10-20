@@ -20,6 +20,8 @@ const legendBoxes = () =>
 
 try {
   await page.waitForSelector('.title-screen', { timeout: 60000 });
+  // (menu-notes slice 4a) the title ignores continue() until the load gate opens (#boot.done)
+  await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 120000 });
   await G(() => window.__app.input.setMode('kbm'));
   await frames(page, 90);
   await shot('title');

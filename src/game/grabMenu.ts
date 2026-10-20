@@ -1,54 +1,97 @@
 /**
- * (CT prototype A4, G23, G43, G180) The Chaos Theory grab menu, Babylon-free. The ground takedown button grabs a guard
- * from behind; while holding him this short list opens in the HUD: Knock out, Kill, Carry (knock out and shoulder the
- * body), and the stubs Force to device (no scanner hook yet) and Interrogate (later). The game reads `pick()` and
- * acts; the HUD draws `labels()`. Stub entries do nothing but say so (the menu stays open).
+ * (CT prototype A4, G23, G43, G180; G5; Michael 2026-10-20 08:10 / 08:20) The held-guard options, Babylon-free.
+ * Michael: "once they are grabbed it can show interrogate (if they have information), and rt or Lt to either knock out
+ * or kill, and aim button to aim pistol while holding them. It shouldn't have kill/knock out/carry in the list." and
+ * "The guard cannot be let go either, only knocked out. Killed, or used as human shield (aiming pistol)".
+ * So the context menu (`contextMenu.ts`) lists only Interrogate while a guard is held, and only when he has information
+ * (`hasInfo`: the Marlow Yard training guard of station 1 carries some, `ai/guardInfo.ts`; a guard without, or once asked, shows no menu); RT kills and LT knocks out (not aiming); the aim draws the
+ * pistol over his shoulder (the human shield). Nothing lets him go. The picks keep their ids (`GRAB_OPTS`, the
+ * takedown's `menuPick`) for scripts and tools (`GrabMenuView.sel`); Carry (knock out, then shoulder) and the stub
+ * Force to device are reachable only that way.
  */
 
 import type { ButtonAction } from '../input/actions';
+import { CTX_BACK, type ContextMenu } from './contextMenu';
 
 export type GrabOpt = 'knockout' | 'kill' | 'carry' | 'device' | 'interrogate';
+
+/** The row kind of the grab set in the context menu. */
+export const GRAB_KIND = 'grab';
 
 export const GRAB_OPT_LABEL: Readonly<Record<GrabOpt, string>> = {
   knockout: 'Knock out',
   kill: 'Kill',
   carry: 'Carry',
   device: 'Force to device (not yet)',
-  interrogate: 'Interrogate (later)',
+  interrogate: 'Interrogate',
 };
 
 /** Options that work today. */
 export function grabOptReady(o: GrabOpt): boolean {
-  return o === 'knockout' || o === 'kill' || o === 'carry';
+  return o === 'knockout' || o === 'kill' || o === 'carry' || o === 'interrogate';
 }
 
 export const GRAB_OPTS: readonly GrabOpt[] = ['knockout', 'kill', 'carry', 'device', 'interrogate'];
 
-export class GrabMenu {
-  open = false;
-  sel = 0;
+/** The index of Interrogate in `GRAB_OPTS` (its row's `ref`). */
+export const GRAB_INTERROGATE = GRAB_OPTS.indexOf('interrogate');
+
+/** A held guard has information to give (`Enemy.info`, set by a squad slot; the Marlow Yard training guard has some,
+ *  `ai/guardInfo.ts`). Spent by the interrogation, so a guard interrogated once gives no menu again. */
+export { hasInfo } from '../ai/guardInfo';
+
+/** Add the held guard's rows: Interrogate, only when he has information (Michael 08:10). */
+export function addGrabRows(m: ContextMenu, info: boolean): void {
+  if (info) m.add(GRAB_KIND, 'interrogate', GRAB_INTERROGATE, GRAB_OPT_LABEL.interrogate);
+}
+
+/** The held guard's trigger finisher (Michael 08:10, CT: RT lethal, LT non-lethal at close range): not aiming only. */
+export function grabTriggerPick(fire: boolean, altFire: boolean, aiming: boolean): GrabOpt | null {
+  if (aiming) return null;
+  if (fire) return 'kill';
+  if (altFire) return 'knockout';
+  return null;
+}
+
+/** (F1b) What the held-guard list passes through to the player while it is not held open: the draw / aim / fire
+ *  actions (the move is copied too). */
+export const GRAB_PASS: readonly ButtonAction[] = ['ads', 'draw', 'fire', 'altFire', 'reload', 'zoom', 'shoulderSwap'];
+
+/**
+ * (G5) The held guard as seen from outside (tests, tools): `open` while a guard is held and a pick may run
+ * (`holding`, set by the game each step); writing `sel` arms that pick (`GRAB_OPTS` index) and the next A press runs it
+ * (`takePick`), whatever the list shows. Scripts reach Knock out, Kill, Carry, the stub and Interrogate this way.
+ */
+export class GrabMenuView {
   readonly opts: readonly GrabOpt[] = GRAB_OPTS;
+  /** A guard is held and a pick may run (the takedown's `menuReady`). */
+  holding = false;
+  private armed = -1;
+  constructor(private m: ContextMenu) {}
 
-  show(): void {
-    this.open = true;
-    this.sel = 0;
+  get open(): boolean {
+    return this.holding;
   }
 
-  move(dir: number): void {
-    if (!this.open) return;
-    this.sel = (this.sel + (dir > 0 ? 1 : -1) + this.opts.length) % this.opts.length;
+  get sel(): number {
+    if (this.armed >= 0) return this.armed;
+    const m = this.m;
+    if (m.state !== 'active' || m.sel === CTX_BACK) return 0;
+    const o = m.opts[m.sel];
+    return o && o.kind === GRAB_KIND ? o.ref : 0;
   }
 
-  /** The highlighted option. A working option closes the menu; a stub leaves it open and is returned for its message. */
-  pick(): GrabOpt | null {
-    if (!this.open) return null;
-    const o = this.opts[this.sel] ?? null;
-    if (o && grabOptReady(o)) this.close();
+  set sel(i: number) {
+    this.armed = GRAB_OPTS[i] ? i : -1;
+  }
+
+  /** The armed pick on an A press (then disarmed), else null; disarmed whenever no guard is held. */
+  takePick(pressed: boolean): GrabOpt | null {
+    if (!this.holding) this.armed = -1;
+    if (this.armed < 0 || !pressed) return null;
+    const o = GRAB_OPTS[this.armed]!;
+    this.armed = -1;
     return o;
-  }
-
-  close(): void {
-    this.open = false;
   }
 
   labels(out: string[] = []): string[] {
@@ -56,26 +99,4 @@ export class GrabMenu {
     for (const o of this.opts) out.push(GRAB_OPT_LABEL[o]);
     return out;
   }
-}
-
-
-/** (F1b) What the held-guard menu passes through to the player: the draw / aim / fire actions (the move is copied too). */
-export const GRAB_PASS: readonly ButtonAction[] = ['ads', 'draw', 'fire', 'altFire', 'reload', 'zoom', 'shoulderSwap'];
-
-/** The slice of the input a menu step reads. */
-export interface MenuNavInput {
-  pressed(a: ButtonAction): boolean;
-  readonly move: { readonly x: number; readonly y: number };
-}
-
-/**
- * (F1b) The menu selection step, +1 down / -1 up / 0 none. D-pad up / down (the speed actions: also the wheel and = / -)
- * always move the pick. The stick / arrow taps (`uiUp` / `uiDown`) move it only when the operator is not walking
- * (`walking` menus: the held-guard menu keeps the stick for walking, so a pushed stick never also navigates).
- */
-export function menuNavDir(inp: MenuNavInput, walking: boolean): number {
-  const still = !walking || Math.abs(inp.move.x) + Math.abs(inp.move.y) < 0.25;
-  if (inp.pressed('speedDown') || (still && inp.pressed('uiDown'))) return 1;
-  if (inp.pressed('speedUp') || (still && inp.pressed('uiUp'))) return -1;
-  return 0;
 }

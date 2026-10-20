@@ -470,6 +470,10 @@ try {
       t.step(0.1);
       const carrying = !!g.stealth.carry;
       const stowed = g.weapons.stowed;
+      // (G7, AUDIT-WALLS row 6, 110936 @ 39.5-42.6) the lift onto the shoulder takes 2.0 s (was instant): no walking in it
+      const lifting = g.stealth.busy;
+      t.step(2.0);
+      const lifted = !!g.stealth.carry && !g.stealth.busy;
       st.setMove('t', 0, 1);
       st.tap('dash');
       t.step(1.5);
@@ -486,17 +490,20 @@ try {
       st.tap('interact');
       t.step(0.2);
       const again = !!g.stealth.carry;
+      t.step(2.0);
       t.tp(-21.6, -20.2, Math.PI);
       t.step(0.2);
       const hideOffer = g.interactTarget?.label;
       st.tap('interact');
       t.step(0.2);
       t.light(null);
-      return { offer, carrying, stowed, speed, dropped, again, hideOffer, hidden: g.stealth.bodiesHidden, present: em.bodies.filter((x) => x.present).length };
+      return { offer, carrying, stowed, lifting, lifted, speed, dropped, again, hideOffer, hidden: g.stealth.bodiesHidden, present: em.bodies.filter((x) => x.present).length };
     });
     assert(r.offer === 'Pick up body', `standing at a body offers to pick it up (${r.offer})`);
     assert(r.carrying && r.stowed, 'picking it up puts it on the shoulder and stows the weapon');
-    assert(r.speed < 2.4, `carrying is slow, no sprint (${r.speed.toFixed(2)} m/s)`);
+    assert(r.lifting && r.lifted, `the pick-up is a 2.0 s lift onto the shoulder (${r.lifting} / ${r.lifted})`);
+    // (G7, row 7, 110936 @ 44.0-45.5: CT 0.4-0.8 m/s; was < 2.4 against the old 2.2 cap)
+    assert(r.speed > 0.3 && r.speed < 0.85, `carrying is a slow walk, no sprint (${r.speed.toFixed(2)} m/s)`);
     assert(r.dropped, 'it can be put down again');
     assert(r.again, 'and picked up again');
     assert(r.hideOffer === 'Hide body', `at the dumpster: hide it (${r.hideOffer})`);
@@ -724,16 +731,22 @@ try {
       // opened quietly by hand: a creak (2 m), then he can see through
       t.tp(-0.95, 11.2, 0);
       t.step(0.2);
-      const offer = (document.querySelector('.hud-interact')?.textContent ?? '').trim();
+      // (G5) the CT context menu top right: header INTERACT over the door set
+      const offer = [...document.querySelectorAll('.hud-ctx.show .ctx-head, .hud-ctx.show .ctx-row')].filter((x) => x.style.display !== 'none').map((x) => x.textContent).join(' / ');
       g.noise = 0;
-      // (A3, G19) A at a closed door opens the door menu; A again picks Open (the first entry)
+      // (A3, G19; G5) a scripted tap at a closed door opens the door set latched; a second tap picks Open (row 1)
       st.tap('interact');
       t.step(0.1);
       const menuOpen = g.doorMenu.open;
       st.tap('interact');
       t.step(0.1);
-      const quiet = g.noise;
-      t.step(1.4);
+      // (G6, AUDIT-WALLS row 4, 052349) Open is a short move: the step to the latch side, the leaf 0.8 s after the pick
+      // swinging 0.75 s: the creak is heard over the move, the door open by 1.55 s
+      let quiet = g.noise;
+      for (let i = 0; i < 19; i++) {
+        t.step(0.1);
+        quiet = Math.max(quiet, g.noise);
+      }
       const open = d.open;
       t.tp(-0.95, 9.8, 0);
       let seen = 0;
@@ -792,7 +805,7 @@ try {
       return { dbg, blocked, offer, menuOpen, quiet, open, seen, bash, bashed, sprintOpened, koBehind, through, dOpen: d.target };
     });
     assert(r.blocked === 0, `a closed door blocks sight (${r.blocked.toFixed(2)})`);
-    assert(/Door options/.test(r.offer) && r.menuOpen, `at a door: the door menu (${r.offer})`);
+    assert(r.offer.startsWith('Interact / Open door / ') && r.offer.includes('Bash door') && r.menuOpen, `at a door: the context menu lists the door set (${r.offer})`);
     assert(r.quiet > 0 && r.quiet <= 2.5, `opening by hand is a quiet creak (${r.quiet.toFixed(1)} m)`);
     assert(r.open === 1 && r.seen > 0, `once open he sees through (seen ${r.seen.toFixed(2)}, open ${r.open}, quiet ${r.quiet})`);
     assert(!r.sprintOpened, 'running into a door does nothing special (G97)');
@@ -820,7 +833,7 @@ try {
         t.step(0.3);
         g.player.controller.clearCrouchToggle();
         const yaw = Math.atan2(-s.nx, -s.nz);
-        g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.85, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.85), yaw);
+        g.player.controller.teleport(new V(s.ax + s.tx * (s.len - 0.7) + s.nx * 0.75, s.y + 0.05, s.az + s.tz * (s.len - 0.7) + s.nz * 0.75), yaw);
         g.player.cam.yaw = yaw;
         g.player.cam.pitch = 0;
         t.step(0.3);

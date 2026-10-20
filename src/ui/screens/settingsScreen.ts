@@ -152,7 +152,6 @@ export class SettingsScreen extends MenuScreen {
         label: 'Gameplay',
         build: () =>
           rowList(
-            desc(choice('Default shoulder', [{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }] as const, () => s().gameplay.defaultShoulder, (v) => upd((d) => void (d.gameplay.defaultShoulder = v))), 'The shoulder the camera sits over at the start of a mission. You can swap it at any time.'),
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
           ),
@@ -208,7 +207,6 @@ export class SettingsScreen extends MenuScreen {
     );
     this.resets.set('gameplay', () =>
       fromDefaults((d, def) => {
-        d.gameplay.defaultShoulder = def.gameplay.defaultShoulder;
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
       }),

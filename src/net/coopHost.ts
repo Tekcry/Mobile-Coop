@@ -26,7 +26,8 @@ import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
 import { hostCrackOk } from '../world/doorPeek';
-import { GRAB } from '../game/takedown';
+import { contactDelay, GRAB } from '../game/takedown';
+import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
@@ -117,6 +118,8 @@ export class CoopHost implements NetAttachment {
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held. */
   private seized = new Map<string, { by: string; t: number; hostage?: boolean }>();
+  /** (G7) Scratch for a client hold's knockout pose. */
+  private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
   /** Shot noise edges per client. */
   private firing = new Map<string, number>();
   /** Course mode: per partner hit volumes the host's own shots resolve against. */
@@ -554,7 +557,8 @@ export class CoopHost implements NetAttachment {
         deny();
         return;
       }
-      e.beginTakedown(!m.lethal);
+      // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
+      e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
       this.seized.set(e.id, { by: r.id, t: 0 });
       return;
     }
@@ -1059,7 +1063,15 @@ export class CoopHost implements NetAttachment {
             e.holdAsHostage();
             e.setSolid(false);
           }
-          e.holdAt(by.feet.x + Math.sin(yaw) * GRAB.hold, by.feet.y, by.feet.z + Math.cos(yaw) * GRAB.hold, yaw);
+          const sy = Math.sin(yaw);
+          const cy = Math.cos(yaw);
+          e.holdAt(by.feet.x + sy * GRAB.hold + cy * GRAB.side, by.feet.y, by.feet.z + cy * GRAB.hold - sy * GRAB.side, yaw);
+          // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
+          if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
+          else if (mv.ph > 0 && !(mv.sub & 1)) {
+            const ko = koCurve(mv.ph, this.koTmp);
+            e.holdPose('ko', ko.limp, ko.lower);
+          } else if (mv.ph === 0) e.holdAsHostage();
           by.ref.shield = e;
           continue;
         }
@@ -1174,8 +1186,9 @@ export class CoopHost implements NetAttachment {
       const p = at.add(new Vector3(Math.sin(i * 2.1) * 1.2, 0, Math.cos(i * 2.1) * 1.2));
       i++;
       if (!r.alive) this.reviveOne(r.id, p);
-      else if (this.g.mode?.id === 'sector') {
-        // (sector-ops step 3) a section restart is a clean retry: a partner still up comes back to the checkpoint too
+      else if (this.g.mode?.id === 'sector' || this.g.mode?.id === 'course') {
+        // (sector-ops step 3) a section restart is a clean retry: a partner still up comes back to the checkpoint too;
+        // (course-ready F3) the course's bay restart too, so the relocked gates never shut an alive partner out
         r.revive(p, 2);
         this.push({ e: 'revive', player: r.id, x: p.x, y: p.y, z: p.z });
       }

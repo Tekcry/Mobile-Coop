@@ -65,6 +65,29 @@ export function defaultPadBinds(): PadBinds {
   return out;
 }
 
+/**
+ * (F7, playtest 2 "D pad left and right is speed?") The D-pad layout version of the stored pad binds. A3 builds put the
+ * speed gear on D-pad left / right and vision / gadget on up / down; F1a moved the defaults (speed up / down, vision
+ * left, gadget right) but kept stored binds as saved, so a settings save from an A3 build still had speed on left / right
+ * (and vision sharing up with speed up). Version 2: those verbs still on their exact A3 default move to today's; a verb
+ * the player remapped is kept.
+ */
+export const PAD_LAYOUT_V = 2;
+const A3_DPAD: ReadonlyArray<[PadBindId, number]> = [
+  ['vision', PAD.UP],
+  ['throwCam', PAD.DOWN],
+  ['gearDown', PAD.LEFT],
+  ['gearUp', PAD.RIGHT],
+];
+
+/** (F7) Moves the D-pad verbs still on their A3 defaults to today's defaults (in place). */
+export function migrateA3Dpad(b: PadBinds): void {
+  for (const [id, btn] of A3_DPAD) {
+    const v = b[id];
+    if (v.length === 1 && v[0] === btn) b[id] = [...PAD_BINDS.find((x) => x.id === id)!.defaults];
+  }
+}
+
 export function padBindable(i: unknown): i is number {
   return typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < PAD_BUTTON_COUNT;
 }

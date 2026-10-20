@@ -242,8 +242,10 @@ export class KeyboardMouseSource {
     this.onActive();
     if (down) this.keys.add(e.code);
     else this.keys.delete(e.code);
-    // (menu-ui MD11) arrows and WASD move menu focus; not during live play (WASD walk there)
-    const ui = down && !this.locked && !this.wantPointerLock ? menuNavTap(e.code, false) : e.code.startsWith('Arrow') && down ? menuNavTap(e.code, false) : null;
+    // (menu-ui MD11) arrows and WASD move menu focus; not during live play (WASD walk there), except (G5) a fresh W / S
+    // press, which also steps the held context menu's highlight (the walk is blocked while it is held)
+    const live = down && (e.code.startsWith('Arrow') || (!e.repeat && (e.code === 'KeyW' || e.code === 'KeyS')));
+    const ui = down && !this.locked && !this.wantPointerLock ? menuNavTap(e.code, false) : live ? menuNavTap(e.code, false) : null;
     if (ui) {
       this.state.tap(ui);
       if (e.code.startsWith('Arrow')) e.preventDefault();

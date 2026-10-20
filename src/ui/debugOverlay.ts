@@ -189,9 +189,10 @@ export class DebugOverlay {
     table('Chaos Theory', CT as unknown as Record<string, number>, CT_RANGES);
     table('Camera', CAMERA as unknown as Record<string, number>, {
       boomHip: [0.6, 3.5, 0.05],
-      boomAds: [0.4, 1.5, 0.05],
-      shoulderHip: [0.2, 0.9, 0.02],
-      shoulderAds: [0.2, 0.8, 0.02],
+      boomOpen: [1.5, 4.5, 0.05],
+      boomAds: [0.2, 1.5, 0.05],
+      shoulderHip: [0, 0.9, 0.01],
+      shoulderAds: [0, 0.8, 0.01],
       pivotStand: [1.2, 1.9, 0.02],
       height: [-0.4, 0.4, 0.02],
       leanShift: [0, 0.8, 0.02],

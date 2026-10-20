@@ -104,6 +104,11 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out).toMatchObject({ wall: true, wallSide: -1, lean: 0, traverse: 'none' });
     poseFromMoveState({ ...mv, sub: 2 }, 0, out);
     expect(out.wallSide).toBe(1);
+    // (F4) at an edge the open side wins over the slide facing (edgeL 4 = left, edgeR 8 = right)
+    poseFromMoveState({ ...mv, sub: 2 | 4 }, 0, out);
+    expect(out.wallSide).toBe(-1);
+    poseFromMoveState({ ...mv, sub: 8 }, 0, out);
+    expect(out.wallSide).toBe(1);
   });
 
   it('PROTOCOL_VERSION is 24 (sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
@@ -135,6 +140,56 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(attachGripWeight('on', 0)).toBe(1);
     expect(attachGripWeight('exit', 0)).toBe(1);
     expect(attachGripWeight('exit', 0.7)).toBe(0);
+  });
+  it('(F5, G4) climb-up: the hands hold until the knee is planted, then let go; crouched on top; no hop at the stand', async () => {
+    const { sample } = await import('../src/anim/clip');
+    const { CLIMB_UP, CLIMB_UP_CROUCH_K } = await import('../src/anim/clips/traverse');
+    const { CLIMB_UP_TIME, CLIMB_UP_STAND } = await import('../src/player/attachController');
+    // (G4, CT 110522 / 110616) crouched on top at 0.85 s, the stand another 0.45 s; the clip spans both
+    expect(CLIMB_UP_TIME).toBeCloseTo(0.85);
+    expect(CLIMB_UP_STAND).toBeCloseTo(0.45, 2);
+    const full = CLIMB_UP_TIME + CLIMB_UP_STAND;
+    // the knee is planted (the left shin flat on the top) by 0.36 (0.47 s, CT 0.4-0.5 s); the hands hold through it and
+    // are off by 0.5 (0.65 s)
+    expect(sample(CLIMB_UP, 'fLPitch', 0.36)).toBeCloseTo(1.2);
+    expect(0.36 * full).toBeGreaterThan(0.4);
+    expect(0.36 * full).toBeLessThan(0.5);
+    for (const k of [0.2, 0.3, 0.36, 0.38]) expect(attachGripWeight('exit', k, true)).toBe(1);
+    expect(attachGripWeight('exit', 0.5, true)).toBe(0);
+    // at the crouch mark the body is in the crouched stance (CROUCH_IDLE pelY -0.42), the feet under it
+    expect(sample(CLIMB_UP, 'pelY', CLIMB_UP_CROUCH_K)).toBeCloseTo(-0.42);
+    expect(sample(CLIMB_UP, 'fLPitch', CLIMB_UP_CROUCH_K)).toBeCloseTo(0);
+    expect(sample(CLIMB_UP, 'fLZ', CLIMB_UP_CROUCH_K)).toBeCloseTo(0);
+    // the stand from the crouch: the pelvis rises monotonically, never above standing, at most 2.5 m/s
+    let prev = sample(CLIMB_UP, 'pelY', CLIMB_UP_CROUCH_K);
+    let vMax = 0;
+    for (let k = CLIMB_UP_CROUCH_K; k <= 1.0001; k += 0.01) {
+      const y = sample(CLIMB_UP, 'pelY', k);
+      expect(y).toBeGreaterThanOrEqual(prev - 1e-9);
+      expect(y).toBeLessThanOrEqual(1e-9);
+      vMax = Math.max(vMax, (y - prev) / (0.01 * full));
+      prev = y;
+    }
+    expect(vMax).toBeLessThan(2.5);
+  });
+
+  it('(G4) poses: a drainpipe is the inchworm, a lip hang swings, a ladder top-out stops at the crouch, a vent crawl-out', () => {
+    const out = emptyMovePose();
+    poseFromMoveState({ ...emptyMoveState(), m: 'pipeV', a: 0, sub: packAttachSub('on', 1, 'none') }, 0.7, out);
+    expect(out).toMatchObject({ traverse: 'pipeClimb', traverseT: 0.7 });
+    // hanging from a lip the cadence is the pendulum's swing; a pipe hangs plumb
+    poseFromMoveState({ ...emptyMoveState(), m: 'ledge', a: 1, sub: packAttachSub('on', 1, 'none') }, -0.2, out);
+    expect(out).toMatchObject({ traverse: 'hang', traverseT: -0.2 });
+    poseFromMoveState({ ...emptyMoveState(), m: 'pipeH', a: 1, sub: packAttachSub('on', 1, 'none') }, -0.2, out);
+    expect(out).toMatchObject({ traverse: 'hang', traverseT: 0 });
+    poseFromMoveState({ ...emptyMoveState(), m: 'ladder', a: 0, sub: packAttachSub('exit', 1, 'climbUp'), ph: 1 }, 0, out);
+    expect(out.traverse).toBe('climbUp');
+    expect(out.traverseT).toBeCloseTo(0.654);
+    poseFromMoveState({ ...emptyMoveState(), m: 'duct', a: 2, sub: packAttachSub('exit', 1, 'none'), ph: 0.5 }, 0.3, out);
+    expect(out).toMatchObject({ traverse: 'crawlOut', traverseT: 0.5 });
+    // the crawl-out lets go of the duct floor early
+    expect(attachGripWeight('exit', 0, 'crawlOut')).toBe(1);
+    expect(attachGripWeight('exit', 0.25, 'crawlOut')).toBe(0);
   });
 });
 

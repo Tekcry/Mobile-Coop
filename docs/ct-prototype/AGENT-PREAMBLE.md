@@ -36,3 +36,8 @@ and playable, no polishing, every number a starting value (G10).
 ## Report
 Write `docs/ct-prototype/<SLICE>.md` (built, numbers used, files, skipped, tests changed, results, what Michael should
 try when he plays). Final message, short: built / skipped, check and e2e results, how Michael plays it (URL params).
+
+## Heavy slot (Michael, 2026-10-19)
+Before any heavy run (npm run check, full vitest, npm run build, any e2e, GPU shots) check `C:\NightShift\heavy.lock`.
+If it exists, do not start the run: keep coding and re-check every few minutes. If absent, write
+"CT Core Build | <slice> | <time>" into it, run, and delete it when done. One or two small vitest files are light work.

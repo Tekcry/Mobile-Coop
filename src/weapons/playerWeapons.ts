@@ -18,6 +18,7 @@ import { reloadClipFor } from '../anim/clips/actions';
 import { WREN_HANDS } from '../operators/handFrame';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
+import { LoadoutSnapshot } from './loadoutSnapshot';
 
 const modelLength = (d: WeaponDef): number => {
   const e = modelExtents(d);
@@ -394,6 +395,35 @@ export class PlayerWeapons {
     return playerSpreadDeg(s.def, s.stats, c.crouched, c.speed, this.bloom) * this.spreadMul * this.attachSpread;
   }
 
+  /** (sector-restart, M9) The loadout when the current Sector Ops section began (`markCheckpoint`). */
+  readonly checkpointKit = new LoadoutSnapshot<GadgetId>();
+
+  /** (sector-restart) Record the loadout now: every gun's ammo, the gadgets carried and the one selected. */
+  markCheckpoint(): void {
+    this.checkpointKit.take(this.slots, this.gadgets);
+  }
+
+  /**
+   * (sector-restart, M9) A checkpoint restart: the loadout as the section began, every gun reloaded from its reserve at
+   * once (no reload animation; one running is cut short), the gadgets as they were. False before any checkpoint.
+   */
+  restoreCheckpoint(): boolean {
+    if (!this.checkpointKit.taken) return false;
+    // (check fix 1) a throw still in hand at the down ends here: nothing leaves the hand after the respawn (the
+    // restored counts already hold the gadget it took)
+    this.grenadeT = -1;
+    this.grenadeThrown = false;
+    this.grenadeCd = 0;
+    this.player.grenadeT = -1;
+    this.player.aimLockTimer = 0;
+    this.cancelReload();
+    this.reloadQueued = false;
+    this.cooldown = 0;
+    this.queuedT = 0;
+    this.bloom = 0;
+    return this.checkpointKit.restore(this.slots, this.gadgets, this.infiniteAmmo);
+  }
+
   addAmmo(fraction: number): void {
     for (const s of this.slots) s.reserve = Math.min(s.def.reserve * 2, s.reserve + Math.ceil(s.def.reserve * fraction));
     this.gadgets.add('frag');
@@ -403,6 +433,7 @@ export class PlayerWeapons {
     const s = this.current;
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
+    this.player.reloadQueued = this.reloadQueued;
     // holstered by aim and settled: no swap overlay (the free hands hang at the sides, unarmed)
     this.player.swapT = this.swapT >= 0 && !(this.stowed && !this.attachMode && this.swapPhase >= 1) ? this.swapT / SWAP_TIME : -1;
     this.pouches.setCount(this.grenades);
@@ -484,6 +515,15 @@ export class PlayerWeapons {
         // apply now (as a drawn swap's equip would), not the last drawn gun's - holstering never changes the gait
         this.player.controller.speedMul = this.current.def.moveSpeedMult;
         this.applyAimCamera();
+        // (CT prototype G2, AUDIT-AIM row 13) holstered and settled the swap is the selection only: CT's hero stays idle,
+        // arms at the sides, no body motion (051812 6-10.8); the next aim draws the new gun from its slot
+        if (!this.attachMode && (this.swapT < 0 || this.swapPhase >= 1)) {
+          this.swapT = SWAP_TIME * SWAP_HOLSTER;
+          this.swapPhase = 1;
+          this.player.swapFrom = this.player.swapTo = this.reach(this.index);
+          this.events.onSwap?.(this.current.def);
+          return;
+        }
       }
       if (this.swapT < 0) {
         this.swapT = 0;
@@ -769,7 +809,9 @@ export class PlayerWeapons {
     const k = recoilKick(def, s.stats, this.shotIndex++);
     const adsDamp = 1 - cam.ads * 0.35;
     cam.kick(k.pitch * DEG * adsDamp, k.yaw * DEG * adsDamp);
-    cam.shake(def.class === 'sniper' ? 0.25 : def.class === 'shotgun' ? 0.2 : 0.04);
+    // (CT prototype G2, AUDIT-AIM row 11) no camera shake on a rifle / pistol shot: CT's view holds still on the shot frames
+    // (111953 3.87, 6.27-6.33: < 0.5 deg); was 0.04
+    if (def.class === 'sniper' || def.class === 'shotgun') cam.shake(def.class === 'sniper' ? 0.25 : 0.2);
     this.bloom += def.spreadPerShot;
     this.shotFeel(s.stats.noise <= 0.6);
     this.events.onShot?.(def);

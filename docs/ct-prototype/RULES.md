@@ -69,3 +69,14 @@ Not yet: Michael, 2026-10-18, "It can run overnight but not yet. I'm still awake
 many slices as fit; a piece that fails twice is stubbed so the build stays playable end to end, logged, and the run
 moves on; every slice is checked, committed, pushed and sent to `/ct/`; a morning report gives what is playable, the
 `/ct/` link with URL params, what was stubbed, and at most 4 decisions as native multiple choice.
+
+## Reporting to the build orchestrator (Michael, master PR #10, CLAUDE.md "Orchestrator")
+The session "Night Shift | Orchestrator" orchestrates the whole build and alone edits `docs/ROADMAP.md`. Message it
+when a slice starts, when one finishes (with /ct/ pushed), when a PR opens, when Michael is needed, or when blocked.
+Michael answers open questions on its dashboard; it forwards them here.
+
+## One heavy slot on the desktop (Michael, 2026-10-19)
+Heavy work: e2e, full vitest / `npm run check`, builds, GPU shots, Blender, heavy subagents. Before a heavy run check
+`C:\NightShift\heavy.lock`: if absent, write "<session> | <job> | <start time>", run, delete it when done; if present,
+wait (re-check every few minutes, never tight polling) and keep doing light work (coding, reading, reviews, docs,
+single small vitest files).

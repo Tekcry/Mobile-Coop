@@ -20,13 +20,26 @@ import { DOOR_CRACK, stepCrack } from './doorPeek';
 /** How a door was opened: quietly by hand, bashed open at a sprint, or by an enemy walking through. */
 export type DoorHow = 'quiet' | 'bash' | 'enemy' | 'close' | 'crack' | 'drive';
 
-/** Open angle (rad) and swing times (s). */
+/**
+ * Open angle (rad) and swing times (s).
+ * (G6, AUDIT-WALLS row 4, 052349 @ 5.95-9: the corrected normal OPEN DOOR) the leaf starts fast and eases: about 45 deg
+ * at 0.25 s, 70 at 0.45, 78 at 1.05, drifting to 85-90 by about 3 s. `openAngle` 1.75 -> 1.53 (88 deg, was 100: 10-15 deg
+ * wide); `quietTime` 1.1 -> 0.75 with the ease-out drawn curve (`quietShape`, `quietEase` of the swing, ours was a slow
+ * smoothstep start peaking mid-swing), then a linear `quietDrift` s to the full angle (drawn only: the doorway, light and
+ * sight are open from the swing's end, `open` 1).
+ * (G6, AUDIT-EXTRA-OLD row 6, 052832 @ 11.9-12.5 / 17.33-17.67) a guard pushes a door open in about 0.4 s
+ * (`enemyTime` 0.7 -> 0.4) and a door a guard opened shuts behind him in under 0.35 s (`autoCloseTime`; the player's
+ * close stays `closeTime`, row 17: 052752 under 1 s).
+ */
 export const DOOR = {
-  openAngle: 1.75,
-  quietTime: 1.1,
+  openAngle: 1.53,
+  quietTime: 0.75,
+  quietEase: 0.89,
+  quietDrift: 2.0,
   bashTime: 0.22,
-  enemyTime: 0.7,
+  enemyTime: 0.4,
   closeTime: 0.8,
+  autoCloseTime: 0.35,
   thickness: 0.05,
   /** Within this of the doorway centre an enemy pushes a closed door open (m). */
   enemyReach: 1.0,
@@ -42,8 +55,16 @@ export const DOOR = {
   driveMax: 0.7,
 } as const;
 
-/** Swing fraction (0..1) a stick-driven door moves this step: the push (-1 back .. 1 in) at DRIVE_RATE per second. */
-export const DRIVE_RATE = 0.2;
+/** Swing fraction (0..1) a stick-driven door moves this step: the push (-1 back .. 1 in) at DRIVE_RATE per second.
+ *  (G6, AUDIT-WALLS row 14, 052349 @ 15.6-18.25: the stealth leaf about 12-18 deg/s) 0.2 -> 0.15 (13 deg/s of 88). */
+export const DRIVE_RATE = 0.15;
+
+/** (G6) The quiet open's drawn swing (0..1 of `openAngle`) at swing `open` (0..1 over `quietTime`) and drift `drift`
+ *  (0..1 over `quietDrift`): ease-out to `quietEase`, then the drift. */
+export function quietShape(open: number, drift: number): number {
+  const u = 1 - Math.max(0, Math.min(1, open));
+  return DOOR.quietEase * (1 - u * u) + (1 - DOOR.quietEase) * Math.max(0, Math.min(1, drift));
+}
 export function driveStep(amount: number, push: number, dt: number): number {
   const dead = 0.15;
   const p = Math.abs(push) < dead ? 0 : (push - Math.sign(push) * dead) / (1 - dead);
@@ -63,6 +84,12 @@ export interface DoorState {
   ajar: number;
   /** (F1b) Held by the stick between shut and open: open stays where it is (no swing) until a close / open. */
   held: boolean;
+  /** (G6) The drawn curve: a quiet open eases out (`quietShape`, `drift` 0..1 after it), anything else is the smooth
+   *  swing scaled by `visMax` (a close from a drifting quiet open starts where its leaf is drawn). `by` who opened it. */
+  ease?: boolean;
+  drift?: number;
+  visMax?: number;
+  by?: 'quiet' | 'bash' | 'enemy' | 'drive' | '';
   /** Doorway centre (closed leaf middle) on the floor. */
   cx: number;
   cz: number;
@@ -124,7 +151,7 @@ export class Doors {
   /** Leaf matrix at its current swing. */
   private write(d: DoorState): void {
     const a = d.anchor;
-    const yaw = a.yaw + a.swing * DOOR.openAngle * smooth(Math.max(d.open, d.ajar));
+    const yaw = a.yaw + a.swing * DOOR.openAngle * leafFraction(d);
     Quaternion.RotationYawPitchRollToRef(yaw, 0, 0, this.q);
     const w = a.width - 0.04;
     this.s.set(DOOR.thickness, a.height, w);
@@ -176,6 +203,11 @@ export class Doors {
     d.held = false;
     d.rate = 1 / (how === 'bash' ? DOOR.bashTime : how === 'enemy' ? DOOR.enemyTime : DOOR.quietTime);
     this.uncrackOpen(d);
+    // (G6) a quiet open from closed eases out (from a crack it carries on the smooth swing)
+    d.ease = how === 'quiet' && d.open === 0;
+    d.drift = 0;
+    d.visMax = 1;
+    d.by = how;
     this.removeBody(d);
     this.onSound?.(d, how);
     return true;
@@ -184,9 +216,13 @@ export class Doors {
   /** Close a door, unless someone stands in the doorway (`occupied`). */
   close(d: DoorState, occupied: (x: number, z: number, r: number) => boolean): boolean {
     if (d.target === 0 || occupied(d.cx, d.cz, DOOR.clearance)) return false;
+    // (G6) the close starts from the drawn leaf (no jump off the quiet curve) and a guard's door shuts fast
+    d.visMax = d.open > 0 ? leafFraction(d) / smooth(d.open) : 1;
+    d.ease = false;
     d.target = 0;
     d.held = false;
-    d.rate = 1 / DOOR.closeTime;
+    d.rate = 1 / (d.by === 'enemy' ? DOOR.autoCloseTime : DOOR.closeTime);
+    d.by = '';
     this.onSound?.(d, 'close');
     return true;
   }
@@ -224,6 +260,8 @@ export class Doors {
       d.open = a;
       d.rate = 0;
       d.held = true;
+      d.ease = false;
+      d.visMax = 1;
     }
     if (this.buf) this.write(d);
     this.mesh?.thinInstanceBufferUpdated('matrix');
@@ -233,6 +271,9 @@ export class Doors {
   /** Force a door's state (co-op clients follow the host): open drops the body and swings, closed restores it. */
   setOpen(d: DoorState, open: boolean): void {
     if ((d.target === 1) === open) return;
+    d.visMax = !open && d.open > 0 ? leafFraction(d) / smooth(d.open) : 1;
+    d.ease = open && d.open === 0;
+    d.drift = 0;
     d.target = open ? 1 : 0;
     d.rate = 1 / (open ? DOOR.quietTime : DOOR.closeTime);
     // (closed: the body comes back when the leaf is shut, in `update`)
@@ -271,6 +312,8 @@ export class Doors {
       d.cracked = false;
       d.ajar = 0;
       d.held = false;
+      d.ease = false;
+      d.visMax = 1;
       this.write(d);
     }
     this.mesh?.thinInstanceBufferUpdated('matrix');
@@ -286,7 +329,9 @@ export class Doors {
   nearest(x: number, z: number, r: number): DoorState | null {
     let best: DoorState | null = null;
     let bd = r;
-    for (const d of this.list) {
+    // (G3) indexed: the camera's door passage asks every step (hot path, no iterator)
+    for (let i = 0; i < this.list.length; i++) {
+      const d = this.list[i]!;
       const k = hyp2(d.cx - x, d.cz - z);
       if (k < bd) {
         bd = k;
@@ -317,6 +362,13 @@ export class Doors {
           moved = true;
         }
       }
+      // (G6) the quiet open's drawn drift to the full angle after the swing
+      if (d.ease && d.target === 1 && d.open === 1 && (d.drift ?? 0) < 1) {
+        d.drift = Math.min(1, (d.drift ?? 0) + dt / DOOR.quietDrift);
+        this.write(d);
+        moved = true;
+        continue;
+      }
       if (d.open === d.target || d.rate === 0) continue;
       d.open = d.target === 1 ? Math.min(1, d.open + d.rate * dt) : Math.max(0, d.open - d.rate * dt);
       this.write(d);
@@ -338,4 +390,10 @@ export class Doors {
 
 function smooth(t: number): number {
   return t * t * (3 - 2 * t);
+}
+
+/** (G6) The leaf's drawn swing 0..1 of `DOOR.openAngle` (the crack, the quiet ease-out and drift, or the smooth swing). */
+export function leafFraction(d: Pick<DoorState, 'open' | 'ajar' | 'ease' | 'drift' | 'visMax' | 'target'>): number {
+  if (d.ease && d.target === 1 && d.open > d.ajar) return quietShape(d.open, d.drift ?? 0);
+  return smooth(Math.max(d.open, d.ajar)) * (d.open > d.ajar ? (d.visMax ?? 1) : 1);
 }

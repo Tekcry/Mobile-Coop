@@ -20,6 +20,11 @@ export class Music {
     this.score.menu();
   }
 
+  /** (menu-notes note 2) The menu is loading behind the boot screen: decode the theme now, start it with `menu()`. */
+  preloadMenu(): void {
+    this.score.preloadMenu();
+  }
+
   /** A match starts. */
   mission(): void {
     this.score.mission();
@@ -28,6 +33,11 @@ export class Music {
   /** Every frame in a match, with the guards' awareness. */
   update(dt: number, game: GameAwareness): void {
     this.score.update(dt, game);
+  }
+
+  /** (sector-restart) A checkpoint restart: the alert / caution music fades out and the match is back in Calm. */
+  calm(): void {
+    this.score.calm();
   }
 
   stop(): void {

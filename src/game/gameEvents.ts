@@ -6,6 +6,8 @@ export interface GameEvents {
   /** Clear mode: a room was secured (n of total). */
   /** Clear mode: every hostile down (the only feedback the mode gives). */
   operationComplete: Record<string, never>;
+  /** (sector-restart, M9) A Sector Ops section restarted from its checkpoint: a clean start (the music calms). */
+  checkpointRestart: Record<string, never>;
   alarm: Record<string, never>;
   /** A light was shot out / switched (stealth). */
   lightOut: { x: number; y: number; z: number; shot: boolean };

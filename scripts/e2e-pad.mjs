@@ -70,7 +70,7 @@ const WALL_HARNESS = () => {
   }
   const s = segs[seg];
   const yaw = Math.atan2(-s.nx, -s.nz);
-  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.85, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.85), yaw);
+  g.player.controller.teleport(new V(s.ax + s.tx * s.len / 2 + s.nx * 0.75, s.y + 0.05, s.az + s.tz * s.len / 2 + s.nz * 0.75), yaw);
   g.player.cam.yaw = yaw;
   g.player.cam.pitch = 0;
   a.loop.stepHeadless(0.3, 120);
@@ -395,7 +395,7 @@ try {
   await press(page, BTN.B);
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
-  for (let i = 0; i < 4; i++) await press(page, BTN.DOWN);
+  for (let i = 0; i < 3; i++) await press(page, BTN.DOWN); // Resume, Objectives, Settings, Report feedback (menu-notes A2: no Controls item)
   assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
   await press(page, BTN.DOWN);
   assert(/Quit/.test(await focusedText(page)), 'focus Quit');
@@ -722,6 +722,28 @@ try {
       assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)})`);
     } finally {
       await R.browser.close();
+    }
+  }
+
+  console.log('title press by pad (menu-notes slice 4c, M3 / A3): A strikes the goggle with no menu, a second A skips to the lit menu');
+  {
+    const T = await launch({ url, params: 'title=1' });
+    try {
+      const P = T.page;
+      const G = (f, a) => P.evaluate(f, a);
+      await P.waitForFunction(() => document.getElementById('boot')?.classList.contains('done') && window.__app.screens.top?.el.classList.contains('title-screen'), null, { timeout: 90000 });
+      await G(() => window.__pad.connect());
+      await press(P, BTN.A);
+      const s1 = await G(() => ({ top: window.__app.screens.top?.el.classList[1], seq: window.__app.screens.top?.seqPhase, menu: document.querySelector('.main-menu')?.hidden }));
+      assert(s1.top === 'title-screen' && s1.seq === 'seq' && s1.menu === true, `A on the title starts the strike, no menu yet, the press is not a skip (${JSON.stringify(s1)})`);
+      await P.waitForTimeout(400);
+      await press(P, BTN.A);
+      await P.waitForFunction(() => window.__app.screens.top?.el.classList.contains('main-menu'), null, { timeout: 10000 }).catch(() => {});
+      await P.waitForFunction(() => window.__app.current?.titleLight?.phase === 'done', null, { timeout: 10000 }).catch(() => {});
+      const s2 = await G(() => ({ top: window.__app.screens.top?.el.classList[1], phase: window.__app.current?.titleLight?.phase, lit: window.__app.current?.titleLight?.lit, f: window.__app.nav.focused?.dataset.key, depth: window.__app.screens.depth }));
+      assert(s2.top === 'main-menu' && s2.phase === 'done' && s2.lit === 1 && s2.f === 'sectorops' && s2.depth === 1, `a second A skips to the lit main menu, nothing selected (${JSON.stringify(s2)})`);
+    } finally {
+      await T.browser.close();
     }
   }
 

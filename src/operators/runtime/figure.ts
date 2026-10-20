@@ -79,6 +79,36 @@ export function readRig(nodes: readonly TransformNode[], out: Float64Array): voi
 
 const MODELS = new Map<string, Promise<GlbModel>>();
 
+/** (menu-notes note 2) Operator file bytes received so far, counted as they stream in (not from Content-Length): the
+ *  menu's load screen keeps waiting while this grows. */
+export const operatorBytes = { received: 0 };
+
+/** A response body read to the end, counting the bytes into `operatorBytes` as they arrive. */
+async function readCounted(r: Response): Promise<ArrayBuffer> {
+  const reader = r.body?.getReader();
+  if (!reader) {
+    const b = await r.arrayBuffer();
+    operatorBytes.received += b.byteLength;
+    return b;
+  }
+  const chunks: Uint8Array[] = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    n += value.byteLength;
+    operatorBytes.received += value.byteLength;
+  }
+  const out = new Uint8Array(n);
+  let o = 0;
+  for (const c of chunks) {
+    out.set(c, o);
+    o += c.byteLength;
+  }
+  return out.buffer as ArrayBuffer;
+}
+
 /** Fetches and parses a LOD file (same origin only). A failed load is not cached, so a retry fetches again. */
 export function loadModel(url: string): Promise<GlbModel> {
   let p = MODELS.get(url);
@@ -86,7 +116,7 @@ export function loadModel(url: string): Promise<GlbModel> {
     if (!sameOrigin(url, typeof location !== 'undefined' ? location.origin : undefined)) return Promise.reject(new Error(`operator asset leaves the origin: ${url}`));
     p = fetch(url).then(async (r) => {
       if (!r.ok) throw new Error(`operator asset ${url}: HTTP ${r.status}`);
-      return parseGlb(await r.arrayBuffer());
+      return parseGlb(await readCounted(r));
     });
     p.catch(() => MODELS.delete(url));
     MODELS.set(url, p);
@@ -367,8 +397,14 @@ export class OperatorFigure {
   /** The close-up LOD (menu, photo mode): the hero when it is in the build and switched on, else LOD0; `?gfx=min`
    *  (tests, software GL): LOD2, never the hero (A102; a photo-mode e2e fetched 55 MB). */
   loadCloseUp(): Promise<void> {
-    if (flags.gfx === 'min') return this.load(LOD_2);
-    return this.load(HERO_CLOSE_UPS && this.manifest.urls[LOD_HERO] ? LOD_HERO : LOD_0);
+    return this.load(this.closeUpLod);
+  }
+
+  /** (menu-notes note 4) The LOD a close-up camera draws once it is loaded (`loadCloseUp`): the hero, else LOD0 when
+   *  the hero is not in the build; `?gfx=min`: LOD2. */
+  get closeUpLod(): number {
+    if (flags.gfx === 'min') return LOD_2;
+    return HERO_CLOSE_UPS && this.manifest.urls[LOD_HERO] ? LOD_HERO : LOD_0;
   }
 
   /** Thermal warmth 0..1 (render only; the rig's `heat`): a white overlay per mesh, as the old body's emissive flag. */

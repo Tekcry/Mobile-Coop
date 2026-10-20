@@ -112,6 +112,8 @@ export class CourseMode implements GameMode {
   readonly log: [string[], string[]] = [[], []];
   private devices = new Map<string, Interactable>();
   private holds: HoldRt[] = [];
+  /** The bolt gates' "Unbolt" items: live only while the bolt is shut (F8; `CourseState.boltUsable`). */
+  private bolts: { it: Interactable; gate: string }[] = [];
   /** The airlock floor pads' outline meshes (R6, visual only). */
   private pads: Mesh[] = [];
   /** Course door ids that are an airlock's front door (opened automatically when the cycle ends). */
@@ -281,6 +283,7 @@ export class CourseMode implements GameMode {
         ints.setEnabled(it, true);
         it.onUse = (_it, by) => this.press(gate.doorId, this.idx(by));
         this.devices.set(gate.id, it);
+        this.bolts.push({ it, gate: gate.id });
         break;
       }
       default:
@@ -537,6 +540,11 @@ export class CourseMode implements GameMode {
         this.radio(e.gate);
         this.radio('gate');
         break;
+      case 'flagSet':
+        // (course-ready F2) a flag gate (the camera pocket, the scanners) never fires gateOpened: its radio line is keyed
+        // by the gate id and spoken when its flag is set
+        for (const gt of bay.gates) if (gt.kind === 'flag' && gt.flag === e.flag) this.radio(gt.id);
+        break;
       case 'drillDone': {
         const d = bay.drills.find((x) => x.id === e.drill);
         if (d) {
@@ -608,6 +616,9 @@ export class CourseMode implements GameMode {
       if (!s) continue;
       const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
       if (!e) break;
+      // (PR 3) a training guard: sees and hears nothing, and may know something INTERROGATE can get out of him
+      if (s.passive) e.passive = true;
+      if (s.info) e.info = s.info;
       if (s.route) e.setPatrol({ points: s.route, wait: s.wait, waits: s.waits, faces: s.faces, start: s.start, loop: s.loop });
       this.squad.push(e);
     }
@@ -643,6 +654,13 @@ export class CourseMode implements GameMode {
       else if (this.farDoors.has(cid)) doors.open(d, 'quiet');
       const it = g.interactables?.items.find((x) => x.id === `door-${d.anchor.id}`);
       if (it) g.interactables!.setEnabled(it, !on);
+    }
+    // (F8) an unbolted door's "Unbolt" item goes off (the door menu shows again); a bay restart brings it back. The
+    // client mirrors the item's enabled flag through the item list (no wire change)
+    for (let i = 0; i < this.bolts.length; i++) {
+      const b = this.bolts[i]!;
+      const live = st.boltUsable(b.gate);
+      if (b.it.enabled !== live) g.interactables!.setEnabled(b.it, live);
     }
     const anchors = this.layout!.anchors;
     const dis = g.traversal.attachCtl.disabled;
@@ -694,7 +712,9 @@ export class CourseMode implements GameMode {
     // everyone is down: the bay restarts (CourseState does it after RESTART_DELAY when it sees both down; this covers
     // a lone host and a leaver)
     if (this.state && this.restartT < 0) this.restartT = RESTART_DELAY + 0.1;
-    this.g.hud.banner('DOWN', 'Restarting the bay', 2000);
+    // (course-ready F4) the host's banner names who is down: the host itself, or the partner who went out
+    if (this.g.player.alive) this.g.hud.banner('PARTNER DOWN', 'Restarting the bay', 2000);
+    else this.g.hud.banner('DOWN', 'Restarting the bay', 2000);
   }
 
   frameUpdate(): void {

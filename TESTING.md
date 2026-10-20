@@ -12,7 +12,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 ## Desktop checklist
 
 ### Boot and menus (controller)
-- [ ] The game boots to the Night Shift title; the menu theme starts after the first button press.
+- [ ] Launch: a black screen with only NIGHT / SHIFT (no loading text, no progress line); when Wren, the weapons and
+  the shaders are ready, only "Press (any) to start" fades in, and the wordmark never moves. Wren is not visible at all.
+- [ ] The menu theme plays on the title (or starts on the first key or click if the browser blocks autoplay). The press
+  makes Wren's goggles flicker on in the dark on the goggle close-up, then the lights come up; no model swap or hitch.
+- [ ] B / Esc on the main menu does nothing (no way back to the title). After a match the menu comes back lit, with no
+  title and no flicker.
+- [ ] Main-menu shots: Wren holds the rifle or the pistol (the other on the thigh or the back); no hand through a
+  magazine, no floating parts.
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
@@ -24,10 +31,17 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
+  checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
+  suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
+  station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
+  an alive partner back to the airlock too.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
-- [ ] Settings > Controller: vibration on / off and strength; Settings > Accessibility > Controls: rebind a verb (A),
-  clear a slot (Y), a conflict shows a warning, reset restores the defaults.
+- [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
+  no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores
+  the defaults.
 - [ ] Unplug the pad mid-match: no stuck movement or firing, keyboard and mouse take over; plug it back in and press a
   button: the pad works again without a reload.
 
@@ -35,6 +49,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Moving: the stick sets the pace up to the speed gear (d-pad up / down); B crouches; a stop holds the stride, then
   settles (CT prototype). A part-pushed stick is a silent walk; a full stick at the default gear is audible.
 - [ ] A at a wall puts your back to it; slide along it, stop at the edge, A to leave (CT prototype).
+- [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
+  menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.
 - [ ] Y climbs and uses: ladders, drainpipes, ledges (shimmy, climb up), pipes, ducts, windows, the split jump, wall jump,
   rappel and fences on the Proving CT course.
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
@@ -53,10 +69,47 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] LT draws and aims, RT fires (no hip fire); RT while holstered strikes. X reloads, RB / LB swap between the two
   guns. The suppressed pistol and the issued rifle suppressor sound muffled and guards hear them less.
 - [ ] D-pad right throws the gadget (hold aims); holding d-pad left opens the wheel (time slows).
-- [ ] Takedowns: Y behind an unaware guard; a drop takedown from a pipe or ledge; a body can be carried and hidden.
+- [ ] Takedowns: Y behind an unaware guard (G7: the step-in and pull-in ~1 s, then the menu; walk him at a slow pace;
+  Knock out lowers him; Interrogate); a drop takedown from a pipe or ledge; a body takes 2 s to lift, carries at a slow
+  walk, opens a door, and is put down beside you or hidden.
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
+
+### Playtest 2 changes (controller, CT prototype; /ct/)
+- [ ] D-pad up / down set the walk speed; speed 2 is the slowest and a stick pushed nearly to the rim walks at it.
+  Aiming looks noticeably slower than before.
+- [ ] Back to a wall, shuffle to each end: the body leans only to the open side (swing the camera both ways: it never
+  flips) and the camera slides past the edge as you look or push toward it. Holstered, the camera is always over the
+  right shoulder; swap to the left while aiming, holster: it returns to the right and the next draw is on the right.
+- [ ] Swap shoulders while aiming: no gun flick. Press A from a short distance (under 0.5 m): you settle onto the wall
+  without sliding; from further away it does nothing.
+- [ ] Footsteps at speeds 1-2 (crouched 1-3) are quiet and the noise meter is silent; a run is louder on both.
+- [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
+  height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
+  turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+- [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
+  comes from the back straight to the shoulder (no low-ready dip).
+- [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
+  Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
+  A team boost climb-up still works.
+- [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
+  10 HP.
+- [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the
+  walk is upright, the run quick with a lean; stop from a run: a small split, upright; crouch and stop: she kneels at
+  once; near an unaware guard, crouch-walk slowly: the tense high-kneed sneak with a hand over the knife.
+- [ ] Camera: the yard frames the whole body from further back, rooms and airlocks closer; aim: head on the left, the
+  reticle clear; FOV 86 (a saved 75 moves once).
+- [ ] Rifle draw: muzzle up at the right shoulder, then down onto the line (no chest hold); holster near instant; aim,
+  release and aim again quickly: no sweep through the body. Pistol: lower, compact two-handed hold.
+- [ ] Walls (G6): crouch on a wall and slide: side-on, hand on the knee; reverse: she turns through; stop: she kneels.
+  Open a door: a step to the latch, hand on the leaf; stealth open is slower. Grab a guard (G7): pull-in, forearm on
+  the throat, walk him (slow), knock out (lowered), pick up a body (2 s lift), carry (slow), drop.
+- [ ] Action menu (G5): near a door, hold A: BACK TO GAME on top, move the highlight, release on a row (it runs) or
+  on BACK TO GAME (nothing); a quick tap runs row 1; behind a guard: GRAB CHARACTER only; holding him: no menu (only the
+  Marlow Yard station 1 guard has information: hold A, INTERROGATE, two lines, then no menu again), RT kills, LT knocks out, X aims (human shield), B / Y never let him go.
+- [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
+  ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.

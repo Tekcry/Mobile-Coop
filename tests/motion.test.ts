@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyMotionInput, MotionDriver, rootModulation, stepLength, wrapPi, type MotionTuning } from '../src/anim/motion';
-import { CT, ENEMY_CALM_MOTION, ENEMY_MOTION, MOVEMENT } from '../src/config/movement';
+import { CT, ENEMY_CALM_MOTION, ENEMY_MOTION, GEARS, MOVEMENT } from '../src/config/movement';
 
 const run = (
   d: MotionDriver,
@@ -510,7 +510,8 @@ describe('motion driver: Chaos Theory feel (3.2.0, player)', () => {
     const d = new MotionDriver();
     run(d, 1.5, (i) => {
       ct(i);
-      i.vz = 4.2;
+      // (G1, audit row 14) the top standing gear (4.5 m/s)
+      i.vz = GEARS.stand[4]!;
     }, 60);
     let dist = 0;
     let rest = -1;
@@ -518,7 +519,8 @@ describe('motion driver: Chaos Theory feel (3.2.0, player)', () => {
       dist += d.outZ / 60;
       if (rest < 0 && d.speed === 0) rest = t;
     });
-    expect(dist).toBeLessThanOrEqual(0.32);
+    // (G1, audit row 33: CT slides 0.25-0.35 m from a run; ~0.31 m from 4.5 m/s)
+    expect(dist).toBeLessThanOrEqual(0.35);
     expect(rest).toBeGreaterThan(0);
     expect(rest).toBeLessThanOrEqual(CT.stopTime + 2 / 60);
     expect(d.state).toBe('idle');
@@ -541,7 +543,7 @@ describe('enemy tuning is pinned (3.2.0: standalone literals)', () => {
     sneakSpeed: 0.8, crouchWalkSpeed: 1.8, crouchRunSpeed: 2.6, walkSpeed: 1.4, jogSpeed: 2.8, sprintSpeed: 5, adsSpeed: 1.4,
     adsCrouchSpeed: 1, coverRunSpeed: 3.6, reloadMult: 0.75, sneakBand: 0.4,
     crouchWalkBand: 0.85, walkBand: 0.5, strafeMult: 0.9, backMult: 0.75, accelMax: 1.5, decelMax: 2, jerkMax: 9,
-    sprintAccel: 4.5, velGain: 6, brakeGain: 6, startShift: 0.3, stepLen0: 0.27, stepLenK: 0.22, rootDip: 0.05,
+    sprintAccel: 4.5, velGain: 6, brakeGain: 6, startShift: 0.3, stepLen0: 0.27, stepLenK: 0.22, stepLenMax: 9, rootDip: 0.05,
     turnTravelSlow: 9.42477796076938, turnTravelFast: 5.235987755982989, turnAim: 1.9198621771937625, turnAccel: 12,
     turnSprint: 1.2, turnMoving: 2.4, turnChunk: 0.785, turnChunkTime: 0.3, turnThreshold: 0.45, twistMax: 1.3,
     pivotTime: 0.6, pivotMinSpeed: 0.45, crouchTime: 0.25, kneelTime: 0.3, standTime: 0.3, airControl: 0.05,

@@ -34,6 +34,8 @@ Design authority: docs/DECISIONS.md (G58-G67), then docs/design-bible.md (Sectio
 - **Files:**
   - `src/audio/score/game/gameMusic.ts` plays the tracks. `src/audio/score/director.ts` decides the state (hysteresis:
     Cautious after 0.6 s, Alert at once; Alert holds 10 s, Evasion 12 s, Cautious 8 s; one rung at a time).
+    `GameMusic.calm()` (`Music.calm`, on the `checkpointRestart` event, sector-restart M9): a Sector Ops checkpoint
+    restart fades whatever plays over 2.5 s and resets the director to Calm.
   - `src/audio/score/game/adapter.ts` is the only code that reads the game. It maps every guard's `AlertLevel`:
     - alert -> alert
     - suspicious, investigating, searching -> caution
@@ -88,7 +90,8 @@ licences: `docs/audio-credits.md`. Purely cosmetic: guards hear the noise model 
 - **Foley lab** (`?foleylab=1`, `audio/foley/foleyLab.ts`): every surface and gait as a looping walk, the landings and
   moves on buttons, and "Old synth" for an A/B against the previous steps.
 - Decided, not built yet: one run sound for every running speed, the walk / run switch reset to the CT speeds and the
-  `sprint` gait removed (G62; `RUN_FROM` 2.1 m/s today); your own steps play very softly when guards cannot hear them,
+  `sprint` gait removed (G62; `RUN_FROM` 2.1 m/s today); your own steps play very softly when guards cannot hear them (built, playtest 2: the own-step volume follows the noise
+  radius, `stepVolume`, 0.07 silent to 0.42 at the loudest run),
   and the sound meter shows what guards hear (G61); a separate Footsteps volume slider for testing (G60); one shared
   foot-touched-the-ground event for footsteps and rumble (G67; today foley counts `Player.footPlants` beside the
   rumble's `onFootPlant`).

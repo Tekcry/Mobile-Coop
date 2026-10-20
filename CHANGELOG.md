@@ -4,6 +4,169 @@
 - Dogs carry no flashlight (Michael, M1): only human guards take a torch slot when searching in the dark (pure
   `carriesTorch` / `torchRule` in `ai/archetypes.ts`, tested); a dog no longer lights the player or the meter.
 
+## 4.13.0 - Marlow Yard interrogation guard (2026-10-20, PR #34)
+- PR 3 Interrogate (`docs/ct-prototype/PR3-INTERROGATE.md`, Michael: "Add one in Marlow Yard"): station 1 has a training guard
+  (passive, on his post by the south fence facing away from the start) who has information; held, hold-A lists INTERROGATE,
+  and he says two short lines of his own (where the two wall medkits are) as subtitle; asked once, no menu again. A guard's
+  information is `Enemy.info` (`src/ai/guardInfo.ts`, set from a squad slot's `info`); no wire change.
+
+## 4.12.0 - Marlow Yard light pass and walkthrough guide (2026-10-20, PR #33)
+Marlow Yard prototype light pass and the walkthrough guide (S2, S3; `docs/course-ready/LIGHT.md`, `WALKTHROUGH.md`).
+- Lamps in all seven airlocks (the pads read lit, nothing spills out with the doors shut), on the station 2 and 7 wall
+  tops, over the station 5 roof (raised lamp), in its back room (hack panel) and at its medkit: 19 -> 29 baked lights.
+  The pools between the yard lamps and the station 3 camera bay are unchanged.
+- `tests/ctcourseLight.test.ts` builds the real light field and checks every must-see spot and the dark pools.
+- `scripts/shots-ctcourse.mjs`: headless GPU shots per station (Michael's PC, port 4189, `E2E_GPU=1`), the light meter
+  checked against the field at each.
+
+## 4.11.0 - CT movement 2: grab, hold and knockout, the hold-A action menu, walls and doors (2026-10-20, PR #32)
+- G5 the hold-A action menu (`docs/ct-prototype/G5-REPORT.md`, Michael: "requires holding A and selecting which option you
+  would like to proceed with, including returning to game (no action). I want it to be identical."): with anything in
+  reach a list sits top right under INTERACT; holding A turns the header to BACK TO GAME with row 1 highlighted, the
+  stick / D-pad (wheel or W / S on keyboard and mouse) moves it, and releasing A runs that row (BACK TO GAME does
+  nothing); a quick tap runs row 1; rows with a hold time (hacks, medkits, alarms, revive) fill while A stays on them.
+  One menu replaces the separate door and grab menus; doors list OPEN DOOR, OPEN DOOR STEALTH, BASH DOOR, OPTIC CABLE.
+  Michael 08:10 / 08:20 / 08:25: behind a guard the list is GRAB CHARACTER (and BACK TO GAME); once grabbed there is
+  no let-go and no BACK TO GAME: RT kills, LT knocks out, aiming holds him as a human shield, and hold-A lists only
+  INTERROGATE for a guard with information (none have any yet, so no menu); other takedowns are one row (a knockout).
+- G6 walls, corners and doors (`docs/ct-prototype/G6-REPORT.md`, against the CT footage): crouched on a wall Wren turns
+  side-on toward where she is going and crouch-walks along it bent over her knees with a hand on her knee (Michael: "holds
+  knee when up against wall"), turning through facing out when she reverses (0.45 s); standing she sinks into a
+  semi-crouch and turns her chest and head toward the slide; wall slides are 0.35 m/s standing (was 0.47) and 0.5 m/s
+  crouched (was 0.41) at the spawn gear; the turn onto a wall is quick at first; at a wall edge the peek is a small lean
+  with the hips and body stepping out, so the head ends just past the frame (it stopped short); aiming at a wall half a
+  metre away brings the rifle up muzzle-high; low cover uses the same side-on crouch. Doors: Open from the door menu is
+  a short move (a step to the latch side, a hand on the door, the door opening 0.8 s after the pick), the leaf swings
+  fast then eases to 88 deg (was a slow start to 100); Stealth open steps in and holds the handle before the crack
+  (1.2 s after the pick, was 0.25 s) and the stick opens it a little slower; guards push doors open in 0.4 s (was 0.7)
+  and a door a guard opened swings shut in 0.35 s. Co-op: the partner's copy poses the same from the existing wall
+  state (no wire change).
+- G7 grab, hold, knockout and carry (`docs/ct-prototype/G7-REPORT.md`, against the CT footage): the grab from behind
+  steps in over 0.42 s (rising out of a crouch, legs stepping) and pulls the guard back against the chest over 0.6 s
+  before the hold and its menu (~1 s, CT ~1-1.2 s); the guard struggles from the contact, not the press, his rifle out
+  of his hands; the hold has the left forearm across his throat and the right hand on his shoulder, his hands up at the
+  arm, the pair swaying a little and the guard flailing every 2-4 s; the hostage walk is capped at 0.75 m/s (was 1.4)
+  with him held 0.32 m in front (was 0.42) and walking with you; Knock out lowers him in front over 0.85 s with you bent
+  over him (was a 0.5 s drop); Interrogate works (your hand at his jaw for 1.5 s, the hold goes on); picking up a body
+  is a 2.0 s lift (step in, crouch with the hands under its shoulders, hoist it onto the shoulder on the side its head
+  lies, crouch lets go before the hoist) instead of a teleport; carrying is a 0.8 m/s walk (was 2.2) bent forward under
+  the weight and can open and close doors; putting it down is a 0.8 s slide off the shoulder to your side (was an
+  instant throw 0.7 m ahead). Co-op: the host and the partner pose the hold, its knockout and interrogation from the
+  existing MoveState fields (no wire change).
+
+## 4.10.0 - CT prototype: CT controls, posture and movement matched to the footage (2026-10-20, PR #31)
+- Footage audit (Michael, 2026-10-19 / 20: "Every movement aspect must be audited and brought into night shift"): all 90
+  of his CT clips catalogued (`docs/ct-prototype/FOOTAGE-CATALOGUE.md`) and every move measured against ours
+  (`docs/ct-prototype/audit/`: per area, with a coverage map of every catalogue move); slices G1-G4 below follow it, and
+  where the footage disagrees with an earlier number the footage wins (Michael).
+- G4 traversal (`docs/ct-prototype/G4-REPORT.md`): the drainpipe climbs with one reach per hand about every second and
+  both feet together; the hang shimmy slows to 0.5 m/s with the legs swinging under her (and a slight sway hanging
+  still); the ledge climb-up puts the knee on top at 0.47 s and ends crouched at 0.85 s, standing only if you hold the
+  stick; ladders climb 1.7 rungs a second, two rungs a reach, faster going down, mount from the top in 1.2 s and top out
+  in 0.85 s; rappel hooks on in 1.8 s and descends at 0.6 m/s; drops land crouched; crawling out of a wall vent takes
+  2.5 s.
+- G3 camera (`docs/ct-prototype/G3-REPORT.md`): the field of view is 86 (CT's vertical view; a saved 75 moves once,
+  `camV`) and the explore camera sits 0.15 m off the shoulder (Michael: "Match CT"); open spaces frame the whole body
+  from 2.8 m (tight spaces 1.8 m) from map flags with a probe fallback; the aim camera puts the head on the left with the
+  reticle clear; the camera eases in toward walls more slowly (as CT); it pushes in while passing through a doorway;
+  traversal cameras centre the hero; the corner peek eases in over 0.35 s.
+- G2 aiming and weapons (`docs/ct-prototype/G2-REPORT.md`, against the CT footage): the rifle is slung diagonally across
+  the back (stock at the right shoulder, muzzle down to the left hip) and draws round the right side, muzzle up at the
+  shoulder, then down onto the line, with no hold at the chest (about 0.4 s to settled); the holster is near instant
+  (0.15 s) and never swings the muzzle over the head; the aimed upper body is one rigid block that tilts at the hips;
+  the pistol is held lower and further out, under the sight line, and draws in 0.5 s; recoil shows no visible flip and
+  no shot shake; a swap while holstered is the selection only; a reload pressed while holstered draws straight to the
+  reload pose.
+- G1 legs and gait (`docs/ct-prototype/G1-REPORT.md`, against the CT footage): in turns the legs turn with the body
+  (feet under the hips, no splay, no pelvis spike); an upright standing walk with near-straight knees and the heel rising
+  onto the toes; the run quickens (~4.7 steps/s), leans from gear 4, pumps its arms, has a flight phase and banks into
+  fast turns; the top standing speed is 4.5 m/s; a stop sets down in a small split and straightens up; a crouched stop
+  kneels at once on the trailing knee, the forearm on the front thigh, no wide squat on the way in; moving crouched the
+  knees stay off the floor; a fall of about a metre lands deep with the arms out; new: the tense sneak near an unaware
+  guard (long high-kneed steps, head up, a hand over the knife).
+- Slice A (playtest 2, `docs/ct-prototype/A-PLAYTEST2.md`): the five speeds are re-spaced so the old speed 2 is the
+  slowest (standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s; D-pad up / down sets
+  them and the stick reaches that speed from 0.9 of its travel); ADS look is 70 % less sensitive; the corner peek swings
+  to the side you move to; the wall's open side becomes your shoulder and the last shoulder swap is kept for the next
+  mission; a shoulder swap while aiming no longer flicks the gun up; back to wall needs you within 0.5 m (was 0.9) and
+  settles faster, no slide; your own footsteps follow the noise meter (quiet when silent, 0.07 to 0.42 volume).
+- Scanners: a hack whose partner never started resets both with no cost; a late or abandoned hack still costs 10 HP.
+- Slices B+C (playtest 2, `docs/ct-prototype/BC-ANIM.md`): the ADS view is the same standing and crouched, for rifle
+  and pistol; the chest carries the aim with the stock closer to the shoulder and the elbows tucked; the pistol is held
+  closer to the eye line; the stance is narrower (legs stay under the body walking, running and turning, crouched too);
+  the crouched gun sits closer to the body; less body bob at walking pace.
+- Slices D+E (playtest 2, `docs/ct-prototype/DE-ANIM.md`): draw / holster keep the trigger hand on the gun the whole
+  way (the rifle out at the shoulder, not head height; the pistol waits in the holster for the hand); the hanging
+  shimmy's reaches are a little wider, longer and higher (D2b below slows it); drainpipe knees bend
+  up and forward and the feet stay under the hips; the ledge climb-up (1.1 s) pulls up on held hands, puts a knee on the
+  top, then stands.
+- Slice D2b (Michael): the hang shimmy slows to 0.7 m/s (was 1.2) with slow, wide reaches one hand at a time, about
+  two a second per hand.
+- Slice F (playtest 2 walk, `docs/ct-prototype/F-REPORT.md`): holstered, the camera is always over the right shoulder; a
+  left-shoulder swap lasts only while aiming and holstering resets it (the saved default shoulder and the wall's shoulder
+  side are gone); crouched aiming frames from crouch height; the crouch idle kneels (one knee down, back upright); at a
+  wall edge the body leans only to the open side and the camera slides past the edge as you look or push toward it; the
+  ledge climb-up (1.3 s) holds the hands until the knee is on the top, then stands up smoothly (no hop); the rifle draw
+  comes straight up to the shoulder (no low-ready dip); a settings save from an A3 build had the speed on D-pad left /
+  right: it moves to up / down (vision left, gadget right) unless remapped.
+
+## 4.9.0 - Marlow Yard co-op walkthrough fixes (2026-10-20, PR #30)
+Marlow Yard walkthrough fixes for the 2-player co-op test (S1; audit `docs/course-ready/AUDIT.md`, 0 blockers,
+8 confusing, 14 minor).
+- Each station's task shows as the course HUD step line on both screens (bays without drills).
+- A radio line names the next step when a station opens (unbolt, camera pocket, laser release, roof plates, hatch
+  hack, scanners).
+- Station 2: the bolt counts any player past the door leaf as the bolt side; once unbolted the "Unbolt" item turns off
+  so the door menu shows on both sides (back on a bay restart).
+- Panel and radio text name pad and keyboard buttons; station 3 says how to get the pistol out and to holster before
+  the door; station 4 places the red release; station 5 says the way out after the hack; shorter panel 5.
+- The station 3 blind spot is pale blue-grey (the airlock pads stay green); leg-up squares sit on the tested spot at
+  stations 2, 5 and 7; a lone roof-plate press hints "Partner: press the other plate now"; the host's banner says who
+  is down.
+- Co-op: a course bay restart also brings an alive partner back to the checkpoint (no partner shut out by relocked
+  gates). No wire change.
+
+## 4.8.2 - Sector Ops: a checkpoint restart is a clean start (2026-10-20, PR #29)
+- Sector Ops: a checkpoint restart is a clean start of the section (M9). The guards' shared memory goes back to its
+  match-start state (`EnemyManager.resetMemory`: alarm, last known position and chase field, sighting flags, flanker,
+  squads, AI clocks) and the section's guards load unaware on their routes. The loadout recorded when the section began
+  comes back with every gun reloaded (no reload animation) and the gadgets restored (`weapons/loadoutSnapshot.ts`);
+  grenades in flight and gadgets in the world (noisemakers, gas, mines, cams) go; doors the player opened are no longer
+  noticed by the new guards. The alert / caution music fades out and the section starts in Calm (`Music.calm`). Health
+  is full with the respawn.
+- Co-op: the client records its own loadout as each section goes live and restores it on the host's restart banner
+  (no wire change, A1).
+- Sector Ops issues the campaign kit like Infiltration: the rifle comes with its suppressor (A62), as the Kit screen and
+  the co-op lobby already showed it (A2). Before this its shots were loud in Sector Ops and put every guard in earshot
+  into combat.
+
+## 4.8.1 - Menu boot time measured (2026-10-19, PR #28)
+Docs only. The 4.8.0 load gate adds about 0.9 s to boot-to-menu under software GL (median 1.72 s vs 0.78 s on
+4.7.5); match boots skip it; no e2e helper change (docs/menu-notes/STATE.md).
+
+## 4.8.0 - Menu notes: black launch screen, goggle flicker, menu weapons and poses (2026-10-19, PR #27)
+- Launch (M1, M2, notes 1-2): one black screen with the NIGHT / SHIFT wordmark only, held until Wren's hero model,
+  both weapon meshes and the shaders are ready (`src/world/menuGate.ts`: a stall timeout of 12 s with no bytes
+  arriving, a hard cap of 120 s, never stranded); then only the press prompt fades in. The title stage is pure black;
+  the press fades the wordmark and prompt out, Wren's goggles flicker on in full darkness with no menu on screen, then
+  the light rises on the close-up and the main menu fades in (M3; a second press skips to the lit menu, A3; launch only).
+- Music: the menu theme decodes at boot and plays on the title, or starts on the first key, click or pad press when
+  autoplay is blocked.
+- Main menu: Back no longer returns to the title (A1). The Pause menu's Controls item is gone; Settings > Controls is the
+  one place (A2). Settings > Gameplay drops the Default shoulder row (CT: the camera is always over the right shoulder
+  when holstered); the Controls screen lists the CT trigger and mouse verbs (holstered knockout / lethal palm strike,
+  drawn secondary / primary fire; right click draws and holsters).
+- Hero quality (note 4): the menu close-ups always draw the hero LOD on desktop presets (no fix needed; the jump was the
+  LOD2 -> LOD0 -> hero load order, now behind the load gate); read-back `MenuState.heroLod`.
+- Menu weapons (notes 5-6): the Blender rifle and pistol on Wren in every title and main-menu shot, one held at low or
+  compressed ready, the other holstered or on the back (`src/world/menuPoses.ts`; new shots W1, W2); the void no
+  longer shows a lone magazine or placeholder gun; a unit guard keeps the support hand off the magazine.
+- Tactical shot (M4): W3 joins the main-menu deck, Wren on the sights with the rifle shouldered (Michael's pick X5 of
+  the slice 4b mock-ups). The green goggle-spill spot in the face shots is gone: it reflected as a stray glow on the
+  goggle housing and helmet above the lenses; the lens flicker itself is unchanged.
+- Tests: `tests/menuGate.test.ts`, `tests/menuPoses.test.ts`, menuShots; `tests/titleSequence.test.ts`; e2e-menus checks the load
+  gate, the dark title, the prompt fade, the sequence and the skip; e2e-pad follows the shorter Pause menu and the pad skip; GPU script `scripts/menu-boot-shots.mjs`.
+
 ## 4.7.5 - lightField heap check stable under load (2026-10-19, PR #26)
 - tests/lightField "allocation-free under a loop" is stable under load: up to 40 rounds with yields so the optimizing
   compiler can finish (each measurement keeps its smallest round), and the control's vector escapes into a ring so it

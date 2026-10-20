@@ -290,7 +290,7 @@ export class CtDevices {
         this.dir.set(0, 0, 1);
         if (dmg > 0) r.target.applyDamage({ amount: dmg, point: this.p, dir: this.dir, part: 'body', kind: 'melee', attackerTeam: 'enemy', attackerId: 'scanner', sourcePos: this.p, impulse: 0 });
       }
-      this.hooks.say(res.why === 'abort' ? 'Scanner hack broken off. Both reset, and that one hurt. Stay at the panel.' : `Scanners out of sync. Both reset, and that one hurt. Finish within ${SCANNER.window} s of each other.`);
+      this.hooks.say(res.why === 'abort' ? 'Scanner hack broken off. Both reset, and that one hurt. Stay at the panel.' : res.why === 'alone' ? 'The other scanner was never started. Both reset. Start your hacks together.' : `Scanners out of sync. Both reset, and that one hurt. Finish within ${SCANNER.window} s of each other.`);
     }
     this.scanVisuals();
   }

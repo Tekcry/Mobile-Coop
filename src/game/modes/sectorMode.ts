@@ -18,6 +18,7 @@ import {
   CONN_UNLOCK_FAR,
   CONN_UNLOCK_NEAR,
   SECTOR,
+  SECTOR_RESTART_TITLE,
   SectorRun,
   exitZone,
   inDoorway,
@@ -178,13 +179,17 @@ export class SectorMode implements GameMode {
     g.stealth?.setLiveAlarms(-1);
   }
 
-  /** The current section begins: the checkpoint, the objective, the banner. */
-  private beginSection(): void {
+  /**
+   * The current section begins: the checkpoint, the objective, the banner, and (M9) the loadout recorded as the one a
+   * restart gives back (`kit`: not on a restart, which has just put that loadout back).
+   */
+  private beginSection(kit = true): void {
     const s = this.run.current;
     if (!s) return;
     const cp = this.run.checkpoint;
     this.checkpoint.set(cp.x, cp.y, cp.z);
     this.reinforceK = 0;
+    if (kit) this.g.weapons.markCheckpoint();
     this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
     this.setup(s);
   }
@@ -385,15 +390,21 @@ export class SectorMode implements GameMode {
     }
     this.restarts++;
     this.unloadSection();
+    // (M9) a clean start: the guards' shared memory back at its match-start state (alarm, last known position, sighting
+    // flags, clocks), and the players' side: the section's loadout reloaded, gadgets and grenades out in the world gone,
+    // the stealth leftovers cleared, the music calmed (`GameState.checkpointReset`)
+    g.enemyMgr?.resetMemory();
+    g.checkpointReset();
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
     if (this.ct) this.ct.alarm = this.run.alarm;
-    this.beginSection();
+    this.beginSection(false);
     const cp = this.run.checkpoint;
     g.player.cam.yaw = cp.yaw;
     g.scheduleRespawn(this.checkpoint, 0.3);
-    g.hud.banner('RESTARTING FROM CHECKPOINT', this.run.current?.name ?? '', 2200);
+    // (co-op: this banner reaches the client, which runs its own `checkpointReset` on it)
+    g.hud.banner(SECTOR_RESTART_TITLE, this.run.current?.name ?? '', 2200);
   }
 
   fixedUpdate(dt: number): void {

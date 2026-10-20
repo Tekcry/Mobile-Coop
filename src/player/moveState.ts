@@ -7,6 +7,8 @@
  * (Lives in `player/`, not `net/`: single player builds it every step and must never import `src/net` statically.)
  */
 import type { TraverseKind } from '../anim/animGraph';
+import { CLIMB_UP_CROUCH_K } from '../anim/clips/traverse';
+import { WALL } from './wallController';
 
 /** Every mode on the wire, in a fixed order (an index is a u8). Later phases append, never reorder. */
 export const MOVE_MODES = [
@@ -286,12 +288,14 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
     case 'wall':
       // (step 11) the flat-back stance, facing along the slide (WALL_SUB.faceRight = 2)
       out.wall = true;
-      out.wallSide = mv.sub & 2 ? 1 : -1;
+      // (F4) at an edge the side is the open side (edgeL 4 = the body's left), as the owner's `wallFacing`
+      out.wallSide = mv.sub & 4 ? -1 : mv.sub & 8 ? 1 : mv.sub & 2 ? 1 : -1;
       // (step 12, A3) at an edge: the head-first peek (WALL_SUB.peek 16); the edge at b (edgeL 4) is the body's left
       if (peek > 0 && mv.sub & (4 | 8)) {
         const side = mv.sub & 4 ? -1 : 1;
         const pe = peek * peek * (3 - 2 * peek);
-        out.lean = side * 0.45 * pe;
+        // (G6) the owner's `rigLean` (WALL.peekLean, AUDIT-WALLS row 9)
+        out.lean = side * WALL.peekLean * pe;
       }
       // (step 12b, D9) the open-left weapon hand (only with the left edge bit)
       out.leftHand = (mv.sub & 128) !== 0 && (mv.sub & 4) !== 0;
@@ -331,7 +335,8 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
     case 'duct':
     case 'zipline': {
       const { phase, exit, pipe, pipeTo } = unpackAttachSub(mv.sub);
-      let fam: TraverseKind = mv.m === 'ladder' || mv.m === 'pipeV' ? 'climb' : mv.m === 'duct' ? 'crawl' : 'hang';
+      // (ct-prototype G4) a drainpipe climbs as an inchworm (PIPE_CLIMB), not the ladder's cycle
+      let fam: TraverseKind = mv.m === 'ladder' ? 'climb' : mv.m === 'pipeV' ? 'pipeClimb' : mv.m === 'duct' ? 'crawl' : 'hang';
       if (mv.m === 'pipeH') {
         // a sub-state, or the change to the next one (its pose past half way); the tumble eases over
         const k = pipeTo && phase === 'on' ? mv.ph : 1;
@@ -347,13 +352,19 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       }
       if (phase === 'exit' && (exit === 'climbUp' || exit === 'mantle')) {
         out.traverse = exit;
-        out.traverseT = mv.ph;
+        // (G4) a ladder's top-out plays the climb-up only as far as its crouch on top (attachController)
+        out.traverseT = mv.m === 'ladder' && exit === 'climbUp' ? mv.ph * CLIMB_UP_CROUCH_K : mv.ph;
       } else if (phase === 'exit' && (exit === 'ventDrop' || exit === 'drop')) {
         out.traverse = exit;
         out.traverseT = mv.ph;
+      } else if (phase === 'exit' && mv.m === 'duct') {
+        // (G4) out of a wall vent (or back out of the entry): crawl out and rise to the crouch
+        out.traverse = 'crawlOut';
+        out.traverseT = mv.ph;
       } else {
         out.traverse = fam;
-        out.traverseT = fam === 'hang' ? 0 : cadence;
+        // (G4) hanging from a lip the grips' cadence is the pendulum's swing (AttachGrips.cadence); a pipe / cable hangs plumb
+        out.traverseT = fam === 'hang' ? (mv.m === 'ledge' ? cadence : 0) : cadence;
       }
       return out;
     }
@@ -369,6 +380,10 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       return out;
     case 'takedown':
       out.melee = mv.ph;
+      return out;
+    case 'grab':
+      // (G7) the kill from the hold (sub bit 1): the blow's arc at the finisher's progress
+      if (mv.sub & 1) out.melee = mv.ph;
       return out;
     case 'strike':
       // (step 10) the elbow arc with the hip turn (animGraph melee), the hands free (holstered)
@@ -398,8 +413,28 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
   }
 }
 
-/** Blend weight of the attach grips for an attached state's phase and progress (as the local controller). */
-export function attachGripWeight(phase: (typeof ATTACH_PHASES)[number], progress: number): number {
-  const s = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-  return phase === 'exit' ? 1 - s(progress / 0.7) : phase === 'enter' ? s((progress - 0.25) / 0.75) : 1;
+/** (ct-prototype E2) A climb-up keeps the hands planted on the top until the knee is on: 1 - smooth((k - k0) / span).
+ *  (F5) Released only after the knee plant (the CLIMB_UP clip plants it by k 0.56, the root is on the top by 0.59): 0.6 - 0.74.
+ *  (G4) The retimed clip plants the knee by 0.36 (0.47 s), the root is on the top by 0.38: 0.38 - 0.5 (0.49 - 0.65 s). */
+export const CLIMB_UP_HANDS = { k0: 0.38, span: 0.12 };
+
+/** (G4) Crawling out of a duct the hands leave the duct floor over the first share of the exit (the clip's hands take over). */
+export const CRAWL_OUT_HANDS = 0.25;
+
+const smoothGrip = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+
+/**
+ * Blend weight of the attach grips for an attached state's phase and progress (as the local controller). `climbUp`: a
+ * pull-up from a hang (ledge, top of a drainpipe), the hands held until the knee is on the top (CLIMB_UP_HANDS).
+ */
+export function attachGripWeight(phase: (typeof ATTACH_PHASES)[number], progress: number, climbUp: boolean | 'crawlOut' = false): number {
+  if (phase === 'exit' && climbUp === 'crawlOut') return 1 - smoothGrip(progress / CRAWL_OUT_HANDS);
+  if (phase === 'exit' && climbUp) return 1 - smoothGrip((progress - CLIMB_UP_HANDS.k0) / CLIMB_UP_HANDS.span);
+  return phase === 'exit' ? 1 - smoothGrip(progress / 0.7) : phase === 'enter' ? smoothGrip((progress - 0.25) / 0.75) : 1;
+}
+
+/** (ct-prototype E2) The feet's plant cap through a climb-up off a drainpipe: off the pipe by the chest at the lip (k 0.34
+ *  since F5's longer climb-up: the same 0.44 s). (G4) The chest is at the lip by k 0.2 (0.26 s) now. */
+export function climbUpFootWeight(climbUp: boolean, progress: number): number {
+  return climbUp ? 1 - smoothGrip(progress / 0.2) : 1;
 }

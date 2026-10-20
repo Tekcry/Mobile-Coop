@@ -106,17 +106,40 @@ const REACH: Record<SwapReach, [number, number, number]> = {
   // (anim-cleanup) behind the back to the pistol grip of the gun hung on the back plate (the rifle is carried there
   // over the right shoulder in the trigger hand: WeaponModel travel)
   backL: [0.02, 1.26, -0.12],
-  backC: [0.08, 1.26, -0.12],
+  // (G2, AUDIT-AIM row 3) the diagonal sling's grip, at the bottom of the right shoulder blade (backDiag BACK_DIAG.grip): the hand
+  // goes back over the right shoulder (was [0.08, 1.26, -0.12], the vertical gun's grip by the spine)
+  // (G2 fix r1) up over the right shoulder to the slung stock, as CT's reach (105845 2.77): [0.14, 1.2, -0.12] behind the
+  // blade was out of the arm's reach (e2e-weapons-carry: the hand 27 cm from the gun on a pistol-to-rifle swap)
+  backC: [0.16, 1.34, -0.1],
   backR: [0.14, 1.26, -0.12],
   // across to the left-hip sling
   sling: [-0.16, 1.0, 0.1],
   // down to the right thigh holster
   thigh: [0.21, 0.74, 0.0],
 };
+/**
+ * (G2 fix r1) Where the hand lets go of the centre gun it just slung (its grip at the bottom of the right shoulder blade,
+ * backDiag BACK_DIAG.grip): an outgoing back gun ends there, so the hand leaves for the next slot from it (the reach over
+ * the shoulder, REACH.backC, is for taking it).
+ */
+const SLUNG_GRIP_C: [number, number, number] = [0.14, 1.2, -0.12];
 const BACK = (r: SwapReach): boolean => r === 'backL' || r === 'backC' || r === 'backR';
 
+/** (ct-prototype D1) One hand channel's swap keys: pocket, out to `f`, between the slots (`mid`), `t`, back to the pocket. */
+function travelKeys(from: SwapReach, to: SwapReach, pocket: number, f: number, mid: number, t: number, backPocket = pocket): number[] {
+  const out = from === 'sling' ? [0, pocket, 0.26, f, 0.38, f] : [0, pocket, 0.06, pocket, 0.38, f];
+  // (G2, AUDIT-AIM row 1) from the back the hand is in the pocket at 0.65 (was 0.8) and on the way there no lower than
+  // `backPocket` (the shoulder, the raised pocket): over the shoulder, muzzle up, then down onto the line, no chest pass
+  // (G2 fix r1) a gun-to-gun swap to a travelled slot (the diagonal sling over the shoulder, the thigh from it) reaches the
+  // next gun sooner (0.42 between, there by 0.47, held to the take at 0.5): the hand is on the gun before it leaves its slot
+  const early = to !== 'sling' && from !== to;
+  const at = early ? [0.47, t] : [];
+  const back = to === 'sling' ? [0.5, t, 0.6, t, 0.8, pocket] : BACK(to) ? [...at, 0.5, t, 0.65, backPocket, 1, backPocket] : [...at, 0.5, t, 0.8, pocket];
+  return [...out, early ? 0.42 : 0.44, mid, ...back];
+}
+
 function swapClip(from: SwapReach, to: SwapReach) {
-  const f = REACH[from];
+  const f = from === 'backC' && to !== 'backC' ? SLUNG_GRIP_C : REACH[from];
   const t = REACH[to];
   return makeClip({
     name: `swap ${from}>${to}`,
@@ -129,15 +152,23 @@ function swapClip(from: SwapReach, to: SwapReach) {
       offGrip: [0, 1, 0.1, 0, 0.86, 0, 0.94, 1],
       // out to the outgoing gun's slot (holstered at 0.38), on to the incoming one's (taken at 0.5), then
       // up to the aim pocket (in the pocket at 0.8)
-      hRX: [0, 0.18, 0.26, f[0], 0.38, f[0], 0.44, Math.max(f[0], t[0]) + 0.12, 0.5, t[0], 0.6, t[0], 0.8, 0.18],
-      hRY: [0, 1.25, 0.26, f[1], 0.38, f[1], 0.44, (f[1] + t[1]) / 2, 0.5, t[1], 0.6, t[1], 0.8, 1.25],
-      hRZ: [0, 0.25, 0.26, f[2], 0.38, f[2], 0.44, (f[2] + t[2]) / 2, 0.5, t[2], 0.6, t[2], 0.8, 0.25],
+      // (ct-prototype D1) a travelled slot (back, thigh): the hand keys follow the gun's travel (out over 0.06-0.38, in
+      // over 0.5-0.8) instead of reaching the slot early and holding there; the sling's hand-off keeps the old keys
+      hRX: travelKeys(from, to, 0.18, f[0], Math.max(f[0], t[0]) + 0.12, t[0]),
+      hRY: travelKeys(from, to, 1.25, f[1], (f[1] + t[1]) / 2, t[1], 1.32),
+      hRZ: travelKeys(from, to, 0.25, f[2], (f[2] + t[2]) / 2, t[2]),
       // the support hand hangs relaxed at the side (the arm's own length below the shoulder), out of the gun's way, and
       // comes up for the grip as the gun reaches the pocket
       hLX: [0, -0.2, 0.2, -0.21, 0.7, -0.21, 1, -0.16],
       hLY: [0, 1.0, 0.2, 0.88, 0.7, 0.88, 1, 1.1],
       hLZ: [0, 0.1, 0.2, 0.05, 0.7, 0.05, 1, 0.14],
-      wpPitch: [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
+      // (F6) a draw to the back slot's gun comes up level (its travel ends at the shoulder): no muzzle-down low ready on
+      // the way in (0.45 rad at 0.75 was the dip): level from the slot (0.38) on, so the clip adds no pitch change to
+      // the draw raise (a drop near 0.5 was a 0.15-0.2 rad one-frame pop in e2e-anim); other slots keep the old keys
+      // (G2 fix r1) a holster to the back carries the gun along its travel (WeaponModel: the pocket pitch is not shown), so
+      // the clip's 0.5 rad dip only moved the channel: over the 0.15 s holster it stepped ~0.1 rad a frame on top of the
+      // carry lower (e2e-anim draw / holster continuity). Flat for a back-to-back holster / draw
+      wpPitch: BACK(to) && BACK(from) ? [0, 0, 1, 0] : BACK(to) ? [0, 0, 0.2, 0.5, 0.38, 0, 1, 0] : [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
       // the chest turns towards the reach (right shoulder / left hip / right thigh)
       spYaw: [0, 0, 0.26, BACK(from) ? 0.16 : from === 'sling' ? -0.3 : 0.08, 0.38, BACK(from) ? 0.18 : from === 'sling' ? -0.32 : 0.1, 0.56, BACK(to) ? 0.14 : to === 'sling' ? -0.3 : 0.08, 1, 0],
       spPitch: [0, 0, 0.35, BACK(from) ? 0 : 0.16, 0.56, BACK(to) ? 0 : 0.14, 1, 0],
@@ -305,6 +336,21 @@ export const SLIDE = makeClip({
 });
 
 /** Landing compression after a drop (timed). */
+/**
+ * (CT prototype G1, audit row 18) A drop of a metre and more (110522 @ 71.5-72.1): the hips sink to near full crouch depth
+ * at 0.1 s and come back up over 0.5 s (the graph weights it by the fall and adds the arms thrown out, LAND_ARMS).
+ */
+export const LAND_DEEP = makeClip({
+  name: 'landDeep',
+  duration: 0.75,
+  keys: {
+    pelY: [0, 0, 0.1, -0.4, 0.25, -0.36, 0.5, -0.14, 0.75, 0],
+    pelPitch: [0, 0, 0.1, 0.35, 0.35, 0.18, 0.75, 0],
+    spPitch: [0, 0, 0.1, -0.08, 0.35, 0.02, 0.75, 0],
+    hdPitch: [0, 0, 0.1, -0.2, 0.75, 0],
+  },
+});
+
 export const LAND = makeClip({
   name: 'land',
   duration: 0.6,

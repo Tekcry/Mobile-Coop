@@ -14,6 +14,7 @@ import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { EnemyPuppet } from './enemyPuppet';
+import { infoAtSpawn } from '../ai/guardInfo';
 import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
@@ -29,6 +30,7 @@ import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
+import { SECTOR_RESTART_TITLE } from '../game/sectors';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -41,6 +43,8 @@ const INTERP_DELAY = 0.12;
  */
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
+  /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
+  private heldPuppet: EnemyPuppet | null = null;
   private puppets = new Map<string, EnemyPuppet>();
   private puppetList: EnemyPuppet[] = [];
   private targets = new Map<string, PartnerTarget>();
@@ -62,6 +66,8 @@ export class CoopClient implements NetAttachment {
   private items = new Map<string, Interactable>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
+  /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
+  private kitSection = 0;
 
   constructor(
     private g: GameState,
@@ -88,6 +94,8 @@ export class CoopClient implements NetAttachment {
       const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
       this.sec = ct;
       g.ctDev = ct;
+      // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
+      g.weapons.markCheckpoint();
       this.offs.push(() => {
         ct.dispose();
         g.ctDev = null;
@@ -264,6 +272,8 @@ export class CoopClient implements NetAttachment {
       if (!p) {
         const np = new EnemyPuppet(g.scene, g.world, g.registry, e.id, e.k);
         np.onShot = (h) => this.sendShot(np.id, h);
+        // (PR 3) the training guard's information: the course slot he appeared at (both sides load the same map; no wire data)
+        np.info = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
         np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
         this.puppets.set(e.id, np);
@@ -476,6 +486,8 @@ export class CoopClient implements NetAttachment {
       }
       case 'banner':
         g.hud.banner(e.title, e.sub);
+        // (sector-restart, M9) the host restarted the section: our side of the clean start (loadout, gadgets, music)
+        if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') g.checkpointReset();
         break;
       case 'feed':
         g.hud.feedItem(e.text);
@@ -521,6 +533,12 @@ export class CoopClient implements NetAttachment {
    */
   private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
     const ct = this.sec;
+    // (sector-restart, M9) a later section went live (the connector loaded it): our loadout now is the one a restart of
+    // it gives back (the host records its own as the section begins)
+    if (msg.ls !== undefined && msg.ls > this.kitSection) {
+      this.kitSection = msg.ls;
+      this.g.weapons.markCheckpoint();
+    }
     if (ct) {
       if (msg.ls !== undefined && msg.ls !== ct.liveSection) ct.setLive(msg.ls);
       if (msg.dn) ct.applyDestroyed(msg.dn);
@@ -594,6 +612,19 @@ export class CoopClient implements NetAttachment {
     this.sec?.frame(dt);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
+    // (G7 fix) the partner holding one of the host's guards: his puppet posed from the partner's MoveState (hostage,
+    // the knockout's lowering, the interrogation), as the host poses him (no wire data)
+    let held: EnemyPuppet | null = null;
+    for (const a of this.avatars.values()) {
+      if (!a.holdTid) continue;
+      const p = this.puppets.get(a.holdTid);
+      if (!p) continue;
+      held = p;
+      p.remoteHeld(a.holdPh, a.holdSub);
+      break;
+    }
+    if (this.heldPuppet && this.heldPuppet !== held) this.heldPuppet.remoteHeld(-1, 0);
+    this.heldPuppet = held;
     for (const tg of this.targets.values()) tg.sync();
     for (let i = 0; i < this.blockers.length; i++) {
       const e = this.blockers[i]!;

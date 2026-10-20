@@ -17,7 +17,7 @@
  *
  * Everything is in seconds: identical results at any step size within reason.
  */
-import { CT, MOVEMENT } from '../config/movement';
+import { CT, MOVEMENT, TENSE } from '../config/movement';
 import { hyp2 } from '../core/mathx';
 import { Spring } from './rigMath';
 
@@ -43,6 +43,8 @@ export interface MotionInput {
   ct: boolean;
   /** (CT prototype M1) The stick is at the slowest speed: pulled behind the body it walks backwards (free movement). */
   slowest?: boolean;
+  /** (G1, audit row 26) The tense sneak near an unaware guard: long deliberate steps (`TENSE.step`). */
+  tense?: boolean;
 }
 
 export function emptyMotionInput(): MotionInput {
@@ -79,9 +81,18 @@ const TURN_SETTLE = 0.12;
  * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
  * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
  */
-export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0): number {
-  return (M.stepLen0 + M.stepLenK * Math.max(0, speed)) * (1 - 0.4 * lateral * lateral);
+export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0): number {
+  // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
+  const s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * Math.max(0, speed));
+  // (G1, audit row 26) the tense sneak's long deliberate steps, by its weight 0..1
+  return (s + (TENSE.step - s) * tense) * (1 - 0.4 * lateral * lateral);
 }
+
+/**
+ * (CT prototype G1 fix, audit row 13) A start's gait clock (CT 110117 @ 6.5-6.75: a full run stride within 0.25 s): for
+ * `time` s after a start from rest the clock counts `share` of the way from the pace to the target pace.
+ */
+export const START_CLOCK = { time: 0.5, share: 1 } as const;
 
 /** (A1.2) One step per this much body turn (rad): a spin is the walk cycle on a tight circle, ~4 steps per 360 (footage 051339). */
 export const TURN_STEP = Math.PI / 2;
@@ -93,8 +104,8 @@ export const TURN_GAIT_MIN = 1.0;
  * cycle) and one step per `TURN_STEP` of yaw. Straight walking is unchanged; a 450 deg/s spin is 2.5 cycles/s (a step
  * per 0.2 s). `max`, not a sum: a run turn keeps its cadence.
  */
-export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0): number {
-  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral)) : 0;
+export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0): number {
+  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense)) : 0;
   const ang = Math.abs(yawRate) > TURN_GAIT_MIN ? Math.abs(yawRate) / (2 * TURN_STEP) : 0;
   return lin > ang ? lin : ang;
 }
@@ -150,6 +161,11 @@ export class MotionDriver {
   backward = false;
   /** (A1.2) Where the body is turning to: the stick heading while free and pushed, else the facing (caps the planner's yaw prediction). */
   faceGoal = 0;
+  /** (G1) The tense sneak's weight 0..1 (eased with `TENSE.tau`), for the gait clock's step. */
+  tense = 0;
+  /** (G1 fix) Time since a Chaos Theory start from rest (s; -1: none) and the pace the spring heads for (m/s). */
+  private startT = -1;
+  private wantPace = 0;
   /** (A1.2) The stick heading last step (NaN: none) and its smoothed sweep rate (rad/s). */
   private stickPrev = Number.NaN;
   private stickRate = 0;
@@ -341,6 +357,10 @@ export class MotionDriver {
       this.stickPrev = Number.NaN;
       this.stickRate = 0;
     }
+    // (G1 fix, audit row 13) a start from rest: the gait clock runs at the pace being reached, not the one reached yet
+    if (pushed && sp < 0.05 && this.state !== 'move') this.startT = 0;
+    else if (this.startT >= 0) this.startT = pushed ? this.startT + dt : -1;
+    if (this.startT > START_CLOCK.time) this.startT = -1;
     if (pushed) {
       const th = Math.atan2(i.vx, i.vz);
       if (this.state !== 'move') this.go('move');
@@ -371,6 +391,7 @@ export class MotionDriver {
     if (Math.abs(this.paceSpring.x - sp) > 1e-6) this.paceSpring.reset(sp);
     const omega = target < sp ? CT_STOP_W / CT.stopTime : CT_START_W / CT.startTime;
     sp = this.paceSpring.step(target, omega, dt);
+    this.wantPace = target;
     // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every speed)
     if (sp < 0 || (target === 0 && sp < CT_REST)) {
       sp = 0;
@@ -405,10 +426,13 @@ export class MotionDriver {
   private finish(dt: number, i: MotionInput, M: MotionTuning): void {
     // --- gait clock and stride modulation
     const sp = this.speed;
+    this.tense += ((i.tense ? 1 : 0) - this.tense) * (1 - Math.exp(-dt / TENSE.tau));
     // (A1.2) the clock counts body turning as well as distance: one step per 90 deg (a spin at a crawl still steps)
     if (sp > 0.02 || Math.abs(this.yawRate) > TURN_GAIT_MIN) {
       const lat = sp > 0.02 ? Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp) : 0;
-      this.phase = (this.phase + gaitRate(sp, this.yawRate, M, lat) * dt) % 1;
+      // (G1 fix) in a start the clock runs START_CLOCK.share of the way to the target pace (the first step lands at ~0.25 s)
+      const spc = this.startT >= 0 && this.wantPace > sp ? sp + (this.wantPace - sp) * START_CLOCK.share : sp;
+      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense) * dt) % 1;
     }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;

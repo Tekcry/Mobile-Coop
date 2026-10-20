@@ -2,10 +2,11 @@
 // that follows the player, then lays them out in a grid (for reviewing blends and timing).
 //   node scripts/anim-sheet.mjs out.png <scenario> [frames=12] [interval=0.1] [view=side|front|back|ots]
 // Scenarios: aim, walk, jog, sneak, crouchrun, sprint, start, stop, crouchstop, walkstop, turn, crouch, reload, swap, grenade,
-// vault, dash, strafe; back to a wall (step 11): wall, wallcrouch, wallslide, wallslideleft, walledge, walledgeleft, lowwall
+// vault, dash, strafe, drop, tense (G1); back to a wall (step 11): wall, wallcrouch, wallslide, wallslideleft, walledge, walledgeleft, lowwall
 // (edge peek / lean both edges arrive with step 12); aimed edge lean-outs (PC1): walledgeaim, walledgeleftaim and their
 // pistol variants walledgeaimp, walledgeleftaimp. reload and swap run drawn (aim held: step 09 holsters by default);
-// holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put)
+// holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put); (F4)
+// walledgelook, walledgeleftlook: at an edge, the camera swung one way then the other
 import { launch, waitOperator } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -13,8 +14,40 @@ const FRAMES = Number(framesArg);
 const INTERVAL = Number(intervalArg);
 const url = process.env.URL ?? `http://localhost:${process.env.E2E_PORT ?? 4173}/`;
 
+/** (G7) The close-quarters scenarios' map, spot and guard. */
+const G7 = {
+  params: 'autostart=warehouse&mode=clear',
+  pos: [2, -2.2],
+  yaw: 0,
+  at0: "g.target.health.invulnerable = true; g.mode.pending.length = 0; g.enemyMgr.clear(); const V = g.player.position.constructor; const e = g.enemyMgr.spawn('grunt', new V(2, 0, -1), false, 0); e.passive = true;",
+};
+const G7_PRESS = "a.input.state.tap('interact');";
+const G7_PICK = (i) => `g.grabMenu.sel = ${i}; a.input.state.tap('interact');`;
+/** (CT prototype G6) The Proving shed door: the body 0.8 m in front of it on its push side (or the pull side), facing it;
+ *  the Open pick runs the door-open move directly (the menu's own input is G5's). */
+const G6_DOOR = (pull) => `const d = g.world.doors.list[0]; const an = d.anchor; const nx = Math.cos(an.yaw); const nz = -Math.sin(an.yaw); const side = ${pull ? 1 : -1} * an.swing; const V = g.player.position.constructor; const yaw = Math.atan2(-nx * side, -nz * side); g.player.controller.teleport(new V(d.cx + nx * side * 0.8, an.hinge.y + 0.05, d.cz + nz * side * 0.8), yaw); g.player.cam.yaw = yaw; g.player.cam.pitch = 0;`;
+const G6_OPEN = "g['startDoorOpen'](0, () => g.world.doors.open(g.world.doors.list[0], 'quiet'));";
+
 /** Scenario: setup (once) and per-frame input (time t in s since the first frame). */
 const SCENARIOS = {
+  // (CT prototype G7) close quarters on the Warehouse (Proving has no guards): a calm grunt 1.2 m ahead facing away
+  // (as e2e-takedown); the grab (step-in + pull-in), the hostage walk, the knockout from the hold, interrogate, the
+  // body lift (grab -> Carry: the knockout, then the 2.0 s lift), the carry walk, the put down
+  grab: { ...G7, pre: 0.4, input: () => ({}), at: { 0: G7_PRESS } },
+  holdidle: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({}) },
+  holdwalk: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({ y: 1 }) },
+  holdko: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({}), at: { 0: G7_PICK(0) } },
+  interrogate: { ...G7, pre: 1.8, preAt: { 0.4: G7_PRESS }, input: () => ({}), at: { 0: G7_PICK(4) } },
+  lift: { ...G7, pre: 2.75, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({}) },
+  carrywalk: { ...G7, pre: 5.0, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({ y: 1 }) },
+  carrydrop: { ...G7, pre: 5.0, preAt: { 0.4: G7_PRESS, 1.8: G7_PICK(2) }, input: () => ({}), at: { 0: "a.input.state.tap('interact');" } },
+  // (CT prototype G6, AUDIT-WALLS row 4) the normal door open: the step to the latch side, the hand on the leaf, the swing
+  dooropen: { pre: 0.6, at0: G6_DOOR(false), input: () => ({}), at: { 0: G6_OPEN } },
+  dooropenpull: { pre: 0.6, at0: G6_DOOR(true), input: () => ({}), at: { 0: G6_OPEN } },
+  // (G6, rows 1 / 18) crouched on the wall and sliding: the side-on crouch-walk with the hand on the knee, and the reversal
+  wallcrouchslide: { wall: { low: false, k: 2.5 }, pre: 1.8, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');" }, input: (t) => ({ x: t < 0.7 ? 1 : t < 1.4 ? -1 : 0 }) },
+  // (G6, row 12) aiming at a wall 0.45 m in front: the rifle up muzzle-high
+  aimwall: { wall: { low: false, k: 2.5, out: 0.45 }, pre: 0.6, input: () => ({ ads: true }) },
   walk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
   jog: { pos: [-8, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }) },
   sneak: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.4 }, input: () => ({ y: 0.4 }), at0: "a.input.state.tap('crouch');" },
@@ -56,21 +89,37 @@ const SCENARIOS = {
   wallcrouch: { wall: { low: false, k: 2.5 }, pre: 1.8, preAt: { 0.1: "a.input.state.tap('cover');", 0.8: "a.input.state.tap('crouch');" }, input: () => ({}) },
   wallslide: { wall: { low: false, k: 2.5 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t < 1.2 ? 1 : 0 }) },
   wallslideleft: { wall: { low: false, k: -2.5 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t < 1.2 ? -1 : 0 }) },
-  walledge: { wall: { low: false, k: -1.2 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: () => ({ x: 1 }) },
-  walledgeleft: { wall: { low: false, k: 1.2 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: () => ({ x: -1 }) },
+  // (G6) the slide is 0.35 m/s now: the warm-up slides 2.4 s toward the edge (it stopped short of it at 1.2 s)
+  walledge: { wall: { low: false, k: -1.2 }, pre: 3.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 ? 1 : 0 }), input: () => ({ x: 1 }) },
+  walledgeleft: { wall: { low: false, k: 1.2 }, pre: 3.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 ? -1 : 0 }), input: () => ({ x: -1 }) },
   // (PC1) at the edge (slid there in the warm-up, stick released), then aim: the lean-out with its edge grip
-  walledgeaim: { wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({ ads: true }) },
-  walledgeleftaim: { wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
-  walledgeaimp: { weapon: 'pistol', wall: { low: false, k: -1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? 1 : 0 }), input: () => ({ ads: true }) },
-  walledgeleftaimp: { weapon: 'pistol', wall: { low: false, k: 1.2 }, pre: 2.6, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 2.2 ? -1 : 0 }), input: () => ({ ads: true }) },
+  walledgeaim: { wall: { low: false, k: -1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? 1 : 0 }), input: () => ({ ads: true }) },
+  walledgeleftaim: { wall: { low: false, k: 1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? -1 : 0 }), input: () => ({ ads: true }) },
+  walledgeaimp: { weapon: 'pistol', wall: { low: false, k: -1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? 1 : 0 }), input: () => ({ ads: true }) },
+  walledgeleftaimp: { weapon: 'pistol', wall: { low: false, k: 1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? -1 : 0 }), input: () => ({ ads: true }) },
+  // (F4) at each edge (slid there in the warm-up, stick released), the camera swung one way then the other: the body
+  // leans only to the open side, the camera slides past the edge as the look turns toward it
+  walledgelook: { wall: { low: false, k: -1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? 1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
+  walledgeleftlook: { wall: { low: false, k: 1.2 }, pre: 4.0, preAt: { 0.1: "a.input.state.tap('cover');" }, warm: (t) => ({ x: t > 0.6 && t < 3.6 ? -1 : 0 }), input: () => ({}), at: { 0: 'g.player.cam.addLook(0.9, 0);', 0.6: 'g.player.cam.addLook(-1.8, 0);' } },
   lowwall: { wall: { low: true, k: 0.8 }, pre: 1.2, preAt: { 0.1: "a.input.state.tap('cover');" }, input: (t) => ({ x: t > 0.6 && t < 1.2 ? 1 : 0 }) },
   aim: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ ads: true }) },
+  // (CT prototype G2, AUDIT-AIM row 18) the aim walk forward and the aimed strafe: head and gun hold still in CT (050541)
+  aimwalk: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: 0.6 }, input: () => ({ ads: true, y: 0.6 }) },
+  aimstrafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
+  // (BC) the aim crouched, and the pistol both ways
+  aimcrouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
+  aimpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }) },
+  aimcrouchpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   vault: { pos: [-3.8, -6], yaw: -Math.PI / 2, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('jump');" } },
+  // (CT prototype G1) a drop of ~1.4 m onto open floor (the deep landing, arms out); the tense sneak (as if an unaware
+  // guard were close: the controller's test hook) moving and then still
+  drop: { pos: [0, -14], y: 1.4, yaw: Math.PI / 2, pre: 0.02, input: () => ({}) },
+  tense: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.45 }, input: (t) => ({ y: t < 0.9 ? 0.45 : 0 }), at0: "g.player.controller.tenseForce = true; a.input.state.tap('crouch');" },
 };
 
 const sc = SCENARIOS[scenario];
 if (!sc) throw new Error(`unknown scenario ${scenario}`);
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+const { browser, page, errors } = await launch({ url, params: sc.params ?? 'autostart=proving' });
 // (operators 11e) Wren's LOD0 on screen before anything is measured or drawn
 await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
 // (11e fix r1) never draw a sheet with no Wren on it: a timeout fails the run
@@ -81,13 +130,13 @@ if ((await waitOperator(page)) < 0) {
 }
 // (PC1) the toasts too ("Ready to play offline", graphics tier)
 await page.addStyleTag({ content: 'body > :not(#game), .hud, .screens, .toasts, .toast { display: none !important; }' });
-await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
+await page.evaluate(({ pos, yaw, wall, fixCam, weapon, y0 }) => {
   const a = window.__app;
   const g = a.current;
   const p = g.player;
   a.loop.manual = true;
   const V = p.controller.pos.constructor;
-  let y = 0;
+  let y = y0 ?? 0;
   if (wall) {
     // a wall segment with open floor in front of it (as e2e-netmove's findWall), low or high as asked
     const clear = (x0, z0, x1, z1, h) => !g.ballistics.ray(new V(x0, h, z0), new V(x1, h, z1), 1).hit;
@@ -106,7 +155,8 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
     }
     if (!found) throw new Error(`no free ${wall.low ? 'low' : 'high'} wall on Proving`);
     const k = wall.k < 0 ? found.len + wall.k : wall.k;
-    pos = [found.ax + found.tx * k + found.nx * 0.85, found.az + found.tz * k + found.nz * 0.85];
+    const out = wall.out ?? 0.75;
+    pos = [found.ax + found.tx * k + found.nx * out, found.az + found.tz * k + found.nz * out];
     yaw = Math.atan2(-found.nx, -found.nz);
     y = found.y + 0.05;
   }
@@ -143,8 +193,8 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon }) => {
     c.position.set(r.x + off[0], r.y + Number(globalThis.__sheetCamY ?? 1.05), r.z + off[1]);
     c.setTarget(new r.constructor(r.x + fx * 0.15, r.y + Number(globalThis.__sheetTargetY ?? 0.85), r.z + fz * 0.15));
   };
-  a.loop.stepHeadless(0.3);
-}, { pos: sc.pos ?? [0, 0], yaw: sc.yaw ?? 0, wall: sc.wall ?? null, fixCam: !!sc.fixCam, weapon: sc.weapon ?? null });
+  a.loop.stepHeadless(y0 > 0 ? 0.01 : 0.3);
+}, { pos: sc.pos ?? [0, 0], yaw: sc.yaw ?? 0, wall: sc.wall ?? null, fixCam: !!sc.fixCam, weapon: sc.weapon ?? null, y0: sc.y ?? 0 });
 await page.evaluate((v) => (window.__view = v), view);
 await page.evaluate((o) => Object.assign(window, o), { __sheetDist: process.env.SHEET_DIST, __sheetCamY: process.env.SHEET_CAM_Y, __sheetTargetY: process.env.SHEET_TARGET_Y });
 
@@ -187,7 +237,7 @@ for (let f = 0; f < FRAMES; f++) {
     const g = window.__app.current;
     const c = g.player.controller;
     const r = g.player.rig;
-    return `${c.motion.state} ${c.speed.toFixed(2)} ${r.planner.L.contact ? 'L' : '-'}${r.planner.R.contact ? 'R' : '-'}`;
+    return `${c.motion.state} ${c.speed.toFixed(2)} ${r.planner.L.contact ? 'L' : '-'}${r.planner.R.contact ? 'R' : '-'}${c.crouched ? ' C' : ''}${c.kneeling ? ' K' : ''}`;
   });
   await new Promise((r) => setTimeout(r, 30));
   const vp = page.viewportSize();

@@ -135,6 +135,14 @@ export function inExitZone(zone: NonNullable<CourseDef['exitZone']>, x: number, 
   return x >= Math.min(b[0], b[2]) && x <= Math.max(b[0], b[2]) && z >= Math.min(b[1], b[3]) && z <= Math.max(b[1], b[3]) && Math.abs(y - zone.floorY) < yTol;
 }
 
+/** The objective text of bay `bayId` (the HUD's step line while the bay has no drills, course-ready F1), or null. */
+export function bayObjective(def: CourseDef, bayId: string): string | null {
+  const list = def.objectives;
+  if (!list) return null;
+  for (let i = 0; i < list.length; i++) if (list[i]!.bay === bayId) return list[i]!.text;
+  return null;
+}
+
 /** A station panel's device id (sw-p1 ...): an optional read, never a gate (F1b). */
 export function isPanelId(id: string): boolean {
   return /^sw-p\d+$/.test(id);

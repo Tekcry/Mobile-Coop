@@ -9,10 +9,17 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 ## HUD
 - `Hud.setAccess` per frame from `settings.access`: health = the screen-edge vignette plus the health bar
   (`access.healthBar`, default on; off leaves the vignette as the only readout), the weapon readout fades (`.quiet`) 3 s
-  after the last change, a hold ring on the use prompt (`setInteract(text, progress)`), subtitles
+  after the last change, a hold ring on the use prompt (`setInteract(text, progress)`; since G5 only on the team-move
+  direct path), subtitles
   (`BarkView.subtitles`), colour-safe arcs (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`,
   held actions by tap (`access.holdToggle`, `GameState.holdLatch`). No medkit count: health comes back only at wall
   stations (G20, G98).
+- (CT prototype G5) The context action menu, top right (`ui/hud/contextMenuView.ts`, `.hud-ctx` in styles.css): a
+  header box (INTERACT, or BACK TO GAME while A is held) over the options box, inside a dim corner-tick frame. CT's
+  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (pushed under the
+  minimap where they would overlap), 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
+  Condensed. Our own look: steel borders, the highlight a thin outline with bright corner ticks (no fill), a fill line
+  on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
 - Decided, not built yet: mission objectives live in the menu, as in CT (G108); the Fallow course keeps its always-on
@@ -28,11 +35,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `InputManager.applyModeClass`) show the pad's glyphs whenever a pad is the last device used. The binding table:
   `docs/systems/input-and-loop.md`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
-- Controls (`ControlsScreen`, Settings > Accessibility; loco D7): a Controller and a Keyboard & mouse tab to remap
+- Controls (`ControlsScreen`, Settings > Controls > Remap controls, the one Controls place: no Pause item, menu-notes A2; loco D7): a Controller and a Keyboard & mouse tab to remap
   (`bindPanel`: two slots per verb, capture with a 5 s timeout, conflict warnings on both rows and a summary, reset per
   device with a confirm; pad: A rebinds, Y clears; Esc cancels, and on the pad holding B 1 s cancels). Decided, not
-  built yet (G22): Menu / Start or Esc cancels a capture and B stays bindable. Settings > Mouse & Keyboard shows the same
-  keyboard panel; Settings > Gameplay has hold / toggle for aim, crouch, sprint, back to wall and grab.
+  built yet (G22): Menu / Start or Esc cancels a capture and B stays bindable.
+  Settings > Controls also holds hold / toggle (aim, crouch, back to wall, sprint) and the pad sensitivities.
 - Settings > Controller: Vibration (on / off), Rumble strength (`gameplay.rumble` 0-100%, `config/rumble.ts`), Test
   vibration.
 - Difficulty (`ui/difficultyRows.ts`): one row, CT's fixed levels Rookie, Normal, Realistic, Perfectionist (G106; no
@@ -53,6 +60,18 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   stack; main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (LB / RB
   cycle). No `backdrop-filter` over the canvas (blurring over WebGL is expensive). The `.screens` container is
   pointer-events: none; children opt in. The back button (`Screen.attachChrome`) sits top left.
+- Launch and title (menu-notes M1, M2): `index.html` #boot shows only the NIGHT / SHIFT wordmark in the title's own
+  position; `MenuState.prepare` (`world/menuGate.ts`, pure) holds it until the hero LOD is drawn, both weapon meshes
+  are in and the stage's materials are ready (12 s with no bytes arriving, 120 s cap, 12 s under webdriver, `?bootCap=`
+  override; errors still reveal). Then `TitleScreen.arm()` fades in only the prompt; presses before that are ignored.
+  The title stage is pure black (spots, hemi, ambient, goggle emissive at 0). The press (`ui/titleSequence.ts`) fades the
+  wordmark and prompt out; the title stays on top, empty, while the goggles flicker on T1 in full darkness, then the
+  lights rise and the main menu fades in under it (M3); a second press skips to the lit menu (A3). Launch only; after a
+  match the stage is lit at once. No green spill light on the face (it read as a glow on the helmet, M4). Back on the main menu does
+  nothing (A1). Read-backs: `MenuState.heroLod`, `heroLodWanted`, `bootGate`, `titleLight`. Match loads keep the
+  status-line boot screen.
+- Menu void weapons (menu-notes notes 5-6): every void shot holds the Blender rifle or pistol (`world/menuPoses.ts`
+  picks the hold per shot; the other weapon sits in its carry slot); the gun shows only once its mesh has loaded.
 - Title: Night Shift (main menu `NIGHT` / `SHIFT`, boot screen, page and app titles, install manifest; a preview build
   is "Night Shift (Preview ...)"). The internal ids keep the old names: IndexedDB `shoulder-strike`, the save export
   magic `shoulder-strike-save`, the co-op app id.

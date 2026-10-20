@@ -5,7 +5,8 @@
  * Each player starts a hack at their own panel (A once); the hack runs `hack` seconds while the player stays at the
  * panel. A finished hack is `ready` and waits for the other panel. Both ready within `window` seconds of each other:
  * both `done`, the door opens. A hack aborted early (the player walked off or went down) or the window running out
- * resets both panels and costs the failing player `cost` health (never below `floorHp`). It never ends the run.
+ * resets both panels and costs the failing player `cost` health (never below `floorHp`). A partner who never started
+ * (the other panel idle when the window runs out) resets both at no cost (Michael, 2026-10-19). It never ends the run.
  */
 
 export const SCANNER = {
@@ -43,10 +44,10 @@ export interface ScanPair {
 /** What a step did (one per step at most). */
 export interface ScanResult {
   kind: 'none' | 'open' | 'fail';
-  /** fail: the player who pays (-1 none). */
+  /** fail: the player who pays (-1 none: 'alone'). */
   who: number;
-  /** fail: 'abort' (left the panel early) or 'late' (the window ran out). */
-  why: 'abort' | 'late' | '';
+  /** fail: 'abort' (left the panel early), 'late' (the window ran out) or 'alone' (the partner never started: no cost). */
+  why: 'abort' | 'late' | 'alone' | '';
 }
 
 export function newScanPair(): ScanPair {
@@ -83,7 +84,7 @@ export function scanReset(s: ScanPair): void {
   }
 }
 
-function fail(s: ScanPair, out: ScanResult, who: number, why: 'abort' | 'late'): ScanResult {
+function fail(s: ScanPair, out: ScanResult, who: number, why: 'abort' | 'late' | 'alone'): ScanResult {
   scanReset(s);
   out.kind = 'fail';
   out.who = who;
@@ -125,8 +126,8 @@ export function scanStep(s: ScanPair, dt: number, atA: boolean, atB: boolean, ou
     const k = ra ? 0 : 1;
     const o = ra ? 1 : 0;
     if (s.clock - s.at[k] > SCANNER.window + 1e-9) {
-      // the late panel's player pays; nobody on it: the one who hacked alone pays (one player cannot do both)
-      return fail(s, out, s.ph[o] === SC_HACKING ? s.who[o] : s.who[k], 'late');
+      // the late panel's player pays; nobody started it: both reset at no cost (Michael, 2026-10-19)
+      return s.ph[o] === SC_HACKING ? fail(s, out, s.who[o], 'late') : fail(s, out, -1, 'alone');
     }
   }
   return out;
