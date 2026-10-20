@@ -1,7 +1,8 @@
 # Test speed - state
 
-**Now (2026-10-20 11:10):** round 3 of test fixes committed; full run 2 at `E2E_JOBS=2` next (after CT Core's G8
-request).
+**Now (2026-10-20 13:00): PAUSED** for anim-metrics (Michael's movement priority, orchestrator). Round 4 is committed
+and pushed (30c2bbda). Full run 3 at `E2E_JOBS=2` on 30c2bbda was started three times and stopped each time for runner
+requests; it has not finished.
 
 **Next:** full runs at `E2E_JOBS=2` until 3 in a row have no "not ok"; then docs (testing-tools, backlog, CHANGELOG) and
 the PR.
