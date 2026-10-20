@@ -201,7 +201,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |
 | `cover/` | Cover data for enemy AI and level build (coverData, corners); back-to-wall reuses it |
-| `weapons/` | Data-driven weapons (the CT rifle and pistol, G76), ballistics, grenades, weapon carry; `aimAssist.ts` is still wired for the pad although the rule is no aim assist (G16, follow-up in `docs/progress.md`) |
+| `weapons/` | Data-driven weapons (the CT rifle and pistol, G76), ballistics, grenades, weapon carry (no aim assist, G16) |
 | `ai/` | Enemy brains, nav grid, perception, alert states, patrols, archetypes |
 | `world/` | Level builder, map builders, anchors, rooms, lights, light rig, doors, surfaces |
 | `voxel/` | Voxel level, characters and weapons, lamp bake and light volume, sky bake |
