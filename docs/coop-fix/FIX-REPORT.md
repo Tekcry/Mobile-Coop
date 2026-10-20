@@ -126,3 +126,8 @@ pending the job lead's run.
   only keeps its last input while covered. This is expected and out of scope.
 - If the new frustum assert fails in e2e-ctcourse because the course's active camera is not the player camera at
   that point, drop that one assert. The drawn assert is the bug check.
+
+## Fix round (job lead, after CHECK.md)
+- CHECK.md item 1: the background-tick opt-out keys on `navigator.webdriver` (automated browsers, the e2e pumps), not
+  on `?net=local`, so two-tab `?net=local` play (one tab always hidden) gets the fix too. Hand checks: a `?net=local`
+  two-tab run with the host tab in the background, and a WebRTC run with one window over the other.

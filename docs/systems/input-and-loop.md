@@ -22,7 +22,7 @@ Desktop only: pad first, then keyboard and mouse (loco D1, G12). There is no tou
 inside an accumulator (max 4 steps/frame, backlog dropped). Order per step:
 `fixedUpdate(dt)` -> `onBeforePhysicsObservable` -> `physics._step` -> `onAfterPhysicsObservable`.
 After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
-Hidden-page tick (coop-fix): a live co-op session (not `?net=local`) holds `loop.holdBackgroundTicks()` (counted,
+Hidden-page tick (coop-fix): a live co-op session (any transport; not in automated browsers, `navigator.webdriver`, whose e2e pumps step hidden pages themselves) holds `loop.holdBackgroundTicks()` (counted,
 released at its dispose). While `document.hidden` (rAF stopped: another window over it, minimised), a bundled worker
 (`core/bgTickWorker.ts`, 30 Hz) runs the same steps and frame updates for the elapsed time (capped 0.1 s,
 `core/bgTick.ts`) without rendering. rAF and the ticks share `lastT`, so time is consumed once; a `stepHeadless`
