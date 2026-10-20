@@ -91,10 +91,10 @@ export const DARK_TARGETS: readonly { level: number; band: 'dark' | 'mid' | 'lit
 ];
 
 /** With night vision on (Step 4b): a dark interior reads, lamp light is near white. (nv-pass slice 1: the white clip
- *  starts later and the card, a non-voxel surface, takes the capped body fill, so both bands reach lower; estimates,
- *  the GPU check sets them. `scripts/e2e-darkness.mjs` mirrors this table.) */
+ *  starts later and the card, a non-voxel surface, takes the capped body fill, so both bands reach lower; the dark
+ *  min is from the GPU check, 13.7% and readable, nv-pass BRIEF A2. `scripts/e2e-darkness.mjs` mirrors this table.) */
 export const VISION_TARGETS: readonly { level: number; min: number; max: number }[] = [
-  { level: 0.12, min: 0.2, max: 0.45 },
+  { level: 0.12, min: 0.1, max: 0.45 },
   { level: 0.7, min: 0.7, max: 1 },
 ];
 

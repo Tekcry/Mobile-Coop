@@ -39,3 +39,9 @@ through like a carousel."
 ## Assumed decisions (undo in brackets)
 - A1 Modern green phosphor (the orchestrator's assumption; Michael did not pick). White phosphor is the alternative.
   [Undo: the tint constants in the night-vision look.]
+- A2 e2e-darkness night-vision target at level 0.12: min 0.2 -> 0.1, max 0.45 kept (orchestrator approved 2026-10-20
+  19:10 on evidence). The probe card is a non-voxel surface, so it takes slice 1's capped body fill; GPU at 4a6cd99f it
+  reads 13.7% (rgb 16,40,14), and the s12b sheet shows yard-look, wh-workshop and yard-s7-stair readable under NV
+  (walls, rails, the crouched guard). Lifting the card to 0.2 would brighten bodies again ("the bodies are very
+  bright"). [Undo: `VISION_TARGETS` in `src/world/darkCurve.ts` and `scripts/e2e-darkness.mjs`, `tests/darkCurve.test.ts`
+  ratio 2.5 -> 5, and raise `BODY_FILL.nv`.]

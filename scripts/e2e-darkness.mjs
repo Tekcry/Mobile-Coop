@@ -17,7 +17,7 @@ const TARGETS = [
   { level: 0.7, min: 0.45, max: 1 },
 ];
 const NV = [
-  { level: 0.12, min: 0.2, max: 0.45 },
+  { level: 0.12, min: 0.1, max: 0.45 },
   { level: 0.7, min: 0.7, max: 1 },
 ];
 let failed = false;

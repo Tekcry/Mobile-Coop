@@ -18,8 +18,8 @@ describe('the darkness curve (3.6 Step 4b, bible L5 / L7)', () => {
     // the dark band's top is under the shadow threshold; the lit target over the lit one
     expect(DARK_TARGETS.find((t) => t.band === 'dark' && t.level > 0.2)!.level).toBeLessThan(LIGHT.shadow);
     expect(DARK_TARGETS.find((t) => t.band === 'lit')!.level).toBeGreaterThan(LIGHT.lit);
-    // night vision: the dark reads, light is near white (nv-pass slice 1: the clip starts later)
-    expect(VISION_TARGETS[0]!.min).toBeGreaterThanOrEqual(DARK_TARGETS[0]!.max * 5);
+    // night vision: the dark reads, light is near white (nv-pass: the clip starts later; the card takes the capped body fill, BRIEF A2)
+    expect(VISION_TARGETS[0]!.min).toBeGreaterThanOrEqual(DARK_TARGETS[0]!.max * 2.5);
     expect(VISION_TARGETS[1]!.min).toBeGreaterThanOrEqual(0.7);
     expect(VISION_TARGETS[1]!.min).toBeGreaterThan(VISION_TARGETS[0]!.max);
   });
