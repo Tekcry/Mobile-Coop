@@ -45,8 +45,15 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
   worktree root is a local flag (excluded from git).
 
 ## Polish list (non-blocking)
+- Grain 0.06 -> 0.05 if Michael finds it dirty (now about 1.7% at black, 0.7% lit; G101 about 1%).
+- The settings vignette stacks on the frame (corners about 0.2).
+- No thermal or electro rows on the sheets; photo-mode letterbox bars in some wh-* rows.
+- `BODY_FILL.nv` 0.35 -> 0.45 if guards should stand out more.
+- `tests/__snapshots__/visionIsolation.test.ts.snap` shows modified after every test run (line endings only).
+- e2e-desktop "saved as a performance note without a tap" flake: add to `docs/backlog.md` flaky list at the job end.
 
 ## Done
+- 2026-10-20: checker on slices 1-2: FIX (CHECK-S12.md); check + smoke, e2e-mouse, e2e-stealth-ai, e2e-desktop pass.
 - 2026-10-20: GPU before / after sheets (s12), e2e-darkness run (1 fail, above).
 - 2026-10-20: slice 1 (green phosphor, body-fill cap under NV, gain 8 -> 6 with a lifted floor, gamma 1.3, white clip
   0.85, grain stronger in the dark, NV bloom on HDR with strength 0.6, pipeline bloom off in NV, `?gfx=min` lift) and
@@ -60,7 +67,7 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
 Night Shift | nv-pass: RESUME. Folder C:/NightShift/Mobile-Coop-nv-pass, branch feature/nv-pass (git pull --ff-only;
 branch guard from CLAUDE.md before every write). Read CLAUDE.md "Sessions", docs/ROADMAP.md, then docs/nv-pass/BRIEF.md,
 PLAN.md, SURVEY.md and STATE.md, and continue from "Now" / "Next" with the loop in docs/systems/session-method.md
-(next: a fresh Opus checker for slices 1-2 against the sheets in docs/nv-pass/shots/). The vision carousel (slice 3)
+(next: the one fix round from CHECK-S12.md, then the GPU window with master before shots re-taken). The vision carousel (slice 3)
 waits for the orchestrator's go after CT Core's anim-rework slice 1 merges. Report to "Night Shift | Orchestrator".
 Opus, high effort.
 ```
