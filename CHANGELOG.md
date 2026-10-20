@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased - anim-metrics-2 (into feature/ct-prototype)
+- Debug overlay (F3, or Settings > Graphics > Show FPS overlay): a live anti-crab readout during play: knee separation
+  over the hip width, the planted foot track, knee outside the ankle and elbow outside the shoulder, green inside the
+  ranges and red outside, with the gait and state. Allocation-free per frame (`crabFrame` in `src/anim/audit/metrics.ts`).
+- Tests: the `CRAB` ranges tightened to human gait data (knees 0.5-1.1 x the hips, planted feet within 7 cm of the line,
+  knees at most 3 cm outside the ankles, elbows at most 6 cm out; crouched 1.25 and 8 cm); `e2e-anim` with
+  `CRAB_STATES=1` measures the walk's sub-states at speeds 1-3. Findings in `docs/anim-rework/METRICS.md`: the aimed
+  strafe is the crab (knees 2-2.8x the hips, feet up to 53 cm off the line), then turns from a standstill, starts and
+  direction changes.
+
 ## Unreleased - anim-metrics (into feature/ct-prototype)
 - Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
   and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,
