@@ -12,6 +12,9 @@ animation.
 ## Goal (in order, one commit each)
 1. Per-joint offsets per state: spine, chest, neck, head, shoulders, upper arms, elbows, wrists, hips, knees, ankles,
    toes on 3 axes, applied after the clip and before IK; a mirror lock (left = right mirrored).
+   (Item 2 addition, Michael approved 2026-10-21 01:15: a targeting strength slider per limb, left / right hand and
+   left / right foot, 0 to 1, per state, default identity (today's IK weight), so joint offsets show instead of being
+   pulled back by hand-on-gun or planted-foot IK; table in our file, one-line hooks in IK / footPlanner.)
 2. Hand and foot placement: per state and weapon, position offsets (fwd / up / out) for each hand and foot IK target,
    hand rotation, hand-on-gun grip offsets. Plus a Weapon group per weapon (rifle, pistol, launcher / knife if held) and
    per state: gun scale (visual only; ballistics, aim ray and gameplay muzzle origin unchanged), gun position / rotation
@@ -36,6 +39,6 @@ animation.
 - Checks: `npm run check`, e2e-anim, e2e-menus (laptop via the orchestrator). Lean, one check each.
 
 ## Michael's answers
-(none yet)
+- M1 (2026-10-21 01:15, via the orchestrator): add a per-limb IK targeting strength slider to item 2.
 
 ## Assumed decisions (undo in brackets)

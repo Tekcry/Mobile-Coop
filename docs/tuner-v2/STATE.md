@@ -5,7 +5,11 @@ Worktree and branch from master 6a4fb07f (4.20.1; node_modules junction to Mobil
 the camera-cue PR.
 
 ## Next
-1. Read docs/anim-tuner/STATE.md (the group API); item 1 implementer (Opus), check, commit; then items 2, 3, 4.
+1. Item 1 done (c32e7c26 + fix 0e73c3b2, CHECK1.md); laptop check + smoke, e2e-anim, e2e-menus on 0e73c3b2 queued.
+   Item 2 implementer running (ITEM2.md when done).
+2. Then bring in the section registry (feature/tuner-camera @ df00a947: `src/anim/tuneRegistry.ts`, registerTuneSection;
+   docs/anim-tuner/STATE.md "Section registry (for other jobs)"), merge or cherry-pick only its registry commits; do not
+   touch the camera section or the pad map. Wire items 1-2 through it (one commit), check; then items 3 and 4.
 
 ## Open
 

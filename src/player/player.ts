@@ -22,6 +22,7 @@ import type { TraverseKind } from '../anim/animGraph';
 import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStance';
 import { TUNE_LOCAL, TUNE_STATE, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
 import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
+import { handsBegin, handsEnd, handsWeaponOf } from '../anim/tuneHands';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -507,9 +508,11 @@ export class Player {
     }
     tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
     jointsBegin(TUNE_STATE.body, dt); // (tuner-v2) the per-joint offsets of the same state, eased over dt
+    handsBegin(TUNE_STATE.body, handsWeaponOf(this.rig), dt); // (tuner-v2 item 2) hand / foot placement, the Weapon group
     try {
       this.rig.animate(dt, rp);
     } finally {
+      handsEnd();
       jointsEnd();
       tuneEnd(this.rig);
     }
