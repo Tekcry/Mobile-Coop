@@ -1,30 +1,22 @@
 # Test speed - state
 
-**Now (2026-10-20 16:40):** round 7 committed and pushed (the locked-row toast wait in e2e-pad, on top of bc10b3c7).
-Full run 5 (bc10b3c7) at `E2E_JOBS=2`: every required suite ok, only e2e-pad failed (KNOWN FLAKY, "the locked row
-toasts its reason", now a condition wait). That is clean by the runner's own count, but e2e-pad printed a "not ok", so
-it is not counted toward the two; the count starts again on the next run.
+**Now (2026-10-20 21:35):** done. Full runs 6 and 7 on 7221641c at `E2E_JOBS=2` are clean (no "not ok", e2e-pad
+included, no reruns): the done criteria are met. Docs written (`docs/systems/testing-tools.md`, `docs/backlog.md`,
+CHANGELOG "Unreleased - test-speed"); one PR to master open, the orchestrator sets the version (patch).
 
 **Next:**
-1. Two consecutive full runs at `E2E_JOBS=2` on the laptop (BelowNormal) with no "not ok" anywhere (e2e-pad included)
-   and no reruns, on the branch head:
-   `RUN_JOBS=2 RUN_TIMEOUT=900 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-runner.ps1 -Label ts-run6 -Commit <head> -Steps "build;full" -Low`
-   (run from this folder; results in `C:/NightShift/scratch/runs/<label>/`). Exceptions agreed with the orchestrator:
-   an e2e-netmove doorPeek failure counts as known (a master gap until CT Core's anim-rework PR with e4d85253 lands).
-2. A new failure: read its log, fix the wait (sim clock, a condition wait, or a load bound), log it in "Findings and
-   fixes", commit, and the count starts again.
-3. Then: docs (`docs/systems/testing-tools.md` the e2e-ctcourse parts, `LOAD_MS`, `__afterSim`, one-poll `press`;
-   `docs/backlog.md` "Flaky e2e suites": e2e-pad's state; CHANGELOG "Unreleased - test-speed"), and one PR to master
-   (the orchestrator sets the version). In the PR: the 12-15 min figure at `E2E_JOBS=2` is measured on the desktop
-   later, not a blocker.
-4. Merging master or ct-prototype: take CT Core's versions of the e2e-ctcourse jammer helper and stations 3 / 4 (aim
-   after LT, RB held) and of e2e-netmove's drawn-state step (X tap after the LT release, with a timeout).
+1. The orchestrator reviews and merges the PR (master merges cleanly into 7221641c, checked 21:35).
+2. Later, not a blocker: the 12-15 min figure at `E2E_JOBS=2` is measured on the desktop.
+3. e2e-pad off `KNOWN_FLAKY` once it has run clean in a few more full runs (it passed in runs 6 and 7 and in every
+   runner request since).
 
 **Open:**
 - doorPeek (item 5): a real parity gap, not a test flake; CT Core's game fix (e4d85253, the remote's doorPeek feet
   settle frame-rate independently) is on feature/ct-prototype, not on master yet. Measured there: max 2.4 cm.
 - `E2E_JOBS=2` on the laptop is no faster than `E2E_JOBS=1` (1330-1745 s vs 1140-1650 s): the laptop is CPU-bound at
   BelowNormal. The gain from two jobs and the e2e-ctcourse split is on the desktop.
+- Seen on Sector Ops 9b40f469 at jobs=2 (21:10), passed solo: e2e-desktop:1 "the result is saved as a performance note
+  without a tap" right after a 5 fps benchmark. Not seen on this branch; watch it.
 - e2e-levels "a runner climbs the rack ladder" failed once (run 4, 30 s of sim, no ladder taken) and passed in every
   other run: watch it.
 
@@ -50,6 +42,8 @@ it is not counted toward the two; the count starts again on the next run.
 | 2026-10-20 15:07 | 8f9ebf14 (master cf73f8b5 merged) | full, jobs=2, BelowNormal (laptop) | FAIL: e2e-menus and e2e-pad (`page.goto` past 30 s: page loads under load), e2e-ctcourse:3 (station 6 "the late hack costs the client health" timed out at x0.46 sim; passed in run 2); the co-op suites, ctcourse:1 and :2 pass | 1743 s (summed 3418 s) |
 | 2026-10-20 15:40 | 03a6ee67 | full, jobs=2, BelowNormal (laptop) | FAIL: e2e-ctcourse:3 (station 6 again: the late press missed the 1.5 s sync window, "-1:alone"), e2e-menus (title fade 0.57 after a fixed 0.5 s), e2e-levels (a runner never took the ladder in 30 s of sim; passed every other run), e2e-pad (connect toast after a fixed 250 ms, KNOWN FLAKY) | 1504 s (summed 2947 s) |
 | 2026-10-20 16:09 | bc10b3c7 | full, jobs=2, BelowNormal (laptop) | every required suite ok ("all e2e suites passed"); e2e-pad FAIL (KNOWN FLAKY: "the locked row toasts its reason", read at once; now a condition wait). Not counted: a "not ok" | 1330 s (summed 2596 s) |
+| 2026-10-20 17:28 | 7221641c | full, jobs=2, BelowNormal (laptop) | CLEAN: all e2e suites passed, 0 "not ok" (clean 1 of 2) | 1430 s |
+| 2026-10-20 21:14 | 7221641c | full, jobs=2, normal priority (laptop; Michael freed it, 2026-10-20) | CLEAN: all e2e suites passed, 0 "not ok" (clean 2 of 2) | 1229 s |
 
 ## Findings and fixes
 | Failure (where) | Cause | Fix |
@@ -70,6 +64,8 @@ it is not counted toward the two; the count starts again on the next run.
 | e2e-ctcourse 240-280 s, one job | eight stations in sequence | `--part=1..3` (stations 1-3, 4-5, 6-8), each its own pair of pages, started at its bay through the host session's `courseBay` |
 
 ## Done
+- 2026-10-20: full runs 6 and 7 clean (the done criteria); docs; the PR to master. Runner requests served between runs
+  (CT Core PR #43, 6546a1ca, 534962d0, PR #52; Menu Notes nv-pass; anim-rig; Sector Ops PR #50).
 - 2026-10-20: rounds 1-7 of load fixes (Findings and fixes); full runs 1-5 at jobs=2 on the laptop (Runs); the laptop runner script in the repo (scripts/laptop-runner.ps1).
 - 2026-10-20: branch off master 4fe98222 (4.12.0); BRIEF, PLAN, STATE.
 
