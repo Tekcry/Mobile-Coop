@@ -23,8 +23,8 @@ export interface CrabPlayer {
 export class DebugOverlay {
   private el: HTMLDivElement;
   private visible = false;
-  /** The Settings "Show FPS overlay" banner: one line across the top, the critical numbers only (F3 and `?debug=1`
-   *  show the full overlay). */
+  /** The Settings "Show FPS overlay" banner: one line in the bottom left corner (wheel-ui; was the top edge), the
+   *  critical numbers only (F3 and `?debug=1` show the full overlay). */
   private compact = false;
   private instr: SceneInstrumentation | null = null;
   private scene: Scene | null = null;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.21.0 - Selection wheel sized to the screen, radial ring look, FPS banner bottom left (2026-10-21, PR #61)
+- Selection wheel restyle (`docs/wheel-ui/SLICE1.md`): the wheel sizes itself from the screen (130 + 0.36 x height px:
+  518 px at 1080p, was about 430; about 250 px on an 844 x 390 phone) inside the safe area, never under the top HUD or the
+  hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
+  item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
+
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
   D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
