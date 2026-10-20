@@ -44,6 +44,17 @@ Results (17:50): test-speed run 6 on 7221641c CLEAN (all suites, e2e-pad include
 
 Restart order after the reset: the orchestrator first (Michael pastes its prompt), then CT Core, Sector Ops and Course Ready (cleared, with their own prompts). Character Build and Menu Notes (nv-pass) were cleared earlier and are only paused: message them to resume.
 
+## In flight at 2026-10-20 ~23:20 (second usage window ending)
+- Master 4.19.1 (b125599e) on /preview/. Merged today after the reset: 4.15.2-4.15.4, 4.16.0 nv-pass, 4.16.1-4.16.2, 4.17.0 slice 2, 4.18.0 warehouse-s23, 4.18.1 phone 50%, 4.19.0 slice 3, 4.19.1 test-speed.
+- PR #56 anim-tuner (Course Ready): full laptop e2e PASS on a361fdea; Course Ready is applying 5 review fixes (keyboard focus, follow-mode rebuild, pause wrap, takedown gameplay offset to visual, try/finally) + target-range hints. Michael: merge fast on desktop check + CI after that. Then Course Ready does the tuner pad-control patch (Michael approved).
+- CT Core: S2b walk fixes as a small PR (feature/anim-s2b, from the walk review: arms, trunk counter-rotation, SOFT_KNEE_STAND 0.988, step length, weight transfer); slice 4 (crouch) on feature/ct-prototype. Merge S2b on its tier (ask Michael unless he pre-approves).
+- Sector Ops: slice 5 walls on feature/anim-walls (from f46426a5), reports to CT Core.
+- Menu Notes: wheel-ui (laptop PASS on 0ed8c2f5; 3 review fixes, then a GPU window, checker, PR); camera-cue implementer running (Michael: "Always, faint").
+- Cloud session warehouse-lamps (local_510e3a67): lamps to ceilings, 3 code fittings, translucent roof sheets, wall / ceiling detail and dead-space clutter; PR to master; GPU look pending a desktop run. After it: extra touches (fans, flicker, grime, dock, sound, accents).
+- smooth-world (voxels off by default): a card on the laptop for Michael to click; Character Build stays the runner.
+- Reviews (orchestrator subagents, read-only): Marlow Yard audit (first pass in: no ceilings, 29 floating lamps, 4.5 h shortlist; comprehensive version running), Sector Ops warehouse layout (bigger, believable, routes), guards (AI coordinator, purposeful patrols, slower, military model). Publish them as pages for Michael and let him pick.
+- Michael: the 0.7 m/s aimed strafe (A5) is his call; he walks 4.19.x via the list given at 4.19.0.
+
 ## Context clears (Michael 16:15: "i want to clear all the chats when they are ready to prevent context drifting")
 Every session was asked to reach a clean point, update its STATE with a fenced resume prompt and message "<name> ready
 to clear" with the prompt. Then: give Michael that prompt to paste after he clears it (he clears the sessions he
