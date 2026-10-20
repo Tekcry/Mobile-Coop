@@ -49,6 +49,7 @@ message). The orchestrator clears itself last, after giving Michael its own resu
 - nv-pass PR to master (minor) after its GPU check.
 - warehouse-s23 PR to master (minor) after section 2 (or 2+3) is green.
 - test-speed PR to master (patch).
+- phone-min (Michael 17:55, ROADMAP "Decided"): a small patch job after the reset; assign to the first free session (not CT Core).
 Merge procedure: scripts kept in the scratchpad were ad hoc; the steps are: check the PR head equals the tested commit
 (or the delta is docs only), merge origin/master into the branch in a temp worktree resolving only CHANGELOG / package
 conflicts (stop on any src conflict and check both-sides src files), `npm version <v> --no-git-tag-version`, rename the
