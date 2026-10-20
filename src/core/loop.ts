@@ -1,5 +1,6 @@
 import type { Engine, Scene } from './babylon';
 import { capAllows } from './quality';
+import { bgStepSeconds, type BgTickInput } from './bgTick';
 
 export const FIXED_DT = 1 / 60;
 const MAX_STEPS_PER_FRAME = 4;
@@ -35,6 +36,12 @@ export class GameLoop {
   displayMs = 1000 / 60;
   private lastT = 0;
   private lastRaf = 0;
+  /** (coop-fix) The hidden-page tick worker (co-op only, `holdBackgroundTicks`); null outside a co-op match. */
+  private bg: Worker | null = null;
+  private bgUsers = 0;
+  private lastExternal = -Infinity;
+  private readonly bgIn: BgTickInput = { enabled: false, hidden: false, manual: false, sinceExternalMs: Infinity, elapsedMs: 0 };
+  private readonly onBgTick = (): void => this.bgTick();
 
   constructor(private engine: Engine) {}
 
@@ -62,6 +69,8 @@ export class GameLoop {
    * at that refresh rate would (60 vs 120 Hz parity tests).
    */
   stepHeadless(seconds: number, renderHz = 60): void {
+    // (coop-fix) an external driver owns the sim for a while: the hidden-page tick stands down (never twice the speed)
+    this.lastExternal = performance.now();
     const scene = this.scene;
     const hooks = this.hooks;
     if (!scene || !hooks) return;
@@ -88,6 +97,58 @@ export class GameLoop {
     }
   }
 
+  /**
+   * (coop-fix) Co-op only (`src/net` holds it for a live session, releases it at its dispose): while the page is
+   * hidden (rAF stopped), a worker's ticks run the fixed steps and frame updates for the elapsed real time, without
+   * rendering, so the host keeps sending snapshots and the client its states. rAF and the ticks share `lastT`, so a
+   * stretch of time is consumed once. Single player never starts the worker. Counted: the next match's session can
+   * take it before the last one's dispose releases it. Returns the release (once only).
+   */
+  holdBackgroundTicks(): () => void {
+    this.bgUsers++;
+    this.setBackgroundTicks(true);
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      if (--this.bgUsers <= 0) {
+        this.bgUsers = 0;
+        this.setBackgroundTicks(false);
+      }
+    };
+  }
+
+  private setBackgroundTicks(on: boolean): void {
+    this.bgIn.enabled = on;
+    if (on && !this.bg && typeof Worker !== 'undefined') {
+      try {
+        const w = new Worker(new URL('./bgTickWorker.ts', import.meta.url), { type: 'module' });
+        w.onmessage = this.onBgTick;
+        this.bg = w;
+      } catch {
+        this.bg = null;
+      }
+    } else if (!on && this.bg) {
+      this.bg.terminate();
+      this.bg = null;
+    }
+  }
+
+  private bgTick(): void {
+    const i = this.bgIn;
+    i.hidden = typeof document !== 'undefined' && document.hidden;
+    // visible: rAF owns the time (and `lastT`)
+    if (!i.enabled || !i.hidden) return;
+    const now = performance.now();
+    i.manual = this.manual;
+    i.sinceExternalMs = now - this.lastExternal;
+    i.elapsedMs = this.lastT > 0 ? now - this.lastT : 1000 / 60;
+    // the time is taken here whether or not it is stepped: a held stretch is never stepped later
+    this.lastT = now;
+    const s = bgStepSeconds(i);
+    if (s > 0) this.frame(s * 1000, false);
+  }
+
   private tick(): void {
     const t0 = performance.now();
     const raf = this.lastRaf > 0 ? t0 - this.lastRaf : 0;
@@ -102,12 +163,12 @@ export class GameLoop {
     this.onFrameEnd?.(interval, cpu, raf);
   }
 
-  private frame(intervalMs: number): void {
+  private frame(intervalMs: number, render = true): void {
     const scene = this.scene;
     const hooks = this.hooks;
     if (!scene || !hooks) return;
     if (this.manual) {
-      scene.render();
+      if (render) scene.render();
       return;
     }
     const dt = Math.min(intervalMs / 1000, 0.1) * this.timeScale;
@@ -141,7 +202,7 @@ export class GameLoop {
       this.stats.steps = steps;
     }
     hooks.frameUpdate(this.paused ? 0 : dt, this.acc / FIXED_DT);
-    if (this.hooks !== hooks || scene.isDisposed) return;
+    if (this.hooks !== hooks || scene.isDisposed || !render) return;
     scene.render();
   }
 }
