@@ -6,7 +6,7 @@
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until as untilNet, waitSim, setSimPages } from './e2e-net-lib.mjs';
+import { until as untilNet, waitSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => waitSim(ms);
@@ -73,8 +73,8 @@ try {
   console.log('host starts an Infiltration match (the Ledger, on the Warehouse)');
   await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
   await A.click('.lobby-actions .btn:has-text("Start mission")');
-  await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, 60000, 'host match');
-  await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, 60000, 'client match');
+  await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, LOAD_MS, 'host match');
+  await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, LOAD_MS, 'client match');
   // host + client players invulnerable while we test hits
   await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
   await until(A, () => window.__app.current.net.remotes.values().next().value?.state, null, 10000, 'client states reach host');
@@ -280,7 +280,7 @@ try {
     for (const P of pages().slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
     await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
     await GA(() => window.__coop.session.startMatch());
-    for (const P of pages()) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, 40000, `${mode} match on every page`);
+    for (const P of pages()) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, LOAD_MS, `${mode} match on every page`);
     await until(A, (n) => window.__app.current.net.remotes.size === n && [...window.__app.current.net.remotes.values()].every((r) => r.state), pages().length - 1, 15000, 'client states reach the host');
   }
   async function toLobby() {
@@ -576,8 +576,8 @@ try {
     for (const P of pages().slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
     await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
     await GA(() => window.__coop.session.startMatch());
-    await until(A, () => !!window.__app.current?.enemyMgr && !!window.__app.current.net, null, 40000, 'host match up');
-    await until(B, () => !!window.__app.current?.net, null, 40000, 'client match up');
+    await until(A, () => !!window.__app.current?.enemyMgr && !!window.__app.current.net, null, LOAD_MS, 'host match up');
+    await until(B, () => !!window.__app.current?.net, null, LOAD_MS, 'client match up');
     const hd = await GA(() => { const d = window.__app.current.enemyMgr.diff; return { p: d.perception, t: d.reaction, l: d.label }; });
     assert(hd.p === 1.3 && hd.t === 0.8 && hd.l === 'Realistic', `the host's manager runs Realistic (${JSON.stringify(hd)})`);
     const cd = await GB(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label }));

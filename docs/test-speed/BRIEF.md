@@ -31,4 +31,12 @@ A full `npm run e2e` at `E2E_JOBS=2` that passes without reruns on a loaded mach
 
 ## Decisions
 Assumed (each can be undone by reverting its commit):
-- (none yet)
+- **A1 e2e-course's latency limits (0.5 s host press, 1.5 s client press) count game time** on the client's clock, not
+  wall time: a loaded machine's slow frames are not network lag. Undo: `clientWithin` back to `Date.now()`.
+- **A2 `press` / `stick` (e2e-lib) hold for exactly one input poll**, not 3 rendered frames (the menu's nav repeat runs
+  on real time). A page without the app's input falls back to the 3-frame hold. Undo: the old 3-frame body.
+- **A3 e2e-ctcourse runs as three station groups in the full run** (`e2e-ctcourse:1..3`); named alone it still runs
+  all eight stations, which is what job leads ask the runner for. Each group costs a match start (about 40 s), so the
+  summed suite time grows; the gain is the shorter critical path when two or more jobs run. Undo: drop
+  `'e2e-ctcourse'` from `PARTS` in `run-e2e.mjs`.
+- **A4 match loads wait up to 120 s** (`LOAD_MS`, wall time; they were 40-60 s). Undo: `E2E_LOAD_MS`.

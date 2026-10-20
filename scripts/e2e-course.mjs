@@ -10,7 +10,7 @@
 // T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
 // course session with no clicks (the walk URLs).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
-import { until, setSimPages } from './e2e-net-lib.mjs';
+import { until, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -106,7 +106,7 @@ try {
   await GB(() => window.__coop.session.setReady(true));
   await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
   await GA(() => window.__coop.session.startMatch());
-  for (const P of [A, B]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && !window.__app.current.isEnded, null, 40000, 'course match on both pages');
+  for (const P of [A, B]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'course match on both pages');
   pumpOn = true;
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 15000, 'host course running');
   await until(B, () => !!window.__course?.wire, null, 8000, 'client has the course state');
@@ -440,7 +440,7 @@ try {
   await GB(() => window.__coop.session.setReady(true));
   await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready again');
   await GA(() => window.__coop.session.startMatch());
-  for (const P of [A, B]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && !window.__app.current.isEnded && !document.querySelector('.results-screen'), null, 40000, 'second course match on both pages');
+  for (const P of [A, B]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && !window.__app.current.isEnded && !document.querySelector('.results-screen'), null, LOAD_MS, 'second course match on both pages');
   pumpOn = true;
   await until(A, () => !!window.__course?.state && window.__course.debug().bay === 1, null, 15000, 'host course at bay 2');
   const inA1 = (p) => p.x > 8 && p.x < 14 && p.z > 1 && p.z < 7;
@@ -471,7 +471,7 @@ if (!failed) {
     await A.close().catch(() => {});
     if (B) await B.close().catch(() => {});
     const { page: F, errors: eF } = await openPage(ctx, url, 'autostart=bunker&mode=course&legacy=1');
-    await until(F, () => !!window.__app?.current?.player && !!window.__course?.state, null, 40000, 'Fallow course match');
+    await until(F, () => !!window.__app?.current?.player && !!window.__course?.state, null, LOAD_MS, 'Fallow course match');
     await wait(1500);
     const st = await F.evaluate(() => ({ mode: window.__app.current.opts?.mode, map: window.__app.current.opts?.map?.id, net: !!window.__app.current.net, bay: window.__course.debug().bay }));
     assert(st.map === 'bunker' && st.mode === 'course' && !st.net, `Fallow: the URL boots Course mode on the bunker, single player (${JSON.stringify(st)})`);
@@ -504,7 +504,7 @@ if (!failed) {
     const { page: H, errors: eH } = await openPage(ctx, url, q);
     await until(H, () => window.__coop?.session?.isHost === true, null, 20000, 'first walk tab hosts');
     const { page: C, errors: eC } = await openPage(ctx, url, q);
-    for (const [P, tag] of [[H, 'host'], [C, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'courselab', null, 40000, `${tag} walk tab in the course`);
+    for (const [P, tag] of [[H, 'host'], [C, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'courselab', null, LOAD_MS, `${tag} walk tab in the course`);
     const h = await H.evaluate(() => ({ code: window.__coop.session.code, id: window.__coop.session.selfId, n: window.__coop.session.players.size }));
     const c = await C.evaluate(() => ({ code: window.__coop.session.code, host: window.__coop.session.hostId, role: window.__coop.session.role }));
     assert(h.code === c.code && c.host === h.id && c.role === 'client' && h.n === 2, `two walk-URL tabs share one course session (${JSON.stringify({ h, c })})`);
