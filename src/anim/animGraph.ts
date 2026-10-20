@@ -19,6 +19,7 @@ import { gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT, TENSE } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import { TUNE_CUR, tuneMoveTwist } from './tune';
+import { WEIGHT_POSE, weightApplyPose } from './weight';
 import {
   CROUCH_BACK,
   CROUCH_IDLE,
@@ -1724,6 +1725,7 @@ export class AnimGraph {
     o.handR.x = q[CH.hRX]! * k;
     o.handR.y = q[CH.hRY]! * k;
     o.handR.z = q[CH.hRZ]! * k;
+    if (WEIGHT_POSE.on) weightApplyPose(o); // (anim-weight) the local player's Weight layers (off: untouched)
     // stance: shoulder-width tactical stance, support (left) foot slightly forward
     // (BC note 4) on foot the feet stay under the hips (inside the body width): the clips' width scale only widens the stance
     // a quarter as much, capped at 1.1 hip half-widths (it was 1.2 x width: up to 1.6 crouched). Traversals keep their own width.

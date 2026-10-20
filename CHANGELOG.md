@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - anim-weight
+- Animation tuner: a Weight section (per holstered walk / jog / run, crouched, drawn) for hand-tuning weight in the
+  movement: momentum (time to speed, stop time, turn rates, a stop overshoot; gameplay, local only), lean into
+  acceleration and turns and a counter-lean on stops, foot-plant and landing load, springs on the chest, head, arms and
+  carried guns, an anticipation dip on starts and vaults, and a camera follow-lag / dip signal for the camera section.
+  Every slider defaults to today's movement and pose exactly. Detail: `docs/anim-tuner/WEIGHT.md`.
+
 ## Unreleased - tuner-camera
 - Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
   I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming

@@ -514,6 +514,9 @@ try {
     const cb2 = await camBoom();
     assert(camG.startsWith('cam.') && (cb1 < cb0 - 0.3 || cb0 < 1.2), `tuner: a camera distance slider (${camG}) pulls the camera in live (${cb0.toFixed(2)} -> ${cb1.toFixed(2)} m)`);
     assert(Math.abs(cb2 - cb0) < 0.05, `tuner: the camera slider's reset puts the distance back (${cb0.toFixed(2)} -> ${cb2.toFixed(2)} m)`);
+    // (anim-weight) the Weight section is on the panel and its follow group is written every frame
+    const wsec = await GM(() => ({ ids: window.__animTune.sections(), g: window.__animTune.state.weight ?? '', rows: !!document.querySelector('.anim-tune-rows-weight') }));
+    assert(wsec.ids.includes('weight') && wsec.g.startsWith('weight.') && wsec.rows, `tuner: the Weight section is listed and follows its group (${JSON.stringify(wsec)})`);
     // (pass 2) free view, fly: the view moves with the pad's left stick, the player does not; off gives the game view back
     const fvRead = () =>
       GM(() => {
