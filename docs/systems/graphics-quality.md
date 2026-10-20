@@ -4,7 +4,8 @@ Design authority: docs/DECISIONS.md (G12, G14, G68, G99-G102), then docs/design-
 
 Desktop only (G12): one preset ladder, no phone preset, no phone look and no phone benchmark (deleted with the phone
 code). Graphics never change gameplay: gameplay reads collision, occupancy, anchors, the light bake and the noise model
-only. The world is drawn as voxels; characters and weapons become realistic from the operators pipeline (G68).
+only. smooth-world (2026-10-20, replaces G68's voxel clause): the world, characters and weapons draw smooth by default;
+voxels only behind `?voxels=1`. Characters and weapons become realistic from the operators pipeline (G68).
 Budgets: performance.md.
 
 ## Presets, auto graphics, governor
@@ -121,7 +122,15 @@ Budgets: performance.md.
   cover faces, ledges and the solid set are unchanged. `QualityLevel.detailScale` scales `PartLibrary.setLodScale`
   and `setAnimLodScale` (characterRig). `Vfx`: spent brass (`Brass`: one bounce, then lies at the shooter's floor;
   48 x effects density kept), 160 decals.
-- Voxels (3.0, `src/voxel/`): the level renders as voxels; gameplay still reads the blockout (collision, cover, nav,
+- Smooth world (default, smooth-world): `flags.voxels` is off unless `?voxels=1` (`?voxels=0` also off). `World.create`
+  gets no `voxel` options: `LevelBuilder.build` draws every visible piece as thin-instanced boxes / 12-sided cylinders
+  in the PBR level material with `SurfacePlugin` (per-instance `surf` kind, as above); the box detail pass draws at the
+  Detail tier (also on maps with an art layer); `BakedLamps` builds on every non-cheap path (below and lighting.md);
+  characters, weapons and props are the smooth parts. Off without voxels: the sky-bake fill (the ambient grid fills
+  instead), GI, chips (decals), Ray traced reflections (screen space instead); the rain stops at `World.roofAt`
+  (`world/roofGrid.ts`, the canonical light shapes' tops); fog shafts read the baked moon. `?gfx=min` is unchanged:
+  standard materials, no atlas, no baked lamps (and no voxels by default).
+- Voxels (3.0, `src/voxel/`, `?voxels=1`): the level renders as voxels; gameplay still reads the blockout (collision, cover, nav,
   ledges, anchors, perception). `levelVoxels` (pure) splits the pieces (every side >= `MIN_VOXELS` 1.5 voxels becomes
   voxels, thinner ones stay thin-instanced boxes / cylinders until the art layer models them) and builds the palette
   (`Palette`: colour + surface kind + emissive, <= 255) and the grid (`CHUNK` 128 voxels a side, origin on the brick
@@ -137,7 +146,7 @@ Budgets: performance.md.
   coarse levels search 2^l voxels inward), level of detail per chunk by camera distance at 5 Hz (`VOXEL_LOD` per Detail
   tier: Epic 30 / 60 m). `voxelCache.ts`: chunk results in IndexedDB `kv` (`voxel:<map>:<seed>:<size>:<levels>:v<VOXEL_VERSION>:<hash>`,
   newest 4 kept). `World.create(.., { voxel })` (GameState: 5 cm x 3 levels with AO / micro; `?gfx=min` 20 cm x 1, no
-  AO / micro; `?voxels=0` the old boxes); chunk meshes are shadow casters and in the reflection probe.
+  AO / micro; without `?voxels=1` the smooth boxes); chunk meshes are shadow casters and in the reflection probe.
   Coarse levels rasterise `coarseShapes` (every filled shape >= one voxel thick, so thin walls never drop out at a
   distance). `tests/losParity.test.ts` (3.1): sight lines through the Warehouse agree for every preset's layers and
   levels (against Epic up close), except lines grazing a surface within the coarsest voxel's reach; a line through
