@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-21 00:08 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-21 03:12 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -12,38 +12,43 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
 ```
 
 ## Now
-- Overnight (orchestrator 2026-10-20 late, Michael asleep, approved overnight merges of green PRs): S2b PR, slice 4,
-  merge Sector Ops' slice 5, slice 6. Lean prompts, one fix round, no polish; STATE after every step; each PR to the
-  orchestrator with its tier results.
-- Merged: slice 2 (#52, 4.17.0), slice 3 (#54, 4.19.0). feature/ct-prototype at master 813d13a4 + slice 4 work.
-- S2b (the review's 5 causes of the "robotic" slice 2 walk: arm swing / ampMin, trunk counter-rotation,
-  SOFT_KNEE_STAND, step length / cadence, weight transfer; plus the run pitch sum): Opus implementer on feature/anim-s2b,
-  folder C:/NightShift/Mobile-Coop-anim-s2b, from master b125599e, logic e2e on port 4192; report S2B-REPORT.md; then
-  one check, PR to master, then master merged into feature/ct-prototype.
-- Slice 4 (crouched holstered set, the knee hand, crouched drawn, stand <-> crouch re-step): Opus implementer in this
-  folder; report S4-REPORT.md.
-- Slice 5 (walls): Sector Ops done at feature/anim-walls f67652cb (from f46426a5; S5-REPORT.md, check-s5.md PASS on the
-  code; npm run check pass, e2e-wall pass; sheets not made, GPU lock busy). Only the standing wall idle passes in play;
-  9 wall rows report-only. CT Core merges it after slice 4 is committed, then a wall round: footPlanner's side step at
-  the wall (feet cross, 39-53 cm out), knee-out 7.6 cm, peeks at keyed weight 0, crouched idle track 10.9 vs 10.5 cm, the
-  rig's keyed gate (`|| this.input.wall` instead of the keyDrawn >= 0.02 workaround), drawn-at-wall carrier flag,
-  knee-hand path ignoring crouched wrist frames.
-- Slice 6 (close quarters): briefed to Sector Ops 2026-10-21 on feature/anim-hold from master 4.20.0 (folder
-  C:/NightShift/Mobile-Coop-anim-hold, port 4193; hold branch of animGraph + new holdKeyed.ts, closeQuarters /
-  takedown hold parts; not footPlanner / motion / keyed / limits / characterRig outside the hold hand targets).
-- Master 4.20.0 has the anim tuner (multiplier hooks in animGraph, motion, characterRig): merge master into S2b and
-  feature/ct-prototype at commit time, keep the hooks.
+- Michael (overnight 2026-10-21): "Turn off movement slices and any research." Only already-built work lands: S2b and
+  slices 4 + 5 as PRs; no slice 5 wall round, no slice 6 (Sector Ops stopped it before any code: feature/anim-hold
+  8b6f6f7b holds only its stop record). Then CT Core does tool support only: the Weight tuner group next.
+- Slice 4 (crouched set, A6 squat idle, crouched drawn, stand <-> crouch re-step) at b59c6e3d + A6 d2ffd4a4; report
+  S4-REPORT.md, sheets shots/s4/. Independent check PASS (review only), no fix round. Merged master 4.20.1 (tuner hooks
+  kept and re-pointed: kneeOutMul on kneeOut0, tuckMul over READY_ELBOW_TUCK_CROUCH, trackMul over KNEEL_NARROW) at
+  517ca25a and Sector Ops' slice 5 walls (feature/anim-walls f67652cb) at 130ff997; added `o.kneeRest *= 1 - keyWallS`
+  so the squat's knee IK yields to the wall set.
+- Tier on 130ff997: npm run check pass (2129); e2e-anim, e2e-wall, e2e-clip, e2e-move pass; e2e-mouse fails in the remap
+  section (the second autostart=proving page times out after 60 s) identically on master 6a4fb07f, so not ours
+  (machine load: e2e-move took 490 s). Laptop e2e-ctcourse / e2e-coop / e2e-netmove on the PR head: sent. Slice 5 laptop
+  confirm on f67652cb: check, e2e-anim, e2e-wall pass.
+- S2b: implementer still running on feature/anim-s2b (C:/NightShift/Mobile-Coop-anim-s2b); straight to a PR on its own
+  checks.
 
 ## Next
-- Slice 4 (sneak, crouch walk and run, crouched idle with the knee hand; crouched holstered from A4 and crouched drawn):
-  wire `crouch_walk` / `crouch_run` / `sneak` / `crouch_idle` (S4-KEYS.md: the clips' pel y is the full crouch depth,
-  use dy about the clip mean or replace the procedural drop; duty / liftH to the planner; the knee hand needs keyedArm
-  on while crouched idle, characterRig.ts ~2053). Then slice 5 (S5-KEYS.md: mirror; the keys duplicate WALL_STANCE /
-  WALL_SIDE_POSE terms) and slice 6 (S6-KEYS.md: the choke needs root motion; wires #41's guard clips; recheck
-  keyedDrawn's bend gate for the human shield).
-- Fold in Michael's anim-tuner values when he exports them.
+- The Weight tuner group (orchestrator 2026-10-21, Michael: "weight", tunable): feature/anim-weight from master with
+  feature/tuner-camera df00a947's section registry (src/anim/tuneRegistry.ts, docs/anim-tuner/STATE.md "Section
+  registry"; group ids prefixed "weight-"): momentum ramps, lean / bank / stop counter-lean, plant and landing loading,
+  critically damped springs (chest, head, arms, sling, pouches), anticipation wind-ups, a camera-lag hook; identity =
+  today's output exactly; e2e-anim / move / clip unchanged at identity; one check; minor PR.
+- Keep the tuner-v2 hooks (characterRig jointOffsets / IK targets, player.ts jointsBegin / jointsEnd, weaponModel gun
+  scale, 13 footPlanner reads) when editing those lines.
 
 ## Open items
+- Movement slices are off (Michael); everything below waits for his hand tuning or a later ask.
+- Slice 5 wall rows report-only, out of range (laptop f67652cb): slide R / L knees 1.32 / 1.47x, track 16.5 / 21.6 cm,
+  knee-out 7.6 / 11 cm (footPlanner's side step at the wall); peek R / L knees 1.31 / 1.27x, knee-out 9.6 cm (peeks at
+  keyed weight 0); crouched idle elbows 11.4 cm; crouched peek knees 1.66 / 1.57x, elbows 8.3 / 10.7 cm. Rig: the keyed
+  gate should take `|| this.input.wall` (now WALL_KEYS.gate keyDrawn >= 0.02); no drawn-at-wall carrier flag; the
+  knee-hand path ignores the crouched wrist frames.
+- Slice 4 polish: CROUCH_POP margin thin (crouched aimed strafe 6.7 vs 7.5 cm); KNEE_HAND gate loose (dist 7 vs 1.4 cm
+  measured); turnFollow.test.ts crouched latMin now lets a planted foot pass the midline; sneak has no head scan while
+  moving; KEYED_CROUCH_POSE lean / drop belongs in the clips; crouch walk steps long (0.64 m at 1.7 m/s); crouch-run
+  forearms near horizontal; remotes ease the crouch exponentially.
+- Slice 6 not started: the S6 keys (S6-KEYS.md) stay unwired.
+- e2e-mouse remap section times out on master 4.20.x (the second autostart page); for the master side.
 - Slice 3 polish: CRAB_STRAFE knee max 1.5 is slack (measured 1.26; about 1.35 still catches a regression); the sling
   draw has the rifle high near the head for a frame or two (~0.42 s); the pistol aim leans the chest over the gun
   (PISTOL_REACH.lean) and the slung rifle juts behind the back (both older); no crossover step at speed (with A5,
