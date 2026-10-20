@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.13.2 - No ghosting at Epic when aiming, drawing or holstering (2026-10-20, PR #36)
+- No ghosting at Epic when drawing, aiming or holstering (Michael's playtest). The aim depth of field read the camera's
+  direction before the render, so Babylon saw a moving camera as still and Epic's TAA kept blending old frames; it now
+  uses the camera's own look angles. The TAA history is also clamped to the current frame's neighbourhood, so fast arms
+  and guns leave no trails. `scripts/ghost-strip.mjs` captures before / after frame strips on the GPU
+  (`docs/ghost-fix/shots/`).
 ## 4.13.1 - Co-op fixes: the host draws on the joiner at High and Epic, the connecting label clears (2026-10-20, PR #35)
 - Co-op: the host was invisible on the joiner at High and Epic graphics (GPU). The baked-lamp material plugin broke a
   material clone while the partner figure loaded, so the figure never appeared. The plugin is no longer copied by a
