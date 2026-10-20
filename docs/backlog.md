@@ -45,6 +45,10 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   the test: a 3-frame hold let the menu's real-time nav repeat step twice (now one input poll), the remap B landed with
   no capture listening, and fixed pauses before reading the connect toast and the locked row's toast (now condition
   waits). Still on `KNOWN_FLAKY` until it has run clean in more full runs; see the test-speed STATE "Runs".
+- **e2e-stealth-ai wall-peek block (watch, 2026-10-21)** - failed in laptop full runs (E2E_JOBS=1) on #65 (no assert
+  printed) and #71 ("the guard there sees the peeking head only": los true, head false); passed solo on both. On #67
+  (S2b) the edge peek fails solo too: real there. Suspect load timing in the peek sampling. Not on `KNOWN_FLAKY`; if it
+  fails a third time on a head without S2b, read its log and add a settle wait.
 - **e2e-kestrel, e2e-camera-bounds (not flaky, failing on master; moved to LEGACY, Kestrel paused)** - both fail alone on master 9295c65 (the Wren merge)
   and on feature/weapons: kestrel "camera rays along the tour: ... 133 inside them go to P04"; camera-bounds "level U
   (U-Z4V): crouched, walking its length and turning, the camera stays between floor and ceiling". Camera vs level checks,

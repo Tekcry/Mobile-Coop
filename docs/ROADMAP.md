@@ -126,6 +126,8 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-21 | #71 | 4.29.0: Anim Studio PR 2: co-op pairs on one clock (leg-up, relay, throw, hang-down, rope, revive), guard hold pairs, traversal prop rig with 11 loops |
+| 2026-10-21 | #72 | 4.28.1: shots-ctcourse waits for sim time after each teleport (test script) |
 | 2026-10-21 | #58 | 4.28.0: smooth world: voxels off by default (?voxels=1 brings them back), baked lamps on the smooth path; GPU look CLEAR |
 | 2026-10-21 | #70 | 4.27.0: tuner Weight section: momentum, lean into accel / turns, plant and landing load, springs on chest / head / arms / guns, anticipation (identity defaults) |
 | 2026-10-21 | #69 | 4.26.0: Anim Studio PR 1: the stage (menu and Pause entries), loop player, skeleton / feet / onion-skin overlays, camera snaps, undo / redo, A-B, presets |
