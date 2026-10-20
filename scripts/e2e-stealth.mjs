@@ -16,6 +16,19 @@ const assert = (cond, msg) => {
 };
 const f2 = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// (test-speed) the game's own clock: under load the loop runs slower than real time, so a fixed real-time wait gives
+// less game time than the asserts expect. `forSim(ms, tick)` lets `ms` of sim time pass (`tick` runs every 40 ms of
+// real time meanwhile), with a wall cap (10x, at least 30 s) as the hang guard.
+const simNow = () => G(() => window.__app.current.time);
+async function forSim(ms, tick) {
+  const t0 = await simNow();
+  const w0 = Date.now();
+  const cap = Math.max(ms * 10, 30000);
+  while ((await simNow()) - t0 < ms / 1000 && Date.now() - w0 < cap) {
+    if (tick) await tick();
+    await wait(40);
+  }
+}
 const within = (v, lo, hi) => v >= lo && v <= hi;
 
 await G(() => {
@@ -86,7 +99,7 @@ await G(() => {
   };
 });
 
-/** Hold a look rate for `ms` of real time while `setup` keeps the input as given; returns degrees turned. */
+/** Hold a look rate for `ms` of sim time while `setup` keeps the input as given; returns degrees turned. */
 async function lookFor(ms, rate, inp = {}) {
   await G(([rate, inp]) => {
     const s = window.__s;
@@ -95,11 +108,7 @@ async function lookFor(ms, rate, inp = {}) {
     window.__tr = s.trackYaw();
     window.__tr.y0 = s.state().bodyYaw;
   }, [rate, inp]);
-  const t0 = Date.now();
-  while (Date.now() - t0 < ms) {
-    await G((inp) => window.__s.move(inp.x ?? 0, inp.y ?? 0), inp);
-    await wait(40);
-  }
+  await forSim(ms, () => G((inp) => window.__s.move(inp.x ?? 0, inp.y ?? 0), inp));
   await G(() => {
     window.__s.look.yaw = 0;
     window.__s.move(0, 0);
@@ -143,19 +152,19 @@ try {
   await G(() => {
     window.__s.move(0, 1);
   });
-  await wait(900);
+  await forSim(900);
   await G(() => window.__s.move(0, 1));
-  await wait(300);
+  await forSim(300);
   await resetTotal();
   r = await lookFor(1300, 6);
   assert(Math.abs(r.turned) >= r.real * 0.97, `after a run: full 360 look (${f2(r.turned)} of ${f2(r.real)} rad)`);
-  await wait(700);
+  await forSim(700);
   let s = await G(() => window.__s.state());
   assert(Math.abs(Math.atan2(Math.sin(s.viewYaw - s.camYaw), Math.cos(s.viewYaw - s.camYaw))) < 0.003, `after a run: no residual view offset`);
   assert(s.speed < 0.05, `after a run the body has stopped within ~1 s (${f2(s.speed)} m/s)`);
   // looking up/down returns nothing by itself and is never clamped short of the limits
   await G(() => (window.__s.look.pitch = 3));
-  await wait(400);
+  await forSim(400);
   await G(() => (window.__s.look.pitch = 0));
   s = await G(() => window.__s.state());
   assert(s.pitch > 0.9, `pitch follows look input (${f2(s.pitch)})`);
@@ -164,7 +173,7 @@ try {
   // aiming: the view still orbits freely (the body follows the aim at its own capped rate)
   await G(() => window.__s.tp(0, -14, Math.PI / 2));
   await G(() => window.__app.input.state.set('stealth-ads', 'ads', true));
-  await wait(400);
+  await forSim(400);
   await resetTotal();
   r = await lookFor(1300, 6);
   await G(() => window.__app.input.state.set('stealth-ads', 'ads', false));
@@ -172,7 +181,7 @@ try {
   // a shake's roll (hard landing, hit, explosion) never leaves the horizon tilted once it settles, at any
   // pitch or yaw (Babylon rebuilds the up vector, pitch included, only when the roll changes)
   await G(() => { const p = window.__app.current.player; p.cam.pitch = -0.35; p.cam.shake(0.8); });
-  await wait(1200);
+  await forSim(1200);
   await lookFor(700, 3);
   const roll = await G(() => {
     const p = window.__app.current.player;

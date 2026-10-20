@@ -11,6 +11,7 @@
  * Per clip: the foot planner's `duty` and `liftH`, the knee pole's `kneeOut` and the track `half` width (ankle centre
  * from the midline). Sampling never allocates.
  */
+import { TUNE_CUR, tuneKeyedLean, tuneKeyedTwist } from './tune';
 
 export interface KeyedClipDef {
   name: string;
@@ -164,9 +165,11 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
   for (let c = 0; c < KEYED_ARM; c++) {
     const v = A[i0 * KEYED_ARM + c]! + (A[i1 * KEYED_ARM + c]! - A[i0 * KEYED_ARM + c]!) * u;
     const m = clip.meanArm[c]!;
-    out.arm[c] = m + (v - m) * amp;
+    out.arm[c] = m + (v - m) * amp * TUNE_CUR.armSwingK;
   }
   sampleQuats(clip.q, clip.meanQ, KEYED_Q, i0, i1, u, amp, out.q);
+  tuneKeyedTwist(out.q, clip.meanQ); // (anim-tuner) the trunk counter-rotation slider (identity at 1)
+  tuneKeyedLean(out.q); // (anim-tuner) the forward lean slider (identity unless the local player's group sets one)
   const W = out.wrist;
   if (clip.wrist) {
     sampleQuats(clip.wrist, clip.meanWrist, KEYED_WRIST, i0, i1, u, amp, W);
