@@ -35,6 +35,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
         const scene = window.__app.current.scene;
         const read = () => {
           let level = null;
+          let sky = null;
           let others = 0;
           for (const m of scene.meshes) {
             const sm = m.subMeshes?.[0];
@@ -42,10 +43,13 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
             const mat = sm?.getMaterial?.();
             if (!fx || !fx.isReady() || !mat || !fx.defines.includes('#define BAKED_LAMPS')) continue;
             const has = fx.defines.includes('#define LAMP_LEVEL');
-            if (mat.name.startsWith('levelMat-')) level = has;
+            if (mat.name.startsWith('levelMat-')) {
+              level = has;
+              sky = fx.defines.includes('#define LAMP_SKY');
+            }
             else if (has) others++;
           }
-          return { level, others };
+          return { level, sky, others };
         };
         let r = read();
         for (let i = 0; i < 60 && r.level === null; i++) {
@@ -88,6 +92,7 @@ try {
     assert(i.lamps, `${n}: draws the bake (the baked lamps)`);
     assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr})`);
   }
+  assert(epic.lampLevel?.sky === true, `smooth Epic: the level material takes the voxel walls' fill and probe light by sky visibility (LAMP_SKY, ${JSON.stringify(epic.lampLevel)})`);
   assert(epic.lampLevel?.level === true && epic.lampLevel.others === 0, `smooth Epic: only the level material compiles LAMP_LEVEL (${JSON.stringify(epic.lampLevel)})`);
   assert(epic.rtFallback, `smooth Epic at Ray traced falls back to screen space reflections (${epic.pps})`);
 } catch (e) {

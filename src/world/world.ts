@@ -34,13 +34,16 @@ import { Doors } from './doors';
 import { Ropes } from './ropes';
 import { makeCone, type LightRegistry } from './lights';
 import { GI_STRIDE } from '../voxel/skyBake';
-import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
+import { TEXTURE_ANISO, TEXTURE_SIZE, VOXEL_TIER, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { setAnimLodScale } from '../player/characterRig';
-import { VoxelWorld } from '../voxel/voxelWorld';
-import { VOXEL_VERSION } from '../voxel/levelVoxels';
-import { packShapes } from '../voxel/shapes';
+import { SKY_CELL, VoxelWorld } from '../voxel/voxelWorld';
+import { WorkerPool } from '../voxel/workerPool';
+import { CHUNK, MIN_VOXELS, VOXEL_VERSION } from '../voxel/levelVoxels';
+import { packShapes, SHAPE_STRIDE, shapeBounds } from '../voxel/shapes';
+import { BRICK } from '../voxel/brickmap';
+import { skyGridFor, skyShapes } from './levelFill';
 import { flags } from '../core/flags';
 import { BakedLamps } from './bakedLamps';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
@@ -235,6 +238,9 @@ export class World {
     // 3.6 the canonical light bake: the same on every device, preset and tier (the shapes come from the level's own
     // pieces, never from what a renderer draws); gameplay's light field and every renderer read it
     level.lights.ambient = map.theme.lightLevel ?? 0.75;
+    // (smooth-world fix round 2, rendering only) the smooth level's sky visibility, as the voxel path bakes it: its fill
+    // and image-based light follow it (`world/levelFill.ts`); a worker job beside the light bake
+    const skyJob = !vo && atlas && flags.baked ? smoothSky(level.light).catch(() => null) : null;
     const bake = await bakeLevelLight({ mapId: bakeId, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
     const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
     // 3.2 baked lamps: drawn from the bake on every PBR path - the smooth default and `?voxels=1` - so the picture
@@ -244,7 +250,13 @@ export class World {
       // darkness curve reads the ambient grid everywhere, and it fills the non-voxel surfaces (characters, props, and on
       // the smooth path the level's own boxes) in place of the hemisphere, which lit them as if under open sky indoors.
       const fill = { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] };
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, moonLight: bake.moonLight });
+      // (smooth-world fix round 2) the smooth level's own fill: the voxel walls' (the hemisphere's colours x sky visibility)
+      const sky = skyJob ? await skyJob : null;
+      const gr = w.hemi.groundColor;
+      const k = w.hemi.intensity * Math.PI;
+      const sk = w.hemi.diffuse;
+      const lvl = sky ? { sky: [sk.r * k, sk.g * k, sk.b * k] as [number, number, number], ground: [gr.r * k, gr.g * k, gr.b * k] as [number, number, number], vis: sky } : null;
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, moonLight: bake.moonLight, level: lvl });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
@@ -646,6 +658,22 @@ export class World {
     this.voxels?.dispose();
     this.parts.dispose();
     this.scene.dispose();
+  }
+}
+
+/** The smooth level's sky visibility (rendering only): `bakeSky` over the canonical light shapes in `SKY_CELL` cells, on
+ *  the grid the voxel path would use (`skyGridFor`: the 5 cm voxels' brick grid), so both read the same cells. */
+async function smoothSky(l: BuiltLevel['light']): Promise<{ origin: [number, number, number]; cell: number; n: [number, number, number]; vis: Uint8Array }> {
+  const size = VOXEL_TIER.epic.size;
+  // (what the voxel structure layer holds: pieces at least 1.5 voxels thick)
+  const shapes = skyShapes(l.shapes, SHAPE_STRIDE, size * MIN_VOXELS);
+  const { origin, n } = skyGridFor(shapes.length / SHAPE_STRIDE, (i, out) => shapeBounds(shapes, i, out), () => true, BRICK * size, CHUNK * size, SKY_CELL);
+  const pool = new WorkerPool(1);
+  try {
+    const r = await pool.sky({ kind: 'sky', id: -1, origin, cell: SKY_CELL, n, shapes });
+    return { origin, cell: SKY_CELL, n, vis: r.vis };
+  } finally {
+    pool.dispose();
   }
 }
 

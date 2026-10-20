@@ -122,3 +122,50 @@ bodies, so draws should fall; the baked lamps cost the same per pixel as on the 
 - Checks: `npm run lint` 0 errors (41 pre-existing warnings); `npm test` 192 files, 2098 passed, 5 skipped;
   `npm run build` passes. No e2e (job lead). Pending desktop GPU: NV on Marlow Yard default vs `?voxels=1` (smooth walls
   not darker, bodies not glowing).
+
+## Fix round 2 (GPU shots, on 1de3b40b)
+Desktop shots: smooth walls read clearly brighter than voxel walls under the same light (Marlow Yard annex walls light
+grey vs dark grey at meter 1; the rain-roof moonlit wall bright vs dark).
+
+Terms compared (VoxelPlugin + LampPlugin with VOXELS vs SurfacePlugin + LampPlugin with LAMP_LEVEL):
+- Fill (the cause, the big one): voxels take the hemisphere's colours (sky white, ground x 0.6, x the theme's `ambient`
+  0.25) mixed by the normal, x (0.12 + 0.88 x sky visibility), the hemisphere light excluded. The smooth level took the
+  flat gameplay ambient grid x `LEVEL_TO_RENDER` (0.25 x 1.33 = 0.33, no normal or sky term): about 4x the voxel fill on
+  open walls and 10-20x under the annex roof (model numbers below).
+- Image-based light (second): voxels scale the probe's irradiance and reflections by 0.35 + 0.65 x sky visibility; the
+  smooth level did not (full room-centre capture indoors).
+- Same on both (no change): baked lamps and moon (same plugin code), the darkness curve (reads the gameplay level on
+  both), directIntensity pi, environmentIntensity 0.6, metallic per surface kind, no leftover hemisphere (the smooth
+  path subtracts it). Albedo: the same piece colours linearised; atlas detail strength 0.5 vs 0.45, cavity 0.35 vs 0.3,
+  the voxel tone hash averages 1.0, the smooth per-piece jitter 0.99: within a few percent. Not changed.
+
+Fix:
+- `src/world/levelFill.ts` (new, pure): the fill and image-based light formulas and constants (`SKY_FILL_FLOOR` 0.12,
+  `ENV_FLOOR` 0.35, `SKY_OFFSET` 0.6), `levelFillColors`, `levelFill`, `envScale`, `sampleSky` (a CPU model of the
+  linear 3D texture tap), `skyShapes` (the pieces the voxel structure layer holds: >= 1.5 voxels thick) and `skyGridFor`
+  (the voxel path's sky grid layout: origin on the 5 cm brick grid, whole chunks; float32-safe).
+- `VoxelPlugin`: the same numbers now come from `LEVEL_FILL_GLSL` (values unchanged).
+- `World.create` (smooth, non-cheap, baked): `smoothSky` bakes sky visibility (`bakeSky`, one worker job beside the light
+  bake, about 0.1-0.6 s per map measured in node) from the canonical shapes filtered and laid out as the voxel path
+  would, and passes it with the hemisphere's sky / ground fill colours to `BakedLamps` (`BakeExtras.level`). Rendering
+  only; gameplay and the light bake are untouched.
+- `BakedLamps` / `LampPlugin`: a `LAMP_SKY` define (the `LAMP_LEVEL` material with a level fill): the level's fill is the
+  voxel formula by the sky texture (`lampSky`) instead of the flat grid, and `finalIrradiance` / `finalRadianceScaled`
+  are scaled by the same 0.35 + 0.65 x visibility. Bodies, weapons and props are unchanged (grid fill, NV cap).
+
+Test: `tests/levelFillParity.test.ts` (Babylon-free, ~1 s). Marlow Yard, both sky bakes (voxel shapes on the voxel grid;
+canonical shapes through `skyShapes` / `skyGridFor`), 7 points (annex front wall inside, annex grid wall, annex floor,
+the front wall outside under the roof lip = rain-roof, S8 obstacle wall by the exit lamp, S2 obstacle wall, open yard
+floor). Smooth vs voxel: sky visibility equal to 0.01 at every point; fill and image-based scale within 10% (in fact
+equal). The old flat fill vs the voxel fill: 0.333 vs 0.017 (annex walls, 20x), 0.030 (annex floor, 11x), 0.083
+(rain-roof wall, 4x), 0.089 (S8 wall, 3.7x), 0.129 (yard floor, 2.6x); the test asserts > 4x roofed, > 1.5x open.
+Not modelled (desktop shots): the probe's captured cube itself (it renders whichever level is drawn, so the smooth
+capture may still differ), the atlas texture values, per-voxel AO in corners and the voxel worn edges.
+`scripts/e2e-lightbake.mjs` also asserts the smooth level effect compiles `LAMP_SKY`.
+
+Checks: `npm run lint` 0 errors (41 pre-existing warnings); `npm test` 193 files, 2101 passed, 5 skipped; `npm run
+build` passes. No e2e, no GPU runs (laptop).
+Perf: not measured (the draw counter is cumulative and frame time sits at vsync on the desktop shots). Cost added: one
+sky bake job at load, one R8 3D texture, one 3D tap per level pixel.
+Open: a map with no lights builds no `BakedLamps`, so its smooth level still takes the plain hemisphere (no sky term),
+as `?voxels=0` did before this job. Desktop: re-shoot the annex and rain-roof walls, default vs `?voxels=1`.
