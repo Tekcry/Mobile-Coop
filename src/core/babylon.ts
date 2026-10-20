@@ -173,7 +173,8 @@ SetMissingSideEffectWarningsEnabled(true);
 // hardware GPUs only; a post stack rebuild or a material recompile disposes an effect that never finished compiling)
 // makes Chrome / ANGLE query the deleted program: "GL_INVALID_VALUE: glGetProgramiv: Program object expected", a dozen
 // per rebuild. Keep such a program until its link completes, then delete it; flag the context disposed at once so
-// Babylon's own readiness poll stops without touching it.
+// Babylon's own readiness poll stops without touching it. Relies on Babylon internals: tests/glWarningFix.test.ts pins
+// the version and fails loudly on an upgrade (re-check this patch, then bump it there).
 const COMPLETION_STATUS_KHR = 0x91b1;
 const deletePipelineContext = ThinEngine.prototype._deletePipelineContext;
 ThinEngine.prototype._deletePipelineContext = function (this: ThinEngine, pipelineContext: IPipelineContext): void {
@@ -187,6 +188,8 @@ ThinEngine.prototype._deletePipelineContext = function (this: ThinEngine, pipeli
   const release = (): void => {
     if (this.isDisposed) return;
     const gl = this._gl;
+    // already deleted, or from a context lost and restored since: isProgram raises no GL error (getProgramParameter would)
+    if (ctx.program && !gl.isContextLost() && !gl.isProgram(ctx.program)) return;
     const linking = !!ctx.program && !gl.isContextLost() && !gl.getProgramParameter(ctx.program, COMPLETION_STATUS_KHR);
     if (linking && ++tries < 600) setTimeout(release, 16);
     else deletePipelineContext.call(this, ctx);

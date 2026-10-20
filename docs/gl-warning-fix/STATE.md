@@ -1,6 +1,7 @@
 # gl-warning-fix - state
 
-## Now (2026-10-21): fixed (REPORT.md), GPU e2e-desktop PASS; PR open; laptop full e2e requested.
+## Now (2026-10-21): fixed (REPORT.md), GPU e2e-desktop PASS; checker FIX (CHECK.md) -> upgrade guard test + isProgram
+guard done; PR #79; CT Core runs check + full e2e on the desktop (the laptop is offline).
 (earlier)
 Branch feature/gl-warning-fix from master (worktree C:/NightShift/Mobile-Coop-gl-warning-fix). Orchestrator, Michael
 approved ~09:30: the GPU-only "GL_INVALID_VALUE: glGetProgramiv: Program object expected" on the ray-traced + TAAU +
