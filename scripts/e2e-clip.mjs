@@ -126,6 +126,31 @@ const res = await page.evaluate(([only, log]) => {
     'walk wall left': () => { tp(-8.3, 0.5, 0); return run(2.5, () => move(0, 0.5)); },
     'walk wall right': () => { tp(-8.3, 4.5, Math.PI); return run(2.5, () => move(0, 0.5)); },
     'crouchwalk wall left': () => { tp(-8.3, 0.5, 0); st.tap('crouch'); return run(2.5, () => move(0, 0.6)); },
+    // (anim-rework S3) the sling draw (LT from holstered, M2: off the sling under the arm, up into the shoulder), the glide
+    // strafing both ways and backing up, then low ready (LT let go) into a crouch and back up drawn
+    'sling draw + glide': () => {
+      tp(0, -14, Math.PI / 2);
+      p.stance.holster();
+      run(0.8);
+      st.set('t', 'ads', true);
+      const r = run(1.0);
+      const parts = [run(1.2, () => move(1, 0)), run(1.2, () => move(-1, 0)), run(1.0, () => move(0, -1))];
+      st.set('t', 'ads', false);
+      move(0, 0);
+      parts.push(run(0.6));
+      st.tap('crouch');
+      parts.push(run(0.8));
+      st.tap('crouch');
+      parts.push(run(0.8));
+      for (const r2 of parts) {
+        r.n += r2.n;
+        r.wall += r2.wall;
+        r.leg += r2.leg;
+        r.maxPen = Math.max(r.maxPen, r2.maxPen);
+        for (const k of ['minLeg', 'minHead', 'minChest', 'minElbow', 'minKnees', 'minFeet']) r[k] = Math.min(r[k], r2[k]);
+      }
+      return r;
+    },
     'sprint': () => { tp(0, -14, Math.PI / 2); st.tap('dash'); return run(2, () => move(0, 1)); },
     'crouch run': () => { tp(0, -14, Math.PI / 2); st.tap('crouch'); return run(2, () => move(0, 1)); },
   };

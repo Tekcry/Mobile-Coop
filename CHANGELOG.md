@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - anim-rework
+- Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,
+  BRIEF section 3): with the gun out, standing, the legs play hand-keyed clips. Still: a ready stance, feet about hip
+  width with the support foot 18 cm ahead, knees soft. At low ready the walk, jog and run legs and carriage (no lean
+  below the run). Aiming, the glide: a short shuffle side-step that never crosses the feet (the aimed strafe was a crab,
+  knees 2-2.9 x the hips and a foot up to 56 cm off the line; now 0.6-1.2 x and 18 cm at the widest), shorter steps
+  backwards and forwards, the hips over the feet and the chest square to the gun. The aimed strafe is slower: 0.7 m/s
+  at full stick (was 1.26). The rifle's low ready points the muzzle about 40 deg down in front of the feet (was 46 deg
+  and 34 deg across the body); the pistol's low ready is a compressed ready close to the chest; the elbows stay in
+  aiming (were 7 cm out). LT from holstered with the rifle is its own sling draw (0.75 s): the gun comes off the back
+  round the right side, hangs muzzle down under the arm, then swings up into the shoulder. Crouched drawn is unchanged
+  (slice 4). No wire change (PROTOCOL_VERSION 24).
+
 ## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
 - Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
   2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear

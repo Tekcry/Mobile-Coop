@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { emptyPlannerInput, FootPlanner, PLANNER, STOP_CLOSE, STOP_SPLIT } from '../src/anim/footPlanner';
+import { emptyPlannerInput, FootPlanner, GLIDE_GAP, PLANNER, STOP_CLOSE, STOP_SPLIT } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver, stepLength } from '../src/anim/motion';
 import { CT, MOVEMENT } from '../src/config/movement';
 
 /** Drive a planner from a MotionDriver at a render rate; returns per-frame records. */
-function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>, t: number) => void, hz = 120, quickStop = 0, hold?: (t: number) => boolean) {
+function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>, t: number) => void, hz = 120, quickStop = 0, hold?: (t: number) => boolean, glide = false) {
   const d = new MotionDriver(0);
   const p = new FootPlanner();
   const pi = emptyPlannerInput();
@@ -17,7 +17,7 @@ function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>,
   for (let t = 0; t < seconds; t += dt) {
     mi.vx = mi.vz = 0;
     mi.yaw = d.yaw;
-    mi.aiming = false;
+    mi.aiming = glide;
     set(mi, t);
     d.step(dt, mi);
     x += d.outX * dt;
@@ -34,7 +34,9 @@ function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>,
     pi.moving = sp > (d.state === 'stop' ? 0.3 : 0.05);
     pi.phase = d.phase;
     pi.duty = 0.63;
-    pi.cycleTime = sp > 0.05 ? (2 * stepLength(sp)) / sp : 1;
+    // (anim-rework S3) the aimed glide strafe: its short side-step (GLIDE_STEP) and close (GLIDE_GAP)
+    pi.glide = glide;
+    pi.cycleTime = sp > 0.05 ? (2 * (glide ? stepLength(sp, MOVEMENT, 1, 0, 0, 0, 1) : stepLength(sp))) / sp : 1;
     pi.liftH = 0.065;
     pi.quickStop = quickStop;
     pi.hold = hold ? hold(t) : false;
@@ -200,6 +202,19 @@ describe('foot planner', () => {
   it('strafing: feet never cross', () => {
     const { frames } = simulate(4, (i) => (i.vx = MOVEMENT.walkSpeed * MOVEMENT.strafeMult));
     for (const f of frames) expect(f.latR - f.latL).toBeGreaterThan(0.1);
+    expect(maxPlantedSlide(frames)).toBeLessThan(0.01);
+  });
+  it('(anim-rework S3) the aimed glide strafe: the closing foot comes in to GLIDE_GAP, never crossing', () => {
+    const { frames } = simulate(4, (i) => (i.vx = MOVEMENT.adsSpeed * MOVEMENT.strafeMult), 120, 0, undefined, true);
+    let least = Infinity;
+    let most = 0;
+    for (const f of frames.slice(frames.length >> 1)) {
+      least = Math.min(least, f.latR - f.latL);
+      most = Math.max(most, f.latR - f.latL);
+    }
+    expect(least).toBeGreaterThan(GLIDE_GAP - 0.01);
+    // a short step: the feet open to about shoulder width at the widest (the crab spread them up to 1 m)
+    expect(most).toBeLessThan(0.42);
     expect(maxPlantedSlide(frames)).toBeLessThan(0.01);
   });
   it('stopping: settles with the feet under the body at the stop point', () => {

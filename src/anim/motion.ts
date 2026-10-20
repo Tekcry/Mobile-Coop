@@ -91,13 +91,25 @@ const TURN_SETTLE = 0.12;
 /** (anim-rework S2, M6) The player's crouched step line (m: stepLen0 + k * speed, capped at max): the pre-M6 values. */
 export const CROUCH_STEP = { k: 0.2, max: 0.95 } as const;
 export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
+/**
+ * (anim-rework S3, BRIEF 3 "the glide") The aimed glide's standing steps (`glide` 1: a carrier aiming; MOVEMENT only;
+ * crouched, holstered, low ready and enemies keep the old 60 % side-step). A side-step is a shuffle: the lead foot steps out, the trailing foot closes, they
+ * never cross, so each foot travels two steps' length per cycle and the feet open by that much between the closes. A
+ * pure strafe steps `lat0 + latK x speed` (m; 0.094 m at 0.37 m/s, a slow stick: the feet open about 19 cm past the close,
+ * 4 steps a second; 0.11 m at the 0.7 m/s full-stick aimed strafe, 6.4 a second) instead of 60 % of the walk's 0.5-0.6 m (the
+ * 45-53 cm crab: the feet spread up to 1 m between the closes). Walking backwards (`back` share 1) steps `back` shorter
+ * (0.33 m at the 1.05 m/s aimed back glide: the reaching foot checks the ground behind, BRIEF 3), blended by the
+ * share's square (a diagonal keeps most of its step). Aiming (`glide` 1) every step is at most `fwd0 + fwdK x speed` (0.46 m at
+ * the 1.4 m/s aimed walk, was the walk's 0.58 m: the glide's short steps, a steadier platform).
+ */
+export const GLIDE_STEP = { lat0: 0.075, latK: 0.05, back: 0.35, fwd0: 0.25, fwdK: 0.15 } as const;
 
 /**
  * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
  * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
  * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
  */
-export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0): number {
+export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0): number {
   const v = Math.max(0, speed);
   // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
   let s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * v);
@@ -110,7 +122,18 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
     s += (w - s) * (1 - u * u * (3 - 2 * u)) * (1 - Math.max(0, crouch));
   }
   // (G1, audit row 26) the tense sneak's long deliberate steps, by its weight 0..1
-  return (s + (TENSE.step - s) * tense) * (1 - 0.4 * lateral * lateral);
+  const base = s + (TENSE.step - s) * tense;
+  const old = base * (1 - 0.4 * lateral * lateral);
+  if (M !== MOVEMENT) return old;
+  // (anim-rework S3) standing: the glide's short shuffle side-step and the shorter back-step (GLIDE_STEP)
+  const stand = 1 - Math.max(0, Math.min(1, crouch));
+  const g = Math.max(0, Math.min(1, glide));
+  if (stand <= 0 || g <= 0) return old;
+  const fwd = base + (Math.min(base, GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * v) - base) * g;
+  const l2 = lateral * lateral;
+  const side = Math.min(fwd, GLIDE_STEP.lat0 + GLIDE_STEP.latK * v);
+  const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
+  return old + (step - old) * stand * g;
 }
 
 /**
@@ -129,8 +152,8 @@ export const TURN_GAIT_MIN = 1.0;
  * cycle) and one step per `TURN_STEP` of yaw. Straight walking is unchanged; a 450 deg/s spin is 2.5 cycles/s (a step
  * per 0.2 s). `max`, not a sum: a run turn keeps its cadence.
  */
-export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0): number {
-  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense, crouch)) : 0;
+export function gaitRate(speed: number, yawRate: number, M: MotionTuning = MOVEMENT, lateral = 0, tense = 0, crouch = 0, back = 0, glide = 0): number {
+  const lin = speed > 0.02 ? speed / (2 * stepLength(speed, M, lateral, tense, crouch, back, glide)) : 0;
   const ang = Math.abs(yawRate) > TURN_GAIT_MIN ? Math.abs(yawRate) / (2 * TURN_STEP) : 0;
   return lin > ang ? lin : ang;
 }
@@ -455,9 +478,11 @@ export class MotionDriver {
     // (A1.2) the clock counts body turning as well as distance: one step per 90 deg (a spin at a crawl still steps)
     if (sp > 0.02 || Math.abs(this.yawRate) > TURN_GAIT_MIN) {
       const lat = sp > 0.02 ? Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp) : 0;
+      // (anim-rework S3) and the backward share (GLIDE_STEP.back)
+      const bk = sp > 0.02 ? Math.min(1, Math.max(0, -(this.vx * Math.sin(this.yaw) + this.vz * Math.cos(this.yaw)) / sp)) : 0;
       // (G1 fix) in a start the clock runs START_CLOCK.share of the way to the target pace (the first step lands at ~0.25 s)
       const spc = this.startT >= 0 && this.wantPace > sp ? sp + (this.wantPace - sp) * START_CLOCK.share : sp;
-      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0) * dt) % 1;
+      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0) * dt) % 1;
     }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;

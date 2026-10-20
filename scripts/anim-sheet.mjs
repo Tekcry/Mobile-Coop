@@ -124,6 +124,12 @@ const SCENARIOS = {
   aimwalk: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: 0.6 }, input: () => ({ ads: true, y: 0.6 }) },
   aimstrafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
   // (BC) the aim crouched, and the pistol both ways
+  // (anim-rework S3) drawn: the low ready walk (X tap draws), the aimed glide backwards, the pistol's aimed strafe, low
+  // ready to aim (LT pressed 0.2 s in); `draw` above is the sling draw (LT from holstered, M2)
+  lowreadywalk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.0, at0: "a.input.state.tap('draw');", warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
+  aimback: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: -0.8 }, input: () => ({ ads: true, y: -0.8 }) },
+  aimstrafep: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, weapon: 'pistol', warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
+  readytoaim: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('draw');", input: (t) => ({ ads: t >= 0.2 }) },
   aimcrouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   aimpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }) },
   aimcrouchpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },

@@ -106,6 +106,25 @@ export function diagTurn(draw: boolean, r: number, out: DiagTurnStep): DiagTurnS
   return out;
 }
 
+/**
+ * (anim-rework S3, M2: "Consider how CT pulled the gun underneath like a sling") The sling draw (LT from holstered): the
+ * holster's turn run backwards. The gun swings off the back round the right side in the plane of the back until the bore
+ * points straight down, twists so its top faces forward (muzzle down beside the right hip, under the arm), then the
+ * muzzle swings up forward onto the line into the shoulder. Written into `out` (no allocation); its keys use the
+ * draw's ends ('start' the slung gun, 'end' the aim pocket).
+ */
+export function diagTurnSling(r: number, out: DiagTurnStep): DiagTurnStep {
+  const u = r < 0 ? 0 : r > 1 ? 1 : r;
+  diagTurn(false, 1 - u, out);
+  if (out.kind === 1) {
+    const from = out.from;
+    out.from = out.to === 'start' ? 'end' : out.to;
+    out.to = from === 'start' ? 'end' : from;
+    out.t = 1 - out.t;
+  }
+  return out;
+}
+
 /** The in-plane gun frame at theta (bore (sin, cos, 0), top (cos, -sin, 0), right side +z), into `o` (9 numbers: x, y, z axes). */
 export function planeFrame(theta: number, o: number[]): number[] {
   const s = Math.sin(theta);
