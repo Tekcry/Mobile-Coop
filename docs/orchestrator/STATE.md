@@ -49,7 +49,7 @@ Restart order after the reset: the orchestrator first (Michael pastes its prompt
 - Michael approved overnight merges: "Yes, merge green PRs" (tuner #56, S2b walk fix, slices 4-6, wheel-ui, camera-cue,
   smooth-world, the cloud jobs warehouse-lamps and marlow-bunker), each on its test tier; anything unsure waits.
 - Priorities: movement > finishing the co-op training bunker (Marlow Yard) > the campaign level. Warehouse rebuild
-  deferred. Guard AI runs in a cloud session on a second account (isolated; it opens a PR; I review and merge).
+  deferred. Guard AI waits for Michael's second account to reset (out of usage); he pastes the guard-ai cloud prompt then (feature/guard-ai from master, PR only; I review and merge).
 - Laptop queue: tuner 66f9afba, camera-cue, smooth-world; wheel-ui d8c69347 passed.
 
 ## In flight at 2026-10-20 ~23:20 (second usage window ending)
