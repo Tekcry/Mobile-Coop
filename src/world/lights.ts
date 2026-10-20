@@ -48,12 +48,26 @@ export interface LightDef {
   reach?: number;
 }
 
+/** (warehouse-lamps) The three prototype fitting models (`fixtureModels.ts`): a dome high-bay, a fluorescent batten, a caged bulkhead. */
+export type FittingModel = 'dome' | 'batten' | 'bulkhead';
+
 /** A light's fixture box: size (m) and its centre's height above the light. */
 export interface LightFixture {
   sx: number;
   sy: number;
   sz: number;
   oy: number;
+  /** (warehouse-lamps) The model `LightRig` draws in place of the glowing box (`lampMount.ts` sets it); unset = the box. */
+  model?: FittingModel;
+  /** What the model is fixed to: a ceiling (rod / hangers up), a wall (an arm back), a mast (from the roof or deck under it). */
+  base?: 'ceiling' | 'wall' | 'mast';
+  /** The model's yaw (rad, a quarter turn step): a batten's long axis, a bulkhead's facing (away from its wall). */
+  yaw?: number;
+  /** The mount's length (m): a dome's drop rod or a batten's hangers from the body top to the ceiling, a bulkhead's
+   *  bracket arm from the body back to the wall, a mast's height from the roof or deck to its head. */
+  mount?: number;
+  /** A strut along the ceiling from the rod top to the nearest ceiling edge (a lamp under a skylight gap): [dx, dz]. */
+  strut?: [number, number];
 }
 
 export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z'>> & { x: number; y: number; z: number };

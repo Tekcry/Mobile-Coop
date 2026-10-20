@@ -29,7 +29,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
   there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
 - [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`).
+  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is a fitting
+  on its ceiling (dome on a rod, batten on hangers), its wall (caged bulkhead) or a roof mast: none floats or pokes
+  through a ceiling; a lamp switched off or shot goes dark on its lens. The roof's open strips are pale corrugated
+  sheets (moonlight still comes through); the walls carry pipes, trays, signs and fire points, trusses span the roof,
+  and the halls' dead corners hold pallets, drums and cartons, none on a route or patrol.
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
@@ -94,6 +98,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
+- [ ] Animation tuner: open it from Pause > Animation tuner (dev) (the match resumes with the panel open), Settings >
+  Graphics > Animation tuner (dev) or F3 > Anim; on a phone the panel folds to its header (_ / +), scrolls, drags by
+  thumb and closes with x, and Share / Copy shares, copies or shows the JSON. Walk: "arm swing amplitude", "stance knee
+  flex" and "trunk / shoulder counter-rotation" sit at the top. Walk with the pad and drag "foot width / track" - the
+  feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
+  is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
+  press Reset all before judging the game's own defaults.
+- [ ] Animation tuner by pad (tuner-pad): Pause > Animation tuner (dev) with A; the panel says "PAD: tuner" and one row
+  has an amber outline. D-pad down / up move the outline (on into the gun rows), right / left nudge the value (hold:
+  repeats, faster after 1 s), the left stick X nudges faster; LB / RB change the group; Y resets the row; A exports.
+  The player does not move, jump or fire meanwhile. View: "PAD: game", walk to check, View again to tune. B closes the
+  panel and the player does not crouch from that press.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than

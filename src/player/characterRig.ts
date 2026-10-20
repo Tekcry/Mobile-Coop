@@ -16,6 +16,7 @@ import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
 import { KA, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { toePitch } from '../anim/toeRoll';
+import { TUNE_CUR } from '../anim/tune';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -1778,10 +1779,10 @@ export class CharacterRig {
     // (the height adds to the procedural one: the posture's knee bend and the legs' reach stay; the clip shapes the step)
     const pey = pe.y + kq.pel[1]! * kk * kw;
     const pez = pe.z + (kq.pel[2]! * kk - pe.z) * kw;
-    this.kneeOutNow = KNEE_OUT + (t.keyKneeOut - KNEE_OUT) * kw;
+    this.kneeOutNow = (KNEE_OUT + (t.keyKneeOut - KNEE_OUT) * kw) * TUNE_CUR.kneeOutMul;
     this.softMove = approachTo(this.softMove, t.gait.moving ? 1 : 0, dt, SOFT_KNEE_TAU);
     const softStand = freeGait ? SOFT_KNEE_STAND + (SOFT_KNEE_WALK - SOFT_KNEE_STAND) * this.softMove : 0.97;
-    const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : softStand - (softStand - 0.97) * Math.max(0, this.input.crouch * 2));
+    const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : softStand - (softStand - 0.97) * Math.max(0, this.input.crouch * 2)) - TUNE_CUR.kneeFlexAdd;
     const hipY = rp.y + this.bodyPivot + this.pelvisRest + pey - 0.03;
     // (G1 fix, audit row 9) standing still the body settles over its feet: a stop's slide leaves the frozen feet behind the
     // capsule (up to ~0.3 m), so the hips come back toward the feet's midpoint (at most REST_SHIFT, eased); the same on a
@@ -1887,7 +1888,7 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4 - pe.yaw * 0.6 - this.follow, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.4, this.spine.rotationQuaternion!);
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
     // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
-    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD * TUNE_CUR.headDropMul, t.head.roll * 0.4, this.neck.rotationQuaternion!);
     // (anim-rework S3) the trunk by keyTrunk: aiming the upper body stays the procedural gun platform
     if (kw * t.keyTrunk > 0) this.keyedTrunk(kq, kw * t.keyTrunk, t.head.yaw * 0.4);
     this.limitJoint(this.hips, dt);
@@ -2028,12 +2029,12 @@ export class CharacterRig {
     }
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
-    this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y, AIM_POCKET.z + w.z);
+    this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x + TUNE_CUR.gunSide) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y + TUNE_CUR.gunUp, AIM_POCKET.z + w.z + TUNE_CUR.gunFwd);
     // raised the weapon points along the aim; lowered (ready) it is carried with the body, so a lowered gun
     // never swings towards wherever the camera looks (into a wall beside you)
     const aimYaw = yaw + this.input.aimYaw * t.aimW;
     const aimPitch = this.input.aimPitch * (0.35 + 0.65 * t.aimW);
-    Quaternion.RotationYawPitchRollToRef(aimYaw + w.yaw * mirror, -aimPitch + w.pitch, w.roll * mirror, tmpQ);
+    Quaternion.RotationYawPitchRollToRef(aimYaw + (w.yaw + TUNE_CUR.gunYaw) * mirror, -aimPitch + w.pitch + TUNE_CUR.gunPitch, (w.roll + TUNE_CUR.gunCant) * mirror, tmpQ);
     if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
     // (3.2.0) upside down the raised weapon aims in world space
     if (this.aimWorldYaw !== null && t.aimW > 0) {
@@ -2160,7 +2161,7 @@ export class CharacterRig {
     const Rc = this.torso.absoluteRotationQuaternion;
     this.dirToWorld(0, 0, 1, kH);
     // upper arm onto the keyed elbow
-    kV.set(a[eo]! * kk, a[eo + 1]! * kk, a[eo + 2]! * kk);
+    kV.set(a[eo]! * kk + side * TUNE_CUR.elbowOutAdd, a[eo + 1]! * kk, a[eo + 2]! * kk);
     kV.rotateByQuaternionToRef(Rc, kV);
     kSave.copyFrom(sh.rotationQuaternion!);
     boneRotation(kV, kH, tmpQ3);
@@ -2424,8 +2425,8 @@ export class CharacterRig {
     // the elbow swings in under the grip before the body moves to the anchor (e2e-clip zipline)
     const holsterOut = side > 0 && this.holsterW > 0 ? HOLSTER_ELBOW_OUT * this.holsterW * Math.min(1, this.readyRf) * (1 - Math.min(1, reach.w * 4)) : 0;
     // (anim-rework S3) the gun in the hands tucks the elbows at low ready too (READY_ELBOW_TUCK)
-    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK : 0);
-    this.dirToWorld(side * (0.55 * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK : 0) * TUNE_CUR.tuckMul;
+    this.dirToWorld(side * (0.55 * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
     // height stays the weld's)
     {
@@ -2595,8 +2596,8 @@ export class CharacterRig {
     // (ct-prototype G4) and out to the side (CLIMB_KNEE_OUT): the 2-rung ladder steps and the drainpipe's paired feet draw
     // both knees up at once, and a forward-and-up pole brought them within 8 cm of each other (e2e-clip ladder)
     const climbK = this.input.traverse === 'climb' || this.input.traverse === 'pipeClimb';
-    const o = climbK ? Math.max(out, CLIMB_KNEE_OUT) : out;
-    tmpPole.set(sn + side * o * c, climbK ? CLIMB_KNEE_UP : 0, c - side * o * sn);
+    const o = climbK ? Math.max(out, CLIMB_KNEE_OUT * TUNE_CUR.kneeOutMul) : out;
+    tmpPole.set(sn + side * o * c, climbK ? CLIMB_KNEE_UP * TUNE_CUR.kneeLiftMul : 0, c - side * o * sn);
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
     // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away
     // from the shin, the shin faces along the thigh; the pole only steers them when the leg is straight
@@ -2623,7 +2624,7 @@ export class CharacterRig {
     const e = this.heldWeapon!.getWorldMatrix().m;
     const zc = (g.z0 + g.z1) * 0.5;
     const sightY = g.top * e[5]! + zc * e[9]! + e[13]!;
-    const dy = (posIn(this.headNode, headPt).y + SIGHT_EYE - drop - sightY) * w;
+    const dy = (posIn(this.headNode, headPt).y + SIGHT_EYE + TUNE_CUR.sightYAdd - drop - sightY) * w;
     if (Math.abs(dy) < 2e-4) return;
     // world up -> the pocket's parent (torso) space
     (this.weaponPivot.parent as TransformNode).getWorldMatrix().invertToRef(clrM);

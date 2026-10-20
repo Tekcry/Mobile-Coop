@@ -6,6 +6,86 @@
   longer steps (132 a minute at 1.4 m/s, was 145; 162 at the jog, 185 at the run); the jog and run hands pass the hip.
   Every number is a named constant or key (`docs/anim-rework/S2B-REPORT.md`).
 
+
+## 4.22.0 - Sector Ops lamp fittings, translucent roof sheets, warehouse dressing (2026-10-21, PR #59)
+- Sector Ops Warehouse lamp fittings (Michael 2026-10-20: "The sector ops lights are not sitting properly on the
+  ceilings, some are even above ceilings or just floating"; quick, believable, three types, in code). Every lamp of the
+  three sections is now a fitting fixed to the structure: under a ceiling, a dome high-bay on a drop rod (halls) or a
+  fluorescent batten on two hangers (rooms, corridors, decks), a strut to the roof strip when it hangs under a skylight
+  gap; with no ceiling over it, a caged bulkhead on a bracket arm on the nearest wall (door lamps, signs, the yard
+  floods); on the roofs, a dome on a mast. 98 of 99 lamps mounted (S1 33 of 34, S2 23, S3 42); the one left keeps its
+  box (S1 yard (11.25, 2.45, -22.45), inside the container). `world/lampMount.ts` (pure) mounts them at level build.
+- The three models (`world/fixtureModels.ts`, pure): built from boxes and frustums, one body mesh and one glowing face
+  mesh per type, thin-instanced; one shared dark steel body material (PBR, lit by the lamp bake) and the bulbs'
+  emissive material for the faces (dark when the lamp is out or shot); every rod, hanger, arm, strut and mast is one
+  box mesh. 7 draws for all of them, built once at load. Other maps keep their glowing boxes.
+- No light moved: positions, radii, intensities and the fixture boxes the bake samples are as before, so the light
+  meter, guards and the bake read the same (the section light tests pass unchanged). A lamp's shot box is still its old
+  box (a batten's ends are not a target yet).
+- Test: `tests/warehouseLamps.test.ts` (each section: every fitting's mount ends within 3 cm of the ceiling underside,
+  wall face or roof under it, nothing cuts the fitting or its rod; the exception list; the models).
+- Roof sheets (Michael: the open sections are "usually a opaque type of corrugated plastic sheet that allow light in but
+  cant be passed through"): every open section of the hall roofs (the four skylight gaps across all three sections,
+  section 3's 2.95 m open strip at z -8.95 to -6 and the slit over section 2's south wall) is a pale see-through
+  corrugated sheet, solid (collision only; overhead, no ledges). It is not in the light bake and casts no shadow, so the
+  moon reaches the floor under it exactly as the bake, the meter and the guards have it (dimmer-than-sky light through
+  plastic needs a translucency rule in the bake, G45, not built). Section 1's roof hatch and smoke vent are routes (R2)
+  and stay open. `LevelBuilder.sheet`, `world/roofSheets.ts` (pure); one more draw.
+- Detail (Michael chose "Walls + ceiling + dead-space clutter"; `world/maps/warehouseDress.ts`, pure): along the hall
+  walls of all three sections pipe runs (256 m), cable trays (118 m), 16 signs, 12 fire points (extinguisher and
+  panel), 39 hazard stripe bands at doorways, a roller door on section 2's north wall; roof trusses on the frame lines
+  (81 panels; the top chord only over the high routes) and a duct in section 3; floor lanes and bay plates by the
+  racks. 15 floor items in dead space: pallet stacks, drum pairs and cartons in the halls, lockers and a desk in side
+  rooms. Every piece is a visual `detail` box drawn with the level's own box mesh (no new draw, out of the bake);
+  the floor items also get one collision-only box (no cover face, no ledge). Each kind is skipped where it would cut a
+  solid piece, a traversal anchor, a door, switch or device, a lamp or its mount, or where it would hang under 1.8 m
+  over a walkable top (rack tops, decks, roofs); floor items stand 1.5 m clear of every section route, 2 m clear of
+  every guard patrol and post, and off every sightline a guard has today to a route within 20 m. Not placed: the
+  second roller door (section 3's east wall), the forklift (no dead space fits one) and boxes on the racking shelves
+  (the racking's voxel art already holds loads at the voxel presets).
+- Test: `tests/warehouseDress.test.ts` (the roofs closed but for the route openings, the sheets solid; the light shapes
+  the same as without the dressing; no piece cuts a solid one, 1.8 m headroom; floor items clear of routes and
+  patrols, on the floor, with collision).
+
+## 4.21.1 - e2e-pad steps over the tuner item; steadier heap test (2026-10-21, PR #64)
+- e2e-pad's pause menu walk steps over "Animation tuner (dev)" (added before Quit by the anim-tuner job); "focus Quit"
+  failed every run, hidden by KNOWN FLAKY. analogGear "allocates nothing per update" warms up and takes the smallest of
+  three passes (a single pass read 3.5 MB on a loaded CI runner). Test only.
+
+## 4.21.0 - Selection wheel sized to the screen, radial ring look, FPS banner bottom left (2026-10-21, PR #61)
+- Selection wheel restyle (`docs/wheel-ui/SLICE1.md`): the wheel sizes itself from the screen (130 + 0.36 x height px:
+  518 px at 1080p, was about 430; about 250 px on an 844 x 390 phone) inside the safe area, never under the top HUD or the
+  hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
+  item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
+
+## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
+- Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
+  D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
+  1 s), the left stick X nudges in analogue steps, LB / RB switch the focused section's state group, Y resets the
+  slider, A exports, B closes, View moves the pad between the tuner and the game ("PAD: tuner" / "PAD: game" on the
+  panel). The focused row has an amber outline. While the tuner has the pad the game and the menus get none of it.
+  Keyboard, mouse and touch are unchanged. Detail: `docs/anim-tuner/PAD.md`.
+
+## 4.20.0 - Animation tuner: live sliders for gaits, poses and the gun hold, with export (2026-10-21, PR #56)
+- Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
+  opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
+  crouch idle / sneak / crouch walk, low ready, aim, crouched aim, back to wall idle / slide / peek, ladder, pipe, ledge,
+  vent, crawl, hang, hold) and a gun-hold section (rifle and pistol x low ready / aim / crouched aim), each following
+  the current state (untick "follow" to pick one). Sliders cover foot width, knee out, knee lift, step length, pelvis
+  height / crouch depth, forward lean, arm swing and its growth with speed, elbow out, head turn, peek lean, gap to the
+  wall, body distance to the ladder / pipe / guard, hand and foot reach and spacing, gap to the guard, and the gun's
+  position, pitch, yaw, cant, sight height, head drop and elbow tuck; a barrel marker shows where the muzzle points.
+  Changes apply live to the local player only (guards and the partner's copy are untouched; nothing on the wire), save
+  to the tuner's own IndexedDB store, reset per slider / group / all, and Export downloads `anim-tune-<date>.json`
+  (every changed value, its default, a timestamped change log). Every default is identity: nothing changes until a
+  slider moves. `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/save/animTuneStore.ts`; report
+  `docs/anim-tuner/REPORT.md`.
+- Pass 2 (pad and phone, Michael: "I will wait for the anim tuner"): the tuner also opens from the pause menu ("Animation
+  tuner (dev)", which resumes with the panel open) and Settings > Graphics, without F3, and stays open until its x. It
+  folds to a header bar, scrolls on a short landscape screen, is at most 45 % wide, has 28 px touch rows, keeps its
+  touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
+  Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
+  at the top with arm swing amplitude and step length (cadence at the same speed).
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
