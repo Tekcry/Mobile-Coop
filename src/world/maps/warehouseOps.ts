@@ -1,6 +1,7 @@
 import { Vector3 } from '../../core/babylon';
 import type { MapDef } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
+import { mountLights } from '../lampMount';
 import { buildWarehouse, warehouse } from './warehouse';
 import { buildServiceS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './warehouseS1';
 import { buildStorageS2, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './warehouseS2';
@@ -87,6 +88,8 @@ export const warehouseOps: MapDef = {
       ...S2_NAV_SEEDS,
       ...S3_NAV_SEEDS,
     ];
+    // every lamp's fitting on its ceiling or wall (warehouse-lamps; the lights themselves do not move)
+    mountLights(b.boxes, b.lights.lights);
     // alarm panels tagged by section (only the live section's work)
     const alarms = WAREHOUSE_OPS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], 0, a.at[1]), yaw: a.yaw, section: a.section }));
     return {

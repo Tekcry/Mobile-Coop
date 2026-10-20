@@ -40,6 +40,12 @@ field (collision, the light bake, the noise model), never the render state.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of `MAX_REAL_LIGHTS` spot
   lights given to the nearest lights at 4 Hz; quality sets how many are lit (`QualityLevel.realLights`). Pool lights are
   never enabled / disabled (no recompiles). Maps without lights create nothing.
+- Fitting models (warehouse-lamps; Sector Ops only): `world/lampMount.ts` (pure) gives each fixed light of `warehouseOps`
+  a `fixture.model` (dome high-bay, batten, caged bulkhead) and a mount (`base` ceiling / wall / mast, `mount` length,
+  `yaw`, `strut`) on the boxes it finds over or beside it; the light's position and fixture box (what the bake samples,
+  glare and shots read) do not change. `world/fixtureModels.ts` (pure) builds the meshes; `LightRig.buildFittings` draws
+  a body (one shared PBR material) and an emissive face per model, thin-instanced, and every mount link as one box mesh.
+  `tests/warehouseLamps.test.ts` pins every mount to its ceiling, wall or roof (3 cm).
 
 ## Baked lamps (3.2)
 - `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box

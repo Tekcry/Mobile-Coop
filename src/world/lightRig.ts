@@ -1,7 +1,19 @@
-import { ClusteredLightContainer, Color3, CreateBox, CreateSphere, Matrix, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, type AbstractMesh, type Material, type Mesh, type Scene } from '../core/babylon';
+import { ClusteredLightContainer, Color3, CreateBox, CreateSphere, Matrix, Mesh, PBRMaterial, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, VertexData, type AbstractMesh, type Material, type Scene } from '../core/babylon';
 import { LAMP_CONE as LAMP_CONE_MATH, LIGHT_GAIN } from './lampMath';
 import type { ShadowSpec } from '../core/quality';
-import { nearestLights, type LightDef, type LightRegistry } from './lights';
+import { nearestLights, type FittingModel, type LightDef, type LightRegistry } from './lights';
+import { fittingMesh, type MeshArrays } from './fixtureModels';
+import { mountLinks } from './lampMount';
+
+/** (warehouse-lamps) One fitting model's draws: the body (shared dark material) and the glowing face, and the lights they show. */
+interface FittingDraw {
+  body: Mesh;
+  face: Mesh;
+  /** Registry ids, one per instance. */
+  ids: Int32Array;
+  colors: Float32Array;
+}
+const MODELS: readonly FittingModel[] = ['dome', 'batten', 'bulkhead'];
 
 /** Most real lights the rig can hold (`QualityLevel.realLights`, Settings > Graphics). */
 export const MAX_REAL_LIGHTS = 48;
@@ -81,6 +93,10 @@ export class LightRig {
   private readonly scene: Scene;
   private bulbs: Mesh | null = null;
   private fixtures: Mesh | null = null;
+  /** (warehouse-lamps) The fitting models (built once at load) and their mounts' links (one box mesh). */
+  private fittings: FittingDraw[] = [];
+  private links: Mesh | null = null;
+  private bodyMat: PBRMaterial | null = null;
   private bulbColors: Float32Array | null = null;
   private ids = new Int32Array(MAX_REAL_LIGHTS + 16);
   private dist = new Float32Array(MAX_REAL_LIGHTS + 16);
@@ -116,6 +132,8 @@ export class LightRig {
     mat.diffuseColor = Color3.Black();
     mat.specularColor = Color3.Black();
     mat.emissiveColor = Color3.White();
+    // (warehouse-lamps) the fitting faces are flat lenses seen from either side
+    mat.backFaceCulling = false;
     mat.freeze();
     mesh.material = mat;
     mesh.isPickable = false;
@@ -128,6 +146,8 @@ export class LightRig {
       // moving lights (enemy flashlights) have no fixed bulb
       if (l.kind === 'flashlight') continue;
       const f = l.fixture;
+      // a fitting model (drawn by `buildFittings`) has no bulb and no box
+      if (f?.model) continue;
       if (f) {
         // a fixture box instead of a bulb (it goes dark with the light)
         Matrix.ComposeToRef(new Vector3(f.sx, f.sy, f.sz), Quaternion.Identity(), new Vector3(l.x, l.y + f.oy, l.z), m);
@@ -155,6 +175,97 @@ export class LightRig {
     mesh.thinInstanceRefreshBoundingInfo(false);
     mesh.freezeWorldMatrix();
     this.bulbs = mesh;
+    this.buildFittings(scene, mat);
+  }
+
+  /** (warehouse-lamps) The three fitting models, merged per type and thin-instanced, and every mount's links (rods, hangers, arms, struts, masts) as one box mesh. Load time only. */
+  private buildFittings(scene: Scene, faceMat: StandardMaterial): void {
+    const ls = this.reg.lights;
+    const segs: number[] = [];
+    const m = new Matrix();
+    const q = new Quaternion();
+    const pos = new Vector3();
+    const one = new Vector3(1, 1, 1);
+    for (const model of MODELS) {
+      const ids: number[] = [];
+      for (const l of ls) {
+        if (l.kind === 'flashlight' || l.fixture?.model !== model) continue;
+        ids.push(l.id);
+        mountLinks(l, segs);
+      }
+      if (!ids.length) continue;
+      const mtx = new Float32Array(ids.length * 16);
+      ids.forEach((id, k) => {
+        const l = ls[id]!;
+        Quaternion.RotationYawPitchRollToRef(l.fixture!.yaw ?? 0, 0, 0, q);
+        pos.set(l.x, l.y, l.z);
+        Matrix.ComposeToRef(one, q, pos, m);
+        m.copyToArray(mtx, k * 16);
+      });
+      const geo = fittingMesh(model);
+      const body = this.meshOf('lampBody-' + model, geo.body, scene, this.bodyMaterial(scene), mtx);
+      const colors = new Float32Array(ids.length * 4);
+      const face = this.meshOf('lampFace-' + model, geo.face, scene, faceMat, mtx);
+      face.thinInstanceSetBuffer('color', colors, 4, false);
+      this.fittings.push({ body, face, ids: Int32Array.from(ids), colors });
+    }
+    const n = segs.length / 7;
+    if (!n) return;
+    const lm = new Float32Array(n * 16);
+    const sc = new Vector3();
+    for (let k = 0; k < n; k++) {
+      const o = k * 7;
+      const dx = segs[o + 3]! - segs[o]!;
+      const dy = segs[o + 4]! - segs[o + 1]!;
+      const dz = segs[o + 5]! - segs[o + 2]!;
+      const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const t = segs[o + 6]!;
+      // local +z along the link: yaw about y, then pitch about x (Babylon's yaw-pitch-roll order)
+      Quaternion.RotationYawPitchRollToRef(Math.atan2(dx, dz), -Math.asin(len > 1e-6 ? dy / len : 0), 0, q);
+      sc.set(t, t, len);
+      pos.set(segs[o]! + dx / 2, segs[o + 1]! + dy / 2, segs[o + 2]! + dz / 2);
+      Matrix.ComposeToRef(sc, q, pos, m);
+      m.copyToArray(lm, k * 16);
+    }
+    const links = CreateBox('lampLinks', { size: 1 }, scene);
+    links.material = this.bodyMaterial(scene);
+    links.isPickable = false;
+    links.thinInstanceSetBuffer('matrix', lm, 16, true);
+    links.thinInstanceRefreshBoundingInfo(false);
+    links.freezeWorldMatrix();
+    this.links = links;
+  }
+
+  /** The fittings' one body material: dark painted steel, lit like the level (the lamp bake attaches to every PBR material). */
+  private bodyMaterial(scene: Scene): PBRMaterial {
+    if (this.bodyMat) return this.bodyMat;
+    const bm = new PBRMaterial('lampBodyMat', scene);
+    bm.albedoColor = Color3.FromHexString('#4a4e52').toLinearSpace();
+    bm.metallic = 0;
+    bm.roughness = 0.6;
+    bm.usePhysicalLightFalloff = false;
+    bm.directIntensity = Math.PI;
+    // a dome's shade is seen from inside, from below
+    bm.backFaceCulling = false;
+    bm.twoSidedLighting = true;
+    bm.freeze();
+    this.bodyMat = bm;
+    return bm;
+  }
+
+  private meshOf(name: string, a: MeshArrays, scene: Scene, mat: Material, mtx: Float32Array): Mesh {
+    const mesh = new Mesh(name, scene);
+    const vd = new VertexData();
+    vd.positions = a.positions;
+    vd.normals = a.normals;
+    vd.indices = a.indices;
+    vd.applyToMesh(mesh, false);
+    mesh.material = mat;
+    mesh.isPickable = false;
+    mesh.thinInstanceSetBuffer('matrix', mtx, 16, true);
+    mesh.thinInstanceRefreshBoundingInfo(false);
+    mesh.freezeWorldMatrix();
+    return mesh;
   }
 
   /** Lights the materials must take: sky + sun, the cluster (or the plain pool) and the shadow pool. */
@@ -440,6 +551,17 @@ export class LightRig {
     }
     this.bulbs.thinInstanceBufferUpdated('color');
     this.fixtures?.thinInstanceBufferUpdated('color');
+    for (const fd of this.fittings) {
+      const fc = fd.colors;
+      for (let k = 0; k < fd.ids.length; k++) {
+        const i = fd.ids[k]!;
+        fc[k * 4] = c[i * 4]!;
+        fc[k * 4 + 1] = c[i * 4 + 1]!;
+        fc[k * 4 + 2] = c[i * 4 + 2]!;
+        fc[k * 4 + 3] = 1;
+      }
+      fd.face.thinInstanceBufferUpdated('color');
+    }
   }
 
   dispose(): void {
@@ -448,6 +570,15 @@ export class LightRig {
     this.bulbs?.material?.dispose();
     this.bulbs?.dispose();
     this.fixtures?.dispose();
+    for (const fd of this.fittings) {
+      fd.body.dispose();
+      fd.face.dispose();
+    }
+    this.fittings = [];
+    this.links?.dispose();
+    this.links = null;
+    this.bodyMat?.dispose();
+    this.bodyMat = null;
     this.bulbs = null;
   }
 }

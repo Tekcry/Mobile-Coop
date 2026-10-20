@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased - warehouse-lamps
+- Sector Ops Warehouse lamp fittings (Michael 2026-10-20: "The sector ops lights are not sitting properly on the
+  ceilings, some are even above ceilings or just floating"; quick, believable, three types, in code). Every lamp of the
+  three sections is now a fitting fixed to the structure: under a ceiling, a dome high-bay on a drop rod (halls) or a
+  fluorescent batten on two hangers (rooms, corridors, decks), a strut to the roof strip when it hangs under a skylight
+  gap; with no ceiling over it, a caged bulkhead on a bracket arm on the nearest wall (door lamps, signs, the yard
+  floods); on the roofs, a dome on a mast. 98 of 99 lamps mounted (S1 33 of 34, S2 23, S3 42); the one left keeps its
+  box (S1 yard (11.25, 2.45, -22.45), inside the container). `world/lampMount.ts` (pure) mounts them at level build.
+- The three models (`world/fixtureModels.ts`, pure): built from boxes and frustums, one body mesh and one glowing face
+  mesh per type, thin-instanced; one shared dark steel body material (PBR, lit by the lamp bake) and the bulbs'
+  emissive material for the faces (dark when the lamp is out or shot); every rod, hanger, arm, strut and mast is one
+  box mesh. 7 draws for all of them, built once at load. Other maps keep their glowing boxes.
+- No light moved: positions, radii, intensities and the fixture boxes the bake samples are as before, so the light
+  meter, guards and the bake read the same (the section light tests pass unchanged). A lamp's shot box is still its old
+  box (a batten's ends are not a target yet).
+- Test: `tests/warehouseLamps.test.ts` (each section: every fitting's mount ends within 3 cm of the ceiling underside,
+  wall face or roof under it, nothing cuts the fitting or its rod; the exception list; the models).
+
 ## 4.19.0 - Drawn movement: low ready, aiming with the glide (no crab strafe), the sling draw (2026-10-20, PR #54)
 - Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,
   BRIEF section 3): with the gun out, standing, the legs play hand-keyed clips. Still: a ready stance, feet about hip
