@@ -25,8 +25,8 @@ export interface QualityTarget {
  * Applies the graphics settings (3.0: one renderer, PC presets), detects the display refresh rate,
  * keeps frame pacing statistics, runs the frame limiter and - only when the player turns it on - dynamic resolution.
  */
-/** (phone-min) A phone renders at most this share of its native resolution (heat). */
-const PHONE_SCALE = 0.75;
+/** (phone-min) A phone renders at this share of its native resolution (heat), fixed. */
+const PHONE_SCALE = 0.5;
 
 export class QualityManager {
   private target: QualityTarget | null = null;
@@ -100,10 +100,9 @@ export class QualityManager {
       if (this.governor.frame(intervalMs, this.budgetMs)) this.applyAdaptive();
       return;
     }
-    // (phone-min) a phone: dynamic resolution in a match, 75% of native at rest, down to half when frames run long (heat)
-    if (!this.auto && !flags.phone) return;
-    // (a phone heats as a whole: any long frame drops the resolution, CPU-bound or not, so the GPU and the chip cool)
-    if (this.res.push(intervalMs, flags.phone ? 0 : cpuMs, this.budgetMs, intervalMs / 1000)) this.applyScale();
+    // (phone-min) a phone keeps a fixed render scale: no dynamic resolution (each change flashed the screen)
+    if (!this.auto || flags.phone) return;
+    if (this.res.push(intervalMs, cpuMs, this.budgetMs, intervalMs / 1000)) this.applyScale();
   }
 
   /** 3.1 frame governor: steps detail down / up in a match to hold the frame rate. */
@@ -203,9 +202,9 @@ export class QualityManager {
   private applyScale(): void {
     // (`?gfx=min`: DPR 1)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
-    // (phone-min) a phone: 75% of native (DPR) x the dynamic resolution, never under 50%, on the Low preset, 60 fps cap
-    // (Michael 2026-10-20: "Cap resolution at 75%" after a benchmark fell to 26 fps late in the route)
-    else if (flags.phone) applyRenderScale(this.engine, (this.ov?.scale ?? PHONE_SCALE) * Math.max(this.res.scale, 0.5 / PHONE_SCALE), Infinity);
+    // (phone-min) a phone: a fixed 50% of native (DPR) on the Low preset, 60 fps cap (Michael 2026-10-20: "Keep 50% render
+    // resolution the default and don't let it automatically adapt")
+    else if (flags.phone) applyRenderScale(this.engine, this.ov?.scale ?? PHONE_SCALE, Infinity);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
     else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), Infinity);
