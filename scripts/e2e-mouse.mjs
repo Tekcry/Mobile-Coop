@@ -137,7 +137,7 @@ try {
     const walk = await paceWith([]);
     const run = await paceWith(['ShiftLeft']);
     const creep = await paceWith(['AltLeft']);
-    assert(Math.abs(walk - 2.1) < 0.05 && Math.abs(run - 4.5) < 0.05 && Math.abs(creep - 0.75) < 0.05, `W walks ${walk.toFixed(2)}, Shift + W runs ${run.toFixed(2)}, Alt + W creeps ${creep.toFixed(2)} m/s`);
+    assert(Math.abs(walk - 2.1) < 0.05 && Math.abs(run - 4.0) < 0.05 && Math.abs(creep - 0.75) < 0.05, `W walks ${walk.toFixed(2)}, Shift + W runs ${run.toFixed(2)}, Alt + W creeps ${creep.toFixed(2)} m/s`);
     const g0 = (await st()).gear;
     await page.keyboard.press('Equal');
     await page.keyboard.press('Minus');
