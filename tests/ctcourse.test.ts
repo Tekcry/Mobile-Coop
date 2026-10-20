@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_PAD_COLOR, ctcourse, CT_EXIT_ZONE, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_POCKET, S3_POCKET_COLOR, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LID, AIRLOCK_PAD_COLOR, bayX, ctcourse, CT_BAY, CT_CEIL, CT_EXIT_ZONE, CT_W, FENCE, S4_GAP, S4_HEADER, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_POCKET, S3_POCKET_COLOR, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
 import { bayObjective, exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState, REFUSE_BOLT, REFUSE_PAIR } from '../src/game/course/courseState';
 import { COURSE_TEXT_MAX } from '../src/config/course';
@@ -9,6 +9,7 @@ import { findJumpTarget, generateLedges, suppressLedgesNear, type Ledge } from '
 import { hangReaches, inBoostBand, ropeRoom } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { isListedMap } from '../src/world/maps/listed';
+import { buildVariety } from '../src/world/maps/ctcourseVariety';
 
 describe('ctcourse (CT prototype B1)', () => {
   const lay = ctcourse.build(new LevelBuilder(), 0);
@@ -94,10 +95,11 @@ describe('ctcourse (CT prototype B2: leg-up wall and relay roof)', () => {
       expect(c.devices[id]!.x).toBeGreaterThan(x0 + 9);
     }
   });
-  it('no skip: the walls are lower than the fences, nothing but a 4.5 m boost clears them, the airlock walls are 6 m', () => {
-    expect(TEAM.boostMax).toBeLessThan(6);
-    // a hanging player's relay reach and a leg-up's top stay under the fence height
-    expect(TEAM.relayMax).toBeLessThan(6);
+  it('no skip: the walls are lower than the perimeter, nothing but a 4.5 m boost clears them, the airlock walls are 7.5 m', () => {
+    expect(TEAM.boostMax).toBeLessThan(FENCE);
+    expect(FENCE).toBe(7.5);
+    // a hanging player's relay reach and a leg-up's top stay under the perimeter's height
+    expect(TEAM.relayMax).toBeLessThan(FENCE);
   });
 });
 
@@ -338,7 +340,7 @@ describe('course-ready S1: station fixes and text', () => {
     }
     // F12, F15: station 3 names the pistol switch and the draw; station 4 the release's place
     expect(PANEL_TEXT[2]).toMatch(/LB \/ Tab to the pistol/);
-    expect(PANEL_TEXT[3]).toMatch(/red release on the left fence/);
+    expect(PANEL_TEXT[3]).toMatch(/red release on the left wall/);
     // F18: panel 5 is two sentences, the hatch part is the g-s5 radio line
     expect(PANEL_TEXT[4]!.split('. ').length).toBe(2);
     expect(GATE_RADIO['g-s5']).toMatch(/hatch/);
@@ -362,5 +364,85 @@ describe('course-ready S1: station fixes and text', () => {
       expect(inBoostBand(t!.grip.y)).toBe(true);
       expect((t!.anchor as Ledge).canClimbUp).toBe(true);
     }
+  });
+});
+
+describe('marlow-bunker: ceilings, lids and walls to the ceiling (no new climbs)', () => {
+  const b = new LevelBuilder();
+  ctcourse.build(b, 0);
+  const anchors = generateLedges(b.boxes);
+  const near = (a: number, v: number, e = 1e-3): boolean => Math.abs(a - v) < e;
+  /** A solid, overhead, ledge-free slab whose underside is at y over [x0, x1] x [z0, z1]. */
+  const slab = (y: number, x0: number, x1: number, z0: number, z1: number): boolean =>
+    b.boxes.some((p) => p.collide && p.overhead === true && p.noLedge === true && near(p.c[1] - p.s[1] / 2, y) &&
+      p.c[0] - p.s[0] / 2 <= x0 + 1e-3 && p.c[0] + p.s[0] / 2 >= x1 - 1e-3 && p.c[2] - p.s[2] / 2 <= z0 + 1e-3 && p.c[2] + p.s[2] / 2 >= z1 - 1e-3);
+
+  it('every test cell has its ceiling (low 4.5, laser 5.5, high halls 7.5) and every airlock its 3.2 m lid', () => {
+    expect(CT_CEIL).toEqual([4.5, 7.5, 4.5, 5.5, 7.5, 4.5, 7.5, 4.5]);
+    for (let i = 0; i < 8; i++) expect(slab(CT_CEIL[i]!, bayX(i), bayX(i) + CT_BAY, 0, CT_W), `S${i + 1} ceiling`).toBe(true);
+    for (let i = 0; i < 7; i++) expect(slab(AIRLOCK_LID, bayX(i) + CT_BAY, bayX(i) + CT_BAY + 6, 4, 10), `A${i + 1} lid`).toBe(true);
+    // the perimeter reaches the highest ceiling (no gap to the void over the low cells)
+    expect(FENCE).toBeGreaterThanOrEqual(Math.max(...CT_CEIL));
+  });
+
+  it('under the ceilings the only lips are the planned ones: S2 and S7 walls, S5 roof front, S7 return stair', () => {
+    const odd: string[] = [];
+    for (const l of anchors.ledges) {
+      // the perimeter and airlock wall tops at 7.5 m are above every ceiling: outside the playable volume
+      if (l.top >= FENCE - 1e-3) continue;
+      const x = (l.a.x + l.b.x) / 2;
+      const z = (l.a.z + l.b.z) / 2;
+      const wallTop = near(l.top, 4.4) && [bayX(1) + 8.5, bayX(1) + 9.5, bayX(4) + 8.85, bayX(6) + 8.5, bayX(6) + 9.5].some((v) => near(x, v, 0.02));
+      const stair = (near(l.top, 3.3) || near(l.top, 2.2)) && x > bayX(6) + 9.5 && x < bayX(6) + 12.6 && z < 1.7;
+      if (!wallTop && !stair) odd.push(`${x.toFixed(2)}, ${z.toFixed(2)} y ${l.top.toFixed(2)}`);
+    }
+    expect(odd).toEqual([]);
+    // the high halls leave room over the 4.4 m tops to stand and hold the rope (3.1 m)
+    for (const i of [1, 4, 6]) expect(CT_CEIL[i]! - 4.4).toBeGreaterThanOrEqual(3);
+  });
+
+  it('station 4: the header over the laser gap clears the throw arc (apex over a 1.8 m body)', () => {
+    expect(S4_HEADER).toBeGreaterThanOrEqual(4.6);
+    expect(S4_HEADER).toBeLessThan(CT_CEIL[3]!);
+    expect(TEAM.throwApex + 1.8).toBeLessThan(S4_HEADER);
+    const x = bayX(3) + 9;
+    const header = b.boxes.find((p) => near(p.c[0], x) && near(p.c[1] - p.s[1] / 2, S4_HEADER));
+    expect(header?.s[2]).toBeCloseTo(S4_GAP[1] - S4_GAP[0], 5);
+    // the gap stays open below the header (only the laser band closes it)
+    const inGap = b.boxes.filter((p) => p.collide && near(p.c[0], x, 0.2) && p.c[1] - p.s[1] / 2 < S4_HEADER - 1e-3 && Math.abs(p.c[2] - 7) < p.s[2] / 2);
+    expect(inGap).toHaveLength(0);
+  });
+
+  it('the haunches are dressing: no solid piece is pitched (no stray collision on the corners)', () => {
+    for (const p of b.boxes) if (p.collide) expect(Math.abs(p.pitch), `solid pitched piece at ${p.c.join(', ')}`).toBeLessThan(1e-3);
+    expect(b.boxes.some((p) => !p.collide && Math.abs(p.pitch - Math.PI / 4) < 1e-6)).toBe(true);
+  });
+});
+
+describe('marlow-variety: the dressing adds no climb and keeps the routes clear', () => {
+  const v = new LevelBuilder();
+  buildVariety(v, CT_CEIL, S7_STAIR_Z);
+  const full = new LevelBuilder();
+  ctcourse.build(full, 0);
+
+  it('only the S6 server racks are solid: lip-free and taller than a mantle (1.8 m)', () => {
+    const solid = v.boxes.filter((p) => p.collide);
+    expect(solid).toHaveLength(4);
+    for (const p of solid) {
+      expect(p.noLedge).toBe(true);
+      expect(p.c[1] - p.s[1] / 2).toBeLessThan(0.01);
+      expect(p.s[1]).toBeGreaterThan(1.8);
+      // against the S6 west wall, clear of its door (z 6.4 - 7.6)
+      expect(p.c[0]).toBeGreaterThan(bayX(5));
+      expect(p.c[0]).toBeLessThan(bayX(5) + 1.2);
+      expect(p.c[2] - p.s[2] / 2).toBeGreaterThan(7.9);
+    }
+    expect(generateLedges(v.boxes).ledges).toHaveLength(0);
+  });
+
+  it('S1: the grab from behind stays clear (nothing solid in x 2 - 10.5, z 2.5 - 5 under 2 m)', () => {
+    const inArea = full.boxes.filter((p) => p.collide && p.c[1] - p.s[1] / 2 < 2 && p.c[1] + p.s[1] / 2 > 0.05 &&
+      p.c[0] + p.s[0] / 2 > 2 && p.c[0] - p.s[0] / 2 < 10.5 && p.c[2] + p.s[2] / 2 > 2.5 && p.c[2] - p.s[2] / 2 < 5);
+    expect(inArea).toHaveLength(0);
   });
 });
