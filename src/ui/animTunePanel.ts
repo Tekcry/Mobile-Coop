@@ -34,6 +34,10 @@ import { PAD } from '../input/gamepadMapping';
 import { loadAnimTune, saveAnimTune } from '../save/animTuneStore';
 import { download } from './fileOut';
 import { FINE_STEP, TunePadCtl } from './animTunePad';
+import { projectPoint } from './overlayProject';
+import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
+import { StudioPanel } from './studioPanel';
+import { STUDIO, STUDIO_SPEED } from '../anim/studio';
 
 /** What the barrel marker reads from the local player's rig (typed loosely: no player import). */
 export interface TuneRigView {
@@ -183,6 +187,11 @@ export class AnimTunePanel {
   private readonly markDir = new Vector3();
   private readonly markSA = { x: 0, y: 0, z: 0 };
   private readonly markSB = { x: 0, y: 0, z: 0 };
+  // --- (anim-studio) snapshots (undo / redo, A/B, presets) and the studio section
+  private readonly snaps: TuneSnapshotsUi;
+  readonly studioUi: StudioPanel;
+  /** The game speed slider's top: 1x, 2x inside the studio. */
+  private speedMax: number = GAME_SPEED.max;
 
   constructor() {
     const el = (this.el = document.createElement('div'));
@@ -253,6 +262,19 @@ export class AnimTunePanel {
       b.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin:3px 0;';
       return b;
     };
+    // (anim-studio) the makers for the snapshots bars and the studio section
+    const kit: PanelKit = { btn: mkBtn, check: mkCheck, sel: mkSel, bar: mkBar };
+    this.snaps = new TuneSnapshotsUi(kit, { rebuild: () => this.rebuildAll(), info: (t) => this.flashInfo(t) });
+    this.studioUi = new StudioPanel(kit, {
+      freeze: (on) => {
+        if (on !== this.frozen) this.setFrozen(on);
+      },
+      frozen: () => this.frozen,
+      setSpeed: (v) => this.setTimeScale(v),
+      speed: () => this.runScale,
+      setFreeMode: (m) => this.setFreeMode(m),
+      busy: (e) => this.edit?.el === e || document.activeElement === e,
+    });
     // header bar: title, fold, close (folded, the panel is this one line)
     const head = document.createElement('div');
     head.style.cssText = 'display:flex;align-items:center;gap:4px;';
@@ -355,7 +377,7 @@ export class AnimTunePanel {
     this.freeSel = mkSel(fbar, 'free view', FREE_MODES, (v) => this.setFreeMode(v as FreeMode), 'free', 'anim-tune-free');
     mkSel(fbar, 'demo', FREE_DEMOS, (v) => (FREE_VIEW.demo = v as FreeDemo), 'demo', 'anim-tune-demo');
     this.hudBox = mkCheck(fbar, 'hide HUD', false, (v) => document.body.classList.toggle('tune-hide-hud', v), 'hidehud', 'anim-tune-hidehud');
-    tools.append(bar, tbar, fbar, sbar);
+    tools.append(bar, tbar, fbar, sbar, this.snaps.bar, this.snaps.pbar);
     // the Y menu's items
     const mItem = (label: string, fn: () => void, key: string): HTMLButtonElement => {
       const b = mkBtn(label, fn, key);
@@ -372,6 +394,28 @@ export class AnimTunePanel {
     mItem('Wide ranges (toggle)', () => this.wideBox.click(), 'm:wide');
     mItem('Changed only (toggle)', () => this.changedBox.click(), 'm:changed');
     mItem('Barrel marker (toggle)', () => this.markerBox.click(), 'm:marker');
+    // (anim-studio) snapshots by pad
+    mItem('Undo', () => this.menuDo(() => this.snaps.undo()), 'm:undo');
+    mItem('Redo', () => this.menuDo(() => this.snaps.redo()), 'm:redo');
+    mItem('Store A', () => this.menuDo(() => this.snaps.abStore('A')), 'm:abA');
+    mItem('Store B', () => this.menuDo(() => this.snaps.abStore('B')), 'm:abB');
+    mItem('A/B (flip)', () => this.menuDo(() => this.snaps.abToggle()), 'm:ab');
+    // (anim-studio) Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) while the panel is open and no text box has the keys: undo / redo;
+    // taken before the game's keyboard (Z is the knockout)
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (!this.open || !(e.ctrlKey || e.metaKey) || (e.code !== 'KeyZ' && e.code !== 'KeyY')) return;
+        const a = document.activeElement as HTMLInputElement | null;
+        if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && (a.type === 'text' || a.type === 'search' || a.type === 'number')))) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (e.repeat) return;
+        if (e.code === 'KeyY' || e.shiftKey) this.snaps.redo();
+        else this.snaps.undo();
+      },
+      true,
+    );
     // (pass 2) Backquote held: the bypass (the untuned animation and camera) while the panel is open
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Backquote' && this.open && !e.repeat) this.setKeyBypass(true);
@@ -400,7 +444,7 @@ export class AnimTunePanel {
     this.shareOut.className = 'anim-tune-json';
     this.shareOut.style.cssText = 'width:100%;height:120px;box-sizing:border-box;font:inherit;color:#cfe;background:#012;';
     this.shareOut.addEventListener('focus', () => this.shareOut.select());
-    body.append(tools, this.shareOut, this.now, this.info);
+    body.append(this.studioUi.el, tools, this.shareOut, this.now, this.info);
     // (pass 2) the pad map for the current mode, at the bottom of the panel
     this.hint = document.createElement('div');
     this.hint.className = 'anim-tune-hints';
@@ -410,12 +454,18 @@ export class AnimTunePanel {
     for (const r of TUNE_SECTIONS) this.addSection(r);
     TUNE_REGISTRY_HOOKS.added = (r) => this.addSection(r);
     document.body.appendChild(el);
-    TUNE_HOOKS.changed = () => this.scheduleSave();
-    // load the saved values (skipped if a slider already moved)
+    TUNE_HOOKS.changed = () => {
+      this.scheduleSave();
+      // (anim-studio) an undo step, and the onion skin's cached keys are stale
+      this.snaps.note(performance.now());
+      STUDIO.poseVer++;
+    };
+    // load the saved values (skipped if a slider already moved); the undo history starts from what loaded
     void loadAnimTune().then((s) => {
       if (s && TUNE_LOG.length === 0 && tuneChanged().length === 0) {
         tuneLoad(s);
         this.rebuildAll();
+        this.snaps.reset();
       }
     });
     // (test hook) e2e and the console read and set values through this
@@ -454,6 +504,19 @@ export class AnimTunePanel {
       changed: tuneChanged,
       exportJson: () => tuneExport(),
       log: TUNE_LOG,
+      // (anim-studio) snapshots: undo / redo (`settle` closes the open run now), A/B, presets
+      settle: () => this.snaps.history.settle(performance.now(), true),
+      undo: () => this.snaps.undo(),
+      redo: () => this.snaps.redo(),
+      undoCount: () => this.snaps.history.undoCount,
+      abStore: (slot: 'A' | 'B') => this.snaps.abStore(slot),
+      abToggle: () => this.snaps.abToggle(),
+      presetSave: (name: string) => this.snaps.save(name),
+      presetLoad: (name: string) => this.snaps.load(name),
+      presetDelete: (name: string) => this.snaps.del(name),
+      presets: () => this.snaps.presets.map((p) => p.name),
+      presetsLoaded: () => this.snaps.loaded,
+      timeScale: () => (this.loop ? this.loop.timeScale : 1),
       // (tuner-pad) the pad mode, the focused control and its edit state
       pad: () => {
         const e = this.padEl;
@@ -720,6 +783,9 @@ export class AnimTunePanel {
     // (fix round) the co-op lock is read live (a fold or a close never leaves it stale)
     this.refreshCoop();
     this.el.hidden = false;
+    // (anim-studio) in the studio the studio section shows, and the pad starts on the loop list
+    this.studioUi.sync();
+    if (STUDIO.active) this.padKey = 'st:entry';
     // (tuner-pad) opening takes the pad focus (once the press that opened it is released)
     this.pad.open();
     this.edit = null;
@@ -748,6 +814,7 @@ export class AnimTunePanel {
     this.pad.close();
     this.markPadFocus();
     this.clearMarker();
+    this.studioUi.panelClosed();
     this.onOpenChange?.(false);
   }
 
@@ -870,7 +937,7 @@ export class AnimTunePanel {
           ? 'EDIT  D-pad left / right: choose  A: keep  B: cancel'
           : 'EDIT  D-pad left / right: step (hold: repeat, x5 after 1 s)  Left stick: fast  LT held: fine  A: keep  B: cancel  X: default';
     else if (this.menuOpen) t = 'MORE  D-pad: move  A: choose  B / Y: close';
-    else t = `D-pad: move  A: select / edit  B: back  X: reset row  Y: more  LB / RB: section  LT / RT: state  R3 held: bypass  View: ${view}  Menu: close`;
+    else t = `D-pad: move  A: select / edit  B: back  X: reset row  Y: more (undo, redo, A/B)  LB / RB: section${STUDIO.active ? ' (Studio first)' : ''}  LT / RT: state  R3 held: bypass  View: ${view}  Menu: close`;
     this.hint.textContent = m === 'off' ? '' : `PAD  ${t}`;
   }
 
@@ -931,11 +998,12 @@ export class AnimTunePanel {
 
   /** LB / RB: jump to the previous / next section (the tools first, then each section's picker). */
   private padSection(d: number): void {
-    const ids = ['tools', ...this.sections.map((s) => s.reg.id)];
+    // (anim-studio) the studio section first while it shows
+    const ids = [...(this.studioUi.el.hidden ? [] : ['studio']), 'tools', ...this.sections.map((s) => s.reg.id)];
     const cur = this.padEl?.closest<HTMLElement>('[data-pad-sec]')?.dataset.padSec ?? 'tools';
     const k = Math.max(0, ids.indexOf(cur));
     const next = ids[(k + d + ids.length) % ids.length]!;
-    this.padKey = next === 'tools' ? 'follow' : `pick:${next}`;
+    this.padKey = next === 'studio' ? 'st:entry' : next === 'tools' ? 'follow' : `pick:${next}`;
     this.disarmResetAll();
     this.markPadFocus();
   }
@@ -1104,6 +1172,12 @@ export class AnimTunePanel {
     this.confirmAll = false;
   }
 
+  /** (anim-studio) A short line in the info row (undo, A/B, presets), held 2.5 s before the counts come back. */
+  private flashInfo(text: string): void {
+    this.info.textContent = text;
+    this.nextInfo = performance.now() + 2500;
+  }
+
   private resetFocusedGroup(): void {
     const s = this.sections[this.lastSec];
     if (!s) return;
@@ -1150,7 +1224,7 @@ export class AnimTunePanel {
    *  on resume. */
   private setTimeScale(v: number): void {
     this.refreshCoop();
-    const s = this.coopOn ? 1 : freeTimeScale(v);
+    const s = this.coopOn ? 1 : freeTimeScale(v, this.speedMax);
     this.runScale = s;
     if (this.loop && !this.frozen) this.loop.timeScale = s;
     this.showSpeed();
@@ -1220,7 +1294,7 @@ export class AnimTunePanel {
     const lp = this.loop;
     if (!lp || (on && this.coopOn)) return;
     if (on) {
-      if (!this.frozen && lp.timeScale > 0) this.runScale = freeTimeScale(lp.timeScale);
+      if (!this.frozen && lp.timeScale > 0) this.runScale = freeTimeScale(lp.timeScale, this.speedMax);
       lp.timeScale = 0;
       this.frozen = true;
       this.autoFrozen = auto;
@@ -1310,10 +1384,19 @@ export class AnimTunePanel {
       this.pauseBtn.textContent = 'Pause';
       this.setPadLine();
     }
+    // (anim-studio) the game speed may go to 2x inside the studio only (back to 1x at most on leaving it)
+    const mx = STUDIO.active ? STUDIO_SPEED.max : GAME_SPEED.max;
+    if (mx !== this.speedMax) {
+      this.speedMax = mx;
+      this.speedIn.max = String(mx);
+      if (this.runScale > mx) this.setTimeScale(mx);
+    }
     if (!this.frozen && lp && lp.timeScale !== this.runScale) {
-      this.runScale = freeTimeScale(lp.timeScale);
+      this.runScale = freeTimeScale(lp.timeScale, this.speedMax);
       this.showSpeed();
     }
+    this.snaps.frame(nowMs);
+    this.studioUi.frame(nowMs, this.scene);
     if (!this.folded && nowMs >= this.nextInfo) {
       this.nextInfo = nowMs + 250;
       this.now.textContent = `now: ${TUNE_STATE.body || '-'}  /  ${TUNE_STATE.gun || 'unarmed'}  /  ${TUNE_STATE.cam || '-'}${this.follow ? '' : '  (follow off)'}${this.frozen ? '  FROZEN' : ''}`;
@@ -1336,25 +1419,7 @@ export class AnimTunePanel {
   /** Project a world point through the rendered camera (vertical FOV, Euler yaw / pitch; the shake's roll ignored) to
    *  overlay pixels: out.z is the view depth (m). No allocation. */
   private project(cam: MarkerCam, p: Vector3, out: { x: number; y: number; z: number }): void {
-    const dx = p.x - cam.position.x;
-    const dy = p.y - cam.position.y;
-    const dz = p.z - cam.position.z;
-    const ya = cam.rotation.y;
-    const xa = cam.rotation.x;
-    const sy = Math.sin(ya);
-    const cy = Math.cos(ya);
-    const sx = Math.sin(xa);
-    const cx = Math.cos(xa);
-    // forward (sy cx, -sx, cy cx), right (cy, 0, -sy), up (sy sx, cx, cy sx)
-    const z = dx * sy * cx - dy * sx + dz * cy * cx;
-    const x = dx * cy - dz * sy;
-    const y = dx * sy * sx + dy * cx + dz * cy * sx;
-    const t = Math.tan(cam.fov / 2);
-    const asp = this.markW / Math.max(1, this.markH);
-    const zz = Math.max(1e-4, z);
-    out.x = (x / (zz * t * asp) + 1) * 0.5 * this.markW;
-    out.y = (1 - y / (zz * t)) * 0.5 * this.markH;
-    out.z = z;
+    projectPoint(cam, p.x, p.y, p.z, this.markW, this.markH, out);
   }
 
   /** The barrel ray: the muzzle to MARK_DIST m out along the bore, drawn on the overlay. Hidden with no weapon or with

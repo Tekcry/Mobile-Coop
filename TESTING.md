@@ -118,6 +118,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
   Reset group puts it back; Export lists the `cam.` values.
+- [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
+  grid, the tuner docked with a Studio section on top, the crab readout top left, the pad on the loop list. Pick
+  "keyed: walk": she walks in place, the feet stepping (green dots planted, orange rings swinging, short trails); Pause,
+  "key >" / "< key" and the scrub move one key / any point; speed 2x; mirror; root motion walks the circle; "state:
+  aim glide strafe" draws and strafes the circle. Onion skin shows the previous (blue) / next (orange) key once played;
+  turntable circles the view; Front / Side / Back / Top snap the view; guard puts a figure at the hold spot. Move a
+  slider, Ctrl+Z (or Y menu > Undo) puts it back, Ctrl+Y redoes; Store A, change, Store B, A/B flips; Save a preset,
+  Reset all, Load brings it back. Quit to the menu: normal speed, no studio left.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than

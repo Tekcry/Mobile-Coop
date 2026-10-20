@@ -103,8 +103,8 @@ While the panel has the pad ("PAD: tuner"; the strip at the bottom of the panel 
 | A | Select: press a button, tick a box, start editing a slider or dropdown | Keep the edit |
 | B | Back: close the Y menu | Cancel: the value (or choice) comes back |
 | X | Reset the focused slider to its default | Set the default |
-| Y | Open / close the menu: Export, Share / Copy, Reset group, Reset all (A twice), Clear log, Import, Changed only, Barrel marker, Wide ranges | - |
-| LB / RB | Jump to the previous / next section (tools, Body, Gun, Camera, Speed, ...) | - |
+| Y | Open / close the menu: Export, Share / Copy, Reset group, Reset all (A twice), Clear log, Import, Changed only, Barrel marker, Wide ranges, (anim-studio) Undo, Redo, Store A, Store B, A/B (flip) | - |
+| LB / RB | Jump to the previous / next section ((anim-studio) Studio first inside the studio, then tools, Body, Gun, Camera, Speed, ...) | - |
 | LT / RT | The focused section's previous / next state group (follow off) | LT held: fine steps (a fifth) |
 | R3 (held) | Bypass: the untuned animation, camera and speed (also Backquote on the keyboard) | Same |
 | View | Give the pad to the game (or to the free view while it is on); press again to take it back. Back to the panel freezes the game when "freeze on View" is ticked (on by default); View to the game resumes it | Ends the edit (kept) |
@@ -115,6 +115,15 @@ zoom (orbit); LB / RB down / up (fly); D-pad up / down the orbit height; R3 held
 pad comes back to the panel); View the panel (the panel folds while the free view has the pad); Menu closes.
 "PAD: game": everything is the game's except View. Keyboard, mouse and touch work the panel as before; the search box
 and the number fields are for the keyboard (the pad skips the search box).
+
+(anim-studio) The snapshots bars (tools: Undo, Redo, Store A, Store B, A/B; preset picker, Save, Load, Delete) and the
+Studio section (inside the studio: the loop list, Play / Pause, "< key" / "key >", scrub, speed, mirror, root motion,
+guard, turntable and its rate, skeleton, feet, onion skin, Front / Side / Back / Top) are ordinary controls: the D-pad
+reaches each, A presses / ticks / edits (the scrub and speed sliders and the dropdowns in edit mode as any slider).
+Delete takes A twice. Opening the panel in the studio puts the focus on the loop list. A camera snap or the turntable
+turns the orbit free view on (the pad goes to it; View back to the panel). The preset name box is the keyboard's (the
+pad skips it; Save with it empty takes the next "preset N"). Keyboard: Ctrl+Z undo, Ctrl+Y / Ctrl+Shift+Z redo while
+the panel is open and no text box has the keys.
 
 ## Resume prompt
 ```

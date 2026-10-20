@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased - anim-studio
+- Anim Studio (dev) (Michael 2026-10-21: "I want freedom to manipulate the body/animation as needed ... a basic stage
+  similar to the old main menu that allows me to make all the adjustments on the spot using controller or k&m"): a row in
+  the main menu and in Pause (single player only) opens a plain stage (a dark room with a 1 m floor grid, warm key, cool
+  rim and soft fill lamps; `?autostart=studio`) with the animation tuner docked, a Studio section at its top and the
+  debug overlay's crab readout.
+- Loop player: every keyed clip (all 28 in `src/anim/clips/keyed`, the walls, holds and guard clips that the game does not
+  play yet included) sampled straight onto Wren, in place with treadmill feet or with root motion along a 2 m circle; the
+  procedural states (idle, walk, jog, run, crouch idle, sneak, crouch walk, low ready, aim glide forward / strafe / back)
+  by synthesised input on the circle. Play / pause, a key back / forward, scrub, speed 0.1-2x (above 1x only in the
+  studio), mirror, root motion on / off. An optional guard figure stands at the hold offset (guard clips play on it).
+- Viewing aids on a 2D overlay (no scene meshes): skeleton, foot contacts and foot trails, onion skin (the previous / next
+  key, faint), a turntable (the orbit view circling at 10-90 deg/s) and front / side / back / top camera snaps.
+- Snapshots in the tuner (in and out of the studio): undo / redo of every tuner change (a drag is one step; Ctrl+Z /
+  Ctrl+Y, the Y menu), A/B compare, named presets saved in the tuner's own IndexedDB store (never the main save).
+- Leaving the studio puts the time scale back to 1x and resets every studio switch; gameplay never reads studio state.
+  Detail: `docs/anim-studio/REPORT.md`.
+
 ## Unreleased - tuner-camera
 - Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
   I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
