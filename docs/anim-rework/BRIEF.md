@@ -21,6 +21,11 @@ His answers (13:35):
 - M3 Close-quarters strikes: "RT tap / hold" (tap = knockout, hold = kill; holstered, and while holding a guard).
 - M4 Traversal with a gun out: "Auto-holster, then return to the same state once climbed".
 
+- M5 Grabbing a guard (13:40): "when grabbing guards, movement must be similar to speed 1 when moving backwards, the
+  player shouldnt turn around where the camera is going as they are holding someone and cant turn quickly. Consider how
+  someone would realistically be able to move if they grabbed someone from behind. The player should also have a knife
+  to the persons throat when grabbed, non lethal chokes them, lethal kills them with knife."
+
 ## What changes in the rules
 - Movement and animation no longer follow the CT footage. G1 (pure CT) still holds for the rest of the game (mechanics,
   stealth, light, HUD, co-op design) unless Michael says otherwise. The footage audit, the keyed-clip pipeline (G8) and
@@ -112,6 +117,22 @@ Walls and corners
   more of the room, never stepping into the open in one go. Crouched, the same from a lower height with a hand on the
   wall or the knee for balance.
 - The aim out of a corner: the gun and the head come out together, the body stays behind the edge.
+
+Holding a guard (M5)
+- The hold: from behind, Wren's support arm across the guard's chest or shoulder, her body tight against his back, the
+  knife in her other hand at his throat. Both bodies move as one unit with Wren's weight low and behind his.
+- Movement while holding: slow, about the old speed 1 (a creep), whatever the stick deflection. Backwards is the natural
+  direction (dragging him), with short shuffle steps that never cross the feet; sideways is a slow side step; forward
+  is a slow push. No quick moves.
+- Turning while holding: limited. The pair does not snap to the camera; it rotates slowly (a measured cap, e.g. well
+  under 90 degrees a second) by stepping round, and the camera can look further than the bodies face.
+- The knockout (RT tap): a choke from the hold: the forearm across the throat, the guard sags and is lowered to the floor
+  under control. The kill (RT hold): the knife at the throat; keep it short and not gratuitous (the game's tone; no gore
+  beyond a quick, cut-away moment).
+- The human shield (LT while holding): the pistol comes up past the guard's shoulder or side, the knife hand switching to
+  holding him; the pair still moves slowly.
+- The guard's own animation matches: feet dragging or stumbling backwards, hands up at Wren's arm, no clipping between
+  the two bodies at any speed or turn.
 
 ## 4. Blending and freedom of movement
 - Continuous blend spaces: speed from the stick, direction relative to the facing, and the state. No popping between
