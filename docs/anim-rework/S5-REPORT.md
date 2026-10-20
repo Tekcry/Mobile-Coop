@@ -51,3 +51,18 @@ over ankle <= 3 cm, no crossed feet, and the track within WALL_TRACK.
 - The crouched wrist frames: the knee-hand path does not read them (`keyedArm` is off while the knee hand is on).
 - Not checked: blending in and out of the wall on GPU beyond the sheets, and the remotes in a live session. The remotes
   run the same graph from `MoveState`.
+
+## Fix round (2026-10-20)
+- **Failure** (laptop, 5b91485d): e2e-anim "wall recording: slide right: not on the wall (off)", after 113 ok.
+- **Cause: the test's setup, not the game.** Each row's `enter()` teleports in front of the wall and taps cover. The
+  idle row leaves the player on the wall, and a teleport does not clear the wall state. So the slide-right tap hit
+  `wallCore` while it was still on, and toggled the player off (`leave('context')`, then `off` after 0.28 s). The idle
+  row attached only because it came first. e2e-wall calls `place()` + cover once per fresh attach, so it never hit this.
+- **Fix** (`scripts/e2e-anim.mjs`, wall block only): `enter()` first leaves the wall when `g.wallCore.active`
+  (clear the crouch toggle, tap cover, run 0.6 s), then teleports and attaches as before. No asserts changed; no game
+  code changed.
+- **Results:** `node --check` ok, eslint ok on the slice's files (the e2e script is lint-ignored), `tsc --noEmit` ok,
+  wall vitest (wallController, wallKeyed, wallStance) 45/45. **e2e not run**: the desktop `heavy.lock` was held by
+  CT Core (check + e2e:quick on 4191) for the whole 10 min wait. Next: e2e-anim + e2e-wall on the laptop runner. The
+  slide, peek and crouched rows are now reached for the first time, so their pose asserts (knees, knee over ankle,
+  crossed feet, track, keyed weight) are still unmeasured.

@@ -14,7 +14,7 @@ docs/anim-rework/S5-REPORT.md). Opus implementer, Opus checker, one fix round ma
 (tsc, eslint, 8 vitest files 106 tests). CT Core held the desktop lock 22:07 onward, so no check / e2e / sheets yet.
 - Laptop: `npm run check` + e2e-wall + e2e-anim on 5b91485d requested from Character Build (23:19).
 - Laptop on 5b91485d: check ok, e2e-wall ok (30), e2e-anim FAIL "wall recording: slide right: not on the wall (off)" (new wall block).
-- Checker PASS (`docs/anim-rework/check-s5.md`); polish there. Fix round (Opus) running on the e2e-anim wall block.
+- Checker PASS (`docs/anim-rework/check-s5.md`); polish there. Fix round done: the block's enter() leaves the wall first (test setup only; no game code, no asserts changed). e2e-anim + e2e-wall on the fix commit sent to the laptop. Orchestrator (overnight): hand the head to CT Core, then stop unless CT Core gives another movement piece.
 **Next:** 1. Laptop result + checker verdict; at most one fix round. 2. Before / after sheets in `docs/anim-rework/shots/s5/`
 on the desktop GPU (port 4189) under the lock when free; "before" from f46426a5's animGraph. 3. Push; message CT Core Build
 with the head (and the open items for its rig), copy the orchestrator.

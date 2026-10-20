@@ -508,6 +508,13 @@ try {
         if (seg < 0) return { err: 'no free high wall on Proving' };
         const s = segs[seg];
         const enter = (k) => {
+          // off the wall from the previous row first: a teleport keeps the wall state, so the cover tap below would
+          // toggle the player off it (the leave takes WALL.leaveTime 0.28 s)
+          if (g.wallCore.active) {
+            c.clearCrouchToggle();
+            st.tap('cover');
+            t.run(0.6, {});
+          }
           c.clearCrouchToggle();
           const yaw = Math.atan2(-s.nx, -s.nz);
           c.teleport(new V(s.ax + s.tx * k + s.nx * 0.75, s.y + 0.05, s.az + s.tz * k + s.nz * 0.75), yaw);
