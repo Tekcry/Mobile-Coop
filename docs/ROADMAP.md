@@ -106,6 +106,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #53 | 4.16.2: phones render at 75% of native, dynamic down to 50% |
 | 2026-10-20 | #51 | 4.16.1: the 60 fps cap holds on 90 / 144 Hz (deadline limiter); phones scale resolution on slow frames |
 | 2026-10-20 | #49 | 4.16.0: nv-pass: realistic night vision (auto-gain, no clipping, dim bodies), a wider thinner goggle frame, the vision-mode carousel on the wheel |
 | 2026-10-20 | #48 | 4.15.4: Settings FPS overlay is a one-line top banner (F3 keeps the full overlay) |
