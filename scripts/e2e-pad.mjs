@@ -87,7 +87,8 @@ try {
   console.log('hot-plug + iOS first-press detection');
   await page.evaluate(() => window.__pad.connect());
   await press(page, BTN.LB); // harmless on main menu; reveals the pad like iOS
-  await page.waitForTimeout(250);
+  // (test-speed) the toast is noticed on a frame: wait for it (as the disconnect toast) instead of a fixed 250 ms
+  await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /Controller connected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});
   const toast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|'));
   assert(/Controller connected/.test(toast), `connect toast ("${toast}")`);
   assert(await page.evaluate(() => document.body.classList.contains('input-gamepad')), 'mode = gamepad');

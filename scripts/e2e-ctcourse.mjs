@@ -458,9 +458,23 @@ async function station6(x0) {
   const hp0 = await hp();
   assert((await use(A, 'c-sw-s6-a')) === 'ok', 'station 6: the host starts the hack at scanner A');
   await until(B, () => window.__ctdev.debug().scan.ph[0] === 'hacking', null, 8000, 'station 6: the client page sees scanner A hacking');
+  // (test-speed) the late press goes in on the client's own frame that first sees scanner A ready, not after polls from
+  // here (the sync window is 1.5 s of game time; under load the polls took longer, the window ran out and the press
+  // counted as a lone start, "-1:alone", with no cost)
+  await GB(() => {
+    window.__s6 = { ready: false, use: '' };
+    const f = () => {
+      if (window.__ctdev?.debug().scan?.ph[0] === 'ready') {
+        window.__s6.ready = true;
+        const it = window.__app.current.interactables?.items.find((i) => i.id === 'c-sw-s6-b');
+        window.__s6.use = !it ? 'missing' : !it.enabled ? 'disabled' : (it.onUse(it), 'ok');
+      } else requestAnimationFrame(f);
+    };
+    requestAnimationFrame(f);
+  });
   await until(A, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 15000, 'station 6: the host hack finishes (ready)');
-  await until(B, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 8000, 'station 6: the client page sees scanner A ready');
-  assert((await use(B, 'c-sw-s6-b')) === 'ok', 'station 6: the client starts late');
+  await until(B, () => window.__s6.ready, null, 8000, 'station 6: the client page sees scanner A ready');
+  assert((await GB(() => window.__s6.use)) === 'ok', 'station 6: the client starts late');
   await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 6: the late hack costs the client health').catch(async (e) => {
     // (test-speed) failed once under load (part 3, 2026-10-20): the scanners' state and both hp at the timeout
     console.error(JSON.stringify({ host: (await dev(A)).scan, client: await GB(() => ({ hp: window.__app.current.target.health.hp, scan: window.__ctdev?.debug().scan })), hp0 }));
