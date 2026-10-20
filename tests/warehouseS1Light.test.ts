@@ -21,6 +21,8 @@ import { bakedLights, type LightBake } from '../src/world/lightBake';
 import { buildAmbientGrid } from '../src/world/ambientGrid';
 import { LightField, type FieldDoor } from '../src/world/lightField';
 import { moonLight } from '../src/world/lampMath';
+import { LIGHT } from '../src/world/lights';
+import { hyp2 } from '../src/core/mathx';
 
 const map = warehouseOps;
 const b = new LevelBuilder();
@@ -75,8 +77,14 @@ const KEY = 0.45;
 /** The dark pockets: no brighter than the open-sky level (the moonlit yard, 0.30). */
 const DARK = 0.3;
 
-interface Spot { name: string; x: number; y: number; z: number; min: number; shut?: boolean }
-const spot = (name: string, x: number, y: number, z: number, min = READ, isShut = false): Spot => ({ name, x, y, z, min, shut: isShut });
+/** The most a stealth route point, decision point or takedown spot may read: under `LIGHT.lit` (0.6, full guard visibility) with a margin. */
+const CAP = 0.55;
+/** An objective or a work area guards staff (the DVR, the case, the issue and security desks) may read brighter. */
+const WORK = 0.8;
+/** Rounding and bake slack on every band edge. */
+const TOL = 0.02;
+interface Spot { name: string; x: number; y: number; z: number; min: number; max: number; shut?: boolean }
+const spot = (name: string, x: number, y: number, z: number, min = READ, isShut = false, max = CAP): Spot => ({ name, x, y, z, min, max, shut: isShut });
 const read = (p: { x: number; y: number; z: number; shut?: boolean }): number => body(p.shut ? shut : open, p.x, p.y, p.z);
 
 const SEC = WAREHOUSE_SECTORS[0]!;
@@ -93,7 +101,7 @@ const POCKETS: { name: string; x: number; y: number; z: number }[] = [
   { name: 'takedown 7 clerk corner', x: SEC.guards[6]!.takedownSpot![0], y: 0, z: SEC.guards[6]!.takedownSpot![1] },
   { name: 'takedown 8 east corridor end', x: SEC.guards[7]!.takedownSpot![0], y: 0, z: SEC.guards[7]!.takedownSpot![1] },
 ];
-const nearPocket = (x: number, z: number, y: number): boolean => y < 1 && POCKETS.some((p) => Math.hypot(p.x - x, p.z - z) < 0.5);
+const nearPocket = (x: number, z: number, y: number): boolean => y < 1 && POCKETS.some((p) => hyp2(p.x - x, p.z - z) < 0.5);
 
 const SPOTS: Spot[] = [];
 // every waypoint of the three routes (read from the data), but the pockets they start in or pass through
@@ -101,12 +109,14 @@ SEC.routes.forEach((r, ri) => {
   r.pts.forEach((p, i) => {
     const y = p[2] ?? 0;
     if (nearPocket(p[0], p[1], y)) return;
-    SPOTS.push(spot(`R${ri + 1}[${i}] (${p[0]}, ${p[1]}${p[2] === undefined ? '' : ', ' + p[2]})`, p[0], y, p[1], i === r.obj ? KEY : READ));
+    SPOTS.push(spot(`R${ri + 1}[${i}] (${p[0]}, ${p[1]}${p[2] === undefined ? '' : ', ' + p[2]})`, p[0], y, p[1], i === r.obj ? KEY : READ, false, i === r.obj ? WORK : CAP));
   });
 });
+// the takedown spots that are not dark pockets (1 to 5): readable, but not lit to a guard
+SEC.guards.slice(0, 5).forEach((g, i) => SPOTS.push(spot(`takedown ${i + 1} ${g.kind}`, g.takedownSpot![0], 0, g.takedownSpot![1], READ, false, CAP)));
 SPOTS.push(
-  spot('objective: the DVR', SEC.objective.x, SEC.objective.y, SEC.objective.z, 0.55),
-  spot('objective: the DVR desk front', 4.4, 0, -15.6, KEY),
+  spot('objective: the DVR', SEC.objective.x, SEC.objective.y, SEC.objective.z, 0.55, false, WORK),
+  spot('objective: the DVR desk front', 4.4, 0, -15.6, KEY, false, WORK),
   spot('connector: C2 near door', SEC.connector!.nearAt![0], 0, SEC.connector!.nearAt![1] + 0.4, KEY),
   spot('connector: C2 far door', SEC.connector!.farAt![0], 0, SEC.connector!.farAt![1] - 0.4, KEY),
   spot('connector: C2 checkpoint', SEC.connector!.checkpoint.x, 0, SEC.connector!.checkpoint.z, KEY),
@@ -115,10 +125,10 @@ SPOTS.push(
   spot('entry: the workshop door', 10.4, 0, -18.9, KEY),
   spot('bay: the wrapper', -16, 0, -13.3, READ),
   spot('bay: the east lane', -11.4, 0, -12.6, READ),
-  spot('reception: the counter', -5, 0, -14.4, KEY),
+  spot('reception: the counter', -5, 0, -14.4, KEY, false, WORK),
   spot('corridor: west end (door shut)', -7, 0, -12.3, READ, true),
   spot('corridor: middle', 0, 0, -12.3, READ),
-  spot('security office door', 4.5, 0, -13.4, KEY),
+  spot('security office door', 4.5, 0, -13.4, KEY, false, WORK),
   spot('drainpipe base', -22.4, 0, -18.75, READ),
   spot('roof: the hatch', 5, 6, -13.5, KEY),
   spot('roof: the pipe top', -22, 6, -17.2, READ),
@@ -149,9 +159,19 @@ describe('Sector Ops section 1 lamp pass (warehouse-s23)', () => {
     const low: string[] = [];
     for (const p of SPOTS) {
       const v = read(p);
-      if (!(v >= p.min)) low.push(`${p.name}: ${v.toFixed(2)} < ${p.min}`);
+      if (!(v >= p.min - TOL)) low.push(`${p.name}: ${v.toFixed(2)} < ${p.min}`);
     }
     expect(low).toEqual([]);
+  });
+
+  it('no stealth route point, decision point or takedown spot reads as lit to a guard (a maximum per class)', () => {
+    expect(CAP).toBeLessThan(LIGHT.lit);
+    const high: string[] = [];
+    for (const p of SPOTS) {
+      const v = read(p);
+      if (!(v <= p.max + TOL)) high.push(`${p.name}: ${v.toFixed(2)} > ${p.max}`);
+    }
+    expect(high).toEqual([]);
   });
 
   it('the lamps took the points up (the pass is what makes them readable)', () => {
@@ -177,8 +197,8 @@ describe('Sector Ops section 1 lamp pass (warehouse-s23)', () => {
 
   it('sections 2 and 3 read the same with the new lamps off and on', () => {
     const pts: [number, number, number][] = [];
-    for (let x = -23; x <= 23; x += 2) for (const z of [-5, -3, 0, 4, 8, 12, 16]) pts.push([x, 0, z]);
-    // (not the C2 far doorway itself (-14.5, -5.2): the exit sign over the open door lights its threshold, as it should)
+    for (let x = -23; x <= 23; x += 2) for (const z of [-5, -3, 0, 4, 8, 12, 16]) { if (!(x === -15 && z === -5)) pts.push([x, 0, z]); }
+    // (not the C2 far doorway's threshold (-14.5, -5.2) nor (-15, -5), inside the door's 1.2 m span: the fire lobby panel lights it through the open door, as it should)
     for (const [x, z] of [[-14.5, -4], [-20.5, -3.6]] as const) pts.push([x, 0, z]);
     for (const [x, z] of [[-20.5, -3.6], [-20.5, 11], [12, 14.1], [15, 14]] as const) pts.push([x, 2.8, z]);
     for (const f of [open, shut]) {
@@ -216,9 +236,9 @@ describe('Sector Ops section 1 lamp pass (warehouse-s23)', () => {
   });
 
   it.runIf(!!process.env.WH1LIGHT_PRINT)('prints the levels', () => {
-    const all = [...SPOTS.map((p) => ({ ...p })), ...POCKETS.map((p) => ({ ...p, min: -1 }))];
+    const all = [...SPOTS.map((p) => ({ ...p })), ...POCKETS.map((p) => ({ ...p, min: -1, max: DARK }))];
     const before = withNewOff(() => all.map((p) => read(p)));
-    const rows = all.map((p, k) => `${p.name}\t${before[k]!.toFixed(2)}\t${read(p).toFixed(2)}\t${p.min < 0 ? 'dark<=' + DARK : '>=' + p.min}`);
+    const rows = all.map((p, k) => `${p.name}\t${before[k]!.toFixed(2)}\t${read(p).toFixed(2)}\t${p.min < 0 ? 'dark<=' + DARK : p.min + '-' + p.max}`);
     writeFileSync(process.env.WH1LIGHT_PRINT!, `bake ${(bakeMs / 1000).toFixed(1)} s, ${bake.lamps!.baked.ids.length} lamps\n${rows.join('\n')}`);
   });
 });

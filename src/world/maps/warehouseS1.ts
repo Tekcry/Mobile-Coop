@@ -54,36 +54,34 @@ export const S1_ROOMS: RoomDef[] = [
 export type S1Lamp = readonly [x: number, y: number, z: number, radius: number, intensity: number, group: number, colour?: readonly [number, number, number]];
 export const S1_LIGHT_PASS: readonly S1Lamp[] = [
   // goods-in bay (circuit 30): a high-bay over the east lane and the wrapper, the reception door
-  [-12.5, 5.05, -12.0, 8, 0.9, 30],
-  [-9.0, 3.2, -16.0, 3.5, 0.7, 30],
-  // fire lobby C2 (circuit 31): ceiling panel and the exit sign over the far door
-  [-14.5, 2.75, -7.4, 3.5, 0.8, 31],
-  [-14.5, 2.6, -6.3, 2.5, 0.4, 33, [0.5, 1, 0.6]],
+  [-11.65, 5.05, -11.2, 7, 0.785, 30],
+  [-9.8, 3.2, -16, 4, 0.345, 30],
+  // fire lobby C2 (circuit 31): the ceiling panel (the exit sign is gone: the column cap)
+  [-13.3, 2.75, -7.4, 4, 0.868, 31],
   // lobby-block roof space under the main roof (the storage, the smoke vent)
-  [-17.8, 5.3, -7.6, 6.5, 1.0, 31],
+  [-17.8, 5.3, -7.6, 6.5, 0.878, 31],
   // reception and the corridor's west end
-  [-6.3, 2.85, -15.4, 4.5, 0.7, 33],
-  [-5.5, 2.65, -12.3, 4.5, 0.7, 32],
-  // mess hatch, and the void's three openings (lamps up in the crawl, over h1, h2 and the catwalk opening)
-  [2.6, 2.65, -9.9, 3, 0.8, 35],
-  [2.6, 4.5, -10.0, 2.4, 0.7, 35],
-  [-5.6, 4.5, -12.3, 2.4, 0.7, 32],
-  [7.4, 4.5, -9.6, 1.8, 1.0, 36],
+  [-6.3, 2.85, -15.4, 4.5, 0.568, 33],
+  [-5.5, 2.65, -12.3, 4.5, 0.645, 32],
+  // the void's three openings (lamps up in the crawl, over h2, h1 and the catwalk opening)
+  [2.6, 4.5, -10, 2.4, 0.428, 35],
+  [-5.6, 4.5, -12.3, 2.4, 0.428, 32],
+  [7.4, 4.5, -9.15, 1.8, 0.738, 36],
   // plant deck (over the south rooms, under the roof)
-  [6.2, 5.3, -15.2, 3.2, 1.0, 34],
+  [6.2, 5.3, -15.2, 3.2, 0.895, 34],
   // workshop pendants (circuit 36) under the crane runway, and two lamps over the catwalk
-  [11.5, 4.0, -12.5, 5.5, 1.0, 36],
-  [17.5, 4.0, -12.5, 6, 1.0, 36],
-  [22.8, 4.0, -11.6, 5, 1.0, 36],
-  [10.4, 5.1, -9.7, 4.2, 1.2, 36],
-  [14.6, 5.1, -9.7, 4.2, 1.2, 36],
-  [18.8, 5.1, -9.7, 4.2, 1.2, 36],
-  [22.4, 5.1, -9.7, 4.2, 1.2, 36],
+  [11.5, 4, -12.5, 5.5, 0.492, 36],
+  [17.5, 4, -12.5, 6, 0.565, 36],
+  [22.8, 4, -11.6, 5, 0.601, 36],
+  [10.4, 5.1, -9.7, 4.2, 0.845, 36],
+  [14.6, 5.1, -9.7, 4.2, 0.453, 36],
+  [18.8, 5.1, -9.7, 4.2, 0.472, 36],
+  [22.4, 5.1, -9.7, 4.2, 0.36, 36],
   // outside: a wall lamp at the drainpipe, roof masts at the pipe top, the hatch and the smoke vent
-  [-22.4, 3.2, -18.6, 3, 0.6, 20],
-  [-22.2, 7.3, -16.8, 4, 0.8, 20],
-  [5.0, 7.3, -14.2, 1.9, 0.8, 20],
-  [-19.6, 7.3, -10.4, 3, 0.8, 20],
+  [-22.4, 3.2, -18.6, 3, 0.385, 20],
+  [-22.2, 7.3, -16.8, 4, 0.202, 20],
+  [5, 7.3, -14.2, 1.9, 0.593, 20],
+  [-19.6, 7.3, -10.4, 3, 0.445, 20],
 ];
 
 /** Light switches (circuits 30, 32, 34: the bay lane, the corridor, the security office). */
@@ -330,19 +328,19 @@ export function buildServiceS1(b: LevelBuilder): void {
   const lamp = (x: number, y: number, z: number, radius: number, intensity: number, group: number, color: [number, number, number] = [1, 0.92, 0.75]): void => {
     b.light({ kind: 'lamp', x, y, z, radius, intensity, color, group, fixture: { sx: 0.5, sy: 0.08, sz: 0.5, oy: 0.1 } });
   };
-  lamp(-19, 5.05, -14.4, 7, 0.8, 30);
+  lamp(-17.8, 5.05, -14.9, 8, 0.62, 30);
   lamp(-20.2, 2.75, -7.4, 4, 0.8, 31);
   lamp(-10.2, 2.75, -7.4, 3, 0.4, 31, [0.5, 1, 0.6]);
-  lamp(2.5, 2.65, -12.3, 6.2, 1.0, 32);
-  lamp(-5, 2.85, -14.4, 3, 0.4, 33);
-  lamp(4.8, 2.85, -15.8, 4.5, 0.85, 34, [0.55, 0.7, 1]);
-  lamp(4.5, 2.65, -9.8, 4, 0.8, 35);
+  lamp(2.4, 2.65, -13.35, 6.2, 0.834, 32);
+  lamp(-5, 2.85, -14.4, 3, 0.17, 33);
+  lamp(4.8, 2.85, -15.8, 4.5, 0.75, 34, [0.55, 0.7, 1]);
+  lamp(5.55, 2.65, -10.25, 4, 1.36, 35);
   lamp(11, 2.4, -17.6, 3, 0.4, 36, [0.5, 1, 0.6]);
   b.light({ kind: 'spot', x: -11, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
-  b.light({ kind: 'lamp', x: -5, y: 2.6, z: -18.5, radius: 5, intensity: 0.8, color: [1, 0.92, 0.75], group: 20, fixture: { sx: 0.3, sy: 0.1, sz: 0.2, oy: 0.1 } });
-  b.light({ kind: 'lamp', x: 11, y: 2.6, z: -18.5, radius: 4, intensity: 0.6, color: [1, 0.92, 0.75], group: 20, fixture: { sx: 0.3, sy: 0.1, sz: 0.2, oy: 0.1 } });
+  b.light({ kind: 'lamp', x: -5, y: 2.6, z: -18.5, radius: 5, intensity: 0.33, color: [1, 0.92, 0.75], group: 20, fixture: { sx: 0.3, sy: 0.1, sz: 0.2, oy: 0.1 } });
+  b.light({ kind: 'lamp', x: 11, y: 2.6, z: -18.5, radius: 4, intensity: 0.28, color: [1, 0.92, 0.75], group: 20, fixture: { sx: 0.3, sy: 0.1, sz: 0.2, oy: 0.1 } });
   b.light({ kind: 'lamp', x: 11.25, y: 2.45, z: -22.45, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
   b.ambientZone(-8, 8, -13.8, -8.8, 0.05, 2.95, 4.65); // the void
-  b.light({ kind: 'spot', x: -19, y: 5.6, z: -18.6, radius: 5.2, intensity: 0.8, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } }); // the yard floodlight over shutter W (the crawl)
+  b.light({ kind: 'spot', x: -19, y: 5.6, z: -18.6, radius: 5.2, intensity: 0.62, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } }); // the yard floodlight over shutter W (the crawl)
   for (const [x, y, z, r, i, g, c] of S1_LIGHT_PASS) lamp(x, y, z, r, i, g, c ? [c[0], c[1], c[2]] : undefined);
 }
