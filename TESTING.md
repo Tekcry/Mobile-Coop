@@ -28,6 +28,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
   you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
   there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
+- [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
+  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`).
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
@@ -53,7 +55,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   runs. Keyboard: WASD walks, hold Left Shift to run, Left Alt to creep. B crouches; a stop holds the stride, then
   settles. A part-pushed stick is silent; a full stick is audible.
 - [ ] Weapon states (anim-rework S1): X taps the gun out to low ready (explore camera) and away again; hold LT to aim
-  (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, a little slower.
+  (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, slower (the rifle
+  comes off the sling round the right side, muzzle down under the arm, then up into the shoulder). Aiming, strafe both
+  ways and back up: short side-steps, the feet never cross or splay, the gun steady (anim-rework S3).
   RT fires only while aiming; holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
   Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
   things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming
@@ -90,6 +94,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
+- [ ] Animation tuner: open it from Pause > Animation tuner (dev) (the match resumes with the panel open), Settings >
+  Graphics > Animation tuner (dev) or F3 > Anim; on a phone the panel folds to its header (_ / +), scrolls, drags by
+  thumb and closes with x, and Share / Copy shares, copies or shows the JSON. Walk: "arm swing amplitude", "stance knee
+  flex" and "trunk / shoulder counter-rotation" sit at the top. Walk with the pad and drag "foot width / track" - the
+  feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
+  is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
+  press Reset all before judging the game's own defaults.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than

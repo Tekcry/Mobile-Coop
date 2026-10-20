@@ -12,7 +12,10 @@ export function browserExe() {
 
 /** Chromium flags: software GL (SwiftShader) by default; E2E_GPU=1 the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored). */
 export function browserArgs() {
-  const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
+  // (test-speed) no background throttling: a two-page suite's second page is the background tab, and Chromium throttles
+  // its timers and renderer (page 2 of e2e-coop fell to 1 frame/s with another suite alongside); anim-audit had these
+  // for its remote run, now every suite has them
+  const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'];
   // E2E_UNCAP=1 (frame-time measurements): no display-rate limit on requestAnimationFrame, so a frame cost is not hidden by a 60 / 120 Hz cap
   if (process.env.E2E_UNCAP === '1') base.push('--disable-frame-rate-limit', '--disable-gpu-vsync');
   if (!GPU) return ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
@@ -95,6 +98,9 @@ export async function launch({ url = 'http://localhost:4173/', params = '', view
 /** Open another page in an existing context (coop tests: pages share BroadcastChannel + IndexedDB). */
 export async function openPage(ctx, url = 'http://localhost:4173/', params = '') {
   const page = await ctx.newPage();
+  // (test-speed) a page load on a loaded machine (two suites, two pages each, software GL) ran past Playwright's 30 s
+  // navigation default (e2e-menus, e2e-pad, 2026-10-20): every goto / reload of a suite page waits up to 120 s
+  page.setDefaultNavigationTimeout(120000);
   if (PROFILE) {
     for (const [name, bucket] of [['evaluate', 'evaluate'], ['waitForFunction', 'evaluate'], ['waitForTimeout', 'pauses'], ['screenshot', 'screenshot']]) {
       const orig = page[name].bind(page);
@@ -105,6 +111,12 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   page.on('console', (m) => {
     // SwiftShader / ANGLE performance notes about its own command buffer are not the game's problems
     if (/GL Driver Message \(OpenGL, Performance/.test(m.text())) return;
+    // (test-speed) a music track whose fetch failed (the game logs it and plays on without that track): seen under load
+    // in e2e-desktop and e2e-offline (2026-10-20). Printed, never counted as a console error; the audio suites cover music.
+    if (m.type() === 'warning' && /^music \w+ TypeError: Failed to fetch/.test(m.text())) {
+      console.log(`  (ignored: ${m.text().split('\n')[0]})`);
+      return;
+    }
     if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`);
     else if (process.env.VERBOSE || (NETSIM && /^NETSIM/.test(m.text()))) console.log(`[${m.type()}] ${m.text()}`);
   });
@@ -125,6 +137,16 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
       const st = window.__app.current;
       const wrapper = st.fixedUpdate;
       for (let i = 0, n = Math.round(max * 60); i < n && st.fixedUpdate === wrapper; i++) window.__app.loop.stepHeadless(1 / 60);
+    };
+  });
+  // (test-speed) `window.__afterSim(sec, fn)`: run `fn` once the match's own clock (`__app.current.time`) has moved
+  // `sec` on, checked every rendered frame. An in-page `setTimeout` counts real time, so under load a timed chain of taps
+  // (a door menu: A, down, A) landed before the game had run the frames between them.
+  await page.addInitScript(() => {
+    window.__afterSim = (sec, fn) => {
+      const t0 = window.__app.current.time;
+      const tick = () => (window.__app.current.time - t0 >= sec ? fn() : requestAnimationFrame(tick));
+      requestAnimationFrame(tick);
     };
   });
   // Fake standard-mapping gamepad, controllable via window.__pad.
@@ -225,18 +247,49 @@ export function frames(page, n = 3) {
   );
 }
 
-export async function press(page, btn) {
-  await page.evaluate((b) => window.__pad.set(b, 1), btn);
-  await frames(page, 3);
-  await page.evaluate((b) => window.__pad.set(b, 0), btn);
+/**
+ * (test-speed) Hold a pad button or stick for exactly one input poll: `on()` now, `off()` right after the game's next
+ * `input.poll` has read it. A hold of a few rendered frames lasted long enough in real time on a loaded machine for the
+ * menu's nav repeat (wall-clock) to step twice (e2e-pad "left stick moves focus down", 2026-10-20). Pages without the
+ * app's input yet, or a poll that never comes (5 s), fall back to the old 3-frame hold.
+ */
+async function onePoll(page, kind, i, v) {
+  const polled = await page.evaluate(([kind, i, v]) => new Promise((res) => {
+    const set = (x) => (kind === 'axis' ? window.__pad.axis(i, x) : window.__pad.set(i, x));
+    const inp = window.__app?.input;
+    set(v);
+    if (!inp?.poll) return res(false);
+    const orig = inp.poll;
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      if (inp.poll === wrap) inp.poll = orig;
+      set(0);
+      res(ok);
+    };
+    const wrap = function (...a) {
+      const r = orig.apply(this, a);
+      finish(true);
+      return r;
+    };
+    inp.poll = wrap;
+    setTimeout(() => finish(false), 5000);
+  }), [kind, i, v]);
+  if (!polled) {
+    await page.evaluate(([kind, i, v]) => (kind === 'axis' ? window.__pad.axis(i, v) : window.__pad.set(i, v)), [kind, i, v]);
+    await frames(page, 3);
+    await page.evaluate(([kind, i]) => (kind === 'axis' ? window.__pad.axis(i, 0) : window.__pad.set(i, 0)), [kind, i]);
+  }
   await frames(page, 3);
 }
 
+export async function press(page, btn) {
+  await onePoll(page, 'button', btn, 1);
+}
+
 export async function stick(page, axis, v) {
-  await page.evaluate(([a, x]) => window.__pad.axis(a, x), [axis, v]);
-  await frames(page, 3);
-  await page.evaluate((a) => window.__pad.axis(a, 0), axis);
-  await frames(page, 3);
+  await onePoll(page, 'axis', axis, v);
 }
 
 export function focusedText(page) {

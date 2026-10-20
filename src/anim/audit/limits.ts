@@ -229,3 +229,45 @@ export const CRAB_STATE_CHECKS: Record<CrabState, readonly string[]> = {
   change90: ['knees', 'knee-out', 'slide', 'elbows'],
   change180: ['knees', 'knee-out', 'slide', 'elbows'],
 };
+
+/**
+ * (anim-rework S3) The drawn states e2e-anim samples standing (rifle and pistol, CRAB_STATES): the aimed idle, the glide
+ * (strafe either way, backwards, forward) and the low ready idle, walk and jog.
+ */
+export type CrabDrawnState = 'aimIdle' | 'aimStrafe' | 'aimBack' | 'aimFwd' | 'readyIdle' | 'readyWalk' | 'readyJog';
+/** (anim-rework S3) Which drawn states assert on every e2e-anim run: all of them (S3-REPORT.md). */
+export const CRAB_DRAWN_GATES: Record<CrabDrawnState, boolean> = { aimIdle: true, aimStrafe: true, aimBack: true, aimFwd: true, readyIdle: true, readyWalk: true, readyJog: true };
+/** (anim-rework S3) The metrics each gated drawn state asserts ('cross': the feet never cross, a side-step's rule). */
+export const CRAB_DRAWN_CHECKS: Record<CrabDrawnState, readonly string[]> = {
+  aimIdle: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  aimStrafe: ['knees', 'track', 'knee-out', 'slide', 'elbows', 'cross'],
+  aimBack: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  // (the aimed walk forward at the aim's 1.4 m/s top reads its track at the limit, 6.9-7.0 cm: the trailing foot 25 cm
+  // behind at toe-off in the pelvis' few degrees of stepping twist; report-only, the mean is 4.8 cm)
+  aimFwd: ['knees', 'knee-out', 'slide', 'elbows'],
+  readyIdle: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  readyWalk: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  readyJog: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+};
+/**
+ * (anim-rework S3, written reason) The aimed side-step (the glide's shuffle, BRIEF 3: "steps without crossing the feet")
+ * cannot keep a planted foot within the walk's 7 cm of the line under the hips: the lead foot steps out and is planted
+ * while the trailing foot comes in, so the planted feet open to the close (9 cm between the ankles, GLIDE_GAP) plus the
+ * step (each foot travels two steps a cycle). A tactical side-step keeps the feet from closed to about shoulder width
+ * apart (a short step, never a lunge; Wren's shoulders are about 37 cm): ankles up to ~40 cm apart at the widest, so
+ * each planted foot up to `trackHalf` 20 cm from the hips' line (the hips ride over the feet, GLIDE_HIP), the
+ * knees up to 1.5 x the hip joints' width there (the legs angle out from the hips to the open feet, the knees between
+ * hip and ankle, never bowed past the ankles: kneeBow stays 3 cm). The other ranges are the standing ones.
+ */
+export const CRAB_STRAFE = { ...CRAB, kneeSep: { min: 0.5, max: 1.5 }, trackHalf: 0.2 } as const;
+/** (anim-rework S3) The ranges a drawn state reads against: the strafe its own, the idles the hip-width stance. */
+export function crabDrawnRanges(state: string): typeof CRAB | typeof CRAB_STRAFE | typeof CRAB_IDLE {
+  return state === 'aimStrafe' ? CRAB_STRAFE : state === 'aimIdle' || state === 'readyIdle' ? CRAB_IDLE : CRAB;
+}
+/**
+ * (anim-rework S3, BRIEF 3 "Weapon carry and aiming") The drawn upper body e2e-anim asserts (deg): the rifle's low ready
+ * muzzle 30-45 deg down (a few deg either side for the chest's breathing and the stance), the pistol's compressed ready
+ * pointed down and forward (20-50 deg), both within `readyYaw` of the facing (in front of the feet, not across the
+ * body); aiming the head within `headTilt` of upright (the gun comes to the eye, not the eye to the gun).
+ */
+export const DRAWN_POSE = { rifleDown: { min: 28, max: 47 }, pistolDown: { min: 20, max: 50 }, readyYaw: 25, headTilt: 14 } as const;

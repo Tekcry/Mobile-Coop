@@ -100,7 +100,7 @@ try {
   const faced = await page.evaluate(() => { const c = window.__app.current.player.controller; return Math.atan2(Math.sin(c.yaw - Math.atan2(c.motion.vx, c.motion.vz)), Math.cos(c.yaw - Math.atan2(c.motion.vx, c.motion.vz))); });
   assert(Math.abs(faced) < 0.1, `the body faces the travel direction (${faced.toFixed(2)} rad off)`);
   await settle(0.3);
-  // aiming: strafe-locked, capped at 1.4 m/s, strafe x0.9, backstep x0.75
+  // aiming: strafe-locked, capped at 1.4 m/s, strafe x0.5 (anim-rework S3: the glide shuffle), backstep x0.75
   await tp(0, 0, -2, 0);
   await settle(0.3);
   await page.evaluate(() => window.__app.input.state.set('t', 'ads', true));
@@ -109,7 +109,7 @@ try {
   await page.evaluate(() => window.__app.input.state.set('t', 'ads', false));
   // (anim-rework S1) the aim let go drops to low ready: an X tap holsters again
   await page.evaluate(() => window.__app.input.state.tap('draw'));
-  assert(aimStrafe > 1.1 && aimStrafe < 1.35, `aiming: strafe 90% of 1.4 (${aimStrafe.toFixed(2)} m/s)`);
+  assert(aimStrafe > 0.6 && aimStrafe < 0.78, `aiming: strafe 50% of 1.4 (${aimStrafe.toFixed(2)} m/s)`);
   assert(aimBack > 0.9 && aimBack < 1.12, `aiming: backstep 75% of 1.4 (${aimBack.toFixed(2)} m/s)`);
   await settle();
 

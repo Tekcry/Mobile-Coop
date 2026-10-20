@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BACK_DIAG, DIAG_TURN, diagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagTurnStep } from '../src/weapons/backDiag';
+import { BACK_DIAG, DIAG_TURN, diagTurn, diagTurnSling, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagTurnStep } from '../src/weapons/backDiag';
 
 // (CT prototype G2, AUDIT-AIM rows 1-3) the diagonal back sling and its draw / holster turn
 const step = (): DiagTurnStep => ({ kind: 0, theta: 0, t: 0, from: 'start', to: 'end' });
@@ -85,5 +85,31 @@ describe('diagonal back sling (CT: stock at the right shoulder blade, muzzle dow
     }
     expect(diagTurn(false, 1, s).theta).toBeCloseTo(slungTheta(), 9);
     expect(diagTurn(false, DIAG_TURN.holster.twist + 1e-6, s).theta).toBeCloseTo(Math.PI, 4);
+  });
+
+  it('(anim-rework S3, M2) sling draw: the holster backwards: in-plane from the sling to bore down, muzzle down under the arm, then up onto the line', () => {
+    const s = step();
+    const f = new Array(9).fill(0);
+    let prevTh = slungTheta();
+    let downSeen = false;
+    for (let r = 0; r <= 1.0001; r += 0.01) {
+      diagTurnSling(r, s);
+      if (s.kind === 0) {
+        // never muzzle up in the sweep: the bore stays below level, theta rising from the sling to pi (straight down)
+        expect(axis(planeFrame(s.theta, f), 2)[1]).toBeLessThanOrEqual(1e-9);
+        expect(s.theta).toBeGreaterThanOrEqual(Math.min(prevTh, Math.PI) - 1e-9);
+        prevTh = s.theta;
+      } else {
+        expect(['planePi', 'down', 'end']).toContain(s.from);
+        expect(['down', 'end']).toContain(s.to);
+        if (s.from === 'down') downSeen = true;
+        // never through the 'up' key (no muzzle up over the shoulder)
+        expect(s.from === 'up' || s.to === 'up').toBe(false);
+      }
+    }
+    expect(downSeen).toBe(true);
+    expect(diagTurnSling(0, s).theta).toBeCloseTo(slungTheta(), 9);
+    const last = diagTurnSling(1, s);
+    expect([last.to, last.t]).toEqual(['end', 1]);
   });
 });

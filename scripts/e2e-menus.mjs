@@ -300,7 +300,9 @@ try {
       await F.page.waitForFunction(() => window.__app.current?.titleLight?.phase !== 'dark', null, { timeout: 10000 }).catch(() => {});
       // (slice 4c, M3) the title stays on top as a clear layer (prompt and wordmark fading out), no menu under it, while
       // the goggle strikes; the music is not asked to start again (it began on the press)
-      await F.page.waitForTimeout(500);
+      // (test-speed) the fade is real time: wait for it (or the strike's end) instead of a fixed 0.5 s that a loaded
+      // machine's slow frames did not cover (card opacity 0.57, 2026-10-20)
+      await F.page.waitForFunction(() => getComputedStyle(document.querySelector('.title-screen .ts-card')).opacity === '0' || window.__app.current?.titleLight?.phase === 'done', null, { timeout: 8000, polling: 100 }).catch(() => {});
       const sq = await F.page.evaluate(() => ({
         phase: window.__app.current?.titleLight?.phase,
         top: window.__app.screens.top?.el.classList[1],
@@ -393,7 +395,8 @@ try {
     assert(await GM(() => getComputedStyle(document.querySelector('.hud')).display === 'none'), 'the HUD hides while paused');
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
     // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
-    assert(keys === 'resume,objectives,settings,report-feedback,quit', `pause items (${keys})`);
+    // (anim-tuner pass 3) the dev row "Animation tuner (dev)" before Quit (Up from Resume still wraps to Quit)
+    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,quit', `pause items (${keys})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));

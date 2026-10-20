@@ -6,6 +6,66 @@
   hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
   item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
 
+## 4.20.0 - Animation tuner: live sliders for gaits, poses and the gun hold, with export (2026-10-21, PR #56)
+- Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
+  opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
+  crouch idle / sneak / crouch walk, low ready, aim, crouched aim, back to wall idle / slide / peek, ladder, pipe, ledge,
+  vent, crawl, hang, hold) and a gun-hold section (rifle and pistol x low ready / aim / crouched aim), each following
+  the current state (untick "follow" to pick one). Sliders cover foot width, knee out, knee lift, step length, pelvis
+  height / crouch depth, forward lean, arm swing and its growth with speed, elbow out, head turn, peek lean, gap to the
+  wall, body distance to the ladder / pipe / guard, hand and foot reach and spacing, gap to the guard, and the gun's
+  position, pitch, yaw, cant, sight height, head drop and elbow tuck; a barrel marker shows where the muzzle points.
+  Changes apply live to the local player only (guards and the partner's copy are untouched; nothing on the wire), save
+  to the tuner's own IndexedDB store, reset per slider / group / all, and Export downloads `anim-tune-<date>.json`
+  (every changed value, its default, a timestamped change log). Every default is identity: nothing changes until a
+  slider moves. `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/save/animTuneStore.ts`; report
+  `docs/anim-tuner/REPORT.md`.
+- Pass 2 (pad and phone, Michael: "I will wait for the anim tuner"): the tuner also opens from the pause menu ("Animation
+  tuner (dev)", which resumes with the panel open) and Settings > Graphics, without F3, and stays open until its x. It
+  folds to a header bar, scrolls on a short landscape screen, is at most 45 % wide, has 28 px touch rows, keeps its
+  touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
+  Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
+  at the top with arm swing amplitude and step length (cadence at the same speed).
+## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
+- Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
+  (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
+- e2e-ctcourse runs as three station groups in the full run (`e2e-ctcourse:1..3`); named alone it runs all eight.
+- Load-safe waits: no background-tab throttling, 120 s page navigations and match loads (`LOAD_MS`), one-poll pad
+  `press` / `stick`, `window.__afterSim` for timed in-page taps, sim-clock waits in e2e-stealth and e2e-course's latency
+  checks, condition waits for fades and toasts in e2e-menus and e2e-pad, and station 6's late press on the client's
+  own frame.
+- A music fetch that fails under load prints "(ignored: ...)" instead of failing the console-error check.
+- `scripts/laptop-runner.ps1`: the laptop test runner (one request at a time, detached worktree, `heavy.lock`,
+  BelowNormal, port 4191).
+
+## 4.19.0 - Drawn movement: low ready, aiming with the glide (no crab strafe), the sling draw (2026-10-20, PR #54)
+- Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,
+  BRIEF section 3): with the gun out, standing, the legs play hand-keyed clips. Still: a ready stance, feet about hip
+  width with the support foot 18 cm ahead, knees soft. At low ready the walk, jog and run legs and carriage (no lean
+  below the run). Aiming, the glide: a short shuffle side-step that never crosses the feet (the aimed strafe was a crab,
+  knees 2-2.9 x the hips and a foot up to 56 cm off the line; now 0.6-1.2 x and 18 cm at the widest), shorter steps
+  backwards and forwards, the hips over the feet and the chest square to the gun. The aimed strafe is slower: 0.7 m/s
+  at full stick (was 1.26). The rifle's low ready points the muzzle about 40 deg down in front of the feet (was 46 deg
+  and 34 deg across the body); the pistol's low ready is a compressed ready close to the chest; the elbows stay in
+  aiming (were 7 cm out). LT from holstered with the rifle is its own sling draw (0.75 s): the gun comes off the back
+  round the right side, hangs muzzle down under the arm, then swings up into the shoulder. Crouched drawn is unchanged
+  (slice 4). No wire change (PROTOCOL_VERSION 24).
+
+## 4.18.1 - Phones render at a fixed 50% resolution (2026-10-20, PR #55)
+- Phone (Michael 2026-10-20: "when it changes render resolution the screen flashes. Keep 50% render resolution the
+  default and don't let it automatically adapt"): a fixed 50% of native, no dynamic resolution on phones. The 60 fps cap
+  stays (Michael chose it over a 30 lock; Marlow Yard runs ~32-35 fps on his phone). Desktop unchanged.
+
+## 4.18.0 - Sector Ops Warehouse sections 2 and 3 rebuilt, section 1 lamp pass (2026-10-20, PR #50)
+- Sector Ops Warehouse sections 2 and 3 rebuilt as greybox prototypes (`docs/warehouse-redesign/SPEC.md` 2.2 / 2.3,
+  `src/world/maps/warehouseS2.ts`, `warehouseS3.ts`): section 2 is a storage hall with real racking, a cage and three
+  routes to the case; section 3 is an assembly hall with a mezzanine deck, a production office, a plant room, a supply
+  duct and a crane walkway, with three routes to the terminal. 8 and 9 guards with jobs; no heavies, snipers or dogs
+  (G155). Higher walls and parapets keep each section sealed to its connector.
+- Lamp pass on sections 1-3 (Michael's section 1 walk, M1): routes and takedown spots read 0.40-0.55 without night
+  vision (under the level where guards see the player fully), objectives and work areas to 0.8, dark pockets 0.30 or
+  less; light-field tests pin each class with a minimum and a maximum (`tests/warehouseS1Light`, `S2Light`, `S3Light`).
+
 ## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
 - Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
   2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear

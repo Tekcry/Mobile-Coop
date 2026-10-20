@@ -133,6 +133,8 @@ export interface PlannerInput {
    * back walk). 'velocity': aiming, wall, cover: the stride follows the velocity.
    */
   stride: 'facing' | 'velocity';
+  /** (anim-rework S3) The standing aimed glide (a carrier aiming on foot): the closing foot comes in to GLIDE_GAP. */
+  glide?: boolean;
   /** (A1.2) The pelvis yaw (rad; NaN = the body yaw): the no-crossing rules are measured in its frame. */
   pelvisYaw: number;
   /** (G1) Crouch 0..1: crouched, a trailing foot rises onto its toes further (HEEL_RAISE.pitchCrouch), so the rear knee stays off the floor. */
@@ -206,6 +208,8 @@ const clampAbs = (a: number, m: number): number => (a > m ? m : a < -m ? -m : a)
 const HEEL_RISE = 6;
 /** (anim-rework S2) Free movement: a landing keeps at least this share of the stance width from the other foot (no crossing). */
 const FREE_GAP = 0.85;
+/** (anim-rework S3) The standing aimed glide's least lateral gap between the feet (m; PLANNER.minGap elsewhere). */
+export const GLIDE_GAP = 0.09;
 /** (anim-rework S2) Standing, the planted feet pivot with the band (the scrub) only after this long (s) of continuous fast turning. */
 const SPIN_SCRUB = 0.5;
 /** (locomotion step 21, A80) A start's first steps (s): the trailing foot may toe off early at any speed. */
@@ -782,7 +786,14 @@ export class FootPlanner {
     // (anim-rework S2) in free movement the gap follows the stance (FREE_GAP of its width, at most minGap): the fixed 13 cm
     // pushed every left landing out to 13 cm from the right foot, so the keyed walk's 10 cm track read 6.5-9 cm a foot
     // (the wide stance Michael saw at 14:45)
-    const gapNeed = i.stride === 'facing' && Number.isNaN(i.wallD) && i.crouch <= 0.5 ? Math.min(PLANNER.minGap, (i.rX - i.lX) * FREE_GAP) : PLANNER.minGap;
+    // (anim-rework S3) standing aimed (the glide: `glide`, stride 'velocity' off the wall) the closing foot comes in to GLIDE_GAP:
+    // a side-step's close at about hip width, so the step opens the feet less wide
+    const gapNeed =
+      i.stride === 'facing' && Number.isNaN(i.wallD) && i.crouch <= 0.5
+        ? Math.min(PLANNER.minGap, (i.rX - i.lX) * FREE_GAP)
+        : i.glide && Number.isNaN(i.wallD) && i.crouch <= 0.5
+          ? GLIDE_GAP
+          : PLANNER.minGap;
     const bad = side < 0 ? latT - (latO - gapNeed) : latO + gapNeed - latT;
     if (bad > 0) {
       const shift = side < 0 ? -bad : bad;

@@ -1,6 +1,6 @@
 // Controller-only navigation test: every step uses the fake gamepad, never the screen.
 // Run against `npm run preview` (default http://localhost:4173/).
-import { launch, openPage, press, stick, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
+import { launch, openPage, press, stick, frames, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
@@ -87,7 +87,8 @@ try {
   console.log('hot-plug + iOS first-press detection');
   await page.evaluate(() => window.__pad.connect());
   await press(page, BTN.LB); // harmless on main menu; reveals the pad like iOS
-  await page.waitForTimeout(250);
+  // (test-speed) the toast is noticed on a frame: wait for it (as the disconnect toast) instead of a fixed 250 ms
+  await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /Controller connected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});
   const toast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|'));
   assert(/Controller connected/.test(toast), `connect toast ("${toast}")`);
   assert(await page.evaluate(() => document.body.classList.contains('input-gamepad')), 'mode = gamepad');
@@ -133,6 +134,8 @@ try {
   assert((await tabT()) === 'Accessibility', 'Accessibility tab');
   assert(/Subtitles/.test(await focusedText(page)), `first focus on the locked Subtitles row ("${await focusedText(page)}")`);
   await press(page, BTN.A);
+  // (test-speed) the toast shows on a frame: wait for it (8 s cap) instead of reading it at once (failed under load, run 5)
+  await page.waitForFunction(() => /always on/.test(document.querySelector('.toasts')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {});
   assert((await settings()).access.subtitles && /always on/.test(await page.evaluate(() => document.querySelector('.toasts')?.textContent ?? '')), 'the locked row toasts its reason');
   for (let i = 0; i < 4 && !/HUD size/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   assert(/HUD size/.test(await focusedText(page)), 'focus HUD size');
@@ -224,7 +227,9 @@ try {
   const w0 = await G(() => window.__app.current.weapons.slotIndex);
   // (a tap at the input layer: down and up inside one frame, so a slow software-GL frame cannot turn it into a hold)
   await G(() => { const st = window.__app.input.state; st.set('t', 'gadgetWheel', true); st.set('t', 'gadgetWheel', false); });
-  await page.waitForTimeout(600);
+  // (test-speed) wait for the switch, not a fixed 600 ms: under load the game had not run the frames yet ("0 -> 0")
+  await page.waitForFunction((w0) => window.__app.current.weapons.slots.length < 2 || window.__app.current.weapons.slotIndex !== w0, w0, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(150);
   const tapWheel = await G(() => window.__app.current.gadgets.wheelOpen);
   const w1 = await G(() => ({ i: window.__app.current.weapons.slotIndex, n: window.__app.current.weapons.slots.length }));
   assert(!tapWheel && (w1.n < 2 || w1.i !== w0), `LB tap switches weapon and leaves the wheel shut (${w0} -> ${w1.i} of ${w1.n})`);
@@ -658,6 +663,8 @@ try {
       const G = (f, a) => P.evaluate(f, a);
       const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
       await P.waitForFunction(() => !!document.querySelector('.main-menu .btn'), null, { timeout: 60000 });
+      // (test-speed) a mark that a reload would clear: the remap flake (full run 2, 4.6.3) found the Controls screen gone
+      await G(() => (window.__remapMark = 1));
       await G(() => window.__pad.connect());
       await press(P, BTN.DOWN);
       await click('.main-menu .btn', 'Settings');
@@ -771,9 +778,22 @@ try {
       } finally {
         await Q.page.close();
       }
+      // (test-speed) the play page was in front: this page is in front again and still on the Controls screen before the
+      // next press (a B with no capture listening is Back, which closed the screen in the flake), and the capture is on
+      await P.bringToFront();
+      await frames(P, 3);
+      const here = await G(() => ({ mark: window.__remapMark === 1, screen: !!document.querySelector('.controls-screen'), top: window.__app.screens.top?.el.className ?? '' }));
+      assert(here.mark && here.screen, `after the play page the remap page is still on the Controls screen (${JSON.stringify(here)})`);
       // onto B (crouch): the conflict shows on both rows and in the summary; reset (confirm) restores the defaults
       await focusSlot('draw:0');
       await press(P, BTN.A);
+      // (the first pad press after the page came back to the front can be taken as the input-mode switch: one more A)
+      if (!(await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 4000 }).then(() => true).catch(() => false))) {
+        console.log(`  (no capture after the first A: ${JSON.stringify(await G(() => ({ mode: window.__app.input.mode, focused: window.__app.nav.focused?.dataset?.bind ?? window.__app.nav.focused?.className })))}; A again)`);
+        await focusSlot('draw:0');
+        await press(P, BTN.A);
+        await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
+      }
       await press(P, BTN.B);
       v = await view();
       assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);

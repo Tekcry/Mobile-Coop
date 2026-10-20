@@ -12,6 +12,8 @@ import { roomAt } from '../src/world/rooms';
 import { alarmStandPoint } from '../src/ai/alarm';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { S1_ROOMS } from '../src/world/maps/warehouseS1';
+import { S2_ROOMS } from '../src/world/maps/warehouseS2';
+import { S3_ROOMS } from '../src/world/maps/warehouseS3';
 
 // Sector Ops slice 2 step 3 (M7, A9, A10): syringes, the HUD line, the stars text, the `sector` message extras and the
 // shot camera restored on a restart.
@@ -82,8 +84,8 @@ describe('sector ops step 3', () => {
 
 describe('sector ops alarm panels (fix round)', () => {
   const lay = warehouseOps.build(new LevelBuilder(), 0);
-  /** The Warehouse rooms per section (A12): 1 section 1's own rooms (`S1_ROOMS`), 2 the racking, 3 the floor, deck and offices. */
-  const SECTION_ROOMS = [S1_ROOMS.map((r) => r.id), ['racking'], ['floor', 'mezz', 'office', 'manager']];
+  /** The Warehouse rooms per section (A12): 1 section 1's own rooms (`S1_ROOMS`), 2 the storage hall (`S2_ROOMS`), 3 the assembly hall, deck and offices (`S3_ROOMS`). */
+  const SECTION_ROOMS = [S1_ROOMS.map((r) => r.id), S2_ROOMS.map((r) => r.id), S3_ROOMS.map((r) => r.id)];
 
   it('every panel has a section, every section a panel, and the panel stands in a room of its own section', () => {
     const alarms = lay.alarms ?? [];

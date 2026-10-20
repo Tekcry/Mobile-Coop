@@ -23,8 +23,10 @@ export const MOVEMENT = {
   sneakBand: 0.4,
   crouchWalkBand: 0.85,
   walkBand: 0.5,
-  /** Strafe / backstep penalties (only while aiming: otherwise the body faces where it goes). */
-  strafeMult: 0.9,
+  /** Strafe / backstep penalties (only while aiming: otherwise the body faces where it goes). (anim-rework S3, BRIEF 3 "the
+   *  glide") strafe 0.9 -> 0.5: the aimed side-step is a short shuffle that never crosses the feet (GLIDE_STEP); at
+   *  1.26 m/s it spread the feet up to 1 m (the crab); 0.7 m/s at full stick keeps a quick 6-steps-a-second shuffle. */
+  strafeMult: 0.5,
   backMult: 0.75,
   /** Root motion limits: acceleration, braking (m/s^2), jerk (m/s^3). Snappy, never instant. */
   accelMax: 11,

@@ -6,7 +6,7 @@ import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
 import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
 import { loadWeaponMesh } from './weaponMesh';
-import { diagTurn, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
+import { diagTurn, diagTurnSling, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
 export interface WeaponMeshOptions {
@@ -59,7 +59,12 @@ const az = new Vector3();
  * 0.08], beside the head: the hand rose above the shoulder), never across the face; out beside the right hip for the thigh
  * holster.
  */
-export const TRAVEL_VIA = { back: [0.36, 0.15, 0.18], thigh: [0.24, -0.1, 0.34] } as const;
+export const TRAVEL_VIA = { back: [0.36, 0.15, 0.18], thigh: [0.24, -0.1, 0.34], sling: [0.3, -0.22, 0.14] } as const;
+/**
+ * (anim-rework S3, M2) The sling draw's grip waypoint (chest frame, m) is `TRAVEL_VIA.sling`: low beside the right hip,
+ * a little forward, under the arm (the gun hangs muzzle down there before it swings up into the shoulder), clear of the
+ * right thigh. Only a long gun drawn from the diagonal back sling by LT from holstered takes it (`beginTravel` sling).
+ */
 /**
  * (anim-cleanup, check fix r1) At the slot end the grip first moves out by this much (chest frame): off the back plate to
  * the right of the spine before it rises (a long gun lifted straight up from the back mount passed through the back of
@@ -288,6 +293,8 @@ export class WeaponModel {
   /** The slot a travel goes to / comes from (null: none running). */
   private trSlot: CarrySlot | null = null;
   private trDraw = false;
+  /** (anim-rework S3, M2) This draw is the sling draw (LT from holstered, a long gun off the diagonal back sling). */
+  private trSling = false;
   /** (G2 fix r1) The travel left from `trSlot` itself (a draw from the slung gun), not from mid-holster (a reversal). */
   private trFromSlot = false;
   /** (ct-prototype D1) The draw's u when the hand reached the grip (-1: not yet). */
@@ -303,7 +310,7 @@ export class WeaponModel {
    * leaves its parent for the chest frame where it is, and is the rig's held weapon, so the trigger hand holds its grip
    * the whole way. `travel(rig, u)` moves it; the caller ends with `hold` (a draw) or `holster` (a holster).
    */
-  beginTravel(rig: CharacterRig, slot: CarrySlot, draw: boolean): void {
+  beginTravel(rig: CharacterRig, slot: CarrySlot, draw: boolean, sling = false): void {
     rig.torso.computeWorldMatrix(true).invertToRef(trInv);
     this.node.computeWorldMatrix(true).multiplyToRef(trInv, trM);
     trM.decompose(trS, this.trQ0, this.trP0);
@@ -319,6 +326,7 @@ export class WeaponModel {
     rig.travelNode = this.node;
     this.trSlot = slot;
     this.trDraw = draw;
+    this.trSling = sling && draw && this.trFromSlot && useDiagTurn(slot, true, true);
     this.trCatch = draw ? -1 : 0;
     this.setVisible(true);
   }
@@ -352,14 +360,17 @@ export class WeaponModel {
     // on a draw; muzzle down beside the hip on a holster), every other slot slerps straight to its end
     // (G2 fix r1) a draw reversed mid-holster (the gun still in front of the body) slerps from where it is: the keyed
     // draw turn starts from the slung frame, so taken from mid-holster it snapped the gun through the torso and swept it
-    if (useDiagTurn(slot, this.trDraw, this.trFromSlot)) this.diagTurnTo(this.node.rotationQuaternion!, this.trDraw, r);
+    // (anim-rework S3, M2) the sling draw: the holster's turn backwards (round the right side, muzzle down under the arm,
+    // then up into the shoulder), over the whole travel (no 5 % hold level in the pocket: it is the swing up)
+    if (this.trSling) this.diagSlingTo(this.node.rotationQuaternion!, Math.min(1, sm / TRAVEL_TURN));
+    else if (useDiagTurn(slot, this.trDraw, this.trFromSlot)) this.diagTurnTo(this.node.rotationQuaternion!, this.trDraw, r);
     else Quaternion.SlerpToRef(this.trQ0, trQ, r, this.node.rotationQuaternion!);
     // the grip's start and end (chest frame), and the curve through the waypoint
     trG.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
     trG.rotateByQuaternionToRef(this.trQ0, trG0).addInPlace(this.trP0);
     trG.rotateByQuaternionToRef(trQ, trG1).addInPlace(trP);
     const back = isBackSlot(slot);
-    const via = back ? TRAVEL_VIA.back : TRAVEL_VIA.thigh;
+    const via = this.trSling ? TRAVEL_VIA.sling : back ? TRAVEL_VIA.back : TRAVEL_VIA.thigh;
     const out = back ? TRAVEL_OUT.back : TRAVEL_OUT.thigh;
     // a cubic: the slot end steps out first (P1 of a draw, P2 of a holster), the other control is the waypoint
     const slotG = this.trDraw ? trG0 : trG1;
@@ -387,6 +398,18 @@ export class WeaponModel {
   /** (G2) The diagonal sling's draw / holster turn at r (backDiag.diagTurn), into `q` (chest frame). */
   private diagTurnTo(q: Quaternion, draw: boolean, r: number): void {
     const st = diagTurn(draw, r, dStep);
+    if (st.kind === 0) {
+      frameQuat(planeFrame(st.theta, dFrame), q);
+      return;
+    }
+    this.diagKey(st.from, dqA);
+    this.diagKey(st.to, dqB);
+    Quaternion.SlerpToRef(dqA, dqB, st.t, q);
+  }
+
+  /** (anim-rework S3, M2) The sling draw's turn at r (backDiag.diagTurnSling), into `q` (chest frame). */
+  private diagSlingTo(q: Quaternion, r: number): void {
+    const st = diagTurnSling(r, dStep);
     if (st.kind === 0) {
       frameQuat(planeFrame(st.theta, dFrame), q);
       return;
