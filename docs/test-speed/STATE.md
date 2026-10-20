@@ -1,11 +1,12 @@
 # Test speed - state
 
-**Now (2026-10-20 21:35):** done. Full runs 6 and 7 on 7221641c at `E2E_JOBS=2` are clean (no "not ok", e2e-pad
-included, no reruns): the done criteria are met. Docs written (`docs/systems/testing-tools.md`, `docs/backlog.md`,
-CHANGELOG "Unreleased - test-speed"); one PR to master open, the orchestrator sets the version (patch).
+**Now (2026-10-20 22:10):** full runs 6 and 7 on 7221641c at `E2E_JOBS=2` are clean (the done criteria). Docs
+written. Master 4.17.0 merged in (c758d852): its full run failed e2e-pad (a master step with a fixed 600 ms; fixed)
+and e2e-levels (the rack ladder, see Open). The PR head needs one full run that passes (e2e-levels counts only if it
+also fails solo), then the PR to master (patch).
 
 **Next:**
-1. The orchestrator reviews and merges the PR (master merges cleanly into 7221641c, checked 21:35).
+1. Full run on the new PR head; e2e-levels solo if it fails again; then open the PR and the orchestrator merges it.
 2. Later, not a blocker: the 12-15 min figure at `E2E_JOBS=2` is measured on the desktop.
 3. e2e-pad off `KNOWN_FLAKY` once it has run clean in a few more full runs (it passed in runs 6 and 7 and in every
    runner request since).
@@ -17,8 +18,10 @@ CHANGELOG "Unreleased - test-speed"); one PR to master open, the orchestrator se
   BelowNormal. The gain from two jobs and the e2e-ctcourse split is on the desktop.
 - Seen on Sector Ops 9b40f469 at jobs=2 (21:10), passed solo: e2e-desktop:1 "the result is saved as a performance note
   without a tap" right after a 5 fps benchmark. Not seen on this branch; watch it.
-- e2e-levels "a runner climbs the rack ladder" failed once (run 4, 30 s of sim, no ladder taken) and passed in every
-  other run: watch it.
+- e2e-levels "a runner climbs the rack ladder" failed twice (run 4 and the PR head c758d852, "0.0 -> 0.02 m in 30 s",
+  no link taken). The test runs on sim time (`stepHeadless`) and `src/ai` reads no wall clock, so this is not a test
+  wait: likely the runner AI's own randomness (game code). Solo rerun to classify; if it fails solo, it goes to the
+  orchestrator as a game issue.
 
 ## The laptop runner (between test-speed steps, always first)
 - Requests come from CT Core, the orchestrator (relaying for Course Ready, Sector Ops / warehouse jobs, coop-fix and the
@@ -44,6 +47,7 @@ CHANGELOG "Unreleased - test-speed"); one PR to master open, the orchestrator se
 | 2026-10-20 16:09 | bc10b3c7 | full, jobs=2, BelowNormal (laptop) | every required suite ok ("all e2e suites passed"); e2e-pad FAIL (KNOWN FLAKY: "the locked row toasts its reason", read at once; now a condition wait). Not counted: a "not ok" | 1330 s (summed 2596 s) |
 | 2026-10-20 17:28 | 7221641c | full, jobs=2, BelowNormal (laptop) | CLEAN: all e2e suites passed, 0 "not ok" (clean 1 of 2) | 1430 s |
 | 2026-10-20 21:14 | 7221641c | full, jobs=2, normal priority (laptop; Michael freed it, 2026-10-20) | CLEAN: all e2e suites passed, 0 "not ok" (clean 2 of 2) | 1229 s |
+| 2026-10-20 21:46 | c758d852 (master 4.17.0 merged) | check + full, jobs=2 (laptop) | FAIL: e2e-pad (KNOWN FLAKY, "LB tap switches weapon", a fixed 600 ms; fixed), e2e-levels (rack ladder, see Open) | 1179 s |
 
 ## Findings and fixes
 | Failure (where) | Cause | Fix |
@@ -61,6 +65,7 @@ CHANGELOG "Unreleased - test-speed"); one PR to master open, the orchestrator se
 | e2e-ctcourse station 6 "the late hack costs the client health" (runs 3, 4) | the late press was sent after polls from Node saw scanner A ready on both pages; under load that took longer than the 1.5 s sync window, so it counted as a lone start ("-1:alone", no cost) | the client page presses on its own first frame that sees A ready |
 | e2e-menus "the prompt and wordmark have faded out" (run 4), e2e-pad "connect toast" (run 4) | fixed real-time pauses (0.5 s, 250 ms) before reading a fade / a toast | wait for the condition (8 s cap) |
 | e2e-pad "the locked row toasts its reason" (run 5) | the toast read at once after the press | wait for it (8 s cap) |
+| e2e-pad "LB tap switches weapon and leaves the wheel shut (0 -> 0 of 2)" (PR head c758d852, came with master's merge) | the tap was read after a fixed 600 ms of real time; under load the game had not run the frames yet | wait for the slot change (8 s cap), then read the wheel |
 | e2e-ctcourse 240-280 s, one job | eight stations in sequence | `--part=1..3` (stations 1-3, 4-5, 6-8), each its own pair of pages, started at its bay through the host session's `courseBay` |
 
 ## Done

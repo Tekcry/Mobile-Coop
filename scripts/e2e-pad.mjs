@@ -227,7 +227,9 @@ try {
   const w0 = await G(() => window.__app.current.weapons.slotIndex);
   // (a tap at the input layer: down and up inside one frame, so a slow software-GL frame cannot turn it into a hold)
   await G(() => { const st = window.__app.input.state; st.set('t', 'gadgetWheel', true); st.set('t', 'gadgetWheel', false); });
-  await page.waitForTimeout(600);
+  // (test-speed) wait for the switch, not a fixed 600 ms: under load the game had not run the frames yet ("0 -> 0")
+  await page.waitForFunction((w0) => window.__app.current.weapons.slots.length < 2 || window.__app.current.weapons.slotIndex !== w0, w0, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(150);
   const tapWheel = await G(() => window.__app.current.gadgets.wheelOpen);
   const w1 = await G(() => ({ i: window.__app.current.weapons.slotIndex, n: window.__app.current.weapons.slots.length }));
   assert(!tapWheel && (w1.n < 2 || w1.i !== w0), `LB tap switches weapon and leaves the wheel shut (${w0} -> ${w1.i} of ${w1.n})`);
