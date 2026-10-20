@@ -7,7 +7,7 @@ import { InputManager } from '../input/inputManager';
 import { FocusNav } from '../ui/focusNav';
 import { ScreenManager } from '../ui/screen';
 import { Toasts } from '../ui/toast';
-import { DebugOverlay } from '../ui/debugOverlay';
+import { DebugOverlay, type CrabPlayer } from '../ui/debugOverlay';
 import { dbGet, dbPut } from '../save/db';
 import { SaveManager } from '../save/saveManager';
 import { h } from '../ui/dom';
@@ -89,6 +89,8 @@ export class App {
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
     this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
     this.debug.pacing = () => this.quality.pacing();
+    // (anim-metrics-2) the anti-crab readout measures the local player of a match (none in the menus)
+    this.debug.crabPlayer = () => (this.state as { player?: CrabPlayer } | null)?.player ?? null;
     this.debug.extra.set('governor', () => {
       const g = this.quality.governor;
       return this.quality.adaptiveOn ? `governor L${g.level}${g.thermal ? ' THERMAL' : ''}` : 'governor off';

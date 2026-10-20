@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CRAB, CRAB_GATES } from '../src/anim/audit/limits';
-import { elbowWing, footTrack, kneeBow, kneeSeparation, pelvisFrame, plantedSlide } from '../src/anim/audit/metrics';
+import { CRAB, CRAB_CROUCH, CRAB_GATES, crabRanges } from '../src/anim/audit/limits';
+import { CRAB_JOINTS, crabFrame, elbowWing, footTrack, kneeBow, kneeSeparation, pelvisFrame, plantedSlide, type CrabNow } from '../src/anim/audit/metrics';
 
 /** A stream of `n` frames of the same point. */
 const hold = (n: number, x: number, y: number, z: number): number[] => Array.from({ length: n }, () => [x, y, z]).flat();
@@ -85,6 +85,44 @@ describe('anti-crab metrics (anim-rework BRIEF 5)', () => {
     const wing = elbowWing(sL, sR, hold(N, -0.32, 1.25, 0), hold(N, 0.16, 1.1, 0), CRAB.elbowWing);
     expect(wing.max).toBeCloseTo(0.14);
     expect(wing.pass).toBe(false);
+  });
+
+  it('crabFrame: one frame in place, the same numbers as the stream metrics', () => {
+    // body turned 0.7 rad: hips 18 cm, knees 22 cm apart (bowed 2 cm past the ankles), ankles 6 cm off the line,
+    // shoulders 36 cm, the left elbow 5 cm outside its shoulder
+    const yaw = 0.7;
+    const body: Record<(typeof CRAB_JOINTS)[number], [number, number, number]> = {
+      hipL: [-0.09, 0.9, 0], hipR: [0.09, 0.9, 0], kneeL: [-0.11, 0.5, 0.05], kneeR: [0.11, 0.5, 0.05],
+      ankleL: [-0.06, 0.08, 0], ankleR: [0.06, 0.08, 0], shoulderL: [-0.18, 1.4, 0], shoulderR: [0.18, 1.4, 0],
+      elbowL: [-0.23, 1.15, 0], elbowR: [0.17, 1.15, 0],
+    };
+    const buf = CRAB_JOINTS.flatMap((k) => turned(1, body[k], yaw));
+    const out: CrabNow = { kneeSep: 0, trackL: 0, trackR: 0, bowL: 0, bowR: 0, wingL: 0, wingR: 0, hipWidth: 0 };
+    expect(crabFrame(buf, out)).toBe(out);
+    expect(out.hipWidth).toBeCloseTo(0.18);
+    expect(out.kneeSep).toBeCloseTo(0.22 / 0.18);
+    expect(out.trackL).toBeCloseTo(0.06);
+    expect(out.trackR).toBeCloseTo(0.06);
+    expect(out.bowL).toBeCloseTo(0.05);
+    expect(out.bowR).toBeCloseTo(0.05);
+    expect(out.wingL).toBeCloseTo(0.05);
+    expect(out.wingR).toBeCloseTo(-0.01);
+    // no pelvis frame: only hipWidth changes
+    const z = crabFrame(new Array(30).fill(0), out);
+    expect(z.hipWidth).toBe(0);
+    expect(z.kneeSep).toBeCloseTo(0.22 / 0.18);
+  });
+
+  it('the ranges follow human gait data; a crouch opens the knees and the track a little', () => {
+    // step width 5-13 cm between the heel centres: at most 6.5 cm a foot, 7 cm with the ankle's own width
+    expect(CRAB.trackHalf).toBe(0.07);
+    expect(CRAB.kneeSep.max).toBe(1.1);
+    expect(CRAB.kneeBow).toBe(0.03);
+    expect(CRAB.elbowWing).toBe(0.06);
+    expect(crabRanges(false)).toBe(CRAB);
+    expect(crabRanges(true)).toBe(CRAB_CROUCH);
+    expect(CRAB_CROUCH.kneeSep.max).toBeGreaterThan(CRAB.kneeSep.max);
+    expect(CRAB_CROUCH.trackHalf).toBeGreaterThan(CRAB.trackHalf);
   });
 
   it('every gait is report-only until its slice lands', () => {

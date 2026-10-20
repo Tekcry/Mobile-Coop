@@ -1075,3 +1075,62 @@ export function elbowWing(shoulderL: Arr, shoulderR: Arr, elbowL: Arr, elbowR: A
   }
   return range(vals, idx, (_min, max) => max <= limit);
 }
+
+/** One frame of the crab metrics (`crabFrame`): filled in place. */
+export interface CrabNow {
+  /** Knees' lateral distance over the hip joints' (ratio). */
+  kneeSep: number;
+  /** Each ankle from the line under the hips (m, + = on its own side). */
+  trackL: number;
+  trackR: number;
+  /** Each knee outside its own ankle (m, + = out). */
+  bowL: number;
+  bowR: number;
+  /** Each elbow outside its own shoulder (m, + = out). */
+  wingL: number;
+  wingR: number;
+  /** Hip joints' horizontal distance (m); 0 = no pelvis frame this frame (the other fields are left as they were). */
+  hipWidth: number;
+}
+/** `crabFrame` joint order in its flat buffer (x, y, z each). */
+export const CRAB_JOINTS = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR'] as const;
+
+/**
+ * The crab metrics of one frame from a flat buffer of world positions in `CRAB_JOINTS` order (30 numbers), into `out`.
+ * Allocation-free (the debug overlay's live readout calls it every frame); the same maths as the stream metrics above.
+ */
+export function crabFrame(j: Arr, out: CrabNow): CrabNow {
+  const dx = at(j, 3) - at(j, 0);
+  const dz = at(j, 5) - at(j, 2);
+  const w = Math.sqrt(dx * dx + dz * dz);
+  if (!(w > 1e-6)) {
+    out.hipWidth = 0;
+    return out;
+  }
+  const ux = dx / w;
+  const uz = dz / w;
+  const mx = (at(j, 0) + at(j, 3)) / 2;
+  const mz = (at(j, 2) + at(j, 5)) / 2;
+  // (no closures: the overlay calls this every frame)
+  const kL = (at(j, 6) - mx) * ux + (at(j, 8) - mz) * uz;
+  const kR = (at(j, 9) - mx) * ux + (at(j, 11) - mz) * uz;
+  const aL = (at(j, 12) - mx) * ux + (at(j, 14) - mz) * uz;
+  const aR = (at(j, 15) - mx) * ux + (at(j, 17) - mz) * uz;
+  out.hipWidth = w;
+  out.kneeSep = (kR - kL) / w;
+  out.trackL = -aL;
+  out.trackR = aR;
+  out.bowL = aL - kL;
+  out.bowR = kR - aR;
+  // the elbows against the shoulder line (its own frame: the shoulders may turn against the hips)
+  const sx = at(j, 21) - at(j, 18);
+  const sz = at(j, 23) - at(j, 20);
+  const sw = Math.sqrt(sx * sx + sz * sz);
+  if (sw > 1e-6) {
+    const vx = sx / sw;
+    const vz = sz / sw;
+    out.wingL = at(j, 18) * vx + at(j, 20) * vz - (at(j, 24) * vx + at(j, 26) * vz);
+    out.wingR = at(j, 27) * vx + at(j, 29) * vz - (at(j, 21) * vx + at(j, 23) * vz);
+  }
+  return out;
+}
