@@ -1,12 +1,11 @@
 # tuner-ui - state
 
 ## Now
-Built (REPORT.md); fresh check and npm run check + e2e-menus / e2e-studio / smoke running (2026-10-21).
+PR open (2026-10-21): built (REPORT.md), check PASS (CHECK.md, no blockers), fix round done (state pick carries across tabs, folded tab bar, snap-lock e2e), master 4.32.3 merged; npm run check green (2337), smoke / e2e-studio / e2e-menus ok on the desktop. Full e2e requested from CT Core Build (laptop offline).
 
 ## Next
-1. Implementer (report docs/tuner-ui/REPORT.md), fresh check (CHECK.md), one fix round.
-2. `npm run check`, e2e-menus, e2e-studio, smoke (port 4191, desktop heavy.lock; the desktop is slow: E2E_SUITE_TIMEOUT
-   1200); push; PR to master; Character Build full e2e (copy the orchestrator); message the orchestrator with the head.
+1. The full e2e result; a failure: fix on this branch. 2. The orchestrator merges on CI.
+3. Then coop-torches resumes (docs/coop-torches/STATE.md).
 
 ## Resume prompt
 ```
