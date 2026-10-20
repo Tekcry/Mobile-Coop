@@ -205,6 +205,14 @@ async function station3(x0) {
   const d0 = await dev(A);
   assert(d0.alarm >= 1 && d0.cams[0].mode === 'online', `station 3: the camera raised the alarm stage to ${d0.alarm} and the run goes on`);
   await until(B, () => window.__ctdev?.alarm >= 1, null, 8000, 'station 3: the client page knows the alarm stage');
+  // (camera-cue) the vision cue is drawn while the camera works, on both pages, and pulses when the camera itself sees someone
+  const cueOn = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.baked && c.tris > 0 && c.a === 1 && c.shown; };
+  const cueOff = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.a === 0 && !c.shown && !c.seen; };
+  await until(A, cueOn, null, 10000, 'station 3: the host draws the camera cue');
+  await until(B, cueOn, null, 10000, 'station 3: the client draws the camera cue');
+  await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses while the camera sees a player');
+  // (camera-cue fix) the client derives the pulse itself (the host's sight test on both bodies, nothing sent)
+  await until(B, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses on the client page too');
   await drawPistol(A);
   await drawPistol(B);
   // the host jams from where it stands (still), aiming at the camera
@@ -214,6 +222,8 @@ async function station3(x0) {
   await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 20000, 'station 3: the client page sees the camera blind');
   const dj = await dev(A);
   assert(dj.cams[0].mode === 'off' && dj.charge[0] < 20, `station 3: the jam blinds the camera and drains the charge (${dj.charge[0]})`);
+  await until(A, cueOff, null, 3000, "station 3: the jammed camera's cue fades out (host)");
+  await until(B, cueOff, null, 3000, "station 3: the jammed camera's cue fades out (client)");
   // the client crosses to the blind spot under it while it is blind
   const al = dj.alarm;
   await moveClient(x0 + 8.0, 7);
@@ -232,6 +242,8 @@ async function station3(x0) {
   await lt(B, false);
   await until(A, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: released, the camera sees again');
   await until(B, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: the client page sees it online again');
+  await until(A, cueOn, null, 5000, 'station 3: released, the cue fades back in (host)');
+  await until(B, cueOn, null, 5000, 'station 3: released, the cue fades back in (client)');
   await holster(A);
   await holster(B);
 }

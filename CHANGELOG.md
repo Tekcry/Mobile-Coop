@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.31.0 - Camera cue: a faint red laser grid where a security camera looks (2026-10-21, PR #63)
+- Security cameras show a faint red scan grid on the floor and walls they see, sweeping with the pan (Michael M1
+  "Always, faint"); stronger in electro vision, its edge pulses while the camera sees a player, it fades when the camera
+  is jammed, off or shot. Render only: same field, range and static-collider line of sight as detection, never a light.
+- Fix round: in electro the grid is a clear white lattice (it vanished in the post); the co-op client's grid pulses too
+  (the host's camera test run on both bodies, nothing sent); the cue's rays are cast per fixed step on both sides.
+
 ## 4.30.2 - Decisions G192-G228 folded from the roadmap (2026-10-21, PR #76)
 - Docs only: Michael's answers from 2026-10-19 to 2026-10-21 move from `docs/ROADMAP.md` "Decided" into
   `docs/DECISIONS.md` as G192-G228, each also in `docs/design-bible.md`.
@@ -194,6 +201,7 @@
   hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
   item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
 
+
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
   D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
@@ -222,6 +230,7 @@
   touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
   Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
   at the top with arm swing amplitude and step length (cadence at the same speed).
+
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
