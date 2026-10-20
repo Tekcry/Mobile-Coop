@@ -31,6 +31,8 @@ commit hash, and forwards results back.
 ## Usage pause (2026-10-20 ~17:15)
 At 93% of the 5-hour window Michael was given prompts to clear and restart every session after the reset (CT Core, Sector Ops, Course Ready, the orchestrator; Character Build and nv-pass were already cleared). All sessions were told to pause until the orchestrator messages them after the reset: after the restart, message each one to resume (CT Core: slice 2; nv-pass: the checker result, then the carousel, which is now unblocked since slice 1 merged; Sector Ops: the lamp fix and section 3; Course Ready: the MPFB2 rebake; Character Build: test-speed).
 
+nv-pass (17:40): the checker said FIX on slices 1-2 (b1303393): met: bodies no longer bright, green tube, the frame 89% clear, light parity; not met: dark readability (the yard NV a flat murk, the Epic moonlit wall clipped) and ?gfx=min (NV darker than off in 2 of 9 views). Its committed "before" sheets are not master (re-shoot them). After the reset: one fix round (frame-level auto-gain, shot-script guards, min postLift), a GPU window, a fresh checker. It proposes lowering the e2e-darkness target 0.2 -> 0.10: ask for the evidence that 0.10 still means readable before agreeing (do not loosen a test just to pass).
+
 ## Context clears (Michael 16:15: "i want to clear all the chats when they are ready to prevent context drifting")
 Every session was asked to reach a clean point, update its STATE with a fenced resume prompt and message "<name> ready
 to clear" with the prompt. Then: give Michael that prompt to paste after he clears it (he clears the sessions he
