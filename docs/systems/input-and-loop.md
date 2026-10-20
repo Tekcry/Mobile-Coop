@@ -20,6 +20,8 @@ Desktop only: pad first, then keyboard and mouse (loco D1, G12). There is no tou
   (no gears), the three weapon states (holstered / low ready / aiming), LT held aims, X tap holsters / draws and X held
   reloads, RT tap knockout / hold kill, traversal holsters and returns the state. This replaces the F1a draw toggle and
   the step 17 speed gears; `docs/ct-prototype/CT-CONTROLS.md` is history.
+- No aim assist on any input (G16, built: no-aim-assist 2026-10-21). The pad settings have no `aimAssist` field; an old
+  stored value is dropped by `sanitizeSettings` (no save change: settings are not in the save schema).
 
 ## Game loop
 `GameLoop` disables Babylon's automatic physics (`scene.physicsEnabled = false`) and steps Havok itself at a fixed 1/60 s

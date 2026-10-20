@@ -6,7 +6,6 @@ import { defaultPadBinds, migrateA3Dpad, PAD_BINDS, PAD_FIXED, PAD_LAYOUT_V, pad
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 
-export type AimAssistLevel = 'off' | 'low' | 'standard' | 'high';
 
 export interface Settings {
   gamepad: {
@@ -18,7 +17,6 @@ export interface Settings {
     triggerDeadzone: number;
     curve: CurveKind;
     invertY: boolean;
-    aimAssist: AimAssistLevel;
     vibration: boolean;
   };
   mouse: {
@@ -136,7 +134,6 @@ export function defaultSettings(): Settings {
       triggerDeadzone: 0.08,
       curve: 'classic',
       invertY: false,
-      aimAssist: 'standard',
       vibration: true,
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: ADS_LOOK, raw: true },
@@ -152,7 +149,6 @@ export function defaultSettings(): Settings {
   };
 }
 
-const AIM: readonly AimAssistLevel[] = ['off', 'low', 'standard', 'high'];
 const CURVES: readonly CurveKind[] = ['linear', 'classic', 'precise', 'aggressive'];
 const SHADOWS: readonly ShadowQuality[] = ['off', 'low', 'medium', 'high', 'ultra', 'epic'];
 const TIERS: readonly TierQuality[] = ['low', 'medium', 'high', 'ultra', 'epic'];
@@ -304,7 +300,6 @@ export function sanitizeSettings(raw: unknown): Settings {
       triggerDeadzone: num(g.triggerDeadzone, d.gamepad.triggerDeadzone, 0, 0.5),
       curve: pick(g.curve, CURVES, d.gamepad.curve),
       invertY: bool(g.invertY, d.gamepad.invertY),
-      aimAssist: pick(g.aimAssist, AIM, d.gamepad.aimAssist),
       vibration: bool(g.vibration, d.gamepad.vibration),
     },
     mouse: {

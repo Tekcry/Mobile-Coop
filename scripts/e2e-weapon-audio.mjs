@@ -32,7 +32,7 @@ const sim = (s, setup) =>
   }), [s, setup ?? null]);
 const stats = () => G(() => ({ ...window.__app.weaponAudio.stats }));
 try {
-  await G(() => { window.__pad.connect(); window.__app.settings.update((s) => { s.gamepad.aimAssist = 'off'; }); });
+  await G(() => { window.__pad.connect(); });
   // (no hip fire on the locomotion branch: aim held, the gun drawn; harmless where hip fire exists)
   await G(() => { window.__app.current.player.forceAds = true; window.__app.loop.stepHeadless(0.8); });
   await press(page, BTN.LS);

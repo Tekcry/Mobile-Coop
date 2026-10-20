@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.32.2 - The last of pad aim assist removed (G16) (2026-10-21, PR #77)
+- No aim assist (G16): the last of it, the pad's `gamepad.aimAssist` setting (default "standard", read by nothing since
+  the aim-assist code went), is removed; an old stored value is dropped when settings load. Tests and the e2e helpers
+  that switched it off no longer touch it. No save change.
+
 ## 4.32.1 - GPU shot rows for Marlow's low cells, airlock lids and dressing; warehouse s1 view re-aimed (2026-10-21, PR #75)
 - Test scripts only: `scripts/shots-ctcourse.mjs` gains rows for two 4.5 m low cells, the 3.2 m airlock lid seen from
   below and the S1 desk, S3 monitor wall and S8 coffer (they need the marlow-variety geometry, PR #62).

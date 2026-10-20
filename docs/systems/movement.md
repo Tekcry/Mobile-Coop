@@ -23,7 +23,7 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 - Decided, not built yet (G17): the shoulder swap works only while aiming. Code: R3 / V swaps at any time.
 - Decided, not built yet (G30): of the modern layer keep only start lean, head look-at, hands on doors and ledges, feet on
   stairs and faster vaults from a run.
-- Decided, not built yet (G16): no aim assist on any input. Code: pad aim assist (`gamepad.aimAssist`, default standard).
+- Decided and built (G16): no aim assist on any input (the pad setting `gamepad.aimAssist` was removed, no-aim-assist).
 - Decided, not built yet (G35, G36, loco M25 (3)-(4)): wall slide is the CT shuffle, about 0.35 m/s; peek as soon as the
   operator reaches the edge while pushing; only the button or aiming leaves the wall; flat back standing, sideways
   crouched. Code: 0.9 / 0.6 m/s, a 0.25 s push to peek, a held pull-away also leaves.
@@ -231,8 +231,6 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   (`boomIn` 16 1/s; the cast still clamps it the same frame) and eases out slowly (`boomOut` 4, about 1.2 s; G3, CT
   053437), then `applyBodyFade` hides the head / body.
 - Shake roll is `rotation.z`; the camera sets `updateUpVectorFromRotation` (Babylon otherwise freezes a tilted horizon).
-- Aim assist (`weapons/aimAssist.ts`, pad only): friction fades across the cone edge, magnetism fades at the centre. To be
-  removed (G16).
 - Cinematic post (`vfx/cinematicPost.ts`): vignette, optional film grain and letterbox; `GameState.slowBeat()` (0.25 s at
   0.6x, `gameplay.slowBeat`) and `letterbox(seconds)`.
 
