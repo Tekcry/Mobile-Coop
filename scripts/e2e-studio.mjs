@@ -3,6 +3,8 @@
 // is on Wren's graph; mirror reaches the drive; a moving state walks the circle; the game speed goes to 2x inside the
 // studio; a slider change undoes; a preset saves to the tuner's IndexedDB store and loads back; the pause menu has no
 // studio row inside the studio; leaving to the main menu puts the time scale back to 1 and leaves no studio state.
+// (tuner-ui) Picking a loop sets the tuner's state; a walk state on the spot keeps its root in place while the gait runs;
+// a side snap holds the camera to her facing while she turns; the pause menu stops a moving loop.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -57,15 +59,58 @@ try {
   assert((await G(() => window.__app.loop.timeScale)) === 2, 'the game speed goes to 2x in the studio');
   await G(() => window.__studio.speed(1));
 
-  // a procedural state walks the circle (synthesised input)
+  // (tuner-ui) picking a loop sets the tuner's state to match (the body state and the clip's keys)
+  await G(() => window.__studio.pick('keyed:crouch_walk'));
+  await frames(page, 3);
+  const lg = await G(() => ({ body: window.__animTune.group('body'), keys: window.__animTune.group('keys') }));
+  assert(lg.body === 'crouchWalk' && lg.keys.startsWith('key.crouch_walk.'), `picking a loop sets the tuner's state (${JSON.stringify(lg)})`);
+  const pos = () => G(() => { const g = window.__app.current; const p = g.player.position; return { x: p.x, z: p.z, v: g.player.controller.speed, yaw: g.player.rig.root.rotation.y, drive: g.player.rig.graph.drive }; });
+
+  // (tuner-ui) a walk state on the spot (the default): the gait runs, the root stays within a few cm
+  await G(() => window.__studio.spot(true));
   await G(() => window.__studio.pick('state:walk'));
   await frames(page, 3);
-  const w0 = await G(() => { const p = window.__app.current.player.position; return { x: p.x, z: p.z }; });
+  const sp0 = await pos();
   await G(() => window.__app.loop.stepHeadless(2));
   await frames(page, 3);
-  const w1 = await G(() => { const p = window.__app.current.player.position; return { x: p.x, z: p.z, drive: window.__app.current.player.rig.graph.drive }; });
+  const sp1 = await pos();
+  const spMoved = Math.hypot(sp1.x - sp0.x, sp1.z - sp0.z);
+  assert(spMoved < 0.05 && sp1.v > 0.8, `a walk state on the spot keeps the root in place while the gait runs (${spMoved.toFixed(3)} m, speed ${sp1.v.toFixed(2)} m/s)`);
+
+  // a procedural state walks the circle (synthesised input), loop on the spot off
+  await G(() => window.__studio.spot(false));
+  await frames(page, 3);
+  const w0 = await pos();
+  await G(() => window.__app.loop.stepHeadless(2));
+  await frames(page, 3);
+  const w1 = await pos();
   const moved = Math.hypot(w1.x - w0.x, w1.z - w0.z);
   assert(moved > 0.5 && w1.drive === null, `state walk moves the player by synthesised input, no drive (${moved.toFixed(2)} m in 2 s)`);
+
+  // (tuner-ui) a camera snap holds: the orbit keeps its angle to her facing while she turns on the circle
+  await G(() => window.__animTune.lock('side'));
+  await frames(page, 4);
+  const camRel = () => G(() => { const g = window.__app.current; const f = g.player.cam.free; const d = (f ? f.yaw : NaN) - g.player.rig.root.rotation.y; return { rel: Math.atan2(Math.sin(d), Math.cos(d)), yaw: g.player.rig.root.rotation.y, lock: window.__animTune.freeState().lock, pad: window.__animTune.pad().mode }; });
+  const c0 = await camRel();
+  await G(() => window.__app.loop.stepHeadless(1.5));
+  await frames(page, 4);
+  const c1 = await camRel();
+  const turned = Math.abs(Math.atan2(Math.sin(c1.yaw - c0.yaw), Math.cos(c1.yaw - c0.yaw)));
+  assert(c0.lock === 'side' && c0.pad === 'tuner' && turned > 0.3 && Math.abs(c1.rel - c0.rel) < 0.05, `a side snap holds the camera to her facing as she turns (turned ${turned.toFixed(2)} rad, angle ${c0.rel.toFixed(3)} -> ${c1.rel.toFixed(3)}, pad ${c0.pad})`);
+  await G(() => window.__animTune.unlock());
+  await G(() => window.__animTune.free('off'));
+
+  // (tuner-ui) pause stops the player: a moving loop holds still under the pause menu
+  await frames(page, 3);
+  await G(() => window.__app.current.pause());
+  await frames(page, 3);
+  const pz0 = await pos();
+  await frames(page, 30);
+  const pz1 = await pos();
+  assert(Math.hypot(pz1.x - pz0.x, pz1.z - pz0.z) < 1e-4 && Math.abs(pz1.yaw - pz0.yaw) < 1e-4, `pause stops the player (${Math.hypot(pz1.x - pz0.x, pz1.z - pz0.z).toFixed(5)} m)`);
+  await G(() => window.__app.screens.top.resume());
+  await frames(page, 3);
+  await G(() => window.__studio.spot(true));
   await G(() => window.__studio.pick('state:idle'));
 
   // (anim-studio-2) a co-op pair: two Wren puppets posed from one clock; paused and scrubbed into the boost, A is

@@ -823,6 +823,14 @@ export class CharacterRig {
   private prevRootZ = 0;
   private velX = 0;
   private velZ = 0;
+
+  /** (tuner-ui) The world slid by (dx, dz) under the body (the Anim Studio's treadmill): the feet and the root's last
+   *  place move with it, so nothing reads it as a step or a jump. No allocation. */
+  shiftWorld(dx: number, dz: number): void {
+    this.planner.shift(dx, dz);
+    this.prevRootX += dx;
+    this.prevRootZ += dz;
+  }
   /** (locomotion step 22) Acceleration and motion state derived from the measured velocity (remote copies). */
   private derive = new MotionDerive();
   private pelvisDrop = 0;

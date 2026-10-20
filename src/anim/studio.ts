@@ -213,6 +213,9 @@ export const STUDIO = {
   entry: 'state:idle',
   mirror: false,
   rootMotion: false,
+  /** (tuner-ui) A moving state loops on the spot (a treadmill: the gait runs, the root is held where it started)
+   *  instead of walking the circle. The panel's "Loop on the spot" sets it with `rootMotion` off (a keyed clip in place). */
+  spot: true,
   turntable: false,
   turnRate: 20 as number,
   guard: false,
@@ -297,9 +300,10 @@ export interface StudioInputOut {
  * What a loop wants: a procedural state walks the circle at its pace (a constant stick along its direction while the
  * camera turns at pace / radius, so the heading follows the circle; aimed, the body keeps facing the view); a keyed
  * clip with root motion walks the circle at its pace standing (its own pelvis offset gives the crouch), in place it
- * stands. No allocation.
+ * stands. (tuner-ui) `spot`: a state loops on the spot, the stick in a straight line with no camera turn (the stage
+ * holds the root, `studioSpot`). No allocation.
  */
-export function studioInput(e: StudioEntry, rootMotion: boolean, out: StudioInputOut): StudioInputOut {
+export function studioInput(e: StudioEntry, rootMotion: boolean, out: StudioInputOut, spot = false): StudioInputOut {
   out.x = out.y = out.turn = 0;
   out.ads = e.aim;
   out.drawn = e.drawn;
@@ -310,7 +314,19 @@ export function studioInput(e: StudioEntry, rootMotion: boolean, out: StudioInpu
   const mag = stickMagFor(e.pace, crouched);
   if (e.move === 'side') out.x = mag;
   else out.y = e.move === 'back' ? -mag : mag;
-  out.turn = e.pace / STUDIO_RADIUS;
+  out.turn = spot && e.kind === 'state' ? 0 : e.pace / STUDIO_RADIUS;
+  return out;
+}
+
+/** (tuner-ui) A state that loops on the spot (a moving state with `spot` on): the stage holds its root. */
+export function studioSpot(e: StudioEntry, spot: boolean): boolean {
+  return spot && e.kind === 'state' && e.pace > 0;
+}
+
+/** (tuner-ui) The treadmill's shift for one step: how far (x, z) the root went from where it is held. */
+export function spotShift(px: number, pz: number, ax: number, az: number, out: { x: number; z: number }): { x: number; z: number } {
+  out.x = px - ax;
+  out.z = pz - az;
   return out;
 }
 

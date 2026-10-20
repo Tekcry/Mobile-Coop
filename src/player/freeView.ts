@@ -21,16 +21,20 @@ export const GAME_SPEED = { min: 0.1, max: 1, step: 0.05 } as const;
 /**
  * What the panel chose (read by the game each frame). (anim-studio) `spin`: the turntable, the orbit's yaw turning at
  * this rate (rad / s, real seconds; 0 off); `snap`: a camera snap the game takes once (front / side / back / top of the
- * player's facing; '' none).
+ * player's facing; '' none). (tuner-ui) `lock`: a snap that holds: the orbit keeps that angle to the body's facing every
+ * frame, following her as she turns and moves, until it is cleared or another is picked ('' none).
  */
-export const FREE_VIEW: { mode: FreeMode; demo: FreeDemo; spin: number; snap: '' | 'front' | 'side' | 'back' | 'top' } = { mode: 'off', demo: 'idle', spin: 0, snap: '' };
+export const FREE_VIEW: { mode: FreeMode; demo: FreeDemo; spin: number; snap: '' | FreeSnap; lock: '' | FreeSnap } = { mode: 'off', demo: 'idle', spin: 0, snap: '', lock: '' };
+
+/** A camera snap: the view from the body's front, its right side, its back, or from above. */
+export type FreeSnap = 'front' | 'side' | 'back' | 'top';
 
 /**
  * (anim-studio) A camera snap: the orbit's yaw and pitch to look at the body (facing `bodyYaw`) from its front, its
  * right side, its back, or from above (behind, looking down). Orbit yaw is the view direction (the camera sits `dist`
  * back along it).
  */
-export function freeSnap(snap: 'front' | 'side' | 'back' | 'top', bodyYaw: number, out: { yaw: number; pitch: number }): void {
+export function freeSnap(snap: FreeSnap, bodyYaw: number, out: { yaw: number; pitch: number }): void {
   if (snap === 'front') {
     out.yaw = bodyYaw + Math.PI;
     out.pitch = -0.1;
@@ -161,6 +165,9 @@ export class FreeViewCore {
   rise = 0;
   zoom = 0;
   nudge = 0;
+  /** (tuner-ui) A held snap ('' none) and the body's facing it holds to (set every frame by the game). */
+  lock: '' | FreeSnap = '';
+  bodyYaw = 0;
 
   /** Start from the game's view: the camera at (cx, cy, cz) looking along (yaw, pitch), the feet at (fx, fy, fz). */
   start(mode: FreeMode, cx: number, cy: number, cz: number, yaw: number, pitch: number, fx: number, fy: number, fz: number): void {
@@ -188,6 +195,8 @@ export class FreeViewCore {
     const dt = this.dt;
     this.yaw += this.lookX;
     this.pitch = Math.max(-C.pitchMax, Math.min(C.pitchMax, this.pitch + this.lookY));
+    // (tuner-ui) a held snap: the angle to the body's facing wins over the look (the zoom and the height still apply)
+    if (this.mode === 'orbit' && this.lock) freeSnap(this.lock, this.bodyYaw, this);
     if (this.mode === 'orbit') {
       this.dist = Math.max(C.distMin, Math.min(C.distMax, this.dist * Math.exp(-this.zoom)));
       this.height = Math.max(C.heightMin, Math.min(C.heightMax, this.height + this.nudge * C.nudgeRate * dt));

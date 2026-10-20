@@ -265,6 +265,22 @@ export class FootPlanner {
   private wasCrouch = false;
   private restepT = 0;
 
+  /**
+   * (tuner-ui) Move both feet (planted spots and swing ends) by (dx, dz) in the world: the world slid under the body (the
+   * Anim Studio's treadmill holds the root on the spot and moves the feet back with it). No allocation.
+   */
+  shift(dx: number, dz: number): void {
+    for (let k = 0; k < 2; k++) {
+      const f = k === 0 ? this.L : this.R;
+      f.x += dx;
+      f.z += dz;
+      f.fromX += dx;
+      f.fromZ += dz;
+      f.toX += dx;
+      f.toZ += dz;
+    }
+  }
+
   /** Reset both feet to their ideal stance (teleport, spawn). */
   reset(i: PlannerInput): void {
     for (const side of [-1, 1] as const) {

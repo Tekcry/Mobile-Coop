@@ -114,9 +114,31 @@ run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, ste
   file is listed and every slider and group is covered.
 
 ## Pad map
-While the panel has the pad ("PAD: tuner"; the strip at the bottom of the panel shows the map for the current mode).
-`src/ui/animTunePad.ts` (`TunePadCtl`, pure, `tests/animTunePad.test.ts`); `src/ui/animTunePanel.ts` applies it.
+(tuner-ui, 2026-10-21: the current map; the pass-2 table below it is history.) While the panel has the pad ("Pad:
+tuner"); the hint strip at the bottom of the panel (reserved space, never over a row) shows the map for the moment, with
+pad glyphs when a pad is in use and key / mouse help otherwise. `src/ui/animTunePad.ts` (`TunePadCtl`, pure);
+`src/ui/animTunePanel.ts` applies it; the pure layout is `src/ui/tunerLayout.ts`.
 
+| Button | Panel | An open list | Editing a slider |
+| --- | --- | --- | --- |
+| LB / RB | Previous / next tab (wraps): View, Body, Hands & feet, Weapon, Stepping, Weight, Camera, Keys, Co-op, (later sections), Settings | - | - |
+| D-pad | Rows: up / left the previous control, down / right the next (repeats when held, wraps); never changes a value | Up / down: move the highlight | Left / right: one step (held: repeats, x5 after 1 s) |
+| A | Open a list (Part, State, Weapon, Clip, Key, Loop, ...), start editing a slider, press a button, tick a box | Pick: the choice applies, the focus steps on (the next list, or the first slider) | Keep |
+| B | Back: from a slider to its State list; closes the Y menu | Back out: nothing changes | Undo the edit |
+| X | Reset the focused slider to its default | - | Set the default |
+| Y | The more menu: Undo, Redo, Store A, Store B, Flip A / B, Reset this group, Reset all (A twice), Export file, Share / Copy, Import file, Clear change log | - | - |
+| LT / RT | Previous / next choice of the focused section's last list (the state; on Co-op the role) | - | LT held: fine steps (a fifth) |
+| Left stick X | - | - | Fast adjust |
+| R3 (held) | Untuned (bypass; Backquote on the keyboard) | Same | Same |
+| View | Swap the pad between the tuner and the game (or the free camera while it is on). With "Pause game while tuning" (Settings, on by default) the game holds still while the tuner has the pad, and runs while the game has it | Closes the list | Ends the edit (kept) |
+| Menu (Start) | Close the panel | Close | Close |
+
+While the pause menu is open the menus get the pad (held buttons stay swallowed when it closes). A camera snap (View tab:
+Front / Side / Back / Top) holds and keeps the pad on the panel; the free view "Orbit her" / "Fly" from its list gives
+the pad to the camera as before (B ends it). Keyboard and mouse: a click on a tab, a list or a slider; an open list takes
+the arrows, Enter and Esc; type a value and press Enter; Ctrl+Z / Ctrl+Y.
+
+### Pass 2 map (history)
 | Button | Panel | Editing a slider or dropdown |
 | --- | --- | --- |
 | D-pad | Move the focus through every control (up / left back, down / right on; repeats when held, wraps). Never changes a value. | Left / right: one step (held: repeats, x5 after 1 s); a dropdown: the previous / next choice (live) |

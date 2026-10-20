@@ -1,7 +1,7 @@
 # tuner-ui - state
 
 ## Now
-Implementer building the layout pass (2026-10-21).
+Built (REPORT.md); fresh check and npm run check + e2e-menus / e2e-studio / smoke running (2026-10-21).
 
 ## Next
 1. Implementer (report docs/tuner-ui/REPORT.md), fresh check (CHECK.md), one fix round.

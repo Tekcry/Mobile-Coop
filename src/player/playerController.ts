@@ -325,6 +325,24 @@ export class PlayerController {
     return this.wish;
   }
 
+  private readonly shiftTmp = new Vector3();
+
+  /**
+   * (tuner-ui) Move the body by (dx, dz) with no teleport: the velocity, the gait clock and the stance carry on (the Anim
+   * Studio's treadmill holds a state on the spot this way; studio only). No allocation.
+   */
+  shift(dx: number, dz: number): void {
+    const c = this.cc.getPosition();
+    this.shiftTmp.set(c.x + dx, c.y, c.z + dz);
+    this.cc.setPosition(this.shiftTmp);
+    this.pos.x += dx;
+    this.pos.z += dz;
+    this.prevPos.x += dx;
+    this.prevPos.z += dz;
+    this.renderPos.x += dx;
+    this.renderPos.z += dz;
+  }
+
   teleport(feet: Vector3, yaw?: number): void {
     this.cc.setPosition(feet.add(new Vector3(0, this.height / 2 + 0.02, 0)));
     this.cc.setVelocity(Vector3.Zero());
