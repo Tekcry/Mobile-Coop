@@ -27,6 +27,8 @@ const MAPS = [
   ]],
 ];
 
+// vite --strictPort exits silently when the port is taken, and the other server would answer: refuse up front
+if (await fetch(URL).then(() => true, () => false)) { console.error(`nv-shots: port ${PORT} already in use`); process.exit(2); }
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
 let browser = null;
 const stop = () => { try { server.kill(); } catch { /* already gone */ } };
@@ -39,6 +41,9 @@ for (let i = 0; i < 60 && !up; i++) {
   try { up = (await fetch(URL)).ok; } catch { await new Promise((r) => setTimeout(r, 250)); }
 }
 if (!up) await fail('preview server did not start (run `npm run build` first)');
+if (server.exitCode !== null) await fail('own preview server exited (port taken?)');
+if ((await (await fetch(URL)).text()) !== readFileSync('dist/index.html', 'utf8')) await fail('served index.html is not this dist');
+console.log('nv-shots: served build verified');
 
 mkdirSync(dir, { recursive: true });
 for (const gfx of gfxList.split(',')) {

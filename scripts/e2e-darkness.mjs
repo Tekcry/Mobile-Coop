@@ -168,7 +168,7 @@ for (const look of LOOKS) {
       const off = await measure(page, p, false);
       const on = NV.find((v) => v.level === t.level) ? await measure(page, p, true) : null;
       rows.push({ t, p, off, on });
-      console.log(`  ${look.name} level ${p.level.toFixed(3)} (${p.light}) at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}: ${(off.luma * 100).toFixed(1)}%${on ? `, night vision ${(on.luma * 100).toFixed(1)}%` : ''} rgb ${off.rgb}`);
+      console.log(`  ${look.name} level ${p.level.toFixed(3)} (${p.light}) at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}: ${(off.luma * 100).toFixed(1)}%${on ? `, night vision ${(on.luma * 100).toFixed(1)}%` : ''} rgb ${off.rgb}${on ? `, night vision rgb ${on.rgb}` : ''}`);
     }
     if (process.env.REPORT) {
       console.log(JSON.stringify(rows));

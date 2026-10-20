@@ -37,8 +37,10 @@ export const NV_TONE = {
   /** Drive where highlights start to clip towards white (slice 1: 0.65 -> 0.85). */
   whiteFrom: 0.85,
   /** (slice 1) Without baked lamps (`?gfx=min`, the cheap path) the lighting has no night-vision gain: the tube lifts
-   *  its input by this instead, so night vision is never darker than the goggles off. */
-  postLift: 2,
+   *  its input by this instead, so night vision is never darker than the goggles off. (fix round: 2 -> 3. The frame
+   *  auto-gain leaves min's lit rooms at 1 - their 8-bit means sit in `NV_EXPOSURE.ldr` - so it cannot cover them;
+   *  at 2 yard-s1-bay read 37.6 vs 40.3 off and yard-s5-backroom 40.9 vs 45.8.) */
+  postLift: 3,
   /** Auto-gain: the bright light in view pulls the rest of the image down by 1 / (1 + veil x this); the highlights
    *  (from `gainKeep` up to white) keep their drive: a lamp stays white while the room round it sinks. */
   gainDrop: 0.6,

@@ -1,4 +1,5 @@
-import { Constants, EffectRenderer, EffectWrapper, type Camera, type Observer, type PostProcessManager, type RenderTargetWrapper, type Scene } from '../core/babylon';
+import { Constants, type Effect, EffectRenderer, EffectWrapper, type Camera, type Observer, type PostProcessManager, type RenderTargetWrapper, type Scene } from '../core/babylon';
+import { exposureBand, exposureK, NO_EXPOSURE, NV_EXPOSURE } from './nightExposure';
 import { BLOOM, BRIGHT_GLSL } from './nightVision';
 
 /** The bright pass: a 4-tap downsample of the scene (a 4 x 4 footprint through bilinear taps), each tap kept where it is
@@ -26,6 +27,49 @@ vec3 tap(vec2 o) {
 void main(void) {
   vec3 c = (tap(vec2(-1.0, -1.0)) + tap(vec2(1.0, -1.0)) + tap(vec2(-1.0, 1.0)) + tap(vec2(1.0, 1.0))) * 0.25;
   gl_FragColor = vec4(min(c, 16.0) * bright.z, 1.0);
+}`;
+
+/** (nv-pass fix round) The frame auto-gain's measure: the scene's luma (compressed on a half-float scene, as the bright
+ *  pass does) into `NV_EXPOSURE.size` squared texels, 4 bilinear taps each. */
+const MEASURE = `
+precision highp float;
+varying vec2 vUV;
+uniform sampler2D src;
+// x, y: a quarter of a measure texel (uv); z: half-float source (1) or 8-bit (0)
+uniform vec3 measure;
+${BRIGHT_GLSL}
+float m(vec2 o) {
+  float l = dot(texture2D(src, vUV + o).rgb, vec3(0.2126, 0.7152, 0.0722));
+  return measure.z > 0.5 ? bloomInput(l) : clamp(l, 0.0, 1.0);
+}
+void main(void) {
+  vec2 q = measure.xy;
+  float c = (m(-q) + m(vec2(q.x, -q.y)) + m(vec2(-q.x, q.y)) + m(q)) * 0.25;
+  gl_FragColor = vec4(c, c, c, 1.0);
+}`;
+
+/** A 4 x 4 box down to one texel (4 bilinear taps at the corners of the 2 x 2 quads). */
+const REDUCE = `
+precision highp float;
+varying vec2 vUV;
+uniform sampler2D src;
+uniform vec2 srcTexel;
+void main(void) {
+  vec2 t = srcTexel;
+  float c = (texture2D(src, vUV - t).r + texture2D(src, vUV + vec2(t.x, -t.y)).r + texture2D(src, vUV + vec2(-t.x, t.y)).r + texture2D(src, vUV + t).r) * 0.25;
+  gl_FragColor = vec4(c, c, c, 1.0);
+}`;
+
+/** The ease: the previous eased mean moves towards this frame's by k (`exposureK`). */
+const EASE = `
+precision highp float;
+varying vec2 vUV;
+uniform sampler2D src;
+uniform sampler2D prev;
+uniform float k;
+void main(void) {
+  float c = mix(texture2D(prev, vec2(0.5)).r, texture2D(src, vec2(0.5)).r, k);
+  gl_FragColor = vec4(c, c, c, 1.0);
 }`;
 
 /** One direction of a 9-tap Gaussian through 5 bilinear taps. */
@@ -59,6 +103,10 @@ export class NightBloom {
   glowScale = 0;
   /** Night vision on (0..1), set by the game each render frame. */
   k = 0;
+  /** (nv-pass fix round) The frame auto-gain's eased mean, 1 x 1 (null until the first frame with night vision), and the
+   *  band `CinematicPost` applies to it (`exposureBand`: half-float or 8-bit scene). */
+  exposure: RenderTargetWrapper | null = null;
+  exposureBand: readonly [number, number, number, number] = NO_EXPOSURE;
   /** Runs (tests). */
   runs = 0;
   private a: RenderTargetWrapper | null = null;
@@ -70,6 +118,14 @@ export class NightBloom {
   private readonly bright: EffectWrapper;
   private readonly blur: EffectWrapper;
   private obs: Observer<PostProcessManager> | null;
+  private readonly measure: EffectWrapper;
+  private readonly reduce: EffectWrapper;
+  private readonly ease: EffectWrapper;
+  /** The measure chain (size, size / 4, ... 1) and the eased mean's two 1 x 1 targets. */
+  private chain: RenderTargetWrapper[] = [];
+  private eased: [RenderTargetWrapper, RenderTargetWrapper] | null = null;
+  private flipE = 0;
+  private last = -1;
   private readonly look = BLOOM.bright;
 
   constructor(
@@ -82,11 +138,18 @@ export class NightBloom {
     // (compiled now, at load: no hitch on the first press of the goggles)
     this.bright = new EffectWrapper({ engine, name: 'nvBright', fragmentShader: BRIGHT, uniformNames: ['srcTexel', 'bright'], samplerNames: ['src'] });
     this.blur = new EffectWrapper({ engine, name: 'nvBlur', fragmentShader: BLUR, uniformNames: ['dir'], samplerNames: ['src'] });
+    this.measure = new EffectWrapper({ engine, name: 'nvMeasure', fragmentShader: MEASURE, uniformNames: ['measure'], samplerNames: ['src'] });
+    this.reduce = new EffectWrapper({ engine, name: 'nvReduce', fragmentShader: REDUCE, uniformNames: ['srcTexel'], samplerNames: ['src'] });
+    this.ease = new EffectWrapper({ engine, name: 'nvEase', fragmentShader: EASE, uniformNames: ['k'], samplerNames: ['src', 'prev'] });
     this.obs = scene.postProcessManager.onBeforeRenderObservable.add(() => this.run());
   }
 
   private run(): void {
-    if (this.k <= 0 || this.scene.activeCamera !== this.camera) return;
+    if (this.k <= 0 || this.scene.activeCamera !== this.camera) {
+      // goggles off: the next frame on starts the ease from that frame's mean
+      if (this.k <= 0) this.last = -1;
+      return;
+    }
     // the first post process (as Babylon's manager picks them: the first non-null): its input is the scene
     let src: RenderTargetWrapper | null = null;
     for (const p of this.camera._postProcesses) {
@@ -95,7 +158,7 @@ export class NightBloom {
         break;
       }
     }
-    if (!src?.texture || !this.bright.effect.isReady() || !this.blur.effect.isReady()) return;
+    if (!src?.texture || !this.bright.effect.isReady() || !this.blur.effect.isReady() || !this.measure.effect.isReady() || !this.reduce.effect.isReady() || !this.ease.effect.isReady()) return;
     // (the scene renders into the first pass's input: the frame is complete here, before any pass draws)
     const sw = src.width;
     const sh = src.height;
@@ -136,10 +199,74 @@ export class NightBloom {
         engine.unBindFramebuffer(to);
       }
     }
+    this.runExposure(src.texture, hdr);
     r.restoreStates();
     this.glow = a;
     this.glowScale = this.look.strength / store;
     this.runs++;
+  }
+
+  /** (nv-pass fix round) The frame auto-gain: the scene's mean luma reduced to 1 x 1 and eased, all on the GPU. */
+  private runExposure(src: NonNullable<RenderTargetWrapper['texture']>, hdr: boolean): void {
+    if (!this.eased) this.makeExposureTargets();
+    const engine = this.renderer.engine;
+    const r = this.renderer;
+    // the scene -> size x size
+    const q = 0.25 / NV_EXPOSURE.size;
+    let e = this.pass(this.chain[0]!, this.measure);
+    e._bindTexture('src', src);
+    e.setFloat3('measure', q, q, hdr ? 1 : 0);
+    r.draw();
+    engine.unBindFramebuffer(this.chain[0]!);
+    // 4 x 4 boxes down to 1 x 1
+    for (let i = 1; i < this.chain.length; i++) {
+      const from = this.chain[i - 1]!;
+      const to = this.chain[i]!;
+      e = this.pass(to, this.reduce);
+      e._bindTexture('src', from.texture);
+      e.setFloat2('srcTexel', 1 / from.width, 1 / from.height);
+      r.draw();
+      engine.unBindFramebuffer(to);
+    }
+    // the ease (the first frame with the goggles on starts from its own mean; an 8-bit store cannot hold a slow ease,
+    // its steps are 1/255, so there it follows the frame)
+    const now = performance.now();
+    const k = this.last < 0 || !this.half ? 1 : exposureK(Math.min(0.25, (now - this.last) / 1000));
+    this.last = now;
+    const eased = this.eased!;
+    const prev = eased[this.flipE as 0 | 1];
+    const next = eased[(1 - this.flipE) as 0 | 1];
+    e = this.pass(next, this.ease);
+    e._bindTexture('src', this.chain[this.chain.length - 1]!.texture);
+    e._bindTexture('prev', prev.texture);
+    e.setFloat('k', k);
+    r.draw();
+    engine.unBindFramebuffer(next);
+    this.flipE = 1 - this.flipE;
+    this.exposure = next;
+    this.exposureBand = exposureBand(hdr);
+  }
+
+  private pass(to: RenderTargetWrapper, fx: EffectWrapper): Effect {
+    this.renderer.engine.bindFramebuffer(to);
+    this.renderer.setViewport();
+    this.renderer.applyEffectWrapper(fx);
+    return fx.effect;
+  }
+
+  private makeExposureTargets(): void {
+    const engine = this.scene.getEngine();
+    const opts = {
+      generateMipMaps: false,
+      generateDepthBuffer: false,
+      generateStencilBuffer: false,
+      type: this.half ? Constants.TEXTURETYPE_HALF_FLOAT : Constants.TEXTURETYPE_UNSIGNED_BYTE,
+      format: Constants.TEXTUREFORMAT_RGBA,
+      samplingMode: Constants.TEXTURE_BILINEAR_SAMPLINGMODE,
+    };
+    this.chain = [];
+    for (let s = NV_EXPOSURE.size; s >= 1; s = s / 4) this.chain.push(engine.createRenderTargetTexture({ width: s, height: s }, opts));
+    this.eased = [engine.createRenderTargetTexture({ width: 1, height: 1 }, opts), engine.createRenderTargetTexture({ width: 1, height: 1 }, opts)];
   }
 
   private makeTargets(w: number, h: number): void {
@@ -166,6 +293,15 @@ export class NightBloom {
     this.a?.dispose();
     this.b?.dispose();
     this.a = this.b = this.glow = null;
+    for (const t of this.chain) t.dispose();
+    this.chain = [];
+    this.eased?.[0].dispose();
+    this.eased?.[1].dispose();
+    this.eased = null;
+    this.exposure = null;
+    this.measure.dispose();
+    this.reduce.dispose();
+    this.ease.dispose();
     this.bright.dispose();
     this.blur.dispose();
     this.renderer.dispose();

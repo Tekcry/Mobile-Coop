@@ -1,6 +1,7 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
 import type { NightBloom } from './nightBloom';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
+import { EXPOSURE_GLSL, NO_EXPOSURE } from './nightExposure';
 import { NV_GLSL, NV_TONE } from './nightVision';
 import { GOGGLE_GLSL, SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
 
@@ -26,7 +27,10 @@ uniform float veil;
 uniform float flip;
 uniform float vk;
 uniform float nvLift;
+uniform sampler2D exposureSampler;
+uniform vec4 expo;
 ${NV_GLSL}
+${EXPOSURE_GLSL}
 ${VISION_GLSL}
 ${GOGGLE_GLSL}
 void main(void) {
@@ -56,7 +60,9 @@ void main(void) {
     l = max(l + (sl - l0) * bright * ${SENSOR_GRAIN.softNight.toFixed(3)}, 0.0);
     float g = dot(texture2D(glowSampler, vUV).rgb, vec3(0.2126, 0.7152, 0.0722)) * glowScale;
     // (nv-pass slice 1) without baked lamps the lighting has no gain: the tube lifts its input (nvLift, NV_TONE.postLift)
-    float drive = nvDrive(l * nvLift, veil) + g;
+    // (nv-pass fix round) the frame auto-gain (\`nightExposure.ts\`): the eased frame mean (\`NightBloom\`) lifts a black
+    // frame and pulls a clipping one down; lit rooms sit in its band and keep their drive
+    float drive = nvDrive(l * nvLift * nvExposure(texture2D(exposureSampler, vec2(0.5)).r, expo), veil) + g;
     vec3 p = nvColor(drive, veil);
     // (step 21v) intensifier grain (SENSOR_GRAIN), strongest in the dark
     // (nv-pass slice 1: tinted with the phosphor, as electro's is; a grey grain over the green reads as dirt)
@@ -256,7 +262,7 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'flip', 'vk', 'nvLift'], ['glowSampler'], 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'flip', 'vk', 'nvLift', 'expo'], ['glowSampler', 'exposureSampler'], 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -279,6 +285,12 @@ export class CinematicPost {
         e.setFloat('flip', this.flip);
         e.setFloat('vk', this.vk);
         e.setFloat('nvLift', this.nvLift);
+        // (nv-pass fix round) the frame auto-gain's eased mean; before the first measure the scene stands in, with a
+        // band that gives a gain of 1
+        const ex = this.bloom?.exposure;
+        e._bindTexture('exposureSampler', ex ? ex.texture : pp.inputTexture.texture);
+        const b = ex ? this.bloom!.exposureBand : NO_EXPOSURE;
+        e.setFloat4('expo', b[0], b[1], b[2], b[3]);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the
