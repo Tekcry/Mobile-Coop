@@ -9,10 +9,10 @@ Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-nati
 there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.20.1 (#60, 6a4fb07f). Tags v4.0.0-v4.20.1. /preview/ = dev = 6a4fb07f. Merged since the 2026-10-20 reset, in order:
+v4.21.0 (#61, 8aff2a13). Tags v4.0.0-v4.21.0. /preview/ = dev = 8aff2a13. Merged since the 2026-10-20 reset, in order:
 4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
 4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
-4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60). /ct/ = ct-movement (CT Core).
+4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61). /ct/ = ct-movement (CT Core).
 Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (source docs/orchestrator/dashboard.html; stale since
 2026-10-20, update when convenient).
 
@@ -53,7 +53,7 @@ skips the camera-cue GPU shots. Tuner additions queued: Course Ready = barrel ma
 state changes, Import JSON, wider ranges, bypass, slow motion, slider search, then the bake script after Studio PR 1;
 Menu Notes = per-limb targeting strength with item 2. Laptop: tuner-v2 0e73c3b2 PASS (check, smoke, e2e-anim,
 e2e-menus); #61 full PASS (e2e-levels ok solo; e2e-pad "focus Quit" is a stale step after the tuner pause item:
-Character Build fixes it on feature/e2e-pad-fix). #61 merging as 4.21.0 (1e2689e3, CI running).
+Character Build fixes it on feature/e2e-pad-fix). #61 merged as 4.21.0 (CI needed 2 reruns: analogGear heap test flaky; Character Build hardens it in the e2e-pad-fix patch). tuner-v2 item 2 b8bc1846 queued on the laptop.
 camera-cue: draft PR #63 (master merged; fix-round check + GPU shots pending, the shader never ran on a GPU: do not
 merge as is). The GPU window never ran: #58 smooth-world also waits for its GPU reshoot (after the pause lifts).
 marlow-bunker paused at 80d49dd3; PR #62 open (CI pending; full e2e and GPU look not run; e2e-ctcourse passes solo but
