@@ -41,7 +41,7 @@ const avatarDrawn = (P, side) =>
     });
     const root = [r.position.x, r.position.y, r.position.z];
     if (side === 'client') [c.yaw, c.pitch] = was;
-    const ok = root.every(Number.isFinite) && r.isEnabled() && ms.length > 0 && info.every((i) => i.en && i.vis && i.size > 0.1);
+    const ok = root.every(Number.isFinite) && r.isEnabled() && ms.length > 0 && info.every((i) => i.en && i.vis) && info.some((i) => i.size > 0.5); // the body (about 1 m); small parts such as the lens are a few cm
     return { ok, root, lod: a.figure.current, n: ms.length, info };
   }, side);
 
