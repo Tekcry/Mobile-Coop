@@ -1,8 +1,8 @@
 import { h } from '../dom';
 import { icon } from '../icons';
 import { GADGETS } from '../../game/gadgets';
-import { WHEEL_VISION, wheelLabel, type WheelSeg, type WheelVision } from '../../game/selectionWheel';
-import { visionLabel } from '../../game/vision';
+import { wheelLabel, type WheelSeg, type WheelVision } from '../../game/selectionWheel';
+import { VISION_WHEEL, visionLabel } from '../../game/vision';
 
 /** What the wheel draws (the game fills one reused object per frame). */
 export interface WheelView {
@@ -45,8 +45,8 @@ export class GadgetWheel {
   constructor(parent: HTMLElement) {
     this.ring = h('div', { class: 'sw-ring' });
     const stackEl = h('div', { class: 'sw-stack' });
-    // top to bottom: the mode farthest out first, so the stick pushed further steps up the stack
-    for (const m of [...WHEEL_VISION].reverse()) {
+    // top to bottom: electro, thermal, night (A / E on the vision slot steps night -> thermal -> electro, nv-pass slice 3)
+    for (const m of [...VISION_WHEEL].reverse()) {
       const t = h('div', { class: 'sw-vis', data: { mode: m }, text: visionLabel(m) });
       stackEl.appendChild(t);
       this.stack.push(t);
@@ -116,7 +116,7 @@ export class GadgetWheel {
       (t.firstElementChild as HTMLElement).innerHTML = glyph;
       (t.lastElementChild as HTMLElement).textContent = count;
     }
-    // the vision stack: above the top tile; the mode under the cursor lit while that tile is highlighted
+    // the vision stack: above the top tile; the carousel's current mode lit while that tile is highlighted
     for (const e of this.stack) {
       const m = e.dataset.mode as WheelVision;
       e.classList.toggle('hl', v.seg === 0 && v.mode === m);
