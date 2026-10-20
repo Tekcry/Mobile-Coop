@@ -33,6 +33,26 @@
   them for walk, jog, run, crouch and sneak, report-only until a gait's gate is on; today's values in
   `docs/anim-rework/METRICS.md`.
 
+
+## 4.14.0 - Sector Ops: Warehouse section 1 rebuilt (three routes, logical guard posts) (2026-10-20, PR #37)
+- Dogs carry no flashlight (Michael, M1): only human guards take a torch slot when searching in the dark (pure
+  `carriesTorch` / `torchRule` in `ai/archetypes.ts`, tested); a dog no longer lights the player or the meter.
+- Sector Ops Warehouse section 1 rebuilt as a greybox prototype (M1, M6; `docs/warehouse-redesign/SPEC.md` 5,
+  `src/world/maps/warehouseS1.ts`): a goods-in bay, a trade office block with a ceiling void and a plant deck, a workshop
+  with a crane walkway; ceilings and a solid roof, real door and window sizes, no filler walls. Three routes to the
+  security office's camera recorder (ground under the west shutter; drainpipe, roof and ceiling hatch; crane walkway,
+  void and mess hatch). 8 guards with jobs, no heavies; the start in the yard's south-west corner. Sections 2 and 3 are
+  unchanged (their redesign is specced in SPEC 2.2 / 2.3).
+- Sector Ops: a takedown spot also passes the M8 check when its guard is alone for 3 s or more on its timed patrol
+  (`sectorCheck.ts`, A2); Sector Ops patrols take per-point waits and facings like Infiltration (A3).
+
+## 4.13.2 - No ghosting at Epic when aiming, drawing or holstering (2026-10-20, PR #36)
+- No ghosting at Epic when drawing, aiming or holstering (Michael's playtest). The aim depth of field read the camera's
+  direction before the render, so Babylon saw a moving camera as still and Epic's TAA kept blending old frames; it now
+  uses the camera's own look angles. The TAA history is also clamped to the current frame's neighbourhood, so fast arms
+  and guns leave no trails. `scripts/ghost-strip.mjs` captures before / after frame strips on the GPU
+  (`docs/ghost-fix/shots/`).
+
 ## 4.13.1 - Co-op fixes: the host draws on the joiner at High and Epic, the connecting label clears (2026-10-20, PR #35)
 - Co-op: the host was invisible on the joiner at High and Epic graphics (GPU). The baked-lamp material plugin broke a
   material clone while the partner figure loaded, so the figure never appeared. The plugin is no longer copied by a

@@ -108,3 +108,39 @@ describe('EnemyManager.despawn', () => {
     expect(c.dispose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('EnemyManager flashlights (warehouse-redesign M1)', () => {
+  it('a searching guard in the dark takes a torch; a searching dog in the dark never does', async () => {
+    const { Enemy: EnemyClass } = await import('../src/ai/enemy');
+    const { ENEMIES } = await import('../src/ai/enemyDefs');
+    const setOn = vi.fn();
+    const torches = [
+      { id: 'torch-0', kind: 'flashlight', x: 0, y: -50, z: 0, radius: 13, on: false },
+      { id: 'torch-1', kind: 'flashlight', x: 0, y: -50, z: 0, radius: 13, on: false },
+    ];
+    const world = {
+      level: { lights: { lights: torches, setOn }, cover: [], coverSegments: [] },
+      layout: { rooms: [] },
+      doors: { list: [] },
+      // pitch dark everywhere
+      lightField: { levelAt: () => 0 },
+    };
+    const em = new EnemyManager({} as Scene, world as unknown as World, { walk: new Uint8Array(4) } as unknown as NavGrid, {} as DamageRegistry, {} as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
+    // stand-ins on the real class (its torch rule and torch placement), no meshes
+    const mk = (kind: 'grunt' | 'dog'): Enemy => Object.assign(Object.create(EnemyClass.prototype) as Enemy, { id: kind, health: { alive: true }, def: ENEMIES[kind], aware: { level: 'searching' }, los: false, pos: { x: 0, y: 0, z: 0 }, yaw: 0, crouch: 0 });
+    const dog = mk('dog');
+    const grunt = mk('grunt');
+    em.enemies.push(dog, grunt);
+    (em as unknown as { updateTorches(): void }).updateTorches();
+    const owner = (em as unknown as { torchOwner: (Enemy | null)[] }).torchOwner;
+    expect(owner).not.toContain(dog);
+    expect(owner).toContain(grunt);
+    expect(em.torchesOn).toBe(1);
+    // a torch a dog somehow held is released at once
+    owner[1] = dog;
+    (em as unknown as { updateTorches(): void }).updateTorches();
+    expect(owner).not.toContain(dog);
+    expect(setOn).toHaveBeenCalledWith('torch-1', false);
+    expect(em.torchesOn).toBe(1);
+  });
+});

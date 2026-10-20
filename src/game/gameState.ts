@@ -2694,9 +2694,11 @@ export class GameState implements AppState {
     const st = this.stack;
     st.focusOn = this.player.ads;
     if (st.focusOn) {
-      const cam = this.player.cam.camera;
-      const o = cam.globalPosition;
-      const f = cam.getDirection(this.dofDir.set(0, 0, 1));
+      // (ghost-fix) the look direction from the camera's own angles, never `getDirection`: reading the active camera's
+      // matrices before the render marks its view current, Babylon then sees a moving camera as still and Epic's TAA
+      // keeps blending stale frames (ghosting while aiming; lighting.md, the night-vision smear)
+      const o = this.player.cam.camera.globalPosition;
+      const f = this.player.cam.forward;
       this.dofTo.set(o.x + f.x * 80, o.y + f.y * 80, o.z + f.z * 80);
       st.focus = Math.max(1, this.ballistics.hitDistance(o, this.dofTo, G.STATIC | G.ENEMY));
     }
@@ -2704,7 +2706,6 @@ export class GameState implements AppState {
     const cp = this.player.cam.camera.globalPosition;
     this.weather.frame(real, cp.x, cp.y, cp.z);
   }
-  private readonly dofDir = new Vector3();
   private readonly dofTo = new Vector3();
 
   private markerPt = new Vector3();
