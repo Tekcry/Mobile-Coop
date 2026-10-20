@@ -15,10 +15,13 @@ e2e-weapons-carry, e2e-menus, a PR, the laptop's full e2e. One implementer, one 
   e2e-weapon-audio, anim-audit, two damage.ts comments, docs, CHANGELOG "Unreleased - no-aim-assist"). Settings are not
   in the save schema (sanitizeSettings drops the old field), so no SAVE_VERSION bump. Done by the job lead directly
   (the change was too small for a separate implementer).
-- Checker running: review + npm ci, npm run check, e2e-pad, e2e-weapons-carry, e2e-menus, e2e-combat, e2e-stealth.
+- Checker PASS (no fixes, so no fix round): npm run check pass (2299); e2e-menus, e2e-combat, e2e-weapons-carry,
+  e2e-stealth pass; e2e-pad (known flaky) failed in the run and two solo reruns, each on a different controls-screen
+  timing / capture check (none touches aim assist); the laptop's full e2e decides it.
+- PR to master opened; Character Build asked for the full e2e on the PR head.
 
 ## Next
-- Fix round if the checker asks; PR to master; Character Build's full e2e on the PR head; the orchestrator merges.
+- The orchestrator merges on a green full e2e. Then nothing more.
 
 ## Resume
 ```
