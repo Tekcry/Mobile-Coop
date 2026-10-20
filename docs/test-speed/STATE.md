@@ -1,12 +1,11 @@
 # Test speed - state
 
-**Now (2026-10-20 22:10):** full runs 6 and 7 on 7221641c at `E2E_JOBS=2` are clean (the done criteria). Docs
-written. Master 4.17.0 merged in (c758d852): its full run failed e2e-pad (a master step with a fixed 600 ms; fixed)
-and e2e-levels (the rack ladder, see Open). The PR head needs one full run that passes (e2e-levels counts only if it
-also fails solo), then the PR to master (patch).
+**Now (2026-10-20 22:55):** done. Full runs 6 and 7 on 7221641c clean (the done criteria); master 4.17.0 merged; the
+PR head b58557a3 full run clean (1235 s, no "not ok", e2e-pad and e2e-levels included). Docs written. PR to master
+open; the orchestrator sets the version (patch).
 
 **Next:**
-1. Full run on the new PR head; e2e-levels solo if it fails again; then open the PR and the orchestrator merges it.
+1. The orchestrator reviews and merges the PR.
 2. Later, not a blocker: the 12-15 min figure at `E2E_JOBS=2` is measured on the desktop.
 3. e2e-pad off `KNOWN_FLAKY` once it has run clean in a few more full runs (it passed in runs 6 and 7 and in every
    runner request since).
@@ -48,6 +47,7 @@ also fails solo), then the PR to master (patch).
 | 2026-10-20 17:28 | 7221641c | full, jobs=2, BelowNormal (laptop) | CLEAN: all e2e suites passed, 0 "not ok" (clean 1 of 2) | 1430 s |
 | 2026-10-20 21:14 | 7221641c | full, jobs=2, normal priority (laptop; Michael freed it, 2026-10-20) | CLEAN: all e2e suites passed, 0 "not ok" (clean 2 of 2) | 1229 s |
 | 2026-10-20 21:46 | c758d852 (master 4.17.0 merged) | check + full, jobs=2 (laptop) | FAIL: e2e-pad (KNOWN FLAKY, "LB tap switches weapon", a fixed 600 ms; fixed), e2e-levels (rack ladder, see Open) | 1179 s |
+| 2026-10-20 22:30 | b58557a3 (PR head) | full, jobs=2 (laptop) | CLEAN: all e2e suites passed, 0 "not ok" | 1235 s |
 
 ## Findings and fixes
 | Failure (where) | Cause | Fix |
