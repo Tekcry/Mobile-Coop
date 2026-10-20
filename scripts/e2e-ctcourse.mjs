@@ -461,7 +461,11 @@ async function station6(x0) {
   await until(A, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 15000, 'station 6: the host hack finishes (ready)');
   await until(B, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 8000, 'station 6: the client page sees scanner A ready');
   assert((await use(B, 'c-sw-s6-b')) === 'ok', 'station 6: the client starts late');
-  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 6: the late hack costs the client health');
+  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 6: the late hack costs the client health').catch(async (e) => {
+    // (test-speed) failed once under load (part 3, 2026-10-20): the scanners' state and both hp at the timeout
+    console.error(JSON.stringify({ host: (await dev(A)).scan, client: await GB(() => ({ hp: window.__app.current.target.health.hp, scan: window.__ctdev?.debug().scan })), hp0 }));
+    throw e;
+  });
   const hp1 = await hp();
   const d1 = (await dev(A)).scan;
   assert(d1.fails >= 1 && !(await GA(() => window.__course.debug().gates['g-s6'])), `station 6: out of sync, the door stays shut (${d1.last})`);

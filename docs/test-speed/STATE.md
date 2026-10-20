@@ -24,6 +24,7 @@ the PR.
 | --- | --- | --- | --- | --- |
 | 2026-10-20 10:40 | c479bc80 | full, jobs=2, BelowNormal (laptop) | FAIL: e2e-netmove (doorPeek ankle 10.8 cm), e2e-ctcourse:3 (station 7 top-out), e2e-coop (match load past 40 s), e2e-pad (left stick, KNOWN FLAKY) | 1299 s (summed 2534 s) |
 | 2026-10-20 11:11 | 83c6a03f | full, jobs=2, BelowNormal (laptop) | FAIL: e2e-desktop:2 ("music menu TypeError: Failed to fetch" warning), e2e-pad remap (KNOWN FLAKY: no capture after A); the co-op suites and the three ctcourse parts pass | 1533 s (summed 2999 s) |
+| 2026-10-20 15:07 | 8f9ebf14 (master cf73f8b5 merged) | full, jobs=2, BelowNormal (laptop) | FAIL: e2e-menus and e2e-pad (`page.goto` past 30 s: page loads under load), e2e-ctcourse:3 (station 6 "the late hack costs the client health" timed out at x0.46 sim; passed in run 2); the co-op suites, ctcourse:1 and :2 pass | 1743 s (summed 3418 s) |
 
 ## Findings and fixes
 | Failure (where) | Cause | Fix |
@@ -37,6 +38,7 @@ the PR.
 | e2e-offline "music menu TypeError: Failed to fetch" (PR #34 full run) | went offline while the menu theme was still fetching | waits for the menu theme decode first |
 | e2e-desktop:2 and e2e-offline "music menu TypeError: Failed to fetch" (warning) | a music track's fetch failed under load; the game logs it and plays on without the track | e2e-lib prints it as "(ignored: ...)" and does not count it as a console error (the audio suites cover music) |
 | e2e-pad remap "A then B binds B" again (run 2) | after the play page closes, the first pad A did not start the capture (the screen was there) | one more A when no capture started, with the input mode logged |
+| e2e-menus, e2e-pad `page.goto: Timeout 30000ms` (run 3) | a page load with two suites (four pages) on software GL ran past Playwright's 30 s navigation default | every suite page's navigations wait up to 120 s (`setDefaultNavigationTimeout` in `openPage`) |
 | e2e-ctcourse 240-280 s, one job | eight stations in sequence | `--part=1..3` (stations 1-3, 4-5, 6-8), each its own pair of pages, started at its bay through the host session's `courseBay` |
 
 ## Done

@@ -98,6 +98,9 @@ export async function launch({ url = 'http://localhost:4173/', params = '', view
 /** Open another page in an existing context (coop tests: pages share BroadcastChannel + IndexedDB). */
 export async function openPage(ctx, url = 'http://localhost:4173/', params = '') {
   const page = await ctx.newPage();
+  // (test-speed) a page load on a loaded machine (two suites, two pages each, software GL) ran past Playwright's 30 s
+  // navigation default (e2e-menus, e2e-pad, 2026-10-20): every goto / reload of a suite page waits up to 120 s
+  page.setDefaultNavigationTimeout(120000);
   if (PROFILE) {
     for (const [name, bucket] of [['evaluate', 'evaluate'], ['waitForFunction', 'evaluate'], ['waitForTimeout', 'pauses'], ['screenshot', 'screenshot']]) {
       const orig = page[name].bind(page);
