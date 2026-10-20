@@ -817,15 +817,13 @@ try {
   // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
   // camera); (A3: the lean-out is gone)
   await scen('wall peek exposes the head', async () => {
-    const r = await G(async () => {
+    const r = await G(async (mode) => {
       const t = window.__t;
-      // (stealth-peek-wait) the loop is manual: real frames only render. The head and chest points follow the rig's
-      // posed bones, whose world positions a render refreshes, so a read right after stepHeadless could see an older
-      // pose and fail under full-run load (#65, #71; ok solo). Before each pose read: two real frames render, then one
-      // short sim step re-syncs the target and runs perception on the settled pose.
+      // (stealth-peek-wait, diagnosis) PEEK_SETTLE=frames: two real frames render before each pose read; =step: 0.1 s
+      // of sim instead; unset: neither (the original block). The guard's own eye and rays go in the result.
       const settle = async () => {
-        await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
-        t.step(0.1);
+        if (mode === 'frames') await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+        if (mode === 'step') t.step(0.1);
       };
       const g = window.__app.current;
       const V = t.V;
@@ -904,6 +902,14 @@ try {
         t.step(0.3);
         await settle();
         const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] };
+        // (diagnosis) the guard's own eye and the test's two points from it, as perception sees them now
+        {
+          const eye = e['eye'](new V());
+          const ray = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
+          const chestP = g.target.aimPoint(new V());
+          const headP = g.target.headPoint(new V());
+          peek.dbg = { mode, eyeY: +eye.y.toFixed(3), testEyeY: +(s.y + 1.55).toFixed(3), chest: ray(chestP, 0.3), head: ray(headP, 0.2), chestP: [+chestP.x.toFixed(3), +chestP.y.toFixed(3), +chestP.z.toFixed(3)], headP: [+headP.x.toFixed(3), +headP.y.toFixed(3), +headP.z.toFixed(3)], player: [+g.player.position.x.toFixed(3), +g.player.position.z.toFixed(3)] };
+        }
         P.axis(0, 0);
         t.step(0.5);
         await settle();
@@ -912,7 +918,8 @@ try {
         return { i, hidden: hidden.length, only: only.length, peek, back };
       }
       return null;
-    });
+    }, process.env.PEEK_SETTLE ?? '');
+    console.log(`  peek diag: ${JSON.stringify(r?.peek)}`);
     assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
     assert(r.peek.los && r.peek.head, `the guard there sees the peeking head only (${JSON.stringify(r.peek)})`);
     assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
