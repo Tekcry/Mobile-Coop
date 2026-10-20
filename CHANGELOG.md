@@ -12,6 +12,23 @@
   exactly once and any file outside `src/` and the key JSONs. A ledger (`src/anim/tuneBakeLog.json`, `group|id=value`)
   means a baked value is never baked twice, in a re-run or a later export. Mapping: `src/anim/tuneBakeTable.ts`; logic: `src/anim/tuneBake.ts`; tests:
   `tests/animTuneBake.test.ts`; `docs/anim-tuner/BAKE.md`.
+## 4.28.0 - Smooth world: voxels off by default, baked lamps on the smooth path (2026-10-21, PR #58)
+- The world draws smooth by default (Michael, 2026-10-20: "there still looks to be voxel graphics in the map which is no
+  longer the goal"; he chose "Turn voxels off by default"): the level's boxes and cylinders in PBR with the CC0 surface
+  atlas, the box detail pass at the Detail tier, smooth characters, weapons and props. `?voxels=1` keeps the voxel look
+  for comparison (`?voxels=0` still means off). `?gfx=min` keeps its fast path (standard materials, no baked lamps).
+- Light parity: the baked lamps (`BakedLamps`, the darkness curve, the ambient-grid fill, the baked moon, closed doors)
+  now render on the smooth path too, so the picture reads the same bake as the light meter and guard perception.
+  `tests/smoothWorldLight.test.ts` bakes Marlow Yard from the voxel and the smooth builders and proves the bakes and the
+  light field are identical; `tests/lampLevel.test.ts` checks the level keeps its fill under night vision.
+- The smooth level's fill and probe light follow the voxel walls' sky formula (a render-only sky bake from the canonical
+  shapes, `src/world/levelFill.ts`): the first GPU shots showed smooth walls brighter than the light meter (annex walls
+  about 20x the voxel fill). `tests/levelFillParity.test.ts` checks seven Marlow Yard points within 10%.
+- Without voxels: rain stops under roofs through a roof grid from the canonical light shapes (`src/world/roofGrid.ts`),
+  moving casters under a roof leave the moon cascades, fog shafts use the baked moon; voxel GI and bullet chips are
+  off (decals instead), ray-traced reflections fall back to SSR.
+- Tests: e2e-desktop's voxel and RT parts pass `&voxels=1`; e2e-lightbake adds a `gfx=epic&voxels=1` config and checks
+  the smooth Epic path. Polish list: `docs/smooth-world/POLISH.md`.
 
 ## 4.27.0 - Tuner Weight section: momentum, lean, plant and landing load, springs, anticipation (2026-10-21, PR #70)
 - Animation tuner: a Weight section (per holstered walk / jog / run, crouched, drawn) for hand-tuning weight in the
