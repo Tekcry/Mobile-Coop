@@ -18,6 +18,8 @@ import { KA, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
+import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
+import { HANDS_CUR, HANDS_GUN, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -321,6 +323,8 @@ const tmpC = new Vector3();
 const tmpD = new Vector3();
 const tmpE = new Vector3();
 const tmpPole = new Vector3();
+/** (tuner-v2 item 2) Hand / foot IK target offset scratch. */
+const handsV = new Vector3();
 /** (fix 21-1, A81) Extra outward elbow pole (body x, against the pole's down 1) for the relaxed right arm over a thigh holster. */
 const HOLSTER_ELBOW_OUT = 0.8;
 /** (fix 21-2) The holster-out pole term eases in / out at this rate (1/s), so a draw never jumps the elbow. */
@@ -551,8 +555,19 @@ export class CharacterRig {
   holdingKnife = false;
   /** (anim-cleanup) The right hand is on a held weapon's trigger grip (the figure's trigger finger shape). */
   get rightTrigger(): boolean {
-    return this.heldWeapon !== null && this.handBlend < 0.5 && this.reachR.w < 0.5 && !this.holdingKnife;
+    const on = this.heldWeapon !== null && this.handBlend < 0.5 && this.reachR.w < 0.5 && !this.holdingKnife;
+    // (tuner-v2 item 2) the local player's trigger finger mode (0 auto: the rig's own; set inside its tuner window only)
+    if (this.triggerTune < 0) return false;
+    if (this.triggerTune > 0) return this.heldWeapon !== null && !this.holdingKnife;
+    return on;
   }
+  /** (tuner-v2 item 2) Trigger finger mode from the tuner this frame: -1 off, 0 auto, 1 on (only the local player's). */
+  triggerTune = 0;
+  /**
+   * (tuner-v2 item 2) The held gun's model (WeaponModel.hold sets it): the tuner's visual gun transform goes on its
+   * rendered mesh while `node` is `heldWeapon`. Gameplay never reads it.
+   */
+  heldModel: { readonly node: TransformNode; tuneVisual(v: GunVisual | null): void } | null = null;
   /** (anim-cleanup) The weapon is changing hands (the shoulder swap or the open-left wall edge, eased). */
   get handSwitching(): boolean {
     return this.handSwap >= 0;
@@ -1905,6 +1920,7 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD * TUNE_CUR.headDropMul, t.head.roll * 0.4, this.neck.rotationQuaternion!);
     // (anim-rework S3) the trunk by keyTrunk: aiming the upper body stays the procedural gun platform
     if (kw * t.keyTrunk > 0) this.keyedTrunk(kq, kw * t.keyTrunk, t.head.yaw * 0.4);
+    if (JOINTS_CUR.on) this.jointOffsets(0); // (tuner-v2) per-joint offsets on the trunk, before the leg and arm IK
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
@@ -2007,6 +2023,8 @@ export class CharacterRig {
         else this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, o);
       }
     }
+    if (HANDS_CUR.ikOn) this.ikStrengthLimbs(2); // (tuner-v2 item 2) IK targeting strength, before the joint offsets
+    if (JOINTS_CUR.on) this.jointOffsets(1); // (tuner-v2) per-joint offsets on the solved legs
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
     const lh = this.limitJoint(this.kneeL, dt) || lHip;
@@ -2030,6 +2048,7 @@ export class CharacterRig {
       tmpQ,
     );
     this.setWorldRot(this.headNode, this.neck, tmpQ);
+    if (JOINTS_CUR.on) this.jointOffsets(2); // (tuner-v2) the head's offset on the look
     this.limitJoint(this.headNode, dt);
 
     // aim pocket: rest + layer offsets, mirrored to the left shoulder when the weapon is in the left hand
@@ -2097,6 +2116,10 @@ export class CharacterRig {
       const fu = Math.max(0, Math.min(1, (((ox * Math.cos(ry) - oz * Math.sin(ry)) * (leftGrips ? 1 : -1)) - WALL_HAND_SIDE.min) / WALL_HAND_SIDE.span));
       offWall *= fu * fu * (3 - 2 * fu);
     }
+    // (tuner-v2 item 2) the local player's gun visual (mesh only) and trigger finger; untuned / remote rigs: no-op
+    const hm = this.heldModel;
+    if (hm) hm.tuneVisual(HANDS_CUR.on && HANDS_GUN.on && hm.node === this.heldWeapon ? HANDS_GUN : null);
+    this.triggerTune = HANDS_CUR.on ? HANDS_CUR.trigger : 0;
     this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
     this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
     // (feature/weapons) the fingers close round the grips (the support hand by its foregrip / magazine weight, open on
@@ -2106,6 +2129,11 @@ export class CharacterRig {
     const hl = gripW * (leftGrips ? 1 : offHold);
     this.handGrip.r = this.holdingKnife ? 1 : Math.max(Math.min(1, hr), Math.min(1, this.reachR.w));
     this.handGrip.l = this.holdingMag ? 1 : Math.max(Math.min(1, hl), Math.min(1, this.reachL.w));
+    if (HANDS_CUR.on && HANDS_CUR.curlOn) {
+      // (tuner-v2 item 2) finger curl: the figure has one closure shape per hand, so the mean of the five curls
+      this.handGrip.r = Math.min(1, Math.max(0, this.handGrip.r + HANDS_CUR.curl[0]!));
+      this.handGrip.l = Math.min(1, Math.max(0, this.handGrip.l + HANDS_CUR.curl[1]!));
+    }
     this.limitJoint(this.shoulderL, dt);
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
@@ -2121,12 +2149,54 @@ export class CharacterRig {
         this.kneeRest(-1, t.kneeRest * (1 - Math.min(1, this.reachL.w)));
       }
     }
+    if (HANDS_CUR.ikOn) this.ikStrengthLimbs(0); // (tuner-v2 item 2) IK targeting strength, before the joint offsets
+    if (JOINTS_CUR.on) this.jointOffsets(3); // (tuner-v2) per-joint offsets on the solved arms, before the self-collision
     this.keepElbowOut(1);
     this.keepElbowOut(-1);
     // (G6 fix, check BLOCK 3) on a wall no elbow goes into the face (the crouched reversal's hands to the knee / shin)
     if (this.input.wall && !Number.isNaN(this.pin.wallD)) {
       this.keepElbowOffWall(1);
       this.keepElbowOffWall(-1);
+    }
+  }
+
+  /**
+   * (tuner-v2 item 1) The local player's per-joint offsets (`anim/tuneJoints`), only while `JOINTS_CUR.on`: 0 the trunk
+   * (pelvis, spine, chest, neck: before the IK), 1 the legs (hips, knees, ankles, toes: on the IK's solution, so an
+   * offset there moves the foot off its plant), 2 the head (on the look), 3 the arms (shoulders in the chest frame, upper
+   * arms, elbows, wrists: on the IK's solution). A joint with no offset is untouched. No allocation.
+   */
+  private jointOffsets(part: 0 | 1 | 2 | 3): void {
+    if (part === 0) {
+      let c = jointApply(this.hips.rotationQuaternion!, J.pelvis);
+      c = jointApply(this.spine.rotationQuaternion!, J.spine) || c;
+      c = jointApply(this.torso.rotationQuaternion!, J.chest) || c;
+      c = jointApply(this.neck.rotationQuaternion!, J.neck) || c;
+      if (c) freshBelow(this.neck, this.body);
+    } else if (part === 1) {
+      const l = jointApply(this.hipL.rotationQuaternion!, J.hipL);
+      const r = jointApply(this.hipR.rotationQuaternion!, J.hipR);
+      const kl = jointApply(this.kneeL.rotationQuaternion!, J.kneeL);
+      const kr = jointApply(this.kneeR.rotationQuaternion!, J.kneeR);
+      const al = jointApply(this.ankleL.rotationQuaternion!, J.ankleL);
+      const ar = jointApply(this.ankleR.rotationQuaternion!, J.ankleR);
+      const tl = jointApply(this.toeL.rotationQuaternion!, J.toeL);
+      const tr = jointApply(this.toeR.rotationQuaternion!, J.toeR);
+      if (l || kl || al || tl) freshBelow(this.toeL, this.hips);
+      if (r || kr || ar || tr) freshBelow(this.toeR, this.hips);
+    } else if (part === 2) {
+      if (jointApply(this.headNode.rotationQuaternion!, J.head)) fresh(this.headNode);
+    } else {
+      for (let k = 0; k < 2; k++) {
+        const sh = k === 0 ? this.shoulderL : this.shoulderR;
+        const el = k === 0 ? this.elbowL : this.elbowR;
+        const wr = k === 0 ? this.wristL : this.wristR;
+        let c = jointApply(sh.rotationQuaternion!, k === 0 ? J.shoulderL : J.shoulderR, true);
+        c = jointApply(sh.rotationQuaternion!, k === 0 ? J.upperArmL : J.upperArmR) || c;
+        c = jointApply(el.rotationQuaternion!, k === 0 ? J.elbowL : J.elbowR) || c;
+        c = jointApply(wr.rotationQuaternion!, k === 0 ? J.wristL : J.wristR) || c;
+        if (c) freshBelow(wr, this.torso);
+      }
     }
   }
 
@@ -2455,6 +2525,7 @@ export class CharacterRig {
           // its left side, fingers round the front
           if (hold) tmpF.copyFrom(this.magPoint).addInPlace(hold.trigger.w);
           else tmpF.copyFrom(this.magPoint).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
+          if (HANDS_CUR.on) this.tuneSupport(side, false);
           Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
           Vector3.LerpToRef(target, tmpB, onMag, target);
         }
@@ -2462,6 +2533,7 @@ export class CharacterRig {
         if (onGrip > 0) {
           if (hold) tmpF.copyFrom(this.foregrip).addInPlace(hold[this.supportStyle].w);
           else tmpF.copyFrom(this.foregrip).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
+          if (HANDS_CUR.on) this.tuneSupport(side, true);
           Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
           Vector3.LerpToRef(target, tmpB, onGrip, target);
         }
@@ -2481,6 +2553,13 @@ export class CharacterRig {
         tmpB.set(reach.x - tmpB.x * back, reach.y - tmpB.y * back, reach.z - tmpB.z * back);
       }
       Vector3.LerpToRef(target, tmpB, Math.min(1, reach.w), target);
+    }
+    if (HANDS_CUR.on && HANDS_CUR.hands) {
+      // (tuner-v2 item 2) the local player's hand IK target offset (body frame: fwd, up, out), before the solve
+      const o = side > 0 ? 3 : 0;
+      const hp = HANDS_CUR.pos;
+      Vector3.TransformNormalFromFloatsToRef(hp[o + 2]! * side, hp[o + 1]!, hp[o]!, this.body.getWorldMatrix(), handsV);
+      target.addInPlace(handsV);
     }
     // elbows down/out/back; (step 10) the striking elbow (right) lifts out to the side, level, with the elbow arc
     const mw = side > 0 && this.input.melee >= 0 ? meleePoleW(this.input.melee) : 0;
@@ -2536,6 +2615,12 @@ export class CharacterRig {
       const hold = this.holds ? this.holds[side > 0 ? 0 : 1]![isGrip || magW > 0.5 ? 'trigger' : this.supportStyle] : null;
       if (hold) tmpQ2.copyFrom(hold.q);
       else Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
+      if (HANDS_CUR.on && !isGrip) {
+        // (tuner-v2 item 2) the support hand's rotation on the gun, then the gun's visual turn (the hand stays on it)
+        const c = HANDS_CUR;
+        if (c.supRotOn && magW <= 0.5) mulInto(tmpQ2, c.supQ[0]!, c.supQ[1]!, c.supQ[2]!, c.supQ[3]!, false);
+        if (HANDS_GUN.on && this.heldModel?.node === this.heldWeapon) mulInto(tmpQ2, HANDS_GUN.qx, HANDS_GUN.qy, HANDS_GUN.qz, HANDS_GUN.qw, true);
+      }
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);
       this.setWorldRot(wr, el, tmpQ3);
     } else if (reach.w > 0.01 && this.gripOk[gi]) {
@@ -2546,6 +2631,29 @@ export class CharacterRig {
     } else {
       wr.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     }
+    if (HANDS_CUR.on) handsRotApply(wr.rotationQuaternion!, side > 0 ? 0 : 1); // (tuner-v2 item 2) after the hand pose
+  }
+
+  /**
+   * (tuner-v2 item 2) The local player's support hand point on the gun (`tmpF`, weapon space): the slide along the bore
+   * and the 3-D offset (x out to that hand's side) on the foregrip hold, then the gun's visual transform, so the hand
+   * stays on the rendered (scaled / moved) gun. No allocation.
+   */
+  private ikStrengthLimbs(first: 0 | 2): void {
+    // (tuner-v2 item 2) 0: the arms (shoulder, elbow, wrist), 2: the legs (hip, knee, ankle); `anim/tuneHands` ikStrength
+    if (first === 0) {
+      ikStrength(0, this.shoulderL.rotationQuaternion!, this.elbowL.rotationQuaternion!, this.wristL.rotationQuaternion!);
+      ikStrength(1, this.shoulderR.rotationQuaternion!, this.elbowR.rotationQuaternion!, this.wristR.rotationQuaternion!);
+    } else {
+      ikStrength(2, this.hipL.rotationQuaternion!, this.kneeL.rotationQuaternion!, this.ankleL.rotationQuaternion!);
+      ikStrength(3, this.hipR.rotationQuaternion!, this.kneeR.rotationQuaternion!, this.ankleR.rotationQuaternion!);
+    }
+  }
+
+  private tuneSupport(side: 1 | -1, foregrip: boolean): void {
+    const c = HANDS_CUR;
+    if (foregrip && c.supOn) tmpF.addInPlaceFromFloats(c.sup[0]! * side, c.sup[1]!, c.sup[2]!);
+    if (HANDS_GUN.on && this.heldModel?.node === this.heldWeapon) gunVisualPoint(HANDS_GUN, this.grip, tmpF);
   }
 
   /**
@@ -2648,6 +2756,13 @@ export class CharacterRig {
     fresh(hip);
     const H = hip.getAbsolutePosition();
     tmpA.set(x, y, z);
+    if (HANDS_CUR.on && HANDS_CUR.feet) {
+      // (tuner-v2 item 2) the local player's foot IK target offset (body frame: fwd, up, out); the planner is untouched
+      const o = side < 0 ? 6 : 9;
+      const fp = HANDS_CUR.pos;
+      Vector3.TransformNormalFromFloatsToRef(fp[o + 2]! * side, fp[o + 1]!, fp[o]!, this.body.getWorldMatrix(), handsV);
+      tmpA.addInPlace(handsV);
+    }
     // knees forward (along the foot) and slightly out
     // (A1.2) knees forward between the hips and the toes (never backwards over a turned foot), and slightly out
     // (anim-rework S2) standing holstered, a swinging foot's knee stays nearer the pelvis' forward (KNEE_SWING_SHARE);
