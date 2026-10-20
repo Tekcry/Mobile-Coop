@@ -1,8 +1,7 @@
 # marlow-bunker - state
 
 ## Now
-Built and unit-tested (2026-10-21): all eight shortlist items (BRIEF.md). PR to master with the e2e results; GPU look
-pending a PC run.
+Built and tested (2026-10-21): all eight shortlist items (BRIEF.md); PR to master open; GPU look pending a PC run.
 
 ## Next
 - The orchestrator reviews and merges; the GPU look on Michael's PC (`npm run e2e:gpu`, a ctcourse contact sheet with
@@ -13,6 +12,12 @@ pending a PC run.
 - Render parity under the slabs (LIGHT.md): voxel surfaces take the sky bake's fill, near 0 under a ceiling. Measure on
   the PC; if the floor between the pools reads darker than its 0.30 meter value, the fix is in the renderer (the ambient
   grid as the voxels' fill under a roof), not this map.
+
+## Test results (desktop, software GL, port 4191, 2026-10-21)
+- `npm run check` at 54fa3dbf: lint 0 errors, 190 files / 2096 unit tests pass, build ok. After the master merge (b0023d44, CHANGELOG only): typecheck and the ctcourse / light / guard tests pass.
+- `E2E_JOBS=2`: smoke ok (40 s), e2e-levels ok, e2e-anchors ok, e2e-lightbake ok (157 s). e2e-ctcourse named whole: stations 1-5 passed, then killed by the 600 s suite limit; as its three parts at `E2E_JOBS=2`: part 3 ok (346 s), parts 1 and 2 killed at 600 s with no failed assert.
+- `E2E_JOBS=1`: e2e-ctcourse:1 ok 343 s (master 6a4fb07f on the same machine: 310 s, +11%; likely the ceilings: the upper screen is now geometry through the lamp shader, not sky, in software GL), e2e-ctcourse:2 ok 389 s. The times file says 110-130 s per part: this machine ran slower tonight on master too.
+- Risk for the full run: the ctcourse parts at `E2E_JOBS=2` can reach the 600 s limit here; the orchestrator's full run decides (laptop or a quiet desktop).
 
 ## Polish list (not built: outside the approved shortlist, or cosmetic)
 - The audit's station extras: S1 sentry desk behind the guard (z 1-2, keep x 2-10.5, z 2.5-5 clear) and a blast-door
