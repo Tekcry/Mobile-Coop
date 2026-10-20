@@ -47,6 +47,13 @@ Reviews (suggestions only): docs/reviews/marlow-yard-audit.md, warehouse-layout-
 
 Resumed 00:55 after a clear. #61 CI failed on tests/analogGear.test.ts
 "allocates nothing per update" (3.6 MB vs 2 MB heap; wheel-ui touches no gear / anim code: CI noise); rerun PASS.
+01:25 Michael chose "Pause non-anim" (weekly 75%, ~2.4%/h) and went to sleep: Marlow (pause message queued, not yet
+delivered) and warehouse-lamps hold (merge #59 on a laptop + CI pass, no fix round tonight, GPU look later); Menu Notes
+skips the camera-cue GPU shots. Tuner additions queued: Course Ready = barrel marker fix (half screen grey), smooth
+state changes, Import JSON, wider ranges, bypass, slow motion, slider search, then the bake script after Studio PR 1;
+Menu Notes = per-limb targeting strength with item 2. Laptop: tuner-v2 0e73c3b2 PASS (check, smoke, e2e-anim,
+e2e-menus); #61 full PASS (e2e-levels ok solo; e2e-pad "focus Quit" is a stale step after the tuner pause item:
+Character Build fixes it on feature/e2e-pad-fix). #61 merging as 4.21.0 (1e2689e3, CI running).
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
