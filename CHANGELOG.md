@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
+- Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
+  D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
+  1 s), the left stick X nudges in analogue steps, LB / RB switch the focused section's state group, Y resets the
+  slider, A exports, B closes, View moves the pad between the tuner and the game ("PAD: tuner" / "PAD: game" on the
+  panel). The focused row has an amber outline. While the tuner has the pad the game and the menus get none of it.
+  Keyboard, mouse and touch are unchanged. Detail: `docs/anim-tuner/PAD.md`.
+
 ## 4.20.0 - Animation tuner: live sliders for gaits, poses and the gun hold, with export (2026-10-21, PR #56)
 - Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
   opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
