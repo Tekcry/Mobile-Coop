@@ -95,8 +95,13 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 - Forward roll: crouch tapped standing at gear >= `rollGear` 5 (or sprinting) while moving >= 1.5 m/s
   (`TraversalController.canForwardRoll`) = `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m
   (shortened by a wall), comes up crouched; noise `CT.rollNoise` 2 m. HUD gear pips: `Hud.setGear` (`GEARS.pipsShow` 1.5 s).
+- (anim-rework S3) The aimed glide's steps (`motion.ts` `GLIDE_STEP`, standing, a carrier aiming: `stepLength` /
+  `gaitRate` `glide`, the driver's `aiming`, the graph's raise on a remote): a side-step of `lat0 + latK x speed` (a
+  shuffle, each foot travelling two steps a cycle), back-steps 35 % shorter, every step at most `fwd0 + fwdK x speed`;
+  the closing foot comes in to `GLIDE_GAP` 9 cm (`PlannerInput.glide`; `PLANNER.minGap` 13 cm elsewhere). The feet never
+  cross; enemies, holstered, low ready and crouched keep the old steps.
 - `config/movement.ts` `MOVEMENT` (live-tunable in the Tune panel) keeps the older stick-band tuning (sneak 0.8 / crouch walk
-  1.8 / crouch run 2.6, walk 1.4 / jog 2.8, sprint 5.0 m/s; strafe x0.9 and backstep x0.75 while aiming; stance times
+  1.8 / crouch run 2.6, walk 1.4 / jog 2.8, sprint 5.0 m/s; strafe x0.5 (anim-rework S3, the glide: was 0.9) and backstep x0.75 while aiming; stance times
   crouch 0.25 s, kneel 0.3 s, stand 0.28 s); the player's speeds come from the gears. `ENEMY_MOTION` /
   `ENEMY_CALM_MOTION` keep the guards' own tuning as literals (`tests/motion.test.ts` pins them).
 - `anim/motion.ts` `MotionDriver` (pure; player and enemies): capped acceleration / deceleration / jerk, a gait clock

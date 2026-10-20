@@ -55,7 +55,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   runs. Keyboard: WASD walks, hold Left Shift to run, Left Alt to creep. B crouches; a stop holds the stride, then
   settles. A part-pushed stick is silent; a full stick is audible.
 - [ ] Weapon states (anim-rework S1): X taps the gun out to low ready (explore camera) and away again; hold LT to aim
-  (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, a little slower.
+  (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, slower (the rifle
+  comes off the sling round the right side, muzzle down under the arm, then up into the shoulder). Aiming, strafe both
+  ways and back up: short side-steps, the feet never cross or splay, the gun steady (anim-rework S3).
   RT fires only while aiming; holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
   Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
   things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming

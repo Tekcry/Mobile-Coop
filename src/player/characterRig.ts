@@ -289,6 +289,14 @@ const REACH_HARD = 0.999;
 const CROUCH_REACH = 0.8;
 /** (G1 fix) Standing still, the hips settle at most this far (m) fore-aft toward the feet's midpoint. */
 const REST_SHIFT = 0.22;
+/**
+ * (anim-rework S3) Gliding aimed, the hips move `share` of the way across to the feet's centre (at most `max` m off the
+ * capsule), eased over `tau` s: a side-step's weight goes onto the lead foot, then the trailing foot closes under it.
+ */
+export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
+/** (anim-rework S3, BRIEF 3 "elbows down and close to the ribs") With a gun in the hands the elbow pole's outward share
+ *  is cut by this much at low ready (AIM_ELBOW_TUCK raised). */
+export const READY_ELBOW_TUCK = 0.5;
 
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
@@ -794,6 +802,8 @@ export class CharacterRig {
   private kneeLift = 0;
   /** (G1 fix) The hips' fore-aft shift over the still feet (m, body frame). */
   private restShift = 0;
+  /** (anim-rework S3) The glide's lateral hip shift over the feet (m, eased; GLIDE_HIP). */
+  private glideShift = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
   private readyRf = 0;
   /** (G6) The graph's knee hand this frame (RigTargets.kneeHand: signed side x weight). */
@@ -1362,6 +1372,8 @@ export class CharacterRig {
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
     i.ready = this.carrier && !this.heldWeapon;
+    // (anim-rework S3) the drawn keyed set: a carrier (the player, a remote player) with the gun in hand, free on foot
+    i.keyedDrawn = this.carrier && !!this.heldWeapon && !((s.bend ?? 0) > 0) && !((s.bendDrop ?? 0) > 0) && !(s.wall ?? false) && !(s.settleFeet ?? false);
     i.thighGear = this.thighGear;
     i.dash = s.dash ?? 0;
     i.slide = s.slide ?? -1;
@@ -1535,6 +1547,8 @@ export class CharacterRig {
     pin.yawRate = i.yawRate;
     pin.faceGoal = s.faceGoal ?? (s.stride === 'facing' ? NaN : yaw);
     pin.stride = s.stride === 'facing' && !i.wall ? 'facing' : 'velocity';
+    // (anim-rework S3) the aimed glide's closer side-step (footPlanner GLIDE_GAP)
+    pin.glide = i.keyedDrawn && i.raise > 0.5;
     pin.pelvisYaw = yaw + this.follow;
     pin.crouch = i.crouch;
     const free = !i.grounded || i.traverse !== 'none';
@@ -1748,11 +1762,12 @@ export class CharacterRig {
     const freeGait = this.pin.stride === 'facing';
     // (CT prototype G8) the keyed walk (G8-PLAN.md) in free movement on foot: its pelvis offset, knee pole and (below) trunk
     // and arms over the procedural pose; the feet stay the planner's (world-locked, slopes, turns)
-    const kw = freeGait && !free ? t.keyW : 0;
+    // (anim-rework S3) and the drawn set aiming (stride 'velocity': the glide)
+    const kw = (freeGait || t.keyDrawn > 0.01) && !free ? t.keyW : 0;
     this.keyWNow = kw;
     const kq = t.keyed;
     const kk = p.height / 1.75;
-    const pex = pe.x + (kq.pel[0]! * kk - pe.x) * kw;
+    let pex = pe.x + (kq.pel[0]! * kk - pe.x) * kw;
     // (the height adds to the procedural one: the posture's knee bend and the legs' reach stay; the clip shapes the step)
     const pey = pe.y + kq.pel[1]! * kk * kw;
     const pez = pe.z + (kq.pel[2]! * kk - pe.z) * kw;
@@ -1768,6 +1783,16 @@ export class CharacterRig {
       const mid = ((L.x + R.x) * 0.5 - rp.x) * Math.sin(yaw) + ((L.z + R.z) * 0.5 - rp.z) * Math.cos(yaw);
       const target = still ? Math.max(-REST_SHIFT, Math.min(REST_SHIFT, mid)) : 0;
       this.restShift = approachTo(this.restShift, target, dt, 0.06);
+    }
+    // (anim-rework S3, BRIEF 3 "the centre of mass over the base of support") gliding aimed (the drawn keyed set raised)
+    // the hips ride over the feet's centre across the body (GLIDE_HIP: the weight moves onto the lead foot of a side-step
+    // before the trailing foot closes), eased; the chest above stays square (the spine counters only the tilt)
+    {
+      const gk = free || this.input.wall ? 0 : t.keyDrawn * t.aimW * kw;
+      const midX = ((L.x + R.x) * 0.5 - rp.x) * Math.cos(yaw) - ((L.z + R.z) * 0.5 - rp.z) * Math.sin(yaw);
+      const want = gk > 0 ? Math.max(-GLIDE_HIP.max, Math.min(GLIDE_HIP.max, midX - pex)) * GLIDE_HIP.share * gk : 0;
+      this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
+      pex += this.glideShift;
     }
     const peZ = pez + this.restShift;
     const yc = Math.cos(yaw);
@@ -1855,7 +1880,8 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
     // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
-    if (kw > 0) this.keyedTrunk(kq, kw, t.head.yaw * 0.4);
+    // (anim-rework S3) the trunk by keyTrunk: aiming the upper body stays the procedural gun platform
+    if (kw * t.keyTrunk > 0) this.keyedTrunk(kq, kw * t.keyTrunk, t.head.yaw * 0.4);
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
@@ -2389,7 +2415,9 @@ export class CharacterRig {
     // (fix 21-2) eased with the gear, and gone by a quarter of the reach to a world grip (zipline, ladder, ledge):
     // the elbow swings in under the grip before the body moves to the anchor (e2e-clip zipline)
     const holsterOut = side > 0 && this.holsterW > 0 ? HOLSTER_ELBOW_OUT * this.holsterW * Math.min(1, this.readyRf) * (1 - Math.min(1, reach.w * 4)) : 0;
-    this.dirToWorld(side * (0.55 * (1 - AIM_ELBOW_TUCK * this.aimK) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    // (anim-rework S3) the gun in the hands tucks the elbows at low ready too (READY_ELBOW_TUCK)
+    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK : 0);
+    this.dirToWorld(side * (0.55 * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
     // height stays the weld's)
     {

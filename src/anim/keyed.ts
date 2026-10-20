@@ -234,3 +234,33 @@ function nlerpInto(A: Float64Array, B: Float64Array, stride: number, u: number, 
     out[s + 3] = w / l;
   }
 }
+
+/**
+ * (anim-rework S3) Mirror a sampled pose left <-> right in place (as `mirror_key` in scripts/anim-keys/key_clip.py): the
+ * pelvis x offset negated, each trunk quaternion reflected through the body's YZ plane (y and z negated: yaw and roll
+ * flip, pitch stays), the arm points swapped side for side with x negated, the wrist frames swapped and reflected. The
+ * left glide strafe plays the right one mirrored, half a cycle on (S3-KEYS.md). No allocation.
+ */
+export function mirrorKeyed(p: KeyedPose): KeyedPose {
+  p.pel[0] = -p.pel[0]!;
+  const q = p.q;
+  for (let s = 0; s < KEYED_Q; s += 4) {
+    q[s + 1] = -q[s + 1]!;
+    q[s + 2] = -q[s + 2]!;
+  }
+  const a = p.arm;
+  for (let c = 0; c < 6; c++) {
+    const l = a[c]!;
+    const r = a[c + 6]!;
+    a[c] = c % 3 === 0 ? -r : r;
+    a[c + 6] = c % 3 === 0 ? -l : l;
+  }
+  const w = p.wrist;
+  for (let c = 0; c < 4; c++) {
+    const l = w[c]!;
+    const r = w[c + 4]!;
+    w[c] = c === 1 || c === 2 ? -r : r;
+    w[c + 4] = c === 1 || c === 2 ? -l : l;
+  }
+  return p;
+}
