@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.32.1 - GPU shot rows for Marlow's low cells, airlock lids and dressing; warehouse s1 view re-aimed (2026-10-21, PR #75)
+- Test scripts only: `scripts/shots-ctcourse.mjs` gains rows for two 4.5 m low cells, the 3.2 m airlock lid seen from
+  below and the S1 desk, S3 monitor wall and S8 coffer (they need the marlow-variety geometry, PR #62).
+  `scripts/lamps-shots.mjs` (Warehouse lamp look) is now tracked, with the section 1 workshop view re-aimed into the
+  room (it was behind a wall). GPU on #62 99349d64 and master: all 23 Marlow rows agree within 0.02.
+
 ## 4.32.0 - Marlow Yard as an underground bunker: ceilings, lamp fittings, airlocks, lifts, station dressing (2026-10-21, PR #62)
 - Marlow Yard is an underground training bunker (Michael 2026-10-20, the approved audit shortlist;
   `docs/marlow-bunker/`). Ceilings per test cell (low cells 4.5 m, the laser cell 5.5 m, the climbing and kill-house
