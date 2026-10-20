@@ -1,29 +1,15 @@
 # Night vision pass - state
 
-## Now (2026-10-20 19:25)
-Job end in progress. Laptop: 3fa8d372 check + smoke, e2e-pad, e2e-gadgets, e2e-mouse PASS; full `E2E_SUITE_TIMEOUT=900 npm
-run e2e` on a58f4eda requested. Docs done (a58f4eda). GPU 19:15-19:18 on a58f4eda: e2e-darkness PASS (NV deep fill 13.5%).
-Perf budgets FAIL on nv-pass (min: sim p95, anim/char, allocations, main; epic: anim/char, main; medium: allocations,
-main). Master 89f061e7 min also fails sim p95, anim/char, main (baseline stopped by the orchestrator for movement work,
-only min ran). Open: allocations fail only on nv-pass, top allocators are animation (solveLegWorld 511 KB/s, updateIdle)
-nv-pass does not touch; needs a master vs nv-pass rerun pair when the orchestrator frees the lock. GPU / perf work only
-on the orchestrator's word (movement preempts everything, Michael).
-
-Slice 3, the vision carousel, PASS (CHECK-S3.md, fresh Opus checker; SLICE3.md), 3fa8d372: on the wheel's vision slot
-pad A (`interact`) / keyboard E steps night -> thermal -> electro -> night, the press is consumed, release selects, the
-wheel opens on the selected mode; `VISION_STEPS` length pick removed. tsc, lint, vitest pass; `npm run check` + smoke,
-e2e-pad, e2e-gadgets, e2e-mouse requested from the laptop runner at 3fa8d372 (desktop lock is CT Core's; Michael via the
-orchestrator: movement work takes priority, release the lock at the next step boundary when CT Core needs it).
-Slices 1-2 PASS after one fix round (CHECK-FIX1.md): auto-gain, shot guards, min postLift 3; code 4a6cd99f; GPU sheets
-sheet-s12b-* vs master sheet-before-* (65bfe6f2), Epic pair sent to Michael. e2e-darkness NV min 0.2 -> 0.1 (BRIEF A2,
-49eeee88), not re-run since. Master 89f061e7 merged (ddd5ca9f).
+## Now (2026-10-20 20:10): DONE
+Merged to master as 4.16.0 (PR #49, 3722d2c1; the orchestrator set the version, tagged and moved /preview/). Slices 1-3
+passed their checkers (CHECK-S12 -> FIX1 -> CHECK-FIX1, CHECK-S3); full e2e PASS on 6f4e370f (laptop, 1211 s);
+e2e-darkness PASS on the GPU. Perf: sim p95, anim/char, main thread and allocations are over budget on master 6e344b19
+too (allocations rerun round 1: min 11717 master vs 12231 nv-pass, medium 12691 vs 12836; budget 11520 KB/s), so they
+predate this job; not an nv-pass item. Scratch worktree removed; the e2e-desktop flake is in `docs/backlog.md`.
+This last STATE / backlog commit is on feature/nv-pass after the merge: it reaches master only with a later docs merge.
 
 ## Next
-1. PR to master open (minor; the orchestrator sets the version and merges after the laptop full e2e on the PR head and
-   the allocations rerun). Waiting: the laptop full e2e on a58f4eda; the orchestrator's word that the lock is free of
-   movement work, then the allocations budget only, master 89f061e7 (scratch worktree) vs nv-pass, same session,
-   `perf.mjs --budget` and `--preset=medium --budget`.
-2. After the merge: remove the scratch worktree (Open), add the e2e-desktop flake to `docs/backlog.md`.
+Nothing. Follow-ups for Michael's playtest: the polish list below (yard-look could be brighter, min floor checker).
 
 ## Open
 - Light parity: the body-fill fix stays in the render path (`LampPlugin`), never the ambient grid or light field.
@@ -31,9 +17,7 @@ sheet-s12b-* vs master sheet-before-* (65bfe6f2), Epic pair sent to Michael. e2e
 - Slice 1 notes: grain 0.06 (G101 "grain as in CT", about 1% then); the fill cap also dims props; NV_BULB 2.5 -> 8.
 - Slice 2 notes: the settings vignette stacks on the frame (corners about 0.2 with it on); tests/goggleFrame.test.ts
   reads the shader line `goggleShade(ge)` as text.
-- Scratch: C:/NightShift/Mobile-Coop-nv-pass-before (detached master 65bfe6f2; its untracked scripts/nv-shots.mjs checks the served build, node_modules junction) for before shots;
-  remove at the job end (`cmd //c rmdir` the junction first, then `git worktree remove --force`). `.nv-ready` at the
-  worktree root is a local flag (excluded from git).
+- Scratch worktree C:/NightShift/Mobile-Coop-nv-pass-before: removed 2026-10-20 after the merge.
 
 ## Polish list (non-blocking)
 - Slice 3 (CHECK-S3.md): e2e-gadgets opens the wheel a step before the Tab press is seen (possible unchecked weapon
