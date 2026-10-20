@@ -123,6 +123,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-21 | #70 | 4.27.0: tuner Weight section: momentum, lean into accel / turns, plant and landing load, springs on chest / head / arms / guns, anticipation (identity defaults) |
 | 2026-10-21 | #69 | 4.26.0: Anim Studio PR 1: the stage (menu and Pause entries), loop player, skeleton / feet / onion-skin overlays, camera snaps, undo / redo, A-B, presets |
 | 2026-10-21 | #68 | 4.25.0: tuner v2: per-joint offsets with mirror lock, hand / foot placement, IK strength, Weapon group (visual gun scale, grip, support hand, trigger, finger curl), Stepping (stuck-foot fix as a tuner value), per-key editing exported to clip keys |
 | 2026-10-21 | #66 | 4.24.0: anim-rework slices 4 + 5: crouched movement (one speed blend, knees under hips, hand on knee), the wall set |

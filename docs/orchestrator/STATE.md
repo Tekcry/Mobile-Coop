@@ -9,10 +9,10 @@ Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-nati
 there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.26.0 (#69, d537cbd8). Tags v4.0.0-v4.26.0. /preview/ = dev = d537cbd8. Merged since the 2026-10-20 reset, in order:
+v4.27.0 (#70, 11535cee). Tags v4.0.0-v4.27.0. /preview/ = dev = 11535cee. Merged since the 2026-10-20 reset, in order:
 4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
 4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
-4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66), 4.25.0 tuner-v2 (#68), 4.26.0 Anim Studio PR 1 (#69). /ct/ = ct-movement (CT Core).
+4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66), 4.25.0 tuner-v2 (#68), 4.26.0 Anim Studio PR 1 (#69), 4.27.0 Weight (#70). /ct/ = ct-movement (CT Core).
 Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (source docs/orchestrator/dashboard.html; stale since
 2026-10-20, update when convenient).
 
