@@ -12,7 +12,7 @@ plus the F3 crab readout; CT Core moves it with each slice). Dashboard: https://
 update its version line and rows after each merge with the sed / node edits used in git history, then republish).
 
 ## Priority (Michael)
-Movement and animation first (10:30, 13:50: "any spare bandwidth that can be used to speed it up should be used").
+Movement and animation first; it preempts everything (19:15: "Anything movement related should take priority over anything else": lock holders release at the next step, CT Core laptop requests interrupt test-speed) (10:30, 13:50: "any spare bandwidth that can be used to speed it up should be used").
 CT movement references are dropped for movement and animation (13:30); the brief is docs/anim-rework/BRIEF.md.
 Laptop and desktop: full bandwidth (Michael 2026-10-20 ~18:50: "you have full bandwidth of desktop and laptop again. Ix27m not using them"); laptop normal priority, E2E_JOBS=2; still headless, one heavy job per machine. Token use: lean (Michael ~18:45: "Make sure all sessions are conscious of token usage"). Keep going until Michael says stop (08:45).
 
