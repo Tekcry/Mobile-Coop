@@ -101,6 +101,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
   is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
   press Reset all before judging the game's own defaults.
+- [ ] Animation tuner by pad (tuner-pad): Pause > Animation tuner (dev) with A; the panel says "PAD: tuner" and one row
+  has an amber outline. D-pad down / up move the outline (on into the gun rows), right / left nudge the value (hold:
+  repeats, faster after 1 s), the left stick X nudges faster; LB / RB change the group; Y resets the row; A exports.
+  The player does not move, jump or fire meanwhile. View: "PAD: game", walk to check, View again to tune. B closes the
+  panel and the player does not crouch from that press.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
