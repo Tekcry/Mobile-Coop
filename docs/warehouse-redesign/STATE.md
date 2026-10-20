@@ -6,7 +6,7 @@ strips, guard 8's window, the time model matches the game. `npm run check` passe
 SPEC final (defe864a). Walk guide `WALK.md`.
 **Next:** (1) e2e-sectorops (and the step suites) on the fix-round head, through the orchestrator to the laptop, or
 the desktop when its lock is free and CT Core is not waiting; (2) a failure in the fix: the step is OPEN with the
-evidence; (3) green: the PR to master (M6, a minor step), the full e2e on its head via the orchestrator; then sections 2 and 3 from SPEC 2.2 / 2.3.
+evidence; (3) PR #37 open (head 5392f6d5, laptop passed 0017294d); the full e2e on its head via the orchestrator; then sections 2 and 3 from SPEC 2.2 / 2.3.
 **Open:** the co-op client never draws any guard's flashlight (torch state is not on the wire; pre-existing, light
 parity; for the orchestrator). Polish: calm guards read the light field each tick on dark maps (`check-step1.md`).
 
