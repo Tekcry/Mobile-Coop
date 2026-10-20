@@ -15,7 +15,7 @@ docs/anim-rework/S5-REPORT.md). Opus implementer, Opus checker, one fix round ma
 - Laptop: `npm run check` + e2e-wall + e2e-anim on 5b91485d requested from Character Build (23:19).
 - Laptop on 5b91485d: check ok, e2e-wall ok (30), e2e-anim FAIL "wall recording: slide right: not on the wall (off)" (new wall block).
 - Checker PASS (`docs/anim-rework/check-s5.md`); polish there. Fix round done: the block's enter() leaves the wall first (test setup only; no game code, no asserts changed). e2e-anim + e2e-wall on the fix commit sent to the laptop. Orchestrator (overnight): hand the head to CT Core, then stop unless CT Core gives another movement piece.
-**Next:** 1. Laptop result + checker verdict; at most one fix round. 2. Before / after sheets in `docs/anim-rework/shots/s5/`
+**Next:** 1. OPEN after the fix round (laptop 142270ed): e2e-anim fails "wall slide right" knees 1.46 x hips, track 16.6 cm, knee-out 8.6 cm (S5-REPORT); handed to CT Core 2026-10-20. Then stop unless CT Core gives another movement piece. 2. Before / after sheets in `docs/anim-rework/shots/s5/`
 on the desktop GPU (port 4189) under the lock when free; "before" from f46426a5's animGraph. 3. Push; message CT Core Build
 with the head (and the open items for its rig), copy the orchestrator.
 **Open (for CT Core, S5-REPORT):** 1. rig gate: `characterRig` applies keyed poses only in free gait or drawn; workaround

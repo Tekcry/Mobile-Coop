@@ -66,3 +66,13 @@ over ankle <= 3 cm, no crossed feet, and the track within WALL_TRACK.
   CT Core (check + e2e:quick on 4191) for the whole 10 min wait. Next: e2e-anim + e2e-wall on the laptop runner. The
   slide, peek and crouched rows are now reached for the first time, so their pose asserts (knees, knee over ankle,
   crossed feet, track, keyed weight) are still unmeasured.
+
+## Result after the fix round (laptop, 142270ed) - OPEN
+- Build ok; e2e-wall ok (30). e2e-anim: 122 ok, then FAIL at "wall slide right (0.39 m/s)".
+- Wall idle passes: knees 1.03 x hips, track 9.2 cm, knee-out 0, slide 0, elbow 1.5 cm.
+- Wall slide right OUT: knees 1.46 x hips (limit 0.5-1.1), planted track 16.6 cm (<= 16.0), knee outside the ankle 8.6 cm
+  (<= 3.0); planted slide 0.7 cm and elbow 1.5 cm in range; keyed weight 1.00. Peek and crouched rows not reached.
+- The keys alone are in range (knees 0.79-1.07, knee over ankle <= 2.1 cm), so the wide stance in play most likely comes from
+  the foot placement during the wall sidestep (footPlanner, outside this slice's files). For CT Core: narrow the planted
+  feet in the wall slide, or tell me the wall-only lever to use. No assert was loosened.
+- Small: the block prints "ok - wall recording: undefined" (a missing label).
