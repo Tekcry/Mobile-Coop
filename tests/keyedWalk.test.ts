@@ -79,8 +79,9 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     at(0.75);
     expect(o.pel[0]).toBeGreaterThan(0.008);
     expect(pelY[1]! - pelY[0]!).toBeLessThanOrEqual(0.012);
-    // (round 2) lower and heavier: the pelvis held ~7 cm under its rest, carried a little forward
-    expect(C.meanPel[1]!).toBeLessThan(-0.05);
+    // (round 3) lower and heavier: the pelvis held ~5 cm under its rest (round 2: ~7, read as a crouch), a little forward
+    expect(C.meanPel[1]!).toBeLessThan(-0.03);
+    expect(C.meanPel[1]!).toBeGreaterThan(-0.07);
     expect(C.meanPel[2]!).toBeGreaterThan(0.01);
     // the hips and the shoulders turn against each other (pelvis yaw and chest yaw of opposite sign at the heel strike)
     at(0);

@@ -492,6 +492,8 @@ export class PlayerController {
     // (G1, audit row 26) the tense sneak near an unaware guard: long deliberate steps on the gait clock
     this.tense = this.crouched && this.grounded && !ov && (this.tenseForce || tenseNear(this.pos.x, this.pos.z));
     mi.tense = this.tense && this.motion.speed <= TENSE.maxSpeed;
+    // (G8, A4) the stance for the standing walk's shorter steps (the same eased blend the rig poses)
+    mi.crouch = this.crouchBlend;
     // not aiming and free: face the travel direction (the camera orbits freely); else face the
     // override's yaw (cover) or the aim
     mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;

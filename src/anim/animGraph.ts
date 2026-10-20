@@ -763,7 +763,7 @@ export class AnimGraph {
     } else {
       this.phRate = 0;
       // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
-      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW) * dt) % 1;
+      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW, clamp(i.crouch, 0, 1)) * dt) % 1;
     }
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
@@ -1511,9 +1511,10 @@ export class AnimGraph {
     g.moving = (s > (i.motion === 'stop' ? 0.3 : 0.05) || yr > TURN_GAIT_MIN) && i.grounded;
     const tense = i.crouch > 0.5 ? this.tenseW : 0;
     // (G1 fix) moving on a driver's clock that runs ahead of the pace (a start), the swings keep to the clock
-    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense), i.motion === 'move' ? this.phRate : 0);
+    const ckw = clamp(i.crouch, 0, 1);
+    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense, ckw), i.motion === 'move' ? this.phRate : 0);
     g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
-    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense) : 0;
+    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense, ckw) : 0;
     const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
     g.turning = smoothstep((linRate > 1e-3 ? angRate / linRate : angRate > 0 ? 10 : 0) - 0.5);
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;

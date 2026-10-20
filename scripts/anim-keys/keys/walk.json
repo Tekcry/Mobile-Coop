@@ -12,8 +12,8 @@
       "phase": 0,
       "pelvis": {
         "dx": 0,
-        "dy": -7.4,
-        "dz": 2.5,
+        "dy": -4.6,
+        "dz": 2.2,
         "yaw": 4,
         "pitch": 8,
         "roll": 0
@@ -34,16 +34,16 @@
         "roll": 0
       },
       "armL": {
-        "flex": 40,
+        "flex": 33,
         "abd": 4,
-        "elbow": 20,
-        "inward": 18
+        "elbow": 12,
+        "inward": 10
       },
       "armR": {
-        "flex": 52,
-        "abd": 3,
-        "elbow": 26,
-        "inward": 18
+        "flex": 44,
+        "abd": 4,
+        "elbow": 16,
+        "inward": 10
       },
       "legL": {
         "flex": 26,
@@ -62,8 +62,8 @@
       "phase": 0.125,
       "pelvis": {
         "dx": -0.7,
-        "dy": -7.6,
-        "dz": 2.5,
+        "dy": -4.8,
+        "dz": 2.2,
         "yaw": 2.5,
         "pitch": 8,
         "roll": -2
@@ -84,16 +84,16 @@
         "roll": 0
       },
       "armL": {
-        "flex": 38,
+        "flex": 32,
         "abd": 4,
-        "elbow": 20,
-        "inward": 18
+        "elbow": 12,
+        "inward": 10
       },
       "armR": {
-        "flex": 54,
-        "abd": 3,
-        "elbow": 26,
-        "inward": 18
+        "flex": 45,
+        "abd": 4,
+        "elbow": 16,
+        "inward": 10
       },
       "legL": {
         "flex": 20,
@@ -112,8 +112,8 @@
       "phase": 0.25,
       "pelvis": {
         "dx": -1.2,
-        "dy": -7,
-        "dz": 2.5,
+        "dy": -4.2,
+        "dz": 1.6,
         "yaw": 0,
         "pitch": 8,
         "roll": -2.5
@@ -134,16 +134,16 @@
         "roll": 0
       },
       "armL": {
-        "flex": 38,
+        "flex": 32,
         "abd": 4,
-        "elbow": 21,
-        "inward": 18
+        "elbow": 13,
+        "inward": 10
       },
       "armR": {
-        "flex": 49,
-        "abd": 3,
-        "elbow": 24,
-        "inward": 18
+        "flex": 41,
+        "abd": 4,
+        "elbow": 14,
+        "inward": 10
       },
       "legL": {
         "flex": 8,
@@ -162,8 +162,8 @@
       "phase": 0.375,
       "pelvis": {
         "dx": -0.8,
-        "dy": -7.2,
-        "dz": 2.5,
+        "dy": -4.4,
+        "dz": 1.8,
         "yaw": -2.5,
         "pitch": 8,
         "roll": -1
@@ -184,16 +184,16 @@
         "roll": 0
       },
       "armL": {
-        "flex": 40,
+        "flex": 34,
         "abd": 4,
-        "elbow": 22,
-        "inward": 18
+        "elbow": 14,
+        "inward": 10
       },
       "armR": {
-        "flex": 44,
+        "flex": 37,
         "abd": 4,
-        "elbow": 22,
-        "inward": 18
+        "elbow": 13,
+        "inward": 10
       },
       "legL": {
         "flex": -6,

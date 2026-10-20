@@ -130,3 +130,121 @@ Sheets:
   body) over CT (green points), each with its numbers.
 
 Not done: jog, run, crouch walk, crouch run, crouch idle, the wall knee hand (after Michael's verdict on this walk).
+
+## 4. Round 3 (Michael 12:20: "Closer, fix arms + knees")
+Orchestrator's read of round 2: the posture and the forward pitch are right, but the arms reach forward like a zombie, and
+the bent stance knee with the 7 cm low pelvis reads as a crouched walk. Same method (matched camera, the same CT points,
+our own keys).
+
+### Arms: fixed
+The hands came back to CT's place in front of the hips. Each arm is carried forward 32-45 deg in the chest frame (21-34 deg in
+the world). The elbows are bent 12-16 deg (CT's elbow in the picture is 1-22). The forearms are turned 10 deg in. In 3D:
+- wrists 0.206 m from the midline, beside the thighs (round 2 had them 0.165 in front);
+- elbows 1.9 cm out of the shoulder line.
+
+| item | contact | down | passing | up |
+| --- | --- | --- | --- | --- |
+| hand ahead of the pelvis, CT / r2 / r3 (% stature) | 22.5 / 32.9 / 29.6 | 19.5 / 34.3 / 30.6 | 21.4 / 27.6 / 23.3 | 19.9 / 28.5 / 24.6 |
+| upper arm, CT / r2 / r3 (deg forward) | 45 / 43 / 35 | 47.5 / 45 / 36 | 31 / 28 / 22 | 32 / 30 / 24 |
+| elbow in the picture, CT / r2 / r3 | 6 / 32 / 18 | 23 / 32 / 18 | 1 / 25 / 15 | 4 / 26 / 16 |
+
+Three rows to read with the numbers:
+- **Hand forward** is in tolerance at passing and up (+2 / +5). At contact and down it is +7 / +11. The CT pelvis point sits
+  on the belt, so this reading carries a bias.
+- **The upper arm angle** is now 10 deg under CT's reading. I chose the hand's position over the arm's angle: the angle
+  depends on where the shoulder joint is placed under CT's large shoulder pad, and matching it is what gave the zombie reach.
+- **The elbow bend** is within CT's spread.
+
+### Knees and bob: a trade-off, not within tolerance together
+The pelvis offset and the planner's stance share (duty) are the two levers. Measured in game at gear 3 (2.1 m/s):
+
+| round | pelvis (cm) | duty | stance knee (3D, deg) | head bob (cm) | both feet off the floor | front knee at contact (picture, CT 56) |
+| --- | --- | --- | --- | --- | --- | --- |
+| r10 (round 2) | -7.0 to -7.6 | 0.54 | 46 | 2.9 | 0 % | 45 |
+| r16 | -3.2 to -3.8 | 0.53 | 36 | 5.4 | 0 % | 43 |
+| **r17 (round 3)** | **-4.8 to -5.4** | **0.54** | **40 (gear 2: 34)** | **4.3 (gear 2: 1.5)** | **0 %** | **40** |
+| r15 | -2.4 to -3.0 | 0.46 | 32 | 3.1 | 8 % (a run's flight) | 38 |
+| r7 | -7.0 to -8.0, 6 cm forward | 0.54 | - | 6.9 | - | 59 |
+
+- **The bob comes from the foot planner.** At double support the legs must reach world-locked feet about 0.69 m apart, so the
+  hips drop. A higher pelvis (a softer knee) lets that drop show as bob.
+- **The timing lever fails.** An earlier toe-off (duty under 0.54) takes the bob away, but it lifts both feet at once (8 %
+  of the time at 0.46, 4 % at 0.5), which is a run, not a walk.
+- **The front knee at contact moves with the bob.** It bends to CT's 56 deg only with the pelvis carried forward, and that
+  costs 4 cm more bob (r7).
+- **The camera pivot was not touched** (G29: no camera bob).
+- **Round 3 takes the middle:** the stance knee 40 deg at gear 3 and 34 at gear 2 (down from 46), the bob 4.3 cm at gear 3 and
+  1.5 at gear 2 (CT about 2; the procedural walk was 4.1 at gear 2), the front knee at contact 40 deg.
+
+The next step that would get all three is not a key: it is the stride. CT steps about 0.65-0.67 m at about 3.1 steps a
+second; our gear 3 steps 0.72 m (contact split 0.69) at 2.9. Shorter steps at gear 3 shrink the double-support drop, so the
+pelvis can sit higher (soft knees) without the bob, and the front foot lands nearer the knee (a bent knee at contact). That
+lives in the motion driver's step length (`stepLength`, procedural: every gait). It is not changed here; it needs a gate to
+the keyed walk or Michael's go-ahead.
+
+### Changes (round 3)
+- `scripts/anim-keys/keys/walk.json`: pelvis -4.8 to -5.4 cm (was -7.0 to -7.6) and 1.5 cm forward (was 2.5); arms flex 32-45 (was 38-54),
+  elbows 12-16 (was 20-26), forearms turned 10 deg in (was 18), abduction 4.
+- `scripts/anim-keys/measure.mjs`: `flight`, the share of time with neither foot planted.
+- `tests/keyedWalk.test.ts`: the pelvis mean between -7 and -3 cm (round 2: under -5).
+
+Sheets, `shots/g8/walk-proof-3/`:
+- `walk-side.jpg` and `walk-front.jpg`: rows CT, round 2, round 3, at the matched camera;
+- `overlay-contact.jpg`, `overlay-down.jpg`, `overlay-passing.jpg`, `overlay-up.jpg` (round 3).
+
+Checks: tsc and eslint clean; 13 vitest files (156 tests, G7 holds and door-peek parity included) pass; e2e-anim, e2e-move,
+e2e-clip, e2e-wall, e2e-traverse and e2e-takedown pass on the round 3 build (port 4195, serial).
+
+## 5. Round 3b: CT's stride (A4, footage wins)
+Coordinator (after round 3): shorten the step at walk speeds only, toward CT's ~0.66 m at gear 3, so the cadence rises toward
+CT's ~3.1 steps a second; the jog, run and sprint strides stay. Then re-key the knees and keep the bob ~2 cm.
+
+### The stride
+- `src/anim/motion.ts` `WALK_STEP` (k 0.17, to 2.1 m/s, blend 3.0 m/s). The player's standing step is `stepLen0 + 0.17 v`
+  up to 2.1 m/s, then blended back to `0.3 + 0.2 v` by 3.0 m/s, so the jog at gear 4 and the run are unchanged.
+- Gear 3 (2.1 m/s): 0.72 -> 0.657 m, 2.9 -> 3.2 steps a second (CT ~3.1 at ~2 m/s). Gear 2 (1.4): 0.58 -> 0.54. Gear 1
+  (0.75): 0.45 -> 0.43.
+- Standing only: the stance's crouch blend fades it out, so crouched steps keep 0.3 + 0.2 v until their own clips.
+- Guards (ENEMY_MOTION) are unchanged.
+- A pure function of speed and stance, so owner and remote count the same clock with no wire change:
+  - the owner's driver gets the crouch blend through `MotionInput.crouch` (`playerController.ts`, the rig's `crouchBlend`);
+  - the graph (a remote's clock, and the planner's cycle time) passes its own `i.crouch`.
+
+### Re-keyed (final keys r19)
+Pelvis -4.2 to -4.8 cm (round 3: -4.8 to -5.4) and 1.6-2.2 cm forward; duty 0.54. Arms as round 3.
+
+| item (gear 3 unless named) | CT | round 2 | round 3 | **round 3b** | tolerance | in? |
+| --- | --- | --- | --- | --- | --- | --- |
+| head bob (3D, cm) | ~2 | 2.9 | 4.3 | **3.2** (gear 2: 1.0) | +-1.5 | yes |
+| stance knee (3D, deg) | soft | 46 | 40 | **36** (gear 2: 32) | - | softer |
+| front knee at contact (picture, deg) | 56 | 45 | 40 | **33** | +-10 | **no** |
+| front knee at down | 52 | 59 | 53 | **48** | +-10 | yes |
+| swing knee at passing | 65 | 68 | 63 | **64** | +-10 | yes |
+| knee at up | 46 | 59 | 50 | **51** | +-10 | yes |
+| torso pitch | 7.5-10.2 | 10.3-10.5 | 10.3-10.5 | **10.3-10.5** | +-5 | yes |
+| hand height contact / down (% stature) | 59 / 62 | 57 / 57 | 50 / 50 | **51 / 50** | +-5 | **no** (-8, -12) |
+| hand ahead of the pelvis contact / passing | 22.5 / 21.4 | 33 / 28 | 30 / 23 | **29 / 23** | (bias) | passing yes |
+| upper arm contact / passing (deg) | 45 / 31 | 43 / 28 | 35 / 22 | **34 / 22** | +-5 | no (-11, -9) |
+| both feet off the floor | 0 | 0 | 0 | **0 %** | 0 | yes |
+| cadence at gear 3 (steps a second) | ~3.1 | 2.9 | 2.9 | **3.2** | +-0.3 | yes |
+
+Not within tolerance:
+- **The front knee at contact** (33 vs 56): the shorter step lands the front foot sooner, its leg still reaching. It bends
+  only with the hips carried further forward over it, and every 1.5 cm of that carry cost ~0.8 cm of bob (NullEngine sweep).
+- **The hand height and the upper arm angle**: the round 3 trade (the hand placed in front of the hips, no zombie reach)
+  kept on purpose.
+
+Everything else is within tolerance, and the head bob dropped from round 3's 4.3 cm to 3.2.
+
+Tests (A4):
+- `g1Locomotion`: `stepLength(2)` 0.7 -> 0.64; new checks that gear 3 is 0.657 m at 3.0-3.3 steps a second, and that
+  crouched steps and gear 4 keep 0.3 + 0.2 v; the crouched cycle-time check passes the crouch.
+- `motion.test` (walk step 0.5-0.65 m), `turnFollow`, `footPlanner` pass unchanged (they use the function).
+- No e2e asserts a step length or cadence.
+
+Checks: tsc and eslint clean; 15 vitest files, 202 tests pass; e2e-anim (walk foot lock), e2e-move, e2e-clip, e2e-wall,
+e2e-traverse, e2e-takedown and e2e-netmove pass (port 4195, serial, the heavy lock taken only when free).
+
+Sheets, `shots/g8/walk-proof-3b/`:
+- `walk-side.jpg`, `walk-front.jpg`: rows CT, round 3 (0.72 m steps), round 3b (0.66 m), at the matched camera;
+- `overlay-contact.jpg`, `overlay-down.jpg`, `overlay-passing.jpg`, `overlay-up.jpg` (round 3b).

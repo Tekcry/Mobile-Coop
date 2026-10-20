@@ -111,6 +111,8 @@ for (const name of names) {
   out.headBob = r3(rng((q) => q.headNode[1]));
   out.torsoLean = Math.round(mean((q) => (Math.atan2(q.neck[2] - q.hips[2], q.neck[1] - q.hips[1]) * 180) / Math.PI));
   out.cadence = r3((res.contacts * 2) / (rows.length / 60));
+  // the share of the time with neither foot planted (a walk has none)
+  out.flight = r3(rows.filter((q) => !q.cL && !q.cR).length / rows.length);
   if (sc.still) {
     // breathing / sway: the period of the head height (mean crossings) and its amplitude
     const hy = rows.map((q) => q.headNode[1]);
