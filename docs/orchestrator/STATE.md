@@ -9,10 +9,10 @@ Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-nati
 there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.21.1 (#64, f1c74258). Tags v4.0.0-v4.21.1. /preview/ = dev = f1c74258. Merged since the 2026-10-20 reset, in order:
+v4.22.0 (#59, 04ec4cd6). Tags v4.0.0-v4.22.0. /preview/ = dev = 04ec4cd6. Merged since the 2026-10-20 reset, in order:
 4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
 4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
-4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64). /ct/ = ct-movement (CT Core).
+4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59). /ct/ = ct-movement (CT Core).
 Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (source docs/orchestrator/dashboard.html; stale since
 2026-10-20, update when convenient).
 
@@ -68,6 +68,9 @@ tuner-v2: wired head a8aef532 laptop PASS; item 3 Stepping at ebb5ae57 (13 hooks
 For Michael in the morning: the stuck running foot is the replant rule firing at full leg stretch; Stepping > run /
 crouchRun replant 0.8 lifts it ~9 cm sooner with no slide. Defaults left at identity (his call). Course Ready pass 2
 fix round at 826a01d7, check + solo reruns going.
+#59 merged as 4.22.0 (full e2e PASS on 0fb59235; GPU look still owed). tuner-camera PR #65 @ 2287d5b7 (minor):
+laptop full e2e next (e2e-menus hit 600 s on the desktop at 664 s); Course Ready starts Anim Studio PR 1 on
+feature/anim-studio from 2287d5b7 meanwhile. tuner-v2 f2dabf8d laptop PASS; its PR merges after #65.
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.

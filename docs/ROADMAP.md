@@ -120,6 +120,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-21 | #59 | 4.22.0: Sector Ops lamp fittings, translucent roof sheets, warehouse dressing (GPU look pending) |
 | 2026-10-21 | #64 | 4.21.1: e2e-pad steps over the tuner pause item; steadier analogGear heap test (test only) |
 | 2026-10-21 | #61 | 4.21.0: selection wheel sized to the screen, radial ring look, FPS banner bottom left |
 | 2026-10-21 | #60 | 4.20.1: the animation tuner works with the pad |
