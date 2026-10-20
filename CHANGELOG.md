@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased - phone-menu
+- Phone menu (G182; Michael 2026-10-20: "menu hero should be best quality on phones if it doesn't cost much"): the
+  menu draws at the High preset on phones (lamp shadows, AO, bloom, depth of field) while play stays on Low; the hero
+  mesh was already the close-up LOD. Epic's TAA and full-res post are left out (heat). Desktop unchanged.
+
 ## 4.15.2 - Phones at native resolution and 100% render scale (2026-10-20, PR #45)
 - Phone (testing launch, G182; Michael 2026-10-20: "Default phones to low settings but with shadows/light, native
   resolution, 60fps cap, 100% resolution scaling"): phones now render at native resolution (device DPR) and a 1.0
