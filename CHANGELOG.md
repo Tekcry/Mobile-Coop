@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - phone-native
+## 4.15.2 - Phones at native resolution and 100% render scale (2026-10-20, PR #45)
 - Phone (testing launch, G182; Michael 2026-10-20: "Default phones to low settings but with shadows/light, native
   resolution, 60fps cap, 100% resolution scaling"): phones now render at native resolution (device DPR) and a 1.0
   render scale, still on the Low preset with the 60 fps cap. Desktop and the tests (`?gfx=min`) are unchanged.
