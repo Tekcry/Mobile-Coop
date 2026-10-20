@@ -10,6 +10,7 @@ import type { LevelBuilder } from '../levelBuilder';
 import type { BayDef, CourseDef, CourseDevice, GateDef } from '../../game/course/courseDef';
 import type { LightFixture } from '../lights';
 import { bayCeiling, bayWalls, bulkheadCage, CELL_BANDS, doorFrame, emitter, floorLine, lidHaunches, liftDoors, pendantRods, plate, sweepLines, wallPaintZ } from './ctcourseBunker';
+import { buildVariety } from './ctcourseVariety';
 
 /**
  * Marlow Yard (CT prototype B1, `docs/ct-prototype/CTCOURSE-SPEC.md`): the training floor of a Cold War signals bunker
@@ -501,6 +502,10 @@ export const ctcourse: MapDef = {
 
     // 8 The lit exit zone (B8: the wall keeps an open doorway, built with the walls above)
     mark(b, (CT_EXIT_ZONE.box[0] + CT_EXIT_ZONE.box[2]) / 2, MID, CT_EXIT_ZONE.box[2] - CT_EXIT_ZONE.box[0], CT_EXIT_ZONE.box[3] - CT_EXIT_ZONE.box[1], '#2f8f5a');
+
+    // (marlow-variety) what each cell is: sentry post, monitor wall, plant rooms and booths, kill-house plywood, the
+    // vestibule's frames and racks, training blocks, the exit coffer, hazard frames (`ctcourseVariety.ts`)
+    buildVariety(b, CT_CEIL, S7_STAIR_Z);
 
     const navSeeds = Array.from({ length: 8 }, (_, i) => new Vector3(bayX(i) + 3, 0, MID));
     return {

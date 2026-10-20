@@ -17,6 +17,7 @@ const LIFT = '#5d646b';
 const SIGNAL = '#cfe6ff';
 const PAINT = '#d6dadf';
 const SWEEP = '#a83a3a';
+const HAZARD = '#1d1f22';
 
 /** Paint and plates: this thin, so the light bake never sees them. */
 const THIN = 0.02;
@@ -50,12 +51,17 @@ export function bayWalls(b: LevelBuilder, x0: number, x1: number, ceil: number, 
   }
 }
 
-/** A steel frame and a status lamp (visual) round a 1.2 m door in a cross wall at x (both faces); door z0 .. z0 + w. */
+/**
+ * A hazard frame and a status lamp (visual) round a 1.2 m door in a cross wall at x (both faces); door z0 .. z0 + w.
+ * (marlow-variety) The jambs are black with white diagonal stripes (hazard, kept off yellow), the head steel.
+ */
 export function doorFrame(b: LevelBuilder, x: number, thick: number, z0: number, w: number, h = 2.1): void {
   for (const sx of [-1, 1]) {
     const fx = x + sx * (thick / 2 + THIN / 2);
-    b.box(fx, h / 2, z0 - 0.06, THIN, h, 0.12, STEEL, 0, 0, false);
-    b.box(fx, h / 2, z0 + w + 0.06, THIN, h, 0.12, STEEL, 0, 0, false);
+    for (const jz of [z0 - 0.06, z0 + w + 0.06]) {
+      b.box(fx, h / 2, jz, THIN, h, 0.12, HAZARD, 0, 0, false);
+      for (let y = 0.25; y < h - 0.1; y += 0.42) b.box(fx + sx * (THIN / 2 + 0.003), y, jz, 0.005, 0.035, 0.16, PAINT, 0, Math.PI / 4, false);
+    }
     b.box(fx, h + 0.06, z0 + w / 2, THIN, 0.12, w + 0.24, STEEL, 0, 0, false);
     b.box(fx, h + 0.3, z0 + w / 2, THIN, 0.1, 0.3, SIGNAL, 0, 0, false);
   }

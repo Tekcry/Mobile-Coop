@@ -9,6 +9,7 @@ import { findJumpTarget, generateLedges, suppressLedgesNear, type Ledge } from '
 import { hangReaches, inBoostBand, ropeRoom } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { isListedMap } from '../src/world/maps/listed';
+import { buildVariety } from '../src/world/maps/ctcourseVariety';
 
 describe('ctcourse (CT prototype B1)', () => {
   const lay = ctcourse.build(new LevelBuilder(), 0);
@@ -415,5 +416,33 @@ describe('marlow-bunker: ceilings, lids and walls to the ceiling (no new climbs)
   it('the haunches are dressing: no solid piece is pitched (no stray collision on the corners)', () => {
     for (const p of b.boxes) if (p.collide) expect(Math.abs(p.pitch), `solid pitched piece at ${p.c.join(', ')}`).toBeLessThan(1e-3);
     expect(b.boxes.some((p) => !p.collide && Math.abs(p.pitch - Math.PI / 4) < 1e-6)).toBe(true);
+  });
+});
+
+describe('marlow-variety: the dressing adds no climb and keeps the routes clear', () => {
+  const v = new LevelBuilder();
+  buildVariety(v, CT_CEIL, S7_STAIR_Z);
+  const full = new LevelBuilder();
+  ctcourse.build(full, 0);
+
+  it('only the S6 server racks are solid: lip-free and taller than a mantle (1.8 m)', () => {
+    const solid = v.boxes.filter((p) => p.collide);
+    expect(solid).toHaveLength(4);
+    for (const p of solid) {
+      expect(p.noLedge).toBe(true);
+      expect(p.c[1] - p.s[1] / 2).toBeLessThan(0.01);
+      expect(p.s[1]).toBeGreaterThan(1.8);
+      // against the S6 west wall, clear of its door (z 6.4 - 7.6)
+      expect(p.c[0]).toBeGreaterThan(bayX(5));
+      expect(p.c[0]).toBeLessThan(bayX(5) + 1.2);
+      expect(p.c[2] - p.s[2] / 2).toBeGreaterThan(7.9);
+    }
+    expect(generateLedges(v.boxes).ledges).toHaveLength(0);
+  });
+
+  it('S1: the grab from behind stays clear (nothing solid in x 2 - 10.5, z 2.5 - 5 under 2 m)', () => {
+    const inArea = full.boxes.filter((p) => p.collide && p.c[1] - p.s[1] / 2 < 2 && p.c[1] + p.s[1] / 2 > 0.05 &&
+      p.c[0] + p.s[0] / 2 > 2 && p.c[0] - p.s[0] / 2 < 10.5 && p.c[2] + p.s[2] / 2 > 2.5 && p.c[2] - p.s[2] / 2 < 5);
+    expect(inArea).toHaveLength(0);
   });
 });
