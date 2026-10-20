@@ -27,6 +27,7 @@ import {
 } from '../core/babylon';
 import { G } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
+import { markLampLevel } from './bakedLamps';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
 import { findSplitGaps } from '../player/splitJump';
 import { MOVEMENT } from '../config/movement';
@@ -101,6 +102,17 @@ export interface BuiltLevel {
   /** 3.6: the canonical light-bake shapes (packed), their bounds and hash - the same on every device and tier. */
   light: { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string };
   dispose(): void;
+}
+
+/** `LevelBuilder.build` / `prepare` options. */
+export interface LevelBuildOptions {
+  atlas?: SurfaceAtlas;
+  floor?: Surface;
+  detail?: TierQuality;
+  dressing?: boolean;
+  voxelSize?: number;
+  fineSize?: number;
+  art?: VoxelArt | null;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -415,15 +427,27 @@ export class LevelBuilder {
    * Build the level. With an `atlas` (3.0) the pieces are PBR with the procedural surfaces (a per-instance `surf`
    * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
    */
-  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; dressing?: boolean; voxelSize?: number; fineSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
-    const root = new TransformNode(`level-${name}`, scene);
+  /**
+   * The Babylon-free part of `build` (smooth-world): the visual-only dressing pass, the voxel split (only with a
+   * `voxelSize`) and the canonical light shapes. Call once per builder (it adds the dressing to `boxes`). Tests use it
+   * to prove the light shapes are the same with voxels on or off.
+   */
+  prepare(name: string, opts: LevelBuildOptions = {}): { voxels: LevelVoxels | null; light: BuiltLevel['light'] } {
     // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
-    // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path)
+    // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path; the smooth
+    // default path - no voxels - always draws it at the Detail tier)
     // (a map with `detail: false` (MapDef, ON0b) gets none at any tier; the light shapes below agree)
     const dressing = opts.dressing !== false;
     if (dressing && opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
-    // voxels (3.0): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
+    // voxels (3.0, `?voxels=1`): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
     const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null, opts.fineSize ?? 0) : null;
+    // (the canonical light shapes ignore the dressing added above and the voxels: the same set either way)
+    return { voxels, light: canonicalLightSet(this.boxes, this.cylinders, name, dressing) };
+  }
+
+  build(scene: Scene, name: string, opts: LevelBuildOptions = {}): BuiltLevel {
+    const root = new TransformNode(`level-${name}`, scene);
+    const { voxels, light } = this.prepare(name, opts);
     let mat: StandardMaterial | PBRMaterial;
     let surfacePlugin: SurfacePlugin | null = null;
     if (opts.atlas) {
@@ -439,6 +463,8 @@ export class LevelBuilder {
       // the probe's cube is not prefiltered: blur it by roughness on the fly
       pm.realTimeFiltering = true;
       surfacePlugin = new SurfacePlugin(pm, opts.atlas, 'world');
+      // (smooth-world) the baked lamps treat it as level, not a body: no night-vision fill cap
+      markLampLevel(pm);
       mat = pm;
     } else {
       const sm = new StandardMaterial(`levelMat-${name}`, scene);
@@ -602,7 +628,7 @@ export class LevelBuilder {
       bounds: this.bounds,
       surfacePlugin,
       voxels,
-      light: canonicalLightSet(this.boxes, this.cylinders, name, dressing),
+      light,
       dispose: () => {
         body.dispose();
         container.dispose();

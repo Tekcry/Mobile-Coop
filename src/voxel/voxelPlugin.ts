@@ -1,6 +1,7 @@
 import { MaterialPluginBase, type AbstractMesh, type BaseTexture, type Material, type MaterialDefines, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
 import { SURFACE_KINDS, SURFACE_PARAMS, type SurfaceAtlas } from '../world/surfaceAtlas';
 import { GI_MAX } from './skyBake';
+import { LEVEL_FILL_GLSL as LF } from '../world/levelFill';
 
 /** The voxel behind a pixel: brick indirection, then the pool (0 = air). */
 export const VX_MAT_GLSL = `int vxMat(ivec3 v) {
@@ -253,7 +254,7 @@ float vxSolid(ivec3 v) { return vxMat(v) != 0 ? 1.0 : 0.0; }
   }
 #endif
   // open sky: baked per 0.5 m cell, sampled a little off the face (indoors stays dark but under the skylights)
-  if (voxSkyO.w > 0.0) vxVis = texture(voxSky, (vPositionW + gn * voxSkyO.w * 0.6 - voxSkyO.xyz) / (voxSkyO.w * voxSkyD.xyz)).r;
+  if (voxSkyO.w > 0.0) vxVis = texture(voxSky, (vPositionW + gn * voxSkyO.w * ${LF.offset} - voxSkyO.xyz) / (voxSkyO.w * voxSkyD.xyz)).r;
   // rain: upward faces open to the sky darker and glossy; puddles (palette row 1) a mirror
   float pud = texelFetch(voxPal, ivec2(m, 1), 0).r;
   float wet = voxInfo.z * smoothstep(0.55, 0.92, gn.y) * smoothstep(0.35, 0.8, vxVis) * (1.0 + pud * 0.6);
@@ -262,7 +263,8 @@ float vxSolid(ivec3 v) { return vxMat(v) != 0 ? 1.0 : 0.0; }
   surfaceAlbedo = base * shade;
   vxEmissive = base * emis * 4.0;
   // the hemisphere's fill, which the voxels take themselves: sky from above, ground from below, by how open it is
-  vxAmbient = mix(voxGroundFill.rgb, voxSkyFill.rgb, normalW.y * 0.5 + 0.5) * (0.12 + 0.88 * vxVis) * surfaceAlbedo * shade;
+  // (\`world/levelFill.ts\`: the smooth level's LAMP_LEVEL fill is the same)
+  vxAmbient = mix(voxGroundFill.rgb, voxSkyFill.rgb, normalW.y * 0.5 + 0.5) * (${LF.floor} + ${LF.open} * vxVis) * surfaceAlbedo * shade;
 #ifdef VOXEL_GI
   {
     // one-bounce light, the circuits mixed by how much of each is on (3.2: one texture, at half scale)
@@ -283,7 +285,7 @@ finalEmissive += vxEmissive;
 finalDiffuse += vxAmbient;
 #ifdef REFLECTION
 // the probe sees the hall from its middle: reflections and irradiance fade where the sky (and the open hall) is hidden
-float vxRefl = 0.35 + 0.65 * vxVis;
+float vxRefl = ${LF.envFloor} + ${LF.envOpen} * vxVis;
 finalIrradiance *= vxRefl;
 finalRadianceScaled *= vxRefl;
 #endif

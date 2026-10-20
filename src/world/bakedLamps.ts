@@ -8,6 +8,7 @@ import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from '.
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
+import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 
 export { bakedLights };
 
@@ -31,10 +32,24 @@ export interface BakeExtras {
   fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
   /** The moon's share of the open-sky level (`moonLight`): the curve's moon term. */
   moonLight?: number;
+  /** smooth-world fix round 2 (rendering only): the level's own fill as the voxel path lights its walls
+   *  (`world/levelFill.ts`): the hemisphere's sky / ground colours x intensity and a sky visibility bake (`bakeSky` over
+   *  the canonical shapes). Used by the `LAMP_LEVEL` material only. */
+  level?: { sky: Rgb; ground: Rgb; vis: { origin: [number, number, number]; cell: number; n: [number, number, number]; vis: Uint8Array } | null } | null;
   /** The standard-material look (the Kestrel editor's light view; the game never sets it): the plugin goes on the lit
    *  standard materials (else on the PBR ones). */
   standard?: boolean;
 }
+/**
+ * smooth-world: mark the level's own material (the smooth default's boxes and cylinders). `LampPlugin` then defines
+ * `LAMP_LEVEL`: the level keeps its whole ambient-grid fill under night vision, as the voxel walls keep theirs; the
+ * `BODY_FILL` cap stays on bodies, weapons and props.
+ */
+export function markLampLevel(m: Material): void {
+  m.metadata = { ...(m.metadata as object | null), lampLevel: true };
+}
+export const isLampLevel = (m: Material): boolean => !!(m.metadata as { lampLevel?: boolean } | null)?.lampLevel;
+
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
 const CAPS_PER_LAMP = 4;
@@ -64,6 +79,9 @@ export class BakedLamps {
   readonly moon: MoonGrid | null;
   readonly fillTex: RawTexture3D | null = null;
   readonly fill: BakeExtras['fill'];
+  /** The level fill (`BakeExtras.level`) and its sky visibility texture. */
+  readonly level: BakeExtras['level'];
+  readonly skyTex: RawTexture3D | null = null;
   /** The plugin goes on standard materials (the editor's light view). */
   private readonly standard: boolean;
   get standardLook(): boolean {
@@ -116,6 +134,7 @@ export class BakedLamps {
     this.order = baked.ids;
     this.moon = extra.moon ?? null;
     this.fill = extra.fill ?? null;
+    this.level = extra.level ?? null;
     this.standard = !!extra.standard;
     this.moonLight = extra.moonLight ?? 0;
     this.dark = { ...(this.standard ? DARK_STANDARD : DARK_DESKTOP) };
@@ -177,6 +196,8 @@ export class BakedLamps {
     };
     if (this.moon) this.moonTex = mk3(this.moon.vis, this.moon.n[0], this.moon.n[1], this.moon.n[2]);
     if (this.fill) this.fillTex = mk3(this.fill.grid.data, this.fill.grid.n[0], this.fill.grid.n[1], this.fill.grid.n[2]);
+    const sv = this.level?.vis;
+    if (sv) this.skyTex = mk3(sv.vis, sv.n[0], sv.n[1], sv.n[2]);
 
     this.data = new RawTexture(buf, w, h, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT);
     if (volume) this.volume = new LampVolume(scene, this, lampVolumeGrid(r.boxes, volume.floorY));
@@ -345,6 +366,7 @@ export class BakedLamps {
     this.data.dispose();
     this.moonTex?.dispose();
     this.fillTex?.dispose();
+    this.skyTex?.dispose();
     this.volume?.dispose();
   }
 }
@@ -573,6 +595,9 @@ uniform highp sampler3D lampMoon;
 #ifdef LAMP_FILL
 uniform highp sampler3D lampAmb;
 #endif
+#ifdef LAMP_SKY
+uniform highp sampler3D lampSky;
+#endif
 vec4 lampTexel(int k) {
   int w = int(lampInfo.x);
   return texelFetch(lampData, ivec2(k - (k / w) * w, k / w), 0);
@@ -616,7 +641,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false, LAMP_SKY: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
@@ -644,10 +669,14 @@ export class LampPlugin extends MaterialPluginBase {
     // (only a texture that exists: an unbound sampler3D falls on a 2D texture's unit, a draw error)
     defines.LAMP_MOON = !!mesh && !!this.lamps.moonTex;
     defines.LAMP_FILL = !!mesh && !!this.lamps.fillTex;
+    // (smooth-world) the level's material: no body fill cap under night vision
+    defines.LAMP_LEVEL = !!mesh && isLampLevel(this._material);
+    // (fix round 2) the level's fill and image-based light by sky visibility, as the voxel walls
+    defines.LAMP_SKY = !!mesh && isLampLevel(this._material) && !!this.lamps.level && !!this.lamps.skyTex;
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb');
+    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb', 'lampSky');
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string; arraySize?: number }[]; fragment?: string } {
@@ -667,8 +696,12 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampFillC', size: 4, type: 'vec4' },
         { name: 'lampDark', size: 4, type: 'vec4' },
         { name: 'lampDarkP', size: 4, type: 'vec4' },
+        { name: 'lampSkyO', size: 4, type: 'vec4' },
+        { name: 'lampSkyN', size: 4, type: 'vec4' },
+        { name: 'lampLvlSky', size: 4, type: 'vec4' },
+        { name: 'lampLvlGnd', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\nuniform vec4 lampSkyO;\nuniform vec4 lampSkyN;\nuniform vec4 lampLvlSky;\nuniform vec4 lampLvlGnd;\n#endif`,
     };
   }
 
@@ -689,6 +722,14 @@ export class LampPlugin extends MaterialPluginBase {
       ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
       ubo.updateFloat4('lampFillC', f.color[0], f.color[1], f.color[2], 0);
       ubo.setTexture('lampAmb', l.fillTex);
+    }
+    const lv = l.level;
+    if (lv?.vis && l.skyTex) {
+      ubo.updateFloat4('lampSkyO', lv.vis.origin[0], lv.vis.origin[1], lv.vis.origin[2], lv.vis.cell);
+      ubo.updateFloat4('lampSkyN', lv.vis.n[0], lv.vis.n[1], lv.vis.n[2], 0);
+      ubo.updateFloat4('lampLvlSky', lv.sky[0], lv.sky[1], lv.sky[2], 0);
+      ubo.updateFloat4('lampLvlGnd', lv.ground[0], lv.ground[1], lv.ground[2], 0);
+      ubo.setTexture('lampSky', l.skyTex);
     }
     if (m && l.moonTex) {
       ubo.updateFloat4('lampMoonO', m.origin[0], m.origin[1], m.origin[2], m.cell);
@@ -874,17 +915,32 @@ ${settle}
 ${level('nsLampRaw')}
 #if defined(LAMP_FILL) && !defined(VOXELS)
   // (nv-pass slice 1) under night vision the flat fill (and the probe's diffuse) is capped and hemisphere-shaded, so a
-  // body sits at the walls' brightness instead of glowing (\`bodyFillScale\`; the lamps on it are untouched)
+  // body sits at the walls' brightness instead of glowing (\`bodyFillScale\`; the lamps on it are untouched). The level's
+  // own material (smooth-world, \`LAMP_LEVEL\`) keeps its whole fill, as the voxel walls do.
+#ifdef LAMP_LEVEL
+  float nsBF = 1.0;
+#else
   float nsBF = nsBodyFill(lampDark.z, normalW.y);
+#endif
+#ifdef LAMP_SKY
+  // (smooth-world fix round 2) the level's own boxes take the voxel walls' fill: the hemisphere's colours by the normal x
+  // how much sky the spot sees (world/levelFill.ts), not the flat gameplay grid (which oversold the walls' light)
+  float nsVis = nsGrid(lampSky, vPositionW + normalize(vNormalW) * lampSkyO.w * ${LF.offset}, lampSkyO, lampSkyN);
+  float nsEnv = ${LF.envFloor} + ${LF.envOpen} * nsVis;
+  nsStat += mix(lampLvlGnd.rgb, lampLvlSky.rgb, normalW.y * 0.5 + 0.5) * (${LF.floor} + ${LF.open} * nsVis) * surfaceAlbedo.rgb;
+#else
+  float nsEnv = 1.0;
   nsStat += nsFillL * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb * nsBF;
+#endif
 #else
   float nsBF = 1.0;
+  float nsEnv = 1.0;
 #endif
   finalDiffuse = max(nsStat, vec3(0.0)) * nsR + nsDynD;
   finalAmbient *= nsR;
 #ifdef REFLECTION
-  finalIrradiance *= nsR * nsBF;
-  finalRadianceScaled *= nsR;
+  finalIrradiance *= nsR * nsBF * nsEnv;
+  finalRadianceScaled *= nsR * nsEnv;
 #endif
 }
 #endif`,
