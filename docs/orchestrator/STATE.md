@@ -71,7 +71,7 @@ separate commands.
 
 ## How Michael works with the orchestrator
 - Short, plain replies. Native multiple-choice questions only. Hyphens, not em dashes.
-- One step at a time when he asks for it. For every handoff: the exact paste-in prompt, the model and the effort.
+- ALWAYS state the session title, the model and the effort next to every prompt you give Michael (Michael 2026-10-20 18:30: "You should be showing me exactly which model and effort alongside any prompt, make sure you always do that."). One prompt at a time; he does not remember earlier ones.
 - He tests through the menus, never direct links: give menu paths and the version label to expect.
 - Merge green, reviewed PRs without asking (CLAUDE.md, and his 23:55 / 08:45 go-aheads). If auto mode blocks a merge,
   ask him in chat for permission.
