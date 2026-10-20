@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.28.1 - shots-ctcourse waits for sim time after each teleport (2026-10-21, PR #72)
+- Test script only: `scripts/shots-ctcourse.mjs` waits 0.3 s of sim time (the game clock) after each teleport before
+  reading the light meter and the light field. The meter updates every 0.1 s of sim time, and at Epic boot 800 ms of
+  wall time could be under 0.1 s of sim, so s1-bay read a stale 0.970 against 0.606. It also refuses a foreign server
+  on its port (the served `index.html` must match `dist/`). GPU at 2bd82f31: all 17 rows agree within 0.02.
+
 ## 4.28.0 - Smooth world: voxels off by default, baked lamps on the smooth path (2026-10-21, PR #58)
 - The world draws smooth by default (Michael, 2026-10-20: "there still looks to be voxel graphics in the map which is no
   longer the goal"; he chose "Turn voxels off by default"): the level's boxes and cylinders in PBR with the CC0 surface
