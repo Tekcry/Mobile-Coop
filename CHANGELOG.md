@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.30.1 - Orchestrator docs: 2026-10-21 roadmap, STATE, account handoff plan (2026-10-21, PR #74)
+- Docs only: `docs/ROADMAP.md` (Michael's overnight answers, Done 4.21.0-4.30.0), `docs/orchestrator/STATE.md`,
+  `docs/orchestrator/HANDOFF.md` (the weekly-limit account switch), `docs/backlog.md` (GPU GL warning, e2e-stealth-ai
+  wall peek).
+
 ## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
 - Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
   [--dry-run] [--only section,...] [--allow-shared]` writes an export's values into the code defaults (body, gun, camera,
