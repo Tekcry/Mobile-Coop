@@ -17,6 +17,28 @@
   box (a batten's ends are not a target yet).
 - Test: `tests/warehouseLamps.test.ts` (each section: every fitting's mount ends within 3 cm of the ceiling underside,
   wall face or roof under it, nothing cuts the fitting or its rod; the exception list; the models).
+- Roof sheets (Michael: the open sections are "usually a opaque type of corrugated plastic sheet that allow light in but
+  cant be passed through"): every open section of the hall roofs (the four skylight gaps across all three sections,
+  section 3's 2.95 m open strip at z -8.95 to -6 and the slit over section 2's south wall) is a pale see-through
+  corrugated sheet, solid (collision only; overhead, no ledges). It is not in the light bake and casts no shadow, so the
+  moon reaches the floor under it exactly as the bake, the meter and the guards have it (dimmer-than-sky light through
+  plastic needs a translucency rule in the bake, G45, not built). Section 1's roof hatch and smoke vent are routes (R2)
+  and stay open. `LevelBuilder.sheet`, `world/roofSheets.ts` (pure); one more draw.
+- Detail (Michael chose "Walls + ceiling + dead-space clutter"; `world/maps/warehouseDress.ts`, pure): along the hall
+  walls of all three sections pipe runs (256 m), cable trays (118 m), 16 signs, 12 fire points (extinguisher and
+  panel), 39 hazard stripe bands at doorways, a roller door on section 2's north wall; roof trusses on the frame lines
+  (81 panels; the top chord only over the high routes) and a duct in section 3; floor lanes and bay plates by the
+  racks. 15 floor items in dead space: pallet stacks, drum pairs and cartons in the halls, lockers and a desk in side
+  rooms. Every piece is a visual `detail` box drawn with the level's own box mesh (no new draw, out of the bake);
+  the floor items also get one collision-only box (no cover face, no ledge). Each kind is skipped where it would cut a
+  solid piece, a traversal anchor, a door, switch or device, a lamp or its mount, or where it would hang under 1.8 m
+  over a walkable top (rack tops, decks, roofs); floor items stand 1.5 m clear of every section route, 2 m clear of
+  every guard patrol and post, and off every sightline a guard has today to a route within 20 m. Not placed: the
+  second roller door (section 3's east wall), the forklift (no dead space fits one) and boxes on the racking shelves
+  (the racking's voxel art already holds loads at the voxel presets).
+- Test: `tests/warehouseDress.test.ts` (the roofs closed but for the route openings, the sheets solid; the light shapes
+  the same as without the dressing; no piece cuts a solid one, 1.8 m headroom; floor items clear of routes and
+  patrols, on the floor, with collision).
 
 ## 4.19.0 - Drawn movement: low ready, aiming with the glide (no crab strafe), the sling draw (2026-10-20, PR #54)
 - Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,

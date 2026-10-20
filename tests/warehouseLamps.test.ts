@@ -109,7 +109,7 @@ describe('Sector Ops lamp fittings', () => {
       count[k] = (count[k] ?? 0) + 1;
     }
     for (const m of ['dome', 'batten', 'bulkhead'] as const) expect(fixed.some((l) => l.fixture!.model === m), m).toBe(true);
-    if (process.env.LAMPS_PRINT) console.log(count);
+    if (process.env.LAMPS_PRINT) console.info(count);
   });
 
   it('every mount has its links (rods, hangers, arms, struts, masts), all finite', () => {

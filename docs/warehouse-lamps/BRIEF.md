@@ -28,3 +28,19 @@ gameplay, guard route or light value change beyond moving with the fitting.
   shot target yet. Undo: set the box from `FITTING` per model (changes the bake slightly).
 - **A4** Signs, door lamps and spots (green, small boxes, spots, under 2.3 m) try a short wall bracket (arm <= 0.6 m)
   before a ceiling; other lamps try the ceiling over them first.
+
+## Additions (2026-10-20, through the orchestrator)
+- **M3** (verbatim): "can warehouse lights session also update warehouse ceiling - the open sections are unusual, they
+  are usually a opaque type of corrugated plastic sheet that allow light in but cant be passed through." Orchestrator:
+  fill every open roof section with translucent corrugated sheeting, solid, letting diffuse moonlight in, light parity;
+  openings on a route stay open and are listed.
+- **M4** (chose "Walls + ceiling + dead-space clutter"): quick primitives, merged / instanced, one or two materials, no
+  assets. Walls and ceiling anywhere; floor clutter only in dead space, never on a route, never new cover or a sightline
+  blocker on a patrol, with collision, high-route clearance kept; draw calls within budget.
+- **A5** The sheets pass the moon fully (collision only, not baked, not a shadow caster): the bake has no translucency
+  rule (G45 not built), so "dimmer than open sky" would break parity. Undo: put the sheets in the light shapes (dark
+  under them) or build G45.
+- **A6** Dressing is `detail` boxes in the level's own box mesh (no new draw, never baked); floor items add one
+  collision-only box (no cover face, no ledge). Clearances: routes 1.5 m, patrols and posts 2 m, sightlines a guard has
+  today to a route within 20 m, 1.8 m headroom over walkable tops. Undo: drop `dressWarehouseOps` from `warehouseOps`.
+- **A7** No boxes on the racking shelves: the racking's voxel art already holds loads at the voxel presets.

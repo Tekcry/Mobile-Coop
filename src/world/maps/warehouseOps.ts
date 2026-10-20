@@ -2,6 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { mountLights } from '../lampMount';
+import { dressWarehouseOps } from './warehouseDress';
 import { buildWarehouse, warehouse } from './warehouse';
 import { buildServiceS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './warehouseS1';
 import { buildStorageS2, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './warehouseS2';
@@ -92,15 +93,24 @@ export const warehouseOps: MapDef = {
     mountLights(b.boxes, b.lights.lights);
     // alarm panels tagged by section (only the live section's work)
     const alarms = WAREHOUSE_OPS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], 0, a.at[1]), yaw: a.yaw, section: a.section }));
+    const pickups = [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS];
+    const hideSpots = [...(lay.hideSpots ?? []).filter((h) => s3(h.pos.x, h.pos.z)), ...S1_HIDESPOTS];
+    const switches = [...S1_SWITCHES, ...S2_SWITCHES, ...S3_SWITCHES];
+    // roof sheets over the open roof sections and the walls / ceiling / dead-space dressing (warehouse-lamps): after the lamps
+    const keep = [...pickups, ...hideSpots, ...switches, ...S1_SPAWNS, ...alarms, ...navSeeds.filter((v) => v.y < 0.5)].map((q) => {
+      const v = 'pos' in q ? q.pos : q;
+      return [v.x, v.z] as const;
+    });
+    dressWarehouseOps(b, { sectors: WAREHOUSE_SECTORS, points: keep, security: WAREHOUSE_OPS_SECURITY, lasers: WAREHOUSE_OPS_LASERS });
     return {
       ...lay,
       playerSpawns: S1_SPAWNS,
       enemySpawns: lay.enemySpawns.filter((v) => s3(v.x, v.z)),
       props: [],
       objectives: lay.objectives.filter((o) => o.id !== 'termB' && o.id !== 'extract'),
-      pickups: [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS],
-      hideSpots: [...(lay.hideSpots ?? []).filter((h) => s3(h.pos.x, h.pos.z)), ...S1_HIDESPOTS],
-      switches: [...S1_SWITCHES, ...S2_SWITCHES, ...S3_SWITCHES],
+      pickups,
+      hideSpots,
+      switches,
       rooms,
       navSeeds,
       alarms,

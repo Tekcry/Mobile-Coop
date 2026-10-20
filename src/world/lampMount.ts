@@ -15,6 +15,7 @@ export interface MountBox {
   s: readonly [number, number, number];
   yaw: number;
   detail?: boolean;
+  visible?: boolean;
 }
 
 /** Each model's body (m; the light at the origin, on the emitting face): a hung model's top over the light, a bulkhead's back behind it. */
@@ -46,7 +47,7 @@ export type MountResult =
   | { id: number; model: FittingModel; base: MountBase; mount: number; yaw: number; strut: [number, number] | null }
   | { id: number; model: null; reason: string };
 
-const slabLike = (b: MountBox): boolean => !b.detail && Math.min(b.s[0], b.s[2]) >= 0.6 && b.s[1] <= 0.8;
+const slabLike = (b: MountBox): boolean => !b.detail && b.visible !== false && Math.min(b.s[0], b.s[2]) >= 0.6 && b.s[1] <= 0.8;
 
 /** Does the box's plan cover (x, z)? (Local frame: the inverse of the builder's yaw.) */
 function covers(b: MountBox, x: number, z: number): boolean {
@@ -76,7 +77,7 @@ export function ceilingOver(boxes: readonly MountBox[], x: number, y: number, z:
 export function floorUnder(boxes: readonly MountBox[], x: number, y: number, z: number, slabs = true): number {
   let f = 0;
   for (const b of boxes) {
-    if (b.detail || (slabs && !slabLike(b))) continue;
+    if (b.detail || b.visible === false || (slabs && !slabLike(b))) continue;
     const top = b.c[1] + b.s[1] / 2;
     if (top > y - 0.3 || top <= f || !covers(b, x, z)) continue;
     f = top;
@@ -88,7 +89,7 @@ export function floorUnder(boxes: readonly MountBox[], x: number, y: number, z: 
 export function wallNear(boxes: readonly MountBox[], x: number, y: number, z: number): { p: [number, number]; n: [number, number]; d: number } | null {
   let best: { p: [number, number]; n: [number, number]; d: number } | null = null;
   for (const b of boxes) {
-    if (b.detail) continue;
+    if (b.detail || b.visible === false) continue;
     const top = b.c[1] + b.s[1] / 2;
     const bot = b.c[1] - b.s[1] / 2;
     if (bot > y - 0.15 || top < y + 0.15 || b.s[1] < 0.6) continue;

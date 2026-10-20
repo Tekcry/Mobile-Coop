@@ -46,6 +46,11 @@ field (collision, the light bake, the noise model), never the render state.
   glare and shots read) do not change. `world/fixtureModels.ts` (pure) builds the meshes; `LightRig.buildFittings` draws
   a body (one shared PBR material) and an emissive face per model, thin-instanced, and every mount link as one box mesh.
   `tests/warehouseLamps.test.ts` pins every mount to its ceiling, wall or roof (3 cm).
+- Roof sheets (warehouse-lamps; `LevelBuilder.sheet`, `world/roofSheets.ts`): a translucent sheet is a collision-only
+  box (not in the light shapes) plus one see-through mesh that is not a shadow caster, so light passes it in the bake,
+  the meter, the guards and the picture alike. A dimmer pass-through needs a translucency rule in the bake (G45).
+- Map dressing as `detail` boxes (e.g. `world/maps/warehouseDress.ts`) is out of the light shapes (`canonicalLightShapes`
+  skips `detail` pieces); collision-only boxes (`visible: false`) are too. Neither changes the bake.
 
 ## Baked lamps (3.2)
 - `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
