@@ -22,6 +22,7 @@ import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
+import { keepSimInBackground } from './bgTicks';
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
@@ -166,6 +167,8 @@ export class CoopHost implements NetAttachment {
     );
     this.hookHud();
     this.hookCombat();
+    // (coop-fix, bug 1) a hidden host page (the joiner's window over it) keeps simulating and sending snapshots
+    this.offs.push(keepSimInBackground(g));
   }
 
   /** (G135) Every body's goggle colour from its player slot (host green, partner cyan): the partner beacon. */
@@ -193,6 +196,8 @@ export class CoopHost implements NetAttachment {
 
   private hookHud(): void {
     const hud = this.g.hud;
+    // (coop-fix, bug 2) an objective set before the hook (Free Roam's, `gameState.ts` create) reaches the client too
+    this.obj = hud.objectiveText;
     const setObjective = hud.setObjective.bind(hud);
     hud.setObjective = (t) => {
       this.obj = t;
