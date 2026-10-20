@@ -18,7 +18,22 @@
 - Leaving the studio puts the time scale back to 1x and resets every studio switch; gameplay never reads studio state.
   Detail: `docs/anim-studio/REPORT.md`.
 
-## Unreleased - tuner-camera
+## 4.24.0 - Crouched movement and the wall set reworked (anim-rework slices 4 and 5) (2026-10-21, PR #66)
+- Crouched movement (slice 4, `docs/anim-rework/S4-REPORT.md`; the real-world operator standard, BRIEF 3 "Stealth"):
+  - holstered crouched: the keyed sneak, crouch walk and crouch run as one continuous speed blend (no pop), the knees
+    and feet under the hips (knees 0.7 x the hip width, was 1.6; feet about 5 cm off the line, was 9-10), arms along the
+    body (elbows 2 cm out, was 17-18), the crouch run leaning forward (about 37 deg) and low without the knee dragging;
+  - the crouched idle when holstered is a deep balanced squat with each hand resting on top of its knee, palm down,
+    fingers forward (was a one-knee kneel with the hand upside down and off the knee), slow breathing (a 12 s cycle of
+    three breaths), a slow head scan; with a gun out she still kneels, its breathing slowed (a breath every 5 s);
+  - crouched with a gun out: the crouched legs under the low ready and aim; the crouched aimed strafe is the short
+    shuffle step (was a 35-44 cm wide crab with crossing feet);
+  - stand <-> crouch in every state blends on the 0.22 s stance curve with no snap (the old crouch run to standing
+    snapped the legs); standing up from a sneak re-steps the feet under the hips;
+  - new e2e-anim checks: the crouch and sneak gaits, crouched idle / start / stop / run / low ready walk / aimed idle /
+    aimed strafe, the knee hand, and a stand <-> crouch pop check; e2e-clip checks the arms against the legs crouched.
+
+## 4.23.0 - Tuner: camera and speed sliders, free view, freeze, full pad control, import, bypass, search (2026-10-21, PR #65)
 - Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
   I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
   rifle / pistol, back to wall, peek, climb / hang, vent / crawl, holding a guard) that follows the current state, with
@@ -46,6 +61,47 @@
   (every range doubled), typed values in each row, a bypass (R3 or Backquote held), and a slider search box.
 - Fix: the barrel marker turned half the screen grey. It is now drawn on a 2D overlay (no scene meshes, no per-frame
   Babylon allocation).
+
+## 4.22.0 - Sector Ops lamp fittings, translucent roof sheets, warehouse dressing (2026-10-21, PR #59)
+- Sector Ops Warehouse lamp fittings (Michael 2026-10-20: "The sector ops lights are not sitting properly on the
+  ceilings, some are even above ceilings or just floating"; quick, believable, three types, in code). Every lamp of the
+  three sections is now a fitting fixed to the structure: under a ceiling, a dome high-bay on a drop rod (halls) or a
+  fluorescent batten on two hangers (rooms, corridors, decks), a strut to the roof strip when it hangs under a skylight
+  gap; with no ceiling over it, a caged bulkhead on a bracket arm on the nearest wall (door lamps, signs, the yard
+  floods); on the roofs, a dome on a mast. 98 of 99 lamps mounted (S1 33 of 34, S2 23, S3 42); the one left keeps its
+  box (S1 yard (11.25, 2.45, -22.45), inside the container). `world/lampMount.ts` (pure) mounts them at level build.
+- The three models (`world/fixtureModels.ts`, pure): built from boxes and frustums, one body mesh and one glowing face
+  mesh per type, thin-instanced; one shared dark steel body material (PBR, lit by the lamp bake) and the bulbs'
+  emissive material for the faces (dark when the lamp is out or shot); every rod, hanger, arm, strut and mast is one
+  box mesh. 7 draws for all of them, built once at load. Other maps keep their glowing boxes.
+- No light moved: positions, radii, intensities and the fixture boxes the bake samples are as before, so the light
+  meter, guards and the bake read the same (the section light tests pass unchanged). A lamp's shot box is still its old
+  box (a batten's ends are not a target yet).
+- Test: `tests/warehouseLamps.test.ts` (each section: every fitting's mount ends within 3 cm of the ceiling underside,
+  wall face or roof under it, nothing cuts the fitting or its rod; the exception list; the models).
+- Roof sheets (Michael: the open sections are "usually a opaque type of corrugated plastic sheet that allow light in but
+  cant be passed through"): every open section of the hall roofs (the four skylight gaps across all three sections,
+  section 3's 2.95 m open strip at z -8.95 to -6 and the slit over section 2's south wall) is a pale see-through
+  corrugated sheet, solid (collision only; overhead, no ledges). It is not in the light bake and casts no shadow, so the
+  moon reaches the floor under it exactly as the bake, the meter and the guards have it (dimmer-than-sky light through
+  plastic needs a translucency rule in the bake, G45, not built). Section 1's roof hatch and smoke vent are routes (R2)
+  and stay open. `LevelBuilder.sheet`, `world/roofSheets.ts` (pure); one more draw.
+- Detail (Michael chose "Walls + ceiling + dead-space clutter"; `world/maps/warehouseDress.ts`, pure): along the hall
+  walls of all three sections pipe runs (256 m), cable trays (118 m), 16 signs, 12 fire points (extinguisher and
+  panel), 39 hazard stripe bands at doorways, a roller door on section 2's north wall; roof trusses on the frame lines
+  (81 panels; the top chord only over the high routes) and a duct in section 3; floor lanes and bay plates by the
+  racks. 15 floor items in dead space: pallet stacks, drum pairs and cartons in the halls, lockers and a desk in side
+  rooms. Every piece is a visual `detail` box drawn with the level's own box mesh (no new draw, out of the bake);
+  the floor items also get one collision-only box (no cover face, no ledge). Each kind is skipped where it would cut a
+  solid piece, a traversal anchor, a door, switch or device, a lamp or its mount, or where it would hang under 1.8 m
+  over a walkable top (rack tops, decks, roofs); floor items stand 1.5 m clear of every section route, 2 m clear of
+  every guard patrol and post, and off every sightline a guard has today to a route within 20 m. Not placed: the
+  second roller door (section 3's east wall), the forklift (no dead space fits one) and boxes on the racking shelves
+  (the racking's voxel art already holds loads at the voxel presets).
+- Test: `tests/warehouseDress.test.ts` (the roofs closed but for the route openings, the sheets solid; the light shapes
+  the same as without the dressing; no piece cuts a solid one, 1.8 m headroom; floor items clear of routes and
+  patrols, on the floor, with collision).
+
 ## 4.21.1 - e2e-pad steps over the tuner item; steadier heap test (2026-10-21, PR #64)
 - e2e-pad's pause menu walk steps over "Animation tuner (dev)" (added before Quit by the anim-tuner job); "focus Quit"
   failed every run, hidden by KNOWN FLAKY. analogGear "allocates nothing per update" warms up and takes the smallest of
