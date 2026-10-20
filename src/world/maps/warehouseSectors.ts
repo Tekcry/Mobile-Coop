@@ -10,7 +10,7 @@ import type { LaserDef } from '../../game/jammer';
  * M8 (Michael: "room to maneuver and take them out silently away from others"): every guard holds its own pocket
  * (an aisle half, a room, a lane behind the trailer) and has a `takedownSpot` that no other guard's post or route sees
  * within 15 m at eye height (Vitest `sectors.test.ts` traces it through the level's pieces). Room comes before the
- * count (A13): 10, 10 and 11 guards. Every section has three routes to its objective and on to its exit.
+ * count (A13): 8, 8 and 9 guards. Every section has three routes to its objective and on to its exit.
  */
 export const WAREHOUSE_SECTORS: SectorDef[] = [
   {
@@ -75,9 +75,10 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
   },
   {
     id: 'racking',
-    name: 'Racking aisles',
+    name: 'Storage hall',
     start: { x: -14.5, y: 0, z: -7.2, yaw: 0 },
-    objective: { kind: 'grab', label: 'Take the case at the far aisle', x: -22.8, y: 0, z: 14.5, yaw: 0 },
+    // the high-value cage (SPEC 2.2): the case on the shelving by the west wall; the e2e stand point (x + 0.9) is free floor
+    objective: { kind: 'grab', label: 'Take the case from the cage', x: -23.0, y: 0, z: 15.0, yaw: -Math.PI / 2 },
     connector: {
       label: 'Into the office',
       box: [-3.6, 12.4, 1.6, 17.6],
@@ -86,85 +87,103 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       sealUnlocks: [[2, 16.05]],
       checkpoint: { x: -1.2, y: 0, z: 14.8, yaw: Math.PI },
     },
+    // (BUILD-S2.md 8.3: the checker, driver, stocktaker and tour guard waits, the stocktaker's south end and the tour guard's lane point are the M8 ladder's adjustments; docs/warehouse-s23/step-s2-report.md)
     guards: [
-      // the west aisle either side of its chicane (the case is at its north end)
-      { kind: 'grunt', x: -22.2, z: -1.8, yaw: Math.PI, route: [[-22.2, -1.8], [-22.2, -3.2]], wait: 4, takedownSpot: [-22, -3] },
-      { kind: 'grunt', x: -21.6, z: 3, yaw: 0, route: [[-21.6, 3], [-21.6, 9], [-22, 13]], wait: 3, takedownSpot: [-22, 13] },
-      // the dead-end aisle halves either side of the loads parked in the cross aisle
-      { kind: 'grunt', x: -18.5, z: 3, yaw: Math.PI, route: [[-18.5, 3], [-18.5, -3.5]], wait: 3, takedownSpot: [-18.5, -3.5] },
-      { kind: 'runner', x: -18.5, z: 7.2, yaw: 0, route: [[-18.5, 7.2], [-18.5, 15.5]], wait: 3, takedownSpot: [-18.5, 7.5] },
-      { kind: 'grunt', x: -14.5, z: 10.5, yaw: Math.PI, route: [[-14.5, 10.5], [-14.5, 7]], wait: 4, takedownSpot: [-14.5, 7] },
-      { kind: 'grunt', x: -10.5, z: 3, yaw: Math.PI, route: [[-10.5, 3], [-10.5, -3.5]], wait: 3, takedownSpot: [-10.5, -3.5] },
-      { kind: 'enforcer', x: -10.5, z: 7.2, yaw: 0, route: [[-10.5, 7.2], [-10.5, 15.5]], wait: 3, takedownSpot: [-10.5, 7.5] },
-      // the east aisle either side of its stack, and the north aisle
-      { kind: 'grunt', x: -6.4, z: -3.2, yaw: 0, route: [[-6.4, -3.2], [-6.4, 3.6]], wait: 3, takedownSpot: [-6.5, -3] },
-      { kind: 'heavy', x: -6.2, z: 11, yaw: 0, route: [[-6.2, 11], [-6.2, 16.6]], wait: 4, takedownSpot: [-6, 11] },
-      { kind: 'officer', x: -14.5, z: 17.3, yaw: Math.PI, takedownSpot: [-14.5, 16.5] },
+      // 1 the checker (team leader): the staged delivery against the put-away list, along the marshalling lane
+      { kind: 'enforcer', x: -21.6, z: -5.0, yaw: 0, route: [[-21.6, -5.0], [-9.6, -5.0]], wait: 5, waits: [8, 2], faces: [0, 0], takedownSpot: [-21.6, -5.0] },
+      // 2 the reach driver: puts the staged pallets away into A3's north locations
+      { kind: 'grunt', x: -11.6, z: 10.5, yaw: Math.PI / 2, route: [[-11.6, 10.5], [-11.6, -4.2]], wait: 5, waits: [8, 7], faces: [Math.PI / 2, Math.PI / 2], takedownSpot: [-11.6, 10.5] },
+      // 3 the stocktaker: cycle count of W0 and R1 bays from A1
+      { kind: 'officer', x: -21.4, z: 2.0, yaw: -Math.PI / 2, route: [[-21.4, 2.0], [-21.4, 11.0]], wait: 5, waits: [2, 8], faces: [-Math.PI / 2, Math.PI / 2], takedownSpot: [-21.4, 11.0] },
+      // 4 the cage officer: keyholder, issues high-value stock at the east gate (static)
+      { kind: 'officer', x: -17.0, z: 16.8, yaw: -Math.PI / 2, takedownSpot: [-17.0, 16.8] },
+      // 5 the picker: the 06:00 trade orders from R3's east face to the goods-out corner
+      { kind: 'grunt', x: -7.4, z: 14.6, yaw: Math.PI, route: [[-7.4, 14.6], [-7.4, 0.5]], wait: 4, waits: [4, 4], faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [-7.4, 0.5] },
+      // 6 the tour guard (a loop): clocks the west fire exit and the C2 lobby door, checks the VNA barrier; paused at (-14.6, 5.5) facing A2
+      { kind: 'runner', x: -23.2, z: 5.5, yaw: -Math.PI / 2, route: [[-23.2, 5.5], [-12.6, 5.5], [-12.6, -3.2], [-12.6, 5.5], [-14.6, 5.5]], wait: 4, waits: [4, 0, 2, 0, 7], faces: [-Math.PI / 2, 0, -2.4, 0, -Math.PI / 2], takedownSpot: [-14.6, 5.5] },
+      // 7 the charge hand: night battery change for the reach and picking trucks (static)
+      { kind: 'grunt', x: -5.3, z: -5.2, yaw: Math.PI / 2, takedownSpot: [-5.3, -5.2] },
+      // 8 the loader: wraps and labels the picked orders for C3, facing the wrapper (static)
+      { kind: 'grunt', x: -6.0, z: 16.2, yaw: 0, takedownSpot: [-6.0, 16.2] },
     ],
-    reinforce: [[-22.6, -5], [-6.2, -5]],
+    // alarm reinforcements: the west fire exit and the charge bay
+    reinforce: [[-22.5, 5.5], [-6.2, -5.0]],
     perStage: 2,
     routes: [
       {
-        name: 'West aisle',
-        pts: [[-14.5, -7.2], [-14.5, -5.1], [-21.6, -5.1], [-21.6, -1], [-21.6, 0.7], [-23.4, 0.7], [-23.4, 3], [-21.6, 3.4], [-21.6, 7], [-22, 9], [-22, 14.5], [-22, 17.2], [-5.5, 17.2], [-4.8, 14.55], [-1, 15]],
+        // ground and shadow: behind the staged pallets, up A1, over the cage's south fence, out along the cross aisle and the north gangway
+        name: 'West behind the pallets, up A1 and over the cage fence',
+        pts: [[-14.5, -7.2], [-14.5, -5.4], [-22.1, -5.4], [-22.2, -3.6], [-22.4, 11.2], [-22.4, 12.7], [-22.1, 15.0], [-22.4, 12.7], [-22.4, 11.2], [-21.6, 5.5], [-12.0, 5.5], [-12.0, 15.5], [-5.2, 15.5], [-4.8, 14.55], [-1.0, 15.0]],
+        obj: 6,
+        climbs: [4, 7],
+      },
+      {
+        // high: the R2N ladder, the rack tops into the cage, out along the sprinkler mains
+        name: 'Rack tops into the cage, out along the sprinkler mains',
+        pts: [[-14.5, -7.2], [-14.5, -5.4], [-12.0, -5.4], [-12.0, 5.8], [-14.65, 6.3], [-14.65, 7.6, 4.0], [-14.9, 10.0, 4.0], [-18.3, 10.0, 4.0], [-18.75, 13.5, 4.0], [-20.4, 13.5], [-22.1, 15.0], [-22.6, 12.8], [-23.45, 12.7], [-23.45, 11.4, 4.0], [-23.45, 7.4, 4.0], [-23.45, 6.4, 5.0], [-6.2, 6.4, 5.0], [-6.0, 15.2, 5.0], [-6.0, 15.2], [-4.8, 14.55], [-1.0, 15.0]],
         obj: 10,
+        climbs: [4, 6, 8, 12, 13, 14, 15, 16, 17],
       },
       {
-        name: 'Centre aisle and the north aisle, out by the south and east aisles',
-        pts: [[-14.5, -7.2], [-14.5, -5.1], [-14.5, 8], [-13.6, 10.5], [-13.6, 12.5], [-15.4, 12.5], [-15.4, 17.2], [-21.8, 17.2], [-22, 14.5], [-21.8, 17.2], [-15.4, 17.2], [-15.4, 12.5], [-13.6, 12.5], [-13.6, 10.5], [-14.5, 5.2], [-14.5, -5.1], [-6.2, -5.1], [-4.8, 4], [-5, 11.8], [-6, 12.4], [-6, 14.55], [-4.8, 14.55], [-1, 15]],
-        obj: 8,
-      },
-      {
-        name: 'Over the racks',
-        pts: [[-14.5, -7.2], [-14.5, -5.1], [-20.5, -4.8], [-20.5, -3.6, 2.8], [-20.5, 4, 2.8], [-20.5, 6.5, 2.8], [-20.5, 16.2, 2.8], [-20.5, 17.2], [-22, 14.5], [-20.5, 17.2], [-20.5, 16.2, 2.8], [-20.5, 11, 2.8], [-16.5, 11, 2.8], [-12.5, 11, 2.8], [-8.5, 11, 2.8], [-8.5, 16.2, 2.8], [-8.5, 17.2], [-4.8, 14.55], [-1, 15]],
-        obj: 8,
-        climbs: [2, 4, 6, 9, 11, 12, 13, 15],
+        // service (VNA): up the VNA aisle, the A2 ladder over the beam, R1N's top, the hang-drop and in at the issue gate
+        name: 'Up the VNA aisle, over the beam and in at the issue gate',
+        pts: [[-14.5, -7.2], [-14.5, -5.4], [-16.7, -4.0], [-16.9, 13.4], [-18.2, 13.4, 4.0], [-18.75, 14.6, 4.0], [-18.75, 15.5], [-19.2, 16.5], [-20.6, 16.5], [-22.1, 15.0], [-20.6, 16.5], [-19.2, 16.5], [-17.0, 15.6], [-12.0, 15.5], [-5.2, 15.5], [-4.8, 14.55], [-1.0, 15.0]],
+        obj: 9,
+        climbs: [3, 5],
       },
     ],
   },
   {
     id: 'floor',
-    name: 'Factory floor',
+    name: 'Assembly hall and mezzanine',
     start: { x: -1.2, y: 0, z: 14.8, yaw: Math.PI },
-    objective: { kind: 'hack', label: 'Hack the terminal on the mezzanine', x: 14.6, y: 2.6, z: 17.6, yaw: Math.PI },
-    extract: { label: 'Extract by the freight lift', box: [21.4, -8.5, 23.7, -5.2] },
+    objective: { kind: 'hack', label: 'Hack the production terminal', x: 22.4, y: 3.3, z: 17.3, yaw: Math.PI / 2 },
+    extract: { label: 'Extract by the east fire exit', box: [21.4, -8.5, 23.7, -5.9] },
+    // Nine guards with jobs (BUILD-S3.md 6.1, SPEC 2.3), in this order so `?sectorGuards=4` takes the porter (the entry), the loader
+    // (the deck), the clerk (the objective) and the tour guard (the exit). Deck guards carry y 3.3.
     guards: [
-      // the stores cage and the plant room (the freight lift), the south bay between them
-      { kind: 'officer', x: 1.5, z: -7.5, yaw: -Math.PI / 2, route: [[1.5, -7.5], [0, -4]], wait: 4, takedownSpot: [1.5, -7.5] },
-      { kind: 'grunt', x: 22.8, z: -3, yaw: -Math.PI / 2, route: [[22.8, -3], [18.5, -3.5], [18.5, -5.5]], wait: 3, takedownSpot: [18.5, -5.5] },
-      { kind: 'grunt', x: 6, z: -7.5, yaw: Math.PI / 2, route: [[6, -7.5], [13, -7.5]], wait: 3, takedownSpot: [7.5, -8] },
-      // the west bays either side of the short wall, the east wall, the north strip
-      { kind: 'grunt', x: -2.5, z: -1.2, yaw: 0, route: [[-2.5, -1.2], [-2.5, 1.8], [0.5, 1.8]], wait: 3, takedownSpot: [-2.5, -1] },
-      { kind: 'runner', x: -2.5, z: 4.5, yaw: 0, route: [[-2.5, 4.5], [3, 6.5]], wait: 4, takedownSpot: [-3, 4.5] },
-      { kind: 'heavy', x: 23.1, z: 0.4, yaw: -Math.PI / 2, takedownSpot: [23, 0.5] },
-      { kind: 'grunt', x: 13.5, z: 10.3, yaw: Math.PI / 2, route: [[13.5, 10.3], [16.2, 10.3]], wait: 3, takedownSpot: [16, 10.5] },
-      // the deck: the west end, the terminal, the sniper over the stairs
-      { kind: 'grunt', x: 9.5, z: 13.5, y: 2.6, yaw: Math.PI / 2, route: [[9.5, 13.5], [12.3, 13.5]], wait: 3, takedownSpot: [12, 14] },
-      { kind: 'enforcer', x: 16.5, z: 16.3, y: 2.6, yaw: Math.PI, takedownSpot: [15.5, 17] },
-      { kind: 'sniper', x: 22.5, z: 16.5, y: 2.6, yaw: Math.PI, takedownSpot: [22.5, 16.5] },
-      // the manager's office
-      { kind: 'heavy', x: 6.2, z: 13.4, yaw: -1.6, takedownSpot: [6.5, 12.5] },
+      // 1 the kit porter: pallet-trucks finished kits from the packing end to C3
+      { kind: 'enforcer', x: 8.0, z: 9.7, yaw: Math.PI / 2, route: [[8.0, 9.7], [-1.5, 9.8]], wait: 5, waits: [5, 5], faces: [Math.PI / 2, 0], takedownSpot: [-1.5, 9.8] },
+      // 2 the deck loader: lifts kit parts in at the pallet gate and stages them on the deck
+      { kind: 'grunt', x: 13.5, z: 13.2, y: 3.3, yaw: Math.PI, route: [[13.5, 13.2], [3.0, 13.2]], wait: 5, waits: [5, 4], faces: [Math.PI, 0], takedownSpot: [3.0, 13.2] },
+      // 3 the clerk: writes up the shift's job cards at his desk on the production office's north wall (static)
+      { kind: 'officer', x: 18.6, z: 17.1, y: 3.3, yaw: 0, takedownSpot: [18.6, 17.1] },
+      // 4 the tour guard (a loop): the stair foot, down the plant room's west side, clocks the east fire exit
+      { kind: 'runner', x: 21.5, z: 4.4, yaw: 0, route: [[21.5, 4.4], [14.9, 0.0], [15.0, -6.3], [23.0, -7.9], [15.0, -6.3], [14.9, 0.0]], wait: 4, waits: [4, 0, 0, 5, 0, 0], faces: [0, Math.PI, Math.PI / 2, Math.PI / 2, -Math.PI / 2, Math.PI / 2], takedownSpot: [23.0, -7.9] },
+      // 5 the line supervisor: checks the CNC cell, pulls parts from the store for the next kit
+      { kind: 'officer', x: 12.5, z: 4.9, yaw: Math.PI, route: [[12.5, 4.9], [17.0, 12.8], [15.6, 14.9], [12.0, 15.0], [15.6, 14.9], [17.0, 12.8]], wait: 5, waits: [5, 0, 0, 4, 0, 0], faces: [Math.PI, 0, -Math.PI / 2, -Math.PI / 2, Math.PI / 2, Math.PI], takedownSpot: [12.0, 15.0] },
+      // 6 the fitter: runs the press (static); the press and its three screens hide him
+      { kind: 'grunt', x: 7.6, z: 1.0, yaw: -Math.PI / 2, takedownSpot: [7.6, 1.0] },
+      // 7 the crane operator: moves dies from the die rack to the press with the pendant
+      { kind: 'grunt', x: 8.0, z: -6.8, yaw: 0, route: [[8.0, -6.8], [14.0, -6.8]], wait: 7, waits: [7, 7], faces: [0, Math.PI], takedownSpot: [8.0, -6.8] },
+      // 8 the stores officer: issues parts at the cage counter, restocks the back shelves
+      { kind: 'officer', x: 4.7, z: -5.0, yaw: 0, route: [[4.7, -5.0], [0.6, -7.6]], wait: 8, waits: [8, 8], faces: [0, Math.PI], takedownSpot: [0.6, -7.6] },
+      // 9 the plant engineer: the hourly plant check, the AHU panel, both doors, the valve set
+      { kind: 'grunt', x: 19.4, z: -3.0, yaw: Math.PI, route: [[19.4, -3.0], [20.0, 0.6], [14.9, 0.6], [15.0, -3.3]], wait: 6, waits: [6, 2, 2, 2], faces: [Math.PI, 0, -Math.PI / 2, Math.PI / 2], takedownSpot: [19.4, -3.0] },
     ],
-    reinforce: [[-2.5, 10.5], [22.5, 6.5], [13, -7.5]],
+    reinforce: [[-2.5, 10.5], [20.8, 6.5], [13, -7.0]],
     perStage: 3,
     routes: [
       {
-        name: 'Floor and the stairs, down the zipline',
-        pts: [[-1.2, 14.8], [-0.95, 12.6], [-0.95, 11], [3, 10.2], [8.5, 11.6], [10.4, 11.6], [10.4, 10.2], [13, 9.8], [18, 8.6], [21.2, 5.5], [21.2, 12.5, 2.6], [19.2, 13.2, 2.6], [16, 13.2, 2.6], [14.8, 16.7, 2.6], [14.2, 14.1, 2.6], [12.3, 14.1, 2.6], [12, 12.9, 2.6], [12, 1.4], [11.5, -4], [15, -7.95], [16.5, -7.95], [19.5, -8.3], [21.5, -8.3], [22.5, -6.8]],
+        // ground and ledge: along the packing line, up the forklift to the deck, along the deck lip, out over the east bay
+        name: 'Along the packing line, the forklift and the deck lip, out over the east bay',
+        pts: [[-1.2, 14.8], [-0.95, 12.6], [-0.95, 11.2], [-1.6, 7.6], [9.6, 7.6], [10.4, 12.6], [12.4, 10.8], [13.5, 10.8, 2.2], [13.6, 12.3, 3.3], [16.6, 12.4, 3.3], [17.0, 13.8, 3.3], [17.0, 15.3, 3.3], [22.9, 15.6, 3.3], [23.3, 17.3, 3.3], [22.9, 15.6, 3.3], [17.0, 15.3, 3.3], [17.0, 13.8, 3.3], [20.0, 12.3, 3.3], [20.0, 11.2], [18.6, 4.0], [14.9, -0.3], [14.9, -6.3], [17.8, -6.6], [22.5, -7.2]],
         obj: 13,
-        climbs: [16],
+        climbs: [6, 7, 8, 17],
       },
       {
-        name: 'Ladder to the deck, out along the pipe',
-        pts: [[-1.2, 14.8], [-0.95, 12.6], [-0.95, 11], [3, 10.2], [8.9, 11.4], [8.9, 12.7, 2.6], [11, 14.1, 2.6], [14.5, 14.1, 2.6], [14.8, 16.7, 2.6], [16.2, 13, 2.6], [17, 13.2, 2.6], [17, -0.2], [12, -0.8], [11.5, -4], [15, -7.95], [16.5, -7.95], [19.5, -8.3], [21.5, -8.3], [22.5, -6.8]],
-        obj: 8,
-        climbs: [4, 10],
+        // high: the west strip, the crane walkway and the roofs, along the main to the window
+        name: 'The west strip, the crane walkway and the roofs, along the main to the window',
+        pts: [[-1.2, 14.8], [-0.95, 12.6], [-0.95, 11.2], [-3.0, 9.0], [-3.0, -6.6], [-3.4, -6.9], [-3.2, -8.0, 3.0], [4.0, -8.0, 3.0], [12.0, -8.0, 3.0], [16.6, -6.6, 3.2], [17.0, -2.1, 3.8], [17.0, -2.1, 5.8], [17.0, -0.5, 5.0], [17.0, 12.4, 5.0], [17.0, 12.4, 3.3], [19.6, 13.9, 3.3], [19.6, 15.2, 3.3], [22.9, 15.6, 3.3], [23.3, 17.3, 3.3], [22.9, 15.6, 3.3], [19.6, 15.2, 3.3], [19.6, 13.9, 3.3], [17.0, 12.4, 3.3], [17.0, 12.4, 5.0], [17.0, -0.5, 5.0], [17.0, -1.6, 5.8], [17.0, -2.1, 3.8], [16.6, -6.6, 3.2], [21.7, -7.2, 3.2], [22.5, -7.2]],
+        obj: 18,
+        climbs: [5, 9, 10, 11, 12, 13, 15, 20, 22, 23, 24, 25, 26, 28],
       },
       {
-        name: "Manager's office and the crates, down the stairs",
-        pts: [[-1.2, 14.8], [1, 16.05], [3, 16.05], [3.2, 14.3], [5.15, 13], [5.15, 11], [8, 11.5], [10.4, 11.6], [10.4, 10.2], [12, 9.9], [12, 11.2, 1.4], [12, 12.7, 2.6], [12, 14.1, 2.6], [14.5, 14.1, 2.6], [14.8, 16.7, 2.6], [16, 13.2, 2.6], [19.2, 13.2, 2.6], [21.2, 12.5, 2.6], [21.2, 5.5], [22, 3], [19.3, 2.2], [17.5, -0.8], [12, -0.8], [11.5, -4], [15, -7.95], [16.5, -7.95], [19.5, -8.3], [21.5, -8.3], [22.5, -6.8]],
+        // service (duct): the manager's office, past the press, the plant room and the supply duct
+        name: "The manager's office, past the press, the plant room and the supply duct",
+        pts: [[-1.2, 14.8], [1.0, 16.05], [3.0, 16.05], [3.2, 13.0], [5.15, 12.6], [5.15, 11.2], [9.6, 10.4], [9.8, 4.0], [10.0, -4.6], [14.9, -4.2], [15.2, -3.3], [16.9, -3.3], [22.4, -1.8], [23.65, 15.42, 3.3], [23.3, 17.3, 3.3], [23.65, 15.3, 3.3], [22.4, -1.8], [16.9, -3.3], [15.2, -3.3], [14.9, -6.3], [17.8, -6.6], [22.5, -7.2]],
         obj: 14,
-        climbs: [9, 10],
+        climbs: [12, 15],
       },
     ],
   },
@@ -172,31 +191,31 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
 
 /** The cameras, by section (`section`: live only while that section is). */
 export const WAREHOUSE_OPS_SECURITY: SecurityData = {
-  levels: { ground: 0, mezz: 2.6 },
+  levels: { ground: 0, mezz: 3.3 },
   devices: [
     { id: 'cam-yard', kind: 'camera', level: 'ground', at: [-8.4, -18.35], y: 3.5, facing: 180, sweep: [140, 220], reason: 'Section 1: the entrance and the shutters from the facade', section: 0 },
     { id: 'cam-bay', kind: 'camera', level: 'ground', at: [-23.6, -9.4], y: 2.8, facing: 135, sweep: [110, 165], reason: 'Section 1: the west lane and the crawl landing in the bay', section: 0 },
-    { id: 'cam-rack-sw', kind: 'camera', level: 'ground', at: [-23.6, -5.6], y: 2.6, facing: 20, sweep: [0, 45], reason: 'Section 2: up the west aisle', section: 1 },
-    { id: 'cam-rack-ne', kind: 'camera', level: 'ground', at: [-4.4, 17.6], y: 2.6, facing: 225, sweep: [195, 255], reason: 'Section 2: the north aisle and the office door', section: 1 },
-    { id: 'cam-floor', kind: 'camera', level: 'ground', at: [10, -8.45], y: 2.6, facing: 0, sweep: [-40, 40], reason: 'Section 3: the south bay', section: 2 },
-    { id: 'cam-stairs', kind: 'camera', level: 'ground', at: [23.6, 11.6], y: 2.6, facing: 225, sweep: [200, 250], reason: 'Section 3: the stairs and the north strip', section: 2 },
-    { id: 'cam-mezz', kind: 'camera', level: 'mezz', at: [8.6, 17.6], y: 2.4, facing: 120, sweep: [95, 150], reason: 'Section 3: the mezzanine deck', section: 2 },
+    { id: 'cam-rack-sw', kind: 'camera', level: 'ground', at: [-23.6, -5.6], y: 2.8, facing: 15, sweep: [0, 40], reason: 'Section 2: up the west aisle', section: 1 },
+    { id: 'cam-rack-ne', kind: 'camera', level: 'ground', at: [-4.4, 17.6], y: 2.8, facing: 255, sweep: [235, 285], reason: 'Section 2: the north gangway to the office door', section: 1 },
+    { id: 'cam-floor', kind: 'camera', level: 'ground', at: [23.6, 1.2], y: 3.5, facing: 260, sweep: [230, 290], reason: 'Section 3: the east bay and the plant room doors', section: 2 },
+    { id: 'cam-stairs', kind: 'camera', level: 'ground', at: [23.6, 11.6], y: 2.6, facing: 225, sweep: [200, 250], reason: 'Section 3: the stair and the parts store front', section: 2 },
+    { id: 'cam-mezz', kind: 'camera', level: 'mezz', at: [-3.6, 17.6], y: 2.4, facing: 100, sweep: [80, 120], reason: 'Section 3: along the mezzanine deck from its west end', section: 2 },
   ],
 };
 
-/** The laser bands, by section: the workshop and the plant deck (1), the north aisle (2), the deck's stair and west approaches (3). */
+/** The laser bands, by section: the workshop and the plant deck (1), the VNA aisle (2), the deck's stair head and the line across its west half (3). */
 export const WAREHOUSE_OPS_LASERS: LaserDef[] = [
   { id: 'laser-workshop', x1: 9.8, z1: -17.7, x2: 9.8, z2: -9.1, ys: [0.35, 0.9, 1.45], label: 'Workshop laser', section: 0 },
   { id: 'laser-deck', x1: -1.0, z1: -17.7, x2: -1.0, z2: -13.95, ys: [0.35, 0.9, 1.45], floorY: 3.3, label: 'Plant deck laser', section: 0 },
-  { id: 'laser-north-aisle', x1: -12.5, z1: 16.7, x2: -12.5, z2: 17.85, ys: [0.35, 0.9, 1.45], label: 'Aisle laser', section: 1 },
-  { id: 'laser-deck-stairs', x1: 20.1, z1: 12.5, x2: 22.3, z2: 12.5, ys: [0.35, 0.9, 1.45], floorY: 2.6, label: 'Deck laser', section: 2 },
-  { id: 'laser-deck-west', x1: 8.2, z1: 12.6, x2: 12.7, z2: 12.6, ys: [0.35, 0.9, 1.45], floorY: 2.6, label: 'Deck laser', section: 2 },
+  { id: 'laser-north-aisle', x1: -17.55, z1: 14.8, x2: -15.85, z2: 14.8, ys: [0.35, 0.9, 1.45], label: 'VNA aisle sensor', section: 1 },
+  { id: 'laser-deck-stairs', x1: 22.1, z1: 12.3, x2: 23.3, z2: 12.3, ys: [0.35, 0.9, 1.45], floorY: 3.3, label: 'Stair head laser', section: 2 },
+  { id: 'laser-deck-west', x1: 15.5, z1: 12.05, x2: 15.5, z2: 17.85, ys: [0.35, 0.9, 1.45], floorY: 3.3, label: 'Deck laser', section: 2 },
 ];
 
 /**
  * The alarm panels, by section (fix round, checker item 1): a guard can raise only the live section's panel (the others
  * are off). Sections 1 and 3 keep the Warehouse's two panels on the x -4 wall (the dock side, the floor side); section 2
- * gets a placeholder panel on the same wall's racking side, at the east aisle's south half. `at` [x, z], `yaw` faces
+ * gets a panel on the same wall's storage-hall side, at the east gangway's south half. `at` [x, z], `yaw` faces
  * out of the wall into the section.
  */
 export const WAREHOUSE_OPS_ALARMS: { at: [number, number]; yaw: number; section: number }[] = [
@@ -205,9 +224,3 @@ export const WAREHOUSE_OPS_ALARMS: { at: [number, number]; yaw: number; section:
   { at: [-3.85, 6], yaw: Math.PI / 2, section: 2 },
 ];
 
-/** Section 3's brighter light: three more lamp strips lit over the mezzanine and the floor's north strip. */
-export const WAREHOUSE_OPS_LAMPS: [number, number][] = [
-  [9, 15],
-  [18, 9],
-  [0, 9],
-];
