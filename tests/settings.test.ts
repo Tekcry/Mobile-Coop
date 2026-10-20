@@ -1,7 +1,7 @@
 // (locomotion step 18, D7 / A3) remap and hold / toggle options persist in Settings (IndexedDB kv/settings), no save bump
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { defaultSettings, sanitizeSettings, SettingsStore } from '../src/core/settings';
+import { controlsMigrationNotes, defaultSettings, sanitizeSettings, SettingsStore } from '../src/core/settings';
 import { defaultPadBinds } from '../src/input/padBinds';
 import { dbGet, dbPut, resetDbCache } from '../src/save/db';
 import { PAD } from '../src/input/gamepadMapping';
@@ -24,7 +24,8 @@ describe('settings: remap and hold / toggle (step 18)', () => {
     expect(s.pad).toEqual(defaultPadBinds());
     expect(s.gameplay.grabToggle).toBe(true);
     expect(s.gameplay.wallToggle).toBe(false);
-    expect(s.gameplay.adsToggle).toBe(true);
+    // (anim-rework S1, Michael 15:25 on the aim toggle: "Remove it") the stored Aim choice is dropped: LT is always held
+    expect('adsToggle' in s.gameplay).toBe(false);
     expect(s.gameplay.sprintHold).toBe(true);
     expect(s.gameplay.crouchToggle).toBe(false);
     expect(s.keys.reload).toEqual(['KeyT']);
@@ -132,7 +133,9 @@ describe('settings: an old record with a touch section (touch input removed)', (
     expect(s.gamepad).toMatchObject({ lookSensitivityX: 1.4, lookSensitivityY: 1.1, deadzoneLeft: 0.2, invertY: true, aimAssist: 'low', vibration: false });
     expect(s.mouse).toMatchObject({ sensitivity: 1.7, invertY: true });
     expect(s.audio).toMatchObject({ master: 0.6, sfx: 0.9, music: 0.25, ui: 0.7 });
-    expect(s.gameplay).toMatchObject({ defaultShoulder: 'left', adsToggle: true, wallToggle: false, grabToggle: false, rumble: 0.5 });
+    // (anim-rework S1, Michael 15:25) no aim toggle: the stored adsToggle is dropped
+    expect(s.gameplay).toMatchObject({ defaultShoulder: 'left', wallToggle: false, grabToggle: false, rumble: 0.5 });
+    expect('adsToggle' in s.gameplay).toBe(false);
   });
 
   it('drops the phone-only video fields and keeps the desktop video values', () => {
@@ -160,22 +163,73 @@ describe('settings: the A3 D-pad layout (F7, playtest 2 "D pad left and right is
     pad: { interact: [0], crouch: [1], jump: [3], reload: [2], wall: [10], coop: [5], quick: [4], shoulder: [11], vision: [12], throwCam: [13], gearDown: [14], gearUp: [15], device: [8], pause: [9] },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1 },
   };
-  it('moves the speed to D-pad up / down, vision to left and the gadget to right; padV 2', () => {
+  it('moves vision to left and the gadget to right (the speed verbs are gone since padV 3); padV 3', () => {
     const s = sanitizeSettings(structuredClone(A3_SAVE));
-    expect(s.pad.gearUp).toEqual([PAD.UP]);
-    expect(s.pad.gearDown).toEqual([PAD.DOWN]);
+    expect(s.pad).not.toHaveProperty('gearUp');
+    expect(s.pad).not.toHaveProperty('gearDown');
     expect(s.pad.vision).toEqual([PAD.LEFT]);
     expect(s.pad.throwCam).toEqual([PAD.RIGHT]);
     expect(s.pad.crouch).toEqual([PAD.B]);
-    expect(s.padV).toBe(2);
+    expect(s.padV).toBe(3);
   });
-  it('keeps a verb the player remapped, and never migrates a padV 2 save again', () => {
-    const custom = sanitizeSettings({ ...structuredClone(A3_SAVE), pad: { ...A3_SAVE.pad, gearUp: [PAD.RB] } });
-    expect(custom.pad.gearUp).toEqual([PAD.RB]);
-    expect(custom.pad.gearDown).toEqual([PAD.DOWN]);
+  it('keeps a verb the player remapped, and never migrates the D-pad of a padV 2 save again', () => {
+    const custom = sanitizeSettings({ ...structuredClone(A3_SAVE), pad: { ...A3_SAVE.pad, vision: [PAD.RB] } });
+    expect(custom.pad.vision).toEqual([PAD.RB]);
+    expect(custom.pad.throwCam).toEqual([PAD.RIGHT]);
     const chosen = sanitizeSettings({ ...structuredClone(A3_SAVE), padV: 2 });
-    expect(chosen.pad.gearDown).toEqual([PAD.LEFT]);
-    expect(chosen.pad.gearUp).toEqual([PAD.RIGHT]);
+    expect(chosen.pad.vision).toEqual([PAD.UP]);
+    expect(chosen.pad.throwCam).toEqual([PAD.DOWN]);
+  });
+});
+
+// (anim-rework S1, BRIEF section 1: "the settings migration (old saves with speed gears or the old LT / X layout move to
+// the new defaults)") pad layout 3 and key layout 1
+describe('settings: the analogue speed and weapon state layout (anim-rework S1, padV 3, keysV 1)', () => {
+  /** Settings as a 4.13 build stored them: padV 2, no keysV, the speed rocker on D-pad up / down, the = / - gear keys,
+   *  back to wall on Left Shift, the (unused) Aim row on Toggle. */
+  const OLD_413 = {
+    pad: { interact: [0], crouch: [1], jump: [3], draw: [2], wall: [10], coop: [5], quick: [4], zoom: [11], vision: [14], throwCam: [15], gearDown: [13], gearUp: [12], device: [8], pause: [9] },
+    padV: 2,
+    keys: { forward: ['KeyW'], back: ['KeyS'], left: ['KeyA'], right: ['KeyD'], wall: ['ShiftLeft'], crouch: ['KeyC', 'ControlLeft'], speedUp: ['Equal'], speedDown: ['Minus'], jump: ['Space'], interact: ['KeyE'], reload: ['KeyR'], draw: ['KeyX'], knockout: ['KeyZ'] },
+    camV: 1,
+    gameplay: { defaultShoulder: 'right', adsToggle: true, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1 },
+  };
+  it('drops the speed verbs and keys, keeps X and LT, moves back to wall to Caps Lock, Aim back to hold', () => {
+    const s = sanitizeSettings(structuredClone(OLD_413));
+    expect(s.padV).toBe(3);
+    expect(s.keysV).toBe(1);
+    expect(s.pad).not.toHaveProperty('gearUp');
+    expect(s.pad.draw).toEqual([PAD.X]);
+    expect(s.pad.vision).toEqual([PAD.LEFT]);
+    expect(s.keys).not.toHaveProperty('speedUp');
+    expect(s.keys).not.toHaveProperty('speedDown');
+    expect(s.keys.wall).toEqual(['CapsLock']);
+    expect(s.keys.run).toEqual(['ShiftLeft']);
+    expect(s.keys.creep).toEqual(['AltLeft']);
+    expect(s.keys.draw).toEqual(['KeyX']);
+    expect('adsToggle' in s.gameplay).toBe(false);
+    // a current save is never moved again: a wall key on Left Shift stays (a conflict); a stored aim toggle is dropped
+    // whatever the version (Michael 15:25: the toggle is removed, LT is always held)
+    const now = sanitizeSettings({ ...structuredClone(OLD_413), padV: 3, keysV: 1 });
+    expect('adsToggle' in now.gameplay).toBe(false);
+    expect(now.keys.wall).toEqual(['ShiftLeft']);
+  });
+  it('keeps a remapped binding and reports the ones that now collide', () => {
+    const raw = { ...structuredClone(OLD_413), keys: { ...OLD_413.keys, wall: ['KeyH'], crouch: ['AltLeft'] }, pad: { ...OLD_413.pad, coop: [PAD.LT] } };
+    const s = sanitizeSettings(structuredClone(raw));
+    expect(s.keys.wall).toEqual(['KeyH']);
+    expect(s.keys.crouch).toEqual(['AltLeft']);
+    const notes = controlsMigrationNotes(raw, s);
+    expect(notes[0]).toMatch(/left stick sets the speed/);
+    expect(notes).toContain('Keyboard: Creep (hold) and Crouch share Alt.');
+    expect(notes.some((n) => /Controller: Co-op action .* and Aim share LT/.test(n))).toBe(true);
+    // the plain old layout: what moved, no clash
+    const plain = controlsMigrationNotes(OLD_413, sanitizeSettings(structuredClone(OLD_413)));
+    expect(plain).toHaveLength(2);
+    expect(plain[1]).toMatch(/Caps Lock/);
+    // a fresh profile or a current save: nothing to say
+    expect(controlsMigrationNotes(undefined, defaultSettings())).toEqual([]);
+    expect(controlsMigrationNotes(defaultSettings(), defaultSettings())).toEqual([]);
   });
 });
 

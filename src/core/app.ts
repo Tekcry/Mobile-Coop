@@ -7,7 +7,7 @@ import { InputManager } from '../input/inputManager';
 import { FocusNav } from '../ui/focusNav';
 import { ScreenManager } from '../ui/screen';
 import { Toasts } from '../ui/toast';
-import { DebugOverlay } from '../ui/debugOverlay';
+import { DebugOverlay, type CrabPlayer } from '../ui/debugOverlay';
 import { dbGet, dbPut } from '../save/db';
 import { SaveManager } from '../save/saveManager';
 import { h } from '../ui/dom';
@@ -26,7 +26,7 @@ import type { CrashLog } from '../feedback/crashLog';
 import { classifyGpu, hudInset, uiScale, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
 import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
-import { setAuto } from './settings';
+import { controlsMigrationNotes, setAuto } from './settings';
 import { flags } from './flags';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
@@ -89,6 +89,8 @@ export class App {
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
     this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
     this.debug.pacing = () => this.quality.pacing();
+    // (anim-metrics-2) the anti-crab readout measures the local player of a match (none in the menus)
+    this.debug.crabPlayer = () => (this.state as { player?: CrabPlayer } | null)?.player ?? null;
     this.debug.extra.set('governor', () => {
       const g = this.quality.governor;
       return this.quality.adaptiveOn ? `governor L${g.level}${g.thermal ? ' THERMAL' : ''}` : 'governor off';
@@ -156,8 +158,8 @@ export class App {
     keyLabels.reload = bindLabel(k, 'reload');
     keyLabels.draw = bindLabel(k, 'draw');
     keyLabels.wheel = bindLabel(k, 'wheel');
-    keyLabels.speedUp = bindLabel(k, 'speedUp');
-    keyLabels.speedDown = bindLabel(k, 'speedDown');
+    keyLabels.run = bindLabel(k, 'run');
+    keyLabels.creep = bindLabel(k, 'creep');
     keyLabels.coop = bindLabel(k, 'coop');
     // (locomotion step 18) pad prompts follow the pad bindings
     const p = this.settings.get().pad;
@@ -297,7 +299,15 @@ export class App {
 
   async loadSettings(): Promise<void> {
     try {
-      this.settings.load(await dbGet('kv', 'settings'));
+      const raw = await dbGet('kv', 'settings');
+      this.settings.load(raw);
+      // (anim-rework S1) an older save moved to the new controls: say what moved and what now clashes, once (the
+      // migrated settings are saved, so the next boot is quiet)
+      const notes = controlsMigrationNotes(raw, this.settings.get());
+      if (notes.length) {
+        this.settings.update(() => {});
+        this.toasts.show(notes.join(' '), notes.length > 1 ? 'warn' : 'ok', 6000);
+      }
     } catch (e) {
       console.warn('settings load failed, using defaults', e);
       this.settings.load(undefined);

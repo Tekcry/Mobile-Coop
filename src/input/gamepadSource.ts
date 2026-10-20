@@ -28,8 +28,6 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  /** (F1a) A while drawn: reload (edge memory). */
-  private aWas = false;
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
   private lastTimestamps = new Map<number, number>();
@@ -132,21 +130,16 @@ export class GamepadSource {
 
     if (frame.active) this.events.onActive();
 
-    // (F1a, CT) the weapon drawn (the aiming mode): A reloads instead of interacting, LT is the secondary fire (a stub:
-    // it is the held pistol jammer, `altFire` read by `CtDevices`, B3); holstered, LT is the knockout (read by the strike)
-    const drawn = this.adsActive;
-    const aNow = frame.buttons.interact === true;
-    if (drawn && aNow && !this.aWas) this.state.tap('reload');
-    this.aWas = aNow;
+    // (anim-rework S1; Michael 2026-10-20 14:55 "Interact always") A interacts in every weapon state (no reload on A:
+    // the reload is X held). LT is the held aim (`ads`); X's tap / hold is read by the player (`Player.stance`)
     for (const a of [
-      'fire', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
-      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown', 'altFire',
+      'fire', 'ads', 'interact', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
+      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'ctxUp', 'ctxDown',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
     ] as const) {
       const on = frame.buttons[a] === true;
       this.state.set(SRC, a, on);
     }
-    this.state.set(SRC, 'interact', aNow && !drawn);
     for (const d of NAV_DIRS) {
       if (this.repeaters.get(d)!.update(frame.buttons[d] === true, now)) this.state.tap(d);
     }

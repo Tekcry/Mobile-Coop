@@ -54,6 +54,23 @@ export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1,
   }
 }
 
+/**
+ * (anim-rework S1) The free-movement target speed (m/s) from the stick's analogue speed `v` (`AnalogGear.v`): as asked
+ * standing or crouched; aiming capped at `adsSpeed` / `adsCrouchSpeed` with the strafe / backstep penalties.
+ */
+export function paceSpeed(v: number, stance: Stance, localX = 0, localZ = 1, M = MOVEMENT): number {
+  if (!(v > 0)) return 0;
+  switch (stance) {
+    case 'stand':
+    case 'crouch':
+      return v;
+    case 'ads':
+      return Math.min(v, M.adsSpeed) * directionMult(localX, localZ, M);
+    case 'adsCrouch':
+      return Math.min(v, M.adsCrouchSpeed) * directionMult(localX, localZ, M);
+  }
+}
+
 /** Speed multiplier for moving sideways (strafe) or backwards relative to the aim. */
 export function directionMult(localX: number, localZ: number, M = MOVEMENT): number {
   const l = hyp2(localX, localZ) || 1;

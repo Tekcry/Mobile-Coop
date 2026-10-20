@@ -43,6 +43,7 @@ import { Interactables, type Interactable } from './interactables';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
+import { TriggerTapHold } from '../player/weaponStance';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
@@ -378,6 +379,19 @@ export class GameState implements AppState {
   /** (G5, AUDIT-ACTIONMENU) The CT context action menu: one list for everything in reach (hold A, pick, let go). */
   readonly ctxMenu = new ContextMenu();
   private readonly ctxNav = new CtxNav();
+  /** (anim-rework S1, M3) RT / LMB holstered or holding a guard: a tap knocks out, a hold kills (resolved once a step,
+   *  first, from the real input; `rtRes` is this step's result). */
+  private readonly rtTap = new TriggerTapHold();
+  /** Aiming the drawn pistol: the co-op button is the jammer (Michael 14:55). */
+  private get pistolAim(): boolean {
+    return this.player.ads && this.weapons.drawPhase === 2 && this.weapons.current.def.class === 'pistol';
+  }
+
+  /** The pistol's aim is asked for (LT / RMB held, drawn or still drawing): the co-op button belongs to the jammer. */
+  private get pistolAimWanted(): boolean {
+    return this.player.adsWanted && this.weapons.current.def.class === 'pistol';
+  }
+  private rtRes: 'tap' | 'hold' | null = null;
   private readonly ctxIn = emptyCtxInput();
   /** The menu owns A this step (a list is up, or its press is still held): the other A readers see it up. */
   private ctxOwnsA = false;
@@ -1148,14 +1162,14 @@ export class GameState implements AppState {
     const m = this.ctxMenu;
     const td = this.takedown;
     const aside = !this.player.alive || this.team.active || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
-    // (Michael 08:10 / 08:20) a held guard: RT kills, LT knocks him out (not aiming: aimed, they fire the pistol over
-    // his shoulder); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
+    // (Michael 08:10 / 08:20; anim-rework S1, M3) a held guard: RT tap knocks him out, RT hold kills (KBM Z knocks out
+    // too; not aiming: LT aims the pistol over his shoulder and RT then fires); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
     // B, Y and BACK TO GAME only close the list.
     const holding = !aside && td.menuReady;
     const gv = this.grabMenu;
     gv.holding = holding;
     const scripted = gv.takePick(real.pressed('interact'));
-    const trig = holding && m.state !== 'active' ? grabTriggerPick(real.pressed('fire'), real.pressed('altFire'), this.player.ads || this.player.adsWanted) : null;
+    const trig = holding && m.state !== 'active' ? grabTriggerPick(this.rtRes, real.pressed('altFire'), this.player.ads || this.player.adsWanted) : null;
     const pick = scripted ?? trig;
     if (pick === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[pick]}: not built yet`, 'warn');
     else if (pick) td.menuPick = pick;
@@ -1201,7 +1215,7 @@ export class GameState implements AppState {
     ci.pressed = a.pressed && scripted === null;
     ci.released = a.released;
     const active = m.state === 'active';
-    ci.nav = this.ctxNav.dir(active, real.pressed('speedUp'), real.pressed('speedDown'), real.pressed('uiUp'), real.pressed('uiDown'), hyp2(real.move.x, real.move.y));
+    ci.nav = this.ctxNav.dir(active, real.pressed('ctxUp'), real.pressed('ctxDown'), real.pressed('uiUp'), real.pressed('uiDown'), hyp2(real.move.x, real.move.y));
     ci.cancel = active && (real.pressed('crouch') || real.pressed('uiBack'));
     const r = m.step(ci, dt);
     // a hold row (a hack, a medkit station) fills the item's own progress while A stays on it; its noise pulses
@@ -1487,6 +1501,14 @@ export class GameState implements AppState {
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
     this.aliveWas = this.player.alive;
+    // (anim-rework S1, M3) the trigger's tap / hold, armed at the press when it is a strike or a finisher press: holstered
+    // (no aim), or holding a guard and not aiming the pistol
+    {
+      const pl = this.player;
+      const holstered = pl.alive && this.weapons.drawPhase === 0 && !pl.ads && !pl.adsWanted && pl.stance.base === 'holstered';
+      const holding = this.takedown.menuReady && !pl.ads && !pl.adsWanted;
+      this.rtRes = this.rtTap.update(real.down('fire'), dt, holstered || holding);
+    }
     // (G5) the context menu first: held open (this step or the last: the step it closes on is the release, or B) it
     // takes the input, the operator stands still (camera free)
     const ctxWas = this.ctxMenu.state === 'active';
@@ -1506,6 +1528,8 @@ export class GameState implements AppState {
     const aFree = !this.ctxOwnsA;
     // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
+    // (anim-rework S1) blank input under a held context menu or the wheel is not an X release (a held X keeps its press)
+    this.player.inputBlank = inp === this.blankInp;
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
@@ -1528,7 +1552,11 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
     const wallWas = this.wallCore?.active ?? false;
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
+    // (Michael 2026-10-20 14:55) aiming the pistol, the co-op button is the jammer: no team move then. The aim asked this
+    // step counts (LT and RB can land in one poll on a slow page, before the player's step sets `ads`), else a standing RB
+    // would offer the partner throw and stow the pistol
+    const pistolAsk = this.pistolAimWanted || (inp.down('ads') && this.weapons.current.def.class === 'pistol');
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !pistolAsk && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
     // the relay hanger holds the hang still while the partner climbs their body
     if (this.team.hangLock) {
       ti.moveX = 0;
@@ -1603,8 +1631,10 @@ export class GameState implements AppState {
     this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate(inp.pressed('crouch'));
     this.security?.fixedUpdate(dt);
-    // (CT prototype B3) the held pistol jammer: LT / Z on a drawn pistol
-    this.ctDev?.localStep(dt, inp.down('altFire'));
+    // (CT prototype B3; Michael 2026-10-20 14:55 "Another button - what makes sense? RF?", read as RB) the pistol jammer:
+    // the co-op button (pad RB, KBM F / PgDn) held while aiming the drawn pistol jams the camera or laser under the
+    // reticle; aiming alone never jams
+    this.ctDev?.localStep(dt, this.pistolAim && inp.down('coop'));
     // takedowns (Y / E: a takedown on offer, else the rest)
     // (co-op clients: takedowns on the host's enemies, through their puppets)
     {
@@ -1623,9 +1653,18 @@ export class GameState implements AppState {
       pz.sway = this.takedown.sway;
       pz.freeGait = this.takedown.stepping || (st ? st.stepping : false) || this.doorOpen.phase === 'step';
     }
-    // (locomotion step 10) fire while holstered: the elbow strike
-    // (F1a, CT) holstered: RT / LMB = the lethal strike, LT / Z = the knockout (the palm strike); drawn they fire
-    this.strike.fixedUpdate(dt, (inp.pressed('fire') || inp.pressed('altFire')) && this.weapons.drawPhase === 0 && !this.player.ads && !this.player.adsWanted, inp.pressed('fire'));
+    // (locomotion step 10) fire while holstered: the palm strike
+    // (anim-rework S1, M3) holstered: RT / LMB tap = the knockout, held `STANCE.rtHold` = the lethal strike (KBM Z: the
+    // knockout); drawn RT fires (aiming only, A3)
+    this.strike.fixedUpdate(dt, ((inp === real && this.rtRes !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === 0 && !this.player.ads && !this.player.adsWanted, this.rtRes === 'hold');
+    // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
+    // guard locks it (X does nothing, LT is the pistol shield)
+    {
+      const pl = this.player;
+      pl.weaponLocked = this.takedown.hostage !== null;
+      // (any attach, the one-handed sidearm aim too: its LT is the attach's own aim, never the free low ready)
+      pl.weaponSuspend = this.traversal.attached || !!this.traversal.committed || this.traversal.attachCtl.vent !== null || teamHands || carrying || (this.takedown.active !== null && !pl.weaponLocked) || this.strike.active;
+    }
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
@@ -2374,6 +2413,8 @@ export class GameState implements AppState {
       if (it?.onUse) it.onUse(it);
       else doors.open(d0, 'quiet');
     }
+    // (doorPeek parity) still at the frame the feet settle on the stance spots, as the copies pose it from MoveState
+    pl.pose.settle = dp.active;
     const rig = pl.rig;
     if (dp.active) {
       const ov = this.peekOv;
@@ -2774,8 +2815,9 @@ export class GameState implements AppState {
     } else w.set('vault', null, 0, 0);
     this.anchorPrompts();
     // (CT prototype B2) the team-move prompt: names the move and who starts it (Co-op action glyph)
+    // (anim-rework S1, Michael 14:55) aiming the pistol, RB is the jammer: no team-move prompt then
     const tp = this.team.prompt;
-    if (tp && !this.takedown.offer) {
+    if (tp && !this.takedown.offer && !this.pistolAimWanted) {
       const at = this.team.promptAt;
       const ok = this.project(at.x, at.y, at.z);
       w.set('coop', ok ? tp : null, this.scr.x, this.scr.y);

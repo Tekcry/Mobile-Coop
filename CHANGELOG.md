@@ -1,5 +1,43 @@
 # Changelog
 
+## 4.15.0 - New controls: analogue speed, holstered, low ready and aiming states, LT aim, X holster, RT strikes, the sling draw (2026-10-20, PR #43)
+- Controls (slice 1, `docs/anim-rework/BRIEF.md` section 1; Michael 2026-10-20): the left stick's deflection sets the
+  speed continuously from a creep to a run (`STICK_SPEED`: most of the travel is creep / sneak / walk, the last fifth
+  the jog and the run); no speed gears, no D-pad or mouse-wheel speed. Keyboard: WASD walks, Left Shift held runs, Left
+  Alt held creeps (A1); back to wall moved from Left Shift to Caps Lock. D-pad up / down and the wheel only step the held
+  context menu now; = / - are unbound.
+- Weapon states: holstered, low ready, aiming. LT (RMB) held aims, let go drops to low ready; X tap holsters / draws
+  (M1); X held with the gun out reloads (A2; nothing to reload: holsters); A always interacts and never reloads
+  (Michael 14:55: "Interact always"; KBM R still reloads); LT from holstered draws
+  straight to the aim through a slower sling draw (M2, the existing draw x 1.6 until slice 3's clip); RT fires only
+  while aiming (A3). Holstered or holding a guard: RT tap knocks out, RT hold kills (M3); KBM Z still knocks out; LT
+  while holding aims the pistol over his shoulder. Traversal and busy moves put the gun away and bring the state back
+  after (M4). The pistol jammer: hold the co-op button (pad RB, keyboard F / PgDn) while aiming the drawn pistol at a
+  camera or a laser (Michael 14:55: "Another button - what makes sense? RF?", read as RB); aiming alone never jams, and
+  no team move starts while aiming the pistol (nor its prompt). KBM Z is the knockout only. A KBM R reload from
+  holstered leaves the gun out at low ready; an X press that runs into a held context menu or the wheel is spent (no
+  holster); the split / inverted-hang sidearm aim no longer leaves the gun at low ready after the attach.
+- Settings: pad layout 3 and key layout 1 move an older save to the new defaults (the speed verbs and keys dropped,
+  back to wall off Left Shift); the Aim hold / toggle choice is removed (Michael 15:25: "Remove it"; LT is always held, a stored choice is dropped); a remapped binding that now clashes is named in a toast
+  once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
+
+## Unreleased - anim-metrics-2 (into feature/ct-prototype)
+- Debug overlay (F3, or Settings > Graphics > Show FPS overlay): a live anti-crab readout during play: knee separation
+  over the hip width, the planted foot track, knee outside the ankle and elbow outside the shoulder, green inside the
+  ranges and red outside, with the gait and state. Allocation-free per frame (`crabFrame` in `src/anim/audit/metrics.ts`).
+- Tests: the `CRAB` ranges tightened to human gait data (knees 0.5-1.1 x the hips, planted feet within 7 cm of the line,
+  knees at most 3 cm outside the ankles, elbows at most 6 cm out; crouched 1.25 and 8 cm); `e2e-anim` with
+  `CRAB_STATES=1` measures the walk's sub-states at speeds 1-3. Findings in `docs/anim-rework/METRICS.md`: the aimed
+  strafe is the crab (knees 2-2.8x the hips, feet up to 53 cm off the line), then turns from a standstill, starts and
+  direction changes.
+
+## Unreleased - anim-metrics (into feature/ct-prototype)
+- Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
+  and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,
+  ranges `CRAB` and per-gait `CRAB_GATES` in `limits.ts`, unit tests `tests/animCrabMetrics.test.ts`). `e2e-anim` prints
+  them for walk, jog, run, crouch and sneak, report-only until a gait's gate is on; today's values in
+  `docs/anim-rework/METRICS.md`.
+
 ## 4.14.1 - Orchestrator docs: 2026-10-20 roadmap, the animation rework brief (2026-10-20, PR #42)
 Docs only. The roadmap and orchestrator state for 2026-10-20 (Michael's answers 08:10-16:15: the guard menu, keyframed
 clips, the anim-rework brief docs/anim-rework/BRIEF.md, nv-pass, warehouse-s23, test-speed, context clears) and the dashboard.
@@ -22,6 +60,7 @@ clips, the anim-rework brief docs/anim-rework/BRIEF.md, nv-pass, warehouse-s23, 
   uses the camera's own look angles. The TAA history is also clamped to the current frame's neighbourhood, so fast arms
   and guns leave no trails. `scripts/ghost-strip.mjs` captures before / after frame strips on the GPU
   (`docs/ghost-fix/shots/`).
+
 ## 4.13.1 - Co-op fixes: the host draws on the joiner at High and Epic, the connecting label clears (2026-10-20, PR #35)
 - Co-op: the host was invisible on the joiner at High and Epic graphics (GPU). The baked-lamp material plugin broke a
   material clone while the partner figure loaded, so the figure never appeared. The plugin is no longer copied by a

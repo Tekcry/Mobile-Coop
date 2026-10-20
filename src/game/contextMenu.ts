@@ -279,21 +279,21 @@ export class ContextMenu {
 }
 
 /**
- * The highlight's step from the input (+1 down, -1 up, 0 none). The D-pad / mouse wheel / gear keys (`speedUp` /
- * `speedDown`) always move it; the stick / W S / arrows (`uiUp` / `uiDown`, with the pad's own repeat) only once the
+ * The highlight's step from the input (+1 down, -1 up, 0 none). The D-pad up / down and the mouse wheel (`ctxUp` /
+ * `ctxDown`; anim-rework S1: the speed gear keys are gone) always move it; the stick / W S / arrows (`uiUp` / `uiDown`, with the pad's own repeat) only once the
  * stick has been back near the centre since the list opened (`CTX_STICK_IDLE`). Not active: nothing, and it disarms.
  */
 export class CtxNav {
   private armed = false;
 
-  dir(active: boolean, speedUp: boolean, speedDown: boolean, uiUp: boolean, uiDown: boolean, moveMag: number): number {
+  dir(active: boolean, ctxUp: boolean, ctxDown: boolean, uiUp: boolean, uiDown: boolean, moveMag: number): number {
     if (!active) {
       this.armed = false;
       return 0;
     }
     if (moveMag < CTX_STICK_IDLE) this.armed = true;
-    if (speedDown || (this.armed && uiDown)) return 1;
-    if (speedUp || (this.armed && uiUp)) return -1;
+    if (ctxDown || (this.armed && uiDown)) return 1;
+    if (ctxUp || (this.armed && uiUp)) return -1;
     return 0;
   }
 }

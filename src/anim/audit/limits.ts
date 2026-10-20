@@ -166,3 +166,35 @@ export const BACKSTEP = 0.001;
 export const D5_FOOT_SLIDE = FOOT_SLIDE;
 /** movement.ts gear caps (m/s), for the harness: target speeds and the :795 pelvis limits. */
 export const GEAR_CAPS = { stand: GEARS.stand, crouch: GEARS.crouch } as const;
+
+/**
+ * (anim-metrics, anim-rework BRIEF 5 "no crabbing") Human ranges for the legs and arms at every speed and stance, measured
+ * in the pelvis frame (the horizontal axis from the left hip joint to the right one; `metrics.ts` crab metrics):
+ * - kneeSep: the knees' lateral distance over the hip joints' (ratio). Knees about hip width or narrower, over the feet:
+ *   at most 1.1 standing; a crouch opens them a little (1.25), never a duck-waddle. Under 0.5 they knock.
+ * - trackHalf: a planted foot's centre (ankle) from the line under the hips (m). Normal walking step width is about
+ *   5-13 cm between the heel centres (mean 8-10), so each foot 2.5-6.5 cm off the line: 7 cm standing allows the widest
+ *   normal step; a run lands closer to the line, a crouch walk a little wider (8 cm).
+ * - kneeBow: a knee outside its own ankle (m): knees track over the toes, at most 3 cm out.
+ * - slide: a planted foot's travel over the ground while planted (m; FOOT_SLIDE, < 1 cm).
+ * - elbowWing: an elbow outside its own shoulder joint (m): elbows down and close to the ribs, at most 6 cm out.
+ * (anim-metrics-2, 2026-10-20: tightened from the first cut 0.6-1.3 / 9 cm / 5 cm / 8 cm after Michael saw a wide stance
+ * in the walk; docs/anim-rework/METRICS.md.)
+ * Report-only until each gait's slice lands (CT Core's anim-rework slices 2-4): `CRAB_GATES[gait]` turns that gait's
+ * hard asserts on in e2e-anim.
+ */
+export const CRAB = {
+  kneeSep: { min: 0.5, max: 1.1 },
+  trackHalf: 0.07,
+  kneeBow: 0.03,
+  slide: FOOT_SLIDE,
+  elbowWing: 0.06,
+} as const;
+/** Crouched (crouch walk, sneak, the crouched idle): the knees and the track may open a little. */
+export const CRAB_CROUCH = { ...CRAB, kneeSep: { min: 0.5, max: 1.25 }, trackHalf: 0.08 } as const;
+export type CrabRanges = typeof CRAB | typeof CRAB_CROUCH;
+export function crabRanges(crouched: boolean): CrabRanges {
+  return crouched ? CRAB_CROUCH : CRAB;
+}
+export type CrabGait = 'walk' | 'jog' | 'run' | 'crouch' | 'sneak';
+export const CRAB_GATES: Record<CrabGait, boolean> = { walk: false, jog: false, run: false, crouch: false, sneak: false };

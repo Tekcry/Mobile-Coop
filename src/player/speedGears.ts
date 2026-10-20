@@ -1,9 +1,11 @@
 /**
- * Chaos Theory speed gears (3.2.0, pure, unit-tested): five gears (no sprint, CT prototype M1) stepped up / down by a button, kept through stance
- * changes, reset at spawn and respawn. The target speed is the gear's cap for the stance times the stick curve, so a
- * keyboard or a stick pushed to its rim gives exactly the cap.
+ * The player's speed (pure, unit-tested). (anim-rework S1) The stick's deflection sets the speed continuously through
+ * `STICK_SPEED` (`stickSpeed`); there are no gear buttons. The five `GEARS` speeds are the curve's named points; the
+ * integer gear other systems read is the nearest of them (with hysteresis, `AnalogGear.gear`), and the wire's pace band
+ * is the slowest gear whose speed covers the pace (`AnalogGear.band`). `GearState` is an internal speed cap (tests and
+ * tools; 5 = none), kept through stance changes and reset at spawn and respawn.
  */
-import { CT, GEARS } from '../config/movement';
+import { CT, GEARS, STICK_SPEED } from '../config/movement';
 import { hyp2 } from '../core/mathx';
 
 /** Gear 1..5 (an integer). */
@@ -27,9 +29,53 @@ export function stickCurve(mag: number, dead: number = GEARS.deadZone): number {
   return (m - dead) / (1 - dead);
 }
 
-/** Target speed (m/s) for a gear, stance and stick magnitude. */
+/** Target speed (m/s) for a gear, stance and stick magnitude (the 3.2.0 rule; kept for tools). */
 export function gearSpeed(gear: number, crouched: boolean, mag: number): number {
   return gearCap(gear, crouched) * stickCurve(mag);
+}
+
+/**
+ * (anim-rework S1) The analogue speed (m/s) at stick travel `u` (0..1 past the dead zone, `stickCurve`): 0 at rest, the
+ * slowest creep at the dead-zone edge, then linear between the `STICK_SPEED.at` points through the stance's five
+ * `GEARS` speeds; the run from `at[5]` to the rim. Allocation-free.
+ */
+export function stickSpeed(u: number, crouched: boolean): number {
+  if (!(u > 0)) return 0;
+  const caps = crouched ? GEARS.crouch : GEARS.stand;
+  const at = STICK_SPEED.at;
+  let a = 0;
+  let va: number = crouched ? STICK_SPEED.minCrouch : STICK_SPEED.minStand;
+  for (let i = 1; i < at.length; i++) {
+    const b = at[i]!;
+    const vb = caps[i - 1]!;
+    if (u <= b) return va + (vb - va) * ((u - a) / (b - a));
+    a = b;
+    va = vb;
+  }
+  return va;
+}
+
+/** (anim-rework S1) The stick magnitude that gives speed `v` (the inverse of `stickSpeed(stickCurve(m))`; tests, tools). */
+export function stickMagFor(v: number, crouched: boolean): number {
+  const caps = crouched ? GEARS.crouch : GEARS.stand;
+  const at = STICK_SPEED.at;
+  let a = 0;
+  let va: number = crouched ? STICK_SPEED.minCrouch : STICK_SPEED.minStand;
+  let u = 1;
+  if (v <= va) u = 1e-4;
+  else {
+    for (let i = 1; i < at.length; i++) {
+      const b = at[i]!;
+      const vb = caps[i - 1]!;
+      if (v <= vb) {
+        u = a + (b - a) * ((v - va) / (vb - va));
+        break;
+      }
+      a = b;
+      va = vb;
+    }
+  }
+  return GEARS.deadZone + (1 - GEARS.deadZone) * u;
 }
 
 /**
@@ -84,17 +130,21 @@ export class StickRelease {
   }
 }
 
-/** The player's maximum gear (step 17; the stick snaps within it, `AnalogGear`): steps one at a time, remembers when it last changed (HUD pips). */
+/**
+ * The internal speed cap (a gear 1..5; 5 = none). (anim-rework S1) No player control sets it any more (the D-pad, the
+ * wheel and = / - are gone); tests and tools cap the stick's speed with it (`?gear=N`, `controller.gears`). Steps one
+ * at a time; counts its changes.
+ */
 export class GearState {
   gear: Gear;
-  /** Changes so far (a counter the HUD watches). */
+  /** Changes so far. */
   changes = 0;
 
   constructor(readonly spawnGear: Gear = GEARS.spawn) {
     this.gear = spawnGear;
   }
 
-  /** Step by +1 / -1, clamped to 1..MAX_ROCKER_GEAR (the rocker sets the maximum gear); true when it changed. */
+  /** Step by +1 / -1, clamped to 1..MAX_ROCKER_GEAR; true when it changed. */
   step(d: number): boolean {
     const g = Math.max(1, Math.min(MAX_ROCKER_GEAR, this.gear + Math.sign(d))) as Gear;
     if (g === this.gear || (d > 0 && g < this.gear)) return false;
@@ -110,15 +160,15 @@ export class GearState {
     this.changes++;
   }
 
-  /** Spawn / respawn: back to the spawn gear. */
+  /** Spawn / respawn: back to the spawn cap. */
   reset(): void {
     this.set(this.spawnGear);
   }
 }
 
-/** The rocker / wheel sets the maximum gear 1..`MAX_ROCKER_GEAR` (locomotion step 17, D5.12). */
+/** The highest speed cap (gear) 1..`MAX_ROCKER_GEAR`. */
 export const MAX_ROCKER_GEAR = 5;
-/** Hysteresis half-width as a share of the gap between adjacent gear caps (step 17). */
+/** Hysteresis half-width as a share of the gap between adjacent gear speeds (step 17). */
 export const GEAR_HYSTERESIS = 0.15;
 
 /** Up / down thresholds (m/s) of the boundary g -> g + 1 (index g - 1), derived from `GEARS` (step 17). */
@@ -136,45 +186,57 @@ export const GEAR_UP = { stand: thresholds(GEARS.stand, true), crouch: threshold
 export const GEAR_DOWN = { stand: thresholds(GEARS.stand, false), crouch: thresholds(GEARS.crouch, false) } as const;
 
 /**
- * Analog speed with gear snapping (pure, allocation-free; locomotion step 17, D5.12): v = cap(maxGear) x
- * stickCurve(mag); the snapped gear is the highest g <= maxGear whose up threshold v has passed, kept until v drops
- * under its down threshold; the speed is cap(g). Any tilt past the dead zone gives gear 1.
+ * The stick's speed (pure, allocation-free). (anim-rework S1) `v` = min(cap(maxGear), stickSpeed(stickCurve(mag))):
+ * continuous, no snapping. `gear` is the nearest named speed for the systems that read an integer (the highest
+ * g <= maxGear whose up threshold v has passed, kept until v drops under its down threshold: no chatter); `band` the
+ * slowest gear whose speed covers v (the wire's pace band, `MoveState.g`, which the host's speed check reads). Any
+ * tilt past the dead zone moves.
  */
 export class AnalogGear {
-  /** Snapped gear (valid while `moving`). */
+  /** Nearest named speed 1..5 (valid while `moving`). */
   gear: Gear = 1;
   /** The stick is past the dead zone. */
   moving = false;
+  /** The speed (m/s) the stick asks for (0 at rest). */
+  v = 0;
+  /** The slowest gear whose speed covers `v` (1 at rest). */
+  band: Gear = 1;
 
-  /** Returns the snapped gear (0 inside the dead zone). */
+  /** Returns the nearest named speed (0 inside the dead zone). */
   update(maxGear: number, crouched: boolean, mag: number): number {
-    const raw = stickCurve(mag);
-    // (playtest 2) the D-pad speed (maximum gear) is reached from GEARS.fullPush, not only at the rim
-    const c = Math.min(1, raw / GEARS.fullPush);
-    if (raw <= 0) {
+    const u = stickCurve(mag);
+    if (u <= 0) {
       this.moving = false;
       this.gear = 1;
+      this.band = 1;
+      this.v = 0;
       return 0;
     }
     this.moving = true;
     const max = Math.min(MAX_ROCKER_GEAR, clampGear(maxGear));
-    const v = gearCap(max, crouched) * c;
+    const v = Math.min(gearCap(max, crouched), stickSpeed(u, crouched));
+    this.v = v;
     const up = crouched ? GEAR_UP.crouch : GEAR_UP.stand;
     const down = crouched ? GEAR_DOWN.crouch : GEAR_DOWN.stand;
     let g: number = Math.min(this.gear, max);
     while (g < max && v >= up[g - 1]!) g++;
     while (g > 1 && v < down[g - 2]!) g--;
     this.gear = g as Gear;
+    let b = 1;
+    while (b < max && gearCap(b, crouched) < v - 1e-6) b++;
+    this.band = b as Gear;
     return g;
   }
 
-  /** Speed (m/s) of the snapped gear. */
-  speed(crouched: boolean): number {
-    return this.moving ? gearCap(this.gear, crouched) : 0;
+  /** The speed (m/s) the stick asks for (`crouched` kept for callers: `v` is per the stance of the last update). */
+  speed(_crouched?: boolean): number {
+    return this.moving ? this.v : 0;
   }
 
   reset(): void {
     this.gear = 1;
+    this.band = 1;
+    this.v = 0;
     this.moving = false;
   }
 }

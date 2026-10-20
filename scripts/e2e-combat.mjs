@@ -86,9 +86,12 @@ try {
   const pm1 = await G(() => window.__app.current.weapons.current.mag);
   assert(pm0 - pm1 === 1, `semi-auto fires once per pull (${pm0} -> ${pm1})`);
 
-  // reload
+  // reload (anim-rework S1; Michael 2026-10-20 14:55 "Interact always"): A with the gun out does the context action or
+  // nothing, never a reload; X held 0.4 s reloads (A2)
   await press(page, BTN.A);
-  assert(await G(() => window.__app.current.weapons.reloading), 'A (weapon drawn) starts reload');
+  assert(!(await G(() => window.__app.current.weapons.reloading)), 'A (gun out, nothing in reach) does not reload');
+  await sim(0.55, [[BTN.X, 1]]);
+  assert(await G(() => window.__app.current.weapons.reloading), 'X held (gun out) starts the reload');
   await sim(2.1);
   assert((await G(() => window.__app.current.weapons.current.mag)) === 15, 'reload refills magazine');
 

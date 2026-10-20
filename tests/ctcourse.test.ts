@@ -307,7 +307,8 @@ describe('course-ready S1: station fixes and text', () => {
     expect(def.bays[5]!.gates.find((g) => g.id === 'g-s6')?.kind).toBe('flag');
     expect(GATE_RADIO['g-s2']).toBe('Unbolted. Open the door for your partner.');
     expect(GATE_RADIO['g-s5-grid']).toBe('Grid open. Off the roof, in the front door, through the grid to the airlock.');
-    expect(GATE_RADIO['g-s3']).toMatch(/Holster.*X \/ RMB/);
+    // (anim-rework S1; Michael 14:55 "Interact always") A opens the door in every weapon state: no holster first
+    expect(GATE_RADIO['g-s3']).toMatch(/Open it \(A \/ E\)/);
   });
 
   it('F1: every bay has one objective (the HUD step line while it has no drills)', () => {
@@ -328,10 +329,11 @@ describe('course-ready S1: station fixes and text', () => {
       expect(t).not.toMatch(/[\u2013\u2014]/);
     }
     for (const t of [...radio, ...PANEL_TEXT, ...OBJECTIVE_TEXT]) expect(t).not.toMatch(/green pad/i);
-    // F14: every Co-op names RB / F, every LT names Z, every A names E
+    // F14: every Co-op names RB / F, every LT names its key, every A names E (anim-rework S1: LT is the held aim, so its
+    // key is the right mouse button, RMB)
     for (const t of [...radio, ...PANEL_TEXT, ...OBJECTIVE_TEXT]) {
       if (/Co-op/.test(t)) expect(t, t).toMatch(/Co-op \(RB \/ F\)|Co-op action/i);
-      if (/\bLT\b/.test(t)) expect(t, t).toMatch(/LT \/ Z/);
+      if (/\bLT\b/.test(t)) expect(t, t).toMatch(/LT \/ RMB/);
       if (/\bA\b(?! \()/.test(t.replace(/Roof plate A|scanner A/g, ''))) expect(t, t).toMatch(/A \/ E/);
     }
     // F12, F15: station 3 names the pistol switch and the draw; station 4 the release's place

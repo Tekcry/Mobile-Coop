@@ -1,5 +1,7 @@
 # CT controls research (original Xbox pad, PC defaults, co-op)
 
+History. The game's controls now follow `docs/anim-rework/BRIEF.md` section 1 (Michael 2026-10-20: analogue speed, holstered / low ready / aiming, LT held aims); the live table is `docs/systems/input-and-loop.md`.
+
 Scope: default controls of the 2005 reference game, single player and co-op. Wording is generic (goggles, gadget, co-op action, speed). Date of research: 2026-10-18.
 
 ## Sources
