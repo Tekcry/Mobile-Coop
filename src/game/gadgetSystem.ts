@@ -178,6 +178,9 @@ export class GadgetSystem {
     if (inp.pressed('gadgetWheel')) this.lbOpened = false;
     if (this.wheelOpen) {
       this.refreshRing();
+      // (nv-pass slice 3, Michael) A / E on the vision slot steps the mode like a carousel; the press is the wheel's
+      // (cleared here so nothing after this step reads it: the context menu stands aside while the wheel is open)
+      if (inp.pressed('interact') && this.sel.cycle(this.ring)) inp.buttons.interact.pressed = false;
       if (!inp.down('gadgetWheel')) this.closeWheel(true);
       return this.wheelOpen;
     }
@@ -234,7 +237,7 @@ export class GadgetSystem {
 
   openWheel(): void {
     if (this.wheelOpen) return;
-    this.sel.begin();
+    this.sel.begin(this.g.vision.selected);
     this.lbOpened = true;
     this.aiming = false;
     this.refreshRing();

@@ -1,17 +1,14 @@
 /**
  * (CT prototype F1a, G181) The selection wheel (pure, unit-tested): a ring of segments, the vision modes stacked at the
  * top, then the guns, then the mission kit gadgets, clockwise. Held open over the live game (no time slow), the right
- * stick / mouse moves a cursor, release picks the highlighted item. Layout reference: docs/ct-prototype/WHEEL-REF.md.
+ * stick / mouse moves a cursor, release picks the highlighted item; on the vision slot A / E steps the mode (carousel). Layout reference: docs/ct-prototype/WHEEL-REF.md.
  * Babylon-free; the DOM lives in `ui/hud/gadgetWheel.ts`, the open / close and the picks in `gadgetSystem.ts`.
  */
 import { hyp2 } from '../core/mathx';
 import type { GadgetId } from './gadgets';
-import type { VisionMode } from './vision';
+import { VISION_WHEEL, type VisionMode } from './vision';
 
 export type WheelVision = Exclude<VisionMode, 'off'>;
-
-/** The stack's modes, nearest the ring first: night (CT's first), thermal, electro (farthest). */
-export const WHEEL_VISION: readonly WheelVision[] = ['night', 'thermal', 'electro'];
 
 export interface WheelGun {
   index: number;
@@ -39,8 +36,6 @@ export type WheelPick =
 
 /** Cursor length below which nothing is highlighted. */
 export const WHEEL_DEAD = 0.35;
-/** Cursor lengths where the vision stack moves from night to thermal and from thermal to electro. */
-export const VISION_STEPS: readonly [number, number] = [0.58, 0.8];
 
 /** The ring: the vision slot at the top (index 0), the guns, then the gadgets (every one the kit has, an empty one dimmed). */
 export function buildWheel(guns: readonly WheelGun[], gadgets: readonly WheelGadget[]): WheelSeg[] {
@@ -57,9 +52,10 @@ export function segmentAt(x: number, y: number, n: number, dead = WHEEL_DEAD): n
   return ((k % n) + n) % n;
 }
 
-/** Which mode of the stack a cursor length picks (the further out, the higher up the stack). */
-export function visionAt(len: number): WheelVision {
-  return len < VISION_STEPS[0] ? 'night' : len < VISION_STEPS[1] ? 'thermal' : 'electro';
+/** (nv-pass slice 3) The carousel's next mode: night -> thermal -> electro -> night (the stack's order, G181). */
+export function nextVision(m: WheelVision): WheelVision {
+  const i = VISION_WHEEL.indexOf(m);
+  return VISION_WHEEL[(i + 1) % VISION_WHEEL.length] ?? 'night';
 }
 
 /** The two label lines of a highlighted item (name, mode). */
@@ -76,15 +72,24 @@ export class SelectionWheel {
   /** Cursor, x right / y up, length <= 1. */
   cx = 0;
   cy = 0;
-  /** Highlighted segment (-1 none) and, on the vision segment, the mode under the cursor. */
+  /** Highlighted segment (-1 none) and the vision slot's mode (the carousel: A / E steps it while the slot is lit). */
   seg = -1;
   mode: WheelVision = 'night';
 
-  begin(): void {
+  /** Open on the selected vision mode (the carousel starts there). */
+  begin(mode: WheelVision = 'night'): void {
     this.open = true;
     this.cx = this.cy = 0;
     this.seg = -1;
-    this.mode = 'night';
+    this.mode = mode;
+  }
+
+  /** (nv-pass slice 3) A / E on the lit vision slot steps the mode; true when it did (the press is the wheel's). */
+  cycle(ring: readonly WheelSeg[]): boolean {
+    const s = this.seg >= 0 ? ring[this.seg] : undefined;
+    if (s?.kind !== 'vision') return false;
+    this.mode = nextVision(this.mode);
+    return true;
   }
 
   end(): void {
@@ -116,7 +121,6 @@ export class SelectionWheel {
   /** Recompute the highlight for a ring of `n` segments. */
   update(n: number): void {
     this.seg = segmentAt(this.cx, this.cy, n);
-    if (this.seg === 0) this.mode = visionAt(hyp2(this.cx, this.cy));
   }
 
   /** What release picks (null: nothing highlighted). */

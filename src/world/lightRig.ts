@@ -30,8 +30,11 @@ const BASE_LIGHTS = 2;
 const LAMP_CONE = LAMP_CONE_MATH;
 /** (Step 4b fix) night vision's gain on the fixtures at full goggles (rendering only): a lamp is the brightest thing in
  *  the tube. (The additive light cones are gone, Michael 2026-10-09: in clean indoor air a lamp's beam is not seen, only
- *  the light where it lands; desktop's volumetric haze stays.) */
-const NV_BULB = 2.5;
+ *  the light where it lands; desktop's volumetric haze stays.) (nv-pass slice 1: 2.5 -> 8, so a fixture clears the
+ *  tube's bloom threshold - `BLOOM.bright`, compressed 0.8 = linear 4 - while a lit wall under the lower gain does not.) */
+const NV_BULB = 8;
+/** (nv-pass slice 1) Electro's boost on the fixtures, as a share of night vision's: kept at the old x2.5. */
+export const ELECTRO_BULB = (2.5 - 1) / (NV_BULB - 1);
 
 /** What the rig is asked to render (from the graphics settings). */
 export interface LightRigConfig {

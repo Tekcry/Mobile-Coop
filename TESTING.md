@@ -68,6 +68,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
+  glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
+  clear, a soft dark band only at the edges and corners).
+- [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
+  selects it. The wheel reopens on that mode. A off the vision slot does nothing.
 - [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
@@ -101,6 +106,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
   height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
   turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+- [ ] (anim-rework S2) Holstered, standing: push the stick slowly from a creep to full: the walk turns into a jog and a
+  run with no pop, the knees and feet stay under the hips (from the front the legs look near vertical), the arms hang
+  along the sides and swing a little more as you speed up, no lean until the run. Stand still: she breathes, shifts her
+  weight and looks round slowly. Start, stop, turn round from a standstill and change direction 90 / 180 deg at a walk
+  and a run: no foot slides, no hop.
 - [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
   comes from the back straight to the shoulder (no low-ready dip).
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.

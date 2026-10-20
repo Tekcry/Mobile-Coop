@@ -5,7 +5,7 @@ import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampV
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
-import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, type DarkParams } from './darkCurve';
+import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
 
@@ -73,7 +73,11 @@ export class BakedLamps {
   /** Step 4b, rendering only: the night-vision gain (1 off; `GameState` eases it) and the curve's shape (the look's
    *  set; tests may tune it). Gameplay never reads either. */
   visionGain = 1;
+  /** The gain at full night vision (`VISION_GAIN`; tests set `visionGain` to it). */
+  readonly visionGainMax = VISION_GAIN;
   dark: DarkParams;
+  /** The curve as bound this frame (`visionDark` scratch). */
+  readonly darkNow: DarkParams = { ...DARK_DESKTOP };
   private readonly doors: readonly FieldDoor[];
   private readonly doorShut: Uint8Array;
   /** Per lamp its door indices (`lampDoorLists`). */
@@ -675,9 +679,11 @@ export class LampPlugin extends MaterialPluginBase {
     const m = l.moon;
     const f = l.fill;
     ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
-    // (Step 4b) the darkness curve: night-vision gain, the moon's level; the look's curve
-    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight, 0, 0);
-    ubo.updateFloat4('lampDarkP', l.dark.centre, l.dark.steep, l.dark.floor, l.dark.top);
+    // (Step 4b) the darkness curve: night-vision gain, the moon's level; the look's curve. (nv-pass slice 1) Under the
+    // goggles the curve's floor rises (`visionDark`) and the non-voxel fill is capped (z: how far night vision is on)
+    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight, visionAmount(l.visionGain), 0);
+    const d = visionDark(l.dark, l.visionGain, l.darkNow);
+    ubo.updateFloat4('lampDarkP', d.centre, d.steep, d.floor, d.top);
     if (f && l.fillTex) {
       ubo.updateFloat4('lampAmbO', f.grid.origin[0], f.grid.origin[1], f.grid.origin[2], AMBIENT_CELL);
       ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
@@ -867,12 +873,17 @@ ${settle}
 #endif
 ${level('nsLampRaw')}
 #if defined(LAMP_FILL) && !defined(VOXELS)
-  nsStat += nsFillL * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb;
+  // (nv-pass slice 1) under night vision the flat fill (and the probe's diffuse) is capped and hemisphere-shaded, so a
+  // body sits at the walls' brightness instead of glowing (\`bodyFillScale\`; the lamps on it are untouched)
+  float nsBF = nsBodyFill(lampDark.z, normalW.y);
+  nsStat += nsFillL * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb * nsBF;
+#else
+  float nsBF = 1.0;
 #endif
   finalDiffuse = max(nsStat, vec3(0.0)) * nsR + nsDynD;
   finalAmbient *= nsR;
 #ifdef REFLECTION
-  finalIrradiance *= nsR;
+  finalIrradiance *= nsR * nsBF;
   finalRadianceScaled *= nsR;
 #endif
 }

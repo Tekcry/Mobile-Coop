@@ -85,7 +85,12 @@ const TURN_SETTLE = 0.12;
  * keep theirs). Standing only (`crouch` 0..1 fades it: the crouched gaits get their own clips). A pure function of the
  * speed and the stance, so an owner's driver and a remote's graph count the same clock. Not for guards (ENEMY_MOTION).
  */
-export const WALK_STEP = { k: 0.17, to: 2.1, blend: 3.0 } as const;
+// (anim-rework S2, M6: the CT movement references dropped, "too many steps") k 0.17 -> 0.2: 0.58 m at 1.4 m/s (2.4 steps a
+// second, was 2.6), 0.72 m at 2.1 m/s; the full 0.24 line (0.64 m) lifted the walk's head bob over 3.5 cm and a 90 deg walk
+// turn's to 6 cm (g1Locomotion), so the walk keeps a little shorter step and the jog and run take the line
+/** (anim-rework S2, M6) The player's crouched step line (m: stepLen0 + k * speed, capped at max): the pre-M6 values. */
+export const CROUCH_STEP = { k: 0.2, max: 0.95 } as const;
+export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
 
 /**
  * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
@@ -96,6 +101,8 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   const v = Math.max(0, speed);
   // (G1, audit row 7) capped at `stepLenMax`: faster than that the cadence rises instead
   let s = Math.min(M.stepLenMax, M.stepLen0 + M.stepLenK * v);
+  // (anim-rework S2, M6) the player's crouched gaits keep the old steps (CROUCH_STEP; slice 4 owns them)
+  if (M === MOVEMENT && crouch > 0) s += (Math.min(CROUCH_STEP.max, M.stepLen0 + CROUCH_STEP.k * v) - s) * Math.min(1, crouch);
   // (CT prototype G8, A4) the player's standing walk steps shorter (WALK_STEP), blended back to the line by the jog
   if (M === MOVEMENT && crouch < 1 && v < WALK_STEP.blend) {
     const u = v <= WALK_STEP.to ? 0 : (v - WALK_STEP.to) / (WALK_STEP.blend - WALK_STEP.to);

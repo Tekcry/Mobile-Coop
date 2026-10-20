@@ -232,19 +232,26 @@ try {
   await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
   const shut = await G(() => window.__app.current.gadgets.wheelOpen);
   assert(held.wheel && !shut, `LB held opens the selection wheel, released closes it (${held.wheel} / ${shut})`);
-  // the wheel over the live game: LB held, right stick up pushes the cursor to the vision stack; release picks (the mode goes out to the rim: electro)
+  // the wheel over the live game: LB held, right stick up lights the vision slot; (nv-pass slice 3) A steps the mode
+  // like a carousel from the selected one (night -> thermal -> electro), never reaching the context menu; release picks
   {
+    const s0 = await G(() => window.__app.current.vision.selected);
     await page.evaluate(() => window.__pad.set(4, 1));
     await page.waitForFunction(() => window.__app.current.gadgets.wheelOpen, null, { timeout: 6000 });
     const ts = await G(() => window.__app.loop.timeScale);
     await page.evaluate(() => window.__pad.axis(3, -1));
     await page.waitForTimeout(700);
+    const m0 = await G(() => window.__app.current.gadgets.sel.mode);
+    await press(page, BTN.A);
+    await press(page, BTN.A);
+    await page.waitForTimeout(150);
+    const ctx = await G(() => window.__app.current.ctxMenu.state);
     const seen = await G(() => ({ seg: window.__app.current.gadgets.sel.seg, mode: window.__app.current.gadgets.sel.mode, dom: !!document.querySelector('.selection-wheel:not([hidden])'), tiles: document.querySelectorAll('.selection-wheel .sw-tile:not([hidden])').length, label: document.querySelector('.sw-label-name')?.textContent }));
     await page.evaluate(() => window.__pad.axis(3, 0));
     await page.evaluate(() => window.__pad.set(4, 0));
     await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
     const sel = await G(() => window.__app.current.vision.selected);
-    assert(ts === 1 && seen.seg === 0 && seen.mode === 'electro' && seen.dom && seen.tiles >= 8 && sel === 'electro', `the wheel: no time slow (${ts}), cursor up = vision stack (${JSON.stringify(seen)}), release picks electro (${sel})`);
+    assert(ts === 1 && s0 === 'night' && m0 === 'night' && seen.seg === 0 && seen.mode === 'electro' && ctx !== 'active' && seen.dom && seen.tiles >= 8 && sel === 'electro', `the wheel: no time slow (${ts}), opens on the selected mode (${s0} / ${m0}), cursor up = vision slot, A x2 steps to electro (${JSON.stringify(seen)}), no context menu (${ctx}), release picks electro (${sel})`);
   }
   const v0 = await G(() => window.__app.current.vision.mode);
   await press(page, BTN.LEFT);
@@ -594,9 +601,9 @@ try {
       console.log(JSON.stringify(r));
       assert(r.capKept, 'D-pad up / down leave the speed alone (anim-rework S1: no rocker)');
       // (anim-rework S1, Michael: "full speed control via the analogue stick depending on how far you push the stick")
-      // raw 50 / 80 / 100% = ~1.4 sneak / ~2.0 walk / 4.5 run (the STICK_SPEED curve; x the weapon's handling)
+      // raw 50 / 80 / 100% = ~1.4 sneak / ~2.0 walk / 4.0 run (anim-rework S2, M6: was 4.5) (the STICK_SPEED curve; x the weapon's handling)
       assert(r.a50.g === 2 && r.a80.g === 3 && r.a100.g === 5, `stick 50 / 80 / 100% -> sneak / walk / run (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
-      assert(r.a50.v > 1.1 && r.a50.v < 1.6 && r.a80.v > 1.7 && r.a80.v < 2.25 && r.a100.v > 3.9, `speed follows the stick (${r.a50.v} / ${r.a80.v} / ${r.a100.v} m/s)`);
+      assert(r.a50.v > 1.1 && r.a50.v < 1.6 && r.a80.v > 1.7 && r.a80.v < 2.25 && r.a100.v > 3.5, `speed follows the stick (${r.a50.v} / ${r.a80.v} / ${r.a100.v} m/s)`);
       assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, the run (${JSON.stringify(r.sprint)})`);
       assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `the internal cap 3 (tests) holds the full stick at the walk (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');

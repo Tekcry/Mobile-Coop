@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { keyedClip, KW, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
+import { KEYED_WALK_G8 } from './fixtures/keyedWalkG8';
 import { TOE_MAX, toePitch } from '../src/anim/toeRoll';
 import { JOINT_NAMES, OPERATORS, operatorJoints, operatorProportions } from '../src/operators/operatorBody';
 import { RIG_JOINTS, RIG_PARENT } from '../src/operators/runtime/pose';
@@ -144,12 +145,13 @@ describe('anim-rig: the joint map (export list, operator figure, runtime rig map
 
 describe('anim-rig: the keyed wrist frame', () => {
   it('the keyed walk (no wrist frame) samples exactly as before the format change, the wrists at identity', () => {
+    // (anim-rework S2) on the frozen G8 walk the fixture was taken from (slice 2 re-keyed the walk)
     const before = JSON.parse(readFileSync('tests/fixtures/keyed-walk-before.json', 'utf8')) as { ph: number; amp: number; pel: number[]; q: number[]; arm: number[] }[];
     expect(before).toHaveLength(100);
-    expect(KEYED_WALK.wrist).toBeNull();
+    expect(KEYED_WALK_G8.wrist).toBeNull();
     const o = newKeyedPose();
     for (const s of before) {
-      sampleKeyed(KEYED_WALK, s.ph, s.amp, o);
+      sampleKeyed(KEYED_WALK_G8, s.ph, s.amp, o);
       expect([...o.pel]).toEqual(s.pel);
       expect([...o.q]).toEqual(s.q);
       expect([...o.arm]).toEqual(s.arm);

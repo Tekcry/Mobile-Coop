@@ -32,6 +32,18 @@ samples exactly as before (100 samples against the old sampler's output). Cost: 
   `WREN_HOLSTER` pattern): hip = the GLB's `slingSocket` anchor on the pelvis; back = the back plate at the left
   shoulder blade, measured on LOD0 and the hero. Undo: remove the nodes, `WREN_SLING` and 2 lines in `playerFigure.ts`.
 - A6. `REQUIRED_JOINTS` includes toeL / toeR. Undo: drop them.
+- A7. (rebake, 2026-10-20) The MPFB2 data comes from the official extension zip (`MPFB2_ZIP`,
+  `docs/operators/MPFB2.md`), not the pinned repository fetch. Undo: unset `MPFB2_ZIP` (the fetch route is unchanged).
+- A8. (rebake) Only LOD0-2 are replaced; the hero file stays (it would gain only the `slingBack` anchor: 55 MB more in
+  git history for a node nothing reads). The runtime keeps the `WREN_SLING` offsets, so the LODs' new `slingBack`
+  anchor (equal to `WREN_SLING.back`) is unused for now. Undo: copy `build/operators/wren/export/hero/` over the hero.
+
+## Rebake (2026-10-20)
+`operators:build wren` (resumed `--from waist_belt`: the earlier blends were the same run's) and `operators:lods wren`
+(705 s bake, KTX2), Blender 5.2.2 `-b`. Against the shipped files: same joints, vertex / triangle / primitive counts,
+bounds, positions, UVs, normals, rigid ids and anchors (plus `slingBack`); toe weights differ on 71 / 49 / 2 vertices
+(ankle / toe split only); textures re-baked. LOD0-2 shipped. `operators:check` not run (its garment checks run Blender
+per item and the desktop lock had passed to the next job); the comparison covers its LOD checks' inputs.
 
 ## Checks
 tsc clean; eslint clean on changed TS; vitest (new + 13 related suites) 152 passed, 1 skipped; under the lock
@@ -39,7 +51,6 @@ tsc clean; eslint clean on changed TS; vitest (new + 13 related suites) 152 pass
 reproduced `walk.ts` identically; a scratch clip with wrist keys baked the expected quaternions.
 
 ## Open
-- Full Blender LOD rebuild (needs the MPFB2 download: Michael's call); would let the back socket be a GLB anchor.
 - GPU look on the PC: the toe bend, the toe box at a deep crouch, the sling socket positions.
 - `docs/systems/world-and-characters.md`, CHANGELOG, TESTING: hands off for this job (CT Core / the orchestrator).
 - First wrist-frame user: CT Core's knee-hand clip. The Operator Lab now drives the toes too (not checked by eye).

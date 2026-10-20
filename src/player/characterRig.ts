@@ -9,7 +9,7 @@ import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, ty
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
-import { kneePoleYaw, pelvisFollow } from '../anim/turnFollow';
+import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -271,6 +271,8 @@ export const KNEE_GAP = 0.15;
 /** (CT prototype G8) Under the keyed walk the knees pass closer (its feet under the body, CT's narrow track): the bow-out
  *  rule starts at this centre distance (m) instead (e2e-clip keeps them >= 9 cm apart). */
 export const KEYED_KNEE_GAP = 0.11;
+/** (anim-rework S2) The bow-out rule's pole share per unit of closing under the keyed gaits (6 otherwise). */
+export const KEYED_KNEE_BOW = 2.5;
 /** A knee's centre never goes lower than this above the floor (m): the kneecap rests on it. */
 export const KNEE_FLOOR = 0.05;
 /** (CT prototype G1, audit rows 16 / 27) Moving crouched (sneak, crouch walk, crouch run) the rear knee stays this high
@@ -1545,7 +1547,10 @@ export class CharacterRig {
     this.graph.setSupport(L.contact && !R.contact ? -1 : R.contact && !L.contact ? 1 : 0);
     // (A1.2) the pelvis turns toward the planted feet (up to 20 deg); the chest keeps the facing (applyTargets)
     const follows = !free && !i.wall && pin.stride === 'facing';
-    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt);
+    // (anim-rework S2) standing holstered the hips trail further (PELVIS_FOLLOW_KEYED, by this frame's keyHol); crouched and
+    // drawn as before
+    const holK = t.keyHol;
+    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt, PELVIS_FOLLOW_MAX + (PELVIS_FOLLOW_KEYED - PELVIS_FOLLOW_MAX) * holK);
 
     this.applyTargets(t, dt, free);
     this.lastTargets = t;
@@ -1850,7 +1855,7 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
     // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
-    if (kw > 0) this.keyedTrunk(kq, kw);
+    if (kw > 0) this.keyedTrunk(kq, kw, t.head.yaw * 0.4);
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
@@ -1927,9 +1932,14 @@ export class CharacterRig {
     const gapMin = KNEE_GAP + (KEYED_KNEE_GAP - KNEE_GAP) * kw;
     if (kneeGap < gapMin) {
       // steeper bow the closer they came (a pole up to ~70 deg outward)
-      const bow = this.kneeOutNow + (1 - kneeGap / gapMin) * 6;
-      this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
-      this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
+      // (anim-rework S2) under the keyed gaits a gentler bow, and only on a swinging leg when one swings: the planted knee
+      // stays over its toes and the passing knee clears it (both bowed 6 x had both knees 9-17 cm outside the ankles in
+      // a direction change)
+      const need = 1 - kneeGap / gapMin;
+      const bow = this.kneeOutNow + need * (6 + (KEYED_KNEE_BOW - 6) * kw);
+      const oneSwings = kw > 0.5 && L.contact !== R.contact;
+      if (!oneSwings || !L.contact) this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
+      if (!oneSwings || !R.contact) this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
     }
     // (G6 fix, check BLOCK 3) on a wall, turned side-on, a knee bowed out toward the face swings in, away from it (the
     // wall-side knee's outward is the wall); the ankles already keep WALL_FOOT_CLEAR off it
@@ -1962,8 +1972,10 @@ export class CharacterRig {
       fresh(this.kneeR);
     }
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
+    // (anim-rework S2) plus the keyed idle's head scan (standing holstered and still only; the keyed neck alone was
+    // undone by this stabilisation)
     Quaternion.RotationYawPitchRollToRef(
-      yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25,
+      yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25 + (freeGait && !free ? t.keyScan : 0),
       -this.input.aimPitch * 0.8 - this.lookPitch + t.head.pitch * 0.4,
       t.head.roll * 0.6,
       tmpQ,
@@ -2067,9 +2079,9 @@ export class CharacterRig {
   /**
    * (CT prototype G8) The keyed walk's trunk over the procedural one by `w`: the pelvis takes the keyed rotation with the
    * turn follow on top (the hips follow the planted feet), the spine takes the follow back (the chest keeps the facing),
-   * chest and neck their keyed local rotations. No allocation.
+   * chest and neck their keyed local rotations (the neck with the look's yaw share `lookYaw` on top). No allocation.
    */
-  private keyedTrunk(kq: KeyedPose, w: number): void {
+  private keyedTrunk(kq: KeyedPose, w: number, lookYaw: number): void {
     const q = kq.q;
     const P = KQ.pelvis;
     kP.set(q[P]!, q[P + 1]!, q[P + 2]!, q[P + 3]!);
@@ -2089,6 +2101,9 @@ export class CharacterRig {
     Quaternion.SlerpToRef(this.torso.rotationQuaternion!, kT, w, this.torso.rotationQuaternion!);
     const N = KQ.neck;
     kT.set(q[N]!, q[N + 1]!, q[N + 2]!, q[N + 3]!);
+    // (anim-rework S2) the look-at keeps its neck share on top of the keyed neck (the idle's scan, the walk's carriage)
+    Quaternion.RotationYawPitchRollToRef(lookYaw, 0, 0, kF);
+    kF.multiplyToRef(kT, kT);
     Quaternion.SlerpToRef(this.neck.rotationQuaternion!, kT, w, this.neck.rotationQuaternion!);
   }
 
@@ -2532,7 +2547,11 @@ export class CharacterRig {
     tmpA.set(x, y, z);
     // knees forward (along the foot) and slightly out
     // (A1.2) knees forward between the hips and the toes (never backwards over a turned foot), and slightly out
-    const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw);
+    // (anim-rework S2) standing holstered, a swinging foot's knee stays nearer the pelvis' forward (KNEE_SWING_SHARE);
+    // crouched and drawn as before (half way)
+    const swinging = !(side < 0 ? this.planner.L : this.planner.R).contact;
+    const holK = this.lastTargets?.keyHol ?? 0;
+    const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw, swinging ? 0.5 + (KNEE_SWING_SHARE - 0.5) * holK : 0.5);
     const c = Math.cos(poleYaw);
     const sn = Math.sin(poleYaw);
     // (ct-prototype E1) climbing a ladder / drainpipe the knee pole also points up (CLIMB_KNEE_UP): a raised foot's

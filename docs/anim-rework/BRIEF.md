@@ -26,6 +26,20 @@ His answers (13:35):
   someone would realistically be able to move if they grabbed someone from behind. The player should also have a knife
   to the persons throat when grabbed, non lethal chokes them, lethal kills them with knife."
 
+- M6 Movement feedback on /preview/ 4.15.x (slice 1 + walk round 3b, via the orchestrator 18:55), for slice 2:
+  "- full speed is too quick, and the leg strides should be further apart with less steps, it's too many steps
+  - walking forward on all gears leans too much, it shouldn't lean at all until full speed which should be similar to the
+  lean it has now
+  - the legs when walking are too far apart, bring knees and legs in line with the body, I would say almost completely
+  vertical.
+  - arms go out in front of body when moving, it looks weird like a zombie. Arms should stay parallel the body and swing
+  naturally increase slightly more each time you speed up.
+  - none of the movement feel weighted, but we will focus on these animations first.
+  - prototype quick passes only, must be believable, not perfect."
+  Reading: top speed down, longer run stride and lower cadence; no forward lean below full speed (today's lean at full
+  speed only); knees and feet under the hips, legs near vertical; arms hang along the body, swing grows a little with
+  speed, no forward reach; weight later.
+
 ## What changes in the rules
 - Movement and animation no longer follow the CT footage. G1 (pure CT) still holds for the rest of the game (mechanics,
   stealth, light, HUD, co-op design) unless Michael says otherwise. The footage audit, the keyed-clip pipeline (G8) and

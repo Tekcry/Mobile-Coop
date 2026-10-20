@@ -204,3 +204,33 @@ function sampleQuats(Q: Float32Array, M: Float32Array, stride: number, i0: numbe
     out[s + 3] = w / l;
   }
 }
+
+/**
+ * (anim-rework S2) Blend two sampled poses into `out` (`out` may be `a`): `t` = 0 is `a`, 1 is `b`. Offsets and arm
+ * points lerp, quaternions nlerp on the same hemisphere; a wrist frame counts when either pose keys one. The standing
+ * speed blend (walk / jog / run) and the idle's share use it. No allocation.
+ */
+export function mixKeyed(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose): KeyedPose {
+  const u = t < 0 ? 0 : t > 1 ? 1 : t;
+  for (let c = 0; c < KEYED_PEL; c++) out.pel[c] = a.pel[c]! + (b.pel[c]! - a.pel[c]!) * u;
+  for (let c = 0; c < KEYED_ARM; c++) out.arm[c] = a.arm[c]! + (b.arm[c]! - a.arm[c]!) * u;
+  nlerpInto(a.q, b.q, KEYED_Q, u, out.q);
+  nlerpInto(a.wrist, b.wrist, KEYED_WRIST, u, out.wrist);
+  out.hasWrist = a.hasWrist || b.hasWrist ? 1 : 0;
+  return out;
+}
+
+function nlerpInto(A: Float64Array, B: Float64Array, stride: number, u: number, out: Float64Array): void {
+  for (let s = 0; s < stride; s += 4) {
+    const sg = A[s]! * B[s]! + A[s + 1]! * B[s + 1]! + A[s + 2]! * B[s + 2]! + A[s + 3]! * B[s + 3]! < 0 ? -1 : 1;
+    const x = A[s]! + (sg * B[s]! - A[s]!) * u;
+    const y = A[s + 1]! + (sg * B[s + 1]! - A[s + 1]!) * u;
+    const z = A[s + 2]! + (sg * B[s + 2]! - A[s + 2]!) * u;
+    const w = A[s + 3]! + (sg * B[s + 3]! - A[s + 3]!) * u;
+    const l = Math.sqrt(x * x + y * y + z * z + w * w) || 1;
+    out[s] = x / l;
+    out[s + 1] = y / l;
+    out[s + 2] = z / l;
+    out[s + 3] = w / l;
+  }
+}

@@ -38,7 +38,7 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
 - `game/gadgetSystem.ts` (`GameState.gadgets`): runs first each fixed step with the real input and returns true while the
   wheel or a remote view has it (the rest of the step then gets `blankInp`); `look()` takes the frame's look;
   `frameUpdate` after the player's camera (the remote view owns the camera; arc dots and landing ring).
-- Wheel: hold `gadgetWheel` past `WHEEL_HOLD` (pad D-pad left, KBM Tab); the stick or look picks, release selects;
+- Wheel: hold `gadgetWheel` past `WHEEL_HOLD` (pad D-pad left, KBM Tab); the stick or look picks, release selects; with the vision slot lit, A (pad) / E (keys) is a carousel (night -> thermal -> electro -> night, `VISION_WHEEL`, `SelectionWheel.cycle`), the wheel opens on the current mode, no cursor-length pick;
   `loop.timeScale` `WHEEL_SLOW` 0.3 unless co-op. Overlay: `ui/hud/gadgetWheel.ts`.
 - Effects: gas clouds (`Enemy.gas` seconds -> `knockOut` at `GAS_KO`); flashbang (`Enemy.blind(s)`: brain off, hands to
   face, then `alert()`; facing it the full duration; `CinematicPost.whiteOut` for the operator facing it); EMP

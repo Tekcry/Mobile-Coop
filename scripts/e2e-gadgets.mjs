@@ -108,23 +108,36 @@ try {
       t.step(0.5);
       const tapOpen = g.gadgets.wheelOpen;
       const tapSwitched = g.weapons.slots.length < 2 || g.weapons.slotIndex !== w0;
-      // mouse: with the wheel open, look deltas move the cursor; the vision stack picks a mode by length; release applies
+      // mouse: with the wheel open, look deltas move the cursor onto the vision slot; (nv-pass slice 3) E steps the mode
+      // from the selected one (the carousel), the context menu never sees it; release applies
       a.input.setMode('kbm');
+      const vis0 = g.vision.selected;
+      st.set('t', 'gadgetWheel', true);
       g.gadgets.openWheel();
+      const visOpen = g.gadgets.sel.mode;
       g.gadgets.look(0, 0.08);
       const visSeg = g.gadgets.wheelSlot;
-      g.gadgets.closeWheel(true);
+      st.set('t', 'interact', true);
+      t.step(1 / 60);
+      st.set('t', 'interact', false);
+      t.step(1 / 60);
+      const visCtx = g.ctxMenu.state;
+      const visStep = g.gadgets.sel.mode;
+      st.set('t', 'gadgetWheel', false);
+      t.step(0.05);
       const clickSel = g.vision.selected;
       const clickClosed = !g.gadgets.wheelOpen;
       // (back to the pad for the scenarios below; before G13 the page stayed in touch mode here)
       a.input.setMode('gamepad');
-      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, tapSwitched, visSeg, clickSel, clickClosed };
+      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, tapSwitched, vis0, visOpen, visSeg, visCtx, visStep, clickSel, clickClosed };
     });
     assert(r.open && r.shown && r.slow === 1, `holding the wheel button opens the selection wheel over the live game, no time slow (x${r.slow})`);
     assert(r.slot === 2 && /flash/i.test(r.hl) && r.moved > 0.05, `the cursor picks a segment (${r.slot} ${r.hl}); the left stick still walks (${r.moved.toFixed(2)} m)`);
     assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing selects it (${r.sel}) and closes (x${r.back})`);
     assert(!r.tapOpen && r.tapSwitched, 'a quick tap does not open the wheel: it switches weapon');
-    assert(r.visSeg === 0 && r.clickSel === 'thermal' && r.clickClosed, `mouse: a look up picks the vision stack (segment ${r.visSeg}), release selects the mode (${r.clickSel})`);
+    assert(r.visOpen === r.vis0 && r.visSeg === 0 && r.visCtx !== 'active', `mouse: the wheel opens on the selected mode (${r.vis0} / ${r.visOpen}), a look up lights the vision slot (segment ${r.visSeg}), E is the wheel's (context menu ${r.visCtx})`);
+    const nxt = { night: 'thermal', thermal: 'electro', electro: 'night' }[r.vis0];
+    assert(r.visStep === nxt && r.clickSel === nxt && r.clickClosed, `E steps the carousel ${r.vis0} -> ${r.visStep}, release selects it (${r.clickSel})`);
   });
 
   await scen('arc', async () => {
