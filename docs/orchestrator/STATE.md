@@ -14,7 +14,7 @@ update its version line and rows after each merge with the sed / node edits used
 ## Priority (Michael)
 Movement and animation first (10:30, 13:50: "any spare bandwidth that can be used to speed it up should be used").
 CT movement references are dropped for movement and animation (13:30); the brief is docs/anim-rework/BRIEF.md.
-Laptop: low priority (BelowNormal, E2E_JOBS=1) until Michael says otherwise. Keep going until Michael says stop (08:45).
+Laptop and desktop: full bandwidth (Michael 2026-10-20 ~18:50: "you have full bandwidth of desktop and laptop again. Ix27m not using them"); laptop normal priority, E2E_JOBS=2; still headless, one heavy job per machine. Token use: lean (Michael ~18:45: "Make sure all sessions are conscious of token usage"). Keep going until Michael says stop (08:45).
 
 ## Sessions now (titles are the message addresses)
 | Session | Job(s), branch, folder | State (16:20) |
