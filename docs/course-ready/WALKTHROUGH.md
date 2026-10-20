@@ -60,7 +60,7 @@ station repeats it (A / E).
 | 2 Leg-up wall | Crouch at the square by the wall, press Co-op: you boost your partner. | Run in and press Co-op, then Y / Space to climb over. On the far side press A / E at **Unbolt**, then open the door for your partner (the near side says "Bolted from the other side"). |
 | 3 Camera | Pistol out: LB / Tab to it, X to draw. Aim at the camera, hold LT / Z and stand still. | Walk into the blind spot (the pale blue-grey square). Then swap roles. |
 | 3 door | When both stand in the blind spot at the same time the door unlocks. **Holster (X) first**, then open it (A / E). | Same. |
-| 4 Laser | Stand about 1 m before the beams, press Co-op: you throw your partner over. | Run in and press Co-op to be thrown, then press the red release on the left fence. The beams go off; both walk through to the pad. A beam touch costs 15 HP. The jammer also holds the laser off. |
+| 4 Laser | Stand about 1 m before the beams, press Co-op: you throw your partner over. | Run in and press Co-op to be thrown, then press the red release on the left wall. The beams go off; both walk through to the pad. A beam touch costs 15 HP. The jammer also holds the laser off. |
 | 5 Annex and roof | Leg-up and relay onto the roof (as station 2). Both press the two roof plates (A / E) within 1 s. | Same, on the other plate. A lone press shows "Partner: press the other plate now": press again together. |
 | 5 hatch | Crouch on the striped square facing the hatch, press Co-op: you lower your partner. | Press Co-op too, then hack the panel while hanging (A / E). |
 | 5 way out | "Grid open": both go off the roof (front lip, no fall damage), in the front door, through the grid, to the back-room airlock. | Same. |
