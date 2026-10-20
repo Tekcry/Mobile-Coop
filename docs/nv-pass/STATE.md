@@ -1,6 +1,14 @@
 # Night vision pass - state
 
-## Now (2026-10-20 19:45)
+## Now (2026-10-20 19:25)
+Job end in progress. Laptop: 3fa8d372 check + smoke, e2e-pad, e2e-gadgets, e2e-mouse PASS; full `E2E_SUITE_TIMEOUT=900 npm
+run e2e` on a58f4eda requested. Docs done (a58f4eda). GPU 19:15-19:18 on a58f4eda: e2e-darkness PASS (NV deep fill 13.5%).
+Perf budgets FAIL on nv-pass (min: sim p95, anim/char, allocations, main; epic: anim/char, main; medium: allocations,
+main). Master 89f061e7 min also fails sim p95, anim/char, main (baseline stopped by the orchestrator for movement work,
+only min ran). Open: allocations fail only on nv-pass, top allocators are animation (solveLegWorld 511 KB/s, updateIdle)
+nv-pass does not touch; needs a master vs nv-pass rerun pair when the orchestrator frees the lock. GPU / perf work only
+on the orchestrator's word (movement preempts everything, Michael).
+
 Slice 3, the vision carousel, PASS (CHECK-S3.md, fresh Opus checker; SLICE3.md), 3fa8d372: on the wheel's vision slot
 pad A (`interact`) / keyboard E steps night -> thermal -> electro -> night, the press is consumed, release selects, the
 wheel opens on the selected mode; `VISION_STEPS` length pick removed. tsc, lint, vitest pass; `npm run check` + smoke,
@@ -11,11 +19,11 @@ sheet-s12b-* vs master sheet-before-* (65bfe6f2), Epic pair sent to Michael. e2e
 49eeee88), not re-run since. Master 89f061e7 merged (ddd5ca9f).
 
 ## Next
-1. Laptop results for 3fa8d372 (Character Build replies); a failure -> one fix round.
-2. End: CHANGELOG "Unreleased - nv-pass", TESTING.md lines, docs/systems/lighting.md and graphics-quality.md (stale NV
-   numbers, SURVEY "Stale docs"), perf budgets (render work), `npm run check`, e2e-darkness re-run on the GPU, full
-   `E2E_SUITE_TIMEOUT=900 npm run e2e` on the PR head (desktop or the laptop runner), PR to master; the orchestrator
-   sets the version. Scratch worktree removal (Open).
+1. PR to master open (minor; the orchestrator sets the version and merges after the laptop full e2e on the PR head and
+   the allocations rerun). Waiting: the laptop full e2e on a58f4eda; the orchestrator's word that the lock is free of
+   movement work, then the allocations budget only, master 89f061e7 (scratch worktree) vs nv-pass, same session,
+   `perf.mjs --budget` and `--preset=medium --budget`.
+2. After the merge: remove the scratch worktree (Open), add the e2e-desktop flake to `docs/backlog.md`.
 
 ## Open
 - Light parity: the body-fill fix stays in the render path (`LampPlugin`), never the ambient grid or light field.
@@ -59,7 +67,7 @@ sheet-s12b-* vs master sheet-before-* (65bfe6f2), Epic pair sent to Michael. e2e
 Night Shift | nv-pass: RESUME. Folder C:/NightShift/Mobile-Coop-nv-pass, branch feature/nv-pass (git pull --ff-only;
 branch guard from CLAUDE.md before every write). Read CLAUDE.md "Sessions", docs/ROADMAP.md, then docs/nv-pass/BRIEF.md,
 PLAN.md, SURVEY.md and STATE.md, and continue from "Now" / "Next" with the loop in docs/systems/session-method.md
-(next: the laptop results for slice 3, then the job end in STATE "Next"). Slices 1-3 have
+(next: the PR follow-ups in STATE "Next"). Slices 1-3 have
 passed their checkers. Report to "Night Shift | Orchestrator".
 Opus, high effort.
 ```
