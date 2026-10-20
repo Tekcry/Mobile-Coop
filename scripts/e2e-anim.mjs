@@ -575,6 +575,205 @@ try {
     }, orig);
   }
 
+  {
+    // (anim-rework S4) crouched sub-states (holstered unless named): the crouched idle (the keyed squat), a crouched start
+    // and stop at speeds 1 and 3, the crouch run at speed 5, and drawn (rifle) the crouched low ready walk, the aimed idle
+    // (the kneel) and the aimed strafe. CRAB_CROUCH_GATES turns a state's asserts on (CRAB_CROUCH_CHECKS: which metrics;
+    // L.crabCrouchRanges: the ranges); CRAB_STATES=1 prints the report-only rows too.
+    const all = process.env.CRAB_STATES === '1';
+    console.log(`anti-crab: crouched sub-states (${all ? 'CRAB_STATES=1' : 'CRAB_CROUCH_GATES'})`);
+    const A = { ads: true };
+    const R = { draw: true };
+    const crouched = [
+      ['crouched idle', 'idle', [0], [{ sec: 1.2, inp: {} }, { sec: 1.5, inp: {}, rec: true }]],
+      ['crouched start', 'start', [1, 3], [{ sec: 1.0, inp: {} }, { sec: 0.8, inp: { y: 1 }, rec: true }]],
+      ['crouched stop', 'stop', [1, 3], [{ sec: 1.2, inp: { y: 1 } }, { sec: 1.0, inp: {}, rec: true }]],
+      ['crouch run', 'run', [5], [{ sec: 1.0, inp: { y: 1 } }, { sec: 2.0, inp: { y: 1 }, rec: true }]],
+      ['crouched low ready walk', 'readyWalk', [3], [{ sec: 1.0, inp: { ...R, y: 1 } }, { sec: 2.0, inp: { ...R, y: 1 }, rec: true }], 'rifle'],
+      ['crouched aimed idle', 'aimIdle', [0], [{ sec: 1.2, inp: A }, { sec: 1.0, inp: A, rec: true }], 'rifle'],
+      ['crouched aimed strafe', 'aimStrafe', [1, 2], [{ sec: 1.2, inp: { ...A, x: 1 } }, { sec: 1.5, inp: { ...A, x: 1 }, rec: true }], 'rifle'],
+    ];
+    const crouchRows = [];
+    const orig = await G(() => ({ cls: window.__app.current.weapons.current.def.class, mul: window.__app.current.player.controller.speedMul }));
+    for (const [name, key, gears, segs, weapon] of crouched) {
+      const gated = !!L.CRAB_CROUCH_GATES[key];
+      if (!all && !gated) continue;
+      for (const gear of gears) {
+        const rec = await crabRecord(gear || 4, true, segs, weapon);
+        const C = L.crabCrouchRanges(key);
+        const r = crabRow(`${name}${gear ? ` speed ${gear}` : ''}`, rec, true, false, C);
+        crouchRows.push({ key, gear, ...r.row });
+        console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
+        if (!gated) continue;
+        const want = L.CRAB_CROUCH_CHECKS[key];
+        const n = r.name;
+        if (want.includes('knees')) assert(r.knee.pass, `${n}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
+        if (want.includes('track')) assert(r.track.pass, `${n}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
+        if (want.includes('knee-out')) assert(r.bow.pass, `${n}: knees over the toes (outside by ${r.row.bow} cm)`);
+        if (want.includes('slide')) assert(r.slide < C.slide, `${n}: planted feet locked (${r.row.slide} cm)`);
+        if (want.includes('elbows')) assert(r.wing.pass, `${n}: elbows in (${r.row.wing} cm outside the shoulder)`);
+        if (want.includes('cross')) assert(r.track.min > -0.005, `${n}: the feet never cross (${r.row.track[0]} cm)`);
+      }
+    }
+    if (process.env.CRAB_JSON) console.log(`CRAB_CROUCH_JSON ${JSON.stringify(crouchRows)}`);
+    // (anim-rework S4, BRIEF 3 "The crouched idle") the knee hand: holstered, crouched and still, each palm on top of its
+    // own knee, palm down, fingers forward (L.KNEE_HAND), sampled over 2 s of the idle (its breathing and weight shift)
+    await G((a) => (window.__kneeAbove = a), L.KNEE_HAND.above);
+    const kh = await G(() => {
+      const t = window.__t;
+      const p = window.__app.current.player;
+      const c = p.controller;
+      const rig = p.rig;
+      p.stance.holster();
+      t.tp(12, -14, -Math.PI / 2);
+      rig.planner.L.init = rig.planner.R.init = false;
+      c['crouchToggled'] = true;
+      t.run(1.5, {});
+      const H = { L: { d: [0.07779, -0.99681, 0.01766], n: [0.9529, 0.06913, -0.2953], palm: [0.00372, -0.04769, 0.00084] }, R: { d: [-0.07779, -0.99681, 0.01766], n: [-0.9529, 0.06913, -0.2953], palm: [-0.00372, -0.04769, 0.00084] } };
+      const out = { dist: 0, down: 1, fwd: 1, above: window.__kneeAbove, off: [0, 0, 0], n: 0 };
+      const xf = (m, v, w) => [m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12] * w, m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13] * w, m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14] * w];
+      const unit = (v) => {
+        const l = Math.hypot(v[0], v[1], v[2]) || 1;
+        return [v[0] / l, v[1] / l, v[2] / l];
+      };
+      t.run(2.0, {}, () => {
+        const yaw = rig.root.rotation.y;
+        const fx = Math.sin(yaw);
+        const fz = Math.cos(yaw);
+        for (const s of ['L', 'R']) {
+          const m = rig[`wrist${s}`].computeWorldMatrix(true).m;
+          const palm = xf(m, H[s].palm, 1);
+          const n = unit(xf(m, H[s].n, 0));
+          const d = unit(xf(m, H[s].d, 0));
+          const k = rig[`knee${s}`].getAbsolutePosition();
+          const ox = palm[0] - k.x;
+          const oy = palm[1] - (k.y + out.above);
+          const oz = palm[2] - k.z;
+          out.dist = Math.max(out.dist, Math.hypot(ox, oy, oz));
+          // (the mean offset in the body frame: out to the hand's side, up, forward)
+          const sd = s === 'L' ? -1 : 1;
+          out.off[0] += (ox * fz - oz * fx) * sd;
+          out.off[1] += oy;
+          out.off[2] += ox * fx + oz * fz;
+          out.n++;
+          out.down = Math.min(out.down, -n[1]);
+          out.fwd = Math.min(out.fwd, d[0] * fx + d[2] * fz);
+        }
+        return 0;
+      });
+      c['crouchToggled'] = false;
+      t.run(0.6, {});
+      for (let j = 0; j < 3; j++) out.off[j] /= Math.max(1, out.n);
+      return out;
+    });
+    const K = L.KNEE_HAND;
+    console.log(`  crouched idle knee hand: palm to the knee top max ${cm(kh.dist)} cm (<= ${cm(K.dist)}), palm down min ${f2(kh.down)} (>= ${K.palmDown}), fingers forward min ${f2(kh.fwd)} (>= ${K.fingersFwd}), mean offset out ${cm(kh.off[0])} up ${cm(kh.off[1])} fwd ${cm(kh.off[2])} cm${L.CRAB_CROUCH_GATES.idle ? '' : ' [report-only]'}`);
+    if (L.CRAB_CROUCH_GATES.idle) {
+      assert(kh.dist <= K.dist, `crouched idle: each palm on top of its knee (${cm(kh.dist)} cm)`);
+      assert(kh.down >= K.palmDown, `crouched idle: palms down (${f2(kh.down)})`);
+      assert(kh.fwd >= K.fingersFwd, `crouched idle: fingers forward (${f2(kh.fwd)})`);
+    }
+    await crabRecord(0, false, [{ sec: 0.1, inp: {} }], orig.cls);
+    await G((o) => {
+      const p = window.__app.current.player;
+      p.stance.holster();
+      p.controller.speedMul = o.mul;
+      window.__t.run(0.5, {});
+    }, orig);
+  }
+
+  {
+    // (anim-rework S4) stand <-> crouch in every state, on the posed rig (the keyed set is not in graph.pose): each joint's
+    // place in the body frame (from the root, turned by its yaw), its change per 60 Hz frame and the change of that (a
+    // pop is a jump in the velocity), the worst of the hips, wrists, head and the knees over planted feet (a stepping knee
+    // swings) over each transition (L.CROUCH_POP)
+    console.log('stand <-> crouch on the rig (posed joints)');
+    const pops = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const p = g.player;
+      const c = p.controller;
+      const rig = p.rig;
+      const W = g.weapons;
+      const joints = ['hips', 'kneeL', 'kneeR', 'wristL', 'wristR', 'headNode'];
+      const res = [];
+      let prev = null;
+      let vel = null;
+      let worst = 0;
+      let where = '';
+      let planted = [true, true];
+      const sample = () => {
+        const pl = [rig.planner.L.contact, rig.planner.R.contact];
+        const r = rig.root.position;
+        const yaw = rig.root.rotation.y;
+        const cs = Math.cos(yaw);
+        const sn = Math.sin(yaw);
+        const now = [];
+        for (const j of joints) {
+          const n = rig[j];
+          n.computeWorldMatrix(true);
+          const v = n.getAbsolutePosition();
+          const dx = v.x - r.x;
+          const dz = v.z - r.z;
+          now.push(dx * cs - dz * sn, v.y - r.y, dx * sn + dz * cs);
+        }
+        if (prev) {
+          const v = now.map((x, k) => x - prev[k]);
+          if (vel)
+            for (let k = 0; k < joints.length; k++) {
+              if ((k === 1 || k === 2) && !(pl[k - 1] && planted[k - 1])) continue;
+              const a = Math.hypot(v[3 * k] - vel[3 * k], v[3 * k + 1] - vel[3 * k + 1], v[3 * k + 2] - vel[3 * k + 2]);
+              if (a > worst) {
+                worst = a;
+                where = joints[k];
+              }
+            }
+          vel = v;
+        }
+        prev = now;
+        planted = pl;
+        return 0;
+      };
+      const seq = (name, setup, segs) => {
+        t.tp(12, -14, -Math.PI / 2);
+        rig.planner.L.init = rig.planner.R.init = false;
+        setup();
+        prev = vel = null;
+        worst = 0;
+        where = '';
+        for (const sg of segs) t.run(sg.sec, sg.inp, sg.rec ? sample : undefined);
+        res.push({ name, worst, where });
+        c['crouchToggled'] = false;
+        t.run(0.6, {});
+      };
+      const hol = () => {
+        p.stance.holster();
+        t.run(0.5, {});
+      };
+      const low = () => {
+        p.stance.base = 'lowReady';
+        t.run(0.8, {});
+      };
+      const C = { taps: { 1: 'crouch' } };
+      seq('holstered still: stand -> crouch -> stand', hol, [{ sec: 0.8, inp: {} }, { sec: 1.2, inp: C, rec: true }, { sec: 1.2, inp: C, rec: true }]);
+      seq('holstered walking: crouch -> stand', hol, [{ sec: 1.0, inp: { y: 0.5 } }, { sec: 1.0, inp: { y: 0.5, ...C }, rec: true }, { sec: 1.0, inp: { y: 0.5, ...C }, rec: true }]);
+      seq('holstered running: crouch -> stand', hol, [{ sec: 1.0, inp: { y: 1 } }, { sec: 1.0, inp: { y: 1, ...C }, rec: true }, { sec: 1.0, inp: { y: 1, ...C }, rec: true }]);
+      seq('crouched: walk -> stop -> squat -> start', () => (hol(), (c['crouchToggled'] = true), t.run(0.6, {})), [{ sec: 1.0, inp: { y: 0.6 } }, { sec: 1.6, inp: {}, rec: true }, { sec: 1.0, inp: { y: 0.6 }, rec: true }]);
+      seq('crouched sneak -> stand still', () => (hol(), (c['crouchToggled'] = true), t.run(0.6, {})), [{ sec: 1.0, inp: { y: 0.35 } }, { sec: 0.6, inp: {}, rec: true }, { sec: 1.4, inp: C, rec: true }]);
+      seq('low ready still: crouch -> stand', low, [{ sec: 0.4, inp: { draw: true } }, { sec: 1.2, inp: { draw: true, ...C }, rec: true }, { sec: 1.2, inp: { draw: true, ...C }, rec: true }]);
+      seq('low ready walking: crouch -> stand', low, [{ sec: 1.0, inp: { draw: true, y: 0.5 } }, { sec: 1.0, inp: { draw: true, y: 0.5, ...C }, rec: true }, { sec: 1.0, inp: { draw: true, y: 0.5, ...C }, rec: true }]);
+      seq('aiming still: crouch -> stand', low, [{ sec: 0.6, inp: { ads: true } }, { sec: 1.2, inp: { ads: true, ...C }, rec: true }, { sec: 1.2, inp: { ads: true, ...C }, rec: true }]);
+      seq('aiming strafe: crouch -> stand', low, [{ sec: 1.0, inp: { ads: true, x: 1 } }, { sec: 1.0, inp: { ads: true, x: 1, ...C }, rec: true }, { sec: 1.0, inp: { ads: true, x: 1, ...C }, rec: true }]);
+      p.stance.holster();
+      t.run(0.6, {});
+      return res;
+    });
+    for (const r of pops) {
+      console.log(`  ${r.name}: worst velocity change ${cm(r.worst)} cm per 60 Hz frame (${r.where}; <= ${cm(L.CROUCH_POP)})${L.CROUCH_POP_GATE ? '' : ' [report-only]'}`);
+      if (L.CROUCH_POP_GATE) assert(r.worst <= L.CROUCH_POP, `${r.name}: no pop on the rig (${cm(r.worst)} cm per frame, ${r.where})`);
+    }
+  }
+
   // ---------------------------------------------------------------- transitions and flinch
   console.log('transitions');
   const tr = await G(() => {
