@@ -1,7 +1,7 @@
 # anim-guard - state
 
 ## Now
-An Opus implementer keys and bakes the four guard clips (report: docs/anim-guard/REPORT.md, written by the job lead).
+Clips keyed, baked, sheeted, tested (REPORT.md); an Opus checker reviews; PR to feature/ct-prototype once #39 is in.
 
 ## Done
 - 2026-10-20: worktree from feature/anim-rig 00b654cd; BRIEF, STATE.
