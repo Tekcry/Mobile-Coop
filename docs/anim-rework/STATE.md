@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-20 21:42 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-21 03:12 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -12,28 +12,43 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
 ```
 
 ## Now
-- Slice 2 merged to master (#52, 4.17.0). Michael on /preview/: "almost worse than before"; he tunes with anim-tuner
-  (Course Ready, feature/anim-tuner) first (Open items).
-- Slice 3 (low ready and aiming, rifle and pistol, standing; the glide; the M2 sling draw) done at 5248dfad. Report
-  `S3-REPORT.md`, sheets `shots/s3/`. Drawn keyed set (ready stance; low ready on the slice 2 legs; aiming = glide fwd /
-  back / strafe by direction, left mirrored); the glide shuffle fixes the aimed strafe crab (knees 2.9x -> 1.23x max,
-  track 46-55 -> 16-18 cm, never crossed); aimed back 1.24x -> 0.70x. Rifle low ready muzzle 39 deg down, elbows 4 cm;
-  pistol compressed ready; sling draw 0.75 s (rifle, local only). CRAB_DRAWN_GATES on; CRAB_STRAFE range (reason in
-  limits.ts). A5 (BRIEF): aimed strafe 0.7 m/s at full stick (was 1.26).
-- Tier: npm run check pass (2058); desktop e2e:quick pass (e2e-stealth solo pass), e2e-mouse ok, e2e-pad solo pass;
-  independent Opus check PASS (no fixes, so no fix round). Laptop e2e-ctcourse / e2e-coop / e2e-netmove on 5248dfad:
-  pass (243 / 81 / 128 s). /ct/ moved; slice 3 PR to master opened.
+- Michael (overnight 2026-10-21): "Turn off movement slices and any research." Only already-built work lands: S2b and
+  slices 4 + 5 as PRs; no slice 5 wall round, no slice 6 (Sector Ops stopped it before any code: feature/anim-hold
+  8b6f6f7b holds only its stop record). Then CT Core does tool support only: the Weight tuner group next.
+- Slice 4 (crouched set, A6 squat idle, crouched drawn, stand <-> crouch re-step) at b59c6e3d + A6 d2ffd4a4; report
+  S4-REPORT.md, sheets shots/s4/. Independent check PASS (review only), no fix round. Merged master 4.20.1 (tuner hooks
+  kept and re-pointed: kneeOutMul on kneeOut0, tuckMul over READY_ELBOW_TUCK_CROUCH, trackMul over KNEEL_NARROW) at
+  517ca25a and Sector Ops' slice 5 walls (feature/anim-walls f67652cb) at 130ff997; added `o.kneeRest *= 1 - keyWallS`
+  so the squat's knee IK yields to the wall set.
+- Tier on 130ff997: npm run check pass (2129); e2e-anim, e2e-wall, e2e-clip, e2e-move pass; e2e-mouse fails in the remap
+  section (the second autostart=proving page times out after 60 s) identically on master 6a4fb07f, so not ours
+  (machine load: e2e-move took 490 s). Laptop e2e-ctcourse / e2e-coop / e2e-netmove on the PR head: sent. Slice 5 laptop
+  confirm on f67652cb: check, e2e-anim, e2e-wall pass.
+- S2b: implementer still running on feature/anim-s2b (C:/NightShift/Mobile-Coop-anim-s2b); straight to a PR on its own
+  checks.
 
 ## Next
-- Slice 4 (sneak, crouch walk and run, crouched idle with the knee hand; crouched holstered from A4 and crouched drawn):
-  wire `crouch_walk` / `crouch_run` / `sneak` / `crouch_idle` (S4-KEYS.md: the clips' pel y is the full crouch depth,
-  use dy about the clip mean or replace the procedural drop; duty / liftH to the planner; the knee hand needs keyedArm
-  on while crouched idle, characterRig.ts ~2053). Then slice 5 (S5-KEYS.md: mirror; the keys duplicate WALL_STANCE /
-  WALL_SIDE_POSE terms) and slice 6 (S6-KEYS.md: the choke needs root motion; wires #41's guard clips; recheck
-  keyedDrawn's bend gate for the human shield).
-- Fold in Michael's anim-tuner values when he exports them.
+- The Weight tuner group (orchestrator 2026-10-21, Michael: "weight", tunable): feature/anim-weight from master with
+  feature/tuner-camera df00a947's section registry (src/anim/tuneRegistry.ts, docs/anim-tuner/STATE.md "Section
+  registry"; group ids prefixed "weight-"): momentum ramps, lean / bank / stop counter-lean, plant and landing loading,
+  critically damped springs (chest, head, arms, sling, pouches), anticipation wind-ups, a camera-lag hook; identity =
+  today's output exactly; e2e-anim / move / clip unchanged at identity; one check; minor PR.
+- Keep the tuner-v2 hooks (characterRig jointOffsets / IK targets, player.ts jointsBegin / jointsEnd, weaponModel gun
+  scale, 13 footPlanner reads) when editing those lines.
 
 ## Open items
+- Movement slices are off (Michael); everything below waits for his hand tuning or a later ask.
+- Slice 5 wall rows report-only, out of range (laptop f67652cb): slide R / L knees 1.32 / 1.47x, track 16.5 / 21.6 cm,
+  knee-out 7.6 / 11 cm (footPlanner's side step at the wall); peek R / L knees 1.31 / 1.27x, knee-out 9.6 cm (peeks at
+  keyed weight 0); crouched idle elbows 11.4 cm; crouched peek knees 1.66 / 1.57x, elbows 8.3 / 10.7 cm. Rig: the keyed
+  gate should take `|| this.input.wall` (now WALL_KEYS.gate keyDrawn >= 0.02); no drawn-at-wall carrier flag; the
+  knee-hand path ignores the crouched wrist frames.
+- Slice 4 polish: CROUCH_POP margin thin (crouched aimed strafe 6.7 vs 7.5 cm); KNEE_HAND gate loose (dist 7 vs 1.4 cm
+  measured); turnFollow.test.ts crouched latMin now lets a planted foot pass the midline; sneak has no head scan while
+  moving; KEYED_CROUCH_POSE lean / drop belongs in the clips; crouch walk steps long (0.64 m at 1.7 m/s); crouch-run
+  forearms near horizontal; remotes ease the crouch exponentially.
+- Slice 6 not started: the S6 keys (S6-KEYS.md) stay unwired.
+- e2e-mouse remap section times out on master 4.20.x (the second autostart page); for the master side.
 - Slice 3 polish: CRAB_STRAFE knee max 1.5 is slack (measured 1.26; about 1.35 still catches a regression); the sling
   draw has the rifle high near the head for a frame or two (~0.42 s); the pistol aim leans the chest over the gun
   (PISTOL_REACH.lean) and the slung rifle juts behind the back (both older); no crossover step at speed (with A5,

@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.24.0 - Crouched movement and the wall set reworked (anim-rework slices 4 and 5) (2026-10-21, PR #66)
+- Crouched movement (slice 4, `docs/anim-rework/S4-REPORT.md`; the real-world operator standard, BRIEF 3 "Stealth"):
+  - holstered crouched: the keyed sneak, crouch walk and crouch run as one continuous speed blend (no pop), the knees
+    and feet under the hips (knees 0.7 x the hip width, was 1.6; feet about 5 cm off the line, was 9-10), arms along the
+    body (elbows 2 cm out, was 17-18), the crouch run leaning forward (about 37 deg) and low without the knee dragging;
+  - the crouched idle when holstered is a deep balanced squat with each hand resting on top of its knee, palm down,
+    fingers forward (was a one-knee kneel with the hand upside down and off the knee), slow breathing (a 12 s cycle of
+    three breaths), a slow head scan; with a gun out she still kneels, its breathing slowed (a breath every 5 s);
+  - crouched with a gun out: the crouched legs under the low ready and aim; the crouched aimed strafe is the short
+    shuffle step (was a 35-44 cm wide crab with crossing feet);
+  - stand <-> crouch in every state blends on the 0.22 s stance curve with no snap (the old crouch run to standing
+    snapped the legs); standing up from a sneak re-steps the feet under the hips;
+  - new e2e-anim checks: the crouch and sneak gaits, crouched idle / start / stop / run / low ready walk / aimed idle /
+    aimed strafe, the knee hand, and a stand <-> crouch pop check; e2e-clip checks the arms against the legs crouched.
+
 ## 4.23.0 - Tuner: camera and speed sliders, free view, freeze, full pad control, import, bypass, search (2026-10-21, PR #65)
 - Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
   I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
