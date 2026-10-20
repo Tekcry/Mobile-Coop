@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-20 17:10 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-20 18:40 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -12,19 +12,13 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
 ```
 
 ## Now
-- Slice 1 (controls) is done: commits 5b691a02 (controls), 088849a5 (round 2: RB jammer, A interacts always), ef3a3c01
-  (round 3: X-hold reload in e2e-combat, team prompt hidden while the pistol aims, Toggle aim removed, netmove step),
-  13d01dcb (e2e-ctcourse stations 3 / 4 aim after LT). Report `S1-REPORT.md` (rounds 1-3).
-- Tier on 13d01dcb: npm run check green (2004); laptop solo e2e-ctcourse 260 s, e2e-coop 90 s, e2e-netmove 128 s pass;
-  desktop e2e-combat, mouse, pad, takedown, ct, gadgets pass solo; e2e-menus (a 500 ms wall-clock fade check, failed
-  before with other values under load) and e2e-stealth (look-input wall-clock wait) fail on the desktop: the laptop's
-  full e2e on the PR head decides them. Independent Opus check PASS.
-- The PR head is the merge da267b0f (+ this STATE commit): #41 (unwired guard clips) and master 4.14.1 merged on top of
-  13d01dcb; its npm run check runs after Menu Notes' lock. Then: push, move /ct/ (ct-movement), open the slice 1 PR to
-  master with the body below, message the orchestrator; the orchestrator sends the full npm run e2e on the PR head to
-  the laptop and merges.
-- Session clear: Michael wants every session cleared. After the PR is open: "CT Core ready to clear" to the
-  orchestrator with the resume prompt above; start no new work until cleared.
+- Slice 1 merged to master (#43, 4.15.0). Branch fast-forwarded to master 89f061e7 (4.15.1, #44 phone-min) at 18:35.
+- Slice 2 started 18:40: an Opus implementer on standing holstered locomotion (scope A4 below), report `S2-REPORT.md`.
+  Then an independent Opus check, one fix round, npm run check, desktop e2e:quick + laptop e2e-ctcourse / e2e-coop /
+  e2e-netmove solo, a contact sheet for Michael, /ct/, the slice 2 PR to master.
+- A4 (assumed, CT Core 18:40): slice 2 is the standing holstered set (idle, walk, jog, run as one speed blend, starts,
+  stops, turns on the spot, 90 / 180 direction changes) and gates walk / jog / run. The crouched holstered set (crouch
+  walk and run, sneak, crouched idle) moves to slice 4, which already owns those clips. Undo: add them back to slice 2.
 
 ## Next
 - Slice 2 (holstered locomotion standing and crouched, idles, starts / stops / turns on the spot / direction changes,
