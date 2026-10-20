@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - ghost-fix
+## 4.13.2 - No ghosting at Epic when aiming, drawing or holstering (2026-10-20, PR #36)
 - No ghosting at Epic when drawing, aiming or holstering (Michael's playtest). The aim depth of field read the camera's
   direction before the render, so Babylon saw a moving camera as still and Epic's TAA kept blending old frames; it now
   uses the camera's own look angles. The TAA history is also clamped to the current frame's neighbourhood, so fast arms
