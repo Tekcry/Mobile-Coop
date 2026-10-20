@@ -15,7 +15,6 @@ import { wrapPi } from '../anim/motion';
 import type { MoveOverride } from '../player/playerController';
 import { GUARD_INFO_GAP, takeInfo, type GuardInfo } from '../ai/guardInfo';
 import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
-import { TUNE_BODY } from '../anim/tune';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
@@ -358,8 +357,8 @@ export class TakedownController {
       const k = ease((a.t - plan.approach) / GRAB.pull);
       const fx = Math.sin(plan.faceYaw);
       const fz = Math.cos(plan.faceYaw);
-      const hx = plan.alignX + fx * (GRAB.hold + TUNE_BODY.hold.guardGapAdd) + fz * (GRAB.side + TUNE_BODY.hold.guardSideAdd);
-      const hz = plan.alignZ + fz * (GRAB.hold + TUNE_BODY.hold.guardGapAdd) - fx * (GRAB.side + TUNE_BODY.hold.guardSideAdd);
+      const hx = plan.alignX + fx * GRAB.hold + fz * GRAB.side;
+      const hz = plan.alignZ + fz * GRAB.hold - fx * GRAB.side;
       const dy = gr.vYaw0 + wrapPi(plan.faceYaw - gr.vYaw0) * k;
       e.holdAt(a.vFrom.x + (hx - a.vFrom.x) * k, a.vFrom.y, a.vFrom.z + (hz - a.vFrom.z) * k, dy);
       this.bend = CQ.holdBend * k;
@@ -378,9 +377,7 @@ export class TakedownController {
     const fx = Math.sin(c.yaw);
     const fz = Math.cos(c.yaw);
     const sw = holdSway(gr.holdT, 1 - Math.min(1, c.speed / 0.3));
-    const hg = GRAB.hold + TUNE_BODY.hold.guardGapAdd; // (anim-tuner) the gap-to-guard slider (0 by default)
-    const hs = GRAB.side + TUNE_BODY.hold.guardSideAdd;
-    e.holdAt(c.pos.x + fx * hg + fz * (sw + hs), c.pos.y, c.pos.z + fz * hg - fx * (sw + hs), c.yaw);
+    e.holdAt(c.pos.x + fx * GRAB.hold + fz * (sw + GRAB.side), c.pos.y, c.pos.z + fz * GRAB.hold - fx * (sw + GRAB.side), c.yaw);
     this.bend = CQ.holdBend;
     this.sway = sw;
     if (gr.strikeT >= 0) {

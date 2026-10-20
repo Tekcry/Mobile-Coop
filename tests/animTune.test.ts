@@ -24,6 +24,7 @@ import {
   tuneExport,
   tuneExportName,
   tuneGet,
+  tuneHint,
   tuneKeyedLean,
   tuneLoad,
   tuneReset,
@@ -401,5 +402,36 @@ describe('anim tuner pass 2 knobs (CT Core: the stiff walk)', () => {
     const bent = run(true);
     expect(base - bent).toBeGreaterThan(0.015);
     expect(TUNE_CUR.kneeFlexAdd).toBe(0);
+  });
+});
+
+describe('anim tuner pass 3', () => {
+  it('the gap to the guard is visual: the local rig root moves back and sideways in the hold; gameplay reads nothing', async () => {
+    tuneSet('hold', 'guardGapAdd', 0.1, T0);
+    tuneSet('hold', 'guardSideAdd', 0.05, T0);
+    const r = rig(true);
+    tuneBegin(pose({ bend: 0.3 }), r);
+    tuneEnd(r);
+    // facing +z: forward (0, 1), right (1, 0): back 0.1 along z, 0.05 to her left (-x)
+    const pos = { x: 0, y: 0, z: 0 };
+    tuneRoot(pos, 0);
+    expect(pos.x).toBeCloseTo(-0.05, 9);
+    expect(pos.z).toBeCloseTo(-0.1, 9);
+    expect(pos.y).toBe(0);
+    // the takedown controller (gameplay) never imports the tuner
+    const fs = await import('node:fs');
+    expect(fs.readFileSync('src/game/takedownController.ts', 'utf8')).not.toMatch(/anim\/tune|TUNE_/);
+  });
+
+  it('target hints sit on the walk, jog and run sliders only; every default stays identity', () => {
+    for (const g of ['walk', 'jog', 'run'] as const) {
+      for (const id of ['armSwingMul', 'kneeFlexAdd', 'kneeLiftMul', 'trunkTwistMul', 'pelvisYAdd', 'strideMul'] as const) {
+        expect(tunablesFor(g).some((t) => t.id === id)).toBe(true);
+        expect(tuneHint(g, id)).toMatch(/^target at /);
+      }
+    }
+    expect(tuneHint('sneak', 'armSwingMul')).toBe('');
+    expect(tuneHint('rifle.aim', 'gunPitch')).toBe('');
+    for (const t of TUNABLES) expect(t.def).toBe(t.kind === 'mul' ? 1 : 0);
   });
 });

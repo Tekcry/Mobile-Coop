@@ -112,7 +112,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   otherwise) and `TUNE_LOCAL` (the last selection, for the wall push, the root offset and the motion driver's stride).
   Saved (debounced 0.4 s) to its own IndexedDB database `<save db>-animtune` (`save/animTuneStore.ts`), outside the save
   schema. `window.__animTune` is the test / console hook. Hook list: `docs/anim-tuner/REPORT.md`.
-- (anim-tuner pass 2) Also opens from Pause > "Animation tuner (dev)" (the row after Quit; it resumes the match with the
+- (anim-tuner pass 2) Also opens from Pause > "Animation tuner (dev)" (the row before Quit, pass 3; it resumes the match with the
   panel open) and Settings > Graphics > Developer > "Animation tuner (dev)"; it stays open over play, with or without the
   overlay (the overlay's frame hook drives it), until its header x. Header bar: fold (_ / +) to one line, close (x).
   Phone fit: at most `min(340px, 45vw)` wide, `max-height: 100vh - 8px`, scrolls; rows, sliders and buttons at least

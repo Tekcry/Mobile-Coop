@@ -65,7 +65,7 @@
 | bodyFwdAdd / bodyUpAdd | add m | ladder, pipe, ledge, vent, crawl, hang (+ hold for fwd) | rig root offset, visual only | player.ts `tuneRoot` |
 | handUp/Fwd/OutAdd | add m | attached x6, hold | rig.reachL/R + grip points; Out = shimmy spacing | tune.ts (restored after animate) |
 | footUp/Fwd/OutAdd | add m | attached x6 | rig.plantL/R | tune.ts |
-| guardGapAdd / guardSideAdd | add m | hold | GRAB.hold / GRAB.side | takedownController.ts |
+| guardGapAdd / guardSideAdd | add m | hold | (pass 3) visual: her rig root back / the other way; GRAB.hold / side untouched | player.ts `tuneRoot` |
 | gunFwd / gunUp / gunSide | add m | 6 gun groups | weaponPivot position (side mirrored) | characterRig.ts |
 | gunPitch / gunYaw / gunCant | add rad | 6 gun groups | weapon pitch / yaw / roll | characterRig.ts |
 | sightYAdd | add m | aim groups | SIGHT_EYE in sightToEye | characterRig.ts |
@@ -88,7 +88,7 @@ import line each (CT Core constraint).
 ## Files
 - **New:** `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/save/animTuneStore.ts`, `tests/animTune.test.ts`.
 - **Hooks:** `src/anim/animGraph.ts`, `keyed.ts`, `motion.ts`; `src/player/characterRig.ts`, `player.ts`,
-  `playerController.ts`; `src/game/takedownController.ts`; `src/ui/debugOverlay.ts`.
+  `playerController.ts`; `src/ui/debugOverlay.ts` (pass 3: `src/game/takedownController.ts` is back to master).
 - **Suite:** `scripts/smoke.mjs`, one check.
 - **Docs:** CHANGELOG, TESTING, `docs/systems/ui.md` (new "Debug overlay (F3)" section), `docs/systems/testing-tools.md`.
 
@@ -104,8 +104,11 @@ import line each (CT Core constraint).
 - **A4.** The gun group is picked by weapon mass (below 0.8 = pistol). Undo: `selectGunGroup`.
 - **A5.** Distance to the ladder / pipe / guard is a visual rig-root offset, not the sim standoffs. Undo: `tuneRoot` in
   `player.ts`.
-- **A6.** "Gap to guard" moves the real hold spot in the local takedown sim (GRAB.hold / GRAB.side). The partner sees it
-  through the existing enemy sync, with no wire change. Undo: the `TUNE_BODY.hold` reads in `takedownController.ts`.
+- **A6.** (revised in pass 3) "Gap to guard" and "guard side offset" are visual only: during the hold they offset the
+  local player's rig root (`tuneRoot`, `player.ts`): back along her facing by the gap, and the other way by the side
+  offset. Gameplay reads no tuner value: `GRAB.hold` / `GRAB.side`, `holdAt` and the guard's position are as on master,
+  and `takedownController.ts` is reverted. Her hands stay on the guard's world grip points, so the arms reach.
+  Undo: the guard terms in `tuneRoot`.
 - **A7.** Step length scales `stepLength` around the local motion driver step and inside the animate window.
   - Speed is unchanged; cadence changes.
   - Undo: the `tuneSim` lines and the `motion.ts` factor.
@@ -191,3 +194,24 @@ import line each (CT Core constraint).
 - **A19.** Stance knee flex also shows in idle, so the standing knees can soften. Undo: its `groups`.
 - **A20.** Trunk counter-rotation covers the spine and chest (keyed) and the spine yaw channel (procedural). The pelvis yaw
   (hip twist) is left alone, as the counter to it. Undo: the twist slots in `tuneKeyedTwist`.
+
+## Pass 3 (2026-10-20): review fixes for PR #56
+- **Keyboard:** a key released while a panel input has focus still releases (`keyboardMouseSource.ts`: only the keydown
+  is ignored on INPUT / TEXTAREA targets), so a key held when focus lands on a slider never sticks. Checkboxes and pickers
+  blur on change; sliders blur on pointerup / pointercancel / touchend / touchcancel / lostpointercapture (and on change).
+- **Follow:** never rebuilds while a slider is pressed or a panel input / picker has focus. A new state takes over only
+  after holding 300 ms (`FOLLOW_HOLD_MS`). A manual pick turns follow off and unticks it.
+- **Pause:** "Animation tuner (dev)" now sits before Quit (`resume, objectives, settings, report-feedback, anim-tuner,
+  quit`), so Up from Resume still wraps to Quit. The `e2e-menus` pause-items assert matches this order.
+- **Gameplay reads no tuner value:** `takedownController.ts` reverted to master. The guard gap and side offset are
+  visual, through the hold's rig-root offset (`tuneRoot`); see A6.
+- **Safety:** `try { rig.animate } finally { tuneEnd }` in `player.ts`, and `try { motion.step } finally { tuneSim(false) }`
+  in `playerController.ts`.
+- **Target hints** (CT Core): `TUNE_HINTS` / `tuneHint` in `tune.ts`. The real-world target sits as a small grey line under
+  arm swing, stance knee flex, knee lift, counter-rotation, pelvis height and step length in walk (1.4 m/s), jog (3.0)
+  and run (4.0). Text only; no default changed.
+- **Tests:** 2 new (20 in all, pass): the hold's visual gap / side offset on the rig root, with `takedownController.ts`
+  free of tuner reads; the hints present on the walk / jog / run sliders and every default still identity.
+  `npx tsc --noEmit -p .` and eslint on the changed files are clean. No build or e2e run (dist/ in use).
+- **A21.** Follow's 300 ms hold also applies to the gun section. Opening the panel or ticking follow switches at once.
+  Undo: `FOLLOW_HOLD_MS`.

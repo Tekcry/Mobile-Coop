@@ -131,8 +131,8 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'footUpAdd', label: 'foot reach up', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ATTACHED, hook: 'rig.plantL / plantR (rungs, wall pads)' },
   { id: 'footFwdAdd', label: 'foot reach fwd', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ATTACHED, hook: 'rig.plantL / plantR along the facing' },
   { id: 'footOutAdd', label: 'foot spacing (out)', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ATTACHED, hook: 'rig.plantL / plantR outward' },
-  { id: 'guardGapAdd', label: 'gap to guard', kind: 'add', def: 0, min: -0.15, max: 0.25, step: 0.005, unit: 'm', groups: ['hold'], hook: 'takedownController: GRAB.hold (the held guard in front)' },
-  { id: 'guardSideAdd', label: 'guard side offset', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ['hold'], hook: 'takedownController: GRAB.side (+ right)' },
+  { id: 'guardGapAdd', label: 'gap to guard (visual)', kind: 'add', def: 0, min: -0.15, max: 0.25, step: 0.005, unit: 'm', groups: ['hold'], hook: 'player.ts tuneRoot: her rig root back along her facing (+ = more gap); GRAB.hold and the guard stay put' },
+  { id: 'guardSideAdd', label: 'guard side offset (visual)', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ['hold'], hook: 'player.ts tuneRoot: her rig root the other way (+ = the guard further to her right); GRAB.side stays' },
   { id: 'gunFwd', label: 'gun fwd / stock depth', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ALL_GUN, hook: 'characterRig: weaponPivot z (AIM_POCKET.z + pose)' },
   { id: 'gunUp', label: 'gun up (low ready; aimed the sight is held at the eye)', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ALL_GUN, hook: 'characterRig: weaponPivot y' },
   { id: 'gunSide', label: 'gun side (out)', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ALL_GUN, hook: 'characterRig: weaponPivot x (mirrored with the hand)' },
@@ -143,6 +143,42 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'headDropMul', label: 'head drop to sights', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'characterRig: NECK_WELD (the neck flexes onto the stock)' },
   { id: 'tuckMul', label: 'elbow tuck aiming', kind: 'mul', def: 1, min: 0, max: 1.6, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'characterRig solveArm: AIM_ELBOW_TUCK' },
 ];
+
+/**
+ * (pass 3) Real-world targets shown under the matching sliders (walk / jog / run; CT Core's reference numbers), so the
+ * tuning has somewhere to aim. Text only: no default follows them (every default stays identity).
+ */
+export const TUNE_HINTS: Partial<Record<BodyGroup, Partial<Record<TuneField, string>>>> = {
+  walk: {
+    armSwingMul: 'target at 1.4 m/s: shoulder swing +15/-18 deg, elbow 20-40 deg',
+    kneeFlexAdd: 'target at 1.4 m/s: stance knee (loading) 15-18 deg',
+    kneeLiftMul: 'target at 1.4 m/s: swing knee peak ~60 deg',
+    trunkTwistMul: 'target at 1.4 m/s: pelvis yaw / thorax counter-rotation ±4/∓3 deg',
+    pelvisYAdd: 'target at 1.4 m/s: vertical bob 3.5-4 cm',
+    strideMul: 'target at 1.4 m/s: step 0.72 m at 115/min'
+  },
+  jog: {
+    armSwingMul: 'target at 3.0 m/s: shoulder swing +25/-35 deg, elbow 75-95 deg',
+    kneeFlexAdd: 'target at 3.0 m/s: stance knee (loading) 35-40 deg',
+    kneeLiftMul: 'target at 3.0 m/s: swing knee peak ~95 deg',
+    trunkTwistMul: 'target at 3.0 m/s: pelvis yaw / thorax counter-rotation ±6/∓4 deg',
+    pelvisYAdd: 'target at 3.0 m/s: vertical bob 6-8 cm',
+    strideMul: 'target at 3.0 m/s: step 1.10 m at 165/min'
+  },
+  run: {
+    armSwingMul: 'target at 4.0 m/s: shoulder swing +35/-45 deg, elbow 80-100 deg',
+    kneeFlexAdd: 'target at 4.0 m/s: stance knee (loading) 40-45 deg',
+    kneeLiftMul: 'target at 4.0 m/s: swing knee peak ~115 deg',
+    trunkTwistMul: 'target at 4.0 m/s: pelvis yaw / thorax counter-rotation ±7/∓5 deg',
+    pelvisYAdd: 'target at 4.0 m/s: vertical bob 7-9 cm',
+    strideMul: 'target at 4.0 m/s: step 1.35 m at 178/min'
+  }
+};
+
+/** The target hint for a slider of a group, or ''. */
+export function tuneHint(group: TuneGroup, id: TuneField): string {
+  return (TUNE_HINTS as Partial<Record<string, Partial<Record<TuneField, string>>>>)[group]?.[id] ?? '';
+}
 
 const TUNABLE_BY_ID = new Map<TuneField, Tunable>(TUNABLES.map((t) => [t.id, t]));
 
@@ -405,13 +441,21 @@ export function tuneSim(on: boolean): void {
   TUNE_CUR.strideMul = on ? TUNE_LOCAL.strideMul : 1;
 }
 
-/** The local rig root's visual offset (body fwd / up) from the last selected group. No allocation. */
+/**
+ * The local rig root's visual offset from the last selected group: body fwd / up, and in the hold the gap to the guard
+ * (back along her facing) and the guard's side offset (her rig the other way). Visual only: the capsule, the guard and
+ * GRAB stay where gameplay puts them. No allocation.
+ */
 export function tuneRoot(pos: { x: number; y: number; z: number }, yaw: number): void {
-  const f = TUNE_LOCAL.bodyFwdAdd;
+  const f = TUNE_LOCAL.bodyFwdAdd - TUNE_LOCAL.guardGapAdd;
+  const r = -TUNE_LOCAL.guardSideAdd;
   const u = TUNE_LOCAL.bodyUpAdd;
-  if (f === 0 && u === 0) return;
-  pos.x += Math.sin(yaw) * f;
-  pos.z += Math.cos(yaw) * f;
+  if (f === 0 && u === 0 && r === 0) return;
+  const s = Math.sin(yaw);
+  const c = Math.cos(yaw);
+  // forward (s, c), right (c, -s)
+  pos.x += s * f + c * r;
+  pos.z += c * f - s * r;
   pos.y += u;
 }
 

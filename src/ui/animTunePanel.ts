@@ -16,6 +16,7 @@ import {
   tuneExportName,
   tuneGet,
   tuneGroupChanged,
+  tuneHint,
   tuneLoad,
   tuneReset,
   tuneResetAll,
@@ -43,6 +44,8 @@ interface Section {
 /** How far out along the barrel the marker ball sits (m). */
 const MARK_DIST = 12;
 const SAVE_DELAY = 400;
+/** (pass 3) Follow switches group once the new state has held this long (ms): a brief state never rebuilds the rows. */
+const FOLLOW_HOLD_MS = 300;
 
 /**
  * (anim-tuner) The animation tuner panel (F3 > Anim): a body-state section and a gun-hold section, each a group picker
@@ -65,6 +68,12 @@ export class AnimTunePanel {
   /** Told when the panel opens or closes (the overlay's Anim button state). */
   onOpenChange: ((open: boolean) => void) | null = null;
   private follow = true;
+  private followBox: HTMLInputElement | null = null;
+  /** A slider is held (mouse or touch): follow never rebuilds the rows under it. */
+  private pressing = false;
+  /** Follow's pending state per section and since when (ms): it switches once the state has held FOLLOW_HOLD_MS. */
+  private cand: string[] = ['', ''];
+  private candAt: number[] = [0, 0];
   private changedOnly = false;
   private marker = false;
   private now: HTMLDivElement;
@@ -126,21 +135,23 @@ export class AnimTunePanel {
       bar.append(b);
       return b;
     };
-    const check = (label: string, on: boolean, fn: (v: boolean) => void, cls: string): void => {
+    const check = (label: string, on: boolean, fn: (v: boolean) => void, cls: string): HTMLInputElement => {
       const l = document.createElement('label');
       l.style.cssText = 'display:flex;align-items:center;gap:2px;min-height:28px;';
       const c = document.createElement('input');
       c.type = 'checkbox';
       c.checked = on;
       c.className = cls;
-      c.addEventListener('change', () => fn(c.checked));
+      c.addEventListener('change', () => {
+        fn(c.checked);
+        // (pass 3) the keys stay the game's
+        c.blur();
+      });
       l.append(c, label);
       bar.append(l);
+      return c;
     };
-    check('follow', true, (v) => {
-      this.follow = v;
-      this.syncFollow(true);
-    }, 'anim-tune-follow');
+    this.followBox = check('follow', true, (v) => this.setFollow(v), 'anim-tune-follow');
     check('changed only', false, (v) => {
       this.changedOnly = v;
       this.rebuildAll();
@@ -224,8 +235,11 @@ export class AnimTunePanel {
     rows.style.cssText = 'display:grid;gap:1px;';
     const sec: Section = { pick, rows, group: first, kind };
     pick.addEventListener('change', () => {
+      // (pass 3) a manual pick turns follow off (else the next state change would take it away again)
+      this.setFollow(false);
       sec.group = pick.value as TuneGroup;
       this.rebuild(sec);
+      pick.blur();
     });
     reset.addEventListener('click', () => {
       tuneResetGroup(sec.group);
@@ -293,6 +307,14 @@ export class AnimTunePanel {
       });
       // (the slider lets go of the keyboard, so the arrow keys and Space stay the game's)
       input.addEventListener('change', () => input.blur());
+      // (pass 3) held: follow waits; released: the keys go back to the game
+      input.addEventListener('pointerdown', () => (this.pressing = true));
+      input.addEventListener('touchstart', () => (this.pressing = true), { passive: true });
+      const release = (): void => {
+        this.pressing = false;
+        input.blur();
+      };
+      for (const t of ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'lostpointercapture']) input.addEventListener(t, release);
       x.addEventListener('click', (e) => {
         e.preventDefault();
         tuneReset(group, t.id);
@@ -301,6 +323,15 @@ export class AnimTunePanel {
       });
       row.append(name, input, val, x);
       sec.rows.append(row);
+      // (pass 3) the real-world target, a small grey line under the slider
+      const hint = tuneHint(group, t.id);
+      if (hint) {
+        const hl = document.createElement('div');
+        hl.className = 'anim-tune-hint';
+        hl.textContent = hint;
+        hl.style.cssText = 'color:#8a98a4;font-size:9px;margin:-2px 0 2px 2px;';
+        sec.rows.append(hl);
+      }
     }
   }
 
@@ -309,12 +340,47 @@ export class AnimTunePanel {
     if (o) o.textContent = tuneGroupChanged(sec.group) ? `${sec.group} *` : sec.group;
   }
 
-  /** Follow the local player's current state (when on and the state changed). */
+  private setFollow(v: boolean): void {
+    this.follow = v;
+    if (this.followBox) this.followBox.checked = v;
+    if (v) this.syncFollow(true);
+  }
+
+  /** A slider or picker of the panel has the focus (follow must not rebuild it away). */
+  private editing(): boolean {
+    const a = document.activeElement;
+    return this.pressing || (!!a && this.el.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'SELECT'));
+  }
+
+  /**
+   * Follow the local player's current state (when on): a new state takes over once it has held FOLLOW_HOLD_MS, never
+   * while a slider is held or focused (`force`: now, as on opening).
+   */
   private syncFollow(force = false): void {
     if (!this.follow) return;
-    for (const s of this.sections) {
+    if (!force && this.editing()) return;
+    const now = performance.now();
+    for (let k = 0; k < this.sections.length; k++) {
+      const s = this.sections[k]!;
       const cur = s.kind === 'body' ? TUNE_STATE.body : TUNE_STATE.gun;
-      if (cur && (cur !== s.group || force)) {
+      if (!cur) continue;
+      if (force) {
+        this.cand[k] = '';
+        if (cur !== s.group || force) {
+          s.group = cur;
+          this.rebuild(s);
+        }
+        continue;
+      }
+      if (cur === s.group) {
+        this.cand[k] = '';
+        continue;
+      }
+      if (this.cand[k] !== cur) {
+        this.cand[k] = cur;
+        this.candAt[k] = now;
+      } else if (now - this.candAt[k]! >= FOLLOW_HOLD_MS) {
+        this.cand[k] = '';
         s.group = cur;
         this.rebuild(s);
       }

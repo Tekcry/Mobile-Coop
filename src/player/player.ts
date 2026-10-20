@@ -505,8 +505,11 @@ export class Player {
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
     tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
-    this.rig.animate(dt, rp);
-    tuneEnd(this.rig);
+    try {
+      this.rig.animate(dt, rp);
+    } finally {
+      tuneEnd(this.rig);
+    }
     // footfalls (no camera bob, D2: the view follows the smoothed capsule only)
     const pl = this.rig.planner;
     if ((pl.L.landed || pl.R.landed) && c.grounded) {
