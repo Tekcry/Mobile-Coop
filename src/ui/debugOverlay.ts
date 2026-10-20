@@ -23,8 +23,8 @@ export interface CrabPlayer {
 export class DebugOverlay {
   private el: HTMLDivElement;
   private visible = false;
-  /** The Settings "Show FPS overlay" banner: one line across the top, the critical numbers only (F3 and `?debug=1`
-   *  show the full overlay). */
+  /** The Settings "Show FPS overlay" banner: one line in the bottom left corner (wheel-ui; was the top edge), the
+   *  critical numbers only (F3 and `?debug=1` show the full overlay). */
   private compact = false;
   private instr: SceneInstrumentation | null = null;
   private scene: Scene | null = null;
@@ -123,6 +123,8 @@ export class DebugOverlay {
       if (e.code === 'F3') this.toggle();
     });
     this.animTune.rig = () => (this.crabPlayer?.() as unknown as { rig?: TuneRigView } | null)?.rig ?? null;
+    // (tuner-camera) the tuner's slow-motion picker sets the loop's time scale
+    this.animTune.loop = this.loop;
     // (anim-tuner pass 2) opened from the pause menu or Settings too: the Anim button shows its state
     this.animTune.onOpenChange = (on) => Array.from(this.tools.querySelectorAll('button')).find((b) => b.textContent === 'Anim')?.classList.toggle('on', on);
     engine.onEndFrameObservable.add(() => this.onFrame());

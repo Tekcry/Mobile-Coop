@@ -24,6 +24,8 @@ export interface PauseOpts {
   dof?: boolean;
   /** A controller dropped out: a line with the way back. */
   notice?: string;
+  /** (anim-studio) In the Anim Studio already: no "Anim Studio (dev)" row. */
+  inStudio?: boolean;
 }
 
 /** Objectives (menu-ui step 10, G108): each objective with done / current / to do. Read only. */
@@ -83,6 +85,13 @@ export class PauseScreen extends MenuScreen {
         'Developer tool: sliders for the animation, live while you move. Opens over the game; close it with its x.',
         'anim-tuner',
       ),
+    );
+    // (anim-studio) the Anim Studio stage: single player only (never in a co-op session), not from inside it
+    if (!opts.coop && !opts.inStudio && app.studio) {
+      const open = app.studio;
+      list.append(item('Anim Studio (dev)', () => open(), 'Developer tool: leaves this match for a plain stage with the loop player, the tuner and the viewing aids.', 'anim-studio'));
+    }
+    list.append(
       item(
         'Quit to menu',
         () =>

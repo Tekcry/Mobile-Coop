@@ -139,11 +139,18 @@ describe('analogue speed (anim-rework S1)', () => {
   });
   it('allocates nothing per update', () => {
     const a = new AnalogGear();
-    const before = process.memoryUsage().heapUsed;
     let acc = 0;
-    for (let i = 0; i < 200000; i++) acc += a.update(5, (i & 1) === 0, (i % 100) / 100) + stickSpeed((i % 97) / 97, false);
+    const run = (): number => {
+      const before = process.memoryUsage().heapUsed;
+      for (let i = 0; i < 200000; i++) acc += a.update(5, (i & 1) === 0, (i % 100) / 100) + stickSpeed((i % 97) / 97, false);
+      return process.memoryUsage().heapUsed - before;
+    };
+    // (e2e-pad-fix) warm up first (JIT, lazy first-call allocations), then take the smallest of three passes: a single
+    // pass read 3.5 MB on a loaded CI runner from other work's garbage, not from the gear
+    run();
+    const grown = Math.min(run(), run(), run());
     expect(acc).toBeGreaterThan(0);
-    // a per-call allocation of even 16 bytes would add ~3 MB
-    expect(process.memoryUsage().heapUsed - before).toBeLessThan(2_000_000);
+    // a per-call allocation of even 16 bytes would add ~3 MB in every pass
+    expect(grown).toBeLessThan(2_000_000);
   });
 });

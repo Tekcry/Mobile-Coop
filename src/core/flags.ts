@@ -22,7 +22,8 @@ export interface Flags {
   gfx: 'min' | 'low' | 'medium' | 'high' | 'ultra' | 'epic' | null;
   /** (G182) A phone or tablet (touch as the main pointer): testing only; minimum settings, a small-screen UI scale. */
   phone: boolean;
-  /** 3.0 voxel world (`?voxels=0`: the blockout's boxes, for comparisons). */
+  /** Voxel world, characters and weapons (smooth-world: off by default, the blockout's pieces draw smooth in PBR with
+   *  the surface atlas; `?voxels=1` turns the 3.0 voxel look on for comparisons, `?voxels=0` stays off). */
   voxels: boolean;
   /** 3.2 baked lamps (`?baked=0`: real lights and shadow maps, for comparisons). */
   baked: boolean;
@@ -93,7 +94,7 @@ export const flags: Flags = {
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
   phone: readPhone(),
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'low' : null),
-  voxels: params.get('voxels') !== '0',
+  voxels: params.get('voxels') === '1',
   baked: params.get('baked') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
   detect: params.get('detect') === '1',

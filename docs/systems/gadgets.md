@@ -39,7 +39,11 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   wheel or a remote view has it (the rest of the step then gets `blankInp`); `look()` takes the frame's look;
   `frameUpdate` after the player's camera (the remote view owns the camera; arc dots and landing ring).
 - Wheel: hold `gadgetWheel` past `WHEEL_HOLD` (pad D-pad left, KBM Tab); the stick or look picks, release selects; with the vision slot lit, A (pad) / E (keys) is a carousel (night -> thermal -> electro -> night, `VISION_WHEEL`, `SelectionWheel.cycle`), the wheel opens on the current mode, no cursor-length pick;
-  `loop.timeScale` `WHEEL_SLOW` 0.3 unless co-op. Overlay: `ui/hud/gadgetWheel.ts`.
+  `loop.timeScale` `WHEEL_SLOW` 0.3 unless co-op. Overlay: `ui/hud/gadgetWheel.ts` (wheel-ui: SVG ring segments, the
+  highlighted one lit and lifted, an inner bar on the current ones, icon + count per item, the vision slot shows the
+  mode with an NV / TH / EM row, the item name in the centre disc); its size from `ui/hud/wheelLayout.ts` `fitWheel`
+  (130 + 0.36 x height px, centred in the safe area, clear of `.hud-top` and the hint box, which moves under the ring
+  on narrow screens), measured on open, resize and hint change.
 - Effects: gas clouds (`Enemy.gas` seconds -> `knockOut` at `GAS_KO`); flashbang (`Enemy.blind(s)`: brain off, hands to
   face, then `alert()`; facing it the full duration; `CinematicPost.whiteOut` for the operator facing it); EMP
   (`LightRegistry.disrupt` + `update` each step, `lightsOut`, dazes close guards, drops enemy recon drones); noisemaker

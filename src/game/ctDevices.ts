@@ -409,7 +409,7 @@ export class CtDevices {
     const pistol = g.player.alive && w.drawPhase === DRAW_DRAWN && w.current.def.class === 'pistol';
     let pick = '';
     if (pistol) {
-      const cam = g.player.cam.camera.position;
+      const cam = g.player.cam.gamePos;
       const f = g.player.cam.forward;
       const i = pickJamTarget(this.targets, cam.x, cam.y, cam.z, f.x, f.y, f.z);
       if (i >= 0) pick = this.targets[i]!.id;

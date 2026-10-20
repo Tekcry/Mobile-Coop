@@ -109,3 +109,15 @@ asserts the feet never cross; the idles against `CRAB_IDLE`. The drawn pose asse
 walk table's "strafe / backwards (aiming)" rows stay report-only against the walk's ranges. After (rifle; the pistol reads
 the same legs): strafe knees 0.63-1.23 x, track max 16-18 cm, knee out 1.6-1.8 cm, never crossed; backwards 0.68-0.71 x,
 track max 5.5-6.0, knee out 1.9-2.1; elbows 4.1-4.2 cm (were 6.6-7.2). Full tables: `S3-REPORT.md`.
+
+## Slice 4 (anim-rework S4, 2026-10-20, desktop): crouched
+`CRAB_GATES.crouch / sneak` are on, and `CRAB_CROUCH_GATES` asserts the crouched sub-states on every e2e-anim run: the
+crouched idle (the keyed squat), a crouched start and stop at speeds 1 and 3, the crouch run at speed 5, and drawn
+(rifle) the crouched low ready walk, the aimed idle (the kneel) and the aimed strafe at speeds 1-2. The idle, start,
+stop and aimed idle read their track against `CRAB_CROUCH_IDLE` (10.5 cm, the hip-width stance, as standing), the aimed
+strafe against `CRAB_STRAFE` (and never crossing), the rest against `CRAB_CROUCH`. New: the knee hand in the crouched
+idle (`KNEE_HAND`: the palm within 7 cm of the knee top, palm down, fingers forward) and a stand <-> crouch check on the
+posed rig in nine states (`CROUCH_POP`, written reason in `limits.ts`). After: crouch / sneak knees 0.68-0.70 x the
+hips (was 1.58-1.61), track mean 5.2 cm (max 6.7-7.2; was 9.0-9.5, max 11-12.6), knee out 2.1-2.4 cm (was 5.3-5.5),
+elbows 1.8-2.4 cm (was 16.9-18.2); the knee hand 1.4 cm off the knee top (was 27 cm, palm up); the crouched aimed strafe
+track max 16 cm, knees 0.88-0.90 x (was 43 cm with crossing feet, 1.9-2.0 x). Full tables: `S4-REPORT.md`.
