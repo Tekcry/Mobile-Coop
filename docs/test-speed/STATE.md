@@ -8,6 +8,9 @@ requests; it has not finished.
 the PR.
 
 **Open:**
+- (orchestrator, 2026-10-20) CT Core's anim-rework slice 1 changes the jammer helper in `scripts/e2e-ctcourse.mjs` (hold LT,
+  300 ms sim, hold RB; off: RB up, then LT). On merging master / ct-prototype, keep that helper as it is there (stations 3
+  and 4); the split here does not touch it.
 - doorPeek (item 5): a real parity gap, not a test flake. In every run the host's copy stands about 2 cm higher at the
   ankles and 3 cm at the head; on a loaded machine its left foot lands 9-13 cm off (two loaded runs; 2-2.5 cm alone;
   the copy not moving when sampled). CT Core takes it as a game fix (the remote settles its doorPeek feet frame-rate
