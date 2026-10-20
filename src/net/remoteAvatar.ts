@@ -165,6 +165,11 @@ export class RemoteAvatar {
     this.rig.setEnabled(false);
   }
 
+  /** (camera-cue fix) The eased ground speed the rig animates from (m/s). */
+  get moveSpeed(): number {
+    return this.speed;
+  }
+
   get dead(): boolean {
     return (this.flags & PF.dead) !== 0;
   }

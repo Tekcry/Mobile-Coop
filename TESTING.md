@@ -46,6 +46,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
   station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
   an alive partner back to the airlock too.
+- [ ] Marlow Yard is a bunker: a ceiling over every cell and airlock (no sky anywhere), every lamp in a fitting (pendants
+  in the tall halls, strips / panels / caged bulkheads elsewhere); the S2 / S5 / S7 leg-ups, the S4 throw under the
+  header and the S7 rope work as before; the floor between the pools reads as before on the light meter.
+- [ ] Marlow Yard variety: each cell reads as what it is (sentry desk, monitor wall, kill-house plywood, scanner frames
+  and racks, training-block stair, the exit coffer); nothing new to climb or bump into but the S6 racks; the guard grab
+  at station 1 and every door work as before.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores

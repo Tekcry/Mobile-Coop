@@ -38,10 +38,6 @@ await G(() => {
   const c = p.controller;
   const V = p.position.constructor;
   g.target.damageMul = 0;
-  // aim assist deliberately slows the look over targets (the Free Roam dummies): off for exact sums
-  a.settings.update((d) => {
-    d.gamepad.aimAssist = 'off';
-  });
   const st = a.input.state;
   // per-frame look injection (rad/s), applied after the real input poll each rendered frame
   const look = { yaw: 0, pitch: 0, total: 0 };

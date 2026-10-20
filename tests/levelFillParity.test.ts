@@ -12,6 +12,8 @@
  * linearised; the atlas detail (0.5 vs 0.45 strength, cavity 0.35 vs 0.3) and the voxel tone hash / AO average out
  * within a few percent. Not modelled (GPU only, desktop shots): the probe's captured cube itself (it renders whichever
  * level is drawn), the atlas textures' values, per-voxel AO in corners.
+ * (marlow-bunker) Marlow Yard is an underground bunker now: every cell and airlock has a ceiling, so every point is roofed
+ * (the old open-yard points are under the hall ceilings), and the smooth fill must still match the voxel fill there.
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
@@ -54,10 +56,10 @@ const POINTS: { name: string; p: Rgb; n: Rgb; roofed: boolean | null }[] = [
   { name: 'annex front wall, inside', p: [97.5, 1.2, 10.5], n: [1, 0, 0], roofed: true },
   { name: 'annex grid wall, front room', p: [100.3, 1.5, 3], n: [-1, 0, 0], roofed: true },
   { name: 'annex floor, front room', p: [99, 0, 10], n: [0, 1, 0], roofed: true },
-  { name: 'annex front wall, outside under the roof lip (rain-roof)', p: [96.5, 1.2, 10.5], n: [-1, 0, 0], roofed: false },
-  { name: 'S8 obstacle wall by the exit (lamp-lit)', p: [162.5, 1.2, 7], n: [-1, 0, 0], roofed: false },
-  { name: 'S2 obstacle wall, open yard', p: [30.5, 1.2, 3], n: [-1, 0, 0], roofed: null },
-  { name: 'open yard floor', p: [26, 0, 7], n: [0, 1, 0], roofed: false },
+  { name: 'annex front wall, outside (the S5 hall, under its 7.5 m ceiling)', p: [96.5, 1.2, 10.5], n: [-1, 0, 0], roofed: true },
+  { name: 'S8 obstacle wall by the exit (lamp-lit, under the 4.5 m ceiling)', p: [162.5, 1.2, 7], n: [-1, 0, 0], roofed: true },
+  { name: 'S2 obstacle wall (under the hall ceiling)', p: [30.5, 1.2, 3], n: [-1, 0, 0], roofed: true },
+  { name: 'S2 hall floor (under the 7.5 m ceiling)', p: [26, 0, 7], n: [0, 1, 0], roofed: true },
 ];
 
 describe('smooth level light response matches the voxel walls (fix round 2)', () => {
@@ -73,7 +75,7 @@ describe('smooth level light response matches the voxel walls (fix round 2)', ()
   });
   if (process.env.FILL_PRINT) for (const r of rows) console.info(r.name, r.vV.toFixed(2), r.vS.toFixed(2), r.fillV.toFixed(3), r.fillS.toFixed(3), r.fillOld.toFixed(3));
 
-  it('the roofed points see little sky, the open ones much (the voxel bake)', () => {
+  it('the roofed points see little sky, the open ones much (the voxel bake; marlow-bunker: all roofed)', () => {
     for (const r of rows) {
       if (r.roofed === true) expect(r.vV, r.name).toBeLessThan(0.35);
       else if (r.roofed === false) expect(r.vV, r.name).toBeGreaterThan(0.35);

@@ -36,8 +36,9 @@ describe('settings sanitising', () => {
     expect(s.video.renderScale).toBe(1);
   });
   it('keeps valid user values', () => {
+    // no aim assist (G16): an old stored aimAssist value is dropped, the rest kept
     const s = sanitizeSettings({ gamepad: { aimAssist: 'high', invertY: true }, audio: { music: 0.25 } });
-    expect(s.gamepad.aimAssist).toBe('high');
+    expect(s.gamepad).not.toHaveProperty('aimAssist');
     expect(s.gamepad.invertY).toBe(true);
     expect(s.audio.music).toBe(0.25);
   });
