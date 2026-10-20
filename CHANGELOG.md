@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - tuner-pad
+## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
   D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
   1 s), the left stick X nudges in analogue steps, LB / RB switch the focused section's state group, Y resets the
