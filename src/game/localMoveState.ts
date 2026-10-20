@@ -20,7 +20,8 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   const c = p.controller;
   const pose = p.pose;
   const tr = g.traversal;
-  out.g = c.gear;
+  // (anim-rework S1) the pace band: the slowest gear whose speed covers the stick's analogue speed (the host's speed check)
+  out.g = c.paceBand;
   out.r = p.carry.raise;
   const w = p.carry.w;
   out.rd = w.high > w.low && w.high >= w.compressed ? 1 : w.compressed > w.low ? 2 : 0;

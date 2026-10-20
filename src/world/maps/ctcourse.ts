@@ -128,7 +128,7 @@ export const PANEL_TEXT_MAX = 120;
 export const PANEL_TEXT: readonly string[] = [
   'Step onto the airlock pad at the end with your partner to go on',
   'Wall: crouch + Co-op (RB / F) boosts your partner; Y / Space climbs up. They unbolt the door (A / E) on the far side',
-  'Camera: LB / Tab to the pistol, X / RMB draws it; hold LT / Z on the camera. Partner: into the blind spot, then swap',
+  'Camera: LB / Tab to the pistol, X draws; aim (LT / RMB) and hold Co-op (RB / F) to jam. Partner: blind spot, then swap',
   'Laser: a beam costs health. Stand, Co-op (RB / F) throws your partner over; they press the red release on the left fence',
   'Annex: leg-up and relay onto the roof (Y / Space climbs up). Press both roof plates (A / E) together',
   'Scanners: one each. Press A / E at your scanner and stay; both hacks must finish within 1.5 s. Start on two green lights',
@@ -140,7 +140,7 @@ export const PANEL_TEXT: readonly string[] = [
 export const RADIO_ENTER: readonly string[] = [
   'Marlow Yard. Both of you onto the airlock pad at the end, then through.',
   'Wall one. Crouch + Co-op (RB / F): a leg-up. Unbolt the far door from the other side.',
-  'Camera. LB / Tab to the pistol, X draws, hold LT / Z on it. Partner: the blind spot.',
+  'Camera. Pistol (LB / Tab), X; aim (LT / RMB), hold Co-op (RB / F) to jam. Partner: hide.',
   'Laser line. Stand, Co-op (RB / F): throw your partner. Red release on the left fence.',
   'Annex roof: leg-up and relay. Then both roof plates together.',
   'Two scanners, one each. Start the hacks together (A / E) and stay put. A fail hurts.',
@@ -151,7 +151,7 @@ export const RADIO_ENTER: readonly string[] = [
 /** LANTERN's line when a station's gate opens, keyed by gate id: it names the next step (course-ready F2). */
 export const GATE_RADIO: Readonly<Record<string, string>> = {
   'g-s2': 'Unbolted. Open the door for your partner.',
-  'g-s3': 'Door unlocked. Holster first (X / RMB), then open it (A / E).',
+  'g-s3': 'Door unlocked. Open it (A / E).',
   'g-s4': 'Laser down. Both of you through, then onto the airlock pad.',
   'g-s5': 'Plates done. Crouch at the hatch, face it, Co-op (RB / F): lower your partner to hack.',
   'g-s5-grid': 'Grid open. Off the roof, in the front door, through the grid to the airlock.',
@@ -162,7 +162,7 @@ export const GATE_RADIO: Readonly<Record<string, string>> = {
 export const OBJECTIVE_TEXT: readonly string[] = [
   'Read the panel if you like, then both of you onto the airlock pad.',
   'Leg-up your partner over the wall (crouch, RB / F); they unbolt the door on the far side.',
-  'Jam the camera (pistol, hold LT / Z) while your partner reaches the blind spot. Then swap.',
+  'Jam the camera: aim the pistol, hold Co-op (RB / F). Partner: into the blind spot.',
   'Throw your partner over the laser (RB / F); they press the red release on the left fence.',
   'Leg-up and relay onto the roof, press both plates, lower your partner through the hatch.',
   'One at each scanner: press A / E together and stay until both hacks finish.',

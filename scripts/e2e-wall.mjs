@@ -124,11 +124,13 @@ async function proving() {
     assert(km > 45 && mid.phase === 'on' && Math.abs(mid.v - SH) < 1e-6 && pace > SH * 0.88 && pace < SH * 1.12, `slides at the CT shuffle (core ${mid.v.toFixed(2)} m/s, body ${pace.toFixed(2)} m/s at ${(km / 60).toFixed(2)} s, ${(mid.len - 0.22 - mid.s).toFixed(2)} m from the end)`);
     const slideNoise = Math.max(...sl.map((x) => x.noise));
     // analog: half stick is slower (past the 0.2 dead band, rescaled)
-    const half = await G(() => window.__w.run(0.6, -0.6, 0, null, () => window.__w.state()));
+    // (anim-rework S1) the analogue speed: a 0.5 stick asks for ~1.45 m/s, the sneak (named speed 2; 0.6 is ~1.66, the
+    // walk side of the sneak / walk boundary), so the shuffle is the gear-2 factor 0.8 of 0.39, at (0.5 - 0.2) / 0.8 of
+    // the deflection
+    const half = await G(() => window.__w.run(0.6, -0.5, 0, null, () => window.__w.state()));
     const hv = Math.abs(half[half.length - 1].v);
-    // (the half stick snaps to speed gear 2, so the shuffle is the gear-2 factor 0.8 of 0.35, at half deflection)
-    const HV = 0.39 * 0.8 * 0.5;
-    assert(Math.abs(hv - HV) < 0.01, `analog below full stick: 0.6 stick slides at ${hv.toFixed(3)} m/s (${HV.toFixed(3)})`);
+    const HV = 0.39 * 0.8 * 0.375;
+    assert(Math.abs(hv - HV) < 0.01, `analog below full stick: 0.5 stick slides at ${hv.toFixed(3)} m/s (${HV.toFixed(3)})`);
     // crouch on a high wall: the crouch press crouches on the wall (no leave), the crouched pace 0.55 m/s x 0.9 (G6, row 2:
     // 051917 @ 29.07-30.23, the side-on crouch-walk 0.5 m/s at gear 3)
     const cr = await G(() => { window.__w.run(1 / 60, 0, 0, 'crouch'); window.__w.run(0.5); return window.__w.run(1.0, -1, 0, null, () => window.__w.state()); });

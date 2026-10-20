@@ -16,7 +16,7 @@ function rigRest(): Float64Array {
     root: [0, 0, 0], body: [0, 0.56, 0], pelvis: [0, 0.34, 0], spine: [0, 0.1, 0], chest: [0, 0.13, 0], neck: [0, 0.3, 0],
     head: [0, 0.15, 0.01], shL: [-0.19, 0.2, -0.01], elL: [0, -0.29, 0], wrL: [0, -0.25, 0], shR: [0.19, 0.2, -0.01],
     elR: [0, -0.29, 0], wrR: [0, -0.25, 0], hipL: [-0.09, -0.03, 0], knL: [0, -0.43, 0], anL: [0, -0.42, 0],
-    hipR: [0.09, -0.03, 0], knR: [0, -0.43, 0], anR: [0, -0.42, 0],
+    hipR: [0.09, -0.03, 0], knR: [0, -0.43, 0], anR: [0, -0.42, 0], toeL: [0, -0.07, 0.12], toeR: [0, -0.07, 0.12],
   };
   const out = new Float64Array(RIG_JOINTS.length * TRS);
   RIG_JOINTS.forEach((n, j) => { out.set(off[n]!, j * TRS); out[j * TRS + 6] = 1; });
@@ -179,7 +179,8 @@ describe('operator runtime: poser (rig -> operator skeleton)', () => {
     for (let s = 0; s < setup.node.length; s++) if (setup.parent[s]! >= 0) expect(setup.parent[s]!).toBeLessThan(s);
     expect(setup.parent[slot('root')]).toBe(-1); // its parent is the container, not a joint
     expect(setup.driver[slot('fingerL_1_1')]).toBe(RIG_JOINTS.indexOf('wrL'));
-    expect(setup.driver[slot('toeL')]).toBe(RIG_JOINTS.indexOf('anL'));
+    // (anim-rig) the toe joint has its own rig joint now (was its ankle's)
+    expect(setup.driver[slot('toeL')]).toBe(RIG_JOINTS.indexOf('toeL'));
     expect(setup.self[slot('pelvis')]).toBe(1);
     expect(setup.self[slot('handL')]).toBe(0);
     expect(setup.self[slot('root')]).toBe(0);

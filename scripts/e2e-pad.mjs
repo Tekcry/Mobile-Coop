@@ -201,8 +201,8 @@ try {
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   const rd = await page.evaluate(() => ({ p: window.__app.current.diff.perception, l: window.__app.current.diff.label, m: window.__app.current.enemyMgr?.diff?.perception ?? null }));
   assert(rd.p === 1.3 && rd.l === 'Realistic' && (rd.m === null || rd.m === 1.3), `the match runs Realistic (${JSON.stringify(rd)})`);
-  // F1a controls (CT pad, G181): D-pad up / down the max-speed rocker, LB held opens the selection wheel (a tap switches
-  // weapon), D-pad left toggles the vision mode picked on the wheel
+  // (anim-rework S1) the pad: D-pad up / down no longer step a speed (the stick sets it), LB held opens the selection
+  // wheel (a tap switches weapon), D-pad left toggles the vision mode picked on the wheel
   const G = (f) => page.evaluate(f);
   const gear0 = await G(() => window.__app.current.player.controller.maxGear);
   await press(page, BTN.UP);
@@ -210,7 +210,7 @@ try {
   await press(page, BTN.DOWN);
   await press(page, BTN.DOWN);
   const gearDown = await G(() => window.__app.current.player.controller.maxGear);
-  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad up / down step the maximum gear (${gear0} -> ${gearUp} -> ${gearDown})`);
+  assert(gearUp === gear0 && gearDown === gear0, `d-pad up / down no longer step a speed (anim-rework S1: no gears) (${gear0} -> ${gearUp} -> ${gearDown})`);
   const holdBtn = async (b, ms, until) => {
     await page.evaluate((b) => window.__pad.set(b, 1), b);
     await page.waitForTimeout(ms);
@@ -284,8 +284,10 @@ try {
     const ok = seq[0].mode === 'electro' && seq[0].vk === 2 && seq[1].mode === 'night' && seq[1].vk === 0 && seq[2].mode === 'off' && seq[2].vk === 0;
     assert(ok, `cycle x3 more: electro (vk 2) -> night (vk 0) -> off (vk 0) (${JSON.stringify(seq)})`);
   }
-  // (F1a, CT) holstered unless drawn: X draws (a toggle), RT then fires, X again holsters; RT while holstered is the lethal
-  // strike (fixed steps, the pad polled every step)
+  // (anim-rework S1, BRIEF section 1) the three weapon states: X taps holster <-> low ready, LT held aims (release: low
+  // ready), RT fires only while aiming (A3), X held reloads with the gun out (A2), LT from holstered is the slower sling
+  // draw (M2); RT while holstered is the strike (tap knockout, hold kill; no guard: nothing). Fixed steps, the pad polled
+  // every step.
   const dr = await G(() => {
     const g = window.__app.current;
     const L = window.__app.loop;
@@ -324,26 +326,32 @@ try {
     }
     window.__pad.set(7, 0);
     L.stepHeadless(0.1);
-    // (step 10) that RT press was an elbow strike (a whiff, committed): the draw waits for it to end
+    // (step 10, F1b) no guard in reach: the RT tap swings at nothing, so no strike
     const struck = g.strike.count.started > 0;
     until(() => !g.strike.active, 2);
     const s1 = shots();
-    // (F1a, CT) X draws (a toggle: no held aim button); the draw is about half of G103's
+    // X tap draws to low ready (the explore camera, no aim)
     tapX();
     const tDraw = until(() => w.drawPhase === 2, 2);
+    const lowState = g.player.weaponState;
     const adsAfterDraw = g.player.ads;
+    // A3: RT at low ready fires nothing
+    window.__pad.set(7, 1);
+    L.stepHeadless(0.3);
+    window.__pad.set(7, 0);
+    L.stepHeadless(0.1);
+    const s1b = shots();
+    // LT held aims; RT then fires; LT let go: low ready again (the gun stays out)
+    window.__pad.set(6, 1);
     until(() => g.player.cam.ads >= 0.9 && g.player.carry.raise >= 0.9, 2); // the carry raise gates the trigger
+    const aimState = g.player.weaponState;
     window.__pad.set(7, 1);
     L.stepHeadless(0.3);
     window.__pad.set(7, 0);
     const s2 = shots();
-    // LT drawn is the secondary fire: the held jammer (B3), it never fires a round
-    L.stepHeadless(0.3);
-    const s2b = shots();
-    window.__pad.set(6, 1);
-    L.stepHeadless(0.3);
     window.__pad.set(6, 0);
-    const s2c = shots();
+    L.stepHeadless(0.3);
+    const afterLt = { st: g.player.weaponState, dw: w.drawPhase, ads: g.player.ads };
     tapX();
     const adsAfterHolster = g.player.ads;
     const tHol = until(() => w.drawPhase === 0, 2);
@@ -352,8 +360,14 @@ try {
     cur.mag = Math.max(0, cur.stats.magSize - 3);
     if (cur.reserve < 10) cur.reserve = 60;
     tapX();
-    until(() => w.drawPhase === 2 && g.player.cam.ads >= 0.9, 2);
-    tapA(); // A while drawn reloads
+    until(() => w.drawPhase === 2, 2);
+    // (Michael 14:55 "Interact always") A at low ready never reloads; X held does (A2)
+    tapA();
+    const aNoReload = !w.reloading;
+    window.__pad.set(2, 1);
+    until(() => w.reloading, 1);
+    window.__pad.set(2, 0);
+    L.stepHeadless(1 / 60);
     const relReloading = w.reloading;
     L.stepHeadless(0.2);
     tapX(); // holster mid-reload
@@ -364,6 +378,34 @@ try {
     }, 5);
     const relFull = cur.mag === cur.stats.magSize;
     const relHol = until(() => w.drawPhase === 0, 2);
+    // (A2) X held with the gun out reloads; held again with a full magazine it holsters
+    cur.mag = Math.max(0, cur.stats.magSize - 3);
+    tapX();
+    until(() => w.drawPhase === 2, 2);
+    window.__pad.set(2, 1);
+    const xHoldT = until(() => w.reloading, 1);
+    window.__pad.set(2, 0);
+    L.stepHeadless(1 / 60);
+    const xHoldStill = w.drawPhase === 2;
+    until(() => !w.reloading, 5);
+    const xFull = cur.mag === cur.stats.magSize;
+    window.__pad.set(2, 1);
+    L.stepHeadless(0.6);
+    window.__pad.set(2, 0);
+    const xFullHol = until(() => w.drawPhase === 0, 1) < 1 && !w.reloading;
+    L.stepHeadless(0.2);
+    // (M2) LT from holstered: straight to the aim through the sling draw, slower than X's draw
+    window.__pad.set(6, 1);
+    L.stepHeadless(1 / 60);
+    const slingState = g.player.weaponState;
+    const tSling = until(() => w.drawPhase === 2, 2);
+    until(() => g.player.cam.ads >= 0.9, 2);
+    const slingAim = g.player.ads;
+    window.__pad.set(6, 0);
+    L.stepHeadless(0.2);
+    const slingLow = g.player.weaponState === 'lowReady' && w.drawPhase === 2;
+    tapX();
+    until(() => w.drawPhase === 0, 2);
     // (A43) reload pressed while holstered: draws to low ready, reloads, holsters; RT held throughout never fires
     cur.mag = Math.max(0, cur.stats.magSize - 3);
     const s3 = shots();
@@ -372,24 +414,31 @@ try {
     window.__app.input.state.tap('reload');
     window.__pad.set(7, 1);
     const hDraw = until(() => w.reloading, 2);
-    const hDrawn = w.drawPhase === 2 && !g.player.ads;
+    const hDrawn = w.drawPhase === 2 && !g.player.ads && g.player.weaponState === 'lowReady';
     const hT = until(() => !w.reloading, 5);
     const hFull = cur.mag === cur.stats.magSize;
-    const hHol = until(() => w.drawPhase === 0, 2);
+    // (anim-rework S1) the state follows the gun: low ready, and it stays out after the reload
+    L.stepHeadless(0.5);
+    const hHol = w.drawPhase === 2 && g.player.weaponState === 'lowReady';
     window.__pad.set(7, 0);
     const s4 = shots();
-    return { struck, s0, s1, s2, s2b, s2c, adsAfterDraw, adsAfterHolster, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
+    return { aNoReload, struck, s0, s1, s1b, s2, lowState, aimState, afterLt, adsAfterDraw, adsAfterHolster, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, xHoldT, xHoldStill, xFull, xFullHol, slingState, tSling, slingAim, slingLow, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
   });
+  assert(dr.aNoReload, 'A at low ready does not reload (Michael: "Interact always")');
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
   assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
     `X (holster) mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
-  assert(dr.hDraw <= 1.2 && dr.hDrawn && dr.hFull && dr.hHol < 0.65 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.hDraw <= 1.2 && dr.hDrawn && dr.hFull && dr.hHol && dr.s4 === dr.s3, `reload while holstered (R): draws to low ready (${dr.hDraw.toFixed(2)} s, state low ready ${dr.hDrawn}), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), stays at low ready (${dr.hHol}), never fires (${dr.s3} -> ${dr.s4})`);
   assert(!dr.struck, 'RT while holstered with no guard in reach: no strike (F1b: no swing at nothing)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
-  assert(dr.tDraw <= 0.5 && dr.adsAfterDraw, `X draws within 0.5 s and stays drawn with no button held (F1a: 0.3 pistol / 0.4 rifle) (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
-  assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
-  assert(dr.s2c === dr.s2b, `drawn, LT is the held jammer and fires no round (${dr.s2b} -> ${dr.s2c})`);
+  assert(dr.tDraw <= 0.5 && dr.lowState === 'lowReady' && !dr.adsAfterDraw, `X draws to low ready within 0.5 s, no aim (anim-rework S1, M1) (${dr.tDraw.toFixed(2)} s, ${dr.cls}, ${dr.lowState})`);
+  assert(dr.s1b === dr.s1, `low ready: RT fires nothing (A3) (${dr.s1} -> ${dr.s1b})`);
+  assert(dr.aimState === 'aiming' && dr.s2 > dr.s1b, `LT held aims and RT fires (${dr.aimState}, ${dr.s1b} -> ${dr.s2})`);
+  assert(dr.afterLt.st === 'lowReady' && dr.afterLt.dw === 2 && !dr.afterLt.ads, `LT let go: low ready, the gun stays out (${JSON.stringify(dr.afterLt)})`);
   assert(dr.tHol <= 0.65 && !dr.adsAfterHolster, `X again holsters within 0.65 s (G103: 0.55) (${dr.tHol.toFixed(2)} s)`);
+  assert(dr.xHoldT >= 0.35 && dr.xHoldT <= 0.6 && dr.xHoldStill && dr.xFull, `X held 0.4 s with the gun out reloads (A2) and stays drawn (${dr.xHoldT.toFixed(2)} s, full ${dr.xFull})`);
+  assert(dr.xFullHol, 'X held with nothing to reload holsters');
+  assert(dr.slingState === 'slingDraw' && dr.slingAim && dr.tSling > dr.tDraw * 1.3 && dr.slingLow, `LT from holstered: the sling draw straight to the aim, slower (M2: ${dr.tSling.toFixed(2)} s vs X ${dr.tDraw.toFixed(2)} s); let go: low ready (${dr.slingLow})`);
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);
@@ -411,7 +460,7 @@ try {
   // (process audit, 2026-10-19) the gameplay sections that each opened their own match (palm strike, back to a wall,
   // door menu, wall edge verb) are gone: the pad verb table below checks every button's action, and the behaviour is
   // the system suites' (e2e-takedown, e2e-wall, e2e-stealth-ai)
-  console.log('analog gear, rocker cap, rumble, pad verbs (step 17)');
+  console.log('analogue speed (anim-rework S1), the internal cap, rumble, pad verbs (step 17)');
   {
     const S = await strikePage(launch, url);
     try {
@@ -430,10 +479,13 @@ try {
         };
         const out = {};
         k.setup(null);
-        // the rocker: up to the maximum gear 5 (it never reaches 6)
-        for (let i = 0; i < 5; i++) btn(12);
-        out.max5 = c.maxGear;
-        // analog: raw stick 50 / 80 / 100% forward (A63) -> gears 2 / 4 / 5
+        // (anim-rework S1) no rocker: D-pad up / down leave the speed cap alone; the cap (tests only) off for the curve
+        const cap0 = c.maxGear;
+        for (let i = 0; i < 3; i++) btn(12);
+        btn(13);
+        out.capKept = c.maxGear === cap0;
+        c.gears.set(5);
+        // analogue: raw stick 50 / 80 / 100% forward -> sneak / walk / run (the STICK_SPEED curve)
         // (each from the same spot, facing open floor: 0.5 s of travel)
         const V0 = g.player.position.constructor;
         const at = (v) => {
@@ -451,11 +503,11 @@ try {
         out.sprint = { g: c.gear, sprinting: c.sprinting };
         P.axis(1, 0);
         k.step(40);
-        // rocker down twice: maximum 3 caps the full stick at gear 3's 1.65 m/s (step 22, M14)
-        btn(13);
-        btn(13);
+        // the internal cap (tests, ?gear=3) holds the full stick at gear 3's speed
+        c.gears.set(3);
         out.max3 = c.maxGear;
         out.cap = at(1);
+        c.gears.set(5);
         P.axis(1, 0);
         k.step(20);
         // B crouches (toggle), B again stands
@@ -463,19 +515,22 @@ try {
         out.crouch = c.crouched;
         btn(1);
         out.stand = !c.crouched;
-        // (F1a, CT) L3 swaps the shoulder only while aiming (X drew the weapon); R3 zooms (scoped weapons only); D-pad right held
-        // aims the selected gadget
+        // (F1a, CT; anim-rework S1) L3 swaps the shoulder only while aiming (X drew the weapon, LT held aims); R3 zooms (scoped
+        // weapons only); D-pad right held aims the selected gadget
         out.rb = true;
         out.lb = true;
         const sh0 = g.player.cam.shoulder;
         btn(10); // not aiming, L3 is the wall button (no wall here) and swaps nothing
         const r3Idle = g.player.cam.shoulder === sh0;
-        btn(2); // X draws
+        btn(2); // X draws to low ready
+        P.set(6, 1); // LT held aims
         k.step(60);
         btn(10);
         out.r3 = r3Idle && g.player.cam.shoulder === -sh0 && g.player.ads;
         out.leftHand = g.player.rig.openLeft;
         btn(10);
+        P.set(6, 0);
+        k.step(2);
         btn(2); // X holsters
         k.step(40);
         P.set(15, 1);
@@ -496,18 +551,21 @@ try {
         out.land = fx();
         P.effects.length = 0;
         btn(2); // X draws
+        P.set(6, 1); // LT held aims
         k.until(() => g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9 && g.player.carry.raise >= 0.9, 3); // F1a: draw 0.3-0.4 s
         out.shotDbg = { dw: g.weapons.drawPhase, ads: g.player.ads, cam: g.player.cam.ads, raise: g.player.carry.raise, cls: g.weapons.current.def.class, mag: g.weapons.current.mag, tr: g.player.pose.traverse };
         P.set(7, 1);
         k.step(3);
         P.set(7, 0);
         k.step(10);
+        P.set(6, 0);
+        k.step(2);
         btn(2); // X holsters
         k.until(() => g.weapons.drawPhase === 0, 2);
         out.shot = fx();
         P.effects.length = 0;
         const e = k.setup('grunt', false, 0);
-        btn(7, 2);
+        btn(7, 2); // (M3) an RT tap: the knockout palm strike
         k.until(() => !e.alive || !g.strike.active, 1.5);
         out.elbow = fx();
         k.until(() => !g.strike.active, 1.5);
@@ -534,14 +592,15 @@ try {
         return out;
       });
       console.log(JSON.stringify(r));
-      assert(r.max5 === 5, `D-pad up sets the maximum gear, capped at 5 (${r.max5})`);
-      assert(r.a50.g === 3 && r.a80.g === 4 && r.a100.g === 5, `stick 50 / 80 / 100% -> speeds 3 / 4 / 5 (CT M1) (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
-      // (CT prototype M1) speeds 3 / 4 / 5 = 2.0 / 3.0 / 4.2 m/s
-      assert(Math.abs(r.a50.v - 2.0) < 0.15 && Math.abs(r.a80.v - 3.0) < 0.2 && Math.abs(r.a100.v - 4.2) < 0.25, `speed = the snapped gear's cap (${r.a50.v} / ${r.a80.v} / ${r.a100.v})`);
-      assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, still speed 5 (${JSON.stringify(r.sprint)})`);
-      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `D-pad down x2: maximum 3 caps the full stick (${r.max3}, ${JSON.stringify(r.cap)})`);
+      assert(r.capKept, 'D-pad up / down leave the speed alone (anim-rework S1: no rocker)');
+      // (anim-rework S1, Michael: "full speed control via the analogue stick depending on how far you push the stick")
+      // raw 50 / 80 / 100% = ~1.4 sneak / ~2.0 walk / 4.5 run (the STICK_SPEED curve; x the weapon's handling)
+      assert(r.a50.g === 2 && r.a80.g === 3 && r.a100.g === 5, `stick 50 / 80 / 100% -> sneak / walk / run (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
+      assert(r.a50.v > 1.1 && r.a50.v < 1.6 && r.a80.v > 1.7 && r.a80.v < 2.25 && r.a100.v > 3.9, `speed follows the stick (${r.a50.v} / ${r.a80.v} / ${r.a100.v} m/s)`);
+      assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, the run (${JSON.stringify(r.sprint)})`);
+      assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `the internal cap 3 (tests) holds the full stick at the walk (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');
-      assert(r.r3, 'L3 swaps the shoulder while aiming (X drew), not otherwise');
+      assert(r.r3, 'L3 swaps the shoulder while aiming (LT held), not otherwise');
       assert(r.leftHand, 'the weapon goes to the left hand on the left shoulder');
       assert(r.gadgetAim, 'D-pad right held aims the gadget');
       assert(r.land.some((s) => ['0.15/0.25/60', '0.35/0.45/110', '0.80/0.80/200'].includes(s)), `rumble on landing (${r.land})`);
@@ -562,8 +621,9 @@ try {
         s.tap = function (a) {
           acts.add(a);
         };
-        // [button, any of these actions]: A reloads while drawn; L3 swaps the shoulder while aiming
-        const PADV = [[0, 'interact', 'reload'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'altFire'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'speedUp'], [13, 'speedDown'], [14, 'vision'], [15, 'grenade']];
+        // [button, any of these actions]: L3 swaps the shoulder while aiming; (anim-rework S1) A interacts, LT is
+        // the held aim, D-pad up / down only the held context menu's highlight
+        const PADV = [[0, 'interact'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
         const out = [];
         for (const [b, ...want] of PADV) {
           acts.clear();
@@ -652,10 +712,11 @@ try {
             step(3);
           };
           const pl = a.current.player;
+          // (anim-rework S1) the draw verb draws to low ready
           btn(2);
-          const x = pl.ads;
+          const x = pl.drawWanted;
           btn(11);
-          const r3 = pl.ads;
+          const r3 = pl.drawWanted;
           btn(11);
           s.tap = tap0;
           // crouch: toggle (default), then hold

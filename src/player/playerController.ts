@@ -11,7 +11,7 @@ import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { CT, MOVEMENT, TENSE } from '../config/movement';
 import { tenseNear } from './tenseSneak';
-import { EasedVelocity, targetSpeed, landingKind, LANDING, crouchWanted, type LandingKind, type Stance } from './movement';
+import { EasedVelocity, paceSpeed, targetSpeed, landingKind, LANDING, crouchWanted, type LandingKind, type Stance } from './movement';
 import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
@@ -58,9 +58,6 @@ export interface PlayerInput {
   aiming: boolean;
   /** Reloading / swapping: moving slows (`reloadMult`). */
   reloading: boolean;
-  /** Speed gear up / down pressed this step (3.2.0). */
-  gearUp?: boolean;
-  gearDown?: boolean;
 }
 
 /** Motion caps for cover-driven moves: snappier so the standoff controller stays stable; a jog along the wall
@@ -113,10 +110,10 @@ export class PlayerController {
   /** (G1) Test hook (contact sheets): as if an unaware guard were close by. */
   tenseForce = false;
   private stillT = 0;
-  /** Chaos Theory speed gears (3.2.0): kept through stance changes, back to the spawn gear on respawn. Tests can
-   *  start on another gear with `?gear=N`. */
+  /** The internal speed cap (anim-rework S1: no player control; 5 = none): kept through stance changes, back to the
+   *  spawn cap on respawn. Tests cap it with `?gear=N` or set it here. */
   readonly gears = new GearState(flags.gear !== null ? clampGear(flags.gear) : undefined);
-  /** (locomotion step 17, D5.12) The stick's snapped gear within `gears.gear` (the maximum gear). */
+  /** (anim-rework S1) The stick's analogue speed (`v`, continuous) within the cap, its nearest named speed and pace band. */
   readonly analog = new AnalogGear();
   /** Free movement uses the Chaos Theory feel (instant stop / start; `MotionInput.ct`) this step. */
   ct = false;
@@ -273,12 +270,22 @@ export class PlayerController {
     this.crouchIntent = false;
   }
 
-  /** Current speed gear (1..5): the stick's snapped gear while moving (step 17), else the maximum gear. */
+  /** The nearest named speed (1..5) of the stick while moving (anim-rework S1), else the cap. */
   get gear(): number {
     return this.analog.moving ? this.analog.gear : this.maxGear;
   }
 
-  /** The maximum gear (rocker / wheel, 1..5; step 17). */
+  /** (anim-rework S1) The wire's pace band: the slowest gear whose speed covers the stick's speed while moving, else the
+   *  cap (`MoveState.g`; the host's speed check allows that gear's speed + 15%). */
+  get paceBand(): number {
+    return this.analog.moving ? this.analog.band : this.maxGear;
+  }
+
+  /** (anim-rework S1) The speed the stick asks for (m/s, continuous; 0 at rest), before the aim cap and the handling:
+   *  the anim code can read it next to the measured `speed`. */
+  wantSpeed = 0;
+
+  /** The internal speed cap (1..5; 5 = none; tests and tools). */
   get maxGear(): number {
     return this.gears.gear;
   }
@@ -396,12 +403,12 @@ export class PlayerController {
     this.prevPhase = this.motion.phase;
     this.landT = Math.max(0, this.landT - dt);
     this.steps = !ov ? 'free' : ov.run || ov.noise === 'crouched' ? 'crouched' : 'silent';
-    // speed gears step by one per press (kept through stances, cover and traversal)
-    if (input.gearUp) this.gears.step(1);
-    if (input.gearDown) this.gears.step(-1);
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
+      // (anim-rework S1) the stick's speed still reads while a committed move drives (a fence climb's rattle, the wire)
+      this.analog.update(this.maxGear, this.crouched, this.frozen ? 0 : Math.min(1, hyp2(input.moveX, input.moveY)));
+      this.wantSpeed = this.analog.v;
       this.stopHold = false;
       this.stopEaseT = -1;
       this.crouchPend = false;
@@ -468,11 +475,11 @@ export class PlayerController {
     const lx = mag > 0 ? (this.wish.x * bc - this.wish.z * bs) / mag : 0;
     const lz = mag > 0 ? (this.wish.x * bs + this.wish.z * bc) / mag : 1;
     const stance: Stance = aiming ? (this.crouched ? 'adsCrouch' : 'ads') : this.crouched ? 'crouch' : 'stand';
-    // free movement: the speed gear's cap x the stick (overrides set their own velocity)
-    // (locomotion step 17, D5.12) analog speed: the stick snaps to a gear within the maximum gear (hysteresis), the
-    // speed is that gear's cap (`AnalogGear`); a keyboard or a full stick gives the maximum gear
+    // (anim-rework S1) free movement: the stick's deflection sets the speed continuously (`AnalogGear.v`, the
+    // STICK_SPEED curve; the keyboard's walk / run / creep magnitudes land on its points); overrides set their own velocity
     const snapped = this.analog.update(this.maxGear, this.crouched, mag);
-    let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : targetSpeed(snapped > 0 ? 1 : 0, stance, lx, lz, T, snapped)) * this.speedMul);
+    this.wantSpeed = this.analog.v;
+    let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : paceSpeed(this.analog.v, stance, lx, lz, T)) * this.speedMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
@@ -492,6 +499,8 @@ export class PlayerController {
     // (G1, audit row 26) the tense sneak near an unaware guard: long deliberate steps on the gait clock
     this.tense = this.crouched && this.grounded && !ov && (this.tenseForce || tenseNear(this.pos.x, this.pos.z));
     mi.tense = this.tense && this.motion.speed <= TENSE.maxSpeed;
+    // (G8, A4) the stance for the standing walk's shorter steps (the same eased blend the rig poses)
+    mi.crouch = this.crouchBlend;
     // not aiming and free: face the travel direction (the camera orbits freely); else face the
     // override's yaw (cover) or the aim
     mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;

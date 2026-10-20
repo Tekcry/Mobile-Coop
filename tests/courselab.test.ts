@@ -28,7 +28,7 @@ describe('courselab (T1b)', () => {
     s.setPlayer(1, 12, 0, 5, false);
     s.update(1 / 60);
     // T1c: L1's three drills first; the refusal names them
-    expect(s.press('A1', 0)).toBe('Waiting: P1 - speed gear; P2 - speed gear; P1 or P2 - vault, panel');
+    expect(s.press('A1', 0)).toBe('Waiting: P1 - pace; P2 - pace; P1 or P2 - vault, panel');
     s.tick(0, 'gear');
     s.tick(1, 'gear');
     s.tick(1, 'vault');

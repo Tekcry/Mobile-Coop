@@ -136,11 +136,11 @@ try {
   console.log('drills (T1c): refusal, both tick columns, client tick, markers');
   await moveHost(11.6, 3.2);
   await until(A, () => window.__course.debug().air.A1 === 'ready', null, 5000, 'both on the pad, drills open: ready');
-  await until(B, () => /speed gear/.test(document.querySelector('.course-hud .ch-air')?.textContent ?? ''), null, 5000, 'client HUD names the open objectives');
+  await until(B, () => /pace/.test(document.querySelector('.course-hud .ch-air')?.textContent ?? ''), null, 5000, 'client HUD names the open objectives');
   const refA = await GA(() => window.__course.state.airlockStatus());
   const refB = await airText(B);
   d = await hostDebug();
-  assert(/speed gear/.test(refA) && /vault/.test(refA) && /panel/.test(refA) && /speed gear/.test(refB) && d.air.A1 !== 'cycling', `both on the pad with drills open: no cycle; the HUD names the open objectives (host "${refA}", client "${refB}")`);
+  assert(/pace/.test(refA) && /vault/.test(refA) && /panel/.test(refA) && /pace/.test(refB) && d.air.A1 !== 'cycling', `both on the pad with drills open: no cycle; the HUD names the open objectives (host "${refA}", client "${refB}")`);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
     await until(P, () => document.querySelectorAll('.course-hud tr[data-drill] td[data-p="1"]').length === 3 && document.querySelectorAll('.course-hud tr[data-drill] td[data-p="2"]').length === 3, null, 8000, `${tag} HUD lists the drills`);
   }

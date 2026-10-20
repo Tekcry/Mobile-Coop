@@ -29,7 +29,8 @@ export class StrikeController {
   private queued = false;
   /** False on a co-op client: the host resolves contact. */
   authority = true;
-  /** (F1a, CT) The running strike is the lethal one (RT / LMB holstered); false = the knockout (LT / Z). Solo and the host
+  /** (anim-rework S1, M3) The running strike is the lethal one (RT / LMB held holstered); false = the knockout (an RT /
+   *  LMB tap, KBM Z). Solo and the host
    *  resolve it; a client's strike is a knockout on the host (the wire carries no lethal flag: stub). */
   lethal = false;
   /** Tests: hold the strike at this phase (-1 = off). */

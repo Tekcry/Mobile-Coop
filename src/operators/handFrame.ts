@@ -40,3 +40,17 @@ export const WREN_HOLSTER = {
   centre: [0, -0.0175, 0.11775] as const,
 };
 
+/**
+ * (anim-rig, docs/anim-rework/RIG.md) Wren's sling sockets for a slung long gun, game frame, metres:
+ * - `back`: from her chest joint, on the back plate's surface at the left shoulder blade (measured on her LOD0 and hero:
+ *   the back-most chest-skinned vertex at 7.8 cm left, 12.3 cm up, its surface 9.6 cm behind the joint; 4 mm off it),
+ *   where a sling's rear end anchors;
+ * - `hip`: from her pelvis joint, the belt's quick-detach `slingSocket` anchor (waist_belt.py, every LOD file; D28: left
+ *   hip about 8 o'clock), where the sling's front end clips when the gun hangs under the arm.
+ * The player rig's `slingBack` / `slingHip` nodes take these (playerFigure.ts); their rotations stay their parents'.
+ */
+export const WREN_SLING = {
+  back: [-0.078, 0.123, -0.1] as const,
+  hip: [-0.1349, 0.045, -0.069] as const,
+};
+
