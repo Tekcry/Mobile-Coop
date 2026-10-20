@@ -190,3 +190,6 @@ Holding a guard (M5)
 - A1 KBM speed: WASD walks, Left Shift held runs, Left Alt held creeps.
 - A2 Reload: X hold while drawn (and A while drawn, as today).
 - A3 No firing from low ready; RT fires only while aiming.
+- A5 Aimed strafe speed (slice 3, CT Core 2026-10-20): `strafeMult` 0.9 -> 0.5, so the aimed strafe is 0.7 m/s at full
+  stick (was 1.26). At 1.26 m/s a believable shuffle step that never crosses the feet is not possible. Undo: set
+  `strafeMult` back in `src/config/movement.ts` (a crossover step at speed would then be needed).
