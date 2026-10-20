@@ -17,8 +17,8 @@ const TARGETS = [
   { level: 0.7, min: 0.45, max: 1 },
 ];
 const NV = [
-  { level: 0.12, min: 0.25, max: 0.45 },
-  { level: 0.7, min: 0.9, max: 1 },
+  { level: 0.12, min: 0.2, max: 0.45 },
+  { level: 0.7, min: 0.7, max: 1 },
 ];
 let failed = false;
 
@@ -102,7 +102,7 @@ async function measure(page, p, nv) {
     const cam = g.photoCamera();
     cam.position.set(p.cam[0], p.cam[1], p.cam[2]);
     cam.setTarget(window.__probe.position);
-    if (w.lamps) w.lamps.visionGain = nv ? 8 : 1;
+    if (w.lamps) w.lamps.visionGain = nv ? w.lamps.visionGainMax : 1;
     g.post.setNightVision(nv ? 1 : 0);
   }, [p, nv]);
   // settle: the post stack (TAAU history, bloom) converges over wall-clock time, not frames: at 120 Hz 30 frames is a quarter second

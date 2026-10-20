@@ -38,8 +38,46 @@ export const DARK_STANDARD: DarkParams = { centre: 0.33, steep: 8, floor: 0.2, t
 /** The game (linear PBR, sRGB encode and the neutral tone map after it). */
 export const DARK_DESKTOP: DarkParams = { centre: 0.37, steep: 12, floor: 0.3, top: 1.55 };
 
-/** Night vision: the static light's gain inside the lighting (bible L7). */
-export const VISION_GAIN = 8;
+/** Night vision: the static light's gain inside the lighting (bible L7). (nv-pass slice 1: 8 -> 6, with the curve's
+ *  floor lifted under the goggles, `VISION_FLOOR`: the deep dark gains more than before, the mid and lit bands less, so
+ *  shadows read without the mid tones clipping.) */
+export const VISION_GAIN = 6;
+/** (nv-pass slice 1) The curve's floor at full night vision (off: the look's `floor`, 0.3 on desktop): the tube's
+ *  auto-gain lifts the dark band nearly as much as the lit one (a near-linear gain, not the naked eye's steep fall to
+ *  black). Eased in with the gain (`visionDark`). */
+export const VISION_FLOOR = 1.0;
+
+/** (nv-pass slice 1) How far night vision is on (0..1) for a lighting gain `g` (1 off, `VISION_GAIN` full). */
+export function visionAmount(g: number): number {
+  return Math.min(1, Math.max(0, (g - 1) / (VISION_GAIN - 1)));
+}
+
+/** (nv-pass slice 1) The curve's shape under a night-vision gain `g`: the floor eased up to `VISION_FLOOR` (never past
+ *  the top). Rendering only. Writes `out` (allocation-free when one is passed). */
+export function visionDark(p: DarkParams, g: number, out: DarkParams = { ...p }): DarkParams {
+  const k = visionAmount(g);
+  out.centre = p.centre;
+  out.steep = p.steep;
+  out.top = p.top;
+  out.floor = p.floor + (Math.max(p.floor, Math.min(VISION_FLOOR, p.top)) - p.floor) * k;
+  return out;
+}
+
+/**
+ * (nv-pass slice 1) The non-voxel surfaces' fill under night vision (characters, props, weapons; rendering only). They
+ * take the ambient grid as a flat, directionless fill, while the voxel walls take the sky fill by sky visibility (dark
+ * under a roof); the gain turned that difference into a glowing body. Under the goggles the fill keeps `nv` of its
+ * strength, shaded like a hemisphere (`wrap` on a face pointing down, 1 pointing up). Lamp light on a body is untouched,
+ * so a body under a lamp stays lit. Gameplay never reads it: the ambient grid and the light field are unchanged.
+ */
+export const BODY_FILL = { nv: 0.35, wrap: 0.5 } as const;
+
+/** The non-voxel fill's scale for night-vision amount `k` (0..1) and the surface normal's up component `ny` (-1..1). */
+export function bodyFillScale(k: number, ny: number): number {
+  const up = Math.min(1, Math.max(0, ny * 0.5 + 0.5));
+  const nv = BODY_FILL.nv * (BODY_FILL.wrap + (1 - BODY_FILL.wrap) * up);
+  return 1 + (nv - 1) * Math.min(1, Math.max(0, k));
+}
 
 /**
  * Display brightness targets (bible L5): a matte 50% grey card facing the strongest light, at default brightness,
@@ -52,10 +90,12 @@ export const DARK_TARGETS: readonly { level: number; band: 'dark' | 'mid' | 'lit
   { level: 0.7, band: 'lit', min: 0.45, max: 1 },
 ];
 
-/** With night vision on (Step 4b): a dark interior reads, lamp light clips. */
+/** With night vision on (Step 4b): a dark interior reads, lamp light is near white. (nv-pass slice 1: the white clip
+ *  starts later and the card, a non-voxel surface, takes the capped body fill, so both bands reach lower; estimates,
+ *  the GPU check sets them. `scripts/e2e-darkness.mjs` mirrors this table.) */
 export const VISION_TARGETS: readonly { level: number; min: number; max: number }[] = [
-  { level: 0.12, min: 0.25, max: 0.45 },
-  { level: 0.7, min: 0.9, max: 1 },
+  { level: 0.12, min: 0.2, max: 0.45 },
+  { level: 0.7, min: 0.7, max: 1 },
 ];
 
 /** Brightness calibration: the grade's exposure multiplier, clamped so it cannot lift the dark band out of dark. */
@@ -92,5 +132,9 @@ export function bandOf(level: number): 'dark' | 'mid' | 'lit' {
 export const DARK_GLSL = `
 float nsDarkW(float x, vec4 p) { return x <= 0.0 ? p.z : p.z + (p.w - p.z) / (1.0 + pow(p.x / x, p.y)); }
 float nsDarkRatio(float s, float g, vec4 p) { return g * nsDarkW(max(s, 1e-4) * g, p); }
+// (nv-pass slice 1) \`bodyFillScale\`: the non-voxel fill under night vision (k 0..1, ny the normal's up component)
+float nsBodyFill(float k, float ny) {
+  return 1.0 + (${BODY_FILL.nv.toFixed(4)} * (${BODY_FILL.wrap.toFixed(4)} + ${(1 - BODY_FILL.wrap).toFixed(4)} * clamp(ny * 0.5 + 0.5, 0.0, 1.0)) - 1.0) * clamp(k, 0.0, 1.0);
+}
 `;
 

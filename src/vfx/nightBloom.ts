@@ -2,18 +2,26 @@ import { Constants, EffectRenderer, EffectWrapper, type Camera, type Observer, t
 import { BLOOM, BRIGHT_GLSL } from './nightVision';
 
 /** The bright pass: a 4-tap downsample of the scene (a 4 x 4 footprint through bilinear taps), each tap kept where it is
- *  bright before they are averaged (a thin lamp strip would otherwise average away with the dark ceiling round it). */
+ *  bright before they are averaged (a thin lamp strip would otherwise average away with the dark ceiling round it).
+ *  (nv-pass slice 1) A half-float scene (\`bright.w\` 1) is compressed first (\`bloomInput\`): its linear light runs far
+ *  past 1 under the gain, and the old mask let every lit wall and body glow at its full HDR value. */
 const BRIGHT = `
 precision highp float;
 varying vec2 vUV;
 uniform sampler2D src;
 uniform vec2 srcTexel;
-// threshold, knee, 1 / store range
-uniform vec3 bright;
+// threshold, knee, 1 / store range, half-float source (1) or 8-bit (0)
+uniform vec4 bright;
 ${BRIGHT_GLSL}
 vec3 tap(vec2 o) {
   vec3 c = texture2D(src, vUV + srcTexel * o).rgb;
-  return c * brightShare(dot(c, vec3(0.2126, 0.7152, 0.0722)), bright.x, bright.y);
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  if (bright.w > 0.5) {
+    float k = bloomInput(l);
+    c *= k / max(l, 1e-4);
+    l = k;
+  }
+  return c * brightShare(l, bright.x, bright.y);
 }
 void main(void) {
   vec3 c = (tap(vec2(-1.0, -1.0)) + tap(vec2(1.0, -1.0)) + tap(vec2(-1.0, 1.0)) + tap(vec2(1.0, 1.0))) * 0.25;
@@ -39,9 +47,10 @@ void main(void) {
  * downsampled to `BLOOM.scale`, blurred (`BLOOM.passes` x a horizontal and a vertical 9-tap Gaussian) into `glow`, which
  * `CinematicPost` adds to the tube's drive. Off, it does nothing (the post pass does not read it then).
  *
- * The source is the first post process's input: the scene as rendered (linear 0..1 in an 8-bit target, before TAA
- * and tone mapping). The targets are half float where the
- * GPU renders them, else 8-bit with the glow divided by `BLOOM.range` (`glowScale` undoes it).
+ * The source is the first post process's input: the scene as rendered, before TAA and tone mapping - linear light in
+ * a half-float target where the GPU renders one (Step 4b fix round 5, `PostStack.hdr`; compressed before the threshold),
+ * else 8-bit linear 0..1 (`?gfx=min`, or no half-float support). The glow targets are half float where the GPU renders
+ * them, else 8-bit with the glow divided by `BLOOM.range` (`glowScale` undoes it).
  */
 export class NightBloom {
   /** The blurred glow (null until the first frame with night vision). */
@@ -106,7 +115,10 @@ export class NightBloom {
     let e = this.bright.effect;
     e._bindTexture('src', src.texture);
     e.setFloat2('srcTexel', 1 / sw, 1 / sh);
-    e.setFloat3('bright', this.look.threshold, this.look.knee, store);
+    // (slice 1) a half-float scene is compressed and measured against `threshold`; an 8-bit one against `ldrThreshold`
+    const t = src.texture.type;
+    const hdr = t === Constants.TEXTURETYPE_HALF_FLOAT || t === Constants.TEXTURETYPE_FLOAT;
+    e.setFloat4('bright', hdr ? this.look.threshold : this.look.ldrThreshold, this.look.knee, store, hdr ? 1 : 0);
     r.draw();
     engine.unBindFramebuffer(a);
     // the blur: a -> b (horizontal), b -> a (vertical)

@@ -82,6 +82,8 @@ import { LkpGhost } from '../vfx/lkpGhost';
 import { VisionState } from './vision';
 import { DoorGhosts } from '../vfx/doorGhosts';
 import { VISION_GAIN } from '../world/darkCurve';
+import { NV_TONE } from '../vfx/nightVision';
+import { ELECTRO_BULB } from '../world/lightRig';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel } from './vision';
 import { StealthSystems } from './stealthSystems';
@@ -1997,6 +1999,8 @@ export class GameState implements AppState {
       // night vision's glare follows the free camera
       this.nightGain.set(this.vision.night, dt);
       this.nightBloom.k = this.vision.night;
+      // (nv-pass slice 1) the default bloom follows the tube (a shot may set night vision on the post directly)
+      this.stack.setNightVision(this.post.nightVision);
       return;
     }
     const look = this.app.input.state.consumeLook();
@@ -2093,8 +2097,11 @@ export class GameState implements AppState {
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGain.set(v.night, dt);
     this.nightBloom.k = v.night;
-    // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it)
+    // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it). (nv-pass slice 1)
+    // Without baked lamps (`?gfx=min`) the tube lifts its input instead; the default pipeline's bloom is off under it
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
+    this.post.setNightLift(this.world.lamps ? 1 : NV_TONE.postLift);
+    this.stack.setNightVision(this.post.nightVision);
     // the tri-lens glows brighter while a mode is on (remote avatars never know: vision is not sent, D8)
     this.player.rig.setLensGlow(v.mode !== 'off');
     // (operators 11e, G73) Wren's goggle follows the picture on screen; its glow is emissive only (light parity)
@@ -2107,7 +2114,7 @@ export class GameState implements AppState {
     // (A5, G102) thermal: a dim silhouette of a guard behind a closed door (render only)
     const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.ray(a, b, m)));
     gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies);
-    this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? 1 : 0));
+    this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? ELECTRO_BULB : 0));
     this.visionLabelT += dt;
     this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);
   }

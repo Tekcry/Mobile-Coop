@@ -1,8 +1,10 @@
 # Night vision pass - state
 
-## Now (2026-10-20 15:30)
-Worktree and docs set up (BRIEF, PLAN, SURVEY). Desktop heavy.lock held by CT Core (anim-rework S1), so no GPU
-"before" shots yet. Slice 1 implementation starting (code and unit tests need no lock).
+## Now (2026-10-20 15:25)
+Slice 1 implemented (uncommitted; report SLICE1.md; 50 unit tests, tsc, lint clean; not built). Desktop heavy.lock held by
+CT Core (anim-rework S1 fix round); a waiting job (scratchpad nv-gpu.sh) takes it for: before shots on master in the
+detached worktree C:/NightShift/Mobile-Coop-nv-pass-before, after shots on this tree, e2e-darkness on the GPU
+(`scripts/nv-shots.mjs`, sheets in docs/nv-pass/shots/). Then the checker reads the sheets.
 
 ## Next
 1. Slice 1 (implementer, then a fresh checker); slice 0 / GPU shots in the first desktop lock gap.

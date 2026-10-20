@@ -14,20 +14,31 @@
  *
  * The auto-gain: real tubes turn their gain down after a short delay with a bright light in view, and the dark parts of
  * the scene sink. The nearest lamps in view with a clear line from the camera drive it (`NightAutoGain`), eased.
+ *
+ * nv-pass slice 1 (Michael 2026-10-20: "the night vision is so poor. I cant see properly at night, and the bodies are
+ * very bright. It needs work to make it look more realistic"; A1 modern green phosphor): a softer drive gamma (1.7 ->
+ * 1.3) so the shadows read, a clearly green phosphor (was a pale grey-green), the white clip later (0.65 -> 0.85), a
+ * dim green floor, grain strongest in the dark (`SENSOR_GRAIN`), and a bloom measured on the HDR scene (compressed)
+ * that only bright sources clear. The lighting's gain is lower and flatter (`darkCurve.ts` `VISION_GAIN`,
+ * `VISION_FLOOR`), and bodies' flat fill is capped (`BODY_FILL`).
  */
 
 /** The phosphor: input luma (after the lighting's night-vision gain) to the tube's output colour. */
 export const NV_TONE = {
-  /** Contrast: output = input ^ gamma (the dark band stays murky, the lit band clips). */
-  gamma: 1.7,
-  /** The phosphor's pale grey-green at full drive (before the clip to white). */
-  tint: [0.54, 0.64, 0.49] as const,
-  /** The tube never reaches black (its background glow). */
-  black: [0.016, 0.022, 0.016] as const,
-  /** Clipped highlights. */
-  white: [0.96, 1.0, 0.92] as const,
-  /** Drive where highlights start to clip towards white. */
-  whiteFrom: 0.65,
+  /** Contrast: output = input ^ gamma (slice 1: 1.7 -> 1.3; the dark band reads, not a murk). */
+  gamma: 1.3,
+  /** The phosphor's green at full drive, before the clip to white (slice 1, A1 modern green phosphor; was a pale
+   *  grey-green [0.54, 0.64, 0.49]). Undo A1 (white phosphor): a near-neutral tint here. */
+  tint: [0.35, 0.85, 0.3] as const,
+  /** The tube never reaches black (its background glow; slice 1: a dim green, was [0.016, 0.022, 0.016]). */
+  black: [0.014, 0.04, 0.014] as const,
+  /** Clipped highlights: a pale green-white (slice 1; was [0.96, 1.0, 0.92]). */
+  white: [0.86, 1.0, 0.8] as const,
+  /** Drive where highlights start to clip towards white (slice 1: 0.65 -> 0.85). */
+  whiteFrom: 0.85,
+  /** (slice 1) Without baked lamps (`?gfx=min`, the cheap path) the lighting has no night-vision gain: the tube lifts
+   *  its input by this instead, so night vision is never darker than the goggles off. */
+  postLift: 2,
   /** Auto-gain: the bright light in view pulls the rest of the image down by 1 / (1 + veil x this); the highlights
    *  (from `gainKeep` up to white) keep their drive: a lamp stays white while the room round it sinks. */
   gainDrop: 0.6,
@@ -42,9 +53,13 @@ export const NV_TONE = {
 export const BLOOM = {
   /** The glow's resolution (a share of the scene's). */
   scale: 0.25,
-  /** The bright pass: the scene's linear 0..1 (an 8-bit target before TAA and tone mapping: linear 0.5 shows as gamma
-   *  0.73). A soft knee round the threshold; `strength` scales the glow into the drive. */
-  bright: { threshold: 0.85, knee: 0.1, strength: 1.4 },
+  /** The bright pass. Its source is the scene before TAA and tone mapping: linear light in a half-float target where
+   *  the GPU renders one (it runs far past 1 under the gain), else 8-bit linear 0..1. (slice 1) A half-float source is
+   *  compressed first (`bloomInput`: l / (1 + l)) and `threshold` applies to that, so only what is far past a lit wall
+   *  glows (compressed 0.8 = linear 4: the lamps' fixtures, `NV_BULB`); an 8-bit source keeps `ldrThreshold` on its
+   *  raw luma. A soft knee round the threshold; `strength` scales the glow into the drive (slice 1: 1.4 -> 0.6, the
+   *  glow is now 0..1). */
+  bright: { threshold: 0.8, ldrThreshold: 0.85, knee: 0.1, strength: 0.6 },
   /** Blur passes (each horizontal then vertical, a 9-tap Gaussian) and the tap spacing in glow pixels. */
   passes: 3,
   spread: 1.3,
@@ -76,9 +91,11 @@ const smooth = (a: number, b: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
-/** The tube's drive for an input luma 0..1 (after the auto-gain). */
-export function nvDrive(l: number, veil = 0): number {
-  const a = Math.min(1, Math.max(0, l / (1 + veil * NV_TONE.gainDrop * (1 - smooth(NV_TONE.gainKeep, 1, l)))));
+/** The tube's drive for an input luma 0..1 (after the auto-gain). `lift` multiplies the input first (`postLift` without
+ *  baked lamps; the post pass passes `l * lift` to its GLSL `nvDrive`). */
+export function nvDrive(l: number, veil = 0, lift = 1): number {
+  const x = l * lift;
+  const a = Math.min(1, Math.max(0, x / (1 + veil * NV_TONE.gainDrop * (1 - smooth(NV_TONE.gainKeep, 1, x)))));
   return Math.pow(a, NV_TONE.gamma);
 }
 
@@ -95,11 +112,19 @@ export function nvColor(drive: number, veil = 0, out: [number, number, number] =
 
 /**
  * The bright pass: how much of a pixel of luma `l` glows (0..1 of it): none below `threshold - knee`, all of it above
- * `threshold + knee`, smooth between. A mask, not the excess over the threshold: both looks' scene targets are 8-bit
- * (they stop at 1), so a white lamp and a blown-out wall have no excess to give; the whole near-white pixel glows.
+ * `threshold + knee`, smooth between. A mask, not the excess over the threshold: `l` is either the compressed luma of a
+ * half-float scene (`bloomInput`, under 1) or an 8-bit scene's (it stops at 1), so there is no excess to give; the whole
+ * bright pixel glows.
  */
 export function brightShare(l: number, threshold: number, knee: number): number {
   return smooth(threshold - knee, threshold + knee, l);
+}
+
+/** (slice 1) A half-float scene's linear luma compressed to 0..1 for the bright pass (Reinhard: a lit wall at 2 gives
+ *  0.67, a lamp's fixture at 8 gives 0.89). The pass compresses the colour by the same factor, so a tap is under 1. */
+export function bloomInput(l: number): number {
+  const x = Math.max(0, l);
+  return x / (1 + x);
 }
 
 /** Rec. 709 luma (the display luminance `e2e-darkness` measures). */
@@ -119,10 +144,14 @@ vec3 nvColor(float drive, float veil) {
   return min(mix(p, ${v3(NV_TONE.white)}, w), 1.0);
 }`;
 
-/** GLSL mirror of `brightShare` (the bloom's bright pass). */
+/** GLSL mirror of `brightShare` and `bloomInput` (the bloom's bright pass). */
 export const BRIGHT_GLSL = `
 float brightShare(float l, float threshold, float knee) {
   return smoothstep(threshold - knee, threshold + knee, l);
+}
+float bloomInput(float l) {
+  float x = max(l, 0.0);
+  return x / (1.0 + x);
 }`;
 
 /** A lamp, as far as the auto-gain needs it (`LightDef`). */

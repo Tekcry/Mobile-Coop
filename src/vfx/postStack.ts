@@ -29,6 +29,8 @@ import { PaniniPass } from './paniniPass';
 export const VOL_LIGHTS = 12;
 /** Ray-march samples per light segment. */
 const VOL_STEPS = 16;
+/** The default pipeline's bloom weight (0 while night vision is on). */
+const BLOOM_WEIGHT = 0.35;
 
 /**
  * Volumetric light and height fog: for each pixel the view ray (stopped by the scene depth) is intersected with
@@ -189,6 +191,15 @@ export class PostStack {
 
   /** MSAA on (a multisampled scene target has no single-sample depth to read). */
   private msaa = false;
+  /** (nv-pass slice 1) Night vision on: the default pipeline's bloom is off (weight 0, no rebuild) while the tube's own
+   *  bloom runs, and back when the goggles come off. */
+  private nvOn = false;
+  setNightVision(k: number): void {
+    const on = k > 0;
+    if (on === this.nvOn) return;
+    this.nvOn = on;
+    if (this.def?.bloomEnabled) this.def.bloomWeight = on ? 0 : BLOOM_WEIGHT;
+  }
   /**
    * The texture type of the passes ahead of tone mapping (Step 4b fix round 5): half float where the GPU renders it.
    * They hold linear light; in 8 bits the darkness curve's dark band had only a few steps left (linear 1/255 shows as
@@ -357,7 +368,8 @@ export class PostStack {
     def.bloomEnabled = f.bloom;
     if (f.bloom) {
       def.bloomThreshold = 0.75;
-      def.bloomWeight = 0.35;
+      // (nv-pass slice 1) none under night vision: the tube has its own (`NightBloom`)
+      def.bloomWeight = this.nvOn ? 0 : BLOOM_WEIGHT;
       def.bloomKernel = 64;
       def.bloomScale = 0.5;
     }
