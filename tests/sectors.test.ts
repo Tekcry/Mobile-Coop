@@ -22,9 +22,12 @@ import { DIFFICULTIES } from '../src/ai/archetypes';
 import { MAX_ENEMIES } from '../src/net/protocol';
 import { WAREHOUSE_OPS_LASERS, WAREHOUSE_OPS_SECURITY, WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
+import { warehouse } from '../src/world/maps/warehouse';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { validateSecurity } from '../src/security/data';
-import { SightWorld, distToGuard, spotSeenBy, CHECK_RANGE } from '../src/game/sectorCheck';
+import { SightWorld, distToGuard, spotSeenBy, longestIsolation, isolatedInTime, CHECK_RANGE, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, type CheckGuard } from '../src/game/sectorCheck';
+import { ENEMIES } from '../src/ai/enemyDefs';
+import { S1_ROOMS } from '../src/world/maps/warehouseS1';
 import { hyp2 } from '../src/core/mathx';
 
 // (feature/sector-ops slice 2 step 1) sections, connectors, the run, no lives (M7)
@@ -307,18 +310,80 @@ describe('the Warehouse sections (A12, M8)', () => {
     }
   });
 
-  it('M8: every guard has a takedown spot by its post or route that no other guard sees within 15 m', () => {
+  /** The section's guards as the time check reads them: walk speed from the archetype table, the patrol pace on top. */
+  const timed = (guards: SectorDef['guards']): CheckGuard[] => guards.map((g) => ({ ...g, speed: ENEMIES[g.kind].walkSpeed * CHECK_PATROL_PACE }));
+
+  it('M8: every guard has a takedown spot by its post or route that no other guard sees within 15 m, or 3 s of isolation in a row on its timed patrol (A2)', () => {
     for (const s of S) {
+      const gs = timed(s.guards);
       for (let i = 0; i < s.guards.length; i++) {
         const g = s.guards[i]!;
         const [x, z] = g.takedownSpot;
         const tag = `${s.id} guard ${i} (${g.x}, ${g.z})`;
-        expect(distToGuard(g, x, z), tag).toBeLessThanOrEqual(1.6);
+        expect(distToGuard(g, x, z), tag).toBeLessThanOrEqual(CHECK_SPOT);
         expect(world.blocked(x, g.y ?? 0, z, 0.3), tag).toBe(false);
         const seen = spotSeenBy(world, x, g.y ?? 0, z, s.guards, i, CHECK_RANGE);
-        expect(seen, `${tag}: seen by guard ${seen}`).toBe(-1);
+        // the static check (sections 2 and 3) or isolation in time at the spot (section 1, SPEC 6 C1)
+        expect(seen === -1 || isolatedInTime(world, gs, i, g.takedownSpot), `${tag}: seen by guard ${seen} and no ${CHECK_ISOLATION} s of isolation at its spot (${longestIsolation(world, gs, i, CHECK_RANGE, g.takedownSpot)} s)`).toBe(true);
       }
     }
+  });
+
+  it('M8 in time (A2): the model walks routes with waits, ping-pongs two points, loops three, and needs 3 s in a row', () => {
+    const open = new SightWorld([], []);
+    const wall = new SightWorld([{ c: [0, 1.5, 0], s: [0.2, 3, 40], yaw: 0, pitch: 0, collide: true }], []);
+    // a post 13 m from a lone guard, no wall: never isolated; behind a wall: always
+    const post: CheckGuard = { x: 5, z: 0 };
+    const lone: CheckGuard = { x: -8, z: 0 };
+    expect(longestIsolation(open, [lone, post], 0)).toBe(0);
+    expect(longestIsolation(wall, [lone, post], 0)).toBeGreaterThanOrEqual(180);
+    // out of range is isolated too
+    expect(longestIsolation(open, [lone, { x: 30, z: 0 }], 0)).toBeGreaterThanOrEqual(180);
+    // a walker that leaves a watcher's 15 m range: 10 m/s east from x 0, watcher at the origin, wait 10 s at each end
+    const walker: CheckGuard = { x: 0, z: 0, route: [[0, 0], [40, 0]], wait: 10, speed: 10 };
+    const watcher: CheckGuard = { x: 0, z: 0.5 };
+    // it stands 10 s at the start (seen), runs out of range in 1.5 s, pauses 10 s at x 40 and walks back in: about 15 s of isolation
+    const run = longestIsolation(open, [walker, watcher], 0);
+    expect(run).toBeGreaterThan(10);
+    expect(run).toBeLessThan(20);
+    expect(isolatedInTime(open, [walker, watcher], 0)).toBe(true);
+    // the same walker, held to a spot at the start: always seen
+    expect(isolatedInTime(open, [walker, watcher], 0, [0, 0])).toBe(false);
+    // three points loop (the way back is the first point), two ping-pong: both cycle within the horizon
+    const loop: CheckGuard = { x: 0, z: 0, route: [[0, 0], [40, 0], [40, 40]], wait: 1, speed: 10 };
+    expect(longestIsolation(open, [loop, watcher], 0)).toBeGreaterThan(3);
+  });
+
+  it('section 1 (warehouse-redesign): the start and spawns in the yard corner, the DVR reachable, eight guards in the first-four order', () => {
+    const s = S[0]!;
+    expect(s.start).toEqual({ x: -20, y: 0, z: -24.6, yaw: 0.5 });
+    const lay = warehouseOps.build(new LevelBuilder(), 0);
+    expect(lay.playerSpawns.length).toBe(4);
+    for (const sp of lay.playerSpawns) {
+      expect(hyp2(sp.pos.x - s.start.x, sp.pos.z - s.start.z), 'spawn near the start').toBeLessThan(1.5);
+      expect(world.blocked(sp.pos.x, 0, sp.pos.z, 0.35)).toBe(false);
+    }
+    // the e2e stands 0.9 m east of the DVR: free floor, inside the download range
+    expect(world.blocked(s.objective.x + 0.9, 0, s.objective.z, 0.3)).toBe(false);
+    expect(0.9).toBeLessThan(SECTOR.downloadRange);
+    expect(s.guards.length).toBe(8);
+    // ?sectorGuards=4 takes the first four: the gate officer, the yard patrol, the checker and the CCTV operator (no heavies, G155)
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['officer', 'runner', 'officer', 'officer']);
+    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // the rooms: none of the old south band's, none overlapping the section 3 floor
+    const ids = (lay.rooms ?? []).map((r) => r.id);
+    for (const gone of ['dock', 'dispatch', 'corridor']) expect(ids).not.toContain(gone);
+    expect(ids.filter((id) => id === 'workshop').length).toBe(1);
+    for (const r of S1_ROOMS) expect(ids, r.id).toContain(r.id);
+    expect(lay.objectives.some((o) => o.id === 'termB' || o.id === 'extract')).toBe(false);
+  });
+
+  it('the plain Warehouse is unchanged by the south band switch (318 boxes, 14 cylinders, 5 doors; captured before)', () => {
+    const w = new LevelBuilder();
+    warehouse.build(w, 0);
+    expect(w.boxes.length).toBe(318);
+    expect(w.cylinders.length).toBe(14);
+    expect(w.anchors.doors.length).toBe(5);
   });
 
   it('devices by section: cameras 2 / 2 / 3, lasers 2 / 1 / 2, valid camera data', () => {

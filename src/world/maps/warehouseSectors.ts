@@ -15,49 +15,61 @@ import type { LaserDef } from '../../game/jammer';
 export const WAREHOUSE_SECTORS: SectorDef[] = [
   {
     id: 'service',
-    name: 'Service entrance',
-    start: { x: -14.5, y: 0, z: -24, yaw: 0 },
-    objective: { kind: 'download', label: 'Download from the workshop terminal', x: 22.6, y: 0, z: -16.6, yaw: Math.PI },
+    name: 'Goods-in and trade offices',
+    // the yard's dark south-west corner (A4); the DVR in the security office is the objective (SPEC 2.1 / 5.6)
+    start: { x: -20.0, y: 0, z: -24.6, yaw: 0.5 },
+    objective: { kind: 'download', label: 'Download the security DVR', x: 3.95, y: 0, z: -15.0, yaw: Math.PI / 2 },
     connector: {
-      label: 'Into the dock vestibule',
-      box: [-15.75, -8.75, -13.25, -6.25],
-      nearAt: [-14.5, -9],
+      label: 'Into the fire lobby',
+      box: [-16.25, -8.55, -12.75, -6.25],
+      nearAt: [-14.5, -8.8],
       farAt: [-14.5, -6],
       checkpoint: { x: -14.5, y: 0, z: -7.2, yaw: 0 },
     },
+    // Eight guards with jobs (A6, SPEC 2.1); `?sectorGuards=4` takes the first four. Each passes M8 on its timed patrol
+    // (isolation in time, A2): none of them needs filler cover.
     guards: [
-      // the yard: the lanes behind the container and the trailer, the gatehouse in the east lot
-      { kind: 'grunt', x: 6, z: -25.2, yaw: Math.PI / 2, route: [[6, -25.2], [12, -25.2]], wait: 3, takedownSpot: [6, -25] },
-      { kind: 'grunt', x: -6.5, z: -25, yaw: Math.PI / 2, route: [[-6.5, -25], [0, -25]], wait: 4, takedownSpot: [-6.5, -25] },
-      { kind: 'grunt', x: 23, z: -20.8, yaw: -Math.PI / 2, takedownSpot: [23.5, -21.5] },
-      // the dock: west bay, the east roller door, the north-east corner by the corridor
-      { kind: 'grunt', x: -21, z: -15.5, yaw: 0, route: [[-21, -15.5], [-21, -10]], wait: 3, takedownSpot: [-21, -13] },
-      { kind: 'heavy', x: -7.5, z: -15.5, yaw: -2.4, takedownSpot: [-8, -15.5] },
-      { kind: 'grunt', x: -6.5, z: -7.5, yaw: -Math.PI / 2, route: [[-6.5, -7.5], [-11, -7.5]], wait: 3, takedownSpot: [-11, -7.5] },
-      // dispatch, the workshop (both ends of the tool rack), the corridor's east end
-      { kind: 'officer', x: 2.5, z: -16.5, yaw: -1.2, takedownSpot: [2.5, -16.5] },
-      { kind: 'enforcer', x: 11, z: -16.8, yaw: 0.6, takedownSpot: [11.5, -17.5] },
-      { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI, route: [[20.5, -12.5], [20.5, -16]], wait: 3, takedownSpot: [20, -16] },
-      { kind: 'grunt', x: 21, z: -9.9, yaw: -Math.PI / 2, route: [[21, -9.9], [18.5, -9.9]], wait: 4, takedownSpot: [18.5, -10] },
+      // 1 the gate officer: gate control for the 03:00 delivery
+      { kind: 'officer', x: 9.0, z: -22.4, yaw: -2.53, takedownSpot: [9.0, -22.4] },
+      // 2 the yard patrol: gatehouse to the front entrance, checking the entrance lock and the security window
+      { kind: 'runner', x: 10.5, z: -21.0, yaw: Math.PI, route: [[10.5, -21.0], [-6.5, -19.6]], wait: 3, waits: [4, 4], faces: [Math.PI, 0], takedownSpot: [-6.5, -19.9] },
+      // 3 the goods-in checker: staged pallets against the delivery notes (desk, east lane, the office door)
+      { kind: 'officer', x: -21.6, z: -15.6, yaw: -Math.PI / 2, route: [[-21.6, -15.6], [-11.2, -15.4], [-19.0, -9.9]], wait: 4, waits: [5, 4, 4], faces: [-Math.PI / 2, 0, 0], takedownSpot: [-11.2, -15.4] },
+      // 4 the CCTV operator: the monitors, the corridor, the kettle in the mess (under hatch h2)
+      { kind: 'officer', x: 4.7, z: -16.2, yaw: -Math.PI / 2, route: [[4.7, -16.2], [3.6, -12.3], [2.6, -9.9]], wait: 5, waits: [6, 1, 6], faces: [-Math.PI / 2, -Math.PI / 2, 0], takedownSpot: [2.6, -9.9] },
+      // 5 the forklift driver: charger to the west lane
+      { kind: 'grunt', x: -9.6, z: -9.4, yaw: 0, route: [[-9.6, -9.4], [-18.2, -11.9]], wait: 5, faces: [0, Math.PI], takedownSpot: [-9.6, -9.6] },
+      // 6 the smoker: a break in the shelter, waiting for the delivery
+      { kind: 'grunt', x: -13.4, z: -20.5, yaw: 0.6, takedownSpot: [-13.4, -20.5] },
+      // 7 the clerk: paperwork at the goods-in office window
+      { kind: 'grunt', x: -22.6, z: -7.0, yaw: 2.6, takedownSpot: [-22.6, -7.0] },
+      // 8 the office patrol: a night tour clocking the two corridor fire doors
+      { kind: 'enforcer', x: -7.0, z: -12.3, yaw: -Math.PI / 2, route: [[-7.0, -12.3], [7.0, -12.3]], wait: 4, faces: [-Math.PI / 2, Math.PI / 2], takedownSpot: [-7.0, -12.3] },
     ],
-    reinforce: [[-20, -24.5], [13, -19.5]],
+    // alarm reinforcements come in at the vehicle gate
+    reinforce: [[5.0, -25.0], [8.0, -25.0]],
     perStage: 2,
     routes: [
       {
-        name: 'Dock and corridor',
-        pts: [[-14.5, -24], [-10.5, -19.5], [-10.5, -16], [-5, -13], [-5, -9.9], [-3, -10.3], [13.5, -10.3], [14.55, -11.8], [22.3, -11.8], [22.3, -13.5], [22.3, -11.8], [14.55, -11.8], [14.55, -10.3], [-3, -10.3], [-4.6, -9.9], [-5.2, -8.4], [-12.4, -8.4], [-12.4, -9.6], [-14.5, -9.6], [-14.5, -7.5]],
-        obj: 9,
+        // ground and shadow: crouch under shutter W, the bay, reception, the corridor, the security office, back out the corridor's west door
+        name: 'Under the shutter, reception and the corridor',
+        pts: [[-20, -24.6], [-19, -20], [-19, -18.9], [-19, -17], [-16, -16.2], [-9, -15.8], [-7.3, -15.8], [-7.2, -14.4], [-4.5, -14.4], [-4.5, -13], [4.4, -12.6], [4.4, -14.5], [4.8, -15], [4.4, -12.6], [-7, -12.3], [-9.2, -12.3], [-10, -10], [-14.5, -10], [-14.5, -9.4], [-14.5, -7.4]],
+        obj: 12,
+        climbs: [2],
       },
       {
-        name: 'Yard, workshop door, out through dispatch',
-        pts: [[-14.5, -24], [-10, -20.2], [16, -20.2], [17.55, -19.2], [17.55, -17], [17.6, -13.3], [22.3, -13.5], [17.6, -13.3], [8, -13.5], [6.6, -15.45], [5.4, -15.45], [3, -15], [1, -13.6], [-3, -14], [-5, -14.45], [-11.8, -14.2], [-12.2, -12.4], [-12.4, -9.6], [-14.5, -9.6], [-14.5, -7.5]],
-        obj: 6,
+        // high: the drainpipe, the roof, the roof hatch to the plant deck, the security ceiling hatch; back up and west to the smoke vent
+        name: 'Drainpipe, roof and the ceiling hatch',
+        pts: [[-20, -24.6], [-20.4, -19.6], [-22.4, -18.75], [-22, -17.2, 6], [5, -13.5, 6], [5, -14.9, 3.3], [7.4, -14.6, 3.3], [6.45, -15.4], [4.8, -15], [6.4, -16.5], [7.4, -14.6, 3.3], [5, -14.9, 3.3], [5, -13.5, 6], [-20, -9.6, 6], [-20, -7.4, 3.2], [-15.5, -8.4, 3.2], [-14.5, -9.6], [-14.5, -7.4]],
+        obj: 8,
+        climbs: [2, 4, 6, 9, 11, 13, 15],
       },
       {
-        name: 'Roof walkway, rappel to the dispatch window, out the workshop window',
-        pts: [[-14.5, -24], [-21.6, -18.8], [-21.6, -16, 6.275], [1.2, -16, 6.275], [1.2, -18.8], [1.2, -16.5], [5.4, -15.45], [6.6, -15.45], [8, -13.5], [17.6, -13.3], [22.3, -13.5], [13.5, -13.5], [11.5, -16.5], [11.5, -19], [-10.5, -19.5], [-10.5, -16], [-11.8, -14.2], [-12.2, -12.4], [-12.4, -9.6], [-14.5, -9.6], [-14.5, -7.5]],
-        obj: 10,
-        climbs: [1, 2, 3, 4, 12],
+        // service: the lane behind the trailer, the workshop, the catwalk, the office void, the mess hatch, the corridor
+        name: 'Behind the trailer, the catwalk and the void',
+        pts: [[-20, -24.6], [-12.5, -25.3], [2.8, -25.3], [9.5, -19.2], [11, -18.9], [11, -17.2], [22.6, -12], [23.3, -10.4], [22.6, -9.55, 3], [8.6, -9.55, 3], [7, -9.6, 3], [2.6, -9.95, 3], [2.6, -10.2], [2.5, -11.6], [4.4, -12.6], [4.4, -14.5], [4.8, -15], [4.4, -12.6], [-7, -12.3], [-9.2, -12.3], [-11, -10], [-14.5, -9.6], [-14.5, -7.4]],
+        obj: 16,
+        climbs: [7, 9, 10, 11],
       },
     ],
   },
@@ -162,8 +174,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
 export const WAREHOUSE_OPS_SECURITY: SecurityData = {
   levels: { ground: 0, mezz: 2.6 },
   devices: [
-    { id: 'cam-dock', kind: 'camera', level: 'ground', at: [-14.5, -17.6], y: 2.6, facing: 0, sweep: [-45, 45], reason: 'Section 1: the dock floor and the vestibule door', section: 0 },
-    { id: 'cam-workshop', kind: 'camera', level: 'ground', at: [23.6, -11.4], y: 2.6, facing: 225, sweep: [195, 255], reason: 'Section 1: the workshop terminal', section: 0 },
+    { id: 'cam-yard', kind: 'camera', level: 'ground', at: [-8.4, -18.35], y: 3.5, facing: 180, sweep: [140, 220], reason: 'Section 1: the entrance and the shutters from the facade', section: 0 },
+    { id: 'cam-bay', kind: 'camera', level: 'ground', at: [-23.6, -9.4], y: 2.8, facing: 135, sweep: [110, 165], reason: 'Section 1: the west lane and the crawl landing in the bay', section: 0 },
     { id: 'cam-rack-sw', kind: 'camera', level: 'ground', at: [-23.6, -5.6], y: 2.6, facing: 20, sweep: [0, 45], reason: 'Section 2: up the west aisle', section: 1 },
     { id: 'cam-rack-ne', kind: 'camera', level: 'ground', at: [-4.4, 17.6], y: 2.6, facing: 225, sweep: [195, 255], reason: 'Section 2: the north aisle and the office door', section: 1 },
     { id: 'cam-floor', kind: 'camera', level: 'ground', at: [10, -8.45], y: 2.6, facing: 0, sweep: [-40, 40], reason: 'Section 3: the south bay', section: 2 },
@@ -172,10 +184,10 @@ export const WAREHOUSE_OPS_SECURITY: SecurityData = {
   ],
 };
 
-/** The laser bands, by section: the corridor (1), the north aisle (2), the deck's stair and west approaches (3). */
+/** The laser bands, by section: the workshop and the plant deck (1), the north aisle (2), the deck's stair and west approaches (3). */
 export const WAREHOUSE_OPS_LASERS: LaserDef[] = [
-  { id: 'laser-corridor-w', x1: 12.5, z1: -10.85, x2: 12.5, z2: -8.95, ys: [0.35, 0.9, 1.45], label: 'Corridor laser', section: 0 },
-  { id: 'laser-corridor-e', x1: 16, z1: -10.85, x2: 16, z2: -8.95, ys: [0.35, 0.9, 1.45], label: 'Corridor laser', section: 0 },
+  { id: 'laser-workshop', x1: 9.8, z1: -17.7, x2: 9.8, z2: -9.1, ys: [0.35, 0.9, 1.45], label: 'Workshop laser', section: 0 },
+  { id: 'laser-deck', x1: -1.0, z1: -17.7, x2: -1.0, z2: -13.95, ys: [0.35, 0.9, 1.45], floorY: 3.3, label: 'Plant deck laser', section: 0 },
   { id: 'laser-north-aisle', x1: -12.5, z1: 16.7, x2: -12.5, z2: 17.85, ys: [0.35, 0.9, 1.45], label: 'Aisle laser', section: 1 },
   { id: 'laser-deck-stairs', x1: 20.1, z1: 12.5, x2: 22.3, z2: 12.5, ys: [0.35, 0.9, 1.45], floorY: 2.6, label: 'Deck laser', section: 2 },
   { id: 'laser-deck-west', x1: 8.2, z1: 12.6, x2: 12.7, z2: 12.6, ys: [0.35, 0.9, 1.45], floorY: 2.6, label: 'Deck laser', section: 2 },

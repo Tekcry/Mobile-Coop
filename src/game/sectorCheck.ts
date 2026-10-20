@@ -142,6 +142,11 @@ export interface CheckGuard {
   z: number;
   y?: number;
   route?: readonly (readonly [number, number])[];
+  /** Timed patrol (the isolation-in-time check only): pause per point, overriding `wait` (s); walk speed (m/s); ping-pong a 3+ point route. */
+  wait?: number;
+  waits?: readonly number[];
+  speed?: number;
+  pingPong?: boolean;
 }
 
 /** Points a guard stands on or walks through (the post, then the route every `CHECK_STEP` m, looping back). */
@@ -191,4 +196,130 @@ export function spotSeenBy(w: SightWorld, x: number, y: number, z: number, guard
     }
   }
   return -1;
+}
+
+// ---- M8 isolation in time (warehouse-redesign A2 / C1) ------------------------------------------------------------
+
+/** The time model samples the guards' timed patrols over this long (s) ... */
+export const CHECK_HORIZON = 180;
+/** ... every this often (s) ... */
+export const CHECK_TIME_STEP = 0.25;
+/** ... and a guard passes with this much isolation in a row (s). */
+export const CHECK_ISOLATION = 3;
+/** A takedown spot counts within this plan distance (m) of the guard (the data check's reach). */
+export const CHECK_SPOT = 1.6;
+/** Patrol pace over the archetype walk speed (mirrors `PATROL_PACE` in `ai/enemy.ts`; a plain route walks at 1.1 x). */
+export const CHECK_PATROL_PACE = 1.1;
+
+/** The patrol schedule of one guard: where it is at time t, built once (build-time only, never per frame). */
+interface Schedule {
+  /** Stops in visit order (flat x, z), the pause (s) at each and the time (s) each pause ends. */
+  xs: number[];
+  zs: number[];
+  tPauseEnd: number[];
+  tArrive: number[];
+  cycle: number;
+}
+
+function buildSchedule(g: CheckGuard): Schedule | null {
+  const r = g.route;
+  if (!r || r.length === 0) return null;
+  const speed = g.speed ?? 0.9 * CHECK_PATROL_PACE;
+  const n = r.length;
+  const order: number[] = [];
+  if (n < 3 || g.pingPong) {
+    for (let i = 0; i < n; i++) order.push(i);
+    for (let i = n - 2; i >= 1; i--) order.push(i);
+  } else for (let i = 0; i < n; i++) order.push(i);
+  const s: Schedule = { xs: [], zs: [], tPauseEnd: [], tArrive: [], cycle: 0 };
+  let t = 0;
+  for (let k = 0; k < order.length; k++) {
+    const idx = order[k]!;
+    const p = r[idx]!;
+    if (k > 0) {
+      const q = r[order[k - 1]!]!;
+      t += hyp2(p[0] - q[0], p[1] - q[1]) / speed;
+    }
+    s.xs.push(p[0]);
+    s.zs.push(p[1]);
+    s.tArrive.push(t);
+    t += g.waits?.[idx] ?? g.wait ?? 2.5;
+    s.tPauseEnd.push(t);
+  }
+  // the walk back from the last stop to the first closes the cycle
+  const a = r[order[order.length - 1]!]!;
+  const b0 = r[order[0]!]!;
+  t += hyp2(b0[0] - a[0], b0[1] - a[1]) / speed;
+  s.cycle = t;
+  return s;
+}
+
+/** The guard's plan position at time t (s) written to out[0], out[1]. */
+function scheduleAt(g: CheckGuard, s: Schedule | null, t: number, out: number[]): void {
+  if (!s || s.cycle < 1e-6) {
+    out[0] = g.x;
+    out[1] = g.z;
+    return;
+  }
+  const u = t % s.cycle;
+  const m = s.xs.length;
+  for (let k = 0; k < m; k++) {
+    if (u <= s.tPauseEnd[k]!) {
+      if (u >= s.tArrive[k]!) {
+        out[0] = s.xs[k]!;
+        out[1] = s.zs[k]!;
+        return;
+      }
+      // walking from stop k - 1 (or, wrapping, the last stop) to stop k
+      const kp = k === 0 ? m - 1 : k - 1;
+      const t0 = k === 0 ? s.tPauseEnd[m - 1]! : s.tPauseEnd[kp]!;
+      const f = (u - t0) / Math.max(1e-6, s.tArrive[k]! - t0);
+      out[0] = s.xs[kp]! + (s.xs[k]! - s.xs[kp]!) * f;
+      out[1] = s.zs[kp]! + (s.zs[k]! - s.zs[kp]!) * f;
+      return;
+    }
+  }
+  // the closing walk: last stop -> first stop
+  const t0 = s.tPauseEnd[m - 1]!;
+  const f = (u - t0) / Math.max(1e-6, s.cycle - t0);
+  out[0] = s.xs[m - 1]! + (s.xs[0]! - s.xs[m - 1]!) * f;
+  out[1] = s.zs[m - 1]! + (s.zs[0]! - s.zs[m - 1]!) * f;
+}
+
+/**
+ * The longest run (s) over `horizon` s in which guard `self` is isolated: every other guard is more than `range` away
+ * in plan (or on another floor) or has no clear eye-height line to it. Guards walk their routes at their walk speed
+ * (`speed`, else a grunt's) pausing `waits[i]` / `wait` at each point; two points ping-pong, three or more loop; a guard
+ * with no route stands at its slot. With a `spot` [x, z] only moments with the guard within `CHECK_SPOT` m of it count (the
+ * takedown spot). A build-time check: it allocates freely.
+ */
+export function longestIsolation(w: SightWorld, guards: readonly CheckGuard[], self: number, range = CHECK_RANGE, spot: readonly [number, number] | null = null, horizon = CHECK_HORIZON, step = CHECK_TIME_STEP): number {
+  const sch = guards.map(buildSchedule);
+  const pos: number[][] = guards.map(() => [0, 0]);
+  const me = guards[self]!;
+  const my = me.y ?? 0;
+  let run = 0;
+  let best = 0;
+  for (let t = 0; t <= horizon + 1e-9; t += step) {
+    for (let i = 0; i < guards.length; i++) scheduleAt(guards[i]!, sch[i]!, t, pos[i]!);
+    const [x, z] = pos[self]!;
+    let isolated = spot === null || hyp2(x! - spot[0], z! - spot[1]) <= CHECK_SPOT;
+    for (let j = 0; j < guards.length && isolated; j++) {
+      if (j === self) continue;
+      const [px, pz] = pos[j]!;
+      const py = guards[j]!.y ?? 0;
+      if (hyp2(px! - x!, pz! - z!) > range || Math.abs(py - my) > 6) continue;
+      if (w.clear(x!, my + CHECK_EYE, z!, px!, py + CHECK_EYE, pz!)) isolated = false;
+    }
+    if (isolated) {
+      run += step;
+      if (run > best) best = run;
+    } else run = 0;
+  }
+  return best;
+}
+
+/** M8 in time: the guard has `CHECK_ISOLATION` s or more of isolation in a row on its timed patrol. */
+export function isolatedInTime(w: SightWorld, guards: readonly CheckGuard[], self: number, spot: readonly [number, number] | null = null, range = CHECK_RANGE): boolean {
+  return longestIsolation(w, guards, self, range, spot) >= CHECK_ISOLATION - 1e-9;
 }

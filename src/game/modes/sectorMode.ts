@@ -312,7 +312,7 @@ export class SectorMode implements GameMode {
       this.tmp.set(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z);
       const e = em.spawn(p.slot.kind, this.tmp, p.alerted, p.slot.yaw);
       if (!e) break;
-      if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait });
+      if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       this.pending.splice(i, 1);
     }
   }
