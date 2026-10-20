@@ -44,6 +44,9 @@ Results (17:50): test-speed run 6 on 7221641c CLEAN (all suites, e2e-pad include
 
 Restart order after the reset: the orchestrator first (Michael pastes its prompt), then CT Core, Sector Ops and Course Ready (cleared, with their own prompts). Character Build and Menu Notes (nv-pass) were cleared earlier and are only paused: message them to resume.
 
+## Overnight focus change (2026-10-21 ~00:40)
+Michael: "Turn off movement slices and any research." The animation tools are the priority (Course Ready: tuner-camera, then Anim Studio; Menu Notes: tuner-v2). CT Core lands S2b and slice 4 (+ walls merge) as PRs on the checks in flight, then only tool support. Sector Ops stopped (slice 6 WIP on feature/anim-hold). No review agents. In flight and finishing: camera-cue, smooth-world (light-parity fix round), warehouse-lamps #59, marlow-bunker (cloud).
+
 ## Overnight 2026-10-20 -> 21 (Michael ~23:50, going to bed)
 - Usage window reset ~23:45: "be mindful of token usage on all sessions ... want the leave things running overnight".
 - Michael approved overnight merges: "Yes, merge green PRs" (tuner #56, S2b walk fix, slices 4-6, wheel-ui, camera-cue,
