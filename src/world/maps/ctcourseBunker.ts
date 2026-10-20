@@ -60,7 +60,8 @@ export function doorFrame(b: LevelBuilder, x: number, thick: number, z0: number,
     const fx = x + sx * (thick / 2 + THIN / 2);
     for (const jz of [z0 - 0.06, z0 + w + 0.06]) {
       b.box(fx, h / 2, jz, THIN, h, 0.12, HAZARD, 0, 0, false);
-      for (let y = 0.25; y < h - 0.1; y += 0.42) b.box(fx + sx * (THIN / 2 + 0.003), y, jz, 0.005, 0.035, 0.16, PAINT, 0, Math.PI / 4, false);
+      // each stripe, tilted 45 deg, spans the 0.12 m jamb and no more
+      for (let y = 0.25; y < h - 0.1; y += 0.42) b.box(fx + sx * (THIN / 2 + 0.003), y, jz, 0.005, 0.035, 0.12 * Math.SQRT2 - 0.035, PAINT, 0, Math.PI / 4, false);
     }
     b.box(fx, h + 0.06, z0 + w / 2, THIN, 0.12, w + 0.24, STEEL, 0, 0, false);
     b.box(fx, h + 0.3, z0 + w / 2, THIN, 0.1, 0.3, SIGNAL, 0, 0, false);

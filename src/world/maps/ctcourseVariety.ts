@@ -5,7 +5,7 @@ import type { LevelBuilder } from '../levelBuilder';
  * each test cell is, readable at a glance. Visual dressing on top of the bunker build (`ctcourseBunker.ts`): every piece
  * is collide = false except the S6 server racks (2 m: too tall to vault or mantle, `noLedge`, so no lip). Faces and
  * paint are thinner than the bake's 5 cm (no light change); the pieces that are thicker (the S6 racks and scanner
- * frames, the S8 coffer beams) are proved by `tests/ctcourseLight.test.ts`. No yellow, green or blue-grey but the S8
+ * frames, the S8 coffer beams, the booth sills) are proved by `tests/ctcourseLight.test.ts`. No yellow, green or blue-grey but the S8
  * coffer's faint green (the exit, the same element as the green exit square). Positions: bay origin x0 = 22 (n - 1).
  */
 
@@ -39,19 +39,21 @@ function sentryDesk(b: LevelBuilder): void {
   b.box(x, 0.73, 1.3, 1.8, 0.04, 0.8, '#4a4f55', 0, 0, false);
   for (const dx of [-0.85, 0.85]) b.box(x + dx, 0.36, 1.3, 0.04, 0.71, 0.76, '#2f3338', 0, 0, false);
   // the post's screen and the log book
-  b.box(x - 0.3, 0.98, 1.0, 0.5, 0.32, 0.03, SCREEN, 0, 0, false);
-  b.box(x - 0.3, 0.98, 1.0 + 0.016, 0.42, 0.24, 0.002, GLOW, 0, 0, false);
+  b.box(x - 0.3, 0.79, 1.0, 0.04, 0.08, 0.04, '#2f3338', 0, 0, false);
+  b.box(x - 0.3, 0.99, 1.0, 0.5, 0.32, 0.03, SCREEN, 0, 0, false);
+  b.box(x - 0.3, 0.99, 1.0 + 0.016, 0.42, 0.24, 0.002, GLOW, 0, 0, false);
   b.box(x + 0.4, 0.76, 1.3, 0.3, 0.02, 0.22, WHITE, 0, 0, false);
 }
 
 /** S1: a blast-door frame round the entry lift on the west wall (face at x 0.15): the lobby's armoured opening. */
 function liftBlastFrame(b: LevelBuilder): void {
   const fx = 0.15;
-  onX(b, fx, 1, 5.0, 5.6, 0, 3.4, DARK, 0.02);
-  onX(b, fx, 1, 8.4, 9.0, 0, 3.4, DARK, 0.02);
-  onX(b, fx, 1, 5.0, 9.0, 2.9, 3.4, DARK, 0.02);
+  // clear of the lift's own call panel (z 8.62 - 8.78) and indicator (up to y 3.09)
+  onX(b, fx, 1, 4.5, 5.1, 0, 3.65, DARK, 0.02);
+  onX(b, fx, 1, 8.9, 9.5, 0, 3.65, DARK, 0.02);
+  onX(b, fx, 1, 4.5, 9.5, 3.15, 3.65, DARK, 0.02);
   // white chevrons on the jambs (the hazard frame, kept off yellow)
-  for (const z of [5.3, 8.7]) for (let y = 0.3; y < 2.8; y += 0.5) b.box(fx + 0.065, y, z, 0.01, 0.08, 0.6, WHITE, 0, Math.PI / 4, false);
+  for (const z of [4.8, 9.2]) for (let y = 0.3; y < 2.9; y += 0.5) b.box(fx + 0.055, y, z, 0.01, 0.08, 0.6, WHITE, 0, Math.PI / 4, false);
 }
 
 /** S3: the security cell's monitor wall on the south wall (face at z 0.15): six screens showing the camera's feed. */
@@ -72,26 +74,27 @@ function monitorWall(b: LevelBuilder): void {
 
 /**
  * A plant room's face in a south pocket (the cross wall's face at x, the bay on the `into` side): a louvred grille, the
- * plant room's steel door and the cable trunking up to the haunch. The pocket is sealed void (no way in).
+ * plant room's steel door and the cable trunking up to the ceiling. The pocket is sealed void (no way in).
  */
 function plantFace(b: LevelBuilder, x: number, into: number, ceil: number): void {
   onX(b, x, into, 0.9, 1.9, 2.3, 3.1, DARK, 0.02);
   for (let k = 0; k < 5; k++) onX(b, x, into, 0.95, 1.85, 2.38 + k * 0.15, 2.44 + k * 0.15, STEEL, 0.05, 0.01);
   onX(b, x, into, 2.5, 3.4, 0, 2.05, '#4c5359', 0.02);
   onX(b, x, into, 3.25, 3.32, 0.95, 1.1, STEEL, 0.05, 0.02);
-  onX(b, x, into, 1.3, 1.5, 3.1, ceil - 1.1, '#3b4045', 0.02, 0.04);
+  onX(b, x, into, 1.3, 1.5, 3.1, ceil, '#3b4045', 0.02, 0.04);
 }
 
 /**
  * An instructor booth's face in a north pocket (the cross wall's face at x, the cell it watches on the `into` side):
  * one-way observation glass (a dark mirrored panel, no opening: nothing changes in the light or the walls) in a steel
- * frame with mullions, and the booth's door.
+ * frame with mullions, and the booth's door beside it (closed, visual).
  */
 function boothFace(b: LevelBuilder, x: number, into: number): void {
   onX(b, x, into, 10.5, 13.5, 1.0, 2.3, STEEL, 0.02);
   onX(b, x, into, 10.6, 13.4, 1.08, 2.22, MIRROR, 0.05, 0.01);
   for (const z of [11.55, 12.45]) onX(b, x, into, z - 0.03, z + 0.03, 1.08, 2.22, STEEL, 0.06, 0.01);
   onX(b, x, into, 10.5, 13.5, 0.92, 1.0, STEEL, 0.02, 0.06);
+  onX(b, x, into, 9.95, 10.4, 0, 2.05, '#4c5359', 0.02);
 }
 
 /** S5: the kill-house mock-up's plywood skin on its front face (x0 + 8.85, both sides of the door) and painted windows. */
@@ -99,14 +102,19 @@ function plywood(b: LevelBuilder): void {
   const x0 = bayX(4);
   const fx = x0 + 8.85;
   for (const [z0, z1] of [[0.15, 6.3], [7.7, 13.85]] as const) {
-    onX(b, fx, -1, z0, z1, 0, 4.0, PLY, 0, 0.015);
-    for (let z = z0 + 1.2; z < z1 - 0.3; z += 1.2) onX(b, fx, -1, z - 0.015, z + 0.015, 0, 4.0, PLY_SEAM, 0.015, 0.004);
+    // under the yellow leg-up band (z 3 - 4 from y 3.85) the plywood stops: the band stays on bare wall
+    if (z0 < 3) {
+      onX(b, fx, -1, z0, z1, 0, 3.85, PLY, 0, 0.015);
+      onX(b, fx, -1, z0, 3, 3.85, 4.0, PLY, 0, 0.015);
+      onX(b, fx, -1, 4, z1, 3.85, 4.0, PLY, 0, 0.015);
+    } else onX(b, fx, -1, z0, z1, 0, 4.0, PLY, 0, 0.015);
+    for (let z = z0 + 1.2; z < z1 - 0.3; z += 1.2) onX(b, fx, -1, z - 0.015, z + 0.015, 0, z > 3 && z < 4 ? 3.85 : 4.0, PLY_SEAM, 0.015, 0.004);
     onX(b, fx, -1, z0, z1, 2.39, 2.41, PLY_SEAM, 0.015, 0.004);
   }
   // painted window outlines (a mock-up's windows: paint, no opening), clear of the leg-up band at z 3 - 4
   for (const [z0, z1] of [[1.0, 2.4], [9.6, 11.0], [11.8, 13.2]] as const) {
     for (const [a, c, d, e] of [[z0, z1, 1.0, 1.05], [z0, z1, 2.15, 2.2], [z0, z0 + 0.05, 1.0, 2.2], [z1 - 0.05, z1, 1.0, 2.2]] as const) {
-      onX(b, fx, -1, a, c, d, e, WHITE, 0.015, 0.004);
+      onX(b, fx, -1, a, c, d, e, WHITE, 0.019, 0.004);
     }
   }
   // the grid wall's front face inside the mock-up (x0 + 12.35): plywood too
@@ -127,7 +135,7 @@ function vaultVestibule(b: LevelBuilder): void {
   b.mark(from, { noLedge: true });
   for (let k = 0; k < 4; k++) {
     const z = 8.0 + 0.3 + k * 0.62;
-    for (let r = 0; r < 6; r++) b.box(x0 + 1.07, 0.3 + r * 0.3, z, 0.01, 0.03, 0.4, r % 2 ? GLOW : '#6fd0ff', 0, 0, false);
+    for (let r = 0; r < 6; r++) b.box(x0 + 1.055, 0.3 + r * 0.3, z, 0.01, 0.03, 0.4, r % 2 ? GLOW : '#6fd0ff', 0, 0, false);
   }
 }
 

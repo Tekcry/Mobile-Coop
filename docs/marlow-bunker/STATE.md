@@ -1,9 +1,9 @@
 # marlow-bunker - state
 
 ## Now
-PAUSED (orchestrator, 2026-10-21 01:25, per Michael: weekly token budget; all non-animation work stops). Built and tested: all
-eight shortlist items (BRIEF.md). PR #62 to master was already open before the pause (mergeable; CI check pending). Resume
-point: wait for the orchestrator to resume; then the full e2e run on the PR head and the GPU look (below).
+Resumed (orchestrator, 2026-10-21 ~07:30, Michael chose "Marlow variety"). The variety pass (the polish list below,
+`docs/marlow-variety/`) is folded into this PR: feature/marlow-bunker is fast-forwarded to the marlow-variety head.
+Character Build runs check + the full e2e on the new head; GPU look pending a PC run.
 
 ## Next
 - The orchestrator reviews and merges; the GPU look on Michael's PC (`npm run e2e:gpu`, a ctcourse contact sheet with
@@ -21,7 +21,7 @@ point: wait for the orchestrator to resume; then the full e2e run on the PR head
 - `E2E_JOBS=1`: e2e-ctcourse:1 ok 343 s (master 6a4fb07f on the same machine: 310 s, +11%; likely the ceilings: the upper screen is now geometry through the lamp shader, not sky, in software GL), e2e-ctcourse:2 ok 389 s. The times file says 110-130 s per part: this machine ran slower tonight on master too.
 - Risk for the full run: the ctcourse parts at `E2E_JOBS=2` can reach the 600 s limit here; the orchestrator's full run decides (laptop or a quiet desktop).
 
-## Polish list (not built: outside the approved shortlist, or cosmetic)
+## Polish list (built by marlow-variety, folded into this PR; what is left: `docs/marlow-variety/STATE.md`)
 - The audit's station extras: S1 sentry desk behind the guard (z 1-2, keep x 2-10.5, z 2.5-5 clear) and a blast-door
   frame round the lift lobby; S3 monitor wall; plant rooms (louvres, trunking) in the south pockets and instructor
   booths (A3 / A4, `glass()`) in the north pockets; S5 plywood faces and painted window outlines; S6 pilaster-and-lintel

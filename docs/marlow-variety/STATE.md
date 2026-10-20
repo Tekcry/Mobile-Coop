@@ -1,13 +1,18 @@
 # marlow-variety - state
 
 ## Now
-Built and unit-tested (2026-10-21): all nine items (BRIEF.md) at 0f06c17a; a fresh checker is reviewing it.
+Built, checked and fixed (2026-10-21). The orchestrator folded this job into #62: feature/marlow-bunker is fast-forwarded
+to this branch's head, the CHANGELOG lines sit under #62's "Unreleased - marlow-bunker", and Character Build runs check +
+the full e2e on the new #62 head. Nothing left on this branch; follow #62 (`docs/marlow-bunker/STATE.md`).
 
-## Next
-1. The checker's findings: one fix round.
-2. When #62 (marlow-bunker) merges: merge master into this branch, `npm run check`, open the PR to master.
-3. Ask Character Build ("Night Shift | Character Build") for the full e2e on the PR head; copy the orchestrator.
-4. Message the orchestrator when the PR is open.
+## Checker (fresh Opus, 2026-10-21): FIX, one round done
+- Blocking, fixed: the lift's blast frame buried the lift's call panel and indicator; the frame now stands clear
+  (jambs z 4.5-5.1 / 8.9-9.5, head from y 3.15).
+- Polish, fixed: window paint in front of the plywood seams; no plywood behind the yellow leg-up band; trunking up to the
+  ceiling; the desk screen on a stand; chevrons and rack LEDs on their faces; the booth door the comment promised; hazard
+  stripes inside the jamb; the booth sill named in the baked-pieces comment.
+- Polish, left: no plywood over the S5 door lintel (a concrete strip shows); `CT_W` / `bayX` / the S5 face and stair
+  numbers are copied from `ctcourse.ts` (importing them would be circular; pass them in when this file grows).
 
 ## Open
 - GPU look pending a PC run (with #62's: the ceilings, fittings and the floor between the pools under the slabs).

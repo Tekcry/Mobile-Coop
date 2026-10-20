@@ -1,15 +1,5 @@
 # Changelog
 
-## Unreleased - marlow-variety
-- Marlow Yard variety (Michael 2026-10-21, the marlow-bunker polish list; `docs/marlow-variety/`): a sentry desk at the
-  station 1 post and a blast-door frame round the entry lift; a monitor wall in the camera cell; plant-room faces at
-  the south pockets and one-way-glass instructor booths at A3 / A4; plywood and painted windows on the kill-house;
-  frames round the station 6 scanners and server racks; the station 7 stair painted as training blocks; a coffer
-  with a faint green LED ring over the exit; a hazard frame on the laser release; black and white hazard stripes on
-  every door frame.
-- No light change at the 196 test points, no new ledge or climb (only the 2 m racks are solid, no lip), the routes
-  stay clear. GPU look: pending a PC run.
-
 ## Unreleased - marlow-bunker
 - Marlow Yard is an underground training bunker (Michael 2026-10-20, the approved audit shortlist;
   `docs/marlow-bunker/`). Ceilings per test cell (low cells 4.5 m, the laser cell 5.5 m, the climbing and kill-house
@@ -23,9 +13,16 @@
   planned ones (S2 / S7 walls, the S5 roof front, the S7 stair); the 6 m perimeter lips once hangable from the high
   wall tops are gone.
 - Dressing (no collision, no light change except the ribs and haunches near the ceiling): ceiling ribs, haunches, LED
-  strips, wall panel seams, a colour band per cell, steel door frames with status lamps, the entry lift (west) and the
+  strips, wall panel seams, a colour band per cell, door frames with status lamps, the entry lift (west) and the
   goods lift (east); readability paint: the leg-up mark up the S2 / S5 / S7 wall faces, the S3 camera's sweep edges,
   the S4 beam emitters, the S5 hatch cover, the S6 "pair" line, the S7 rope anchor.
+- Variety (marlow-variety, folded into this PR; Michael 2026-10-21, the marlow-bunker polish list;
+  `docs/marlow-variety/`): a sentry desk at the station 1 post and a blast-door frame round the entry lift; a monitor
+  wall in the camera cell; plant-room faces at the south pockets and one-way-glass instructor booths at A3 / A4;
+  plywood and painted windows on the kill-house; frames round the station 6 scanners and server racks; the station 7
+  stair painted as training blocks; a coffer with a faint green LED ring over the exit; a hazard frame on the laser
+  release; black and white hazard stripes on every door frame. No light change at the 196 test points, no new ledge
+  or climb (only the 2 m racks are solid, no lip), the routes stay clear.
 - Text: "fence" is "wall" (station 4 panel, radio and objective; the training guard's line); the spec carries the
   bunker fiction and an element register.
 - GPU look: pending a PC run.
