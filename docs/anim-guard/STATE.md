@@ -1,7 +1,7 @@
 # anim-guard - state
 
 ## Now
-Clips keyed, baked, sheeted, tested (REPORT.md); an Opus checker reviews; PR to feature/ct-prototype once #39 is in.
+Done: clips keyed, baked, sheeted, tested (REPORT.md); check PASS (CHECK.md, polish only); PR to feature/ct-prototype open.
 
 ## Done
 - 2026-10-20: worktree from feature/anim-rig 00b654cd; BRIEF, STATE.
