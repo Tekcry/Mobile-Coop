@@ -28,6 +28,16 @@
   (every range doubled), typed values in each row, a bypass (R3 or Backquote held), and a slider search box.
 - Fix: the barrel marker turned half the screen grey. It is now drawn on a 2D overlay (no scene meshes, no per-frame
   Babylon allocation).
+## 4.21.1 - e2e-pad steps over the tuner item; steadier heap test (2026-10-21, PR #64)
+- e2e-pad's pause menu walk steps over "Animation tuner (dev)" (added before Quit by the anim-tuner job); "focus Quit"
+  failed every run, hidden by KNOWN FLAKY. analogGear "allocates nothing per update" warms up and takes the smallest of
+  three passes (a single pass read 3.5 MB on a loaded CI runner). Test only.
+
+## 4.21.0 - Selection wheel sized to the screen, radial ring look, FPS banner bottom left (2026-10-21, PR #61)
+- Selection wheel restyle (`docs/wheel-ui/SLICE1.md`): the wheel sizes itself from the screen (130 + 0.36 x height px:
+  518 px at 1080p, was about 430; about 250 px on an 844 x 390 phone) inside the safe area, never under the top HUD or the
+  hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
+  item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
 
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
