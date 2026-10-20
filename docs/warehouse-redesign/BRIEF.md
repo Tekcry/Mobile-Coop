@@ -89,3 +89,17 @@ Proposed by the step 3 spec (`SPEC.md` section 4, which has the full table) for 
 - **A1 (node_modules):** the worktree's `node_modules` is a junction to `C:/NightShift/Mobile-Coop-sector-restart`'s
   (the dependency lock is identical; `npm ci` counts as heavy and the desktop lock was held). Undo: delete the junction
   and `npm ci` under the lock.
+- **M5** (2026-10-20 13:05, via the orchestrator): "Is there capacity to continue the sector ops on desktop when
+  nothing else is running, it shouldn't take priority". The job resumes at the lowest priority; the PR waits for
+  Michael's look at the direction. The SPEC "Decisions" are the job lead's (A2-A7 below).
+- **A2 (C1, M8 isolation in time):** the takedown check (`sectorCheck.ts`) passes a guard whose spot is statically
+  unseen (as now) or that has 3 s or more of isolation in a row on its timed patrol (SPEC 6 model), so section 1 needs no
+  filler geometry. Undo: drop the time branch (sections 2 and 3 pass the static branch).
+- **A3 (N1):** `sectorMode.ts` passes per-point `waits`, `faces`, `start` and `loop` like `infiltrationMode.ts`. Undo: the
+  one call back to `wait` only.
+- **A4 (D3):** section 1's start is the yard's south-west corner. Undo: the old start and spawns.
+- **A5 (D4):** sections 2 and 3 keep their heavies and indoor sniper until rebuilt (against G155 for co-op; noted for
+  Michael). Undo: swap them to guards now.
+- **A6 (D5):** section 1 has 8 guards (was 10); the PC perf run (G187) sets any rise. Undo: add guards with jobs.
+- **A7 (E7):** the workshop fire exit is an unlocked door leaf until one-way doors exist; a hatch climb-up that the
+  engine cannot do makes that hatch drop-only. Undo: build the one-way door / climb when the engine has them.

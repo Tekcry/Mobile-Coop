@@ -1,12 +1,8 @@
 # Warehouse redesign - state
 
-**Now:** PAUSED 2026-10-20 00:45 (Michael via the orchestrator: movement is the only focus tonight; usage limit; no PR
-tonight). Step 1 done (a3664216, checker PASS); step 2 done (`REVIEW.md`); step 3 `SPEC.md` is a DRAFT (stopped early):
-the building, section 1 design, engine fit and loosenings L1-L11 are done; the section 1 build sheet is mostly done
-(climbs indices in R2/R3 and levelBuilder signatures unchecked); sections 2 and 3 are outline only.
-**Next:** (1) the job lead decides SPEC "Decisions": C1 (sectorCheck: a takedown spot passes when unseen or the guard
-is alone 3 s on its timed patrol), N1 (sectorMode.ts:310 passes per-point waits and facings), section 1 start moved to
-(-20, -24.6), 8 guards in section 1, heavies / sniper left in sections 2-3 against G155 until rebuilt; (2) section 1
+**Now:** RESUMED 2026-10-20 13:10 at the lowest priority (M5). Master 4.13.0 merged in. Decisions A2-A7 taken (BRIEF).
+Step 3 SPEC finishing (sections 2 and 3) and step 4 section 1 greybox running in parallel (disjoint files).
+**Next:** (2) section 1
 greybox (implementer on Sonnet from the build sheet, fresh Opus checker, at most 1 fix round, `npm run check` +
 e2e-sectorops); (3) push, walk guide and the PR to master (dog fix + spec + greybox) when the orchestrator says;
 the full `npm run e2e` on its head.
