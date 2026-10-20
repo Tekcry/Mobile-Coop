@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - anim-metrics (into feature/ct-prototype)
+- Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
+  and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,
+  ranges `CRAB` and per-gait `CRAB_GATES` in `limits.ts`, unit tests `tests/animCrabMetrics.test.ts`). `e2e-anim` prints
+  them for walk, jog, run, crouch and sneak, report-only until a gait's gate is on; today's values in
+  `docs/anim-rework/METRICS.md`.
+
 ## 4.13.1 - Co-op fixes: the host draws on the joiner at High and Epic, the connecting label clears (2026-10-20, PR #35)
 - Co-op: the host was invisible on the joiner at High and Epic graphics (GPU). The baked-lamp material plugin broke a
   material clone while the partner figure loaded, so the figure never appeared. The plugin is no longer copied by a
