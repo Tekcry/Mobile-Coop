@@ -21,6 +21,8 @@ import { WALL, WALL_LOOK_PITCH, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHe
 import type { TraverseKind } from '../anim/animGraph';
 import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStance';
 import { TUNE_LOCAL, TUNE_STATE, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
+import { WEIGHT_POSE, weightFrameIn, weightJumpKind } from '../anim/weight';
+import { weightBegin, weightEnd } from './weightTune';
 import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
 import { handsBegin, handsEnd, handsWeaponOf } from '../anim/tuneHands';
 import { tuneV2Frame } from '../anim/tuneV2Sections';
@@ -154,6 +156,13 @@ export class Player {
   /** (locomotion step 17) A landing in a band (`LandingKind`: soft / roll / heavy) and a foot plant (rumble). */
   onLanding: ((kind: string) => void) | null = null;
   onFootPlant: (() => void) | null = null;
+  /** (anim-weight) The carried-gear spring's offset (body frame, m) for the carried guns (PlayerWeapons sets it). */
+  onWeightGear: ((dx: number, dy: number, dz: number) => void) | null = null;
+  /** (anim-weight) The Weight layers' frame input (reused) and last frame's foot plant, motion state and traversal. */
+  private readonly weightIn = weightFrameIn();
+  private weightPlant = false;
+  private weightMotion = '';
+  private weightTraverse = 'none';
   /** (F1) The draw wanted last step: holstering (its falling edge) resets the shoulder to the right. */
   private wasDrawn = false;
   private landingsSeen = 0;
@@ -267,6 +276,7 @@ export class Player {
     const drawn = this.stance.drawWanted || this.adsWanted;
     if (this.wasDrawn && !drawn) this.cam.resetShoulder();
     this.wasDrawn = drawn;
+    this.controller.weightDrawn = drawn; // (anim-weight) the Weight section's drawn group (momentum)
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
 
     // weapon carry: ready position from context, raised only to aim or fire
@@ -512,6 +522,25 @@ export class Player {
       this.teleportsSeen = c.teleports;
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
+    // (anim-weight) the Weight layers (lean, loading, springs, anticipation; identity: no offset), this rig only
+    const wi = this.weightIn;
+    wi.dt = dt;
+    wi.x = c.renderPos.x;
+    wi.y = c.renderPos.y;
+    wi.z = c.renderPos.z;
+    wi.yaw = by;
+    wi.speed = c.speed;
+    wi.accelFwd = rp.accelFwd;
+    wi.yawRate = m.yawRate;
+    wi.grounded = c.grounded;
+    wi.plant = this.weightPlant;
+    wi.landings = c.landings;
+    wi.fall = c.lastFall;
+    wi.start = m.state === 'move' && this.weightMotion !== 'move' && this.weightMotion !== '' && m.speed < 0.3;
+    wi.jump = cp.traverse !== this.weightTraverse && weightJumpKind(cp.traverse);
+    wi.teleports = c.teleports;
+    this.weightMotion = m.state;
+    this.weightTraverse = cp.traverse;
     tuneBegin(rp, this.rig, dt); // (anim-tuner) the local player's slider values, this rig only (pass 2: eased over dt)
     const handW = handsWeaponOf(this.rig);
     tuneV2Frame(TUNE_STATE.body, handW); // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables
@@ -520,15 +549,19 @@ export class Player {
     handsBegin(TUNE_STATE.body, handW, dt); // (tuner-v2 item 2) hand / foot placement, the Weapon group
     moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)
     try {
+      weightBegin(wi, c.crouched, this.wasDrawn); // inside the try: weightEnd always closes it
       this.rig.animate(dt, rp);
     } finally {
       moveTuneEnd(this.rig);
       handsEnd();
       jointsEnd();
       tuneEnd(this.rig);
+      weightEnd();
     }
+    if (this.onWeightGear) this.onWeightGear(WEIGHT_POSE.gearX, WEIGHT_POSE.gearY, WEIGHT_POSE.gearZ);
     // footfalls (no camera bob, D2: the view follows the smoothed capsule only)
     const pl = this.rig.planner;
+    this.weightPlant = pl.L.landed || pl.R.landed;
     if ((pl.L.landed || pl.R.landed) && c.grounded) {
       this.onFootPlant?.();
       // the foley plays real foot plants (audio reads this; nothing in gameplay does)

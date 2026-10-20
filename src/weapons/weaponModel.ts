@@ -487,6 +487,7 @@ export class WeaponModel {
     this.slot = slot;
     this.track(rig, slot === 'sling');
     const n = this.node;
+    this.gearOn = false;
     this.place(n, rig, slot);
     this.setVisible(true);
     if (had) rig.glideWeapon(n, glideM);
@@ -600,6 +601,43 @@ export class WeaponModel {
     // pushed out at once, swings back with a little damping
     this.splay = want > this.splay ? want : this.splay + (want - this.splay) * 0.15;
     this.placeSling(rig, this.splay);
+  }
+
+  /** (anim-weight) The carried-gear spring's slot position (parent frame) while an offset is applied. */
+  private gearOn = false;
+  private gearBX = 0;
+  private gearBY = 0;
+  private gearBZ = 0;
+
+  /**
+   * (anim-weight) The Weight section's carried-gear spring (`WEIGHT_POSE.gearX / Y / Z`, the local player only): this
+   * gun, carried on the back or the sling, offset in its slot by (dx, dy, dz) m in its parent's frame (x right, y up,
+   * z forward). The thigh holster, a gun in hand, on its travel or gliding into the slot are left alone. At 0 nothing
+   * is touched (and an applied offset puts the slot position back exactly). No allocation.
+   */
+  weightGear(dx: number, dy: number, dz: number): void {
+    const s = this.slot;
+    const rig = this.owner;
+    if (s === null || s === 'thigh' || !rig || rig.heldWeapon === this.node || rig.gliding === this.node) {
+      this.gearOn = false;
+      return;
+    }
+    const p = this.node.position;
+    if (s === 'sling') {
+      // the sling is placed again after every pose (`follow`): its slot position is the current one
+      if (dx === 0 && dy === 0 && dz === 0) return;
+      p.set(p.x + dx, p.y + dy, p.z + dz);
+      return;
+    }
+    if (!this.gearOn) {
+      if (dx === 0 && dy === 0 && dz === 0) return;
+      this.gearOn = true;
+      this.gearBX = p.x;
+      this.gearBY = p.y;
+      this.gearBZ = p.z;
+    }
+    p.set(this.gearBX + dx, this.gearBY + dy, this.gearBZ + dz);
+    if (dx === 0 && dy === 0 && dz === 0) this.gearOn = false;
   }
 
   private rig: CharacterRig | null = null;

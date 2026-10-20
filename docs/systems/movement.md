@@ -122,6 +122,9 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   kinematic feet path); `speedMul` / `speedCap` slow it.
 - Floor settle: Havok holds a supported capsule within 0.14 m of the floor; `PlayerController.settleGap` sets it down on a
   grounded step when it hangs more than `SETTLE.tol` over its rest gap.
+- (anim-weight) Momentum tuning: the tuner's Weight section scales the CT pace spring's start / stop times and turn caps
+  and can let the stop overshoot and settle (`WEIGHT_MOVE`, read in `MotionDriver.stepCt` inside the local player's
+  `weightSim` window; identity by default; `docs/anim-tuner/WEIGHT.md`).
 
 ## Networked movement (MoveState)
 - `player/moveState.ts` (pure; in `player/` because single player builds it and must never import `src/net`):

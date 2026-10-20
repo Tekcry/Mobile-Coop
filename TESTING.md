@@ -118,6 +118,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Barrel marker: tick it with a gun out - a pink line and dot along the barrel, no grey screen.
 - [ ] Import the exported JSON (tools > Import): the values come back; a wrong file is refused with a line in the panel.
   "wide ranges" doubles every range; typing a number in a row's field applies on Enter; the search box filters rows.
+- [ ] Animation tuner Weight (anim-weight): every Weight slider at its default leaves the walk, jog, run, crouch and
+  drawn movement exactly as before; momentum sliders change the local player only (time to speed, stop, turn rate),
+  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
 - [ ] Animation tuner Camera (tuner-camera): the Camera section's picker follows explore / crouched / low ready / aim
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);

@@ -56,6 +56,9 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
+- (anim-weight) The local player's Weight layers (lean, bank, plant / landing load, chest / head / arm / gear springs,
+  anticipation) sit after the graph's pose in `AnimGraph.writeTargets` (`weightApplyPose`) and on the carried guns
+  (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`, `docs/anim-tuner/WEIGHT.md`).
 - Wren's hands (weapons job, anim-cleanup): morph targets `gripR`, `gripL`, `wrapR`, `relaxR`, `relaxL` on her game files,
   blended by `rig.handGrip` and `rig.rightTrigger` (trigger, support, wrap, relaxed). Magazines are a separate `<id>-mag`
   mesh moved by the reload clips (`reloadClipFor`); the audit sheets are `scripts/anim-cleanup/sheets.mjs` and
