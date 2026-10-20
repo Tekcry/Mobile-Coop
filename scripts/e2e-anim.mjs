@@ -4,7 +4,17 @@
 // turn rate), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
 // every gait, transition continuity, hit flinch, camera follow lag / framing blends / shoulder swap /
 // bob / drift / sprint FOV / bounded angular velocity and acceleration, and 60 / 120 / 144 / 165 / 240 Hz parity.
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { launch, assert as hard } from './e2e-lib.mjs';
+
+// (anim-metrics) the pure audit metrics and limits for node (as anim-audit: bundled with esbuild at start; node + its JS
+// entry, not .bin, which is a .cmd shim on Windows)
+const LIB = resolve('test-results/e2e-anim/lib');
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
+const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
+const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -307,6 +317,74 @@ try {
     }, [inp, mode ?? null]);
     assert(r.plants >= 3 && r.maxSlide < 0.01, `${name} (${f2(r.speed)} m/s): planted feet locked (${(r.maxSlide * 100).toFixed(2)} cm, ${r.plants} plants)`);
   }
+
+  // ---------------------------------------------------------------- anti-crab (anim-metrics, anim-rework BRIEF 5)
+  // Knee separation and foot track per speed and stance, knees over the toes, planted-foot slide and the elbows'
+  // distance out from the shoulders, in the pelvis frame (src/anim/audit/metrics.ts, limits.ts CRAB). Report-only:
+  // a gait asserts once CRAB_GATES[gait] is on (as CT Core's anim-rework slices 2-4 land); docs/anim-rework/METRICS.md.
+  console.log('anti-crab metrics (report-only until CRAB_GATES turns a gait on)');
+  const crabGaits = [
+    ['walk', { y: 0.5 }],
+    ['jog', { y: 1 }],
+    ['run', { y: 1 }, null, 5],
+    ['crouch', { y: 1 }, 'crouch'],
+    ['sneak', { y: 0.35 }, 'crouch'],
+  ];
+  const crabRows = [];
+  for (const [name, inp, mode, gear] of crabGaits) {
+    const rec = await G(([inp, mode, gear]) => {
+      const t = window.__t;
+      const p = window.__app.current.player;
+      const c = p.controller;
+      const rig = p.rig;
+      t.tp(12, -14, -Math.PI / 2);
+      if (gear) c.gears.set(gear);
+      if (mode === 'crouch') c['crouchToggled'] = true;
+      t.run(1.0, inp);
+      const joints = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR'];
+      const out = Object.fromEntries(joints.map((j) => [j, []]));
+      out.contactL = [];
+      out.contactR = [];
+      let speed = 0;
+      t.run(2.0, inp, () => {
+        for (const j of joints) {
+          const n = rig[j];
+          n.computeWorldMatrix(true);
+          const v = n.getAbsolutePosition();
+          out[j].push(v.x, v.y, v.z);
+        }
+        out.contactL.push(rig.planner.L.contact ? 1 : 0);
+        out.contactR.push(rig.planner.R.contact ? 1 : 0);
+        speed += c.speed;
+        return 0;
+      });
+      c['crouchToggled'] = false;
+      if (gear) c.gears.set(4);
+      out.speed = speed / out.contactL.length;
+      return out;
+    }, [inp, mode ?? null, gear ?? null]);
+    const C = L.CRAB;
+    const knee = M.kneeSeparation(rec.hipL, rec.hipR, rec.kneeL, rec.kneeR, C.kneeSep.min, C.kneeSep.max);
+    const track = M.footTrack(rec.hipL, rec.hipR, rec.ankleL, rec.ankleR, C.trackHalf, rec.contactL, rec.contactR);
+    const bow = M.kneeBow(rec.hipL, rec.hipR, rec.kneeL, rec.kneeR, rec.ankleL, rec.ankleR, C.kneeBow);
+    const slL = M.plantedSlide(rec.ankleL, rec.contactL, C.slide);
+    const slR = M.plantedSlide(rec.ankleR, rec.contactR, C.slide);
+    const wing = M.elbowWing(rec.shoulderL, rec.shoulderR, rec.elbowL, rec.elbowR, C.elbowWing);
+    const slide = Math.max(slL.worst, slR.worst);
+    const cm = (v) => (v * 100).toFixed(1);
+    const gated = !!L.CRAB_GATES[name];
+    const row = { gait: name, speed: +rec.speed.toFixed(2), knee: [+knee.min.toFixed(2), +knee.mean.toFixed(2), +knee.max.toFixed(2)], track: [+cm(track.min), +cm(track.mean), +cm(track.max)], bow: +cm(bow.max), slide: +cm(slide), plants: slL.plants + slR.plants, wing: +cm(wing.max) };
+    crabRows.push(row);
+    console.log(`  ${name} (${f2(rec.speed)} m/s): knees ${row.knee[1]} x the hips (${row.knee[0]}-${row.knee[2]}; ${C.kneeSep.min}-${C.kneeSep.max}), planted track ${row.track[1]} cm from the line (${row.track[0]} to ${row.track[2]}; <= ${cm(C.trackHalf)}), knee outside the ankle max ${row.bow} cm (<= ${cm(C.kneeBow)}), planted slide max ${row.slide} cm in ${row.plants} plants (< ${cm(C.slide)}), elbow outside the shoulder max ${row.wing} cm (<= ${cm(C.elbowWing)})${gated ? '' : ' [report-only]'}`);
+    if (gated) {
+      assert(knee.pass, `${name}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${row.knee.join(' / ')})`);
+      assert(track.pass, `${name}: planted feet within ${cm(C.trackHalf)} cm of the line under the hips (${row.track.join(' / ')} cm)`);
+      assert(bow.pass, `${name}: knees over the toes (outside by ${row.bow} cm)`);
+      assert(slide < C.slide && row.plants >= 3, `${name}: planted feet locked (${row.slide} cm, ${row.plants} plants)`);
+      assert(wing.pass, `${name}: elbows in (${row.wing} cm outside the shoulder)`);
+    }
+  }
+  if (process.env.CRAB_JSON) console.log(`CRAB_JSON ${JSON.stringify(crabRows)}`);
 
   // ---------------------------------------------------------------- transitions and flinch
   console.log('transitions');

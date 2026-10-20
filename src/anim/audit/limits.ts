@@ -166,3 +166,26 @@ export const BACKSTEP = 0.001;
 export const D5_FOOT_SLIDE = FOOT_SLIDE;
 /** movement.ts gear caps (m/s), for the harness: target speeds and the :795 pelvis limits. */
 export const GEAR_CAPS = { stand: GEARS.stand, crouch: GEARS.crouch } as const;
+
+/**
+ * (anim-metrics, anim-rework BRIEF 5 "no crabbing") Human ranges for the legs and arms at every speed and stance, measured
+ * in the pelvis frame (the horizontal axis from the left hip joint to the right one; `metrics.ts` crab metrics):
+ * - kneeSep: the knees' lateral distance over the hip joints' (ratio). Knees over the toes keep it near 1 (a narrow
+ *   walk a little under, a deep crouch a little over); bowed-out knees, the crab, push it well past.
+ * - trackHalf: a planted foot's centre (ankle) from the line under the hips (m). A narrow track: a few cm either side
+ *   (walking step width about 8-12 cm between the feet), near the line at a run.
+ * - kneeBow: a knee outside its own ankle (m): knees track over the toes, never out past them.
+ * - slide: a planted foot's travel over the ground while planted (m; FOOT_SLIDE, < 1 cm).
+ * - elbowWing: an elbow outside its own shoulder (m): elbows down and close to the ribs, not winged.
+ * Report-only until each gait's slice lands (CT Core's anim-rework slices 2-4): `CRAB_GATES[gait]` turns that gait's
+ * hard asserts on in e2e-anim.
+ */
+export const CRAB = {
+  kneeSep: { min: 0.6, max: 1.3 },
+  trackHalf: 0.09,
+  kneeBow: 0.05,
+  slide: FOOT_SLIDE,
+  elbowWing: 0.08,
+} as const;
+export type CrabGait = 'walk' | 'jog' | 'run' | 'crouch' | 'sneak';
+export const CRAB_GATES: Record<CrabGait, boolean> = { walk: false, jog: false, run: false, crouch: false, sneak: false };
