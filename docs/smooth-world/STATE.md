@@ -10,15 +10,13 @@ Night Shift | Character Build: RESUME smooth-world. Work only in C:\NightShift\M
 ```
 
 ## Now
-- Implementer done (IMPL-REPORT.md): voxels off by default, baked lamps on the smooth path, roof grid for rain,
-  parity test tests/smoothWorldLight.test.ts. lint / unit (2096) / build pass. e2e not run yet (laptop lock held).
-  Next: fresh checker.
+- Built, checked (CHECK-REPORT.md: first check 1 blocking + 5 polish; one fix round; re-check PASS). lint 0 errors,
+  2098 unit tests, build pass. Pushed; PR open with e2e pending.
+- Waiting on: the laptop runner's `check;full` (E2E_JOBS=2) on the PR head; the desktop GPU before / after shots
+  (default vs `?voxels=1`: Marlow Yard and Warehouse, night vision, rain, a roofed room).
 
 ## Next
-1. Implementer: scope 1-6 of BRIEF.
-2. Fresh checker, at most one fix round.
-3. npm run check, full e2e under the laptop heavy.lock.
-4. Docs (graphics-quality.md, lighting.md, CHANGELOG "Unreleased - smooth-world"), push, PR, orchestrator.
+1. Runner result: green -> tell the orchestrator; a failure -> fix (one round), push, re-request.
 
 ## Open
 - Desktop GPU before / after shots (`?voxels=1` vs default) and perf numbers: the orchestrator or Menu Notes.
@@ -30,4 +28,6 @@ Night Shift | Character Build: RESUME smooth-world. Work only in C:\NightShift\M
 
 ## Done
 - 2026-10-20: worktree, BRIEF, STATE.
-- 2026-10-20: implementer (scope 1-6), checkpoint commit.
+- 2026-10-20: implementer (scope 1-6), checkpoint commit 7ac815ef.
+- 2026-10-20: check, fix round 12a602dd (night vision fill on the level, two-bake test, roof-grid moon cull), re-check PASS.
+- 2026-10-20: CHANGELOG, PR.

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased - smooth-world
+- The world draws smooth by default (Michael, 2026-10-20: "there still looks to be voxel graphics in the map which is no
+  longer the goal"; he chose "Turn voxels off by default"): the level's boxes and cylinders in PBR with the CC0 surface
+  atlas, the box detail pass at the Detail tier, smooth characters, weapons and props. `?voxels=1` keeps the voxel look
+  for comparison (`?voxels=0` still means off). `?gfx=min` keeps its fast path (standard materials, no baked lamps).
+- Light parity: the baked lamps (`BakedLamps`, the darkness curve, the ambient-grid fill, the baked moon, closed doors)
+  now render on the smooth path too, so the picture reads the same bake as the light meter and guard perception.
+  `tests/smoothWorldLight.test.ts` bakes Marlow Yard from the voxel and the smooth builders and proves the bakes and the
+  light field are identical; `tests/lampLevel.test.ts` checks the level keeps its fill under night vision.
+- Without voxels: rain stops under roofs through a roof grid from the canonical light shapes (`src/world/roofGrid.ts`),
+  moving casters under a roof leave the moon cascades, fog shafts use the baked moon; voxel GI and bullet chips are
+  off (decals instead), ray-traced reflections fall back to SSR.
+- Tests: e2e-desktop's voxel and RT parts pass `&voxels=1`; e2e-lightbake adds a `gfx=epic&voxels=1` config and checks
+  the smooth Epic path. Polish list: `docs/smooth-world/POLISH.md`.
+
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").

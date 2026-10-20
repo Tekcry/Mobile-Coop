@@ -91,3 +91,29 @@ NOT PASS: 1 BLOCKING item (night vision darker on the smooth level), 5 POLISH it
 
 6. POLISH - fog shafts read the moon's visibility (along the moon direction) instead of straight-up sky visibility
    (`src/game/gameState.ts:508`). Shafts land slightly offset from the skylights. Cosmetic.
+
+## Re-check (fix round, 12a602dd)
+2026-10-20, laptop, fresh checker (Opus), logic only. Reviewed `git diff 7ac815ef..12a602dd -- src tests scripts`.
+Lint / unit / build taken as reported (0 errors, 2098 pass, build pass); no e2e run here.
+
+**Verdict: PASS.** No BLOCKING items.
+
+1. BLOCKING 1 fixed. `LAMP_LEVEL: false` is in `LampPlugin`'s super() defines (`bakedLamps.ts:629`), set in
+   `prepareDefines` from a `metadata.lampLevel` mark (`:658`). `levelBuilder.ts:452` marks only the PBR `levelMat-*`
+   (atlas branch); the StandardMaterial branch (`?gfx=min`) is untouched. GLSL: a plain `#ifdef / #else / #endif`
+   nested inside `#if defined(LAMP_FILL) && !defined(VOXELS)`, each branch declares `nsBF` once; the probe line
+   `finalIrradiance *= nsR * nsBF` (`:903`) then keeps the level's full irradiance too. Bodies, weapons and props are
+   unmarked and keep `nsBodyFill`. VOXELS materials skip the block as before.
+   Note (not blocking): on `?voxels=1` the thin pieces still drawn by `levelMat-*` now also skip the cap, which matches
+   their voxel walls; GPU shot of NV on default vs `?voxels=1` still pending (desktop).
+2. Parity test: `bakeFrom` runs the full bake (ambient grid, moon, lamps) from each prepared builder's own shapes and
+   registry; the test compares `lightBakeHash` (lamp boxes + vis, moon vis, ambient data, moonLight) and the baked ids,
+   and each `LightField` reads its own bake. POLISH 2 closed.
+3. Roof-grid moon cull (`world.ts:342-349`): only runs with the baked moon and no voxel sky. `World.roofAt` builds the
+   grid lazily from `level.light` (always present); outside the grid `roofAt` returns -1e9, so no crash and no cull. A
+   caster is culled only if its own column and all four 1.5 m neighbours have a shape top above it, so an outdoor
+   caster (open column) is never culled. Minor gap vs the voxel path: no `skyAt` check, so under a high open-sided
+   canopy where the slanted moon still reaches, a character's moon shadow can drop. Cosmetic; polish list if seen.
+4. `e2e-lightbake` assertion runs on the `gfx=epic` config only, so the voxel config and `gfx=min` cannot false-fail it.
+   It waits up to 30 s for a ready `levelMat-*` effect carrying `BAKED_LAMPS`, then needs `LAMP_LEVEL` there and on no
+   other lamp-plugin effect. Sound.
