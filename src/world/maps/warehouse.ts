@@ -141,6 +141,12 @@ export interface WarehouseOpts {
    * surfaces; default true). Sector Ops sets it false and builds section 2 itself (`warehouseS2.ts`). Used only with `southBand: false`.
    */
   storageHall?: boolean;
+  /**
+   * The base factory floor and mezzanine east of x -4 from z -8.8 (floor contents, the solid deck block, rails, ladder, zipline,
+   * the manager's slab and duct, the deck crates, the deck pipe, the lamp strips there; default true). Sector Ops sets it false and
+   * builds section 3 itself (`warehouseS3.ts`). Used only with `southBand: false`.
+   */
+  assemblyHall?: boolean;
   /** Gaps in the x -4 wall (dock / racking | dispatch / corridor / floor / office). */
   gapsX4?: [number, number][];
   /** Gaps in the z -6 wall (dock | racking). */
@@ -174,6 +180,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.floor(0, 0, 48, 36, FLOOR, 0.02, 0.04);
   const sb = o.southBand !== false;
   const sh = o.storageHall !== false;
+  const ah = o.assemblyHall !== false;
   if (sb) {
   // south facade: two roller doors at the dock, a personnel door into the workshop
   wallX(b, -18, -24, 24, [[-20, -17], [-12, -9], [0.6, 1.8], [10.9, 12.1], [17, 18.1]], WALL_DARK, 6);
@@ -212,8 +219,9 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   wallX(b, -8.8, -4, 24, o.gapsZ88 ?? [[2, 3.6], [18, 19.1]]);
   wallZ(b, 6, -18, -11, [[-16, -14.9]]);
   }
-  wallX(b, 12, -4, 8, o.gapsZ12 ?? [[-1.5, -0.4]]);
-  wallZ(b, 2, 12, 18, [[15.5, 16.6]]);
+  // (Sector Ops, assemblyHall false: both are 3.0, the deck's underside; section 3 builds the deck)
+  wallX(b, 12, -4, 8, o.gapsZ12 ?? [[-1.5, -0.4]], WALL, ah ? H : 3.0);
+  wallZ(b, 2, 12, 18, [[15.5, 16.6]], WALL, ah ? H : 3.0);
 
   if (sb) {
   // loading dock: pallet stacks, a forklift, dock plates and a staging line
@@ -275,6 +283,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.block(-6.2, 5.0, 1.2, 1.0, 1.2, CRATE);
   }
 
+  if (ah) {
   // factory floor: columns, a press, low machines, a conveyor line, stairs to the mezzanine
   for (const [x, z] of [[2, -4], [10, -4], [18, -1], [2, 5], [10, 5]] as const) b.pillar(x, z, 0.35, 6, CONCRETE);
   // (3.2.0) the press stands 3.3 m: out of reach standing, a wall jump up to a perch over the floor
@@ -335,6 +344,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.block(11.5, 15.8, 1.2, 1.1, 1.2, CRATE, 2.6).block(17.5, 14.2, 1.2, 1.3, 1.2, CRATE, 2.6).block(18.7, 14.3, 1.0, 1.0, 1.0, CRATE, 2.6);
   // a crate screening the sniper's post from the stairs, a steel shelf against the back wall
   b.block(20.6, 16.9, 1.2, 1.2, 1.2, CRATE, 2.6).block(18.6, 17.55, 2.2, 1.8, 0.6, STEEL, 2.6);
+  }
 
   // offices: desks, filing cabinets
   if (o.officeDesk !== false) b.block(-2.2, 15, 1.6, 0.95, 0.8, DESK);
@@ -387,6 +397,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   for (let x = -18; x <= 18; x += 9) {
     for (let z = sb ? -15 : -3; z <= 15; z += 6) {
       if (!sh && x < -4) continue; // Sector Ops: section 2 has its own lamps
+      if (!ah && x > -4) continue; // Sector Ops: section 3 has its own lamps
       // a lit strip is the light's fixture (shoot anywhere along it; it goes dark), an unlit one is just a box
       if (LAMPS_ON.has(`${x},${z}`)) b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z), fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
       else b.box(x, 5.2, z, 0.25, 0.08, 2.6, LAMP_OFF, 0, 0, false);
@@ -401,7 +412,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.ambientZone(-24, 24, -18, 18, 0.12, -1, 6.2);
   // surfaces: a gravel yard, a steel mezzanine deck and rack tops, carpeted offices
   b.surface('gravel', -27, 27, -29, -18.2);
-  b.surface('metal', 8, 24, 12, 18, 2.6);
+  if (ah) b.surface('metal', 8, 24, 12, 18, 2.6);
   if (sh) for (const x of [-20.5, -16.5, -12.5, -8.5]) b.surface('metal', x - 0.5, x + 0.5, -4.2, 16.6, 2.8);
   b.surface('carpet', -4, 8, 12.15, 18);
 
@@ -429,8 +440,10 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   b.block(9, -8.8, 5, 4.0, 0.34, WALL);
   }
   // the deck pipe and its hangers from the roof
-  b.pipeH(17, 13.3, 17, -0.2, 4.4, PIPE);
-  for (const z of [10, 6, 2.6, 0.2]) b.box(17, 5.23, z, 0.05, 1.54, 0.05, PIPE, 0, 0, false);
+  if (ah) {
+    b.pipeH(17, 13.3, 17, -0.2, 4.4, PIPE);
+    for (const z of [10, 6, 2.6, 0.2]) b.box(17, 5.23, z, 0.05, 1.54, 0.05, PIPE, 0, 0, false);
+  }
   if (sb) b.fence(14.5, -25.85, 14.5, -22.3, 2.6);
 
   // Sector Ops: its own pieces (connector rooms, routes, cover) after the Warehouse's

@@ -29,6 +29,8 @@ import { SightWorld, distToGuard, spotSeenBy, longestIsolation, isolatedInTime, 
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { S1_ROOMS } from '../src/world/maps/warehouseS1';
 import { S2_ROOMS } from '../src/world/maps/warehouseS2';
+import { S3_ROOMS } from '../src/world/maps/warehouseS3';
+import { roomAt } from '../src/world/rooms';
 import { hyp2 } from '../src/core/mathx';
 import { PATROL } from '../src/ai/patrol';
 
@@ -331,8 +333,8 @@ describe('the Warehouse sections (A12, M8)', () => {
     }
   });
 
-  it('sections 1 and 2 A2 survive patrol phase drift: every guard keeps CHECK_ISOLATION s at its spot under 30 random start phases', () => {
-    for (const s of [S[0]!, S[1]!]) {
+  it('sections 1-3 A2 survive patrol phase drift: every guard keeps CHECK_ISOLATION s at its spot under 30 random start phases', () => {
+    for (const s of S) {
       const gs = timed(s.guards);
       for (let i = 0; i < gs.length; i++) {
         const g = s.guards[i]!;
@@ -437,6 +439,39 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.objective.x >= cage.minX && s.objective.x <= cage.maxX && s.objective.z >= cage.minZ && s.objective.z <= cage.maxZ).toBe(true);
     // every route's grab point is the same free floor spot inside the cage
     for (const r of s.routes) expect(world.blocked(r.pts[r.obj]![0], 0, r.pts[r.obj]![1], 0.3), r.name).toBe(false);
+  });
+
+  it('section 3 (warehouse-s23): starts at the C3 checkpoint, nine guards in the first-four order, the terminal and the lobby reachable', () => {
+    const s = S[2]!;
+    expect(s.id).toBe('floor');
+    expect(s.start).toEqual(S[1]!.connector!.checkpoint);
+    expect(s.extract?.label).toBe('Extract by the east fire exit');
+    expect(s.extract?.box).toEqual([21.4, -8.5, 23.7, -5.9]);
+    expect(s.guards.length).toBe(9);
+    // ?sectorGuards=4 takes the porter, the loader, the clerk and the tour guard (no heavies, G155)
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'runner']);
+    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // the e2e stands 0.9 m east of the terminal, on the deck: free, no door within 1.6 m, no first-four guard within 1.8 m
+    const sx = s.objective.x + 0.9;
+    expect(world.blocked(sx, 3.3, s.objective.z, 0.3)).toBe(false);
+    for (const d of (b as unknown as { anchors: { doors: { hinge: { x: number; z: number } }[] } }).anchors.doors) expect(hyp2(d.hinge.x - sx, d.hinge.z - s.objective.z), 'door by the terminal stand').toBeGreaterThan(1.6);
+    for (const g of s.guards.slice(0, 4)) expect(hyp2(g.x - sx, g.z - s.objective.z), 'guard by the terminal stand').toBeGreaterThan(1.8);
+    // the extraction: the box centre is free floor with no guard slot within 1.8 m
+    const bx = s.extract!.box;
+    const ex = (bx[0] + bx[2]) / 2;
+    const ez = (bx[1] + bx[3]) / 2;
+    expect(world.blocked(ex, 0, ez, 0.3)).toBe(false);
+    for (const g of s.guards) expect(hyp2(g.x - ex, g.z - ez), 'guard by the extraction').toBeGreaterThan(1.8);
+    // the rooms: every section 3 room is in, the old mezzanine is not; the terminal is on the production office's storey, the exit in the lobby
+    const lay = warehouseOps.build(new LevelBuilder(), 0);
+    const rooms = lay.rooms ?? [];
+    const ids = rooms.map((r) => r.id);
+    for (const r of S3_ROOMS) expect(ids, r.id).toContain(r.id);
+    expect(ids).not.toContain('mezz');
+    expect(rooms[roomAt(rooms, s.objective.x, s.objective.z, s.objective.y)]?.id).toBe('prodOffice');
+    expect(rooms[roomAt(rooms, ex, ez, 0)]?.id).toBe('fireLobby');
+    // every route's grab point is the same free deck spot
+    for (const r of s.routes) expect(world.blocked(r.pts[r.obj]![0], 3.3, r.pts[r.obj]![1], 0.3), r.name).toBe(false);
   });
 
   it('the plain Warehouse is unchanged by the south band switch (318 boxes, 14 cylinders, 5 doors; captured before)', () => {

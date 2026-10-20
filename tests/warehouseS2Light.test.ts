@@ -136,11 +136,7 @@ SEC.guards.forEach((g, i) => {
   if (POCKETS.some((p) => p.name.startsWith(`takedown ${i + 1} `))) return;
   SPOTS.push(spot(`takedown ${i + 1} ${g.kind}`, g.takedownSpot[0], 0, g.takedownSpot[1], READ, false, g.kind === 'officer' && g.takedownSpot[1] > 16 ? WORK : CAP));
 });
-// lit by section 3's own lamps and the C3 doorway sign (the route ends and the far side of the connector): left as they were
-const ORIGINAL_LIT: Record<string, number> = {
-  'connector: C3 far door': 0.9,
-  'connector: C3 checkpoint': 0.85,
-};
+// (the C3 far doorway, the checkpoint and the routes' ends at (-1, 15) read in the key band 0.45-0.55 now: section 3's C3 lamps replaced the old strips that lit them to 0.85-0.90)
 SPOTS.push(
   spot('objective: the case', SEC.objective.x, SEC.objective.y, SEC.objective.z, 0.55, false, WORK),
   spot('objective: the e2e stand point', SEC.objective.x + 0.9, 0, SEC.objective.z, KEY, false, WORK),
@@ -175,13 +171,6 @@ SPOTS.push(
   spot('rack top: R1N (the cage side)', -18.75, 4, 12.5, READ),
   spot('rack top: W0N (the cage stock ladder)', -23.45, 4, 11.4, READ),
 );
-
-for (const p of SPOTS) {
-  const m = Object.keys(ORIGINAL_LIT).find((k) => p.name.startsWith(k));
-  if (m) p.max = ORIGINAL_LIT[m]!;
-  // the three routes end inside section 3 (-1, 15), on its lit office floor
-  if (p.x === -1 && p.z === 15) p.max = 0.85;
-}
 
 describe('Sector Ops section 2 lamp pass (warehouse-s23)', () => {
   it('bakes in node fast enough for the unit run', () => {
@@ -236,7 +225,7 @@ describe('Sector Ops section 2 lamp pass (warehouse-s23)', () => {
     const pts: [number, number, number][] = [];
     for (let x = -23; x <= 23; x += 4) for (const z of [-24, -20, -16, -12, -10]) pts.push([x, 0, z]);
     for (const x of [0, 4, 8, 12, 16, 20]) for (const z of [-6, -2, 3, 8, 11, 15]) if (hyp2(x + 4, z - 14.55) > 6) pts.push([x, 0, z]);
-    for (const [x, y, z] of [[12, 2.6, 14.1], [15, 2.6, 14]] as const) pts.push([x, y, z]);
+    for (const [x, y, z] of [[12, 3.3, 14.1], [15, 3.3, 14]] as const) pts.push([x, y, z]); // (on the deck, section 3's slab top)
     for (const f of [open, shut]) {
       const on = pts.map(([x, y, z]) => body(f, x, y, z));
       const off = withNewOff(() => pts.map(([x, y, z]) => body(f, x, y, z)));
