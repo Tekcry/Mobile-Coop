@@ -48,8 +48,10 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
   `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
-  changed folders (`COVERS` in the runner, first match wins: `src/core/quality`, `display`, `settings` and `flags` by
-  file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
+  changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
+  `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
+  `overlayProject`, `animTune*`: `e2e-studio` plus their folder's suites), `src/core/quality`, `display`, `settings`
+  and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
@@ -231,6 +233,15 @@ behind a VPN adapter).
   renderer in a match, every material within 16 textures, no `GameState` survives a release (`SHOTS=dir` saves shots)
 - `e2e-offline` service worker precache (every manifest entry), offline boot + match, backgrounding pauses, co-op offline
   state, a v1 save in IndexedDB migrated on boot with a backup
+- `e2e-studio` (anim-studio; covers `src/anim/studio*`, `src/anim/tuneHistory`, `src/game/studioStage`, `src/ui/studio*`,
+  `src/ui/tuneSnapshots`, `src/ui/animTune*`, the studio map and the tuner store): `?autostart=studio` boots the stage with
+  the tuner panel and its Studio section; a keyed clip in place on Wren's graph, paused a key step moves the phase by one
+  key and back; mirror reaches the drive; a state walks by synthesised input; 2x game speed in the studio; a slider
+  change undoes and redoes; a preset saves to the tuner's IndexedDB store and loads back; no studio row in the studio's
+  pause menu; quitting to the menu leaves time scale 1 and no studio state; the main menu row. (anim-studio-2, also
+  covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
+  hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
+  (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder
 - `e2e-security` (LEGACY; Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
   a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
   player at its far pause; a shot camera stops detecting; desk and panel checks
@@ -286,6 +297,11 @@ behind a VPN adapter).
   machine's own baseline, never a pass claim.
 - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
   quality, heap growth (leak check)
+- `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
+  (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and
+  writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,
+  then prints the key clips' rebake commands (Blender is never run). Shared targets, refusals and the mapping:
+  `docs/anim-tuner/BAKE.md`. Pure logic in `src/anim/tuneBake.ts` (tests: `tests/animTuneBake.test.ts`, on temp copies).
 - `node scripts/plan-svg.mjs [mapId]` top-down plan SVGs of a built map, one per storey (default `bunker`; output in
   `test-results/training/`, never committed)
 - `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots]

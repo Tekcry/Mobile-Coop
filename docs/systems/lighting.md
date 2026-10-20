@@ -40,6 +40,17 @@ field (collision, the light bake, the noise model), never the render state.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of `MAX_REAL_LIGHTS` spot
   lights given to the nearest lights at 4 Hz; quality sets how many are lit (`QualityLevel.realLights`). Pool lights are
   never enabled / disabled (no recompiles). Maps without lights create nothing.
+- Fitting models (warehouse-lamps; Sector Ops only): `world/lampMount.ts` (pure) gives each fixed light of `warehouseOps`
+  a `fixture.model` (dome high-bay, batten, caged bulkhead) and a mount (`base` ceiling / wall / mast, `mount` length,
+  `yaw`, `strut`) on the boxes it finds over or beside it; the light's position and fixture box (what the bake samples,
+  glare and shots read) do not change. `world/fixtureModels.ts` (pure) builds the meshes; `LightRig.buildFittings` draws
+  a body (one shared PBR material) and an emissive face per model, thin-instanced, and every mount link as one box mesh.
+  `tests/warehouseLamps.test.ts` pins every mount to its ceiling, wall or roof (3 cm).
+- Roof sheets (warehouse-lamps; `LevelBuilder.sheet`, `world/roofSheets.ts`): a translucent sheet is a collision-only
+  box (not in the light shapes) plus one see-through mesh that is not a shadow caster, so light passes it in the bake,
+  the meter, the guards and the picture alike. A dimmer pass-through needs a translucency rule in the bake (G45).
+- Map dressing as `detail` boxes (e.g. `world/maps/warehouseDress.ts`) is out of the light shapes (`canonicalLightShapes`
+  skips `detail` pieces); collision-only boxes (`visible: false`) are too. Neither changes the bake.
 
 ## Baked lamps (3.2)
 - `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
@@ -47,7 +58,8 @@ field (collision, the light bake, the noise model), never the render state.
   conservative occupancy; solid cells take their brightest air neighbour. `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
   columns, <= 8 lights each, nearest first). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
   and caches (`lamps:` keys, `LAMP_VERSION`).
-- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built when voxels are on and not `cheap`, `?baked=0` off): an R8 3D
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built on every path but `cheap` (`?gfx=min`), smooth default and
+  `?voxels=1` alike (smooth-world), `?baked=0` off): an R8 3D
   atlas + one RGBA32F data texture (per lamp 6 texels; `MAX_CAPSULES` 16 character capsules from `GameState.rtCapsules`, 4
   per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via `attachAll`): per pixel the lamps
   in its 2 m column - range falloff, cone, N.L - x the atlas x `lampCapsule` soft shadows, added to `finalDiffuse`.
@@ -75,8 +87,9 @@ change.
   directional = the moon, static; hemisphere = replaced by the ambient grid where the grid fills; the rest = flashlights
   and moving lights, added after the curve) on `finalDiffuse`, `finalIrradiance`, `finalRadianceScaled` and `finalAmbient`.
   Uniforms `lampDark`, `lampDarkP`.
-- Non-voxel surfaces (characters, props, weapons) take the ambient grid as their fill in place of the hemisphere; the
-  voxels keep the sky bake's fill.
+- Non-voxel surfaces (characters, props, weapons, and the level's own boxes on the smooth default) take the ambient grid
+  as their fill in place of the hemisphere; the voxels (`?voxels=1`) keep the sky bake's fill. `tests/smoothWorldLight.test.ts`
+  proves the light shapes and the light field are the same with voxels on or off.
 - No light cones: a beam is not seen in clean air, only where it lands. The volumetric haze (post stack) stays. Research:
   `docs/research/night-vision-and-lamps.md`.
 - Brightness calibration (`BrightnessScreen`, Settings > Display): an exposure multiplier in the grade, `BRIGHTNESS_MIN` ..

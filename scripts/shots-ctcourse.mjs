@@ -3,7 +3,7 @@
 // A row fails when |meter - field| > 0.02. Needs a prior `npm run build`. Never headed, no pointer lock.
 // Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/shots-ctcourse.mjs docs/course-ready/shots after
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
 
 const [dir = 'docs/course-ready/shots', suffix = 'after'] = process.argv.slice(2);
@@ -43,6 +43,9 @@ for (let i = 0; i < 60 && !up; i++) {
   try { up = (await fetch(URL)).ok; } catch { await new Promise((r) => setTimeout(r, 250)); }
 }
 if (!up) await fail('preview server did not start (run `npm run build` first)');
+// a server already on the port (our --strictPort one then exits) would be shot instead of this build
+if (server.exitCode !== null) await fail('own preview server exited (port taken?)');
+if ((await (await fetch(URL)).text()) !== readFileSync('dist/index.html', 'utf8')) await fail('served index.html is not this dist');
 
 mkdirSync(dir, { recursive: true });
 let bad = 0;
@@ -60,7 +63,11 @@ try {
       document.body.classList.remove('photo-mode');
       g.team?.end?.(true);
       g.player.controller.teleport(new V(p[0], p[1], p[2]), Math.PI / 2);
-      await new Promise((res) => setTimeout(res, 800));
+      // the meter updates every 0.1 s of sim time, and at Epic boot 800 ms of wall time can be under 0.1 s of sim:
+      // wait for 0.3 s of sim time (the game clock), with a 20 s wall-time cap
+      const t0 = g.time;
+      const w0 = performance.now();
+      while (g.time - t0 < 0.3 && performance.now() - w0 < 20000) await new Promise((res) => setTimeout(res, 50));
       const meter = g.lightLevel;
       const field = g.world.lightField.bodyLevel(p[0], p[1], p[2], 1.7);
       g.photoFreeze(true);

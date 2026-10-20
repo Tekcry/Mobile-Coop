@@ -27,7 +27,7 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // (Marlow Yard) and the systems it stands on. Everything else has its own list, outside the full run:
 // LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
 // archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline'];
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio'];
 // e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
@@ -58,6 +58,18 @@ const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
 const CORE = ['e2e-move', 'e2e-combat', 'e2e-anim'];
 const COVERS = {
   // the first match wins: the specific `src/core/` files before the folder
+  // (anim-studio) the studio, its drive and the tuner's snapshots: their own suite on top of what their folders run
+  'src/anim/studio': ['e2e-studio', 'anim-audit', 'e2e-anim'],
+  'src/anim/tuneHistory': ['e2e-studio'],
+  // (anim-studio-2) the co-op role / traversal move sections: live on the local player (the team moves, traversal)
+  'src/anim/moveTune': ['e2e-studio', 'e2e-coop', 'e2e-traverse', 'e2e-anim'],
+  'src/game/studioStage': ['e2e-studio'],
+  'src/world/maps/studio.ts': ['e2e-studio'],
+  'src/save/animTuneStore': ['e2e-studio', 'e2e-menus'],
+  'src/ui/studio': ['e2e-studio'],
+  'src/ui/tuneSnapshots': ['e2e-studio', 'e2e-menus'],
+  'src/ui/overlayProject': ['e2e-studio', 'e2e-menus'],
+  'src/ui/animTune': ['e2e-studio', 'e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   'src/core/quality': ['e2e-desktop', 'e2e-lightbake'],
   'src/core/display': ['e2e-desktop'],
   'src/core/settings': ['e2e-desktop', 'e2e-menus'],

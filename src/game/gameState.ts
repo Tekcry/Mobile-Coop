@@ -56,7 +56,7 @@ import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
 import { VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
-import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
+import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
@@ -119,6 +119,10 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
+import { demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
+import { StudioStage } from './studioStage';
+import { STUDIO_MAP_ID } from '../anim/studio';
+import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
 import { clearGripAxis } from '../player/attachGrips';
 import { setTenseSource } from '../player/tenseSneak';
 
@@ -365,6 +369,16 @@ export class GameState implements AppState {
   readonly gadgets: GadgetSystem;
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
   private readonly blankInp = new InputState();
+  /** (tuner-camera) The tuner's free view (dev): the game's own input while it runs (the orbit's move, the fly demo
+   *  loop), its camera, the mode last frame, the demo loop's clock and the crouch press spacing. */
+  private readonly freeInp = new InputState();
+  private freeCore: FreeViewCore | null = null;
+  private freeWas: FreeMode = 'off';
+  private freeT = 0;
+  private freeCrouchCd = 0;
+  private readonly demoOut: DemoOut = { x: 0, y: 0, ads: false, crouch: -1 };
+  /** (anim-studio) The Anim Studio stage (the `studio` map, single player only; null elsewhere). */
+  private studio: StudioStage | null = null;
   /** (F1b) what the held guard's menu passes through: the move and the aim / fire actions. */
   private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
@@ -504,15 +518,18 @@ export class GameState implements AppState {
       lights: world.level.lights.lights.length ? world.level.lights : null,
       shimmer: kind === 'haze' ? 1 : 0,
       // fog: moonlit shafts under the skylights and through the doors (the voxels' sky bake)
-      sky: vx?.skyTex && vx.sky ? { tex: vx.skyTex, origin: vx.sky.origin, cell: vx.sky.cell, dims: vx.sky.n } : null,
+      // (smooth-world: without voxels the baked moon's visibility stands in - the shafts are moonlit anyway)
+      sky: vx?.skyTex && vx.sky ? { tex: vx.skyTex, origin: vx.sky.origin, cell: vx.sky.cell, dims: vx.sky.n } : world.lamps?.moonTex && world.lamps.moon ? { tex: world.lamps.moonTex, origin: world.lamps.moon.origin, cell: world.lamps.moon.cell, dims: world.lamps.moon.n } : null,
       shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
-      // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap
+      // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap (none without voxels:
+      // Ray traced falls back to screen space)
       rt: vx?.plugins[0] ? { tex: vx.plugins[0].tex, state: () => vx.plugins[0]!, capsules: this.rtCapsules, lights: world.level.lights.lights.length ? world.level.lights : null } : null,
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
     if (world.lamps) world.lamps.capsules = this.rtCapsules;
     this.weather = new Weather(this.scene, kind);
-    if (vx) this.weather.occluder = (x, z) => vx.roofAt(x, z);
+    // (no rain under roofs: the voxel sky bake's roofs, or the canonical shapes' tops on the smooth path; render only)
+    this.weather.occluder = (x, z) => world.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
@@ -756,7 +773,8 @@ export class GameState implements AppState {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
     const vt = VOXEL_TIER[q.features.detail];
-    // (`?gfx=min`: the blockout's boxes in standard materials, smooth characters)
+    // (`?gfx=min`: the blockout's boxes in standard materials, smooth characters. smooth-world: without `?voxels=1` every
+    // preset draws the blockout's pieces smooth - PBR with the surface atlas and baked lamps above `?gfx=min`)
     const plain = q.minimal;
     const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
@@ -768,6 +786,26 @@ export class GameState implements AppState {
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
+    // (anim-studio) the studio stage: single player only (never offered in a co-op session)
+    else if (opts.map.id === STUDIO_MAP_ID)
+      g.studio = new StudioStage({
+        player: g.player,
+        scene: g.scene,
+        world,
+        debug: app.debug,
+        drawPhase: () => g.weapons.drawPhase,
+        crouchToggle: () => app.settings.get().gameplay.crouchToggle,
+        // (anim-studio-2) the traversal loops and the pairs' viewing spot
+        teleport: (x, y, z, yaw) => g.studioTeleport(x, y, z, yaw),
+        doorOpen: () => {
+          const d = world.doors.list[0];
+          if (d && d.target === 0) g.startDoorOpen(0, () => world.doors.open(d, 'quiet'));
+        },
+        doorsShut: () => {
+          for (const d of world.doors.list) world.doors.setOpen(d, false);
+        },
+        attachKind: () => (g.traversal.attached ? (g.traversal.attach.anchor?.kind ?? '') : ''),
+      });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
     await Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
@@ -997,6 +1035,9 @@ export class GameState implements AppState {
     this.exited = true;
     this.padOff?.();
     this.hud.setVisible(true);
+    // (anim-studio) leaving the studio: the drives off, the guard figure gone, every studio switch reset
+    this.studio?.dispose();
+    this.studio = null;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
@@ -1071,7 +1112,7 @@ export class GameState implements AppState {
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
-        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice },
+        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice, inStudio: !!this.studio },
       ),
     );
   }
@@ -1493,12 +1534,16 @@ export class GameState implements AppState {
 
   fixedUpdate(dt: number): void {
     if (this.exited) return;
-    const real = this.app.input.state;
-    if (real.pressed('pause')) {
+    const realIn = this.app.input.state;
+    if (realIn.pressed('pause')) {
       this.gadgets.closeWheel(false);
       this.pause();
       return;
     }
+    // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
+    // the devices' buttons
+    // (anim-studio) the studio's loop player drives the game while it plays a loop
+    const real = this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
     this.time += dt;
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
@@ -1751,6 +1796,98 @@ export class GameState implements AppState {
 
   /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
+
+  /**
+   * (tuner-camera) The free view's input per fixed step (no allocation): orbit, the left stick (the pad's, else WASD)
+   * moves the player in the frozen game camera's frame; fly, the demo loop's synthesised stick, aim and stance (a crouch
+   * toggle gets one press, spaced 0.5 s).
+   */
+  private freeInput(dt: number, realIn: InputState): InputState {
+    const fi = this.freeInp;
+    fi.consumeEdges();
+    const m = fi.move;
+    if (FREE_VIEW.mode === 'orbit') {
+      const pad = FREE_IN.lx * FREE_IN.lx + FREE_IN.ly * FREE_IN.ly > realIn.move.x * realIn.move.x + realIn.move.y * realIn.move.y;
+      m.x = pad ? FREE_IN.lx : realIn.move.x;
+      m.y = pad ? FREE_IN.ly : realIn.move.y;
+      fi.set('free', 'ads', false);
+      fi.set('free', 'crouch', false);
+      this.freeT = 0;
+      return fi;
+    }
+    this.freeT += dt;
+    const d = demoInput(FREE_VIEW.demo, this.freeT, this.demoOut);
+    m.x = d.x;
+    m.y = d.y;
+    fi.set('free', 'ads', d.ads);
+    this.freeCrouchCd = Math.max(0, this.freeCrouchCd - dt);
+    let down = false;
+    if (d.crouch >= 0) {
+      const want = d.crouch === 1;
+      if (!this.app.settings.get().gameplay.crouchToggle) down = want;
+      else if (want !== this.player.controller.crouched && this.freeCrouchCd <= 0) {
+        down = true;
+        this.freeCrouchCd = 0.5;
+      }
+    }
+    fi.set('free', 'crouch', down);
+    return fi;
+  }
+
+  /**
+   * (tuner-camera) The free view per rendered frame: starts it from the game view (or the last free view between the
+   * modes), feeds it the look (the mouse, the pad's right stick), move / rise (fly) or zoom / height (orbit) in real
+   * seconds (slow motion does not slow the view), and takes the look from the game. False while off. No allocation.
+   */
+  private freeFrame(dt: number, look: { x: number; y: number }): boolean {
+    const mode = FREE_VIEW.mode;
+    const cam = this.player.cam;
+    if (mode !== this.freeWas) {
+      this.freeWas = mode;
+      if (mode === 'off') {
+        cam.free = null;
+        // (fix round) plain releases: releaseAll would block the demo's aim / crouch on the next free view
+        this.freeInp.set('free', 'ads', false);
+        this.freeInp.set('free', 'crouch', false);
+        this.freeInp.move.x = this.freeInp.move.y = 0;
+      } else {
+        const core = (this.freeCore ??= new FreeViewCore());
+        const f = this.player.position;
+        if (cam.free) core.start(mode, core.x, core.y, core.z, core.yaw, core.pitch, f.x, f.y, f.z);
+        else core.start(mode, cam.gamePos.x, cam.gamePos.y, cam.gamePos.z, cam.viewYaw, cam.viewPitch, f.x, f.y, f.z);
+        cam.free = core;
+      }
+      FREE_IN.wheel = 0;
+    }
+    if (mode === 'off') return false;
+    const core = this.freeCore!;
+    const C = FREE_CFG;
+    // real seconds (slow motion and the tuner's freeze do not slow the view; the pause menu stops it)
+    const loop = this.app.loop;
+    const rdt = loop.paused ? 0 : loop.manual ? dt : loop.realDt;
+    const real = this.app.input.state;
+    core.dt = rdt;
+    // (anim-studio) a camera snap (once) and the turntable's spin
+    if (FREE_VIEW.snap) {
+      freeSnap(FREE_VIEW.snap, this.player.rig.root.rotation.y, core);
+      FREE_VIEW.snap = '';
+    }
+    core.lookX = look.x + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt;
+    core.lookY = look.y + FREE_IN.ry * C.pitchRate * rdt;
+    look.x = look.y = 0;
+    const up = (real.down('jump') ? 1 : 0) - (real.down('crouch') ? 1 : 0);
+    if (mode === 'fly') {
+      const pad = FREE_IN.lx * FREE_IN.lx + FREE_IN.ly * FREE_IN.ly > real.move.x * real.move.x + real.move.y * real.move.y;
+      core.moveX = pad ? FREE_IN.lx : real.move.x;
+      core.moveY = pad ? FREE_IN.ly : real.move.y;
+      core.rise = Math.max(-1, Math.min(1, FREE_IN.rise + up));
+    } else {
+      core.zoom = FREE_IN.zoom * C.zoomRate * rdt + FREE_IN.wheel * C.zoomStep;
+      core.nudge = Math.max(-1, Math.min(1, FREE_IN.nudge + up));
+    }
+    FREE_IN.wheel = 0;
+    return true;
+  }
 
   /** Photo mode (feedback screenshots): the camera is flown by the photo screen, the world holds still. */
   private photo = false;
@@ -2033,6 +2170,8 @@ export class GameState implements AppState {
     this.trackSpikes();
     if (this.photo) {
       // frozen: only the lights follow the free camera
+      // (tuner-camera fix) the photo camera is the game view meanwhile (gameplay reads gamePos)
+      this.player.cam.gamePos.copyFrom(this.player.cam.camera.position);
       this.world.frame(this.player.position, 0);
       this.stack.frame(0);
       // night vision's glare follows the free camera
@@ -2043,6 +2182,16 @@ export class GameState implements AppState {
       return;
     }
     const look = this.app.input.state.consumeLook();
+    // (tuner-camera) the free view takes the look (and its own pad input) while it runs
+    const free = this.freeFrame(dt, look);
+    // (anim-studio) the loop player: its choice onto the rigs, the circle's camera turn, scrub / step, the guard figure
+    this.studio?.frame(dt, look);
+    // (anim-studio-2) the local player's own team role for the move sections (the partner's avatar never reads them;
+    // nothing goes on the wire): the team controller's state, or holding a partner's revive
+    const it = this.interactTarget;
+    const ts = it && it.kind === 'revive' && it.progress > 0 ? 'revive' : this.team.state;
+    MOVE_TUNE_TEAM.group = teamRoleGroup(ts);
+    MOVE_TUNE_TEAM.k = MOVE_TUNE_TEAM.group === '' ? 0 : teamContactK(ts, this.team.partT, TEAM);
     // the wheel cursor / remote view takes the look
     const gadgetInput = this.gadgets.takesInput;
     if (gadgetInput) {
@@ -2068,7 +2217,7 @@ export class GameState implements AppState {
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
     this.gadgets.frameUpdate(dt);
     this.updateGadgetHud();
     this.hud.barks.update(dt, this.placeBark);
@@ -2457,6 +2606,25 @@ export class GameState implements AppState {
     cam.doorYaw = fr.yaw;
   }
 
+  /** (anim-studio-2) The studio's loops: Wren to a spot facing `yaw`, out of any anchor, wall, door move or committed
+   *  move first (as the respawn does), the camera behind her. */
+  private studioTeleport(x: number, y: number, z: number, yaw: number): void {
+    const c = this.player.controller;
+    c.override = null;
+    this.traversal.reset();
+    this.wallCore?.reset();
+    this.doorPeek.reset();
+    this.doorOpen.reset();
+    const pose = this.player.pose;
+    pose.traverse = 'none';
+    pose.traverseT = 0;
+    pose.tumble = 0;
+    c.teleport(new Vector3(x, y, z), yaw);
+    c.clearCrouchToggle();
+    this.player.cam.yaw = yaw;
+    this.player.cam.pitch = 0;
+  }
+
   /** (G6) The Open door pick: the move starts from where the body stands (`use` opens the door at `DOOR_OPEN.leafAt`). */
   private startDoorOpen(di: number, use: () => void): void {
     const d = this.world.doors.list[di];
@@ -2748,7 +2916,7 @@ export class GameState implements AppState {
   /** The ping button: what the crosshair is on (a guard, else the spot), up to 120 m. */
   private sendPing(): void {
     const cam = this.player.cam;
-    const o = cam.camera.position;
+    const o = cam.gamePos;
     const hit = this.ballistics.ray(o, o.add(cam.forward.scale(120)), MASK.PLAYER_SHOT);
     if (!hit.hit) return;
     const t = hit.target && hit.target.team === 'enemy' ? hit.target.id : '';
@@ -2974,7 +3142,7 @@ export class GameState implements AppState {
     cam.shakeMul = acc.shake;
     const w = this.weapons.current;
     // crosshair on target?
-    const o = cam.camera.position;
+    const o = cam.gamePos;
     const hit = this.ballistics.ray(o, o.add(cam.forward.scale(w.def.range)), MASK.PLAYER_SHOT);
     this.onTarget = !!(hit.target && hit.target.alive && hit.target.team === 'enemy');
     // vertical FOV is fixed (Hor+): scale the spread by the half-height of the view

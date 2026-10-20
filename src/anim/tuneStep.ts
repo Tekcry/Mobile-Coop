@@ -1,0 +1,93 @@
+/**
+ * (tuner-v2 item 3) Stepping controls: per gait multipliers on the foot planner's own stepping values (`footPlanner.ts`).
+ * Every value is a multiplier whose default 1 leaves the planner's expression exactly as it is (x * 1 === x), so the
+ * defaults are the planner's current constants, read where they are, never copied. Pure, Babylon-free; the planner's
+ * hooks read `STEP` (the gait row `stepSelect` copied in at the top of each planner update): no allocation.
+ *
+ * The gaits are the ones the planner tells apart: standing still (idle stepping), standing walk / jog / run by pace
+ * (split halfway between the `GEARS.stand` walk, jog and run speeds), crouched walk / run (halfway between the crouched
+ * jog and run speeds). Every planner (the player, remotes, enemies) reads the same table.
+ */
+import { GEARS } from '../config/movement';
+
+export const STEP_GAITS = ['idle', 'walk', 'jog', 'run', 'crouchWalk', 'crouchRun'] as const;
+export type StepGait = (typeof STEP_GAITS)[number];
+
+/** Parameter slots of a gait row (`STEP[SP.lift]` ...). */
+export const SP = { lift: 0, lock: 1, dur: 2, slide: 3, stride0: 4, stride1: 5, stride2: 6, toeOff: 7, heel: 8, replant: 9 } as const;
+export type StepParam = keyof typeof SP;
+export const STEP_N = 10;
+
+/** Ids, labels and ranges (the registry's sliders); `hook` names the planner expression each one multiplies. */
+export const STEP_PARAMS: readonly { id: StepParam; label: string; min: number; max: number; step: number; hook: string }[] = [
+  { id: 'lift', label: 'foot lift height', min: 0, max: 3, step: 0.05, hook: 'footPlanner beginSwing: stepLift = lift (gait liftH / PLANNER.idleLift)' },
+  { id: 'lock', label: 'plant lock strength (higher: a planted foot scrubs and twists less)', min: 0.25, max: 4, step: 0.05, hook: 'footPlanner band: scrub speed / lock; twistCap: twist allowance * lock' },
+  { id: 'dur', label: 'step duration (rule and idle steps; running swings keep the gait clock)', min: 0.3, max: 3, step: 0.05, hook: 'footPlanner beginSwing: stepDur = max(0.16, dur)' },
+  { id: 'slide', label: 'foot-slide tolerance (drag limit)', min: 0.5, max: 2, step: 0.05, hook: 'footPlanner holdOrStep: drag reach = max(reach, half a stance + 0.3)' },
+  { id: 'stride0', label: 'stride at the gait\'s slowest pace', min: 0.3, max: 2, step: 0.05, hook: 'footPlanner updateMoving: landing ahead (LAND_AHEAD share of the stance)' },
+  { id: 'stride1', label: 'stride at the gait\'s middle pace', min: 0.3, max: 2, step: 0.05, hook: 'footPlanner updateMoving: landing ahead' },
+  { id: 'stride2', label: 'stride at the gait\'s fastest pace', min: 0.3, max: 2, step: 0.05, hook: 'footPlanner updateMoving: landing ahead' },
+  { id: 'toeOff', label: 'toe-off roll (late-stance heel raise and swing toe pitch)', min: 0, max: 2, step: 0.05, hook: 'footPlanner HEEL_RAISE heel raise; swingTo toe-off pitch 0.45' },
+  { id: 'heel', label: 'heel-strike roll (toe up at landing)', min: 0, max: 2, step: 0.05, hook: 'footPlanner swingTo pre-landing toe up 0.22; land / roll HEEL_ROLL.pitch' },
+  { id: 'replant', label: 'replant threshold (moving: trailing-foot toe-off reach; still: idle step error)', min: 0.4, max: 1.5, step: 0.01, hook: 'footPlanner holdOrStep: reach * 0.92; updateIdle: idle error > 1' },
+];
+
+const G = STEP_GAITS.length;
+/** `[gait * STEP_N + param]`, all 1 (identity). */
+const ROWS = new Float64Array(G * STEP_N).fill(1);
+/** The selected gait's row: what the planner's hooks read. */
+export const STEP = new Float64Array(STEP_N).fill(1);
+/** The gait `stepSelect` chose last (index into STEP_GAITS). */
+export let stepGaitNow = 0;
+
+const S = GEARS.stand;
+const C = GEARS.crouch;
+const WALK_JOG = (S[2] + S[3]) / 2;
+const JOG_RUN = (S[3] + S[4]) / 2;
+const CWALK_CRUN = (C[3] + C[4]) / 2;
+/** Each gait's pace band (m/s) for the stride curve's three points (low, middle, high). */
+const BAND_LO = [0, 0, WALK_JOG, JOG_RUN, 0, CWALK_CRUN];
+const BAND_HI = [0, WALK_JOG, JOG_RUN, S[4], CWALK_CRUN, C[4]];
+
+/** The planner's gait from its input: still, or by pace standing / crouched (`crouch > 0.5`, the planner's own split). */
+export function stepGaitIndex(moving: boolean, speed: number, crouch: number): number {
+  if (!moving) return 0;
+  if (crouch > 0.5) return speed < CWALK_CRUN ? 4 : 5;
+  return speed < WALK_JOG ? 1 : speed < JOG_RUN ? 2 : 3;
+}
+
+/** Top of each planner update: copy the gait's row into `STEP`. */
+export function stepSelect(moving: boolean, speed: number, crouch: number): void {
+  const g = stepGaitIndex(moving, speed, crouch);
+  stepGaitNow = g;
+  const o = g * STEP_N;
+  for (let k = 0; k < STEP_N; k++) STEP[k] = ROWS[o + k]!;
+}
+
+/** The selected gait's stride multiplier at a pace: piecewise linear through its three points (exactly 1 at identity). */
+export function stepStride(speed: number): number {
+  const a = STEP[SP.stride0]!;
+  const b = STEP[SP.stride1]!;
+  const c = STEP[SP.stride2]!;
+  if (a === b && b === c) return a;
+  const lo = BAND_LO[stepGaitNow]!;
+  const hi = BAND_HI[stepGaitNow]!;
+  if (!(hi > lo)) return a;
+  const u = (speed - lo) / (hi - lo);
+  const t = u <= 0 ? 0 : u >= 1 ? 1 : u;
+  return t < 0.5 ? a + (b - a) * t * 2 : b + (c - b) * (t * 2 - 1);
+}
+
+export function stepGet(gait: number, p: number): number {
+  return ROWS[gait * STEP_N + p]!;
+}
+
+export function stepSet(gait: number, p: number, v: number): void {
+  ROWS[gait * STEP_N + p] = v;
+}
+
+/** Every gait back to identity (tests). */
+export function stepResetAll(): void {
+  ROWS.fill(1);
+  STEP.fill(1);
+}

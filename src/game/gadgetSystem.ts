@@ -356,7 +356,7 @@ export class GadgetSystem {
       this.stats.blinded++;
     }
     // the operator: whited out when looking towards it
-    const cam = g.player.cam.camera.position;
+    const cam = g.player.cam.gamePos;
     const dc = hyp3(at.x - cam.x, at.y - cam.y, at.z - cam.z);
     if (dc < 14 && this.clearLine(cam.x, cam.y, cam.z, at.x, at.y + 0.15, at.z)) {
       const f = g.player.cam.forward;
@@ -603,6 +603,8 @@ export class GadgetSystem {
         camera.position.copyFrom(this.dir).scaleInPlace(0.06).addInPlace(c.p);
         camera.rotation.set(-c.pitch, c.yaw, 0);
         camera.fov = g.player.cam.vfov(g.app.input.state.down('zoom') ? 40 : 95);
+        // (tuner-camera fix) the game view is the sticky cam now: the flash, the jammer pick and the crosshair read it
+        g.player.cam.gamePos.copyFrom(camera.position);
       }
     }
     this.drawArc();

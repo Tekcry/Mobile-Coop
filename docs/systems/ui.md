@@ -127,6 +127,52 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   1 s), left stick X nudges (full tilt crosses the range in 2 s), LB / RB the focused section's group (follow off), Y
   the row's reset, A Export, B close, View (Select) the pad between tuner and game. The header's "PAD:" line shows the
   mode; the focused row has an amber outline. Follow waits while the tuner has the pad.
+- (tuner-camera) The panel's sections come from the section registry (`anim/tuneRegistry.ts`, API in
+  `docs/anim-tuner/STATE.md`): Body, Gun and Camera, then any section another file registers (the panel adds it), each
+  with the picker, follow, resets, save, export, log and pad control. Camera: a group per camera state (`cam.explore`
+  ... `cam.hold`, `selectCamGroup`) and ten offset / multiplier sliders on `config/camera.ts` values, read by
+  `ShoulderCamera.update` through `TUNE_CAM_CUR` (eased, identity at default); grey "today: ..." lines under the sliders.
+  Detail: `docs/anim-tuner/CAMERA.md`.
+- (tuner-camera pass 2) The pad drives every control (the tuner-pad map above is replaced: `docs/anim-tuner/STATE.md`
+  "Pad map"; a hint strip at the bottom of the panel): a focus list of every `[data-pad]` control, edit mode for sliders
+  and dropdowns, a Y menu, LB / RB sections, LT / RT state, R3 / Backquote bypass, View game / tuner with a freeze, Menu
+  close. Tools: free view (orbit / fly, demo loop; `player/freeView.ts`, rendered after the game view so gameplay reads
+  `ShoulderCamera.gamePos`), hide HUD (`body.tune-hide-hud`), game speed 0.1-1x, Pause / Step (`GameLoop.timeScale` 0,
+  `stepHeadless`; off in co-op), wide ranges, Import, search. A Speed section (`player/speedTune.ts`, gameplay, local
+  only). Body / Gun / Camera ease state changes (`tuneSectionEase`). The barrel marker is a 2D canvas over the game
+  canvas (`.anim-tune-marker-overlay`, no scene meshes).
+- (anim-studio) Snapshots in the tools (`ui/tuneSnapshots.ts`, pure logic `anim/tuneHistory.ts`): Undo / Redo (every
+  tuner change, a run of changes within 0.6 s is one step; Ctrl+Z / Ctrl+Y or Ctrl+Shift+Z while the panel is open and
+  no text box has the keys; the Y menu), Store A / Store B / A/B (the values shown stay in the slot shown), presets (a
+  picker, a name box, Save / Load / Delete (A twice); key `presets` in the tuner's IndexedDB store). Hooks on
+  `window.__animTune` (`undo`, `redo`, `settle`, `abStore`, `abToggle`, `presetSave` / `Load` / `Delete`, `presets`).
+- (anim-studio) Anim Studio (dev): Main menu row `anim-studio` (last) and Pause row `anim-studio` (before Quit; not in a
+  co-op session, not inside the studio) start the `studio` dev scene (`world/maps/studio.ts`, in `DEV_MAPS`, not `MAPS`;
+  `?autostart=studio`, Free Roam) through `App.studio` (set in `main.ts`). `game/studioStage.ts` opens the tuner panel
+  and the debug overlay (the crab readout), plays the loop player (`anim/studio.ts`: the list, the switches `STUDIO`, the
+  phase maths, the synthesised input; `anim/studioDrive.ts`: a keyed clip on one rig's graph, `AnimGraph.drive`, with the
+  treadmill feet after the planner) and keeps an optional guard figure. The panel's Studio section is
+  `ui/studioPanel.ts` (top of the panel, shown only while `STUDIO.active`; LB / RB lands on it first); its viewing aids
+  are `ui/studioOverlay.ts` (a 2D canvas `.studio-overlay`: skeleton, feet and trails, onion skin; projection
+  `ui/overlayProject.ts`, shared with the barrel marker). The turntable and the camera snaps are `FREE_VIEW.spin` /
+  `FREE_VIEW.snap`, taken by the free view. The game speed slider reaches 2x only while the studio runs. Leaving resets
+  it all (`studioReset`). `window.__studio` is the test / console hook. Detail: `docs/anim-studio/REPORT.md`.
+- (anim-studio-2) Pairs and traversal in the studio. The loop list adds `pair:<move>` and `trav:<move>` entries.
+  - A co-op pair (`anim/studioPairs.ts`, pure): both roles of a team move from one clock, through the game's own paths
+    and timing (`game/teamMoves.ts`, `TEAM`). The stage poses two Wren puppets (`operatorRig`, local rigs, no network;
+    Wren hidden, standing back as the camera's anchor) through `moveTuneSelect` / `Root` / `Begin` / `End` with each
+    role's group, the same calls the local player makes in real play. Moves: leg-up, ledge relay, partner throw,
+    hang-down, two-person rope (a `world.ropes` line), revive. The panel's follow shows role A's group (`MOVE_TUNE_TEAM.follow`).
+  - A hold pair: Wren's hold clip and the guard's clip in place, both drives `held` to the pair's phase.
+  - A traversal loop (`anim/studioTraversal.ts`, pure `travTick`: reset, settle, walk in, act steps, reset): the
+    synthesised stick and buttons (jump, interact, drop, cover; the door's Open through `startDoorOpen`) on the props of
+    `anim/studioProps.ts`, built as level pieces and anchors in the 28 m studio room. Reset is `GameState.studioTeleport`
+    (out of any anchor, wall or door move, as the respawn).
+  - The move sections (`anim/moveTune.ts`): `team_<move>` (groups `team.<move>.a` / `.b` / `.contact`) and `trav`
+    (`trav.<kind>`). The local player's own role and pose select them (`GameState` writes `MOVE_TUNE_TEAM` from
+    `TeamController.state` / `partT`, or 'revive' while holding a partner's revive); the remote avatar never reads them;
+    nothing on the wire; visual only (the rig root, the pose, the grip targets). The pad strip shows "LT / RT: role A /
+    B / contact" on a co-op section. `window.__studio.pair()` is the test hook. Detail: `docs/anim-studio/REPORT-2.md`.
 
 ## Course HUD (Fallow, training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the

@@ -10,7 +10,8 @@ import {
   CreateBox,
   CreateCylinder,
   Matrix,
-  type Mesh,
+  Mesh,
+  VertexData,
   PhysicsBody,
   PhysicsMotionType,
   PhysicsShapeBox,
@@ -26,6 +27,7 @@ import {
 } from '../core/babylon';
 import { G } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
+import { markLampLevel } from './bakedLamps';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
 import { findSplitGaps } from '../player/splitJump';
 import { MOVEMENT } from '../config/movement';
@@ -35,6 +37,7 @@ import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type F
 import { LightRegistry, type LightInit } from './lights';
 import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
 import { canonicalLightSet } from '../voxel/lightShapes';
+import { sheetMesh, type SheetPiece } from './roofSheets';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -101,6 +104,17 @@ export interface BuiltLevel {
   dispose(): void;
 }
 
+/** `LevelBuilder.build` / `prepare` options. */
+export interface LevelBuildOptions {
+  atlas?: SurfaceAtlas;
+  floor?: Surface;
+  detail?: TierQuality;
+  dressing?: boolean;
+  voxelSize?: number;
+  fineSize?: number;
+  art?: VoxelArt | null;
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const c = Color3.FromHexString(hex);
   return [c.r, c.g, c.b];
@@ -118,6 +132,8 @@ export class LevelBuilder {
   readonly anchors = new TraversalAnchors();
   readonly lights = new LightRegistry();
   readonly surfaces: SurfaceArea[] = [];
+  /** (warehouse-lamps) Translucent roof sheets (drawn as one see-through mesh; each also has a collision-only box). */
+  readonly sheets: SheetPiece[] = [];
   /** Manual ledge suppressions (x, z, radius). */
   private noLedgeAt: [number, number, number][] = [];
 
@@ -378,6 +394,17 @@ export class LevelBuilder {
     return this;
   }
 
+  /**
+   * (warehouse-lamps) A translucent corrugated roof sheet over the opening x0..x1, z0..z1 between y0 and y1: solid (a
+   * collision-only box, overhead, no ledges) but out of the light shapes (collision-only pieces are not baked), so the
+   * moon reaches the floor under it as before; drawn as a pale see-through ridged panel that casts no shadow.
+   */
+  sheet(x0: number, x1: number, z0: number, z1: number, y0: number, y1: number): this {
+    this.sheets.push({ x0, x1, z0, z1, y: (y0 + y1) / 2 });
+    this.boxes.push({ c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], s: [x1 - x0, y1 - y0, z1 - z0], yaw: 0, pitch: 0, color: '#d9ddd2', collide: true, visible: false, overhead: true, noLedge: true });
+    return this;
+  }
+
   /** A light (lamp, spot, window glow...). */
   light(init: LightInit): this {
     this.lights.add(init);
@@ -400,15 +427,27 @@ export class LevelBuilder {
    * Build the level. With an `atlas` (3.0) the pieces are PBR with the procedural surfaces (a per-instance `surf`
    * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
    */
-  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; dressing?: boolean; voxelSize?: number; fineSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
-    const root = new TransformNode(`level-${name}`, scene);
+  /**
+   * The Babylon-free part of `build` (smooth-world): the visual-only dressing pass, the voxel split (only with a
+   * `voxelSize`) and the canonical light shapes. Call once per builder (it adds the dressing to `boxes`). Tests use it
+   * to prove the light shapes are the same with voxels on or off.
+   */
+  prepare(name: string, opts: LevelBuildOptions = {}): { voxels: LevelVoxels | null; light: BuiltLevel['light'] } {
     // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
-    // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path)
+    // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path; the smooth
+    // default path - no voxels - always draws it at the Detail tier)
     // (a map with `detail: false` (MapDef, ON0b) gets none at any tier; the light shapes below agree)
     const dressing = opts.dressing !== false;
     if (dressing && opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
-    // voxels (3.0): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
+    // voxels (3.0, `?voxels=1`): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
     const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null, opts.fineSize ?? 0) : null;
+    // (the canonical light shapes ignore the dressing added above and the voxels: the same set either way)
+    return { voxels, light: canonicalLightSet(this.boxes, this.cylinders, name, dressing) };
+  }
+
+  build(scene: Scene, name: string, opts: LevelBuildOptions = {}): BuiltLevel {
+    const root = new TransformNode(`level-${name}`, scene);
+    const { voxels, light } = this.prepare(name, opts);
     let mat: StandardMaterial | PBRMaterial;
     let surfacePlugin: SurfacePlugin | null = null;
     if (opts.atlas) {
@@ -424,6 +463,8 @@ export class LevelBuilder {
       // the probe's cube is not prefiltered: blur it by roughness on the fly
       pm.realTimeFiltering = true;
       surfacePlugin = new SurfacePlugin(pm, opts.atlas, 'world');
+      // (smooth-world) the baked lamps treat it as level, not a body: no night-vision fill cap
+      markLampLevel(pm);
       mat = pm;
     } else {
       const sm = new StandardMaterial(`levelMat-${name}`, scene);
@@ -522,6 +563,30 @@ export class LevelBuilder {
     body.shape = container;
     // (3.2.0) fences: their own body (stops movement; bullets, sight and the level probes pass) and mesh panels
     if (this.anchors.fences.length) this.buildFences(scene, root, name, meshes);
+    // (warehouse-lamps) the roof sheets: one see-through mesh, not in `meshes` (no shadow caster: the moon passes as the bake has it)
+    let sheetMat: PBRMaterial | null = null;
+    if (this.sheets.length) {
+      const a = sheetMesh(this.sheets);
+      const sm = new Mesh('roofSheets', scene);
+      const vd = new VertexData();
+      vd.positions = a.positions;
+      vd.normals = a.normals;
+      vd.indices = a.indices;
+      vd.applyToMesh(sm, false);
+      sheetMat = new PBRMaterial('roofSheetMat', scene);
+      sheetMat.albedoColor = Color3.FromHexString('#dfe4da').toLinearSpace();
+      sheetMat.metallic = 0;
+      sheetMat.roughness = 0.45;
+      sheetMat.alpha = 0.55;
+      sheetMat.usePhysicalLightFalloff = false;
+      sheetMat.directIntensity = Math.PI;
+      sheetMat.backFaceCulling = false;
+      sheetMat.twoSidedLighting = true;
+      sm.material = sheetMat;
+      sm.parent = root;
+      sm.isPickable = false;
+      sm.freezeWorldMatrix();
+    }
 
     const coverSegments = buildCoverSegments(this.boxes, this.cylinders);
     // ledges from box tops; lips whose hang point would be outside the play area are dropped
@@ -563,12 +628,13 @@ export class LevelBuilder {
       bounds: this.bounds,
       surfacePlugin,
       voxels,
-      light: canonicalLightSet(this.boxes, this.cylinders, name, dressing),
+      light,
       dispose: () => {
         body.dispose();
         container.dispose();
         for (const m of meshes) m.dispose();
         mat.dispose();
+        sheetMat?.dispose();
         root.dispose();
       },
     };

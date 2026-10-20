@@ -17,6 +17,8 @@ import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 import { tuneSim } from '../anim/tune';
+import { speedMoveMul } from './speedTune';
+import { weightSim, weightSimEnd } from './weightTune';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
@@ -166,6 +168,8 @@ export class PlayerController {
   lastFall = 0;
   lastLanding: LandingKind = 'none';
   landings = 0;
+  /** (anim-weight) A weapon in hand (Player writes it from the weapon stance): the Weight section's `weight.drawn` group. */
+  weightDrawn = false;
   /** Horizontal velocity at the moment of the last landing (m/s). */
   landVX = 0;
   landVZ = 0;
@@ -480,7 +484,7 @@ export class PlayerController {
     // STICK_SPEED curve; the keyboard's walk / run / creep magnitudes land on its points); overrides set their own velocity
     const snapped = this.analog.update(this.maxGear, this.crouched, mag);
     this.wantSpeed = this.analog.v;
-    let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : paceSpeed(this.analog.v, stance, lx, lz, T)) * this.speedMul);
+    let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : paceSpeed(this.analog.v, stance, lx, lz, T) * speedMoveMul(this.analog.v, stance, lx, lz)) * this.speedMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
@@ -514,10 +518,12 @@ export class PlayerController {
     const wasMoving = this.motion.state === 'move';
     const spBefore = this.motion.speed;
     tuneSim(true); // (anim-tuner) the step-length slider on the local player's gait clock (identity by default)
+    weightSim(this.crouched, this.weightDrawn, Math.max(this.analog.v, this.motion.speed)); // (anim-weight) momentum (identity by default)
     try {
       if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
     } finally {
       tuneSim(false);
+      weightSimEnd();
     }
     // (G26, G27) a stop at any pace freezes the feet in the stride they stopped in; the frozen stance holds
     // `CT.stopHoldTime` s, then lets go and eases to a feet-together idle over `CT.stopEase`. The next input lets it

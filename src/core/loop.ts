@@ -29,6 +29,8 @@ export class GameLoop {
   paused = false;
   /** Simulation speed (slow motion < 1): scales the time fed to the accumulator and frame updates. */
   timeScale = 1;
+  /** (tuner-camera) The last frame's real (unscaled, capped) seconds: the tuner's free view moves in real time, frozen too. */
+  realDt = 0;
   /** Tools/tests: real-time frames only render; the sim advances only through `stepHeadless`. */
   manual = false;
   /** Frame-rate cap (0 = every display frame) and the display interval it is measured against (ms). */
@@ -177,7 +179,8 @@ export class GameLoop {
       if (render) scene.render();
       return;
     }
-    const dt = Math.min(intervalMs / 1000, 0.1) * this.timeScale;
+    this.realDt = Math.min(intervalMs / 1000, 0.1);
+    const dt = this.realDt * this.timeScale;
     hooks.beforeFrame?.(dt);
     // (a state change inside the frame - a menu confirm starting a match frees the old scene at once - ends it)
     if (this.hooks !== hooks) return;
