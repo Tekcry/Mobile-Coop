@@ -4,6 +4,10 @@
 Worktree and branch from master 6a4fb07f (4.20.1; node_modules junction to Mobile-Coop-menu-notes); BRIEF. Starts after
 the camera-cue PR.
 
+## Try first (for Michael)
+- Stepping > run / crouchRun replant 0.8 fixes the stuck trailing foot (about 9 cm sooner, no slide). Defaults stay
+  identity: his call (ITEM3.md).
+
 ## Next
 1. Item 1 done (c32e7c26 + fix 0e73c3b2, CHECK1.md); laptop check + smoke, e2e-anim, e2e-menus on 0e73c3b2 queued.
    Item 2 implementer running (ITEM2.md when done).
