@@ -18,6 +18,7 @@
  * Everything is in seconds: identical results at any step size within reason.
  */
 import { CT, MOVEMENT, TENSE } from '../config/movement';
+import { TUNE_CUR } from './tune';
 import { hyp2 } from '../core/mathx';
 import { Spring } from './rigMath';
 
@@ -124,16 +125,16 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   // (G1, audit row 26) the tense sneak's long deliberate steps, by its weight 0..1
   const base = s + (TENSE.step - s) * tense;
   const old = base * (1 - 0.4 * lateral * lateral);
-  if (M !== MOVEMENT) return old;
+  if (M !== MOVEMENT) return old * TUNE_CUR.strideMul;
   // (anim-rework S3) standing: the glide's short shuffle side-step and the shorter back-step (GLIDE_STEP)
   const stand = 1 - Math.max(0, Math.min(1, crouch));
   const g = Math.max(0, Math.min(1, glide));
-  if (stand <= 0 || g <= 0) return old;
+  if (stand <= 0 || g <= 0) return old * TUNE_CUR.strideMul;
   const fwd = base + (Math.min(base, GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * v) - base) * g;
   const l2 = lateral * lateral;
   const side = Math.min(fwd, GLIDE_STEP.lat0 + GLIDE_STEP.latK * v);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
-  return old + (step - old) * stand * g;
+  return (old + (step - old) * stand * g) * TUNE_CUR.strideMul;
 }
 
 /**

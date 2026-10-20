@@ -48,6 +48,9 @@ export class GamepadSource {
   style: PadStyle = 'xbox';
   /** Multiplier applied to look rate while aiming down sights. */
   adsActive = false;
+  /** (tuner-pad) Sees the active pad first each poll (the animation tuner); returning true takes the pad this frame:
+   *  the game and the menus get none of it (its held actions are released). Times in seconds. */
+  padHook: ((pad: Gamepad, now: number, dt: number) => boolean) | null = null;
 
   constructor(
     private state: InputState,
@@ -126,6 +129,10 @@ export class GamepadSource {
       this.pollCapture(pad);
       return;
     }
+    if (this.padHook && this.padHook(pad, now, dt)) {
+      this.takenByHook(pad, now);
+      return;
+    }
     const frame = mapPad({ buttons: pad.buttons.map((b) => b.value || (b.pressed ? 1 : 0)), axes: pad.axes }, s, this.table);
 
     if (frame.active) this.events.onActive();
@@ -158,6 +165,24 @@ export class GamepadSource {
       this.lookY * BASE_PITCH_RATE * s.lookSensitivityY * ads * dt,
     );
     this.state.fireAnalog = frame.fireAnalog;
+  }
+
+  /** (tuner-pad) The hook took the pad: nothing of it reaches the InputState (held actions released, look and the menu
+   *  repeats reset); a press still makes the pad the input mode. */
+  private takenByHook(pad: Gamepad, now: number): void {
+    this.state.releaseSource(SRC);
+    this.lookX = 0;
+    this.lookY = 0;
+    this.heldT = 0;
+    this.state.fireAnalog = 0;
+    for (let i = 0; i < NAV_DIRS.length; i++) this.repeaters.get(NAV_DIRS[i]!)!.update(false, now);
+    const btns = pad.buttons;
+    for (let i = 0; i < btns.length; i++) {
+      if (btns[i]!.pressed) {
+        this.events.onActive();
+        break;
+      }
+    }
   }
 
   /** (step 18) Capture the next button (its index, on release); null = cancelled (Menu / Start, G22,

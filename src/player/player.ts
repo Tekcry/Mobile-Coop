@@ -20,6 +20,7 @@ import { G } from '../physics/groups';
 import { WALL, WALL_LOOK_PITCH, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHeadYaw, wallMoveK, wallRootPush, wallTurnRate, wallYawOffset } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
 import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStance';
+import { TUNE_LOCAL, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -362,13 +363,14 @@ export class Player {
       this.visYaw = wrapPi(this.visYaw + Math.max(-mx, Math.min(mx, d)));
     } else this.visYaw = c.renderYaw;
     root.rotation.y = this.visYaw;
+    tuneRoot(root.position, this.visYaw); // (anim-tuner) visual body offset, identity unless a slider moved
     this.kick = Math.max(0, this.kick - dt * 8);
     // (step 11) back to a wall: the rig's back onto the face (the capsule keeps its standoff), the off hand on it
     this.wallK = Math.max(0, Math.min(1, this.wallK + (cp.wall ? dt : -dt) / 0.2));
     const wk = this.wallK * this.wallK * (3 - 2 * this.wallK);
     if (wk > 0) {
       // (G6) the larger of the body's turn and the shoulders' (the chest turned toward the travel, the side-on crouch)
-      const push = wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))), Math.abs(this.rig.shoulderTurnSin(cp.wallNx, cp.wallNz))), this.rig.p.shoulderHalf, c.crouchBlend) * wk;
+      const push = (wallRootPush(cp.wallGap, this.rig.p.bodyDepthHalf, Math.max(Math.abs(Math.sin(this.visYaw - Math.atan2(cp.wallNx, cp.wallNz))), Math.abs(this.rig.shoulderTurnSin(cp.wallNx, cp.wallNz))), this.rig.p.shoulderHalf, c.crouchBlend) - TUNE_LOCAL.wallGapAdd) * wk;
       root.position.x -= cp.wallNx * push;
       root.position.z -= cp.wallNz * push;
       // (G6, AUDIT-WALLS row 9) the peek's step toward the edge
@@ -502,7 +504,12 @@ export class Player {
       this.teleportsSeen = c.teleports;
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
-    this.rig.animate(dt, rp);
+    tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
+    try {
+      this.rig.animate(dt, rp);
+    } finally {
+      tuneEnd(this.rig);
+    }
     // footfalls (no camera bob, D2: the view follows the smoothed capsule only)
     const pl = this.rig.planner;
     if ((pl.L.landed || pl.R.landed) && c.grounded) {
