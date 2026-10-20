@@ -106,6 +106,8 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #48 | 4.15.4: Settings FPS overlay is a one-line top banner (F3 keeps the full overlay) |
+| 2026-10-20 | #47 | anim-rig into feature/ct-prototype: MPFB2 toe weights, slingBack anchor |
 | 2026-10-20 | #46 | 4.15.3: the phone menu draws at High (play stays Low) |
 | 2026-10-20 | #45 | 4.15.2: phones render at native resolution and a 1.0 scale (Low preset, 60 fps cap) |
 | 2026-10-20 | #44 | 4.15.1: phones run the Low preset (lamp light, contact shadows) at DPR 1, 0.75 scale, a 60 fps cap; menus fill the screen |

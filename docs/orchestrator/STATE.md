@@ -6,7 +6,7 @@ feature/menu. Merge origin/master into it before each docs batch; the docs go to
 convenient (feature/menu is many commits ahead of master today: open one docs PR soon).
 
 ## Master
-v4.15.3 (#46, a7a23de7: phone menu at High; #45 4.15.2 phone native DPR + scale 1; Michael approved both merges). Tags v4.0.0-v4.15.3. /preview/ = dev = a7a23de7. The doorPeek fix is now in master. CHANGELOG has two stray "## Unreleased - anim-metrics" headings under 4.15.0 (from the side PRs): rename them in the next docs PR. /ct/ = ct-movement = 150dcfce (walk round 3b
+v4.15.4 (#48, 6e344b19: FPS overlay as a top banner; #46 4.15.3 phone menu at High; #45 4.15.2 phone native DPR + scale 1; Michael approved both merges). Tags v4.0.0-v4.15.4. /preview/ = dev = 6e344b19. nv-pass: e2e-darkness NV min 0.10 approved (evidence: s12b sheet). The doorPeek fix is now in master. CHANGELOG has two stray "## Unreleased - anim-metrics" headings under 4.15.0 (from the side PRs): rename them in the next docs PR. /ct/ = ct-movement = 150dcfce (walk round 3b
 plus the F3 crab readout; CT Core moves it with each slice). Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh
 (source docs/orchestrator/dashboard.html; publish the same path; it declares `db`, answers in collection `answers`;
 update its version line and rows after each merge with the sed / node edits used in git history, then republish).
