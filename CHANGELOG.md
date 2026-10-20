@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - shots-simwait
+## 4.28.1 - shots-ctcourse waits for sim time after each teleport (2026-10-21, PR #72)
 - Test script only: `scripts/shots-ctcourse.mjs` waits 0.3 s of sim time (the game clock) after each teleport before
   reading the light meter and the light field. The meter updates every 0.1 s of sim time, and at Epic boot 800 ms of
   wall time could be under 0.1 s of sim, so s1-bay read a stale 0.970 against 0.606. It also refuses a foreign server
