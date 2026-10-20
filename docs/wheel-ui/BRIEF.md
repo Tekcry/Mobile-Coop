@@ -32,3 +32,6 @@ just boxes, similar to the reference image but original".
 (none yet)
 
 ## Assumed decisions (undo in brackets)
+- A1 The item label sits in the centre disc, not beside the ring. [Undo: move `.sw-label` out of `.sw-ring` in
+  `src/ui/hud/gadgetWheel.ts` / `src/styles.css`.]
+- A2 The FPS banner sits at the bottom left corner. [Undo: `.debug-overlay.compact` in `src/styles.css`.]

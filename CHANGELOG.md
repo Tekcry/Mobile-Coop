@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - wheel-ui
+- Selection wheel restyle (`docs/wheel-ui/SLICE1.md`): the wheel sizes itself from the screen (130 + 0.36 x height px:
+  518 px at 1080p, was about 430; about 250 px on an 844 x 390 phone) inside the safe area, never under the top HUD or the
+  hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
+  item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
+
 ## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
 - Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
   2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear
