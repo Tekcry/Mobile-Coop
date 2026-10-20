@@ -41,7 +41,8 @@ try {
   const badge = await G(() => ({ any: !!document.querySelector('.main-menu .badge'), level: !!document.querySelector('.badge-level'), credits: !!document.querySelector('.badge .credits') }));
   assert(!badge.any && !badge.level && !badge.credits, `no profile badge, level or credits (${JSON.stringify(badge)})`);
   const keys = await G(() => [...document.querySelectorAll('.main-menu [data-key]')].map((b) => b.dataset.key));
-  assert(JSON.stringify(keys) === JSON.stringify(['sectorops', 'coop', 'loadout', 'settings', 'feedback']), `the flat main menu: Sector Ops, Co-op, Loadout, Settings, Feedback (${keys})`);
+  // (anim-studio) plus the developer row Anim Studio (dev) last
+  assert(JSON.stringify(keys) === JSON.stringify(['sectorops', 'coop', 'loadout', 'settings', 'feedback', 'anim-studio']), `the flat main menu: Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${keys})`);
   await menuClick(page, 'Sector Ops');
   // (sector-ops M7) the op list: the Warehouse with its four difficulty stars, then its briefing
   await page.waitForSelector('.sectorops-screen [data-op="warehouseOps"]');

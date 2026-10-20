@@ -32,11 +32,31 @@ function open(): Promise<IDBDatabase> {
   return dbp;
 }
 
-export async function loadAnimTune(): Promise<unknown> {
+/** (anim-studio) The named presets, a second key in the same store (`{ version: 1, presets }`, `anim/tuneHistory.ts`). */
+const PRESETS_KEY = 'presets';
+
+export function loadAnimTune(): Promise<unknown> {
+  return getKey(KEY);
+}
+
+export function saveAnimTune(value: unknown): Promise<boolean> {
+  return putKey(KEY, value);
+}
+
+/** (anim-studio) The named presets file, or undefined. */
+export function loadAnimTunePresets(): Promise<unknown> {
+  return getKey(PRESETS_KEY);
+}
+
+export function saveAnimTunePresets(value: unknown): Promise<boolean> {
+  return putKey(PRESETS_KEY, value);
+}
+
+async function getKey(key: string): Promise<unknown> {
   try {
     const db = await open();
     return await new Promise((resolve, reject) => {
-      const r = db.transaction(STORE, 'readonly').objectStore(STORE).get(KEY);
+      const r = db.transaction(STORE, 'readonly').objectStore(STORE).get(key);
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     });
@@ -45,11 +65,11 @@ export async function loadAnimTune(): Promise<unknown> {
   }
 }
 
-export async function saveAnimTune(value: unknown): Promise<boolean> {
+async function putKey(key: string, value: unknown): Promise<boolean> {
   try {
     const db = await open();
     const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put(value, KEY);
+    tx.objectStore(STORE).put(value, key);
     await new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);

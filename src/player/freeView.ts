@@ -18,8 +18,33 @@ export type FreeDemo = (typeof FREE_DEMOS)[number];
 /** (pass 2) The tuner's game speed slider (slow motion through the loop's `timeScale`; the fixed step stays 1/60 s). */
 export const GAME_SPEED = { min: 0.1, max: 1, step: 0.05 } as const;
 
-/** What the panel chose (read by the game each frame). */
-export const FREE_VIEW: { mode: FreeMode; demo: FreeDemo } = { mode: 'off', demo: 'idle' };
+/**
+ * What the panel chose (read by the game each frame). (anim-studio) `spin`: the turntable, the orbit's yaw turning at
+ * this rate (rad / s, real seconds; 0 off); `snap`: a camera snap the game takes once (front / side / back / top of the
+ * player's facing; '' none).
+ */
+export const FREE_VIEW: { mode: FreeMode; demo: FreeDemo; spin: number; snap: '' | 'front' | 'side' | 'back' | 'top' } = { mode: 'off', demo: 'idle', spin: 0, snap: '' };
+
+/**
+ * (anim-studio) A camera snap: the orbit's yaw and pitch to look at the body (facing `bodyYaw`) from its front, its
+ * right side, its back, or from above (behind, looking down). Orbit yaw is the view direction (the camera sits `dist`
+ * back along it).
+ */
+export function freeSnap(snap: 'front' | 'side' | 'back' | 'top', bodyYaw: number, out: { yaw: number; pitch: number }): void {
+  if (snap === 'front') {
+    out.yaw = bodyYaw + Math.PI;
+    out.pitch = -0.1;
+  } else if (snap === 'side') {
+    out.yaw = bodyYaw - Math.PI / 2;
+    out.pitch = -0.1;
+  } else if (snap === 'back') {
+    out.yaw = bodyYaw;
+    out.pitch = -0.1;
+  } else {
+    out.yaw = bodyYaw;
+    out.pitch = -FREE_CFG.pitchMax;
+  }
+}
 
 /**
  * The pad's free-view input, written by the tuner panel while the free view owns the pad (zero otherwise), plus the
@@ -53,10 +78,10 @@ export const FREE_CFG = {
   demoRadius: 2,
 };
 
-/** A game speed clamped to the slider's range (anything not finite: 1). */
-export function freeTimeScale(v: number): number {
+/** A game speed clamped to the slider's range (anything not finite: 1). (anim-studio) `max`: the studio allows 2x. */
+export function freeTimeScale(v: number, max: number = GAME_SPEED.max): number {
   if (!Number.isFinite(v)) return 1;
-  return Math.max(GAME_SPEED.min, Math.min(GAME_SPEED.max, v));
+  return Math.max(GAME_SPEED.min, Math.min(max, v));
 }
 
 /** A stick axis past the dead zone (rescaled to 0..1 past it). */

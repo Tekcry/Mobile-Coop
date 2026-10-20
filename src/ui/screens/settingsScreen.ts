@@ -380,6 +380,8 @@ export class SettingsScreen extends MenuScreen {
       // (anim-tuner pass 2) the animation tuner without F3 (pad, phone)
       grp('Developer'),
       desc(button('Animation tuner (dev)', () => app.debug.animTune.show(), { class: 'subtle', key: 'anim-tuner' }), 'Opens the animation slider panel over the game (top right). It stays open in a match until you close it with its x.'),
+      // (anim-studio) the Anim Studio stage (single player: not offered in a co-op session)
+      ...(app.studio && !app.debug.animTune.coop?.() ? [desc(button('Anim Studio (dev)', () => app.studio?.(), { class: 'subtle', key: 'anim-studio' }), 'A plain stage with Wren: the loop player, the animation tuner, viewing aids and snapshots. Leaves a match in progress.')] : []),
     );
     return panel;
   }

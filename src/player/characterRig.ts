@@ -17,6 +17,7 @@ import { hyp2 } from '../core/mathx';
 import { KA, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
+import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 
@@ -1590,6 +1591,7 @@ export class CharacterRig {
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
     if (free) this.planner.L.init = this.planner.R.init = false;
     this.planner.update(pin);
+    if (this.graph.drive) studioFeet(this.graph.drive, this.planner, rp.x, rp.y, rp.z, yaw, this.p.height / 1.75); // (anim-studio) the treadmill feet, studio only
     const L = this.planner.L;
     const R = this.planner.R;
     this.graph.setSupport(L.contact && !R.contact ? -1 : R.contact && !L.contact ? 1 : 0);

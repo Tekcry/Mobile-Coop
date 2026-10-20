@@ -8,6 +8,7 @@ import { ctcourse } from './ctcourse';
 import { flags } from '../../core/flags';
 import { warehouse } from './warehouse';
 import { warehouseOps } from './warehouseOps';
+import { studio } from './studio';
 
 /**
  * The listed maps (3.0): Warehouse runs every mode; Proving Grounds is the basic test range (Free
@@ -17,6 +18,11 @@ import { warehouseOps } from './warehouseOps';
  */
 export const MAPS: MapDef[] = [warehouse, warehouseOps, provingGrounds, kestrel, seclab, ctcourse, courselab, ...(flags.legacy ? [bunker] : [])];
 
+/** (anim-studio) Dev scenes that are not levels: never listed, never in a menu or a co-op lobby, not in `MAPS` (the map
+ *  checks and the level design standard bind playable maps); reached by `getMap` (`?autostart=studio`, the Anim Studio
+ *  entries). */
+export const DEV_MAPS: readonly MapDef[] = [studio];
+
 export function getMap(id: string): MapDef {
-  return MAPS.find((m) => m.id === id) ?? provingGrounds;
+  return MAPS.find((m) => m.id === id) ?? DEV_MAPS.find((m) => m.id === id) ?? provingGrounds;
 }
