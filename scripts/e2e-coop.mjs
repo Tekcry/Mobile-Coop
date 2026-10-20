@@ -15,6 +15,36 @@ const errs = [];
 // the Infiltration mission the matches run (bonuses only: detection does not end it)
 const MISSION = ['infiltration', 'warehouse', 'warehouse-ledger'];
 
+// (coop-fix) Is the partner's character drawn on page P: its meshes enabled and visible with real bounds and a finite
+// root. On the client the camera first faces the host and two frames render, so it is also in the active meshes and
+// the camera frustum (the camera is turned back after).
+const avatarDrawn = (P, side) =>
+  P.evaluate(async (side) => {
+    const g = window.__app.current;
+    const a = side === 'client' ? g.net.avatars.values().next().value : g.net.remotes.values().next().value.avatar;
+    const c = g.player.cam;
+    const was = [c.yaw, c.pitch];
+    if (side === 'client') {
+      c.yaw = Math.atan2(a.pos.x - g.player.position.x, a.pos.z - g.player.position.z);
+      c.pitch = 0;
+      await new Promise((r) => { requestAnimationFrame(() => requestAnimationFrame(r)); setTimeout(r, 3000); });
+    }
+    const cam = g.scene.activeCamera;
+    const r = a.rig.root;
+    r.computeWorldMatrix(true);
+    const ms = a.figure.renderMeshes.filter((m) => m.isEnabled());
+    const act = new Set(g.scene.getActiveMeshes().data);
+    const info = ms.map((m) => {
+      m.computeWorldMatrix(true);
+      const bb = m.getBoundingInfo().boundingBox;
+      return { en: m.isEnabled(), vis: m.isVisible && m.visibility > 0, active: act.has(m), inFrustum: cam.isInFrustum(m), size: bb.extendSizeWorld.length() };
+    });
+    const root = [r.position.x, r.position.y, r.position.z];
+    if (side === 'client') [c.yaw, c.pitch] = was;
+    const ok = root.every(Number.isFinite) && r.isEnabled() && ms.length > 0 && info.every((i) => i.en && i.vis && i.size > 0.1);
+    return { ok, root, lod: a.figure.current, n: ms.length, info };
+  }, side);
+
 async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   try {
     await untilNet(page, fn, arg, timeout, what);
@@ -95,6 +125,13 @@ try {
   assert(modeB === 'infiltration', `the client runs the host's Infiltration match (${modeB})`);
   const avatar = await GB(() => window.__app.current.net.avatars.size);
   assert(avatar === 1, 'client renders the host avatar');
+  // (coop-fix) the host's character is drawn on the joiner's screen, and the objective line left "Connecting to host"
+  await until(B, () => window.__app.current.net.avatars.values().next().value.figure.current >= 0, null, 20000, 'host figure LOD shown on the client');
+  const visB = await avatarDrawn(B, 'client');
+  assert(visB.ok, `host avatar drawn on the client (${JSON.stringify(visB)})`);
+  assert(visB.info.some((i) => i.inFrustum && i.active), `host avatar in the client camera's view (${JSON.stringify(visB)})`);
+  const objIn = await GB(() => window.__app.current.hud.objectiveText);
+  assert(!/Connecting to host/.test(objIn), `connecting label gone once in game (${objIn})`);
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
   assert(hostSeesClient, 'host renders the client avatar');
   // (G135) each player's goggle is their own colour, the same on both screens: the host green (the lens's own), the
@@ -591,8 +628,10 @@ try {
   const inf = await GB(() => ({ map: window.__app.current.world.map.id, mode: window.__app.current.opts.mode }));
   assert(inf.map === 'warehouse' && inf.mode === 'infiltration', `client on the mission's map (${JSON.stringify(inf)})`);
   await until(B, () => (window.__app.current.interactables?.items ?? []).some((i) => i.kind !== 'door' && i.kind !== 'revive'), null, 10000, 'objective items on the client');
-  const obj = await GB(() => window.__app.current.hud['objective']?.textContent ?? '');
-  assert(true, `client sees the mission's objectives (${obj})`);
+  // (coop-fix) the host's mission objective, not the connecting placeholder (polled: a stalled host shows the waiting notice until its next snapshot)
+  await until(B, () => { const t = window.__app.current.hud.objectiveText; return t.length > 0 && !/Connecting to host|Waiting for host/.test(t); }, null, 10000, 'the mission objective on the client');
+  const obj = await GB(() => window.__app.current.hud.objectiveText);
+  assert(!/Connecting to host/.test(obj) && obj.length > 0, `client sees the mission's objectives (${obj})`);
   await toLobby();
 
   // (co-op test fix) no third player: co-op is two players (G2); the door peek is checked on the host
@@ -600,6 +639,9 @@ try {
   // close clears it
   console.log('door peek: a client crack shows on the host; close clears it');
   await startMode('sandbox', 'proving');
+  // (coop-fix) Free Roam sets its objective before the host's HUD hook: the hook's seed carries it to the client
+  await until(B, () => /Free roam/.test(window.__app.current.hud.objectiveText), null, 10000, 'the Free Roam objective on the client');
+  assert(true, 'the client shows the Free Roam objective');
   const dpos = await GB(() => {
     const d = window.__app.current.world.doors.list[0];
     if (!d) return null;
