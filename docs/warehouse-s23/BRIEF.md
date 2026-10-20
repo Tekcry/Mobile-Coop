@@ -10,6 +10,12 @@ The warehouse-redesign job's M1-M6 (`docs/warehouse-redesign/BRIEF.md`) carry ov
 free-flowing sandbox, several stealth routes per section, guard routes with a reason; "Loosen where needed"; lowest
 priority. His notes from walking section 1 on /preview/ (4.14.0) come through the orchestrator and are added here as
 M1 onward when they arrive.
+- **M1** (2026-10-20 15:00, walking section 1, verbatim): "section 1 is ok, better than before at least but not perfect. Its
+  hard to tell, the night vision is so poor. I cant see properly at night, and the bodies are very bright." The
+  orchestrator: the direction holds; build section 2 the same way. Night vision is a separate job: no NV change here.
+  A small follow-up in this PR: section 1's key routes and objective areas get enough lamp light to read without NV,
+  with a light-field test of must-see points, as course-ready S2 did for Marlow Yard (`tests/ctcourseLight.test.ts`,
+  `docs/course-ready/LIGHT.md`).
 
 ## Goal
 Rebuild sections 2 (storage hall) and 3 (assembly hall, mezzanine, rear offices) as greybox prototypes to
@@ -24,5 +30,5 @@ L1-L15 from `docs/warehouse-redesign/BRIEF.md` apply; any new one is logged here
 ## Assumed decisions (job lead; each with how to undo)
 - **A1 (node_modules):** a junction to `C:/NightShift/Mobile-Coop-sector-restart`'s (dependencies identical to master's;
   `npm ci` is heavy). Undo: delete the junction and `npm ci` under the lock.
-- **A2 (order):** the section 2 build sheet first; code for section 2 starts after Michael's section 1 notes are read, so
+- **A2 (order):** the section 2 build sheet first; code for section 2 starts after Michael's section 1 notes are read (M1: go ahead), so
   a direction change costs a sheet, not a build. Undo: build without waiting.

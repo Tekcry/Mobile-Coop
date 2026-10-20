@@ -1,8 +1,7 @@
 # Warehouse sections 2 and 3 - state
 
 **Now:** job started 2026-10-20 (BRIEF). Section 2 build sheet running.
-**Next:** (1) `BUILD-S2.md`: the section 2 build sheet from SPEC 2.2 (Opus); (2) Michael's section 1 walk notes (via the
-orchestrator) folded into the BRIEF and the sheets; (3) section 2 greybox (Sonnet implementer), fresh Opus checker, at
+**Next:** (1) `BUILD-S2.md`: the section 2 build sheet from SPEC 2.2 (Opus); (2) M1 in: the section 1 lamp pass with a must-see light test (BRIEF M1); (3) section 2 greybox (Sonnet implementer), fresh Opus checker, at
 most one fix round, `npm run check` + e2e-sectorops; (4) the same for section 3 (`BUILD-S3.md`); (5) push, a walk
 guide, the PR to master (a minor step), the full e2e on its head through the orchestrator.
 **Open:** none yet.
