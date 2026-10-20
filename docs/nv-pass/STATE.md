@@ -1,15 +1,17 @@
 # Night vision pass - state
 
-## Now (2026-10-20 19:15)
-Slices 1-2 PASS after one fix round (CHECK-FIX1.md, fresh Opus checker): NV frame auto-gain (`src/vfx/nightExposure.ts`),
-shot-script served-build guards, `?gfx=min` postLift 3 (FIX1.md). Code 4a6cd99f; laptop `npm run check` (2043 tests) and
-smoke PASS there. GPU 18:52-19:00 (served build verified): sheets sheet-s12b-{epic,medium,min}.png vs master
-sheet-before-* (65bfe6f2). wh-yard Epic clipping 30% -> 0%, lit rooms within 3% of s12, min NV >= off in all 9 views.
-e2e-darkness: NV deep fill 13.7% (rgb 16,40,14); target min 0.2 -> 0.1 approved by the orchestrator (BRIEF A2, 49eeee88);
-not re-run since the target change. Master 89f061e7 merged (ddd5ca9f): anim-rework slice 1 is in, slice 3 unblocked.
+## Now (2026-10-20 19:45)
+Slice 3, the vision carousel, PASS (CHECK-S3.md, fresh Opus checker; SLICE3.md), 3fa8d372: on the wheel's vision slot
+pad A (`interact`) / keyboard E steps night -> thermal -> electro -> night, the press is consumed, release selects, the
+wheel opens on the selected mode; `VISION_STEPS` length pick removed. tsc, lint, vitest pass; `npm run check` + smoke,
+e2e-pad, e2e-gadgets, e2e-mouse requested from the laptop runner at 3fa8d372 (desktop lock is CT Core's; Michael via the
+orchestrator: movement work takes priority, release the lock at the next step boundary when CT Core needs it).
+Slices 1-2 PASS after one fix round (CHECK-FIX1.md): auto-gain, shot guards, min postLift 3; code 4a6cd99f; GPU sheets
+sheet-s12b-* vs master sheet-before-* (65bfe6f2), Epic pair sent to Michael. e2e-darkness NV min 0.2 -> 0.1 (BRIEF A2,
+49eeee88), not re-run since. Master 89f061e7 merged (ddd5ca9f).
 
 ## Next
-1. Slice 3, the vision carousel (PLAN.md): Opus implementer, fresh checker, at most one fix round.
+1. Laptop results for 3fa8d372 (Character Build replies); a failure -> one fix round.
 2. End: CHANGELOG "Unreleased - nv-pass", TESTING.md lines, docs/systems/lighting.md and graphics-quality.md (stale NV
    numbers, SURVEY "Stale docs"), perf budgets (render work), `npm run check`, e2e-darkness re-run on the GPU, full
    `E2E_SUITE_TIMEOUT=900 npm run e2e` on the PR head (desktop or the laptop runner), PR to master; the orchestrator
@@ -26,6 +28,9 @@ not re-run since the target change. Master 89f061e7 merged (ddd5ca9f): anim-rewo
   worktree root is a local flag (excluded from git).
 
 ## Polish list (non-blocking)
+- Slice 3 (CHECK-S3.md): e2e-gadgets opens the wheel a step before the Tab press is seen (possible unchecked weapon
+  swap); A off the vision slot on the exact LB-release step is not consumed; no e2e assert that A on the slot never
+  interacts or reloads.
 - Fix-round polish (CHECK-FIX1.md): raise the auto-gain `hdr.lo` or max for yard-look (centre 13-19/255) and the deep
   fill; min postLift 3 turns floor texture into a white checker; the min measure has no ease (may flicker); nv-shots
   could print the off -> NV means.
@@ -37,6 +42,7 @@ not re-run since the target change. Master 89f061e7 merged (ddd5ca9f): anim-rewo
 - e2e-desktop "saved as a performance note without a tap" flake: add to `docs/backlog.md` flaky list at the job end.
 
 ## Done
+- 2026-10-20: slice 3, the vision carousel, PASS (CHECK-S3.md), 3fa8d372; laptop suites pending.
 - 2026-10-20: fix round (4a6cd99f) PASS (CHECK-FIX1.md); GPU s12b sheets; e2e-darkness NV target A2; master 89f061e7 merged.
 - 2026-10-20: master before sheets re-shot at 65bfe6f2 (653fdad8).
 - 2026-10-20: checker on slices 1-2: FIX (CHECK-S12.md); check + smoke, e2e-mouse, e2e-stealth-ai, e2e-desktop pass.
@@ -53,7 +59,7 @@ not re-run since the target change. Master 89f061e7 merged (ddd5ca9f): anim-rewo
 Night Shift | nv-pass: RESUME. Folder C:/NightShift/Mobile-Coop-nv-pass, branch feature/nv-pass (git pull --ff-only;
 branch guard from CLAUDE.md before every write). Read CLAUDE.md "Sessions", docs/ROADMAP.md, then docs/nv-pass/BRIEF.md,
 PLAN.md, SURVEY.md and STATE.md, and continue from "Now" / "Next" with the loop in docs/systems/session-method.md
-(next: slice 3, the vision carousel; slices 1-2 passed). The vision carousel (slice 3) is
-unblocked (anim-rework slice 1 is in master). Report to "Night Shift | Orchestrator".
+(next: the laptop results for slice 3, then the job end in STATE "Next"). Slices 1-3 have
+passed their checkers. Report to "Night Shift | Orchestrator".
 Opus, high effort.
 ```
