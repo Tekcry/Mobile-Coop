@@ -345,7 +345,8 @@ try {
   await key('Escape');
   assert((await top()) === 'main-menu', 'Esc: Settings back to the main menu');
   const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
-  assert(menuKeys === 'sectorops,coop,loadout,settings,feedback', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback (${menuKeys})`);
+  // (anim-studio) the developer row Anim Studio (dev) last
+  assert(menuKeys === 'sectorops,coop,loadout,settings,feedback,anim-studio', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${menuKeys})`);
   await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="sectorops"]')));
   await key('Enter');
   // (sector-ops M7) Sector Ops opens the op list: the Warehouse with its four difficulty stars
@@ -396,7 +397,8 @@ try {
     const keys = await GM(() => [...document.querySelectorAll('.pause-screen .ms-item')].map((b) => b.dataset.key).join(','));
     // (menu-notes A2) no separate Controls item: controls live in Settings > Controls
     // (anim-tuner pass 3) the dev row "Animation tuner (dev)" before Quit (Up from Resume still wraps to Quit)
-    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,quit', `pause items (${keys})`);
+    // (anim-studio) then Anim Studio (dev) before Quit (single player only)
+    assert(keys === 'resume,objectives,settings,report-feedback,anim-tuner,anim-studio,quit', `pause items (${keys})`);
     await GM(() => { const b = document.querySelector('.pause-screen [data-key="objectives"]'); window.__app.nav.focus(b); b.click(); });
     await frames(P, 3);
     const objs = await GM(() => [...document.querySelectorAll('.objectives-screen .ms-item')].map((b) => b.textContent));

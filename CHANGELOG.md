@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.26.0 - Anim Studio: a stage with the loop player, skeleton, feet and onion-skin views, camera snaps, undo, A-B and presets (2026-10-21, PR #69)
+- Anim Studio (dev) (Michael 2026-10-21: "I want freedom to manipulate the body/animation as needed ... a basic stage
+  similar to the old main menu that allows me to make all the adjustments on the spot using controller or k&m"): a row in
+  the main menu and in Pause (single player only) opens a plain stage (a dark room with a 1 m floor grid, warm key, cool
+  rim and soft fill lamps; `?autostart=studio`) with the animation tuner docked, a Studio section at its top and the
+  debug overlay's crab readout.
+- Loop player: every keyed clip (all 28 in `src/anim/clips/keyed`, the walls, holds and guard clips that the game does not
+  play yet included) sampled straight onto Wren, in place with treadmill feet or with root motion along a 2 m circle; the
+  procedural states (idle, walk, jog, run, crouch idle, sneak, crouch walk, low ready, aim glide forward / strafe / back)
+  by synthesised input on the circle. Play / pause, a key back / forward, scrub, speed 0.1-2x (above 1x only in the
+  studio), mirror, root motion on / off. An optional guard figure stands at the hold offset (guard clips play on it).
+- Viewing aids on a 2D overlay (no scene meshes): skeleton, foot contacts and foot trails, onion skin (the previous / next
+  key, faint), a turntable (the orbit view circling at 10-90 deg/s) and front / side / back / top camera snaps.
+- Snapshots in the tuner (in and out of the studio): undo / redo of every tuner change (a drag is one step; Ctrl+Z /
+  Ctrl+Y, the Y menu), A/B compare, named presets saved in the tuner's own IndexedDB store (never the main save).
+- Leaving the studio puts the time scale back to 1x and resets every studio switch; gameplay never reads studio state.
+  Detail: `docs/anim-studio/REPORT.md`.
 ## 4.25.0 - Tuner v2: per-joint offsets, hand and foot placement, IK strength, weapon grip and fingers, stepping, per-key editing (2026-10-21, PR #68)
 - Animation tuner: four new sections after Camera, wired through the section registry. **Joints**: per-state pitch / yaw / roll offsets for 21 joints, with a mirror lock (group `joint.options`). **Hands & feet**: hand and foot IK target offsets and hand rotation, per weapon and state. **IK strength**: per limb and state, 0 = FK (rest + joint offsets). **Weapon**: gun scale (visual only), gun in the hand, support hand, trigger finger, finger curl, per weapon and state. Each follows the game state and weapon, saves, exports, resets and works with the pad like the other sections; at the defaults nothing changes.
 - Animation tuner: a **Stepping** section (item 3, after Weapon): per gait (still, walk, jog, run, crouched walk / run) foot lift, plant lock strength, step duration, foot-slide tolerance, a 3-point stride curve, toe-off and heel-strike roll and the replant threshold, as multipliers on the foot planner's own values (default 1 = unchanged). Feet stuck while running: the run's trailing foot stays planted to the leg's stretch limit; try Stepping > run > replant 0.8.
