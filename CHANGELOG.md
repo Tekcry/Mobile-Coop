@@ -15,6 +15,46 @@
   - new e2e-anim checks: the crouch and sneak gaits, crouched idle / start / stop / run / low ready walk / aimed idle /
     aimed strafe, the knee hand, and a stand <-> crouch pop check; e2e-clip checks the arms against the legs crouched.
 
+## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
+- Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
+  D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
+  1 s), the left stick X nudges in analogue steps, LB / RB switch the focused section's state group, Y resets the
+  slider, A exports, B closes, View moves the pad between the tuner and the game ("PAD: tuner" / "PAD: game" on the
+  panel). The focused row has an amber outline. While the tuner has the pad the game and the menus get none of it.
+  Keyboard, mouse and touch are unchanged. Detail: `docs/anim-tuner/PAD.md`.
+
+## 4.20.0 - Animation tuner: live sliders for gaits, poses and the gun hold, with export (2026-10-21, PR #56)
+- Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
+  opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
+  crouch idle / sneak / crouch walk, low ready, aim, crouched aim, back to wall idle / slide / peek, ladder, pipe, ledge,
+  vent, crawl, hang, hold) and a gun-hold section (rifle and pistol x low ready / aim / crouched aim), each following
+  the current state (untick "follow" to pick one). Sliders cover foot width, knee out, knee lift, step length, pelvis
+  height / crouch depth, forward lean, arm swing and its growth with speed, elbow out, head turn, peek lean, gap to the
+  wall, body distance to the ladder / pipe / guard, hand and foot reach and spacing, gap to the guard, and the gun's
+  position, pitch, yaw, cant, sight height, head drop and elbow tuck; a barrel marker shows where the muzzle points.
+  Changes apply live to the local player only (guards and the partner's copy are untouched; nothing on the wire), save
+  to the tuner's own IndexedDB store, reset per slider / group / all, and Export downloads `anim-tune-<date>.json`
+  (every changed value, its default, a timestamped change log). Every default is identity: nothing changes until a
+  slider moves. `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/save/animTuneStore.ts`; report
+  `docs/anim-tuner/REPORT.md`.
+- Pass 2 (pad and phone, Michael: "I will wait for the anim tuner"): the tuner also opens from the pause menu ("Animation
+  tuner (dev)", which resumes with the panel open) and Settings > Graphics, without F3, and stays open until its x. It
+  folds to a header bar, scrolls on a short landscape screen, is at most 45 % wide, has 28 px touch rows, keeps its
+  touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
+  Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
+  at the top with arm swing amplitude and step length (cadence at the same speed).
+## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
+- Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
+  (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
+- e2e-ctcourse runs as three station groups in the full run (`e2e-ctcourse:1..3`); named alone it runs all eight.
+- Load-safe waits: no background-tab throttling, 120 s page navigations and match loads (`LOAD_MS`), one-poll pad
+  `press` / `stick`, `window.__afterSim` for timed in-page taps, sim-clock waits in e2e-stealth and e2e-course's latency
+  checks, condition waits for fades and toasts in e2e-menus and e2e-pad, and station 6's late press on the client's
+  own frame.
+- A music fetch that fails under load prints "(ignored: ...)" instead of failing the console-error check.
+- `scripts/laptop-runner.ps1`: the laptop test runner (one request at a time, detached worktree, `heavy.lock`,
+  BelowNormal, port 4191).
+
 ## 4.19.0 - Drawn movement: low ready, aiming with the glide (no crab strafe), the sling draw (2026-10-20, PR #54)
 - Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,
   BRIEF section 3): with the gun out, standing, the legs play hand-keyed clips. Still: a ready stance, feet about hip

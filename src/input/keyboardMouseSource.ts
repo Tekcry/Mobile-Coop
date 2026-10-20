@@ -244,7 +244,8 @@ export class KeyboardMouseSource {
     const tag = (e.target as HTMLElement | null)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') {
       // (Enter in a text box is a new line, not a menu confirm)
-      if (e.code !== 'Escape' && (e.code !== 'Enter' || tag === 'TEXTAREA')) return;
+      // (anim-tuner pass 3) a key released there still releases: one held as focus landed on a slider never sticks
+      if (down && e.code !== 'Escape' && (e.code !== 'Enter' || tag === 'TEXTAREA')) return;
     }
     if (e.code === 'F3') return;
     this.onActive();

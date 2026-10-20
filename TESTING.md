@@ -94,6 +94,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
+- [ ] Animation tuner: open it from Pause > Animation tuner (dev) (the match resumes with the panel open), Settings >
+  Graphics > Animation tuner (dev) or F3 > Anim; on a phone the panel folds to its header (_ / +), scrolls, drags by
+  thumb and closes with x, and Share / Copy shares, copies or shows the JSON. Walk: "arm swing amplitude", "stance knee
+  flex" and "trunk / shoulder counter-rotation" sit at the top. Walk with the pad and drag "foot width / track" - the
+  feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
+  is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
+  press Reset all before judging the game's own defaults.
+- [ ] Animation tuner by pad (tuner-pad): Pause > Animation tuner (dev) with A; the panel says "PAD: tuner" and one row
+  has an amber outline. D-pad down / up move the outline (on into the gun rows), right / left nudge the value (hold:
+  repeats, faster after 1 s), the left stick X nudges faster; LB / RB change the group; Y resets the row; A exports.
+  The player does not move, jump or fire meanwhile. View: "PAD: game", walk to check, View again to tune. B closes the
+  panel and the player does not crouch from that press.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
