@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-studio
+## 4.26.0 - Anim Studio: a stage with the loop player, skeleton, feet and onion-skin views, camera snaps, undo, A-B and presets (2026-10-21, PR #69)
 - Anim Studio (dev) (Michael 2026-10-21: "I want freedom to manipulate the body/animation as needed ... a basic stage
   similar to the old main menu that allows me to make all the adjustments on the spot using controller or k&m"): a row in
   the main menu and in Pause (single player only) opens a plain stage (a dark room with a 1 m floor grid, warm key, cool
