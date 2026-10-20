@@ -198,8 +198,8 @@ export class QualityManager {
   private applyScale(): void {
     // (`?gfx=min`: DPR 1)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
-    // (phone-min) a phone: DPR 1 and a 0.75 render scale on the Low preset (cool and light)
-    else if (flags.phone) applyRenderScale(this.engine, this.ov?.scale ?? 0.75, 1);
+    // (phone-min) a phone: native resolution (DPR) and a 1.0 render scale on the Low preset, 60 fps cap (Michael 2026-10-20)
+    else if (flags.phone) applyRenderScale(this.engine, this.ov?.scale ?? 1, Infinity);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
     else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), Infinity);

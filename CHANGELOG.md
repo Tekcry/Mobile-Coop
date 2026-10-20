@@ -22,6 +22,20 @@
   and the probe prints the night-vision rgb. New `goggleFrame`, `nightExposure` and wheel carousel tests.
 - Scripts: the night-vision shot scripts (`scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`) refuse a port that already
   answers, a dead preview or a served build that differs from `dist/`, and fail on a build or shot error.
+## 4.15.4 - The FPS overlay is a thin banner (2026-10-20, PR #48)
+- Settings > Graphics > Show FPS overlay (Michael 2026-10-20: "it takes up the whole screen. Can you make it a banner on
+  the top of the screen with only critical information"): one line centred along the top edge: FPS, average and worst
+  frame time, dropped frames, render resolution. F3 and `?debug=1` still open the full debug overlay.
+
+## 4.15.3 - The phone menu draws at High quality (2026-10-20, PR #46)
+- Phone menu (G182; Michael 2026-10-20: "menu hero should be best quality on phones if it doesn't cost much"): the
+  menu draws at the High preset on phones (lamp shadows, AO, bloom, depth of field) while play stays on Low; the hero
+  mesh was already the close-up LOD. Epic's TAA and full-res post are left out (heat). Desktop unchanged.
+
+## 4.15.2 - Phones at native resolution and 100% render scale (2026-10-20, PR #45)
+- Phone (testing launch, G182; Michael 2026-10-20: "Default phones to low settings but with shadows/light, native
+  resolution, 60fps cap, 100% resolution scaling"): phones now render at native resolution (device DPR) and a 1.0
+  render scale, still on the Low preset with the 60 fps cap. Desktop and the tests (`?gfx=min`) are unchanged.
 
 ## 4.15.1 - Phones get basic lamp light and shadows, a 60 fps cap, no side bars (2026-10-20, PR #44)
 - Phone (testing launch, G182; Michael 2026-10-20): the Low preset instead of the bare test preset, so lamps light the

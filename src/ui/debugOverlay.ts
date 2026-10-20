@@ -22,6 +22,9 @@ export interface CrabPlayer {
 export class DebugOverlay {
   private el: HTMLDivElement;
   private visible = false;
+  /** The Settings "Show FPS overlay" banner: one line across the top, the critical numbers only (F3 and `?debug=1`
+   *  show the full overlay). */
+  private compact = false;
   private instr: SceneInstrumentation | null = null;
   private scene: Scene | null = null;
   private frameTimes: number[] = [];
@@ -317,8 +320,10 @@ export class DebugOverlay {
     if (this.visible && scene) this.instr = new SceneInstrumentation(scene);
   }
 
-  toggle(force?: boolean): void {
+  toggle(force?: boolean, compact = false): void {
     this.visible = force ?? !this.visible;
+    this.compact = compact;
+    this.el.classList.toggle('compact', compact);
     this.el.hidden = !this.visible;
     this.setScene(this.scene);
   }
@@ -332,8 +337,8 @@ export class DebugOverlay {
     const ft = now - this.last;
     this.last = now;
     if (!this.visible) return;
-    if (this.skeleton) this.drawSkeleton();
-    this.sampleCrab();
+    if (this.skeleton && !this.compact) this.drawSkeleton();
+    if (!this.compact) this.sampleCrab();
     for (const t of this.traces.values()) {
       t.buf.push(t.fn());
       if (t.buf.length > 120) t.buf.shift();
@@ -347,6 +352,14 @@ export class DebugOverlay {
     const worst = Math.max(...this.frameTimes);
     const s = this.scene;
     const pc = this.pacing?.();
+    if (this.compact) {
+      // (Michael 2026-10-20: "a banner on the top of the screen with only critical information")
+      const drops = pc ? `  |  drops ${(pc.dropShare * 100).toFixed(1)}%` : '';
+      this.text.textContent =
+        `FPS ${(1000 / avg).toFixed(0)}  |  ${avg.toFixed(1)} ms  |  max ${worst.toFixed(1)} ms${drops}  |  ` +
+        `${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}`;
+      return;
+    }
     const lines = [
       `FPS ${(1000 / avg).toFixed(0)}  avg ${avg.toFixed(1)}ms  max ${worst.toFixed(1)}ms`,
       pc
