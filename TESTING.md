@@ -130,6 +130,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   turntable circles the view; Front / Side / Back / Top snap the view; guard puts a figure at the hold spot. Move a
   slider, Ctrl+Z (or Y menu > Undo) puts it back, Ctrl+Y redoes; Store A, change, Store B, A/B flips; Save a preset,
   Reset all, Load brings it back. Quit to the menu: normal speed, no studio left.
+- [ ] Anim Studio pairs and traversal (anim-studio-2): in the studio pick "pair: leg-up": two Wrens at the team block
+  (north), B crouched with cupped hands, A walks in, is tossed up and hangs on the lip; Pause, "key >" moves both; the
+  panel follows "Co-op: leg-up" (LT / RT: role A / B / contact). Move "A climber" body up: only A moves; a contact
+  slider moves A only while the foot is in the hands. Try the relay, throw, hang-down (head first over the edge), rope
+  (a rope from B's hands) and revive (B lying, A kneeling). "pair: hold_choke + guard_choke_sag": Wren and the guard
+  choke on one clock. "traversal: ladder up and over the top": Wren walks to the ladder, climbs it, tops out, resets and
+  goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
+  Pick "state: idle": she is back in the middle.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than

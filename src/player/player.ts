@@ -25,6 +25,7 @@ import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
 import { handsBegin, handsEnd, handsWeaponOf } from '../anim/tuneHands';
 import { tuneV2Frame } from '../anim/tuneV2Sections';
 import { tuneKeysFrame } from '../anim/tuneKeys';
+import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -368,6 +369,9 @@ export class Player {
     } else this.visYaw = c.renderYaw;
     root.rotation.y = this.visYaw;
     tuneRoot(root.position, this.visYaw); // (anim-tuner) visual body offset, identity unless a slider moved
+    // (anim-studio-2) the co-op role / traversal move sections: this player's own role only (the partner never reads them)
+    moveTuneSelect(MOVE_TUNE_TEAM.group, MOVE_TUNE_TEAM.k, cp.traverse ?? 'none');
+    moveTuneRoot(root.position, root.rotation);
     this.kick = Math.max(0, this.kick - dt * 8);
     // (step 11) back to a wall: the rig's back onto the face (the capsule keeps its standoff), the off hand on it
     this.wallK = Math.max(0, Math.min(1, this.wallK + (cp.wall ? dt : -dt) / 0.2));
@@ -514,9 +518,11 @@ export class Player {
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
     jointsBegin(TUNE_STATE.body, dt); // (tuner-v2) the per-joint offsets of the same state, eased over dt
     handsBegin(TUNE_STATE.body, handW, dt); // (tuner-v2 item 2) hand / foot placement, the Weapon group
+    moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)
     try {
       this.rig.animate(dt, rp);
     } finally {
+      moveTuneEnd(this.rig);
       handsEnd();
       jointsEnd();
       tuneEnd(this.rig);
