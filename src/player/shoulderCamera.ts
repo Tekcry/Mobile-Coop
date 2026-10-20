@@ -8,6 +8,8 @@ import { DOOR_PEEK, clampPeekYaw } from '../world/doorPeek';
 import { vfovFor } from '../core/display';
 import { castStop, easeRate, lowFraming, lowSwing, lowWeight, nearPlane, pivotFraction } from './cameraBounds';
 import { probeOpen } from '../world/camSpaces';
+import { TUNE_CAM_CUR, tuneCamStep } from '../anim/tune';
+import type { FreeViewCore } from './freeView';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -118,6 +120,13 @@ export class ShoulderCamera {
   private t = 0;
   readonly pivot = new Vector3();
   readonly forward = new Vector3(0, 0, 1);
+  /** (tuner-camera) The game's view position this frame (the tuned follow camera, never the free view): what gameplay
+   *  reads (aim ray, ping, the jammer pick, the flash white-out, the crosshair's target). Written here, and by whatever
+   *  else places the game view after this update: the sticky-cam remote view (`GadgetSystem.frameUpdate`) and photo
+   *  mode. Equal to `camera.position` except while the tuner's free view is on. */
+  readonly gamePos = new Vector3();
+  /** (tuner-camera) The tuner's free view (dev): when on, the rendered camera is placed by it after the game view. */
+  free: FreeViewCore | null = null;
   /** Distance from camera to pivot; used to fade the player model when too close. */
   boomActual = CAMERA.boomHip;
   private rr = new PhysicsRaycastResult();
@@ -265,6 +274,9 @@ export class ShoulderCamera {
   update(dt: number, feet: Vector3, crouch: number): void {
     const T = CAMERA;
     this.t += dt;
+    // (tuner-camera) the camera state's tuned values (identity at default: every use below is + 0 or x 1)
+    tuneCamStep(this.attach, this.wallPeek, this.adsTarget, crouch, dt);
+    const K = TUNE_CAM_CUR;
     if (dt <= 0) dt = 1e-4;
     // (step 13) at a door's crack the look stays within its range
     if (this.doorPeek > 0) this.yaw = clampPeekYaw(this.yaw, this.doorYaw);
@@ -274,10 +286,10 @@ export class ShoulderCamera {
     // (G3, AUDIT-CAMERA row 13) an aim that starts on the wall or just off it dollies in over `adsInWall` at most
     if (this.ads <= 0 && this.adsTarget > 0) this.adsWall = this.wallSideT > 0;
     if (this.adsTarget > this.ads) {
-      const tIn = this.adsWall ? Math.min(this.adsInTime, T.adsInWall) : this.adsInTime;
+      const tIn = (this.adsWall ? Math.min(this.adsInTime, T.adsInWall) : this.adsInTime) * K.camBlendMul;
       this.ads = Math.min(this.adsTarget, this.ads + dt / Math.max(0.05, tIn));
     } else if (this.adsTarget < this.ads) {
-      this.ads += (this.adsTarget - this.ads) * (1 - Math.exp(-T.adsOutRate * dt));
+      this.ads += (this.adsTarget - this.ads) * (1 - Math.exp(-(T.adsOutRate / K.camBlendMul) * dt));
       if (this.ads - this.adsTarget < 2e-3) this.ads = this.adsTarget;
     }
     // shoulder side: only the aim's swap changes it (G17) and holstering resets it to the right (F1). (F1) The wall's
@@ -309,7 +321,7 @@ export class ShoulderCamera {
       }
     }
     if (!(this.sOpen.x === this.sOpen.x)) this.sOpen.reset(openT);
-    this.openW = Math.max(0, Math.min(1, this.sOpen.step(openT, openT < this.sOpen.x ? T.toTight : T.toOpen, dt)));
+    this.openW = Math.max(0, Math.min(1, this.sOpen.step(openT, (openT < this.sOpen.x ? T.toTight : T.toOpen) / K.camBlendMul, dt)));
     const fr = framing(this.ads, crouch, CAMERA, this.openW);
     // attached traversal (ladder, hang, duct...): its framing preset blends in and back out
     if (this.attach) this.attachPreset = ATTACH_FRAMING[this.attach];
@@ -320,11 +332,15 @@ export class ShoulderCamera {
       d = Math.atan2(Math.sin(d), Math.cos(d));
       if (Math.abs(d) > cone) this.yaw = this.attachYaw + Math.sign(d) * (cone + (Math.abs(d) - cone) * Math.exp(-dt / 0.06));
     }
-    const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, this.attachPreset?.blend ?? 0.25), dt);
+    const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, (this.attachPreset?.blend ?? 0.25) * K.camBlendMul), dt);
     if (this.attachPreset && attachW > 1e-3) attachFraming(fr, this.attachPreset, Math.min(1, attachW));
+    // (tuner-camera) the state's distance, shoulder offset and look-at height
+    fr.boom += K.camBoomAdd;
+    fr.shoulder += K.camSideAdd;
+    fr.pivot += K.camPivotAdd;
     // rigid follow: XZ is exactly the character (no spring, no lag); only the feet's height is low-passed (stairs)
     if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
-    const footY = this.sFootY.step(feet.y, T.stairRate, dt);
+    const footY = this.sFootY.step(feet.y, T.stairRate * K.camFollowMul, dt);
     // (step 12) the wall peek / lean-out swing: the pivot out toward the edge at a capped rate (the pivot safety below
     // keeps it on the head's side of any wall)
     const wp = WALL_CAMERA.peek;
@@ -335,7 +351,7 @@ export class ShoulderCamera {
     }
     const pT = onWall ? this.wallPeek : 0;
     // (G3) in over `blend`, back over `out` (CT 0.2 s / 0.17 s)
-    const pRate = dt / (pT > this.peekW ? wp.blend : wp.out);
+    const pRate = dt / ((pT > this.peekW ? wp.blend : wp.out) * K.camBlendMul);
     this.peekW += Math.max(-pRate, Math.min(pRate, pT - this.peekW));
     const pe = peekEase(this.peekW);
     const swing = wp.offset * pe;
@@ -384,7 +400,7 @@ export class ShoulderCamera {
     // boom: framing, and the shoulder swap arcs back through a pulled-back mid-point (side passes through 0)
     const arc = T.swapArc * (1 - side * side);
     // (F4) peeking past an edge the boom comes in toward CT's close side framing (1.0-1.5 m measured)
-    const boomPk = fr.boom + arc + (Math.min(fr.boom, WALL_CAMERA.peek.boom) - fr.boom) * pe;
+    const boomPk = fr.boom + arc + (Math.min(fr.boom, WALL_CAMERA.peek.boom + K.camBoomAdd) - fr.boom) * pe;
     // (G3, AUDIT-EXTRA-NEW row 19) through an open door the boom pushes in behind the shoulder, then returns
     const pRateD = dt / (this.doorPass > this.passW ? T.doorPassIn : T.doorPassOut);
     this.passW += Math.max(-pRateD, Math.min(pRateD, this.doorPass - this.passW));
@@ -396,8 +412,8 @@ export class ShoulderCamera {
     // (F4) peeking, the shoulder offset turns toward the edge's open side: its share along the camera's right is the edge
     // direction . right (continuous, so it never flips as the camera swings; 0 when looking straight past the edge)
     // (G3) peeking, the offset grows to `peek.shoulder` (the wall preset alone is now a near-centred 0.15 m)
-    const shoulder = fr.shoulder * side * (1 - pe) + Math.max(fr.shoulder, wp.shoulder) * pe * (this.edgeX * rightX + this.edgeZ * rightZ) + leanS * T.leanShift;
-    const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height + Math.min(0, lowDy), this.pivot.z + rightZ * shoulder);
+    const shoulder = fr.shoulder * side * (1 - pe) + Math.max(fr.shoulder, wp.shoulder + K.camSideAdd) * pe * (this.edgeX * rightX + this.edgeZ * rightZ) + leanS * T.leanShift;
+    const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height + K.camHeightAdd + Math.min(0, lowDy), this.pivot.z + rightZ * shoulder);
     if (eng && this.pivotShape) {
       // the shoulder point stays on the pivot's side of a wall (tight corridors, leaning past a corner)
       const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, this.pivot, shoulderPt), Vector3.Distance(this.pivot, shoulderPt), T.castSkin);
@@ -414,10 +430,10 @@ export class ShoulderCamera {
     const len = Math.max(1e-6, v.length());
     const desired = this.desired.copyFrom(shoulderPt).addInPlace(v);
     let dist = len;
-    if (eng && this.castShape) dist = castStop(this.cast(eng, this.castShape, T.castRadius, shoulderPt, desired), len, T.castPad);
+    if (eng && this.castShape) dist = castStop(this.cast(eng, this.castShape, T.castRadius, shoulderPt, desired), len, Math.max(0, T.castPad + K.camPadAdd));
     // pull in fast, ease back out slowly; never past the cast's stop (never behind a wall)
     if (!(this.sBoom.x === this.sBoom.x)) this.sBoom.reset(dist);
-    const boomNow = this.sBoom.step(dist, easeRate(dist < this.sBoom.x, T.boomIn, T.boomOut), dt);
+    const boomNow = this.sBoom.step(dist, easeRate(dist < this.sBoom.x, T.boomIn * K.camBoomRateMul, T.boomOut * K.camBoomRateMul), dt);
     this.boomActual = Math.min(boomNow, dist);
     const pos = v.scaleToRef(this.boomActual / len, this.camPos).addInPlace(shoulderPt);
     this.camera.minZ = nearPlane(this.boomActual);
@@ -436,8 +452,22 @@ export class ShoulderCamera {
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     // no aim zoom (G29): `adsZoom` is 1 except for a marksman scope
-    const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = this.vfov(this.baseFovDeg) * zoom * (1 + (DOOR_PEEK.fovMul - 1) * (dw * dw * (3 - 2 * dw)));
+    const zoom = 1 + (this.adsZoom * K.camZoomMul - 1) * this.ads;
+    this.camera.fov = this.vfov(this.baseFovDeg + K.camFovAdd) * zoom * (1 + (DOOR_PEEK.fovMul - 1) * (dw * dw * (3 - 2 * dw)));
+    this.gamePos.copyFrom(pos);
+    // (tuner-camera) the free view (dev) renders from its own place; the game view above stays what gameplay reads
+    const fv = this.free;
+    if (fv && fv.mode !== 'off') {
+      fv.place(feet.x, feet.y, feet.z);
+      this.camera.position.set(fv.x, fv.y, fv.z);
+      this.camera.rotation.set(-fv.pitch, fv.yaw, 0);
+      this.camera.minZ = CAMERA.near;
+    }
+  }
+
+  /** (tuner-camera) The free view is placing the rendered camera. */
+  get freeOn(): boolean {
+    return !!this.free && this.free.mode !== 'off';
   }
 
   /** The vertical FOV for a horizontal angle at 16:9 on this screen (Hor+, capped at `maxFovDeg`). */
@@ -457,8 +487,10 @@ export class ShoulderCamera {
   applyBodyFade(rig: CharacterRig): void {
     rig.headNode.computeWorldMatrix(true);
     const dHead = Vector3.Distance(this.camera.position, rig.headNode.getAbsolutePosition());
-    const hideHead = dHead < CAMERA.hideHead;
-    const hideAll = this.boomActual < CAMERA.hideAll;
+    // (tuner-camera) the free view shows the whole body
+    const fv = this.freeOn;
+    const hideHead = !fv && dHead < CAMERA.hideHead;
+    const hideAll = !fv && this.boomActual < CAMERA.hideAll;
     if (hideAll !== this.allHidden) {
       this.allHidden = hideAll;
       rig.root.setEnabled(!hideAll);
@@ -469,9 +501,9 @@ export class ShoulderCamera {
     }
   }
 
-  /** Ray from the camera through the screen centre. */
+  /** Ray from the (game) camera through the screen centre: never the free view. */
   aimRay(outOrigin: Vector3, outDir: Vector3): void {
-    outOrigin.copyFrom(this.camera.position);
+    outOrigin.copyFrom(this.gamePos);
     outDir.copyFrom(this.forward);
   }
 }

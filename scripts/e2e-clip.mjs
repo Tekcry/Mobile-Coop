@@ -1,7 +1,7 @@
 // Weapon clipping sweep (Proving Grounds): every frame of movement scenarios, points along the held
 // gun are checked against the world (chest -> stock, then along the gun: blocked = through a wall) and against
 // the legs (thigh / calf capsules). Bars: no frame with the gun > 2 cm into the world; legs graze <= 2.5 cm.
-// Scenarios: walking / crouch-walking along a wall both sides, sprint, crouch run.  `node scripts/e2e-clip.mjs [url] [--only=name] [--log]`
+// Scenarios: walking / crouch-walking along a wall both sides, sprint, crouch run; (anim-rework S4) crouched holstered (the knee hand, arms vs legs).  `node scripts/e2e-clip.mjs [url] [--only=name] [--log]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -120,6 +120,65 @@ const res = await page.evaluate(([only, log]) => {
   const tp = (x, z, yaw) => { st.releaseAll(); if (c.crouched) c['crouchToggled'] = false; c.teleport(new V(x, 0, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
   const run = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; check(acc); } return acc; };
   const move = (x, y) => st.setMove('t', x, y);
+  // (anim-rework S4) holstered limbs against the body (no gun to check): each forearm (elbow -> wrist, sampled) and upper
+  // arm against both thighs and the trunk, the knees and feet apart; the knee hand rests on its knee, so a graze up to
+  // 3 cm reads as contact, deeper as through. The limbs taper (radius at the start and at the end of each segment: the
+  // upper arm 4.5 -> 4 cm, the forearm 4 -> 2.5 cm at the wrist, the thigh 7.5 -> 5 cm at the knee)
+  const armSeg = [[rig.shoulderL, rig.elbowL, 0.045, 0.04], [rig.elbowL, rig.wristL, 0.04, 0.025], [rig.shoulderR, rig.elbowR, 0.045, 0.04], [rig.elbowR, rig.wristR, 0.04, 0.025]];
+  /** Distance from P to the segment A -> B minus its tapered radius (r0 at A, r1 at B). */
+  const taper = (P, A, B, r0, r1) => { const abx = B.x - A.x, aby = B.y - A.y, abz = B.z - A.z; const t = Math.max(0, Math.min(1, ((P.x - A.x) * abx + (P.y - A.y) * aby + (P.z - A.z) * abz) / (abx * abx + aby * aby + abz * abz || 1))); return Math.hypot(P.x - A.x - abx * t, P.y - A.y - aby * t, P.z - A.z - abz * t) - (r0 + (r1 - r0) * t); };
+  const ap = new V();
+  const limbCheck = (acc) => {
+    for (const n of [rig.hips, rig.neck, rig.hipL, rig.kneeL, rig.ankleL, rig.hipR, rig.kneeR, rig.ankleR, rig.shoulderL, rig.elbowL, rig.wristL, rig.shoulderR, rig.elbowR, rig.wristR]) n.computeWorldMatrix(true);
+    const pv = rig.hips.getAbsolutePosition();
+    const nk = rig.neck.getAbsolutePosition();
+    let worst = 9;
+    let where = '';
+    for (const [A, B, r0, r1] of armSeg) {
+      const a0 = A.getAbsolutePosition(), b0 = B.getAbsolutePosition();
+      for (let k = 0; k <= 4; k++) {
+        V.LerpToRef(a0, b0, k / 4, ap);
+        const r = r0 + ((r1 - r0) * k) / 4;
+        for (const [H, K] of [[rig.hipL, rig.kneeL], [rig.hipR, rig.kneeR]]) {
+          const d = taper(ap, H.getAbsolutePosition(), K.getAbsolutePosition(), 0.075, 0.05) - r;
+          if (d < worst) { worst = d; where = B.name + ' / thigh'; }
+        }
+        // the upper arm hangs beside the trunk (the shoulder joint itself sits on it: from a third of the way down)
+        if (B === rig.elbowL || B === rig.elbowR ? k >= 2 : true) {
+          const d = segDist(ap, pv, nk) - 0.1 - r;
+          if (d < worst) { worst = d; where = B.name + ' / trunk'; }
+        }
+      }
+    }
+    if (window.__dbg && worst < -0.03) acc.log.push(`t ${acc.n} LIMB ${(worst * 100).toFixed(1)} at ${where} crouch ${c.crouched} speed ${c.speed.toFixed(2)}`);
+    acc.minLimb = Math.min(acc.minLimb, worst);
+    acc.minKnees = Math.min(acc.minKnees, V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition()));
+    acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
+    acc.n++;
+  };
+  const runLimbs = (sec, f) => { const acc = { n: 0, minLimb: 9, minKnees: 9, minFeet: 9, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; limbCheck(acc); } return acc; };
+  const L = {
+    // (anim-rework S4) crouched holstered: down into the squat (the hands onto the knees), its idle, the sneak, the crouch
+    // walk and run, a stop back into the squat, up to standing
+    'crouched holstered': () => {
+      tp(0, -14, Math.PI / 2);
+      p.stance.holster();
+      runLimbs(0.6);
+      st.tap('crouch');
+      const parts = [runLimbs(3.0), runLimbs(1.5, () => move(0, 0.4)), runLimbs(1.5, () => move(0, 0.8)), runLimbs(1.2, () => move(0, 1))];
+      move(0, 0);
+      parts.push(runLimbs(1.5));
+      st.tap('crouch');
+      parts.push(runLimbs(1.0));
+      const r = parts[0];
+      for (const r2 of parts.slice(1)) {
+        r.n += r2.n;
+        r.log.push(...r2.log);
+        for (const k of ['minLimb', 'minKnees', 'minFeet']) r[k] = Math.min(r[k], r2[k]);
+      }
+      return r;
+    },
+  };
   const S = {
     'aim every weapon': () => { tp(0, -14, Math.PI / 2); const acc = run(0.1); for (let i = 0; i < g.weapons.slots.length; i++) { st.tap('swapNext'); run(1.2); st.set('t', 'ads', true); const r = run(1.6, (t) => { p.cam.pitch = -0.7 + t * 0.9; }); st.set('t', 'ads', false); for (const k of ['n', 'wall', 'leg']) acc[k] += r[k]; acc.maxPen = Math.max(acc.maxPen, r.maxPen); acc.minLeg = Math.min(acc.minLeg, r.minLeg); acc.minHead = Math.min(acc.minHead, r.minHead); acc.minChest = Math.min(acc.minChest, r.minChest); if (r.chestAt !== undefined && r.minChest <= acc.minChest) acc.chestAt = r.chestAt; acc.log.push(...r.log); } p.cam.pitch = 0; return acc; },
     'aim walking + crouched': () => { tp(0, -14, Math.PI / 2); st.set('t', 'ads', true); const r1 = run(1.5, () => move(0.7, 0.7)); st.tap('crouch'); const r2 = run(1.5, () => move(-0.7, 0.5)); st.set('t', 'ads', false); r1.n += r2.n; r1.minHead = Math.min(r1.minHead, r2.minHead); r1.minChest = Math.min(r1.minChest, r2.minChest); r1.minLeg = Math.min(r1.minLeg, r2.minLeg); r1.wall += r2.wall; r1.leg += r2.leg; return r1; },
@@ -162,6 +221,12 @@ const res = await page.evaluate(([only, log]) => {
     out.push({ name: k, trav: true, ...r, text: `${k.padEnd(22)} frames ${String(r.n).padStart(3)}  body ${String(r.body).padStart(3)} (max ${(r.maxBody * 100).toFixed(1)} cm)  knees ${(r.minKnees * 100).toFixed(1)} feet ${(r.minFeet * 100).toFixed(1)}` + (r.log.length ? '\n  ' + r.log.join('\n  ') : '') });
   }
   g.traversal.reset();
+  for (const [k, f] of Object.entries(L)) {
+    if (only && !k.includes(only)) continue;
+    const r = f();
+    move(0, 0); st.releaseAll();
+    out.push({ name: k, limb: true, ...r, text: `${k.padEnd(22)} frames ${String(r.n).padStart(3)}  arms vs thighs / trunk min ${(r.minLimb * 100).toFixed(1)} cm  knees ${(r.minKnees * 100).toFixed(1)} feet ${(r.minFeet * 100).toFixed(1)}` + (r.log.length ? '\n  ' + r.log.join('\n  ') : '') });
+  }
   for (const [k, f] of Object.entries(S)) {
     if (only && !k.includes(only)) continue;
     const r = f();
@@ -172,6 +237,12 @@ const res = await page.evaluate(([only, log]) => {
 }, [only, log]);
 for (const r of res) {
   console.log(r.text);
+  if (r.limb) {
+    assert(r.n > 0 && r.minLimb > -0.03, `${r.name}: the arms and hands never go through the thighs or the trunk (min ${(r.minLimb * 100).toFixed(1)} cm)`);
+    assert(r.minKnees > 0.09, `${r.name}: the knees never knock through each other (min ${(r.minKnees * 100).toFixed(1)} cm apart)`);
+    assert(r.minFeet > 0.06, `${r.name}: the feet never cross through each other (min ${(r.minFeet * 100).toFixed(1)} cm apart)`);
+    continue;
+  }
   if (r.trav) {
     assert(r.body === 0, `${r.name}: no part of the body goes into the world (${r.body} frames, max ${(r.maxBody * 100).toFixed(1)} cm)`);
     assert(r.minKnees > 0.09, `${r.name}: the knees never knock through each other (min ${(r.minKnees * 100).toFixed(1)} cm apart)`);

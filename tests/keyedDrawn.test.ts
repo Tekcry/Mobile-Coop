@@ -38,8 +38,8 @@ describe('the glide steps (GLIDE_STEP)', () => {
     expect(stepLength(v, MOVEMENT, 1, 0, 0, 0, 0)).toBeCloseTo(stepLength(v) * 0.6, 9);
     expect(stepLength(1.05, MOVEMENT, 0, 0, 0, 1, 1)).toBeLessThan(0.36);
     expect(stepLength(1.4, MOVEMENT, 0, 0, 0, 0, 1)).toBeCloseTo(GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * 1.4, 9);
-    // crouched aiming keeps the old steps (slice 4)
-    expect(stepLength(0.6, MOVEMENT, 1, 0, 1, 0, 1)).toBeCloseTo(stepLength(0.6, MOVEMENT, 1, 0, 1), 9);
+    // (anim-rework S4) crouched aiming glides too: the same short side-step
+    expect(stepLength(0.6, MOVEMENT, 1, 0, 1, 0, 1)).toBeCloseTo(GLIDE_STEP.lat0 + GLIDE_STEP.latK * 0.6, 9);
     // the aimed full-stick strafe keeps a believable cadence (steps a second)
     const sp = MOVEMENT.adsSpeed * MOVEMENT.strafeMult;
     expect(sp / stepLength(sp, MOVEMENT, 1, 0, 0, 0, 1)).toBeLessThan(7);
@@ -78,14 +78,18 @@ describe('the graph plays the drawn set', () => {
     expect(aim.stance.lZ - aim.stance.rZ).toBeGreaterThan(0.15);
     expect(aim.keyKneeOut).toBeCloseTo(KEYED_READY_STANCE.kneeOut, 3);
   });
-  it('aiming the strafe: the glide strafe values, mirrored to the left without a jump; crouched or holstered: not the drawn set', () => {
+  it('aiming the strafe: the glide strafe values, mirrored to the left without a jump; holstered: not the drawn set; (S4) crouched the crouched legs', () => {
     const r = steady((i) => ((i.speed = 0.7), (i.raise = 1), (i.localX = 1), (i.localZ = 0)));
     expect(r.g.out.keyDrawn).toBeGreaterThan(0.95);
     expect(r.g.out.keyKneeOut).toBeCloseTo(GLIDE.kneeOutSide, 2);
     const l = steady((i) => ((i.speed = 0.7), (i.raise = 1), (i.localX = -1), (i.localZ = 0)));
     expect(l.g.out.keyDrawn).toBeGreaterThan(0.95);
     expect(l.maxStep).toBeLessThan(0.01);
-    expect(steady((i) => ((i.speed = 0.7), (i.raise = 1), (i.crouch = 1))).g.out.keyW).toBe(0);
+    // (anim-rework S4) crouched aiming: the drawn set on the crouched clips' legs (their knee pole, the procedural gun upper body)
+    const c = steady((i) => ((i.speed = 0.7), (i.raise = 1), (i.crouch = 1)));
+    expect(c.g.out.keyW).toBeGreaterThan(0.95);
+    expect(c.g.out.keyDrawn).toBeGreaterThan(0.95);
+    expect(c.g.out.keyTrunk).toBeLessThan(0.05);
     expect(steady((i) => ((i.speed = 0.7), (i.keyedDrawn = false), (i.armed = false), (i.ready = true))).g.out.keyDrawn).toBe(0);
   });
 });

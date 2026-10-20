@@ -3433,6 +3433,12 @@ body.photo-mode .mouse-capture-hint,
 body.photo-mode .screens > .screen:not(.photo-screen) {
   display: none !important;
 }
+/* (tuner-camera) the animation tuner's "hide HUD": the game HUD goes, the tuner stays */
+body.tune-hide-hud .hud,
+body.tune-hide-hud .hud-world,
+body.tune-hide-hud .mouse-capture-hint {
+  display: none !important;
+}
 .photo-screen {
   background: none !important;
 }

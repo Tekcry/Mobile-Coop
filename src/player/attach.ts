@@ -3,6 +3,7 @@ import { anchorLength, ductPoint, hangPoint, HANG, type Anchor, type AttachEntry
 import { SPLIT, type PipeMode } from './splitJump';
 import { FENCE, RAPPEL } from '../config/movement';
 import { hyp2 } from '../core/mathx';
+import { speedAttachMul } from './speedTune';
 /**
  * Attached locomotion (pure: no Babylon/DOM), unit-tested.
  *
@@ -434,7 +435,8 @@ export class AttachMachine {
     } else {
       // a slight hold while still settling onto the anchor (the hands find their grips first)
       const gate = this.phase === 'enter' ? Math.min(1, this.t / (this.enterDur * 0.5)) : this.phase === 'exit' ? 0 : 1;
-      target = axis * (rate ?? sp.speed) * gate;
+      // (tuner-camera) the tuner Speed section (the local traversal's machine), x1 by default
+      target = axis * (rate ?? sp.speed * speedAttachMul(this.kind)) * gate;
       if (rate !== undefined) accel = Math.max(accel, rate * 6);
     }
     const dv = target - this.v;

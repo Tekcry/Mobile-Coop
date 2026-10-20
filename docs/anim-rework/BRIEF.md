@@ -193,3 +193,6 @@ Holding a guard (M5)
 - A5 Aimed strafe speed (slice 3, CT Core 2026-10-20): `strafeMult` 0.9 -> 0.5, so the aimed strafe is 0.7 m/s at full
   stick (was 1.26). At 1.26 m/s a believable shuffle step that never crosses the feet is not possible. Undo: set
   `strafeMult` back in `src/config/movement.ts` (a crossover step at speed would then be needed).
+- A6 Crouched holstered idle (slice 4, CT Core 2026-10-21): holstered and still while crouched, Wren holds a balanced
+  squat with both palms on top of the knees (the keyed `crouch_idle`) instead of the one-knee kneel; with a gun out she
+  still kneels. Undo: `KEYED_CROUCH.squat = false`.
