@@ -2,7 +2,8 @@
 
 ## Unreleased - e2e-pad-fix
 - e2e-pad's pause menu walk steps over "Animation tuner (dev)" (added before Quit by the anim-tuner job); "focus Quit"
-  failed every run, hidden by KNOWN FLAKY. Test only.
+  failed every run, hidden by KNOWN FLAKY. analogGear "allocates nothing per update" warms up and takes the smallest of
+  three passes (a single pass read 3.5 MB on a loaded CI runner). Test only.
 
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
