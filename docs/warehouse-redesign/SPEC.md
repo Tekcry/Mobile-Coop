@@ -1,15 +1,15 @@
-# Warehouse - Sector Ops redesign spec (step 3) - DRAFT
+# Warehouse - Sector Ops redesign spec (step 3)
 
-Spec writer, 2026-10-20. Stopped early: the account is close to its limit and the job lead paused the job for the night.
+Spec writer, 2026-10-20 (final, 2026-10-20 afternoon).
 
-**State of this draft**
-- Done: the building (1), section 1's design (2.1), engine fit (3), loosenings (4, also in BRIEF), the decisions the
-  job lead must make (6).
-- Mostly done: the section 1 build sheet (5). Every coordinate is worked out, but **nobody has checked it against
-  the code or run the checks**. The implementer must confirm every call signature (levelBuilder.ts:124-394), then run
-  `npm test` (the sectors, sectorStep3 and rooms suites) and `e2e-sectorops` before calling it done.
-- Outline only: sections 2 and 3 (2.2, 2.3). They stay as built tonight (M2).
-- Missing: the element register (cut, loosening L9), and the ASCII plan has no scale.
+**State**
+- Final: the building (1), all three sections' designs (2.1-2.3), co-op extras (3), loosenings (4, also in BRIEF),
+  the decisions (6, all decided: BRIEF A2-A7).
+- The section 1 build sheet (5) is what the step 4 implementer builds. The implementer confirms every call signature
+  (levelBuilder.ts:124-394), then runs `npm test` (the sectors, sectorStep3 and rooms suites) and `e2e-sectorops`.
+- Sections 2 and 3 have designs and short build notes, no build sheets: they are built later and stay as built
+  until then (M2, A5).
+- Cut: the element register (L9). The ASCII plan has no scale.
 
 Authority: BRIEF M1-M4. Inputs: REVIEW.md (`W` = warehouse.ts, `O` = warehouseOps.ts, `S` = warehouseSectors.ts,
 `LD` = docs/level-design.md). Frame: x runs west to east, z south to north (+z is north), y is up, all in metres.
@@ -155,56 +155,254 @@ the archetype speed plus pauses. Today sectorMode passes only `wait`, so `waits`
 **Connector.** C2 box [-16.25, -8.55, -12.75, -6.25], checkpoint (-14.5, 0, -7.2, yaw 0), label "Into the fire
 lobby". Reinforcements come in at the gate: (5.0, -25.0) and (8.0, -25.0), 2 per stage.
 
-### 2.2 Section 2 - Storage hall (outline; stays as built tonight)
-- Real racking: double rows 2.3 m deep, 4.5 m tops, running north-south.
-  - Wall row x -24 to -22.9; aisle A1 3.0 m.
-  - Row R1 x -19.9 to -17.6.
-  - **VNA aisle A2, 1.8 m (split jump: racks over 3.6 m, 1.2-1.95 m apart).**
-  - Row R2 x -15.8 to -13.5; aisle A3 3.0 m.
-  - Row R3 x -10.5 to -8.2.
-  - East gangway 4.2 m.
-  - Gangways south (z -6 to -3), north (z 15 to 18) and a cross aisle (z 4 to 7). No fixed ladders: two rolling
-    platform ladders (`ladder` 0 to 4.5) at rack ends.
-- Objective: the case in a mesh cage (`fence`) at the north-west end.
-- High route: rack tops, plus sprinkler mains at y 6.1 across the aisles (1.6 m above the tops, hand over hand).
-- Co-op: boost onto any rack top (4.5).
-- Lights: lamps over the gangways, aisles dark.
-- Guards (about 9, no heavy; replace S:89's heavy with an enforcer):
-  - reach-truck driver (C2 to the cross aisle)
-  - stocktaker (U-route A1 north, A3 south)
-  - cage officer (post)
-  - tour guard (gangway loop clocking the west fire exit)
-  - two pickers (north gangway)
-  - battery-room grunt
-- C3 stays the "stock control office" (O:43, S:69-76).
-- Needs loosening L11 (entry vantage per aisle).
+### 2.2 Section 2 - Storage hall (design; built later, stays as built until then)
 
-### 2.3 Section 3 - Assembly hall, mezzanine and rear offices (outline; stays as built tonight)
-- The mezzanine becomes a steel deck at 3.3 on columns at 4 m along z 12, over the whole rear block, with offices
-  under it at the west and parts storage at the east.
-- Rails are visual-only (guards never drop over 2.2 m). Add a two-flight stair (0.183 / 0.28) and a pallet gate.
-- The hack terminal moves into an enclosed goods-out office on the deck.
-- Crane runway walkway along z -8.8 at 3.0, mirroring section 1's catwalk. A sprinkler main runs from the plant
-  room at 5.0.
-- The plant room (south-east) gets 2 doors, and an HVAC duct (auto-crawl allowed, G56: it starts in the plant shaft)
-  to a grille over the manager's office.
-- Extraction moves to the east fire-exit lobby (the freight lift is retired).
-- Stores cage as mesh.
-- Remove the indoor sniper (S:132) and the heavies (S:127, S:134).
-- Guards (about 10):
-  - line supervisor
-  - fitter at the press
-  - crane operator (walks with the pendant)
-  - stores officer
-  - plant engineer's round
-  - goods-out clerk (post on the deck)
-  - deck loader
-  - manager (post)
-  - tour guard clocking the east fire exit
-  - forklift driver
+**Brief.** The racked stock hall behind the goods-in bay, x -24 to -4, z -6 to 18 (20 x 24 m), inside its own fire
+compartment. The night shift puts away the evening's delivery, counts stock and picks trade orders for the 06:00
+counter. The high-value cage holds the case.
 
-## 3. Co-op extras (section 1)
+**Layout** (racks run north-south; solid greybox blocks, beams visual; tops 4.0, so 1.8 m under the roof sheet).
+- Gangways: south (the marshalling lane, z -6 to -3), cross aisle (z 4 to 7), north (z 15 to 18). Rack blocks run
+  z -3 to 4 (south) and z 7 to 15 (north).
+- Across x: wall row W0 x -24 to -22.9 (single depth); aisle A1 3.0; row R1 x -19.9 to -17.6; **VNA aisle A2 1.8 m**
+  (x -17.6 to -15.8, pedestrians barred, a beam sensor at its north mouth; the split jump fits: faces over 3.6 m,
+  1.8 apart); row R2 x -15.8 to -13.5; aisle A3 3.0; row R3 x -10.5 to -8.2; east gangway x -8.2 to -4 (4.2).
+- High-value cage: mesh (`fence`, 2.4 high, open top under the sprinklers), x -24 to -19.9, z 12 to 18. It takes W0's
+  north end and A1's north end. South gate (-21.4, 12) locked; east gate (-19.9, 16.5) is the issue point. Inside: a
+  stock ladder (0 to 4.0) against W0's north face at (-23.45, 12.25), shelving along the west wall.
+- Staged delivery (wrapped, 1.8 high) along the lane's north side: x -21.4 to -18.0 and x -11.0 to -8.4,
+  z -4.5 to -3.3. It leaves A1 (1.5 m), A2, the C2 door and A3 open.
+- Charge bay (open) on the x -4 wall at the south-east, chargers at (-4.6, -5.2), empty-pallet stack
+  `block(-6.0, -2.8, 1.6, 2.0, 1.2)`.
+- Goods-out corner by the C3 door: wrapper at (-6.0, 17.2), wrapped stack `block(-9.0, 16.6, 1.2, 1.8, 1.2)`.
+- West fire exit (x -24, z 5.5) on the cross aisle: a clocking point. Locked from outside; an unlocked leaf is not
+  used here because the gable is the map edge (E7).
+- Services: the hall's sprinkler riser `pipeV(-23.7, 6.75, 0, 5.0)` beside the exit. The cross main
+  `pipeH(-23.7, 6.4, -6.0, 6.4, 5.0)` runs over the cross aisle, 0.6 m off the north blocks' south faces. The north
+  branch `pipeH(-6.0, 6.4, -6.0, 15.4, 5.0)` runs over the east gangway.
+
+**Objective.** Grab the case on the cage shelving at (-23.0, 0, 15.0).
+
+**Entry and exit.**
+- Entry: C2's far door (-14.5, -6) into the middle of the marshalling lane. The checkpoint stays (-14.5, 0, -7.2, yaw 0).
+- Exit: C3, the stock control office (unchanged, O:43, S:69-76). Near door (-4, 14.55), far door (-0.95, 12).
+- The objective is north-west and the exit north-east, so the way out crosses the hall's north end or goes over it.
+  It is a different line from the way in.
+
+**Critical path.** Lane, an aisle north, the cage, the north gangway or the mains east, the C3 door.
+
+**Routes.**
+
+| # | Kind | Way in | Way out |
+| --- | --- | --- | --- |
+| R1 | Ground / shadow | West behind the staged pallets, up A1 behind the stocktaker (cam-rack-sw sweeps it), take him or wait at the cage's south fence, climb the fence (dark, R1 screens the cage desk) | Over the fence, the cross aisle east, up A3 (the reach driver's face, dark), the north gangway east with the cage officer's back to you, the C3 door |
+| R2 | High | Rolling ladder on R2's north block in the cross aisle, R2 top, jump the 1.8 m A2 gap to R1, along R1 north, hang-drop into the open-topped cage | The cage's stock ladder to W0's top, south to its end, the cross main (riser tee), hand over hand east over the cross aisle, the north branch, drop at (-6.0, 15.4) by the C3 door |
+| R3 | Service (VNA) | Straight up A2, where no pedestrian goes. Split-climb over the beam at the north mouth, then drop onto the cage officer (or take him at the desk) and go in through the east gate | The north gangway east, the C3 door (cam-rack-ne: time the sweep or jam it) |
+| Loud | - | Shoot the lane lamp and run A3; force the cage gate | - |
+
+**Loops.** Lane, A1, cross aisle, A3, lane. Cross aisle, east gangway, north gangway, A3. Cage (two gates and an open top).
+
+**Stealth tools.**
+- Pipes: the riser (solo way up to 5.0), the cross main and the north branch (5.0, over open floor only).
+- Rack tops (4.0): reached solo by two rolling ladders (`ladder` 0 to 4.0, fixed in the greybox) at R3's south end
+  (-9.35, -3.25) and R2's north block in the cross aisle (-14.65, 6.75), the riser, or the cage ladder. Co-op: a boost
+  anywhere.
+- Split jump: A2, along its whole length. It is a hide over the VNA beam and a drop on the cage officer.
+- Fence climb: the cage (CT fence climb; mesh does not block sight).
+- Dark: every aisle, the cross aisle, the rack tops, the lane's east half, the charge bay.
+- Lit:
+  - Lane work lamp (-19.5, 5.05, -4.6), radius 6. The C2 door sits at its east edge.
+  - Issue desk (-17.0, 2.6, 17.4), radius 4.
+  - Green exit signs, intensity 0.4: west exit (-23.6, 2.4, 5.5), C3 door (-4.6, 2.4, 14.55), charger (-4.6, 1.5, -5.5).
+  - Switches by the C2 door and the issue desk.
+- Devices (counts stay 2 cameras, 1 laser; ids kept, moved):
+  - `cam-rack-sw` at (-23.6, -5.6), y 2.8, facing 15, sweep [0, 40]: up A1.
+  - `cam-rack-ne` at (-4.4, 17.6), y 2.8, facing 255, sweep [235, 285]: the north gangway and the C3 door.
+  - `laser-north-aisle`, now the VNA aisle sensor: (-17.55, 14.8) to (-15.85, 14.8).
+  - Alarm panel unchanged (-4.15, 1).
+- Vantages (L11): the C2 door (the lane), A2's south mouth (A2 and the cross aisle), the riser foot (A1 and the cross
+  aisle), R2's north top (A3, the cage desk, the east gangway). Every guard reads from at least one.
+
+**Guards** (8; no heavies, dogs or snipers, G155: S:89's heavy is gone. Walk speeds: grunt 0.9, officer 0.85,
+enforcer 0.8, runner 1.3).
+
+| # | Kind | Post / route | Reason | Cycle | Isolation moment |
+| --- | --- | --- | --- | --- | --- |
+| 1 checker | enforcer | (-21.0, -5.0) to (-9.6, -5.0), waits 5, 5 | Team leader: checks the staged delivery against the put-away list | about 39 s | West end, behind the west pallet row, while the driver is up A3 and the stocktaker is at A1's north end (15.6 m) |
+| 2 reachDriver | grunt | (-12.0, -4.2) to (-12.0, 10.5), waits 6, 5 | Puts the staged pallets away into A3's north locations | about 44 s | A3 north end, dark, with R2 and R3 on both sides, while the tour guard is south |
+| 3 stocktaker | officer | (-21.4, 1.0) to (-21.4, 11.0), waits 5, 5 | Cycle count of W0 and R1 bays from A1 | about 34 s | A1 north end at the cage's south fence. R1's north block screens the cage desk (static) |
+| 4 cageOfficer | officer | Post (-17.0, 16.8), yaw -pi/2, at the issue desk facing the gate | Keyholder: issues high-value stock to the pickers | post | While the picker is in the south half; R1-R3's north blocks screen the aisles |
+| 5 picker | grunt | (-7.0, 16.0) to (-7.0, 1.0), waits 4, 4 | Picks the 06:00 trade orders from R3's east face to the goods-out corner | about 41 s | South end. R3's south block and the empty-pallet stack screen the lane and the charge bay; the loader is 15.6 m off |
+| 6 tourGuard | runner | Loop (-21.4, 5.5), (-12.0, 5.5), (-12.0, -4.6), (-12.0, 5.5); waits 4, 0, 4, 0 | Security tour: clocks the west fire exit and the C2 lobby door | about 38 s | Passing the dark A2 mouths in the cross aisle: taken from inside A2 |
+| 7 chargeHand | grunt | Post (-5.0, -5.2), yaw pi/2, at the chargers | Night battery change for the reach and picking trucks | post | While the checker is at the west end (16 m) and the driver up A3; the stack screens the picker |
+| 8 loader | grunt | Post (-6.0, 16.6), yaw 0, at the wrapper | Wraps and labels the picked orders for C3 | post | While the picker is at his south end; the wrapped stack screens the cage officer |
+
+- Cycles are within LD 4.3 (25-45 s). Overlap is on purpose (LD 4.5): the checker and the driver share the lane, the
+  tour guard and the driver share A3, the picker and the loader share the goods-out corner.
+- M8 passes with C1 (A2). The build runs C1; where a window is missing, it moves a wait or a post (up to 2 m), never
+  geometry.
+
+**Connector.** C3 unchanged: box [-3.6, 12.4, 1.6, 17.6], checkpoint (-1.2, 0, 14.8, yaw PI), label "Into the
+office", `sealUnlocks` the manager's door. Reinforcements come in at the west fire exit (-22.5, 5.5) and the charge
+bay (-6.2, -5.0), 2 per stage.
+
+**Engine fit and fallbacks.**
+- Rolling ladders do not roll: they are fixed `ladder`s parked at rack ends.
+- Rack tops at 4.0 leave 1.8 m under the roof sheet. If the standing capsule clips, drop the tops to 3.8. Then the solo
+  wall jump (3.8) also reaches them, which is harmless.
+- Jump-grab from a rack top to `pipeH` (1.0 up, 0.6 out): if it is not built, the riser and W0's south end are the
+  only ways onto the mains.
+- The 1.8 m rack-top jump over A2: if it falls short, add a third ladder on R1.
+- Fence climb-over at 2.4 and the riser's step-off onto W0's top (4.0): confirm both. Fallback: a gap in the cage
+  roof line and a ladder.
+
+**Build notes.**
+- `buildWarehouse` gets an option to skip the base racking (W:228-252) and the S2 pieces in O:53-66 (ladders, planks,
+  pocket loads).
+- The x -4 wall becomes a full-height compartment wall (6.0, with a 1.5 m parapet like z -6) from z -6 to 18. It
+  keeps the C3 near door.
+- Rooms: `storage` (the hall) and `hvCage`. `SECTION_ROOMS[1]` follows them (sectorStep3.test.ts).
+- Guards to the table, with `waits`, `faces` and `takedownSpot` at each isolation spot (N1, A3). The S1 test bound
+  "no more than section 2's" holds at 8 = 8.
+- `e2e-sectorops`: three routes for section 2 (R1-R3 above), with every pipe, ladder, split, fence and drop leg in
+  `climbs`.
+
+### 2.3 Section 3 - Assembly hall, mezzanine and rear offices (design; built later, stays as built until then)
+
+**Brief.** The kit assembly hall, x -4 to 24, z -8.8 to 18, its own compartment behind the workshop. The night line
+presses and kits pump sets for the morning. The rear block (z 12 to 18) is a steel mezzanine at 3.3 over the
+offices (west) and the parts store (east). The production office on the deck holds the terminal. The way out is
+the east fire exit.
+
+**Layout.**
+- Mezzanine: deck slab top 3.3 (underside 3.0) over x -4 to 24, z 12 to 18, on columns (r 0.15) at 4 m along z 12.
+  Rails visual only. Guards never drop over 2.2, so the edge is a nav cliff and a hang lip.
+  - Under the deck: the stock control office C3 (x -4 to 2) and the manager's office (x 2 to 8), both with walls up
+    to the deck. The parts store (x 8 to 24) has shelving rows (2.0 high, `noLedge`) at z 13.2-13.8 and 16.2-16.8,
+    x 8.5 to 15.0.
+  - On the deck: archive racking (2.0) at x 4 to 8, z 15 to 17.6. The production office x 16 to 24, z 14.5 to 18,
+    walls to the roof, door west (16, 16.3), window south (19.0, sill 0.9). Pallet gate x 12.5 to 14.5.
+  - Ways up: the east stair, two flights of 9 (0.183 / 0.28), x 22.2 to 23.4, z 5 to 12, landing z 7.5 to 9.5. A
+    caged escape ladder at the west end (-3.4, 11.7). The forklift parked under the pallet gate, block (13.5, 10.8),
+    overhead guard 2.2. The office fronts (z 12, x -4 to 8): a wall below the lip, so a solo wall jump.
+- Floor:
+  - Press cell: the press, block (6, 1), 3.3 high.
+  - East cell: machines at (14, -2.5) and (14, 3.5).
+  - Packing line: the conveyor, block (4, 8.6), x -1 to 9.
+  - Remove the five pillars (single span, section 1) and O:72-85's pocket walls.
+- Stores cage (mesh 2.4), x 0 to 6, z -8.8 to -4.0. Counter gate (3.0, -4.0). Shelving (2.0) along its east fence at
+  x 5.4 to 5.9.
+- Crane: a bridge girder (visual, y 5.0-5.4) parked at x 11, on runways along z -8.2 and z 11.6. The south runway
+  has a maintenance walkway at 3.0, z -8.65 to -7.45, x -3.6 to 15.8, with a caged ladder at (-3.4, -7.1). Die rack
+  under it at (11.0, -8.2).
+- Plant room x 16 to 24, z -5.6 to -1.0. Walls 3.6, roof top 3.8. Doors west (16, -3.3) and north (20.0, -1.0). It
+  holds the hall's sprinkler valve set and the office AHU with its riser shaft. An internal ladder goes to a roof
+  hatch at (21.0, -2.0).
+- East fire-exit lobby x 16 to 24, z -8.8 to -5.6. Walls 3.0, roof top 3.2. Fire door west (16, -7.2), exit door
+  east (24, -7.2). A roof access hatch at (22.5, -7.2), drop-only (A7). The freight lift is retired.
+- Services:
+  - The hall main rises from the valve set through the plant-room roof and runs north,
+    `pipeH(17.0, -1.0, 17.0, 12.8, 5.0)`, to the mezzanine (sprinklers under the deck).
+  - The office supply duct: auto-crawl, G56, it starts in the riser shaft. Grate at (23.5, 0.5, -1.6), up the shaft
+    to 4.7, north along x 23.75 (beside the stair) to z 14.8, exit grille high in the office's south-east corner
+    (23.6, 4.8, 14.8). About 21 m.
+  - The old manager's-office duct (W:303) and the zipline (W:286) go: neither has a building reason.
+
+**Objective.** Hack the production terminal at (22.4, 3.3, 17.3), in the office on the deck.
+
+**Entry and exit.**
+- Entry: C3's far door (-0.95, 12) onto the floor's north-west corner, under the deck edge. The checkpoint stays
+  (-1.2, 0, 14.8, yaw PI).
+- Exit: extraction in the east fire-exit lobby, box [21.4, -8.5, 23.7, -5.9], "Extract by the east fire exit".
+- The objective is north-east, up, and the exit south-east, down: the way out is a fresh line across the hall or
+  over it.
+
+**Critical path.** C3 door, east under or along the deck, up to the deck, the office, down, south to the lobby.
+
+**Routes.**
+
+| # | Kind | Way in | Way out |
+| --- | --- | --- | --- |
+| R1 | Ground / ledge | East along the conveyor's south side (the porter walks its north side), into the dark parts store. Climb the parked forklift's overhead guard (2.2), hang on the deck lip at x 14.5, shimmy east under the x 15.5 beam, climb up at x 16.5, office door | Office door, hang-drop off the deck edge (x 19-21) into the dark east bay, round the plant room's west side to the lobby door (the tour guard's south end) |
+| R2 | High | South along the dark west strip, the walkway ladder, the walkway east over the stores officer and the crane operator (hang-drop attacks), the lobby roof, the plant-room roof (3.8), jump to the main at its north end, hand over hand north over the floor, drop on the deck at (17, 12.8), the office's south window | The window, the main back south, the plant-room roof, the lobby roof, drop through its hatch into the lobby |
+| R3 | Service (duct) | The manager's office (unlocked when C3 seals), its floor door (5.15, 12), south past the press (the fitter faces it), the plant room's west door (the engineer's panel), the shaft grate, the duct north, out of the grille behind the clerk | The duct back down (two-way), the plant room's west door, the lobby door |
+| Loud | - | Break the office window from the main, or rush the stair through the beam | - |
+
+**Loops.** Floor and deck by four ways (stair, forklift and pallet gate, west ladder or office-front wall jump, the
+main). Walkway, lobby roof, plant roof, main, deck, floor. The plant room's two doors.
+
+**Stealth tools.**
+- Pipes: the hall main (5.0, over open floor only).
+- Duct: the office supply duct (the only auto-crawl, G56).
+- Hatches: the lobby roof hatch (drop), the plant-room roof hatch (ladder, two-way).
+- Ledges with a reason:
+  - The deck edge (3.3). On columns: a co-op lip; over the office fronts: a solo wall jump. It is the shimmy line
+    under the office beam.
+  - The walkway edge (3.0): co-op, no wall below.
+  - The plant-room roof (3.8) and the lobby roof (3.2): solo wall jump.
+- Dark: under the deck, the parts store, the west strip, the south strip under the walkway, the east bay, the deck's
+  west end.
+- Lit:
+  - Press cell (5, 5.05, 1) r 7; east cell (12, 5.05, 0) r 7; packing end (8, 5.05, 8.5) r 6.
+  - Cage counter (3.5, 2.8, -6.0) r 4.
+  - Plant room (20, 3.3, -3.3) r 4, switch by its west door.
+  - Production office (19, 5.0, 16.5) r 4: monitor glow, spills through the window onto the deck strip.
+  - Green signs, intensity 0.4: the stair head (22.8, 5.4, 12.2) and the lobby (22, 2.6, -7.2).
+- Devices (counts stay 3 cameras, 2 lasers; ids kept, moved):
+  - `cam-floor` at (23.6, -0.8), y 4.0, facing 300, sweep [270, 330]: the east bay and the plant room's doors.
+  - `cam-stairs` at (23.6, 11.6), y 2.6, facing 225: the stair and the parts store front.
+  - `cam-mezz` at (-3.6, 17.6), y 5.4, facing 100, sweep [80, 120]: along the deck from its west end.
+  - `laser-deck-stairs` across the stair head, (22.2, 12.3) to (23.4, 12.3), floorY 3.3.
+  - `laser-deck-west`, now across the deck at x 15.5 from z 12.05 to 17.85, floorY 3.3. It shuts the deck's west half
+    off from the office. The main, the window, the duct and the shimmy pass it.
+  - Alarm panel unchanged (-3.85, 6).
+  - `levels.mezz` becomes 3.3.
+
+**Guards** (9; no heavies, dogs or snipers, G155: S:127's and S:134's heavies and S:132's sniper are gone).
+
+| # | Kind | Post / route | Reason | Cycle | Isolation moment |
+| --- | --- | --- | --- | --- | --- |
+| 1 supervisor | officer | Loop (14.0, 4.5), (16.0, 12.8), (12.0, 15.0), (16.0, 12.8); waits 5, 0, 4, 0 | Line supervisor: pulls parts from the store for the next kit | about 42 s | Behind the first shelving row in the parts store: the deck above, the row in front |
+| 2 fitter | grunt | Post (7.6, 1.0), yaw -pi/2, at the press | Runs the press | post | The press screens the cage and the walkway side, while the supervisor is in the store |
+| 3 craneOperator | grunt | (8.0, -6.8) to (14.0, -6.8), waits 6, 6, with the pendant | Moves dies from the die rack to the press | about 25 s | West end under the walkway (hang-drop). The cage shelving screens the stores officer; the tour guard is north |
+| 4 storesOfficer | officer | (5.0, -4.6) counter to (0.6, -8.2) back shelves, waits 6, 6 | Issues parts at the cage counter, restocks | about 25 s | Back shelves, the cage's dark south-west corner; the shelving and the press screen the floor |
+| 5 plantEngineer | grunt | Loop (18.5, -3.3) panel, (20.0, -0.2), (15.2, -0.2), (15.2, -3.3); waits 6, 2, 2, 2 | Hourly plant check: the valve set, the AHU, both doors | about 28 s | At his panel inside the plant room (walls, static). R3 starts here |
+| 6 deckLoader | grunt | (13.5, 13.2) to (3.0, 13.2) on the deck, waits 5, 4 | Lifts kit parts in at the pallet gate and stages them on the deck | about 32 s | The west staging over the offices; the archive racking screens the office. cam-mezz watches it |
+| 7 clerk | officer | Post (18.2, 17.0) on the deck, yaw pi, facing the window | Writes up the shift's job cards | post | Inside the office. The walls screen everyone but the window; take him from the duct grille |
+| 8 tourGuard | runner | Loop (15.0, -7.2) lobby door, (15.0, 0.0), (21.5, 4.6) stair foot, (15.0, 0.0); waits 4, 0, 4, 0 | Security tour: clocks the east fire exit and the mezzanine stair | about 31 s | Stair foot, in the dark east bay; the plant room screens the south |
+| 9 kitPorter | enforcer | (8.0, 9.6) to (-1.5, 9.8), waits 5, 5, on the conveyor's north side | Pallet-trucks finished kits to C3 for storage | about 34 s | West end by the C3 door under the deck edge, while the loader is at the pallet gate |
+
+- Cycles 25-45 s (LD 4.3). Overlap on purpose: the engineer and the tour guard at the plant room's west side, the
+  crane operator and the tour guard at the lobby door.
+- The porter's west end is 2 m from the C3 door: the entry moment is a wait in the office (the checkpoint) for his walk
+  east.
+- M8 with C1 (A2), as in 2.2.
+
+**Extraction.** As above. Reinforcements: (-2.5, 10.5), (22.5, 6.5), (13, -7.0), 3 per stage.
+
+**Engine fit and fallbacks.**
+- The window entry (closed `windowAt`): if a climb-through needs `open: true`, set it open.
+- The deck-lip shimmy under the beam (ys 0.35-1.45 over 3.3, body below 3.3): confirm. Fallback: the jammer.
+- A 21 m auto-crawl: if it plays long, start the shaft at the plant room's north wall (shorter run, still in the shaft).
+- The duct exit grille high in a wall (drop 1.5): if a wall exit must be at floor level, put it at y 3.6.
+- Jump-grab from the plant-room roof to the main: if it is not built, add a `pipeV` stub from the roof to the main.
+- Nav: floor, deck, plant and lobby roofs are 3 layers at most.
+- One-way fire doors (E7): the lobby's fire door is an unlocked leaf, the exit door locked (visual).
+
+**Build notes.**
+- `buildWarehouse` gets an option to skip the base floor contents: the pillars, the solid mezzanine block (W:275), the
+  rails, the zipline, the duct (W:303), the pipe (W:398) and the stairs (the plain map keeps all of them). Ops also drops
+  O:72-85.
+- The deck, offices, plant room, lobby, walkway, cage and services go into a new `warehouseS3.ts` (like `warehouseS1.ts`).
+- Section data: objective y 3.3; guards on the deck get y 3.3; laser floorY 3.3; extract box and label as above.
+- Rooms: `assembly`, `mezzDeck`, `prodOffice`, `partsStore`, `plant`, `fireLobby`, `stores`, plus the C3 office and
+  the manager's office. `SECTION_ROOMS[2]` follows.
+- `e2e-sectorops`: three routes (R1-R3 above), with the forklift, shimmy, pipe, duct and hatch legs in `climbs`.
+
+## 3. Co-op extras
 Each one is optional, and each surface also has a solo way (LD 11.4).
+
+**Section 1**
 - Leg-up onto the charging bay's open front (3.2). Solo: wall jump at the lobby-block wall.
 - Leg-up onto the catwalk anywhere (3.0). Solo: the east ladder.
 - Leg-up into hatch h1 from the corridor (3.0). Solo: deck or catwalk into the void.
@@ -213,6 +411,22 @@ Each one is optional, and each surface also has a solo way (LD 11.4).
 - Two-person rope at the eaves (6.0, within `ropeMax`; E6 is avoided because the roof is at 6.0).
 - Hang-down from the eaves into the yard, or from the deck edge into the bay.
 - The trailer is marked `noLedge`, so co-op cannot reach a surface solo cannot.
+
+**Section 2**
+- Boost or human ladder onto any rack-end top (4.0, within `boostMax` 4.5 and `ladderGrab` 4.1). Solo: the two
+  rolling ladders, the riser, the cage ladder.
+- Boost over the cage fence (2.4). Solo: the fence climb.
+- Split and drop: one player braced in A2 over the VNA beam takes the cage officer while the other drops into the cage
+  from R1.
+- Hang-down from a rack top into A2 for the partner below.
+
+**Section 3**
+- Leg-up onto the deck edge on its columns (3.3). Solo: the stair, the west ladder, the forklift, the office-front
+  wall jump.
+- Leg-up onto the walkway anywhere (3.0). Solo: its ladder.
+- Hang-down from the deck edge east of the beam to lift the partner past it. Solo: the shimmy.
+- Split roles: one in the duct to the clerk, one on the main to the window. Both reach the terminal.
+- The main (5.0) stays out of boost reach from the floor, so it is reached only from the plant-room roof (solo).
 
 ## 4. Level-standard loosenings (M3) - also in BRIEF.md
 
@@ -229,6 +443,10 @@ Each one is optional, and each surface also has a solo way (LD 11.4).
 | L9 | LD 16.9, 13, 14 (LD:354-361, LD:195-271) register, deliverables, phases | Greybox prototype: this spec's tables stand in for the register; ASCII plans; one greybox step | Prototype for Michael's morning judgement (CLAUDE.md current goal) | Produce the full set before a final build |
 | L10 | LD 15 (LD:273-285) acceptance tests | Only e2e-sectorops and the Vitest checks; the solo ghost run is Michael's playtest | Most need the finished build | Run the full section 15 set |
 | L11 | LD 3.1 (LD:30) one entry vantage sees every guard | Section 2 (later): a dark vantage per aisle end; every guard readable from at least one | A racked 20 x 24 m hall cannot show 9 guards from one spot | One vantage per space |
+| L12 | LD 16.2.1 (LD:305), extends L3 to section 3 | Caged ladders: the mezzanine's west escape ladder, the crane walkway ladder, the plant room's ladder to its roof hatch | Real crane and plant access; the escape ladder is a player-only way down (guards use the stair) | A second stair at the deck's west end; stairs for the rest |
+| L13 | LD 16.7.4 / 16.7.5 (LD:345-346), extends L5 and L6 to section 3 | The fire-exit lobby's roof hatch drops into the lobby; the office supply duct (auto-crawl from the plant shaft, G56) runs exposed along the east wall into the production office | The CT drop entry; halls hang their services exposed | Remove the hatch; box the duct into a riser that stops at the deck |
+| L14 | Scale sheet "Corridor ... never under 3.0" (scale-sheet.md:37), applied to aisles | Section 2's VNA aisle A2 is 1.8 m | Real VNA aisles are 1.7-1.9 m and barred to pedestrians, so no guard walks it; the split jump needs 1.2-1.95 | Widen A2 to 3.0 and drop the split jump |
+| L15 | LD 3.1 (LD:30), extends L11 to section 3 | One vantage per volume: the floor from the C3 door, the deck from the west ladder head, the plant room from its west door | The deck, the office and the plant room are separate volumes | One vantage per space |
 
 Kept (they fix M1): LD 2.2, 2.5, 3.4, 4.1, 4.3, 4.4, 16.4.1, 16.5.1 (the section 1 roof is now solid with only
 real openings), 16.6.1.
@@ -470,33 +688,39 @@ Rooms:
   R2's and R3's climb indices must be recounted against the final lists. The rule: every leg into, out of or inside
   the void, through a hatch or the vent, up a drainpipe, or under the shutter is a climb.
 
-## 6. Decisions for the job lead (and engine questions)
-- **C1 (needed for section 1's guards): M8 isolation in time.** Today's check (`sectorCheck.ts:185`, `CHECK_RANGE` 15)
-  needs a takedown spot unseen from every point of every other route. That is what forced the pocket filler (REVIEW
-  4). Proposal: a guard passes if its spot is statically unseen (as now, so sections 2 and 3 stay green), **or** it has
-  an isolation window.
+## 6. Decisions (all decided by the job lead: BRIEF A2-A7) and engine questions
+- **C1 - decided, A2: M8 isolation in time.** Today's check (`sectorCheck.ts:185`, `CHECK_RANGE` 15) needs a takedown
+  spot unseen from every point of every other route. That is what forced the pocket filler (REVIEW 4). A guard
+  passes if its spot is statically unseen (as now, so sections 2 and 3 as built stay green), **or** it has an
+  isolation window.
   - Model: sample t from 0 to 180 s every 0.25 s. Each guard walks from its slot along its route at its walk speed
     (src/config/enemies.json), pausing `wait` at each point. Two points ping-pong; three or more loop.
   - Isolated: guard i is isolated at t when every other guard is over 15 m away or has no clear eye-height line. It
     passes on 3 s or more of isolation in a row.
-  - Size: about 60 lines plus the M8 test edit.
-  - If declined: section 1 can only pass by skipping M8 for 'service' until C1 lands. Do not add filler blocks.
-- **N1 (optional):** `sectorMode.ts:310` passes only `wait`; pass `waits`, `faces`, `start` and `loop` the way
-  `infiltrationMode.ts:95` does. Fallback: a uniform `wait` (all cycles above hold).
-- **D3:** section 1's start moves to the yard's south-west corner (the smoker and the trailer sit by the old start).
-- **D4:** sections 2 and 3 as built keep heavies (S:89, 127, 134) and the indoor sniper (S:132), against G155 for
-  co-op, until their rebuild.
-- **D5:** section 1 has 8 guards (was 10). G190 puts room first; the test minimum is 8; the PC perf run (G187) sets
-  any rise.
-- **E7 (new): one-way fire-exit doors are not built.** The workshop door is an unlocked leaf for now.
+  - Size: about 60 lines plus the M8 test edit. No filler blocks.
+- **N1 - decided, A3:** `sectorMode.ts:310` passes `waits`, `faces`, `start` and `loop` the way
+  `infiltrationMode.ts:95` does. Undo: a uniform `wait` (all cycles above hold).
+- **D3 - decided, A4:** section 1's start is the yard's south-west corner (the smoker and the trailer sit by the old
+  start).
+- **D4 - decided, A5:** sections 2 and 3 as built keep their heavies (S:89, 127, 134) and the indoor sniper (S:132)
+  until their rebuild, against G155 for co-op (noted for Michael). The rebuild designs (2.2, 2.3) have none.
+- **D5 - decided, A6:** section 1 has 8 guards (was 10). G190 puts room first; the test minimum is 8; the PC perf run
+  (G187) sets any rise. Section 2's rebuild has 8, section 3's 9.
+- **E7 - decided, A7: one-way fire-exit doors are not built.** Fire doors are unlocked leaves until they exist (the
+  workshop door; S3's lobby fire door). Where the engine cannot climb up through a hatch, that hatch is drop-only.
 - Mechanics to confirm in the greybox:
-  - Whether a climb-up through a hatch into the 1.6 m void works. If not, those hatches are drop-only.
-  - Whether the camera copes with the 1.3 m openings (L7).
-  - Whether the perimeter wall tops stay unreachable.
+  - Section 1: a climb-up through a hatch into the 1.6 m void (else drop-only, A7); the camera in the 1.3 m openings
+    (L7); the perimeter wall tops stay unreachable.
+  - Sections 2 and 3 (at their build): standing headroom on the 4.0 rack tops; the jump-grab onto `pipeH` from a
+    rack top or a roof; the fence climb-over; the deck-lip shimmy under a beam; a 21 m auto-crawl; a closed window
+    climb-through. Each fallback is in 2.2 / 2.3 "Engine fit".
 
 ## 7. Future
 - E1 roller doors: raise and lower shutter W.
 - E2 hatches and rooflights.
 - E3 (G44) vertical sight, so high routes need not rely on darkness only.
 - E4 (G41) guards close doors.
-- Sections 2 and 3 rebuilt to 2.2 and 2.3.
+- E7 one-way fire-exit doors (push-bar out, locked in): the S1 workshop door, the S2 west exit, the S3 lobby.
+- Movable rolling ladders (S2), if the engine gets pushable anchors.
+- Sections 2 and 3 rebuilt to 2.2 and 2.3: each gets a build sheet like section 5 first, then the same greybox step
+  (implementer, fresh checker, C1 run, e2e-sectorops routes).

@@ -84,6 +84,24 @@ Proposed by the step 3 spec (`SPEC.md` section 4, which has the full table) for 
   - What: in section 2 (later), one dark vantage per aisle end, with every guard readable from at least one.
   - Why: a racked hall cannot show 9 guards from one spot.
   - Undo: one vantage per space.
+- **L12 - LD 16.2.1 (LD:305), extends L3 to section 3.**
+  - What: caged ladders for the mezzanine's west escape, the crane walkway and the plant room's roof hatch.
+  - Why: real crane and plant access; the escape ladder is a player-only way down (guards use the stair).
+  - Undo: a second stair at the deck's west end, stairs for the rest.
+- **L13 - LD 16.7.4 and 16.7.5 (LD:345-346), extends L5 and L6 to section 3.**
+  - What: the fire-exit lobby's roof hatch, and the office supply duct (auto-crawl from the plant shaft, G56) exposed
+    along the east wall into the production office.
+  - Why: the CT drop entry; halls hang their services exposed.
+  - Undo: remove the hatch; box the duct into a riser that stops at the deck.
+- **L14 - scale sheet "Corridor ... never under 3.0" (scale-sheet.md:37), applied to aisles.**
+  - What: section 2's VNA aisle A2 is 1.8 m.
+  - Why: real VNA aisles are 1.7-1.9 m and barred to pedestrians, so no guard walks it; the split jump needs 1.2-1.95.
+  - Undo: widen A2 to 3.0 and drop the split jump.
+- **L15 - LD 3.1 (LD:30), extends L11 to section 3.**
+  - What: one vantage per volume (the floor from the C3 door, the deck from the west ladder head, the plant room from
+    its west door).
+  - Why: the deck, the office and the plant room are separate volumes.
+  - Undo: one vantage per space.
 
 ## Assumed decisions (job lead; each with how to undo)
 - **A1 (node_modules):** the worktree's `node_modules` is a junction to `C:/NightShift/Mobile-Coop-sector-restart`'s
