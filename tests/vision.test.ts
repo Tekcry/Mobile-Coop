@@ -51,14 +51,18 @@ describe('vision modes', () => {
     expect(VISION_GLSL).toContain('thermalColor');
     expect(VISION_GLSL).toContain('electroColor');
   });
-  it('G101 grain: thermal on warm areas only, none in electro, about 1% in night', () => {
+  it('G101 grain: thermal on warm areas only, none in electro, night strongest in the dark (nv-pass slice 1)', () => {
     expect(thermalGrainAmp(0)).toBeLessThan(0.02);
     expect(thermalGrainAmp(0.8)).toBeGreaterThan(0.2);
     expect(SENSOR_GRAIN.electro).toBe(0);
     expect(sensorGrainAmp('electro', 0)).toBe(0);
-    // peak to peak about 3.5% of full scale (CT std about 1%)
-    expect(sensorGrainAmp('night', 0)).toBeLessThan(0.05);
-    expect(sensorGrainAmp('night', 1)).toBe(sensorGrainAmp('night', 0));
+    // (nv-pass slice 1) an intensifier's scintillation: peak to peak 6% at black (std under 2%), under half of it at
+    // full drive
+    expect(sensorGrainAmp('night', 0)).toBeGreaterThanOrEqual(0.05);
+    expect(sensorGrainAmp('night', 0)).toBeLessThanOrEqual(0.08);
+    expect(sensorGrainAmp('night', 1)).toBeLessThan(sensorGrainAmp('night', 0) * 0.5);
+    expect(sensorGrainAmp('night', 0.5)).toBeLessThan(sensorGrainAmp('night', 0));
+    expect(sensorGrainAmp('night', 0.5)).toBeGreaterThan(sensorGrainAmp('night', 1));
     expect(SENSOR_GRAIN.rate).toBeGreaterThanOrEqual(30);
     expect(SENSOR_GRAIN.cells).toBeGreaterThan(300);
     expect(VISION_GLSL).toContain('sensorNoise');

@@ -84,13 +84,14 @@ Budgets: performance.md.
   aiming = the aim ray's hit; not aiming = fully sharp, f/1e7, so its depth pass may pause - `vfx/dofAperture.ts`
   eases the aperture and opens it only while that depth renders (3.6: the old idle f/32 read the paused depth as
   "at the lens" and blurred the whole frame on High / Ultra / Epic with ray tracing off), chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
-  `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last (it also carries the step 14 thermal /
+  `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last (it also carries the one goggle frame (`GOGGLE_FRAME`, about 89% clear at 16:9), the night-vision frame auto-gain
+  (`vfx/nightExposure.ts`) and the step 14 thermal /
   electro `vk` branch: render-only, never detection; no extra pass or target; see `docs/systems/lighting.md`).
   Goggle sensor grain (step 21v, M14 N7, A87): thermal, electro and night vision carry an animated, luminance-weighted
   grain and a slight soften, all in this pass (`SENSOR_GRAIN` in `vfx/visionLook.ts`, a constant, no setting): a
   sine-free hash per cell, 640 cells per screen height (the same grain size at any resolution), a new field 30 times a
-  second; peak to peak at black thermal 0.13, electro 0.11 (green-tinted), night 0.12, down to 0.45 / 0.45 / 0.35 of
-  that at full output luma (night: the tube drive) so hot bodies, live devices and lit phosphor stay readable. Soften:
+  second; peak to peak at black thermal 0.13, electro 0.11 (green-tinted), night 0.06 (phosphor-tinted), down to 0.45 / 0.45 / 0.4
+  of that at full output luma (night: the tube drive; `litNight`) so hot bodies, live devices and lit phosphor stay readable. Soften:
   thermal 4 taps (0.6), electro 4 taps (0.35), night 2 diagonal taps (0.3), at `THERMAL.blur` 0.0018 of screen
   height. Cost per pixel over step 14: +4 taps electro, +2 night, thermal unchanged; no texture, no target. Perception,
   the light meter and the wire never read any of it (`tests/visionIsolation.test.ts`). Decided, not built yet: the

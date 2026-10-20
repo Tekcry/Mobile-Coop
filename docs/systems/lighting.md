@@ -83,19 +83,25 @@ change.
   `MAX`. `GameState.brightnessLocked` (nothing sets it now; its mission was the Confrontation, removed by G9).
 
 ## Night vision
-- Gain: `VISION_GAIN` 8; `GameState` eases `BakedLamps.visionGain` with the goggles.
-- The tube (`vfx/nightVision.ts`, pure; GLSL `NV_GLSL`): `CinematicPost` maps luma through `nvDrive` (contrast `gamma` 1.7)
-  and `nvColor` (a pale grey-green phosphor that clips to white from drive 0.65), adds intensifier grain (strongest in the
-  dark) and darkens the edge (an eyepiece ellipse).
+- Gain: `VISION_GAIN` 6, the darkness curve's floor eased up to `VISION_FLOOR` 1.0 under the goggles (`visionDark`);
+  `GameState` eases `BakedLamps.visionGain` with the goggles. Bodies: the flat ambient fill on non-voxel surfaces is
+  scaled by `BODY_FILL` (nv 0.35, render path only; lamp light untouched).
+- The tube (`vfx/nightVision.ts`, pure; GLSL `NV_GLSL`): `CinematicPost` maps luma through `nvDrive` (contrast `gamma` 1.3)
+  and `nvColor` (a green phosphor, tint 0.35 / 0.85 / 0.30, that clips to pale white from drive 0.85), adds intensifier
+  grain (strongest in the dark; `SENSOR_GRAIN.night` 0.06) and the goggle frame (`GOGGLE_FRAME` in `vfx/visionLook.ts`: a
+  wide, thin rounded rectangle, about 89% clear at 16:9, corners about 30%). `?gfx=min` lifts the tube input (`postLift` 3).
+- Frame auto-gain (`vfx/nightExposure.ts`, pure; measured in `NightBloom`): the scene's mean luma eases (0.5 s) into a
+  1x1 target and `CinematicPost` scales the tube input by a clamped gain: 1 inside a band, up to 3 in near-black frames,
+  down to 0.6 in over-bright ones. Render path only.
 - Bloom (`vfx/nightBloom.ts` runs it while the goggles are on, from `PostProcessManager.onBeforeRenderObservable`): a bright pass
   at `BLOOM.scale` 0.25 (4 bilinear taps masked by `brightShare`), then `passes` 3 x a horizontal and vertical 9-tap
   Gaussian (`spread` 1.3); `CinematicPost` adds the glow's luma x `strength` to the drive. Numbers in `BLOOM`
-  (`vfx/nightVision.ts`): `bright` threshold 0.85, knee 0.1, strength 1.4 (linear, before TAA and tone mapping). Targets are half float where supported, else 8-bit divided by `range` 4. What glows
+  (`vfx/nightVision.ts`): `bright` threshold 0.8 on the compressed luma l / (1 + l) (half float; 8-bit keeps `ldrThreshold` 0.85 on raw luma), knee 0.1, strength 0.6 (linear, before TAA and tone mapping); the default pipeline bloom is weight 0 while the goggles are on. Targets are half float where supported, else 8-bit divided by `range` 4. What glows
   is what is bright on screen; nothing glows through a wall.
 - Auto-gain (`vfx/nightAutoGain.ts`): up to `GLARE.max` 8 fixed lamps in view within 45 m with a clear Havok ray from the
   camera (each fading over 0.12 s); near lamps (`abcWeight`) turn the gain down (`veil`; `abcAttack` 0.25 s, `abcRelease`
   0.6 s; the image divides by 1 + veil x `gainDrop` 0.6, except highlights from `gainKeep` 0.75 up).
-  `LightRig.setVisionBoost` raises the fixtures (x2.5). Rendering only.
+  `LightRig.setVisionBoost` raises the fixtures (`NV_BULB` 8; electro `ELECTRO_BULB` 2.5). Rendering only.
 - `NightAutoGain` runs from `scene.onBeforeCameraRenderObservable`, after the camera's update. Reading the camera's matrices
   earlier in the frame marks its view as current, so Babylon sees a moving camera as still and TAA blends stale history
   (the night-vision smear; `e2e-darkness` checks a turning camera reads as moving). Per-frame code must not call

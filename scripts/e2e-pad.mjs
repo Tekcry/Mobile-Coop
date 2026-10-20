@@ -232,19 +232,26 @@ try {
   await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
   const shut = await G(() => window.__app.current.gadgets.wheelOpen);
   assert(held.wheel && !shut, `LB held opens the selection wheel, released closes it (${held.wheel} / ${shut})`);
-  // the wheel over the live game: LB held, right stick up pushes the cursor to the vision stack; release picks (the mode goes out to the rim: electro)
+  // the wheel over the live game: LB held, right stick up lights the vision slot; (nv-pass slice 3) A steps the mode
+  // like a carousel from the selected one (night -> thermal -> electro), never reaching the context menu; release picks
   {
+    const s0 = await G(() => window.__app.current.vision.selected);
     await page.evaluate(() => window.__pad.set(4, 1));
     await page.waitForFunction(() => window.__app.current.gadgets.wheelOpen, null, { timeout: 6000 });
     const ts = await G(() => window.__app.loop.timeScale);
     await page.evaluate(() => window.__pad.axis(3, -1));
     await page.waitForTimeout(700);
+    const m0 = await G(() => window.__app.current.gadgets.sel.mode);
+    await press(page, BTN.A);
+    await press(page, BTN.A);
+    await page.waitForTimeout(150);
+    const ctx = await G(() => window.__app.current.ctxMenu.state);
     const seen = await G(() => ({ seg: window.__app.current.gadgets.sel.seg, mode: window.__app.current.gadgets.sel.mode, dom: !!document.querySelector('.selection-wheel:not([hidden])'), tiles: document.querySelectorAll('.selection-wheel .sw-tile:not([hidden])').length, label: document.querySelector('.sw-label-name')?.textContent }));
     await page.evaluate(() => window.__pad.axis(3, 0));
     await page.evaluate(() => window.__pad.set(4, 0));
     await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
     const sel = await G(() => window.__app.current.vision.selected);
-    assert(ts === 1 && seen.seg === 0 && seen.mode === 'electro' && seen.dom && seen.tiles >= 8 && sel === 'electro', `the wheel: no time slow (${ts}), cursor up = vision stack (${JSON.stringify(seen)}), release picks electro (${sel})`);
+    assert(ts === 1 && s0 === 'night' && m0 === 'night' && seen.seg === 0 && seen.mode === 'electro' && ctx !== 'active' && seen.dom && seen.tiles >= 8 && sel === 'electro', `the wheel: no time slow (${ts}), opens on the selected mode (${s0} / ${m0}), cursor up = vision slot, A x2 steps to electro (${JSON.stringify(seen)}), no context menu (${ctx}), release picks electro (${sel})`);
   }
   const v0 = await G(() => window.__app.current.vision.mode);
   await press(page, BTN.LEFT);

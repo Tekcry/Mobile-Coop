@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.16.0 - Night vision pass: realistic night vision, a wider goggle frame, the vision carousel (2026-10-20, PR #49)
+- Night vision (A1): modern green phosphor. The tube drive gamma 1.7 -> 1.3, green tint, dim green black, white clip from
+  0.85, stronger grain in the dark; `VISION_GAIN` 8 -> 6 with the darkness curve's floor eased up to `VISION_FLOOR` 1.0, so
+  deep dark reads and lit areas no longer clip. A frame auto-gain (`src/vfx/nightExposure.ts`) lifts dark frames (up to
+  x3) and eases bright ones down (to x0.6); lit rooms stay in its band.
+- Bodies no longer glow in night vision: the flat ambient fill on non-voxel surfaces is capped in the render path
+  (`BODY_FILL`, x0.35 facing up, less facing down); lamp light on a body is untouched. Light parity, the light field and
+  the bake are unchanged.
+- Night-vision bloom comes from real sources only: the bright pass compresses a half-float source first (threshold 0.8,
+  strength 1.4 -> 0.6), fixtures take `NV_BULB` 8 (electro stays x2.5), lit walls and bodies do not halo; the default
+  bloom is off while the goggles are on.
+- `?gfx=min` (no baked lamps, no lighting gain): the tube lifts its input (`postLift` 3) so night vision is never darker
+  than off.
+- Goggle frame: one wide, thin frame for night, thermal and electro (a rounded rectangle the shape of the screen, a faint
+  rim, corners about 30%); the clear area goes from about 44% to 89% of the screen at 16:9. It fades in with the
+  night-vision blend.
+- Selection wheel: with the vision slot lit, A (pad) / E (keyboard) steps night -> thermal -> electro -> night and
+  releasing LB / Tab selects it; the wheel opens on the current mode. The cursor-length pick is gone.
+- Tests: the `e2e-darkness` night-vision target at level 0.12 is 0.10-0.45 (A2; the probe card is a non-voxel surface),
+  and the probe prints the night-vision rgb. New `goggleFrame`, `nightExposure` and wheel carousel tests.
+- Scripts: the night-vision shot scripts (`scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`) refuse a port that already
+  answers, a dead preview or a served build that differs from `dist/`, and fail on a build or shot error.
+
 ## 4.15.4 - The FPS overlay is a thin banner (2026-10-20, PR #48)
 - Settings > Graphics > Show FPS overlay (Michael 2026-10-20: "it takes up the whole screen. Can you make it a banner on
   the top of the screen with only critical information"): one line centred along the top edge: FPS, average and worst
@@ -41,7 +64,7 @@
   back to wall off Left Shift); the Aim hold / toggle choice is removed (Michael 15:25: "Remove it"; LT is always held, a stored choice is dropped); a remapped binding that now clashes is named in a toast
   once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
 
-## Unreleased - anim-metrics-2 (into feature/ct-prototype)
+### anim-metrics-2 (into feature/ct-prototype; shipped in 4.15.0)
 - Debug overlay (F3, or Settings > Graphics > Show FPS overlay): a live anti-crab readout during play: knee separation
   over the hip width, the planted foot track, knee outside the ankle and elbow outside the shoulder, green inside the
   ranges and red outside, with the gait and state. Allocation-free per frame (`crabFrame` in `src/anim/audit/metrics.ts`).
@@ -51,7 +74,7 @@
   strafe is the crab (knees 2-2.8x the hips, feet up to 53 cm off the line), then turns from a standstill, starts and
   direction changes.
 
-## Unreleased - anim-metrics (into feature/ct-prototype)
+### anim-metrics (into feature/ct-prototype; shipped in 4.15.0)
 - Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
   and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,
   ranges `CRAB` and per-gait `CRAB_GATES` in `limits.ts`, unit tests `tests/animCrabMetrics.test.ts`). `e2e-anim` prints

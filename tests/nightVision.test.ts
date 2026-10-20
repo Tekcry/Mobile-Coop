@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BLOOM, BRIGHT_GLSL, GLARE, NV_GLSL, NV_TONE, abcWeight, brightShare, easeGlare, easeVeil, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
+import { BLOOM, BRIGHT_GLSL, GLARE, NV_GLSL, NV_TONE, abcWeight, bloomInput, brightShare, easeGlare, easeVeil, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
 import { VISION_TARGETS } from '../src/world/darkCurve';
 
 const lamp = (x: number, z: number, o: Partial<GlareLamp> = {}): GlareLamp => ({ x, y: 3, z, kind: 'lamp', on: true, destroyed: false, intensity: 1, fixture: null, ...o });
 
-describe('night vision tube (Step 4b fix)', () => {
+describe('night vision tube (Step 4b fix, nv-pass slice 1)', () => {
   it('the phosphor rises with the drive and clips to near white', () => {
     let last = -1;
     for (let l = 0; l <= 1.0001; l += 0.05) {
@@ -14,26 +14,55 @@ describe('night vision tube (Step 4b fix)', () => {
     }
     expect(luma709(nvColor(nvDrive(1)))).toBeGreaterThanOrEqual(VISION_TARGETS[1]!.min);
   });
-  it('a dark room under the gain (input luma ~0.74, the Step 4b probe) reads in the 25-45% band', () => {
-    const y = luma709(nvColor(nvDrive(0.74)));
+  it('a dark room under the gain (input luma ~0.6, the slice 1 estimate of the Step 4b probe) reads in the band', () => {
+    const y = luma709(nvColor(nvDrive(0.6)));
     const t = VISION_TARGETS[0]!;
     expect(y).toBeGreaterThan(t.min);
     expect(y).toBeLessThan(t.max);
   });
-  it('a pale grey-green, not a saturated green', () => {
+  it('the shadows are not flat: the dark band keeps its steps and the clip to white starts late', () => {
+    // a soft gamma: a quarter-bright input keeps well over a tenth of the drive
+    expect(NV_TONE.gamma).toBeGreaterThanOrEqual(1.2);
+    expect(NV_TONE.gamma).toBeLessThanOrEqual(1.4);
+    expect(nvDrive(0.25)).toBeGreaterThan(0.15);
+    // equal input steps in the dark give visible output steps
+    const a = luma709(nvColor(nvDrive(0.1)));
+    const b = luma709(nvColor(nvDrive(0.2)));
+    const c = luma709(nvColor(nvDrive(0.3)));
+    expect(b - a).toBeGreaterThan(0.03);
+    expect(c - b).toBeGreaterThan(0.03);
+    // no white before the late clip
+    expect(NV_TONE.whiteFrom).toBeGreaterThanOrEqual(0.8);
+    const mid = nvColor(0.8);
+    expect(mid[0] / mid[1]).toBeLessThan(0.5);
+  });
+  it('a modern green phosphor (A1), not a pale grey-green', () => {
     const c = nvColor(0.5);
-    // green leads, but red and blue stay within a third of it
-    expect(c[1]).toBeGreaterThan(c[0]);
-    expect(c[0] / c[1]).toBeGreaterThan(0.75);
-    expect(c[2] / c[1]).toBeGreaterThan(0.7);
+    // green leads clearly: red and blue under half of it
+    expect(c[1]).toBeGreaterThan(c[0] * 2);
+    expect(c[1]).toBeGreaterThan(c[2] * 2);
+    // the floor is green too, and the clipped highlights a pale green-white
+    expect(NV_TONE.black[1]).toBeGreaterThan(NV_TONE.black[0]);
+    const w = nvColor(1);
+    expect(w[1]).toBeGreaterThanOrEqual(w[0]);
+    expect(w[0] / w[1]).toBeGreaterThan(0.8);
   });
   it('the tube never reaches black, and a bright source in view pulls the gain down', () => {
-    expect(luma709(nvColor(0))).toBeGreaterThan(0.01);
-    expect(nvDrive(0.74, 1)).toBeLessThan(nvDrive(0.74, 0));
+    expect(luma709(nvColor(0))).toBeGreaterThan(0.02);
+    expect(luma709(nvColor(0))).toBeLessThan(0.06);
+    expect(nvDrive(0.6, 1)).toBeLessThan(nvDrive(0.6, 0));
+  });
+  it('without baked lamps (?gfx=min) the post lift keeps night vision no darker than the goggles off', () => {
+    expect(NV_TONE.postLift).toBeGreaterThan(1);
+    for (let l = 0; l <= 0.9001; l += 0.05) expect(luma709(nvColor(nvDrive(l, 0, NV_TONE.postLift)))).toBeGreaterThanOrEqual(l - 1e-3);
+    // the lift is the input multiplied
+    expect(nvDrive(0.2, 0, NV_TONE.postLift)).toBeCloseTo(nvDrive(0.2 * NV_TONE.postLift), 12);
   });
   it('the GLSL mirrors the constants', () => {
     expect(NV_GLSL).toContain(NV_TONE.gamma.toFixed(4));
     expect(NV_GLSL).toContain(NV_TONE.whiteFrom.toFixed(4));
+    expect(NV_GLSL).toContain(`vec3(${NV_TONE.tint.map((x) => x.toFixed(4)).join(', ')})`);
+    expect(NV_GLSL).toContain(`vec3(${NV_TONE.black.map((x) => x.toFixed(4)).join(', ')})`);
   });
 });
 
@@ -106,5 +135,33 @@ describe('night vision bloom (round 4)', () => {
   });
   it('the GLSL mirror carries the same knee formula', () => {
     expect(BRIGHT_GLSL).toContain('smoothstep(threshold - knee, threshold + knee, l)');
+  });
+});
+
+describe('night vision bloom on the HDR scene (nv-pass slice 1)', () => {
+  const { threshold, ldrThreshold, knee, strength } = BLOOM.bright;
+  const glows = (linear: number): number => brightShare(bloomInput(linear), threshold, knee);
+  it('the compression is monotone and stays under 1', () => {
+    let last = -1;
+    for (let l = 0; l < 100; l += 0.25) {
+      const c = bloomInput(l);
+      expect(c).toBeGreaterThan(last);
+      expect(c).toBeLessThan(1);
+      last = c;
+    }
+    expect(bloomInput(-1)).toBe(0);
+    expect(BRIGHT_GLSL).toContain('x / (1.0 + x)');
+  });
+  it('a lit wall or body under the gain does not glow; a lamp fixture does', () => {
+    // a 50% grey card at the lit level under full night vision is about linear 2 (VISION_GAIN 6 x the curve's top)
+    expect(glows(1)).toBe(0);
+    expect(glows(2)).toBe(0);
+    // a fixture: its colour x NV_BULB (8)
+    expect(glows(7)).toBeGreaterThan(0.9);
+  });
+  it('an 8-bit source keeps the old threshold on its raw luma, and the glow is gentler', () => {
+    expect(brightShare(1, ldrThreshold, knee)).toBe(1);
+    expect(brightShare(0.6, ldrThreshold, knee)).toBe(0);
+    expect(strength).toBeLessThan(1);
   });
 });
