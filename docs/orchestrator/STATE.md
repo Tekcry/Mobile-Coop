@@ -95,6 +95,10 @@ Decided -> DECISIONS G192+, docs PR; the orchestrator swaps ROADMAP pointers), s
 only), shots-rows + gl-warning-fix (Menu Notes), no-aim-assist (CT Core, G16), coop-torches (Course Ready,
 feature/coop-torches, protocol bump; may not finish before 98%). Laptop: #62 99349d64 full, then #63 81deebfb full, then
 the spare-job PRs. Docs PR #74 merged as 4.30.1.
+#62 at 5ef3a1c4 (master 4.30.1 merged, versioned 4.31.0) FAILS CI: smooth-world's tests assume the open-roofed yard
+(smoothWorldLight x2) plus levelFillParity's annex rain-roof sample (check for a shared-code regression). Back to the
+Marlow session (one fix round). Then merge as 4.31.0, then #75 shots-rows (4.31.1). tuner-ui (Michael 09:15, Course
+Ready, coop-torches parked behind it).
 #67 S2b PARKED (feature/anim-s2b 6c96715f): wrist pop fixed; e2e-stealth-ai wall peek open (S2b's step line ends the
 peek 15.9 cm past the edge vs 13.8 on master, so no spot sees the head alone; restoring stepLen0 / stepLenK / WALK_STEP
 gives master's pose). Findings: S2B-REPORT.md "## #67 parked"; not yet merged with master 4.27+, tuneStep patch pending.
