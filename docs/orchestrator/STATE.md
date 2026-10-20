@@ -20,9 +20,10 @@ Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (source docs/orches
 "Priority overnight is the animation system. Movement has become less important as I will manually fine tune
 everything as needed." / "Turn off movement slices and any research." Then: finish the co-op training bunker (Marlow
 Yard), then the campaign level. Warehouse rebuild deferred (docs/reviews/warehouse-layout-review.md). Token use lean.
-Usage rule: "Auto trim when the 5 hour session reaches 90% and focus on tools only": at 5-hour >= 90% pause everything
-except the animation tools (Course Ready, Menu Notes tuner-v2) and the laptop runs they need. At 00:55: 5-hour 33%
-(reset ~05:00), weekly all models 73% (reset 2026-10-22 ~23:00).
+Usage rule (updated 00:58): "Change nothing, reduce token usage at 85% 5 hour window (unless within 30 mins of reset),
+top priority is animation work." At 5-hour >= 85%, unless the reset is under 30 min away, pause everything except the
+animation work (Course Ready, Menu Notes tuner-v2, CT Core Weight group) and the laptop runs it needs. Checkers stay
+per slice. At 00:55: 5-hour 41% (reset ~04:30), weekly all models 74% (reset 2026-10-22 ~23:00).
 Overnight merges approved: "Yes, merge green PRs", each on its test tier; anything unsure waits for him.
 
 ## Sessions and jobs (titles are the message addresses)
@@ -44,9 +45,9 @@ Waiting on Michael: the guard AI job runs on his second account when it resets (
 plan docs/reviews/guards-review.md); A5 aimed strafe 0.7 m/s is his call; his walk tests with the tuner.
 Reviews (suggestions only): docs/reviews/marlow-yard-audit.md, warehouse-layout-review.md, guards-review.md.
 
-Resumed 00:55 after a clear: 5-hour 41% (reset ~04:30), weekly 74%. #61 CI failed on tests/analogGear.test.ts
-"allocates nothing per update" (3.6 MB vs 2 MB heap; wheel-ui touches no gear / anim code: CI noise); rerun started.
-#59 head 0fb59235 has no CI run yet. Character Build pinged for queue results.
+Resumed 00:55 after a clear. #61 CI failed on tests/analogGear.test.ts
+"allocates nothing per update" (3.6 MB vs 2 MB heap; wheel-ui touches no gear / anim code: CI noise); rerun PASS.
+#59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
 
 ## Merge procedure
 Check the PR head equals the tested commit (or the delta is docs only). In the scratch worktree: checkout --detach the
@@ -76,5 +77,5 @@ separate commands; update this file's Master line and the ROADMAP Done table.
 
 ## Resume prompt
 ```
-Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). It is overnight 2026-10-21: the animation tools are the priority (Course Ready: tuner-camera incl. speed sliders, freeze and the pad scheme, then Anim Studio; Menu Notes: tuner-v2; CT Core: the Weight group after landing S2b and slice 4+5); movement slices and research are off. Michael approved merging green PRs overnight on their test tiers. Check the usage meter (get_usage) on each wake: at 5-hour >= 90% pause everything except the animation tools. ListAgents, then carry on from "Sessions and jobs" and the open PRs using "Merge procedure". Short replies, native multiple choice only, hyphens not em dashes; every paste-in prompt states session title, model and effort and is the turn's last message.
+Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). It is overnight 2026-10-21: the animation tools are the priority (Course Ready: tuner-camera incl. speed sliders, freeze and the pad scheme, then Anim Studio; Menu Notes: tuner-v2; CT Core: the Weight group after landing S2b and slice 4+5); movement slices and research are off. Michael approved merging green PRs overnight on their test tiers. Check the usage meter (get_usage) on each wake: at 5-hour >= 85% (unless the reset is within 30 min) pause everything except the animation work. ListAgents, then carry on from "Sessions and jobs" and the open PRs using "Merge procedure". Short replies, native multiple choice only, hyphens not em dashes; every paste-in prompt states session title, model and effort and is the turn's last message.
 ```
