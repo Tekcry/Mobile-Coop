@@ -25,6 +25,8 @@ import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
 import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
+import { keepSimInBackground } from './bgTicks';
+import { OBJ_CONNECTING, objectiveOnSnap, objectiveOnStall } from './objectiveMirror';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
@@ -58,8 +60,12 @@ export class CoopClient implements NetAttachment {
   private sendT = 0;
   private time = 0;
   private offs: (() => void)[] = [];
-  private obj = '';
+  /** The objective line as shown (the host's, or the connecting / waiting placeholder, objectiveMirror.ts). */
+  private obj = OBJ_CONNECTING;
   private info = '';
+  /** (coop-fix) A snapshot has arrived, and the seconds since the last one (the "Waiting for host" notice). */
+  private gotSnap = false;
+  private sinceSnap = 0;
   private ended = false;
   private lastBlast: { p: Vector3; t: number } | null = null;
   private ints: Interactables | null = null;
@@ -121,7 +127,11 @@ export class CoopClient implements NetAttachment {
     } else this.ints = own;
     // (free roam mirrors only the host's wall medkits)
     if (g.opts.mode === 'sandbox') this.mirrorOnly = 'medkitWall';
-    g.hud.setObjective('Connecting to host…');
+    // (coop-fix, bug 2) the placeholder is the mirror's value: the first snapshot replaces it, an empty host
+    // objective (course mode sets none) included
+    g.hud.setObjective(this.obj);
+    // (coop-fix, bug 1) a hidden client page keeps simulating and sending its states
+    this.offs.push(keepSimInBackground(g));
   }
 
   private get renderTime(): number {
@@ -297,9 +307,12 @@ export class CoopClient implements NetAttachment {
       // carried off, hidden or revived on the host (snaps and events arrive in order, so a kept body is listed)
       for (const id of [...this.kept.keys()]) if (!m.bodies.includes(id)) this.dropBody(id);
     }
-    if (m.obj !== this.obj) {
-      this.obj = m.obj;
-      g.hud.setObjective(m.obj);
+    this.gotSnap = true;
+    this.sinceSnap = 0;
+    const obj = objectiveOnSnap(this.obj, m.obj);
+    if (obj !== null) {
+      this.obj = obj;
+      g.hud.setObjective(obj);
     }
     if (m.info !== this.info) {
       this.info = m.info;
@@ -567,6 +580,13 @@ export class CoopClient implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.sendT -= dt;
+    // (coop-fix) snapshots stopped (a stalled or gone host): say so on the objective line until the next one
+    this.sinceSnap += dt;
+    const stall = objectiveOnStall(this.obj, this.gotSnap, this.sinceSnap);
+    if (stall !== null) {
+      this.obj = stall;
+      this.g.hud.setObjective(stall);
+    }
     // the movement state: a new mode or sub-state (a ladder, a vault) goes out at once, not on the next tick
     const mv = localMoveState(this.g, this.mvNow);
     if (this.feed) {

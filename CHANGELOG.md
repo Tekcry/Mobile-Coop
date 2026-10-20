@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.13.1 - Co-op fixes: the host draws on the joiner at High and Epic, the connecting label clears (2026-10-20, PR #35)
+- Co-op: the host was invisible on the joiner at High and Epic graphics (GPU). The baked-lamp material plugin broke a
+  material clone while the partner figure loaded, so the figure never appeared. The plugin is no longer copied by a
+  clone (`LampPlugin.doNotSerialize`); the clone gets its own plugin on the next frame.
+- Co-op: "Connecting to host" no longer stays on the joiner's objective line after the first snapshot; "Waiting for host"
+  shows if snapshots stop for 2 s.
+- Co-op: a hidden or covered co-op window keeps stepping its sim, so the host keeps sending snapshots while another
+  window is on top.
+- Tests: `tests/lampPluginClone.test.ts` (a clone of a lamp-plugin material), new asserts in `e2e-ctcourse` (host avatar
+  drawn and objective cleared on the client), and the GPU suite `scripts/e2e-coop-gpu.mjs` (real menu flow at High and
+  Epic, `npm run e2e:gpu`).
+
 ## 4.13.0 - Marlow Yard interrogation guard (2026-10-20, PR #34)
 - PR 3 Interrogate (`docs/ct-prototype/PR3-INTERROGATE.md`, Michael: "Add one in Marlow Yard"): station 1 has a training guard
   (passive, on his post by the south fence facing away from the start) who has information; held, hold-A lists INTERROGATE,

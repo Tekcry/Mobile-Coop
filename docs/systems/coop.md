@@ -47,7 +47,11 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   messages only from lobby members. No host migration.
 - `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed / frame hooks, death, revive,
   pickups, blips, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
-  `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input).
+  `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and
+  sending (`net/bgTicks.ts`; the hidden-page tick, input-and-loop.md).
+- Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
+  snapshot, which always replaces it (an empty course-mode objective included), and "Waiting for host…" after 2 s
+  without one, until the next. The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
 - `CoopHost`: remote players (`RemotePlayer` = Damageable + hitbox + PlayerRef), 15 Hz snapshots, event queue, enemy
   position history for lag compensation, shot / blast checks via pure `validate.ts`, per-player kill tallies in `end`.
   `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with `SnapshotBuffer` / `ClockSync` (`interp.ts`), sends

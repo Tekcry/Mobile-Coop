@@ -613,6 +613,10 @@ export class LampPlugin extends MaterialPluginBase {
     private lamps: BakedLamps,
   ) {
     super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
+    // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
+    // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
+    // clone is a new material, so `BakedLamps.frame` gives it its own plugin
+    this.doNotSerialize = true;
     this._enable(true);
   }
 
