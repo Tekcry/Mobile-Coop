@@ -251,8 +251,11 @@ describe('G1 rig: the gait against the footage (NullEngine)', () => {
     expect(idle.feetApart).toBeGreaterThanOrEqual(0.3);
     expect(idle.feetApart).toBeLessThanOrEqual(0.4);
     const walk = await rigRun({ seconds: 4, from: 2, stick: () => ({ dir: 0, speed: 1.4 }) });
-    // the stance knee at mid-stance (was ~60 deg; CT near straight): ~11 deg under the hip, <= 22 over the +-5 cm window
-    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(22);
+    // the stance knee at mid-stance (was ~60 deg; G1: CT near straight, <= 22). (CT prototype G8 round 2, Michael 10:55:
+    // CT's walk keeps the knees softly bent all the way through, lower and heavier; G8-WALK.md measures 105949 at the
+    // matched camera) the keyed walk holds the pelvis ~7 cm low: the stance knee bent, never locked, never a squat
+    expect(walk.kneeMid, 'walk mid-stance knee').toBeGreaterThanOrEqual(25);
+    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(55);
     // the head's travel over the cycle (CT ~2-3 cm by eye)
     expect(walk.headMax - walk.headMin, 'walk head bob').toBeLessThanOrEqual(0.035);
   });

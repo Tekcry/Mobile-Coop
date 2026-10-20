@@ -2374,6 +2374,8 @@ export class GameState implements AppState {
       if (it?.onUse) it.onUse(it);
       else doors.open(d0, 'quiet');
     }
+    // (doorPeek parity) still at the frame the feet settle on the stance spots, as the copies pose it from MoveState
+    pl.pose.settle = dp.active;
     const rig = pl.rig;
     if (dp.active) {
       const ov = this.peekOv;

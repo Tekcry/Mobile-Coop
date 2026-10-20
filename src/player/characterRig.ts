@@ -66,6 +66,9 @@ export interface RigPose {
   landing?: number;
   /** Back to a wall (the flat-back high stance). */
   wall?: boolean;
+  /** (doorPeek parity) Still, the feet step onto the stance spots under the root, as on a wall: the same on every peer
+   *  whatever the approach and the frame rate left (the door peek). */
+  settleFeet?: boolean;
   /** Side of the wall in the character's frame (-1 left, 1 right). */
   wallSide?: number;
   /** (step 11) The wall's outward normal (XZ) and its face plane (n . p on the face): no foot lands behind it. */
@@ -1488,7 +1491,7 @@ export class CharacterRig {
     pin.pinLZ = this.footPins[1]!;
     pin.pinRX = this.footPins[2]!;
     pin.pinRZ = this.footPins[3]!;
-    if (i.wall && !t.gait.moving && Number.isNaN(pin.pinLX)) {
+    if ((i.wall || s.settleFeet) && !t.gait.moving && Number.isNaN(pin.pinLX)) {
       // (step 11) still with the back to a wall: the feet step onto the stance spots under the (pushed) root, the same
       // on every peer. Without this the idle stepping's front-back stagger tolerance keeps a foot wherever the entry
       // left it (the local glide steps both feet in; a remote, posed still from MoveState, leaves one 15 cm out)

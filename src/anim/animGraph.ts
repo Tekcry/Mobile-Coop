@@ -1385,12 +1385,14 @@ export class AnimGraph {
       const B = KEYED_WALK_BAND;
       const band = 1 - smoothstep((es - B.from) / (B.to - B.from));
       const onFoot = i.keyedOk && i.grounded && i.traverse === 'none' && i.slide < 0 && !i.wall ? 1 : 0;
-      // (not turning on the spot: the turn's own stepping; last frame's turning share)
-      const kT = this.moveW * (1 - crouchK) * band * onFoot * (1 - wallW) * (1 - this.raiseS) * (1 - this.dashS) * (1 - o.gait.turning);
+      // (not turning on the spot: the turn's own stepping, last frame's turning share; a walking turn keeps it: its low
+      // pelvis let go mid-turn lifted the head 8 cm, g1Locomotion)
+      const spin = o.gait.turning * (1 - smoothstep((i.speed - 0.3) / 0.4));
+      const kT = this.moveW * (1 - crouchK) * band * onFoot * (1 - wallW) * (1 - this.raiseS) * (1 - this.dashS) * (1 - spin);
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
       o.keyArmW = o.keyW * fw * (i.melee >= 0 ? 0 : 1);
-      if (o.keyW > 0) sampleKeyed(KEYED_WALK, ph, B.ampMin + (1 - B.ampMin) * clamp(es / 1.1, 0, 1), o.keyed);
+      if (o.keyW > 0) sampleKeyed(KEYED_WALK, ph, B.ampMin + (1 - B.ampMin) * clamp(es / KEYED_WALK_BAND.full, 0, 1), o.keyed);
     }
     this.writeTargets(pose, i, k, ph);
     this.out.weaponBob = this.bobResidual;
@@ -1528,7 +1530,7 @@ export class AnimGraph {
     const lift1 = lift0 + (TENSE_SNEAK.liftH - lift0) * tense;
     // (G8) the keyed walk's contact timing and swing lift
     // (slower the stance is longer and the swing lower: KEYED_WALK_BAND.duty / lift at a standstill)
-    const kp = clamp(es / 1.1, 0, 1);
+    const kp = clamp(es / KEYED_WALK_BAND.full, 0, 1);
     const duty = duty1 + (KEYED_WALK.duty + KEYED_WALK_BAND.slowDuty * (1 - kp) - duty1) * o.keyW;
     const lift = lift1 + (KEYED_WALK.liftH * (1 - KEYED_WALK_BAND.slowLift * (1 - kp)) - lift1) * o.keyW;
     // (A1.2) a shorter stance in a turn: less body yaw over a planted foot
@@ -1559,13 +1561,14 @@ const NEUTRAL_POSE: Pose = newPose();
 export const IDLE_STANCE = { extra: 0.065, lead: 0.05 } as const;
 
 /**
- * (CT prototype G8) Where the keyed walk plays: at full weight up to `from` effort pace (GAIT_REF units: 1.1 is gear 2,
- * 1.4 m/s), gone by `to` (2.0 is gear 3, 2.1 m/s: the procedural brisk / jog cycles take over); `ampMin` the cycle's
- * share at a standstill (a slow walk swings less, full at gear 2); `tau` (s) the weight's easing (stance, wall, air,
+ * (CT prototype G8) Where the keyed walk plays: at full weight up to `from` effort pace (GAIT_REF units: 2.0 is gear 3,
+ * 2.1 m/s, the CT walk of 105949 / 105509: ~3 steps a second), gone by `to` (3.0 is gear 4, 3.0 m/s: the procedural jog
+ * takes over); `ampMin` the cycle's share at a standstill and `full` the effort pace it is keyed at (a slower walk swings
+ * less: half at gear 1, three quarters at gear 2); `tau` (s) the weight's easing (stance, wall, air,
  * aim changes never pop); `slowDuty` the stance share added and `slowLift` the swing lift share taken off at a standstill
  * (a slower walk keeps each foot down longer and lifts it less).
  */
-export const KEYED_WALK_BAND = { from: 1.2, to: 1.8, ampMin: 0.5, tau: 0.08, slowDuty: 0.04, slowLift: 0.25 } as const;
+export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.5, tau: 0.08, slowDuty: 0.04, slowLift: 0.25 } as const;
 
 /** (G1) Move a free hand target (channels x, y, z from `ch`) toward (x, y, z) by `w`. */
 function blendHand(q: Pose, ch: number, x: number, y: number, z: number, w: number): void {

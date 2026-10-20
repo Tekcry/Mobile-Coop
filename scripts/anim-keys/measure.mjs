@@ -11,6 +11,7 @@ import { launch, waitOperator } from '../e2e-lib.mjs';
 const PORT = Number(process.env.E2E_PORT ?? 4195);
 const SC = {
   walk: { y: 0.5, warm: 2.5, span: 2.4 },
+  walk3: { y: 1, warm: 2.0, span: 1.6, pos: [-6, -14], params: '&gear=3' },
   jog: { y: 1, warm: 1.5, span: 1.6, pos: [-8, -14] },
   sprint: { y: 1, warm: 1.2, span: 1.2, pos: [-14, -14], at0: "a.input.state.tap('dash');" },
   run: { y: 1, warm: 1.5, span: 1.2, pos: [-16, -14], params: '&gear=5' },

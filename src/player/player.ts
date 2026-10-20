@@ -58,6 +58,8 @@ export interface PlayerPose {
   /** (G6) The rig root's step toward a wall edge while peeking (world XZ, m; `WallCore.stX`). Visual only. */
   wallStepX?: number;
   wallStepZ?: number;
+  /** (doorPeek parity) Still, the feet settle on the stance spots (`RigPose.settleFeet`): the door peek, set by GameState. */
+  settle?: boolean;
 }
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
@@ -415,6 +417,7 @@ export class Player {
     rp.swapTo = this.swapTo;
     rp.grenade = this.grenadeT;
     rp.wall = cp.wall;
+    rp.settleFeet = cp.settle === true;
     rp.wallSide = cp.wallSide;
     rp.wallNx = cp.wallNx;
     rp.wallNz = cp.wallNz;

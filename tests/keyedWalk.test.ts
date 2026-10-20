@@ -45,29 +45,33 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     let pelX = [9, -9];
     for (let k = 0; k < 64; k++) {
       at(k / 64);
-      // elbows within 4 cm and wrists within 9.5 cm out of the shoulder line (were 8 / 10 cm, the jog 19 / 24): the hands
-      // pass just outside her hips and the right thigh holster
+      // elbows within 4 cm out of the shoulder line (were 8, the jog 19), wrists from 5 cm inside it to 9.5 cm out:
+      // (G8 round 2, 105949 / 105509) the arms carried forward with the hands in front of the thighs
       expect(-o.arm[KA.elbowL]!).toBeLessThanOrEqual(0.04);
       expect(o.arm[KA.elbowR]!).toBeLessThanOrEqual(0.04);
       expect(-o.arm[KA.wristL]!).toBeLessThanOrEqual(0.095);
       expect(o.arm[KA.wristR]!).toBeLessThanOrEqual(0.095);
       // and never in toward the body
-      expect(-o.arm[KA.elbowL]!).toBeGreaterThanOrEqual(0.01);
-      expect(o.arm[KA.wristR]!).toBeGreaterThanOrEqual(0.02);
+      expect(-o.arm[KA.elbowL]!).toBeGreaterThanOrEqual(0);
+      expect(o.arm[KA.wristR]!).toBeGreaterThanOrEqual(-0.05);
+      // (round 2) carried forward of the shoulder all through (CT 105949: the upper arm 31-47 deg ahead in the picture)
+      expect(o.arm[KA.elbowR + 2]!).toBeGreaterThan(0.1);
+      expect(o.arm[KA.elbowL + 2]!).toBeGreaterThan(0.1);
       swingL = [Math.min(swingL[0]!, o.arm[KA.wristL + 2]!), Math.max(swingL[1]!, o.arm[KA.wristL + 2]!)];
       swingR = [Math.min(swingR[0]!, o.arm[KA.wristR + 2]!), Math.max(swingR[1]!, o.arm[KA.wristR + 2]!)];
       pelY = [Math.min(pelY[0]!, o.pel[1]!), Math.max(pelY[1]!, o.pel[1]!)];
       pelX = [Math.min(pelX[0]!, o.pel[0]!), Math.max(pelX[1]!, o.pel[0]!)];
     }
     // the wrist's fore-aft swing (CT about +-0.1-0.15 m)
-    expect(swingL[1]! - swingL[0]!).toBeGreaterThanOrEqual(0.18);
-    expect(swingL[1]! - swingL[0]!).toBeLessThanOrEqual(0.32);
+    // (round 2: a small swing about the forward carry, CT 31-47 deg)
+    expect(swingL[1]! - swingL[0]!).toBeGreaterThanOrEqual(0.08);
+    expect(swingL[1]! - swingL[0]!).toBeLessThanOrEqual(0.25);
     expect(swingR[1]! - swingR[0]!).toBeCloseTo(swingL[1]! - swingL[0]!, 2);
     // counter swing: the right hand forward at the left heel strike, the left at the right one
     at(0);
-    expect(o.arm[KA.wristR + 2]!).toBeGreaterThan(o.arm[KA.wristL + 2]! + 0.15);
+    expect(o.arm[KA.wristR + 2]!).toBeGreaterThan(o.arm[KA.wristL + 2]! + 0.05);
     at(0.5);
-    expect(o.arm[KA.wristL + 2]!).toBeGreaterThan(o.arm[KA.wristR + 2]! + 0.15);
+    expect(o.arm[KA.wristL + 2]!).toBeGreaterThan(o.arm[KA.wristR + 2]! + 0.05);
     // the pelvis: over the planted foot (left at 0.25, right at 0.75), a small keyed height shape (the legs' reach adds the rest)
     expect(pelX[1]! - pelX[0]!).toBeLessThanOrEqual(0.03);
     at(0.25);
@@ -75,6 +79,9 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     at(0.75);
     expect(o.pel[0]).toBeGreaterThan(0.008);
     expect(pelY[1]! - pelY[0]!).toBeLessThanOrEqual(0.012);
+    // (round 2) lower and heavier: the pelvis held ~7 cm under its rest, carried a little forward
+    expect(C.meanPel[1]!).toBeLessThan(-0.05);
+    expect(C.meanPel[2]!).toBeGreaterThan(0.01);
     // the hips and the shoulders turn against each other (pelvis yaw and chest yaw of opposite sign at the heel strike)
     at(0);
     const yaw = (s: number) => 2 * Math.atan2(o.q[s + 1]!, o.q[s + 3]!);
@@ -186,7 +193,8 @@ describe('the rig plays the keyed walk (NullEngine)', () => {
       }
       expect(seen).toBeGreaterThan(100);
       expect(minKnee, remote ? 'remote knees' : 'knees').toBeGreaterThanOrEqual(0.09);
-      expect(maxArmErr, remote ? 'remote arm' : 'arm').toBeLessThanOrEqual(0.02);
+      // (within 3 cm: the trunk clearance may swivel an elbow carried in front of the body)
+      expect(maxArmErr, remote ? 'remote arm' : 'arm').toBeLessThanOrEqual(0.03);
       // (G8 fix) holding a guard (the close-quarters bend) the keyed walk lets go: the hostage walk keeps its own stance
       pose.bend = 0.08;
       for (let n = 0; n < 40; n++) {

@@ -123,7 +123,8 @@ def fk(k):
         u = W['chest'] @ rx(-d2r(a['flex'])) @ rz(s * d2r(a['abd'])) @ DOWN
         W[sh] = bone_rot(u, FWD)
         X[el] = X[sh] + u * OFF[el].length
-        f = W['chest'] @ rx(-d2r(a['flex'] + a['elbow'])) @ rz(s * d2r(a['abd'] + CARRY)) @ DOWN
+        # the forearm bends forward at the elbow and (inward, deg) turns in toward the midline, hands in front of the hips
+        f = W['chest'] @ ry(-s * d2r(a.get('inward', 0))) @ rx(-d2r(a['flex'] + a['elbow'])) @ rz(s * d2r(a['abd'] + CARRY)) @ DOWN
         W[el] = bone_rot(f, FWD)
         X[wr] = X[el] + f * OFF[wr].length
         W[wr] = W[hd] = W[el]

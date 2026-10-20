@@ -7,6 +7,12 @@
 // pistol variants walledgeaimp, walledgeleftaimp. reload and swap run drawn (aim held: step 09 holsters by default);
 // holsterswap is the holstered swap; turn is a movement turn (the body turns, the sheet camera stays put); (F4)
 // walledgelook, walledgeleftlook: at an edge, the camera swung one way then the other
+// (CT prototype G8) view `cam`: a camera matched to a footage clip, from env: SHEET_AZ (deg round her from the front, +
+// to her right, 180 behind), SHEET_PITCH (deg down to the pivot), SHEET_DIST (m from the pivot), SHEET_PIVOT (m above her
+// feet), SHEET_LAT (m, the pivot to the camera's right), SHEET_FOVV (deg vertical; CT 55.7), SHEET_W / SHEET_H (the
+// viewport; CT's frame is 1.45 wide); the whole frame is kept. SHEET_PHASES="0,0.125,..." captures at those gait phases
+// (the graph's clock) instead of every interval; SHEET_DUMP=<dir> also writes each frame and the joints projected to
+// the screen (<scenario>-cam-frames.json) for the pose overlays (scripts/anim-keys/overlay.mjs).
 import { launch, waitOperator } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -57,6 +63,8 @@ const SCENARIOS = {
   // top crouched gear (2.6 m/s)
   run: { params: 'autostart=proving&gear=5', pos: [-16, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }) },
   crouchrun5: { params: 'autostart=proving&gear=5', pos: [-12, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('crouch');" },
+  // (G8) gear 3 at full stick (2.1 m/s): CT's walk in 105949 / 105509 (~3 steps a second, ~0.65 m steps)
+  walk3: { params: 'autostart=proving&gear=3', pos: [-6, -14], yaw: Math.PI / 2, pre: 2.0, warm: { y: 1 }, input: () => ({ y: 1 }) },
   start: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }) },
   stop: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 1 }, input: () => ({ y: 0 }) },
   // 3.2.0: the Chaos Theory stop holds the stride (crouched, and from a slow walk)
@@ -123,7 +131,10 @@ const SCENARIOS = {
 
 const sc = SCENARIOS[scenario];
 if (!sc) throw new Error(`unknown scenario ${scenario}`);
-const { browser, page, errors } = await launch({ url, params: sc.params ?? 'autostart=proving' });
+const CAM = view === 'cam';
+const E = process.env;
+const camVp = { width: Number(E.SHEET_W ?? 1160), height: Number(E.SHEET_H ?? 800) };
+const { browser, page, errors } = await launch({ url, params: sc.params ?? 'autostart=proving', ...(CAM ? { viewport: camVp } : {}) });
 // (operators 11e) Wren's LOD0 on screen before anything is measured or drawn
 await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
 // (11e fix r1) never draw a sheet with no Wren on it: a timeout fails the run
@@ -183,6 +194,24 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon, y0 }) => {
     origUpdate(dt, feet, crouch);
     const v = window.__view ?? 'side';
     if (v === 'ots') return;
+    if (v === 'cam') {
+      // (G8) matched to a footage camera: orbit angle, pitch, distance and FOV round a pivot over her feet
+      const M = globalThis.__sheetCam;
+      const c = p.cam.camera;
+      const r = p.rig.root.position;
+      const fy = p.controller.renderYaw + (M.az * Math.PI) / 180;
+      const pc = (M.pitch * Math.PI) / 180;
+      const dx = Math.sin(fy);
+      const dz = Math.cos(fy);
+      // the camera's right (looking back at her along -d)
+      const px = r.x - dz * M.lat;
+      const pz = r.z + dx * M.lat;
+      const py = r.y + M.pivot;
+      c.fov = (M.fovV * Math.PI) / 180;
+      c.position.set(px + dx * Math.cos(pc) * M.dist, py + Math.sin(pc) * M.dist, pz + dz * Math.cos(pc) * M.dist);
+      c.setTarget(new r.constructor(px, py, pz));
+      return;
+    }
     const c = p.cam.camera;
     const r = p.rig.root.position;
     const fy = fixCam ? yaw : p.controller.renderYaw;
@@ -200,6 +229,39 @@ await page.evaluate(({ pos, yaw, wall, fixCam, weapon, y0 }) => {
   a.loop.stepHeadless(y0 > 0 ? 0.01 : 0.3);
 }, { pos: sc.pos ?? [0, 0], yaw: sc.yaw ?? 0, wall: sc.wall ?? null, fixCam: !!sc.fixCam, weapon: sc.weapon ?? null, y0: sc.y ?? 0 });
 await page.evaluate((v) => (window.__view = v), view);
+await page.evaluate((m) => (globalThis.__sheetCam = m), { az: Number(E.SHEET_AZ ?? 0), pitch: Number(E.SHEET_PITCH ?? 12), dist: Number(E.SHEET_DIST ?? 3.3), pivot: Number(E.SHEET_PIVOT ?? 1.68), lat: Number(E.SHEET_LAT ?? 0), fovV: Number(E.SHEET_FOVV ?? 55.7) });
+// (G8) SHEET_NOKEY=1: the procedural walk alone (the keyed walk held off through its own gate: a 1e-6 close-quarters bend)
+if (E.SHEET_NOKEY) await page.evaluate(() => { const r = window.__app.current.player.rig; const an = r.animate.bind(r); r.animate = (dt, s) => an(dt, { ...s, bend: (s.bend ?? 0) + 1e-6 }); });
+const PHASES = E.SHEET_PHASES ? E.SHEET_PHASES.split(',').map(Number) : null;
+const DUMP = E.SHEET_DUMP ?? null;
+const dumped = [];
+const fsm = await import('node:fs');
+if (DUMP) fsm.mkdirSync(DUMP, { recursive: true });
+/** (G8) The rig's joints projected to the screen (px), plus the gait phase and the keyed walk's weight. */
+const project = () => page.evaluate(() => {
+  const g = window.__app.current;
+  const r = g.player.rig;
+  const c = g.player.cam.camera;
+  const eng = c.getScene().getEngine();
+  const W = eng.getRenderWidth();
+  const H = eng.getRenderHeight();
+  const vm = c.getViewMatrix().m;
+  const pm = c.getProjectionMatrix().m;
+  const mul = (x, y, z, m) => [x * m[0] + y * m[4] + z * m[8] + m[12], x * m[1] + y * m[5] + z * m[9] + m[13], x * m[2] + y * m[6] + z * m[10] + m[14], x * m[3] + y * m[7] + z * m[11] + m[15]];
+  const fresh = (n) => { const ch = []; for (let q = n; q; q = q.parent) ch.unshift(q); for (const q of ch) q.computeWorldMatrix(true); };
+  const proj = (x, y, z) => { const v = mul(x, y, z, vm); const q = mul(v[0], v[1], v[2], pm); return [((q[0] / q[3] + 1) / 2) * W, ((1 - q[1] / q[3]) / 2) * H]; };
+  const at = (n, lx = 0, ly = 0, lz = 0) => { fresh(n); const m = n.getWorldMatrix().m; return proj(lx * m[0] + ly * m[4] + lz * m[8] + m[12], lx * m[1] + ly * m[5] + lz * m[9] + m[13], lx * m[2] + ly * m[6] + lz * m[10] + m[14]); };
+  const P = r.p;
+  const j = {
+    headTop: at(r.headNode, 0, P.head.h * 0.58, 0), head: at(r.headNode), neck: at(r.neck), chest: at(r.torso), spine: at(r.spine), pelvis: at(r.hips),
+    shL: at(r.shoulderL), shR: at(r.shoulderR), elL: at(r.elbowL), elR: at(r.elbowR), wrL: at(r.wristL), wrR: at(r.wristR),
+    hipL: at(r.hipL), hipR: at(r.hipR), knL: at(r.kneeL), knR: at(r.kneeR), anL: at(r.ankleL), anR: at(r.ankleR),
+    toeL: at(r.ankleL, 0, -P.y.ankle, P.foot.len * 0.43), toeR: at(r.ankleR, 0, -P.y.ankle, P.foot.len * 0.43),
+    heelL: at(r.ankleL, 0, -P.y.ankle, -P.foot.len * 0.25), heelR: at(r.ankleR, 0, -P.y.ankle, -P.foot.len * 0.25),
+  };
+  return { W, H, phase: r.lastTargets ? r.lastTargets.gait.phase : -1, keyW: r.keyedWalk ?? 0, j };
+});
+
 await page.evaluate((o) => Object.assign(window, o), { __sheetDist: process.env.SHEET_DIST, __sheetCamY: process.env.SHEET_CAM_Y, __sheetTargetY: process.env.SHEET_TARGET_Y });
 
 const setInput = async (inp, code) =>
@@ -227,9 +289,24 @@ for (let t = 0; t < pre; t += 1 / 60) {
 const shots = [];
 const at = sc.at ?? {};
 let t = 0;
-for (let f = 0; f < FRAMES; f++) {
+const NF = PHASES ? PHASES.length : FRAMES;
+for (let f = 0; f < NF; f++) {
   // run the interval in small steps, firing timed events
-  const end = t + (f === 0 ? 0 : INTERVAL);
+  const end = t + (f === 0 || PHASES ? 0 : INTERVAL);
+  // (G8) or step at 120 Hz until the gait phase crosses the next one asked for
+  if (PHASES) {
+    const want = PHASES[f];
+    const d = (x) => (((x - want) % 1) + 1) % 1;
+    let prev = (await project()).phase;
+    for (let n = 0; n < 600; n++) {
+      await setInput(sc.input(t), null);
+      await page.evaluate(() => window.__app.loop.stepHeadless(1 / 120, 120));
+      t += 1 / 120;
+      const ph = (await project()).phase;
+      if (n > 2 && d(ph) < 0.5 && d(prev) >= 0.5) break;
+      prev = ph;
+    }
+  }
   while (t < end - 1e-6) {
     const code = Object.entries(at).find(([k]) => Math.abs(Number(k) - t) < 1 / 120)?.[1];
     await setInput(sc.input(t), code);
@@ -246,20 +323,26 @@ for (let f = 0; f < FRAMES; f++) {
   await new Promise((r) => setTimeout(r, 30));
   const vp = page.viewportSize();
   // (PC1) ots: the whole frame (the centre crop showed only the forearm under ADS); the other views: a body portrait
-  const w = view === 'ots' ? vp.width : Math.round(vp.height * 0.75);
+  const w = view === 'ots' || CAM ? vp.width : Math.round(vp.height * 0.75);
   const buf = await page.screenshot({ clip: { x: Math.round(vp.width / 2 - w / 2), y: 0, width: w, height: vp.height } });
+  if (DUMP) {
+    const name = `${scenario}-${view}-${String(f).padStart(2, '0')}.png`;
+    fsm.writeFileSync(`${DUMP}/${name}`, buf);
+    dumped.push({ file: name, t, ...(await project()) });
+    fsm.writeFileSync(`${DUMP}/${scenario}-${view}-frames.json`, JSON.stringify(dumped, null, 1));
+  }
   shots.push({ src: `data:image/png;base64,${buf.toString('base64')}`, label: `${t.toFixed(2)}s ${info}` });
 }
-const cols = Math.min(6, FRAMES);
-const [cw, ch] = view === 'ots' ? [400, 225] : [240, 300];
-const sheet = await browser.newPage({ viewport: { width: cols * cw, height: Math.ceil(FRAMES / cols) * ch } });
+const cols = Math.min(6, NF);
+const [cw, ch] = view === 'ots' ? [400, 225] : CAM ? [Math.round((300 * camVp.width) / camVp.height), 300] : [240, 300];
+const sheet = await browser.newPage({ viewport: { width: cols * cw, height: Math.ceil(NF / cols) * ch } });
 await sheet.setContent(
   `<body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(${cols},${cw}px);font:11px monospace;color:#ddd">` +
     shots.map((s) => `<div style="position:relative"><img src="${s.src}" style="width:${cw}px;height:${ch}px;object-fit:cover"><span style="position:absolute;left:4px;top:4px;background:#000a;padding:1px 3px">${s.label}</span></div>`).join('') +
     '</body>',
 );
 await sheet.screenshot({ path: out });
-console.log(`${scenario}: ${FRAMES} frames -> ${out}`);
+console.log(`${scenario}: ${NF} frames -> ${out}`);
 const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
 if (real.length) console.log(real.join('\n'));
 await browser.close();
