@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-20 21:42 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-20 23:34 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -12,17 +12,18 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
 ```
 
 ## Now
-- Slice 2 merged to master (#52, 4.17.0). Michael on /preview/: "almost worse than before"; he tunes with anim-tuner
-  (Course Ready, feature/anim-tuner) first (Open items).
-- Slice 3 (low ready and aiming, rifle and pistol, standing; the glide; the M2 sling draw) done at 5248dfad. Report
-  `S3-REPORT.md`, sheets `shots/s3/`. Drawn keyed set (ready stance; low ready on the slice 2 legs; aiming = glide fwd /
-  back / strafe by direction, left mirrored); the glide shuffle fixes the aimed strafe crab (knees 2.9x -> 1.23x max,
-  track 46-55 -> 16-18 cm, never crossed); aimed back 1.24x -> 0.70x. Rifle low ready muzzle 39 deg down, elbows 4 cm;
-  pistol compressed ready; sling draw 0.75 s (rifle, local only). CRAB_DRAWN_GATES on; CRAB_STRAFE range (reason in
-  limits.ts). A5 (BRIEF): aimed strafe 0.7 m/s at full stick (was 1.26).
-- Tier: npm run check pass (2058); desktop e2e:quick pass (e2e-stealth solo pass), e2e-mouse ok, e2e-pad solo pass;
-  independent Opus check PASS (no fixes, so no fix round). Laptop e2e-ctcourse / e2e-coop / e2e-netmove on 5248dfad:
-  pass (243 / 81 / 128 s). /ct/ moved; slice 3 PR to master opened.
+- Overnight (orchestrator 2026-10-20 late, Michael asleep, approved overnight merges of green PRs): S2b PR, slice 4,
+  merge Sector Ops' slice 5, slice 6. Lean prompts, one fix round, no polish; STATE after every step; each PR to the
+  orchestrator with its tier results.
+- Merged: slice 2 (#52, 4.17.0), slice 3 (#54, 4.19.0). feature/ct-prototype at master 813d13a4 + slice 4 work.
+- S2b (the review's 5 causes of the "robotic" slice 2 walk: arm swing / ampMin, trunk counter-rotation,
+  SOFT_KNEE_STAND, step length / cadence, weight transfer; plus the run pitch sum): Opus implementer on feature/anim-s2b,
+  folder C:/NightShift/Mobile-Coop-anim-s2b, from master b125599e, logic e2e on port 4192; report S2B-REPORT.md; then
+  one check, PR to master, then master merged into feature/ct-prototype.
+- Slice 4 (crouched holstered set, the knee hand, crouched drawn, stand <-> crouch re-step): Opus implementer in this
+  folder; report S4-REPORT.md.
+- Slice 5 (wire the S5 wall keys): Sector Ops on feature/anim-walls (folder C:/NightShift/Mobile-Coop-anim-walls, from
+  f46426a5), report S5-REPORT.md; CT Core merges it into feature/ct-prototype.
 
 ## Next
 - Slice 4 (sneak, crouch walk and run, crouched idle with the knee hand; crouched holstered from A4 and crouched drawn):
