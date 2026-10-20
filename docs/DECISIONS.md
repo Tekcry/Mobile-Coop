@@ -1023,3 +1023,202 @@ guards' sight; the count drops before the spacing does (10 / 10 / 11 in the firs
 **G191. Co-op training first, Sector Ops on spare capacity.** Michael (2026-10-19): "Sector ops should be low priority
 over anything else. I want to get coop training bunker fully functional and running, but sector ops can at least run
 when there is opportunity."
+
+**G192. Wheel on LB hold, no lethal switch.** Michael (2026-10-19, dashboard; relayed, not verbatim,
+docs/ct-prototype/DECISIONS.md): the selection wheel stays on LB hold; no lethal / non-lethal switch (LT / RT covers
+it); with a gun drawn A reloads (CT). Confirms G181's assumed placement (feel A1). (The A reload is replaced by G212.)
+
+**G193. Scanners cost HP only for a late or abandoned hack.** Michael (2026-10-19, dashboard; paraphrased): no HP cost
+when the partner never started; the 10 HP cost stays for a late or abandoned hack (CT Core, a later slice).
+
+**G194. Goggle flicker at launch only.** Michael (2026-10-19, dashboard; paraphrased): the goggle flicker plays only at
+launch, not after a match.
+
+**G195. Wren keeps her current goggle.** Michael (2026-10-19, dashboard; paraphrased): keep Wren's current goggle; he
+rejected the A / B / C scratch options, so the redesign is parked. Only the stowed-on-brow export remains, in the
+cleanup job (G161). (Refines G69: no further goggle swap for now.)
+
+**G196. Moth's goggle is purple.** Michael (2026-10-19, dashboard; paraphrased; operators D36): Moth's goggle is
+purple. A scratch Moth prototype comes when nothing urgent waits, possibly overnight on the desktop. (Replaces bible
+5.14 amber.)
+
+**G197. Movement rebuilt to match the footage.** Michael (2026-10-19 23:15, 23:20): "Catalogue them, audit, and update
+our movement system to match the recorded animatimations, movements camera angels, speeds, everything about movement.
+Must be exactly the same as the recorded movement, only made original by you." and "I expect a thorough audit of the
+movement system and have it replicated in my game using original code." Movement (animations, camera angles, speeds) is
+audited against the footage (`C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/`, gitignored) and rebuilt to match in
+original code; this lifts the no-refining rule for movement. (Its footage reference is replaced by G210.)
+
+**G198. Hold-A action menu, as in CT.** Michael (2026-10-19 23:20): "the action menu that shows up requires holding A
+and selecting which option you would like to proceed with, including returning to game (no action). I want it to be
+identical." Actions are picked from a menu opened by holding A, with a return-to-game (no action) row, identical to CT.
+(Refined for a held guard by G203-G205.)
+
+**G199. Believable animations, no clipping.** Michael (2026-10-19 23:45): "my expectation in the morning is that night
+shift movement and animations will operate identically to those recorded. It should feel the exact same when i play it.
+I expect prototype animations for all of it, with no clipping and must be believable." Every movement gets a prototype
+animation that is believable and does not clip. He was told identical everywhere overnight was not realistic: the
+biggest gaps closed plus a measured list of what remains. (The "operate identically to those recorded" target is
+replaced by G210.)
+
+**G200. Marlow Yard ready for a co-op walkthrough, lit where needed.** Michael (2026-10-19 23:45): "I also want coop
+bunker/training fully prepared for a coop walkthrough test, including prototype/light visual pass over it to ensure
+theres sufficient lighting where required." The co-op training bunker (Marlow Yard) is made ready for a two-player
+walkthrough, with a light prototype visual pass so every space that needs light has it.
+
+**G201. Sector Ops Warehouse overhauled for fun flow.** Michael (2026-10-19 23:45, 23:47; paraphrased): the Warehouse
+reviewed and overhauled for fun flow, several stealth routes per section (pipes, ceiling crawl spaces, co-op passages),
+logical guard routes, realistic buildings; dogs carry no flashlight. A spec for all three sections comes first with
+section 1 as a greybox; it may loosen `docs/level-design.md` where it blocks fun flow, each change logged for Michael.
+(Builds on G190; the rebuild is parked by G224.)
+
+**G202. All animations checked against the footage; CT camera numbers.** Michael (2026-10-20 00:45): "I would rather
+you check review all animations against the videos and fine tune as necessary to more accurately replicate the movement
+system. This system is one of the highlights of the game". His answers (00:50, paraphrased): the exploring shoulder
+offset matches CT (0.15 m, was 0.32); the FOV matches CT (86, was 75); where the footage disagrees with G103 or F1a,
+the footage wins. (Refines G103; G210 later drops the CT movement references.)
+
+**G203. Behind a guard: grab or return, then the held options.** Michael (2026-10-20 08:10): "The action menu behind
+guard should only show grab or return, once they are grabbed it can show interrogate (if they have information), and rt
+or Lt to either knock out or kill, and aim button to aim pistol while holding them. It shouldn't have kill/knock
+out/carry in the list." Behind a guard the hold-A menu lists only grab and return; once held, interrogate shows when
+the guard has information, RT / LT knock out or kill, and the aim button aims the pistol; kill, knock out and carry are
+never rows. (Refines G23 and G198.)
+
+**G204. A held guard is never released.** Michael (2026-10-20 08:20): "The guard cannot be let go either, only knocked
+out. Killed, or used as human shield (aiming pistol)". A held guard ends knocked out or killed, or is used as a human
+shield with the pistol aimed; there is no release, and interrogating keeps the hold.
+
+**G205. No back-to-game row once grabbed.** Michael (2026-10-20 08:25): "There is no back to game option once the grab
+is initiated." While holding, hold-A shows only INTERROGATE (when the guard has information). (Refines G198's return
+row.)
+
+**G206. An interrogation guard in Marlow Yard; traversal takedowns keep one row.** Michael (2026-10-20 08:40): "Add one
+in Marlow Yard" (an interrogation guard); and (paraphrased) ledge, pipe and window takedowns keep one KNOCK OUT row.
+Marlow Yard gets one guard who can be interrogated; those takedowns offer a single KNOCK OUT row.
+
+**G207. Animation fixes from the 4.12.0 playtest.** Michael (2026-10-20 10:10): "i played through it and want to focus
+on fine tuning the animations, they all look weird and unnatural" and "Legs are out too wide, looks like a crab. Elbows
+also go out too wide when moving quicker. This all translates to crouching too, and crouching idles too quick, and the
+hand resting on the knee is upside down and not sitting on the knee, looks weird" (roadmap: also stiff or robotic,
+wrong poses, feet / legs off). Walk, jog and run first: legs and elbows in, also when crouched; a slower crouch idle;
+the knee hand the right way up, on the knee. Animation feel is first priority.
+
+**G208. Keyframed core clips authored in Blender.** Michael (2026-10-20 10:25; paraphrased) chose keyframed clips after
+asking "You have all walking videos from CT, why cant we match it". Walk, jog, run, crouch walk, crouch idle and the
+wall-knee hand are keyframed clips authored headless in Blender, keyed with the footage as reference, never traced from
+it (IP rule, G5); the procedural layer keeps blending, turning and foot IK. The walk cycle came first as proof.
+(Replaces bible 5.12's "All animation is generated in code" for these clips.)
+
+**G209. Tight pose matching with a matched camera, no tracing.** Michael (2026-10-20 10:55): "Tight pose matching, also
+consider the camera angle being used in the CT videos also is different. Try to match the camera angle also to ensure
+it matches". Frame-by-frame tracing of CT's animation was declined (it copies CT's animation work, G5); the comparison
+camera matches the footage, key poses are measured per phase with overlays, and our own keys hit those targets. (G210
+later drops the CT movement references.)
+
+**G210. Animation and controls rework, no CT movement references.** Michael (2026-10-20 13:30): "the ct movement is
+getting worse. Can you ignore CT movement references." Analogue speed from the stick (no speed toggle); LT held aims;
+three states, holstered / low ready / aiming; X tap holsters; RT tap knocks out, RT hold kills; traversal auto-holsters
+and returns to the state. Every movement animation is reworked to a real-world trained-operator standard
+(docs/anim-rework/BRIEF.md). G1 (pure CT) still holds for the rest of the game (BRIEF). (Replaces the footage reference of
+G197, G199, G202, G208 ("keyed with the footage as reference") and G209, the speed rocker (loco M25 (7)) and bible 5.12's
+CT-footage line; refines G21.)
+
+**G211. MPFB2 in the desktop Blender, nothing bundled.** Michael (2026-10-20 14:40): "Yes, download it". The MakeHuman
+Blender add-on MPFB2 (GPL, official release only) is installed into the desktop Blender to rebake Wren's toe weights;
+nothing from it ships in the game (the add-on is a tool only; G167's no MPFB code in the game stands); version, source and licences are recorded in docs/operators.
+
+**G212. Jammer on RB while aiming; A interacts at low ready.** Michael (2026-10-20 14:55): "Another button - what makes
+sense? RF?" (read as RB) and "Interact always". The held jammer is on RB while the pistol is aimed (RB stays the co-op
+action otherwise); at low ready A always interacts, and reload is X hold only. (Replaces G192's "with a gun drawn A
+reloads".)
+
+**G213. Realistic night vision, a wider goggle outline, a vision carousel.** Michael (2026-10-20 15:00): "section 1 is
+ok, better than before at least but not perfect. Its hard to tell, the night vision is so poor. I cant see properly at
+night, and the bodies are very bright. It needs work to make it look more realistic, and to expand the goggle outline
+to be less intrusive and show more of the screen, it feels claustrophobic." (15:05): "pressing a button while in the
+weapon menu hovered over the vision mode to cycle between them ... press A ... like a carousel". Night vision is made
+more realistic, with bodies no longer very bright; the goggle outline is wider and thinner; on the selection wheel, A
+on the hovered vision mode cycles the modes like a carousel. (Refines G181.)
+
+**G214. No toggle aim.** Michael (2026-10-20 15:25): "Remove it". Aim is always LT held; the toggle-aim option goes.
+
+**G215. Phones: minimal light and shadow, no letterbox.** Michael (2026-10-20 17:55): "phone loads well but zero
+shadows, can we update to it shows shadows/lights but kept to a minimum. I don't want to spend time or resources on
+phone. Also screen has letterbox on sides, can we change that too. Minimal work to make it functional. I don't want
+phones to overload and get hot. Basic graphics but at least with shadows and light". The phone's minimum preset shows
+baked lamp light and one cheap character shadow (no real-time shadow maps), caps the frame rate for heat, and fills any
+aspect with no side letterbox; minimal work only. (Refines G182's "every feature off".)
+
+**G216. Phones: native resolution, the menu hero at High.** Michael (2026-10-20 ~18:35-18:50): native resolution at
+100% scale (4.15.2, paraphrased), and "menu hero should be best quality on phones if it doesn't cost much" (4.15.3: the
+menu at High). (Refines G182's DPR 1 and lowest operator LOD; the resolution is capped by G218.)
+
+**G217. Walk feedback on 4.15.x: fewer, longer strides, no lean below full speed.** Michael (2026-10-20 ~19:10): "full
+speed is too quick, and the leg strides should be further apart with less steps, it's too many steps"; "walking forward
+on all gears leans too much, it shouldn't lean at all until full speed which should be similar to the lean it has now";
+"the legs when walking are too far apart, bring knees and legs in line with the body, I would say almost completely
+vertical."; "arms go out in front of body when moving, it looks weird like a zombie. Arms should stay parallel the body
+and swing naturally increase slightly more each time you speed up."; "none of the movement feel weighted, but we will
+focus on these animations first."; "prototype quick passes only, must be believable, not perfect." A slower full speed
+with longer, fewer strides; no forward lean until full speed; knees and legs almost vertical under the body; arms
+parallel to the body, swinging a little more at each speed. Quick believable prototype passes.
+
+**G218. No WebGPU for phones yet; 75% resolution cap.** Michael (2026-10-20 ~20:20; paraphrased): asked whether WebGPU
+helps the phone, he was answered no for now (the parked trial after the playtest); he chose capping phones at 75%
+resolution (4.16.2). (Refines G216's native resolution.)
+
+**G219. Animation tuner: live sliders, functional only.** Michael (2026-10-20 ~20:30): "Yes add the sliders as another
+task to be built. Doesn't have to look pretty, just functional. Build fast". An F3 slider panel per state (gait widths,
+knees, elbows, arm swing, lean, step, crouch depth, wall gap, climb reach, hold gap) and gun hold per weapon and state,
+live, saved in IndexedDB, exported as JSON; pad control followed (~22:10). A Blender round-trip and a posing editor
+were discussed, not chosen.
+
+**G220. The wheel scales to the screen; the tuner opens from a menu.** Michael (2026-10-20 ~21:00): "There is animation
+issues, almost worse than before. I will wait for the anim tuner to try adjust it first." "Weapon wheel needs to adjust
+dynamically based on screen size. Also when is it getting a quick visual Ui pass to make it look better, like the
+reference." "Night vision is good now." The selection wheel scales to the screen and gets a quick original radial
+restyle after the reference; the FPS banner leaves the top HUD; the tuner opens from a menu and works by touch (an exception to G182's no touch work and the no-touch rule).
+
+**G221. Warehouse lamps on ceilings, translucent roof sheets.** Michael (2026-10-20 ~22:30; paraphrased except the
+quote): lamps snapped to ceilings, 3 quick code fittings, translucent corrugated roof sheets in the open sections
+("opaque type of corrugated plastic sheet that allow light in but cant be passed through"), walls / ceiling detail and
+dead-space clutter. Extra touches (fans, flicker, grime, dock, sound, accents) come after.
+
+**G222. A faint red laser grid shows a camera's view.** Michael (2026-10-20 ~22:35): "a visible cue of where a cameras
+vision is ... a red laser grid that is projected onto the surfaces its monitoring possibly"; he chose "Always, faint".
+Security cameras project a faint red laser grid onto the surfaces they watch, always on, stronger in electro vision.
+Michael's decision, not CT.
+
+**G223. Voxels off by default.** Michael (2026-10-20 ~22:40): "there still looks to be voxel graphics in the map which
+is no longer the goal"; he chose "Turn voxels off by default". (Replaces G68's voxel line.)
+
+**G224. The bunker, then the campaign level; the warehouse rebuild is parked.** Michael (2026-10-20 ~23:40): "Focus
+should be coop training bunker completion, then campaign level. Movement still needs work which is top priority." and,
+on the warehouse rebuild, "We'll revisit later"; (2026-10-21 ~06:40): "Exclude warehouse rebuild and park it for now.
+We'll continue to use the existing." The co-op training bunker comes first, then the first campaign level, with
+movement top priority; the G201 rebuild is parked and the current Sector Ops warehouse stays
+(docs/reviews/warehouse-layout-review.md). The guard AI and model review (docs/reviews/guards-review.md) is not
+scheduled.
+
+**G225. Marlow Yard bunker pass: the full audit shortlist.** Michael (2026-10-20 ~23:40; paraphrased): the full
+shortlist of docs/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint,
+lifts, fiction); keep the open floor at 0.30 (the open floor's light level, just over the 0.28 shadow line).
+
+**G226. Tuner v2: a stage to pose the body and the gun.** Michael (2026-10-21 ~00:20): "I want freedom to manipulate
+the body/animation as needed ... Possibly even a basic stage similar to the old main menu that allows me to make all
+the adjustments on the spot using controller or k&m"; "Can I reposition hands on guns, fingers, gun overall size etc?".
+The tuner gains camera sliders, a free view, the Anim Studio stage, a loop player, viewing aids and undo / A-B /
+presets; then per-joint offsets, hand / foot placement, stepping controls (stuck feet), per-key editing exported as
+clip keys, and a weapon group (gun scale visual only, grip, support hand, fingers).
+
+**G227. Michael tunes movement himself; the animation system first.** Michael (2026-10-21 ~00:40): "Priority overnight
+is the animation system. Movement has become less important as I will manually fine tune everything as needed." and
+"Turn off movement slices and any research." Movement slices and movement research stop; Michael fine-tunes movement
+himself as needed, and the animation system and its tools come first. (The priority was set for the night of 2026-10-21.)
+(Replaces G150's tune-until-sign-off.)
+
+**G228. Tuner additions.** Michael (2026-10-21 ~01:15-01:20; his choices, paraphrased): smooth state changes, Import
+JSON, wider ranges (double-range toggle, typed values), a bake script (export into code defaults), a bypass button
+(hold for the untuned animation), slow motion 0.1-1x in normal play, slider search, and per-limb targeting strength
+(hand / foot IK weight). Copy state to state is not wanted.

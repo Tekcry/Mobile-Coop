@@ -107,6 +107,7 @@ import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
+import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -204,6 +205,9 @@ export interface NetAttachment {
   revivesLeft?(): number;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
   releaseHolds?(): void;
+  /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
+   *  `out` from index `from` (entries added when missing); returns how many. */
+  partnerBodies?(out: SeenBody[], from: number): number;
   /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
   sendJam?(tgt: string): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
@@ -1521,6 +1525,11 @@ export class GameState implements AppState {
     return this.lightRay.hasHit;
   };
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
+  /** (camera-cue fix) A remote body's light as this side samples remotes (the co-op client's camera cue). */
+  bodyLight(x: number, feetY: number, z: number, height: number, crouched: boolean): number {
+    return this.world.lightField.bodyLevel(x, feetY, z, lightSampleHeight(height, crouched ? 1 : 0), this.lightOccluder);
+  }
+
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);
     // stop short of the body so the player's own hit volumes never count
