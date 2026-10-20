@@ -13,6 +13,7 @@ import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { dressReport, PATROL_CLEAR, ROOF_OPENINGS, ROUTE_CLEAR, ROUTE_OPENINGS } from '../src/world/maps/warehouseDress';
 import { canonicalLightShapes } from '../src/voxel/lightShapes';
 import { packShapes } from '../src/voxel/shapes';
+import { detailPieces } from '../src/world/detailPass';
 
 const b = new LevelBuilder();
 warehouseOps.build(b, 0);
@@ -58,6 +59,20 @@ function segToRect(ax: number, az: number, bx: number, bz: number, r: R): number
 
 const solid = b.boxes.filter((p) => p.collide && !p.detail);
 const visibleSolid = solid.filter((p) => p.visible !== false);
+
+describe('colours', () => {
+  // the level build parses every piece's colour (`Color3.FromHexString`): an undefined one throws and the match never starts
+  it('every piece of the three sections (and the detail pass over them at each tier) has a #rrggbb colour', () => {
+    const HEX = /^#[0-9a-f]{6}$/i;
+    const pieces = [...b.boxes, ...(['low', 'medium', 'high', 'ultra', 'epic'] as const).flatMap((t) => detailPieces(b.boxes, 'warehouseOps', t))];
+    const bad = [...pieces, ...b.cylinders].filter((p) => typeof p.color !== 'string' || !HEX.test(p.color)).map((p) => `${String(p.color)} at (${p.c.join(', ')})`);
+    expect(bad).toEqual([]);
+    for (const s of [1, 2, 3]) expect(added.some((p) => p.detail && sectionOf(p.c[0], p.c[2]) === s), `section ${s} dressing`).toBe(true);
+  });
+});
+
+/** Section of a plan point (section 1 includes the yard). */
+const sectionOf = (x: number, z: number): number => (z < -8.8 ? 1 : x < -4 ? 2 : 3);
 
 describe('roof sheets', () => {
   it('the hall roofs are closed but for the route openings (0.25 m grid at the roof line)', () => {

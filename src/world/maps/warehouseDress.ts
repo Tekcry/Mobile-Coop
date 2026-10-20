@@ -170,6 +170,9 @@ interface Keep {
   y1: number;
 }
 
+/** Sign plate colours, cycled along each wall run. */
+const SIGN_COLOURS = [C.signBlue, C.signGreen, C.signWhite] as const;
+
 /** The hall floor slab's top (m): floor pieces stand on it. */
 const FLOOR_TOP = 0.021;
 
@@ -363,7 +366,7 @@ export function dressWarehouseOps(b: LevelBuilder, inp: DressInput): DressReport
     }
     // signs every 7 m (a plate on a dark frame), a fire point (extinguisher and panel) every 11 m
     for (let t = r.t0 + 3; t < r.t1 - 1; t += 7) {
-      const col = [C.signBlue, C.signGreen, C.signWhite][(ri + Math.round(t)) % 3]!;
+      const col = SIGN_COLOURS[(((ri + Math.round(t)) % 3) + 3) % 3]!;
       if (!wallBehind(r, t, 0.8, 2.8)) continue;
       group('sign', [wp(r, t, 0.01, 0.8, 2.8, 0.55, 0.02, C.black), wp(r, t, 0.03, 0.7, 2.8, 0.45, 0.01, col)]);
     }
