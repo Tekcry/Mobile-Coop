@@ -58,6 +58,9 @@ camera-cue: draft PR #63 (master merged; fix-round check + GPU shots pending, th
 merge as is). The GPU window never ran: #58 smooth-world also waits for its GPU reshoot (after the pause lifts).
 marlow-bunker paused at 80d49dd3; PR #62 open (CI pending; full e2e and GPU look not run; e2e-ctcourse passes solo but
 hits 600 s at E2E_JOBS=2). Not on the laptop queue while paused. warehouse-lamps holding (laptop run queued).
+tuner-v2: item 2 checker PASS (fingers partial: one curl per hand + trigger on / off, the rig has no finger joints);
+registry merged in (532adb2b), so the PR order is tuner-camera first, then tuner-v2. Wiring step running; laptop tests
+the wired head (b8bc1846 dropped if not started).
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
