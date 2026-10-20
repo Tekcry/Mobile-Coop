@@ -4,7 +4,8 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { CameraUnit } from '../security/camera';
 import { SecurityView } from '../security/securityView';
 import { CameraCueView } from '../vfx/cameraCueView';
-import type { SecurityEvent } from '../security/securitySystem';
+import { cameraSight, newSeenBody, remoteHeadY, type SecurityEvent, type SeenBody } from '../security/securitySystem';
+import { seenAt } from '../ai/perception';
 import { addGlow } from '../player/goggleGlow';
 import { DRAW_DRAWN } from '../weapons/drawState';
 import type { PlayerRef } from '../ai/enemy';
@@ -143,6 +144,12 @@ export class CtDevices {
   private view: SecurityView | null = null;
   /** (camera-cue) The faint red scan grid of what each camera sees (render only). */
   private cue: CameraCueView | null = null;
+  /** (camera-cue fix) Client: per camera 1 = sees a player, from the host's own test (`cameraSight`) at `thinkHz`. */
+  private cueSeen = new Uint8Array(0);
+  private cueT = 0;
+  private readonly refTmp: PlayerRef[] = [];
+  private readonly bodies: SeenBody[] = [newSeenBody()];
+  private readonly lit = { lightAt: (x: number, y: number, z: number): number => this.g.world.lightField.totalAt(x, y, z) };
   private time = 0;
   private want: [string, string] = ['', ''];
   private wantAt: [number, number] = [-9, -9];
@@ -186,6 +193,7 @@ export class CtDevices {
       }
     }
     for (const c of this.cams) this.allTargets.push({ id: c.def.id, kind: 'camera', x: c.x, y: c.y, z: c.z });
+    this.cueSeen = new Uint8Array(this.cams.length);
     if (this.cams.length > 0) {
       const b = g.ballistics;
       this.cue = new CameraCueView(g.scene, this.cams, (a, z, m) => b.hitDistance(a, z, m), g.app.quality.level.minimal);
@@ -620,8 +628,42 @@ export class CtDevices {
   frame(dt: number): void {
     if (this.role !== 'client') return;
     for (let i = 0; i < this.cams.length; i++) this.cams[i]!.advance(dt);
-    this.cue?.update(dt, this.g.vision.kind === 2);
+    if (this.cue) {
+      this.cueT += dt;
+      const step = 1 / CAMERA.thinkHz;
+      if (this.cueT >= step) {
+        this.cueT %= step;
+        this.clientSight();
+      }
+      this.cue.update(dt, this.g.vision.kind === 2, this.cueSeen);
+    }
     this.view?.update(this.cams);
+  }
+
+  /** (camera-cue fix) Client: which cameras see a player now, by the host's test on our body and the partner's (from
+   *  its MoveState), with the synced yaw and mode: the cue pulses on this page too, nothing sent. */
+  private clientSight(): void {
+    const g = this.g;
+    const own = g.playerRefsInto(this.refTmp)[0];
+    let n = 0;
+    if (own && own.target.alive) {
+      const b = this.bodies[0]!;
+      b.crouched = own.crouched;
+      b.speed = own.speed;
+      b.head.set(own.feet.x + (own.peekX ?? 0), remoteHeadY(own.feet.y, own.crouched), own.feet.z + (own.peekZ ?? 0));
+      b.light = own.light;
+      n = 1;
+    }
+    n += g.net?.partnerBodies?.(this.bodies, n) ?? 0;
+    for (let i = 0; i < this.cams.length; i++) {
+      const c = this.cams[i]!;
+      let s = 0;
+      for (let k = 0; k < n && s === 0; k++) {
+        const b = this.bodies[k]!;
+        if (seenAt(cameraSight(c, b.head, b.crouched, b.speed, b.light, g.ballistics, this.lit))) s = 1;
+      }
+      this.cueSeen[i] = s;
+    }
   }
 
   /** Test view (`window.__ctdev.debug()`). */

@@ -1,6 +1,7 @@
 import { Constants, Effect, Mesh, ShaderMaterial, Vector3, Vector4, VertexBuffer, VertexData, type Scene } from '../core/babylon';
 import { CAMERA } from '../config/security';
 import { G } from '../physics/groups';
+import { FIXED_DT } from '../core/loop';
 import type { CameraUnit } from '../security/camera';
 import {
   CUE,
@@ -11,6 +12,7 @@ import {
   cuePulse,
   cueReach,
   cueSpan,
+  cueInk,
   cueStrength,
   newCue,
   stepCue,
@@ -20,8 +22,6 @@ import {
 
 /** Distance to the first hit in `mask` along a -> b, or |b - a| (the ballistics' no-allocation ray). */
 export type CueRay = (from: Vector3, to: Vector3, mask: number) => number;
-
-const f = (x: number): string => x.toFixed(4);
 
 Effect.ShadersStore['cameraCueVertexShader'] = `
 precision highp float;
@@ -33,7 +33,7 @@ void main(void) {
   gl_Position = viewProjection * vec4(position, 1.0);
 }`;
 
-// look: x line strength, y edge pulse, z grid cell (rad), w edge width
+// look: x shown amount, y edge pulse, z grid cell (rad), w edge width; ink: rgb colour, w unused; wt: x line, y fill
 Effect.ShadersStore['cameraCueFragmentShader'] = `
 #extension GL_OES_standard_derivatives : enable
 precision highp float;
@@ -41,6 +41,8 @@ varying vec3 vW;
 uniform vec3 lens;
 uniform vec4 cam;
 uniform vec4 look;
+uniform vec4 ink;
+uniform vec4 wt;
 ${CUE_MASK_GLSL}
 void main(void) {
   float e = cueEdge(vW, lens, cam, look.w);
@@ -51,8 +53,8 @@ void main(void) {
   vec2 g = vec2(a, atan(d.y, length(d.xz))) / look.z;
   vec2 q = abs(fract(g + 0.5) - 0.5) / max(fwidth(g), vec2(1e-5));
   float line = 1.0 - min(min(q.x, q.y), 1.0);
-  float k = look.x * (${f(CUE.line)} * line + ${f(CUE.fill)}) + look.y * e;
-  gl_FragColor = vec4(vec3(1.0, 0.07, 0.04) * k, 1.0);
+  float k = look.x * (wt.x * line + wt.y) + look.y * e;
+  gl_FragColor = vec4(ink.rgb * k, 1.0);
 }`;
 
 interface CueCam {
@@ -89,6 +91,10 @@ export class CameraCueView {
   private readonly a = new Vector3();
   private readonly b = new Vector3();
   private readonly d: [number, number, number] = [0, 0, 0];
+  private readonly ink = new Vector4(0, 0, 0, 0);
+  private readonly wt = new Vector4(0, 0, 0, 0);
+  /** Unspent time for the fixed-step ray budget (the client calls per render frame, the host per fixed step). */
+  private acc = 0;
 
   constructor(
     private scene: Scene,
@@ -121,21 +127,34 @@ export class CameraCueView {
     }
   }
 
-  /** Per step: cast this frame's rays, then follow each camera's mode, seen state and yaw. */
-  update(dt: number, electro: boolean): void {
-    this.cast();
+  /**
+   * Cast the rays due (one budget per fixed step, so the same rays/s on host and client at any frame rate), then follow
+   * each camera's mode, seen state and yaw. `seen`: per camera (in `cams` order) 1 = sees a player now (the co-op
+   * client's own `cameraSight` test); null reads each camera's meters (the host).
+   */
+  update(dt: number, electro: boolean, seen: Uint8Array | null = null): void {
+    this.acc = Math.min(this.acc + dt, FIXED_DT * 4);
+    while (this.acc >= FIXED_DT - 1e-6) {
+      this.acc -= FIXED_DT;
+      this.cast();
+    }
+    const ink = cueInk(electro);
+    this.ink.set(ink.rgb[0], ink.rgb[1], ink.rgb[2], 0);
+    this.wt.set(ink.line, ink.fill, 0, 0);
     for (let i = 0; i < this.list.length; i++) {
       const c = this.list[i]!;
-      stepCue(c.st, dt, c.cam.mode, camSeesAny(c.cam.meters));
+      stepCue(c.st, dt, c.cam.mode, seen ? seen[i] === 1 : camSeesAny(c.cam.meters));
       if (!c.mesh || !c.mat) continue;
       const show = c.st.a > 0.001 && c.tris > 0;
       if (c.mesh.isEnabled(false) !== show) c.mesh.setEnabled(show);
       if (!show) continue;
       c.frame.x = c.cam.yaw;
-      c.look.x = cueStrength(c.st, electro);
-      c.look.y = cuePulse(c.st) * (electro ? CUE.electro * 0.5 : 1);
+      c.look.x = cueStrength(c.st);
+      c.look.y = cuePulse(c.st) * ink.edge;
       c.mat.setVector4('cam', c.frame);
       c.mat.setVector4('look', c.look);
+      c.mat.setVector4('ink', this.ink);
+      c.mat.setVector4('wt', this.wt);
     }
   }
 
@@ -193,7 +212,7 @@ export class CameraCueView {
       `cam-cue-${c.cam.def.id}`,
       this.scene,
       { vertex: 'cameraCue', fragment: 'cameraCue' },
-      { attributes: ['position'], uniforms: ['viewProjection', 'lens', 'cam', 'look'], needAlphaBlending: true },
+      { attributes: ['position'], uniforms: ['viewProjection', 'lens', 'cam', 'look', 'ink', 'wt'], needAlphaBlending: true },
     );
     mat.alphaMode = Constants.ALPHA_ONEONE;
     mat.disableDepthWrite = true;
@@ -203,6 +222,8 @@ export class CameraCueView {
     mat.setVector3('lens', c.lens);
     mat.setVector4('cam', c.frame);
     mat.setVector4('look', c.look);
+    mat.setVector4('ink', this.ink);
+    mat.setVector4('wt', this.wt);
     mesh.material = mat;
     mesh.setEnabled(false);
     c.mesh = mesh;

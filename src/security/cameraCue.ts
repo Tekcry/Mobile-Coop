@@ -28,11 +28,17 @@ export const CUE = {
   joinNear: 1,
   /** Projected grid cell (deg, in the camera's own angles: the lines slide over the surfaces as it pans). */
   gridDeg: 2.5,
-  /** Line strength normally (additive), and the faint fill between lines. */
+  /** Line strength normally (additive), and the faint fill between lines, in the red ink. */
   line: 0.16,
   fill: 0.025,
-  /** Multiplier in electro vision (the cue reads as a live device there). */
-  electro: 3,
+  ink: [1.0, 0.07, 0.04] as const,
+  /** (camera-cue fix) Electro: its post maps the scene's luma to navy and glows only above `ELECTRO.glowFrom` (0.5), so
+   *  a red line (luma ~0.27 x strength) vanished. There the cue writes white ink (luma 1): the lines land in the glow
+   *  band (0.72, a clear light lattice), the fill stays under it (0.05, a faint sheen), the edge pulse is lifted too. */
+  electroInk: [1.0, 1.0, 1.0] as const,
+  electroLine: 0.72,
+  electroFill: 0.05,
+  electroEdge: 1.5,
   /** Peak strength of the pulsing frame edge while the camera sees a player. */
   edge: 0.5,
   /** Width of the frame edge as a fraction of the half field / range. */
@@ -43,7 +49,8 @@ export const CUE = {
   fadeIn: 0.8,
   /** The seen pulse eases in and out over this (s), so a 4 Hz think does not flicker it. */
   seenEase: 0.2,
-  /** Rays per render frame: the first bake, then the refresh (doors and breakables are static colliders that move). */
+  /** Rays per fixed step (host and client alike, `FIXED_DT`): the first bake, then the refresh (doors and breakables are
+   *  static colliders that move). */
   bakeRays: 512,
   refreshRays: 96,
   refreshRaysMin: 32,
@@ -210,15 +217,35 @@ export function stepCue(c: CueState, dt: number, mode: CameraMode, seen: boolean
   if (c.t > 1000) c.t -= 1000;
 }
 
-/** Line strength for the shader (0 = nothing drawn). */
-export function cueStrength(c: CueState, electro: boolean): number {
-  return c.a * (electro ? CUE.electro : 1);
+/** Shown amount for the shader (0 = nothing drawn); the look itself is `cueInk`. */
+export function cueStrength(c: CueState): number {
+  return c.a;
 }
 
 /** Edge pulse strength for the shader: 0 unless the camera sees a player, then a slow throb. */
 export function cuePulse(c: CueState): number {
   const ph = 0.5 + 0.5 * Math.sin(c.t * CUE.pulseHz * 2 * Math.PI);
   return c.a * c.s * CUE.edge * (0.35 + 0.65 * ph);
+}
+
+/** The cue's ink: colour, line and fill strengths and the edge pulse's scale (normal: faint red; electro: white). */
+export interface CueInk {
+  rgb: readonly [number, number, number];
+  line: number;
+  fill: number;
+  edge: number;
+}
+
+const INK_NORMAL: CueInk = { rgb: CUE.ink, line: CUE.line, fill: CUE.fill, edge: 1 };
+const INK_ELECTRO: CueInk = { rgb: CUE.electroInk, line: CUE.electroLine, fill: CUE.electroFill, edge: CUE.electroEdge };
+
+export function cueInk(electro: boolean): CueInk {
+  return electro ? INK_ELECTRO : INK_NORMAL;
+}
+
+/** Rec. 709 luma (the post's `dot(c, vec3(0.2126, 0.7152, 0.0722))`). */
+export function luma709(rgb: readonly [number, number, number]): number {
+  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
 }
 
 let anySeen = false;

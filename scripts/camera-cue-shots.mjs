@@ -1,7 +1,9 @@
 // Camera vision cue shots (camera-cue): serves dist/ with `vite preview`, one headless browser per map, and shoots one
 // security camera of Marlow Yard and one of the Warehouse in four views: vision off, electro, the player inside its view,
-// the camera jammed (blind). Output: <dir>/cue-<suffix>-<map>-<view>.png. The camera is found at run time (the first
-// working one of the map); the shot looks over its shoulder along its current yaw. Needs a prior `npm run build`.
+// the camera jammed (blind). Output: <dir>/cue-<suffix>-<gfx>-<map>-<view>.png (one set per gfx preset). The camera is
+// found at run time (the first working one of the map); the shot looks over its shoulder along its current yaw.
+// "inside": the player is stood on the brightest spots in the camera's frame until the camera's own meters see them
+// (the shot fails, exit 1, if none is seen). "jammed": every camera whose cue is drawn goes blind. Needs `npm run build`.
 // GPU: E2E_GPU=1 on port 4189. Never headed, no pointer lock.
 // Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/camera-cue-shots.mjs docs/camera-cue/shots slice1 high
 import { spawn } from 'node:child_process';
@@ -18,6 +20,7 @@ const MAPS = [
   ['warehouse', 'autostart=warehouseOps&mode=sector&sectorGuards=0'],
 ];
 const VIEWS = ['off', 'electro', 'inside', 'jammed'];
+let failed = 0;
 
 // vite --strictPort exits silently when the port is taken, and the other server would answer: refuse up front
 if (await fetch(URL).then(() => true, () => false)) { console.error(`camera-cue-shots: port ${PORT} already in use`); process.exit(2); }
@@ -56,36 +59,75 @@ for (const [name, query] of MAPS) {
         document.body.classList.remove('photo-mode');
         const k = dev.debug().cue.findIndex((c) => c.baked && c.mode === 'online');
         const cam = dev.cams[k];
-        // jammed (the last view): the camera blind, as the jam leaves it (mode off, LED dark)
-        cam.setMode(view === 'jammed' ? 'off' : 'online');
+        // jammed (the last view): every camera whose cue is drawn goes blind, as the jam leaves it (mode off, LED dark)
+        const shown = dev.debug().cue.map((c) => c.a > 0.01);
+        if (view === 'jammed') dev.cams.forEach((c, i) => { if (shown[i] || i === k) c.setMode('off'); });
+        else cam.setMode('online');
         g.vision.set(view === 'electro' ? 'electro' : 'off');
         const floor = cam.y - cam.def.y;
         const dx = Math.sin(cam.yaw);
         const dz = Math.cos(cam.yaw);
-        // the player 9 m out along the yaw (inside the frame) or 3 m behind the camera (outside it)
-        const far = view === 'inside' ? 9 : -3;
-        g.player.controller.teleport(new V(cam.x + dx * far, floor, cam.z + dz * far), Math.PI + cam.yaw);
+        const yaw = cam.yaw;
+        let at = { x: cam.x - dx * 3, z: cam.z - dz * 3, light: 0 };
         let seen = false;
-        for (let i = 0; i < 24; i++) {
-          await sleep(250);
-          if (view === 'inside' && dev.debug().cue[k].seen) { seen = true; await sleep(400); break; }
+        let tried = 0;
+        if (view === 'inside') {
+          // candidate spots in the frame at this yaw (+-12 deg, 4..13 m), brightest first: the camera's own meters decide
+          const range = dev.debug().range;
+          const spots = [];
+          for (let d = 4; d <= Math.min(13, range - 1); d += 1.5) {
+            for (const off of [0, -0.2, 0.2]) {
+              const x = cam.x + Math.sin(yaw + off) * d;
+              const z = cam.z + Math.cos(yaw + off) * d;
+              spots.push({ x, z, light: g.world.lightField.totalAt(x, floor + 1.3, z) });
+            }
+          }
+          spots.sort((p, q) => q.light - p.light);
+          for (const s of spots.slice(0, 10)) {
+            tried++;
+            at = s;
+            g.player.controller.teleport(new V(s.x, floor, s.z), Math.PI + yaw);
+            for (let i = 0; i < 6 && !seen; i++) {
+              await sleep(250);
+              seen = dev.debug().cue[k].seen;
+            }
+            if (seen) break;
+          }
+          if (seen) await sleep(400);
+        } else {
+          // 3 m behind the camera (outside its frame)
+          g.player.controller.teleport(new V(at.x, floor, at.z), Math.PI + yaw);
+          await sleep(1000);
         }
         g.photoFreeze(true);
         document.body.classList.add('photo-mode');
         const pc = g.photoCamera();
         pc.position.set(cam.x - dx * 2.5 + dz * 1.2, cam.y + 1.6, cam.z - dz * 2.5 - dx * 1.2);
-        pc.setTarget(new V(cam.x + dx * 9, floor, cam.z + dz * 9));
+        // frame the player when inside, else the frame 9 m out
+        if (view === 'inside') pc.setTarget(new V(at.x, floor + 1, at.z));
+        else pc.setTarget(new V(cam.x + dx * 9, floor, cam.z + dz * 9));
         for (let i = 0; i < 40 && !g.scene.isReady(); i++) await sleep(250);
         await sleep(1500);
-        const c = dev.debug().cue[k];
-        return { id: c.id, mode: c.mode, a: c.a, seen: c.seen || seen, pulse: c.pulse, tris: c.tris };
+        const all = dev.debug().cue;
+        const c = all[k];
+        return {
+          id: c.id, mode: c.mode, a: c.a, seen: c.seen || seen, pulse: c.pulse, tris: c.tris,
+          ...(view === 'inside' ? { at: [+at.x.toFixed(1), +at.z.toFixed(1)], lightAt: +at.light.toFixed(3), tried } : {}),
+          ...(view === 'jammed' ? { cues: all.map((x) => `${x.id}:${x.mode}:${x.a.toFixed(2)}`) } : {}),
+        };
       }, view);
-      const file = `${dir}/cue-${suffix}-${name}-${view}.png`;
+      const file = `${dir}/cue-${suffix}-${gfx}-${name}-${view}.png`;
+      if (view === 'inside' && !info.seen) {
+        failed++;
+        console.error(`camera-cue-shots: FAIL ${file}: the camera never saw the player ${JSON.stringify(info)}`);
+        continue;
+      }
       await page.screenshot({ path: file });
       console.log(`${file} ${JSON.stringify(info)}`);
     }
     if (l.errors.length) console.log(l.errors.slice(0, 5).join('\n'));
   } catch (e) {
+    failed++;
     console.error(`camera-cue-shots ${name}: ${String(e?.message ?? e)}`);
   }
   await browser.close();
@@ -93,4 +135,4 @@ for (const [name, query] of MAPS) {
 }
 clearTimeout(kill);
 stop();
-process.exit(0);
+process.exit(failed ? 1 : 0);

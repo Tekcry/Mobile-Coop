@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CAMERA } from '../src/config/security';
 import { CameraUnit, inFrame, newMeter, sweepYaw } from '../src/security/camera';
-import { CUE, camSeesAny, cueDir, cueEdge, cueMesh, cuePulse, cueReach, cueSpan, cueStrength, newCue, stepCue } from '../src/security/cameraCue';
+import { CUE, camSeesAny, cueDir, cueEdge, cueInk, cueMesh, cuePulse, cueReach, cueSpan, cueStrength, luma709, newCue, stepCue } from '../src/security/cameraCue';
+import { cameraSight } from '../src/security/securitySystem';
+import { seenAt } from '../src/ai/perception';
+import { ELECTRO } from '../src/vfx/visionLook';
+import { Vector3 } from '../src/core/babylon';
 import type { CameraDevice } from '../src/security/data';
 
 const DEG = Math.PI / 180;
@@ -121,14 +125,24 @@ describe('camera cue: state follows the camera', () => {
       }
       expect(t).toBeCloseTo(CUE.fadeOut, 1);
       expect(c.seen).toBe(false);
-      expect(cueStrength(c, true)).toBe(0);
+      expect(cueStrength(c)).toBe(0);
     }
   });
 
-  it('is stronger in electro, and the edge pulses only while the camera sees a player', () => {
+  it("lands the lines in electro's glow band, keeps the fill under it, and stays faint with vision off", () => {
+    const e = cueInk(true);
+    const n = cueInk(false);
+    expect(luma709(e.rgb) * e.line).toBeGreaterThanOrEqual(ELECTRO.glowFrom);
+    expect(luma709(e.rgb) * e.fill).toBeLessThan(ELECTRO.glowFrom * 0.2);
+    expect(luma709(e.rgb) * e.line).toBeGreaterThan(3 * luma709(n.rgb) * n.line);
+    expect(luma709(n.rgb) * n.line).toBeLessThan(0.1);
+    expect(luma709(n.rgb) * (n.line + n.fill + CUE.edge)).toBeLessThan(ELECTRO.glowFrom);
+  });
+
+  it('the edge pulses only while the camera sees a player', () => {
     const c = newCue();
     for (let i = 0; i < 120; i++) stepCue(c, 1 / 60, 'online', false);
-    expect(cueStrength(c, true)).toBe(CUE.electro * cueStrength(c, false));
+    expect(cueStrength(c)).toBe(1);
     expect(cuePulse(c)).toBe(0);
     let hi = 0;
     let lo = 1;
@@ -144,6 +158,24 @@ describe('camera cue: state follows the camera', () => {
     expect(lo).toBeLessThan(CUE.edge * 0.5);
     for (let i = 0; i < 30; i++) stepCue(c, 1 / 60, 'online', false);
     expect(cuePulse(c)).toBe(0);
+  });
+
+  it('shares one sight test (frame, clear static ray, light over the leak) between the host think and the client', () => {
+    const cam = new CameraUnit(fixed, 0);
+    const lit = { lightAt: () => 1 };
+    let wall = Infinity;
+    const ray = { hitDistance: (a: Vector3, b: Vector3) => Math.min(wall, Vector3.Distance(a, b)) };
+    const head = new Vector3(Math.sin(cam.yaw) * 6, 1.6, Math.cos(cam.yaw) * 6);
+    expect(seenAt(cameraSight(cam, head, false, 0, 1, ray, lit))).toBe(true);
+    wall = 3;
+    expect(cameraSight(cam, head, false, 0, 1, ray, lit)).toBe(0);
+    wall = Infinity;
+    expect(seenAt(cameraSight(cam, head, false, 0, 0, ray, lit))).toBe(false);
+    head.set(-head.x, 1.6, -head.z);
+    expect(cameraSight(cam, head, false, 0, 1, ray, lit)).toBe(0);
+    cam.setMode('off');
+    head.set(-head.x, 1.6, -head.z);
+    expect(cameraSight(cam, head, false, 0, 1, ray, lit)).toBe(0);
   });
 
   it("reads the camera's own seen state from its meters", () => {

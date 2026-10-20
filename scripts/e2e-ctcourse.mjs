@@ -211,6 +211,8 @@ async function station3(x0) {
   await until(A, cueOn, null, 10000, 'station 3: the host draws the camera cue');
   await until(B, cueOn, null, 10000, 'station 3: the client draws the camera cue');
   await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses while the camera sees a player');
+  // (camera-cue fix) the client derives the pulse itself (the host's sight test on both bodies, nothing sent)
+  await until(B, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses on the client page too');
   await drawPistol(A);
   await drawPistol(B);
   // the host jams from where it stands (still), aiming at the camera
