@@ -12,7 +12,7 @@ The orchestrator checks `get_usage` on each wake. At weekly all-models >= 99%:
    and stops.
 2. Update `docs/orchestrator/STATE.md` (open PRs with tested heads, laptop queue) and the table below with each
    session's head and its own resume prompt; push feature/menu.
-3. Tell Michael: "Paused at 98%. Switch account, then paste the first prompt."
+3. Tell Michael: "Paused at 99%. Switch account, then paste the first prompt."
 
 ## In the new account
 Michael signs in to the other account in the desktop app (and on the laptop for Character Build), then pastes the
