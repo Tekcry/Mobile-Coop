@@ -92,6 +92,25 @@ Other entry points: `tuneSet` / `tuneGet` / `tuneReset*` / `tuneChanged` / `tune
 `tuneLoad` take any registered group; `TUNE_SECTIONS` lists the sections; `TUNE_FLAGS` holds `bypass` and `wide`.
 Tests: `tests/animTuneCamera.test.ts` (registry block), `tests/animTunePass2.test.ts` (ease, bypass, wide, import, Speed).
 
+## Bake (anim-bake)
+`node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]` writes
+an export's values into the code defaults. Always `--dry-run` first (the diff and a table: section, group, slider, value,
+result, target; nothing written). A real run writes the source files, the Keys section's key JSONs (the apply-tune
+functions) and the ledger `src/anim/tuneBakeLog.json`, then prints the rebake command per key clip (Blender is never
+run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight. Detail: `BAKE.md`.
+- **Identity after bake.** The code value moves (x the slider for a `mul`, + it for an `add`, in the code's unit); the
+  slider's default stays identity. The tuner's own save still holds the old values: reset the sliders the table reports
+  "baked" (keep the manual ones), then export again. A re-run of the old export is a no-op (the ledger).
+- **Shared targets.** A rule's groups are the groups that read one code value. Baked when every one of them has the same
+  value; otherwise "manual: shared target" with the value per group (Michael or a job lead picks, or a later job adds a
+  per-state table). `--allow-shared` bakes a shared value when exactly one group changed and warns that it changes every
+  state reading it. A slider and group baked through several rules bakes only when all of them do.
+- **Manual: no code target.** The slider has no code value to absorb it (the Joints, Hands & feet, IK and Weapon tables,
+  the Weight layers' amounts, clip-data sliders); the table lists it with the reason.
+- **A new section** (PR #71's `moveTune.ts`) needs only its rules or manual entries in `src/anim/tuneBakeTable.ts`, and
+  its module in `BAKE_CATALOGUE_MODULES` (or a `DECLARED_SECTIONS` entry when plain Node cannot load it); the coverage
+  test in `tests/animTuneBake.test.ts` fails until every slider and group is covered.
+
 ## Pad map
 While the panel has the pad ("PAD: tuner"; the strip at the bottom of the panel shows the map for the current mode).
 `src/ui/animTunePad.ts` (`TunePadCtl`, pure, `tests/animTunePad.test.ts`); `src/ui/animTunePanel.ts` applies it.

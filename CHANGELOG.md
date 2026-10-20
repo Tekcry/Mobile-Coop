@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - anim-bake
+- Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
+  [--dry-run] [--only section,...] [--allow-shared]` writes an export's values into the code defaults (body, gun, camera,
+  speed, stepping and weight constants; the Keys section's key JSONs through the apply-tune functions, with the Blender
+  rebake commands printed, never run), so after a reset of the baked sliders every slider reads identity with the same
+  look. The dry run prints the diff and a table (section, group, slider, value, result, target). A slider whose groups
+  share one code value bakes only when they agree ("manual: shared target" otherwise; `--allow-shared` bakes a single
+  changed group and warns); sliders with no code value (joint, hand, IK and weapon tables, most clip-data sliders) are
+  listed "manual: no code target". Refuses a wrong magic or version, a value beyond its wide range, a target not found
+  exactly once and any file outside `src/` and the key JSONs. A ledger (`src/anim/tuneBakeLog.json`) makes a re-run of
+  the same export a no-op. Mapping: `src/anim/tuneBakeTable.ts`; logic: `src/anim/tuneBake.ts`; tests:
+  `tests/animTuneBake.test.ts`; `docs/anim-tuner/BAKE.md`.
+
 ## 4.27.0 - Tuner Weight section: momentum, lean, plant and landing load, springs, anticipation (2026-10-21, PR #70)
 - Animation tuner: a Weight section (per holstered walk / jog / run, crouched, drawn) for hand-tuning weight in the
   movement: momentum (time to speed, stop time, turn rates, a stop overshoot; gameplay, local only), lean into
