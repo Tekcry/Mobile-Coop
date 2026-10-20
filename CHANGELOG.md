@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - phone-min
+## 4.15.1 - Phones get basic lamp light and shadows, a 60 fps cap, no side bars (2026-10-20, PR #44)
 - Phone (testing launch, G182; Michael 2026-10-20): the Low preset instead of the bare test preset, so lamps light the
   level and characters get contact shadows; DPR 1 and a 0.75 render scale; a 60 fps cap (heat). The menus fill a wide
   phone screen (no 16:9 side bars). Desktop and the tests (`?gfx=min`) are unchanged.
