@@ -338,6 +338,9 @@ try {
       // (anim-rework S2) the holstered gaits and sub-states measure holstered (the aim checks above leave the gun at low
       // ready); an aimed segment draws it again itself
       if (!segs.some((sg) => sg.inp?.ads)) p.stance.holster();
+      // (S2 fix round) each recording starts from a fresh stance (as a teleport puts the feet): `t.tp` left the feet where
+      // the last recording (the crouched sneak) planted them, and the idle stepped only past its 7.5 cm error
+      rig.planner.L.init = rig.planner.R.init = false;
       const joints = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR'];
       const out = Object.fromEntries(joints.map((j) => [j, []]));
       out.contactL = [];

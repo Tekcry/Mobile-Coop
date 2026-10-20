@@ -9,7 +9,7 @@ import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, ty
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
-import { KNEE_SWING_SHARE, kneePoleYaw, pelvisFollow } from '../anim/turnFollow';
+import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -1547,7 +1547,10 @@ export class CharacterRig {
     this.graph.setSupport(L.contact && !R.contact ? -1 : R.contact && !L.contact ? 1 : 0);
     // (A1.2) the pelvis turns toward the planted feet (up to 20 deg); the chest keeps the facing (applyTargets)
     const follows = !free && !i.wall && pin.stride === 'facing';
-    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt);
+    // (anim-rework S2) standing holstered the hips trail further (PELVIS_FOLLOW_KEYED, by this frame's keyHol); crouched and
+    // drawn as before
+    const holK = t.keyHol;
+    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt, PELVIS_FOLLOW_MAX + (PELVIS_FOLLOW_KEYED - PELVIS_FOLLOW_MAX) * holK);
 
     this.applyTargets(t, dt, free);
     this.lastTargets = t;
@@ -1969,8 +1972,10 @@ export class CharacterRig {
       fresh(this.kneeR);
     }
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
+    // (anim-rework S2) plus the keyed idle's head scan (standing holstered and still only; the keyed neck alone was
+    // undone by this stabilisation)
     Quaternion.RotationYawPitchRollToRef(
-      yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25,
+      yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25 + (freeGait && !free ? t.keyScan : 0),
       -this.input.aimPitch * 0.8 - this.lookPitch + t.head.pitch * 0.4,
       t.head.roll * 0.6,
       tmpQ,
@@ -2542,9 +2547,11 @@ export class CharacterRig {
     tmpA.set(x, y, z);
     // knees forward (along the foot) and slightly out
     // (A1.2) knees forward between the hips and the toes (never backwards over a turned foot), and slightly out
-    // (anim-rework S2) a swinging foot's knee stays nearer the pelvis' forward (KNEE_SWING_SHARE)
+    // (anim-rework S2) standing holstered, a swinging foot's knee stays nearer the pelvis' forward (KNEE_SWING_SHARE);
+    // crouched and drawn as before (half way)
     const swinging = !(side < 0 ? this.planner.L : this.planner.R).contact;
-    const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw, swinging ? KNEE_SWING_SHARE : 0.5);
+    const holK = this.lastTargets?.keyHol ?? 0;
+    const poleYaw = kneePoleYaw(this.pelvisWorldYaw, footYaw, swinging ? 0.5 + (KNEE_SWING_SHARE - 0.5) * holK : 0.5);
     const c = Math.cos(poleYaw);
     const sn = Math.sin(poleYaw);
     // (ct-prototype E1) climbing a ladder / drainpipe the knee pole also points up (CLIMB_KNEE_UP): a raised foot's

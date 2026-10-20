@@ -144,8 +144,9 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   the blended track half-width, knee pole, duty and lift go to the planner. `mixKeyed` blends two sampled poses. Drawn
   (low ready, aiming) keeps the walk band only (`KEYED_WALK_BAND`), the rest procedural (slice 3). The rig applies it
   (`keyedTrunk` with the look's neck yaw on top, `keyedArm`); under the keyed set the knee bow-out rule
-  (`KEYED_KNEE_GAP` 0.11 m) bows only a swinging leg, gently (`KEYED_KNEE_BOW`), and a swinging leg's knee pole stays
-  nearer the pelvis forward (`KNEE_SWING_SHARE`). Remotes pose the same from MoveState (speed, crouch, the graph's own
+  (`KEYED_KNEE_GAP` 0.11 m) bows only a swinging leg, gently (`KEYED_KNEE_BOW`), and, standing holstered (`keyHol`), a
+  swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
+  head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from

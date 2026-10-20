@@ -169,3 +169,31 @@ standstill (no hop, no slide).
 - Checks: npm run check pass; e2e:quick pass after the e2e-move literal fix (e2e-stealth solo pass, e2e-pad flaky solo
   pass). Next: independent check, laptop e2e-ctcourse / e2e-coop / e2e-netmove, Michael on /ct/ with
   `shots/s2/`.
+
+## Fix round (after the independent check passed 6546a1ca)
+| item | change |
+| --- | --- |
+| 1. idle head scan invisible | the graph outputs `RigTargets.keyScan` (the keyed idle neck's body yaw x the idle share); the rig adds it to the world-stabilised head yaw only standing holstered still, so the aim and look still drive the head everywhere else |
+| 2. hip follow and swing knee pole leaked | `PELVIS_FOLLOW_MAX` back to 0.05 (crouched, drawn) and `PELVIS_FOLLOW_KEYED` 0.35, blended by the new `RigTargets.keyHol` (standing holstered on foot); `KNEE_SWING_SHARE` blended by `keyHol` too (0.5 elsewhere, as before) |
+| 3. stale comment | `turnFollow.ts` doc matches the values |
+| 4. idle track margin | idle keys narrower (legs add 1.2 deg, half 7.6 cm at 1.75 m; weight shift 0.9 cm), `IDLE_STANCE.extra` -0.015 standing holstered only (0 for drawn and the hostage hold: g7CloseQuarters feet stay apart); e2e-anim's crab recordings now start from a fresh stance (the speed 1 idle read the sneak's leftover feet) |
+| 5. arm error bound | one-line reason at `keyedWalk.test.ts` |
+
+Tests: `keyedWalk.test.ts` new "idle head scan reaches the head (keyScan) and the standing holstered weight (keyHol)"
+(scan 0.2-0.4 rad still holstered, 0 walking / drawn, keyHol 0 drawn / crouched); `turnFollow.test.ts` back to
+`PELVIS_FOLLOW_MAX <= 0.05` plus the keyed cap; `turnHarness.ts` models the holstered player's cap standing.
+
+Results (desktop, lock held with noclobber):
+| check | result | time |
+| --- | --- | --- |
+| `npm run check` | pass, 2030 tests | 85 s |
+| `CRAB_STATES=1` e2e-anim + e2e-move (4191) | both pass | 68 s |
+
+After the fix (holstered standing): idle track max 6.8 / 9.2 / 9.1 cm at speeds 1-3 (limit 10.5: 1.3 cm or more margin),
+knees 0.85-0.99; start, stop and turn round all in range including the track; walk / jog / run unchanged; 90 / 180 deg
+changes unchanged (open, as agreed), the planner-only spin bound unchanged (open).
+
+### STATE draft (fix round)
+- Slice 2 fix round done (uncommitted): the idle head scan reaches the head; the hip follow and swing knee pole are
+  standing holstered only (crouched and drawn as before); the idle feet narrower (1.3 cm margin). npm run check pass;
+  e2e-anim (CRAB_STATES) and e2e-move pass. Open: 90 / 180 deg changes at 1.4-2.1 m/s, the planner-only spin bound.

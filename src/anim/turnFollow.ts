@@ -8,9 +8,16 @@
 /**
  * Largest pelvis yaw toward the planted feet (rad, 3 deg). (CT prototype G1, audit row 1) was 0.35 (20 deg): in Chaos
  * Theory the pelvis, knees and feet turn as one unit with the chest (105624 @ 24-27, 105949 @ 10-13), and the planted
- * feet now turn with the root (footPlanner `TURN_FOLLOW.twistFree`), so the hips stay with the chest.
+ * feet now turn with the root (footPlanner `TURN_FOLLOW.twistFree`), so the hips stay with the chest. Crouched and
+ * drawn keep it; standing holstered uses `PELVIS_FOLLOW_KEYED`.
  */
-export const PELVIS_FOLLOW_MAX = 0.35;
+export const PELVIS_FOLLOW_MAX = 0.05;
+/**
+ * (anim-rework S2, the real-world standard) Standing holstered (the keyed set) the hips trail the chest toward the planted
+ * feet by up to 0.35 rad (20 deg): the upper body turns first, the feet step round (BRIEF 4). The rig blends the cap from
+ * PELVIS_FOLLOW_MAX by its standing-holstered weight.
+ */
+export const PELVIS_FOLLOW_KEYED = 0.35;
 /** Ease time constant of the pelvis follow (s). */
 export const PELVIS_FOLLOW_TAU = 0.06;
 /** Largest knee pole yaw away from the pelvis (rad). */
@@ -24,9 +31,9 @@ function wrap(a: number): number {
 
 /**
  * The pelvis yaw offset from the root (rad) after `dt`: half the planted feet's mean yaw error, clamped to
- * +-PELVIS_FOLLOW_MAX, eased from `prev` with PELVIS_FOLLOW_TAU. No planted foot: eases back to 0.
+ * +-`max` (PELVIS_FOLLOW_MAX by default), eased from `prev` with PELVIS_FOLLOW_TAU. No planted foot: eases back to 0.
  */
-export function pelvisFollow(prev: number, rootYaw: number, lYaw: number, rYaw: number, lContact: boolean, rContact: boolean, dt: number): number {
+export function pelvisFollow(prev: number, rootYaw: number, lYaw: number, rYaw: number, lContact: boolean, rContact: boolean, dt: number, max = PELVIS_FOLLOW_MAX): number {
   let target = 0;
   if (lContact && rContact) {
     // circular mean of the two planted feet
@@ -34,8 +41,8 @@ export function pelvisFollow(prev: number, rootYaw: number, lYaw: number, rYaw: 
     target = 0.5 * wrap(m - rootYaw);
   } else if (lContact) target = 0.5 * wrap(lYaw - rootYaw);
   else if (rContact) target = 0.5 * wrap(rYaw - rootYaw);
-  if (target > PELVIS_FOLLOW_MAX) target = PELVIS_FOLLOW_MAX;
-  else if (target < -PELVIS_FOLLOW_MAX) target = -PELVIS_FOLLOW_MAX;
+  if (target > max) target = max;
+  else if (target < -max) target = -max;
   if (dt <= 0) return prev;
   const k = 1 - Math.exp(-dt / PELVIS_FOLLOW_TAU);
   return prev + (target - prev) * k;
@@ -43,7 +50,7 @@ export function pelvisFollow(prev: number, rootYaw: number, lYaw: number, rYaw: 
 
 /**
  * The knee pole world yaw: between the pelvis and the toes (`share` of the way, 0.5 by default), never more than
- * KNEE_POLE_MAX from the pelvis (NaN pelvis: the foot yaw). (anim-rework S2) A swinging leg passes `KNEE_SWING_SHARE`:
+ * KNEE_POLE_MAX from the pelvis (NaN pelvis: the foot yaw). (anim-rework S2) Standing holstered, a swinging leg passes `KNEE_SWING_SHARE`:
  * its knee stays forward under the hips while the foot turns to its landing (a foot still turned from the last plant
  * swung its knee 7-9 cm outside the ankle through a direction change).
  */

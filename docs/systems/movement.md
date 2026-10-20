@@ -88,9 +88,10 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   0.03-0.09 m and is never scrubbed through a turn or a direction change (the scrub runs only after `SPIN_SCRUB` 0.5 s of
   continuous fast turning; crouched keeps the G1 band and scrub); a clock swing waits while the other foot is still in
   the air from a rule step at a walk (no two-footed hop in a turn from a standstill); a planted heel rises at most
-  `HEEL_RISE` 6 rad/s (a start's first frame no longer drags the ankle); the pelvis trails the chest toward the planted
-  feet by up to `PELVIS_FOLLOW_MAX` 0.35 rad (was 0.05: the upper body turns first). The rest stance is hip width
-  (`IDLE_STANCE` extra 0, lead 0.04).
+  `HEEL_RISE` 6 rad/s (a start's first frame no longer drags the ankle); standing holstered the pelvis trails the
+  chest toward the planted feet by up to `PELVIS_FOLLOW_KEYED` 0.35 rad (the upper body turns first; crouched and drawn
+  keep `PELVIS_FOLLOW_MAX` 0.05, blended by `RigTargets.keyHol`). The rest stance is hip width (`IDLE_STANCE` extra 0;
+  standing holstered -0.015, lead 0.04).
 - Forward roll: crouch tapped standing at gear >= `rollGear` 5 (or sprinting) while moving >= 1.5 m/s
   (`TraversalController.canForwardRoll`) = `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m
   (shortened by a wall), comes up crouched; noise `CT.rollNoise` 2 m. HUD gear pips: `Hud.setGear` (`GEARS.pipsShow` 1.5 s).

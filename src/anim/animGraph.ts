@@ -302,6 +302,12 @@ export interface RigTargets {
   keyArmW: number;
   keyed: KeyedPose;
   keyKneeOut: number;
+  /** (anim-rework S2) The standing holstered weight (on foot, standing, free hands; not faded by turning or moving): the
+   *  rig's hip follow and swing knee pole use it. */
+  keyHol: number;
+  /** (anim-rework S2) The keyed idle's head scan (rad, body yaw of the keyed neck x the idle's share): the rig adds it to
+   *  the world-stabilised head, so the scan shows while the aim and look keep driving the head. */
+  keyScan: number;
 }
 
 export function emptyTargets(): RigTargets {
@@ -332,6 +338,8 @@ export function emptyTargets(): RigTargets {
     keyArmW: 0,
     keyed: newKeyedPose(),
     keyKneeOut: KEYED_WALK.kneeOut,
+    keyHol: 0,
+    keyScan: 0,
   };
 }
 
@@ -632,6 +640,8 @@ export class AnimGraph {
   private kWalk = 1;
   private readonly kA = newKeyedPose();
   private readonly kB = newKeyedPose();
+  /** (anim-rework S2) The eased standing holstered weight (`RigTargets.keyHol`). */
+  private keyHolS = 0;
   /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
   private handClipW = 0;
   /** Ready-hands follow of the chest and pelvis (m, root space), eased by READY_HANDS.lag. */
@@ -1410,6 +1420,8 @@ export class AnimGraph {
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
       o.keyArmW = o.keyW * fw * (i.melee >= 0 ? 0 : 1);
+      this.keyHolS = approach(this.keyHolS, gate * fw, B.tau, dt);
+      o.keyHol = this.keyHolS < 1e-4 ? 0 : this.keyHolS;
       this.keyedSet(ph, es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
     }
     this.writeTargets(pose, i, k, ph);
@@ -1454,6 +1466,10 @@ export class AnimGraph {
       }
     }
     if (needIdle) sampleKeyed(KEYED_IDLE, this.idleT / KEYED_IDLE_PERIOD, 1, this.kB);
+    // the idle's scan: the keyed neck's yaw in the body frame (the sum of the chain's local yaws), by the idle's share
+    let scan = 0;
+    if (needIdle) for (let s = 0; s < 16; s += 4) scan += 2 * Math.atan2(this.kB.q[s + 1]!, this.kB.q[s + 3]!);
+    o.keyScan = scan * idleShare * o.keyW;
     if (needLoco && needIdle) mixKeyed(this.kA, this.kB, idleShare, o.keyed);
     else if (needLoco) mixKeyed(this.kA, this.kA, 0, o.keyed);
     else if (needIdle) mixKeyed(this.kB, this.kB, 0, o.keyed);
@@ -1547,7 +1563,7 @@ export class AnimGraph {
     const half = half0 + (this.kHalf - half0) * o.keyW;
     const st = o.stance;
     // (G1 fix, audit row 20) standing still on foot the feet sit IDLE_STANCE apart (anim-rework S2: about hip width)
-    const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
+    const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * o.keyHol * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
     st.lX = (-half - wide + q[CH.fLX]!) * k;
     // (G1) the support foot's lead (0.08 m) is a standing stance: moving, the feet run on even tracks (a lead made every
     // other landing reach further and dip the pelvis more: a limp in the bob)
@@ -1624,9 +1640,11 @@ const NEUTRAL_POSE: Pose = newPose();
 /**
  * (G1 fix, audit row 20) The standing rest stance: `extra` (m) wider each side than the hips, the left foot `lead` (m)
  * ahead and the right as far behind. (anim-rework S2, BRIEF 3: feet about hip width) extra 0.065 -> 0, lead 0.05 -> 0.04:
- * the CT stance (0.3-0.4 m) put each foot 15 cm off the line under the hips and opened the knees to 1.4 x the hips.
+ * the CT stance (0.3-0.4 m) put each foot 15 cm off the line under the hips and opened the knees to 1.4 x the hips; (S2
+ * fix round) extra -0.015, standing holstered only (keyHol; drawn and the close-quarters hold keep the hip-joint
+ * width): the feet a touch inside the hip joints, 1 cm or more of margin under CRAB_IDLE.
  */
-export const IDLE_STANCE = { extra: 0, lead: 0.04 } as const;
+export const IDLE_STANCE = { extra: -0.015, lead: 0.04 } as const;
 
 /**
  * (CT prototype G8) Where the keyed walk plays: at full weight up to `from` effort pace (GAIT_REF units: 2.0 is gear 3,

@@ -1,7 +1,7 @@
 // (CT prototype G8) The keyed walk (scripts/anim-keys, src/anim/keyed.ts, G8-PLAN.md): the sampler, the clip against the
 // footage numbers (G8-REPORT.md "Before"), the graph's weight and the rig playing it (NullEngine), owner and remote alike.
 import { describe, expect, it } from 'vitest';
-import { AnimGraph, defaultInput, KEYED_WALK_BAND } from '../src/anim/animGraph';
+import { AnimGraph, defaultInput, IDLE_STANCE, KEYED_WALK_BAND } from '../src/anim/animGraph';
 import { KA, KQ, mixKeyed, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
 import { KEYED_JOG } from '../src/anim/clips/keyed/jog';
@@ -143,10 +143,37 @@ describe('the graph plays the keyed walk', () => {
     const rX = (v: number) => steady((i) => (hol(i), (i.speed = v)), 120).g.out.stance.rX / k;
     expect(rX(3)).toBeCloseTo(KEYED_JOG.half, 2);
     expect(rX(4.5)).toBeCloseTo(KEYED_RUN.half, 2);
-    expect(rX(0)).toBeCloseTo(KEYED_IDLE.half, 2);
+    expect(rX(0)).toBeCloseTo(KEYED_IDLE.half + IDLE_STANCE.extra, 2);
     // drawn (a lowered gun in the hands): the jog and the idle stay procedural, as before
     expect(steady((i) => ((i.armed = true), (i.speed = 3))).g.out.keyW).toBe(0);
     expect(steady((i) => ((i.armed = true), (i.speed = 0))).g.out.keyW).toBe(0);
+  });
+  it('(S2 fix round) the idle head scan reaches the head (keyScan) and the standing holstered weight (keyHol)', () => {
+    const hol = (i: ReturnType<typeof defaultInput>) => ((i.ready = true), (i.armed = false));
+    const scanMax = (set: (i: ReturnType<typeof defaultInput>) => void) => {
+      const g = new AnimGraph(proportions());
+      const i = defaultInput();
+      i.localZ = 1;
+      i.keyedOk = true;
+      set(i);
+      let m = 0;
+      for (let k = 0; k < 60 * 13; k++) {
+        g.update(1 / 60, i);
+        m = Math.max(m, Math.abs(g.out.keyScan));
+      }
+      return { m, hol: g.out.keyHol };
+    };
+    // still and holstered: the scan turns the head 15-20 deg each way over the 12 s cycle
+    const still = scanMax((i) => (hol(i), (i.speed = 0)));
+    expect(still.m).toBeGreaterThan(0.2);
+    expect(still.m).toBeLessThan(0.4);
+    expect(still.hol).toBeGreaterThan(0.95);
+    // walking, drawn or crouched: no scan; drawn and crouched: not the standing holstered weight (old hip follow, knee pole)
+    expect(scanMax((i) => (hol(i), (i.speed = 1.4))).m).toBeLessThan(0.02);
+    const drawn = scanMax((i) => ((i.armed = true), (i.speed = 0)));
+    expect(drawn.m).toBe(0);
+    expect(drawn.hol).toBe(0);
+    expect(scanMax((i) => (hol(i), (i.crouch = 1), (i.speed = 0))).hol).toBeLessThan(0.01);
   });
   it('(anim-rework S2) one continuous speed blend: no pop in the keyed pose from a creep to a run', () => {
     const g = new AnimGraph(proportions());
@@ -267,8 +294,7 @@ describe('the rig plays the keyed walk (NullEngine)', () => {
       }
       expect(seen).toBeGreaterThan(100);
       expect(minKnee, remote ? 'remote knees' : 'knees').toBeGreaterThanOrEqual(0.09);
-      // (within 3 cm: the trunk clearance may swivel an elbow carried in front of the body)
-      // (anim-rework S2: the arms along the sides pass nearer the hips, the clearance swivels a touch more: 3.5 cm)
+      // within 3.5 cm (was 3; anim-rework S2: the arms hang along the sides, nearer the hips, so the trunk clearance swivels them a touch more)
       expect(maxArmErr, remote ? 'remote arm' : 'arm').toBeLessThanOrEqual(0.035);
       // (G8 fix) holding a guard (the close-quarters bend) the keyed walk lets go: the hostage walk keeps its own stance
       pose.bend = 0.08;

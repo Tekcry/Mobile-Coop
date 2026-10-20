@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { emptyMotionInput, gaitRate, MotionDriver, stepLength, TURN_STEP } from '../src/anim/motion';
-import { kneePoleYaw, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
+import { kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
 import { TURN_FOLLOW } from '../src/anim/footPlanner';
 import { proportions } from '../src/player/proportions';
 import { flick, run, SCENARIOS, spin, TAU, wrap } from './turnHarness';
 
 describe('turn follow (A1.2): pelvis and knees', () => {
   it('pelvis follows the planted feet a little (PELVIS_FOLLOW_MAX), eased; the knee pole sits between the hips and toes', () => {
-    // (G1, audit row 1) CT turned the hips with the chest (3 deg); (anim-rework S2, the real-world standard) the hips trail
-    // the chest toward the planted feet again, up to 20 deg (BRIEF 4: the upper body turns first, the feet step round)
-    expect(PELVIS_FOLLOW_MAX).toBeLessThanOrEqual(0.35 + 1e-9);
+    // (G1, audit row 1) CT turns the hips with the chest: the follow is capped at 3 deg (was 20); (anim-rework S2) standing
+    // holstered the rig raises the cap to PELVIS_FOLLOW_KEYED (20 deg: the upper body turns first, the feet step round)
+    expect(PELVIS_FOLLOW_MAX).toBeLessThanOrEqual(0.05 + 1e-9);
+    expect(PELVIS_FOLLOW_KEYED).toBeCloseTo(0.35, 6);
+    let g = 0;
+    for (let k = 0; k < 120; k++) g = pelvisFollow(g, 0, 1.05, 1.05, true, true, 1 / 120, PELVIS_FOLLOW_KEYED);
+    expect(g).toBeCloseTo(PELVIS_FOLLOW_KEYED, 3);
     // feet 60 deg left of the root: the pelvis goes half way, clamped
     let f = 0;
     for (let k = 0; k < 120; k++) f = pelvisFollow(f, 0, 1.05, 1.05, true, true, 1 / 120);
@@ -97,7 +101,7 @@ describe('foot planner: legs follow the body (A1.2)', () => {
         // 2. (G1, audit row 1) free movement turns the legs with the body as CT does: a planted foot stays within
         // TURN_FOLLOW.twistFree of the body (it scrubs round with it; was a 52 deg world lock), the pelvis with the chest
         expect(r.maxPlantedTwistBody, 'planted twist (body)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + 1e-6);
-        expect(r.maxPlantedTwist, 'planted twist (pelvis)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + PELVIS_FOLLOW_MAX + 1e-6);
+        expect(r.maxPlantedTwist, 'planted twist (pelvis)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + (stand ? PELVIS_FOLLOW_KEYED : PELVIS_FOLLOW_MAX) + 1e-6);
         // (G1, audit row 2) no lateral splay: planted feet inside the stance band either side of the midline
         // (the capped scrub lets a foot out by a few cm in a held 400 deg/s spin before it steps back in)
         // (anim-rework S2) standing the planted feet stay locked through the first SPIN_SCRUB s of a turn (no scrub: they
