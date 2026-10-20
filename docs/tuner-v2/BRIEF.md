@@ -30,6 +30,9 @@ animation.
 - New files for new tuner groups; Course Ready builds the Anim Studio stage, loop player, free view and undo / presets
   in parallel and documents the tuner group API in `docs/anim-tuner/STATE.md` (read first). Shared files only through
   the orchestrator.
+- Panel wiring only through Course Ready's section registry (`registerTuneSection`: follow, picker, reset, save, export,
+  change log and pad control come with it; API in `docs/anim-tuner/STATE.md` "Section registry (for other jobs)").
+  Build the pure group tables and hooks first; wire into the panel once the orchestrator sends the registry's head.
 - Checks: `npm run check`, e2e-anim, e2e-menus (laptop via the orchestrator). Lean, one check each.
 
 ## Michael's answers
