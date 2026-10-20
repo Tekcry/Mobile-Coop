@@ -9,9 +9,18 @@ prompt (summary: the six wall clips wired standing and crouched, both sides, wit
 e2e-anim, `npm run check` + e2e-wall + e2e-anim pass, before / after sheets in docs/anim-rework/shots/s5/,
 docs/anim-rework/S5-REPORT.md). Opus implementer, Opus checker, one fix round max, prototype quality.
 
-**Now:** Opus implementer running (22:12).
-**Next:** fresh Opus checker; at most one fix round; push; message CT Core Build with the branch head, copy the orchestrator.
-**Open:** -
+**Now:** 23:20. Implementer done, code at 5b91485d (pushed): `src/anim/wallKeyed.ts`, `keyedWallSet` in animGraph,
+`tests/wallKeyed.test.ts`, the e2e-anim wall block, `docs/anim-rework/S5-REPORT.md` (results pending). Light checks green
+(tsc, eslint, 8 vitest files 106 tests). CT Core held the desktop lock 22:07 onward, so no check / e2e / sheets yet.
+- Laptop: `npm run check` + e2e-wall + e2e-anim on 5b91485d requested from Character Build (23:19).
+- Fresh Opus checker running (writes `docs/anim-rework/check-s5.md`).
+**Next:** 1. Laptop result + checker verdict; at most one fix round. 2. Before / after sheets in `docs/anim-rework/shots/s5/`
+on the desktop GPU (port 4189) under the lock when free; "before" from f46426a5's animGraph. 3. Push; message CT Core Build
+with the head (and the open items for its rig), copy the orchestrator.
+**Open (for CT Core, S5-REPORT):** 1. rig gate: `characterRig` applies keyed poses only in free gait or drawn; workaround
+`keyDrawn` >= 0.02 at the wall; clean fix `|| this.input.wall` in the rig's keyed gate (CT Core's file). 2. No carrier flag at
+the wall, so drawn at the wall stays procedural. 3. `wallHeadYaw` kept (the rig holds the head world-stable, cancelling the
+keyed neck turn). 4. The knee-hand path ignores the crouched wrist frames.
 
 ## Resume prompt
 ```
