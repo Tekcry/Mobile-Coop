@@ -1,5 +1,5 @@
 // Takedowns on the night Warehouse (Clear rules): ground behind / front / side (side only on a
-// calm guard), (G5, Michael 08:10) one context menu row per takedown (a knockout; RT's strike is the lethal one), the attacker aligned within 5 cm, interrupted by
+// calm guard), (G5, Michael 08:10) one context menu row per takedown (a knockout; RT held is the lethal strike, anim-rework S1), the attacker aligned within 5 cm, interrupted by
 // damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
 // from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
@@ -256,8 +256,9 @@ try {
       t.step(0.4);
       t.press();
       t.step(1.2);
+      // (anim-rework S1, M3 "RT tap / hold") RT held (0.35 s) while holding: the kill; a tap is the knockout
       st.set('t', 'fire', true);
-      t.step(1 / 60);
+      t.step(0.5);
       st.set('t', 'fire', false);
       t.run(1.0);
       const killed = !e.alive && g.enemyMgr.bodies.some((b) => b.lethal);
@@ -295,7 +296,7 @@ try {
       const koAfter = !e2.alive && !g.takedown.active;
       return { killed, carried, stillHeld, crouched, koAfter };
     });
-    assert(r.killed, 'RT while holding: killed');
+    assert(r.killed, 'RT held while holding: killed');
     assert(r.carried, 'Carry (a script pick, not a row): knocked out and on the shoulder');
     assert(r.stillHeld && !r.crouched, `B, Y and back never let him go (held ${r.stillHeld}, crouched ${r.crouched})`);
     assert(r.koAfter, 'the hold ends only in the knockout (LT) or the kill');

@@ -50,6 +50,8 @@ export class GamepadSource {
   style: PadStyle = 'xbox';
   /** Multiplier applied to look rate while aiming down sights. */
   adsActive = false;
+  /** (anim-rework S1) The gun is out (low ready or aiming): A reloads instead of interacting. */
+  drawnActive = false;
 
   constructor(
     private state: InputState,
@@ -132,15 +134,15 @@ export class GamepadSource {
 
     if (frame.active) this.events.onActive();
 
-    // (F1a, CT) the weapon drawn (the aiming mode): A reloads instead of interacting, LT is the secondary fire (a stub:
-    // it is the held pistol jammer, `altFire` read by `CtDevices`, B3); holstered, LT is the knockout (read by the strike)
-    const drawn = this.adsActive;
+    // (F1a, CT; anim-rework S1) the gun out (low ready or aiming): A reloads instead of interacting. LT is the held aim
+    // (`ads`); X's tap / hold is read by the player (`Player.stance`)
+    const drawn = this.drawnActive;
     const aNow = frame.buttons.interact === true;
     if (drawn && aNow && !this.aWas) this.state.tap('reload');
     this.aWas = aNow;
     for (const a of [
-      'fire', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
-      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown', 'altFire',
+      'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'pause', 'ping', 'coop', 'vision', 'draw', 'zoom',
+      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'ctxUp', 'ctxDown',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt', 'uiX', 'uiStart',
     ] as const) {
       const on = frame.buttons[a] === true;

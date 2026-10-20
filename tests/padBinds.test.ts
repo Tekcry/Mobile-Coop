@@ -14,7 +14,7 @@ describe('pad bindings (step 18)', () => {
     expect(defaultSettings().pad).toEqual(defaultPadBinds());
   });
 
-  it('(F1a) the CT pad: A interact, B crouch, Y jump, X draw, L3 wall + shoulder, R3 zoom, RB co-op, LB wheel, D-pad up / down speed, left vision, right gadget', () => {
+  it('(anim-rework S1) the pad: A interact, B crouch, Y jump, X holster / draw, L3 wall + shoulder, R3 zoom, RB co-op, LB wheel, D-pad left vision, right gadget, up / down free', () => {
     const m = new Map(GAME_BINDINGS.map(([i, a]) => [i, a]));
     expect(GAME_BINDINGS.filter(([i]) => i === PAD.LS).map(([, a]) => a).sort()).toEqual(['cover', 'shoulderSwap']);
     expect(m.get(PAD.A)).toBe('interact');
@@ -24,12 +24,17 @@ describe('pad bindings (step 18)', () => {
     expect(m.get(PAD.RS)).toBe('zoom');
     expect(m.get(PAD.RB)).toBe('coop');
     expect(m.get(PAD.LB)).toBe('gadgetWheel');
-    expect(m.get(PAD.UP)).toBe('speedUp');
-    expect(m.get(PAD.DOWN)).toBe('speedDown');
+    // (anim-rework S1) no speed rocker: the stick sets the speed; D-pad up / down only step a held context menu
+    expect(m.get(PAD.UP)).toBeUndefined();
+    expect(m.get(PAD.DOWN)).toBeUndefined();
+    expect(mapPad(snap(PAD.UP), T).buttons.ctxUp).toBe(true);
+    expect(mapPad(snap(PAD.DOWN), T).buttons.ctxDown).toBe(true);
     expect(m.get(PAD.LEFT)).toBe('vision');
     expect(m.get(PAD.RIGHT)).toBe('grenade');
-    // the triggers: LT is the knockout / secondary fire (`altFire`), RT fires
-    expect(mapPad({ ...snap(), buttons: Array.from({ length: 17 }, (_, i) => (i === PAD.LT ? 1 : 0)) }, T).buttons.altFire).toBe(true);
+    // the triggers (anim-rework S1): LT is the held aim (`ads`), RT fires / strikes; LT no longer raises `altFire`
+    const lt = mapPad({ ...snap(), buttons: Array.from({ length: 17 }, (_, i) => (i === PAD.LT ? 1 : 0)) }, T).buttons;
+    expect(lt.ads).toBe(true);
+    expect(lt.altFire).toBeUndefined();
     expect(mapPad({ ...snap(), buttons: Array.from({ length: 17 }, (_, i) => (i === PAD.RT ? 1 : 0)) }, T).buttons.fire).toBe(true);
     // L3 enters the wall; A no longer does, and Y no longer interacts
     expect(mapPad(snap(PAD.LS), T).buttons.cover).toBe(true);
@@ -38,7 +43,7 @@ describe('pad bindings (step 18)', () => {
     expect(mapPad(snap(PAD.Y), T).buttons.jump).toBe(true);
   });
 
-  it('remap: draw from X to R3, then LT; X no longer draws, the new button does (LT is still the fixed knockout trigger: the trigger is fixed)', () => {
+  it('remap: draw from X to R3, then LT; X no longer draws, the new button does (LT is still the fixed aim: the trigger is fixed)', () => {
     const b = defaultPadBinds();
     expect(assignPadBind(b, 'draw', 0, PAD.RS)).toBe(true);
     const t = padBindTable(b);
@@ -48,7 +53,7 @@ describe('pad bindings (step 18)', () => {
     expect(mapPad(snap(PAD.RS), T, t).buttons.zoom).toBe(true);
     assignPadBind(b, 'draw', 0, PAD.LT);
     const f = mapPad(snap(PAD.LT), T, padBindTable(b));
-    expect(f.buttons.draw && f.buttons.altFire).toBe(true);
+    expect(f.buttons.draw && f.buttons.ads).toBe(true);
   });
 
   it('two buttons per verb at most; a second slot adds, a third assignment replaces; clear and reset', () => {

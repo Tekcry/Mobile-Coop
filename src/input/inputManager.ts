@@ -101,6 +101,11 @@ export class InputManager {
     this.kbm.adsActive = on;
   }
 
+  /** (anim-rework S1) The gun is out (low ready or aiming): the pad's A reloads. */
+  setDrawn(on: boolean): void {
+    this.gamepad.drawnActive = on;
+  }
+
   /** Poll devices. Call once per render frame before reading input. */
   poll(now: number, dt: number): void {
     const style = this.gamepad.style;

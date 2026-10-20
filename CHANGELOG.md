@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - anim-rework
+- Controls (slice 1, `docs/anim-rework/BRIEF.md` section 1; Michael 2026-10-20): the left stick's deflection sets the
+  speed continuously from a creep to a run (`STICK_SPEED`: most of the travel is creep / sneak / walk, the last fifth
+  the jog and the run); no speed gears, no D-pad or mouse-wheel speed. Keyboard: WASD walks, Left Shift held runs, Left
+  Alt held creeps (A1); back to wall moved from Left Shift to Caps Lock. D-pad up / down and the wheel only step the held
+  context menu now; = / - are unbound.
+- Weapon states: holstered, low ready, aiming. LT (RMB) held aims, let go drops to low ready; X tap holsters / draws
+  (M1); X held with the gun out reloads (A2; nothing to reload: holsters), A still reloads; LT from holstered draws
+  straight to the aim through a slower sling draw (M2, the existing draw x 1.6 until slice 3's clip); RT fires only
+  while aiming (A3). Holstered or holding a guard: RT tap knocks out, RT hold kills (M3); KBM Z still knocks out; LT
+  while holding aims the pistol over his shoulder. Traversal and busy moves put the gun away and bring the state back
+  after (M4). The pistol jammer runs while the drawn pistol is aimed at a camera or a laser (LT is the aim now).
+- Settings: pad layout 3 and key layout 1 move an older save to the new defaults (the speed verbs and keys dropped,
+  back to wall off Left Shift, the Aim choice back to hold); a remapped binding that now clashes is named in a toast
+  once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
+
 ## Unreleased - anim-metrics (into feature/ct-prototype)
 - Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
   and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,

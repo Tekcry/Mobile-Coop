@@ -19,6 +19,7 @@ import { GEARS } from '../config/movement';
 import { G } from '../physics/groups';
 import { WALL, WALL_LOOK_PITCH, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHeadYaw, wallMoveK, wallRootPush, wallTurnRate, wallYawOffset } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
+import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStance';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -77,12 +78,20 @@ export class Player {
   readonly cam: ShoulderCamera;
   readonly carry = new WeaponCarry();
   readonly carryIn = emptyCarryInput();
-  /** (F1a, CT) The draw / holster toggle (X, RMB): the weapon is wanted out. `ads` is that, gated by what the body
-   *  allows (a dash, a climb); gameplay that asks for the one-handed sidearm while attached reads this raw request. */
+  /** (anim-rework S1) The weapon state: holstered / low ready / aiming / the sling draw (`weaponStance.ts`). X taps
+   *  holster / draw, X held reloads while drawn, LT (RMB, the `ads` action) held aims. */
+  readonly stance = new WeaponStance();
+  private readonly stanceIn = emptyStanceInput();
+  /** (M4) Set by GameState each step: a traversal or a busy move (attached, a team move, a takedown, a carry, a strike)
+   *  holds the weapon state: the gun goes away for it and comes back to the state it had. */
+  weaponSuspend = false;
+  /** Set by GameState each step: holding a guard (X does nothing; the aim is the pistol shield). */
+  weaponLocked = false;
+  /** The aim is wanted (LT / RMB held, or toggled with `gameplay.adsToggle`; `forceAds`). `ads` is that, gated by what
+   *  the body allows (a hard landing, a climb); gameplay that asks for the one-handed sidearm while attached reads this
+   *  raw request. */
   adsWanted = false;
-  /** The toggle's latch (X / RMB). `adsWanted` also follows the legacy held `ads` action (nothing real writes it: scripted
-   *  tests and tools hold it). */
-  private adsLatch = false;
+  /** Aiming (the over-the-shoulder camera, the raise, the trigger). */
   ads = false;
   /** Aim regardless of input (tests and scripted sequences). */
   forceAds = false;
@@ -176,6 +185,16 @@ export class Player {
     return this.controller.pos;
   }
 
+  /** (anim-rework S1) The weapon state this step (holstered / lowReady / aiming / slingDraw; read by the anim code). */
+  get weaponState(): WeaponStateId {
+    return this.stance.state;
+  }
+
+  /** (anim-rework S1) The gun is wanted out (low ready or aiming) and nothing holds it away (the weapons draw it). */
+  get drawWanted(): boolean {
+    return this.stance.drawWanted;
+  }
+
   /** Weapon raised enough to be "aiming" (tightest turn and look rates). */
   get aiming(): boolean {
     return this.carry.raise > 0.5;
@@ -212,27 +231,31 @@ export class Player {
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.getSettings();
     const c = this.controller;
-    // (F1a, CT) aim = the weapon drawn: X / RMB toggles it (no held aim button); a climb, a dash or death holsters it
-    if (inp.pressed('draw') && this.alive) this.adsLatch = !this.adsLatch;
-    this.adsWanted = this.adsLatch || inp.down('ads');
+    // (anim-rework S1) the three weapon states: X taps holster / draw (held: reload while drawn), LT / RMB held aims
+    // (from holstered through the slower sling draw), release drops to low ready; a traversal holsters for the move and
+    // the state comes back after it (M4)
+    const si = this.stanceIn;
+    // (a scripted tap, `InputState.tap('draw')`: pressed with no down, reads as a one-step press)
+    si.xDown = inp.down('draw') || inp.pressed('draw');
+    si.aimDown = inp.down('ads');
+    si.aimToggle = s.gameplay.adsToggle;
+    si.alive = this.alive;
+    si.suspended = this.weaponSuspend || (this.pose.traverse !== 'none' && !this.attachAim);
+    si.locked = this.weaponLocked;
+    si.gunOut = this.weaponDrawn;
+    si.forceAim = this.forceAds;
+    this.stance.update(dt, si);
+    this.adsWanted = this.stance.aimWanted;
     this.ads = this.adsWanted;
-    if (this.forceAds) this.ads = true;
-    // a hard landing lowers the weapon for a moment (the draw is still wanted: it comes back up); a climb holsters it for good
+    // a hard landing lowers the weapon for a moment (the aim is still wanted: it comes back up); a climb puts it away
     if (c.weaponBlocked) this.ads = false;
-    if (this.pose.traverse !== 'none' && !this.attachAim) {
-      this.ads = false;
-      this.adsLatch = false;
-    }
-    if (!this.alive) {
-      this.adsLatch = false;
-      this.adsWanted = false;
-    }
+    if (this.pose.traverse !== 'none' && !this.attachAim) this.ads = false;
     // G17: the shoulder swap works only while aiming
     if (inp.pressed('shoulderSwap') && this.ads) this.cam.swapShoulder();
     // (F1, playtest 2 "always reset to right hand side aiming") a left-shoulder swap lasts only while drawn: holstering
     // (X, a climb, death) resets to the right, so the holstered camera sits over the right shoulder and the next draw is
     // on the right. A hard landing's brief lowering keeps the draw wanted, so it keeps the side.
-    const drawn = this.adsWanted || this.forceAds;
+    const drawn = this.stance.drawWanted || this.adsWanted;
     if (this.wasDrawn && !drawn) this.cam.resetShoulder();
     this.wasDrawn = drawn;
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
@@ -245,7 +268,8 @@ export class Player {
     }
     const ci = this.carryIn;
     ci.ads = this.ads;
-    ci.fire = this.alive && this.weaponDrawn && inp.down('fire');
+    // (A3) the trigger is live only while aiming: no raise-to-fire from low ready
+    ci.fire = this.alive && this.weaponDrawn && this.ads && inp.down('fire');
     ci.sinceShot = this.sinceShot;
     ci.doorway = this.context.doorway;
     ci.dashing = c.weaponBlocked;
@@ -272,8 +296,6 @@ export class Player {
       ads: this.ads,
       aiming: this.aiming,
       reloading: this.reload >= 0,
-      gearUp: inp.pressed('speedUp'),
-      gearDown: inp.pressed('speedDown'),
     };
     if (!this.alive) pi.moveX = pi.moveY = 0;
     c.fixedUpdate(dt, pi, this.cam.yaw);

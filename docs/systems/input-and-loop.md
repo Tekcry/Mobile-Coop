@@ -15,7 +15,11 @@ Desktop only: pad first, then keyboard and mouse (loco D1, G12). There is no tou
 - Decided, not built yet (G22): remap capture cancels with Menu / Start or Esc; B stays bindable. Code: B held 1 s or Esc.
 - Decided (G21, built): a mission starts holstered; a swap while holstered picks the gun the next aim draws; swap works
   while aiming; grenades and gadgets work holstered.
-- Decided (G24, G98, built): emotes and the carried medkit are deleted; View held and the X hold (not aiming) do nothing.
+- Decided (G24, G98, built): emotes and the carried medkit are deleted; View held does nothing.
+- Built (anim-rework S1, Michael 2026-10-20, M1-M4, A1-A3; `docs/anim-rework/BRIEF.md` section 1): the analogue speed
+  (no gears), the three weapon states (holstered / low ready / aiming), LT held aims, X tap holsters / draws and X held
+  reloads, RT tap knockout / hold kill, traversal holsters and returns the state. This replaces the F1a draw toggle and
+  the step 17 speed gears; `docs/ct-prototype/CT-CONTROLS.md` is history.
 
 ## Game loop
 `GameLoop` disables Babylon's automatic physics (`scene.physicsEnabled = false`) and steps Havok itself at a fixed 1/60 s
@@ -41,41 +45,71 @@ call in the last second, or manual mode, stands the tick down. Single player nev
   `kbm`) and sets the `body.input-*` classes; CSS uses them for the focus ring and glyph prompts.
 - `GamepadSource` scans for pads on every poll, not just on `gamepadconnected` (some browsers expose a pad only after its
   first button press).
-- Pad (CT co-op layout, A3, G96): `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). `GamepadSource` turns X tap / hold into
-  reload / next weapon (`X_HOLD` 0.4 s; the hold swaps only while aiming) with `TapHold`; the other buttons are plain. In menus Y = `uiAlt`
-  (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
+- Pad (anim-rework S1, `docs/anim-rework/BRIEF.md` section 1): `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). LT
+  is the held aim (`ads`, analog), RT `fire`. X is the plain `draw` button: the player reads its tap / hold
+  (`player/weaponStance.ts`). While the gun is out (low ready or aiming) the source turns A into reload
+  (`InputManager.setDrawn`). D-pad up / down are free in play; they step the held context menu (`CTX_BINDINGS`,
+  `ctxUp` / `ctxDown`, fixed). In menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
 - Keyboard (rebindable, D7): `input/keyBindings.ts` (pure): `BINDS` defaults, two inputs per action incl. Mouse 3/4/5,
   `settings.keys`; `assignBind` puts a key on a second action as a warned conflict (A71); `KeyboardMouseSource` rebuilds its
   map when the keys change, `captureNext` for the rebinding UI. Fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs,
-  1-7 gadgets, LMB fire, RMB aim, the mouse wheel (maximum gear). Mouse look uses raw input via `unadjustedMovement` where
+  1-7 gadgets, LMB fire, RMB the held aim, the mouse wheel (the held context menu's highlight). (A1) WASD walk; the
+  `run` (Left Shift) and `creep` (Left Alt) binds held set the move's magnitude (`KBM_PACE`: the run, the creep), no
+  action. Mouse look uses raw input via `unadjustedMovement` where
   supported (`mouse.adsMultiplier`, default 0.3 since playtest 2; a saved old default 0.55 / 0.6 migrates, custom values stay;
   the pad uses the same `ADS_LOOK`).
 - Prompts (`ui/prompts.ts` `promptHtml`) emit Xbox, PlayStation, Nintendo and key glyphs; the body classes
   (`input-gamepad`, `pad-ps`, `pad-nin`) show the pad glyph whenever a pad is the last device used, keys for KBM.
   `keyLabels` follow the bindings. Gamepad look: 30 ms smoothing (acceleration inside the smoothing).
 
+### Weapon states (anim-rework S1, M1-M4, A2, A3; `player/weaponStance.ts`)
+Michael 2026-10-20: "i want to make LT the aim, held, not toggled. There should be 3 character states. Holstered, low
+ready, aiming." Every number is a starting value.
+
+| State | How you get there | Camera | RT / LMB |
+|---|---|---|---|
+| Holstered | X tap from low ready (or while aiming); a match start, a death | Explore | Tap: knockout (palm strike); hold 0.35 s: kill (M3) |
+| Low ready | X tap from holstered (the draw starts on the press); LT let go | Explore | Nothing (A3) |
+| Aiming | LT / RMB held (release: low ready); `gameplay.adsToggle` makes it a toggle | Over the shoulder | Fire |
+| Sling draw | LT from holstered: straight to the aim, the draw x `STANCE.slingDrawMult` 1.6 (M2; the existing draw path slowed until slice 3's clip) | Over the shoulder (slower blend) | Fire once drawn and in |
+
+- X held `STANCE.xHold` 0.4 s while the gun is out reloads (A2); with nothing to reload the hold holsters. A while the gun
+  is out reloads too; R always (from holstered it draws to low ready first, A43).
+- Holding a guard: X does nothing; RT tap the knockout, RT hold the kill, KBM Z the knockout; LT aims the pistol over
+  his shoulder (the human shield; RT then fires). The grab itself stays on the context menu (GRAB CHARACTER, BACK TO GAME).
+- (M4) A traversal (Y), an attach (ladder, pipe, hang; except the one-handed sidearm aim), a team move, a takedown, a
+  carry or a strike holds the state: the gun goes away for it (`Player.weaponSuspend`) and the state it had comes back
+  when it ends (low ready, or the aim while LT is still held). An X press during it is ignored.
+- The host's forced holster (D8) holsters the state too. Death resets to holstered.
+- The pistol jammer (CT prototype B3) runs while the drawn pistol is aimed (LT / RMB) at a camera or a laser, or KBM Z
+  is held on it (LT is no longer a secondary trigger).
+- `Player.weaponState` ('holstered' / 'lowReady' / 'aiming' / 'slingDraw') and `Player.drawWanted` are what the anim code
+  reads; the wire is unchanged (the remote poses from `MoveState.dw` and `r`; PROTOCOL_VERSION 24).
+
 ### Binding table
 
 `tests/input.test.ts` parses this table against `GAME_BINDINGS` and `BINDS`: a Pad name with no bracket is a raw
-`GAME_BINDINGS` button for every action of the row (a bracket marks a tap / hold the source decides); each KBM
-`` `bindId` (keys) `` is a `BINDS` entry with those default keys raising exactly the row's actions. Edit the table
-and the code together.
+`GAME_BINDINGS` button for every action of the row (a bracket marks a tap / hold or a context the source or the game
+decides); each KBM `` `bindId` (keys) `` is a `BINDS` entry with those default keys raising exactly the row's actions.
+Edit the table and the code together.
 
 | Verb | Actions | Pad (Xbox) | PlayStation / Nintendo | KBM | Notes |
 |---|---|---|---|---|---|
-| Move | `move` | Left stick | Left stick | `forward` (W) `back` (S) `left` (A) `right` (D) | Analog gears within the maximum gear |
+| Move | `move` | Left stick | Left stick | `forward` (W) `back` (S) `left` (A) `right` (D) | anim-rework S1: the deflection sets the speed continuously (no gears); WASD walk |
+| Run (held) | `move` | Left stick (the last fifth) | Left stick | `run` (Left Shift) | A1; the move's magnitude, no action |
+| Creep (held) | `move` | Left stick (a slight tilt) | Left stick | `creep` (Left Alt) | A1; the move's magnitude, no action |
 | Look | `look` | Right stick | Right stick | Mouse | Free orbit |
-| Draw / holster (the aim toggle) | `draw` | X | Square / Y | `draw` (X); RMB | F1a, CT: drawn = the aiming mode (camera over the shoulder, no hold); a climb, a dash or death holsters. Draw 0.5 s pistol / 0.3 s rifle, holster 0.15 s (CT prototype G2, footage) |
-| Fire / lethal strike (holstered) | `fire` | RT | R2 / ZR | LMB | No hip fire. Holstered RT / LMB is the lethal palm strike (a kill; a co-op client's strike is a knockout on the host: stub) |
-| Knockout / secondary fire | `altFire` | LT | L2 / ZL | `knockout` (Z) | Holstered: the knockout palm strike. Drawn: secondary fire (a stub: fires like RT, no secondary fire exists yet) |
-| Reload | `reload` | A (drawn) | Cross / B (drawn) | `reload` (R) | The pad's A reloads instead of interacting while the weapon is drawn |
+| Aim (held) | `ads` | LT | L2 / ZL | RMB | Release: low ready. From holstered: the sling draw (slower, M2). `gameplay.adsToggle`: a toggle |
+| Holster / draw; reload (held) | `draw` | X (tap / hold) | Square / Y | `draw` (X) | M1: tap holstered <-> low ready (aiming: holsters); A2: held 0.4 s with the gun out reloads (nothing to reload: holsters) |
+| Fire / strike | `fire` | RT | R2 / ZR | LMB | A3: fires only while aiming. Holstered or holding a guard (M3): tap knockout, hold 0.35 s kill |
+| Knockout (keyboard) | `altFire` | - | - | `knockout` (Z) | Holstered or holding a guard: the knockout; held on the drawn pistol: the jammer. No pad button |
+| Reload | `reload` | A (gun out) | Cross / B (gun out) | `reload` (R) | The pad's A reloads instead of interacting while the gun is out; X held reloads too (A2) |
 | Zoom | `zoom` | R3 | R3 / RS | `zoom` (B) | Aiming with a scoped weapon only; normal aim never zooms (G29) |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
-| Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | CT pad (A3, G96): team move > traversal; no longer shares a button with interact |
+| Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | Team move > traversal. M4: a gun out goes away for the move and comes back after |
 | Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | G5: the context action menu (hold = the list, release = run the highlighted row; below) |
-| Back to wall | `cover` | L3 | L3 / LS | `wall` (Left Shift) | G18, entry by button only (G34); not while aiming; the button again or aiming leaves |
-| Max speed up | `speedUp` | D-pad up | D-pad up | `speedUp` (=); wheel up | F1a: the max-speed rocker (stick push and the mouse wheel also set it); gears 1-5 |
-| Max speed down | `speedDown` | D-pad down | D-pad down | `speedDown` (-); wheel down | - |
+| Back to wall | `cover` | L3 | L3 / LS | `wall` (Caps Lock) | G18, entry by button only (G34); not while aiming; the button again or aiming leaves. KBM moved off Left Shift (the run, A1) |
+| Context menu highlight | `ctxUp` `ctxDown` | D-pad up (menu held); D-pad down (menu held) | D-pad up / down | Mouse wheel | Fixed. In play D-pad up / down and = / - are unbound (no speed gears) |
 | Switch weapon (next) | `swapNext` | - | - | `nextWeapon` (T) | LB / Tab tap switches weapon (the wheel opens on a hold); also through the wheel |
 | Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button |
 | Quick-use selected gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | F1a: the gadget picked on the wheel; works holstered (G21) |
@@ -96,11 +130,12 @@ and the code together.
   target (its label; a door's own item reads OPEN DOOR / CLOSE DOOR).
 - States: none (nothing in reach); passive (the list shows, header INTERACT, no highlight, walking free); active (A
   held: header BACK TO GAME, row 1 highlighted in the press step, the operator stands still, the camera is free). The
-  highlight moves one row per step, no wrap: D-pad / mouse wheel / = - always; the stick, W / S and the arrows once the
+  highlight moves one row per step, no wrap: D-pad up / down and the mouse wheel (`ctxUp` / `ctxDown`) always; the stick, W / S and the arrows once the
   stick has been back under 0.25 since A went down (`CtxNav`; the pad's own stick repeat). BACK TO GAME is a row above
   row 1. Releasing A runs the highlighted row; on BACK TO GAME nothing. A quick tap runs row 1. B closes the held list
-  with no action. Holding a guard (Michael 08:10 / 08:20): RT kills, LT knocks out (not aiming; KBM LMB / Z), the aim
-  (X / RMB) draws the pistol over his shoulder (the human shield), nothing lets him go (B, Y, back do nothing). A row with a hold time (a hack, a medkit station, an alarm
+  with no action. Holding a guard (Michael 08:10 / 08:20; anim-rework S1, M3): RT tap knocks out, RT hold kills (not
+  aiming; KBM LMB tap / hold, Z the knockout), LT / RMB aims the pistol over his shoulder (the human shield), nothing
+  lets him go (B, Y, back do nothing). A row with a hold time (a hack, a medkit station, an alarm
   panel) fills while A stays on it and runs once full (a fill line on the row); let go early and nothing happens.
 - A belongs to the menu while a list is up or its press is still held (`ctxOwnsA`): the door peek, traversal's held use
   (vents) and the takedown press see it up. The menu stands aside (no list, A goes where it went before G5) while down,
@@ -117,40 +152,52 @@ and the code together.
   list nothing (no PICK LOCK / BREAK LOCK yet); no traversal rows (rope, climb: Y does those).
 
 ### Remapping and hold / toggle (step 18, D7; local only, D8)
-- The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 14 verbs (A3: ids renamed so an old save's binds are ignored and the CT defaults apply), at
+- The table above is the default layout. Pad: `Settings.pad: PadBinds` (`input/padBinds.ts`, `PAD_BINDS`: 12 verbs (A3: ids renamed so an old save's binds are ignored and the CT defaults apply; anim-rework S1 removed the two speed verbs), at
   most 2 buttons each, defaults = `GAME_BINDINGS`); `GamepadSource` rebuilds the flat `padBindTable` only when
   `settings.pad` changes and `mapPad(p, t, table)` reads it. Sticks, the triggers' analog aim / fire and the menu buttons
   (`UI_BINDINGS`) are fixed; LT / RT can take a button verb. Keyboard: `Settings.keys` / `BINDS`.
-- Shared-by-design verbs are one row: X = reload (tap) + next weapon (held while aiming), RT = fire / elbow strike.
-  The tap / hold splits follow the button. A3 split the old shared Y (jump + interact) and A (context) into Y = jump, A = interact.
+- Shared-by-design verbs are one row: X = holster / draw (tap) + reload (held, gun out), RT = fire (aiming) / the
+  strike's tap knockout and hold kill (holstered). The tap / hold splits follow the button. A3 split the old shared Y (jump + interact) and A (context) into Y = jump, A = interact.
 - Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair;
   menu keys are their own group; no pair may share (A3 removed the Traverse + Use pair). A conflict is shared, warned on both
   rows and in a summary, and saved (A71).
 - Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or
   Esc cancels (G22 changes this), Y on a slot clears. Reset per device with a confirm.
-- Hold / toggle in `Settings.gameplay`: `adsToggle` (default hold), `crouchToggle` (default toggle), `sprintHold` (unused since the CT prototype M1: no sprint; default
-  toggle), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
+- Hold / toggle in `Settings.gameplay`: `adsToggle` (default hold: LT / RMB held aims; toggle: a press aims, the next
+  drops to low ready), `crouchToggle` (default toggle), `sprintHold` (unused since the CT prototype M1: no sprint; no
+  row since anim-rework S1), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
   (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
 - In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).
 - (F7) Stored pad binds keep what was saved, so a settings save from an A3 build kept the speed on D-pad left / right
   (and vision on up, sharing it with speed up). `Settings.padV` (`PAD_LAYOUT_V` 2): an older save moves each of vision,
   gadget, speed down and speed up still on its exact A3 button (up / down / left / right) to today's default (left / right /
   down / up); a remapped verb is kept (`migrateA3Dpad`, `tests/settings.test.ts`).
+- (anim-rework S1) `PAD_LAYOUT_V` 3: the speed verbs are dropped (D-pad up / down free), X keeps its id (`draw`) with
+  the new meaning, LT is the fixed aim; an older save's `gameplay.adsToggle` goes back to hold (the old Aim row did
+  nothing). `Settings.keysV` (`KEY_LAYOUT_V` 1): back to wall still on its old default Left Shift moves to Caps Lock
+  (`migrateKeysV1`), the `run` / `creep` binds take their defaults, = / - entries are dropped. A remapped binding is
+  kept; one that now clashes (a verb on LT / RT, a key on Left Shift / Left Alt) shows as a conflict on the controls
+  screen, and `controlsMigrationNotes` names what moved and every clash in one toast at the first boot after the move
+  (the migrated settings are saved then). Tests: `tests/settings.test.ts` (literal old saves).
 
-### Analog speed and the maximum gear (step 17)
-- The rocker (D-pad up / down since F1a; it was left / right in A3, = / -) and the mouse wheel set the maximum gear 1-5 (`GearState`, `MAX_ROCKER_GEAR`); there is no gear 6
-  (the sprint is gone, CT prototype M1). The stick snaps within it (`AnalogGear`, `player/speedGears.ts`, pure): v = cap(max) x
-  `stickCurve(mag)`; the gear is the highest g <= max whose up threshold v has passed, kept until v drops under its down
-  threshold; speed = cap(g). Thresholds (`GEAR_UP` / `GEAR_DOWN`) are the midpoint of adjacent caps +- 15% of the gap,
-  derived from `GEARS` and pinned in `tests/analogGear.test.ts`. Any tilt past the dead zone is gear 1. A keyboard or a
-  full stick gives the maximum gear.
-- `controller.gear` is the snapped gear while moving, else the maximum (noise, roll, carry caps and MoveState `g` read it);
-  `controller.maxGear` is the rocker gear.
-- The HUD gear pips are removed (CT prototype M1, G107): the speed rocker has no on-screen indicator.
-- Raw stick 50% / 80% / 100% at maximum 5 gives gears 2 / 4 / 5 (pad radial dead zone 0.15).
-- The speed numbers are starting values (G10): standing 0.75 / 1.4 / 2.1 / 3.0 / 4.2, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s (`GEARS`;
-  playtest 2 re-spaced them so the old speed 2 is the slowest). The stick reaches the D-pad speed from 0.9 of its travel
-  (`GEARS.fullPush`).
+### Analogue speed (anim-rework S1; replaces the step 17 gears)
+Michael 2026-10-20: "remove the speed toggle, and allow full speed control via the analogue stick depending on how far
+you push the stick". No gears, no D-pad speed buttons, no mouse-wheel speed.
+- `player/speedGears.ts` `stickSpeed(u, crouched)` (pure): `u` = the stick's travel past the dead zone (`stickCurve`; the
+  pad's radial dead zone 0.15 first, then `GEARS.deadZone` 0.05), piecewise linear through `STICK_SPEED.at`
+  [0, 0.15, 0.45, 0.8, 0.9, 0.97] to [0.4, 0.75, 1.4, 2.1, 3.0, 4.5] m/s standing and [0.4, 0.85, 1.3, 1.7, 2.15, 2.6]
+  crouched (the slowest creep, then creep / sneak / walk / jog / run). Most of the travel (to 0.8) is the stealth range;
+  the last fifth is the jog and the run. Raw stick 50 / 80 / 90 / 100 % standing (the default radial dead zone 0.15, outer 0.98): ~1.3 / ~2.0 / ~3.0 / 4.5 m/s.
+- Keyboard (A1): WASD at the walk point (2.1 / 1.7 m/s), Left Shift held the run, Left Alt held the creep (`KBM_PACE`).
+- Aiming caps the pace at `adsSpeed` / `adsCrouchSpeed` with the strafe / backstep penalties (`paceSpeed`).
+- `AnalogGear` (allocation-free): `v` the asked speed (continuous; `controller.wantSpeed`), `gear` the nearest named
+  speed 1-5 with hysteresis (`GEAR_UP` / `GEAR_DOWN`, pinned in `tests/analogGear.test.ts`; the roll, the fence rattle,
+  the wall slide read it), `band` the slowest gear whose speed covers `v` (`controller.paceBand` -> `MoveState.g`, which
+  the host's speed check allows + 15%; no wire change).
+- `GearState` (`controller.gears`) is an internal cap only (5 = none; no player control): tests and tools cap it with
+  `?gear=N` (e2e-lib starts suites at 4 unless they name one).
+- Noise and perception read the measured `controller.speed`, so they follow the actual pace; the light meter is the
+  light on the body.
 
 ### Rumble (step 17; local only, D8)
 - `config/rumble.ts` `RUMBLE` `{strong, weak, ms}`: landing soft / roll / heavy, takedown done, elbow hit, shot suppressed /

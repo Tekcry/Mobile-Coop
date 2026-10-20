@@ -17,8 +17,11 @@ describe('speed gears (3.2.0)', () => {
     expect(clampGear(9)).toBe(5);
     expect(clampGear(Number.NaN)).toBe(GEARS.spawn);
   });
-  it('steps one gear at a time, clamps, keeps the gear and resets to the spawn gear', () => {
-    const g = new GearState();
+  it('the internal cap steps one gear at a time, clamps, keeps the gear and resets to the spawn cap', () => {
+    // (anim-rework S1) the cap spawns at 5 (no cap): no player control sets it, tests start lower with ?gear=N
+    const g = new GearState(3);
+    expect(new GearState().gear).toBe(5);
+    expect(GEARS.spawn).toBe(5);
     expect(g.gear).toBe(3);
     expect(g.step(1)).toBe(true);
     expect(g.gear).toBe(4);

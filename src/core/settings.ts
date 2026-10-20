@@ -1,7 +1,8 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
-import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
-import { defaultPadBinds, migrateA3Dpad, PAD_LAYOUT_V, sanitizePadBinds, type PadBinds } from '../input/padBinds';
+import { BINDS, defaultBinds, KEY_LAYOUT_V, keyName, migrateKeysV1, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
+import { findConflicts } from '../input/conflicts';
+import { defaultPadBinds, migrateA3Dpad, PAD_BINDS, PAD_FIXED, PAD_LAYOUT_V, padButtonName, sanitizePadBinds, type PadBinds } from '../input/padBinds';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 
@@ -32,8 +33,12 @@ export interface Settings {
   keys: KeyBinds;
   /** (locomotion step 18, D7) Controller bindings (`input/padBinds.ts`; local only, D8). */
   pad: PadBinds;
-  /** (F7) The stored pad binds' D-pad layout version (`PAD_LAYOUT_V`; older A3 saves had the speed on left / right). */
+  /** (F7) The stored pad binds' layout version (`PAD_LAYOUT_V`; A3 saves had the speed on left / right; anim-rework S1,
+   *  3: no speed rocker, LT the held aim, X holster / draw and reload). */
   padV: number;
+  /** (anim-rework S1) The stored key layout's version (`KEY_LAYOUT_V`; 1: Left Shift runs, Left Alt creeps, back to wall
+   *  on Caps Lock). */
+  keysV: number;
   /** (CT prototype G3) The camera defaults' version (`CAM_V`): 1 moved the FOV 75 -> 86 and the pad's vertical look
    *  0.8 -> 1.0; an untouched old default follows once. */
   camV: number;
@@ -138,6 +143,7 @@ export function defaultSettings(): Settings {
     keys: defaultBinds(),
     pad: defaultPadBinds(),
     padV: PAD_LAYOUT_V,
+    keysV: KEY_LAYOUT_V,
     camV: CAM_V,
     video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
@@ -241,11 +247,41 @@ export function setPreset(s: Settings, p: FixedPreset): void {
   s.video.auto = false;
 }
 
-/** (F7) Stored pad binds, sanitized; a save from before `PAD_LAYOUT_V` 2 moves the A3 D-pad defaults to today's. */
+/** (F7) Stored pad binds, sanitized; a save from before pad layout 2 moves the A3 D-pad defaults to today's. */
 function padMigrated(raw: unknown, v: unknown): PadBinds {
   const p = sanitizePadBinds(raw);
-  if (!(typeof v === 'number' && v >= PAD_LAYOUT_V)) migrateA3Dpad(p);
+  // (anim-rework S1) the A3 D-pad move is layout 2's; a layout 2 save is past it (layout 3 only drops the speed verbs)
+  if (!(typeof v === 'number' && v >= 2)) migrateA3Dpad(p);
   return p;
+}
+
+/** (anim-rework S1) Stored key binds, sanitized; a save from before `KEY_LAYOUT_V` 1 moves back to wall off Left Shift. */
+function keysMigrated(raw: unknown, v: unknown): KeyBinds {
+  const k = sanitizeBinds(raw);
+  if (!(typeof v === 'number' && v >= KEY_LAYOUT_V)) migrateKeysV1(k);
+  return k;
+}
+
+/**
+ * (anim-rework S1) What the controls migration changed for a stored settings object, as short lines for a toast once
+ * after the move (empty for a fresh profile or a current save): the speed now on the stick, back to wall moved, and every
+ * binding that now shares an input with another (a remapped key or button that collides with the new layout; the
+ * controls screen marks the same rows). Not on a hot path (once at boot).
+ */
+export function controlsMigrationNotes(raw: unknown, s: Settings): string[] {
+  if (!isObj(raw)) return [];
+  const out: string[] = [];
+  const padOld = !(typeof raw.padV === 'number' && raw.padV >= PAD_LAYOUT_V);
+  const keysOld = !(typeof raw.keysV === 'number' && raw.keysV >= KEY_LAYOUT_V);
+  if (!padOld && !keysOld) return out;
+  out.push('Controls updated: the left stick sets the speed (no speed buttons); LT aims (held), X holsters and draws.');
+  const k = sub(raw, 'keys');
+  if (keysOld && Array.isArray(k.wall) && k.wall.length === 1 && k.wall[0] === 'ShiftLeft') out.push('Back to wall moved to Caps Lock: Left Shift runs, Left Alt creeps.');
+  const pl = (id: string): string => (id === 'aim' ? 'Aim' : id === 'fire' ? 'Fire' : (PAD_BINDS.find((b) => b.id === id)?.label ?? id));
+  const kl = (id: string): string => BINDS.find((b) => b.id === id)?.label ?? id;
+  for (const c of findConflicts({ ...s.pad, aim: PAD_FIXED.aim, fire: PAD_FIXED.fire })) out.push(`Controller: ${pl(c.a)} and ${pl(c.b)} share ${padButtonName(c.input as number)}.`);
+  for (const c of findConflicts(s.keys)) out.push(`Keyboard: ${kl(c.a)} and ${kl(c.b)} share ${keyName(String(c.input))}.`);
+  return out;
 }
 
 /** Merge untrusted data (old saves, imports) over defaults, clamping every field. */
@@ -277,9 +313,10 @@ export function sanitizeSettings(raw: unknown): Settings {
       adsMultiplier: adsLook(m.adsMultiplier, d.mouse.adsMultiplier, 0.2),
       raw: bool(m.raw, d.mouse.raw),
     },
-    keys: sanitizeBinds(r.keys),
+    keys: keysMigrated(r.keys, r.keysV),
     pad: padMigrated(r.pad, r.padV),
     padV: PAD_LAYOUT_V,
+    keysV: KEY_LAYOUT_V,
     camV: CAM_V,
     video: {
       ...videoGfx(v),
@@ -315,7 +352,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     },
     gameplay: {
       defaultShoulder: pick(gp.defaultShoulder, ['right', 'left'] as const, d.gameplay.defaultShoulder),
-      adsToggle: bool(gp.adsToggle, d.gameplay.adsToggle),
+      // (anim-rework S1) LT is the held aim: a save from before pad layout 3 goes back to hold (the old Aim row did nothing)
+      adsToggle: typeof r.padV === 'number' && r.padV >= PAD_LAYOUT_V ? bool(gp.adsToggle, d.gameplay.adsToggle) : d.gameplay.adsToggle,
       crouchToggle: bool(gp.crouchToggle, d.gameplay.crouchToggle),
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
       wallToggle: bool(gp.wallToggle, d.gameplay.wallToggle),

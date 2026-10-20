@@ -18,16 +18,20 @@ const LABELS: Record<Dev, string> = { pad: 'Controller', kbm: 'Keyboard and mous
 function fixedRows(dev: Dev): Row[] {
   return dev === 'pad'
     ? [
-        ['Left stick', 'Move (push further: faster, up to the speed gear)'],
+        ['Left stick', 'Move: push further to go faster (creep, sneak and walk; the last fifth jogs and runs)'],
         ['Right stick', 'Look'],
-        ['LT / RT', 'Holstered: knockout / lethal palm strike. Drawn: secondary / primary fire'],
+        ['LT', 'Aim (hold); from holstered it draws straight to the aim (slower). Let go: low ready'],
+        ['RT', 'Fire while aiming. Holstered or holding a guard: tap knockout, hold kill'],
+        ['D-pad up / down', 'Move the highlight of the held context menu (no speed buttons)'],
         ['A / B, d-pad, LB / RB', 'Menus: select / back, move, tabs'],
         ['Menu / Start', 'Pause; cancels a remap'],
       ]
     : [
         ['Mouse', 'Look (click to capture)'],
-        ['Right / left button', 'Draw / holster (click); fire (holstered: lethal palm strike)'],
-        ['Wheel', 'Speed gear up / down'],
+        ['Right button', 'Aim (hold); from holstered it draws straight to the aim (slower)'],
+        ['Left button', 'Fire while aiming. Holstered or holding a guard: click knockout, hold kill'],
+        ['W A S D', 'Walk (hold Shift to run, Alt to creep)'],
+        ['Wheel', 'Move the highlight of the held context menu'],
         ['1-7', 'Pick a gadget'],
         ['Esc', 'Pause, menus back'],
       ];

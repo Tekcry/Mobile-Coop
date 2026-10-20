@@ -32,7 +32,7 @@ export interface Flags {
   detect: boolean;
   /** Tests: the GPU name detection sees (`?renderer=Apple%20GPU`). */
   renderer: string | null;
-  /** Tests: the speed gear at spawn and respawn (`?gear=1..5`; else the default, 3). */
+  /** Tests: the internal speed cap at spawn and respawn (`?gear=1..5`; else 5, no cap: anim-rework S1). */
   gear: number | null;
   /** 3.5 (`?legacy=1`, URL only, never saved): the parked Blacklist-era modes and the economy are shown (`core/legacy.ts`). */
   legacy: boolean;

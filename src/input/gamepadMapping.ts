@@ -49,12 +49,13 @@ export interface PadFrame {
 const BTN_THRESHOLD = 0.5;
 
 /**
- * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled separately. The
- * Chaos Theory pad (F1a, G96, G181): A interact / context (the source turns it into reload while drawn), B crouch, Y jump,
- * X draw / holster toggle, L3 back-to-wall (and shoulder swap: the player only swaps while aiming, the wall only
- * enters while not), R3 zoom, RB co-op action (Black), LB selection wheel (hold) / switch weapon (tap), D-pad up / down
- * the speed rocker, left the selected vision mode on / off, right quick-use of the selected gadget, View mission
- * device (no action yet), Start pause. LT = `altFire`, RT = `fire` (analog, below).
+ * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled separately. The pad
+ * (F1a, G96, G181; anim-rework S1): A interact / context (the source turns it into reload while drawn), B crouch, Y jump,
+ * X holster / draw (tap) and reload (held while drawn; `Player.stance`), L3 back-to-wall (and shoulder swap: the player
+ * only swaps while aiming, the wall only enters while not), R3 zoom, RB co-op action (Black), LB selection wheel (hold) /
+ * switch weapon (tap), D-pad left the selected vision mode on / off, right quick-use of the selected gadget, View mission
+ * device (no action yet), Start pause. D-pad up / down are free in play (no speed gears: the stick sets the speed); they
+ * step the held context menu's highlight (`CTX_BINDINGS`). LT = `ads` (the held aim), RT = `fire` (analog, below).
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'interact'],
@@ -67,8 +68,6 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.LS, 'cover'],
   [PAD.LS, 'shoulderSwap'],
   [PAD.RS, 'zoom'],
-  [PAD.UP, 'speedUp'],
-  [PAD.DOWN, 'speedDown'],
   [PAD.LEFT, 'vision'],
   [PAD.RIGHT, 'grenade'],
 ];
@@ -102,6 +101,12 @@ export class TapHold {
   }
 }
 
+/** (anim-rework S1) Fixed: the held context menu's highlight on D-pad up / down (read only while the list is held). */
+export const CTX_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
+  [PAD.UP, 'ctxUp'],
+  [PAD.DOWN, 'ctxDown'],
+];
+
 /** Menu binding. Directions from the d-pad; the left stick is merged in mapPad. */
 export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'uiConfirm'],
@@ -128,11 +133,13 @@ export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readon
 
   for (const [i, a] of table) if (b(i) > BTN_THRESHOLD) out[a] = true;
   for (const [i, a] of UI_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
+  for (const [i, a] of CTX_BINDINGS) if (b(i) > BTN_THRESHOLD) out[a] = true;
 
   const lt = applyAxisDeadzone(b(PAD.LT), t.triggerDeadzone);
   const rt = applyAxisDeadzone(b(PAD.RT), t.triggerDeadzone);
   if (rt > 0.35) out.fire = true;
-  if (lt > 0.35) out.altFire = true;
+  // (anim-rework S1) LT is the aim, held
+  if (lt > 0.35) out.ads = true;
 
   // Standard mapping: axis Y is +down. Our move.y is +forward.
   const ls = applyCurve(applyRadialDeadzone(ax(0), ax(1), t.deadzoneLeft), 'linear');

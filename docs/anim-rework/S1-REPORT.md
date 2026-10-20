@@ -1,0 +1,165 @@
+# Slice 1 - controls: report
+
+Implementer, 2026-10-20. Spec: `BRIEF.md` section 1 (Michael 13:30-13:40, M1-M5, A1-A3). Nothing committed (the job lead
+commits). No wire change (PROTOCOL_VERSION 24). Every number is a starting value.
+
+## Control table
+
+### Pad (Xbox names)
+| Input | Holstered | Low ready | Aiming | Holding a guard |
+| --- | --- | --- | --- | --- |
+| Left stick | Move; the deflection sets the speed (creep to run) | same | same (capped at the aim pace) | same (the hold's own cap) |
+| LT (held) | Sling draw straight to the aim (slower, M2) | Aim | - (release: low ready) | Aim the pistol over his shoulder |
+| RT | Tap: knockout strike; hold 0.35 s: kill (M3) | Nothing (A3) | Fire | Tap: knockout; hold: kill; aiming: fire |
+| X | Press: draw to low ready (M1) | Tap: holster; hold 0.4 s: reload (A2; nothing to reload: holster) | Tap: holster; hold: reload | Nothing |
+| A | Interact / context menu (hold) | Reload | Reload | Context menu (Interrogate) |
+| Y | Traverse | Traverse: the gun goes away, comes back after (M4) | same (the aim returns if LT is still held) | Nothing (can't let go) |
+| B | Crouch | Crouch | Crouch | Nothing |
+| L3 | Back to wall | Back to wall | Swap shoulder | - |
+| R3 | - | - | Zoom (scoped) | - |
+| LB | Wheel (hold) / switch weapon (tap) | same | same | - |
+| RB | Co-op action | same | same | - |
+| D-pad left / right | Vision / quick gadget | same | same | - |
+| D-pad up / down | Free in play; step the held context menu's highlight | same | same | same |
+| View / Menu | Mission device (stub) / pause | same | same | same |
+
+### Keyboard and mouse
+| Input | Does |
+| --- | --- |
+| W A S D | Walk (2.1 m/s standing, 1.7 crouched) |
+| Left Shift (held) | Run (A1; was back to wall) |
+| Left Alt (held) | Creep (A1) |
+| RMB (held) | Aim (was the draw toggle) |
+| LMB | Fire while aiming; holstered / holding a guard: click knockout, hold kill |
+| X | Holster / draw (tap), reload (hold, gun out) |
+| R | Reload (from holstered: draws to low ready first, A43) |
+| Z | Knockout (holstered or holding a guard); held on the drawn pistol: the jammer |
+| Caps Lock | Back to wall (moved from Left Shift) |
+| Mouse wheel | The held context menu's highlight only (no speed) |
+| = / - | Unbound (were the speed gear) |
+| C / Ctrl, Space, E, B, T, Q, G, Tab, V, N, F / PgDn, P, 1-7, Esc | Unchanged |
+
+## What moved or was removed
+- Removed: the speed gears for players (pad D-pad up / down, keys = / -, the mouse wheel); the pad's LT knockout /
+  secondary fire (`altFire` has no pad button now); the RMB draw toggle; the Sprint row in Settings > Controls.
+- Moved: KBM back to wall Left Shift -> Caps Lock (Left Shift is the run, A1). D-pad up / down and the wheel now only
+  step the held context menu (new fixed actions `ctxUp` / `ctxDown`, replacing `speedUp` / `speedDown`).
+- Kept where they were: shoulder swap (L3 aiming / V), zoom (R3 / B), the wheel (LB / Tab), vision (D-pad left / N),
+  gadgets (D-pad right / G), co-op (RB / F). The grab from behind stays on the hold-A menu (GRAB CHARACTER, BACK TO GAME).
+- Internal API kept for scripts and tools: `controller.gears` (`GearState`, now a speed cap only, spawn 5 = none),
+  `?gear=N`, `controller.gear` (the nearest named speed), `controller.maxGear`, the `ads` action held (= LT),
+  `Player.forceAds`, `InputState.tap('draw')` (a one-step X press).
+
+## The speed curve (`config/movement.ts` `STICK_SPEED`, `player/speedGears.ts` `stickSpeed`)
+Stick travel `u` past the dead zone (pad radial dead zone 0.15 / outer 0.98, then `GEARS.deadZone` 0.05), piecewise
+linear:
+
+| u | 0 (edge) | 0.15 | 0.45 | 0.8 | 0.9 | 0.97-1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Name | slowest creep | creep | sneak | walk | jog | run |
+| Standing m/s | 0.4 | 0.75 | 1.4 | 2.1 | 3.0 | 4.5 |
+| Crouched m/s | 0.4 | 0.85 | 1.3 | 1.7 | 2.15 | 2.6 |
+
+Raw stick 50 / 80 / 100 % standing measured in e2e-pad: 1.22 / 2.02 / 4.43 m/s (x the weapon's handling). The five
+speeds are the old gear caps, so noise bands (`NOISE_QUIET`), the roll (nearest named speed 5 = the run) and the fence
+rattle keep their meaning. Noise and perception read the measured speed. `controller.wantSpeed` is the continuous asked
+speed for the anim code (next to the measured `controller.speed`). The wire's `MoveState.g` is now the pace band (the
+slowest named speed covering the pace), so the host's speed check (+15%) holds with no wire change. Aiming caps at
+1.4 / 1.0 m/s as before.
+
+## The weapon state machine (`player/weaponStance.ts`, pure, `tests/weaponStance.test.ts`)
+- States: `holstered`, `lowReady`, `aiming`, `slingDraw` (`Player.weaponState`; `Player.drawWanted` = not holstered).
+- `base` (holstered / lowReady) is what LT falls back to. X press from holstered: base = lowReady at once (so a held X
+  also draws). X while drawn: release before 0.4 s = tap = holster (an aim in progress is blocked until LT is let go);
+  reaching 0.4 s = `holdAsk` -> the weapons reload (or queue it, A43), or holster when nothing needs reloading.
+- LT (`ads`) held: aim; from holstered it sets base = lowReady and `slingDraw` until the gun is out; the draw time is x
+  1.6 (`STANCE.slingDrawMult`; rifle 0.3 -> 0.48 s, pistol 0.5 -> 0.8 s; the aim camera blend follows). Release: base.
+  `gameplay.adsToggle` (Settings > Controls > Aim) makes LT a toggle; default hold.
+- `suspended` (M4; GameState sets `Player.weaponSuspend`): attached (not the one-handed sidearm aim), a committed move,
+  a vent start, a team move, a takedown (not the hold), a carry, a strike, or `pose.traverse`. The state reads holstered,
+  the gun goes away, base is kept, X presses are ignored; afterwards the state returns (aim too, if LT is still held).
+- `locked` (holding a guard): X ignored; LT = the pistol shield via the existing hostage draw.
+- The trigger (`TriggerTapHold`, 0.35 s): armed at the press only when holstered (no aim) or holding a guard (no aim);
+  tap -> knockout, hold -> kill (strike `lethal`, grab `menuPick`). An aimed press is a shot to its release.
+- Fire: only while aiming (`PlayerWeapons` gate on `player.ads`; the carry's raise-to-fire only while aiming).
+- The pistol jammer (CT prototype B3): runs while the drawn pistol is aimed (`player.ads`) or Z is held; LT used to be
+  its trigger, so aiming at a camera or laser now jams it (noted for Michael below).
+- The host's forced holster also holsters the stance. Death resets.
+
+## Settings migration (`core/settings.ts`, `tests/settings.test.ts` with literal old saves)
+- `PAD_LAYOUT_V` 2 -> 3: the `gearUp` / `gearDown` verbs are dropped (stored entries ignored), X keeps id `draw`, LT is
+  the fixed aim; a pre-3 save's `gameplay.adsToggle` goes back to hold (the old Aim row did nothing). The A3 D-pad move
+  stays gated at layout 2 (a layout-2 save is not moved again; a bug the new test caught and fixed).
+- New `Settings.keysV` (`KEY_LAYOUT_V` 1): back to wall still on its old default Left Shift -> Caps Lock
+  (`migrateKeysV1`); `run` / `creep` take Left Shift / Left Alt; the = / - entries are dropped. A remapped key is kept.
+- Reported: `controlsMigrationNotes` names what moved and every binding that now clashes (e.g. "Keyboard: Creep (hold)
+  and Crouch share Alt.", "Controller: Co-op action and Aim share LT.") in one toast at the first boot after the move;
+  the migrated settings are saved then. The controls screen marks the same rows as conflicts.
+
+## Files
+- New: `src/player/weaponStance.ts`, `tests/weaponStance.test.ts`, this report.
+- Code: `src/config/movement.ts` (GEARS doc, spawn 5, `STICK_SPEED`, `KBM_PACE`; `fullPush` gone),
+  `src/player/speedGears.ts` (`stickSpeed`, `stickMagFor`, `AnalogGear` v / band), `src/player/movement.ts`
+  (`paceSpeed`), `src/player/playerController.ts` (no gear stepping, `wantSpeed`, `paceBand`), `src/player/player.ts`
+  (the stance), `src/weapons/playerWeapons.ts` (draw from `drawWanted`, sling draw time, X hold reload / holster, no fire
+  unless aiming, forced holster), `src/game/gameState.ts` (RT tap / hold, strike and grab picks, jammer, weapon suspend /
+  lock, `setDrawn`, `ctxUp` / `ctxDown`), `src/game/grabMenu.ts`, `src/game/localMoveState.ts`, `src/game/contextMenu.ts`,
+  `src/input/actions.ts`, `gamepadMapping.ts` (LT `ads`, `CTX_BINDINGS`), `gamepadSource.ts`, `inputManager.ts`,
+  `keyBindings.ts` (run, creep, Caps Lock wall, `KEY_LAYOUT_V`), `keyboardMouseSource.ts` (RMB held aim, run / creep
+  magnitudes, wheel), `padBinds.ts` (layout 3), `src/core/settings.ts`, `src/core/app.ts` (key labels, the migration
+  toast; nothing near the debug wiring), `src/core/flags.ts` (comment), `src/ui/prompts.ts`,
+  `src/ui/screens/controlsScreen.ts` (fixed rows), `src/ui/screens/settingsScreen.ts` (Aim text, no Sprint row),
+  `src/world/maps/ctcourse.ts` (station 3 / gate texts: "X draws", "aim ... (LT / RMB) to jam", "Holster first (X)"),
+  `src/world/maps/courselab.ts` (the "speed gear" drill is now "pace").
+- Docs: `docs/systems/input-and-loop.md` (input, a weapon states section, the binding table, context menu, remapping,
+  the analogue speed), `docs/systems/movement.md`, `docs/systems/takedowns.md`, `docs/systems/testing-tools.md`,
+  `docs/ct-prototype/CT-CONTROLS.md` (history pointer), `TESTING.md`, `CHANGELOG.md` ("Unreleased - anim-rework").
+
+## Tests changed and why
+- `tests/analogGear.test.ts`: rewritten for the continuous curve (Michael: "full speed control via the analogue stick");
+  the threshold table and the hysteresis checks kept; new: curve points, continuity, raw stick bands, pace band covers
+  the host check, the cap, the KBM paces, no allocation.
+- `tests/speedGears.test.ts`: the spawn cap is 5 (no player gear control).
+- `tests/input.test.ts`: D-pad up / down are `ctxUp` / `ctxDown`, LT is `ads`; the doc table parser knows Left Alt and
+  Caps Lock.
+- `tests/padBinds.test.ts`, `tests/keybinds.test.ts`: the new defaults (no speed verbs; LT `ads`; Shift / Alt run /
+  creep; Caps Lock wall).
+- `tests/grabMenu.test.ts`: RT tap knocks out, RT hold kills (M3).
+- `tests/settings.test.ts`: the A3 layout test without the gear verbs (and a layout-2 save not moved again); two old-save
+  tests expect `adsToggle` back to hold; a new block for layout 3 / keys 1 and the migration notes.
+- `tests/ctcourse.test.ts`: the station texts name LT / RMB (not LT / Z) and "Holster first (X)".
+- `tests/courselab.test.ts`: the drill name "pace".
+- `tests/settingsCover.test.ts`: the old save's `adsToggle` back to hold (as above).
+- e2e (each with the reason in a comment): `e2e-pad` (D-pad no speed; the weapon-state block: X low ready, A3, LT aim,
+  X hold reload / holster, the sling draw; the analogue 50 / 80 / 100 %; LT held for the shoulder swap and the shot
+  rumble; verb table LT `ads`, D-pad `ctxUp` / `ctxDown`; remap "R3 draws" reads `drawWanted`), `e2e-mouse` (RMB held aim,
+  low ready, X holsters, wheel and = / - no speed, W / Shift / Alt paces, Caps Lock wall), `e2e-move` (spawn uncapped,
+  every named speed at its stick point (x 0.98 outer dead zone), half stick, the cap through stances, an X tap after the
+  aim test), `e2e-takedown` (RT held kills the held guard), `e2e-wall` (the analogue half stick is 0.5: 0.6 now asks for
+  1.66 m/s, the walk side of gear 2 / 3), `e2e-course` (the drill name regex, not run: co-op).
+- `scripts/e2e-anim.mjs`: not changed (the `ads` action it holds still aims).
+
+## Verification
+- `npx tsc --noEmit` clean; `npm run lint` 0 errors (41 warnings, none new); full `npm test`: 183 files, 1995 tests
+  pass (2 skipped).
+- `npm run build`, then e2e on port 4195 one at a time (`--serial`, under heavy.lock), all pass on the final build:
+  smoke 26 s, e2e-pad 179 s, e2e-mouse 81 s, e2e-move 59 s, e2e-anim 10 s, e2e-takedown 14 s, e2e-ct 48 s,
+  e2e-traverse 52 s, e2e-weapons-carry 20 s, e2e-stealth 26 s, plus e2e-wall 22 s (speed-adjacent). Fixed on the way:
+  e2e-traverse's vent (A at low ready was a reload: the vent start now suspends the weapon state and A's reload follows
+  the wanted state, not the holstering gun), e2e-move and e2e-wall stick values (above).
+- Not run (co-op, for the laptop): `e2e-coop`, `e2e-netmove`, `e2e-ctcourse`, `e2e-net-lib` users, and `e2e-course` (its
+  regex changed). Their input paths were read and kept: `__pad` X held until drawn and held until holstered (X hold with
+  a full magazine holsters), LT held on the drawn pistol jams (the jammer reads the aim), `forceAds`, the `ads` action
+  from the split (suspended: no base change), `controller.gears.gear = 5`.
+
+## What Michael should try (/ct/ once pushed)
+1. Push the stick slowly from the centre to the rim on open floor: a creep, a sneak, a walk across most of the travel,
+   then the jog and the run in the last fifth; no steps. Crouched the same. Keyboard: W, Shift + W, Alt + W.
+2. X: the gun out to low ready and back. Hold LT: the aim; let go: low ready. From holstered, hold LT: a slower draw
+   straight to the aim. RT at low ready does nothing; aiming it fires.
+3. Hold X with a part-empty magazine: reload. Hold X with a full one: holster.
+4. Holstered behind a guard: RT tap knocks out, RT hold kills. Grab one (hold A, GRAB CHARACTER): RT tap knocks out,
+   RT hold kills, LT aims the pistol over his shoulder.
+5. Low ready or aiming at a low wall or ladder, Y: the gun goes away for the climb and comes back after.
+6. Open questions: the jammer now runs while aiming the pistol at a camera / laser (LT is the aim; keyboard Z still
+   holds it) - keep, or give it its own button? A at low ready reloads, so doors need a holster first (as the brief).

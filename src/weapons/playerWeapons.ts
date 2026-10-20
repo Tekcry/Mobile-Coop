@@ -26,6 +26,7 @@ const modelLength = (d: WeaponDef): number => {
 };
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
 import { DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, type DrawPhase } from './drawState';
+import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 
 export interface LoadoutEntry {
@@ -274,6 +275,7 @@ export class PlayerWeapons {
   forceHolster(): void {
     if (this.attachMode) return;
     this.drawLock = true;
+    this.player.stance.holster();
     this.reloadQueued = false;
     this.draw.holster();
     this.aimDriven = false;
@@ -375,7 +377,12 @@ export class PlayerWeapons {
   private applyAimCamera(): void {
     const cam = this.player.cam;
     cam.adsZoom = this.current.scoped && this.zoomOn ? this.current.stats.adsZoom : 1;
-    cam.adsInTime = drawTimeFor(this.current.def.class) * 0.9;
+    cam.adsInTime = this.drawTime() * 0.9;
+  }
+
+  /** The current gun's draw time (s); (anim-rework S1, M2) the sling draw (LT from holstered) is slower. */
+  private drawTime(): number {
+    return drawTimeFor(this.current.def.class) * (this.player.stance.slingDraw ? STANCE.slingDrawMult : 1);
   }
 
   private equip(i: number): void {
@@ -462,7 +469,9 @@ export class PlayerWeapons {
         this.player.swapT = -1;
       }
     }
-    if (!this.player.ads) this.drawLock = false;
+    // (anim-rework S1) out at low ready or aiming (`Player.drawWanted`); the host's forced holster holds until the
+    // player asks for the gun again
+    if (!this.player.drawWanted) this.drawLock = false;
     if (!this.player.ads || !this.current.scoped) this.zoomOn = false;
     else if (inp.pressed('zoom')) this.zoomOn = !this.zoomOn;
     this.applyAimCamera();
@@ -472,7 +481,7 @@ export class PlayerWeapons {
     } else {
       // (A43) a reload in progress or asked for while holstered keeps / brings the gun out at low ready
       const reloadWant = this.reloadT >= 0 || this.reloadQueued;
-      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.ads || reloadWant), drawTimeFor(s.def.class));
+      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.drawWanted || reloadWant), this.drawTime());
       const away = ph === DRAW_HOLSTERED || ph === DRAW_HOLSTERING;
       if (away !== this.stowed) {
         const reverse = !away && this.swapT >= 0 && this.swapPhase === 0 && this.index === this.held;
@@ -545,7 +554,7 @@ export class PlayerWeapons {
       // stowing for a climb / hang is quick: both hands are wanted on the anchor
       if (this.aimDriven) {
         // a draw / holster from aim keeps pace with the draw state (0.3 / 0.4 s draw, 0.4 s holster)
-        const left = this.draw.remaining(drawTimeFor(s.def.class));
+        const left = this.draw.remaining(this.drawTime());
         const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
         this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);
       } else this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
@@ -619,15 +628,19 @@ export class PlayerWeapons {
       }
     } else {
       const canReload = !this.throwing && s.mag < s.stats.magSize && (s.reserve > 0 || this.infiniteAmmo);
+      // (anim-rework S1, A2) X held while drawn reloads; with nothing to reload the hold is the holster (the tap's job)
+      const xHold = this.player.stance.holdAsk;
+      if (xHold && !canReload && !this.attachMode) this.player.stance.holster();
+      const ask = inp.pressed('reload') || (xHold && canReload);
       // (A43) holstered or mid draw / holster (not attached): queue it; the draw comes out to low ready first
-      if (inp.pressed('reload') && canReload && !this.attachMode && !this.drawLock && this.draw.phase !== DRAW_DRAWN) this.reloadQueued = true;
+      if (ask && canReload && !this.attachMode && !this.drawLock && this.draw.phase !== DRAW_DRAWN) this.reloadQueued = true;
       if (!canReload || this.attachMode || this.drawLock) this.reloadQueued = false;
       if (this.reloadQueued) {
         if (this.draw.phase === DRAW_DRAWN && !this.swapping) {
           this.reloadQueued = false;
           this.startReload();
         }
-      } else if (inp.pressed('reload') && canReload && !this.swapping) this.startReload();
+      } else if (ask && canReload && !this.swapping) this.startReload();
     }
 
     // (gadget throws are started by the gadget system: tap / hold of the gadget button decides use vs wheel)
@@ -635,6 +648,11 @@ export class PlayerWeapons {
     // fire
     // (step 09) no hip fire: only drawn and aimed (fire while holstered does nothing: no shot, click or bloom)
     if (this.draw.phase !== DRAW_DRAWN) {
+      this.queuedT = 0;
+      return;
+    }
+    // (anim-rework S1, A3) no fire from low ready: the trigger is live only while aiming
+    if (!this.player.ads) {
       this.queuedT = 0;
       return;
     }
