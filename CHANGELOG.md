@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - coop-fix
+## 4.13.1 - Co-op fixes: the host draws on the joiner at High and Epic, the connecting label clears (2026-10-20, PR #35)
 - Co-op: the host was invisible on the joiner at High and Epic graphics (GPU). The baked-lamp material plugin broke a
   material clone while the partner figure loaded, so the figure never appeared. The plugin is no longer copied by a
   clone (`LampPlugin.doNotSerialize`); the clone gets its own plugin on the next frame.
