@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - tuner-v2
+## 4.25.0 - Tuner v2: per-joint offsets, hand and foot placement, IK strength, weapon grip and fingers, stepping, per-key editing (2026-10-21, PR #68)
 - Animation tuner: four new sections after Camera, wired through the section registry. **Joints**: per-state pitch / yaw / roll offsets for 21 joints, with a mirror lock (group `joint.options`). **Hands & feet**: hand and foot IK target offsets and hand rotation, per weapon and state. **IK strength**: per limb and state, 0 = FK (rest + joint offsets). **Weapon**: gun scale (visual only), gun in the hand, support hand, trigger finger, finger curl, per weapon and state. Each follows the game state and weapon, saves, exports, resets and works with the pad like the other sections; at the defaults nothing changes.
 - Animation tuner: a **Stepping** section (item 3, after Weapon): per gait (still, walk, jog, run, crouched walk / run) foot lift, plant lock strength, step duration, foot-slide tolerance, a 3-point stride curve, toe-off and heel-strike roll and the replant threshold, as multipliers on the foot planner's own values (default 1 = unchanged). Feet stuck while running: the run's trailing foot stays planted to the leg's stretch limit; try Stepping > run > replant 0.8.
 - Animation tuner: a **Keys** section (item 4, after Stepping): pick a keyed clip's key (`walk` key 1 = phase 0.125,
