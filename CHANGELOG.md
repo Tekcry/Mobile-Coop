@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.16.2 - Phones render at 75% of native resolution (2026-10-20, PR #53)
+- Phone (Michael 2026-10-20: "Cap resolution at 75%"): after 4.16.1 a Warehouse benchmark held 55-60 fps but fell to
+  26 fps late in the route. Phones now render at 75% of native, dynamic resolution down to 50% on long frames. Light
+  and shadows unchanged (Low preset), 60 fps cap. Desktop unchanged.
+
 ## 4.16.1 - The 60 fps cap holds on 90 and 144 Hz screens; phones scale resolution to stay cool (2026-10-20, PR #51)
 - Frame cap: a deadline limiter (`capNext`) replaces the slack test, which let every frame through on a 90 Hz display
   (a phone capped at 60 drew 66 fps, then throttled to ~20). A 60 cap now holds on 60, 90, 120 and 144 Hz.
