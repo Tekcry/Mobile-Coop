@@ -64,6 +64,10 @@ registry merged in (532adb2b), so the PR order is tuner-camera first, then tuner
 the wired head (b8bc1846 dropped if not started).
 02:50 usage: 5-hour 64% (reset ~04:30), weekly 78% (+3% in ~40 min with only animation work + merges): at this pace
 the weekly window runs out around 06:30-08:00. Only animation work is running; checkers stay per slice (Michael 00:58).
+tuner-v2: wired head a8aef532 laptop PASS; item 3 Stepping at ebb5ae57 (13 hooks in footPlanner.ts, CT Core told).
+For Michael in the morning: the stuck running foot is the replant rule firing at full leg stretch; Stepping > run /
+crouchRun replant 0.8 lifts it ~9 cm sooner with no slide. Defaults left at identity (his call). Course Ready pass 2
+fix round at 826a01d7, check + solo reruns going.
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
