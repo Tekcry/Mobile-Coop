@@ -62,7 +62,8 @@ function readParams(): URLSearchParams {
 
 const params = readParams();
 
-/** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: always the minimum settings. */
+/** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: the Low preset at DPR 1, a
+ * 0.75 render scale and a 60 fps cap (phone-min: basic lamp light and shadows, kept cool). */
 function readPhone(): boolean {
   try {
     return (globalThis.navigator?.maxTouchPoints ?? 0) > 0 && globalThis.matchMedia?.('(pointer: coarse)').matches === true;
@@ -91,7 +92,7 @@ export const flags: Flags = {
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
   phone: readPhone(),
-  gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'min' : null),
+  gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'low' : null),
   voxels: params.get('voxels') !== '0',
   baked: params.get('baked') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,

@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.15.1 - Phones get basic lamp light and shadows, a 60 fps cap, no side bars (2026-10-20, PR #44)
+- Phone (testing launch, G182; Michael 2026-10-20): the Low preset instead of the bare test preset, so lamps light the
+  level and characters get contact shadows; DPR 1 and a 0.75 render scale; a 60 fps cap (heat). The menus fill a wide
+  phone screen (no 16:9 side bars). Desktop and the tests (`?gfx=min`) are unchanged.
+
 ## 4.15.0 - New controls: analogue speed, holstered, low ready and aiming states, LT aim, X holster, RT strikes, the sling draw (2026-10-20, PR #43)
 - Controls (slice 1, `docs/anim-rework/BRIEF.md` section 1; Michael 2026-10-20): the left stick's deflection sets the
   speed continuously from a creep to a run (`STICK_SPEED`: most of the travel is creep / sneak / walk, the last fifth
