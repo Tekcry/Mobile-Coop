@@ -1,11 +1,53 @@
 # Changelog
 
-## Unreleased - camera-cue
+## 4.31.0 - Camera cue: a faint red laser grid where a security camera looks (2026-10-21, PR #63)
 - Security cameras show a faint red scan grid on the floor and walls they see, sweeping with the pan (Michael M1
   "Always, faint"); stronger in electro vision, its edge pulses while the camera sees a player, it fades when the camera
   is jammed, off or shot. Render only: same field, range and static-collider line of sight as detection, never a light.
 - Fix round: in electro the grid is a clear white lattice (it vanished in the post); the co-op client's grid pulses too
   (the host's camera test run on both bodies, nothing sent); the cue's rays are cast per fixed step on both sides.
+
+## 4.30.1 - Orchestrator docs: 2026-10-21 roadmap, STATE, account handoff plan (2026-10-21, PR #74)
+- Docs only: `docs/ROADMAP.md` (Michael's overnight answers, Done 4.21.0-4.30.0), `docs/orchestrator/STATE.md`,
+  `docs/orchestrator/HANDOFF.md` (the weekly-limit account switch), `docs/backlog.md` (GPU GL warning, e2e-stealth-ai
+  wall peek).
+
+## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
+- Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
+  [--dry-run] [--only section,...] [--allow-shared]` writes an export's values into the code defaults (body, gun, camera,
+  speed, stepping and weight constants; the Keys section's key JSONs through the apply-tune functions, with the Blender
+  rebake commands printed, never run), so after a reset of the baked sliders every slider reads identity with the same
+  look. The dry run prints the diff and a table (section, group, slider, value, result, target). A slider whose groups
+  share one code value bakes only when they agree ("manual: shared target" otherwise; `--allow-shared` bakes a single
+  changed group and warns); sliders with no code value (joint, hand, IK and weapon tables, most clip-data sliders, the
+  co-op role / contact and Traversal moves sections from #71) are listed "manual: no code target". Refuses a wrong magic or version, a value beyond its wide range, a target not found
+  exactly once and any file outside `src/` and the key JSONs. A ledger (`src/anim/tuneBakeLog.json`, `group|id=value`)
+  means a baked value is never baked twice, in a re-run or a later export. Mapping: `src/anim/tuneBakeTable.ts`; logic: `src/anim/tuneBake.ts`; tests:
+  `tests/animTuneBake.test.ts`; `docs/anim-tuner/BAKE.md`.
+## 4.29.0 - Anim Studio PR 2: co-op pairs, guard holds, traversal prop rig and loops (2026-10-21, PR #71)
+- Anim Studio pairs (Michael, via the orchestrator: "fine tune coop animations with the same freedom, traversal etc.
+  coop should show me both characters also"): each co-op team move plays with BOTH operators (two Wren puppets, Wren
+  herself hidden) on one clock, through the game's own paths and timing, no network: leg-up, ledge relay, partner throw,
+  hang-down, two-person rope and revive. Scrub, step and pause move both at once. The holds pair Wren's hold clips with
+  the guard's (idle + held hands, back + stumble, choke + sag, knife + collapse) on one clock; the Body section's hold
+  gap / side set their spacing.
+- New tuner sections (registry): one per co-op move with role A, role B and contact groups (body forward / up / side,
+  turn, lean, crouch, hand and foot grips, pose timing; contact offsets between the two, weighted by the move's contact
+  window), and Traversal moves (vault, mantle, step, climb-up, window, rappel, drop, hop, roll, wall kick, split) for the
+  moves the Body section has no state for. Live in real play for the local player's own role only; the partner always
+  plays the shared defaults; nothing goes on the wire; visual only.
+- The studio is a 28 m room with a traversal rig round the walls at the engine sizes: the co-op team block (4.4 m lip,
+  a rappel point), a 2.4 m ledge wall, a 1.0 m low wall, a platform with a ladder and a drainpipe, a horizontal pipe, a
+  hang bar, a vent duct, a window and a door. Traversal loops walk Wren to a prop and play the real move by synthesised
+  input, then reset and repeat: vault, ledge grab + shimmy + climb up, ladder up and over, drainpipe, pipe hand over hand,
+  hang bar legs up / inverted, vent, window, door, rappel, back to the wall.
+  Detail: `docs/anim-studio/REPORT-2.md`.
+
+## 4.28.1 - shots-ctcourse waits for sim time after each teleport (2026-10-21, PR #72)
+- Test script only: `scripts/shots-ctcourse.mjs` waits 0.3 s of sim time (the game clock) after each teleport before
+  reading the light meter and the light field. The meter updates every 0.1 s of sim time, and at Epic boot 800 ms of
+  wall time could be under 0.1 s of sim, so s1-bay read a stale 0.970 against 0.606. It also refuses a foreign server
+  on its port (the served `index.html` must match `dist/`). GPU at 2bd82f31: all 17 rows agree within 0.02.
 
 ## 4.28.0 - Smooth world: voxels off by default, baked lamps on the smooth path (2026-10-21, PR #58)
 - The world draws smooth by default (Michael, 2026-10-20: "there still looks to be voxel graphics in the map which is no

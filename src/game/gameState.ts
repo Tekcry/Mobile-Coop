@@ -56,7 +56,7 @@ import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
 import { VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
-import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
+import { CT, FENCE, MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL, LADDER_DROP_MAX } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
@@ -123,6 +123,7 @@ import { InputState } from '../input/inputState';
 import { demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
+import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
 import { clearGripAxis } from '../player/attachGrips';
 import { setTenseSource } from '../player/tenseSneak';
 
@@ -798,6 +799,16 @@ export class GameState implements AppState {
         debug: app.debug,
         drawPhase: () => g.weapons.drawPhase,
         crouchToggle: () => app.settings.get().gameplay.crouchToggle,
+        // (anim-studio-2) the traversal loops and the pairs' viewing spot
+        teleport: (x, y, z, yaw) => g.studioTeleport(x, y, z, yaw),
+        doorOpen: () => {
+          const d = world.doors.list[0];
+          if (d && d.target === 0) g.startDoorOpen(0, () => world.doors.open(d, 'quiet'));
+        },
+        doorsShut: () => {
+          for (const d of world.doors.list) world.doors.setOpen(d, false);
+        },
+        attachKind: () => (g.traversal.attached ? (g.traversal.attach.anchor?.kind ?? '') : ''),
       });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
@@ -2184,6 +2195,12 @@ export class GameState implements AppState {
     const free = this.freeFrame(dt, look);
     // (anim-studio) the loop player: its choice onto the rigs, the circle's camera turn, scrub / step, the guard figure
     this.studio?.frame(dt, look);
+    // (anim-studio-2) the local player's own team role for the move sections (the partner's avatar never reads them;
+    // nothing goes on the wire): the team controller's state, or holding a partner's revive
+    const it = this.interactTarget;
+    const ts = it && it.kind === 'revive' && it.progress > 0 ? 'revive' : this.team.state;
+    MOVE_TUNE_TEAM.group = teamRoleGroup(ts);
+    MOVE_TUNE_TEAM.k = MOVE_TUNE_TEAM.group === '' ? 0 : teamContactK(ts, this.team.partT, TEAM);
     // the wheel cursor / remote view takes the look
     const gadgetInput = this.gadgets.takesInput;
     if (gadgetInput) {
@@ -2596,6 +2613,25 @@ export class GameState implements AppState {
     cam.doorPeek = dp.view();
     cam.doorEye.set(fr.ex, fr.ey, fr.ez);
     cam.doorYaw = fr.yaw;
+  }
+
+  /** (anim-studio-2) The studio's loops: Wren to a spot facing `yaw`, out of any anchor, wall, door move or committed
+   *  move first (as the respawn does), the camera behind her. */
+  private studioTeleport(x: number, y: number, z: number, yaw: number): void {
+    const c = this.player.controller;
+    c.override = null;
+    this.traversal.reset();
+    this.wallCore?.reset();
+    this.doorPeek.reset();
+    this.doorOpen.reset();
+    const pose = this.player.pose;
+    pose.traverse = 'none';
+    pose.traverseT = 0;
+    pose.tumble = 0;
+    c.teleport(new Vector3(x, y, z), yaw);
+    c.clearCrouchToggle();
+    this.player.cam.yaw = yaw;
+    this.player.cam.pitch = 0;
   }
 
   /** (G6) The Open door pick: the move starts from where the body stands (`use` opens the door at `DOOR_OPEN.leafAt`). */

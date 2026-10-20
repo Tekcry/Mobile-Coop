@@ -92,6 +92,27 @@ Other entry points: `tuneSet` / `tuneGet` / `tuneReset*` / `tuneChanged` / `tune
 `tuneLoad` take any registered group; `TUNE_SECTIONS` lists the sections; `TUNE_FLAGS` holds `bypass` and `wide`.
 Tests: `tests/animTuneCamera.test.ts` (registry block), `tests/animTunePass2.test.ts` (ease, bypass, wide, import, Speed).
 
+## Bake (anim-bake)
+`node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]` writes
+an export's values into the code defaults. Always `--dry-run` first (the diff and a table: section, group, slider, value,
+result, target; nothing written). A real run writes the source files, the Keys section's key JSONs (the apply-tune
+functions) and the ledger `src/anim/tuneBakeLog.json`, then prints the rebake command per key clip (Blender is never
+run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight. Detail: `BAKE.md`.
+- **Identity after bake.** The code value moves (x the slider for a `mul`, + it for an `add`, in the code's unit); the
+  slider's default stays identity. The tuner's own save still holds the old values: reset the sliders the table reports
+  "baked" (keep the manual ones), then export again. The ledger keeps `group|id=value` of every baked value: a later
+  export that still carries one reports it "already baked" and never bakes it twice.
+- **Shared targets.** A rule's groups are the groups that read one code value. Baked when every one of them has the same
+  value; otherwise "manual: shared target" with the value per group (Michael or a job lead picks, or a later job adds a
+  per-state table). `--allow-shared` bakes a shared value when exactly one group changed and warns that it changes every
+  state reading it. A slider and group baked through several rules bakes only when all of them do.
+- **Manual: no code target.** The slider has no code value to absorb it (the Joints, Hands & feet, IK and Weapon tables,
+  the Weight layers' amounts, clip-data sliders); the table lists it with the reason.
+- **A new section** (PR #71's `moveTune.ts`) needs only its rules or manual entries in `src/anim/tuneBakeTable.ts`, and
+  its file in `BAKE_CATALOGUE_MODULES` (or `BAKE_OTHER_SECTION_FILES` with a `DECLARED_SECTIONS` entry when plain Node
+  cannot load it). `tests/animTuneBake.test.ts` imports every file that calls `registerTuneSection` and fails until the
+  file is listed and every slider and group is covered.
+
 ## Pad map
 While the panel has the pad ("PAD: tuner"; the strip at the bottom of the panel shows the map for the current mode).
 `src/ui/animTunePad.ts` (`TunePadCtl`, pure, `tests/animTunePad.test.ts`); `src/ui/animTunePanel.ts` applies it.
@@ -124,6 +145,12 @@ Delete takes A twice. Opening the panel in the studio puts the focus on the loop
 turns the orbit free view on (the pad goes to it; View back to the panel). The preset name box is the keyboard's (the
 pad skips it; Save with it empty takes the next "preset N"). Keyboard: Ctrl+Z undo, Ctrl+Y / Ctrl+Shift+Z redo while
 the panel is open and no text box has the keys.
+
+(anim-studio-2) The loop list's pairs (`pair:<move>`) and traversal loops (`trav:<move>`) are picked like any entry (the
+D-pad to the list, A, left / right); a pair takes the scrub and the key steps (one 30 fps frame), a traversal loop does
+not (the game's physics). The Co-op sections (one per team move) and Traversal moves are ordinary registry sections:
+LB / RB reaches them, and on a Co-op section LT / RT switches role A / role B / contact (the strip says so). Keyboard
+and mouse as any section.
 
 ## Resume prompt
 ```

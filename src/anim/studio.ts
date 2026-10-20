@@ -38,6 +38,9 @@ import { KEYED_WALL_IDLE } from './clips/keyed/wall_idle';
 import { KEYED_WALL_PEEK } from './clips/keyed/wall_peek';
 import { KEYED_WALL_SLIDE } from './clips/keyed/wall_slide';
 import { wrap01 } from './studioDrive';
+import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
+import { pairCycle } from './studioPairs';
+import { travCycle, TRAV_ENTRIES, type TravEntry } from './studioTraversal';
 
 /** The studio map's id (`world/maps/studio.ts`; `?autostart=studio`). */
 export const STUDIO_MAP_ID = 'studio';
@@ -52,10 +55,10 @@ export type StudioMove = 'none' | 'fwd' | 'back' | 'side';
 
 /** One row of the loop player's list. */
 export interface StudioEntry {
-  /** `off`, `state:<name>` or `keyed:<clip name>`. */
+  /** `off`, `state:<name>`, `keyed:<clip name>`, `pair:<move>` (anim-studio-2: both roles of a co-op move, or a hold with the guard) or `trav:<move>` (a traversal loop on a prop). */
   id: string;
   label: string;
-  kind: 'off' | 'state' | 'keyed';
+  kind: 'off' | 'state' | 'keyed' | 'pair' | 'trav';
   /** Keyed: the clip. */
   clip: KeyedClip | null;
   /** Speed (m/s) of the loop: the treadmill and the root-motion circle (keyed), the circle (a state). */
@@ -72,12 +75,18 @@ export interface StudioEntry {
   circle: boolean;
   /** Keyed: a guard's clip (played on the guard figure when it is on). */
   guard: boolean;
+  /** (anim-studio-2) A co-op pair: the team move (both roles posed by `studioPairs.ts`), else null. */
+  team: TeamMoveId | null;
+  /** (anim-studio-2) A hold pair: the guard's clip played with `clip` (Wren's hold) on one clock, else null. */
+  guardClip: KeyedClip | null;
+  /** (anim-studio-2) A traversal loop (`studioTraversal.ts`), else null. */
+  trav: TravEntry | null;
 }
 
-const off: StudioEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false };
+const off: StudioEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null };
 
 function state(name: string, label: string, pace: number, move: StudioMove, crouch = false, drawn = false, aim = false): StudioEntry {
-  return { id: `state:${name}`, label: `state: ${label}`, kind: 'state', clip: null, pace, cycle: 1, move, crouch, drawn, aim, circle: pace > 0, guard: false };
+  return { id: `state:${name}`, label: `state: ${label}`, kind: 'state', clip: null, pace, cycle: 1, move, crouch, drawn, aim, circle: pace > 0, guard: false, team: null, guardClip: null, trav: null };
 }
 
 /**
@@ -100,14 +109,32 @@ function keyed(clip: KeyedClip, o: { pace?: number; step?: number; cycle?: numbe
     aim: o.aim ?? false,
     circle: o.circle ?? false,
     guard: o.guard ?? false,
+    team: null,
+    guardClip: null,
+    trav: null,
   };
+}
+
+/** (anim-studio-2) A co-op pair: both roles of a team move on one clock (`studioPairs.ts`). */
+function teamPair(m: TeamMoveId): StudioEntry {
+  return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null };
+}
+
+/** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */
+function holdPair(name: string, wren: StudioEntry, guard: StudioEntry): StudioEntry {
+  return { ...wren, id: `pair:${name}`, label: `pair: ${wren.clip!.name} + ${guard.clip!.name}`, kind: 'pair', circle: false, guard: false, team: null, guardClip: guard.clip, trav: null };
+}
+
+/** (anim-studio-2) A traversal loop on a prop. */
+function travel(t: TravEntry): StudioEntry {
+  return { id: t.id, label: t.label, kind: 'trav', clip: null, pace: 0, cycle: travCycle(t), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: t };
 }
 
 /**
  * The loop player's list: off, the procedural states (synthesised input, on the circle), then every keyed clip of
  * `clips/keyed` (sampled straight onto the rig). Paces and step lengths from the clips' notes (scripts/anim-keys/keys).
  */
-export const STUDIO_ENTRIES: readonly StudioEntry[] = [
+const BASE_ENTRIES: readonly StudioEntry[] = [
   off,
   state('idle', 'idle', 0, 'none'),
   state('walk', 'walk', 1.4, 'fwd'),
@@ -150,6 +177,24 @@ export const STUDIO_ENTRIES: readonly StudioEntry[] = [
   keyed(KEYED_GUARD_KNIFE_COLLAPSE, { cycle: 3, guard: true }),
 ];
 
+function base(id: string): StudioEntry {
+  return BASE_ENTRIES.find((e) => e.id === id)!;
+}
+
+/**
+ * The loop player's list: off, the procedural states, every keyed clip, then (anim-studio-2) the pairs (each co-op team
+ * move with both operators, the holds with the guard) and the traversal loops on the props.
+ */
+export const STUDIO_ENTRIES: readonly StudioEntry[] = [
+  ...BASE_ENTRIES,
+  ...TEAM_MOVES.map(teamPair),
+  holdPair('hold_idle', base('keyed:hold_idle'), base('keyed:guard_held_hands')),
+  holdPair('hold_back', base('keyed:hold_back'), base('keyed:guard_held_stumble')),
+  holdPair('hold_choke', base('keyed:hold_choke'), base('keyed:guard_choke_sag')),
+  holdPair('hold_knife', base('keyed:hold_knife'), base('keyed:guard_knife_collapse')),
+  ...TRAV_ENTRIES.map(travel),
+];
+
 export function studioEntry(id: string): StudioEntry {
   // a plain loop: called every fixed step and frame (no closure allocation)
   for (let i = 0; i < STUDIO_ENTRIES.length; i++) if (STUDIO_ENTRIES[i]!.id === id) return STUDIO_ENTRIES[i]!;
@@ -185,9 +230,18 @@ export const STUDIO = {
 
 const DEFAULTS = { ...STUDIO };
 
+/**
+ * (anim-studio-2) What a pair or a traversal loop is doing (written by the stage; the panel's readout and the test hooks):
+ * each role's team state and tuner group, the contact weight, the clock each rig was posed at; the loop's phase, step,
+ * count and the attach state Wren is in.
+ */
+export const STUDIO_PAIR = { aState: 'none', bState: 'none', aGroup: '', bGroup: '', k: 0, tA: 0, tB: 0, cycle: 0, ay: 0, by: 0, rigs: 0, travPhase: '', travStep: 0, travLoops: 0, attach: '', traverse: '' };
+const PAIR_DEFAULTS = { ...STUDIO_PAIR };
+
 /** Leaving the studio: every switch back to its default (inactive). */
 export function studioReset(): void {
   Object.assign(STUDIO, DEFAULTS);
+  Object.assign(STUDIO_PAIR, PAIR_DEFAULTS);
   STUDIO_RIGS.length = 0;
   STUDIO_TARGET.rig = null;
   STUDIO_TARGET.clip = null;
