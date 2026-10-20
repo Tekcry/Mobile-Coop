@@ -24,6 +24,7 @@ import { TUNE_LOCAL, TUNE_STATE, tuneBegin, tuneEnd, tuneRoot } from '../anim/tu
 import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
 import { handsBegin, handsEnd, handsWeaponOf } from '../anim/tuneHands';
 import { tuneV2Frame } from '../anim/tuneV2Sections';
+import { tuneKeysFrame } from '../anim/tuneKeys';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -510,6 +511,7 @@ export class Player {
     tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
     const handW = handsWeaponOf(this.rig);
     tuneV2Frame(TUNE_STATE.body, handW); // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables
+    tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
     jointsBegin(TUNE_STATE.body, dt); // (tuner-v2) the per-joint offsets of the same state, eased over dt
     handsBegin(TUNE_STATE.body, handW, dt); // (tuner-v2 item 2) hand / foot placement, the Weapon group
     try {
