@@ -9,7 +9,7 @@ Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-nati
 there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.30.0 (#73, f7e89679). Tags v4.0.0-v4.30.0. /preview/ = dev = f7e89679. Merged since the 2026-10-20 reset, in order:
+v4.30.1 (#74, 14e0b7a3). Tags v4.0.0-v4.30.1. /preview/ = dev = 14e0b7a3. Merged since the 2026-10-20 reset, in order:
 4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
 4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
 4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66), 4.25.0 tuner-v2 (#68), 4.26.0 Anim Studio PR 1 (#69), 4.27.0 Weight (#70), 4.28.0 smooth-world (#58), 4.28.1 shots-simwait (#72), 4.29.0 Anim Studio PR 2 (#71), 4.30.0 bake script (#73): the animation tools are done. /ct/ = ct-movement (CT Core).
@@ -90,6 +90,11 @@ Course Ready building Anim Studio PR 2 on feature/anim-studio-2 (from c55adaec).
 #69 merged as 4.26.0 (d537cbd8). ~06:40 Michael: tools first, spare capacity on jobs smallest to largest, warehouse
 rebuild parked (see ROADMAP Decided). Menu Notes: #58 GPU reshoot -> lamps GPU look -> camera-cue #63 (GPU only when the
 desktop lock is free). Laptop: #70 full, tool heads, #67 fixed head, master e2e-mouse, #62 full, #63.
+~09:30 the animation tools are DONE (4.23.0-4.30.0). Michael approved spare jobs: decisions-fold (Sector Ops: ROADMAP
+Decided -> DECISIONS G192+, docs PR; the orchestrator swaps ROADMAP pointers), stealth-peek-wait (Character Build, test
+only), shots-rows + gl-warning-fix (Menu Notes), no-aim-assist (CT Core, G16), coop-torches (Course Ready,
+feature/coop-torches, protocol bump; may not finish before 98%). Laptop: #62 99349d64 full, then #63 81deebfb full, then
+the spare-job PRs. Docs PR #74 merged as 4.30.1.
 #67 S2b PARKED (feature/anim-s2b 6c96715f): wrist pop fixed; e2e-stealth-ai wall peek open (S2b's step line ends the
 peek 15.9 cm past the edge vs 13.8 on master, so no spot sees the head alone; restoring stepLen0 / stepLenK / WALK_STEP
 gives master's pose). Findings: S2B-REPORT.md "## #67 parked"; not yet merged with master 4.27+, tuneStep patch pending.
