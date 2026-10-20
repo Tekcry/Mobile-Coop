@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.16.1 - The 60 fps cap holds on 90 and 144 Hz screens; phones scale resolution to stay cool (2026-10-20, PR #51)
+- Frame cap: a deadline limiter (`capNext`) replaces the slack test, which let every frame through on a 90 Hz display
+  (a phone capped at 60 drew 66 fps, then throttled to ~20). A 60 cap now holds on 60, 90, 120 and 144 Hz.
+- Phone (Michael 2026-10-20: "FPS drops sharply on phone ... would be good to have it sit at 60 fps consistently"):
+  dynamic resolution in a match, native at rest, stepping down to half on long frames and back up with headroom.
+  Lamp light and shadows unchanged (Low preset). Desktop unchanged apart from the cap.
+
 ## 4.16.0 - Night vision pass: realistic night vision, a wider goggle frame, the vision carousel (2026-10-20, PR #49)
 - Night vision (A1): modern green phosphor. The tube drive gamma 1.7 -> 1.3, green tint, dim green black, white clip from
   0.85, stronger grain in the dark; `VISION_GAIN` 8 -> 6 with the darkness curve's floor eased up to `VISION_FLOOR` 1.0, so

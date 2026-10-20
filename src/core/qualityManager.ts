@@ -97,8 +97,10 @@ export class QualityManager {
       if (this.governor.frame(intervalMs, this.budgetMs)) this.applyAdaptive();
       return;
     }
-    if (!this.auto) return;
-    if (this.res.push(intervalMs, cpuMs, this.budgetMs, intervalMs / 1000)) this.applyScale();
+    // (phone-min) a phone: dynamic resolution in a match, native at rest, down to half when frames run long (heat)
+    if (!this.auto && !flags.phone) return;
+    // (a phone heats as a whole: any long frame drops the resolution, CPU-bound or not, so the GPU and the chip cool)
+    if (this.res.push(intervalMs, flags.phone ? 0 : cpuMs, this.budgetMs, intervalMs / 1000)) this.applyScale();
   }
 
   /** 3.1 frame governor: steps detail down / up in a match to hold the frame rate. */
@@ -198,8 +200,8 @@ export class QualityManager {
   private applyScale(): void {
     // (`?gfx=min`: DPR 1)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
-    // (phone-min) a phone: native resolution (DPR) and a 1.0 render scale on the Low preset, 60 fps cap (Michael 2026-10-20)
-    else if (flags.phone) applyRenderScale(this.engine, this.ov?.scale ?? 1, Infinity);
+    // (phone-min) a phone: native resolution (DPR) x the dynamic resolution on the Low preset, 60 fps cap (Michael 2026-10-20)
+    else if (flags.phone) applyRenderScale(this.engine, (this.ov?.scale ?? 1) * this.res.scale, Infinity);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
     else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), Infinity);
