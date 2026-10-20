@@ -25,10 +25,11 @@ import { warehouseOps } from '../src/world/maps/warehouseOps';
 import { warehouse } from '../src/world/maps/warehouse';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { validateSecurity } from '../src/security/data';
-import { SightWorld, distToGuard, spotSeenBy, longestIsolation, isolatedInTime, CHECK_RANGE, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, type CheckGuard } from '../src/game/sectorCheck';
+import { SightWorld, distToGuard, spotSeenBy, longestIsolation, isolatedInTime, worstIsolationOverPhases, CHECK_RANGE, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, type CheckGuard } from '../src/game/sectorCheck';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { S1_ROOMS } from '../src/world/maps/warehouseS1';
 import { hyp2 } from '../src/core/mathx';
+import { PATROL } from '../src/ai/patrol';
 
 // (feature/sector-ops slice 2 step 1) sections, connectors, the run, no lives (M7)
 
@@ -329,6 +330,34 @@ describe('the Warehouse sections (A12, M8)', () => {
     }
   });
 
+  it('section 1 A2 survives patrol phase drift: every guard keeps CHECK_ISOLATION s at its spot under 30 random start phases', () => {
+    const s = S[0]!;
+    const gs = timed(s.guards);
+    for (let i = 0; i < gs.length; i++) {
+      const g = s.guards[i]!;
+      if (spotSeenBy(world, g.takedownSpot[0], g.y ?? 0, g.takedownSpot[1], s.guards, i, CHECK_RANGE) === -1) continue;
+      expect(worstIsolationOverPhases(world, gs, i, g.takedownSpot, 30, 7), `guard ${i} (${g.x}, ${g.z})`).toBeGreaterThanOrEqual(CHECK_ISOLATION);
+    }
+  });
+
+  it('time model: the default pause is PATROL.wait (as in play), start sets the phase, a mezzanine 2.6 m up is another floor', () => {
+    const open = new SightWorld([], []);
+    // a walker that goes 40 m out and back: with no wait the default pause (PATROL.wait) is 9 s; the watcher sees 0..15 m
+    const base: CheckGuard = { x: 0, z: 0, route: [[0, 0], [40, 0]], speed: 10 };
+    const watcher: CheckGuard = { x: 0, z: 0.5 };
+    const dflt = longestIsolation(open, [base, watcher], 0);
+    const explicit = longestIsolation(open, [{ ...base, wait: PATROL.wait }, watcher], 0);
+    expect(dflt).toBe(explicit);
+    expect(longestIsolation(open, [{ ...base, wait: 2.5 }, watcher], 0)).not.toBe(dflt);
+    // start: pausing at the far point with 8 s to go: isolated from t = 0, so the first run is longer than from the first point
+    const late = longestIsolation(open, [{ ...base, wait: 9, start: { idx: 1, wait: 8 } }, watcher], 0, CHECK_RANGE, null, 12);
+    const early = longestIsolation(open, [{ ...base, wait: 9 }, watcher], 0, CHECK_RANGE, null, 12);
+    expect(late).toBeGreaterThan(early);
+    // floors: a watcher 2.6 m above never sees; 1.5 m above does
+    expect(longestIsolation(open, [{ x: 0, z: 0 }, { x: 3, z: 0, y: 2.6 }], 0)).toBeGreaterThanOrEqual(180);
+    expect(longestIsolation(open, [{ x: 0, z: 0 }, { x: 3, z: 0, y: 1.5 }], 0)).toBe(0);
+  });
+
   it('M8 in time (A2): the model walks routes with waits, ping-pongs two points, loops three, and needs 3 s in a row', () => {
     const open = new SightWorld([], []);
     const wall = new SightWorld([{ c: [0, 1.5, 0], s: [0.2, 3, 40], yaw: 0, pitch: 0, collide: true }], []);
@@ -363,7 +392,11 @@ describe('the Warehouse sections (A12, M8)', () => {
       expect(hyp2(sp.pos.x - s.start.x, sp.pos.z - s.start.z), 'spawn near the start').toBeLessThan(1.5);
       expect(world.blocked(sp.pos.x, 0, sp.pos.z, 0.35)).toBe(false);
     }
-    // the e2e stands 0.9 m east of the DVR: free floor, inside the download range
+    // the e2e stands 0.9 m east of the DVR: free floor, inside the download range, and nothing else to take the A press
+    // (the context menu: no door within 1.6 m, no guard within the takedown reach 1.8 m)
+    const sx = s.objective.x + 0.9;
+    for (const d of (b as unknown as { anchors: { doors: { hinge: { x: number; z: number } }[] } }).anchors.doors) expect(hyp2(d.hinge.x - sx, d.hinge.z - s.objective.z), 'door by the DVR stand').toBeGreaterThan(1.6);
+    for (const g of s.guards.slice(0, 4)) expect(hyp2(g.x - sx, g.z - s.objective.z), 'guard by the DVR stand').toBeGreaterThan(1.8);
     expect(world.blocked(s.objective.x + 0.9, 0, s.objective.z, 0.3)).toBe(false);
     expect(0.9).toBeLessThan(SECTOR.downloadRange);
     expect(s.guards.length).toBe(8);

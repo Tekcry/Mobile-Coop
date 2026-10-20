@@ -371,6 +371,7 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   // roof with skylight strips and hanging lights (visual only: no collision, nav samples the floor)
   // (the south strip over the facade is a solid walkway between x -22 and 21: built with the Chaos Theory routes)
   for (let z = -18; z < 18; z += 6) {
+    if (!sb && z <= -12) continue; // Sector Ops: section 1 has its own walkable roof at 6.0 (warehouseS1)
     if (z === -18) b.box(-23, 6.15, z + 2.4, 2, 0.25, 4.8, ROOF, 0, 0, false).box(22.5, 6.15, z + 2.4, 3, 0.25, 4.8, ROOF, 0, 0, false);
     else b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);
   }

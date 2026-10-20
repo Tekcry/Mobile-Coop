@@ -269,7 +269,7 @@ export function buildServiceS1(b: LevelBuilder): void {
   b.block(-5.0, -15.4, 3.0, 1.05, 0.6, DESK); // the counter
   b.block(-0.6, -16.6, 1.6, 0.75, 0.8, DESK).block(2.0, -15.0, 0.8, 0.75, 1.6, DESK);
   b.block(3.5, -15.6, 0.7, 0.75, 2.4, DESK); // the DVR desk
-  b.block(7.4, -15.4, 0.9, 1.3, 0.5, STEEL); // the cabinet under the security hatch
+  b.block(6.45, -15.4, 0.9, 1.2, 0.5, STEEL); // the cabinet centred under the security hatch (top 1.2: 1.8 m to the deck slab)
   b.block(4.5, -9.25, 5.0, 0.9, 0.6, DESK); // the mess worktop
   b.block(-7.4, -9.6, 0.6, 2.0, 1.0, STEEL); // the server rack
   b.block(1.5, -16.3, 3.0, 1.8, 1.6, STEEL, 3.3); // the AHU on the deck

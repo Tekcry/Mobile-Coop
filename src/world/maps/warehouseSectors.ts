@@ -18,7 +18,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     name: 'Goods-in and trade offices',
     // the yard's dark south-west corner (A4); the DVR in the security office is the objective (SPEC 2.1 / 5.6)
     start: { x: -20.0, y: 0, z: -24.6, yaw: 0.5 },
-    objective: { kind: 'download', label: 'Download the security DVR', x: 3.95, y: 0, z: -15.0, yaw: Math.PI / 2 },
+    objective: { kind: 'download', label: 'Download the security DVR', x: 3.95, y: 0, z: -16.0, yaw: Math.PI / 2 },
     connector: {
       label: 'Into the fire lobby',
       box: [-16.25, -8.55, -12.75, -6.25],
@@ -36,15 +36,15 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       // 3 the goods-in checker: staged pallets against the delivery notes (desk, east lane, the office door)
       { kind: 'officer', x: -21.6, z: -15.6, yaw: -Math.PI / 2, route: [[-21.6, -15.6], [-11.2, -15.4], [-19.0, -9.9]], wait: 4, waits: [5, 4, 4], faces: [-Math.PI / 2, 0, 0], takedownSpot: [-11.2, -15.4] },
       // 4 the CCTV operator: the monitors, the corridor, the kettle in the mess (under hatch h2)
-      { kind: 'officer', x: 4.7, z: -16.2, yaw: -Math.PI / 2, route: [[4.7, -16.2], [3.6, -12.3], [2.6, -9.9]], wait: 5, waits: [6, 1, 6], faces: [-Math.PI / 2, -Math.PI / 2, 0], takedownSpot: [2.6, -9.9] },
+      { kind: 'officer', x: 7.3, z: -17.2, yaw: -Math.PI / 2, route: [[7.3, -17.2], [3.6, -12.3], [2.6, -9.9]], wait: 5, waits: [6, 1, 6], faces: [-Math.PI / 2, -Math.PI / 2, 0], takedownSpot: [2.6, -9.9] },
       // 5 the forklift driver: charger to the west lane
       { kind: 'grunt', x: -9.6, z: -9.4, yaw: 0, route: [[-9.6, -9.4], [-18.2, -11.9]], wait: 5, faces: [0, Math.PI], takedownSpot: [-9.6, -9.6] },
       // 6 the smoker: a break in the shelter, waiting for the delivery
       { kind: 'grunt', x: -13.4, z: -20.5, yaw: 0.6, takedownSpot: [-13.4, -20.5] },
       // 7 the clerk: paperwork at the goods-in office window
       { kind: 'grunt', x: -22.6, z: -7.0, yaw: 2.6, takedownSpot: [-22.6, -7.0] },
-      // 8 the office patrol: a night tour clocking the two corridor fire doors
-      { kind: 'enforcer', x: -7.0, z: -12.3, yaw: -Math.PI / 2, route: [[-7.0, -12.3], [7.0, -12.3]], wait: 4, faces: [-Math.PI / 2, Math.PI / 2], takedownSpot: [-7.0, -12.3] },
+      // 8 the office patrol: a night tour clocking the two corridor fire doors (starts and is taken at the east end: the west end is in the bay's line of sight, so its isolation window would not survive patrol drift)
+      { kind: 'enforcer', x: 7.0, z: -12.3, yaw: Math.PI / 2, route: [[7.0, -12.3], [-7.0, -12.3]], wait: 4, faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [7.0, -12.3] },
     ],
     // alarm reinforcements come in at the vehicle gate
     reinforce: [[5.0, -25.0], [8.0, -25.0]],
@@ -53,21 +53,21 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       {
         // ground and shadow: crouch under shutter W, the bay, reception, the corridor, the security office, back out the corridor's west door
         name: 'Under the shutter, reception and the corridor',
-        pts: [[-20, -24.6], [-19, -20], [-19, -18.9], [-19, -17], [-16, -16.2], [-9, -15.8], [-7.3, -15.8], [-7.2, -14.4], [-4.5, -14.4], [-4.5, -13], [4.4, -12.6], [4.4, -14.5], [4.8, -15], [4.4, -12.6], [-7, -12.3], [-9.2, -12.3], [-10, -10], [-14.5, -10], [-14.5, -9.4], [-14.5, -7.4]],
+        pts: [[-20, -24.6], [-19, -20], [-19, -18.9], [-19, -17], [-16, -16.2], [-9, -15.8], [-7.3, -15.8], [-7.2, -14.4], [-4.5, -14.4], [-4.5, -13], [4.4, -12.6], [4.4, -14.5], [4.8, -16], [4.4, -12.6], [-7, -12.3], [-9.2, -12.3], [-10, -10], [-14.5, -10], [-14.5, -9.4], [-14.5, -7.4]],
         obj: 12,
         climbs: [2],
       },
       {
         // high: the drainpipe, the roof, the roof hatch to the plant deck, the security ceiling hatch; back up and west to the smoke vent
         name: 'Drainpipe, roof and the ceiling hatch',
-        pts: [[-20, -24.6], [-20.4, -19.6], [-22.4, -18.75], [-22, -17.2, 6], [5, -13.5, 6], [5, -14.9, 3.3], [7.4, -14.6, 3.3], [6.45, -15.4], [4.8, -15], [6.4, -16.5], [7.4, -14.6, 3.3], [5, -14.9, 3.3], [5, -13.5, 6], [-20, -9.6, 6], [-20, -7.4, 3.2], [-15.5, -8.4, 3.2], [-14.5, -9.6], [-14.5, -7.4]],
+        pts: [[-20, -24.6], [-20.4, -19.6], [-22.4, -18.75], [-22, -17.2, 6], [5, -13.5, 6], [5, -14.9, 3.3], [7.4, -14.6, 3.3], [6.45, -16.3], [4.8, -16], [6.4, -16.5], [7.4, -14.6, 3.3], [5, -14.9, 3.3], [5, -13.5, 6], [-20, -9.6, 6], [-20, -7.4, 3.2], [-15.5, -8.4, 3.2], [-14.5, -9.6], [-14.5, -7.4]],
         obj: 8,
         climbs: [2, 4, 6, 9, 11, 13, 15],
       },
       {
         // service: the lane behind the trailer, the workshop, the catwalk, the office void, the mess hatch, the corridor
         name: 'Behind the trailer, the catwalk and the void',
-        pts: [[-20, -24.6], [-12.5, -25.3], [2.8, -25.3], [9.5, -19.2], [11, -18.9], [11, -17.2], [22.6, -12], [23.3, -10.4], [22.6, -9.55, 3], [8.6, -9.55, 3], [7, -9.6, 3], [2.6, -9.95, 3], [2.6, -10.2], [2.5, -11.6], [4.4, -12.6], [4.4, -14.5], [4.8, -15], [4.4, -12.6], [-7, -12.3], [-9.2, -12.3], [-11, -10], [-14.5, -9.6], [-14.5, -7.4]],
+        pts: [[-20, -24.6], [-12.5, -25.3], [2.8, -25.3], [9.5, -19.2], [11, -18.9], [11, -17.2], [22.6, -12], [23.3, -10.4], [22.6, -9.55, 3], [8.6, -9.55, 3], [7, -9.6, 3], [2.6, -9.95, 3], [2.6, -10.2], [2.5, -11.6], [4.4, -12.6], [4.4, -14.5], [4.8, -16], [4.4, -12.6], [-7, -12.3], [-9.2, -12.3], [-11, -10], [-14.5, -9.6], [-14.5, -7.4]],
         obj: 16,
         climbs: [7, 9, 10, 11],
       },

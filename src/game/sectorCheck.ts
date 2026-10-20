@@ -1,4 +1,5 @@
 import { hyp2 } from '../core/mathx';
+import { PATROL } from '../ai/patrol';
 
 /**
  * Sector Ops layout check (feature/sector-ops M8): every patrol has a takedown spot no other guard can see. Pure and
@@ -147,6 +148,10 @@ export interface CheckGuard {
   waits?: readonly number[];
   speed?: number;
   pingPong?: boolean;
+  /** As `PatrolRoute.start`: the walker begins at point `idx`, pausing `wait` more seconds (0 = walking to it). */
+  start?: { idx: number; wait: number };
+  /** As `PatrolRoute.loop`: a master clock; the guard leaves point i at loop time `leave[i]` (`t0` = the loop time at t = 0). */
+  loop?: { period: number; leave: number[]; t0: number };
 }
 
 /** Points a guard stands on or walks through (the post, then the route every `CHECK_STEP` m, looping back). */
@@ -206,6 +211,8 @@ export const CHECK_HORIZON = 180;
 export const CHECK_TIME_STEP = 0.25;
 /** ... and a guard passes with this much isolation in a row (s). */
 export const CHECK_ISOLATION = 3;
+/** Another floor: more than this far apart in height (m); a mezzanine at 2.6 m is another floor. */
+export const CHECK_FLOOR = 2;
 /** A takedown spot counts within this plan distance (m) of the guard (the data check's reach). */
 export const CHECK_SPOT = 1.6;
 /** Patrol pace over the archetype walk speed (mirrors `PATROL_PACE` in `ai/enemy.ts`; a plain route walks at 1.1 x). */
@@ -219,6 +226,8 @@ interface Schedule {
   tPauseEnd: number[];
   tArrive: number[];
   cycle: number;
+  /** Where in the cycle the guard is at t = 0 (s; from `start`). */
+  t0: number;
 }
 
 function buildSchedule(g: CheckGuard): Schedule | null {
@@ -231,7 +240,7 @@ function buildSchedule(g: CheckGuard): Schedule | null {
     for (let i = 0; i < n; i++) order.push(i);
     for (let i = n - 2; i >= 1; i--) order.push(i);
   } else for (let i = 0; i < n; i++) order.push(i);
-  const s: Schedule = { xs: [], zs: [], tPauseEnd: [], tArrive: [], cycle: 0 };
+  const s: Schedule = { xs: [], zs: [], tPauseEnd: [], tArrive: [], cycle: 0, t0: 0 };
   let t = 0;
   for (let k = 0; k < order.length; k++) {
     const idx = order[k]!;
@@ -243,7 +252,13 @@ function buildSchedule(g: CheckGuard): Schedule | null {
     s.xs.push(p[0]);
     s.zs.push(p[1]);
     s.tArrive.push(t);
-    t += g.waits?.[idx] ?? g.wait ?? 2.5;
+    t += g.waits?.[idx] ?? g.wait ?? PATROL.wait;
+    const lp = g.loop;
+    if (lp && lp.period > 0) {
+      // a timed loop leaves point idx at its planned loop time (the next one at or after the arrival)
+      const want = ((((lp.leave[idx] ?? 0) - lp.t0) % lp.period) + lp.period) % lp.period;
+      t = s.tArrive[k]! + ((((want - s.tArrive[k]!) % lp.period) + lp.period) % lp.period);
+    }
     s.tPauseEnd.push(t);
   }
   // the walk back from the last stop to the first closes the cycle
@@ -251,6 +266,11 @@ function buildSchedule(g: CheckGuard): Schedule | null {
   const b0 = r[order[0]!]!;
   t += hyp2(b0[0] - a[0], b0[1] - a[1]) / speed;
   s.cycle = t;
+  const st = g.start;
+  if (st) {
+    const k = order.indexOf(Math.min(n - 1, Math.max(0, st.idx)));
+    if (k >= 0) s.t0 = st.wait > 0 ? Math.max(s.tArrive[k]!, s.tPauseEnd[k]! - st.wait) : k > 0 ? s.tPauseEnd[k - 1]! : s.tPauseEnd[order.length - 1]!;
+  }
   return s;
 }
 
@@ -261,7 +281,7 @@ function scheduleAt(g: CheckGuard, s: Schedule | null, t: number, out: number[])
     out[1] = g.z;
     return;
   }
-  const u = t % s.cycle;
+  const u = (t + s.t0) % s.cycle;
   const m = s.xs.length;
   for (let k = 0; k < m; k++) {
     if (u <= s.tPauseEnd[k]!) {
@@ -291,9 +311,10 @@ function scheduleAt(g: CheckGuard, s: Schedule | null, t: number, out: number[])
  * in plan (or on another floor) or has no clear eye-height line to it. Guards walk their routes at their walk speed
  * (`speed`, else a grunt's) pausing `waits[i]` / `wait` at each point; two points ping-pong, three or more loop; a guard
  * with no route stands at its slot. With a `spot` [x, z] only moments with the guard within `CHECK_SPOT` m of it count (the
- * takedown spot). A build-time check: it allocates freely.
+ * takedown spot). `phases[i]` shifts guard i's clock (s): in play the guards do not all start at their first point at
+ * t = 0. `start` and `loop` are honoured as the game does. A build-time check: it allocates freely.
  */
-export function longestIsolation(w: SightWorld, guards: readonly CheckGuard[], self: number, range = CHECK_RANGE, spot: readonly [number, number] | null = null, horizon = CHECK_HORIZON, step = CHECK_TIME_STEP): number {
+export function longestIsolation(w: SightWorld, guards: readonly CheckGuard[], self: number, range = CHECK_RANGE, spot: readonly [number, number] | null = null, horizon = CHECK_HORIZON, step = CHECK_TIME_STEP, phases?: readonly number[]): number {
   const sch = guards.map(buildSchedule);
   const pos: number[][] = guards.map(() => [0, 0]);
   const me = guards[self]!;
@@ -301,14 +322,14 @@ export function longestIsolation(w: SightWorld, guards: readonly CheckGuard[], s
   let run = 0;
   let best = 0;
   for (let t = 0; t <= horizon + 1e-9; t += step) {
-    for (let i = 0; i < guards.length; i++) scheduleAt(guards[i]!, sch[i]!, t, pos[i]!);
+    for (let i = 0; i < guards.length; i++) scheduleAt(guards[i]!, sch[i]!, t + (phases?.[i] ?? 0), pos[i]!);
     const [x, z] = pos[self]!;
     let isolated = spot === null || hyp2(x! - spot[0], z! - spot[1]) <= CHECK_SPOT;
     for (let j = 0; j < guards.length && isolated; j++) {
       if (j === self) continue;
       const [px, pz] = pos[j]!;
       const py = guards[j]!.y ?? 0;
-      if (hyp2(px! - x!, pz! - z!) > range || Math.abs(py - my) > 6) continue;
+      if (hyp2(px! - x!, pz! - z!) > range || Math.abs(py - my) > CHECK_FLOOR) continue;
       if (w.clear(x!, my + CHECK_EYE, z!, px!, py + CHECK_EYE, pz!)) isolated = false;
     }
     if (isolated) {
@@ -317,6 +338,20 @@ export function longestIsolation(w: SightWorld, guards: readonly CheckGuard[], s
     } else run = 0;
   }
   return best;
+}
+
+/** The worst `longestIsolation` over `n` pseudo-random start phases of every guard (deterministic: `seed`). */
+export function worstIsolationOverPhases(w: SightWorld, guards: readonly CheckGuard[], self: number, spot: readonly [number, number] | null = null, n = 24, seed = 1, range = CHECK_RANGE): number {
+  let a = seed >>> 0;
+  let worst = Infinity;
+  for (let k = 0; k < n; k++) {
+    const ph = guards.map(() => {
+      a = (Math.imul(a, 1664525) + 1013904223) >>> 0;
+      return (a / 4294967296) * 60;
+    });
+    worst = Math.min(worst, longestIsolation(w, guards, self, range, spot, CHECK_HORIZON, CHECK_TIME_STEP, ph));
+  }
+  return worst;
 }
 
 /** M8 in time: the guard has `CHECK_ISOLATION` s or more of isolation in a row on its timed patrol. */

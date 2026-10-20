@@ -105,3 +105,40 @@ Menu: Sector Ops, Warehouse (version label from the orchestrator). Start in the 
 2026-10-20 step 4: section 1 greybox built to SPEC 5 (`warehouseS1.ts`, `southBand` switch, 8 guards, A2 isolation-in-time
 check, A3 patrol waits and faces in the sector mode); tsc, ESLint and targeted Vitest green; e2e-sectorops, `npm run check`
 and the PC perf run pending.
+
+## Fix round
+Light checks only (no e2e run here; the job lead reruns e2e-sectorops).
+
+1. **e2e-sectorops "section 1 (service): the download opens the connector" (blocking).**
+   - Cause (by code reading, not reproduced): the test stands the player 0.9 m east of the DVR (4.85, -15.0). There a
+     closed door (office door at x 4.5, z -13.8) was 1.25 m away, under the door-set reach (1.6 m), and CCTV guard 4 (in the
+     first four) started 1.2 m away, inside the takedown reach (1.8 m). Either puts several rows in the A context menu
+     (`gameState.contextMenuStep`), so the tap on A did not run the DVR's "Start the download".
+   - Fix (map data, test unchanged): the DVR moved to (3.95, 0, -16.0) on the same desk (stand point (4.85, -16.0): 2.2 m
+     from the door, 2.8 m from the guard); guard 4 starts at (7.3, -17.2) in the office's south-east corner (its route's
+     first point moved with it; the corridor and mess legs are unchanged); the three routes' DVR point (4.8, -15) became
+     (4.8, -16). New Vitest asserts: no door hinge within 1.6 m and no first-four guard within 1.8 m of the e2e stand point.
+   - Files: `src/world/maps/warehouseSectors.ts`, `tests/sectors.test.ts`.
+2. **Security cabinet (check item 1).** Cabinet now `block(6.45, -15.4, 0.9, 1.2, 0.5)`: centred under the hatch (x 6.0 - 6.9),
+   top 1.2, so 1.8 m of stand height to the 3.0 slab underside. R2's drop point (6.45, -15.4, inside the cabinet) became
+   (6.45, -16.3). Not verified: whether the engine's hang-and-climb gets from the cabinet onto the deck lip (2.1 m above
+   the cabinet top; wall-jump reach is 3.8 m) - needs a playtest; if it fails A7 applies (drop-only hatch). Files:
+   `warehouseS1.ts`, `warehouseSectors.ts`.
+3. **Base roof strips (check item 3).** `warehouse.ts`: when `southBand` is false the strips at z -18 and z -12 are skipped
+   (`continue`), so nothing sits on S1's roof at 6.0. The plain Warehouse keeps its test (318 boxes, 14 cylinders, 5 doors).
+4. **Guard 8 phase window (check item 2).**
+   - Cause: its west end (-7, -12.3) sits in the bay's line of sight through the west doorway, and in the CCTV operator's
+     corridor line.
+   - Fix: the patrol starts at and is taken at the east end: route (7, -12.3) -> (-7, -12.3), post (7, -12.3), spot
+     (7, -12.3), faces swapped (the east end is hidden from the bay and, by the office walls, from the monitors and the mess).
+     Waits unchanged. Worst isolation over 40 random phase sets went from 0 s to 7.25 s.
+   - Test: "section 1 A2 survives patrol phase drift" (30 random start phases of every guard through
+     `worstIsolationOverPhases`, every statically-seen guard keeps >= 3 s). Result: all eight pass (worst 4.25 s).
+   - Files: `warehouseSectors.ts`, `sectorCheck.ts`, `tests/sectors.test.ts`.
+5. **Time model (check item 4).** `sectorCheck.ts`: default pause is `PATROL.wait`; `start` and `loop` are honoured (start sets
+   the initial cycle offset; loop pauses until the planned loop time); `CHECK_FLOOR` = 2 m for "another floor" (time model
+   only; the static spot check keeps 6 m); `longestIsolation` takes per-guard start phases. Test added for each (default
+   pause, start, floor). Sections 1 to 3 still pass.
+
+Results: `npx tsc --noEmit` clean; ESLint clean on the changed files; `npx vitest run tests/sectors.test.ts
+tests/sectorStep3.test.ts tests/rooms.test.ts tests/voxelFit.test.ts`: 44 passed.
