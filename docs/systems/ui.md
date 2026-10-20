@@ -157,6 +157,22 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `ui/overlayProject.ts`, shared with the barrel marker). The turntable and the camera snaps are `FREE_VIEW.spin` /
   `FREE_VIEW.snap`, taken by the free view. The game speed slider reaches 2x only while the studio runs. Leaving resets
   it all (`studioReset`). `window.__studio` is the test / console hook. Detail: `docs/anim-studio/REPORT.md`.
+- (anim-studio-2) Pairs and traversal in the studio. The loop list adds `pair:<move>` and `trav:<move>` entries.
+  - A co-op pair (`anim/studioPairs.ts`, pure): both roles of a team move from one clock, through the game's own paths
+    and timing (`game/teamMoves.ts`, `TEAM`). The stage poses two Wren puppets (`operatorRig`, local rigs, no network;
+    Wren hidden, standing back as the camera's anchor) through `moveTuneSelect` / `Root` / `Begin` / `End` with each
+    role's group, the same calls the local player makes in real play. Moves: leg-up, ledge relay, partner throw,
+    hang-down, two-person rope (a `world.ropes` line), revive. The panel's follow shows role A's group (`MOVE_TUNE_TEAM.follow`).
+  - A hold pair: Wren's hold clip and the guard's clip in place, both drives `held` to the pair's phase.
+  - A traversal loop (`anim/studioTraversal.ts`, pure `travTick`: reset, settle, walk in, act steps, reset): the
+    synthesised stick and buttons (jump, interact, drop, cover; the door's Open through `startDoorOpen`) on the props of
+    `anim/studioProps.ts`, built as level pieces and anchors in the 28 m studio room. Reset is `GameState.studioTeleport`
+    (out of any anchor, wall or door move, as the respawn).
+  - The move sections (`anim/moveTune.ts`): `team_<move>` (groups `team.<move>.a` / `.b` / `.contact`) and `trav`
+    (`trav.<kind>`). The local player's own role and pose select them (`GameState` writes `MOVE_TUNE_TEAM` from
+    `TeamController.state` / `partT`, or 'revive' while holding a partner's revive); the remote avatar never reads them;
+    nothing on the wire; visual only (the rig root, the pose, the grip targets). The pad strip shows "LT / RT: role A /
+    B / contact" on a co-op section. `window.__studio.pair()` is the test hook. Detail: `docs/anim-studio/REPORT-2.md`.
 
 ## Course HUD (Fallow, training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the

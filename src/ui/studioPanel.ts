@@ -1,5 +1,5 @@
 import type { Scene } from '../core/babylon';
-import { STUDIO, STUDIO_ENTRIES, STUDIO_SPEED, TURN_RATES, studioEntry, studioKey, type StudioSnap } from '../anim/studio';
+import { STUDIO, STUDIO_ENTRIES, STUDIO_PAIR, STUDIO_SPEED, TURN_RATES, studioEntry, studioKey, type StudioSnap } from '../anim/studio';
 import { FREE_VIEW, type FreeMode } from '../player/freeView';
 import { StudioOverlay } from './studioOverlay';
 import type { PanelKit } from './tuneSnapshots';
@@ -49,7 +49,7 @@ export class StudioPanel {
     h.textContent = 'Studio';
     h.style.cssText = 'display:block;color:#8fd3ff;';
     const note = document.createElement('div');
-    note.textContent = 'Loop player: a state walks a 2 m circle; a keyed clip plays in place (treadmill feet) or with root motion on the circle.';
+    note.textContent = 'Loop player: a state walks a 2 m circle; a keyed clip plays in place (treadmill feet) or with root motion on the circle. Pairs: both operators (or Wren and the guard) on one clock; tune each role in its Co-op section (your own role is live in real play, the partner always plays the defaults). Traversal: Wren walks to a prop and plays the move, again and again.';
     note.style.cssText = 'color:#8a98a4;font-size:9px;';
     // the loop list (labels on the options; value = the entry id)
     const b1 = kit.bar();
@@ -137,6 +137,8 @@ export class StudioPanel {
       rootMotion: (on: boolean) => this.setBox(this.rootBox, on),
       speed: (v: number) => this.api.setSpeed(v),
       snap: (s: StudioSnap) => this.snap(s),
+      // (anim-studio-2) a pair's roles and clock, a traversal loop's progress
+      pair: () => ({ ...STUDIO_PAIR }),
     };
   }
 
@@ -165,15 +167,27 @@ export class StudioPanel {
     this.nextRead = nowMs + 100;
     const e = studioEntry(STUDIO.entry);
     const keyed = e.kind === 'keyed';
-    const inPlace = keyed && !(STUDIO.rootMotion && e.circle && !(e.guard && STUDIO.guard));
+    const pair = e.kind === 'pair';
+    // (anim-studio-2) a pair is on the studio's own clock (scrub and step); a traversal loop is the game's physics (no)
+    const inPlace = pair || (keyed && !(STUDIO.rootMotion && e.circle && !(e.guard && STUDIO.guard)));
     const frozen = this.api.frozen();
     const play = frozen ? 'Play' : 'Pause';
     if (this.playBtn.textContent !== play) this.playBtn.textContent = play;
     this.backBtn.disabled = this.fwdBtn.disabled = this.scrub.disabled = !inPlace;
-    this.mirrorBox.disabled = !keyed;
+    this.mirrorBox.disabled = !keyed && !(pair && !e.team);
     this.rootBox.disabled = !keyed || !e.circle;
     const n = STUDIO.frames;
-    this.readout.textContent = n > 0 ? `key ${studioKey(STUDIO.phase, n)}/${n} ${STUDIO.phase.toFixed(3)}${inPlace ? '' : ' (root)'}` : e.kind === 'state' ? 'state (no keys)' : '-';
+    const p = STUDIO_PAIR;
+    const at = n > 0 ? `${e.team ? 'frame' : 'key'} ${studioKey(STUDIO.phase, n)}/${n} ${STUDIO.phase.toFixed(3)}${inPlace ? '' : ' (root)'}` : '';
+    this.readout.textContent = e.team
+      ? `${at} | A ${p.aState}${p.aGroup ? ` [${p.aGroup}]` : ''}${p.k > 0 ? ` contact ${p.k.toFixed(2)}` : ''} | B ${p.bState}${p.bGroup ? ` [${p.bGroup}]` : ''}`
+      : e.trav
+        ? `${p.travPhase} step ${p.travStep + 1}/${e.trav.steps.length} loop ${p.travLoops} | ${p.attach || p.traverse || 'free'} | tune: ${e.trav.tune}`
+        : n > 0
+          ? at
+          : e.kind === 'state'
+            ? 'state (no keys)'
+            : '-';
     if (!this.api.busy(this.scrub)) this.scrub.value = String(STUDIO.phase);
     const sp = this.api.speed();
     if (!this.api.busy(this.speedIn)) this.speedIn.value = String(sp);

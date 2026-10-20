@@ -68,6 +68,37 @@ try {
   assert(moved > 0.5 && w1.drive === null, `state walk moves the player by synthesised input, no drive (${moved.toFixed(2)} m in 2 s)`);
   await G(() => window.__studio.pick('state:idle'));
 
+  // (anim-studio-2) a co-op pair: two Wren puppets posed from one clock; paused and scrubbed into the boost, A is
+  // tossed up off B's cupped hands, B braced on the floor; a key step moves both
+  await G(() => window.__studio.pick('pair:boost'));
+  await frames(page, 4);
+  await G(() => window.__studio.pause());
+  const cyc = (await G(() => window.__studio.pair())).cycle;
+  await G((v) => window.__studio.seek(v), (1.4 + 0.6) / cyc);
+  await frames(page, 4);
+  const pr = await G(() => window.__studio.pair());
+  assert(pr.rigs === 2 && cyc > 3, `the pair has two operators (${pr.rigs}, cycle ${cyc})`);
+  assert(pr.aState === 'boost' && pr.bState === 'assist' && pr.aGroup === 'team.boost.a' && pr.bGroup === 'team.boost.b', `the roles are in the team states (${pr.aState} / ${pr.bState}, ${pr.aGroup} / ${pr.bGroup})`);
+  assert(pr.ay > 0.5 && Math.abs(pr.by) < 0.05 && pr.tA === pr.tB, `A boosted up (${pr.ay.toFixed(2)} m), B on the floor (${pr.by.toFixed(2)}), one clock (${pr.tA.toFixed(3)} / ${pr.tB.toFixed(3)})`);
+  await G(() => window.__studio.step(1));
+  await frames(page, 3);
+  const pr2 = await G(() => window.__studio.pair());
+  assert(Math.abs(pr2.tA - pr.tA - 1 / 30) < 0.01 && pr2.tA === pr2.tB, `a key step moves both by one frame (${pr.tA.toFixed(3)} -> ${pr2.tA.toFixed(3)})`);
+  await G(() => window.__studio.play());
+
+  // (anim-studio-2) a traversal loop: Wren walks to the ladder and attaches by the synthesised Y; then back to the middle
+  await G(() => window.__studio.pick('trav:ladder'));
+  let att = '';
+  for (let i = 0; i < 16 && att !== 'ladder'; i++) {
+    await G(() => window.__app.loop.stepHeadless(0.5));
+    att = (await G(() => window.__studio.pair())).attach;
+  }
+  assert(att === 'ladder', `the ladder loop reaches the ladder (${att}, ${JSON.stringify(await G(() => window.__studio.pair()))})`);
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+  const home = await G(() => { const p = window.__app.current.player.position; return { x: p.x, z: p.z, att: window.__app.current.traversal.attached }; });
+  assert(Math.hypot(home.x - 14, home.z - 14) < 0.5 && !home.att, `back in the middle, off the ladder (${home.x.toFixed(2)}, ${home.z.toFixed(2)})`);
+
   // undo a slider change
   const T = () => G(() => window.__animTune.get('walk', 'trackMul'));
   await G(() => window.__animTune.set('walk', 'trackMul', 1.2));

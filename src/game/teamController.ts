@@ -118,6 +118,11 @@ export class TeamController {
     return this.g.net?.teamMates?.() ?? [];
   }
 
+  /** (anim-studio-2) Seconds into the current committed part (the move sections' contact window; visual only). */
+  get partT(): number {
+    return this.t;
+  }
+
   /** In a team move that owns the body (an offer waiting on the ground or a hang offer is not: the player stays free). */
   get active(): boolean {
     return this.state !== 'none' && this.state !== 'relayOffer';

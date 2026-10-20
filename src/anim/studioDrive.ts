@@ -21,6 +21,8 @@ export interface StudioDrive {
   clip: KeyedClip | null;
   /** In place: the studio owns the phase and the treadmill feet; else the graph's gait clock and the planner's feet. */
   inPlace: boolean;
+  /** (anim-studio-2) In place, the phase is set from outside each frame (a pair's one clock): the drive never advances it. */
+  held: boolean;
   /** Phase in cycles 0..1 (in place: advanced here; root motion: copied from the graph). */
   phase: number;
   /** Seconds per cycle in place. */
@@ -42,7 +44,7 @@ export interface StudioDrive {
 }
 
 export function newStudioDrive(): StudioDrive {
-  return { clip: null, inPlace: true, phase: 0, cycle: 1, mirror: false, drawn: false, crouch: false, pace: 0, dirX: 0, dirZ: 1, live: 0, inL: true, inR: true };
+  return { clip: null, inPlace: true, held: false, phase: 0, cycle: 1, mirror: false, drawn: false, crouch: false, pace: 0, dirX: 0, dirZ: 1, live: 0, inL: true, inR: true };
 }
 
 /** A phase wrapped into 0..1. */
@@ -58,7 +60,7 @@ export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): v
   const c = d.clip;
   if (!c) return;
   if (d.inPlace) {
-    if (dt > 0 && d.cycle > 0) d.phase = wrap01(d.phase + dt / d.cycle);
+    if (!d.held && dt > 0 && d.cycle > 0) d.phase = wrap01(d.phase + dt / d.cycle);
   } else d.phase = wrap01(o.gait.phase);
   d.live = d.phase;
   sampleKeyed(c, d.mirror ? d.phase + 0.5 : d.phase, 1, o.keyed);
