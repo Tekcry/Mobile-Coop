@@ -714,7 +714,13 @@ try {
       // onto B (crouch): the conflict shows on both rows and in the summary; reset (confirm) restores the defaults
       await focusSlot('draw:0');
       await press(P, BTN.A);
-      await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
+      // (the first pad press after the page came back to the front can be taken as the input-mode switch: one more A)
+      if (!(await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 4000 }).then(() => true).catch(() => false))) {
+        console.log(`  (no capture after the first A: ${JSON.stringify(await G(() => ({ mode: window.__app.input.mode, focused: window.__app.nav.focused?.dataset?.bind ?? window.__app.nav.focused?.className })))}; A again)`);
+        await focusSlot('draw:0');
+        await press(P, BTN.A);
+        await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
+      }
       await press(P, BTN.B);
       v = await view();
       assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);

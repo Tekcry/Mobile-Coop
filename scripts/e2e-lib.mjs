@@ -108,6 +108,12 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   page.on('console', (m) => {
     // SwiftShader / ANGLE performance notes about its own command buffer are not the game's problems
     if (/GL Driver Message \(OpenGL, Performance/.test(m.text())) return;
+    // (test-speed) a music track whose fetch failed (the game logs it and plays on without that track): seen under load
+    // in e2e-desktop and e2e-offline (2026-10-20). Printed, never counted as a console error; the audio suites cover music.
+    if (m.type() === 'warning' && /^music \w+ TypeError: Failed to fetch/.test(m.text())) {
+      console.log(`  (ignored: ${m.text().split('\n')[0]})`);
+      return;
+    }
     if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`);
     else if (process.env.VERBOSE || (NETSIM && /^NETSIM/.test(m.text()))) console.log(`[${m.type()}] ${m.text()}`);
   });
