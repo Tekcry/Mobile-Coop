@@ -54,6 +54,10 @@ state changes, Import JSON, wider ranges, bypass, slow motion, slider search, th
 Menu Notes = per-limb targeting strength with item 2. Laptop: tuner-v2 0e73c3b2 PASS (check, smoke, e2e-anim,
 e2e-menus); #61 full PASS (e2e-levels ok solo; e2e-pad "focus Quit" is a stale step after the tuner pause item:
 Character Build fixes it on feature/e2e-pad-fix). #61 merging as 4.21.0 (1e2689e3, CI running).
+camera-cue: draft PR #63 (master merged; fix-round check + GPU shots pending, the shader never ran on a GPU: do not
+merge as is). The GPU window never ran: #58 smooth-world also waits for its GPU reshoot (after the pause lifts).
+marlow-bunker paused at 80d49dd3; PR #62 open (CI pending; full e2e and GPU look not run; e2e-ctcourse passes solo but
+hits 600 s at E2E_JOBS=2). Not on the laptop queue while paused. warehouse-lamps holding (laptop run queued).
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
