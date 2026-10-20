@@ -33,6 +33,10 @@ At 93% of the 5-hour window Michael was given prompts to clear and restart every
 
 nv-pass (17:40): the checker said FIX on slices 1-2 (b1303393): met: bodies no longer bright, green tube, the frame 89% clear, light parity; not met: dark readability (the yard NV a flat murk, the Epic moonlit wall clipped) and ?gfx=min (NV darker than off in 2 of 9 views). Its committed "before" sheets are not master (re-shoot them). After the reset: one fix round (frame-level auto-gain, shot-script guards, min postLift), a GPU window, a fresh checker. It proposes lowering the e2e-darkness target 0.2 -> 0.10: ask for the evidence that 0.10 still means readable before agreeing (do not loosen a test just to pass).
 
+Before the reset (17:45) two cheap script-only jobs were started: Character Build test-speed full run 6 (E2E_JOBS=2; a clean run counts as 1 of the 2 needed) and nv-pass re-shooting the master "before" sheets (65bfe6f2). Both reply in one line; read their results from the sessions or their STATE files.
+
+Restart order after the reset: the orchestrator first (Michael pastes its prompt), then CT Core, Sector Ops and Course Ready (cleared, with their own prompts). Character Build and Menu Notes (nv-pass) were cleared earlier and are only paused: message them to resume.
+
 ## Context clears (Michael 16:15: "i want to clear all the chats when they are ready to prevent context drifting")
 Every session was asked to reach a clean point, update its STATE with a fenced resume prompt and message "<name> ready
 to clear" with the prompt. Then: give Michael that prompt to paste after he clears it (he clears the sessions he
@@ -68,5 +72,5 @@ separate commands.
 
 ## Resume prompt
 ```
-Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). Check what each session has reported (ListAgents for who is live; the job branches' STATE files), then carry on with "Open PRs / merges to do" and the context clears. Movement and animation are top priority. Short replies, native multiple choice only.
+Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:NightShiftMobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). The usage window has just reset: every session was paused at 2026-10-20 ~17:15 (STATE "Usage pause"). First, ListAgents to see who is live; CT Core, Sector Ops and Course Ready are being restarted by Michael with their own prompts right after you, and Character Build and Menu Notes (nv-pass) are paused: message those two to resume (Character Build: test-speed, after reporting run 6; nv-pass: its fix round, then the carousel, which is unblocked now). Then carry on with "Open PRs / merges to do". Movement and animation are top priority. Short replies, native multiple choice only, hyphens not em dashes.
 ```
