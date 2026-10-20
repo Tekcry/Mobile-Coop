@@ -45,6 +45,8 @@ animation.
 - A1 Mirror lock in the panel: the registry sync mirrors the side just edited (the change log's last entry) onto its
   partner in the table and the registry, with no extra log entry; loads and group resets copy as is; item 1's own
   `jointsMirror` stays off. [Undo: use item 1's `jointsMirror` flag in `src/anim/tuneV2Sections.ts`.]
-- A2 Per-key editing (item 4) covers only the joints the key JSON format has channels for; head, shoulders, hips,
-  knees, ankles and toes are left out of the Keys section, and keys are named by index plus phase (the files name no
-  phases). [Undo: add those channels to the key format in `scripts/anim-keys` and to `src/anim/tuneKeys*`.]
+- A2 Per-key editing (item 4) leaves out the head, shoulders, hips, knees, ankles and toes. The key format does have leg
+  channels (flex, add, knee, ankle), but the runtime clip carries no leg rotations: the game's legs come from the foot
+  planner, so leg keys only feed the Blender preview; the head rides the neck. Keys are named by index plus phase (the
+  files name no phases). [Undo: add those joints to `src/anim/tuneKeys*` and, for legs, carry leg rotations in the
+  runtime clip.]

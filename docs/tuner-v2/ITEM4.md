@@ -4,8 +4,11 @@ key of the 28 key files (210; picker = clip then key; the grey note names the ph
 name no phases (no contact / passing labels), so a key is its index + phase. 26 sliders, degree deltas on the key
 file's own fields, +-90, step 0.5: pelvis / spine / chest / neck pitch, yaw, roll; per arm flex, abd (upper arm), elbow,
 inward (forearm), wrist pitch / yaw / roll. Static key table `src/anim/tuneKeysMeta.ts` (generated, tested against the JSON).
-**Assumed (A, undo: add sliders).** Item 1's head, shoulders, hips, knees, ankles and toes are left out: the key format has
-no channel for them (the head rides the neck; leg keys only feed the Blender preview, the game's legs are the foot planner's).
+**Assumed (A, undo: add sliders).** Item 1's head, shoulders, hips, knees, ankles and toes are left out: the runtime clip has
+no leg rotations (the key format has leg channels, but they only feed the Blender preview: the game's legs are the foot
+planner's; the head rides the neck).
+**Re-apply guard.** `apply-tune.mjs` refuses to write a key file in place that already differs from git HEAD (a second run
+would add the edits twice); `--force` overrides. After baking, reset the Keys section before the next export.
 **Sampler hook** (`src/anim/keyed.ts`). `KeyedClip.keyOff` (null) -> per-frame offset quaternions (trunk 16, arm 16, wrist 8 a
 frame + means), allocated on the clip's first edit, rewritten in place after. A key's delta spreads linearly to its
 neighbouring keys (baked phases, the mirrored half mirrored as `mirror_key`); `sampleKeyed` blends the tables with its own
