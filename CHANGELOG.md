@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased - e2e-pad-fix
+- e2e-pad's pause menu walk steps over "Animation tuner (dev)" (added before Quit by the anim-tuner job); "focus Quit"
+  failed every run, hidden by KNOWN FLAKY. Test only.
+
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
   D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
