@@ -104,6 +104,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
   height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
   turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+- [ ] (anim-rework S2) Holstered, standing: push the stick slowly from a creep to full: the walk turns into a jog and a
+  run with no pop, the knees and feet stay under the hips (from the front the legs look near vertical), the arms hang
+  along the sides and swing a little more as you speed up, no lean until the run. Stand still: she breathes, shifts her
+  weight and looks round slowly. Start, stop, turn round from a standstill and change direction 90 / 180 deg at a walk
+  and a run: no foot slides, no hop.
 - [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
   comes from the back straight to the shoulder (no low-ready dip).
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.

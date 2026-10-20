@@ -1,0 +1,212 @@
+{
+  "name": "crouch_run",
+  "note": "(anim-rework S4 keys, real-world standard, keyed by hand; never traced; M6) The crouched holstered run: low and leaning forward (pelvis 22, chest 28 deg) with the head up, the hips about 21 cm below standing and almost level (no bounce), a quick turnover with a high heel kick behind and a knee drive in front that keeps the trailing knee well off the floor, feet close to the line under the hips (add 2); the upper arms swing from the shoulder along the sides (in the world 25 back to 10 forward), elbows 70-85 deg close to the ribs, the hands never ahead of the chest. Phase 0 is the left foot strike; keys 0-0.375 are mirrored. Angles in degrees in the body frame (x right, y up, z forward): pitch about x (+ the top forward), yaw about y (+ turns right), roll about z (+ the right side up). Pelvis offsets in cm from the standing rest (dy is the full crouch depth, so the Blender preview stands on the floor; the game adds a clip's dy to its own crouch drop: slice 4 wiring takes dy relative to the clip mean or drops the procedural crouch, S4-KEYS.md). Arms: flex (+ forward, in the chest frame: the world angle is flex minus the chest pitch), abd (+ out), elbow (+ bent), inward (the forearm turned in toward the midline); wrist (anim-rig, RIG.md) yaw / pitch / roll in the forearm frame, right hand as written, the left mirrored. Legs (the Blender preview and the track only: the game's feet come from the foot planner): flex (+ the knee forward), add (+ the foot in toward the midline), knee (+ bent), ankle (+ the toes up).",
+  "duty": 0.45,
+  "liftH": 0.12,
+  "kneeOut": 0,
+  "carry": 5,
+  "mirror": true,
+  "frames": 32,
+  "keys": [
+    {
+      "phase": 0,
+      "pelvis": {
+        "dx": 0,
+        "dy": -21.3,
+        "dz": 2,
+        "yaw": 2.5,
+        "pitch": 22,
+        "roll": 0
+      },
+      "spine": {
+        "yaw": 0.9,
+        "pitch": 26,
+        "roll": 0
+      },
+      "chest": {
+        "yaw": -3,
+        "pitch": 28,
+        "roll": 0
+      },
+      "neck": {
+        "yaw": 0,
+        "pitch": 8,
+        "roll": 0
+      },
+      "armL": {
+        "flex": 3,
+        "abd": 4,
+        "elbow": 85,
+        "inward": 16
+      },
+      "armR": {
+        "flex": 38,
+        "abd": 4,
+        "elbow": 70,
+        "inward": 16
+      },
+      "legL": {
+        "flex": 84,
+        "add": 2,
+        "knee": 72,
+        "ankle": 16
+      },
+      "legR": {
+        "flex": 28,
+        "add": 2,
+        "knee": 88,
+        "ankle": 57
+      }
+    },
+    {
+      "phase": 0.125,
+      "pelvis": {
+        "dx": -0.5,
+        "dy": -21.1,
+        "dz": 2,
+        "yaw": 1.5,
+        "pitch": 22,
+        "roll": -1.2
+      },
+      "spine": {
+        "yaw": 0.5,
+        "pitch": 26,
+        "roll": 0.6
+      },
+      "chest": {
+        "yaw": -1.8,
+        "pitch": 28,
+        "roll": 0.6
+      },
+      "neck": {
+        "yaw": 0,
+        "pitch": 8,
+        "roll": 0
+      },
+      "armL": {
+        "flex": 16,
+        "abd": 4,
+        "elbow": 80,
+        "inward": 16
+      },
+      "armR": {
+        "flex": 28,
+        "abd": 4,
+        "elbow": 75,
+        "inward": 16
+      },
+      "legL": {
+        "flex": 74,
+        "add": 2,
+        "knee": 82,
+        "ankle": 28
+      },
+      "legR": {
+        "flex": 56,
+        "add": 2,
+        "knee": 120,
+        "ankle": 76
+      }
+    },
+    {
+      "phase": 0.25,
+      "pelvis": {
+        "dx": -0.7,
+        "dy": -21.6,
+        "dz": 2,
+        "yaw": 0,
+        "pitch": 22,
+        "roll": -1.6
+      },
+      "spine": {
+        "yaw": 0,
+        "pitch": 26,
+        "roll": 0.8
+      },
+      "chest": {
+        "yaw": 0,
+        "pitch": 28,
+        "roll": 0.8
+      },
+      "neck": {
+        "yaw": 0,
+        "pitch": 8,
+        "roll": 0
+      },
+      "armL": {
+        "flex": 28,
+        "abd": 4,
+        "elbow": 75,
+        "inward": 16
+      },
+      "armR": {
+        "flex": 16,
+        "abd": 4,
+        "elbow": 80,
+        "inward": 16
+      },
+      "legL": {
+        "flex": 58,
+        "add": 2,
+        "knee": 82,
+        "ankle": 40
+      },
+      "legR": {
+        "flex": 88,
+        "add": 2,
+        "knee": 126,
+        "ankle": 60
+      }
+    },
+    {
+      "phase": 0.375,
+      "pelvis": {
+        "dx": -0.3,
+        "dy": -22.1,
+        "dz": 2,
+        "yaw": -1.5,
+        "pitch": 22,
+        "roll": -0.6
+      },
+      "spine": {
+        "yaw": -0.5,
+        "pitch": 26,
+        "roll": 0.3
+      },
+      "chest": {
+        "yaw": 1.8,
+        "pitch": 28,
+        "roll": 0.3
+      },
+      "neck": {
+        "yaw": 0,
+        "pitch": 8,
+        "roll": 0
+      },
+      "armL": {
+        "flex": 38,
+        "abd": 4,
+        "elbow": 70,
+        "inward": 16
+      },
+      "armR": {
+        "flex": 3,
+        "abd": 4,
+        "elbow": 85,
+        "inward": 16
+      },
+      "legL": {
+        "flex": 36,
+        "add": 2,
+        "knee": 64,
+        "ankle": 20
+      },
+      "legR": {
+        "flex": 94,
+        "add": 2,
+        "knee": 96,
+        "ankle": 32
+      }
+    }
+  ]
+}

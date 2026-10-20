@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-20 17:10 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-20 20:10 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -12,32 +12,34 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
 ```
 
 ## Now
-- Slice 1 (controls) is done: commits 5b691a02 (controls), 088849a5 (round 2: RB jammer, A interacts always), ef3a3c01
-  (round 3: X-hold reload in e2e-combat, team prompt hidden while the pistol aims, Toggle aim removed, netmove step),
-  13d01dcb (e2e-ctcourse stations 3 / 4 aim after LT). Report `S1-REPORT.md` (rounds 1-3).
-- Tier on 13d01dcb: npm run check green (2004); laptop solo e2e-ctcourse 260 s, e2e-coop 90 s, e2e-netmove 128 s pass;
-  desktop e2e-combat, mouse, pad, takedown, ct, gadgets pass solo; e2e-menus (a 500 ms wall-clock fade check, failed
-  before with other values under load) and e2e-stealth (look-input wall-clock wait) fail on the desktop: the laptop's
-  full e2e on the PR head decides them. Independent Opus check PASS.
-- The PR head is the merge da267b0f (+ this STATE commit): #41 (unwired guard clips) and master 4.14.1 merged on top of
-  13d01dcb; its npm run check runs after Menu Notes' lock. Then: push, move /ct/ (ct-movement), open the slice 1 PR to
-  master with the body below, message the orchestrator; the orchestrator sends the full npm run e2e on the PR head to
-  the laptop and merges.
-- Session clear: Michael wants every session cleared. After the PR is open: "CT Core ready to clear" to the
-  orchestrator with the resume prompt above; start no new work until cleared.
+- Slice 2 (standing holstered locomotion, A4) done: 6546a1ca (keyed idle / walk / jog / run as one speed blend; the wide
+  walk was the foot planner's fixed 13 cm landing gap; M6: run 4.0 m/s, 3.2 steps/s at the run, no lean below the run,
+  knees 0.75x hips, arms along the sides) + fix round 534962d0 (visible idle head scan, hip follow / knee swing standing
+  holstered only, idle track margin). Report `S2-REPORT.md`, sheets `shots/s2/` (before sheets on the pre-#47 meshes).
+- Gates on: CRAB_GATES walk / jog / run; CRAB_STATE_GATES idle / start / straight / stop / turn round; CRAB_IDLE range
+  (10.5 cm, hip-width idle). 90 / 180 changes report-only.
+- Tier: npm run check pass (2030); desktop e2e:quick pass (e2e-stealth solo rerun pass); laptop e2e-ctcourse 243 s,
+  e2e-coop 83 s, e2e-netmove 121 s pass on 6546a1ca and again on 534962d0 (239 / 80 / 119 s). Independent Opus check PASS; fresh check of
+  the fix round PASS.
+- /ct/ moved to the slice 2 head; slice 2 PR to master opened (orchestrator runs the full e2e and merges).
+- Keys for slices 3-6 are in, unwired (Course Ready, new files only): S3 eb2190cd... see `S3-KEYS.md` (f8c744f5),
+  `S4-KEYS.md` (eb2190cd), `S5-KEYS.md` (3b34fe3c), `S6-KEYS.md` (7aaa1394), each with its wiring notes.
 
 ## Next
-- Slice 2 (holstered locomotion standing and crouched, idles, starts / stops / turns on the spot / direction changes,
-  continuous speed and direction blends) from `PLAN.md` and the #40 findings: Michael 14:45 still sees a wide stance in
-  the walk; starts (knees 1.5x hips, 16 cm off, 8-9 cm slides), turns from a standstill (1.43x, 14-15 cm), 90 / 180
-  changes (knees 7-12 cm outside the ankles, 4-10 cm slides), idle / stops (elbows 9 cm out). Keyed clips via the G8
-  pipeline (scripts/anim-keys, src/anim/keyed.ts, src/anim/clips/keyed/), real-world operator reference, never traced.
-  Switch each gait's CRAB_GATES flag (src/anim/audit/limits.ts) on as it passes. Contact sheets for Michael.
-- Then slices 3-6 (`PLAN.md`). Slice 3 owns the aimed strafe crab (knees 2-2.8x hips, feet 45-53 cm off the line) and
-  aimed backwards. Slice 4: the knee-hand clip needs its own path (the keyed wrist frame applies in keyedArm, which is
-  off while the knee hand runs, characterRig.ts ~2053). Slice 6 wires #41's guard clips.
+- Slice 3 (low ready and aiming, rifle and pistol, standing and crouched, the glide, all weapon transitions incl. the
+  sling draw): wire `ready_stance` / `glide_*` (S3-KEYS.md: mirror the strafe for the left, arms stay procedural, duty
+  and liftH to match the planner). Owns the aimed strafe crab (knees 2-2.8x hips, feet 45-53 cm off) and aimed
+  backwards. Then slice 4 (S4-KEYS.md: the clips' pel y is the full crouch depth; the knee hand needs keyedArm on while
+  crouched idle), slice 5 (S5-KEYS.md: mirror; the keys duplicate WALL_STANCE / WALL_SIDE_POSE terms), slice 6
+  (S6-KEYS.md: the choke needs root motion; wires #41's guard clips).
 
 ## Open items
+- Slice 2 polish: 90 / 180 deg direction changes at 1.4-2.1 m/s open the knees to 1.3-1.4x and a knee 5-13 cm
+  outside its ankle for a few frames (the 450 deg/s travel turn outruns two steps; gates change90 / change180 off);
+  planner-only tight spins splay a standing planted foot up to 0.32 m (turnFollow.test.ts); the run's keyed trunk no
+  longer leans into turns; crouch-sneak then stand still keeps the crouched foot spacing until PLANNER.idleErr (a
+  re-step on crouch-to-stand); keyScan assumes near pure-yaw neck keys.
+- Course Ready's S3-S5 preview strips sink toes-down planted feet (preview only, no game effect).
 - Slice 1 polish not done: `player.ts`: while the gun is suspended (team move, carry, strike) with LT held, `ads` stays
   true and the aim camera stays up (as before the slice).
 - Vision mode carousel in the selection wheel (Michael): given to the night-vision job, not ours.

@@ -36,12 +36,15 @@ export const MOVEMENT = {
   brakeGain: 30,
   /** Weight shift before the first step (s): none - it overlaps the motion in the animation. */
   startShift: 0,
-  /** Step length (m) = stepLen0 + stepLenK * speed; a gait cycle is two steps. */
+  /**
+   * Step length (m) = stepLen0 + stepLenK * speed; a gait cycle is two steps. (anim-rework S2, M6 Michael 2026-10-20: "the
+   * leg strides should be further apart with less steps, it's too many steps") stepLenK 0.2 -> 0.24 and the cap
+   * `stepLenMax` 0.95 -> 1.3 m: the real-world steps, 0.64 m at 1.4 m/s (2.2 steps a second), 1.02 m at the 3 m/s jog
+   * (2.9), 1.26 m at the 4 m/s run (3.2; the CT cap had the run at 4.7 steps a second).
+   */
   stepLen0: 0.3,
-  stepLenK: 0.2,
-  /** (CT prototype G1, audit row 7) The longest step (m): reached at 3.25 m/s, so the run quickens its cadence instead of
-   *  floating on long strides (CT run ~4.6 steps/s at ~1.0 m a step, footage 110117). */
-  stepLenMax: 0.95,
+  stepLenK: 0.24,
+  stepLenMax: 1.3,
   /** Speed dip at each heel strike (fraction), mean 1 over the stride: each step lands and pushes off. */
   rootDip: 0.025,
   /** Facing the travel direction (not aiming): turn rate at sneak pace and at sprint (rad/s). */
@@ -147,11 +150,12 @@ export const GEARS = {
   count: 5,
   spawn: 5,
   /**
-   * Standing creep / sneak / walk / jog / run 0.75 / 1.4 / 2.1 / 3.0 / 4.5, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s
-   * (the five CT prototype speeds; playtest 2 re-spaced them; G1 audit row 14 the run 4.5).
+   * Standing creep / sneak / walk / jog / run 0.75 / 1.4 / 2.1 / 3.0 / 4.0, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s
+   * (the five CT prototype speeds; playtest 2 re-spaced them; G1 audit row 14 the run 4.5). (anim-rework S2, M6 Michael
+   * 2026-10-20: "full speed is too quick") the run 4.5 -> 4.0 m/s, a controlled operator run.
    */
   crouch: [0.85, 1.3, 1.7, 2.15, 2.6],
-  stand: [0.75, 1.4, 2.1, 3.0, 4.5],
+  stand: [0.75, 1.4, 2.1, 3.0, 4.0],
   /** Stick magnitude below which the operator stands still. */
   deadZone: 0.05,
 } as const;
@@ -212,7 +216,7 @@ export const CT = {
   /** (A1.1) The cap falls to `turnRateRun` (~350 deg/s) as the pace goes from `turnSlowFrom` to `turnSlowTo` (m/s). */
   turnRateRun: 6.1,
   turnSlowFrom: 3.0,
-  turnSlowTo: 4.5,
+  turnSlowTo: 4.0,
   turnAccel: 300,
   /** A turn dips the pace (fraction lost at a full 180): the run reversal slows and recovers (~0.3 s). */
   turnDip: 0.55,

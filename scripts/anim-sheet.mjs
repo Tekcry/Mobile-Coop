@@ -75,6 +75,11 @@ const SCENARIOS = {
   // (PC1) a movement turn: the stick asks for a heading 90 deg right of the body (a slow walk that way); the sheet
   // camera stays where it started (fixCam) so the body is seen turning
   turn: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, fixCam: true, input: (t) => ({ x: t < 0.9 ? 0.45 : 0 }) },
+  // (anim-rework S2) the standing holstered idle (its 12 s cycle: frames 1.5 s apart), a turn round from a standstill
+  // (the stick pulled back a little) and a 90 deg direction change at a walk (the camera stays put)
+  idle: { pos: [0, -14], yaw: Math.PI / 2, pre: 1, input: () => ({}) },
+  turnround: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, fixCam: true, input: () => ({ y: -0.4 }) },
+  change90: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.8 }, fixCam: true, input: () => ({ x: 0.8 }) },
   crouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('crouch');" } },
   dash: { pos: [0, -18], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }), at: { 0.1: "a.input.state.tap('dash');" } },
   // (PC1) drawn first: aim held from the warm-up (step 09 holsters by default), then the reload (mag set to 1: a full

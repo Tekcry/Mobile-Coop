@@ -90,3 +90,11 @@ Which states are wide, and by how much:
 When a slice lands, rerun `CRAB_STATES=1 CRAB_JSON=1 node scripts/run-e2e.mjs e2e-anim`, check the gait's numbers sit
 inside the ranges, set `CRAB_GATES.<gait> = true` and update the tables above. A range that proves wrong for a believable
 pose changes in `CRAB` / `CRAB_CROUCH` with the reason, never per gait in the suite.
+
+## Slice 2 (anim-rework S2, 2026-10-20, desktop): standing holstered
+`CRAB_GATES.walk / jog / run` are on, and `CRAB_STATE_GATES` asserts the standing holstered sub-states idle, start,
+straight, stop and the turn round from a standstill at speeds 1-3 on every e2e-anim run (a turn: all but the track).
+The 90 / 180 deg changes stay report-only. Idle, start and stop read their track against `CRAB_IDLE` (10.5 cm: a
+hip-width stance). The crab recordings now holster first (the aim checks before them left the gun at low ready, so the
+tables above measured drawn arms at jog / run / idle). After: walk / jog / run knees 0.74-0.76 x the hips (max 0.89),
+track 4.0-4.4 cm (max 6.0), knee out 2.2-2.5 cm, slide 0, elbows 2.5-2.7 cm. Full tables: `S2-REPORT.md`.

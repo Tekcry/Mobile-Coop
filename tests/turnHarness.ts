@@ -2,7 +2,7 @@
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { emptyPlannerInput, FootPlanner } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver } from '../src/anim/motion';
-import { kneePoleYaw, pelvisFollow } from '../src/anim/turnFollow';
+import { kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
 import { proportions } from '../src/player/proportions';
 
 export const TAU = Math.PI * 2;
@@ -168,7 +168,8 @@ export function run(o: Opts) {
     const R = p.R;
     // measured in the pelvis frame the planner used this frame, then the pelvis follows
     const py = pi.pelvisYaw;
-    follow = pelvisFollow(follow, yaw, L.yaw, R.yaw, L.contact, R.contact, dt);
+    // (anim-rework S2) standing models the holstered player (the rig raises the cap to PELVIS_FOLLOW_KEYED); crouched as before
+    follow = pelvisFollow(follow, yaw, L.yaw, R.yaw, L.contact, R.contact, dt, o.crouch ? PELVIS_FOLLOW_MAX : PELVIS_FOLLOW_KEYED);
     const c = Math.cos(py);
     const s = Math.sin(py);
     const gapAlong = (L.x - R.x) * s + (L.z - R.z) * c;
