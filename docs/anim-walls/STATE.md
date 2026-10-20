@@ -1,0 +1,24 @@
+# anim-walls (anim-rework slice 5, wire the wall keys) - state
+
+Set by the orchestrator, 2026-10-20 ~22:10, from CT Core's brief (Michael: movement first). Job lead: "Night Shift |
+Sector Ops Build". Branch `feature/anim-walls` from `origin/feature/ct-prototype` f46426a5, folder
+`C:/NightShift/Mobile-Coop-anim-walls` (node_modules a junction to Mobile-Coop-ct-prototype's; same lock). Push it; never
+merge it: CT Core merges it into `feature/ct-prototype`. Brief: docs/anim-rework/BRIEF.md 3 "Walls and corners" + M6,
+S5-KEYS.md; the scope (may / must not touch) and "done" are in the orchestrator's message, copied into the implementer
+prompt (summary: the six wall clips wired standing and crouched, both sides, within METRICS ranges, wall gates in
+e2e-anim, `npm run check` + e2e-wall + e2e-anim pass, before / after sheets in docs/anim-rework/shots/s5/,
+docs/anim-rework/S5-REPORT.md). Opus implementer, Opus checker, one fix round max, prototype quality.
+
+**Now:** Opus implementer running (22:12).
+**Next:** fresh Opus checker; at most one fix round; push; message CT Core Build with the branch head, copy the orchestrator.
+**Open:** -
+
+## Resume prompt
+```
+Night Shift | Sector Ops Build. You are the job lead for anim-walls (anim-rework slice 5, wire the wall keys). Work only in
+C:\NightShift\Mobile-Coop-anim-walls on feature/anim-walls (git pull --ff-only first; node_modules is a junction, never
+npm ci). Read CLAUDE.md "Sessions", docs/anim-walls/STATE.md, then docs/anim-rework/S5-KEYS.md and S5-REPORT.md if it
+exists. Carry on from STATE "Now / Next": Opus implementer, fresh Opus checker, one fix round max. Desktop heavy.lock
+with noclobber, CT Core first; else send e2e-wall / e2e-anim to the laptop with the exact commit. Done: push, message CT
+Core Build with the head, copy the orchestrator. Lean tokens.
+```
