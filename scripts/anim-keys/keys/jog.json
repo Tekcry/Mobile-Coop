@@ -1,6 +1,6 @@
 {
   "name": "jog",
-  "note": "(anim-rework S2, real-world standard, keyed by hand; never traced; M6) The standing holstered jog, about 3 m/s: relaxed and economical, still upright (M6: the lean comes in only near full speed, from the run clip), the head level; feet landing under the body close to a line (legs add 2.8 deg: about 4.4 cm a foot), knees forward over the toes (the knee pole a touch inward, kneeOut -0.045); the upper arms along the sides swinging fore and aft from the shoulder opposite the legs (back 15, forward 25 deg), elbows bent 80-92 deg and close to the ribs (abd 4), the hands from the hip to the lower chest, toward but never across the midline; the pelvis over the stance foot, turning a little against the chest. Duty and swing lift match the planner's jog (flight at 0.44-0.5 and 0.94-1). Angles in degrees in the body frame (x right, y up, z forward): pitch about x (+ the top forward), yaw about y (+ turns right), roll about z (+ the right side up). Pelvis offsets in cm from rest (the height adds to the legs' own reach drop). Arms: flex (+ forward, in the chest frame: the world angle is flex minus the chest pitch), abd (+ out), elbow (+ bent), inward (the forearm turned in toward the midline). Legs (the Blender preview and the track only: the game's feet come from the foot planner): flex (+ the knee forward), add (+ the foot in toward the midline), knee (+ bent), ankle (+ the toes up). Phase 0 is the left foot strike; keys 0-0.375 are mirrored.",
+  "note": "(anim-rework S2, real-world standard, keyed by hand; never traced; M6) The standing holstered jog, about 3 m/s: relaxed and economical, still upright (M6: the lean comes in only near full speed, from the run clip), the head level; feet landing under the body close to a line (legs add 2.8 deg: about 4.4 cm a foot), knees forward over the toes (the knee pole a touch inward, kneeOut -0.045); the upper arms along the sides swinging fore and aft from the shoulder opposite the legs (back 15, forward 25 deg), elbows bent 80-92 deg and close to the ribs (abd 4), the hands from the hip to the lower chest, toward but never across the midline; the pelvis over the stance foot, turning a little against the chest. Duty and swing lift match the planner's jog (flight at 0.44-0.5 and 0.94-1). Angles in degrees in the body frame (x right, y up, z forward): pitch about x (+ the top forward), yaw about y (+ turns right), roll about z (+ the right side up). Pelvis offsets in cm from rest (the height adds to the legs' own reach drop). Arms: flex (+ forward, in the chest frame: the world angle is flex minus the chest pitch), abd (+ out), elbow (+ bent), inward (the forearm turned in toward the midline). Legs (the Blender preview and the track only: the game's feet come from the foot planner): flex (+ the knee forward), add (+ the foot in toward the midline), knee (+ bent), ankle (+ the toes up). Phase 0 is the left foot strike; keys 0-0.375 are mirrored. (anim-rework S2b) The back swing reaches -35 deg in the world (flex -31 in the 4 deg chest) so the hands pass the hip (the upper arm hung vertical with the forearm flat forward: zombie-ish); the trunk counter-rotates (pelvis yaw 3.5, chest -7; the review asked pelvis yaw 6, which read the forward foot off the line in the pelvis frame (e2e-anim track <= 7 cm): the chest carries the counter-rotation; narrowing the feet to make room put the knees 3.3 cm outside the ankles).",
   "duty": 0.44,
   "liftH": 0.17,
   "kneeOut": -0.045,
@@ -14,17 +14,17 @@
         "dx": 0,
         "dy": -2.6,
         "dz": 1.2,
-        "yaw": 2.5,
+        "yaw": 3.5,
         "pitch": 5,
         "roll": 0
       },
       "spine": {
-        "yaw": 1,
+        "yaw": -2,
         "pitch": 4,
         "roll": 0
       },
       "chest": {
-        "yaw": -3.5,
+        "yaw": -7,
         "pitch": 4,
         "roll": 0
       },
@@ -34,7 +34,7 @@
         "roll": 0
       },
       "armL": {
-        "flex": -11,
+        "flex": -31,
         "abd": 4,
         "elbow": 92,
         "inward": 14
@@ -64,17 +64,17 @@
         "dx": -0.6,
         "dy": -3.4,
         "dz": 1.2,
-        "yaw": 1.5,
+        "yaw": 2.1,
         "pitch": 5,
         "roll": -1.5
       },
       "spine": {
-        "yaw": 0.6,
+        "yaw": -1.2,
         "pitch": 4,
         "roll": 0.8
       },
       "chest": {
-        "yaw": -2.2,
+        "yaw": -4.4,
         "pitch": 4,
         "roll": 0.8
       },
@@ -84,13 +84,13 @@
         "roll": 0
       },
       "armL": {
-        "flex": -3,
+        "flex": -22,
         "abd": 4,
         "elbow": 90,
         "inward": 14
       },
       "armR": {
-        "flex": 22,
+        "flex": 20,
         "abd": 4,
         "elbow": 82,
         "inward": 16
@@ -134,13 +134,13 @@
         "roll": 0
       },
       "armL": {
-        "flex": 9,
+        "flex": -1,
         "abd": 4,
         "elbow": 86,
         "inward": 14
       },
       "armR": {
-        "flex": 9,
+        "flex": -1,
         "abd": 4,
         "elbow": 86,
         "inward": 16
@@ -164,17 +164,17 @@
         "dx": -0.4,
         "dy": -1.2,
         "dz": 1.1,
-        "yaw": -1.5,
+        "yaw": -2.1,
         "pitch": 5,
         "roll": -0.8
       },
       "spine": {
-        "yaw": -0.6,
+        "yaw": 1.2,
         "pitch": 4,
         "roll": 0.4
       },
       "chest": {
-        "yaw": 2.2,
+        "yaw": 4.4,
         "pitch": 4,
         "roll": 0.4
       },
@@ -184,13 +184,13 @@
         "roll": 0
       },
       "armL": {
-        "flex": 22,
+        "flex": 20,
         "abd": 4,
         "elbow": 82,
         "inward": 14
       },
       "armR": {
-        "flex": -4,
+        "flex": -22,
         "abd": 4,
         "elbow": 90,
         "inward": 16

@@ -188,8 +188,9 @@ describe('motion driver: gait clock and root modulation', () => {
     expect(rootModulation(0)).toBeLessThan(1);
     expect(rootModulation(0.25)).toBeGreaterThan(1);
     expect(stepLength(MOVEMENT.walkSpeed)).toBeGreaterThan(0.5);
-    expect(stepLength(MOVEMENT.walkSpeed)).toBeLessThan(0.65);
-    expect(stepLength(MOVEMENT.sprintSpeed)).toBeLessThan(1.4);
+    // (anim-rework S2b) 0.64 m at the 1.4 m/s walk (131 steps a minute), capped at stepLenMax 1.4 m
+    expect(stepLength(MOVEMENT.walkSpeed)).toBeLessThan(0.75);
+    expect(stepLength(MOVEMENT.sprintSpeed)).toBeLessThanOrEqual(MOVEMENT.stepLenMax);
   });
   it('phase advances by ground distance / cycle length', () => {
     const d = new MotionDriver();

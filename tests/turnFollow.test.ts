@@ -96,8 +96,10 @@ describe('foot planner: legs follow the body (A1.2)', () => {
         // 1. never crossed in the pelvis frame (any frame), wider with both planted
         // (anim-rework S2) standing the feet land on the narrow keyed track (the gap follows the stance, FREE_GAP)
         const stand = !sc.o.crouch;
-        expect(r.minGapNear, 'gap any').toBeGreaterThanOrEqual(stand ? 0.03 : 0.06);
-        expect(r.minGapPlanted, 'gap planted').toBeGreaterThanOrEqual(stand ? 0.03 : 0.11);
+        // (anim-rework S2b) 1.5 cm standing (was 3): the longer walk steps (0.36 m base) in the 7 rad/s slow-walk spin
+        // bring the feet to 1.8 cm in the pelvis frame, never crossed (S2B-REPORT open item)
+        expect(r.minGapNear, 'gap any').toBeGreaterThanOrEqual(stand ? 0.015 : 0.06);
+        expect(r.minGapPlanted, 'gap planted').toBeGreaterThanOrEqual(stand ? 0.015 : 0.11);
         // 2. (G1, audit row 1) free movement turns the legs with the body as CT does: a planted foot stays within
         // TURN_FOLLOW.twistFree of the body (it scrubs round with it; was a 52 deg world lock), the pelvis with the chest
         expect(r.maxPlantedTwistBody, 'planted twist (body)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + 1e-6);

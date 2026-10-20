@@ -281,8 +281,13 @@ export const KNEE_FLOOR_MOVING = 0.12;
 /** (G1) The knee-floor lift eases back down over this (s) moving crouched: the hips ride steady over the strides. */
 const KNEE_LIFT_TAU = 0.4;
 /** (G1, audit row 5) Standing, a planted leg reaches up to this share of its length before the pelvis drops (was 0.97,
- *  ~28 deg of knee bend at every plant): CT's standing stance and walk keep the stance knee near straight (~9 deg at full reach). */
+ *  ~28 deg of knee bend at every plant): standing still the knee near straight (~9 deg at full reach). */
 export const SOFT_KNEE_STAND = 0.997;
+/** (anim-rework S2b) Walking, jogging and running standing the share is this instead (eased in by SOFT_KNEE_TAU s when
+ *  the gait moves): about 18 deg of knee at full reach, the real loading response (0.997 read robotic, a stance knee
+ *  near straight). The idle keeps SOFT_KNEE_STAND (a relaxed upright stand). */
+export const SOFT_KNEE_WALK = 0.988;
+const SOFT_KNEE_TAU = 0.2;
 /** (G1 fix) The most of its length a planted leg is asked to reach (the IK's margin under full stretch). */
 const REACH_HARD = 0.999;
 /** (G1 fix) Crouched, the planted-foot reach as a share of the leg (standing 0.62). */
@@ -802,6 +807,8 @@ export class CharacterRig {
   private kneeLift = 0;
   /** (G1 fix) The hips' fore-aft shift over the still feet (m, body frame). */
   private restShift = 0;
+  /** (anim-rework S2b) 0..1: the gait moving, eased (SOFT_KNEE_TAU), blends SOFT_KNEE_STAND toward SOFT_KNEE_WALK. */
+  private softMove = 0;
   /** (anim-rework S3) The glide's lateral hip shift over the feet (m, eased; GLIDE_HIP). */
   private glideShift = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
@@ -1772,7 +1779,8 @@ export class CharacterRig {
     const pey = pe.y + kq.pel[1]! * kk * kw;
     const pez = pe.z + (kq.pel[2]! * kk - pe.z) * kw;
     this.kneeOutNow = KNEE_OUT + (t.keyKneeOut - KNEE_OUT) * kw;
-    const softStand = freeGait ? SOFT_KNEE_STAND : 0.97;
+    this.softMove = approachTo(this.softMove, t.gait.moving ? 1 : 0, dt, SOFT_KNEE_TAU);
+    const softStand = freeGait ? SOFT_KNEE_STAND + (SOFT_KNEE_WALK - SOFT_KNEE_STAND) * this.softMove : 0.97;
     const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : softStand - (softStand - 0.97) * Math.max(0, this.input.crouch * 2));
     const hipY = rp.y + this.bodyPivot + this.pelvisRest + pey - 0.03;
     // (G1 fix, audit row 9) standing still the body settles over its feet: a stop's slide leaves the frozen feet behind the

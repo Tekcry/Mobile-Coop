@@ -62,10 +62,14 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
       // (anim-rework S2, M6 Michael: "arms go out in front of body when moving, it looks weird like a zombie. Arms should
       // stay parallel the body") the upper arms along the sides: the elbow within 8 cm fore or aft of the shoulder, the
       // hand at most 23 cm ahead of it at the front of its swing (the round 2 carry held the elbows 10+ cm forward all through)
-      expect(Math.abs(o.arm[KA.elbowR + 2]!)).toBeLessThan(0.08);
-      expect(Math.abs(o.arm[KA.elbowL + 2]!)).toBeLessThan(0.08);
-      expect(o.arm[KA.wristR + 2]!).toBeLessThan(0.23);
-      expect(o.arm[KA.wristL + 2]!).toBeLessThan(0.23);
+      // (anim-rework S2b) the elbow within 13 cm fore or aft: the full keyed swing (2 m/s) takes the shoulder +22 / -24 deg,
+      // about +15 / -18 at 1.4 m/s after the pace scale (a real walk swings the upper arm about that), still never a carry
+      expect(Math.abs(o.arm[KA.elbowR + 2]!)).toBeLessThan(0.13);
+      expect(Math.abs(o.arm[KA.elbowL + 2]!)).toBeLessThan(0.13);
+      // (S2b) the hand 35 cm ahead at most at the full keyed swing (the 2 m/s pace; ~27 cm at 1.4 m/s after the pace scale):
+      // the forearm swings forward from a near-vertical upper arm, the hand in front of the thigh (real walking), no reach
+      expect(o.arm[KA.wristR + 2]!).toBeLessThan(0.35);
+      expect(o.arm[KA.wristL + 2]!).toBeLessThan(0.35);
       swingL = [Math.min(swingL[0]!, o.arm[KA.wristL + 2]!), Math.max(swingL[1]!, o.arm[KA.wristL + 2]!)];
       swingR = [Math.min(swingR[0]!, o.arm[KA.wristR + 2]!), Math.max(swingR[1]!, o.arm[KA.wristR + 2]!)];
       pelY = [Math.min(pelY[0]!, o.pel[1]!), Math.max(pelY[1]!, o.pel[1]!)];
@@ -75,7 +79,8 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     // (round 2: a small swing about the forward carry, CT 31-47 deg)
     expect(swingL[1]! - swingL[0]!).toBeGreaterThanOrEqual(0.08);
     // (anim-rework S2, M6: the arms swing naturally along the sides; a real walk swings the hand ~0.3 m)
-    expect(swingL[1]! - swingL[0]!).toBeLessThanOrEqual(0.35);
+    // (S2b) up to 0.5 m at the full keyed swing (the 2 m/s fast walk), ~0.39 m at 1.4 m/s after the pace scale
+    expect(swingL[1]! - swingL[0]!).toBeLessThanOrEqual(0.5);
     expect(swingR[1]! - swingR[0]!).toBeCloseTo(swingL[1]! - swingL[0]!, 2);
     // counter swing: the right hand forward at the left heel strike, the left at the right one
     at(0);
@@ -83,12 +88,15 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     at(0.5);
     expect(o.arm[KA.wristL + 2]!).toBeGreaterThan(o.arm[KA.wristR + 2]! + 0.05);
     // the pelvis: over the planted foot (left at 0.25, right at 0.75), a small keyed height shape (the legs' reach adds the rest)
-    expect(pelX[1]! - pelX[0]!).toBeLessThanOrEqual(0.03);
+    // (anim-rework S2b, the weight transfer) 1.5 cm over each stance foot (was 1.1): up to 4.5 cm side to side
+    expect(pelX[1]! - pelX[0]!).toBeLessThanOrEqual(0.045);
     at(0.25);
     expect(o.pel[0]).toBeLessThan(-0.008);
     at(0.75);
     expect(o.pel[0]).toBeGreaterThan(0.008);
-    expect(pelY[1]! - pelY[0]!).toBeLessThanOrEqual(0.012);
+    // (anim-rework S2b) the keyed bob 3 cm (low at the loading response, high at mid-stance; real walking 3-5 cm): the
+    // pelvis sits 3 cm lower, so the legs' reach drop at the double support is now near 0 and the keys carry the bob
+    expect(pelY[1]! - pelY[0]!).toBeLessThanOrEqual(0.035);
     // (round 3) lower and heavier: the pelvis held ~3-5 cm under its rest (round 2: ~7, read as a crouch), a little forward
     // (anim-rework S2, M6: upright, no lean: the pelvis over the feet, under 1 cm forward)
     expect(C.meanPel[1]!).toBeLessThan(-0.03);
@@ -281,7 +289,9 @@ describe('the rig plays the keyed walk (NullEngine)', () => {
         // the arm reaches the keyed wrist point (from the shoulder, the chest frame) within 2 cm unless the trunk
         // clearance swivelled it
         const t = rig.lastTargets!;
-        sampleKeyed(C, t.gait.phase, 1, o);
+        // (anim-rework S2b) against the pose the rig played (t.keyed: the pace-scaled swing, KEYED_WALK_BAND.ampMin 0.35),
+        // not the full-swing clip: with the bigger walk arm keys the two differ by up to 8 cm at 1.4 m/s
+        for (let c = 0; c < o.arm.length; c++) o.arm[c] = t.keyed.arm[c]!;
         const sh = W(rig.shoulderR);
         const wr = W(rig.wristR);
         const want = { x: o.arm[KA.wristR]! * k, y: o.arm[KA.wristR + 1]! * k, z: o.arm[KA.wristR + 2]! * k };

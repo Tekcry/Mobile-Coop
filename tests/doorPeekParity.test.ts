@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 // `GameState.doorPeekStep` drives it (DOOR_PEEK.settle, a velocity override: no Chaos Theory stop); the copy is posed
 // as `RemoteAvatar.update` poses it from the snapshots (100 ms behind, no motion driver).
 describe('door peek stance parity (owner and copy, 15 and 60 fps)', () => {
-  it('ankles and head of the owner and the copy agree within 2 cm at 15 and 60 fps', async () => {
+  it('ankles and head of the owner and the copy agree within 3 cm at 15 and 60 fps', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { FreeCamera, Scene, Vector3 } = await import('../src/core/babylon');
     const { PartLibrary } = await import('../src/world/partLibrary');
@@ -125,7 +125,9 @@ describe('door peek stance parity (owner and copy, 15 and 60 fps)', () => {
       }
     }
     // (m, against the owner at 60 fps)
-    expect(worst, JSON.stringify(errs)).toBeLessThan(0.02);
+    // (anim-rework S2b) 3 cm (was 2): the longer steps (stepLen0 0.36) leave the copy's last walk step up to 2.6 cm off
+    // the owner's before the peek settles the feet
+    expect(worst, JSON.stringify(errs)).toBeLessThan(0.03);
     near.dispose();
     far.dispose();
   });

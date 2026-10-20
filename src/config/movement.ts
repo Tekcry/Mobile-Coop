@@ -42,10 +42,14 @@ export const MOVEMENT = {
    * Step length (m) = stepLen0 + stepLenK * speed; a gait cycle is two steps. (anim-rework S2, M6 Michael 2026-10-20: "the
    * leg strides should be further apart with less steps, it's too many steps") stepLenK 0.2 -> 0.24 and the cap
    * `stepLenMax` 0.95 -> 1.3 m: the real-world steps, 0.64 m at 1.4 m/s (2.2 steps a second), 1.02 m at the 3 m/s jog
-   * (2.9), 1.26 m at the 4 m/s run (3.2; the CT cap had the run at 4.7 steps a second).
+   * (2.9), 1.26 m at the 4 m/s run (3.2; the CT cap had the run at 4.7 steps a second). (anim-rework S2b: the walk still
+   * read 145 steps a minute) stepLen0 0.3 -> 0.36, stepLenK 0.24 -> 0.25, stepLenMax stays 1.3: 1.11 m at 3 m/s (162 a
+   * minute), 1.3 m at the 4 m/s run (185; the review asked a 1.4 cap, 1.36 m and 176 a minute: the run's knees then sat
+   * 3.2-3.5 cm outside the ankles, e2e-anim <= 3, and at 1.38+ the 5.5 m/s dash swung its arms off the legs,
+   * readyHands counter swing); the walk below 2.1 m/s keeps WALK_STEP.k (0.64 m at 1.4 m/s, 131 a minute).
    */
-  stepLen0: 0.3,
-  stepLenK: 0.24,
+  stepLen0: 0.36,
+  stepLenK: 0.25,
   stepLenMax: 1.3,
   /** Speed dip at each heel strike (fraction), mean 1 over the stride: each step lands and pushes off. */
   rootDip: 0.025,

@@ -10,17 +10,17 @@ import { proportions } from '../src/player/proportions';
 
 describe('G1 gait numbers', () => {
   it('(row 7; anim-rework S2, M6) real-world steps: longer strides and fewer steps a second at the top end', () => {
-    // (M6 Michael 2026-10-20: "the leg strides should be further apart with less steps") 0.3 + 0.24 v on foot, the walk
-    // 0.3 + 0.2 v to 2.1 m/s (WALK_STEP; the CT 0.17 and the 0.95 m cap gone; crouched keeps 0.3 + 0.2 v): 0.58 m at
-    // 1.4 m/s, 1.02 m at the jog, 1.26 m at the 4 m/s run
-    expect(stepLength(1.4)).toBeCloseTo(0.58, 9);
-    expect(stepLength(2.1)).toBeCloseTo(0.72, 9);
+    // (M6 Michael 2026-10-20: "the leg strides should be further apart with less steps"; anim-rework S2b: 145 steps a
+    // minute still read robotic) 0.36 + 0.25 v on foot (capped 1.3), the walk 0.42 + 0.155 v to 2.1 m/s (WALK_STEP; crouched
+    // keeps 0.3 + 0.2 v, CROUCH_STEP.l0): 0.637 m at 1.4 m/s, 1.11 m at the jog, 1.3 m at the 4 m/s run
+    expect(stepLength(1.4)).toBeCloseTo(0.637, 9);
+    expect(stepLength(2.1)).toBeCloseTo(0.7455, 9);
     expect(stepLength(2, MOVEMENT, 0, 0, 1)).toBeCloseTo(0.7, 9);
-    expect(stepLength(GEARS.stand[3]!)).toBeCloseTo(0.3 + 0.24 * GEARS.stand[3]!, 9);
-    // ~2.4 steps a second at a 1.4 m/s walk (was 2.6), ~2.9 at 2.1 m/s (was 3.2)
-    expect(2 * gaitRate(1.4, 0)).toBeGreaterThan(2.2);
-    expect(2 * gaitRate(1.4, 0)).toBeLessThan(2.5);
-    expect(2 * gaitRate(2.1, 0)).toBeLessThan(3.0);
+    expect(stepLength(GEARS.stand[3]!)).toBeCloseTo(0.36 + 0.25 * GEARS.stand[3]!, 9);
+    // ~2.2 steps a second at a 1.4 m/s walk (132 a minute; real 100-130; was 2.4), ~2.8 at 2.1 m/s (was 2.9)
+    expect(2 * gaitRate(1.4, 0)).toBeGreaterThan(2.0);
+    expect(2 * gaitRate(1.4, 0)).toBeLessThan(2.3);
+    expect(2 * gaitRate(2.1, 0)).toBeLessThan(2.9);
     // the run: ~3.2 steps a second (real-world running 2.7-3.1 at this pace; the CT cap ran 4.7)
     expect(stepLength(GEARS.stand[4]!)).toBeLessThanOrEqual(MOVEMENT.stepLenMax);
     const stepsPerS = 2 * gaitRate(GEARS.stand[4]!, 0);
@@ -268,13 +268,14 @@ describe('G1 rig: the gait against the footage (NullEngine)', () => {
     // matched camera) the keyed walk holds the pelvis ~7 cm low: the stance knee bent, never locked, never a squat
     expect(walk.kneeMid, 'walk mid-stance knee').toBeGreaterThanOrEqual(25);
     expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(55);
-    // the head's travel over the cycle (CT ~2-3 cm by eye)
-    expect(walk.headMax - walk.headMin, 'walk head bob').toBeLessThanOrEqual(0.035);
+    // the head's travel over the cycle (anim-rework S2b: real walking bobs 3-5 cm; the keyed weight transfer adds ~3 cm)
+    expect(walk.headMax - walk.headMin, 'walk head bob').toBeLessThanOrEqual(0.05);
   });
   it('(rows 1 / 2 / 6) a 90 deg walk turn: feet under the hips, no splay, no pelvis spike', async () => {
     const r = await rigRun({ seconds: 3, from: 1.5, stick: (t) => ({ dir: t < 1.5 ? 0 : Math.PI / 2, speed: 1.4 }) });
     expect(r.latMax).toBeLessThanOrEqual(TURN_FOLLOW.maxLateral + 0.03);
-    expect(r.headMax - r.headMin, 'turn head bob').toBeLessThanOrEqual(0.04);
+    // (anim-rework S2b) 6 cm (was 4): the walk's real 3-5 cm bob plus the turn's one longer step (the 0.64 m walk steps)
+    expect(r.headMax - r.headMin, 'turn head bob').toBeLessThanOrEqual(0.06);
   });
   it('(rows 16 / 27) moving crouched the rear knee stays off the floor; the crouch run higher', async () => {
     const walk = await rigRun({ seconds: 4, crouch: true, from: 2, stick: () => ({ dir: 0, speed: 1.7 }) });
@@ -287,8 +288,9 @@ describe('G1 rig: the gait against the footage (NullEngine)', () => {
     expect(stop.split).toBeLessThanOrEqual(0.36);
     // (G1 fix, row 13) a run start lands its first step by ~0.3 s (CT a full stride by 0.25 s; was 0.40)
     const start = await rigRun({ seconds: 2, from: 1, stick: (t) => (t < 1 ? null : { dir: 0, speed: 3 }) });
-    // (anim-rework S2, M6: longer steps, a lower cadence) the first landing within ~0.35 s (was 0.3)
-    expect(start.firstLand - 1).toBeLessThanOrEqual(0.35);
+    // (anim-rework S2, M6: longer steps, a lower cadence) the first landing within ~0.35 s (was 0.3); (S2b) ~0.4 s: the
+    // 3 m/s step is 1.11 m (was 1.02), its swing a little longer
+    expect(start.firstLand - 1).toBeLessThanOrEqual(0.4);
     const c = await rigRun({ seconds: 3, crouch: true, from: 0, stick: (t) => (t < 2 ? { dir: 0, speed: 1.7 } : null) });
     expect(c.kneelAt - 2).toBeLessThanOrEqual(0.3);
   });

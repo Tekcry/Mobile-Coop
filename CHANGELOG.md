@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - anim-rework
+- (S2b) The holstered walk is less robotic: bigger arm swing that grows with pace, the trunk turning against the hips,
+  the weight moving onto each stance foot (a 3 cm bob, the pelvis over the planted foot), a soft stance knee, fewer and
+  longer steps (132 a minute at 1.4 m/s, was 145; 162 at the jog, 185 at the run); the jog and run hands pass the hip.
+  Every number is a named constant or key (`docs/anim-rework/S2B-REPORT.md`).
+
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").

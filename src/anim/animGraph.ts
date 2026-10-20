@@ -1839,11 +1839,11 @@ export const IDLE_STANCE = { extra: -0.015, lead: 0.04 } as const;
  * (CT prototype G8) Where the keyed walk plays: at full weight up to `from` effort pace (GAIT_REF units: 2.0 is gear 3,
  * 2.1 m/s, the CT walk of 105949 / 105509: ~3 steps a second), gone by `to` (3.0 is gear 4, 3.0 m/s: the procedural jog
  * takes over); `ampMin` the cycle's share at a standstill and `full` the effort pace it is keyed at (a slower walk swings
- * less: half at gear 1, three quarters at gear 2); `tau` (s) the weight's easing (stance, wall, air,
+ * less; anim-rework S2b: ampMin 0.5 -> 0.35, the bigger walk arm keys grow with pace, about 0.8 at 1.4 m/s); `tau` (s) the weight's easing (stance, wall, air,
  * aim changes never pop); `slowDuty` the stance share added and `slowLift` the swing lift share taken off at a standstill
  * (a slower walk keeps each foot down longer and lifts it less).
  */
-export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.5, tau: 0.08, slowDuty: 0.04, slowLift: 0.25 } as const;
+export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.35, tau: 0.08, slowDuty: 0.04, slowLift: 0.25 } as const;
 
 /**
  * (anim-rework S2) The standing keyed speed blend in effort pace (GAIT_REF units, `effortSpeed`): the walk alone up to
