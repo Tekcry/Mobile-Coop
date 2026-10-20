@@ -304,6 +304,9 @@ export class PostStack {
       const taa = new TAARenderingPipeline('taa', scene, cams, this.hdr);
       taa.samples = 8;
       taa.factor = 0.08;
+      // (ghost-fix) clamp the history to the current neighbourhood: arms and guns moving against a still camera (a
+      // 0.15 s holster) left fading copies without it
+      taa.clampHistory = true;
       this.taa = taa;
     }
     if (f.ao) {
