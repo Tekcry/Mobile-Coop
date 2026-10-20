@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-21 03:12 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-21 05:04 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -12,27 +12,20 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
 ```
 
 ## Now
-- Michael (overnight 2026-10-21): "Turn off movement slices and any research." Only already-built work lands: S2b and
-  slices 4 + 5 as PRs; no slice 5 wall round, no slice 6 (Sector Ops stopped it before any code: feature/anim-hold
-  8b6f6f7b holds only its stop record). Then CT Core does tool support only: the Weight tuner group next.
-- Slice 4 (crouched set, A6 squat idle, crouched drawn, stand <-> crouch re-step) at b59c6e3d + A6 d2ffd4a4; report
-  S4-REPORT.md, sheets shots/s4/. Independent check PASS (review only), no fix round. Merged master 4.20.1 (tuner hooks
-  kept and re-pointed: kneeOutMul on kneeOut0, tuckMul over READY_ELBOW_TUCK_CROUCH, trackMul over KNEEL_NARROW) at
-  517ca25a and Sector Ops' slice 5 walls (feature/anim-walls f67652cb) at 130ff997; added `o.kneeRest *= 1 - keyWallS`
-  so the squat's knee IK yields to the wall set.
-- Tier on 130ff997: npm run check pass (2129); e2e-anim, e2e-wall, e2e-clip, e2e-move pass; e2e-mouse fails in the remap
-  section (the second autostart=proving page times out after 60 s) identically on master 6a4fb07f, so not ours
-  (machine load: e2e-move took 490 s). Laptop e2e-ctcourse / e2e-coop / e2e-netmove on the PR head: sent. Slice 5 laptop
-  confirm on f67652cb: check, e2e-anim, e2e-wall pass.
-- S2b: implementer still running on feature/anim-s2b (C:/NightShift/Mobile-Coop-anim-s2b); straight to a PR on its own
-  checks.
+- Movement slices are off (Michael 2026-10-21: "Turn off movement slices and any research"); CT Core does tool support.
+- Merged: slice 2 (#52, 4.17.0), slice 3 (#54, 4.19.0), slices 4 + 5 (#66, 4.24.0; full e2e pass on 515b1f07, e2e-pad
+  known flaky). Slice 6 not started (S6 keys unwired).
+- S2b (the less robotic walk, S2B-REPORT.md): PR #67, feature/anim-s2b 3eaf3509 (master 4.24.0 merged; CHANGELOG +
+  the characterRig kneeOut / softStand lines resolved keeping both). Review values that broke slice 2 gates were
+  replaced by the nearest passing ones (pelvis yaw 2.5 / 3.5 / 3, walk step 0.64 m / 132 spm, stepLenMax 1.3, idle knee
+  0.997, dy 3 cm lower). npm run check pass (2139) on 468fa2c7; laptop check + e2e-anim / move / ctcourse / coop /
+  netmove on 3eaf3509 sent (the walk constants meet slice 4's crouch code for the first time there).
+- Weight tuner group (tool job, Michael: "weight", tunable): feature/anim-weight, folder
+  C:/NightShift/Mobile-Coop-anim-weight, master 4.22.0 + feature/tuner-camera's section registry (e34b3804); an Opus
+  implementer on port 4192; report docs/anim-tuner/WEIGHT.md; then one check, minor PR. Identity = today's output.
 
 ## Next
-- The Weight tuner group (orchestrator 2026-10-21, Michael: "weight", tunable): feature/anim-weight from master with
-  feature/tuner-camera df00a947's section registry (src/anim/tuneRegistry.ts, docs/anim-tuner/STATE.md "Section
-  registry"; group ids prefixed "weight-"): momentum ramps, lean / bank / stop counter-lean, plant and landing loading,
-  critically damped springs (chest, head, arms, sling, pouches), anticipation wind-ups, a camera-lag hook; identity =
-  today's output exactly; e2e-anim / move / clip unchanged at identity; one check; minor PR.
+- After #67 and the Weight PR: tool support only, as the orchestrator asks.
 - Keep the tuner-v2 hooks (characterRig jointOffsets / IK targets, player.ts jointsBegin / jointsEnd, weaponModel gun
   scale, 13 footPlanner reads) when editing those lines.
 
