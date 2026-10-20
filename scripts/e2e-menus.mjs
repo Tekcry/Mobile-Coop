@@ -478,6 +478,13 @@ try {
     await press(P, BTN.RT);
     const s2 = await tpad();
     assert(s2.sectionGroup !== s1.sectionGroup, `tuner: RT switches that section's state (${s1.sectionGroup} -> ${s2.sectionGroup})`);
+    // (tuner-v2 wiring) RB steps through the sections and reaches Keys, the last registered one (item 4)
+    let tpW = await tpad();
+    for (let k = 0; k < 12 && !String(tpW.sectionGroup ?? tpW.group ?? '').startsWith('key.'); k++) {
+      await press(P, BTN.RB);
+      tpW = await tpad();
+    }
+    assert(String(tpW.sectionGroup ?? tpW.group ?? '').startsWith('key.'), `tuner: the pad reaches the Keys section (${JSON.stringify(tpW)})`);
     await GM(() => window.__pad.axis(1, -1));
     await frames(P, 8);
     const tMove = await GM(() => window.__app.input.state.move.y);
@@ -517,6 +524,32 @@ try {
     // (anim-weight) the Weight section is on the panel and its follow group is written every frame
     const wsec = await GM(() => ({ ids: window.__animTune.sections(), g: window.__animTune.state.weight ?? '', rows: !!document.querySelector('.anim-tune-rows-weight') }));
     assert(wsec.ids.includes('weight') && wsec.g.startsWith('weight.') && wsec.rows, `tuner: the Weight section is listed and follows its group (${JSON.stringify(wsec)})`);
+    // (tuner-v2 wiring) the Joints / Hands & feet / IK strength / Weapon sections are in the panel; a joint slider set
+    // through the panel (the active state's group) reaches item 1's table; its reset puts it back
+    const v2 = await GM(() => {
+      const panel = document.querySelector('.anim-tune');
+      const secs = ['joint', 'hand', 'ik', 'weapon', 'step', 'keys'].filter((k) => panel.querySelector(`.anim-tune-pick-${k}`) && panel.querySelector(`.anim-tune-rows-${k}`));
+      const g = window.__animTune.state.joint;
+      const pick = panel.querySelector('.anim-tune-pick-joint');
+      if (pick && g) {
+        pick.value = g;
+        pick.dispatchEvent(new Event('change'));
+      }
+      const input = panel.querySelector(`input[data-group="${g}"][data-id="elbowR_x"]`);
+      if (input) {
+        input.value = '12';
+        input.dispatchEvent(new Event('input'));
+      }
+      return { secs: secs.join(','), g, body: window.__animTune.state.body, input: !!input };
+    });
+    await frames(P, 3);
+    const v2Table = () => GM((b) => window.__tuneV2.jointsGet(b, window.__tuneV2.J.elbowR, 0), v2.body);
+    const v2a = await v2Table();
+    await GM((g) => window.__animTune.set(g, 'elbowR_x', 0), v2.g);
+    await frames(P, 3);
+    const v2b = await v2Table();
+    assert(v2.secs === 'joint,hand,ik,weapon,step,keys', `tuner: the tuner-v2 sections are in the panel (${v2.secs})`);
+    assert(v2.input && v2a === 12 && v2b === 0, `tuner: a Joints slider set in the panel (${v2.g}) reaches the joint table (${v2a}), its reset puts it back (${v2b})`);
     // (pass 2) free view, fly: the view moves with the pad's left stick, the player does not; off gives the game view back
     const fvRead = () =>
       GM(() => {

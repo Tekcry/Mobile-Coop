@@ -6,6 +6,7 @@ import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
 import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
 import { loadWeaponMesh } from './weaponMesh';
+import { rotInto, type GunVisual } from '../anim/tuneHands';
 import { diagTurn, diagTurnSling, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
@@ -113,6 +114,10 @@ function frameQuat(f: readonly number[], q: Quaternion): Quaternion {
 }
 
 /** Builds a weapon from its data-driven primitive parts (instanced). */
+/** (tuner-v2 item 2) Gun visual scratch (no allocation). */
+const tunedP = { x: 0, y: 0, z: 0 };
+const tunedList: (Mesh | null)[] = [null, null];
+
 export class WeaponModel {
   readonly node: TransformNode;
   readonly parts: AbstractMesh[] = [];
@@ -275,6 +280,7 @@ export class WeaponModel {
     else if (this.magLocal) rig.magPoint.copyFrom(this.magLocal);
     else rig.magPoint.set(0, this.def.grip[1] - 0.08, (this.def.grip[2] + this.def.foregrip[2]) * 0.5);
     rig.heldWeapon = this.node;
+    rig.heldModel = this;
     this.setVisible(true);
     if (had) rig.glideWeapon(this.node, glideM);
   }
@@ -323,6 +329,7 @@ export class WeaponModel {
     this.node.rotationQuaternion!.copyFrom(this.trQ0);
     this.gripsOn(rig);
     rig.heldWeapon = this.node;
+    rig.heldModel = this;
     rig.travelNode = this.node;
     this.trSlot = slot;
     this.trDraw = draw;
@@ -442,6 +449,7 @@ export class WeaponModel {
   inHand(rig: CharacterRig): void {
     const had = this.glideFrom(rig);
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
+    this.tuneVisual(null);
     this.owner = rig;
     this.slot = null;
     this.track(rig, false);
@@ -474,6 +482,7 @@ export class WeaponModel {
     this.trSlot = null;
     const had = slot !== 'sling' && this.glideFrom(rig);
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;
+    this.tuneVisual(null);
     this.owner = rig;
     this.slot = slot;
     this.track(rig, slot === 'sling');
@@ -670,8 +679,56 @@ export class WeaponModel {
     return Vector3.TransformCoordinatesToRef(this.muzzleLocal, this.node.getWorldMatrix(), out);
   }
 
+  /** (tuner-v2 item 2) The tuner's gun transform is on the rendered mesh now. */
+  private tuned = false;
+
+  /**
+   * (tuner-v2 item 2) The local player's tuner gun transform (scale, position, rotation about the trigger grip point,
+   * weapon frame) on the RENDERED mesh only: the baked mesh and its seated magazine. `node`, `muzzleLocal`, the grip
+   * points, so the muzzle, the aim and ballistics, are untouched. null: back to the mesh's own pose (once). The
+   * primitive parts / voxel fallback (no baked mesh) are not moved. No allocation.
+   */
+  tuneVisual(v: GunVisual | null): void {
+    if (!v || !v.on) {
+      if (!this.tuned) return;
+      this.tuned = false;
+      const ms = this.tunedMeshes();
+      for (let i = 0; i < ms.length; i++) {
+        const m = ms[i];
+        if (!m) continue;
+        m.position.setAll(0);
+        m.scaling.setAll(1);
+        if (m.rotationQuaternion) m.rotationQuaternion.copyFromFloats(0, 0, 0, 1);
+      }
+      return;
+    }
+    this.tuned = true;
+    const g = this.def.grip;
+    // p' = g + t + R (s (p - g)): position g + t - R (s g), rotation q, scale s
+    rotInto(v.qx, v.qy, v.qz, v.qw, g[0] * v.s, g[1] * v.s, g[2] * v.s, tunedP);
+    const px = g[0] + v.tx - tunedP.x;
+    const py = g[1] + v.ty - tunedP.y;
+    const pz = g[2] + v.tz - tunedP.z;
+    const ms = this.tunedMeshes();
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i];
+      if (!m) continue;
+      m.position.set(px, py, pz);
+      m.scaling.setAll(v.s);
+      (m.rotationQuaternion ??= new Quaternion()).copyFromFloats(v.qx, v.qy, v.qz, v.qw);
+    }
+  }
+
+  /** The meshes the tuner's gun transform moves: the baked gun, and its magazine while seated in the well. */
+  private tunedMeshes(): readonly (Mesh | null)[] {
+    tunedList[0] = this.mesh;
+    tunedList[1] = this.magMesh && !this.magInHand && !this.magSeating && this.magMesh.parent === this.node ? this.magMesh : null;
+    return tunedList;
+  }
+
   dispose(): void {
     this.disposed = true;
+    if (this.owner?.heldModel === this) this.owner.heldModel = null; // (tuner-v2 item 2)
     // (ct-prototype D+E fix r1) a travel abandoned by the weapon going away
     this.trSlot = null;
     if (this.owner?.travelNode === this.node) this.owner.travelNode = null;

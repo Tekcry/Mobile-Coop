@@ -138,7 +138,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   louder on both.
 - [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
   height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
-  turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+  turning on the spot; crouch idle kneels with a gun out (one knee down, back upright), crouch walking blends out of it
+  cleanly.
+- [ ] (anim-rework S4) Holstered, crouched: stand still (a deep squat, each hand on top of its knee, palm down, slow
+  breaths, a slow look round); push the stick slowly to full: sneak, crouch walk, crouch run with no pop, knees and feet
+  under the hips (from the front), the run leaning forward and low. Crouch and stand in every state (still, walking,
+  running, low ready, aiming, strafing aimed): no snap. Sneak, stop, stand up: the feet step back under the hips.
 - [ ] (anim-rework S2) Holstered, standing: push the stick slowly from a creep to full: the walk turns into a jog and a
   run with no pop, the knees and feet stay under the hips (from the front the legs look near vertical), the arms hang
   along the sides and swing a little more as you speed up, no lean until the run. Stand still: she breathes, shifts her

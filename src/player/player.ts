@@ -20,9 +20,13 @@ import { G } from '../physics/groups';
 import { WALL, WALL_LOOK_PITCH, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHeadYaw, wallMoveK, wallRootPush, wallTurnRate, wallYawOffset } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
 import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStance';
-import { TUNE_LOCAL, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
+import { TUNE_LOCAL, TUNE_STATE, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
 import { WEIGHT_POSE, weightFrameIn, weightJumpKind } from '../anim/weight';
 import { weightBegin, weightEnd } from './weightTune';
+import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
+import { handsBegin, handsEnd, handsWeaponOf } from '../anim/tuneHands';
+import { tuneV2Frame } from '../anim/tuneV2Sections';
+import { tuneKeysFrame } from '../anim/tuneKeys';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -534,10 +538,17 @@ export class Player {
     this.weightMotion = m.state;
     this.weightTraverse = cp.traverse;
     tuneBegin(rp, this.rig, dt); // (anim-tuner) the local player's slider values, this rig only (pass 2: eased over dt)
+    const handW = handsWeaponOf(this.rig);
+    tuneV2Frame(TUNE_STATE.body, handW); // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables
+    tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
+    jointsBegin(TUNE_STATE.body, dt); // (tuner-v2) the per-joint offsets of the same state, eased over dt
+    handsBegin(TUNE_STATE.body, handW, dt); // (tuner-v2 item 2) hand / foot placement, the Weapon group
     try {
       weightBegin(wi, c.crouched, this.wasDrawn); // inside the try: weightEnd always closes it
       this.rig.animate(dt, rp);
     } finally {
+      handsEnd();
+      jointsEnd();
       tuneEnd(this.rig);
       weightEnd();
     }

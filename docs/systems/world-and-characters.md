@@ -153,7 +153,17 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   pelvis offsets ride on the procedural pose (the clip's swing about its mean), its trunk is not applied
   (`RigTargets.keyTrunk` = 1 - drawn x raise: the upper body stays the procedural gun platform), the pelvis twist is cut
   (`GLIDE.yawCut`) and the hips ride over the feet across the body (`GLIDE_HIP`); the glides' track (`GLIDE.halfK`)
-  and knee pole (`GLIDE.kneeOut`) are set for the planner. Crouched drawn stays procedural (slice 4). The rig applies it
+  and knee pole (`GLIDE.kneeOut`) are set for the planner. (anim-rework S4) Crouched (`crouchSet`, `KEYED_CROUCH`, by
+  the crouch blend, holstered and drawn): `sneak` -> `crouch_walk` -> `crouch_run` by the crouched effort pace (eased,
+  `paceTau`), the game's extra lean and drop on top (`KEYED_CROUCH_POSE`, the arms turned back by the lean), the planner's
+  duty and lift from `KEYED_CROUCH_LEG`, a knee pole a little in (`KEYED_CROUCH.kneeOut`); still, `crouch_idle` (a 12 s
+  squat, the hands on the knees, a wrist frame; its share eased in and out, `settleIn` / `settleOut`). The clips' pelvis
+  height is the whole crouch depth: by the crouched share it replaces the procedural drop. Holstered and still the
+  squat replaces the kneel (`KEYED_CROUCH.squat`); drawn and still the procedural kneel stays and the keyed set fades
+  under it (`RigTargets.kneel`; its knee pole `KNEEL_KNEE_OUT`, its feet `KNEEL_NARROW` in, its cycle `KNEEL_RATE`);
+  the tense sneak keeps its own carriage. The rig puts each squat palm on top of its own posed knee
+  (`RigTargets.kneeRest`, `CharacterRig.kneeRest`: the keyed arm re-aimed by the palm's miss from the knee top,
+  `KNEE_REST`, two-bone, the keyed wrist frame kept). Crouched low ready elbows tuck more (`READY_ELBOW_TUCK_CROUCH`). The rig applies it
   (`keyedTrunk` with the look's neck yaw on top, `keyedArm`); under the keyed set the knee bow-out rule
   (`KEYED_KNEE_GAP` 0.11 m) bows only a swinging leg, gently (`KEYED_KNEE_BOW`), and, standing holstered (`keyHol`), a
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the

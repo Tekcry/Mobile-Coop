@@ -7,7 +7,32 @@
   carried guns, an anticipation dip on starts and vaults, and a camera follow-lag / dip signal for the camera section.
   Every slider defaults to today's movement and pose exactly. Detail: `docs/anim-tuner/WEIGHT.md`.
 
-## Unreleased - tuner-camera
+## 4.25.0 - Tuner v2: per-joint offsets, hand and foot placement, IK strength, weapon grip and fingers, stepping, per-key editing (2026-10-21, PR #68)
+- Animation tuner: four new sections after Camera, wired through the section registry. **Joints**: per-state pitch / yaw / roll offsets for 21 joints, with a mirror lock (group `joint.options`). **Hands & feet**: hand and foot IK target offsets and hand rotation, per weapon and state. **IK strength**: per limb and state, 0 = FK (rest + joint offsets). **Weapon**: gun scale (visual only), gun in the hand, support hand, trigger finger, finger curl, per weapon and state. Each follows the game state and weapon, saves, exports, resets and works with the pad like the other sections; at the defaults nothing changes.
+- Animation tuner: a **Stepping** section (item 3, after Weapon): per gait (still, walk, jog, run, crouched walk / run) foot lift, plant lock strength, step duration, foot-slide tolerance, a 3-point stride curve, toe-off and heel-strike roll and the replant threshold, as multipliers on the foot planner's own values (default 1 = unchanged). Feet stuck while running: the run's trailing foot stays planted to the leg's stretch limit; try Stepping > run > replant 0.8.
+- Animation tuner: a **Keys** section (item 4, after Stepping): pick a keyed clip's key (`walk` key 1 = phase 0.125,
+  every key of every clip in `scripts/anim-keys/keys`) and turn the pelvis / spine / chest / neck (pitch, yaw, roll),
+  the upper arms (flex, abd), elbows (bend, inward) and wrists (pitch, yaw, roll) at that key only; the clip plays the
+  edit live, blended to the neighbouring keys (a mirrored clip's other half follows). Export as usual, then
+  `scripts/anim-keys/apply-tune.mjs <export>` writes the edited key files for `build.mjs` to bake. No edits: the clips
+  play exactly as baked. Detail: `docs/tuner-v2/ITEM4.md`.
+
+## 4.24.0 - Crouched movement and the wall set reworked (anim-rework slices 4 and 5) (2026-10-21, PR #66)
+- Crouched movement (slice 4, `docs/anim-rework/S4-REPORT.md`; the real-world operator standard, BRIEF 3 "Stealth"):
+  - holstered crouched: the keyed sneak, crouch walk and crouch run as one continuous speed blend (no pop), the knees
+    and feet under the hips (knees 0.7 x the hip width, was 1.6; feet about 5 cm off the line, was 9-10), arms along the
+    body (elbows 2 cm out, was 17-18), the crouch run leaning forward (about 37 deg) and low without the knee dragging;
+  - the crouched idle when holstered is a deep balanced squat with each hand resting on top of its knee, palm down,
+    fingers forward (was a one-knee kneel with the hand upside down and off the knee), slow breathing (a 12 s cycle of
+    three breaths), a slow head scan; with a gun out she still kneels, its breathing slowed (a breath every 5 s);
+  - crouched with a gun out: the crouched legs under the low ready and aim; the crouched aimed strafe is the short
+    shuffle step (was a 35-44 cm wide crab with crossing feet);
+  - stand <-> crouch in every state blends on the 0.22 s stance curve with no snap (the old crouch run to standing
+    snapped the legs); standing up from a sneak re-steps the feet under the hips;
+  - new e2e-anim checks: the crouch and sneak gaits, crouched idle / start / stop / run / low ready walk / aimed idle /
+    aimed strafe, the knee hand, and a stand <-> crouch pop check; e2e-clip checks the arms against the legs crouched.
+
+## 4.23.0 - Tuner: camera and speed sliders, free view, freeze, full pad control, import, bypass, search (2026-10-21, PR #65)
 - Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
   I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
   rifle / pistol, back to wall, peek, climb / hang, vent / crawl, holding a guard) that follows the current state, with
