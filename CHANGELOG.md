@@ -1,9 +1,9 @@
 # Changelog
 
 ## Unreleased - stealth-peek-wait
-- e2e-stealth-ai's wall peek block lets two real frames render and steps 0.1 s of sim before each pose read: the
-  head and chest points follow the rig's posed bones, refreshed by a render, so under full-run load the read could see
-  an older pose ("the guard there sees the peeking head only", #71; ok solo). Test only.
+- e2e-stealth-ai's wall peek block keeps a guard spot only if the spawned guard's own eye sees the peeking head and
+  not the chest. It picked the spot with a 1.55 m eye guess, 4 cm below a grunt's eye, so the real guard could see the
+  chest too and "the guard there sees the peeking head only" failed now and then (#65, #71). Test only.
 
 ## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
 - Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>

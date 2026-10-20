@@ -17,9 +17,15 @@ outcome depends on what renders around the block, which fits the original full-r
 **Ruled out:** stale bone matrices. `characterRig.applyTargets` forces `body.computeWorldMatrix(true)` and refreshes
 the chain top-down in the sim update, which `stepHeadless` runs (frameUpdate included).
 
-**Next (not started):** revert 2bf39545's settle; log the guard's own chest / head ray results (enemy.ts ~880) with and
-without one rendered frame before the read, to find what the render changes (the guard's eye from its rig, a mesh
-the ray hits, or the guard turning in the extra 0.1 s). Then wait on that, or pin it, in the test.
+**Diagnosis (a0ce551a, laptop, solo):** the guard's own eye is y 1.588; the test picked the spot with 1.55. From the
+real eye both the chest and the head are clear at the picked spot [0.25,-11.75] (original block: FAIL, los true, head
+false; frames-only settle: perception's earlier sample said head only and passed, the same rays after it see the chest).
+Not a render read: Babylon's PhysicsBody places a parentless node through getAbsolutePosition(), which computes the
+world matrix, so door / breakable bodies are where they should be; perception rays hit G.STATIC only and every point
+is sim-side.
+
+**Fix (this branch):** the original block, plus the spot check uses the spawned guard's own eye (`e.eye`).
+**Next:** e2e-stealth-ai solo 3x + once with e2e-ctcourse at E2E_JOBS=2, then the PR (patch).
 
 **Open:** #67 (S2b) fails this block solo too ("edge peek ... null"): that is a game change there, not this flake.
 

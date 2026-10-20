@@ -817,14 +817,8 @@ try {
   // (locomotion step 12) a peek past a wall edge exposes only the head (guard perception from the real pose, never the
   // camera); (A3: the lean-out is gone)
   await scen('wall peek exposes the head', async () => {
-    const r = await G(async (mode) => {
+    const r = await G(() => {
       const t = window.__t;
-      // (stealth-peek-wait, diagnosis) PEEK_SETTLE=frames: two real frames render before each pose read; =step: 0.1 s
-      // of sim instead; unset: neither (the original block). The guard's own eye and rays go in the result.
-      const settle = async () => {
-        if (mode === 'frames') await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
-        if (mode === 'step') t.step(0.1);
-      };
       const g = window.__app.current;
       const V = t.V;
       const P = window.__pad;
@@ -850,15 +844,17 @@ try {
         t.step(3.0);
         P.axis(0, 0);
         t.step(0.3);
-        await settle();
         if (g.wallCore.edge !== 1) continue;
         // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest
         const pt = new V();
         let gx = 0;
         let gz = 0;
-        // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head
+        // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head. (stealth-peek-wait) Once a
+        // guard stands there, its own eye (`eyeOf`): the 1.55 m guess is 4 cm below a grunt's eye, and a spot picked by
+        // the guess could show the real guard the chest too ("sees the peeking head only" failed, #65 / #71)
+        let eyeOf = null;
         const see = () => {
-          const eye = new V(gx, s.y + 1.55, gz);
+          const eye = eyeOf ? eyeOf(new V()) : new V(gx, s.y + 1.55, gz);
           // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
           const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
           return { chest: clear(g.target.aimPoint(pt).clone(), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
@@ -873,7 +869,6 @@ try {
         P.axis(0, 1);
         // (A3, G36) the peek is at once; the rig's hand switch and lean ease the head out past the edge over about 0.6 s
         t.step(0.9);
-        await settle();
         const peekOn = g.wallCore.peekOn;
         const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
         if (!peekOn || !only.length) {
@@ -889,7 +884,9 @@ try {
           e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
           if (!e) continue;
           place(e.pos.x, e.pos.z);
+          eyeOf = (o) => e['eye'](o);
           const v = see();
+          eyeOf = null;
           if (!v.chest && v.head) break;
           g.enemyMgr.clear();
           e = null;
@@ -900,26 +897,15 @@ try {
           continue;
         }
         t.step(0.3);
-        await settle();
         const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] };
-        // (diagnosis) the guard's own eye and the test's two points from it, as perception sees them now
-        {
-          const eye = e['eye'](new V());
-          const ray = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
-          const chestP = g.target.aimPoint(new V());
-          const headP = g.target.headPoint(new V());
-          peek.dbg = { mode, eyeY: +eye.y.toFixed(3), testEyeY: +(s.y + 1.55).toFixed(3), chest: ray(chestP, 0.3), head: ray(headP, 0.2), chestP: [+chestP.x.toFixed(3), +chestP.y.toFixed(3), +chestP.z.toFixed(3)], headP: [+headP.x.toFixed(3), +headP.y.toFixed(3), +headP.z.toFixed(3)], player: [+g.player.position.x.toFixed(3), +g.player.position.z.toFixed(3)] };
-        }
         P.axis(0, 0);
         t.step(0.5);
-        await settle();
         const back = { los: e.los };
         if (g.wallCore.active) g.wallCore.leave('test');
         return { i, hidden: hidden.length, only: only.length, peek, back };
       }
       return null;
-    }, process.env.PEEK_SETTLE ?? '');
-    console.log(`  peek diag: ${JSON.stringify(r?.peek)}`);
+    });
     assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
     assert(r.peek.los && r.peek.head, `the guard there sees the peeking head only (${JSON.stringify(r.peek)})`);
     assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
