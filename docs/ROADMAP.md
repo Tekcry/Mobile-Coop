@@ -103,6 +103,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #42 | 4.14.1: orchestrator docs (roadmap, the anim-rework brief, state) |
 | 2026-10-20 | #37 | 4.14.0: Sector Ops Warehouse section 1 rebuilt (three routes: ground, high, service; logical guard posts; dogs carry no torch); sections 2-3 next |
 | 2026-10-20 | #36 | 4.13.2: no ghosting at Epic when aiming, drawing or holstering (TAA history reset, clamp) |
 | 2026-10-20 | #35 | 4.13.1: co-op fixes: the host draws on the joiner at High / Epic (LampPlugin clone), the connecting label clears, a hidden co-op window keeps stepping; e2e-coop-gpu |

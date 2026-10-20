@@ -6,7 +6,7 @@ feature/menu. Merge origin/master into it before each docs batch; the docs go to
 convenient (feature/menu is many commits ahead of master today: open one docs PR soon).
 
 ## Master
-v4.14.0 (#37, cf73f8b5). Tags v4.0.0-v4.14.0. /preview/ = dev = cf73f8b5. /ct/ = ct-movement = 150dcfce (walk round 3b
+v4.14.1 (#42, 54f9a479, docs). Tags v4.0.0-v4.14.1. /preview/ = dev = 54f9a479. /ct/ = ct-movement = 150dcfce (walk round 3b
 plus the F3 crab readout; CT Core moves it with each slice). Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh
 (source docs/orchestrator/dashboard.html; publish the same path; it declares `db`, answers in collection `answers`;
 update its version line and rows after each merge with the sed / node edits used in git history, then republish).
@@ -35,12 +35,10 @@ started; the orchestrator can clear only Course Ready and itself, with clear_ses
 message). The orchestrator clears itself last, after giving Michael its own resume prompt (below).
 
 ## Open PRs / merges to do
-- anim-guard PR into feature/ct-prototype (Course Ready) when its check passes: CI, then merge (no version: not master).
 - anim-rework slice 1 PR to master (CT Core): full e2e on its head (laptop through me), then a minor version.
 - nv-pass PR to master (minor) after its GPU check.
 - warehouse-s23 PR to master (minor) after section 2 (or 2+3) is green.
 - test-speed PR to master (patch).
-- A docs PR from feature/menu (patch).
 Merge procedure: scripts kept in the scratchpad were ad hoc; the steps are: check the PR head equals the tested commit
 (or the delta is docs only), merge origin/master into the branch in a temp worktree resolving only CHANGELOG / package
 conflicts (stop on any src conflict and check both-sides src files), `npm version <v> --no-git-tag-version`, rename the
