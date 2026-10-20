@@ -9,8 +9,11 @@ docs/systems/takedowns.md; guard clips guard_held_* / guard_choke_sag / guard_kn
 the guard's in sync, M5 hold movement and turn cap, no clipping in e2e-clip, `npm run check` + e2e-takedown + e2e-clip
 pass, docs/anim-rework/S6-REPORT.md; logic e2e on port 4193). Opus implementer, Opus checker, one fix round max.
 
-**Now:** Opus implementer running (started 2026-10-21 ~00:05).
-**Next:** fresh Opus checker; at most one fix round; push; message CT Core Build with the head, copy the orchestrator.
+**Now:** STOPPED 2026-10-21 ~00:15 on Michael's word ("Turn off movement slices and any research", via the orchestrator
+and CT Core). The implementer was stopped while reading; it had written no file, so no WIP code exists
+(`docs/anim-rework/S6-REPORT.md`). Not merged anywhere.
+**Next:** only if Michael turns movement slices back on: restart the implementer from the brief above, then the checker,
+one fix round, hand the head to CT Core.
 **Open:** -
 
 ## Resume prompt
