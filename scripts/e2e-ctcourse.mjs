@@ -5,12 +5,19 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3) station 3 is the real camera (held jammer, jam and pass), station 4 has a real laser. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, setSimPages, NET_VIEWPORT } from './e2e-net-lib.mjs';
+import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
 const PITCH = 22;
 const Q = 'net=local&autostart=ctcourse&mode=course';
+// (test-speed) `--part=N` runs one station group (the runner runs the three as parallel jobs, like e2e-desktop); named
+// alone the suite runs all eight stations. A group after the first starts the course at its first bay (the host
+// session's `courseBay`, the lobby's "Start at"); every station still goes through its exit airlock, so the parts
+// together cover what the whole run does.
+const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
+const GROUPS = { 1: [1, 3], 2: [4, 5], 3: [6, 8] };
+const [FIRST, LAST] = GROUPS[PART] ?? [1, 8];
 
 // (co-op test fix) `until` and the pauses are e2e-net-lib's: polled from Node (G13), timed on both pages' sim clocks
 // (the sim runs slower than real time on software GL; a wall-clock timeout expired mid-move, e.g. station 2's leg-up)
@@ -281,14 +288,16 @@ async function throwOver(x0) {
   // both views: the client's own arc and the host's view of it go over the beams (feet above the top beam at the line)
   let ownMax = 0;
   let hostMax = 0;
+  // (test-speed) the landing deadline is the client's sim time (20 s of game), with a 200 s wall guard
   const t0 = Date.now();
+  const s0 = await GB(() => window.__app.current.time);
   for (;;) {
     const [own, st] = await GB(() => { const g = window.__app.current; const c = g.player.controller; return [[c.pos.x, c.pos.y], g.team.state]; });
     const seen = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return [r.feet.x, r.feet.y]; });
     if (Math.abs(own[0] - (x0 + 9)) < 0.5) ownMax = Math.max(ownMax, own[1]);
     if (Math.abs(seen[0] - (x0 + 9)) < 0.6) hostMax = Math.max(hostMax, seen[1]);
     if (st === 'none' && own[0] > x0 + 10) break;
-    if (Date.now() - t0 > 20000) throw new Error(`station 4: the throw did not land (${st}, ${own})`);
+    if ((await GB(() => window.__app.current.time)) - s0 > 20 || Date.now() - t0 > 200000) throw new Error(`station 4: the throw did not land (${st}, ${own})`);
     await sleep(30);
   }
   await until(B, () => window.__app.current.player.controller.grounded, null, 8000, 'station 4: the client lands on its feet');
@@ -415,7 +424,21 @@ async function station7(x0) {
   await padReady(A);
   await padReady(B);
   await offer('second');
-  await B.evaluate(() => window.__pad.axis(1, -1));
+  // (test-speed) the stick lets go on the step the climber tops out (the page's own fixed step), not when the next poll
+  // from here sees it: under load that was a second of game time later, and the client walked on off the far side
+  await B.evaluate(() => {
+    const st = window.__app.current;
+    const t0 = st.team.count.tops;
+    const orig = st.fixedUpdate.bind(st);
+    st.fixedUpdate = (dt) => {
+      orig(dt);
+      if (st.team.count.tops > t0) {
+        window.__pad.axis(1, 0);
+        st.fixedUpdate = orig;
+      }
+    };
+    window.__pad.axis(1, -1);
+  });
   try {
     await until(B, () => window.__app.current.team.count.tops >= 1, null, 40000, 'station 7: the client climbs to the top and tops out').catch(async (e) => {
       console.error(await GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, cnt: g.team.count, why: g.team.endWhy, rope: g.team.rope, pos: [c.pos.x, c.pos.y, c.pos.z] }); }));
@@ -444,10 +467,28 @@ async function station6(x0) {
   const hp0 = await hp();
   assert((await use(A, 'c-sw-s6-a')) === 'ok', 'station 6: the host starts the hack at scanner A');
   await until(B, () => window.__ctdev.debug().scan.ph[0] === 'hacking', null, 8000, 'station 6: the client page sees scanner A hacking');
+  // (test-speed) the late press goes in on the client's own frame that first sees scanner A ready, not after polls from
+  // here (the sync window is 1.5 s of game time; under load the polls took longer, the window ran out and the press
+  // counted as a lone start, "-1:alone", with no cost)
+  await GB(() => {
+    window.__s6 = { ready: false, use: '' };
+    const f = () => {
+      if (window.__ctdev?.debug().scan?.ph[0] === 'ready') {
+        window.__s6.ready = true;
+        const it = window.__app.current.interactables?.items.find((i) => i.id === 'c-sw-s6-b');
+        window.__s6.use = !it ? 'missing' : !it.enabled ? 'disabled' : (it.onUse(it), 'ok');
+      } else requestAnimationFrame(f);
+    };
+    requestAnimationFrame(f);
+  });
   await until(A, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 15000, 'station 6: the host hack finishes (ready)');
-  await until(B, () => window.__ctdev.debug().scan.ph[0] === 'ready', null, 8000, 'station 6: the client page sees scanner A ready');
-  assert((await use(B, 'c-sw-s6-b')) === 'ok', 'station 6: the client starts late');
-  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 6: the late hack costs the client health');
+  await until(B, () => window.__s6.ready, null, 8000, 'station 6: the client page sees scanner A ready');
+  assert((await GB(() => window.__s6.use)) === 'ok', 'station 6: the client starts late');
+  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 6: the late hack costs the client health').catch(async (e) => {
+    // (test-speed) failed once under load (part 3, 2026-10-20): the scanners' state and both hp at the timeout
+    console.error(JSON.stringify({ host: (await dev(A)).scan, client: await GB(() => ({ hp: window.__app.current.target.health.hp, scan: window.__ctdev?.debug().scan })), hp0 }));
+    throw e;
+  });
   const hp1 = await hp();
   const d1 = (await dev(A)).scan;
   assert(d1.fails >= 1 && !(await GA(() => window.__course.debug().gates['g-s6'])), `station 6: out of sync, the door stays shut (${d1.last})`);
@@ -568,15 +609,17 @@ async function throughAirlock(i) {
 try {
   console.log('walk URL: host and client on Marlow Yard');
   await until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
+  // (the match starts once the client tab joins: the start bay is set before it opens)
+  if (FIRST > 1) await GA((n) => (window.__coop.session.courseBay = n), FIRST);
   const opened = await openPage(ctx, url, Q);
   B = opened.page;
   eB = opened.errors;
   setSimPages([A, B]);
-  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, 60000, `${tag} in the ctcourse match`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, LOAD_MS, `${tag} in the ctcourse match`);
   pumpOn = true;
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
   await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');
-  assert((await hostDebug()).bay === 0, 'the course starts at station 1');
+  assert((await hostDebug()).bay === FIRST - 1, `the course starts at station ${FIRST}`);
   await GA(() => { window.__app.current.target.damageMul = 0; });
   // (coop-fix) the joiner draws the host's character, and its objective line leaves "Connecting to host" (Marlow Yard
   // sets no objective: the host's empty one must still replace the placeholder)
@@ -591,13 +634,15 @@ try {
   const visA = await avatarDrawn(A, 'host');
   assert(visA.ok, `client avatar drawn on the host (${JSON.stringify(visA)})`);
 
-  console.log('station 1: one optional panel; the client reads it, the host skips it, nobody is gated');
-  await moveClient(3.5, 12.4);
-  assert((await use(B, 'c-sw-p1')) === 'ok', 'the client reads the station 1 panel');
-  assert((await hostDebug()).bay === 0, 'reading a panel does not move the course on');
-  await throughAirlock(0);
+  if (FIRST === 1) {
+    console.log('station 1: one optional panel; the client reads it, the host skips it, nobody is gated');
+    await moveClient(3.5, 12.4);
+    assert((await use(B, 'c-sw-p1')) === 'ok', 'the client reads the station 1 panel');
+    assert((await hostDebug()).bay === 0, 'reading a panel does not move the course on');
+    await throughAirlock(0);
+  }
 
-  for (let n = 2; n <= 8; n++) {
+  for (let n = Math.max(2, FIRST); n <= LAST; n++) {
     const i = n - 1;
     console.log(`station ${n}: ${n === 8 ? 'final beat (B8): revive, then both in the exit zone' : [2, 3, 4, 5, 6, 7].includes(n) ? 'real moves' : 'placeholder gate'}`);
     if (n === 7) console.log('  (B7) leg-up, the two-person rope: let go part way (slide down), then climbed to the top');
@@ -607,17 +652,19 @@ try {
     if (n < 8) await throughAirlock(i);
   }
 
-  console.log('exit zone: both must be in it');
-  const zx = PITCH * 7 + 13.5;
-  await moveHost(zx, 7);
-  await moveClient(PITCH * 7 + 12, 1.5);
-  await waitSim(600);
-  assert(!(await GA(() => window.__app.current.isEnded)), 'one player in the exit zone does not end the course');
-  await moveClient(zx + 0.5, 6);
-  await until(A, () => window.__app.current.isEnded, null, 15000, 'the course ends with both in the zone');
-  assert(true, 'both players in the exit zone complete the course');
-  const sum = await GA(() => { const c = window.__app.current.stats.course; return c ? { time: c.team.time, alarms: c.team.alarms, revives: c.team.revives } : null; });
-  assert(!!sum && sum.time > 0 && sum.revives === 1, `the end screen has the time, alarms and revives (${JSON.stringify(sum)})`);
+  if (LAST === 8) {
+    console.log('exit zone: both must be in it');
+    const zx = PITCH * 7 + 13.5;
+    await moveHost(zx, 7);
+    await moveClient(PITCH * 7 + 12, 1.5);
+    await waitSim(600);
+    assert(!(await GA(() => window.__app.current.isEnded)), 'one player in the exit zone does not end the course');
+    await moveClient(zx + 0.5, 6);
+    await until(A, () => window.__app.current.isEnded, null, 15000, 'the course ends with both in the zone');
+    assert(true, 'both players in the exit zone complete the course');
+    const sum = await GA(() => { const c = window.__app.current.stats.course; return c ? { time: c.team.time, alarms: c.team.alarms, revives: c.team.revives } : null; });
+    assert(!!sum && sum.time > 0 && sum.revives === 1, `the end screen has the time, alarms and revives (${JSON.stringify(sum)})`);
+  }
 
   const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
   assert(errs.length === 0, `no console errors (${errs.slice(0, 3).join(' | ')})`);
@@ -635,4 +682,4 @@ if (failed || process.exitCode) {
   console.error('FAILED');
   process.exit(1);
 }
-console.log('e2e-ctcourse OK');
+console.log(`e2e-ctcourse${PART ? ` part ${PART} (stations ${FIRST}-${LAST})` : ''} OK`);

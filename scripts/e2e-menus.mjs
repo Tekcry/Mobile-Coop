@@ -300,7 +300,9 @@ try {
       await F.page.waitForFunction(() => window.__app.current?.titleLight?.phase !== 'dark', null, { timeout: 10000 }).catch(() => {});
       // (slice 4c, M3) the title stays on top as a clear layer (prompt and wordmark fading out), no menu under it, while
       // the goggle strikes; the music is not asked to start again (it began on the press)
-      await F.page.waitForTimeout(500);
+      // (test-speed) the fade is real time: wait for it (or the strike's end) instead of a fixed 0.5 s that a loaded
+      // machine's slow frames did not cover (card opacity 0.57, 2026-10-20)
+      await F.page.waitForFunction(() => getComputedStyle(document.querySelector('.title-screen .ts-card')).opacity === '0' || window.__app.current?.titleLight?.phase === 'done', null, { timeout: 8000, polling: 100 }).catch(() => {});
       const sq = await F.page.evaluate(() => ({
         phase: window.__app.current?.titleLight?.phase,
         top: window.__app.screens.top?.el.classList[1],

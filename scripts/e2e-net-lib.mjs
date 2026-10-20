@@ -77,6 +77,11 @@ export async function waitSim(ms) {
   }
 }
 
+/** (test-speed) A match load (map build, light bake, both pages joining) runs outside the sim clock, in wall time: on a
+ * loaded machine two pages build at 2-3 frames/s and took over 50 s (e2e-coop, 2026-10-20). The load waits use this
+ * (ms; `E2E_LOAD_MS`); a hang still ends there. */
+export const LOAD_MS = Number(process.env.E2E_LOAD_MS ?? 120000);
+
 /** The two-page suites' viewport where no lobby is clicked after the join (e2e-netmove, e2e-ctcourse): fewer pixels a
  * frame on software GL. The menus lay out at 1280 x 720 at least, so suites that click through the lobby (e2e-coop,
  * e2e-course) keep e2e-lib's default 1280 x 640. */
@@ -119,7 +124,7 @@ export async function startMode(pages, mode, map) {
   for (const P of clients) await P.evaluate(() => window.__coop.session.setReady(true));
   await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
   await A.evaluate(() => window.__coop.session.startMatch());
-  for (const P of pages) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, 40000, `${mode} match on both pages`);
+  for (const P of pages) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, LOAD_MS, `${mode} match on both pages`);
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state), null, 15000, 'client state reaches the host');
   await A.evaluate(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
 }
