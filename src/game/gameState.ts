@@ -1827,7 +1827,9 @@ export class GameState implements AppState {
     if (mode === 'off') return false;
     const core = this.freeCore!;
     const C = FREE_CFG;
-    const rdt = dt / (this.app.loop.timeScale || 1);
+    // real seconds (slow motion and the tuner's freeze do not slow the view; the pause menu stops it)
+    const loop = this.app.loop;
+    const rdt = loop.paused ? 0 : loop.manual ? dt : loop.realDt;
     const real = this.app.input.state;
     core.dt = rdt;
     core.lookX = look.x + FREE_IN.rx * C.yawRate * rdt;

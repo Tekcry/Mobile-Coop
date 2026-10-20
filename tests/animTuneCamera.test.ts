@@ -63,7 +63,7 @@ describe('anim tuner camera (tuner-camera)', () => {
     expect(selectCamGroup(null, 0, 1, 0, 'hold', 'pistol.aim')).toBe('cam.hold');
   });
 
-  it('the current values ease to the state group and back; TUNE_STATE.cam follows; paused nothing moves', () => {
+  it('the current values ease to the state group and back; TUNE_STATE.cam follows; frozen (dt 0) they apply at once', () => {
     tuneSet('cam.aimRifle', 'camBoomAdd', 0.5, T0);
     TUNE_STATE.gun = 'rifle.aim';
     tuneCamStep(null, 0, 1, 0, 1 / 60);
@@ -78,7 +78,7 @@ describe('anim tuner camera (tuner-camera)', () => {
     expect(TUNE_CAM_CUR.camBoomAdd).toBe(0);
     tuneSet('cam.explore', 'camFovAdd', 10, T0);
     tuneCamStep(null, 0, 0, 0, 0);
-    expect(TUNE_CAM_CUR.camFovAdd).toBe(0);
+    expect(TUNE_CAM_CUR.camFovAdd).toBe(10);
   });
 
   it('the export holds the camera values; a snapshot round trips them; an older body / gun snapshot still loads', () => {

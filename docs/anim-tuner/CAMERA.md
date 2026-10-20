@@ -64,12 +64,93 @@ In order, the first that matches:
   has no blend slider. The door peek and the door pass keep their own framing (no group).
 - C6: the group names carry a `cam.` prefix (the body section already has `lowReady` and `hold`).
 
-## Free view (WIP, second pass)
-Wired but switched off in this head: `src/player/freeView.ts` (pure, tested in `tests/freeView.test.ts`),
-`ShoulderCamera.free` / `gamePos`, `GameState.freeInput` / `freeFrame`, the panel's hidden controls
-(`FREE_VIEW_UI = false` in `src/ui/animTunePanel.ts`) and `TunePadCtl` mode `free`. Not reachable until the second pass.
+## Pass 2 (2026-10-21)
+Michael: "Can you also include a free view camera so I can view the animation from from any direction freely also?",
+then his panel items (speed per state, freeze, full pad coverage, slider edit mode, a streamlined pad map), the barrel
+marker bug ("ticking barrel marker turned half the screen grey"), smooth state changes, import, wider ranges, bypass,
+slow motion in normal play and slider search.
+
+### Free view (tools row: "free view", "demo", "hide HUD")
+- **Orbit**: the view circles the player at a set distance: right stick / mouse orbit and tilt, LT / RT or the mouse
+  wheel zoom (0.6-12 m), D-pad up / down (or Space / C) the height of the circled point. The player still moves with the
+  left stick or WASD in the frozen game camera's frame, so in fixed world directions however the view circles, and keeps
+  animating.
+- **Fly**: a detached view: left stick / WASD move along the view, right stick / mouse look, LB / RB (or C / Space)
+  down / up. The player stands and plays its state: idle, or the **demo** loop (walk, jog, run, crouch walk, aim strafe)
+  walks a 2 m circle by a synthesised stick at the loop's speed (`demoInput`, the speed curve's stick magnitude).
+- The game keeps running; the follow camera keeps computing the game view every frame (`ShoulderCamera.gamePos`), and the
+  free view only places the rendered camera after it, so gameplay (aim ray, crosshair, ping, jammer pick) never reads it
+  and turning it off gives the game view back exactly (position, rotation, FOV, follow state). The body fade is off while
+  it runs (the whole body shows). The view moves in real seconds (slow motion and the freeze do not slow it).
+- While it runs the free view owns the pad (the panel folds); View hands the pad back to the panel, B turns it off.
+  None of the pad reaches the game except the left stick moving the player in orbit. On the keyboard the game gets
+  only the orbit's WASD move.
+- Code: `src/player/freeView.ts` (pure: orbit maths, the time-scale clamp, the demo loop; `tests/freeView.test.ts`),
+  `GameState.freeInput` / `freeFrame`, `ShoulderCamera.free`. Hide HUD: `body.tune-hide-hud` in `src/styles.css`.
+
+### Time
+- **Game speed** slider (0.1-1x): the loop's `timeScale` (the fixed 1/60 s step stays; only the time fed to it shrinks).
+  Slow motion in normal play and in the free view. Local only, never on the wire. Back to 1 on panel close and on a
+  level load (`GameState` resets the loop).
+- **Freeze**: when View hands the pad back to the tuner and "freeze on View" is ticked (default), time scale 0: the sim
+  stops, rendering, the camera tuning and the free view go on, and a slider moved on the frozen frame shows at once
+  (dt 0 applies the eased values at once). View to the game resumes. **Pause** / **Resume** freezes by hand; **Step**
+  runs one 1/60 s sim step (`GameLoop.stepHeadless`) on a frozen game.
+- In a co-op session the game speed, Pause, Step and the freeze are off, with a note (the local sim drives the session).
+
+### Speed section (gameplay)
+`src/player/speedTune.ts`, registered from its own file through the registry (after Camera). Multipliers (x1 default)
+per state group, followed from the body group: **spd.stand** / **spd.crouch** (creep, sneak, walk, jog, run: the speed
+curve's points `GEARS.stand` / `GEARS.crouch`, interpolated between them), **spd.aim** (the aimed glide's forward,
+strafe and back weights: `MOVEMENT.adsSpeed`, `strafeMult`, `backMult`), **spd.wall** (`WALL.slideStand` /
+`slideCrouch`), **spd.climb** (ladder, pipe up / along, ledge shimmy, duct crawl: `ATTACH.*.speed`). Each row shows
+today's value. Read by the local player's own `PlayerController` (the free-movement speed target), the game's `WallCore`
+and the local traversal's `AttachMachine`, with no allocation; the bypass reads x1. The section's note says it: these
+are gameplay values on this machine only; tests, e2e and co-op (a host's speed check) use the defaults until the
+values are folded into them.
+
+### The rest
+- **Smooth state changes**: Body and Gun ease to a new group's values over `tau` 0.1 s (Camera 0.125 s) through the
+  registry's `tuneSectionEase`; identity stays bit-exact.
+- **Import** (tools and the Y menu): loads an `anim-tune-<date>.json` (file picker), see STATE.md.
+- **Wide ranges (x2)** (tools and the Y menu): every slider's range doubled around its default, registry-wide.
+- **Typed values**: each row's value is a number field (type, Enter); a pad edit focuses it so a keyboard can type too.
+- **Bypass**: R3 held (pad) or Backquote held (keyboard) while the panel is open: every section reads identity (the
+  untuned animation, camera and speed); releasing returns to the tune. No save change.
+- **Search**: a text box filters the rows of every section by label or id (keyboard and mouse; the pad skips it).
+- **Barrel marker**: no scene meshes any more (the grey half screen was the line and ball meshes in the render). The
+  muzzle point and the point 12 m out along the bore are projected through the rendered camera (its position, Euler
+  yaw / pitch and vertical FOV, never Babylon's view matrices, which must not be read before the render: the TAA ghost
+  rule) onto a 2D canvas over the game canvas (`pointer-events: none`); hidden with no weapon or the muzzle behind the
+  camera, the far end clipped to the near plane.
+
+### Assumed decisions (pass 2; undo)
+- P1. Orbit moves the player in the frozen game camera's frame (fixed world directions). Undo: rotate `FREE_IN.lx/ly` by
+  the orbit yaw minus the game yaw in `GameState.freeInput`.
+- P2. Speed is its own registry section with groups per stance (not rows in Body); zipline, rappel, fence and the sprint
+  are not in it. Undo: drop `src/player/speedTune.ts` and its three call sites.
+- P3. The freeze comes on only when View hands the pad back to the tuner (not on opening the panel); View to the free
+  view keeps a freeze (orbit a frozen pose); only an automatic freeze ends on View to the game. Undo: `onPadToggled`.
+- P4. Pad map changes against the brief: D-pad left / right also move the focus outside edit (as up / down); while
+  editing LT is the fine modifier, so LT / RT switch state only outside edit; B outside edit closes the menu or does
+  nothing; R3 is the bypass in the tuner and free modes only (in the game R3 is the zoom binding); the sections stay
+  stacked and LB / RB jump between them (no tabs), so the mouse layout is unchanged.
+- P5. Reset all by pad takes A twice (the mouse button keeps its confirm dialog, which a pad cannot answer).
+- P6. Import by pad opens the file picker, but a browser may refuse it (a pad press is not a user gesture): use the
+  mouse or touch then.
+- P7. Co-op: the time controls are off with a note, not hidden.
+- P8. The game speed slider (0.1-1x) replaces the 1 / 0.5 / 0.25 / 0.1 picker; the overlay's 1x button stays.
+- P9. Import replaces every value (defaults first), it does not merge.
+- P10. Saves and imports keep values up to the doubled range even with "wide ranges" off; slider moves clamp to the
+  active range.
+- P11. The panel closes the free view, the freeze, slow motion, hide HUD and the bypass.
 
 ## Files
+- Pass 2: `src/player/freeView.ts`, `src/player/speedTune.ts` (new); `src/anim/tuneRegistry.ts` (ease, flags, import, wide
+  ranges), `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/ui/animTunePad.ts`, `src/core/loop.ts` (`realDt`),
+  `src/core/app.ts` (co-op check), `src/ui/debugOverlay.ts`, `src/game/gameState.ts`, `src/player/player.ts`,
+  `src/player/playerController.ts`, `src/player/wallController.ts`, `src/player/attach.ts`, `src/styles.css`; tests
+  `tests/animTunePass2.test.ts`, `tests/freeView.test.ts`, `tests/animTunePad.test.ts`; `scripts/e2e-menus.mjs`.
 - `src/anim/tuneRegistry.ts` (new): the section registry; edit, log, export, save.
 - `src/anim/tune.ts`: Body, Gun and Camera registered; camera groups, sliders, today values, `selectCamGroup`,
   `tuneCamStep`.

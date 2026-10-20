@@ -101,11 +101,19 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
   is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
   press Reset all before judging the game's own defaults.
-- [ ] Animation tuner by pad (tuner-pad): Pause > Animation tuner (dev) with A; the panel says "PAD: tuner" and one row
-  has an amber outline. D-pad down / up move the outline (on into the gun rows), right / left nudge the value (hold:
-  repeats, faster after 1 s), the left stick X nudges faster; LB / RB change the group; Y resets the row; A exports.
-  The player does not move, jump or fire meanwhile. View: "PAD: game", walk to check, View again to tune. B closes the
-  panel and the player does not crouch from that press.
+- [ ] Animation tuner by pad (tuner-camera pass 2 map, strip at the bottom of the panel): Pause > Animation tuner (dev)
+  with A; "PAD: tuner" and an amber outline on a slider. The D-pad moves the outline through every control and never
+  changes a value; A on a slider turns the outline green (edit): left / right step it (hold: faster), LT held fine, A
+  keeps, B puts it back; X resets the row; Y opens the menu (B closes it); LB / RB jump between sections, LT / RT change
+  the state. View: "PAD: game", walk; View again: the game freezes mid-step, move a slider and the frozen pose changes;
+  View: it walks on. Hold R3: the untuned animation. Menu closes the panel.
+- [ ] Free view: tools "free view" orbit - the right stick circles Wren, the triggers zoom, the left stick walks her;
+  fly - the left stick flies, demo "walk" walks her in a circle; B ends it and the camera is back exactly where it was.
+  "hide HUD" hides the HUD; "game speed" 0.25 slows the game; Pause / Step stop and step it.
+- [ ] Speed section: walk at "walk speed" 1.5 - she walks faster; the note says it is gameplay and local only.
+- [ ] Barrel marker: tick it with a gun out - a pink line and dot along the barrel, no grey screen.
+- [ ] Import the exported JSON (tools > Import): the values come back; a wrong file is refused with a line in the panel.
+  "wide ranges" doubles every range; typing a number in a row's field applies on Enter; the search box filters rows.
 - [ ] Animation tuner Camera (tuner-camera): the Camera section's picker follows explore / crouched / low ready / aim
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);

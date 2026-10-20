@@ -88,6 +88,8 @@ export class App {
     // (tuner-pad) the animation tuner sees the pad first: while it holds the pad focus the game and menus get none of it
     const tune = this.debug.animTune;
     this.input.gamepad.padHook = (pad, now, dt) => tune.padPoll(pad, now, dt);
+    // (tuner-camera pass 2) a co-op session turns the tuner's time controls off (local only, never on the wire)
+    tune.coop = () => !!(this.state as { net?: unknown } | null)?.net;
     this.toasts = new Toasts(this.uiRoot);
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
     this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
