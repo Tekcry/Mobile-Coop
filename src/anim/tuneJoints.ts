@@ -4,8 +4,9 @@
  * (`BODY_GROUPS`). Every value defaults to 0 and a joint whose three values are 0 is never touched, so the default
  * output is bit-identical to the untuned rig.
  *
- * Hot path: `jointsBegin` (around the LOCAL player's `rig.animate`, like `tuneBegin`) selects the group by index;
- * `jointApply` multiplies a node's local rotation by the joint's precomputed offset quaternion (table lookup, no trig, no
+ * Hot path: `jointsBegin(group, dt)` (around the LOCAL player's `rig.animate`, like `tuneBegin`) eases the applied offsets
+ * toward the group's row (`JOINT_EASE_TAU`, so a state change never snaps; settled values are exact, identity included);
+ * `jointApply` multiplies a node's local rotation by the joint's applied offset quaternion (buffer lookup, no trig, no
  * allocation). Outside the window (remotes, guards, every other rig) `JOINTS_CUR.on` is false and nothing is touched.
  *
  * Mirror lock (`jointsMirror`): an edit to a left / right joint also writes its partner mirrored across the body's
@@ -71,8 +72,8 @@ for (let i = 0; i < G * JOINT_COUNT; i++) QUAT[i * 4 + 3] = 1;
 
 let mirror = false;
 
-/** The hot-path window: `on` only inside `jointsBegin` .. `jointsEnd` with a group that has an offset. */
-export const JOINTS_CUR = { on: false, base: 0 };
+/** The hot-path window: `on` only inside `jointsBegin` .. `jointsEnd` while an (eased) offset is applied. */
+export const JOINTS_CUR = { on: false };
 
 /** The panel's change hook (save, redraw); fired after every edit. */
 export const JOINTS_HOOKS: { changed: (() => void) | null } = { changed: null };
@@ -186,20 +187,102 @@ export function jointsGroupChanged(group: BodyGroup): boolean {
 // Hot path
 // ------------------------------------------------------------------------------------------
 
-/** Before the LOCAL player's `rig.animate`: pick the state's row ('' = none). No allocation. */
-export function jointsBegin(group: BodyGroup | ''): void {
-  JOINTS_CUR.on = false;
-  if (group === '') return;
-  const g = GROUP_INDEX[group];
-  if (g === undefined) return;
-  const b = g * JOINT_COUNT;
+/**
+ * The applied offsets (x y z w per joint), eased toward the active state's row so a state change never snaps an offset
+ * in (the arm hooks run after their `limitJoint`, so nothing else would smooth them). `CUR_LIVE` = not exact identity.
+ */
+const CUR = new Float64Array(JOINT_COUNT * 4);
+const CUR_LIVE = new Uint8Array(JOINT_COUNT);
+for (let j = 0; j < JOINT_COUNT; j++) CUR[j * 4 + 3] = 1;
+let curAny = false;
+/** The ease time constant (s): exponential, like the rig's `approachTo` 0.06 s (velocity / rest shift); ~95% in 0.18 s. */
+export const JOINT_EASE_TAU = 0.06;
+/** Within this (per component) of the target the current offset snaps to it exactly, so identity stays bit-exact. */
+const SNAP_EPS = 1e-6;
+
+function curReset(): void {
   for (let j = 0; j < JOINT_COUNT; j++) {
-    if (LIVE[b + j] === 1) {
-      JOINTS_CUR.on = true;
-      JOINTS_CUR.base = b;
-      return;
-    }
+    const o = j * 4;
+    CUR[o] = CUR[o + 1] = CUR[o + 2] = 0;
+    CUR[o + 3] = 1;
+    CUR_LIVE[j] = 0;
   }
+  curAny = false;
+}
+
+/**
+ * Before the LOCAL player's `rig.animate`: ease the applied offsets toward the state's row ('' = toward none) over `dt`
+ * seconds (nlerp, `JOINT_EASE_TAU`; the default `Infinity` jumps straight to the row). No allocation.
+ */
+export function jointsBegin(group: BodyGroup | '', dt = Number.POSITIVE_INFINITY): void {
+  const g = group === '' ? undefined : GROUP_INDEX[group];
+  const b = g === undefined ? -1 : g * JOINT_COUNT;
+  JOINTS_CUR.on = false;
+  if (!curAny) {
+    // the common case: nothing applied, and nothing live in this row -> off, no work
+    let any = false;
+    if (b >= 0) for (let j = 0; j < JOINT_COUNT; j++) if (LIVE[b + j] === 1) any = true;
+    if (!any) return;
+  }
+  const k = dt > 0 ? 1 - Math.exp(-dt / JOINT_EASE_TAU) : 0;
+  curAny = false;
+  for (let j = 0; j < JOINT_COUNT; j++) {
+    const o = j * 4;
+    let tx = 0;
+    let ty = 0;
+    let tz = 0;
+    let tw = 1;
+    if (b >= 0 && LIVE[b + j] === 1) {
+      const t = (b + j) * 4;
+      tx = QUAT[t]!;
+      ty = QUAT[t + 1]!;
+      tz = QUAT[t + 2]!;
+      tw = QUAT[t + 3]!;
+    }
+    let cx = CUR[o]!;
+    let cy = CUR[o + 1]!;
+    let cz = CUR[o + 2]!;
+    let cw = CUR[o + 3]!;
+    if (cx === tx && cy === ty && cz === tz && cw === tw) {
+      // settled (identity included): nothing to do
+    } else {
+      if (cx * tx + cy * ty + cz * tz + cw * tw < 0) {
+        tx = -tx;
+        ty = -ty;
+        tz = -tz;
+        tw = -tw;
+      }
+      cx += (tx - cx) * k;
+      cy += (ty - cy) * k;
+      cz += (tz - cz) * k;
+      cw += (tw - cw) * k;
+      if (Math.abs(tx - cx) < SNAP_EPS && Math.abs(ty - cy) < SNAP_EPS && Math.abs(tz - cz) < SNAP_EPS && Math.abs(tw - cw) < SNAP_EPS) {
+        cx = tx;
+        cy = ty;
+        cz = tz;
+        cw = tw;
+      } else {
+        const l = Math.sqrt(cx * cx + cy * cy + cz * cz + cw * cw) || 1;
+        cx /= l;
+        cy /= l;
+        cz /= l;
+        cw /= l;
+      }
+      CUR[o] = cx;
+      CUR[o + 1] = cy;
+      CUR[o + 2] = cz;
+      CUR[o + 3] = cw;
+    }
+    // a sign-flipped target (-identity) is the same rotation: treat it as identity
+    const live = cx === 0 && cy === 0 && cz === 0 && (cw === 1 || cw === -1) ? 0 : 1;
+    if (!live) {
+      CUR[o] = CUR[o + 1] = CUR[o + 2] = 0;
+      CUR[o + 3] = 1;
+    }
+    CUR_LIVE[j] = live;
+    if (live) curAny = true;
+  }
+  JOINTS_CUR.on = curAny;
 }
 
 /** After the local player's `rig.animate`. */
@@ -222,10 +305,9 @@ export interface QuatLike {
  */
 export function jointApply(q: QuatLike, joint: number, parent = false): boolean {
   if (!JOINTS_CUR.on) return false;
-  const slot = JOINTS_CUR.base + joint;
-  if (LIVE[slot] !== 1) return false;
-  const o = slot * 4;
-  mulInto(q, QUAT[o]!, QUAT[o + 1]!, QUAT[o + 2]!, QUAT[o + 3]!, parent);
+  if (CUR_LIVE[joint] !== 1) return false;
+  const o = joint * 4;
+  mulInto(q, CUR[o]!, CUR[o + 1]!, CUR[o + 2]!, CUR[o + 3]!, parent);
   return true;
 }
 
@@ -288,6 +370,7 @@ export function jointsSnapshot(): JointsSnapshot {
 export function jointsLoad(s: unknown): void {
   for (let i = 0; i < DEG.length; i++) DEG[i] = 0;
   for (let i = 0; i < LIVE.length; i++) rebuild(i);
+  curReset(); // a load jumps (no ease from the old values)
   mirror = false;
   if (!s || typeof s !== 'object') return;
   const snap = s as Partial<JointsSnapshot>;

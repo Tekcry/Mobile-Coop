@@ -31,3 +31,13 @@ only the wrist (trunk, legs, head, shoulders, elbows bit-identical). Also: `eule
 **Files.** New `src/anim/tuneJoints.ts`, `tests/tuneJoints.test.ts`, this file. Hooks in `src/player/characterRig.ts`,
 `src/player/player.ts`. Not touched: `tune.ts`, the panel, `animTuneStore.ts`, `footPlanner.ts`.
 **Results.** tsc clean; eslint clean on the 4 touched files; vitest tuneJoints + animTune + animRig 39/39. **Skipped:** `npm run check` and e2e (smoke, e2e-anim, e2e-menus): `heavy.lock` held by marlow-bunker (00:13).
+**Fix round 1 (CHECK1 fix 1).** The applied offsets now ease: `jointsBegin(group, dt)` keeps a current buffer (21 x 4,
+preallocated) and nlerps it toward the active row with `JOINT_EASE_TAU` = 0.06 s (exponential, the rig's `approachTo`
+0.06 s; ~95% in 0.18 s), so arm offsets (hooked after their `limitJoint`) no longer snap on a state change; within 1e-6 of
+the target it snaps exactly, so all-zero stays bit-exact and a settled row is exact. `player.ts` passes `dt`; the default
+(`Infinity`) jumps to the row. `jointsLoad` resets the buffer. `JOINTS_CUR.base` removed (the buffer is per joint).
+Tests +3 (12): unit ease walk elbowR 40 -> run 0 (partial first frame, strictly down, >= 3 frames, then off and
+bit-identical); all zero with dt never opens the window; real rig walk -> run eases >= 3 frames, then every node `toEqual`
+the untuned rig.
+**Polish (panel hint).** With a gun held, shoulder / upper-arm / elbow / wrist offsets pull the hand off the grip until item 2
+places the hands; `keepElbowOut` may partly undo a shoulder offset into the trunk.

@@ -147,6 +147,49 @@ describe('tuneJoints table', () => {
     jointsResetAll();
     expect(jointsGroupChanged('idle')).toBe(false);
   });
+
+  it('eases the applied offset on a state change (walk elbowR 40 -> run 0) and settles to exact identity', () => {
+    const ang = (q: { x: number; y: number; z: number; w: number }): number => 2 * Math.acos(Math.min(1, Math.abs(q.w)));
+    jointsSet('walk', J.elbowR, 0, 40);
+    jointsBegin('walk'); // dt omitted: jumps to the row
+    const full = { x: 0, y: 0, z: 0, w: 1 };
+    jointApply(full, J.elbowR);
+    expect(ang(full)).toBeCloseTo((40 * Math.PI) / 180, 12);
+    const seq: number[] = [];
+    for (let k = 0; k < 120; k++) {
+      jointsBegin('run', 1 / 60);
+      const q = { x: 0, y: 0, z: 0, w: 1 };
+      seq.push(jointApply(q, J.elbowR) ? ang(q) : 0);
+    }
+    // first frame moves only part of the way (no snap), then strictly down over many frames
+    expect(seq[0]).toBeGreaterThan(ang(full) * 0.5);
+    expect(seq[0]).toBeLessThan(ang(full));
+    const moving = seq.findIndex((a) => a === 0);
+    expect(moving).toBeGreaterThanOrEqual(3);
+    for (let k = 1; k < moving; k++) expect(seq[k]).toBeLessThan(seq[k - 1]!);
+    // settled: the window is off and q stays bit-identical
+    expect(JOINTS_CUR.on).toBe(false);
+    const q = { x: 0.1, y: -0, z: 0.2, w: 0.9 };
+    expect(jointApply(q, J.elbowR)).toBe(false);
+    expect(Object.is(q.y, -0)).toBe(true);
+    // and back in: eases up from 0 toward the row, again over several frames
+    jointsBegin('walk', 1 / 60);
+    const up = { x: 0, y: 0, z: 0, w: 1 };
+    jointApply(up, J.elbowR);
+    expect(ang(up)).toBeGreaterThan(0);
+    expect(ang(up)).toBeLessThan(ang(full) * 0.5);
+  });
+
+  it('all zero with dt: the window never opens, every frame', () => {
+    for (let k = 0; k < 30; k++) {
+      for (const g of BODY_GROUPS) {
+        jointsBegin(g, 1 / 60);
+        expect(JOINTS_CUR.on).toBe(false);
+      }
+      jointsBegin('', 1 / 60);
+      expect(JOINTS_CUR.on).toBe(false);
+    }
+  });
 });
 
 describe('tuneJoints save / export', () => {
@@ -229,5 +272,55 @@ describe('tuneJoints on the real rig', () => {
     expect(wristMoved).toBe(true);
     // a rig animated outside the window (a remote, a guard) is untouched
     expect(run(false)).toEqual(base);
+  });
+
+  it('a state change on the real rig (walk elbowR 40 -> run 0) eases over frames, then is bit-identical to untuned', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { PartLibrary } = await import('../src/world/partLibrary');
+    const { CharacterRig } = await import('../src/player/characterRig');
+    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const names = ['hips', 'spine', 'torso', 'neck', 'headNode', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'toeL', 'toeR'] as const;
+    const SWITCH = 60;
+    const run = (): number[][][] => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.25);
+      const scene = new Scene(new NullEngine());
+      const lib = new PartLibrary(scene);
+      const rg = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
+      rg.carrier = true;
+      const rp = { speed: 1.4, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, stride: 'facing' as const };
+      const out: number[][][] = [];
+      for (let k = 0; k < SWITCH + 90; k++) {
+        rg.root.position.z += rp.speed / 60;
+        jointsBegin(k < SWITCH ? 'walk' : 'run', 1 / 60);
+        rg.animate(1 / 60, rp);
+        jointsEnd();
+        out.push(names.map((n) => {
+          const q = (rg as unknown as Record<string, { rotationQuaternion: Quaternion }>)[n]!.rotationQuaternion;
+          return [q.x, q.y, q.z, q.w];
+        }));
+      }
+      rg.dispose();
+      scene.dispose();
+      vi.restoreAllMocks();
+      return out;
+    };
+    const base = run();
+    jointsSet('walk', J.elbowR, 0, 40);
+    const tuned = run();
+    const ei = names.indexOf('elbowR');
+    const diff = (k: number): number => {
+      const a = base[k]![ei]!;
+      const b = tuned[k]![ei]!;
+      return 2 * Math.acos(Math.min(1, Math.abs(a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]! + a[3]! * b[3]!)));
+    };
+    const before = diff(SWITCH - 1);
+    expect(before).toBeGreaterThan((30 * Math.PI) / 180);
+    // no snap: the elbow keeps a shrinking share of the offset for at least 3 frames after the switch
+    for (let k = 0; k < 3; k++) expect(diff(SWITCH + k)).toBeGreaterThan(before * 0.2);
+    expect(diff(SWITCH)).toBeLessThan(before);
+    expect(diff(SWITCH + 2)).toBeLessThan(diff(SWITCH));
+    // settled: every node bit-identical to the untuned rig
+    for (let k = SWITCH + 80; k < SWITCH + 90; k++) expect(tuned[k]).toEqual(base[k]);
   });
 });

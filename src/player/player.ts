@@ -506,7 +506,7 @@ export class Player {
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
     tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
-    jointsBegin(TUNE_STATE.body); // (tuner-v2) the per-joint offsets of the same state
+    jointsBegin(TUNE_STATE.body, dt); // (tuner-v2) the per-joint offsets of the same state, eased over dt
     try {
       this.rig.animate(dt, rp);
     } finally {
