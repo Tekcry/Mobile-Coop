@@ -26,6 +26,11 @@ warehouse-redesign A5 once built).
 
 ## Level-standard loosenings
 L1-L15 from `docs/warehouse-redesign/BRIEF.md` apply; any new one is logged here (what, why, how to undo).
+- **L16 - LD 16.7.5 (LD:346), ducts only in walls, slabs or voids; extends L6 to section 3's header** (`BUILD-S3.md` D5).
+  - What: the hall main's riser ends in an exposed header pipe at 5.8 m over the plant-room roof (L6 named 4.7-5.0 m).
+  - Why: from the 3.8 m roof a standing grab needs the pipe 1.6-2.7 m up, and a jump from a hang reaches at most 1.2 m up, so the
+    main at 5.0 cannot be reached from the roof; the header is the riser's real top.
+  - Undo: drop the header and climb a `pipeV` riser from the roof to the main (SPEC 2.3 fallback; its reach band starts at the roof).
 
 ## Assumed decisions (job lead; each with how to undo)
 - **A1 (node_modules):** a junction to `C:/NightShift/Mobile-Coop-sector-restart`'s (dependencies identical to master's;
@@ -41,3 +46,9 @@ L1-L15 from `docs/warehouse-redesign/BRIEF.md` apply; any new one is logged here
 - **A6 (sheet adjustments):** `BUILD-S2.md` section 9 D4-D13 (guard starts 7 m from the section start, the tour guard's
   3 s pause as its takedown spot, small guard and ladder moves, a 1.0 m cage gate, a visual-only west fire exit).
   Undo: the SPEC 2.2 values.
+- **A7 (section 3 parapets, BUILD-S3 D13):** parapets on the north and east perimeter wall tops (the deck puts the north
+  top in a standing grab, and the tops lead out of the building); extends A4. Undo: remove them.
+- **A8 (section 3 sheet adjustments):** `BUILD-S3.md` section 9 D1-D17 taken as written (the office door on the south
+  wall and the clerk facing north, the window built open, the fitter's three screens by the press, the east-cell
+  machines at x 12.5, the tour guard's spot at the fire-exit clocking point, cameras moved into the 2.4-3.5 m mount
+  band, 42 lamps for readability). Undo: the SPEC 2.3 values.
