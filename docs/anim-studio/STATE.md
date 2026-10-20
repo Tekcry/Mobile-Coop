@@ -1,7 +1,7 @@
 # anim-studio - state
 
 ## Now
-PR 1: implementer building (2026-10-21).
+PR 1 open (2026-10-21): built, checked (FIX: 2 one-line blockers, fixed in 95d16b94), master 4.24.0 merged.
 
 ## Next
 1. Implementer (report docs/anim-studio/REPORT.md), fresh check (CHECK.md), one fix round.
