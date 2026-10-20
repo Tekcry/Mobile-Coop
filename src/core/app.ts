@@ -123,7 +123,7 @@ export class App {
         setAvatarStyle(s.video.avatarStyle);
         this.onAvatarStyle?.();
       }
-      if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps);
+      if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps, true);
       this.applyUiScale();
       this.applyKeyLabels();
     });
