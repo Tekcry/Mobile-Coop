@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-rework
+## 4.24.0 - Crouched movement and the wall set reworked (anim-rework slices 4 and 5) (2026-10-21, PR #66)
 - Crouched movement (slice 4, `docs/anim-rework/S4-REPORT.md`; the real-world operator standard, BRIEF 3 "Stealth"):
   - holstered crouched: the keyed sneak, crouch walk and crouch run as one continuous speed blend (no pop), the knees
     and feet under the hips (knees 0.7 x the hip width, was 1.6; feet about 5 cm off the line, was 9-10), arms along the
@@ -14,6 +14,86 @@
     snapped the legs); standing up from a sneak re-steps the feet under the hips;
   - new e2e-anim checks: the crouch and sneak gaits, crouched idle / start / stop / run / low ready walk / aimed idle /
     aimed strafe, the knee hand, and a stand <-> crouch pop check; e2e-clip checks the arms against the legs crouched.
+
+## 4.23.0 - Tuner: camera and speed sliders, free view, freeze, full pad control, import, bypass, search (2026-10-21, PR #65)
+- Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
+  I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
+  rifle / pistol, back to wall, peek, climb / hang, vent / crawl, holding a guard) that follows the current state, with
+  sliders for distance behind, height, shoulder side offset, look-at height, FOV, aim zoom, transition blend time,
+  follow damping, boom pull-in rate and collision margin. A grey "today: ..." line under each slider shows the value
+  the game uses now. At default the camera is unchanged; the wall collision still applies after the sliders. Same
+  save, export, resets and pad control as the other sections. Detail: `docs/anim-tuner/CAMERA.md`.
+- The tuner's sections now come from a registry (`src/anim/tuneRegistry.ts`) so other jobs can add sections from
+  their own files; saves and exports are unchanged (API: `docs/anim-tuner/STATE.md`).
+- Free view (Michael: "a free view camera so I can view the animation from any direction freely"): Orbit circles the
+  player (right stick / mouse, zoom on the triggers / wheel) while the player still walks; Fly is a detached camera,
+  and the player stands or walks a demo loop (walk, jog, run, crouch walk, aim strafe). The game keeps running;
+  gameplay never reads the free camera, and turning it off gives the game camera back exactly. Hide HUD toggle.
+- Time: a game speed slider (0.1-1x, slow motion in normal play), Pause / Resume and Step (one frame); View handing the
+  pad back to the tuner freezes the game mid-animation (on by default) and View to the game resumes. Off in co-op.
+- Speed section (gameplay, local only): creep / sneak / walk / jog / run standing and crouched, aimed glide forward /
+  strafe / back, wall slide, ladder / pipe / shimmy / duct crawl, each with today's value. Tests, e2e and co-op use the
+  defaults until the values are folded in (the panel says so).
+- Every tuner control by pad, with a new map: D-pad moves through every control, A selects or edits (a slider changes
+  only in edit mode: left / right or the stick, LT fine, A keeps, B cancels), X resets the row, Y opens a menu (export,
+  share, reset group / all, clear log, import, changed only, barrel marker, wide ranges), LB / RB jump between sections,
+  LT / RT switch the state, R3 held shows the untuned animation, View swaps game / tuner, Menu closes. The map shows in a
+  strip at the bottom of the panel and in `docs/anim-tuner/STATE.md`.
+- Smooth state changes (Body and Gun ease over 0.1 s instead of popping), Import of an exported JSON, "wide ranges"
+  (every range doubled), typed values in each row, a bypass (R3 or Backquote held), and a slider search box.
+- Fix: the barrel marker turned half the screen grey. It is now drawn on a 2D overlay (no scene meshes, no per-frame
+  Babylon allocation).
+
+## 4.22.0 - Sector Ops lamp fittings, translucent roof sheets, warehouse dressing (2026-10-21, PR #59)
+- Sector Ops Warehouse lamp fittings (Michael 2026-10-20: "The sector ops lights are not sitting properly on the
+  ceilings, some are even above ceilings or just floating"; quick, believable, three types, in code). Every lamp of the
+  three sections is now a fitting fixed to the structure: under a ceiling, a dome high-bay on a drop rod (halls) or a
+  fluorescent batten on two hangers (rooms, corridors, decks), a strut to the roof strip when it hangs under a skylight
+  gap; with no ceiling over it, a caged bulkhead on a bracket arm on the nearest wall (door lamps, signs, the yard
+  floods); on the roofs, a dome on a mast. 98 of 99 lamps mounted (S1 33 of 34, S2 23, S3 42); the one left keeps its
+  box (S1 yard (11.25, 2.45, -22.45), inside the container). `world/lampMount.ts` (pure) mounts them at level build.
+- The three models (`world/fixtureModels.ts`, pure): built from boxes and frustums, one body mesh and one glowing face
+  mesh per type, thin-instanced; one shared dark steel body material (PBR, lit by the lamp bake) and the bulbs'
+  emissive material for the faces (dark when the lamp is out or shot); every rod, hanger, arm, strut and mast is one
+  box mesh. 7 draws for all of them, built once at load. Other maps keep their glowing boxes.
+- No light moved: positions, radii, intensities and the fixture boxes the bake samples are as before, so the light
+  meter, guards and the bake read the same (the section light tests pass unchanged). A lamp's shot box is still its old
+  box (a batten's ends are not a target yet).
+- Test: `tests/warehouseLamps.test.ts` (each section: every fitting's mount ends within 3 cm of the ceiling underside,
+  wall face or roof under it, nothing cuts the fitting or its rod; the exception list; the models).
+- Roof sheets (Michael: the open sections are "usually a opaque type of corrugated plastic sheet that allow light in but
+  cant be passed through"): every open section of the hall roofs (the four skylight gaps across all three sections,
+  section 3's 2.95 m open strip at z -8.95 to -6 and the slit over section 2's south wall) is a pale see-through
+  corrugated sheet, solid (collision only; overhead, no ledges). It is not in the light bake and casts no shadow, so the
+  moon reaches the floor under it exactly as the bake, the meter and the guards have it (dimmer-than-sky light through
+  plastic needs a translucency rule in the bake, G45, not built). Section 1's roof hatch and smoke vent are routes (R2)
+  and stay open. `LevelBuilder.sheet`, `world/roofSheets.ts` (pure); one more draw.
+- Detail (Michael chose "Walls + ceiling + dead-space clutter"; `world/maps/warehouseDress.ts`, pure): along the hall
+  walls of all three sections pipe runs (256 m), cable trays (118 m), 16 signs, 12 fire points (extinguisher and
+  panel), 39 hazard stripe bands at doorways, a roller door on section 2's north wall; roof trusses on the frame lines
+  (81 panels; the top chord only over the high routes) and a duct in section 3; floor lanes and bay plates by the
+  racks. 15 floor items in dead space: pallet stacks, drum pairs and cartons in the halls, lockers and a desk in side
+  rooms. Every piece is a visual `detail` box drawn with the level's own box mesh (no new draw, out of the bake);
+  the floor items also get one collision-only box (no cover face, no ledge). Each kind is skipped where it would cut a
+  solid piece, a traversal anchor, a door, switch or device, a lamp or its mount, or where it would hang under 1.8 m
+  over a walkable top (rack tops, decks, roofs); floor items stand 1.5 m clear of every section route, 2 m clear of
+  every guard patrol and post, and off every sightline a guard has today to a route within 20 m. Not placed: the
+  second roller door (section 3's east wall), the forklift (no dead space fits one) and boxes on the racking shelves
+  (the racking's voxel art already holds loads at the voxel presets).
+- Test: `tests/warehouseDress.test.ts` (the roofs closed but for the route openings, the sheets solid; the light shapes
+  the same as without the dressing; no piece cuts a solid one, 1.8 m headroom; floor items clear of routes and
+  patrols, on the floor, with collision).
+
+## 4.21.1 - e2e-pad steps over the tuner item; steadier heap test (2026-10-21, PR #64)
+- e2e-pad's pause menu walk steps over "Animation tuner (dev)" (added before Quit by the anim-tuner job); "focus Quit"
+  failed every run, hidden by KNOWN FLAKY. analogGear "allocates nothing per update" warms up and takes the smallest of
+  three passes (a single pass read 3.5 MB on a loaded CI runner). Test only.
+
+## 4.21.0 - Selection wheel sized to the screen, radial ring look, FPS banner bottom left (2026-10-21, PR #61)
+- Selection wheel restyle (`docs/wheel-ui/SLICE1.md`): the wheel sizes itself from the screen (130 + 0.36 x height px:
+  518 px at 1080p, was about 430; about 250 px on an 844 x 390 phone) inside the safe area, never under the top HUD or the
+  hint box; SVG ring segments with the highlighted one lit, icons and counts, the vision slot showing its mode, the
+  item name in the centre. The FPS banner moved to the bottom left corner (it covered the compass on a phone).
 
 ## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
 - Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
