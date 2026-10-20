@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased - marlow-variety
+- Marlow Yard variety (Michael 2026-10-21, the marlow-bunker polish list; `docs/marlow-variety/`): a sentry desk at the
+  station 1 post and a blast-door frame round the entry lift; a monitor wall in the camera cell; plant-room faces at
+  the south pockets and one-way-glass instructor booths at A3 / A4; plywood and painted windows on the kill-house;
+  frames round the station 6 scanners and server racks; the station 7 stair painted as training blocks; a coffer
+  with a faint green LED ring over the exit; a hazard frame on the laser release; black and white hazard stripes on
+  every door frame.
+- No light change at the 196 test points, no new ledge or climb (only the 2 m racks are solid, no lip), the routes
+  stay clear. GPU look: pending a PC run.
+
 ## Unreleased - marlow-bunker
 - Marlow Yard is an underground training bunker (Michael 2026-10-20, the approved audit shortlist;
   `docs/marlow-bunker/`). Ceilings per test cell (low cells 4.5 m, the laser cell 5.5 m, the climbing and kill-house

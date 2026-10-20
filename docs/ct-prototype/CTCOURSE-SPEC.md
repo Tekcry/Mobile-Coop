@@ -68,5 +68,21 @@ Positions: bay origin x0 = 22 (n - 1), z north, y up. "No light change" = under 
 
 Lamp colour (render only): cool white `[0.85, 0.92, 1]` (was the sodium default); S4 `[1, 0.82, 0.8]`. Light values before and after: `docs/marlow-bunker/LIGHT.md`.
 
+### marlow-variety rows (the marlow-bunker polish list)
+| Id | Element | Real-world reason (one line) | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| V1 | S1 sentry desk with a screen and a log book (x 10.3-12.1, z 0.9-1.7, collide=false) | The induction hall's sentry post, behind the guard on duty | None (no collision: no vault or mantle; the grab area x 2-10.5, z 2.5-5 stays clear) | 16.4.1 |
+| V2 | Blast-door frame round the entry lift (west wall, black, white chevrons) | The lift lobby's armoured opening | Start reads as an arrival (no light change) | 16.3.1 |
+| V3 | S3 monitor wall (south wall, x0 + 1.4-6.6, six screens) | The security cell's camera monitors | Fiction for the camera drill (no light change) | 16.4.1 |
+| V4 | Plant-room faces in the south pockets (louvre, steel door, trunking), every cell end but S5's east end | Each lock's plant room (air handling for decontamination) | None: the pocket stays sealed void (no light change) | 16.3.4 |
+| V5 | Instructor booth faces in the A3 and A4 north pockets (one-way glass, no opening) | Instructors watch the camera drill (S3) and the laser drill (S4) | None (no opening, no lamp, no light change) | 16.3.1 |
+| V6 | S5 plywood skin on the kill-house front face and grid wall, painted window outlines | A kill-house mock-up is plywood on a frame; its windows are painted | Reads as a mock-up (no light change; the leg-up band stays on top) | 16.4.1 |
+| V7 | S6 pilaster-and-lintel frames round both scanners (0.3 m proud, collide=false) | The vault vestibule's scanner surrounds | Finds the scanners (in the bake: levels unchanged, test) | 16.4.1 |
+| V8 | S6 server racks x 4 on the west wall, z 8-10.5 (2 m, solid, no lip) | The vestibule's comms racks | Too tall to vault or mantle, no lip; levels unchanged (test) | 16.4.1 |
+| V9 | S7 return stair painted as training blocks (risers, sides, white nosings) | Concrete training blocks | The stair reads as steps (surface unchanged) | 16.2.6 |
+| V10 | S8 exit coffer: two 0.3 m beams at z 4 / 10 between the last two ribs, a faint green LED ring | The extraction lobby's lit lift bay | Marks the exit over the green square (lamp unchanged) | 8 |
+| V11 | S4 hazard frame round the red release (white with red marks) | A safety release is framed | Finds the release (no light change) | 8 |
+| V12 | Hazard stripes on every course door frame (black, white diagonals) | Doors in a training bunker are hazard-marked | Finds the doors (no light change) | 16.3.1 |
+
 ## Tests
 `tests/ctcourse.test.ts` (map validates, exit both-in rule, bolt side and item, pair hint, radio per gate, text limits, leg-up squares; marlow-bunker: every ceiling and lid, only the planned lips under the ceilings, the S4 header over the throw), `tests/ctcourseLight.test.ts` (the light pass; marlow-bunker: no moon, the 0.30 fill, every tuned level within 0.08), `tests/medkit.test.ts` (by difficulty), `scripts/e2e-ctcourse.mjs` (two pages walk all stations; the exit refuses with one player).
