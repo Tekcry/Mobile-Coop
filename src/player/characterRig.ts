@@ -709,6 +709,10 @@ export class CharacterRig {
   /** (step 21w, PC-PASS 42) The weapon gliding from where it was posed onto a new parent (aim pocket, hand, slot):
    *  its world offset (P0), local target (P1), local start / target rotation, the time and duration (s). One at a time; local and remote rigs alike (D8). */
   private glideNode: TransformNode | null = null;
+  /** (anim-weight) The weapon gliding into a slot now (the carried-gear spring leaves it alone), or null. */
+  get gliding(): TransformNode | null {
+    return this.glideNode;
+  }
   private readonly glideP0 = new Vector3();
   private readonly glideP1 = new Vector3();
   private readonly glideQ0 = new Quaternion();

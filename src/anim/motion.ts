@@ -19,6 +19,7 @@
  */
 import { CT, MOVEMENT, TENSE } from '../config/movement';
 import { TUNE_CUR } from './tune';
+import { springStep, WEIGHT_MOVE } from './weight';
 import { hyp2 } from '../core/mathx';
 import { Spring } from './rigMath';
 
@@ -206,6 +207,8 @@ export class MotionDriver {
   private pivotZ = 0;
   /** (step 22) Chaos Theory pace (x, m/s) and its rate (v, m/s^2), critically damped. */
   private paceSpring = new Spring();
+  /** (anim-weight) The Weight section's stop time multiplier the last CT step used (`ctStopDistance` predicts with it). */
+  private stopMul = 1;
   /** (CT prototype M1) Walking backwards at the slowest speed (the velocity runs opposite the facing). */
   backward = false;
   /** (A1.2) Where the body is turning to: the stick heading while free and pushed, else the facing (caps the planner's yaw prediction). */
@@ -437,12 +440,27 @@ export class MotionDriver {
       } else this.heading = th;
     } else if (this.state === 'move') this.go(sp > 0.02 ? 'stop' : 'idle');
     // the pace: one critically damped spring, quicker down than up (a carry or reset elsewhere re-seeds it)
-    if (Math.abs(this.paceSpring.x - sp) > 1e-6) this.paceSpring.reset(sp);
-    const omega = target < sp ? CT_STOP_W / CT.stopTime : CT_START_W / CT.startTime;
-    sp = this.paceSpring.step(target, omega, dt);
+    // (anim-weight) WEIGHT_MOVE: the Weight section's momentum (x1 / 0 = today; set in the local player's window only).
+    // A stop settle above 0 makes the stop spring under-damped: the pace overshoots below 0 (back along the heading)
+    // and settles at rest
+    const settle = WEIGHT_MOVE.stopSettle;
+    this.stopMul = WEIGHT_MOVE.stopMul;
+    const px0 = this.paceSpring.x;
+    if (Math.abs((px0 < 0 ? -px0 : px0) - sp) > 1e-6) this.paceSpring.reset(sp);
+    else if (px0 < 0) sp = px0;
+    const omega = target < sp || (settle > 0 && !pushed) ? CT_STOP_W / (CT.stopTime * WEIGHT_MOVE.stopMul) : CT_START_W / (CT.startTime * WEIGHT_MOVE.startMul);
+    if (settle > 0 && !pushed) {
+      springStep(this.paceSpring, 0, omega, 1 - settle, dt);
+      sp = this.paceSpring.x;
+    } else sp = this.paceSpring.step(target, omega, dt);
     this.wantPace = target;
     // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every speed)
-    if (sp < 0 || (target === 0 && sp < CT_REST)) {
+    if (settle > 0 && !pushed) {
+      if (Math.abs(sp) < 0.02 && Math.abs(this.paceSpring.v) < 0.1) {
+        sp = 0;
+        this.paceSpring.reset(0);
+      }
+    } else if (sp < 0 || (target === 0 && sp < CT_REST)) {
       sp = 0;
       this.paceSpring.reset(0);
     }
@@ -455,7 +473,7 @@ export class MotionDriver {
     this.vx = Math.sin(h) * sp;
     this.vz = Math.cos(h) * sp;
     // the spring keeps its exact pace (the vector round trip would re-seed it every step)
-    this.paceSpring.x = this.speed;
+    this.paceSpring.x = sp < 0 ? -this.speed : this.speed;
     this.ax = (this.vx - px) / dt;
     this.az = (this.vz - pz) / dt;
   }
@@ -467,7 +485,7 @@ export class MotionDriver {
   ctStopDistance(): number {
     const x = this.speed;
     if (x <= 0.01) return 0;
-    const w = CT_STOP_W / CT.stopTime;
+    const w = CT_STOP_W / (CT.stopTime * this.stopMul);
     return Math.max(0, (2 * x) / w + this.paceSpring.v / (w * w));
   }
 
@@ -527,7 +545,9 @@ export class MotionDriver {
         if (want > 0.05 && !this.backward) {
           // (A1.1) the cap scales with speed: ~450 deg/s up to a jog, ~350 deg/s at the full run (footage 300-400)
           const k = Math.max(0, Math.min(1, (sp - CT.turnSlowFrom) / (CT.turnSlowTo - CT.turnSlowFrom)));
-          this.turnToward(wrapPi(Math.atan2(i.vx, i.vz) - this.yaw), CT.turnRate + (CT.turnRateRun - CT.turnRate) * k, CT.turnAccel, dt);
+          // (anim-weight) x WEIGHT_MOVE.turnMul / turnRunMul (x1 today)
+          const r0 = CT.turnRate * WEIGHT_MOVE.turnMul;
+          this.turnToward(wrapPi(Math.atan2(i.vx, i.vz) - this.yaw), r0 + (CT.turnRateRun * WEIGHT_MOVE.turnRunMul - r0) * k, CT.turnAccel, dt);
         }
         else this.yawRate = 0;
         return;

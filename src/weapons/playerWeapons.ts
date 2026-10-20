@@ -91,6 +91,10 @@ const PENETRATION: Record<string, number> = { pistol: 0.08, smg: 0.1, rifle: 0.2
 
 export class PlayerWeapons {
   readonly slots: WeaponSlot[] = [];
+  /** (anim-weight) The carried-gear spring for every carried gun (Player calls it after the pose; bound once). */
+  private readonly weightGear = (dx: number, dy: number, dz: number): void => {
+    for (let i = 0; i < this.slots.length; i++) this.slots[i]!.model.weightGear(dx, dy, dz);
+  };
   index = 0;
   /** Gadgets carried (the wheel selects one); thrown kinds go out through `onThrow`, placed / flown through
    *  `onPlace`. */
@@ -166,6 +170,7 @@ export class PlayerWeapons {
       model.setVisible(false);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
     }
+    player.onWeightGear = this.weightGear; // (anim-weight) the carried-gear spring (0: the guns are not touched)
     // (operators 11e) Wren's own kit carries the throwables: the part pouches are not drawn on her
     this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades, false);
     this.knife = new KnifeModel(world.scene, player.rig, WREN_HANDS.R, (m) => world.addShadowCaster(m));
