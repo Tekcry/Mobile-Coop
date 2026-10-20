@@ -426,6 +426,36 @@ try {
     assert(!(await GM(() => !!document.querySelector('.pause-screen .ps-notice:not([hidden])'))), 'a reconnect clears the line');
     await GM(() => window.__app.screens.top.resume());
     await frames(P, 4);
+    // (tuner-pad) the tuner by pad: Pause > Animation tuner (A) takes the pad; D-pad down picks the next slider, right
+    // nudges it, Y resets it, the left stick does not reach the game, B closes and gives the pad back
+    await GM(() => window.__app.current.pause());
+    await frames(P, 4);
+    await GM(() => window.__app.nav.focus(document.querySelector('.pause-screen [data-key="anim-tuner"]')));
+    await press(P, BTN.A);
+    await frames(P, 3);
+    const tp0 = await GM(() => window.__animTune.pad());
+    assert(tp0.mode === 'tuner' && tp0.id !== '' && (await GM(() => !document.querySelector('.anim-tune').hidden)), `tuner: Pause > Animation tuner by pad opens it with the pad (${JSON.stringify(tp0)})`);
+    await press(P, BTN.DOWN);
+    const tp1 = await GM(() => window.__animTune.pad());
+    assert(tp1.id !== '' && (tp1.id !== tp0.id || tp1.group !== tp0.group), `tuner: D-pad down picks the next slider (${tp0.id} -> ${tp1.id})`);
+    const tv = () => GM((p) => window.__animTune.get(p.group, p.id), tp1);
+    const tv0 = await tv();
+    await press(P, BTN.RIGHT);
+    if ((await tv()) === tv0) await press(P, BTN.LEFT); // at the top of its range
+    const tv1 = await tv();
+    assert(tv1 !== tv0, `tuner: D-pad right / left nudges the focused slider (${tv0} -> ${tv1})`);
+    await press(P, BTN.Y);
+    assert((await tv()) === tv0, `tuner: Y resets it (${await tv()})`);
+    await GM(() => window.__pad.axis(1, -1));
+    await frames(P, 8);
+    const tMove = await GM(() => window.__app.input.state.move.y);
+    await GM(() => window.__pad.axis(1, 0));
+    await frames(P, 3);
+    assert(tMove === 0, `tuner: the left stick does not reach the game while the tuner has the pad (${tMove})`);
+    await press(P, BTN.B);
+    await frames(P, 3);
+    const tp2 = await GM(() => window.__animTune.pad());
+    assert(tp2.mode === 'off' && (await GM(() => document.querySelector('.anim-tune').hidden)), `tuner: B closes it (${tp2.mode})`);
     // results
     await GM(() => {
       const g = window.__app.current;
