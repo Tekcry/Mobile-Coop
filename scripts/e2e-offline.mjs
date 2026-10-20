@@ -72,6 +72,9 @@ try {
     const f = window.__app?.current?.figure ?? null; // the menu stage's preview body (MenuState)
     return !f || (f.loaded & 8) !== 0;
   }, null, { timeout: 30000 }).catch(() => {});
+  // (test-speed) and the menu theme's decode (its fetch reaches the worker's cache): going offline mid-fetch logged
+  // "music menu TypeError: Failed to fetch" once (PR #34 full run, 2026-10-20)
+  await page.waitForFunction(() => (window.__app?.music?.debug?.ready ?? '').split(',').includes('menu'), null, { timeout: 30000, polling: 200 }).catch(() => {});
 
   console.log('offline boot');
   await ctx.setOffline(true);

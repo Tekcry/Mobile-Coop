@@ -142,7 +142,15 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   (`KEYED_GAITS`: walk to 2.1 m/s, jog from ~2.6 to ~3.3, run from ~3.8; the walk's swing scales with its pace) on the
   gait phase, and `idle` (a 12 s cycle, `KEYED_IDLE_PERIOD`: breathing, weight shifts, a head scan) by the still share;
   the blended track half-width, knee pole, duty and lift go to the planner. `mixKeyed` blends two sampled poses. Drawn
-  (low ready, aiming) keeps the walk band only (`KEYED_WALK_BAND`), the rest procedural (slice 3). The rig applies it
+  (anim-rework S3; a carrier with the gun in hand, standing on foot, `AnimInput.keyedDrawn`) the graph mixes the drawn
+  set in by its share (`keyedDrawnSet`, `RigTargets.keyDrawn`): at low ready the speed set's legs and trunk moving and
+  `ready_stance` still (an 8 s cycle, `READY_STANCE`: the support foot 9 cm ahead, the strong foot as far behind);
+  aiming (by the eased raise) the glide by the smoothed local direction (`glide_fwd`, `glide_back`, `glide_strafe`; the
+  left strafe is the right one mirrored half a cycle on, `mirrorKeyed`) and `ready_stance` still. The aimed share's
+  pelvis offsets ride on the procedural pose (the clip's swing about its mean), its trunk is not applied
+  (`RigTargets.keyTrunk` = 1 - drawn x raise: the upper body stays the procedural gun platform), the pelvis twist is cut
+  (`GLIDE.yawCut`) and the hips ride over the feet across the body (`GLIDE_HIP`); the glides' track (`GLIDE.halfK`)
+  and knee pole (`GLIDE.kneeOut`) are set for the planner. Crouched drawn stays procedural (slice 4). The rig applies it
   (`keyedTrunk` with the look's neck yaw on top, `keyedArm`); under the keyed set the knee bow-out rule
   (`KEYED_KNEE_GAP` 0.11 m) bows only a swinging leg, gently (`KEYED_KNEE_BOW`), and, standing holstered (`keyHol`), a
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the

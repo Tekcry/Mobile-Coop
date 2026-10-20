@@ -39,7 +39,10 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - Serves `dist/` once (`vite preview`; needs a prior `npm run build`) and runs the suites in a pool, each suite its own
   process and browser, the slowest first (`scripts/e2e-times.json`, rewritten by every clean full run). Each suite's
   output prints as one block and is kept in `test-results/e2e/`. `e2e-desktop` runs as jobs `e2e-desktop:1`, `:2`, `:4`
-  (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list.
+  (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list. `e2e-ctcourse` runs as
+  `e2e-ctcourse:1`, `:2`, `:3` (stations 1-3, 4-5, 6-8), each its own pair of pages started at its bay through the host
+  session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight stations in sequence
+  (test-speed A3).
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
   cloud VMs (two suites at a time, G94).
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
@@ -63,7 +66,14 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   (at most 4 fixed steps per rendered frame), so a wall-clock timeout expired mid-move. A wall cap (10 x the timeout,
   at least 60 s; `E2E_SIM_CAP`) is the hang guard, and a timeout names each page's sim seconds, sim rate and fps.
   e2e-netmove and e2e-ctcourse open at 960 x 480; e2e-coop and e2e-course keep 1280 x 640 (they click through the
-  lobby, which lays out at 1280 x 720 at least).
+  lobby, which lays out at 1280 x 720 at least). Match loads (map build, light bake, both pages joining) run outside
+  the sim clock: they wait up to `LOAD_MS` (`e2e-net-lib`, 120 s wall, `E2E_LOAD_MS`). Timed in-page input chains use
+  `window.__afterSim(sec, fn)` (`e2e-lib`): `fn` runs once the match clock has moved `sec` on, never an in-page
+  `setTimeout`.
+- Load safety (test-speed, 2026-10-20): every suite's browser launches without background throttling (a two-page
+  suite's second page is a background tab), page navigations wait up to 120 s, and `press` / `stick` hold for exactly
+  one input poll (a page without the app's input falls back to a 3-frame hold), so a slow frame can neither drop nor
+  double a press. Read fades, toasts and screens with a condition wait (a cap of a few seconds), never a fixed pause.
 - Suites named on the command line run alone (`node scripts/run-e2e.mjs e2e-missions`); a part by name
   (`e2e-wall:flanker`, `e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
@@ -265,7 +275,8 @@ behind a VPN adapter).
 - `npm run weapons:shots [outDir] [view ...]` (feature/weapons; `E2E_GPU=1`, port 4189, needs `npm run build`): the
   in-game weapon views (aim, hands, body, carry, holster, knife) on the training map, `STAGE=warehouse` under a lamp
 - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
-  reload|swap|grenade|vault> [frames] [interval] [side|front|back|ots]` contact sheet (the `cover` / `highcover` /
+  reload|swap|grenade|vault|lowreadywalk|aimback|aimstrafep|readytoaim> [frames] [interval] [side|front|back|ots]` contact sheet
+  (anim-rework S3: the drawn scenarios; `draw` is the sling draw, LT from holstered) (the `cover` / `highcover` /
   `lowpeek` / `peek` scenarios tap the removed snap-cover action and are dead until rewritten for back-to-wall)
 - `node scripts/perf.mjs [--desktop | --preset=<p>] [--budget] [--json]` (`--desktop`: the Epic path; `--preset`: that
   preset, governor off; else the `?gfx=min` test path; `STEALTH=1`: ten unaware guards perceiving; `PROFILE=1` CPU

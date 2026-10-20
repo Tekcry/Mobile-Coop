@@ -20,6 +20,31 @@
   touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
   Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
   at the top with arm swing amplitude and step length (cadence at the same speed).
+## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
+- Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
+  (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
+- e2e-ctcourse runs as three station groups in the full run (`e2e-ctcourse:1..3`); named alone it runs all eight.
+- Load-safe waits: no background-tab throttling, 120 s page navigations and match loads (`LOAD_MS`), one-poll pad
+  `press` / `stick`, `window.__afterSim` for timed in-page taps, sim-clock waits in e2e-stealth and e2e-course's latency
+  checks, condition waits for fades and toasts in e2e-menus and e2e-pad, and station 6's late press on the client's
+  own frame.
+- A music fetch that fails under load prints "(ignored: ...)" instead of failing the console-error check.
+- `scripts/laptop-runner.ps1`: the laptop test runner (one request at a time, detached worktree, `heavy.lock`,
+  BelowNormal, port 4191).
+
+## 4.19.0 - Drawn movement: low ready, aiming with the glide (no crab strafe), the sling draw (2026-10-20, PR #54)
+- Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,
+  BRIEF section 3): with the gun out, standing, the legs play hand-keyed clips. Still: a ready stance, feet about hip
+  width with the support foot 18 cm ahead, knees soft. At low ready the walk, jog and run legs and carriage (no lean
+  below the run). Aiming, the glide: a short shuffle side-step that never crosses the feet (the aimed strafe was a crab,
+  knees 2-2.9 x the hips and a foot up to 56 cm off the line; now 0.6-1.2 x and 18 cm at the widest), shorter steps
+  backwards and forwards, the hips over the feet and the chest square to the gun. The aimed strafe is slower: 0.7 m/s
+  at full stick (was 1.26). The rifle's low ready points the muzzle about 40 deg down in front of the feet (was 46 deg
+  and 34 deg across the body); the pistol's low ready is a compressed ready close to the chest; the elbows stay in
+  aiming (were 7 cm out). LT from holstered with the rifle is its own sling draw (0.75 s): the gun comes off the back
+  round the right side, hangs muzzle down under the arm, then swings up into the shoulder. Crouched drawn is unchanged
+  (slice 4). No wire change (PROTOCOL_VERSION 24).
+
 ## 4.18.1 - Phones render at a fixed 50% resolution (2026-10-20, PR #55)
 - Phone (Michael 2026-10-20: "when it changes render resolution the screen flashes. Keep 50% render resolution the
   default and don't let it automatically adapt"): a fixed 50% of native, no dynamic resolution on phones. The 60 fps cap

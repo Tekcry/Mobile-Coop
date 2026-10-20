@@ -215,3 +215,7 @@ import line each (CT Core constraint).
   `npx tsc --noEmit -p .` and eslint on the changed files are clean. No build or e2e run (dist/ in use).
 - **A21.** Follow's 300 ms hold also applies to the gun section. Opening the panel or ticking follow switches at once.
   Undo: `FOLLOW_HOLD_MS`.
+
+## Pass 4 (merge of master 4.19.1, slice 3)
+- Conflicts in animGraph.ts, motion.ts, characterRig.ts resolved on slice 3's code with the hooks re-applied: lean on the keyed spine pitch, stride on all three stepLength returns (the glide steps included), head drop on NECK_WELD, elbow pole and tuck on the merged tuck (AIM_ELBOW_TUCK / READY_ELBOW_TUCK).
+- New gun tunable `glideTwistMul` (aim groups) on GLIDE.yawCut; `tuckMul` now in every gun group (low ready tucks too since slice 3). Defaults identity.

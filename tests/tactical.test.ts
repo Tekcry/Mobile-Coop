@@ -19,11 +19,11 @@ describe('stealth movement speeds', () => {
     expect(targetSpeed(1, 'adsCrouch')).toBeCloseTo(1.0);
     for (const st of ['stand', 'crouch'] as const) for (let m = 0.1; m < 0.85; m += 0.1) expect(targetSpeed(m, st)).toBeLessThan(targetSpeed(m + 0.1, st));
   });
-  it('strafe and backstep penalties only while aiming (x0.9 / x0.75)', () => {
-    expect(directionMult(1, 0)).toBeCloseTo(0.9);
+  it('strafe and backstep penalties only while aiming (x0.5, anim-rework S3 glide / x0.75)', () => {
+    expect(directionMult(1, 0)).toBeCloseTo(0.5);
     expect(directionMult(0, -1)).toBeCloseTo(0.75);
     expect(targetSpeed(1, 'ads', 0, -1)).toBeCloseTo(1.4 * 0.75);
-    expect(targetSpeed(1, 'ads', 1, 0)).toBeCloseTo(1.4 * 0.9);
+    expect(targetSpeed(1, 'ads', 1, 0)).toBeCloseTo(1.4 * 0.5);
     // not aiming: the body faces where it goes, so no penalty
     expect(targetSpeed(1, 'stand', 0, -1)).toBeCloseTo(2.8);
     expect(targetSpeed(1, 'crouch', 1, 0)).toBeCloseTo(2.6);

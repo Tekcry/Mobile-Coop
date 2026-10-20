@@ -73,7 +73,7 @@ export const BODY_FIELDS = [
 ] as const;
 export type BodyField = (typeof BODY_FIELDS)[number];
 
-export const GUN_FIELDS = ['gunFwd', 'gunUp', 'gunSide', 'gunPitch', 'gunYaw', 'gunCant', 'sightYAdd', 'headDropMul', 'tuckMul'] as const;
+export const GUN_FIELDS = ['gunFwd', 'gunUp', 'gunSide', 'gunPitch', 'gunYaw', 'gunCant', 'sightYAdd', 'headDropMul', 'tuckMul', 'glideTwistMul'] as const;
 export type GunField = (typeof GUN_FIELDS)[number];
 export type TuneField = BodyField | GunField;
 
@@ -141,7 +141,8 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'gunCant', label: 'cant (roll)', kind: 'add', def: 0, min: -0.8, max: 0.8, step: 0.01, unit: 'rad', groups: ALL_GUN, hook: 'characterRig: the weapon roll (mirrored)' },
   { id: 'sightYAdd', label: 'sight height vs eye', kind: 'add', def: 0, min: -0.1, max: 0.1, step: 0.002, unit: 'm', groups: AIM_GUN, hook: 'characterRig sightToEye: SIGHT_EYE' },
   { id: 'headDropMul', label: 'head drop to sights', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'characterRig: NECK_WELD (the neck flexes onto the stock)' },
-  { id: 'tuckMul', label: 'elbow tuck aiming', kind: 'mul', def: 1, min: 0, max: 1.6, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'characterRig solveArm: AIM_ELBOW_TUCK' },
+  { id: 'tuckMul', label: 'elbow tuck (aim / low ready)', kind: 'mul', def: 1, min: 0, max: 1.6, step: 0.05, unit: 'x', groups: ALL_GUN, hook: 'characterRig solveArm: AIM_ELBOW_TUCK / READY_ELBOW_TUCK' },
+  { id: 'glideTwistMul', label: 'glide hip twist cut', kind: 'mul', def: 1, min: 0, max: 1.5, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'animGraph: GLIDE.yawCut (aimed glide: the hips twist less)' },
 ];
 
 /**

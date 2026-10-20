@@ -45,6 +45,14 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
     const ls = [g.hands.L, g.hands.R, g.feet.L, g.feet.R];
     return ls.every((l, i) => l.swing < 0 && (gp[i] === null || Number.isNaN(gp[i]) || Math.abs(l.at - gp[i]) < 0.01));
   }, null, { timeout: 8000, polling: 100 }).catch(() => {});
+  // (test-speed) and the host's copy settled too (its joints still for 0.3 s of sim): under load its pose and feet were
+  // still on their way when sampled (doorPeek ankle 10.8-12.9 cm in loaded runs, 2-2.5 cm alone)
+  for (let k = 0; k < 20; k++) {
+    const a = (await remoteJoints()).j;
+    await wait(300);
+    const b = (await remoteJoints()).j;
+    if (Math.max(...joints.map((n) => err(a[n], b[n]))) < 0.01) break;
+  }
   await wait(300);
   const [loc, rem] = [await localJoints(), await remoteJoints()];
   const errs = Object.fromEntries(joints.map((n) => [n, +err(loc[n], rem.j[n]).toFixed(3)]));
@@ -420,7 +428,7 @@ try {
     g.player.cam.yaw = yaw;
     g.player.cam.pitch = 0;
     // (the stance settles standing first: the entry keeps the stance the player has)
-    setTimeout(() => window.__app.input.state.tap('cover'), 1000);
+    window.__afterSim(1.0, () => window.__app.input.state.tap('cover'));
   }, [wseg, k]);
   await allowTeleport(A);
   await toWall(B, 2);
@@ -484,7 +492,7 @@ try {
       g.player.controller.teleport(new g.player.position.constructor(s.ax + s.tx * k + s.nx * 0.75, s.y + 0.05, s.az + s.tz * k + s.nz * 0.75), yaw);
       g.player.cam.yaw = yaw;
       g.player.cam.pitch = 0;
-      setTimeout(() => window.__app.input.state.tap('cover'), 1000);
+      window.__afterSim(1.0, () => window.__app.input.state.tap('cover'));
     }, [door.i, door.end > 0 ? door.len - 0.8 : 0.8]);
     await until(B, () => window.__app.current.wallCore?.phase === 'on', null, 6000, 'client on the doorway wall');
     if (await GB(() => (window.__app.current.wallCore.sub() & 1) !== 0)) {
@@ -573,9 +581,9 @@ try {
     g.player.cam.pitch = 0;
     // (A3, G19) A at the door opens the door menu, one step down is Stealth open, A picks it
     const tap = (a) => window.__app.input.state.tap(a);
-    setTimeout(() => tap('interact'), 800);
-    setTimeout(() => tap('uiDown'), 1300);
-    setTimeout(() => tap('interact'), 1800);
+    window.__afterSim(0.8, () => tap('interact'));
+    window.__afterSim(1.3, () => tap('uiDown'));
+    window.__afterSim(1.8, () => tap('interact'));
     return true;
   });
   assert(dOk, 'Proving has a door');

@@ -326,18 +326,40 @@ try {
   console.log('anti-crab metrics (report-only until CRAB_GATES turns a gait on)');
   /** Plays `segs` ({ sec, inp, rec }) from a standstill at speed `gear`, crouched or not; records the crab joints and the
    *  foot contacts on the `rec` segments (each 60 Hz step). */
-  const crabRecord = (gear, crouch, segs) =>
-    G(([gear, crouch, segs]) => {
+  const crabRecord = (gear, crouch, segs, weapon) =>
+    G(([gear, crouch, segs, weapon]) => {
       const t = window.__t;
-      const p = window.__app.current.player;
+      const g = window.__app.current;
+      const p = g.player;
       const c = p.controller;
       const rig = p.rig;
+      // (anim-rework S3) a weapon class asked for (rifle / pistol): holstered, then made current (as anim-sheet does);
+      const W = g.weapons;
+      // (the holstered recordings keep whatever gun is current: its handling scales the pace a little)
+      const want = weapon;
+      if (want && W.current.def.class !== want) {
+        p.stance.holster();
+        t.run(0.4, {});
+        const j = W.slots.findIndex((q) => q.def.class === want);
+        if (j >= 0) {
+          W.index = j;
+          c.speedMul = W.current.def.moveSpeedMult;
+          p.cam.adsZoom = W.current.stats.adsZoom;
+        }
+      }
       t.tp(12, -14, -Math.PI / 2);
       if (gear) c.gears.set(gear);
       c['crouchToggled'] = !!crouch;
       // (anim-rework S2) the holstered gaits and sub-states measure holstered (the aim checks above leave the gun at low
       // ready); an aimed segment draws it again itself
-      if (!segs.some((sg) => sg.inp?.ads)) p.stance.holster();
+      // (anim-rework S3) a drawn recording (`draw` or `ads` in a segment) starts at low ready with the gun out (an aimed
+      // one from holstered would run the slower sling draw into the recording)
+      const drawn = segs.some((sg) => sg.inp?.ads || sg.inp?.draw);
+      if (!drawn) p.stance.holster();
+      else if (p.stance.base !== 'lowReady' || W.drawPhase !== 2) {
+        p.stance.base = 'lowReady';
+        t.run(0.6, {});
+      }
       // (S2 fix round) each recording starts from a fresh stance (as a teleport puts the feet): `t.tp` left the feet where
       // the last recording (the crouched sneak) planted them, and the idle stepped only past its 7.5 cm error
       rig.planner.L.init = rig.planner.R.init = false;
@@ -364,12 +386,12 @@ try {
       c.gears.set(4);
       out.speed = speed / Math.max(1, out.contactL.length);
       return out;
-    }, [gear ?? null, !!crouch, segs]);
+    }, [gear ?? null, !!crouch, segs, weapon ?? null]);
   const cm = (v) => (v * 100).toFixed(1);
   /** The crab numbers of a recording against the stance's ranges (`L.crabRanges`). */
-  const crabRow = (name, rec, crouch, idle) => {
+  const crabRow = (name, rec, crouch, idle, ranges) => {
     // (anim-rework S2) a standstill reads against the idle's hip-width stance (L.CRAB_IDLE)
-    const C = idle ? L.CRAB_IDLE : L.crabRanges(!!crouch);
+    const C = ranges ?? (idle ? L.CRAB_IDLE : L.crabRanges(!!crouch));
     const knee = M.kneeSeparation(rec.hipL, rec.hipR, rec.kneeL, rec.kneeR, C.kneeSep.min, C.kneeSep.max);
     // (a standstill has no plants to sample: the track then reads every frame of both feet)
     const anyPlant = rec.contactL.some(Boolean) || rec.contactR.some(Boolean);
@@ -451,6 +473,107 @@ try {
     }
     if (process.env.CRAB_JSON) console.log(`CRAB_STATES_JSON ${JSON.stringify(stateRows)}`);
   }
+  {
+    // (anim-rework S3) drawn, standing, rifle and pistol: the aimed idle, the glide (strafe right and left, backwards,
+    // forward) at speeds 1-2 (the aim's cap: speed 3 reads as 2) after 1.2 s of it (the steady glide: a slow back-step
+    // takes that long to re-step the ready stance's feet), the low ready idle, walk and jog. CRAB_DRAWN_GATES turns
+    // a state's asserts on (CRAB_DRAWN_CHECKS: which metrics); the aimed strafe reads against CRAB_STRAFE (a side-step
+    // opens the feet: limits.ts), the idles against CRAB_IDLE (hip width). CRAB_STATES=1 prints the report-only rows too.
+    const all = process.env.CRAB_STATES === '1';
+    console.log(`anti-crab: drawn states, rifle and pistol (${all ? 'CRAB_STATES=1' : 'CRAB_DRAWN_GATES'})`);
+    const A = { ads: true };
+    const R = { draw: true };
+    const drawn = [
+      ['aimed idle', 'aimIdle', [0], [{ sec: 0.8, inp: A }, { sec: 1.0, inp: A, rec: true }]],
+      ['aimed strafe right', 'aimStrafe', [1, 2], [{ sec: 1.2, inp: { ...A, x: 1 } }, { sec: 1.5, inp: { ...A, x: 1 }, rec: true }]],
+      ['aimed strafe left', 'aimStrafe', [1, 2], [{ sec: 1.2, inp: { ...A, x: -1 } }, { sec: 1.5, inp: { ...A, x: -1 }, rec: true }]],
+      ['aimed backwards', 'aimBack', [1, 2], [{ sec: 1.2, inp: { ...A, y: -1 } }, { sec: 1.5, inp: { ...A, y: -1 }, rec: true }]],
+      ['aimed forward', 'aimFwd', [1, 2], [{ sec: 1.2, inp: { ...A, y: 1 } }, { sec: 1.5, inp: { ...A, y: 1 }, rec: true }]],
+      ['low ready idle', 'readyIdle', [0], [{ sec: 0.8, inp: R }, { sec: 1.0, inp: R, rec: true }]],
+      ['low ready walk', 'readyWalk', [4], [{ sec: 1.0, inp: { ...R, y: 0.5 } }, { sec: 2.0, inp: { ...R, y: 0.5 }, rec: true }]],
+      ['low ready jog', 'readyJog', [4], [{ sec: 1.0, inp: { ...R, y: 1 } }, { sec: 2.0, inp: { ...R, y: 1 }, rec: true }]],
+    ];
+    const drawnRows = [];
+    // (the gun current before, restored after: the checks below keep their conditions)
+    const orig = await G(() => ({ cls: window.__app.current.weapons.current.def.class, mul: window.__app.current.player.controller.speedMul }));
+    for (const weapon of ['rifle', 'pistol']) {
+      for (const [name, key, gears, segs] of drawn) {
+        const gated = !!L.CRAB_DRAWN_GATES[key];
+        if (!all && !gated) continue;
+        for (const gear of gears) {
+          const rec = await crabRecord(gear || 4, false, segs, weapon);
+          const C = L.crabDrawnRanges(key);
+          const r = crabRow(`${weapon} ${name}${gear ? ` speed ${gear}` : ''}`, rec, false, false, C);
+          drawnRows.push({ weapon, key, gear, ...r.row });
+          console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
+          if (!gated) continue;
+          const want = L.CRAB_DRAWN_CHECKS[key];
+          const n = r.name;
+          if (want.includes('knees')) assert(r.knee.pass, `${n}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
+          if (want.includes('track')) assert(r.track.pass, `${n}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
+          if (want.includes('knee-out')) assert(r.bow.pass, `${n}: knees over the toes (outside by ${r.row.bow} cm)`);
+          if (want.includes('slide')) assert(r.slide < C.slide, `${n}: planted feet locked (${r.row.slide} cm)`);
+          if (want.includes('elbows')) assert(r.wing.pass, `${n}: elbows in (${r.row.wing} cm outside the shoulder)`);
+          if (want.includes('cross')) assert(r.track.min > -0.005, `${n}: the feet never cross (${r.row.track[0]} cm)`);
+        }
+      }
+    }
+    if (process.env.CRAB_JSON) console.log(`CRAB_DRAWN_JSON ${JSON.stringify(drawnRows)}`);
+    // (anim-rework S3) the drawn upper body (BRIEF 3): the muzzle at low ready 30-45 deg down (the rifle) and pointed down
+    // and forward (the pistol's compressed ready), aiming the head upright (the gun to the eye), elbows in (the rows above)
+    const pose = (weapon, aim) =>
+      G(([weapon, aim]) => {
+        const t = window.__t;
+        const g = window.__app.current;
+        const p = g.player;
+        const W = g.weapons;
+        if (W.current.def.class !== weapon) {
+          p.stance.holster();
+          t.run(0.4, {});
+          const j = W.slots.findIndex((q) => q.def.class === weapon);
+          if (j >= 0) W.index = j;
+        }
+        t.tp(12, -14, -Math.PI / 2);
+        p.stance.base = 'lowReady';
+        t.run(1.0, aim ? { ads: true } : {});
+        let down = 0;
+        let yaw = 0;
+        let tilt = 0;
+        const n = 30;
+        const rig = p.rig;
+        t.run(0.5, aim ? { ads: true } : {}, () => {
+          const m = rig.heldWeapon.computeWorldMatrix(true).m;
+          const bx = m[8];
+          const by = m[9];
+          const bz = m[10];
+          const l = Math.hypot(bx, by, bz) || 1;
+          down += (Math.asin(-by / l) * 180) / Math.PI;
+          const fy = p.controller.renderYaw;
+          yaw += (Math.atan2(bx * Math.cos(fy) - bz * Math.sin(fy), bx * Math.sin(fy) + bz * Math.cos(fy)) * 180) / Math.PI;
+          const h = rig.headNode.computeWorldMatrix(true).m;
+          tilt += (Math.acos(Math.max(-1, Math.min(1, h[5] / (Math.hypot(h[4], h[5], h[6]) || 1)))) * 180) / Math.PI;
+          return 0;
+        });
+        return { down: down / n, yaw: yaw / n, tilt: tilt / n };
+      }, [weapon, aim]);
+    const P = L.DRAWN_POSE;
+    for (const weapon of ['rifle', 'pistol']) {
+      const lr = await pose(weapon, false);
+      const am = await pose(weapon, true);
+      console.log(`  ${weapon} low ready: muzzle ${f2(lr.down)} deg down, ${f2(lr.yaw)} deg off the facing; aiming: head tilt ${f2(am.tilt)} deg, muzzle ${f2(am.down)} deg down`);
+      const band = weapon === 'pistol' ? P.pistolDown : P.rifleDown;
+      assert(within(lr.down, band.min, band.max), `${weapon} low ready: muzzle ${band.min}-${band.max} deg down (${f2(lr.down)})`);
+      assert(Math.abs(lr.yaw) <= P.readyYaw, `${weapon} low ready: muzzle within ${P.readyYaw} deg of the facing (${f2(lr.yaw)})`);
+      assert(am.tilt <= P.headTilt, `${weapon} aiming: head within ${P.headTilt} deg of upright, the gun to the eye (${f2(am.tilt)})`);
+    }
+    await crabRecord(0, false, [{ sec: 0.1, inp: {} }], orig.cls);
+    await G((o) => {
+      const p = window.__app.current.player;
+      p.stance.holster();
+      p.controller.speedMul = o.mul;
+      window.__t.run(0.5, {});
+    }, orig);
+  }
 
   // ---------------------------------------------------------------- transitions and flinch
   console.log('transitions');
@@ -513,6 +636,18 @@ try {
     t.run(0.6, { ads: true }, track);
     window.__seg = 'strafe';
     t.run(0.8, { x: 1, ads: true }, track);
+    // (anim-rework S3) drawn: crouch and stand while aiming, let go to low ready, up to the aim again, the low ready walk
+    // (strict: no pops in the drawn keyed set's blends)
+    window.__seg = 'aim crouch';
+    t.run(0.8, { ads: true, taps: { 1: 'crouch' } }, track);
+    window.__seg = 'aim stand';
+    t.run(0.8, { ads: true, taps: { 1: 'crouch' } }, track);
+    window.__seg = 'low ready';
+    t.run(0.6, {}, track);
+    window.__seg = 'ready to aim';
+    t.run(0.6, { ads: true }, track);
+    window.__seg = 'ready walk';
+    t.run(0.8, { y: 0.5 }, track);
     window.__seg = 'sprint';
     t.run(1.0, { y: 1 }, track);
     window.__seg = 'stop 2';

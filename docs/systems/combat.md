@@ -33,6 +33,15 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   the stow path from it (weapon-to-weapon swaps keep `SWAP_TIME` 0.9; RB swaps while aiming; a swap while holstered only
   changes the selection). A match starts holstered. Attached stow and the one-handed sidearm (split, rappel, inverted pipe,
   hostage) win over aim. Grenades and gadgets work holstered.
+- (anim-rework S3, M2) The sling draw: LT from holstered with a long gun on the diagonal back sling takes
+  `STANCE.slingDrawLong` 2.5 x the draw (0.75 s; the pistol `slingDrawMult` 1.6 x) on its own path: `WeaponModel.beginTravel`
+  `sling`, the grip through `TRAVEL_VIA.sling` (low beside the right hip, under the arm) and the turn `backDiag.diagTurnSling`
+  (the holster's turn backwards: round the right side in the back's plane to muzzle down, the top forward, then the
+  muzzle swings up onto the line into the shoulder; never muzzle up over the shoulder). Local only: a remote copy poses
+  its draw from `dw` as before.
+- (anim-rework S3) Low ready: the rifle `READY_POSES.low` muzzle about 40 deg down, 13 deg inboard; the pistol's low ready
+  is `PISTOL_READY` (a compressed ready, by the light gun's weight). Elbows: `AIM_ELBOW_TUCK` 0.85 raised,
+  `READY_ELBOW_TUCK` 0.5 with a gun in the hands.
 - No hip fire: a shot needs the drawn phase and `cam.ads >= 0.9` (`fireReady`); fire while holstered is the close strike
   (`docs/systems/takedowns.md`). The crosshair shows only drawn and aiming.
 - Player spread (`playerSpreadDeg`, weaponStats.ts): base `spreadAds`; crouched and still x0.7; standing still x1; moving
