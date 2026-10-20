@@ -281,6 +281,8 @@ export class App {
     const s = document.documentElement.style;
     // (G182) a phone scales the 1280 x 720 layout down to fit its screen
     s.setProperty('--ui-scale', String(uiScale(window.innerWidth, window.innerHeight, flags.phone ? 0.25 : 1)));
+    // (phone-min) a phone fills its screen: no 16:9 side bars on the menus
+    document.documentElement.classList.toggle('phone', flags.phone);
     s.setProperty('--hud-inset', `${hudInset(window.innerWidth, window.innerHeight, this.settings.get().video.hudWidth)}px`);
   }
 

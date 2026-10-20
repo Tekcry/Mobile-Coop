@@ -4838,3 +4838,9 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
 .hud[hidden] {
   display: none;
 }
+
+/* (phone-min) a phone fills its wide screen: the menus and the launch frame use the full width (no 16:9 side bars) */
+:root.phone .screens,
+:root.phone .boot .boot-frame {
+  width: calc(calc(100 * var(--vw)) / var(--ui-scale, 1));
+}
