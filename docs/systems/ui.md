@@ -100,6 +100,26 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (no DOM in it), max 1920 px JPEG; keep / retake (Y) / cancel (B). Full-resolution saves go up to 7680 px, JPEG
   quality stepped down to stay under 8 MB.
 
+## Debug overlay (F3)
+- `ui/debugOverlay.ts`; buttons, lines and the anti-crab readout: `docs/systems/testing-tools.md`, "Debug overlay".
+- (anim-tuner) Anim button: `ui/animTunePanel.ts`, a plain slider panel fixed top right (the overlay and its crab readout
+  stay top left), any build. Two sections: the body state (20 groups) and the gun hold (rifle / pistol x low ready /
+  aim / crouched aim), each a picker that follows the local player's state while "follow" is on (`TUNE_STATE`), with
+  per-slider reset (x), Reset group, Reset all, "changed only", a barrel marker (line and ball 12 m out along the held
+  weapon's bore) and Export (`anim-tune-<YYYY-MM-DD>.json`: `changed` values with their defaults, `log` of time /
+  group / id / from / to). The table is `anim/tune.ts` (pure): `TUNABLES` registry, `TUNE_BODY` / `TUNE_GUN` values,
+  `TUNE_CUR` (read by the hooks; set by `tuneBegin` / `tuneEnd` around the local player's `rig.animate` only, identity
+  otherwise) and `TUNE_LOCAL` (the last selection, for the wall push, the root offset and the motion driver's stride).
+  Saved (debounced 0.4 s) to its own IndexedDB database `<save db>-animtune` (`save/animTuneStore.ts`), outside the save
+  schema. `window.__animTune` is the test / console hook. Hook list: `docs/anim-tuner/REPORT.md`.
+- (anim-tuner pass 2) Also opens from Pause > "Animation tuner (dev)" (the row after Quit; it resumes the match with the
+  panel open) and Settings > Graphics > Developer > "Animation tuner (dev)"; it stays open over play, with or without the
+  overlay (the overlay's frame hook drives it), until its header x. Header bar: fold (_ / +) to one line, close (x).
+  Phone fit: at most `min(340px, 45vw)` wide, `max-height: 100vh - 8px`, scrolls; rows, sliders and buttons at least
+  28 px high; the panel stops its pointer, mouse, click, wheel, touch and context-menu events (keys still reach the game:
+  buttons blur after a click, sliders on change). Share / Copy: `navigator.share` with a File where `canShare({ files })`
+  allows, else `navigator.clipboard.writeText`, else the JSON in a read-only text box (selected on focus).
+
 ## Course HUD (Fallow, training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the
 drill is not that player's), and this player's current step in large type (LANTERN's line; `{Y}` / `{Y:traverse}`

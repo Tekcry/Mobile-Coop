@@ -16,6 +16,7 @@ import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
+import { tuneSim } from '../anim/tune';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
@@ -512,7 +513,9 @@ export class PlayerController {
     this.cc.maxAcceleration = this.ct ? CT_MAX_ACCEL : 80;
     const wasMoving = this.motion.state === 'move';
     const spBefore = this.motion.speed;
+    tuneSim(true); // (anim-tuner) the step-length slider on the local player's gait clock (identity by default)
     if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
+    tuneSim(false);
     // (G26, G27) a stop at any pace freezes the feet in the stride they stopped in; the frozen stance holds
     // `CT.stopHoldTime` s, then lets go and eases to a feet-together idle over `CT.stopEase`. The next input lets it
     // go at once: a stick that moves the operator again, aiming, a stance change, an override or leaving the ground

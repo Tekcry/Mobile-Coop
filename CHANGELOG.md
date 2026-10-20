@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased - anim-tuner
+- Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
+  opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
+  crouch idle / sneak / crouch walk, low ready, aim, crouched aim, back to wall idle / slide / peek, ladder, pipe, ledge,
+  vent, crawl, hang, hold) and a gun-hold section (rifle and pistol x low ready / aim / crouched aim), each following
+  the current state (untick "follow" to pick one). Sliders cover foot width, knee out, knee lift, step length, pelvis
+  height / crouch depth, forward lean, arm swing and its growth with speed, elbow out, head turn, peek lean, gap to the
+  wall, body distance to the ladder / pipe / guard, hand and foot reach and spacing, gap to the guard, and the gun's
+  position, pitch, yaw, cant, sight height, head drop and elbow tuck; a barrel marker shows where the muzzle points.
+  Changes apply live to the local player only (guards and the partner's copy are untouched; nothing on the wire), save
+  to the tuner's own IndexedDB store, reset per slider / group / all, and Export downloads `anim-tune-<date>.json`
+  (every changed value, its default, a timestamped change log). Every default is identity: nothing changes until a
+  slider moves. `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/save/animTuneStore.ts`; report
+  `docs/anim-tuner/REPORT.md`.
+- Pass 2 (pad and phone, Michael: "I will wait for the anim tuner"): the tuner also opens from the pause menu ("Animation
+  tuner (dev)", which resumes with the panel open) and Settings > Graphics, without F3, and stays open until its x. It
+  folds to a header bar, scrolls on a short landscape screen, is at most 45 % wide, has 28 px touch rows, keeps its
+  touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
+  Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
+  at the top with arm swing amplitude and step length (cadence at the same speed).
+
 ## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
 - Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
   2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear

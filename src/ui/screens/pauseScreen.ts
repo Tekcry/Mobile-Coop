@@ -85,6 +85,18 @@ export class PauseScreen extends MenuScreen {
         'quit',
       ),
     );
+    // (anim-tuner pass 2) the animation tuner without F3 (pad, phone): opens the panel and resumes, so you can move and tune
+    list.append(
+      item(
+        'Animation tuner (dev)',
+        () => {
+          app.debug.animTune.show();
+          this.resume();
+        },
+        'Developer tool: sliders for the animation, live while you move. Opens over the game; close it with its x.',
+        'anim-tuner',
+      ),
+    );
     for (const r of pauseExtraRows) list.append(item(r.label, r.act, 'Developer tool.'));
     this.body.append(list);
     this.noticeEl = h('div', { class: 'ps-notice', attrs: { role: 'status' } });

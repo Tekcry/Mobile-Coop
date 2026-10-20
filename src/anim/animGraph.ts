@@ -18,6 +18,7 @@ import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
 import { gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT, TENSE } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
+import { TUNE_CUR, tuneMoveTwist } from './tune';
 import {
   CROUCH_BACK,
   CROUCH_IDLE,
@@ -744,7 +745,7 @@ export class AnimGraph {
     }
     // (G1, audit row 26) the tense sneak over the crouched gait
     if (tw > 0) overClip(this.tmpMove, TENSE_SNEAK, ph, tw);
-    lerpPose(out, out, this.tmpMove, this.moveW);
+    lerpPose(out, out, tuneMoveTwist(this.tmpMove), this.moveW);
   }
 
   private tmpMove: Pose = newPose();
@@ -1201,7 +1202,7 @@ export class AnimGraph {
     // (G1, audit rows 8 / 22 / 23) the run pumps its arms too (elbows ~86 deg, a bigger fore-aft drive): Chaos Theory has no
     // sprint button, its jog and run are the top gears, eased in with the run lean (runK)
     const pk = Math.max(dash, runK);
-    const swingT = (Math.min(RH.swingMax, RH.swing * this.effortS) * (1 - (1 - RH.swingCrouch) * crouchK) * (1 - pk) + RH.pump * pk) * smoothstep(i.speed / 0.22);
+    const swingT = (Math.min(RH.swingMax, RH.swing * this.effortS) * (1 - (1 - RH.swingCrouch) * crouchK) * (1 - pk) + RH.pump * pk) * smoothstep(i.speed / 0.22) * TUNE_CUR.armSwingK;
     this.armSwingA = approach(this.armSwingA, swingT, RH.settle, dt);
     this.holsterK = approach(this.holsterK, i.thighGear && i.traverse === 'none' ? 1 : 0, HOLSTER_TAU, dt);
     if (rw > 0) {
@@ -1525,12 +1526,12 @@ export class AnimGraph {
     const o = this.out;
     const pe = o.pelvis;
     pe.x = q[CH.pelX]! * k;
-    pe.y = q[CH.pelY]! * k;
+    pe.y = q[CH.pelY]! * k + TUNE_CUR.pelvisYAdd;
     pe.z = q[CH.pelZ]! * k;
     pe.pitch = q[CH.pelPitch]!;
     pe.roll = q[CH.pelRoll]!;
     pe.yaw = q[CH.pelYaw]!;
-    o.spine.pitch = q[CH.spPitch]!;
+    o.spine.pitch = q[CH.spPitch]! + TUNE_CUR.leanAdd;
     o.spine.yaw = q[CH.spYaw]!;
     o.spine.roll = q[CH.spRoll]!;
     o.head.pitch = q[CH.hdPitch]!;
@@ -1560,7 +1561,7 @@ export class AnimGraph {
     const half0 = this.p.hipHalf * (i.traverse === 'none' && !i.wall ? 1 + clamp(wd - 1, -0.5, 0.4) * 0.25 : 1.2 * wd);
     // (CT prototype G8) the keyed walk's narrow track (the feet under the body, the soles just clear)
     // (anim-rework S2) the keyed set's blended track (walk, jog, run, the idle's hip width)
-    const half = half0 + (this.kHalf - half0) * o.keyW;
+    const half = (half0 + (this.kHalf - half0) * o.keyW) * TUNE_CUR.trackMul;
     const st = o.stance;
     // (G1 fix, audit row 20) standing still on foot the feet sit IDLE_STANCE apart (anim-rework S2: about hip width)
     const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * o.keyHol * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
@@ -1615,7 +1616,7 @@ export class AnimGraph {
     const lift = lift1 + (this.kLift * (1 - KEYED_WALK_BAND.slowLift * sw) - lift1) * o.keyW;
     // (A1.2) a shorter stance in a turn: less body yaw over a planted foot
     g.duty = clamp(duty + (TURN_DUTY - duty) * g.turning, 0.4, 0.75);
-    g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
+    g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2) * TUNE_CUR.kneeLiftMul;
     // layer weights for the overlay
     const ly = o.layers;
     for (let k = 0; k < LOWER_STATES.length; k++) ly[LOWER_STATES[k]!] = this.weights[LOWER_STATES[k]!];

@@ -18,6 +18,7 @@
  * Everything is in seconds: identical results at any step size within reason.
  */
 import { CT, MOVEMENT, TENSE } from '../config/movement';
+import { TUNE_CUR } from './tune';
 import { hyp2 } from '../core/mathx';
 import { Spring } from './rigMath';
 
@@ -110,7 +111,7 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
     s += (w - s) * (1 - u * u * (3 - 2 * u)) * (1 - Math.max(0, crouch));
   }
   // (G1, audit row 26) the tense sneak's long deliberate steps, by its weight 0..1
-  return (s + (TENSE.step - s) * tense) * (1 - 0.4 * lateral * lateral);
+  return (s + (TENSE.step - s) * tense) * (1 - 0.4 * lateral * lateral) * TUNE_CUR.strideMul;
 }
 
 /**

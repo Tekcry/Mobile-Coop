@@ -101,7 +101,8 @@ behind a VPN adapter).
   turn, the crack peek, the planted pivot, 720 deg/s turns); the prototype job rewrites them.
 
 ## The suites (REQUIRED unless marked)
-- `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
+- `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot); (anim-tuner) opens F3 > Anim, moves
+  the walk "foot width" slider through the page and checks the table value and its change-log entry (then puts it back)
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
   change no speed (anim-rework S1), the weapon states (X tap low ready / holster, LT held aims, A3 no fire at low ready,
   X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
@@ -322,7 +323,8 @@ behind a VPN adapter).
 ## Debug overlay
 - F3 (or the settings switch); `?debug=1` shows it at boot. Buttons: Skeleton (bones, controller capsules, hit volumes
   and foot contacts as lines: green = planted, orange = swinging; things register in `ui/debugVolumes.ts`), Tune
-  (sliders for `MOVEMENT`, `CAMERA`, `CARRY`) and slow motion (1x / 0.5x / 0.25x). Lines: display Hz + budget, pacing
+  (sliders for `MOVEMENT`, `CAMERA`, `CARRY`), Anim (the animation tuner, top right: `docs/systems/ui.md`, "Debug
+  overlay") and slow motion (1x / 0.5x / 0.25x). Lines: display Hz + budget, pacing
   p50 / p95 / p99 + drops, CPU per frame, quality + resolution scale, player, carry, combat, anim (layer weights, the
   active clip timeline, `!limit` = joint-rate limiter hits). The bar graph is frame pacing against the budget line;
   `addTrace` graphs values per frame.
