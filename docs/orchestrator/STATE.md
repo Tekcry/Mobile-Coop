@@ -30,7 +30,7 @@ commit hash, and forwards results back.
 
 ## First after the reset (Michael 18:25)
 1. Phone follow-up (a 2-line patch, do it yourself as with #44): "Default phones to low settings but with shadows/light, native resolution, 60fps cap, 100% resolution scaling". So in src/core/qualityManager.ts applyScale, the flags.phone branch becomes native DPR and scale 1 (applyRenderScale(this.engine, this.ov?.scale ?? 1, Infinity)); keep the Low preset and the 60 fps cap. He said 4.15.1 "works better, no complaints".
-2. Restart the paused sessions (below).
+2. Restart the paused sessions: show Michael the prompts in docs/orchestrator/RESTART.md ONE AT A TIME (he does not remember them), wait for his "done" after each, then message Character Build and Menu Notes (nv-pass) to resume.
 3. Michael has movement feedback from /preview/ (4.15.1: slice 1 controls, walk round 3b): ask for it first and pass it to CT Core for slice 2.
 
 ## Usage pause (2026-10-20 ~17:15)
