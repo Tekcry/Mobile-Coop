@@ -76,3 +76,17 @@ over ankle <= 3 cm, no crossed feet, and the track within WALL_TRACK.
   the foot placement during the wall sidestep (footPlanner, outside this slice's files). For CT Core: narrow the planted
   feet in the wall slide, or tell me the wall-only lever to use. No assert was loosened.
 - Small: the block prints "ok - wall recording: undefined" (a missing label).
+
+## Round 2 (2026-10-21, desktop, port 4191)
+- Re-gate: a wall slide is a side step, so the slide rows (standing and crouched) read against the glide strafe's side-step ranges (`L.CRAB_STRAFE`: knees 0.5-1.5 x hips, track 20 cm, knee-out 3 cm), not the forward walk's 0.5-1.1 / 16 cm.
+- Changes: wallKeyed.ts `WALL_KEYS.slideHalfK` 0.9, `slideKneeOut` -0.08, `slideYawCut` 0.85 (the glide's side levers, by the slide share); animGraph.ts takes the pelvis step twist off by `wallYawCut`. e2e-anim: label fixed ("wall recording standing"), the wall rows all run before the block fails, `WALL_OPEN` rows print "REPORT-ONLY (open, CT Core)".
+- Runs (2 attempts): e2e-wall ok both; e2e-anim FAIL both in the wall block. Pole -0.2 on attempt 2 changed nothing (knee-out 7.6 -> 7.7 cm), reverted to -0.08. tsc, eslint, wall/keyed vitest pass.
+- Numbers, attempt 2 (knees min/mean/max x hips; track min/mean/max cm; knee-out max cm):
+  - wall idle 1.02; 8.4/9/9.5; 0.1 - PASS, stays gated.
+  - slide right 0.56/1.17/1.83; -7.1/16.5/39.1 (feet cross); 7.7.  slide left 0.55/1.28/2.03; -13.3/21.6/53.2; 11.5.
+  - peek right / left: keyed weight 0.00 (the wall keys do not play at the edge); knees 1.31 / 1.27; track -6.7..29 / -7.3..29.5; knee-out 9.6.
+  - crouched idle 1.09; 8.7/9.8/10.9 (<= 10.5); elbows 11.8 cm (report-only metric).
+  - crouched slide right -0.22/0.35/1.14; 3.7/8.8/16; 10.4.  crouched slide left 0.23/0.66/1.44; 3.9/11.5/21.7; 6.8.
+  - crouched peek right / left: keyed 0.00; knees 1.66 / 1.57; knee-out 3.4 / 4.7; elbows 8.3 / 10.7.
+- Open (CT Core), all REPORT-ONLY now: the 9 rows above except the standing idle. The slide's planted feet cross and reach 39-53 cm from the hip line (footPlanner wall side step, outside this slice's files); the knee pole does not move knee-out, so it follows the feet. The peeks run with keyed weight 0 (the edge gate in the graph's kWl). Crouched idle track 0.4 cm over.
+- Not verified: e2e-anim after the wall block (drawn states onward) was not reached in either run on this branch; the report-only edit itself has not been re-run.

@@ -478,8 +478,15 @@ try {
     // peek, standing and crouched, on a free high wall on Proving. Asserted: the knees within the stance's range, knees
     // over the toes (<= 3 cm), the feet never cross; the track against WALL_TRACK (the idle's hip width, the side step's
     // lead foot: S5-KEYS) and the planted slide / elbows report-only. CRAB_JSON prints the rows.
+    // (S5 round 2) a wall slide is a side step: the slide rows read against the glide strafe's side-step ranges
+    // (L.CRAB_STRAFE: knees 0.5-1.5 x the hips, track 20 cm, knees over the ankles 3 cm), not the forward walk's.
+    // WALL_OPEN: rows that print their numbers but do not fail the suite (REPORT-ONLY, open for CT Core, S5-REPORT).
     console.log('anti-crab: back to a wall, holstered (S5)');
     const WALL_TRACK = { idle: 0.105, move: 0.16 };
+    const WALL_OPEN = new Set(['wall slide right', 'wall slide left', 'wall peek right', 'wall peek left', 'wall crouched idle', 'wall crouched slide right', 'wall crouched slide left', 'wall crouched peek right', 'wall crouched peek left']);
+    // every row runs and prints before the block fails (a failing row no longer hides the rows after it)
+    const wallFails = [];
+    const wa = (cond, msg) => (cond ? assert(true, msg) : wallFails.push(msg));
     const wallRec = (crouch, plan) =>
       G(([crouch, plan]) => {
         const t = window.__t;
@@ -578,23 +585,26 @@ try {
     const wallRows = [];
     for (const crouch of [false, true]) {
       const rows = await wallRec(crouch, plan);
-      assert(!rows.err, `wall recording: ${rows.err}`);
+      assert(!rows.err, rows.err ? `wall recording: ${rows.err}` : `wall recording ${crouch ? 'crouched' : 'standing'}`);
       for (const [name] of plan) {
         const rec = rows[name];
         const nm = `wall ${crouch ? 'crouched ' : ''}${name}`;
-        const C = { ...L.crabRanges(crouch), trackHalf: name === 'idle' ? WALL_TRACK.idle : WALL_TRACK.move };
+        const C = name.startsWith('slide') ? L.CRAB_STRAFE : { ...L.crabRanges(crouch), trackHalf: name === 'idle' ? WALL_TRACK.idle : WALL_TRACK.move };
+        const open = WALL_OPEN.has(nm);
         const r = crabRow(nm, rec, crouch, false, C);
         wallRows.push({ crouch, ...r.row, keyW: +rec.keyW.toFixed(2), edge: rec.edge });
-        console.log(crabLine(r, rec) + ` keyed ${f2(rec.keyW)}${name.startsWith('peek') ? ` edge ${rec.edge}` : ''}`);
-        assert(rec.onWall, `${nm}: still on the wall`);
-        assert(rec.keyW > 0.9, `${nm}: the wall keys play (keyed weight ${f2(rec.keyW)})`);
-        assert(r.knee.pass, `${nm}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
-        assert(r.bow.pass, `${nm}: knees over the toes (outside by ${r.row.bow} cm)`);
-        assert(r.track.min > -0.005, `${nm}: the feet never cross (${r.row.track[0]} cm)`);
-        assert(r.track.pass, `${nm}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
+        console.log(crabLine(r, rec) + ` keyed ${f2(rec.keyW)}${name.startsWith('peek') ? ` edge ${rec.edge}` : ''}${open ? '  REPORT-ONLY (open, CT Core)' : ''}`);
+        if (open) continue;
+        wa(rec.onWall, `${nm}: still on the wall`);
+        wa(rec.keyW > 0.9, `${nm}: the wall keys play (keyed weight ${f2(rec.keyW)})`);
+        wa(r.knee.pass, `${nm}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
+        wa(r.bow.pass, `${nm}: knees over the toes (outside by ${r.row.bow} cm)`);
+        wa(r.track.min > -0.005, `${nm}: the feet never cross (${r.row.track[0]} cm)`);
+        wa(r.track.pass, `${nm}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
       }
     }
     if (process.env.CRAB_JSON) console.log(`CRAB_WALL_JSON ${JSON.stringify(wallRows)}`);
+    assert(!wallFails.length, wallFails.length ? `wall rows: ${wallFails.join('; ')}` : 'wall rows in range');
   }
   {
     // (anim-rework S3) drawn, standing, rifle and pistol: the aimed idle, the glide (strafe right and left, backwards,

@@ -680,6 +680,8 @@ export class AnimGraph {
   private keyHolS = 0;
   /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
   private keyWallS = 0;
+  /** (S5 round 2) The wall slide's pelvis twist cut this frame (WALL_KEYS.slideYawCut x the slide x the wall share). */
+  private wallYawCut = 0;
   private readonly wallKeys = new WallKeyed();
   /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
   private handClipW = 0;
@@ -1542,6 +1544,7 @@ export class AnimGraph {
     o.keyScan *= 1 - wS;
     pose[CH.pelY] = pose[CH.pelY]! * (1 - o.keyW * wS * crouchK);
     o.keyDrawn = Math.max(o.keyDrawn, WALL_KEYS.gate);
+    this.wallYawCut = WALL_KEYS.slideYawCut * W.slide * wS * o.keyW;
   }
 
   /** (anim-rework S3) The speed set's blended clip values (`speedSet`). */
@@ -1731,7 +1734,9 @@ export class AnimGraph {
     pe.pitch = q[CH.pelPitch]!;
     pe.roll = q[CH.pelRoll]!;
     // (anim-rework S3) gliding aimed the hips twist less with the steps (GLIDE.yawCut): a quieter gun platform
-    pe.yaw = q[CH.pelYaw]! * (1 - GLIDE.yawCut * o.keyDrawn * o.keyW * this.raiseS);
+    // (S5 round 2) sliding along a wall too (WALL_KEYS.slideYawCut): a side step, as the glide strafe
+    pe.yaw = q[CH.pelYaw]! * (1 - Math.max(GLIDE.yawCut * o.keyDrawn * o.keyW * this.raiseS, this.wallYawCut));
+    this.wallYawCut = 0;
     o.spine.pitch = q[CH.spPitch]!;
     o.spine.yaw = q[CH.spYaw]!;
     o.spine.roll = q[CH.spRoll]!;

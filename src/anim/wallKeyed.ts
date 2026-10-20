@@ -17,8 +17,11 @@ import { KEYED_WALL_CROUCH_PEEK } from './clips/keyed/wall_crouch_peek';
  * `idle` / `crouchIdle` / `peek`: the held clips' cycles (s; two breaths standing, three crouched); `gate`: the drawn
  * share the graph reports at the wall so the rig's keyed gate (free gait or drawn) opens (see S5-REPORT open items);
  * `peekLean`: the body lean (rad) at a full peek (WALL.peekLean). Duty / lift are the clips' own (S5-KEYS).
+ * (S5 round 2, the glide strafe's side-step levers, GLIDE) the slide is a side step: `slideHalfK` its track half-width
+ * share (the lead step a little narrower), `slideKneeOut` its knee pole (a little in: the knees stay over the ankles,
+ * laptop e2e had a knee 8.6 cm outside, -0.08 left 7.6 cm and -0.2 7.7 cm: the feet, not the pole), `slideYawCut` the share of the stepping pelvis twist taken off (the graph).
  */
-export const WALL_KEYS = { idle: 5, crouchIdle: 9, peek: 5, gate: 0.02, peekLean: 0.2 } as const;
+export const WALL_KEYS = { idle: 5, crouchIdle: 9, peek: 5, gate: 0.02, peekLean: 0.2, slideHalfK: 0.9, slideKneeOut: -0.08, slideYawCut: 0.85 } as const;
 
 interface Trio {
   idle: KeyedClip;
@@ -35,10 +38,12 @@ export class WallKeyed {
   kneeOut = KEYED_WALL_IDLE.kneeOut;
   duty = KEYED_WALL_IDLE.duty;
   liftH = KEYED_WALL_IDLE.liftH;
+  /** The slide's share of the sampled set (0 still or peeking .. 1 sliding), blended by the crouch. */
+  slide = 0;
   private readonly a = newKeyedPose();
   private readonly b = newKeyedPose();
   private readonly c = newKeyedPose();
-  private readonly v = { half: 0, kneeOut: 0, duty: 0, liftH: 0 };
+  private readonly v = { half: 0, kneeOut: 0, duty: 0, liftH: 0, slide: 0 };
 
   /**
    * `ph` the gait phase, `t` a free clock (s), `move` the slide's share (0 still .. 1), `peek` 0..1, `crouch` 0..1,
@@ -52,6 +57,7 @@ export class WallKeyed {
     const sK = this.v.kneeOut;
     const sD = this.v.duty;
     const sL = this.v.liftH;
+    const sS = this.v.slide;
     if (crouch > 0.001) {
       this.trio(CROUCH, ph, t, move, peek, side > 0, crouch < 0.999 ? this.c : this.pose);
       if (crouch < 0.999) {
@@ -61,6 +67,7 @@ export class WallKeyed {
         this.kneeOut = sK + (v.kneeOut - sK) * crouch;
         this.duty = sD + (v.duty - sD) * crouch;
         this.liftH = sL + (v.liftH - sL) * crouch;
+        this.slide = sS + (v.slide - sS) * crouch;
         return this.pose;
       }
     }
@@ -68,6 +75,7 @@ export class WallKeyed {
     this.kneeOut = this.v.kneeOut;
     this.duty = this.v.duty;
     this.liftH = this.v.liftH;
+    this.slide = this.v.slide;
     return this.pose;
   }
 
@@ -83,8 +91,8 @@ export class WallKeyed {
       // the slide's lead foot as keyed; mirrored half a cycle on (as the glide strafe: the other foot leads)
       sampleKeyed(T.slide, mirror ? ph + 0.5 : ph, 1, this.a);
       mixKeyed(out, this.a, sl, out);
-      half += (T.slide.half - half) * sl;
-      kneeOut += (T.slide.kneeOut - kneeOut) * sl;
+      half += (T.slide.half * WALL_KEYS.slideHalfK - half) * sl;
+      kneeOut += (T.slide.kneeOut + WALL_KEYS.slideKneeOut - kneeOut) * sl;
       duty += (T.slide.duty - duty) * sl;
       liftH += (T.slide.liftH - liftH) * sl;
     }
@@ -102,5 +110,6 @@ export class WallKeyed {
     v.kneeOut = kneeOut;
     v.duty = duty;
     v.liftH = liftH;
+    v.slide = sl;
   }
 }
