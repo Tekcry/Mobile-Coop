@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.14.1 - Orchestrator docs: 2026-10-20 roadmap, the animation rework brief (2026-10-20, PR #42)
+Docs only. The roadmap and orchestrator state for 2026-10-20 (Michael's answers 08:10-16:15: the guard menu, keyframed
+clips, the anim-rework brief docs/anim-rework/BRIEF.md, nv-pass, warehouse-s23, test-speed, context clears) and the dashboard.
+
 ## 4.14.0 - Sector Ops: Warehouse section 1 rebuilt (three routes, logical guard posts) (2026-10-20, PR #37)
 - Dogs carry no flashlight (Michael, M1): only human guards take a torch slot when searching in the dark (pure
   `carriesTorch` / `torchRule` in `ai/archetypes.ts`, tested); a dog no longer lights the player or the meter.
