@@ -9,10 +9,10 @@ Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-nati
 there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.24.0 (#66, 1760cf36). Tags v4.0.0-v4.24.0. /preview/ = dev = 1760cf36. Merged since the 2026-10-20 reset, in order:
+v4.25.0 (#68, 52178c06). Tags v4.0.0-v4.25.0. /preview/ = dev = 52178c06. Merged since the 2026-10-20 reset, in order:
 4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
 4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
-4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66). /ct/ = ct-movement (CT Core).
+4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66), 4.25.0 tuner-v2 (#68). /ct/ = ct-movement (CT Core).
 Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (source docs/orchestrator/dashboard.html; stale since
 2026-10-20, update when convenient).
 
@@ -75,7 +75,7 @@ CT Core slices 4+5 PR #66 @ 515b1f07 (/ct/ there): desktop check + anim / wall /
 after #65's. e2e-mouse remap section times out on master 6a4fb07f too (laptop checks it solo on 04ec4cd6). Merge
 order: #65, #66, then tuner-v2 (Menu Notes resolves the footPlanner conflict after #66). Anim Studio PR 1 building on
 feature/anim-studio (from 2287d5b7).
-04:30 the 5-hour window reset (0%), weekly 84%. ~05:10: #65 merged as 4.23.0, #66 as 4.24.0 (CHANGELOG-only
+04:30 the 5-hour window reset (0%), weekly 84%. #68 tuner-v2 merged as 4.25.0 (laptop full PASS, CI); Menu Notes idle. ~05:10: #65 merged as 4.23.0, #66 as 4.24.0 (CHANGELOG-only
 conflicts). Next: Menu Notes merges master into tuner-v2 (footPlanner, keep both), laptop check + e2e-anim, PR, full
 e2e; CT Core merges master into #67 (S2b; laptop full e2e on 468fa2c7 running) and builds the Weight group
 (feature/anim-weight); Course Ready finishing Anim Studio PR 1 checks (989ba439 + fixes), then PR 2 (co-op pairs, guard
