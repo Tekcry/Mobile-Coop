@@ -2,6 +2,8 @@
 // in-game action follows), the Graphics menu (presets, Custom, the frame cap), and the Epic
 // renderer booting in a match (clustered lights, shadow casters, the post stack) without console errors; 16:10,
 // 21:9 and 32:9 windows (centred menus, the HUD inset, Hor+ up to the FOV cap).
+// (smooth-world: parts 3 and 4 test the voxel renderer - voxel world, bodies, weapons, chips, ray-traced reflections -
+// so they pass `?voxels=1`; the smooth default's baked lamps and RT fallback are checked in e2e-lightbake)
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -332,7 +334,7 @@ try {
 
   if (part(3)) {
   // the Epic renderer in a match (small window: software GL)
-  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic', viewport: { width: 640, height: 360 } });
+  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&voxels=1', viewport: { width: 640, height: 360 } });
   browser = e.browser;
   await e.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
@@ -580,7 +582,7 @@ try {
 
   if (part(4)) {
   // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
-  const u = await launch({ url, params: 'autostart=warehouse&gfx=user', viewport: { width: 640, height: 360 } });
+  const u = await launch({ url, params: 'autostart=warehouse&gfx=user&voxels=1', viewport: { width: 640, height: 360 } });
   browser = u.browser;
   await u.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);
