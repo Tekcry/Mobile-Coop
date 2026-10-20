@@ -594,9 +594,9 @@ try {
       console.log(JSON.stringify(r));
       assert(r.capKept, 'D-pad up / down leave the speed alone (anim-rework S1: no rocker)');
       // (anim-rework S1, Michael: "full speed control via the analogue stick depending on how far you push the stick")
-      // raw 50 / 80 / 100% = ~1.4 sneak / ~2.0 walk / 4.5 run (the STICK_SPEED curve; x the weapon's handling)
+      // raw 50 / 80 / 100% = ~1.4 sneak / ~2.0 walk / 4.0 run (anim-rework S2, M6: was 4.5) (the STICK_SPEED curve; x the weapon's handling)
       assert(r.a50.g === 2 && r.a80.g === 3 && r.a100.g === 5, `stick 50 / 80 / 100% -> sneak / walk / run (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
-      assert(r.a50.v > 1.1 && r.a50.v < 1.6 && r.a80.v > 1.7 && r.a80.v < 2.25 && r.a100.v > 3.9, `speed follows the stick (${r.a50.v} / ${r.a80.v} / ${r.a100.v} m/s)`);
+      assert(r.a50.v > 1.1 && r.a50.v < 1.6 && r.a80.v > 1.7 && r.a80.v < 2.25 && r.a100.v > 3.5, `speed follows the stick (${r.a50.v} / ${r.a80.v} / ${r.a100.v} m/s)`);
       assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, the run (${JSON.stringify(r.sprint)})`);
       assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `the internal cap 3 (tests) holds the full stick at the walk (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');

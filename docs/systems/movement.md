@@ -80,6 +80,17 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   outside it steps back in; only guards at alert level 'unaware' set off the tense sneak; a start's gait clock counts
   the target pace for 0.5 s (`START_CLOCK`: the first step lands at ~0.28 s); a stop draws in only a trailing swing foot,
   and a lunge wider than `STOP_CLOSE` 0.45 m closes the rear foot in once after the freeze.
+- (anim-rework S2, the real-world standard; `docs/anim-rework/S2-REPORT.md`) Standing free movement: the run is 4.0 m/s
+  (M6, was 4.5); steps are `0.3 + 0.24 v` up to `stepLenMax` 1.3 m (the walk `WALK_STEP.k` 0.2 to 2.1 m/s; crouched keeps
+  `CROUCH_STEP` 0.3 + 0.2 v, 0.95 m): 2.4 steps/s at 1.4 m/s, 2.9 at the jog, 3.2 at the run (was 4.7). A landing keeps
+  `FREE_GAP` 0.85 of the stance width from the other foot (was a fixed 13 cm, which pushed the left foot out: the wide
+  walk). Standing, a planted foot steps back into the band `TURN_FOLLOW.standMinLateral`..`standMaxLateral`
+  0.03-0.09 m and is never scrubbed through a turn or a direction change (the scrub runs only after `SPIN_SCRUB` 0.5 s of
+  continuous fast turning; crouched keeps the G1 band and scrub); a clock swing waits while the other foot is still in
+  the air from a rule step at a walk (no two-footed hop in a turn from a standstill); a planted heel rises at most
+  `HEEL_RISE` 6 rad/s (a start's first frame no longer drags the ankle); the pelvis trails the chest toward the planted
+  feet by up to `PELVIS_FOLLOW_MAX` 0.35 rad (was 0.05: the upper body turns first). The rest stance is hip width
+  (`IDLE_STANCE` extra 0, lead 0.04).
 - Forward roll: crouch tapped standing at gear >= `rollGear` 5 (or sprinting) while moving >= 1.5 m/s
   (`TraversalController.canForwardRoll`) = `startRoll(true)`: `ROLL` clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m
   (shortened by a wall), comes up crouched; noise `CT.rollNoise` 2 m. HUD gear pips: `Hud.setGear` (`GEARS.pipsShow` 1.5 s).

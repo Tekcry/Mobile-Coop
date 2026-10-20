@@ -187,7 +187,7 @@ Michael 2026-10-20: "remove the speed toggle, and allow full speed control via t
 you push the stick". No gears, no D-pad speed buttons, no mouse-wheel speed.
 - `player/speedGears.ts` `stickSpeed(u, crouched)` (pure): `u` = the stick's travel past the dead zone (`stickCurve`; the
   pad's radial dead zone 0.15 first, then `GEARS.deadZone` 0.05), piecewise linear through `STICK_SPEED.at`
-  [0, 0.15, 0.45, 0.8, 0.9, 0.97] to [0.4, 0.75, 1.4, 2.1, 3.0, 4.5] m/s standing and [0.4, 0.85, 1.3, 1.7, 2.15, 2.6]
+  [0, 0.15, 0.45, 0.8, 0.9, 0.97] to [0.4, 0.75, 1.4, 2.1, 3.0, 4.0] m/s standing (anim-rework S2, M6: the run was 4.5) and [0.4, 0.85, 1.3, 1.7, 2.15, 2.6]
   crouched (the slowest creep, then creep / sneak / walk / jog / run). Most of the travel (to 0.8) is the stealth range;
   the last fifth is the jog and the run. Raw stick 50 / 80 / 90 / 100 % standing (the default radial dead zone 0.15, outer 0.98): ~1.3 / ~2.0 / ~3.0 / 4.5 m/s.
 - Keyboard (A1): WASD at the walk point (2.1 / 1.7 m/s), Left Shift held the run, Left Alt held the creep (`KBM_PACE`).

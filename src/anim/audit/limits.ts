@@ -197,4 +197,35 @@ export function crabRanges(crouched: boolean): CrabRanges {
   return crouched ? CRAB_CROUCH : CRAB;
 }
 export type CrabGait = 'walk' | 'jog' | 'run' | 'crouch' | 'sneak';
-export const CRAB_GATES: Record<CrabGait, boolean> = { walk: false, jog: false, run: false, crouch: false, sneak: false };
+// (anim-rework S2) walk, jog and run on: the standing holstered keyed set (S2-REPORT.md)
+export const CRAB_GATES: Record<CrabGait, boolean> = { walk: true, jog: true, run: true, crouch: false, sneak: false };
+
+/**
+ * (anim-rework S2) A standstill (the idle) reads against the brief's stance, feet about hip width (BRIEF 3): Wren's hip
+ * joints are ~17 cm apart, so a foot's centre up to `trackHalf` 10.5 cm from the line under the hips (the hip joint plus
+ * a little splay; the walk's 7 cm is a step width, not a stance). The other ranges are the standing ones. A start
+ * leaves from that stance and a stop settles into it, so their track reads against it too (`CRAB_IDLE_TRACK`).
+ */
+export const CRAB_IDLE = { ...CRAB, trackHalf: 0.105 } as const;
+/** (anim-rework S2) The standing holstered sub-states e2e-anim samples at speeds 1-3 (CRAB_STATES). */
+export type CrabState = 'idle' | 'start' | 'straight' | 'stop' | 'turn' | 'change90' | 'change180';
+/** (anim-rework S2) Which sub-states assert on every e2e-anim run (switched on as each passes). */
+// (anim-rework S2) the 90 / 180 deg direction changes stay report-only: at 1.4-2.1 m/s the knees still open to 1.4 x and
+// a knee reads 5-13 cm outside its ankle for a few frames (S2-REPORT.md, open items)
+export const CRAB_STATE_GATES: Record<CrabState, boolean> = { idle: true, start: true, straight: true, stop: true, turn: true, change90: false, change180: false };
+/** (anim-rework S2) The sub-states whose track reads against the idle stance (CRAB_IDLE): a start leaves it, a stop settles into it. */
+export const CRAB_IDLE_TRACK: readonly CrabState[] = ['idle', 'start', 'stop'];
+/**
+ * (anim-rework S2) The metrics each gated sub-state asserts. A turn (round from a standstill, a 90 or 180 deg change)
+ * leaves the planted-foot track report-only: the pelvis frame turns under a planted foot, so the track there reads the
+ * turn itself (METRICS.md); its slide, knees and elbows do not depend on it and assert.
+ */
+export const CRAB_STATE_CHECKS: Record<CrabState, readonly string[]> = {
+  idle: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  start: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  straight: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  stop: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  turn: ['knees', 'knee-out', 'slide', 'elbows'],
+  change90: ['knees', 'knee-out', 'slide', 'elbows'],
+  change180: ['knees', 'knee-out', 'slide', 'elbows'],
+};

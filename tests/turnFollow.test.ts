@@ -8,8 +8,9 @@ import { flick, run, SCENARIOS, spin, TAU, wrap } from './turnHarness';
 
 describe('turn follow (A1.2): pelvis and knees', () => {
   it('pelvis follows the planted feet a little (PELVIS_FOLLOW_MAX), eased; the knee pole sits between the hips and toes', () => {
-    // (G1, audit row 1) CT turns the hips with the chest: the follow is capped at 3 deg (was 20)
-    expect(PELVIS_FOLLOW_MAX).toBeLessThanOrEqual(0.05 + 1e-9);
+    // (G1, audit row 1) CT turned the hips with the chest (3 deg); (anim-rework S2, the real-world standard) the hips trail
+    // the chest toward the planted feet again, up to 20 deg (BRIEF 4: the upper body turns first, the feet step round)
+    expect(PELVIS_FOLLOW_MAX).toBeLessThanOrEqual(0.35 + 1e-9);
     // feet 60 deg left of the root: the pelvis goes half way, clamped
     let f = 0;
     for (let k = 0; k < 120; k++) f = pelvisFollow(f, 0, 1.05, 1.05, true, true, 1 / 120);
@@ -89,16 +90,21 @@ describe('foot planner: legs follow the body (A1.2)', () => {
       it(`${sc.name} at ${hz} Hz: no crossing, legs turn with the body, inside the stance band, knees forward, strides forward`, () => {
         const r = run({ ...sc.o, hz });
         // 1. never crossed in the pelvis frame (any frame), wider with both planted
-        expect(r.minGapNear, 'gap any').toBeGreaterThanOrEqual(0.06);
-        expect(r.minGapPlanted, 'gap planted').toBeGreaterThanOrEqual(0.11);
+        // (anim-rework S2) standing the feet land on the narrow keyed track (the gap follows the stance, FREE_GAP)
+        const stand = !sc.o.crouch;
+        expect(r.minGapNear, 'gap any').toBeGreaterThanOrEqual(stand ? 0.03 : 0.06);
+        expect(r.minGapPlanted, 'gap planted').toBeGreaterThanOrEqual(stand ? 0.03 : 0.11);
         // 2. (G1, audit row 1) free movement turns the legs with the body as CT does: a planted foot stays within
         // TURN_FOLLOW.twistFree of the body (it scrubs round with it; was a 52 deg world lock), the pelvis with the chest
         expect(r.maxPlantedTwistBody, 'planted twist (body)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + 1e-6);
         expect(r.maxPlantedTwist, 'planted twist (pelvis)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + PELVIS_FOLLOW_MAX + 1e-6);
         // (G1, audit row 2) no lateral splay: planted feet inside the stance band either side of the midline
         // (the capped scrub lets a foot out by a few cm in a held 400 deg/s spin before it steps back in)
-        expect(r.latMax, 'planted lateral').toBeLessThanOrEqual(TURN_FOLLOW.maxLateral + 0.05);
-        expect(r.latMin, 'planted lateral (no crossing under the body)').toBeGreaterThanOrEqual(TURN_FOLLOW.minLateral - 0.04);
+        // (anim-rework S2) standing the planted feet stay locked through the first SPIN_SCRUB s of a turn (no scrub: they
+        // step), so a tight 450 deg/s spin or flick at 2-4 m/s leaves a planted foot up to ~0.3 m out before it steps;
+        // never crossed under the body (within a cm of the midline on the narrow track)
+        expect(r.latMax, 'planted lateral').toBeLessThanOrEqual(stand ? 0.32 : TURN_FOLLOW.maxLateral + 0.05);
+        expect(r.latMin, 'planted lateral (no crossing under the body)').toBeGreaterThanOrEqual(stand ? -0.01 : TURN_FOLLOW.minLateral - 0.04);
         // 3. knees never backwards
         expect(r.maxKnee).toBeLessThanOrEqual(0.6 + 1e-6);
         // 4. strides forward in turns, landing yaw near the body
@@ -158,9 +164,9 @@ describe('remote parity (A1.2): a co-op partner posed from snapshots', () => {
       const r = run({ ...sc.o, remote: true });
       expect(r.minGapNear).toBeGreaterThanOrEqual(0.04);
       expect(r.maxPlantedTwist).toBeLessThanOrEqual(1.25);
-      // (G1) the remote copy's legs turn with its body too, inside the same stance band
+      // (G1) the remote copy's legs turn with its body too, inside the same stance band (anim-rework S2: standing as above)
       expect(r.maxPlantedTwistBody).toBeLessThanOrEqual(TURN_FOLLOW.twistFree + 1e-6);
-      expect(r.latMax).toBeLessThanOrEqual(TURN_FOLLOW.maxLateral + 0.05);
+      expect(r.latMax).toBeLessThanOrEqual(!sc.o.crouch ? 0.32 : TURN_FOLLOW.maxLateral + 0.05);
       expect(r.maxKnee).toBeLessThanOrEqual(0.6 + 1e-6);
       for (const l of r.landings) {
         if (!l.turning || l.back) continue;

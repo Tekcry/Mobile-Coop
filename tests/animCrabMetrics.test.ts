@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CRAB, CRAB_CROUCH, CRAB_GATES, crabRanges } from '../src/anim/audit/limits';
+import { CRAB, CRAB_CROUCH, CRAB_GATES, CRAB_IDLE, CRAB_STATE_CHECKS, CRAB_STATE_GATES, crabRanges } from '../src/anim/audit/limits';
 import { CRAB_JOINTS, crabFrame, elbowWing, footTrack, kneeBow, kneeSeparation, pelvisFrame, plantedSlide, type CrabNow } from '../src/anim/audit/metrics';
 
 /** A stream of `n` frames of the same point. */
@@ -125,8 +125,15 @@ describe('anti-crab metrics (anim-rework BRIEF 5)', () => {
     expect(CRAB_CROUCH.trackHalf).toBeGreaterThan(CRAB.trackHalf);
   });
 
-  it('every gait is report-only until its slice lands', () => {
+  it('every gait is report-only until its slice lands (anim-rework S2: walk, jog, run on)', () => {
     expect(Object.keys(CRAB_GATES).sort()).toEqual(['crouch', 'jog', 'run', 'sneak', 'walk']);
-    expect(Object.values(CRAB_GATES).every((v) => v === false)).toBe(true);
+    expect(CRAB_GATES).toEqual({ walk: true, jog: true, run: true, crouch: false, sneak: false });
+    // the standing holstered sub-states: on as each passes; a turn asserts all but the track (it reads the turn itself)
+    expect(CRAB_STATE_GATES).toEqual({ idle: true, start: true, straight: true, stop: true, turn: true, change90: false, change180: false });
+    expect(CRAB_STATE_CHECKS.turn).not.toContain('track');
+    expect(CRAB_STATE_CHECKS.straight).toEqual(['knees', 'track', 'knee-out', 'slide', 'elbows']);
+    // the idle stance is hip width (about 9 cm a foot), wider than a walking step
+    expect(CRAB_IDLE.trackHalf).toBeGreaterThan(CRAB.trackHalf);
+    expect(CRAB_IDLE.trackHalf).toBeLessThanOrEqual(0.11);
   });
 });

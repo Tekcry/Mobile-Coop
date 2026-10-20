@@ -114,7 +114,7 @@ try {
   // (CT prototype M1) a full run in about 0.4-0.5 s (CT.startTime 0.45): 95% of the pace at every speed
   const walkT = await reach({ y: 1 }, 2.0, 3);
   const jogT = await reach({ y: 1 }, 3.0, 4);
-  const sprintT = await reach({ y: 1 }, 4.2, 5);
+  const sprintT = await reach({ y: 1 }, 3.8, 5);
   assert(walkT > 0.3 && walkT <= 0.45 + 2 / 60, `speed 3: 95% speed in ${f2(walkT)} s (0.3-0.48)`);
   assert(jogT > 0.3 && jogT <= 0.45 + 2 / 60, `speed 4: 95% speed in ${f2(jogT)} s (0.3-0.48)`);
   assert(sprintT > 0.3 && sprintT <= 0.45 + 2 / 60, `run: 95% speed in ${f2(sprintT)} s (0.3-0.48)`);
@@ -335,6 +335,9 @@ try {
       t.tp(12, -14, -Math.PI / 2);
       if (gear) c.gears.set(gear);
       c['crouchToggled'] = !!crouch;
+      // (anim-rework S2) the holstered gaits and sub-states measure holstered (the aim checks above leave the gun at low
+      // ready); an aimed segment draws it again itself
+      if (!segs.some((sg) => sg.inp?.ads)) p.stance.holster();
       const joints = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR'];
       const out = Object.fromEntries(joints.map((j) => [j, []]));
       out.contactL = [];
@@ -361,8 +364,9 @@ try {
     }, [gear ?? null, !!crouch, segs]);
   const cm = (v) => (v * 100).toFixed(1);
   /** The crab numbers of a recording against the stance's ranges (`L.crabRanges`). */
-  const crabRow = (name, rec, crouch) => {
-    const C = L.crabRanges(!!crouch);
+  const crabRow = (name, rec, crouch, idle) => {
+    // (anim-rework S2) a standstill reads against the idle's hip-width stance (L.CRAB_IDLE)
+    const C = idle ? L.CRAB_IDLE : L.crabRanges(!!crouch);
     const knee = M.kneeSeparation(rec.hipL, rec.hipR, rec.kneeL, rec.kneeR, C.kneeSep.min, C.kneeSep.max);
     // (a standstill has no plants to sample: the track then reads every frame of both feet)
     const anyPlant = rec.contactL.some(Boolean) || rec.contactR.some(Boolean);
@@ -401,11 +405,14 @@ try {
     }
   }
   if (process.env.CRAB_JSON) console.log(`CRAB_JSON ${JSON.stringify(crabRows)}`);
-  if (process.env.CRAB_STATES === '1') {
+  {
     // (anim-metrics-2) the walk Michael tested, every sub-state at speeds 1-3 (standing, holstered unless aiming): idle,
     // start, the straight walk, stop, a turn round from a standstill, a 90 deg and a 180 deg direction change, and
-    // aimed strafe and backwards
-    console.log('anti-crab: walk sub-states at speeds 1-3 (CRAB_STATES=1)');
+    // aimed strafe and backwards. (anim-rework S2) The standing holstered sub-states CRAB_STATE_GATES turns on run and
+    // assert on every e2e-anim run (CRAB_STATE_CHECKS: which metrics, and why); CRAB_STATES=1 adds the rest as a table.
+    const all = process.env.CRAB_STATES === '1';
+    if (all) console.log('anti-crab: walk sub-states at speeds 1-3 (CRAB_STATES=1)');
+    else console.log('anti-crab: standing holstered sub-states at speeds 1-3 (CRAB_STATE_GATES)');
     const states = [
       ['idle', [{ sec: 0.6, inp: {} }, { sec: 1.0, inp: {}, rec: true }]],
       ['start', [{ sec: 0.6, inp: {} }, { sec: 0.8, inp: { y: 1 }, rec: true }]],
@@ -417,13 +424,26 @@ try {
       ['strafe (aiming)', [{ sec: 0.6, inp: { x: 1, ads: true } }, { sec: 1.5, inp: { x: 1, ads: true }, rec: true }]],
       ['backwards (aiming)', [{ sec: 0.6, inp: { y: -1, ads: true } }, { sec: 1.5, inp: { y: -1, ads: true }, rec: true }]],
     ];
+    const stateKey = { idle: 'idle', start: 'start', straight: 'straight', stop: 'stop', 'turn round (standstill)': 'turn', '90 deg change': 'change90', '180 deg change': 'change180' };
     const stateRows = [];
     for (const gear of [1, 2, 3]) {
       for (const [name, segs] of states) {
+        const key = stateKey[name];
+        const gated = !!(key && L.CRAB_STATE_GATES[key]);
+        if (!all && !gated) continue;
         const rec = await crabRecord(gear, false, segs);
-        const r = crabRow(`speed ${gear} ${name}`, rec, false);
+        const r = crabRow(`speed ${gear} ${name}`, rec, false, L.CRAB_IDLE_TRACK.includes(key));
         stateRows.push({ gear, ...r.row });
-        console.log(crabLine(r, rec));
+        console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
+        if (!gated) continue;
+        const C = r.C;
+        const want = L.CRAB_STATE_CHECKS[key];
+        const n = r.name;
+        if (want.includes('knees')) assert(r.knee.pass, `${n}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
+        if (want.includes('track')) assert(r.track.pass, `${n}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
+        if (want.includes('knee-out')) assert(r.bow.pass, `${n}: knees over the toes (outside by ${r.row.bow} cm)`);
+        if (want.includes('slide')) assert(r.slide < C.slide, `${n}: planted feet locked (${r.row.slide} cm)`);
+        if (want.includes('elbows')) assert(r.wing.pass, `${n}: elbows in (${r.row.wing} cm outside the shoulder)`);
       }
     }
     if (process.env.CRAB_JSON) console.log(`CRAB_STATES_JSON ${JSON.stringify(stateRows)}`);

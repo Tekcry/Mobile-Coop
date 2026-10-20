@@ -10,7 +10,7 @@
  * Theory the pelvis, knees and feet turn as one unit with the chest (105624 @ 24-27, 105949 @ 10-13), and the planted
  * feet now turn with the root (footPlanner `TURN_FOLLOW.twistFree`), so the hips stay with the chest.
  */
-export const PELVIS_FOLLOW_MAX = 0.05;
+export const PELVIS_FOLLOW_MAX = 0.35;
 /** Ease time constant of the pelvis follow (s). */
 export const PELVIS_FOLLOW_TAU = 0.06;
 /** Largest knee pole yaw away from the pelvis (rad). */
@@ -41,10 +41,17 @@ export function pelvisFollow(prev: number, rootYaw: number, lYaw: number, rYaw: 
   return prev + (target - prev) * k;
 }
 
-/** The knee pole world yaw: between the pelvis and the toes, never more than KNEE_POLE_MAX from the pelvis (NaN pelvis: the foot yaw). */
-export function kneePoleYaw(pelvisYaw: number, footYaw: number): number {
+/**
+ * The knee pole world yaw: between the pelvis and the toes (`share` of the way, 0.5 by default), never more than
+ * KNEE_POLE_MAX from the pelvis (NaN pelvis: the foot yaw). (anim-rework S2) A swinging leg passes `KNEE_SWING_SHARE`:
+ * its knee stays forward under the hips while the foot turns to its landing (a foot still turned from the last plant
+ * swung its knee 7-9 cm outside the ankle through a direction change).
+ */
+export const KNEE_SWING_SHARE = 0.15;
+
+export function kneePoleYaw(pelvisYaw: number, footYaw: number, share = 0.5): number {
   if (Number.isNaN(pelvisYaw)) return footYaw;
-  let d = 0.5 * wrap(footYaw - pelvisYaw);
+  let d = share * wrap(footYaw - pelvisYaw);
   if (d > KNEE_POLE_MAX) d = KNEE_POLE_MAX;
   else if (d < -KNEE_POLE_MAX) d = -KNEE_POLE_MAX;
   return pelvisYaw + d;

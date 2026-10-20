@@ -2,8 +2,11 @@
 // footage numbers (G8-REPORT.md "Before"), the graph's weight and the rig playing it (NullEngine), owner and remote alike.
 import { describe, expect, it } from 'vitest';
 import { AnimGraph, defaultInput, KEYED_WALK_BAND } from '../src/anim/animGraph';
-import { KA, KQ, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
+import { KA, KQ, mixKeyed, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
+import { KEYED_JOG } from '../src/anim/clips/keyed/jog';
+import { KEYED_RUN } from '../src/anim/clips/keyed/run';
+import { KEYED_IDLE } from '../src/anim/clips/keyed/idle';
 import { proportions } from '../src/player/proportions';
 
 const C = KEYED_WALK;
@@ -35,8 +38,10 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
   const o = newKeyedPose();
   const at = (ph: number) => sampleKeyed(C, ph, 1, o);
   it('narrow track, hands close, counter-swinging arms, small bob and sway', () => {
-    // track: the feet under the body (CT ~0.6-0.75 hip widths; ours was 0.98), the soles clear (>= 0.11 m apart)
-    expect(C.half * 2).toBeGreaterThanOrEqual(0.11);
+    // track: the feet under the body (CT ~0.6-0.75 hip widths; ours was 0.98); (anim-rework S2, Michael 14:45 "wide
+    // stance") the ankle centres about a foot width apart (>= 0.09 m: the lifted swing foot passes the planted one)
+    expect(C.half * 2).toBeGreaterThanOrEqual(0.09);
+    expect(C.half).toBeLessThanOrEqual(0.05);
     expect((C.half * 2) / (2 * proportions().hipHalf)).toBeLessThanOrEqual(0.75);
     expect(C.kneeOut).toBeLessThanOrEqual(0.05);
     let swingL = [9, -9];
@@ -54,9 +59,13 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
       // and never in toward the body
       expect(-o.arm[KA.elbowL]!).toBeGreaterThanOrEqual(0);
       expect(o.arm[KA.wristR]!).toBeGreaterThanOrEqual(-0.05);
-      // (round 2) carried forward of the shoulder all through (CT 105949: the upper arm 31-47 deg ahead in the picture)
-      expect(o.arm[KA.elbowR + 2]!).toBeGreaterThan(0.1);
-      expect(o.arm[KA.elbowL + 2]!).toBeGreaterThan(0.1);
+      // (anim-rework S2, M6 Michael: "arms go out in front of body when moving, it looks weird like a zombie. Arms should
+      // stay parallel the body") the upper arms along the sides: the elbow within 8 cm fore or aft of the shoulder, the
+      // hand at most 23 cm ahead of it at the front of its swing (the round 2 carry held the elbows 10+ cm forward all through)
+      expect(Math.abs(o.arm[KA.elbowR + 2]!)).toBeLessThan(0.08);
+      expect(Math.abs(o.arm[KA.elbowL + 2]!)).toBeLessThan(0.08);
+      expect(o.arm[KA.wristR + 2]!).toBeLessThan(0.23);
+      expect(o.arm[KA.wristL + 2]!).toBeLessThan(0.23);
       swingL = [Math.min(swingL[0]!, o.arm[KA.wristL + 2]!), Math.max(swingL[1]!, o.arm[KA.wristL + 2]!)];
       swingR = [Math.min(swingR[0]!, o.arm[KA.wristR + 2]!), Math.max(swingR[1]!, o.arm[KA.wristR + 2]!)];
       pelY = [Math.min(pelY[0]!, o.pel[1]!), Math.max(pelY[1]!, o.pel[1]!)];
@@ -65,7 +74,8 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     // the wrist's fore-aft swing (CT about +-0.1-0.15 m)
     // (round 2: a small swing about the forward carry, CT 31-47 deg)
     expect(swingL[1]! - swingL[0]!).toBeGreaterThanOrEqual(0.08);
-    expect(swingL[1]! - swingL[0]!).toBeLessThanOrEqual(0.25);
+    // (anim-rework S2, M6: the arms swing naturally along the sides; a real walk swings the hand ~0.3 m)
+    expect(swingL[1]! - swingL[0]!).toBeLessThanOrEqual(0.35);
     expect(swingR[1]! - swingR[0]!).toBeCloseTo(swingL[1]! - swingL[0]!, 2);
     // counter swing: the right hand forward at the left heel strike, the left at the right one
     at(0);
@@ -79,14 +89,16 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     at(0.75);
     expect(o.pel[0]).toBeGreaterThan(0.008);
     expect(pelY[1]! - pelY[0]!).toBeLessThanOrEqual(0.012);
-    // (round 3) lower and heavier: the pelvis held ~5 cm under its rest (round 2: ~7, read as a crouch), a little forward
+    // (round 3) lower and heavier: the pelvis held ~3-5 cm under its rest (round 2: ~7, read as a crouch), a little forward
+    // (anim-rework S2, M6: upright, no lean: the pelvis over the feet, under 1 cm forward)
     expect(C.meanPel[1]!).toBeLessThan(-0.03);
     expect(C.meanPel[1]!).toBeGreaterThan(-0.07);
-    expect(C.meanPel[2]!).toBeGreaterThan(0.01);
+    expect(C.meanPel[2]!).toBeGreaterThan(0.005);
     // the hips and the shoulders turn against each other (pelvis yaw and chest yaw of opposite sign at the heel strike)
     at(0);
     const yaw = (s: number) => 2 * Math.atan2(o.q[s + 1]!, o.q[s + 3]!);
-    expect(yaw(KQ.pelvis)).toBeGreaterThan(0.04);
+    // (anim-rework S2: 2 deg, was 4: a turned pelvis frame read the forward foot off the line)
+    expect(yaw(KQ.pelvis)).toBeGreaterThan(0.025);
     expect(yaw(KQ.pelvis) + yaw(KQ.spine) + yaw(KQ.chest)).toBeLessThan(-0.03);
   });
 });
@@ -119,6 +131,67 @@ describe('the graph plays the keyed walk', () => {
     expect(steady((i) => (i.speed = 0)).g.out.keyW).toBe(0);
     // (G8 fix) not when the rig says no (a held guard, a carried body, a guard's own rig)
     expect(steady((i) => ((i.speed = 1.4), (i.keyedOk = false))).g.out.keyW).toBe(0);
+  });
+  it('(anim-rework S2) holstered the keyed set covers the jog, the run and the idle; drawn it keeps the walk band', () => {
+    const hol = (i: ReturnType<typeof defaultInput>) => ((i.ready = true), (i.armed = false));
+    for (const v of [0, 0.75, 1.4, 2.1, 2.6, 3, 3.6, 4.5]) {
+      expect(steady((i) => (hol(i), (i.speed = v)), 90).g.out.keyW, `holstered ${v} m/s`).toBeGreaterThan(0.95);
+      expect(steady((i) => (hol(i), (i.speed = v)), 90).g.out.keyArmW, `holstered arms ${v} m/s`).toBeGreaterThan(0.95);
+    }
+    // the track narrows with the pace (the run lands nearer the line), and the idle stands about hip width
+    const k = proportions().height / 1.75;
+    const rX = (v: number) => steady((i) => (hol(i), (i.speed = v)), 120).g.out.stance.rX / k;
+    expect(rX(3)).toBeCloseTo(KEYED_JOG.half, 2);
+    expect(rX(4.5)).toBeCloseTo(KEYED_RUN.half, 2);
+    expect(rX(0)).toBeCloseTo(KEYED_IDLE.half, 2);
+    // drawn (a lowered gun in the hands): the jog and the idle stay procedural, as before
+    expect(steady((i) => ((i.armed = true), (i.speed = 3))).g.out.keyW).toBe(0);
+    expect(steady((i) => ((i.armed = true), (i.speed = 0))).g.out.keyW).toBe(0);
+  });
+  it('(anim-rework S2) one continuous speed blend: no pop in the keyed pose from a creep to a run', () => {
+    const g = new AnimGraph(proportions());
+    const i = defaultInput();
+    i.localZ = 1;
+    i.keyedOk = true;
+    i.ready = true;
+    i.phase = 0.25;
+    let prev: Float64Array | null = null;
+    let worst = 0;
+    for (let n = 0; n < 60; n++) g.update(1 / 60, ((i.speed = 0.5), i));
+    // the pace ramps 0.5 -> 4.5 m/s over 4 s at a fixed gait phase: only the blend changes the pose
+    for (let n = 0; n <= 240; n++) {
+      i.speed = 0.5 + (4 * n) / 240;
+      g.update(1 / 60, i);
+      const a = g.out.keyed.arm;
+      if (prev) for (let c = 0; c < 12; c++) worst = Math.max(worst, Math.abs(a[c]! - prev[c]!));
+      prev = Float64Array.from(a);
+    }
+    // an arm point moves under 2 cm a frame at this fast ramp (1 m/s a second; a gear pop moved the elbows ~10 cm at once)
+    expect(worst).toBeLessThan(0.02);
+  });
+  it('(anim-rework S2) the jog and run keys: elbows bent and close to the ribs, the hands never across the midline', () => {
+    const o = newKeyedPose();
+    for (const clip of [KEYED_JOG, KEYED_RUN]) {
+      let flexMin = 999;
+      for (let f = 0; f < 32; f++) {
+        sampleKeyed(clip, f / 32, 1, o);
+        for (const side of [-1, 1]) {
+          const e = side < 0 ? KA.elbowL : KA.elbowR;
+          const w = side < 0 ? KA.wristL : KA.wristR;
+          // the elbow at most 5 cm out from the shoulder (the chest frame; the METRICS elbow wing is 6 cm)
+          expect(side * o.arm[e]!, `${clip.name} elbow out`).toBeLessThanOrEqual(0.05);
+          // the hand inside the shoulder line but not across the midline (the shoulder joint is ~0.17 m out)
+          expect(side * o.arm[w]!, `${clip.name} hand in`).toBeGreaterThan(-0.15);
+          const ux = o.arm[e]!, uy = o.arm[e + 1]!, uz = o.arm[e + 2]!;
+          const vx = o.arm[w]! - ux, vy = o.arm[w + 1]! - uy, vz = o.arm[w + 2]! - uz;
+          const c = (ux * vx + uy * vy + uz * vz) / Math.hypot(ux, uy, uz) / Math.hypot(vx, vy, vz);
+          flexMin = Math.min(flexMin, (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI);
+        }
+      }
+      // elbows bent 70+ deg all through the cycle (the jog / run carriage, not a straight-arm swing)
+      expect(flexMin, `${clip.name} elbow flex`).toBeGreaterThanOrEqual(70);
+      expect(clip.duty).toBeLessThan(0.5);
+    }
   });
   it('eases in (no pop) and narrows the stance; free arms only when holstered', () => {
     const { g, maxStep } = steady((i) => (i.speed = 1.4));
@@ -195,7 +268,8 @@ describe('the rig plays the keyed walk (NullEngine)', () => {
       expect(seen).toBeGreaterThan(100);
       expect(minKnee, remote ? 'remote knees' : 'knees').toBeGreaterThanOrEqual(0.09);
       // (within 3 cm: the trunk clearance may swivel an elbow carried in front of the body)
-      expect(maxArmErr, remote ? 'remote arm' : 'arm').toBeLessThanOrEqual(0.03);
+      // (anim-rework S2: the arms along the sides pass nearer the hips, the clearance swivels a touch more: 3.5 cm)
+      expect(maxArmErr, remote ? 'remote arm' : 'arm').toBeLessThanOrEqual(0.035);
       // (G8 fix) holding a guard (the close-quarters bend) the keyed walk lets go: the hostage walk keeps its own stance
       pose.bend = 0.08;
       for (let n = 0; n < 40; n++) {
@@ -207,5 +281,30 @@ describe('the rig plays the keyed walk (NullEngine)', () => {
       rig.dispose();
     }
     scene.dispose();
+  });
+});
+
+describe('(anim-rework S2) mixKeyed', () => {
+  it('lerps offsets and arm points, nlerps quaternions on one hemisphere, in place', () => {
+    const a = newKeyedPose();
+    const b = newKeyedPose();
+    sampleKeyed(KEYED_WALK, 0.1, 1, a);
+    sampleKeyed(KEYED_JOG, 0.1, 1, b);
+    // b's quaternions flipped to the other hemisphere: the same rotations
+    for (let c = 0; c < 16; c++) b.q[c] = -b.q[c]!;
+    const o = newKeyedPose();
+    mixKeyed(a, b, 0, o);
+    for (let c = 0; c < 12; c++) expect(o.arm[c]).toBeCloseTo(a.arm[c]!, 9);
+    for (let c = 0; c < 16; c++) expect(o.q[c]).toBeCloseTo(a.q[c]!, 9);
+    mixKeyed(a, b, 1, o);
+    for (let c = 0; c < 3; c++) expect(o.pel[c]).toBeCloseTo(b.pel[c]!, 9);
+    for (let s = 0; s < 16; s += 4) expect(Math.abs(o.q[s]! * b.q[s]! + o.q[s + 1]! * b.q[s + 1]! + o.q[s + 2]! * b.q[s + 2]! + o.q[s + 3]! * b.q[s + 3]!)).toBeCloseTo(1, 9);
+    mixKeyed(a, b, 0.5, o);
+    for (let c = 0; c < 12; c++) expect(o.arm[c]).toBeCloseTo((a.arm[c]! + b.arm[c]!) / 2, 9);
+    for (let s = 0; s < 16; s += 4) expect(Math.hypot(o.q[s]!, o.q[s + 1]!, o.q[s + 2]!, o.q[s + 3]!)).toBeCloseTo(1, 9);
+    // in place (out = a)
+    const keep = Float64Array.from(b.arm);
+    mixKeyed(a, b, 1, a);
+    for (let c = 0; c < 12; c++) expect(a.arm[c]).toBeCloseTo(keep[c]!, 9);
   });
 });

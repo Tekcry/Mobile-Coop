@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - anim-rework
+- Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
+  2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear
+  pops). The walk is upright with the knees and feet under the hips and the arms hanging along the sides; the arm swing
+  grows with the pace and the forward lean comes in only toward the run. The run is 4.0 m/s (was 4.5) with longer
+  strides and fewer steps (3.2 a second, was 4.7; the walk 2.4, was 2.6). The idle breathes, shifts its weight and scans
+  with the head, feet about hip width, arms in. Starts no longer slide a foot, turns and direction changes no longer
+  slide the planted feet, a turn from a standstill no longer hops on both feet, and the hips trail the chest in turns.
+  The wide walk came from the foot planner pushing every left step 13 cm from the right foot; fixed. Crouched, drawn
+  and aiming movement are unchanged (slices 3 and 4). No wire change (PROTOCOL_VERSION 24).
+
 ## 4.15.1 - Phones get basic lamp light and shadows, a 60 fps cap, no side bars (2026-10-20, PR #44)
 - Phone (testing launch, G182; Michael 2026-10-20): the Low preset instead of the bare test preset, so lamps light the
   level and characters get contact shadows; DPR 1 and a 0.75 render scale; a 60 fps cap (heat). The menus fill a wide
