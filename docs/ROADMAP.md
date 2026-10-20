@@ -104,6 +104,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #44 | 4.15.1: phones run the Low preset (lamp light, contact shadows) at DPR 1, 0.75 scale, a 60 fps cap; menus fill the screen |
 | 2026-10-20 | #43 | 4.15.0: anim-rework slice 1, the new controls (analogue speed, holstered / low ready / aiming, LT held aim, X holster, RT tap knockout / hold kill, RB jammer, A always interacts, auto-holster traversal, the sling draw), with the CT walk round 3b, the rig extension, the guard clips (unwired) and the crab metrics |
 | 2026-10-20 | #42 | 4.14.1: orchestrator docs (roadmap, the anim-rework brief, state) |
 | 2026-10-20 | #37 | 4.14.0: Sector Ops Warehouse section 1 rebuilt (three routes: ground, high, service; logical guard posts; dogs carry no torch); sections 2-3 next |

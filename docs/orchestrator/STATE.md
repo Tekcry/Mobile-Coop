@@ -6,7 +6,7 @@ feature/menu. Merge origin/master into it before each docs batch; the docs go to
 convenient (feature/menu is many commits ahead of master today: open one docs PR soon).
 
 ## Master
-v4.15.0 (#43, 65bfe6f2: anim-rework slice 1). Tags v4.0.0-v4.15.0. /preview/ = dev = 65bfe6f2. The doorPeek fix is now in master. CHANGELOG has two stray "## Unreleased - anim-metrics" headings under 4.15.0 (from the side PRs): rename them in the next docs PR. /ct/ = ct-movement = 150dcfce (walk round 3b
+v4.15.1 (#44, 89f061e7: phone-min). Tags v4.0.0-v4.15.1. /preview/ = dev = 89f061e7. The doorPeek fix is now in master. CHANGELOG has two stray "## Unreleased - anim-metrics" headings under 4.15.0 (from the side PRs): rename them in the next docs PR. /ct/ = ct-movement = 150dcfce (walk round 3b
 plus the F3 crab readout; CT Core moves it with each slice). Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh
 (source docs/orchestrator/dashboard.html; publish the same path; it declares `db`, answers in collection `answers`;
 update its version line and rows after each merge with the sed / node edits used in git history, then republish).
@@ -49,7 +49,7 @@ message). The orchestrator clears itself last, after giving Michael its own resu
 - nv-pass PR to master (minor) after its GPU check.
 - warehouse-s23 PR to master (minor) after section 2 (or 2+3) is green.
 - test-speed PR to master (patch).
-- phone-min (Michael 17:55, ROADMAP "Decided"): a small patch job after the reset; assign to the first free session (not CT Core).
+- phone-min: done by the orchestrator (#44, 4.15.1; Michael 18:00 "60 fps frame cap on phone"). Untested on a real phone: ask Michael how it runs (heat, shadows, no side bars). Worktree C:/NightShift/Mobile-Coop-phone-min can be removed.
 Merge procedure: scripts kept in the scratchpad were ad hoc; the steps are: check the PR head equals the tested commit
 (or the delta is docs only), merge origin/master into the branch in a temp worktree resolving only CHANGELOG / package
 conflicts (stop on any src conflict and check both-sides src files), `npm version <v> --no-git-tag-version`, rename the
