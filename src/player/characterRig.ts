@@ -14,7 +14,8 @@ import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
-import { KA, KQ, type KeyedPose } from '../anim/keyed';
+import { KA, KQ, KW, type KeyedPose } from '../anim/keyed';
+import { toePitch } from '../anim/toeRoll';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -465,6 +466,20 @@ export class CharacterRig {
   readonly kneeR: TransformNode;
   readonly ankleL: TransformNode;
   readonly ankleR: TransformNode;
+  /**
+   * (anim-rig) The toe joints at the ball of each foot (children of the ankles, the operator LODs' skinned `toeL` /
+   * `toeR`): pitched up as the planted foot rolls onto its ball (`toePitch`, anim/toeRoll.ts), so the toes stay flat.
+   */
+  readonly toeL: TransformNode;
+  readonly toeR: TransformNode;
+  /**
+   * (anim-rig) Sling sockets for a slung long gun (docs/anim-rework/RIG.md): `slingBack` on the chest at the left
+   * shoulder blade (where the sling's rear end anchors on the back plate), `slingHip` on the pelvis at the left hip (the
+   * belt's quick-detach sling socket). Rest frames match their parents' (+X right, +Y up, +Z forward); a player rig
+   * moves them onto Wren's own kit (playerFigure.ts, WREN_SLING). Nothing is parented to them yet.
+   */
+  readonly slingBack: TransformNode;
+  readonly slingHip: TransformNode;
   /** Right hand socket (kept as `weaponSocket`). */
   readonly weaponSocket: TransformNode;
   /** Aim pocket: the held weapon is parented here (points +Z along the aim). */
@@ -865,6 +880,12 @@ export class CharacterRig {
     this.kneeR = n('knR', this.hipR, 0, -p.thigh.len, 0);
     this.ankleL = n('anL', this.kneeL, 0, -p.calf.len, 0);
     this.ankleR = n('anR', this.kneeR, 0, -p.calf.len, 0);
+    // (anim-rig) the ball of the foot, as operatorBody.ts's toe joint: on the floor, 45 % of the foot length ahead
+    const ankleY = Y.hip - 0.03 - p.thigh.len - p.calf.len;
+    this.toeL = n('toeL', this.ankleL, 0, -ankleY, p.foot.len * 0.45);
+    this.toeR = n('toeR', this.ankleR, 0, -ankleY, p.foot.len * 0.45);
+    this.slingBack = n('slingBack', this.torso, -p.shoulderHalf * 0.45, Y.shoulder - chestY - 0.07, -p.chest.d / 2 - 0.04);
+    this.slingHip = n('slingHip', this.hips, -(p.pelvis.w / 2 + 0.02), -0.02, -0.05);
     this.weaponSocket = n('hand', this.wristR, 0, -p.hand.len * 0.45, 0);
     this.weaponPivot = n('aim', this.torso, p.shoulderHalf * 0.55, Y.shoulder - chestY - 0.1, 0.3);
     this.backSocket = n('back', this.torso, 0, Y.shoulder - chestY - 0.12, -p.chest.d / 2 - 0.07);
@@ -1855,6 +1876,9 @@ export class CharacterRig {
     // so the weapon below is placed against this frame's legs
     this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + lYc + heelLift(L), L.z, L.yaw, L.pitch + st.lPitch, -1);
     this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1);
+    // (anim-rig) the toes bend up as the planted foot rolls onto its ball (the planner's pitch), so they stay on the floor
+    Quaternion.RotationYawPitchRollToRef(0, free ? 0 : toePitch(L), 0, this.toeL.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(0, free ? 0 : toePitch(R), 0, this.toeR.rotationQuaternion!);
     // (G1 fix) exact reach guard on the solved hips: a planted foot the leg cannot reach (the drop above estimates the hip
     // joints; a pelvis tilt or shift it does not see left the IK short and the planted ankle slid: e2e-anim aim strafe)
     // lowers the hips by the shortfall and solves again
@@ -2104,6 +2128,13 @@ export class CharacterRig {
     this.setWorldRot(el, sh, tmpQ3);
     Quaternion.SlerpToRef(kSave, el.rotationQuaternion!, w, el.rotationQuaternion!);
     fresh(el);
+    // (anim-rig) a clip's keyed wrist frame (local to the forearm) turns the free hand; a clip without one (the walk)
+    // leaves the solve's wrist (identity: the hand continues the forearm)
+    if (kq.hasWrist) {
+      const o = side > 0 ? KW.wristR : KW.wristL;
+      kT.set(kq.wrist[o]!, kq.wrist[o + 1]!, kq.wrist[o + 2]!, kq.wrist[o + 3]!);
+      Quaternion.SlerpToRef(wr.rotationQuaternion!, kT, w, wr.rotationQuaternion!);
+    }
     fresh(wr);
   }
 

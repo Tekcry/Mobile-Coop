@@ -22,10 +22,10 @@ export interface OperatorManifest {
   urls: readonly [string, string, string, string];
 }
 
-/** The game joints every LOD must skin to (the rig's 17 driven joints plus root and body). */
+/** The game joints every LOD must skin to (the rig's 19 driven joints, toes included since anim-rig, plus root and body). */
 export const REQUIRED_JOINTS = [
   'root', 'body', 'pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
-  'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR',
+  'hipL', 'knL', 'anL', 'toeL', 'hipR', 'knR', 'anR', 'toeR',
 ] as const;
 
 /** Is `url` loadable without leaving the app's origin (relative, root-relative, blob: or data:)? */
