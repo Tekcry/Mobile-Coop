@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-rework
+## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
 - Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
   2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear
   pops). The walk is upright with the knees and feet under the hips and the arms hanging along the sides; the arm swing
@@ -10,6 +10,11 @@
   slide the planted feet, a turn from a standstill no longer hops on both feet, and the hips trail the chest in turns.
   The wide walk came from the foot planner pushing every left step 13 cm from the right foot; fixed. Crouched, drawn
   and aiming movement are unchanged (slices 3 and 4). No wire change (PROTOCOL_VERSION 24).
+
+## 4.16.2 - Phones render at 75% of native resolution (2026-10-20, PR #53)
+- Phone (Michael 2026-10-20: "Cap resolution at 75%"): after 4.16.1 a Warehouse benchmark held 55-60 fps but fell to
+  26 fps late in the route. Phones now render at 75% of native, dynamic resolution down to 50% on long frames. Light
+  and shadows unchanged (Low preset), 60 fps cap. Desktop unchanged.
 
 ## 4.16.1 - The 60 fps cap holds on 90 and 144 Hz screens; phones scale resolution to stay cool (2026-10-20, PR #51)
 - Frame cap: a deadline limiter (`capNext`) replaces the slack test, which let every frame through on a 90 Hz display
