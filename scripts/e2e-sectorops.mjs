@@ -552,7 +552,7 @@ if (process.env.SECTOR_SHOTS) {
       await tp(G, S[i].cp.x, S[i].cp.y, S[i].cp.z, S[i].cp.yaw);
       await sim(4.6);
     }
-    await shot('s3-deck', 16, 2.6, 13.4, Math.PI, 0.3);
+    await shot('s3-deck', 16.8, 3.3, 12.6, Math.PI, 0.3);
   });
 }
 

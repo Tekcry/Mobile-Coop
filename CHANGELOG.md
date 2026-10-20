@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-rework
+## 4.19.0 - Drawn movement: low ready, aiming with the glide (no crab strafe), the sling draw (2026-10-20, PR #54)
 - Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,
   BRIEF section 3): with the gun out, standing, the legs play hand-keyed clips. Still: a ready stance, feet about hip
   width with the support foot 18 cm ahead, knees soft. At low ready the walk, jog and run legs and carriage (no lean
@@ -12,6 +12,21 @@
   aiming (were 7 cm out). LT from holstered with the rifle is its own sling draw (0.75 s): the gun comes off the back
   round the right side, hangs muzzle down under the arm, then swings up into the shoulder. Crouched drawn is unchanged
   (slice 4). No wire change (PROTOCOL_VERSION 24).
+
+## 4.18.1 - Phones render at a fixed 50% resolution (2026-10-20, PR #55)
+- Phone (Michael 2026-10-20: "when it changes render resolution the screen flashes. Keep 50% render resolution the
+  default and don't let it automatically adapt"): a fixed 50% of native, no dynamic resolution on phones. The 60 fps cap
+  stays (Michael chose it over a 30 lock; Marlow Yard runs ~32-35 fps on his phone). Desktop unchanged.
+
+## 4.18.0 - Sector Ops Warehouse sections 2 and 3 rebuilt, section 1 lamp pass (2026-10-20, PR #50)
+- Sector Ops Warehouse sections 2 and 3 rebuilt as greybox prototypes (`docs/warehouse-redesign/SPEC.md` 2.2 / 2.3,
+  `src/world/maps/warehouseS2.ts`, `warehouseS3.ts`): section 2 is a storage hall with real racking, a cage and three
+  routes to the case; section 3 is an assembly hall with a mezzanine deck, a production office, a plant room, a supply
+  duct and a crane walkway, with three routes to the terminal. 8 and 9 guards with jobs; no heavies, snipers or dogs
+  (G155). Higher walls and parapets keep each section sealed to its connector.
+- Lamp pass on sections 1-3 (Michael's section 1 walk, M1): routes and takedown spots read 0.40-0.55 without night
+  vision (under the level where guards see the player fully), objectives and work areas to 0.8, dark pockets 0.30 or
+  less; light-field tests pin each class with a minimum and a maximum (`tests/warehouseS1Light`, `S2Light`, `S3Light`).
 
 ## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
 - Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6

@@ -119,7 +119,10 @@ describe('map room layouts', async () => {
           const oz = Math.min(a.maxZ, c.maxZ) - Math.max(a.minZ, c.minZ);
           // storeys: one over the other is not an overlap
           const oy = Math.min(a.maxY ?? Infinity, c.maxY ?? Infinity) - Math.max(a.minY ?? -Infinity, c.minY ?? -Infinity);
-          expect(ox > 0.01 && oz > 0.01 && oy > 0.01, `${a.id} overlaps ${c.id}`).toBe(false);
+          // a room wholly inside another is a nested room (`roomAt` takes the smallest): the storage hall's high-value cage
+          const inside = (p: typeof a, q: typeof a): boolean => p.minX >= q.minX && p.maxX <= q.maxX && p.minZ >= q.minZ && p.maxZ <= q.maxZ;
+          const nested = inside(a, c) || inside(c, a);
+          expect(!nested && ox > 0.01 && oz > 0.01 && oy > 0.01, `${a.id} overlaps ${c.id}`).toBe(false);
         }
       for (const r of rooms)
         for (const s of r.squad ?? []) {
