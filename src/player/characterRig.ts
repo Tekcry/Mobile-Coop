@@ -17,6 +17,7 @@ import { hyp2 } from '../core/mathx';
 import { KA, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
+import { J, JOINTS_CUR, jointApply } from '../anim/tuneJoints';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -1883,6 +1884,7 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD * TUNE_CUR.headDropMul, t.head.roll * 0.4, this.neck.rotationQuaternion!);
     // (anim-rework S3) the trunk by keyTrunk: aiming the upper body stays the procedural gun platform
     if (kw * t.keyTrunk > 0) this.keyedTrunk(kq, kw * t.keyTrunk, t.head.yaw * 0.4);
+    if (JOINTS_CUR.on) this.jointOffsets(0); // (tuner-v2) per-joint offsets on the trunk, before the leg and arm IK
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
@@ -1985,6 +1987,7 @@ export class CharacterRig {
         else this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + rYc + heelLift(R), R.z, R.yaw, R.pitch + st.rPitch, 1, o);
       }
     }
+    if (JOINTS_CUR.on) this.jointOffsets(1); // (tuner-v2) per-joint offsets on the solved legs
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
     const lh = this.limitJoint(this.kneeL, dt) || lHip;
@@ -2008,6 +2011,7 @@ export class CharacterRig {
       tmpQ,
     );
     this.setWorldRot(this.headNode, this.neck, tmpQ);
+    if (JOINTS_CUR.on) this.jointOffsets(2); // (tuner-v2) the head's offset on the look
     this.limitJoint(this.headNode, dt);
 
     // aim pocket: rest + layer offsets, mirrored to the left shoulder when the weapon is in the left hand
@@ -2094,12 +2098,53 @@ export class CharacterRig {
       this.keyedArm(1, kaw * (1 - Math.min(1, this.reachR.w)), kq);
       this.keyedArm(-1, kaw * (1 - Math.min(1, this.reachL.w)), kq);
     }
+    if (JOINTS_CUR.on) this.jointOffsets(3); // (tuner-v2) per-joint offsets on the solved arms, before the self-collision
     this.keepElbowOut(1);
     this.keepElbowOut(-1);
     // (G6 fix, check BLOCK 3) on a wall no elbow goes into the face (the crouched reversal's hands to the knee / shin)
     if (this.input.wall && !Number.isNaN(this.pin.wallD)) {
       this.keepElbowOffWall(1);
       this.keepElbowOffWall(-1);
+    }
+  }
+
+  /**
+   * (tuner-v2 item 1) The local player's per-joint offsets (`anim/tuneJoints`), only while `JOINTS_CUR.on`: 0 the trunk
+   * (pelvis, spine, chest, neck: before the IK), 1 the legs (hips, knees, ankles, toes: on the IK's solution, so an
+   * offset there moves the foot off its plant), 2 the head (on the look), 3 the arms (shoulders in the chest frame, upper
+   * arms, elbows, wrists: on the IK's solution). A joint with no offset is untouched. No allocation.
+   */
+  private jointOffsets(part: 0 | 1 | 2 | 3): void {
+    if (part === 0) {
+      let c = jointApply(this.hips.rotationQuaternion!, J.pelvis);
+      c = jointApply(this.spine.rotationQuaternion!, J.spine) || c;
+      c = jointApply(this.torso.rotationQuaternion!, J.chest) || c;
+      c = jointApply(this.neck.rotationQuaternion!, J.neck) || c;
+      if (c) freshBelow(this.neck, this.body);
+    } else if (part === 1) {
+      const l = jointApply(this.hipL.rotationQuaternion!, J.hipL);
+      const r = jointApply(this.hipR.rotationQuaternion!, J.hipR);
+      const kl = jointApply(this.kneeL.rotationQuaternion!, J.kneeL);
+      const kr = jointApply(this.kneeR.rotationQuaternion!, J.kneeR);
+      const al = jointApply(this.ankleL.rotationQuaternion!, J.ankleL);
+      const ar = jointApply(this.ankleR.rotationQuaternion!, J.ankleR);
+      const tl = jointApply(this.toeL.rotationQuaternion!, J.toeL);
+      const tr = jointApply(this.toeR.rotationQuaternion!, J.toeR);
+      if (l || kl || al || tl) freshBelow(this.toeL, this.hips);
+      if (r || kr || ar || tr) freshBelow(this.toeR, this.hips);
+    } else if (part === 2) {
+      if (jointApply(this.headNode.rotationQuaternion!, J.head)) fresh(this.headNode);
+    } else {
+      for (let k = 0; k < 2; k++) {
+        const sh = k === 0 ? this.shoulderL : this.shoulderR;
+        const el = k === 0 ? this.elbowL : this.elbowR;
+        const wr = k === 0 ? this.wristL : this.wristR;
+        let c = jointApply(sh.rotationQuaternion!, k === 0 ? J.shoulderL : J.shoulderR, true);
+        c = jointApply(sh.rotationQuaternion!, k === 0 ? J.upperArmL : J.upperArmR) || c;
+        c = jointApply(el.rotationQuaternion!, k === 0 ? J.elbowL : J.elbowR) || c;
+        c = jointApply(wr.rotationQuaternion!, k === 0 ? J.wristL : J.wristR) || c;
+        if (c) freshBelow(wr, this.torso);
+      }
     }
   }
 

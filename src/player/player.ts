@@ -20,7 +20,8 @@ import { G } from '../physics/groups';
 import { WALL, WALL_LOOK_PITCH, WALL_TURN, WALL_TURN_RATE, wallHandPoint, wallHeadYaw, wallMoveK, wallRootPush, wallTurnRate, wallYawOffset } from './wallController';
 import type { TraverseKind } from '../anim/animGraph';
 import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStance';
-import { TUNE_LOCAL, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
+import { TUNE_LOCAL, TUNE_STATE, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
+import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -505,9 +506,11 @@ export class Player {
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
     tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
+    jointsBegin(TUNE_STATE.body); // (tuner-v2) the per-joint offsets of the same state
     try {
       this.rig.animate(dt, rp);
     } finally {
+      jointsEnd();
       tuneEnd(this.rig);
     }
     // footfalls (no camera bob, D2: the view follows the smoothed capsule only)
