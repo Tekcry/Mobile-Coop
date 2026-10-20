@@ -4,8 +4,8 @@ Michael (2026-10-21 ~07:00): "use the remaining weekly usage as normal. Make mor
 another account when you hit the limit. Set 98% weekly usage to pause everything, save, and set up orchestrator to
 deliver steps, prompts, models one at a time in the new account to resume everything".
 
-## Trigger
-The orchestrator checks `get_usage` on each wake. At weekly all-models >= 98%:
+## Trigger (99%, Michael ~09:45: "Run to 99% capacity then do handoff prompts")
+The orchestrator checks `get_usage` on each wake. At weekly all-models >= 99%:
 1. Message every working session: "Pause now: finish the step in hand only if it takes under 5 minutes, otherwise stop;
    commit and push your branch, update your job STATE.md (resume point + resume prompt), reply with the head, stop."
    The laptop runner finishes its current run, writes the summary to `C:/NightShift/scratch/runs/<label>/summary.txt`,
