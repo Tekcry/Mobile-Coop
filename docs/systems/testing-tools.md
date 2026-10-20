@@ -297,6 +297,11 @@ behind a VPN adapter).
   machine's own baseline, never a pass claim.
 - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
   quality, heap growth (leak check)
+- `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
+  (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and
+  writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,
+  then prints the key clips' rebake commands (Blender is never run). Shared targets, refusals and the mapping:
+  `docs/anim-tuner/BAKE.md`. Pure logic in `src/anim/tuneBake.ts` (tests: `tests/animTuneBake.test.ts`, on temp copies).
 - `node scripts/plan-svg.mjs [mapId]` top-down plan SVGs of a built map, one per storey (default `bunker`; output in
   `test-results/training/`, never committed)
 - `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots]

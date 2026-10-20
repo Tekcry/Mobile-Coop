@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
+- Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
+  [--dry-run] [--only section,...] [--allow-shared]` writes an export's values into the code defaults (body, gun, camera,
+  speed, stepping and weight constants; the Keys section's key JSONs through the apply-tune functions, with the Blender
+  rebake commands printed, never run), so after a reset of the baked sliders every slider reads identity with the same
+  look. The dry run prints the diff and a table (section, group, slider, value, result, target). A slider whose groups
+  share one code value bakes only when they agree ("manual: shared target" otherwise; `--allow-shared` bakes a single
+  changed group and warns); sliders with no code value (joint, hand, IK and weapon tables, most clip-data sliders, the
+  co-op role / contact and Traversal moves sections from #71) are listed "manual: no code target". Refuses a wrong magic or version, a value beyond its wide range, a target not found
+  exactly once and any file outside `src/` and the key JSONs. A ledger (`src/anim/tuneBakeLog.json`, `group|id=value`)
+  means a baked value is never baked twice, in a re-run or a later export. Mapping: `src/anim/tuneBakeTable.ts`; logic: `src/anim/tuneBake.ts`; tests:
+  `tests/animTuneBake.test.ts`; `docs/anim-tuner/BAKE.md`.
 ## 4.29.0 - Anim Studio PR 2: co-op pairs, guard holds, traversal prop rig and loops (2026-10-21, PR #71)
 - Anim Studio pairs (Michael, via the orchestrator: "fine tune coop animations with the same freedom, traversal etc.
   coop should show me both characters also"): each co-op team move plays with BOTH operators (two Wren puppets, Wren
