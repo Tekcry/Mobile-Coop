@@ -137,8 +137,8 @@ describe('anim-bake table', () => {
     }
   });
 
-  it('declares the sections plain Node cannot load as the registry has them (speed; weight from weight.ts)', () => {
-    for (const id of ['speed', 'weight']) {
+  it('declares the sections plain Node cannot load as the registry has them (speed, the moveTune sections; weight from weight.ts)', () => {
+    for (const id of ['speed', 'weight', 'team_boost', 'team_relay', 'team_throw', 'team_hang', 'team_rope', 'team_revive', 'trav']) {
       const a = SCRIPT_CAT.bySection.get(id)!;
       const b = CAT.bySection.get(id)!;
       expect([...a.keys()].sort()).toEqual([...b.keys()].sort());

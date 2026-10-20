@@ -85,6 +85,11 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   <= 40 m) and runs `remoteEffect` on its guards.
 - Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner). These
   are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
+- (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
+  B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
+  `RemoteAvatar` never reads them: the partner always plays the shared defaults until an export is folded into the
+  code. Nothing goes on the wire; visual only (the paths, timing and capsule are the game's). The Anim Studio plays both
+  roles of each move on one clock with two local puppets (`anim/studioPairs.ts`).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the

@@ -61,6 +61,8 @@ const COVERS = {
   // (anim-studio) the studio, its drive and the tuner's snapshots: their own suite on top of what their folders run
   'src/anim/studio': ['e2e-studio', 'anim-audit', 'e2e-anim'],
   'src/anim/tuneHistory': ['e2e-studio'],
+  // (anim-studio-2) the co-op role / traversal move sections: live on the local player (the team moves, traversal)
+  'src/anim/moveTune': ['e2e-studio', 'e2e-coop', 'e2e-traverse', 'e2e-anim'],
   'src/game/studioStage': ['e2e-studio'],
   'src/world/maps/studio.ts': ['e2e-studio'],
   'src/save/animTuneStore': ['e2e-studio', 'e2e-menus'],

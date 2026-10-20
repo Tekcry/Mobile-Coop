@@ -125,7 +125,13 @@ defaults are all identity.
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock).
 
-**New sections** (PR #71's `team_*`, `trav`): add rules or manual entries to `tuneBakeTable.ts`, and the file to
+**Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
+code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip
+clock); the moves' paths and timing stay TEAM / attach data. Folding them in needs per-move base offsets every rig reads
+(a later job). Declared in `DECLARED_SECTIONS` (moveTune imports speedTune, which plain Node cannot load); the test pins
+the declarations to the registry.
+
+**New sections**: add rules or manual entries to `tuneBakeTable.ts`, and the file to
 `BAKE_CATALOGUE_MODULES` (plain-Node loadable) or `BAKE_OTHER_SECTION_FILES` (with a `DECLARED_SECTIONS` entry). The
 test finds every file under `src/` that calls `registerTuneSection`, imports it, and fails when the file is in neither
 list or when any registered slider and group has no rule or manual entry.

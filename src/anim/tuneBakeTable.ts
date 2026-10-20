@@ -316,6 +316,18 @@ const V2_REASON = 'no code value: a local-player tuner table (defaults all ident
 for (const s of ['joint', 'hand', 'ik', 'weapon']) manuals.push(manual(s, '*', V2_REASON));
 manuals.push(manual('joint', 'mirror', 'a panel option (the mirror lock), nothing to bake', ['joint.options']));
 
+/**
+ * (anim-studio-2, src/anim/moveTune.ts) The co-op role / contact sections and the Traversal moves section: every slider
+ * is a visual offset on the local rig (root, grips, plants, tumble, crouch, the one-shot clip clock), never a code
+ * value; the moves' paths and timing come from TEAM / the attach data and stay. Folding them in needs per-move base
+ * offsets every rig reads (a later job).
+ */
+export const TEAM_MOVE_IDS = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive'] as const;
+export const TRAV_KIND_IDS = ['vault', 'mantle', 'step', 'climbUp', 'windowVault', 'rappel', 'drop', 'hop', 'roll', 'wallKick', 'split'] as const;
+const MOVE_REASON = 'no code value: a visual offset on the local rig (root, grips, plants, lean, crouch, clip clock); per-move base offsets every rig reads are a later job';
+for (const m of TEAM_MOVE_IDS) manuals.push(manual(`team_${m}`, '*', MOVE_REASON));
+manuals.push(manual('trav', '*', MOVE_REASON));
+
 export const BAKE_RULES: readonly BakeRule[] = rules;
 export const BAKE_MANUAL: readonly ManualRule[] = manuals;
 
@@ -337,6 +349,7 @@ export const BAKE_OTHER_SECTION_FILES: Readonly<Record<string, 'declared' | 'wei
   'src/player/speedTune.ts': 'declared',
   'src/player/weightTune.ts': 'weight',
   'src/anim/tuneKeys.ts': 'keys',
+  'src/anim/moveTune.ts': 'declared',
 };
 
 /**
@@ -344,6 +357,18 @@ export const BAKE_OTHER_SECTION_FILES: Readonly<Record<string, 'declared' | 'wei
  * stripping refuses), declared here; `tests/animTuneBake.test.ts` checks them against the registry.
  */
 const mulSpeed = (id: string, groups: readonly string[]): DeclaredTunable => ({ id, kind: 'mul', def: 1, min: 0.3, max: 2, groups });
+const addT = (id: string, min: number, max: number, groups: readonly string[]): DeclaredTunable => ({ id, kind: 'add', def: 0, min, max, groups });
+/** moveTune.ts roleSliders: the body / limb offsets every role and traversal group has, plus `time` on the one-shots. */
+function roleDeclared(groups: readonly string[], timed: readonly string[]): DeclaredTunable[] {
+  const out: DeclaredTunable[] = [
+    addT('bodyFwd', -0.6, 0.6, groups), addT('bodyUp', -0.6, 0.6, groups), addT('bodySide', -0.6, 0.6, groups),
+    addT('yaw', -60, 60, groups), addT('lean', -60, 60, groups), addT('crouch', -1, 1, groups),
+    addT('handUp', -0.4, 0.4, groups), addT('handFwd', -0.4, 0.4, groups), addT('handOut', -0.4, 0.4, groups),
+    addT('footUp', -0.4, 0.4, groups), addT('footFwd', -0.4, 0.4, groups), addT('footOut', -0.4, 0.4, groups),
+  ];
+  if (timed.length > 0) out.push({ id: 'time', kind: 'mul', def: 1, min: 0.5, max: 2, groups: timed });
+  return out;
+}
 export const DECLARED_SECTIONS: readonly DeclaredSection[] = [
   {
     id: 'speed',
@@ -359,5 +384,19 @@ export const DECLARED_SECTIONS: readonly DeclaredSection[] = [
       mulSpeed('shimmyMul', ['spd.climb']),
       mulSpeed('crawlMul', ['spd.climb']),
     ],
+  },
+  // (anim-studio-2) moveTune.ts imports speedTune, so plain Node cannot load it either: its sections, as registered
+  ...TEAM_MOVE_IDS.map((m): DeclaredSection => {
+    const a = `team.${m}.a`;
+    const b = `team.${m}.b`;
+    const timed = m === 'boost' || m === 'relay' || m === 'throw' ? [a] : [];
+    return { id: `team_${m}`, tunables: [...roleDeclared([a, b], timed), ...['cFwd', 'cUp', 'cSide'].map((id) => addT(id, -0.6, 0.6, [`team.${m}.contact`]))] };
+  }),
+  {
+    id: 'trav',
+    tunables: roleDeclared(
+      TRAV_KIND_IDS.map((k) => `trav.${k}`),
+      TRAV_KIND_IDS.filter((k) => k !== 'rappel' && k !== 'split').map((k) => `trav.${k}`),
+    ),
   },
 ];

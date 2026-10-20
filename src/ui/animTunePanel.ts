@@ -937,7 +937,11 @@ export class AnimTunePanel {
           ? 'EDIT  D-pad left / right: choose  A: keep  B: cancel'
           : 'EDIT  D-pad left / right: step (hold: repeat, x5 after 1 s)  Left stick: fast  LT held: fine  A: keep  B: cancel  X: default';
     else if (this.menuOpen) t = 'MORE  D-pad: move  A: choose  B / Y: close';
-    else t = `D-pad: move  A: select / edit  B: back  X: reset row  Y: more (undo, redo, A/B)  LB / RB: section${STUDIO.active ? ' (Studio first)' : ''}  LT / RT: state  R3 held: bypass  View: ${view}  Menu: close`;
+    else {
+      // (anim-studio-2) a co-op section's groups are its roles and the contact between them
+      const coop = this.sections[this.lastSec]?.reg.id.startsWith('team_') ?? false;
+      t = `D-pad: move  A: select / edit  B: back  X: reset row  Y: more (undo, redo, A/B)  LB / RB: section${STUDIO.active ? ' (Studio first)' : ''}  LT / RT: ${coop ? 'role A / B / contact' : 'state'}  R3 held: bypass  View: ${view}  Menu: close`;
+    }
     this.hint.textContent = m === 'off' ? '' : `PAD  ${t}`;
   }
 

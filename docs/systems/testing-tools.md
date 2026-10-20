@@ -238,7 +238,10 @@ behind a VPN adapter).
   the tuner panel and its Studio section; a keyed clip in place on Wren's graph, paused a key step moves the phase by one
   key and back; mirror reaches the drive; a state walks by synthesised input; 2x game speed in the studio; a slider
   change undoes and redoes; a preset saves to the tuner's IndexedDB store and loads back; no studio row in the studio's
-  pause menu; quitting to the menu leaves time scale 1 and no studio state; the main menu row
+  pause menu; quitting to the menu leaves time scale 1 and no studio state; the main menu row. (anim-studio-2, also
+  covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
+  hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
+  (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder
 - `e2e-security` (LEGACY; Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
   a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
   player at its far pause; a shot camera stops detecting; desk and panel checks

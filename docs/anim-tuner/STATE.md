@@ -146,6 +146,12 @@ turns the orbit free view on (the pad goes to it; View back to the panel). The p
 pad skips it; Save with it empty takes the next "preset N"). Keyboard: Ctrl+Z undo, Ctrl+Y / Ctrl+Shift+Z redo while
 the panel is open and no text box has the keys.
 
+(anim-studio-2) The loop list's pairs (`pair:<move>`) and traversal loops (`trav:<move>`) are picked like any entry (the
+D-pad to the list, A, left / right); a pair takes the scrub and the key steps (one 30 fps frame), a traversal loop does
+not (the game's physics). The Co-op sections (one per team move) and Traversal moves are ordinary registry sections:
+LB / RB reaches them, and on a Co-op section LT / RT switches role A / role B / contact (the strip says so). Keyboard
+and mouse as any section.
+
 ## Resume prompt
 ```
 You are "Night Shift | Course Ready Build", job lead for anim-tuner. Folder C:/NightShift/Mobile-Coop-anim-tuner, branch
