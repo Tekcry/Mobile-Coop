@@ -41,3 +41,8 @@ bit-identical); all zero with dt never opens the window; real rig walk -> run ea
 the untuned rig.
 **Polish (panel hint).** With a gun held, shoulder / upper-arm / elbow / wrist offsets pull the hand off the grip until item 2
 places the hands; `keepElbowOut` may partly undo a shoulder offset into the trunk.
+**Panel (wired, `docs/tuner-v2/WIRE.md`).** Section **Joints** (`src/anim/tuneV2Sections.ts`, registry id `joint`): groups
+`joint.<state>` (20) with sliders `<joint>_<x|y|z>` (63, deg, +-180, step 0.5), plus `joint.options` with the mirror lock
+(`mirror`, 0 / 1). The registry is the source (save, export, log, pad); `tuneV2Frame` copies the active state's row into
+this table each frame where it differs. Mirror: the sync mirrors a single-side panel edit (table and registry); item 1's
+own `jointsMirror` flag is held off. The `joints` save key (`jointsAttach`) is not used by the panel.

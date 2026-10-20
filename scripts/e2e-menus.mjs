@@ -446,6 +446,13 @@ try {
     assert(tv1 !== tv0, `tuner: D-pad right / left nudges the focused slider (${tv0} -> ${tv1})`);
     await press(P, BTN.Y);
     assert((await tv()) === tv0, `tuner: Y resets it (${await tv()})`);
+    // (tuner-v2 wiring) D-pad up wraps from the first section to the last one, Weapon (a registered section's rows)
+    let tpW = await GM(() => window.__animTune.pad());
+    for (let k = 0; k < 6 && !tpW.group.startsWith('weapon.'); k++) {
+      await press(P, BTN.UP);
+      tpW = await GM(() => window.__animTune.pad());
+    }
+    assert(tpW.group.startsWith('weapon.') && tpW.id !== '', `tuner: the pad reaches the Weapon section (${JSON.stringify(tpW)})`);
     await GM(() => window.__pad.axis(1, -1));
     await frames(P, 8);
     const tMove = await GM(() => window.__app.input.state.move.y);
@@ -469,6 +476,32 @@ try {
     const cb2 = await camBoom();
     assert(camG.startsWith('cam.') && (cb1 < cb0 - 0.3 || cb0 < 1.2), `tuner: a camera distance slider (${camG}) pulls the camera in live (${cb0.toFixed(2)} -> ${cb1.toFixed(2)} m)`);
     assert(Math.abs(cb2 - cb0) < 0.05, `tuner: the camera slider's reset puts the distance back (${cb0.toFixed(2)} -> ${cb2.toFixed(2)} m)`);
+    // (tuner-v2 wiring) the Joints / Hands & feet / IK strength / Weapon sections are in the panel; a joint slider set
+    // through the panel (the active state's group) reaches item 1's table; its reset puts it back
+    const v2 = await GM(() => {
+      const panel = document.querySelector('.anim-tune');
+      const secs = ['joint', 'hand', 'ik', 'weapon'].filter((k) => panel.querySelector(`.anim-tune-pick-${k}`) && panel.querySelector(`.anim-tune-rows-${k}`));
+      const g = window.__animTune.state.joint;
+      const pick = panel.querySelector('.anim-tune-pick-joint');
+      if (pick && g) {
+        pick.value = g;
+        pick.dispatchEvent(new Event('change'));
+      }
+      const input = panel.querySelector(`input[data-group="${g}"][data-id="elbowR_x"]`);
+      if (input) {
+        input.value = '12';
+        input.dispatchEvent(new Event('input'));
+      }
+      return { secs: secs.join(','), g, body: window.__animTune.state.body, input: !!input };
+    });
+    await frames(P, 3);
+    const v2Table = () => GM((b) => window.__tuneV2.jointsGet(b, window.__tuneV2.J.elbowR, 0), v2.body);
+    const v2a = await v2Table();
+    await GM((g) => window.__animTune.set(g, 'elbowR_x', 0), v2.g);
+    await frames(P, 3);
+    const v2b = await v2Table();
+    assert(v2.secs === 'joint,hand,ik,weapon', `tuner: the tuner-v2 sections are in the panel (${v2.secs})`);
+    assert(v2.input && v2a === 12 && v2b === 0, `tuner: a Joints slider set in the panel (${v2.g}) reaches the joint table (${v2a}), its reset puts it back (${v2b})`);
     // results
     await GM(() => {
       const g = window.__app.current;

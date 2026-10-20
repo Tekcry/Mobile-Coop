@@ -373,4 +373,50 @@ describe('IK targeting strength', () => {
     expect(near(free.elbowR!, 0)).toBeGreaterThan(0.99999); // exactly the joint offset on the rest pose
     expect(near(free.kneeL!, 4)).toBeGreaterThan(0.99999);
   });
+
+  it('(CHECK2) active state: right hand IK 0 + an elbowR offset shows the offset on rest; the left arm and legs unchanged; 1 = unchanged', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { PartLibrary } = await import('../src/world/partLibrary');
+    const { CharacterRig } = await import('../src/player/characterRig');
+    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const NODES = ['shoulderR', 'elbowR', 'wristR', 'shoulderL', 'elbowL', 'wristL', 'hipL', 'kneeL', 'ankleL', 'hipR', 'kneeR', 'ankleR'] as const;
+    const run = (): Record<string, number[]> => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.25);
+      const scene = new Scene(new NullEngine());
+      const lib = new PartLibrary(scene);
+      const rg = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
+      rg.carrier = true;
+      const rp = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, stride: 'facing' as const };
+      for (let k = 0; k < 90; k++) {
+        jointsBegin('idle', k === 0 ? Infinity : 1 / 60);
+        handsBegin('idle', 'none', k === 0 ? Infinity : 1 / 60);
+        rg.animate(1 / 60, rp);
+        handsEnd();
+        jointsEnd();
+      }
+      const out: Record<string, number[]> = {};
+      for (const n of NODES) {
+        const q = (rg as unknown as Record<string, { rotationQuaternion: Quaternion }>)[n]!.rotationQuaternion;
+        out[n] = [q.x, q.y, q.z, q.w];
+      }
+      rg.dispose();
+      scene.dispose();
+      vi.restoreAllMocks();
+      return out;
+    };
+    jointsSet('idle', J.elbowR, 0, 40);
+    const ik1 = run(); // strength 1: the IK pose under the offset
+    const off = new Float64Array(4);
+    eulerQuat((40 * Math.PI) / 180, 0, 0, off, 0);
+    const near = (q: number[]): number => Math.abs(q[0]! * off[0]! + q[1]! * off[1]! + q[2]! * off[2]! + q[3]! * off[3]!);
+    expect(near(ik1.elbowR!)).toBeLessThan(0.999);
+    ikSet('idle', 1, 0);
+    const fk = run();
+    expect(near(fk.elbowR!)).toBeGreaterThan(0.99999); // rest + the offset exactly
+    expect(fk.elbowR).not.toEqual(ik1.elbowR); // the right arm moved
+    for (const n of NODES) if (!n.endsWith('R') || n.startsWith('hip') || n.startsWith('knee') || n.startsWith('ankle')) expect(fk[n], n).toEqual(ik1[n]);
+    ikSet('idle', 1, 1);
+    expect(run()).toEqual(ik1);
+  });
 });

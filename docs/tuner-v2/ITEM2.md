@@ -19,7 +19,7 @@ line each, arms before item 1's `jointOffsets(3)`, legs before `jointOffsets(1)`
 hip / knee / ankle local rotations toward rest by 1 - strength (0 = rest + item 1 offsets, pure FK). `weaponModel.ts`:
 `hold` and the draw travel set `rig.heldModel`; `tuneVisual(v)` puts the gun transform on the baked mesh and seated magazine
 only; `inHand` / `holster` reset it. `footPlanner.ts` not touched. Hot path: no allocation (scratch vectors, index loops).
-**API (panel, not wired).** `handsGet/Set(weapon, group, param[, v])` (clamp, NaN refused, returns changed), `handsReset`,
+**API (panel; wired through the registry, see Panel).** `handsGet/Set(weapon, group, param[, v])` (clamp, NaN refused, returns changed), `handsReset`,
 `handsResetGroup`, `handsResetAll`, `handsChanged`, `handsGroupChanged`; `ikGet/Set(group, limb[, v])`, `ikReset`, `ikResetGroup`,
 `ikResetAll`, `ikGroupChanged`; `HANDS_HOOKS.changed`; `HAND_PARAMS` (label, section place / weapon / fingers, min, max, step,
 unit), `IK_RANGE`. Save / export: `handsAttach(tuneSnapshot())` / `handsAttach(tuneExport())` (adds `hands` only when set),
@@ -38,3 +38,8 @@ rendered: per-finger curl differences and all spread. Also not moved: the primit
 **Results.** tsc clean; eslint clean on the 5 touched files; vitest tuneHands 11/11, with tuneJoints, animTune, animTunePad,
 animRig, readyHands, backDiagTravel, menuPoses 67/67. **Skipped:** `npm run check` and e2e (smoke, e2e-anim, e2e-menus):
 `heavy.lock` held by CT Core (S2b, 01:18).
+**Panel (wired, `docs/tuner-v2/WIRE.md`).** `src/anim/tuneV2Sections.ts` registers **Hands & feet** (`hand.<weapon>.<state>`,
+the 18 `place` params), **IK strength** (`ik.<state>`, handL / handR / footL / footR) and **Weapon**
+(`weapon.<weapon>.<state>`, the 35 `weapon` + `fingers` params); 100 groups each for the per-weapon sections. Follow keys
+`hand` / `ik` / `weapon` of `TUNE_STATE_BAG`. `tuneV2Frame` copies the active (weapon, state) rows into these tables each
+frame where they differ. The `hands` save key (`handsAttach`) is not used by the panel.

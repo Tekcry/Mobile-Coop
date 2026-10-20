@@ -42,3 +42,6 @@ animation.
 - M1 (2026-10-21 01:15, via the orchestrator): add a per-limb IK targeting strength slider to item 2.
 
 ## Assumed decisions (undo in brackets)
+- A1 Mirror lock in the panel: the registry sync mirrors the side just edited (the change log's last entry) onto its
+  partner in the table and the registry, with no extra log entry; loads and group resets copy as is; item 1's own
+  `jointsMirror` stays off. [Undo: use item 1's `jointsMirror` flag in `src/anim/tuneV2Sections.ts`.]

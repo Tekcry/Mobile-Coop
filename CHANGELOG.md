@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased - tuner-v2
+- Animation tuner: four new sections after Camera, wired through the section registry. **Joints**: per-state pitch / yaw / roll offsets for 21 joints, with a mirror lock (group `joint.options`). **Hands & feet**: hand and foot IK target offsets and hand rotation, per weapon and state. **IK strength**: per limb and state, 0 = FK (rest + joint offsets). **Weapon**: gun scale (visual only), gun in the hand, support hand, trigger finger, finger curl, per weapon and state. Each follows the game state and weapon, saves, exports, resets and works with the pad like the other sections; at the defaults nothing changes.
+
 ## Unreleased - tuner-camera
 - Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
   I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
