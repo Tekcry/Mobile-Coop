@@ -7,17 +7,18 @@ line ranges, short prompts and reports.
 - Lamp fix round done (6f0ca54e, `step-lampfix-report.md`): S1 / S2 route points and takedown spots 0.40-0.55, decision
   points 0.45-0.55, work areas to 0.80, pockets 0.30 or less; both light tests assert a max per class (0.02 tolerance);
   hyp2. S1 fire-lobby exit-sign lamp dropped (column cap). Takedown margin not reached with waits alone (open).
-- Section 3 greybox: Sonnet implementer running (report `step-s3-report.md`).
+- Section 3 greybox done (597fa592, `step-s3-report.md`, `LIGHT-S3.md`): 9 guards, 42 lamps in the bands, three door gaps
+  1.2 m for the nav grid, navLayers 3. Fresh checker PASS for both commits (`check-s3.md`), no fix round.
+  `npm run check` on 597fa592 (desktop, under the lock): 1991 passed, 5 skipped, build ok.
+- CHANGELOG ("Unreleased - warehouse-s23"), `WALK.md`, TESTING.md line written.
 **Next:**
-1. Section 3 greybox from `BUILD-S3.md` (Sonnet implementer; new `warehouseS3.ts` and a switch like section 2's; its
-   light test; re-read warehouseS2Light's C3 points and its two deck points at y 2.6 after section 3 lands; `navLayers: 4`
-   on warehouseOps if the e2e nav check misses deck or office cells), fresh Opus checker (also covers the lamp fix round
-   6f0ca54e), at most one fix round.
-2. `npm run check` + `smoke e2e-sectorops e2e-ctcourse` on the head (desktop under the lock when it is absent and CT
-   Core is not waiting, else the laptop through the orchestrator); CHANGELOG entry ("Unreleased - warehouse-s23");
-   `WALK.md` for sections 2 and 3; the PR to master (a minor step); the full `npm run e2e` on its head through the
-   orchestrator; a message to the orchestrator.
+1. smoke e2e-sectorops e2e-ctcourse on 597fa592: queued on the laptop through the orchestrator (19:46; Menu Notes held
+   the desktop lock). A failure gets one fix (nav at 3 layers: `navLayers: 4` on warehouseOps first).
+2. The PR to master (a minor step); the full `npm run e2e` on its head through the orchestrator; a message to the
+   orchestrator.
 **Open:**
+- check-s3 polish: 5 cm slits at the door jambs and duct ends; the 0.02 tolerance also relaxes the minima; the S1 light
+  test reads two deck points at y 2.8 under the new slab (an off/on difference, holds); the S1 fire-lobby exit sign is gone.
 - Section 2 takedown margin: the tour guard passes the committed phase test at exactly 3.0 s; under 20 other seeds the
   worst for the tour guard and the checker is 1.75 s (`check-s2.md` 2); waits alone reach 2.0 s at best (lamp fix round).
   Next lever is geometry (a pallet at the A1 mouth), after Michael's walk.
@@ -37,6 +38,7 @@ line ranges, short prompts and reports.
   section 2 sheet adjustments, A7 section 3 north and east parapets, A8 section 3 sheet adjustments.
 
 ## Done
+- 2026-10-20: section 3 greybox (597fa592), checker PASS (check-s3.md); npm run check 1991 passed; CHANGELOG, WALK.md.
 - 2026-10-20: lamp fix round (6f0ca54e); tsc, ESLint, 7 Vitest files 76 passed, 2 skipped.
 - 2026-10-20: section 3 build sheet (ea5332a6).
 - 2026-10-20: section 2 greybox (f4facc1d), checker PASS (c08465ca), laptop green on f4facc1d.
