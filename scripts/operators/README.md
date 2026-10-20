@@ -73,7 +73,7 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   the game assets from the last garment's blend: hero (230 k), LOD0 (40 k), LOD1 (13.5 k), LOD2 (5.6 k; desktop only, D29: no phone LOD)
   decimated in a chain, regrouped into atlases (hero: cloth 4K, kit 2K, hardware 2K, glow; LOD0: cloth 2K, kit 2K,
   glow; LOD1: cloth 1K, kit 1K, glow; LOD2: one 1K atlas, glow), unwrapped from the garments'
-  pattern panels, baked from the 2.45 M source on the GPU (albedo, tangent normal, ORM), skinned (game LODs: 17 game
+  pattern panels, baked from the 2.45 M source on the GPU (albedo, tangent normal, ORM), skinned (game LODs: 19 game
   joints), with the anchors `weaponMount.backL/.backC/.backR` (chest), `pistolHolster` (hipR), `slingSocket` (pelvis).
   Writes `build/operators/<id>/export/{<lod>/<id>-<lod>.glb, textures/<lod>/*.png, report.json, README.md}`, the Lab copies `<id>-lab-<lod>.glb`, `<id>-lods.blend`,
   and with `--render` the side-by-side sheets `docs/operators/mockups/tests/<id>-lods-*.webp` (columns: source, hero,
@@ -83,6 +83,12 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   overruns. Per built item it judges `rigidKit` (src/operators/rigidKit.ts: shape within 1 mm of the design after a
   best-fit rigid alignment, depth into the suit, seats over 3 mm mounted, small hardware on its host, true sizes, the
   D28 bone rule) from check_garment.py's `rigid` data.
+  anim-rig (docs/anim-rework/RIG.md): the game LODs skin 19 joints, the toe box on `toeL` / `toeR` (the ball of the foot).
+- `toe-skin.mjs` (anim-rig, `node scripts/operators/toe-skin.mjs [--check] [hero.glb lod.glb ...]`; default: the bundled
+  `src/operators/assets/wren/` files, in place) - gives LOD files baked before anim-rig (toes folded into the ankle) the
+  toe weights of a fresh bake without a rebuild: each ankle-weighted vertex takes the toe share of its nearest hero
+  vertex on that foot. Only the JOINTS_0 / WEIGHTS_0 bytes change; a file that already skins its toes is left alone.
+  Run it after copying freshly baked LODs only if they predate the bake_lods.py change (it is then a no-op anyway).
 - `py/pose_check.py` (step 11b, D28): the built Wren in four movement poses (prone knee-up crawl, rope climb, deep
   crouch, rappel seat), every rigid item measured against the body, the other items, the ground, a modelled sit harness
   and its draw path; `blender -b build/operators/wren/wren-leg_kit.blend --python scripts/operators/py/pose_check.py --

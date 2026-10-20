@@ -136,26 +136,47 @@ export const ENEMY_CALM_MOTION: typeof MOVEMENT = {
 };
 
 /**
- * Chaos Theory speed gears (3.2.0, player only; `player/speedGears.ts`): six gears stepped with `speedUp` /
- * `speedDown`, kept through stance changes, `spawn` at spawn and respawn. Target speed = the gear's cap x the stick
- * curve (0 inside `deadZone`, linear to 1 at the rim). The sprint is gear 6 standing while it lasts.
+ * The speed anchors (player only; `player/speedGears.ts`). (anim-rework S1, Michael 2026-10-20: "remove the speed
+ * toggle, and allow full speed control via the analogue stick depending on how far you push the stick") There are no
+ * gear buttons: the stick's deflection sets the speed continuously (`STICK_SPEED`); these five speeds are the curve's
+ * named points (creep, sneak, walk, jog, run), and the integer "gear" the rest of the game reads (the roll, the fence
+ * rattle, the wire's pace band) is the nearest of them. `spawn` is the internal speed cap at spawn (5 = none): no
+ * player control sets it; tests cap it with `?gear=N` or `controller.gears`. Starting values (G10).
  */
 export const GEARS = {
   count: 5,
-  spawn: 3,
+  spawn: 5,
   /**
-   * (CT prototype M1, loco M20 Q8) Five analog speeds, no sprint (ct-measure-speeds-stops-posture.md); starting
-   * values, tune by feel (G10). (Playtest 2: the old speed 2 is the slowest; still five steps, re-spaced.) Standing
-   * 0.75 / 1.4 / 2.1 / 3.0 / 4.5, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s. (G1, audit row 14) the run 4.2 -> 4.5
-   * (old scroll measure 4.6, cross-checked by the run cadence 4.6 steps/s x ~1.0 m).
+   * Standing creep / sneak / walk / jog / run 0.75 / 1.4 / 2.1 / 3.0 / 4.5, crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6 m/s
+   * (the five CT prototype speeds; playtest 2 re-spaced them; G1 audit row 14 the run 4.5).
    */
   crouch: [0.85, 1.3, 1.7, 2.15, 2.6],
   stand: [0.75, 1.4, 2.1, 3.0, 4.5],
-  /** (Playtest 2) The stick reaches the D-pad speed (the maximum gear) from this magnitude up, so a stick that
-   *  never quite hits its rim still walks at the speed the D-pad set. */
-  fullPush: 0.9,
   /** Stick magnitude below which the operator stands still. */
   deadZone: 0.05,
+} as const;
+
+/**
+ * (anim-rework S1, BRIEF section 1) The analogue speed curve: the stick's travel past the dead zone (0..1,
+ * `stickCurve`) to a speed, piecewise linear through `at`: the dead-zone edge gives the slowest creep (`minStand` /
+ * `minCrouch`), then the five `GEARS` speeds in order. Most of the travel (to 0.8) is the stealth range (creep, sneak,
+ * walk); the last fifth is the jog and the run, reached a little short of the rim (0.97) so a stick that never quite
+ * hits its rim still runs. Crouched uses the same points with the crouched speeds. The keyboard (A1): WASD at the walk
+ * point, Left Shift held the run, Left Alt held the creep (`KBM_PACE`). Starting values.
+ */
+export const STICK_SPEED = {
+  /** Travel at: the dead-zone edge, creep, sneak, walk, jog, run. */
+  at: [0, 0.15, 0.45, 0.8, 0.9, 0.97],
+  /** The slowest creep (m/s) at the dead-zone edge, standing / crouched. */
+  minStand: 0.4,
+  minCrouch: 0.4,
+} as const;
+
+/** (A1) The keyboard's move magnitudes: the stick magnitude of the creep, walk and run points (`STICK_SPEED.at`). */
+export const KBM_PACE = {
+  creep: GEARS.deadZone + (1 - GEARS.deadZone) * STICK_SPEED.at[1],
+  walk: GEARS.deadZone + (1 - GEARS.deadZone) * STICK_SPEED.at[3],
+  run: 1,
 } as const;
 
 /**

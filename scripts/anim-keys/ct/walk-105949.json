@@ -1,0 +1,28 @@
+{
+  "note": "(CT prototype G8) CT 105949 @ 12.13-12.37 (side-high, the camera ~95-110 deg round the hero from his front, on his right), frames scaled to 1160x800. A handful of joint points per phase placed by eye on gridded frames (pc/ct-work/frames/g8/ov/z-*.png) to measure angles; not a trace. kn / an / toe: the front leg (its knee ahead), knB / anB / toeB: the rear leg. +-5 px.",
+  "out": "pc/ct-work/frames/g8/ov/ct",
+  "W": 1160,
+  "H": 800,
+  "panels": [
+    {
+      "name": "contact", "label": "CT 105949 @12.300 contact (front heel down, widest)", "img": "pc/ct-work/frames/g8/ov/ct-12.300.png", "fwd": 1,
+      "pts": { "headTop": [595, 406], "neck": [587.5, 461], "pelvis": [567.5, 612.5], "sh": [597.5, 495], "el": [632.5, 530], "wr": [642.5, 542.5],
+        "hip": [570, 615], "kn": [635, 680], "an": [625, 730], "toe": [662.5, 740], "hipB": [565, 615], "knB": [535, 675], "anB": [500, 707.5], "toeB": [522.5, 717.5] }
+    },
+    {
+      "name": "down", "label": "CT 105949 @12.367 down (loading, rear foot far back)", "img": "pc/ct-work/frames/g8/ov/ct-12.367.png", "fwd": 1,
+      "pts": { "headTop": [587.5, 405], "neck": [580, 460], "pelvis": [560, 607.5], "sh": [590, 495], "el": [620, 522.5], "wr": [623.5, 530],
+        "hip": [563, 610], "kn": [627.5, 665], "an": [625, 717.5], "toe": [655, 725], "hipB": [557, 610], "knB": [515, 670], "anB": [475, 720], "toeB": [492.5, 730] }
+    },
+    {
+      "name": "passing", "label": "CT 105949 @12.133 passing (feet together)", "img": "pc/ct-work/frames/g8/ov/ct-12.133.png", "fwd": 1,
+      "pts": { "headTop": [605, 404], "neck": [600, 457.5], "pelvis": [572.5, 610], "sh": [607.5, 490], "el": [637.5, 540], "wr": [647.5, 557.5],
+        "hip": [575, 612], "kn": [625, 675], "an": [597.5, 730], "toe": [615, 755], "hipB": [570, 612], "knB": [555, 680], "anB": [545, 705], "toeB": [565, 720] }
+    },
+    {
+      "name": "up", "label": "CT 105949 @12.200 up (front foot set, rear heel up)", "img": "pc/ct-work/frames/g8/ov/ct-12.200.png", "fwd": 1,
+      "pts": { "headTop": [597.5, 402.5], "neck": [592.5, 457.5], "pelvis": [567.5, 610], "sh": [600, 490], "el": [625, 530], "wr": [636, 545],
+        "hip": [570, 612], "kn": [625, 675], "an": [620, 730], "toe": [655, 747.5], "hipB": [565, 612], "knB": [540, 675], "anB": [525, 710], "toeB": [552.5, 720] }
+    }
+  ]
+}

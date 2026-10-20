@@ -37,14 +37,15 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 - Decided (G34): wall entry by button only (built). G37: the CT back-to-wall is the only wall move. G109: every operator
   moves the same. G110: no prone crawl, no rope climb. G56: crawl spaces are crouch-walked.
 
-## Speed gears and feel
-- Gears (`player/speedGears.ts` pure, `GEARS` in `config/movement.ts`): 5 gears (playtest 2: the old gear 2 is the slowest), spawn / respawn gear 3 (`GameState` resets
-  it on respawn; `?gear=N` for tests, `e2e-lib` adds `gear=4` unless a suite names one), kept through stance changes;
-  `PlayerController.gears`, `speedUp` / `speedDown` (pad D-pad up / down, keys `=` / `-`, mouse wheel). Target = gear cap
-  x `stickCurve` (dead zone 0.05, linear); the stick reaches the D-pad gear from `GEARS.fullPush` 0.9 of its travel. Aiming
-  capped at 1.4 / 1.0. No sprint gear. Analog snapping within the maximum gear: `docs/systems/input-and-loop.md`.
+## Speed and feel
+- (anim-rework S1) No gears: the stick's deflection sets the speed continuously through `STICK_SPEED`
+  (`config/movement.ts`; `stickSpeed` in `player/speedGears.ts`): the slowest creep 0.4 m/s at the dead-zone edge,
+  then the five named speeds below at travel 0.15 / 0.45 / 0.8 / 0.9 / 0.97; the keyboard walks at the walk point, Left
+  Shift held runs, Left Alt held creeps. `PlayerController.gears` is an internal cap only (5 = none; `?gear=N` for
+  tests, `e2e-lib` adds `gear=4` unless a suite names one), kept through stance changes, reset on respawn. Aiming capped
+  at 1.4 / 1.0. Detail: `docs/systems/input-and-loop.md`, "Analogue speed".
 
-  | Gear | 1 | 2 | 3 | 4 | 5 |
+  | Named speed | creep | sneak | walk | jog | run |
   | --- | --- | --- | --- | --- | --- |
   | Standing (m/s) | 0.75 | 1.4 | 2.1 | 3.0 | 4.5 (G1; was 4.2) |
   | Crouched (m/s) | 0.85 | 1.3 | 1.7 | 2.15 | 2.6 |

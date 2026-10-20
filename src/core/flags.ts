@@ -32,7 +32,7 @@ export interface Flags {
   detect: boolean;
   /** Tests: the GPU name detection sees (`?renderer=Apple%20GPU`). */
   renderer: string | null;
-  /** Tests: the speed gear at spawn and respawn (`?gear=1..5`; else the default, 3). */
+  /** Tests: the internal speed cap at spawn and respawn (`?gear=1..5`; else 5, no cap: anim-rework S1). */
   gear: number | null;
   /** 3.5 (`?legacy=1`, URL only, never saved): the parked Blacklist-era modes and the economy are shown (`core/legacy.ts`). */
   legacy: boolean;
@@ -62,7 +62,8 @@ function readParams(): URLSearchParams {
 
 const params = readParams();
 
-/** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: always the minimum settings. */
+/** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: the Low preset at native
+ * resolution, a 1.0 render scale and a 60 fps cap (phone-min: basic lamp light and shadows, kept cool). */
 function readPhone(): boolean {
   try {
     return (globalThis.navigator?.maxTouchPoints ?? 0) > 0 && globalThis.matchMedia?.('(pointer: coarse)').matches === true;
@@ -91,7 +92,7 @@ export const flags: Flags = {
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
   phone: readPhone(),
-  gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'min' : null),
+  gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? (readPhone() ? 'low' : null),
   voxels: params.get('voxels') !== '0',
   baked: params.get('baked') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,

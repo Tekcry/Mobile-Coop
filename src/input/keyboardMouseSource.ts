@@ -3,17 +3,20 @@ import type { InputState } from './inputState';
 import type { Settings } from '../core/settings';
 import { hyp2 } from '../core/mathx';
 import { keyActionMap, menuNavTap, type KeyBinds } from './keyBindings';
+import { KBM_PACE } from '../config/movement';
 
 const SRC = 'kbm';
 
 const MOUSE_RAD_PER_PX = 0.0024;
-/** Mouse wheel speed gear steps are spaced at least this far apart (ms): one notch, one gear. */
+/** Mouse wheel steps (the held context menu's highlight) are spaced at least this far apart (ms): one notch, one row. */
 const WHEEL_GAP = 140;
 
 /**
  * Keyboard and mouse (PC browsers). In gameplay the mouse is captured with pointer lock: the click that
  * starts or resumes a match captures it, so does any click on the game while it is free (that click
- * never fires). Captured: move = look, left = fire (holstered: the lethal strike), right = draw / holster (a toggle), wheel = speed gear (3.2.0; weapons are Q / X). Losing the capture in
+ * never fires). Captured: move = look, left = fire (aiming; holstered: click the knockout, hold the kill), right = aim
+ * (held; anim-rework S1), wheel = the held context menu's highlight (the speed gear is gone: WASD walk, Left Shift
+ * held runs, Left Alt held creeps, A1). Losing the capture in
  * a match (Esc, alt-tab) opens the pause menu. Mouse buttons use pointer events: the engine cancels
  * pointerdown on the canvas, which suppresses the legacy mousedown.
  */
@@ -32,6 +35,8 @@ export class KeyboardMouseSource {
   private map = new Map<string, ButtonAction[]>();
   private moveCodes = { f: 'KeyW', b: 'KeyS', l: 'KeyA', r: 'KeyD' };
   private moveAlt = { f: '', b: '', l: '', r: '' };
+  /** (anim-rework S1, A1) The run / creep keys (held): the move's magnitude (`KBM_PACE`). */
+  private paceCodes = { run: 'ShiftLeft', run2: '', creep: 'AltLeft', creep2: '' };
   /** Rebinding: the next key / mouse button goes here (null = Esc cancelled, '' = cleared). */
   private capture: ((code: string | null) => void) | null = null;
   /** Raw input refused once: plain pointer lock from then on. */
@@ -95,13 +100,15 @@ export class KeyboardMouseSource {
         return;
       }
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', true);
-      if (e.button === 2) this.state.tap('draw');
+      // (anim-rework S1) the right button is the aim, held
+      if (e.button === 2) this.state.set(SRC + 'm', 'ads', true);
     });
     window.addEventListener('pointerup', (e) => {
       if (e.pointerType !== 'mouse') return;
       const extra = e.button === 1 ? 'Mouse1' : e.button === 3 ? 'Mouse3' : e.button === 4 ? 'Mouse4' : '';
       if (extra) for (const a of this.map.get(extra) ?? []) this.state.set(SRC + 'm', a, false);
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', false);
+      if (e.button === 2) this.state.set(SRC + 'm', 'ads', false);
     });
     // (step 09) a second button pressed or released while another is held fires no pointerdown / pointerup
     // (chorded buttons arrive as a pointermove with `button` set): RMB held to aim, then LMB to fire
@@ -115,7 +122,7 @@ export class KeyboardMouseSource {
         for (const a of this.map.get(extra) ?? []) this.state.set(SRC + 'm', a, down);
       }
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', down);
-      if (e.button === 2 && down) this.state.tap('draw');
+      if (e.button === 2) this.state.set(SRC + 'm', 'ads', down);
     });
     window.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
@@ -131,8 +138,8 @@ export class KeyboardMouseSource {
         const now = performance.now();
         if (now - this.wheelT < WHEEL_GAP || e.deltaY === 0) return;
         this.wheelT = now;
-        // wheel up: a faster gear; down: a slower one
-        this.state.tap(e.deltaY > 0 ? 'speedDown' : 'speedUp');
+        // (anim-rework S1) the held context menu's highlight: wheel up a row up, down a row down (no speed gear)
+        this.state.tap(e.deltaY > 0 ? 'ctxDown' : 'ctxUp');
       },
       { passive: false },
     );
@@ -219,6 +226,7 @@ export class KeyboardMouseSource {
     this.map = keyActionMap(b);
     this.moveCodes = { f: b.forward[0] ?? '', b: b.back[0] ?? '', l: b.left[0] ?? '', r: b.right[0] ?? '' };
     this.moveAlt = { f: b.forward[1] ?? '', b: b.back[1] ?? '', l: b.left[1] ?? '', r: b.right[1] ?? '' };
+    this.paceCodes = { run: b.run[0] ?? '', run2: b.run[1] ?? '', creep: b.creep[0] ?? '', creep2: b.creep[1] ?? '' };
   }
 
   private held(a: string, b: string): boolean {
@@ -264,8 +272,13 @@ export class KeyboardMouseSource {
     const alt = this.moveAlt;
     const x = (this.held(m.r, alt.r) ? 1 : 0) - (this.held(m.l, alt.l) ? 1 : 0);
     const y = (this.held(m.f, alt.f) ? 1 : 0) - (this.held(m.b, alt.b) ? 1 : 0);
-    const len = hyp2(x, y) || 1;
+    // (anim-rework S1, A1) WASD walk; Left Shift held runs, Left Alt held creeps (both: the creep)
+    const pc = this.paceCodes;
+    const pace = this.held(pc.creep, pc.creep2) ? KBM_PACE.creep : this.held(pc.run, pc.run2) ? KBM_PACE.run : KBM_PACE.walk;
+    const len = (hyp2(x, y) || 1) / pace;
     this.state.setMove(SRC, x / len, y / len);
-    if (e.code === 'Space' || e.code === 'Tab' || e.code.startsWith('Arrow') || (this.locked && this.map.has(e.code) && !e.code.startsWith('F'))) e.preventDefault();
+    const paceKey = e.code !== '' && (e.code === pc.run || e.code === pc.run2 || e.code === pc.creep || e.code === pc.creep2);
+    // (Alt alone would focus the browser's menu; the run / creep keys never reach the page while captured)
+    if (e.code === 'Space' || e.code === 'Tab' || e.code.startsWith('Arrow') || (this.locked && (paceKey || (this.map.has(e.code) && !e.code.startsWith('F'))))) e.preventDefault();
   }
 }

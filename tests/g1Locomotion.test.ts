@@ -10,7 +10,15 @@ import { proportions } from '../src/player/proportions';
 
 describe('G1 gait numbers', () => {
   it('(row 7) the step is capped at stepLenMax: the run quickens to ~4.7 steps/s at 4.5 m/s; guards keep theirs', () => {
-    expect(stepLength(2)).toBeCloseTo(0.7, 9);
+    // (CT prototype G8, A4) the standing walk steps shorter, CT's ~0.66 m at gear 3 (105949): 0.3 + 0.17 v up to 2.1 m/s
+    // (was 0.7 at 2 m/s); crouched, the jog and the run keep 0.3 + 0.2 v
+    expect(stepLength(2)).toBeCloseTo(0.64, 9);
+    expect(stepLength(2.1)).toBeCloseTo(0.657, 9);
+    expect(stepLength(2, MOVEMENT, 0, 0, 1)).toBeCloseTo(0.7, 9);
+    expect(stepLength(GEARS.stand[3]!)).toBeCloseTo(0.3 + 0.2 * GEARS.stand[3]!, 9);
+    // ~3.2 steps a second at gear 3 (CT ~3.1 at ~2 m/s)
+    expect(2 * gaitRate(2.1, 0)).toBeGreaterThan(3.0);
+    expect(2 * gaitRate(2.1, 0)).toBeLessThan(3.3);
     expect(stepLength(GEARS.stand[4]!)).toBeCloseTo(MOVEMENT.stepLenMax, 9);
     const stepsPerS = 2 * gaitRate(GEARS.stand[4]!, 0);
     expect(stepsPerS).toBeGreaterThan(4.4);
@@ -116,7 +124,7 @@ describe('G1 graph layers', () => {
     expect(g.out.gait.liftH).toBeGreaterThan(lift0 * 2);
     i.speed = 2.6;
     settle(g, i, 1);
-    expect(g.out.gait.cycleTime).toBeCloseTo(1 / gaitRate(2.6, 0), 2);
+    expect(g.out.gait.cycleTime).toBeCloseTo(1 / gaitRate(2.6, 0, MOVEMENT, 0, 0, 1), 2);
   });
   it('(row 18) a drop of a metre lands deep (~0.4 m dip); a small one keeps the shallow landing', () => {
     const dip = (landing: number) => {
@@ -251,8 +259,11 @@ describe('G1 rig: the gait against the footage (NullEngine)', () => {
     expect(idle.feetApart).toBeGreaterThanOrEqual(0.3);
     expect(idle.feetApart).toBeLessThanOrEqual(0.4);
     const walk = await rigRun({ seconds: 4, from: 2, stick: () => ({ dir: 0, speed: 1.4 }) });
-    // the stance knee at mid-stance (was ~60 deg; CT near straight): ~11 deg under the hip, <= 22 over the +-5 cm window
-    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(22);
+    // the stance knee at mid-stance (was ~60 deg; G1: CT near straight, <= 22). (CT prototype G8 round 2, Michael 10:55:
+    // CT's walk keeps the knees softly bent all the way through, lower and heavier; G8-WALK.md measures 105949 at the
+    // matched camera) the keyed walk holds the pelvis ~7 cm low: the stance knee bent, never locked, never a squat
+    expect(walk.kneeMid, 'walk mid-stance knee').toBeGreaterThanOrEqual(25);
+    expect(walk.kneeMid, 'walk mid-stance knee').toBeLessThanOrEqual(55);
     // the head's travel over the cycle (CT ~2-3 cm by eye)
     expect(walk.headMax - walk.headMin, 'walk head bob').toBeLessThanOrEqual(0.035);
   });

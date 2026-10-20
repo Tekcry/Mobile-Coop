@@ -190,6 +190,19 @@ body {
   display: block;
   margin-top: 2px;
 }
+/* Settings > Show FPS overlay: a one-line banner along the top edge, the critical numbers only */
+.debug-overlay.compact {
+  top: var(--sat);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 10px;
+  border-radius: 0 0 4px 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.debug-overlay.compact > :not(pre) {
+  display: none !important;
+}
 
 /* ---------- screens ---------- */
 .screens {
@@ -4837,4 +4850,10 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
 }
 .hud[hidden] {
   display: none;
+}
+
+/* (phone-min) a phone fills its wide screen: the menus and the launch frame use the full width (no 16:9 side bars) */
+:root.phone .screens,
+:root.phone .boot .boot-frame {
+  width: calc(calc(100 * var(--vw)) / var(--ui-scale, 1));
 }

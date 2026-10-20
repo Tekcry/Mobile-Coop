@@ -17,10 +17,11 @@ import { bindWorld, type GlbNode } from '../lab/glb';
 /** Rig joints in a fixed order (CharacterRig node names) and each one's parent in this list. */
 export const RIG_JOINTS = [
   'root', 'body', 'pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
-  'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR',
+  'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR', 'toeL', 'toeR',
 ] as const;
 export type RigJointName = (typeof RIG_JOINTS)[number];
-export const RIG_PARENT: readonly number[] = [-1, 0, 1, 2, 3, 4, 5, 4, 7, 8, 4, 10, 11, 2, 13, 14, 2, 16, 17];
+/** (anim-rig) toeL / toeR (the ball of each foot, under the ankles) drive the LODs' skinned toe joints. */
+export const RIG_PARENT: readonly number[] = [-1, 0, 1, 2, 3, 4, 5, 4, 7, 8, 4, 10, 11, 2, 13, 14, 2, 16, 17, 15, 18];
 /** Floats per joint in the rig input and the operator output: px py pz qx qy qz qw. */
 export const TRS = 7;
 

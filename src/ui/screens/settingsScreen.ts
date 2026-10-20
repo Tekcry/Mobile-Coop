@@ -92,7 +92,7 @@ export function desc<T extends HTMLElement>(el: T, text: string): T {
 }
 
 /** The gameplay fields the Controls tab owns (hold or toggle, rumble): its Defaults resets these. */
-const CONTROL_GAMEPLAY = ['adsToggle', 'crouchToggle', 'sprintHold', 'wallToggle', 'rumble'] as const;
+const CONTROL_GAMEPLAY = ['crouchToggle', 'wallToggle', 'rumble'] as const;
 
 /**
  * GAME / SETTINGS (menu-ui SPEC 7.11, MD9) on the MenuScreen template: a tab strip (LB / RB, Q / E, clicks), rows with
@@ -122,10 +122,8 @@ export class SettingsScreen extends MenuScreen {
           return rowList(
             desc(button('Remap controls', () => app.screens.push(new ControlsScreen(app)), { key: 'remap' }), 'Change the buttons and keys for every action, on the controller and on the keyboard and mouse.'),
             grp('Hold or toggle'),
-            desc(choice('Aim', hold, () => s().gameplay.adsToggle, (v) => upd((d) => void (d.gameplay.adsToggle = v))), 'Hold: aim while the button is held. Toggle: one press raises the weapon, the next lowers it.'),
             desc(choice('Crouch', hold, () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))), 'Hold: crouch while the button is held. Toggle: one press crouches, the next stands.'),
             desc(choice('Back to wall', hold, () => s().gameplay.wallToggle, (v) => upd((d) => void (d.gameplay.wallToggle = v))), 'Hold: stay on the wall while the button is held. Toggle: one press goes to the wall, the next leaves it.'),
-            desc(choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))), 'Toggle: one press sprints until you stop. Hold: sprint only while the button is held.'),
             grp('Controller'),
             status,
             desc(slider('Look sensitivity (horizontal)', { min: 0.2, max: 3, step: 0.05, get: () => s().gamepad.lookSensitivityX, set: (v) => upd((d) => void (d.gamepad.lookSensitivityX = v)), format: mult }), 'How fast the right stick turns the camera left and right.'),
@@ -361,7 +359,7 @@ export class SettingsScreen extends MenuScreen {
       desc(slider('Field of view', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }), 'The horizontal field of view on a 16:9 screen. Wider screens see more at the sides.'),
       desc(slider('Widest field of view', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }), 'The limit for ultrawide screens.'),
       desc(choice('HUD width', HUD_OPTS, () => s().video.hudWidth, (v) => upd((d) => void (d.video.hudWidth = v))), 'Keeps the HUD inside a narrower frame on a wide screen.'),
-      desc(toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))), 'The frame rate in the corner of the screen.'),
+      desc(toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))), 'A thin banner at the top of the screen: frame rate, frame time, drops, resolution.'),
       desc(toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))), 'Darkens the corners of the picture a little.'),
       desc(toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))), 'A fine grain over the picture.'),
       desc(choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))), 'How characters are drawn. Stick is a debug look.'),

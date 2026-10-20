@@ -2,12 +2,13 @@
  * (locomotion step 18, D7; CT prototype A3, G96) Controller bindings (pure, unit-tested). Every remappable pad verb has up
  * to two buttons (W3C standard-mapping indices). The sticks, the triggers' analog aim / fire and the menu buttons
  * (`UI_BINDINGS`) stay fixed; LT / RT as plain buttons can take another verb (the conflict check then names Aim / Fire).
- * The defaults are `GAME_BINDINGS` (the Chaos Theory pad, docs/ct-prototype/F1A-CONTROLS.md): A interact / context
- * (doors, takedown; reloads while the weapon is drawn), B crouch, Y jump, X draw / holster (a toggle: the aiming mode),
- * LT knockout (holstered) / secondary fire (drawn), RT lethal attack (holstered) / fire (drawn), L3 back-to-wall (not
- * aiming) / swap shoulder (aiming), R3 zoom (aiming, scoped), RB co-op action (CT's Black), LB selection wheel (hold) /
- * switch weapon (tap), View mission device (no action yet), D-pad up / down speed rocker, left the selected vision
- * mode on / off, right quick-use of the selected gadget.
+ * The defaults are `GAME_BINDINGS` (docs/anim-rework/BRIEF.md section 1): A interact / context (doors, takedown; every
+ * weapon state, Michael 14:55 "Interact always"), B crouch, Y jump / traverse, X holster / draw (tap) and reload (held while drawn), LT
+ * aim (held; fixed), RT fire while aiming, holstered or holding a guard tap knockout / hold kill (fixed), L3
+ * back-to-wall (not aiming) / swap shoulder (aiming), R3 zoom (aiming, scoped), RB co-op action (CT's Black), LB
+ * selection wheel (hold) / switch weapon (tap), View mission device (no action yet), D-pad left the selected vision mode
+ * on / off, right quick-use of the selected gadget. D-pad up / down are unbound in play (the speed rocker is gone,
+ * anim-rework S1); they step the held context menu's highlight (fixed).
  */
 import type { ButtonAction } from './actions';
 import { PAD, type PadStyle } from './gamepadMapping';
@@ -21,8 +22,6 @@ export type PadBindId =
   | 'coop'
   | 'quick'
   | 'zoom'
-  | 'gearUp'
-  | 'gearDown'
   | 'throwCam'
   | 'vision'
   | 'device'
@@ -39,15 +38,13 @@ export const PAD_BINDS: readonly PadBindDef[] = [
   { id: 'interact', label: 'Interact / context (doors, takedown)', actions: ['interact'], defaults: [PAD.A] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: [PAD.B] },
   { id: 'jump', label: 'Jump / traverse', actions: ['jump'], defaults: [PAD.Y] },
-  { id: 'draw', label: 'Draw / holster weapon (aim toggle)', actions: ['draw'], defaults: [PAD.X] },
+  { id: 'draw', label: 'Holster / draw (tap); reload (hold, gun out)', actions: ['draw'], defaults: [PAD.X] },
   { id: 'wall', label: 'Back to wall (aiming: swap shoulder)', actions: ['cover', 'shoulderSwap'], defaults: [PAD.LS] },
-  { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: [PAD.RB] },
+  { id: 'coop', label: 'Co-op action (aiming the pistol: jammer, hold)', actions: ['coop'], defaults: [PAD.RB] },
   { id: 'quick', label: 'Selection wheel (hold) / switch weapon (tap)', actions: ['gadgetWheel'], defaults: [PAD.LB] },
   { id: 'zoom', label: 'Zoom (aiming, scoped weapon)', actions: ['zoom'], defaults: [PAD.RS] },
   { id: 'vision', label: 'Vision on / off (the mode picked on the wheel)', actions: ['vision'], defaults: [PAD.LEFT] },
   { id: 'throwCam', label: 'Quick-use selected gadget (hold to aim)', actions: ['grenade'], defaults: [PAD.RIGHT] },
-  { id: 'gearDown', label: 'Max speed down', actions: ['speedDown'], defaults: [PAD.DOWN] },
-  { id: 'gearUp', label: 'Max speed up', actions: ['speedUp'], defaults: [PAD.UP] },
   { id: 'device', label: 'Mission device (not in yet)', actions: [], defaults: [PAD.SELECT] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: [PAD.START] },
 ];
@@ -56,7 +53,8 @@ export const PAD_BIND_IDS: readonly PadBindId[] = PAD_BINDS.map((b) => b.id);
 export type PadBinds = Record<PadBindId, number[]>;
 /** Buttons a verb may use: the face buttons, shoulders, triggers, View / Menu, stick clicks, d-pad (not Home). */
 export const PAD_BUTTON_COUNT = 16;
-/** Fixed analog verbs on the triggers (F1a: LT is the knockout / secondary fire, kept under the old 'aim' key because the controls screen reads it; shown read-only; a button verb on them is reported as a conflict). */
+/** Fixed analog verbs on the triggers (anim-rework S1: LT is the held aim again, RT fire / the strike; shown read-only;
+ *  a button verb on them is reported as a conflict). */
 export const PAD_FIXED: Readonly<Record<'aim' | 'fire', readonly number[]>> = { aim: [PAD.LT], fire: [PAD.RT] };
 
 export function defaultPadBinds(): PadBinds {
@@ -72,15 +70,20 @@ export function defaultPadBinds(): PadBinds {
  * (and vision sharing up with speed up). Version 2: those verbs still on their exact A3 default move to today's; a verb
  * the player remapped is kept.
  */
-export const PAD_LAYOUT_V = 2;
+export const PAD_LAYOUT_V = 3;
+/**
+ * (anim-rework S1) Version 3: the speed rocker verbs (`gearUp` / `gearDown`) are gone (the stick sets the speed); a
+ * stored entry for them is dropped by `sanitizePadBinds` and D-pad up / down are free. X keeps its id (`draw`: now
+ * holster / draw tap, reload hold) and LT is the fixed aim; a verb the player had put on LT / RT or a button that now
+ * clashes is reported (the controls screen marks it, and `controlsMigrationNotes` names it in a toast once after the move). A stored
+ * `gameplay.adsToggle` key is dropped (the aim is always held, Michael 15:25).
+ */
 const A3_DPAD: ReadonlyArray<[PadBindId, number]> = [
   ['vision', PAD.UP],
   ['throwCam', PAD.DOWN],
-  ['gearDown', PAD.LEFT],
-  ['gearUp', PAD.RIGHT],
 ];
 
-/** (F7) Moves the D-pad verbs still on their A3 defaults to today's defaults (in place). */
+/** (F7) Moves the D-pad verbs still on their A3 defaults to today's defaults (in place). (The A3 speed verbs are gone.) */
 export function migrateA3Dpad(b: PadBinds): void {
   for (const [id, btn] of A3_DPAD) {
     const v = b[id];

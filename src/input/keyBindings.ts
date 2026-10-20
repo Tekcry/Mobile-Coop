@@ -1,8 +1,9 @@
 /**
  * Keyboard / mouse bindings (pure, unit-tested). Every gameplay action has up to two inputs: a keyboard `code`
  * (`KeyboardEvent.code`) or an extra mouse button (`Mouse1` middle, `Mouse3` back, `Mouse4` forward). The left /
- * right mouse buttons (fire / draw-holster toggle, F1a), the wheel (speed gear up / down, 3.2.0), 1-7 (gadgets) and the menu keys (Esc, Enter, Backspace,
- * arrows, Q / E tabs) are fixed.
+ * right mouse buttons (fire / aim held; anim-rework S1), the wheel (the held context menu's highlight), 1-7 (gadgets)
+ * and the menu keys (Esc, Enter, Backspace, arrows, Q / E tabs) are fixed. (anim-rework S1, A1) WASD walk; Left Shift
+ * held runs, Left Alt held creeps (`run` / `creep`: move magnitudes, no action); back to wall moved to Caps Lock.
  */
 import type { ButtonAction } from './actions';
 
@@ -11,10 +12,10 @@ export type BindId =
   | 'back'
   | 'left'
   | 'right'
+  | 'run'
+  | 'creep'
   | 'wall'
   | 'crouch'
-  | 'speedUp'
-  | 'speedDown'
   | 'jump'
   | 'interact'
   | 'reload'
@@ -43,15 +44,15 @@ export const BINDS: readonly BindDef[] = [
   { id: 'back', label: 'Move back', actions: [], defaults: ['KeyS'] },
   { id: 'left', label: 'Move left', actions: [], defaults: ['KeyA'] },
   { id: 'right', label: 'Move right', actions: [], defaults: ['KeyD'] },
-  { id: 'wall', label: 'Back to wall', actions: ['cover'], defaults: ['ShiftLeft'] },
+  { id: 'run', label: 'Run (hold)', actions: [], defaults: ['ShiftLeft'] },
+  { id: 'creep', label: 'Creep (hold)', actions: [], defaults: ['AltLeft'] },
+  { id: 'wall', label: 'Back to wall', actions: ['cover'], defaults: ['CapsLock'] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: ['KeyC', 'ControlLeft'] },
-  { id: 'speedUp', label: 'Speed up (gear)', actions: ['speedUp'], defaults: ['Equal'] },
-  { id: 'speedDown', label: 'Speed down (gear)', actions: ['speedDown'], defaults: ['Minus'] },
   { id: 'jump', label: 'Jump / traverse', actions: ['jump'], defaults: ['Space'] },
   { id: 'interact', label: 'Interact / context (doors, takedown)', actions: ['interact'], defaults: ['KeyE'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },
-  { id: 'draw', label: 'Draw / holster weapon (aim toggle; RMB too)', actions: ['draw'], defaults: ['KeyX'] },
-  { id: 'knockout', label: 'Knockout (holstered) / secondary fire (drawn)', actions: ['altFire'], defaults: ['KeyZ'] },
+  { id: 'draw', label: 'Holster / draw (tap); reload (hold, gun out)', actions: ['draw'], defaults: ['KeyX'] },
+  { id: 'knockout', label: 'Knockout (holstered or holding a guard)', actions: ['altFire'], defaults: ['KeyZ'] },
   { id: 'zoom', label: 'Zoom (aiming, scoped weapon)', actions: ['zoom'], defaults: ['KeyB'] },
   { id: 'nextWeapon', label: 'Next weapon (Tab tap too)', actions: ['swapNext'], defaults: ['KeyT'] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: ['KeyQ'] },
@@ -59,12 +60,25 @@ export const BINDS: readonly BindDef[] = [
   { id: 'wheel', label: 'Selection wheel (hold) / switch weapon (tap)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Vision on / off (mode picked on the wheel)', actions: ['vision'], defaults: ['KeyN'] },
-  { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
+  { id: 'coop', label: 'Co-op action (aiming the pistol: jammer, hold)', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 
 export const BIND_IDS: readonly BindId[] = BINDS.map((b) => b.id);
 export type KeyBinds = Record<BindId, string[]>;
+
+/**
+ * (anim-rework S1) The stored key layout's version. 1: Left Shift runs and Left Alt creeps (A1), so back to wall left
+ * Left Shift for Caps Lock; the speed keys (= / -) are gone (`sanitizeBinds` drops their entries).
+ */
+export const KEY_LAYOUT_V = 1;
+
+/** (anim-rework S1) Moves a save from before `KEY_LAYOUT_V` 1 to today's layout (in place): back to wall still on its
+ *  old default (Left Shift alone) goes to Caps Lock; a remapped wall key is kept (a clash with the run is a conflict,
+ *  reported). */
+export function migrateKeysV1(b: KeyBinds): void {
+  if (b.wall.length === 1 && b.wall[0] === 'ShiftLeft') b.wall = [...BINDS.find((x) => x.id === 'wall')!.defaults];
+}
 
 /** Fixed keys: never bindable (menus, Esc pause, gadget picks). */
 export const FIXED_KEYS: Record<string, readonly ButtonAction[]> = {
