@@ -110,6 +110,9 @@ Proposed by the step 3 spec (`SPEC.md` section 4, which has the full table) for 
 - **M5** (2026-10-20 13:05, via the orchestrator): "Is there capacity to continue the sector ops on desktop when
   nothing else is running, it shouldn't take priority". The job resumes at the lowest priority; the PR waits for
   Michael's look at the direction. The SPEC "Decisions" are the job lead's (A2-A7 below).
+- **M6** (2026-10-20 14:05, via the orchestrator): Michael chose "Merge to master" for the section 1 greybox, to walk it
+  on /preview/. The PR (a minor step) opens when the laptop run on 0017294d is green; sections 2-3 follow at the lowest
+  priority.
 - **A2 (C1, M8 isolation in time):** the takedown check (`sectorCheck.ts`) passes a guard whose spot is statically
   unseen (as now) or that has 3 s or more of isolation in a row on its timed patrol (SPEC 6 model), so section 1 needs no
   filler geometry. Undo: drop the time branch (sections 2 and 3 pass the static branch).
