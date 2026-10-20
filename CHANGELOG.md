@@ -1,5 +1,34 @@
 # Changelog
 
+## 4.23.0 - Tuner: camera and speed sliders, free view, freeze, full pad control, import, bypass, search (2026-10-21, PR #65)
+- Animation tuner: a Camera section (Michael 2026-10-21: "include camera adjustments to the animation sliders too, so
+  I can fine tune camera locations too"). A picker per camera state (explore standing / crouched, low ready, aiming
+  rifle / pistol, back to wall, peek, climb / hang, vent / crawl, holding a guard) that follows the current state, with
+  sliders for distance behind, height, shoulder side offset, look-at height, FOV, aim zoom, transition blend time,
+  follow damping, boom pull-in rate and collision margin. A grey "today: ..." line under each slider shows the value
+  the game uses now. At default the camera is unchanged; the wall collision still applies after the sliders. Same
+  save, export, resets and pad control as the other sections. Detail: `docs/anim-tuner/CAMERA.md`.
+- The tuner's sections now come from a registry (`src/anim/tuneRegistry.ts`) so other jobs can add sections from
+  their own files; saves and exports are unchanged (API: `docs/anim-tuner/STATE.md`).
+- Free view (Michael: "a free view camera so I can view the animation from any direction freely"): Orbit circles the
+  player (right stick / mouse, zoom on the triggers / wheel) while the player still walks; Fly is a detached camera,
+  and the player stands or walks a demo loop (walk, jog, run, crouch walk, aim strafe). The game keeps running;
+  gameplay never reads the free camera, and turning it off gives the game camera back exactly. Hide HUD toggle.
+- Time: a game speed slider (0.1-1x, slow motion in normal play), Pause / Resume and Step (one frame); View handing the
+  pad back to the tuner freezes the game mid-animation (on by default) and View to the game resumes. Off in co-op.
+- Speed section (gameplay, local only): creep / sneak / walk / jog / run standing and crouched, aimed glide forward /
+  strafe / back, wall slide, ladder / pipe / shimmy / duct crawl, each with today's value. Tests, e2e and co-op use the
+  defaults until the values are folded in (the panel says so).
+- Every tuner control by pad, with a new map: D-pad moves through every control, A selects or edits (a slider changes
+  only in edit mode: left / right or the stick, LT fine, A keeps, B cancels), X resets the row, Y opens a menu (export,
+  share, reset group / all, clear log, import, changed only, barrel marker, wide ranges), LB / RB jump between sections,
+  LT / RT switch the state, R3 held shows the untuned animation, View swaps game / tuner, Menu closes. The map shows in a
+  strip at the bottom of the panel and in `docs/anim-tuner/STATE.md`.
+- Smooth state changes (Body and Gun ease over 0.1 s instead of popping), Import of an exported JSON, "wide ranges"
+  (every range doubled), typed values in each row, a bypass (R3 or Backquote held), and a slider search box.
+- Fix: the barrel marker turned half the screen grey. It is now drawn on a 2D overlay (no scene meshes, no per-frame
+  Babylon allocation).
+
 ## 4.22.0 - Sector Ops lamp fittings, translucent roof sheets, warehouse dressing (2026-10-21, PR #59)
 - Sector Ops Warehouse lamp fittings (Michael 2026-10-20: "The sector ops lights are not sitting properly on the
   ceilings, some are even above ceilings or just floating"; quick, believable, three types, in code). Every lamp of the
