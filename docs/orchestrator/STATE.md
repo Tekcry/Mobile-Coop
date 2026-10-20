@@ -9,10 +9,10 @@ Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-nati
 there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.25.0 (#68, 52178c06). Tags v4.0.0-v4.25.0. /preview/ = dev = 52178c06. Merged since the 2026-10-20 reset, in order:
+v4.26.0 (#69, d537cbd8). Tags v4.0.0-v4.26.0. /preview/ = dev = d537cbd8. Merged since the 2026-10-20 reset, in order:
 4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
 4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
-4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66), 4.25.0 tuner-v2 (#68). /ct/ = ct-movement (CT Core).
+4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66), 4.25.0 tuner-v2 (#68), 4.26.0 Anim Studio PR 1 (#69). /ct/ = ct-movement (CT Core).
 Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (source docs/orchestrator/dashboard.html; stale since
 2026-10-20, update when convenient).
 
@@ -85,6 +85,9 @@ merging master only, then laptop full); #67 S2b FAILED full e2e on 3eaf3509 (aut
 numbers back: knees 1.6x, wristR pop 9.2 cm > 7.5) - Opus fixer on feature/anim-s2b, then a fresh full. Merge order:
 #69, #70, #67. e2e-stealth-ai peek assert fails in full runs, passes solo (rerun queued; flaky candidate).
 Course Ready building Anim Studio PR 2 on feature/anim-studio-2 (from c55adaec).
+#69 merged as 4.26.0 (d537cbd8). ~06:40 Michael: tools first, spare capacity on jobs smallest to largest, warehouse
+rebuild parked (see ROADMAP Decided). Menu Notes: #58 GPU reshoot -> lamps GPU look -> camera-cue #63 (GPU only when the
+desktop lock is free). Laptop: #70 full, tool heads, #67 fixed head, master e2e-mouse, #62 full, #63.
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
