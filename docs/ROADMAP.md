@@ -19,6 +19,8 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 ## Waiting on Michael
 1. Walk slice F on /ct/ in the morning (CT Core, overnight).
 2. Prune old branches and worktrees when convenient (docs/process-audit/REPORT.md section 5). feature/ct-research is deleted.
+3. Before the campaign spec resumes (feature/campaign-spec 6ba3726e, STATE has the research): a rule clash, level-design
+   section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-19 dashboard)
 - Movement rebuild from the footage (23:15): "Catalogue them, audit, and update our movement system to match the recorded animatimations, movements camera angels, speeds, everything about movement. Must be exactly the same as the recorded movement, only made original by you." (23:20) "I expect a thorough audit of the movement system and have it replicated in my game using original code." This lifts the no-refining rule for movement. Footage: C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/ (gitignored; 88 clip folders, 62 from 2026-10-17, 26 new from 2026-10-19). CT Core, after slice F.
