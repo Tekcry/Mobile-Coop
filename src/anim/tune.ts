@@ -19,7 +19,7 @@
  */
 import { CH } from './pose';
 import { ATTACH_FRAMING, CAMERA, WALL_CAMERA } from '../config/camera';
-import { registerTuneSection, TUNE_STATE_BAG } from './tuneRegistry';
+import { registerTuneSection, TUNE_STATE_BAG, tuneSectionEase } from './tuneRegistry';
 
 export const BODY_GROUPS = [
   'idle',
@@ -327,10 +327,15 @@ export const TUNE_STATE = TUNE_STATE_BAG as { body: BodyGroup | ''; gun: GunGrou
 const inSection = (groups: readonly string[]): Tunable[] => TUNABLES.filter((t) => t.groups.every((g) => groups.includes(g)));
 const EMPTY: readonly string[] = [];
 
+/** (pass 2) The Body and Gun sections' ease on a state change (s). */
+export const BODY_TAU = 0.1;
+
 /** (tuner-camera) The three built-in sections, in panel order: Body, Gun, Camera (`tuneRegistry.ts`). */
 export const BODY_SECTION = registerTuneSection<BodyValues>({
   id: 'body',
   label: 'Body state',
+  // (pass 2) a state change eases in (0.1 s) instead of popping
+  tau: BODY_TAU,
   groups: BODY_GROUPS,
   tunables: inSection(BODY_GROUPS),
   select: (s) => s.body || null,
@@ -342,6 +347,7 @@ export const BODY_SECTION = registerTuneSection<BodyValues>({
 export const GUN_SECTION = registerTuneSection<GunValues>({
   id: 'gun',
   label: 'Gun hold (weapon x state)',
+  tau: BODY_TAU,
   groups: GUN_GROUPS,
   tunables: inSection(GUN_GROUPS),
   select: (s) => s.gun || null,
@@ -349,6 +355,7 @@ export const GUN_SECTION = registerTuneSection<GunValues>({
 export const CAM_SECTION = registerTuneSection<CamValues>({
   id: 'cam',
   label: 'Camera (state)',
+  tau: 1 / 8,
   groups: CAM_GROUPS,
   tunables: inSection(CAM_GROUPS),
   select: (s) => s.cam || null,
@@ -519,10 +526,11 @@ function restoreTarget(t: TuneTarget, slot: number): void {
 }
 
 /**
- * Before the LOCAL player's `rig.animate`: select its groups, load their values into `TUNE_CUR` (and `TUNE_LOCAL`),
+ * Before the LOCAL player's `rig.animate`: select its groups, ease their values in over `dt` (s; 0 = at once) and load
+ * them into `TUNE_CUR` (and `TUNE_LOCAL`),
  * scale the pose's head turn and peek lean, and offset the world grip targets (restored by `tuneEnd`). No allocation.
  */
-export function tuneBegin(p: TunePoseIn, rig: TuneRigIn): void {
+export function tuneBegin(p: TunePoseIn, rig: TuneRigIn, dt = 0): void {
   const armed = rig.heldWeapon !== null && rig.heldWeapon !== undefined;
   const ledge = rig.reachL.hook === 1 || rig.reachR.hook === 1;
   const bg = selectBodyGroup(p, ledge, armed);
@@ -530,9 +538,11 @@ export function tuneBegin(p: TunePoseIn, rig: TuneRigIn): void {
   TUNE_STATE.body = bg ?? '';
   TUNE_STATE.gun = gg ?? '';
   const cur = TUNE_CUR;
-  if (bg) copyBody(TUNE_BODY[bg], cur);
-  else copyBody(TUNE_IDENTITY, cur);
-  copyGun(gg ? TUNE_GUN[gg] : TUNE_IDENTITY, cur);
+  // (pass 2) the sections' eased values (`dt` 0: at once; the bypass held: identity)
+  tuneSectionEase(BODY_SECTION, bg, dt);
+  tuneSectionEase(GUN_SECTION, gg, dt);
+  copyBody(BODY_SECTION.cur, cur);
+  copyGun(GUN_SECTION.cur, cur);
   cur.armSwingK = Math.max(0, cur.armSwingMul + cur.armSwingGrow * Math.max(0, p.speed));
   copyBody(cur, TUNE_LOCAL);
   copyGun(cur, TUNE_LOCAL);
@@ -682,9 +692,9 @@ export function selectCamGroup(attach: string | null, peek: number, ads: number,
   return 'cam.explore';
 }
 
-/** The rate (1/s) the camera's values ease to a new group's (or a moved slider's): about 0.4 s, so a state change glides. */
+/** The rate (1/s) the camera's values ease to a new group's (or a moved slider's): about 0.4 s, so a state change glides
+ *  (the Camera section's `tau` is 1 / CAM_EASE). */
 export const CAM_EASE = 8;
-const CAM_KEYS: readonly CamField[] = CAM_FIELDS;
 
 /**
  * Once per render frame, from the follow camera: select the camera group (TUNE_STATE.cam) and ease `TUNE_CAM_CUR` toward
@@ -693,17 +703,8 @@ const CAM_KEYS: readonly CamField[] = CAM_FIELDS;
 export function tuneCamStep(attach: string | null, peek: number, ads: number, crouch: number, dt: number): void {
   const g = selectCamGroup(attach, peek, ads, crouch, TUNE_STATE.body, TUNE_STATE.gun);
   TUNE_STATE.cam = g;
-  const src = TUNE_CAM[g];
-  const cur = TUNE_CAM_CUR;
-  const k = dt > 0 ? 1 - Math.exp(-CAM_EASE * dt) : 0;
-  for (let i = 0; i < CAM_KEYS.length; i++) {
-    const key = CAM_KEYS[i]!;
-    const t = src[key];
-    const c = cur[key];
-    if (c === t) continue;
-    const d = t - c;
-    cur[key] = Math.abs(d) < 1e-5 ? t : c + d * k;
-  }
+  // (pass 2) through the registry: dt 0 (the tuner's freeze, the pause menu) applies at once, the bypass reads identity
+  tuneSectionEase(CAM_SECTION, g, dt);
 }
 
 // ------------------------------------------------------------------------------------------
@@ -712,6 +713,12 @@ export function tuneCamStep(attach: string | null, peek: number, ads: number, cr
 
 export {
   TUNE_EXPORT_MAGIC,
+  TUNE_FLAGS,
+  tuneImport,
+  tuneMax,
+  tuneMin,
+  tuneSectionEase,
+  type TuneImportResult,
   TUNE_HOOKS,
   TUNE_LOG,
   hasTunable,

@@ -508,7 +508,7 @@ export class Player {
       this.teleportsSeen = c.teleports;
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
-    tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
+    tuneBegin(rp, this.rig, dt); // (anim-tuner) the local player's slider values, this rig only (pass 2: eased over dt)
     const handW = handsWeaponOf(this.rig);
     tuneV2Frame(TUNE_STATE.body, handW); // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables

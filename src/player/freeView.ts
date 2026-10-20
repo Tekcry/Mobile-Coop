@@ -15,8 +15,8 @@ export type FreeMode = 'off' | 'orbit' | 'fly';
 export const FREE_MODES: readonly FreeMode[] = ['off', 'orbit', 'fly'];
 export const FREE_DEMOS = ['idle', 'walk', 'jog', 'run', 'crouchWalk', 'aimStrafe'] as const;
 export type FreeDemo = (typeof FREE_DEMOS)[number];
-/** The time scales the panel offers (slow motion through the loop's `timeScale`; the fixed step stays 1/60 s). */
-export const FREE_SCALES = [1, 0.5, 0.25, 0.1] as const;
+/** (pass 2) The tuner's game speed slider (slow motion through the loop's `timeScale`; the fixed step stays 1/60 s). */
+export const GAME_SPEED = { min: 0.1, max: 1, step: 0.05 } as const;
 
 /** What the panel chose (read by the game each frame). */
 export const FREE_VIEW: { mode: FreeMode; demo: FreeDemo } = { mode: 'off', demo: 'idle' };
@@ -53,12 +53,10 @@ export const FREE_CFG = {
   demoRadius: 2,
 };
 
-/** The nearest offered time scale (anything not finite: 1). */
+/** A game speed clamped to the slider's range (anything not finite: 1). */
 export function freeTimeScale(v: number): number {
   if (!Number.isFinite(v)) return 1;
-  let best: number = FREE_SCALES[0];
-  for (const s of FREE_SCALES) if (Math.abs(s - v) < Math.abs(best - v)) best = s;
-  return best;
+  return Math.max(GAME_SPEED.min, Math.min(GAME_SPEED.max, v));
 }
 
 /** A stick axis past the dead zone (rescaled to 0..1 past it). */

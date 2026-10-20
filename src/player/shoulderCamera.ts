@@ -121,7 +121,9 @@ export class ShoulderCamera {
   readonly pivot = new Vector3();
   readonly forward = new Vector3(0, 0, 1);
   /** (tuner-camera) The game's view position this frame (the tuned follow camera, never the free view): what gameplay
-   *  reads (aim ray, ping, the jammer pick, the crosshair's target). Equal to `camera.position` unless the free view is on. */
+   *  reads (aim ray, ping, the jammer pick, the flash white-out, the crosshair's target). Written here, and by whatever
+   *  else places the game view after this update: the sticky-cam remote view (`GadgetSystem.frameUpdate`) and photo
+   *  mode. Equal to `camera.position` except while the tuner's free view is on. */
   readonly gamePos = new Vector3();
   /** (tuner-camera) The tuner's free view (dev): when on, the rendered camera is placed by it after the game view. */
   free: FreeViewCore | null = null;

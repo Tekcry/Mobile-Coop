@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { demoInput, FREE_CFG, freeAxis, freeTimeScale, FreeViewCore, orbitPlace, type DemoOut } from '../src/player/freeView';
 import { stickMagFor } from '../src/player/speedGears';
 
-describe('free view pure parts (tuner-camera, WIP)', () => {
+describe('free view pure parts (tuner-camera)', () => {
   it('orbit places the view dist back along the look, aimed at the target', () => {
     const o = { x: 0, y: 0, z: 0 };
     orbitPlace(1, 2, 3, 0, 0, 4, o);
@@ -13,9 +13,9 @@ describe('free view pure parts (tuner-camera, WIP)', () => {
     expect(o.z).toBeCloseTo(0, 9);
   });
 
-  it('the time scale snaps to 1 / 0.5 / 0.25 / 0.1; junk is 1', () => {
+  it('the game speed clamps to 0.1-1; junk is 1', () => {
     expect(freeTimeScale(0.5)).toBe(0.5);
-    expect(freeTimeScale(0.3)).toBe(0.25);
+    expect(freeTimeScale(0.3)).toBe(0.3);
     expect(freeTimeScale(0)).toBe(0.1);
     expect(freeTimeScale(7)).toBe(1);
     expect(freeTimeScale(Number.NaN)).toBe(1);

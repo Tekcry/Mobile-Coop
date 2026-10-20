@@ -426,43 +426,88 @@ try {
     assert(!(await GM(() => !!document.querySelector('.pause-screen .ps-notice:not([hidden])'))), 'a reconnect clears the line');
     await GM(() => window.__app.screens.top.resume());
     await frames(P, 4);
-    // (tuner-pad) the tuner by pad: Pause > Animation tuner (A) takes the pad; D-pad down picks the next slider, right
-    // nudges it, Y resets it, the left stick does not reach the game, B closes and gives the pad back
+    // (tuner-pad; pass 2 map) the tuner by pad: Pause > Animation tuner (A) takes the pad with the focus on a slider;
+    // the D-pad moves the focus and never changes a value; A edits (right / left adjust), B cancels, A keeps, X resets the
+    // row; Y opens the menu, B closes it; RB jumps to the next section, RT switches its state; the left stick does not
+    // reach the game; View hands the pad to the game and back (freezing the game), Menu (Start) closes
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
     await GM(() => window.__app.nav.focus(document.querySelector('.pause-screen [data-key="anim-tuner"]')));
     await press(P, BTN.A);
     await frames(P, 3);
-    const tp0 = await GM(() => window.__animTune.pad());
-    assert(tp0.mode === 'tuner' && tp0.id !== '' && (await GM(() => !document.querySelector('.anim-tune').hidden)), `tuner: Pause > Animation tuner by pad opens it with the pad (${JSON.stringify(tp0)})`);
+    const tpad = () => GM(() => window.__animTune.pad());
+    const tp0 = await tpad();
+    assert(tp0.mode === 'tuner' && tp0.id !== '' && (await GM(() => !document.querySelector('.anim-tune').hidden)), `tuner: Pause > Animation tuner by pad opens it with the pad on a slider (${JSON.stringify(tp0)})`);
     await press(P, BTN.DOWN);
-    const tp1 = await GM(() => window.__animTune.pad());
-    assert(tp1.id !== '' && (tp1.id !== tp0.id || tp1.group !== tp0.group), `tuner: D-pad down picks the next slider (${tp0.id} -> ${tp1.id})`);
-    const tv = () => GM((p) => window.__animTune.get(p.group, p.id), tp1);
+    const tp1 = await tpad();
+    assert(tp1.key !== tp0.key, `tuner: D-pad down moves the focus (${tp0.key} -> ${tp1.key})`);
+    for (let i = 0; i < 6 && !(await tpad()).id; i++) await press(P, BTN.DOWN);
+    const ts = await tpad();
+    const tv = () => GM((q) => window.__animTune.get(q.group, q.id), ts);
     const tv0 = await tv();
     await press(P, BTN.RIGHT);
-    if ((await tv()) === tv0) await press(P, BTN.LEFT); // at the top of its range
+    assert((await tv()) === tv0 && (await tpad()).key !== ts.key, `tuner: right outside edit moves the focus and changes no value (${tv0} -> ${await tv()})`);
+    await press(P, BTN.LEFT);
+    assert((await tpad()).key === ts.key, 'tuner: left moves the focus back');
+    const nudge = async () => {
+      await press(P, BTN.RIGHT);
+      if ((await tv()) === tv0) await press(P, BTN.LEFT); // at the top of its range
+    };
+    await press(P, BTN.A);
+    assert((await tpad()).editing, 'tuner: A starts editing the slider');
+    await nudge();
     const tv1 = await tv();
-    assert(tv1 !== tv0, `tuner: D-pad right / left nudges the focused slider (${tv0} -> ${tv1})`);
+    assert(tv1 !== tv0, `tuner: editing, right / left adjust it (${tv0} -> ${tv1})`);
+    await press(P, BTN.B);
+    assert(!(await tpad()).editing && (await tv()) === tv0, `tuner: B cancels the edit and restores the value (${await tv()})`);
+    await press(P, BTN.A);
+    await nudge();
+    await press(P, BTN.A);
+    assert(!(await tpad()).editing && (await tv()) !== tv0, `tuner: A keeps the edit (${await tv()})`);
+    await press(P, BTN.X);
+    assert((await tv()) === tv0, `tuner: X resets the row (${await tv()})`);
     await press(P, BTN.Y);
-    assert((await tv()) === tv0, `tuner: Y resets it (${await tv()})`);
-    // (tuner-v2 wiring) D-pad up wraps from the first section to the last one, Keys since item 4 (a registered section's rows)
-    let tpW = await GM(() => window.__animTune.pad());
-    for (let k = 0; k < 6 && !tpW.group.startsWith('key.'); k++) {
-      await press(P, BTN.UP);
-      tpW = await GM(() => window.__animTune.pad());
+    const tm = await tpad();
+    assert(tm.menu && tm.key.startsWith('m:'), `tuner: Y opens the menu (${tm.key})`);
+    await press(P, BTN.B);
+    assert(!(await tpad()).menu && (await tpad()).key === ts.key, 'tuner: B closes the menu, the focus comes back');
+    const s0 = (await tpad()).section;
+    await press(P, BTN.RB);
+    const s1 = await tpad();
+    assert(s1.section !== s0 && s1.key === `pick:${s1.section}`, `tuner: RB jumps to the next section (${s0} -> ${s1.section})`);
+    await press(P, BTN.RT);
+    const s2 = await tpad();
+    assert(s2.sectionGroup !== s1.sectionGroup, `tuner: RT switches that section's state (${s1.sectionGroup} -> ${s2.sectionGroup})`);
+    // (tuner-v2 wiring) RB steps through the sections and reaches Keys, the last registered one (item 4)
+    let tpW = await tpad();
+    for (let k = 0; k < 12 && !String(tpW.sectionGroup ?? tpW.group ?? '').startsWith('key.'); k++) {
+      await press(P, BTN.RB);
+      tpW = await tpad();
     }
-    assert(tpW.group.startsWith('key.') && tpW.id !== '', `tuner: the pad reaches the Keys section (${JSON.stringify(tpW)})`);
+    assert(String(tpW.sectionGroup ?? tpW.group ?? '').startsWith('key.'), `tuner: the pad reaches the Keys section (${JSON.stringify(tpW)})`);
     await GM(() => window.__pad.axis(1, -1));
     await frames(P, 8);
     const tMove = await GM(() => window.__app.input.state.move.y);
     await GM(() => window.__pad.axis(1, 0));
     await frames(P, 3);
     assert(tMove === 0, `tuner: the left stick does not reach the game while the tuner has the pad (${tMove})`);
-    await press(P, BTN.B);
+    const tScale = () => GM(() => window.__app.loop.timeScale);
+    await press(P, BTN.SELECT);
     await frames(P, 3);
-    const tp2 = await GM(() => window.__animTune.pad());
-    assert(tp2.mode === 'off' && (await GM(() => document.querySelector('.anim-tune').hidden)), `tuner: B closes it (${tp2.mode})`);
+    assert((await tpad()).mode === 'game', 'tuner: View hands the pad to the game');
+    await press(P, BTN.SELECT);
+    await frames(P, 3);
+    const fz = await tpad();
+    assert(fz.mode === 'tuner' && fz.frozen && (await tScale()) === 0, `tuner: View back to the tuner freezes the game (${JSON.stringify(fz)}, scale ${await tScale()})`);
+    await press(P, BTN.SELECT);
+    await frames(P, 3);
+    assert((await tpad()).mode === 'game' && !(await tpad()).frozen && (await tScale()) === 1, `tuner: View to the game resumes it (scale ${await tScale()})`);
+    await press(P, BTN.SELECT);
+    await frames(P, 3);
+    await press(P, BTN.START);
+    await frames(P, 3);
+    const tp2 = await tpad();
+    assert(tp2.mode === 'off' && (await GM(() => document.querySelector('.anim-tune').hidden)) && (await tScale()) === 1, `tuner: Menu closes it and the game runs (${tp2.mode}, scale ${await tScale()})`);
     // (tuner-camera) the camera state's distance slider pulls the follow camera in live; its reset puts it back
     await frames(P, 30);
     const camG = await GM(() => window.__animTune.state.cam);
@@ -502,6 +547,41 @@ try {
     const v2b = await v2Table();
     assert(v2.secs === 'joint,hand,ik,weapon,step,keys', `tuner: the tuner-v2 sections are in the panel (${v2.secs})`);
     assert(v2.input && v2a === 12 && v2b === 0, `tuner: a Joints slider set in the panel (${v2.g}) reaches the joint table (${v2a}), its reset puts it back (${v2b})`);
+    // (pass 2) free view, fly: the view moves with the pad's left stick, the player does not; off gives the game view back
+    const fvRead = () =>
+      GM(() => {
+        const g = window.__app.current;
+        const c = g.player.cam;
+        const v = (p) => ({ x: p.x, y: p.y, z: p.z });
+        return { cam: v(c.camera.position), game: v(c.gamePos), feet: v(g.player.position) };
+      });
+    const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    await GM(() => window.__app.debug.animTune.show());
+    await frames(P, 3);
+    const fv0 = await fvRead();
+    await GM(() => window.__animTune.free('fly'));
+    await frames(P, 3);
+    const fvs = await GM(() => window.__animTune.freeState());
+    await GM(() => window.__pad.axis(1, -1));
+    await frames(P, 40);
+    await GM(() => window.__pad.axis(1, 0));
+    await frames(P, 2);
+    const fv1 = await fvRead();
+    assert(fvs.mode === 'fly' && fvs.pad === 'free' && dist3(fv1.cam, fv0.cam) > 0.5, `tuner: free view fly moves the view (${JSON.stringify(fvs)}, ${dist3(fv1.cam, fv0.cam).toFixed(2)} m)`);
+    assert(dist3(fv1.feet, fv0.feet) < 0.05 && dist3(fv1.game, fv0.cam) < 0.05, `tuner: in fly the player and the game view stay (${dist3(fv1.feet, fv0.feet).toFixed(3)} / ${dist3(fv1.game, fv0.cam).toFixed(3)} m)`);
+    await GM(() => window.__animTune.free('off'));
+    await frames(P, 3);
+    const fv2 = await fvRead();
+    assert(dist3(fv2.cam, fv2.game) < 1e-6 && dist3(fv2.cam, fv0.cam) < 0.05, `tuner: free view off restores the game camera (${dist3(fv2.cam, fv0.cam).toFixed(3)} m)`);
+    // (pass 2) the barrel marker is a 2D overlay: no scene meshes
+    // (fix round) by name, not by count: a lazily made effect mesh would flake a count
+    await GM(() => window.__animTune.marker(true));
+    await frames(P, 10);
+    const mk1 = await GM(() => ({ n: window.__app.current.scene.meshes.filter((m) => m.name.startsWith('anim-tune-barrel')).length, el: !!document.querySelector('.anim-tune-marker-overlay') }));
+    await GM(() => window.__animTune.marker(false));
+    assert(mk1.n === 0 && mk1.el, `tuner: the barrel marker makes no scene meshes and draws on its overlay (${mk1.n} marker meshes, overlay ${mk1.el})`);
+    await GM(() => window.__app.debug.animTune.hide());
+    await frames(P, 2);
     // results
     await GM(() => {
       const g = window.__app.current;

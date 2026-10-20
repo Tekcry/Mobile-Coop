@@ -133,6 +133,14 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   ... `cam.hold`, `selectCamGroup`) and ten offset / multiplier sliders on `config/camera.ts` values, read by
   `ShoulderCamera.update` through `TUNE_CAM_CUR` (eased, identity at default); grey "today: ..." lines under the sliders.
   Detail: `docs/anim-tuner/CAMERA.md`.
+- (tuner-camera pass 2) The pad drives every control (the tuner-pad map above is replaced: `docs/anim-tuner/STATE.md`
+  "Pad map"; a hint strip at the bottom of the panel): a focus list of every `[data-pad]` control, edit mode for sliders
+  and dropdowns, a Y menu, LB / RB sections, LT / RT state, R3 / Backquote bypass, View game / tuner with a freeze, Menu
+  close. Tools: free view (orbit / fly, demo loop; `player/freeView.ts`, rendered after the game view so gameplay reads
+  `ShoulderCamera.gamePos`), hide HUD (`body.tune-hide-hud`), game speed 0.1-1x, Pause / Step (`GameLoop.timeScale` 0,
+  `stepHeadless`; off in co-op), wide ranges, Import, search. A Speed section (`player/speedTune.ts`, gameplay, local
+  only). Body / Gun / Camera ease state changes (`tuneSectionEase`). The barrel marker is a 2D canvas over the game
+  canvas (`.anim-tune-marker-overlay`, no scene meshes).
 
 ## Course HUD (Fallow, training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the

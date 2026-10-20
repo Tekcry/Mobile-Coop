@@ -160,10 +160,10 @@ export const TURN_FOLLOW = { twistMax: 0.9, minGapAny: 0.08, nearAlong: 0.25, ma
 /** (anim-rework S2) The free-movement stance band a planted foot steps back into and a landing aims inside (m from the
  *  root's midline): the standing band (standMin / standMax) on foot, the wider G1 band crouched (slice 4 owns it). */
 function bandMin(i: PlannerInput): number {
-  return i.crouch > 0.5 ? TURN_FOLLOW.minLateral : TURN_FOLLOW.standMinLateral;
+  return i.crouch > 0.5 ? CROUCH_BAND.min : TURN_FOLLOW.standMinLateral;
 }
 function bandMax(i: PlannerInput): number {
-  return i.crouch > 0.5 ? TURN_FOLLOW.maxLateral : TURN_FOLLOW.standMaxLateral;
+  return i.crouch > 0.5 ? CROUCH_BAND.max : TURN_FOLLOW.standMaxLateral;
 }
 
 /**
@@ -211,6 +211,15 @@ const HEEL_RISE = 6;
 const FREE_GAP = 0.85;
 /** (anim-rework S3) The standing aimed glide's least lateral gap between the feet (m; PLANNER.minGap elsewhere). */
 export const GLIDE_GAP = 0.09;
+/**
+ * (anim-rework S4) Standing up or crouching down while still, the feet re-step into the new stance: for `window` s after
+ * the crouch crosses half way the idle steps at a sideways error of `err` m (PLANNER.idleErr otherwise, which left the
+ * crouched sneak's foot spacing under a standing body until it grew past 7.5 cm).
+ */
+export const RESTEP = { window: 1.2, err: 0.02 } as const;
+/** (anim-rework S4) Crouched free movement: the stance band a planted foot steps back into (m from the midline; the G1
+ *  band 0.055-0.14 crouched before let a foot sit 14 cm out, past the crouched 8 cm track). */
+export const CROUCH_BAND = { min: 0.035, max: 0.1 } as const;
 /** (anim-rework S2) Standing, the planted feet pivot with the band (the scrub) only after this long (s) of continuous fast turning. */
 const SPIN_SCRUB = 0.5;
 /** (locomotion step 21, A80) A start's first steps (s): the trailing foot may toe off early at any speed. */
@@ -252,6 +261,9 @@ export class FootPlanner {
   private turnT = 9;
   /** (anim-rework S2) How long the body has been turning faster than 1 rad/s (s). */
   private spinT = 0;
+  /** (anim-rework S4) Crouched on the last update, and the time left of the re-step after a stance change (RESTEP). */
+  private wasCrouch = false;
+  private restepT = 0;
 
   /** Reset both feet to their ideal stance (teleport, spawn). */
   reset(i: PlannerInput): void {
@@ -289,6 +301,11 @@ export class FootPlanner {
     if (!this.L.init) this.reset(i);
     stepSelect(i.moving, hyp2(i.velX, i.velZ), i.crouch); // (tuner-v2 item 3) this gait's stepping row (tuneStep)
     this.L.landed = this.R.landed = false;
+    // (anim-rework S4) a stance change (the crouch past half way either way) re-steps the feet into the new stance
+    const crouchNow = i.crouch > 0.5;
+    if (crouchNow !== this.wasCrouch) this.restepT = RESTEP.window;
+    else if (this.restepT > 0) this.restepT = Math.max(0, this.restepT - i.dt);
+    this.wasCrouch = crouchNow;
     // (G1 fix) heel first only walking forward (not a strafe or a back step)
     const vv = hyp2(i.velX, i.velZ);
     this.rollOn = i.moving && vv <= HEEL_ROLL.maxSpeed && (vv < 0.05 || i.velX * Math.sin(i.yaw) + i.velZ * Math.cos(i.yaw) > 0.7 * vv);
@@ -654,7 +671,7 @@ export class FootPlanner {
       // stays planted (lifting it after the rear foot stepped back left the body over nothing: an eased stop ends with
       // the feet square, so both stepped; flat-crouch3-aim balance 36 cm)
       if (fwd < 0 && (side < 0 ? i.lZ - i.rZ : i.rZ - i.lZ) > STAGGER.min) fwd = Math.min(0, fwd + STAGGER.hold);
-      const err = hyp2(fwd / PLANNER.idleStagger, lat / PLANNER.idleErr) + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
+      const err = hyp2(fwd / PLANNER.idleStagger, lat / (this.restepT > 0 ? RESTEP.err : PLANNER.idleErr)) + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
       if (err > worstErr) {
         worstErr = err;
         worst = f;
@@ -790,10 +807,11 @@ export class FootPlanner {
     // (the wide stance Michael saw at 14:45)
     // (anim-rework S3) standing aimed (the glide: `glide`, stride 'velocity' off the wall) the closing foot comes in to GLIDE_GAP:
     // a side-step's close at about hip width, so the step opens the feet less wide
+    // (anim-rework S4) crouched too: the keyed crouched set's narrow track (the 13 cm gap held the crouch 9-12.6 cm a foot)
     const gapNeed =
-      i.stride === 'facing' && Number.isNaN(i.wallD) && i.crouch <= 0.5
+      i.stride === 'facing' && Number.isNaN(i.wallD)
         ? Math.min(PLANNER.minGap, (i.rX - i.lX) * FREE_GAP)
-        : i.glide && Number.isNaN(i.wallD) && i.crouch <= 0.5
+        : i.glide && Number.isNaN(i.wallD)
           ? GLIDE_GAP
           : PLANNER.minGap;
     const bad = side < 0 ? latT - (latO - gapNeed) : latO + gapNeed - latT;

@@ -1813,7 +1813,9 @@ export class GameState implements AppState {
       this.freeWas = mode;
       if (mode === 'off') {
         cam.free = null;
-        this.freeInp.releaseAll();
+        // (fix round) plain releases: releaseAll would block the demo's aim / crouch on the next free view
+        this.freeInp.set('free', 'ads', false);
+        this.freeInp.set('free', 'crouch', false);
         this.freeInp.move.x = this.freeInp.move.y = 0;
       } else {
         const core = (this.freeCore ??= new FreeViewCore());
@@ -1827,7 +1829,9 @@ export class GameState implements AppState {
     if (mode === 'off') return false;
     const core = this.freeCore!;
     const C = FREE_CFG;
-    const rdt = dt / (this.app.loop.timeScale || 1);
+    // real seconds (slow motion and the tuner's freeze do not slow the view; the pause menu stops it)
+    const loop = this.app.loop;
+    const rdt = loop.paused ? 0 : loop.manual ? dt : loop.realDt;
     const real = this.app.input.state;
     core.dt = rdt;
     core.lookX = look.x + FREE_IN.rx * C.yawRate * rdt;
@@ -2128,6 +2132,8 @@ export class GameState implements AppState {
     this.trackSpikes();
     if (this.photo) {
       // frozen: only the lights follow the free camera
+      // (tuner-camera fix) the photo camera is the game view meanwhile (gameplay reads gamePos)
+      this.player.cam.gamePos.copyFrom(this.player.cam.camera.position);
       this.world.frame(this.player.position, 0);
       this.stack.frame(0);
       // night vision's glare follows the free camera

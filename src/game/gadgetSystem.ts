@@ -603,6 +603,8 @@ export class GadgetSystem {
         camera.position.copyFrom(this.dir).scaleInPlace(0.06).addInPlace(c.p);
         camera.rotation.set(-c.pitch, c.yaw, 0);
         camera.fov = g.player.cam.vfov(g.app.input.state.down('zoom') ? 40 : 95);
+        // (tuner-camera fix) the game view is the sticky cam now: the flash, the jammer pick and the crosshair read it
+        g.player.cam.gamePos.copyFrom(camera.position);
       }
     }
     this.drawArc();
