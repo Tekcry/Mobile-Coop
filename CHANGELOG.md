@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased - camera-cue
+- Security cameras show a faint red scan grid on the floor and walls they see, sweeping with the pan (Michael M1
+  "Always, faint"); stronger in electro vision, its edge pulses while the camera sees a player, it fades when the camera
+  is jammed, off or shot. Render only: same field, range and static-collider line of sight as detection, never a light.
+
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").

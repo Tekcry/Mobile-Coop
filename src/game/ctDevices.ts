@@ -3,6 +3,7 @@ import { CAMERA } from '../config/security';
 import { hyp2, hyp3 } from '../core/mathx';
 import { CameraUnit } from '../security/camera';
 import { SecurityView } from '../security/securityView';
+import { CameraCueView } from '../vfx/cameraCueView';
 import type { SecurityEvent } from '../security/securitySystem';
 import { addGlow } from '../player/goggleGlow';
 import { DRAW_DRAWN } from '../weapons/drawState';
@@ -140,6 +141,8 @@ export class CtDevices {
   readonly zones: PassZone[];
   private readonly me: 0 | 1;
   private view: SecurityView | null = null;
+  /** (camera-cue) The faint red scan grid of what each camera sees (render only). */
+  private cue: CameraCueView | null = null;
   private time = 0;
   private want: [string, string] = ['', ''];
   private wantAt: [number, number] = [-9, -9];
@@ -183,6 +186,10 @@ export class CtDevices {
       }
     }
     for (const c of this.cams) this.allTargets.push({ id: c.def.id, kind: 'camera', x: c.x, y: c.y, z: c.z });
+    if (this.cams.length > 0) {
+      const b = g.ballistics;
+      this.cue = new CameraCueView(g.scene, this.cams, (a, z, m) => b.hitDistance(a, z, m), g.app.quality.level.minimal);
+    }
     for (const def of lay.lasers ?? []) {
       this.lasers.push({ def, meshes: this.buildBeams(def), on: true });
       const base = def.floorY ?? 0;
@@ -469,6 +476,7 @@ export class CtDevices {
       }
     }
     this.applyJam();
+    this.cue?.update(dt, this.g.vision.kind === 2);
     // laser touches
     for (let i = 0; i < n; i++) this.touch(i, refs[i]!, dt);
     this.stepScan(dt, refs, n);
@@ -612,6 +620,7 @@ export class CtDevices {
   frame(dt: number): void {
     if (this.role !== 'client') return;
     for (let i = 0; i < this.cams.length; i++) this.cams[i]!.advance(dt);
+    this.cue?.update(dt, this.g.vision.kind === 2);
     this.view?.update(this.cams);
   }
 
@@ -628,6 +637,7 @@ export class CtDevices {
       lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id) })),
       live: this.liveSection,
       range: CAMERA.range,
+      cue: this.cue?.debug() ?? [],
       scan: this.scanDebug(),
     };
   }
@@ -655,6 +665,8 @@ export class CtDevices {
     this.scan?.root.dispose();
     this.scan = null;
     this.view?.dispose();
+    this.cue?.dispose();
+    this.cue = null;
     for (const l of this.lasers) for (const m of l.meshes) m.dispose();
     this.lasers.length = 0;
     this.lamp?.dispose();
