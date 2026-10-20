@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - shots-rows
+- Test scripts only: `scripts/shots-ctcourse.mjs` gains rows for two 4.5 m low cells, the 3.2 m airlock lid seen from
+  below and the S1 desk, S3 monitor wall and S8 coffer (they need the marlow-variety geometry, PR #62).
+  `scripts/lamps-shots.mjs` (Warehouse lamp look) is now tracked, with the section 1 workshop view re-aimed into the
+  room (it was behind a wall). GPU on #62 99349d64 and master: all 23 Marlow rows agree within 0.02.
+
 ## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
 - Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
   [--dry-run] [--only section,...] [--allow-shared]` writes an export's values into the code defaults (body, gun, camera,
