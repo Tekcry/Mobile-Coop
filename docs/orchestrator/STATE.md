@@ -28,6 +28,11 @@ Laptop: low priority (BelowNormal, E2E_JOBS=1) until Michael says otherwise. Kee
 Relay rule: desktop job leads often cannot reach Character Build; the orchestrator relays runner requests with the full
 commit hash, and forwards results back.
 
+## First after the reset (Michael 18:25)
+1. Phone follow-up (a 2-line patch, do it yourself as with #44): "Default phones to low settings but with shadows/light, native resolution, 60fps cap, 100% resolution scaling". So in src/core/qualityManager.ts applyScale, the flags.phone branch becomes native DPR and scale 1 (applyRenderScale(this.engine, this.ov?.scale ?? 1, Infinity)); keep the Low preset and the 60 fps cap. He said 4.15.1 "works better, no complaints".
+2. Restart the paused sessions (below).
+3. Michael has movement feedback from /preview/ (4.15.1: slice 1 controls, walk round 3b): ask for it first and pass it to CT Core for slice 2.
+
 ## Usage pause (2026-10-20 ~17:15)
 At 93% of the 5-hour window Michael was given prompts to clear and restart every session after the reset (CT Core, Sector Ops, Course Ready, the orchestrator; Character Build and nv-pass were already cleared). All sessions were told to pause until the orchestrator messages them after the reset: after the restart, message each one to resume (CT Core: slice 2; nv-pass: the checker result, then the carousel, which is now unblocked since slice 1 merged; Sector Ops: the lamp fix and section 3; Course Ready: the MPFB2 rebake; Character Build: test-speed).
 
