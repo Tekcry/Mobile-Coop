@@ -22,6 +22,7 @@
   and the probe prints the night-vision rgb. New `goggleFrame`, `nightExposure` and wheel carousel tests.
 - Scripts: the night-vision shot scripts (`scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`) refuse a port that already
   answers, a dead preview or a served build that differs from `dist/`, and fail on a build or shot error.
+
 ## 4.15.4 - The FPS overlay is a thin banner (2026-10-20, PR #48)
 - Settings > Graphics > Show FPS overlay (Michael 2026-10-20: "it takes up the whole screen. Can you make it a banner on
   the top of the screen with only critical information"): one line centred along the top edge: FPS, average and worst
