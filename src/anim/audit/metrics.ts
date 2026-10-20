@@ -928,3 +928,150 @@ export function reachTime(x: Arr, from: number, dt: number, min: number, target:
 export function cameraOsc(camYRel: Arr, limit = CAMERA_P2P): Result {
   return oscP2P(camYRel, limit);
 }
+
+// ------------------------------------------------------------------ anti-crab (anim-metrics, anim-rework BRIEF 5)
+
+/** The pelvis frame at frame `i`: the horizontal unit axis from the left hip joint to the right one (`ux`, `uz`), the
+ *  midpoint between them (`mx`, `mz`) and their horizontal distance (`width`). Null when the hips coincide. */
+export function pelvisFrame(hipL: Arr, hipR: Arr, i: number): { ux: number; uz: number; mx: number; mz: number; width: number } | null {
+  const k = i * 3;
+  const dx = at(hipR, k) - at(hipL, k);
+  const dz = at(hipR, k + 2) - at(hipL, k + 2);
+  const w = Math.sqrt(dx * dx + dz * dz);
+  if (!(w > 1e-6)) return null;
+  return { ux: dx / w, uz: dz / w, mx: (at(hipL, k) + at(hipR, k)) / 2, mz: (at(hipL, k + 2) + at(hipR, k + 2)) / 2, width: w };
+}
+
+/** A point's lateral offset from the pelvis midline along the hip axis (m; + = toward the right hip). */
+function lateral(p: Arr, i: number, f: { ux: number; uz: number; mx: number; mz: number }): number {
+  return (at(p, i * 3) - f.mx) * f.ux + (at(p, i * 3 + 2) - f.mz) * f.uz;
+}
+
+export interface Range extends Result {
+  min: number;
+  max: number;
+  mean: number;
+  frames: number;
+}
+function range(vals: number[], idx: number[], pass: (min: number, max: number) => boolean, worstOf: 'max' | 'min' = 'max'): Range {
+  if (!vals.length) return { worst: NaN, frame: -1, pass: true, min: NaN, max: NaN, mean: NaN, frames: 0 };
+  let lo = 0;
+  let hi = 0;
+  let sum = 0;
+  for (let j = 0; j < vals.length; j++) {
+    sum += vals[j]!;
+    if (vals[j]! < vals[lo]!) lo = j;
+    if (vals[j]! > vals[hi]!) hi = j;
+  }
+  const min = vals[lo]!;
+  const max = vals[hi]!;
+  const w = worstOf === 'max' ? hi : lo;
+  return { worst: vals[w]!, frame: idx[w]!, pass: pass(min, max), min, max, mean: sum / vals.length, frames: vals.length };
+}
+
+/**
+ * Knee separation: the knees' lateral distance over the hip joints' distance, per frame (ratio). Within `[lo, hi]`
+ * (CRAB.kneeSep) the knees track over the feet; well past `hi` they bow out (the crab). Frames in `exempt` are skipped.
+ */
+export function kneeSeparation(hipL: Arr, hipR: Arr, kneeL: Arr, kneeR: Arr, lo: number, hi: number, exempt?: Arr): Range {
+  const vals: number[] = [];
+  const idx: number[] = [];
+  const n = Math.floor(hipL.length / 3);
+  for (let i = 0; i < n; i++) {
+    if (masked(exempt, i)) continue;
+    const f = pelvisFrame(hipL, hipR, i);
+    if (!f) continue;
+    const r = (lateral(kneeR, i, f) - lateral(kneeL, i, f)) / f.width;
+    if (!finite(r)) continue;
+    vals.push(r);
+    idx.push(i);
+  }
+  return range(vals, idx, (min, max) => min >= lo && max <= hi);
+}
+
+/**
+ * Foot track: each planted foot's centre (its ankle) from the line under the hips, sampled on the frames that foot is
+ * planted (`contactL` / `contactR`; every frame when none given). Positive = on its own side, negative = crossed over
+ * the line. Pass when every sample is within `limit` (CRAB.trackHalf) of the line.
+ */
+export function footTrack(hipL: Arr, hipR: Arr, ankleL: Arr, ankleR: Arr, limit: number, contactL?: Arr, contactR?: Arr): Range {
+  const vals: number[] = [];
+  const idx: number[] = [];
+  const n = Math.floor(hipL.length / 3);
+  for (let i = 0; i < n; i++) {
+    const f = pelvisFrame(hipL, hipR, i);
+    if (!f) continue;
+    if (!contactL || contactL[i]) {
+      vals.push(-lateral(ankleL, i, f));
+      idx.push(i);
+    }
+    if (!contactR || contactR[i]) {
+      vals.push(lateral(ankleR, i, f));
+      idx.push(i);
+    }
+  }
+  return range(vals, idx, (min, max) => Math.abs(min) <= limit && Math.abs(max) <= limit);
+}
+
+/** Knee over the toes: how far each knee sits outside its own ankle (m, + = out, away from the midline), per frame. Pass
+ *  when no knee is more than `limit` (CRAB.kneeBow) outside. */
+export function kneeBow(hipL: Arr, hipR: Arr, kneeL: Arr, kneeR: Arr, ankleL: Arr, ankleR: Arr, limit: number, exempt?: Arr): Range {
+  const vals: number[] = [];
+  const idx: number[] = [];
+  const n = Math.floor(hipL.length / 3);
+  for (let i = 0; i < n; i++) {
+    if (masked(exempt, i)) continue;
+    const f = pelvisFrame(hipL, hipR, i);
+    if (!f) continue;
+    vals.push(lateral(ankleL, i, f) - lateral(kneeL, i, f), lateral(kneeR, i, f) - lateral(ankleR, i, f));
+    idx.push(i, i);
+  }
+  return range(vals, idx, (_min, max) => max <= limit);
+}
+
+/** Planted-foot slide: a foot's horizontal travel from where it planted, while it stays planted (m); the largest over
+ *  every plant. Pass when under `limit` (CRAB.slide, 1 cm). `plants` counts the plants seen. */
+export function plantedSlide(ankle: Arr, contact: Arr, limit: number): Result & { plants: number } {
+  let worst = 0;
+  let frame = -1;
+  let plants = 0;
+  let px = NaN;
+  let pz = NaN;
+  const n = Math.floor(ankle.length / 3);
+  for (let i = 0; i < n; i++) {
+    if (!contact[i]) {
+      px = NaN;
+      continue;
+    }
+    const x = at(ankle, i * 3);
+    const z = at(ankle, i * 3 + 2);
+    if (Number.isNaN(px)) {
+      px = x;
+      pz = z;
+      plants++;
+      continue;
+    }
+    const d = Math.sqrt(sq(x - px) + sq(z - pz));
+    if (d > worst) {
+      worst = d;
+      frame = i;
+    }
+  }
+  return { ...result(worst, frame, worst < limit), plants };
+}
+
+/** Elbow wing: how far each elbow sits outside its own shoulder along the shoulder line (m, + = out), per frame. Pass
+ *  when no elbow is more than `limit` (CRAB.elbowWing) outside. */
+export function elbowWing(shoulderL: Arr, shoulderR: Arr, elbowL: Arr, elbowR: Arr, limit: number, exempt?: Arr): Range {
+  const vals: number[] = [];
+  const idx: number[] = [];
+  const n = Math.floor(shoulderL.length / 3);
+  for (let i = 0; i < n; i++) {
+    if (masked(exempt, i)) continue;
+    const f = pelvisFrame(shoulderL, shoulderR, i);
+    if (!f) continue;
+    vals.push(lateral(shoulderL, i, f) - lateral(elbowL, i, f), lateral(elbowR, i, f) - lateral(shoulderR, i, f));
+    idx.push(i, i);
+  }
+  return range(vals, idx, (_min, max) => max <= limit);
+}
