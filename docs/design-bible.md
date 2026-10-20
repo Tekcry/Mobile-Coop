@@ -172,7 +172,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 
 | Verb | Behaviour | Rule |
 | --- | --- | --- |
-| Analog speed | Stick deflection sets the pace; the speed rocker sets the top speed with no on-screen indicator. No sprint. Noise rises with speed; the slowest speeds are silent. | loco M20 Q8, M25 (7), G40 |
+| Analog speed | Stick deflection sets the pace, with no speed toggle (G210). No sprint. Noise rises with speed; the slowest speeds are silent. | loco M20 Q8, G40, G210 |
 | Stops and turns | Feet freeze mid-stride; a run reversal is one smooth turn; a stick flick turns round in about 0.4 s. | G25-G27, G33 |
 | Crouch / stand, roll | Standing and crouched only. Holding crouch while running rolls; a tap just crouches. Sneaking slowly near an enemy, the crouch turns tense: on the toes, exaggerated balancing. | G32, G110, G160 |
 | Jump, split jump, wall jump | Narrow corridors, lips | Research |
@@ -205,7 +205,7 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | Palm strike | One-hit knockout from any side on every human guard; co-op missions have no heavies or dogs. | loco M20 Q4, G42, G155 |
 | Knife | Close lethal takedown; its full role follows the research. | G76 |
 | Dual takedown (co-op) | | G52 |
-| Holster / draw | A mission starts holstered; the weapon comes out to aim (5.6). No hip fire. | G21, G103 |
+| Holster / draw | A mission starts holstered; holstered / low ready / aiming, LT held aims, X tap holsters (5.6). No hip fire. | G21, G103, G210 |
 
 ### Vision
 
@@ -323,15 +323,16 @@ Implementation: `docs/systems/audio.md`.
 ### 5.3 Movement, stances, camera and traversal (P4)
 
 CT movement, measured from Michael's footage (loco M19, M20, M23, M25; research in `docs/locomotion/`). Implementation:
-`docs/systems/movement.md`. All numbers are starting values (Section 0). The core-feel job rebuilds and fine-tunes
-movement, camera, back-to-wall, doors, palm strike and goggles on Wren until Michael signs off (G150).
+`docs/systems/movement.md`. All numbers are starting values (Section 0). The CT movement references are dropped: all
+movement and its animations follow a real-world trained-operator standard (G210, docs/anim-rework/BRIEF.md). Michael
+fine-tunes movement himself as needed; movement slices and research are off (G227, replaces G150's tune-until-sign-off).
 
 **Stances:** standing and crouched only. No prone, no rope climb (G110). Sneaking slowly near an enemy, the crouch
 turns tense: quieter, on the toes, with exaggerated balancing (G160).
 
 **Speed:**
 
-- Analog stick speed; the speed rocker sets the top speed, with no on-screen indicator (loco M25 (7)). No sprint
+- Analog stick speed, with no speed toggle (G210, replaces the speed rocker of loco M25 (7)). No sprint
   (loco M20 Q8). The run starts at about 4.2 m/s (loco M25 (6)). At the slowest speed the operator can walk backwards
   (loco M23).
 - Silent speeds: S5.
@@ -374,6 +375,7 @@ research keeps it. Put the body down gently (quiet) or drop it (noise); hide spo
 
 - **Exploring:** about 1.8 m behind, the head at screen centre, the legs partly out of frame. Rigid follow, no bob. The
   camera never moves or adjusts by itself: the player controls it (G159).
+- **Exploring offset and FOV (G202):** shoulder offset 0.15 m and FOV 86, matched to CT.
 - **Aiming:** over the shoulder with no zoom (the sniper scope is the exception, 5.6). The shoulder swap works only while
   aiming.
 - **The same camera height for every operator:** the camera is tied to the shared body capsule, so maps read the same for
@@ -399,9 +401,16 @@ Implementation: `docs/systems/takedowns.md`.
   no heavies or dogs (G155). Recovery about 1.4 s (loco M25 (5)). A small noise
   event. Host-approved in co-op.
 - **The grab is the hub (G23, G43).** The ground takedown button grabs first; CT's grab menu then offers knock out, kill
-  or interrogate. There is no stealth / kill selector. From the grab: carry, human shield, interrogate, use on a
-  scanner.
-- **Positional takedowns:** drop, ledge, window and pipe takedowns keep tap = knock out, hold = kill (G43).
+  or interrogate. There is no stealth / kill selector. From the grab: human shield, interrogate, use on a scanner.
+- **Hold-A action menu (G198):** actions are picked from a menu opened by holding A, with a return-to-game row (CT).
+- **Behind a guard (G203):** the menu lists only grab and return; once held, interrogate shows when the guard has
+  information, RT / LT knock out or kill, the aim button aims the pistol. Kill, knock out and carry are never rows.
+- **No release (G204):** a held guard ends knocked out or killed, or serves as a human shield; interrogating keeps
+  the hold.
+- **No return row while holding (G205):** hold-A then shows only INTERROGATE (when the guard has information).
+- **Positional takedowns:** drop, ledge, window and pipe takedowns keep tap = knock out, hold = kill (G43); ledge, pipe
+  and window takedowns keep one KNOCK OUT row in the action menu (G206).
+- **RT on a guard (G210):** tap knocks out, hold kills.
 - **Quick, CT style:** about 1-1.5 s from press to victim down, every kind. That keeps exposure short and co-op sync
   simple.
 - **Offered from:** standing, crouched, back-to-wall at a corner, split (drop), pipes (inverted, pull-down), ledge
@@ -418,15 +427,20 @@ Implementation: `docs/systems/gadgets.md`.
 
 - **Goggle modes (G99-G102, G181):** night, thermal and electro. The selection wheel (G181) picks the mode; one button
   turns the selected mode on and off, and the goggle flip plays only on on / off, never between modes.
-  - Night vision is a gain in the lighting (L7): it reveals real detail and blows out near lamps.
+  - Night vision is a gain in the lighting (L7): it reveals real detail and blows out near lamps. It looks realistic,
+    bodies are not over-bright, and the goggle outline is wide and thin, never claustrophobic (G213).
+  - On the selection wheel, A on the hovered vision mode cycles the modes like a carousel (G213).
   - Thermal follows CT: CT's colour ramp; people behind closed doors show as a dim silhouette; never through glass (L15).
   - Electro shows powered devices.
   - Grain as in CT (G101).
   - Vision modes never change detection.
 - **The goggle** is original: no three-lens look (G69). It sits on the brow with a dim glow when vision is off and over
-  the eyes with full glow when on (G73).
+  the eyes with full glow when on (G73). Wren keeps her current goggle; the redesign is parked (G195).
+- **Goggle flicker** plays only at launch, never after a match (G194).
 - **Gadgets:** CT's set, settled by the research, including the ring airfoil and the knife's role (G76). A Blacklist-style
   selection wheel picks weapons, gadgets and the vision mode (G181, Michael's exception to G1).
+  The wheel opens on LB hold; there is no lethal / non-lethal switch, LT / RT covers it (G192).
+  The wheel scales to the screen size, with a quick original radial restyle; the FPS banner is off the top HUD (G220).
   There is no time slow (a two-player game). There is no remote hacking tool: all hacking is hands-on (G142). The
   thrown EMP is gone: the pistol's held jammer replaces it (G152).
 - **Kit per mission** is fixed by the mission: the pair get complementary kits (G134, G153). No credits.
@@ -446,11 +460,13 @@ Implementation: `docs/systems/combat.md`.
 - Every other gun is deleted (G115). Attachments, gadgets and launcher rounds are CT's set, settled by the research.
 - Original names only; no real gun brands.
 - **The held jammer (G152):** held on one light, camera or laser; its charge drains and the player must stand still. It
-  replaces the thrown EMP.
+  replaces the thrown EMP. It is on RB while the pistol is aimed; RB stays the co-op action otherwise (G212).
 
 **Holstered (G21):**
 
-- A mission starts holstered, arms relaxed (loco M14 (1)). The weapon comes out to aim and goes away when aiming stops.
+- A mission starts holstered, arms relaxed (loco M14 (1)). Three states, holstered / low ready / aiming (G210): LT held
+  aims, always held, no toggle aim (G214); X tap holsters; traversal auto-holsters and returns to the state after.
+- At low ready A always interacts; reload is X hold only (G212, replaces G192's A reload).
 - **No hip fire.** Fire while holstered is the palm strike where CT's layout puts it (G96).
 - Swapping while holstered picks the gun the next aim draws; a swap button works while aiming; grenades and gadgets work
   holstered.
@@ -492,8 +508,9 @@ Implementation: `docs/systems/ai.md`.
 - **Guards see poorly above them (G44):** a player well above a guard is hard to spot, as in CT.
 - **Glass (L15, G45).**
 - **Sensors:** security cameras (sweep cone, light-dependent like guards, raise an alarm, can be shot or disrupted,
-  visible in electro vision) and laser trip beams; the research confirms the set. Lethal automated defences appear only
-  at military or private compounds; elsewhere security responds realistically (G128).
+  visible in electro vision; a faint red laser grid always shows on the surfaces a camera watches, stronger in
+  electro, Michael's decision, not CT, G222) and laser trip beams; the research confirms the set. Lethal automated
+  defences appear only at military or private compounds; elsewhere security responds realistically (G128).
 - **No randomness that defeats planning.** Patrol cycles are fixed per map. Some codes, items or rooms vary per run and are
   read in the world (G143).
 - **Per-stop facing:** a guard's patrol stop can set the direction he faces while waiting (`SquadSlot`).
@@ -556,6 +573,11 @@ take Kestrel's Mission 1 size until Kestrel is decided after the research (G53, 
 connectors, rising difficulty with cameras and lasers, objective then exit, ghosting always possible, no lives (revive
 syringes in co-op, checkpoint restarts), difficulty stars per op, and several routes with room to isolate guards. Michael's
 playground for movement and gunplay; prototype effort, below the co-op training course in priority (G191).
+- The fun-flow overhaul (several stealth routes per section, logical guard routes, realistic buildings, dogs with no
+  flashlight; its spec may loosen `docs/level-design.md`, each change logged) is decided (G201) but parked: the current
+  warehouse stays (G224).
+- Warehouse lamps snap to ceilings; the open sections get translucent corrugated roof sheets that let light in but
+  cannot be passed through (G221).
 
 ### 5.9 Co-op (P6)
 
@@ -629,10 +651,16 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
 
 ### 5.12 Animation
 
-- All animation is generated in code (clips as curves, IK, `FootPlanner`, `AnimGraph`, `Inertializer`). No motion
+- **Keyframed core clips (G208):** walk, jog, run, crouch walk, crouch idle and the wall-knee hand are keyframed clips
+  authored headless in Blender, never traced from footage (G5, G209); the procedural layer blends, turns, plants feet.
+- All other animation is generated in code (clips as curves, IK, `FootPlanner`, `AnimGraph`, `Inertializer`). No motion
   matching, no captured data, no root motion driving control.
-- **Every animation looks realistic and believable**: no instant or unrealistic motion, minimal clipping, no awkward
-  poses. The CT footage is the reference for timing and posture (loco M20 Q9).
+- **Every animation looks realistic and believable**: no instant or unrealistic motion, no clipping (G199), no awkward
+  poses. The reference is a real-world trained operator, not the CT footage (G210, replaces loco M20 Q9).
+- **Michael's feel notes (G207):** legs and elbows in, never crab-like, also crouched; a slower crouch idle; the
+  knee-rest hand the right way up, on the knee.
+- **Michael's feel notes (G217):** a slower full speed with longer, fewer strides; no forward lean until full speed;
+  knees and legs almost vertical under the body; arms parallel to the body, swinging a little more at each speed.
 - **Priorities:** readability (stance, speed and state, and every guard's alert state, read at a glance), then
   believability (weight, timing, balance and contact of a trained person), then polish.
 
@@ -702,6 +730,13 @@ out, and ragdoll hand-offs with no snap.
   for joint limits, contacts, balance and clipping.
 - **Contact sheets:** `scripts/anim-sheet.mjs`.
 - **Feedback tool:** Michael tags in-game feedback notes and photos `anim`; every tagged note becomes a fix item.
+- **Anim tuner (G219):** live sliders per state and gun hold per weapon and state, functional not pretty, saved in
+  IndexedDB, exported as JSON, pad control; it opens from a menu and works by touch (G220).
+- **Tuner v2 (G226):** the Anim Studio stage with free view, loop player, undo / A-B / presets; per-joint offsets, hand
+  and foot placement, stepping, per-key editing exported as clip keys, a weapon group (gun scale visual only).
+- **Tuner additions (G228):** smooth state changes, Import JSON, wider ranges, a bake script into the code defaults, a
+  bypass button, slow motion 0.1-1x, slider search, per-limb IK weight; no copy state to state.
+- **MPFB2 (G211):** the official GPL MakeHuman add-on in the desktop Blender for weight rebakes; nothing from it ships.
 
 #### 5.12.4 The animation audit harness
 
@@ -720,6 +755,7 @@ CT model: a health bar, no regeneration, wall medkit stations only (G20, G98).
 | Medkit station | Fixed in the map, hold to use, heals 40, single use. Stations are placed in every map. No carried medkits. |
 | Checkpoint | Saves current health. Reloading after death or failure restores at least 50%. |
 | Revive | Within 30 s of going down, at most twice per mission (G126). Restores 35%. |
+| Scanner hack | Costs 10 HP for a late or abandoned hack; nothing when the partner never started (G193). |
 
 **Damage taken scales with difficulty** (5.7, G106; resources also scale, G131). Guard rifle hits to down a player from
 full health, today's presets: about 8 (lowest), about 6, 4, 3 (highest). Other weapons scale from the rifle; headshots
@@ -731,8 +767,8 @@ Two operators, Wren and Moth, are built and playable; there is no four-operator 
 and briefing crew, not playable (G112).
 
 - **Realistic** (G68): the operators come from the realistic character pipeline on `feature/operators`; guards and
-  weapons follow later from the same pipeline. Voxels are only the way the world is drawn. That branch keeps its own
-  decisions and open items (G75).
+  weapons follow later from the same pipeline. Voxels are off by default (G223, replaces G68's voxel line). That
+  branch keeps its own decisions and open items (G75).
 - **Wren is the player character** for both players, with no dev switch, before the prototype is done (G123, replaces
   G70's "after the prototype, behind a dev switch"); the core-feel job tunes movement on her (G150); then the weapon
   step. The shared-body proportion fixes apply to every character since Wren went in, and movement and climbing tests
@@ -741,7 +777,7 @@ and briefing crew, not playable (G112).
   height (G38, G109).
 - **The goggle:** original, no three-lens look (G69); on the brow with a dim glow when vision is off, over the eyes with
   full glow when on (G73). The glow is visual only, never a light, never seen by guards; it is how a player finds their
-  operator in darkness (L7). Wren's goggle light is green, Moth's purple (Michael, 2026-10-19; amber failed the colour-blindness rule); both must stay distinguishable for common colour
+  operator in darkness (L7). Wren's goggle light is green, Moth's purple (G196; amber failed the colour-blindness rule); both must stay distinguishable for common colour
   blindness. The goggle light colour is also the partner beacon (G135). While both players are Wren (G123) the colour
   follows the player, not the operator: player 1 (the host, and solo) green, player 2 cyan (ops A112: amber is the
   HUD's exposure warning and green / amber is the pair red-green colour blindness confuses).
@@ -750,7 +786,7 @@ and briefing crew, not playable (G112).
 | Callsign | Role | Goggle light |
 | --- | --- | --- |
 | Wren | Lead | Green |
-| Moth | Climber | Amber |
+| Moth | Climber | Purple (G196) |
 
 Roles are personality and story only, never stats (story Section 4). Both operators play the same; each mission issues
 the pair complementary kits (G134, G153).
@@ -764,7 +800,7 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 
 - **CT's look (G1, G5):** CT's visual style and HUD layout are copied closely, with original art assets. Desktop aims to
   surpass CT in fidelity (Michael, 2026-10-09). Visual work never changes gameplay.
-- **Realistic everywhere (G68).**
+- **Realistic everywhere (G68).** Voxels are off by default (G223).
 - **Where to win:** lighting and atmosphere: soft shadows shaped by the lamp fixture, one-bounce light, light cones in fog
   and rain, flickering and failing lamps, flashlight beams in haze, rain with wet surfaces and drips, steam and dust in
   light shafts.
@@ -886,6 +922,12 @@ spec template) and the standard's phases and gates.
 - **The Fallow bunker** is the co-op tutorial (G78), rebuilt on the CT moves after the prototype with every jump and reach
   re-checked (G79). Its anti-stuck resets stay (G80). Training D41's linear, unavoidable map rules bind only the bunker
   (G117).
+- **Marlow Yard** (the co-op training bunker): ready for a two-player walkthrough, with a light pass wherever spaces
+  need light (G200).
+- Marlow Yard has one guard who can be interrogated (G206).
+- The Marlow Yard bunker pass takes the full shortlist of the Marlow Yard audit (ceilings, lamp fittings, airlocks,
+  dressing, walls to ceilings, paint, lifts, fiction) and keeps the open floor at 0.30 (G225).
+- **Order (G224):** the co-op training bunker, then the first campaign level.
 - **Level standard changes:** the 12 changes the research proposes (design-kit-digest appendix) go to Michael item
   by item before the first real mission map (G157).
 - **One folder per map** under one maps folder; Kestrel and the bunker move there after the merge (G55).
@@ -911,6 +953,9 @@ Each map's documents also include:
 - **Desktop only** (G12): the installable PWA in a desktop browser, pad first, then keyboard and mouse. Button prompts
   swap at once when a pad connects or disconnects. Automatic tests run as a desktop (G13). A phone can launch it for
   testing only (G182): minimum settings, the UI scaled to fit, a Bluetooth pad; no touch controls, checks or tests.
+  The phone minimum keeps baked lamp light and one cheap character shadow, caps the frame rate for heat and fills any
+  aspect with no letterbox (G215); the menu hero renders at High (G216); phones cap at 75% resolution, no WebGPU yet
+  (G218).
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14).
 - **Gameplay reads only** collision, occupancy, anchors, the light bake and the noise model. It never reads graphics
   presets, LOD, voxel layers or the governor.
@@ -919,7 +964,7 @@ Each map's documents also include:
 - **Release intent:** a personal project. No store builds and no paid infrastructure unless it is cheap. The originality
   rules hold anyway.
 - **Accessibility defaults:** subtitles always on (they are the story); operator goggle colours distinguishable for
-  common colour blindness; rumble toggle; hold or toggle for every hold action.
+  common colour blindness; rumble toggle; hold or toggle for every hold action except aim, always LT held (G214).
 
 ---
 
@@ -966,8 +1011,8 @@ The live job list, with branches and status, is `docs/ROADMAP.md` (G90; `docs/pr
    menu, CT pad layout, HUD layout) where the plan places them; the SWAT-turn and lean-out network fields removed.
    Michael plays them; their numbers are tuned after.
 4. **Then the rest**, each its own job: room sizes re-measured (G54); Wren integration, then the weapon step (G70); the
-   goggle swap (G69, soon); the co-op suites made reliable (G51); missing sounds (G66); the bunker rebuild (G79); menus,
-   the music revision and the art guide (G113); Kestrel decided after the research (G53); voice chat (G156); the missions.
+   goggle swap (G69; parked, G195); the co-op suites made reliable (G51); missing sounds (G66); the bunker rebuild
+   (G79); menus, the music revision and the art guide (G113); Kestrel decided after the research (G53); voice chat (G156); the missions.
 
 ---
 
