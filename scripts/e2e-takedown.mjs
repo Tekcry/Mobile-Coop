@@ -219,7 +219,7 @@ try {
       const inter = !g.grabMenu.open && g.takedown.hostage === e;
       t.step(1.4);
       const interDone = g.grabMenu.open && g.takedown.hostage === e && g.takedown.grabs.interrogated === 1;
-      // (Michael 08:10) LT knocks him out
+      // (anim-rework S1, M3) the knockout: an RT tap, or the KBM knockout key (`altFire`, Z) as here
       st0.set('t', 'altFire', true);
       t.step(1 / 60);
       st0.set('t', 'altFire', false);
@@ -242,7 +242,7 @@ try {
     assert(r.stubStays, 'Force to device (stub) leaves the menu open');
     assert(r.offerRows === r.behindRows, `behind a guard the list is only Grab character (and BACK TO GAME) (${r.offerRows})`);
     assert(r.heldRows === 0 && r.heldMenu === 'none', `held, no information: no rows, A shows no menu (${r.heldRows}, ${r.heldMenu})`);
-    assert(r.ko, 'LT knocks him out: he is down, the hold ends');
+    assert(r.ko, 'the knockout (Z) knocks him out: he is down, the hold ends');
   });
 
   // (Michael 08:10 / 08:20) RT kills; Carry is not a row (a script pick: knock out, then shoulder); nothing lets him go
@@ -299,7 +299,7 @@ try {
     assert(r.killed, 'RT held while holding: killed');
     assert(r.carried, 'Carry (a script pick, not a row): knocked out and on the shoulder');
     assert(r.stillHeld && !r.crouched, `B, Y and back never let him go (held ${r.stillHeld}, crouched ${r.crouched})`);
-    assert(r.koAfter, 'the hold ends only in the knockout (LT) or the kill');
+    assert(r.koAfter, 'the hold ends only in the knockout (RT tap / Z) or the kill');
   });
 
   await scen('ct-drop-inverted', async () => {

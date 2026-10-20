@@ -386,7 +386,8 @@ export class CtDevices {
 
   // ---- the local trigger (both roles, every fixed step) ----
 
-  /** `held`: the secondary trigger (LT / Z) is down. Picks the target, drives the gun light, sends or sets the intent. */
+  /** `held`: the jammer is held (anim-rework S1, Michael 14:55: the co-op button, pad RB / KBM F, while aiming the drawn
+   *  pistol; `GameState.pistolAim`). Picks the target, drives the gun light, sends or sets the intent. */
   localStep(dt: number, held: boolean): void {
     const g = this.g;
     const w = g.weapons;

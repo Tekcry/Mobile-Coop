@@ -93,14 +93,12 @@ describe('weapon stance (anim-rework S1)', () => {
     w.update(dt, inp({ aimDown: true }));
     expect(w.state).toBe('slingDraw');
   });
-  it('the aim toggle setting: a press aims, the next drops to low ready', () => {
+  it('no aim toggle (Michael 15:25: "Remove it"): a quick LT press and release aims only while held', () => {
     const w = new WeaponStance();
-    w.update(dt, inp({ aimDown: true, aimToggle: true }));
-    run(w, inp({ aimToggle: true, gunOut: true }), 0.2);
-    expect(w.state).toBe('aiming');
-    w.update(dt, inp({ aimDown: true, aimToggle: true, gunOut: true }));
-    w.update(dt, inp({ aimToggle: true, gunOut: true }));
+    w.update(dt, inp({ aimDown: true }));
+    run(w, inp({ gunOut: true }), 0.2);
     expect(w.state).toBe('lowReady');
+    expect(w.aimWanted).toBe(false);
   });
   it('traversal holds the state (M4): holstered for the move, the state it had comes back after', () => {
     const w = new WeaponStance();
@@ -140,6 +138,27 @@ describe('weapon stance (anim-rework S1)', () => {
     expect(w.state).toBe('holstered');
     run(w, inp(), 0.1);
     expect(w.state).toBe('holstered');
+  });
+  it('blank input (a held context menu, the wheel) is no X release: the press is spent, the state stays', () => {
+    const w = new WeaponStance();
+    w.update(dt, inp({ xDown: true }));
+    run(w, inp({ xDown: true, gunOut: true }), 0.1);
+    // X still held when A's list takes the input, let go under it, the list closes: no holster, no reload ask
+    run(w, inp({ blank: true, gunOut: true }), 0.6);
+    run(w, inp({ gunOut: true }), 0.1);
+    expect(w.state).toBe('lowReady');
+    // a fresh X tap from low ready under no blank still holsters
+    w.update(dt, inp({ xDown: true, gunOut: true }));
+    run(w, inp({ blank: true, xDown: true, gunOut: true }), 0.5);
+    w.update(dt, inp({ gunOut: true }));
+    expect(w.state).toBe('lowReady');
+    expect(w.holds).toBe(0);
+  });
+  it('a reload asked for while holstered (KBM R) brings the state to low ready (A43)', () => {
+    const w = new WeaponStance();
+    w.readyForReload();
+    w.update(dt, inp());
+    expect(w.state).toBe('lowReady');
   });
   it('forced aim (tests, tools) never changes the base state; death resets', () => {
     const w = new WeaponStance();

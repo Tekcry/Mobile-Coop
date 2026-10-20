@@ -90,7 +90,7 @@ export interface Settings {
   /** `musicV` 3: the music default moved from 50 % to 30 % and then to 15 % (music V4, 2026-10-16); an untouched old
    *  default (50 % or 30 %) follows once. */
   audio: { master: number; sfx: number; music: number; ui: number; musicV: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number;
+  gameplay: { defaultShoulder: 'right' | 'left'; crouchToggle: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean; wallToggle: boolean; /** (locomotion step 18, D7) the grab from behind: true = press grabs and keeps them, a fresh press finishes (the 3.2.0 behaviour); false = keep the button held, letting go knocks them out (A70). */ grabToggle: boolean; /** (locomotion step 17) rumble strength 0..1 (the rumble table; local only, D8). */ rumble: number;
     /** Training course: the next drill's marker (D19; default on). */
     courseMarkers: boolean };
   /** Accessibility and HUD. */
@@ -147,7 +147,7 @@ export function defaultSettings(): Settings {
     camV: CAM_V,
     video: { preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 86, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.15, ui: 0.7, musicV: 3 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true },
+    gameplay: { defaultShoulder: 'right', crouchToggle: true, slowBeat: true, sprintHold: false, autoRecentre: true, wallToggle: true, grabToggle: true, rumble: 1, courseMarkers: true },
     access: { hudScale: 1, healthBar: true, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
@@ -352,8 +352,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     },
     gameplay: {
       defaultShoulder: pick(gp.defaultShoulder, ['right', 'left'] as const, d.gameplay.defaultShoulder),
-      // (anim-rework S1) LT is the held aim: a save from before pad layout 3 goes back to hold (the old Aim row did nothing)
-      adsToggle: typeof r.padV === 'number' && r.padV >= PAD_LAYOUT_V ? bool(gp.adsToggle, d.gameplay.adsToggle) : d.gameplay.adsToggle,
+      // (anim-rework S1, Michael 15:25 "Remove it") no Aim hold / toggle: LT is always held; a stored adsToggle is dropped
       crouchToggle: bool(gp.crouchToggle, d.gameplay.crouchToggle),
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
       wallToggle: bool(gp.wallToggle, d.gameplay.wallToggle),

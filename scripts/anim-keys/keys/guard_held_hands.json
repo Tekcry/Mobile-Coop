@@ -1,0 +1,248 @@
+{
+  "name": "guard_held_hands",
+  "note": "(anim-guard) The guard's hands on the holder's forearm at the throat (BRIEF \"Holding a guard\": hands up at Wren's arm): both hands at chin height just in front of the throat, elbows down and out, the hands hooked over the forearm; a slight struggle: one hand pulls down while the chin turns into the elbow's crook, a heave with both hands and the head back against the arm, a re-grip, then the other side. A full-body standing cycle (the pair standing still, feet planted parallel 4 cm ahead of the root, the weight behind the heels) whose arm and wrist channels are meant to layer over guard_held_stumble while walking (its trunk is the stumble's mean). About 2.4 s a cycle (time driven). Keys 0-0.375 are mirrored onto 0.5-0.875. Angles in degrees in the body frame (x right, y up, z forward): pitch about x (+ the top forward), yaw about y (+ turns right), roll about z (+ the right side up); pelvis offsets in cm from rest (Wren 1.68 m). Arms: flex (+ forward, chest frame), abd (+ out), elbow (+ bent), inward (the forearm turned in), wrist { yaw (twist about the forearm), pitch, roll } local to the forearm (anim-rig, RIG.md). Legs (preview and floor checks; the game feet come from the foot planner until a leg channel exists): flex (+ the knee forward), add (+ the foot in), knee (+ bent), ankle (+ the toes up). Keyed by hand from how a real person moves (no game reference); the feet were placed on the floor and the hands on the holder's forearm with a two-bone IK while authoring, then written here as plain angles: edit these numbers directly.",
+  "duty": 1,
+  "liftH": 0,
+  "kneeOut": 0.03,
+  "carry": 5,
+  "mirror": true,
+  "frames": 48,
+  "keys": [
+    {
+      "phase": 0,
+      "pelvis": {
+        "dx": -1.4,
+        "dy": -3.5,
+        "dz": -7,
+        "yaw": -2,
+        "pitch": -5,
+        "roll": -1
+      },
+      "spine": {
+        "yaw": -1.5,
+        "pitch": -9.5,
+        "roll": 0.5
+      },
+      "chest": {
+        "yaw": -4,
+        "pitch": -16,
+        "roll": 1
+      },
+      "neck": {
+        "yaw": -9,
+        "pitch": -1
+      },
+      "armL": {
+        "flex": 18,
+        "abd": 4.8,
+        "elbow": 131.6,
+        "inward": 106.2,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legL": {
+        "flex": 18.6,
+        "add": 2.3,
+        "knee": 29.1,
+        "ankle": 5.6
+      },
+      "armR": {
+        "flex": 34.6,
+        "abd": 5,
+        "elbow": 114.8,
+        "inward": 134.6,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legR": {
+        "flex": 19.3,
+        "add": -2.3,
+        "knee": 31.4,
+        "ankle": 7.1
+      }
+    },
+    {
+      "phase": 0.125,
+      "pelvis": {
+        "dx": -1,
+        "dy": -3.2,
+        "dz": -7,
+        "yaw": -1.5,
+        "pitch": -5,
+        "roll": -0.6
+      },
+      "spine": {
+        "yaw": -1,
+        "pitch": -9,
+        "roll": 0.3
+      },
+      "chest": {
+        "yaw": -3,
+        "pitch": -15.5,
+        "roll": 0.6
+      },
+      "neck": {
+        "yaw": -6,
+        "pitch": -2
+      },
+      "armL": {
+        "flex": 21.8,
+        "abd": 2.7,
+        "elbow": 130.4,
+        "inward": 105.2,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legL": {
+        "flex": 17.8,
+        "add": 1.5,
+        "knee": 27.8,
+        "ankle": 5
+      },
+      "armR": {
+        "flex": 39.7,
+        "abd": 7.1,
+        "elbow": 106.6,
+        "inward": 136.6,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legR": {
+        "flex": 18.3,
+        "add": -1.6,
+        "knee": 29.3,
+        "ankle": 6.1
+      }
+    },
+    {
+      "phase": 0.25,
+      "pelvis": {
+        "dx": 0,
+        "dy": -2.6,
+        "dz": -7.5,
+        "yaw": 0,
+        "pitch": -5.5,
+        "roll": 0
+      },
+      "spine": {
+        "yaw": 0,
+        "pitch": -10,
+        "roll": 0
+      },
+      "chest": {
+        "yaw": 0,
+        "pitch": -17,
+        "roll": 0
+      },
+      "neck": {
+        "yaw": 0,
+        "pitch": -6
+      },
+      "armL": {
+        "flex": 26.9,
+        "abd": 8,
+        "elbow": 120.1,
+        "inward": 123.8,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legL": {
+        "flex": 15.6,
+        "add": 0,
+        "knee": 24.4,
+        "ankle": 3.2
+      },
+      "armR": {
+        "flex": 26.9,
+        "abd": 8,
+        "elbow": 120.1,
+        "inward": 123.8,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legR": {
+        "flex": 15.6,
+        "add": 0,
+        "knee": 24.4,
+        "ankle": 3.2
+      }
+    },
+    {
+      "phase": 0.375,
+      "pelvis": {
+        "dx": 0.7,
+        "dy": -3,
+        "dz": -7,
+        "yaw": 1,
+        "pitch": -5,
+        "roll": 0.5
+      },
+      "spine": {
+        "yaw": 0.5,
+        "pitch": -9,
+        "roll": -0.3
+      },
+      "chest": {
+        "yaw": 2,
+        "pitch": -15.5,
+        "roll": -0.5
+      },
+      "neck": {
+        "yaw": 4,
+        "pitch": -3
+      },
+      "armL": {
+        "flex": 38.2,
+        "abd": 7.3,
+        "elbow": 108.1,
+        "inward": 134.2,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legL": {
+        "flex": 17.6,
+        "add": -1.2,
+        "knee": 28,
+        "ankle": 5.4
+      },
+      "armR": {
+        "flex": 20.1,
+        "abd": 3.7,
+        "elbow": 131.5,
+        "inward": 104.3,
+        "wrist": {
+          "yaw": -60,
+          "pitch": -18,
+          "roll": -6
+        }
+      },
+      "legR": {
+        "flex": 17.2,
+        "add": 1.1,
+        "knee": 26.8,
+        "ankle": 4.6
+      }
+    }
+  ]
+}

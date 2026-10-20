@@ -24,9 +24,8 @@ describe('settings: remap and hold / toggle (step 18)', () => {
     expect(s.pad).toEqual(defaultPadBinds());
     expect(s.gameplay.grabToggle).toBe(true);
     expect(s.gameplay.wallToggle).toBe(false);
-    // (anim-rework S1) a save from before pad layout 3: the Aim choice goes back to hold (LT is the held aim; the old
-    // Aim row did nothing)
-    expect(s.gameplay.adsToggle).toBe(false);
+    // (anim-rework S1, Michael 15:25 on the aim toggle: "Remove it") the stored Aim choice is dropped: LT is always held
+    expect('adsToggle' in s.gameplay).toBe(false);
     expect(s.gameplay.sprintHold).toBe(true);
     expect(s.gameplay.crouchToggle).toBe(false);
     expect(s.keys.reload).toEqual(['KeyT']);
@@ -134,8 +133,9 @@ describe('settings: an old record with a touch section (touch input removed)', (
     expect(s.gamepad).toMatchObject({ lookSensitivityX: 1.4, lookSensitivityY: 1.1, deadzoneLeft: 0.2, invertY: true, aimAssist: 'low', vibration: false });
     expect(s.mouse).toMatchObject({ sensitivity: 1.7, invertY: true });
     expect(s.audio).toMatchObject({ master: 0.6, sfx: 0.9, music: 0.25, ui: 0.7 });
-    // (anim-rework S1) adsToggle back to hold: the save is from before pad layout 3
-    expect(s.gameplay).toMatchObject({ defaultShoulder: 'left', adsToggle: false, wallToggle: false, grabToggle: false, rumble: 0.5 });
+    // (anim-rework S1, Michael 15:25) no aim toggle: the stored adsToggle is dropped
+    expect(s.gameplay).toMatchObject({ defaultShoulder: 'left', wallToggle: false, grabToggle: false, rumble: 0.5 });
+    expect('adsToggle' in s.gameplay).toBe(false);
   });
 
   it('drops the phone-only video fields and keeps the desktop video values', () => {
@@ -207,10 +207,11 @@ describe('settings: the analogue speed and weapon state layout (anim-rework S1, 
     expect(s.keys.run).toEqual(['ShiftLeft']);
     expect(s.keys.creep).toEqual(['AltLeft']);
     expect(s.keys.draw).toEqual(['KeyX']);
-    expect(s.gameplay.adsToggle).toBe(false);
-    // a current save is never moved again: a toggle chosen since stays, a wall key on Left Shift stays (a conflict)
+    expect('adsToggle' in s.gameplay).toBe(false);
+    // a current save is never moved again: a wall key on Left Shift stays (a conflict); a stored aim toggle is dropped
+    // whatever the version (Michael 15:25: the toggle is removed, LT is always held)
     const now = sanitizeSettings({ ...structuredClone(OLD_413), padV: 3, keysV: 1 });
-    expect(now.gameplay.adsToggle).toBe(true);
+    expect('adsToggle' in now.gameplay).toBe(false);
     expect(now.keys.wall).toEqual(['ShiftLeft']);
   });
   it('keeps a remapped binding and reports the ones that now collide', () => {

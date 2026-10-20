@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-rework
+## 4.15.0 - New controls: analogue speed, holstered, low ready and aiming states, LT aim, X holster, RT strikes, the sling draw (2026-10-20, PR #43)
 - Controls (slice 1, `docs/anim-rework/BRIEF.md` section 1; Michael 2026-10-20): the left stick's deflection sets the
   speed continuously from a creep to a run (`STICK_SPEED`: most of the travel is creep / sneak / walk, the last fifth
   the jog and the run); no speed gears, no D-pad or mouse-wheel speed. Keyboard: WASD walks, Left Shift held runs, Left
@@ -14,9 +14,11 @@
   while holding aims the pistol over his shoulder. Traversal and busy moves put the gun away and bring the state back
   after (M4). The pistol jammer: hold the co-op button (pad RB, keyboard F / PgDn) while aiming the drawn pistol at a
   camera or a laser (Michael 14:55: "Another button - what makes sense? RF?", read as RB); aiming alone never jams, and
-  no team move starts while aiming the pistol. KBM Z is the knockout only.
+  no team move starts while aiming the pistol (nor its prompt). KBM Z is the knockout only. A KBM R reload from
+  holstered leaves the gun out at low ready; an X press that runs into a held context menu or the wheel is spent (no
+  holster); the split / inverted-hang sidearm aim no longer leaves the gun at low ready after the attach.
 - Settings: pad layout 3 and key layout 1 move an older save to the new defaults (the speed verbs and keys dropped,
-  back to wall off Left Shift, the Aim choice back to hold); a remapped binding that now clashes is named in a toast
+  back to wall off Left Shift); the Aim hold / toggle choice is removed (Michael 15:25: "Remove it"; LT is always held, a stored choice is dropped); a remapped binding that now clashes is named in a toast
   once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
 
 ## Unreleased - anim-metrics-2 (into feature/ct-prototype)
@@ -36,6 +38,9 @@
   them for walk, jog, run, crouch and sneak, report-only until a gait's gate is on; today's values in
   `docs/anim-rework/METRICS.md`.
 
+## 4.14.1 - Orchestrator docs: 2026-10-20 roadmap, the animation rework brief (2026-10-20, PR #42)
+Docs only. The roadmap and orchestrator state for 2026-10-20 (Michael's answers 08:10-16:15: the guard menu, keyframed
+clips, the anim-rework brief docs/anim-rework/BRIEF.md, nv-pass, warehouse-s23, test-speed, context clears) and the dashboard.
 
 ## 4.14.0 - Sector Ops: Warehouse section 1 rebuilt (three routes, logical guard posts) (2026-10-20, PR #37)
 - Dogs carry no flashlight (Michael, M1): only human guards take a torch slot when searching in the dark (pure

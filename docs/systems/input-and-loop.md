@@ -70,7 +70,7 @@ ready, aiming." Every number is a starting value.
 |---|---|---|---|
 | Holstered | X tap from low ready (or while aiming); a match start, a death | Explore | Tap: knockout (palm strike); hold 0.35 s: kill (M3) |
 | Low ready | X tap from holstered (the draw starts on the press); LT let go | Explore | Nothing (A3) |
-| Aiming | LT / RMB held (release: low ready); `gameplay.adsToggle` makes it a toggle | Over the shoulder | Fire |
+| Aiming | LT / RMB held (release: low ready); never a toggle (Michael 15:25 "Remove it") | Over the shoulder | Fire |
 | Sling draw | LT from holstered: straight to the aim, the draw x `STANCE.slingDrawMult` 1.6 (M2; the existing draw path slowed until slice 3's clip) | Over the shoulder (slower blend) | Fire once drawn and in |
 
 - X held `STANCE.xHold` 0.4 s while the gun is out reloads (A2, Michael 14:55: X hold only, A no longer reloads); with
@@ -102,7 +102,7 @@ Edit the table and the code together.
 | Run (held) | `move` | Left stick (the last fifth) | Left stick | `run` (Left Shift) | A1; the move's magnitude, no action |
 | Creep (held) | `move` | Left stick (a slight tilt) | Left stick | `creep` (Left Alt) | A1; the move's magnitude, no action |
 | Look | `look` | Right stick | Right stick | Mouse | Free orbit |
-| Aim (held) | `ads` | LT | L2 / ZL | RMB | Release: low ready. From holstered: the sling draw (slower, M2). `gameplay.adsToggle`: a toggle |
+| Aim (held) | `ads` | LT | L2 / ZL | RMB | Release: low ready. From holstered: the sling draw (slower, M2). No toggle option |
 | Holster / draw; reload (held) | `draw` | X (tap / hold) | Square / Y | `draw` (X) | M1: tap holstered <-> low ready (aiming: holsters); A2: held 0.4 s with the gun out reloads (nothing to reload: holsters) |
 | Fire / strike | `fire` | RT | R2 / ZR | LMB | A3: fires only while aiming. Holstered or holding a guard (M3): tap knockout, hold 0.35 s kill |
 | Knockout (keyboard) | `altFire` | - | - | `knockout` (Z) | Holstered or holding a guard: the knockout. No pad button |
@@ -166,8 +166,7 @@ Edit the table and the code together.
   rows and in a summary, and saved (A71).
 - Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or
   Esc cancels (G22 changes this), Y on a slot clears. Reset per device with a confirm.
-- Hold / toggle in `Settings.gameplay`: `adsToggle` (default hold: LT / RMB held aims; toggle: a press aims, the next
-  drops to low ready), `crouchToggle` (default toggle), `sprintHold` (unused since the CT prototype M1: no sprint; no
+- Hold / toggle in `Settings.gameplay`: `crouchToggle` (default toggle), `sprintHold` (unused since the CT prototype M1: no sprint; no
   row since anim-rework S1), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
   (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
 - In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).
@@ -176,8 +175,8 @@ Edit the table and the code together.
   gadget, speed down and speed up still on its exact A3 button (up / down / left / right) to today's default (left / right /
   down / up); a remapped verb is kept (`migrateA3Dpad`, `tests/settings.test.ts`).
 - (anim-rework S1) `PAD_LAYOUT_V` 3: the speed verbs are dropped (D-pad up / down free), X keeps its id (`draw`) with
-  the new meaning, LT is the fixed aim; an older save's `gameplay.adsToggle` goes back to hold (the old Aim row did
-  nothing). `Settings.keysV` (`KEY_LAYOUT_V` 1): back to wall still on its old default Left Shift moves to Caps Lock
+  the new meaning, LT is the fixed aim; a stored `gameplay.adsToggle` is dropped (the aim is always held:
+  Michael 15:25 on the toggle option, "Remove it"; the Aim row is gone). `Settings.keysV` (`KEY_LAYOUT_V` 1): back to wall still on its old default Left Shift moves to Caps Lock
   (`migrateKeysV1`), the `run` / `creep` binds take their defaults, = / - entries are dropped. A remapped binding is
   kept; one that now clashes (a verb on LT / RT, a key on Left Shift / Left Alt) shows as a conflict on the controls
   screen, and `controlsMigrationNotes` names what moved and every clash in one toast at the first boot after the move

@@ -87,7 +87,9 @@ export class Player {
   weaponSuspend = false;
   /** Set by GameState each step: holding a guard (X does nothing; the aim is the pistol shield). */
   weaponLocked = false;
-  /** The aim is wanted (LT / RMB held, or toggled with `gameplay.adsToggle`; `forceAds`). `ads` is that, gated by what
+  /** Set by GameState each step: the input is blanked (a held context menu, the gadget wheel). */
+  inputBlank = false;
+  /** The aim is wanted (LT / RMB held, never a toggle; `forceAds`). `ads` is that, gated by what
    *  the body allows (a hard landing, a climb); gameplay that asks for the one-handed sidearm while attached reads this
    *  raw request. */
   adsWanted = false;
@@ -238,12 +240,13 @@ export class Player {
     // (a scripted tap, `InputState.tap('draw')`: pressed with no down, reads as a one-step press)
     si.xDown = inp.down('draw') || inp.pressed('draw');
     si.aimDown = inp.down('ads');
-    si.aimToggle = s.gameplay.adsToggle;
     si.alive = this.alive;
-    si.suspended = this.weaponSuspend || (this.pose.traverse !== 'none' && !this.attachAim);
+    // (the one-handed sidearm aim from an attach counts too: its LT never sets the free state's low ready)
+    si.suspended = this.weaponSuspend || this.pose.traverse !== 'none' || this.attachAim !== null;
     si.locked = this.weaponLocked;
     si.gunOut = this.weaponDrawn;
     si.forceAim = this.forceAds;
+    si.blank = this.inputBlank;
     this.stance.update(dt, si);
     this.adsWanted = this.stance.aimWanted;
     this.ads = this.adsWanted;

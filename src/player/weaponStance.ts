@@ -6,7 +6,7 @@
  * - holstered: the gun on the sling / in the holster, hands free (traversal, strikes, grabs, gadgets, doors);
  * - low ready: the gun out, carried down and in, the explore camera;
  * - aiming: LT (RMB) held: the over-the-shoulder aim; let go and the gun drops to low ready (no toggle; the
- *   `gameplay.adsToggle` setting can make it one);
+ *   Michael 15:25 on a toggle option: "Remove it");
  * - sling draw (M2): LT from holstered draws straight to the aim, slower than from low ready (the gun comes off the
  *   sling first; `STANCE.slingDrawMult`), its own state until the gun is out.
  *
@@ -35,8 +35,6 @@ export interface StanceInput {
   xDown: boolean;
   /** LT / RMB held (the `ads` action). */
   aimDown: boolean;
-  /** `gameplay.adsToggle`: a press toggles the aim instead of holding it. */
-  aimToggle: boolean;
   alive: boolean;
   /** A traversal or busy move holds the state (the gun is away for it; M4). */
   suspended: boolean;
@@ -46,10 +44,13 @@ export interface StanceInput {
   gunOut: boolean;
   /** Tests and tools (`Player.forceAds`): aim regardless of the input, without changing the base state. */
   forceAim: boolean;
+  /** The input is blanked this step (a held context menu, the gadget wheel): X is neither pressed nor released; a press
+   *  that runs into it is spent (no tap, no hold). */
+  blank: boolean;
 }
 
 export function emptyStanceInput(): StanceInput {
-  return { xDown: false, aimDown: false, aimToggle: false, alive: true, suspended: false, locked: false, gunOut: false, forceAim: false };
+  return { xDown: false, aimDown: false, alive: true, suspended: false, locked: false, gunOut: false, forceAim: false, blank: false };
 }
 
 export class WeaponStance {
@@ -68,7 +69,6 @@ export class WeaponStance {
   holds = 0;
   private xT = -1;
   private xUsed = false;
-  private aimWas = false;
   private aimLatch = false;
   /** An X holster while LT is held: no aim until LT is let go. */
   private aimBlock = false;
@@ -84,17 +84,15 @@ export class WeaponStance {
       this.reset();
       return;
     }
-    // the aim: held (default) or toggled
-    const pressed = i.aimDown && !this.aimWas;
-    this.aimWas = i.aimDown;
-    if (i.aimToggle) {
-      if (pressed) this.aimLatch = !this.aimLatch;
-    } else this.aimLatch = i.aimDown;
+    // the aim: held only (no toggle, Michael 15:25)
+    this.aimLatch = i.aimDown;
     if (!this.aimLatch) this.aimBlock = false;
     const aimRaw = this.aimLatch && !this.aimBlock;
     const free = !i.suspended && !i.locked;
     // X: a press from holstered draws now; else a tap holsters and a hold asks for the reload
-    if (i.xDown) {
+    if (i.blank) {
+      if (this.xT >= 0) this.xUsed = true;
+    } else if (i.xDown) {
       if (this.xT < 0) {
         this.xT = 0;
         this.xUsed = !free;
@@ -131,6 +129,11 @@ export class WeaponStance {
     else this.state = i.locked ? 'holstered' : this.base;
   }
 
+  /** (A43) A reload asked for while holstered (KBM R): the gun comes out for it and stays at low ready. */
+  readyForReload(): void {
+    if (this.base === 'holstered') this.base = 'lowReady';
+  }
+
   /** Holster now (an X tap, an X hold with nothing to reload, the host's forced holster). */
   holster(): void {
     this.base = 'holstered';
@@ -150,7 +153,6 @@ export class WeaponStance {
     this.holdAsk = false;
     this.xT = -1;
     this.xUsed = false;
-    this.aimWas = false;
     this.aimLatch = false;
     this.aimBlock = false;
   }

@@ -2,8 +2,8 @@
  * (locomotion step 18, D7; CT prototype A3, G96) Controller bindings (pure, unit-tested). Every remappable pad verb has up
  * to two buttons (W3C standard-mapping indices). The sticks, the triggers' analog aim / fire and the menu buttons
  * (`UI_BINDINGS`) stay fixed; LT / RT as plain buttons can take another verb (the conflict check then names Aim / Fire).
- * The defaults are `GAME_BINDINGS` (docs/anim-rework/BRIEF.md section 1): A interact / context (doors, takedown;
- * reloads while the gun is out), B crouch, Y jump / traverse, X holster / draw (tap) and reload (held while drawn), LT
+ * The defaults are `GAME_BINDINGS` (docs/anim-rework/BRIEF.md section 1): A interact / context (doors, takedown; every
+ * weapon state, Michael 14:55 "Interact always"), B crouch, Y jump / traverse, X holster / draw (tap) and reload (held while drawn), LT
  * aim (held; fixed), RT fire while aiming, holstered or holding a guard tap knockout / hold kill (fixed), L3
  * back-to-wall (not aiming) / swap shoulder (aiming), R3 zoom (aiming, scoped), RB co-op action (CT's Black), LB
  * selection wheel (hold) / switch weapon (tap), View mission device (no action yet), D-pad left the selected vision mode
@@ -75,8 +75,8 @@ export const PAD_LAYOUT_V = 3;
  * (anim-rework S1) Version 3: the speed rocker verbs (`gearUp` / `gearDown`) are gone (the stick sets the speed); a
  * stored entry for them is dropped by `sanitizePadBinds` and D-pad up / down are free. X keeps its id (`draw`: now
  * holster / draw tap, reload hold) and LT is the fixed aim; a verb the player had put on LT / RT or a button that now
- * clashes is reported (the controls screen marks it, and `layoutConflicts` names it in a toast once after the move). The settings migration also puts
- * `gameplay.adsToggle` back to hold (the old row did nothing).
+ * clashes is reported (the controls screen marks it, and `controlsMigrationNotes` names it in a toast once after the move). A stored
+ * `gameplay.adsToggle` key is dropped (the aim is always held, Michael 15:25).
  */
 const A3_DPAD: ReadonlyArray<[PadBindId, number]> = [
   ['vision', PAD.UP],
