@@ -1,6 +1,6 @@
 # CT core feel job - state (resume point)
 
-Updated 2026-10-20 13:30 Sydney (#34 merged as 4.13.0; G8 walk rounds 1-3b committed and on /ct/ at 288585e7, awaiting Michael).
+Updated 2026-10-20 17:10 Sydney. The CT prototype job is superseded by the anim-rework job on the same branch (Michael 13:30: "Can you ignore CT movement references"): its resume point is docs/anim-rework/STATE.md. This file keeps the CT history (slices A to F, G1-G8, PRs #31 / #32 / #34 merged as 4.10.0 / 4.11.0 / 4.13.0).
 
 ## Resume
 New local session, Opus, medium effort. Paste:
@@ -63,6 +63,8 @@ Job plan: `FEEL-PLAN.md`. Decisions: `DECISIONS.md` (job) and `docs/DECISIONS.md
   e2e-netmove, e2e-coop pass.
 
 ## Next
+0. **Resume from docs/anim-rework/STATE.md** (its fenced resume prompt). The CT walk rounds (G8) stopped at round 3b
+   (288585e7); their keyed-clip pipeline is the base for the anim-rework clips. Parked: park/ct-h1-wip (local, unverified).
 1. **Overnight footage job** (Michael 23:15 / 23:20, verbatim in DECISIONS.md; lifts the no-refining rule for movement
    only; both machines at full power, the desktop lock ours all night, long logic suites to Character Build at
    E2E_JOBS=2). Order: (a) **catalogue** all 90 clips in `pc/ct-work/` (64 from 2026-10-17, of which 62 are in
