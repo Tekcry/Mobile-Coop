@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-21 05:04 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-21 08:32 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -15,14 +15,16 @@ CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-pro
 - Movement slices are off (Michael 2026-10-21: "Turn off movement slices and any research"); CT Core does tool support.
 - Merged: slice 2 (#52, 4.17.0), slice 3 (#54, 4.19.0), slices 4 + 5 (#66, 4.24.0; full e2e pass on 515b1f07, e2e-pad
   known flaky). Slice 6 not started (S6 keys unwired).
-- S2b (the less robotic walk, S2B-REPORT.md): PR #67, feature/anim-s2b 3eaf3509 (master 4.24.0 merged; CHANGELOG +
-  the characterRig kneeOut / softStand lines resolved keeping both). Review values that broke slice 2 gates were
-  replaced by the nearest passing ones (pelvis yaw 2.5 / 3.5 / 3, walk step 0.64 m / 132 spm, stepLenMax 1.3, idle knee
-  0.997, dy 3 cm lower). npm run check pass (2139) on 468fa2c7; laptop check + e2e-anim / move / ctcourse / coop /
-  netmove on 3eaf3509 sent (the walk constants meet slice 4's crouch code for the first time there).
-- Weight tuner group (tool job, Michael: "weight", tunable): feature/anim-weight, folder
-  C:/NightShift/Mobile-Coop-anim-weight, master 4.22.0 + feature/tuner-camera's section registry (e34b3804); an Opus
-  implementer on port 4192; report docs/anim-tuner/WEIGHT.md; then one check, minor PR. Identity = today's output.
+- S2b PR #67 PARKED for the morning (feature/anim-s2b 6c96715f; detail: "## #67 parked" at the end of
+  S2B-REPORT.md on that branch). Fixed: the crouch -> stand wrist pop (KEYED_GAITS.paceTau 0.1 s, 2b9904c0). Open: the
+  e2e-stealth-ai peek assert ("a peek past the edge exposes the head alone ... (null)") fails because S2b's step line
+  (movement.ts stepLen0 0.36 / stepLenK 0.25, motion.ts WALK_STEP 0.42 + 0.155 v) stops the wall slide on different
+  feet, so the peek puts head and chest 15.9 cm past the edge (master 13.8) and no spot sees the head alone (master
+  passes on one spot, segment 149). Next: restore one value at a time to find the reader on the wall path and keep the
+  pre-S2b line there, or make the check less dependent on one spot. Probe: scripts/probe-wall-peek.mjs. Still to do
+  after that: merge master 4.27.0 and apply the tuneStep 6 -> 4 cm patch (scratchpad s2b-tuneStep-fix.patch: S2b's
+  longer run step makes replant 0.8 lift the trailing foot ~5 cm sooner), then a full e2e.
+- Weight tuner section merged (#70, 4.27.0).
 
 ## Next
 - After #67 and the Weight PR: tool support only, as the orchestrator asks.
