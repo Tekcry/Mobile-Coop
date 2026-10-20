@@ -7,6 +7,7 @@ import '../src/anim/tuneKeys';
 import '../src/anim/moveTune';
 import { TUNE_SECTIONS, isTuneGroup } from '../src/anim/tuneRegistry';
 import {
+  bodyCarry,
   buildTabs,
   cycleTab,
   DropNav,
@@ -218,6 +219,31 @@ describe('tuner-ui: the loop sets the state', () => {
       const g = loopGroups(e.id);
       for (const v of [g.body, g.team, g.trav, g.step, g.weight]) if (v) expect(isTuneGroup(v), `${e.id} -> ${v}`).toBe(true);
       if (g.clip) expect(isTuneGroup(`key.${g.clip}.0`) || e.kind === 'pair', `${e.id} clip`).toBe(true);
+    }
+  });
+});
+
+describe('tuner-ui: a body state carries to the other tabs', () => {
+  it('walk carries to joints, reach, hands, stepping and weight; the gun hold only where it maps', () => {
+    const c = bodyCarry('walk');
+    expect(c).toMatchObject({ joint: 'joint.walk', ik: 'ik.walk', handState: 'walk', gunState: '', step: 'step.walk', weight: 'weight.walk' });
+    for (const g of [c.joint, c.ik, c.step, c.weight]) expect(isTuneGroup(g), g).toBe(true);
+    expect(isTuneGroup(`hand.rifle.${c.handState}`) && isTuneGroup(`weapon.rifle.${c.handState}`)).toBe(true);
+    const a = bodyCarry('aim');
+    expect(a.gunState).toBe('aim');
+    expect(isTuneGroup(`rifle.${a.gunState}`)).toBe(true);
+    expect(a.weight).toBe('weight.drawn');
+    expect(bodyCarry('crouchWalk')).toMatchObject({ step: 'step.crouchWalk', weight: 'weight.crouch' });
+    // a state the other sections lack: nothing invented
+    expect(bodyCarry('ladder')).toMatchObject({ gunState: '', step: '', weight: '' });
+  });
+
+  it('every body state carries only to groups that exist', () => {
+    const body = TUNE_SECTIONS.find((s) => s.id === 'body')!;
+    for (const b of body.groups) {
+      const c = bodyCarry(b);
+      for (const g of [c.joint, c.ik, c.step, c.weight]) if (g) expect(isTuneGroup(g), `${b} -> ${g}`).toBe(true);
+      if (c.gunState) expect(isTuneGroup(`rifle.${c.gunState}`), `${b} gun`).toBe(true);
     }
   });
 });

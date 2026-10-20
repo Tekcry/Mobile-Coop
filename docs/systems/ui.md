@@ -125,6 +125,9 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     is in use, outside the studio and co-op (edge triggered: a Resume by hand stays).
   - Camera lock: `FREE_VIEW.lock` (`FreeViewCore.lock` / `bodyYaw`): the orbit takes `freeSnap` of her facing every
     frame; the look and the turntable do not turn it; the pad stays on the panel (`TunePadCtl.setFree(on, false)`).
+  - (fix round) A State picked by hand on the Body part carries to Joints, Limb reach, Hands & feet, Gun in hand, the
+    gun hold where it maps, Stepping and Weight (`bodyCarry`, the panel's `carryBody`); a pick in any other section
+    stays local.
   - Anim Studio: a loop pick calls `applyLoop` (`loopGroups`: body, joint, ik, hand / weapon state, step, weight, keys,
     team role A, climb move; follow off). "Loop on the spot" (`STUDIO.spot`, default on; off = `rootMotion`): a moving
     state's stick runs with no camera turn and `StudioStage.afterStep` moves her back by what she moved each fixed step

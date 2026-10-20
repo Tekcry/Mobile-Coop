@@ -40,6 +40,7 @@ import { StudioPanel } from './studioPanel';
 import { STUDIO, STUDIO_SPEED } from '../anim/studio';
 import { promptHtml, type PromptButton } from './prompts';
 import {
+  bodyCarry,
   buildTabs,
   cycleTab,
   DropNav,
@@ -59,6 +60,7 @@ import {
   TUNER_SIZES,
   tunerScale,
   valueText,
+  type BodyCarry,
   type LoopGroups,
   type TunerSize,
   type TunerTab,
@@ -115,6 +117,7 @@ const CSS = `
 position:fixed;top:4px;right:4px;z-index:150;display:flex;flex-direction:column;box-sizing:border-box;background:var(--tt-bg);color:var(--tt-fg);
 font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.35;border-radius:4px;padding:0.3em 0.45em;pointer-events:auto;overscroll-behavior:contain}
 .anim-tune[hidden]{display:none!important}
+.anim-tune [hidden]{display:none!important}
 .anim-tune *{box-sizing:border-box}
 .anim-tune button,.anim-tune input,.anim-tune select,.anim-tune textarea{font:inherit;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg)}
 .anim-tune .tt-btn{-webkit-appearance:none;appearance:none;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:3px;padding:0.1em 0.55em;min-height:2em;cursor:pointer;text-align:left}
@@ -327,6 +330,7 @@ export class AnimTunePanel {
   /** The game speed slider's top: 1x, 2x inside the studio. */
   private speedMax: number = GAME_SPEED.max;
   private readonly loopOut: LoopGroups = { body: '', clip: '', team: '', trav: '', step: '', weight: '' };
+  private readonly carryOut: BodyCarry = { joint: '', ik: '', handState: '', gunState: '', step: '', weight: '' };
   /** (tuner-ui) The Anim Studio was on at the last look: leaving it turns follow back on (a loop pick turned it off). */
   private wasStudio = false;
 
@@ -1104,7 +1108,8 @@ export class AnimTunePanel {
     if (rebuildBar) this.buildTabBar();
   }
 
-  /** A level picked: the group under the new path (follow off, as any manual pick). */
+  /** A level picked: the group under the new path (follow off, as any manual pick). (fix round) A state picked on the
+   *  Body part carries to the sections keyed by the same state (`carryBody`); a pick in any other section stays local. */
   private pickLevel(sec: Section, level: number, v: string): void {
     const path = groupPath(sec.group, sec.prefix);
     path[level] = v;
@@ -1113,6 +1118,32 @@ export class AnimTunePanel {
     this.setFollow(false);
     sec.group = g;
     this.rebuild(sec);
+    if (sec.reg.id === 'body') this.carryBody(g);
+  }
+
+  /** (fix round) A body state onto Joints, Limb reach, Hands & feet, Gun in hand, the gun hold (where it maps), Stepping
+   *  and Weight; each section keeps its other levels (the weapon) and only takes a group it has. */
+  private carryBody(b: string): void {
+    const c = bodyCarry(b, this.carryOut);
+    this.showGroup('joint', c.joint);
+    this.showGroup('ik', c.ik);
+    this.showLast('hand', c.handState);
+    this.showLast('weapon', c.handState);
+    this.showLast('gun', c.gunState);
+    this.showGroup('step', c.step);
+    this.showGroup('weight', c.weight);
+  }
+
+  /** (fix round) A section's last level set to `seg` (the other levels kept), when it has that group. */
+  private showLast(sid: string, seg: string): void {
+    if (!seg) return;
+    const sec = this.sections.find((s) => s.reg.id === sid);
+    if (!sec) return;
+    const path = groupPath(sec.group, sec.prefix);
+    path[path.length - 1] = seg;
+    const g = groupForPath(sec.reg.groups, sec.prefix, path);
+    const gp = g ? groupPath(g, sec.prefix) : [];
+    if (g && gp[gp.length - 1] === seg) this.showGroup(sid, g);
   }
 
   /** The level pickers' choices for the section's group (plain words; a changed group marked with a dot). */
@@ -1282,18 +1313,9 @@ export class AnimTunePanel {
     const b = lg.body;
     if (b) {
       this.showGroup('body', b);
-      this.showGroup('joint', `joint.${b}`);
-      this.showGroup('ik', `ik.${b}`);
-      for (const sid of ['hand', 'weapon']) {
-        const sec = this.sections.find((s) => s.reg.id === sid);
-        if (!sec) continue;
-        const path = groupPath(sec.group, sec.prefix);
-        path[path.length - 1] = b;
-        const g = groupForPath(sec.reg.groups, sec.prefix, path);
-        const gp = g ? groupPath(g, sec.prefix) : [];
-        if (g && gp[gp.length - 1] === b) this.showGroup(sid, g);
-      }
+      this.carryBody(b);
     }
+    // the loop's own gait wins (the crouch run's stepping)
     this.showGroup('step', lg.step);
     this.showGroup('weight', lg.weight);
     if (lg.clip) {

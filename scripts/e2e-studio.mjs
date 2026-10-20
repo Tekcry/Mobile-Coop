@@ -90,13 +90,13 @@ try {
   // (tuner-ui) a camera snap holds: the orbit keeps its angle to her facing while she turns on the circle
   await G(() => window.__animTune.lock('side'));
   await frames(page, 4);
-  const camRel = () => G(() => { const g = window.__app.current; const f = g.player.cam.free; const d = (f ? f.yaw : NaN) - g.player.rig.root.rotation.y; return { rel: Math.atan2(Math.sin(d), Math.cos(d)), yaw: g.player.rig.root.rotation.y, lock: window.__animTune.freeState().lock, pad: window.__animTune.pad().mode }; });
+  const camRel = () => G(() => { const g = window.__app.current; const f = g.player.cam.free; const d = f ? f.yaw - f.bodyYaw : NaN; return { rel: Math.atan2(Math.sin(d), Math.cos(d)), yaw: g.player.rig.root.rotation.y, lock: window.__animTune.freeState().lock, pad: window.__animTune.pad().mode }; });
   const c0 = await camRel();
   await G(() => window.__app.loop.stepHeadless(1.5));
   await frames(page, 4);
   const c1 = await camRel();
   const turned = Math.abs(Math.atan2(Math.sin(c1.yaw - c0.yaw), Math.cos(c1.yaw - c0.yaw)));
-  assert(c0.lock === 'side' && c0.pad === 'tuner' && turned > 0.3 && Math.abs(c1.rel - c0.rel) < 0.05, `a side snap holds the camera to her facing as she turns (turned ${turned.toFixed(2)} rad, angle ${c0.rel.toFixed(3)} -> ${c1.rel.toFixed(3)}, pad ${c0.pad})`);
+  assert(c0.lock === 'side' && c0.pad === 'tuner' && turned > 0.3 && Math.abs(c1.rel - c0.rel) < 0.02, `a side snap holds the camera to her facing as she turns (the angle to the yaw the lock reads) (turned ${turned.toFixed(2)} rad, angle ${c0.rel.toFixed(3)} -> ${c1.rel.toFixed(3)}, pad ${c0.pad})`);
   await G(() => window.__animTune.unlock());
   await G(() => window.__animTune.free('off'));
 

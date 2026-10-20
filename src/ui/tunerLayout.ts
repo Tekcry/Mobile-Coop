@@ -565,6 +565,35 @@ const TRAV_LOOP: Readonly<Record<string, { body: string; trav: string }>> = {
 /** The Stepping gait per body state (the planner's gaits; the crouch run its own). */
 const BODY_STEP: Readonly<Record<string, string>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk' };
 const BODY_WEIGHT: Readonly<Record<string, string>> = { walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouch', crouchWalk: 'crouch', crouchIdle: 'crouch', aim: 'drawn', lowReady: 'drawn' };
+/** The gun hold's state per body state (the weapon stays as picked). */
+const BODY_GUN: Readonly<Record<string, string>> = { lowReady: 'lowReady', aim: 'aim', aimCrouch: 'aimCrouch' };
+
+/** (tuner-ui fix round) What a body state carries to the other sections ('' none). */
+export interface BodyCarry {
+  joint: string;
+  ik: string;
+  /** The last level (the state) of the hands and gun-in-hand groups: `hand.<weapon>.<state>`. */
+  handState: string;
+  /** The gun hold's state level (`<weapon>.<state>`). */
+  gunState: string;
+  step: string;
+  weight: string;
+}
+
+/**
+ * (tuner-ui fix round) A body state picked (by hand on the Body part, or by a loop) carries to the sections keyed by the
+ * same state: Joints, Limb reach, Hands & feet, Gun in hand, the gun hold where it maps, Stepping and Weight. The panel
+ * applies a group only when the section has it.
+ */
+export function bodyCarry(body: string, out: BodyCarry = { joint: '', ik: '', handState: '', gunState: '', step: '', weight: '' }): BodyCarry {
+  out.joint = body ? `joint.${body}` : '';
+  out.ik = body ? `ik.${body}` : '';
+  out.handState = body;
+  out.gunState = BODY_GUN[body] ?? '';
+  out.step = BODY_STEP[body] ? `step.${BODY_STEP[body]}` : '';
+  out.weight = BODY_WEIGHT[body] ? `weight.${BODY_WEIGHT[body]}` : '';
+  return out;
+}
 
 /**
  * The tuner groups a loop of the Anim Studio uses (`state:<name>`, `keyed:<clip>`, `pair:<move>`, `trav:<move>`), so

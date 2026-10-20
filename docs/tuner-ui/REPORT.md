@@ -165,3 +165,15 @@
 - The Settings checkboxes are browser-styled.
 - The Import file picker may not open from a pad press (browser gesture rule).
 - The pass-2 bullets in `docs/systems/ui.md` and `docs/anim-tuner/PAD.md` are history.
+
+## Fix round (after CHECK.md)
+1. A State picked by hand on the Body part now carries to Joints, Limb reach, Hands & feet, Gun in hand (weapon kept),
+   the gun hold where it maps (low ready, aim, crouched aim), Stepping and Weight; a section only takes a group it has.
+   A pick in any other section stays local. Pure mapping `bodyCarry` in `src/ui/tunerLayout.ts` (shared with the loop
+   pick: `carryBody` in the panel); unit tests in `tests/tunerLayout.test.ts` (walk, aim, crouch walk, ladder, every body
+   state maps only to groups that exist).
+2. Folded panel: `.anim-tune [hidden]{display:none!important}`, so the tab bar (and any hidden child with a display
+   rule) hides.
+3. e2e-studio snap lock: the camera angle is measured against `FreeViewCore.bodyYaw` (the yaw the lock reads), tolerance
+   0.02 rad, so a rendered frame of lag cannot flake it; the body-turn check (> 0.3 rad) is unchanged.
+Checks: tsc and eslint clean; vitest tunerLayout, animTunePad, animStudio, freeView pass (49 tests). e2e not run.
