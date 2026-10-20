@@ -26,4 +26,4 @@ proves the joint map; `npm run check`, e2e-anim and e2e-clip pass; the cost (joi
 `docs/anim-rework/RIG.md`. Blender headless only (`-b`), under the desktop heavy.lock after CT Core's renders.
 
 ## Assumed decisions
-(none yet)
+A1-A8 with undo: `REPORT.md` "Assumed decisions" (A7: MPFB2 from the official zip; A8: the rebake ships LOD0-2, the hero stays).
