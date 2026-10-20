@@ -504,15 +504,18 @@ export class GameState implements AppState {
       lights: world.level.lights.lights.length ? world.level.lights : null,
       shimmer: kind === 'haze' ? 1 : 0,
       // fog: moonlit shafts under the skylights and through the doors (the voxels' sky bake)
-      sky: vx?.skyTex && vx.sky ? { tex: vx.skyTex, origin: vx.sky.origin, cell: vx.sky.cell, dims: vx.sky.n } : null,
+      // (smooth-world: without voxels the baked moon's visibility stands in - the shafts are moonlit anyway)
+      sky: vx?.skyTex && vx.sky ? { tex: vx.skyTex, origin: vx.sky.origin, cell: vx.sky.cell, dims: vx.sky.n } : world.lamps?.moonTex && world.lamps.moon ? { tex: world.lamps.moonTex, origin: world.lamps.moon.origin, cell: world.lamps.moon.cell, dims: world.lamps.moon.n } : null,
       shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
-      // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap
+      // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap (none without voxels:
+      // Ray traced falls back to screen space)
       rt: vx?.plugins[0] ? { tex: vx.plugins[0].tex, state: () => vx.plugins[0]!, capsules: this.rtCapsules, lights: world.level.lights.lights.length ? world.level.lights : null } : null,
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
     if (world.lamps) world.lamps.capsules = this.rtCapsules;
     this.weather = new Weather(this.scene, kind);
-    if (vx) this.weather.occluder = (x, z) => vx.roofAt(x, z);
+    // (no rain under roofs: the voxel sky bake's roofs, or the canonical shapes' tops on the smooth path; render only)
+    this.weather.occluder = (x, z) => world.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
@@ -756,7 +759,8 @@ export class GameState implements AppState {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
     const vt = VOXEL_TIER[q.features.detail];
-    // (`?gfx=min`: the blockout's boxes in standard materials, smooth characters)
+    // (`?gfx=min`: the blockout's boxes in standard materials, smooth characters. smooth-world: without `?voxels=1` every
+    // preset draws the blockout's pieces smooth - PBR with the surface atlas and baked lamps above `?gfx=min`)
     const plain = q.minimal;
     const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts

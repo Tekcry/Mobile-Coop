@@ -1,13 +1,16 @@
 // 3.6 Phase 1 Step 1: the canonical light bake is the same on every preset. The Warehouse under `?gfx=min`,
 // `?gfx=low` and `?gfx=epic` bakes the same shapes and gives the same lamp / moon / ambient bytes (cache keys
 // and a content hash), and every config baked something; Epic draws the baked lamps.
-import { launch, assert } from './e2e-lib.mjs';
+// smooth-world: the same with voxels on (`?gfx=epic&voxels=1`) as off (the smooth default): one bake, and both Epic paths
+// draw it through the lamp plugin on every PBR material; Ray traced reflections fall back to screen space without voxels.
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const CONFIGS = [
   ['gfx=min', 'gfx=min'],
   ['gfx=low', 'gfx=low'],
   ['gfx=epic', 'gfx=epic'],
+  ['gfx=epic&voxels=1', 'gfx=epic&voxels=1'],
 ];
 let failed = false;
 const infos = [];
@@ -16,12 +19,23 @@ const infos = [];
 await Promise.all(CONFIGS.map(async ([name, q], k) => {
   const { browser, page, errors } = await launch({ url, params: `${q}&autostart=warehouse&mode=clear`, viewport: { width: 640, height: 360 } });
   try {
-    await page.waitForFunction(() => !!window.__app?.current?.world, null, { timeout: 240000 });
+    await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 240000 });
+    // (materials made after the load get the lamp plugin on the next frame)
+    await frames(page, 6);
     const info = await page.evaluate(() => {
       const w = window.__app.current.world;
       const q = window.__app.quality.level;
-      return { ...w.lightInfo(), minimal: !!q.minimal, voxels: !!w.voxels, lamps: !!w.lamps };
+      const pbr = w.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
+      return { ...w.lightInfo(), minimal: !!q.minimal, voxels: !!w.voxels, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
     });
+    if (name === 'gfx=epic') {
+      // the smooth default at Ray traced: no voxel world to trace, so screen space reflections run instead (no crash)
+      await page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.adaptive = false; }));
+      await new Promise((r) => setTimeout(r, 1500));
+      const pps = await page.evaluate(() => window.__app.current.player.cam.camera._postProcesses.filter(Boolean).map((p) => p.name));
+      info.rtFallback = pps.includes('ssr') && !pps.includes('rtReflect');
+      info.pps = pps.join(',');
+    }
     infos[k] = [name, info];
     console.log(`  ${name}: shapes ${info.shapes} hash ${info.hash} lamps ${info.lights} (${(info.lampBytes / 1e6).toFixed(1)} MB) moon ${info.moonCells} cells, bake ${Math.round(info.ms)} ms, voxels ${info.voxels}, baked lamps drawn ${info.lamps}`);
     const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc/i.test(e));
@@ -41,7 +55,14 @@ try {
     assert(i.lampKey === ref.lampKey && i.moonKey === ref.moonKey, `${name}: the lamp and moon bake keys are the same`);
     assert(i.hash === ref.hash, `${name}: the visibility data hash is the same (${i.hash})`);
   }
-  assert(infos.find(([n]) => n === 'gfx=epic')[1].lamps, 'Epic draws the bake (the baked lamps)');
+  const epic = infos.find(([n]) => n === 'gfx=epic')[1];
+  const vox = infos.find(([n]) => n === 'gfx=epic&voxels=1')[1];
+  assert(!epic.voxels && vox.voxels, `Epic is smooth by default, voxels only with ?voxels=1 (${epic.voxels}, ${vox.voxels})`);
+  for (const [n, i] of [['gfx=epic', epic], ['gfx=epic&voxels=1', vox]]) {
+    assert(i.lamps, `${n}: draws the bake (the baked lamps)`);
+    assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr})`);
+  }
+  assert(epic.rtFallback, `smooth Epic at Ray traced falls back to screen space reflections (${epic.pps})`);
 } catch (e) {
   failed = true;
   console.error(String(e));

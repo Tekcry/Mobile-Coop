@@ -46,6 +46,7 @@ import { BakedLamps } from './bakedLamps';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
+import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
@@ -111,7 +112,7 @@ export class World {
   readonly sky: Mesh;
   /** Map lights (bulbs + the capped real-light pool); idle on maps without lights. */
   readonly lightRig: LightRig;
-  /** 3.2: the fixed lights, baked (null: real lights - the `?gfx=min` path, maps without voxels). */
+  /** 3.2: the fixed lights, baked (null: real lights - the `?gfx=min` path, `?baked=0`, maps without lights). */
   lamps: BakedLamps | null = null;
   /** 3.6: gameplay light (`LightField`): the canonical bake + the registry's state + closed doors. */
   readonly lightField: LightField;
@@ -236,11 +237,12 @@ export class World {
     level.lights.ambient = map.theme.lightLevel ?? 0.75;
     const bake = await bakeLevelLight({ mapId: bakeId, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
     const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
-    // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
-    if (bake.lamps && flags.baked && vo && level.voxels && !opts.cheap) {
+    // 3.2 baked lamps: drawn from the bake on every PBR path - the smooth default and `?voxels=1` - so the picture
+    // matches the light meter (smooth-world); not the cheap test path; `?baked=0` off
+    if (bake.lamps && flags.baked && atlas && !opts.cheap) {
       // 3.6: the baked moon and closed doors (the voxels keep the sky bake's fill: Michael, 2026-10-09). Step 4b: the
-      // darkness curve reads the ambient grid everywhere, and it fills the non-voxel surfaces (characters, props) in
-      // place of the hemisphere, which lit them as if under open sky indoors.
+      // darkness curve reads the ambient grid everywhere, and it fills the non-voxel surfaces (characters, props, and on
+      // the smooth path the level's own boxes) in place of the hemisphere, which lit them as if under open sky indoors.
       const fill = { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] };
       w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, null, { moon: bake.moon, doors: w.doors.list, fill, moonLight: bake.moonLight });
       w.lamps.bakeMs = bake.ms;
@@ -283,6 +285,20 @@ export class World {
   lightInfo(): { shapes: string; lampKey: string | null; moonKey: string | null; hash: string; ms: number; lights: number; lampBytes: number; moonCells: number } {
     const b = this.lightBake;
     return { shapes: this.level.light.hash, lampKey: b?.lampKey ?? null, moonKey: b?.moonKey ?? null, hash: b ? lightBakeHash(b) : '', ms: b?.ms ?? 0, lights: b?.lamps?.baked.ids.length ?? 0, lampBytes: b?.lamps?.r.vis.length ?? 0, moonCells: b?.moon?.vis.length ?? 0 };
+  }
+
+  private roofs: RoofGrid | null = null;
+
+  /**
+   * Rendering only (the rain's occluder): the roof height over (x, z) - the voxel sky bake's with `?voxels=1`, else the
+   * canonical light shapes' tops (smooth-world; built on first use). Gameplay never reads it.
+   */
+  roofAt(x: number, z: number): number {
+    const vx = this.voxels;
+    if (vx?.sky) return vx.roofAt(x, z);
+    const l = this.level.light;
+    this.roofs ??= roofGrid(l.shapes, l.lo, l.hi);
+    return roofAt(this.roofs, x, z);
   }
 
   /** The voxel layers present (structure, fine). */

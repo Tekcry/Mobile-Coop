@@ -47,7 +47,8 @@ field (collision, the light bake, the noise model), never the render state.
   conservative occupancy; solid cells take their brightest air neighbour. `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
   columns, <= 8 lights each, nearest first). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
   and caches (`lamps:` keys, `LAMP_VERSION`).
-- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built when voxels are on and not `cheap`, `?baked=0` off): an R8 3D
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built on every path but `cheap` (`?gfx=min`), smooth default and
+  `?voxels=1` alike (smooth-world), `?baked=0` off): an R8 3D
   atlas + one RGBA32F data texture (per lamp 6 texels; `MAX_CAPSULES` 16 character capsules from `GameState.rtCapsules`, 4
   per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via `attachAll`): per pixel the lamps
   in its 2 m column - range falloff, cone, N.L - x the atlas x `lampCapsule` soft shadows, added to `finalDiffuse`.
@@ -75,8 +76,9 @@ change.
   directional = the moon, static; hemisphere = replaced by the ambient grid where the grid fills; the rest = flashlights
   and moving lights, added after the curve) on `finalDiffuse`, `finalIrradiance`, `finalRadianceScaled` and `finalAmbient`.
   Uniforms `lampDark`, `lampDarkP`.
-- Non-voxel surfaces (characters, props, weapons) take the ambient grid as their fill in place of the hemisphere; the
-  voxels keep the sky bake's fill.
+- Non-voxel surfaces (characters, props, weapons, and the level's own boxes on the smooth default) take the ambient grid
+  as their fill in place of the hemisphere; the voxels (`?voxels=1`) keep the sky bake's fill. `tests/smoothWorldLight.test.ts`
+  proves the light shapes and the light field are the same with voxels on or off.
 - No light cones: a beam is not seen in clean air, only where it lands. The volumetric haze (post stack) stays. Research:
   `docs/research/night-vision-and-lamps.md`.
 - Brightness calibration (`BrightnessScreen`, Settings > Display): an exposure multiplier in the grade, `BRIGHTNESS_MIN` ..
