@@ -1,25 +1,31 @@
 # Night vision pass - state
 
-## Now (2026-10-20 17:00, clean point for a context clear)
-Slices 1 (the look) and 2 (the goggle frame) are built and committed (75c37d42 code; reports SLICE1.md, SLICE2.md), NOT
-yet checked. Unit tests, tsc and lint pass for both; no `npm run check` or e2e yet. GPU window 16:34-16:58 (desktop
-lock, released): contact sheets in docs/nv-pass/shots/ (committed: sheet-before-{epic,medium,min}.png = master cf73f8b5,
-sheet-s12-{epic,medium,min}.png = slices 1-2; the single shots there stay local, not committed). Each sheet: 5 Marlow
-Yard and 4 Warehouse section 1 views, vision off | night vision side by side.
-e2e-darkness on the GPU (s12): FAIL "epic night vision: level 0.12 shows 13.5% (target 20-45%)" (deep fill probe rgb
-0,1,1); level 0.7 under NV 89.4%; vision-off probes fine. The grey card is a non-voxel surface, so slice 1's body-fill
-cap dims it (SLICE1.md open item 1): decide in the check whether the cap is too strong in the dark or the target moves.
-No agents running, no lock held.
+## Now (2026-10-20 17:40, PAUSED by the orchestrator: usage 93%; resume only on its message after the reset)
+Slices 1-2 (75c37d42) checked: **FIX** (docs/nv-pass/CHECK-S12.md, fresh Opus checker). Met: bodies not bright, green
+tube, frame (89% clear), light parity (`visionIsolation` unchanged and passing). Not met: readable at night at both
+extremes (yard-look under NV a flat murk, mean 14/255; Epic wh-yard moonlit wall clipped, 67% > 224) and `?gfx=min`
+(NV darker than off in yard-s1-bay and yard-s5-backroom).
+**The "before" sheets are NOT master**: the before and s12 shots are identical (a build of this tree answered on port
+4189 during the before run). Do not send them to Michael; re-shoot (fix 1).
+Checks at 75c37d42 (desktop, software GL, 4191): `npm run check` PASS (1972 tests); smoke, e2e-mouse, e2e-stealth-ai
+PASS; e2e-desktop PASS solo with `E2E_SUITE_TIMEOUT=900` (663 s; one solo rerun failed on "the result is saved as a
+performance note without a tap", a benchmark-save flake, not in this diff: backlog flaky list).
+e2e-darkness decision: the target is stale, not the cap (the grey card is a non-voxel surface, now under the body-fill
+cap; 13.5% matches the readable sheets). The "neutral rgb 121,127,125" was the vision-off probe; the tint lands.
+17:00: two orphaned scripts from before the context clear (scratch nv-before.sh, nv-gpu.sh s1) were killed after the s1
+one took the desktop lock at 16:58; partial s1 shots deleted. No agents running, no lock held.
 
 ## Next
-1. Fresh Opus CHECKER for slices 1-2 (session-method): reads BRIEF, SLICE1.md, SLICE2.md, the diff
-   (`git diff cf73f8b5..HEAD -- src tests scripts`) and every sheet (before vs s12, all three presets); judges against
-   Michael's words (readable at night, bodies not bright, realistic green tube, frame not claustrophobic) and light
-   parity; returns PASS or a ranked fix list. Watch: the NV probe at 2-3x darker than the target in deep fill (is the
-   dark still readable?), green tint vs neutral-looking probe rgb at level 0.7 (121,127,125), grain vs G101, `?gfx=min`.
-2. One fix round if needed (implementer), then the GPU window again: `touch .nv-ready` then
-   `bash docs/nv-pass/nv-gpu.sh s12b` (waits for the desktop heavy.lock, skips the before shots, builds this tree, shoots,
-   runs e2e-darkness, releases). CT Core has first claim on the lock.
+1. One fix round (Opus implementer), the checker's list in CHECK-S12.md:
+   1. Shot script proves what it serves (`scripts/nv-shots.mjs`, `nv-gpu.sh`): exit if the port is taken or the
+      server exits; compare the served `index-*.js` with the local `dist/index.html`; fail on the build's exit status.
+   2. Frame-level NV auto-gain in the tube: GPU-only 1x1 scene mean, eased about 0.5 s, input x
+      clamp(target / mean, 0.6, 2.5). Done: wh-yard not clipped, yard-look mean >= 30/255, lit rooms within 15%.
+   3. e2e-darkness NV level 0.12 min 0.2 -> 0.10 (`e2e-darkness.mjs`, `darkCurve.ts`), `darkCurve.test.ts` 5x -> 2.5x,
+      print the NV rgb; after fix 2 re-set min to measured - 0.03 (never below 0.10).
+   4. `?gfx=min`: `NV_TONE.postLift` 2 -> 3 if fix 2 does not cover it (NV >= off in all 9 min views).
+2. Then the GPU window: re-shoot master before shots (delete sheet-before-*.png so `nv-gpu.sh` redoes them) and after
+   shots `s12b`, e2e-darkness; then a fresh checker on the fix round.
 3. Send Michael the before / after epic sheets with a one-line note each; message the orchestrator.
 4. Slice 3, the vision carousel (PLAN.md), only after the orchestrator says CT Core's anim-rework slice 1 PR has merged
    (it holds src/ui until then).
