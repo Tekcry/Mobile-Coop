@@ -9,7 +9,7 @@ Scratch worktree for version / merge steps: C:/NightShift/Mobile-Coop-phone-nati
 there is safe, it holds only the orchestrator's merges).
 
 ## Master
-v4.32.2 (#77, fc8be929). Tags v4.0.0-v4.32.2. /preview/ = dev = fc8be929. Merged since the 2026-10-20 reset, in order:
+v4.32.3 (#78, 15f487b9). Tags v4.0.0-v4.32.3. /preview/ = dev = 15f487b9. Merged since the 2026-10-20 reset, in order:
 4.15.2-4.15.4 (phone native, phone menu High, FPS banner), 4.16.0 nv-pass (#49), 4.16.1-4.16.2 (fps cap, phone 75%),
 4.17.0 anim-rework slice 2 (#52), 4.18.0 warehouse-s23 (#50), 4.18.1 phones fixed 50% (#55), 4.19.0 slice 3 (#54),
 4.19.1 test-speed (#57), 4.20.0 anim tuner (#56), 4.20.1 tuner pad control (#60), 4.21.0 wheel-ui (#61), 4.21.1 e2e-pad-fix (#64), 4.22.0 warehouse-lamps (#59), 4.23.0 tuner-camera (#65), 4.24.0 slices 4+5 (#66), 4.25.0 tuner-v2 (#68), 4.26.0 Anim Studio PR 1 (#69), 4.27.0 Weight (#70), 4.28.0 smooth-world (#58), 4.28.1 shots-simwait (#72), 4.29.0 Anim Studio PR 2 (#71), 4.30.0 bake script (#73): the animation tools are done. /ct/ = ct-movement (CT Core).
