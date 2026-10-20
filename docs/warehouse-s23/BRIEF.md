@@ -32,3 +32,12 @@ L1-L15 from `docs/warehouse-redesign/BRIEF.md` apply; any new one is logged here
   `npm ci` is heavy). Undo: delete the junction and `npm ci` under the lock.
 - **A2 (order):** the section 2 build sheet first; code for section 2 starts after Michael's section 1 notes are read (M1: go ahead), so
   a direction change costs a sheet, not a build. Undo: build without waiting.
+- **A3 (x -4 wall):** the wall between sections 2 and 3 rises from 3.2 m to 6.0 m with a parapet (SPEC 2.2); it is also
+  section 3's west wall. Undo: back to 3.2 m.
+- **A4 (perimeter parapets):** new parapets on the west and north perimeter wall tops, so the 4.0 m rack tops and the
+  north pipe cannot reach a wall top into section 3. Undo: remove them (and lower the racks or pipe).
+- **A5 (A2 ladder):** a ladder in aisle A2 south of the beam sensor replaces SPEC's "split-climb over the beam" (a split
+  jump cannot travel along the aisle); the split stays as a hide. Undo: the split route once the engine can travel.
+- **A6 (sheet adjustments):** `BUILD-S2.md` section 9 D4-D13 (guard starts 7 m from the section start, the tour guard's
+  3 s pause as its takedown spot, small guard and ladder moves, a 1.0 m cage gate, a visual-only west fire exit).
+  Undo: the SPEC 2.2 values.
