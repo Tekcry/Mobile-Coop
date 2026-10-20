@@ -446,13 +446,13 @@ try {
     assert(tv1 !== tv0, `tuner: D-pad right / left nudges the focused slider (${tv0} -> ${tv1})`);
     await press(P, BTN.Y);
     assert((await tv()) === tv0, `tuner: Y resets it (${await tv()})`);
-    // (tuner-v2 wiring) D-pad up wraps from the first section to the last one, Weapon (a registered section's rows)
+    // (tuner-v2 wiring) D-pad up wraps from the first section to the last one, Stepping since item 3 (a registered section's rows)
     let tpW = await GM(() => window.__animTune.pad());
-    for (let k = 0; k < 6 && !tpW.group.startsWith('weapon.'); k++) {
+    for (let k = 0; k < 6 && !tpW.group.startsWith('step.'); k++) {
       await press(P, BTN.UP);
       tpW = await GM(() => window.__animTune.pad());
     }
-    assert(tpW.group.startsWith('weapon.') && tpW.id !== '', `tuner: the pad reaches the Weapon section (${JSON.stringify(tpW)})`);
+    assert(tpW.group.startsWith('step.') && tpW.id !== '', `tuner: the pad reaches the Stepping section (${JSON.stringify(tpW)})`);
     await GM(() => window.__pad.axis(1, -1));
     await frames(P, 8);
     const tMove = await GM(() => window.__app.input.state.move.y);
@@ -480,7 +480,7 @@ try {
     // through the panel (the active state's group) reaches item 1's table; its reset puts it back
     const v2 = await GM(() => {
       const panel = document.querySelector('.anim-tune');
-      const secs = ['joint', 'hand', 'ik', 'weapon'].filter((k) => panel.querySelector(`.anim-tune-pick-${k}`) && panel.querySelector(`.anim-tune-rows-${k}`));
+      const secs = ['joint', 'hand', 'ik', 'weapon', 'step'].filter((k) => panel.querySelector(`.anim-tune-pick-${k}`) && panel.querySelector(`.anim-tune-rows-${k}`));
       const g = window.__animTune.state.joint;
       const pick = panel.querySelector('.anim-tune-pick-joint');
       if (pick && g) {
@@ -500,7 +500,7 @@ try {
     await GM((g) => window.__animTune.set(g, 'elbowR_x', 0), v2.g);
     await frames(P, 3);
     const v2b = await v2Table();
-    assert(v2.secs === 'joint,hand,ik,weapon', `tuner: the tuner-v2 sections are in the panel (${v2.secs})`);
+    assert(v2.secs === 'joint,hand,ik,weapon,step', `tuner: the tuner-v2 sections are in the panel (${v2.secs})`);
     assert(v2.input && v2a === 12 && v2b === 0, `tuner: a Joints slider set in the panel (${v2.g}) reaches the joint table (${v2a}), its reset puts it back (${v2b})`);
     // results
     await GM(() => {

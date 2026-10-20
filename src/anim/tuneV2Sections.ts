@@ -1,16 +1,17 @@
 /**
  * (tuner-v2 wiring) The tuner-v2 sections of the animation tuner, registered through the section registry: Joints
- * (item 1), Hands & feet, IK strength and Weapon (item 2). The registry's values are the source the panel edits, saves
+ * (item 1), Hands & feet, IK strength and Weapon (item 2), Stepping (item 3, the `tuneStep` table). The registry's values are the source the panel edits, saves
  * and exports; once per frame `tuneV2Frame` copies the active state's (and weapon's) values into the item 1-2 tables
  * (`tuneJoints`, `tuneHands`) where they differ. Pure, Babylon-free; the frame step allocates nothing.
  *
  * Group ids: `joint.<state>` plus `joint.options` (the mirror lock), `hand.<weapon>.<state>`, `ik.<state>`,
- * `weapon.<weapon>.<state>`. The follow keys of `TUNE_STATE_BAG`: `joint`, `hand`, `ik`, `weapon`.
+ * `weapon.<weapon>.<state>`, `step.<gait>`. The follow keys of `TUNE_STATE_BAG`: `joint`, `hand`, `ik`, `weapon`, `step`.
  */
 import { BODY_GROUPS, type BodyGroup } from './tune';
 import { HAND_PARAMS, HAND_WEAPONS, HP, handsGet, handsSet, ikGet, ikSet, IK_LIMBS, IK_RANGE, type HandWeapon, type IkLimb } from './tuneHands';
 import { J, JOINTS, JOINT_RANGE, MIRROR_OF, MIRROR_SIGN, jointsGet, jointsMirror, jointsSet, type JointAxis } from './tuneJoints';
 import { registerTuneSection, TUNE_LOG, TUNE_STATE_BAG, type TuneTunable } from './tuneRegistry';
+import { SP, STEP_GAITS, STEP_PARAMS, stepGet, stepSet, type StepGait } from './tuneStep';
 
 const AXIS_NAME = ['pitch', 'yaw', 'roll'] as const;
 const AXIS_ID = ['x', 'y', 'z'] as const;
@@ -79,6 +80,35 @@ export const WEAPON_SECTION = registerTuneSection({
   select: (s) => s.weapon || null,
 });
 
+/** (item 3) Stepping: `step.<gait>` (tuneStep's gaits), multipliers on the foot planner's stepping values, default 1. */
+export const STEP_GROUP_IDS: readonly string[] = STEP_GAITS.map((g) => `step.${g}`);
+export const STEP_SECTION = registerTuneSection({
+  id: 'step',
+  label: 'Stepping',
+  groups: STEP_GROUP_IDS,
+  tunables: STEP_PARAMS.map((p) => ({ id: p.id, label: p.label, kind: 'mul' as const, def: 1, min: p.min, max: p.max, step: p.step, unit: 'x', groups: STEP_GROUP_IDS, hook: p.hook })),
+  select: (s) => s.step || null,
+});
+const STEP_KEYS: readonly string[] = STEP_PARAMS.map((p) => p.id);
+const STEP_IDX: readonly number[] = STEP_PARAMS.map((p) => SP[p.id]);
+/** The follow group per body state (the planner picks its gait by pace; these are the states that name one). */
+const STEP_OF_BODY: Partial<Record<BodyGroup, StepGait>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk' };
+const STEP_FOLLOW: readonly string[] = BODY_GROUPS.map((b) => {
+  const g = STEP_OF_BODY[b];
+  return g ? `step.${g}` : '';
+});
+
+/** Registry -> tuneStep table, every gait, where they differ (60 compares, no allocation). */
+function syncStep(): void {
+  for (let g = 0; g < STEP_GROUP_IDS.length; g++) {
+    const vals = STEP_SECTION.values[STEP_GROUP_IDS[g]!] as Record<string, number>;
+    for (let k = 0; k < STEP_KEYS.length; k++) {
+      const v = vals[STEP_KEYS[k]!]!;
+      if (v !== stepGet(g, STEP_IDX[k]!)) stepSet(g, STEP_IDX[k]!, v);
+    }
+  }
+}
+
 const PLACE_IDX: readonly number[] = placeParams.map((p) => HP[p.id]!);
 const PLACE_KEYS: readonly string[] = placeParams.map((p) => p.id);
 const WEAPON_IDX: readonly number[] = weaponParams.map((p) => HP[p.id]!);
@@ -88,6 +118,7 @@ TUNE_STATE_BAG.joint = '';
 TUNE_STATE_BAG.hand = '';
 TUNE_STATE_BAG.ik = '';
 TUNE_STATE_BAG.weapon = '';
+TUNE_STATE_BAG.step = '';
 
 /** The registry's mirror lock (item 1's own flag stays off: this sync does the mirroring). */
 export function tuneV2Mirror(): boolean {
@@ -137,6 +168,8 @@ function syncHandRow(w: HandWeapon, b: BodyGroup, vals: Record<string, number>, 
 export function tuneV2Frame(body: BodyGroup | '', weapon: HandWeapon): void {
   const gi = body === '' ? -1 : BODY_GROUPS.indexOf(body);
   const wi = HAND_WEAPONS.indexOf(weapon);
+  syncStep();
+  TUNE_STATE_BAG.step = gi < 0 ? '' : STEP_FOLLOW[gi]!;
   if (gi < 0 || wi < 0) {
     TUNE_STATE_BAG.joint = TUNE_STATE_BAG.hand = TUNE_STATE_BAG.ik = TUNE_STATE_BAG.weapon = '';
     return;
