@@ -66,6 +66,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
+  glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
+  clear, a soft dark band only at the edges and corners).
+- [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
+  selects it. The wheel reopens on that mode. A off the vision slot does nothing.
 - [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh

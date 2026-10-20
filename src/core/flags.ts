@@ -62,8 +62,8 @@ function readParams(): URLSearchParams {
 
 const params = readParams();
 
-/** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: the Low preset at DPR 1, a
- * 0.75 render scale and a 60 fps cap (phone-min: basic lamp light and shadows, kept cool). */
+/** (G182) A phone or tablet: a touch screen as the main pointer. Launch for testing only: the Low preset at native
+ * resolution, a 1.0 render scale and a 60 fps cap (phone-min: basic lamp light and shadows, kept cool). */
 function readPhone(): boolean {
   try {
     return (globalThis.navigator?.maxTouchPoints ?? 0) > 0 && globalThis.matchMedia?.('(pointer: coarse)').matches === true;
