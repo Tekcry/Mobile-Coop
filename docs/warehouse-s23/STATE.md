@@ -12,10 +12,10 @@ line ranges, short prompts and reports.
   `npm run check` on 597fa592 (desktop, under the lock): 1991 passed, 5 skipped, build ok.
 - CHANGELOG ("Unreleased - warehouse-s23"), `WALK.md`, TESTING.md line written.
 **Next:**
-1. smoke e2e-sectorops e2e-ctcourse on 597fa592: queued on the laptop through the orchestrator (19:46; Menu Notes held
-   the desktop lock). A failure gets one fix (nav at 3 layers: `navLayers: 4` on warehouseOps first).
-2. The PR to master (a minor step); the full `npm run e2e` on its head through the orchestrator; a message to the
-   orchestrator.
+1. PR #50 open (https://github.com/Tekcry/Mobile-Coop/pull/50), head 9b40f469 (master merged; CHANGELOG conflict only;
+   tsc and sector / light Vitest green after the merge). The full `npm run e2e` on the head is requested from the
+   orchestrator for the laptop (replaces the quick-suite request). A failure gets one fix (nav: `navLayers: 4` first).
+2. After the merge: Michael walks sections 2 and 3 (`WALK.md`); his notes come in as M2 onward.
 **Open:**
 - check-s3 polish: 5 cm slits at the door jambs and duct ends; the 0.02 tolerance also relaxes the minima; the S1 light
   test reads two deck points at y 2.8 under the new slab (an off/on difference, holds); the S1 fire-lobby exit sign is gone.
@@ -38,6 +38,7 @@ line ranges, short prompts and reports.
   section 2 sheet adjustments, A7 section 3 north and east parapets, A8 section 3 sheet adjustments.
 
 ## Done
+- 2026-10-20: master merged (9b40f469); PR #50 opened; orchestrator told.
 - 2026-10-20: section 3 greybox (597fa592), checker PASS (check-s3.md); npm run check 1991 passed; CHANGELOG, WALK.md.
 - 2026-10-20: lamp fix round (6f0ca54e); tsc, ESLint, 7 Vitest files 76 passed, 2 skipped.
 - 2026-10-20: section 3 build sheet (ea5332a6).
