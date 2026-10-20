@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - phone-menu
+## 4.15.3 - The phone menu draws at High quality (2026-10-20, PR #46)
 - Phone menu (G182; Michael 2026-10-20: "menu hero should be best quality on phones if it doesn't cost much"): the
   menu draws at the High preset on phones (lamp shadows, AO, bloom, depth of field) while play stays on Low; the hero
   mesh was already the close-up LOD. Epic's TAA and full-res post are left out (heat). Desktop unchanged.
