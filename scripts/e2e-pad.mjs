@@ -134,6 +134,8 @@ try {
   assert((await tabT()) === 'Accessibility', 'Accessibility tab');
   assert(/Subtitles/.test(await focusedText(page)), `first focus on the locked Subtitles row ("${await focusedText(page)}")`);
   await press(page, BTN.A);
+  // (test-speed) the toast shows on a frame: wait for it (8 s cap) instead of reading it at once (failed under load, run 5)
+  await page.waitForFunction(() => /always on/.test(document.querySelector('.toasts')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {});
   assert((await settings()).access.subtitles && /always on/.test(await page.evaluate(() => document.querySelector('.toasts')?.textContent ?? '')), 'the locked row toasts its reason');
   for (let i = 0; i < 4 && !/HUD size/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   assert(/HUD size/.test(await focusedText(page)), 'focus HUD size');
