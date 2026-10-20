@@ -1,8 +1,9 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
 import type { NightBloom } from './nightBloom';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
-import { NV_GLSL } from './nightVision';
-import { SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
+import { EXPOSURE_GLSL, NO_EXPOSURE } from './nightExposure';
+import { NV_GLSL, NV_TONE } from './nightVision';
+import { GOGGLE_GLSL, SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
 
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
@@ -25,8 +26,13 @@ uniform float glowScale;
 uniform float veil;
 uniform float flip;
 uniform float vk;
+uniform float nvLift;
+uniform sampler2D exposureSampler;
+uniform vec4 expo;
 ${NV_GLSL}
+${EXPOSURE_GLSL}
 ${VISION_GLSL}
+${GOGGLE_GLSL}
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
   // (step 21v) the pixel's luma before the grade: night vision's soften adds its taps' difference from it
@@ -43,8 +49,9 @@ void main(void) {
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
   if (nv > 0.0) {
     // (Step 4b) the gain is in the lighting (\`LampPlugin\`, \`VISION_GAIN\`). (Step 4b fix) the tube
-    // (\`nightVision.ts\`): the bloom of the bright parts (\`NightBloom\`) joins the drive, the phosphor is a pale
-    // grey-green that clips to white, intensifier grain is strongest in the dark, and the eyepiece darkens the edge
+    // (\`nightVision.ts\`): the bloom of the bright parts (\`NightBloom\`) joins the drive, the phosphor is a modern
+    // green (nv-pass slice 1; was a pale grey-green) that clips to a pale green-white, intensifier grain is strongest in
+    // the dark; the goggle frame below darkens the edge (nv-pass slice 2: the eyepiece vignette went into it)
     float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
     // (step 21v) the tube's softening: two diagonal taps of the scene, their difference from the raw pixel added to
     // the graded luma (the grade and the brightness offset stay as they were)
@@ -52,12 +59,14 @@ void main(void) {
     float sl = dot(texture2D(textureSampler, vUV + so).rgb + texture2D(textureSampler, vUV - so).rgb, vec3(0.2126, 0.7152, 0.0722)) * 0.5;
     l = max(l + (sl - l0) * bright * ${SENSOR_GRAIN.softNight.toFixed(3)}, 0.0);
     float g = dot(texture2D(glowSampler, vUV).rgb, vec3(0.2126, 0.7152, 0.0722)) * glowScale;
-    float drive = nvDrive(l, veil) + g;
+    // (nv-pass slice 1) without baked lamps the lighting has no gain: the tube lifts its input (nvLift, NV_TONE.postLift)
+    // (nv-pass fix round) the frame auto-gain (\`nightExposure.ts\`): the eased frame mean (\`NightBloom\`) lifts a black
+    // frame and pulls a clipping one down; lit rooms sit in its band and keep their drive
+    float drive = nvDrive(l * nvLift * nvExposure(texture2D(exposureSampler, vec2(0.5)).r, expo), veil) + g;
     vec3 p = nvColor(drive, veil);
     // (step 21v) intensifier grain (SENSOR_GRAIN), strongest in the dark
-    p += sensorNoise(vUV, aspect, time) * sensorAmp(${SENSOR_GRAIN.night.toFixed(3)}, ${SENSOR_GRAIN.litNight.toFixed(3)}, drive);
-    vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
-    p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
+    // (nv-pass slice 1: tinted with the phosphor, as electro's is; a grey grain over the green reads as dirt)
+    p += vec3(${NV_TONE.tint.map((x) => (x / NV_TONE.tint[1]).toFixed(3)).join(', ')}) * sensorNoise(vUV, aspect, time) * sensorAmp(${SENSOR_GRAIN.night.toFixed(3)}, ${SENSOR_GRAIN.litNight.toFixed(3)}, drive);
     c.rgb = mix(c.rgb, max(p, 0.0), nv);
   }
   if (vk > 0.5) {
@@ -88,17 +97,15 @@ void main(void) {
       p += vec3(0.55, 0.75, 1.0) * dv * (fz * 0.9 + ln * 0.08);
       p *= 1.0 - dv * 0.35 * smoothstep(0.55, 1.0, fract(sin(floor(time * 14.0) * 12.9898) * 43758.5453));
     }
-    vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
-    p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
     c.rgb = max(p, 0.0);
   }
   if (vk > 0.5 || nv > 0.0) {
-    // (F1b, gog-1) the goggle lens: a faint round outline, the picture dimmer outside the circle
-    vec2 le = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
-    float lr = length(le);
-    float lensOut = smoothstep(0.455, 0.5, lr);
-    float rim = smoothstep(0.012, 0.0, abs(lr - 0.468));
-    c.rgb = mix(c.rgb, c.rgb * 0.3, lensOut * 0.7) + vec3(0.05, 0.09, 0.08) * rim;
+    // (nv-pass slice 2) the goggle frame (GOGGLE_FRAME, one goggle for every mode): a wide rounded frame the shape of
+    // the screen, a soft falloff only in the outer band (the corners down to the floor) and a thin, faint rim; replaces
+    // F1b's round lens and the per-mode eyepiece vignette. It fades in with the night-vision blend.
+    float gk = vk > 0.5 ? 1.0 : nv;
+    float ge = goggleEdge(vUV, aspect);
+    c.rgb = c.rgb * mix(1.0, goggleShade(ge), gk) + goggleRimTint * goggleRim(ge) * gk;
   }
   if (feed > 0.0) {
     float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
@@ -191,6 +198,18 @@ export class CinematicPost {
     this.sync();
   }
 
+  /** The night-vision blend in use (the post stack follows it: its own bloom is off under the goggles). */
+  get nightVision(): number {
+    return this.nv;
+  }
+
+  /** (nv-pass slice 1) The tube's input lift: 1 with baked lamps (the gain is in the lighting), `NV_TONE.postLift`
+   *  without (`?gfx=min`). Read each frame, no rebuild. */
+  private nvLift = 1;
+  setNightLift(k: number): void {
+    this.nvLift = k;
+  }
+
   /** (Step 14) thermal (1) / electro (2) vision, 0 = neither (rendering only). */
   setVisionKind(k: number): void {
     if (k === this.vk) return;
@@ -243,7 +262,7 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'flip', 'vk'], ['glowSampler'], 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'flip', 'vk', 'nvLift', 'expo'], ['glowSampler', 'exposureSampler'], 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -265,6 +284,13 @@ export class CinematicPost {
         e.setFloat('veil', this.veil);
         e.setFloat('flip', this.flip);
         e.setFloat('vk', this.vk);
+        e.setFloat('nvLift', this.nvLift);
+        // (nv-pass fix round) the frame auto-gain's eased mean; before the first measure the scene stands in, with a
+        // band that gives a gain of 1
+        const ex = this.bloom?.exposure;
+        e._bindTexture('exposureSampler', ex ? ex.texture : pp.inputTexture.texture);
+        const b = ex ? this.bloom!.exposureBand : NO_EXPOSURE;
+        e.setFloat4('expo', b[0], b[1], b[2], b[3]);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

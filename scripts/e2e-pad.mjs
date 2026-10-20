@@ -1,6 +1,6 @@
 // Controller-only navigation test: every step uses the fake gamepad, never the screen.
 // Run against `npm run preview` (default http://localhost:4173/).
-import { launch, openPage, press, stick, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
+import { launch, openPage, press, stick, frames, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
@@ -87,7 +87,8 @@ try {
   console.log('hot-plug + iOS first-press detection');
   await page.evaluate(() => window.__pad.connect());
   await press(page, BTN.LB); // harmless on main menu; reveals the pad like iOS
-  await page.waitForTimeout(250);
+  // (test-speed) the toast is noticed on a frame: wait for it (as the disconnect toast) instead of a fixed 250 ms
+  await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /Controller connected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});
   const toast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|'));
   assert(/Controller connected/.test(toast), `connect toast ("${toast}")`);
   assert(await page.evaluate(() => document.body.classList.contains('input-gamepad')), 'mode = gamepad');
@@ -133,6 +134,8 @@ try {
   assert((await tabT()) === 'Accessibility', 'Accessibility tab');
   assert(/Subtitles/.test(await focusedText(page)), `first focus on the locked Subtitles row ("${await focusedText(page)}")`);
   await press(page, BTN.A);
+  // (test-speed) the toast shows on a frame: wait for it (8 s cap) instead of reading it at once (failed under load, run 5)
+  await page.waitForFunction(() => /always on/.test(document.querySelector('.toasts')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => {});
   assert((await settings()).access.subtitles && /always on/.test(await page.evaluate(() => document.querySelector('.toasts')?.textContent ?? '')), 'the locked row toasts its reason');
   for (let i = 0; i < 4 && !/HUD size/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   assert(/HUD size/.test(await focusedText(page)), 'focus HUD size');
@@ -224,7 +227,9 @@ try {
   const w0 = await G(() => window.__app.current.weapons.slotIndex);
   // (a tap at the input layer: down and up inside one frame, so a slow software-GL frame cannot turn it into a hold)
   await G(() => { const st = window.__app.input.state; st.set('t', 'gadgetWheel', true); st.set('t', 'gadgetWheel', false); });
-  await page.waitForTimeout(600);
+  // (test-speed) wait for the switch, not a fixed 600 ms: under load the game had not run the frames yet ("0 -> 0")
+  await page.waitForFunction((w0) => window.__app.current.weapons.slots.length < 2 || window.__app.current.weapons.slotIndex !== w0, w0, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(150);
   const tapWheel = await G(() => window.__app.current.gadgets.wheelOpen);
   const w1 = await G(() => ({ i: window.__app.current.weapons.slotIndex, n: window.__app.current.weapons.slots.length }));
   assert(!tapWheel && (w1.n < 2 || w1.i !== w0), `LB tap switches weapon and leaves the wheel shut (${w0} -> ${w1.i} of ${w1.n})`);
@@ -232,19 +237,26 @@ try {
   await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
   const shut = await G(() => window.__app.current.gadgets.wheelOpen);
   assert(held.wheel && !shut, `LB held opens the selection wheel, released closes it (${held.wheel} / ${shut})`);
-  // the wheel over the live game: LB held, right stick up pushes the cursor to the vision stack; release picks (the mode goes out to the rim: electro)
+  // the wheel over the live game: LB held, right stick up lights the vision slot; (nv-pass slice 3) A steps the mode
+  // like a carousel from the selected one (night -> thermal -> electro), never reaching the context menu; release picks
   {
+    const s0 = await G(() => window.__app.current.vision.selected);
     await page.evaluate(() => window.__pad.set(4, 1));
     await page.waitForFunction(() => window.__app.current.gadgets.wheelOpen, null, { timeout: 6000 });
     const ts = await G(() => window.__app.loop.timeScale);
     await page.evaluate(() => window.__pad.axis(3, -1));
     await page.waitForTimeout(700);
+    const m0 = await G(() => window.__app.current.gadgets.sel.mode);
+    await press(page, BTN.A);
+    await press(page, BTN.A);
+    await page.waitForTimeout(150);
+    const ctx = await G(() => window.__app.current.ctxMenu.state);
     const seen = await G(() => ({ seg: window.__app.current.gadgets.sel.seg, mode: window.__app.current.gadgets.sel.mode, dom: !!document.querySelector('.selection-wheel:not([hidden])'), tiles: document.querySelectorAll('.selection-wheel .sw-tile:not([hidden])').length, label: document.querySelector('.sw-label-name')?.textContent }));
     await page.evaluate(() => window.__pad.axis(3, 0));
     await page.evaluate(() => window.__pad.set(4, 0));
     await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
     const sel = await G(() => window.__app.current.vision.selected);
-    assert(ts === 1 && seen.seg === 0 && seen.mode === 'electro' && seen.dom && seen.tiles >= 8 && sel === 'electro', `the wheel: no time slow (${ts}), cursor up = vision stack (${JSON.stringify(seen)}), release picks electro (${sel})`);
+    assert(ts === 1 && s0 === 'night' && m0 === 'night' && seen.seg === 0 && seen.mode === 'electro' && ctx !== 'active' && seen.dom && seen.tiles >= 8 && sel === 'electro', `the wheel: no time slow (${ts}), opens on the selected mode (${s0} / ${m0}), cursor up = vision slot, A x2 steps to electro (${JSON.stringify(seen)}), no context menu (${ctx}), release picks electro (${sel})`);
   }
   const v0 = await G(() => window.__app.current.vision.mode);
   await press(page, BTN.LEFT);
@@ -594,9 +606,9 @@ try {
       console.log(JSON.stringify(r));
       assert(r.capKept, 'D-pad up / down leave the speed alone (anim-rework S1: no rocker)');
       // (anim-rework S1, Michael: "full speed control via the analogue stick depending on how far you push the stick")
-      // raw 50 / 80 / 100% = ~1.4 sneak / ~2.0 walk / 4.5 run (the STICK_SPEED curve; x the weapon's handling)
+      // raw 50 / 80 / 100% = ~1.4 sneak / ~2.0 walk / 4.0 run (anim-rework S2, M6: was 4.5) (the STICK_SPEED curve; x the weapon's handling)
       assert(r.a50.g === 2 && r.a80.g === 3 && r.a100.g === 5, `stick 50 / 80 / 100% -> sneak / walk / run (${r.a50.g} / ${r.a80.g} / ${r.a100.g})`);
-      assert(r.a50.v > 1.1 && r.a50.v < 1.6 && r.a80.v > 1.7 && r.a80.v < 2.25 && r.a100.v > 3.9, `speed follows the stick (${r.a50.v} / ${r.a80.v} / ${r.a100.v} m/s)`);
+      assert(r.a50.v > 1.1 && r.a50.v < 1.6 && r.a80.v > 1.7 && r.a80.v < 2.25 && r.a100.v > 3.5, `speed follows the stick (${r.a50.v} / ${r.a80.v} / ${r.a100.v} m/s)`);
       assert(!r.sprint.sprinting && r.sprint.g === 5, `a full stick: no sprint, the run (${JSON.stringify(r.sprint)})`);
       assert(r.max3 === 3 && r.cap.g === 3 && r.cap.v <= 2.1, `the internal cap 3 (tests) holds the full stick at the walk (${r.max3}, ${JSON.stringify(r.cap)})`);
       assert(r.crouch && r.stand, 'B crouches and stands');
@@ -651,6 +663,8 @@ try {
       const G = (f, a) => P.evaluate(f, a);
       const click = (sel, text) => G(([s, t]) => [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]')).find((e) => !t || new RegExp(t).test(e.textContent)).click(), [sel, text]);
       await P.waitForFunction(() => !!document.querySelector('.main-menu .btn'), null, { timeout: 60000 });
+      // (test-speed) a mark that a reload would clear: the remap flake (full run 2, 4.6.3) found the Controls screen gone
+      await G(() => (window.__remapMark = 1));
       await G(() => window.__pad.connect());
       await press(P, BTN.DOWN);
       await click('.main-menu .btn', 'Settings');
@@ -764,9 +778,22 @@ try {
       } finally {
         await Q.page.close();
       }
+      // (test-speed) the play page was in front: this page is in front again and still on the Controls screen before the
+      // next press (a B with no capture listening is Back, which closed the screen in the flake), and the capture is on
+      await P.bringToFront();
+      await frames(P, 3);
+      const here = await G(() => ({ mark: window.__remapMark === 1, screen: !!document.querySelector('.controls-screen'), top: window.__app.screens.top?.el.className ?? '' }));
+      assert(here.mark && here.screen, `after the play page the remap page is still on the Controls screen (${JSON.stringify(here)})`);
       // onto B (crouch): the conflict shows on both rows and in the summary; reset (confirm) restores the defaults
       await focusSlot('draw:0');
       await press(P, BTN.A);
+      // (the first pad press after the page came back to the front can be taken as the input-mode switch: one more A)
+      if (!(await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 4000 }).then(() => true).catch(() => false))) {
+        console.log(`  (no capture after the first A: ${JSON.stringify(await G(() => ({ mode: window.__app.input.mode, focused: window.__app.nav.focused?.dataset?.bind ?? window.__app.nav.focused?.className })))}; A again)`);
+        await focusSlot('draw:0');
+        await press(P, BTN.A);
+        await P.waitForFunction(() => window.__app.input.gamepad.capturing, null, { timeout: 8000 }).catch(() => {});
+      }
       await press(P, BTN.B);
       v = await view();
       assert(v.rows === 'crouch,draw' && /share B/.test(v.sum) && v.screen && JSON.stringify((await pad()).draw) === '[1]', `A then B binds B (G22), warned on both rows (${JSON.stringify(v)})`);

@@ -135,6 +135,27 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   weapon, hand targets and weights, foot offsets), monotone cubic, cycles keyed over the gait phase with duty and
   lift, timed clips in seconds with events (`magOut`, `magIn`, `charge`, `holstered`, `release`, ...).
   `addClip` (additive vs neutral) / `overClip` (override); `mirrorClip` for left/right.
+- Keyed clips (CT prototype G8, `docs/ct-prototype/G8-PLAN.md`; anim-rework S2): hand-keyed poses baked in Blender
+  (`scripts/anim-keys/keys/<clip>.json` -> `anim/clips/keyed/<clip>.ts`, `anim/keyed.ts`) played over the procedural
+  layer (foot planner, foot IK and locking, speed matching, look-at stay procedural). Standing and holstered (free hands)
+  the graph plays one keyed set (`AnimGraph.keyedSet`): `walk` -> `jog` -> `run` cross-faded by the effort pace
+  (`KEYED_GAITS`: walk to 2.1 m/s, jog from ~2.6 to ~3.3, run from ~3.8; the walk's swing scales with its pace) on the
+  gait phase, and `idle` (a 12 s cycle, `KEYED_IDLE_PERIOD`: breathing, weight shifts, a head scan) by the still share;
+  the blended track half-width, knee pole, duty and lift go to the planner. `mixKeyed` blends two sampled poses. Drawn
+  (anim-rework S3; a carrier with the gun in hand, standing on foot, `AnimInput.keyedDrawn`) the graph mixes the drawn
+  set in by its share (`keyedDrawnSet`, `RigTargets.keyDrawn`): at low ready the speed set's legs and trunk moving and
+  `ready_stance` still (an 8 s cycle, `READY_STANCE`: the support foot 9 cm ahead, the strong foot as far behind);
+  aiming (by the eased raise) the glide by the smoothed local direction (`glide_fwd`, `glide_back`, `glide_strafe`; the
+  left strafe is the right one mirrored half a cycle on, `mirrorKeyed`) and `ready_stance` still. The aimed share's
+  pelvis offsets ride on the procedural pose (the clip's swing about its mean), its trunk is not applied
+  (`RigTargets.keyTrunk` = 1 - drawn x raise: the upper body stays the procedural gun platform), the pelvis twist is cut
+  (`GLIDE.yawCut`) and the hips ride over the feet across the body (`GLIDE_HIP`); the glides' track (`GLIDE.halfK`)
+  and knee pole (`GLIDE.kneeOut`) are set for the planner. Crouched drawn stays procedural (slice 4). The rig applies it
+  (`keyedTrunk` with the look's neck yaw on top, `keyedArm`); under the keyed set the knee bow-out rule
+  (`KEYED_KNEE_GAP` 0.11 m) bows only a swinging leg, gently (`KEYED_KNEE_BOW`), and, standing holstered (`keyHol`), a
+  swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
+  head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
+  clock); no wire change.
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from
   the `MotionDriver` state, a first-order stick-intent lean (visible on the first frame), acceleration lean and

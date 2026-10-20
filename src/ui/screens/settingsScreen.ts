@@ -359,7 +359,7 @@ export class SettingsScreen extends MenuScreen {
       desc(slider('Field of view', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }), 'The horizontal field of view on a 16:9 screen. Wider screens see more at the sides.'),
       desc(slider('Widest field of view', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }), 'The limit for ultrawide screens.'),
       desc(choice('HUD width', HUD_OPTS, () => s().video.hudWidth, (v) => upd((d) => void (d.video.hudWidth = v))), 'Keeps the HUD inside a narrower frame on a wide screen.'),
-      desc(toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))), 'The frame rate in the corner of the screen.'),
+      desc(toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))), 'A thin banner at the top of the screen: frame rate, frame time, drops, resolution.'),
       desc(toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))), 'Darkens the corners of the picture a little.'),
       desc(toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))), 'A fine grain over the picture.'),
       desc(choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))), 'How characters are drawn. Stick is a debug look.'),
@@ -377,6 +377,9 @@ export class SettingsScreen extends MenuScreen {
       desc(button('Resolutions', () => app.benchmark?.('resolutions'), { class: 'subtle', key: 'bench-res' }), 'The flight at each of this monitor\'s resolutions (in fullscreen).'),
       desc(button('Feature costs', () => app.benchmark?.('features'), { class: 'subtle', key: 'bench-features' }), 'Your settings, then each costly feature off in turn: what to cut on this device.'),
       desc(button(`Sustained (${BENCH.sustained / 60} min)`, () => app.benchmark?.('sustained'), { class: 'subtle', key: 'bench-sustained' }), 'The first minute against the last: a laptop slowing down once hot.'),
+      // (anim-tuner pass 2) the animation tuner without F3 (pad, phone)
+      grp('Developer'),
+      desc(button('Animation tuner (dev)', () => app.debug.animTune.show(), { class: 'subtle', key: 'anim-tuner' }), 'Opens the animation slider panel over the game (top right). It stays open in a match until you close it with its x.'),
     );
     return panel;
   }

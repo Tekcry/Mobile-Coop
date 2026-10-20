@@ -7,6 +7,7 @@ import { CRAB_JOINTS, crabFrame, type CrabNow } from '../anim/audit/metrics';
 import { crabRanges } from '../anim/audit/limits';
 import type { GameLoop } from '../core/loop';
 import type { PacingSnapshot } from '../core/pacing';
+import { AnimTunePanel, type TuneRigView } from './animTunePanel';
 
 /** (anim-metrics-2) What the live crab readout reads from the player (set by the app; typed loosely, no player import). */
 export interface CrabPlayer {
@@ -22,6 +23,9 @@ export interface CrabPlayer {
 export class DebugOverlay {
   private el: HTMLDivElement;
   private visible = false;
+  /** The Settings "Show FPS overlay" banner: one line across the top, the critical numbers only (F3 and `?debug=1`
+   *  show the full overlay). */
+  private compact = false;
   private instr: SceneInstrumentation | null = null;
   private scene: Scene | null = null;
   private frameTimes: number[] = [];
@@ -49,6 +53,8 @@ export class DebugOverlay {
   private crabEl: HTMLDivElement;
   private crabRows: HTMLSpanElement[] = [];
   private readonly crabBuf = new Float64Array(30);
+  /** (anim-tuner) The animation tuner (the Anim button): its own panel top right, clear of the crab readout. */
+  readonly animTune = new AnimTunePanel();
   private readonly crabNow: CrabNow = { kneeSep: 0, trackL: 0, trackR: 0, bowL: 0, bowR: 0, wingL: 0, wingR: 0, hipWidth: 0 };
   /** The worst of each since the last paint (track: planted frames only, kept until a foot plants again). */
   private crab = { n: 0, kneeMin: 0, kneeMax: 0, trackL: 0, trackR: 0, planted: 0, bowL: 0, bowR: 0, wingL: 0, wingR: 0, speed: 0, crouched: false, ads: false };
@@ -99,6 +105,9 @@ export class DebugOverlay {
         this.tune.hidden = !this.tune.hidden;
         b.classList.toggle('on', !this.tune.hidden);
       }),
+      btn('Anim', (b) => {
+        b.classList.toggle('on', this.animTune.toggle());
+      }),
       // slow motion for reviewing blends: 1x -> 0.5x -> 0.25x -> 1x
       btn('1x', (b) => {
         const next = this.loop.timeScale === 1 ? 0.5 : this.loop.timeScale === 0.5 ? 0.25 : 1;
@@ -113,6 +122,9 @@ export class DebugOverlay {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') this.toggle();
     });
+    this.animTune.rig = () => (this.crabPlayer?.() as unknown as { rig?: TuneRigView } | null)?.rig ?? null;
+    // (anim-tuner pass 2) opened from the pause menu or Settings too: the Anim button shows its state
+    this.animTune.onOpenChange = (on) => Array.from(this.tools.querySelectorAll('button')).find((b) => b.textContent === 'Anim')?.classList.toggle('on', on);
     engine.onEndFrameObservable.add(() => this.onFrame());
   }
 
@@ -314,11 +326,14 @@ export class DebugOverlay {
     this.instr?.dispose();
     this.instr = null;
     this.scene = scene;
+    this.animTune.setScene(scene);
     if (this.visible && scene) this.instr = new SceneInstrumentation(scene);
   }
 
-  toggle(force?: boolean): void {
+  toggle(force?: boolean, compact = false): void {
     this.visible = force ?? !this.visible;
+    this.compact = compact;
+    this.el.classList.toggle('compact', compact);
     this.el.hidden = !this.visible;
     this.setScene(this.scene);
   }
@@ -331,9 +346,11 @@ export class DebugOverlay {
     const now = performance.now();
     const ft = now - this.last;
     this.last = now;
+    // (anim-tuner pass 2) the tuner panel runs with or without the overlay (opened from the pause menu)
+    this.animTune.frame(now);
     if (!this.visible) return;
-    if (this.skeleton) this.drawSkeleton();
-    this.sampleCrab();
+    if (this.skeleton && !this.compact) this.drawSkeleton();
+    if (!this.compact) this.sampleCrab();
     for (const t of this.traces.values()) {
       t.buf.push(t.fn());
       if (t.buf.length > 120) t.buf.shift();
@@ -347,6 +364,14 @@ export class DebugOverlay {
     const worst = Math.max(...this.frameTimes);
     const s = this.scene;
     const pc = this.pacing?.();
+    if (this.compact) {
+      // (Michael 2026-10-20: "a banner on the top of the screen with only critical information")
+      const drops = pc ? `  |  drops ${(pc.dropShare * 100).toFixed(1)}%` : '';
+      this.text.textContent =
+        `FPS ${(1000 / avg).toFixed(0)}  |  ${avg.toFixed(1)} ms  |  max ${worst.toFixed(1)} ms${drops}  |  ` +
+        `${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}`;
+      return;
+    }
     const lines = [
       `FPS ${(1000 / avg).toFixed(0)}  avg ${avg.toFixed(1)}ms  max ${worst.toFixed(1)}ms`,
       pc

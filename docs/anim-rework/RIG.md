@@ -11,11 +11,14 @@ frame for the knee hand, a sling attachment), and say what it costs." CT Core's 
   nothing was weighted to them: `bake_lods.py` folded the hero's toe weights into the ankle, so the foot was rigid and a
   heel-to-toe roll pivoted the whole foot about its toe (`TOE_BALL`), the toe box going into the floor.
 - Export: `scripts/operators/py/bake_lods.py` now skins the toes to `toeL` / `toeR` (`GAME_JOINTS` 17 -> 19,
-  `game_joint` maps the hero's `toesL_*` / `toesR_*` to them). The shipped files were brought to the same weights by
-  `scripts/operators/toe-skin.mjs` (the garment blends needed for a full rebake are not on this machine): every
-  ankle-weighted LOD vertex takes the toe share of its nearest hero vertex on that foot (the hero keeps MakeHuman's CC0
-  per-toe weights), so the toe box bends at the ball (the share rises from 0 at 13 cm ahead of the ankle to 1 by 17 cm;
-  the ball joint is 13.4 cm ahead). Rigid parts keep their weights; only the JOINTS_0 / WEIGHTS_0 bytes changed.
+  `game_joint` maps the hero's `toesL_*` / `toesR_*` to them). The shipped LOD0-2 are a full rebake (2026-10-20, MPFB2
+  2.0.18 CC0 data from the official extension zip, `docs/operators/MPFB2.md`): the toe box bends at the ball (the ball
+  joint is 13.4 cm ahead of the ankle). Against the first stand-in (`scripts/operators/toe-skin.mjs`: each ankle vertex
+  took the toe share of its nearest hero vertex) the rebake changes only the ankle / toe split on 71 (LOD0), 49 (LOD1)
+  and 2 (LOD2) vertices (up to 0.78 of a weight), adds the `slingBack` anchor (chest) and re-bakes the textures;
+  positions, UVs, normals, rigid parts and the other anchors are identical (tangents within 1e-4). The hero file is kept
+  as it was (anim-rig A8: it would only gain the anchor; its per-toe bones were already skinned). `toe-skin.mjs` stays
+  for LOD files baked before anim-rig (a no-op on these: "already skinned").
 - Runtime map: `RIG_JOINTS` / `RIG_PARENT` (`src/operators/runtime/pose.ts`) and `REQUIRED_JOINTS` (`manifest.ts`) list
   the toes; `RigLike` / `rigNodes` (`figure.ts`) read them; `CharacterRig` builds `toeL` / `toeR` under the ankles at the
   ball (on the floor, 45 % of the foot length ahead, as `operatorBody.ts`'s toe joint). The poser now drives the LODs'
@@ -52,14 +55,15 @@ frame for the knee hand, a sling attachment), and say what it costs." CT Core's 
 
 ## Cost
 
-| LOD | Skin joints before / after | Weighted joints before / after | GLB bytes before / after |
+| LOD | Skin joints before / after | Weighted joints before / after | GLB bytes before / after (rebake) |
 | --- | --- | --- | --- |
 | hero | 63 / 63 | 57 / 57 (its per-toe bones were already skinned) | 57,320,384 / 57,320,384 (unchanged) |
-| LOD0 | 23 / 23 | 17 / 19 | 18,645,832 / 18,645,832 |
-| LOD1 | 23 / 23 | 17 / 19 | 5,156,148 / 5,156,148 |
-| LOD2 | 23 / 23 | 17 / 19 | 2,518,968 / 2,518,968 |
+| LOD0 | 23 / 23 | 17 / 19 | 18,645,832 / 18,354,460 |
+| LOD1 | 23 / 23 | 17 / 19 | 5,156,148 / 5,070,872 |
+| LOD2 | 23 / 23 | 17 / 19 | 2,518,968 / 2,487,312 |
 
-Toe-weighted vertices (weight > 0): LOD0 926 + 972, LOD1 167 + 158, LOD2 39 + 38 (L + R).
+Toe-weighted vertices (weight > 0), rebake: LOD0 926 + 968, LOD1 165 + 157, LOD2 39 + 38 (L + R). The byte changes are
+the re-baked KTX2 textures and the anchor node, not the skin.
 
 - GPU: nothing more. The skeletons already had a bone per toe joint (23 bones per game LOD), skinning stays 4
   influences a vertex; the bone matrices uploaded per frame are the same count.

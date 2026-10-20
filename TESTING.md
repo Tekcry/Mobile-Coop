@@ -28,6 +28,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
   you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
   there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
+- [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
+  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`).
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
@@ -53,7 +55,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   runs. Keyboard: WASD walks, hold Left Shift to run, Left Alt to creep. B crouches; a stop holds the stride, then
   settles. A part-pushed stick is silent; a full stick is audible.
 - [ ] Weapon states (anim-rework S1): X taps the gun out to low ready (explore camera) and away again; hold LT to aim
-  (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, a little slower.
+  (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, slower (the rifle
+  comes off the sling round the right side, muzzle down under the arm, then up into the shoulder). Aiming, strafe both
+  ways and back up: short side-steps, the feet never cross or splay, the gun steady (anim-rework S3).
   RT fires only while aiming; holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
   Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
   things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming
@@ -66,6 +70,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Light: a lit pool on the light meter is lit on screen and guards there see you; a dark corner keeps you hidden
   (light parity). Shooting a lamp or a switch darkens it for the meter and the guards at once.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
+  glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
+  clear, a soft dark band only at the edges and corners).
+- [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
+  selects it. The wheel reopens on that mode. A off the vision slot does nothing.
 - [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
@@ -85,6 +94,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The wall medkit station on Proving Grounds (Free Roam): hurt, then hold to heal +40; it shows spent; at full
   health it is refused ("Health full"). No other way heals.
 - [ ] An Infiltration mission on the Warehouse runs to its results screen (rating shown, no rewards panel).
+- [ ] Animation tuner: open it from Pause > Animation tuner (dev) (the match resumes with the panel open), Settings >
+  Graphics > Animation tuner (dev) or F3 > Anim; on a phone the panel folds to its header (_ / +), scrolls, drags by
+  thumb and closes with x, and Share / Copy shares, copies or shows the JSON. Walk: "arm swing amplitude", "stance knee
+  flex" and "trunk / shoulder counter-rotation" sit at the top. Walk with the pad and drag "foot width / track" - the
+  feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
+  is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
+  press Reset all before judging the game's own defaults.
+- [ ] Animation tuner by pad (tuner-pad): Pause > Animation tuner (dev) with A; the panel says "PAD: tuner" and one row
+  has an amber outline. D-pad down / up move the outline (on into the gun rows), right / left nudge the value (hold:
+  repeats, faster after 1 s), the left stick X nudges faster; LB / RB change the group; Y resets the row; A exports.
+  The player does not move, jump or fire meanwhile. View: "PAD: game", walk to check, View again to tune. B closes the
+  panel and the player does not crouch from that press.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
@@ -99,6 +120,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] ADS frames the same relative to the body standing and crouched, rifle and pistol (crouched it is lower, at crouch
   height); aim up and down: the chest leans, the wrists stay straight. Legs stay under the body walking, running and
   turning on the spot; crouch idle kneels (one knee down, back upright), crouch walking blends out of it cleanly.
+- [ ] (anim-rework S2) Holstered, standing: push the stick slowly from a creep to full: the walk turns into a jog and a
+  run with no pop, the knees and feet stay under the hips (from the front the legs look near vertical), the arms hang
+  along the sides and swing a little more as you speed up, no lean until the run. Stand still: she breathes, shifts her
+  weight and looks round slowly. Start, stop, turn round from a standstill and change direction 90 / 180 deg at a walk
+  and a run: no foot slides, no hop.
 - [ ] Draw and holster the rifle and pistol, standing and crouched: the hand stays on the gun the whole way; the rifle
   comes from the back straight to the shoulder (no low-ready dip).
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.

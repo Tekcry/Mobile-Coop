@@ -116,7 +116,7 @@ Edit the table and the code together.
 | Switch weapon (next) | `swapNext` | - | - | `nextWeapon` (T) | LB / Tab tap switches weapon (the wheel opens on a hold); also through the wheel |
 | Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button |
 | Quick-use selected gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | F1a: the gadget picked on the wheel; works holstered (G21) |
-| Selection wheel (G181) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects |
+| Selection wheel (G181) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top; A / E on the slot cycles them), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects |
 | Co-op action; jammer (aiming the pistol) | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button: team moves; held while aiming the drawn pistol, the jammer (Michael 14:55) |
 | Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G181: toggles the mode picked on the wheel (night first), never cycles between modes |
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
@@ -187,7 +187,7 @@ Michael 2026-10-20: "remove the speed toggle, and allow full speed control via t
 you push the stick". No gears, no D-pad speed buttons, no mouse-wheel speed.
 - `player/speedGears.ts` `stickSpeed(u, crouched)` (pure): `u` = the stick's travel past the dead zone (`stickCurve`; the
   pad's radial dead zone 0.15 first, then `GEARS.deadZone` 0.05), piecewise linear through `STICK_SPEED.at`
-  [0, 0.15, 0.45, 0.8, 0.9, 0.97] to [0.4, 0.75, 1.4, 2.1, 3.0, 4.5] m/s standing and [0.4, 0.85, 1.3, 1.7, 2.15, 2.6]
+  [0, 0.15, 0.45, 0.8, 0.9, 0.97] to [0.4, 0.75, 1.4, 2.1, 3.0, 4.0] m/s standing (anim-rework S2, M6: the run was 4.5) and [0.4, 0.85, 1.3, 1.7, 2.15, 2.6]
   crouched (the slowest creep, then creep / sneak / walk / jog / run). Most of the travel (to 0.8) is the stealth range;
   the last fifth is the jog and the run. Raw stick 50 / 80 / 90 / 100 % standing (the default radial dead zone 0.15, outer 0.98): ~1.3 / ~2.0 / ~3.0 / 4.5 m/s.
 - Keyboard (A1): WASD at the walk point (2.1 / 1.7 m/s), Left Shift held the run, Left Alt held the creep (`KBM_PACE`).

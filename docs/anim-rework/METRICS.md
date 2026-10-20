@@ -90,3 +90,22 @@ Which states are wide, and by how much:
 When a slice lands, rerun `CRAB_STATES=1 CRAB_JSON=1 node scripts/run-e2e.mjs e2e-anim`, check the gait's numbers sit
 inside the ranges, set `CRAB_GATES.<gait> = true` and update the tables above. A range that proves wrong for a believable
 pose changes in `CRAB` / `CRAB_CROUCH` with the reason, never per gait in the suite.
+
+## Slice 2 (anim-rework S2, 2026-10-20, desktop): standing holstered
+`CRAB_GATES.walk / jog / run` are on, and `CRAB_STATE_GATES` asserts the standing holstered sub-states idle, start,
+straight, stop and the turn round from a standstill at speeds 1-3 on every e2e-anim run (a turn: all but the track).
+The 90 / 180 deg changes stay report-only. Idle, start and stop read their track against `CRAB_IDLE` (10.5 cm: a
+hip-width stance). The crab recordings now holster first (the aim checks before them left the gun at low ready, so the
+tables above measured drawn arms at jog / run / idle). After: walk / jog / run knees 0.74-0.76 x the hips (max 0.89),
+track 4.0-4.4 cm (max 6.0), knee out 2.2-2.5 cm, slide 0, elbows 2.5-2.7 cm. Full tables: `S2-REPORT.md`.
+
+## Slice 3 (anim-rework S3, 2026-10-20, desktop): drawn, standing
+`CRAB_DRAWN_GATES` asserts the drawn states, rifle and pistol, on every e2e-anim run: the aimed idle, strafe right and
+left and backwards at speeds 1-2, the aimed forward (its track report-only: 6.9-7.0 cm at the aim's 1.4 m/s top, the
+pelvis' stepping twist), the low ready idle, walk and jog. The aimed strafe reads against the new `CRAB_STRAFE` (written
+reason in `limits.ts`: a side-step opens the feet from the close to about shoulder width; knees 1.5 x, track 20 cm) and
+asserts the feet never cross; the idles against `CRAB_IDLE`. The drawn pose asserts (`DRAWN_POSE`): the low ready muzzle
+28-47 deg down (rifle) / 20-50 (pistol), within 25 deg of the facing; aiming the head within 14 deg of upright. The old
+walk table's "strafe / backwards (aiming)" rows stay report-only against the walk's ranges. After (rifle; the pistol reads
+the same legs): strafe knees 0.63-1.23 x, track max 16-18 cm, knee out 1.6-1.8 cm, never crossed; backwards 0.68-0.71 x,
+track max 5.5-6.0, knee out 1.9-2.1; elbows 4.1-4.2 cm (were 6.6-7.2). Full tables: `S3-REPORT.md`.

@@ -8,7 +8,7 @@ const magFor = (v: number, crouched: boolean): number => stickMagFor(v, crouched
 describe('analog gear thresholds (locomotion step 17, D5.12)', () => {
   it('derives the threshold table from GEARS (midpoint +- 15% of the gap)', () => {
     // (playtest 2) the old speed 2 is the slowest: standing 0.75 / 1.4 / 2.1 / 3.0 / 4.5 (G1), crouched 0.85 / 1.3 / 1.7 / 2.15 / 2.6
-    const stand = [[1.1725, 0.9775], [1.855, 1.645], [2.685, 2.415], [3.975, 3.525]];
+    const stand = [[1.1725, 0.9775], [1.855, 1.645], [2.685, 2.415], [3.65, 3.35]];
     const crouch = [[1.1425, 1.0075], [1.56, 1.44], [1.9925, 1.8575], [2.4425, 2.3075]];
     stand.forEach(([u, d], i) => {
       expect(GEAR_UP.stand[i]).toBeCloseTo(u!, 9);
@@ -35,7 +35,7 @@ describe('analogue speed (anim-rework S1)', () => {
     // the walk at 80 % of the travel; jog and run in the last fifth; the run from 0.97 to the rim
     expect(STICK_SPEED.at[3]).toBe(0.8);
     expect(stickSpeed(0.8, false)).toBeCloseTo(2.1, 9);
-    expect(stickSpeed(0.985, false)).toBe(4.5);
+    expect(stickSpeed(0.985, false)).toBe(4.0);
     expect(stickSpeed(1, true)).toBe(2.6);
   });
   it('rises continuously with the stick (no steps), standing and crouched', () => {
@@ -59,12 +59,12 @@ describe('analogue speed (anim-rework S1)', () => {
     expect(at(0.8)).toBeLessThan(2.15);
     expect(at(0.9)).toBeGreaterThan(2.6);
     expect(at(0.9)).toBeLessThan(3.2);
-    expect(at(1)).toBe(4.5);
+    expect(at(1)).toBe(4.0);
   });
   it('the analogue gear: v continuous, the nearest named speed with hysteresis, the pace band covers v', () => {
     const a = new AnalogGear();
     expect(a.update(5, false, 1)).toBe(5);
-    expect(a.speed()).toBe(4.5);
+    expect(a.speed()).toBe(4.0);
     expect(a.band).toBe(5);
     // from the run, 1.75 m/s is still above gear 3's down threshold (hysteresis); from rest it is gear 2
     a.update(5, false, magFor(1.75, false));

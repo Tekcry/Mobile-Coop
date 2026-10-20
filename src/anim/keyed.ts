@@ -11,6 +11,7 @@
  * Per clip: the foot planner's `duty` and `liftH`, the knee pole's `kneeOut` and the track `half` width (ankle centre
  * from the midline). Sampling never allocates.
  */
+import { TUNE_CUR, tuneKeyedLean, tuneKeyedTwist } from './tune';
 
 export interface KeyedClipDef {
   name: string;
@@ -164,9 +165,11 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
   for (let c = 0; c < KEYED_ARM; c++) {
     const v = A[i0 * KEYED_ARM + c]! + (A[i1 * KEYED_ARM + c]! - A[i0 * KEYED_ARM + c]!) * u;
     const m = clip.meanArm[c]!;
-    out.arm[c] = m + (v - m) * amp;
+    out.arm[c] = m + (v - m) * amp * TUNE_CUR.armSwingK;
   }
   sampleQuats(clip.q, clip.meanQ, KEYED_Q, i0, i1, u, amp, out.q);
+  tuneKeyedTwist(out.q, clip.meanQ); // (anim-tuner) the trunk counter-rotation slider (identity at 1)
+  tuneKeyedLean(out.q); // (anim-tuner) the forward lean slider (identity unless the local player's group sets one)
   const W = out.wrist;
   if (clip.wrist) {
     sampleQuats(clip.wrist, clip.meanWrist, KEYED_WRIST, i0, i1, u, amp, W);
@@ -203,4 +206,64 @@ function sampleQuats(Q: Float32Array, M: Float32Array, stride: number, i0: numbe
     out[s + 2] = z / l;
     out[s + 3] = w / l;
   }
+}
+
+/**
+ * (anim-rework S2) Blend two sampled poses into `out` (`out` may be `a`): `t` = 0 is `a`, 1 is `b`. Offsets and arm
+ * points lerp, quaternions nlerp on the same hemisphere; a wrist frame counts when either pose keys one. The standing
+ * speed blend (walk / jog / run) and the idle's share use it. No allocation.
+ */
+export function mixKeyed(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose): KeyedPose {
+  const u = t < 0 ? 0 : t > 1 ? 1 : t;
+  for (let c = 0; c < KEYED_PEL; c++) out.pel[c] = a.pel[c]! + (b.pel[c]! - a.pel[c]!) * u;
+  for (let c = 0; c < KEYED_ARM; c++) out.arm[c] = a.arm[c]! + (b.arm[c]! - a.arm[c]!) * u;
+  nlerpInto(a.q, b.q, KEYED_Q, u, out.q);
+  nlerpInto(a.wrist, b.wrist, KEYED_WRIST, u, out.wrist);
+  out.hasWrist = a.hasWrist || b.hasWrist ? 1 : 0;
+  return out;
+}
+
+function nlerpInto(A: Float64Array, B: Float64Array, stride: number, u: number, out: Float64Array): void {
+  for (let s = 0; s < stride; s += 4) {
+    const sg = A[s]! * B[s]! + A[s + 1]! * B[s + 1]! + A[s + 2]! * B[s + 2]! + A[s + 3]! * B[s + 3]! < 0 ? -1 : 1;
+    const x = A[s]! + (sg * B[s]! - A[s]!) * u;
+    const y = A[s + 1]! + (sg * B[s + 1]! - A[s + 1]!) * u;
+    const z = A[s + 2]! + (sg * B[s + 2]! - A[s + 2]!) * u;
+    const w = A[s + 3]! + (sg * B[s + 3]! - A[s + 3]!) * u;
+    const l = Math.sqrt(x * x + y * y + z * z + w * w) || 1;
+    out[s] = x / l;
+    out[s + 1] = y / l;
+    out[s + 2] = z / l;
+    out[s + 3] = w / l;
+  }
+}
+
+/**
+ * (anim-rework S3) Mirror a sampled pose left <-> right in place (as `mirror_key` in scripts/anim-keys/key_clip.py): the
+ * pelvis x offset negated, each trunk quaternion reflected through the body's YZ plane (y and z negated: yaw and roll
+ * flip, pitch stays), the arm points swapped side for side with x negated, the wrist frames swapped and reflected. The
+ * left glide strafe plays the right one mirrored, half a cycle on (S3-KEYS.md). No allocation.
+ */
+export function mirrorKeyed(p: KeyedPose): KeyedPose {
+  p.pel[0] = -p.pel[0]!;
+  const q = p.q;
+  for (let s = 0; s < KEYED_Q; s += 4) {
+    q[s + 1] = -q[s + 1]!;
+    q[s + 2] = -q[s + 2]!;
+  }
+  const a = p.arm;
+  for (let c = 0; c < 6; c++) {
+    const l = a[c]!;
+    const r = a[c + 6]!;
+    a[c] = c % 3 === 0 ? -r : r;
+    a[c + 6] = c % 3 === 0 ? -l : l;
+  }
+  const w = p.wrist;
+  for (let c = 0; c < 4; c++) {
+    const l = w[c]!;
+    const r = w[c + 4]!;
+    w[c] = c === 1 || c === 2 ? -r : r;
+    w[c + 4] = c === 1 || c === 2 ? -l : l;
+  }
+  return p;
 }

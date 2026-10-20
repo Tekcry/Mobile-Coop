@@ -32,7 +32,7 @@ import { WEAPON_IDS, WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { carryKind, type CarrySlot } from '../weapons/carrySlots';
 import { withAttachments } from '../progression/attachments';
 import { camoById } from '../cosmetics/catalog';
-import type { QualityLevel } from '../core/quality';
+import { GRAPHICS_PRESETS, qualityLevel, type QualityLevel } from '../core/quality';
 import { PostStack } from '../vfx/postStack';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { flags } from '../core/flags';
@@ -55,6 +55,10 @@ export type MenuFraming = 'menu' | 'loadout' | 'weapon';
  *  On the title and main menu a shot director (`menuShots.ts`) cycles hero close-ups of Wren in a black void
  *  (`menuSets.ts`); the loadout and
  *  the lobby keep today's stage. */
+/** The menu on a phone: the High preset (lamp shadows, AO, bloom, depth of field at half-res post; Epic's TAA, SSR at
+ *  full-res post and 2048 soft shadows cost too much heat on a phone), whatever the play preset is. */
+const PHONE_MENU_QUALITY = qualityLevel('high', GRAPHICS_PRESETS.high);
+
 export class MenuState implements AppState {
   /** The menu stage (3.1: Auto graphics calibrates here), once the load screen has gone (menu-notes note 2: the
    *  loading frames are not measured). */
@@ -375,6 +379,9 @@ export class MenuState implements AppState {
   /** Graphics settings: the key and rim lamps cast shadows, and the post stack (no volumetrics: the beams are
    *  their own cones here). */
   applyQuality(q: QualityLevel): void {
+    // (G182) a phone plays on Low, but the menu is one figure in a void: draw it at High (Michael 2026-10-20: "menu
+    // hero should be best quality on phones if it doesn't cost much")
+    if (flags.phone) q = PHONE_MENU_QUALITY;
     const sh = q.shadow;
     const key = sh.casters > 0 ? `${sh.size}:${sh.soft}` : 'off';
     if (key !== this.shadowKey) {

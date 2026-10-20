@@ -25,6 +25,9 @@ export interface QualityTarget {
  * Applies the graphics settings (3.0: one renderer, PC presets), detects the display refresh rate,
  * keeps frame pacing statistics, runs the frame limiter and - only when the player turns it on - dynamic resolution.
  */
+/** (phone-min) A phone renders at this share of its native resolution (heat), fixed. */
+const PHONE_SCALE = 0.5;
+
 export class QualityManager {
   private target: QualityTarget | null = null;
   readonly refresh = new RefreshDetector();
@@ -97,7 +100,8 @@ export class QualityManager {
       if (this.governor.frame(intervalMs, this.budgetMs)) this.applyAdaptive();
       return;
     }
-    if (!this.auto) return;
+    // (phone-min) a phone keeps a fixed render scale: no dynamic resolution (each change flashed the screen)
+    if (!this.auto || flags.phone) return;
     if (this.res.push(intervalMs, cpuMs, this.budgetMs, intervalMs / 1000)) this.applyScale();
   }
 
@@ -198,8 +202,9 @@ export class QualityManager {
   private applyScale(): void {
     // (`?gfx=min`: DPR 1)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
-    // (phone-min) a phone: DPR 1 and a 0.75 render scale on the Low preset (cool and light)
-    else if (flags.phone) applyRenderScale(this.engine, this.ov?.scale ?? 0.75, 1);
+    // (phone-min) a phone: a fixed 50% of native (DPR) on the Low preset, 60 fps cap (Michael 2026-10-20: "Keep 50% render
+    // resolution the default and don't let it automatically adapt")
+    else if (flags.phone) applyRenderScale(this.engine, this.ov?.scale ?? PHONE_SCALE, Infinity);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
     else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), Infinity);

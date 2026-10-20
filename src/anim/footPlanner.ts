@@ -133,6 +133,8 @@ export interface PlannerInput {
    * back walk). 'velocity': aiming, wall, cover: the stride follows the velocity.
    */
   stride: 'facing' | 'velocity';
+  /** (anim-rework S3) The standing aimed glide (a carrier aiming on foot): the closing foot comes in to GLIDE_GAP. */
+  glide?: boolean;
   /** (A1.2) The pelvis yaw (rad; NaN = the body yaw): the no-crossing rules are measured in its frame. */
   pelvisYaw: number;
   /** (G1) Crouch 0..1: crouched, a trailing foot rises onto its toes further (HEEL_RAISE.pitchCrouch), so the rear knee stays off the floor. */
@@ -147,8 +149,21 @@ export function emptyPlannerInput(): PlannerInput {
  * (A1.2) Legs follow the body in turns: the largest planted-foot yaw from the body (`twistMax`, rad, 52 deg), the
  * least lateral gap between the feet in the pelvis frame for an airborne foot (`minGapAny`, m) within `nearAlong` m
  * front to back, and the most a foot turns in one swing (`maxSwingYaw`, rad).
+ * (anim-rework S2) Standing, a planted foot steps back into the band `standMinLateral`..`standMaxLateral` 0.03-0.09 m
+ * (the G1 band 0.055-0.14 let a foot sit 16 cm off the line under the hips before it stepped back in, METRICS.md; the
+ * keyed walk's track is 4.5 cm), and the scrub (`minLateral`..`maxLateral`, the G1 band) moves a planted standing
+ * foot only in a sustained spin (SPIN_SCRUB); in a turn or a direction change it steps instead (the scrub slid planted
+ * feet 4-10 cm through 90 / 180 deg direction changes). Crouched keeps the G1 rules.
  */
-export const TURN_FOLLOW = { twistMax: 0.9, minGapAny: 0.08, nearAlong: 0.25, maxSwingYaw: 3.4, earlySwap: 0.85, twistFree: 0.25, minLateral: 0.055, maxLateral: 0.14, scrubSpeed: 1.8 } as const;
+export const TURN_FOLLOW = { twistMax: 0.9, minGapAny: 0.08, nearAlong: 0.25, maxSwingYaw: 3.4, earlySwap: 0.85, twistFree: 0.25, minLateral: 0.055, maxLateral: 0.14, scrubSpeed: 1.8, standMinLateral: 0.03, standMaxLateral: 0.09 } as const;
+/** (anim-rework S2) The free-movement stance band a planted foot steps back into and a landing aims inside (m from the
+ *  root's midline): the standing band (standMin / standMax) on foot, the wider G1 band crouched (slice 4 owns it). */
+function bandMin(i: PlannerInput): number {
+  return i.crouch > 0.5 ? TURN_FOLLOW.minLateral : TURN_FOLLOW.standMinLateral;
+}
+function bandMax(i: PlannerInput): number {
+  return i.crouch > 0.5 ? TURN_FOLLOW.maxLateral : TURN_FOLLOW.standMaxLateral;
+}
 
 /**
  * (CT prototype G1, audit row 1-2) Free movement (`stride: 'facing'`) turns the legs as one unit with the body, as Chaos
@@ -189,6 +204,14 @@ const wrap = (a: number): number => {
 };
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const clampAbs = (a: number, m: number): number => (a > m ? m : a < -m ? -m : a);
+/** (anim-rework S2) The fastest a planted heel rises onto the toes (rad/s); a gait's own raise stays under it. */
+const HEEL_RISE = 6;
+/** (anim-rework S2) Free movement: a landing keeps at least this share of the stance width from the other foot (no crossing). */
+const FREE_GAP = 0.85;
+/** (anim-rework S3) The standing aimed glide's least lateral gap between the feet (m; PLANNER.minGap elsewhere). */
+export const GLIDE_GAP = 0.09;
+/** (anim-rework S2) Standing, the planted feet pivot with the band (the scrub) only after this long (s) of continuous fast turning. */
+const SPIN_SCRUB = 0.5;
 /** (locomotion step 21, A80) A start's first steps (s): the trailing foot may toe off early at any speed. */
 const START_TOE_OFF = 1.2;
 /** (G1 fix) The legs turn with the body (twistFree, the band's scrub) while it turns faster than 1 rad/s and this long after (s). */
@@ -226,6 +249,8 @@ export class FootPlanner {
   private quick = false;
   /** (G1) Time since the body last turned faster than 1 rad/s (s). */
   private turnT = 9;
+  /** (anim-rework S2) How long the body has been turning faster than 1 rad/s (s). */
+  private spinT = 0;
 
   /** Reset both feet to their ideal stance (teleport, spawn). */
   reset(i: PlannerInput): void {
@@ -285,6 +310,7 @@ export class FootPlanner {
     }
     this.wasMoving = i.moving;
     this.turnT = Math.abs(i.yawRate) > 1 ? 0 : this.turnT + i.dt;
+    this.spinT = Math.abs(i.yawRate) > 1 ? this.spinT + i.dt : 0;
     // (fix 21-2) a start is a move after START_STILL s still: a remote copy's moving flag flickers off for a frame or
     // two mid-gait (snapshot velocity), which must not restart the start window
     this.stillT = i.moving ? 0 : this.stillT + i.dt;
@@ -295,6 +321,7 @@ export class FootPlanner {
     if (i.moving && Number.isNaN(i.wallD)) this.twistCap(i);
     // (G1 fix) only while the facing turns (and just after): straight travel keeps the feet world-locked (e2e-anim foot
     // locking); a planted foot outside the band then steps back into it (holdOrStep)
+    // (anim-rework S2, BRIEF 3 / 5: feet lock to the ground) standing, only a foot whose partner is in the air (`band`)
     if (i.moving && i.stride === 'facing' && Number.isNaN(i.wallD) && this.turnT < BAND_TURN_TIME) this.band(i);
     this.uncross(i);
   }
@@ -332,6 +359,9 @@ export class FootPlanner {
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? this.L : this.R;
       if (!f.contact) continue;
+      // (anim-rework S2) standing, a planted foot stays locked through a turn or a direction change (it steps back into the
+      // band instead); only a sustained spin (over SPIN_SCRUB s) pivots the feet round with the hips as before
+      if (i.crouch <= 0.5 && this.spinT < SPIN_SCRUB) continue;
       const side = k === 0 ? -1 : 1;
       const lat = ((f.x - i.rootX) * c - (f.z - i.rootZ) * s) * side;
       const cl = lat < TURN_FOLLOW.minLateral ? TURN_FOLLOW.minLateral : lat > TURN_FOLLOW.maxLateral ? TURN_FOLLOW.maxLateral : lat;
@@ -389,6 +419,17 @@ export class FootPlanner {
           this.land(f);
         }
         const fresh = f.contact || f.swing < 0;
+        // (anim-rework S2) at a walk (no flight phase) the clock's swing waits while the other foot is still in the air
+        // from a rule step (a turn's step round, a start's first step): a turn from a standstill lifted both feet (a hop).
+        // Nearly down, the other foot lands now (an early swap)
+        const o = side < 0 ? this.R : this.L;
+        if (fresh && f.contact && !o.contact && o.swBase < 0 && hyp2(i.velX, i.velZ) < 2) {
+          if (o.swing >= TURN_FOLLOW.earlySwap) this.land(o);
+          else {
+            this.holdOrStep(f, i, side);
+            continue;
+          }
+        }
         if (fresh) {
           this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, i.liftH);
           f.swBase = 0;
@@ -528,7 +569,10 @@ export class FootPlanner {
           const top = stand + (HEEL_RAISE.pitchCrouch - stand) * (i.crouch < 0 ? 0 : i.crouch > 1 ? 1 : i.crouch);
           // (G1 fix) only walking forward: a side-step or a back step does not roll off the toes (e2e-anim aim strafe foot lock)
           const fk = v > 0.05 ? (i.velX * Math.sin(i.yaw) + i.velZ * Math.cos(i.yaw)) / v : 0;
-          f.pitch = u > 0 && fk > 0.7 ? top * smooth(u) * smooth((fk - 0.7) / 0.25) : 0;
+          const want = u > 0 && fk > 0.7 ? top * smooth(u) * smooth((fk - 0.7) / 0.25) : 0;
+          // (anim-rework S2) the heel comes up at most HEEL_RISE rad/s: a start opens mid-stance and the old snap (0 to 0.6 rad
+          // in a frame) left the ankle short of its target for a frame (a 6 cm start slide)
+          f.pitch = want > f.pitch ? Math.min(want, f.pitch + HEEL_RISE * i.dt) : want;
         }
       }
     }
@@ -655,7 +699,7 @@ export class FootPlanner {
       // (G1 fix) free movement: a planted foot the capped scrub cannot keep inside the stance band steps back into it
       if (i.stride === 'facing' && Number.isNaN(i.wallD)) {
         const latF = ((f.x - i.rootX) * c - (f.z - i.rootZ) * sn) * side;
-        if (latF > TURN_FOLLOW.maxLateral + BAND_STEP || latF < TURN_FOLLOW.minLateral - BAND_STEP) {
+        if (latF > bandMax(i) + BAND_STEP || latF < bandMin(i) - BAND_STEP) {
           this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
           this.aim(f, i, side, i.rootX, i.rootZ, i.yaw);
           return;
@@ -684,7 +728,10 @@ export class FootPlanner {
     const startOff = this.moveT < START_TOE_OFF && dl > i.reach * 0.82;
     // (G1 fix) and in a Chaos Theory stop's slide (quickStop): a planted foot the body slides away from toes off instead of
     // being dragged (it showed once the start's clock moved the stride's phase)
-    if (i.moving && (turnLeft || startOff || (dl > i.reach * 0.92 && (hyp2(i.velX, i.velZ) > 2 || i.quickStop > 0)))) {
+    // (anim-rework S2) at a walk (no flight phase) never with the other foot in the air: a turn from a standstill lifted both
+    // feet at once (a hop)
+    const flight = o.contact || hyp2(i.velX, i.velZ) > 2;
+    if (i.moving && flight && (turnLeft || startOff || (dl > i.reach * 0.92 && (hyp2(i.velX, i.velZ) > 2 || i.quickStop > 0)))) {
       // accelerating (a sprint or a walk start): the trailing foot toes off early instead of sliding or pulling the
       // pelvis down; the clock's contact window then lands it ahead
       this.beginSwing(f, i, Math.min(0.6, (1 - i.duty) * i.cycleTime), i.liftH);
@@ -736,7 +783,17 @@ export class FootPlanner {
     const oz = other.contact ? other.z : other.toZ;
     const latT = (tx - rx) * c - (tz - rz) * s;
     const latO = (ox - rx) * c - (oz - rz) * s;
-    const gapNeed = PLANNER.minGap;
+    // (anim-rework S2) in free movement the gap follows the stance (FREE_GAP of its width, at most minGap): the fixed 13 cm
+    // pushed every left landing out to 13 cm from the right foot, so the keyed walk's 10 cm track read 6.5-9 cm a foot
+    // (the wide stance Michael saw at 14:45)
+    // (anim-rework S3) standing aimed (the glide: `glide`, stride 'velocity' off the wall) the closing foot comes in to GLIDE_GAP:
+    // a side-step's close at about hip width, so the step opens the feet less wide
+    const gapNeed =
+      i.stride === 'facing' && Number.isNaN(i.wallD) && i.crouch <= 0.5
+        ? Math.min(PLANNER.minGap, (i.rX - i.lX) * FREE_GAP)
+        : i.glide && Number.isNaN(i.wallD) && i.crouch <= 0.5
+          ? GLIDE_GAP
+          : PLANNER.minGap;
     const bad = side < 0 ? latT - (latO - gapNeed) : latO + gapNeed - latT;
     if (bad > 0) {
       const shift = side < 0 ? -bad : bad;
@@ -761,7 +818,9 @@ export class FootPlanner {
     // (G1) free movement: the landing stays inside the stance band either side of the midline (no lateral splay)
     if (i.stride === 'facing' && Number.isNaN(i.wallD)) {
       const lat = ((tx - rx) * c - (tz - rz) * s) * side;
-      const cl = lat < TURN_FOLLOW.minLateral ? TURN_FOLLOW.minLateral : lat > TURN_FOLLOW.maxLateral ? TURN_FOLLOW.maxLateral : lat;
+      const lo = bandMin(i);
+      const hi = bandMax(i);
+      const cl = lat < lo ? lo : lat > hi ? hi : lat;
       if (cl !== lat) {
         const d = (cl - lat) * side;
         tx += d * c;

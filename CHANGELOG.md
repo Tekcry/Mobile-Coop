@@ -1,5 +1,134 @@
 # Changelog
 
+## 4.20.1 - The animation tuner works with the pad (2026-10-21, PR #60)
+- Animation tuner pad control: the panel takes the pad when it opens (Pause > Animation tuner, Settings, F3 > Anim).
+  D-pad up / down pick a slider (body rows, then gun rows), left / right nudge it by its step (held: repeats, x5 after
+  1 s), the left stick X nudges in analogue steps, LB / RB switch the focused section's state group, Y resets the
+  slider, A exports, B closes, View moves the pad between the tuner and the game ("PAD: tuner" / "PAD: game" on the
+  panel). The focused row has an amber outline. While the tuner has the pad the game and the menus get none of it.
+  Keyboard, mouse and touch are unchanged. Detail: `docs/anim-tuner/PAD.md`.
+
+## 4.20.0 - Animation tuner: live sliders for gaits, poses and the gun hold, with export (2026-10-21, PR #56)
+- Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
+  opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
+  crouch idle / sneak / crouch walk, low ready, aim, crouched aim, back to wall idle / slide / peek, ladder, pipe, ledge,
+  vent, crawl, hang, hold) and a gun-hold section (rifle and pistol x low ready / aim / crouched aim), each following
+  the current state (untick "follow" to pick one). Sliders cover foot width, knee out, knee lift, step length, pelvis
+  height / crouch depth, forward lean, arm swing and its growth with speed, elbow out, head turn, peek lean, gap to the
+  wall, body distance to the ladder / pipe / guard, hand and foot reach and spacing, gap to the guard, and the gun's
+  position, pitch, yaw, cant, sight height, head drop and elbow tuck; a barrel marker shows where the muzzle points.
+  Changes apply live to the local player only (guards and the partner's copy are untouched; nothing on the wire), save
+  to the tuner's own IndexedDB store, reset per slider / group / all, and Export downloads `anim-tune-<date>.json`
+  (every changed value, its default, a timestamped change log). Every default is identity: nothing changes until a
+  slider moves. `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/save/animTuneStore.ts`; report
+  `docs/anim-tuner/REPORT.md`.
+- Pass 2 (pad and phone, Michael: "I will wait for the anim tuner"): the tuner also opens from the pause menu ("Animation
+  tuner (dev)", which resumes with the panel open) and Settings > Graphics, without F3, and stays open until its x. It
+  folds to a header bar, scrolls on a short landscape screen, is at most 45 % wide, has 28 px touch rows, keeps its
+  touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
+  Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
+  at the top with arm swing amplitude and step length (cadence at the same speed).
+## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
+- Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
+  (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
+- e2e-ctcourse runs as three station groups in the full run (`e2e-ctcourse:1..3`); named alone it runs all eight.
+- Load-safe waits: no background-tab throttling, 120 s page navigations and match loads (`LOAD_MS`), one-poll pad
+  `press` / `stick`, `window.__afterSim` for timed in-page taps, sim-clock waits in e2e-stealth and e2e-course's latency
+  checks, condition waits for fades and toasts in e2e-menus and e2e-pad, and station 6's late press on the client's
+  own frame.
+- A music fetch that fails under load prints "(ignored: ...)" instead of failing the console-error check.
+- `scripts/laptop-runner.ps1`: the laptop test runner (one request at a time, detached worktree, `heavy.lock`,
+  BelowNormal, port 4191).
+
+## 4.19.0 - Drawn movement: low ready, aiming with the glide (no crab strafe), the sling draw (2026-10-20, PR #54)
+- Drawn movement, low ready and aiming (slice 3, `docs/anim-rework/S3-REPORT.md`; the real-world operator standard,
+  BRIEF section 3): with the gun out, standing, the legs play hand-keyed clips. Still: a ready stance, feet about hip
+  width with the support foot 18 cm ahead, knees soft. At low ready the walk, jog and run legs and carriage (no lean
+  below the run). Aiming, the glide: a short shuffle side-step that never crosses the feet (the aimed strafe was a crab,
+  knees 2-2.9 x the hips and a foot up to 56 cm off the line; now 0.6-1.2 x and 18 cm at the widest), shorter steps
+  backwards and forwards, the hips over the feet and the chest square to the gun. The aimed strafe is slower: 0.7 m/s
+  at full stick (was 1.26). The rifle's low ready points the muzzle about 40 deg down in front of the feet (was 46 deg
+  and 34 deg across the body); the pistol's low ready is a compressed ready close to the chest; the elbows stay in
+  aiming (were 7 cm out). LT from holstered with the rifle is its own sling draw (0.75 s): the gun comes off the back
+  round the right side, hangs muzzle down under the arm, then swings up into the shoulder. Crouched drawn is unchanged
+  (slice 4). No wire change (PROTOCOL_VERSION 24).
+
+## 4.18.1 - Phones render at a fixed 50% resolution (2026-10-20, PR #55)
+- Phone (Michael 2026-10-20: "when it changes render resolution the screen flashes. Keep 50% render resolution the
+  default and don't let it automatically adapt"): a fixed 50% of native, no dynamic resolution on phones. The 60 fps cap
+  stays (Michael chose it over a 30 lock; Marlow Yard runs ~32-35 fps on his phone). Desktop unchanged.
+
+## 4.18.0 - Sector Ops Warehouse sections 2 and 3 rebuilt, section 1 lamp pass (2026-10-20, PR #50)
+- Sector Ops Warehouse sections 2 and 3 rebuilt as greybox prototypes (`docs/warehouse-redesign/SPEC.md` 2.2 / 2.3,
+  `src/world/maps/warehouseS2.ts`, `warehouseS3.ts`): section 2 is a storage hall with real racking, a cage and three
+  routes to the case; section 3 is an assembly hall with a mezzanine deck, a production office, a plant room, a supply
+  duct and a crane walkway, with three routes to the terminal. 8 and 9 guards with jobs; no heavies, snipers or dogs
+  (G155). Higher walls and parapets keep each section sealed to its connector.
+- Lamp pass on sections 1-3 (Michael's section 1 walk, M1): routes and takedown spots read 0.40-0.55 without night
+  vision (under the level where guards see the player fully), objectives and work areas to 0.8, dark pockets 0.30 or
+  less; light-field tests pin each class with a minimum and a maximum (`tests/warehouseS1Light`, `S2Light`, `S3Light`).
+
+## 4.17.0 - Holstered movement rework: upright walk, slower run, natural arms, starts, stops and turns (2026-10-20, PR #52)
+- Standing holstered movement (slice 2, `docs/anim-rework/S2-REPORT.md`; the real-world operator standard, Michael M6
+  2026-10-20): new hand-keyed walk, jog, run and idle clips play as one speed blend from a creep to the run (no gear
+  pops). The walk is upright with the knees and feet under the hips and the arms hanging along the sides; the arm swing
+  grows with the pace and the forward lean comes in only toward the run. The run is 4.0 m/s (was 4.5) with longer
+  strides and fewer steps (3.2 a second, was 4.7; the walk 2.4, was 2.6). The idle breathes, shifts its weight and scans
+  with the head, feet about hip width, arms in. Starts no longer slide a foot, turns and direction changes no longer
+  slide the planted feet, a turn from a standstill no longer hops on both feet, and the hips trail the chest in turns.
+  The wide walk came from the foot planner pushing every left step 13 cm from the right foot; fixed. Crouched, drawn
+  and aiming movement are unchanged (slices 3 and 4). No wire change (PROTOCOL_VERSION 24).
+
+## 4.16.2 - Phones render at 75% of native resolution (2026-10-20, PR #53)
+- Phone (Michael 2026-10-20: "Cap resolution at 75%"): after 4.16.1 a Warehouse benchmark held 55-60 fps but fell to
+  26 fps late in the route. Phones now render at 75% of native, dynamic resolution down to 50% on long frames. Light
+  and shadows unchanged (Low preset), 60 fps cap. Desktop unchanged.
+
+## 4.16.1 - The 60 fps cap holds on 90 and 144 Hz screens; phones scale resolution to stay cool (2026-10-20, PR #51)
+- Frame cap: a deadline limiter (`capNext`) replaces the slack test, which let every frame through on a 90 Hz display
+  (a phone capped at 60 drew 66 fps, then throttled to ~20). A 60 cap now holds on 60, 90, 120 and 144 Hz.
+- Phone (Michael 2026-10-20: "FPS drops sharply on phone ... would be good to have it sit at 60 fps consistently"):
+  dynamic resolution in a match, native at rest, stepping down to half on long frames and back up with headroom.
+  Lamp light and shadows unchanged (Low preset). Desktop unchanged apart from the cap.
+
+## 4.16.0 - Night vision pass: realistic night vision, a wider goggle frame, the vision carousel (2026-10-20, PR #49)
+- Night vision (A1): modern green phosphor. The tube drive gamma 1.7 -> 1.3, green tint, dim green black, white clip from
+  0.85, stronger grain in the dark; `VISION_GAIN` 8 -> 6 with the darkness curve's floor eased up to `VISION_FLOOR` 1.0, so
+  deep dark reads and lit areas no longer clip. A frame auto-gain (`src/vfx/nightExposure.ts`) lifts dark frames (up to
+  x3) and eases bright ones down (to x0.6); lit rooms stay in its band.
+- Bodies no longer glow in night vision: the flat ambient fill on non-voxel surfaces is capped in the render path
+  (`BODY_FILL`, x0.35 facing up, less facing down); lamp light on a body is untouched. Light parity, the light field and
+  the bake are unchanged.
+- Night-vision bloom comes from real sources only: the bright pass compresses a half-float source first (threshold 0.8,
+  strength 1.4 -> 0.6), fixtures take `NV_BULB` 8 (electro stays x2.5), lit walls and bodies do not halo; the default
+  bloom is off while the goggles are on.
+- `?gfx=min` (no baked lamps, no lighting gain): the tube lifts its input (`postLift` 3) so night vision is never darker
+  than off.
+- Goggle frame: one wide, thin frame for night, thermal and electro (a rounded rectangle the shape of the screen, a faint
+  rim, corners about 30%); the clear area goes from about 44% to 89% of the screen at 16:9. It fades in with the
+  night-vision blend.
+- Selection wheel: with the vision slot lit, A (pad) / E (keyboard) steps night -> thermal -> electro -> night and
+  releasing LB / Tab selects it; the wheel opens on the current mode. The cursor-length pick is gone.
+- Tests: the `e2e-darkness` night-vision target at level 0.12 is 0.10-0.45 (A2; the probe card is a non-voxel surface),
+  and the probe prints the night-vision rgb. New `goggleFrame`, `nightExposure` and wheel carousel tests.
+- Scripts: the night-vision shot scripts (`scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`) refuse a port that already
+  answers, a dead preview or a served build that differs from `dist/`, and fail on a build or shot error.
+
+## 4.15.4 - The FPS overlay is a thin banner (2026-10-20, PR #48)
+- Settings > Graphics > Show FPS overlay (Michael 2026-10-20: "it takes up the whole screen. Can you make it a banner on
+  the top of the screen with only critical information"): one line centred along the top edge: FPS, average and worst
+  frame time, dropped frames, render resolution. F3 and `?debug=1` still open the full debug overlay.
+
+## 4.15.3 - The phone menu draws at High quality (2026-10-20, PR #46)
+- Phone menu (G182; Michael 2026-10-20: "menu hero should be best quality on phones if it doesn't cost much"): the
+  menu draws at the High preset on phones (lamp shadows, AO, bloom, depth of field) while play stays on Low; the hero
+  mesh was already the close-up LOD. Epic's TAA and full-res post are left out (heat). Desktop unchanged.
+
+## 4.15.2 - Phones at native resolution and 100% render scale (2026-10-20, PR #45)
+- Phone (testing launch, G182; Michael 2026-10-20: "Default phones to low settings but with shadows/light, native
+  resolution, 60fps cap, 100% resolution scaling"): phones now render at native resolution (device DPR) and a 1.0
+  render scale, still on the Low preset with the 60 fps cap. Desktop and the tests (`?gfx=min`) are unchanged.
+
 ## 4.15.1 - Phones get basic lamp light and shadows, a 60 fps cap, no side bars (2026-10-20, PR #44)
 - Phone (testing launch, G182; Michael 2026-10-20): the Low preset instead of the bare test preset, so lamps light the
   level and characters get contact shadows; DPR 1 and a 0.75 render scale; a 60 fps cap (heat). The menus fill a wide
@@ -26,7 +155,7 @@
   back to wall off Left Shift); the Aim hold / toggle choice is removed (Michael 15:25: "Remove it"; LT is always held, a stored choice is dropped); a remapped binding that now clashes is named in a toast
   once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
 
-## Unreleased - anim-metrics-2 (into feature/ct-prototype)
+### anim-metrics-2 (into feature/ct-prototype; shipped in 4.15.0)
 - Debug overlay (F3, or Settings > Graphics > Show FPS overlay): a live anti-crab readout during play: knee separation
   over the hip width, the planted foot track, knee outside the ankle and elbow outside the shoulder, green inside the
   ranges and red outside, with the gait and state. Allocation-free per frame (`crabFrame` in `src/anim/audit/metrics.ts`).
@@ -36,7 +165,7 @@
   strafe is the crab (knees 2-2.8x the hips, feet up to 53 cm off the line), then turns from a standstill, starts and
   direction changes.
 
-## Unreleased - anim-metrics (into feature/ct-prototype)
+### anim-metrics (into feature/ct-prototype; shipped in 4.15.0)
 - Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
   and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,
   ranges `CRAB` and per-gait `CRAB_GATES` in `limits.ts`, unit tests `tests/animCrabMetrics.test.ts`). `e2e-anim` prints

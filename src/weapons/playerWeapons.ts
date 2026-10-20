@@ -382,7 +382,8 @@ export class PlayerWeapons {
 
   /** The current gun's draw time (s); (anim-rework S1, M2) the sling draw (LT from holstered) is slower. */
   private drawTime(): number {
-    return drawTimeFor(this.current.def.class) * (this.player.stance.slingDraw ? STANCE.slingDrawMult : 1);
+    const cls = this.current.def.class;
+    return drawTimeFor(cls) * (this.player.stance.slingDraw ? (cls === 'pistol' ? STANCE.slingDrawMult : STANCE.slingDrawLong) : 1);
   }
 
   private equip(i: number): void {
@@ -584,7 +585,8 @@ export class PlayerWeapons {
         const from = this.carrySlots[this.index] ?? null;
         if (next.model.canTravel(from) && f >= TRAVEL_IN) {
           this.swapPhase = 2;
-          next.model.beginTravel(this.player.rig, from!, true);
+          // (anim-rework S3, M2) LT from holstered: the sling draw (the gun off the sling under the arm, up into the shoulder)
+          next.model.beginTravel(this.player.rig, from!, true, this.player.stance.slingDraw);
         } else if (!next.model.canTravel(from) && f >= SWAP_TAKE) {
           this.swapPhase = 2;
           next.model.inHand(this.player.rig);

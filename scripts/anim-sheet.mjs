@@ -75,6 +75,11 @@ const SCENARIOS = {
   // (PC1) a movement turn: the stick asks for a heading 90 deg right of the body (a slow walk that way); the sheet
   // camera stays where it started (fixCam) so the body is seen turning
   turn: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, fixCam: true, input: (t) => ({ x: t < 0.9 ? 0.45 : 0 }) },
+  // (anim-rework S2) the standing holstered idle (its 12 s cycle: frames 1.5 s apart), a turn round from a standstill
+  // (the stick pulled back a little) and a 90 deg direction change at a walk (the camera stays put)
+  idle: { pos: [0, -14], yaw: Math.PI / 2, pre: 1, input: () => ({}) },
+  turnround: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, fixCam: true, input: () => ({ y: -0.4 }) },
+  change90: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.8 }, fixCam: true, input: () => ({ x: 0.8 }) },
   crouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('crouch');" } },
   dash: { pos: [0, -18], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }), at: { 0.1: "a.input.state.tap('dash');" } },
   // (PC1) drawn first: aim held from the warm-up (step 09 holsters by default), then the reload (mag set to 1: a full
@@ -119,6 +124,12 @@ const SCENARIOS = {
   aimwalk: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: 0.6 }, input: () => ({ ads: true, y: 0.6 }) },
   aimstrafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
   // (BC) the aim crouched, and the pistol both ways
+  // (anim-rework S3) drawn: the low ready walk (X tap draws), the aimed glide backwards, the pistol's aimed strafe, low
+  // ready to aim (LT pressed 0.2 s in); `draw` above is the sling draw (LT from holstered, M2)
+  lowreadywalk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.0, at0: "a.input.state.tap('draw');", warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
+  aimback: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, warm: { ads: true, y: -0.8 }, input: () => ({ ads: true, y: -0.8 }) },
+  aimstrafep: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, weapon: 'pistol', warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
+  readytoaim: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('draw');", input: (t) => ({ ads: t >= 0.2 }) },
   aimcrouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   aimpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }) },
   aimcrouchpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },

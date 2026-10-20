@@ -85,6 +85,9 @@ export class App {
     this.uiRoot.appendChild(screensEl);
     this.screens = new ScreenManager(screensEl, this.nav);
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
+    // (tuner-pad) the animation tuner sees the pad first: while it holds the pad focus the game and menus get none of it
+    const tune = this.debug.animTune;
+    this.input.gamepad.padHook = (pad, now, dt) => tune.padPoll(pad, now, dt);
     this.toasts = new Toasts(this.uiRoot);
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
     this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
@@ -123,7 +126,7 @@ export class App {
         setAvatarStyle(s.video.avatarStyle);
         this.onAvatarStyle?.();
       }
-      if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps);
+      if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps, true);
       this.applyUiScale();
       this.applyKeyLabels();
     });
