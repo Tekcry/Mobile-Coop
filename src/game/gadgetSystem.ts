@@ -356,7 +356,7 @@ export class GadgetSystem {
       this.stats.blinded++;
     }
     // the operator: whited out when looking towards it
-    const cam = g.player.cam.camera.position;
+    const cam = g.player.cam.gamePos;
     const dc = hyp3(at.x - cam.x, at.y - cam.y, at.z - cam.z);
     if (dc < 14 && this.clearLine(cam.x, cam.y, cam.z, at.x, at.y + 0.15, at.z)) {
       const f = g.player.cam.forward;

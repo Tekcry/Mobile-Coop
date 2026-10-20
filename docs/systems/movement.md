@@ -215,6 +215,8 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   1.0), Hor+. Passing through an open doorway (within 1 m of its plane and inside its width, moving across it at 0.3 m/s
   or more: `world/camSpaces.ts` `doorPassing`) the boom pushes in to 0.8 m over 0.4 s and returns over 0.7 s once
   through or stopped (CT 110818, prototype).
+- (tuner-camera) Live camera tuning per camera state: the animation tuner's Camera section (`docs/anim-tuner/CAMERA.md`);
+  identity at default, the collision still applies; gameplay reads `ShoulderCamera.gamePos`.
 - Wall and low-space safety (CAM): sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing,
   near plane only while close (`player/shoulderCamera.ts`, `player/cameraBounds.ts`). Tight spaces: the boom pulls in
   (`boomIn` 16 1/s; the cast still clamps it the same frame) and eases out slowly (`boomOut` 4, about 1.2 s; G3, CT
