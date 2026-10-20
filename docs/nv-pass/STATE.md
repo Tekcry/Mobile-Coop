@@ -5,8 +5,8 @@ Slices 1-2 (75c37d42) checked: **FIX** (docs/nv-pass/CHECK-S12.md, fresh Opus ch
 tube, frame (89% clear), light parity (`visionIsolation` unchanged and passing). Not met: readable at night at both
 extremes (yard-look under NV a flat murk, mean 14/255; Epic wh-yard moonlit wall clipped, 67% > 224) and `?gfx=min`
 (NV darker than off in yard-s1-bay and yard-s5-backroom).
-**The "before" sheets are NOT master**: the before and s12 shots are identical (a build of this tree answered on port
-4189 during the before run). Do not send them to Michael; re-shoot (fix 1).
+**The "before" sheets were re-shot 17:37-17:43 at master 65bfe6f2** (scratch worktree Mobile-Coop-nv-pass-before, own
+build, port 4189 verified free, served index.html checked against its dist): they now show master (round tunnel frame).
 Checks at 75c37d42 (desktop, software GL, 4191): `npm run check` PASS (1972 tests); smoke, e2e-mouse, e2e-stealth-ai
 PASS; e2e-desktop PASS solo with `E2E_SUITE_TIMEOUT=900` (663 s; one solo rerun failed on "the result is saved as a
 performance note without a tap", a benchmark-save flake, not in this diff: backlog flaky list).
@@ -24,7 +24,7 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
    3. e2e-darkness NV level 0.12 min 0.2 -> 0.10 (`e2e-darkness.mjs`, `darkCurve.ts`), `darkCurve.test.ts` 5x -> 2.5x,
       print the NV rgb; after fix 2 re-set min to measured - 0.03 (never below 0.10).
    4. `?gfx=min`: `NV_TONE.postLift` 2 -> 3 if fix 2 does not cover it (NV >= off in all 9 min views).
-2. Then the GPU window: re-shoot master before shots (delete sheet-before-*.png so `nv-gpu.sh` redoes them) and after
+2. Then the GPU window (master before sheets are done, 65bfe6f2; nv-gpu.sh skips them): after
    shots `s12b`, e2e-darkness; then a fresh checker on the fix round.
 3. Send Michael the before / after epic sheets with a one-line note each; message the orchestrator.
 4. Slice 3, the vision carousel (PLAN.md), only after the orchestrator says CT Core's anim-rework slice 1 PR has merged
@@ -40,7 +40,7 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
 - Slice 1 notes: grain 0.06 (G101 "grain as in CT", about 1% then); the fill cap also dims props; NV_BULB 2.5 -> 8.
 - Slice 2 notes: the settings vignette stacks on the frame (corners about 0.2 with it on); tests/goggleFrame.test.ts
   reads the shader line `goggleShade(ge)` as text.
-- Scratch: C:/NightShift/Mobile-Coop-nv-pass-before (detached master cf73f8b5, node_modules junction) for before shots;
+- Scratch: C:/NightShift/Mobile-Coop-nv-pass-before (detached master 65bfe6f2; its untracked scripts/nv-shots.mjs checks the served build, node_modules junction) for before shots;
   remove at the job end (`cmd //c rmdir` the junction first, then `git worktree remove --force`). `.nv-ready` at the
   worktree root is a local flag (excluded from git).
 
@@ -67,7 +67,7 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
 Night Shift | nv-pass: RESUME. Folder C:/NightShift/Mobile-Coop-nv-pass, branch feature/nv-pass (git pull --ff-only;
 branch guard from CLAUDE.md before every write). Read CLAUDE.md "Sessions", docs/ROADMAP.md, then docs/nv-pass/BRIEF.md,
 PLAN.md, SURVEY.md and STATE.md, and continue from "Now" / "Next" with the loop in docs/systems/session-method.md
-(next: the one fix round from CHECK-S12.md, then the GPU window with master before shots re-taken). The vision carousel (slice 3)
+(next: the one fix round from CHECK-S12.md, then the GPU window for the after shots). The vision carousel (slice 3)
 waits for the orchestrator's go after CT Core's anim-rework slice 1 merges. Report to "Night Shift | Orchestrator".
 Opus, high effort.
 ```
