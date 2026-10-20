@@ -98,8 +98,8 @@ export const CROUCH_STEP = { l0: 0.3, k: 0.2, max: 0.95 } as const;
 // and 0.36 + 0.2 v (0.78 m at 2.1) put the 2.1 m/s walk's knees 3.2 cm outside the ankles (e2e-anim <= 3)
 export const WALK_STEP = { l0: 0.42, k: 0.155, to: 2.1, blend: 3.0 } as const;
 /**
- * (anim-rework S3, BRIEF 3 "the glide") The aimed glide's standing steps (`glide` 1: a carrier aiming; MOVEMENT only;
- * crouched, holstered, low ready and enemies keep the old 60 % side-step). A side-step is a shuffle: the lead foot steps out, the trailing foot closes, they
+ * (anim-rework S3, BRIEF 3 "the glide") The aimed glide's steps (`glide` 1: a carrier aiming; MOVEMENT only; standing and
+ * (anim-rework S4) crouched; holstered, low ready and enemies keep the old 60 % side-step). A side-step is a shuffle: the lead foot steps out, the trailing foot closes, they
  * never cross, so each foot travels two steps' length per cycle and the feet open by that much between the closes. A
  * pure strafe steps `lat0 + latK x speed` (m; 0.094 m at 0.37 m/s, a slow stick: the feet open about 19 cm past the close,
  * 4 steps a second; 0.11 m at the 0.7 m/s full-stick aimed strafe, 6.4 a second) instead of 60 % of the walk's 0.5-0.6 m (the
@@ -131,15 +131,15 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   const base = s + (TENSE.step - s) * tense;
   const old = base * (1 - 0.4 * lateral * lateral);
   if (M !== MOVEMENT) return old * TUNE_CUR.strideMul;
-  // (anim-rework S3) standing: the glide's short shuffle side-step and the shorter back-step (GLIDE_STEP)
-  const stand = 1 - Math.max(0, Math.min(1, crouch));
+  // (anim-rework S3) the glide's short shuffle side-step and the shorter back-step (GLIDE_STEP); (anim-rework S4) crouched
+  // too (the crouched aimed strafe opened the feet 33-44 cm off the line with the old 60 % side-step)
   const g = Math.max(0, Math.min(1, glide));
-  if (stand <= 0 || g <= 0) return old * TUNE_CUR.strideMul;
+  if (g <= 0) return old * TUNE_CUR.strideMul;
   const fwd = base + (Math.min(base, GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * v) - base) * g;
   const l2 = lateral * lateral;
   const side = Math.min(fwd, GLIDE_STEP.lat0 + GLIDE_STEP.latK * v);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
-  return (old + (step - old) * stand * g) * TUNE_CUR.strideMul;
+  return (old + (step - old) * g) * TUNE_CUR.strideMul;
 }
 
 /**

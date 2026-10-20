@@ -1,5 +1,8 @@
 # Animation tuner - pad control (tuner-pad)
 
+> Superseded by tuner-camera pass 2: the current map is `STATE.md` "Pad map" (every control by pad, edit mode, a Y
+> menu, View freezes). This file is the tuner-pad history.
+
 Michael chose native pad control of the animation tuner, so he can tune, walk to check, and tune again without a mouse.
 
 ## What was built

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { emptyMotionInput, gaitRate, MotionDriver, stepLength, TURN_STEP } from '../src/anim/motion';
 import { kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
-import { TURN_FOLLOW } from '../src/anim/footPlanner';
+import { CROUCH_BAND, TURN_FOLLOW } from '../src/anim/footPlanner';
 import { proportions } from '../src/player/proportions';
 import { flick, run, SCENARIOS, spin, TAU, wrap } from './turnHarness';
 
@@ -109,8 +109,9 @@ describe('foot planner: legs follow the body (A1.2)', () => {
         // (anim-rework S2) standing the planted feet stay locked through the first SPIN_SCRUB s of a turn (no scrub: they
         // step), so a tight 450 deg/s spin or flick at 2-4 m/s leaves a planted foot up to ~0.3 m out before it steps;
         // never crossed under the body (within a cm of the midline on the narrow track)
-        expect(r.latMax, 'planted lateral').toBeLessThanOrEqual(stand ? 0.32 : TURN_FOLLOW.maxLateral + 0.05);
-        expect(r.latMin, 'planted lateral (no crossing under the body)').toBeGreaterThanOrEqual(stand ? -0.01 : TURN_FOLLOW.minLateral - 0.04);
+        // (anim-rework S4) crouched inside the crouched band (CROUCH_BAND: the keyed crouch's narrow track)
+        expect(r.latMax, 'planted lateral').toBeLessThanOrEqual(stand ? 0.32 : CROUCH_BAND.max + 0.05);
+        expect(r.latMin, 'planted lateral (no crossing under the body)').toBeGreaterThanOrEqual(stand ? -0.01 : CROUCH_BAND.min - 0.04);
         // 3. knees never backwards
         expect(r.maxKnee).toBeLessThanOrEqual(0.6 + 1e-6);
         // 4. strides forward in turns, landing yaw near the body

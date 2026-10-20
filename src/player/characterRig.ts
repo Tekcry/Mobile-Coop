@@ -303,6 +303,12 @@ export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
 /** (anim-rework S3, BRIEF 3 "elbows down and close to the ribs") With a gun in the hands the elbow pole's outward share
  *  is cut by this much at low ready (AIM_ELBOW_TUCK raised). */
 export const READY_ELBOW_TUCK = 0.5;
+/** (anim-rework S4) Crouched the low ready elbows tuck this much (the crouched trunk leans the shoulders over the gun:
+ *  READY_ELBOW_TUCK left them 6.7 cm out in the crouched low ready walk, the leaning trunk 5.9 at 0.7). */
+export const READY_ELBOW_TUCK_CROUCH = 0.8;
+/** (anim-rework S4) The knee pole's outward share in the free kneel (KNEE_OUT 0.12 put the front knee 4.7 cm outside its
+ *  ankle): the knees track over the toes. */
+export const KNEEL_KNEE_OUT = 0.03;
 
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
@@ -329,6 +335,18 @@ const readyShTmp = { x: 0, y: 0, z: 0 };
  *  (the palm on the kneecap, fingers over the front); the wall-side wrist `shin` of the way from knee to ankle and
  *  `shinFwd` m in front of the shin. Starting values (to check on the contact sheets). */
 const KNEE_HAND = { up: 0.09, fwd: 0.03, shin: 0.45, shinFwd: 0.12 };
+/** (anim-rework S4, BRIEF 3 "The crouched idle") The keyed squat's hands: each palm centre this far (m) over its knee
+ *  joint (the kneecap's top) and ahead of it along the body (fingers over the front of the knee). */
+export const KNEE_REST = { up: 0.06, fwd: 0.01 } as const;
+const khS = new Vector3();
+const khE = new Vector3();
+const khW = new Vector3();
+const khP = new Vector3();
+const khT = new Vector3();
+const khV = new Vector3();
+const khF = new Vector3();
+const khE2 = new Vector3();
+const khW2 = new Vector3();
 const legHint = new Vector3();
 const legPole = new Vector3();
 /**
@@ -1779,7 +1797,9 @@ export class CharacterRig {
     // (the height adds to the procedural one: the posture's knee bend and the legs' reach stay; the clip shapes the step)
     const pey = pe.y + kq.pel[1]! * kk * kw;
     const pez = pe.z + (kq.pel[2]! * kk - pe.z) * kw;
-    this.kneeOutNow = (KNEE_OUT + (t.keyKneeOut - KNEE_OUT) * kw) * TUNE_CUR.kneeOutMul;
+    // (anim-rework S4) the free kneel's knees over the toes (KNEEL_KNEE_OUT)
+    const kneeOut0 = KNEE_OUT + (KNEEL_KNEE_OUT - KNEE_OUT) * t.kneel;
+    this.kneeOutNow = (kneeOut0 + (t.keyKneeOut - kneeOut0) * kw) * TUNE_CUR.kneeOutMul;
     this.softMove = approachTo(this.softMove, t.gait.moving ? 1 : 0, dt, SOFT_KNEE_TAU);
     const softStand = freeGait ? SOFT_KNEE_STAND + (SOFT_KNEE_WALK - SOFT_KNEE_STAND) * this.softMove : 0.97;
     const legLen = legFull * (this.input.crouch > 0.5 ? 0.97 : softStand - (softStand - 0.97) * Math.max(0, this.input.crouch * 2)) - TUNE_CUR.kneeFlexAdd;
@@ -2101,6 +2121,11 @@ export class CharacterRig {
     if (kaw > 0) {
       this.keyedArm(1, kaw * (1 - Math.min(1, this.reachR.w)), kq);
       this.keyedArm(-1, kaw * (1 - Math.min(1, this.reachL.w)), kq);
+      // (anim-rework S4) the crouched idle's hands onto the knees the legs actually posed
+      if (t.kneeRest > 0) {
+        this.kneeRest(1, t.kneeRest * (1 - Math.min(1, this.reachR.w)));
+        this.kneeRest(-1, t.kneeRest * (1 - Math.min(1, this.reachL.w)));
+      }
     }
     this.keepElbowOut(1);
     this.keepElbowOut(-1);
@@ -2185,6 +2210,51 @@ export class CharacterRig {
       kT.set(kq.wrist[o]!, kq.wrist[o + 1]!, kq.wrist[o + 2]!, kq.wrist[o + 3]!);
       Quaternion.SlerpToRef(wr.rotationQuaternion!, kT, w, wr.rotationQuaternion!);
     }
+    fresh(wr);
+  }
+
+  /**
+   * (anim-rework S4, BRIEF 3 "The crouched idle": "a hand resting on top of the knee (palm down, fingers forward)") The
+   * keyed squat's hand onto the top of its own posed knee by `w`: the palm centre's miss from the knee top (KNEE_REST)
+   * moves the wrist target by as much and the keyed arm is re-aimed at it (two-bone, the elbow kept on its keyed side of
+   * the shoulder-wrist line); the keyed wrist frame stays (palm down, fingers forward). No allocation.
+   */
+  private kneeRest(side: 1 | -1, w: number): void {
+    if (w <= 0) return;
+    const sh = side > 0 ? this.shoulderR : this.shoulderL;
+    const el = side > 0 ? this.elbowR : this.elbowL;
+    const wr = side > 0 ? this.wristR : this.wristL;
+    const knee = side > 0 ? this.kneeR : this.kneeL;
+    fresh(sh);
+    fresh(el);
+    fresh(wr);
+    fresh(knee);
+    khS.copyFrom(sh.getAbsolutePosition());
+    khE.copyFrom(el.getAbsolutePosition());
+    khW.copyFrom(wr.getAbsolutePosition());
+    const hand = this.handRest ? (side > 0 ? this.handRest.R : this.handRest.L) : null;
+    if (hand) {
+      khV.set(hand.palm[0], hand.palm[1], hand.palm[2]);
+      Vector3.TransformCoordinatesToRef(khV, wr.getWorldMatrix(), khP);
+    } else khP.copyFrom(khW);
+    const kp = knee.getAbsolutePosition();
+    const fwd = this.dirToWorld(0, 0, 1, khF);
+    khT.set(kp.x + fwd.x * KNEE_REST.fwd - khP.x, kp.y + KNEE_REST.up - khP.y, kp.z + fwd.z * KNEE_REST.fwd - khP.z);
+    khT.scaleInPlace(w).addInPlace(khW);
+    const a = Vector3.Distance(khS, khE);
+    const b = Vector3.Distance(khE, khW);
+    khV.copyFrom(khE).subtractInPlace(khS);
+    solveTwoBone(khS, khT, a, b, khV, khE2, khW2);
+    // the bones onto the solved points with the keyed arm's frames (+Z toward the body's front)
+    khE2.subtractInPlace(khS);
+    boneRotation(khE2, fwd, tmpQ3);
+    this.setWorldRot(sh, sh.parent as TransformNode, tmpQ3);
+    fresh(sh);
+    fresh(el);
+    khW2.subtractInPlace(el.getAbsolutePosition());
+    boneRotation(khW2, fwd, tmpQ3);
+    this.setWorldRot(el, sh, tmpQ3);
+    fresh(el);
     fresh(wr);
   }
 
@@ -2425,7 +2495,9 @@ export class CharacterRig {
     // the elbow swings in under the grip before the body moves to the anchor (e2e-clip zipline)
     const holsterOut = side > 0 && this.holsterW > 0 ? HOLSTER_ELBOW_OUT * this.holsterW * Math.min(1, this.readyRf) * (1 - Math.min(1, reach.w * 4)) : 0;
     // (anim-rework S3) the gun in the hands tucks the elbows at low ready too (READY_ELBOW_TUCK)
-    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK : 0) * TUNE_CUR.tuckMul;
+    // (anim-rework S4) crouched more (READY_ELBOW_TUCK_CROUCH)
+    const cr = Math.max(0, Math.min(1, this.input.crouch));
+    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK + (READY_ELBOW_TUCK_CROUCH - READY_ELBOW_TUCK) * cr : 0) * TUNE_CUR.tuckMul;
     this.dirToWorld(side * (0.55 * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
     // height stays the weld's)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CRAB, CRAB_CROUCH, CRAB_GATES, CRAB_IDLE, CRAB_STATE_CHECKS, CRAB_STATE_GATES, crabRanges } from '../src/anim/audit/limits';
+import { CRAB, CRAB_CROUCH, CRAB_CROUCH_CHECKS, CRAB_CROUCH_GATES, CRAB_CROUCH_IDLE, CRAB_GATES, CRAB_IDLE, CRAB_STATE_CHECKS, CRAB_STATE_GATES, CRAB_STRAFE, CROUCH_POP_GATE, KNEE_HAND, crabCrouchRanges, crabRanges } from '../src/anim/audit/limits';
 import { CRAB_JOINTS, crabFrame, elbowWing, footTrack, kneeBow, kneeSeparation, pelvisFrame, plantedSlide, type CrabNow } from '../src/anim/audit/metrics';
 
 /** A stream of `n` frames of the same point. */
@@ -125,9 +125,19 @@ describe('anti-crab metrics (anim-rework BRIEF 5)', () => {
     expect(CRAB_CROUCH.trackHalf).toBeGreaterThan(CRAB.trackHalf);
   });
 
-  it('every gait is report-only until its slice lands (anim-rework S2: walk, jog, run on)', () => {
+  it('every gait is report-only until its slice lands (anim-rework S2: walk, jog, run on; S4: crouch, sneak on)', () => {
     expect(Object.keys(CRAB_GATES).sort()).toEqual(['crouch', 'jog', 'run', 'sneak', 'walk']);
-    expect(CRAB_GATES).toEqual({ walk: true, jog: true, run: true, crouch: false, sneak: false });
+    expect(CRAB_GATES).toEqual({ walk: true, jog: true, run: true, crouch: true, sneak: true });
+    // (anim-rework S4) the crouched sub-states all on; the crouched idle reads the hip-width stance as standing, the
+    // aimed strafe the shuffle's range; the knee hand and the stance-change pop gate on
+    expect(Object.values(CRAB_CROUCH_GATES).every(Boolean)).toBe(true);
+    expect(CRAB_CROUCH_IDLE.trackHalf).toBe(CRAB_IDLE.trackHalf);
+    expect(CRAB_CROUCH_IDLE.kneeSep).toEqual(CRAB_CROUCH.kneeSep);
+    expect(crabCrouchRanges('aimStrafe')).toBe(CRAB_STRAFE);
+    expect(crabCrouchRanges('run')).toBe(CRAB_CROUCH);
+    expect(CRAB_CROUCH_CHECKS.aimStrafe).toContain('cross');
+    expect(KNEE_HAND.dist).toBeLessThanOrEqual(0.07);
+    expect(CROUCH_POP_GATE).toBe(true);
     // the standing holstered sub-states: on as each passes; a turn asserts all but the track (it reads the turn itself)
     expect(CRAB_STATE_GATES).toEqual({ idle: true, start: true, straight: true, stop: true, turn: true, change90: false, change180: false });
     expect(CRAB_STATE_CHECKS.turn).not.toContain('track');

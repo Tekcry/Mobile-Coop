@@ -504,7 +504,7 @@ export class Player {
       this.teleportsSeen = c.teleports;
       this.rig.planner.L.init = this.rig.planner.R.init = false;
     }
-    tuneBegin(rp, this.rig); // (anim-tuner) the local player's slider values, this rig only
+    tuneBegin(rp, this.rig, dt); // (anim-tuner) the local player's slider values, this rig only (pass 2: eased over dt)
     try {
       this.rig.animate(dt, rp);
     } finally {

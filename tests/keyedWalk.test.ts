@@ -127,11 +127,12 @@ describe('the graph plays the keyed walk', () => {
     }
     return { g, maxStep };
   };
-  it('full at a walk, gone at a jog, crouched, on a wall, in the air, raised to aim, spinning', () => {
+  it('full at a walk, gone at a jog, on a wall, in the air, raised to aim, spinning; (S4) crouched the crouched set', () => {
     expect(steady((i) => (i.speed = 1.4)).g.out.keyW).toBeGreaterThan(0.95);
     expect(steady((i) => (i.speed = 0.75)).g.out.keyW).toBeGreaterThan(0.95);
     expect(steady((i) => (i.speed = 3)).g.out.keyW).toBe(0);
-    expect(steady((i) => ((i.speed = 1.4), (i.crouch = 1))).g.out.keyW).toBe(0);
+    // (anim-rework S4) crouched the crouched keyed set plays (sneak, crouch walk, crouch run)
+    expect(steady((i) => ((i.speed = 1.4), (i.crouch = 1))).g.out.keyW).toBeGreaterThan(0.95);
     expect(steady((i) => ((i.speed = 1.4), (i.wall = true))).g.out.keyW).toBe(0);
     expect(steady((i) => ((i.speed = 1.4), (i.grounded = false))).g.out.keyW).toBe(0);
     expect(steady((i) => ((i.speed = 1.4), (i.raise = 1))).g.out.keyW).toBe(0);
@@ -176,12 +177,16 @@ describe('the graph plays the keyed walk', () => {
     expect(still.m).toBeGreaterThan(0.2);
     expect(still.m).toBeLessThan(0.4);
     expect(still.hol).toBeGreaterThan(0.95);
-    // walking, drawn or crouched: no scan; drawn and crouched: not the standing holstered weight (old hip follow, knee pole)
+    // walking or drawn: no scan; drawn: not the holstered weight (old hip follow, knee pole)
     expect(scanMax((i) => (hol(i), (i.speed = 1.4))).m).toBeLessThan(0.02);
     const drawn = scanMax((i) => ((i.armed = true), (i.speed = 0)));
     expect(drawn.m).toBe(0);
     expect(drawn.hol).toBe(0);
-    expect(scanMax((i) => (hol(i), (i.crouch = 1), (i.speed = 0))).hol).toBeLessThan(0.01);
+    // (anim-rework S4) crouched and still holstered: the keyed squat's own scan (16 / 13 deg) and the holstered weight
+    const squat = scanMax((i) => (hol(i), (i.crouch = 1), (i.speed = 0)));
+    expect(squat.hol).toBeGreaterThan(0.95);
+    expect(squat.m).toBeGreaterThan(0.15);
+    expect(squat.m).toBeLessThan(0.4);
   });
   it('(anim-rework S2) one continuous speed blend: no pop in the keyed pose from a creep to a run', () => {
     const g = new AnimGraph(proportions());

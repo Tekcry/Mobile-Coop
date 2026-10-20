@@ -47,6 +47,11 @@ import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
+import { KEYED_SNEAK } from './clips/keyed/sneak';
+import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
+import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
+import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
+import { WALL_KEYS, WallKeyed } from './wallKeyed';
 
 
 export const FADE = 0.2;
@@ -322,6 +327,11 @@ export interface RigTargets {
    *  platform; the legs (track, knee pole, duty, lift) take the drawn set's values. */
   keyDrawn: number;
   keyTrunk: number;
+  /** (anim-rework S4) The free kneel's weight 0..1 (off a wall): the rig brings the knee pole in under it (KNEEL_KNEE_OUT). */
+  kneel: number;
+  /** (anim-rework S4) The keyed squat's share of the free arms (the crouched idle, hands on the knees): the rig moves each
+   *  palm onto the top of its own posed knee by it (`kneeRest`). */
+  kneeRest: number;
 }
 
 export function emptyTargets(): RigTargets {
@@ -356,6 +366,8 @@ export function emptyTargets(): RigTargets {
     keyScan: 0,
     keyDrawn: 0,
     keyTrunk: 1,
+    kneel: 0,
+    kneeRest: 0,
   };
 }
 
@@ -420,7 +432,10 @@ export const RECOIL = { flip: 0.02, back: 0.015, spine: 0.01, pelvis: 0.003 };
  */
 export const WEAPON_SETTLE_OMEGA = 29;
 // (G1, audit row 20) rate 1.6 -> 2.1 rad/s: a 3.0 s breath (old 043858)
-export const BREATH = { still: 2, fadeIn: 1.5, fadeOut: 0.05, amp: 0.008, rate: 2.1 };
+export const BREATH = { still: 2, fadeIn: 1.5, fadeOut: 0.05, amp: 0.008, rate: 2.1, rateCrouch: 1.3 };
+/** (anim-rework S4, Michael 2026-10-19 "crouching idles too quick") Crouched the procedural breath slows to `BREATH.rateCrouch`
+ *  (rad/s: a breath every 4.8 s, was 3 s) and the kneel's own cycle plays at `KNEEL_RATE` of its keyed pace (5.1 s, was 3.6). */
+export const KNEEL_RATE = 0.7;
 /**
  * Tactical carriage with a weapon: the chest well forward over the hips, hips back, knees bent, head up (eyes
  * level) - never upright like a mannequin. More bent over moving along a wall and crouched (`crouch`: over the
@@ -678,6 +693,26 @@ export class AnimGraph {
   private readyStillS = 0;
   /** (anim-rework S2) The eased standing holstered weight (`RigTargets.keyHol`). */
   private keyHolS = 0;
+  /** (anim-rework S4) The crouched set's pose (moving and still mixed), a scratch pose, its blended values and scan, and
+   *  its share of this frame's keyed pose (the crouch blend). */
+  private readonly kCr = newKeyedPose();
+  private readonly kF = newKeyedPose();
+  private cHalf = KEYED_CROUCH_WALK.half;
+  private cKneeOut = 0;
+  private cDuty: number = KEYED_CROUCH_LEG.walk.duty;
+  private cLift: number = KEYED_CROUCH_LEG.walk.lift;
+  private cScan = 0;
+  private cIdle = 0;
+  private cIdleS = 0;
+  private cPace = 0;
+  /** (anim-rework S4) The procedural breath's phase (rad). */
+  private breathPh = 0;
+  private kCk = 0;
+  /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
+  private keyWallS = 0;
+  /** (S5 round 2) The wall slide's pelvis twist cut this frame (WALL_KEYS.slideYawCut x the slide x the wall share). */
+  private wallYawCut = 0;
+  private readonly wallKeys = new WallKeyed();
   /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
   private handClipW = 0;
   /** Ready-hands follow of the chest and pelvis (m, root space), eased by READY_HANDS.lag. */
@@ -878,7 +913,9 @@ export class AnimGraph {
     // starts with the crouch, not half way through it
     // (G6, AUDIT-WALLS row 1, 051917 @ 29.0: still side-on at a wall the trailing knee is near the floor) side-on the wall
     // kneels as the free crouch does (the flat-back stance still never kneels)
-    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.05 && (!i.wall || sideK > 0.6);
+    // (anim-rework S4) holstered in free movement the keyed squat is the crouched idle (KEYED_CROUCH.squat): no kneel
+    const squat = KEYED_CROUCH.squat && i.keyedOk && i.ready && !i.armed && !i.wall;
+    const wantKneel = POSTURE.kneel && i.kneel && crouchK > 0.05 && (!i.wall || sideK > 0.6) && !squat;
     // (G1 fix) rising out of the kneel over at least kneelTime: the kneel now comes on the stop, so standing straight up
     // from it is common, and the 1.2 rad toe flex let go in standTime stepped the ankle (e2e-anim pose continuity)
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : Math.max(MOVEMENT.standTime, MOVEMENT.kneelTime));
@@ -890,7 +927,7 @@ export class AnimGraph {
     if (wantKneel && this.kneelW <= 0) this.kneelSide = i.wall ? (i.wallSide < 0 ? -1 : 1) : this.lead < -0.05 ? -1 : 1;
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
-    overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT, kw);
+    overClip(src, this.kneelSide > 0 ? KNEEL : KNEEL_M, this.idleT * KNEEL_RATE, kw);
     this.slot('kneel', kw, this.idleT);
 
     // --- start / stop / pivot clips from the motion driver
@@ -923,17 +960,20 @@ export class AnimGraph {
       // (G6) the flat-back parts ease out as the body turns side-on (flatW)
       const ws = (this.wallS || 1) * flatW;
       const st = WALL_STANCE;
+      // (anim-rework S5) the wall keys carry the standing drop, the slide's chest turn and the side-on trunk: those
+      // terms give way to them by the keyed wall weight (last frame's)
+      const wkOff = 1 - this.keyW * this.keyWallS;
       src[CH.pelX] = src[CH.pelX]! + st.pelX * ws;
       src[CH.spRoll] = src[CH.spRoll]! + st.spRoll * ws;
       src[CH.pelRoll] = src[CH.pelRoll]! + st.pelRoll * ws;
       src[CH.hdRoll] = src[CH.hdRoll]! + st.hdRoll * ws;
-      src[CH.pelY] = src[CH.pelY]! + (st.pelYStand + (st.pelY - st.pelYStand) * crouchK) * flatW;
+      src[CH.pelY] = src[CH.pelY]! + (st.pelYStand + (st.pelY - st.pelYStand) * crouchK) * flatW * wkOff;
       src[CH.pelPitch] = src[CH.pelPitch]! + st.pelPitch * flatW;
       src[CH.spPitch] = src[CH.spPitch]! + st.spPitch * flatW;
       // (G6, AUDIT-WALLS row 3) sliding standing the chest turns toward the travel (square at rest)
-      src[CH.spYaw] = src[CH.spYaw]! + (this.wallS || 0) * st.spYawSlide * this.moveW * (1 - crouchK) * flatW;
+      src[CH.spYaw] = src[CH.spYaw]! + (this.wallS || 0) * st.spYawSlide * this.moveW * (1 - crouchK) * flatW * wkOff;
       // (G6, row 1) side-on: bent well over the knees, deeper than the free crouch's lean
-      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW;
+      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff;
       // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
       this.tuckW = approach(this.tuckW, atWall && (i.reload >= 0 || i.swap >= 0 || i.grenade >= 0) ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
@@ -1072,7 +1112,9 @@ export class AnimGraph {
     // (fix 21-5) it fades in with the stillness and out over ~0.2 s on the first move (no one-frame snap)
     const breathT = smoothstep((this.stillT - BREATH.still) / BREATH.fadeIn);
     this.breathW = breathT >= this.breathW ? breathT : approach(this.breathW, breathT, BREATH.fadeOut, dt);
-    const breath = Math.sin(this.idleT * BREATH.rate) * BREATH.amp * this.breathW * (1 - raise);
+    // (anim-rework S4) on its own phase: slower crouched (BREATH.rateCrouch), never a jump as the rate changes
+    this.breathPh = (this.breathPh + dt * (BREATH.rate + (BREATH.rateCrouch - BREATH.rate) * crouchK)) % (Math.PI * 2);
+    const breath = Math.sin(this.breathPh) * BREATH.amp * this.breathW * (1 - raise);
     // head-first peek: the head leans out first, the body follows; coming back the body (and weapon)
     // return first and the head follows
     // the weapon changes to the outside hand before any lean starts
@@ -1216,6 +1258,7 @@ export class AnimGraph {
     // through 0, so on a reversal one hand lets go as the other takes its knee)
     this.kneeW = approach(this.kneeW, (i.wallSide < 0 ? 1 : -1) * kneeT, 0.06, dt);
     this.out.kneeHand = Math.abs(this.kneeW) < 1e-3 ? 0 : this.kneeW;
+    this.out.kneel = i.wall ? 0 : smoothstep(this.kneelW);
     src[CH.offGrip] = 1 - wallHang;
     src[CH.offMag] = 0;
     src[CH.offWall] = 0;
@@ -1450,31 +1493,52 @@ export class AnimGraph {
       // blend, KEYED_GAITS) and the standing idle (KEYED_IDLE: breathing, weight shifts, a head scan, the arms in); drawn
       // it keeps the walk band as before (slice 3 owns the drawn carriage)
       const bandK = band + (1 - band) * fw;
-      const gate = (1 - crouchK) * onFoot * (1 - wallW) * (1 - this.raiseS) * (1 - this.dashS);
+      // (anim-rework S4) standing and crouched (the crouched set mixes in by the crouch blend), not in the tense sneak (its
+      // own carriage and hands) or a kneel (drawn and still crouched: the procedural kneel; holstered the keyed squat)
+      const crouchOn = (1 - this.tenseW) * (1 - smoothstep(this.kneelW));
+      const gate = onFoot * (1 - wallW) * (1 - this.raiseS) * (1 - this.dashS) * crouchOn;
       const loco = this.moveW * bandK * (1 - spin);
       const still = (1 - this.moveW) * fw;
       // (anim-rework S3) drawn (a carrier with the gun out, standing on foot): the drawn set at every pace and still
       // (ready stance; the low ready on the walk / jog / run legs; aiming the glide by direction), in place of the old
-      // walk band; crouched drawn keeps the procedural path (slice 4)
+      // walk band; (anim-rework S4) crouched the crouched set's legs under the procedural gun upper body
       const dOn = i.keyedDrawn && i.grounded && i.traverse === 'none' && i.slide < 0 && !i.wall ? 1 - fw : 0;
-      const gateD = (1 - crouchK) * dOn * (1 - wallW) * (1 - this.dashS);
+      const gateD = dOn * (1 - wallW) * (1 - this.dashS) * crouchOn;
       const locoD = this.moveW * (1 - spin);
       const stillD = 1 - this.moveW;
       const kH = gate * (loco + still) * (1 - dOn);
       const kDr = gateD * (locoD + stillD);
-      const kT = kH + kDr;
+      // (anim-rework S5) back to a wall: the wall keyed set (wallKeyed.ts), holstered (free hands) on foot and not
+      // aiming; a drawn weapon keeps the procedural wall pose (WALL_READY, the edge lean-outs)
+      const kWl = i.wall && i.grounded && i.traverse === 'none' && i.slide < 0 ? wallW * fw * (1 - this.raiseS) : 0;
+      const kT = kH + kDr + kWl;
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
       if (kT > 1e-4) this.keyDS = approach(this.keyDS, kDr / kT, B.tau, dt);
+      if (kT > 1e-4) this.keyWallS = approach(this.keyWallS, kWl / kT, B.tau, dt);
       this.readyStillS = approach(this.readyStillS, gateD, READY_STANCE.tau, dt);
       const dS = o.keyW > 0 ? this.keyDS : 0;
       o.keyArmW = o.keyW * fw * (1 - dS) * (i.melee >= 0 ? 0 : 1);
       this.keyHolS = approach(this.keyHolS, gate * fw, B.tau, dt);
       o.keyHol = this.keyHolS < 1e-4 ? 0 : this.keyHolS;
+      // (anim-rework S4) the crouched set by the crouch blend (one pose for both sets: its still share as the drawn set's)
+      this.kCk = o.keyW > 0 ? crouchK : 0;
+      const cStill = locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0;
+      this.cIdleS = approach(this.cIdleS, cStill, cStill > this.cIdleS ? KEYED_CROUCH.settleIn : KEYED_CROUCH.settleOut, dt);
+      this.cPace = approach(this.cPace, effortSpeed(locoSpeed, true), KEYED_CROUCH.paceTau / Math.max(0.05, this.moveW), dt);
+      if (this.kCk > 0) this.crouchSet(ph, this.cPace, this.cIdleS);
       this.keyedSet(ph, es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
+      // (anim-rework S4) the crouched clips' height is the crouch's whole depth: by the crouched share it replaces the
+      // procedural one (the rig adds the keyed height to the pose's)
+      if (this.kCk > 0) o.keyed.pel[1] = o.keyed.pel[1]! - this.kCk * pose[CH.pelY]!;
+      // (anim-rework S4) the squat's hands on the knees: its share of the keyed arms
+      o.kneeRest = this.kCk > 0 ? o.keyArmW * this.kCk * this.cIdle : 0;
+      if (o.keyW > 0 && this.keyWallS > 1e-4) this.keyedWallSet(ph, this.keyWallS, crouchK, Math.abs(bd) / WALL_KEYS.peekLean, pose, o);
+      // (merge S4 x S5) the squat's hands on the knees give way to the wall set's arms by its share
+      o.kneeRest *= 1 - this.keyWallS;
     }
     this.writeTargets(pose, i, k, ph);
     this.out.weaponBob = this.bobResidual;
@@ -1509,8 +1573,119 @@ export class AnimGraph {
     else if (needIdle) mixKeyed(this.kB, this.kB, 0, o.keyed);
     half += (KEYED_IDLE.half - half) * idleShare;
     kneeOut += (KEYED_IDLE.kneeOut - kneeOut) * idleShare;
+    // (anim-rework S4) crouched: the crouched set by the crouch blend
+    const c = this.kCk;
+    if (c > 0) {
+      mixKeyed(o.keyed, this.kCr, c, o.keyed);
+      half += (this.cHalf - half) * c;
+      kneeOut += (this.cKneeOut - kneeOut) * c;
+      this.kDuty += (this.cDuty - this.kDuty) * c;
+      this.kLift += (this.cLift - this.kLift) * c;
+      this.kWalk *= 1 - c;
+      o.keyScan += (this.cScan * o.keyW - o.keyScan) * c;
+    }
     this.kHalf = half;
     o.keyKneeOut = kneeOut;
+  }
+
+  /**
+   * (anim-rework S4, BRIEF 3 "Stealth") The crouched set into `kCr`: sneak -> crouch walk -> crouch run cross-faded by the
+   * crouched effort pace (KEYED_CROUCH; the sneak scaled by its pace), then the crouched idle (the squat, hands on the
+   * knees, on its own slow clock) by `idleShare`; its track half-width, knee pole, duty, lift (KEYED_CROUCH_LEG) and the
+   * idle's head scan into the c* fields. No allocation.
+   */
+  private crouchSet(ph: number, es: number, idleShare: number): void {
+    const C = KEYED_CROUCH;
+    const L = KEYED_CROUCH_LEG;
+    const wWalk = smoothstep((es - C.sneakTo) / (C.walkFrom - C.sneakTo));
+    const wRun = smoothstep((es - C.walkTo) / (C.runFrom - C.walkTo));
+    let c0: KeyedClip = KEYED_SNEAK;
+    let c1: KeyedClip = KEYED_CROUCH_WALK;
+    let l0: { duty: number; lift: number } = L.sneak;
+    let l1: { duty: number; lift: number } = L.walk;
+    const P = KEYED_CROUCH_POSE;
+    let p0: { lean: number; drop: number } = P.sneak;
+    let p1: { lean: number; drop: number } = P.walk;
+    let t = wWalk;
+    if (wRun > 0) {
+      c0 = KEYED_CROUCH_WALK;
+      c1 = KEYED_CROUCH_RUN;
+      l0 = L.walk;
+      l1 = L.run;
+      p0 = P.walk;
+      p1 = P.run;
+      t = wRun;
+    }
+    const I = KEYED_CROUCH_IDLE;
+    const out = this.kCr;
+    if (idleShare < 1) {
+      sampleKeyed(c0, ph, c0 === KEYED_SNEAK ? C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1) : 1, out);
+      if (t > 0) {
+        sampleKeyed(c1, ph, 1, this.kF);
+        mixKeyed(out, this.kF, t, out);
+      }
+      // the game's extra lean and drop (KEYED_CROUCH_POSE), the arms turned back by the lean
+      const lean = p0.lean + (p1.lean - p0.lean) * t;
+      out.pel[1] = out.pel[1]! - (p0.drop + (p1.drop - p0.drop) * t);
+      const sn = Math.sin(lean * 0.5);
+      const cs = Math.cos(lean * 0.5);
+      const q = out.q;
+      const x = q[0]!;
+      const y = q[1]!;
+      const z = q[2]!;
+      const w = q[3]!;
+      q[0] = cs * x + sn * w;
+      q[1] = cs * y - sn * z;
+      q[2] = cs * z + sn * y;
+      q[3] = cs * w - sn * x;
+      const s2 = Math.sin(lean);
+      const c2 = Math.cos(lean);
+      const A = out.arm;
+      for (let k = 0; k < 12; k += 3) {
+        const ay = A[k + 1]!;
+        const az = A[k + 2]!;
+        A[k + 1] = ay * c2 + az * s2;
+        A[k + 2] = -ay * s2 + az * c2;
+      }
+    }
+    let scan = 0;
+    if (idleShare > 0) {
+      sampleKeyed(I, this.idleT / C.period, 1, this.kF);
+      for (let s = 0; s < 16; s += 4) scan += 2 * Math.atan2(this.kF.q[s + 1]!, this.kF.q[s + 3]!);
+      if (idleShare < 1) mixKeyed(out, this.kF, idleShare, out);
+      else mixKeyed(this.kF, this.kF, 0, out);
+    }
+    this.cScan = scan * idleShare;
+    this.cIdle = idleShare;
+    const half = (c0.half + (c1.half - c0.half) * t) * C.halfK;
+    const kneeOut = c0.kneeOut + (c1.kneeOut - c0.kneeOut) * t + C.kneeOut;
+    const duty = l0.duty + (l1.duty - l0.duty) * t;
+    const lift = l0.lift + (l1.lift - l0.lift) * t;
+    this.cHalf = half + (I.half * C.idleHalfK - half) * idleShare;
+    this.cKneeOut = kneeOut + (I.kneeOut + C.kneeOut - kneeOut) * idleShare;
+    this.cDuty = duty + (I.duty - duty) * idleShare;
+    this.cLift = lift + (I.liftH - lift) * idleShare;
+  }
+
+  /**
+   * (anim-rework S5) The wall keyed set mixed into `o.keyed` by its share `wS` (idle / slide / peek, standing and
+   * crouched, mirrored by the side: wallKeyed.ts), with its track, knee pole, duty and lift. Crouched the keys' height is
+   * the full crouch depth (S5-KEYS), so the procedural crouch drop gives way to it. The drawn share reported floors at
+   * WALL_KEYS.gate: the rig applies the keyed pose only in free gait or drawn (a rig gate for CT Core, S5-REPORT).
+   */
+  private keyedWallSet(ph: number, wS: number, crouchK: number, peek: number, pose: Pose, o: RigTargets): void {
+    const W = this.wallKeys;
+    W.sample(ph, this.idleT, this.moveW, peek, crouchK, this.wallS || 1);
+    mixKeyed(o.keyed, W.pose, wS, o.keyed);
+    this.kHalf += (W.half - this.kHalf) * wS;
+    o.keyKneeOut += (W.kneeOut - o.keyKneeOut) * wS;
+    this.kDuty += (W.duty - this.kDuty) * wS;
+    this.kLift += (W.liftH - this.kLift) * wS;
+    this.kWalk *= 1 - wS;
+    o.keyScan *= 1 - wS;
+    pose[CH.pelY] = pose[CH.pelY]! * (1 - o.keyW * wS * crouchK);
+    o.keyDrawn = Math.max(o.keyDrawn, WALL_KEYS.gate);
+    this.wallYawCut = WALL_KEYS.slideYawCut * W.slide * wS * o.keyW;
   }
 
   /** (anim-rework S3) The speed set's blended clip values (`speedSet`). */
@@ -1625,6 +1800,16 @@ export class AnimGraph {
     this.dKneeOut = lKnee + (gKnee - lKnee) * aimK;
     this.dDuty = lDuty + (gDuty - lDuty) * aimK;
     this.dLift = lLift + (gLift - lLift) * aimK;
+    // (anim-rework S4) crouched: the crouched set's legs by the crouch blend, at low ready and aiming (its trunk only at
+    // low ready, keyTrunk: aiming the upper body stays the procedural gun platform)
+    const c = this.kCk;
+    if (c > 0) {
+      mixKeyed(this.kC, this.kCr, c, this.kC);
+      this.dHalf += (this.cHalf - this.dHalf) * c;
+      this.dKneeOut += (this.cKneeOut - this.dKneeOut) * c;
+      this.dDuty += (this.cDuty - this.dDuty) * c;
+      this.dLift += (this.cLift - this.dLift) * c;
+    }
     // into the holstered set's pose and values by the drawn share
     mixKeyed(o.keyed, this.kC, dS, o.keyed);
     this.kHalf += (this.dHalf - this.kHalf) * dS;
@@ -1632,7 +1817,7 @@ export class AnimGraph {
     this.kDuty += (this.dDuty - this.kDuty) * dS;
     this.kLift += (this.dLift - this.kLift) * dS;
     // (the slow-walk duty / lift shape: the low ready's walk share moving)
-    this.kWalk += (this.sWalk * (1 - aimK) * (1 - idleShare) - this.kWalk) * dS;
+    this.kWalk += (this.sWalk * (1 - aimK) * (1 - idleShare) * (1 - c) - this.kWalk) * dS;
     o.keyScan *= 1 - dS;
   }
 
@@ -1700,7 +1885,9 @@ export class AnimGraph {
     pe.pitch = q[CH.pelPitch]!;
     pe.roll = q[CH.pelRoll]!;
     // (anim-rework S3) gliding aimed the hips twist less with the steps (GLIDE.yawCut): a quieter gun platform
-    pe.yaw = q[CH.pelYaw]! * (1 - GLIDE.yawCut * TUNE_CUR.glideTwistMul * o.keyDrawn * o.keyW * this.raiseS);
+    // (S5 round 2) sliding along a wall too (WALL_KEYS.slideYawCut): a side step, as the glide strafe
+    pe.yaw = q[CH.pelYaw]! * (1 - Math.max(GLIDE.yawCut * TUNE_CUR.glideTwistMul * o.keyDrawn * o.keyW * this.raiseS, this.wallYawCut));
+    this.wallYawCut = 0;
     o.spine.pitch = q[CH.spPitch]! + TUNE_CUR.leanAdd;
     o.spine.yaw = q[CH.spYaw]!;
     o.spine.roll = q[CH.spRoll]!;
@@ -1731,7 +1918,8 @@ export class AnimGraph {
     const half0 = this.p.hipHalf * (i.traverse === 'none' && !i.wall ? 1 + clamp(wd - 1, -0.5, 0.4) * 0.25 : 1.2 * wd);
     // (CT prototype G8) the keyed walk's narrow track (the feet under the body, the soles just clear)
     // (anim-rework S2) the keyed set's blended track (walk, jog, run, the idle's hip width)
-    const half = (half0 + (this.kHalf - half0) * o.keyW) * TUNE_CUR.trackMul;
+    // (anim-rework S4) the free kneel's feet a little under the hips (KNEEL_NARROW: its front foot planted 10.5 cm out)
+    const half = (half0 + (this.kHalf - half0) * o.keyW) * (1 - KNEEL_NARROW * o.kneel) * TUNE_CUR.trackMul;
     const st = o.stance;
     // (G1 fix, audit row 20) standing still on foot the feet sit IDLE_STANCE apart (anim-rework S2: about hip width)
     const wide = i.traverse === 'none' && !i.wall && i.grounded ? IDLE_STANCE.extra * o.keyHol * (1 - this.moveW) * (1 - clamp(i.crouch, 0, 1)) : 0;
@@ -1740,7 +1928,8 @@ export class AnimGraph {
     // other landing reach further and dip the pelvis more: a limp in the bob)
     // (traversals, walls and the air keep the 3.2.0 stagger: a window vault tucked the knees together without it)
     // (anim-rework S3) drawn on foot the ready stance's longer stagger (READY_STANCE.lead: the support foot ahead)
-    const lead = IDLE_STANCE.lead + (READY_STANCE.lead - IDLE_STANCE.lead) * this.readyStillS;
+    // (anim-rework S4) crouched under the keyed set the feet stand square (the squat; the crouched clips own their steps)
+    const lead = (IDLE_STANCE.lead + (READY_STANCE.lead - IDLE_STANCE.lead) * this.readyStillS) * (1 - clamp(i.crouch, 0, 1) * o.keyW);
     const stag = i.traverse !== 'none' || i.wall || !i.grounded ? 0.04 : lead * (1 - this.moveW);
     st.lZ = (0.01 + stag + q[CH.fLZ]!) * k;
     st.rX = (half + wide + q[CH.fRX]!) * k;
@@ -1855,6 +2044,49 @@ export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.35, 
 export const KEYED_GAITS = { walkTo: 2.0, jogFrom: 2.6, jogTo: 3.2, runFrom: 3.8 } as const;
 /** (anim-rework S2) The keyed idle's cycle (s): three slow breaths, a weight shift each way and a head scan each way. */
 export const KEYED_IDLE_PERIOD = 12;
+/**
+ * (anim-rework S4, BRIEF 3 "Stealth") The crouched keyed set (S4-KEYS.md), on the crouched effort pace (GAIT_REF.crouch
+ * units, `effortSpeed` crouched): the sneak alone up to `sneakTo` (0.7: ~1.1 m/s), cross-faded into the crouch walk by
+ * `walkFrom` (1.1: ~1.45 m/s), the crouch walk alone to `walkTo` (1.6: ~1.9 m/s), into the crouch run by `runFrom` (2.3:
+ * ~2.45 m/s). The sneak swings `ampMin` of its keyed cycle at a standstill and all of it from `full` (gear 1). `halfK`
+ * the moving clips' track half-width share for the planner (keyed about 6.2 cm a foot: 5.3 cm, the planted feet near the
+ * line through the pelvis' stepping twist), `idleHalfK` the crouched idle's (keyed 12.2 cm a foot: about 8.8 cm, the
+ * feet about hip width). `kneeOut` the clips' knee pole share added (a little in: on the narrow track the bent
+ * knees stay over the toes, not 3.4 cm outside the ankles). `period` (s) the crouched idle's cycle (three slow breaths, a weight shift, a
+ * head scan). `settleIn` / `settleOut` (s) the crouched idle's share eases in on a stop (the hands travel down onto the
+ * knees, the hips settle into the squat) and out on a start (a crouched quick stop let the hands jump 11 cm in a frame);
+ * `paceTau` (s) the crouched set's effort pace is eased, slower as the body comes to rest (over `paceTau` / the moving
+ * share: a crouched stop's held pace drops to 0 when the kneel flag lets it go, and the sneak / crouch walk mix under the
+ * settling squat jumped 4 cm).
+ * `squat`: holstered and still the keyed squat with the hands on the knees is the crouched idle (no kneel;
+ * false brings the one-knee kneel back). The clips' pelvis height is the crouch's whole depth: it replaces the procedural
+ * crouch drop by the crouched share (the rig adds the keyed height).
+ */
+export const KEYED_CROUCH = { sneakTo: 0.7, walkFrom: 1.1, walkTo: 1.6, runFrom: 2.3, ampMin: 0.6, full: 0.5, halfK: 0.85, idleHalfK: 0.72, kneeOut: -0.04, period: 12, settleIn: 0.22, settleOut: 0.12, paceTau: 0.1, squat: true } as const;
+/**
+ * (anim-rework S4) The crouched clips' foot planner values (S4-KEYS.md "duty and liftH are set from the gait"), matched to
+ * the planner: `duty` the stance share (the sneak's long quiet stance; no flight in the crouch run, the rear knee stays
+ * off the floor), `lift` the swing foot's lift (m at 1.75 m: the sneak skims, the run clears the floor).
+ */
+export const KEYED_CROUCH_LEG = {
+  sneak: { duty: 0.66, lift: 0.045 },
+  walk: { duty: 0.6, lift: 0.06 },
+  run: { duty: 0.52, lift: 0.09 },
+} as const;
+/**
+ * (anim-rework S4, BRIEF 3 "the crouch run leans forward and stays low") Added to the moving crouched clips in the game:
+ * `lean` (rad) more forward pitch at the pelvis (the chain above inherits it; the keyed arms are turned back by as much,
+ * so they still hang as keyed, along the body) and `drop` (m at 1.75 m) a lower pelvis. In the game the keyed clips read
+ * upright and high (trunk 17 / 21 / 26 deg, hips 17-25 cm under standing for the sneak / crouch walk / crouch run): about
+ * 25 / 28 / 37 deg and 20-27 cm with these. The crouched idle keeps its own.
+ */
+export const KEYED_CROUCH_POSE = {
+  sneak: { lean: 0.08, drop: 0.02 },
+  walk: { lean: 0.12, drop: 0.03 },
+  run: { lean: 0.2, drop: 0.05 },
+} as const;
+/** (anim-rework S4) The free kneel's stance width share taken off (the feet under the hips; walls keep theirs). */
+export const KNEEL_NARROW = 0.12;
 /**
  * (anim-rework S3, BRIEF 3 "feet staggered") The drawn ready stance: `period` (s) the ready_stance clip's cycle (two slow
  * breaths), `lead` (m) the support (left) foot ahead and the strong foot as far behind when still with the gun out (an

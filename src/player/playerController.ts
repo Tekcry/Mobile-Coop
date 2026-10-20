@@ -17,6 +17,7 @@ import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 import { tuneSim } from '../anim/tune';
+import { speedMoveMul } from './speedTune';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
@@ -480,7 +481,7 @@ export class PlayerController {
     // STICK_SPEED curve; the keyboard's walk / run / creep magnitudes land on its points); overrides set their own velocity
     const snapped = this.analog.update(this.maxGear, this.crouched, mag);
     this.wantSpeed = this.analog.v;
-    let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : paceSpeed(this.analog.v, stance, lx, lz, T)) * this.speedMul);
+    let speedTarget = Math.min(this.speedCap, (ov ? targetSpeed(mag, stance, lx, lz, T) : paceSpeed(this.analog.v, stance, lx, lz, T) * speedMoveMul(this.analog.v, stance, lx, lz)) * this.speedMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;

@@ -197,8 +197,9 @@ export function crabRanges(crouched: boolean): CrabRanges {
   return crouched ? CRAB_CROUCH : CRAB;
 }
 export type CrabGait = 'walk' | 'jog' | 'run' | 'crouch' | 'sneak';
-// (anim-rework S2) walk, jog and run on: the standing holstered keyed set (S2-REPORT.md)
-export const CRAB_GATES: Record<CrabGait, boolean> = { walk: true, jog: true, run: true, crouch: false, sneak: false };
+// (anim-rework S2) walk, jog and run on: the standing holstered keyed set (S2-REPORT.md); (anim-rework S4) crouch and
+// sneak on: the crouched keyed set (S4-REPORT.md)
+export const CRAB_GATES: Record<CrabGait, boolean> = { walk: true, jog: true, run: true, crouch: true, sneak: true };
 
 /**
  * (anim-rework S2) A standstill (the idle) reads against the brief's stance, feet about hip width (BRIEF 3): Wren's hip
@@ -271,3 +272,48 @@ export function crabDrawnRanges(state: string): typeof CRAB | typeof CRAB_STRAFE
  * body); aiming the head within `headTilt` of upright (the gun comes to the eye, not the eye to the gun).
  */
 export const DRAWN_POSE = { rifleDown: { min: 28, max: 47 }, pistolDown: { min: 20, max: 50 }, readyYaw: 25, headTilt: 14 } as const;
+/**
+ * (anim-rework S4) The crouched sub-states e2e-anim samples (holstered unless named): the crouched idle (the keyed squat),
+ * a crouched start and stop at speeds 1 and 3, the crouch run at the top crouched speed, and drawn (rifle) the crouched
+ * low ready walk, the aimed idle (the kneel) and the aimed strafe. The idle reads its track against the hip-width stance
+ * (`CRAB_CROUCH_IDLE`, 10.5 cm as standing: BRIEF 3 "a deep balanced squat", the feet about hip width), a start leaves
+ * from it and a stop settles into it; the aimed strafe against `CRAB_STRAFE` (the shuffle opens the feet, as standing);
+ * the rest against the crouched ranges.
+ */
+export const CRAB_CROUCH_IDLE = { ...CRAB_CROUCH, trackHalf: 0.105 } as const;
+export type CrabCrouchState = 'idle' | 'start' | 'stop' | 'run' | 'readyWalk' | 'aimIdle' | 'aimStrafe';
+/** (anim-rework S4) Which crouched sub-states assert on every e2e-anim run: all of them (S4-REPORT.md); `idle` also asserts
+ *  the knee hand (KNEE_HAND). */
+export const CRAB_CROUCH_GATES: Record<CrabCrouchState, boolean> = { idle: true, start: true, stop: true, run: true, readyWalk: true, aimIdle: true, aimStrafe: true };
+/** (anim-rework S4) The metrics each gated crouched sub-state asserts ('cross': the feet never cross). */
+export const CRAB_CROUCH_CHECKS: Record<CrabCrouchState, readonly string[]> = {
+  idle: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  start: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  stop: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  run: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  readyWalk: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  aimIdle: ['knees', 'track', 'knee-out', 'slide', 'elbows'],
+  aimStrafe: ['knees', 'track', 'knee-out', 'slide', 'elbows', 'cross'],
+};
+/** (anim-rework S4) The ranges a crouched sub-state reads against. */
+export function crabCrouchRanges(state: string): typeof CRAB_CROUCH | typeof CRAB_CROUCH_IDLE | typeof CRAB_STRAFE {
+  return state === 'aimStrafe' ? CRAB_STRAFE : state === 'idle' || state === 'start' || state === 'stop' || state === 'aimIdle' ? CRAB_CROUCH_IDLE : CRAB_CROUCH;
+}
+/**
+ * (anim-rework S4, BRIEF 3 "The crouched idle": "a hand resting on top of the knee (palm down, fingers forward)") The
+ * knee hand e2e-anim asserts in the holstered crouched idle, each hand on its own knee: the palm centre within `dist` (m)
+ * of the top of the knee (the knee joint plus `above` m up: the kneecap's top, about the leg's half depth), the palm
+ * facing down (its normal's dot with world down at least `palmDown`), the fingers forward (the wrist-to-knuckles
+ * direction's dot with the body's forward at least `fingersFwd`).
+ */
+export const KNEE_HAND = { dist: 0.07, above: 0.06, palmDown: 0.6, fingersFwd: 0.3 } as const;
+/**
+ * (anim-rework S4, BRIEF 4 "every transition has a defined length and curve") Stand <-> crouch in every state, measured on
+ * the posed rig (e2e-anim): no joint's velocity in the body frame (the hips, wrists, head, and a knee over its planted
+ * foot) changes by more than this (m) between two 60 Hz frames. The stance change is the controller's 0.22 s eased
+ * blend (crouchTime / standTime) over a 25-37 cm hip travel, the knees and the keyed arms swinging through it: smooth
+ * changes there read 4.5-6.6 cm (as much before this slice); a snap reads far more (the old crouch run to a stand 20.6
+ * cm, the crouched stop's hands this slice found at 11 cm). `CROUCH_POP_GATE` asserts it.
+ */
+export const CROUCH_POP = 0.075;
+export const CROUCH_POP_GATE = true;
