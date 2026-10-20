@@ -28,6 +28,7 @@ import { validateSecurity } from '../src/security/data';
 import { SightWorld, distToGuard, spotSeenBy, longestIsolation, isolatedInTime, worstIsolationOverPhases, CHECK_RANGE, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, type CheckGuard } from '../src/game/sectorCheck';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { S1_ROOMS } from '../src/world/maps/warehouseS1';
+import { S2_ROOMS } from '../src/world/maps/warehouseS2';
 import { hyp2 } from '../src/core/mathx';
 import { PATROL } from '../src/ai/patrol';
 
@@ -330,13 +331,14 @@ describe('the Warehouse sections (A12, M8)', () => {
     }
   });
 
-  it('section 1 A2 survives patrol phase drift: every guard keeps CHECK_ISOLATION s at its spot under 30 random start phases', () => {
-    const s = S[0]!;
-    const gs = timed(s.guards);
-    for (let i = 0; i < gs.length; i++) {
-      const g = s.guards[i]!;
-      if (spotSeenBy(world, g.takedownSpot[0], g.y ?? 0, g.takedownSpot[1], s.guards, i, CHECK_RANGE) === -1) continue;
-      expect(worstIsolationOverPhases(world, gs, i, g.takedownSpot, 30, 7), `guard ${i} (${g.x}, ${g.z})`).toBeGreaterThanOrEqual(CHECK_ISOLATION);
+  it('sections 1 and 2 A2 survive patrol phase drift: every guard keeps CHECK_ISOLATION s at its spot under 30 random start phases', () => {
+    for (const s of [S[0]!, S[1]!]) {
+      const gs = timed(s.guards);
+      for (let i = 0; i < gs.length; i++) {
+        const g = s.guards[i]!;
+        if (spotSeenBy(world, g.takedownSpot[0], g.y ?? 0, g.takedownSpot[1], s.guards, i, CHECK_RANGE) === -1) continue;
+        expect(worstIsolationOverPhases(world, gs, i, g.takedownSpot, 30, 7), `${s.id} guard ${i} (${g.x}, ${g.z})`).toBeGreaterThanOrEqual(CHECK_ISOLATION);
+      }
     }
   });
 
@@ -409,6 +411,32 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(ids.filter((id) => id === 'workshop').length).toBe(1);
     for (const r of S1_ROOMS) expect(ids, r.id).toContain(r.id);
     expect(lay.objectives.some((o) => o.id === 'termB' || o.id === 'extract')).toBe(false);
+  });
+
+  it('section 2 (warehouse-s23): starts at the C2 checkpoint, eight guards in the first-four order, the cage objective reachable', () => {
+    const s = S[1]!;
+    expect(s.id).toBe('racking');
+    expect(s.start).toEqual(S[0]!.connector!.checkpoint);
+    expect(s.guards.length).toBe(8);
+    // ?sectorGuards=4 takes the checker, the reach driver, the stocktaker and the cage officer (no heavies, G155)
+    expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['enforcer', 'grunt', 'officer', 'officer']);
+    expect(s.guards.some((g) => g.kind === 'heavy' || g.kind === 'sniper' || g.kind === 'dog')).toBe(false);
+    // the e2e stands 0.9 m east of the case: free floor, no door within 1.6 m (the context menu), no first-four guard within 1.8 m
+    const sx = s.objective.x + 0.9;
+    expect(world.blocked(sx, 0, s.objective.z, 0.3)).toBe(false);
+    for (const d of (b as unknown as { anchors: { doors: { hinge: { x: number; z: number } }[] } }).anchors.doors) expect(hyp2(d.hinge.x - sx, d.hinge.z - s.objective.z), 'door by the case stand').toBeGreaterThan(1.6);
+    for (const g of s.guards.slice(0, 4)) expect(hyp2(g.x - sx, g.z - s.objective.z), 'guard by the case stand').toBeGreaterThan(1.8);
+    // the rooms: the old racking is gone, the storage hall and the cage are in, the case is inside the cage
+    const lay = warehouseOps.build(new LevelBuilder(), 0);
+    const ids = (lay.rooms ?? []).map((r) => r.id);
+    expect(ids).not.toContain('racking');
+    for (const r of S2_ROOMS) expect(ids, r.id).toContain(r.id);
+    expect(ids).toContain('storage');
+    expect(ids).toContain('hvCage');
+    const cage = S2_ROOMS.find((r) => r.id === 'hvCage')!;
+    expect(s.objective.x >= cage.minX && s.objective.x <= cage.maxX && s.objective.z >= cage.minZ && s.objective.z <= cage.maxZ).toBe(true);
+    // every route's grab point is the same free floor spot inside the cage
+    for (const r of s.routes) expect(world.blocked(r.pts[r.obj]![0], 0, r.pts[r.obj]![1], 0.3), r.name).toBe(false);
   });
 
   it('the plain Warehouse is unchanged by the south band switch (318 boxes, 14 cylinders, 5 doors; captured before)', () => {

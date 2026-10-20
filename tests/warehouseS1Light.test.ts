@@ -178,7 +178,8 @@ describe('Sector Ops section 1 lamp pass (warehouse-s23)', () => {
   it('sections 2 and 3 read the same with the new lamps off and on', () => {
     const pts: [number, number, number][] = [];
     for (let x = -23; x <= 23; x += 2) for (const z of [-5, -3, 0, 4, 8, 12, 16]) pts.push([x, 0, z]);
-    for (const [x, z] of [[-14.5, -5.2], [-14.5, -4], [-20.5, -3.6]] as const) pts.push([x, 0, z]);
+    // (not the C2 far doorway itself (-14.5, -5.2): the exit sign over the open door lights its threshold, as it should)
+    for (const [x, z] of [[-14.5, -4], [-20.5, -3.6]] as const) pts.push([x, 0, z]);
     for (const [x, z] of [[-20.5, -3.6], [-20.5, 11], [12, 14.1], [15, 14]] as const) pts.push([x, 2.8, z]);
     for (const f of [open, shut]) {
       const on = pts.map(([x, y, z]) => body(f, x, y, z));
