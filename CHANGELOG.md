@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.18.1 - Phones render at a fixed 50% resolution (2026-10-20, PR #55)
+- Phone (Michael 2026-10-20: "when it changes render resolution the screen flashes. Keep 50% render resolution the
+  default and don't let it automatically adapt"): a fixed 50% of native, no dynamic resolution on phones. The 60 fps cap
+  stays (Michael chose it over a 30 lock; Marlow Yard runs ~32-35 fps on his phone). Desktop unchanged.
+
 ## 4.18.0 - Sector Ops Warehouse sections 2 and 3 rebuilt, section 1 lamp pass (2026-10-20, PR #50)
 - Sector Ops Warehouse sections 2 and 3 rebuilt as greybox prototypes (`docs/warehouse-redesign/SPEC.md` 2.2 / 2.3,
   `src/world/maps/warehouseS2.ts`, `warehouseS3.ts`): section 2 is a storage hall with real racking, a cage and three
