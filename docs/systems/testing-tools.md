@@ -274,7 +274,8 @@ behind a VPN adapter).
 - `npm run weapons:shots [outDir] [view ...]` (feature/weapons; `E2E_GPU=1`, port 4189, needs `npm run build`): the
   in-game weapon views (aim, hands, body, carry, holster, knife) on the training map, `STAGE=warehouse` under a lamp
 - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
-  reload|swap|grenade|vault> [frames] [interval] [side|front|back|ots]` contact sheet (the `cover` / `highcover` /
+  reload|swap|grenade|vault|lowreadywalk|aimback|aimstrafep|readytoaim> [frames] [interval] [side|front|back|ots]` contact sheet
+  (anim-rework S3: the drawn scenarios; `draw` is the sling draw, LT from holstered) (the `cover` / `highcover` /
   `lowpeek` / `peek` scenarios tap the removed snap-cover action and are dead until rewritten for back-to-wall)
 - `node scripts/perf.mjs [--desktop | --preset=<p>] [--budget] [--json]` (`--desktop`: the Epic path; `--preset`: that
   preset, governor off; else the `?gfx=min` test path; `STEALTH=1`: ten unaware guards perceiving; `PROFILE=1` CPU

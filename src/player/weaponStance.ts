@@ -24,8 +24,11 @@ export type WeaponStateId = 'holstered' | 'lowReady' | 'aiming' | 'slingDraw';
 export const STANCE = {
   /** X held this long (s) while drawn: the reload (A2); shorter is the holster / draw tap (M1). */
   xHold: 0.4,
-  /** (M2) LT from holstered: the draw takes this many times the class's draw time (the sling draw). */
+  /** (M2) LT from holstered: the draw takes this many times the class's draw time (the sling draw): the pistol. */
   slingDrawMult: 1.6,
+  /** (anim-rework S3, M2) A long gun's sling draw: its own path (WeaponModel TRAVEL_VIA.sling, backDiag.diagTurnSling),
+   *  2.5 x the 0.3 s draw = 0.75 s: off the sling round the right side, under the arm, swung up into the shoulder. */
+  slingDrawLong: 2.5,
   /** (M3) RT / LMB held this long (s) holstered or holding a guard: the kill; released sooner: the knockout. */
   rtHold: 0.35,
 } as const;
