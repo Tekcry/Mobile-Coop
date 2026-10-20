@@ -47,6 +47,8 @@ Reviews (suggestions only): docs/reviews/marlow-yard-audit.md, warehouse-layout-
 
 Resumed 00:55 after a clear. #61 CI failed on tests/analogGear.test.ts
 "allocates nothing per update" (3.6 MB vs 2 MB heap; wheel-ui touches no gear / anim code: CI noise); rerun PASS.
+Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
+(tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
 
 ## Merge procedure
