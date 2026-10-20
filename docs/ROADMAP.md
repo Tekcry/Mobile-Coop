@@ -109,6 +109,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-20 | #50 | 4.18.0: Sector Ops Warehouse sections 2 and 3 rebuilt (greybox), section 1 lamp pass |
 | 2026-10-20 | #52 | 4.17.0: anim-rework slice 2: holstered standing walk / jog / run / idle as one blend, starts, stops, turns; M6 (run 4.0, no lean below the run, legs under the hips, arms along the body); slice 3-6 keys (unwired) |
 | 2026-10-20 | #53 | 4.16.2: phones render at 75% of native, dynamic down to 50% |
 | 2026-10-20 | #51 | 4.16.1: the 60 fps cap holds on 90 / 144 Hz (deadline limiter); phones scale resolution on slow frames |
