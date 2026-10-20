@@ -55,7 +55,8 @@ Menu Notes = per-limb targeting strength with item 2. Laptop: tuner-v2 0e73c3b2 
 e2e-menus); #61 full PASS (e2e-levels ok solo; e2e-pad "focus Quit" is a stale step after the tuner pause item:
 Character Build fixes it on feature/e2e-pad-fix). #61 merged as 4.21.0 (CI needed 2 reruns: analogGear heap test flaky; Character Build hardens it in the e2e-pad-fix patch). tuner-v2 item 2 b8bc1846 queued on the laptop.
 camera-cue: draft PR #63 (master merged; fix-round check + GPU shots pending, the shader never ran on a GPU: do not
-merge as is). The GPU window never ran: #58 smooth-world also waits for its GPU reshoot (after the pause lifts).
+merge as is). The GPU window never ran: #58 smooth-world also waits for its GPU reshoot (after the pause lifts); laptop full e2e PASS on 67e4ccd8 (1297 s),
+so only the reshoot remains. e2e-pad fix c6da6f7d on the laptop now, then warehouse-lamps.
 marlow-bunker paused at 80d49dd3; PR #62 open (CI pending; full e2e and GPU look not run; e2e-ctcourse passes solo but
 hits 600 s at E2E_JOBS=2). Not on the laptop queue while paused. warehouse-lamps holding (laptop run queued).
 tuner-v2: item 2 checker PASS (fingers partial: one curl per hand + trigger on / off, the rig has no finger joints);
