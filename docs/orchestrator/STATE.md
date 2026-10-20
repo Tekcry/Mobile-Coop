@@ -6,7 +6,7 @@ feature/menu. Merge origin/master into it before each docs batch; the docs go to
 convenient (feature/menu is many commits ahead of master today: open one docs PR soon).
 
 ## Master
-v4.14.1 (#42, 54f9a479, docs). Tags v4.0.0-v4.14.1. /preview/ = dev = 54f9a479. /ct/ = ct-movement = 150dcfce (walk round 3b
+v4.15.0 (#43, 65bfe6f2: anim-rework slice 1). Tags v4.0.0-v4.15.0. /preview/ = dev = 65bfe6f2. The doorPeek fix is now in master. CHANGELOG has two stray "## Unreleased - anim-metrics" headings under 4.15.0 (from the side PRs): rename them in the next docs PR. /ct/ = ct-movement = 150dcfce (walk round 3b
 plus the F3 crab readout; CT Core moves it with each slice). Dashboard: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh
 (source docs/orchestrator/dashboard.html; publish the same path; it declares `db`, answers in collection `answers`;
 update its version line and rows after each merge with the sed / node edits used in git history, then republish).
@@ -28,6 +28,9 @@ Laptop: low priority (BelowNormal, E2E_JOBS=1) until Michael says otherwise. Kee
 Relay rule: desktop job leads often cannot reach Character Build; the orchestrator relays runner requests with the full
 commit hash, and forwards results back.
 
+## Usage pause (2026-10-20 ~17:15)
+At 93% of the 5-hour window Michael was given prompts to clear and restart every session after the reset (CT Core, Sector Ops, Course Ready, the orchestrator; Character Build and nv-pass were already cleared). All sessions were told to pause until the orchestrator messages them after the reset: after the restart, message each one to resume (CT Core: slice 2; nv-pass: the checker result, then the carousel, which is now unblocked since slice 1 merged; Sector Ops: the lamp fix and section 3; Course Ready: the MPFB2 rebake; Character Build: test-speed).
+
 ## Context clears (Michael 16:15: "i want to clear all the chats when they are ready to prevent context drifting")
 Every session was asked to reach a clean point, update its STATE with a fenced resume prompt and message "<name> ready
 to clear" with the prompt. Then: give Michael that prompt to paste after he clears it (he clears the sessions he
@@ -35,7 +38,6 @@ started; the orchestrator can clear only Course Ready and itself, with clear_ses
 message). The orchestrator clears itself last, after giving Michael its own resume prompt (below).
 
 ## Open PRs / merges to do
-- anim-rework slice 1 PR to master (CT Core): full e2e on its head (laptop through me), then a minor version.
 - nv-pass PR to master (minor) after its GPU check.
 - warehouse-s23 PR to master (minor) after section 2 (or 2+3) is green.
 - test-speed PR to master (patch).
