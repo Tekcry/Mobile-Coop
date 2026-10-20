@@ -84,7 +84,7 @@ const OWNER = new Map<string, TuneSection>();
 /** Told when a section registers (the panel adds it). */
 export const TUNE_REGISTRY_HOOKS: { added: ((s: TuneSection) => void) | null } = { added: null };
 /** Saved values for groups not registered yet (a section from a file loaded after the save). */
-let pending: Record<string, Record<string, number>> = {};
+let pending: Record<string, Record<string, number>> = Object.create(null) as Record<string, Record<string, number>>;
 
 const EMPTY: readonly string[] = [];
 
@@ -128,8 +128,9 @@ export function registerTuneSection<V extends Record<string, number> = Record<st
     const vals = pending[g];
     if (!vals) continue;
     for (const [id, v] of Object.entries(vals)) {
+      if (unsafeKey(id)) continue;
       const t = byId.get(id);
-      if (t && t.groups.includes(g)) (values[g] as Record<string, number>)[id] = clampWide(t, v);
+      if (t && t.groups.includes(g)) (values[g] as Record<string, number>)[id] = clamp(t, v);
     }
     delete pending[g];
   }
@@ -171,9 +172,19 @@ export function tuneSectionEase(sec: TuneSection, group: string | null, dt: numb
   }
 }
 
-/** (pass 2) A slider's active range: its own, or doubled around its default while `TUNE_FLAGS.wide` is on. */
+/** (fix round) The lowest a multiplier may go with the wide ranges: never negative; a small positive floor (0.05, or its own
+ *  minimum when that is lower but above 0); 0 only when its own range already allows 0. */
+export const WIDE_MUL_FLOOR = 0.05;
+function mulFloor(t: TuneTunable): number {
+  return t.min > 0 ? Math.min(WIDE_MUL_FLOOR, t.min) : Math.max(0, t.min);
+}
+
+/** (pass 2) A slider's active range: its own, or doubled around its default while `TUNE_FLAGS.wide` is on (a multiplier
+ *  never below its floor). */
 export function tuneMin(t: TuneTunable): number {
-  return TUNE_FLAGS.wide ? t.def - 2 * (t.def - t.min) : t.min;
+  if (!TUNE_FLAGS.wide) return t.min;
+  const lo = t.def - 2 * (t.def - t.min);
+  return t.kind === 'mul' ? Math.max(mulFloor(t), lo) : lo;
 }
 export function tuneMax(t: TuneTunable): number {
   return TUNE_FLAGS.wide ? t.def + 2 * (t.max - t.def) : t.max;
@@ -204,13 +215,15 @@ export function tuneNotes(group: string, id: string): readonly string[] {
   return OWNER.get(group)?.notes?.(group, id) ?? EMPTY;
 }
 
-/** Clamp to the active range (a slider move). */
+/** Clamp to the active range: a slider move, and (fix round) a load or an import too, so a bad saved value never
+ *  survives a reload with the wide ranges off. */
 function clamp(t: TuneTunable, v: number): number {
   return Math.max(tuneMin(t), Math.min(tuneMax(t), v));
 }
-/** Clamp to the widest range (a load or an import keeps a value set with the wide ranges on). */
-function clampWide(t: TuneTunable, v: number): number {
-  return Math.max(t.def - 2 * (t.def - t.min), Math.min(t.def + 2 * (t.max - t.def), v));
+
+/** (fix round) Keys a file must never write through (prototype pollution). */
+function unsafeKey(k: string): boolean {
+  return k === '__proto__' || k === 'constructor' || k === 'prototype';
 }
 
 function round(v: number, step: number): number {
@@ -360,19 +373,20 @@ export function tuneLoad(s: unknown): void {
   TUNE_HOOKS.changed = null;
   try {
     for (const sec of TUNE_SECTIONS) for (const g of sec.groups) for (const t of sec.tunables) (sec.values[g] as Record<string, number>)[t.id] = t.def;
-    pending = {};
+    pending = Object.create(null) as Record<string, Record<string, number>>;
     for (const [g, vals] of Object.entries(snap.values ?? {})) {
+      if (unsafeKey(g)) continue;
       if (!vals || typeof vals !== 'object') continue;
       const sec = OWNER.get(g);
       if (!sec) {
         const keep: Record<string, number> = {};
-        for (const [id, v] of Object.entries(vals)) if (typeof v === 'number' && Number.isFinite(v)) keep[id] = v;
+        for (const [id, v] of Object.entries(vals)) if (!unsafeKey(id) && typeof v === 'number' && Number.isFinite(v)) keep[id] = v;
         pending[g] = keep;
         continue;
       }
       for (const [id, v] of Object.entries(vals)) {
         if (!hasTunable(g, id) || typeof v !== 'number' || !Number.isFinite(v)) continue;
-        (sec.values[g] as Record<string, number>)[id] = clampWide(sec.byId.get(id)!, v);
+        (sec.values[g] as Record<string, number>)[id] = clamp(sec.byId.get(id)!, v);
       }
     }
     TUNE_LOG.length = 0;
@@ -394,8 +408,8 @@ export interface TuneImportResult {
 
 /**
  * (pass 2) Import an export (`tuneExport`, the parsed JSON of `anim-tune-<date>.json`): every value goes back to its
- * default, then each exported value is applied (clamped to the widest range; a section not registered yet keeps its
- * values until it registers, as with saves). The log gains one "import" entry (group `import`, id the file name, `to`
+ * default, then each exported value is applied (clamped to the active range; a section not registered yet keeps its
+ * values until it registers, as with saves; clamped to the active range). The log gains one "import" entry (group `import`, id the file name, `to`
  * the count). Wrong magic or version is refused and changes nothing.
  */
 export function tuneImport(data: unknown, name = 'import', now = Date.now()): TuneImportResult {
@@ -421,11 +435,12 @@ export function tuneImport(data: unknown, name = 'import', now = Date.now()): Tu
   TUNE_HOOKS.changed = null;
   try {
     for (const sec of TUNE_SECTIONS) for (const g of sec.groups) for (const t of sec.tunables) (sec.values[g] as Record<string, number>)[t.id] = t.def;
-    pending = {};
+    pending = Object.create(null) as Record<string, Record<string, number>>;
     for (const c of e.changed as unknown[]) {
       if (!c || typeof c !== 'object') continue;
       const { group, id, value } = c as Partial<TuneValue>;
       if (typeof group !== 'string' || typeof id !== 'string' || typeof value !== 'number' || !Number.isFinite(value)) continue;
+      if (unsafeKey(group) || unsafeKey(id)) continue;
       const sec = OWNER.get(group);
       if (!sec) {
         (pending[group] ??= {})[id] = value;
@@ -433,7 +448,7 @@ export function tuneImport(data: unknown, name = 'import', now = Date.now()): Tu
         continue;
       }
       if (!hasTunable(group, id)) continue;
-      (sec.values[group] as Record<string, number>)[id] = clampWide(sec.byId.get(id)!, value);
+      (sec.values[group] as Record<string, number>)[id] = clamp(sec.byId.get(id)!, value);
       res.applied++;
     }
     TUNE_LOG.push({ t: new Date(now).toISOString(), group: 'import', id: name, from: 0, to: res.applied + res.pending });

@@ -68,6 +68,8 @@ const MARK_DIST = 12;
 const SAVE_DELAY = 400;
 /** (pass 3) Follow switches group once the new state has held this long (ms): a brief state never rebuilds the rows. */
 const FOLLOW_HOLD_MS = 300;
+/** (fix round) No pad poll for this long (ms): the free view's pad input is cleared (a disconnected pad). */
+const PAD_STALE_MS = 250;
 /** One sim step (the step-frame button). */
 const STEP_S = 1 / 60;
 const BTN_CSS = 'font:inherit;color:#cfe;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);border-radius:3px;padding:2px 6px;min-height:28px;min-width:28px;';
@@ -154,6 +156,8 @@ export class AnimTunePanel {
   /** (pass 2) Whether a co-op session runs (set by the app): the time controls are off then. */
   coop: (() => boolean) | null = null;
   private coopOn = false;
+  /** (fix round) When the pad was last polled (ms): the free view's pad input clears once it goes stale. */
+  private lastPoll = 0;
   /** (pass 2) The bypass held by pad (R3) and by key (Backquote). */
   private padBypass = false;
   private keyBypass = false;
@@ -376,6 +380,8 @@ export class AnimTunePanel {
       if (e.code === 'Backquote') this.setKeyBypass(false);
     });
     window.addEventListener('blur', () => this.setKeyBypass(false));
+    // (fix round) a pad disconnect never leaves the free view's sticks held
+    window.addEventListener('gamepaddisconnected', () => this.clearFreeIn());
     // the mouse wheel zooms the orbit (the panel's own wheel stops at the panel)
     window.addEventListener(
       'wheel',
@@ -711,6 +717,8 @@ export class AnimTunePanel {
   /** Open (F3 > Anim, Pause or Settings): stays open over play until closed. */
   show(): void {
     this.open = true;
+    // (fix round) the co-op lock is read live (a fold or a close never leaves it stale)
+    this.refreshCoop();
     this.el.hidden = false;
     // (tuner-pad) opening takes the pad focus (once the press that opened it is released)
     this.pad.open();
@@ -752,6 +760,7 @@ export class AnimTunePanel {
    * the menus then get none of it). No allocation unless the focus, a value or the mode changes.
    */
   padPoll(pad: Gamepad, now: number, dt: number): boolean {
+    this.lastPoll = performance.now();
     let mask = 0;
     const btns = pad.buttons;
     const n = Math.min(btns.length, 17);
@@ -815,6 +824,7 @@ export class AnimTunePanel {
   /** View moved the pad: to the tuner (the panel opens, and freezes the game when "freeze on View" is ticked), to the
    *  game (an automatic freeze ends) or to the free view (the panel folds). */
   private onPadToggled(): void {
+    this.refreshCoop();
     this.stickAcc = 0;
     this.edit = null;
     if (this.menuOpen) this.closeMenu();
@@ -1139,6 +1149,7 @@ export class AnimTunePanel {
   /** (tuner-camera) Slow motion: the running time scale (1, 0.5, 0.25, 0.1; the fixed step stays). Frozen, it applies
    *  on resume. */
   private setTimeScale(v: number): void {
+    this.refreshCoop();
     const s = this.coopOn ? 1 : freeTimeScale(v);
     this.runScale = s;
     if (this.loop && !this.frozen) this.loop.timeScale = s;
@@ -1149,6 +1160,11 @@ export class AnimTunePanel {
     const s = String(Number(this.runScale.toFixed(2)));
     if (this.speedIn.value !== s && this.edit?.el !== this.speedIn) this.speedIn.value = s;
     this.speedVal.textContent = `${s}x`;
+  }
+
+  /** (fix round) Read the co-op state now (setCoop is a no-op when it has not changed). */
+  private refreshCoop(): void {
+    this.setCoop(this.coop?.() ?? false);
   }
 
   /** (pass 2) Co-op: the time controls are off (never on the wire; the local sim drives the session). */
@@ -1200,6 +1216,7 @@ export class AnimTunePanel {
   /** (pass 2) Freeze: time scale 0 (the sim stops, rendering, the camera tuning and the free view go on). `auto`: by View
    *  (View back resumes). */
   setFrozen(on: boolean, auto = false): void {
+    if (on) this.refreshCoop();
     const lp = this.loop;
     if (!lp || (on && this.coopOn)) return;
     if (on) {
@@ -1218,6 +1235,7 @@ export class AnimTunePanel {
 
   /** (pass 2) One sim step (1/60 s) on a frozen game (freezes it first). */
   private stepFrame(): void {
+    this.refreshCoop();
     if (this.coopOn) return;
     if (!this.frozen) this.setFrozen(true);
     this.loop?.stepHeadless?.(STEP_S);
@@ -1280,6 +1298,10 @@ export class AnimTunePanel {
   /** Every frame (driven by the debug overlay whether or not it is shown). */
   frame(nowMs: number): void {
     if (!this.open) return;
+    // (fix round) every frame, folded or not: one property read
+    this.refreshCoop();
+    // (fix round) the free view's pad input stops when the pad stops being polled (a disconnect)
+    if (FREE_VIEW.mode !== 'off' && performance.now() - this.lastPoll > PAD_STALE_MS) this.clearFreeIn();
     this.syncFollow();
     // a level load (or a slow beat's end) resets the loop's time scale: the freeze is over, the speed back to 1
     const lp = this.loop;
@@ -1295,7 +1317,6 @@ export class AnimTunePanel {
     if (!this.folded && nowMs >= this.nextInfo) {
       this.nextInfo = nowMs + 250;
       this.now.textContent = `now: ${TUNE_STATE.body || '-'}  /  ${TUNE_STATE.gun || 'unarmed'}  /  ${TUNE_STATE.cam || '-'}${this.follow ? '' : '  (follow off)'}${this.frozen ? '  FROZEN' : ''}`;
-      this.setCoop(this.coop?.() ?? false);
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed, ${TUNE_LOG.length} log entries`;
     }
     if (this.marker) this.drawMarker(nowMs);

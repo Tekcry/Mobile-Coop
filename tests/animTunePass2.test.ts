@@ -24,7 +24,7 @@ import {
   tuneSnapshot,
   type TuneRigIn,
 } from '../src/anim/tune';
-import { registerTuneSection, TUNE_SECTIONS, tuneSectionLoad } from '../src/anim/tuneRegistry';
+import { registerTuneSection, TUNE_SECTIONS, tuneSectionLoad, WIDE_MUL_FLOOR } from '../src/anim/tuneRegistry';
 import { SPEED_SECTION, speedAttachMul, speedGlideMul, speedGroupFor, speedPaceMul, speedToday, speedWallMul } from '../src/player/speedTune';
 import { GEARS } from '../src/config/movement';
 import { WALL } from '../src/player/wallController';
@@ -114,7 +114,7 @@ describe('bypass', () => {
 });
 
 describe('wide ranges', () => {
-  it('double every range around its default while on; set clamps to the active range; loads keep wide values', () => {
+  it('double every range around its default while on; set clamps to the active range; a load clamps to the active range', () => {
     const t = tunable('leanAdd');
     expect([tuneMin(t), tuneMax(t)]).toEqual([t.min, t.max]);
     tuneSet('walk', 'leanAdd', 0.7, T0);
@@ -124,9 +124,83 @@ describe('wide ranges', () => {
     tuneSet('walk', 'leanAdd', 0.7, T0 + 5000);
     expect(tuneGet('walk', 'leanAdd')).toBe(0.7);
     const snap: unknown = JSON.parse(JSON.stringify(tuneSnapshot()));
-    TUNE_FLAGS.wide = false;
+    // (fix round) wide on, the wide value loads; wide off, a load clamps it back to the normal range
     tuneLoad(snap);
     expect(tuneGet('walk', 'leanAdd')).toBe(0.7);
+    TUNE_FLAGS.wide = false;
+    tuneLoad(snap);
+    expect(tuneGet('walk', 'leanAdd')).toBe(t.max);
+  });
+
+  it('(fix round) a multiplier never goes below its floor: never negative, 0.05 or its own lower positive minimum', () => {
+    TUNE_FLAGS.wide = true;
+    for (const s of TUNE_SECTIONS) {
+      for (const t of s.tunables) {
+        if (t.kind !== 'mul') continue;
+        const lo = tuneMin(t);
+        expect(lo).toBeGreaterThanOrEqual(0);
+        if (t.min > 0) expect(lo).toBeGreaterThan(0);
+        expect(lo).toBeLessThanOrEqual(t.min);
+      }
+    }
+    expect(tuneMin(tunable('camBlendMul'))).toBe(WIDE_MUL_FLOOR);
+    expect(tuneMin(tunable('camFollowMul'))).toBe(WIDE_MUL_FLOOR);
+    expect(tuneMin(tunable('kneeOutMul'))).toBe(0);
+    tuneSet('cam.explore', 'camBoomRateMul', -5, T0);
+    expect(tuneGet('cam.explore', 'camBoomRateMul')).toBe(WIDE_MUL_FLOOR);
+    // an add slider still doubles both ways
+    const a = tunable('leanAdd');
+    expect(tuneMin(a)).toBe(a.def - 2 * (a.def - a.min));
+  });
+
+  it('(fix round) a bad saved or imported value is clamped to the normal range on load', () => {
+    tuneLoad({ version: 1, values: { 'cam.explore': { camBoomRateMul: -1.8, camZoomMul: 9 }, 'spd.stand': { walkMul: -0.4 } }, log: [] });
+    expect(tuneGet('cam.explore', 'camBoomRateMul')).toBe(tunable('camBoomRateMul').min);
+    expect(tuneGet('spd.stand', 'walkMul')).toBe(0.3);
+    const r = tuneImport({ magic: TUNE_EXPORT_MAGIC, version: 1, changed: [{ group: 'spd.aim', id: 'glideFwdMul', value: -2 }], log: [] });
+    expect(r.ok).toBe(true);
+    expect(tuneGet('spd.aim', 'glideFwdMul')).toBe(0.3);
+  });
+});
+
+describe('fix round: no prototype keys', () => {
+  it('import and load skip __proto__ / constructor / prototype', () => {
+    const r = tuneImport({
+      magic: TUNE_EXPORT_MAGIC,
+      version: 1,
+      changed: [
+        { group: '__proto__', id: 'polluted', value: 1 },
+        { group: 'later.y', id: 'constructor', value: 1 },
+        { group: 'prototype', id: 'x', value: 1 },
+      ],
+      log: [],
+    });
+    expect(r).toEqual({ ok: true, error: '', applied: 0, pending: 0 });
+    tuneLoad(JSON.parse('{"version":1,"values":{"__proto__":{"polluted":1},"later.z":{"__proto__":1}},"log":[]}'));
+    expect(({} as Record<string, unknown>).polluted).toBe(undefined);
+    expect(Object.keys(tuneSnapshot().values)).toEqual(['later.z']);
+  });
+});
+
+describe('fix round: gameplay reads the game view, wherever it is placed', () => {
+  it('the sticky-cam view and photo mode write gamePos after they place the camera', async () => {
+    const fs = await import('node:fs');
+    const gad = fs.readFileSync('src/game/gadgetSystem.ts', 'utf8');
+    const at = gad.indexOf("camera.rotation.set(-c.pitch, c.yaw, 0);");
+    expect(at).toBeGreaterThan(0);
+    expect(gad.indexOf('g.player.cam.gamePos.copyFrom(camera.position);', at)).toBeGreaterThan(at);
+    const gs = fs.readFileSync('src/game/gameState.ts', 'utf8');
+    expect(gs).toMatch(/if \(this\.photo\) \{[\s\S]{0,200}gamePos\.copyFrom\(this\.player\.cam\.camera\.position\)/);
+  });
+
+  it('the panel reads co-op live before any freeze, step, speed or View change', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync('src/ui/animTunePanel.ts', 'utf8');
+    for (const head of ['  show(): void {', '  private onPadToggled(): void {', '  private setTimeScale(v: number): void {', '  setFrozen(on: boolean, auto = false): void {', '  private stepFrame(): void {', '  frame(nowMs: number): void {']) {
+      const i = src.indexOf(head);
+      expect(i).toBeGreaterThan(0);
+      expect(src.slice(i, i + 400)).toMatch(/refreshCoop\(\)/);
+    }
   });
 });
 
@@ -189,7 +263,7 @@ describe('speed section', () => {
     expect(speedGroupFor('jog')).toBe('spd.stand');
     expect(speedGroupFor('')).toBe(null);
     expect(speedToday('spd.wall', 'slideStandMul')).toBe(`${WALL.slideStand} m/s`);
-    expect(SPEED_SECTION.note).toMatch(/tests, e2e and co-op/);
+    expect(SPEED_SECTION.note).toMatch(/tests and e2e use the defaults/);
     expect(TUNE_SECTIONS.map((s) => s.id).indexOf('speed')).toBeGreaterThan(2);
   });
 });

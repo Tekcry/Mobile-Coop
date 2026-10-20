@@ -106,8 +106,8 @@ strafe and back weights: `MOVEMENT.adsSpeed`, `strafeMult`, `backMult`), **spd.w
 `slideCrouch`), **spd.climb** (ladder, pipe up / along, ledge shimmy, duct crawl: `ATTACH.*.speed`). Each row shows
 today's value. Read by the local player's own `PlayerController` (the free-movement speed target), the game's `WallCore`
 and the local traversal's `AttachMachine`, with no allocation; the bypass reads x1. The section's note says it: these
-are gameplay values on this machine only; tests, e2e and co-op (a host's speed check) use the defaults until the
-values are folded into them.
+are gameplay values on this machine only; tests and e2e use the defaults until the values are folded into them, and
+in co-op the host clamps a tuned speed (the partner sees rubber-banding).
 
 ### The rest
 - **Smooth state changes**: Body and Gun ease to a new group's values over `tau` 0.1 s (Camera 0.125 s) through the
@@ -141,9 +141,25 @@ values are folded into them.
 - P7. Co-op: the time controls are off with a note, not hidden.
 - P8. The game speed slider (0.1-1x) replaces the 1 / 0.5 / 0.25 / 0.1 picker; the overlay's 1x button stays.
 - P9. Import replaces every value (defaults first), it does not merge.
-- P10. Saves and imports keep values up to the doubled range even with "wide ranges" off; slider moves clamp to the
-  active range.
+- P10. (Changed in the fix round.) Saves and imports clamp to the active range: a value set with "wide ranges" on
+  comes back clamped to the normal range after a reload with it off.
 - P11. The panel closes the free view, the freeze, slow motion, hide HUD and the bypass.
+
+### Fix round (CHECK-CAMERA.md)
+- B1: the sticky-cam remote view (`GadgetSystem.frameUpdate`) and photo mode write `ShoulderCamera.gamePos` after they
+  place the camera, so the flash white-out, the jammer pick and the crosshair's on-target read the same point as before
+  the branch. No other code moves the game camera outside `ShoulderCamera.update` (no death cam or cutscene camera).
+- B2: the panel reads co-op live (`refreshCoop`) in `show`, every `frame` (folded too), `onPadToggled`, `setTimeScale`,
+  `setFrozen` and `stepFrame`, so freeze, step and game speed never apply in a co-op session.
+- Wide ranges: a multiplier's wide minimum never drops below a floor (0.05, or its own minimum when that is lower but
+  above 0; 0 only when its own range allows 0), so no wide slider goes negative. Loads and imports clamp to the active
+  range (P10), so a bad saved value cannot survive a reload.
+- A pad disconnect (or no pad poll for 0.25 s) clears the free view's stick input.
+- Import and load skip the `__proto__` / `constructor` / `prototype` keys; the pending store has no prototype.
+- Polish: the free view off releases the demo's aim and crouch plainly (a later aim-strafe or crouch-walk demo works
+  again); the Speed note says the co-op host clamps a tuned speed; the e2e marker check counts marker meshes by name.
+- Tests: `tests/animTunePass2.test.ts` (the multiplier floor, the load / import clamp, the unsafe keys, source checks for
+  the `gamePos` writers and the live co-op reads).
 
 ## Files
 - Pass 2: `src/player/freeView.ts`, `src/player/speedTune.ts` (new); `src/anim/tuneRegistry.ts` (ease, flags, import, wide

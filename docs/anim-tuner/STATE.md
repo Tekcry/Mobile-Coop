@@ -62,8 +62,9 @@ the change log. The existing body / gun keys are unchanged, so older saves load 
 that has not registered yet are kept and applied when it registers (and kept in the next save meanwhile). Import
 (`tuneImport(json, name)`, the panel's Import button and Y menu) takes an export back: every value to its default, then
 the file's values (unknown sections kept pending, as with saves), one "import" log entry, saved; a wrong magic or
-version is refused and changes nothing. Saves and imports clamp to the doubled range, so a value set with "wide
-ranges" on survives a reload with it off; a slider move clamps to the active range (`tuneMin` / `tuneMax`).
+version is refused and changes nothing. Saves, imports and slider moves clamp to the active range (`tuneMin` /
+`tuneMax`), so a value set with "wide ranges" on comes back clamped after a reload with it off; a multiplier's wide
+minimum never drops below `WIDE_MUL_FLOOR` (0.05, or its own lower positive minimum; never negative).
 
 **Example** (`src/anim/handTune.ts`):
 ```ts

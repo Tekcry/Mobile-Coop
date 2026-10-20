@@ -26,7 +26,7 @@ const PACE_NAMES = ['creep', 'sneak', 'walk', 'jog', 'run'] as const;
 export const SPEED_SECTION = registerTuneSection({
   id: 'speed',
   label: 'Speed (gameplay)',
-  note: 'Gameplay values, this machine and the local player only: tests, e2e and co-op use the defaults until these are folded into them.',
+  note: 'Gameplay values, this machine and the local player only: tests and e2e use the defaults until these are folded into them; in co-op the host clamps a tuned speed (the partner sees rubber-banding).',
   groups: SPEED_GROUPS,
   tunables: [
     ...PACE_IDS.map((id, i) => mul(id, `${PACE_NAMES[i]} speed`, PACE, `movement.ts GEARS.stand / crouch[${i}] (the stick curve's ${PACE_NAMES[i]} point; playerController speedTarget)`)),

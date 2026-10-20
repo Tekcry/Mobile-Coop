@@ -541,12 +541,12 @@ try {
     const fv2 = await fvRead();
     assert(dist3(fv2.cam, fv2.game) < 1e-6 && dist3(fv2.cam, fv0.cam) < 0.05, `tuner: free view off restores the game camera (${dist3(fv2.cam, fv0.cam).toFixed(3)} m)`);
     // (pass 2) the barrel marker is a 2D overlay: no scene meshes
-    const mk0 = await GM(() => window.__app.current.scene.meshes.length);
+    // (fix round) by name, not by count: a lazily made effect mesh would flake a count
     await GM(() => window.__animTune.marker(true));
     await frames(P, 10);
-    const mk1 = await GM(() => ({ n: window.__app.current.scene.meshes.length, el: !!document.querySelector('.anim-tune-marker-overlay') }));
+    const mk1 = await GM(() => ({ n: window.__app.current.scene.meshes.filter((m) => m.name.startsWith('anim-tune-barrel')).length, el: !!document.querySelector('.anim-tune-marker-overlay') }));
     await GM(() => window.__animTune.marker(false));
-    assert(mk1.n === mk0 && mk1.el, `tuner: the barrel marker adds no scene meshes and draws on its overlay (${mk0} -> ${mk1.n}, overlay ${mk1.el})`);
+    assert(mk1.n === 0 && mk1.el, `tuner: the barrel marker makes no scene meshes and draws on its overlay (${mk1.n} marker meshes, overlay ${mk1.el})`);
     await GM(() => window.__app.debug.animTune.hide());
     await frames(P, 2);
     // results
