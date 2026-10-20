@@ -1,7 +1,9 @@
 # marlow-bunker - state
 
 ## Now
-Built and tested (2026-10-21): all eight shortlist items (BRIEF.md); PR to master open; GPU look pending a PC run.
+PAUSED (orchestrator, 2026-10-21 01:25, per Michael: weekly token budget; all non-animation work stops). Built and tested: all
+eight shortlist items (BRIEF.md). PR #62 to master was already open before the pause (mergeable; CI check pending). Resume
+point: wait for the orchestrator to resume; then the full e2e run on the PR head and the GPU look (below).
 
 ## Next
 - The orchestrator reviews and merges; the GPU look on Michael's PC (`npm run e2e:gpu`, a ctcourse contact sheet with
