@@ -1,38 +1,19 @@
 # Night vision pass - state
 
-## Now (2026-10-20 17:40, PAUSED by the orchestrator: usage 93%; resume only on its message after the reset)
-Slices 1-2 (75c37d42) checked: **FIX** (docs/nv-pass/CHECK-S12.md, fresh Opus checker). Met: bodies not bright, green
-tube, frame (89% clear), light parity (`visionIsolation` unchanged and passing). Not met: readable at night at both
-extremes (yard-look under NV a flat murk, mean 14/255; Epic wh-yard moonlit wall clipped, 67% > 224) and `?gfx=min`
-(NV darker than off in yard-s1-bay and yard-s5-backroom).
-**The "before" sheets were re-shot 17:37-17:43 at master 65bfe6f2** (scratch worktree Mobile-Coop-nv-pass-before, own
-build, port 4189 verified free, served index.html checked against its dist): they now show master (round tunnel frame).
-Checks at 75c37d42 (desktop, software GL, 4191): `npm run check` PASS (1972 tests); smoke, e2e-mouse, e2e-stealth-ai
-PASS; e2e-desktop PASS solo with `E2E_SUITE_TIMEOUT=900` (663 s; one solo rerun failed on "the result is saved as a
-performance note without a tap", a benchmark-save flake, not in this diff: backlog flaky list).
-e2e-darkness decision: the target is stale, not the cap (the grey card is a non-voxel surface, now under the body-fill
-cap; 13.5% matches the readable sheets). The "neutral rgb 121,127,125" was the vision-off probe; the tint lands.
-17:00: two orphaned scripts from before the context clear (scratch nv-before.sh, nv-gpu.sh s1) were killed after the s1
-one took the desktop lock at 16:58; partial s1 shots deleted. No agents running, no lock held.
+## Now (2026-10-20 19:15)
+Slices 1-2 PASS after one fix round (CHECK-FIX1.md, fresh Opus checker): NV frame auto-gain (`src/vfx/nightExposure.ts`),
+shot-script served-build guards, `?gfx=min` postLift 3 (FIX1.md). Code 4a6cd99f; laptop `npm run check` (2043 tests) and
+smoke PASS there. GPU 18:52-19:00 (served build verified): sheets sheet-s12b-{epic,medium,min}.png vs master
+sheet-before-* (65bfe6f2). wh-yard Epic clipping 30% -> 0%, lit rooms within 3% of s12, min NV >= off in all 9 views.
+e2e-darkness: NV deep fill 13.7% (rgb 16,40,14); target min 0.2 -> 0.1 approved by the orchestrator (BRIEF A2, 49eeee88);
+not re-run since the target change. Master 89f061e7 merged (ddd5ca9f): anim-rework slice 1 is in, slice 3 unblocked.
 
 ## Next
-1. One fix round (Opus implementer), the checker's list in CHECK-S12.md:
-   1. Shot script proves what it serves (`scripts/nv-shots.mjs`, `nv-gpu.sh`): exit if the port is taken or the
-      server exits; compare the served `index-*.js` with the local `dist/index.html`; fail on the build's exit status.
-   2. Frame-level NV auto-gain in the tube: GPU-only 1x1 scene mean, eased about 0.5 s, input x
-      clamp(target / mean, 0.6, 2.5). Done: wh-yard not clipped, yard-look mean >= 30/255, lit rooms within 15%.
-   3. e2e-darkness NV level 0.12 min 0.2 -> 0.10 (`e2e-darkness.mjs`, `darkCurve.ts`), `darkCurve.test.ts` 5x -> 2.5x,
-      print the NV rgb; after fix 2 re-set min to measured - 0.03 (never below 0.10).
-   4. `?gfx=min`: `NV_TONE.postLift` 2 -> 3 if fix 2 does not cover it (NV >= off in all 9 min views).
-2. Then the GPU window (master before sheets are done, 65bfe6f2; nv-gpu.sh skips them): after
-   shots `s12b`, e2e-darkness; then a fresh checker on the fix round.
-3. Send Michael the before / after epic sheets with a one-line note each; message the orchestrator.
-4. Slice 3, the vision carousel (PLAN.md), only after the orchestrator says CT Core's anim-rework slice 1 PR has merged
-   (it holds src/ui until then).
-5. End: CHANGELOG "Unreleased - nv-pass", TESTING.md lines, docs/systems/lighting.md and graphics-quality.md (stale NV
-   numbers, SURVEY "Stale docs"), perf budgets (render work), `npm run check`, full `E2E_SUITE_TIMEOUT=900 npm run e2e`
-   on the PR head (desktop or the laptop runner), PR to master; the orchestrator sets the version. If slice 3 waits
-   long, slices 1-2 may go as their own PR (PLAN).
+1. Slice 3, the vision carousel (PLAN.md): Opus implementer, fresh checker, at most one fix round.
+2. End: CHANGELOG "Unreleased - nv-pass", TESTING.md lines, docs/systems/lighting.md and graphics-quality.md (stale NV
+   numbers, SURVEY "Stale docs"), perf budgets (render work), `npm run check`, e2e-darkness re-run on the GPU, full
+   `E2E_SUITE_TIMEOUT=900 npm run e2e` on the PR head (desktop or the laptop runner), PR to master; the orchestrator
+   sets the version. Scratch worktree removal (Open).
 
 ## Open
 - Light parity: the body-fill fix stays in the render path (`LampPlugin`), never the ambient grid or light field.
@@ -45,6 +26,9 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
   worktree root is a local flag (excluded from git).
 
 ## Polish list (non-blocking)
+- Fix-round polish (CHECK-FIX1.md): raise the auto-gain `hdr.lo` or max for yard-look (centre 13-19/255) and the deep
+  fill; min postLift 3 turns floor texture into a white checker; the min measure has no ease (may flicker); nv-shots
+  could print the off -> NV means.
 - Grain 0.06 -> 0.05 if Michael finds it dirty (now about 1.7% at black, 0.7% lit; G101 about 1%).
 - The settings vignette stacks on the frame (corners about 0.2).
 - No thermal or electro rows on the sheets; photo-mode letterbox bars in some wh-* rows.
@@ -53,6 +37,8 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
 - e2e-desktop "saved as a performance note without a tap" flake: add to `docs/backlog.md` flaky list at the job end.
 
 ## Done
+- 2026-10-20: fix round (4a6cd99f) PASS (CHECK-FIX1.md); GPU s12b sheets; e2e-darkness NV target A2; master 89f061e7 merged.
+- 2026-10-20: master before sheets re-shot at 65bfe6f2 (653fdad8).
 - 2026-10-20: checker on slices 1-2: FIX (CHECK-S12.md); check + smoke, e2e-mouse, e2e-stealth-ai, e2e-desktop pass.
 - 2026-10-20: GPU before / after sheets (s12), e2e-darkness run (1 fail, above).
 - 2026-10-20: slice 1 (green phosphor, body-fill cap under NV, gain 8 -> 6 with a lifted floor, gamma 1.3, white clip
@@ -67,7 +53,7 @@ one took the desktop lock at 16:58; partial s1 shots deleted. No agents running,
 Night Shift | nv-pass: RESUME. Folder C:/NightShift/Mobile-Coop-nv-pass, branch feature/nv-pass (git pull --ff-only;
 branch guard from CLAUDE.md before every write). Read CLAUDE.md "Sessions", docs/ROADMAP.md, then docs/nv-pass/BRIEF.md,
 PLAN.md, SURVEY.md and STATE.md, and continue from "Now" / "Next" with the loop in docs/systems/session-method.md
-(next: the one fix round from CHECK-S12.md, then the GPU window for the after shots). The vision carousel (slice 3)
-waits for the orchestrator's go after CT Core's anim-rework slice 1 merges. Report to "Night Shift | Orchestrator".
+(next: slice 3, the vision carousel; slices 1-2 passed). The vision carousel (slice 3) is
+unblocked (anim-rework slice 1 is in master). Report to "Night Shift | Orchestrator".
 Opus, high effort.
 ```
