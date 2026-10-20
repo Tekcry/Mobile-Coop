@@ -120,6 +120,42 @@ try {
   }
   const counts = await Promise.all([GA(() => window.__app.current.enemyMgr.alive), GB(() => window.__app.current.net.puppets.size)]);
   assert(Math.abs(counts[0] - counts[1]) <= 1, `client mirrors host enemies (${counts})`);
+
+  // (coop-torches) a guard's flashlight crosses the wire: the host's test hook forces one guard's torch rule on, the
+  // client lights a slot at his shown head, aimed where he faces (its light field lit along the beam), then the hook
+  // forces it off and the client's slot goes dark
+  console.log("a host guard's torch shows on the client, then goes off");
+  const slotsB = await GB(() => window.__app.current.net.torches.slots.length);
+  assert(slotsB > 0, `the dark Warehouse has flashlight slots on the client (${slotsB})`);
+  const lamp = await GA(() => {
+    const em = window.__app.current.enemyMgr;
+    const e = em.enemies.find((x) => x.alive && !x.def.quadruped);
+    if (!e) return '';
+    e.torchOverride = true;
+    return e.id;
+  });
+  assert(lamp !== '', 'a human guard to light');
+  if (lamp) {
+    const onA = await until(A, (id) => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((x) => x.id === id); return !!e && em.hasTorch(e); }, lamp, 5000, 'host torch on').then(() => true, () => false);
+    const onB = await until(B, (id) => window.__app.current.net.torches.slotOf(id)?.on === true, lamp, 10000, 'client torch on').then(() => true, () => false);
+    const shown = await GB((id) => {
+      const g = window.__app.current;
+      const p = g.net.puppets.get(id);
+      const l = g.net.torches.slotOf(id);
+      if (!p || !l || !l.cone) return null;
+      const c = l.cone;
+      const lit = g.world.lightField.dynamicAt(l.x + c.dx * 2, l.y + c.dy * 2, l.z + c.dz * 2);
+      return { d: Math.hypot(l.x - p.pos.x, l.z - p.pos.z), dy: l.y - p.pos.y, yaw: Math.atan2(c.dx, c.dz) - p.yaw, lit, on: l.on };
+    }, lamp);
+    const yawOk = shown && Math.abs(Math.atan2(Math.sin(shown.yaw), Math.cos(shown.yaw))) < 0.05;
+    assert(onA && onB && !!shown && shown.d < 0.6 && shown.dy > 0.8 && yawOk && shown.lit > 0.05, `the client lights the guard's torch at his head, aimed where he faces (${JSON.stringify({ onA, onB, shown })})`);
+    await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); if (e) e.torchOverride = false; }, lamp);
+    const offA = await until(A, (id) => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((x) => x.id === id); return !e || !em.hasTorch(e); }, lamp, 5000, 'host torch off').then(() => true, () => false);
+    const offB = await until(B, (id) => window.__app.current.net.torches.slotOf(id) === null, lamp, 10000, 'client torch off').then(() => true, () => false);
+    assert(offA && offB, `the guard's torch goes off on the client when the host's does (host ${offA}, client ${offB})`);
+    // back to the torch rule for the rest of the run
+    await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); if (e) e.torchOverride = null; }, lamp);
+  }
   await until(B, () => (window.__app.current.interactables?.items ?? []).some((i) => i.kind !== 'door' && i.kind !== 'revive'), null, 10000, 'the mission objectives reach the client');
   const modeB = await GB(() => window.__app.current.opts.mode);
   assert(modeB === 'infiltration', `the client runs the host's Infiltration match (${modeB})`);

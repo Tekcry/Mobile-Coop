@@ -3,7 +3,8 @@ import type { GameState, NetAttachment } from '../game/gameState';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
-import { BUDGET } from '../physics/groups';
+import { BUDGET, G } from '../physics/groups';
+import { TorchMirror } from './torchMirror';
 import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
@@ -74,11 +75,17 @@ export class CoopClient implements NetAttachment {
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
+  /** (coop-torches) The guards' flashlights: the world's slots lit and placed from the snapshot's torch bits. */
+  readonly torches: TorchMirror;
+  private readonly torchA = new Vector3();
+  private readonly torchB = new Vector3();
 
   constructor(
     private g: GameState,
     private s: NetSession,
   ) {
+    // (coop-torches) the beam stops at the first wall as on the host (`beamReach`, one static ray each, no allocation)
+    this.torches = new TorchMirror(g.world.level.lights, (ax, ay, az, bx, by, bz) => g.ballistics.hitDistance(this.torchA.set(ax, ay, az), this.torchB.set(bx, by, bz), G.STATIC));
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
     // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
     this.recolour();
@@ -651,6 +658,8 @@ export class CoopClient implements NetAttachment {
       e.b.sync(e.a.pos, (e.a.flags & PF.crouch) !== 0, !e.a.dead && !partnerPassable(e.a.mode));
     }
     for (const p of this.puppetList) p.update(dt, t);
+    // (coop-torches) after the guards moved: their torches as the host's (placed from what is drawn)
+    this.torches.update(this.puppetList);
     for (const p of this.dying) p.settle(dt);
     for (let i = this.ragdolls.length - 1; i >= 0; i--) {
       const r = this.ragdolls[i]!;
@@ -712,6 +721,7 @@ export class CoopClient implements NetAttachment {
     for (const p of this.puppets.values()) p.dispose();
     for (const p of this.dying) p.dispose();
     for (const r of this.ragdolls) r.dispose();
+    this.torches.clear();
     this.puppets.clear();
     this.puppetList = [];
     this.dying.length = 0;
