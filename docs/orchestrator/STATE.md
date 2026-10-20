@@ -62,6 +62,8 @@ hits 600 s at E2E_JOBS=2). Not on the laptop queue while paused. warehouse-lamps
 tuner-v2: item 2 checker PASS (fingers partial: one curl per hand + trigger on / off, the rig has no finger joints);
 registry merged in (532adb2b), so the PR order is tuner-camera first, then tuner-v2. Wiring step running; laptop tests
 the wired head (b8bc1846 dropped if not started).
+02:50 usage: 5-hour 64% (reset ~04:30), weekly 78% (+3% in ~40 min with only animation work + merges): at this pace
+the weekly window runs out around 06:30-08:00. Only animation work is running; checkers stay per slice (Michael 00:58).
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
