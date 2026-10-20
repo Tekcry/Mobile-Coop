@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - warehouse-redesign
+## 4.14.0 - Sector Ops: Warehouse section 1 rebuilt (three routes, logical guard posts) (2026-10-20, PR #37)
 - Dogs carry no flashlight (Michael, M1): only human guards take a torch slot when searching in the dark (pure
   `carriesTorch` / `torchRule` in `ai/archetypes.ts`, tested); a dog no longer lights the player or the meter.
 - Sector Ops Warehouse section 1 rebuilt as a greybox prototype (M1, M6; `docs/warehouse-redesign/SPEC.md` 5,
