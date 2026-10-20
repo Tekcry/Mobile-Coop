@@ -533,9 +533,9 @@ export class Player {
     wi.teleports = c.teleports;
     this.weightMotion = m.state;
     this.weightTraverse = cp.traverse;
-    weightBegin(wi, c.crouched, this.wasDrawn);
     tuneBegin(rp, this.rig, dt); // (anim-tuner) the local player's slider values, this rig only (pass 2: eased over dt)
     try {
+      weightBegin(wi, c.crouched, this.wasDrawn); // inside the try: weightEnd always closes it
       this.rig.animate(dt, rp);
     } finally {
       tuneEnd(this.rig);

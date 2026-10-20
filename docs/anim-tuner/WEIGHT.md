@@ -75,6 +75,11 @@ pose is on, the motion driver bit for bit identical at identity, a slower start 
   was timed here; the Weight change adds one assert and a few hundred flops per frame.
 
 ## Open items
+- (check) The sling offset is re-applied after each pose; on frames the animation detail cutoff skips posing (a rig far
+  from the camera, free view) it doubles. Visual only, off identity only.
+- (check) The arm spring moves the weapon and so the muzzle used as the fire origin, by up to 0.15 m off identity
+  (as the Gun section's offsets do): bake it with care.
+- (check) While the stop settle overshoots, `ctStopDistance` still assumes a forward slide (tuning only).
 - e2e-menus runs past the 600 s suite cap on the desktop (840 s solo): time it on master to see whether it is new.
 - Pouches and other kit on the body mesh have no spring (only the carried guns); the thigh holster is left alone.
 - Small landings (`landingKind` 'none') do not move the landing counter, so they get no landing load.
