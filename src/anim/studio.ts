@@ -151,7 +151,9 @@ export const STUDIO_ENTRIES: readonly StudioEntry[] = [
 ];
 
 export function studioEntry(id: string): StudioEntry {
-  return STUDIO_ENTRIES.find((e) => e.id === id) ?? off;
+  // a plain loop: called every fixed step and frame (no closure allocation)
+  for (let i = 0; i < STUDIO_ENTRIES.length; i++) if (STUDIO_ENTRIES[i]!.id === id) return STUDIO_ENTRIES[i]!;
+  return off;
 }
 
 /** Front / side / top / back camera snaps (free-view orbit presets). */

@@ -121,10 +121,11 @@ export class TuneHistory {
     return this.redos.length;
   }
 
-  private apply(m: TuneValueMap, now: number): void {
+  private apply(m: TuneValueMap, _now: number): void {
     this.applying = true;
     try {
-      tuneApplyValues(m, now);
+      // the change log keeps wall-clock times (tuneSet's default Date.now()); `now` is the history's own clock only
+      tuneApplyValues(m);
     } finally {
       this.applying = false;
     }
