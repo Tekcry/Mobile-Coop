@@ -46,6 +46,7 @@ import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
+import { WALL_KEYS, WallKeyed } from './wallKeyed';
 
 
 export const FADE = 0.2;
@@ -677,6 +678,9 @@ export class AnimGraph {
   private readyStillS = 0;
   /** (anim-rework S2) The eased standing holstered weight (`RigTargets.keyHol`). */
   private keyHolS = 0;
+  /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
+  private keyWallS = 0;
+  private readonly wallKeys = new WallKeyed();
   /** Grenade hands weight (eased), for the ready-hands follow (the melee arc keeps the follow: step 10). */
   private handClipW = 0;
   /** Ready-hands follow of the chest and pelvis (m, root space), eased by READY_HANDS.lag. */
@@ -922,17 +926,20 @@ export class AnimGraph {
       // (G6) the flat-back parts ease out as the body turns side-on (flatW)
       const ws = (this.wallS || 1) * flatW;
       const st = WALL_STANCE;
+      // (anim-rework S5) the wall keys carry the standing drop, the slide's chest turn and the side-on trunk: those
+      // terms give way to them by the keyed wall weight (last frame's)
+      const wkOff = 1 - this.keyW * this.keyWallS;
       src[CH.pelX] = src[CH.pelX]! + st.pelX * ws;
       src[CH.spRoll] = src[CH.spRoll]! + st.spRoll * ws;
       src[CH.pelRoll] = src[CH.pelRoll]! + st.pelRoll * ws;
       src[CH.hdRoll] = src[CH.hdRoll]! + st.hdRoll * ws;
-      src[CH.pelY] = src[CH.pelY]! + (st.pelYStand + (st.pelY - st.pelYStand) * crouchK) * flatW;
+      src[CH.pelY] = src[CH.pelY]! + (st.pelYStand + (st.pelY - st.pelYStand) * crouchK) * flatW * wkOff;
       src[CH.pelPitch] = src[CH.pelPitch]! + st.pelPitch * flatW;
       src[CH.spPitch] = src[CH.spPitch]! + st.spPitch * flatW;
       // (G6, AUDIT-WALLS row 3) sliding standing the chest turns toward the travel (square at rest)
-      src[CH.spYaw] = src[CH.spYaw]! + (this.wallS || 0) * st.spYawSlide * this.moveW * (1 - crouchK) * flatW;
+      src[CH.spYaw] = src[CH.spYaw]! + (this.wallS || 0) * st.spYawSlide * this.moveW * (1 - crouchK) * flatW * wkOff;
       // (G6, row 1) side-on: bent well over the knees, deeper than the free crouch's lean
-      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW;
+      src[CH.spPitch] = src[CH.spPitch]! + WALL_SIDE_POSE.spine * sideK * wallW * wkOff;
       // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
       this.tuckW = approach(this.tuckW, atWall && (i.reload >= 0 || i.swap >= 0 || i.grenade >= 0) ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
@@ -1461,10 +1468,14 @@ export class AnimGraph {
       const stillD = 1 - this.moveW;
       const kH = gate * (loco + still) * (1 - dOn);
       const kDr = gateD * (locoD + stillD);
-      const kT = kH + kDr;
+      // (anim-rework S5) back to a wall: the wall keyed set (wallKeyed.ts), holstered (free hands) on foot and not
+      // aiming; a drawn weapon keeps the procedural wall pose (WALL_READY, the edge lean-outs)
+      const kWl = i.wall && i.grounded && i.traverse === 'none' && i.slide < 0 ? wallW * fw * (1 - this.raiseS) : 0;
+      const kT = kH + kDr + kWl;
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
       if (kT > 1e-4) this.keyDS = approach(this.keyDS, kDr / kT, B.tau, dt);
+      if (kT > 1e-4) this.keyWallS = approach(this.keyWallS, kWl / kT, B.tau, dt);
       this.readyStillS = approach(this.readyStillS, gateD, READY_STANCE.tau, dt);
       const dS = o.keyW > 0 ? this.keyDS : 0;
       o.keyArmW = o.keyW * fw * (1 - dS) * (i.melee >= 0 ? 0 : 1);
@@ -1474,6 +1485,7 @@ export class AnimGraph {
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
+      if (o.keyW > 0 && this.keyWallS > 1e-4) this.keyedWallSet(ph, this.keyWallS, crouchK, Math.abs(bd) / WALL_KEYS.peekLean, pose, o);
     }
     this.writeTargets(pose, i, k, ph);
     this.out.weaponBob = this.bobResidual;
@@ -1510,6 +1522,26 @@ export class AnimGraph {
     kneeOut += (KEYED_IDLE.kneeOut - kneeOut) * idleShare;
     this.kHalf = half;
     o.keyKneeOut = kneeOut;
+  }
+
+  /**
+   * (anim-rework S5) The wall keyed set mixed into `o.keyed` by its share `wS` (idle / slide / peek, standing and
+   * crouched, mirrored by the side: wallKeyed.ts), with its track, knee pole, duty and lift. Crouched the keys' height is
+   * the full crouch depth (S5-KEYS), so the procedural crouch drop gives way to it. The drawn share reported floors at
+   * WALL_KEYS.gate: the rig applies the keyed pose only in free gait or drawn (a rig gate for CT Core, S5-REPORT).
+   */
+  private keyedWallSet(ph: number, wS: number, crouchK: number, peek: number, pose: Pose, o: RigTargets): void {
+    const W = this.wallKeys;
+    W.sample(ph, this.idleT, this.moveW, peek, crouchK, this.wallS || 1);
+    mixKeyed(o.keyed, W.pose, wS, o.keyed);
+    this.kHalf += (W.half - this.kHalf) * wS;
+    o.keyKneeOut += (W.kneeOut - o.keyKneeOut) * wS;
+    this.kDuty += (W.duty - this.kDuty) * wS;
+    this.kLift += (W.liftH - this.kLift) * wS;
+    this.kWalk *= 1 - wS;
+    o.keyScan *= 1 - wS;
+    pose[CH.pelY] = pose[CH.pelY]! * (1 - o.keyW * wS * crouchK);
+    o.keyDrawn = Math.max(o.keyDrawn, WALL_KEYS.gate);
   }
 
   /** (anim-rework S3) The speed set's blended clip values (`speedSet`). */

@@ -474,6 +474,122 @@ try {
     if (process.env.CRAB_JSON) console.log(`CRAB_STATES_JSON ${JSON.stringify(stateRows)}`);
   }
   {
+    // (anim-rework S5) back to a wall, holstered (the wall keyed set, wallKeyed.ts): idle, slide both ways and the edge
+    // peek, standing and crouched, on a free high wall on Proving. Asserted: the knees within the stance's range, knees
+    // over the toes (<= 3 cm), the feet never cross; the track against WALL_TRACK (the idle's hip width, the side step's
+    // lead foot: S5-KEYS) and the planted slide / elbows report-only. CRAB_JSON prints the rows.
+    console.log('anti-crab: back to a wall, holstered (S5)');
+    const WALL_TRACK = { idle: 0.105, move: 0.16 };
+    const wallRec = (crouch, plan) =>
+      G(([crouch, plan]) => {
+        const t = window.__t;
+        const g = window.__app.current;
+        const p = g.player;
+        const c = p.controller;
+        const rig = p.rig;
+        const st = window.__app.input.state;
+        const V = p.position.constructor;
+        p.stance.holster();
+        t.run(0.4, {});
+        const ray = (x0, y0, z0, x1, y1, z1) => !g.ballistics.ray(new V(x0, y0, z0), new V(x1, y1, z1), 1).hit;
+        const segs = g.world.level.coverSegments;
+        let seg = -1;
+        for (let i = 0; i < segs.length && seg < 0; i++) {
+          const s = segs[i];
+          if (s.low || Math.abs(s.y) > 0.3 || s.len < 4 || s.len > 14) continue;
+          let ok = true;
+          for (const k of [0.5, s.len / 2, s.len - 0.5]) {
+            const x = s.ax + s.tx * k + s.nx * 0.45;
+            const z = s.az + s.tz * k + s.nz * 0.45;
+            ok = ok && ray(x, s.y + 1, z, x + s.nx * 2.5, s.y + 1, z + s.nz * 2.5) && ray(x, s.y + 0.3, z, x + s.nx * 2.5, s.y + 0.3, z + s.nz * 2.5);
+          }
+          if (ok) seg = i;
+        }
+        if (seg < 0) return { err: 'no free high wall on Proving' };
+        const s = segs[seg];
+        const enter = (k) => {
+          c.clearCrouchToggle();
+          const yaw = Math.atan2(-s.nx, -s.nz);
+          c.teleport(new V(s.ax + s.tx * k + s.nx * 0.75, s.y + 0.05, s.az + s.tz * k + s.nz * 0.75), yaw);
+          p.cam.yaw = yaw;
+          p.cam.pitch = 0;
+          p.cam.snap();
+          rig.planner.L.init = rig.planner.R.init = false;
+          t.run(0.3, {});
+          st.tap('cover');
+          t.run(0.8, {});
+          if (crouch) {
+            st.tap('crouch');
+            t.run(0.8, {});
+          }
+        };
+        const joints = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR'];
+        const rows = {};
+        for (const [name, k0, x, warm, rec] of plan) {
+          enter(k0 < 0 ? s.len + k0 : k0);
+          if (!g.wallCore.active) return { err: `${name}: not on the wall (${g.wallCore.phase})` };
+          t.run(warm, { x });
+          const out = Object.fromEntries(joints.map((j) => [j, []]));
+          out.contactL = [];
+          out.contactR = [];
+          let speed = 0;
+          let keyW = 0;
+          let n = 0;
+          t.run(rec, { x }, () => {
+            for (const j of joints) {
+              const b = rig[j];
+              b.computeWorldMatrix(true);
+              const v = b.getAbsolutePosition();
+              out[j].push(v.x, v.y, v.z);
+            }
+            out.contactL.push(rig.planner.L.contact ? 1 : 0);
+            out.contactR.push(rig.planner.R.contact ? 1 : 0);
+            speed += c.speed;
+            keyW += rig.keyedWalk;
+            n++;
+            return 0;
+          });
+          out.speed = speed / Math.max(1, n);
+          out.keyW = keyW / Math.max(1, n);
+          out.edge = g.wallCore.edge;
+          out.onWall = !!g.wallCore.active;
+          rows[name] = out;
+        }
+        c.clearCrouchToggle();
+        st.tap('cover');
+        t.run(0.6, {});
+        return rows;
+      }, [crouch, plan]);
+    // [name, k (m along; < 0 from the far end), stick x, warm-up s, recorded s]; the peeks walk 0.8 m to an end and hold
+    const plan = [
+      ['idle', 2, 0, 0.6, 1.0],
+      ['slide right', 2, 1, 0.8, 1.2],
+      ['slide left', 2, -1, 0.8, 1.2],
+      ['peek right', -0.8, 1, 2.6, 1.0],
+      ['peek left', 0.8, -1, 2.6, 1.0],
+    ];
+    const wallRows = [];
+    for (const crouch of [false, true]) {
+      const rows = await wallRec(crouch, plan);
+      assert(!rows.err, `wall recording: ${rows.err}`);
+      for (const [name] of plan) {
+        const rec = rows[name];
+        const nm = `wall ${crouch ? 'crouched ' : ''}${name}`;
+        const C = { ...L.crabRanges(crouch), trackHalf: name === 'idle' ? WALL_TRACK.idle : WALL_TRACK.move };
+        const r = crabRow(nm, rec, crouch, false, C);
+        wallRows.push({ crouch, ...r.row, keyW: +rec.keyW.toFixed(2), edge: rec.edge });
+        console.log(crabLine(r, rec) + ` keyed ${f2(rec.keyW)}${name.startsWith('peek') ? ` edge ${rec.edge}` : ''}`);
+        assert(rec.onWall, `${nm}: still on the wall`);
+        assert(rec.keyW > 0.9, `${nm}: the wall keys play (keyed weight ${f2(rec.keyW)})`);
+        assert(r.knee.pass, `${nm}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
+        assert(r.bow.pass, `${nm}: knees over the toes (outside by ${r.row.bow} cm)`);
+        assert(r.track.min > -0.005, `${nm}: the feet never cross (${r.row.track[0]} cm)`);
+        assert(r.track.pass, `${nm}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
+      }
+    }
+    if (process.env.CRAB_JSON) console.log(`CRAB_WALL_JSON ${JSON.stringify(wallRows)}`);
+  }
+  {
     // (anim-rework S3) drawn, standing, rifle and pistol: the aimed idle, the glide (strafe right and left, backwards,
     // forward) at speeds 1-2 (the aim's cap: speed 3 reads as 2) after 1.2 s of it (the steady glide: a slow back-step
     // takes that long to re-step the ready stance's feet), the low ready idle, walk and jog. CRAB_DRAWN_GATES turns
