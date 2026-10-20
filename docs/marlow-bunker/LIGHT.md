@@ -25,7 +25,10 @@ brighter of chest and head; bands (`LIGHT`, bible L6): dark < 0.28, mid 0.28-0.6
   airlocks with the doors shut, the station 3 camera sees the same.
 - Parity risk for the PC run (render only, not measured here): voxel surfaces take the sky bake's fill, which is about 0
   under a slab, so walls and floors between the pools may render darker than before at the same meter value (the
-  darkness curve already renders 0.30 near black). GPU look: pending PC run.
+  darkness curve already renders 0.30 near black). GPU look (orchestrator, 99349d64, voxel path): the floor between
+  the pools is not too dark. After smooth-world (#58, voxels off by default) the smooth path takes the same sky-bake
+  fill: `tests/levelFillParity.test.ts` reads the same fill on both paths at every Marlow point under the ceilings (walls
+  0.020, floors 0.036), so the default path renders as the look did.
 
 ## Every point
 | Point | Before | After | Change |
