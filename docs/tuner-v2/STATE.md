@@ -1,24 +1,16 @@
 # Animation tuner v2 - state
 
-## Now (2026-10-21 04:00)
-Items 1-4 built and checked (CHECK1-4; one fix each for items 1 and 4), wired through Course Ready's section registry
-(df00a947 merged; WIRE.md): tuner sections Joints, Hands & feet, IK strength, Weapon, Stepping, Keys. Laptop PASS on
-a8aef532 (wired 1-2) and f2dabf8d (item 3); a3ea3e56 (item 4) requested; f06fd8f9 adds only the apply-tune.mjs guard and
-docs. Defaults identity throughout. Waiting for #65 tuner-camera and #66 CT Core slices 4+5 to merge.
+## Now (2026-10-21): DONE
+Merged to master as 4.25.0 (PR #68, 52178c06; the orchestrator set the version and moved /preview/). Items 1-4 and the
+registry wiring checked (CHECK1-4); full e2e PASS on db8bedc5 (laptop, 1824 s). This STATE commit is on feature/tuner-v2
+after the merge: it reaches master only with a later docs merge.
 
 ## Try first (for Michael)
 - Stepping > run / crouchRun replant 0.8 fixes the stuck trailing foot (about 9 cm sooner, no slide). Defaults stay
   identity: his call (ITEM3.md).
 
 ## Next
-1. (done) Items 1-4.
-2. Merge order (orchestrator): #65 tuner-camera, then #66 CT Core slices 4+5 (edits footPlanner.ts), then tuner-v2.
-   After #66 lands: merge master into feature/tuner-v2 keeping both sides (our 13 footPlanner read hooks + slice 4's
-   planner edits), laptop check + e2e-anim, then the PR's full e2e.
-4. PR to master (minor) with the "Try first" line; full `E2E_SUITE_TIMEOUT=900 npm run e2e` on its head (laptop).
-3. (done) Bring in the section registry (feature/tuner-camera @ df00a947: `src/anim/tuneRegistry.ts`, registerTuneSection;
-   docs/anim-tuner/STATE.md "Section registry (for other jobs)"), merge or cherry-pick only its registry commits; do not
-   touch the camera section or the pad map. Wire items 1-2 through it (one commit), check; then items 3 and 4.
+Nothing. Michael tries the tuner (Try first above); his feedback starts any follow-up.
 
 ## Open
 
@@ -28,6 +20,7 @@ docs. Defaults identity throughout. Waiting for #65 tuner-camera and #66 CT Core
   finger joints in the rig (one curl per hand).
 
 ## Done
+- 2026-10-21: merged as 4.25.0 (PR #68).
 - 2026-10-21: items 1-4, registry wiring, checks (see Now).
 - 2026-10-21: worktree, BRIEF, STATE.
 
