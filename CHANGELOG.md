@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased - marlow-bunker
+- Marlow Yard is an underground training bunker (Michael 2026-10-20, the approved audit shortlist;
+  `docs/marlow-bunker/`). Ceilings per test cell (low cells 4.5 m, the laser cell 5.5 m, the climbing and kill-house
+  halls 7.5 m), perimeter and airlock walls 6 -> 7.5 m, no moon, a dark sky and close fog. The open floor still reads
+  0.30 (all fill now, Michael's choice): every light level the course was tuned on is within 0.08 (`LIGHT.md`).
+- All 29 lamps have fittings, cool white: pendants on rods at today's heights in the high halls, flush strips in the
+  low cells and the laser cell (faintly red), flush panels in the kill-house, caged bulkheads under the airlocks' new
+  3.2 m lids (chamfered haunches). Compensated by measurement.
+- The station 3, 6 and 8 walls are bulkheads up to the ceiling; station 4's wall runs to its ceiling with a header from
+  4.6 m over the laser gap (the throw passes under it). No new climbs: under the ceilings the only lips are the
+  planned ones (S2 / S7 walls, the S5 roof front, the S7 stair); the 6 m perimeter lips once hangable from the high
+  wall tops are gone.
+- Dressing (no collision, no light change except the ribs and haunches near the ceiling): ceiling ribs, haunches, LED
+  strips, wall panel seams, a colour band per cell, steel door frames with status lamps, the entry lift (west) and the
+  goods lift (east); readability paint: the leg-up mark up the S2 / S5 / S7 wall faces, the S3 camera's sweep edges,
+  the S4 beam emitters, the S5 hatch cover, the S6 "pair" line, the S7 rope anchor.
+- Text: "fence" is "wall" (station 4 panel, radio and objective; the training guard's line); the spec carries the
+  bunker fiction and an element register.
+- GPU look: pending a PC run.
+
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").

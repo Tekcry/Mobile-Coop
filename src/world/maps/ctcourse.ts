@@ -14,8 +14,9 @@ import { bayCeiling, bayWalls, bulkheadCage, CELL_BANDS, doorFrame, emitter, flo
 /**
  * Marlow Yard (CT prototype B1, `docs/ct-prototype/CTCOURSE-SPEC.md`): the training floor of a Cold War signals bunker
  * (marlow-bunker: ceilings, fittings, airlock lids), eight stations in CT's training order along +x, each a test cell of
- * the course framework (airlocks between them). Every number is a prototype starting value (G10). The station obstacles are geometry plus a PLACEHOLDER door gate (pair / timed hold)
- * so the course stays completable until slices B2-B8 build the real moves; each placeholder is marked in its label.
+ * the course framework (airlocks between them). Every number is a prototype starting value (G10). The station obstacles
+ * are geometry plus a PLACEHOLDER door gate (pair / timed hold) so the course stays completable until slices B2-B8
+ * build the real moves; each placeholder is marked in its label.
  * Reached by `?autostart=ctcourse&mode=course` (not listed). Old Fallow bunker: `?legacy=1&autostart=bunker`.
  */
 
@@ -275,9 +276,10 @@ function courseDef(): CourseDef {
 }
 
 /**
- * Marlow Yard. Plan (x east, z north, floor 0): the yard is 14 m wide; bay i spans x = 22 i .. 22 i + 16 and its airlock
+ * Marlow Yard. Plan (x east, z north, floor 0): the gallery is 14 m wide; bay i spans x = 22 i .. 22 i + 16 and its airlock
  * 22 i + 16 .. 22 i + 22. Obstacle walls stand at bay x + 9 (full width, one 1.2 m placeholder door); station 5 is a
- * roofed annex (roof top 4.4) with a second internal wall (the hack grid).
+ * roofed annex (roof top 4.4) with a second internal wall (the hack grid). Every cell and airlock has a ceiling (`CT_CEIL`,
+ * `AIRLOCK_LID`).
  */
 export const ctcourse: MapDef = {
   id: 'ctcourse',
