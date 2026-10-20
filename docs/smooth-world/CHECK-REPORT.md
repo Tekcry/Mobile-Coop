@@ -117,3 +117,30 @@ Lint / unit / build taken as reported (0 errors, 2098 pass, build pass); no e2e 
 4. `e2e-lightbake` assertion runs on the `gfx=epic` config only, so the voxel config and `gfx=min` cannot false-fail it.
    It waits up to 30 s for a ready `levelMat-*` effect carrying `BAKED_LAMPS`, then needs `LAMP_LEVEL` there and on no
    other lamp-plugin effect. Sound.
+
+## Re-check 2 (fix round 2, 9e90750c)
+2026-10-21, laptop, fresh checker, logic only. Read IMPL-REPORT "Fix round 2", `git diff 12a602dd..9e90750c -- src tests
+scripts` (2 commits: 1de3b40b docs, 9e90750c fix). Verdict: PASS.
+1. Formula parity: `LAMP_SKY` (`bakedLamps.ts:926-933`) is the VoxelPlugin fill term for term: mix(ground, sky, n.y x
+   0.5 + 0.5) x (0.12 + 0.88 x vis) x albedo, sky sampled 0.6 cells off the face; colours are `hemi.diffuse` /
+   `hemi.groundColor` x `hemi.intensity` x pi, as `World` gives `setFill` (`world.ts:164-167` vs `:255-258`). Probe
+   irradiance and reflections x (0.35 + 0.65 x vis) on top of nsR (nsBF = 1 under LAMP_LEVEL), as `vxRefl`. The hemi is
+   still subtracted (`:847-848`) and the flat grid fill is in the `#else` only. Constants shared from `levelFill.ts`;
+   VoxelPlugin values unchanged. Not modelled: the voxel `shade` (AO / tone) factor, documented.
+2. Unchanged paths: LAMP_SKY needs `isLampLevel` (only the PBR `levelMat-*`) plus `lamps.level` and `skyTex`; the sky
+   job runs only with `!vo && atlas && flags.baked` (`world.ts:243`), so `?voxels=1` (thin-piece levelMat included)
+   and `?gfx=min` (atlas null) get `level: null`. VOXELS materials take the outer `#else` (nsEnv = 1).
+3. GLSL: LAMP_SKY in the super() defines, `lampSky` declared under `#ifdef LAMP_SKY` and in `getSamplers`, 4 vec4s in
+   the UBO list and the fragment declarations, bound under the same condition as the define. `nsEnv` declared once in
+   every branch. Texture units (estimate, compiled list): PBR reflection + BRDF 2, surf 2, lampVis / lampData / lampMoon
+   / lampAmb / lampSky 5 (volume is null on this path), sun CSM PCF 1, flashlight shadows <= 2 (`BAKED_SHADOWS`), the
+   cluster <= 2: about 14 of 16. Not blocking; `e2e-desktop` texProbe (<= 16 at Epic, alerted) is the proof and must run.
+4. Render only: `skyTex` / `level` are read only by LampPlugin; gameplay, the light bake and `lightBakeHash` are
+   untouched. No lights: the job's result is dropped, `.catch(() => null)` swallows failures (inline-pool throws
+   included), the pool is disposed in `finally`; an empty shape set gives a 1x1x1 grid. A rejected bake leaves the old
+   grid fill (LAMP_SKY off). Minor: the job also runs (wasted, ~0.1-0.6 s in a worker) on maps with no lamp bake.
+5. `levelFillParity.test.ts` is a real comparison: two independent sky bakes (the voxel layer's shapes on its grid vs
+   the canonical shapes filtered and laid out by `skyShapes` / `skyGridFor`), compared at 7 points, plus a roofed /
+   open sanity check on the voxel bake. Gaps: it re-implements `smoothSky`'s three lines instead of calling it, and
+   cannot check the GLSL (covered by the shared constants and `e2e-lightbake` LAMP_SKY assert).
+Still needed (desktop): e2e-lightbake, e2e-desktop texture count, and the default vs `?voxels=1` wall re-shoot.
