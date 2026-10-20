@@ -849,9 +849,12 @@ try {
         const pt = new V();
         let gx = 0;
         let gz = 0;
-        // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head
+        // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head. (stealth-peek-wait) Once a
+        // guard stands there, its own eye (`eyeOf`): the 1.55 m guess is 4 cm below a grunt's eye, and a spot picked by
+        // the guess could show the real guard the chest too ("sees the peeking head only" failed, #65 / #71)
+        let eyeOf = null;
         const see = () => {
-          const eye = new V(gx, s.y + 1.55, gz);
+          const eye = eyeOf ? eyeOf(new V()) : new V(gx, s.y + 1.55, gz);
           // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
           const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
           return { chest: clear(g.target.aimPoint(pt).clone(), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
@@ -881,7 +884,9 @@ try {
           e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
           if (!e) continue;
           place(e.pos.x, e.pos.z);
+          eyeOf = (o) => e['eye'](o);
           const v = see();
+          eyeOf = null;
           if (!v.chest && v.head) break;
           g.enemyMgr.clear();
           e = null;

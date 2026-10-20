@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.32.3 - e2e-stealth-ai wall peek picks its spot with the guard's own eye (2026-10-21, PR #78)
+- e2e-stealth-ai's wall peek block keeps a guard spot only if the spawned guard's own eye sees the peeking head and
+  not the chest. It picked the spot with a 1.55 m eye guess, 4 cm below a grunt's eye, so the real guard could see the
+  chest too and "the guard there sees the peeking head only" failed now and then (#65, #71). Test only.
+
 ## 4.32.2 - The last of pad aim assist removed (G16) (2026-10-21, PR #77)
 - No aim assist (G16): the last of it, the pad's `gamepad.aimAssist` setting (default "standard", read by nothing since
   the aim-assist code went), is removed; an old stored value is dropped when settings load. Tests and the e2e helpers
