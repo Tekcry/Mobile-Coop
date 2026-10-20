@@ -5,6 +5,9 @@
   the weight moving onto each stance foot (a 3 cm bob, the pelvis over the planted foot), a soft stance knee, fewer and
   longer steps (132 a minute at 1.4 m/s, was 145; 162 at the jog, 185 at the run); the jog and run hands pass the hip.
   Every number is a named constant or key (`docs/anim-rework/S2B-REPORT.md`).
+- (merge S2b x S4) A running crouch no longer flicks the hands: the holstered keyed speed blend reads the pace eased
+  (`KEYED_GAITS.paceTau` 0.1 s), so the crouch's speed cap no longer sweeps the re-keyed jog and walk arms in 8 frames
+  (stand <-> crouch running 10 -> 5.1 cm per frame, limit 7.5).
 
 ## 4.24.0 - Crouched movement and the wall set reworked (anim-rework slices 4 and 5) (2026-10-21, PR #66)
 - Crouched movement (slice 4, `docs/anim-rework/S4-REPORT.md`; the real-world operator standard, BRIEF 3 "Stealth"):

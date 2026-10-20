@@ -705,6 +705,8 @@ export class AnimGraph {
   private cIdle = 0;
   private cIdleS = 0;
   private cPace = 0;
+  /** (merge S2b x S4) The standing keyed set's effort pace, eased (KEYED_GAITS.paceTau). */
+  private sPace = 0;
   /** (anim-rework S4) The procedural breath's phase (rad). */
   private breathPh = 0;
   private kCk = 0;
@@ -1527,7 +1529,9 @@ export class AnimGraph {
       this.cIdleS = approach(this.cIdleS, cStill, cStill > this.cIdleS ? KEYED_CROUCH.settleIn : KEYED_CROUCH.settleOut, dt);
       this.cPace = approach(this.cPace, effortSpeed(locoSpeed, true), KEYED_CROUCH.paceTau / Math.max(0.05, this.moveW), dt);
       if (this.kCk > 0) this.crouchSet(ph, this.cPace, this.cIdleS);
-      this.keyedSet(ph, es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
+      // (merge S2b x S4) the holstered set's speed blend reads the pace eased (KEYED_GAITS.paceTau)
+      this.sPace = approach(this.sPace, es, KEYED_GAITS.paceTau, dt);
+      this.keyedSet(ph, this.sPace, loco + still > 1e-4 ? still / (loco + still) : 0, o);
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
@@ -2039,9 +2043,11 @@ export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.35, 
  * (anim-rework S2) The standing keyed speed blend in effort pace (GAIT_REF units, `effortSpeed`): the walk alone up to
  * `walkTo` (2.0: 2.1 m/s), cross-faded into the jog by `jogFrom` (2.6: ~2.6 m/s), the jog alone to `jogTo` (3.2: ~3.3
  * m/s), into the run by `runFrom` (3.8: ~4.2 m/s). Smoothstep fades: the gait never pops; the stride and cadence stay the
- * planner's, from the actual ground speed.
+ * planner's, from the actual ground speed. (merge S2b x S4) `paceTau` (s): the holstered blend reads the effort pace eased
+ * over it (as the crouched set's KEYED_CROUCH.paceTau): a running crouch caps the speed from 2.8 to 2.1 m/s in about 8
+ * frames, and that sweep through S2b's re-keyed jog and walk arms flicked the wrist 10 cm a frame (e2e-anim CROUCH_POP 7.5).
  */
-export const KEYED_GAITS = { walkTo: 2.0, jogFrom: 2.6, jogTo: 3.2, runFrom: 3.8 } as const;
+export const KEYED_GAITS = { walkTo: 2.0, jogFrom: 2.6, jogTo: 3.2, runFrom: 3.8, paceTau: 0.1 } as const;
 /** (anim-rework S2) The keyed idle's cycle (s): three slow breaths, a weight shift each way and a head scan each way. */
 export const KEYED_IDLE_PERIOD = 12;
 /**
