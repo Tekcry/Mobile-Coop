@@ -10,8 +10,8 @@
  *
  * Per slider and group the result is one of: baked; manual: shared target (the groups reading one code value differ;
  * `allowShared` bakes a single changed group and warns); manual: no code target (the table's reason); Keys (the key
- * JSONs via the apply-tune functions, then a rebake per clip); already baked (the ledger: the same export baked
- * before); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
+ * JSONs via the apply-tune functions, then a rebake per clip); already baked (the ledger: this group and slider were
+ * baked before at this same value, in this export or an earlier one); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
  */
 import { applyKeyEdits, editedClips, KEY_FIELDS, KEY_RANGE, keyFileText, parseKeyGroup, type KeyFile } from './tuneKeysFile';
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
@@ -344,7 +344,7 @@ interface LedgerEntry {
   hash: string;
   exported: string;
   at: string;
-  /** `group|id` of every baked value. */
+  /** `group|id=value` of every baked value (fix round S3: a later export with that value is never baked again). */
   baked: string[];
 }
 interface Ledger {
@@ -489,12 +489,16 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   } catch (err) {
     return fail(`${BAKE_LEDGER}: ${(err as Error).message}`);
   }
-  const done = new Set<string>();
-  for (const b of ledger.bakes) if (b.hash === hash && Array.isArray(b.baked)) for (const k of b.baked) done.add(k);
+  // (fix round S3) group|id=value -> when it was baked: any export (not only this one) that still carries a baked value
+  // (the tuner's save keeps it until the slider is reset) is never baked twice
+  const doneAt = new Map<string, string>();
+  for (const b of ledger.bakes) if (Array.isArray(b.baked)) for (const k of b.baked) if (typeof k === 'string' && k.includes('=')) doneAt.set(k, typeof b.at === 'string' ? b.at : '?');
+  const ledgerKey = (group: string, id: string, v: number): string => `${group}|${id}=${v}`;
 
   // 2. the rows
   const rows: BakeRow[] = [];
   const warnings: string[] = [];
+  let skippedN = 0;
   const entries: Entry[] = [];
   const only = opts.only && opts.only.length ? new Set(opts.only) : null;
   for (const a of all) {
@@ -504,14 +508,17 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     if (!t) {
       row.result = 'skipped: no bake rule (a slider this build does not know)';
       rows.push(row);
+      skippedN++;
       continue;
     }
     if (a.value === t.def) continue;
     if (only && !only.has(t.section)) continue;
     rows.push(row);
-    const key = `${a.group}|${a.id}`;
-    if (done.has(key)) {
-      row.result = 'already baked (ledger: this export was baked before; re-export after resetting the baked sliders)';
+    const key = ledgerKey(a.group, a.id, a.value);
+    const at = doneAt.get(key);
+    if (at !== undefined) {
+      // counted as identity below: the code already holds it
+      row.result = `already baked (same value as the bake of ${at}; reset this slider in the tuner)`;
       continue;
     }
     entries.push({ section: t.section, group: a.group, id: a.id, value: a.value, t, key, row });
@@ -537,8 +544,6 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
       if (en) changed.push(en);
     }
     if (changed.length === 0) continue;
-    // a rule whose value was baked before (the ledger) is skipped as a whole
-    if (r.groups.some((g) => done.has(`${g}|${r.id}`))) continue;
     const def = changed[0]!.t.def;
     const vals = r.groups.map((g) => value(r.section, g, r.id, def));
     const same = vals.every((v) => v === vals[0]);
@@ -565,7 +570,7 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   // 4. the rows' results; the edits of the baking rules
   const pending = new Map<string, Map<string, PendingOp[]>>();
   let baked = 0;
-  let manualN = 0;
+  let manualN = skippedN;
   for (const en of entries) {
     const row = en.row;
     if (en.section === 'keys') continue;
@@ -663,7 +668,7 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   }
 
   // 7. the ledger
-  const bakedKeys = entries.filter((en) => en.row.result.startsWith('baked')).map((en) => en.key);
+  const bakedKeys = entries.filter((en) => en.row.result.startsWith('baked')).map((en) => ledgerKey(en.group, en.id, en.value));
   if (bakedKeys.length && writes.length) {
     const next: Ledger = { note: ledger.note ?? 'anim-bake: exports baked into the code defaults (scripts/anim-tune-bake.mjs); a re-run of one is a no-op', bakes: [...ledger.bakes, { hash, exported: typeof exp.exported === 'string' ? exp.exported : '', at: (opts.now ?? new Date()).toISOString(), baked: bakedKeys }] };
     writes.push({ path: BAKE_LEDGER, before: ledgerText ?? '', after: `${JSON.stringify(next, null, 2)}\n` });

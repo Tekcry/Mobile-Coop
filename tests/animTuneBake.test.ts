@@ -1,9 +1,10 @@
 // (anim-bake) The bake of a tuner export into the code defaults: the table covers every slider, every target is found
 // exactly once, a sample export baked into temp copies (never the real tree), refusals, shared targets, the re-run
 // no-op and the Keys section through the apply-tune functions.
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import '../src/player/weightTune';
 import '../src/anim/tuneV2Sections';
@@ -12,11 +13,28 @@ import { TUNE_SECTIONS } from '../src/anim/tuneRegistry';
 import { SPEED_SECTION } from '../src/player/speedTune';
 import { WEIGHT_GROUPS, WEIGHT_TUNABLES } from '../src/anim/weight';
 import { bakeCatalogue, bakeDiff, bakeFmt, bakeTable, editValue, locate, tuneBake, wideRange, type BakeResult } from '../src/anim/tuneBake';
-import { BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, DECLARED_SECTIONS, type BakeRule } from '../src/anim/tuneBakeTable';
+import { BAKE_CATALOGUE_MODULES, BAKE_LEDGER, BAKE_MANUAL, BAKE_OTHER_SECTION_FILES, BAKE_RULES, DECLARED_SECTIONS, type BakeRule } from '../src/anim/tuneBakeTable';
 import { readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
 
 const ROOT = path.join(__dirname, '..');
 const real = (p: string): string => readFileSync(path.join(ROOT, p), 'utf8');
+
+/** (fix round S4) Every file under src/ that registers a tuner section (the registry itself excepted). */
+function registeringFiles(): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const d of readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const rel = `${dir}/${d.name}`;
+      if (d.isDirectory()) walk(rel);
+      else if (d.name.endsWith('.ts') && rel !== 'src/anim/tuneRegistry.ts' && /registerTuneSection\s*[<(]/.test(real(rel))) out.push(rel);
+    }
+  };
+  walk('src');
+  return out.sort();
+}
+const SECTION_FILES = registeringFiles();
+// load them all, so a section a new file registers is in TUNE_SECTIONS and the coverage test sees it
+for (const f of SECTION_FILES) await import(/* @vite-ignore */ pathToFileURL(path.join(ROOT, f)).href);
 
 /** The catalogue as the script builds it (the loadable sections, weight from weight.ts, speed declared). */
 const SCRIPT_CAT = bakeCatalogue([
@@ -63,7 +81,8 @@ const SAMPLE = exportOf([
   entry('cam.wall', 'camPivotAdd', 'add', 0.1), // cam: shared by wall and peek, equal: baked
   entry('cam.peek', 'camPivotAdd', 'add', 0.1),
   entry('spd.stand', 'runMul', 'mul', 1.1), // speed
-  entry('spd.aim', 'glideFwdMul', 'mul', 1.2),
+  entry('spd.aim', 'glideFwdMul', 'mul', 1.2), // manual (fix round B2)
+  entry('spd.aim', 'glideStrafeMul', 'mul', 0.8),
   entry('spd.climb', 'ladderMul', 'mul', 1.2), // a NAME * n form
   entry('joint.walk', 'elbowR_x', 'add', 5), // joints: manual
   entry('hand.rifle.aim', 'handLFwd', 'add', 0.01), // hands & feet: manual
@@ -78,6 +97,12 @@ const SAMPLE = exportOf([
 const num = (text: string, p: string): number => Number(locate(text, p).text);
 
 describe('anim-bake table', () => {
+  it('knows every file that registers a section, and the script catalogue sees every registered section', () => {
+    expect(SECTION_FILES.length).toBeGreaterThanOrEqual(5);
+    for (const f of SECTION_FILES) expect(BAKE_CATALOGUE_MODULES.includes(f) || f in BAKE_OTHER_SECTION_FILES, `${f}: add it to BAKE_CATALOGUE_MODULES or BAKE_OTHER_SECTION_FILES`).toBe(true);
+    for (const s of TUNE_SECTIONS) if (s.id !== 'keys') expect(SCRIPT_CAT.bySection.has(s.id), `section ${s.id}`).toBe(true);
+  });
+
   it('covers every slider of every section and group exactly once (a rule, or a manual entry)', () => {
     for (const s of TUNE_SECTIONS) {
       if (s.id === 'keys') continue;
@@ -203,12 +228,13 @@ describe('anim-bake on a sample export (temp copies)', () => {
     close(num(old(G), 'READY_POSES.low.z'), num(before[G]!, 'READY_POSES.low.z') + 0.02);
     for (const p of ['hang', 'ladder', 'pipe', 'fence', 'rappel']) close(num(old(C), `ATTACH_FRAMING.${p}.boom`), num(before[C]!, `ATTACH_FRAMING.${p}.boom`) + 0.3);
     close(num(old(C), 'ATTACH_FRAMING.wall.pivot'), num(before[C]!, 'ATTACH_FRAMING.wall.pivot') + 0.1);
-    // speed: the point, and the aimed glide with its shares taken back (the strafe speed adsSpeed x strafeMult stays)
+    // speed: the point; the aimed glide's strafe share (the glide forward is manual: it scales the whole glide)
     close(num(old(M), 'GEARS.stand[4]'), num(before[M]!, 'GEARS.stand[4]') * 1.1);
-    close(num(old(M), 'MOVEMENT.adsSpeed'), num(before[M]!, 'MOVEMENT.adsSpeed') * 1.2);
-    close(num(old(M), 'MOVEMENT.adsSpeed') * num(old(M), 'MOVEMENT.strafeMult'), num(before[M]!, 'MOVEMENT.adsSpeed') * num(before[M]!, 'MOVEMENT.strafeMult'));
-    close(num(old(M), 'MOVEMENT.strafeMult'), num(before[M]!, 'MOVEMENT.strafeMult') / 1.2);
-    expect(num(old(M), 'ENEMY_MOTION.adsSpeed')).toBe(num(before[M]!, 'ENEMY_MOTION.adsSpeed'));
+    close(num(old(M), 'MOVEMENT.strafeMult'), num(before[M]!, 'MOVEMENT.strafeMult') * 0.8);
+    expect(num(old(M), 'MOVEMENT.adsSpeed')).toBe(num(before[M]!, 'MOVEMENT.adsSpeed'));
+    expect(num(old(M), 'ENEMY_MOTION.strafeMult')).toBe(num(before[M]!, 'ENEMY_MOTION.strafeMult'));
+    expect(res('spd.aim', 'glideFwdMul')).toBe('manual: no code target');
+    expect(r.rows.find((x) => x.id === 'glideFwdMul')!.target).toMatch(/adsSpeed only caps it/);
     expect(locate(old('src/player/attach.ts'), 'ATTACH.ladder.speed').text).toBe('LADDER_RUNG_RATE * 0.36');
     // stepping, weight (all five groups equal: once, not five times)
     close(num(old('src/anim/footPlanner.ts'), 'PLANNER.idleLift'), num(before['src/anim/footPlanner.ts']!, 'PLANNER.idleLift') * 1.4);
@@ -272,6 +298,58 @@ describe('anim-bake on a sample export (temp copies)', () => {
     const r2 = tuneBake(SAMPLE, SCRIPT_CAT, t.read);
     expect(r2.rows.find((x) => x.id === 'runMul')!.result).toMatch(/^already baked/);
     expect(r2.rows.find((x) => x.id === 'peekLeanMul')!.result).toBe('baked');
+  });
+
+  it('(fix round S3) a later export that still carries a baked value never bakes it twice', () => {
+    const t = tempTree();
+    const W = 'src/player/wallController.ts';
+    const r1 = tuneBake(exportOf([entry('wallPeek', 'peekLeanMul', 'mul', 1.5)]), SCRIPT_CAT, t.read, { now: new Date('2026-10-21T12:00:00Z') });
+    t.write(r1);
+    const lean = num(t.read(W)!, 'WALL.peekLean');
+    // Michael did not reset the slider and tuned one more: a new export, a new hash
+    const r2 = tuneBake(exportOf([entry('wallPeek', 'peekLeanMul', 'mul', 1.5), entry('spd.wall', 'slideStandMul', 'mul', 1.2)], '2026-10-22T09:00:00.000Z'), SCRIPT_CAT, t.read);
+    expect(r2.rows.find((x) => x.id === 'peekLeanMul')!.result).toBe('already baked (same value as the bake of 2026-10-21T12:00:00.000Z; reset this slider in the tuner)');
+    expect(r2.rows.find((x) => x.id === 'slideStandMul')!.result).toBe('baked');
+    t.write(r2);
+    expect(num(t.read(W)!, 'WALL.peekLean')).toBe(lean);
+    expect(num(t.read(W)!, 'WALL.slideStand')).toBeCloseTo(num(real(W), 'WALL.slideStand') * 1.2, 6);
+    // the ledger keeps group|id=value
+    expect(JSON.parse(t.read(BAKE_LEDGER)!).bakes[0].baked).toEqual(['wallPeek|peekLeanMul=1.5']);
+    // a different value for the same slider is a new tune: baked
+    const r3 = tuneBake(exportOf([entry('wallPeek', 'peekLeanMul', 'mul', 1.1)]), SCRIPT_CAT, t.read);
+    expect(r3.rows[0]!.result).toBe('baked');
+  });
+});
+
+describe('anim-bake tuckMul (fix round B1)', () => {
+  const RIG = 'src/player/characterRig.ts';
+  const GRAPH = 'src/anim/animGraph.ts';
+  const GUN6 = ['rifle.lowReady', 'rifle.aim', 'rifle.aimCrouch', 'pistol.lowReady', 'pistol.aim', 'pistol.aimCrouch'];
+  /** characterRig.ts:2577: max(AIM_ELBOW_TUCK x aimK, READY + (READY_CROUCH - READY) x cr). */
+  const tuck = (rig: string, graph: string, aimK: number, cr: number): number => {
+    const R = num(rig, 'READY_ELBOW_TUCK');
+    return Math.max(num(graph, 'AIM_ELBOW_TUCK') * aimK, R + (num(rig, 'READY_ELBOW_TUCK_CROUCH') - R) * cr);
+  };
+
+  it('the 4 aim groups at 0.6 (low ready at 1): manual, nothing written', () => {
+    const t = tempTree();
+    const r = tuneBake(exportOf(GUN6.filter((g) => !g.endsWith('lowReady')).map((g) => entry(g, 'tuckMul', 'mul', 0.6))), SCRIPT_CAT, t.read);
+    expect(r.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
+    expect(r.writes).toEqual([]);
+  });
+
+  it('all 6 at 0.6: baked, and the max for aim, crouched aim and low ready is the old max x 0.6', () => {
+    const t = tempTree();
+    const r = tuneBake(exportOf(GUN6.map((g) => entry(g, 'tuckMul', 'mul', 0.6))), SCRIPT_CAT, t.read);
+    expect(r.rows.every((x) => x.result === 'baked')).toBe(true);
+    t.write(r);
+    const [rig0, graph0, rig1, graph1] = [real(RIG), real(GRAPH), t.read(RIG)!, t.read(GRAPH)!];
+    for (const [aimK, cr] of [
+      [1, 0], // aim
+      [1, 1], // crouched aim
+      [0, 0], // low ready
+      [0, 1], // crouched low ready
+    ] as const) expect(tuck(rig1, graph1, aimK, cr), `aimK ${aimK} cr ${cr}`).toBeCloseTo(tuck(rig0, graph0, aimK, cr) * 0.6, 3);
   });
 });
 
@@ -343,6 +421,7 @@ describe('anim-bake refusals (nothing written)', () => {
     const r = tuneBake(exportOf([entry('team.boost', 'reachMul', 'mul', 1.2)]), SCRIPT_CAT, t.read);
     expect(r.ok).toBe(true);
     expect(r.rows[0]!.result).toMatch(/^skipped: no bake rule/);
+    expect(r.manual).toBe(1); // counted in the summary's "manual or skipped"
     expect(r.writes).toEqual([]);
   });
 });

@@ -82,7 +82,7 @@ const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'aim', 'aimCrouch',
 const RIFLE_AIM = ['rifle.aim', 'rifle.aimCrouch'];
 const PISTOL_AIM = ['pistol.aim', 'pistol.aimCrouch'];
 const AIM_GUN = [...RIFLE_AIM, ...PISTOL_AIM];
-const LOW_READY = ['rifle.lowReady', 'pistol.lowReady'];
+const ALL_GUN = ['rifle.lowReady', 'rifle.aim', 'rifle.aimCrouch', 'pistol.lowReady', 'pistol.aim', 'pistol.aimCrouch'];
 const ALL_CAM = ['cam.explore', 'cam.exploreCrouch', 'cam.lowReady', 'cam.aimRifle', 'cam.aimPistol', 'cam.wall', 'cam.peek', 'cam.climb', 'cam.vent', 'cam.hold'];
 /** Groups on the hip (explore) framing: `boomHip`, `shoulderHip`. */
 const CAM_HIP = ['cam.explore', 'cam.exploreCrouch', 'cam.lowReady', 'cam.hold'];
@@ -91,7 +91,8 @@ const CAM_AIM = ['cam.aimRifle', 'cam.aimPistol'];
 const CAM_WALL = ['cam.wall', 'cam.peek'];
 /** Every attach preset `selectCamGroup` files under `cam.climb` (any attach but the wall and the duct). */
 const CLIMB_PRESETS = ['hang', 'ladder', 'pipe', 'pipeH', 'zipline', 'split', 'pipeLegs', 'inverted', 'rappel', 'fence'];
-const STEP_ALL = ['step.idle', 'step.walk', 'step.jog', 'step.run', 'step.crouchWalk', 'step.crouchRun'];
+/** The moving gaits (twistCap and the band run only while moving, so the idle lock does nothing). */
+const STEP_MOVING = ['step.walk', 'step.jog', 'step.run', 'step.crouchWalk', 'step.crouchRun'];
 const WEIGHT_ALL = ['weight.walk', 'weight.jog', 'weight.run', 'weight.crouch', 'weight.drawn'];
 
 const e = (file: string, path: string, op: BakeOp, scale?: number): BakeEdit => (scale === undefined ? { file, path, op } : { file, path, op, scale });
@@ -183,8 +184,8 @@ for (const id of ['gunUp', 'gunPitch', 'gunYaw', 'gunCant']) {
 rules.push(
   rule('gun', 'sightYAdd', AIM_GUN, [e(RIG, 'SIGHT_EYE', 'add')], RIG_NOTE),
   rule('gun', 'headDropMul', AIM_GUN, [e(RIG, 'NECK_WELD', 'mul')], RIG_NOTE),
-  rule('gun', 'tuckMul', LOW_READY, [e(RIG, 'READY_ELBOW_TUCK', 'mul'), e(RIG, 'READY_ELBOW_TUCK_CROUCH', 'mul')], `close: the tuck is max(aim tuck, ready tuck); ${RIG_NOTE}`),
-  rule('gun', 'tuckMul', AIM_GUN, [e(GRAPH, 'AIM_ELBOW_TUCK', 'mul')], `close: the tuck is max(aim tuck, ready tuck); ${RIG_NOTE}`),
+  // (fix round B1) every gun state reads max(aim tuck, ready tuck) x tuckMul: one rule over all six, exact when they agree
+  rule('gun', 'tuckMul', ALL_GUN, [e(RIG, 'READY_ELBOW_TUCK', 'mul'), e(RIG, 'READY_ELBOW_TUCK_CROUCH', 'mul'), e(GRAPH, 'AIM_ELBOW_TUCK', 'mul')], `max(a m, b m) = m max(a, b): exact when all six gun states agree; ${RIG_NOTE}`),
   rule('gun', 'glideTwistMul', AIM_GUN, [e(GRAPH, 'GLIDE.yawCut', 'mul')], RIG_NOTE),
 );
 
@@ -192,6 +193,7 @@ rules.push(
 // Camera (tune.ts): config/camera.ts, same units (m, s, 1/s)
 // ------------------------------------------------------------------------------------------
 
+const BLEND_OUT = "close: the blend-in only is exact; the preset's blend-out after leaving the state ran under the next state's slider and now follows this value";
 /** One field of every climb preset. */
 const climb = (field: string, op: BakeOp): BakeEdit[] => CLIMB_PRESETS.map((p) => e(CAM, `ATTACH_FRAMING.${p}.${field}`, op));
 for (const [id, hip, open, crouchOpen, ads, peek, field] of [
@@ -216,14 +218,15 @@ rules.push(
   rule('cam', 'camPivotAdd', CAM_WALL, [e(CAM, 'ATTACH_FRAMING.wall.pivot', 'add')]),
   rule('cam', 'camPivotAdd', ['cam.climb'], climb('pivot', 'add'), 'every attach preset filed under cam.climb'),
   rule('cam', 'camPivotAdd', ['cam.vent'], [e(CAM, 'ATTACH_FRAMING.duct.pivot', 'add')]),
-  rule('cam', 'camHeightAdd', ALL_CAM, [e(CAM, 'CAMERA.height', 'add')]),
-  // a blend time x m is its rate / m
-  rule('cam', 'camBlendMul', ['cam.explore', 'cam.exploreCrouch', 'cam.lowReady'], [e(CAM, 'CAMERA.toTight', 'div'), e(CAM, 'CAMERA.toOpen', 'div')]),
-  rule('cam', 'camBlendMul', ['cam.lowReady'], [e(CAM, 'CAMERA.adsOutRate', 'div')]),
-  rule('cam', 'camBlendMul', CAM_WALL, [e(CAM, 'ATTACH_FRAMING.wall.blend', 'mul')]),
-  rule('cam', 'camBlendMul', ['cam.peek'], [e(CAM, 'WALL_CAMERA.peek.blend', 'mul'), e(CAM, 'WALL_CAMERA.peek.out', 'mul')]),
-  rule('cam', 'camBlendMul', ['cam.climb'], climb('blend', 'mul'), 'every attach preset filed under cam.climb'),
-  rule('cam', 'camBlendMul', ['cam.vent'], [e(CAM, 'ATTACH_FRAMING.duct.blend', 'mul')]),
+  rule('cam', 'camHeightAdd', ALL_CAM, [e(CAM, 'CAMERA.height', 'add')], 'also the low-space reference height: low spaces shift slightly'),
+  // a blend time x m is its rate / m. (fix round S1) A blend that runs after its state ends (the preset blend-out keeps
+  // the preset, shoulderCamera.ts:335) was timed by the next state's slider: these bake the state's own side and say so.
+  rule('cam', 'camBlendMul', ['cam.explore', 'cam.exploreCrouch', 'cam.lowReady'], [e(CAM, 'CAMERA.toTight', 'div'), e(CAM, 'CAMERA.toOpen', 'div')], 'close: cam.hold (no blend slider) runs the same open / tight blend'),
+  rule('cam', 'camBlendMul', ['cam.lowReady'], [e(CAM, 'CAMERA.adsOutRate', 'div')], "close: an aim release at a wall runs under cam.wall's slider"),
+  rule('cam', 'camBlendMul', CAM_WALL, [e(CAM, 'ATTACH_FRAMING.wall.blend', 'mul')], BLEND_OUT),
+  rule('cam', 'camBlendMul', ['cam.peek'], [e(CAM, 'WALL_CAMERA.peek.blend', 'mul'), e(CAM, 'WALL_CAMERA.peek.out', 'mul')], 'close: the peek-out can finish after the group is back to cam.wall'),
+  rule('cam', 'camBlendMul', ['cam.climb'], climb('blend', 'mul'), `every attach preset filed under cam.climb; ${BLEND_OUT}`),
+  rule('cam', 'camBlendMul', ['cam.vent'], [e(CAM, 'ATTACH_FRAMING.duct.blend', 'mul')], BLEND_OUT),
   rule('cam', 'camFollowMul', ALL_CAM, [e(CAM, 'CAMERA.stairRate', 'mul')]),
   rule('cam', 'camBoomRateMul', ALL_CAM, [e(CAM, 'CAMERA.boomIn', 'mul'), e(CAM, 'CAMERA.boomOut', 'mul')]),
   rule('cam', 'camPadAdd', ALL_CAM, [e(CAM, 'CAMERA.castPad', 'add')], 'the pad is clamped at 0 in code'),
@@ -239,21 +242,24 @@ manuals.push(
 // ------------------------------------------------------------------------------------------
 
 const PACE_IDS = ['creepMul', 'sneakMul', 'walkMul', 'jogMul', 'runMul'];
+/** (fix round S2) What else moves with a GEARS point. */
+const GEARS_NOTE =
+  'exact at the speed point (between points the stick curve interpolates the new points). GAMEPLAY: the point also moves the gait clip mix (effort), the integer gear bands (roll, fence rattle, wire pace), the stepping gait bands and the weapon moving-spread speed';
 PACE_IDS.forEach((id, i) => {
   rules.push(
-    rule('speed', id, ['spd.stand'], [e(MOV, `GEARS.stand[${i}]`, 'mul')], 'exact at the speed point; between points the stick curve interpolates the new points'),
-    rule('speed', id, ['spd.crouch'], [e(MOV, `GEARS.crouch[${i}]`, 'mul')], 'exact at the speed point; between points the stick curve interpolates the new points'),
+    rule('speed', id, ['spd.stand'], [e(MOV, `GEARS.stand[${i}]`, 'mul')], GEARS_NOTE),
+    rule('speed', id, ['spd.crouch'], [e(MOV, `GEARS.crouch[${i}]`, 'mul')], GEARS_NOTE),
   );
 });
+// (fix round B2) the tuned glide is min(v, adsSpeed) x (fwd f + x strafe s + back backM k) / w: f scales the whole glide
+manuals.push(manual('speed', 'glideFwdMul', 'the tuner scales the whole aimed glide; adsSpeed only caps it, so below the cap the forward speed would lose it and the strafe / back shares would drop by 1/f'));
 rules.push(
-  // directionMult = (fwd + x strafe + back backM) / w; the tuned glide = adsSpeed x (fwd f + x strafe s + back backM k) / w
-  rule('speed', 'glideFwdMul', ['spd.aim'], [e(MOV, 'MOVEMENT.adsSpeed', 'mul'), e(MOV, 'MOVEMENT.adsCrouchSpeed', 'mul'), e(MOV, 'MOVEMENT.strafeMult', 'div'), e(MOV, 'MOVEMENT.backMult', 'div')], 'the strafe and back shares take it back (they are shares of adsSpeed)'),
   rule('speed', 'glideStrafeMul', ['spd.aim'], [e(MOV, 'MOVEMENT.strafeMult', 'mul')]),
   rule('speed', 'glideBackMul', ['spd.aim'], [e(MOV, 'MOVEMENT.backMult', 'mul')]),
   rule('speed', 'slideStandMul', ['spd.wall'], [e(WALLC, 'WALL.slideStand', 'mul')]),
   rule('speed', 'slideCrouchMul', ['spd.wall'], [e(WALLC, 'WALL.slideCrouch', 'mul')]),
   rule('speed', 'ladderMul', ['spd.climb'], [e(ATT, 'ATTACH.ladder.speed', 'mul')], 'the climb animation keeps LADDER_RUNG_RATE'),
-  rule('speed', 'pipeMul', ['spd.climb'], [e(ATT, 'ATTACH.pipeV.speed', 'mul'), e(ATT, 'ATTACH.pipeH.speed', 'mul')]),
+  rule('speed', 'pipeMul', ['spd.climb'], [e(ATT, 'ATTACH.pipeV.speed', 'mul'), e(ATT, 'ATTACH.pipeH.speed', 'mul')], 'also the pipeH legs mode, which read the base speed without the tuner'),
   rule('speed', 'shimmyMul', ['spd.climb'], [e(ATT, 'ATTACH.ledge.speed', 'mul')]),
   rule('speed', 'crawlMul', ['spd.climb'], [e(ATT, 'ATTACH.duct.speed', 'mul')]),
 );
@@ -264,10 +270,11 @@ rules.push(
 
 rules.push(
   rule('step', 'lift', ['step.idle'], [e(PLAN, 'PLANNER.idleLift', 'mul')], 'the idle and stop-close steps'),
-  rule('step', 'lock', STEP_ALL, [e(PLAN, 'TURN_FOLLOW.twistFree', 'mul'), e(PLAN, 'TURN_FOLLOW.twistMax', 'mul'), e(PLAN, 'TURN_FOLLOW.scrubSpeed', 'div')], 'close: the touchdown twist cap reads twistFree too'),
+  rule('step', 'lock', STEP_MOVING, [e(PLAN, 'TURN_FOLLOW.twistFree', 'mul'), e(PLAN, 'TURN_FOLLOW.twistMax', 'mul'), e(PLAN, 'TURN_FOLLOW.scrubSpeed', 'div')], 'close: the touchdown twist cap reads twistFree too'),
 );
 manuals.push(
   manual('step', 'lift', 'the moving gaits\' lift is the gait liftH (clip data)'),
+  manual('step', 'lock', 'no effect while still (the plant lock runs only while moving)', ['step.idle']),
   manual('step', 'dur', 'no single constant: the step duration comes from several planner terms'),
   manual('step', 'slide', 'inline literals (footPlanner holdOrStep reach, + 0.3)'),
   manual('step', 'stride0', 'no per-pace constant (LAND_AHEAD is one share for every pace)'),
@@ -321,6 +328,16 @@ export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
 export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts'];
+/**
+ * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
+ * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file
+ * that calls registerTuneSection and is in neither list, and checks every registered section's sliders.
+ */
+export const BAKE_OTHER_SECTION_FILES: Readonly<Record<string, 'declared' | 'weight' | 'keys'>> = {
+  'src/player/speedTune.ts': 'declared',
+  'src/player/weightTune.ts': 'weight',
+  'src/anim/tuneKeys.ts': 'keys',
+};
 
 /**
  * Sections plain Node cannot load (speedTune imports the wall controller, which uses TypeScript syntax Node's type

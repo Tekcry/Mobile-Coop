@@ -36,8 +36,9 @@ Refused, with nothing written:
 
 **Identity after bake:** the code value moves and the slider's default stays identity. The tuner's IndexedDB save still
 holds the tuned values, so after the merge Michael resets the sliders reported "baked" (keeping the manual ones) and
-exports again. The ledger records the export's hash and the baked group|id pairs, so a re-run of the same export is a
-no-op ("already baked").
+exports again. The ledger records every baked `group|id=value`. A later export (the same one or a new one) that still
+carries that value for that slider is reported "already baked (same value as the bake of <date>; reset this slider in
+the tuner)" and is never baked twice; a different value for the slider is a new tune and bakes.
 
 ## Results
 - **baked:** written into the code value(s) named in the target column. A note in [] says where the bake is only
@@ -48,7 +49,8 @@ no-op ("already baked").
 - **manual: no code target:** there is no code value to absorb it; the reason is listed.
 - **baked (key JSON; rebake the clip):** the Keys section.
 - **skipped: no bake rule:** a slider this build does not know (e.g. PR #71's sections before their table entries).
-- **already baked:** in the ledger.
+  Counted in the summary's "manual or skipped".
+- **already baked:** the ledger holds this slider and group at this value.
 
 ## Mapping per section
 **Body.** These constants are the shared rig's, so every rig reads them: the partner and the guards too.
@@ -64,15 +66,16 @@ no-op ("already baked").
 
 **Gun.**
 - Baked:
-  - rifle.lowReady -> READY_POSES.low.* +. Close: the other carries keep theirs.
+  - rifle.lowReady -> READY_POSES.low.* +. Close: the other carries keep theirs, so a gun tune made at a wall (the wall
+    tuck) is not carried over.
   - pistol.lowReady -> PISTOL_READY.* +.
   - gunFwd / gunSide, rifle aims -> SIGHT_RAISE.z / x +, with PISTOL_REACH.z / x - so the pistol aim stays.
   - gunFwd / gunSide, pistol aims -> PISTOL_REACH.z / x +.
   - sightYAdd -> SIGHT_EYE +.
   - headDropMul -> NECK_WELD x.
-  - tuckMul:
-    - low ready -> READY_ELBOW_TUCK and READY_ELBOW_TUCK_CROUCH x;
-    - aim -> AIM_ELBOW_TUCK x.
+  - tuckMul: one rule over all 6 gun groups -> READY_ELBOW_TUCK, READY_ELBOW_TUCK_CROUCH and AIM_ELBOW_TUCK x. Every
+    gun state reads max(aim tuck, ready tuck) x tuckMul, and max(a m, b m) = m max(a, b), so it is exact when all 6
+    agree; otherwise "manual: shared target".
   - glideTwistMul -> GLIDE.yawCut x.
 - Manual: aimed gunUp, gunPitch, gunYaw and gunCant (the sight-to-eye solve and the aim hold them).
 
@@ -82,23 +85,33 @@ no-op ("already baked").
 - camFollowMul -> stairRate.
 - camBoomRateMul -> boomIn / boomOut.
 - camPadAdd -> castPad.
-- camBlendMul -> the matching blend rates.
+- camHeightAdd -> height (also the low-space reference: low spaces shift slightly).
+- camBlendMul -> the matching blend rates. Close (noted in the table): a preset's blend-out after leaving the wall,
+  climb or duct ran under the next state's slider and now follows the preset's baked blend; the peek-out can finish
+  under cam.wall; an aim release at a wall ran under cam.wall's slider (adsOutRate); cam.hold runs the explore open /
+  tight blend with no slider of its own.
 - Manual:
   - FOV (a player setting);
   - zoom (1 without a scope);
   - the aim-in blend (it comes from the weapon's draw time).
 
-**Speed** (all per group, baked directly).
-- creep..run -> GEARS.stand / crouch points.
-- The glides -> adsSpeed / adsCrouchSpeed, strafeMult and backMult.
+**Speed** (per group, baked directly). All gameplay.
+- creep..run -> GEARS.stand / crouch points. Exact at the point. A GEARS point also drives the gait clip mix (effort),
+  the integer gear bands (roll, fence rattle, wire pace), the stepping gait bands and the weapon's moving-spread
+  speed; in the tuner those stayed, after the bake they move with the point.
+- glideStrafeMul -> strafeMult x; glideBackMul -> backMult x.
+- glideFwdMul: manual. The tuner scales the whole aimed glide and adsSpeed only caps it, so below the cap the forward
+  speed would lose it and the strafe / back shares would drop by 1/f.
 - Wall slide -> WALL.slide*.
-- Ladder, pipe, shimmy and crawl -> the ATTACH speeds.
+- Ladder, pipe, shimmy and crawl -> the ATTACH speeds (pipe: also the pipeH legs mode, which read the base speed
+  without the tuner).
 
 **Stepping.** Every planner reads these, guards included.
 - Baked:
   - idle lift -> PLANNER.idleLift.
-  - lock -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads twistFree too.
-- Manual: the rest (clip data, inline literals).
+  - lock (the 5 moving gaits) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads
+    twistFree too.
+- Manual: the idle lock (no effect while still) and the rest (clip data, inline literals).
 
 **Weight.**
 - Baked:
@@ -112,15 +125,16 @@ defaults are all identity.
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock).
 
-**New sections** (PR #71's `team_*`, `trav`): add rules or manual entries to `tuneBakeTable.ts`, and the module to
-`BAKE_CATALOGUE_MODULES` (or a `DECLARED_SECTIONS` entry). The coverage test fails until every slider and group is
-covered.
+**New sections** (PR #71's `team_*`, `trav`): add rules or manual entries to `tuneBakeTable.ts`, and the file to
+`BAKE_CATALOGUE_MODULES` (plain-Node loadable) or `BAKE_OTHER_SECTION_FILES` (with a `DECLARED_SECTIONS` entry). The
+test finds every file under `src/` that calls `registerTuneSection`, imports it, and fails when the file is in neither
+list or when any registered slider and group has no rule or manual entry.
 
 ## Assumed decisions (undo)
 - **A1** Sliders with no code value are reported manual; no runtime per-state base tables were added. Undo: a later job
   adds base tables and swaps those manual entries for rules.
-- **A2** A ledger (`src/anim/tuneBakeLog.json`) makes a re-run of the same export a no-op. Undo: delete the ledger and
-  step 7 of `tuneBake()`.
+- **A2** A ledger (`src/anim/tuneBakeLog.json`, `group|id=value` per baked value) makes any later export that still
+  carries a baked value a no-op for it. Undo: delete the ledger and step 7 of `tuneBake()`.
 - **A3** Atomic per slider and group: a value bakes only when every rule covering it bakes. Undo: drop the blocking loop
   in `tuneBake()` step 3.
 - **A4** Some bakes are close rather than exact (the [] notes). Undo: turn any of those rules into a manual entry.
@@ -131,9 +145,14 @@ covered.
 - **A7** The Speed section is declared in the table (plain Node cannot load speedTune); a test pins it to the registry.
 - **A8** Results are rounded to 4 significant digits.
 
-## Tests (`tests/animTuneBake.test.ts`, 18; temp copies in `os.tmpdir()`, never the real tree)
-- **Coverage:** the table covers every slider and group of every registered section. Every target is found exactly
-  once in the real tree (read only). The declared sections match the registry.
+## Tests (`tests/animTuneBake.test.ts`, 22; temp copies in `os.tmpdir()`, never the real tree)
+- **Coverage:** every registering file under `src/` is imported and listed; the table covers every slider and group of
+  every registered section. Every target is found exactly once in the real tree (read only). The declared sections
+  match the registry.
+- **tuckMul:** the aim groups alone at 0.6 are manual; all 6 at 0.6 bake, and the tuned max equals the old max x 0.6
+  for aim, crouched aim and low ready.
+- **glideFwdMul:** manual.
+- **Ledger by value:** a new export still carrying a baked value is "already baked"; a new value bakes.
 - **Editing:** units, object keys, indexes, folded forms, rounding, the diff format.
 - **A sample export with a slider per section:**
   - the dry run writes nothing;
@@ -159,3 +178,19 @@ covered.
 6. Commit the sources, the key JSONs, the rebaked clips and the ledger in one PR.
 7. After the merge, tell Michael to reset the sliders reported "baked" (keeping the manual ones) and export again. The
    old export is spent.
+
+## Fix round (CHECK-BAKE.md)
+- **B1** tuckMul: one rule over all 6 gun groups (READY_ELBOW_TUCK, READY_ELBOW_TUCK_CROUCH, AIM_ELBOW_TUCK x), exact
+  when they agree; test reproduces the checker's case.
+- **B2** glideFwdMul: manual (it scales the whole glide; adsSpeed only caps it). glideStrafeMul / glideBackMul stay.
+- **S1** camBlendMul: the preset, adsOutRate, peek and open / tight rules stay, marked "close" with the reason (the
+  blend-out runs under the next state's slider). Chosen over listing destination groups, which would make every preset
+  blend a shared target that never bakes.
+- **S2** GEARS rule note and the Speed section above: the points also move the gait mix, gear bands, stepping bands
+  and weapon spread (gameplay).
+- **S3** The ledger stores `group|id=value`; any later export with a baked value reports "already baked" for it.
+- **S4** The test imports every file that calls `registerTuneSection` and checks it is listed
+  (`BAKE_CATALOGUE_MODULES` / `BAKE_OTHER_SECTION_FILES`).
+- Polish: the lock rule covers the moving gaits only (idle lock: manual); skipped rows counted; `--only` with no list
+  refused; writes go to `*.anim-bake.tmp` first, then rename; notes on pipeMul (legs mode) and camHeightAdd (low
+  spaces).

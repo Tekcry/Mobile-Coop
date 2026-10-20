@@ -100,7 +100,8 @@ functions) and the ledger `src/anim/tuneBakeLog.json`, then prints the rebake co
 run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight. Detail: `BAKE.md`.
 - **Identity after bake.** The code value moves (x the slider for a `mul`, + it for an `add`, in the code's unit); the
   slider's default stays identity. The tuner's own save still holds the old values: reset the sliders the table reports
-  "baked" (keep the manual ones), then export again. A re-run of the old export is a no-op (the ledger).
+  "baked" (keep the manual ones), then export again. The ledger keeps `group|id=value` of every baked value: a later
+  export that still carries one reports it "already baked" and never bakes it twice.
 - **Shared targets.** A rule's groups are the groups that read one code value. Baked when every one of them has the same
   value; otherwise "manual: shared target" with the value per group (Michael or a job lead picks, or a later job adds a
   per-state table). `--allow-shared` bakes a shared value when exactly one group changed and warns that it changes every
@@ -108,8 +109,9 @@ run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, ste
 - **Manual: no code target.** The slider has no code value to absorb it (the Joints, Hands & feet, IK and Weapon tables,
   the Weight layers' amounts, clip-data sliders); the table lists it with the reason.
 - **A new section** (PR #71's `moveTune.ts`) needs only its rules or manual entries in `src/anim/tuneBakeTable.ts`, and
-  its module in `BAKE_CATALOGUE_MODULES` (or a `DECLARED_SECTIONS` entry when plain Node cannot load it); the coverage
-  test in `tests/animTuneBake.test.ts` fails until every slider and group is covered.
+  its file in `BAKE_CATALOGUE_MODULES` (or `BAKE_OTHER_SECTION_FILES` with a `DECLARED_SECTIONS` entry when plain Node
+  cannot load it). `tests/animTuneBake.test.ts` imports every file that calls `registerTuneSection` and fails until the
+  file is listed and every slider and group is covered.
 
 ## Pad map
 While the panel has the pad ("PAD: tuner"; the strip at the bottom of the panel shows the map for the current mode).

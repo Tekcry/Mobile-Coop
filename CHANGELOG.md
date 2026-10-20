@@ -9,8 +9,8 @@
   share one code value bakes only when they agree ("manual: shared target" otherwise; `--allow-shared` bakes a single
   changed group and warns); sliders with no code value (joint, hand, IK and weapon tables, most clip-data sliders) are
   listed "manual: no code target". Refuses a wrong magic or version, a value beyond its wide range, a target not found
-  exactly once and any file outside `src/` and the key JSONs. A ledger (`src/anim/tuneBakeLog.json`) makes a re-run of
-  the same export a no-op. Mapping: `src/anim/tuneBakeTable.ts`; logic: `src/anim/tuneBake.ts`; tests:
+  exactly once and any file outside `src/` and the key JSONs. A ledger (`src/anim/tuneBakeLog.json`, `group|id=value`)
+  means a baked value is never baked twice, in a re-run or a later export. Mapping: `src/anim/tuneBakeTable.ts`; logic: `src/anim/tuneBake.ts`; tests:
   `tests/animTuneBake.test.ts`; `docs/anim-tuner/BAKE.md`.
 
 ## 4.27.0 - Tuner Weight section: momentum, lean, plant and landing load, springs, anticipation (2026-10-21, PR #70)

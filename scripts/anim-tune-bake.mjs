@@ -5,7 +5,7 @@
 // JSONs (the apply-tune functions) and the ledger src/anim/tuneBakeLog.json, then prints the rebake commands (it never
 // runs Blender) and the table. Sections: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight.
 // The mapping is src/anim/tuneBakeTable.ts, the logic src/anim/tuneBake.ts; docs/anim-tuner/BAKE.md.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -21,8 +21,13 @@ for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--dry-run') dry = true;
   else if (a === '--allow-shared') allowShared = true;
-  else if (a === '--only') only = (args[++i] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  else if (a.startsWith('--only=')) only = a.slice(7).split(',').map((s) => s.trim()).filter(Boolean);
+  else if (a === '--only' || a.startsWith('--only=')) {
+    only = (a === '--only' ? (args[++i] ?? '') : a.slice(7)).split(',').map((s) => s.trim()).filter(Boolean);
+    if (only.length === 0) {
+      console.error(`anim-tune-bake: --only needs a list of sections\n${USAGE}`);
+      process.exit(1);
+    }
+  }
   else if (a.startsWith('--')) {
     console.error(`anim-tune-bake: unknown option ${a}\n${USAGE}`);
     process.exit(1);
@@ -96,8 +101,21 @@ if (dry) {
       process.exit(1);
     }
   }
+  // every file to a .tmp first, then the renames: an IO error while writing leaves the tree as it was
+  const tmps = [];
+  try {
+    for (const w of res.writes) {
+      const t = `${inside(w.path)}.anim-bake.tmp`;
+      writeFileSync(t, w.after);
+      tmps.push(t);
+    }
+  } catch (err) {
+    for (const t of tmps) rmSync(t, { force: true });
+    console.error(`anim-tune-bake: refused, nothing written: ${err.message}`);
+    process.exit(1);
+  }
   for (const w of res.writes) {
-    writeFileSync(inside(w.path), w.after);
+    renameSync(`${inside(w.path)}.anim-bake.tmp`, inside(w.path));
     console.log(`anim-tune-bake: wrote ${w.path}`);
   }
 }
