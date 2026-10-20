@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - nv-pass (feature/nv-pass)
+## 4.16.0 - Night vision pass: realistic night vision, a wider goggle frame, the vision carousel (2026-10-20, PR #49)
 - Night vision (A1): modern green phosphor. The tube drive gamma 1.7 -> 1.3, green tint, dim green black, white clip from
   0.85, stronger grain in the dark; `VISION_GAIN` 8 -> 6 with the darkness curve's floor eased up to `VISION_FLOOR` 1.0, so
   deep dark reads and lit areas no longer clip. A frame auto-gain (`src/vfx/nightExposure.ts`) lifts dark frames (up to
@@ -64,7 +64,7 @@
   back to wall off Left Shift); the Aim hold / toggle choice is removed (Michael 15:25: "Remove it"; LT is always held, a stored choice is dropped); a remapped binding that now clashes is named in a toast
   once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
 
-## Unreleased - anim-metrics-2 (into feature/ct-prototype)
+### anim-metrics-2 (into feature/ct-prototype; shipped in 4.15.0)
 - Debug overlay (F3, or Settings > Graphics > Show FPS overlay): a live anti-crab readout during play: knee separation
   over the hip width, the planted foot track, knee outside the ankle and elbow outside the shoulder, green inside the
   ranges and red outside, with the gait and state. Allocation-free per frame (`crabFrame` in `src/anim/audit/metrics.ts`).
@@ -74,7 +74,7 @@
   strafe is the crab (knees 2-2.8x the hips, feet up to 53 cm off the line), then turns from a standstill, starts and
   direction changes.
 
-## Unreleased - anim-metrics (into feature/ct-prototype)
+### anim-metrics (into feature/ct-prototype; shipped in 4.15.0)
 - Tests: anti-crab metrics for the animation rework (BRIEF section 5): knee separation and planted foot track per speed
   and stance, knees over the ankles, planted-foot slide and elbow wing, in the pelvis frame (`src/anim/audit/metrics.ts`,
   ranges `CRAB` and per-gait `CRAB_GATES` in `limits.ts`, unit tests `tests/animCrabMetrics.test.ts`). `e2e-anim` prints
