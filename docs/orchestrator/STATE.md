@@ -90,6 +90,10 @@ Course Ready building Anim Studio PR 2 on feature/anim-studio-2 (from c55adaec).
 #69 merged as 4.26.0 (d537cbd8). ~06:40 Michael: tools first, spare capacity on jobs smallest to largest, warehouse
 rebuild parked (see ROADMAP Decided). Menu Notes: #58 GPU reshoot -> lamps GPU look -> camera-cue #63 (GPU only when the
 desktop lock is free). Laptop: #70 full, tool heads, #67 fixed head, master e2e-mouse, #62 full, #63.
+#67 S2b PARKED (feature/anim-s2b 6c96715f): wrist pop fixed; e2e-stealth-ai wall peek open (S2b's step line ends the
+peek 15.9 cm past the edge vs 13.8 on master, so no spot sees the head alone; restoring stepLen0 / stepLenK / WALK_STEP
+gives master's pose). Findings: S2B-REPORT.md "## #67 parked"; not yet merged with master 4.27+, tuneStep patch pending.
+CT Core idle. Anim-rework STATE docs on feature/ct-prototype 5bcaa228 (docs PR later).
 Registry head pushed 01:00: feature/tuner-camera @ df00a947 (tsc clean, heavy checks pending); relayed to Menu Notes
 (tuner-v2) and CT Core (Weight group on feature/anim-weight, after S2b + slice 4+5 PRs). 01:00: 5-hour 44%.
 #59 head 0fb59235 has no CI run yet. Laptop: #61 full e2e running (done ~01:06), then tuner-v2 0e73c3b2 (retargeted), smooth-world, warehouse-lamps.
