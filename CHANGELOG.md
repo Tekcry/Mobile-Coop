@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-tuner
+## 4.20.0 - Animation tuner: live sliders for gaits, poses and the gun hold, with export (2026-10-21, PR #56)
 - Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
   opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
   crouch idle / sneak / crouch walk, low ready, aim, crouched aim, back to wall idle / slide / peek, ladder, pipe, ledge,
