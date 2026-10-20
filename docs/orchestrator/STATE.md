@@ -50,7 +50,7 @@ Restart order after the reset: the orchestrator first (Michael pastes its prompt
   smooth-world, the cloud jobs warehouse-lamps and marlow-bunker), each on its test tier; anything unsure waits.
 - Priorities: movement > finishing the co-op training bunker (Marlow Yard) > the campaign level. Warehouse rebuild
   deferred. Guard AI waits for Michael's second account to reset (out of usage); he pastes the guard-ai cloud prompt then (feature/guard-ai from master, PR only; I review and merge).
-- Merged overnight: 4.20.0 (#56 anim-tuner, 8a9b40a5, /preview/). Open: #58 smooth-world (laptop full e2e + Menu Notes GPU shots), tuner-pad (Course Ready), wheel-ui / camera-cue (Menu Notes), S2b + slices 4-6 (CT Core / Sector Ops), cloud warehouse-lamps and marlow-bunker.
+- Merged overnight: 4.20.0 (#56 anim-tuner), 4.20.1 (#60 tuner pad control, 6a4fb07f, /preview/). Course Ready on tuner-camera (camera sliders per state + live free view: orbit, fly, slow motion). Open: #58 smooth-world (laptop full e2e + Menu Notes GPU shots), tuner-pad (Course Ready), wheel-ui / camera-cue (Menu Notes), S2b + slices 4-6 (CT Core / Sector Ops), cloud warehouse-lamps and marlow-bunker.
 
 ## In flight at 2026-10-20 ~23:20 (second usage window ending)
 - Master 4.19.1 (b125599e) on /preview/. Merged today after the reset: 4.15.2-4.15.4, 4.16.0 nv-pass, 4.16.1-4.16.2, 4.17.0 slice 2, 4.18.0 warehouse-s23, 4.18.1 phone 50%, 4.19.0 slice 3, 4.19.1 test-speed.

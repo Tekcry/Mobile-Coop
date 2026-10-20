@@ -115,6 +115,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-21 | #60 | 4.20.1: the animation tuner works with the pad |
 | 2026-10-21 | #56 | 4.20.0: animation tuner: live sliders per state for gaits, poses and the gun hold, target hints, IndexedDB, export (F3, Pause, Settings) |
 | 2026-10-20 | #57 | 4.19.1: test-speed: co-op suites on sim time, load waits, full e2e ~20 min at E2E_JOBS=2 |
 | 2026-10-20 | #54 | 4.19.0: anim-rework slice 3: low ready, aiming with the glide (aimed strafe crab fixed, A5 0.7 m/s for Michael), the sling draw |
