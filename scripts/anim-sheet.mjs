@@ -131,6 +131,14 @@ const SCENARIOS = {
   aimstrafep: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.6, weapon: 'pistol', warm: { ads: true, x: 0.8 }, input: () => ({ ads: true, x: 0.8 }) },
   readytoaim: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('draw');", input: (t) => ({ ads: t >= 0.2 }) },
   aimcrouch: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
+  // (anim-rework S4) crouched holstered: the idle (the keyed squat with the hands on the knees: frames 1 s apart over its
+  // 12 s cycle), the crouch walk at gear 3, crouch -> stand from a sneak (the feet re-step under the hips), crouch -> stand
+  // still; drawn: the crouched aimed strafe (rifle)
+  crouchidle: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, at0: "a.input.state.tap('crouch');", input: () => ({}) },
+  crouchwalk: { params: 'autostart=proving&gear=3', pos: [-8, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('crouch');" },
+  stand: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, at0: "a.input.state.tap('crouch');", input: () => ({}), at: { 0: "a.input.state.tap('crouch');" } },
+  sneakstand: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.4 }, at0: "a.input.state.tap('crouch');", input: (t) => ({ y: t < 0.3 ? 0.4 : 0 }), at: { 0.6: "a.input.state.tap('crouch');" } },
+  aimcrouchstrafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, at0: "a.input.state.tap('crouch');", warm: { ads: true }, input: () => ({ ads: true, x: 1 }) },
   aimpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.8, weapon: 'pistol', input: () => ({ ads: true }) },
   aimcrouchpistol: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.2, weapon: 'pistol', at0: "a.input.state.tap('crouch');", input: () => ({ ads: true }) },
   vault: { pos: [-3.8, -6], yaw: -Math.PI / 2, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('jump');" } },

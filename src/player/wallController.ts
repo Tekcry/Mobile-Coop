@@ -15,6 +15,7 @@ import { EDGE_MARGIN, type CoverSegment } from '../cover/coverData';
 import { GEARS } from '../config/movement';
 
 import { hyp2 } from '../core/mathx';
+import { speedWallMul } from './speedTune';
 import type { CoverSpot } from '../game/tactics';
 import type { MoveOverride } from './playerController';
 
@@ -561,7 +562,8 @@ export class WallCore {
       else along = this.latch * mag;
     }
     // (A3, G35) the CT pace: 0.35 / 0.5 m/s at gear 3 at full stick (G6), analog below, a little slower at the lower gears
-    this.v = wallSlideSpeed(along, this.crouch, i.gear);
+    // (tuner-camera) the tuner Speed section (local player: the game's one WallCore), x1 by default
+    this.v = wallSlideSpeed(along, this.crouch, i.gear) * speedWallMul(this.crouch);
     if (this.v !== 0) this.dir = this.v > 0 ? 1 : -1;
     // from where the body is along the wall (no lag to catch up: the controller's own acceleration paces it)
     const sb = (i.x - g.ax) * g.tx + (i.z - g.az) * g.tz;

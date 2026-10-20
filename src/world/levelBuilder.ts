@@ -10,7 +10,8 @@ import {
   CreateBox,
   CreateCylinder,
   Matrix,
-  type Mesh,
+  Mesh,
+  VertexData,
   PhysicsBody,
   PhysicsMotionType,
   PhysicsShapeBox,
@@ -36,6 +37,7 @@ import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type F
 import { LightRegistry, type LightInit } from './lights';
 import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
 import { canonicalLightSet } from '../voxel/lightShapes';
+import { sheetMesh, type SheetPiece } from './roofSheets';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -130,6 +132,8 @@ export class LevelBuilder {
   readonly anchors = new TraversalAnchors();
   readonly lights = new LightRegistry();
   readonly surfaces: SurfaceArea[] = [];
+  /** (warehouse-lamps) Translucent roof sheets (drawn as one see-through mesh; each also has a collision-only box). */
+  readonly sheets: SheetPiece[] = [];
   /** Manual ledge suppressions (x, z, radius). */
   private noLedgeAt: [number, number, number][] = [];
 
@@ -390,6 +394,17 @@ export class LevelBuilder {
     return this;
   }
 
+  /**
+   * (warehouse-lamps) A translucent corrugated roof sheet over the opening x0..x1, z0..z1 between y0 and y1: solid (a
+   * collision-only box, overhead, no ledges) but out of the light shapes (collision-only pieces are not baked), so the
+   * moon reaches the floor under it as before; drawn as a pale see-through ridged panel that casts no shadow.
+   */
+  sheet(x0: number, x1: number, z0: number, z1: number, y0: number, y1: number): this {
+    this.sheets.push({ x0, x1, z0, z1, y: (y0 + y1) / 2 });
+    this.boxes.push({ c: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], s: [x1 - x0, y1 - y0, z1 - z0], yaw: 0, pitch: 0, color: '#d9ddd2', collide: true, visible: false, overhead: true, noLedge: true });
+    return this;
+  }
+
   /** A light (lamp, spot, window glow...). */
   light(init: LightInit): this {
     this.lights.add(init);
@@ -548,6 +563,30 @@ export class LevelBuilder {
     body.shape = container;
     // (3.2.0) fences: their own body (stops movement; bullets, sight and the level probes pass) and mesh panels
     if (this.anchors.fences.length) this.buildFences(scene, root, name, meshes);
+    // (warehouse-lamps) the roof sheets: one see-through mesh, not in `meshes` (no shadow caster: the moon passes as the bake has it)
+    let sheetMat: PBRMaterial | null = null;
+    if (this.sheets.length) {
+      const a = sheetMesh(this.sheets);
+      const sm = new Mesh('roofSheets', scene);
+      const vd = new VertexData();
+      vd.positions = a.positions;
+      vd.normals = a.normals;
+      vd.indices = a.indices;
+      vd.applyToMesh(sm, false);
+      sheetMat = new PBRMaterial('roofSheetMat', scene);
+      sheetMat.albedoColor = Color3.FromHexString('#dfe4da').toLinearSpace();
+      sheetMat.metallic = 0;
+      sheetMat.roughness = 0.45;
+      sheetMat.alpha = 0.55;
+      sheetMat.usePhysicalLightFalloff = false;
+      sheetMat.directIntensity = Math.PI;
+      sheetMat.backFaceCulling = false;
+      sheetMat.twoSidedLighting = true;
+      sm.material = sheetMat;
+      sm.parent = root;
+      sm.isPickable = false;
+      sm.freezeWorldMatrix();
+    }
 
     const coverSegments = buildCoverSegments(this.boxes, this.cylinders);
     // ledges from box tops; lips whose hang point would be outside the play area are dropped
@@ -595,6 +634,7 @@ export class LevelBuilder {
         container.dispose();
         for (const m of meshes) m.dispose();
         mat.dispose();
+        sheetMat?.dispose();
         root.dispose();
       },
     };

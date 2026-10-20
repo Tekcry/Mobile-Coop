@@ -99,7 +99,13 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   `gaitRate` `glide`, the driver's `aiming`, the graph's raise on a remote): a side-step of `lat0 + latK x speed` (a
   shuffle, each foot travelling two steps a cycle), back-steps 35 % shorter, every step at most `fwd0 + fwdK x speed`;
   the closing foot comes in to `GLIDE_GAP` 9 cm (`PlannerInput.glide`; `PLANNER.minGap` 13 cm elsewhere). The feet never
-  cross; enemies, holstered, low ready and crouched keep the old steps.
+  cross; enemies, holstered and low ready keep the old steps. (anim-rework S4) Crouched aiming glides too (the same side
+  step, the crouched landing gap).
+- (anim-rework S4, `docs/anim-rework/S4-REPORT.md`) Crouched free movement: the planner's landing gap follows the stance
+  (`FREE_GAP`, as standing; the fixed 13 cm held the crouch 9-12.6 cm a foot), a planted foot steps back into the
+  crouched band `CROUCH_BAND` 3.5-10 cm (the G1 band's 14 cm before; the turn scrub keeps the G1 band). A stance change
+  (the crouch past half way either way) re-steps still feet into the new stance for `RESTEP.window` 1.2 s at a sideways
+  error of `RESTEP.err` 2 cm (`PLANNER.idleErr` 7.5 cm otherwise). Crouched steps, speeds and stance times unchanged.
 - `config/movement.ts` `MOVEMENT` (live-tunable in the Tune panel) keeps the older stick-band tuning (sneak 0.8 / crouch walk
   1.8 / crouch run 2.6, walk 1.4 / jog 2.8, sprint 5.0 m/s; strafe x0.5 (anim-rework S3, the glide: was 0.9) and backstep x0.75 while aiming; stance times
   crouch 0.25 s, kneel 0.3 s, stand 0.28 s); the player's speeds come from the gears. `ENEMY_MOTION` /
@@ -116,6 +122,9 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   kinematic feet path); `speedMul` / `speedCap` slow it.
 - Floor settle: Havok holds a supported capsule within 0.14 m of the floor; `PlayerController.settleGap` sets it down on a
   grounded step when it hangs more than `SETTLE.tol` over its rest gap.
+- (anim-weight) Momentum tuning: the tuner's Weight section scales the CT pace spring's start / stop times and turn caps
+  and can let the stop overshoot and settle (`WEIGHT_MOVE`, read in `MotionDriver.stepCt` inside the local player's
+  `weightSim` window; identity by default; `docs/anim-tuner/WEIGHT.md`).
 
 ## Networked movement (MoveState)
 - `player/moveState.ts` (pure; in `player/` because single player builds it and must never import `src/net`):
@@ -215,6 +224,8 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   1.0), Hor+. Passing through an open doorway (within 1 m of its plane and inside its width, moving across it at 0.3 m/s
   or more: `world/camSpaces.ts` `doorPassing`) the boom pushes in to 0.8 m over 0.4 s and returns over 0.7 s once
   through or stopped (CT 110818, prototype).
+- (tuner-camera) Live camera tuning per camera state: the animation tuner's Camera section (`docs/anim-tuner/CAMERA.md`);
+  identity at default, the collision still applies; gameplay reads `ShoulderCamera.gamePos`.
 - Wall and low-space safety (CAM): sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing,
   near plane only while close (`player/shoulderCamera.ts`, `player/cameraBounds.ts`). Tight spaces: the boom pulls in
   (`boomIn` 16 1/s; the cast still clamps it the same frame) and eases out slowly (`boomOut` 4, about 1.2 s; G3, CT

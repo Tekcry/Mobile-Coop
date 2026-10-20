@@ -82,6 +82,18 @@ try {
       const open = g.gadgets.wheelOpen;
       const slow = a.loop.timeScale;
       const shown = document.querySelector('.selection-wheel:not([hidden])') !== null;
+      // (wheel-ui) sized from the viewport: inside the window, under the top HUD, clear of the hint box; one segment per item
+      const rr = document.querySelector('.selection-wheel .sw-ring').getBoundingClientRect();
+      const tb = document.querySelector('.hud-top')?.getBoundingClientRect();
+      const hb = document.querySelector('.selection-wheel .sw-hint').getBoundingClientRect();
+      const geo = {
+        d: Math.round(rr.width),
+        top: Math.round(rr.top - (tb && tb.height > 0 ? tb.bottom : 0)),
+        segs: document.querySelectorAll('.selection-wheel .sw-seg').length,
+        tiles: document.querySelectorAll('.selection-wheel .sw-tile:not([hidden])').length,
+        fits: rr.left >= 0 && rr.right <= innerWidth && rr.bottom <= innerHeight && rr.width > 100,
+        hintClear: hb.right <= rr.left || hb.top >= rr.bottom || hb.left >= rr.right,
+      };
       // (F1a, G181) the cursor on the flashbang segment (the right stick / mouse moves it); the left stick still walks, no time slow
       const ring = g.gadgets.ring;
       const idx = ring.findIndex((s) => s.kind === 'gadget' && s.id === 'flash');
@@ -129,9 +141,10 @@ try {
       const clickClosed = !g.gadgets.wheelOpen;
       // (back to the pad for the scenarios below; before G13 the page stayed in touch mode here)
       a.input.setMode('gamepad');
-      return { open, slow, shown, slot, hl, moved, sel, closed, back, tapOpen, tapSwitched, vis0, visOpen, visSeg, visCtx, visStep, clickSel, clickClosed };
+      return { open, slow, shown, geo, slot, hl, moved, sel, closed, back, tapOpen, tapSwitched, vis0, visOpen, visSeg, visCtx, visStep, clickSel, clickClosed };
     });
     assert(r.open && r.shown && r.slow === 1, `holding the wheel button opens the selection wheel over the live game, no time slow (x${r.slow})`);
+    assert(r.geo.fits && r.geo.top >= 0 && r.geo.hintClear && r.geo.segs === r.geo.tiles && r.geo.tiles >= 3, `the wheel fits the viewport under the top HUD, clear of the hint, one segment per item (${JSON.stringify(r.geo)})`);
     assert(r.slot === 2 && /flash/i.test(r.hl) && r.moved > 0.05, `the cursor picks a segment (${r.slot} ${r.hl}); the left stick still walks (${r.moved.toFixed(2)} m)`);
     assert(r.sel === 'flash' && r.closed && r.back === 1, `releasing selects it (${r.sel}) and closes (x${r.back})`);
     assert(!r.tapOpen && r.tapSwitched, 'a quick tap does not open the wheel: it switches weapon');

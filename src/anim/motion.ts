@@ -19,6 +19,7 @@
  */
 import { CT, MOVEMENT, TENSE } from '../config/movement';
 import { TUNE_CUR } from './tune';
+import { springStep, WEIGHT_MOVE } from './weight';
 import { hyp2 } from '../core/mathx';
 import { Spring } from './rigMath';
 
@@ -93,8 +94,8 @@ const TURN_SETTLE = 0.12;
 export const CROUCH_STEP = { k: 0.2, max: 0.95 } as const;
 export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
 /**
- * (anim-rework S3, BRIEF 3 "the glide") The aimed glide's standing steps (`glide` 1: a carrier aiming; MOVEMENT only;
- * crouched, holstered, low ready and enemies keep the old 60 % side-step). A side-step is a shuffle: the lead foot steps out, the trailing foot closes, they
+ * (anim-rework S3, BRIEF 3 "the glide") The aimed glide's steps (`glide` 1: a carrier aiming; MOVEMENT only; standing and
+ * (anim-rework S4) crouched; holstered, low ready and enemies keep the old 60 % side-step). A side-step is a shuffle: the lead foot steps out, the trailing foot closes, they
  * never cross, so each foot travels two steps' length per cycle and the feet open by that much between the closes. A
  * pure strafe steps `lat0 + latK x speed` (m; 0.094 m at 0.37 m/s, a slow stick: the feet open about 19 cm past the close,
  * 4 steps a second; 0.11 m at the 0.7 m/s full-stick aimed strafe, 6.4 a second) instead of 60 % of the walk's 0.5-0.6 m (the
@@ -126,15 +127,15 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   const base = s + (TENSE.step - s) * tense;
   const old = base * (1 - 0.4 * lateral * lateral);
   if (M !== MOVEMENT) return old * TUNE_CUR.strideMul;
-  // (anim-rework S3) standing: the glide's short shuffle side-step and the shorter back-step (GLIDE_STEP)
-  const stand = 1 - Math.max(0, Math.min(1, crouch));
+  // (anim-rework S3) the glide's short shuffle side-step and the shorter back-step (GLIDE_STEP); (anim-rework S4) crouched
+  // too (the crouched aimed strafe opened the feet 33-44 cm off the line with the old 60 % side-step)
   const g = Math.max(0, Math.min(1, glide));
-  if (stand <= 0 || g <= 0) return old * TUNE_CUR.strideMul;
+  if (g <= 0) return old * TUNE_CUR.strideMul;
   const fwd = base + (Math.min(base, GLIDE_STEP.fwd0 + GLIDE_STEP.fwdK * v) - base) * g;
   const l2 = lateral * lateral;
   const side = Math.min(fwd, GLIDE_STEP.lat0 + GLIDE_STEP.latK * v);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
-  return (old + (step - old) * stand * g) * TUNE_CUR.strideMul;
+  return (old + (step - old) * g) * TUNE_CUR.strideMul;
 }
 
 /**
@@ -206,6 +207,8 @@ export class MotionDriver {
   private pivotZ = 0;
   /** (step 22) Chaos Theory pace (x, m/s) and its rate (v, m/s^2), critically damped. */
   private paceSpring = new Spring();
+  /** (anim-weight) The Weight section's stop time multiplier the last CT step used (`ctStopDistance` predicts with it). */
+  private stopMul = 1;
   /** (CT prototype M1) Walking backwards at the slowest speed (the velocity runs opposite the facing). */
   backward = false;
   /** (A1.2) Where the body is turning to: the stick heading while free and pushed, else the facing (caps the planner's yaw prediction). */
@@ -437,12 +440,27 @@ export class MotionDriver {
       } else this.heading = th;
     } else if (this.state === 'move') this.go(sp > 0.02 ? 'stop' : 'idle');
     // the pace: one critically damped spring, quicker down than up (a carry or reset elsewhere re-seeds it)
-    if (Math.abs(this.paceSpring.x - sp) > 1e-6) this.paceSpring.reset(sp);
-    const omega = target < sp ? CT_STOP_W / CT.stopTime : CT_START_W / CT.startTime;
-    sp = this.paceSpring.step(target, omega, dt);
+    // (anim-weight) WEIGHT_MOVE: the Weight section's momentum (x1 / 0 = today; set in the local player's window only).
+    // A stop settle above 0 makes the stop spring under-damped: the pace overshoots below 0 (back along the heading)
+    // and settles at rest
+    const settle = WEIGHT_MOVE.stopSettle;
+    this.stopMul = WEIGHT_MOVE.stopMul;
+    const px0 = this.paceSpring.x;
+    if (Math.abs((px0 < 0 ? -px0 : px0) - sp) > 1e-6) this.paceSpring.reset(sp);
+    else if (px0 < 0) sp = px0;
+    const omega = target < sp || (settle > 0 && !pushed) ? CT_STOP_W / (CT.stopTime * WEIGHT_MOVE.stopMul) : CT_START_W / (CT.startTime * WEIGHT_MOVE.startMul);
+    if (settle > 0 && !pushed) {
+      springStep(this.paceSpring, 0, omega, 1 - settle, dt);
+      sp = this.paceSpring.x;
+    } else sp = this.paceSpring.step(target, omega, dt);
     this.wantPace = target;
     // (the last 0.1 m/s of a stop is a 1.7 mm step at 60 Hz: the stop lands inside `stopTime` at every speed)
-    if (sp < 0 || (target === 0 && sp < CT_REST)) {
+    if (settle > 0 && !pushed) {
+      if (Math.abs(sp) < 0.02 && Math.abs(this.paceSpring.v) < 0.1) {
+        sp = 0;
+        this.paceSpring.reset(0);
+      }
+    } else if (sp < 0 || (target === 0 && sp < CT_REST)) {
       sp = 0;
       this.paceSpring.reset(0);
     }
@@ -455,7 +473,7 @@ export class MotionDriver {
     this.vx = Math.sin(h) * sp;
     this.vz = Math.cos(h) * sp;
     // the spring keeps its exact pace (the vector round trip would re-seed it every step)
-    this.paceSpring.x = this.speed;
+    this.paceSpring.x = sp < 0 ? -this.speed : this.speed;
     this.ax = (this.vx - px) / dt;
     this.az = (this.vz - pz) / dt;
   }
@@ -467,7 +485,7 @@ export class MotionDriver {
   ctStopDistance(): number {
     const x = this.speed;
     if (x <= 0.01) return 0;
-    const w = CT_STOP_W / CT.stopTime;
+    const w = CT_STOP_W / (CT.stopTime * this.stopMul);
     return Math.max(0, (2 * x) / w + this.paceSpring.v / (w * w));
   }
 
@@ -527,7 +545,9 @@ export class MotionDriver {
         if (want > 0.05 && !this.backward) {
           // (A1.1) the cap scales with speed: ~450 deg/s up to a jog, ~350 deg/s at the full run (footage 300-400)
           const k = Math.max(0, Math.min(1, (sp - CT.turnSlowFrom) / (CT.turnSlowTo - CT.turnSlowFrom)));
-          this.turnToward(wrapPi(Math.atan2(i.vx, i.vz) - this.yaw), CT.turnRate + (CT.turnRateRun - CT.turnRate) * k, CT.turnAccel, dt);
+          // (anim-weight) x WEIGHT_MOVE.turnMul / turnRunMul (x1 today)
+          const r0 = CT.turnRate * WEIGHT_MOVE.turnMul;
+          this.turnToward(wrapPi(Math.atan2(i.vx, i.vz) - this.yaw), r0 + (CT.turnRateRun * WEIGHT_MOVE.turnRunMul - r0) * k, CT.turnAccel, dt);
         }
         else this.yawRate = 0;
         return;

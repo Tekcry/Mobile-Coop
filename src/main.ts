@@ -281,6 +281,14 @@ async function boot(): Promise<void> {
       ctx: 'Playtest notes: write one, read the list, export them.',
       action: () => a.screens.push(new SettingsScreen(a).openTab('feedback')),
     }),
+    // (anim-studio) the developer stage: the loop player, the animation tuner and the viewing aids (single player)
+    (a) => ({
+      key: 'anim-studio',
+      label: 'Anim Studio (dev)',
+      order: 95,
+      ctx: 'Developer tool: a plain stage with Wren, the loop player (every clip and state), the animation tuner, viewing aids and snapshots. Pad and keyboard.',
+      action: () => a.studio?.(),
+    }),
   );
   if (flags.legacy) {
     MainMenuScreen.entries.push((a) => ({
@@ -388,6 +396,8 @@ async function boot(): Promise<void> {
     app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };
+  // (anim-studio) Main menu / Pause > Anim Studio (dev): the studio stage in Free Roam (single player)
+  app.studio = () => startGame({ map: getMap('studio'), mode: 'sandbox', seed: 1 });
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
   // tests: start a match from the menu (Free roam left the main menu with sector-ops slice 1; e2e-pad still walks it)
