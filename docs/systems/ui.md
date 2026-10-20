@@ -119,6 +119,14 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   28 px high; the panel stops its pointer, mouse, click, wheel, touch and context-menu events (keys still reach the game:
   buttons blur after a click, sliders on change). Share / Copy: `navigator.share` with a File where `canShare({ files })`
   allows, else `navigator.clipboard.writeText`, else the JSON in a read-only text box (selected on focus).
+- (tuner-pad) Pad control, `docs/anim-tuner/PAD.md`: the pure mode logic is `ui/animTunePad.ts` (`TunePadCtl`, modes
+  off / tuner / game); `GamepadSource.padHook` (set in `core/app.ts` to `AnimTunePanel.padPoll`) sees the active pad
+  before the bindings each poll, and while it returns true the pad's held actions are released and nothing of it
+  reaches the `InputState` (game and menus). Opening the panel takes the pad (after every button is up); D-pad up / down
+  pick a slider (body rows then gun rows, wrapping), left / right nudge by the step (repeat 0.35 s / 0.06 s, x5 after
+  1 s), left stick X nudges (full tilt crosses the range in 2 s), LB / RB the focused section's group (follow off), Y
+  the row's reset, A Export, B close, View (Select) the pad between tuner and game. The header's "PAD:" line shows the
+  mode; the focused row has an amber outline. Follow waits while the tuner has the pad.
 
 ## Course HUD (Fallow, training D45)
 `src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the

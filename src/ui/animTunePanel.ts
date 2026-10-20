@@ -27,6 +27,7 @@ import {
 } from '../anim/tune';
 import { loadAnimTune, saveAnimTune } from '../save/animTuneStore';
 import { download } from './fileOut';
+import { TunePadCtl } from './animTunePad';
 
 /** What the barrel marker reads from the local player's rig (typed loosely: no player import). */
 export interface TuneRigView {
@@ -90,6 +91,19 @@ export class AnimTunePanel {
   private nextInfo = 0;
   /** The local player's rig (set by the debug overlay). */
   rig: (() => TuneRigView | null) | null = null;
+  /** (tuner-pad) Pad control: the mode logic, the "PAD:" line, the focused slider (section, row) and its row mark. */
+  private readonly pad = new TunePadCtl();
+  private padLine: HTMLDivElement;
+  private padSec = 0;
+  private padIdx = 0;
+  private padRow: HTMLElement | null = null;
+  private padInput: HTMLInputElement | null = null;
+  private padMin = 0;
+  private padMax = 1;
+  private padStep = 1;
+  /** Left stick nudge carried between frames (value units, below one step). */
+  private stickAcc = 0;
+  private readonly inputEv = new Event('input');
 
   constructor() {
     const el = (this.el = document.createElement('div'));
@@ -127,6 +141,9 @@ export class AnimTunePanel {
     const close = mkBtn('x', () => this.hide(), 'anim-tune-close');
     close.title = 'close';
     head.append(title, this.foldBtn, close);
+    this.padLine = document.createElement('div');
+    this.padLine.className = 'anim-tune-pad';
+    this.padLine.style.cssText = 'color:#ffc040;margin:2px 0;';
     const body = (this.body = document.createElement('div'));
     const bar = document.createElement('div');
     bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;margin:3px 0;';
@@ -179,7 +196,7 @@ export class AnimTunePanel {
     this.shareOut.style.cssText = 'width:100%;height:120px;box-sizing:border-box;font:inherit;color:#cfe;background:#012;';
     this.shareOut.addEventListener('focus', () => this.shareOut.select());
     body.append(bar, this.shareOut, this.now, this.info);
-    el.append(head, body);
+    el.append(head, this.padLine, body);
     this.addSection('body', 'Body state', BODY_GROUPS, 'idle');
     this.addSection('gun', 'Gun hold (weapon x state)', GUN_GROUPS, 'rifle.lowReady');
     document.body.appendChild(el);
@@ -207,7 +224,10 @@ export class AnimTunePanel {
       changed: tuneChanged,
       exportJson: () => tuneExport(),
       log: TUNE_LOG,
+      // (tuner-pad) the pad mode and the focused slider
+      pad: () => ({ mode: this.pad.mode, group: this.padInput?.dataset.group ?? '', id: this.padInput?.dataset.id ?? '' }),
     };
+    this.setPadLine();
   }
 
   private addSection(kind: 'body' | 'gun', title: string, groups: readonly TuneGroup[], first: TuneGroup): void {
@@ -255,8 +275,13 @@ export class AnimTunePanel {
     for (const s of this.sections) this.rebuild(s);
   }
 
-  /** The slider rows of one section's group. */
+  /** The slider rows of one section's group (the pad's focus mark is put back on). */
   private rebuild(sec: Section): void {
+    this.buildRows(sec);
+    this.markPadFocus();
+  }
+
+  private buildRows(sec: Section): void {
     sec.rows.replaceChildren();
     if (sec.pick.value !== sec.group) sec.pick.value = sec.group;
     for (const o of Array.from(sec.pick.options)) {
@@ -349,7 +374,8 @@ export class AnimTunePanel {
   /** A slider or picker of the panel has the focus (follow must not rebuild it away). */
   private editing(): boolean {
     const a = document.activeElement;
-    return this.pressing || (!!a && this.el.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'SELECT'));
+    // (tuner-pad) the pad tuning too: the player stands still then, and the rows stay under the pad's focus
+    return this.pressing || this.pad.mode === 'tuner' || (!!a && this.el.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'SELECT'));
   }
 
   /**
@@ -412,15 +438,168 @@ export class AnimTunePanel {
   show(): void {
     this.open = true;
     this.el.hidden = false;
+    // (tuner-pad) opening takes the pad focus (once the press that opened it is released)
+    this.pad.open();
+    this.stickAcc = 0;
+    this.setPadLine();
     this.syncFollow(true);
+    this.markPadFocus();
     this.onOpenChange?.(true);
   }
 
   hide(): void {
     this.open = false;
     this.el.hidden = true;
+    this.pad.close();
+    this.markPadFocus();
     this.clearMarker();
     this.onOpenChange?.(false);
+  }
+
+  /**
+   * (tuner-pad) The gamepad source's hook, every poll (seconds): returns true while the pad is the tuner's (the game and
+   * the menus then get none of it). D-pad up / down pick a slider (body rows, then the gun rows), left / right nudge it by
+   * its step (held: repeats, x5 after 1 s), the left stick X nudges in analogue steps, LB / RB the focused section's
+   * state group, Y resets the slider, A exports, B closes, View moves the pad between the tuner and the game. No allocation
+   * unless a value or the focus changes.
+   */
+  padPoll(pad: Gamepad, now: number, dt: number): boolean {
+    let mask = 0;
+    const btns = pad.buttons;
+    const n = Math.min(btns.length, 17);
+    for (let i = 0; i < n; i++) {
+      const b = btns[i]!;
+      if (b.pressed || b.value > 0.5) mask |= 1 << i;
+    }
+    const o = this.pad.update(mask, pad.axes[0] ?? 0, now, dt);
+    if (!this.open) return o.consume;
+    if (o.toggled) {
+      this.stickAcc = 0;
+      this.setPadLine();
+      this.markPadFocus();
+      return o.consume;
+    }
+    if (o.close) {
+      this.hide();
+      return true;
+    }
+    if (o.move !== 0) this.padMove(o.move);
+    if (o.group !== 0) this.padGroup(o.group);
+    if (o.reset) this.padReset();
+    if (o.exportNow) this.exportFile();
+    if (o.nudge !== 0) this.padNudge(o.nudge);
+    if (o.stick === 0) this.stickAcc = 0;
+    else if (this.padInput) {
+      this.stickAcc += o.stick * (this.padMax - this.padMin);
+      const steps = Math.trunc(this.stickAcc / this.padStep);
+      if (steps !== 0) {
+        this.stickAcc -= steps * this.padStep;
+        this.padNudge(steps);
+      }
+    }
+    return o.consume;
+  }
+
+  private setPadLine(): void {
+    const m = this.pad.mode;
+    this.padLine.textContent =
+      m === 'game' ? 'PAD: game (View: back to the tuner)' : 'PAD: tuner  D-pad pick / nudge, stick X fast, LB / RB group, Y reset, A export, B close, View: game';
+  }
+
+  private sliders(k: number): NodeListOf<HTMLInputElement> {
+    return this.sections[k]!.rows.querySelectorAll<HTMLInputElement>('input[type=range]');
+  }
+
+  /** Mark the pad's focused slider (only while the pad is the tuner's) and cache its range. */
+  private markPadFocus(): void {
+    if (this.padRow) {
+      this.padRow.style.outline = '';
+      this.padRow.style.background = '';
+    }
+    this.padRow = null;
+    this.padInput = null;
+    if (!this.open || this.pad.mode !== 'tuner' || !this.sections.length) return;
+    const ns = this.sections.length;
+    if (this.padSec >= ns || this.padSec < 0) this.padSec = 0;
+    let list = this.sliders(this.padSec);
+    for (let j = 0; j < ns && !list.length; j++) {
+      this.padSec = (this.padSec + 1) % ns;
+      this.padIdx = 0;
+      list = this.sliders(this.padSec);
+    }
+    if (!list.length) return;
+    this.padIdx = Math.max(0, Math.min(list.length - 1, this.padIdx));
+    const inp = list[this.padIdx]!;
+    this.padInput = inp;
+    this.padMin = Number(inp.min);
+    this.padMax = Number(inp.max);
+    this.padStep = Number(inp.step) || 1;
+    const row = inp.closest<HTMLElement>('label');
+    if (row) {
+      row.style.outline = '2px solid #ffc040';
+      row.style.background = 'rgba(255,192,64,0.18)';
+      row.scrollIntoView({ block: 'nearest' });
+      this.padRow = row;
+    }
+  }
+
+  /** D-pad up / down: the slider above / below, on through the sections (wraps). */
+  private padMove(d: number): void {
+    const ns = this.sections.length;
+    let k = this.padSec;
+    let i = this.padIdx + d;
+    for (let guard = 0; guard <= ns; guard++) {
+      const len = this.sliders(k).length;
+      if (i >= 0 && i < len) break;
+      if (i < 0) {
+        k = (k - 1 + ns) % ns;
+        i = this.sliders(k).length - 1;
+      } else {
+        k = (k + 1) % ns;
+        i = 0;
+      }
+    }
+    this.padSec = k;
+    this.padIdx = i;
+    this.stickAcc = 0;
+    this.markPadFocus();
+  }
+
+  /** LB / RB: the focused section's previous / next state group (follow off, as a manual pick); the same field stays
+   *  focused when the new group has it. */
+  private padGroup(d: number): void {
+    const sec = this.sections[this.padSec];
+    if (!sec) return;
+    const opts = sec.pick.options;
+    let at = 0;
+    for (let i = 0; i < opts.length; i++) if (opts[i]!.value === sec.group) at = i;
+    const next = opts[(at + d + opts.length) % opts.length];
+    if (!next) return;
+    const id = this.padInput?.dataset.id ?? '';
+    this.setFollow(false);
+    sec.group = next.value as TuneGroup;
+    this.buildRows(sec);
+    const list = this.sliders(this.padSec);
+    for (let i = 0; i < list.length; i++) if (list[i]!.dataset.id === id) this.padIdx = i;
+    this.stickAcc = 0;
+    this.markPadFocus();
+  }
+
+  /** Y: the focused slider back to its default (its row's x). */
+  private padReset(): void {
+    this.padRow?.querySelector('button')?.click();
+  }
+
+  /** Move the focused slider `steps` steps (clamped, snapped to the step), through its own input handler. */
+  private padNudge(steps: number): void {
+    const inp = this.padInput;
+    if (!inp) return;
+    const step = this.padStep;
+    const raw = Math.min(this.padMax, Math.max(this.padMin, Number(inp.value) + steps * step));
+    const snapped = this.padMin + Math.round((raw - this.padMin) / step) * step;
+    const dec = (String(step).split('.')[1] ?? '').length;
+    inp.value = String(Number(snapped.toFixed(dec)));
+    inp.dispatchEvent(this.inputEv);
   }
 
   /** Folded: only the header bar shows (a short phone screen). */
