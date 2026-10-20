@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.20.0 - Animation tuner: live sliders for gaits, poses and the gun hold, with export (2026-10-21, PR #56)
+- Animation tuner (Michael 2026-10-20: "add the sliders ... Doesn't have to look pretty, just functional"): F3 > Anim
+  opens a slider panel top right (the anti-crab readout stays top left). A body-state section (idle, walk, jog, run,
+  crouch idle / sneak / crouch walk, low ready, aim, crouched aim, back to wall idle / slide / peek, ladder, pipe, ledge,
+  vent, crawl, hang, hold) and a gun-hold section (rifle and pistol x low ready / aim / crouched aim), each following
+  the current state (untick "follow" to pick one). Sliders cover foot width, knee out, knee lift, step length, pelvis
+  height / crouch depth, forward lean, arm swing and its growth with speed, elbow out, head turn, peek lean, gap to the
+  wall, body distance to the ladder / pipe / guard, hand and foot reach and spacing, gap to the guard, and the gun's
+  position, pitch, yaw, cant, sight height, head drop and elbow tuck; a barrel marker shows where the muzzle points.
+  Changes apply live to the local player only (guards and the partner's copy are untouched; nothing on the wire), save
+  to the tuner's own IndexedDB store, reset per slider / group / all, and Export downloads `anim-tune-<date>.json`
+  (every changed value, its default, a timestamped change log). Every default is identity: nothing changes until a
+  slider moves. `src/anim/tune.ts`, `src/ui/animTunePanel.ts`, `src/save/animTuneStore.ts`; report
+  `docs/anim-tuner/REPORT.md`.
+- Pass 2 (pad and phone, Michael: "I will wait for the anim tuner"): the tuner also opens from the pause menu ("Animation
+  tuner (dev)", which resumes with the panel open) and Settings > Graphics, without F3, and stays open until its x. It
+  folds to a header bar, scrolls on a short landscape screen, is at most 45 % wide, has 28 px touch rows, keeps its
+  touches away from the game, and Share / Copy sends the export through the share sheet, the clipboard or a text box.
+  Two new walk / jog / run sliders for the stiff walk (CT Core): stance knee flex and trunk / shoulder counter-rotation,
+  at the top with arm swing amplitude and step length (cadence at the same speed).
 ## 4.19.1 - Faster, steadier e2e: co-op suites on sim time, full run ~20 min at E2E_JOBS=2 (2026-10-20, PR #57)
 - Test code only, no game change. The full `npm run e2e` at `E2E_JOBS=2` passes on a loaded machine without reruns
   (`docs/test-speed/STATE.md` "Runs" and "Findings and fixes").
