@@ -339,6 +339,14 @@ export class World {
         const top = b.maximumWorld.y + 0.3;
         // (a 1.5 m margin round the roof's edge: a shadow falls a little way in)
         if (vx.roofAt(x, z) > top && vx.skyAt(x, top, z) <= 0.05 && vx.roofAt(x + 1.5, z) > top && vx.roofAt(x - 1.5, z) > top && vx.roofAt(x, z + 1.5) > top && vx.roofAt(x, z - 1.5) > top) continue;
+      } else if (this.bakedMoon && m.isEnabled()) {
+        // (smooth-world: no sky bake - the roof grid; under the baked moon a caster indoors shades nothing the bake
+        // has not already darkened)
+        const b = m.getBoundingInfo().boundingBox;
+        const x = (b.minimumWorld.x + b.maximumWorld.x) / 2;
+        const z = (b.minimumWorld.z + b.maximumWorld.z) / 2;
+        const top = b.maximumWorld.y + 0.3;
+        if (this.roofAt(x, z) > top && this.roofAt(x + 1.5, z) > top && this.roofAt(x - 1.5, z) > top && this.roofAt(x, z + 1.5) > top && this.roofAt(x, z - 1.5) > top) continue;
       }
       tmp.push(m);
     }

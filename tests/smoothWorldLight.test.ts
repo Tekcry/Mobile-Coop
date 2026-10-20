@@ -2,8 +2,9 @@
  * Smooth world light parity (smooth-world scope 3): the gameplay light bake is the same with voxels on (`?voxels=1`)
  * or off (the smooth default). Each map is prepared both ways through `LevelBuilder.prepare` - the Babylon-free part of
  * `build` that `World.create` runs (the dressing pass, the voxel split, the canonical light shapes) - and the light
- * shapes, their bounds and hash, and the light registry must match. Marlow Yard (ctcourse) is then baked in node as
- * `World.create` + `bakeLevelLight` do, and the `LightField` built from each builder's registry and doors reads the same
+ * shapes, their bounds and hash, and the light registry must match. Marlow Yard (ctcourse) is then baked in node twice, once
+ * from each path's builder, as `World.create` + `bakeLevelLight` do: the bake hashes match, and the `LightField` built
+ * from each path's own bake, registry and doors reads the same
  * level at lit, mid, dark and roofed points. Also: the smooth path's rain roof grid (`roofGrid`) stops rain under the
  * station 5 back room's roof and lets it fall in the open yard.
  */
@@ -16,7 +17,7 @@ import { dressingOn } from '../src/world/detailPass';
 import { VOXEL_TIER } from '../src/core/quality';
 import { bakeLamps } from '../src/voxel/lampBake';
 import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
-import { bakedLights, type LightBake } from '../src/world/lightBake';
+import { bakedLights, lightBakeHash, type LightBake } from '../src/world/lightBake';
 import { buildAmbientGrid } from '../src/world/ambientGrid';
 import { LightField, type FieldDoor } from '../src/world/lightField';
 import { moonLight } from '../src/world/lampMath';
@@ -75,15 +76,13 @@ describe('smooth world: the light shapes are the same with voxels on or off', ()
 describe('smooth world: Marlow Yard light field, voxels on vs off', () => {
   const on = prepared(ctcourse, 'voxels');
   const off = prepared(ctcourse, 'smooth');
-  let bake: LightBake;
   const fields: Record<'on' | 'off', { open: LightField; shut: LightField }> = {} as never;
 
-  beforeAll(() => {
-    // the bake as `World.create` + `bakeLevelLight` make it (inputs: the shapes above, proven equal, and the registry)
-    const set = on.light;
-    const reg = on.b.lights;
+  /** The bake as `World.create` + `bakeLevelLight` make it, from one prepared builder's own shapes and registry. */
+  const bakeFrom = (p: typeof on): LightBake => {
+    const set = p.light;
+    const reg = p.b.lights;
     reg.ambient = ctcourse.theme.lightLevel ?? 0.75;
-    off.b.lights.ambient = reg.ambient;
     const mL = moonLight(ctcourse.theme);
     const sky = Math.max(0, reg.ambient - mL);
     const ambient = buildAmbientGrid({ ambientAt: (x, y, z) => { const v = reg.zoneAt(x, y, z); return v === v ? v : sky; } }, set.lo, set.hi);
@@ -94,12 +93,24 @@ describe('smooth world: Marlow Yard light field, voxels on vs off', () => {
     const m = bakeMoon({ kind: 'moon', id: 0, origin: set.lo, n, shapes: set.shapes, dir });
     const baked = bakedLights(reg);
     const r = bakeLamps({ kind: 'lamps', id: 0, shapes: set.shapes, lights: baked.lights, lo: set.lo, hi: set.hi });
-    bake = { lo: set.lo, hi: set.hi, lampKey: 't', moonKey: 't', lamps: { baked, r }, moon: { origin: set.lo, n, cell: MOON_CELL, vis: m.vis, dir }, ambient, moonLight: mL, ms: 0 };
+    return { lo: set.lo, hi: set.hi, lampKey: 't', moonKey: 't', lamps: { baked, r }, moon: { origin: set.lo, n, cell: MOON_CELL, vis: m.vis, dir }, ambient, moonLight: mL, ms: 0 };
+  };
+  const bakes: Record<'on' | 'off', LightBake> = {} as never;
+
+  beforeAll(() => {
+    // (fix round) two bakes, one per path, each from its own builder: the fields below read different bake objects
     for (const [k, p] of [['on', on], ['off', off]] as const) {
+      const bake = (bakes[k] = bakeFrom(p));
       const doors = (o: number): FieldDoor[] => p.b.anchors.doors.map((anchor) => ({ anchor, open: o }));
       fields[k] = { open: new LightField(bake, p.b.lights, doors(1)), shut: new LightField(bake, p.b.lights, doors(0)) };
     }
   }, 120_000);
+
+  it('the two bakes (voxels on, voxels off) are byte-identical (lamps, moon, ambient grid)', () => {
+    expect(bakes.on === bakes.off).toBe(false);
+    expect(lightBakeHash(bakes.off)).toBe(lightBakeHash(bakes.on));
+    expect(bakes.off.lamps!.baked.ids).toEqual(bakes.on.lamps!.baked.ids);
+  });
 
   const MID = 7;
   /** Named points: feet / surface positions read as a standing body or a surface level. */

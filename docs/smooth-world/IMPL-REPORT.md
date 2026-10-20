@@ -102,3 +102,23 @@ bodies, so draws should fall; the baked lamps cost the same per pixel as on the 
 7. Reflections set to Ray traced on the default: SSR instead, no errors.
 8. Draw calls and frame time, default vs `?voxels=1` (`perf.mjs --desktop`, `E2E_GPU=1`).
 9. Menu: the weapon beside Wren is smooth.
+
+## Fix round (after CHECK-REPORT, on 7ac815ef)
+1. BLOCKING fixed - night vision no longer dims the smooth level. `bakedLamps.ts`: `markLampLevel(m)` / `isLampLevel(m)`
+   (a `metadata.lampLevel` mark) and a `LAMP_LEVEL` define in `LampPlugin` (`prepareDefines`); the shader uses
+   `nsBF = 1.0` under `LAMP_LEVEL`, else `nsBodyFill` as before. `levelBuilder.ts` marks the PBR `levelMat-*` material.
+   Bodies, weapons and props stay unmarked and keep the `BODY_FILL` cap. Voxel materials are unchanged (`VOXELS` path).
+   Tests: new `tests/lampLevel.test.ts` (NullEngine: a marked material gets `LAMP_LEVEL`, an unmarked one does not, the
+   mark keeps other metadata, the shader branch is present); `scripts/e2e-lightbake.mjs` asserts on smooth Epic that the
+   compiled `levelMat-*` effect has `#define LAMP_LEVEL` and no other lamp-plugin effect does.
+2. POLISH done - `tests/smoothWorldLight.test.ts` bakes twice (from the voxels-on builder and the voxels-off builder),
+   asserts `lightBakeHash` equal and the baked ids equal, and each `LightField` reads its own path's bake. File runs in
+   ~8.5 s.
+3. POLISH done (perf) - `World.updateSunCasters`: without a voxel sky bake and with the baked moon on, a moving caster
+   whose column and the four 1.5 m neighbours have a roof above it (`World.roofAt`, the roof grid) leaves the moon
+   cascades. The cheap path (no baked moon) keeps every caster as before.
+- Left for the polish list (`POLISH.md`): check items 3 (wet floors under roofs), 4 (probe irradiance indoors),
+  6 (fog shafts follow the moon's direction).
+- Checks: `npm run lint` 0 errors (41 pre-existing warnings); `npm test` 192 files, 2098 passed, 5 skipped;
+  `npm run build` passes. No e2e (job lead). Pending desktop GPU: NV on Marlow Yard default vs `?voxels=1` (smooth walls
+  not darker, bodies not glowing).

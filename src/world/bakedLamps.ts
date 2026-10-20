@@ -35,6 +35,16 @@ export interface BakeExtras {
    *  standard materials (else on the PBR ones). */
   standard?: boolean;
 }
+/**
+ * smooth-world: mark the level's own material (the smooth default's boxes and cylinders). `LampPlugin` then defines
+ * `LAMP_LEVEL`: the level keeps its whole ambient-grid fill under night vision, as the voxel walls keep theirs; the
+ * `BODY_FILL` cap stays on bodies, weapons and props.
+ */
+export function markLampLevel(m: Material): void {
+  m.metadata = { ...(m.metadata as object | null), lampLevel: true };
+}
+export const isLampLevel = (m: Material): boolean => !!(m.metadata as { lampLevel?: boolean } | null)?.lampLevel;
+
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
 const CAPS_PER_LAMP = 4;
@@ -616,7 +626,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false, LAMP_LEVEL: false });
     // (coop-fix) a clone must not carry it: Babylon rebuilds a cloned plugin by class name (`Tools.Instantiate`), which
     // fails for this unregistered class and aborted every figure loaded after the attach (the joiner's partner); the
     // clone is a new material, so `BakedLamps.frame` gives it its own plugin
@@ -644,6 +654,8 @@ export class LampPlugin extends MaterialPluginBase {
     // (only a texture that exists: an unbound sampler3D falls on a 2D texture's unit, a draw error)
     defines.LAMP_MOON = !!mesh && !!this.lamps.moonTex;
     defines.LAMP_FILL = !!mesh && !!this.lamps.fillTex;
+    // (smooth-world) the level's material: no body fill cap under night vision
+    defines.LAMP_LEVEL = !!mesh && isLampLevel(this._material);
   }
 
   override getSamplers(samplers: string[]): void {
@@ -874,8 +886,13 @@ ${settle}
 ${level('nsLampRaw')}
 #if defined(LAMP_FILL) && !defined(VOXELS)
   // (nv-pass slice 1) under night vision the flat fill (and the probe's diffuse) is capped and hemisphere-shaded, so a
-  // body sits at the walls' brightness instead of glowing (\`bodyFillScale\`; the lamps on it are untouched)
+  // body sits at the walls' brightness instead of glowing (\`bodyFillScale\`; the lamps on it are untouched). The level's
+  // own material (smooth-world, \`LAMP_LEVEL\`) keeps its whole fill, as the voxel walls do.
+#ifdef LAMP_LEVEL
+  float nsBF = 1.0;
+#else
   float nsBF = nsBodyFill(lampDark.z, normalW.y);
+#endif
   nsStat += nsFillL * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb * nsBF;
 #else
   float nsBF = 1.0;

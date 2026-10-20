@@ -29,6 +29,32 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
       return { ...w.lightInfo(), minimal: !!q.minimal, voxels: !!w.voxels, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
     });
     if (name === 'gfx=epic') {
+      // (fix round) the level material compiles the lamp plugin with LAMP_LEVEL (no night-vision body fill cap); no other
+      // material does (bodies, weapons and props keep the cap)
+      const lvl = await page.evaluate(async () => {
+        const scene = window.__app.current.scene;
+        const read = () => {
+          let level = null;
+          let others = 0;
+          for (const m of scene.meshes) {
+            const sm = m.subMeshes?.[0];
+            const fx = sm?.effect;
+            const mat = sm?.getMaterial?.();
+            if (!fx || !fx.isReady() || !mat || !fx.defines.includes('#define BAKED_LAMPS')) continue;
+            const has = fx.defines.includes('#define LAMP_LEVEL');
+            if (mat.name.startsWith('levelMat-')) level = has;
+            else if (has) others++;
+          }
+          return { level, others };
+        };
+        let r = read();
+        for (let i = 0; i < 60 && r.level === null; i++) {
+          await new Promise((res) => setTimeout(res, 500));
+          r = read();
+        }
+        return r;
+      });
+      info.lampLevel = lvl;
       // the smooth default at Ray traced: no voxel world to trace, so screen space reflections run instead (no crash)
       await page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.adaptive = false; }));
       await new Promise((r) => setTimeout(r, 1500));
@@ -62,6 +88,7 @@ try {
     assert(i.lamps, `${n}: draws the bake (the baked lamps)`);
     assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr})`);
   }
+  assert(epic.lampLevel?.level === true && epic.lampLevel.others === 0, `smooth Epic: only the level material compiles LAMP_LEVEL (${JSON.stringify(epic.lampLevel)})`);
   assert(epic.rtFallback, `smooth Epic at Ray traced falls back to screen space reflections (${epic.pps})`);
 } catch (e) {
   failed = true;

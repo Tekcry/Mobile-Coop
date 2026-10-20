@@ -26,6 +26,7 @@ import {
 } from '../core/babylon';
 import { G } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
+import { markLampLevel } from './bakedLamps';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
 import { findSplitGaps } from '../player/splitJump';
 import { MOVEMENT } from '../config/movement';
@@ -447,6 +448,8 @@ export class LevelBuilder {
       // the probe's cube is not prefiltered: blur it by roughness on the fly
       pm.realTimeFiltering = true;
       surfacePlugin = new SurfacePlugin(pm, opts.atlas, 'world');
+      // (smooth-world) the baked lamps treat it as level, not a body: no night-vision fill cap
+      markLampLevel(pm);
       mat = pm;
     } else {
       const sm = new StandardMaterial(`levelMat-${name}`, scene);
