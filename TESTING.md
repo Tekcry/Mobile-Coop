@@ -55,7 +55,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Weapon states (anim-rework S1): X taps the gun out to low ready (explore camera) and away again; hold LT to aim
   (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, a little slower.
   RT fires only while aiming; holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
-  Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after.
+  Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
+  things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming
+  alone does not jam, and RB not aiming the pistol is still the co-op action.
 - [ ] A at a wall puts your back to it; slide along it, stop at the edge, A to leave (CT prototype).
 - [ ] (G6) Crouched on a wall: side-on, a hand on the knee, turning through facing out on a reversal; Open from the door
   menu steps to the latch side and pushes the door with a hand; the edge peek puts the head just past the frame.
@@ -68,7 +70,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
   holster) before the next comes out; no gun passes through the head, chest or legs.
-- [ ] Reload (hold X, or A, with the gun out): the magazine comes out in the support hand, goes to its pouch (rifle chest, pistol left hip) and a fresh
+- [ ] Reload (hold X with the gun out; A no longer reloads): the magazine comes out in the support hand, goes to its pouch (rifle chest, pistol left hip) and a fresh
   one goes in; on an empty gun she works the charging handle / racks the slide. Swapping mid-reload leaves no magazine in
   the hand.
 - [ ] Swap shoulders while aiming: the gun moves to the other hand and shoulder; a partner sees the same.

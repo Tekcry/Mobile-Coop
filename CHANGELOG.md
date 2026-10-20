@@ -7,11 +7,14 @@
   Alt held creeps (A1); back to wall moved from Left Shift to Caps Lock. D-pad up / down and the wheel only step the held
   context menu now; = / - are unbound.
 - Weapon states: holstered, low ready, aiming. LT (RMB) held aims, let go drops to low ready; X tap holsters / draws
-  (M1); X held with the gun out reloads (A2; nothing to reload: holsters), A still reloads; LT from holstered draws
+  (M1); X held with the gun out reloads (A2; nothing to reload: holsters); A always interacts and never reloads
+  (Michael 14:55: "Interact always"; KBM R still reloads); LT from holstered draws
   straight to the aim through a slower sling draw (M2, the existing draw x 1.6 until slice 3's clip); RT fires only
   while aiming (A3). Holstered or holding a guard: RT tap knocks out, RT hold kills (M3); KBM Z still knocks out; LT
   while holding aims the pistol over his shoulder. Traversal and busy moves put the gun away and bring the state back
-  after (M4). The pistol jammer runs while the drawn pistol is aimed at a camera or a laser (LT is the aim now).
+  after (M4). The pistol jammer: hold the co-op button (pad RB, keyboard F / PgDn) while aiming the drawn pistol at a
+  camera or a laser (Michael 14:55: "Another button - what makes sense? RF?", read as RB); aiming alone never jams, and
+  no team move starts while aiming the pistol. KBM Z is the knockout only.
 - Settings: pad layout 3 and key layout 1 move an older save to the new defaults (the speed verbs and keys dropped,
   back to wall off Left Shift, the Aim choice back to hold); a remapped binding that now clashes is named in a toast
   once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).

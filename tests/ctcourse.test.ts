@@ -307,8 +307,8 @@ describe('course-ready S1: station fixes and text', () => {
     expect(def.bays[5]!.gates.find((g) => g.id === 'g-s6')?.kind).toBe('flag');
     expect(GATE_RADIO['g-s2']).toBe('Unbolted. Open the door for your partner.');
     expect(GATE_RADIO['g-s5-grid']).toBe('Grid open. Off the roof, in the front door, through the grid to the airlock.');
-    // (anim-rework S1) X holsters; RMB is the held aim now
-    expect(GATE_RADIO['g-s3']).toMatch(/Holster.*\(X\)/);
+    // (anim-rework S1; Michael 14:55 "Interact always") A opens the door in every weapon state: no holster first
+    expect(GATE_RADIO['g-s3']).toMatch(/Open it \(A \/ E\)/);
   });
 
   it('F1: every bay has one objective (the HUD step line while it has no drills)', () => {

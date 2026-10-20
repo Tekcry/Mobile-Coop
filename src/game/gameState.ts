@@ -382,6 +382,10 @@ export class GameState implements AppState {
   /** (anim-rework S1, M3) RT / LMB holstered or holding a guard: a tap knocks out, a hold kills (resolved once a step,
    *  first, from the real input; `rtRes` is this step's result). */
   private readonly rtTap = new TriggerTapHold();
+  /** Aiming the drawn pistol: the co-op button is the jammer (Michael 14:55). */
+  private get pistolAim(): boolean {
+    return this.player.ads && this.weapons.drawPhase === 2 && this.weapons.current.def.class === 'pistol';
+  }
   private rtRes: 'tap' | 'hold' | null = null;
   private readonly ctxIn = emptyCtxInput();
   /** The menu owns A this step (a list is up, or its press is still held): the other A readers see it up. */
@@ -1541,7 +1545,8 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
     const wallWas = this.wallCore?.active ?? false;
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
+    // (Michael 2026-10-20 14:55) aiming the pistol, the co-op button is the jammer: no team move then
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !this.pistolAim && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
     // the relay hanger holds the hang still while the partner climbs their body
     if (this.team.hangLock) {
       ti.moveX = 0;
@@ -1616,9 +1621,10 @@ export class GameState implements AppState {
     this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate(inp.pressed('crouch'));
     this.security?.fixedUpdate(dt);
-    // (CT prototype B3; anim-rework S1) the pistol jammer: aiming the drawn pistol (LT / RMB) at a camera or a laser
-    // jams it (LT is the aim now); KBM Z held on the drawn pistol too
-    this.ctDev?.localStep(dt, this.player.ads || inp.down('altFire'));
+    // (CT prototype B3; Michael 2026-10-20 14:55 "Another button - what makes sense? RF?", read as RB) the pistol jammer:
+    // the co-op button (pad RB, KBM F / PgDn) held while aiming the drawn pistol jams the camera or laser under the
+    // reticle; aiming alone never jams
+    this.ctDev?.localStep(dt, this.pistolAim && inp.down('coop'));
     // takedowns (Y / E: a takedown on offer, else the rest)
     // (co-op clients: takedowns on the host's enemies, through their puppets)
     {
@@ -2029,9 +2035,6 @@ export class GameState implements AppState {
       look.x = look.y = 0;
     }
     this.app.input.setAds(this.player.ads);
-    // (anim-rework S1) the pad's A reloads while the gun is wanted out (low ready or aiming); holstering for a move
-    // (a vent's Y start, M4) hands A back to the move at once
-    this.app.input.setDrawn(this.player.drawWanted);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
     // scoped (marksman optics): a slow breathing sway, steadier crouched and still
     if (dt > 0 && this.player.cam.ads > 0.6 && this.weapons.scoped) {

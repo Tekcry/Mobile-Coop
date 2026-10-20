@@ -47,8 +47,8 @@ call in the last second, or manual mode, stands the tick down. Single player nev
   first button press).
 - Pad (anim-rework S1, `docs/anim-rework/BRIEF.md` section 1): `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). LT
   is the held aim (`ads`, analog), RT `fire`. X is the plain `draw` button: the player reads its tap / hold
-  (`player/weaponStance.ts`). While the gun is out (low ready or aiming) the source turns A into reload
-  (`InputManager.setDrawn`). D-pad up / down are free in play; they step the held context menu (`CTX_BINDINGS`,
+  (`player/weaponStance.ts`). A is always interact (Michael 2026-10-20 14:55: "Interact always"; it no longer
+  reloads with the gun out). D-pad up / down are free in play; they step the held context menu (`CTX_BINDINGS`,
   `ctxUp` / `ctxDown`, fixed). In menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
 - Keyboard (rebindable, D7): `input/keyBindings.ts` (pure): `BINDS` defaults, two inputs per action incl. Mouse 3/4/5,
   `settings.keys`; `assignBind` puts a key on a second action as a warned conflict (A71); `KeyboardMouseSource` rebuilds its
@@ -73,16 +73,19 @@ ready, aiming." Every number is a starting value.
 | Aiming | LT / RMB held (release: low ready); `gameplay.adsToggle` makes it a toggle | Over the shoulder | Fire |
 | Sling draw | LT from holstered: straight to the aim, the draw x `STANCE.slingDrawMult` 1.6 (M2; the existing draw path slowed until slice 3's clip) | Over the shoulder (slower blend) | Fire once drawn and in |
 
-- X held `STANCE.xHold` 0.4 s while the gun is out reloads (A2); with nothing to reload the hold holsters. A while the gun
-  is out reloads too; R always (from holstered it draws to low ready first, A43).
+- X held `STANCE.xHold` 0.4 s while the gun is out reloads (A2, Michael 14:55: X hold only, A no longer reloads); with
+  nothing to reload the hold holsters. KBM R reloads too (from holstered it draws to low ready first, A43).
+- A interacts in every state ("Interact always"): doors, items and the context menu at low ready and aiming too.
 - Holding a guard: X does nothing; RT tap the knockout, RT hold the kill, KBM Z the knockout; LT aims the pistol over
   his shoulder (the human shield; RT then fires). The grab itself stays on the context menu (GRAB CHARACTER, BACK TO GAME).
 - (M4) A traversal (Y), an attach (ladder, pipe, hang; except the one-handed sidearm aim), a team move, a takedown, a
   carry or a strike holds the state: the gun goes away for it (`Player.weaponSuspend`) and the state it had comes back
   when it ends (low ready, or the aim while LT is still held). An X press during it is ignored.
 - The host's forced holster (D8) holsters the state too. Death resets to holstered.
-- The pistol jammer (CT prototype B3) runs while the drawn pistol is aimed (LT / RMB) at a camera or a laser, or KBM Z
-  is held on it (LT is no longer a secondary trigger).
+- The pistol jammer (CT prototype B3; Michael 14:55 "Another button - what makes sense? RF?", read as RB): the co-op
+  button (pad RB, KBM F / PageDown) held while aiming the drawn pistol jams the camera or laser under the reticle (the
+  charge drains while held, `game/jammer.ts` `JAMMER`). Aiming alone never jams. Not aiming the pistol, RB / F is the
+  co-op action as before; aiming the pistol, no team move starts. KBM: F (the co-op key) so one rule covers both devices.
 - `Player.weaponState` ('holstered' / 'lowReady' / 'aiming' / 'slingDraw') and `Player.drawWanted` are what the anim code
   reads; the wire is unchanged (the remote poses from `MoveState.dw` and `r`; PROTOCOL_VERSION 24).
 
@@ -102,19 +105,19 @@ Edit the table and the code together.
 | Aim (held) | `ads` | LT | L2 / ZL | RMB | Release: low ready. From holstered: the sling draw (slower, M2). `gameplay.adsToggle`: a toggle |
 | Holster / draw; reload (held) | `draw` | X (tap / hold) | Square / Y | `draw` (X) | M1: tap holstered <-> low ready (aiming: holsters); A2: held 0.4 s with the gun out reloads (nothing to reload: holsters) |
 | Fire / strike | `fire` | RT | R2 / ZR | LMB | A3: fires only while aiming. Holstered or holding a guard (M3): tap knockout, hold 0.35 s kill |
-| Knockout (keyboard) | `altFire` | - | - | `knockout` (Z) | Holstered or holding a guard: the knockout; held on the drawn pistol: the jammer. No pad button |
-| Reload | `reload` | A (gun out) | Cross / B (gun out) | `reload` (R) | The pad's A reloads instead of interacting while the gun is out; X held reloads too (A2) |
+| Knockout (keyboard) | `altFire` | - | - | `knockout` (Z) | Holstered or holding a guard: the knockout. No pad button |
+| Reload | `reload` | X (hold, gun out) | Square / Y (hold) | `reload` (R) | A2 (Michael 14:55): X held only on the pad; A always interacts |
 | Zoom | `zoom` | R3 | R3 / RS | `zoom` (B) | Aiming with a scoped weapon only; normal aim never zooms (G29) |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
 | Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | Team move > traversal. M4: a gun out goes away for the move and comes back after |
-| Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | G5: the context action menu (hold = the list, release = run the highlighted row; below) |
+| Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | G5: the context action menu (hold = the list, release = run the highlighted row; below). Every weapon state ("Interact always") |
 | Back to wall | `cover` | L3 | L3 / LS | `wall` (Caps Lock) | G18, entry by button only (G34); not while aiming; the button again or aiming leaves. KBM moved off Left Shift (the run, A1) |
 | Context menu highlight | `ctxUp` `ctxDown` | D-pad up (menu held); D-pad down (menu held) | D-pad up / down | Mouse wheel | Fixed. In play D-pad up / down and = / - are unbound (no speed gears) |
 | Switch weapon (next) | `swapNext` | - | - | `nextWeapon` (T) | LB / Tab tap switches weapon (the wheel opens on a hold); also through the wheel |
 | Previous weapon | `swapPrev` | - | - | `prevWeapon` (Q) | No pad button |
 | Quick-use selected gadget (hold aims, release throws) | `grenade` | D-pad right | D-pad right | `gadget` (G) | F1a: the gadget picked on the wheel; works holstered (G21) |
 | Selection wheel (G181) | `gadgetWheel` | LB (hold) | L1 / L | `wheel` (Tab, hold) | Over the live game, no time slow: vision modes (stack at the top), guns with ammo, kit gadgets with counts; right stick / mouse picks, release selects |
-| Co-op action | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button; today the ping, the free moves come with the co-op slices |
+| Co-op action; jammer (aiming the pistol) | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button: team moves; held while aiming the drawn pistol, the jammer (Michael 14:55) |
 | Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G181: toggles the mode picked on the wheel (night first), never cycles between modes |
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
 | Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |

@@ -221,7 +221,7 @@ describe('settings: the analogue speed and weapon state layout (anim-rework S1, 
     const notes = controlsMigrationNotes(raw, s);
     expect(notes[0]).toMatch(/left stick sets the speed/);
     expect(notes).toContain('Keyboard: Creep (hold) and Crouch share Alt.');
-    expect(notes.some((n) => /Controller: Co-op action and Aim share LT/.test(n))).toBe(true);
+    expect(notes.some((n) => /Controller: Co-op action .* and Aim share LT/.test(n))).toBe(true);
     // the plain old layout: what moved, no clash
     const plain = controlsMigrationNotes(OLD_413, sanitizeSettings(structuredClone(OLD_413)));
     expect(plain).toHaveLength(2);

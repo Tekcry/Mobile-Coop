@@ -361,7 +361,13 @@ try {
     if (cur.reserve < 10) cur.reserve = 60;
     tapX();
     until(() => w.drawPhase === 2, 2);
-    tapA(); // A while drawn reloads
+    // (Michael 14:55 "Interact always") A at low ready never reloads; X held does (A2)
+    tapA();
+    const aNoReload = !w.reloading;
+    window.__pad.set(2, 1);
+    until(() => w.reloading, 1);
+    window.__pad.set(2, 0);
+    L.stepHeadless(1 / 60);
     const relReloading = w.reloading;
     L.stepHeadless(0.2);
     tapX(); // holster mid-reload
@@ -414,8 +420,9 @@ try {
     const hHol = until(() => w.drawPhase === 0, 2);
     window.__pad.set(7, 0);
     const s4 = shots();
-    return { struck, s0, s1, s1b, s2, lowState, aimState, afterLt, adsAfterDraw, adsAfterHolster, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, xHoldT, xHoldStill, xFull, xFullHol, slingState, tSling, slingAim, slingLow, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
+    return { aNoReload, struck, s0, s1, s1b, s2, lowState, aimState, afterLt, adsAfterDraw, adsAfterHolster, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, xHoldT, xHoldStill, xFull, xFullHol, slingState, tSling, slingAim, slingLow, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
   });
+  assert(dr.aNoReload, 'A at low ready does not reload (Michael: "Interact always")');
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
   assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
     `X (holster) mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
@@ -612,7 +619,7 @@ try {
         s.tap = function (a) {
           acts.add(a);
         };
-        // [button, any of these actions]: A reloads while drawn; L3 swaps the shoulder while aiming; (anim-rework S1) LT is
+        // [button, any of these actions]: L3 swaps the shoulder while aiming; (anim-rework S1) A interacts, LT is
         // the held aim, D-pad up / down only the held context menu's highlight
         const PADV = [[0, 'interact', 'reload'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
         const out = [];

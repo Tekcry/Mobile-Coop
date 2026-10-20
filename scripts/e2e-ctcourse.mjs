@@ -177,7 +177,16 @@ async function aimAt(P, x, y, z) {
     await waitSim(120);
   }
 }
-const lt = (P, on) => P.evaluate((on) => window.__pad.set(6, on ? 1 : 0), on);
+// (anim-rework slice 1, Michael 2026-10-20: "Another button - what makes sense? RF?") aiming alone no longer jams: the
+// pistol aims with LT, then the co-op button (RB, pad 5) held fires the jammer; off lets go of RB first, then LT
+const lt = async (P, on) => {
+  if (!on) await P.evaluate(() => window.__pad.set(5, 0));
+  await P.evaluate((on) => window.__pad.set(6, on ? 1 : 0), on);
+  if (on) {
+    await waitSim(300);
+    await P.evaluate(() => window.__pad.set(5, 1));
+  }
+};
 const sleep = (ms) => waitSim(ms);
 
 /** Station 3: the camera. Seen it raises the alarm stage; the held jammer blinds it on both pages; jam and pass, then swap. */

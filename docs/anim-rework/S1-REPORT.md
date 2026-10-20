@@ -12,13 +12,13 @@ commits). No wire change (PROTOCOL_VERSION 24). Every number is a starting value
 | LT (held) | Sling draw straight to the aim (slower, M2) | Aim | - (release: low ready) | Aim the pistol over his shoulder |
 | RT | Tap: knockout strike; hold 0.35 s: kill (M3) | Nothing (A3) | Fire | Tap: knockout; hold: kill; aiming: fire |
 | X | Press: draw to low ready (M1) | Tap: holster; hold 0.4 s: reload (A2; nothing to reload: holster) | Tap: holster; hold: reload | Nothing |
-| A | Interact / context menu (hold) | Reload | Reload | Context menu (Interrogate) |
+| A | Interact / context menu (hold) | same ("Interact always", Michael 14:55) | same | Context menu (Interrogate) |
 | Y | Traverse | Traverse: the gun goes away, comes back after (M4) | same (the aim returns if LT is still held) | Nothing (can't let go) |
 | B | Crouch | Crouch | Crouch | Nothing |
 | L3 | Back to wall | Back to wall | Swap shoulder | - |
 | R3 | - | - | Zoom (scoped) | - |
 | LB | Wheel (hold) / switch weapon (tap) | same | same | - |
-| RB | Co-op action | same | same | - |
+| RB | Co-op action | same | Rifle: co-op action; pistol: jammer (hold; Michael 14:55) | - |
 | D-pad left / right | Vision / quick gadget | same | same | - |
 | D-pad up / down | Free in play; step the held context menu's highlight | same | same | same |
 | View / Menu | Mission device (stub) / pause | same | same | same |
@@ -33,7 +33,8 @@ commits). No wire change (PROTOCOL_VERSION 24). Every number is a starting value
 | LMB | Fire while aiming; holstered / holding a guard: click knockout, hold kill |
 | X | Holster / draw (tap), reload (hold, gun out) |
 | R | Reload (from holstered: draws to low ready first, A43) |
-| Z | Knockout (holstered or holding a guard); held on the drawn pistol: the jammer |
+| Z | Knockout (holstered or holding a guard) |
+| F / PgDn | Co-op action; held while aiming the pistol: the jammer (the same rule as RB) |
 | Caps Lock | Back to wall (moved from Left Shift) |
 | Mouse wheel | The held context menu's highlight only (no speed) |
 | = / - | Unbound (were the speed gear) |
@@ -82,8 +83,12 @@ slowest named speed covering the pace), so the host's speed check (+15%) holds w
 - The trigger (`TriggerTapHold`, 0.35 s): armed at the press only when holstered (no aim) or holding a guard (no aim);
   tap -> knockout, hold -> kill (strike `lethal`, grab `menuPick`). An aimed press is a shot to its release.
 - Fire: only while aiming (`PlayerWeapons` gate on `player.ads`; the carry's raise-to-fire only while aiming).
-- The pistol jammer (CT prototype B3): runs while the drawn pistol is aimed (`player.ads`) or Z is held; LT used to be
-  its trigger, so aiming at a camera or laser now jams it (noted for Michael below).
+- The pistol jammer (CT prototype B3; Michael 14:55 "Another button - what makes sense? RF?", read as RB): the co-op
+  button (pad RB, KBM F / PgDn, the `coop` action) held while aiming the drawn pistol (`GameState.pistolAim`) jams the
+  camera or laser under the reticle, the charge per `JAMMER`; aiming alone never jams; team moves get no co-op press
+  while aiming the pistol. KBM key: F, so pad and keyboard share one rule (Z stays the knockout).
+- A always interacts (Michael 14:55 "Interact always"): the pad source no longer turns A into reload with the gun out
+  (`InputManager.setDrawn` and `GamepadSource.drawnActive` removed); reload is X held (KBM R too).
 - The host's forced holster also holsters the stance. Death resets.
 
 ## Settings migration (`core/settings.ts`, `tests/settings.test.ts` with literal old saves)
@@ -145,12 +150,12 @@ slowest named speed covering the pace), so the host's speed check (+15%) holds w
 - `npm run build`, then e2e on port 4195 one at a time (`--serial`, under heavy.lock), all pass on the final build:
   smoke 26 s, e2e-pad 179 s, e2e-mouse 81 s, e2e-move 59 s, e2e-anim 10 s, e2e-takedown 14 s, e2e-ct 48 s,
   e2e-traverse 52 s, e2e-weapons-carry 20 s, e2e-stealth 26 s, plus e2e-wall 22 s (speed-adjacent). Fixed on the way:
-  e2e-traverse's vent (A at low ready was a reload: the vent start now suspends the weapon state and A's reload follows
-  the wanted state, not the holstering gun), e2e-move and e2e-wall stick values (above).
+  e2e-traverse's vent (the vent start now suspends the weapon state), e2e-move and e2e-wall stick values (above).
 - Not run (co-op, for the laptop): `e2e-coop`, `e2e-netmove`, `e2e-ctcourse`, `e2e-net-lib` users, and `e2e-course` (its
   regex changed). Their input paths were read and kept: `__pad` X held until drawn and held until holstered (X hold with
-  a full magazine holsters), LT held on the drawn pistol jams (the jammer reads the aim), `forceAds`, the `ads` action
-  from the split (suspended: no base change), `controller.gears.gear = 5`.
+  a full magazine holsters), `forceAds`, the `ads` action from the split (suspended: no base change),
+  `controller.gears.gear = 5`. **e2e-ctcourse's jammer steps hold only LT (pad 6) on the drawn pistol, so after
+  Michael's 14:55 answer (no jam on aim, RB jams) stations 3 and 4 need RB held with LT** (see "Round 2" below).
 
 ## What Michael should try (/ct/ once pushed)
 1. Push the stick slowly from the centre to the rim on open floor: a creep, a sneak, a walk across most of the travel,
@@ -161,5 +166,32 @@ slowest named speed covering the pace), so the host's speed check (+15%) holds w
 4. Holstered behind a guard: RT tap knocks out, RT hold kills. Grab one (hold A, GRAB CHARACTER): RT tap knocks out,
    RT hold kills, LT aims the pistol over his shoulder.
 5. Low ready or aiming at a low wall or ladder, Y: the gun goes away for the climb and comes back after.
-6. Open questions: the jammer now runs while aiming the pistol at a camera / laser (LT is the aim; keyboard Z still
-   holds it) - keep, or give it its own button? A at low ready reloads, so doors need a holster first (as the brief).
+6. Aim the pistol at the station 3 camera, hold RB (keyboard F): it blinds; let go of RB: it comes back. At low ready
+   or aiming, A opens a door.
+
+## Round 2 (Michael 2026-10-20 14:55)
+- Jammer: "Another button - what makes sense? RF?" (read as RB). Built: hold the co-op button (pad RB, keyboard F /
+  PgDn) while aiming the drawn pistol; aiming alone no longer jams; no team move starts while aiming the pistol. KBM F
+  was picked over Z because it is the same verb as RB (one rule for both devices); Z is the knockout only.
+- A: "Interact always". Built: A interacts in every weapon state; reload is X held (KBM R too). Gate radio g-s3 is
+  "Door unlocked. Open it (A / E)." (no holster first); station 3 texts name "hold Co-op (RB / F)".
+- No binding id or default changed, so no new settings migration (labels only).
+- Tests: `tests/ctcourse.test.ts` (g-s3 text), `tests/settings.test.ts` (the Co-op label in the clash note);
+  `scripts/e2e-pad.mjs` (A at low ready does not reload; the mid-reload holster starts the reload with X held).
+- Checks: tsc, eslint, the vitest files (15 files, 183 tests), build, then e2e on 4195 one at a time: e2e-pad 155 s,
+  e2e-mouse 78 s, e2e-ct 52 s, e2e-gadgets 11 s, e2e-takedown 13 s, all pass.
+- Conflict, not resolved here: `scripts/e2e-ctcourse.mjs` jams with LT alone (`lt(P, on)`, stations 3 and 4), which
+  Michael's answer removes, so it cannot pass unchanged. The smallest change (not applied; the job lead decides) holds RB
+  once the aim is in and lets it go before LT:
+
+  ```js
+  const lt = async (P, on) => {
+    if (!on) await P.evaluate(() => window.__pad.set(5, 0));
+    await P.evaluate((on) => window.__pad.set(6, on ? 1 : 0), on);
+    if (on) {
+      await waitSim(300);
+      await P.evaluate(() => window.__pad.set(5, 1));
+    }
+  };
+  ```
+  (Every call site already `await`s `lt`.)

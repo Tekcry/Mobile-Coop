@@ -52,7 +52,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'interact', label: 'Interact / context (doors, takedown)', actions: ['interact'], defaults: ['KeyE'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },
   { id: 'draw', label: 'Holster / draw (tap); reload (hold, gun out)', actions: ['draw'], defaults: ['KeyX'] },
-  { id: 'knockout', label: 'Knockout (holstered or holding a guard; held on the pistol: jam)', actions: ['altFire'], defaults: ['KeyZ'] },
+  { id: 'knockout', label: 'Knockout (holstered or holding a guard)', actions: ['altFire'], defaults: ['KeyZ'] },
   { id: 'zoom', label: 'Zoom (aiming, scoped weapon)', actions: ['zoom'], defaults: ['KeyB'] },
   { id: 'nextWeapon', label: 'Next weapon (Tab tap too)', actions: ['swapNext'], defaults: ['KeyT'] },
   { id: 'prevWeapon', label: 'Previous weapon', actions: ['swapPrev'], defaults: ['KeyQ'] },
@@ -60,7 +60,7 @@ export const BINDS: readonly BindDef[] = [
   { id: 'wheel', label: 'Selection wheel (hold) / switch weapon (tap)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Vision on / off (mode picked on the wheel)', actions: ['vision'], defaults: ['KeyN'] },
-  { id: 'coop', label: 'Co-op action', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
+  { id: 'coop', label: 'Co-op action (aiming the pistol: jammer, hold)', actions: ['coop'], defaults: ['KeyF', 'PageDown'] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: ['KeyP'] },
 ];
 
