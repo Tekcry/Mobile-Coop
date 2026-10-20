@@ -4,8 +4,10 @@
 and pushed (30c2bbda). Full run 3 at `E2E_JOBS=2` on 30c2bbda was started three times and stopped each time for runner
 requests; it has not finished.
 
-**Next:** full runs at `E2E_JOBS=2` until 3 in a row have no "not ok"; then docs (testing-tools, backlog, CHANGELOG) and
-the PR.
+**Next:** (orchestrator, 2026-10-20 15:40) two consecutive full runs at `E2E_JOBS=2` on the laptop with no "not ok" and
+no reruns, then the PR. The doorPeek failure in e2e-netmove counts as known (a master gap until CT Core's anim-rework PR
+lands). The 12-15 min time is measured on the desktop later: a note in the PR, not a blocker. On merging CT Core's work,
+take its e2e-netmove holster step (X tap after the LT release, with a timeout) and its e2e-ctcourse jammer helper.
 
 **Open:**
 - (orchestrator, 2026-10-20) CT Core's anim-rework slice 1 changes the jammer helper in `scripts/e2e-ctcourse.mjs` (hold LT,
