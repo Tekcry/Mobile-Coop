@@ -81,6 +81,17 @@ FWD = Vector((0, 0, 1))
 CARRY = float(clip.get('carry', 5))  # the elbow's carrying angle (deg): the forearm hangs a little out from the upper arm
 
 
+def wrist_local(e, s):
+    """(anim-rig) A key's wrist frame in its forearm's frame (degrees; right hand as written, left mirrored)."""
+    if not e:
+        return Matrix.Identity(3)
+    return ry(d2r(s * e.get('yaw', 0))) @ rx(d2r(e.get('pitch', 0))) @ rz(d2r(s * e.get('roll', 0)))
+
+
+# (anim-rig) the clip keys a wrist frame when any key's arm carries one: the samples then carry `wrist` (8 per frame)
+HAS_WRIST = any('wrist' in k.get(a, {}) for k in clip['keys'] for a in ('armL', 'armR'))
+
+
 def mirror_key(k):
     """The right step from the left one: sides swapped, lateral offsets, yaws and rolls negated."""
     m = {'phase': k['phase'] + 0.5}
@@ -127,7 +138,12 @@ def fk(k):
         f = W['chest'] @ ry(-s * d2r(a.get('inward', 0))) @ rx(-d2r(a['flex'] + a['elbow'])) @ rz(s * d2r(a['abd'] + CARRY)) @ DOWN
         W[el] = bone_rot(f, FWD)
         X[wr] = X[el] + f * OFF[wr].length
-        W[wr] = W[hd] = W[el]
+        # (anim-rig) an optional keyed wrist frame, local to the forearm (the rig's wrist node under its elbow node):
+        # yaw twists the hand about the forearm, pitch and roll swing it, written for the right hand (s = 1) and mirrored
+        # for the left (yaw and roll negated), so a mirrored key swaps the arms as they are. Without it the hand
+        # continues the forearm (identity), as before.
+        W[wr] = W[el] @ wrist_local(a.get('wrist'), s)
+        W[hd] = W[wr]
         X[hd] = X[wr] + W[wr] @ OFF[hd]
         g = k['leg' + side]
         hip, kn, an, toe = 'hip' + side, 'kn' + side, 'an' + side, 'toe' + side
@@ -267,10 +283,20 @@ for i in range(N):
         for j in ('el', 'wr'):
             v = cinv @ (X[j + side] - X['sh' + side]) / K
             arms += [v.x, v.y, v.z]
+    wrists = []
+    if HAS_WRIST:
+        for side in ('L', 'R'):
+            q = quat(W['el' + side].inverted() @ W['wr' + side])
+            n = 'wr' + side
+            if n in lastq and sum(a * b for a, b in zip(q, lastq[n])) < 0:
+                q = [-v for v in q]
+            lastq[n] = q
+            wrists += q
     frames.append({
         'pel': [pel.x, pel.y, pel.z],
         'q': qs,
         'arm': arms,
+        **({'wrist': wrists} if HAS_WRIST else {}),
         'ankle': [X['anL'].x / K, X['anR'].x / K],
         'X': {n: list(X[n]) for n in ORDER},
     })

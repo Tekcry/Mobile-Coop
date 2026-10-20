@@ -28,6 +28,7 @@ export function operatorNodes(): { nodes: GlbNode[]; joints: number[] } {
     ['hipR', 'pelvis', [0.09, -0.03, 0]],
     ['knR', 'hipR', [0, -0.42, 0]],
     ['anR', 'knR', [0, -0.41, 0]],
+    ['toeR', 'anR', [0, -0.05, 0.13]], // anim-rig: both toe joints (REQUIRED_JOINTS)
   ];
   const idx = new Map(list.map((l, i) => [l[0], i] as const));
   const nodes: GlbNode[] = list.map(([name, parent, t, r]) => ({ name, parent: parent ? idx.get(parent)! : -1, t, r: r ?? I }));
