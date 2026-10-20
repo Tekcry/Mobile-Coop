@@ -36,7 +36,7 @@ const GAP = 0.022;
  * and the three modes with the carousel's one lit), the guns (loaded / reserve), the kit gadgets (counts); the
  * highlighted segment lifts and lights, the current ones carry an inner bar. The centre disc names the highlighted
  * item and its kind; a hint box left of the ring (under it on narrow screens) names the key. The wheel's size comes
- * from the viewport (`fitWheel`), measured on open, on resize and on hint changes, clear of the top HUD and the hint.
+ * from the viewport (`fitWheel`), measured on open, on resize, when the top HUD resizes and on hint changes, clear of the top HUD and the hint.
  * Our own art (inline SVG). DOM is written only when something changes; nothing allocates per frame while unchanged.
  */
 export class GadgetWheel {
@@ -72,7 +72,11 @@ export class GadgetWheel {
   private pGun = -2;
   private pGadget = '';
   private pHint = '';
-  private pRing: readonly WheelSeg[] | null = null;
+  // each slot's identity (kind and gun name / gadget id): the ring array is rebuilt every step, so compare contents
+  private pN = -1;
+  private readonly pKinds: string[] = [];
+  private readonly pKeys: string[] = [];
+  private ro: ResizeObserver | null = null;
   private pCounts = new Int32Array(32);
 
   constructor(parent: HTMLElement) {
@@ -102,6 +106,11 @@ export class GadgetWheel {
     parent.appendChild(this.el);
     this.topEl = parent.querySelector<HTMLElement>('.hud-top');
     window.addEventListener('resize', this.onResize);
+    // a top HUD that grows while the wheel is open (objective text) re-lays it out
+    if (this.topEl && typeof ResizeObserver !== 'undefined') {
+      this.ro = new ResizeObserver(this.onResize);
+      this.ro.observe(this.topEl);
+    }
   }
 
   /** The segment shapes and item tiles for n segments (rebuilt only when n changes). */
@@ -145,7 +154,7 @@ export class GadgetWheel {
     let c = v.open !== this.pOpen;
     this.pOpen = v.open;
     if (!v.open) return c;
-    if (v.seg !== this.pSeg || v.mode !== this.pMode || v.visionSel !== this.pSel || v.visionOn !== this.pOn || v.gun !== this.pGun || v.gadget !== this.pGadget || v.hint !== this.pHint || v.ring !== this.pRing) c = true;
+    if (v.seg !== this.pSeg || v.mode !== this.pMode || v.visionSel !== this.pSel || v.visionOn !== this.pOn || v.gun !== this.pGun || v.gadget !== this.pGadget || v.hint !== this.pHint) c = true;
     this.pSeg = v.seg;
     this.pMode = v.mode;
     this.pSel = v.visionSel;
@@ -153,8 +162,20 @@ export class GadgetWheel {
     this.pGun = v.gun;
     this.pGadget = v.gadget;
     this.pHint = v.hint;
-    this.pRing = v.ring;
     const n = v.ring.length;
+    if (n !== this.pN) {
+      this.pN = n;
+      c = true;
+    }
+    for (let i = 0; i < n; i++) {
+      const s = v.ring[i]!;
+      const k = s.kind === 'gun' ? s.name : s.kind === 'gadget' ? s.id : '';
+      if (this.pKinds[i] !== s.kind || this.pKeys[i] !== k) {
+        this.pKinds[i] = s.kind;
+        this.pKeys[i] = k;
+        c = true;
+      }
+    }
     if (this.pCounts.length < n * 2) {
       this.pCounts = new Int32Array(n * 2);
       c = true;
@@ -273,6 +294,7 @@ export class GadgetWheel {
 
   dispose(): void {
     window.removeEventListener('resize', this.onResize);
+    this.ro?.disconnect();
     this.el.remove();
     this.feed.remove();
   }

@@ -1,6 +1,6 @@
 // (wheel-ui) the selection wheel's size from the viewport: clear of the top HUD and the hint box, inside the safe area
 import { describe, expect, it } from 'vitest';
-import { fitWheel, sectorPath, wheelMargin, wheelWant, type WheelLayout } from '../src/ui/hud/wheelLayout';
+import { BOTTOM_BAND, fitWheel, sectorPath, wheelMargin, wheelWant, type WheelLayout } from '../src/ui/hud/wheelLayout';
 
 const out = (): WheelLayout => ({ d: 0, cx: 0, cy: 0, hintX: 0, hintY: 0, below: false });
 
@@ -13,7 +13,8 @@ function clear(w: number, h: number, top: number, hintW: number, hintH: number):
   expect(l.cx - r).toBeGreaterThanOrEqual(0);
   expect(l.cx + r).toBeLessThanOrEqual(w);
   expect(l.hintX).toBeGreaterThanOrEqual(0);
-  expect(l.hintY + hintH).toBeLessThanOrEqual(h);
+  // the FPS banner's band along the bottom edge stays free of the hint
+  expect(l.hintY + hintH).toBeLessThanOrEqual(h - BOTTOM_BAND);
   // the hint box against the wheel's bounding square
   const apart = l.hintX + hintW <= l.cx - r || l.hintY >= l.cy + r;
   expect(apart).toBe(true);

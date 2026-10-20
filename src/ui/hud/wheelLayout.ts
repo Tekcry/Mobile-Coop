@@ -30,6 +30,9 @@ export function wheelWant(h: number): number {
   return 130 + 0.36 * h;
 }
 
+/** Room kept free along the bottom edge for the FPS banner (`.debug-overlay.compact`, bottom left). */
+export const BOTTOM_BAND = 24;
+
 /** Margin from the box edges and between the wheel and the hint / top HUD. */
 export function wheelMargin(h: number): number {
   return Math.max(8, 0.02 * h);
@@ -42,6 +45,7 @@ export function wheelMargin(h: number): number {
  */
 export function fitWheel(f: WheelFit, out: WheelLayout): WheelLayout {
   const m = wheelMargin(f.h);
+  const b = Math.max(m, BOTTOM_BAND);
   const want = wheelWant(f.h);
   const cx = f.w / 2;
   const cy = f.h / 2;
@@ -49,7 +53,7 @@ export function fitWheel(f: WheelFit, out: WheelLayout): WheelLayout {
   // beside: the hint to the left, only the top band and the bottom edge limit the height
   let d = Math.min(want, 2 * (cy - Math.max(topR, m)), f.w - 2 * m);
   const below = (f.w - d) / 2 < f.hintW + 2 * m;
-  if (below) d = Math.min(want, 2 * (cy - Math.max(topR, f.hintH + 2 * m)), f.w - 2 * m);
+  if (below) d = Math.min(want, 2 * (cy - Math.max(topR, f.hintH + m + b)), f.w - 2 * m);
   d = Math.max(0, Math.floor(d));
   out.d = d;
   out.cx = cx;
@@ -57,10 +61,10 @@ export function fitWheel(f: WheelFit, out: WheelLayout): WheelLayout {
   out.below = below;
   if (below) {
     out.hintX = Math.max(m, cx - f.hintW / 2);
-    out.hintY = f.h - m - f.hintH;
+    out.hintY = f.h - b - f.hintH;
   } else {
     out.hintX = m;
-    out.hintY = Math.min(f.h - m - f.hintH, cy + d * 0.25);
+    out.hintY = Math.min(f.h - b - f.hintH, cy + d * 0.25);
   }
   return out;
 }
