@@ -44,6 +44,26 @@ export interface KeyedClip {
   readonly meanQ: Float32Array;
   readonly meanArm: Float32Array;
   readonly meanWrist: Float32Array;
+  /** (tuner-v2 item 4) The per-key edit offsets (`tuneKeys` builds them on the first edit), or null: sampled exactly as baked. */
+  keyOff: KeyedOffsets | null;
+}
+
+/**
+ * (tuner-v2 item 4) One clip's per-key edits spread over its frames (`tuneKeys`): the sampler blends them between
+ * frames and about their mean exactly as it blends the clip, then applies them. Quaternions (x, y, z, w) per frame.
+ */
+export interface KeyedOffsets {
+  /** Pelvis, spine, chest, neck (16 a frame): each segment's offset in its own frame (the child is counter-turned). */
+  readonly trunk: Float32Array;
+  readonly trunkMean: Float32Array;
+  /** Upper arm L, forearm L, upper arm R, forearm R (16 a frame): rotations in the chest frame. */
+  readonly arm: Float32Array;
+  readonly armMean: Float32Array;
+  /** Wrist L, wrist R (8 a frame): offsets in the wrist's own frame. */
+  readonly wrist: Float32Array;
+  readonly wristMean: Float32Array;
+  /** 1 when a wrist offset is set (a clip keying no wrist then samples wrist frames). */
+  wristOn: number;
 }
 
 /** One sampled keyed pose (preallocate with `newKeyedPose`). */
@@ -142,6 +162,7 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
     meanQ,
     meanArm,
     meanWrist,
+    keyOff: null,
   };
 }
 
@@ -168,6 +189,8 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
     out.arm[c] = m + (v - m) * amp * TUNE_CUR.armSwingK;
   }
   sampleQuats(clip.q, clip.meanQ, KEYED_Q, i0, i1, u, amp, out.q);
+  const K = clip.keyOff; // (tuner-v2 item 4) per-key edits: null unless the Keys section edits this clip
+  if (K) keyOffTrunk(K, i0, i1, u, amp, out.q);
   tuneKeyedTwist(out.q, clip.meanQ); // (anim-tuner) the trunk counter-rotation slider (identity at 1)
   tuneKeyedLean(out.q); // (anim-tuner) the forward lean slider (identity unless the local player's group sets one)
   const W = out.wrist;
@@ -179,7 +202,89 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
     W[4] = 0; W[5] = 0; W[6] = 0; W[7] = 1;
     out.hasWrist = 0;
   }
+  if (K) keyOffLimbs(K, i0, i1, u, amp, amp * TUNE_CUR.armSwingK, out);
   return out;
+}
+
+// (tuner-v2 item 4) scratch for the per-key offsets (the sampled offset quaternions)
+const OT = new Float64Array(KEYED_Q);
+const OA = new Float64Array(KEYED_Q);
+const OW = new Float64Array(KEYED_WRIST);
+
+const isId = (o: Float64Array, s: number): boolean => o[s] === 0 && o[s + 1] === 0 && o[s + 2] === 0 && o[s + 3] === 1;
+
+/** q[s] = q[s] * b (`post`) or b * q[s], b = o[t] (conjugated when `cj` = -1). Hamilton product, no allocation. */
+function qmul(q: Float64Array, s: number, o: Float64Array, t: number, post: boolean, cj: number): void {
+  const bx = cj * o[t]!;
+  const by = cj * o[t + 1]!;
+  const bz = cj * o[t + 2]!;
+  const bw = o[t + 3]!;
+  const qx = q[s]!;
+  const qy = q[s + 1]!;
+  const qz = q[s + 2]!;
+  const qw = q[s + 3]!;
+  if (post) {
+    q[s] = qw * bx + qx * bw + qy * bz - qz * by;
+    q[s + 1] = qw * by - qx * bz + qy * bw + qz * bx;
+    q[s + 2] = qw * bz + qx * by - qy * bx + qz * bw;
+    q[s + 3] = qw * bw - qx * bx - qy * by - qz * bz;
+  } else {
+    q[s] = bw * qx + bx * qw + by * qz - bz * qy;
+    q[s + 1] = bw * qy - bx * qz + by * qw + bz * qx;
+    q[s + 2] = bw * qz + bx * qy - by * qx + bz * qw;
+    q[s + 3] = bw * qw - bx * qx - by * qy - bz * qz;
+  }
+}
+
+/** Rotate the point v[s..s+2] by the quaternion o[t] (v' = q v q*). */
+function qrot(v: Float64Array, s: number, o: Float64Array, t: number): void {
+  const x = o[t]!;
+  const y = o[t + 1]!;
+  const z = o[t + 2]!;
+  const w = o[t + 3]!;
+  const vx = v[s]!;
+  const vy = v[s + 1]!;
+  const vz = v[s + 2]!;
+  const tx = 2 * (y * vz - z * vy);
+  const ty = 2 * (z * vx - x * vz);
+  const tz = 2 * (x * vy - y * vx);
+  v[s] = vx + w * tx + (y * tz - z * ty);
+  v[s + 1] = vy + w * ty + (z * tx - x * tz);
+  v[s + 2] = vz + w * tz + (x * ty - y * tx);
+}
+
+/** (tuner-v2 item 4) Trunk offsets: each segment turned in its own frame, its child counter-turned (key angles are body-frame). */
+function keyOffTrunk(K: KeyedOffsets, i0: number, i1: number, u: number, amp: number, q: Float64Array): void {
+  sampleQuats(K.trunk, K.trunkMean, KEYED_Q, i0, i1, u, amp, OT);
+  for (let s = 0; s < KEYED_Q; s += 4) {
+    if (isId(OT, s)) continue;
+    qmul(q, s, OT, s, true, 1);
+    if (s + 4 < KEYED_Q) qmul(q, s + 4, OT, s, false, -1);
+  }
+}
+
+/** (tuner-v2 item 4) Arm offsets (upper arm about the shoulder, forearm about the elbow, chest frame), then the wrist frames. */
+function keyOffLimbs(K: KeyedOffsets, i0: number, i1: number, u: number, amp: number, armAmp: number, out: KeyedPose): void {
+  sampleQuats(K.arm, K.armMean, KEYED_Q, i0, i1, u, armAmp, OA);
+  const a = out.arm;
+  for (let side = 0; side < 2; side++) {
+    const e = side * 6;
+    const t = side * 8;
+    if (isId(OA, t) && isId(OA, t + 4)) continue;
+    // the forearm vector, the elbow turned about the shoulder, then the wrist = elbow + the turned forearm
+    a[e + 3] = a[e + 3]! - a[e]!;
+    a[e + 4] = a[e + 4]! - a[e + 1]!;
+    a[e + 5] = a[e + 5]! - a[e + 2]!;
+    qrot(a, e, OA, t);
+    qrot(a, e + 3, OA, t + 4);
+    a[e + 3] = a[e + 3]! + a[e]!;
+    a[e + 4] = a[e + 4]! + a[e + 1]!;
+    a[e + 5] = a[e + 5]! + a[e + 2]!;
+  }
+  if (!K.wristOn) return;
+  sampleQuats(K.wrist, K.wristMean, KEYED_WRIST, i0, i1, u, amp, OW);
+  for (let s = 0; s < KEYED_WRIST; s += 4) if (!isId(OW, s)) qmul(out.wrist, s, OW, s, true, 1);
+  out.hasWrist = 1;
 }
 
 /** The quaternions of frames i0 -> i1 at `u` (nlerp), scaled about the mean `M` by `amp`, into `out`. No allocation. */
