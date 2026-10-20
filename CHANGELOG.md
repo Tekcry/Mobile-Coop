@@ -7,6 +7,10 @@
 - Fix round: in electro the grid is a clear white lattice (it vanished in the post); the co-op client's grid pulses too
   (the host's camera test run on both bodies, nothing sent); the cue's rays are cast per fixed step on both sides.
 
+## 4.30.2 - Decisions G192-G228 folded from the roadmap (2026-10-21, PR #76)
+- Docs only: Michael's answers from 2026-10-19 to 2026-10-21 move from `docs/ROADMAP.md` "Decided" into
+  `docs/DECISIONS.md` as G192-G228, each also in `docs/design-bible.md`.
+
 ## 4.30.1 - Orchestrator docs: 2026-10-21 roadmap, STATE, account handoff plan (2026-10-21, PR #74)
 - Docs only: `docs/ROADMAP.md` (Michael's overnight answers, Done 4.21.0-4.30.0), `docs/orchestrator/STATE.md`,
   `docs/orchestrator/HANDOFF.md` (the weekly-limit account switch), `docs/backlog.md` (GPU GL warning, e2e-stealth-ai
