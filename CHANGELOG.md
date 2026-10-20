@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - orchestrator docs
+## 4.14.1 - Orchestrator docs: 2026-10-20 roadmap, the animation rework brief (2026-10-20, PR #42)
 Docs only. The roadmap and orchestrator state for 2026-10-20 (Michael's answers 08:10-16:15: the guard menu, keyframed
 clips, the anim-rework brief docs/anim-rework/BRIEF.md, nv-pass, warehouse-s23, test-speed, context clears) and the dashboard.
 
