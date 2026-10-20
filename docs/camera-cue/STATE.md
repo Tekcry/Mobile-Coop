@@ -1,25 +1,23 @@
 # Security camera vision cue - state
 
-## Now (2026-10-20 23:30)
-Slice 1 built, 0d6310f4 (SLICE1.md): per camera a mesh from `Ballistics.hitDistance` rays against `G.STATIC` (the
-detection ray's colliders) over the whole sweep; additive depth-tested shader shows only the current yaw (sweeps); field
-and range from `CAMERA`; fade from `CameraUnit.mode`; pulse from the camera's own `sinceSeen`. Same cue on `?gfx=min`.
-tsc, lint, 29 vitest pass; e2e-ctcourse station 3 asserts the cue on / pulse / jam fade / re-show. Shader never compiled
-yet. Laptop check + smoke, e2e-stealth, e2e-ctcourse, e2e-sectorops on 0d6310f4 requested via the orchestrator. GPU
-shots (high, min) queue in the combined script with wheel-ui (see wheel-ui STATE).
-Open: the co-op client never pulses (client cameras keep no meters); the orchestrator wants it derived client-side from
-the camera's synced state if possible, else listed open. Electro's post shows the cue in its glow colour, not red; up
-to about 0.5 m edge jag at range; about 96 rays per step refresh online cameras.
+## Now (2026-10-21 01:35): PAUSED (Michael 01:25: non-animation work paused for the weekly token budget)
+Slice 1 (0d6310f4) checker FIX (CHECK.md); one fix round efa734d1 (FIX1.md): cue visible in electro, co-op client pulse
+from the shared `cameraSight` test at 4 Hz (no wire change), refresh rays without per-ray allocation in our code (Havok
+keeps about 8 internal objects per ray), shot script per preset and map. Laptop PASS on efa734d1: check (2102 tests),
+smoke, e2e-stealth, e2e-ctcourse, e2e-sectorops, e2e-coop, e2e-netmove. Master merged (67061e86, CHANGELOG only).
+Draft PR open. NOT done: a fresh checker on the fix round and the GPU shots (High and min); the shader has compiled
+only in the laptop's software-GL e2e, never on the GPU.
 
-## Next
-1. Laptop result; GPU shots; a fresh Opus checker (diff + shots); the one fix round includes the co-op client pulse.
-2. PR to master (minor); message the orchestrator; shots to Michael.
+## Next (when the orchestrator resumes it)
+1. GPU window: `node scripts/camera-cue-shots.mjs docs/camera-cue/shots fix1 high` and `... min` (served-build guard),
+   then a fresh Opus checker on efa734d1 + shots; mark the PR ready.
 
 ## Open
 
 ## Polish list (non-blocking)
 
 ## Done
+- 2026-10-21: fix round efa734d1, laptop PASS, master merged, draft PR; paused.
 - 2026-10-20: slice 1 built (0d6310f4).
 - 2026-10-20: worktree, BRIEF, STATE.
 
