@@ -92,7 +92,7 @@ export function desc<T extends HTMLElement>(el: T, text: string): T {
 }
 
 /** The gameplay fields the Controls tab owns (hold or toggle, rumble): its Defaults resets these. */
-const CONTROL_GAMEPLAY = ['adsToggle', 'crouchToggle', 'wallToggle', 'rumble'] as const;
+const CONTROL_GAMEPLAY = ['crouchToggle', 'wallToggle', 'rumble'] as const;
 
 /**
  * GAME / SETTINGS (menu-ui SPEC 7.11, MD9) on the MenuScreen template: a tab strip (LB / RB, Q / E, clicks), rows with
@@ -122,7 +122,6 @@ export class SettingsScreen extends MenuScreen {
           return rowList(
             desc(button('Remap controls', () => app.screens.push(new ControlsScreen(app)), { key: 'remap' }), 'Change the buttons and keys for every action, on the controller and on the keyboard and mouse.'),
             grp('Hold or toggle'),
-            desc(choice('Aim', hold, () => s().gameplay.adsToggle, (v) => upd((d) => void (d.gameplay.adsToggle = v))), 'Hold: aim while LT / the right mouse button is held; let go and the gun drops to low ready. Toggle: one press aims, the next drops to low ready.'),
             desc(choice('Crouch', hold, () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))), 'Hold: crouch while the button is held. Toggle: one press crouches, the next stands.'),
             desc(choice('Back to wall', hold, () => s().gameplay.wallToggle, (v) => upd((d) => void (d.gameplay.wallToggle = v))), 'Hold: stay on the wall while the button is held. Toggle: one press goes to the wall, the next leaves it.'),
             grp('Controller'),

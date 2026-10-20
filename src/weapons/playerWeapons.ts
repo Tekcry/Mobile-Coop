@@ -633,7 +633,11 @@ export class PlayerWeapons {
       if (xHold && !canReload && !this.attachMode) this.player.stance.holster();
       const ask = inp.pressed('reload') || (xHold && canReload);
       // (A43) holstered or mid draw / holster (not attached): queue it; the draw comes out to low ready first
-      if (ask && canReload && !this.attachMode && !this.drawLock && this.draw.phase !== DRAW_DRAWN) this.reloadQueued = true;
+      if (ask && canReload && !this.attachMode && !this.drawLock && this.draw.phase !== DRAW_DRAWN) {
+        this.reloadQueued = true;
+        // (anim-rework S1) the gun comes out for it: the state is low ready (it stays out after the reload)
+        this.player.stance.readyForReload();
+      }
       if (!canReload || this.attachMode || this.drawLock) this.reloadQueued = false;
       if (this.reloadQueued) {
         if (this.draw.phase === DRAW_DRAWN && !this.swapping) {

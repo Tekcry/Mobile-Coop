@@ -75,7 +75,7 @@ slowest named speed covering the pace), so the host's speed check (+15%) holds w
   reaching 0.4 s = `holdAsk` -> the weapons reload (or queue it, A43), or holster when nothing needs reloading.
 - LT (`ads`) held: aim; from holstered it sets base = lowReady and `slingDraw` until the gun is out; the draw time is x
   1.6 (`STANCE.slingDrawMult`; rifle 0.3 -> 0.48 s, pistol 0.5 -> 0.8 s; the aim camera blend follows). Release: base.
-  `gameplay.adsToggle` (Settings > Controls > Aim) makes LT a toggle; default hold.
+  No toggle: LT is always held (Round 3, Michael 15:25 "Remove it").
 - `suspended` (M4; GameState sets `Player.weaponSuspend`): attached (not the one-handed sidearm aim), a committed move,
   a vent start, a team move, a takedown (not the hold), a carry, a strike, or `pose.traverse`. The state reads holstered,
   the gun goes away, base is kept, X presses are ignored; afterwards the state returns (aim too, if LT is still held).
@@ -93,7 +93,7 @@ slowest named speed covering the pace), so the host's speed check (+15%) holds w
 
 ## Settings migration (`core/settings.ts`, `tests/settings.test.ts` with literal old saves)
 - `PAD_LAYOUT_V` 2 -> 3: the `gearUp` / `gearDown` verbs are dropped (stored entries ignored), X keeps id `draw`, LT is
-  the fixed aim; a pre-3 save's `gameplay.adsToggle` goes back to hold (the old Aim row did nothing). The A3 D-pad move
+  the fixed aim; a stored `gameplay.adsToggle` is dropped (Round 3: the toggle is removed). The A3 D-pad move
   stays gated at layout 2 (a layout-2 save is not moved again; a bug the new test caught and fixed).
 - New `Settings.keysV` (`KEY_LAYOUT_V` 1): back to wall still on its old default Left Shift -> Caps Lock
   (`migrateKeysV1`); `run` / `creep` take Left Shift / Left Alt; the = / - entries are dropped. A remapped key is kept.
@@ -195,3 +195,64 @@ slowest named speed covering the pace), so the host's speed check (+15%) holds w
   };
   ```
   (Every call site already `await`s `lt`.)
+
+## Round 3: the fix round (after the check, 088849a5; Michael 15:25)
+- `scripts/e2e-combat.mjs`: A with the gun out does not reload; X held reloads (Michael 14:55 "Interact always").
+- The team-move prompt hides while the pistol's aim is asked (RB is the jammer then).
+- Stale comments fixed (`gamepadMapping.ts`, `padBinds.ts`, `ctDevices.ts`, `strikeController.ts`, e2e-pad's verb table
+  (A = interact only), e2e-takedown's knockout lines).
+- Blank input (a held context menu, the gadget wheel) is no X release: `StanceInput.blank` (`Player.inputBlank`, set by
+  GameState) spends a press that runs into it (no tap, no hold).
+- KBM R from holstered (A43): the state follows the gun, low ready, and it stays out after the reload
+  (`WeaponStance.readyForReload`). Picked over "keep it holstered and do not draw" because A2 makes the reload a
+  drawn-gun action and the gun has to be out for it; the state now says what the body shows. e2e-pad checks it.
+- Co-op bug (laptop, e2e-ctcourse station 3, the client's jam), diagnosed on the desktop with a temporary copy of the
+  suite (deleted): the jam path is unchanged and works (`ctDevices.localStep` -> `sendJam` -> the host's
+  `onRemoteJam`; no wire change). At the failure the client is aiming the pistol, RB down, no team move, but its pick
+  is empty: `aimAt(B)` points the camera while the client is at low ready (the explore camera, since X now draws to low
+  ready), then LT blends to the over-the-shoulder aim camera, which sits elsewhere; 1.45 m from the device that leaves
+  the reticle 0.255 rad off, outside the jammer's 0.16 rad cone. The host passes because it stands 5.5 m away. Re-aiming
+  after LT (in the aim camera) jams at once and the host shows `jam[1] = 'cam-s3'`. Under the old controls X drew
+  straight into the aim camera, so `aimAt` aimed with the camera that then stayed.
+  Code: the defensive fix stays (the team gate reads the asked pistol aim, `adsWanted` or `ads` held this step, so a
+  slow page that sees LT and RB in one poll never offers the partner throw and stows the pistol). A camera fix that
+  re-points the aim camera at the surface under the reticle while it blends in was tried and dropped: it held in a solo
+  probe but not in the co-op run, and it would change every aim entry.
+  Test (drafted, not applied; the job lead decides): aim once the aim camera is in. In `station3` and `station4`:
+
+  ```js
+  await lt(B, true);        // LT, 300 ms, RB
+  await aimAt(B, ...CAM);   // (anim-rework S1) re-aim in the aim camera: at low ready aimAt used the explore camera
+  ```
+  (and the same `lt` then `aimAt` order for the host's `lt(A, true)` calls, which pass today only because of the
+  distance).
+- The split / inverted-hang sidearm aim (LT while attached) no longer sets the free low ready: every attach suspends the
+  weapon state (`Player.weaponSuspend`, `attachAim`). Before, the e2e-netmove split aim left the client at low ready, so
+  the later `forceAds = false` "release holsters" step never reached drawPhase 0. With this fix that step should pass
+  unchanged; if the job lead still wants the step on the new contract, the drafted change (not applied):
+
+  ```js
+  // after `st.player.forceAds = false;` inside the GB promise: (anim-rework S1) release drops to low ready, an X tap holsters
+  if (st.player.stance.base === 'lowReady') window.__app.input.state.tap('draw');
+  // and give the in-page wait a cap (2 s of sim) so a missed holster fails instead of hanging the suite:
+  st.fixedUpdate = (dt) => {
+    orig(dt);
+    t.sim += dt;
+    if (st.weapons.drawPhase === 0 || t.sim > 2) { t.dw0 = Date.now(); st.fixedUpdate = orig; res(); }
+  };
+  ```
+  (Only from low ready: an X press from holstered would draw. `forceAds` never moves the base state.)
+- Aim toggle (Michael 15:25 on "Toggle aim": "Remove it"): `gameplay.adsToggle`, its Settings > Controls row and the
+  stance's toggle path are gone; LT / RMB is always held. Migration: the key is dropped by `sanitizeSettings` for every
+  stored save (nothing to keep, so no version step); `tests/settings.test.ts` and `tests/settingsCover.test.ts` load
+  literal old settings with `adsToggle: true` and see no key and a held aim; `tests/weaponStance.test.ts` checks that a
+  quick LT press is no latch.
+- e2e-netmove (approved, applied, only the "drawn state (step 09)" step): after `forceAds = false` an X tap (only from
+  low ready: X from holstered would draw) and a 2 s sim cap on the in-page wait for drawPhase 0.
+- Results on the final build, port 4195, one at a time: see the closing lines below.
+- Final build, port 4195, one at a time: e2e-combat 18 s, e2e-pad 158 s, e2e-mouse 87 s, e2e-stealth 27 s, e2e-menus
+  297 s, e2e-takedown 16 s, e2e-ct 55 s, e2e-traverse 53 s, e2e-netmove 259 s: all pass. e2e-pad (known flaky) and
+  e2e-menus (the title fade timing) each failed once in a three-suite run and passed alone. tsc and eslint clean; full
+  `npm test` 183 files, 2004 tests pass.
+- e2e-ctcourse on 4195 (900 s cap): still fails at station 3, the client's jam, for the aim-camera reason above, until
+  the drafted re-aim lines are applied.

@@ -14,9 +14,11 @@
   while holding aims the pistol over his shoulder. Traversal and busy moves put the gun away and bring the state back
   after (M4). The pistol jammer: hold the co-op button (pad RB, keyboard F / PgDn) while aiming the drawn pistol at a
   camera or a laser (Michael 14:55: "Another button - what makes sense? RF?", read as RB); aiming alone never jams, and
-  no team move starts while aiming the pistol. KBM Z is the knockout only.
+  no team move starts while aiming the pistol (nor its prompt). KBM Z is the knockout only. A KBM R reload from
+  holstered leaves the gun out at low ready; an X press that runs into a held context menu or the wheel is spent (no
+  holster); the split / inverted-hang sidearm aim no longer leaves the gun at low ready after the attach.
 - Settings: pad layout 3 and key layout 1 move an older save to the new defaults (the speed verbs and keys dropped,
-  back to wall off Left Shift, the Aim choice back to hold); a remapped binding that now clashes is named in a toast
+  back to wall off Left Shift); the Aim hold / toggle choice is removed (Michael 15:25: "Remove it"; LT is always held, a stored choice is dropped); a remapped binding that now clashes is named in a toast
   once and marked on the controls screen. The Sprint row is gone. No wire change (PROTOCOL_VERSION 24).
 
 ## Unreleased - anim-metrics-2 (into feature/ct-prototype)

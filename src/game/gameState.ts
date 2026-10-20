@@ -386,6 +386,11 @@ export class GameState implements AppState {
   private get pistolAim(): boolean {
     return this.player.ads && this.weapons.drawPhase === 2 && this.weapons.current.def.class === 'pistol';
   }
+
+  /** The pistol's aim is asked for (LT / RMB held, drawn or still drawing): the co-op button belongs to the jammer. */
+  private get pistolAimWanted(): boolean {
+    return this.player.adsWanted && this.weapons.current.def.class === 'pistol';
+  }
   private rtRes: 'tap' | 'hold' | null = null;
   private readonly ctxIn = emptyCtxInput();
   /** The menu owns A this step (a list is up, or its press is still held): the other A readers see it up. */
@@ -1523,6 +1528,8 @@ export class GameState implements AppState {
     const aFree = !this.ctxOwnsA;
     // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
     if (inp.pressed('ping') && this.net && this.player.alive) this.sendPing();
+    // (anim-rework S1) blank input under a held context menu or the wheel is not an X release (a held X keeps its press)
+    this.player.inputBlank = inp === this.blankInp;
     // a body on the shoulder: no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
@@ -1545,8 +1552,11 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
     const wallWas = this.wallCore?.active ?? false;
-    // (Michael 2026-10-20 14:55) aiming the pistol, the co-op button is the jammer: no team move then
-    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !this.pistolAim && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
+    // (Michael 2026-10-20 14:55) aiming the pistol, the co-op button is the jammer: no team move then. The aim asked this
+    // step counts (LT and RB can land in one poll on a slow page, before the player's step sets `ads`), else a standing RB
+    // would offer the partner throw and stow the pistol
+    const pistolAsk = this.pistolAimWanted || (inp.down('ads') && this.weapons.current.def.class === 'pistol');
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('coop') && !pistolAsk && !wallWas && !busy && !carrying, inp.pressed('drop'), inp.move.y);
     // the relay hanger holds the hang still while the partner climbs their body
     if (this.team.hangLock) {
       ti.moveX = 0;
@@ -1652,7 +1662,8 @@ export class GameState implements AppState {
     {
       const pl = this.player;
       pl.weaponLocked = this.takedown.hostage !== null;
-      pl.weaponSuspend = (this.traversal.attached && !sidearm) || !!this.traversal.committed || this.traversal.attachCtl.vent !== null || teamHands || carrying || (this.takedown.active !== null && !pl.weaponLocked) || this.strike.active;
+      // (any attach, the one-handed sidearm aim too: its LT is the attach's own aim, never the free low ready)
+      pl.weaponSuspend = this.traversal.attached || !!this.traversal.committed || this.traversal.attachCtl.vent !== null || teamHands || carrying || (this.takedown.active !== null && !pl.weaponLocked) || this.strike.active;
     }
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
@@ -2804,8 +2815,9 @@ export class GameState implements AppState {
     } else w.set('vault', null, 0, 0);
     this.anchorPrompts();
     // (CT prototype B2) the team-move prompt: names the move and who starts it (Co-op action glyph)
+    // (anim-rework S1, Michael 14:55) aiming the pistol, RB is the jammer: no team-move prompt then
     const tp = this.team.prompt;
-    if (tp && !this.takedown.offer) {
+    if (tp && !this.takedown.offer && !this.pistolAimWanted) {
       const at = this.team.promptAt;
       const ok = this.project(at.x, at.y, at.z);
       w.set('coop', ok ? tp : null, this.scr.x, this.scr.y);

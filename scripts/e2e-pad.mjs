@@ -414,10 +414,12 @@ try {
     window.__app.input.state.tap('reload');
     window.__pad.set(7, 1);
     const hDraw = until(() => w.reloading, 2);
-    const hDrawn = w.drawPhase === 2 && !g.player.ads;
+    const hDrawn = w.drawPhase === 2 && !g.player.ads && g.player.weaponState === 'lowReady';
     const hT = until(() => !w.reloading, 5);
     const hFull = cur.mag === cur.stats.magSize;
-    const hHol = until(() => w.drawPhase === 0, 2);
+    // (anim-rework S1) the state follows the gun: low ready, and it stays out after the reload
+    L.stepHeadless(0.5);
+    const hHol = w.drawPhase === 2 && g.player.weaponState === 'lowReady';
     window.__pad.set(7, 0);
     const s4 = shots();
     return { aNoReload, struck, s0, s1, s1b, s2, lowState, aimState, afterLt, adsAfterDraw, adsAfterHolster, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, xHoldT, xHoldStill, xFull, xFullHol, slingState, tSling, slingAim, slingLow, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
@@ -426,7 +428,7 @@ try {
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
   assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
     `X (holster) mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
-  assert(dr.hDraw <= 1.2 && dr.hDrawn && dr.hFull && dr.hHol < 0.65 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.hDraw <= 1.2 && dr.hDrawn && dr.hFull && dr.hHol && dr.s4 === dr.s3, `reload while holstered (R): draws to low ready (${dr.hDraw.toFixed(2)} s, state low ready ${dr.hDrawn}), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), stays at low ready (${dr.hHol}), never fires (${dr.s3} -> ${dr.s4})`);
   assert(!dr.struck, 'RT while holstered with no guard in reach: no strike (F1b: no swing at nothing)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
   assert(dr.tDraw <= 0.5 && dr.lowState === 'lowReady' && !dr.adsAfterDraw, `X draws to low ready within 0.5 s, no aim (anim-rework S1, M1) (${dr.tDraw.toFixed(2)} s, ${dr.cls}, ${dr.lowState})`);
@@ -621,7 +623,7 @@ try {
         };
         // [button, any of these actions]: L3 swaps the shoulder while aiming; (anim-rework S1) A interacts, LT is
         // the held aim, D-pad up / down only the held context menu's highlight
-        const PADV = [[0, 'interact', 'reload'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
+        const PADV = [[0, 'interact'], [1, 'crouch'], [2, 'draw'], [3, 'jump'], [4, 'gadgetWheel'], [5, 'coop'], [6, 'ads'], [7, 'fire'], [9, 'pause'], [10, 'cover', 'shoulderSwap'], [11, 'zoom'], [12, 'ctxUp'], [13, 'ctxDown'], [14, 'vision'], [15, 'grenade']];
         const out = [];
         for (const [b, ...want] of PADV) {
           acts.clear();
