@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-bake
+## 4.30.0 - Tuner bake script: an export written into the game defaults, with a dry-run diff (2026-10-21, PR #73)
 - Animation tuner bake (dev tool, no game change): `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json>
   [--dry-run] [--only section,...] [--allow-shared]` writes an export's values into the code defaults (body, gun, camera,
   speed, stepping and weight constants; the Keys section's key JSONs through the apply-tune functions, with the Blender
