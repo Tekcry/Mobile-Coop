@@ -22,6 +22,7 @@ Format: `N. Item - destination - status`.
 23. **Ring airfoil** (`docs/systems/ct-toolkit.md` 3.8). CT's gadget set is settled by the CT co-op research (G76).
 24. **Knife** (`docs/systems/ct-toolkit.md` 3.10: knife takedown and cutting). Its role is settled by the CT co-op research (G76).
 25. **A30 must judge fire stairs per building** (`rooms[].building`). Today A30 compares floor heights only, so a fire stair in one building counts as serving a level of the other (`docs/kestrel/schema.md` section 6). Destination: Kestrel tools, when Kestrel resumes (G53).
+27. **GPU-only GL warning on RT + TAAU + Panini (2026-10-21, Menu Notes GPU run).** e2e-desktop under `E2E_GPU=1` fails "ray traced + TAAU + Panini render without console errors" on master d537cbd8 and #58 alike: repeated "GL_INVALID_VALUE: glGetProgramiv: Program object expected" (ANGLE D3D11 only; software GL passes). Something queries a deleted program on that path. Fix the query, or let that assert ignore the warning if it is harmless.
 26. **Phone is launch-only and untested (G182).** A phone opens the game on the minimum settings with the UI scaled to its screen and a Bluetooth pad as the input; no touch controls, no phone checks or tests, no device runs. Destination: none (testing only).
 
 ## Flaky e2e suites
