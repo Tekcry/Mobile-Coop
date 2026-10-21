@@ -19,11 +19,11 @@ Test runs for other job leads come first.
    the light meter shows hidden is seen at the fully-lit rate - against light and shadow, the core. Make IR a
    per-camera flag, on only for Marlow bay 3's camera (its use case), off by default. Michael can decide later where
    else he wants it.
+Item 5 withdrawn (Michael, 2026-10-22, through the orchestrator): "Cameras should still work in the dark." Keep
+`CAMERA.irLight` on every camera as it is; no per-camera flag. Note his decision in the PR body.
 Tests for 1-3. Check, e2e-ctcourse and e2e-coop, then the full run, a PR (patch), tell the orchestrator.
 
 ## Assumed decisions (undo by telling the orchestrator)
-- F1 (item 5): Michael's M3 on marlow-jammer ("the security camera sees in the dark") is read as bay 3's camera only;
-  other cameras use lamp light again, as before 4.48.0. Undo: set the IR flag on the other cameras.
 - F2 (item 3): if the claim carries the client's eye, the `jam` message changes, so `PROTOCOL_VERSION` 26 -> 27.
 
 ## Limits
