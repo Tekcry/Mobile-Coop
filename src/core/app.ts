@@ -94,6 +94,11 @@ export class App {
     tune.coop = () => !!(this.state as { net?: unknown } | null)?.net;
     // (tuner-ui) the pause menu open: the menus get the pad, the tuner waits
     tune.menuPaused = () => !!(this.state as { menuPaused?: boolean } | null)?.menuPaused;
+    // (marlow-bays item 9) the tuner's mouse mode: drag view frees the pointer; a capture lost in its game camera goes
+    // back to the drag view instead of pausing
+    const kbm = this.input.kbm;
+    tune.mouseHost = { setFree: (on) => kbm.setFreeMouse(on), locked: () => kbm.locked, dragging: () => kbm.dragging };
+    kbm.lockLostHook = () => tune.mouseLockLost();
     this.toasts = new Toasts(this.uiRoot);
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
     this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);

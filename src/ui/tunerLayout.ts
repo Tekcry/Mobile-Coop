@@ -625,3 +625,80 @@ export function loopGroups(entry: string, out: LoopGroups = { body: '', clip: ''
   if (BODY_WEIGHT[out.body]) out.weight = `weight.${BODY_WEIGHT[out.body]}`;
   return out;
 }
+
+/**
+ * (marlow-bays slice T, item 11) The Anim Studio's "Keyed" tick box: a procedural state and its keyed clip are one loop
+ * shown two ways. `STATE_KEYED` pairs each `state:<name>` with its `keyed:<clip>` (the loop list's own entries).
+ */
+const STATE_KEYED: Readonly<Record<string, string>> = {
+  idle: 'idle',
+  walk: 'walk',
+  jog: 'jog',
+  run: 'run',
+  crouchIdle: 'crouch_idle',
+  sneak: 'sneak',
+  crouchWalk: 'crouch_walk',
+  lowReady: 'ready_stance',
+  aimFwd: 'glide_fwd',
+  aimStrafe: 'glide_strafe',
+  aimBack: 'glide_back',
+};
+const KEYED_STATE: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(STATE_KEYED).map(([s, k]) => [k, s]));
+
+export interface LoopKeyed {
+  /** The loop plays a keyed clip now (the box shows ticked). */
+  on: boolean;
+  /** The entry the box switches to ('' none: the box is greyed; a keyed-only clip, a pair, a traversal loop or off). */
+  other: string;
+}
+
+/** The "Keyed" box for loop `entry`. */
+export function loopKeyed(entry: string, out: LoopKeyed = { on: false, other: '' }): LoopKeyed {
+  out.on = entry.startsWith('keyed:');
+  out.other = '';
+  if (entry.startsWith('state:')) {
+    const k = STATE_KEYED[entry.slice(6)];
+    if (k) out.other = `keyed:${k}`;
+  } else if (out.on) {
+    const s = KEYED_STATE[entry.slice(6)];
+    if (s) out.other = `state:${s}`;
+  }
+  return out;
+}
+
+/** The loop to play with the box set to `on` (unchanged when the loop has no other form or is already that way). */
+export function loopKeyedPick(entry: string, on: boolean): string {
+  const k = loopKeyed(entry);
+  return k.on !== on && k.other ? k.other : entry;
+}
+
+/**
+ * (marlow-bays slice T, item 13) In the Anim Studio a state picked by hand in any tab's state list plays that state's
+ * loop: `section`'s new `group` (its last level is the state: `joint.walk`, `hand.rifle.walk`, `rifle.aim`,
+ * `step.crouchRun`; the Keys tab's clip level names a keyed clip) to a loop entry, '' when it names none or the loop
+ * `current` already plays that state. A keyed loop stays keyed where the state has a keyed clip (the Keyed box holds).
+ * The camera and the co-op and climb sections never pick a loop.
+ */
+export function loopForGroup(section: string, group: string, current: string): string {
+  if (section === 'cam' || section === 'trav' || section.startsWith('team_')) return '';
+  const seg = group.split('.');
+  if (section === 'keys') {
+    const clip = seg[1] ?? '';
+    if (!clip || current === `keyed:${clip}`) return '';
+    return `keyed:${clip}`;
+  }
+  const state = seg[seg.length - 1] ?? '';
+  if (section === 'step' && state === 'crouchRun') return current === 'keyed:crouch_run' ? '' : 'keyed:crouch_run';
+  if (!state || loopGroups(current).body === state) return '';
+  const keyedNow = current.startsWith('keyed:');
+  let proc = '';
+  for (const name in STATE_BODY) {
+    if (STATE_BODY[name] === state) {
+      proc = `state:${name}`;
+      break;
+    }
+  }
+  if (proc) return keyedNow ? loopKeyedPick(proc, true) : proc;
+  for (const clip in CLIP_BODY) if (CLIP_BODY[clip] === state) return `keyed:${clip}`;
+  return '';
+}

@@ -32,7 +32,8 @@ export const studio: MapDef = {
     fogEnd: 160,
     sunDir: [-0.3, -1, 0.2],
     sunIntensity: 0.2,
-    ambient: 0.45,
+    // (marlow-bays item 14) a brighter stage (was 0.45); the stage lights that follow her add to it
+    ambient: 0.6,
     lightLevel: 0.6,
   },
   build(b: LevelBuilder): MapLayout {

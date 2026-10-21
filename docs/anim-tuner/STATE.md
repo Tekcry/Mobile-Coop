@@ -130,6 +130,7 @@ pad glyphs when a pad is in use and key / mouse help otherwise. `src/ui/animTune
 | LT / RT | Previous / next choice of the focused section's last list (the state; on Co-op the role) | - | LT held: fine steps (a fifth) |
 | Left stick X | - | - | Fast adjust |
 | R3 (held) | Untuned (bypass; Backquote on the keyboard) | Same | Same |
+| L3 | (marlow-bays item 13, Anim Studio) "Loop on the spot" on / off (F8 on the keyboard; also with the free view) | Same | Same |
 | View | Swap the pad between the tuner and the game (or the free camera while it is on). With "Pause game while tuning" (Settings, on by default) the game holds still while the tuner has the pad, and runs while the game has it | Closes the list | Ends the edit (kept) |
 | Menu (Start) | Close the panel | Close | Close |
 

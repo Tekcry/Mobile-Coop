@@ -133,3 +133,18 @@ describe('TunePadCtl (pass 2 map)', () => {
     expect(c.update(B(PAD.START), 0, t + 10 * DT, DT).close).toBe(true);
   });
 });
+
+describe('TunePadCtl L3 (marlow-bays item 13: loop on the spot)', () => {
+  it('L3 is an edge in the tuner and in the free view, never in the game', () => {
+    const { c, t } = opened();
+    expect(c.update(B(PAD.LS), 0, t, DT).spot).toBe(true);
+    expect(c.update(B(PAD.LS), 0, t + DT, DT).spot).toBe(false);
+    c.update(0, 0, t + 2 * DT, DT);
+    c.setFree(true);
+    c.update(0, 0, t + 3 * DT, DT);
+    expect(c.update(B(PAD.LS), 0, t + 4 * DT, DT).spot).toBe(true);
+    c.update(0, 0, t + 5 * DT, DT);
+    c.close();
+    expect(c.update(B(PAD.LS), 0, t + 6 * DT, DT).spot).toBe(false);
+  });
+});
