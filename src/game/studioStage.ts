@@ -17,7 +17,7 @@ import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelec
 import { newStudioDrive } from '../anim/studioDrive';
 import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, type StudioEntry, type StudioInputOut } from '../anim/studio';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -146,7 +146,10 @@ export class StudioStage {
         this.stageLights.map((p) => ({ name: p.name, x: p.position.x, y: p.position.y, z: p.position.z, intensity: p.intensity, enabled: p.isEnabled(), meshes: p.includedOnlyMeshes.length })),
       root: () => {
         const r = this.host.player.rig.root;
-        return { x: r.position.x, y: r.position.y, z: r.position.z, yaw: r.rotation.y };
+        const c = this.host.scene.activeCamera?.globalPosition;
+        // (T2) viewYaw: the frame the lights take (from her toward the camera)
+        const viewYaw = c ? stageViewYaw(r.position.x, r.position.z, c.x, c.z, r.rotation.y) : r.rotation.y;
+        return { x: r.position.x, y: r.position.y, z: r.position.z, yaw: r.rotation.y, viewYaw };
       },
     };
     const d = host.debug;
@@ -301,7 +304,7 @@ export class StudioStage {
   }
 
   /**
-   * (marlow-bays item 14) The stage lights onto her root and facing, at the "Stage light" scale; her meshes (the LODs
+   * (marlow-bays item 14) The stage lights onto her root, (T2) turned toward the camera (`stageViewYaw`), at the "Stage light" scale; her meshes (the LODs
    * load late) are re-read once a second, the include lists only rewritten when they change, and her materials checked
    * to take every light on her (`fitStageMaterials`). Rendering only. No allocation per frame.
    */
@@ -328,7 +331,10 @@ export class StudioStage {
     }
     const k = STUDIO_LIGHT.scale;
     const pos = root.position;
-    const yaw = root.rotation.y;
+    // (marlow-bays T2) placed toward the camera: key and fill on its side, the rim beyond her, the top light above
+    const cam = this.host.scene.activeCamera;
+    const cp = cam ? cam.globalPosition : null;
+    const yaw = cp ? stageViewYaw(pos.x, pos.z, cp.x, cp.z, root.rotation.y) : root.rotation.y;
     for (let i = 0; i < this.stageLights.length; i++) {
       const p = this.stageLights[i]!;
       const l = STAGE_LIGHTS[i]!;
