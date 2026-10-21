@@ -345,3 +345,48 @@ export const STUDIO_RIGS: StudioRigView[] = [];
 /** The rig the loop player drives now, its clip and its drive (null: none), for the onion skin: `drive.live` is the
  *  phase the rig was posed at this frame. Written by the stage. */
 export const STUDIO_TARGET: { rig: StudioRigView | null; clip: KeyedClip | null; drive: { readonly live: number } | null } = { rig: null, clip: null, drive: null };
+
+/**
+ * (marlow-bays slice T, item 14) The studio's stage lights: a three-point rig (key, fill, rim) and a soft top light for
+ * ambient that follow Wren (her root and her facing), so she stays lit as she moves. Rendering only, the studio only:
+ * the game's light registry, the light field and the bake never see them. `STUDIO_LIGHT.scale` is the View tab's "Stage
+ * light" slider (0 off .. 2; 1 the default, bright), kept across studio visits (not reset with the switches) and saved
+ * with the tuner's own settings.
+ */
+export const STUDIO_LIGHT = { scale: 1 };
+export const STAGE_LIGHT_RANGE = { min: 0, max: 2, step: 0.05, def: 1 } as const;
+
+export interface StageLightDef {
+  readonly name: string;
+  /** Offset from her root in her own frame (m): forward, right, up. */
+  readonly fwd: number;
+  readonly right: number;
+  readonly up: number;
+  /** Intensity at a scale of 1 (range falloff, as the game's lamps), and its range (m). */
+  readonly intensity: number;
+  readonly range: number;
+  readonly color: readonly [number, number, number];
+}
+
+export const STAGE_LIGHTS: readonly StageLightDef[] = [
+  { name: 'key', fwd: 2.0, right: 1.6, up: 2.3, intensity: 1.7, range: 7, color: [1, 0.95, 0.88] },
+  { name: 'fill', fwd: 2.2, right: -1.8, up: 1.2, intensity: 0.9, range: 7, color: [0.82, 0.88, 1] },
+  { name: 'rim', fwd: -2.0, right: -0.6, up: 2.5, intensity: 1.3, range: 7, color: [0.92, 0.96, 1] },
+  { name: 'ambient', fwd: 0.3, right: 0, up: 3.6, intensity: 0.8, range: 9, color: [1, 1, 1] },
+];
+
+/** A stage light's world place for her root (x, y, z) facing `yaw` (Babylon: forward (sin, cos), right (cos, -sin)). */
+export function stageLightPlace(l: StageLightDef, x: number, y: number, z: number, yaw: number, out: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+  const s = Math.sin(yaw);
+  const c = Math.cos(yaw);
+  out.x = x + s * l.fwd + c * l.right;
+  out.y = y + l.up;
+  out.z = z + c * l.fwd - s * l.right;
+  return out;
+}
+
+/** The slider's value clamped (anything not finite: the default). */
+export function stageLightScale(v: number): number {
+  if (!Number.isFinite(v)) return STAGE_LIGHT_RANGE.def;
+  return Math.max(STAGE_LIGHT_RANGE.min, Math.min(STAGE_LIGHT_RANGE.max, v));
+}

@@ -102,6 +102,36 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 
 ## Debug overlay (F3)
 - `ui/debugOverlay.ts`; buttons, lines and the anti-crab readout: `docs/systems/testing-tools.md`, "Debug overlay".
+- (marlow-bays slice T, items 9-11, 13, 14) Tuner mouse, selection, Keyed, on the spot, stage light:
+  - Mouse mode (keyboard and mouse; pure state `ui/tunerMouse.ts` `TunerMouseCtl`): opening the panel frees the pointer
+    in "Drag view" (`KeyboardMouseSource.setFreeMouse`: no pointer lock, no capture hint, scene clicks neither fire nor
+    aim; a left drag on the game canvas is the look at the captured look's scale, read from `pointermove` (the engine cancels
+    the canvas pointerdown, which stops the compatibility `mousemove` while the button is held), turning the game camera or the free
+    view; the wheel on the scene zooms, starting "Orbit her" from the game view if the free view is off). F4
+    (`TUNER_MOUSE_KEY`; F4 and F8 are reserved like F3, never bindable) and the header button ("Mouse: drag view" / "Mouse: game camera") toggle "Game camera": play's
+    pointer-locked mouse look, the panel ignores the mouse (`.tt-gamecam`, the button stays clickable). A capture lost
+    in the game camera (Esc, alt-tab) drops back to drag view with no pause (`KeyboardMouseSource.lockLostHook`).
+    Closing the panel restores play's locking. `core/app.ts` wires `AnimTunePanel.mouseHost`. The pad path is unchanged.
+  - Selection: the row last pressed, focused (mouse, keys) or given the pad focus is the selected row (`tt-sel`: a yellow
+    bar and bold name; the active tab has a yellow underline); a "▶ part · state · row → target" line in the info area.
+    `ui/tunerTarget.ts` (pure) maps a section and slider id to its target (rig joint(s) or bone, the weapon, the whole
+    body, the camera); with no row picked in the shown part, the part as a whole. The scene marker is drawn on the
+    barrel marker's 2D overlay (always on top; yellow ring and bone line with a black edge, the target's name); a dev
+    visual, nothing reads it but the hook. Hooks: `__animTune.mouse()`, `mouseMode(m)`, `select(key)`, `selected()`.
+  - Keyed (Anim Studio, next to the Loop list; `tunerLayout.loopKeyed` / `loopKeyedPick`): ticked plays the state's
+    keyed clip (`state:walk` -> `keyed:walk`), cleared the procedural state; greyed where the loop has no other form.
+    `__studio.keyed(on)`, `keyedState()`.
+  - In the studio a state picked in any tab's state list (or LT / RT) plays that state's loop (`tunerLayout.loopForGroup`;
+    keyed stays keyed; the Keys tab's clip plays that clip; the tab and part stay). "Loop on the spot" from every tab:
+    the header button "On the spot: on / off" (studio only), F8 (`TUNER_SPOT_KEY`) and L3 on the pad (`TunePadOut.spot`).
+  - Stage light (studio only, rendering only): four point lights (key, fill, rim, a soft top "ambient";
+    `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root and facing, made once by `StudioStage`, light
+    only her meshes (`includedOnlyMeshes`, re-read once a second as the LODs load; once a second her materials are
+    raised to every light on her mesh, `lightSources`, unfrozen and frozen again like `LightRig.fitMaterial`, so a later
+    rig fit cannot leave the stage lights out), range falloff as the game's lamps. "Stage light" slider (View tab, Loop player; 0-2,
+    default 1; `STUDIO_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The studio map's ambient
+    is 0.6 (was 0.45). The game's lights, light registry and light field are untouched. Hooks `__studioStage.lights()`,
+    `root()`, `__studio.stageLight(v)`.
 - (tuner-ui, the current layout; the older bullets below are history where they differ) The animation tuner panel
   (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
   - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top

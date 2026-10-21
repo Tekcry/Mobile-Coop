@@ -37,8 +37,10 @@ import { FINE_STEP, TunePadCtl } from './animTunePad';
 import { projectPoint } from './overlayProject';
 import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
 import { StudioPanel } from './studioPanel';
-import { STUDIO, STUDIO_SPEED } from '../anim/studio';
+import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioEntry } from '../anim/studio';
 import { promptHtml, type PromptButton } from './prompts';
+import { TUNER_MOUSE_KEY, TUNER_MOUSE_LABEL, TUNER_SPOT_KEY, TunerMouseCtl, type TunerMouseMode } from './tunerMouse';
+import { emptyTarget, rowKeyParts, tuneTarget, type RigJoint } from './tunerTarget';
 import {
   bodyCarry,
   buildTabs,
@@ -60,16 +62,26 @@ import {
   TUNER_SIZES,
   tunerScale,
   valueText,
+  loopForGroup,
   type BodyCarry,
   type LoopGroups,
   type TunerSize,
   type TunerTab,
 } from './tunerLayout';
 
-/** What the barrel marker reads from the local player's rig (typed loosely: no player import). */
-export interface TuneRigView {
+/** What the barrel marker and (marlow-bays item 10) the selection marker read from the local player's rig (typed
+ *  loosely: no player import; the joints are `CharacterRig`'s nodes). */
+export type TuneRigView = {
   heldWeapon: TransformNode | null;
   gunSpan: { z1: number; bore: number };
+} & Partial<Record<RigJoint, TransformNode>>;
+
+/** (marlow-bays item 9) The keyboard and mouse source as the tuner's mouse mode drives it (`core/app.ts` sets it). */
+export interface TuneMouseHost {
+  /** The drag view on (the pointer free, a left drag on the scene is the look) or off (play's own pointer lock). */
+  setFree(on: boolean): void;
+  locked(): boolean;
+  dragging(): boolean;
 }
 
 /** The loop the time controls drive (the debug overlay sets it: `GameLoop`). */
@@ -131,7 +143,13 @@ font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.35;border-radius
 .anim-tune .anim-tune-pad{color:var(--tt-warn);font-size:0.9em;white-space:nowrap}
 .anim-tune .anim-tune-tabs{display:flex;align-items:center;gap:0.2em;flex:none;overflow-x:auto;margin:0.25em 0;padding-bottom:0.1em;scrollbar-width:thin}
 .anim-tune .tt-tab{flex:none;min-height:1.9em;padding:0.1em 0.5em;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:3px 3px 0 0;cursor:pointer;white-space:nowrap;-webkit-appearance:none;appearance:none}
-.anim-tune .tt-tab.active{background:#2d5a78;border-color:var(--tt-acc);font-weight:bold}
+.anim-tune .tt-tab.active{background:#2d5a78;border-color:var(--tt-acc);font-weight:bold;box-shadow:inset 0 -3px 0 #ffe600}
+.anim-tune .tt-row.tt-sel{background-color:rgba(255,230,0,0.14);box-shadow:inset 4px 0 0 #ffe600}
+.anim-tune .tt-row.tt-sel .tt-name{color:#fff6a0;font-weight:bold}
+.anim-tune .anim-tune-sel{color:#ffe600;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anim-tune .anim-tune-mouse{min-height:1.7em;font-size:0.85em;white-space:nowrap}
+.anim-tune.tt-gamecam{pointer-events:none;opacity:0.85}
+.anim-tune.tt-gamecam .anim-tune-mouse{pointer-events:auto}
 .anim-tune .tt-bump{flex:none}
 .anim-tune .anim-tune-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0.1em 0.15em}
 .anim-tune .tt-bar{display:flex;flex-wrap:wrap;gap:0.3em;align-items:center;margin:0.25em 0}
@@ -324,6 +342,23 @@ export class AnimTunePanel {
   private readonly markDir = new Vector3();
   private readonly markSA = { x: 0, y: 0, z: 0 };
   private readonly markSB = { x: 0, y: 0, z: 0 };
+  // --- (marlow-bays item 9) the mouse mode (drag view / game camera) with keyboard and mouse
+  mouseHost: TuneMouseHost | null = null;
+  private readonly mouseCtl = new TunerMouseCtl();
+  private mouseBtn: HTMLButtonElement;
+  // --- (marlow-bays item 13) "Loop on the spot" in the header (the studio), and a loop picked from a tab's state list
+  private spotBtn: HTMLButtonElement;
+  private loopFromTab = false;
+  // --- (marlow-bays item 10) the selected row (its pad key), its target on the body and the scene marker
+  private selKey = '';
+  /** The pad focus last taken as the selection. */
+  private selPadKey = '';
+  private selSec = '';
+  private selRow: HTMLElement | null = null;
+  private selLine: HTMLDivElement | null = null;
+  private readonly selTarget = emptyTarget();
+  /** The selection marker as last drawn (overlay pixels; the test hook). */
+  private readonly selMark = { shown: false, ax: 0, ay: 0, bx: 0, by: 0 };
   // --- (anim-studio) snapshots (undo / redo, A/B, presets) and the studio section
   private readonly snaps: TuneSnapshotsUi;
   readonly studioUi: StudioPanel;
@@ -356,6 +391,7 @@ export class AnimTunePanel {
       busy: (e) => this.edit?.el === e || document.activeElement === e,
       lock: (s) => this.lockSnap(s),
       picked: (id) => this.applyLoop(id),
+      saveUi: () => this.saveUi(),
     });
     // header: title, the pad line, fold, close (folded, the panel is this one line)
     const head = document.createElement('div');
@@ -371,7 +407,16 @@ export class AnimTunePanel {
     const close = this.mkBtn('×', () => this.hide(), 'close', 'anim-tune-close');
     close.title = 'Close';
     delete close.dataset.pad;
-    head.append(title, this.padLine, this.foldBtn, close);
+    // (marlow-bays item 9) the mouse mode, shown and toggled (also the key)
+    this.mouseBtn = this.mkBtn(TUNER_MOUSE_LABEL.drag, () => this.toggleMouse(), 'mouse', 'anim-tune-mouse');
+    this.mouseBtn.title = `Mouse mode (${TUNER_MOUSE_KEY}): drag view (drag the scene to turn the camera, wheel zooms, the panel takes clicks) or game camera (mouse look; the panel ignores the mouse)`;
+    delete this.mouseBtn.dataset.pad;
+    // (marlow-bays item 13) loop on the spot from every tab (the studio only; also the key and L3)
+    this.spotBtn = this.mkBtn('On the spot: on', () => this.toggleSpot(), 'spot', 'anim-tune-spot');
+    this.spotBtn.title = `Loop on the spot (${TUNER_SPOT_KEY}, pad L3): a moving state runs in place, or off: she really moves`;
+    delete this.spotBtn.dataset.pad;
+    this.spotBtn.hidden = true;
+    head.append(title, this.padLine, this.spotBtn, this.mouseBtn, this.foldBtn, close);
     this.tabBar = document.createElement('div');
     this.tabBar.className = 'anim-tune-tabs';
     // (pass 2) the Y menu: the rarer actions, by pad
@@ -380,6 +425,15 @@ export class AnimTunePanel {
     const body = (this.body = document.createElement('div'));
     body.className = 'anim-tune-body';
     body.addEventListener('scroll', () => this.closeDrop(), { passive: true });
+    // (marlow-bays item 10) a press or a focus in a slider row selects it (the mouse and the keys; the pad selects by
+    // its focus)
+    const pickFrom = (ev: Event): void => {
+      const row = (ev.target as Element | null)?.closest?.('[data-pad-row]');
+      const key = row?.querySelector<HTMLElement>('input[type=range][data-pad]')?.dataset.pad;
+      if (key && key !== this.selKey) this.pickRow(key);
+    };
+    body.addEventListener('pointerdown', pickFrom, true);
+    body.addEventListener('focusin', pickFrom);
     // --- View tab: the loop player (studio), the camera, time
     const view = this.tabEl('view');
     const cam = this.block(view, 'Camera');
@@ -545,6 +599,19 @@ export class AnimTunePanel {
       },
       true,
     );
+    // (marlow-bays item 9) the mouse mode key while the panel is open (the game never sees it)
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (!this.open || (e.code !== TUNER_MOUSE_KEY && !(e.code === TUNER_SPOT_KEY && STUDIO.active))) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (e.repeat) return;
+        if (e.code === TUNER_MOUSE_KEY) this.toggleMouse();
+        else this.toggleSpot();
+      },
+      true,
+    );
     // (pass 2) Backquote held: the bypass (the untuned animation and camera) while the panel is open
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Backquote' && this.open && !e.repeat) this.setKeyBypass(true);
@@ -560,7 +627,10 @@ export class AnimTunePanel {
     window.addEventListener(
       'wheel',
       (e) => {
-        if (this.open && FREE_VIEW.mode === 'orbit' && e.deltaY !== 0) FREE_IN.wheel += e.deltaY < 0 ? 1 : -1;
+        if (!this.open || e.deltaY === 0) return;
+        // (marlow-bays item 9) drag view: the wheel on the scene zooms, starting the orbit from the game view if it is off
+        if (FREE_VIEW.mode === 'off' && this.mouseCtl.free && e.target === this.scene?.getEngine().getRenderingCanvas()) this.setFreeMode('orbit', false);
+        if (FREE_VIEW.mode === 'orbit') FREE_IN.wheel += e.deltaY < 0 ? 1 : -1;
       },
       { passive: true },
     );
@@ -568,7 +638,10 @@ export class AnimTunePanel {
     this.info = document.createElement('div');
     const infoEl = document.createElement('div');
     infoEl.className = 'anim-tune-info';
-    infoEl.append(this.now, this.info);
+    const selLine = (this.selLine = document.createElement('div'));
+    selLine.className = 'anim-tune-sel';
+    selLine.hidden = true;
+    infoEl.append(selLine, this.now, this.info);
     // (tuner-ui) the hints: reserved space at the bottom, never over a row
     this.hint = document.createElement('div');
     this.hint.className = 'anim-tune-hints';
@@ -600,9 +673,10 @@ export class AnimTunePanel {
     // (tuner-ui) the panel's own settings
     void loadAnimTuneUi().then((u) => {
       if (!u || typeof u !== 'object') return;
-      const o = u as { size?: unknown; pauseTuning?: unknown };
+      const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown };
       if (o.size === 'S' || o.size === 'M' || o.size === 'L') this.setSize(o.size, false);
       if (typeof o.pauseTuning === 'boolean') this.freezeBox.checked = o.pauseTuning;
+      if (typeof o.stageLight === 'number') this.studioUi.setStage(o.stageLight);
     });
     // (test hook) e2e and the console read and set values through this
     (window as unknown as { __animTune: unknown }).__animTune = {
@@ -660,6 +734,24 @@ export class AnimTunePanel {
       lock: (s: FreeSnap) => this.lockSnap(s),
       unlock: () => this.unlockSnap(),
       group: (sec: string) => this.sections.find((s) => s.reg.id === sec)?.group ?? '',
+      // (marlow-bays item 9) the mouse mode
+      mouse: () => ({ mode: this.mouseCtl.mode, free: this.mouseCtl.free, locked: this.mouseHost?.locked() ?? false, dragging: this.mouseHost?.dragging() ?? false, button: this.mouseBtn.textContent ?? '' }),
+      mouseMode: (m: TunerMouseMode) => {
+        if (m !== this.mouseCtl.mode) this.toggleMouse();
+      },
+      // (marlow-bays item 10) the selected row, its target and the scene marker
+      select: (key: string) => this.pickRow(key),
+      selected: () => ({
+        key: this.selKey,
+        section: this.selSec,
+        kind: this.selTarget.kind,
+        a: this.selTarget.a,
+        b: this.selTarget.b,
+        label: this.selTarget.label,
+        row: !!this.selRow?.isConnected && this.selRow.classList.contains('tt-sel'),
+        line: this.selLine?.textContent ?? '',
+        mark: { ...this.selMark },
+      }),
       // (tuner-pad) the pad mode, the focused control and its edit state
       pad: () => {
         const e = this.padEl;
@@ -1008,6 +1100,7 @@ export class AnimTunePanel {
     const k = this.sections.findIndex((s) => s.reg.id === sid);
     if (k >= 0) this.lastSec = k;
     this.markPadFocus();
+    this.refreshSel();
   }
 
   /** Only the tab's chosen part shows. */
@@ -1040,6 +1133,7 @@ export class AnimTunePanel {
     const k = this.sections.findIndex((s) => s.reg.id === sid);
     if (k >= 0) this.lastSec = k;
     this.markPadFocus();
+    this.refreshSel();
   }
 
   private showTab(): void {
@@ -1119,6 +1213,18 @@ export class AnimTunePanel {
     sec.group = g;
     this.rebuild(sec);
     if (sec.reg.id === 'body') this.carryBody(g);
+    // (marlow-bays item 13) in the studio a state picked here plays its loop (the tab and its part stay)
+    if (STUDIO.active) {
+      const id = loopForGroup(sec.reg.id, g, STUDIO.entry);
+      if (id && studioEntry(id).id === id) {
+        this.loopFromTab = true;
+        try {
+          this.studioUi.play(id);
+        } finally {
+          this.loopFromTab = false;
+        }
+      }
+    }
   }
 
   /** (fix round) A body state onto Joints, Limb reach, Hands & feet, Gun in hand, the gun hold (where it maps), Stepping
@@ -1286,6 +1392,8 @@ export class AnimTunePanel {
         sec.rows.append(hl);
       }
     }
+    // (marlow-bays item 10) the rows are new: the selected one is marked again
+    this.refreshSel();
   }
 
   /** (tuner-ui) Show a section on a group (if it has it). */
@@ -1332,8 +1440,8 @@ export class AnimTunePanel {
     }
     if (lg.trav) {
       this.showGroup('trav', lg.trav);
-      if (!b) this.setPart('body', 'trav');
-    } else if (b) this.setPart('body', 'body');
+      if (!b && !this.loopFromTab) this.setPart('body', 'trav');
+    } else if (b && !this.loopFromTab) this.setPart('body', 'body');
   }
 
   private setFollow(v: boolean): void {
@@ -1393,7 +1501,8 @@ export class AnimTunePanel {
   }
 
   private saveUi(): void {
-    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked });
+    // (marlow-bays item 14) the Anim Studio's Stage light goes with the panel's own settings
+    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale });
   }
 
   /** (tuner-ui) The panel size (S / M / L) scaled to the screen (`tunerLayout.tunerScale`). */
@@ -1454,6 +1563,10 @@ export class AnimTunePanel {
     this.setPadLine();
     this.markPadFocus();
     this.syncTuneFreeze();
+    // (marlow-bays item 9) open: the pointer free (drag view) by default
+    this.mouseCtl.setOpen(true);
+    this.applyMouse();
+    this.refreshSel();
     this.onOpenChange?.(true);
   }
 
@@ -1477,7 +1590,11 @@ export class AnimTunePanel {
     this.pad.close();
     this.markPadFocus();
     this.clearMarker();
+    this.selMark.shown = false;
     this.studioUi.panelClosed();
+    // (marlow-bays item 9) closed: play's own pointer lock again
+    this.mouseCtl.setOpen(false);
+    this.applyMouse();
     this.onOpenChange?.(false);
   }
 
@@ -1522,6 +1639,8 @@ export class AnimTunePanel {
       this.setFreeMode('off');
       return true;
     }
+    // (marlow-bays item 13) L3: loop on the spot (the tuner or the free view has the pad)
+    if (o.spot && STUDIO.active) this.toggleSpot();
     if (o.toggled) {
       this.onPadToggled();
       return o.consume;
@@ -1683,6 +1802,12 @@ export class AnimTunePanel {
     const sid = e.closest<HTMLElement>('[data-pad-sec]')?.dataset.padSec;
     const k = this.sections.findIndex((s) => s.reg.id === sid);
     if (k >= 0) this.lastSec = k;
+    // (marlow-bays item 10) the pad's focus moved onto a slider: that row is selected (a rebuild keeps a mouse pick)
+    if (this.padKey.startsWith('s:') && this.padKey !== this.selPadKey) {
+      this.selPadKey = this.padKey;
+      this.selKey = this.padKey;
+      this.refreshSel();
+    }
     this.setHint();
   }
 
@@ -2118,6 +2243,7 @@ export class AnimTunePanel {
     }
     this.snaps.frame(nowMs);
     this.studioUi.frame(nowMs, this.scene);
+    this.showSpot();
     if (!this.folded && nowMs >= this.nextDrops) {
       // the drop-down buttons follow their selects (a value set in code: the studio, presets)
       this.nextDrops = nowMs + 250;
@@ -2130,7 +2256,107 @@ export class AnimTunePanel {
       this.now.textContent = `Now: ${TUNE_STATE.body ? plainWords(TUNE_STATE.body) : '-'} · ${gun}${this.follow ? '' : ' · follow off'}${this.frozen ? ' · paused' : ''}`;
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed`;
     }
-    if (this.marker) this.drawMarker(nowMs);
+    // (marlow-bays item 10) the barrel and the selection share the overlay
+    const k = this.selTarget.kind;
+    if (this.marker || k === 'joint' || k === 'body' || k === 'weapon') this.drawMarker(nowMs);
+    else if (this.selMark.shown || (this.markCanvas && !this.markCanvas.hidden)) {
+      this.selMark.shown = false;
+      this.clearMarker();
+    }
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // (marlow-bays item 9) The mouse mode
+  // ------------------------------------------------------------------------------------------
+
+  /** (marlow-bays item 13) Loop on the spot on / off (the header button, its key, L3; the studio only). */
+  private toggleSpot(): void {
+    if (!STUDIO.active) return;
+    const on = this.studioUi.toggleSpot();
+    this.showSpot();
+    this.flashInfo(on ? 'Loop on the spot: a moving state runs in place' : 'Loop on the spot off: she moves');
+  }
+
+  /** The header button follows the studio and the switch (cheap compares, every frame). */
+  private showSpot(): void {
+    const b = this.spotBtn;
+    const hide = !STUDIO.active;
+    if (b.hidden !== hide) b.hidden = hide;
+    if (hide) return;
+    const t = STUDIO.spot ? 'On the spot: on' : 'On the spot: off';
+    if (b.textContent !== t) b.textContent = t;
+    if (b.classList.contains('on') !== STUDIO.spot) b.classList.toggle('on', STUDIO.spot);
+  }
+
+  /** The key or the header button: drag view <-> game camera. */
+  private toggleMouse(): void {
+    this.mouseCtl.toggle();
+    this.applyMouse();
+    this.flashInfo(this.mouseCtl.mode === 'drag' ? `Drag view: drag the scene to turn the camera, the wheel zooms (${TUNER_MOUSE_KEY}: game camera)` : `Game camera: mouse look (${TUNER_MOUSE_KEY} or Esc: back to the panel)`);
+  }
+
+  /** The mode onto the mouse source, the panel's pointer events and the button. */
+  private applyMouse(): void {
+    this.mouseHost?.setFree(this.mouseCtl.free);
+    this.el.classList.toggle('tt-gamecam', !this.mouseCtl.panelMouse);
+    const t = TUNER_MOUSE_LABEL[this.mouseCtl.mode];
+    if (this.mouseBtn.textContent !== t) this.mouseBtn.textContent = t;
+    this.mouseBtn.classList.toggle('on', this.mouseCtl.open && this.mouseCtl.mode === 'game');
+  }
+
+  /** The pointer lock was lost in play (Esc, alt-tab): in game camera the panel takes the mouse back (no pause). */
+  mouseLockLost(): boolean {
+    const handled = this.mouseCtl.lockLost();
+    if (handled) {
+      this.applyMouse();
+      this.flashInfo('Drag view (the mouse capture ended)');
+    }
+    return handled;
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // (marlow-bays item 10) The selection: the row being edited, its target, the "Selected" line
+  // ------------------------------------------------------------------------------------------
+
+  private pickRow(key: string): void {
+    this.selKey = key;
+    this.refreshSel();
+  }
+
+  /**
+   * The selection from the tab shown: the picked row when it is in the shown part, else the part as a whole; the row
+   * marked (`tt-sel`), the target for the scene marker, the "Selected" line. Only on a change of tab, part, rows or
+   * pick (DOM work, never per frame).
+   */
+  private refreshSel(): void {
+    const line = this.selLine;
+    if (!line) return;
+    const t = this.tabs[this.tabIdx];
+    const sid = t ? ((t.sections.length > 1 ? this.partOf.get(t.id) : undefined) ?? t.sections[0] ?? '') : '';
+    const parts = rowKeyParts(this.selKey);
+    const id = parts && parts.section === sid ? parts.id : '';
+    this.selSec = sid;
+    tuneTarget(sid, id, this.selTarget);
+    let row: HTMLElement | null = null;
+    if (id) {
+      const inp = this.el.querySelector<HTMLElement>(`input[data-pad="${globalThis.CSS.escape(this.selKey)}"]`);
+      row = inp?.closest<HTMLElement>('[data-pad-row]') ?? null;
+    }
+    if (row !== this.selRow) {
+      this.selRow?.classList.remove('tt-sel');
+      this.selRow = row;
+    }
+    row?.classList.add('tt-sel');
+    const sec = this.sections.find((s) => s.reg.id === sid);
+    if (!sec || this.selTarget.kind === 'none') {
+      line.textContent = '';
+      line.hidden = true;
+      return;
+    }
+    const state = sec.group ? plainWords(sec.group.split('.').slice(1).join(' ')) : '';
+    const what = row?.querySelector('.tt-name')?.textContent ?? 'whole part';
+    line.hidden = false;
+    line.textContent = `▶ ${sec.reg.label}${state ? ` · ${state}` : ''} · ${what} → ${this.selTarget.label}`;
   }
 
   // ------------------------------------------------------------------------------------------
@@ -2188,7 +2414,10 @@ export class AnimTunePanel {
     }
     c.hidden = false;
     g.clearRect(0, 0, c.width, c.height);
-    if (!scene || !rig || !w || !cam || !cam.rotation || !(this.markW > 0)) return;
+    this.selMark.shown = false;
+    if (!scene || !rig || !cam || !cam.rotation || !(this.markW > 0)) return;
+    this.drawSel(g, rig, cam, nowMs);
+    if (!this.marker || !w) return;
     const m = w.getWorldMatrix();
     Vector3.TransformCoordinatesFromFloatsToRef(0, rig.gunSpan.bore, rig.gunSpan.z1, m, this.markA);
     Vector3.TransformNormalFromFloatsToRef(0, 0, 1, m, this.markDir);
@@ -2215,6 +2444,86 @@ export class AnimTunePanel {
     g.fillStyle = 'rgb(255,51,230)';
     g.beginPath();
     g.arc(b.x, b.y, 4, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  /**
+   * (marlow-bays item 10) The selection marker: the selected row's joint(s), bone, whole body or weapon on the local
+   * player's rig, drawn on the overlay (always on top): a pulsing yellow ring with a black edge (it reads on light and
+   * dark), the bone as a thick line, and the target's name. A dev visual: nothing reads it back but the test hook. No
+   * allocation (the points go through the preallocated vectors).
+   */
+  private drawSel(g: CanvasRenderingContext2D, rig: TuneRigView, cam: MarkerCam, nowMs: number): void {
+    const t = this.selTarget;
+    const sm = this.selMark;
+    const near = Math.max(0.05, cam.minZ);
+    const a = this.markSA;
+    const b = this.markSB;
+    let hasB = false;
+    if (t.kind === 'weapon') {
+      const w = rig.heldWeapon;
+      if (!w) return;
+      const m = w.getWorldMatrix();
+      Vector3.TransformCoordinatesFromFloatsToRef(0, 0, 0, m, this.markA);
+      Vector3.TransformCoordinatesFromFloatsToRef(0, rig.gunSpan.bore, rig.gunSpan.z1, m, this.markB);
+      hasB = true;
+    } else if (t.kind === 'joint' || t.kind === 'body') {
+      const na = t.a ? rig[t.a] : undefined;
+      if (!na) return;
+      this.markA.copyFrom(na.getAbsolutePosition());
+      const nb = t.b ? rig[t.b] : undefined;
+      if (nb) {
+        this.markB.copyFrom(nb.getAbsolutePosition());
+        hasB = true;
+      }
+    } else return;
+    this.project(cam, this.markA, a);
+    if (a.z <= near) return;
+    if (hasB) {
+      this.project(cam, this.markB, b);
+      if (b.z <= near) hasB = false;
+    }
+    const line = hasB && (t.line || t.kind === 'weapon');
+    const r = 8 + 2 * Math.sin(nowMs * 0.008);
+    g.lineCap = 'round';
+    if (line) {
+      g.beginPath();
+      g.moveTo(a.x, a.y);
+      g.lineTo(b.x, b.y);
+      g.strokeStyle = 'rgba(0,0,0,0.85)';
+      g.lineWidth = 8;
+      g.stroke();
+      g.strokeStyle = '#ffe600';
+      g.lineWidth = 4;
+      g.stroke();
+    }
+    this.selRing(g, a.x, a.y, r);
+    if (hasB && !line) this.selRing(g, b.x, b.y, r);
+    g.font = 'bold 13px ui-monospace,Menlo,Consolas,monospace';
+    g.lineWidth = 4;
+    g.strokeStyle = 'rgba(0,0,0,0.9)';
+    g.strokeText(t.label, a.x + r + 6, a.y - r - 4);
+    g.fillStyle = '#ffe600';
+    g.fillText(t.label, a.x + r + 6, a.y - r - 4);
+    sm.shown = true;
+    sm.ax = a.x;
+    sm.ay = a.y;
+    sm.bx = hasB ? b.x : a.x;
+    sm.by = hasB ? b.y : a.y;
+  }
+
+  private selRing(g: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.strokeStyle = 'rgba(0,0,0,0.85)';
+    g.lineWidth = 6;
+    g.stroke();
+    g.strokeStyle = '#ffe600';
+    g.lineWidth = 3;
+    g.stroke();
+    g.beginPath();
+    g.arc(x, y, 2.5, 0, Math.PI * 2);
+    g.fillStyle = '#ffe600';
     g.fill();
   }
 }

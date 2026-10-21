@@ -1,9 +1,9 @@
 import type { Scene } from '../core/babylon';
-import { STUDIO, STUDIO_ENTRIES, STUDIO_PAIR, STUDIO_SPEED, TURN_RATES, studioEntry, studioKey, type StudioSnap } from '../anim/studio';
+import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_SPEED, TURN_RATES, stageLightScale, studioEntry, studioKey, type StudioSnap } from '../anim/studio';
 import { FREE_VIEW, type FreeMode } from '../player/freeView';
 import { StudioOverlay } from './studioOverlay';
 import type { PanelKit } from './tuneSnapshots';
-import { plainLoop, plainWords } from './tunerLayout';
+import { loopKeyed, loopKeyedPick, plainLoop, plainWords, type LoopKeyed } from './tunerLayout';
 
 /** What the studio section drives in the tuner panel (`AnimTunePanel`). */
 export interface StudioPanelApi {
@@ -20,6 +20,8 @@ export interface StudioPanelApi {
   lock(s: StudioSnap): void;
   /** (tuner-ui) A loop was picked: the tuner shows the groups it plays through. */
   picked(id: string): void;
+  /** (marlow-bays item 14) Save the tuner's own settings (the stage light goes with them). */
+  saveUi(): void;
 }
 
 /**
@@ -44,6 +46,12 @@ export class StudioPanel {
   private mirrorBox: HTMLInputElement;
   private spotBox: HTMLInputElement;
   private turnBox: HTMLInputElement;
+  /** (marlow-bays item 14) "Stage light": the studio's following lights and ambient. */
+  private stageIn: HTMLInputElement;
+  private stageVal: HTMLSpanElement;
+  /** (marlow-bays item 11) "Keyed": the loop's state as its keyed clip (ticked) or procedural. */
+  private keyedBox: HTMLInputElement;
+  private readonly keyedOut: LoopKeyed = { on: false, other: '' };
   private shown = false;
   private nextRead = 0;
 
@@ -62,6 +70,9 @@ export class StudioPanel {
     const b1 = kit.bar();
     this.entrySel = kit.sel(b1, 'Loop', STUDIO_ENTRIES.map((e) => e.id), (v) => this.pickEntry(v), 'st:entry', 'studio-entry');
     for (const o of Array.from(this.entrySel.options)) o.textContent = plainLoop(o.value, studioEntry(o.value).label);
+    // (marlow-bays item 11) the state's keyed clip or its procedural loop, one tick (no hunting the list)
+    this.keyedBox = kit.check(b1, 'Keyed', false, (v) => this.setKeyed(v), 'st:keyed', 'studio-keyed');
+    this.keyedBox.title = 'Ticked: this state plays its keyed clip. Clear: the procedural state.';
     const b2 = kit.bar();
     this.playBtn = kit.btn('Pause', () => this.api.freeze(!this.api.frozen()), 'st:play', 'studio-play');
     this.backBtn = kit.btn('◀ Key', () => this.step(-1), 'st:back', 'studio-back');
@@ -124,7 +135,32 @@ export class StudioPanel {
     kit.check(b6, 'Skeleton', true, (v) => (STUDIO.skeleton = v), 'st:skel', 'studio-skel');
     kit.check(b6, 'Feet', true, (v) => (STUDIO.feet = v), 'st:feet', 'studio-feet');
     kit.check(b6, 'Ghost poses', false, (v) => (STUDIO.onion = v), 'st:onion', 'studio-onion');
-    el.append(h, note, b1, b2, b3, b4, b5, b6);
+    // (marlow-bays item 14) the stage lights that follow her (key, fill, rim, ambient): 0 off .. 2x, 1 bright
+    const b7 = kit.bar();
+    {
+      const l = document.createElement('label');
+      l.className = 'tt-field tt-grow';
+      const r = (this.stageIn = document.createElement('input'));
+      r.type = 'range';
+      r.min = String(STAGE_LIGHT_RANGE.min);
+      r.max = String(STAGE_LIGHT_RANGE.max);
+      r.step = String(STAGE_LIGHT_RANGE.step);
+      r.value = String(STUDIO_LIGHT.scale);
+      r.className = 'studio-stage-light';
+      r.dataset.pad = 'st:stage';
+      r.title = 'Stage light: the lights that follow her (key, fill, rim) and the ambient on her';
+      this.stageVal = document.createElement('span');
+      this.stageVal.className = 'tt-val';
+      this.stageVal.textContent = `${STUDIO_LIGHT.scale}×`;
+      r.addEventListener('input', () => this.setStage(Number(r.value)));
+      r.addEventListener('change', () => {
+        r.blur();
+        this.api.saveUi();
+      });
+      l.append('Stage light', r, this.stageVal);
+      b7.append(l);
+    }
+    el.append(h, note, b1, b2, b3, b4, b5, b6, b7);
     // (test hook) e2e and the console drive the studio through this
     (window as unknown as { __studio: unknown }).__studio = {
       state: () => ({ ...STUDIO }),
@@ -146,6 +182,17 @@ export class StudioPanel {
       snap: (s: StudioSnap) => this.api.lock(s),
       // (anim-studio-2) a pair's roles and clock, a traversal loop's progress
       pair: () => ({ ...STUDIO_PAIR }),
+      // (marlow-bays item 14) the Stage light slider (as the slider would set it)
+      stageLight: (v: number) => {
+        this.stageIn.value = String(v);
+        this.stageIn.dispatchEvent(new Event('input'));
+        this.stageIn.dispatchEvent(new Event('change'));
+      },
+      // (marlow-bays item 11) the Keyed box: tick it (as a click would), and its state
+      keyed: (on: boolean) => {
+        if (!this.keyedBox.disabled && this.keyedBox.checked !== on) this.keyedBox.click();
+      },
+      keyedState: () => ({ checked: this.keyedBox.checked, disabled: this.keyedBox.disabled, entry: STUDIO.entry }),
     };
   }
 
@@ -162,6 +209,8 @@ export class StudioPanel {
     this.mirrorBox.checked = STUDIO.mirror;
     this.spotBox.checked = STUDIO.spot;
     this.turnBox.checked = STUDIO.turntable;
+    this.showStage();
+    this.showKeyed();
     this.nextRead = 0;
   }
 
@@ -190,6 +239,7 @@ export class StudioPanel {
     this.mirrorBox.disabled = !keyed && !(pair && !e.team);
     // (tuner-ui) on the spot: a moving state (treadmill) or a clip that can walk the circle
     this.spotBox.disabled = !((e.kind === 'state' && e.pace > 0) || (keyed && e.circle));
+    this.showKeyed();
     const n = STUDIO.frames;
     const p = STUDIO_PAIR;
     const at = n > 0 ? `${e.team ? 'frame' : 'key'} ${studioKey(STUDIO.phase, n) + 1}/${n}${inPlace ? '' : ' (moving)'}` : '';
@@ -214,9 +264,32 @@ export class StudioPanel {
     this.shown = false;
   }
 
+  /** (marlow-bays item 14) The Stage light scale (clamped). */
+  setStage(v: number): void {
+    STUDIO_LIGHT.scale = stageLightScale(v);
+    this.showStage();
+  }
+
+  private showStage(): void {
+    if (!this.api.busy(this.stageIn)) this.stageIn.value = String(STUDIO_LIGHT.scale);
+    this.stageVal.textContent = `${Number(STUDIO_LIGHT.scale.toFixed(2))}×`;
+  }
+
+  /** (marlow-bays item 13) Play a loop picked elsewhere (a state picked in a tab's list); the list follows. */
+  play(id: string): void {
+    this.setEntry(id);
+  }
+
+  /** (marlow-bays item 13) "Loop on the spot" flipped from the panel's header, its key or the pad (every tab). */
+  toggleSpot(): boolean {
+    this.setBox(this.spotBox, !STUDIO.spot);
+    return STUDIO.spot;
+  }
+
   private pickEntry(v: string): void {
     STUDIO.entry = studioEntry(v).id;
     this.nextRead = 0;
+    this.showKeyed();
     this.api.picked(STUDIO.entry);
   }
 
@@ -224,6 +297,22 @@ export class StudioPanel {
     const e = studioEntry(id);
     this.entrySel.value = e.id;
     this.pickEntry(e.id);
+  }
+
+  /** (marlow-bays item 11) The Keyed box: the same loop as its keyed clip (on) or its procedural state (off). */
+  private setKeyed(on: boolean): void {
+    const next = loopKeyedPick(STUDIO.entry, on);
+    if (next !== STUDIO.entry) this.setEntry(next);
+    else this.showKeyed();
+  }
+
+  /** The Keyed box from the loop playing: ticked on a keyed clip; greyed with no other form (off, pairs, traversal,
+   *  the keyed-only clips). */
+  private showKeyed(): void {
+    const k = loopKeyed(STUDIO.entry, this.keyedOut);
+    if (this.keyedBox.checked !== k.on) this.keyedBox.checked = k.on;
+    const dis = k.other === '';
+    if (this.keyedBox.disabled !== dis) this.keyedBox.disabled = dis;
   }
 
   /** One key back / forward (freezes first). */

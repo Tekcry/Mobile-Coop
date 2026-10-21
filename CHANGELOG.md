@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.35.0 - Animation tuner: free mouse, selection highlight, Keyed tick box, on the spot from every tab, studio light (2026-10-21, PR #82)
+- Animation tuner with keyboard and mouse (Michael: "the player camera locks the mouse in position"): the open panel
+  leaves the pointer free in "Drag view": drag the scene with the left button to turn the camera, the wheel zooms (the
+  free view's orbit), every slider and list stays clickable, and scene clicks never fire. F4 or the header button
+  switches to "Game camera" (the normal captured mouse look; the panel ignores the mouse) and back; Esc in the game camera
+  returns to drag view instead of pausing. Closing the panel gives play its normal mouse capture back. The pad is
+  unchanged.
+- The part being adjusted is marked (Michael: "clearly highlight the body part/weapon/animation"): the selected row has
+  a yellow bar and bold name, the active tab a yellow underline, a "▶ part · state · row → target" line names it, and the
+  scene shows a pulsing yellow ring (black edged, on top, readable on light and dark) on the joint, bone, both feet or
+  knees, the weapon or the whole body the row edits.
+- Anim Studio: a "Keyed" tick box beside the Loop list plays the state's keyed clip (cleared: the procedural state),
+  instead of hunting the keyed loop in the list.
+- Anim Studio: a state picked in any tab's state list plays that state's loop; "Loop on the spot" is on every tab (the
+  header button "On the spot: on / off", F8, L3 on the pad).
+- Anim Studio: stage lights that follow her (key, fill, rim and a soft top light, on her only), a brighter studio
+  ambient, and a "Stage light" slider (View tab; bright by default, saved with the tuner's settings). The game's lighting
+  is unchanged.
+
 ## 4.34.0 - Co-op: the partner sees guards' flashlights (2026-10-21, PR #81)
 - Co-op: the joiner now sees the guards' flashlights. Each guard in the host's snapshot carries a torch bit in his
   enemy `al` (`AL_TORCH` 8; protocol 24 -> 25). The client lights one of its own map's torch slots per lit guard and
