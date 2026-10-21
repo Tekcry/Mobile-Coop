@@ -36,6 +36,13 @@ Added ~14:10:
 12. "are there any outstanding tuner fixes? the UI is currently very pool" (poor). Asked what is poor, he picked all
     four: hard to read, cluttered, hard to navigate, looks unfinished.
 
+13. (~14:35) "When i use any of the states, the character actually moves on screen and doesnt stay on the spot. is
+    there another button to press? its good to have this but i want to be able to swap between loop on the spot or
+    actual movement". The toggle exists (Anim Studio, View tab, Loop player, "Loop on the spot", only for a moving state
+    picked in the loop list); he could not find it or it did not hold. Fix: in the studio, picking a state in any tab's
+    state drop-down plays that state's loop; "Loop on the spot" sits on every tab (a header toggle, plus a key and a pad
+    button) and works for every moving state; if a state still drifts with it on, that is a bug to fix.
+
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
 ## Order
