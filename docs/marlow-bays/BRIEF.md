@@ -86,6 +86,13 @@ Added ~14:10:
 Items 17-20 go in slice T1 with 15 and 16. T1 split (orchestrator OK, ~15:45): T1a = items 15-19 + COVERAGE gaps 3-5;
 T1b = gaps 1-2 (Joints / Hands & feet / IK / Weapon bake and every rig reads them; move and action rows), taking
 exports made before T1b (test with a literal old export).
+**Bays in the cloud (Michael, ~16:30, chose "Bays in cloud").** Slices B (items 1, 2, 6) and M (items 3, 4) run in a
+cloud session on this branch, `feature/marlow-bays` (merge origin/master first), alongside the animation tracks. Cloud
+rules: unit tests and logic e2e only (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-menus, e2e-sectorops); every GPU or
+visual check (item 6's red lines and surround, the bay looks) is "pending PC run". Do not touch the animation tracks'
+files (below). A co-op protocol change bumps PROTOCOL_VERSION past 25. Slice J (jammer, items 5, 7, 8) stays for a
+local session later. One PR for B + M; the full e2e and the GPU look run on the PCs before the merge.
+
 **Tracks (Michael, ~16:10: "is there anything we can do to split sessions to focus heavily on the animation work?";
 chose three tracks, bays wait).** Three sessions at once, one owner per file area, the orchestrator merges A, B, C in
 that order; the laptop tests all three:
