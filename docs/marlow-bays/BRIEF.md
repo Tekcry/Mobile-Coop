@@ -132,7 +132,7 @@ that order; the laptop tests all three:
         without a model change.
     23. Key timing (track A, after T2): slide a key earlier / later in its clip (its phase), preview live, the bake
         writes the key file and rebakes the clip.
-    24. Guard tuning (track B, after 22): a guard target in the tuner and studio (a guard puppet) with its own rows
+    24. Guard tuning (track A since ~22:20, Michael's pick; was track B): a guard target in the tuner and studio (a guard puppet) with its own rows
         (Joints, Weight, Stepping where guards use them), baked into a guard base table; Wren rows never touch guards.
     25. Add / delete keys (track A, after 23): insert a key between two (copying the blended pose) or remove one;
         mirrored clips keep their mirror; the bake rewrites the key file and the clip. Track C rebases its key-field
@@ -145,6 +145,79 @@ that order; the laptop tests all three:
     (bottom sheet or collapsible drawer, touch targets >= 44 px, she stays in view), the debug readout off by default
     on phones with a toggle, touch camera (one-finger drag orbits, pinch zooms, two-finger drag pans), pad as today.
     Logic e2e at a phone viewport (touch emulation); a phone-size screenshot to the orchestrator before the PR.
+
+27. (~19:30) "There should also be a way to rejoin a match you have left. The code should be displayed in the host and
+    joiners session main menu in case either person gets disconnected so they can rejoin." Slice R (Bays Cloud, own
+    PR from this branch after master 4.38.0). Assumed: R1 the room code shows in the pause menu and on the main menu
+    for both players while a match is live or was left in the last 10 minutes ("Rejoin <code>" item on the main menu,
+    one press); R2 a joiner who drops or leaves keeps its slot: the host holds its player (frozen, invulnerable, a
+    "Reconnecting..." tag) for 10 minutes and a rejoin restores position, health, loadout and team state; R3 if the host
+    drops, the joiner sees "Host disconnected - waiting (code)" and the host's main menu offers "Resume hosting <code>",
+    which reopens the same room and restarts from the last checkpoint with the joiner rejoining on the code; R4 no new
+    server: the same Trystero / Nostr room. Logic e2e via localTransport (drop and rejoin both sides).
+
+28. (~19:50) Server browser, low priority, spare capacity only. Michael: "Yes add it to the pipeline. It can proceed as
+    low priority whenever there is spare capacity. Must be prototype only, quick and fast to build." (No quick match:
+    "Doesn't need to be a quick match option.") Slice S (Bays Cloud, after slice R): a Public / Private switch in the
+    host lobby (default Private); a public room posts a notice (code, map, version, players) on the same Nostr relays,
+    refreshed every ~30 s with an expiry, removed when full or closed; a "Browse rooms" list in the co-op menu (other
+    versions hidden, live refresh, pad and keyboard / mouse) that joins by the code as today. No TURN relay, no
+    server. Prototype only: a fake relay for unit and logic e2e, one real-relay check on the PC later. Own PR.
+
+26b. (~20:10) Phone layout feedback on the 844x390 / 390x844 shots: "Smaller buttons, more compact. Adjust smaller with
+    controller connected also". Touch: smaller targets (about 32-36 px, text 12-13 px), tighter rows and padding,
+    the panel narrower (landscape about 38% wide, portrait about 45% high) so more of her shows and more sliders fit on
+    the first screen. With a pad connected (the last input a pad), smaller again (no touch target minimum: about 26 px
+    rows, 11-12 px text), since nothing is tapped. Switches live with the input device. Screenshots of both, at both
+    orientations, before the PR.
+
+29. (~22:45) Tuner v3, simpler (track A, FIRST: ahead of item 24). Michael, verbatim: "I've had instances with the
+    controller where I couldn't access the state menu, it was jogging and I couldn't change it to walking, it kept
+    closing the menu when I tried going up. The controller layout is slow, difficult, and not intuitive. I would like to
+    scroll the menus with an analogue stick, and easily swap between adjusting camera and adjusting sliders. The body
+    part diagram is useless and using d pad for menu usage is very loud clicking constantly. Can we make the Ui more
+    minimalistic and easier to navigate with keyboard/mouse, controller, and touch? Its very confusing. Everything needs
+    to be simpler. The body part highlight is too distracting and blocks the animation, it needs to be more subtle and
+    have an option to be disabled entirely. I also need to be able to control the game with touch input (menu, control
+    camera)." Touch scope chosen: "Menus + camera" (tap every menu and the pause menu, drag to look; no touch movement
+    or combat).
+    Direction (prototype first, screenshots and a written pad map to Michael before the full build):
+    - Bug first: the pad's state drop-down closes on Up instead of moving (jog -> walk impossible). Fix and test.
+    - Minimal panel: one column, top to bottom: tab, one "what" row (part / state / weapon as plain drop-downs, no body
+      map), the sliders; everything else (search, pins, presets, playback extras) under one "More". Remove the body map.
+    - Pad: left stick scrolls the list (analogue, repeat speeds up when held), left stick left / right changes the value
+      (hold accelerates), A opens / picks, B backs out, LB / RB tabs, right stick always moves the camera (no mode
+      switch), triggers zoom, View hands the pad to the game. D-pad still works but is optional. No UI click sound in
+      the tuner (or a quiet one, with an off switch).
+    - Keyboard / mouse: wheel scrolls, arrows move, click and drag sliders, right-drag or middle-drag moves the camera
+      while the panel stays usable.
+    - Touch: tap, drag sliders, swipe to scroll the panel, the camera gestures from item 26.
+    - Highlight: subtle (a thin outline or small dot on the joint, no ring over her), with an off switch.
+    - Game touch (outside the tuner): every menu and the pause menu tappable; a drag on the game view looks around;
+      an on-screen pause button. No touch movement (M21 stays for play).
+    - (~22:55) "The interface should be consistent between touch, controller, and k&m. It should only adapt to different
+      screen sizes to ensure it fits properly on smaller screens. Search and recently used etc seems useless to me and
+      takes up valuable interface room." So: one layout for every input (item 26b's pad-only density mode goes; input
+      changes only the hint glyphs); only screen size changes the layout (dock vs drawer / sheet, scale). Search,
+      recent and pinned sliders are removed, not moved under More.
+    - (~23:25, iPad, screenshot `michael-ipad-2026-10-21.png`, 4.42.0): "iPad display strange ui fitment, blurred top,
+      empty gap on bottom. Would love to be able to pinch, move, and zoom camera with touch" and "When opening sections
+      for body parts that need to be scrolled to, the window automatically scrolls back to top". So: respect the safe
+      areas (`env(safe-area-inset-*)`: the panel top sat under the iPad status bar and looked faded); size to the real
+      visible height (`100dvh` / visualViewport, no gap at the bottom); touch camera gestures (one finger orbit, pinch
+      zoom, two-finger pan) in EVERY layout, not only the phone one; the F3 readout off by default on touch devices;
+      opening or folding a group keeps the scroll position (no jump to the top), and a newly opened group scrolls into
+      view. Test at iPad sizes (1180x820, 820x1180) as well as phone and desktop.
+
+30. (~01:20) Faster key editing. Michael: "I was adjusting the body to twist realistically while running but I had to
+    adjust each key manually." Chose all but the curve view: "Proceed with all but the curve view."
+    - Track A (after tuner v3): (a) Wave tool: pick a channel, set amount and timing (phase), and it fills every key with
+      a smooth sine over the cycle; the mirrored half flips sign as the mirror rule says. (b) Apply to keys: one change
+      applied to all keys or the ticked ones. (c) Smooth between: pick two keys, and the keys between get an eased
+      blend. (d) Compare keys: a ghost of the previous (or a picked) key over the current one, plus a values diff line.
+    - Track C (with or after S4, keyed.ts is C's): (e) Exact preview: the live preview samples the same Bezier curve as
+      the Blender bake, so the in-betweens don't shift after a rebake.
+    Each one bakes through the existing keys path; each its own small PR, or A's four in one.
 
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire

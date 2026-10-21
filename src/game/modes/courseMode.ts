@@ -301,6 +301,11 @@ export class CourseMode implements GameMode {
     return true;
   }
 
+  /** (marlow-bays R3) "Resume hosting" restarts at the bay the players were in (1-based). */
+  resumeBay(): number {
+    return (this.state?.bay ?? 0) + 1;
+  }
+
   /** Player index of whoever used an item (`courseUser`: the host is P1, the client P2). */
   private idx(by: string | undefined): PlayerIdx {
     return courseUser(by);
