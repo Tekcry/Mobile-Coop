@@ -13,7 +13,8 @@
  * JSONs via the apply-tune functions, then a rebake per clip); already baked (the ledger: this group and slider were
  * baked before at this same value, in this export or an earlier one); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
  */
-import { applyKeyEdits, editedClips, KEY_FIELDS, keyFileText, keyHalvesDiffer, keyMirrorOn, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile';
+import { applyKeyEdits, editedClips, KEY_FIELDS, keyFileText, keyHalvesDiffer, keyMetaText, keyMirrorOn, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile';
+import { KEY_TIME_ID, KEY_TIME_MAX } from './tuneKeysTime';
 import { migrateTuneChanged } from './tuneRows';
 import { applyBaseEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, spliceAnimBase } from './tuneBakeBase';
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
@@ -61,11 +62,15 @@ const KEY_TUNABLE = (id: string): CatTunable => {
   return { section: 'keys', id, kind: 'add', def: 0, min: f.min, max: f.max, groups: [] };
 };
 const KEY_IDS = new Set(KEY_FIELDS.map((f) => f.id));
+/** (item 23, track A) A key's timing slider (`time`, bake frames, + later): bakes into the key's `phase`. */
+const KEY_TIME_TUNABLE: CatTunable = { section: 'keys', id: KEY_TIME_ID, kind: 'add', def: 0, min: -KEY_TIME_MAX, max: KEY_TIME_MAX, groups: [] };
+/** (item 23, track A) The tuner's key meta (each clip's own key phases), regenerated when a bake moves a key. */
+const BAKE_KEYS_META = 'src/anim/tuneKeysMeta.ts';
 /** (T1a, item 18) The Keys section's Mirror box (`key.<clip>.mirror`): 1 on (identity), 0 off. */
 const KEY_MIRROR_TUNABLE: CatTunable = { section: 'keys', id: 'mirror', kind: 'add', def: 1, min: 0, max: 1, groups: [] };
 /** The catalogue entry of a Keys group's slider, or undefined (an unknown slider, or not a Keys group). */
 const keyTunable = (group: string, id: string): CatTunable | undefined => {
-  if (parseKeyGroup(group)) return KEY_IDS.has(id) ? KEY_TUNABLE(id) : undefined;
+  if (parseKeyGroup(group)) return KEY_IDS.has(id) ? KEY_TUNABLE(id) : id === KEY_TIME_ID ? KEY_TIME_TUNABLE : undefined; // (item 23, track A) time
   if (parseKeyMirror(group)) return id === 'mirror' ? KEY_MIRROR_TUNABLE : undefined;
   return undefined;
 };
@@ -678,6 +683,7 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   const keyVals: Record<string, Record<string, number>> = {};
   for (const en of entries) if (en.section === 'keys') (keyVals[en.group] ??= {})[en.id] = en.value;
   const rebake: string[] = [];
+  const keyAfter = new Map<string, string>(); // (item 23, track A) clip -> its key file as written
   for (const clip of editedClips(keyVals)) {
     const file = `${BAKE_KEYS_DIR}${clip}.json`;
     const before = read(file);
@@ -702,8 +708,14 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
       }
       const pk = parseKeyGroup(en.group);
       if (!pk || pk[0] !== clip) continue;
-      const f = KEY_FIELDS.find((x) => x.id === en.id)!;
-      en.row.target = `${file} key ${pk[1]} ${f.seg}${f.sub ? `.${f.sub}` : ''}.${f.field} + (${f.unit})`;
+      const f = KEY_FIELDS.find((x) => x.id === en.id);
+      // (item 23, track A) the timing slider moves the key's phase (frame / 48, clamped by tuneKeysTime's rules)
+      en.row.target = f ? `${file} key ${pk[1]} ${f.seg}${f.sub ? `.${f.sub}` : ''}.${f.field} + (${f.unit})` : `${file} key ${pk[1]} phase + (bake frames / 48)`;
+      if (!f && pk[1] === 0) {
+        en.row.result = 'skipped: the first key is fixed (phase 0)';
+        manualN++;
+        continue;
+      }
       if (pk[1] >= (full ? 2 * n : n)) {
         // Mirror off with the halves still mirror images: the mirrored own key carries this value (baked through it)
         if (kf.mirror && pk[1] < 2 * n && !keyMirrorOn(keyVals, clip)) {
@@ -720,6 +732,7 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     }
     const after = keyFileText(applyKeyEdits(kf, keyVals));
     if (after !== before) writes.push({ path: file, before, after });
+    keyAfter.set(clip, after);
     rebake.push(`node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs ${clip}`);
   }
   // (T1a) a Mirror box set off on a clip with no key edits changes nothing in the file
@@ -728,6 +741,26 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     en.row.target = `${BAKE_KEYS_DIR}${parseKeyMirror(en.group) ?? '?'}.json mirror`;
     en.row.result = 'skipped: no key edits on this clip (the Mirror box alone changes nothing)';
     manualN++;
+  }
+
+  // (item 23, track A) a baked timing edit: regenerate the tuner's key meta (as scripts/anim-keys/meta.mjs does) from
+  // every key file the meta lists, the written ones as written. No timing edit: the meta is never touched.
+  if (entries.some((en) => en.section === 'keys' && en.id === KEY_TIME_ID && en.row.result.startsWith('baked'))) {
+    const before = read(BAKE_KEYS_META);
+    if (before === null) return fail(`${BAKE_KEYS_META}: not found`);
+    const files: KeyFile[] = [];
+    for (const m of before.matchAll(/name: '([^']+)'/g)) {
+      const text = keyAfter.get(m[1]!) ?? read(`${BAKE_KEYS_DIR}${m[1]!}.json`);
+      if (text === null) return fail(`${BAKE_KEYS_DIR}${m[1]!}.json: not found (listed in ${BAKE_KEYS_META})`);
+      try {
+        files.push(JSON.parse(text) as KeyFile);
+      } catch (err) {
+        return fail(`${BAKE_KEYS_DIR}${m[1]!}.json: ${(err as Error).message}`);
+      }
+    }
+    let after = keyMetaText(files);
+    if (before.includes('\r\n')) after = after.replace(/\n/g, '\r\n');
+    if (after !== before) writes.push({ path: BAKE_KEYS_META, before, after });
   }
 
   // 7. the ledger

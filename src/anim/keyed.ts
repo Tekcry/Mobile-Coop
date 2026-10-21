@@ -22,6 +22,7 @@
  * from the midline). Sampling never allocates.
  */
 import { TUNE_CUR, tuneKeyedLean, tuneKeyedTwist } from './tune';
+import { keyWarpPhase } from './tuneKeysTime';
 
 export interface KeyedClipDef {
   name: string;
@@ -78,6 +79,20 @@ export interface KeyedClip {
   readonly meanLeg: Float32Array;
   /** (tuner-v2 item 4) The per-key edit offsets (`tuneKeys` builds them on the first edit), or null: sampled exactly as baked. */
   keyOff: KeyedOffsets | null;
+  /** (marlow-bays item 23) The key timing edits (`tuneKeys` sets them on the first retime), or null: the keys as baked. */
+  keyTime: KeyedTime | null;
+}
+
+/**
+ * (marlow-bays item 23) A clip's retimed keys: the sampler reads the baked clip at `keyWarpPhase` (piecewise linear
+ * between the keys, `tuneKeysTime.ts`); the per-key offsets (`keyOff`, built on the retimed keys) at the phase itself.
+ */
+export interface KeyedTime {
+  /** Keys in order (every key the bake poses). */
+  n: number;
+  /** The retimed and the baked key positions (bake frames, 48 a cycle; the first 0). */
+  readonly newPos: Float64Array;
+  readonly oldPos: Float64Array;
 }
 
 /**
@@ -330,6 +345,7 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
     meanFing,
     meanLeg,
     keyOff: null,
+    keyTime: null,
   };
 }
 
@@ -360,7 +376,10 @@ function legMean(g: Float32Array, N: number, m: Float32Array): void {
  */
 export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: KeyedPose): KeyedPose {
   const N = clip.frames;
-  const f = (((phase % 1) + 1) % 1) * N;
+  // (marlow-bays item 23) retimed keys: the baked clip read at the warped phase (null: exactly as before)
+  const KT = clip.keyTime;
+  const ph = KT ? keyWarpPhase(KT.newPos, KT.oldPos, KT.n, phase) : phase;
+  const f = (((ph % 1) + 1) % 1) * N;
   const i0 = Math.floor(f) % N;
   const i1 = (i0 + 1) % N;
   const u = f - Math.floor(f);
@@ -378,7 +397,17 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
   }
   sampleQuats(clip.q, clip.meanQ, KEYED_Q, i0, i1, u, amp, out.q);
   const K = clip.keyOff; // (tuner-v2 item 4) per-key edits: null unless the Keys section edits this clip
-  if (K) keyOffTrunk(K, i0, i1, u, amp, out.q);
+  // (item 23) the offsets are built on the retimed keys: read at the phase itself
+  let j0 = i0;
+  let j1 = i1;
+  let v = u;
+  if (K && KT) {
+    const g = (((phase % 1) + 1) % 1) * N;
+    j0 = Math.floor(g) % N;
+    j1 = (j0 + 1) % N;
+    v = g - Math.floor(g);
+  }
+  if (K) keyOffTrunk(K, j0, j1, v, amp, out.q);
   tuneKeyedTwist(out.q, clip.meanQ); // (anim-tuner) the trunk counter-rotation slider (identity at 1)
   tuneKeyedLean(out.q); // (anim-tuner) the forward lean slider (identity unless the local player's group sets one)
   const W = out.wrist;
@@ -405,8 +434,8 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
   }
   out.hasLeg = sampleLeg(clip.leg, clip.meanLeg, i0, i1, u, amp, out.leg);
   if (K) {
-    keyOffLimbs(K, i0, i1, u, amp, amp * TUNE_CUR.armSwingK, out);
-    keyOffExtra(K, i0, i1, u, amp, amp * TUNE_CUR.armSwingK, out);
+    keyOffLimbs(K, j0, j1, v, amp, amp * TUNE_CUR.armSwingK, out);
+    keyOffExtra(K, j0, j1, v, amp, amp * TUNE_CUR.armSwingK, out);
   } else edIdentity(out);
   return out;
 }

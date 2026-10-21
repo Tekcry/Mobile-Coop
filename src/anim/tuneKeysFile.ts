@@ -1,5 +1,5 @@
 /**
- * (tuner-v2 item 4) Per-key edits <-> the scripts/anim-keys key JSON (pure, no imports: the game and the node script
+ * (tuner-v2 item 4) Per-key edits <-> the scripts/anim-keys key JSON (pure; imports only tuneKeysTime: the game and the node script
  * `scripts/anim-keys/apply-tune.mjs` share it). A key edit is a delta on one field of one key of a keyed clip, in the
  * key file's own units, so an export bakes exactly what was typed: trunk segments pelvis / spine / chest / neck / head
  * (pitch, yaw, roll; deg), the pelvis offset (dx / dy / dz; cm), and per arm the shoulder (pitch, yaw, roll), the upper
@@ -9,7 +9,11 @@
  * Registry groups `key.<clip>.<key index>` (a mirrored clip: indexes 0 .. 2n-1, the second half the mirrored keys, used
  * only with its Mirror box off) and `key.<clip>.mirror` (the Mirror box, slider `mirror`: 1 on, 0 off); slider ids are
  * `KEY_FIELDS[].id`.
+ * (marlow-bays item 23) Key timing: the slider `time` (bake frames, 1/48 of the cycle, + later) in a key's group moves
+ * that key's `phase` (the field the key files already have; the bake keys at round(phase * 48)). A file is written with
+ * new phases only for keys that moved; no timing edit leaves every phase as it was. Clamp rules: `tuneKeysTime.ts`.
  */
+import { KEY_SPAN, KEY_TIME_ID, keyBasePos, keyTimeCount, keyTimeSolve } from './tuneKeysTime';
 
 export interface KeyField {
   /** Slider id (`spine_pitch`, `armL_flex`, `armR_wristYaw`, `armL_twist` ...). */
@@ -155,8 +159,35 @@ export function keyHalvesDiffer(values: Values, clip: string, n: number): boolea
     const own = mirrorDelta(values[keyGroupId(clip, j)]);
     const mine = values[keyGroupId(clip, n + j)] ?? {};
     for (const f of KEY_FIELDS) if ((own[f.id] ?? 0) !== (mine[f.id] ?? 0)) return true;
+    // (item 23) a mirrored key moved apart from its own key (the first key is fixed: its own time counts as 0)
+    const ot = j === 0 ? 0 : (values[keyGroupId(clip, j)]?.[KEY_TIME_ID] ?? 0);
+    if (ot !== (mine[KEY_TIME_ID] ?? 0)) return true;
   }
   return false;
+}
+
+/**
+ * (marlow-bays item 23) The key times of an edit set onto `out` (the file being written; `full`: written in full, every
+ * key its own time): each moved key's phase is its solved position / 48. No timing edit: nothing changes.
+ */
+function applyKeyTimes(name: string, out: KeyFile, values: Values, full: boolean): void {
+  const c = { phases: out.keys.map((k) => k.phase as number), mirror: !!out.mirror };
+  const total = keyTimeCount(c);
+  const offs: number[] = [];
+  let any = false;
+  for (let i = 0; i < total; i++) {
+    const v = values[keyGroupId(name, i)]?.[KEY_TIME_ID];
+    const o = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+    if (o !== 0) any = true;
+    offs.push(o);
+  }
+  if (!any) return;
+  const pos: number[] = [];
+  // a file the bake mirrors: its own keys move and the mirrored half follows them (written in full: every key its own)
+  if (!keyTimeSolve(c, offs, !full, pos)) return;
+  out.keys.forEach((k, i) => {
+    if (pos[i] !== keyBasePos(c, i)) k.phase = pos[i]! / KEY_SPAN;
+  });
 }
 
 /**
@@ -170,6 +201,7 @@ export function keyHalvesDiffer(values: Values, clip: string, n: number): boolea
 export function applyKeyEdits(file: KeyFile, values: Values): KeyFile {
   const full = !!file.mirror && !keyMirrorOn(values, file.name) && keyHalvesDiffer(values, file.name, file.keys.length);
   const out = full ? expandMirror(file) : (JSON.parse(JSON.stringify(file)) as KeyFile);
+  applyKeyTimes(file.name, out, values, full);
   out.keys.forEach((key, i) => {
     const vals = values[keyGroupId(file.name, i)];
     if (!vals) return;
@@ -239,4 +271,28 @@ export function readKeys(file: KeyFile): ReadKey[] {
   const keys = file.keys.map((k) => ({ phase: k.phase as number, v: KEY_FIELDS.map((f) => get(k, f)) }));
   if (file.mirror) for (const k of file.keys) keys.push({ phase: (k.phase as number) + 0.5, v: KEY_FIELDS.map((f) => get(mirrorKey(k), f)) });
   return keys.sort((a, b) => a.phase - b.phase);
+}
+
+/**
+ * (marlow-bays item 23) The text of `src/anim/tuneKeysMeta.ts` for the key files (any order; written in name order):
+ * each clip's frames, mirror flag and own key phases. A key file's phases change with a timing edit, so whatever writes
+ * key files writes this too (`scripts/anim-keys/meta.mjs`, apply-tune.mjs). Byte-identical for unchanged files.
+ */
+export function keyMetaText(files: readonly KeyFile[]): string {
+  const rows = [...files]
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    .map((k) => `  { name: '${k.name}', frames: ${k.frames ?? 32}, mirror: ${!!k.mirror}, phases: [${k.keys.map((x) => String(x.phase)).join(', ')}] },`);
+  return `// GENERATED from scripts/anim-keys/keys/*.json (tuner-v2 item 4): each keyed clip's own keys (the mirrored half is
+// made by the bake). tests/tuneKeys.test.ts checks it against the JSON files; regenerate when a key file changes.
+export interface KeyClipMeta {
+  readonly name: string;
+  readonly frames: number;
+  readonly mirror: boolean;
+  readonly phases: readonly number[];
+}
+
+export const KEY_CLIPS: readonly KeyClipMeta[] = [
+${rows.join('\n')}
+];
+`;
 }
