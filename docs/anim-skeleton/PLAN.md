@@ -42,12 +42,58 @@ Done: check; e2e-anim, e2e-studio, e2e-netmove; a GPU screenshot of curled finge
 Done: check; the clip modules diff empty except the new one; e2e-studio plays `skeleton_test`; GPU screenshot.
 
 ## S4 - tuner rows
-- Joints rows: `clavicleL` / `clavicleR` (3 axes) and per-finger joints in `tuneJoints.ts` (B's file).
-- Keys fields: `armX.clav*`, per-finger curl / spread, `legL` / `legR` per key in `tuneKeysFile.ts` (A's file); the
-  bake writes them back to the key JSON.
-- Done through the orchestrator: either the owners add them from our spec, or we add them after their merges with
-  their OK. The panel shows them with no UI change (registry).
-Done: check; the rows appear in the panel (e2e-studio); an old export still loads (identity).
+Ships with S3 in one PR (orchestrator, 2026-10-22). Starts from master after B's #90 (J2) merges; #91 (A's add /
+delete keys) is in master as 4.43.0. Design (2026-10-22, docs only):
+- **Joints: clavicles only.** Add `clavicleL` / `clavicleR` to `tuneJoints.ts` JOINTS (B's file; two entries, the L / R
+  suffix gives the mirror pair; `tuneV2Sections` makes the pitch / yaw / roll sliders from the list with no edit). The
+  rig reads the composed value (base table + tuner delta, like B's other rows) in our `clavFrame` and adds it to
+  `rig.clavIn`; B's `jointOffsets` code is not touched. Named in the PR body. Axis words for the panel ("Shrug", "Push
+  forward", "Tilt") go to Course Ready's `tunerLayout.ts` only if it wants them (its file).
+- **Fingers: no new Joints rows.** Hands & feet already has curl and spread per finger and per weapon / state, and
+  since S2 they move each finger on its own. Per-segment finger rows (45 per hand) would clutter the panel for no
+  gain at the prototype stage; `tuneHands.ts` needs no edit.
+- **Keys fields** (A's `tuneKeysFile.ts` KEY_FIELDS, appended; superseded below: shown on every keyed clip; was: only opt-in `clav` /
+  `fingers` / `legs`, so the 28 clips' panels are unchanged): `armX.clav.{pitch, yaw, roll}`;
+  `handX.{thumb..little}.{curl, spread}`; `legX.{flex, add, knee, ankle, toe, w}`. Added keys (#91) copy every field.
+- **Live key edits**: `KeyedOffsets` (our `keyed.ts`) gains `clav`, `fing`, `leg` arrays and flags like `wrist`;
+  `tuneKeys.ts` (A) builds them from the new fields the same way it builds the arm / wrist offsets, append-only next to
+  that code. Legs: the edit offsets the clip's FK channel, so it shows only where the key's `w` > 0 (the panel hint
+  says so).
+- **Bake**: key edits write the new fields into the key JSON (the existing keys bake path, generic over KEY_FIELDS: check
+  it writes nested `handX.<finger>` objects; extend append-only if not), then the Blender rebake of that clip.
+- **Every keyed clip (Michael via the orchestrator, 2026-10-22: per-key legs, collarbones and fingers on the real
+  clips: jog, run, walk, idle ...).** The new Keys fields show on every keyed clip, not only opt-in ones. A clip opts in
+  automatically the first time one of those fields is edited; the bake then sets its key file's flag and writes the
+  channel. Untouched clips stay byte-identical.
+- **Legs over the planner.** On the real clips the feet must stay on the foot planner, so a leg key edit is a
+  per-joint DELTA on the solved IK leg (hip pitch / yaw / roll, knee, ankle pitch / roll, toe), keyed and interpolated,
+  shown live at once with no weight to raise. New optional runtime channel `legd` (per side 7 floats, 14 a frame) in
+  our `keyed.ts`, applied in the rig right after the S3a FK blend (the same place, so the preview shows the edit over the
+  planner), zero = untouched. Key JSON: `legX.d.{hipPitch, hipYaw, hipRoll, knee, anklePitch, ankleRoll, toe}` (deg);
+  key_clip.py writes `legd` when any key has a non-zero delta. The S3a FK takeover (`legs` flag, `w`) stays for clips
+  authored with FK legs like skeleton_test; the panel shows `w` only there.
+- **Planted feet never slide (orchestrator, 2026-10-22).** While a foot is planted (the planner's contact state for
+  that side), the delta is not applied raw: the leg is re-solved to the plant with the delta folded in (hip and knee
+  deltas become a knee-pole / bend change that keeps the foot on the plant; ankle and toe deltas turn the foot about
+  the plant point), so the foot stays put. On the swing leg the raw delta applies. A blend between the two over the
+  planner's contact weight so nothing pops at lift-off / touch-down. Test: a knee or hip delta on jog's contact key
+  leaves the planted foot within 0.5 cm of the no-delta plant.
+- **Foot slide readout in the studio.** The rig exposes `rig.footSlide` (per side, cm the planted foot moved this
+  contact; no allocation); the studio shows it. The readout's UI is in Course Ready's studio files (A): we ask it to
+  add one line reading `rig.footSlide`, or add it with its OK.
+- Track A lines and the B entry are sent to Course Ready and CT Core before editing.
+Done: check; e2e-studio (the Keys tab lists the new fields for skeleton_test; the Joints tab shows the clavicles);
+the S2 identity tests unchanged; an old tuner export still loads (identity); a GPU shot of a clavicle row moved.
+
+## S4b - exact preview (marlow-bays BRIEF item 30(e), Michael approved; with or after S4)
+"Exact preview: the live preview samples the same Bezier curve as the Blender bake, so the in-betweens don't shift
+after a rebake." The key edit offsets (`KeyedOffsets`, built per key by `tuneKeys`) are spread over the clip's frames
+in `keyed.ts`; today that spread is not the bake's curve. Change (ours, `keyed.ts`): spread each key's offset over the
+frames with the same interpolation key_clip.py gives Blender (its keyframe interpolation and handle type: Bezier,
+the auto / auto-clamped handles Blender computes, cyclic extrapolation; read key_clip.py `curves()` / `set_pose` for
+the exact settings) as a pure, allocation-free evaluator. Test: for a few clips and an edit on one key, the preview's
+sampled frames equal a rebake's frames within float noise (a fixture from one Blender run). Applies to the new S4
+fields as well.
 
 ## S5 - finish
 Rebase on A's and B's merges, the bit-identity test re-run, docs (`CHANGELOG` Unreleased - anim-skeleton, `TESTING.md`,

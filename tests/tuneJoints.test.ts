@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Quaternion } from '../src/core/babylon';
 import { BODY_GROUPS, tuneLoad, tuneSnapshot } from '../src/anim/tune';
 import {
@@ -22,9 +22,21 @@ import {
   jointsResetAll,
   jointsResetGroup,
   jointsSet,
+  jointsBaseLoad,
   jointsSnapshot,
   MIRROR_OF,
 } from '../src/anim/tuneJoints';
+import { ANIM_BASE } from '../src/anim/animBase';
+
+// (anim-bake-1022) These pin the tuner's delta table on its own, so they run on a test-local empty base table (the
+// untuned rig). Michael's 2026-10-22 bake filled the generated base (idle / walk / jog upperArm roll), which
+// tests/animJointsBase.test.ts covers; the generated base is restored after.
+beforeAll(() => {
+  jointsBaseLoad(undefined);
+});
+afterAll(() => {
+  jointsBaseLoad(ANIM_BASE.joints);
+});
 
 beforeEach(() => {
   JOINTS_HOOKS.changed = null;
@@ -33,8 +45,8 @@ beforeEach(() => {
 });
 
 describe('tuneJoints table', () => {
-  it('has the 21 joints, each paired joint mirrored onto its partner', () => {
-    expect(JOINT_COUNT).toBe(21);
+  it('has the 23 joints (S4: + the clavicles), each paired joint mirrored onto its partner', () => {
+    expect(JOINT_COUNT).toBe(23);
     for (let j = 0; j < JOINT_COUNT; j++) {
       expect(MIRROR_OF[MIRROR_OF[j]!]).toBe(j);
       const n = JOINTS[j]!;

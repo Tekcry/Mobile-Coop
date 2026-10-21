@@ -179,6 +179,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
 - [ ] Co-op: the partner's hands also close on their gun.
 - [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
+- [ ] (S3+S4) Anim Studio: play skeleton_test: shrug, right shoulder forward, fingers curl one by one then spread, a
+  left kick with the right foot planted.
+- [ ] (S3+S4) Keys tab on jog: on a contact key raise the knee: the leg bends but the planted foot does not slide (foot
+  slide readout under 0.5 cm); on a swing key the leg moves as keyed. A collarbone or finger field changes that key.
+- [ ] (S3+S4) Joints tab: the collarbone row shrugs and pushes the shoulder forward; reset returns it exactly.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
@@ -208,6 +213,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
   Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
   A team boost climb-up still works.
+- [ ] Marlow Yard station 3 (co-op, marlow-jammer): the camera hallway. Aim the pistol at the camera, hold RB / F and
+  stand still: the red grid goes, the camera stops turning, its LED flashes, a quiet buzz plays (both hear it); the HUD
+  counts 5 s, then COOLDOWN 5 s; released, the camera stays blind 1.5 s and cannot be jammed meanwhile. One jams while
+  the other runs; from the far lobby, the one through jams for the other; both there unlock the airlock door. The camera's
+  grid never shows inside an airlock. Jam a hallway lamp: it flickers off, stays off 4 s after you let go, flickers on.
+  Run the hallway without a jam: the camera catches you and you are put back at the hallway's start (radio line); the
+  airlock door stays locked until both got through under a jam.
 - [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
   10 HP.
 - [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the
@@ -260,6 +272,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
 - [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
   states show the values of the rows they shared.
+- [ ] (anim-bake-1022) After a bake merges, open the tuner with your old save: the info line says how many values are
+  now built in and that your other changes are kept; the baked sliders sit at their defaults, the rest as tuned, and she
+  looks as before the merge. Reload: nothing resets again. Y menu > Reset baked gives the line again.
 - [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
   focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
   compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).

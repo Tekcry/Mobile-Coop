@@ -14,7 +14,7 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 
-/** 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event (26 is slice J's jammer); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+/** 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
 export const PROTOCOL_VERSION = 27;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
@@ -131,6 +131,8 @@ export type NetEvent =
   | { e: 'revive'; player: string; x: number; y: number; z: number }
   /** (marlow-bays R2) A rejoined player is put back where the host held them (health and team state come as usual). */
   | { e: 'restore'; player: string; x: number; y: number; z: number; yaw: number }
+  /** (26, marlow-jammer fix round 1) The camera hallway sent `player` back to (x, y, z), facing `yaw` (alive, health kept). */
+  | { e: 'back'; player: string; x: number; y: number; z: number; yaw: number }
   /** Co-op: a takedown the host refused (the client lets go of its puppet). */
   | { e: 'tdDenied'; player: string; enemy: string }
   /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
@@ -348,6 +350,14 @@ function netEvent(v: unknown): NetEvent | null {
       const z = num(v.z, -WORLD, WORLD);
       return player && x !== null && y !== null && z !== null ? { e: 'restore', player, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0 } : null;
     }
+    case 'back': {
+      const player = id(v.player);
+      const x = num(v.x, -WORLD, WORLD);
+      const y = num(v.y, -50, 100);
+      const z = num(v.z, -WORLD, WORLD);
+      const yaw = num(v.yaw, -10, 10);
+      return player && x !== null && y !== null && z !== null && yaw !== null ? { e: 'back', player, x, y, z, yaw } : null;
+    }
     case 'tdDenied': {
       const player = id(v.player);
       const enemy = id(v.enemy);
@@ -418,17 +428,38 @@ const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
-/** (CT prototype B3) The `sec` field of a course message: the jam list and charges, clamped. */
+/** Cameras a `sec` field carries clocks for (SN60 caps a map at 12) and jammed / recovering devices it lists. */
+const SEC_CAMS = 16;
+const SEC_DEVS = 64;
+
+/** (CT prototype B3; 26 marlow-jammer) The `sec` field of a course / sector message: the jam list, each jammer's use and
+ *  cooldown, the devices' jam timelines and the camera clocks, clamped. */
 function secWire(v: unknown): { sec?: SecWire } {
   if (!isObj(v)) return {};
   const j = Array.isArray(v.j) ? v.j : [];
   const ch = Array.isArray(v.ch) ? v.ch : [];
+  const cd = Array.isArray(v.cd) ? v.cd : [];
   const sc: unknown[] | null = Array.isArray(v.sc) ? v.sc : null;
+  const ck: number[] = [];
+  if (Array.isArray(v.ck)) for (const x of v.ck.slice(0, SEC_CAMS)) ck.push(num(x, 0, 1e6) ?? 0);
+  const dv: [string, number, number][] = [];
+  if (Array.isArray(v.dv)) {
+    for (const x of v.dv.slice(0, SEC_DEVS)) {
+      if (!Array.isArray(x)) continue;
+      const k = id(x[0]);
+      // phase 1 (jammed) or 2 (recovering); anything else is dropped
+      const ph = x[1] === 1 || x[1] === 2 ? x[1] : 0;
+      if (!k || ph === 0) continue;
+      dv.push([k, ph, num(x[2], 0, 30) ?? 0]);
+    }
+  }
   return {
     sec: {
-      ck: num(v.ck, 0, 1e6) ?? 0,
+      ck,
       j: [id(j[0]) ?? '', id(j[1]) ?? ''],
-      ch: [num(ch[0], 0, 120) ?? 0, num(ch[1], 0, 120) ?? 0],
+      ch: [num(ch[0], 0, 10) ?? 0, num(ch[1], 0, 10) ?? 0],
+      cd: [num(cd[0], 0, 10) ?? 0, num(cd[1], 0, 10) ?? 0],
+      dv,
       al: Math.round(num(v.al, 0, 9) ?? 0),
       // (B6) the scanner pair: phases 0-3, occupied bits 0-3, progress in tenths of a second
       ...(sc ? { sc: [0, 1, 2, 3, 4].map((i) => Math.round(num(sc[i], 0, i < 3 ? 3 : 100) ?? 0)) } : {}),
