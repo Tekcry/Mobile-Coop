@@ -89,10 +89,13 @@ exports made before T1b (test with a literal old export).
 **Tracks (Michael, ~16:10: "is there anything we can do to split sessions to focus heavily on the animation work?";
 chose three tracks, bays wait).** Three sessions at once, one owner per file area, the orchestrator merges A, B, C in
 that order; the laptop tests all three:
-- A - Course Ready Build: T1a (items 15-19, COVERAGE gaps 4-5 and the studio loops / weapon pick) on
+- A - Course Ready Build: T1a (items 15-19, COVERAGE gaps 3-5 and the studio loops / weapon pick; gap 3 was already
+  built there at 06dd5659: `src/anim/tuneRows.ts` ROW_ALIASES, the v2 tuner store with v1 migration, the split rows) on
   `feature/marlow-tuner-t1`, then T2. Owns `src/ui/tuner*`, `src/ui/studio*`, `src/anim/studio.ts`, `src/anim/tuneKeys*`,
   `scripts/anim-keys/*`.
-- B - CT Core Build: T1b (COVERAGE gaps 1, 2 and 3: Joints / Hands & feet / IK / Weapon bake into a generated base
+- B - CT Core Build: T1b (COVERAGE gaps 1 and 2; gap 3 stays in A (16:20), so B builds on A's `tuneRows.ts` and v2
+  store: reset `feature/anim-joints` to `origin/feature/marlow-tuner-t1` before the first commit, merge master once A
+  lands; the split rows listed below are A's. Joints / Hands & feet / IK / Weapon bake into a generated base
   table every rig reads, the partner included; tables keyed by row id with move and action rows; split rows for
   crouched wall, crouch run, aim still, holds vs carries, rifle vs pistol) on `feature/anim-joints` in
   `C:/NightShift/Mobile-Coop-anim-joints`, from master 4.35.0. Owns `src/anim/tuneJoints*`, `src/anim/tuneV2Sections.ts`,
