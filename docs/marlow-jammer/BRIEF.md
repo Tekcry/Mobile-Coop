@@ -23,6 +23,14 @@ Added (Michael, 2026-10-21, via the orchestrator; marlow-bays BRIEF c2421115): "
 floor, that's the point of the red laser overlay to show the cameras view area." Bay 3's painted sweep-edge lines
 (`docs/ct-prototype/CTCOURSE-SPEC.md` M2) go in the hallway rebuild, and the spec row says so.
 
+Michael's answers (2026-10-22 ~04:10, through the orchestrator):
+- M1: J2 approved (seen in the hallway = sent back to the start).
+- M2: J3 approved (a player may join the partner's jam).
+- M3: J4 NOT approved (no unjammable hallway lamp). Instead: the security camera sees in the dark - it has its own IR
+  illuminator, so its detection ignores lamp light inside its range and cone (fits lasers showing in night vision).
+  Lights matter for guards and the meter, not for cameras. Keep the regression test: with every bay 3 lamp out, a
+  runner is still caught.
+
 ## Goal
 Michael can replay bay 3 of Marlow Yard in co-op: a hallway the camera covers, passable only by a jam handoff, with a
 jammer that visibly and audibly works. Prototype quality (G4): no polish beyond the list.
