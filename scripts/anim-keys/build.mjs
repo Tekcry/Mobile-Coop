@@ -80,7 +80,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     for (const view of ['side', 'front']) {
       const inputs = [];
       for (let i = 0; i < 8; i++) inputs.push('-i', path.join(prevDir, `${name}-${view}-${i}.png`));
-      const lab = Array.from({ length: 8 }, (_, i) => `[${i}]drawtext=fontfile='C\:/Windows/Fonts/consola.ttf':text='keyed ${name} ph ${(i / 8).toFixed(3)}':x=4:y=4:fontsize=14:fontcolor=black[v${i}]`).join(';');
+      const lab = Array.from({ length: 8 }, (_, i) => `[${i}]drawtext=fontfile='C\\:/Windows/Fonts/consola.ttf':text='keyed ${name} ph ${(i / 8).toFixed(3)}':x=4:y=4:fontsize=14:fontcolor=black[v${i}]`).join(';');
       const res = spawnSync(FF, ['-v', 'error', '-y', ...inputs, '-filter_complex', `${lab};${Array.from({ length: 8 }, (_, i) => `[v${i}]`).join('')}hstack=inputs=8`, path.join(OUT, `${name}-${view}.png`)], { windowsHide: true, encoding: 'utf8' });
       console.log(`anim-keys: preview ${view}`, res.status === 0 ? path.join(OUT, `${name}-${view}.png`) : res.stderr);
     }
