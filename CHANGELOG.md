@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-jammer (feature/marlow-jammer)
+## 4.48.0 - Marlow Yard bay 3: a jam-handoff hallway, the jammer's 5 s use / 5 s cooldown with a buzz, camera reboot and lamp flicker; cameras see in the dark (2026-10-22, PR #101)
 - Jammer rules (Michael 2026-10-21 item 7, A3, J1): each player jams for at most 5 s, then a 5 s cooldown; letting go
   early (or moving: the stand-still rule) also starts the cooldown. The 20 s charge (drain / refill / minStart) is gone.
 - A jammed camera goes blind (its red grid fades out), stops sweeping where it is and flashes its LED; released (or at
