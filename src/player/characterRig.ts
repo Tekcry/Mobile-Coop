@@ -628,6 +628,8 @@ export class CharacterRig {
   set tuneRows(on: boolean) {
     if (on && !this.tuneSt) this.tuneSt = tuneRigState();
     else if (!on) this.tuneSt = null;
+    // (anim-bake-1022) a Wren rig holds Wren's low ready / pistol ready, every other rig the guards' (a reference swap)
+    this.graph.wrenReady = on;
   }
   /**
    * (tuner-v2 item 2) The held gun's model (WeaponModel.hold sets it): the tuner's visual gun transform goes on its

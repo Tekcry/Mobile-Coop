@@ -8,6 +8,9 @@
 - Tests follow Michael's 2026-10-22 tune (the jog / run keys, the rifle and pistol low ready, the idle / walk / jog
   upper-arm roll): the identity fixtures re-captured (proven data only first), the tuner key tests moved to the evenly
   spaced sneak / walk keys, and the run's anti-crab and arm limits widened for the run alone (marked to restore).
+- Michael's rifle and pistol low ready are Wren's alone (`WREN_READY_LOW`, `WREN_PISTOL_READY`, picked once per rig by
+  `tuneRows`): guards, the VIP and the dummy keep the pre-bake ready poses, the gun bake rules target Wren's copies,
+  the guard identity fixture is back to master's, and e2e-anim's player low-ready limits follow the tune (marked).
 
 ## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
 - Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with

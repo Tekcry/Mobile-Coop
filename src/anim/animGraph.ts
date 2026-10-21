@@ -503,7 +503,8 @@ export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
   // (anim-rework S3, BRIEF 3) muzzle ~40 deg down in front of the feet (pitch 0.8 -> 0.68), only a little inboard (yaw
   // -0.6 -> -0.22: it pointed 34 deg across the body), roll 0.2 -> 0.08
-  low: { x: 0, y: -0.08, z: -0.02, pitch: 0.75, yaw: -0.63, roll: 0.54 },
+  // (anim-bake-1022) the guards' (every non-Wren rig's) low ready; Wren's is WREN_READY_LOW
+  low: { x: 0, y: -0.08, z: -0.02, pitch: 0.68, yaw: -0.22, roll: 0.08 },
   high: { x: -0.03, y: 0.07, z: -0.12, pitch: -1.0, yaw: -0.08, roll: 0 },
   // pulled in tight to the chest, muzzle forward and down (never swung across into a wall beside you)
   compressed: { x: -0.06, y: -0.08, z: -0.12, pitch: 0.6, yaw: -0.12, roll: 0.1 },
@@ -517,7 +518,25 @@ export const READY_POSES = {
  * (compressed ready), elbows in") The pistol's low ready replaces READY_POSES.low by its weight (the light gun): the
  * gun in toward the centre line and in close at the lower chest, muzzle ~40 deg down, straight ahead.
  */
-export const PISTOL_READY = { x: -0.08, y: -0.34, z: 0.08, pitch: 1.16, yaw: -0.05, roll: 0 } as const;
+export const PISTOL_READY = { x: -0.08, y: -0.05, z: -0.1, pitch: 0.7, yaw: -0.05, roll: 0 } as const;
+/** (anim-bake-1022) A ready pose of the weapon layer (m, rad). */
+export interface ReadyPose {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly pitch: number;
+  readonly yaw: number;
+  readonly roll: number;
+}
+/**
+ * (anim-bake-1022, "Wren's rows never touch guards") Wren's own rifle low ready and pistol low ready: every Wren rig
+ * (`CharacterRig.tuneRows`: the player, the co-op partner, the studio puppets) reads these, every other rig (guards,
+ * VIP, dummy) READY_POSES.low and PISTOL_READY. The tuner's gun bake targets these (`tuneBakeTable.ts`). Michael's
+ * 2026-10-22 tune: low pitch / yaw / roll 0.68 / -0.22 / 0.08 -> 0.75 / -0.63 / 0.54; pistol y / z / pitch -0.05 / -0.1
+ * / 0.7 -> -0.34 / 0.08 / 1.16.
+ */
+export const WREN_READY_LOW = { x: 0, y: -0.08, z: -0.02, pitch: 0.75, yaw: -0.63, roll: 0.54 } as const;
+export const WREN_PISTOL_READY = { x: -0.08, y: -0.34, z: 0.08, pitch: 1.16, yaw: -0.05, roll: 0 } as const;
 export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
 /**
  * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine
@@ -1175,7 +1194,7 @@ export class AnimGraph {
     const ready = 1 - raiseW * (1 - swapBump);
     // (anim-rework S3) the pistol's low ready is its compressed ready (PISTOL_READY), by the light gun's weight
     const pistolW = clamp((0.85 - mass) / 0.15, 0, 1);
-    const rl = pistolW > 0 ? this.pistolLow(pistolW) : READY_POSES.low;
+    const rl = pistolW > 0 ? this.pistolLow(pistolW) : this.readyLow;
     const rh = READY_POSES.high;
     const rc = READY_POSES.compressed;
     // (locomotion step 21, D2) no free-running weapon sway: the only idle weapon motion is what the chest breathing carries
@@ -2002,11 +2021,26 @@ export class AnimGraph {
     ly.inert = this.inert.maxOffset;
   }
 
-  /** (anim-rework S3) READY_POSES.low toward PISTOL_READY by the pistol weight, into a scratch pose (no allocation). */
+  /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */
+  private readyLow: ReadyPose = READY_POSES.low;
+  private readyPistol: ReadyPose = PISTOL_READY;
+  /**
+   * (anim-bake-1022) A Wren rig's ready poses (WREN_READY_LOW / WREN_PISTOL_READY) or every other rig's (READY_POSES.low
+   * / PISTOL_READY). Set where the rig is made (`CharacterRig.tuneRows`); the per-frame pick reads the references only.
+   */
+  set wrenReady(on: boolean) {
+    this.readyLow = on ? WREN_READY_LOW : READY_POSES.low;
+    this.readyPistol = on ? WREN_PISTOL_READY : PISTOL_READY;
+  }
+  get wrenReady(): boolean {
+    return this.readyLow === WREN_READY_LOW;
+  }
+
+  /** (anim-rework S3) The low ready toward the pistol's by the pistol weight, into a scratch pose (no allocation). */
   private readonly pLow = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
   private pistolLow(w: number): { x: number; y: number; z: number; pitch: number; yaw: number; roll: number } {
-    const a = READY_POSES.low;
-    const b = PISTOL_READY;
+    const a = this.readyLow;
+    const b = this.readyPistol;
     const o = this.pLow;
     o.x = a.x + (b.x - a.x) * w;
     o.y = a.y + (b.y - a.y) * w;

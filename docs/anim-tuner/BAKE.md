@@ -66,9 +66,13 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
 
 **Gun.**
 - Baked:
-  - rifle.lowReady -> READY_POSES.low.* +. Close: the other carries keep theirs, so a gun tune made at a wall (the wall
+  - rifle.lowReady -> WREN_READY_LOW.* +. Close: the other carries keep theirs, so a gun tune made at a wall (the wall
     tuck) is not carried over.
-  - pistol.lowReady -> PISTOL_READY.* +.
+  - pistol.lowReady -> WREN_PISTOL_READY.* +.
+  - (anim-bake-1022) Both are Wren's own copies (`animGraph.ts`): every Wren rig (`CharacterRig.tuneRows`: the player,
+    the partner, the studio puppets) reads them, every other rig (guards, VIP, dummy) READY_POSES.low and PISTOL_READY,
+    which no bake touches ("Wren's rows never touch guards"). The first bake wrote into the shared poses; the split moved
+    those values into the Wren copies and put the guards' pre-bake values back.
   - gunFwd / gunSide, rifle aims -> SIGHT_RAISE.z / x +, with PISTOL_REACH.z / x - so the pistol aim stays.
   - gunFwd / gunSide, pistol aims -> PISTOL_REACH.z / x +.
   - sightYAdd -> SIGHT_EYE +.
@@ -219,7 +223,8 @@ list or when any registered slider and group has no rule or manual entry.
    Then run the e2e test tiers. What the first bake (anim-bake-1022) needed:
    - The identity fixtures (`tests/fixtures/anim-skeleton-identity.json`, `...-guard-identity.json`): first prove the
      change is data only (a temporary test that restores the pre-bake data at run time must match the old fixture bit
-     for bit), then re-capture with `ANIM_SKELETON_CAPTURE=1`. READY_POSES.low is the shared rig's, so guards change too.
+     for bit), then re-capture with `ANIM_SKELETON_CAPTURE=1`. A gun bake changes only Wren's fixture (the gun rules target
+     Wren's copies); the guard fixture changes only when a bake writes a shared constant (Body, Stepping, keyed clips).
    - Tests that need the untuned rig load a test-local empty base table (`animBaseLoad(emptyBase())`,
      `jointsBaseLoad(undefined)`); the base file test reads against `ANIM_BASE`.
    - The tuner key tests (retime, add / delete, the step) need a mirrored clip with evenly spaced keys: they run on
