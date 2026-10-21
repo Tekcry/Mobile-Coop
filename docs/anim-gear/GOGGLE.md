@@ -35,3 +35,10 @@ Branch `feature/anim-goggle` from master 4.45.0 (0d0eff9b). 2026-10-22.
 - `tests/animGear.test.ts`: the socket list now ends with `goggles`.
 - `scripts/e2e-studio.mjs`: a `gear.goggles` base row (y 1.5 cm, pitch -12) moves Wren's `rig.goggleOff` in-use slots
   exactly, the stowed slots stay 0, the tuner's delta adds, reset exact; role B's boost puppet takes the row, reset exact.
+
+## Results (desktop, 2026-10-22 07:32-07:38, lock held, port 4191)
+- `npm run check`: lint 0 errors (41 warnings, none new), 232 files / 2536 tests passed (7 skipped), build ok. The goggle
+  bake test splices an empty base into its temp copy (master holds Michael's 4.46.0 bake).
+- `e2e-studio` ok 127 s (a `gear.goggles` base row of y 1.5 cm, pitch -12 moves Wren's worn goggle offset exactly, the
+  stowed slots stay 0; the tuner delta adds to y 0.02; reset exact; role B's puppet takes it, reset exact), `e2e-anim`
+  ok 37 s.

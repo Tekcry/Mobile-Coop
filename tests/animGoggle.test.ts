@@ -11,7 +11,7 @@ import '../src/anim/tuneV2Sections';
 import { TUNE_SECTIONS, tuneResetAll, tuneSet } from '../src/anim/tuneRegistry';
 import { GEAR_SECTION, tuneV2SyncAll } from '../src/anim/tuneV2Sections';
 import { bakeCatalogue, tuneBake, type BakeResult } from '../src/anim/tuneBake';
-import { BAKE_BASE_FILE, parseAnimBase } from '../src/anim/tuneBakeBase';
+import { BAKE_BASE_FILE, emptyBase, parseAnimBase, spliceAnimBase } from '../src/anim/tuneBakeBase';
 import { ANIM_BASE, type AnimBaseData } from '../src/anim/animBase';
 import { animBaseLoad } from '../src/anim/tuneJointsRig';
 import { GEAR_PARAMS, GEAR_ROWS, GEAR_SOCKETS, GS, gearAnyLive, gearEffective, gearRigState, gearRigUpdate, gearSocketOfSlot } from '../src/anim/tuneGear';
@@ -32,6 +32,8 @@ function tempTree(): { read: (p: string) => string | null; write: (r: BakeResult
   dirs.push(dir);
   mkdirSync(path.dirname(path.join(dir, BAKE_BASE_FILE)), { recursive: true });
   cpSync(path.join(ROOT, BAKE_BASE_FILE), path.join(dir, BAKE_BASE_FILE));
+  // the generated table holds Michael's bake (4.46.0): the literal expected text assumes an untuned base
+  writeFileSync(path.join(dir, BAKE_BASE_FILE), spliceAnimBase(readFileSync(path.join(dir, BAKE_BASE_FILE), "utf8"), emptyBase()));
   const read = (p: string): string | null => (existsSync(path.join(dir, p)) ? readFileSync(path.join(dir, p), 'utf8') : null);
   const write = (r: BakeResult): void => {
     for (const w of r.writes) {
