@@ -95,6 +95,8 @@ Decided -> DECISIONS G192+, docs PR; the orchestrator swaps ROADMAP pointers), s
 only), shots-rows + gl-warning-fix (Menu Notes), no-aim-assist (CT Core, G16), coop-torches (Course Ready,
 feature/coop-torches, protocol bump; may not finish before 98%). Laptop: #62 99349d64 full, then #63 81deebfb full, then
 the spare-job PRs. Docs PR #74 merged as 4.30.1.
+~11:40 ACCOUNT SWITCH (Michael): every session paused; what was in flight and each session's new-account prompt are in
+docs/orchestrator/HANDOFF.md. Merged since 10:00: #75 4.32.1, #77 4.32.2 (no aim assist), #78 4.32.3 (stealth-ai test).
 ~10:00 merged: #76 4.30.2 (decisions G192-G228), #63 4.31.0 (camera-cue), #62 4.32.0 (Marlow bunker + variety).
 #75 shots-rows versioning as 4.32.1. Open: tuner-ui (Course Ready, building), gl-warning-fix (Menu Notes, building),
 #77 no-aim-assist (laptop full running; e2e-pad likely needs step fixes after the Controls row went), stealth-peek
@@ -140,5 +142,5 @@ separate commands; update this file's Master line and the ROADMAP Done table.
 
 ## Resume prompt
 ```
-Night Shift | Orchestrator. Resume from docs/orchestrator/STATE.md on feature/menu in C:\NightShift\Mobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (its "Decided" list has Michael's answers). It is overnight 2026-10-21: the animation tools are the priority (Course Ready: tuner-camera incl. speed sliders, freeze and the pad scheme, then Anim Studio; Menu Notes: tuner-v2; CT Core: the Weight group after landing S2b and slice 4+5); movement slices and research are off. Michael approved merging green PRs overnight on their test tiers. Check the usage meter (get_usage) on each wake: at weekly >= 99% pause everything and run docs/orchestrator/HANDOFF.md (account switch). Tools first; spare capacity on jobs smallest to largest; warehouse rebuild parked. ListAgents, then carry on from "Sessions and jobs" and the open PRs using "Merge procedure". Short replies, native multiple choice only, hyphens not em dashes; every paste-in prompt states session title, model and effort and is the turn's last message.
+Night Shift | Orchestrator (new account). Resume from docs/orchestrator/STATE.md and docs/orchestrator/HANDOFF.md on feature/menu in C:NightShiftMobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Sessions from the old account are gone: start each job's session by giving Michael its prompt from HANDOFF.md "In the new account", one at a time, with session title, model and effort, as the last thing in the message. First: read the desktop's #79 result and get the laptop's #80 result through Character Build; merge what passed using "Merge procedure". Check get_usage on each wake. Short replies, native multiple choice only, hyphens not em dashes.
 ```
