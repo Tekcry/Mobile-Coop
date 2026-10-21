@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.49.1 - Animation tuner: worn-goggle offsets in the Gear tab, baked (2026-10-22, PR #102)
+- Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
+  turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
+  the goggle's own pivot. It bakes into the animation base table like the other Gear rows; your own Wren shows it
+  (the partner's and the studio puppets' rigs carry it too, but they always show the stowed goggle, so it shows on them once their vision mode is shown), guards never. At LOD1 / LOD2 only the lens moves (the housing
+  is part of the head there). The stowed goggle has no slider yet (it has no separate parts). Untuned, nothing changes.
+
 ## 4.49.0 - Animation tuner v3: one simpler layout for pad, touch and mouse; analogue stick lists; plain labels; iPad and phone fit; touch camera; game touch for menus and camera (2026-10-22, PR #97)
 - Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the
   button hints), the screen size alone picks the dock, the side drawer or the bottom sheet. One column: tabs, the
