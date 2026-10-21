@@ -154,6 +154,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts` gets a `gear` key),
   rebuild, reset the Gear sliders: the same look. With a partner (or role B of a pair loop) the partner's sling socket
   and gear take the same rows; a guard does not.
+- [ ] Goggles (anim-goggle): in the Anim Studio (or a match, the tuner open) turn night vision on (the goggles come
+  down over her eyes), open the
+  Gear tab, pick `goggles`, slide y / z and pitch until the worn goggle sits off the brow and clear of the face, no
+  clipping; pick `goggles` > `crouch`, crouch: it follows. Vision off: the stowed goggle does not move (no stowed
+  socket yet). Zoom out to LOD1 / LOD2: only the lens moves there (the housing is fused into the head), a known limit.
+  Bake and reset as above: the same look; a guard never takes it (the partner and the studio puppets carry it but show the stowed goggle).
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
@@ -305,6 +311,20 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Settings > "Debug readout (F3)" shows and hides the readout; reopening the studio keeps the choice.
 - [ ] A controller paired to the phone: the pad works as on desktop (tabs, rows, edit, View hands the pad over).
 - [ ] On the desktop the panel looks as before (docked right, no handle).
+
+### Tuner v3 and game touch (marlow-bays item 29)
+- [ ] The tuner looks the same with the pad, the mouse and touch (only the hints change); on a phone (844 x 390 and
+  390 x 844) scroll the Body tab to the end: the tabs and the playback bar stay at the top.
+- [ ] Anim Studio, jog, Keyed ticked: Body > Lean and a Joints slider move her; Step length is greyed with
+  "procedural only: the keyed clip is playing". Untick Keyed: Arm swing greys ("keyed clip only").
+- [ ] No green skeleton over her at start; More > View aids turns it on.
+- [ ] Weapon tab with a rifle: "Support hand ..." moves only the left hand; "Gun ... in the gun hand" moves the gun and
+  the left hand stays on it; values read in cm and degrees.
+- [ ] View tab: Side, then Side again: her right, then her left. "Around her" at 90 / 180: her right / her front; the
+  right stick moves the slider.
+- [ ] Keys tab: scroll down, focus a slider, step the key twice: the panel stays where it was.
+- [ ] Touch screen, main menu: tap Settings, tap Back; in a match drag on the view to look round (she does not move),
+  the pause button appears top centre, tap it, tap Resume; press a key: the button hides.
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
