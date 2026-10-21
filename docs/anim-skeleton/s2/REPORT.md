@@ -76,3 +76,19 @@ New: `src/anim/fingers.ts`, `src/anim/clavicle.ts`, `tests/animSkeletonRig.test.
   the morphs, not tuned.
 - A turned clavicle moves the shoulder point and the arm IK re-aims; keyed arms keep their chest-frame rotation.
 - The Proving shots are dark; the studio light would show the fingers better.
+
+## #88 fix round: the e2e-levels ladder climb (2026-10-21)
+Character Build's logs showed the runner's climb-up at 12-18 s on #80-#87 and ~29 s (solo) / >30 s fail (JOBS=2) on
+c74c27a9. Diagnosis: not ours. With `Math.random` seeded and the chase stepped in manual mode, c74c27a9 and 39b97591
+give bit-identical runner paths for seeds 2-8 (one 24.5 s run on both). Unseeded real-suite runs: base 39b97591 15,
+16.75, 24, 20.25, 18.5 s; c74c27a9 30 (fail, no link), 12.75, 9.5, 16, 26.5 s. The spread comes from guard think
+ticks (`src/ai/enemy.ts:166`, `:824`) and the real-time frames before `page.evaluate` (why JOBS=2 changes it); while
+it sees the player the runner circles under him and takes the ladder only once sight breaks (`enemy.ts:1170-1191`).
+`stepHeadless` (`src/core/loop.ts:75`) has no budget or substep cap. No runtime change.
+- Added `tests/animSkeletonGuardIdentity.test.ts` (+ helper, fixture captured on 39b97591): every pre-T3 joint of one
+  guard per enemy kind (8) through 8 poses is bit-identical. The Wren identity test still passes, fixture unchanged.
+- Gameplay reads of the rig pose (all pre-existing, none ours, S2 leaves them bit-identical): `enemy.ts:1779-1781`
+  (perception eye from `rig.headNode`), `game/playerTarget.ts:101-119` (hit volumes), `ai/body.ts:96-124`.
+- Checks: `npm run check` pass (2 436 tests); e2e solo e2e-levels ok (climb-up 9.25 s, down 11 s), e2e-anim ok.
+- Proposed for the test owner: seed `Math.random` and set `loop.manual = true` around the chase (or a longer budget);
+  list e2e-levels "up a ladder" under the backlog's flaky suites until then.

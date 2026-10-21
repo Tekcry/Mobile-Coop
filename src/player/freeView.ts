@@ -32,9 +32,12 @@ export type FreeSnap = 'front' | 'side' | 'back' | 'top';
 /**
  * (anim-studio) A camera snap: the orbit's yaw and pitch to look at the body (facing `bodyYaw`) from its front, its
  * right side, its back, or from above (behind, looking down). Orbit yaw is the view direction (the camera sits `dist`
- * back along it).
+ * back along it). (marlow-bays item 26 fix) A snap centres her again: an orbit's touch pan (`panX` / `panZ`) is cleared
+ * (a held snap every frame, so no pan stays under it).
  */
-export function freeSnap(snap: FreeSnap, bodyYaw: number, out: { yaw: number; pitch: number }): void {
+export function freeSnap(snap: FreeSnap, bodyYaw: number, out: { yaw: number; pitch: number; panX?: number; panZ?: number }): void {
+  if (out.panX !== undefined) out.panX = 0;
+  if (out.panZ !== undefined) out.panZ = 0;
   if (snap === 'front') {
     out.yaw = bodyYaw + Math.PI;
     out.pitch = -0.1;
@@ -53,9 +56,16 @@ export function freeSnap(snap: FreeSnap, bodyYaw: number, out: { yaw: number; pi
 /**
  * The pad's free-view input, written by the tuner panel while the free view owns the pad (zero otherwise), plus the
  * mouse wheel's steps (consumed by the game). Sticks -1..1 after the dead zone (`ly` / `ry` + = up); `zoom` RT - LT
- * (+ = in); `rise` RB - LB; `nudge` D-pad up - down; `wheel` whole steps (+ = in).
+ * (+ = in); `rise` RB - LB; `nudge` D-pad up - down; `wheel` whole steps (+ = in). (marlow-bays item 26) The touch
+ * camera's sums since the last frame (consumed by the game like `wheel`): `tlx` / `tly` orbit look (rad, + = right /
+ * up), `tzoom` pinch (log distance, + = in), `tpx` / `tpy` pan (screen heights, + = the circled point right / up).
  */
-export const FREE_IN = { lx: 0, ly: 0, rx: 0, ry: 0, zoom: 0, rise: 0, nudge: 0, wheel: 0 };
+export const FREE_IN = { lx: 0, ly: 0, rx: 0, ry: 0, zoom: 0, rise: 0, nudge: 0, wheel: 0, tlx: 0, tly: 0, tzoom: 0, tpx: 0, tpy: 0 };
+
+/** (item 26) The touch sums cleared (consumed, a mode change). */
+export function clearTouchIn(): void {
+  FREE_IN.tlx = FREE_IN.tly = FREE_IN.tzoom = FREE_IN.tpx = FREE_IN.tpy = 0;
+}
 
 export const FREE_CFG = {
   /** Orbit: distance limits (m), the start height of the circled point over the feet (m) and its limits. */
@@ -80,6 +90,10 @@ export const FREE_CFG = {
   dead: 0.15,
   /** Demo loop: the circle's radius (m). */
   demoRadius: 2,
+  /** (item 26) Touch pan: metres per screen height per metre of orbit distance (about the view's height there), and
+   *  how far the circled point may leave her (m, level). */
+  panScale: 1,
+  panMax: 3,
 };
 
 /** A game speed clamped to the slider's range (anything not finite: 1). (anim-studio) `max`: the studio allows 2x. */
@@ -168,6 +182,12 @@ export class FreeViewCore {
   /** (tuner-ui) A held snap ('' none) and the body's facing it holds to (set every frame by the game). */
   lock: '' | FreeSnap = '';
   bodyYaw = 0;
+  /** (marlow-bays item 26) Orbit: the circled point's level offset from her (m, world; the touch pan), and this frame's
+   *  pan input (m along the view's level right, m up). */
+  panX = 0;
+  panZ = 0;
+  panR = 0;
+  panU = 0;
 
   /** Start from the game's view: the camera at (cx, cy, cz) looking along (yaw, pitch), the feet at (fx, fy, fz). */
   start(mode: FreeMode, cx: number, cy: number, cz: number, yaw: number, pitch: number, fx: number, fy: number, fz: number): void {
@@ -178,6 +198,7 @@ export class FreeViewCore {
     this.y = cy;
     this.z = cz;
     this.height = FREE_CFG.heightStart;
+    this.panX = this.panZ = 0;
     const dx = cx - fx;
     const dy = cy - (fy + this.height);
     const dz = cz - fz;
@@ -186,7 +207,7 @@ export class FreeViewCore {
   }
 
   clearInput(): void {
-    this.lookX = this.lookY = this.moveX = this.moveY = this.rise = this.zoom = this.nudge = 0;
+    this.lookX = this.lookY = this.moveX = this.moveY = this.rise = this.zoom = this.nudge = this.panR = this.panU = 0;
   }
 
   /** One rendered frame: apply the input and place the view around / from the feet. No allocation. */
@@ -199,8 +220,19 @@ export class FreeViewCore {
     if (this.mode === 'orbit' && this.lock) freeSnap(this.lock, this.bodyYaw, this);
     if (this.mode === 'orbit') {
       this.dist = Math.max(C.distMin, Math.min(C.distMax, this.dist * Math.exp(-this.zoom)));
-      this.height = Math.max(C.heightMin, Math.min(C.heightMax, this.height + this.nudge * C.nudgeRate * dt));
-      orbitPlace(fx, fy + this.height, fz, this.yaw, this.pitch, this.dist, this);
+      this.height = Math.max(C.heightMin, Math.min(C.heightMax, this.height + this.nudge * C.nudgeRate * dt + this.panU));
+      if (this.panR !== 0) {
+        // (item 26) the touch pan: along the view's level right, kept within panMax of her
+        this.panX += Math.cos(this.yaw) * this.panR;
+        this.panZ -= Math.sin(this.yaw) * this.panR;
+        const r2 = this.panX * this.panX + this.panZ * this.panZ;
+        if (r2 > C.panMax * C.panMax) {
+          const k = C.panMax / Math.sqrt(r2);
+          this.panX *= k;
+          this.panZ *= k;
+        }
+      }
+      orbitPlace(fx + this.panX, fy + this.height, fz + this.panZ, this.yaw, this.pitch, this.dist, this);
     } else if (this.mode === 'fly') {
       const cp = Math.cos(this.pitch);
       const sy = Math.sin(this.yaw);

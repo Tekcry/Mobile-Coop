@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-skeleton S1+S2
+## 4.42.0 - Wren skeleton: collarbones, 30 finger bones, smoother glove fingers; hands close on weapons again (2026-10-21, PR #88)
 - Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
   had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on
   the two nearest models (each finger bends at three knuckles), and the game's grip drives them on every Wren,
@@ -12,6 +12,28 @@
   will move it). At rest nothing moves: every joint that existed before is bit-identical for all 28 keyed clips, the
   procedural states and the partner (tests/animSkeletonIdentity.test.ts).
 - Cost: about +2.3 us per Wren figure per frame (figure update 6.9 -> 9.2 us at the nearest model); +264 KB of models.
+
+## 4.41.0 - Animation tuner and Anim Studio on phones: compact drawer or sheet, pad mode, touch camera (2026-10-21, PR #89)
+- The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
+  the game itself stays desktop only). A phone (a touch screen as the main pointer, short side 600 px or less) in
+  landscape gets a side drawer on the right (38% wide: she keeps the left 62%); in portrait a bottom sheet (45% high:
+  she keeps the top 55%). The studio frames her in the free area as on desktop. A grab handle collapses the panel to
+  its header and expands it. Every touch target is at least 34 px (tabs, buttons, chips, sliders, steppers, the body
+  map's joints, the playback bar); the text is 13 px, the padding tight; the panel scrolls inside itself; slider rows
+  put the slider on its own line.
+- (26b, Michael: "Smaller buttons, more compact. Adjust smaller with controller connected also") With a controller the
+  last input, smaller again: 26 px rows, 11 px text, no touch minimum, one-line slider rows, the drawer 34% wide and
+  the sheet 40% high. It switches live between touch and pad with the last input (a touch or a pad press), no reload.
+- The F3 debug readout (it covered the left half) is off on a phone; Settings > "Debug readout (F3)" shows it (the
+  choice is saved) and F3 still toggles it with a keyboard.
+- Touch camera on the scene: one finger dragged orbits, a pinch zooms, two fingers dragged pan the point the view
+  circles; a tap on her picks a part as a click does. Touches on the panel never move the camera. The pad works as
+  before. Desktop sizes and a mouse keep the T2 layout unchanged.
+- The Anim Studio's stage lights are placed after she moves and from the camera's position this frame (they lagged
+  one frame, up to 0.1 m on a busy machine; e2e-studio's light check failed under load).
+- New suite `e2e-tuner-phone` (required).
+
+
 ## 4.40.0 - Animation tuner: slide a key earlier or later in its clip, baked into the key files (2026-10-21, PR #87)
 - Animation tuner, Keys tab: slide a key earlier or later in its clip ("◀ Earlier" / "Later ▶", one bake frame = 1/48
   of the cycle, or the time slider), previewed live. Keys keep their order, the first key stays at the cycle start, and
