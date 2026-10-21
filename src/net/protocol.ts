@@ -14,8 +14,8 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 
-/** 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 24;
+/** 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 25;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -86,8 +86,19 @@ export interface EnemyState {
   /** 0 idle/chase, 1 attack/aim, 2 crouched (cover), 3 dead */
   st: number;
   hp: number;
-  /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 = seized in a takedown. */
+  /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 (`AL_SEIZED`) = seized in a
+   *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on. `packAlert` builds it. */
   al: number;
+}
+
+/** `EnemyState.al` bits over the alert level (bits 0-1): seized in a takedown, and (protocol 25) the torch on. */
+export const AL_SEIZED = 4;
+export const AL_TORCH = 8;
+
+/** The wire `al`: alert level 0-3, seized, torch on. A guard without a torch costs what he did before (0-7); a lit one
+ *  is 8-11 (calm or investigating 8-9: one JSON digit; searching or in combat 10-11: two) or 12-15 seized: at most one byte more. */
+export function packAlert(level: number, seized: boolean, torch: boolean): number {
+  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0);
 }
 
 /** A usable thing on the host (mirrored on clients, used through `use`). */
@@ -252,7 +263,7 @@ function enemyState(v: unknown): EnemyState | null {
   const z = num(v.z, -WORLD, WORLD);
   const yaw = num(v.yaw, -1e4, 1e4);
   if (eid === null || !k || x === null || y === null || z === null || yaw === null) return null;
-  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, 7) ?? 0) };
+  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, 15) ?? 0) };
 }
 
 function netItem(v: unknown): NetItem | null {

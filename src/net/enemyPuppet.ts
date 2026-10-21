@@ -11,7 +11,8 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { TakedownVictim } from '../game/takedownController';
 import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
-import type { EnemyState } from './protocol';
+import { AL_TORCH, type EnemyState } from './protocol';
+import type { TorchHolder } from './torchMirror';
 import type { GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
 
@@ -24,7 +25,7 @@ const LEVELS: AlertLevel[] = ['unaware', 'investigating', 'searching', 'alert'];
  * host, which decides. Explosions are ignored (the host applies them). A takedown seizes it locally (held where the
  * attacker puts it) and asks the host to seize the real enemy; finishing it sends the outcome.
  */
-export class EnemyPuppet implements Damageable, TakedownVictim {
+export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   readonly team = 'enemy' as const;
   readonly def: EnemyDef;
   readonly buf = new SnapshotBuffer<EnemyState>(30, 0.25);
@@ -44,6 +45,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
   private head = new Vector3();
   private placed = false;
   private al = 0;
+  /** (coop-torches) The shown state's `st` and torch bit (`AL_TORCH`). */
+  private st = 0;
+  private torchBit = false;
   dead = false;
   /** Seized by the local player's takedown (position from `holdAt`, not the host). */
   taken = false;
@@ -82,6 +86,17 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
 
   get alerted(): boolean {
     return (this.al & 3) === 3;
+  }
+
+  /** (coop-torches) His flashlight is on (`TorchMirror`): the snapshot's torch bit, while he is alive and still in
+   *  the host's snapshots (one missed snapshot switches it off; the next one that lists him brings it back). */
+  get torch(): boolean {
+    return this.torchBit && !this.dead && this.stale === 0;
+  }
+
+  /** (coop-torches) Crouched as the host places the torch (`st` 2 = the host's crouch past half way). */
+  get torchCrouch(): boolean {
+    return this.st === 2;
   }
 
   get level(): AlertLevel {
@@ -234,10 +249,17 @@ export class EnemyPuppet implements Damageable, TakedownVictim {
       this.yaw = s.yaw;
       this.al = s.state.al;
       const st = s.state.st;
+      // (coop-torches) the torch and the crouch it is held at, from the state shown now (as the position)
+      this.st = st;
+      this.torchBit = (s.state.al & AL_TORCH) !== 0;
       // (G7 fix) held by the partner: lowered with the knockout's own phase (the snapshot's crouch bit flips at half way)
       if (this.remoteHold) this.crouch = this.remoteLower;
       else this.crouch += ((st === 2 ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
       this.aim += ((st === 1 || st === 2 ? 1 : 0.2) - this.aim) * Math.min(1, dt * 8);
+    } else {
+      // seized by our takedown (posed here, not sampled): the torch bit follows the host's newest state
+      const ls = this.buf.latest();
+      if (ls) this.torchBit = (ls.al & AL_TORCH) !== 0;
     }
     if (!this.placed) {
       this.placed = true;

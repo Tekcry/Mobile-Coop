@@ -32,7 +32,8 @@ import type { Body } from './body';
 import { alarmStandPoint, raiseTime, type AlarmPanel } from './alarm';
 import type { LightDef } from '../world/lights';
 import type { LightField } from '../world/lightField';
-import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
+import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
+import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import type { GuardInfo } from './guardInfo';
 import { DogModel } from './dogModel';
@@ -624,24 +625,20 @@ export class Enemy implements Damageable {
    *  field's static level where he stands (3.6: lamps count, not just the ambient); one already on stays on up to
    *  `TORCH_KEEP`, so walking through a lamp's pool does not flick it. */
   torchWanted(field: LightField, holding = false): boolean {
+    // (coop-torches) the test hook (e2e-coop) forces the rule; a dog still carries none
+    const o = this.torchOverride;
+    if (typeof o === 'boolean') return o && carriesTorch(this.def);
     // (warehouse-redesign M1) dogs carry no light: the rule says no before the field is read
     return torchRule(this.def, this.aware.level, this.los, this.def.quadruped ? 1 : field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z), holding);
   }
 
-  /** The flashlight follows the head: at eye height ahead of the face, pointing where it looks (a bit down). */
+  /** (coop-torches) Tests / debug only: true or false forces the torch rule (`torchWanted`); null (always in play)
+   *  leaves it to the rule. */
+  torchOverride: boolean | null = null;
+
+  /** The flashlight follows the head (`placeTorch` in `world/torches.ts`, shared with the co-op client). */
   placeTorch(l: LightDef): void {
-    const s = Math.sin(this.yaw);
-    const c = Math.cos(this.yaw);
-    l.x = this.pos.x + s * 0.35 + c * 0.15;
-    l.y = this.pos.y + (this.crouch > 0.5 ? 1.0 : 1.45) * this.def.scale;
-    l.z = this.pos.z + c * 0.35 - s * 0.15;
-    const cone = l.cone;
-    if (cone) {
-      const p = 0.16;
-      cone.dx = s * Math.cos(p);
-      cone.dy = -Math.sin(p);
-      cone.dz = c * Math.cos(p);
-    }
+    placeTorch(l, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.crouch > 0.5, this.def.scale);
   }
 
   /** Straight to combat (spawned alerted, shot, tests). */

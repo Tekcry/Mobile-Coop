@@ -21,7 +21,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 24 (24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 25 (25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -69,7 +69,15 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   on `cdeny` or no reply in 0.4 s. Contact resolves only on the host.
 
 ## Co-op sync
-- Snapshots carry enemy `al` (alert level, +4 seized) and, when changed or every 2 s, `items` (usable interactables:
+- Guard torches (coop-torches, protocol 25): enemy `al` = alert level (bits 0-1) + `AL_SEIZED` 4 + `AL_TORCH` 8
+  (`packAlert`), sent for every listed guard in every snapshot (no deltas), so a guard who drops out of the list and
+  comes back is right from his first snapshot. Cost: 0 bytes for a guard without a torch, at most 1 for a lit one. The
+  aim is not sent: the client places the light with the host's `placeTorch` (`world/torches.ts`) from the shown x, y,
+  z, yaw and `st` 2 (crouched). `net/torchMirror.ts` (`CoopClient.torches`, each frame after the puppets) lights one of
+  the client's own torch slots (`addTorchSlots`, the same `FLASHLIGHTS` 4 as the host) per guard whose
+  `EnemyPuppet.torch` is set (the bit, alive, not stale: one missed snapshot switches it off), sets `reach` with the
+  host's `beamReach` and switches off the rest. Test hooks: `Enemy.torchOverride` (host), `CoopClient.torches.slotOf(id)`.
+- Snapshots carry enemy `al` (alert level, +4 seized, +8 torch) and, when changed or every 2 s, `items` (usable interactables:
   objectives, switches, alarms, doors, revive points, wall medkit stations `medkitWall`; clients mirror them and send
   `use`, the host checks reach; course devices `c-` first so the cap never drops them) and `doors` (open indices).
 - Wall medkit stations (G20, G98): a client's use asks the host, which heals the client's host-authoritative health
