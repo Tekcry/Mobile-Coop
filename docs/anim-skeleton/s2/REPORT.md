@@ -9,7 +9,8 @@
 - Fingers (`src/anim/fingers.ts`, pure, no extra TransformNodes): curl 0..1 (clamped -0.25..1.2) -> MCP / PIP / DIP
   80 / 95 / 65 deg; thumb CMC opposition / MCP / IP 35 / 40 / 45; spread -1..1 = +-30 deg. The rig builds
   `rig.fingers` at the end of each frame from the hand shapes for `handGrip` (relax blended toward trigger, wrap or
-  support), plus the local player's Hands & feet finger values (read-only; the mean curl already in `handGrip` is taken
+  support), plus the Hands & feet finger values (read-only; base table plus tuner delta on every Wren rig, like B's
+  other rows; the mean curl already in `handGrip` is taken
   out so each finger gets its own curl; spread = degrees / 30), plus the S3 slot `rig.fingerClip`.
 - Poser (`src/operators/runtime/pose.ts`): `RIG_JOINTS` gains `clavL` / `clavR` (parent chest); an identity clavicle
   copies the chest's rotation instead of multiplying. Per-slot extras (`extraQ` in the bind frame chained down the

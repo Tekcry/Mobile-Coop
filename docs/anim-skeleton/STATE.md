@@ -1,10 +1,10 @@
 # anim-skeleton - state
 
 ## Now
-S2 (runtime rig) built (docs/anim-skeleton/s2/REPORT.md): check, e2e-anim / studio / netmove / smoke and the bit-identity test pass; fresh checker next.
+S1+S2 PR to master (orchestrator: ship now; hands close on the rifle); full e2e on the laptop, queued after #87 and the phone layout.
 
 ## Next
-S2 checker; GPU look (studio, LOD0) under the desktop lock; then S3 (clip channels) after track A items 23 and 25 land.
+S3 (clip channels) after #87 (key timing) merges, built on it; rebase on item 25 (parked until after the 23:00 reset). Lean until 23:00: one agent at a time.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger
@@ -29,6 +29,7 @@ S2 checker; GPU look (studio, LOD0) under the desktop lock; then S3 (clip channe
 - Reported to the orchestrator: LOD0-2 lost their grip morphs in the 10-20 rebake (BRIEF "Facts").
 
 ## Done
+- 2026-10-21: S2 runtime rig (c5ec9350): clavicle, finger and goggle drive; A9 grip closes LOD0 / LOD1 hands; bit-identity fixture; checker PASS (fixture re-captured from pre-S2 code byte-identical). Polish: clavFrame only on the arm-solve path (check in S3 when clips write clavIn), mean-curl removal after clamp, extended finger slightly bent back (CURL_LIMIT.min), carrier strap moves with the shrug (A3).
 - 2026-10-21: S1 asset (f3fdd667): clavicle, finger (LOD0 / LOD1, knuckle loops) and goggle joints in the Wren GLBs; checker PASS; laptop smoke, e2e-anim, e2e-studio pass. Master 4.38.0 merged (0c285c9d: T1a #83, J1 #84). Polish: thumb-index web spike, faceted fingers, hero poser test (S2), bake_lods SPEC bones text, half-patched re-run.
 - 2026-10-21: survey; BRIEF, PLAN, STATE.
 - 2026-10-21: P0 prototype: 55-bone game armature (clavicles + 30 fingers), rest error 1.2e-7 m, skeleton_test clip, sheets.

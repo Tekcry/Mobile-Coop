@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - anim-skeleton S1+S2
+- Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
+  had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on
+  the two nearest models (each finger bends at three knuckles), and the game's grip drives them on every Wren,
+  the co-op partner included. The fingers got extra knuckle loops so they bend smoothly (Michael: "Go, smooth fingers
+  too"): nearest model 39 809 -> 43 431 triangles, second 13 578 -> 14 242, both inside their budgets.
+- The tuner's per-finger curl and spread (Hands & feet) now move each finger on its own instead of one average close.
+- New joints for the next steps (T3, BRIEF item 21): a real clavicle on each side (a shrug or a shoulder pushed forward
+  moves the shoulder joint itself; tuner rows come in S4) and the goggle on its own joint (CT Core's gear-offset rows
+  will move it). At rest nothing moves: every joint that existed before is bit-identical for all 28 keyed clips, the
+  procedural states and the partner (tests/animSkeletonIdentity.test.ts).
+- Cost: about +2.3 us per Wren figure per frame (figure update 6.9 -> 9.2 us at the nearest model); +264 KB of models.
+
 ## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
 - Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
   when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
