@@ -418,6 +418,28 @@ describe('anim-bake shared targets', () => {
     expect(two.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
     expect(two.writes).toEqual([]);
   });
+
+  // (anim-bake-targets fix) the one Body exception (BAKE.md): strideMul stays one shared code target (MOVEMENT's step
+  // lengths), so moving states that disagree are manual and the bake waits until they agree
+  it('Body strideMul: disagreeing moving groups give "manual: shared target", every moving group agreeing bakes', () => {
+    const t = tempTree();
+    const MOVING13 = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
+    const one = tuneBake(exportOf([entry('walk', 'strideMul', 'mul', 1.1)]), SCRIPT_CAT, t.read);
+    expect(one.ok, one.error).toBe(true);
+    expect(one.rows[0]!.result).toMatch(/^manual: shared target \(walk 1\.1, jog 1, run 1, sneak 1, /);
+    expect(one.writes).toEqual([]);
+    const two = tuneBake(exportOf([entry('walk', 'strideMul', 'mul', 1.1), entry('jog', 'strideMul', 'mul', 1.2)]), SCRIPT_CAT, t.read);
+    expect(two.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
+    expect(two.writes).toEqual([]);
+    // a version 2 export (a version 1 one also gets the aimStill row copied from aim, which strideMul does not have)
+    const all = tuneBake({ ...exportOf(MOVING13.map((g) => entry(g, 'strideMul', 'mul', 1.1))), version: 2 }, SCRIPT_CAT, t.read);
+    expect(all.rows.length).toBe(13);
+    expect(all.rows.every((x) => x.result === 'baked')).toBe(true);
+    const M = 'src/config/movement.ts';
+    const after = all.writes.find((w) => w.path === M)!.after;
+    expect(num(after, 'MOVEMENT.stepLen0')).toBeCloseTo(num(real(M), 'MOVEMENT.stepLen0') * 1.1, 3);
+    expect(num(after, 'MOVEMENT.stepLenMax')).toBeCloseTo(num(real(M), 'MOVEMENT.stepLenMax') * 1.1, 3);
+  });
 });
 
 describe('anim-bake refusals (nothing written)', () => {

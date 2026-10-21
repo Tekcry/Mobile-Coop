@@ -1,12 +1,15 @@
 # Changelog
 
 ## Unreleased - anim-bake-targets
-- Animation tuner: every slider now bakes. The Body sliders with no code value (track, arm swing, knee lift, elbow out,
-  elbow pole and the rest) bake into the base table's new `body` key, which every Wren rig reads (the player, the co-op
-  partner, the Anim Studio puppets; guards never); the gun's elbow tuck bakes per gun state (six Wren constants, the
-  guards keep theirs). Michael's 13 values from 2026-10-22 that stayed in his browser are now built in: the feet on a
-  narrow track at idle / walk / jog / run, the elbows out at idle / walk / jog, more arm swing at jog / run, more knee
-  lift at run, the elbows out at low ready and the rifle / pistol low ready tuck.
+- Animation tuner: every Body slider (but the shared stride length) and the gun tuck bake. The Body sliders with no
+  code value (track, arm swing, knee lift, elbow out, elbow pole and the rest) bake into the base table's new `body`
+  key, which every Wren rig reads (the player, the co-op partner, the Anim Studio puppets; guards never); the gun's
+  elbow tuck bakes per gun state (six Wren constants, the guards keep theirs). The stride length stays one shared
+  value (it bakes when every moving state agrees). Michael's 13 values from 2026-10-22 that stayed in his browser are
+  now built in: the feet on a narrow track at idle / walk / jog / run, the elbows out at idle / walk / jog, more arm
+  swing at jog / run, more knee lift at run, the elbows out at low ready and the rifle / pistol low ready tuck.
+- The tuner resets those 13 sliders once on the next load (they would otherwise apply twice): each bake now has its
+  own id in the save, so a second bake of the same export is not mistaken for the one already applied.
 
 ## 4.47.0 - Animation tuner: collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys on every keyed clip (2026-10-22, PR #98)
 - Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real

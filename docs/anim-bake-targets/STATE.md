@@ -19,8 +19,14 @@ re-captured (10 of 39 changed; proven data-only by removing the body key and the
 - The root offsets (bodyFwdAdd, bodyUpAdd, guardGapAdd, guardSideAdd) and wallGapAdd now bake and reach the local
   player through TUNE_LOCAL; the partner's and the puppets' roots are placed in `src/net` and the studio (outside the
   area), so they do not read them yet (BAKE.md notes it).
-- BAKE.md's reset-baked notice example says "61 ... 13 kept": with this ledger all 74 reset.
+- Fix round done, uncommitted (orchestrator commits): applied bake ids are `hash@at` (`tuneBakedReset.ts`
+  `bakeAppliedIds` / `bakesApplied`); a bare hash (4.46.x saves) covers the first ledger bake with it only, so the
+  re-bake's 13 reset once. strideMul documented as the one Body exception (manual: shared target, pinned by a test);
+  backlog item 29 lists the sliders that do not bake yet. `npm run check` and e2e-studio pass.
+- Minor, not fixed: a version 1 export copies `aim` rows to `aimStill`, so an aim strideMul also yields an aimStill
+  row "skipped: no bake rule" (strideMul has no aimStill group). Noise only.
 
 ## Done
+- 2026-10-22 07:50: fix round: unique bake ids (checker blocking fix), strideMul exception docs and test, backlog 29.
 - 2026-10-22 03:30: implementer (paused at 92%): the body key, the tuck split, the pole, the re-bake, unit tests.
 - 2026-10-22 02:50: branch from feature/anim-bake-1022 7655fbcf; BRIEF, STATE.

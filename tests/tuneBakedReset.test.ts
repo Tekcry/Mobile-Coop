@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import '../src/anim/tune';
 import '../src/anim/tuneKeys';
 import { TUNE_HOOKS, TUNE_LOG, tuneBakedApplied, tuneGet, tuneImport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot, TUNE_EXPORT_MAGIC } from '../src/anim/tuneRegistry';
-import { bakedResetNotice, bakedResetPlan, readBakedLedger, tuneBakedReset } from '../src/anim/tuneBakedReset';
+import { bakeAppliedIds, bakedResetNotice, bakedResetPlan, readBakedLedger, tuneBakedReset } from '../src/anim/tuneBakedReset';
 import { loadAnimTune, resetAnimTuneDb, saveAnimTune } from '../src/save/animTuneStore';
 
 const T0 = Date.UTC(2026, 9, 22, 12, 0, 0);
@@ -22,6 +22,9 @@ const LEDGER = {
     { hash: 'aaaabbbbccccdddd', exported: '2026-10-25T09:00:00.000Z', at: '2026-10-25T09:10:00.000Z', baked: ['walk|kneeOutMul=1.25'] },
   ],
 };
+
+const ID0 = '20383670bf49817f@2026-10-21T14:08:33.622Z';
+const ID1 = 'aaaabbbbccccdddd@2026-10-25T09:10:00.000Z';
 
 /** Literal defaults for the pure plan (every slider here is an add 0, kneeOutMul a mul 1). */
 const DEF = (g: string, id: string): number | undefined => (g === 'nope' ? undefined : id.endsWith('Mul') ? 1 : 0);
@@ -44,8 +47,8 @@ describe('Reset baked: the plan (pure)', () => {
     expect(p.reset[0]).toEqual({ group: 'rifle.lowReady', id: 'gunPitch', value: 0.07, def: 0 });
     // gunYaw -0.4 is not the baked -0.41; walk 1.2 is not 1.25; an unknown slider is kept; trackMul 1 is a default
     expect(p.kept).toBe(3);
-    expect(p.fresh).toEqual(['20383670bf49817f', 'aaaabbbbccccdddd']);
-    expect(p.hashes).toEqual(['20383670bf49817f', 'aaaabbbbccccdddd']);
+    expect(p.fresh).toEqual([ID0, ID1]);
+    expect(p.ids).toEqual([ID0, ID1]);
   });
 
   it('compares as the ledger formats numbers (exactly, no tolerance)', () => {
@@ -69,10 +72,10 @@ describe('Reset baked: the plan (pure)', () => {
     const p = bakedResetPlan(LEDGER, store, DEF, ['20383670bf49817f']);
     expect(p.reset.map((r) => r.group)).toEqual(['walk']);
     expect(p.kept).toBe(1);
-    expect(p.fresh).toEqual(['aaaabbbbccccdddd']);
+    expect(p.fresh).toEqual([ID1]);
     expect(bakedResetPlan(LEDGER, undefined, DEF)).toMatchObject({ reset: [], kept: 0 });
     expect(bakedResetPlan(LEDGER, { version: 2, values: {} }, DEF)).toMatchObject({ reset: [], kept: 0 });
-    expect(bakedResetPlan(null, store, DEF)).toMatchObject({ reset: [], kept: 2, fresh: [], hashes: [] });
+    expect(bakedResetPlan(null, store, DEF)).toMatchObject({ reset: [], kept: 2, fresh: [], ids: [] });
     expect(readBakedLedger({ bakes: [{ hash: 1 }, { hash: 'x', baked: ['a', 2] }, null] })).toEqual([{ hash: 'x', at: '', baked: ['a'] }]);
   });
 
@@ -90,7 +93,7 @@ describe('Reset baked: on the registry', () => {
     tuneLoad({ version: 2, values: {}, log: [] });
   });
 
-  it('runs once per bake: resets through the registry (logged, saved hook), records the hashes, keeps a later re-tune', async () => {
+  it('runs once per bake: resets through the registry (logged, saved hook), records the bake ids, keeps a later re-tune', async () => {
     // the store as the panel saves it (tuneSnapshot), after Michael's tuning; -139 was tuned with the wide ranges on
     // (the Keys range is -90 .. 90), so the load clamps it and only the record as saved matches the ledger
     const store = {
@@ -116,13 +119,13 @@ describe('Reset baked: on the registry', () => {
     expect(tuneGet('rifle.lowReady', 'gunYaw')).toBe(-0.4);
     expect(tuneGet('walk', 'kneeOutMul')).toBe(1.2);
     expect(TUNE_LOG.slice(1).map((c) => `${c.group}|${c.id} ${c.from}->${c.to}`)).toEqual(['rifle.lowReady|gunPitch 0.07->0', 'key.jog.0|armR_twist -90->0']);
-    expect(tuneBakedApplied()).toEqual(['20383670bf49817f', 'aaaabbbbccccdddd']);
-    // the hashes ride in the save and load back
+    expect(tuneBakedApplied()).toEqual([ID0, ID1]);
+    // the ids ride in the save and load back
     resetAnimTuneDb();
     expect(await saveAnimTune(tuneSnapshot())).toBe(true);
     tuneResetAll();
     tuneLoad(await loadAnimTune());
-    expect(tuneBakedApplied()).toEqual(['20383670bf49817f', 'aaaabbbbccccdddd']);
+    expect(tuneBakedApplied()).toEqual([ID0, ID1]);
     // a deliberate re-tune to the baked value survives the next boot's auto step
     tuneSet('rifle.lowReady', 'gunPitch', 0.07, T0 + 5000);
     tuneLoad(JSON.parse(JSON.stringify(tuneSnapshot())));
@@ -148,10 +151,104 @@ describe('Reset baked: on the registry', () => {
     expect(tuneBakedApplied().length).toBe(2);
     tuneImport({ magic: TUNE_EXPORT_MAGIC, version: 2, exported: '', changed: [], log: [] }, 'x', T0);
     tuneResetAll();
-    expect(tuneSnapshot().baked).toEqual(['20383670bf49817f', 'aaaabbbbccccdddd']);
+    expect(tuneSnapshot().baked).toEqual([ID0, ID1]);
     // an old save with no record loads with none
     tuneLoad({ version: 2, values: {}, log: [] });
     expect(tuneBakedApplied()).toEqual([]);
     expect(tuneSnapshot().baked).toBeUndefined();
+  });
+});
+
+describe('Reset baked: two bakes of one export (the hash is the export\'s)', () => {
+  /** A literal ledger as this job leaves it: PR #96's bake and the re-bake of the same export share the hash. */
+  const LEDGER2 = {
+    note: 'anim-bake: exports baked into the code defaults (scripts/anim-tune-bake.mjs); a re-run of one is a no-op',
+    bakes: [
+      {
+        hash: '20383670bf49817f',
+        exported: '2026-10-21T14:01:52.215Z',
+        at: '2026-10-21T14:08:33.622Z',
+        baked: ['rifle.lowReady|gunPitch=0.07', 'rifle.lowReady|gunYaw=-0.41', 'key.jog.0|armL_twist=15', 'key.run.3|time=-5'],
+      },
+      {
+        hash: '20383670bf49817f',
+        exported: '2026-10-21T14:01:52.215Z',
+        at: '2026-10-21T15:59:38.629Z',
+        baked: [
+          'idle|trackMul=0.05',
+          'idle|elbowOutAdd=0.03',
+          'walk|trackMul=0.05',
+          'walk|elbowOutAdd=0.03',
+          'jog|armSwingMul=1.7',
+          'jog|trackMul=0.05',
+          'jog|elbowOutAdd=0.03',
+          'run|armSwingMul=1.6',
+          'run|trackMul=0.05',
+          'run|kneeLiftMul=1.55',
+          'lowReady|elbowPoleMul=2.25',
+          'rifle.lowReady|tuckMul=0.75',
+          'pistol.lowReady|tuckMul=0',
+        ],
+      },
+    ],
+  };
+  const A0 = '20383670bf49817f@2026-10-21T14:08:33.622Z';
+  const A1 = '20383670bf49817f@2026-10-21T15:59:38.629Z';
+  /** A literal 4.46.x save: the first bake applied (its bare hash), the 13 at their exported values, one other change. */
+  const OLD_SAVE = {
+    version: 2,
+    values: {
+      idle: { trackMul: 0.05, elbowOutAdd: 0.03 },
+      walk: { trackMul: 0.05, elbowOutAdd: 0.03, kneeOutMul: 1.2 },
+      jog: { armSwingMul: 1.7, trackMul: 0.05, elbowOutAdd: 0.03 },
+      run: { armSwingMul: 1.6, trackMul: 0.05, kneeLiftMul: 1.55 },
+      lowReady: { elbowPoleMul: 2.25 },
+      'rifle.lowReady': { tuckMul: 0.75 },
+      'pistol.lowReady': { tuckMul: 0 },
+    },
+    log: [],
+    baked: ['20383670bf49817f'],
+  };
+
+  it('each bake has its own id; a bare hash stands for the first bake with it only (pure)', () => {
+    expect(bakeAppliedIds(readBakedLedger(LEDGER2))).toEqual([A0, A1]);
+    // a hand-made ledger with equal times still gets distinct ids
+    expect(bakeAppliedIds([{ hash: 'h', at: '', baked: [] }, { hash: 'h', at: '', baked: [] }])).toEqual(['h@', 'h@#1']);
+    const DEF2 = (_g: string, id: string): number | undefined => (id.endsWith('Mul') ? 1 : 0);
+    const p = bakedResetPlan(LEDGER2, OLD_SAVE, DEF2, OLD_SAVE.baked);
+    expect(p.fresh).toEqual([A1]);
+    expect(p.reset.length).toBe(13);
+    expect(p.kept).toBe(1);
+    // a deliberate re-tune to a first-bake value is not wiped by the bare hash (the first bake counts as applied)
+    expect(bakedResetPlan(LEDGER2, { version: 2, values: { 'rifle.lowReady': { gunPitch: 0.07 } } }, DEF2, ['20383670bf49817f'])).toMatchObject({ reset: [], kept: 1 });
+    // the new ids cover both; no record compares both
+    expect(bakedResetPlan(LEDGER2, OLD_SAVE, DEF2, [A0, A1]).fresh).toEqual([]);
+    expect(bakedResetPlan(LEDGER2, OLD_SAVE, DEF2).fresh).toEqual([A0, A1]);
+  });
+
+  beforeEach(() => {
+    tuneLoad({ version: 2, values: {}, log: [] });
+  });
+
+  it('a literal 4.46.x save: the 13 reset once on the next load, the other change kept, the second load does nothing', () => {
+    const saved = JSON.parse(JSON.stringify(OLD_SAVE));
+    tuneLoad(saved);
+    expect(tuneGet('jog', 'armSwingMul')).toBe(1.7);
+    const r = tuneBakedReset(LEDGER2, { saved, now: T0 });
+    expect(r).toMatchObject({ reset: 13, kept: 1, ran: true });
+    expect(r.notice).toBe('13 values are now built in; your other 1 change is kept.');
+    expect(tuneSnapshot().values).toEqual({ walk: { kneeOutMul: 1.2 } });
+    expect(tuneBakedApplied()).toEqual(['20383670bf49817f', A0, A1]);
+    // the next load: nothing compared, nothing reset, no notice
+    const next = JSON.parse(JSON.stringify(tuneSnapshot()));
+    tuneLoad(next);
+    expect(tuneBakedReset(LEDGER2, { saved: next, now: T0 + 5000 })).toMatchObject({ reset: 0, kept: 1, ran: false, notice: '' });
+    // a re-tune to a baked value survives the auto step; the manual "Reset baked" covers every bake
+    tuneSet('jog', 'armSwingMul', 1.7, T0 + 6000);
+    tuneSet('rifle.lowReady', 'gunPitch', 0.07, T0 + 7000);
+    const again = JSON.parse(JSON.stringify(tuneSnapshot()));
+    expect(tuneBakedReset(LEDGER2, { saved: again, now: T0 + 8000 })).toMatchObject({ reset: 0, ran: false });
+    expect(tuneBakedReset(LEDGER2, { force: true, now: T0 + 9000 })).toMatchObject({ reset: 2, kept: 1, ran: true });
+    expect(tuneSnapshot().values).toEqual({ walk: { kneeOutMul: 1.2 } });
   });
 });

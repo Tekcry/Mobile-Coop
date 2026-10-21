@@ -349,7 +349,10 @@ export interface TuneSnapshot {
   version: 1 | 2;
   values: Record<string, Record<string, number>>;
   log: TuneChange[];
-  /** (anim-bake-1022) The bake ledger hashes whose baked sliders were reset (`tuneBakedReset.ts`); absent: none. */
+  /**
+   * (anim-bake-1022) The ledger bakes whose baked sliders were reset (`tuneBakedReset.ts`): `hash@at` ids; a bare hash
+   * (4.46.x saves) stands for the first ledger bake with that hash only. Absent: none.
+   */
   baked?: string[];
 }
 

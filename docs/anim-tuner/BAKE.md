@@ -53,12 +53,16 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
 - **already baked:** the ledger holds this slider and group at this value.
 
 ## Mapping per section
-**Body.** The rule (anim-bake-targets): every slider the tuner shows bakes; one that does not is a bug. The constants
-below are the shared rig's, so every rig reads them: the partner and the guards too. Every other Body slider and group
-bakes into the base table's `body` key (below).
+**Body.** The rule (anim-bake-targets): every slider the tuner shows bakes, per state; one that does not is a bug.
+The one exception is strideMul (below). The constants below are the shared rig's, so every rig reads them: the partner
+and the guards too. Every other Body slider and group bakes into the base table's `body` key (below).
 - Baked:
-  - strideMul: the 9 moving groups share it -> MOVEMENT.stepLen0 / stepLenK / stepLenMax, CROUCH_STEP.k / max,
-    WALK_STEP.k, TENSE.step, GLIDE_STEP (x). Exact only when every moving group agrees.
+  - strideMul, the one Body exception: one shared code target for the 13 moving groups (MOVING: walk, jog, run, sneak,
+    crouchWalk, crouchRun, aim, aimCrouch, aimCrouchMove, wallSlide, wallCrouchSlide, hold, carry) -> MOVEMENT.stepLen0
+    / stepLenK / stepLenMax, CROUCH_STEP.k / max, WALK_STEP.k, TENSE.step, GLIDE_STEP (x). It bakes only when every
+    moving group agrees; when they disagree every row reports "manual: shared target (values per group)" and nothing is
+    written (`tests/animTuneBake.test.ts`, "Body strideMul"). A per-state stride table is a later job (backlog, "Tuner
+    sliders that do not bake yet").
   - kneeOutMul (ladder, pipe) -> CLIMB_KNEE_OUT x. Close: the climb pole is max(stance knee-out, CLIMB_KNEE_OUT).
   - kneeLiftMul (ladder, pipe) -> CLIMB_KNEE_UP x.
   - peekLeanMul (wallPeek) -> WALL.peekLean x.
@@ -281,9 +285,13 @@ list or when any registered slider and group has no rule or manual entry.
    at boot) every slider whose saved value equals exactly a ledger `group|id=value` (compared as the ledger formats
    numbers; a version 1 save migrated first; the record as saved, so a value past the normal range that the load clamps
    still matches) goes back to its default through the registry (change log and save follow). The other changes are
-   kept. The ledger hashes applied are kept in the save (`TuneSnapshot.baked`), so it runs once per bake and a later
-   re-tune to the same value is not wiped. The panel's info line says "61 values are now built in; your other 13
-   changes are kept." (closed: when it next opens; also the console). The Y menu's **Reset baked** runs it again over
+   kept. The ids of the bakes applied are kept in the save (`TuneSnapshot.baked`), so it runs once per bake and a later
+   re-tune to the same value is not wiped. A bake's id is `hash@at` (`bakeAppliedIds`): the hash is the export's, so
+   two bakes of one export (anim-bake-targets re-baked PR #96's export for 13 new targets) share it and only the bake
+   time tells them apart. A bare hash (a 4.46.x save, before the ids) counts as applied for the first ledger bake with
+   that hash only, so a 4.46.x save resets the second bake's 13 sliders once. The panel's info line then says "13
+   values are now built in; your other 1 change is kept." (with one other change; closed: when it next opens; also the
+   console). The Y menu's **Reset baked** runs it again over
    every bake, ignoring the record (it compares the loaded values, so a clamped one no longer matches). Tell Michael to
    open the tuner, read the line and export again: the old export is spent.
 
