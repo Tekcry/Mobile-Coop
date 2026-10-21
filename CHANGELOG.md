@@ -3,8 +3,8 @@
 ## Unreleased - anim-goggle
 - Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
   turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
-  the goggle's own pivot. It bakes into the animation base table like the other Gear rows; every Wren body takes it
-  (the co-op partner and the studio's pair puppets too), guards never. At LOD1 / LOD2 only the lens moves (the housing
+  the goggle's own pivot. It bakes into the animation base table like the other Gear rows; your own Wren shows it
+  (the partner's and the studio puppets' rigs carry it too, but they always show the stowed goggle, so it shows on them once their vision mode is shown), guards never. At LOD1 / LOD2 only the lens moves (the housing
   is part of the head there). The stowed goggle has no slider yet (it has no separate parts). Untuned, nothing changes.
 
 ## 4.46.0 - Michael's first tuner bake: jog and run keys, low-ready gun poses, Joints; Reset baked clears built-in values on load (2026-10-22, PR #96)
