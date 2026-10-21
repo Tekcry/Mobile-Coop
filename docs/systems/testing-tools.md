@@ -248,7 +248,11 @@ behind a VPN adapter).
   its joint, another row moves it, the Camera tab has none; the Keyed box plays `keyed:walk` from `state:walk` and back,
   greyed on a keyed-only clip; a state picked in the Joints part's state list plays its loop (the tab stays); on the spot
   (header button, F8) the walk holds its root under 5 cm over 2 s of live play, off she walks; the four stage lights light
-  her meshes, keep their offset in her frame as she walks, and the Stage light slider scales them. (marlow-bays T1a) A
+  her meshes, keep their offset in the view frame (from her toward the camera, T2) as she walks, and the Stage light slider scales them. (marlow-bays T2) The
+  studio hides the game HUD (`body.tt-studio`) and the canvas ends where the docked panel starts; a click on the body
+  map's left knee shows only knee sliders and marks the knee; a click on her head in the scene picks the head; pin and
+  unpin a slider (chip, star), a moved slider heads the recent chips; the Joints rows fold in groups (a header opens and
+  closes its group). (marlow-bays T1a) A
   key step lands on the clip's next key (the walk's 8 keys, the mirrored half included); the Keys tab's clip and key
   pick plays `keyed:jog` on the spot paused on key 2 (the readout "jog - key 2 of 8 (mirror of 6), frame 4", the hint,
   the Mirror box on, the list of own keys), "Key ▶" and F2 step with the picker following (on key 6 it shows key 2), F1

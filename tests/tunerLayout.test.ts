@@ -193,13 +193,14 @@ describe('tuner-ui: size', () => {
     const s = tunerScale('S', 1920, 1080);
     const m = tunerScale('M', 1920, 1080);
     const l = tunerScale('L', 1920, 1080);
-    expect(s.font).toBe(12);
+    // (marlow-bays T2) larger text, a docked column of at most a third of the screen
+    expect(s.font).toBe(16);
     expect(m.font).toBeGreaterThan(s.font);
     expect(l.font).toBeGreaterThan(m.font);
-    expect(s.width).toBeLessThanOrEqual(1920 / 2);
+    expect(l.width).toBeLessThanOrEqual(1920 * 0.34);
     expect(s.height).toBeLessThanOrEqual(1080);
     const p = tunerScale('S', 932, 430);
-    expect(p.font).toBeGreaterThanOrEqual(10);
+    expect(p.font).toBeGreaterThanOrEqual(11);
     expect(p.width).toBeLessThanOrEqual(932 * 0.62);
     expect(p.height).toBeLessThanOrEqual(430);
   });

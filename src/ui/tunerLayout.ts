@@ -145,7 +145,7 @@ export function groupForPath(groups: readonly string[], prefix: number, path: re
 /** The pickers' names per section (the level's heading). */
 const LEVEL_NAMES: Readonly<Record<string, readonly string[]>> = {
   body: ['State'],
-  joint: ['State'],
+  joint: ['State', 'Armed state'],
   ik: ['State'],
   trav: ['Move'],
   hand: ['Weapon', 'State'],
@@ -536,15 +536,16 @@ export const TUNER_SIZES: readonly TunerSize[] = ['S', 'M', 'L'];
 
 /**
  * The panel's font size (px), width and height for the screen (CSS px): a size's base font at 1080 px tall, scaled with
- * the screen height (a phone in landscape stays readable: never under 10 px), and a width that never covers more than
- * half the screen (62 % on a narrow one).
+ * the screen height (never under 11 px), and a width that never covers more than a third of the screen (62 % on a
+ * narrow one).
  */
 export function tunerScale(size: TunerSize, vw: number, vh: number): { font: number; width: number; height: number } {
-  const base = size === 'S' ? 12 : size === 'M' ? 14 : 16;
+  // (marlow-bays T2) larger text (the menus' condensed face, 19 px at 1080p for Medium), a narrower docked column
+  const base = size === 'S' ? 16 : size === 'M' ? 19 : 22;
   const k = Math.max(0.75, Math.min(1.5, vh / 1080));
-  const font = Math.max(10, Math.min(24, Math.round(base * k)));
-  const share = vw < 1000 ? 0.62 : 0.5;
-  const width = Math.round(Math.min(vw * share, font * 34));
+  const font = Math.max(11, Math.min(28, Math.round(base * k)));
+  const share = vw < 1000 ? 0.62 : 0.34;
+  const width = Math.round(Math.min(vw * share, font * 25));
   const height = Math.max(120, Math.round(vh - 8));
   return { font, width, height };
 }
@@ -785,3 +786,86 @@ const TRAV_OF: Readonly<Record<string, string>> = {
   crawl: 'trav:vent',
   vent: 'trav:vent',
 };
+
+// ------------------------------------------------------------------------------------------
+// (marlow-bays T2) Row groups that fold, pinned and recent sliders
+// ------------------------------------------------------------------------------------------
+
+/** What decides whether a row group shows open before anyone opens or closes it by hand. */
+export interface GroupOpenIn {
+  /** The section's first group. */
+  first: boolean;
+  /** It holds the selected row. */
+  hasSel: boolean;
+  /** A body part filters the rows. */
+  part: boolean;
+  /** A search filters the rows. */
+  search: boolean;
+  /** How many rows the section shows in all. */
+  rows: number;
+}
+
+/** Rows this many or fewer: every group open (nothing to fold away). */
+export const GROUP_FOLD_MIN = 8;
+
+/**
+ * A row group's open state: a choice made by hand (`manual`) holds; otherwise open when it is the first group, holds the
+ * selected row, or a part, a search or a short list leaves little to show.
+ */
+export function groupOpen(manual: boolean | undefined, g: GroupOpenIn): boolean {
+  if (manual !== undefined) return manual;
+  return g.first || g.hasSel || g.part || g.search || g.rows <= GROUP_FOLD_MIN;
+}
+
+/** The most pinned sliders, and recent ones kept. */
+export const PIN_MAX = 12;
+export const RECENT_MAX = 6;
+
+/** Pin or unpin `k` (in place; a full list takes no more). True: pinned now. */
+export function togglePin(pins: string[], k: string, max = PIN_MAX): boolean {
+  const i = pins.indexOf(k);
+  if (i >= 0) {
+    pins.splice(i, 1);
+    return false;
+  }
+  if (pins.length >= max) return false;
+  pins.push(k);
+  return true;
+}
+
+/** `k` to the head of the recent list (in place, no repeats, at most `max`). False: it was already first. */
+export function pushRecent(recent: string[], k: string, max = RECENT_MAX): boolean {
+  if (recent[0] === k) return false;
+  const i = recent.indexOf(k);
+  if (i >= 0) recent.splice(i, 1);
+  recent.unshift(k);
+  if (recent.length > max) recent.length = max;
+  return true;
+}
+
+/** The chips over the rows: the pins first, then the recent ones not pinned. */
+export function quickKeys(pins: readonly string[], recent: readonly string[]): string[] {
+  return pins.concat(recent.filter((k) => !pins.includes(k)));
+}
+
+/** A pinned / recent key (`<section>|<group>|<id>`) split; null when malformed. */
+export function quickKeyParts(k: string): { section: string; group: string; id: string } | null {
+  const p = k.split('|');
+  if (p.length !== 3 || !p[0] || !p[1] || !p[2]) return null;
+  return { section: p[0], group: p[1], id: p[2] };
+}
+
+/**
+ * (marlow-bays T2) The status line's stance: the body state the animation reads (`body`) and the gun as it really is.
+ * In the Anim Studio (`studio`): the loop playing, and the picked gun drawn (an armed loop) or holstered; outside it the
+ * game's gun state (`rifle.aim`), or "no gun drawn".
+ */
+export function stanceText(body: string, gun: string, studio: { loop: string; drawn: boolean; weapon: string } | null): string {
+  const b = body ? plainWords(body) : '-';
+  if (studio) {
+    const w = plainWords(studio.weapon || 'rifle');
+    const loop = studio.loop && studio.loop.toLowerCase() !== b.toLowerCase() ? `${studio.loop} (${b.toLowerCase()})` : b;
+    return `${loop} · ${w} ${studio.drawn ? 'drawn' : 'holstered'}`;
+  }
+  return `${b} · ${gun ? plainWords(gun.replace('.', ' ')) : 'No gun drawn'}`;
+}

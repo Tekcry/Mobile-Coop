@@ -6,7 +6,7 @@ import '../src/player/weightTune';
 import '../src/anim/tuneKeys';
 import '../src/anim/moveTune';
 import { TUNE_SECTIONS } from '../src/anim/tuneRegistry';
-import { STAGE_LIGHT_RANGE, STAGE_LIGHTS, STUDIO_ENTRIES, STUDIO_LIGHT, stageLightPlace, stageLightScale } from '../src/anim/studio';
+import { STAGE_LIGHT_RANGE, STAGE_LIGHTS, STUDIO_ENTRIES, STUDIO_LIGHT, stageLightPlace, stageLightScale, stageViewYaw } from '../src/anim/studio';
 import { TUNER_MOUSE_KEY, TUNER_SPOT_KEY, TunerMouseCtl } from '../src/ui/tunerMouse';
 import { RIG_JOINTS, rowKeyParts, tuneTarget } from '../src/ui/tunerTarget';
 import { loopForGroup, loopKeyed, loopKeyedPick } from '../src/ui/tunerLayout';
@@ -193,7 +193,7 @@ describe('stage lights (item 14)', () => {
     for (const l of STAGE_LIGHTS) expect(l.intensity * STAGE_LIGHT_RANGE.def).toBeGreaterThan(0);
   });
 
-  it('each keeps its offset in her frame as she moves and turns', () => {
+  it('each keeps its offset in the frame it is given as she moves and turns', () => {
     const out = { x: 0, y: 0, z: 0 };
     const key = STAGE_LIGHTS[0]!;
     stageLightPlace(key, 0, 0, 0, 0, out);
@@ -206,6 +206,32 @@ describe('stage lights (item 14)', () => {
     const rim = STAGE_LIGHTS[2]!;
     stageLightPlace(rim, 0, 0, 0, 1.1, out);
     expect(Math.hypot(out.x, out.z)).toBeCloseTo(Math.hypot(rim.fwd, rim.right), 9);
+  });
+
+  it('(T2) they face the camera: key and fill on its side of her, the rim beyond, the top light above', () => {
+    const out = { x: 0, y: 0, z: 0 };
+    const d = (x: number, z: number, cx: number, cz: number): number => Math.hypot(x - cx, z - cz);
+    // her at (3, 0, 4) facing +z, the camera behind her (the game's view) and then in front of her (an orbit)
+    for (const [cx, cz] of [
+      [3, 0],
+      [3, 9],
+      [-2, 4],
+    ] as const) {
+      const yaw = stageViewYaw(3, 4, cx, cz, 0);
+      const her = d(3, 4, cx, cz);
+      stageLightPlace(STAGE_LIGHTS[0]!, 3, 0, 4, yaw, out);
+      expect(d(out.x, out.z, cx, cz)).toBeLessThan(her);
+      stageLightPlace(STAGE_LIGHTS[1]!, 3, 0, 4, yaw, out);
+      expect(d(out.x, out.z, cx, cz)).toBeLessThan(her);
+      stageLightPlace(STAGE_LIGHTS[2]!, 3, 0, 4, yaw, out);
+      expect(d(out.x, out.z, cx, cz)).toBeGreaterThan(her);
+      stageLightPlace(STAGE_LIGHTS[3]!, 3, 0, 4, yaw, out);
+      expect(out.y).toBeGreaterThan(3);
+    }
+    // the camera on her: her own facing
+    expect(stageViewYaw(1, 1, 1, 1, 0.7)).toBe(0.7);
+    // behind her (camera at -z of her): the lights' forward points back at the camera
+    expect(stageViewYaw(0, 0, 0, -5, 0)).toBeCloseTo(Math.PI, 9);
   });
 
   it('the slider clamps; bright by default', () => {
