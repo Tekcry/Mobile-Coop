@@ -55,6 +55,7 @@ import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
 import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { WALL_KEYS, WallKeyed } from './wallKeyed';
+import { DRAW_CUR, drawRelease } from './drawMotion';
 
 
 export const FADE = 0.2;
@@ -1092,12 +1093,16 @@ export class AnimGraph {
     // a weapon-to-weapon swap (the outgoing and incoming slots differ; a draw / holster uses one slot) reaches
     // both slots from an upright chest: its empty-hands beat is not a holstered carry, so neither the ready hands
     // nor the carriage hold through it (the carriage eases out over the swap's first ~0.2 s and back after it)
-    const weaponSwap = i.swap >= 0 && i.swapFrom !== i.swapTo;
+    // (anim-natural N3) the carriage comes back over the incoming gun's lift and present (drawRelease from the lift,
+    // eased), not as a second move after the swap ends
+    const swapping = i.swap >= 0 && i.swapFrom !== i.swapTo;
+    const swapRel = swapping ? drawRelease(i.swap, DRAW_CUR[i.swapTo === 'thigh' ? 'pistol' : 'rifle'], 0) : 0;
+    const weaponSwap = swapRel > 0.5;
     this.readyW = approach(this.readyW, !i.armed && i.ready && i.traverse === 'none' && !weaponSwap ? 1 : 0, 0.25, dt);
     // the carriage weight: armed or holstered with ready hands (eased, so it never pops as the weapon leaves the
     // hands at the end of a holster, or across a swap's empty-hands beat)
-    const carryOn = !weaponSwap && (i.armed || (i.ready && i.traverse === 'none'));
-    this.carryW = approach(this.carryW, carryOn ? 1 : 0, weaponSwap ? CARRY_SWAP_TAU : 0.25, dt);
+    const carryOn = i.armed || (i.ready && i.traverse === 'none');
+    this.carryW = approach(this.carryW, carryOn ? 1 - swapRel : 0, swapping ? CARRY_SWAP_TAU : 0.25, dt);
     // (P1 posture; P1b) computed before the carriage hunch: the posture lean is the TOTAL torso pitch, so it replaces the
     // armed carriage hunch (spine 0.5 + crouch bend 0.34 stacked on it made a 70-90 deg quadruped crouch and a 43 deg run)
     this.carriageS = approach(this.carriageS, i.grounded && i.traverse === 'none' ? 1 - flatW : 0, 0.08, dt);
@@ -1392,8 +1397,13 @@ export class AnimGraph {
     } else this.swapW = Math.max(0, this.swapW - SWAP_FADE * dt);
     if (this.swapW > 0) {
       const st = swapOn ? i.swap : this.swapLastT;
-      overClip(src, swapClipFor(i.swapFrom, i.swapTo), st, this.swapW);
-      this.slot('swap', this.swapW, st);
+      // (anim-natural N3) eased in and out (the fade was linear: the hand left the slot at a constant speed and stopped
+      // dead), and the incoming gun's part hands over to the ready / aim pose while it presents (drawMotion.drawRelease):
+      // the clip's own end pose (a level pocket, the chest square, the support hand off) never shows, so nothing moves
+      // again when the swap ends
+      const sw = smoothstep(this.swapW) * drawRelease(st, DRAW_CUR[i.swapTo === 'thigh' ? 'pistol' : 'rifle']);
+      overClip(src, swapClipFor(i.swapFrom, i.swapTo), st, sw);
+      this.slot('swap', sw, st);
     }
     // (step 09) a draw / holster puts the weapon into / out of the hands, and a draw enters the swap clip at its
     // holstered beat, mid-clip (and a holster leaves it mid-clip): the grip weights move onto their targets at a

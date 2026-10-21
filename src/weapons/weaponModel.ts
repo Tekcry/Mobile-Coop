@@ -1,6 +1,5 @@
 import { Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Mesh, type Scene } from '../core/babylon';
 import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
-import { hyp3 } from '../core/mathx';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
@@ -8,6 +7,7 @@ import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
 import { loadWeaponMesh } from './weaponMesh';
 import { rotInto, type GunVisual } from '../anim/tuneHands';
 import { gearSocketOfSlot, GS } from '../anim/tuneGear';
+import { DRAW_CUR, drawClass, drawEase, drawPath, reachWeight, settleAt, type DrawClass } from '../anim/drawMotion';
 import { diagTurn, diagTurnSling, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
@@ -82,13 +82,14 @@ export const TRAVEL_OUT = { back: [0.2, 0.02, -0.06], thigh: [0.1, 0.02, 0.06] }
  */
 const TRAVEL_TURN = 0.95;
 /**
- * (ct-prototype D1) A draw waits in the slot until the trigger hand is on the grip (wrist within this many metres of the
- * grip point), at most until this share of the travel: the gun never leaves the holster ahead of the hand. The rest of
- * the travel then runs over the time left (the draw's total time is kept).
+ * (anim-natural N3, replaces ct-prototype D1's catch: the gun waited in the slot until the wrist came within 13 cm, then
+ * the hand snapped onto the grip) A draw from the slot reaches first: the trigger hand's IK blends onto the gun's grip
+ * (`CharacterRig.travelReach`, drawMotion.reachWeight), the gun leaves as the fingers close (`drawPath`), so the gun
+ * never leaves ahead of the hand and the hand never stops. The settle's overshoot past the pocket extrapolates the
+ * path's end: the grip along its end tangent, the turn along its last `OVER_DT` of the path.
  */
-const CATCH_DIST = 0.13;
-const CATCH_MAX = 0.4;
-const catchP = new Vector3();
+const OVER_DT = 0.04;
+const trQPrev = new Quaternion();
 const trInv = new Matrix();
 const trM = new Matrix();
 const trS = new Vector3();
@@ -137,6 +138,7 @@ export class WeaponModel {
     this.node.rotationQuaternion = Quaternion.Identity();
     // (anim-cleanup) the travel target: the slot's (or the aim pocket's) pose, placed like the weapon
     this.ghost = new TransformNode(`wpn-${def.id}-travel`, scene);
+    this.trCls = drawClass(def.class);
     this.ghost.rotationQuaternion = Quaternion.Identity();
     for (const p of def.model) {
       const hex = p.color === 'body' || p.color === 'grip' || p.color === 'accent' ? colors[p.color] : p.color;
@@ -266,6 +268,7 @@ export class WeaponModel {
   hold(rig: CharacterRig): void {
     this.trSlot = null;
     if (rig.travelNode === this.node) rig.travelNode = null;
+    if (rig.travelNode === null) rig.travelReach = 1;
     const had = this.glideFrom(rig);
     this.owner = rig;
     this.slot = null;
@@ -306,8 +309,10 @@ export class WeaponModel {
   private trSling = false;
   /** (G2 fix r1) The travel left from `trSlot` itself (a draw from the slung gun), not from mid-holster (a reversal). */
   private trFromSlot = false;
-  /** (ct-prototype D1) The draw's u when the hand reached the grip (-1: not yet). */
-  private trCatch = -1;
+  /** (anim-natural N3) This draw reaches for the gun in its slot first (a draw from the slot, not a reversal). */
+  private trReach = false;
+  /** (anim-natural N3) The draw motion class (`DRAW_CUR` row) of this gun. */
+  private readonly trCls: DrawClass;
 
   /** (anim-cleanup) Whether a draw / holster to `slot` travels (back and thigh slots; the sling keeps the hand-off). */
   canTravel(slot: CarrySlot | null): boolean {
@@ -318,6 +323,8 @@ export class WeaponModel {
    * (anim-cleanup) Starts a draw (`draw`: from where the gun is to the aim pocket) or a holster (to `slot`): the gun
    * leaves its parent for the chest frame where it is, and is the rig's held weapon, so the trigger hand holds its grip
    * the whole way. `travel(rig, u)` moves it; the caller ends with `hold` (a draw) or `holster` (a holster).
+   * (anim-natural N3) A draw from the slot starts with the reach: the hand's IK weight on the grip is 0 and rises with
+   * `travel` (`CharacterRig.travelReach`).
    */
   beginTravel(rig: CharacterRig, slot: CarrySlot, draw: boolean, sling = false): void {
     rig.torso.computeWorldMatrix(true).invertToRef(trInv);
@@ -337,11 +344,17 @@ export class WeaponModel {
     this.trSlot = slot;
     this.trDraw = draw;
     this.trSling = sling && draw && this.trFromSlot && useDiagTurn(slot, true, true);
-    this.trCatch = draw ? -1 : 0;
+    this.trReach = draw && this.trFromSlot;
+    rig.travelReach = this.trReach ? 0 : 1;
     this.setVisible(true);
   }
 
-  /** (anim-cleanup) The travel at `u` 0..1: the grip along a curve through TRAVEL_VIA, the gun turning to the end's pose. */
+  /**
+   * (anim-cleanup) The travel at `u` 0..1: the grip along a curve through TRAVEL_VIA, the gun turning to the end's pose.
+   * (anim-natural N3) A draw from the slot: the reach (the hand onto the grip), the lift as the fingers close, the
+   * present eased in and the settle past the pocket and back (anim/drawMotion.ts); a reversal: the present and settle
+   * only; a holster: one ease, seated in the slot.
+   */
   travel(rig: CharacterRig, u: number): void {
     const slot = this.trSlot;
     if (!slot) return;
@@ -354,27 +367,28 @@ export class WeaponModel {
     rig.torso.computeWorldMatrix(true).invertToRef(trInv);
     g.computeWorldMatrix(true).multiplyToRef(trInv, trM);
     trM.decompose(trS, trQ, trP);
-    // (ct-prototype D1) a draw holds the gun in its slot until the hand is on it (or CATCH_MAX), then runs the rest
-    if (this.trCatch < 0) {
-      catchP.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
-      Vector3.TransformCoordinatesToRef(catchP, this.node.computeWorldMatrix(true), catchP);
-      const w = rig.wristR.absolutePosition;
-      if (u >= CATCH_MAX || hyp3(w.x - catchP.x, w.y - catchP.y, w.z - catchP.z) < CATCH_DIST) this.trCatch = Math.min(CATCH_MAX, Math.max(0, u));
+    const m = DRAW_CUR[this.trCls];
+    const uc = u < 0 ? 0 : u > 1 ? 1 : u;
+    let p: number;
+    if (this.trReach) {
+      rig.travelReach = reachWeight(uc, m);
+      p = drawPath(uc, m, settleAt(m.settle, rig.aimWeight));
+    } else if (this.trDraw) {
+      rig.travelReach = 1;
+      p = drawEase(uc, settleAt(m.settle, rig.aimWeight));
+    } else {
+      rig.travelReach = 1;
+      p = uc * uc * (3 - 2 * uc);
     }
-    const k = this.trCatch < 0 ? 0 : Math.max(0, Math.min(1, (u - this.trCatch) / (1 - this.trCatch)));
-    // one ease on the travel (smoothstep in time; the curve's shape is spatial only)
-    const sm = k * k * (3 - 2 * k);
-    // (ct-prototype D1) the turn spread over the path: a holster from the start, a draw from 5 % (level in the pocket)
-    const r = this.trDraw ? Math.max(0, Math.min(1, (sm - 0.05) / TRAVEL_TURN)) : Math.min(1, sm / TRAVEL_TURN);
-    // (G2, AUDIT-AIM rows 1-3) the diagonal sling turns through its keys (round the right side, muzzle up at the shoulder
-    // on a draw; muzzle down beside the hip on a holster), every other slot slerps straight to its end
-    // (G2 fix r1) a draw reversed mid-holster (the gun still in front of the body) slerps from where it is: the keyed
-    // draw turn starts from the slung frame, so taken from mid-holster it snapped the gun through the torso and swept it
-    // (anim-rework S3, M2) the sling draw: the holster's turn backwards (round the right side, muzzle down under the arm,
-    // then up into the shoulder), over the whole travel (no 5 % hold level in the pocket: it is the swing up)
-    if (this.trSling) this.diagSlingTo(this.node.rotationQuaternion!, Math.min(1, sm / TRAVEL_TURN));
-    else if (useDiagTurn(slot, this.trDraw, this.trFromSlot)) this.diagTurnTo(this.node.rotationQuaternion!, this.trDraw, r);
-    else Quaternion.SlerpToRef(this.trQ0, trQ, r, this.node.rotationQuaternion!);
+    // the path at sm (0..1); past 1 (the settle) the end extrapolated by `over`
+    const sm = p < 1 ? p : 1;
+    const over = p > 1 ? p - 1 : 0;
+    this.turnAt(slot, sm, this.node.rotationQuaternion!);
+    if (over > 0) {
+      // the turn carried on along its last stretch of the path (slerp past 1 extrapolates on the same arc)
+      this.turnAt(slot, 1 - OVER_DT, trQPrev);
+      Quaternion.SlerpToRef(trQPrev, this.node.rotationQuaternion!, 1 + over / OVER_DT, this.node.rotationQuaternion!);
+    }
     // the grip's start and end (chest frame), and the curve through the waypoint
     trG.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
     trG.rotateByQuaternionToRef(this.trQ0, trG0).addInPlace(this.trP0);
@@ -383,26 +397,46 @@ export class WeaponModel {
     const via = this.trSling ? TRAVEL_VIA.sling : back ? TRAVEL_VIA.back : TRAVEL_VIA.thigh;
     const out = back ? TRAVEL_OUT.back : TRAVEL_OUT.thigh;
     // a cubic: the slot end steps out first (P1 of a draw, P2 of a holster), the other control is the waypoint
+    // (anim-natural N3: both moved by the Draw section's lift / clear and present offsets)
     const slotG = this.trDraw ? trG0 : trG1;
-    const o1x = slotG.x + out[0];
-    const o1y = slotG.y + out[1];
-    const o1z = slotG.z + out[2];
-    const c1x = this.trDraw ? o1x : via[0];
-    const c1y = this.trDraw ? o1y : via[1];
-    const c1z = this.trDraw ? o1z : via[2];
-    const c2x = this.trDraw ? via[0] : o1x;
-    const c2y = this.trDraw ? via[1] : o1y;
-    const c2z = this.trDraw ? via[2] : o1z;
+    const o1x = slotG.x + out[0] + m.out[0];
+    const o1y = slotG.y + out[1] + m.out[1];
+    const o1z = slotG.z + out[2] + m.out[2];
+    const vx = via[0] + m.via[0];
+    const vy = via[1] + m.via[1];
+    const vz = via[2] + m.via[2];
+    const c1x = this.trDraw ? o1x : vx;
+    const c1y = this.trDraw ? o1y : vy;
+    const c1z = this.trDraw ? o1z : vz;
+    const c2x = this.trDraw ? vx : o1x;
+    const c2y = this.trDraw ? vy : o1y;
+    const c2z = this.trDraw ? vz : o1z;
     const v = 1 - sm;
     const a = v * v * v;
     const b = 3 * v * v * sm;
     const c = 3 * v * sm * sm;
     const d = sm * sm * sm;
-    const px = a * trG0.x + b * c1x + c * c2x + d * trG1.x;
-    const py = a * trG0.y + b * c1y + c * c2y + d * trG1.y;
-    const pz = a * trG0.z + b * c1z + c * c2z + d * trG1.z;
+    // past the end: along the curve's end tangent, 3 (P3 - P2) per unit of the path
+    const px = a * trG0.x + b * c1x + c * c2x + d * trG1.x + 3 * over * (trG1.x - c2x);
+    const py = a * trG0.y + b * c1y + c * c2y + d * trG1.y + 3 * over * (trG1.y - c2y);
+    const pz = a * trG0.z + b * c1z + c * c2z + d * trG1.z + 3 * over * (trG1.z - c2z);
     trG.rotateByQuaternionToRef(this.node.rotationQuaternion!, trG0);
     this.node.position.set(px - trG0.x, py - trG0.y, pz - trG0.z);
+  }
+
+  /** The gun's turn at path `sm` 0..1 into `q` (chest frame; reads `trQ`, the end pose, set by `travel`). */
+  private turnAt(slot: CarrySlot, sm: number, q: Quaternion): void {
+    // (ct-prototype D1) the turn spread over the path: a holster from the start, a draw from 5 % (level in the pocket)
+    const r = this.trDraw ? Math.max(0, Math.min(1, (sm - 0.05) / TRAVEL_TURN)) : Math.min(1, sm / TRAVEL_TURN);
+    // (G2, AUDIT-AIM rows 1-3) the diagonal sling turns through its keys (round the right side, muzzle up at the shoulder
+    // on a draw; muzzle down beside the hip on a holster), every other slot slerps straight to its end
+    // (G2 fix r1) a draw reversed mid-holster (the gun still in front of the body) slerps from where it is: the keyed
+    // draw turn starts from the slung frame, so taken from mid-holster it snapped the gun through the torso and swept it
+    // (anim-rework S3, M2) the sling draw: the holster's turn backwards (round the right side, muzzle down under the arm,
+    // then up into the shoulder), over the whole travel (no 5 % hold level in the pocket: it is the swing up)
+    if (this.trSling) this.diagSlingTo(q, Math.min(1, sm / TRAVEL_TURN));
+    else if (useDiagTurn(slot, this.trDraw, this.trFromSlot)) this.diagTurnTo(q, this.trDraw, r);
+    else Quaternion.SlerpToRef(this.trQ0, trQ, r, q);
   }
 
   /** (G2) The diagonal sling's draw / holster turn at r (backDiag.diagTurn), into `q` (chest frame). */
@@ -446,6 +480,7 @@ export class WeaponModel {
   endTravel(): void {
     this.trSlot = null;
     if (this.owner?.travelNode === this.node) this.owner.travelNode = null;
+    if (this.owner && this.owner.travelNode === null) this.owner.travelReach = 1;
   }
 
   /** Mid-swap: in the right hand (grip at the palm) on its way from its slot to the aim pocket. */
@@ -482,6 +517,7 @@ export class WeaponModel {
    */
   holster(rig: CharacterRig, slot: CarrySlot): void {
     if (rig.travelNode === this.node) rig.travelNode = null;
+    if (rig.travelNode === null) rig.travelReach = 1;
     this.trSlot = null;
     const had = slot !== 'sling' && this.glideFrom(rig);
     if (rig.heldWeapon === this.node) rig.heldWeapon = null;

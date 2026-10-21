@@ -25,7 +25,9 @@ const modelLength = (d: WeaponDef): number => {
   return e.z1 - e.z0;
 };
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
-import { DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, type DrawPhase } from './drawState';
+import { DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, holsterTimeFor, type DrawPhase } from './drawState';
+import { DRAW_BEAT, drawClass } from '../anim/drawMotion';
+import { DRAW_TIME_MUL, drawTuneApply } from './drawTune';
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 
@@ -73,9 +75,13 @@ const SWAP_HOLD = 0.8;
  * (anim-cleanup) The draw / holster travel beats: the outgoing gun leaves the aim pocket at TRAVEL_OUT and reaches its
  * slot at SWAP_HOLSTER in the trigger hand; the next one leaves its slot at TRAVEL_IN and is in the pocket at SWAP_HOLD
  * (actions.ts swap clip: the hand holds the grip over both spans, empty only between the slots).
+ * (anim-natural N3) The incoming travel runs from the holstered beat (TRAVEL_IN = SWAP_HOLSTER = drawMotion DRAW_BEAT,
+ * was 0.5: the reach is its first part, the hand blending onto the grip) to the clip's end (was SWAP_HOLD 0.8: the gun
+ * stopped at the clip's level pocket for the last 20 % and then moved again into the low ready as the overlay faded;
+ * the "random stop"), settling in the final pose; SWAP_HOLD stays for a gun that does not travel (the sling hand-off).
  */
 const TRAVEL_OUT = 0.06;
-const TRAVEL_IN = 0.5;
+const TRAVEL_IN = DRAW_BEAT;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
 const GRENADE_RELEASE = 0.68;
@@ -388,7 +394,13 @@ export class PlayerWeapons {
   /** The current gun's draw time (s); (anim-rework S1, M2) the sling draw (LT from holstered) is slower. */
   private drawTime(): number {
     const cls = this.current.def.class;
-    return drawTimeFor(cls) * (this.player.stance.slingDraw ? (cls === 'pistol' ? STANCE.slingDrawMult : STANCE.slingDrawLong) : 1);
+    return drawTimeFor(cls) * DRAW_TIME_MUL[drawClass(cls)].draw * (this.player.stance.slingDraw ? (cls === 'pistol' ? STANCE.slingDrawMult : STANCE.slingDrawLong) : 1);
+  }
+
+  /** (anim-natural N3) The current gun's holster time (s), per class, with the Draw section's multiplier. */
+  private holsterTime(): number {
+    const cls = this.current.def.class;
+    return holsterTimeFor(cls) * DRAW_TIME_MUL[drawClass(cls)].holster;
   }
 
   private equip(i: number): void {
@@ -444,6 +456,8 @@ export class PlayerWeapons {
 
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.current;
+    // (anim-natural N3) the Draw section's values for this step (identity unless a slider moved)
+    drawTuneApply(drawClass(s.def.class));
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
     this.player.reloadQueued = this.reloadQueued;
@@ -487,7 +501,7 @@ export class PlayerWeapons {
     } else {
       // (A43) a reload in progress or asked for while holstered keeps / brings the gun out at low ready
       const reloadWant = this.reloadT >= 0 || this.reloadQueued;
-      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.drawWanted || reloadWant), this.drawTime());
+      const ph = this.draw.update(dt, !this.drawLock && !this.handsBusy && (this.player.drawWanted || reloadWant), this.drawTime(), this.holsterTime());
       const away = ph === DRAW_HOLSTERED || ph === DRAW_HOLSTERING;
       if (away !== this.stowed) {
         const reverse = !away && this.swapT >= 0 && this.swapPhase === 0 && this.index === this.held;
@@ -560,7 +574,7 @@ export class PlayerWeapons {
       // stowing for a climb / hang is quick: both hands are wanted on the anchor
       if (this.aimDriven) {
         // a draw / holster from aim keeps pace with the draw state (0.3 / 0.4 s draw, 0.4 s holster)
-        const left = this.draw.remaining(this.drawTime());
+        const left = this.draw.remaining(this.drawTime(), this.holsterTime());
         const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
         this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);
       } else this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
@@ -597,11 +611,14 @@ export class PlayerWeapons {
           next.model.inHand(this.player.rig);
         }
       }
+      // (anim-natural N3) the incoming travel runs to the clip's end (the settle in the final pose); held at its end
+      let inTravel = false;
       if (this.swapPhase === 2) {
         const m = this.slots[this.index]!.model;
-        if (m.travelling) m.travel(this.player.rig, (f - TRAVEL_IN) / (SWAP_HOLD - TRAVEL_IN));
+        inTravel = m.travelling;
+        if (inTravel) m.travel(this.player.rig, (f - TRAVEL_IN) / (1 - TRAVEL_IN));
       }
-      if (this.swapPhase === 2 && f >= SWAP_HOLD) {
+      if (this.swapPhase === 2 && f >= (inTravel ? 1 - 1e-9 : SWAP_HOLD)) {
         this.swapPhase = 3;
         this.equip(this.index);
       }

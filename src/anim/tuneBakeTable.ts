@@ -331,6 +331,28 @@ const MOVE_REASON = 'no code value: a visual offset on the local rig (root, grip
 for (const m of TEAM_MOVE_IDS) manuals.push(manual(`team_${m}`, '*', MOVE_REASON));
 manuals.push(manual('trav', '*', MOVE_REASON));
 
+// ------------------------------------------------------------------------------------------
+// (anim-natural N3) Draw (weapons/drawTune.ts): the draw / holster / swap motion per weapon
+// ------------------------------------------------------------------------------------------
+
+const DRAWST = 'src/weapons/drawState.ts';
+const DRAWM = 'src/anim/drawMotion.ts';
+const DRAW_TIME_NOTE = 'GAMEPLAY: the DrawState drawn / holstered phase times (the LT sling draw scales with the draw time)';
+for (const [g, k, draw, hol] of [['draw.rifle', 'rifle', 'DRAW_TIME_PRIMARY', 'HOLSTER_TIME_PRIMARY'], ['draw.pistol', 'pistol', 'DRAW_TIME_SIDEARM', 'HOLSTER_TIME_SIDEARM']] as const) {
+  rules.push(
+    rule('draw', 'drawTimeMul', [g], [e(DRAWST, draw, 'mul')], DRAW_TIME_NOTE),
+    rule('draw', 'holsterTimeMul', [g], [e(DRAWST, hol, 'mul')], DRAW_TIME_NOTE),
+    rule('draw', 'reachAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.reach`, 'add')]),
+    rule('draw', 'gripAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.grip`, 'add')]),
+    rule('draw', 'handoverAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.handover`, 'add')]),
+    rule('draw', 'settleAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.settle`, 'add')]),
+    ...(['X', 'Y', 'Z'] as const).flatMap((a, i) => [
+      rule('draw', `out${a}`, [g], [e(DRAWM, `DRAW_MOTION.${k}.out[${i}]`, 'add', 0.01)]),
+      rule('draw', `via${a}`, [g], [e(DRAWM, `DRAW_MOTION.${k}.via[${i}]`, 'add', 0.01)]),
+    ]),
+  );
+}
+
 export const BAKE_RULES: readonly BakeRule[] = rules;
 export const BAKE_MANUAL: readonly ManualRule[] = manuals;
 
@@ -342,7 +364,7 @@ export const BAKE_LEDGER = 'src/anim/tuneBakeLog.json';
 export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
-export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts'];
+export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/weapons/drawTune.ts'];
 /**
  * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
  * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file

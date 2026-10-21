@@ -6,6 +6,7 @@ import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { gripClose } from '../anim/drawMotion';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
@@ -429,6 +430,8 @@ const elbQ = new Quaternion();
 const elbAxis = new Vector3();
 const elbHand = new Quaternion();
 const clrDir = new Vector3();
+/** (anim-natural N3) Time constant (s) of the pocket's clearance push while a travel carries the gun to it. */
+const TRAVEL_PUSH_TAU = 0.07;
 const clrM = new Matrix();
 /** Body capsules for the weapon push-out, 8 floats each: start xyz, segment xyz, 1/|segment|^2, radius. */
 const CLR_N = 6;
@@ -817,6 +820,18 @@ export class CharacterRig {
   }
   /** (ct-prototype D1) The trigger hand's grip hold from a travel (1 while it runs, easing out after). */
   private travelHold = 0;
+  /**
+   * (anim-natural N3) While a travel runs: the trigger hand's IK weight onto the gun's grip (WeaponModel writes it: 0 at
+   * the start of a draw from the slot, eased to 1 over the reach, anim/drawMotion.ts; 1 for every other travel). The
+   * fingers close over its last part (`gripClose`).
+   */
+  travelReach = 1;
+  /** (anim-natural N3) The pocket's body-clearance push (torso frame), eased while a travel runs (`clearBody`). */
+  private readonly travelPush = new Vector3();
+  /** (anim-natural N3) The raise to the aim this frame (the graph's aim weight, 0 at the ready .. 1 aimed; read only). */
+  get aimWeight(): number {
+    return this.aimK;
+  }
   /**
    * (step 09, A42) Carries weapons slung / holstered (the player and remote players): with the hands empty on foot
    * the arms take the ready hands and the body keeps the armed carriage. Remotes pose it from `dw` (their weapon in
@@ -1902,10 +1917,10 @@ export class CharacterRig {
    * summed overlap. Up to four passes on flat typed arrays (no allocation, no calls in the inner loop).
    * Returns the distance pushed (m).
    */
-  private clearBody(): number {
+  private clearBody(dt: number): number {
     const w = this.heldWeapon!;
     const g = this.gunSpan;
-    const m = w.getWorldMatrix();
+    const m = this.gunFrame().getWorldMatrix();
     // hips, neck (setWorldRot of the head), head, knees and ankles are already fresh this frame
     const P = this.hips.getAbsolutePosition();
     const Hc = posIn(this.headNode, headPt);
@@ -1983,17 +1998,40 @@ export class CharacterRig {
       oz += sz;
       pushed += len;
     }
+    clrDir.set(ox, oy, oz);
     if (pushed > 0) {
-      clrDir.set(ox, oy, oz);
       // world push -> the pocket's parent (torso) space
       const pm = (this.weaponPivot.parent as TransformNode).getWorldMatrix();
       pm.invertToRef(clrM);
       Vector3.TransformNormalToRef(clrDir, clrM, clrDir);
+    }
+    // (anim-natural N3) while a travel carries the gun the pocket is its target, measured where the gun will be held:
+    // in the swap's compressed pocket that push jumped 10-17 cm a frame as contacts came and went, and the gun followed;
+    // the push is eased then (TRAVEL_PUSH_TAU) and held in step otherwise, so the hold at the end takes it as it is
+    const ps = this.travelPush;
+    if (this.weaponTravel) {
+      const k = 1 - Math.exp(-dt / TRAVEL_PUSH_TAU);
+      ps.x += (clrDir.x - ps.x) * k;
+      ps.y += (clrDir.y - ps.y) * k;
+      ps.z += (clrDir.z - ps.z) * k;
+      clrDir.copyFrom(ps);
+    } else ps.copyFrom(clrDir);
+    if (pushed > 0 || this.weaponTravel) {
       this.weaponPivot.position.addInPlace(clrDir);
       fresh(this.weaponPivot);
       freshBelow(w, this.weaponPivot);
     }
     return pushed;
+  }
+
+  /**
+   * (anim-natural N3) The frame the aim pocket's sight and body clearance are measured on: the held gun, or while a
+   * travel carries it, the pocket itself (where the gun will be held: the gun's node sits at the pocket with no offset).
+   * Measured on the travelling gun they pushed the pocket by where the gun was last frame, the travel then followed the
+   * pushed pocket, and the two fed back (the gun jittered about 5 mm a frame settling into the low ready).
+   */
+  private gunFrame(): TransformNode {
+    return this.weaponTravel ? this.weaponPivot : this.heldWeapon!;
   }
 
   /** Hit reaction (additive flinch, recovers over ~0.4 s). */
@@ -2380,7 +2418,7 @@ export class CharacterRig {
       if (t.weld > 0.01) this.sightToEye(t.weld, t.sightDrop);
       // self-collision: the weapon never passes through the trunk or the head (pushed out before the hands
       // take it, so the grips stay in the hands)
-      this.gunPush = this.clearBody();
+      this.gunPush = this.clearBody(dt);
     }
 
     // arms: the dominant hand takes the grip, the other the foregrip / magazine / wall (the wall contact moves
@@ -2388,7 +2426,9 @@ export class CharacterRig {
     // (ct-prototype D1) a draw / holster travel holds the trigger hand on the grip at once (the joint-rate limits spread
     // the reach), easing back to the graph's grip weight over 0.2 s after it
     this.travelHold = this.weaponTravel ? 1 : Math.max(0, this.travelHold - TRAVEL_HOLD_RATE * dt);
-    const gripW = this.heldWeapon ? Math.max(t.grip, this.travelHold) : 0;
+    // (anim-natural N3) a draw from the slot reaches first: the hand's weight on the grip rises with the reach
+    const travelling = this.weaponTravel;
+    const gripW = this.heldWeapon ? (travelling ? this.travelReach : Math.max(t.grip, this.travelHold)) : 0;
     const leftGrips = this.handBlend > 0.5;
     // (locomotion step 21, M14) the ready hands hang from the real shoulders (the rig's own pelvis drop, head cap, twist)
     this.readyRf = t.readyFollow;
@@ -2416,7 +2456,7 @@ export class CharacterRig {
     // (anim-skeleton S3) the clip's clavicle and finger channels by the keyed arms' weight (free hands), else the drawn
     // set's edit weight (a gun in hand), as the shoulder channel
     {
-      const kaw0 = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
+      const kaw0 = kw > 0 && gripW <= 0 && !travelling && this.kneeHandW === 0 ? t.keyArmW : 0;
       this.keyedUpper(kq, kaw0 > 0 ? kaw0 : kw * t.keyDrawn);
     }
     this.clavFrame(); // (anim-skeleton S2) the clavicles before the arms reach from the shoulders
@@ -2425,8 +2465,10 @@ export class CharacterRig {
     // (feature/weapons) the fingers close round the grips (the support hand by its foregrip / magazine weight, open on
     // a wall), and round a world grip
     const offHold = Math.min(1, Math.max(t.offGrip, t.offMag)) * (1 - Math.min(1, offWall));
-    const hr = gripW * (leftGrips ? offHold : 1);
-    const hl = gripW * (leftGrips ? 1 : offHold);
+    // (anim-natural N3) reaching for a gun the trigger hand's fingers close as it arrives
+    const close = travelling ? gripClose(this.travelReach) : 1;
+    const hr = gripW * (leftGrips ? offHold : close);
+    const hl = gripW * (leftGrips ? close : offHold);
     this.handGrip.r = this.holdingKnife ? 1 : Math.max(Math.min(1, hr), Math.min(1, this.reachR.w));
     this.handGrip.l = this.holdingMag ? 1 : Math.max(Math.min(1, hl), Math.min(1, this.reachL.w));
     if (HANDS_CUR.on && HANDS_CUR.curlOn) {
@@ -3396,7 +3438,7 @@ export class CharacterRig {
    */
   private sightToEye(w: number, drop: number): void {
     const g = this.gunSpan;
-    const e = this.heldWeapon!.getWorldMatrix().m;
+    const e = this.gunFrame().getWorldMatrix().m;
     const zc = (g.z0 + g.z1) * 0.5;
     const sightY = g.top * e[5]! + zc * e[9]! + e[13]!;
     const dy = (posIn(this.headNode, headPt).y + SIGHT_EYE + TUNE_CUR.sightYAdd - drop - sightY) * w;
