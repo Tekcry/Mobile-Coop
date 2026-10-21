@@ -2,6 +2,8 @@ import { Vector3 } from '../../core/babylon';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import type { MapLayout } from '../mapDef';
+import { makeCone } from '../lights';
+import { addLampRooms, EXIT_GREEN, passLamps, type LampRoom } from './lampRooms';
 
 /**
  * Sector Ops section 2 of the Warehouse (warehouse-s23, SPEC 2.2, BUILD-S2.md): the storage hall, a greybox. Frame: x west
@@ -51,43 +53,30 @@ export const S2_NAV_SEEDS: Vector3[] = [
   new Vector3(-9.35, 4, 11),
 ];
 
+const AISLE = makeCone(0, -1, 0, Math.PI / 4);
+// <lamps:S2>
 /**
- * Section 2's lamp pass (the sheet's five lamps, then the lamps the route and objective points need to read without night
- * vision, warehouse-s23 M1). [x, y, z, radius, intensity, group, colour]. The takedown pockets get none.
- * `tests/warehouseS2Light.test.ts` pins the levels.
+ * Section 2's lamps by room (sector-fixes L, Michael 2026-10-22: one height and a regular layout per room, LED fittings;
+ * the levels of warehouse-s23 M1 kept: `tests/warehouseS2Light.test.ts`). The hall: rows of LED strips 0.22 under the
+ * roof (5.8) across the hall on the roof strips (z -3.6, 2.4, 8.4, 14.4), one over every aisle and every rack line; the
+ * aisle strips have a narrow aisle optic (the floor, not the rack tops beside them), the rack strips light the rack tops
+ * of the high route. Dead fittings (intensity 0) over the dark rack tops and pockets. The exit signs: LED bulkheads at
+ * 2.4 on the walls. [x, z, radius, intensity].
  */
-export type S2Lamp = readonly [x: number, y: number, z: number, radius: number, intensity: number, group: number, colour?: readonly [number, number, number]];
-const WARM = [1, 0.92, 0.75] as const;
-const GREEN = [0.5, 1, 0.6] as const;
-export const S2_LIGHT_PASS: readonly S2Lamp[] = [
-  // the sheet (3.6): the lane work lamp, the issue desk, the exit signs and the charger indicator (a small glow: it must not light the charge hand's pocket)
-  [-17.7, 3, -4.6, 7, 0.548, 40, WARM],
-  [-18.2, 2.6, 17.4, 5.2, 0.768, 41, WARM],
-  [-23.6, 2.4, 5.5, 3, 0.43, 42, GREEN],
-  [-4.6, 2.4, 14.55, 3, 0.25, 42, GREEN],
-  [-4.6, 1.8, -5.2, 0.65, 0.155, 42, GREEN],
-  // pendants hung in the aisles (y 3.0): the lane, A1, the cross aisle, A2, A3, the gangways, the cage
-  [-21.4, 3, -3.8, 4.5, 0.561, 40],
-  [-12.6, 2.6, -3.6, 3.6, 1.07, 40],
-  [-20.8, 3, 3.3, 5, 0.562, 40],
-  [-22.7, 3, 8.1, 5, 0.493, 40],
-  [-15.8, 3, 5.5, 6, 0.46, 40],
-  [-17.3, 3, 12, 4.5, 0.845, 40],
-  [-12.6, 3, 3, 5, 1.103, 40],
-  [-12, 3, 12.7, 5, 0.929, 40],
-  [-6.3, 3, 8, 5.5, 0.928, 40],
-  [-8.4, 3, 16.4, 5.5, 0.648, 41],
-  [-22.5, 3.2, 13.8, 5.5, 0.648, 41],
-  [-21.8, 2.7, 15, 2.4, 0.268, 41],
-  // under the roof strips (y 5.8) over the rack tops of the high route (a lamp lights what is below it: one near each top point)
-  // and beside the sprinkler mains (not over them: a pipe shadows what hangs under it)
-  [-14, 5.8, 9, 5, 0.936, 40],
-  [-19.1, 5.8, 10.5, 5.5, 0.503, 40],
-  [-19.5, 5.8, 14.1, 4, 0.676, 41],
-  [-23.6, 5.8, 9.2, 5.4, 1.171, 40],
-  [-7.2, 5.8, 7.6, 5, 0.496, 40],
-  [-7, 5.8, 14.4, 5.5, 0.578, 41],
+export const S2_LAMPS: readonly LampRoom[] = [
+  // the aisle strips (A1 -21.4, A2 -16.7, A3 -12.0, the east gangway -7.2): the lane and south racks (circuit 40), north (41)
+  { id: 'hallAisle', model: 'strip', y: 5.8, group: 40, yaw: PI / 2, cone: AISLE, pass: true, lamps: [[-21.4, -3.6, 7, 0.6], [-16.7, -3.6, 7, 0.6], [-12, -3.6, 7, 0.6], [-7.2, -3.6, 7, 0.6], [-21.4, 2.4, 7, 0.6], [-16.7, 2.4, 7, 0.6], [-12, 2.4, 7, 0.6], [-7.2, 2.4, 7, 0.6]] },
+  { id: 'hallAisle', model: 'strip', y: 5.8, group: 41, yaw: PI / 2, cone: AISLE, pass: true, lamps: [[-21.4, 8.4, 7, 0.6], [-16.7, 8.4, 7, 0.6], [-12, 8.4, 7, 0.6], [-7.2, 8.4, 7, 0.6], [-21.4, 14.4, 7, 0.6], [-16.7, 14.4, 7, 0.6], [-12, 14.4, 7, 0.6], [-7.2, 14.4, 7, 0.6]] },
+  // the rack strips (W0 -23.45, R1 -18.75, R2 -14.65, R3 -9.35): only the north rack tops of the high route are lit
+  { id: 'hallRack', model: 'strip', y: 5.8, group: 40, yaw: PI / 2, pass: true, lamps: [[-23.45, -3.6, 3, 0], [-18.75, -3.6, 3, 0], [-14.65, -3.6, 3, 0], [-9.35, -3.6, 3, 0], [-23.45, 2.4, 3, 0], [-18.75, 2.4, 3, 0], [-14.65, 2.4, 3, 0], [-9.35, 2.4, 3, 0]] },
+  { id: 'hallRack', model: 'strip', y: 5.8, group: 41, yaw: PI / 2, pass: true, lamps: [[-23.45, 8.4, 3.5, 0.5], [-18.75, 8.4, 3.5, 0.5], [-14.65, 8.4, 3.5, 0.5], [-9.35, 8.4, 3, 0], [-23.45, 14.4, 3.5, 0.5], [-18.75, 14.4, 3.5, 0.5], [-14.65, 14.4, 3.5, 0.5], [-9.35, 14.4, 3, 0]] },
+  // the exit signs: the west fire exit, the C3 door, the charger indicator (a small glow: it must not light the charge hand's pocket)
+  { id: 'storage', model: 'bulkhead', y: 2.4, group: 42, yaw: PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[-23.91, 5.5, 3, 0.43], [-4.24, 14.55, 3, 0.25], [-4.24, -5.2, 0.65, 0.155]] },
 ];
+
+/** The section's lamp pass (the light test switches these off to compare): every lit lamp of section 2. */
+export const S2_LIGHT_PASS = passLamps(S2_LAMPS);
+// </lamps:S2>
 
 /** A lintel (a head over a gap): an overhead box, so the floor under it stays open to the nav grid. */
 function lintel(b: LevelBuilder, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, color = WALL): void {
@@ -160,19 +149,6 @@ export function buildStorageS2(b: LevelBuilder): void {
   b.block(-6.0, 17.85, 0.3, 2.4, 0.2, STEEL); // wrapper mast
   b.block(-9.0, 16.6, 1.2, 1.8, 1.2, SHRINK); // wrapped stack
 
-  // ---- lights
-  for (const [x, y, z, radius, intensity, group, colour] of S2_LIGHT_PASS) {
-    const sign = group === 42;
-    b.light({
-      kind: 'lamp',
-      x,
-      y,
-      z,
-      radius,
-      intensity,
-      color: colour ? [colour[0], colour[1], colour[2]] : [1, 0.92, 0.75],
-      group,
-      fixture: sign ? { sx: 0.3, sy: 0.12, sz: 0.06, oy: 0.06 } : { sx: 0.5, sy: 0.08, sz: 0.5, oy: 0.1 },
-    });
-  }
+  // ---- lights (sector-fixes L: by room, `S2_LAMPS`)
+  addLampRooms(b, S2_LAMPS);
 }

@@ -48,8 +48,8 @@ export interface LightDef {
   reach?: number;
 }
 
-/** (warehouse-lamps) The three prototype fitting models (`fixtureModels.ts`): a dome high-bay, a fluorescent batten, a caged bulkhead. */
-export type FittingModel = 'dome' | 'batten' | 'bulkhead';
+/** (sector-fixes L) The LED fitting family (`fixtureModels.ts`): a flush ceiling panel, a hung linear strip, a wall bulkhead. */
+export type FittingModel = 'panel' | 'strip' | 'bulkhead';
 
 /** A light's fixture box: size (m) and its centre's height above the light. */
 export interface LightFixture {
@@ -59,15 +59,13 @@ export interface LightFixture {
   oy: number;
   /** (warehouse-lamps) The model `LightRig` draws in place of the glowing box (`lampMount.ts` sets it); unset = the box. */
   model?: FittingModel;
-  /** What the model is fixed to: a ceiling (rod / hangers up), a wall (an arm back), a mast (from the roof or deck under it). */
-  base?: 'ceiling' | 'wall' | 'mast';
-  /** The model's yaw (rad, a quarter turn step): a batten's long axis, a bulkhead's facing (away from its wall). */
+  /** What the model is fixed to: a ceiling or roof (a panel flush, a strip on wires), a wall (a bulkhead). */
+  base?: 'ceiling' | 'wall';
+  /** The model's yaw (rad): a strip's long axis (0 = along x), a bulkhead's facing (away from its wall). */
   yaw?: number;
-  /** The mount's length (m): a dome's drop rod or a batten's hangers from the body top to the ceiling, a bulkhead's
-   *  bracket arm from the body back to the wall, a mast's height from the roof or deck to its head. */
+  /** The mount's length (m): a strip's wires from the body top to the roof, a panel's gap to its ceiling, a bulkhead's
+   *  stand-off from its back to the wall (`lampMount.ts` measures it). */
   mount?: number;
-  /** A strut along the ceiling from the rod top to the nearest ceiling edge (a lamp under a skylight gap): [dx, dz]. */
-  strut?: [number, number];
 }
 
 export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z'>> & { x: number; y: number; z: number };
