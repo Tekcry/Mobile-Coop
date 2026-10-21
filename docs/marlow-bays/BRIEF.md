@@ -100,6 +100,10 @@ hallway, the jammer rules and buzz, the light flicker) between test requests; te
 jam state crosses the wire, so PROTOCOL_VERSION goes past 25; if the cloud B + M PR also bumps it, whichever merges
 second takes the next number. Own PR; one checker, one fix round.
 
+**Bay 3 floor lines (Michael, ~18:30):** "Don't show the red lines painted on the floor, that's the point of the red
+laser overlay to show the cameras view area." Remove the painted sweep-edge lines (course spec M2's floor marking) in
+slice J; the camera cue grid alone shows the view. Update the course spec line.
+
 **Tracks (Michael, ~16:10: "is there anything we can do to split sessions to focus heavily on the animation work?";
 chose three tracks, bays wait).** Three sessions at once, one owner per file area, the orchestrator merges A, B, C in
 that order; the laptop tests all three:
