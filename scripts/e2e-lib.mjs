@@ -84,11 +84,12 @@ if (PROFILE) {
 let warmed = true;
 
 /** A desktop context (no touch, no mobile user agent): the game is desktop only (pad, keyboard and mouse). */
-export async function launch({ url = 'http://localhost:4173/', params = '', viewport = { width: 1280, height: 640 }, args = [] } = {}) {
+export async function launch({ url = 'http://localhost:4173/', params = '', viewport = { width: 1280, height: 640 }, args = [], context = {} } = {}) {
   // (`args`: extra Chromium switches, e.g. anim-audit's remote run keeps a background page's timers unthrottled)
+  // (`context`: extra browser context options, e.g. e2e-tuner-phone's `hasTouch` / `isMobile`)
   const lo = launchOptions();
   const browser = await timed('launch', () => chromium.launch({ ...lo, args: [...lo.args, ...args] }));
-  const ctx = await browser.newContext({ viewport, acceptDownloads: true });
+  const ctx = await browser.newContext({ viewport, acceptDownloads: true, ...context });
   // context level: covers every page of the context, including ones a suite opens itself (ctx.newPage())
   await ctx.addInitScript(fakePointerLock);
   const { page, errors } = await openPage(ctx, url, params);
