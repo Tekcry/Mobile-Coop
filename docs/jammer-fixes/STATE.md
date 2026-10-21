@@ -1,7 +1,7 @@
 # jammer-fixes - state
 
-**Now:** set up 2026-10-22 from master 4.48.0 (ea3399ed); implementer next.
-**Next:** implementer (items 1-5, tests for 1-3), checker, e2e-ctcourse + e2e-coop, full e2e, PR (patch), tell
+**Now:** implementer done (items 1-4, protocol 27, 10 new tests in tests/jammerFixes.test.ts); npm run check pass (2593 tests); e2e not run yet (laptop queue).
+**Next:** checker, e2e-ctcourse + e2e-coop, full e2e, PR (patch), tell
 "Night Shift | Orchestrator".
 
 ## Done

@@ -24,6 +24,9 @@ Item 5 withdrawn (Michael, 2026-10-22, through the orchestrator): "Cameras shoul
 Tests for 1-3. Check, e2e-ctcourse and e2e-coop, then the full run, a PR (patch), tell the orchestrator.
 
 ## Assumed decisions (undo by telling the orchestrator)
+- F3 (item 3): an eye claim beyond 1.5 m of the head (or without a clear head-to-eye line) falls back to the head
+  check (the 4.48 rule) instead of refusing the jam, so a client whose camera is still blending into aim is not refused.
+  Undo: refuse the claim instead (`jamOrigin` in `src/game/jammer.ts`).
 - F2 (item 3): if the claim carries the client's eye, the `jam` message changes, so `PROTOCOL_VERSION` 26 -> 27.
 
 ## Limits

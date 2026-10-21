@@ -14,8 +14,8 @@ import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra } from '../game/sectors';
 
-/** 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 26;
+/** 27: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
+export const PROTOCOL_VERSION = 27;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -193,7 +193,8 @@ export type Msg =
   /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
   | { t: 'ctick'; verb: ClientVerb }
   /** (CT prototype B3) A client's held pistol jammer: the device it aims at ('' = released); sent on change and every 0.25 s while held. */
-  | { t: 'jam'; tgt: string }
+  /** (27) `e`: the client's camera eye (m) a claim was aimed from (a release has none). */
+  | { t: 'jam'; tgt: string; e?: [number, number, number] }
   | { t: 'end'; stats: EndStats }
   | { t: 'bye'; reason: string };
 
@@ -588,7 +589,13 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'jam': {
       if (raw.tgt === '') return { t: 'jam', tgt: '' };
       const tgt = id(raw.tgt);
-      return tgt ? { t: 'jam', tgt } : null;
+      if (!tgt) return null;
+      // (27) the camera eye, clamped to the world; a malformed one is dropped (the host then checks from the head)
+      const e = Array.isArray(raw.e) && raw.e.length === 3 ? raw.e : null;
+      const ex = e ? num(e[0], -WORLD, WORLD) : null;
+      const ey = e ? num(e[1], -50, 100) : null;
+      const ez = e ? num(e[2], -WORLD, WORLD) : null;
+      return ex !== null && ey !== null && ez !== null ? { t: 'jam', tgt, e: [ex, ey, ez] } : { t: 'jam', tgt };
     }
     case 'gadget': {
       const kind = oneOf(raw.kind, NET_GADGETS);

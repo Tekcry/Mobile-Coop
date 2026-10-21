@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - jammer-fixes (feature/jammer-fixes)
+- A jammed lamp comes back in the state its wall switch, EMP or a shot gives it at the end of the jam, not the state it
+  had when the jam started: a group switched off (or EMPed) during a jam stays dark through the flicker, on the host and
+  the client alike (light parity). The light registry keeps the switches' state under the jam.
+- Jamming Course Lab's mains lamp no longer opens the mains gate, and its flicker no longer toggles it: the gates read
+  the group's switch / EMP / shot state, never the jam.
+- Co-op: `PROTOCOL_VERSION` 27: the client's `jam` claim carries its camera eye; the host checks the jam's line of sight
+  from it (taken within 1.5 m of the client's head with a clear line between them, else from the head), so a client
+  that shows JAMMER READY now jams.
+- The jam buzz no longer allocates an object every frame while a device is jammed.
+- Not changed (Michael 2026-10-22): cameras keep their IR on every camera ("Cameras should still work in the dark").
+
 ## 4.48.0 - Marlow Yard bay 3: a jam-handoff hallway, the jammer's 5 s use / 5 s cooldown with a buzz, camera reboot and lamp flicker; cameras see in the dark (2026-10-22, PR #101)
 - Jammer rules (Michael 2026-10-21 item 7, A3, J1): each player jams for at most 5 s, then a 5 s cooldown; letting go
   early (or moving: the stand-still rule) also starts the cooldown. The 20 s charge (drain / refill / minStart) is gone.
