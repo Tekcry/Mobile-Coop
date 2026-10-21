@@ -1,0 +1,32 @@
+{
+  "_doc": "anim-skeleton S1: shared constants for the clavicle and finger joints and the knuckle loops, read by scripts/anim-skeleton/skin.mjs (patches the shipped GLBs) and scripts/anim-skeleton/py/skeleton.py (bake_lods.py). Positions in the glTF frame (Y up, +Z forward, +X Wren's left); Blender reads them as (x, -z, y).",
+  "clavicle": {
+    "_doc": "clavL / clavR: parent chest, rest = the chest's rotation at the sternoclavicular point (P0): lateral of the midline, under the neck joint, forward of the chest joint. shL / shR become their children, world rest unchanged. Weights: the chest weight x smoothstep(x0, x1, |x|) x smoothstep(y0, y1, y) x max moves to the clavicle of that side (sign of x); rigid parts keep theirs.",
+    "lateral": 0.03,
+    "belowNeck": 0.035,
+    "forward": 0.04,
+    "x": [0.035, 0.13],
+    "y": [1.22, 1.35],
+    "max": 0.95
+  },
+  "fingers": {
+    "_doc": "The hero's 30 finger joints on these LODs (rest = the hero's). Each LOD vertex weighted to a wrist takes the finger share of its k nearest hero hand vertices (inverse distance; none farther than maxDist m: unchanged).",
+    "lods": ["lod0", "lod1"],
+    "k": 4,
+    "maxDist": 0.02
+  },
+  "goggle": {
+    "_doc": "goggleUse / goggleStow: parent head, the head's rotation, pivots at the in-use lens centre (the -glow primitive's box centre) and the stowed goggle's centre (stow null: the shipped files have no stowed geometry, so the in-use pivot until a bake writes _GOGGLE = 2). Vertices move wholly onto them only where they are fully on head (the rigid head kit): by _GOGGLE (1 in use, 2 stowed) when a primitive has it, else in use = the lens primitive and every rigid head-kit piece (connected, all vertices fully on head) inside box (m, glTF frame: the goggle body, eyecups, tubes and rims in front of the eyes; the band, brow mount and battery pod stay on head).",
+    "use": [0, 1.57385, 0.15372],
+    "stow": null,
+    "box": { "x": [-0.06, 0.06], "y": [1.54, 1.6], "z": [0.08, 0.17] }
+  },
+  "knuckles": {
+    "_doc": "Loop cuts across each finger at its joints (the heads of fingerS_K_1..3), perpendicular to the finger bone: one plane per offset along the bone from the joint (a fraction of the shorter segment beside it; MCP: the proximal segment). Only glove edges (wrist or finger weighted, not rigid) whose crossing lies within radius of the joint and nearest this finger are cut; a crossing nearer than snap to an endpoint is skipped.",
+    "lod0": [-0.25, 0.25],
+    "lod1": [0],
+    "radius": 0.016,
+    "thumbRadius": 0.02,
+    "snap": 0.0006
+  }
+}

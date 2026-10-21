@@ -8,6 +8,19 @@
 - The bake writes the key file with the new key list, regenerates `src/anim/tuneKeysMeta.ts` and prints the clip's
   rebake. An export with no add / delete bakes exactly as before; no clip changes.
 
+## 4.42.0 - Wren skeleton: collarbones, 30 finger bones, smoother glove fingers; hands close on weapons again (2026-10-21, PR #88)
+- Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
+  had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on
+  the two nearest models (each finger bends at three knuckles), and the game's grip drives them on every Wren,
+  the co-op partner included. The fingers got extra knuckle loops so they bend smoothly (Michael: "Go, smooth fingers
+  too"): nearest model 39 809 -> 43 431 triangles, second 13 578 -> 14 242, both inside their budgets.
+- The tuner's per-finger curl and spread (Hands & feet) now move each finger on its own instead of one average close.
+- New joints for the next steps (T3, BRIEF item 21): a real clavicle on each side (a shrug or a shoulder pushed forward
+  moves the shoulder joint itself; tuner rows come in S4) and the goggle on its own joint (CT Core's gear-offset rows
+  will move it). At rest nothing moves: every joint that existed before is bit-identical for all 28 keyed clips, the
+  procedural states and the partner (tests/animSkeletonIdentity.test.ts).
+- Cost: about +2.3 us per Wren figure per frame (figure update 6.9 -> 9.2 us at the nearest model); +264 KB of models.
+
 ## 4.41.0 - Animation tuner and Anim Studio on phones: compact drawer or sheet, pad mode, touch camera (2026-10-21, PR #89)
 - The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
   the game itself stays desktop only). A phone (a touch screen as the main pointer, short side 600 px or less) in

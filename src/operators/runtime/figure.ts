@@ -12,6 +12,12 @@
  * Render side only: nothing here is read by gameplay (light meter, perception and hit volumes read the rig's joints and
  * the controller; SURVEY.md). The goggle glow is emissive, not a light, so it cannot change what the light meter or a
  * guard measures (light parity).
+ *
+ * (anim-skeleton S2) The skin's T3 joints are driven: the clavicles from the rig's clavicle nodes (readRig undoes the
+ * clavicle's carry of the shoulder, which the skin's own clavicle joint gives), the finger joints from the rig's
+ * per-finger curl / spread (`rig.fingers`, anim/fingers.ts; the hero's grip morphs are left at 0 where the bones close
+ * the hand, A9), the goggle joints by the gear offset of this body's goggle pose (`rig.goggleOff`, read in the rig's own
+ * animate window).
  */
 import {
   Bone, Color3, Matrix, Mesh, MorphTarget, MorphTargetManager, PBRMaterial, Quaternion, Skeleton, Texture, TransformNode,
@@ -20,11 +26,13 @@ import {
 import { hyp3 } from '../../core/mathx';
 import { parseGlb, type GlbImage, type GlbModel } from '../lab/glb';
 import { ktx2Abandoned, ktx2Setup } from '../lab/ktx2';
-import { GoggleState, goggleRange, partitionGoggle, type GogglePartition, type GogglePose } from './goggle';
+import { GOGGLE_OFFSET, GoggleState, goggleRange, partitionGoggle, type GogglePartition, type GogglePose } from './goggle';
+import { FING_LEN, fingerPose, fingerRig, handGripShape, type FingerRig } from '../../anim/fingers';
+import { eulerQuat } from '../../anim/tuneJoints';
 import { CLOSE_CAMERAS, pickLod } from './lodPick';
 import { flags } from '../../core/flags';
 import { LOD_0, LOD_2, LOD_HERO, LOD_NAMES, sameOrigin, validateModel, type OperatorManifest } from './manifest';
-import { OperatorPoser, poserSetup, RIG_JOINTS, TRS, type PoserSetup } from './pose';
+import { OperatorPoser, poserSetup, RIG_JOINTS, RIG_T3, TRS, type PoserSetup } from './pose';
 import { pageLeaving } from './offline';
 
 /** The CharacterRig fields the figure reads (CharacterRig satisfies this structurally; no import of its internals). */
@@ -55,17 +63,36 @@ export interface RigLike {
   readonly handGrip?: { readonly l: number; readonly r: number };
   /** (anim-cleanup) The right hand is on a weapon's trigger grip (the trigger shape; else a full wrap). */
   readonly rightTrigger?: boolean;
+  /** (anim-skeleton S2) The clavicle nodes (under the chest at the SC points, identity rest). */
+  readonly clavL?: TransformNode;
+  readonly clavR?: TransformNode;
+  /** (S2) Per-finger curl / spread (anim/fingers.ts layout, FING_LEN); absent: from `handGrip`. */
+  readonly fingers?: ArrayLike<number>;
+  /** (S2) The goggle gear offsets read in the rig's animate window: stowed (x y z pitch yaw roll) then in use. */
+  readonly goggleOff?: ArrayLike<number>;
 }
 
-/** The rig's joint nodes in RIG_JOINTS order. */
+/** The rig's joint nodes in RIG_JOINTS order (a rig without clavicle nodes: the pre-T3 joints only). */
 export function rigNodes(r: RigLike): TransformNode[] {
-  return [
+  const out = [
     r.root, r.body, r.hips, r.spine, r.torso, r.neck, r.headNode, r.shoulderL, r.elbowL, r.wristL, r.shoulderR,
     r.elbowR, r.wristR, r.hipL, r.kneeL, r.ankleL, r.hipR, r.kneeR, r.ankleR, r.toeL, r.toeR,
   ];
+  if (r.clavL && r.clavR) out.push(r.clavL, r.clavR);
+  return out;
 }
 
-/** Copies the rig's local transforms into `out` (RIG_JOINTS order, TRS each; the root is the frame: zero). No allocation. */
+const SH_L = RIG_JOINTS.indexOf('shL');
+const SH_R = RIG_JOINTS.indexOf('shR');
+const CLAV_L = RIG_JOINTS.indexOf('clavL');
+const CLAV_R = RIG_JOINTS.indexOf('clavR');
+
+/**
+ * Copies the rig's local transforms into `out` (RIG_JOINTS order, TRS each; the root is the frame: zero; joints the
+ * rig lacks: identity). (anim-skeleton S2) A turned clavicle has carried its shoulder about the SC point in the rig;
+ * the skin's shoulder follows its own clavicle joint, so the shoulder's position goes in as before that carry (an
+ * identity clavicle: untouched, bit for bit). No allocation.
+ */
 export function readRig(nodes: readonly TransformNode[], out: Float64Array): void {
   out[0] = 0; out[1] = 0; out[2] = 0; out[3] = 0; out[4] = 0; out[5] = 0; out[6] = 1;
   for (let j = 1; j < nodes.length; j++) {
@@ -76,6 +103,27 @@ export function readRig(nodes: readonly TransformNode[], out: Float64Array): voi
     if (q) { out[o + 3] = q.x; out[o + 4] = q.y; out[o + 5] = q.z; out[o + 6] = q.w; }
     else { out[o + 3] = 0; out[o + 4] = 0; out[o + 5] = 0; out[o + 6] = 1; }
   }
+  for (let j = Math.max(nodes.length, RIG_T3); j < RIG_JOINTS.length; j++) {
+    const o = j * TRS;
+    out[o] = 0; out[o + 1] = 0; out[o + 2] = 0; out[o + 3] = 0; out[o + 4] = 0; out[o + 5] = 0; out[o + 6] = 1;
+  }
+  unclav(out, CLAV_L, SH_L);
+  unclav(out, CLAV_R, SH_R);
+}
+
+/** The shoulder's chest-frame position before its clavicle's turn about the SC point (identity: nothing). */
+function unclav(out: Float64Array, c: number, sh: number): void {
+  const o = c * TRS;
+  const qx = -out[o + 3]!, qy = -out[o + 4]!, qz = -out[o + 5]!, qw = out[o + 6]!;
+  if (qx === 0 && qy === 0 && qz === 0 && qw === 1) return;
+  const s = sh * TRS;
+  const x = out[s]! - out[o]!, y = out[s + 1]! - out[o + 1]!, z = out[s + 2]! - out[o + 2]!;
+  const tx = 2 * (qy * z - qz * y);
+  const ty = 2 * (qz * x - qx * z);
+  const tz = 2 * (qx * y - qy * x);
+  out[s] = out[o]! + x + qw * tx + (qy * tz - qz * ty);
+  out[s + 1] = out[o + 1]! + y + qw * ty + (qz * tx - qx * tz);
+  out[s + 2] = out[o + 2]! + z + qw * tz + (qx * ty - qy * tx);
 }
 
 // ---- files: fetched and parsed once per URL (CPU side, shared by every scene) ----
@@ -161,6 +209,9 @@ export interface LodAsset {
   glowBase: Color3;
   /** (feature/weapons) Per source mesh: its morph targets as absolute positions / normals (shared), or null. */
   morphs: (MorphData | null)[];
+  /** (anim-skeleton S2) The file's finger joints and axes (null: none, LOD2), and its goggle joints' slots. */
+  fingers: FingerRig | null;
+  goggleSlots: Int32Array;
 }
 
 interface MorphData {
@@ -273,7 +324,9 @@ export function buildLodAsset(scene: Scene, model: GlbModel, lod: number, label:
     parts.push(part);
     materialOf.push(g.material);
   }
-  return { lod, setup, sources, materialOf, parts, materials, glow, glowBase, morphs };
+  const fingers = fingerRig(setup.names, setup.bindPos, setup.bindRot);
+  const goggleSlots = Int32Array.from(setup.names.flatMap((nm, s) => (nm === 'goggleUse' || nm === 'goggleStow' ? [s] : [])));
+  return { lod, setup, sources, materialOf, parts, materials, glow, glowBase, morphs, fingers, goggleSlots };
 }
 
 export function disposeLodAsset(a: LodAsset): void {
@@ -332,9 +385,12 @@ interface LodInstance {
   wrapR: MorphTarget[];
   relaxR: MorphTarget[];
   relaxL: MorphTarget[];
+  /** (anim-skeleton S2) The finger values the poser's finger rotations were last built from (NaN: never). */
+  fingIn: Float64Array;
 }
 
 const RANGE: [number, number] = [0, 0];
+const D2R = Math.PI / 180;
 
 /** (anim-cleanup) One influence on every target of a list (no allocation). */
 function setInfluence(ts: MorphTarget[], v: number): void {
@@ -386,6 +442,8 @@ export class OperatorFigure {
   private disposed = false;
   /** Called with each LOD's meshes as they are built (shadow casters, 11e). */
   onMeshes: ((meshes: readonly Mesh[]) => void) | null = null;
+  /** (anim-skeleton S2) The hands' per-finger values when the rig gives none (from its grip closures). */
+  private readonly fingBuf = new Float64Array(FING_LEN);
 
   /** Build it right after the rig, before the rig's first pose: the rig's translations are measured from here. */
   constructor(private readonly lib: OperatorLibrary, rig: RigLike, readonly manifest: OperatorManifest, readonly name: string) {
@@ -530,7 +588,7 @@ export class OperatorFigure {
     });
     const poser = new OperatorPoser(S);
     poser.setRest(this.rigRest);
-    const inst: LodInstance = { asset: a, root, nodes, skeleton, meshes, poser, glowMat, head, gripR, gripL, wrapR, relaxR, relaxL };
+    const inst: LodInstance = { asset: a, root, nodes, skeleton, meshes, poser, glowMat, head, gripR, gripL, wrapR, relaxR, relaxL, fingIn: new Float64Array(FING_LEN).fill(Number.NaN) };
     this.applyGoggle(inst, this.goggle.pose);
     this.applyHead(inst);
     if (this.heatK > 0) this.applyHeat(inst);
@@ -577,6 +635,22 @@ export class OperatorFigure {
     const l = this.current >= 0 ? this.lods[this.current] : null;
     if (!l || !this.enabled) return;
     readRig(this.rig, this.rigBuf);
+    // (anim-skeleton S2) the fingers (A9: the hands close on the grips through the bones) and the goggle's gear offset
+    const fr = l.asset.fingers;
+    if (fr) {
+      // rebuilt only when a value moved (a held grip or an open hand costs a 20-value compare)
+      const fv = this.rigLike.fingers ?? this.gripShape();
+      const last = l.fingIn;
+      let moved = false;
+      for (let i = 0; i < FING_LEN; i++) {
+        if (fv[i] !== last[i]) {
+          moved = true;
+          last[i] = fv[i]!;
+        }
+      }
+      if (moved) fingerPose(fr, fv, l.poser.extraQ, l.poser.extraOn);
+    }
+    if (l.asset.goggleSlots.length) this.goggleOffset(l);
     const out = l.poser.solve(this.rigBuf);
     for (let s = 0; s < l.nodes.length; s++) {
       const t = l.nodes[s]!;
@@ -584,9 +658,10 @@ export class OperatorFigure {
       t.position.set(out[o]!, out[o + 1]!, out[o + 2]!);
       t.rotationQuaternion!.set(out[o + 3]!, out[o + 4]!, out[o + 5]!, out[o + 6]!);
     }
-    // (feature/weapons) the fingers close round what the hands hold
+    // (feature/weapons) the fingers close round what the hands hold; (anim-skeleton S2) a file with finger joints closes
+    // them through the bones and keeps its grip morphs at 0 (A9: not twice)
     const hg = this.rigLike.handGrip;
-    if (hg) {
+    if (hg && !fr) {
       // (anim-cleanup) the right hand: the trigger shape on a weapon's grip, a full wrap on anything else it holds; both
       // hands relaxed (lightly curled) when free; a file without the wrap / relax targets keeps the trigger shape
       const trig = this.rigLike.rightTrigger !== false || l.wrapR.length === 0 ? 1 : 0;
@@ -601,6 +676,42 @@ export class OperatorFigure {
       const b = this.glowTint ?? l.asset.glowBase;
       l.glowMat.emissiveColor.set(b.r * k, b.g * k, b.b * k);
       this.glowShown = k;
+    }
+  }
+
+  /** (S2) The hands' shape from the rig's grip closures (a rig without per-finger values). */
+  private gripShape(): Float64Array {
+    const hg = this.rigLike.handGrip;
+    handGripShape(hg ? hg.l : 0, hg ? hg.r : 0, this.rigLike.rightTrigger !== false, this.fingBuf);
+    return this.fingBuf;
+  }
+
+  /**
+   * (S2) The goggle joints take this body's goggle pose's gear offset (head frame, about the pivot): the rig's copy made
+   * inside its own animate window (`goggleOff`), else the table (a rig without one). No allocation.
+   */
+  private goggleOffset(l: LodInstance): void {
+    const src = this.rigLike.goggleOff;
+    const pose = this.goggle.pose;
+    let x: number, y: number, z: number, p: number, yw: number, r: number;
+    if (src) {
+      const k = pose === 'stowed' ? 0 : 6;
+      x = src[k]!; y = src[k + 1]!; z = src[k + 2]!; p = src[k + 3]!; yw = src[k + 4]!; r = src[k + 5]!;
+    } else {
+      const g = GOGGLE_OFFSET[pose];
+      x = g.x; y = g.y; z = g.z; p = g.pitch; yw = g.yaw; r = g.roll;
+    }
+    const on = x !== 0 || y !== 0 || z !== 0 || p !== 0 || yw !== 0 || r !== 0 ? 1 : 0;
+    const P = l.poser;
+    const gs = l.asset.goggleSlots;
+    for (let i = 0; i < gs.length; i++) {
+      const s = gs[i]!;
+      P.extraOn[s] = on;
+      if (!on) continue;
+      eulerQuat(p * D2R, yw * D2R, r * D2R, P.extraQ, s * 4);
+      P.extraT[s * 3] = x;
+      P.extraT[s * 3 + 1] = y;
+      P.extraT[s * 3 + 2] = z;
     }
   }
 

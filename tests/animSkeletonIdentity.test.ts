@@ -1,0 +1,34 @@
+/**
+ * anim-skeleton S2 (A5): every joint that existed before T3 is bit-identical after the runtime rig change, untuned: the
+ * rig's world matrices and local TRS and the poser's output on every LOD file, for every keyed clip, a set of
+ * procedural states and a partner-style sequence. The fixture was captured by `tests/helpers/animSkeletonIdentity.ts`
+ * on the pre-S2 code (4e3cbbda) with `ANIM_SKELETON_CAPTURE=1`.
+ */
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
+
+const FIXTURE = 'tests/fixtures/anim-skeleton-identity.json';
+const CAPTURE = process.env.ANIM_SKELETON_CAPTURE === '1';
+
+describe('anim-skeleton: bit identity of the pre-T3 joints (A5)', () => {
+  it.skipIf(!CAPTURE)('captures the fixture (pre-S2 code only)', async () => {
+    const got = await runIdentity();
+    writeFileSync(FIXTURE, `${JSON.stringify(got, null, 1)}\n`);
+  });
+
+  it.skipIf(CAPTURE)('every clip, state and the partner path hash as before S2', async () => {
+    expect(existsSync(FIXTURE)).toBe(true);
+    const want = JSON.parse(readFileSync(FIXTURE, 'utf8')) as IdentityFixture;
+    const got = await runIdentity();
+    expect(Object.keys(got).sort()).toEqual(Object.keys(want).sort());
+    expect(Object.keys(got).length).toBeGreaterThanOrEqual(28 + 10 + 1);
+    for (const id of Object.keys(want)) {
+      const w = want[id]!;
+      const g = got[id]!;
+      expect(g.last, `${id} last rig frame`).toEqual(w.last);
+      expect(g.rig, `${id} rig`).toBe(w.rig);
+      expect(g.poser, `${id} poser`).toEqual(w.poser);
+    }
+  });
+});

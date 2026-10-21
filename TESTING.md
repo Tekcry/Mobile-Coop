@@ -162,6 +162,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
 
+### Wren's hands and joints (anim-skeleton S1+S2)
+- [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
+  the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.
+- [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
+- [ ] Co-op: the partner's hands also close on their gun.
+- [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
+
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
   before.
