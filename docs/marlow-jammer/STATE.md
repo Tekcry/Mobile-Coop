@@ -1,14 +1,12 @@
 # marlow-jammer - state (resume point)
 
-**Now:** fix round 2 done (2026-10-22): master 4.44.0 merged (00c4a3fc; PROTOCOL_VERSION 26 stands); the
-stale-position gate hole closed (`HALL_SENT`, a sent-back player counts again only after a reported position in the
-entry lobby or hallway and a 3 s hold); the x 6 hallway lamp made unjammable (J4: all station 3 lamps out let a runner
-beat the camera). npm run check pass (2536 tests). PAUSED (orchestrator, ~02:30, usage pacing until after the 04:00
-reset): no e2e run this round.
-**Next:** after the orchestrator says resume: e2e-ctcourse (the new stale-report assert) and the full `npm run e2e` on
-the laptop (JOBS=2, solo reruns for failures); then a light final check of fix round 2 (one fresh checker, review +
-the e2e results), the PR, tell "Night Shift | Orchestrator", ask it for the bay 3 GPU look on the desktop; ask
-Michael (through the orchestrator) to confirm J2-J4.
+**Now:** PR open (2026-10-22). IR cameras (Michael M3, J4 undone) fc980dd4: check + full e2e green at JOBS=2; final
+light checker PASS. Master 4.47.1 merged (b8a68b27, CHANGELOG only; tsc clean); check + full e2e rerunning on the merged
+head on the laptop.
+**Next:** the full e2e result on the merged head to the orchestrator; the bay 3 GPU look on the desktop (orchestrator);
+the orchestrator merges. Follow-ups for Michael: the camera IR is not shown visually (night vision); the 3 s hold before
+a sent-back partner counts again; the Kestrel security tool still tints cones by light (paused, G53);
+`docs/kestrel/S0-security-spec.md` quotes the old light-dependent camera line.
 **Open:** PROTOCOL_VERSION vs the cloud B + M PR (whichever merges second takes the next number); item 6 overlap on the
 bay 3 floor lines (BRIEF "Limits").
 
@@ -18,6 +16,8 @@ bay 3 floor lines (BRIEF "Limits").
 - 2026-10-21: checker 1 FIX (bay 3 passable unjammed); fix round 1 d796a488 (J2 send-back, host LOS, client cue
   assert, forward-only mirror, allocations).
 - 2026-10-22: checker 2 FIX (stale-position gate hole); fix round 2 + master 4.44.0 merge (J4 lamp).
+- 2026-10-22: Michael M1-M3 (J2, J3 approved; J4 rejected); IR cameras fc980dd4; final checker PASS; master 4.47.1
+  merged b8a68b27; PR.
 
 ## Resume prompt
 ```
