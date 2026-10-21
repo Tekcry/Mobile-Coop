@@ -1,7 +1,7 @@
 # anim-gear - state
 
 ## Now
-PAUSED (orchestrator pacing, 00:40): implementer done (REPORT.md: check and e2e-studio, e2e-anim, e2e-weapons-carry pass), no checker yet. Waiting: the orchestrator's OK for `src/weapons/weaponModel.ts` (31 lines, the per-frame gear placement). Then the checker, merge master once #90 lands, full e2e on the laptop, PR.
+PAUSED (orchestrator pacing, 00:40): implementer done (REPORT.md: check and e2e-studio, e2e-anim, e2e-weapons-carry pass), no checker yet. The orchestrator approved `src/weapons/weaponModel.ts` (~00:45; named in the PR body, no per-frame allocation) and asked to drop or hide the `pouches` group (nothing visible moves on Wren): do it before the checker. Then the checker (when the meter allows), merge master once #90 lands, full e2e on the laptop, PR.
 
 ## Next
 1. Implementer (one slice): the Gear section, the rig hooks, the pouches, the bake into `animBase.ts` `gear`, tests.
