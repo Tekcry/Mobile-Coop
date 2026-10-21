@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-goggle
+## 4.49.1 - Animation tuner: worn-goggle offsets in the Gear tab, baked (2026-10-22, PR #102)
 - Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
   turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
   the goggle's own pivot. It bakes into the animation base table like the other Gear rows; your own Wren shows it
