@@ -1,10 +1,11 @@
 # havok-stall - state
 
 ## Now
-Implementer done (REPORT.md): no Havok spin; the desktop's software GL runs the page at 1-4 fps and e2e-menus ran
-past the 600 s suite limit (the runner prints no KILLED line at E2E_JOBS=1). Fixed in the test (sim-time waits, the
-idle menu page blanked): e2e-menus 312 s alone; the loop hardened against NaN. Next: a fresh checker (lean: one agent
-at a time, after #90's fix).
+Checker PASS (CHECK.md: check 140 s; e2e-menus 287 s and e2e-levels 12 s alone on the desktop). PR open, its full
+e2e on the laptop. Polish (non-blocking): screenshot the match page on a failure in e2e-menus (line 660 shoots the
+blanked menu page); `loop.manual = false` after the e2e-levels chases; the step-cap tests could assert 4; `loop.ts`
+timeScale Infinity with a zero interval still gives NaN (nothing sets it); run-e2e.mjs should print KILLED when
+streaming (outside the area).
 
 ## Next
 1. Implementer: reproduce (long real-time pause, then resume), find the cause, fix in the loop or controller; the
@@ -12,6 +13,8 @@ at a time, after #90's fix).
 2. Fresh checker, one fix round; e2e-menus in a full run on the desktop; full e2e on the laptop; PR.
 
 ## Done
+- 2026-10-22 01:00: checker PASS (CHECK.md).
+- 2026-10-22 00:40: implementer (3ec2e86a): the diagnosis (the suite limit on slow software GL, not a Havok spin), the e2e-menus and e2e-levels fixes, the loop NaN guard, the backlog lines (REPORT.md).
 - 2026-10-21 22:05: branch from master 1414517c (4.42.0); BRIEF, STATE.
 
 ## Resume prompt
