@@ -15,6 +15,15 @@ S1 checker, then S2 (runtime rig): clavicle and finger nodes, per-finger drive, 
   adds clavicle and finger joints to `tuneJoints.ts` JOINTS and per-finger curl / spread to `tuneHands.ts` (B's now).
 - #83 (T1a) merged as 4.36.0 (orchestrator, 2026-10-21): merge master into this branch after S1 (not mid-slice); the
   A-file edits (S3 / S4) are open; tell Course Ready (on T2, tuner UI) the exact lines before editing.
+- Goggle offset hook (orchestrator request, BRIEF item 22 is B's): `goggle.ts` GOGGLE_OFFSET / setGoggleOffset /
+  goggleOffsetIdentity pushed (33a90d71); S1 adds skin joints goggleStow / goggleUse under the head; S2 applies it, read
+  per figure inside that rig's animate window (a per-figure copy if the poser runs after all rigs); confirm the read
+  point to CT Core when S2 is pushed. CT Core ships the goggle rows in a small PR after T3 reaches master.
+- Track A items 23 (key timing, feature/marlow-key-timing) and 25 (add / delete keys) change tuneKeys*, the key
+  format, build.mjs and key_clip.py: S3 / S4 rebase on both after they land (Course Ready tells us); our planned
+  fields and channels were sent to it so it keeps an optional-channel path like `wrist`.
+- Test placement (orchestrator, 2026-10-21): full e2e goes to the laptop first (Character Build, E2E_JOBS=2); on the
+  desktop only at E2E_JOBS=1 when the laptop is busy. Blender and GPU looks stay on the desktop.
 - Reported to the orchestrator: LOD0-2 lost their grip morphs in the 10-20 rebake (BRIEF "Facts").
 
 ## Done
