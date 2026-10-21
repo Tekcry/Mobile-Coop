@@ -24,6 +24,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-19 dashboard)
+- Focus (2026-10-21 ~19:20): "We'll focus on fine tuning the animations, gameplay, and bunker for now." Dev tools + level editor on Later.
 - Phone tuner (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for phones only? Touch input and controller will be used." Chose "Yes, tuner only": the animation tuner and Anim Studio get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/marlow-bays/BRIEF.md item 26).
 - Laptop (2026-10-21 ~17:45): "I'm not on the laptop any more, it can be loaded up." Until Michael says otherwise the laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job lead's run when free).
 - Machines (2026-10-21 16:40): "i dont care about usage on the desktop, i use the laptop." Desktop = main test machine at full power (full e2e E2E_JOBS=2); laptop = overflow only (CLAUDE.md "Machines").
@@ -113,6 +114,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
 
 ## Later (after the prototype)
+- **Dev tools menu + general level editor** (Michael 2026-10-21 ~19:20: "Not yet, add to roadmap. We'll focus on fine tuning the animations, gameplay, and bunker for now"): a Dev tools menu (tuner, Anim Studio, level editor); Kestrel's editor generalised to load any map and edit its MapLayout (spawns, guards and patrols, props, lights with a rebake, cameras, lasers, pickups, hide spots) plus added blocks, saved as a per-map override file the game loads (medium, ~1-2 days). Moving or deleting coded walls needs a per-map conversion to the blocks format (large).
 - Moth as player 2's character (2-3 days; goggle purple; a scratch prototype first, when nothing urgent waits).
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
 - WebGPU (Michael, 2026-10-19: measure first): the Sector Ops perf run on the PC (full section, 20-25 guards) decides. If rendering is the bottleneck, a 1-day WebGPU trial behind a flag (Babylon 9 WebGPUEngine, snapshot rendering; shader conversion bundled, no CDN). If the sim is the bottleneck, WebGPU does not help. Not before the core-loop playtest.
