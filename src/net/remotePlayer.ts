@@ -4,6 +4,7 @@ import { hitVolumes } from '../player/proportions';
 import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
 import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
+import { HALL_BACK_HOLD } from '../game/jammer';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { PlayerRef } from '../ai/enemy';
 import type { WeaponId } from '../weapons/weaponDefs';
@@ -167,6 +168,14 @@ export class RemotePlayer implements Damageable {
   /** (step 12 r1) The peek blend amount from the time since the peek bit came on (0..1). */
   private peekK = 0;
 
+  /** (marlow-jammer fix round 1) Moved by the host (the camera hallway's send-back): alive, health kept. */
+  moveTo(x: number, y: number, z: number): void {
+    this.feet.set(x, y, z);
+    // (fix round 2) the camera hallway holds the player "sent back" for as long as this grace (stale positions)
+    this.allowTeleport(HALL_BACK_HOLD);
+    this.sync();
+  }
+
   allowTeleport(seconds = 1.5): void {
     this.teleportGrace = seconds;
   }
@@ -241,8 +250,11 @@ export class RemotePlayer implements Damageable {
   /** Hits that do not hurt (team-mates); course friendly fire (D38) replaces it. */
   friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
 
+  /** (marlow-bays R2) Dropped mid-match and held by the host: frozen, takes no damage, until the player rejoins. */
+  held = false;
+
   applyDamage(h: HitInfo): DamageResult {
-    if (!this.alive || this.friendly(h)) return { dealt: 0, killed: false };
+    if (!this.alive || this.held || this.friendly(h)) return { dealt: 0, killed: false };
     const rolling = ((this.state?.f ?? 0) & PF.roll) !== 0;
     const dealt = this.health.damage(h.amount * this.damageMul * (rolling ? 0.5 : 1));
     if (dealt > 0) this.onDamaged?.(h, dealt);

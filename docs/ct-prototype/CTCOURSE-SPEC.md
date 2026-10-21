@@ -53,7 +53,7 @@ Positions: bay origin x0 = 22 (n - 1), z north, y up. "No light change" = under 
 | D9 | Pendant rods (0.04 m, two per pendant) | Hangers for the high halls' and S3's pendant fittings | None (no light change) | 16.8.1 |
 | D10 | Bulkhead cages (thin bars round each airlock fitting) | Vandal guard on a lock's lamp | None (no light change) | 16.8.1 |
 | M1 | S2 / S5 / S7: yellow band on the wall face under the lip over the leg-up square | The leg-up spot's mark carried up the wall (the same element as the floor square) | Where to boost (no light change) | 2.5 |
-| M2 | S3: two red floor lines on the camera's +-30 deg sweep edges | Painted coverage edges of a training camera | What the camera sweeps (no light change) | 8 |
+| M2 | Removed (marlow-jammer; Michael 2026-10-21: the camera's red view overlay shows its area, no painted floor lines). Was: S3's two red floor lines on the camera's sweep edges | - | - | 8 |
 | M3 | S4: emitter plates with three red beam heads on the gap's wall ends | The laser band's emitters and receivers | Where the beams run (no light change) | 16.3.1 |
 | M4 | S5: the roof hatch's cover, open flat beside it (0.04 m, collide=false) | A roof hatch has a cover (16.3.2) | None: the hatch, the holder's square and the hang-down are unchanged | 16.3.2 |
 | M5 | S6: white "pair" line painted from scanner A to scanner B | The vault vestibule's two-person rule | The scanners are a pair (no light change) | 8 |

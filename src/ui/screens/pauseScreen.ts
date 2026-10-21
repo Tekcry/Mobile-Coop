@@ -33,6 +33,8 @@ export interface PauseOpts {
   restartCheckpoint?: () => boolean;
   /** (marlow-bays item 4) Co-op: "Return to lobby", ending the match for every connected player. */
   lobby?: () => void;
+  /** (marlow-bays R1) Co-op: the room code (the main menu offers it again if either player drops). */
+  roomCode?: string;
 }
 
 /** (marlow-bays A1) The line a co-op client sees on a host-only row. */
@@ -175,6 +177,8 @@ export class PauseScreen extends MenuScreen {
     this.noticeEl.hidden = true;
     this.body.prepend(this.noticeEl);
     if (opts.coop) this.body.append(h('div', { class: 'ms-note dim ps-coop', text: 'The mission keeps running.' }));
+    // (marlow-bays R1) the room code for a rejoin (Main menu > Rejoin / Resume hosting, or Co-op > Join with code)
+    if (opts.roomCode) this.body.append(h('div', { class: 'ms-note ps-room', text: `Room ${opts.roomCode}. If either player drops, rejoin from the main menu with this code.` }));
     if (opts.notice) this.setNotice(opts.notice);
     // a reconnect clears the line; a key or click does too (MD12)
     this.noticeOff = app.input.events.on('padConnected', () => this.setNotice(''));

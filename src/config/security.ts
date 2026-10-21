@@ -32,6 +32,13 @@ export const CAMERA = {
   sweepSpeed: 15 * DEG,
   /** SN15 pause at each end of a sweep (s). */
   sweepPause: 2.0,
+  /**
+   * (marlow-jammer, Michael M3) The camera's own IR illuminator: inside its range and cone it reads every body at this
+   * light level, whatever the lamps do (jammed, shot or dark corners). 1 = fully lit: the lit detection rates are
+   * unchanged (the perception light factor is already 1 at `LIGHT.lit` 0.6 and above). Guards and the light meter still
+   * read the lamps.
+   */
+  irLight: 1,
 } as const;
 
 /** SN60 limits per map. */
