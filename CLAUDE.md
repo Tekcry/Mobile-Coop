@@ -99,7 +99,8 @@ logic e2e and design only; every GPU check there is "pending PC run".
 | Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
 | A step | `npm run check` once at the step's end + the suites the step names, or `npm run e2e:quick` | desktop, or the laptop test runner when the desktop lock is held |
 | A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
-| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
+| A PR touching only the tuner / Anim Studio (`src/ui/animTune*`, studio files) or tests (Michael, 2026-10-22) | CI `check` + the suites the change touches (e2e-anim, e2e-studio, or the edited suite) | desktop or laptop |
+| Any other PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
 | Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
 
 **Branches and previews.** Master is the live game and the only base (G83): one branch per job, cut from master, one
