@@ -30,15 +30,15 @@ this job fixes the existing Sector Ops warehouse and the security devices.
   bake). GPU look before / after on the desktop.
 - **C, cameras and lasers (3, 4, 5):** the camera cue (the red grid) is drawn only within the camera's real range and
   view cone, matching what the camera can detect; cameras pitch down to watch a set floor section; the grid made very
-  subtle (low alpha, thin lines); lasers seen only in the vision mode that sees IR (assumed: night vision; undo:
-  always visible), and a laser break raises the alarm and never deals damage. Marlow Yard keeps the same rules.
+  subtle (low alpha, thin lines); lasers seen only in night vision (IR beams; Michael chose "Night vision" 02:00;
+  invisible otherwise), and a laser break raises the alarm and never deals damage. Marlow Yard keeps the same rules.
 - **P, laser panels (6):** each laser group has a power panel nearby, out of plain sight and hard to reach (behind
   cover, above, through a vent or a climb); the jammer cuts the lasers while jammed (the jammer rules of slice J);
   electro (EMF) vision highlights panels.
-- **S, security room (7):** every map with cameras gets a security room with a guard at monitors; taking him out (any
-  takedown, non-lethal or lethal) lets a player use the console to switch the cameras off for the section. Assumed
-  (undo by telling the orchestrator): "(but in sector ops it's not possible)" means it is missing in Sector Ops today
-  and should be added there.
+- **S, security room (7):** every map with cameras except Sector Ops gets a security room with a guard at monitors; taking him out (any
+  takedown, non-lethal or lethal) lets a player use the console to switch the cameras off for the section. Michael (02:00)
+  chose "Not in Sector Ops": in Sector Ops cameras cannot be shut off (no security room needed there).
+
 - **W, wheel (8):** the gadget wheel's default selection is the goggles / vision mode: hold L1 and press A to cycle
   vision modes without the stick; releasing the stick returns the wheel to the goggles, so no other selection is held.
   Keyboard / mouse equivalent on the wheel key.
