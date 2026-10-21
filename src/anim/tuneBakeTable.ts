@@ -165,8 +165,9 @@ const GUN_AXIS: readonly [string, string][] = [
 ];
 for (const [id, f] of GUN_AXIS) {
   rules.push(
-    rule('gun', id, ['rifle.lowReady'], [e(GRAPH, `READY_POSES.low.${f}`, 'add')], 'close: the open-ground low carry; the high / compressed carries and the wall tuck keep theirs'),
-    rule('gun', id, ['pistol.lowReady'], [e(GRAPH, `PISTOL_READY.${f}`, 'add')]),
+    // (anim-bake-1022) Wren's own copies: a bake never touches the guards' READY_POSES.low / PISTOL_READY
+    rule('gun', id, ['rifle.lowReady'], [e(GRAPH, `WREN_READY_LOW.${f}`, 'add')], 'close: the open-ground low carry; the high / compressed carries and the wall tuck keep theirs'),
+    rule('gun', id, ['pistol.lowReady'], [e(GRAPH, `WREN_PISTOL_READY.${f}`, 'add')]),
   );
 }
 for (const [id, f] of [

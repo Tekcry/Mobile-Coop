@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { newKeyedPose, sampleKeyed, type KeyedClip } from '../src/anim/keyed';
-import { KEYED_JOG } from '../src/anim/clips/keyed/jog';
+import { KEYED_SNEAK } from '../src/anim/clips/keyed/sneak';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
 import { KEY_CLIPS } from '../src/anim/tuneKeysMeta';
 import { applyKeyEdits, editedClips, keyFileText, keyGroupId, keyHalvesDiffer, keyMetaText, keyMirrorGroupId, keyValuesOf, readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
@@ -20,6 +20,10 @@ const DIR = path.join(__dirname, '..', 'scripts', 'anim-keys', 'keys');
 const text = (n: string): string => readFileSync(path.join(DIR, `${n}.json`), 'utf8');
 const file = (n: string): KeyFile => JSON.parse(text(n)) as KeyFile;
 
+// (anim-bake-1022) The live preview, store and bake tests run on sneak: a mirrored clip with 4 own keys evenly spaced
+// (bake frames 0, 6, 12, 18 of 48), the layout JOG describes. They ran on jog until Michael's 2026-10-22 tune retimed
+// jog's key 3 (phase 0.25 -> 0.1458, one bake frame after key 2). A tune that moves sneak's keys fails the precondition
+// test below: move these tests to another evenly spaced clip.
 const JOG = { phases: [0, 0.125, 0.25, 0.375], mirror: true };
 const FULL = { phases: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875], mirror: false };
 
@@ -47,6 +51,11 @@ afterEach(() => {
 });
 
 describe('item 23: the retime clamp and the mirror partner (pure)', () => {
+  it('(anim-bake-1022) precondition: the test clip (sneak) is keyed as JOG describes (read from the tuner meta)', () => {
+    const c = KEY_CLIPS.find((x) => x.name === 'sneak')!;
+    expect({ phases: c.phases, mirror: c.mirror, frames: c.frames }).toEqual({ ...JOG, frames: 32 });
+  });
+
   it('no moves: every key where it was baked; a move clamps between the neighbours; the first key is fixed', () => {
     const pos: number[] = [];
     expect(keyTimeSolve(JOG, [0, 0, 0, 0, 0, 0, 0, 0], true, pos)).toBe(false);
@@ -104,60 +113,60 @@ describe('item 23: the retime clamp and the mirror partner (pure)', () => {
 
 describe('item 23: the live preview', () => {
   it('a retime moves the key (and its mirror) in the readout and the studio, the pose comes along, a reset is bit-identical', () => {
-    const base = sweep(KEYED_JOG);
+    const base = sweep(KEYED_SNEAK);
     const walk = sweep(KEYED_WALK);
-    const jog = keyClip('jog')!;
-    expect(keyReadout(jog, 1)).toBe('jog - key 2 of 8 (mirror of 6), frame 4');
-    const atKey = pose(KEYED_JOG, 0.125);
-    const atKey6 = pose(KEYED_JOG, 0.625);
-    expect(tuneKeysRetime('jog', 1, 3)).toBe(true);
-    expect(tuneGet(keyGroupId('jog', 1), KEY_TIME_ID)).toBe(3);
-    expect(KEYED_JOG.keyTime).not.toBeNull();
-    expect(keyPhase(jog, 1)).toBe(9 / 48);
-    expect(keyPhase(jog, 5)).toBe(33 / 48);
-    expect(keyFrame(jog, 1)).toBe(6);
-    expect(keyReadout(jog, 1)).toBe('jog - key 2 of 8 (mirror of 6), frame 6');
+    const sneak = keyClip('sneak')!;
+    expect(keyReadout(sneak, 1)).toBe('sneak - key 2 of 8 (mirror of 6), frame 4');
+    const atKey = pose(KEYED_SNEAK, 0.125);
+    const atKey6 = pose(KEYED_SNEAK, 0.625);
+    expect(tuneKeysRetime('sneak', 1, 3)).toBe(true);
+    expect(tuneGet(keyGroupId('sneak', 1), KEY_TIME_ID)).toBe(3);
+    expect(KEYED_SNEAK.keyTime).not.toBeNull();
+    expect(keyPhase(sneak, 1)).toBe(9 / 48);
+    expect(keyPhase(sneak, 5)).toBe(33 / 48);
+    expect(keyFrame(sneak, 1)).toBe(6);
+    expect(keyReadout(sneak, 1)).toBe('sneak - key 2 of 8 (mirror of 6), frame 6');
     // the studio pauses on the key at its new time and steps onto it
-    expect(studioKeyPhase('jog', 0, 1, 0)).toBe(9 / 48);
-    expect(keyStep(jog, 0, 1)).toBe(1);
+    expect(studioKeyPhase('sneak', 0, 1, 0)).toBe(9 / 48);
+    expect(keyStep(sneak, 0, 1)).toBe(1);
     const info = { keys: 0, key: -1, onKey: false };
-    studioKeyInfo('jog', 9 / 48, info);
+    studioKeyInfo('sneak', 9 / 48, info);
     expect(info.key === 1 && info.onKey).toBe(true);
     // the key's pose at its new time; the old frame now between keys
-    expect(pose(KEYED_JOG, 9 / 48)).toEqual(atKey);
-    expect(pose(KEYED_JOG, 33 / 48)).toEqual(atKey6);
-    expect(pose(KEYED_JOG, 0.125)).not.toEqual(atKey);
+    expect(pose(KEYED_SNEAK, 9 / 48)).toEqual(atKey);
+    expect(pose(KEYED_SNEAK, 33 / 48)).toEqual(atKey6);
+    expect(pose(KEYED_SNEAK, 0.125)).not.toEqual(atKey);
     expect(sweep(KEYED_WALK)).toEqual(walk); // other clips untouched
     // the timing info the panel shows
-    const ti = tuneKeysTimeInfo('jog', 1)!;
+    const ti = tuneKeysTimeInfo('sneak', 1)!;
     expect(ti).toMatchObject({ owner: 1, pos: 9, base: 6, lo: 1, hi: 11, fixed: false, frame: 6, frames: 32, partner: 5 });
-    expect(tuneKeysTimeInfo('jog', 5)).toMatchObject({ owner: 1, pos: 33, base: 30, lo: 25, hi: 35, partner: 1 });
+    expect(tuneKeysTimeInfo('sneak', 5)).toMatchObject({ owner: 1, pos: 33, base: 30, lo: 25, hi: 35, partner: 1 });
     // clamped: against the next key, then no further; the first key never moves
-    expect(tuneKeysRetime('jog', 1, 10)).toBe(true);
-    expect(keyPhase(jog, 1)).toBe(11 / 48);
-    expect(tuneKeysRetime('jog', 1, 1)).toBe(false);
-    expect(tuneKeysRetime('jog', 0, 1)).toBe(false);
-    expect(tuneKeysRetime('jog', 4, 1)).toBe(false);
+    expect(tuneKeysRetime('sneak', 1, 10)).toBe(true);
+    expect(keyPhase(sneak, 1)).toBe(11 / 48);
+    expect(tuneKeysRetime('sneak', 1, 1)).toBe(false);
+    expect(tuneKeysRetime('sneak', 0, 1)).toBe(false);
+    expect(tuneKeysRetime('sneak', 4, 1)).toBe(false);
     // back: bit-identical, and the time state is reused in place
-    const kt = KEYED_JOG.keyTime;
-    tuneSet(keyGroupId('jog', 1), KEY_TIME_ID, 0);
+    const kt = KEYED_SNEAK.keyTime;
+    tuneSet(keyGroupId('sneak', 1), KEY_TIME_ID, 0);
     tuneKeysFrame();
     tuneKeysSync();
-    expect(KEYED_JOG.keyTime).toBeNull();
-    expect(KEY_TIMES.has('jog')).toBe(false);
-    expect(sweep(KEYED_JOG)).toEqual(base);
-    expect(keyReadout(jog, 1)).toBe('jog - key 2 of 8 (mirror of 6), frame 4');
-    tuneKeysRetime('jog', 2, -1);
-    expect(KEYED_JOG.keyTime).toBe(kt);
+    expect(KEYED_SNEAK.keyTime).toBeNull();
+    expect(KEY_TIMES.has('sneak')).toBe(false);
+    expect(sweep(KEYED_SNEAK)).toEqual(base);
+    expect(keyReadout(sneak, 1)).toBe('sneak - key 2 of 8 (mirror of 6), frame 4');
+    tuneKeysRetime('sneak', 2, -1);
+    expect(KEYED_SNEAK.keyTime).toBe(kt);
   });
 
   it('a key edit on a retimed clip shows at the key\'s new time', () => {
-    const p0 = pose(KEYED_JOG, 0.125); // the key's baked pose
-    tuneKeysRetime('jog', 1, 3);
-    tuneSet(keyGroupId('jog', 1), 'spine_pitch', 10);
+    const p0 = pose(KEYED_SNEAK, 0.125); // the key's baked pose
+    tuneKeysRetime('sneak', 1, 3);
+    tuneSet(keyGroupId('sneak', 1), 'spine_pitch', 10);
     tuneKeysSync();
     const a = newKeyedPose();
-    sampleKeyed(KEYED_JOG, 9 / 48, 1, a);
+    sampleKeyed(KEYED_SNEAK, 9 / 48, 1, a);
     const s = [...a.q.slice(4, 8)];
     const b = p0.slice(3 + 4, 3 + 8);
     const d = Math.abs(s[0]! * b[0]! + s[1]! * b[1]! + s[2]! * b[2]! + s[3]! * b[3]!);
@@ -165,29 +174,29 @@ describe('item 23: the live preview', () => {
   });
 
   it('Mirror off: a mirrored key moves on its own; going off keeps the mirrored key where its own key put it', () => {
-    const jog = keyClip('jog')!;
-    tuneKeysRetime('jog', 1, 2);
-    expect(tuneKeysMirror('jog', false)).toBe(true);
-    expect(tuneGet(keyGroupId('jog', 5), KEY_TIME_ID)).toBe(2); // copied: nothing jumps
+    const sneak = keyClip('sneak')!;
+    tuneKeysRetime('sneak', 1, 2);
+    expect(tuneKeysMirror('sneak', false)).toBe(true);
+    expect(tuneGet(keyGroupId('sneak', 5), KEY_TIME_ID)).toBe(2); // copied: nothing jumps
     tuneKeysSync();
-    expect(keyPhase(jog, 5)).toBe(32 / 48);
-    expect(tuneKeysRetime('jog', 5, -3)).toBe(true);
-    expect(keyPhase(jog, 5)).toBe(29 / 48);
-    expect(keyPhase(jog, 1)).toBe(8 / 48);
-    tuneKeysMirror('jog', true);
+    expect(keyPhase(sneak, 5)).toBe(32 / 48);
+    expect(tuneKeysRetime('sneak', 5, -3)).toBe(true);
+    expect(keyPhase(sneak, 5)).toBe(29 / 48);
+    expect(keyPhase(sneak, 1)).toBe(8 / 48);
+    tuneKeysMirror('sneak', true);
     tuneKeysSync();
-    expect(keyPhase(jog, 5)).toBe(32 / 48); // on again: the mirror follows the own key
+    expect(keyPhase(sneak, 5)).toBe(32 / 48); // on again: the mirror follows the own key
   });
 
   it('undo: the snapshot before the retime restores the timing and the pose', () => {
     const before = tuneValues();
-    const base = sweep(KEYED_JOG);
-    tuneKeysRetime('jog', 2, 4);
-    expect(sweep(KEYED_JOG)).not.toEqual(base);
+    const base = sweep(KEYED_SNEAK);
+    tuneKeysRetime('sneak', 2, 4);
+    expect(sweep(KEYED_SNEAK)).not.toEqual(base);
     tuneApplyValues(before);
     tuneKeysSync();
-    expect(KEYED_JOG.keyTime).toBeNull();
-    expect(sweep(KEYED_JOG)).toEqual(base);
+    expect(KEYED_SNEAK.keyTime).toBeNull();
+    expect(sweep(KEYED_SNEAK)).toEqual(base);
   });
 });
 
@@ -196,43 +205,43 @@ describe('item 23: the store, the export and the key file', () => {
     // a version 2 save (marlow-bays T1a / T2) with a key edit and a Mirror box: no `time` anywhere
     const OLD_STORE = {
       version: 2,
-      values: { 'key.jog.1': { armL_elbow: 10 }, 'key.walk.mirror': { mirror: 0 }, 'key.walk.5': { armR_elbow: -4 } },
-      log: [{ t: '2026-10-20T09:00:00.000Z', group: 'key.jog.1', id: 'armL_elbow', from: 0, to: 10 }],
+      values: { 'key.sneak.1': { armL_elbow: 10 }, 'key.walk.mirror': { mirror: 0 }, 'key.walk.5': { armR_elbow: -4 } },
+      log: [{ t: '2026-10-20T09:00:00.000Z', group: 'key.sneak.1', id: 'armL_elbow', from: 0, to: 10 }],
     };
     tuneLoad(OLD_STORE);
     tuneKeysSync();
-    expect(tuneGet('key.jog.1', 'armL_elbow')).toBe(10);
-    expect(tuneGet('key.jog.1', KEY_TIME_ID)).toBe(0);
+    expect(tuneGet('key.sneak.1', 'armL_elbow')).toBe(10);
+    expect(tuneGet('key.sneak.1', KEY_TIME_ID)).toBe(0);
     expect(KEY_TIMES.size).toBe(0);
-    expect(KEYED_JOG.keyTime).toBeNull();
+    expect(KEYED_SNEAK.keyTime).toBeNull();
     expect(KEYED_WALK.keyTime).toBeNull();
     for (const c of KEY_CLIPS) for (let k = 0; k < c.phases.length; k++) expect(keyPhase(c, k)).toBe(c.phases[k]);
     // a retime is saved and comes back live
-    tuneKeysRetime('jog', 3, -2);
+    tuneKeysRetime('sneak', 3, -2);
     const snap = JSON.parse(JSON.stringify(tuneSnapshot())) as unknown;
-    expect((snap as { values: Record<string, Record<string, number>> }).values['key.jog.3']).toEqual({ time: -2 });
+    expect((snap as { values: Record<string, Record<string, number>> }).values['key.sneak.3']).toEqual({ time: -2 });
     tuneResetAll();
     tuneKeysSync();
-    expect(KEYED_JOG.keyTime).toBeNull();
+    expect(KEYED_SNEAK.keyTime).toBeNull();
     tuneLoad(snap);
     tuneKeysSync();
-    expect(keyPhase(keyClip('jog')!, 3)).toBe(16 / 48);
-    expect(KEYED_JOG.keyTime).not.toBeNull();
+    expect(keyPhase(keyClip('sneak')!, 3)).toBe(16 / 48);
+    expect(KEYED_SNEAK.keyTime).not.toBeNull();
   });
 
   it('export / import carry the time; the export bakes it into the key phases (the mirror follows)', () => {
-    tuneKeysRetime('jog', 1, 3);
-    tuneSet(keyGroupId('jog', 2), 'chest_yaw', 2);
+    tuneKeysRetime('sneak', 1, 3);
+    tuneSet(keyGroupId('sneak', 2), 'chest_yaw', 2);
     const exp = JSON.parse(JSON.stringify(tuneExport())) as unknown;
-    expect(tuneKeysClipValues('jog')).toEqual({ 'key.jog.1': { time: 3 }, 'key.jog.2': { chest_yaw: 2 } });
+    expect(tuneKeysClipValues('sneak')).toEqual({ 'key.sneak.1': { time: 3 }, 'key.sneak.2': { chest_yaw: 2 } });
     tuneResetAll();
     const r = tuneImport(exp, 'exp');
     expect(r.ok && r.applied === 2).toBe(true);
     tuneKeysSync();
-    expect(keyPhase(keyClip('jog')!, 1)).toBe(9 / 48);
+    expect(keyPhase(keyClip('sneak')!, 1)).toBe(9 / 48);
     const vals = keyValuesOf(exp);
-    expect(editedClips(vals)).toEqual(['jog']);
-    const base = file('jog');
+    expect(editedClips(vals)).toEqual(['sneak']);
+    const base = file('sneak');
     const out = JSON.parse(keyFileText(applyKeyEdits(base, vals))) as KeyFile;
     expect(out.mirror).toBe(true);
     expect(out.keys.map((k) => k.phase)).toEqual([0, 0.1875, 0.25, 0.375]);
@@ -241,7 +250,7 @@ describe('item 23: the store, the export and the key file', () => {
     expect({ ...out.keys[1], phase: 0.125 }).toEqual(base.keys[1]);
     // the meta the tuner reads, regenerated from the written file
     const meta = keyMetaText([out]);
-    expect(meta).toContain("{ name: 'jog', frames: 32, mirror: true, phases: [0, 0.1875, 0.25, 0.375] },");
+    expect(meta).toContain("{ name: 'sneak', frames: 32, mirror: true, phases: [0, 0.1875, 0.25, 0.375] },");
   });
 
   it('every key file with no timing edit is written byte for byte; the meta regenerates byte for byte', () => {
@@ -274,18 +283,18 @@ describe('item 23: the store, the export and the key file', () => {
   });
 
   it('Mirror off with a mirrored key moved apart: the file is written in full with each key\'s own phase', () => {
-    const vals: Record<string, Record<string, number>> = { [keyMirrorGroupId('jog')]: { mirror: 0 }, 'key.jog.1': { time: 2 }, 'key.jog.5': { time: 2 } };
-    expect(keyHalvesDiffer(vals, 'jog', 4)).toBe(false);
-    const still = applyKeyEdits(file('jog'), vals);
+    const vals: Record<string, Record<string, number>> = { [keyMirrorGroupId('sneak')]: { mirror: 0 }, 'key.sneak.1': { time: 2 }, 'key.sneak.5': { time: 2 } };
+    expect(keyHalvesDiffer(vals, 'sneak', 4)).toBe(false);
+    const still = applyKeyEdits(file('sneak'), vals);
     expect(still.mirror).toBe(true);
     expect(still.keys.map((k) => k.phase)).toEqual([0, 8 / 48, 0.25, 0.375]);
-    const apart = { ...vals, 'key.jog.5': { time: -1 } };
-    expect(keyHalvesDiffer(apart, 'jog', 4)).toBe(true);
-    const full = applyKeyEdits(file('jog'), apart);
+    const apart = { ...vals, 'key.sneak.5': { time: -1 } };
+    expect(keyHalvesDiffer(apart, 'sneak', 4)).toBe(true);
+    const full = applyKeyEdits(file('sneak'), apart);
     expect(full.mirror).toBe(false);
     expect(full.keys.map((k) => k.phase)).toEqual([0, 8 / 48, 0.25, 0.375, 0.5, 29 / 48, 0.75, 0.875]);
     // the first key's mirror moved: also apart
-    expect(keyHalvesDiffer({ [keyMirrorGroupId('jog')]: { mirror: 0 }, 'key.jog.4': { time: 1 } }, 'jog', 4)).toBe(true);
+    expect(keyHalvesDiffer({ [keyMirrorGroupId('sneak')]: { mirror: 0 }, 'key.sneak.4': { time: 1 } }, 'sneak', 4)).toBe(true);
   });
 
   it('an import of an export from before key timing (version 2) changes no key time', () => {
@@ -313,41 +322,41 @@ describe('key timing: the bake (tuneBake)', () => {
   const exp = (changed: unknown[]) => ({ magic: 'night-shift-anim-tune', version: 2, exported: '2026-10-21T20:00:00.000Z', changed, log: [] });
 
   it('a literal export with a retimed key: the key file gets the new phase, the meta follows, the clip is rebaked', () => {
-    const r = tuneBake(exp([{ group: 'key.jog.1', id: 'time', label: 'key time', kind: 'add', unit: 'fr', value: 3, default: 0 }, { group: 'key.jog.2', id: 'chest_yaw', label: 'chest yaw', kind: 'add', unit: 'deg', value: 2.5, default: 0 }]), CAT, read);
+    const r = tuneBake(exp([{ group: 'key.sneak.1', id: 'time', label: 'key time', kind: 'add', unit: 'fr', value: 3, default: 0 }, { group: 'key.sneak.2', id: 'chest_yaw', label: 'chest yaw', kind: 'add', unit: 'deg', value: 2.5, default: 0 }]), CAT, read);
     expect(r.ok, r.error).toBe(true);
     const row = r.rows.find((x) => x.id === 'time')!;
     expect(row.result).toBe('baked (key JSON; rebake the clip)');
-    expect(row.target).toBe('scripts/anim-keys/keys/jog.json key 1 phase + (bake frames / 48)');
-    const w = r.writes.find((x) => x.path === 'scripts/anim-keys/keys/jog.json')!;
+    expect(row.target).toBe('scripts/anim-keys/keys/sneak.json key 1 phase + (bake frames / 48)');
+    const w = r.writes.find((x) => x.path === 'scripts/anim-keys/keys/sneak.json')!;
     const out = JSON.parse(w.after) as KeyFile;
     expect(out.keys.map((k) => k.phase)).toEqual([0, 9 / 48, 0.25, 0.375]);
-    expect(w.after).toBe(keyFileText(applyKeyEdits(file('jog'), { 'key.jog.1': { time: 3 }, 'key.jog.2': { chest_yaw: 2.5 } })));
+    expect(w.after).toBe(keyFileText(applyKeyEdits(file('sneak'), { 'key.sneak.1': { time: 3 }, 'key.sneak.2': { chest_yaw: 2.5 } })));
     const m = r.writes.find((x) => x.path === META)!;
-    expect(m.after).toContain("{ name: 'jog', frames: 32, mirror: true, phases: [0, 0.1875, 0.25, 0.375] },");
-    // only the jog row of the meta changed; its line ends kept
+    expect(m.after).toContain("{ name: 'sneak', frames: 32, mirror: true, phases: [0, 0.1875, 0.25, 0.375] },");
+    // only the sneak row of the meta changed; its line ends kept
     const lines = (t: string): string[] => t.split('\n');
     const diff = lines(m.after).filter((l, i) => l !== lines(m.before)[i]);
     expect(diff.length).toBe(1);
     expect(m.after.includes('\r\n')).toBe(m.before.includes('\r\n'));
-    expect(r.rebake).toEqual(['node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs jog']);
-    expect(r.writes.map((x) => x.path).sort()).toEqual([META, 'scripts/anim-keys/keys/jog.json', 'src/anim/tuneBakeLog.json'].sort());
+    expect(r.rebake).toEqual(['node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs sneak']);
+    expect(r.writes.map((x) => x.path).sort()).toEqual([META, 'scripts/anim-keys/keys/sneak.json', 'src/anim/tuneBakeLog.json'].sort());
   });
 
   it('the first key is fixed: its time is skipped, nothing written for it', () => {
-    const r = tuneBake(exp([{ group: 'key.jog.0', id: 'time', kind: 'add', value: 2 }]), CAT, read);
+    const r = tuneBake(exp([{ group: 'key.sneak.0', id: 'time', kind: 'add', value: 2 }]), CAT, read);
     expect(r.ok, r.error).toBe(true);
     expect(r.rows[0]!.result).toBe('skipped: the first key is fixed (phase 0)');
     expect(r.writes).toEqual([]);
   });
 
   it('no timing edit: the key file as before (the apply-tune functions), the meta never touched', () => {
-    const r = tuneBake(exp([{ group: 'key.jog.2', id: 'chest_yaw', kind: 'add', value: 2.5 }]), CAT, read);
+    const r = tuneBake(exp([{ group: 'key.sneak.2', id: 'chest_yaw', kind: 'add', value: 2.5 }]), CAT, read);
     expect(r.ok, r.error).toBe(true);
-    expect(r.writes.map((x) => x.path).sort()).toEqual(['scripts/anim-keys/keys/jog.json', 'src/anim/tuneBakeLog.json']);
-    const w = r.writes.find((x) => x.path === 'scripts/anim-keys/keys/jog.json')!;
-    expect(w.after).toBe(keyFileText(applyKeyEdits(file('jog'), { 'key.jog.2': { chest_yaw: 2.5 } })));
+    expect(r.writes.map((x) => x.path).sort()).toEqual(['scripts/anim-keys/keys/sneak.json', 'src/anim/tuneBakeLog.json']);
+    const w = r.writes.find((x) => x.path === 'scripts/anim-keys/keys/sneak.json')!;
+    expect(w.after).toBe(keyFileText(applyKeyEdits(file('sneak'), { 'key.sneak.2': { chest_yaw: 2.5 } })));
     const a = JSON.parse(w.after) as KeyFile;
-    const b = file('jog');
+    const b = file('sneak');
     expect(a.keys.map((k) => k.phase)).toEqual(b.keys.map((k) => k.phase));
     // every field but the edited chest yaw as it was
     expect({ ...a.keys[2], chest: b.keys[2]!.chest }).toEqual(b.keys[2]);

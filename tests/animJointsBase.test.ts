@@ -33,6 +33,9 @@ function tempTree(): { read: (p: string) => string | null; write: (r: BakeResult
     mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     cpSync(path.join(ROOT, f), path.join(dir, f));
   }
+  // (anim-bake-1022) the copy's base table starts empty (the literal exports below bake onto an untuned rig), whatever
+  // the generated table holds after a bake
+  writeFileSync(path.join(dir, BAKE_BASE_FILE), spliceAnimBase(readFileSync(path.join(dir, BAKE_BASE_FILE), 'utf8'), emptyBase()));
   const read = (p: string): string | null => (existsSync(path.join(dir, p)) ? readFileSync(path.join(dir, p), 'utf8') : null);
   const write = (r: BakeResult): void => {
     for (const w of r.writes) {
@@ -137,11 +140,12 @@ const V2_BASE = `{
 const res = (r: BakeResult, g: string, id: string): string => r.rows.find((x) => x.group === g && x.id === id)?.result ?? '(none)';
 
 describe('anim-joints J1: the base table file', () => {
-  it('the generated file is empty and prints back identically (a re-bake of identity is the same text)', () => {
+  // (anim-bake-1022) was 'the generated file is empty': Michael's 2026-10-22 bake filled it (idle / walk / jog upperArm
+  // roll), so it is read against the game's own ANIM_BASE; the empty table is the test-local base below.
+  it('the generated file parses to ANIM_BASE and prints back identically (a re-bake of identity is the same text)', () => {
     const text = real(BAKE_BASE_FILE);
     const b = parseAnimBase(text);
-    expect(b).toEqual(emptyBase());
-    expect(ANIM_BASE).toEqual(emptyBase());
+    expect(b).toEqual(ANIM_BASE);
     expect(lf(spliceAnimBase(text, b))).toBe(lf(text));
     expect(printAnimBase(b)).toBe(jsonOf(text));
     // identity entries leave nothing behind
@@ -266,6 +270,7 @@ describe('anim-joints J1: baking literal old exports into the base table (temp c
 
 describe('anim-joints J1: nothing live by default, and the per-rig window on the real rig', () => {
   it('(e) the empty base and zero deltas: nothing live, and a Wren rig is bit-identical to a rig without the flag', async () => {
+    animBaseLoad(emptyBase()); // (anim-bake-1022) test-local: the generated table is no longer empty
     expect(jointsAnyLive()).toBe(false);
     expect(handsAnyLive()).toBe(false);
     const flagged = await runRigs([{ wren: true, speed: 0 }]);
@@ -275,6 +280,7 @@ describe('anim-joints J1: nothing live by default, and the per-rig window on the
   });
 
   it('a base row turns a Wren rig\'s bone with the tuner at identity; a guard rig and a Wren rig in another state are untouched', async () => {
+    animBaseLoad(emptyBase()); // (anim-bake-1022) from the untuned rig: the generated table now holds idle / walk rows
     const before = await runRigs([{ wren: true, speed: 0 }, { wren: true, speed: 1.4 }, { wren: false, speed: 0 }]);
     animBaseLoad({ version: 1, joints: { idle: { elbowR: [40, 0, 0] } }, hands: {}, ik: { idle: [1, 0, 1, 1] } });
     const after = await runRigs([{ wren: true, speed: 0 }, { wren: true, speed: 1.4 }, { wren: false, speed: 0 }]);

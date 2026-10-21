@@ -28,7 +28,11 @@ export const ANIM_BASE: AnimBaseData =
 // @anim-base-begin
 {
   "version": 1,
-  "joints": {},
+  "joints": {
+    "idle": { "upperArmL": [0, 0, -4], "upperArmR": [0, 0, 4] },
+    "jog": { "upperArmL": [0, 0, -4], "upperArmR": [0, 0, 4] },
+    "walk": { "upperArmL": [0, 0, -4], "upperArmR": [0, 0, 4] }
+  },
   "hands": {},
   "ik": {}
 }
