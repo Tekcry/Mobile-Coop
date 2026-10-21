@@ -23,6 +23,8 @@
 // the studio lands on it at its new time with its pose, the pose at the old frame changes, undo restores both.
 // (marlow-bays item 25) Add / delete keys: "Add key" on walk key 2 puts a key midway to key 3 (10 keys with its mirror,
 // the pose there unchanged, the picker and the readout on it); "Delete key" removes it; undo brings it back.
+// (marlow-bays item 30) The key tools: Wave fills a channel with the sine (one undo step), Apply to keys reaches the
+// ticked keys only, Smooth between eases the keys between two keys, Compare shows the ghost and the values line.
 // (anim-bake-1022) Reset baked: a slider at a bundled ledger value resets, another change stays, the info line says so.
 // (marlow-bays item 24) Guard tuning: Who = Guard plays the guard puppet, a guard loop runs on the spot, a guard Joints
 // slider turns the guard's elbow and not Wren's, Who = Wren brings her back.
@@ -356,6 +358,24 @@ try {
   await frames(page, 4);
   const gear3 = await gearOf();
   assert(gear3.p.every((v, i) => v === gear0.p[i]) && gear3.sh.every((v, i) => v === gear0.sh[i]), 'reset: the pistol and the sling node are back exactly');
+  // (anim-goggle) a gear.goggles base row moves Wren's worn goggle offset (`rig.goggleOff` slots 6..11: in use, head
+  // frame, m and deg), the stowed slots stay identity, the tuner's delta adds; reset exact
+  const gogOf = () => G(() => Array.from(window.__app.current.player.rig.goggleOff));
+  const gog0 = await gogOf();
+  await G(() => window.__animBase.setGear('goggles', 'y', 0.015));
+  await G(() => window.__animBase.setGear('goggles', 'pitch', -12));
+  await frames(page, 4);
+  const gog1 = await gogOf();
+  assert(gog0.every((v) => v === 0) && gog1[7] === 0.015 && gog1[9] === -12 && [6, 8, 10, 11].every((k) => gog1[k] === 0) && gog1.slice(0, 6).every((v) => v === 0), `a gear.goggles base row (y 1.5 cm, pitch -12) moves Wren's worn goggle offset (in use ${gog1.slice(6).join(', ')}; stowed ${gog1.slice(0, 6).join(', ')})`);
+  await G(() => window.__animTune.set('gear.goggles', 'y', 0.005));
+  await frames(page, 4);
+  const gog2 = await gogOf();
+  assert(Math.abs(gog2[7] - 0.02) < 1e-12, `the tuner's goggles delta adds on the base row (y ${gog2[7]})`);
+  await G(() => window.__animTune.set('gear.goggles', 'y', 0));
+  await G(() => window.__animBase.reset());
+  await frames(page, 4);
+  const gog3 = await gogOf();
+  assert(gog3.every((v) => v === 0), `reset: Wren's goggle offset is identity again (${gog3.join(', ')})`);
   // the pair puppet (role B of the boost)
   await G(() => window.__studio.pick('pair:boost'));
   await frames(page, 6);
@@ -363,18 +383,21 @@ try {
     const r = window.__app.current.studio.puppets[1].rig;
     const sh = r.slingHip.position;
     const g = r.tuneSt.gear;
-    return { x: g.out[0], live: g.live[0], sh: [sh.x, sh.y, sh.z] };
+    return { x: g.out[0], live: g.live[0], sh: [sh.x, sh.y, sh.z], gg: Array.from(r.goggleOff) };
   });
   const gearP0 = await gearPupOf();
   await G(() => window.__animBase.setGear('holster', 'x', 0.03));
   await G(() => window.__animBase.setGear('slingHip', 'z', -0.02));
+  await G(() => window.__animBase.setGear('goggles', 'y', 0.015));
   await frames(page, 6);
   const gearP1 = await gearPupOf();
   assert(gearP0.live === 0 && gearP1.live === 1 && Math.abs(gearP1.x - 0.03) < 1e-12 && Math.abs(gearP1.sh[2] - gearP0.sh[2] + 0.02) < 1e-9, `role B's puppet takes the gear rows (holster x ${gearP1.x}, sling node ${(gearP1.sh[2] - gearP0.sh[2]).toFixed(4)} m)`);
+  assert(gearP0.gg.every((v) => v === 0) && gearP1.gg[7] === 0.015 && gearP1.gg.every((v, k) => k === 7 || v === 0), `(anim-goggle) role B's puppet takes the goggles row (in use y ${gearP1.gg[7]})`);
   await G(() => window.__animBase.reset());
   await frames(page, 6);
   const gearP2 = await gearPupOf();
   assert(gearP2.live === 0 && gearP2.sh.every((v, i) => v === gearP0.sh[i]), "reset: the puppet's sling node is back exactly");
+  assert(gearP2.gg.every((v) => v === 0), "(anim-goggle) reset: the puppet's goggle offset is identity again");
   await G(() => window.__studio.pick('state:idle'));
   await frames(page, 4);
 
@@ -938,6 +961,81 @@ try {
   await frames(page, 12);
   const k25e = await G(() => ({ at: window.__animTune.get('key.walk.a0', 'at'), keys: window.__studio.state().keys }));
   assert(k25d.at === ADD && k25d.keys === 10 && k25e.at === 0 && k25e.keys === 8, `(item 25) undo brings the added key back, a second undo removes it (${JSON.stringify({ k25d, k25e })})`);
+
+  // (marlow-bays item 30) the key tools on walk (Mirror on: its 4 own keys): Wave fills chest turn on every key with the
+  // sine (two keys checked), one undo step; Apply gives key 2's chest tilt to the ticked keys only; Smooth between eases
+  // the keys between key 1 and key 4 on the key file's poses; Compare shows the ghost (the studio visits the compared
+  // key once and comes back) and the values line; everything restored after
+  await G(() => {
+    window.__animTune.set('key.walk.a0', 'at', 0);
+    window.__animTune.pickLevel('keys', 0, 'walk');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 6);
+  await G(() => window.__studio.showKey('walk', 1));
+  await frames(page, 8);
+  const WALK = JSON.parse(readFileSync('scripts/anim-keys/keys/walk.json', 'utf8'));
+  const r2 = (v) => Math.round(v * 100) / 100;
+  await G(() => window.__animTune.keyToolsSet({ open: true, tool: 'wave', chan: 'chest_yaw', amount: 8, timing: 0.1 }));
+  await G(() => window.__animTune.settle());
+  const u30a = await G(() => window.__animTune.undoCount());
+  await G(() => window.__animTune.keyToolsRun('wave'));
+  await G(() => window.__animTune.settle());
+  await frames(page, 4);
+  const w30 = await G(() => ({ k1: window.__animTune.get('key.walk.1', 'chest_yaw'), k2: window.__animTune.get('key.walk.2', 'chest_yaw'), m5: window.__animTune.get('key.walk.5', 'chest_yaw'), undo: window.__animTune.undoCount(), st: window.__animTune.keyTools(), shown: !!document.querySelector('.anim-tune-kt-wave')?.offsetParent }));
+  const want1 = r2(8 * Math.sin(2 * Math.PI * (KM.phases[1] + 0.1)));
+  const want2 = r2(8 * Math.sin(2 * Math.PI * (KM.phases[2] + 0.1)));
+  assert(w30.shown && w30.st.open && w30.k1 === want1 && w30.k2 === want2 && w30.m5 === 0 && w30.undo === u30a + 1, `(item 30) Wave fills chest turn with the sine (keys 2 and 3: ${w30.k1} / ${want1}, ${w30.k2} / ${want2}; the mirrored half follows), one undo step (${u30a} -> ${w30.undo})`);
+  await G(() => window.__animTune.undo());
+  const w30u = await G(() => [0, 1, 2, 3].map((k) => window.__animTune.get(`key.walk.${k}`, 'chest_yaw')));
+  assert(w30u.every((v) => v === 0), `(item 30) undo takes the wave back (${w30u})`);
+  // apply: key 2's chest tilt (+5) to the ticked keys 3 and 4
+  await G(() => {
+    window.__animTune.set('key.walk.1', 'chest_pitch', 5);
+    window.__animTune.select('s:keys:chest_pitch');
+    window.__animTune.keyToolsSet({ tool: 'apply', ticked: [2, 3] });
+  });
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.keyToolsRun('apply'));
+  await G(() => window.__animTune.settle());
+  await frames(page, 4);
+  const a30 = await G(() => ({ v: [0, 1, 2, 3].map((k) => window.__animTune.get(`key.walk.${k}`, 'chest_pitch')), st: window.__animTune.keyTools() }));
+  assert(a30.v.join(',') === '0,5,5,5' && a30.st.notes[1].includes('ticked keys'), `(item 30) Apply to keys gives key 2's chest tilt to the ticked keys only (${a30.v}; ${a30.st.notes[1]})`);
+  // smooth between key 1 and key 4, the selected slider (chest tilt): keys 2 and 3 on an eased blend of the two poses
+  await G(() => window.__animTune.keyToolsSet({ tool: 'smooth', from: 0, to: 3, fields: 'one' }));
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.keyToolsRun('smooth'));
+  for (let i = 0; i < 20 && (await G(() => window.__animTune.get('key.walk.2', 'chest_pitch'))) === 5; i++) await frames(page, 2);
+  await G(() => window.__animTune.settle());
+  const s30 = await G(() => [0, 1, 2, 3].map((k) => window.__animTune.get(`key.walk.${k}`, 'chest_pitch')));
+  const cp = (k) => WALK.keys[k].chest?.pitch ?? 0;
+  const absA = cp(0) + s30[0];
+  const absB = cp(3) + s30[3];
+  const ss = (t) => t * t * (3 - 2 * t);
+  const sw = (k) => Math.round((absA + (absB - absA) * ss((KM.phases[k] - KM.phases[0]) / (KM.phases[3] - KM.phases[0])) - cp(k)) * 1000) / 1000;
+  assert(Math.abs(s30[1] - sw(1)) < 0.011 && Math.abs(s30[2] - sw(2)) < 0.011 && s30[3] === 5, `(item 30) Smooth between eases keys 2 and 3 between key 1 and key 4 (${s30}; want ${sw(1)}, ${sw(2)})`);
+  // compare: the ghost of the previous key (key 1) over key 2 and the values line
+  await G(() => window.__animTune.keyToolsSet({ compare: true, cmpKey: 'prev' }));
+  let c30 = null;
+  for (let i = 0; i < 40; i++) {
+    await frames(page, 3);
+    c30 = await G(() => ({ st: window.__animTune.keyTools(), group: window.__animTune.keys().group, key: window.__studio.state().key }));
+    if (c30.st.ghost && c30.key === 1) break;
+  }
+  assert(c30.st.compare && c30.st.ghost && c30.key === 1 && c30.group === 'key.walk.1' && Math.abs(c30.st.comparePhase - 0) < 1e-9, `(item 30) Compare: the ghost of key 1 is recorded and the studio is back on key 2 (${JSON.stringify({ ghost: c30.st.ghost, key: c30.key, group: c30.group, phase: c30.st.comparePhase })})`);
+  assert(/^Key 2 vs key 1: \S.*[+-]\d/.test(c30.st.diff) && !c30.st.diff.includes("the same pose"), `(item 30) the values line names the difference (${c30.st.diff})`);
+  await G(() => window.__animTune.keyToolsSet({ compare: false }));
+  await frames(page, 3);
+  const c30b = await G(() => window.__animTune.keyTools());
+  assert(!c30b.compare && c30b.diff === '' && !c30b.ghost && (c30b.comparePhase === null || Number.isNaN(c30b.comparePhase)), `(item 30) Compare off: no ghost, no line (${JSON.stringify({ compare: c30b.compare, diff: c30b.diff, phase: c30b.comparePhase })})`);
+  // restore: the chest tilt back to 0 on every key, the tools folded
+  await G(() => {
+    for (let k = 0; k < 4; k++) window.__animTune.set(`key.walk.${k}`, 'chest_pitch', 0);
+    window.__animTune.keyToolsSet({ open: false, tool: 'wave' });
+  });
+  await G(() => window.__animTune.settle());
+  await frames(page, 4);
+
   // the clean state for the asserts below: no added key, walk key 2 shown
   await G(() => {
     window.__animTune.set('key.walk.a0', 'at', 0);
