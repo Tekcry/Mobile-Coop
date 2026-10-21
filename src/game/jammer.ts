@@ -318,31 +318,56 @@ export function rearmZones(set: Set<string>, zones: readonly { id: string; flag:
  * stage 2) while in the hallway is sent back to a fixed spot in the entry lobby, facing the hallway, with a radio line.
  * A player who entered the hallway is "running" until they stand in the far lobby with the camera's meter on them empty
  * (stage 0; a jammed or rebooting camera keeps it empty); a running player the camera has in the far lobby is sent back
- * too. The far lobby's pass zone counts only players who are not running (a sent-back player must run it again).
+ * too. The far lobby's pass zone counts only players who are neither running nor sent back (a sent-back player must
+ * run it again).
+ * (fix round 2) A sent-back player stays "sent back" until their reported position is in the entry lobby (or the
+ * hallway) after `HALL_BACK_HOLD`: positions the client sent before it got the `back` event arrive inside the host's
+ * teleport grace (no speed check) and must not count (the camera's meter on them was emptied by the send-back).
  */
 export interface HallRule {
   /** The camera that watches the hallway. */
   camera: string;
   /** The hallway's plan box [x0, z0, x1, z1]. */
   box: [number, number, number, number];
+  /** (fix round 2) The entry lobby's plan box [x0, z0, x1, z1]: where a sent-back player must be seen again. */
+  lobby: [number, number, number, number];
   /** The send-back spot in the entry lobby: x, z and yaw (facing the hallway; 0 is +z). */
   back: [number, number, number];
   /** LANTERN's line on a send-back (<= 90 characters). */
   say: string;
 }
 
-/** A player's hallway state: not running, running (entered the hallway, not yet clean through), sent back now. */
+/** A player's hallway state: not running, running (entered the hallway, not yet clean through), sent back now, and
+ *  (fix round 2) sent back (moved to the entry lobby, not yet seen there). */
 export const HALL_IDLE = 0;
 export const HALL_RUN = 1;
 export const HALL_BACK = 2;
-export type HallStep = typeof HALL_IDLE | typeof HALL_RUN | typeof HALL_BACK;
+export const HALL_SENT = 3;
+export type HallStep = typeof HALL_IDLE | typeof HALL_RUN | typeof HALL_BACK | typeof HALL_SENT;
+/**
+ * (fix round 2) Seconds a sent-back co-op client stays "sent back" whatever position it reports: the host's copy takes
+ * any position for this long after the move (`RemotePlayer.moveTo`'s teleport grace, the same constant), including
+ * stale ones the client sent before the `back` event reached it. The host's own player moves at once (no hold).
+ */
+export const HALL_BACK_HOLD = 3;
 
 /**
- * One player's step of the hallway rule. `running`: they were running; `inHall` / `inFar`: their feet in the hallway /
- * the far lobby; `stage`: the hallway camera's meter stage on them (2 = it has them). Returns the new state, or
- * `HALL_BACK` when they must be sent back now (the caller moves them and they are no longer running).
+ * One player's step of the hallway rule. `state`: their state (`HALL_IDLE`, `HALL_RUN` or `HALL_SENT`);
+ * `inLobby` / `inHall` / `inFar`: their feet in the entry lobby / the hallway / the far lobby; `stage`: the hallway
+ * camera's meter stage on them (2 = it has them); `held`: still inside `HALL_BACK_HOLD` after a send-back. Returns the
+ * new state, or `HALL_BACK` when they must be sent back now (the caller moves them and stores `HALL_SENT`).
+ * A sent-back player leaves `HALL_SENT` only once the hold is over: in the entry lobby (not running) or the hallway
+ * (running again); still in the far lobby then means the move did not take: sent back again.
  */
-export function hallStep(running: boolean, inHall: boolean, inFar: boolean, stage: number): HallStep {
+export function hallStep(state: number, inLobby: boolean, inHall: boolean, inFar: boolean, stage: number, held: boolean): HallStep {
+  if (state === HALL_SENT) {
+    if (stage >= 2 && inHall) return HALL_BACK;
+    if (held) return HALL_SENT;
+    if (inLobby) return HALL_IDLE;
+    if (inHall) return HALL_RUN;
+    return inFar ? HALL_BACK : HALL_SENT;
+  }
+  const running = state === HALL_RUN;
   if (stage >= 2 && (inHall || (inFar && running))) return HALL_BACK;
   if (inHall) return HALL_RUN;
   if (running && inFar && stage === 0) return HALL_IDLE;

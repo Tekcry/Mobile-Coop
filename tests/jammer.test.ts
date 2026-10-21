@@ -5,8 +5,10 @@ import {
   DEV_JAMMED,
   DEV_RECOVER,
   HALL_BACK,
+  HALL_BACK_HOLD,
   HALL_IDLE,
   HALL_RUN,
+  HALL_SENT,
   JAMMER,
   JAM_LIGHT,
   LASER,
@@ -207,37 +209,106 @@ describe('fix round 1: the client mirror only moves forward, the HUD key', () =>
 });
 
 describe('fix round 1: the camera hallway send-back (Michael item 5, station 3 only)', () => {
+  // hallStep(state, inLobby, inHall, inFar, stage, held)
+  const I = HALL_IDLE;
+  const R = HALL_RUN;
   it('seen (stage 2) in the hallway: sent back; seen less: keeps running', () => {
-    expect(hallStep(false, true, false, 2)).toBe(HALL_BACK);
-    expect(hallStep(true, true, false, 2)).toBe(HALL_BACK);
-    expect(hallStep(false, true, false, 1)).toBe(HALL_RUN);
-    expect(hallStep(false, true, false, 0)).toBe(HALL_RUN);
+    expect(hallStep(I, false, true, false, 2, false)).toBe(HALL_BACK);
+    expect(hallStep(R, false, true, false, 2, false)).toBe(HALL_BACK);
+    expect(hallStep(I, false, true, false, 1, false)).toBe(HALL_RUN);
+    expect(hallStep(I, false, true, false, 0, false)).toBe(HALL_RUN);
   });
   it('a runner reaches the far lobby clean only with an empty meter; seen there still running: sent back', () => {
-    expect(hallStep(true, false, true, 1)).toBe(HALL_RUN);
-    expect(hallStep(true, false, true, 2)).toBe(HALL_BACK);
-    expect(hallStep(true, false, true, 0)).toBe(HALL_IDLE);
+    expect(hallStep(R, false, false, true, 1, false)).toBe(HALL_RUN);
+    expect(hallStep(R, false, false, true, 2, false)).toBe(HALL_BACK);
+    expect(hallStep(R, false, false, true, 0, false)).toBe(HALL_IDLE);
     // through (not running): the camera seeing them in the far lobby is only the alarm, no send-back
-    expect(hallStep(false, false, true, 2)).toBe(HALL_IDLE);
+    expect(hallStep(I, false, false, true, 2, false)).toBe(HALL_IDLE);
   });
-  it('outside both boxes nothing changes (the entry lobby, the airlock)', () => {
-    expect(hallStep(false, false, false, 2)).toBe(HALL_IDLE);
-    expect(hallStep(true, false, false, 2)).toBe(HALL_RUN);
+  it('outside the hallway and the far lobby nothing changes (the entry lobby, the airlock)', () => {
+    expect(hallStep(I, true, false, false, 2, false)).toBe(HALL_IDLE);
+    expect(hallStep(I, false, false, false, 2, false)).toBe(HALL_IDLE);
+    expect(hallStep(R, false, false, false, 2, false)).toBe(HALL_RUN);
   });
   it('an unjammed runner is sent back before the far lobby: the pass never counts them', () => {
     // a runner along the hallway at 4 m/s, the meter filling (stage 2 after about 1 s): sent back, never clean through
-    let run = false;
+    let st: number = I;
     let back = false;
     for (let t = 0, x = 3; x < 16 && !back; t += 0.1, x += 0.4) {
-      const st = hallStep(run, x < 13.8, x >= 13.8, t >= 1 ? 2 : t >= 0.3 ? 1 : 0);
-      if (st === HALL_BACK) back = true;
-      else run = st === HALL_RUN;
+      const n = hallStep(st, x < 3, x >= 3 && x < 13.8, x >= 13.8, t >= 1 ? 2 : t >= 0.3 ? 1 : 0, false);
+      if (n === HALL_BACK) back = true;
+      else st = n;
     }
     expect(back).toBe(true);
     // jammed (the meter held empty): clean through, counted
-    run = false;
-    for (let x = 3; x < 15; x += 0.4) run = hallStep(run, x < 13.8, x >= 13.8, 0) === HALL_RUN;
-    expect(run).toBe(false);
+    st = I;
+    for (let x = 3; x < 15; x += 0.4) st = hallStep(st, false, x < 13.8, x >= 13.8, 0, false);
+    expect(st).toBe(HALL_IDLE);
+  });
+});
+
+describe('fix round 2: a sent-back player cannot count from stale positions', () => {
+  /**
+   * The host's view of one co-op client at station 3, stepped at 60 Hz like `CtDevices.stepHall`: `pos(t)` is the
+   * position the host's copy holds at time t, `stage(t)` the camera's meter stage on it. Returns when (if ever) the
+   * far lobby's pass would count the client (state idle, feet in the far lobby).
+   */
+  const LOBBY_X = 3;
+  const FAR_X = 13.8;
+  function run(pos: (t: number) => number, stage: (t: number) => number, until: number): { backs: number; countedAt: number } {
+    let st: number = HALL_RUN;
+    let hold = 0;
+    let backs = 0;
+    const dt = 1 / 60;
+    for (let t = 0; t < until; t += dt) {
+      hold = Math.max(0, hold - dt);
+      const x = pos(t);
+      const n = hallStep(st, x < LOBBY_X, x >= LOBBY_X && x < FAR_X, x >= FAR_X, stage(t), hold > 0);
+      if (n === HALL_BACK) {
+        backs++;
+        st = HALL_SENT;
+        hold = HALL_BACK_HOLD;
+        continue;
+      }
+      st = n;
+      if (st === HALL_IDLE && x >= FAR_X) return { backs, countedAt: t };
+    }
+    return { backs, countedAt: -1 };
+  }
+  it('sent back near the hallway end, then stale far-lobby positions with an empty meter: no pass', () => {
+    // caught at x 13.5 (t 0); the host's copy moves to the lobby spot, then the client's in-flight positions
+    // (sent before the `back` event reached it) put it in the far lobby for 0.3 s; the meter was emptied
+    const r = run((t) => (t < 0.01 ? 13.5 : t < 0.1 ? 1.5 : t < 0.4 ? 14.2 : 1.5), (t) => (t < 0.01 ? 2 : 0), 2.9);
+    expect(r.backs).toBe(1);
+    expect(r.countedAt).toBe(-1);
+    // the same with the stale positions held in the far lobby past the grace: sent back again, still no pass
+    const s = run((t) => (t < 0.01 ? 13.5 : t < 0.1 ? 1.5 : 14.2), (t) => (t < 0.01 ? 2 : 0), 6);
+    expect(s.countedAt).toBe(-1);
+    expect(s.backs).toBeGreaterThanOrEqual(2);
+  });
+  it('stale far-lobby positions after the host copy stood at the lobby spot do not clear the send-back', () => {
+    // the host's copy sits at the lobby spot (inside the hold), then a late stale far-lobby position arrives
+    const r = run((t) => (t < 0.01 ? 13.5 : t < 1 ? 1.5 : t < 1.2 ? 14.2 : 1.5), (t) => (t < 0.01 ? 2 : 0), 2.9);
+    expect(r.countedAt).toBe(-1);
+  });
+  it('a real arrival after being back in the entry lobby: counted', () => {
+    // back in the lobby until the hold is over, then a jammed run (empty meter) down the hallway at 4 m/s
+    const start = HALL_BACK_HOLD + 0.5;
+    const r = run((t) => (t < 0.01 ? 13.5 : t < start ? 1.5 : 1.5 + (t - start) * 4), (t) => (t < 0.01 ? 2 : 0), 12);
+    expect(r.backs).toBe(1);
+    expect(r.countedAt).toBeGreaterThan(start);
+  });
+  it('sent back, then running the hallway again inside the hold: running once the hold ends, counted at the far end', () => {
+    const r = run((t) => (t < 0.01 ? 13.5 : t < 0.5 ? 1.5 : 1.5 + (t - 0.5) * 3), () => 0, 12);
+    expect(r.countedAt).toBeGreaterThan(HALL_BACK_HOLD);
+  });
+  it('the host (no hold) clears in the lobby at once; a sent-back player seen in the hallway goes back again', () => {
+    expect(hallStep(HALL_SENT, true, false, false, 0, false)).toBe(HALL_IDLE);
+    expect(hallStep(HALL_SENT, false, true, false, 0, false)).toBe(HALL_RUN);
+    expect(hallStep(HALL_SENT, false, false, true, 0, true)).toBe(HALL_SENT);
+    expect(hallStep(HALL_SENT, true, false, false, 0, true)).toBe(HALL_SENT);
+    expect(hallStep(HALL_SENT, false, true, false, 2, true)).toBe(HALL_BACK);
+    expect(hallStep(HALL_SENT, false, false, false, 0, false)).toBe(HALL_SENT);
   });
 });
 
@@ -488,5 +559,9 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
     expect(inBox(zone.box, bx, bz)).toBe(false);
     expect(yaw).toBeCloseTo(Math.PI / 2);
     expect(hall.say.length).toBeLessThanOrEqual(90);
+    // (fix round 2) the entry lobby box holds the send-back spot, touches the hallway, and never the far lobby
+    expect(inBox(hall.lobby, bx, bz)).toBe(true);
+    expect(Math.max(hall.lobby[0], hall.lobby[2])).toBeCloseTo(m.S3_HALL.x0);
+    expect(Math.max(hall.lobby[0], hall.lobby[2])).toBeLessThan(Math.min(zone.box[0], zone.box[2]));
   });
 });

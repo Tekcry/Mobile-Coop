@@ -26,6 +26,10 @@
 - Fix round 1: the host checks a client's jam target with the same static line of sight (from the client's head); the
   client never blinks a camera back into its reboot on a late host message (device timelines only move forward); the
   jammer HUD line and the buzz no longer rebuild a string or schedule audio every frame.
+- Fix round 2: a player the hallway camera sent back counts for the gate again only once seen back in the entry lobby
+  (a co-op client after the host's 3 s teleport grace): stale far-lobby positions sent before the `back` event arrived no
+  longer open it. The hallway lamp nearest the entry (bay x 6) can no longer be jammed, put out by an EMP or shot out:
+  with both hallway lamps out a runner never filled the camera's meter (the hallway fell to the 0.30 fill).
 
 ## 4.44.0 - Animation tuner: Joints, Hands & feet, IK and Weapon rows for every move and action (climbs, rappel, co-op moves, reload, melee, landing, hit) (2026-10-22, PR #90)
 - Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every

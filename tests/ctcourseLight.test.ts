@@ -9,7 +9,10 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_PANEL_X, S5_PANEL } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_HALL, S3_HARD_LAMP_X, S3_PANEL_X, S5_PANEL } from '../src/world/maps/ctcourse';
+import { cameraRate, newMeter, stepCamMeter } from '../src/security/camera';
+import { CAMERA } from '../src/config/security';
+import { GEARS } from '../src/config/movement';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE } from '../src/voxel/lampBake';
@@ -265,6 +268,36 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
       else if (band(v) !== band(was) && !(nearEdge(v) && nearEdge(was))) bad.push(`${name}: band ${was} -> ${v.toFixed(2)}`);
     }
     expect(bad).toEqual([]);
+  });
+
+  it('(marlow-jammer fix round 2) every darkenable station 3 lamp out: an unjammed runner is still caught in the hallway', () => {
+    const x0 = bayX(2);
+    const s3 = reg.lights.filter((l) => l.x > x0 - 0.5 && l.x < x0 + CT_BAY + 0.5 && l.kind !== 'flashlight');
+    const hard = s3.filter((l) => Math.abs(l.x - (x0 + S3_HARD_LAMP_X)) < 0.01);
+    expect(hard.length).toBe(1);
+    expect(hard[0]!.electric || hard[0]!.destructible).toBe(false);
+    // out: every lamp a jam, an EMP or a shot can put out
+    const out = s3.filter((l) => l.electric || l.destructible);
+    expect(out.length).toBe(s3.length - 1);
+    for (const l of out) reg.setOn(l.id, false);
+    const blind = (S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2);
+    const caughtAt = (speed: number, crouched: boolean): number => {
+      const m = newMeter();
+      const dt = 1 / 30;
+      for (let x = S3_HALL.x0; x < x0 + 13.8; x += speed * dt) {
+        const dist = Math.hypot(S3_CAMERA.x - x, S3_CAMERA.y - (crouched ? 1.05 : 1.6));
+        const rate = S3_CAMERA.x - x > blind ? cameraRate(dist, body(open, x, 0, S3_CAMERA.z), crouched, speed) : 0;
+        stepCamMeter(m, rate, dt);
+        if (m.stage === 2) return x - x0;
+      }
+      return -1;
+    };
+    const run = caughtAt(GEARS.stand[4], false);
+    const crouch = caughtAt(0.8, true);
+    for (const l of out) reg.setOn(l.id, true);
+    expect(run).toBeGreaterThan(0);
+    expect(run).toBeLessThan(13.8);
+    expect(crouch).toBeGreaterThan(0);
   });
 
   it.runIf(process.env.CTLIGHT_PRINT === '1')('prints the levels', () => {

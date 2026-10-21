@@ -234,12 +234,36 @@ async function station3(x0) {
   const cueOff = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.a === 0 && !c.shown && !c.seen; };
   await until(A, cueOn, null, 10000, 'station 3: the host draws the camera cue');
   await until(B, cueOn, null, 10000, 'station 3: the client draws the camera cue');
-  // the client runs the hallway unjammed: sent back too (the host's `back` event moves it on its page)
-  await moveHost(x0 + 1.5, 6);
+  // the client runs the hallway unjammed: sent back too (the host's `back` event moves it on its page). (fix round 2) The
+  // host waits in the far lobby (teleported there, never ran: it counts for the gate)
+  await moveHost(x0 + 14.8, 9);
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
   await GB(([x, z]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, 0.1, z), Math.PI / 2); }, [x0 + 6, 1.6]);
   await until(A, () => window.__ctdev.sendBacks >= 2, null, 30000, 'station 3: seen in the hallway, the client is sent back');
+  // (fix round 2) stale positions: for 0.8 s the host takes every client report as a far-lobby position (as if sent
+  // before the `back` event reached the client, inside the host's teleport grace; the camera's meter on it is empty).
+  // The client must not count: the gate stays shut with the host already in the far lobby
+  const stale = await GA(([fx, fz]) => new Promise((res) => {
+    const r = window.__app.current.net.remotes.values().next().value;
+    const orig = r.accept;
+    let n = 0;
+    let far = 0;
+    let opened = false;
+    r.accept = function (st, ...rest) { n++; return orig.call(this, { ...st, x: fx, z: fz }, ...rest); };
+    const t0 = performance.now();
+    const tick = () => {
+      if (window.__course.state.hasFlag('s3-clear') || window.__course.debug().gates['g-s3']) opened = true;
+      if (Math.abs(r.feet.x - fx) < 0.3) far++;
+      if (performance.now() - t0 < 800) requestAnimationFrame(tick);
+      else { r.accept = orig; r.allowTeleport(3); res({ n, far, opened, hall: window.__ctdev.debug().hall }); }
+    };
+    tick();
+  }), [x0 + 14.5, 7]);
+  assert(stale.n > 0 && stale.far > 0, `station 3: stale far-lobby positions reached the host (${stale.n} reports, ${stale.far} frames there)`);
+  assert(!stale.opened, `station 3: a sent-back client's stale far-lobby positions do not count for the gate (hall ${JSON.stringify(stale.hall)})`);
   await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 0.5; }, BACK, 8000, 'station 3: the client page moved its player to the entry lobby spot');
+  // seen back in the entry lobby after the hold, the client is no longer "sent back"
+  await until(A, () => window.__ctdev.debug().hall[1] === 0, null, 15000, 'station 3: the sent-back client clears once seen in the entry lobby');
   await gateShut('the client sent back');
   // the jam handoff: the client waits out of view, the host jams from the lobby spot, down the hallway
   await moveClient(x0 + 1.5, 8);

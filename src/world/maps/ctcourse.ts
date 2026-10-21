@@ -89,6 +89,13 @@ const S3_LAMPS: readonly (readonly [number, number, number])[] = [
   [1.5, MID, 11],
   [14.8, MID, 9],
 ];
+/**
+ * (marlow-jammer fix round 2) The hallway lamp at bay x 6 is hardened: not electric (no jam, no EMP) and not
+ * destructible. With both hallway lamps out the hallway falls to the 0.30 fill and a runner never fills the camera's
+ * meter (0.63 at the far lobby), which would pass bay 3 without jamming the camera; with this lamp on, a runner is caught
+ * by bay x 6.3 even with every other station 3 lamp off.
+ */
+export const S3_HARD_LAMP_X = 6;
 
 /** Obstacle wall heights by station (1-based; none for the panel station and the S3 hallway): S6 and S8 run to the ceiling (bulkheads). */
 const OBST_H: Record<number, number> = { 2: LEDGE, 4: CT_CEIL[3]!, 5: 4.0, 6: CT_CEIL[5]!, 7: LEDGE, 8: CT_CEIL[7]! };
@@ -124,7 +131,8 @@ export const S3_PASS: PassZone = {
   box: [bayX(2) + 13.8, 0.4, bayX(2) + 15.7, CT_W - 0.4],
   flag: S3_FLAG,
   // the hallway box runs up to the far lobby's edge (no gap between the two)
-  hall: { camera: 'cam-s3', box: [S3_HALL.x0, S3_HALL.z0, bayX(2) + 13.8, S3_HALL.z1], back: S3_BACK, say: S3_BACK_RADIO },
+  // (fix round 2) the entry lobby (bay x 0 - 3, full width): a sent-back player must be seen there before counting again
+  hall: { camera: 'cam-s3', box: [S3_HALL.x0, S3_HALL.z0, bayX(2) + 13.8, S3_HALL.z1], lobby: [bayX(2), 0, S3_HALL.x0, CT_W], back: S3_BACK, say: S3_BACK_RADIO },
 };
 /** The station 3 panel sits in the entry lobby (the other stations' at bay x 3.5). */
 export const S3_PANEL_X = bayX(2) + 1.6;
@@ -377,7 +385,10 @@ export const ctcourse: MapDef = {
         } else pendant(x0 + 12.5, 5, ceil, 0.9, 13);
       } else if (n === 3) {
         // (marlow-jammer) the hallway: two strips over it (the camera sees by the light, like a guard), one in each lobby
-        for (const [dx, z, r] of S3_LAMPS) flush(x0 + dx, ceil, LAMP_LOW.intensity, r, z);
+        for (const [dx, z, r] of S3_LAMPS) {
+          if (dx === S3_HARD_LAMP_X) b.light({ x: x0 + dx, y: ceil - FLUSH, z, radius: r, intensity: LAMP_LOW.intensity, color: WHITE, fixture: STRIP, electric: false, destructible: false });
+          else flush(x0 + dx, ceil, LAMP_LOW.intensity, r, z);
+        }
         for (const [dx] of S3_LAMPS) ceilingLamps.push(x0 + dx);
       } else {
         const k = n === 4 ? LAMP_S4 : LAMP_LOW;

@@ -1,20 +1,23 @@
 # marlow-jammer - state (resume point)
 
-**Now:** fix round 1 (d796a488) checked by a fresh checker (2026-10-22): FIX, one item - a client sent back near the
-hallway end can still count for the gate from its stale in-flight far-lobby positions during the 3 s teleport grace
-(`ctDevices.ts` ~701-705 with `remotePlayer.ts` ~171-173). check pass (2406 tests); e2e-ctcourse / netmove / sectorops /
-coop ok at JOBS=2. Polish: lamp darkness may let a runner beat the camera (not checked against the bake); client /
-host LOS from different points; HUD tenths one frame late. Orchestrator (~02:30): resume, one agent at a time.
-**Next:** fix round 2 (the stale-position gate hole + a check of the hallway light level with the station 3 lamps off),
-merge origin/master 4.44.0 (conflicts: CHANGELOG.md, scripts/e2e-ctcourse.mjs, tests/ctcourse.test.ts; master still
-PROTOCOL_VERSION 25, so 26 stands), check, full e2e on the laptop, PR, tell "Night Shift | Orchestrator", ask it for the
-bay 3 GPU look on the desktop.
+**Now:** fix round 2 done (2026-10-22): master 4.44.0 merged (00c4a3fc; PROTOCOL_VERSION 26 stands); the
+stale-position gate hole closed (`HALL_SENT`, a sent-back player counts again only after a reported position in the
+entry lobby or hallway and a 3 s hold); the x 6 hallway lamp made unjammable (J4: all station 3 lamps out let a runner
+beat the camera). npm run check pass (2536 tests). PAUSED (orchestrator, ~02:30, usage pacing until after the 04:00
+reset): no e2e run this round.
+**Next:** after the orchestrator says resume: e2e-ctcourse (the new stale-report assert) and the full `npm run e2e` on
+the laptop (JOBS=2, solo reruns for failures); then a light final check of fix round 2 (one fresh checker, review +
+the e2e results), the PR, tell "Night Shift | Orchestrator", ask it for the bay 3 GPU look on the desktop; ask
+Michael (through the orchestrator) to confirm J2-J4.
 **Open:** PROTOCOL_VERSION vs the cloud B + M PR (whichever merges second takes the next number); item 6 overlap on the
 bay 3 floor lines (BRIEF "Limits").
 
 ## Done
 - 2026-10-21: job docs (BRIEF, STATE).
 - 2026-10-21: implementer (items 5, 7, 8, floor lines removed, protocol 26), 11cb81f5; REPORT.md.
+- 2026-10-21: checker 1 FIX (bay 3 passable unjammed); fix round 1 d796a488 (J2 send-back, host LOS, client cue
+  assert, forward-only mirror, allocations).
+- 2026-10-22: checker 2 FIX (stale-position gate hole); fix round 2 + master 4.44.0 merge (J4 lamp).
 
 ## Resume prompt
 ```

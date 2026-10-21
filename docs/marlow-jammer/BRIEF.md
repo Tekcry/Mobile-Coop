@@ -43,6 +43,10 @@ jammer that visibly and audibly works. Prototype quality (G4): no polish beyond 
   far lobby).
 - J3: player B may join A's jam on the same camera, so it stays jammed past A's 5 s with no reboot between (a valid
   handoff). Undo: block a second jammer on a target that is already jammed.
+- J4 (fix round 2): the bay 3 hallway lamp at bay x 6 (`S3_HARD_LAMP_X`) cannot be jammed, EMPed or shot out. With all
+  four station 3 lamps out the hallway fell to 0.30 light and a runner was never caught (meter 0.63 at the far lobby),
+  so the camera could be beaten without a jam. Undo: make the lamp jammable again and find another way to keep the
+  hallway lit enough (or make the station 3 camera independent of light, which breaks light parity).
 
 ## Limits
 - CLAUDE.md hard rules. Gameplay never reads graphics state; light parity holds (the meter and guards see a jammed

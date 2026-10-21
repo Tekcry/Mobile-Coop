@@ -141,3 +141,44 @@ Checks (laptop, software GL, port 4191):
   pulse check with the host at the lobby spot: the camera does not see it there). After moving the pulse checks: e2e-
   ctcourse rerun alone ok 307 s (station 3 all asserts ok, both send-backs).
 - Full `npm run e2e`: not run (before the PR). Bay 3 GPU look: pending PC run.
+
+## Fix round 2
+Written by the fix-round implementer (2026-10-22). Scope cut by the orchestrator mid-round: no full e2e (after 04:00).
+
+1. Stale-position gate hole (blocking). Done. New state `HALL_SENT` in the pure `hallStep` (`src/game/jammer.ts`, now
+   `hallStep(state, inLobby, inHall, inFar, stage, held)`): a sent-back player does not count for the gate until their
+   reported position is in the entry lobby (new `HallRule.lobby`, bay x 0-3 full width) or the hallway after
+   `HALL_BACK_HOLD` (3 s, the same constant `RemotePlayer.moveTo` now uses for its teleport grace). The hold applies to
+   the client only (the host's own player moves at once). Still in the far lobby after the hold = the move did not take:
+   sent back again. Seen by the camera in the hallway while sent back: sent back again. Stale positions in the hallway
+   or the far lobby inside the hold cannot clear it, and the host copy standing at the lobby spot (moveTo's position,
+   not a report) does not clear it either. `ctDevices.ts`: per zone/player `hallHold`; the pass counts only `HALL_IDLE`;
+   `debug()` exposes `hall` / `hallHold`.
+   Tests: `tests/jammer.test.ts` "fix round 2" (5 cases, 60 Hz walk of the host's view: send-back at x 13.5 then stale
+   far-lobby positions with an empty meter -> no pass; stale positions held past the grace -> sent back again, no pass;
+   a late stale far position after the copy sat at the lobby spot -> no pass; a real arrival after being back in the
+   lobby -> pass; a re-run started inside the hold -> pass at the far end) plus the lobby box data check; the fix-round-1
+   cases moved to the new signature. `scripts/e2e-ctcourse.mjs` station 3: the host waits in the far lobby while the
+   client is sent back; for 0.8 s the host rewrites every client report to a far-lobby position (inside the grace);
+   asserts the reports landed and the gate stayed shut, then that the client clears once seen in the entry lobby. Not
+   run yet (no e2e this round).
+2. Hallway light with the station 3 lamps off. Broken, fixed. Bake numbers (body level on the camera line, z 1.6):
+   lamps on 0.76-1.00; all four station 3 lamps off: 0.30 (the fill) everywhere. Camera meter for an unjammed runner
+   (4 m/s) along the hallway: lamps on, caught at bay x 6.3; all off, never caught (meter 0.63 at the far lobby, max
+   rate 0.63/s); walk 0.49, sneak 0.42, crouch 0.00 - nobody caught. One hallway lamp off: x 6 off -> runner caught at
+   8.1; x 11 off -> 6.3; lobby lamps off -> 6.3. So two players jamming the two hallway lamps (or shooting them) passed
+   bay 3 without jamming the camera. Fix: the hallway lamp at bay x 6 (`S3_HARD_LAMP_X`) is not electric (no jam, no
+   EMP) and not destructible; its light is unchanged (the tuned levels hold). With every other station 3 lamp out a
+   runner is caught at bay x 6.3. Light parity kept (the camera still sees by the light). New regression test in
+   `tests/ctcourseLight.test.ts` (every darkenable S3 lamp out: a runner and a crouch walker are caught in the hallway).
+   The e2e lamp jam uses the x 11 lamp (still jammable).
+3. Master merge: done before the scope cut, commit `00c4a3fc` "marlow-jammer: merge origin/master (4.44.0)", only the
+   resolution. Conflicts: `CHANGELOG.md` (this job's Unreleased section on top, master's 4.36.0-4.44.0 below),
+   `tests/ctcourse.test.ts` (this job's S3_PASS imports plus master's `courseUser`), `scripts/e2e-ctcourse.mjs` (this
+   job's station 3 kept; master's #85 cue change applied: the `pulse` field is gone, so the post-gate cue checks are now
+   `seen && shown`; master's own pre-jam cue checks dropped since a seen player is sent back there). Master's pause-menu
+   block and `use(..., 'local')` merged cleanly. PROTOCOL_VERSION stays 26. `tsc` clean after the merge.
+
+Checks (laptop, after the runner freed the laptop): `npm run check` pass, 4 min 17 s (lint 0 errors / 41 warnings,
+Vitest 229 files / 2536 passed / 7 skipped, build 1m 45s). The visionIsolation snapshot (line endings only) restored.
+Not run: full `npm run e2e` and e2e-ctcourse with the new assert (orchestrator: after 04:00). Bay 3 GPU look: pending PC run.

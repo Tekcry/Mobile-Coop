@@ -18,7 +18,9 @@ import {
   DEV_JAMMED,
   DEV_RECOVER,
   HALL_BACK,
-  HALL_RUN,
+  HALL_BACK_HOLD,
+  HALL_IDLE,
+  HALL_SENT,
   JAMMER,
   LASER,
   advanceDevJam,
@@ -230,6 +232,8 @@ export class CtDevices {
   private zoneSet = new Set<string>();
   /** (fix round 1) Per pass zone with a hallway rule: each player's hallway state (zone * 2 + player), its camera. */
   private hallRun = new Uint8Array(0);
+  /** (fix round 2) Per zone and player: seconds left of the sent-back hold (`HALL_BACK_HOLD`, the client only). */
+  private hallHold = new Float32Array(0);
   private hallCam: (CameraUnit | null)[] = [];
   private readonly backAt = new Vector3();
   /** (fix round 1) Players the hallway camera sent back (tests). */
@@ -265,6 +269,7 @@ export class CtDevices {
     }
     for (const c of this.cams) this.addDev({ id: c.def.id, kind: 'camera', x: c.x, y: c.y, z: c.z }, c, null, null);
     this.hallRun = new Uint8Array(this.zones.length * 2);
+    this.hallHold = new Float32Array(this.zones.length * 2);
     this.hallCam = this.zones.map((z) => (z.hall && role === 'host' ? (this.cams.find((c) => c.def.id === z.hall!.camera) ?? null) : null));
     this.cueSeen = new Uint8Array(this.cams.length);
     if (this.cams.length > 0) {
@@ -660,17 +665,19 @@ export class CtDevices {
       if (this.zoneSet.has(zone.id)) continue;
       // (fix round 1) the hallway rule runs until the zone is passed (then the station is done)
       const hall = zone.hall;
-      if (hall) this.stepHall(z, zone, hall, refs, n);
+      if (hall) this.stepHall(z, zone, hall, refs, n, dt);
       let inside = 0;
       for (let i = 0; i < n; i++) {
         const r = refs[i]!;
-        // (fix round 1) a player still running the camera hallway does not count
-        if (hall && this.hallRun[z * 2 + i] === HALL_RUN) continue;
+        // (fix round 1) a player still running the camera hallway does not count; (fix round 2) nor one sent back
+        // who has not been seen in the entry lobby since
+        if (hall && this.hallRun[z * 2 + i] !== HALL_IDLE) continue;
         if (r.target.alive && inBox(zone.box, r.feet.x, r.feet.z) && Math.abs(r.feet.y - (zone.floorY ?? 0)) < 1) inside++;
       }
       if (inside >= (this.hooks.solo?.() ? 1 : Math.max(2, n))) {
         this.zoneSet.add(zone.id);
         this.hallRun[z * 2] = this.hallRun[z * 2 + 1] = 0;
+        this.hallHold[z * 2] = this.hallHold[z * 2 + 1] = 0;
         this.hooks.flag?.(zone.flag);
       }
     }
@@ -682,23 +689,29 @@ export class CtDevices {
    * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). Being seen also raises the
    * alarm stage as everywhere (both kept: the simpler choice).
    */
-  private stepHall(z: number, zone: PassZone, hall: HallRule, refs: PlayerRef[], n: number): void {
+  private stepHall(z: number, zone: PassZone, hall: HallRule, refs: PlayerRef[], n: number, dt: number): void {
     const cam = this.hallCam[z] ?? null;
     const fy = zone.floorY ?? 0;
     for (let i = 0; i < n; i++) {
       const r = refs[i]!;
       const k = z * 2 + i;
+      const hold = Math.max(0, this.hallHold[k]! - dt);
+      this.hallHold[k] = hold;
       if (!r.target.alive) continue;
       const level = Math.abs(r.feet.y - fy) < 1;
+      const inLobby = level && inBox(hall.lobby, r.feet.x, r.feet.z);
       const inHall = level && inBox(hall.box, r.feet.x, r.feet.z);
       const inFar = level && inBox(zone.box, r.feet.x, r.feet.z);
       const m = cam ? cam.meters.get(r.id) : undefined;
-      const st = hallStep(this.hallRun[k] === HALL_RUN, inHall, inFar, m ? m.stage : 0);
+      const st = hallStep(this.hallRun[k]!, inLobby, inHall, inFar, m ? m.stage : 0, hold > 0);
       if (st !== HALL_BACK) {
         this.hallRun[k] = st;
         continue;
       }
-      this.hallRun[k] = 0;
+      // (fix round 2) sent back: not counted until seen in the entry lobby; the client's copy takes stale positions
+      // (sent before the `back` event reached it) for HALL_BACK_HOLD, so its reports count only after that
+      this.hallRun[k] = HALL_SENT;
+      this.hallHold[k] = i === 0 ? 0 : HALL_BACK_HOLD;
       // the camera forgets them (a fresh run starts from an empty meter)
       if (m) {
         m.meter = m.full = m.stage = 0;
@@ -958,6 +971,9 @@ export class CtDevices {
       alarm: this.alarm,
       hits: this.hits,
       sendBacks: this.sendBacks,
+      // (fix round 2) each zone's hallway state per player (0 idle, 1 running, 3 sent back) and the sent-back hold
+      hall: [...this.hallRun],
+      hallHold: [...this.hallHold],
       pick: this.localPick,
       cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, clock: c.clock, frozen: c.frozen, jam: c.jam, live: this.live(c.def.id), stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
       lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id) })),
