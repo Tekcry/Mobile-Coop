@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - gl-warning-fix
+## 4.33.1 - No more GL program warnings when graphics settings change on a hardware GPU (2026-10-21, PR #79)
 - Hardware GPUs: no more "GL_INVALID_VALUE: glGetProgramiv: Program object expected" warnings when the post stack is
   rebuilt (a graphics setting change). A shader program that is still compiling in parallel is now deleted only once its
   compile finishes (`src/core/babylon.ts`). e2e-desktop under `E2E_GPU=1` passes its console-errors check again
