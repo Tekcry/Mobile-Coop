@@ -3232,11 +3232,11 @@ export class AnimTunePanel {
     // (marlow-bays T2) the studio hides the game HUD, open or not
     this.syncStudioHud();
     if (!this.open) return;
+    // (fix round) every frame, folded or not: one property read
+    this.refreshCoop();
     // (26b) the last input changed (touch / mouse <-> pad) on a phone: the layout's density follows, live (one class
     // read per frame, no allocation; the layout changes only on a change)
     if (flags.phone && document.body.classList.contains('input-gamepad') !== this.padUi) this.applySize();
-    // (fix round) every frame, folded or not: one property read
-    this.refreshCoop();
     if (this.wasStudio !== STUDIO.active) this.studioLeft();
     // (fix round) the free view's pad input stops when the pad stops being polled (a disconnect)
     if (FREE_VIEW.mode !== 'off' && performance.now() - this.lastPoll > PAD_STALE_MS) this.clearFreeIn();
