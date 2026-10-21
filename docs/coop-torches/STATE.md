@@ -23,8 +23,9 @@ to 1 m only if it flakes). e2e-coop + e2e-netmove: see "Next". PROTOCOL_VERSION 
 - Aim derived on the client (x, y, z, yaw, st): no extra bytes for most lit guards.
 
 ## Next (resume)
-1. e2e-coop + e2e-netmove on the desktop (heavy.lock, E2E_SUITE_TIMEOUT 1500).
-2. PR to master; ask "Night Shift | Character Build" for the full e2e on the head, copying "Night Shift | Orchestrator".
+PR Tekcry/Mobile-Coop#81 open (head 6a26ad1b, master 4.33.0 merged; check passes). e2e-coop ok 453 s (torch asserts
+pass), e2e-netmove ok 502 s. Full e2e requested from "Night Shift | Character Build" (copy to the orchestrator), who
+merges. A fix only if the full e2e finds something.
 
 ## Assumed decisions
 - A1 the torch bit in `al` bit 8 (undo: a separate field). A2 aim derived, not sent. A3 the client works out the beam
