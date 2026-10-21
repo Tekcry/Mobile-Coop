@@ -62,6 +62,17 @@ Added ~14:10:
     docked on every tab (play / pause, < key / key >, frame scrub, speed, loop on the spot) with keys and pad buttons
     that work from any tab.
 
+17. (~15:15) "there is a forearm twist that i cant see to fix, the only forearm adjustment is forearm in. shouldnt there
+    be roll, x, y etc for each body part?" Fix: the Keys tab gets pitch / yaw / roll for every arm joint it edits
+    (upper arm, forearm, wrist) and the trunk joints, named plainly ("Forearm twist" for the roll about the bone), as
+    the Joints part already has for whole states. The bake writes them (key file fields or new channels; say which).
+18. (~15:15) "adjusting left arm in keyed section also does the exact same thing for the right. I dont mind it but if
+    they were uneven i dont know how id adjust them separetly". Mirrored clips copy a key edit onto its mirror key (the
+    other arm half a cycle later). Fix: a "Mirror" tick box in the Keys tab (default on, current behaviour); off, the
+    edit goes to this key only and the mirror key keeps its own values (the bake writes the clip unmirrored where they
+    differ).
+Items 17 and 18 go in slice T1 with 15 and 16.
+
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
 ## Order
