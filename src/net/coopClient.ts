@@ -561,6 +561,14 @@ export class CoopClient implements NetAttachment {
         g.hud.setDownTimer(null);
         g.hud.banner('BACK IN', '', 1500);
         break;
+      case 'restore':
+        // (marlow-bays R2) rejoined: back where the host held us (health, down state and the team's state come as usual)
+        if (e.player !== me) break;
+        g.player.controller.override = null;
+        g.traversal.reset();
+        g.player.controller.teleport(new Vector3(e.x, e.y, e.z), e.yaw);
+        g.player.cam.yaw = e.yaw;
+        break;
       case 'hitConfirm':
         break;
       case 'gadget':

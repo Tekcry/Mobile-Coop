@@ -120,7 +120,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
-import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
+import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
@@ -224,6 +224,8 @@ export interface NetAttachment {
 
 export interface NetHooks {
   role: 'host' | 'client';
+  /** (marlow-bays R1) The room code, shown in the pause menu so either player can rejoin on it. */
+  code?: string;
   attach(g: GameState): NetAttachment;
 }
 
@@ -1159,6 +1161,7 @@ export class GameState implements AppState {
           host: !this.puppet,
           restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
           lobby: this.net && this.cb.lobby ? () => this.cb.lobby?.() : undefined,
+          roomCode: this.opts.net?.code,
         },
       ),
     );
@@ -1922,17 +1925,26 @@ export class GameState implements AppState {
     const real = this.app.input.state;
     core.dt = rdt;
     // (anim-studio) a camera snap (once) and the turntable's spin
+    const by = this.player.rig.root.rotation.y;
     if (FREE_VIEW.snap) {
-      freeSnap(FREE_VIEW.snap, this.player.rig.root.rotation.y, core);
+      core.snapTo(FREE_VIEW.snap, by);
       FREE_VIEW.snap = '';
     }
-    // (tuner-ui) a held snap: the angle to her facing every frame (the look and the spin do not turn it)
+    // (marlow-bays item 29 phase 2) the View tab's orbit sliders (once), and what the orbit shows for them
+    if (mode === 'orbit' && (!Number.isNaN(FREE_SET.angle) || !Number.isNaN(FREE_SET.tilt) || !Number.isNaN(FREE_SET.dist))) core.setOrbit(FREE_SET.angle, FREE_SET.tilt, FREE_SET.dist, by);
+    FREE_SET.angle = FREE_SET.tilt = FREE_SET.dist = Number.NaN;
+    FREE_ORBIT.on = mode === 'orbit';
+    FREE_ORBIT.angle = orbitAngleDeg(core.yaw, by);
+    FREE_ORBIT.tilt = (-core.pitch * 180) / Math.PI;
+    FREE_ORBIT.dist = core.dist;
+    // (tuner-ui) a held snap: the angle to her facing every frame; (item 29 phase 2) the look turns that angle, the
+    // turntable's spin does not
     core.lock = FREE_VIEW.lock;
-    core.bodyYaw = this.player.rig.root.rotation.y;
-    const turn = core.lock ? 0 : 1;
+    core.bodyYaw = by;
+    const spin = core.lock ? 0 : FREE_VIEW.spin * rdt;
     // (marlow-bays item 26) the touch orbit adds to the look like the mouse drag
-    core.lookX = (look.x + FREE_IN.tlx + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt) * turn;
-    core.lookY = (look.y + FREE_IN.tly + FREE_IN.ry * C.pitchRate * rdt) * turn;
+    core.lookX = look.x + FREE_IN.tlx + FREE_IN.rx * C.yawRate * rdt + spin;
+    core.lookY = look.y + FREE_IN.tly + FREE_IN.ry * C.pitchRate * rdt;
     look.x = look.y = 0;
     const up = (real.down('jump') ? 1 : 0) - (real.down('crouch') ? 1 : 0);
     if (mode === 'fly') {

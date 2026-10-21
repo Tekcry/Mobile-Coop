@@ -1,6 +1,7 @@
 import type { App } from '../core/app';
 import type { WeatherChoice } from '../world/mapDef';
-import type { GameOptions, SessionCallbacks } from '../game/gameState';
+import type { GameOptions, GameState, SessionCallbacks } from '../game/gameState';
+import { clearRejoin, rejoinToken, saveRejoin, type RejoinRecord } from '../core/rejoin';
 import { flags } from '../core/flags';
 import { visibleModes } from '../core/legacy';
 import { h } from '../ui/dom';
@@ -53,9 +54,13 @@ export function shareLink(code: string): string {
  */
 class CoopController {
   inGame = false;
+  /** (marlow-bays R3) Client: the host dropped mid-match; the match stays up until a host reopens the room. */
+  waiting = false;
   private lobby: LobbyScreen | null = null;
   private offs: (() => void)[] = [];
   private left = false;
+  /** (R1) Refreshes the rejoin record while a match runs. */
+  private recT: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     readonly app: App,
@@ -65,11 +70,11 @@ class CoopController {
     const ev = session.events;
     this.offs.push(
       ev.on('start', (s) => this.start(s)),
-      ev.on('hostLeft', () => this.fail('Host left', 'The host closed the room or the connection dropped. Rejoin with the same code if the host is still there.')),
+      ev.on('hostLeft', () => this.hostLost()),
       ev.on('full', () => this.fail('Room full', 'That room already has its two players. Ask the host to free a slot, or host your own room.')),
       ev.on('lobby', () => {
         // host went back to the lobby while we were still in the match
-        if (!session.isHost && this.inGame && session.phase === 'lobby') {
+        if (!session.isHost && this.inGame && !this.waiting && session.phase === 'lobby') {
           this.app.toasts.show('Host ended the match');
           this.backToLobby();
         }
@@ -82,9 +87,47 @@ class CoopController {
     this.app.screens.push(this.lobby);
   }
 
+  /** The running match, if this room has one on screen. */
+  private game(): GameState | null {
+    const g = this.app.current as GameState | null;
+    return this.inGame && g && 'isEnded' in g && g.net ? g : null;
+  }
+
+  /**
+   * (marlow-bays R3) The host left or dropped. In the lobby the room is gone (as before); in a match the joiner waits on
+   * the code for the host to reopen it ("Resume hosting"), which restarts the match from its last checkpoint here too.
+   */
+  private hostLost(): void {
+    if (!this.inGame) {
+      this.fail('Host left', 'The host closed the room or the connection dropped. Rejoin with the same code if the host is still there.');
+      return;
+    }
+    if (this.waiting) return;
+    this.waiting = true;
+    this.game()?.hud.setNetNotice(`Host disconnected - waiting (${this.session.code})`);
+    this.app.toasts.show(`Host disconnected. Waiting for them to resume room ${this.session.code}.`, 'warn');
+  }
+
+  /** (R1) The record the main menu reads: refreshed every 2 s while a match runs; gone once it ends. */
+  private record(): void {
+    const g = this.game();
+    if (!g) return;
+    if (g.isEnded) {
+      clearRejoin();
+      return;
+    }
+    const s = this.session;
+    const r: RejoinRecord = { code: s.code, role: s.role, at: Date.now(), mode: s.mode, map: s.map, difficulty: s.difficulty, mission: s.mission, weather: s.weather, bay: g.mode?.resumeBay?.() ?? s.courseBay };
+    saveRejoin(r);
+  }
+
   private start(s: StartInfo): void {
-    if (this.inGame || this.left) return;
+    if (this.left) return;
+    // (R3) a host that reopened the room starts the match again from its checkpoint: the waiting joiner reloads it
+    if (this.inGame && !this.waiting) return;
+    this.waiting = false;
     this.inGame = true;
+    if (!this.recT) this.recT = setInterval(() => this.record(), 2000);
     const session = this.session;
     const mission = s.mode === 'infiltration' ? missionById(s.mission) : null;
     const map = getMap(mission?.map ?? s.map);
@@ -99,6 +142,7 @@ class CoopController {
         courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
         net: {
           role: session.role,
+          code: session.code,
           attach: (g) => (session.isHost ? new CoopHost(g, session) : new CoopClient(g, session)),
         },
       },
@@ -109,6 +153,9 @@ class CoopController {
   backToLobby(): void {
     if (this.left) return;
     this.inGame = false;
+    this.waiting = false;
+    this.stopRecord();
+    clearRejoin();
     if (this.session.isHost) this.session.backToLobby();
     this.api.goToMenu();
     this.showLobby();
@@ -120,8 +167,16 @@ class CoopController {
     this.app.screens.push(new Dialog(title, msg, [{ label: 'OK', action: () => {}, primary: true }]));
   }
 
+  private stopRecord(): void {
+    if (this.recT) clearInterval(this.recT);
+    this.recT = null;
+  }
+
   async leave(toMenu = true): Promise<void> {
     if (this.left) return;
+    // (R1) leaving a running match keeps its record: the main menu offers the room again for the hold
+    this.record();
+    this.stopRecord();
     this.left = true;
     for (const o of this.offs) o();
     await this.session.leave(this.session.isHost ? 'Host left' : 'left');
@@ -548,7 +603,7 @@ class ConnectingScreen extends MenuScreen {
 
 export let current: CoopController | null = null;
 
-async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'client'): Promise<void> {
+async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'client', resume: RejoinRecord | null = null): Promise<void> {
   if (isOffline()) {
     app.toasts.show('Offline - co-op unavailable', 'warn');
     return;
@@ -569,7 +624,21 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
     return;
   }
   if (app.screens.top === wait) app.screens.pop();
-  const session = new NetSession(transport, role, code, api.profile());
+  const session = new NetSession(transport, role, code, api.profile(), role === 'client' ? rejoinToken(code) : '');
+  if (role === 'host' && resume) {
+    // (marlow-bays R3) "Resume hosting": the same room, the same match, from its last checkpoint; the joiner (waiting on
+    // the code, or rejoining from its menu) takes the match as it starts
+    // (set directly: a lobby broadcast before the start would send a waiting joiner to the lobby)
+    session.mode = resume.mode;
+    session.map = resume.map;
+    session.difficulty = resume.difficulty;
+    session.mission = resume.mode === 'infiltration' ? resume.mission : '';
+    session.weather = resume.weather;
+    session.courseBay = resume.bay;
+    adopt(app, api, session);
+    session.startMatch();
+    return;
+  }
   // a new room starts on the campaign, Marlow Yard in Course mode (sector-ops slice 3); `?legacy=1` keeps the parked Hunter
   if (role === 'host') {
     if (flags.legacy) session.setSettings('clear', 'warehouse', session.difficulty);
@@ -619,7 +688,7 @@ export function autoRoomCode(map: string): string {
 export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode: 'course' | 'sector' = 'course'): Promise<void> {
   const code = autoRoomCode(map);
   // a client session hears an open room's lobby (the host answers its hello) within the probe window
-  const probe = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile());
+  const probe = new NetSession(createLocalTransport(roomId(code)), 'client', code, api.profile(), rejoinToken(code));
   let full = false;
   probe.events.on('full', () => (full = true));
   await new Promise((r) => setTimeout(r, AUTO_PROBE_MS));
@@ -651,6 +720,11 @@ export function hostRoom(app: App, api: CoopApi): Promise<void> {
 
 export function joinRoom(app: App, api: CoopApi, code: string): Promise<void> {
   return connect(app, api, code, 'client');
+}
+
+/** (marlow-bays R1-R3) The main menu's "Rejoin <code>" (joiner) / "Resume hosting <code>" (host). */
+export function resumeRoom(app: App, api: CoopApi, r: RejoinRecord): Promise<void> {
+  return r.role === 'host' ? connect(app, api, r.code, 'host', r) : joinRoom(app, api, r.code);
 }
 
 /** Main menu entry point. */

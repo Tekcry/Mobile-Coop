@@ -21,6 +21,12 @@ anim-tuner merged as 4.20.0 (PR #56). tuner-pad (pad control) PR open from featu
   step and a game speed slider, every control by pad (edit mode, Y menu, the map below), smooth state changes (section
   `tau`), import, wide ranges, typed values, bypass, slider search, the barrel marker as a 2D overlay (`CAMERA.md`,
   "Pass 2").
+- 2026-10-22 (marlow-bays item 30, branch feature/key-tools off feature/tuner-v3): the Keys tab's key tools (Wave,
+  Apply to keys, Smooth between in a "Key tools" fold; Compare with the studio ghost and the values line;
+  `ui/tunerKeyTools.ts`, `anim/tuneKeysTools.ts`) and the exact preview (30e: `tuneKeys.ts` `build` on the bake's
+  curve, `anim/tuneKeysCurve.ts`; the S4b fixture: pelvis and trunk exact, arms 0.07-0.70 cm between keys). Docs:
+  `docs/systems/ui.md` (Keys tab), BAKE.md. Not done: the curve view (Michael left it out); the arms' last 0.7 cm
+  (needs the shoulder / elbow channels re-keyed with location, a TS port of key_clip.py `fk`).
 
 ## Section registry (for other jobs)
 `src/anim/tuneRegistry.ts` (pure, Babylon-free). A section is a set of sliders over a set of state groups. Every
@@ -126,7 +132,33 @@ undoable. The bake rewrites the key file's key list and `tuneKeysMeta.ts` and pr
   file is listed and every slider and group is covered.
 
 ## Pad map
-(tuner-ui, 2026-10-21: the current map; the pass-2 table below it is history.) While the panel has the pad ("Pad:
+(marlow-bays item 29, tuner v3, 2026-10-22: the current map; the tuner-ui table after it is history where it differs.)
+One layout for every input: the pad, keyboard / mouse and touch see the same panel (only the hint glyphs change);
+`src/ui/animTunePad.ts` (`TunePadCtl`, pure) reads the pad, `src/ui/animTunePanel.ts` applies it.
+
+| Control | What it does |
+| --- | --- |
+| Left stick up / down | Move through the list (analogue: the further and the longer, the faster it repeats); in an open list, move the highlight |
+| Left stick left / right | Change the focused value (analogue; held, it speeds up) |
+| D-pad (optional) | Up / down rows, left / right one step of the value (held: repeats, x5 after 1 s); on a State / Move picker left / right step its choice (CT Core #90's padGroup, at the group's own level) |
+| A | Open a list (Part, State, Weapon, Clip, Key, Loop), pick, press a button, tick a box, open / fold a group or More |
+| B | Back out: close a list (nothing changes) or the quick menu; from a slider to its State list |
+| X | Reset the focused slider |
+| Y | The quick menu (Undo, Redo, Store A / B, Flip A / B, Reset this group, Reset all (A twice), Export, Share / Copy, Import, Clear change log) |
+| LB / RB | Previous / next tab (wraps) |
+| Right stick | Always the camera (orbit her; no mode switch). Under a held snap it turns the held angle; the View tab's "Around her" / "Camera tilt" sliders follow it |
+| RT / LT | Zoom in / out |
+| L3 | Loop on the spot on / off (Anim Studio; F8 on the keyboard) |
+| R3 (held) | Untuned (the bypass; Backquote on the keyboard) |
+| View | Hand the pad to the game and back ("Pause game while tuning" holds the game while the tuner has it) |
+| Menu (Start) | Close the panel |
+
+No edit mode: the focused slider is the one the stick changes. No UI click sound in the tuner. Keys in the studio: F9
+play / pause, F1 / F2 a key back / forward, F8 on the spot, F4 the mouse mode. (Phase 2) The View tab's Side snap
+pressed again swaps to her other side ("Side (right)" / "Side (left)").
+
+### tuner-ui map (history)
+(tuner-ui, 2026-10-21; replaced by the v3 map above.) While the panel has the pad ("Pad:
 tuner"); the hint strip at the bottom of the panel (reserved space, never over a row) shows the map for the moment, with
 pad glyphs when a pad is in use and key / mouse help otherwise. `src/ui/animTunePad.ts` (`TunePadCtl`, pure);
 `src/ui/animTunePanel.ts` applies it; the pure layout is `src/ui/tunerLayout.ts`.

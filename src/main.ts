@@ -10,6 +10,7 @@ import { loadHavok } from './physics/havok';
 import { setupServiceWorker, suppressBrowserGestures } from './pwa/pwa';
 import { flags } from './core/flags';
 import { campaignUnlocked, showEconomy } from './core/legacy';
+import { loadRejoin } from './core/rejoin';
 import { MenuState } from './world/menuScene';
 import { gateLimits } from './world/menuGate';
 import { IGNITE_S } from './world/menuShots';
@@ -322,6 +323,25 @@ async function boot(): Promise<void> {
           .then((m) => m.openCoop(a, coopApi))
           .catch(() => a.toasts.show('Co-op unavailable', 'warn')),
     }));
+    // (marlow-bays R1-R3) the room a player dropped out of or left, for the hold (10 min): one press rejoins it (the
+    // joiner) or reopens it from its last checkpoint (the host); the label shows the code
+    MainMenuScreen.entries.push((a) => {
+      const r = loadRejoin();
+      return {
+        key: 'rejoin',
+        label: r ? (r.role === 'host' ? `Resume hosting ${r.code}` : `Rejoin ${r.code}`) : 'Rejoin',
+        ctx: r?.role === 'host' ? `Reopen room ${r.code} and restart the match from its last checkpoint. Your partner rejoins on the code.` : `Rejoin room ${r?.code ?? ''}. The host holds your place for 10 minutes after you drop.`,
+        order: 14,
+        hidden: () => !loadRejoin(),
+        action: () => {
+          const now = loadRejoin();
+          if (!now) return;
+          void loadCoop()
+            .then((m) => m.resumeRoom(a, coopApi, now))
+            .catch(() => a.toasts.show('Co-op unavailable', 'warn'));
+        },
+      };
+    });
   }
 
   /** The results screen's Missions / Next: the menu, the missions list, and a mission's briefing when `id` is given. */

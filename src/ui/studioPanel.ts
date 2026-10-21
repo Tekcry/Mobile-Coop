@@ -1,10 +1,10 @@
 import type { Scene } from '../core/babylon';
-import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, stageLightScale, studioEntry, studioKey, type StudioSnap, type StudioWeapon } from '../anim/studio';
+import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, stageLightScale, studioEntry, studioKey, type StudioSnap, type StudioWeapon } from '../anim/studio';
 import { keyClip, keyFrame, keyRank, keyReadout } from '../anim/keyTimeline';
 import { FREE_VIEW, type FreeMode } from '../player/freeView';
 import { StudioOverlay } from './studioOverlay';
 import type { PanelKit } from './tuneSnapshots';
-import { loopKeyed, loopKeyedPick, plainLoop, plainWords, type LoopKeyed } from './tunerLayout';
+import { footSlideTenths, footSlideText, footSlideWarn, loopKeyed, loopKeyedPick, plainLoop, plainWords, type LoopKeyed } from './tunerLayout';
 import { TUNER_KEY_BACK, TUNER_KEY_FWD, TUNER_PLAY_KEY } from './tunerMouse';
 
 /** What the studio section drives in the tuner panel (`AnimTunePanel`). */
@@ -44,6 +44,14 @@ export class StudioPanel {
   /** (T1a, item 16) The playback bar (the panel docks it under the tabs; hidden outside the studio). */
   readonly bar: HTMLDivElement;
   readonly overlay = new StudioOverlay();
+  /** (marlow-bays item 29 phase 2) The viewing aids' bar (skeleton, feet, ghost poses): the panel puts it in More. */
+  readonly aids: HTMLDivElement;
+  private readonly aidBoxes: HTMLInputElement[];
+  /** (track C request) "Foot slide L 0.0 cm  R 0.0 cm" from her rig's `footSlide` (hidden while the rig has none). */
+  private slideLine: HTMLDivElement;
+  /** The shown values in tenths of a cm (NaN: nothing shown yet). */
+  private slideL = Number.NaN;
+  private slideR = Number.NaN;
   private entrySel: HTMLSelectElement;
   private playBtn: HTMLButtonElement;
   private backBtn: HTMLButtonElement;
@@ -142,7 +150,11 @@ export class StudioPanel {
     }
     this.readout = document.createElement('div');
     this.readout.className = 'studio-readout tt-note';
-    bar.append(p1, p2, this.readout);
+    // (track C request) the planted feet's slide this contact, under the readout; amber over FOOT_SLIDE_WARN
+    this.slideLine = document.createElement('div');
+    this.slideLine.className = 'studio-slide tt-note';
+    this.slideLine.hidden = true;
+    bar.append(p1, p2, this.readout, this.slideLine);
     // --- the rest of the Loop player (View tab)
     const b4 = kit.bar();
     this.mirrorBox = kit.check(b4, 'Mirror', false, (v) => (STUDIO.mirror = v), 'st:mirror', 'studio-mirror');
@@ -152,10 +164,13 @@ export class StudioPanel {
     const rate = kit.sel(b5, 'Turn speed', TURN_RATES, (v) => (STUDIO.turnRate = Number(v)), 'st:rate', 'studio-rate');
     for (const o of Array.from(rate.options)) o.textContent = `${o.value}°/s`;
     rate.value = String(STUDIO.turnRate);
-    const b6 = kit.bar();
-    kit.check(b6, 'Skeleton', true, (v) => (STUDIO.skeleton = v), 'st:skel', 'studio-skel');
-    kit.check(b6, 'Feet', true, (v) => (STUDIO.feet = v), 'st:feet', 'studio-feet');
-    kit.check(b6, 'Ghost poses', false, (v) => (STUDIO.onion = v), 'st:onion', 'studio-onion');
+    // (marlow-bays item 29 phase 2) the viewing aids: off by default, in the panel's More ("View aids", `aids`)
+    const b6 = (this.aids = kit.bar());
+    this.aidBoxes = [
+      kit.check(b6, 'Skeleton', STUDIO.skeleton, (v) => (STUDIO.skeleton = v), 'st:skel', 'studio-skel'),
+      kit.check(b6, 'Feet', STUDIO.feet, (v) => (STUDIO.feet = v), 'st:feet', 'studio-feet'),
+      kit.check(b6, 'Ghost poses', STUDIO.onion, (v) => (STUDIO.onion = v), 'st:onion', 'studio-onion'),
+    ];
     // (marlow-bays item 14) the stage lights that follow her (key, fill, rim, ambient): 0 off .. 2x, 1 bright
     const b7 = kit.bar();
     {
@@ -181,7 +196,7 @@ export class StudioPanel {
       l.append('Stage light', r, this.stageVal);
       b7.append(l);
     }
-    el.append(h, note, b1, b4, b5, b6, b7);
+    el.append(h, note, b1, b4, b5, b7);
     // (test hook) e2e and the console drive the studio through this
     (window as unknown as { __studio: unknown }).__studio = {
       state: () => ({ ...STUDIO }),
@@ -221,6 +236,9 @@ export class StudioPanel {
       keyedState: () => ({ checked: this.keyedBox.checked, disabled: this.keyedBox.disabled, entry: STUDIO.entry }),
       // (T1a) the playback bar's readout and whether it shows
       readout: () => ({ text: this.readout.textContent ?? '', shown: !this.bar.hidden }),
+      // (item 29 phase 2) the view aids and the foot slide line
+      aids: () => ({ skeleton: STUDIO.skeleton, feet: STUDIO.feet, onion: STUDIO.onion, inMore: !!this.aids.closest('.anim-tune-more') }),
+      slide: () => ({ text: this.slideLine.textContent ?? '', shown: !this.slideLine.hidden, warn: this.slideLine.classList.contains('warn') }),
     };
   }
 
@@ -237,10 +255,35 @@ export class StudioPanel {
     if (this.entrySel.value !== STUDIO.entry) this.entrySel.value = STUDIO.entry;
     this.mirrorBox.checked = STUDIO.mirror;
     this.turnBox.checked = STUDIO.turntable;
+    // (the studio resets its switches on entry: the boxes show what is drawn)
+    this.aidBoxes[0]!.checked = STUDIO.skeleton;
+    this.aidBoxes[1]!.checked = STUDIO.feet;
+    this.aidBoxes[2]!.checked = STUDIO.onion;
     this.weaponSel.value = STUDIO.weapon;
     this.showStage();
     this.showKeyed();
     this.nextRead = 0;
+  }
+
+  /**
+   * (track C request) The foot slide line from her rig's optional `footSlide` ({ l, r } cm this contact; absent before
+   * track C's S4: the line hides). The text is set only when a rounded value changes (no per-frame allocation).
+   */
+  private showSlide(): void {
+    const fs = (STUDIO_RIGS[0] as { footSlide?: { l: number; r: number } } | undefined)?.footSlide;
+    if (!fs) {
+      if (!this.slideLine.hidden) this.slideLine.hidden = true;
+      this.slideL = this.slideR = Number.NaN;
+      return;
+    }
+    if (this.slideLine.hidden) this.slideLine.hidden = false;
+    const l = footSlideTenths(fs.l ?? 0);
+    const r = footSlideTenths(fs.r ?? 0);
+    if (l === this.slideL && r === this.slideR) return;
+    this.slideL = l;
+    this.slideR = r;
+    this.slideLine.textContent = footSlideText(l, r);
+    this.slideLine.classList.toggle('warn', footSlideWarn(l, r));
   }
 
   /** Every frame while the panel is open. */
@@ -254,6 +297,7 @@ export class StudioPanel {
     }
     FREE_VIEW.spin = STUDIO.turntable ? (STUDIO.turnRate * Math.PI) / 180 : 0;
     this.overlay.frame(nowMs, scene);
+    this.showSlide();
     if (nowMs < this.nextRead) return;
     this.nextRead = nowMs + 100;
     const e = studioEntry(STUDIO.entry);
