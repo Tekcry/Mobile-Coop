@@ -21,6 +21,7 @@ import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
+import { gearCompose, GS } from '../anim/tuneGear';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -440,6 +441,8 @@ const CLEAR_MARGIN = 0.015;
 const tmpQ2 = new Quaternion();
 const tmpQ3 = new Quaternion();
 /** (21w) Weapon glide scratch. */
+/** (anim-gear) `gearPlace`'s result (position, rotation). */
+const gearRes = new Float64Array(7);
 const glideInv = new Matrix();
 const glideLocal = new Matrix();
 const glideS = new Vector3();
@@ -592,6 +595,69 @@ export class CharacterRig {
   set tuneRows(on: boolean) {
     if (on && !this.tuneSt) this.tuneSt = tuneRigState();
     else if (!on) this.tuneSt = null;
+  }
+  /**
+   * (anim-gear, marlow-bays item 22) The version of this rig's gear offsets (`tuneGear.ts`; 0 on a rig without
+   * `tuneRows`): a carried item placed at another version takes its slot again (`WeaponModel`). Visual only (G-A3).
+   */
+  get gearVer(): number {
+    return this.tuneSt ? this.tuneSt.gear.ver : 0;
+  }
+  /**
+   * (anim-gear) A carried item just placed in its slot (`node`'s position and rotation in its parent's frame), the
+   * slot's pivot at (vx, vy, vz) in the item's frame: this rig's offset of `socket` (`tuneGear.ts` GS) applied in place
+   * (moved in the slot's frame, turned about the pivot). No offset (not a Wren rig, nothing live): untouched. No
+   * allocation.
+   */
+  gearPlace(node: TransformNode, socket: number, vx: number, vy: number, vz: number): void {
+    const ts = this.tuneSt;
+    const q = node.rotationQuaternion;
+    if (ts === null || q === null) return;
+    const p = node.position;
+    if (!gearCompose(ts.gear, socket, p.x, p.y, p.z, q.x, q.y, q.z, q.w, vx, vy, vz, gearRes)) return;
+    p.set(gearRes[0]!, gearRes[1]!, gearRes[2]!);
+    q.copyFromFloats(gearRes[3]!, gearRes[4]!, gearRes[5]!, gearRes[6]!);
+  }
+  /** (anim-gear) The gear version the sling nodes were placed at. */
+  private gearNodesVer = 0;
+  /** (anim-gear) The sling nodes' own places while an offset is on them: slingBack position + rotation, then slingHip. */
+  private readonly gearNodeBase = new Float64Array(14);
+  /** (anim-gear) Bit 1: slingBack offset, bit 2: slingHip offset. */
+  private gearNodeOn = 0;
+
+  /** (anim-gear) The sling nodes take their sockets' offsets (from their own places) when this rig's gear changed. */
+  private gearNodes(): void {
+    const ts = this.tuneSt;
+    if (ts === null || ts.gear.ver === this.gearNodesVer) return;
+    this.gearNodesVer = ts.gear.ver;
+    this.gearNode(ts, this.slingBack, GS.slingBack, 0, 1);
+    this.gearNode(ts, this.slingHip, GS.slingHip, 7, 2);
+  }
+
+  private gearNode(ts: TuneRigState, n: TransformNode, s: number, o: number, bit: number): void {
+    const q = n.rotationQuaternion;
+    if (!q) return;
+    const p = n.position;
+    const b = this.gearNodeBase;
+    const live = ts.gear.live[s] === 1;
+    if ((this.gearNodeOn & bit) === 0) {
+      if (!live) return;
+      b[o] = p.x;
+      b[o + 1] = p.y;
+      b[o + 2] = p.z;
+      b[o + 3] = q.x;
+      b[o + 4] = q.y;
+      b[o + 5] = q.z;
+      b[o + 6] = q.w;
+      this.gearNodeOn |= bit;
+    }
+    p.set(b[o]!, b[o + 1]!, b[o + 2]!);
+    q.copyFromFloats(b[o + 3]!, b[o + 4]!, b[o + 5]!, b[o + 6]!);
+    if (!live) {
+      this.gearNodeOn &= ~bit;
+      return;
+    }
+    this.gearPlace(n, s, 0, 0, 0);
   }
   /**
    * (tuner-v2 item 2) The held gun's model (WeaponModel.hold sets it): the tuner's visual gun transform goes on its
@@ -1417,6 +1483,8 @@ export class CharacterRig {
     }
     tuneRigBegin(ts, s, this, dt);
     try {
+      // (anim-gear) the sling nodes follow a gear change before the pose (carried guns re-place in `onPosed`)
+      this.gearNodes();
       this.animateFrame(dt, s);
     } finally {
       tuneRigEnd();

@@ -1,7 +1,7 @@
 # anim-gear - state
 
 ## Now
-Set up (worktree, BRIEF, STATE). Implementer starts after the 23:00 reset.
+PAUSED (orchestrator pacing, 00:40): implementer done (REPORT.md: check and e2e-studio, e2e-anim, e2e-weapons-carry pass), no checker yet. Waiting: the orchestrator's OK for `src/weapons/weaponModel.ts` (31 lines, the per-frame gear placement). Then the checker, merge master once #90 lands, full e2e on the laptop, PR.
 
 ## Next
 1. Implementer (one slice): the Gear section, the rig hooks, the pouches, the bake into `animBase.ts` `gear`, tests.

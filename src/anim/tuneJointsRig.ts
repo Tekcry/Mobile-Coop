@@ -14,16 +14,22 @@
  *
  * Nothing live (an empty base table, zero deltas, nothing still easing): both windows stay off and the hooks never run,
  * so the output is bit-identical to the untuned rig. No allocation per frame.
+ *
+ * (anim-gear) The rig's gear offsets (`TuneRigState.gear`, `tuneGear.ts`) are composed here too, by its crouch amount;
+ * `CharacterRig.gearPlace` and its sling nodes read them. The base table's `gear` key loads with the rest.
  */
 import { ANIM_BASE, type AnimBaseData } from './animBase';
 import { BODY_GROUPS, selectBodyGroup, type TunePoseIn } from './tune';
 import { HAND_WEAPONS, handsBaseLoad, handsBeginRigRows, handsEnd, handsRigState, handsWeaponOf, type HandsRigIn, type HandsRigState } from './tuneHands';
 import { JOINT_ROWS, jointsBaseLoad, jointsBeginRigRows, jointsEnd, jointsRigState, type JointsRigState } from './tuneJoints';
 import { pickTuneRows, TUNE_MOVE_MAX, TUNE_ROW_IDS, tuneRowPick, type TuneActionWeights, type TuneMovePoseIn, type TuneRowPick } from './tuneMoveRows';
+import { GEAR_PARAMS, gearBaseLoad, gearRigState, gearRigUpdate, type GearRigState } from './tuneGear';
 
 export interface TuneRigState {
   readonly joints: JointsRigState;
   readonly hands: HandsRigState;
+  /** (anim-gear) This rig's gear offsets (base table + Gear deltas, standing + crouch x crouched). */
+  readonly gear: GearRigState;
   /** The body state row picked last ('' none), for the dev hooks and tests. */
   body: string;
   /** (J2) The stance and move / action rows picked last (the panel follow, the dev hooks, the tests). */
@@ -33,7 +39,7 @@ export interface TuneRigState {
 }
 
 export function tuneRigState(): TuneRigState {
-  return { joints: jointsRigState(), hands: handsRigState(), body: '', pick: tuneRowPick(), jRows: new Int16Array(TUNE_MOVE_MAX).fill(-1) };
+  return { joints: jointsRigState(), hands: handsRigState(), gear: gearRigState(), body: '', pick: tuneRowPick(), jRows: new Int16Array(TUNE_MOVE_MAX).fill(-1) };
 }
 
 /** What the pick reads from the rig (a `CharacterRig` fits). */
@@ -72,6 +78,8 @@ export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn
   for (let k = 0; k < TUNE_MOVE_MAX; k++) jr[k] = k < p.n ? JOINT_OF_TUNE_ROW[p.idx[k]!]! : -1;
   jointsBeginRigRows(st.joints, gi < 0 || wi < 0 ? -1 : JOINT_ROW_OF[wi]![gi]!, jr, p.w, p.n, dt);
   handsBeginRigRows(st.hands, gi, wi, p.idx, p.w, p.n, dt);
+  // (anim-gear) the gear offsets by this rig's crouch amount (nothing live: returns at once)
+  gearRigUpdate(st.gear, pose.crouch);
 }
 
 /** After the rig's `animate` frame: both windows off. */
@@ -90,7 +98,7 @@ let baseNow: AnimBaseData = clone(ANIM_BASE);
 /** Load a base table object into the Joints / Hands / IK tables (every rig jumps). Returns the unknown names skipped. */
 export function animBaseLoad(b: AnimBaseData): string[] {
   baseNow = clone(b);
-  return [...jointsBaseLoad(baseNow.joints), ...handsBaseLoad(baseNow.hands, baseNow.ik)];
+  return [...jointsBaseLoad(baseNow.joints), ...handsBaseLoad(baseNow.hands, baseNow.ik), ...gearBaseLoad(baseNow.gear).map((n) => `gear.${n}`)];
 }
 
 /** The base table in use (a copy). */
@@ -107,6 +115,13 @@ if (typeof window !== 'undefined') {
     setJoint: (row: string, joint: string, xyz: [number, number, number]): string[] => {
       const b = clone(baseNow);
       (b.joints[row] ??= {})[joint] = xyz;
+      return animBaseLoad(b);
+    },
+    /** (anim-gear) One gear param's base offset (`row` a socket or `<socket>.crouch`, `param` x / y / z / pitch / yaw / roll). */
+    setGear: (row: string, param: string, v: number): string[] => {
+      if (!GEAR_PARAMS.some((p) => p.id === param)) return [`gear.${row}.${param}`];
+      const b = clone(baseNow);
+      ((b.gear ??= {})[row] ??= {})[param] = v;
       return animBaseLoad(b);
     },
     /** Back to the generated table. */
