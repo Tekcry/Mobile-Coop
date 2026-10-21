@@ -230,6 +230,22 @@ describe('Reset baked: two bakes of one export (the hash is the export\'s)', () 
     tuneLoad({ version: 2, values: {}, log: [] });
   });
 
+  it('a 4.46.x save as 4.46 re-saved it (trackMul clamped to its normal minimum): the 13 still reset once', () => {
+    const resaved = JSON.parse(JSON.stringify(OLD_SAVE));
+    for (const g of ['idle', 'walk', 'jog', 'run']) resaved.values[g].trackMul = 0.3;
+    tuneLoad(resaved);
+    expect(tuneGet('walk', 'trackMul')).toBe(0.3);
+    const r = tuneBakedReset(LEDGER2, { saved: resaved, now: T0 });
+    expect(r).toMatchObject({ reset: 13, kept: 1, ran: true });
+    expect(tuneSnapshot().values).toEqual({ walk: { kneeOutMul: 1.2 } });
+    const next = JSON.parse(JSON.stringify(tuneSnapshot()));
+    tuneLoad(next);
+    expect(tuneBakedReset(LEDGER2, { saved: next, now: T0 + 5000 })).toMatchObject({ reset: 0, ran: false });
+    // the manual "Reset baked" (the registry's clamped values) matches the clamped value too
+    tuneSet('run', 'trackMul', 0.3, T0 + 6000);
+    expect(tuneBakedReset(LEDGER2, { force: true, now: T0 + 7000 })).toMatchObject({ reset: 1, kept: 1, ran: true });
+  });
+
   it('a literal 4.46.x save: the 13 reset once on the next load, the other change kept, the second load does nothing', () => {
     const saved = JSON.parse(JSON.stringify(OLD_SAVE));
     tuneLoad(saved);

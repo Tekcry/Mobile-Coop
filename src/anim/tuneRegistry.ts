@@ -356,15 +356,15 @@ export interface TuneSnapshot {
   baked?: string[];
 }
 
-/** (anim-bake-1022) The applied bake hashes (loaded and saved with the snapshot; an import or a reset keeps them). */
+/** (anim-bake-1022) The applied bake ids (`hash@at`; a 4.46.x save may hold a bare hash) (loaded and saved with the snapshot; an import or a reset keeps them). */
 let bakedApplied: string[] = [];
 
 export function tuneBakedApplied(): readonly string[] {
   return bakedApplied;
 }
 
-export function tuneSetBakedApplied(hashes: readonly string[]): void {
-  bakedApplied = hashes.filter((h) => typeof h === 'string');
+export function tuneSetBakedApplied(ids: readonly string[]): void {
+  bakedApplied = ids.filter((h) => typeof h === 'string');
 }
 
 export function tuneSnapshot(): TuneSnapshot {

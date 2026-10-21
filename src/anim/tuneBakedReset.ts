@@ -6,7 +6,7 @@
  *
  * Automatic once per bake: the ids of the bakes applied are kept in the tuner's save (`TuneSnapshot.baked`), so a bake
  * resets its sliders on the first load after its merge and a later deliberate re-tune to the same value is never wiped.
- * A bake's id is `hash@at` (`bakeAppliedId`): the hash is the export's, so two bakes of one export (a re-bake after new
+ * A bake's id is `hash@at` (`bakeAppliedIds`): the hash is the export's, so two bakes of one export (a re-bake after new
  * code targets) share it and only the time tells them apart. A bare hash (saves from 4.46.x, before the ids) counts as
  * applied for the first ledger bake with that hash only, so a later bake of the same export still resets once.
  * The panel's Y menu "Reset baked" runs it again ignoring that record. Not hot (a load-time step).
@@ -94,7 +94,13 @@ export interface BakedResetPlan {
  * Values at their default are left out. Bakes `applied` covers (`bakesApplied`: their id, or a bare hash for the first
  * bake with it) are not compared.
  */
-export function bakedResetPlan(ledger: unknown, saved: unknown, defaultOf: (group: string, id: string) => number | undefined, applied: readonly string[] = []): BakedResetPlan {
+export function bakedResetPlan(
+  ledger: unknown,
+  saved: unknown,
+  defaultOf: (group: string, id: string) => number | undefined,
+  applied: readonly string[] = [],
+  rangeOf?: (group: string, id: string) => readonly [number, number] | undefined,
+): BakedResetPlan {
   const bakes = readBakedLedger(ledger);
   const ids = bakeAppliedIds(bakes);
   const done = bakesApplied(bakes, ids, applied);
@@ -103,7 +109,22 @@ export function bakedResetPlan(ledger: unknown, saved: unknown, defaultOf: (grou
   bakes.forEach((b, i) => {
     if (done[i]) return;
     fresh.push(ids[i]!);
-    for (const k of b.baked) keys.add(k);
+    for (const k of b.baked) {
+      keys.add(k);
+      // (anim-bake-targets) a baked value past its slider's normal range (tuned with the wide ranges on) is stored
+      // clamped once the tuner re-saves (`tuneLoad` clamps; 4.46.x re-saved after its own reset): match that too
+      if (!rangeOf) continue;
+      const bar = k.indexOf('|');
+      const eq = k.lastIndexOf('=');
+      if (bar <= 0 || eq <= bar) continue;
+      const group = k.slice(0, bar);
+      const id = k.slice(bar + 1, eq);
+      const v = Number(k.slice(eq + 1));
+      const r = rangeOf(group, id);
+      if (!r || !Number.isFinite(v)) continue;
+      if (v < r[0]) keys.add(bakedKey(group, id, r[0]));
+      else if (v > r[1]) keys.add(bakedKey(group, id, r[1]));
+    }
   });
   const plan: BakedResetPlan = { reset: [], kept: 0, fresh, ids };
   const snap = saved && typeof saved === 'object' ? (saved as { version?: unknown; values?: unknown }) : {};
@@ -148,6 +169,12 @@ function registryDefault(group: string, id: string): number | undefined {
   return t && t.groups.includes(group) ? t.def : undefined;
 }
 
+/** A registered slider's normal range (the one `tuneLoad` clamps to), undefined: not a slider of a registered group. */
+function registryRange(group: string, id: string): readonly [number, number] | undefined {
+  const t = sectionOf(group)?.byId.get(id);
+  return t && t.groups.includes(group) ? [t.min, t.max] : undefined;
+}
+
 export interface BakedResetOptions {
   /** The panel's "Reset baked": compare every bake, applied or not. */
   force?: boolean;
@@ -168,7 +195,7 @@ export function tuneBakedReset(ledger: unknown, opts: BakedResetOptions = {}): B
   const force = !!opts.force;
   const now = opts.now ?? Date.now();
   const applied = tuneBakedApplied();
-  const plan = bakedResetPlan(ledger, opts.saved !== undefined ? opts.saved : tuneSnapshot(), registryDefault, force ? [] : applied);
+  const plan = bakedResetPlan(ledger, opts.saved !== undefined ? opts.saved : tuneSnapshot(), registryDefault, force ? [] : applied, registryRange);
   for (const r of plan.reset) tuneReset(r.group, r.id, now);
   const all = applied.slice();
   for (const id of plan.ids) if (!all.includes(id)) all.push(id);

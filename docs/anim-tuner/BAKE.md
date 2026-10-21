@@ -283,8 +283,8 @@ list or when any registered slider and group has no rule or manual entry.
 7. After the merge nothing is left to reset by hand (anim-bake-1022, `src/anim/tuneBakedReset.ts`, tests
    `tests/tuneBakedReset.test.ts`): the build bundles the ledger, and when the tuner's save loads (the panel is built
    at boot) every slider whose saved value equals exactly a ledger `group|id=value` (compared as the ledger formats
-   numbers; a version 1 save migrated first; the record as saved, so a value past the normal range that the load clamps
-   still matches) goes back to its default through the registry (change log and save follow). The other changes are
+   numbers; a version 1 save migrated first; the record as saved; a baked value past its slider's normal range also matches its clamped value, since a re-save
+   stores it clamped, e.g. 4.46.x saved trackMul 0.05 as 0.3; a deliberate 0.3 there resets once too) goes back to its default through the registry (change log and save follow). The other changes are
    kept. The ids of the bakes applied are kept in the save (`TuneSnapshot.baked`), so it runs once per bake and a later
    re-tune to the same value is not wiped. A bake's id is `hash@at` (`bakeAppliedIds`): the hash is the export's, so
    two bakes of one export (anim-bake-targets re-baked PR #96's export for 13 new targets) share it and only the bake
@@ -292,7 +292,7 @@ list or when any registered slider and group has no rule or manual entry.
    that hash only, so a 4.46.x save resets the second bake's 13 sliders once. The panel's info line then says "13
    values are now built in; your other 1 change is kept." (with one other change; closed: when it next opens; also the
    console). The Y menu's **Reset baked** runs it again over
-   every bake, ignoring the record (it compares the loaded values, so a clamped one no longer matches). Tell Michael to
+   every bake, ignoring the record (it compares the loaded values, clamped values included). Tell Michael to
    open the tuner, read the line and export again: the old export is spent.
 
 ## Fix round (CHECK-BAKE.md)
