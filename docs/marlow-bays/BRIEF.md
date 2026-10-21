@@ -156,6 +156,14 @@ that order; the laptop tests all three:
     which reopens the same room and restarts from the last checkpoint with the joiner rejoining on the code; R4 no new
     server: the same Trystero / Nostr room. Logic e2e via localTransport (drop and rejoin both sides).
 
+28. (~19:50) Server browser, low priority, spare capacity only. Michael: "Yes add it to the pipeline. It can proceed as
+    low priority whenever there is spare capacity. Must be prototype only, quick and fast to build." (No quick match:
+    "Doesn't need to be a quick match option.") Slice S (Bays Cloud, after slice R): a Public / Private switch in the
+    host lobby (default Private); a public room posts a notice (code, map, version, players) on the same Nostr relays,
+    refreshed every ~30 s with an expiry, removed when full or closed; a "Browse rooms" list in the co-op menu (other
+    versions hidden, live refresh, pad and keyboard / mouse) that joins by the code as today. No TURN relay, no
+    server. Prototype only: a fake relay for unit and logic e2e, one real-relay check on the PC later. Own PR.
+
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
     if a pose crosses it).
