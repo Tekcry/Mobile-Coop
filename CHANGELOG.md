@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-skeleton S1+S2
+## 4.42.0 - Wren skeleton: collarbones, 30 finger bones, smoother glove fingers; hands close on weapons again (2026-10-21, PR #88)
 - Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
   had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on
   the two nearest models (each finger bends at three knuckles), and the game's grip drives them on every Wren,
