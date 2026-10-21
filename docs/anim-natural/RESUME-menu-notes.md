@@ -60,7 +60,8 @@ WIP.md with the resume step.
 
 ## 3. anim-skeleton (T3) - DONE apart from follow-ups
 PRs merged: #88 (S1+S2, 4.42.0), #98 (S3+S4, 4.47.0), #100 (keyCurve evaluator, 4.47.1). Course Ready's #106 (item 30,
-OPEN at 0d25265c) wires keyCurve into tuneKeys.ts (the exact preview, 30(e)); tell nobody anything until it lands.
+OPEN at 0d25265c) wires keyCurve into tuneKeys.ts (the exact preview, 30(e)); Course Ready was told #100 merged (10:30); nothing more
+is owed to it.
 Follow-ups held by Course Ready (after S4 on master): hide `legX_w` except on `legs` clips; a "Collarbone" part label in
 tunerTarget.ts; the studio foot-slide line (reads `rig.footSlide`). Polish list in docs/anim-skeleton/STATE.md and the
 s1-s4b reports. The helper worktree C:/NightShift/Mobile-Coop-anim-skeleton-s3 (branch feature/anim-skeleton-s4b, merged)
