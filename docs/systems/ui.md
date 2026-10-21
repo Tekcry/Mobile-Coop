@@ -301,7 +301,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   row. The per-gun Joints rows stay for the armed states only.
 - (anim-gear, marlow-bays item 22) Gear (`anim/tuneV2Sections.ts` `GEAR_SECTION`, tables `anim/tuneGear.ts`): worn-gear
   offsets per socket, its own tuner tab (`sec:gear`, "Gear": the panel builds it from the registry, no UI change).
-  Groups `gear.<socket>` (holster, backL, backC, backR, slingHip) and `gear.<socket>.crouch` (added
+  Groups `gear.<socket>` (holster, backL, backC, backR, slingHip, (anim-goggle) goggles) and `gear.<socket>.crouch` (added
   over the standing row by the rig's crouch amount 0..1); sliders x / y / z (m, -0.1..0.1) and pitch / yaw / roll (deg,
   -45..45), identity 0, no follow. Deltas on the base table's `gear` key; every Wren rig composes its own
   (`TuneRigState.gear`, in `tuneRigBegin`). Where each applies: holster -> the thigh pistol (`WeaponModel.place`, the
@@ -311,6 +311,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   pouches socket: Wren's kit draws her grenade pouches (the GrenadePouches meshes are hidden on her rig), so it would
   move nothing (dropped until they can move). A gun's frame is its own in the slot (x right, y top, z toward the muzzle); a node's is its
   parent's. A draw / holster's travel targets the moved slot (it places its end through `place`). Visual only (G-A3).
+  (anim-goggle) goggles -> the worn goggle (track C's `GOGGLE_OFFSET.inUse`, head frame: x right, y up, z forward, about
+  its own pivot): each Wren rig writes its composed value there inside its tuner window just before `goggleFrame()`
+  copies it into `rig.goggleOff`, and puts the old value back after (guards never); on LOD1 / LOD2 only the lens moves
+  (the housing is fused into the head); no stowed socket (the stowed goggle has no vertices yet).
   Hook: `__animBase.setGear(row, param, v)`.
 - (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
   differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
