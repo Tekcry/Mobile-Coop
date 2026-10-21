@@ -6,6 +6,7 @@
  * size, and which tuner groups a loop of the Anim Studio uses.
  */
 import { ARMED_JOINT_STATES } from '../anim/tuneRows';
+import { CLIP_BODY } from '../anim/studio';
 
 /** The fixed tabs, in order. A registered section not mapped here gets its own tab after Co-op. */
 export const TUNER_TABS: readonly { id: string; label: string }[] = [
@@ -18,7 +19,6 @@ export const TUNER_TABS: readonly { id: string; label: string }[] = [
   { id: 'camera', label: 'Camera' },
   { id: 'keys', label: 'Keys' },
   { id: 'coop', label: 'Co-op' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 /** Which tab a registered section sits in (the Co-op sections by their `team_` prefix). */
@@ -52,18 +52,16 @@ export interface TunerTab {
 
 /**
  * The tabs for the registered sections (`ids` in registration order, `label` the section's own label for an unmapped
- * one): the fixed tabs (View and Settings always; a section tab only when it has a section), with every unmapped
- * section's own tab after Co-op and before Settings.
+ * one): the fixed tabs (View always; a section tab only when it has a section), then every unmapped section's own tab
+ * after Co-op. (marlow-bays item 29) No Settings tab: the panel's settings are in every tab's "More".
  */
 export function buildTabs(ids: readonly string[], label: (id: string) => string): TunerTab[] {
   const out: TunerTab[] = [];
   for (const t of TUNER_TABS) {
-    if (t.id === 'settings') {
-      for (const id of ids) if (tabOfSection(id).startsWith('sec:')) out.push({ id: `sec:${id}`, label: plainSection(id, label(id)), sections: [id] });
-    }
     const secs = ids.filter((id) => tabOfSection(id) === t.id);
-    if (t.id === 'view' || t.id === 'settings' || secs.length) out.push({ id: t.id, label: t.label, sections: secs });
+    if (t.id === 'view' || secs.length) out.push({ id: t.id, label: t.label, sections: secs });
   }
+  for (const id of ids) if (tabOfSection(id).startsWith('sec:')) out.push({ id: `sec:${id}`, label: plainSection(id, label(id)), sections: [id] });
   return out;
 }
 
@@ -143,7 +141,18 @@ export function groupForPath(groups: readonly string[], prefix: number, path: re
 }
 
 /** The pickers' names per section (the level's heading). */
+/** (merge, CT Core #95) The Gear tab's sockets and the crouched variant in plain words. */
+const GEAR_WORDS: Readonly<Record<string, string>> = {
+  holster: 'Pistol holster',
+  backL: 'Back, left gun',
+  backC: 'Back, centre gun',
+  backR: 'Back, right gun',
+  slingHip: 'Hip sling',
+  crouch: 'Crouched (added)',
+};
+
 const LEVEL_NAMES: Readonly<Record<string, readonly string[]>> = {
+  gear: ['Item', 'Pose'],
   body: ['State'],
   joint: ['State', 'Armed state'],
   ik: ['State'],
@@ -231,6 +240,8 @@ const STATE_WORDS: Readonly<Record<string, string>> = {
 
 /** One picker choice (a segment of a group id) in plain words: `keys` keys count from 1. */
 export function plainGroupWord(section: string, level: number, seg: string): string {
+  // (merge, CT Core #95 Gear) the worn gear and its crouched variant
+  if (section === 'gear') return GEAR_WORDS[seg] ?? plainWords(seg);
   if (section === 'keys' && level === 1 && /^\d+$/.test(seg)) return `Key ${Number(seg) + 1}`;
   // the body state words: not the gun hold's or the camera's own states; the weapon level of hands / gun in hand stays
   const states = section !== 'gun' && section !== 'cam' && !((section === 'hand' || section === 'weapon') && level === 0);
@@ -277,14 +288,14 @@ const PLAIN: Readonly<Record<string, string>> = {
   kneeFlexAdd: 'Knee bend',
   trunkTwistMul: 'Shoulder twist',
   strideMul: 'Step length',
-  trackMul: 'Foot width',
-  kneeOutMul: 'Knee out',
+  trackMul: 'Feet apart',
+  kneeOutMul: 'Knees point out',
   kneeLiftMul: 'Knee lift',
   pelvisYAdd: 'Hip height',
-  leanAdd: 'Lean',
-  armSwingGrow: 'Arm swing with speed',
-  elbowOutAdd: 'Elbow out',
-  elbowPoleMul: 'Elbow angle',
+  leanAdd: 'Lean forward',
+  armSwingGrow: 'More arm swing when faster',
+  elbowOutAdd: 'Elbows out from body',
+  elbowPoleMul: 'Elbows point out',
   headTurnMul: 'Head turn',
   peekLeanMul: 'Peek lean',
   wallGapAdd: 'Gap to wall',
@@ -295,7 +306,7 @@ const PLAIN: Readonly<Record<string, string>> = {
   handOutAdd: 'Hands apart',
   footUpAdd: 'Feet up',
   footFwdAdd: 'Feet forward',
-  footOutAdd: 'Feet apart',
+  footOutAdd: 'Feet further apart',
   guardGapAdd: 'Gap to guard',
   guardSideAdd: 'Guard to the side',
   // gun hold
@@ -306,9 +317,9 @@ const PLAIN: Readonly<Record<string, string>> = {
   'gun:gunYaw': 'Muzzle turn',
   gunCant: 'Gun roll',
   sightYAdd: 'Sight height',
-  headDropMul: 'Head to sights',
-  tuckMul: 'Elbow tuck',
-  glideTwistMul: 'Glide hip twist',
+  headDropMul: 'Head down to the sights',
+  tuckMul: 'Elbows in to the body',
+  glideTwistMul: 'Hip twist aiming on the move',
   // camera
   camBoomAdd: 'Distance',
   camHeightAdd: 'Height',
@@ -324,14 +335,22 @@ const PLAIN: Readonly<Record<string, string>> = {
   'joint:mirror': 'Mirror left and right',
   // (marlow-bays T1a) the Keys tab's Mirror box (its own tick box; the slider never shows)
   'keys:mirror': 'Mirror keys',
+  // (merge, CT Core #95) Gear: each item in its own seat's frame
+  'gear:x': 'Move to the side',
+  'gear:y': 'Move up',
+  'gear:z': 'Move forward',
+  'gear:pitch': 'Tilt',
+  'gear:yaw': 'Turn',
+  'gear:roll': 'Roll',
   // gun in hand
   gunScale: 'Gun size',
-  gunX: 'Grip right',
-  gunY: 'Grip up',
-  gunZ: 'Grip forward',
-  'weapon:gunPitch': 'Grip tilt',
-  'weapon:gunYaw': 'Grip turn',
-  gunRoll: 'Grip roll',
+  // (item 29 phase 2) the gun moves in her gun hand; the support hand stays on the gun, so it follows
+  gunX: 'Gun right in the gun hand',
+  gunY: 'Gun up in the gun hand',
+  gunZ: 'Gun forward in the gun hand',
+  'weapon:gunPitch': 'Gun tilt in the gun hand',
+  'weapon:gunYaw': 'Gun turn in the gun hand',
+  gunRoll: 'Gun roll in the gun hand',
   supportSlide: 'Support hand along gun',
   supportOut: 'Support hand out',
   supportUp: 'Support hand up',
@@ -427,14 +446,14 @@ export function plainLabel(section: string, id: string, label: string): string {
     const side = m[1] === 'L' ? 'Left' : 'Right';
     const what: Record<string, string> = {
       flex: 'arm forward',
-      abd: 'arm out',
+      abd: 'arm out from body',
       elbow: 'elbow bend',
       inward: 'forearm in',
       wristPitch: 'wrist bend',
       wristYaw: 'wrist turn',
       wristRoll: 'wrist roll',
       // (marlow-bays T1a, item 17)
-      twist: 'forearm twist',
+      twist: 'forearm twist, palm in',
       twistUpper: 'upper arm twist',
       shPitch: 'shoulder forward',
       shYaw: 'shoulder turn',
@@ -475,12 +494,62 @@ export function plainLoop(id: string, label: string): string {
   return plainWords(rest);
 }
 
-/** A unit beside a value ('' none). */
+/**
+ * (marlow-bays item 29 phase 2, Michael: "make terminology plain English") How a value shows: metres as cm, radians as
+ * degrees, frames, multipliers as ×, rates per m/s. `k` scales the stored value for display (the slider, the saves and
+ * the exports keep the stored value and id). No allocation (a table lookup).
+ */
+export interface ShownUnit {
+  k: number;
+  unit: string;
+}
+const SHOWN_UNITS: Readonly<Record<string, ShownUnit>> = {
+  x: { k: 1, unit: '×' },
+  deg: { k: 1, unit: '°' },
+  m: { k: 100, unit: 'cm' },
+  rad: { k: 180 / Math.PI, unit: '°' },
+  fr: { k: 1, unit: 'frames' },
+  s: { k: 1, unit: 's' },
+  cm: { k: 1, unit: 'cm' },
+  '1-zeta': { k: 1, unit: '' },
+  'x per m/s': { k: 1, unit: '× per m/s' },
+  'deg/(m/s2)': { k: 1, unit: '° per m/s²' },
+  'deg/(m/s)': { k: 1, unit: '° per m/s' },
+  'm/(m/s)': { k: 100, unit: 'cm per m/s' },
+  'm/m': { k: 100, unit: 'cm per m fallen' },
+};
+const SAME: ShownUnit = { k: 1, unit: '' };
+
+export function shownUnit(unit: string): ShownUnit {
+  return SHOWN_UNITS[unit] ?? (unit ? { k: 1, unit } : SAME);
+}
+
+/** A unit beside a value ('' none), in plain words. */
 export function plainUnit(unit: string): string {
-  if (unit === 'x') return '×';
-  if (unit === 'deg') return '°';
-  if (unit === '1-zeta') return '';
-  return unit;
+  return shownUnit(unit).unit;
+}
+
+/**
+ * (item 29 phase 2, Michael: "gun in hand and support modified the same hand") A hands row of an armed state names the
+ * hands by their job: with a rifle, pistol or launcher the right hand holds the gun ("Gun hand"), the left is on it
+ * ("Support hand"). `group` the section's group (`hand.rifle.aim`, `weapon.pistol.lowReady`).
+ */
+export function handRoles(section: string, group: string): boolean {
+  if (section !== 'hand' && section !== 'weapon') return false;
+  const w = group.split('.')[1];
+  return w === 'rifle' || w === 'pistol' || w === 'launcher';
+}
+
+/** A label with "Right hand" / "Left hand" (and fingers) named by the hand's job when `roles` is on. */
+export function roleWords(text: string, roles: boolean): string {
+  if (!roles) return text;
+  return text
+    .replace(/^Right hand\b/, 'Gun hand')
+    .replace(/^Left hand\b/, 'Support hand')
+    .replace(/^Right fingers\b/, 'Gun hand fingers')
+    .replace(/^Left fingers\b/, 'Support hand fingers')
+    .replace(/^Right (thumb|index|middle|ring|little)\b/, 'Gun hand $1')
+    .replace(/^Left (thumb|index|middle|ring|little)\b/, 'Support hand $1');
 }
 
 /** A value as text with as many decimals as its step needs. */
@@ -492,6 +561,17 @@ export function valueText(v: number, step: number): string {
 // ------------------------------------------------------------------------------------------
 // The drop-down list's navigation (A opens, the D-pad moves, A picks, B backs out)
 // ------------------------------------------------------------------------------------------
+
+/**
+ * (marlow-bays item 29, the pad drop-down bug) The open list's scrollTop that shows a row (`itemTop`, `itemH`, in the
+ * list's content px) inside its view (`scrollTop`, `viewH`): unchanged when it shows, else the nearest edge. The panel
+ * scrolls only the list itself: `scrollIntoView` also scrolled the panel around it, and that scroll closed the list.
+ */
+export function listScrollFor(scrollTop: number, viewH: number, itemTop: number, itemH: number): number {
+  if (itemTop < scrollTop) return Math.max(0, itemTop);
+  if (itemTop + itemH > scrollTop + viewH) return Math.max(0, itemTop + itemH - viewH);
+  return scrollTop;
+}
 
 export class DropNav {
   open = false;
@@ -581,32 +661,7 @@ const STATE_BODY: Readonly<Record<string, string>> = {
   crouchAim: 'aimCrouch',
   crouchAimFwd: 'aimCrouchMove',
 };
-const CLIP_BODY: Readonly<Record<string, string>> = {
-  idle: 'idle',
-  walk: 'walk',
-  jog: 'jog',
-  run: 'run',
-  ready_stance: 'lowReady',
-  glide_fwd: 'aim',
-  glide_strafe: 'aim',
-  glide_back: 'aim',
-  crouch_idle: 'crouchIdle',
-  sneak: 'sneak',
-  crouch_walk: 'crouchWalk',
-  crouch_run: 'crouchRun',
-  wall_idle: 'wallIdle',
-  wall_slide: 'wallSlide',
-  wall_peek: 'wallPeek',
-  wall_crouch_idle: 'wallCrouchIdle',
-  wall_crouch_slide: 'wallCrouchSlide',
-  wall_crouch_peek: 'wallCrouchPeek',
-  hold_idle: 'hold',
-  hold_fwd: 'hold',
-  hold_back: 'hold',
-  hold_side: 'hold',
-  hold_choke: 'hold',
-  hold_knife: 'hold',
-};
+
 const TRAV_LOOP: Readonly<Record<string, { body: string; trav: string }>> = {
   vault: { body: '', trav: 'vault' },
   ledge: { body: 'ledge', trav: 'climbUp' },
@@ -788,7 +843,7 @@ const TRAV_OF: Readonly<Record<string, string>> = {
 };
 
 // ------------------------------------------------------------------------------------------
-// (marlow-bays T2) Row groups that fold, pinned and recent sliders
+// (marlow-bays T2) Row groups that fold (item 29: the pinned and recent sliders, the search and the part filter are gone)
 // ------------------------------------------------------------------------------------------
 
 /** What decides whether a row group shows open before anyone opens or closes it by hand. */
@@ -797,10 +852,6 @@ export interface GroupOpenIn {
   first: boolean;
   /** It holds the selected row. */
   hasSel: boolean;
-  /** A body part filters the rows. */
-  part: boolean;
-  /** A search filters the rows. */
-  search: boolean;
   /** How many rows the section shows in all. */
   rows: number;
 }
@@ -810,49 +861,11 @@ export const GROUP_FOLD_MIN = 8;
 
 /**
  * A row group's open state: a choice made by hand (`manual`) holds; otherwise open when it is the first group, holds the
- * selected row, or a part, a search or a short list leaves little to show.
+ * selected row, or a short list leaves little to show.
  */
 export function groupOpen(manual: boolean | undefined, g: GroupOpenIn): boolean {
   if (manual !== undefined) return manual;
-  return g.first || g.hasSel || g.part || g.search || g.rows <= GROUP_FOLD_MIN;
-}
-
-/** The most pinned sliders, and recent ones kept. */
-export const PIN_MAX = 12;
-export const RECENT_MAX = 6;
-
-/** Pin or unpin `k` (in place; a full list takes no more). True: pinned now. */
-export function togglePin(pins: string[], k: string, max = PIN_MAX): boolean {
-  const i = pins.indexOf(k);
-  if (i >= 0) {
-    pins.splice(i, 1);
-    return false;
-  }
-  if (pins.length >= max) return false;
-  pins.push(k);
-  return true;
-}
-
-/** `k` to the head of the recent list (in place, no repeats, at most `max`). False: it was already first. */
-export function pushRecent(recent: string[], k: string, max = RECENT_MAX): boolean {
-  if (recent[0] === k) return false;
-  const i = recent.indexOf(k);
-  if (i >= 0) recent.splice(i, 1);
-  recent.unshift(k);
-  if (recent.length > max) recent.length = max;
-  return true;
-}
-
-/** The chips over the rows: the pins first, then the recent ones not pinned. */
-export function quickKeys(pins: readonly string[], recent: readonly string[]): string[] {
-  return pins.concat(recent.filter((k) => !pins.includes(k)));
-}
-
-/** A pinned / recent key (`<section>|<group>|<id>`) split; null when malformed. */
-export function quickKeyParts(k: string): { section: string; group: string; id: string } | null {
-  const p = k.split('|');
-  if (p.length !== 3 || !p[0] || !p[1] || !p[2]) return null;
-  return { section: p[0], group: p[1], id: p[2] };
+  return g.first || g.hasSel || g.rows <= GROUP_FOLD_MIN;
 }
 
 /**
@@ -868,4 +881,26 @@ export function stanceText(body: string, gun: string, studio: { loop: string; dr
     return `${loop} · ${w} ${studio.drawn ? 'drawn' : 'holstered'}`;
   }
   return `${b} · ${gun ? plainWords(gun.replace('.', ' ')) : 'No gun drawn'}`;
+}
+
+// ------------------------------------------------------------------------------------------
+// (track C request, item 29 phase 2) The studio's foot slide line
+// ------------------------------------------------------------------------------------------
+
+/** A planted foot sliding more than this (cm) in one contact shows the line amber. */
+export const FOOT_SLIDE_WARN = 0.5;
+
+/** A slide (cm) as whole tenths of a cm (the line's resolution; NaN / negative: 0). */
+export function footSlideTenths(cm: number): number {
+  return cm > 0 ? Math.round(cm * 10) : 0;
+}
+
+/** "Foot slide L 0.0 cm  R 0.0 cm" from the tenths. */
+export function footSlideText(l: number, r: number): string {
+  return `Foot slide L ${(l / 10).toFixed(1)} cm  R ${(r / 10).toFixed(1)} cm`;
+}
+
+/** Amber: either foot over the limit (the tenths, as shown). */
+export function footSlideWarn(l: number, r: number): boolean {
+  return l > FOOT_SLIDE_WARN * 10 || r > FOOT_SLIDE_WARN * 10;
 }

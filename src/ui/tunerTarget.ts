@@ -76,6 +76,9 @@ function jointTarget(j: string, out: TuneTarget): TuneTarget {
   }
   const S = SIDE(side);
   if (base === 'shoulder') return one(out, `shoulder${side}`, `${S} shoulder`);
+  // (anim-skeleton S4) the collarbone: the rig has no node of its own on the overlay, so the shoulder joint (the
+  // shoulder part's filter); named plainly rather than "Whole body"
+  if (base === 'clavicle') return one(out, `shoulder${side}`, `${S} collarbone`);
   if (base === 'upperArm') return bone(out, `shoulder${side}`, `elbow${side}`, `${S} upper arm`);
   if (base === 'elbow') return bone(out, `elbow${side}`, `wrist${side}`, `${S} elbow`);
   if (base === 'wrist') return one(out, `wrist${side}`, `${S} wrist`);
@@ -105,7 +108,7 @@ function bodyRow(id: string, out: TuneTarget): TuneTarget {
   if (id === 'pelvisYAdd' || id === 'glideTwistMul') return one(out, 'hips', 'Pelvis');
   if (id === 'leanAdd') return one(out, 'spine', 'Spine');
   if (id === 'trunkTwistMul' || id === 'peekLeanMul') return one(out, 'torso', 'Chest');
-  if (id.startsWith('gun') || id === 'sightYAdd') return weapon(out, 'Gun hold');
+  if (id.startsWith('gun') || id === 'sightYAdd') return weapon(out, 'Gun hold (both hands)');
   return body(out);
 }
 
@@ -140,9 +143,11 @@ function keyRow(id: string, out: TuneTarget): TuneTarget {
 export function tuneTarget(section: string, id: string, out: TuneTarget = emptyTarget()): TuneTarget {
   if (!section) return set(out, 'none', '', '', false, '');
   if (section === 'cam') return set(out, 'camera', '', '', false, 'Camera');
-  if (section === 'gun') return weapon(out, 'Gun hold');
+  if (section === 'gun') return weapon(out, 'Gun hold (both hands)');
   if (section === 'step') return pair(out, 'ankleL', 'ankleR', 'Feet (stepping)');
   if (section === 'weight') return one(out, 'hips', 'Body weight (pelvis)');
+  // (merge, CT Core #95) the worn gear: one group, marked like the weapon (no line over her body)
+  if (section === 'gear') return weapon(out, 'Worn gear');
   if (!id) {
     if (section === 'weapon') return weapon(out, 'Gun in hand');
     if (section === 'hand') return pair(out, 'wristL', 'wristR', 'Hands');
@@ -155,7 +160,7 @@ export function tuneTarget(section: string, id: string, out: TuneTarget = emptyT
     const f = /^[a-z]+([LR])(Curl|Spread)$/.exec(id);
     if (f) return one(out, `wrist${f[1] as 'L' | 'R'}`, `${SIDE(f[1]!)} fingers`);
     if (id.startsWith('support')) return one(out, 'wristL', 'Support hand');
-    return weapon(out, 'Gun in hand');
+    return weapon(out, 'Gun in the gun hand (the support hand follows)');
   }
   if (section === 'body') return bodyRow(id, out);
   if (section === 'keys') return keyRow(id, out);
