@@ -413,10 +413,24 @@ try {
     ['crouch', { y: 1 }, 'crouch'],
     ['sneak', { y: 0.35 }, 'crouch'],
   ];
+  // (anim-bake-1022) Michael's 2026-10-22 run tune (the run keys rebaked at dbd466c7): the run alone reads against ranges
+  // widened to the measured baked value plus ~10%; every other gait keeps L.crabRanges. Restore: drop RUN_TUNE.
+  const RUN_STAND = L.crabRanges(false);
+  const RUN_TUNE = {
+    ...RUN_STAND,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.5-1.1 (measured 0.55 / 1.2 / 1.93)
+    kneeSep: { min: RUN_STAND.kneeSep.min, max: 2.15 },
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.07 (measured max 14.6 cm)
+    trackHalf: 0.16,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.03 (measured 8.2 cm)
+    kneeBow: 0.09,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.06 (measured 9.9 cm)
+    elbowWing: 0.11,
+  };
   const crabRows = [];
   for (const [name, inp, mode, gear] of crabGaits) {
     const rec = await crabRecord(gear ?? 4, mode === 'crouch', [{ sec: 1.0, inp }, { sec: 2.0, inp, rec: true }]);
-    const r = crabRow(name, rec, mode === 'crouch');
+    const r = crabRow(name, rec, mode === 'crouch', false, name === 'run' ? RUN_TUNE : undefined);
     crabRows.push(r.row);
     const gated = !!L.CRAB_GATES[name];
     console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));

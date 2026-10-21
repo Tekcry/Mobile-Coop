@@ -216,7 +216,18 @@ list or when any registered slider and group has no rule or manual entry.
 3. Real run (`--only` for a staged bake if wanted).
 4. Rebake each printed key clip with build.mjs (desktop, under the heavy lock).
 5. Run `npm run check`; unit tests that pin constants (GEARS, CAMERA, WALL ...) may need their expected values updated.
-   Then run the e2e test tiers.
+   Then run the e2e test tiers. What the first bake (anim-bake-1022) needed:
+   - The identity fixtures (`tests/fixtures/anim-skeleton-identity.json`, `...-guard-identity.json`): first prove the
+     change is data only (a temporary test that restores the pre-bake data at run time must match the old fixture bit
+     for bit), then re-capture with `ANIM_SKELETON_CAPTURE=1`. READY_POSES.low is the shared rig's, so guards change too.
+   - Tests that need the untuned rig load a test-local empty base table (`animBaseLoad(emptyBase())`,
+     `jointsBaseLoad(undefined)`); the base file test reads against `ANIM_BASE`.
+   - The tuner key tests (retime, add / delete, the step) need a mirrored clip with evenly spaced keys: they run on
+     sneak (unit) and walk (e2e-studio, frames read from `tuneKeysMeta.ts`), each with a precondition check. A tune that
+     retimes those clips moves the tests to another evenly spaced clip.
+   - Quality limits a tune breaks (e2e-anim anti-crab, the keyedWalk jog / run arm check) are widened for that gait only
+     to the measured value plus ~10%, each with a `(anim-bake-1022) ... was <old>` comment so it can be restored, after
+     the orchestrator agrees.
 6. Commit the sources, the key JSONs, the rebaked clips and the ledger in one PR.
 7. After the merge nothing is left to reset by hand (anim-bake-1022, `src/anim/tuneBakedReset.ts`, tests
    `tests/tuneBakedReset.test.ts`): the build bundles the ledger, and when the tuner's save loads (the panel is built

@@ -5,6 +5,9 @@
   equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied
   twice. The rest of the tuning is kept; the panel says how many ("61 values are now built in; your other 13 changes
   are kept."). Y menu > "Reset baked" runs it again.
+- Tests follow Michael's 2026-10-22 tune (the jog / run keys, the rifle and pistol low ready, the idle / walk / jog
+  upper-arm roll): the identity fixtures re-captured (proven data only first), the tuner key tests moved to the evenly
+  spaced sneak / walk keys, and the run's anti-crab and arm limits widened for the run alone (marked to restore).
 
 ## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
 - Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with

@@ -3,6 +3,9 @@
  * bit-identical after S2 on every pre-T3 joint. Gameplay reads a guard's head (perception eye) and the hit volumes follow
  * the rig, so this pins that the clavicle / finger / goggle work changes nothing a guard does. The fixture was captured
  * by `tests/helpers/animSkeletonGuardIdentity.ts` on the pre-S2 code (39b97591) with `ANIM_SKELETON_CAPTURE=1`.
+ * (anim-bake-1022) Re-captured after the bake of Michael's 2026-10-22 tune (dbd466c7): READY_POSES.low is the shared
+ * rig's rifle low ready, so every armed kind changed (48 of 64; runner and dog unchanged). Before the re-capture, the run
+ * with the pre-bake data restored at run time matched the 39b97591 fixture bit for bit: data, not code.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

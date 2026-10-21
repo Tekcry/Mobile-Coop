@@ -292,20 +292,22 @@ describe('T1a item 18: the Mirror box', () => {
 });
 
 describe('T1a item 15: the key timeline and the studio key requests', () => {
-  it('a mirrored clip has twice its keys; key 2 of jog mirrors onto 6; the step walks the keys in phase order', () => {
-    const jog = keyClip('jog')!;
-    expect(keyCount(jog)).toBe(8);
-    expect(keyPhase(jog, 5)).toBeCloseTo(0.625, 9);
-    expect(keyMirrorOf(jog, 1)).toBe(5);
-    expect(keyReadout(jog, 1)).toBe('jog - key 2 of 8 (mirror of 6), frame 4');
+  it('a mirrored clip has twice its keys; key 2 of sneak mirrors onto 6; the step walks the keys in phase order', () => {
+    // (anim-bake-1022) on sneak (own keys evenly spaced, 0 / 0.125 / 0.25 / 0.375): it ran on jog until Michael's
+    // 2026-10-22 tune retimed jog's key 3 to 0.1458, so a step from 0.2 no longer lands on jog's key 3
+    const sneak = keyClip('sneak')!;
+    expect(keyCount(sneak)).toBe(8);
+    expect(keyPhase(sneak, 5)).toBeCloseTo(0.625, 9);
+    expect(keyMirrorOf(sneak, 1)).toBe(5);
+    expect(keyReadout(sneak, 1)).toBe('sneak - key 2 of 8 (mirror of 6), frame 4');
     expect(keyReadout(keyClip('idle')!, 0)).toBe('idle - key 1 of 12, frame 0');
-    expect(keyStep(jog, 0.125, 1)).toBe(2);
-    expect(keyStep(jog, 0.125, -1)).toBe(0);
-    expect(keyStep(jog, 0.875, 1)).toBe(0);
-    expect(keyStep(jog, 0, -1)).toBe(7);
-    expect(keyStep(jog, 0.2, 1)).toBe(2);
-    expect(keyStep(jog, 0.2, -1)).toBe(1);
-    expect(keyNearest(jog, 0.62)).toBe(5);
+    expect(keyStep(sneak, 0.125, 1)).toBe(2);
+    expect(keyStep(sneak, 0.125, -1)).toBe(0);
+    expect(keyStep(sneak, 0.875, 1)).toBe(0);
+    expect(keyStep(sneak, 0, -1)).toBe(7);
+    expect(keyStep(sneak, 0.2, 1)).toBe(2);
+    expect(keyStep(sneak, 0.2, -1)).toBe(1);
+    expect(keyNearest(sneak, 0.62)).toBe(5);
   });
 
   it('studio requests: a key by index or the next one, NaN with nothing to do; the readout fields', () => {
