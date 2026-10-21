@@ -31,6 +31,11 @@ Verbatim list:
    the sliders etc?"
 10. "can you clearly highlight the body part/weapon/animation that is currently selected and being adjusted."
 
+Added ~14:10:
+11. "There should also be a keyed tick box isntead of finding the keyed loop."
+12. "are there any outstanding tuner fixes? the UI is currently very pool" (poor). Asked what is poor, he picked all
+    four: hard to read, cluttered, hard to navigate, looks unfinished.
+
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
 ## Order
@@ -40,6 +45,13 @@ Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue
     (left-drag on the scene orbits the camera, wheel zooms, the panel stays clickable). Default drag view.
   - 10: the selected part, bone, weapon or clip is highlighted in the scene (outline or marker on the bone / mesh) and in
     the panel (the row and tab), clear in both light and dark.
+  - 11: a "Keyed" tick box on the current state (on: play its keyed clip / loop; off: procedural), instead of finding
+    the keyed loop in the Keys tab.
+- **Slice T2 (tuner UI redesign, its own PR right after T):** item 12. Readable (larger text and values, contrast),
+  decluttered (a compact panel that never covers the character; collapsed groups; only the current part's sliders),
+  fewer steps (the part picked by clicking the body or a body map, recent / pinned sliders, search kept), and styled
+  like the game's menus (same fonts, colours, focus look). Pad, keyboard and mouse all keep working. Show Michael a
+  screenshot of the new layout before the PR.
 - **Slice B (bays 1-3 bugs):** items 1, 2, 6 (remove the flashing surround; find the bay 3 floor red lines: remove if a
   debug or unused visual, otherwise say what they are).
 - **Slice J (jammer):** items 7, 8 and the bay 3 hallway (item 5). Co-op synced (both players see and hear it).
