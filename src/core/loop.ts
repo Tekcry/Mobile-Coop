@@ -179,8 +179,9 @@ export class GameLoop {
       if (render) scene.render();
       return;
     }
-    this.realDt = Math.min(intervalMs / 1000, 0.1);
-    const dt = this.realDt * this.timeScale;
+    // (havok-stall) a NaN interval or time scale would poison the accumulator for good (the sim never steps again)
+    this.realDt = intervalMs > 0 ? Math.min(intervalMs / 1000, 0.1) : 0;
+    const dt = this.timeScale > 0 ? this.realDt * this.timeScale : 0;
     hooks.beforeFrame?.(dt);
     // (a state change inside the frame - a menu confirm starting a match frees the old scene at once - ends it)
     if (this.hooks !== hooks) return;

@@ -1,5 +1,9 @@
 # anim-joints J2 - the e2e-menus stall (diagnosis)
 
+> Correction (2026-10-22, job havok-stall, `docs/havok-stall/REPORT.md` on `feature/havok-stall`): there is no Havok
+> spin. The desktop's software GL runs the page at 1-4 fps and the suite ran past the 600 s limit; the stacks below were
+> snapshots of slow frames. The rest of this file is kept as the record of the first diagnosis.
+
 2026-10-21, 21:01-21:44, this PC (software GL). Implementer. No source change; nothing committed.
 
 ## Result: J2 does not cause it

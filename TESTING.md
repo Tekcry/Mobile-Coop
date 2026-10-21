@@ -173,6 +173,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
 
+### Wren's hands and joints (anim-skeleton S1+S2)
+- [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
+  the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.
+- [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
+- [ ] Co-op: the partner's hands also close on their gun.
+- [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
+
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
   before.
@@ -237,6 +244,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "moved +3 (baked at 6)", the jog plays with that pose later in the stride; "◀ Earlier" stops at the key before it;
   Key 1's buttons are off (fixed). Ctrl+Z three times: back as baked. Export, then `node scripts/anim-tune-bake.mjs
   <export> --dry-run --only keys`: the row reads "baked (key JSON; rebake the clip)", target "jog.json key 1 phase".
+- [ ] (marlow-bays item 25) Anim Studio, Keys tab: pick Jog, Key 2, press "+ Add key": the readout says "jog - key 3 of
+  10 (mirror of 8) (added), frame 6", the pose does not jump; bend the left elbow: it shows there (and on the right arm
+  half a cycle on). "Delete key": 8 keys again. Delete Key 3 (an original): the jog blends over it; Key 1's Delete is
+  off; Ctrl+Z brings the key back. Pad: the D-pad reaches both buttons, A presses. Export and bake `--dry-run --only
+  keys`: "baked (key added to the key JSON ...)" / "baked (key removed ...)", the meta regenerated.
 - [ ] (marlow-bays T1a) Anim Studio, Keys tab: pick Jog, then Key 2: the jog stops on that key and the readout says
   "jog - key 2 of 8 (mirror of 6)"; "Key ▶", F2 and the pad's right stick right step on (the Key list follows), F1 /
   stick left step back. Click "Right forearm twist": the forearm is ringed; drag it: the forearm turns about itself.
@@ -305,6 +317,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
   suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
   `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".
+- [ ] A suite that stops with no error at `E2E_JOBS=1` may have been killed at the suite limit (the streamed output
+  drops the KILLED line): check its time before reading a hang into it (havok-stall).
 
 ### Offline and install
 - [ ] First visit online; wait for the "Ready to play offline" toast. Go offline, close the tab, reopen: the game boots,

@@ -21,6 +21,8 @@
 // a tab play; the aim stances (standing, crouched still and moving) play with the picked gun.
 // (marlow-bays item 23) Key timing: a key slid three bake frames later moves the readout's frame (jog key 2: 4 -> 6),
 // the studio lands on it at its new time with its pose, the pose at the old frame changes, undo restores both.
+// (marlow-bays item 25) Add / delete keys: "Add key" on jog key 2 puts a key midway to key 3 (10 keys with its mirror,
+// the pose there unchanged, the picker and the readout on it); "Delete key" removes it; undo brings it back.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -340,17 +342,29 @@ try {
   const mm0 = await G(() => ({ ...window.__animTune.mouse(), lockEl: !!document.pointerLockElement, gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
   assert(mm0.mode === 'drag' && mm0.free && !mm0.locked && !mm0.lockEl && !mm0.gamecam && mm0.button === 'Mouse: drag view', `tuner open: drag view, the pointer free (${JSON.stringify(mm0)})`);
   // a point on the scene, clear of the panel and the overlay
-  const at = await G(() => {
+  // (anim-joints #90) the studio opens the debug overlay too, and its width follows its live text: the preferred points
+  // first, then a grid over the canvas; the point and the drag's end (80 px right) both on the scene
+  const atProbe = await G(() => {
     const c = window.__app.canvas;
     const r = c.getBoundingClientRect();
-    for (const [fx, fy] of [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]]) {
+    const onScene = (x, y) => document.elementFromPoint(x, y) === c && document.elementFromPoint(x + 80, y) === c;
+    const pts = [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]];
+    for (let gy = 0.35; gy <= 0.95; gy += 0.1) for (let gx = 0.1; gx <= 0.8; gx += 0.1) pts.push([gx, gy]);
+    for (const [fx, fy] of pts) {
       const x = r.left + r.width * fx;
       const y = r.top + r.height * fy;
-      if (document.elementFromPoint(x, y) === c) return { x, y };
+      if (onScene(x, y)) return { at: { x, y } };
     }
-    return null;
+    const el = (x, y) => {
+      const e = document.elementFromPoint(x, y);
+      return e ? `${e.tagName.toLowerCase()}.${String(e.className).trim().split(/\s+/).slice(0, 2).join('.')}` : 'none';
+    };
+    const d = document.querySelector('.debug-overlay');
+    const dr = d && !d.hidden ? d.getBoundingClientRect() : null;
+    return { at: null, vw: innerWidth, vh: innerHeight, canvas: [r.left, r.top, r.width, r.height].map(Math.round), debug: dr ? [dr.left, dr.top, dr.width, dr.height].map(Math.round) : null, hits: pts.slice(0, 5).map(([fx, fy]) => el(r.left + r.width * fx, r.top + r.height * fy)) };
   });
-  assert(!!at, 'a point on the scene clear of the panel');
+  const at = atProbe.at;
+  assert(!!at, `a point on the scene clear of the panel and the debug overlay (${JSON.stringify(atProbe)})`);
   const camYaw = () => G(() => window.__app.current.player.cam.camera.rotation.y);
   const y0 = await camYaw();
   await page.mouse.move(at.x, at.y);
@@ -745,6 +759,51 @@ try {
   await frames(page, 12);
   const k23d = await G(() => ({ time: window.__animTune.keysTime(), early: document.querySelector('.anim-tune-keys-early')?.disabled, late: document.querySelector('.anim-tune-keys-late')?.disabled }));
   assert(k23d.time.info?.fixed && k23d.early && k23d.late && k23d.time.readout.includes('fixed'), `the first key's time is fixed (${JSON.stringify({ readout: k23d.time.readout, early: k23d.early, late: k23d.late })})`);
+  const k25del0 = await G(() => ({ e: window.__animTune.keysEdit(), del: document.querySelector('.anim-tune-keys-del')?.disabled }));
+  assert(k25del0.del && /never deleted/.test(k25del0.e.info?.delWhy ?? ''), `(item 25) the first key is never deleted (${JSON.stringify(k25del0.e.info)})`);
+
+  // (marlow-bays item 25) add / delete keys: on jog key 2 (bake frame 6) "Add key" puts a key midway to key 3 (bake
+  // frame 9, frame 6 of 32) with its mirror, 8 -> 10 keys, the pose there unchanged; "Delete key" removes it (8 again);
+  // undo brings it back, a second undo leaves the clip as it was
+  await G(() => window.__animTune.pickLevel('keys', 1, '1'));
+  await frames(page, 12);
+  await G(() => window.__studio.seek(9 / 48));
+  await frames(page, 12);
+  const p25a = await bones();
+  const k25a = await G(() => ({ e: window.__animTune.keysEdit(), s: window.__studio.state(), add: document.querySelector('.anim-tune-keys-add')?.disabled }));
+  assert(k25a.s.keys === 8 && k25a.e.key === 1 && k25a.e.info?.addAt === 9 && !k25a.add, `(item 25) jog has 8 keys; Add key on key 2 lands at bake frame 9 (${JSON.stringify({ keys: k25a.s.keys, e: k25a.e })})`);
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.keysAdd());
+  await G(() => window.__animTune.settle());
+  await frames(page, 12);
+  const k25b = await G(() => ({ keys: window.__animTune.keys(), s: window.__studio.state(), at: window.__animTune.get('key.jog.a0', 'at'), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
+  const p25b = await bones();
+  const addSame = Math.max(ang(foreDir(p25b, 'L'), foreDir(p25a, 'L')), ang(foreDir(p25b, 'R'), foreDir(p25a, 'R')));
+  assert(
+    k25b.at === 9 && k25b.s.keys === 10 && k25b.keys.group === 'key.jog.a0' && k25b.keys.list.includes('a0') && k25b.keys.readout.startsWith('jog - key 3 of 10 (mirror of 8) (added), frame 6'),
+    `(item 25) the added key: 10 keys, the picker and the readout on it (${JSON.stringify({ at: k25b.at, keys: k25b.s.keys, group: k25b.keys.group, readout: k25b.keys.readout })})`,
+  );
+  assert(Math.abs(k25b.d - 9 / 48) < 1e-6 && addSame < 0.2, `(item 25) the studio stands on the added key, the pose as before (${k25b.d}, forearms within ${addSame.toFixed(2)} deg)`);
+  await G(() => window.__animTune.keysDelete());
+  await G(() => window.__animTune.settle());
+  await frames(page, 12);
+  const k25c = await G(() => ({ keys: window.__animTune.keys(), s: window.__studio.state(), at: window.__animTune.get('key.jog.a0', 'at') }));
+  assert(k25c.at === 0 && k25c.s.keys === 8 && !k25c.keys.list.includes('a0') && k25c.keys.group === 'key.jog.1', `(item 25) Delete key: 8 keys again, the picker on key 2 (${JSON.stringify({ at: k25c.at, keys: k25c.s.keys, group: k25c.keys.group })})`);
+  await G(() => window.__animTune.undo());
+  await frames(page, 12);
+  const k25d = await G(() => ({ at: window.__animTune.get('key.jog.a0', 'at'), keys: window.__studio.state().keys }));
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.undo());
+  await frames(page, 12);
+  const k25e = await G(() => ({ at: window.__animTune.get('key.jog.a0', 'at'), keys: window.__studio.state().keys }));
+  assert(k25d.at === 9 && k25d.keys === 10 && k25e.at === 0 && k25e.keys === 8, `(item 25) undo brings the added key back, a second undo removes it (${JSON.stringify({ k25d, k25e })})`);
+  // the clean state for the asserts below: no added key, jog key 2 shown
+  await G(() => {
+    window.__animTune.set('key.jog.a0', 'at', 0);
+    window.__animTune.pickLevel('keys', 0, 'jog');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 6);
   // back to the state the Mirror steps left (the Keys picker and the studio on walk key 2) for the asserts below
   await G(() => {
     window.__animTune.pickLevel('keys', 0, 'walk');
