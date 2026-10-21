@@ -470,7 +470,9 @@ Implementation: `docs/systems/combat.md`.
 - **No hip fire.** Fire while holstered is the palm strike where CT's layout puts it (G96).
 - Swapping while holstered picks the gun the next aim draws; a swap button works while aiming; grenades and gadgets work
   holstered.
-- **Draw timings (G103; real-world times, Michael 2026-10-22 "Research what is believable and realistic", docs/anim-natural/n3/DRAW-TIMES.md):** draw to low ready 0.75 s (pistol) and 1.1 s (rifle, off the back); holster 0.9 s (pistol) and 1.0 s (rifle). Tuner Draw multipliers and the per-clip speed slider fine-tune them.
+- **Draw timings (G103; real-world times, Michael 2026-10-22 "Research what is believable and realistic",
+  docs/anim-natural/n3/DRAW-TIMES.md):** draw to low ready 0.75 s (pistol) and 1.1 s (rifle, off the back); holster
+  0.9 s (pistol) and 1.0 s (rifle). The tuner's Draw multipliers and the per-clip speed slider fine-tune them.
 - Releasing aim never cancels a reload (loco M4, A43).
 
 **Gunplay:**
