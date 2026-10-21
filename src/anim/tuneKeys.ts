@@ -577,19 +577,67 @@ function curvePrep(e: ClipEdit, ci: number, F: Float64Array, old: readonly KeyCu
   }
 }
 
+/** (item 30, track A) Each live knot's trunk segment locals in the bake's channel frames, into `e.QK` (curveTrunk, the add). */
+function trunkKnots(e: ClipEdit): void {
+  for (let r = 0; r < e.cn; r++) {
+    for (let j = 0; j < NF; j++) ROW[j] = e.cB[r * NF + j]! + e.cK[r * NF + j]!;
+    trunkChannelsInto(ROW, 0, T_IDX, e.QK, r * 16, r > 0 ? e.QK : null, (r - 1) * 16);
+  }
+}
+
 /** (item 30e) The trunk re-keyed: each live knot's segment locals in the bake's channel frames, their curves per frame. */
 function curveTrunk(e: ClipEdit): void {
   const N = e.meta.frames;
   const n = e.cn;
-  for (let r = 0; r < n; r++) {
-    for (let j = 0; j < NF; j++) ROW[j] = e.cB[r * NF + j]! + e.cK[r * NF + j]!;
-    trunkChannelsInto(ROW, 0, T_IDX, e.QK, r * 16, r > 0 ? e.QK : null, (r - 1) * 16);
-  }
+  trunkKnots(e);
   for (let c = 0; c < 16; c++) {
     keyCurveSet(KC, e.cT, e.QK, n, 16, c, 1);
     for (let f = 0; f < N; f++) e.EQ[f * 16 + c] = keyCurveAt(KC, f / N);
   }
 }
+
+/**
+ * (item 30, track A) The trunk's absolute yaw / pitch / roll (deg, Babylon's RotationYawPitchRoll, as `eul`) the curve
+ * shows at phase p: the 16 channel curves read there, each segment back to its local, chained W_s = W_s-1 L_s (the
+ * sampler's trunk, so an added key there moves nothing), each W_s decomposed into `out` at T_IDX. Needs `e.cn` > 1.
+ */
+function trunkAtInto(e: ClipEdit, p: number, out: Float64Array): void {
+  trunkKnots(e);
+  for (let c = 0; c < 16; c++) {
+    keyCurveSet(KC, e.cT, e.QK, e.cn, 16, c, 1);
+    EQ1[c] = keyCurveAt(KC, p);
+  }
+  QW[0] = 0;
+  QW[1] = 0;
+  QW[2] = 0;
+  QW[3] = 1;
+  for (let s = 0; s < 4; s++) {
+    trunkLocalInto(EQ1, s * 4, s, QL, 0);
+    qmulInto(QW, 0, QL, 0, QW, 0);
+    const ix = T_IDX[s]!;
+    const iy = ix[0];
+    const ip = ix[1];
+    const ir = ix[2];
+    const x = QW[0]!;
+    const y = QW[1]!;
+    const z = QW[2]!;
+    const w = QW[3]!;
+    // Babylon's toEulerAngles (q = Ry Rx Rz): pitch from the z axis' y, yaw and roll from the rest (gimbal lock: no roll)
+    const zy = y * z - x * w;
+    if (zy < -0.4999999 || zy > 0.4999999) {
+      out[iy] = (2 * Math.atan2(y, w)) / D2R;
+      out[ip] = zy < 0 ? 90 : -90;
+      out[ir] = 0;
+    } else {
+      out[iy] = Math.atan2(2 * (z * x + y * w), z * z - x * x - y * y + w * w) / D2R;
+      out[ip] = Math.asin(-2 * zy) / D2R;
+      out[ir] = Math.atan2(2 * (x * y + z * w), -z * z - x * x + y * y + w * w) / D2R;
+    }
+  }
+}
+const EQ1 = new Float64Array(16);
+const QW = new Float64Array(4);
+const QL = new Float64Array(4);
 
 const QB = new Float64Array(4);
 const QE = new Float64Array(4);
@@ -1280,6 +1328,12 @@ export function tuneKeysAdd(clip: string, k: number): number {
         v = keyCurveAt(KC, p);
       } else v = keyCurveAt(old[s]!, wp);
       D[j] = v - D2[j]!;
+    }
+    // (item 30, track A) the trunk as the preview shows it: the channel quaternions on the curve, not each Euler field
+    // on its own curve (they differ at second order with edits on more than one axis)
+    if (onCurve) {
+      trunkAtInto(e, p, D3);
+      for (let k = 0; k < TRUNK_J.length; k++) D[TRUNK_J[k]!] = D3[TRUNK_J[k]!]! - D2[TRUNK_J[k]!]!;
     }
   }
   const vals = KEYS_SECTION.values[added[s]!] as Record<string, number>;

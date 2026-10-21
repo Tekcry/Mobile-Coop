@@ -8,9 +8,6 @@ import { KEYED_IDLE } from '../src/anim/clips/keyed/idle';
 import { KEY_CLIPS } from '../src/anim/tuneKeysMeta';
 import { applyKeyEdits, editedClips, KEY_FIELDS, keyFileText, keyGroupId, keyValuesOf, readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
 import { KEYS_SECTION, keyedClipByName, tuneKeysClipValues, tuneKeysFilesReady, tuneKeysFrame, tuneKeysSync } from '../src/anim/tuneKeys';
-/** (item 30e) The spine pitch half way between walk key 2 (+10) and key 1, on the bake's curve (measured, see the test). */
-const MID_LO = 1;
-const MID_HI = 9;
 import { TUNE_SECTIONS, tuneExport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
 
 const DIR = path.join(__dirname, '..', 'scripts', 'anim-keys', 'keys');
@@ -108,17 +105,20 @@ describe('tuner-v2 item 4: per-key editing', () => {
     const sc = (p: typeof p0): number[] => mul([...p.q.slice(4, 8)], [...p.q.slice(8, 12)]);
     expect(qAngle(sc(p0), sc(p1), 0)).toBeLessThan(1e-3);
     // half way to the neighbouring keys (0 and 0.25): half the offset
-    at(0.1875, p1);
-    tuneResetAll();
-    tuneKeysSync();
-    at(0.1875, p0);
-    tuneSet(keyGroupId('walk', 1), 'spine_pitch', 10);
-    tuneKeysSync();
-    at(0.1875, p1);
-    // (item 30e) on the bake's curve, not the linear half: between the key's 10 and the neighbour's 0, eased
-    const mid = qAngle(p0.q, p1.q, 4);
-    expect(mid).toBeGreaterThan(MID_LO);
-    expect(mid).toBeLessThan(MID_HI);
+    // (item 30, track A) off centre the bake's curve, not the linear fade (7.9 at 0.15, 2.4 at 0.22): measured 8.751, 1.500
+    for (const [ph, deg, dp] of [
+      [0.1875, 5, 1],
+      [0.15, 8.751, 2],
+      [0.22, 1.5, 2],
+    ] as const) {
+      tuneResetAll();
+      tuneKeysSync();
+      at(ph, p0);
+      tuneSet(keyGroupId('walk', 1), 'spine_pitch', 10);
+      tuneKeysSync();
+      at(ph, p1);
+      expect(qAngle(p0.q, p1.q, 4)).toBeCloseTo(deg, dp);
+    }
     // the mirrored key (0.625) carries it too; the keys either side of the pair stay as baked
     tuneResetAll();
     tuneKeysSync();

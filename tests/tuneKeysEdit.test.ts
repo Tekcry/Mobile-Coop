@@ -242,17 +242,38 @@ describe('item 25: the live preview, undo, the store', () => {
     expect(sweep(KEYED_SNEAK)).toEqual(base);
   });
 
-  it('add between edited keys: the pose at the new key stays (its deltas copy the blended offset)', () => {
+  it('add between edited keys: the pose at the new key stays (its deltas copy the blended offset)', async () => {
     tuneSet(keyGroupId('sneak', 1), 'armL_elbow', 20);
     tuneSet(keyGroupId('sneak', 2), 'spine_pitch', -8);
     tuneKeysSync();
-    const before = [0.1, 9 / 48, 0.22, 0.7].map((p) => pose(KEYED_SNEAK, p));
+    // (item 30, track A) the key file loaded first: an earlier test's load landing mid-test made this a race. On the
+    // bake's curve a new knot reshapes the curve between keys, so only the new key's time and its mirror stay put
+    await tuneKeysFilesReady();
+    tuneKeysSync();
+    const before = [9 / 48, 33 / 48].map((p) => pose(KEYED_SNEAK, p));
     const id = tuneKeysAdd('sneak', 1);
     expect(id).toBe(8);
     expect(tuneGet(keyAddedGroupId('sneak', 0), 'armL_elbow')).toBeCloseTo(10, 6);
     expect(tuneGet(keyAddedGroupId('sneak', 0), 'spine_pitch')).toBeCloseTo(-4, 6);
-    const after = [0.1, 9 / 48, 0.22, 0.7].map((p) => pose(KEYED_SNEAK, p));
+    const after = [9 / 48, 33 / 48].map((p) => pose(KEYED_SNEAK, p));
     for (let i = 0; i < before.length; i++) expect(maxDiff(before[i]!, after[i]!)).toBeLessThan(1e-5);
+  });
+
+  it('(item 30, track A) add on the curve with multi-axis trunk edits: the pose at the new key and its mirror stays', async () => {
+    for (const [f, v] of [['chest_yaw', 25], ['spine_roll', 15], ['pelvis_pitch', 12]] as const) tuneSet(keyGroupId('sneak', 1), f, v);
+    tuneSet(keyGroupId('sneak', 2), 'chest_pitch', -20);
+    tuneKeysSync();
+    await tuneKeysFilesReady();
+    tuneKeysSync();
+    expect(KEYED_SNEAK.keyOff).not.toBeNull();
+    // the added key lands at bake frame 9 (midway between keys 2 and 3), its mirror half a cycle on
+    const ps = [9 / 48, 33 / 48];
+    const before = ps.map((p) => pose(KEYED_SNEAK, p));
+    expect(tuneKeysAdd('sneak', 1)).toBe(8);
+    tuneKeysSync();
+    const after = ps.map((p) => pose(KEYED_SNEAK, p));
+    // the trunk read as the curve's channel quaternions (not each Euler field on its own curve); the slider keeps 1e-3 deg
+    for (let i = 0; i < ps.length; i++) expect(maxDiff(before[i]!, after[i]!)).toBeLessThan(1e-4);
   });
 
   it('delete: never key 1, never below the minimum; the deleted key takes its neighbours\' blend; undo brings it back', async () => {
@@ -272,7 +293,8 @@ describe('item 25: the live preview, undo, the store', () => {
     expect(KEYED_SNEAK.keyOff).not.toBeNull();
     // at the deleted key's time the pose is now its neighbours' blend (it moved); a kept key does not move
     expect(maxDiff(pose(KEYED_SNEAK, 0.25), p25)).toBeGreaterThan(1e-3);
-    // (item 30e: the trunk re-keyed on the bake's curve lands on the kept key to float32 noise)
+    // (item 30e: the trunk re-keyed on the bake's curve lands on the kept key; the bound is the clip modules'
+    // 1e-5 quaternion rounding, item 30, track A)
     expect(maxDiff(pose(KEYED_SNEAK, 0.125), p125)).toBeLessThan(2e-5);
     tuneApplyValues(before);
     tuneKeysSync();
