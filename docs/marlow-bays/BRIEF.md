@@ -195,6 +195,11 @@ that order; the laptop tests all three:
     - Highlight: subtle (a thin outline or small dot on the joint, no ring over her), with an off switch.
     - Game touch (outside the tuner): every menu and the pause menu tappable; a drag on the game view looks around;
       an on-screen pause button. No touch movement (M21 stays for play).
+    - (~22:55) "The interface should be consistent between touch, controller, and k&m. It should only adapt to different
+      screen sizes to ensure it fits properly on smaller screens. Search and recently used etc seems useless to me and
+      takes up valuable interface room." So: one layout for every input (item 26b's pad-only density mode goes; input
+      changes only the hint glyphs); only screen size changes the layout (dock vs drawer / sheet, scale). Search,
+      recent and pinned sliders are removed, not moved under More.
 
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
