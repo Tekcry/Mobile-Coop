@@ -159,6 +159,14 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     half (`key.<clip>.<n .. 2n-1>`) takes the mirror image of the own keys' edits where it has none of its own (turning Mirror on keeps them, ignored), then each key and arm is edited
     on its own and the key list shows all 2n keys; the bake writes such a clip in full (`expandMirror`, `mirror: false`)
     where the halves differ. Selecting a row marks its bone (slice T's marker; `tunerTarget` knows the new fields).
+  - Key timing (marlow-bays item 23; `anim/tuneKeysTime.ts`, `tuneKeysRetime` / `tuneKeysTimeInfo`): "◀ Earlier" /
+    "Later ▶" slide the picked key one bake frame (1/48 of the cycle), the slider sets its bake frame, the readout gives
+    its frame, phase, bake frame, the move and the range between its neighbours. Stored as the slider `time` (bake
+    frames, + later) in the key's group. Keys keep their order at least one bake frame apart, key 1 is fixed (the cycle
+    start), the last stays before the cycle end; with Mirror on a mirrored clip's own key moves its mirror key with it.
+    The preview is live (the keyed sampler reads the baked clip at the warped phase, `KeyedClip.keyTime`); undo and
+    reset work as for every slider. The bake writes the key's `phase` (frame / 48) only for moved keys, regenerates
+    `src/anim/tuneKeysMeta.ts` and prints the clip's rebake.
   - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /
     yaw / roll (`head.*`), pelvis shift (`pelvis.dx / dy / dz`, cm, now a slider), per arm the shoulder
     (`armX.sh.{pitch,yaw,roll}`, "shoulder forward / turn / out"), the upper arm twist (`armX.twistUpper`) and the
