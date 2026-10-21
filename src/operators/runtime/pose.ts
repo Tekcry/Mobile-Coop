@@ -10,6 +10,11 @@
  * - positions come from forward kinematics over the operator's own bind offsets, so her proportions hold;
  * - a mapped joint also takes its rig joint's translation away from rest (the pelvis drop, crouch, climb), rotated
  *   into root space: the rig's local delta, so a body tumble or a pelvis drop is never counted twice.
+ * - (anim-skeleton S2) the clavicles are rig joints too (`clavL` / `clavR`, appended after the pre-T3 joints, parent the
+ *   chest): an identity clavicle passes the chest's rotation through unchanged (copied, not multiplied), so every
+ *   pre-T3 joint's output is bit-identical to before (A5). Per slot an extra rotation in the bind frame (`extraQ`,
+ *   `extraOn`), chained down joints that share a driver (`chain`: the finger segments), and a move (`extraT`, the
+ *   driver's frame): the finger curls and the goggle's gear offset. Slots with no extra take the old path exactly.
  */
 import { hyp3 } from '../../core/mathx';
 import { bindWorld, type GlbNode } from '../lab/glb';
@@ -17,11 +22,13 @@ import { bindWorld, type GlbNode } from '../lab/glb';
 /** Rig joints in a fixed order (CharacterRig node names) and each one's parent in this list. */
 export const RIG_JOINTS = [
   'root', 'body', 'pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
-  'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR', 'toeL', 'toeR',
+  'hipL', 'knL', 'anL', 'hipR', 'knR', 'anR', 'toeL', 'toeR', 'clavL', 'clavR',
 ] as const;
 export type RigJointName = (typeof RIG_JOINTS)[number];
 /** (anim-rig) toeL / toeR (the ball of each foot, under the ankles) drive the LODs' skinned toe joints. */
-export const RIG_PARENT: readonly number[] = [-1, 0, 1, 2, 3, 4, 5, 4, 7, 8, 4, 10, 11, 2, 13, 14, 2, 16, 17, 15, 18];
+export const RIG_PARENT: readonly number[] = [-1, 0, 1, 2, 3, 4, 5, 4, 7, 8, 4, 10, 11, 2, 13, 14, 2, 16, 17, 15, 18, 4, 4];
+/** (anim-skeleton S2) The first rig joint added by T3 (the clavicles): the ones before it are the pre-T3 rig. */
+export const RIG_T3 = 21;
 /** Floats per joint in the rig input and the operator output: px py pz qx qy qz qw. */
 export const TRS = 7;
 
@@ -43,9 +50,13 @@ export interface PoserSetup {
   hang: Float64Array;
   /** Bind local transform per slot (TRS), relative to the parent slot: the bones' rest matrices. */
   bindLocal: Float64Array;
+  /** (S2) The parent slot an extra rotation chains from (same driver, the parent not the driver's own joint), else -1. */
+  chain: Int32Array;
 }
 
 const RIG_INDEX: Readonly<Record<string, number>> = Object.fromEntries(RIG_JOINTS.map((n, i) => [n, i]));
+/** Scratch quaternion for the extra rotations (module level: no allocation in solve). */
+const T4 = new Float64Array(4);
 
 // ---- quaternion helpers on flat arrays (no allocation) ----
 
@@ -146,7 +157,12 @@ export function poserSetup(nodes: readonly GlbNode[], joints: readonly number[])
   }
   const bindLocal = new Float64Array(n * TRS);
   for (let s = 0; s < n; s++) localOf(parent[s]!, s, bindPos, bindRot, bindLocal);
-  return { node, names, parent, driver, self, bindPos, bindRot, hang, bindLocal };
+  const chain = new Int32Array(n).fill(-1);
+  for (let s = 0; s < n; s++) {
+    const p = parent[s]!;
+    if (p >= 0 && driver[s]! >= 0 && driver[p] === driver[s] && !self[p]) chain[s] = p;
+  }
+  return { node, names, parent, driver, self, bindPos, bindRot, hang, bindLocal, chain };
 }
 
 /** Local TRS of slot s under slot p (or root space when p < 0) from world positions / rotations, into out. */
@@ -179,6 +195,17 @@ export class OperatorPoser {
   private readonly rot: Float64Array;
   private readonly tmp = new Float64Array(3);
   private hasRest = false;
+  /**
+   * (anim-skeleton S2) Per slot: a rotation in the bind frame about the joint (identity: 0 0 0 1), applied under the
+   * rig's drive and chained down `setup.chain` (a finger's segments), and a move (m) in the driver's frame. Only slots
+   * with `extraOn` (or a chained parent with it) use them; the caller sets them before `solve`.
+   */
+  readonly extraQ: Float64Array;
+  readonly extraT: Float64Array;
+  readonly extraOn: Uint8Array;
+  /** Whether each slot took an extra this solve, and its chained bind-frame rotation. */
+  private readonly act: Uint8Array;
+  private readonly chainQ: Float64Array;
 
   constructor(readonly setup: PoserSetup) {
     const n = setup.node.length;
@@ -186,6 +213,12 @@ export class OperatorPoser {
     this.posing = new Float64Array(n * 4);
     this.pos = new Float64Array(n * 3);
     this.rot = new Float64Array(n * 4);
+    this.extraQ = new Float64Array(n * 4);
+    for (let s = 0; s < n; s++) this.extraQ[s * 4 + 3] = 1;
+    this.extraT = new Float64Array(n * 3);
+    this.extraOn = new Uint8Array(n);
+    this.act = new Uint8Array(n);
+    this.chainQ = new Float64Array(n * 4);
   }
 
   /** The rig's rest translations (its local positions when built, before any pose): translation deltas start here. */
@@ -207,16 +240,32 @@ export class OperatorPoser {
     M[0] = 0; M[1] = 0; M[2] = 0;
     for (let j = 1; j < RIG_JOINTS.length; j++) {
       const p = RIG_PARENT[j]!;
-      qmulA(R, p * 4, rig, j * TRS + 3, R, j * 4);
+      const o = j * TRS + 3;
+      // (S2) a T3 joint at identity (an untouched clavicle) passes its parent's rotation through exactly
+      if (j >= RIG_T3 && rig[o] === 0 && rig[o + 1] === 0 && rig[o + 2] === 0 && rig[o + 3] === 1) {
+        R[j * 4] = R[p * 4]!; R[j * 4 + 1] = R[p * 4 + 1]!; R[j * 4 + 2] = R[p * 4 + 2]!; R[j * 4 + 3] = R[p * 4 + 3]!;
+      } else qmulA(R, p * 4, rig, o, R, j * 4);
       // the joint's translation away from rest, in root space (parent's rotation)
       qrotA(R, p * 4, false, rig[j * TRS]! - rest[j * 3]!, rig[j * TRS + 1]! - rest[j * 3 + 1]!, rig[j * TRS + 2]! - rest[j * 3 + 2]!, M, j * 3);
     }
     const S = this.setup, P = this.posing, pos = this.pos, rot = this.rot;
     const n = S.node.length;
+    const XQ = this.extraQ, XT = this.extraT, on = this.extraOn, act = this.act, C = this.chainQ;
     for (let s = 0; s < n; s++) {
       const k = S.driver[s]!;
       if (k >= 0) qmulA(R, k * 4, S.hang, s * 4, P, s * 4);
       else { P[s * 4] = S.hang[s * 4]!; P[s * 4 + 1] = S.hang[s * 4 + 1]!; P[s * 4 + 2] = S.hang[s * 4 + 2]!; P[s * 4 + 3] = S.hang[s * 4 + 3]!; }
+      // (S2) an extra rotation (bind frame), chained from the parent's: posing = drive x chain
+      const c = S.chain[s]!;
+      const up = c >= 0 && act[c] === 1;
+      act[s] = on[s] === 1 || up ? 1 : 0;
+      if (act[s] === 1) {
+        if (!up) { C[s * 4] = XQ[s * 4]!; C[s * 4 + 1] = XQ[s * 4 + 1]!; C[s * 4 + 2] = XQ[s * 4 + 2]!; C[s * 4 + 3] = XQ[s * 4 + 3]!; }
+        else if (on[s] === 1) qmulA(C, c * 4, XQ, s * 4, C, s * 4);
+        else { C[s * 4] = C[c * 4]!; C[s * 4 + 1] = C[c * 4 + 1]!; C[s * 4 + 2] = C[c * 4 + 2]!; C[s * 4 + 3] = C[c * 4 + 3]!; }
+        qmulA(P, s * 4, C, s * 4, T4, 0);
+        P[s * 4] = T4[0]!; P[s * 4 + 1] = T4[1]!; P[s * 4 + 2] = T4[2]!; P[s * 4 + 3] = T4[3]!;
+      }
       qmulA(P, s * 4, S.bindRot, s * 4, rot, s * 4);
       const p = S.parent[s]!;
       if (p < 0) {
@@ -227,6 +276,10 @@ export class OperatorPoser {
       }
       if (S.self[s] && k >= 0) {
         pos[s * 3] = pos[s * 3]! + M[k * 3]!; pos[s * 3 + 1] = pos[s * 3 + 1]! + M[k * 3 + 1]!; pos[s * 3 + 2] = pos[s * 3 + 2]! + M[k * 3 + 2]!;
+      }
+      if (on[s] === 1 && k >= 0 && (XT[s * 3] !== 0 || XT[s * 3 + 1] !== 0 || XT[s * 3 + 2] !== 0)) {
+        qrotA(R, k * 4, false, XT[s * 3]!, XT[s * 3 + 1]!, XT[s * 3 + 2]!, t, 0);
+        pos[s * 3] = pos[s * 3]! + t[0]!; pos[s * 3 + 1] = pos[s * 3 + 1]! + t[1]!; pos[s * 3 + 2] = pos[s * 3 + 2]! + t[2]!;
       }
     }
     for (let s = 0; s < n; s++) localOf(S.parent[s]!, s, pos, rot, this.out);

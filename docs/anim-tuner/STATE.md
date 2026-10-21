@@ -102,6 +102,10 @@ run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, ste
 the pelvis `dx / dy / dz`) and a clip whose Mirror box is off with its halves edited apart is written in full
 (`mirror: false`, every key); the rebake then writes the clip channels `fore`, `head`, `sh`. A version 1 export (before
 the own rows of the shared states) is read with each new row given its old row's value, as the tuner's import does.
+(marlow-bays item 23) Key timing: the Keys tab's "◀ Earlier" / "Later ▶" (one bake frame, 1/48 of the cycle) and time
+slider slide the picked key in its clip, previewed live, between its neighbours (key 1 fixed; Mirror on moves the mirror
+key with it). The bake writes the key's `phase` and `src/anim/tuneKeysMeta.ts`, then prints the clip's rebake. No new
+pad button: they are Keys tab controls in its D-pad order.
 - **Identity after bake.** The code value moves (x the slider for a `mul`, + it for an `add`, in the code's unit); the
   slider's default stays identity. The tuner's own save still holds the old values: reset the sliders the table reports
   "baked" (keep the manual ones), then export again. The ledger keeps `group|id=value` of every baked value: a later
@@ -130,7 +134,7 @@ pad glyphs when a pad is in use and key / mouse help otherwise. `src/ui/animTune
 | A | Open a list (Part, State, Weapon, Clip, Key, Loop, ...), start editing a slider, press a button, tick a box | Pick: the choice applies, the focus steps on (the next list, or the first slider) | Keep |
 | B | Back: from a slider to its State list; closes the Y menu | Back out: nothing changes | Undo the edit |
 | X | Reset the focused slider to its default | - | Set the default |
-| Y | The more menu: Undo, Redo, Store A, Store B, Flip A / B, Reset this group, Reset all (A twice), Export file, Share / Copy, Import file, Clear change log | - | - |
+| Y | The more menu: Undo, Redo, Store A, Store B, Flip A / B, Pin / unpin this slider (T2), Show every part (T2), Reset this group, Reset all (A twice), Export file, Share / Copy, Import file, Clear change log | - | - |
 | LT / RT | Previous / next choice of the focused section's last list (the state; on Co-op the role) | - | LT held: fine steps (a fifth) |
 | Left stick X | - | - | Fast adjust |
 | R3 (held) | Untuned (bypass; Backquote on the keyboard) | Same | Same |
@@ -144,6 +148,14 @@ pad glyphs when a pad is in use and key / mouse help otherwise. `src/ui/animTune
 under the tabs on every tab and comes first in the D-pad order (a tab change still focuses the tab's own first control).
 Keys while the panel is open in the studio (reserved, never bindable): F9 play / pause, F1 / F2 one key back / forward,
 F8 on the spot, F4 the mouse mode (any time). Nothing else in the map changed: every button above keeps its job.
+
+(marlow-bays T2) The part strip over the tab (no new button): after the playback bar the D-pad reaches the part list
+(the body map's pad form: A opens it, up / down move, A picks, and the focus goes to the part's first slider; "All
+parts" shows every part again), then each pinned / recent chip (A goes to its slider: its tab, part and group, the
+focus on it), then the tab's own controls. A tab change and opening the panel still focus the tab's own first control.
+A row group's header ("Right elbow 3") is a control in the D-pad order: A folds or opens it. Y menu > Pin / unpin this
+slider pins the focused slider; Show every part clears the part. The map and a click on her in the scene are the
+mouse's (the drag view: a click without a drag picks the nearest joint or bone).
 
 While the pause menu is open the menus get the pad (held buttons stay swallowed when it closes). A camera snap (View tab:
 Front / Side / Back / Top) holds and keeps the pad on the panel; the free view "Orbit her" / "Fly" from its list gives

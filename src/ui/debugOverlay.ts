@@ -127,6 +127,8 @@ export class DebugOverlay {
     this.animTune.loop = this.loop;
     // (anim-tuner pass 2) opened from the pause menu or Settings too: the Anim button shows its state
     this.animTune.onOpenChange = (on) => Array.from(this.tools.querySelectorAll('button')).find((b) => b.textContent === 'Anim')?.classList.toggle('on', on);
+    // (marlow-bays item 26) the tuner's Settings toggle for this readout (off by default on a phone)
+    this.animTune.debugHost = { visible: () => this.visible, set: (on) => this.toggle(on) };
     engine.onEndFrameObservable.add(() => this.onFrame());
   }
 
@@ -338,6 +340,7 @@ export class DebugOverlay {
     this.el.classList.toggle('compact', compact);
     this.el.hidden = !this.visible;
     this.setScene(this.scene);
+    this.animTune.debugShown(this.visible);
   }
 
   get isVisible(): boolean {

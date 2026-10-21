@@ -130,12 +130,13 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     keyed stays keyed; the Keys tab's clip plays that clip; the tab and part stay). "Loop on the spot" from every tab:
     the header button "On the spot: on / off" (studio only), F8 (`TUNER_SPOT_KEY`) and L3 on the pad (`TunePadOut.spot`).
   - Stage light (studio only, rendering only): four point lights (key, fill, rim, a soft top "ambient";
-    `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root and facing, made once by `StudioStage`, light
+    `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root, (T2) turned toward the camera (`stageViewYaw`: key and fill on the camera's side, the rim beyond her, from any view; they were in front of her facing, so the view from behind saw only the rim and the top light), made once by `StudioStage`, light
     only her meshes (`includedOnlyMeshes`, re-read once a second as the LODs load; once a second her materials are
     raised to every light on her mesh, `lightSources`, unfrozen and frozen again like `LightRig.fitMaterial`, so a later
     rig fit cannot leave the stage lights out), range falloff as the game's lamps. "Stage light" slider (View tab, Loop player; 0-2,
     default 1; `STUDIO_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The studio map's ambient
-    is 0.6 (was 0.45). The game's lights, light registry and light field are untouched. Hooks `__studioStage.lights()`,
+    is 0.6 (was 0.45). (T2) Intensities at scale 1: key 2.4, fill 1.4, rim 1.5, ambient 1.5 (were 1.7, 0.9, 1.3, 0.8:
+    she read dark at 1080 p on the hardware GPU). The game's lights, light registry and light field are untouched. Hooks `__studioStage.lights()`,
     `root()`, `__studio.stageLight(v)`.
 - (marlow-bays slice T1a, items 15-19, COVERAGE gaps 3, 4) Keys, playback bar, aim stances, own rows:
   - Playback bar (`StudioPanel.bar`, docked by the panel under the tabs, studio only, hidden folded): Play / Pause,
@@ -158,6 +159,14 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     half (`key.<clip>.<n .. 2n-1>`) takes the mirror image of the own keys' edits where it has none of its own (turning Mirror on keeps them, ignored), then each key and arm is edited
     on its own and the key list shows all 2n keys; the bake writes such a clip in full (`expandMirror`, `mirror: false`)
     where the halves differ. Selecting a row marks its bone (slice T's marker; `tunerTarget` knows the new fields).
+  - Key timing (marlow-bays item 23; `anim/tuneKeysTime.ts`, `tuneKeysRetime` / `tuneKeysTimeInfo`): "◀ Earlier" /
+    "Later ▶" slide the picked key one bake frame (1/48 of the cycle), the slider sets its bake frame, the readout gives
+    its frame, phase, bake frame, the move and the range between its neighbours. Stored as the slider `time` (bake
+    frames, + later) in the key's group. Keys keep their order at least one bake frame apart, key 1 is fixed (the cycle
+    start), the last stays before the cycle end; with Mirror on a mirrored clip's own key moves its mirror key with it.
+    The preview is live (the keyed sampler reads the baked clip at the warped phase, `KeyedClip.keyTime`); undo and
+    reset work as for every slider. The bake writes the key's `phase` (frame / 48) only for moved keys, regenerates
+    `src/anim/tuneKeysMeta.ts` and prints the clip's rebake.
   - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /
     yaw / roll (`head.*`), pelvis shift (`pelvis.dx / dy / dz`, cm, now a slider), per arm the shoulder
     (`armX.sh.{pitch,yaw,roll}`, "shoulder forward / turn / out"), the upper arm twist (`armX.twistUpper`) and the
@@ -182,12 +191,86 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     channels are cleared, `clearKeyedArms`).
   - Hooks: `__studio.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
     v)`, `keys()`, `keysStep(dir)`, `keysMirror(on)`.
+- (marlow-bays item 26: the tuner on a phone; Michael's written exception to M21 for the animation tuner and the Anim
+  Studio only. The game stays desktop only: no phone look, no mobile path, no new work outside these two tools.) Pure
+  parts `ui/tunerPhone.ts` (tests `tests/tunerPhone.test.ts`), suite `e2e-tuner-phone`:
+  - Layout (`tunerPhoneLayout`): a phone is `flags.phone` (touch as the main pointer: `maxTouchPoints` and
+    `pointer: coarse`) with a short side of at most 600 px; anything else keeps the T2 desktop layout exactly. Landscape:
+    a side drawer on the right, full height, 38% of the width (270-400 px; height is scarce, width is not, so she keeps
+    the left); portrait: a bottom sheet, full width, 45% of the height (she keeps the top). The studio dock gives the
+    canvas up beside the drawer (`--tt-dock-w`, `body.tt-docked`) or above the sheet (`--tt-dock-h`,
+    `body.tt-docked-b`), so she stands in the free area. Classes `tt-phone` + `tt-drawer` / `tt-sheet`.
+  - Look (26b, Michael: "Smaller buttons, more compact. Adjust smaller with controller connected also"): two densities
+    from the layout's `target`, set as `--tt-t` on the panel. Touch: 13 px text, every touch target at least 34 px
+    (`TOUCH_TARGET`: tabs, buttons, chips, group headers, steppers, the ↺ and ☆, the drop-down rows, sliders 34 px
+    high, check boxes in a 34 px row), tight padding; a slider row is two lines (pin, name, value, unit, reset; then the
+    slider full width). Pad (a pad the last input, body `input-gamepad`; class `tt-ppad`): 11 px text, 26 px rows
+    (`PAD_ROW`, no touch minimum), the desktop one-line rows, the drawer 34% wide / the sheet 40% high, the map at 1 px
+    a unit with its own targets. It switches live: `frame()` compares the body class with the last layout's (one read a
+    frame, no allocation) and re-lays out only on a change; a touch anywhere now sets the input mode back to `kbm`
+    (`InputManager`, as a mouse press did), a pad press sets `gamepad`. The panel scrolls as a whole (`touch-action: pan-y`),
+    the header sticky with a grab handle (`.anim-tune-handle`, "Hide panel" / "Show panel": the fold); the hint strip
+    and the mouse-mode button hide. By touch the body map is drawn at 1.2 px a unit with 34 px hit circles; overlapping ones
+    resolve to the nearest joint (`nearestMapPart`). The pad focus scrolls the panel only while a pad is in use.
+  - Debug readout: the studio no longer turns the F3 overlay on in the phone layout, and opening the tuner on a phone
+    sets it to the saved choice (`phoneDebug` in the tuner's `ui` store, default off). Settings > "Debug readout (F3)"
+    (`.anim-tune-debugreadout`, on every layout) shows / hides it; F3 still works with a keyboard and the box follows
+    (`DebugOverlay.toggle` -> `AnimTunePanel.debugShown`; the overlay sets `animTune.debugHost`).
+  - Touch camera (`TouchGesture`, fed the canvas's touch pointer events; touches on the panel stop at the panel): a
+    finger moved under 10 px and released within 450 ms is a tap (`pickAtScreen`, as T2's click; the mouse pick ignores
+    touches); one finger past 10 px orbits (0.006 rad / px into `FREE_IN.tlx` / `tly`, starting the orbit from the game
+    view as the wheel does); two fingers are decided once, when both moved (the same way: pan; opposite, or one far from
+    a still one: pinch): a pinch adds the log of the spread ratio to `FREE_IN.tzoom`, a pan moves the circled point
+    (`FREE_IN.tpx` / `tpy` in screen heights; `FreeViewCore.panX` / `panZ` along the view's level right, up into the
+    orbit height, within `FREE_CFG.panMax` 3 m; reset when the free view restarts). A finger of two lifted spends the
+    gesture until all are up. No allocation per event. The pad and the mouse are unchanged.
+  - Hooks: `__animTune.phone()` (mode, drawer width / sheet height, dock, folded, readout, last gesture, taps),
+    `fold(v)`.
 - (anim-joints J1, COVERAGE gap 1) The Joints, Hands & feet, IK strength and Weapon sliders are deltas on a generated
   base table (`anim/animBase.ts`, written by the bake: `docs/anim-tuner/BAKE.md`) and act on every Wren rig
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
-- (tuner-ui, the current layout; the older bullets below are history where they differ) The animation tuner panel
+- (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
+  differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
+  `tests/marlowT2.test.ts`, `tests/tunerLayout.test.ts`):
+  - Look: the game menus' face and colours (`--font-menu`, `--text`, `--text-hi`, `--muted`, `--line`, `--hl`, `--warn`,
+    `--gold`, `--panel-2`; no palette of its own). Tabs as the menus' tab strip (caps, the active one white over a green
+    rule, wrapping to two lines). The pad focus is the menus' row focus (green bar, 3 px edge, white bold label); edit
+    mode the same in `--warn`; the selected row a gold edge. Size S / M / L is 16 / 19 / 22 px at 1080 p (Medium the
+    default; `tunerScale`: the screen height scales it, never under 11 px), the width at most a third of the screen
+    (`font * 25`). Values bold white (changed: amber); reset is ↺ (the unit keeps ×).
+  - Docked: fixed to the right edge, full height (`top` / `bottom` 0; folded: the header only). In the Anim Studio the
+    canvas gives up the panel's width (`body.tt-docked`, `--tt-dock-w`, one `engine.resize()` per change;
+    `syncDock`), so she stands in the middle of the free area; not folded, not outside the studio, not in co-op. The
+    studio hides the game HUD (`body.tt-studio`: `.hud`, `.hud-world`, the mouse capture hint; `syncStudioHud`, run
+    every frame open or not, off in co-op).
+  - The part strip (`.anim-tune-nav`, between the playback bar and the tab): the body map (`.anim-tune-map`, her joints
+    seen from behind, her left on the left with large L / R, the gun, "whole"; tap targets 8 units, about 11 px at
+    Medium; the part picked a green ring and fill, the selected slider's joints a gold dashed ring), "Showing" with the
+    part's name (`.anim-tune-partname`) and the part list (`.anim-tune-bodypart`, `BODY_PARTS`: the pad's way to the
+    map), Show every part, the pinned and recent chips (`.anim-tune-quick`, `q:<key>` pad items) and the search (moved
+    from Settings; it searches every tab). The map and the part list hide on View, Camera and Settings.
+  - A part picked (the map, the list, or a click on her in the scene) shows only the sliders that move it
+    (`rowHasPart`: slice T's `tuneTarget` in reverse: a joint by its joint, a bone by its first joint, a pair by either;
+    the weapon and the whole body by their own part; the camera never filtered): the shown section when it has any,
+    else Joints, Body, Hands & feet, Limb reach, Keys (the weapon: Gun in hand, Gun hold); its first slider is
+    selected (the scene marker). The same part again, the list's "All parts" or Show every part: every part.
+  - A click on her (drag view, a press and release on the canvas under 6 px and 450 ms): `pickOnBody` over her joints
+    projected through the rendered camera (a joint within 26 px, else the bone under the click within 36 px: its first
+    joint, else a joint within 64 px; the middle of the gun along its bore as one more point).
+  - Rows in groups by what they move (`tuneTarget`'s label: "Right elbow", "Knees"), a header each (`.tt-grp`, pad key
+    `g:<section>:<label>`, A or a click folds it); `groupOpen`: a choice by hand holds, else open when the first, holding
+    the selected row, filtered by a part or the search, or 8 rows or fewer in all. Folded rows stay in the DOM (code and
+    tests set them). A slider moved heads the recent list (`pushRecent`, 6); ☆ on a row (or Y menu > Pin / unpin this
+    slider) pins it (`togglePin`, 12, saved in the tuner's `ui` store as `pins`); a chip goes to its slider (tab, part,
+    group, follow off, its group open, selected; by pad the focus lands on it).
+  - The status line: `stanceText`: in the studio the loop playing and the gun as it is ("Walk · Rifle holstered", "Low
+    ready · Rifle drawn"); outside it the game's state ("Walk · No gun drawn").
+  - A level picker with no choice hides; the Joints' second level is "Armed state".
+  - Hooks added to `window.__animTune`: `part(p)`, `partState()` (part, label, shown section, its shown slider keys,
+    dock width), `clickAt(x, y)`, `reveal(key)`, `pin(key)`, `quick()`.
+- (tuner-ui, the layout before T2; the older bullets below are history where they differ) The animation tuner panel
   (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
   - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top
     snaps that hold, Unlock, fly demo, hide HUD; time: Pause / Step, game speed), Body (parts Body, Joints, Limb reach,

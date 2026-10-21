@@ -162,6 +162,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
 
+### Wren's hands and joints (anim-skeleton S1+S2)
+- [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
+  the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.
+- [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
+- [ ] Co-op: the partner's hands also close on their gun.
+- [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
+
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
   before.
@@ -222,6 +229,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Anim Studio: tick "Keyed" on walk: the keyed walk plays; clear it: the procedural walk. Pick "Run" in the Body
   tab's Joints state list: the run plays, the tab stays. "On the spot" (header, F8, pad L3) on: she runs in place; off:
   she runs the circle. She is well lit as she moves; "Stage light" (View tab) dims and brightens her.
+- [ ] (marlow-bays item 23) Anim Studio, Keys tab: pick Jog, Key 2, press "Later ▶" three times: the readout says
+  "moved +3 (baked at 6)", the jog plays with that pose later in the stride; "◀ Earlier" stops at the key before it;
+  Key 1's buttons are off (fixed). Ctrl+Z three times: back as baked. Export, then `node scripts/anim-tune-bake.mjs
+  <export> --dry-run --only keys`: the row reads "baked (key JSON; rebake the clip)", target "jog.json key 1 phase".
 - [ ] (marlow-bays T1a) Anim Studio, Keys tab: pick Jog, then Key 2: the jog stops on that key and the readout says
   "jog - key 2 of 8 (mirror of 6)"; "Key ▶", F2 and the pad's right stick right step on (the Key list follows), F1 /
   stick left step back. Click "Right forearm twist": the forearm is ringed; drag it: the forearm turns about itself.
@@ -233,6 +244,36 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
 - [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
   states show the values of the rows they shared.
+- [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
+  focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
+  compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).
+- [ ] Body tab: click her right elbow on the figure: "Showing: Right elbow" and only its sliders; click it again: every
+  part. Click her left knee in the scene (no drag): the left knee is picked. A drag still turns the camera.
+- [ ] Move a slider: it shows as a chip under "Pinned and recent"; ☆ pins it (★, a gold chip, kept after a reload);
+  click the chip on another tab: it goes back to the slider. Fold and open a group by its header.
+- [ ] By pad: from the tab's first list, D-pad up reaches the chips and the part list; A on the part list, pick Left
+  knee: the focus lands on its first slider. Y > Pin / unpin this slider. A on a group header folds it.
+- [ ] The status line in the studio: walk with Rifle picked reads "Walk · Rifle holstered"; Low ready "Low ready · Rifle
+  drawn".
+- [ ] Sizes S, M and L (Settings) and a 1280 x 720 window: the panel stays usable (tabs wrap, rows readable) and does
+  not cover her. Outside the studio (Pause > Animation tuner) the panel overlays play with no dock; in co-op the same
+  (no dock, the HUD stays).
+
+### Tuner on a phone (marlow-bays item 26; the tuner and Anim Studio only, the game stays desktop only)
+- [ ] On a phone, open the studio (`?autostart=studio`, or the main menu's studio row). Landscape: the panel is a
+  drawer on the right, she stands in the left part; no F3 readout. Portrait: a bottom sheet, she stands above it.
+- [ ] Tap "Hide panel" (the handle): only the header stays and she gets the whole screen; "Show panel" brings it back.
+- [ ] Landscape: the drawer is about 38% of the width; portrait: the sheet about 45% of the height. Text small but
+  readable (13 px).
+- [ ] Press a button on a paired controller: the panel gets smaller again (26 px rows, 11 px text, one-line sliders, a
+  narrower drawer / lower sheet) with no reload; touch the screen: back to the touch size.
+- [ ] Tabs, buttons, chips, the body map's joints, the playback bar and the sliders are easy to hit with a thumb; the
+  panel scrolls with a finger; a slider drags without scrolling the panel.
+- [ ] One finger dragged on the scene turns the view round her; a pinch zooms; two fingers dragged move the view's
+  centre; a tap on her head shows only the head's sliders. A drag on the panel never moves the camera.
+- [ ] Settings > "Debug readout (F3)" shows and hides the readout; reopening the studio keeps the choice.
+- [ ] A controller paired to the phone: the pad works as on desktop (tabs, rows, edit, View hands the pad over).
+- [ ] On the desktop the panel looks as before (docked right, no handle).
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows

@@ -50,7 +50,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
-  `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget): `e2e-studio` plus their folder's suites), `src/core/quality`, `display`, `settings`
+  `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget, tunerPhone): `e2e-studio` plus their folder's suites; `tuner*`, `animTune*`, `studioStage` and `src/player/freeView` also `e2e-tuner-phone`), `src/core/quality`, `display`, `settings`
   and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
@@ -248,7 +248,11 @@ behind a VPN adapter).
   its joint, another row moves it, the Camera tab has none; the Keyed box plays `keyed:walk` from `state:walk` and back,
   greyed on a keyed-only clip; a state picked in the Joints part's state list plays its loop (the tab stays); on the spot
   (header button, F8) the walk holds its root under 5 cm over 2 s of live play, off she walks; the four stage lights light
-  her meshes, keep their offset in her frame as she walks, and the Stage light slider scales them. (marlow-bays T1a) A
+  her meshes, keep their offset in the view frame (from her toward the camera, T2) as she walks, and the Stage light slider scales them. (marlow-bays T2) The
+  studio hides the game HUD (`body.tt-studio`) and the canvas ends where the docked panel starts; a click on the body
+  map's left knee shows only knee sliders and marks the knee; a click on her head in the scene picks the head; pin and
+  unpin a slider (chip, star), a moved slider heads the recent chips; the Joints rows fold in groups (a header opens and
+  closes its group). (marlow-bays T1a) A
   key step lands on the clip's next key (the walk's 8 keys, the mirrored half included); the Keys tab's clip and key
   pick plays `keyed:jog` on the spot paused on key 2 (the readout "jog - key 2 of 8 (mirror of 6), frame 4", the hint,
   the Mirror box on, the list of own keys), "Key ▶" and F2 step with the picker following (on key 6 it shows key 2), F1
@@ -261,6 +265,17 @@ behind a VPN adapter).
   covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
   hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
   (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder
+- `e2e-tuner-phone` (marlow-bays item 26; covers `src/ui/tuner*`, `src/ui/animTune*`, `src/game/studioStage`,
+  `src/player/freeView`; about 1 minute): `?autostart=studio` on three pages. Landscape 844 x 390 and portrait 390 x 844
+  with touch emulation (`hasTouch`, `isMobile`; `launch({ context })` in e2e-lib): the drawer / sheet is chosen and the
+  canvas gives up its width / height; (26b) touch: the drawer about 38% wide / the sheet about 45% high, every visible
+  touch target >= 34 px, 13 px text; a fake pad press (`window.__pad`) switches live to the pad density (26 px rows,
+  11 px text, 34% / 40%) and a touch back; the panel scrolls; the F3
+  readout is off, the Settings toggle and F3 show and hide it; a tap on her head picks the head; one finger dragged
+  orbits (camera yaw), a pinch zooms (orbit distance), two fingers pan (the circled point), touches on the panel move
+  nothing; the handle collapses and expands. Multi-touch through the DevTools protocol (`Input.dispatchTouchEvent`);
+  Babylon's "Max number of touches exceeded" note (the emulator's `maxTouchPoints` is 1) is not counted as an error.
+  Desktop 1280 x 640 without touch: the T2 layout and dock unchanged, the map's own targets, the readout on.
 - `e2e-security` (LEGACY; Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
   a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
   player at its far pause; a shot camera stops detecting; desk and panel checks

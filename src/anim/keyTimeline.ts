@@ -5,6 +5,7 @@
  * "jog - key 2 of 8 (mirror of 6), frame 8". Key numbers in text count from 1.
  */
 import { KEY_CLIPS, type KeyClipMeta } from './tuneKeysMeta';
+import { KEY_SPAN, KEY_TIMES } from './tuneKeysTime';
 
 /** The clip's meta by name, or null. */
 export function keyClip(name: string): KeyClipMeta | null {
@@ -17,8 +18,15 @@ export function keyCount(c: KeyClipMeta): number {
   return c.mirror ? c.phases.length * 2 : c.phases.length;
 }
 
-/** Key `k`'s phase (0..1): an own key's, or (a mirrored clip, k >= n) the own key k - n's plus half a cycle. */
+/**
+ * Key `k`'s phase (0..1): an own key's, or (a mirrored clip, k >= n) the own key k - n's plus half a cycle.
+ * (marlow-bays item 23) A clip with a timing edit: the key's retimed position (`KEY_TIMES`, bake frames).
+ */
 export function keyPhase(c: KeyClipMeta, k: number): number {
+  if (KEY_TIMES.size > 0) {
+    const t = KEY_TIMES.get(c.name);
+    if (t && k < t.length) return t[k]! / KEY_SPAN;
+  }
   const n = c.phases.length;
   if (k < n) return c.phases[k]!;
   return (c.phases[k - n]! + 0.5) % 1;
