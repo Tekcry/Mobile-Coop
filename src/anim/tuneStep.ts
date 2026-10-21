@@ -58,10 +58,18 @@ export function stepGaitIndex(moving: boolean, speed: number, crouch: number): n
 
 /** Top of each planner update: copy the gait's row into `STEP`. */
 export function stepSelect(moving: boolean, speed: number, crouch: number): void {
+  stepSelectRows(ROWS, moving, speed, crouch);
+}
+
+/**
+ * (item 24, track A) `stepSelect` from another table of the same layout (`[gait * STEP_N + param]`): a guard's planner
+ * reads the guards' table (`tuneGuard.ts` GUARD_STEP_ROWS), never Wren's rows. No allocation.
+ */
+export function stepSelectRows(rows: Float64Array, moving: boolean, speed: number, crouch: number): void {
   const g = stepGaitIndex(moving, speed, crouch);
   stepGaitNow = g;
   const o = g * STEP_N;
-  for (let k = 0; k < STEP_N; k++) STEP[k] = ROWS[o + k]!;
+  for (let k = 0; k < STEP_N; k++) STEP[k] = rows[o + k]!;
 }
 
 /** The selected gait's stride multiplier at a pace: piecewise linear through its three points (exactly 1 at identity). */

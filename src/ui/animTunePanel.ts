@@ -108,11 +108,16 @@ import {
   stanceText,
   groupOpen,
   listScrollFor,
+  guardLoopGroups,
+  isGuardSection,
+  whoSections,
   type BodyCarry,
   type LoopGroups,
   type TunerSize,
   type TunerTab,
+  type TuneWho,
 } from './tunerLayout';
+import { TUNE_WHO } from '../anim/tuneGuard';
 import { flags } from '../core/flags';
 import { clearTouchIn } from '../player/freeView';
 import { emptyPhoneLayout, GESTURE, TouchGesture, tunerPhoneLayout, type TunerPhoneLayout } from './tunerPhone';
@@ -398,6 +403,10 @@ export class AnimTunePanel {
   /** The part (section id) each multi-section tab shows, and its part picker. */
   private readonly partOf = new Map<string, string>();
   private readonly partSel = new Map<string, HTMLSelectElement>();
+  // --- (marlow-bays item 24, track A) "Who": Wren's rows or the guards' (the Body, Stepping and Weight tabs' what-row)
+  private whoSel: HTMLSelectElement;
+  /** A grey line in a tab with no guard rows while Who is Guard ("these are Wren's"). */
+  private whoNote: HTMLDivElement;
   // --- drop-down lists (tuner-ui)
   private readonly dropSel = new WeakMap<HTMLElement, HTMLSelectElement>();
   private readonly dropBtns: HTMLButtonElement[] = [];
@@ -999,6 +1008,18 @@ export class AnimTunePanel {
     el.append(top, menu, body, infoEl, this.hint, this.dropList);
     // a scroll that brings a row into view keeps it clear of the sticky top block
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.syncTopPad()).observe(top);
+    // (marlow-bays item 24, track A) "Who": the what-row's first list in the tabs with guard rows (moved there on a show)
+    {
+      const wb = this.mkBar();
+      this.whoSel = this.mkSel(wb, 'Who', ['wren', 'guard'], (v) => this.setWho(v === 'guard' ? 'guard' : 'wren'), 'who', 'anim-tune-who');
+      for (const o of Array.from(this.whoSel.options)) o.textContent = o.value === 'guard' ? 'Guard' : 'Wren';
+      this.whoSel.value = TUNE_WHO.who;
+      this.whoSel.title = 'Whose rows these sliders tune: Wren, or every guard (guards have Joints, Stepping and Weight rows)';
+      this.whoNote = document.createElement('div');
+      this.whoNote.className = 'tt-note anim-tune-who-note';
+      this.whoNote.textContent = "Wren's sliders: guards have Joints (Body tab), Stepping and Weight only.";
+      this.whoNote.hidden = true;
+    }
     // (tuner-camera) every registered section, in registration order, into its tab
     for (const r of TUNE_SECTIONS) this.addSection(r, false);
     TUNE_REGISTRY_HOOKS.added = (r) => this.addSection(r, true);
@@ -1157,6 +1178,15 @@ export class AnimTunePanel {
       },
       // (marlow-bays item 10) the selected row, its target and the scene marker
       select: (key: string) => this.pickRow(key),
+      // (marlow-bays item 24, track A) Who (Wren / Guard), as the what-row's list sets it, and what it shows
+      who: (w: TuneWho) => {
+        this.whoSel.value = w;
+        this.whoSel.dispatchEvent(new Event('change'));
+      },
+      whoState: () => {
+        const s = this.shownSection();
+        return { who: TUNE_WHO.who, section: s?.reg.id ?? '', group: s?.group ?? '', shown: !!this.whoSel.parentElement && this.whoSel.parentElement.offsetParent !== null, note: !this.whoNote.hidden, entry: STUDIO.entry };
+      },
       // (marlow-bays T2) the part filter, a click on her in the scene, row groups, pinned and recent sliders, the dock
       part: (p: BodyPart) => this.pickPart(p),
       partState: () => {
@@ -1546,21 +1576,85 @@ export class AnimTunePanel {
       tabEl.prepend(bar);
       this.partSel.set(t.id, sel);
     }
-    const want = t.sections.join(',');
+    // (item 24, track A) the parts Who shows (Wren's, or the guards'); one part: the list hides
+    const secs = whoSections(t.sections, TUNE_WHO.who);
+    const want = secs.join(',');
     if (sel.dataset.opts !== want) {
       sel.dataset.opts = want;
       sel.replaceChildren();
-      for (const id of t.sections) {
+      for (const id of secs) {
         const o = document.createElement('option');
         o.value = id;
         o.textContent = plainSection(id, this.sections.find((s) => s.reg.id === id)?.reg.label ?? id);
         sel.append(o);
       }
     }
-    if (!this.partOf.has(t.id)) this.partOf.set(t.id, t.sections[0]!);
+    const field = sel.parentElement;
+    if (field) field.hidden = secs.length < 2;
+    const cur = this.partOf.get(t.id);
+    if (!cur || !secs.includes(cur)) this.partOf.set(t.id, secs[0] ?? t.sections[0]!);
     sel.value = this.partOf.get(t.id)!;
     this.showParts(t.id);
     for (const b of this.dropBtns) if (this.dropSel.get(b) === sel) this.refreshDrop(b);
+  }
+
+  /** (item 24, track A) The section a tab shows: its picked part among the parts Who shows, else its first. */
+  private tabPart(t: TunerTab): string {
+    const secs = whoSections(t.sections, TUNE_WHO.who);
+    const p = this.partOf.get(t.id);
+    return secs.length > 1 && p && secs.includes(p) ? p : (secs[0] ?? t.sections[0] ?? '');
+  }
+
+  /**
+   * (item 24, track A) Who: Wren's rows or the guards'. Every tab shows that one's parts (a tab with no guard rows keeps
+   * Wren's, under a grey line); in the Anim Studio the guard puppet plays (a guard loop) or Wren again.
+   */
+  private setWho(w: TuneWho): void {
+    if (this.whoSel.value !== w) {
+      this.whoSel.value = w;
+      for (const d of this.dropBtns) if (this.dropSel.get(d) === this.whoSel) this.refreshDrop(d);
+    }
+    if (TUNE_WHO.who === w) return;
+    TUNE_WHO.who = w;
+    for (const t of this.tabs) this.syncPartPicker(t);
+    this.showTab();
+    const t = this.tabs[this.tabIdx];
+    const k = t ? this.sections.findIndex((s) => s.reg.id === this.tabPart(t)) : -1;
+    if (k >= 0) this.lastSec = k;
+    if (STUDIO.active && !this.loopFromTab) {
+      const guardLoop = STUDIO.entry.startsWith('guard:');
+      const id = w === 'guard' && !guardLoop ? 'guard:idle' : w === 'wren' && guardLoop ? 'state:idle' : '';
+      if (id) {
+        this.loopFromTab = true;
+        try {
+          this.studioUi.play(id);
+        } finally {
+          this.loopFromTab = false;
+        }
+      }
+    }
+    this.markPadFocus();
+    this.refreshSel();
+  }
+
+  /** (item 24, track A) The Who list at the head of the shown section's what-row (a tab with guard rows), the note
+   *  in a tab without them while Who is Guard. A DOM move on a change only. */
+  private placeWho(): void {
+    const t = this.tabs[this.tabIdx];
+    const field = this.whoSel.parentElement;
+    if (!t || !field) return;
+    const has = t.sections.some(isGuardSection);
+    const head = has ? this.sections.find((x) => x.reg.id === this.tabPart(t))?.wrap.querySelector<HTMLElement>('.tt-what') : null;
+    if (head) {
+      if (field.parentElement !== head || head.firstElementChild !== field) head.prepend(field);
+      field.hidden = false;
+    } else field.hidden = true;
+    const note = TUNE_WHO.who === 'guard' && !has;
+    this.whoNote.hidden = !note;
+    if (note) {
+      const el = this.tabEl(t.id);
+      if (this.whoNote.parentElement !== el) el.prepend(this.whoNote);
+    }
   }
 
   /** Switch a tab's part (section). */
@@ -1579,7 +1673,7 @@ export class AnimTunePanel {
   private showParts(tabId: string): void {
     const t = this.tabs.find((x) => x.id === tabId);
     if (!t) return;
-    const part = t.sections.length > 1 ? this.partOf.get(tabId) : t.sections[0];
+    const part = this.tabPart(t);
     for (const id of t.sections) {
       const s = this.sections.find((x) => x.reg.id === id);
       if (s) s.wrap.hidden = id !== part;
@@ -1589,6 +1683,8 @@ export class AnimTunePanel {
     const field = this.partSel.get(tabId)?.parentElement;
     const head = this.sections.find((x) => x.reg.id === part)?.wrap.querySelector<HTMLElement>('.tt-what');
     if (field && head && field.parentElement !== head) head.prepend(field);
+    // (item 24, track A) Who before the Part list
+    if (this.tabs[this.tabIdx]?.id === tabId) this.placeWho();
   }
 
   /** Show tab `i` (LB / RB or a click): one tab's content at a time; the pad focus on its first control. */
@@ -1607,7 +1703,7 @@ export class AnimTunePanel {
       this.padKey = first?.dataset.pad ?? '';
     }
     const t = this.tabs[i]!;
-    const sid = t.sections.length > 1 ? this.partOf.get(t.id) : t.sections[0];
+    const sid = this.tabPart(t);
     const k = this.sections.findIndex((s) => s.reg.id === sid);
     if (k >= 0) this.lastSec = k;
     this.markPadFocus();
@@ -1620,6 +1716,7 @@ export class AnimTunePanel {
     for (const [id, b] of this.tabBtns) b.classList.toggle('active', id === cur);
     const b = cur ? this.tabBtns.get(cur) : undefined;
     if (b && this.open) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    this.placeWho(); // (item 24, track A)
     this.body.scrollTop = 0;
     // (marlow-bays item 26) the phone panel scrolls as a whole: a new tab starts at its top (the tabs in view)
     if (this.layout.mode !== 'desktop') this.el.scrollTop = 0;
@@ -2040,7 +2137,7 @@ export class AnimTunePanel {
   private shownSection(): Section | undefined {
     const t = this.tabs[this.tabIdx];
     if (!t) return undefined;
-    const sid = t.sections.length > 1 ? this.partOf.get(t.id) : t.sections[0];
+    const sid = this.tabPart(t);
     return this.sections.find((s) => s.reg.id === sid);
   }
 
@@ -2055,7 +2152,8 @@ export class AnimTunePanel {
     const cur = this.shownSection();
     let target = cur && (!p || has(cur)) ? cur : undefined;
     if (!target && p) {
-      const order = p === 'weapon' ? ['weapon', 'gun', 'hand'] : p === 'body' ? ['body', 'joint'] : ['joint', 'body', 'hand', 'ik', 'keys'];
+      // (item 24, track A) Who is Guard: the guard's joints
+      const order = TUNE_WHO.who === 'guard' ? ['guardJoint'] : p === 'weapon' ? ['weapon', 'gun', 'hand'] : p === 'body' ? ['body', 'joint'] : ['joint', 'body', 'hand', 'ik', 'keys'];
       for (const id of order) {
         const s = this.sections.find((x) => x.reg.id === id);
         if (s && has(s)) {
@@ -2288,6 +2386,25 @@ export class AnimTunePanel {
    * follow comes back on.
    */
   private applyLoop(id: string): void {
+    // (item 24, track A) a guard loop: Who goes to Guard and the guard sections show its row; any other loop: Wren
+    const guard = id.startsWith('guard:');
+    if (guard || (TUNE_WHO.who === 'guard' && id !== 'off')) {
+      const was = this.loopFromTab;
+      this.loopFromTab = true;
+      try {
+        this.setWho(guard ? 'guard' : 'wren');
+      } finally {
+        this.loopFromTab = was;
+      }
+    }
+    if (guard) {
+      this.setFollow(false);
+      const g = guardLoopGroups(id);
+      this.showGroup('guardJoint', g.joint);
+      this.showGroup('guardStep', g.step);
+      this.showGroup('guardWeight', g.weight);
+      return;
+    }
     if (id === 'off') {
       this.setFollow(true);
       return;
@@ -3594,7 +3711,7 @@ export class AnimTunePanel {
     const line = this.selLine;
     if (!line) return;
     const t = this.tabs[this.tabIdx];
-    const sid = t ? ((t.sections.length > 1 ? this.partOf.get(t.id) : undefined) ?? t.sections[0] ?? '') : '';
+    const sid = t ? this.tabPart(t) : '';
     const parts = rowKeyParts(this.selKey);
     const id = parts && parts.section === sid ? parts.id : '';
     this.selSec = sid;

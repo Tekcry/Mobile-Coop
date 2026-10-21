@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - marlow-bays item 24 (guard tuning)
+- Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
+  guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
+  alert), run, aim, crouched, wall cover. Wren's sliders never change a guard and the guard sliders never change Wren.
+- Every guard (in single player and on a co-op client) reads a guard base table the bake writes from an export's guard
+  rows (`src/anim/animBaseGuard.ts`); untuned guards look and act exactly as before.
+- Anim Studio: Who = Guard (or a "Guard: ..." loop) plays a guard puppet (a real guard, no AI) where Wren stands:
+  idle, patrol walk, alert walk, run, aim, crouched aim and wall cover, moving loops on the spot; the camera, the
+  highlight, pause and speed work on it. Who = Wren brings her back.
+- Saves, exports, imports, presets and undo carry the guard rows; older saves and exports load as before.
+
 ## Unreleased - marlow-bays item 29 (tuner v3)
 - Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the
   button hints), the screen size alone picks the dock, the side drawer or the bottom sheet. One column: tabs, the

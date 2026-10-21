@@ -60,7 +60,7 @@ export interface StudioEntry {
   /** `off`, `state:<name>`, `keyed:<clip name>`, `pair:<move>` (anim-studio-2: both roles of a co-op move, or a hold with the guard) or `trav:<move>` (a traversal loop on a prop). */
   id: string;
   label: string;
-  kind: 'off' | 'state' | 'keyed' | 'pair' | 'trav';
+  kind: 'off' | 'state' | 'keyed' | 'pair' | 'trav' | 'guard';
   /** Keyed: the clip. */
   clip: KeyedClip | null;
   /** Speed (m/s) of the loop: the treadmill and the root-motion circle (keyed), the circle (a state). */
@@ -83,12 +83,26 @@ export interface StudioEntry {
   guardClip: KeyedClip | null;
   /** (anim-studio-2) A traversal loop (`studioTraversal.ts`), else null. */
   trav: TravEntry | null;
+  /** (marlow-bays item 24, track A) A guard puppet's loop (`guard:<name>`: a real guard rig, no AI), else null. */
+  gloop: GuardLoop | null;
 }
 
-const off: StudioEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null };
+/**
+ * (item 24, track A) What a guard puppet's loop feeds the guard rig, as `Enemy.frame` would: the pace (m/s, on the spot:
+ * a treadmill), the aim raise (0.2 unaware .. 0.7 alert .. 1 attacking), crouched, back to a wall, the dash.
+ */
+export interface GuardLoop {
+  speed: number;
+  aim: number;
+  crouch: boolean;
+  wall: boolean;
+  dash: boolean;
+}
+
+const off: StudioEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null };
 
 function state(name: string, label: string, pace: number, move: StudioMove, crouch = false, drawn = false, aim = false): StudioEntry {
-  return { id: `state:${name}`, label: `state: ${label}`, kind: 'state', clip: null, pace, cycle: 1, move, crouch, drawn, aim, circle: pace > 0, guard: false, team: null, guardClip: null, trav: null };
+  return { id: `state:${name}`, label: `state: ${label}`, kind: 'state', clip: null, pace, cycle: 1, move, crouch, drawn, aim, circle: pace > 0, guard: false, team: null, guardClip: null, trav: null, gloop: null };
 }
 
 /**
@@ -114,22 +128,23 @@ function keyed(clip: KeyedClip, o: { pace?: number; step?: number; cycle?: numbe
     team: null,
     guardClip: null,
     trav: null,
+    gloop: null,
   };
 }
 
 /** (anim-studio-2) A co-op pair: both roles of a team move on one clock (`studioPairs.ts`). */
 function teamPair(m: TeamMoveId): StudioEntry {
-  return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null };
+  return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null, gloop: null };
 }
 
 /** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */
 function holdPair(name: string, wren: StudioEntry, guard: StudioEntry): StudioEntry {
-  return { ...wren, id: `pair:${name}`, label: `pair: ${wren.clip!.name} + ${guard.clip!.name}`, kind: 'pair', circle: false, guard: false, team: null, guardClip: guard.clip, trav: null };
+  return { ...wren, id: `pair:${name}`, label: `pair: ${wren.clip!.name} + ${guard.clip!.name}`, kind: 'pair', circle: false, guard: false, team: null, guardClip: guard.clip, trav: null, gloop: null };
 }
 
 /** (anim-studio-2) A traversal loop on a prop. */
 function travel(t: TravEntry): StudioEntry {
-  return { id: t.id, label: t.label, kind: 'trav', clip: null, pace: 0, cycle: travCycle(t), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: t };
+  return { id: t.id, label: t.label, kind: 'trav', clip: null, pace: 0, cycle: travCycle(t), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: t, gloop: null };
 }
 
 /**
@@ -187,6 +202,9 @@ function base(id: string): StudioEntry {
   return BASE_ENTRIES.find((e) => e.id === id)!;
 }
 
+/** (item 24, track A) The guard puppet's paces (m/s): the grunt's walk x the patrol / investigate paces, its run. */
+export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
+
 /**
  * The loop player's list: off, the procedural states, every keyed clip, then (anim-studio-2) the pairs (each co-op team
  * move with both operators, the holds with the guard) and the traversal loops on the props.
@@ -199,7 +217,21 @@ export const STUDIO_ENTRIES: readonly StudioEntry[] = [
   holdPair('hold_choke', base('keyed:hold_choke'), base('keyed:guard_choke_sag')),
   holdPair('hold_knife', base('keyed:hold_knife'), base('keyed:guard_knife_collapse')),
   ...TRAV_ENTRIES.map(travel),
+  // (marlow-bays item 24, track A) the guard puppet's loops (a real guard rig on the spot; Wren stands by, hidden)
+  guardLoop('idle', 'idle', { speed: 0, aim: 0.2, crouch: false, wall: false, dash: false }),
+  guardLoop('patrol', 'patrol walk', { speed: GUARD_PACE.patrol, aim: 0.2, crouch: false, wall: false, dash: false }),
+  guardLoop('alert', 'alert walk', { speed: GUARD_PACE.alert, aim: 0.7, crouch: false, wall: false, dash: false }),
+  guardLoop('run', 'run', { speed: GUARD_PACE.run, aim: 0.2, crouch: false, wall: false, dash: true }),
+  guardLoop('aim', 'aim', { speed: 0, aim: 1, crouch: false, wall: false, dash: false }),
+  guardLoop('crouchAim', 'crouched aim', { speed: 0, aim: 1, crouch: true, wall: false, dash: false }),
+  guardLoop('cover', 'wall cover', { speed: 0, aim: 1, crouch: false, wall: true, dash: false }),
 ];
+
+/** (item 24, track A) A guard puppet's loop: on the guard rig, on the spot (no key table: frames 0). Wren gets no input
+ *  (she stands by, hidden): the loop's own stance is in `gloop`. */
+function guardLoop(name: string, label: string, g: GuardLoop): StudioEntry {
+  return { id: `guard:${name}`, label: `guard: ${label}`, kind: 'guard', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: g };
+}
 
 export function studioEntry(id: string): StudioEntry {
   // a plain loop: called every fixed step and frame (no closure allocation)

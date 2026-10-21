@@ -432,6 +432,16 @@ export function jointsEnd(): void {
   JOINTS_CUR.on = false;
 }
 
+/**
+ * (item 24, track A) Open the window on a rig state whose applied offsets another table eased (a guard rig: the guard
+ * table of `tuneGuard.ts`, never this module's Wren rows). On only while `st` has a live offset. Close with
+ * `jointsEnd`. No allocation.
+ */
+export function jointsOpen(st: JointsRigState): void {
+  act = st;
+  JOINTS_CUR.on = st.any;
+}
+
 /** A writable quaternion (Babylon's `Quaternion` fits). */
 export interface QuatLike {
   x: number;

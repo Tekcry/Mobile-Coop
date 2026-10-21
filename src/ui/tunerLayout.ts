@@ -35,7 +35,32 @@ const SECTION_TAB: Readonly<Record<string, string>> = {
   weight: 'weight',
   cam: 'camera',
   keys: 'keys',
+  // (marlow-bays item 24, track A) the guard sections sit beside Wren's; the "Who" choice shows one or the other
+  guardJoint: 'body',
+  guardStep: 'stepping',
+  guardWeight: 'weight',
 };
+
+/** (item 24, track A) A guard section (`tuneGuard.ts`) -> the Wren section it mirrors (labels, targets, the Who filter). */
+export const GUARD_BASE_SECTION: Readonly<Record<string, string>> = { guardJoint: 'joint', guardStep: 'step', guardWeight: 'weight' };
+
+/** (item 24) Whether a section is one of the guards'. */
+export function isGuardSection(id: string): boolean {
+  return id in GUARD_BASE_SECTION;
+}
+
+/** Whose rows the tuner edits: Wren's or the guards'. */
+export type TuneWho = 'wren' | 'guard';
+
+/**
+ * (item 24) The sections of a tab the "Who" choice shows: Guard, the guard sections (none in the tab: its Wren
+ * sections, which a note marks as Wren's); Wren, every section but the guards'.
+ */
+export function whoSections(sections: readonly string[], who: TuneWho): string[] {
+  const g = sections.filter(isGuardSection);
+  if (who === 'guard' && g.length) return g;
+  return sections.filter((s) => !isGuardSection(s));
+}
 
 /** The tab id of a section (an unmapped section: `sec:<id>`, its own tab). */
 export function tabOfSection(id: string): string {
@@ -165,6 +190,9 @@ const LEVEL_NAMES: Readonly<Record<string, readonly string[]>> = {
   weight: ['Gait'],
   cam: ['View'],
   keys: ['Clip', 'Key'],
+  guardJoint: ['Guard state'],
+  guardStep: ['Gait'],
+  guardWeight: ['Guard state'],
 };
 
 export function levelName(section: string, level: number): string {
@@ -200,6 +228,19 @@ const SECTION_PLAIN: Readonly<Record<string, string>> = {
   weight: 'Weight',
   cam: 'Camera',
   keys: 'Keys',
+  guardJoint: 'Guard joints',
+  guardStep: 'Guard stepping',
+  guardWeight: 'Guard weight',
+};
+
+/** (item 24, track A) The guard rows in plain words. */
+const GUARD_WORDS: Readonly<Record<string, string>> = {
+  idle: 'Idle',
+  walk: 'Walk (patrol, alert)',
+  run: 'Run',
+  aim: 'Aim',
+  crouch: 'Crouched',
+  cover: 'Wall cover',
 };
 
 /** A section's name in the part picker. */
@@ -242,6 +283,9 @@ const STATE_WORDS: Readonly<Record<string, string>> = {
 export function plainGroupWord(section: string, level: number, seg: string): string {
   // (merge, CT Core #95 Gear) the worn gear and its crouched variant
   if (section === 'gear') return GEAR_WORDS[seg] ?? plainWords(seg);
+  // (item 24, track A) the guard rows (the stepping gaits as Wren's)
+  if (section === 'guardJoint' || section === 'guardWeight') return GUARD_WORDS[seg] ?? plainWords(seg);
+  if (section === 'guardStep') return plainWords(seg);
   if (section === 'keys' && level === 1 && /^\d+$/.test(seg)) return `Key ${Number(seg) + 1}`;
   // the body state words: not the gun hold's or the camera's own states; the weapon level of hands / gun in hand stays
   const states = section !== 'gun' && section !== 'cam' && !((section === 'hand' || section === 'weapon') && level === 0);
@@ -426,6 +470,8 @@ const FINGERS = ['thumb', 'index', 'middle', 'ring', 'little'];
  * (joints, limbs, fingers, keys), then the registry label without its brackets or second wording.
  */
 export function plainLabel(section: string, id: string, label: string): string {
+  // (item 24, track A) a guard section's sliders are named as the Wren section's they mirror
+  if (isGuardSection(section)) section = GUARD_BASE_SECTION[section]!;
   const own = PLAIN[`${section}:${id}`] ?? (section.startsWith('team_') || section === 'trav' ? PLAIN[id] : undefined) ?? PLAIN[id];
   if (own) return own;
   // joints (`elbowR_x`) and the keys' joints (`pelvis_pitch`)
@@ -491,6 +537,7 @@ export function plainLoop(id: string, label: string): string {
   if (id.startsWith('keyed:')) return `${plainWords(id.slice(6))} clip`;
   if (id.startsWith('pair:')) return `Pair: ${rest.replace(/_/g, ' ')}`;
   if (id.startsWith('trav:')) return `Climb: ${rest}`;
+  if (id.startsWith('guard:')) return `Guard: ${rest}`; // (item 24, track A) a guard puppet's loop
   return plainWords(rest);
 }
 
@@ -798,6 +845,14 @@ export function loopKeyedPick(entry: string, on: boolean): string {
 export function loopForGroup(section: string, group: string, current: string): string {
   if (section === 'cam') return '';
   const seg = group.split('.');
+  // (item 24, track A) a guard row picked: the guard puppet's loop of that row ('' a gait with no loop of its own)
+  if (isGuardSection(section)) {
+    const s = seg[seg.length - 1] ?? '';
+    // the loop playing already plays through that row (or steps in that gait): it stays
+    if (section === 'guardStep' ? guardLoopGroups(current).step === group : guardRowOfLoop(current) === s) return '';
+    const id = guardLoopOf(section, s);
+    return id === current ? '' : id;
+  }
   if (section.startsWith('team_')) {
     const id = seg[1] && seg[0] === 'team' ? `pair:${seg[1]}` : '';
     return id === current ? '' : id;
@@ -826,6 +881,38 @@ export function loopForGroup(section: string, group: string, current: string): s
   for (const clip in CLIP_BODY) if (CLIP_BODY[clip] === state) return `keyed:${clip}`;
   const tr = TRAV_OF[state];
   return tr && tr !== current ? tr : '';
+}
+
+/** (item 24, track A) The guard puppet's loops (`studio.ts` GUARD_LOOPS) and the guard row each plays through. */
+const GUARD_LOOP_ROW: Readonly<Record<string, string>> = {
+  'guard:idle': 'idle',
+  'guard:patrol': 'walk',
+  'guard:alert': 'walk',
+  'guard:run': 'run',
+  'guard:aim': 'aim',
+  'guard:crouchAim': 'crouch',
+  'guard:cover': 'cover',
+};
+/** The stepping gait each guard loop steps in ('' none). */
+const GUARD_LOOP_GAIT: Readonly<Record<string, string>> = { 'guard:idle': 'idle', 'guard:patrol': 'walk', 'guard:alert': 'walk', 'guard:run': 'run', 'guard:aim': 'idle', 'guard:crouchAim': 'idle', 'guard:cover': 'idle' };
+
+/** (item 24) The guard row a guard loop plays through ('' not a guard loop). */
+export function guardRowOfLoop(loop: string): string {
+  return GUARD_LOOP_ROW[loop] ?? '';
+}
+
+/** (item 24) The guard groups a guard loop uses: Guard joints and Guard weight by its row, Guard stepping by its gait. */
+export function guardLoopGroups(loop: string): { joint: string; step: string; weight: string } {
+  const r = GUARD_LOOP_ROW[loop] ?? '';
+  const g = GUARD_LOOP_GAIT[loop] ?? '';
+  return { joint: r ? `guard.joint.${r}` : '', step: g ? `guard.step.${g}` : '', weight: r ? `guard.weight.${r}` : '' };
+}
+
+/** (item 24) The guard loop of a guard section's row or gait ('' none). */
+export function guardLoopOf(section: string, seg: string): string {
+  if (section === 'guardStep') return seg === 'idle' ? 'guard:idle' : seg === 'walk' || seg === 'jog' ? 'guard:patrol' : seg === 'run' ? 'guard:run' : '';
+  for (const id in GUARD_LOOP_ROW) if (GUARD_LOOP_ROW[id] === seg) return id;
+  return '';
 }
 
 /** (marlow-bays T1a, item 16) The traversal loop of a climb move (`trav.<kind>`) or a climbing body state. */
