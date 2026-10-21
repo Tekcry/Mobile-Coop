@@ -229,7 +229,9 @@ describe('anim-bake on a sample export (temp copies)', () => {
     const close = (a: number, b: number): void => expect(a).toBeCloseTo(b, 3);
     // body (mul), gun (add, metres), camera (add, metres) every climb preset, the shared wall pivot once
     close(num(old(W), 'WALL.peekLean'), num(before[W]!, 'WALL.peekLean') * 1.5);
-    close(num(old(G), 'READY_POSES.low.z'), num(before[G]!, 'READY_POSES.low.z') + 0.02);
+    close(num(old(G), 'WREN_READY_LOW.z'), num(before[G]!, 'WREN_READY_LOW.z') + 0.02);
+    // (anim-bake-1022) the guards' low ready is never a bake target
+    expect(num(old(G), 'READY_POSES.low.z')).toBe(num(before[G]!, 'READY_POSES.low.z'));
     for (const p of ['hang', 'ladder', 'pipe', 'fence', 'rappel']) close(num(old(C), `ATTACH_FRAMING.${p}.boom`), num(before[C]!, `ATTACH_FRAMING.${p}.boom`) + 0.3);
     close(num(old(C), 'ATTACH_FRAMING.wall.pivot'), num(before[C]!, 'ATTACH_FRAMING.wall.pivot') + 0.1);
     // speed: the point; the aimed glide's strafe share (the glide forward is manual: it scales the whole glide)

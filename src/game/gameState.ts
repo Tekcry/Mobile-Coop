@@ -210,6 +210,9 @@ export interface NetAttachment {
   partnerBodies?(out: SeenBody[], from: number): number;
   /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
   sendJam?(tgt: string): void;
+  /** (marlow-jammer fix round 1) Host, course mode: move player `who` to (x, y, z) facing `yaw` (the camera hallway's
+   *  send-back; a `back` event, the client moves itself). */
+  sendBack?(who: string, x: number, y: number, z: number, yaw: number): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
@@ -691,7 +694,7 @@ export class GameState implements AppState {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
         world.layout.security,
-        { ballistics: this.ballistics, players: () => this.playerRefs(), lightAt: (x, y, z) => world.lightField.totalAt(x, y, z) },
+        { ballistics: this.ballistics, players: () => this.playerRefs() },
         new SecurityView(this.scene, world.parts),
       );
       const prevRay = this.weapons.onRay;
@@ -1568,10 +1571,6 @@ export class GameState implements AppState {
     return this.lightRay.hasHit;
   };
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
-  /** (camera-cue fix) A remote body's light as this side samples remotes (the co-op client's camera cue). */
-  bodyLight(x: number, feetY: number, z: number, height: number, crouched: boolean): number {
-    return this.world.lightField.bodyLevel(x, feetY, z, lightSampleHeight(height, crouched ? 1 : 0), this.lightOccluder);
-  }
 
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);

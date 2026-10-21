@@ -448,10 +448,24 @@ try {
     ['crouch', { y: 1 }, 'crouch'],
     ['sneak', { y: 0.35 }, 'crouch'],
   ];
+  // (anim-bake-1022) Michael's 2026-10-22 run tune (the run keys rebaked at dbd466c7): the run alone reads against ranges
+  // widened to the measured baked value plus ~10%; every other gait keeps L.crabRanges. Restore: drop RUN_TUNE.
+  const RUN_STAND = L.crabRanges(false);
+  const RUN_TUNE = {
+    ...RUN_STAND,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.5-1.1 (measured 0.55 / 1.2 / 1.93)
+    kneeSep: { min: RUN_STAND.kneeSep.min, max: 2.15 },
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.07 (measured max 14.6 cm)
+    trackHalf: 0.16,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.03 (measured 8.2 cm)
+    kneeBow: 0.09,
+    // (anim-bake-1022) Michael's 2026-10-22 run tune: was 0.06 (measured 9.9 cm)
+    elbowWing: 0.11,
+  };
   const crabRows = [];
   for (const [name, inp, mode, gear] of crabGaits) {
     const rec = await crabRecord(gear ?? 4, mode === 'crouch', [{ sec: 1.0, inp }, { sec: 2.0, inp, rec: true }]);
-    const r = crabRow(name, rec, mode === 'crouch');
+    const r = crabRow(name, rec, mode === 'crouch', false, name === 'run' ? RUN_TUNE : undefined);
     crabRows.push(r.row);
     const gated = !!L.CRAB_GATES[name];
     console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
@@ -724,14 +738,23 @@ try {
         });
         return { down: down / n, yaw: yaw / n, tilt: tilt / n };
       }, [weapon, aim]);
-    const P = L.DRAWN_POSE;
+    // (anim-bake-1022) the player is a Wren rig (WREN_READY_LOW / WREN_PISTOL_READY): two of L.DRAWN_POSE widened to
+    // Michael's tune; guards keep the old ready poses and are not measured here
+    const P = {
+      ...L.DRAWN_POSE,
+      // (anim-bake-1022) Michael's 2026-10-22 tune: was 20-50 (measured 66.5)
+      pistolDown: { min: L.DRAWN_POSE.pistolDown.min, max: 73 },
+    };
+    // (anim-bake-1022) Michael's 2026-10-22 tune: was 25 (measured -36.1); the pistol keeps L.DRAWN_POSE.readyYaw
+    const RIFLE_READY_YAW = 40;
     for (const weapon of ['rifle', 'pistol']) {
       const lr = await pose(weapon, false);
       const am = await pose(weapon, true);
       console.log(`  ${weapon} low ready: muzzle ${f2(lr.down)} deg down, ${f2(lr.yaw)} deg off the facing; aiming: head tilt ${f2(am.tilt)} deg, muzzle ${f2(am.down)} deg down`);
       const band = weapon === 'pistol' ? P.pistolDown : P.rifleDown;
+      const readyYaw = weapon === 'rifle' ? RIFLE_READY_YAW : P.readyYaw;
       assert(within(lr.down, band.min, band.max), `${weapon} low ready: muzzle ${band.min}-${band.max} deg down (${f2(lr.down)})`);
-      assert(Math.abs(lr.yaw) <= P.readyYaw, `${weapon} low ready: muzzle within ${P.readyYaw} deg of the facing (${f2(lr.yaw)})`);
+      assert(Math.abs(lr.yaw) <= readyYaw, `${weapon} low ready: muzzle within ${readyYaw} deg of the facing (${f2(lr.yaw)})`);
       assert(am.tilt <= P.headTilt, `${weapon} aiming: head within ${P.headTilt} deg of upright, the gun to the eye (${f2(am.tilt)})`);
     }
     await crabRecord(0, false, [{ sec: 0.1, inp: {} }], orig.cls);
@@ -936,9 +959,13 @@ try {
       t.run(0.6, {});
       return res;
     });
+    // (anim-bake-1022) Michael's 2026-10-22 tune: was 0.075 (L.CROUCH_POP; measured 10.5 cm wristR); the player's low ready
+    // still crouch -> stand only, every other transition keeps L.CROUCH_POP
+    const popMax = (name) => (name === 'low ready still: crouch -> stand' ? 0.115 : L.CROUCH_POP);
     for (const r of pops) {
-      console.log(`  ${r.name}: worst velocity change ${cm(r.worst)} cm per 60 Hz frame (${r.where}; <= ${cm(L.CROUCH_POP)})${L.CROUCH_POP_GATE ? '' : ' [report-only]'}`);
-      if (L.CROUCH_POP_GATE) assert(r.worst <= L.CROUCH_POP, `${r.name}: no pop on the rig (${cm(r.worst)} cm per frame, ${r.where})`);
+      const lim = popMax(r.name);
+      console.log(`  ${r.name}: worst velocity change ${cm(r.worst)} cm per 60 Hz frame (${r.where}; <= ${cm(lim)})${L.CROUCH_POP_GATE ? '' : ' [report-only]'}`);
+      if (L.CROUCH_POP_GATE) assert(r.worst <= lim, `${r.name}: no pop on the rig (${cm(r.worst)} cm per frame, ${r.where})`);
     }
   }
 

@@ -1,15 +1,11 @@
 # anim-skeleton - state
 
 ## Now
-PR #88 (S1+S2) ready again after the fix round (22ee6ba3: the e2e-levels climb is seed variance, bisected; guard
-rig identity test added); waiting on the orchestrator. S3a done and checked on the helper branch
-`feature/anim-skeleton-s3` (worktree `C:/NightShift/Mobile-Coop-anim-skeleton-s3`, b346aa10, master 4.40.0 merged).
+S3+S4 PR to master (S4 3cf98038 + checker fix); full e2e on the laptop.
 
 ## Next
-S3b on the helper branch after the 5-hour reset (23:00; meter 85% at 22:00): `key_clip.py` writes `clav` / `fing` / `leg`
-in the rig frames when a key file opts in, the `skeleton_test` key file and clip, a studio entry (lines told to Course
-Ready). Keep leg w at 0 on contact frames (S3a checker). After #88 merges: merge the helper branch into this branch.
-Check the 5-hour meter before each agent; at 98% stop at a clean commit and tell the orchestrator.
+S4b exact preview (BRIEF item 30(e), PLAN S4b) after the PR. Then S5 leftovers. Check the 5-hour meter before each
+agent; pause at 97%.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger
@@ -34,6 +30,10 @@ Check the 5-hour meter before each agent; at 98% stop at a clean commit and tell
 - Reported to the orchestrator: LOD0-2 lost their grip morphs in the 10-20 rebake (BRIEF "Facts").
 
 ## Done
+- 2026-10-22: S4 tuner rows (3cf98038): clavicle Joints rows, Keys fields on every keyed clip, legd with the planted-foot re-solve (0.00 cm on jog), rig.footSlide, auto opt-in bake; checker fix (allocation test); check pass.
+- 2026-10-22: S3b (clip bake: key_clip.py opt-in clav / fing / leg, skeleton_test clip and studio entry, frame proof under 0.01 cm legs / 0.26 cm shoulders); check, e2e-studio, e2e-anim pass; GPU sheet s3/skeleton-test-studio.webp.
+- 2026-10-21: S3a (runtime channels clav / fing / leg, FK leg blend, build.mjs emitter); checker PASS.
+- 2026-10-21: #88 (S1+S2) merged as 4.42.0.
 - 2026-10-21: S2 runtime rig (c5ec9350): clavicle, finger and goggle drive; A9 grip closes LOD0 / LOD1 hands; bit-identity fixture; checker PASS (fixture re-captured from pre-S2 code byte-identical). Polish: clavFrame only on the arm-solve path (check in S3 when clips write clavIn), mean-curl removal after clamp, extended finger slightly bent back (CURL_LIMIT.min), carrier strap moves with the shrug (A3).
 - 2026-10-21: S1 asset (f3fdd667): clavicle, finger (LOD0 / LOD1, knuckle loops) and goggle joints in the Wren GLBs; checker PASS; laptop smoke, e2e-anim, e2e-studio pass. Master 4.38.0 merged (0c285c9d: T1a #83, J1 #84). Polish: thumb-index web spike, faceted fingers, hero poser test (S2), bake_lods SPEC bones text, half-patched re-run.
 - 2026-10-21: survey; BRIEF, PLAN, STATE.
