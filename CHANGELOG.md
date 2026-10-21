@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
+- Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
+  Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is
+  edited. "Delete key" removes the picked key (never key 1, never below 4 keys a cycle; with Mirror on its mirror goes
+  too). Live at once; undo, reset, presets, export and import work as for every slider; works with key timing.
+- The bake writes the key file with the new key list, regenerates `src/anim/tuneKeysMeta.ts` and prints the clip's
+  rebake. An export with no add / delete bakes exactly as before; no clip changes.
+
 ## 4.42.0 - Wren skeleton: collarbones, 30 finger bones, smoother glove fingers; hands close on weapons again (2026-10-21, PR #88)
 - Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
   had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on
