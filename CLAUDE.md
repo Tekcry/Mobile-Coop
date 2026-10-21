@@ -50,7 +50,7 @@ means this session only; the session running a job is its **job lead**.
 4. Authority order (G86): Michael > `docs/DECISIONS.md` > `docs/design-bible.md` > job and map docs (`docs/level-design.md`,
    the map's documents) > these docs > code. Every decision is also written into the bible.
 
-**Machines** (Michael, 2026-10-19). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
+**Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
 slot, or on the laptop (Character Build), the second slot, which Michael is still using: there at BelowNormal priority
 and `E2E_JOBS=1`, so it never takes all his bandwidth, and never GPU or visual checks. One heavy job at a time per
