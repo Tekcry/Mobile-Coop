@@ -86,6 +86,25 @@ Added ~14:10:
 Items 17-20 go in slice T1 with 15 and 16. T1 split (orchestrator OK, ~15:45): T1a = items 15-19 + COVERAGE gaps 3-5;
 T1b = gaps 1-2 (Joints / Hands & feet / IK / Weapon bake and every rig reads them; move and action rows), taking
 exports made before T1b (test with a literal old export).
+**Tracks (Michael, ~16:10: "is there anything we can do to split sessions to focus heavily on the animation work?";
+chose three tracks, bays wait).** Three sessions at once, one owner per file area, the orchestrator merges A, B, C in
+that order; the laptop tests all three:
+- A - Course Ready Build: T1a (items 15-19, COVERAGE gaps 4-5 and the studio loops / weapon pick) on
+  `feature/marlow-tuner-t1`, then T2. Owns `src/ui/tuner*`, `src/ui/studio*`, `src/anim/studio.ts`, `src/anim/tuneKeys*`,
+  `scripts/anim-keys/*`.
+- B - CT Core Build: T1b (COVERAGE gaps 1, 2 and 3: Joints / Hands & feet / IK / Weapon bake into a generated base
+  table every rig reads, the partner included; tables keyed by row id with move and action rows; split rows for
+  crouched wall, crouch run, aim still, holds vs carries, rifle vs pistol) on `feature/anim-bake` in
+  `C:/NightShift/Mobile-Coop-anim-bake`, from master 4.35.0. Owns `src/anim/tuneJoints*`, `src/anim/tuneV2Sections.ts`,
+  `src/anim/tuneBake*`, `scripts/anim-tune-bake.mjs`, the row plumbing in `src/anim/animGraph.ts` and
+  `src/player/*`. Exports made before T1b must bake (test with a literal old export). New rows register through the
+  tuner registry, so A's panel shows them with no UI change.
+- C - Menu Notes Build: T3 (item 21) on `feature/anim-rig` in `C:/NightShift/Mobile-Coop-anim-rig`, from master 4.35.0.
+  Prototype first: the rig change in Blender (`-b` only), one test clip, a screenshot to the orchestrator before the
+  full build. Owns the rig, the skin, `src/anim/clips/*`, `scripts/anim-keys/build*` (shared with A: A adds key fields,
+  C adds clip channels; C rebases on A's merge). Merges after A and B.
+- Cross-track rule: a change outside your area goes to that area's owner through the orchestrator.
+
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
     if a pose crosses it).
