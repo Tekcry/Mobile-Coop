@@ -360,7 +360,7 @@ describe('anim studio: snapshots', () => {
     expect(presetAutoName(list)).toBe('preset 2');
     expect(presetParse(presetFile(list))).toEqual(list);
     expect(presetDelete(list, 'walk wide').map((p) => p.name)).toEqual(['preset 1']);
-    expect(presetParse({ version: 2, presets: list })).toEqual([]);
+    expect(presetParse({ version: 3, presets: list })).toEqual([]); // (T1a: version 2 is the rows' version)
     expect(presetParse(null)).toEqual([]);
     const bad = JSON.parse('{"version":1,"presets":[{"name":"x","values":{"__proto__":{"a":1},"walk":{"trackMul":"no","kneeOutMul":1.1}}},{"name":"","values":{}},{"name":"x","values":{}},"junk"]}');
     const p = presetParse(bad);

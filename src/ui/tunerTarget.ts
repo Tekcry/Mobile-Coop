@@ -117,14 +117,19 @@ function keyRow(id: string, out: TuneTarget): TuneTarget {
     const f = m[2]!;
     const S = SIDE(side);
     if (f.startsWith('wrist')) return one(out, `wrist${side}`, `${S} wrist (key)`);
+    // (marlow-bays T1a, item 17) the forearm twist on the forearm, the shoulder on its joint
+    if (f === 'twist') return bone(out, `elbow${side}`, `wrist${side}`, `${S} forearm twist (key)`);
+    if (f.startsWith('sh')) return one(out, `shoulder${side}`, `${S} shoulder (key)`);
     if (f === 'elbow' || f === 'inward') return bone(out, `elbow${side}`, `wrist${side}`, `${S} forearm (key)`);
+    if (f === 'twistUpper') return bone(out, `shoulder${side}`, `elbow${side}`, `${S} upper arm twist (key)`);
     return bone(out, `shoulder${side}`, `elbow${side}`, `${S} upper arm (key)`);
   }
   const seg = id.split('_')[0];
-  if (seg === 'pelvis') return one(out, 'hips', 'Pelvis (key)');
+  if (seg === 'pelvis') return one(out, 'hips', id.startsWith('pelvis_d') ? 'Pelvis shift (key)' : 'Pelvis (key)');
   if (seg === 'spine') return one(out, 'spine', 'Spine (key)');
   if (seg === 'chest') return one(out, 'torso', 'Chest (key)');
   if (seg === 'neck') return one(out, 'neck', 'Neck (key)');
+  if (seg === 'head') return one(out, 'headNode', 'Head (key)');
   return body(out, 'Whole body (key)');
 }
 

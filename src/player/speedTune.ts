@@ -61,14 +61,20 @@ export function speedGroupFor(body: string): SpeedGroup | null {
       return null;
     case 'aim':
     case 'aimCrouch':
+    case 'aimStill':
+    case 'aimCrouchMove':
       return 'spd.aim';
     case 'crouchIdle':
     case 'sneak':
     case 'crouchWalk':
+    case 'crouchRun':
       return 'spd.crouch';
     case 'wallIdle':
     case 'wallSlide':
     case 'wallPeek':
+    case 'wallCrouchIdle':
+    case 'wallCrouchSlide':
+    case 'wallCrouchPeek':
       return 'spd.wall';
     case 'ladder':
     case 'pipe':

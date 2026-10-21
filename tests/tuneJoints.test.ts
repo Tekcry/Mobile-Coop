@@ -203,7 +203,7 @@ describe('tuneJoints save / export', () => {
     jointsSet('crouchWalk', J.hipL, 0, -12.5);
     jointsSet('ladder', J.neck, 2, 4);
     const rec = JSON.parse(JSON.stringify(jointsAttach(tuneSnapshot()))) as Record<string, unknown>;
-    expect(rec.version).toBe(1);
+    expect(rec.version).toBe(2); // (marlow-bays T1a: the rows' version)
     expect(rec.joints).toEqual(jointsSnapshot());
     expect(() => tuneLoad(rec)).not.toThrow();
     jointsLoad(undefined);

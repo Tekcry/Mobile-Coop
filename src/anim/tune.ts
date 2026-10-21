@@ -42,6 +42,14 @@ export const BODY_GROUPS = [
   'crawl',
   'hang',
   'hold',
+  // (marlow-bays T1a, COVERAGE gap 3) states that shared a row get their own (tuneRows.ts migrates old saves)
+  'crouchRun',
+  'aimStill',
+  'aimCrouchMove',
+  'wallCrouchIdle',
+  'wallCrouchSlide',
+  'wallCrouchPeek',
+  'carry',
 ] as const;
 export type BodyGroup = (typeof BODY_GROUPS)[number];
 
@@ -119,11 +127,13 @@ export interface Tunable {
   hook: string;
 }
 
-const FOOT: readonly BodyGroup[] = ['idle', 'walk', 'jog', 'run', 'crouchIdle', 'sneak', 'crouchWalk', 'lowReady', 'aim', 'aimCrouch', 'wallIdle', 'wallSlide', 'wallPeek', 'hold'];
-const MOVING: readonly BodyGroup[] = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'aim', 'aimCrouch', 'wallSlide', 'hold'];
-const SWING: readonly BodyGroup[] = ['walk', 'jog', 'run', 'sneak', 'crouchWalk'];
+// (T1a) the new rows sit beside the rows they shared (aimCrouch is the still crouched aim now, aimCrouchMove the moving)
+const FOOT: readonly BodyGroup[] = ['idle', 'walk', 'jog', 'run', 'crouchIdle', 'sneak', 'crouchWalk', 'crouchRun', 'lowReady', 'aimStill', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallIdle', 'wallSlide', 'wallPeek', 'wallCrouchIdle', 'wallCrouchSlide', 'wallCrouchPeek', 'hold', 'carry'];
+const MOVING: readonly BodyGroup[] = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
+const SWING: readonly BodyGroup[] = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun'];
 const KEYED: readonly BodyGroup[] = ['idle', 'walk', 'jog', 'run'];
-const WALL: readonly BodyGroup[] = ['wallIdle', 'wallSlide', 'wallPeek'];
+const WALL: readonly BodyGroup[] = ['wallIdle', 'wallSlide', 'wallPeek', 'wallCrouchIdle', 'wallCrouchSlide', 'wallCrouchPeek'];
+const HOLDS: readonly BodyGroup[] = ['hold', 'carry'];
 const ATTACHED: readonly BodyGroup[] = ['ladder', 'pipe', 'ledge', 'vent', 'crawl', 'hang'];
 const ALL_BODY: readonly BodyGroup[] = BODY_GROUPS;
 const ALL_GUN: readonly GunGroup[] = GUN_GROUPS;
@@ -148,13 +158,13 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'elbowOutAdd', label: 'elbow out (keyed arms)', kind: 'add', def: 0, min: -0.1, max: 0.15, step: 0.005, unit: 'm', groups: KEYED, hook: 'characterRig keyedArm: the keyed elbow point x' },
   { id: 'elbowPoleMul', label: 'elbow out (IK pole)', kind: 'mul', def: 1, min: 0, max: 2.5, step: 0.05, unit: 'x', groups: ALL_BODY, hook: 'characterRig solveArm: the elbow pole outward share 0.55' },
   { id: 'headTurnMul', label: 'head turn', kind: 'mul', def: 1, min: 0, max: 2, step: 0.05, unit: 'x', groups: ALL_BODY, hook: 'RigPose.lookYaw (the head glance / wall head turn)' },
-  { id: 'peekLeanMul', label: 'peek lean', kind: 'mul', def: 1, min: 0, max: 2.5, step: 0.05, unit: 'x', groups: ['wallPeek'], hook: 'RigPose.lean (WALL.peekLean on the rig)' },
+  { id: 'peekLeanMul', label: 'peek lean', kind: 'mul', def: 1, min: 0, max: 2.5, step: 0.05, unit: 'x', groups: ['wallPeek', 'wallCrouchPeek'], hook: 'RigPose.lean (WALL.peekLean on the rig)' },
   { id: 'wallGapAdd', label: 'gap to wall', kind: 'add', def: 0, min: -0.1, max: 0.15, step: 0.005, unit: 'm', groups: WALL, hook: 'player.ts: wallRootPush (the rig root pushed onto the face)' },
-  { id: 'bodyFwdAdd', label: 'body fwd (to wall / pipe / guard)', kind: 'add', def: 0, min: -0.25, max: 0.25, step: 0.005, unit: 'm', groups: [...ATTACHED, 'hold'], hook: 'player.ts: the rig root along the facing (visual only)' },
+  { id: 'bodyFwdAdd', label: 'body fwd (to wall / pipe / guard)', kind: 'add', def: 0, min: -0.25, max: 0.25, step: 0.005, unit: 'm', groups: [...ATTACHED, ...HOLDS], hook: 'player.ts: the rig root along the facing (visual only)' },
   { id: 'bodyUpAdd', label: 'body up', kind: 'add', def: 0, min: -0.25, max: 0.25, step: 0.005, unit: 'm', groups: ATTACHED, hook: 'player.ts: the rig root height (visual only)' },
-  { id: 'handUpAdd', label: 'hand reach up', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: [...ATTACHED, 'hold'], hook: 'rig.reachL / reachR world grip targets (rungs, pipe, lip, hold hands)' },
-  { id: 'handFwdAdd', label: 'hand reach fwd', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: [...ATTACHED, 'hold'], hook: 'rig.reachL / reachR along the facing' },
-  { id: 'handOutAdd', label: 'hand spacing (out)', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: [...ATTACHED, 'hold'], hook: 'rig.reachL / reachR outward (the shimmy hand spacing)' },
+  { id: 'handUpAdd', label: 'hand reach up', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: [...ATTACHED, ...HOLDS], hook: 'rig.reachL / reachR world grip targets (rungs, pipe, lip, hold hands)' },
+  { id: 'handFwdAdd', label: 'hand reach fwd', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: [...ATTACHED, ...HOLDS], hook: 'rig.reachL / reachR along the facing' },
+  { id: 'handOutAdd', label: 'hand spacing (out)', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: [...ATTACHED, ...HOLDS], hook: 'rig.reachL / reachR outward (the shimmy hand spacing)' },
   { id: 'footUpAdd', label: 'foot reach up', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ATTACHED, hook: 'rig.plantL / plantR (rungs, wall pads)' },
   { id: 'footFwdAdd', label: 'foot reach fwd', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ATTACHED, hook: 'rig.plantL / plantR along the facing' },
   { id: 'footOutAdd', label: 'foot spacing (out)', kind: 'add', def: 0, min: -0.2, max: 0.2, step: 0.005, unit: 'm', groups: ATTACHED, hook: 'rig.plantL / plantR outward' },
@@ -408,14 +418,16 @@ export interface TunePoseIn {
   bendDrop?: number;
   weight?: number;
   lookYaw?: number;
+  /** (T1a) A body lifted, carried or put down (not a held guard): the bend selects `carry`, else `hold`. */
+  carryBody?: boolean;
 }
 
-/** Speed bands (m/s), the same as the F3 crab readout's gait label. */
-export const TUNE_BANDS = { idle: 0.15, walk: 2.2, jog: 3.7, sneak: 1.2 } as const;
+/** Speed bands (m/s), the same as the F3 crab readout's gait label; (T1a) `crouchRun` from the crouch's 4th gear down. */
+export const TUNE_BANDS = { idle: 0.15, walk: 2.2, jog: 3.7, sneak: 1.2, crouchRun: 2.0 } as const;
 
 /** The body group for a pose (`ledge`: the hands hook a lip; `armed`: a weapon in hand). Null: no group (identity). */
 export function selectBodyGroup(p: TunePoseIn, ledge: boolean, armed: boolean): BodyGroup | null {
-  if ((p.bend ?? 0) > 0 || (p.bendDrop ?? 0) > 0) return 'hold';
+  if ((p.bend ?? 0) > 0 || (p.bendDrop ?? 0) > 0) return p.carryBody ? 'carry' : 'hold';
   const tr = p.traverse ?? 'none';
   if (tr !== 'none') {
     switch (tr) {
@@ -437,10 +449,15 @@ export function selectBodyGroup(p: TunePoseIn, ledge: boolean, armed: boolean): 
     }
   }
   const s = p.speed;
-  if (p.wall) return (p.lean ?? 0) !== 0 ? 'wallPeek' : s > TUNE_BANDS.idle ? 'wallSlide' : 'wallIdle';
   const crouched = p.crouch > 0.5;
-  if (p.aim > 0.5) return crouched ? 'aimCrouch' : 'aim';
-  if (crouched) return s < TUNE_BANDS.idle ? 'crouchIdle' : s < TUNE_BANDS.sneak ? 'sneak' : 'crouchWalk';
+  const still = s < TUNE_BANDS.idle;
+  if (p.wall) {
+    if (crouched) return (p.lean ?? 0) !== 0 ? 'wallCrouchPeek' : s > TUNE_BANDS.idle ? 'wallCrouchSlide' : 'wallCrouchIdle';
+    return (p.lean ?? 0) !== 0 ? 'wallPeek' : s > TUNE_BANDS.idle ? 'wallSlide' : 'wallIdle';
+  }
+  // (T1a) aiming still and moving apart: `aim` is the glides, `aimCrouch` the still crouched aim
+  if (p.aim > 0.5) return crouched ? (still ? 'aimCrouch' : 'aimCrouchMove') : still ? 'aimStill' : 'aim';
+  if (crouched) return still ? 'crouchIdle' : s < TUNE_BANDS.sneak ? 'sneak' : s < TUNE_BANDS.crouchRun ? 'crouchWalk' : 'crouchRun';
   if (armed && s < TUNE_BANDS.idle) return 'lowReady';
   return s < TUNE_BANDS.idle ? 'idle' : s < TUNE_BANDS.walk ? 'walk' : s < TUNE_BANDS.jog ? 'jog' : 'run';
 }
@@ -683,7 +700,7 @@ export function selectCamGroup(attach: string | null, peek: number, ads: number,
     if (attach === 'duct') return 'cam.vent';
     return 'cam.climb';
   }
-  if (body === 'hold') return 'cam.hold';
+  if (body === 'hold' || body === 'carry') return 'cam.hold';
   if (body === 'crawl' || body === 'vent') return 'cam.vent';
   if (body === 'ladder' || body === 'pipe' || body === 'ledge' || body === 'hang') return 'cam.climb';
   if (ads > 0) return gun.startsWith('pistol') ? 'cam.aimPistol' : 'cam.aimRifle';

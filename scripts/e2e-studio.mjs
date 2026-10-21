@@ -12,6 +12,11 @@
 // plays its loop; on the spot (the header toggle, F8) she holds her root over 2 s of play, off she walks.
 // (marlow-bays item 14) The stage lights (key, fill, rim, ambient) light her meshes, keep their offset in her frame as
 // she walks, and the Stage light slider scales them.
+// (marlow-bays T1a) A key step lands on the clip's next key (its mirrored half too). The Keys tab: a clip and key picked
+// plays that clip on the spot paused on that key, the readout names it and its mirror, the key buttons and F1 / F2 step it
+// with the picker following, the edited bone is marked; a forearm twist edit turns the forearm bone; Mirror off lets the
+// arms differ. The playback bar shows on every tab (F9 plays / pauses); a weapon, a climb move and a co-op role picked in
+// a tab play; the aim stances (standing, crouched still and moving) play with the picked gun.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -32,7 +37,8 @@ try {
   assert(s0.map === 'studio' && s0.panel && s0.section, `the studio boots with the tuner panel and its Studio section (${JSON.stringify({ ...s0, entries: s0.entries.length })})`);
   assert(s0.entries.includes('keyed:walk') && s0.entries.includes('keyed:guard_choke_sag') && s0.entries.includes('state:aimStrafe'), `the loop list has the keyed clips and the states (${s0.entries.length})`);
 
-  // a keyed clip in place: paused, one key forward moves the phase by one key
+  // a keyed clip in place: paused, one key forward moves the phase onto the next key ((marlow-bays T1a) the clip's own
+  // keys: the walk's 4 keys and their mirrored half, 8 a cycle)
   await G(() => window.__studio.pick('keyed:walk'));
   await frames(page, 12);
   await G(() => window.__studio.pause());
@@ -40,15 +46,16 @@ try {
   const a = await st();
   const drive = () => G(() => { const d = window.__app.current.player.rig.graph.drive; return d ? { phase: d.phase, mirror: d.mirror, clip: d.clip?.name ?? '' } : null; });
   const d0 = await drive();
-  assert(a.frames === 32 && d0 && d0.clip === 'walk' && (await G(() => window.__app.loop.timeScale)) === 0, `keyed walk on Wren's graph, paused (frames ${a.frames}, drive ${JSON.stringify(d0)})`);
+  assert(a.frames === 32 && a.keys === 8 && d0 && d0.clip === 'walk' && (await G(() => window.__app.loop.timeScale)) === 0, `keyed walk on Wren's graph, paused (frames ${a.frames}, keys ${a.keys}, drive ${JSON.stringify(d0)})`);
   await G(() => window.__studio.step(1));
   await frames(page, 3);
   const p1 = (await st()).phase;
   await G(() => window.__studio.step(1));
   await frames(page, 3);
-  const p2 = (await st()).phase;
+  const ks2 = await st();
+  const p2 = ks2.phase;
   const dp = (((p2 - p1) % 1) + 1) % 1;
-  assert(Math.abs(dp - 1 / 32) < 1e-6 && Math.abs(p1 * 32 - Math.round(p1 * 32)) < 1e-6, `a key step moves the phase by one key (${p1.toFixed(4)} -> ${p2.toFixed(4)})`);
+  assert(Math.abs(dp - 1 / 8) < 1e-6 && Math.abs(p1 * 8 - Math.round(p1 * 8)) < 1e-6 && ks2.onKey, `a key step moves the phase onto the next key (${p1.toFixed(4)} -> ${p2.toFixed(4)}, key ${ks2.key + 1} of ${ks2.keys})`);
   await G(() => window.__studio.step(-1));
   await frames(page, 3);
   assert(Math.abs((await st()).phase - p1) < 1e-6 && Math.abs((await drive()).phase - p1) < 1e-6, 'a key back returns to it (the drive holds the phase)');
@@ -327,6 +334,170 @@ try {
   assert((await st()).spot, 'the header button turns on the spot back on');
   await G(() => window.__animTune.tab('view'));
   await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
+  // (marlow-bays T1a, item 15) the Keys tab: a clip and key picked plays that clip on the spot, paused on that key; the
+  // readout names the key and its mirror; the key buttons and F1 / F2 step it with the picker following; the hint shows
+  await G(() => window.__animTune.tab('keys'));
+  await G(() => {
+    window.__animTune.pickLevel('keys', 0, 'jog');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 4);
+  const k15 = await G(() => ({ s: window.__studio.state(), keys: window.__animTune.keys(), frozen: window.__studio.frozen(), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
+  assert(
+    k15.s.entry === 'keyed:jog' && k15.frozen && k15.s.spot && k15.s.key === 1 && k15.s.onKey && Math.abs(k15.d - 0.125) < 1e-6,
+    `a Keys pick plays the clip paused on the key (${JSON.stringify({ entry: k15.s.entry, key: k15.s.key, onKey: k15.s.onKey, phase: k15.d, frozen: k15.frozen })})`,
+  );
+  assert(k15.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 4') && k15.keys.hint === 'Key edits change one pose; whole-cycle changes go in the state tabs.', `the readout names the key and its mirror, the hint shows (${JSON.stringify(k15.keys)})`);
+  assert(k15.keys.mirror && k15.keys.list.join(',') === '0,1,2,3', `the Mirror box is on and the list shows the own keys (${k15.keys.list.join(',')})`);
+  await G(() => window.__animTune.keysStep(1));
+  await frames(page, 12);
+  const k15b = await G(() => ({ key: window.__studio.state().key, group: window.__animTune.keys().group }));
+  assert(k15b.key === 2 && k15b.group === 'key.jog.2', `"Key ▶" steps a key and the picker follows (${JSON.stringify(k15b)})`);
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('F2');
+    await frames(page, 3);
+  }
+  await frames(page, 12);
+  const k15c = await G(() => ({ key: window.__studio.state().key, keys: window.__animTune.keys() }));
+  assert(k15c.key === 5 && k15c.keys.group === 'key.jog.1' && k15c.keys.readout.includes('key 6 of 8 (mirror of 2)'), `F2 steps on; on the mirrored half the picker shows the key it mirrors (${JSON.stringify({ key: k15c.key, group: k15c.keys.group, readout: k15c.keys.readout })})`);
+  await page.keyboard.press('F1');
+  await frames(page, 12);
+  assert((await st()).key === 4, `F1 steps back (${(await st()).key})`);
+  // the edited bone is marked: the forearm twist's row marks the forearm
+  await G(() => window.__animTune.select('s:keys:armR_twist'));
+  await frames(page, 4);
+  const k15d = await G(() => window.__animTune.selected());
+  assert(k15d.a === 'elbowR' && k15d.b === 'wristR' && k15d.mark.shown && k15d.line.includes('Right forearm twist'), `the edited bone is marked (${JSON.stringify({ a: k15d.a, b: k15d.b, shown: k15d.mark.shown, line: k15d.line })})`);
+
+  // (T1a, item 17) a forearm twist key edit turns the forearm bone about itself (the elbow stays where it is)
+  const bones = () =>
+    G(() => {
+      const r = window.__app.current.player.rig;
+      const q = (n) => {
+        n.computeWorldMatrix(true);
+        const a = n.absoluteRotationQuaternion;
+        return [a.x, a.y, a.z, a.w];
+      };
+      const p = (n) => {
+        const v = n.getAbsolutePosition();
+        return [v.x, v.y, v.z];
+      };
+      return { elR: q(r.elbowR), elRp: p(r.elbowR), wrRp: p(r.wristR), elLp: p(r.elbowL), wrLp: p(r.wristL) };
+    });
+  const qAng = (a, b) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
+  await G(() => window.__studio.showKey('walk', 1));
+  await frames(page, 6);
+  const t0 = await bones();
+  await G(() => window.__animTune.set('key.walk.1', 'armR_twist', 45));
+  await frames(page, 6);
+  const t1 = await bones();
+  const twist = qAng(t0.elR, t1.elR);
+  const elMoved = Math.hypot(t1.elRp[0] - t0.elRp[0], t1.elRp[1] - t0.elRp[1], t1.elRp[2] - t0.elRp[2]);
+  assert(twist > 30 && twist < 60 && elMoved < 0.005, `a forearm twist edit turns the forearm bone (${twist.toFixed(1)} deg, the elbow moved ${(elMoved * 1000).toFixed(1)} mm)`);
+  await G(() => window.__animTune.set('key.walk.1', 'armR_twist', 0));
+
+  // (T1a, item 18) Mirror on: a left arm edit at key 2 shows on the right arm at key 6; Mirror off: the right arm at key 6
+  // is set back on its own while the left arm at key 2 keeps the edit (the arms differ)
+  const foreDir = (b, side) => {
+    const e = side === 'R' ? b.elRp : b.elLp;
+    const w = side === 'R' ? b.wrRp : b.wrLp;
+    const v = [w[0] - e[0], w[1] - e[1], w[2] - e[2]];
+    const l = Math.hypot(...v);
+    return v.map((x) => x / l);
+  };
+  const ang = (u, v) => (Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1] + u[2] * v[2]))) * 180) / Math.PI;
+  const atKey = async (k) => {
+    await G((kk) => window.__studio.showKey('walk', kk), k);
+    await frames(page, 6);
+    return bones();
+  };
+  const b2 = await atKey(1);
+  const b6 = await atKey(5);
+  await G(() => window.__animTune.set('key.walk.1', 'armL_elbow', 30));
+  await frames(page, 4);
+  const m6 = await atKey(5);
+  assert(ang(foreDir(m6, 'R'), foreDir(b6, 'R')) > 15, `Mirror on: the left arm's key 2 edit shows on the right arm at key 6 (${ang(foreDir(m6, 'R'), foreDir(b6, 'R')).toFixed(1)} deg)`);
+  await G(() => window.__animTune.tab('keys'));
+  await G(() => window.__animTune.keysMirror(false));
+  await frames(page, 4);
+  const k18 = await G(() => window.__animTune.keys());
+  assert(!k18.mirror && k18.list.length === 8, `Mirror off: every key of the cycle is listed (${JSON.stringify({ mirror: k18.mirror, list: k18.list })})`);
+  await G(() => window.__animTune.set('key.walk.5', 'armR_elbow', 0));
+  await frames(page, 4);
+  const o6 = await atKey(5);
+  const o2 = await atKey(1);
+  const r6 = ang(foreDir(o6, 'R'), foreDir(b6, 'R'));
+  const l2 = ang(foreDir(o2, 'L'), foreDir(b2, 'L'));
+  assert(r6 < 3 && l2 > 15, `Mirror off: the arms differ (right at key 6 back to base ${r6.toFixed(1)} deg, left at key 2 still bent ${l2.toFixed(1)} deg)`);
+  await G(() => {
+    window.__animTune.keysMirror(true);
+    window.__animTune.set('key.walk.1', 'armL_elbow', 0);
+  });
+  await frames(page, 3);
+
+  // (T1a, item 16) the playback bar on every tab: shown on the Body tab, F9 plays / pauses, a weapon picked in a tab
+  // swaps her gun (a holstered loop plays the low ready), a climb move and a co-op role play their loops
+  await G(() => window.__animTune.tab('body'));
+  await frames(page, 3);
+  const pb = await G(() => ({ r: window.__studio.readout(), play: !!document.querySelector('.anim-tune-playbar .studio-play')?.offsetParent, spot: !!document.querySelector('.anim-tune-playbar .anim-tune-spot')?.offsetParent, f: window.__studio.frozen() }));
+  assert(pb.r.shown && pb.play && pb.spot && pb.r.text.includes('walk - key'), `the playback bar shows on the Body tab with the clip's key readout (${JSON.stringify(pb)})`);
+  await page.keyboard.press('F9');
+  await frames(page, 3);
+  const f1 = await G(() => window.__studio.frozen());
+  await page.keyboard.press('F9');
+  await frames(page, 3);
+  assert(pb.f && !f1 && (await G(() => window.__studio.frozen())), 'F9 plays and pauses from any tab');
+  await G(() => window.__studio.play());
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+  await G(() => window.__animTune.tab('hands'));
+  await G(() => window.__animTune.pickLevel('hand', 0, 'pistol'));
+  await frames(page, 4);
+  const w16 = await G(() => window.__studio.state());
+  assert(w16.weapon === 'pistol' && w16.entry === 'state:lowReady', `a weapon picked in a tab swaps the stance (${w16.weapon}, ${w16.entry})`);
+  const gunClass = () => G(() => window.__app.current.weapons.current.def.class);
+  let gc = '';
+  for (let i = 0; i < 20 && gc !== 'pistol'; i++) {
+    await G(() => window.__app.loop.stepHeadless(0.5));
+    gc = await gunClass();
+  }
+  assert(gc === 'pistol', `the pistol comes out (${gc})`);
+  await G(() => {
+    window.__animTune.tab('body');
+    const part = document.querySelector('.anim-tune-part-body');
+    part.value = 'trav';
+    part.dispatchEvent(new Event('change'));
+    window.__animTune.pickLevel('trav', 0, 'vault');
+  });
+  await frames(page, 3);
+  const tv = (await st()).entry;
+  await G(() => window.__animTune.pickLevel('team_boost', 0, 'b'));
+  await frames(page, 3);
+  const tp = (await st()).entry;
+  assert(tv === 'trav:vault' && tp === 'pair:boost', `a climb move and a co-op role play their loops (${tv}, ${tp})`);
+
+  // (T1a, item 19) the aim stances: standing, crouched still, crouched moving, each with the picked gun
+  const aimLoop = async (id, body, sec) => {
+    await G((x) => window.__studio.pick(x), id);
+    let b = '';
+    for (let i = 0; i < 24 && b !== body; i++) {
+      await G(() => window.__app.loop.stepHeadless(0.25));
+      await frames(page, 2);
+      b = await G(() => window.__animTune.state.body);
+    }
+    return { b, gun: await gunClass(), ads: await G(() => window.__app.current.player.ads) };
+  };
+  const a1 = await aimLoop('state:aimStill', 'aimStill');
+  assert(a1.b === 'aimStill' && a1.gun === 'pistol' && a1.ads, `aim standing plays with the pistol (${JSON.stringify(a1)})`);
+  await G(() => window.__studio.weapon('rifle'));
+  const a2 = await aimLoop('state:crouchAim', 'aimCrouch');
+  assert(a2.b === 'aimCrouch' && a2.gun === 'rifle' && a2.ads, `crouch aim standing plays with the rifle (${JSON.stringify(a2)})`);
+  const a3 = await aimLoop('state:crouchAimFwd', 'aimCrouchMove');
+  assert(a3.b === 'aimCrouchMove' && a3.gun === 'rifle', `crouch aim moving plays (${JSON.stringify(a3)})`);
+  await G(() => window.__studio.pick('state:idle'));
+  await G(() => window.__animTune.tab('view'));
   await frames(page, 4);
 
   // undo a slider change

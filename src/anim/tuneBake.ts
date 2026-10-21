@@ -13,7 +13,8 @@
  * JSONs via the apply-tune functions, then a rebake per clip); already baked (the ledger: this group and slider were
  * baked before at this same value, in this export or an earlier one); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
  */
-import { applyKeyEdits, editedClips, KEY_FIELDS, KEY_RANGE, keyFileText, parseKeyGroup, type KeyFile } from './tuneKeysFile';
+import { applyKeyEdits, editedClips, KEY_FIELDS, keyFileText, keyHalvesDiffer, keyMirrorOn, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile';
+import { migrateTuneChanged } from './tuneRows';
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
 
 export const BAKE_MAGIC = 'night-shift-anim-tune';
@@ -52,9 +53,22 @@ export function bakeCatalogue(sections: readonly DeclaredSection[]): Catalogue {
   return { byGroup, bySection };
 }
 
-/** The Keys section's slider (every `key.<clip>.<n>` group): a degree delta, identity 0. */
-const KEY_TUNABLE = (id: string): CatTunable => ({ section: 'keys', id, kind: 'add', def: 0, min: KEY_RANGE.min, max: KEY_RANGE.max, groups: [] });
+/** The Keys section's slider (every `key.<clip>.<n>` group): a delta (deg, or cm for the pelvis shift), identity 0. */
+const KEY_BY_ID = new Map(KEY_FIELDS.map((f) => [f.id, f]));
+const KEY_TUNABLE = (id: string): CatTunable => {
+  const f = KEY_BY_ID.get(id)!;
+  return { section: 'keys', id, kind: 'add', def: 0, min: f.min, max: f.max, groups: [] };
+};
 const KEY_IDS = new Set(KEY_FIELDS.map((f) => f.id));
+/** (T1a, item 18) The Keys section's Mirror box (`key.<clip>.mirror`): 1 on (identity), 0 off. */
+const KEY_MIRROR_TUNABLE: CatTunable = { section: 'keys', id: 'mirror', kind: 'add', def: 1, min: 0, max: 1, groups: [] };
+/** The catalogue entry of a Keys group's slider, or undefined (an unknown slider, or not a Keys group). */
+const keyTunable = (group: string, id: string): CatTunable | undefined => {
+  if (parseKeyGroup(group)) return KEY_IDS.has(id) ? KEY_TUNABLE(id) : undefined;
+  if (parseKeyMirror(group)) return id === 'mirror' ? KEY_MIRROR_TUNABLE : undefined;
+  return undefined;
+};
+const isKeyGroup = (g: string): boolean => !!parseKeyGroup(g) || !!parseKeyMirror(g);
 
 /** The registry's wide range (`tuneMin` / `tuneMax` with "wide ranges" on): doubled about the default, a multiplier never below its floor. */
 export function wideRange(t: Pick<DeclaredTunable, 'kind' | 'def' | 'min' | 'max'>): [number, number] {
@@ -462,20 +476,25 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   if (!data || typeof data !== 'object') return fail('not an animation tuner export');
   const exp = data as { magic?: unknown; version?: unknown; changed?: unknown; exported?: unknown };
   if (exp.magic !== BAKE_MAGIC) return fail(`wrong file (magic ${String(exp.magic)})`);
-  if (exp.version !== 1) return fail(`unsupported version ${String(exp.version)}`);
+  if (exp.version !== 1 && exp.version !== 2) return fail(`unsupported version ${String(exp.version)}`);
   if (!Array.isArray(exp.changed)) return fail('no values in the file');
 
   // 1. the entries: well formed, known kind, inside the wide range
   const all: { group: string; id: string; value: number }[] = [];
   const seen = new Set<string>();
-  for (const c of exp.changed as unknown[]) {
+  // (marlow-bays T1a) a version 1 export (before the shared states' own rows): each new row takes its old row's values,
+  // as the tuner's import does
+  const raw = exp.changed as unknown[];
+  const valid = raw.filter((c): c is { group: string } => !!c && typeof c === 'object' && typeof (c as { group?: unknown }).group === 'string');
+  const list = exp.version === 1 ? [...raw, ...migrateTuneChanged(valid).slice(valid.length)] : raw;
+  for (const c of list) {
     const x = (c ?? {}) as { group?: unknown; id?: unknown; value?: unknown; kind?: unknown };
     if (typeof x.group !== 'string' || typeof x.id !== 'string' || typeof x.value !== 'number' || !Number.isFinite(x.value)) return fail(`malformed entry ${JSON.stringify(c)}`);
     const k = `${x.group}|${x.id}`;
     if (seen.has(k)) return fail(`${k} twice in the export`);
     seen.add(k);
     all.push({ group: x.group, id: x.id, value: x.value });
-    const t = parseKeyGroup(x.group) ? (KEY_IDS.has(x.id) ? KEY_TUNABLE(x.id) : undefined) : cat.byGroup.get(x.group)?.get(x.id);
+    const t = isKeyGroup(x.group) ? keyTunable(x.group, x.id) : cat.byGroup.get(x.group)?.get(x.id);
     if (!t) continue;
     if (typeof x.kind === 'string' && x.kind !== t.kind) return fail(`${k}: kind ${x.kind} in the export, ${t.kind} in this build`);
     const [lo, hi] = wideRange(t);
@@ -502,8 +521,7 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   const entries: Entry[] = [];
   const only = opts.only && opts.only.length ? new Set(opts.only) : null;
   for (const a of all) {
-    const keyed = parseKeyGroup(a.group);
-    const t = keyed ? (KEY_IDS.has(a.id) ? KEY_TUNABLE(a.id) : undefined) : cat.byGroup.get(a.group)?.get(a.id);
+    const t = isKeyGroup(a.group) ? keyTunable(a.group, a.id) : cat.byGroup.get(a.group)?.get(a.id);
     const row: BakeRow = { section: t?.section ?? '?', group: a.group, id: a.id, value: a.value, target: '', result: '' };
     if (!t) {
       row.result = 'skipped: no bake rule (a slider this build does not know)';
@@ -649,13 +667,29 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
       return fail(`${file}: ${(err as Error).message}`);
     }
     if (kf.name !== clip || !Array.isArray(kf.keys)) return fail(`${file}: not the key file of ${clip}`);
+    // (T1a, item 18) a mirrored clip with its Mirror box off and its halves edited apart is written in full
+    const n = kf.keys.length;
+    const full = !!kf.mirror && !keyMirrorOn(keyVals, clip) && keyHalvesDiffer(keyVals, clip, n);
     for (const en of entries) {
-      const pk = en.section === 'keys' ? parseKeyGroup(en.group) : null;
+      if (en.section !== 'keys') continue;
+      if (parseKeyMirror(en.group) === clip) {
+        en.row.target = `${file} mirror`;
+        en.row.result = full ? 'baked (key JSON written in full, mirror: false; rebake the clip)' : 'baked (no change: the halves still mirror each other)';
+        baked++;
+        continue;
+      }
+      const pk = parseKeyGroup(en.group);
       if (!pk || pk[0] !== clip) continue;
       const f = KEY_FIELDS.find((x) => x.id === en.id)!;
-      en.row.target = `${file} key ${pk[1]} ${f.seg}${f.wrist ? '.wrist' : ''}.${f.field} + (deg)`;
-      if (pk[1] >= kf.keys.length) {
-        en.row.result = `skipped: ${clip} has ${kf.keys.length} keys`;
+      en.row.target = `${file} key ${pk[1]} ${f.seg}${f.sub ? `.${f.sub}` : ''}.${f.field} + (${f.unit})`;
+      if (pk[1] >= (full ? 2 * n : n)) {
+        // Mirror off with the halves still mirror images: the mirrored own key carries this value (baked through it)
+        if (kf.mirror && pk[1] < 2 * n && !keyMirrorOn(keyVals, clip)) {
+          en.row.result = `baked (the halves still mirror: key ${pk[1]} is key ${pk[1] - n} mirrored; rebake the clip)`;
+          baked++;
+          continue;
+        }
+        en.row.result = kf.mirror && pk[1] < 2 * n ? `skipped: the Mirror box is on (key ${pk[1]} follows key ${pk[1] - n})` : `skipped: ${clip} has ${n} keys`;
         manualN++;
         continue;
       }
@@ -665,6 +699,13 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     const after = keyFileText(applyKeyEdits(kf, keyVals));
     if (after !== before) writes.push({ path: file, before, after });
     rebake.push(`node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs ${clip}`);
+  }
+  // (T1a) a Mirror box set off on a clip with no key edits changes nothing in the file
+  for (const en of entries) {
+    if (en.section !== 'keys' || en.row.result) continue;
+    en.row.target = `${BAKE_KEYS_DIR}${parseKeyMirror(en.group) ?? '?'}.json mirror`;
+    en.row.result = 'skipped: no key edits on this clip (the Mirror box alone changes nothing)';
+    manualN++;
   }
 
   // 7. the ledger

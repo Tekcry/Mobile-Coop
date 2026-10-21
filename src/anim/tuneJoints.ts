@@ -16,7 +16,8 @@
  * Save / Export: additive key `joints` on the tuner's existing IndexedDB record and export (`jointsAttach`,
  * `jointsLoadFrom`); `tuneLoad` ignores unknown keys and a record without `joints` loads as all zero.
  */
-import { BODY_GROUPS, type BodyGroup } from './tune';
+import { BODY_GROUPS } from './tune';
+import { JOINT_WEAPON_ROWS } from './tuneRows';
 
 export const JOINTS = [
   'pelvis',
@@ -59,8 +60,10 @@ export const MIRROR_OF: readonly number[] = JOINTS.map((j) => {
 /** The mirror's sign per axis: pitch kept, yaw and roll flipped. */
 export const MIRROR_SIGN: readonly number[] = [1, -1, -1];
 
-const G = BODY_GROUPS.length;
-const GROUP_INDEX = Object.fromEntries(BODY_GROUPS.map((g, i) => [g, i])) as Record<BodyGroup, number>;
+/** (marlow-bays T1a) The table's rows: every body state, then the per-gun rows of the armed states (`rifle.aim`, ...). */
+export const JOINT_ROWS: readonly string[] = [...BODY_GROUPS, ...JOINT_WEAPON_ROWS];
+const G = JOINT_ROWS.length;
+const GROUP_INDEX = Object.fromEntries(JOINT_ROWS.map((g, i) => [g, i])) as Record<string, number>;
 
 /** Degrees, [group][joint][axis] flat. The source of truth. */
 const DEG = new Float64Array(G * JOINT_COUNT * 3);
@@ -94,7 +97,7 @@ export function eulerQuat(x: number, y: number, z: number, out: Float64Array, o:
   out[o + 3] = cy * cp * cr + sy * sp * sr;
 }
 
-function gi(group: BodyGroup): number {
+function gi(group: string): number {
   const i = GROUP_INDEX[group];
   if (i === undefined) throw new Error(`tuneJoints: unknown group ${group}`);
   return i;
@@ -127,7 +130,7 @@ function put(g: number, joint: number, axis: number, v: number): boolean {
 // The panel API (not hot)
 // ------------------------------------------------------------------------------------------
 
-export function jointsGet(group: BodyGroup, joint: number, axis: JointAxis): number {
+export function jointsGet(group: string, joint: number, axis: JointAxis): number {
   return DEG[(gi(group) * JOINT_COUNT + joint) * 3 + axis]!;
 }
 
@@ -135,7 +138,7 @@ export function jointsGet(group: BodyGroup, joint: number, axis: JointAxis): num
  * Set one axis of one joint in one state (degrees, clamped to `JOINT_RANGE`, a non-finite value is refused). With the
  * mirror lock on, a left / right joint's partner takes the mirrored value. Returns true if anything changed.
  */
-export function jointsSet(group: BodyGroup, joint: number, axis: JointAxis, deg: number): boolean {
+export function jointsSet(group: string, joint: number, axis: JointAxis, deg: number): boolean {
   if (!Number.isFinite(deg) || joint < 0 || joint >= JOINT_COUNT) return false;
   const g = gi(group);
   const v = clampDeg(deg);
@@ -147,11 +150,11 @@ export function jointsSet(group: BodyGroup, joint: number, axis: JointAxis, deg:
 }
 
 /** One joint's three axes back to 0 (and its partner with the mirror lock on). */
-export function jointsReset(group: BodyGroup, joint: number): void {
+export function jointsReset(group: string, joint: number): void {
   for (let a = 0; a < 3; a++) jointsSet(group, joint, a as JointAxis, 0);
 }
 
-export function jointsResetGroup(group: BodyGroup): void {
+export function jointsResetGroup(group: string): void {
   const g = gi(group);
   let ch = false;
   for (let j = 0; j < JOINT_COUNT; j++) for (let a = 0; a < 3; a++) ch = put(g, j, a, 0) || ch;
@@ -173,11 +176,11 @@ export function jointsMirror(on?: boolean): boolean {
   return mirror;
 }
 
-export function jointChanged(group: BodyGroup, joint: number): boolean {
+export function jointChanged(group: string, joint: number): boolean {
   return LIVE[gi(group) * JOINT_COUNT + joint] === 1;
 }
 
-export function jointsGroupChanged(group: BodyGroup): boolean {
+export function jointsGroupChanged(group: string): boolean {
   const b = gi(group) * JOINT_COUNT;
   for (let j = 0; j < JOINT_COUNT; j++) if (LIVE[b + j] === 1) return true;
   return false;
@@ -214,7 +217,7 @@ function curReset(): void {
  * Before the LOCAL player's `rig.animate`: ease the applied offsets toward the state's row ('' = toward none) over `dt`
  * seconds (nlerp, `JOINT_EASE_TAU`; the default `Infinity` jumps straight to the row). No allocation.
  */
-export function jointsBegin(group: BodyGroup | '', dt = Number.POSITIVE_INFINITY): void {
+export function jointsBegin(group: string, dt = Number.POSITIVE_INFINITY): void {
   const g = group === '' ? undefined : GROUP_INDEX[group];
   const b = g === undefined ? -1 : g * JOINT_COUNT;
   JOINTS_CUR.on = false;
@@ -360,7 +363,7 @@ export function jointsSnapshot(): JointsSnapshot {
       const slot = g * JOINT_COUNT + j;
       if (LIVE[slot] !== 1) continue;
       const d = slot * 3;
-      (values[BODY_GROUPS[g]!] ??= {})[JOINTS[j]!] = [DEG[d]!, DEG[d + 1]!, DEG[d + 2]!];
+      (values[JOINT_ROWS[g]!] ??= {})[JOINTS[j]!] = [DEG[d]!, DEG[d + 1]!, DEG[d + 2]!];
     }
   }
   return { version: 1, mirror, values };
@@ -378,7 +381,7 @@ export function jointsLoad(s: unknown): void {
   const vals = snap.values;
   if (!vals || typeof vals !== 'object') return;
   for (const [gName, row] of Object.entries(vals)) {
-    const g = GROUP_INDEX[gName as BodyGroup];
+    const g = GROUP_INDEX[gName];
     if (g === undefined || !row || typeof row !== 'object') continue;
     for (const [jName, v] of Object.entries(row)) {
       const j = J[jName as Joint];

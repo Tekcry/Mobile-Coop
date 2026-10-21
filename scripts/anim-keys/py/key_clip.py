@@ -92,10 +92,26 @@ def wrist_local(e, s):
 HAS_WRIST = any('wrist' in k.get(a, {}) for k in clip['keys'] for a in ('armL', 'armR'))
 
 
+def sh_local(a, s):
+    """(marlow-bays T1a) A key's shoulder turn in the chest frame (deg; + pitch forward as the flex, right side as written,
+    the left mirrored): the runtime `sh` channel."""
+    e = a.get('sh') or {}
+    return ry(d2r(s * e.get('yaw', 0))) @ rx(-d2r(e.get('pitch', 0))) @ rz(d2r(s * e.get('roll', 0)))
+
+
+# (marlow-bays T1a) the optional channels: the samples carry `fore` (forearm twist L, R: 8 per frame), `head` (4) and
+# `sh` (shoulder L, R: 8) when any key sets them (non-zero); without them the lines are left out (identity), as before
+HAS_FORE = any(k.get(a, {}).get('twist', 0) for k in clip['keys'] for a in ('armL', 'armR'))
+HAS_SH = any(any((k.get(a, {}).get('sh') or {}).get(x, 0) for x in ('pitch', 'yaw', 'roll')) for k in clip['keys'] for a in ('armL', 'armR'))
+HAS_HEAD = any(any(k.get('head', {}).get(x, 0) for x in ('pitch', 'yaw', 'roll')) for k in clip['keys'])
+
+
 def mirror_key(k):
     """The right step from the left one: sides swapped, lateral offsets, yaws and rolls negated."""
     m = {'phase': k['phase'] + 0.5}
-    for seg in ('pelvis', 'spine', 'chest', 'neck'):
+    for seg in ('pelvis', 'spine', 'chest', 'neck', 'head'):
+        if seg == 'head' and 'head' not in k:
+            continue
         e = dict(k.get(seg, {}))
         for a in ('dx', 'yaw', 'roll'):
             if a in e:
@@ -125,19 +141,27 @@ def fk(k):
     for n, par in (('spine', 'pelvis'), ('chest', 'spine'), ('neck', 'chest')):
         W[n] = ypr(k[n])
         X[n] = X[par] + W[par] @ OFF[n]
-    W['head'] = W['neck']
+    # (marlow-bays T1a) an optional keyed head turn, local on the neck (the runtime `head` channel)
+    W['head'] = W['neck'] @ ypr(k['head']) if 'head' in k else W['neck']
     X['head'] = X['neck'] + W['neck'] @ OFF['head']
     for side, s in (('L', -1), ('R', 1)):
         a = k['arm' + side]
         sh, el, wr, hd = 'sh' + side, 'el' + side, 'wr' + side, 'hand' + side
         X[sh] = X['chest'] + W['chest'] @ OFF[sh]
         u = W['chest'] @ rx(-d2r(a['flex'])) @ rz(s * d2r(a['abd'])) @ DOWN
-        W[sh] = bone_rot(u, FWD)
-        X[el] = X[sh] + u * OFF[el].length
         # the forearm bends forward at the elbow and (inward, deg) turns in toward the midline, hands in front of the hips
         f = W['chest'] @ ry(-s * d2r(a.get('inward', 0))) @ rx(-d2r(a['flex'] + a['elbow'])) @ rz(s * d2r(a['abd'] + CARRY)) @ DOWN
-        W[el] = bone_rot(f, FWD)
-        X[wr] = X[el] + f * OFF[wr].length
+        # (marlow-bays T1a) the upper arm twist: the forearm turned about the shoulder-elbow line (it rides the points)
+        if a.get('twistUpper', 0):
+            f = Matrix.Rotation(s * d2r(a['twistUpper']), 3, u.normalized()) @ f
+        # (marlow-bays T1a) the keyed shoulder: the whole arm turned about the shoulder joint in the chest frame (the
+        # runtime `sh` channel; the sampled arm points leave it out, `sh_local` below)
+        SHc = W['chest'] @ sh_local(a, s) @ W['chest'].inverted()
+        W[sh] = SHc @ bone_rot(u, FWD)
+        X[el] = X[sh] + SHc @ u * OFF[el].length
+        # (marlow-bays T1a) the forearm twist about the bone (the runtime `fore` channel)
+        W[el] = SHc @ bone_rot(f, FWD) @ ry(s * d2r(a.get('twist', 0)))
+        X[wr] = X[el] + SHc @ f * OFF[wr].length
         # (anim-rig) an optional keyed wrist frame, local to the forearm (the rig's wrist node under its elbow node):
         # yaw twists the hand about the forearm, pitch and roll swing it, written for the right hand (s = 1) and mirrored
         # for the left (yaw and roll negated), so a mirrored key swaps the arms as they are. Without it the hand
@@ -256,6 +280,34 @@ def quat(m):
     return [q.x, q.y, q.z, q.w]
 
 
+def lerp_key(p, get):
+    """(marlow-bays T1a) A key value at cycle phase p, linear between the keys at their baked frames (round(phase * SPAN),
+    wrapping), as the game's live key preview spreads an edit (src/anim/tuneKeys.ts `build`)."""
+    ph = [round(k['phase'] * SPAN) / SPAN % 1 for k in keys]
+    order = sorted(range(len(keys)), key=lambda i: ph[i])
+    a = order[-1]
+    for i in order:
+        if ph[i] <= p:
+            a = i
+    b = order[(order.index(a) + 1) % len(order)]
+    pa, pb = ph[a], ph[b]
+    if pa > p:
+        pa -= 1
+    if pb <= pa:
+        pb += 1
+    t = (p - pa) / (pb - pa) if pb > pa else 0
+    va, vb = get(keys[a]), get(keys[b])
+    return [x + (y - x) * t for x, y in zip(va, vb)]
+
+
+def arm_get(side, sub, fields):
+    def g(k):
+        a = k.get('arm' + side, {})
+        e = (a.get(sub) or {}) if sub else a
+        return [e.get(f, 0) for f in fields]
+    return g
+
+
 N = int(clip.get('frames', 32))
 frames = []
 lastq = {}
@@ -263,6 +315,18 @@ for i in range(N):
     fr = i * SPAN / N
     scene.frame_set(int(fr), subframe=fr - int(fr))
     W, X = evaluated()
+    # (marlow-bays T1a) the shoulder turn per side at this phase (stripped from the sampled arm points: the runtime
+    # applies its `sh` channel after aiming the arm at them), the forearm twist and the head turn
+    shq = {}
+    extra = {'fore': [], 'sh': [], 'head': []}
+    for side, s in (('L', -1), ('R', 1)):
+        yaw, pitch, roll = lerp_key(i / N, arm_get(side, 'sh', ('yaw', 'pitch', 'roll')))
+        shq[side] = sh_local({'sh': {'yaw': yaw, 'pitch': pitch, 'roll': roll}}, s)
+        extra['sh'] += quat(shq[side])
+        tw = lerp_key(i / N, arm_get(side, '', ('twist',)))[0]
+        extra['fore'] += quat(ry(s * d2r(tw)))
+    hy, hp, hr = lerp_key(i / N, lambda k: [k.get('head', {}).get(f, 0) for f in ('yaw', 'pitch', 'roll')])
+    extra['head'] = quat(ypr({'yaw': hy, 'pitch': hp, 'roll': hr}))
     loc = {
         'pelvis': W['pelvis'],
         'spine': W['pelvis'].inverted() @ W['spine'],
@@ -281,7 +345,7 @@ for i in range(N):
     cinv = W['chest'].inverted()
     for side in ('L', 'R'):
         for j in ('el', 'wr'):
-            v = cinv @ (X[j + side] - X['sh' + side]) / K
+            v = shq[side].inverted() @ cinv @ (X[j + side] - X['sh' + side]) / K
             arms += [v.x, v.y, v.z]
     wrists = []
     if HAS_WRIST:
@@ -297,6 +361,9 @@ for i in range(N):
         'q': qs,
         'arm': arms,
         **({'wrist': wrists} if HAS_WRIST else {}),
+        **({'fore': extra['fore']} if HAS_FORE else {}),
+        **({'head': extra['head']} if HAS_HEAD else {}),
+        **({'sh': extra['sh']} if HAS_SH else {}),
         'ankle': [X['anL'].x / K, X['anR'].x / K],
         'X': {n: list(X[n]) for n in ORDER},
     })

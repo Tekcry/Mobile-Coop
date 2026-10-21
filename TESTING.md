@@ -218,6 +218,17 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Anim Studio: tick "Keyed" on walk: the keyed walk plays; clear it: the procedural walk. Pick "Run" in the Body
   tab's Joints state list: the run plays, the tab stays. "On the spot" (header, F8, pad L3) on: she runs in place; off:
   she runs the circle. She is well lit as she moves; "Stage light" (View tab) dims and brightens her.
+- [ ] (marlow-bays T1a) Anim Studio, Keys tab: pick Jog, then Key 2: the jog stops on that key and the readout says
+  "jog - key 2 of 8 (mirror of 6)"; "Key ▶", F2 and the pad's right stick right step on (the Key list follows), F1 /
+  stick left step back. Click "Right forearm twist": the forearm is ringed; drag it: the forearm turns about itself.
+- [ ] Keys tab: with Mirror on, bend the left elbow on key 2: step to key 6, the right elbow is bent too. Untick Mirror,
+  set the right elbow at key 6 back: key 6 is straight, key 2 still bent.
+- [ ] The playback bar shows on every tab (Body, Hands & feet, Keys ...): Play / Pause (F9, right stick up), the time,
+  the speed, On the spot (F8, L3). In Hands & feet pick Pistol: she draws the pistol; Gun: Rifle swaps back.
+- [ ] Loop list: "Aim standing", "Crouch aim standing", "Crouch aim moving" play with the picked gun; the Body tab shows
+  "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
+- [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
+  states show the values of the rows they shared.
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows

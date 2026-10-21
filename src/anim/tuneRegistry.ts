@@ -10,6 +10,7 @@
  * Hot paths read a section's preallocated objects: `values[group][field]`, or `cur[field]` after `tuneSectionLoad`
  * (a copy loop, no allocation). The API is documented in `docs/anim-tuner/STATE.md` ("Section registry").
  */
+import { migrateTuneChanged, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
 
 export interface TuneTunable {
   id: string;
@@ -324,7 +325,8 @@ export const TUNE_EXPORT_MAGIC = 'night-shift-anim-tune';
 
 export interface TuneExport {
   magic: typeof TUNE_EXPORT_MAGIC;
-  version: 1;
+  /** (marlow-bays T1a) 2: the rows of tuneRows.ts; a version 1 file is read with its old rows migrated. */
+  version: 1 | 2;
   exported: string;
   changed: TuneValue[];
   log: TuneChange[];
@@ -332,7 +334,7 @@ export interface TuneExport {
 
 /** The export: every changed value with its default, and the change log. */
 export function tuneExport(now = new Date()): TuneExport {
-  return { magic: TUNE_EXPORT_MAGIC, version: 1, exported: now.toISOString(), changed: tuneChanged(), log: TUNE_LOG.slice() };
+  return { magic: TUNE_EXPORT_MAGIC, version: TUNE_ROWS_VERSION, exported: now.toISOString(), changed: tuneChanged(), log: TUNE_LOG.slice() };
 }
 
 /** `anim-tune-YYYY-MM-DD.json` (local date). */
@@ -343,7 +345,8 @@ export function tuneExportName(now = new Date()): string {
 
 /** What the store keeps: the changed values per group, and the log. */
 export interface TuneSnapshot {
-  version: 1;
+  /** (marlow-bays T1a) 2: the rows of tuneRows.ts; a version 1 (or unversioned) save loads with its old rows migrated. */
+  version: 1 | 2;
   values: Record<string, Record<string, number>>;
   log: TuneChange[];
 }
@@ -353,7 +356,7 @@ export function tuneSnapshot(): TuneSnapshot {
   for (const c of tuneChanged()) (values[c.group] ??= {})[c.id] = c.value;
   // a saved section that has not registered yet keeps its values
   for (const [g, vals] of Object.entries(pending)) if (!values[g]) values[g] = { ...vals };
-  return { version: 1, values, log: TUNE_LOG.slice() };
+  return { version: TUNE_ROWS_VERSION, values, log: TUNE_LOG.slice() };
 }
 
 function validChange(c: unknown): c is TuneChange {
@@ -374,7 +377,10 @@ export function tuneLoad(s: unknown): void {
   try {
     for (const sec of TUNE_SECTIONS) for (const g of sec.groups) for (const t of sec.tunables) (sec.values[g] as Record<string, number>)[t.id] = t.def;
     pending = Object.create(null) as Record<string, Record<string, number>>;
-    for (const [g, vals] of Object.entries(snap.values ?? {})) {
+    // (marlow-bays T1a) a save from before the own rows of the shared states: each new row takes its old row's values
+    const raw = snap.values && typeof snap.values === 'object' ? snap.values : {};
+    const saved = snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw);
+    for (const [g, vals] of Object.entries(saved)) {
       if (unsafeKey(g)) continue;
       if (!vals || typeof vals !== 'object') continue;
       const sec = OWNER.get(g);
@@ -423,7 +429,7 @@ export function tuneImport(data: unknown, name = 'import', now = Date.now()): Tu
     res.error = `wrong file (magic ${String(e.magic)})`;
     return res;
   }
-  if (e.version !== 1) {
+  if (e.version !== 1 && e.version !== TUNE_ROWS_VERSION) {
     res.error = `unsupported version ${String(e.version)}`;
     return res;
   }
@@ -436,8 +442,9 @@ export function tuneImport(data: unknown, name = 'import', now = Date.now()): Tu
   try {
     for (const sec of TUNE_SECTIONS) for (const g of sec.groups) for (const t of sec.tunables) (sec.values[g] as Record<string, number>)[t.id] = t.def;
     pending = Object.create(null) as Record<string, Record<string, number>>;
-    for (const c of e.changed as unknown[]) {
-      if (!c || typeof c !== 'object') continue;
+    // (marlow-bays T1a) an export from before the own rows: each new row takes its old row's values
+    const list = (e.changed as unknown[]).filter((c): c is { group: string } => !!c && typeof c === 'object' && typeof (c as { group?: unknown }).group === 'string');
+    for (const c of e.version === 1 ? migrateTuneChanged(list) : list) {
       const { group, id, value } = c as Partial<TuneValue>;
       if (typeof group !== 'string' || typeof id !== 'string' || typeof value !== 'number' || !Number.isFinite(value)) continue;
       if (unsafeKey(group) || unsafeKey(id)) continue;

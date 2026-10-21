@@ -78,7 +78,7 @@ const ATT = 'src/player/attach.ts';
 const PLAN = 'src/anim/footPlanner.ts';
 const WEIGHT = 'src/anim/weight.ts';
 
-const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'aim', 'aimCrouch', 'wallSlide', 'hold'];
+const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
 const RIFLE_AIM = ['rifle.aim', 'rifle.aimCrouch'];
 const PISTOL_AIM = ['pistol.aim', 'pistol.aimCrouch'];
 const AIM_GUN = [...RIFLE_AIM, ...PISTOL_AIM];
@@ -123,7 +123,7 @@ rules.push(
   ], 'stepLength is linear in these lengths: exact when every moving state has the same value; the player\'s motion only (guards use ENEMY_MOTION)'),
   rule('body', 'kneeOutMul', ['ladder', 'pipe'], [e(RIG, 'CLIMB_KNEE_OUT', 'mul')], `close: the climb pole is max(stance knee-out, CLIMB_KNEE_OUT); ${RIG_NOTE}`),
   rule('body', 'kneeLiftMul', ['ladder', 'pipe'], [e(RIG, 'CLIMB_KNEE_UP', 'mul')], RIG_NOTE),
-  rule('body', 'peekLeanMul', ['wallPeek'], [e(WALLC, 'WALL.peekLean', 'mul')], 'the remote copy reads the same WALL.peekLean'),
+  rule('body', 'peekLeanMul', ['wallPeek', 'wallCrouchPeek'], [e(WALLC, 'WALL.peekLean', 'mul')], 'the remote copy reads the same WALL.peekLean'),
 );
 manuals.push(
   manual('body', 'armSwingMul', 'no code value: the keyed clips\' arm data (Keys section) and the READY_HANDS swing / pump terms together'),

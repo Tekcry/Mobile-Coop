@@ -49,8 +49,9 @@ describe('tuner-v2 item 4: per-key editing', () => {
       expect(keyedClipByName(c.name)?.frames).toBe(c.frames);
     }
     expect(TUNE_SECTIONS.at(-1)).toBe(KEYS_SECTION);
-    expect(KEYS_SECTION.groups.length).toBe(KEY_CLIPS.reduce((n, c) => n + c.phases.length, 0));
-    expect(KEYS_SECTION.tunables.length).toBe(KEY_FIELDS.length);
+    // (marlow-bays T1a, item 18) a mirrored clip: its mirrored half's keys and its Mirror box too
+    expect(KEYS_SECTION.groups.length).toBe(KEY_CLIPS.reduce((n, c) => n + (c.mirror ? 2 * c.phases.length + 1 : c.phases.length), 0));
+    expect(KEYS_SECTION.tunables.length).toBe(KEY_FIELDS.length + 1);
   });
 
   it('identity: no edits = a real clip samples bit-identical, also after an edit is reset', () => {

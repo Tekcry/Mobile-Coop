@@ -132,6 +132,51 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     default 1; `STUDIO_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The studio map's ambient
     is 0.6 (was 0.45). The game's lights, light registry and light field are untouched. Hooks `__studioStage.lights()`,
     `root()`, `__studio.stageLight(v)`.
+- (marlow-bays slice T1a, items 15-19, COVERAGE gaps 3, 4) Keys, playback bar, aim stances, own rows:
+  - Playback bar (`StudioPanel.bar`, docked by the panel under the tabs, studio only, hidden folded): Play / Pause,
+    "◀ Key" / "Key ▶" (a keyed clip steps to its next key, its mirrored half included, `anim/keyTimeline.ts`
+    `keyStep`; a pair one frame), Gun (Rifle / Pistol, `STUDIO.weapon`: every armed loop swaps to it,
+    `StudioHost.weaponClass` / `switchWeapon`; kept across visits), the time scrub, the speed and "On the spot" (the
+    header button moved here; class `anim-tune-spot` kept). The readout names the loop and, on a keyed clip, its key
+    ("jog - key 2 of 8 (mirror of 6), frame 4", `keyReadout`). Keys F9 play / pause, F1 / F2 key back / forward (with
+    F8 on the spot; `tunerMouse.ts`, reserved in `keyBindings` RESERVED), pad right stick left / right a key (repeats when
+    held), up play / pause (`TunePadOut.key` / `play`, the tuner mode only), L3 on the spot. The bar's controls come
+    first in the D-pad order on every tab (a tab change still focuses the tab's own first control).
+  - Every pick plays (item 16; `tunerLayout.loopForGroup`, `AnimTunePanel.pickLevel`): a state in any tab's list, a
+    clip or key in the Keys tab (the clip on the spot, paused on that key: `StudioPanel.showKey`, `STUDIO.seekKey`), a
+    weapon in Hands & feet / Gun in hand / the gun hold (the gun pick; a holstered loop plays the low ready), a climb
+    move or climbing state (its traversal loop), a co-op role (its pair).
+  - Keys tab (items 15, 18): "◀ Key" / "Key ▶" (the picker follows the key the clip stands on; on a mirrored-half key
+    with Mirror on it shows the own key it mirrors), a readout, a Mirror box and the hint "Key edits change one pose;
+    whole-cycle changes go in the state tabs." Mirror (default on, per clip, the Keys group `key.<clip>.mirror` slider
+    `mirror`): on, an edit shows on the mirror key (the other arm half a cycle on); off (`tuneKeysMirror`), the mirrored
+    half (`key.<clip>.<n .. 2n-1>`) takes the mirror image of the own keys' edits where it has none of its own (turning Mirror on keeps them, ignored), then each key and arm is edited
+    on its own and the key list shows all 2n keys; the bake writes such a clip in full (`expandMirror`, `mirror: false`)
+    where the halves differ. Selecting a row marks its bone (slice T's marker; `tunerTarget` knows the new fields).
+  - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /
+    yaw / roll (`head.*`), pelvis shift (`pelvis.dx / dy / dz`, cm, now a slider), per arm the shoulder
+    (`armX.sh.{pitch,yaw,roll}`, "shoulder forward / turn / out"), the upper arm twist (`armX.twistUpper`) and the
+    forearm twist (`armX.twist`). Key files without them read 0. Runtime clip channels (optional, `anim/keyed.ts`):
+    `fore` (8 a frame: the forearm twist, local to the elbow node), `head` (4: local on the look), `sh` (8: chest-frame
+    shoulder turns); the upper arm twist rides the arm points. `characterRig.keyedArm` / `keyedShFore` and the head after
+    the look apply them; `scripts/anim-keys/py/key_clip.py` poses them in Blender and writes the channels (the sampled
+    arm points leave the shoulder turn out), `build.mjs` writes them into the clip. The Joints part names the twists
+    ("Right forearm twist" for the elbow's y, "upper arm twist", "thigh twist").
+  - Aim stances (item 19): loops `state:aimStill` (aim standing), `state:crouchAim` (crouch aim standing),
+    `state:crouchAimFwd` (crouch aim moving), with the gun pick.
+  - Own rows (gap 3; `anim/tuneRows.ts`): body states `crouchRun`, `aimStill` (the glides keep `aim`), `aimCrouchMove`
+    (`aimCrouch` is the still one), `wallCrouchIdle` / `Slide` / `Peek`, `carry` (a body; `hold` the held guard; the
+    pose's `carryBody`), each with its Joints, Limb reach, Hands & feet and Gun in hand rows; per-gun Joints rows
+    `joint.rifle.<state>` / `joint.pistol.<state>` for low ready and the four aim states (`tuneV2JointRow`). The store's
+    snapshot, the presets file and the export are version 2; a version 1 one (or an unversioned save) loads with each new
+    row given its old row's values (`migrateTuneRows`, `migrateTuneChanged`; the bake reads a version 1 export the same).
+  - The drawn set's edits (gap 4): `KeyedPose.ed` carries the sampled per-key trunk and arm offsets and the upper arm
+    twists; with a gun in hand the rig applies the ready stance's and the glides' arm edits (and their forearm twist and
+    shoulder keys) over the solved arms (`keyedArmEdit`, by the drawn share) and the aimed trunk edits by the share the
+    keyed trunk leaves (`keyedTrunkEdit`). The walk / jog / run legs under the low ready keep their trunk (their arm
+    channels are cleared, `clearKeyedArms`).
+  - Hooks: `__studio.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
+    v)`, `keys()`, `keysStep(dir)`, `keysMirror(on)`.
 - (tuner-ui, the current layout; the older bullets below are history where they differ) The animation tuner panel
   (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
   - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top
