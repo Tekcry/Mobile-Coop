@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { BODY_PARTS, emptyTarget, nearestPoint, partLabel, pickOnBody, RIG_BONES, RIG_JOINTS, rowHasPart, targetHasPart, tuneTarget } from '../src/ui/tunerTarget';
-import { GROUP_FOLD_MIN, groupOpen, PIN_MAX, pushRecent, quickKeyParts, quickKeys, RECENT_MAX, stanceText, togglePin, tunerScale } from '../src/ui/tunerLayout';
+import { GROUP_FOLD_MIN, groupOpen, stanceText, tunerScale } from '../src/ui/tunerLayout';
 
 describe('T2: part labels', () => {
   it('plain words for every part in the list', () => {
@@ -98,50 +98,16 @@ describe('T2: a click on her', () => {
 });
 
 describe('T2: groups that fold', () => {
-  const base = { first: false, hasSel: false, part: false, search: false, rows: 20 };
-  it('folded by default; open when first, selected, filtered or short', () => {
+  const base = { first: false, hasSel: false, rows: 20 };
+  it('folded by default; open when first, selected or short', () => {
     expect(groupOpen(undefined, base)).toBe(false);
     expect(groupOpen(undefined, { ...base, first: true })).toBe(true);
     expect(groupOpen(undefined, { ...base, hasSel: true })).toBe(true);
-    expect(groupOpen(undefined, { ...base, part: true })).toBe(true);
-    expect(groupOpen(undefined, { ...base, search: true })).toBe(true);
     expect(groupOpen(undefined, { ...base, rows: GROUP_FOLD_MIN })).toBe(true);
   });
   it('a choice by hand holds', () => {
     expect(groupOpen(true, base)).toBe(true);
     expect(groupOpen(false, { ...base, first: true, hasSel: true })).toBe(false);
-  });
-});
-
-describe('T2: pinned and recent', () => {
-  it('pin and unpin; a full list takes no more', () => {
-    const pins: string[] = [];
-    expect(togglePin(pins, 'joint|joint.walk|elbowR_x')).toBe(true);
-    expect(pins).toEqual(['joint|joint.walk|elbowR_x']);
-    expect(togglePin(pins, 'joint|joint.walk|elbowR_x')).toBe(false);
-    expect(pins).toEqual([]);
-    for (let i = 0; i < PIN_MAX; i++) togglePin(pins, `a|b|${i}`);
-    expect(togglePin(pins, 'a|b|x')).toBe(false);
-    expect(pins.length).toBe(PIN_MAX);
-  });
-  it('recent: newest first, no repeats, capped', () => {
-    const r: string[] = [];
-    expect(pushRecent(r, 'a|g|1')).toBe(true);
-    expect(pushRecent(r, 'a|g|1')).toBe(false);
-    pushRecent(r, 'a|g|2');
-    pushRecent(r, 'a|g|1');
-    expect(r).toEqual(['a|g|1', 'a|g|2']);
-    for (let i = 0; i < 10; i++) pushRecent(r, `a|g|x${i}`);
-    expect(r.length).toBe(RECENT_MAX);
-    expect(r[0]).toBe('a|g|x9');
-  });
-  it('the chips: pins first, then recent ones not pinned', () => {
-    expect(quickKeys(['p|g|1'], ['p|g|2', 'p|g|1', 'p|g|3'])).toEqual(['p|g|1', 'p|g|2', 'p|g|3']);
-  });
-  it('keys split, malformed ones refused', () => {
-    expect(quickKeyParts('joint|joint.rifle.aim|elbowR_x')).toEqual({ section: 'joint', group: 'joint.rifle.aim', id: 'elbowR_x' });
-    expect(quickKeyParts('joint|x')).toBeNull();
-    expect(quickKeyParts('||')).toBeNull();
   });
 });
 

@@ -11,6 +11,7 @@ import {
   buildTabs,
   cycleTab,
   DropNav,
+  listScrollFor,
   groupForPath,
   groupPath,
   levelCount,
@@ -37,7 +38,7 @@ const label = (id: string): string => TUNE_SECTIONS.find((s) => s.id === id)?.la
 describe('tuner-ui: tabs', () => {
   it('the fixed order, with every registered section in a tab', () => {
     const tabs = buildTabs(ids(), label);
-    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop', 'settings']);
+    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop']);
     const placed = tabs.flatMap((t) => t.sections);
     expect([...placed].sort()).toEqual([...ids()].sort());
     expect(tabs.find((t) => t.id === 'body')!.sections).toEqual(expect.arrayContaining(['body', 'joint', 'ik', 'trav']));
@@ -47,18 +48,18 @@ describe('tuner-ui: tabs', () => {
     expect(TUNER_TABS[0]!.id).toBe('view');
   });
 
-  it('an unmapped section gets its own tab after Co-op, before Settings', () => {
+  it('an unmapped section gets its own tab after Co-op (item 29: no Settings tab)', () => {
     const tabs = buildTabs([...ids(), 'face'], (id) => (id === 'face' ? 'Face (expressions)' : label(id)));
     const at = tabs.findIndex((t) => t.id === 'sec:face');
     expect(at).toBe(tabs.findIndex((t) => t.id === 'coop') + 1);
-    expect(tabs[at + 1]!.id).toBe('settings');
+    expect(tabs.some((t) => t.id === 'settings')).toBe(false);
     expect(tabs[at]!.label).toBe('Face');
     expect(tabOfSection('team_boost')).toBe('coop');
     expect(tabOfSection('face')).toBe('sec:face');
   });
 
-  it('a tab with no section is left out (View and Settings always stay)', () => {
-    expect(buildTabs(['body'], label).map((t) => t.id)).toEqual(['view', 'body', 'settings']);
+  it('a tab with no section is left out (View always stays)', () => {
+    expect(buildTabs(['body'], label).map((t) => t.id)).toEqual(['view', 'body']);
   });
 
   it('LB / RB cycle and wrap', () => {
@@ -159,32 +160,53 @@ describe('tuner-ui: the drop-down list', () => {
     const c = new TunePadCtl();
     c.open();
     const bit = (i: number) => 1 << i;
-    c.update(0, 0, 0, 1 / 60);
-    let o = c.update(bit(PAD.A), 0, 0.1, 1 / 60);
+    c.update(0, 0, 0, 0, 1 / 60);
+    let o = c.update(bit(PAD.A), 0, 0, 0.1, 1 / 60);
     expect(o.select).toBe(true);
-    c.update(0, 0, 0.2, 1 / 60);
-    o = c.update(bit(PAD.DOWN), 0, 0.3, 1 / 60);
+    c.update(0, 0, 0, 0.2, 1 / 60);
+    o = c.update(bit(PAD.DOWN), 0, 0, 0.3, 1 / 60);
     expect(o.nav).toBe(1);
-    c.update(0, 0, 0.4, 1 / 60);
-    o = c.update(bit(PAD.B), 0, 0.5, 1 / 60);
+    c.update(0, 0, 0, 0.4, 1 / 60);
+    o = c.update(bit(PAD.B), 0, 0, 0.5, 1 / 60);
     expect(o.back).toBe(true);
-    c.update(0, 0, 0.6, 1 / 60);
-    o = c.update(bit(PAD.RB), 0, 0.7, 1 / 60);
+    c.update(0, 0, 0, 0.6, 1 / 60);
+    o = c.update(bit(PAD.RB), 0, 0, 0.7, 1 / 60);
     expect(o.section).toBe(1);
     // the pause menu held the pad: buttons held then stay swallowed until released
     c.hold();
-    o = c.update(bit(PAD.A), 0, 0.8, 1 / 60);
+    o = c.update(bit(PAD.A), 0, 0, 0.8, 1 / 60);
     expect(o.select).toBe(false);
     expect(o.consume).toBe(true);
   });
 
-  it('a held snap keeps the pad on the panel', () => {
+  it('(item 29 bug) an open list: Up moves the highlight and never closes it (jog -> walk)', () => {
+    const states = ['idle', 'walk', 'jog', 'run'];
+    const d = new DropNav();
+    d.openAt(states.indexOf('jog'), states.length);
     const c = new TunePadCtl();
     c.open();
-    c.setFree(true, false);
-    expect(c.mode).toBe('tuner');
-    c.setFree(true);
-    expect(c.mode).toBe('free');
+    c.update(0, 0, 0, 0, 1 / 60);
+    const o = c.update(1 << PAD.UP, 0, 0, 0.1, 1 / 60);
+    expect(o.nav).toBe(-1);
+    expect(o.back).toBe(false);
+    d.move(o.nav);
+    expect(d.open).toBe(true);
+    expect(states[d.index]).toBe('walk');
+    // the left stick up does the same
+    c.update(0, 0, 0, 0.2, 1 / 60);
+    d.openAt(states.indexOf('jog'), states.length);
+    d.move(c.update(0, 0, -0.9, 0.3, 1 / 60).nav);
+    expect(d.open).toBe(true);
+    expect(states[d.pick()]).toBe('walk');
+  });
+
+  it('(item 29 bug) the list keeps its highlight in view by scrolling only itself', () => {
+    // a 100 px list scrolled to 40: a row at 20..40 above the view scrolls up to it, one below scrolls down, one in
+    // view stays (the list never asks its ancestors to scroll: their scroll closed the list)
+    expect(listScrollFor(40, 100, 20, 20)).toBe(20);
+    expect(listScrollFor(40, 100, 150, 20)).toBe(70);
+    expect(listScrollFor(40, 100, 60, 20)).toBe(40);
+    expect(listScrollFor(0, 100, 0, 20)).toBe(0);
   });
 });
 

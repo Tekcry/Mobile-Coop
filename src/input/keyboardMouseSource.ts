@@ -34,6 +34,8 @@ export class KeyboardMouseSource {
   private freeMouse = false;
   /** The pointer dragging the view (-1 none). */
   private dragId = -1;
+  /** (marlow-bays item 29) The button that started the view drag (left, middle or right). */
+  private dragBtn = 0;
   private releasing = false;
   private wheelT = 0;
   private hint: HTMLElement;
@@ -99,8 +101,11 @@ export class KeyboardMouseSource {
       // (marlow-bays item 9) the tuner's drag view: a left press on the scene starts a view drag; no button fires,
       // aims or captures the mouse
       if (this.freeMouse) {
-        if (e.button === 0) {
+        // (marlow-bays item 29) the left, middle or right button drags the view (the panel stays usable meanwhile)
+        if (e.button <= 2 && this.dragId < 0) {
+          if (e.button === 1) e.preventDefault();
           this.dragId = e.pointerId;
+          this.dragBtn = e.button;
           try {
             canvas.setPointerCapture(e.pointerId);
           } catch {
@@ -126,7 +131,7 @@ export class KeyboardMouseSource {
     });
     window.addEventListener('pointerup', (e) => {
       if (e.pointerType !== 'mouse') return;
-      if (e.pointerId === this.dragId && e.button === 0) {
+      if (e.pointerId === this.dragId && e.button === this.dragBtn) {
         this.dragId = -1;
         return;
       }

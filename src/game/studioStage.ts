@@ -93,7 +93,6 @@ export class StudioStage {
   private cMirror = false;
   private cGuard = false;
   private openedPanel = false;
-  private shownDebug = false;
   // (anim-studio-2) the pairs: two puppets, their roles and poses, the pair clock
   private puppets: [OperatorRig, OperatorRig] | null = null;
   private puppetsShown = false;
@@ -153,11 +152,8 @@ export class StudioStage {
       },
     };
     const d = host.debug;
-    // (marlow-bays item 26) not on a phone: the readout covered her (the tuner's Settings toggle shows it)
-    if (!d.isVisible && d.animTune.layoutMode === 'desktop') {
-      d.toggle(true);
-      this.shownDebug = true;
-    }
+    // (marlow-bays item 29) the studio leaves the F3 debug readout as it is, off by default on every device (it covered
+    // her); F3 and the tuner's More > Debug readout turn it on
     if (!d.animTune.isOpen) {
       d.animTune.show();
       this.openedPanel = true;
@@ -660,7 +656,6 @@ export class StudioStage {
     const d = this.host.debug;
     d.animTune.setFreeMode('off');
     if (this.openedPanel && d.animTune.isOpen) d.animTune.hide();
-    if (this.shownDebug && d.isVisible) d.toggle(false);
     studioReset();
   }
 }

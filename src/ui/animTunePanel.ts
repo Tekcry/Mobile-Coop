@@ -33,7 +33,7 @@ import { FREE_DEMOS, FREE_IN, FREE_MODES, FREE_VIEW, GAME_SPEED, freeAxis, freeT
 import { PAD } from '../input/gamepadMapping';
 import { loadAnimTune, loadAnimTuneUi, saveAnimTune, saveAnimTuneUi } from '../save/animTuneStore';
 import { download } from './fileOut';
-import { FINE_STEP, TunePadCtl } from './animTunePad';
+import { TunePadCtl } from './animTunePad';
 import { projectPoint } from './overlayProject';
 import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
 import { StudioPanel } from './studioPanel';
@@ -52,7 +52,7 @@ function keyListed(clip: string, seg: string): boolean {
 import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioEntry } from '../anim/studio';
 import { promptHtml, type PromptButton } from './prompts';
 import { TUNER_KEY_BACK, TUNER_KEY_FWD, TUNER_MOUSE_KEY, TUNER_MOUSE_LABEL, TUNER_PLAY_KEY, TUNER_SPOT_KEY, TunerMouseCtl, type TunerMouseMode } from './tunerMouse';
-import { BODY_PARTS, emptyTarget, partLabel, pickOnBody, RIG_BONES, RIG_JOINTS, rowHasPart, rowKeyParts, tuneTarget, type BodyPart, type RigJoint } from './tunerTarget';
+import { emptyTarget, partLabel, pickOnBody, RIG_BONES, RIG_JOINTS, rowHasPart, rowKeyParts, tuneTarget, type BodyPart, type RigJoint } from './tunerTarget';
 import type { TuneTunable } from '../anim/tuneRegistry';
 import {
   bodyCarry,
@@ -79,11 +79,7 @@ import {
   plainLoop,
   stanceText,
   groupOpen,
-  pushRecent,
-  quickKeyParts,
-  quickKeys,
-  togglePin,
-  PIN_MAX,
+  listScrollFor,
   type BodyCarry,
   type LoopGroups,
   type TunerSize,
@@ -91,7 +87,7 @@ import {
 } from './tunerLayout';
 import { flags } from '../core/flags';
 import { clearTouchIn } from '../player/freeView';
-import { emptyPhoneLayout, GESTURE, nearestMapPart, TouchGesture, tunerPhoneLayout, type TunerPhoneLayout } from './tunerPhone';
+import { emptyPhoneLayout, GESTURE, TouchGesture, tunerPhoneLayout, type TunerPhoneLayout } from './tunerPhone';
 
 /** What the barrel marker and (marlow-bays item 10) the selection marker read from the local player's rig (typed
  *  loosely: no player import; the joints are `CharacterRig`'s nodes). */
@@ -156,8 +152,8 @@ const SNAPS: readonly FreeSnap[] = ['front', 'side', 'back', 'top'];
 /** (tuner-ui) The panel's look: explicit colours on every control (no browser default shows through), readable on dark. */
 const CSS = `
 .anim-tune{--tt-bg:rgba(4,6,7,0.9);--tt-fg:var(--text,#d6dfdb);--tt-hi:var(--text-hi,#fff);--tt-dim:var(--muted,#7d8a86);--tt-acc:var(--hl,#38e08c);--tt-acc-rgb:var(--hl-rgb,56,224,140);--tt-warn:var(--warn,#f0b43b);--tt-sel:var(--gold,#f0c24b);--tt-ctl:var(--panel-2,rgba(14,24,23,0.94));--tt-in:var(--ink,#040607);--tt-line:var(--line,rgba(214,223,219,0.16));
-position:fixed;top:0;right:0;bottom:0;z-index:150;display:flex;flex-direction:column;box-sizing:border-box;background:linear-gradient(270deg,rgba(4,6,7,0.95),rgba(4,6,7,0.88));border-left:1px solid var(--tt-line);color:var(--tt-fg);
-font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight:500;line-height:1.3;padding:0.35em 0.6em 0.3em;pointer-events:auto;overscroll-behavior:contain;font-variant-numeric:tabular-nums}
+position:fixed;top:0;right:0;bottom:0;max-height:100dvh;z-index:150;display:flex;flex-direction:column;box-sizing:border-box;background:linear-gradient(270deg,rgba(4,6,7,0.95),rgba(4,6,7,0.88));border-left:1px solid var(--tt-line);color:var(--tt-fg);
+font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight:500;line-height:1.3;padding:max(0.35em,env(safe-area-inset-top)) max(0.6em,env(safe-area-inset-right)) max(0.3em,env(safe-area-inset-bottom)) 0.6em;pointer-events:auto;overscroll-behavior:contain;font-variant-numeric:tabular-nums}
 .anim-tune[hidden]{display:none!important}
 .anim-tune [hidden]{display:none!important}
 .anim-tune *{box-sizing:border-box}
@@ -182,39 +178,18 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-bump{flex:none;display:inline-flex;align-items:center}
 .anim-tune .anim-tune-playbar{flex:none;border-bottom:1px solid var(--tt-line);padding:0 0 0.25em;margin-bottom:0.25em}
 .anim-tune.tt-folded{bottom:auto}
-.anim-tune.tt-folded .anim-tune-playbar,.anim-tune.tt-folded .anim-tune-nav{display:none!important}
+.anim-tune.tt-folded .anim-tune-playbar{display:none!important}
 .anim-tune .anim-tune-keyhint{color:var(--tt-warn)}
 .anim-tune .anim-tune-mouse{min-height:1.7em;font-size:0.85em;white-space:nowrap}
 .anim-tune.tt-gamecam{pointer-events:none;opacity:0.8}
 .anim-tune.tt-gamecam .anim-tune-mouse{pointer-events:auto}
-.anim-tune .anim-tune-nav{flex:none;display:flex;flex-direction:column;gap:0.3em;padding-bottom:0.3em;margin-bottom:0.2em;border-bottom:1px solid var(--tt-line)}
-.anim-tune .tt-navrow{display:flex;gap:0.6em;align-items:stretch}
-.anim-tune .tt-map{flex:none;width:7.6em;height:12.9em;cursor:pointer;user-select:none;overflow:visible}
-.anim-tune .tt-map .bn{stroke:rgba(214,223,219,0.35);stroke-width:2.2;stroke-linecap:round}
-.anim-tune .tt-map .jt{fill:#0a0f10;stroke:var(--tt-fg);stroke-width:1.4}
-.anim-tune .tt-map .hit{fill:transparent;cursor:pointer}
-.anim-tune .tt-map .ring{fill:none;stroke:none;stroke-width:2.2}
-.anim-tune .tt-map .pt:hover .jt,.anim-tune .tt-map .pt:hover .gun{stroke:var(--tt-hi);fill:rgba(var(--tt-acc-rgb),0.35)}
-.anim-tune .tt-map .pt.tsel .ring{stroke:var(--tt-sel);stroke-dasharray:3 2}
-.anim-tune .tt-map .pt.tsel .jt{stroke:var(--tt-sel);stroke-width:2.2}
-.anim-tune .tt-map .pt.on .ring{stroke:var(--tt-acc);stroke-dasharray:none;stroke-width:2.6}
-.anim-tune .tt-map .pt.on .jt{fill:var(--tt-acc);stroke:var(--tt-hi);stroke-width:2}
-.anim-tune .tt-map .pt.tt-focus .ring{stroke:var(--tt-hi);stroke-dasharray:none}
-.anim-tune .tt-map .side{fill:var(--tt-hi);font-size:13px;font-weight:700}
-.anim-tune .tt-map .cap{fill:var(--tt-dim);font-size:8.5px;font-weight:600;text-anchor:middle;letter-spacing:0.04em}
-.anim-tune .tt-map .gun{fill:#0a0f10;stroke:var(--tt-fg);stroke-width:1.4}
-.anim-tune .tt-map .pt.on .gun{fill:var(--tt-acc)}
-.anim-tune .tt-partpick .tt-drop{min-width:0;max-width:100%}
-.anim-tune .tt-partbox{display:flex;flex-direction:column;gap:0.25em}
-.anim-tune .tt-navside{flex:1;min-width:0;display:flex;flex-direction:column;gap:0.25em}
-.anim-tune .tt-grp-h{font-size:0.75em;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--tt-dim)}
-.anim-tune .tt-partname{font-size:1.2em;font-weight:700;color:var(--tt-hi);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.anim-tune .tt-partname.all{color:var(--tt-fg);font-weight:600}
-.anim-tune .tt-parthelp{font-size:0.82em;color:var(--tt-dim)}
-.anim-tune .tt-quick{display:flex;flex-wrap:wrap;gap:0.25em}
-.anim-tune .tt-chip{-webkit-appearance:none;appearance:none;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:1em;padding:0 0.6em;min-height:1.6em;font-size:0.85em;cursor:pointer;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.anim-tune .tt-chip.pin{border-color:rgba(240,194,75,0.55)}
-.anim-tune .tt-chip:hover{border-color:var(--tt-acc)}
+.anim-tune .tt-what{display:flex;flex-wrap:wrap;align-items:center;gap:0.25em 0.5em;margin:0.1em 0 0.3em}
+.anim-tune .tt-what .tt-field{gap:0.3em}
+.anim-tune .tt-what .tt-drop{min-width:5.5em}
+.anim-tune .anim-tune-more{border-top:1px solid var(--tt-line);margin-top:0.5em;padding-top:0.2em}
+.anim-tune .tt-more-h{-webkit-appearance:none;appearance:none;display:flex;align-items:center;gap:0.4em;width:100%;background:transparent;border:none;padding:0.35em 0.2em;cursor:pointer;text-align:left;font-size:0.85em;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg);min-height:1.9em}
+.anim-tune .tt-more-h::before{content:'▸';color:var(--tt-acc);-webkit-text-fill-color:var(--tt-acc);width:0.8em}
+.anim-tune .tt-more-h.open::before{content:'▾'}
 .anim-tune .anim-tune-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0.1em 0.3em 0.1em 0;scrollbar-width:thin;scrollbar-color:rgba(214,223,219,0.3) transparent}
 .anim-tune .tt-bar{display:flex;flex-wrap:wrap;gap:0.3em 0.45em;align-items:center;margin:0.2em 0}
 .anim-tune .tt-field{display:flex;align-items:center;gap:0.4em;min-height:1.9em}
@@ -238,7 +213,7 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-grp .n{margin-left:auto;letter-spacing:0.04em}
 .anim-tune .tt-grp .chg{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn)}
 .anim-tune .tt-gbody{display:grid;gap:1px}
-.anim-tune .tt-row{display:grid;grid-template-columns:1.2em minmax(5em,38%) minmax(3em,1fr) 4.4em 1.1em 1.3em;align-items:center;gap:0.3em;min-height:2em;padding:0 0.1em 0 0.15em;border-radius:0}
+.anim-tune .tt-row{display:grid;grid-template-columns:minmax(5em,38%) minmax(3em,1fr) 4.4em 1.1em 1.3em;align-items:center;gap:0.3em;min-height:2em;padding:0 0.1em 0 0.15em;border-radius:0}
 .anim-tune .tt-row:hover{background:rgba(255,255,255,0.035)}
 .anim-tune .tt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tt-fg)}
 .anim-tune .tt-row.tt-sel{background-color:rgba(240,194,75,0.13);box-shadow:inset 3px 0 0 var(--tt-sel)}
@@ -247,11 +222,8 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .anim-tune-num{width:100%;min-width:0;font-weight:700;text-align:right;color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi);font-size:1.05em}
 .anim-tune .anim-tune-num.chg{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn)}
 .anim-tune .tt-unit{color:var(--tt-dim);font-size:0.9em}
-.anim-tune .tt-x,.anim-tune .tt-pin{-webkit-appearance:none;appearance:none;background:none;border:none;padding:0;min-height:1.8em;cursor:pointer;color:var(--tt-dim);-webkit-text-fill-color:var(--tt-dim);text-align:center}
-.anim-tune .tt-x:hover,.anim-tune .tt-pin:hover{color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi)}
-.anim-tune .tt-pin{opacity:0.35}
-.anim-tune .tt-row:hover .tt-pin{opacity:1}
-.anim-tune .tt-pin.on{opacity:1;color:var(--tt-sel);-webkit-text-fill-color:var(--tt-sel)}
+.anim-tune .tt-x{-webkit-appearance:none;appearance:none;background:none;border:none;padding:0;min-height:1.8em;cursor:pointer;color:var(--tt-dim);-webkit-text-fill-color:var(--tt-dim);text-align:center}
+.anim-tune .tt-x:hover{color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi)}
 .anim-tune .anim-tune-hint{color:var(--tt-dim);font-size:0.78em;margin:-0.2em 0 0.15em 1.6em}
 .anim-tune .anim-tune-menu{display:none;flex-direction:column;gap:0.15em;margin:0.2em 0;padding:0.25em;border:1px solid var(--tt-acc);background:#0a0f10;flex:none}
 .anim-tune .anim-tune-info{flex:none;color:var(--tt-dim);font-size:0.85em;padding:0.2em 0 0.1em;border-top:1px solid var(--tt-line)}
@@ -270,33 +242,28 @@ body:not(.input-gamepad) .anim-tune .tt-bump{display:none}
 body.tt-studio .hud,body.tt-studio .hud-world,body.tt-studio .mouse-capture-hint{display:none!important}
 body.tt-docked #game{width:calc(100% - var(--tt-dock-w,0px))!important;right:auto!important}
 .anim-tune .tt-handle{display:none}
-.anim-tune.tt-phone{--tt-t:34px;overflow-y:auto;touch-action:pan-y;scroll-padding-top:6em;-webkit-overflow-scrolling:touch;padding:0 0.5em 0.25em}
-.anim-tune.tt-phone .tt-head{position:sticky;top:0;z-index:4;background:#040607;margin:0 -0.5em;padding:0 0.5em 0.15em;flex-wrap:wrap;gap:0.3em}
+.anim-tune.tt-phone{--tt-t:30px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:0 max(0.5em,env(safe-area-inset-right)) max(0.25em,env(safe-area-inset-bottom)) max(0.5em,env(safe-area-inset-left))}
+.anim-tune.tt-phone .tt-head{position:sticky;top:0;z-index:4;background:#040607;margin:0 -0.5em;padding:max(0px,env(safe-area-inset-top)) 0.5em 0.15em;flex-wrap:wrap;gap:0.3em}
 .anim-tune.tt-phone .anim-tune-mouse{display:none}
 .anim-tune.tt-phone.tt-folded .anim-tune-info{display:none}
 .anim-tune.tt-phone .tt-handle{display:flex;align-items:center;justify-content:center;gap:0.6em;width:100%;min-height:var(--tt-t);-webkit-appearance:none;appearance:none;background:transparent;border:none;cursor:pointer;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:0.85em}
 .anim-tune.tt-phone .tt-handle::before{content:'';width:3em;height:4px;border-radius:2px;background:rgba(214,223,219,0.55)}
 .anim-tune.tt-phone .anim-tune-body{flex:none;overflow:visible;min-height:auto;touch-action:pan-y}
-.anim-tune.tt-phone .anim-tune-hints{display:none}
+.anim-tune.tt-phone .anim-tune-hints{min-height:0;font-size:0.8em}
 .anim-tune.tt-phone .tt-bar{gap:0.25em 0.35em;margin:0.15em 0}
-.anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-tab,.anim-tune.tt-phone .tt-chip,.anim-tune.tt-phone .tt-opt,.anim-tune.tt-phone .tt-grp,.anim-tune.tt-phone .tt-field,.anim-tune.tt-phone input[type=number],.anim-tune.tt-phone input[type=text],.anim-tune.tt-phone input[type=search]{min-height:var(--tt-t)}
-.anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-chip{min-width:var(--tt-t);padding:0 0.5em}
+.anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-tab,.anim-tune.tt-phone .tt-opt,.anim-tune.tt-phone .tt-grp,.anim-tune.tt-phone .tt-more-h,.anim-tune.tt-phone .tt-field,.anim-tune.tt-phone input[type=number],.anim-tune.tt-phone input[type=text]{min-height:var(--tt-t)}
+.anim-tune.tt-phone .tt-btn{min-width:var(--tt-t);padding:0 0.5em}
 .anim-tune.tt-phone .tt-tab{padding:0 0.45em}
-.anim-tune.tt-phone .tt-chip{border-radius:calc(var(--tt-t) / 2);padding:0 0.7em}
 .anim-tune.tt-phone input[type=range]{height:var(--tt-t);touch-action:none}
 .anim-tune.tt-phone input[type=checkbox]{width:calc(var(--tt-t) * 0.55);height:calc(var(--tt-t) * 0.55)}
-.anim-tune.tt-phone .tt-x,.anim-tune.tt-phone .tt-pin{min-width:var(--tt-t);min-height:var(--tt-t);font-size:1.2em;opacity:1}
-.anim-tune.tt-phone:not(.tt-ppad) .tt-row{grid-template-columns:var(--tt-t) minmax(0,1fr) 4.6em auto var(--tt-t);grid-template-areas:"pin name val unit x" "range range range range range";gap:0 0.25em;padding:0 0 0.15em}
-.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-pin{grid-area:pin}
-.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-name{grid-area:name}
-.anim-tune.tt-phone:not(.tt-ppad) .tt-row>input[type=range]{grid-area:range}
-.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.anim-tune-num{grid-area:val}
-.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-unit{grid-area:unit}
-.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-x{grid-area:x}
-.anim-tune.tt-phone.tt-ppad .tt-row{min-height:var(--tt-t);gap:0.25em}
-.anim-tune.tt-phone.tt-ppad .tt-x,.anim-tune.tt-phone.tt-ppad .tt-pin{min-width:0;font-size:1em}
-.anim-tune.tt-phone .tt-navrow{flex-wrap:wrap;gap:0.4em}
-.anim-tune.tt-drawer{top:0;bottom:0;right:0;left:auto}
+.anim-tune.tt-phone .tt-x{min-width:var(--tt-t);min-height:var(--tt-t);font-size:1.15em}
+.anim-tune.tt-phone .tt-row{grid-template-columns:minmax(0,1fr) 4.6em auto var(--tt-t);grid-template-areas:"name val unit x" "range range range range";gap:0 0.25em;padding:0 0 0.15em}
+.anim-tune.tt-phone .tt-row>.tt-name{grid-area:name}
+.anim-tune.tt-phone .tt-row>input[type=range]{grid-area:range}
+.anim-tune.tt-phone .tt-row>.anim-tune-num{grid-area:val}
+.anim-tune.tt-phone .tt-row>.tt-unit{grid-area:unit}
+.anim-tune.tt-phone .tt-row>.tt-x{grid-area:x}
+.anim-tune.tt-drawer{top:0;bottom:0;right:0;left:auto;max-height:100dvh}
 .anim-tune.tt-drawer.tt-folded{bottom:auto;overflow:visible}
 .anim-tune.tt-sheet{top:auto;left:0;right:0;bottom:0;border-left:none;border-top:1px solid var(--tt-line);background:rgba(4,6,7,0.95)}
 .anim-tune.tt-sheet.tt-folded{height:auto!important;overflow:visible}
@@ -398,8 +365,6 @@ export class AnimTunePanel {
   private padIdx = 0;
   private padEl: HTMLElement | null = null;
   private padMark: HTMLElement | null = null;
-  /** Edit mode: the slider and its value before the edit. */
-  private edit: { el: HTMLInputElement; orig: number } | null = null;
   /** Left stick adjust carried between frames (value units, below one step). */
   private stickAcc = 0;
   /** The section the focus was last in (LT / RT, Reset group). */
@@ -432,8 +397,6 @@ export class AnimTunePanel {
   /** (pass 2) The bypass held by pad (R3) and by key (Backquote). */
   private padBypass = false;
   private keyBypass = false;
-  /** (pass 2) The search text (lower case; '' = every row). */
-  private search = '';
   private fileIn: HTMLInputElement;
   private readonly rowNum = new WeakMap<HTMLElement, HTMLInputElement>();
   private hudBox: HTMLInputElement;
@@ -497,21 +460,17 @@ export class AnimTunePanel {
   private readonly carryOut: BodyCarry = { joint: '', ik: '', handState: '', gunState: '', step: '', weight: '' };
   /** (tuner-ui) The Anim Studio was on at the last look: leaving it turns follow back on (a loop pick turned it off). */
   private wasStudio = false;
-  // --- (marlow-bays T2) the part filter (body map, a click on her), pinned and recent sliders, row groups, the dock
+  // --- (marlow-bays T2) the part last picked on her (item 29: it selects its first slider, never filters), row groups,
+  // the dock
   private bodyPart: BodyPart = '';
-  private nav: HTMLDivElement;
-  private mapEl: SVGSVGElement;
-  private readonly mapPts = new Map<string, SVGGElement>();
-  private partName: HTMLDivElement;
-  private partHelp: HTMLDivElement;
-  private partBox: HTMLDivElement;
-  /** (T2 phase 2) The part list (the pad's body map). */
-  private partPick: HTMLSelectElement;
-  private allBtn: HTMLButtonElement;
-  private quick: HTMLDivElement;
-  /** Pinned and recent sliders as `<section>|<group>|<id>`. */
-  private pins: string[] = [];
-  private recent: string[] = [];
+  // --- (marlow-bays item 29) "More" (collapsed): presets, files, playback extras, the panel's settings; the highlight
+  private more: HTMLDivElement;
+  private moreHead: HTMLButtonElement;
+  private moreBody: HTMLDivElement;
+  private moreOpen = false;
+  private highlightBox: HTMLInputElement;
+  /** The highlight on her (a small dot on the joint); off: nothing is drawn on her. Saved with the panel's settings. */
+  private highlight = true;
   /** A row group opened or closed by hand (`<section>|<label>`). */
   private readonly grpOpen = new Map<string, boolean>();
   private readonly rowScratch = emptyTarget();
@@ -527,8 +486,8 @@ export class AnimTunePanel {
   private readonly down = { on: false, x: 0, y: 0, t: 0 };
   // --- (marlow-bays item 26) the phone layout (drawer / sheet), the touch camera and the debug readout toggle
   private readonly layout: TunerPhoneLayout = emptyPhoneLayout();
-  /** (26b) A pad was the last input at the last layout (the body's `input-gamepad`). */
-  private padUi = false;
+  /** The viewport and size the layout was last made for. */
+  private sizeKey = '';
   private handle: HTMLButtonElement;
   /** The height the studio's canvas gives up to the bottom sheet (px; 0 none). */
   private dockH = 0;
@@ -538,11 +497,8 @@ export class AnimTunePanel {
   /** The F3 readout (the debug overlay sets it). */
   debugHost: TuneDebugHost | null = null;
   private debugBox: HTMLInputElement;
-  /** On a phone: the readout the tuner's toggle chose (saved; default off). */
+  /** On a touch device (any layout): the readout the tuner's toggle chose (saved; default off). */
   private phoneDebug = false;
-  private readonly mapPx = new Float32Array(32);
-  private readonly mapPy = new Float32Array(32);
-  private mapIds: BodyPart[] = [];
 
   constructor() {
     injectCss();
@@ -563,7 +519,7 @@ export class AnimTunePanel {
       setSpeed: (v) => this.setTimeScale(v),
       speed: () => this.runScale,
       setFreeMode: (m) => this.setFreeMode(m),
-      busy: (e) => this.edit?.el === e || document.activeElement === e,
+      busy: (e) => document.activeElement === e,
       lock: (s) => this.lockSnap(s),
       picked: (id) => this.applyLoop(id),
       saveUi: () => this.saveUi(),
@@ -609,9 +565,18 @@ export class AnimTunePanel {
     menu.className = 'anim-tune-menu';
     const body = (this.body = document.createElement('div'));
     body.className = 'anim-tune-body';
-    body.addEventListener('scroll', () => this.closeDrop(), { passive: true });
-    // (item 26) the phone panel scrolls as a whole
-    el.addEventListener('scroll', () => this.closeDrop(), { passive: true });
+    // (marlow-bays item 29, the pad drop-down bug) an open list closes when the person scrolls the panel (the wheel, a
+    // swipe) outside it, never on a scroll event: the pad's own focus scroll (or the list's) fired one and closed the
+    // list it had just opened or moved in. The list sits in the panel's scrolled content, so a scroll of the whole
+    // panel (the phone layout) carries it along.
+    const userScroll = (ev: Event): void => {
+      if (!this.drop.open) return;
+      const t = ev.target as Node | null;
+      if (t && this.dropList.contains(t)) return;
+      this.dropBack();
+    };
+    el.addEventListener('wheel', userScroll, { passive: true });
+    el.addEventListener('touchmove', userScroll, { passive: true });
     // (marlow-bays item 10) a press or a focus in a slider row selects it (the mouse and the keys; the pad selects by
     // its focus)
     const pickFrom = (ev: Event): void => {
@@ -673,8 +638,28 @@ export class AnimTunePanel {
     this.coopNote.textContent = 'Co-op: game speed, pause and step are off.';
     time.append(tb, this.coopNote);
     view.prepend(this.studioUi.el);
-    // --- Settings tab
-    const set = this.tabEl('settings');
+    // --- (marlow-bays item 29) "More" under the sliders of every tab, collapsed: the panel's settings (the Settings tab
+    // is gone), undo and presets, files, the playback extras (the studio's time and speed)
+    const more = (this.more = document.createElement('div'));
+    more.className = 'anim-tune-more';
+    this.moreHead = document.createElement('button');
+    this.moreHead.type = 'button';
+    this.moreHead.className = 'tt-more-h anim-tune-more-btn';
+    this.moreHead.dataset.pad = 'more';
+    this.moreHead.textContent = 'More';
+    this.moreHead.addEventListener('click', () => {
+      this.setMore(!this.moreOpen);
+      this.moreHead.blur();
+    });
+    const set = (this.moreBody = document.createElement('div'));
+    set.className = 'anim-tune-more-body anim-tune-tab-settings';
+    set.hidden = true;
+    more.append(this.moreHead, set);
+    // the studio's time scrub and speed (the playback bar keeps Play, the key steps, the gun and on the spot)
+    const playB = this.block(set, 'Playback');
+    playB.classList.add('anim-tune-more-play');
+    const p2 = this.studioUi.bar.children[1];
+    if (p2) playB.append(p2);
     const panelB = this.block(set, 'Panel');
     const pb = this.mkBar();
     this.sizeSel = this.mkSel(pb, 'Size', TUNER_SIZES, (v) => this.setSize(v as TunerSize, true), 'size', 'anim-tune-size');
@@ -699,26 +684,20 @@ export class AnimTunePanel {
       this.marker = v;
       if (!v) this.clearMarker();
     }, 'marker', 'anim-tune-marker');
-    // (marlow-bays item 26) the F3 debug readout (off by default on a phone; F3 still toggles it with a keyboard)
+    // (item 29) the highlight on her: a small dot on the selected joint, or off entirely
+    this.highlightBox = this.mkCheck(pb3, 'Highlight on her', true, (v) => {
+      this.highlight = v;
+      if (!v) this.clearMarker();
+      this.saveUi();
+    }, 'highlight', 'anim-tune-highlight');
+    // (marlow-bays item 26) the F3 debug readout (off by default on a touch device; F3 still toggles it with a keyboard)
     this.debugBox = this.mkCheck(pb3, 'Debug readout (F3)', false, (v) => {
       this.debugHost?.set(v);
-      if (this.layout.mode !== 'desktop') {
+      if (this.touchDevice) {
         this.phoneDebug = v;
         this.saveUi();
       }
     }, 'debugreadout', 'anim-tune-debugreadout');
-    // (marlow-bays T2) the search moved to the part strip over the rows (every tab)
-    const search = document.createElement('input');
-    search.type = 'search';
-    search.placeholder = 'Find a slider (any tab)';
-    search.className = 'anim-tune-search tt-grow';
-    search.addEventListener('input', () => {
-      this.search = search.value.trim().toLowerCase();
-      this.rebuildAll();
-    });
-    search.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' || e.key === 'Enter') search.blur();
-    });
     panelB.append(pb, pb2, pb3);
     const snapB = this.block(set, 'Undo and presets');
     snapB.append(this.snaps.bar, this.snaps.pbar);
@@ -738,6 +717,8 @@ export class AnimTunePanel {
     );
     const fb2 = this.mkBar();
     fb2.append(
+      // (item 29) the shown part's group (the "what" row had its own Reset group button)
+      this.mkBtn('Reset this group', () => this.resetShownGroup(), 'resetgroup', 'anim-tune-resetgroup'),
       this.mkBtn('Reset all', () => {
         if (!confirm('Reset every animation value to its default?')) return;
         tuneResetAll();
@@ -761,8 +742,6 @@ export class AnimTunePanel {
     mItem('Store A', () => this.menuDo(() => this.snaps.abStore('A')), 'm:abA');
     mItem('Store B', () => this.menuDo(() => this.snaps.abStore('B')), 'm:abB');
     mItem('Flip A / B', () => this.menuDo(() => this.snaps.abToggle()), 'm:ab');
-    mItem('Pin / unpin this slider', () => this.menuDo(() => this.togglePinKey(this.menuBack)), 'm:pin');
-    mItem('Show every part', () => this.menuDo(() => this.pickPart('')), 'm:allparts');
     mItem('Reset this group', () => this.menuDo(() => this.resetFocusedGroup()), 'm:resetgroup');
     mItem('Reset all (A twice)', () => this.armResetAll(), 'm:resetall');
     mItem('Export file', () => this.menuDo(() => this.exportFile()), 'm:export');
@@ -777,9 +756,13 @@ export class AnimTunePanel {
         if (!this.open) return;
         // (tuner-ui) an open list takes the arrows, Enter and Esc
         if (this.drop.open && this.dropKey(e)) return;
-        if (!(e.ctrlKey || e.metaKey) || (e.code !== 'KeyZ' && e.code !== 'KeyY')) return;
         const a = document.activeElement as HTMLInputElement | null;
-        if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && (a.type === 'text' || a.type === 'search' || a.type === 'number')))) return;
+        const typing = !!a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && (a.type === 'text' || a.type === 'search' || a.type === 'number')));
+        // (marlow-bays item 29) the arrows move through the panel (up / down) and change the focused slider (left / right)
+        // while the pointer is free (drag view); Enter presses the focused control. Never while a text box has the keys.
+        if (!typing && this.mouseCtl.free && !e.ctrlKey && !e.metaKey && !e.altKey && this.arrowKey(e)) return;
+        if (!(e.ctrlKey || e.metaKey) || (e.code !== 'KeyZ' && e.code !== 'KeyY')) return;
+        if (typing) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         if (e.repeat) return;
@@ -829,6 +812,8 @@ export class AnimTunePanel {
     });
     window.addEventListener('blur', () => this.setKeyBypass(false));
     window.addEventListener('resize', () => this.applySize());
+    // (item 29) a tablet's toolbars change the visible viewport without a window resize
+    window.visualViewport?.addEventListener('resize', () => this.applySize());
     // (fix round) a pad disconnect never leaves the free view's sticks held
     window.addEventListener('gamepaddisconnected', () => this.clearFreeIn());
     // the mouse wheel zooms the orbit (the panel's own wheel stops at the panel)
@@ -880,43 +865,6 @@ export class AnimTunePanel {
     this.dropList = document.createElement('div');
     this.dropList.className = 'anim-tune-drop-list';
     this.dropList.hidden = true;
-    // (marlow-bays T2) the part strip: the body map, the part shown, pinned and recent sliders, the search
-    this.nav = document.createElement('div');
-    this.nav.className = 'anim-tune-nav';
-    const navRow = document.createElement('div');
-    navRow.className = 'tt-navrow';
-    this.mapEl = this.buildMap();
-    const side = document.createElement('div');
-    side.className = 'tt-navside';
-    const ph = document.createElement('div');
-    ph.className = 'tt-grp-h';
-    ph.textContent = 'Showing';
-    this.partName = document.createElement('div');
-    this.partName.className = 'tt-partname anim-tune-partname';
-    this.partHelp = document.createElement('div');
-    this.partHelp.className = 'tt-parthelp';
-    this.allBtn = this.mkBtn('Show every part', () => this.pickPart(''), 'allparts', 'anim-tune-allparts');
-    delete this.allBtn.dataset.pad;
-    const qh = document.createElement('div');
-    qh.className = 'tt-grp-h';
-    qh.textContent = 'Pinned and recent';
-    this.quick = document.createElement('div');
-    this.quick.className = 'tt-quick anim-tune-quick';
-    this.partBox = document.createElement('div');
-    this.partBox.className = 'tt-partbox';
-    // (T2 phase 2) the part as a list too: the pad's way to the map (A opens it, the D-pad moves, A picks and the focus
-    // goes to the part's first slider)
-    const pickBar = this.mkBar();
-    pickBar.classList.add('tt-partpick');
-    this.partPick = this.mkSel(pickBar, '', BODY_PARTS, (v) => {
-      this.pickPart(v as BodyPart);
-      if (v && this.selKey) this.padKey = this.selKey;
-    }, 'bodypart', 'anim-tune-bodypart');
-    for (const o of Array.from(this.partPick.options)) o.textContent = partLabel(o.value as BodyPart);
-    this.partBox.append(ph, this.partName, this.partHelp, pickBar, this.allBtn);
-    side.append(this.partBox, qh, this.quick);
-    navRow.append(this.mapEl, side);
-    this.nav.append(navRow, search);
     // a click on her in the scene (drag view, no drag): the nearest joint's part
     window.addEventListener(
       'pointerdown',
@@ -943,7 +891,9 @@ export class AnimTunePanel {
       },
       true,
     );
-    el.append(head, this.tabBar, this.studioUi.bar, this.nav, menu, body, infoEl, this.hint, this.dropList);
+    // (item 29) one column: the tabs, the playback bar (studio), the quick menu, the tab (its "what" row and sliders, then
+    // More), the info line, the hints
+    el.append(head, this.tabBar, this.studioUi.bar, menu, body, infoEl, this.hint, this.dropList);
     // (tuner-camera) every registered section, in registration order, into its tab
     for (const r of TUNE_SECTIONS) this.addSection(r, false);
     TUNE_REGISTRY_HOOKS.added = (r) => this.addSection(r, true);
@@ -968,19 +918,19 @@ export class AnimTunePanel {
     // (tuner-ui) the panel's own settings
     void loadAnimTuneUi().then((u) => {
       if (!u || typeof u !== 'object') return;
-      const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown; pins?: unknown; phoneDebug?: unknown };
+      // (item 29) an old `pins` list is ignored (the pins are gone)
+      const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown; phoneDebug?: unknown; highlight?: unknown };
       if (o.size === 'S' || o.size === 'M' || o.size === 'L') this.setSize(o.size, false);
-      // (marlow-bays T2) the pinned sliders
-      if (Array.isArray(o.pins)) {
-        this.pins = o.pins.filter((p): p is string => typeof p === 'string' && quickKeyParts(p) !== null).slice(0, PIN_MAX);
-        this.refreshQuick();
-      }
       if (typeof o.pauseTuning === 'boolean') this.freezeBox.checked = o.pauseTuning;
       if (typeof o.stageLight === 'number') this.studioUi.setStage(o.stageLight);
-      // (marlow-bays item 26) the phone's readout choice (applied now if the panel is already open on a phone)
+      if (typeof o.highlight === 'boolean') {
+        this.highlight = this.highlightBox.checked = o.highlight;
+        if (!o.highlight) this.clearMarker();
+      }
+      // (marlow-bays item 26) the touch device's readout choice (applied now if the panel is already open)
       if (typeof o.phoneDebug === 'boolean') {
         this.phoneDebug = o.phoneDebug;
-        if (this.open && this.layout.mode !== 'desktop' && this.debugHost && this.debugHost.visible() !== o.phoneDebug) this.debugHost.set(o.phoneDebug);
+        if (this.open && this.touchDevice && this.debugHost && this.debugHost.visible() !== o.phoneDebug) this.debugHost.set(o.phoneDebug);
       }
     });
     // (test hook) e2e and the console read and set values through this
@@ -1087,7 +1037,7 @@ export class AnimTunePanel {
         const s = this.shownSection();
         return {
           part: this.bodyPart,
-          label: this.partName.textContent ?? '',
+          label: partLabel(this.bodyPart),
           section: s?.reg.id ?? '',
           rows: s ? Array.from(s.rows.querySelectorAll<HTMLElement>('input[type=range][data-pad]')).filter((e) => e.offsetParent !== null).map((e) => e.dataset.pad ?? '') : [],
           dock: this.dockW,
@@ -1097,7 +1047,6 @@ export class AnimTunePanel {
       // (marlow-bays item 26) the phone layout, the dock, the readout and the touch camera's last gesture
       phone: () => ({
         mode: this.layout.mode,
-        pad: this.layout.pad,
         font: this.layout.font,
         target: this.layout.target,
         width: this.layout.width,
@@ -1112,8 +1061,14 @@ export class AnimTunePanel {
       }),
       fold: (v: boolean) => this.setFolded(v),
       reveal: (key: string) => this.revealRow(key),
-      pin: (key: string) => this.togglePinKey(key),
-      quick: () => ({ pins: this.pins.slice(), recent: this.recent.slice() }),
+      // (item 29) More open / closed
+      more: (open?: boolean) => {
+        if (open !== undefined && open !== this.moreOpen) this.setMore(open);
+        return this.moreOpen;
+      },
+      highlight: (on: boolean) => {
+        if (this.highlightBox.checked !== on) this.highlightBox.click();
+      },
       selected: () => ({
         key: this.selKey,
         section: this.selSec,
@@ -1134,7 +1089,7 @@ export class AnimTunePanel {
           key: this.padKey,
           group: e?.dataset.group ?? '',
           id: e?.dataset.id ?? '',
-          editing: !!this.edit,
+          editing: false,
           menu: this.menuOpen,
           section: s?.reg.id ?? '',
           sectionGroup: s?.group ?? '',
@@ -1302,7 +1257,15 @@ export class AnimTunePanel {
   private markDrop(): void {
     const kids = this.dropList.children;
     for (let i = 0; i < kids.length; i++) kids[i]!.classList.toggle('hi', i === this.drop.index);
-    (kids[this.drop.index] as HTMLElement | undefined)?.scrollIntoView({ block: 'nearest' });
+    // (marlow-bays item 29, the bug) only the list scrolls: `scrollIntoView` also scrolled the panel around it (on the
+    // phone layout, with its scroll padding under the sticky header, for a row near the top: Up), and that panel
+    // scroll closed the list
+    const o = kids[this.drop.index] as HTMLElement | undefined;
+    const l = this.dropList;
+    if (o) {
+      const st = listScrollFor(l.scrollTop, l.clientHeight, o.offsetTop, o.offsetHeight);
+      if (st !== l.scrollTop) l.scrollTop = st;
+    }
   }
 
   private dropMove(d: number): void {
@@ -1429,9 +1392,8 @@ export class AnimTunePanel {
     rb.className = 'tt-bump';
     rb.innerHTML = padGlyph('RB');
     bar.append(rb);
-    // Settings last in the body too (a later section's tab before it)
-    const set = this.tabEls.get('settings');
-    if (set) this.body.append(set);
+    // (item 29) More last in the body, under every tab
+    this.body.append(this.more);
     if (cur) {
       const i = this.tabs.findIndex((t) => t.id === cur);
       if (i >= 0) this.tabIdx = i;
@@ -1489,6 +1451,11 @@ export class AnimTunePanel {
       const s = this.sections.find((x) => x.reg.id === id);
       if (s) s.wrap.hidden = id !== part;
     }
+    // (marlow-bays item 29) one "what" row: the tab's Part list moves to the head of the shown section, before its
+    // State / Weapon lists (a DOM move on a change only)
+    const field = this.partSel.get(tabId)?.parentElement;
+    const head = this.sections.find((x) => x.reg.id === part)?.wrap.querySelector<HTMLElement>('.tt-what');
+    if (field && head && field.parentElement !== head) head.prepend(field);
   }
 
   /** Show tab `i` (LB / RB or a click): one tab's content at a time; the pad focus on its first control. */
@@ -1496,7 +1463,6 @@ export class AnimTunePanel {
     if (i < 0 || i >= this.tabs.length) return;
     this.closeDrop();
     if (this.menuOpen) this.closeMenu();
-    if (this.edit) this.endEdit(false);
     this.tabIdx = i;
     this.showTab();
     if (focus) {
@@ -1543,6 +1509,8 @@ export class AnimTunePanel {
     const prefix = sharedPrefix(groups);
     const nLev = levelCount(groups, prefix);
     const head = this.mkBar();
+    // (marlow-bays item 29) the "what" row: the Part list (multi-section tabs), then this section's State / Weapon lists
+    head.classList.add('tt-what');
     // the hidden picker of every group id (tests, the console)
     const pick = document.createElement('select');
     pick.className = `anim-tune-pick-${kind}`;
@@ -1564,10 +1532,6 @@ export class AnimTunePanel {
       const lv = k;
       sec.levels.push(this.mkSel(head, levelName(kind, k), [], (v) => this.pickLevel(sec, lv, v), `lv:${kind}:${k}`, `anim-tune-level anim-tune-level-${kind}-${k}`));
     }
-    head.append(this.mkBtn('Reset group', () => {
-      tuneResetGroup(sec.group);
-      this.rebuildAll();
-    }, `rg:${kind}`, 'anim-tune-resetgroup'));
     pick.addEventListener('change', () => {
       // (pass 3) a manual pick turns follow off (else the next state change would take it away again)
       this.setFollow(false);
@@ -1713,37 +1677,28 @@ export class AnimTunePanel {
   }
 
   /**
-   * The slider rows of one section's group: filtered by "Changed only", the search and (marlow-bays T2) the part picked
-   * on the body map or on her in the scene; in groups by what they move (slice T's targets), each group a header that
-   * folds. A group shows open when it is the first, holds the selected row, or the part, the search or a short list
-   * leaves little to show; a header click (A) opens or closes it and that choice holds.
+   * The slider rows of one section's group (filtered by "Changed only"), in groups by what they move (slice T's
+   * targets), each group a header that folds. A group shows open when it is the first, holds the selected row or a short
+   * list leaves little to show; a header click (A) opens or closes it and that choice holds (item 29: the panel keeps its
+   * scroll and brings the opened group into view).
    */
   private buildRows(sec: Section): void {
     sec.rows.replaceChildren();
     if (sec.pick.value !== sec.group) sec.pick.value = sec.group;
     const group = sec.group;
-    const q = this.search;
     const kind = sec.reg.id;
-    const part = this.bodyPart;
     const all = tunablesFor(group);
+    // (item 29) every slider of the group shows (no search, no part filter); "Changed only" stays in More
     const list = all.filter(
       (t) =>
         (!this.changedOnly || tuneGet(group, t.id) !== t.def) &&
-        (!q || t.label.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || plainLabel(kind, t.id, t.label).toLowerCase().includes(q)) &&
-        rowHasPart(kind, t.id, part) &&
         // (marlow-bays item 23) a key's time has its own control in the Keys block (clamped between its neighbours)
         !(kind === 'keys' && t.id === KEY_TIME_ID),
     );
     if (!list.length) {
       const none = document.createElement('div');
       none.className = 'tt-note';
-      none.textContent = q
-        ? 'No slider matches the search.'
-        : this.changedOnly
-          ? 'Nothing changed here.'
-          : part && all.length
-            ? `Nothing in ${plainSection(kind, sec.reg.label)} moves the ${partLabel(part).toLowerCase()}. Pick another part, or Show every part.`
-            : 'No sliders.';
+      none.textContent = this.changedOnly ? 'Nothing changed here.' : 'No sliders.';
       sec.rows.append(none);
       this.refreshSel();
       return;
@@ -1769,7 +1724,7 @@ export class AnimTunePanel {
       if (many) {
         const gk = `${kind}|${l}`;
         const hasSel = !!sel && sel.section === kind && rows.some((t) => t.id === sel.id);
-        const open = groupOpen(this.grpOpen.get(gk), { first: gi === 0, hasSel, part: !!part, search: !!q, rows: list.length });
+        const open = groupOpen(this.grpOpen.get(gk), { first: gi === 0, hasSel, rows: list.length });
         const h = document.createElement('button');
         h.type = 'button';
         h.className = open ? 'tt-grp open' : 'tt-grp';
@@ -1796,7 +1751,10 @@ export class AnimTunePanel {
           body.hidden = !o;
           h.classList.toggle('open', o);
           h.blur();
+          // (item 29, Michael's iPad) the panel keeps its scroll (the focus mark no longer scrolls it) and an opened
+          // group comes into view: its rows below the header, or as much as fits with the header kept at the top
           this.markPadFocus();
+          if (o) this.scrollGroupIntoView(h, body);
         });
         sec.rows.append(h, body);
         parent = body;
@@ -1807,7 +1765,7 @@ export class AnimTunePanel {
     this.refreshSel();
   }
 
-  /** One slider row: pin, name, slider, value (type a value, Enter), unit, reset; the grey notes under it. */
+  /** One slider row: name, slider, value (type a value, Enter), unit, reset; the grey notes under it. */
   private buildRow(sec: Section, t: TuneTunable, parent: HTMLElement): void {
     const group = sec.group;
     const kind = sec.reg.id;
@@ -1815,19 +1773,6 @@ export class AnimTunePanel {
     row.dataset.padRow = '1';
     row.className = 'tt-row';
     row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})`;
-    // (marlow-bays T2) pin: the slider stays in the strip over the rows (the pad: Y menu > Pin)
-    const pk = `${kind}|${group}|${t.id}`;
-    const pin = document.createElement('button');
-    pin.type = 'button';
-    const pinned = this.pins.includes(pk);
-    pin.className = pinned ? 'tt-pin on' : 'tt-pin';
-    pin.textContent = pinned ? '★' : '☆';
-    pin.title = 'Pin this slider (it stays in the strip at the top)';
-    pin.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.togglePin(pk);
-      pin.blur();
-    });
     const name = document.createElement('span');
     name.className = 'tt-name';
     name.textContent = plainLabel(kind, t.id, t.label);
@@ -1851,7 +1796,7 @@ export class AnimTunePanel {
       const v = Number(val.value);
       if (val.value.trim() !== '' && Number.isFinite(v)) {
         tuneSet(group, t.id, v);
-        this.noteRecent(pk);
+
       }
       show();
     });
@@ -1877,7 +1822,7 @@ export class AnimTunePanel {
     show();
     input.addEventListener('input', () => {
       tuneSet(group, t.id, Number(input.value));
-      this.noteRecent(pk);
+
       show();
     });
     // (the slider lets go of the keyboard, so the arrow keys and Space stay the game's)
@@ -1895,7 +1840,7 @@ export class AnimTunePanel {
       tuneReset(group, t.id);
       show();
     });
-    row.append(pin, name, input, val, unit, x);
+    row.append(name, input, val, unit, x);
     parent.append(row);
     // (pass 3) the real-world target, (tuner-camera) the game's value today: small grey lines under the slider
     for (const note of tuneNotes(group, t.id)) {
@@ -1919,9 +1864,9 @@ export class AnimTunePanel {
   }
 
   /**
-   * Show only the sliders that move part `p` ('' every part): the shown tab when it has any, else the first section
-   * that does (Joints, Body, Hands & feet, Limb reach, Keys; the weapon: Gun in hand, Gun hold); the first such slider is
-   * selected, so the scene marker lands on it.
+   * A part picked on her (a click or a tap): the shown tab when it has a slider that moves `p`, else the first section
+   * that does (Joints, Body, Hands & feet, Limb reach, Keys; the weapon: Gun in hand, Gun hold); its first such slider is
+   * selected (the scene marker lands on it). (item 29) The rows are never filtered.
    */
   private pickPart(p: BodyPart): void {
     this.bodyPart = p;
@@ -1945,13 +1890,21 @@ export class AnimTunePanel {
       const tab = this.tabs[ti];
       if (tab && tab.sections.length > 1) this.setPart(tab.id, target.reg.id);
     }
-    this.rebuildAll();
+    // (item 29) no filter: the part's first slider is selected, its group opened and scrolled to (the pad focus on it)
     const tg = target;
     if (tg && p) {
       const first = tunablesFor(tg.group).find((t) => rowHasPart(tg.reg.id, t.id, p));
-      if (first) this.pickRow(`s:${tg.reg.id}:${first.id}`);
+      if (first) {
+        const key = `s:${tg.reg.id}:${first.id}`;
+        this.grpOpen.set(`${tg.reg.id}|${tuneTarget(tg.reg.id, first.id, this.rowScratch).label}`, true);
+        this.selKey = key;
+        this.rebuild(tg);
+        this.revealRow(key);
+        this.padKey = key;
+        this.markPadFocus(true);
+      }
     }
-    this.refreshNav();
+    this.refreshSel();
   }
 
   /** (T2) A click on the scene at (x, y) (page px): the nearest joint of hers, or the gun, within 48 px picks its part.
@@ -1996,266 +1949,6 @@ export class AnimTunePanel {
     return true;
   }
 
-  /** The part strip follows the tab, the part and the selection (DOM work on a change only). */
-  private refreshNav(): void {
-    if (!this.partName) return;
-    const p = this.bodyPart;
-    const tab = this.tabs[this.tabIdx]?.id ?? '';
-    // the body map where the tab's sliders move her (not View, Camera, Settings)
-    const mapOn = tab !== 'view' && tab !== 'camera' && tab !== 'settings';
-    if (this.mapEl.style.display !== (mapOn ? '' : 'none')) this.mapEl.style.display = mapOn ? '' : 'none';
-    if (this.partBox.hidden !== !mapOn) this.partBox.hidden = !mapOn;
-    const name = partLabel(p);
-    if (this.partName.textContent !== name) this.partName.textContent = name;
-    this.partName.classList.toggle('all', !p);
-    const s = this.shownSection();
-    const help = !mapOn
-      ? 'Pick a part on another tab, or search.'
-      : p
-        ? `Only its sliders show${s ? ` (${plainSection(s.reg.id, s.reg.label)})` : ''}. Click it again for every part.`
-        : 'Click a joint on her or on the figure to show only its sliders.';
-    if (this.partHelp.textContent !== help) this.partHelp.textContent = help;
-    this.allBtn.hidden = !p;
-    if (this.partPick.value !== p) {
-      this.partPick.value = p;
-      for (const b of this.dropBtns) if (this.dropSel.get(b) === this.partPick) this.refreshDrop(b);
-    }
-    const t = this.selTarget;
-    for (const [id, g] of this.mapPts) {
-      g.classList.toggle('on', id === p);
-      g.classList.toggle('tsel', (t.kind === 'weapon' && id === 'weapon') || ((t.kind === 'joint' || t.kind === 'body') && (id === t.a || id === t.b)));
-    }
-  }
-
-  /** The body map: her joints from behind (her left on the left), the bones between them, the gun; a click picks a part
-   *  (the same again: every part). */
-  private buildMap(): SVGSVGElement {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 100 170');
-    svg.setAttribute('class', 'tt-map anim-tune-map');
-    const P: Record<string, [number, number]> = {
-      headNode: [50, 12],
-      neck: [50, 26],
-      torso: [50, 40],
-      spine: [50, 56],
-      hips: [50, 72],
-      shoulderL: [35, 33],
-      elbowL: [29, 55],
-      wristL: [25, 76],
-      shoulderR: [65, 33],
-      elbowR: [71, 55],
-      wristR: [75, 76],
-      hipL: [42, 78],
-      kneeL: [40, 106],
-      ankleL: [39, 134],
-      toeL: [33, 146],
-      hipR: [58, 78],
-      kneeR: [60, 106],
-      ankleR: [61, 134],
-      toeR: [67, 146],
-    };
-    const BONES = [
-      ['headNode', 'neck'],
-      ['neck', 'torso'],
-      ['torso', 'spine'],
-      ['spine', 'hips'],
-      ['neck', 'shoulderL'],
-      ['shoulderL', 'elbowL'],
-      ['elbowL', 'wristL'],
-      ['neck', 'shoulderR'],
-      ['shoulderR', 'elbowR'],
-      ['elbowR', 'wristR'],
-      ['hips', 'hipL'],
-      ['hipL', 'kneeL'],
-      ['kneeL', 'ankleL'],
-      ['ankleL', 'toeL'],
-      ['hips', 'hipR'],
-      ['hipR', 'kneeR'],
-      ['kneeR', 'ankleR'],
-      ['ankleR', 'toeR'],
-    ];
-    for (const [a, b] of BONES) {
-      const l = document.createElementNS(NS, 'line');
-      const pa = P[a!]!;
-      const pb = P[b!]!;
-      l.setAttribute('x1', String(pa[0]));
-      l.setAttribute('y1', String(pa[1]));
-      l.setAttribute('x2', String(pb[0]));
-      l.setAttribute('y2', String(pb[1]));
-      l.setAttribute('class', 'bn');
-      svg.append(l);
-    }
-    // her left and right, large beside each hand, and how the figure faces
-    const text = (x: number, y: number, t: string, cls: string): void => {
-      const s = document.createElementNS(NS, 'text');
-      s.setAttribute('x', String(x));
-      s.setAttribute('y', String(y));
-      s.setAttribute('class', cls);
-      s.textContent = t;
-      svg.append(s);
-    };
-    text(1, 64, 'L', 'side');
-    text(89, 64, 'R', 'side');
-    text(50, 166, 'seen from behind', 'cap');
-    const point = (id: BodyPart, shape: SVGElement, hx: number, hy: number, hr: number): void => {
-      const g = document.createElementNS(NS, 'g');
-      g.setAttribute('class', 'pt');
-      g.dataset.part = id;
-      // the ring that marks the part picked (green) or the selected slider's joint (gold)
-      const ring = document.createElementNS(NS, 'circle');
-      ring.setAttribute('cx', String(hx));
-      ring.setAttribute('cy', String(hy));
-      ring.setAttribute('r', String(hr));
-      ring.setAttribute('class', 'ring');
-      const hit = document.createElementNS(NS, 'circle');
-      hit.setAttribute('cx', String(hx));
-      hit.setAttribute('cy', String(hy));
-      hit.setAttribute('r', String(hr));
-      hit.setAttribute('class', 'hit');
-      hit.dataset.r = String(hr);
-      const title = document.createElementNS(NS, 'title');
-      title.textContent = partLabel(id);
-      g.append(title, ring, shape, hit);
-      // (marlow-bays item 26) on a phone the map's own tap handler picks the nearest part (the 44 px targets overlap)
-      g.addEventListener('click', () => {
-        if (this.layout.mode === 'desktop') this.pickPart(this.bodyPart === id ? '' : id);
-      });
-      const k = this.mapIds.length;
-      if (k < this.mapPx.length) {
-        this.mapIds.push(id);
-        this.mapPx[k] = hx;
-        this.mapPy[k] = hy;
-      }
-      this.mapPts.set(id, g);
-      svg.append(g);
-    };
-    for (const j of RIG_JOINTS) {
-      const [x, y] = P[j]!;
-      const c = document.createElementNS(NS, 'circle');
-      c.setAttribute('cx', String(x));
-      c.setAttribute('cy', String(y));
-      c.setAttribute('r', j === 'headNode' ? '7' : '4.2');
-      c.setAttribute('class', 'jt');
-      // tap targets: 8 units round a joint (about 11 px at Medium), the head 10
-      point(j, c, x, y, j === 'headNode' ? 10 : 8);
-    }
-    // the gun under her right hand and the whole body (a box under her left hand)
-    const gun = document.createElementNS(NS, 'path');
-    gun.setAttribute('d', 'M78 90 h18 v5 h-12 l-1.5 7 h-5 z');
-    gun.setAttribute('class', 'gun');
-    point('weapon', gun, 86, 95, 10);
-    const whole = document.createElementNS(NS, 'rect');
-    whole.setAttribute('x', '3');
-    whole.setAttribute('y', '90');
-    whole.setAttribute('width', '18');
-    whole.setAttribute('height', '11');
-    whole.setAttribute('rx', '2');
-    whole.setAttribute('class', 'gun');
-    point('body', whole, 12, 95, 10);
-    text(12, 112, 'whole', 'cap');
-    text(86, 112, 'gun', 'cap');
-    svg.addEventListener('click', (e) => {
-      if (this.layout.mode === 'desktop') return;
-      const r = svg.getBoundingClientRect();
-      if (!(r.width > 0) || !(r.height > 0)) return;
-      // the viewBox is 100 x 170, drawn at the element's size (aspect kept: the map's CSS size has the same ratio)
-      const x = ((e.clientX - r.left) / r.width) * 100;
-      const y = ((e.clientY - r.top) / r.height) * 170;
-      const i = nearestMapPart(this.mapPx, this.mapPy, this.mapIds.length, x, y, this.layout.mapHitR || 10);
-      const id = i >= 0 ? this.mapIds[i] : undefined;
-      if (id !== undefined) this.pickPart(this.bodyPart === id ? '' : id);
-    });
-    return svg;
-  }
-
-  /** A slider moved: it heads the recent list (`tunerLayout.pushRecent`). */
-  private noteRecent(k: string): void {
-    if (pushRecent(this.recent, k)) this.refreshQuick();
-  }
-
-  /** Pin or unpin a slider (`tunerLayout.togglePin`); saved with the panel's settings. */
-  private togglePin(k: string): void {
-    const was = this.pins.includes(k);
-    const on = togglePin(this.pins, k);
-    this.refreshQuick();
-    this.saveUi();
-    const p = quickKeyParts(k);
-    const sec = p ? this.sections.find((s) => s.reg.id === p.section) : undefined;
-    if (p && sec && sec.group === p.group) this.rebuild(sec);
-    if (p) this.flashInfo(on ? `Pinned: ${plainLabel(p.section, p.id, p.id)}` : was ? `Unpinned: ${plainLabel(p.section, p.id, p.id)}` : `Pins full (${PIN_MAX})`);
-  }
-
-  /** Pin by a row's pad key (`s:<section>:<id>`, the section's shown group). */
-  private togglePinKey(key: string): void {
-    const rk = rowKeyParts(key);
-    const sec = rk ? this.sections.find((s) => s.reg.id === rk.section) : undefined;
-    if (rk && sec) this.togglePin(`${rk.section}|${sec.group}|${rk.id}`);
-  }
-
-  /** The pinned and recent chips (a click, or A on the pad, goes to the slider). */
-  private refreshQuick(): void {
-    const q = this.quick;
-    if (!q) return;
-    q.replaceChildren();
-    const keys = quickKeys(this.pins, this.recent);
-    let n = 0;
-    for (const k of keys) {
-      const p = quickKeyParts(k);
-      const t = p ? tunablesFor(p.group).find((x) => x.id === p.id) : undefined;
-      if (!p || !t) continue;
-      const b = document.createElement('button');
-      b.type = 'button';
-      const pinned = this.pins.includes(k);
-      b.className = pinned ? 'tt-chip pin' : 'tt-chip';
-      b.dataset.pad = `q:${k}`;
-      const state = p.group.split('.').slice(1).join(' ');
-      b.textContent = `${pinned ? '★ ' : ''}${plainLabel(p.section, p.id, t.label)}`;
-      b.title = `${plainSection(p.section, p.section)}${state ? ` · ${plainWords(state)}` : ''}: ${valueText(tuneGet(p.group, p.id), t.step)} ${plainUnit(t.unit)}`;
-      b.addEventListener('click', () => {
-        this.goTo(k);
-        b.blur();
-      });
-      q.append(b);
-      n++;
-    }
-    if (!n) {
-      const s = document.createElement('span');
-      s.className = 'tt-parthelp';
-      s.textContent = 'Sliders you move or pin (☆) show here.';
-      q.append(s);
-    }
-    // the pad focus stays on its chip (or the next control) across the rebuild
-    if (this.padKey.startsWith('q:')) this.markPadFocus();
-  }
-
-  /** Go to a slider (`<section>|<group>|<id>`): its tab, part and group (follow off), its row open and selected. */
-  private goTo(k: string): void {
-    const qp = quickKeyParts(k);
-    if (!qp) return;
-    const { section: sid, group, id } = qp;
-    const s = this.sections.find((x) => x.reg.id === sid);
-    if (!s) return;
-    const tabId = tabOfSection(sid);
-    const ti = this.tabs.findIndex((t) => t.id === tabId);
-    if (ti >= 0 && ti !== this.tabIdx) this.setTab(ti, false);
-    const tab = this.tabs[ti];
-    if (tab && tab.sections.length > 1) this.setPart(tab.id, sid);
-    if (s.reg.groups.includes(group) && s.group !== group) {
-      this.setFollow(false);
-      s.group = group;
-    }
-    if (!rowHasPart(sid, id, this.bodyPart)) this.bodyPart = '';
-    this.grpOpen.set(`${sid}|${tuneTarget(sid, id, this.rowScratch).label}`, true);
-    this.selKey = `s:${sid}:${id}`;
-    this.rebuildAll();
-    this.revealRow(this.selKey);
-    this.refreshNav();
-    // by pad: the focus on the slider
-    this.padKey = this.selKey;
-    this.markPadFocus();
-  }
-
   /** Open the group of a row (pad key) and scroll it into view. True: the row shows. */
   private revealRow(key: string): boolean {
     const inp = this.el.querySelector<HTMLElement>(`input[data-pad="${globalThis.CSS.escape(key)}"]`);
@@ -2267,6 +1960,98 @@ export class AnimTunePanel {
     }
     inp.closest<HTMLElement>('[data-pad-row]')?.scrollIntoView({ block: 'nearest' });
     return inp.offsetParent !== null;
+  }
+
+  /** The element that scrolls the panel's content: the body on the desktop dock, the whole panel on a drawer / sheet. */
+  private scroller(): HTMLElement {
+    return this.layout.mode === 'desktop' ? this.body : this.el;
+  }
+
+  /**
+   * (marlow-bays item 29, Michael's iPad: "opening a group that needs scrolling jumps the panel back to the top") A group
+   * (its header `h` and rows `body`) just opened: the panel scrolls down only as far as needed to show its rows, never
+   * past its header (kept under the sticky header on a phone); nothing moves when it already shows.
+   */
+  private scrollGroupIntoView(h: HTMLElement, body: HTMLElement): void {
+    const sc = this.scroller();
+    const cr = sc.getBoundingClientRect();
+    let top = cr.top;
+    if (sc === this.el) {
+      const hd = this.el.querySelector<HTMLElement>('.tt-head');
+      if (hd) top = Math.max(top, hd.getBoundingClientRect().bottom);
+    }
+    const over = body.getBoundingClientRect().bottom - cr.bottom;
+    if (over <= 0) return;
+    const d = Math.min(over, Math.max(0, h.getBoundingClientRect().top - top));
+    if (d > 0) sc.scrollTop += d;
+  }
+
+  /** (item 29) More opened or closed (its header, A on it, the hook). */
+  private setMore(open: boolean): void {
+    this.moreOpen = open;
+    this.moreBody.hidden = !open;
+    this.moreHead.classList.toggle('open', open);
+    this.markPadFocus();
+    if (open) this.scrollGroupIntoView(this.moreHead, this.moreBody);
+  }
+
+  /** (item 29) More > Reset this group: the shown part's group back to its defaults. */
+  private resetShownGroup(): void {
+    const s = this.shownSection();
+    if (!s) return;
+    tuneResetGroup(s.group);
+    this.rebuildAll();
+  }
+
+  /** (item 29) A touch screen as the main pointer (a device default, never a layout rule): the F3 readout starts off. */
+  get touchDevice(): boolean {
+    return flags.phone;
+  }
+
+  /**
+   * (item 29) The keyboard on the panel (the drag view): up / down the previous / next control, left / right one step of
+   * the focused slider (Shift: 5), Enter presses the focused control. True: taken (the game never sees it).
+   */
+  private arrowKey(e: KeyboardEvent): boolean {
+    const k = e.key;
+    if (k !== 'ArrowUp' && k !== 'ArrowDown' && k !== 'ArrowLeft' && k !== 'ArrowRight' && k !== 'Enter') return false;
+    if (this.pad.mode !== 'tuner' || (this.menuPaused?.() ?? false)) return false;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (k === 'Enter') {
+      if (!e.repeat) this.padSelect();
+      return true;
+    }
+    if (k === 'ArrowUp' || k === 'ArrowDown') {
+      this.padNav(k === 'ArrowUp' ? -1 : 1);
+      return true;
+    }
+    const d = k === 'ArrowLeft' ? -1 : 1;
+    const f = this.padEl;
+    if (f instanceof HTMLInputElement && f.type === 'range' && !this.menuOpen) this.padAdjust(f, d * (e.shiftKey ? 5 : 1));
+    else this.padNav(d);
+    return true;
+  }
+
+  /**
+   * (item 29) The pad's right stick and triggers: ALWAYS the camera while the tuner has the pad (no camera mode). A push
+   * starts the orbit from the game view (as the wheel and a touch drag do); right stick orbit, RT in, LT out. In the fly
+   * view (View tab > Free view > Fly) the right stick looks and RT / LT fly forward / back. No allocation.
+   */
+  private padCam(pad: Gamepad): void {
+    const ax = pad.axes;
+    const b = pad.buttons;
+    const rx = freeAxis(ax[2] ?? 0);
+    const ry = -freeAxis(ax[3] ?? 0);
+    let zoom = (b[PAD.RT]?.value ?? 0) - (b[PAD.LT]?.value ?? 0);
+    if (Math.abs(zoom) < 0.08) zoom = 0;
+    if ((rx !== 0 || ry !== 0 || zoom !== 0) && FREE_VIEW.mode === 'off') this.setFreeMode('orbit', false);
+    const fly = FREE_VIEW.mode === 'fly';
+    FREE_IN.rx = rx;
+    FREE_IN.ry = ry;
+    FREE_IN.zoom = fly ? 0 : zoom;
+    FREE_IN.ly = fly ? zoom : 0;
+    FREE_IN.lx = FREE_IN.rise = FREE_IN.nudge = 0;
   }
 
   /**
@@ -2409,8 +2194,8 @@ export class AnimTunePanel {
   }
 
   private saveUi(): void {
-    // (marlow-bays item 14) the Anim Studio's Stage light goes with the panel's own settings
-    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale, pins: this.pins, phoneDebug: this.phoneDebug });
+    // (marlow-bays item 14) the Anim Studio's Stage light goes with the panel's own settings; (item 29) the highlight
+    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale, phoneDebug: this.phoneDebug, highlight: this.highlight });
   }
 
   /** (tuner-ui) The panel size (S / M / L) scaled to the screen (`tunerLayout.tunerScale`). */
@@ -2422,44 +2207,38 @@ export class AnimTunePanel {
     if (save) this.saveUi();
   }
 
+  /**
+   * The layout from the viewport size alone (`tunerPhone.tunerPhoneLayout`; item 29: never from touch or the input):
+   * the desktop dock, the side drawer or the bottom sheet, one density each. The visible viewport's size where the
+   * browser has one (a tablet's toolbars), else the window's.
+   */
   private applySize(): void {
     if (typeof window === 'undefined') return;
-    // (marlow-bays item 26) a phone: the side drawer (landscape) or the bottom sheet (portrait); desktop as before
-    // (26b) with a pad the last input, the pad density (smaller again; `padUi` is re-read every frame, see `frame`)
-    this.padUi = document.body.classList.contains('input-gamepad');
-    const lay = tunerPhoneLayout(window.innerWidth, window.innerHeight, flags.phone, this.padUi, this.layout);
+    const vv = window.visualViewport;
+    const vw = Math.round(vv?.width ?? window.innerWidth);
+    const vh = Math.round(vv?.height ?? window.innerHeight);
+    // nothing changed (a repeated resize event): the open list and the layout stay
+    const key = `${vw}x${vh}|${this.size}`;
+    if (key === this.sizeKey) return;
+    this.sizeKey = key;
+    const lay = tunerPhoneLayout(vw, vh, this.layout);
     const el = this.el;
     el.classList.toggle('tt-phone', lay.mode !== 'desktop');
-    el.classList.toggle('tt-ppad', lay.mode !== 'desktop' && lay.pad);
     el.style.setProperty('--tt-t', lay.target ? `${lay.target}px` : '');
     el.classList.toggle('tt-drawer', lay.mode === 'drawer');
     el.classList.toggle('tt-sheet', lay.mode === 'sheet');
+    const sc = tunerScale(this.size, vw, vh);
+    el.style.fontSize = `${lay.font || sc.font}px`;
     if (lay.mode === 'desktop') {
-      const sc = tunerScale(this.size, window.innerWidth, window.innerHeight);
-      el.style.fontSize = `${sc.font}px`;
       el.style.width = `${sc.width}px`;
       el.style.height = '';
       this.panelW = sc.width;
     } else {
-      el.style.fontSize = `${lay.font}px`;
       el.style.width = lay.mode === 'drawer' ? `${lay.width}px` : '';
-      el.style.height = lay.mode === 'sheet' ? `${lay.height}px` : '';
+      // (item 29, Michael's iPad) never taller than the visible viewport (100dvh), so no gap and nothing under a toolbar
+      el.style.height = lay.mode === 'sheet' ? `min(${lay.height}px, 100dvh)` : '';
       this.panelW = lay.width;
     }
-    // (item 26) the body map on a phone: drawn at the layout's scale, its tap targets the touch target round each part
-    // (by pad the map's own radii: nothing is tapped)
-    const phoneR = lay.mapHitR ? String(lay.mapHitR) : '';
-    const mapKey = lay.mode === 'desktop' ? '' : `${lay.mapScale}|${phoneR}`;
-    if (this.mapEl.dataset.hitR !== mapKey) {
-      this.mapEl.dataset.hitR = mapKey;
-      this.mapEl.style.width = mapKey ? `${100 * lay.mapScale}px` : '';
-      this.mapEl.style.height = mapKey ? `${170 * lay.mapScale}px` : '';
-      for (const g of this.mapPts.values()) {
-        const hit = g.querySelector<SVGCircleElement>('circle.hit');
-        if (hit) hit.setAttribute('r', phoneR || (hit.dataset.r ?? '8'));
-      }
-    }
-    // (marlow-bays T2) docked: the full height of the screen (top and bottom 0)
     el.style.maxHeight = '';
     this.closeDrop();
     this.syncDock();
@@ -2492,15 +2271,15 @@ export class AnimTunePanel {
     this.refreshCoop();
     this.el.hidden = false;
     this.applySize();
-    // (marlow-bays item 26) on a phone the F3 readout is off unless the tuner's toggle chose it (it covered her)
-    if (this.layout.mode !== 'desktop' && this.debugHost && this.debugHost.visible() !== this.phoneDebug) this.debugHost.set(this.phoneDebug);
+    // (marlow-bays item 26; item 29: a device default, any layout) on a touch device the F3 readout is off unless the
+    // tuner's toggle chose it (it covered her)
+    if (this.touchDevice && this.debugHost && this.debugHost.visible() !== this.phoneDebug) this.debugHost.set(this.phoneDebug);
     this.debugShown(this.debugHost?.visible() ?? false);
     // (anim-studio) in the studio the loop player shows, and the pad starts on the loop list in the View tab
     this.studioUi.sync();
     if (STUDIO.active) this.setTab(this.tabs.findIndex((t) => t.id === 'view'), false);
     // (tuner-pad) opening takes the pad focus (once the press that opened it is released)
     this.pad.open();
-    this.edit = null;
     this.stickAcc = 0;
     this.syncFollow(true);
     const first = this.firstTabItem(this.padItems());
@@ -2512,7 +2291,6 @@ export class AnimTunePanel {
     this.mouseCtl.setOpen(true);
     this.applyMouse();
     this.refreshSel();
-    this.refreshQuick();
     this.onOpenChange?.(true);
   }
 
@@ -2539,7 +2317,6 @@ export class AnimTunePanel {
     this.tuneWant = false;
     if (this.runScale !== 1) this.setTimeScale(1);
     if (this.menuOpen) this.closeMenu();
-    this.edit = null;
     this.open = false;
     this.padBypass = this.keyBypass = false;
     this.applyBypass();
@@ -2579,52 +2356,35 @@ export class AnimTunePanel {
       const b = btns[i]!;
       if (b.pressed || b.value > 0.5) mask |= 1 << i;
     }
-    const o = this.pad.update(mask, pad.axes[0] ?? 0, now, dt, pad.axes[2] ?? 0, pad.axes[3] ?? 0);
+    const o = this.pad.update(mask, pad.axes[0] ?? 0, pad.axes[1] ?? 0, now, dt);
     if (!this.open) return o.consume;
     // (pass 2) R3 held: the bypass
     if (o.bypass !== this.padBypass) {
       this.padBypass = o.bypass;
       this.applyBypass();
     }
-    // (tuner-camera) the free view's pad input while it has the pad
-    if (this.pad.mode === 'free' && !o.toggled && !o.freeOff && !o.close) this.padFree(pad);
-    else this.clearFreeIn();
     if (o.close) {
       this.hide();
       return true;
     }
-    if (o.freeOff) {
-      this.setFreeMode('off');
-      return true;
-    }
-    // (marlow-bays item 13) L3: loop on the spot (the tuner or the free view has the pad)
+    // (marlow-bays item 13) L3: loop on the spot
     if (o.spot && STUDIO.active) this.toggleSpot();
     if (o.toggled) {
+      this.clearFreeIn();
       this.onPadToggled();
       return o.consume;
     }
-    if (this.pad.mode !== 'tuner') return o.consume;
-    // (marlow-bays T1a, item 16) the playback bar from any tab: right stick left / right a key, up play / pause
-    if (STUDIO.active) {
-      if (o.key !== 0) this.studioUi.stepKey(o.key);
-      if (o.play) this.studioUi.playPause();
+    if (this.pad.mode !== 'tuner') {
+      this.clearFreeIn();
+      return o.consume;
     }
-    // (tuner-ui) an open list: the D-pad moves, A picks, B backs out
+    // (marlow-bays item 29) the right stick and the triggers are always the camera, whatever is open
+    this.padCam(pad);
+    // an open list: up / down (the stick or the D-pad) move the highlight, A picks, B backs out
     if (this.drop.open) {
       if (o.nav !== 0) this.dropMove(o.nav);
       if (o.select) this.dropPick();
       else if (o.back) this.dropBack();
-      return o.consume;
-    }
-    if (this.edit) {
-      if (o.select) this.endEdit(false);
-      else if (o.back) this.endEdit(true);
-      else {
-        if (o.reset) this.padReset();
-        if (o.adjust !== 0) this.padAdjust(o.adjust, o.fine);
-        if (o.stick === 0) this.stickAcc = 0;
-        else this.padStick(o.stick, o.fine);
-      }
       return o.consume;
     }
     if (o.menu) {
@@ -2638,26 +2398,32 @@ export class AnimTunePanel {
       return o.consume;
     }
     if (o.nav !== 0) this.padNav(o.nav);
+    // the focused slider: the left stick left / right (analogue) or the D-pad left / right (steps); elsewhere the D-pad
+    // left / right moves along the row like up / down
+    const f = this.padEl;
+    const range = f instanceof HTMLInputElement && f.type === 'range' && !this.menuOpen ? f : null;
+    if (o.side !== 0) {
+      if (range) this.padAdjust(range, o.side);
+      else this.padNav(o.side < 0 ? -1 : 1);
+    }
+    if (range && o.stick !== 0) this.padStick(range, o.stick);
+    else this.stickAcc = 0;
     if (!this.menuOpen) {
       if (o.section !== 0) this.setTab(cycleTab(this.tabIdx, o.section, this.tabs.length));
-      if (o.group !== 0) this.padGroup(o.group);
       if (o.reset) this.padReset();
     }
     if (o.select) this.padSelect();
     return o.consume;
   }
 
-  /** View moved the pad: to the tuner (the panel unfolds; the game holds still with "Pause game while tuning"), to the
-   *  game (an automatic pause ends) or to the free view (the panel folds). */
+  /** View moved the pad: to the tuner (the panel unfolds; the game holds still with "Pause game while tuning") or to the
+   *  game (an automatic pause ends). */
   private onPadToggled(): void {
     this.refreshCoop();
     this.stickAcc = 0;
-    this.edit = null;
     this.closeDrop();
     if (this.menuOpen) this.closeMenu();
-    const m = this.pad.mode;
-    if (m === 'tuner') this.setFolded(false);
-    else if (m === 'free') this.setFolded(true);
+    if (this.pad.mode === 'tuner') this.setFolded(false);
     this.syncTuneFreeze();
     this.setPadLine();
     this.markPadFocus();
@@ -2686,42 +2452,43 @@ export class AnimTunePanel {
 
   private setPadLine(): void {
     const m = this.pad.mode;
-    let t = m === 'game' ? 'Pad: game' : m === 'free' ? 'Pad: camera' : m === 'tuner' ? 'Pad: tuner' : '';
+    let t = m === 'game' ? 'Pad: game' : m === 'tuner' ? 'Pad: tuner' : '';
     if (this.frozen) t += ' · paused';
     if (TUNE_FLAGS.bypass) t += ' · untuned';
     this.padLine.textContent = t;
     this.setHint();
   }
 
-  /** The hints for what the pad (or the keyboard and mouse) does now, in the reserved strip at the bottom. */
+  /** The hints for the moment, in the reserved strip at the bottom: pad glyphs with a pad, keys and mouse otherwise (the
+   *  layout is the same either way; item 29: only these glyphs follow the input). */
   private setHint(): void {
     const m = this.pad.mode;
     let pad: string;
     let keys: string;
+    const cam = hint([], 'Right stick: camera') + hint(['LT', 'RT'], 'zoom');
     if (m === 'game') {
       pad = hint(['VIEW'], 'back to the tuner') + hint(['START'], 'pause menu');
       keys = 'Click the panel to tune. ` held: untuned.';
-    } else if (m === 'free') {
-      pad =
-        FREE_VIEW.mode === 'orbit'
-          ? hint(['LSTICK'], 'move her') + hint([], 'Right stick: orbit') + hint(['LT', 'RT'], 'zoom') + hint(['B'], 'camera off') + hint(['VIEW'], 'panel')
-          : hint(['LSTICK'], 'fly') + hint([], 'Right stick: look') + hint(['LB', 'RB'], 'down / up') + hint(['B'], 'camera off') + hint(['VIEW'], 'panel');
-      keys = 'WASD: move. Mouse: look. Wheel: zoom.';
     } else if (this.drop.open) {
-      pad = hint(['DPAD'], 'move') + hint(['A'], 'pick') + hint(['B'], 'back');
-      keys = 'Arrows: move. Enter or click: pick. Esc: back.';
-    } else if (this.edit) {
-      pad = hint(['DPAD'], 'change (hold: faster)') + hint(['LSTICK'], 'fast') + hint(['LT'], 'fine') + hint(['A'], 'keep') + hint(['B'], 'undo') + hint(['X'], 'default');
-      keys = 'Type a value and press Enter.';
+      pad = hint(['LSTICK'], 'move') + hint(['A'], 'pick') + hint(['B'], 'back') + cam;
+      keys = 'Arrows or wheel: move. Enter or click: pick. Esc: back.';
     } else if (this.menuOpen) {
-      pad = hint(['DPAD'], 'move') + hint(['A'], 'choose') + hint(['B'], 'close');
+      pad = hint(['LSTICK'], 'move') + hint(['A'], 'choose') + hint(['B'], 'close');
       keys = 'Click an item.';
     } else {
-      pad = hint(['LB', 'RB'], 'tab') + hint(['DPAD'], 'move') + hint(['A'], 'open / edit') + hint(['B'], 'back') + hint(['X'], 'reset') + hint(['Y'], 'more') + hint(['VIEW'], 'game') + hint(['START'], 'close');
-      keys = 'Click a joint on her or the figure: its sliders. Type a value, Enter. Ctrl+Z: undo. ` held: untuned.';
-      // (marlow-bays T1a, item 16) the playback bar's buttons in the studio
+      pad =
+        hint(['LSTICK'], 'up / down: move, left / right: value') +
+        hint(['A'], 'open') +
+        hint(['B'], 'back') +
+        hint(['X'], 'reset') +
+        hint(['LB', 'RB'], 'tab') +
+        cam +
+        hint(['Y'], 'more') +
+        hint(['VIEW'], 'game');
+      keys = 'Wheel: scroll. Arrows: move / value. Drag a slider. Right or middle drag on her: camera. Click on her: her part.';
+      // (marlow-bays T1a) the playback bar's keys in the studio
       if (STUDIO.active) {
-        pad += hint([], 'Right stick: ◀ key ▶, up play / pause') + hint([], 'L3: on the spot');
+        pad += hint([], 'L3: on the spot');
         keys += ` ${TUNER_PLAY_KEY}: play / pause. ${TUNER_KEY_BACK} / ${TUNER_KEY_FWD}: key back / forward. ${TUNER_SPOT_KEY}: on the spot.`;
       }
     }
@@ -2731,27 +2498,34 @@ export class AnimTunePanel {
     this.hint.innerHTML = m === 'off' ? '' : `<span class="tt-pad">${pad}</span><span class="tt-keys"><span>${keys}</span></span>`;
   }
 
-  /** The focusable controls of the active tab (the menu's while it is open), in order, that show now. */
+  /** The focusable controls of the active tab (the menu's while it is open), in order, that show now: the playback bar
+   *  (the studio), the tab's "what" row and sliders, then More. */
   private padItems(): HTMLElement[] {
     const root = this.menuOpen ? this.menu : this.tabEls.get(this.tabs[this.tabIdx]?.id ?? '');
     const out: HTMLElement[] = [];
     if (!root) return out;
-    // (marlow-bays T1a, item 16) the playback bar over every tab comes first (the studio only)
+    const take = (p: HTMLElement): void => {
+      for (const e of Array.from(p.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
+    };
     const bar = this.studioUi.bar;
-    if (!this.menuOpen && !bar.hidden) for (const e of Array.from(bar.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
-    // (marlow-bays T2 phase 2) then the part strip: the part list and the pinned / recent chips (where they show)
-    if (!this.menuOpen) for (const e of Array.from(this.nav.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
-    for (const e of Array.from(root.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
+    if (!this.menuOpen && !bar.hidden) take(bar);
+    take(root);
+    if (!this.menuOpen) take(this.more);
     return out;
   }
 
-  /** (T2) The first control of the tab itself (past the playback bar and the part strip): a tab change's focus. */
+  /** (T2) The first control of the tab itself (past the playback bar): a tab change's focus. */
   private firstTabItem(items: HTMLElement[]): HTMLElement | undefined {
-    return items.find((e) => !this.studioUi.bar.contains(e) && !this.nav.contains(e)) ?? items[0];
+    return items.find((e) => !this.studioUi.bar.contains(e)) ?? items[0];
   }
 
-  /** Mark the pad's focused control (only while the pad is the tuner's), keeping the focus by its key across rebuilds. */
-  private markPadFocus(): void {
+  /**
+   * Mark the pad's focused control (only while the pad is the tuner's), keeping the focus by its key across rebuilds.
+   * `scroll` (a move by the pad or the keys): the panel scrolls to it. (item 29) A rebuild, a group opened by a tap or a
+   * click never scrolls the panel (it jumped to the top on Michael's iPad), and nothing scrolls while a list is open
+   * (that scroll closed the list).
+   */
+  private markPadFocus(scroll = false): void {
     if (this.padMark) {
       this.padMark.classList.remove('tt-focus', 'tt-edit');
       this.padMark = null;
@@ -2774,9 +2548,8 @@ export class AnimTunePanel {
     this.padEl = e;
     this.padKey = e.dataset.pad ?? '';
     const mark = e.closest<HTMLElement>('[data-pad-row]') ?? e.closest<HTMLElement>('label') ?? e;
-    mark.classList.add(this.edit ? 'tt-edit' : 'tt-focus');
-    // (item 26) on a phone the pad focus scrolls the panel only while a pad is in use (touch scrolls by hand)
-    if (this.layout.mode === 'desktop' || document.body.classList.contains('input-gamepad')) mark.scrollIntoView({ block: 'nearest' });
+    mark.classList.add('tt-focus');
+    if (scroll && !this.drop.open) mark.scrollIntoView({ block: 'nearest' });
     this.padMark = mark;
     const sid = e.closest<HTMLElement>('[data-pad-sec]')?.dataset.padSec;
     const k = this.sections.findIndex((s) => s.reg.id === sid);
@@ -2790,7 +2563,7 @@ export class AnimTunePanel {
     this.setHint();
   }
 
-  /** D-pad: the previous / next control (wraps). */
+  /** Up / down: the previous / next control (wraps); the panel scrolls to it. */
   private padNav(d: number): void {
     const items = this.padItems();
     if (!items.length) return;
@@ -2799,7 +2572,7 @@ export class AnimTunePanel {
     this.padKey = items[i]!.dataset.pad ?? '';
     this.padIdx = i;
     this.disarmResetAll();
-    this.markPadFocus();
+    this.markPadFocus(true);
   }
 
   /** (tuner-ui) B with nothing open: from a slider back to its section's state picker (one step back). */
@@ -2810,20 +2583,7 @@ export class AnimTunePanel {
     const sec = this.sections.find((s) => s.reg.id === sid);
     if (!sec) return;
     this.padKey = `lv:${sid}:${sec.levels.length - 1}`;
-    this.markPadFocus();
-  }
-
-  /** LT / RT: the focused section's previous / next choice at its last level (follow off, as a manual pick); the same
-   *  slider stays focused when the new group has it. */
-  private padGroup(d: number): void {
-    const sec = this.sections[this.lastSec];
-    if (!sec) return;
-    const k = sec.levels.length - 1;
-    const path = groupPath(sec.group, sec.prefix);
-    const opts = levelOptions(sec.reg.groups, sec.prefix, path, k);
-    if (opts.length < 2) return;
-    const at = Math.max(0, opts.indexOf(path[k] ?? ''));
-    this.pickLevel(sec, k, opts[(at + d + opts.length) % opts.length]!);
+    this.markPadFocus(true);
   }
 
   /** X: the focused slider back to its default. */
@@ -2834,7 +2594,7 @@ export class AnimTunePanel {
     this.rowShow.get(e)?.();
   }
 
-  /** A: open a list, start editing a slider, press a button or tick a box. */
+  /** A (or Enter): open a list, press a button, tick a box; on a slider nothing to start (the stick changes it). */
   private padSelect(): void {
     const e = this.padEl;
     if (!e || (e as HTMLInputElement).disabled) return;
@@ -2848,57 +2608,16 @@ export class AnimTunePanel {
       return;
     }
     if (e instanceof HTMLInputElement && e.type === 'range') {
-      this.edit = { el: e, orig: e.dataset.group ? tuneGet(e.dataset.group, e.dataset.id ?? '') : Number(e.value) };
-      this.pad.editing = true;
-      this.stickAcc = 0;
-      // (pass 2) a keyboard can type the value into the row's number field meanwhile
-      const num = this.rowNum.get(e);
-      if (num) {
-        num.focus({ preventScroll: true });
-        num.select();
-      }
-      this.markPadFocus();
+      this.flashInfo('Left stick left / right (or the D-pad, the arrows) changes the value');
       return;
     }
     e.click();
     this.markPadFocus();
   }
 
-  /** A keeps the edit, B puts the value back. */
-  private endEdit(cancel: boolean): void {
-    const ed = this.edit;
-    if (!ed) return;
-    this.edit = null;
-    this.pad.editing = false;
-    if (cancel) {
-      const e = ed.el;
-      if (e.dataset.group) {
-        tuneSet(e.dataset.group, e.dataset.id ?? '', ed.orig);
-        this.rowShow.get(e)?.();
-      } else {
-        e.value = String(ed.orig);
-        e.dispatchEvent(this.inputEv);
-      }
-    }
-    // a value typed meanwhile applies on A (B drops it)
-    const num = this.rowNum.get(ed.el);
-    if (num) {
-      if (num.dataset.typing === '1') {
-        if (cancel) {
-          delete num.dataset.typing;
-          this.rowShow.get(ed.el)?.();
-        } else num.dispatchEvent(this.changeEv);
-      }
-      if (document.activeElement === num) num.blur();
-    }
-    this.markPadFocus();
-  }
-
-  /** Editing: `steps` steps of the slider (a fifth of one with LT held). */
-  private padAdjust(steps: number, fine: boolean): void {
-    const e = this.edit?.el;
-    if (!e) return;
-    const unit = (Number(e.step) || 1) * (fine ? FINE_STEP : 1);
+  /** `steps` steps of the slider `e` (the D-pad, the arrows). */
+  private padAdjust(e: HTMLInputElement, steps: number): void {
+    const unit = Number(e.step) || 1;
     const g = e.dataset.group;
     if (!g) {
       // a plain range (the game speed, the loop's time): through its own input handler
@@ -2909,21 +2628,16 @@ export class AnimTunePanel {
     const id = e.dataset.id ?? '';
     tuneSet(g, id, tuneGet(g, id) + steps * unit);
     this.rowShow.get(e)?.();
-    // (marlow-bays T2) the recent list
-    const rk = rowKeyParts(e.dataset.pad ?? '');
-    if (rk) this.noteRecent(`${rk.section}|${g}|${id}`);
   }
 
-  /** Editing a slider: the left stick, a share of its range per frame, applied in whole (fine) steps. */
-  private padStick(share: number, fine: boolean): void {
-    const e = this.edit?.el;
-    if (!e) return;
-    const unit = (Number(e.step) || 1) * (fine ? FINE_STEP : 1);
+  /** The left stick on the slider `e`: a share of its range per frame, applied in whole steps. */
+  private padStick(e: HTMLInputElement, share: number): void {
+    const unit = Number(e.step) || 1;
     this.stickAcc += share * (Number(e.max) - Number(e.min));
     const steps = Math.trunc(this.stickAcc / unit);
     if (steps !== 0) {
       this.stickAcc -= steps * unit;
-      this.padAdjust(steps, fine);
+      this.padAdjust(e, steps);
     }
   }
 
@@ -2981,19 +2695,6 @@ export class AnimTunePanel {
     this.rebuildAll();
   }
 
-  /** (tuner-camera) The pad's sticks, triggers, bumpers and D-pad into the free view's input. No allocation. */
-  private padFree(pad: Gamepad): void {
-    const ax = pad.axes;
-    const b = pad.buttons;
-    FREE_IN.lx = freeAxis(ax[0] ?? 0);
-    FREE_IN.ly = -freeAxis(ax[1] ?? 0);
-    FREE_IN.rx = freeAxis(ax[2] ?? 0);
-    FREE_IN.ry = -freeAxis(ax[3] ?? 0);
-    FREE_IN.zoom = (b[PAD.RT]?.value ?? 0) - (b[PAD.LT]?.value ?? 0);
-    FREE_IN.rise = (b[PAD.RB]?.pressed ? 1 : 0) - (b[PAD.LB]?.pressed ? 1 : 0);
-    FREE_IN.nudge = (b[PAD.UP]?.pressed ? 1 : 0) - (b[PAD.DOWN]?.pressed ? 1 : 0);
-  }
-
   private clearFreeIn(): void {
     FREE_IN.lx = FREE_IN.ly = FREE_IN.rx = FREE_IN.ry = FREE_IN.zoom = FREE_IN.rise = FREE_IN.nudge = 0;
   }
@@ -3026,10 +2727,11 @@ export class AnimTunePanel {
   // ------------------------------------------------------------------------------------------
 
   /**
-   * (tuner-camera) Free view off / orbit / fly: the game reads FREE_VIEW each frame. `takePad` (default): the pad goes to
-   * the free view and the panel folds; a held snap keeps the pad on the panel. Off or fly ends a held snap.
+   * (tuner-camera) Free view off / orbit / fly: the game reads FREE_VIEW each frame. Off or fly ends a held snap.
+   * (marlow-bays item 29) The pad stays on the panel either way: the right stick and the triggers are always the
+   * camera (`padCam`); `_takePad` is kept for the callers.
    */
-  setFreeMode(m: FreeMode, takePad = true): void {
+  setFreeMode(m: FreeMode, _takePad = true): void {
     const was = FREE_VIEW.mode;
     FREE_VIEW.mode = m;
     if (m !== 'orbit') FREE_VIEW.lock = '';
@@ -3039,9 +2741,7 @@ export class AnimTunePanel {
     FREE_IN.wheel = 0;
     // (item 26) the touch sums: a drag that started the orbit keeps its own; off drops them
     if (m === 'off') clearTouchIn();
-    this.pad.setFree(m !== 'off', takePad);
-    if (m !== 'off' && was === 'off' && this.pad.mode === 'free') this.setFolded(true);
-    if (m === 'off' && was !== 'off') this.setFolded(false);
+    if (m === 'off' && was !== 'off' && this.folded) this.setFolded(false);
     this.showLock();
     this.setPadLine();
     this.markPadFocus();
@@ -3080,7 +2780,7 @@ export class AnimTunePanel {
 
   private showSpeed(): void {
     const s = String(Number(this.runScale.toFixed(2)));
-    if (this.speedIn.value !== s && this.edit?.el !== this.speedIn) this.speedIn.value = s;
+    if (this.speedIn.value !== s && this.padEl !== this.speedIn) this.speedIn.value = s;
     this.speedVal.textContent = `${s}×`;
   }
 
@@ -3236,7 +2936,6 @@ export class AnimTunePanel {
     this.refreshCoop();
     // (26b) the last input changed (touch / mouse <-> pad) on a phone: the layout's density follows, live (one class
     // read per frame, no allocation; the layout changes only on a change)
-    if (flags.phone && document.body.classList.contains('input-gamepad') !== this.padUi) this.applySize();
     if (this.wasStudio !== STUDIO.active) this.studioLeft();
     // (fix round) the free view's pad input stops when the pad stops being polled (a disconnect)
     if (FREE_VIEW.mode !== 'off' && performance.now() - this.lastPoll > PAD_STALE_MS) this.clearFreeIn();
@@ -3284,7 +2983,7 @@ export class AnimTunePanel {
     }
     // (marlow-bays item 10) the barrel and the selection share the overlay
     const k = this.selTarget.kind;
-    if (this.marker || k === 'joint' || k === 'body' || k === 'weapon') this.drawMarker(nowMs);
+    if (this.marker || (this.highlight && (k === 'joint' || k === 'body' || k === 'weapon'))) this.drawMarker(nowMs);
     else if (this.selMark.shown || (this.markCanvas && !this.markCanvas.hidden)) {
       this.selMark.shown = false;
       this.clearMarker();
@@ -3433,7 +3132,7 @@ export class AnimTunePanel {
       this.keyShown = STUDIO.key;
       this.keyClipShown = p[0];
       const g = keyGroupId(p[0], c.mirror && mirrorOn && STUDIO.key >= n ? STUDIO.key - n : STUDIO.key);
-      if (!this.pressing && !this.drop.open && !this.edit) this.showGroup('keys', g);
+      if (!this.pressing && !this.drop.open) this.showGroup('keys', g);
     }
     const k = playing && STUDIO.key >= 0 ? STUDIO.key : p[1];
     let t = keyReadout(c, k);
@@ -3546,8 +3245,6 @@ export class AnimTunePanel {
     }
     row?.classList.add('tt-sel');
     const sec = this.sections.find((s) => s.reg.id === sid);
-    // (marlow-bays T2) the body map marks the selected row's joints
-    this.refreshNav();
     if (!sec || this.selTarget.kind === 'none') {
       line.textContent = '';
       line.hidden = true;
@@ -3616,7 +3313,7 @@ export class AnimTunePanel {
     g.clearRect(0, 0, c.width, c.height);
     this.selMark.shown = false;
     if (!scene || !rig || !cam || !cam.rotation || !(this.markW > 0)) return;
-    this.drawSel(g, rig, cam, nowMs);
+    if (this.highlight) this.drawSel(g, rig, cam);
     if (!this.marker || !w) return;
     const m = w.getWorldMatrix();
     Vector3.TransformCoordinatesFromFloatsToRef(0, rig.gunSpan.bore, rig.gunSpan.z1, m, this.markA);
@@ -3648,12 +3345,13 @@ export class AnimTunePanel {
   }
 
   /**
-   * (marlow-bays item 10) The selection marker: the selected row's joint(s), bone, whole body or weapon on the local
-   * player's rig, drawn on the overlay (always on top): a pulsing yellow ring with a black edge (it reads on light and
-   * dark), the bone as a thick line, and the target's name. A dev visual: nothing reads it back but the test hook. No
-   * allocation (the points go through the preallocated vectors).
+   * (marlow-bays item 10; item 29, Michael: "too distracting and blocks the animation, it needs to be more subtle and
+   * have an option to be disabled entirely") The selection marker: the selected row's joint(s), bone, whole body or
+   * weapon on the local player's rig, drawn on the overlay: a small dot on the joint (a thin dark edge reads on light and
+   * dark), a hairline along a bone or the gun; no ring and no label over her. More > "Highlight on her" turns it off. A
+   * dev visual: nothing reads it back but the test hook. No allocation (the points go through the preallocated vectors).
    */
-  private drawSel(g: CanvasRenderingContext2D, rig: TuneRigView, cam: MarkerCam, nowMs: number): void {
+  private drawSel(g: CanvasRenderingContext2D, rig: TuneRigView, cam: MarkerCam): void {
     const t = this.selTarget;
     const sm = this.selMark;
     const near = Math.max(0.05, cam.minZ);
@@ -3684,27 +3382,17 @@ export class AnimTunePanel {
       if (b.z <= near) hasB = false;
     }
     const line = hasB && (t.line || t.kind === 'weapon');
-    const r = 8 + 2 * Math.sin(nowMs * 0.008);
     g.lineCap = 'round';
     if (line) {
       g.beginPath();
       g.moveTo(a.x, a.y);
       g.lineTo(b.x, b.y);
-      g.strokeStyle = 'rgba(0,0,0,0.85)';
-      g.lineWidth = 8;
-      g.stroke();
-      g.strokeStyle = '#ffe600';
-      g.lineWidth = 4;
+      g.strokeStyle = 'rgba(255,230,0,0.55)';
+      g.lineWidth = 1.5;
       g.stroke();
     }
-    this.selRing(g, a.x, a.y, r);
-    if (hasB && !line) this.selRing(g, b.x, b.y, r);
-    g.font = 'bold 13px ui-monospace,Menlo,Consolas,monospace';
-    g.lineWidth = 4;
-    g.strokeStyle = 'rgba(0,0,0,0.9)';
-    g.strokeText(t.label, a.x + r + 6, a.y - r - 4);
-    g.fillStyle = '#ffe600';
-    g.fillText(t.label, a.x + r + 6, a.y - r - 4);
+    this.selDot(g, a.x, a.y);
+    if (hasB && !line) this.selDot(g, b.x, b.y);
     sm.shown = true;
     sm.ax = a.x;
     sm.ay = a.y;
@@ -3712,18 +3400,14 @@ export class AnimTunePanel {
     sm.by = hasB ? b.y : a.y;
   }
 
-  private selRing(g: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  /** (item 29) The subtle highlight: a 3 px dot with a 1 px dark edge. */
+  private selDot(g: CanvasRenderingContext2D, x: number, y: number): void {
     g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.strokeStyle = 'rgba(0,0,0,0.85)';
-    g.lineWidth = 6;
-    g.stroke();
-    g.strokeStyle = '#ffe600';
-    g.lineWidth = 3;
-    g.stroke();
-    g.beginPath();
-    g.arc(x, y, 2.5, 0, Math.PI * 2);
+    g.arc(x, y, 3, 0, Math.PI * 2);
     g.fillStyle = '#ffe600';
     g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.8)';
+    g.lineWidth = 1;
+    g.stroke();
   }
 }

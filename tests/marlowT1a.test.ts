@@ -23,7 +23,6 @@ import { presetFile, presetParse } from '../src/anim/tuneHistory';
 import { STUDIO, STUDIO_ENTRIES, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioReset, studioWeaponFor } from '../src/anim/studio';
 import { tuneBake, bakeCatalogue } from '../src/anim/tuneBake';
 import { BAKE_KEYS_DIR } from '../src/anim/tuneBakeTable';
-import { RS_FLICK, TunePadCtl } from '../src/ui/animTunePad';
 import { bodyCarry, loopGroups, plainGroupWord, plainLabel } from '../src/ui/tunerLayout';
 import { tuneTarget } from '../src/ui/tunerTarget';
 import { bindable } from '../src/input/keyBindings';
@@ -320,29 +319,6 @@ describe('T1a item 15: the key timeline and the studio key requests', () => {
     expect(o.onKey).toBe(false);
     studioKeyInfo('', 0.6, o);
     expect(o).toEqual({ keys: 0, key: -1, onKey: false });
-  });
-
-  it('the right stick: a flick left / right steps a key (repeating when held), a flick up is play / pause; the free view keeps it', () => {
-    const c = new TunePadCtl();
-    c.open();
-    const DT = 1 / 60;
-    let t = 0;
-    const step = (rx: number, ry: number): ReturnType<TunePadCtl['update']> => c.update(0, 0, (t += DT), DT, rx, ry);
-    step(0, 0);
-    expect(step(RS_FLICK + 0.1, 0).key).toBe(1);
-    expect(step(0.9, 0).key).toBe(0);
-    let rep = 0;
-    for (let i = 0; i < 40; i++) rep += step(0.9, 0).key;
-    expect(rep).toBeGreaterThan(0);
-    step(0, 0);
-    expect(step(-0.9, 0).key).toBe(-1);
-    step(0, 0);
-    expect(step(0, -0.9).play).toBe(true);
-    expect(step(0, -0.9).play).toBe(false);
-    step(0, 0);
-    c.setFree(true);
-    step(0, 0);
-    expect(step(0.9, 0).key).toBe(0);
   });
 
   it('the bar keys are reserved (no binding takes them)', () => {

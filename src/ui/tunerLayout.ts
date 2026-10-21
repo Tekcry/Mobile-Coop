@@ -18,7 +18,6 @@ export const TUNER_TABS: readonly { id: string; label: string }[] = [
   { id: 'camera', label: 'Camera' },
   { id: 'keys', label: 'Keys' },
   { id: 'coop', label: 'Co-op' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 /** Which tab a registered section sits in (the Co-op sections by their `team_` prefix). */
@@ -52,18 +51,16 @@ export interface TunerTab {
 
 /**
  * The tabs for the registered sections (`ids` in registration order, `label` the section's own label for an unmapped
- * one): the fixed tabs (View and Settings always; a section tab only when it has a section), with every unmapped
- * section's own tab after Co-op and before Settings.
+ * one): the fixed tabs (View always; a section tab only when it has a section), then every unmapped section's own tab
+ * after Co-op. (marlow-bays item 29) No Settings tab: the panel's settings are in every tab's "More".
  */
 export function buildTabs(ids: readonly string[], label: (id: string) => string): TunerTab[] {
   const out: TunerTab[] = [];
   for (const t of TUNER_TABS) {
-    if (t.id === 'settings') {
-      for (const id of ids) if (tabOfSection(id).startsWith('sec:')) out.push({ id: `sec:${id}`, label: plainSection(id, label(id)), sections: [id] });
-    }
     const secs = ids.filter((id) => tabOfSection(id) === t.id);
-    if (t.id === 'view' || t.id === 'settings' || secs.length) out.push({ id: t.id, label: t.label, sections: secs });
+    if (t.id === 'view' || secs.length) out.push({ id: t.id, label: t.label, sections: secs });
   }
+  for (const id of ids) if (tabOfSection(id).startsWith('sec:')) out.push({ id: `sec:${id}`, label: plainSection(id, label(id)), sections: [id] });
   return out;
 }
 
@@ -493,6 +490,17 @@ export function valueText(v: number, step: number): string {
 // The drop-down list's navigation (A opens, the D-pad moves, A picks, B backs out)
 // ------------------------------------------------------------------------------------------
 
+/**
+ * (marlow-bays item 29, the pad drop-down bug) The open list's scrollTop that shows a row (`itemTop`, `itemH`, in the
+ * list's content px) inside its view (`scrollTop`, `viewH`): unchanged when it shows, else the nearest edge. The panel
+ * scrolls only the list itself: `scrollIntoView` also scrolled the panel around it, and that scroll closed the list.
+ */
+export function listScrollFor(scrollTop: number, viewH: number, itemTop: number, itemH: number): number {
+  if (itemTop < scrollTop) return Math.max(0, itemTop);
+  if (itemTop + itemH > scrollTop + viewH) return Math.max(0, itemTop + itemH - viewH);
+  return scrollTop;
+}
+
 export class DropNav {
   open = false;
   index = 0;
@@ -788,7 +796,7 @@ const TRAV_OF: Readonly<Record<string, string>> = {
 };
 
 // ------------------------------------------------------------------------------------------
-// (marlow-bays T2) Row groups that fold, pinned and recent sliders
+// (marlow-bays T2) Row groups that fold (item 29: the pinned and recent sliders, the search and the part filter are gone)
 // ------------------------------------------------------------------------------------------
 
 /** What decides whether a row group shows open before anyone opens or closes it by hand. */
@@ -797,10 +805,6 @@ export interface GroupOpenIn {
   first: boolean;
   /** It holds the selected row. */
   hasSel: boolean;
-  /** A body part filters the rows. */
-  part: boolean;
-  /** A search filters the rows. */
-  search: boolean;
   /** How many rows the section shows in all. */
   rows: number;
 }
@@ -810,49 +814,11 @@ export const GROUP_FOLD_MIN = 8;
 
 /**
  * A row group's open state: a choice made by hand (`manual`) holds; otherwise open when it is the first group, holds the
- * selected row, or a part, a search or a short list leaves little to show.
+ * selected row, or a short list leaves little to show.
  */
 export function groupOpen(manual: boolean | undefined, g: GroupOpenIn): boolean {
   if (manual !== undefined) return manual;
-  return g.first || g.hasSel || g.part || g.search || g.rows <= GROUP_FOLD_MIN;
-}
-
-/** The most pinned sliders, and recent ones kept. */
-export const PIN_MAX = 12;
-export const RECENT_MAX = 6;
-
-/** Pin or unpin `k` (in place; a full list takes no more). True: pinned now. */
-export function togglePin(pins: string[], k: string, max = PIN_MAX): boolean {
-  const i = pins.indexOf(k);
-  if (i >= 0) {
-    pins.splice(i, 1);
-    return false;
-  }
-  if (pins.length >= max) return false;
-  pins.push(k);
-  return true;
-}
-
-/** `k` to the head of the recent list (in place, no repeats, at most `max`). False: it was already first. */
-export function pushRecent(recent: string[], k: string, max = RECENT_MAX): boolean {
-  if (recent[0] === k) return false;
-  const i = recent.indexOf(k);
-  if (i >= 0) recent.splice(i, 1);
-  recent.unshift(k);
-  if (recent.length > max) recent.length = max;
-  return true;
-}
-
-/** The chips over the rows: the pins first, then the recent ones not pinned. */
-export function quickKeys(pins: readonly string[], recent: readonly string[]): string[] {
-  return pins.concat(recent.filter((k) => !pins.includes(k)));
-}
-
-/** A pinned / recent key (`<section>|<group>|<id>`) split; null when malformed. */
-export function quickKeyParts(k: string): { section: string; group: string; id: string } | null {
-  const p = k.split('|');
-  if (p.length !== 3 || !p[0] || !p[1] || !p[2]) return null;
-  return { section: p[0], group: p[1], id: p[2] };
+  return g.first || g.hasSel || g.rows <= GROUP_FOLD_MIN;
 }
 
 /**

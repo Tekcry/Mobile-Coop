@@ -13,6 +13,12 @@ export interface InputEvents {
   padDisconnected: { id: string };
 }
 
+/** (marlow-bays item 29) The input mode a pointer press selects: a mouse press keyboard / mouse; a touch or a pen
+ *  nothing (the mode stays: a pad keeps its glyphs). */
+export function pointerMode(pointerType: string): InputMode | null {
+  return pointerType === 'mouse' ? 'kbm' : null;
+}
+
 /**
  * Owns all input sources and the active input mode. Gamepad and keyboard/mouse
  * both write into one InputState; consumers never see which device produced an action.
@@ -49,12 +55,14 @@ export class InputManager {
       if (this.gameplayActive && this._mode === 'kbm') this.state.tap('pause');
     };
 
-    // Any mouse press anywhere (menus included) reverts to keyboard / mouse mode. (marlow-bays item 26b) A touch too:
-    // the tuner on a phone takes its touch density back from the pad's.
+    // Any mouse press anywhere (menus included) reverts to keyboard / mouse mode. (marlow-bays item 29) A touch never
+    // changes the mode (item 26b's touch switch is gone: the tuner has one layout per screen size and the mode only
+    // picks the hint glyphs; a tap during pad play on a touchscreen laptop must not flip the prompts).
     window.addEventListener(
       'pointerdown',
       (e) => {
-        if (e.pointerType === 'mouse' || e.pointerType === 'touch') this.setMode('kbm');
+        const m = pointerMode(e.pointerType);
+        if (m) this.setMode(m);
       },
       { capture: true },
     );

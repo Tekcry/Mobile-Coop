@@ -463,7 +463,9 @@ try {
       await press(P, b);
       tabSeq.push((await tpad()).tab);
     }
-    assert(tabSeq.join(',') === 'hands,body,view,settings,view,body', `tuner: LB / RB cycle the tabs and wrap (${tabSeq.join(',')})`);
+    // (marlow-bays item 29) no Settings tab (More holds it): LB from View wraps to the last tab
+    const tLast = (await GM(() => window.__animTune.tabs())).slice(-1)[0];
+    assert(tabSeq.join(',') === `hands,body,view,${tLast},view,body` && tLast !== 'settings', `tuner: LB / RB cycle the tabs and wrap (${tabSeq.join(',')})`);
     // the drop-down: the state picker opens as a list, B backs out, A picks and the focus steps on
     for (let i = 0; i < 4 && !(await tpad()).key.startsWith('lv:body:'); i++) await press(P, BTN.DOWN);
     const g0 = await GM(() => window.__animTune.group('body'));
@@ -485,25 +487,17 @@ try {
     const ts = await tpad();
     const tv = () => GM((q) => window.__animTune.get(q.group, q.id), ts);
     const tv0 = await tv();
+    // (marlow-bays item 29) no edit mode: on a slider the D-pad right / left (and the left stick) change the value and
+    // the focus stays
     await press(P, BTN.RIGHT);
-    assert((await tv()) === tv0 && (await tpad()).key !== ts.key, `tuner: right outside edit moves the focus and changes no value (${tv0} -> ${await tv()})`);
-    await press(P, BTN.LEFT);
-    assert((await tpad()).key === ts.key, 'tuner: left moves the focus back');
-    const nudge = async () => {
-      await press(P, BTN.RIGHT);
-      if ((await tv()) === tv0) await press(P, BTN.LEFT); // at the top of its range
-    };
-    await press(P, BTN.A);
-    assert((await tpad()).editing, 'tuner: A starts editing the slider');
-    await nudge();
+    if ((await tv()) === tv0) await press(P, BTN.LEFT); // at the top of its range
     const tv1 = await tv();
-    assert(tv1 !== tv0, `tuner: editing, right / left adjust it (${tv0} -> ${tv1})`);
-    await press(P, BTN.B);
-    assert(!(await tpad()).editing && (await tv()) === tv0, `tuner: B cancels the edit and restores the value (${await tv()})`);
-    await press(P, BTN.A);
-    await nudge();
-    await press(P, BTN.A);
-    assert(!(await tpad()).editing && (await tv()) !== tv0, `tuner: A keeps the edit (${await tv()})`);
+    assert(tv1 !== tv0 && (await tpad()).key === ts.key && !(await tpad()).editing, `tuner: right / left on a slider change its value, the focus stays (${tv0} -> ${tv1})`);
+    await GM(() => window.__pad.axis(0, -1));
+    await frames(P, 20);
+    await GM(() => window.__pad.axis(0, 0));
+    await frames(P, 3);
+    assert((await tv()) !== tv1 && (await tpad()).key === ts.key, `tuner: the left stick left changes the value (${tv1} -> ${await tv()})`);
     await press(P, BTN.X);
     assert((await tv()) === tv0, `tuner: X resets the row (${await tv()})`);
     await press(P, BTN.Y);
@@ -513,10 +507,17 @@ try {
     assert(!(await tpad()).menu && (await tpad()).key === ts.key, 'tuner: B closes the menu, the focus comes back');
     await press(P, BTN.B);
     assert((await tpad()).key === 'lv:body:0', `tuner: B from a slider goes back to the state picker (${(await tpad()).key})`);
+    // (item 29) the triggers and the right stick are the camera: the state stays, the orbit starts
     const s1 = await tpad();
     await press(P, BTN.RT);
+    await GM(() => window.__pad.axis(2, 1));
+    await frames(P, 10);
+    await GM(() => window.__pad.axis(2, 0));
+    await frames(P, 3);
     const s2 = await tpad();
-    assert(s2.sectionGroup !== s1.sectionGroup, `tuner: RT switches the state (${s1.sectionGroup} -> ${s2.sectionGroup})`);
+    const fv = await GM(() => window.__animTune.freeState());
+    assert(s2.sectionGroup === s1.sectionGroup && s2.key === s1.key && fv.mode === 'orbit' && fv.pad === 'tuner', `tuner: RT and the right stick move the camera (orbit), never the state or the focus (${s1.sectionGroup} -> ${s2.sectionGroup}, ${JSON.stringify(fv)})`);
+    await GM(() => window.__animTune.free('off'));
     // RB steps through the tabs and reaches Keys
     let tpW = await tpad();
     for (let k = 0; k < 12 && tpW.tab !== 'keys'; k++) {
@@ -583,7 +584,8 @@ try {
     const v2b = await v2Table();
     assert(v2.secs === 'joint,hand,ik,weapon,step,keys', `tuner: the tuner-v2 sections are in the panel (${v2.secs})`);
     assert(v2.input && v2a === 12 && v2b === 0, `tuner: a Joints slider set in the panel (${v2.g}) reaches the joint table (${v2a}), its reset puts it back (${v2b})`);
-    // (pass 2) free view, fly: the view moves with the pad's left stick, the player does not; off gives the game view back
+    // (pass 2) free view, fly: the view moves with the pad, the player does not; off gives the game view back. (marlow-bays
+    // item 29) the pad stays on the panel: RT flies forward (the left stick is the panel's)
     const fvRead = () =>
       GM(() => {
         const g = window.__app.current;
@@ -598,12 +600,12 @@ try {
     await GM(() => window.__animTune.free('fly'));
     await frames(P, 3);
     const fvs = await GM(() => window.__animTune.freeState());
-    await GM(() => window.__pad.axis(1, -1));
+    await GM(() => window.__pad.set(7, 1));
     await frames(P, 40);
-    await GM(() => window.__pad.axis(1, 0));
+    await GM(() => window.__pad.set(7, 0));
     await frames(P, 2);
     const fv1 = await fvRead();
-    assert(fvs.mode === 'fly' && fvs.pad === 'free' && dist3(fv1.cam, fv0.cam) > 0.5, `tuner: free view fly moves the view (${JSON.stringify(fvs)}, ${dist3(fv1.cam, fv0.cam).toFixed(2)} m)`);
+    assert(fvs.mode === 'fly' && fvs.pad === 'tuner' && dist3(fv1.cam, fv0.cam) > 0.5, `tuner: free view fly moves the view (${JSON.stringify(fvs)}, ${dist3(fv1.cam, fv0.cam).toFixed(2)} m)`);
     assert(dist3(fv1.feet, fv0.feet) < 0.05 && dist3(fv1.game, fv0.cam) < 0.05, `tuner: in fly the player and the game view stay (${dist3(fv1.feet, fv0.feet).toFixed(3)} / ${dist3(fv1.game, fv0.cam).toFixed(3)} m)`);
     await GM(() => window.__animTune.free('off'));
     await frames(P, 3);

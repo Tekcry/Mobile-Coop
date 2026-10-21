@@ -21,7 +21,7 @@
 // a tab play; the aim stances (standing, crouched still and moving) play with the picked gun.
 // (marlow-bays item 23) Key timing: a key slid three bake frames later moves the readout's frame (jog key 2: 4 -> 6),
 // the studio lands on it at its new time with its pose, the pose at the old frame changes, undo restores both.
-import { launch, assert, frames } from './e2e-lib.mjs';
+import { launch, assert, frames, press, stick, BTN } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -303,18 +303,28 @@ try {
   });
   assert(t2a.hud && t2a.studio, `T2: the game HUD is hidden in the studio (${JSON.stringify(t2a)})`);
   assert(t2a.docked && t2a.dock > 0 && t2a.cRight <= t2a.pLeft + 1, `T2: the canvas ends where the docked panel starts (${t2a.cRight.toFixed(0)} <= ${t2a.pLeft.toFixed(0)}, dock ${t2a.dock})`);
-  // a click on the body map's left knee shows only the sliders that move it, the knee marked on the map
+  // (marlow-bays item 29, tuner v3) one column: no body map, no search, no pinned / recent chips; the Body tab's "what"
+  // row holds the Part list and the State list; More (collapsed) holds the settings, presets and files
   await G(() => window.__animTune.tab('body'));
   await frames(page, 2);
-  const kneeAt = await G(() => {
-    const r = document.querySelector('.anim-tune-map [data-part="kneeL"] .hit')?.getBoundingClientRect();
-    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  const v3 = await G(() => {
+    const what = document.querySelector('.anim-tune-tab-body .anim-tune-sec:not([hidden]) .tt-what');
+    return {
+      gone: !document.querySelector('.anim-tune-map, .anim-tune-search, .anim-tune-quick, .anim-tune .tt-pin, .anim-tune-bodypart-btn'),
+      whatPart: !!what?.querySelector('.anim-tune-part-body-btn'),
+      whatLevels: what ? what.querySelectorAll('.anim-tune-level').length : 0,
+      more: !!document.querySelector('.anim-tune-tab-body ~ .anim-tune-more, .anim-tune-body > .anim-tune-more'),
+      moreOpen: window.__animTune.more(),
+      settingsTab: window.__animTune.tabs().includes('settings'),
+    };
   });
-  assert(!!kneeAt, 'T2: the body map shows on the Body tab');
-  await page.mouse.click(kneeAt.x, kneeAt.y);
+  assert(v3.gone && v3.whatPart && v3.whatLevels >= 1 && v3.more && !v3.moreOpen && !v3.settingsTab, `v3: no map, search or pins; one "what" row (Part + State); More collapsed; no Settings tab (${JSON.stringify(v3)})`);
+  // a part picked on her selects its first slider and never filters the rows
+  const rowsAll = (await G(() => window.__animTune.partState())).rows.length;
+  await G(() => window.__animTune.part('kneeL'));
   await frames(page, 3);
-  const bm = await G(() => ({ ...window.__animTune.partState(), on: document.querySelector('.anim-tune-map [data-part="kneeL"]').classList.contains('on') }));
-  assert(bm.part === 'kneeL' && bm.on && bm.rows.length > 0 && bm.rows.every((k) => /knee/i.test(k)), `T2: the map's left knee shows only knee sliders (${JSON.stringify(bm)})`);
+  const bm = await G(() => ({ ...window.__animTune.partState(), sel: window.__animTune.selected() }));
+  assert(bm.part === 'kneeL' && /knee/i.test(bm.sel.key) && bm.rows.length > 1 && bm.rows.some((k) => !/knee/i.test(k)), `v3: a part picked on her selects a knee slider, every row still shows (${bm.sel.key}, ${bm.rows.length} rows, ${rowsAll} before)`);
   // a click on her head in the scene picks the head (the marker's place on the canvas, drag view)
   await G(() => window.__animTune.part('headNode'));
   await frames(page, 4);
@@ -323,37 +333,60 @@ try {
     const c = window.__app.canvas.getBoundingClientRect();
     return m.shown ? { x: c.left + m.ax, y: c.top + m.ay } : null;
   });
-  await G(() => window.__animTune.part(''));
+  assert(!!headMark, 'v3: the head highlight (a small dot) shows');
+  await G(() => window.__animTune.part('kneeL'));
   await frames(page, 2);
-  assert(!!headMark, 'T2: the head marker shows');
   await page.mouse.click(headMark.x, headMark.y);
   await frames(page, 3);
   const sc = await G(() => window.__animTune.partState());
-  assert(sc.part === 'headNode' && sc.label === 'Head', `T2: a click on her head in the scene picks the head (${JSON.stringify(sc)})`);
-  // pin and unpin a slider; a moved slider heads the recent chips
-  const pinKey = sc.rows[0];
-  assert(!!pinKey, `T2: the head shows a slider (${JSON.stringify(sc.rows)})`);
-  await G((k) => window.__animTune.pin(k), pinKey);
-  await frames(page, 2);
-  const pq1 = await G(() => ({ q: window.__animTune.quick(), chip: document.querySelectorAll('.anim-tune-quick .tt-chip.pin').length, star: !!document.querySelector('.anim-tune .tt-row .tt-pin.on') }));
-  assert(pq1.q.pins.some((p) => p.endsWith(`|${pinKey.split(':')[2]}`)) && pq1.chip >= 1 && pq1.star, `T2: a pinned slider shows as a chip and a filled star (${JSON.stringify(pq1)})`);
-  await G((k) => window.__animTune.pin(k), pinKey);
-  await frames(page, 2);
-  const pq2 = await G(() => window.__animTune.quick());
-  assert(!pq2.pins.some((p) => p.endsWith(`|${pinKey.split(':')[2]}`)), `T2: pin again unpins (${JSON.stringify(pq2)})`);
-  const rec = await G((k) => {
-    const inp = document.querySelector(`.anim-tune input[data-pad="${k}"]`);
-    const g = inp.dataset.group;
-    const id = inp.dataset.id;
-    const v0 = window.__animTune.get(g, id);
-    inp.value = String(Number(inp.min) + (Number(inp.max) - Number(inp.min)) * 0.75);
-    inp.dispatchEvent(new Event('input'));
-    const q = window.__animTune.quick();
-    const chip = [...document.querySelectorAll('.anim-tune-quick .tt-chip')].length;
-    window.__animTune.set(g, id, v0);
-    return { first: q.recent[0] ?? '', want: `|${g}|${id}`, chip };
-  }, pinKey);
-  assert(rec.first.endsWith(rec.want) && rec.chip >= 1, `T2: a moved slider heads the recent chips (${JSON.stringify(rec)})`);
+  assert(sc.part === 'headNode' && sc.label === 'Head', `v3: a click on her head in the scene picks the head (${JSON.stringify({ part: sc.part, label: sc.label })})`);
+  // the highlight's off switch (More > Highlight on her)
+  await G(() => window.__animTune.highlight(false));
+  await frames(page, 3);
+  const hOff = await G(() => window.__animTune.selected().mark.shown);
+  await G(() => window.__animTune.highlight(true));
+  await frames(page, 3);
+  const hOn = await G(() => window.__animTune.selected().mark.shown);
+  assert(!hOff && hOn, `v3: the highlight turns off and on (off ${hOff}, on ${hOn})`);
+  // (item 29, the bug) the pad: the state list opens on jog, up / down move the highlight (it stays open), A picks walk
+  {
+    const tp = () => G(() => window.__animTune.pad());
+    await G(() => window.__pad.connect());
+    await G(() => window.__studio.pick('state:jog'));
+    await G(() => {
+      window.__animTune.tab('body');
+      const sel = document.querySelector('.anim-tune-part-body');
+      sel.value = 'body';
+      sel.dispatchEvent(new Event('change'));
+    });
+    await frames(page, 4);
+    for (let i = 0; i < 16 && (await tp()).key !== 'lv:body:0'; i++) await press(page, BTN.DOWN);
+    await press(page, BTN.A);
+    const o0 = await tp();
+    const states = await G(() => [...document.querySelectorAll('.anim-tune-drop-list .tt-opt')].map((e) => e.textContent.replace(/[•✓]/g, '').trim()));
+    await press(page, BTN.UP);
+    const o1 = await tp();
+    await press(page, BTN.DOWN);
+    const o2 = await tp();
+    await press(page, BTN.UP);
+    const o3 = await tp();
+    assert(o0.list && o0.key === 'lv:body:0' && states[o0.listIndex] === 'Jog', `the pad opens the state list on Jog (${JSON.stringify({ key: o0.key, list: o0.list, at: states[o0.listIndex] })})`);
+    assert(o1.list && o1.listIndex === o0.listIndex - 1 && o2.list && o2.listIndex === o0.listIndex && o3.list && states[o3.listIndex] === 'Walk', `up / down move the highlight and the list stays open (${o0.listIndex} -> ${o1.listIndex} -> ${o2.listIndex} -> ${o3.listIndex}, ${states[o3.listIndex]})`);
+    await press(page, BTN.A);
+    await frames(page, 4);
+    const picked = { group: await G(() => window.__animTune.group('body')), entry: (await st()).entry, list: (await tp()).list };
+    assert(picked.group === 'walk' && picked.entry === 'state:walk' && !picked.list, `A picks walk: the Body group and the loop are walk (${JSON.stringify(picked)})`);
+    // the left stick scrolls the list too
+    for (let i = 0; i < 4 && (await tp()).key !== 'lv:body:0'; i++) await press(page, BTN.B);
+    await press(page, BTN.A);
+    const l0 = await tp();
+    await stick(page, 1, 0.9);
+    const l1 = await tp();
+    await press(page, BTN.B);
+    assert(l0.list && l1.list && l1.listIndex === l0.listIndex + 1, `the left stick down moves the list highlight (${l0.listIndex} -> ${l1.listIndex})`);
+    await G(() => window.__pad.disconnect());
+    await frames(page, 3);
+  }
   // the Joints part, every part shown: groups fold; a header opens its group and closes it again
   await G(() => {
     window.__animTune.part('');
