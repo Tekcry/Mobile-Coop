@@ -115,6 +115,18 @@ that order; the laptop tests all three:
   C adds clip channels; C rebases on A's merge). Merges after A and B.
 - Cross-track rule: a change outside your area goes to that area's owner through the orchestrator.
 
+22-25. (~17:30) Michael asked "Are any of these cheap/fast additions?" about what the tuner cannot do, and chose all four:
+    22. Gear offsets (track B, after J2): sliders that move worn gear (holster, pouches, sling, the gun on her back,
+        goggles) per socket, per state where useful, baked into the base table; the partner sees them. Fixes clipping
+        without a model change.
+    23. Key timing (track A, after T2): slide a key earlier / later in its clip (its phase), preview live, the bake
+        writes the key file and rebakes the clip.
+    24. Guard tuning (track B, after 22): a guard target in the tuner and studio (a guard puppet) with its own rows
+        (Joints, Weight, Stepping where guards use them), baked into a guard base table; Wren rows never touch guards.
+    25. Add / delete keys (track A, after 23): insert a key between two (copying the blended pose) or remove one;
+        mirrored clips keep their mirror; the bake rewrites the key file and the clip. Track C rebases its key-field
+        work on 23 and 25.
+
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
     if a pose crosses it).
