@@ -8,3 +8,7 @@ Worktree and docs set up (2026-10-22 ~10:20). Waiting for anim-run-half's runs t
    planted foot sticks (twist cap 0.9 rad, band only while turning > 1 rad/s, replant threshold); propose the rule.
 2. Implementer B (build): the turn-step rule + ball pivot + sliders; e2e-anim check. Fresh checker, one fix round.
 3. GPU sheets before / after, laptop full e2e, PR.
+
+## Carried for N2 (orchestrator, 2026-10-22 ~10:40)
+Michael approved lifting SWAY_MAX to ~5 cm (realistic side sway; he fine-tunes in the tuner).
+Test tier: PRs touching only the tuner / Anim Studio or tests merge on CI + the suites they touch (CLAUDE.md on feature/menu).
