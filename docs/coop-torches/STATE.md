@@ -1,9 +1,11 @@
 # coop-torches - state
 
 ## Now
-PAUSED 2026-10-21 (account switch). WIP committed and pushed, no PR. Master 4.32.3 merged in. PROTOCOL_VERSION 24 -> 25
-(`src/net/protocol.ts`; asserts updated in tests/net.test.ts (5), tests/moveState.test.ts (1), tests/sectorStep3.test.ts (1)).
-Elsewhere: PR #80 tuner-ui (8ce854e7) waits on the laptop full e2e, then the orchestrator merges it.
+RESUMED 2026-10-21 13:30 (new account). Master 4.32.3 is current (nothing newer to merge). The parity test failure
+was the test's guard id `grunt-3.25`: the wire's id rule rejects '.', so the guard was dropped (test fix only,
+`tests/coopTorches.test.ts:93`); 12/12 pass. REPORT.md written. `npm run check` passed. Fresh Opus checker: no code
+defects (noted a small e2e-coop risk: the lit sample 2 m along the beam reads 0 if a closed door lies within 2 m; switch
+to 1 m only if it flakes). e2e-coop + e2e-netmove: see "Next". PROTOCOL_VERSION 24 -> 25.
 
 ## Done (WIP commits)
 - `src/world/torches.ts` (new, pure): FLASHLIGHTS, TORCH values, `addTorchSlots`, `placeTorch`, `beamReach`, `BeamHit`:
@@ -21,16 +23,8 @@ Elsewhere: PR #80 tuner-ui (8ce854e7) waits on the laptop full e2e, then the orc
 - Aim derived on the client (x, y, z, yaw, st): no extra bytes for most lit guards.
 
 ## Next (resume)
-1. `tests/coopTorches.test.ts`: 11 pass, 1 fails: "a point receives the same light..." (line ~143), TypeError reading
-   'id' of undefined inside `guards.map((g) => holder(wire(em, g)))` while building the client side. Debug and fix.
-   There is no hang: the file takes ~80 s to load under load; give vitest a 300 s timeout. Optional: dynamic imports
-   for EnemyManager / Enemy in that file.
-2. tsc, eslint on the changed files, vitest on coopTorches, net, moveState, sectorStep3, enemyManagerDespawn.
-3. Docs are done (coop.md snapshot field v25, lighting.md client torches and parity, CHANGELOG, TESTING, e2e-coop
-   header). Write `docs/coop-torches/REPORT.md` (what was built, wire format and cost, files, A1-A6, tests, two-browser
-   test steps).
-4. Fresh Opus check, one fix round; `npm run check`, e2e-coop, e2e-netmove (desktop heavy.lock, E2E_SUITE_TIMEOUT
-   1500, or the laptop runner); PR to master; full e2e (Character Build); message the orchestrator with the head.
+1. e2e-coop + e2e-netmove on the desktop (heavy.lock, E2E_SUITE_TIMEOUT 1500).
+2. PR to master; ask "Night Shift | Character Build" for the full e2e on the head, copying "Night Shift | Orchestrator".
 
 ## Assumed decisions
 - A1 the torch bit in `al` bit 8 (undo: a separate field). A2 aim derived, not sent. A3 the client works out the beam

@@ -90,7 +90,7 @@ describe('coop-torches: the wire', () => {
 /** A host guard: the real Enemy class's torch rule and placement on a stand-in (no meshes). */
 async function hostGuard(kind: EnemyKind, x: number, y: number, z: number, yaw: number, crouch: number): Promise<Enemy> {
   const { Enemy: EnemyClass } = await import('../src/ai/enemy');
-  return Object.assign(Object.create(EnemyClass.prototype) as Enemy, { id: `${kind}-${x}`, health: { alive: true }, def: ENEMIES[kind], aware: { level: 'searching' }, los: false, pos: { x, y, z }, yaw, crouch });
+  return Object.assign(Object.create(EnemyClass.prototype) as Enemy, { id: `${kind}-${String(x).replace('.', '_')}`, health: { alive: true }, def: ENEMIES[kind], aware: { level: 'searching' }, los: false, pos: { x, y, z }, yaw, crouch });
 }
 
 /** The host side: an EnemyManager over a dark registry, the beam stopped by the stand-in wall. */
