@@ -472,6 +472,7 @@ export class Player {
     rp.headCap = Number.isNaN(cp.headCap) ? undefined : cp.headCap;
     rp.traverse = cp.traverse;
     rp.traverseT = cp.traverseT;
+    rp.tuneTeam = MOVE_TUNE_TEAM.group; // (anim-joints J2) this player's own team role: the tuner's team rows
     rp.slide = cp.slide;
     rp.check = cp.check;
     rp.melee = cp.melee;
@@ -545,7 +546,9 @@ export class Player {
     this.weightTraverse = cp.traverse;
     tuneBegin(rp, this.rig, dt); // (anim-tuner) the local player's slider values, this rig only (pass 2: eased over dt)
     const handW = handsWeaponOf(this.rig);
-    tuneV2Frame(TUNE_STATE.body, handW); // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables
+    // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables; (anim-joints J2) plus the move /
+    // action rows this rig picked last frame (the panel follows the strongest at weight 0.5 or more)
+    tuneV2Frame(TUNE_STATE.body, handW, this.rig.tuneSt ? this.rig.tuneSt.pick : null);
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
     // (anim-joints J1) the Joints / Hands & feet / IK / Weapon windows: the rig opens its own inside animate (tuneRows)
     moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)

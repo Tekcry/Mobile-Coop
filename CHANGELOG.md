@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.44.0 - Animation tuner: Joints, Hands & feet, IK and Weapon rows for every move and action (climbs, rappel, co-op moves, reload, melee, landing, hit) (2026-10-22, PR #90)
+- Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every
+  traversal move (vault, mantle, step up, climb up, window vault, rappel, drop, hop, roll, wall kick, split, brace),
+  each co-op move per role (leg-up, relay, throw, hang-down, rope, revive: A and B), and air, landing, slide, melee,
+  reload, weapon swap, grenade throw and hit. A row blends in over the stance while its move or action plays (by the
+  animation's own fade) and out after it; the tuner follows the strongest one. They bake like the other rows; old
+  exports and saves load as before. The co-op partner picks its role row from its move state (the relay climb reads as
+  the leg-up's climber; the revive has no row on the partner).
+- Tuner by pad: LT / RT steps the state (or the move, or A / B on a co-op row) in every section again, B goes back to
+  that picker, and the changed dot marks the right picker (the pickers' depth now differs per row).
+- The debug overlay's Tune and Teleport lists stay hidden until their buttons open them (their display rule overrode
+  `hidden`, so Tune always showed and the overlay covered much of the Anim Studio's scene on a small window).
+
 ## 4.43.2 - Tests: e2e-menus waits on sim time on slow software GL; the e2e-levels ladder chase is seeded; a NaN guard in the loop (2026-10-22, PR #94)
 - The desktop e2e-menus "stall" after the animation tuner closed was not a freeze in the game: the test ran past the
   runner's 600 s limit on software GL (the match page drew about 1.5 frames a second beside the open menu page). The
