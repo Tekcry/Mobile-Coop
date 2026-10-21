@@ -15,8 +15,9 @@ heavy run):
   C:/NightShift/scratch/runs/tunerui-pr80-8ce854e7/summary.txt on the LAPTOP ("DONE" on its last line when finished).
   Pass -> merge as 4.33.0 (STATE.md "Merge procedure").
 - PR #79 gl-warning-fix (feature/gl-warning-fix @ 005a4cfa, patch): src/core/babylon.ts defers deleting a
-  still-linking parallel-compile program; E2E_GPU e2e-desktop PASS; checker: see docs/gl-warning-fix/CHECK.md on the
-  branch. Desktop full e2e (E2E_JOBS=2, started 11:33, 40-60 min): C:/NightShift/scratch/runs/desktop-pr79-005a4cfa/
+  still-linking parallel-compile program; E2E_GPU e2e-desktop PASS on 09520e9e; checker FIX, both items done in
+  005a4cfa (a Babylon 9.29.0 upgrade-guard test, an isProgram guard on context restore); branch head 1c479d32 adds STATE
+  only. Still owed: the GPU e2e-desktop rerun on 005a4cfa (Menu Notes, E2E_GPU=1, port 4189). Desktop full e2e (E2E_JOBS=2, started 11:33, 40-60 min): C:/NightShift/scratch/runs/desktop-pr79-005a4cfa/
   summary.txt on the DESKTOP; heavy.lock line "CT Core Build | test runner pr79-005a4cfa | 11:33". Pass -> merge as a
   patch.
 - coop-torches (feature/coop-torches, Course Ready): PROTOCOL_VERSION 25, the torch bit in the enemy snapshot, the client
