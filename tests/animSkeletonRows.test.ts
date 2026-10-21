@@ -350,8 +350,11 @@ describe('anim-skeleton S4: the rig', () => {
       scene.dispose();
       return out;
     };
-    const base = go(false);
-    // identity: the rows at 0 inside the window, bit for bit
+    // The reference is the pose inside the tuner window with every delta at 0: since 4.46.0 the Joints base table holds
+    // Michael's baked values, which act inside the window, so the window-off pose is no longer the same pose. The
+    // clavicle rows have no base values, so at 0 they leave that pose as it is (the S2 identity tests cover the rig
+    // with no window at all).
+    const base = go(true);
     expect(go(true).q).toEqual(base.q);
     // the right clavicle rolled + 15 (chest frame): the right shoulder lifts, the left stays
     jointsSet('idle', J.clavicleR, 2, 15);
