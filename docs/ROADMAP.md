@@ -148,6 +148,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-21 | #85 | 4.38.0: Marlow Yard co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (cloud) |
 | 2026-10-21 | #86 | 4.39.0: tuner redesign (docked menu-style panel, body map, pinned sliders, folding groups), brighter studio |
 | 2026-10-21 | #87 | 4.40.0: tuner key timing (slide a key in its clip, baked) |
+| 2026-10-21 | #89 | 4.41.0: tuner and Anim Studio on phones (compact drawer or sheet, pad mode, touch camera) |
 | 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
 | 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
 | 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
