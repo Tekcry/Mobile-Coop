@@ -48,6 +48,13 @@ Added ~14:10:
     (moves with the root, keeps its angle to the camera or to her facing), a brighter ambient, and a "Stage light"
     slider in the View tab (default bright). Studio only: the game's lighting and light parity are untouched.
 
+15. (~15:00) "how would i fix forearms rotating when jogging, using keys? how do the keys work" / "theres no key steps
+    within the keys menu either, so i dont understand how to view each frame". Fix: in the Keys tab, picking a clip and
+    key plays that clip in the studio (outside it, on the player) paused on that key; "< key" / "key >" buttons (and pad
+    bumpers or D-pad) step the keys with the picker following; a readout "jog - key 2 of 8 (mirror of 6), frame 8";
+    the mirrored key named; the edited bone highlighted (item 10). A one-line hint in the tab: "Key edits change one pose;
+    whole-cycle changes go in the state tabs."
+
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
 ## Order
