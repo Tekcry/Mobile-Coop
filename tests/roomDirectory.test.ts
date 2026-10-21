@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Transport } from '../src/net/transport';
-import { DirectoryBrowser, DirectoryPoster, NOTICE_EVERY_S, NOTICE_TTL_S, parseDirMsg, type RoomNotice } from '../src/net/roomDirectory';
+import { DirectoryBrowser, DirectoryPoster, MAX_LISTED, NOTICE_EVERY_S, NOTICE_TTL_S, parseDirMsg, type RoomNotice } from '../src/net/roomDirectory';
 
 /** (server browser) A fake relay: every transport made on it hears every other (the directory room). */
 function relay() {
@@ -67,6 +67,25 @@ describe('room directory (server browser prototype)', () => {
     await host.close();
     expect(b.list()).toEqual([]);
     await old.close();
+    await b.close();
+  });
+
+  it('only the poster of a code can refresh or remove it; a host leaving the directory takes its rooms; the list is capped', async () => {
+    const r = relay();
+    const ht = r.make('H');
+    const host = new DirectoryPoster(ht, () => room());
+    const b = new DirectoryBrowser(r.make('B'), V);
+    await flush();
+    const evil = r.make('E');
+    evil.send({ t: 'gone', code: 'ABCDE' });
+    evil.send({ t: 'room', ...room({ host: 'Fake', players: 0 }) });
+    expect(b.list()).toMatchObject([{ code: 'ABCDE', host: 'Wren', from: 'H' }]);
+    // a host whose gone was lost: its leave drops the room
+    await ht.leave();
+    expect(b.list()).toEqual([]);
+    for (let i = 0; i < MAX_LISTED + 20; i++) evil.send({ t: 'room', ...room({ code: `A${String(i).padStart(4, '0').replace(/0/g, 'Q').replace(/1/g, 'R')}` }) });
+    expect(b.list().length).toBeLessThanOrEqual(MAX_LISTED);
+    await host.close();
     await b.close();
   });
 

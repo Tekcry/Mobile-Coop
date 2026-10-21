@@ -107,28 +107,42 @@ class CoopController {
   }
 
   /** (server browser) Host: list the room in Browse rooms, or take it off. */
-  async setPublic(on: boolean): Promise<void> {
-    if (!this.session.isHost || this.left || on === this.isPublic) return;
+  setPublic(on: boolean): Promise<void> {
+    if (!this.session.isHost || this.left) return Promise.resolve();
     this.isPublic = on;
-    if (!on) {
-      const d = this.dir;
-      this.dir = null;
-      await d?.close();
-      return;
-    }
-    let t: Transport;
-    try {
-      t = await openDirectory();
-    } catch {
-      this.isPublic = false;
-      this.app.toasts.show('Could not reach the room list', 'warn');
-      return;
-    }
-    if (!this.isPublic || this.left) {
-      void t.leave();
-      return;
-    }
-    this.dir = new DirectoryPoster(t, () => this.notice());
+    return this.syncDir();
+  }
+
+  private dirBusy: Promise<void> | null = null;
+
+  /** (server browser) One directory open or close at a time (Trystero shares one room per id), until the poster matches
+   *  `isPublic` (fast toggles and a leave mid-open end right). */
+  private syncDir(): Promise<void> {
+    if (this.dirBusy) return this.dirBusy;
+    const run = async (): Promise<void> => {
+      for (;;) {
+        const want = this.isPublic && !this.left;
+        if (want && !this.dir) {
+          let t: Transport;
+          try {
+            t = await openDirectory();
+          } catch {
+            this.isPublic = false;
+            this.app.toasts.show('Could not reach the room list', 'warn');
+            this.lobby?.el.querySelectorAll('.row-choice').forEach((r) => r.dispatchEvent(new Event('widget-refresh')));
+            return;
+          }
+          if (this.isPublic && !this.left) this.dir = new DirectoryPoster(t, () => this.notice());
+          else await t.leave().catch(() => {});
+        } else if (!want && this.dir) {
+          const d = this.dir;
+          this.dir = null;
+          await d.close();
+        } else return;
+      }
+    };
+    this.dirBusy = run().finally(() => (this.dirBusy = null));
+    return this.dirBusy;
   }
 
   showLobby(): void {
@@ -228,9 +242,7 @@ class CoopController {
     this.stopRecord();
     this.left = true;
     // (server browser) off the list
-    const d = this.dir;
-    this.dir = null;
-    void d?.close();
+    void this.syncDir();
     for (const o of this.offs) o();
     await this.session.leave(this.session.isHost ? 'Host left' : 'left');
     if (toMenu || this.inGame) this.api.goToMenu();
@@ -672,6 +684,7 @@ class BrowseScreen extends MenuScreen {
   override onShow(): void {
     this.render();
     if (!this.browser && !this.opening) void this.open();
+    if (this.tick) clearInterval(this.tick);
     this.tick = setInterval(() => this.render(), 5000);
   }
 
@@ -704,10 +717,20 @@ class BrowseScreen extends MenuScreen {
     this.render();
   }
 
+  /** A pick: off the directory first (it reopens if the join comes back here), then join by the code. */
+  private join(code: string): void {
+    if (this.tick) clearInterval(this.tick);
+    this.tick = null;
+    const b = this.browser;
+    this.browser = null;
+    void b?.close();
+    void joinRoom(this.app, this.api, code);
+  }
+
   private row(r: ListedRoom): HTMLElement {
     const map = MAPS.find((m) => m.id === r.map)?.name ?? r.map;
     const mode = MODE_OPTS.find((m) => m.value === r.mode)?.label ?? r.mode;
-    const b = button(`${r.code} · ${map}`, () => void joinRoom(this.app, this.api, r.code), { class: 'menu-item ms-item', key: `room-${r.code}`, sub: `${mode} · host ${r.host}` });
+    const b = button(`${r.code} · ${map}`, () => this.join(r.code), { class: 'menu-item ms-item', key: `room-${r.code}`, sub: `${mode} · host ${r.host}` });
     b.append(h('span', { class: 'ms-ctr', text: `${r.players} / ${r.cap}` }));
     b.dataset.ctx = `<p>Join ${r.host}'s room ${r.code} (${map}, ${mode}).</p>`;
     return b;

@@ -11,6 +11,8 @@ import type { Transport } from './transport';
 export const DIRECTORY_ROOM = 'ss-directory-v1';
 export const NOTICE_EVERY_S = 30;
 export const NOTICE_TTL_S = 75;
+/** Rooms a browser lists at most (a flood of codes is ignored past it). */
+export const MAX_LISTED = 50;
 
 export interface RoomNotice {
   code: string;
@@ -87,9 +89,13 @@ export class DirectoryPoster {
     if (this.closed) return;
     const n = this.notice();
     const code = this.posted || n?.code || '';
-    if (code) this.t.send({ t: 'gone', code });
     this.closed = true;
     clearInterval(this.timer);
+    if (code) {
+      this.t.send({ t: 'gone', code });
+      // (the send is async on Trystero: a moment before the links close; a browser also drops a leaving host's rooms)
+      await new Promise((r) => setTimeout(r, 250));
+    }
     await this.t.leave().catch(() => {});
   }
 }
@@ -97,6 +103,8 @@ export class DirectoryPoster {
 export interface ListedRoom extends RoomNotice {
   /** When the notice last arrived (ms). */
   at: number;
+  /** The peer that posted it: only it can refresh or remove the code. */
+  from: string;
 }
 
 /** The browser's side: the live notices of one version, newest first. */
@@ -110,28 +118,37 @@ export class DirectoryBrowser {
     private readonly version: string,
     private readonly now: () => number = () => Date.now(),
   ) {
-    t.onMessage = (raw) => this.receive(raw);
+    t.onMessage = (raw, from) => this.receive(raw, from);
     // hosts answer an ask with their notice; a newcomer host posts on its own
     t.onPeerJoin = (id) => t.send({ t: 'ask' }, id);
-    t.onPeerLeave = null;
+    // a host gone from the directory takes its rooms with it
+    t.onPeerLeave = (id) => {
+      let any = false;
+      for (const [code, r] of this.rooms) if (r.from === id && this.rooms.delete(code)) any = true;
+      if (any) this.onChange?.();
+    };
     t.send({ t: 'ask' });
   }
 
-  private receive(raw: unknown): void {
+  private receive(raw: unknown, from: string): void {
     const m = parseDirMsg(raw);
-    if (!m || this.closed) return;
+    if (!m || this.closed || m.t === 'ask') return;
+    const code = m.code;
+    const had = this.rooms.get(code);
+    // a code belongs to the peer that listed it: no one else can refresh, fake or remove it
+    if (had && had.from !== from) return;
     if (m.t === 'gone') {
-      if (this.rooms.delete(m.code)) this.onChange?.();
+      if (this.rooms.delete(code)) this.onChange?.();
       return;
     }
-    if (m.t !== 'room') return;
     const { t: _t, ...n } = m;
     void _t;
     if (n.v !== this.version || n.players >= n.cap) {
-      if (this.rooms.delete(n.code)) this.onChange?.();
+      if (this.rooms.delete(code)) this.onChange?.();
       return;
     }
-    this.rooms.set(n.code, { ...n, at: this.now() });
+    if (!had && this.rooms.size >= MAX_LISTED) return;
+    this.rooms.set(code, { ...n, at: this.now(), from });
     this.onChange?.();
   }
 
