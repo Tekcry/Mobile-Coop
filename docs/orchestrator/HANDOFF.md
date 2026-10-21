@@ -20,8 +20,9 @@ heavy run):
   only. Still owed: the GPU e2e-desktop rerun on 005a4cfa (Menu Notes, E2E_GPU=1, port 4189). Desktop full e2e (E2E_JOBS=2, started 11:33, 40-60 min): C:/NightShift/scratch/runs/desktop-pr79-005a4cfa/
   summary.txt on the DESKTOP; heavy.lock line "CT Core Build | test runner pr79-005a4cfa | 11:33". Pass -> merge as a
   patch.
-- coop-torches (feature/coop-torches, Course Ready): PROTOCOL_VERSION 25, the torch bit in the enemy snapshot, the client
-  TorchMirror, the e2e-coop torch block; left: tests/coopTorches.test.ts, docs, check, PR, full e2e.
+- coop-torches (feature/coop-torches @ dd8a2cfe, master 4.32.3 merged, Course Ready): PROTOCOL_VERSION 25, the torch
+  bit in the enemy snapshot, the client TorchMirror, the e2e-coop torch block; left: one failing parity test in
+  tests/coopTorches.test.ts (a TypeError building the client side), the REPORT, check, e2e-coop / netmove, PR, full e2e.
   Resume: docs/coop-torches/STATE.md on that branch.
 - CT Core's resume point: docs/anim-rework/STATE.md "## Pause" on feature/ct-prototype (ce331245; docs PR later).
 Parked, waiting on Michael: #67 S2b walk (step length vs the wall peek; S2B-REPORT "## #67 parked" on feature/anim-s2b),
