@@ -75,7 +75,15 @@ Added ~14:10:
     do i just adjust aiming stance?" The studio has no standing aim loop (only aim glide fwd / strafe / back; the tuner's
     `aim` body group and `rifle.aim` / `pistol.aim` gun groups exist). Fix: studio loops for aim standing, crouch aim
     standing and crouch aim moving, and a weapon pick (rifle / pistol) that applies to every armed loop.
-Items 17, 18 and 19 go in slice T1 with 15 and 16.
+20. (~15:30) "can you check and make sure i have full control over every stance and every body part. There are quite a
+    few things missing which i have listed now." Fix: first a coverage audit, `docs/marlow-bays/COVERAGE.md`: every
+    player animation the game plays (stances, moves, armed / aimed per weapon, crouch, walls, holds and carries,
+    traversal, takedowns, co-op moves, gadgets, hit / death) as rows; columns: a studio loop to view it, state
+    sliders, Joints with 3 axes for every joint (trunk, head, shoulders, upper arms, forearms, wrists, hands / fingers,
+    hips, knees, ankles, toes), per-key editing with 3 axes, left / right separately, the bake writing it. Every gap
+    is filled in T1 unless it needs a rig change (say so in the table). The orchestrator sends Michael the table before
+    T1's PR.
+Items 17-20 go in slice T1 with 15 and 16.
 
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
