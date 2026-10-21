@@ -168,7 +168,7 @@ describe('anim-skeleton S3b: the bake frames on the rig', () => {
     S.dispose();
   }, 60_000);
 
-  it("a keyed curl closes the hand toward the palm: the fist's right fingertips move along the hero's own grip morph", async () => {
+  it("a keyed curl closes the hand toward the palm: the fist's right fingers move along the hero's own grip morph (in the wrist's frame)", async () => {
     const S = await setup();
     const fist = S.make('fist', KEYED_SKELETON_TEST, 24);
     const rest = S.make('rest', KEYED_SKELETON_TEST, 0);
@@ -181,11 +181,11 @@ describe('anim-skeleton S3b: the bake frames on the rig', () => {
     const poser = new OperatorPoser(P);
     const rig = new Float64Array(RIG_JOINTS.length * TRS);
     for (let j = 0; j < RIG_JOINTS.length; j++) rig[j * TRS + 6] = 1;
-    const tipPos = (vals: ArrayLike<number>): Float64Array => {
+    /** Skeleton-space joint positions and rotations of the hero posed at the rig's rest with finger values `vals`. */
+    const posed = (vals: ArrayLike<number>): { pos: Float64Array; rot: Float64Array } => {
       poser.extraOn.fill(0);
       fingerPose(fr, vals, poser.extraQ, poser.extraOn);
       const out = poser.solve(rig);
-      // chain the local TRS to skeleton-space positions
       const n = P.node.length;
       const pos = new Float64Array(n * 3);
       const rot = new Float64Array(n * 4);
@@ -203,50 +203,69 @@ describe('anim-skeleton S3b: the bake frames on the rig', () => {
         pos.set([pos[p * 3]! + v[0], pos[p * 3 + 1]! + v[1], pos[p * 3 + 2]! + v[2]], s * 3);
         rot.set(qm(pq, q), s * 4);
       }
-      return pos;
+      return { pos, rot };
     };
+    const inv = (q: ArrayLike<number>): number[] => [-q[0]!, -q[1]!, -q[2]!, q[3]!];
+    /** A bind-pose vertex skinned rigidly to joint `s` of a posed skeleton, in that skeleton's wrist frame. */
+    const inWrist = (k: { pos: Float64Array; rot: Float64Array }, s: number, wr: number, x: ArrayLike<number>): V => {
+      const local = rotv(inv(P.bindRot.subarray(s * 4, s * 4 + 4)), [x[0]! - P.bindPos[s * 3]!, x[1]! - P.bindPos[s * 3 + 1]!, x[2]! - P.bindPos[s * 3 + 2]!]);
+      const w = rotv(k.rot.subarray(s * 4, s * 4 + 4), local);
+      return rotv(inv(k.rot.subarray(wr * 4, wr * 4 + 4)), [w[0] + k.pos[s * 3]! - k.pos[wr * 3]!, w[1] + k.pos[s * 3 + 1]! - k.pos[wr * 3 + 1]!, w[2] + k.pos[s * 3 + 2]! - k.pos[wr * 3 + 2]!]);
+    };
+    // the morph's base is the open hand (every curl 0): the clip's fist (the rig's finger values at f24) against it
     const vClosed = Float64Array.from(fist.rig.fingers);
-    const vOpen = Float64Array.from(rest.rig.fingers);
     expect(vClosed.length).toBe(FING_LEN);
-    const a = tipPos(vClosed);
-    const o = tipPos(vOpen);
+    const closed = posed(vClosed);
+    const open = posed(new Float64Array(FING_LEN));
+    const wr = P.names.indexOf('wrR');
     const jn = m.joints.map((j) => m.nodes[j]!.name);
     for (let k = 1; k <= 5; k++) {
-      const name = `fingerR_${k}_3`;
-      const s = P.names.indexOf(name);
-      const d: V = [a[s * 3]! - o[s * 3]!, a[s * 3 + 1]! - o[s * 3 + 1]!, a[s * 3 + 2]! - o[s * 3 + 2]!];
-      // the morph's closing direction of the vertices on this tip bone (same skeleton frame: the wrist is not moved)
-      const mv: V = [0, 0, 0];
-      for (const g of m.meshes) {
-        const t = g.targets?.find((x) => x.name === 'wrapR');
-        if (!t) continue;
-        for (let i = 0; i < g.positions.length / 3; i++) {
-          if (g.weights[i * 4]! < 0.97 || jn[g.joints[i * 4]!] !== name) continue;
-          for (let c = 0; c < 3; c++) mv[c] = mv[c]! + t.positions[i * 3 + c]!;
+      for (let seg = 1; seg <= 3; seg++) {
+        const name = `fingerR_${k}_${seg}`;
+        const s = P.names.indexOf(name);
+        let n = 0;
+        let dot = 0;
+        for (const g of m.meshes) {
+          const t = g.targets?.find((x) => x.name === 'wrapR');
+          if (!t) continue;
+          for (let i = 0; i < g.positions.length / 3; i++) {
+            if (g.weights[i * 4]! < 0.97 || jn[g.joints[i * 4]!] !== name) continue;
+            const x = g.positions.subarray(i * 3, i * 3 + 3);
+            const a = inWrist(closed, s, wr, x);
+            const o = inWrist(open, s, wr, x);
+            const d = [a[0] - o[0], a[1] - o[1], a[2] - o[2]];
+            const dm = rotv(inv(P.bindRot.subarray(wr * 4, wr * 4 + 4)), t.positions.subarray(i * 3, i * 3 + 3));
+            dot += (d[0]! * dm[0] + d[1]! * dm[1] + d[2]! * dm[2]) / (Math.hypot(...d) * Math.hypot(...dm) || 1);
+            n++;
+          }
         }
+        if (seg < 3 && n < 20) continue; // a short segment with few rigid vertices
+        expect(n, `${name} vertices`).toBeGreaterThan(20);
+        expect(dot / n, `${name}: the curl closes along the grip morph`).toBeGreaterThan(0.5);
       }
-      const cos = (d[0] * mv[0] + d[1] * mv[1] + d[2] * mv[2]) / (Math.hypot(...d) * Math.hypot(...mv) || 1);
-      expect(Math.hypot(...d), `${name} moves`).toBeGreaterThan(0.01);
-      expect(cos, `${name}: the curl closes along the grip morph`).toBeGreaterThan(0.5);
     }
     expect(KEYED_FING).toBe(FING_LEN);
-    // the keyed spread (f33, held open): + takes the index and the little away from their neighbours (only the spreads
-    // differ from the compared pose)
+    // the keyed spread (f33, held open), one finger at a time (its neighbours' spreads 0, so they hold still): + takes
+    // the index and the ring away from the middle, the little away from the ring
     const fan = S.make('fan', KEYED_SKELETON_TEST, 33);
     S.run([fan], 30);
     const vFan = Float64Array.from(fan.rig.fingers);
-    for (const k of [1, 4]) expect(vFan[FING_R + k * 2 + 1], `spread ${k}`).toBeGreaterThan(0.3);
     const vFlat = Float64Array.from(vFan);
     for (let k = 0; k < 5; k++) vFlat[FING_R + k * 2 + 1] = 0;
-    const sp = tipPos(vFan);
-    const fl = tipPos(vFlat);
+    const flat = posed(vFlat).pos;
     const gap = (p: Float64Array, x: string, y: string): number => {
       const i = P.names.indexOf(x);
       const j = P.names.indexOf(y);
       return dist(p.subarray(i * 3, i * 3 + 3), p.subarray(j * 3, j * 3 + 3));
     };
-    expect(gap(sp, 'fingerR_2_3', 'fingerR_3_3')).toBeGreaterThan(gap(fl, 'fingerR_2_3', 'fingerR_3_3') + 0.005);
-    expect(gap(sp, 'fingerR_5_3', 'fingerR_4_3')).toBeGreaterThan(gap(fl, 'fingerR_5_3', 'fingerR_4_3') + 0.005);
+    for (const [k, from] of [[1, 3], [3, 3], [4, 4]] as const) {
+      expect(vFan[FING_R + k * 2 + 1], `spread ${k}`).toBeGreaterThan(0.3);
+      const one = Float64Array.from(vFlat);
+      one[FING_R + k * 2 + 1] = vFan[FING_R + k * 2 + 1]!;
+      const a = `fingerR_${k + 1}_3`;
+      const b = `fingerR_${from}_3`;
+      expect(gap(posed(one).pos, a, b), `${a} spreads away from ${b}`).toBeGreaterThan(gap(flat, a, b) + 0.004);
+    }
     S.dispose();
   }, 60_000);
 });
