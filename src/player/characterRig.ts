@@ -633,6 +633,8 @@ export class CharacterRig {
   set tuneRows(on: boolean) {
     if (on && !this.tuneSt) this.tuneSt = tuneRigState();
     else if (!on) this.tuneSt = null;
+    // (anim-bake-1022) a Wren rig holds Wren's low ready / pistol ready, every other rig the guards' (a reference swap)
+    this.graph.wrenReady = on;
   }
   /**
    * (anim-gear, marlow-bays item 22) The version of this rig's gear offsets (`tuneGear.ts`; 0 on a rig without
