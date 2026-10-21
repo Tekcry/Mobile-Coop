@@ -205,6 +205,40 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     channels are cleared, `clearKeyedArms`).
   - Hooks: `__studio.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
     v)`, `keys()`, `keysStep(dir)`, `keysMirror(on)`.
+- (marlow-bays item 29: tuner v3, simpler; the current tuner layout, the item 26 / 26b, T2 and tuner-ui bullets below
+  are history where they differ) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerPhone.ts`,
+  `ui/tunerEffect.ts`, `ui/animTunePad.ts`; tests `tests/tunerV3.test.ts`, `tests/tunerEffect.test.ts`,
+  `tests/tunerHands.test.ts`, `tests/tunerLayout.test.ts`, `tests/tunerPhone.test.ts`, `tests/animTunePad.test.ts`):
+  - One layout for every input (Michael: "consistent between touch, controller, and k&m"): the input changes only the
+    hint glyphs; the viewport size alone picks the dock, the drawer (landscape, short side <= 600 px) or the sheet
+    (portrait, width <= 900 px). Body map, search, recent and pinned sliders, the Settings tab, the edit mode and 26b's
+    pad density are gone.
+  - One column: the top block (header, tabs, the studio's playback bar), the tab's "what" row (Part, State / Weapon),
+    folding slider groups, then a collapsed More (time and speed, View aids, panel settings with "Highlight on her" and
+    the Debug readout, presets, files). (Phase 2) On a drawer / sheet the top block is sticky as a whole (the tabs and
+    the playback bar scrolled away under the header before: Michael's 844 x 390 screenshots); the tabs and the playback
+    bar are one row that scrolls sideways; a row brought into view stops under it (`scroll-padding-top`).
+  - Highlight: a 3 px dot (a hairline along a bone), off with More > "Highlight on her". (Phase 2) The studio's green
+    skeleton and foot marks start off; More > View aids (studio only) turns Skeleton, Feet and Ghost poses on.
+  - (Phase 2) Keyed clips: the studio pins a keyed clip's own state on her rig (`anim/tune.ts` `TUNE_PIN`,
+    `tuneBodyGroup`; `anim/studio.ts` `studioBodyPin`), so the Body, Joints, Limb reach, Hands & feet and Gun rows of
+    that state reach the clip (on the spot her pose had no speed and picked `idle`: every jog slider did nothing). The
+    treadmill applies Feet apart and Knee lift (`studioDrive.ts`). The Body tab greys the sliders that do nothing in the
+    loop playing now (keyed clip, procedural, gun in hand) with a one-line reason: data from the effect probe
+    (`tests/helpers/tuneEffectProbe.ts`, table `ui/tunerEffect.ts`, the test fails when they disagree).
+  - (Phase 2) Plain words: units shown as cm (metres x 100), degrees (radians), ×, frames, per m/s (display only: ids,
+    stored values, saves and exports unchanged; `tunerLayout.shownUnit`); an armed row names the hands "Gun hand" and
+    "Support hand" (`handRoles`, `roleWords`); "Gun in the gun hand" moves the gun about her grip, the support hand
+    follows it (the report "gun in hand and support modified the same hand").
+  - (Phase 2) Camera: the View tab's "Around her" (0 behind, 90 her right, 180 front), "Camera tilt" and "Distance"
+    sliders set the orbit and follow the stick, drag, touch orbit and snaps (`player/freeView.ts` `FREE_SET`,
+    `FREE_ORBIT`, `FreeViewCore.setOrbit` / `snapTo`); a held snap keeps its angle to her facing and the look turns that
+    angle; Side pressed again swaps sides (`FreeSnap` `left`).
+  - (Phase 2) A rebuild (a key stepped, picked, added or deleted; another state) keeps the panel's scroll and the
+    focused slider. The studio's playback bar has the foot slide line ("Foot slide L 0.0 cm  R 0.0 cm", amber over
+    0.5 cm) from her rig's optional `footSlide` (track C), hidden while the field is absent. The pad controller runs on
+    real time (`padPoll`): the left stick and the repeats worked off the game's time, which is 0 while the tuner holds
+    the game.
 - (marlow-bays item 26: the tuner on a phone; Michael's written exception to M21 for the animation tuner and the Anim
   Studio only. The game stays desktop only: no phone look, no mobile path, no new work outside these two tools.) Pure
   parts `ui/tunerPhone.ts` (tests `tests/tunerPhone.test.ts`), suite `e2e-tuner-phone`:

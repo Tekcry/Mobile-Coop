@@ -1,67 +1,45 @@
 import { describe, expect, it } from 'vitest';
-import { emptyPhoneLayout, GESTURE, nearestMapPart, PAD_ROW, PHONE_FONT, PHONE_MAP_SCALE, PHONE_PAD_FONT, PHONE_PAD_MAP_SCALE, phoneMapHitRadius, TOUCH_TARGET, TouchGesture, tunerPhoneLayout } from '../src/ui/tunerPhone';
+import { emptyPhoneLayout, GESTURE, PHONE_FONT, PHONE_MAX_SIDE, SHEET_MAX_WIDTH, TOUCH_TARGET, TouchGesture, tunerPhoneLayout } from '../src/ui/tunerPhone';
 import { clearTouchIn, FREE_CFG, FREE_IN, FreeViewCore, freeSnap } from '../src/player/freeView';
 
-describe('tunerPhoneLayout (marlow-bays item 26, 26b)', () => {
-  it('keeps the desktop layout without a touch screen, at any size, pad or not', () => {
-    for (const [w, h] of [[1920, 1080], [844, 390], [390, 844], [1280, 640]] as const) {
-      expect(tunerPhoneLayout(w, h, false).mode).toBe('desktop');
-      expect(tunerPhoneLayout(w, h, false, true)).toEqual(emptyPhoneLayout());
+describe('tunerPhoneLayout (marlow-bays item 26; item 29: the viewport size alone decides)', () => {
+  it('desktop sizes keep the dock, touch screen or not (the function has no touch input at all)', () => {
+    // item 29: a touchscreen laptop at 1920 x 1080 (touch points, a coarse pointer) gets the dock
+    for (const [w, h] of [[1920, 1080], [1280, 640], [1366, 768], [1180, 820], [1024, 768]] as const) {
+      expect(tunerPhoneLayout(w, h)).toEqual(emptyPhoneLayout());
     }
+    expect(tunerPhoneLayout(1080, 1920).mode).toBe('desktop');
   });
-  it('keeps the desktop layout on a large touch screen (a tablet)', () => {
-    expect(tunerPhoneLayout(1024, 768, true).mode).toBe('desktop');
-    expect(tunerPhoneLayout(768, 1024, true, true).mode).toBe('desktop');
-  });
-  it('touch, landscape: the side drawer about 38% wide, 34 px targets, 13 px text', () => {
-    const l = tunerPhoneLayout(844, 390, true);
-    expect(l).toMatchObject({ mode: 'drawer', pad: false, width: 321, height: 0, font: PHONE_FONT, target: TOUCH_TARGET, mapScale: PHONE_MAP_SCALE });
-    expect(l.font).toBeGreaterThanOrEqual(12);
-    expect(l.font).toBeLessThanOrEqual(13);
-    expect(l.target).toBeGreaterThanOrEqual(32);
-    expect(l.target).toBeLessThanOrEqual(36);
-    const s = tunerPhoneLayout(640, 360, true);
+  it('a short landscape screen: the side drawer about 36% wide, compact text', () => {
+    const l = tunerPhoneLayout(844, 390);
+    expect(l).toMatchObject({ mode: 'drawer', width: 304, height: 0, font: PHONE_FONT, target: TOUCH_TARGET });
+    expect(tunerPhoneLayout(800, PHONE_MAX_SIDE).mode).toBe('drawer');
+    expect(tunerPhoneLayout(800, PHONE_MAX_SIDE + 1).mode).toBe('desktop');
+    const s = tunerPhoneLayout(640, 360);
     expect(s.mode).toBe('drawer');
     expect(640 - s.width).toBeGreaterThanOrEqual(640 * 0.55);
   });
-  it('touch, portrait: the bottom sheet about 45% high', () => {
-    const l = tunerPhoneLayout(390, 844, true);
-    expect(l).toMatchObject({ mode: 'sheet', pad: false, height: 380, width: 0, target: TOUCH_TARGET });
-    const s = tunerPhoneLayout(360, 640, true);
-    expect(s.mode).toBe('sheet');
+  it('portrait: the bottom sheet about 42% high (phones and portrait tablets)', () => {
+    const l = tunerPhoneLayout(390, 844);
+    expect(l).toMatchObject({ mode: 'sheet', height: 354, width: 0, font: PHONE_FONT, target: TOUCH_TARGET });
+    const s = tunerPhoneLayout(360, 640);
     expect(640 - s.height).toBeGreaterThanOrEqual(640 * 0.5);
+    // an 820 x 1180 iPad in portrait: the sheet (the dock would take 62% of the width), at the desktop text scale
+    const t = tunerPhoneLayout(820, 1180);
+    expect(t).toMatchObject({ mode: 'sheet', font: 0, target: TOUCH_TARGET });
+    expect(1180 - t.height).toBeGreaterThan(600);
+    expect(tunerPhoneLayout(SHEET_MAX_WIDTH + 1, 1400).mode).toBe('desktop');
   });
-  it('pad: smaller again (26 px rows, 11 px text, no touch minimum) and narrower, both orientations', () => {
-    const l = tunerPhoneLayout(844, 390, true, true);
-    expect(l).toMatchObject({ mode: 'drawer', pad: true, width: 287, font: PHONE_PAD_FONT, target: PAD_ROW, mapScale: PHONE_PAD_MAP_SCALE, mapHitR: 0 });
-    const p = tunerPhoneLayout(390, 844, true, true);
-    expect(p).toMatchObject({ mode: 'sheet', pad: true, height: 338, target: PAD_ROW });
-    expect(l.font).toBeLessThan(tunerPhoneLayout(844, 390, true).font);
-    expect(PAD_ROW).toBeLessThan(TOUCH_TARGET);
+  it('one density per size: the same layout whatever the input', () => {
+    expect(tunerPhoneLayout(844, 390)).toEqual(tunerPhoneLayout(844, 390));
   });
   it('a bad viewport is desktop; the out object is reused', () => {
-    expect(tunerPhoneLayout(0, 0, true).mode).toBe('desktop');
-    const o = tunerPhoneLayout(844, 390, true);
-    expect(tunerPhoneLayout(844, 390, true, true, o)).toBe(o);
-    expect(o.pad).toBe(true);
-    expect(tunerPhoneLayout(1920, 1080, false, false, o)).toBe(o);
+    expect(tunerPhoneLayout(0, 0).mode).toBe('desktop');
+    const o = tunerPhoneLayout(844, 390);
+    expect(tunerPhoneLayout(390, 844, o)).toBe(o);
+    expect(o.mode).toBe('sheet');
+    expect(tunerPhoneLayout(1920, 1080, o)).toBe(o);
     expect(o).toEqual(emptyPhoneLayout());
-  });
-});
-
-describe('the body map on a phone', () => {
-  it('a touch hit radius that makes every target at least the touch target across', () => {
-    const l = tunerPhoneLayout(844, 390, true);
-    expect(l.mapHitR * 2 * l.mapScale).toBeGreaterThanOrEqual(TOUCH_TARGET);
-    expect(phoneMapHitRadius(1.5, 44) * 3).toBeGreaterThanOrEqual(44);
-  });
-  it('picks the nearest centre within the radius', () => {
-    const px = [50, 42, 58];
-    const py = [72, 78, 78];
-    expect(nearestMapPart(px, py, 3, 50, 70, 14.7)).toBe(0);
-    expect(nearestMapPart(px, py, 3, 44, 79, 14.7)).toBe(1);
-    expect(nearestMapPart(px, py, 3, 60, 80, 14.7)).toBe(2);
-    expect(nearestMapPart(px, py, 3, 0, 0, 14.7)).toBe(-1);
   });
 });
 
