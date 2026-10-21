@@ -1,9 +1,7 @@
 # marlow-bays - state
 
-B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): PAUSED by the orchestrator (usage, 2026-10-21) at a
-clean commit on `feature/marlow-bays`; built, checked and fix round done, no PR yet. See "Slice R" below.
-Resume R: build, run e2e-coop and e2e-netmove once on the head (`E2E_SUITE_TIMEOUT=2400 E2E_JOBS=1` on a cloud VM),
-then open the PR to master. Then slice S (server browser, item 28) on `feature/server-browser`, cut from R's head.
+B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): done, PR to master open (master 4.42.0 merged).
+Slice S (server browser, item 28): own branch `feature/server-browser` from R's head, own PR.
 Track A (Course Ready Build), 2026-10-21 ~21:40:
 - Merged: slice T #82 (4.35.0), T1a #83 (4.36.0), T2 #86 (4.39.0), item 23 key timing #87 (4.40.0), items 26 + 26b
   tuner on phones #89 (4.41.0; M21 exception for the tuner and Anim Studio only).
@@ -86,12 +84,11 @@ leaver, stale connection, host drop and the next host, the record and token); e2
 out of the guards' list) and rejoins from the main menu as the same player where it stood with its 60 hp; the host
 drops (the joiner waits on the code, no dialog) and resumes from the main menu with the joiner back; e2e-menus: the
 Rejoin row.
-Results so far (cloud, software GL): unit tests all pass (2411); e2e-menus passes (the Rejoin row); e2e-coop on the
-pre-fix-round build passed the whole joiner drop / rejoin block (pause shows the code, same player back, where it
-stood, 60 hp kept), then hit the old lobby stall, now diagnosed: a "Host left" dialog in the lobby because the
-dev / test `localTransport` dropped a peer silent for 15 s while the other page loaded a map; raised to 60 s (test
-transport only). The host drop / Resume hosting block sits after that stall and has not run yet. The final run on the
-fix-round head (e2e-coop, e2e-netmove) was stopped by the usage pause: pending.
+Results (cloud, software GL, the head after master 4.42.0 merged): `npm run check` passes (2483 unit tests);
+e2e-coop passes end to end (both rejoin blocks: the joiner drops and rejoins as the same player where it stood with
+its health; the host drops, the joiner waits on the code, Resume hosting brings both back); e2e-netmove passes;
+e2e-menus passed on the slice (the Rejoin row). The old e2e-coop lobby stall on small VMs was the test transport's 15 s
+silent-peer limit (a "Host left" dialog while the other page loaded a map): now 60 s (`localTransport`, tests only).
 Checker (fresh): 5 defects, all fixed in the fix round: the token went out in broadcast hellos (now to the host alone;
 a live slot is never taken; a client refused as full ignores that room's lobbies); the restore clock started before a
 slow joiner loaded (now held until its first state, then 30 s); a held partner counted as able to revive; a hold kept
@@ -100,7 +97,7 @@ Notes (not done): the full-room fallback lets anyone with the code take the only
 uses Math.random; a waiting joiner has no timeout; Sector Ops resumes from section 1 (R5).
 
 ## Done
-- 2026-10-21: slice R (cloud): item 27 rejoin built, checked, fix round; paused before the final e2e and the PR.
+- 2026-10-21: slice R (cloud): item 27 rejoin; PR to master.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).
 
