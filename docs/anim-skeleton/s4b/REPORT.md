@@ -27,7 +27,7 @@ Status: the evaluator is done; the spread change itself is routed to track A (`t
   twistUpper, wrist, and the FK leg fields on `legs` clips; keep the lerped fields linear (head, sh, fore twist, clav,
   fingers, legd, w); (3) for exact: trunk offsets from locals re-keyed in Blender's channel frames (an exported
   rest-quaternion table), arm offsets composed as FK.
-- Open: arms between keys up to 0.57 cm (closing it needs the shoulder / elbow channels re-keyed incl. location and a TS
+- Open: arms between keys up to 0.57 cm (0.70 cm on the jog keys rebaked in 4.46.0; fixtures regenerated after that merge) (closing it needs the shoulder / elbow channels re-keyed incl. location and a TS
   port of key_clip.py `fk`); retimed keys (#87: the baked clip is warped linearly) and the base for added keys (#91).
 - Files: `src/anim/keyCurve.ts`, `tests/keyCurve.test.ts`, `tests/keyedExactPreview.test.ts`,
   `tests/fixtures/key-curve-blender.json` (118 KB), `tests/fixtures/keyed-s4b-rebake.json` (59 KB),
