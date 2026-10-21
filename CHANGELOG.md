@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.33.1 - No more GL program warnings when graphics settings change on a hardware GPU (2026-10-21, PR #79)
+- Hardware GPUs: no more "GL_INVALID_VALUE: glGetProgramiv: Program object expected" warnings when the post stack is
+  rebuilt (a graphics setting change). A shader program that is still compiling in parallel is now deleted only once its
+  compile finishes (`src/core/babylon.ts`). e2e-desktop under `E2E_GPU=1` passes its console-errors check again
+  (backlog 27).
+
 ## 4.33.0 - Animation tuner laid out for the pad: tabs, drop-downs, one step at a time (2026-10-21, PR #80)
 - Animation tuner layout pass for the pad (Michael, 2026-10-21: "Not practical for controller use. It's such a long
   list"): tabs across the top, LB / RB (or a click) cycle them: View, Body, Hands & feet, Weapon, Stepping, Weight,
