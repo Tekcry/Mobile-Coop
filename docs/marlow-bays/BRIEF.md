@@ -55,6 +55,13 @@ Added ~14:10:
     the mirrored key named; the edited bone highlighted (item 10). A one-line hint in the tab: "Key edits change one pose;
     whole-cycle changes go in the state tabs."
 
+16. (~15:05) "whenevr im in a certain tab, whichever part/key i select should automatically play, ie if i select a
+    weapon stance, the character should swap automatically to that stance, if i select walk it should start walking. i
+    should be able to alter speed/steps/pause etc no matter which window im in". Fix (extends 13 and 15): every pick in
+    every tab (state, weapon stance, clip, key, co-op pair, traversal move) drives what plays at once; a playback bar
+    docked on every tab (play / pause, < key / key >, frame scrub, speed, loop on the spot) with keys and pad buttons
+    that work from any tab.
+
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
 ## Order
