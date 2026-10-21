@@ -5,7 +5,7 @@ import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
-import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, wrenTuckMul, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
@@ -320,6 +320,9 @@ export const READY_ELBOW_TUCK = 0.5;
 /** (anim-rework S4) Crouched the low ready elbows tuck this much (the crouched trunk leans the shoulders over the gun:
  *  READY_ELBOW_TUCK left them 6.7 cm out in the crouched low ready walk, the leaning trunk 5.9 at 0.7). */
 export const READY_ELBOW_TUCK_CROUCH = 0.8;
+/** (anim-bake-targets) The arm IK pole's outward share (was the inline 0.55 in solveArm); the Body slider elbowPoleMul
+ *  scales it, per state through the base table's `body` key. */
+export const ELBOW_POLE_OUT = 0.55;
 /** (anim-rework S4) The knee pole's outward share in the free kneel (KNEE_OUT 0.12 put the front knee 4.7 cm outside its
  *  ankle): the knees track over the toes. */
 export const KNEEL_KNEE_OUT = 0.03;
@@ -2905,8 +2908,8 @@ export class CharacterRig {
     // (anim-rework S3) the gun in the hands tucks the elbows at low ready too (READY_ELBOW_TUCK)
     // (anim-rework S4) crouched more (READY_ELBOW_TUCK_CROUCH)
     const cr = Math.max(0, Math.min(1, this.input.crouch));
-    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK + (READY_ELBOW_TUCK_CROUCH - READY_ELBOW_TUCK) * cr : 0) * TUNE_CUR.tuckMul;
-    this.dirToWorld(side * (0.55 * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK + (READY_ELBOW_TUCK_CROUCH - READY_ELBOW_TUCK) * cr : 0) * TUNE_CUR.tuckMul * (this.tuneSt ? wrenTuckMul(this.supportStyle === 'cup', this.aimK, cr) : 1); // (anim-bake-targets) Wren's tuck per gun state
+    this.dirToWorld(side * (ELBOW_POLE_OUT * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
     // height stays the weld's)
     {

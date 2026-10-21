@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased - anim-bake-targets
+- Animation tuner: every slider now bakes. The Body sliders with no code value (track, arm swing, knee lift, elbow out,
+  elbow pole and the rest) bake into the base table's new `body` key, which every Wren rig reads (the player, the co-op
+  partner, the Anim Studio puppets; guards never); the gun's elbow tuck bakes per gun state (six Wren constants, the
+  guards keep theirs). Michael's 13 values from 2026-10-22 that stayed in his browser are now built in: the feet on a
+  narrow track at idle / walk / jog / run, the elbows out at idle / walk / jog, more arm swing at jog / run, more knee
+  lift at run, the elbows out at low ready and the rifle / pistol low ready tuck.
+
 ## Unreleased - anim-bake-1022
 - Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
   equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied

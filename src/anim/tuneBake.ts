@@ -17,6 +17,7 @@ import { applyKeyEdits, editedClips, KEY_FIELDS, keyEditPlan, keyEditRow, keyFil
 import { KEY_TIME_ID, KEY_TIME_MAX } from './tuneKeysTime';
 import { KEY_AT_ID, KEY_DEL_ID, parseKeyAdded } from './tuneKeysEdit'; // (item 25, track A)
 import { migrateTuneChanged } from './tuneRows';
+import { BODY_BASE_FIELDS } from './tune';
 import { applyBaseEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, spliceAnimBase } from './tuneBakeBase';
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
 
@@ -453,6 +454,8 @@ interface Entry {
   row: BakeRow;
 }
 
+/** (anim-bake-targets) The Body sliders the base table's `body` key holds. */
+const BODY_BASE_IDS = new Set<string>(BODY_BASE_FIELDS);
 const fail = (error: string): BakeResult => ({ ok: false, error, rows: [], writes: [], diff: '', rebake: [], warnings: [], baked: 0, manual: 0 });
 const opText = (op: BakeOp, scale?: number): string => (op === 'mul' ? 'x' : op === 'div' ? '/' : op === 'add' ? '+' : '-') + (scale !== undefined && scale !== 1 ? ` (x${scale})` : '');
 /** The rule's edits, the file named once per run of edits in it: `src/config/camera.ts: CAMERA.boomHip +, ...`. */
@@ -596,8 +599,9 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   const pending = new Map<string, Map<string, PendingOp[]>>();
   let baked = 0;
   let manualN = skippedN;
-  // (anim-joints J1) Joints, Hands & feet, IK strength and Weapon: the generated base table (`animBase.ts`)
-  const isBase = (en: Entry): boolean => BAKE_BASE_SECTIONS.includes(en.section) && !MANUAL.some((x) => x.section === en.section && (x.id === en.id || x.id === '*') && (x.groups ? x.groups.includes(en.group) : true));
+  // (anim-joints J1) Joints, Hands & feet, IK strength and Weapon: the generated base table (`animBase.ts`);
+  // (anim-bake-targets) also every Body slider and group no code rule covers (the `body` key)
+  const isBase = (en: Entry): boolean => BAKE_BASE_SECTIONS.includes(en.section) && !(byEntry.get(en)?.length) && (en.section !== 'body' || BODY_BASE_IDS.has(en.id)) && !MANUAL.some((x) => x.section === en.section && (x.id === en.id || x.id === '*') && (x.groups ? x.groups.includes(en.group) : true));
   const baseEntries: Entry[] = [];
   for (const en of entries) {
     const row = en.row;
