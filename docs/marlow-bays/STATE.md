@@ -1,7 +1,9 @@
 # marlow-bays - state
 
-B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): see "Slice R" below; its PR to master is open.
-Next (cloud): slice S (server browser, item 28) on `feature/server-browser`, cut from R's head.
+B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): PAUSED by the orchestrator (usage, 2026-10-21) at a
+clean commit on `feature/marlow-bays`; built, checked and fix round done, no PR yet. See "Slice R" below.
+Resume R: build, run e2e-coop and e2e-netmove once on the head (`E2E_SUITE_TIMEOUT=2400 E2E_JOBS=1` on a cloud VM),
+then open the PR to master. Then slice S (server browser, item 28) on `feature/server-browser`, cut from R's head.
 Track A (Course Ready Build), 2026-10-21 ~19:30:
 - Merged: slice T #82 (4.35.0), T1a #83 (4.36.0).
 - T2 (tuner redesign) = PR Tekcry/Mobile-Coop#86, branch `feature/marlow-tuner-t2` (worktree
@@ -82,10 +84,22 @@ Tests: unit `tests/rejoin.test.ts` (wire, held slot and token, full-room fallbac
 leaver, stale connection, host drop and the next host, the record and token); e2e-coop: the joiner drops (held line,
 out of the guards' list) and rejoins from the main menu as the same player where it stood with its 60 hp; the host
 drops (the joiner waits on the code, no dialog) and resumes from the main menu with the joiner back; e2e-menus: the
-Rejoin row. Results: see the PR.
+Rejoin row.
+Results so far (cloud, software GL): unit tests all pass (2411); e2e-menus passes (the Rejoin row); e2e-coop on the
+pre-fix-round build passed the whole joiner drop / rejoin block (pause shows the code, same player back, where it
+stood, 60 hp kept), then hit the old lobby stall, now diagnosed: a "Host left" dialog in the lobby because the
+dev / test `localTransport` dropped a peer silent for 15 s while the other page loaded a map; raised to 60 s (test
+transport only). The host drop / Resume hosting block sits after that stall and has not run yet. The final run on the
+fix-round head (e2e-coop, e2e-netmove) was stopped by the usage pause: pending.
+Checker (fresh): 5 defects, all fixed in the fix round: the token went out in broadcast hellos (now to the host alone;
+a live slot is never taken; a client refused as full ignores that room's lobbies); the restore clock started before a
+slow joiner loaded (now held until its first state, then 30 s); a held partner counted as able to revive; a hold kept
+the joiner's grabs and team moves (now let go / ended); a protocol test still read 25.
+Notes (not done): the full-room fallback lets anyone with the code take the only held slot (by design, R2); the token
+uses Math.random; a waiting joiner has no timeout; Sector Ops resumes from section 1 (R5).
 
 ## Done
-- 2026-10-21: slice R (cloud): item 27 rejoin; PR to master.
+- 2026-10-21: slice R (cloud): item 27 rejoin built, checked, fix round; paused before the final e2e and the PR.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).
 
