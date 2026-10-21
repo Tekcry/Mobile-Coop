@@ -1,7 +1,7 @@
 # anim-joints - plan
 
 Two slices, each: implementer (Opus), fresh checker (Opus), at most one fix round, then commit, push, a message to the
-orchestrator. Then the PR (full e2e on the laptop).
+orchestrator. Then the PR (full e2e). Heavy runs: desktop under `C:/NightShift/heavy.lock`, the laptop only when it is held.
 
 ## Slice J1 - the base table every Wren rig reads (COVERAGE gap 1)
 
@@ -30,7 +30,7 @@ Build:
 6. Docs: `docs/anim-tuner/BAKE.md` (the base table), `docs/systems/ui.md` tuner lines, `CHANGELOG.md` under
    "Unreleased - anim-joints", `TESTING.md` (bake an export, see the partner take it).
 
-Checks: `npm run check`; `e2e-studio` + the co-op suite (desktop, E2E_JOBS=1) or the laptop.
+Checks: `npm run check`; `e2e-studio` + the co-op suite (desktop, E2E_JOBS=2).
 
 ## Slice J2 - move and action rows (COVERAGE gap 2)
 
@@ -54,8 +54,8 @@ Build:
 7. Docs as J1.
 
 Checks: `npm run check`; `e2e-studio` + `e2e-anim` (desktop), slice tier (`e2e:quick` + `e2e-ctcourse`, `e2e-coop`,
-`e2e-netmove`: `src/player` changed) on the laptop.
+`e2e-netmove`: `src/player` changed), desktop.
 
 ## PR
-Merge master (with T1a) in, full `npm run e2e` on the laptop, CI check, PR to master "anim-joints (T1b)", message the
+Merge master (with T1a) in, full `npm run e2e` (desktop, `E2E_JOBS=2`), CI check, PR to master "anim-joints (T1b)", message the
 orchestrator with the PR and the open items (A6 / A7 hooks if still pending).

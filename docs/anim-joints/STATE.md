@@ -18,8 +18,8 @@ J1 checker, fix round, commit; J2 (move and action rows); PR after master has T1
 ```
 Night Shift | CT Core Build: anim-joints RESUME. Read CLAUDE.md, docs/ROADMAP.md, then docs/anim-joints/BRIEF.md,
 PLAN.md and STATE.md in C:/NightShift/Mobile-Coop-anim-joints (branch feature/anim-joints; branch guard before every
-write). Resume from STATE "Now": implementer + fresh checker per slice, one fix round; desktop runs only check and one
-or two named suites (E2E_JOBS=1, port 4191, C:/NightShift/heavy.lock), three or more suites and the full e2e go to
-"Night Shift | Character Build" on the laptop. Message "Night Shift | Orchestrator" at each slice and the PR.
+write). Resume from STATE "Now": implementer + fresh checker per slice, one fix round; the desktop is the main test
+machine (full e2e E2E_JOBS=2, port 4191, one heavy job under C:/NightShift/heavy.lock); the laptop ("Night Shift |
+Character Build") only when the desktop lock is held. Message "Night Shift | Orchestrator" at each slice and the PR.
 Model Opus, effort high.
 ```
