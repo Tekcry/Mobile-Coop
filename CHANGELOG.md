@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-bays slice T2 (tuner redesign)
+## 4.39.0 - Animation tuner redesign: docked panel in the menu style, body map, pinned sliders, folding groups; brighter studio (2026-10-21, PR #86)
 - The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
   looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values
   (Medium, now the default, is 19 px at 1080p; S / M / L 16 / 19 / 22).
