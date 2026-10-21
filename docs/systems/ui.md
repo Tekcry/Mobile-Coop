@@ -249,13 +249,13 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   row. The per-gun Joints rows stay for the armed states only.
 - (anim-gear, marlow-bays item 22) Gear (`anim/tuneV2Sections.ts` `GEAR_SECTION`, tables `anim/tuneGear.ts`): worn-gear
   offsets per socket, its own tuner tab (`sec:gear`, "Gear": the panel builds it from the registry, no UI change).
-  Groups `gear.<socket>` (holster, backL, backC, backR, slingBack, slingHip) and `gear.<socket>.crouch` (added
+  Groups `gear.<socket>` (holster, backL, backC, backR, slingHip) and `gear.<socket>.crouch` (added
   over the standing row by the rig's crouch amount 0..1); sliders x / y / z (m, -0.1..0.1) and pitch / yaw / roll (deg,
   -45..45), identity 0, no follow. Deltas on the base table's `gear` key; every Wren rig composes its own
   (`TuneRigState.gear`, in `tuneRigBegin`). Where each applies: holster -> the thigh pistol (`WeaponModel.place`, the
   `thighMount` branch, about the holster's weapon point; the generic thigh slot likewise); backL / backR -> the back
   mount's guns (about the stud); backC -> the diagonal centre sling (about the grip); slingHip -> the rig's `slingHip`
-  node and the compact gun on the hip sling (about its stock-end pivot); slingBack -> the rig's `slingBack` node. No
+  node and the compact gun on the hip sling (about its stock-end pivot). No slingBack socket (nothing reads that node yet) and no
   pouches socket: Wren's kit draws her grenade pouches (the GrenadePouches meshes are hidden on her rig), so it would
   move nothing (dropped until they can move). A gun's frame is its own in the slot (x right, y top, z toward the muzzle); a node's is its
   parent's. A draw / holster's travel targets the moved slot (it places its end through `place`). Visual only (G-A3).

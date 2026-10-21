@@ -7,7 +7,8 @@
  * - `holster`: the sidearm on the right thigh (`CharacterRig.thighMount`, Wren's WREN_HOLSTER, or the generic thigh slot);
  * - `backL` / `backC` / `backR`: the long guns on the back (`CharacterRig.backMount` slots, the diagonal centre sling);
  * - `slingHip`: the rig's `slingHip` node (the belt's sling socket) and the compact gun on the left-hip sling;
- * - `slingBack`: the rig's `slingBack` node (the back plate's sling anchor);
+ * (No `slingBack` socket: nothing reads the rig's `slingBack` node yet (no sling is modelled; the diagonal centre gun uses
+ *   `backMount.backC`), so its slider would move nothing; dropped with the pouches, orchestrator 2026-10-22.)
  * (No pouches socket: on Wren her own kit draws the grenade pouches and the GrenadePouches meshes are hidden, so a
  * pouches slider would move nothing; orchestrator 2026-10-22: dropped until the kit's pouches can move.)
  * A gun socket's frame is the gun's own frame in its slot (x its right side, y its top, z along the bore toward the
@@ -21,7 +22,7 @@
 import { ANIM_BASE } from './animBase';
 import { eulerQuat, wrapDeg } from './tuneJoints';
 
-export const GEAR_SOCKETS = ['holster', 'backL', 'backC', 'backR', 'slingBack', 'slingHip'] as const;
+export const GEAR_SOCKETS = ['holster', 'backL', 'backC', 'backR', 'slingHip'] as const;
 export type GearSocket = (typeof GEAR_SOCKETS)[number];
 export const GEAR_SOCKET_COUNT = GEAR_SOCKETS.length;
 /** Socket index by id. */
@@ -56,7 +57,7 @@ let anyLive = false;
 
 /** A carry slot's socket (`carrySlots.ts` CarrySlot: thigh, backL / backC / backR, sling), -1 none. */
 export function gearSocketOfSlot(slot: string): number {
-  return slot === 'thigh' ? 0 : slot === 'backL' ? 1 : slot === 'backC' ? 2 : slot === 'backR' ? 3 : slot === 'sling' ? 5 : -1;
+  return slot === 'thigh' ? 0 : slot === 'backL' ? 1 : slot === 'backC' ? 2 : slot === 'backR' ? 3 : slot === 'sling' ? GS.slingHip : -1;
 }
 
 export function gearRowIndex(row: string): number {

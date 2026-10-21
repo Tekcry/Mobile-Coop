@@ -3,6 +3,10 @@
 Written by the job lead from the implementer's hand-back (2026-10-22 ~00:40; the harness kept the subagent from
 writing files here).
 
+> Update (2026-10-22 ~01:10, job lead): the `pouches` and `slingBack` sockets were dropped after this report (nothing
+> visible moves with them on Wren; orchestrator: keep it simple for Michael). Five sockets remain (holster, backL,
+> backC, backR, slingHip), 10 groups. The checker (CHECK.md) passed before the slingBack drop; e2e-studio was rerun after.
+
 ## Built
 - `src/anim/tuneGear.ts` (new, pure, Babylon-free, plain-Node loadable): sockets `GEAR_SOCKETS` (holster, backL, backC,
   backR, slingBack, slingHip, pouches); params x / y / z (m), pitch / yaw / roll (deg); rows `GEAR_ROWS` (each socket,

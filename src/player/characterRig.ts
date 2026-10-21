@@ -620,9 +620,9 @@ export class CharacterRig {
   }
   /** (anim-gear) The gear version the sling nodes were placed at. */
   private gearNodesVer = 0;
-  /** (anim-gear) The sling nodes' own places while an offset is on them: slingBack position + rotation, then slingHip. */
+  /** (anim-gear) The hip sling node's own place while an offset is on it (slots 7..13; 0..6 unused since slingBack was dropped). */
   private readonly gearNodeBase = new Float64Array(14);
-  /** (anim-gear) Bit 1: slingBack offset, bit 2: slingHip offset. */
+  /** (anim-gear) Bit 2: slingHip offset. */
   private gearNodeOn = 0;
 
   /** (anim-gear) The sling nodes take their sockets' offsets (from their own places) when this rig's gear changed. */
@@ -630,7 +630,6 @@ export class CharacterRig {
     const ts = this.tuneSt;
     if (ts === null || ts.gear.ver === this.gearNodesVer) return;
     this.gearNodesVer = ts.gear.ver;
-    this.gearNode(ts, this.slingBack, GS.slingBack, 0, 1);
     this.gearNode(ts, this.slingHip, GS.slingHip, 7, 2);
   }
 

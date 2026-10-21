@@ -152,7 +152,7 @@ pair puppets; guards and other rigs never do). Result "baked (base table)"; targ
 **Gear** (anim-gear, marlow-bays item 22): baked into the same base table under the key `gear`. Result "baked (base
 table)"; target `src/anim/animBase.ts: gear.<row>.<param> + (m)` or `+ (deg, wrapped)`.
 - Shape: `"gear": { row: { param: v } }`, row = the group id after `gear.` (`holster`, `backL`, `backC`, `backR`,
-  `slingBack`, `slingHip`, and each with `.crouch`: `gear.holster.crouch` -> `gear["holster.crouch"]`),
+  `slingHip`, and each with `.crouch`: `gear.holster.crouch` -> `gear["holster.crouch"]`),
   param = `x` / `y` / `z` (metres, the socket's own frame) or `pitch` / `yaw` / `roll` (degrees). Offsets add (angles
   wrapped to -180..180), the same at run time (base + the tuner's delta) and in the bake (old base + the export's value).
 - The key is optional and printed only when a row has an offset (sorted, about 4 significant digits, 0 left out): a

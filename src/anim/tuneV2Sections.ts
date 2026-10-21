@@ -125,7 +125,7 @@ function syncStep(): void {
 }
 
 /**
- * (anim-gear, G-A1) Gear: `gear.<socket>` (holster, backL, backC, backR, slingBack, slingHip) and the crouched
+ * (anim-gear, G-A1) Gear: `gear.<socket>` (holster, backL, backC, backR, slingHip) and the crouched
  * variant `gear.<socket>.crouch` (applied over the standing one by the rig's crouch amount); x / y / z (m) and pitch /
  * yaw / roll (deg) in the socket's own frame, identity 0 (`tuneGear.ts`). Deltas on the base table's `gear` key; every
  * Wren rig reads them. No follow (the picker stays where it is put).
