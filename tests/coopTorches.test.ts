@@ -45,8 +45,12 @@ describe('coop-torches: the wire', () => {
         }
       }
     }
-    // a lit guard who is not seized is still one JSON digit
-    expect(String(packAlert(3, false, true)).length).toBe(1);
+    // without a torch the wire value is what it was before (0-7); a lit guard is 8-11, or 12-15 seized: at most one
+    // JSON byte more
+    expect(packAlert(3, true, false)).toBe(7);
+    expect(packAlert(0, false, true)).toBe(8);
+    expect(packAlert(3, false, true)).toBe(11);
+    expect(packAlert(3, true, true)).toBe(15);
   });
 
   it('a snapshot round-trips several guards with their torches on and off', () => {

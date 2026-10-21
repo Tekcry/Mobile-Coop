@@ -1,10 +1,11 @@
 # coop-torches - state
 
 ## Now
-PARKED 2026-10-21 ~09:20 (orchestrator: tuner-ui first). WIP committed and pushed, no PR. PROTOCOL_VERSION 24 -> 25
-(`src/net/protocol.ts`; tests/net.test.ts 5 places, tests/moveState.test.ts 1 place updated).
+PAUSED 2026-10-21 (account switch). WIP committed and pushed, no PR. Master 4.32.3 merged in. PROTOCOL_VERSION 24 -> 25
+(`src/net/protocol.ts`; asserts updated in tests/net.test.ts (5), tests/moveState.test.ts (1), tests/sectorStep3.test.ts (1)).
+Elsewhere: PR #80 tuner-ui (8ce854e7) waits on the laptop full e2e, then the orchestrator merges it.
 
-## Done (WIP commit)
+## Done (WIP commits)
 - `src/world/torches.ts` (new, pure): FLASHLIGHTS, TORCH values, `addTorchSlots`, `placeTorch`, `beamReach`, `BeamHit`:
   one torch code path for host and client. `world.ts` uses it and re-exports FLASHLIGHTS.
 - `src/ai/enemy.ts`: `placeTorch` via the shared function; test hook `torchOverride: boolean | null`; dogs never carry
@@ -20,15 +21,16 @@ PARKED 2026-10-21 ~09:20 (orchestrator: tuner-ui first). WIP committed and pushe
 - Aim derived on the client (x, y, z, yaw, st): no extra bytes for most lit guards.
 
 ## Next (resume)
-1. `tests/coopTorches.test.ts` (12 tests): fix the packAlert assert (`packAlert(3, false, true)` = 11, two digits) and
-   the same wording in the protocol.ts `packAlert` comment (lit guards 8-11). Find the hang: the file hits the 300 s
-   vitest timeout with no output; run its describe blocks one at a time (`-t`); suspects: the parity tests
-   (EnemyManager + the Enemy stand-in) and the dynamic import of enemyPuppet.
-2. tsc, eslint on the changed files, vitest on coopTorches, net, moveState, enemyManagerDespawn.
-3. Docs: `docs/systems/coop.md` (the snapshot field), `docs/systems/lighting.md` (client torches and parity),
-   CHANGELOG "Unreleased - coop-torches", one TESTING.md line, the e2e-coop header comment; `docs/coop-torches/REPORT.md`.
-4. Fresh check, one fix round; `npm run check`, e2e-coop, e2e-netmove (desktop heavy.lock, E2E_SUITE_TIMEOUT 1200);
-   PR to master; Character Build full e2e; message the orchestrator.
+1. `tests/coopTorches.test.ts`: 11 pass, 1 fails: "a point receives the same light..." (line ~143), TypeError reading
+   'id' of undefined inside `guards.map((g) => holder(wire(em, g)))` while building the client side. Debug and fix.
+   There is no hang: the file takes ~80 s to load under load; give vitest a 300 s timeout. Optional: dynamic imports
+   for EnemyManager / Enemy in that file.
+2. tsc, eslint on the changed files, vitest on coopTorches, net, moveState, sectorStep3, enemyManagerDespawn.
+3. Docs are done (coop.md snapshot field v25, lighting.md client torches and parity, CHANGELOG, TESTING, e2e-coop
+   header). Write `docs/coop-torches/REPORT.md` (what was built, wire format and cost, files, A1-A6, tests, two-browser
+   test steps).
+4. Fresh Opus check, one fix round; `npm run check`, e2e-coop, e2e-netmove (desktop heavy.lock, E2E_SUITE_TIMEOUT
+   1500, or the laptop runner); PR to master; full e2e (Character Build); message the orchestrator with the head.
 
 ## Assumed decisions
 - A1 the torch bit in `al` bit 8 (undo: a separate field). A2 aim derived, not sent. A3 the client works out the beam

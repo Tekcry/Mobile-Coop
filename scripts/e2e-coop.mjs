@@ -1,6 +1,7 @@
 // Coop: two pages in one browser context over the BroadcastChannel transport (?net=local).
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
-// host-validated client hits + kill credit, downed/revive, results, back to lobby, guards and doors in co-op,
+// a host guard's flashlight on, then off, on the client (coop-torches), host-validated client hits + kill credit,
+// downed/revive, results, back to lobby, guards and doors in co-op,
 // difficulty, a door peek and a wall medkit in Free Roam, host leaving, malformed messages, and the offline state.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).

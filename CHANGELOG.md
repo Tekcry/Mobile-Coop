@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - coop-torches
+- Co-op: the joiner now sees the guards' flashlights. Each guard in the host's snapshot carries a torch bit in his
+  enemy `al` (`AL_TORCH` 8; protocol 24 -> 25). The client lights one of its own map's torch slots per lit guard and
+  places it with the host's code (`world/torches.ts`: `placeTorch`, `beamReach`, `addTorchSlots`) from the guard as
+  drawn, so the picture, the haze and the client's light meter read the same light the host's guard perception reads
+  (light parity). The aim is derived from the position, yaw and crouch already on the wire. Cost: 0 bytes for a guard
+  without a torch, at most 1 byte for a lit one.
+- `net/torchMirror.ts` (pure) is the client's mirror; `EnemyPuppet.torch` / `torchCrouch` feed it. A guard missing
+  from a snapshot loses his torch at once; listed again, it comes back from that snapshot.
+- Test hook: `Enemy.torchOverride` (true / false forces the torch rule; null in play). `EnemyManager.hasTorch(e)`.
+- Tests: `tests/coopTorches.test.ts` (the wire round trip, host vs client light at points, the mirror), the protocol
+  asserts at 25; e2e-coop checks a host guard's torch on, then off, on the client.
+
 ## 4.32.3 - e2e-stealth-ai wall peek picks its spot with the guard's own eye (2026-10-21, PR #78)
 - e2e-stealth-ai's wall peek block keeps a guard spot only if the spawned guard's own eye sees the peeking head and
   not the chest. It picked the spot with a 1.55 m eye guess, 4 cm below a grunt's eye, so the real guard could see the

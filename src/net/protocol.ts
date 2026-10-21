@@ -95,8 +95,8 @@ export interface EnemyState {
 export const AL_SEIZED = 4;
 export const AL_TORCH = 8;
 
-/** The wire `al`: alert level 0-3, seized, torch on. Still one JSON digit for a lit guard (8-11); two only when he is
- *  also seized (12-15). */
+/** The wire `al`: alert level 0-3, seized, torch on. A guard without a torch costs what he did before (0-7); a lit one
+ *  is 8-11 (calm or investigating 8-9: one JSON digit; searching or in combat 10-11: two) or 12-15 seized: at most one byte more. */
 export function packAlert(level: number, seized: boolean, torch: boolean): number {
   return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0);
 }
