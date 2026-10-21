@@ -164,6 +164,9 @@ export class CoopHost implements NetAttachment {
         g.app.toasts.show(`${name} left`, 'warn');
       }),
       s.events.on('game', ({ msg, from }) => this.receive(msg, from)),
+      // (marlow-bays R2) a joiner dropped mid-match: held where it stood until it rejoins
+      s.events.on('away', ({ id, name }) => this.hold(id, name)),
+      s.events.on('rejoin', ({ id, name }) => this.unhold(id, name)),
     );
     this.hookHud();
     this.hookCombat();
@@ -300,11 +303,57 @@ export class CoopHost implements NetAttachment {
     if (!this.tallies.has(p.id)) this.tallies.set(p.id, emptyTally());
   }
 
+  /** (R2) Held joiners: where each stood (restored on its rejoin) and when the last restore went out. */
+  private readonly restoreFor = new Map<string, { x: number; y: number; z: number; yaw: number; sent: number; until: number }>();
+
+  /**
+   * (marlow-bays R2) A joiner dropped mid-match: its body stays where it stood (frozen: no states arrive), takes no
+   * damage, and is out of the guards' and the course's player list until it rejoins; a line names the hold.
+   */
+  private hold(id: string, name: string): void {
+    const r = this.remotes.get(id);
+    if (!r || r.held) return;
+    r.held = true;
+    const i = this.remoteRefs.indexOf(r.ref);
+    if (i >= 0) this.remoteRefs.splice(i, 1);
+    this.restoreFor.set(id, { x: r.feet.x, y: r.feet.y, z: r.feet.z, yaw: r.state?.yaw ?? 0, sent: -1, until: 0 });
+    this.g.hud.setNetNotice(`${name} disconnected - reconnecting... (room ${this.s.code})`);
+    this.g.app.toasts.show(`${name} disconnected. Their place is held for 10 minutes (room ${this.s.code}).`, 'warn');
+  }
+
+  /** (R2) The held joiner is back: in play again, and put back where it was held (`restore`, repeated until it is). */
+  private unhold(id: string, name: string): void {
+    const r = this.remotes.get(id);
+    if (!r) return;
+    r.held = false;
+    if (!this.remoteRefs.includes(r.ref)) this.remoteRefs.push(r.ref);
+    const at = this.restoreFor.get(id);
+    if (at) at.until = this.time + 60;
+    this.g.hud.setNetNotice(null);
+    this.g.app.toasts.show(`${name} rejoined`);
+  }
+
+  /** (R2) Each state from a rejoined joiner: until it stands where it was held, the restore goes out every 0.5 s. */
+  private restoreStep(r: RemotePlayer): void {
+    const at = this.restoreFor.get(r.id);
+    if (!at || r.held) return;
+    if (this.time > at.until || hyp2(r.feet.x - at.x, r.feet.z - at.z) < 1) {
+      this.restoreFor.delete(r.id);
+      return;
+    }
+    r.allowTeleport(3);
+    if (at.sent >= 0 && this.time - at.sent < 0.5) return;
+    at.sent = this.time;
+    this.push({ e: 'restore', player: r.id, x: at.x, y: at.y, z: at.z, yaw: at.yaw });
+  }
+
   private removeRemote(id: string): void {
     const r = this.remotes.get(id);
     if (!r) return;
     this.partnerBoxes.get(id)?.dispose();
     this.partnerBoxes.delete(id);
+    this.restoreFor.delete(id);
+    if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
     r.dispose();
@@ -433,9 +482,12 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     switch (msg.t) {
       case 'pstate':
+        // (R2) a rejoined joiner's first states come from its fresh spawn: the jump back is allowed
+        if (this.restoreFor.has(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
+        this.restoreStep(r);
         break;
       case 'shot':
         if (this.ff && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);

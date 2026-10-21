@@ -50,7 +50,7 @@ async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   try {
     await untilNet(page, fn, arg, timeout, what);
   } catch (e) {
-    const st = await page.evaluate(() => { const c = window.__app.current; return { state: c?.constructor?.name, mode: c?.opts?.mode, map: c?.opts?.map, net: !!c?.net, ended: c?.isEnded, inGame: window.__coop?.inGame, screens: [...document.querySelectorAll('.screens > *')].map((e) => e.className).join('|') }; }).catch((x) => String(x));
+    const st = await page.evaluate(() => { const c = window.__app.current; return { state: c?.constructor?.name, mode: c?.opts?.mode, map: c?.opts?.map, net: !!c?.net, ended: c?.isEnded, inGame: window.__coop?.inGame, screens: [...document.querySelectorAll('.screens > *')].map((e) => e.className).join('|'), dialog: document.querySelector('.dialog-screen .dialog')?.textContent ?? '' }; }).catch((x) => String(x));
     throw new Error(`${e.message} (${JSON.stringify(st)})`);
   }
 }
@@ -322,6 +322,36 @@ try {
   await wait(300);
   const stillOk = await GA(() => window.__app.current.net.remotes.size === 1 && !window.__app.current.isEnded);
   assert(stillOk, 'host unaffected by junk');
+
+  // (marlow-bays R1-R2) the joiner drops mid-match (leaves to its menu): the host holds its place (frozen, unhurt, out
+  // of the guards' list, a "reconnecting" line); the joiner's main menu offers "Rejoin <code>", which takes the same
+  // player back where it stood, with the health the host kept
+  console.log('rejoin: the joiner drops, its place is held, it rejoins from the main menu where it stood');
+  {
+    const code0 = await GA(() => window.__coop.session.code);
+    const pid0 = await GB(() => window.__coop.session.selfId);
+    await GB(() => window.__app.current.pause());
+    const room = await GB(() => document.querySelector('.pause-screen .ps-room')?.textContent ?? '');
+    assert(room.includes(code0), `the pause menu shows the room code (${room})`);
+    await GB(() => window.__app.screens.top.resume());
+    await GA((id) => { window.__app.current.net.remotes.get(id).health.hp = 60; }, pid0);
+    await until(B, () => Math.abs(window.__app.current.target.health.hp - 60) < 0.01, null, 8000, 'client mirrors 60 hp');
+    const held0 = await GA((id) => { const r = window.__app.current.net.remotes.get(id); return [r.feet.x, r.feet.y, r.feet.z]; }, pid0);
+    await GB(() => window.__coop.leave());
+    await until(A, (id) => window.__coop.session.players.get(id)?.away === true, pid0, 20000, 'the host holds the dropped joiner');
+    const hold = await GA((id) => { const g = window.__app.current; const r = g.net.remotes.get(id); const n = document.querySelector('.hud-net-notice'); return { held: !!r?.held, inRefs: g.remotePlayers().some((x) => x.id === id), notice: n?.textContent ?? '', shown: !!n && n.style.display !== 'none' }; }, pid0);
+    assert(hold.held && !hold.inRefs && hold.shown && /reconnecting/.test(hold.notice) && hold.notice.includes(code0), `the host holds the joiner's place: frozen, out of the guards' list, a reconnecting line (${JSON.stringify(hold)})`);
+    await until(B, (c) => (document.querySelector('.main-menu [data-key="rejoin"]')?.textContent ?? '').includes(`Rejoin ${c}`), code0, 60000, 'the joiner main menu offers Rejoin <code>');
+    await GB(() => document.querySelector('.main-menu [data-key="rejoin"]').click());
+    await until(B, () => !!window.__app.current?.net && !!window.__app.current.puppet, null, LOAD_MS, 'the joiner is back in the match');
+    const pid1 = await GB(() => window.__coop.session.selfId);
+    assert(pid1 === pid0, `the rejoin takes the same player back (${pid0} -> ${pid1})`);
+    await until(B, (p) => { const q = window.__app.current.player.position; return Math.hypot(q.x - p[0], q.z - p[2]) < 1.2; }, held0, 30000, 'the rejoined joiner is put back where it was held');
+    await until(B, () => Math.abs(window.__app.current.target.health.hp - 60) < 0.01, null, 8000, 'the rejoined joiner keeps the health the host held (60)');
+    await until(A, (id) => { const g = window.__app.current; const r = g.net.remotes.get(id); const n = document.querySelector('.hud-net-notice'); return !!r && !r.held && g.remotePlayers().some((x) => x.id === id) && (!n || n.style.display === 'none'); }, pid0, 10000, 'the host has the joiner back in play');
+    await GA((id) => { const r = window.__app.current.net.remotes.get(id); r.health.hp = 100; r.damageMul = 0; }, pid0);
+    assert(true, 'a dropped joiner rejoins from its main menu as the same player, where it stood, with its health');
+  }
 
   console.log('team wipe ends the match; client gets results');
   await GA(() => {
@@ -741,6 +771,26 @@ try {
     await until(B, () => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'medkit-e2e'); const h = g.target.health; return h.hp >= h.maxHp - 0.01 && (!it || !it.enabled); }, null, 8000, 'client: full health, the station shown spent');
     await GA(() => { const r = window.__app.current.net.remotes.get(window.__bid); r.health.hp = 100; });
     assert(true, 'a client at a wall medkit is healed by the host (full on Normal, mirrored) and the station shows spent on both pages');
+  }
+
+  // (marlow-bays R1, R3) the host drops mid-match: the joiner stays in the match with "Host disconnected - waiting
+  // (code)"; the host's main menu offers "Resume hosting <code>", which reopens the room and starts the match again from
+  // its checkpoint, and the waiting joiner takes it
+  console.log('rejoin: the host drops, the joiner waits on the code, Resume hosting brings both back');
+  {
+    const code1 = await GA(() => window.__coop.session.code);
+    const mode1 = await GA(() => window.__app.current.opts.mode);
+    await GA(() => window.__coop.leave());
+    await until(B, (c) => { const n = document.querySelector('.hud-net-notice'); return !!n && n.style.display !== 'none' && n.textContent.includes(`waiting (${c})`); }, code1, 20000, 'the joiner waits on the code');
+    assert(await GB(() => !!window.__app.current?.net && window.__coop.waiting && !document.querySelector('.dialog-screen')), 'the joiner stays in the match (no Host left dialog)');
+    await until(A, (c) => (document.querySelector('.main-menu [data-key="rejoin"]')?.textContent ?? '').includes(`Resume hosting ${c}`), code1, 60000, 'the host main menu offers Resume hosting <code>');
+    await GA(() => document.querySelector('.main-menu [data-key="rejoin"]').click());
+    await until(A, ([m, c]) => !!window.__app.current?.net && window.__app.current.opts.mode === m && window.__coop.session.code === c && window.__coop.session.isHost, [mode1, code1], LOAD_MS, 'the host reopens the room in the same mode');
+    await until(B, () => !window.__coop.waiting && !!window.__app.current?.net && !window.__app.current.isEnded, null, LOAD_MS, 'the waiting joiner takes the resumed match');
+    await until(A, () => { const rs = [...window.__app.current.net.remotes.values()]; return rs.length === 1 && !!rs[0].state; }, null, LOAD_MS, 'the joiner is back on the host');
+    const n = await GB(() => { const e = document.querySelector('.hud-net-notice'); return !e || e.style.display === 'none'; });
+    assert(n, 'the waiting line is gone once the match resumes');
+    assert(true, 'a dropped host resumes the room from its main menu and the joiner is back in');
   }
 
   await toLobby();
