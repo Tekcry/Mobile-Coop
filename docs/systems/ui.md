@@ -35,6 +35,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `InputManager.applyModeClass`) show the pad's glyphs whenever a pad is the last device used. The binding table:
   `docs/systems/input-and-loop.md`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
+- Pause menu (`PauseScreen`, the field terminal): Resume, Objectives, (marlow-bays items 3-4) Restart at checkpoint
+  (Sector Ops and the course, `GameMode.restartCheckpoint`: the same clean retry as everyone down) and, in co-op,
+  Return to lobby (`SessionCallbacks.lobby`: the host's `backToLobby`, every client follows), then Settings, Report
+  feedback, the dev rows and Quit to menu. Both confirm in a `Dialog` that opens on Stay. In co-op they are host
+  actions (A1): the client's rows are blocked with the line "Host only" (`HOST_ONLY`) and it keeps its own Quit.
 - Controls (`ControlsScreen`, Settings > Controls > Remap controls, the one Controls place: no Pause item, menu-notes A2; loco D7): a Controller and a Keyboard & mouse tab to remap
   (`bindPanel`: two slots per verb, capture with a 5 s timeout, conflict warnings on both rows and a summary, reset per
   device with a confirm; pad: A rebinds, Y clears; Esc cancels, and on the pad holding B 1 s cancels). Decided, not
@@ -218,6 +223,12 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   - Hooks added to `window.__animTune`: `part(p)`, `partState()` (part, label, shown section, its shown slider keys,
     dock width), `clickAt(x, y)`, `reveal(key)`, `pin(key)`, `quick()`.
 - (tuner-ui, the layout before T2; the older bullets below are history where they differ) The animation tuner panel
+- (anim-joints J1, COVERAGE gap 1) The Joints, Hands & feet, IK strength and Weapon sliders are deltas on a generated
+  base table (`anim/animBase.ts`, written by the bake: `docs/anim-tuner/BAKE.md`) and act on every Wren rig
+  (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
+  its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
+  copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
+- (tuner-ui, the current layout; the older bullets below are history where they differ) The animation tuner panel
   (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
   - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top
     snaps that hold, Unlock, fly demo, hide HUD; time: Pause / Step, game speed), Body (parts Body, Joints, Limb reach,

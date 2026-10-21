@@ -609,6 +609,9 @@ try {
       return Math.hypot(e.pos.x - (r.feet.x + Math.sin(yaw) * 0.42), e.pos.z - (r.feet.z + Math.cos(yaw) * 0.42));
     }, gg);
     assert(held < 0.25, `the host holds its guard in front of the client (${held.toFixed(2)} m)`);
+    // (marlow-bays item 1) the client's own hostage is not solid there (as the host's guard): its controller is not shoved
+    const solid = await GB((id) => { const p = window.__app.current.net.puppets.get(id); const cap = p?.hitboxes?.shapes?.[0]; return cap ? cap.filterMembershipMask : -1; }, gg);
+    assert(solid >= 0 && (solid & 0x4) === 0, `the client's held guard is not solid to bodies there (membership ${solid})`);
     // (A4: the CT grab menu opens on the client; Knock out is the first entry, A picks it)
     await until(B, () => window.__app.current.grabMenu.open, null, 4000, 'the client grab menu opens');
     await GB(() => { window.__app.current.grabMenu.sel = 0; window.__app.input.state.tap('interact'); });
@@ -669,7 +672,20 @@ try {
   await until(B, () => { const t = window.__app.current.hud.objectiveText; return t.length > 0 && !/Connecting to host|Waiting for host/.test(t); }, null, 10000, 'the mission objective on the client');
   const obj = await GB(() => window.__app.current.hud.objectiveText);
   assert(!/Connecting to host/.test(obj) && obj.length > 0, `client sees the mission's objectives (${obj})`);
-  await toLobby();
+  // (marlow-bays item 4, A1) "Return to lobby" from the host's pause menu takes both players back to the room lobby; the
+  // client's row is disabled ("Host only") and it keeps its own Quit
+  console.log('pause: return to lobby (host only) takes both players back to the lobby');
+  await GB(() => window.__app.current.pause());
+  await until(B, () => !!document.querySelector('.pause-screen'), null, 5000, 'client pause open');
+  const cRow = await GB(() => { const b = document.querySelector('.pause-screen [data-key="return-lobby"]'); return b ? { blocked: b.classList.contains('blocked'), sub: b.querySelector('.btn-sub')?.textContent ?? '', quit: !!document.querySelector('.pause-screen [data-key="quit"]'), restart: !!document.querySelector('.pause-screen [data-key="restart-checkpoint"]') } : null; });
+  assert(!!cRow && cRow.blocked && cRow.sub === 'Host only' && cRow.quit && !cRow.restart, `the client's Return to lobby is disabled, Host only; its Quit stays; no restart row in infiltration (${JSON.stringify(cRow)})`);
+  await GA(() => window.__app.current.pause());
+  await until(A, () => !!document.querySelector('.pause-screen [data-key="return-lobby"]:not(.blocked)'), null, 5000, 'host pause has a live Return to lobby');
+  await GA(() => { const b = document.querySelector('.pause-screen [data-key="return-lobby"]'); window.__app.nav.focus(b); b.click(); });
+  await until(A, () => /Stay/.test(window.__app.nav.focused?.textContent ?? '') && !!window.__app.screens.top?.el.classList.contains('dialog-screen'), null, 5000, 'the lobby confirm opens on Stay');
+  await GA(() => [...document.querySelectorAll('.dialog-buttons .btn')].find((b) => /Return/.test(b.textContent)).click());
+  for (const P of pages()) await until(P, () => !!document.querySelector('.lobby-screen') && !window.__coop.inGame, null, 15000, 'back in the lobby from the pause menu');
+  assert(true, 'the host returns both players to the lobby from the pause menu');
 
   // (co-op test fix) no third player: co-op is two players (G2); the door peek is checked on the host
   // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host (the snapshot's dcr), and its

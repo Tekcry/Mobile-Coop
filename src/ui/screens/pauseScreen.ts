@@ -26,7 +26,17 @@ export interface PauseOpts {
   notice?: string;
   /** (anim-studio) In the Anim Studio already: no "Anim Studio (dev)" row. */
   inStudio?: boolean;
+  /** (marlow-bays A1) Solo or the co-op host (default true); false: the co-op client, whose host-only rows are disabled. */
+  host?: boolean;
+  /** (marlow-bays item 3) "Restart at checkpoint" (Sector Ops, the course); absent: no row. Returns false when the mode
+   *  cannot restart now. */
+  restartCheckpoint?: () => boolean;
+  /** (marlow-bays item 4) Co-op: "Return to lobby", ending the match for every connected player. */
+  lobby?: () => void;
 }
+
+/** (marlow-bays A1) The line a co-op client sees on a host-only row. */
+export const HOST_ONLY = 'Host only';
 
 /** Objectives (menu-ui step 10, G108): each objective with done / current / to do. Read only. */
 export class ObjectivesScreen extends MenuScreen {
@@ -72,6 +82,60 @@ export class PauseScreen extends MenuScreen {
       item('Objectives', () => this.manager.push(new ObjectivesScreen(opts.objectives?.() ?? [])), 'The mission objectives and where each one stands.', 'objectives'),
       // (menu-notes A2, Michael's note 7) one place for controls: Settings > Controls (hold / toggle, sensitivities and
       // Remap controls); the separate Controls item is gone
+    );
+    // (marlow-bays items 3-4, A1-A2) host actions: a confirm opening on Stay; the co-op client sees them disabled
+    const host = opts.host ?? true;
+    const hostItem = (label: string, key: string, desc: string, title: string, msg: string, go: string, act: () => void): HTMLButtonElement => {
+      if (!host) {
+        const b = button(label, () => {}, { class: 'ms-item host-only', key, sub: HOST_ONLY, blocked: HOST_ONLY, desc: `${desc} Only the host can do this.` });
+        b.setAttribute('aria-disabled', 'true');
+        return b;
+      }
+      return item(
+        label,
+        () =>
+          this.manager.push(
+            new Dialog(title, msg, [
+              { label: 'Stay', action: () => {}, safe: true },
+              { label: go, action: act },
+            ]),
+          ),
+        desc,
+        key,
+      );
+    };
+    const restart = opts.restartCheckpoint;
+    if (restart) {
+      list.append(
+        hostItem(
+          'Restart at checkpoint',
+          'restart-checkpoint',
+          opts.coop ? 'Both players go back to the last checkpoint and the area starts again.' : 'Back to the last checkpoint; the area starts again.',
+          'Restart at checkpoint?',
+          opts.coop ? 'Both players go back to the last checkpoint. Progress since it is lost.' : 'Progress since the last checkpoint is lost.',
+          'Restart',
+          () => {
+            this.resume();
+            restart();
+          },
+        ),
+      );
+    }
+    if (opts.lobby) {
+      const lobby = opts.lobby;
+      list.append(
+        hostItem(
+          'Return to lobby',
+          'return-lobby',
+          'End the match and take every connected player back to the room lobby.',
+          'Return to lobby?',
+          'The match ends for both players. Everyone returns to the room lobby.',
+          'Return',
+          () => lobby(),
+        ),
+      );
+    }
+    list.append(
       item('Settings', () => this.manager.push(new SettingsScreen(app)), 'Controls, gameplay, graphics, audio and accessibility.', 'settings'),
       item('Report feedback', () => this.manager.push(new FeedbackFormScreen(app, null)), 'Write a note about this moment. It is saved with the map and position.', 'report-feedback'),
       // (anim-tuner pass 2-3) the animation tuner without F3 (pad, phone): opens the panel and resumes, so you can move and

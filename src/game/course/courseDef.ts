@@ -9,6 +9,15 @@ import type { SquadSlot } from '../../world/rooms';
 /** Player index: 0 = P1 (host), 1 = P2 (client). */
 export type PlayerIdx = 0 | 1;
 
+/**
+ * Player index of whoever used a course item: the host's own press (`'local'`, or undefined from older call sites) is
+ * P1, a client (its peer id) P2. (marlow-bays item 2: the host's presses pass `'local'`; read as P2, a host unbolting
+ * alone was tested on the client's feet and refused.)
+ */
+export function courseUser(by: string | undefined): PlayerIdx {
+  return by === undefined || by === 'local' ? 0 : 1;
+}
+
 export interface AirlockDef {
   id: string;
   /** Plan box [x0, z0, x1, z1] (world m). */
