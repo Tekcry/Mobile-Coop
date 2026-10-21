@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-bays slice T1a (animation tuner: keys, playback bar, aim stances)
+## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in
   the Anim Studio plays that clip on the spot, paused on that key; "◀ Key" / "Key ▶" step the clip's keys (its mirrored
   half too) with the key list following; a readout names the key ("jog - key 2 of 8 (mirror of 6), frame 4"); the bone a
