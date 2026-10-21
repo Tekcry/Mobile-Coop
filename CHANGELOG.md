@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - marlow-bays item 26 (tuner on phones)
+- The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
+  the game itself stays desktop only). A phone (a touch screen as the main pointer, short side 600 px or less) in
+  landscape gets a side drawer on the right (she keeps the left 54%); in portrait a bottom sheet (she keeps the top
+  45%). The studio frames her in the free area as on desktop. A grab handle collapses the panel to its header and
+  expands it. Every touch target is at least 44 px (tabs, buttons, chips, sliders, steppers, the body map's joints,
+  the playback bar); the text is 15 px; the panel scrolls inside itself; slider rows put the slider on its own line.
+- The F3 debug readout (it covered the left half) is off on a phone; Settings > "Debug readout (F3)" shows it (the
+  choice is saved) and F3 still toggles it with a keyboard.
+- Touch camera on the scene: one finger dragged orbits, a pinch zooms, two fingers dragged pan the point the view
+  circles; a tap on her picks a part as a click does. Touches on the panel never move the camera. The pad works as
+  before. Desktop sizes and a mouse keep the T2 layout unchanged.
+- The Anim Studio's stage lights are placed after she moves and from the camera's position this frame (they lagged
+  one frame, up to 0.1 m on a busy machine; e2e-studio's light check failed under load).
+- New suite `e2e-tuner-phone` (required).
+
 ## Unreleased - marlow-bays slice T2 (tuner redesign)
 - The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
   looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values

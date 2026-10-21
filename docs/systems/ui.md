@@ -178,6 +178,35 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     channels are cleared, `clearKeyedArms`).
   - Hooks: `__studio.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
     v)`, `keys()`, `keysStep(dir)`, `keysMirror(on)`.
+- (marlow-bays item 26: the tuner on a phone; Michael's written exception to M21 for the animation tuner and the Anim
+  Studio only. The game stays desktop only: no phone look, no mobile path, no new work outside these two tools.) Pure
+  parts `ui/tunerPhone.ts` (tests `tests/tunerPhone.test.ts`), suite `e2e-tuner-phone`:
+  - Layout (`tunerPhoneLayout`): a phone is `flags.phone` (touch as the main pointer: `maxTouchPoints` and
+    `pointer: coarse`) with a short side of at most 600 px; anything else keeps the T2 desktop layout exactly. Landscape:
+    a side drawer on the right, full height, 46% of the width (300-440 px; height is scarce, width is not, so she keeps
+    the left); portrait: a bottom sheet, full width, 55% of the height (she keeps the top). The studio dock gives the
+    canvas up beside the drawer (`--tt-dock-w`, `body.tt-docked`) or above the sheet (`--tt-dock-h`,
+    `body.tt-docked-b`), so she stands in the free area. Classes `tt-phone` + `tt-drawer` / `tt-sheet`.
+  - Look: 15 px text; every touch target at least 44 px (`TOUCH_MIN`: tabs, buttons, chips, group headers, steppers,
+    the ↺ and ☆, the drop-down rows, sliders 44 px high, check boxes 24 px in a 44 px row); a slider row is two lines
+    (pin, name, value, unit, reset; then the slider full width). The panel scrolls as a whole (`touch-action: pan-y`),
+    the header sticky with a grab handle (`.anim-tune-handle`, "Hide panel" / "Show panel": the fold); the hint strip
+    and the mouse-mode button hide. The body map is drawn at 1.5 px a unit with 44 px hit circles; overlapping ones
+    resolve to the nearest joint (`nearestMapPart`). The pad focus scrolls the panel only while a pad is in use.
+  - Debug readout: the studio no longer turns the F3 overlay on in the phone layout, and opening the tuner on a phone
+    sets it to the saved choice (`phoneDebug` in the tuner's `ui` store, default off). Settings > "Debug readout (F3)"
+    (`.anim-tune-debugreadout`, on every layout) shows / hides it; F3 still works with a keyboard and the box follows
+    (`DebugOverlay.toggle` -> `AnimTunePanel.debugShown`; the overlay sets `animTune.debugHost`).
+  - Touch camera (`TouchGesture`, fed the canvas's touch pointer events; touches on the panel stop at the panel): a
+    finger moved under 10 px and released within 450 ms is a tap (`pickAtScreen`, as T2's click; the mouse pick ignores
+    touches); one finger past 10 px orbits (0.006 rad / px into `FREE_IN.tlx` / `tly`, starting the orbit from the game
+    view as the wheel does); two fingers are decided once, when both moved (the same way: pan; opposite, or one far from
+    a still one: pinch): a pinch adds the log of the spread ratio to `FREE_IN.tzoom`, a pan moves the circled point
+    (`FREE_IN.tpx` / `tpy` in screen heights; `FreeViewCore.panX` / `panZ` along the view's level right, up into the
+    orbit height, within `FREE_CFG.panMax` 3 m; reset when the free view restarts). A finger of two lifted spends the
+    gesture until all are up. No allocation per event. The pad and the mouse are unchanged.
+  - Hooks: `__animTune.phone()` (mode, drawer width / sheet height, dock, folded, readout, last gesture, taps),
+    `fold(v)`.
 - (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
   differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
   `tests/marlowT2.test.ts`, `tests/tunerLayout.test.ts`):

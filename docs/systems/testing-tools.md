@@ -50,7 +50,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
-  `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget): `e2e-studio` plus their folder's suites), `src/core/quality`, `display`, `settings`
+  `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget, tunerPhone): `e2e-studio` plus their folder's suites; `tuner*`, `animTune*`, `studioStage` and `src/player/freeView` also `e2e-tuner-phone`), `src/core/quality`, `display`, `settings`
   and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
@@ -265,6 +265,15 @@ behind a VPN adapter).
   covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
   hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
   (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder
+- `e2e-tuner-phone` (marlow-bays item 26; covers `src/ui/tuner*`, `src/ui/animTune*`, `src/game/studioStage`,
+  `src/player/freeView`; about 1 minute): `?autostart=studio` on three pages. Landscape 844 x 390 and portrait 390 x 844
+  with touch emulation (`hasTouch`, `isMobile`; `launch({ context })` in e2e-lib): the drawer / sheet is chosen and the
+  canvas gives up its width / height; every visible touch target >= 44 px; 15 px text; the panel scrolls; the F3
+  readout is off, the Settings toggle and F3 show and hide it; a tap on her head picks the head; one finger dragged
+  orbits (camera yaw), a pinch zooms (orbit distance), two fingers pan (the circled point), touches on the panel move
+  nothing; the handle collapses and expands. Multi-touch through the DevTools protocol (`Input.dispatchTouchEvent`);
+  Babylon's "Max number of touches exceeded" note (the emulator's `maxTouchPoints` is 1) is not counted as an error.
+  Desktop 1280 x 640 without touch: the T2 layout and dock unchanged, the map's own targets, the readout on.
 - `e2e-security` (LEGACY; Kestrel-owned, covers `src/security/`): the debug map `?autostart=seclab&mode=sandbox`: cameras detect
   a walker in the lit strip within SN08 + 0.5 s, not a crouched player in the dark corner; the panning camera misses a
   player at its far pause; a shot camera stops detecting; desk and panel checks
