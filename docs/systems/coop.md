@@ -157,3 +157,6 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   brings a partner still up to the checkpoint (`revive` event). Before a section unloads or restarts the mode calls
   `releaseHolds()`: every guard a client holds is released and the client gets `tdDenied` (its takedown or grab
   aborts); despawned guards leave the client by the snapshot's stale sweep (about 0.5 s).
+- (course-restart-hold) The course does the same before its squad respawns (a bay start or restart, the pause menu's
+  restart at the checkpoint): the host's own takedown resets and `releaseHolds()` runs. On the client a puppet the stale
+  sweep disposes is `dead` (its takedown aborts first), and `TakedownController.frameUpdate` skips a victim no longer alive.

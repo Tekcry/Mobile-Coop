@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { BODY_GROUPS } from '../src/anim/tune';
 import { JOINT_WEAPON_ROWS } from '../src/anim/tuneRows';
+import { TUNE_MOVE_ROW_IDS, TUNE_ROW_IDS } from '../src/anim/tuneMoveRows';
 import { HAND_PARAMS, HAND_WEAPONS, HANDS_HOOKS, HP, handsGet, handsLoad, ikGet } from '../src/anim/tuneHands';
 import { J, JOINT_COUNT, jointsGet, jointsLoad, jointsMirror } from '../src/anim/tuneJoints';
 import { TUNE_HOOKS, TUNE_SECTIONS, TUNE_STATE_BAG, tuneGet, tuneLoad, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
@@ -15,14 +16,14 @@ beforeEach(() => {
 });
 
 describe('tuner-v2 sections in the registry', () => {
-  it('register after Body, Gun and Camera: Joints, Hands & feet, IK strength, Weapon, Stepping; unique groups', () => {
+  it('register after Body, Gun and Camera: Joints, Hands & feet, IK strength, Weapon, Stepping, Gear; unique groups', () => {
     const ids = TUNE_SECTIONS.map((s) => s.id);
-    expect(ids.slice(-5)).toEqual(['joint', 'hand', 'ik', 'weapon', 'step']);
+    expect(ids.slice(-6)).toEqual(['joint', 'hand', 'ik', 'weapon', 'step', 'gear']); // (anim-gear) Gear last
     expect(ids.indexOf('joint')).toBeGreaterThan(2);
     const groups = TUNE_SECTIONS.flatMap((s) => s.groups);
     expect(new Set(groups).size).toBe(groups.length);
-    expect(JOINT_SECTION.groups.length).toBe(BODY_GROUPS.length + JOINT_WEAPON_ROWS.length + 1); // (T1a: the per-gun armed rows)
-    expect(HAND_SECTION.groups.length).toBe(HAND_WEAPONS.length * BODY_GROUPS.length);
+    expect(JOINT_SECTION.groups.length).toBe(BODY_GROUPS.length + JOINT_WEAPON_ROWS.length + TUNE_MOVE_ROW_IDS.length + 1); // (T1a: the per-gun armed rows; J2: the move and action rows)
+    expect(HAND_SECTION.groups.length).toBe(HAND_WEAPONS.length * TUNE_ROW_IDS.length);
     expect(JOINT_SECTION.tunables.length).toBe(JOINT_COUNT * 3 + 1);
     expect(HAND_SECTION.tunables.length + WEAPON_SECTION.tunables.length).toBe(HAND_PARAMS.length);
     expect(IK_SECTION.tunables.map((t) => t.id)).toEqual(['handL', 'handR', 'footL', 'footR']);

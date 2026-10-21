@@ -2,7 +2,8 @@
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
 // a host guard's flashlight on, then off, on the client (coop-torches), host-validated client hits + kill credit,
 // downed/revive, results, back to lobby, guards and doors in co-op,
-// difficulty, a door peek and a wall medkit in Free Roam, host leaving, malformed messages, and the offline state.
+// difficulty, a course restart at the checkpoint while a guard is held (Marlow Yard), a door peek and a wall medkit in
+// Free Roam, host leaving, malformed messages, and the offline state.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
@@ -716,6 +717,54 @@ try {
   await GA(() => [...document.querySelectorAll('.dialog-buttons .btn')].find((b) => /Return/.test(b.textContent)).click());
   for (const P of pages()) await until(P, () => !!document.querySelector('.lobby-screen') && !window.__coop.inGame, null, 15000, 'back in the lobby from the pause menu');
   assert(true, 'the host returns both players to the lobby from the pause menu');
+
+  // (course-restart-hold) "Restart at checkpoint" in the course while a guard is held: the hold is let go before the
+  // squad respawns (the client's puppet of the old guard is disposed; reading its rig crashed the client every frame).
+  // Marlow Yard station 1's training guard (passive): first the client holds him, then the host's own player does.
+  console.log('course: restart at checkpoint while the client, then the host, holds the guard');
+  {
+    await startMode('course', 'ctcourse');
+    await until(A, () => !!window.__course?.state && window.__app.current.enemyMgr.enemies.some((e) => e.alive), null, 15000, 'host course guard');
+    const realErr = (es) => es.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext|Failed to load resource/i.test(e));
+    const guard = () => GA(() => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive); return { id: e.id, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw }; });
+    /** Holds the guard from behind on page P (the client goes through the host's teleport window). */
+    const grabOn = async (P, tag) => {
+      const gd = await guard();
+      await until(B, (id) => !!window.__app.current.net.puppets.get(id)?.alive, gd.id, 15000, 'the client has the guard');
+      const bx = gd.x - Math.sin(gd.yaw) * 1.1;
+      const bz = gd.z - Math.cos(gd.yaw) * 1.1;
+      let held = false;
+      for (let i = 0; i < 40 && !held; i++) {
+        if (i % 10 === 0) {
+          if (P === B) await moveClient(B, bx, gd.y + 0.1, bz, gd.yaw);
+          else await GA(([x, y, z, yaw]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, y, z), yaw); }, [bx, gd.y + 0.1, bz, gd.yaw]);
+        }
+        held = await P.evaluate((id) => {
+          const g = window.__app.current;
+          if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
+          return g.takedown.hostage?.id === id;
+        }, gd.id);
+        if (!held) await wait(150);
+      }
+      assert(held, `${tag} holds the course guard`);
+      return gd.id;
+    };
+    for (const [P, tag] of [[B, 'the client'], [A, 'the host']]) {
+      const old = await grabOn(P, tag);
+      const n0 = [eA.length, eB.length];
+      assert(await GA(() => window.__course.restartCheckpoint()), `the host restarts at the checkpoint (${tag} holding)`);
+      await until(A, (id) => window.__app.current.enemyMgr.enemies.some((e) => e.alive && e.id !== id), old, 8000, 'the squad respawns on the host');
+      // frames on both pages past the client's stale-puppet drop (0.5 s) and the respawn
+      await wait(3000);
+      const errsNow = [...realErr(eA.slice(n0[0])), ...realErr(eB.slice(n0[1]))];
+      const free = await GB((id) => { const g = window.__app.current; return { active: !!g.takedown.active, hostage: g.takedown.hostage?.id ?? null, old: g.net.puppets.has(id) }; }, old);
+      const hostFree = await GA(() => { const g = window.__app.current; return { active: !!g.takedown.active, seized: g.net.seized.size, taken: g.enemyMgr.enemies.filter((e) => e.taken).length }; });
+      assert(errsNow.length === 0, `no errors on either page after the restart (${tag} holding)${errsNow.length ? ': ' + errsNow.slice(0, 3).join(' | ') : ''}`);
+      assert(!free.active && !free.hostage && !free.old, `the client holds nothing and the old guard's puppet is gone (${JSON.stringify(free)})`);
+      assert(!hostFree.active && hostFree.seized === 0 && hostFree.taken === 0, `the host holds nothing and no guard is taken (${JSON.stringify(hostFree)})`);
+    }
+    await toLobby();
+  }
 
   // (co-op test fix) no third player: co-op is two players (G2); the door peek is checked on the host
   // (locomotion step 13) a client's door crack is host-authoritative: it shows on the host (the snapshot's dcr), and its

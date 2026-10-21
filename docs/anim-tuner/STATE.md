@@ -106,6 +106,10 @@ the own rows of the shared states) is read with each new row given its old row's
 slider slide the picked key in its clip, previewed live, between its neighbours (key 1 fixed; Mirror on moves the mirror
 key with it). The bake writes the key's `phase` and `src/anim/tuneKeysMeta.ts`, then prints the clip's rebake. No new
 pad button: they are Keys tab controls in its D-pad order.
+(marlow-bays item 25) Add / delete keys: the Keys tab's "+ Add key" (a key midway to the next, posed as the clip plays
+there; Mirror on: in the own half, mirrored by the bake) and "Delete key" (never key 1, at least 4 keys a cycle). State
+as sliders (`del` per key, `key.<clip>.a<s>` with `at` + the fields, 8 per clip; no store version bump), live at once,
+undoable. The bake rewrites the key file's key list and `tuneKeysMeta.ts` and prints the rebake. No new pad button.
 - **Identity after bake.** The code value moves (x the slider for a `mul`, + it for an `add`, in the code's unit); the
   slider's default stays identity. The tuner's own save still holds the old values: reset the sliders the table reports
   "baked" (keep the manual ones), then export again. The ledger keeps `group|id=value` of every baked value: a later

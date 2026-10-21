@@ -13,8 +13,9 @@
  * JSONs via the apply-tune functions, then a rebake per clip); already baked (the ledger: this group and slider were
  * baked before at this same value, in this export or an earlier one); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
  */
-import { applyKeyEdits, editedClips, KEY_FIELDS, keyFileText, keyHalvesDiffer, keyMetaText, keyMirrorOn, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile';
+import { applyKeyEdits, editedClips, KEY_FIELDS, keyEditPlan, keyEditRow, keyFileText, keyMetaText, keyMirrorOn, keyWrittenFull, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile'; // (item 25, track A) keyEditPlan, keyEditRow, keyWrittenFull
 import { KEY_TIME_ID, KEY_TIME_MAX } from './tuneKeysTime';
+import { KEY_AT_ID, KEY_DEL_ID, parseKeyAdded } from './tuneKeysEdit'; // (item 25, track A)
 import { migrateTuneChanged } from './tuneRows';
 import { applyBaseEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, spliceAnimBase } from './tuneBakeBase';
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
@@ -69,12 +70,16 @@ const BAKE_KEYS_META = 'src/anim/tuneKeysMeta.ts';
 /** (T1a, item 18) The Keys section's Mirror box (`key.<clip>.mirror`): 1 on (identity), 0 off. */
 const KEY_MIRROR_TUNABLE: CatTunable = { section: 'keys', id: 'mirror', kind: 'add', def: 1, min: 0, max: 1, groups: [] };
 /** The catalogue entry of a Keys group's slider, or undefined (an unknown slider, or not a Keys group). */
+/** (item 25, track A) A key's delete slider (`del`, 1 deleted) and an added key's time (`at`, bake frames; 0 none). */
+const KEY_DEL_TUNABLE: CatTunable = { section: 'keys', id: KEY_DEL_ID, kind: 'add', def: 0, min: 0, max: 1, groups: [] };
+const KEY_AT_TUNABLE: CatTunable = { section: 'keys', id: KEY_AT_ID, kind: 'add', def: 0, min: 0, max: KEY_TIME_MAX, groups: [] };
 const keyTunable = (group: string, id: string): CatTunable | undefined => {
-  if (parseKeyGroup(group)) return KEY_IDS.has(id) ? KEY_TUNABLE(id) : id === KEY_TIME_ID ? KEY_TIME_TUNABLE : undefined; // (item 23, track A) time
+  if (parseKeyGroup(group)) return KEY_IDS.has(id) ? KEY_TUNABLE(id) : id === KEY_TIME_ID ? KEY_TIME_TUNABLE : id === KEY_DEL_ID ? KEY_DEL_TUNABLE : undefined; // (item 23, track A) time; (item 25, track A) del
   if (parseKeyMirror(group)) return id === 'mirror' ? KEY_MIRROR_TUNABLE : undefined;
+  if (parseKeyAdded(group)) return KEY_IDS.has(id) ? KEY_TUNABLE(id) : id === KEY_AT_ID ? KEY_AT_TUNABLE : undefined; // (item 25, track A) an added key
   return undefined;
 };
-const isKeyGroup = (g: string): boolean => !!parseKeyGroup(g) || !!parseKeyMirror(g);
+const isKeyGroup = (g: string): boolean => !!parseKeyGroup(g) || !!parseKeyMirror(g) || !!parseKeyAdded(g); // (item 25, track A) added keys
 
 /** The registry's wide range (`tuneMin` / `tuneMax` with "wide ranges" on): doubled about the default, a multiplier never below its floor. */
 export function wideRange(t: Pick<DeclaredTunable, 'kind' | 'def' | 'min' | 'max'>): [number, number] {
@@ -697,13 +702,23 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     if (kf.name !== clip || !Array.isArray(kf.keys)) return fail(`${file}: not the key file of ${clip}`);
     // (T1a, item 18) a mirrored clip with its Mirror box off and its halves edited apart is written in full
     const n = kf.keys.length;
-    const full = !!kf.mirror && !keyMirrorOn(keyVals, clip) && keyHalvesDiffer(keyVals, clip, n);
+    const full = keyWrittenFull(kf, keyVals); // (item 25, track A) also a key added / deleted with the box off
+    const plan = keyEditPlan(kf, keyVals); // (item 25, track A) the added and deleted keys
     for (const en of entries) {
       if (en.section !== 'keys') continue;
       if (parseKeyMirror(en.group) === clip) {
         en.row.target = `${file} mirror`;
         en.row.result = full ? 'baked (key JSON written in full, mirror: false; rebake the clip)' : 'baked (no change: the halves still mirror each other)';
         baked++;
+        continue;
+      }
+      // (item 25, track A) an added key's sliders, a key's delete, a deleted key's edits
+      const er = keyEditRow(kf, plan, en.group, en.id, file);
+      if (er) {
+        en.row.target = er.target;
+        en.row.result = er.result;
+        if (er.baked) baked++;
+        else manualN++;
         continue;
       }
       const pk = parseKeyGroup(en.group);
@@ -743,11 +758,17 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     manualN++;
   }
 
-  // (item 23, track A) a baked timing edit: regenerate the tuner's key meta (as scripts/anim-keys/meta.mjs does) from
-  // every key file the meta lists, the written ones as written. No timing edit: the meta is never touched.
-  if (entries.some((en) => en.section === 'keys' && en.id === KEY_TIME_ID && en.row.result.startsWith('baked'))) {
-    const before = read(BAKE_KEYS_META);
-    if (before === null) return fail(`${BAKE_KEYS_META}: not found`);
+  // (item 23, track A) regenerate the tuner's key meta (as scripts/anim-keys/meta.mjs does) from every key file the meta
+  // lists, the written ones as written. (item 25, track A) whenever a key file is written (a timing edit, an add /
+  // delete, a file written in full: the meta holds each clip's mirror flag and own key phases); keyMetaText is
+  // byte-identical for unchanged files, so a field-only bake writes no meta.
+  const keyListBaked = entries.some((en) => en.section === 'keys' && (en.id === KEY_TIME_ID || en.id === KEY_DEL_ID || en.id === KEY_AT_ID) && en.row.result.startsWith('baked'));
+  const metaBefore = writes.some((w) => w.path.startsWith(BAKE_KEYS_DIR)) ? read(BAKE_KEYS_META) : null;
+  // the meta must exist when the key times or the key list change; otherwise a tree without it (a partial copy) skips it
+  if (keyListBaked && metaBefore === null) return fail(`${BAKE_KEYS_META}: not found`);
+  if (metaBefore === null && writes.some((w) => w.path.startsWith(BAKE_KEYS_DIR))) warnings.push(`${BAKE_KEYS_META}: not found, not regenerated`);
+  if (metaBefore !== null) {
+    const before = metaBefore;
     const files: KeyFile[] = [];
     for (const m of before.matchAll(/name: '([^']+)'/g)) {
       const text = keyAfter.get(m[1]!) ?? read(`${BAKE_KEYS_DIR}${m[1]!}.json`);

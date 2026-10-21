@@ -331,6 +331,18 @@ try {
   await holdUntil(B, RB, () => window.__app.current.team.state === 'offer', 'client offers a leg-up (crouched + Co-op action)').catch(async (e) => { console.log(await GB(() => { const g = window.__app.current; return JSON.stringify({ st: g.team.state, prompt: g.team.prompt, crouched: g.player.controller.crouched, mates: g.net.teamMates().map((m) => [m.id, m.mode]) }); })); throw e; });
   assert((await GB(() => window.__app.current.team.prompt)) !== null, 'the offerer sees a prompt naming the move');
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'brace', null, 6000, 'host sees the client offering (crouched)');
+  // (anim-joints J2, J1 polish 1) the partner's avatar reads the base table and its own team row: the host's copy of the
+  // offering client picks `team.boost.b` from the client's move mode on the wire (no wire change), and a base row set
+  // there on the host (`__animBase`) turns that copy's elbow by the row's 40 deg
+  await until(A, () => { const p = window.__app.current.net.remotes.values().next().value?.avatar.rig.tuneSt?.pick; return !!p && Array.from({ length: p.n }, (_, k) => p.ids[k]).includes('team.boost.b'); }, null, 6000, "host's copy of the offering client picks its team row (team.boost.b)");
+  const tel = () => GA(() => { const r = window.__app.current.net.remotes.values().next().value.avatar.rig; const x = r.elbowR.rotationQuaternion; const j = window.__tuneV2.J.elbowR; return { el: [x.x, x.y, x.z, x.w], live: r.tuneSt.joints.live[j], w: r.tuneSt.joints.cur[j * 4 + 3] }; });
+  const tang = (a, b) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
+  const te0 = await tel();
+  await GA(() => window.__animBase.setJoint('team.boost.b', 'elbowR', [40, 0, 0]));
+  await until(A, (w) => { const r = window.__app.current.net.remotes.values().next().value.avatar.rig; const j = window.__tuneV2.J.elbowR; return Math.abs(r.tuneSt.joints.cur[j * 4 + 3] - w) < 1e-4; }, Math.cos((20 * Math.PI) / 180), 8000, "the host's copy eases onto the base row (40 deg)");
+  const te1 = await tel();
+  assert(te0.live === 0 && te1.live === 1 && tang(te0.el, te1.el) > 20, `the partner's avatar takes a base row set on the host (team.boost.b elbowR: ${tang(te0.el, te1.el).toFixed(1)} deg)`);
+  await GA(() => window.__animBase.reset());
   await until(A, () => !!window.__app.current.team.offer?.boost, null, 4000, 'host is offered the leg-up');
   assert(/leg-up/i.test(await GA(() => window.__app.current.team.prompt ?? '')), 'the partner prompt names the leg-up');
   await holdUntil(A, RB, () => window.__app.current.team.count.boosts === 1, 'host boosted').catch(async (e) => { console.log(await GA(() => { const g = window.__app.current; const t = g.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer, boost: !!t.offer?.boost }); })); throw e; });
