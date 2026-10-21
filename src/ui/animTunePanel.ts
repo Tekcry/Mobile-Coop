@@ -28,7 +28,12 @@ import {
   tuneSet,
   tuneSnapshot,
 } from '../anim/tune';
-import { isTuneGroup, TUNE_REGISTRY_HOOKS, TUNE_SECTIONS, type TuneSection } from '../anim/tuneRegistry';
+import { isTuneGroup, TUNE_REGISTRY_HOOKS, TUNE_SECTIONS, tuneBakedApplied, type TuneSection } from '../anim/tuneRegistry';
+import { tuneBakedReset, type BakedResetResult } from '../anim/tuneBakedReset';
+// (anim-bake-1022) the bake ledger, bundled: Reset baked compares the tuner's values with it
+import bakeLedger from '../anim/tuneBakeLog.json';
+/** (anim-bake-1022) How long a Reset baked notice holds the info line (ms). */
+const BAKED_NOTICE_MS = 8000;
 import { FREE_DEMOS, FREE_IN, FREE_MODES, FREE_VIEW, GAME_SPEED, freeAxis, freeTimeScale, type FreeDemo, type FreeMode, type FreeSnap } from '../player/freeView';
 import { PAD } from '../input/gamepadMapping';
 import { loadAnimTune, loadAnimTuneUi, saveAnimTune, saveAnimTuneUi } from '../save/animTuneStore';
@@ -395,6 +400,8 @@ export class AnimTunePanel {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private scene: Scene | null = null;
   private nextInfo = 0;
+  /** (anim-bake-1022) A Reset baked notice waiting for the panel to open ('' none). */
+  private bakedNotice = '';
   private nextDrops = 0;
   /** The local player's rig (set by the debug overlay). */
   rig: (() => TuneRigView | null) | null = null;
@@ -794,6 +801,7 @@ export class AnimTunePanel {
     mItem('Show every part', () => this.menuDo(() => this.pickPart('')), 'm:allparts');
     mItem('Reset this group', () => this.menuDo(() => this.resetFocusedGroup()), 'm:resetgroup');
     mItem('Reset all (A twice)', () => this.armResetAll(), 'm:resetall');
+    mItem('Reset baked', () => this.menuDo(() => this.resetBaked(true)), 'm:resetbaked');
     mItem('Export file', () => this.menuDo(() => this.exportFile()), 'm:export');
     mItem('Share / Copy', () => this.menuDo(() => void this.shareFile()), 'm:share');
     mItem('Import file', () => this.menuDo(() => this.importPick()), 'm:import');
@@ -988,8 +996,12 @@ export class AnimTunePanel {
     };
     // load the saved values (skipped if a slider already moved); the undo history starts from what loaded
     void loadAnimTune().then((s) => {
-      if (s && TUNE_LOG.length === 0 && tuneChanged().length === 0) {
-        tuneLoad(s);
+      if (TUNE_LOG.length !== 0 || tuneChanged().length !== 0) return;
+      if (s) tuneLoad(s);
+      // (anim-bake-1022) once per bake: the sliders the code now holds go back to their defaults (no store: nothing to
+      // reset, the bakes are only recorded)
+      this.resetBaked(false, s ?? null);
+      if (s) {
         this.rebuildAll();
         this.snaps.reset();
       }
@@ -1046,6 +1058,10 @@ export class AnimTunePanel {
         return ok;
       },
       changed: tuneChanged,
+      // (anim-bake-1022) the Y menu's Reset baked, the applied bake hashes, the info line
+      bakedReset: () => this.resetBaked(true),
+      bakedApplied: () => tuneBakedApplied().slice(),
+      infoText: () => this.info.textContent ?? '',
       exportJson: () => tuneExport(),
       log: TUNE_LOG,
       // (anim-studio) snapshots: undo / redo (`settle` closes the open run now), A/B, presets
@@ -2557,6 +2573,11 @@ export class AnimTunePanel {
     this.setPadLine();
     this.markPadFocus();
     this.syncTuneFreeze();
+    // (anim-bake-1022) a Reset baked notice from while the panel was closed
+    if (this.bakedNotice) {
+      this.flashInfo(this.bakedNotice, BAKED_NOTICE_MS);
+      this.bakedNotice = '';
+    }
     // (marlow-bays item 9) open: the pointer free (drag view) by default
     this.mouseCtl.setOpen(true);
     this.applyMouse();
@@ -3017,10 +3038,30 @@ export class AnimTunePanel {
     this.confirmAll = false;
   }
 
-  /** (anim-studio) A short line in the info row (undo, A/B, presets), held 2.5 s before the counts come back. */
-  private flashInfo(text: string): void {
+  /** (anim-studio) A short line in the info row (undo, A/B, presets), held 2.5 s (or `ms`) before the counts come back. */
+  private flashInfo(text: string, ms = 2500): void {
     this.info.textContent = text;
-    this.nextInfo = performance.now() + 2500;
+    this.nextInfo = performance.now() + ms;
+  }
+
+  /**
+   * (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): the sliders holding a value the bundled ledger says is now
+   * in the code go back to their defaults; the notice shows in the info line (closed: when the panel next opens).
+   * `force` (the Y menu): every bake, applied or not. Auto (the store's load): once per bake, silent when nothing reset.
+   */
+  private resetBaked(force: boolean, saved?: unknown): BakedResetResult {
+    // the load passes the record as saved (a value past the normal range is clamped by the load); the menu, the registry
+    const r = tuneBakedReset(bakeLedger, { force, saved });
+    if (r.reset > 0) {
+      this.rebuildAll();
+      void saveAnimTune(tuneSnapshot());
+    }
+    if (r.notice && (force || r.reset > 0)) {
+      console.info(`[anim tuner] ${r.notice}`);
+      if (this.open) this.flashInfo(r.notice, BAKED_NOTICE_MS);
+      else this.bakedNotice = r.notice;
+    }
+    return r;
   }
 
   private resetFocusedGroup(): void {

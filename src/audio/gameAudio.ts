@@ -6,6 +6,7 @@ import { gaitOf, type FoleyMove } from './foley/steps';
 import { noiseRadius, stepVolume } from '../player/movement';
 import { SURFACE_NOISE } from '../world/surfaces';
 import { CLASS_GUN, GUARD_GUN } from './weapons/guns';
+import { JAM_BUZZ, JamBuzz } from './jamBuzz';
 
 const FOLEY_MOVES: readonly string[] = ['vault', 'mantle', 'hop', 'drop', 'roll'] satisfies FoleyMove[];
 
@@ -15,6 +16,9 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   const a = app.audio;
   const fo = app.foley;
   const tmp = new Vector3();
+  // (marlow-jammer, item 7) the jam buzz at the nearest jammed device
+  const buzz = new JamBuzz(a);
+  const buzzAt = { x: 0, y: 0, z: 0 };
   // movement foley: foot plants from the rig, landings and committed moves from their counters
   let plantsSeen = g.player.footPlants;
   let landSeen = g.player.controller.landings;
@@ -122,6 +126,10 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     L.z = cam.position.z;
     L.rx = Math.cos(g.player.cam.yaw);
     L.rz = -Math.sin(g.player.cam.yaw);
+    if (g.ctDev?.nearestJammed(L.x, L.y, L.z, buzzAt)) {
+      const s = a.spatial(buzzAt.x, buzzAt.y, buzzAt.z, JAM_BUZZ.range);
+      buzz.update(JAM_BUZZ.gain * s.gain, s.pan);
+    } else buzz.update(0, 0);
     const p = g.player;
     const c = p.controller;
     quietT -= dt;
@@ -153,6 +161,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     frame,
     dispose: () => {
       wa.cancelReload();
+      buzz.dispose();
       for (const o of offs) o();
     },
   };

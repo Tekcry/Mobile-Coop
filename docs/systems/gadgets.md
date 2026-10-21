@@ -27,6 +27,23 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   list for electro is an open question (MOVE-15 in DECISIONS).
 - Look and cost: `docs/systems/lighting.md` (vision modes) and `docs/systems/graphics-quality.md`.
 
+## Held pistol jammer (CT prototype B3; marlow-jammer)
+- `game/jammer.ts` (pure, `tests/jammer.test.ts`), run by `game/ctDevices.ts` (course and Sector Ops; host authority,
+  client mirror over `sec`, `docs/systems/coop.md`). Aim the drawn pistol (LT / RMB) and hold Co-op (RB / F) on a
+  camera, laser or lamp the aim has a clear static line to (`JAMMER.range` 20 m, cone 0.16 rad), standing still
+  (`stillSpeed` 0.45 m/s).
+- Per player (J1): one jam lasts at most `useMax` 5 s; it ends at 5 s, on a release, on a move or on aiming at another
+  target, and each end starts the `cooldown` 5 s. The 20 s charge model is gone.
+- Per device (`DevJam`, A3): jammed while anyone holds it, then it recovers and nobody can jam it meanwhile: a camera or
+  a laser 1.5 s (`reboot`); a lamp 4 s off then a 0.5 s flicker on (`JAM_LIGHT`). A jammed / rebooting camera is blind
+  (mode off: its grid fades, no meter), frozen (`CameraUnit.frozen`: its clock stops, the sweep resumes where it
+  stopped), its LED flashing while jammed (`SecurityView`). A jammed lamp follows `lightLit` in the light registry.
+- Cameras see by their own IR (Michael M3, `CAMERA.irLight` in `config/security.ts`): putting lamps out (jam, EMP, shot)
+  hides a player from guards and the meter, never from a camera; only jamming the camera itself (or shooting it) does.
+- Feedback: the HUD line under the reticle (`jamHudText`), the gun light (cyan pulse jamming, dim red cooling, amber on a
+  rebooting target, green aimed, red idle) and the buzz (`audio/jamBuzz.ts`: a quiet synth voice at the nearest jammed
+  device, positional, on both pages; A4).
+
 ## Gadgets (2.0 phase 5)
 - `game/gadgets.ts` (pure): `GADGETS` (frag, sleeping gas, flashbang, EMP, noisemaker, sticky cam, proximity mine: carry /
   max, `use` throw | stick | place, fuse, radius, duration), `GADGET_IDS` (wheel order, clockwise from the top; 7 slots,
@@ -59,7 +76,7 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   it pitches down by `camPitch` = atan2(mount height, aim)) and `range` (m, its detection range, at most `CAMERA.range`
   18; `camRange`). `CameraUnit.pitch` / `range` feed both detection (`covers` -> `inFrame`) and the cue: one source of
   truth. No `aim` looks level. Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14, the others 6 / 12
-  (`warehouseSectors.ts`). Marlow Yard cam-s3: range 9 (the bay), level (the station's blind pocket under it).
+  (`warehouseSectors.ts`). Marlow Yard cam-s3 (the bay 3 hallway): aim 6.5 (`S3_CAMERA_AIM`, pitch 20 deg: heads covered end to end, the frame under the 4.5 m ceiling), range 18 (the hallway walls bound it).
 - Cue (`security/cameraCue.ts`, `vfx/cameraCueView.ts`): the sample grid spans the pitched field, the rays reach
   `cueReach(range)`, and the shader's frame mask (`CUE_MASK_GLSL`, mirrored by `cueEdge`) takes the camera's pitch and
   range, so the grid is drawn only where the camera can detect. Normal vision is very subtle (`CUE.line` 0.055,

@@ -1,8 +1,9 @@
 /**
  * CCTV camera logic (pure: no Babylon / DOM), unit-tested. S0 section 2.1.
  *
- * A camera sees the way a guard does (`sightRate` / `stepMeter`, the same light parity) but with one fixed cone: no
- * peripheral field and no close-range term. The sweep is a pure function of the camera's clock, so every tick rate
+ * A camera sees the way a guard does (`sightRate` / `stepMeter`) but with one fixed cone: no peripheral field and no
+ * close-range term. (marlow-jammer, M3) It sees by its own IR illuminator (`CAMERA.irLight`), not by the lamps: lamp
+ * light (and its loss to a jam, an EMP or a shot) changes nothing for a camera. The sweep is a pure function of the camera's clock, so every tick rate
  * gives the same angles.
  */
 import { CAMERA } from '../config/security';
@@ -75,9 +76,12 @@ export function inFrame(yaw: number, cx: number, cy: number, cz: number, px: num
   return Math.abs(Math.atan2(dy, h) + pitch) <= CAMERA.vFov / 2;
 }
 
-/** Meter fill rate (/s) for a body the camera has a clear ray to: the guard formula with the camera's fixed cone. */
-export function cameraRate(dist: number, light: number, crouched: boolean, speed: number, exposure = 1): number {
-  return sightRate({ dist, angle: 0, light, crouched, speed, exposure, sensitivity: SENSITIVITY.unaware });
+/**
+ * Meter fill rate (/s) for a body the camera has a clear ray to: the guard formula with the camera's fixed cone, at the
+ * camera's own IR light (`CAMERA.irLight`; marlow-jammer M3: the lamps do not matter to a camera).
+ */
+export function cameraRate(dist: number, crouched: boolean, speed: number, exposure = 1): number {
+  return sightRate({ dist, angle: 0, light: CAMERA.irLight, crouched, speed, exposure, sensitivity: SENSITIVITY.unaware });
 }
 
 /** One player's awareness meter on one camera. */
@@ -159,6 +163,11 @@ export class CameraUnit {
   readonly pitch: number;
   readonly range: number;
   readonly meters = new Map<string, CamMeter>();
+  /** (marlow-jammer) Jammed or rebooting: the sweep stops where it is (its clock does not run). */
+  frozen = false;
+  /** (marlow-jammer) The jam phase (0 working, 1 jammed: the LED flashes, 2 rebooting) and seconds in it (render only). */
+  jam = 0;
+  jamT = 0;
 
   constructor(
     readonly def: CameraDevice,
@@ -177,9 +186,10 @@ export class CameraUnit {
     return this.mode === 'online';
   }
 
-  /** Advance the clock (every fixed step; the sweep keeps turning while off or looped, it is only blind). */
+  /** Advance the clock (every fixed step; the sweep keeps turning while off or looped, it is only blind; a jammed or
+   *  rebooting camera is frozen: its clock stops, so the sweep resumes where it stopped). */
   advance(dt: number): void {
-    if (this.mode === 'destroyed') return;
+    if (this.mode === 'destroyed' || this.frozen) return;
     this.clock += dt;
     this.yaw = sweepYaw(this.def, this.clock);
   }

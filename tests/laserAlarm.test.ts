@@ -53,13 +53,13 @@ function world() {
     target: { alive: true, health: { hp: 100 }, applyDamage: (d: unknown) => damage.push(d), aimPoint: (o: Vector3) => o },
   };
   const g = {
-    world: { layout: { lasers: [LASER_DEF] }, parts: { instance: () => { const b = beam(); beams.push(b); return b; } }, lightField: { totalAt: () => 1 } },
+    world: { layout: { lasers: [LASER_DEF] }, level: { lights: { lights: [], setOn: () => undefined } }, parts: { instance: () => { const b = beam(); beams.push(b); return b; } }, lightField: { totalAt: () => 1 } },
     scene: {},
     security: null,
     ballistics: { hitDistance: (a: Vector3, b: Vector3) => Vector3.Distance(a, b) },
     app: { quality: { level: { minimal: false } } },
     vision: { night: 0, kind: 0 },
-    hud: { banner: (t: string, s: string) => banners.push(`${t}|${s}`) },
+    hud: { banner: (t: string, s: string) => banners.push(`${t}|${s}`), el: { appendChild: () => undefined } },
     playerRefs: () => [player],
     weapons: { slots: [] },
   };
@@ -70,6 +70,9 @@ describe('(sector-fixes C) the laser sensor', () => {
   let CtDevices: typeof CtDevicesT;
   beforeAll(async () => {
     (globalThis as unknown as { window: unknown }).window ??= globalThis;
+    // (marlow-jammer) the jammer's HUD line is a DOM element: a stand-in node
+    const gd = globalThis as unknown as { document?: unknown };
+    gd.document ??= { createElement: () => ({ className: '', textContent: '', style: { cssText: '', display: '' }, remove: () => undefined }) };
     ({ CtDevices } = await import('../src/game/ctDevices'));
   });
   afterAll(() => {

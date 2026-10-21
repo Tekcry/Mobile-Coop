@@ -18,6 +18,9 @@ const MAPS = [
   ['yard', 'autostart=ctcourse&mode=course', ['cam-s3'], ['laser-s4']],
 ];
 let failed = 0;
+// SHOT_ONLY=<id,id>: only those cameras / lasers; SHOT_FULL=1: full size (1280 x 640) for a close look at the grid
+const ONLY = process.env.SHOT_ONLY ? process.env.SHOT_ONLY.split(',') : null;
+const FULL = process.env.SHOT_FULL === '1';
 
 if (await fetch(URL).then(() => true, () => false)) { console.error(`shots: port ${PORT} already in use`); process.exit(2); }
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
@@ -99,7 +102,12 @@ for (const [name, query, camIds, laserIds] of MAPS) {
   try {
     await page.waitForFunction(() => globalThis.__app?.current?.player && globalThis.__app.current.world && globalThis.__ctdev, null, { timeout: 180_000 });
     await page.waitForFunction(() => globalThis.__ctdev.debug().cue.length > 0 && globalThis.__ctdev.debug().cue.every((c) => c.baked), null, { timeout: 90_000 });
-    const shots = [...camIds.flatMap((id) => [['cam', id, 'off'], ['cam', id, 'electro']]), ...laserIds.flatMap((id) => [['laser', id, 'off'], ['laser', id, 'night']])];
+    const shots = [...camIds.flatMap((id) => [['cam', id, 'off'], ['cam', id, 'electro']]), ...laserIds.flatMap((id) => [['laser', id, 'off'], ['laser', id, 'night']])].filter(([, id]) => !ONLY || ONLY.includes(id));
+    if (shots.length === 0) {
+      await browser.close();
+      browser = null;
+      continue;
+    }
     for (const [kind, id, view] of shots) {
       const info = await page.evaluate(async ([kind, id, view]) => {
         const g = globalThis.__app.current;
@@ -125,11 +133,11 @@ for (const [name, query, camIds, laserIds] of MAPS) {
           await sleep(60);
           g.photoFreeze(true);
           document.body.classList.add('photo-mode');
-          const f = (cam.def.facing * Math.PI) / 180;
-          const dx = Math.sin(f);
-          const dz = Math.cos(f);
-          pc.position.set(cam.x - dx * 3 + dz * 1.0, cam.y + 2.2, cam.z - dz * 3 - dx * 1.0);
-          pc.setTarget(new V(cam.x + dx * 8, floor, cam.z + dz * 8));
+          // just in front of and over the lens (wall-mounted: behind it is the wall), looking at the floor 7 m out
+          const ux = Math.sin(cam.yaw);
+          const uz = Math.cos(cam.yaw);
+          pc.position.set(cam.x + ux * 0.9, cam.y + 0.7, cam.z + uz * 0.9);
+          pc.setTarget(new V(cam.x + ux * 7, floor, cam.z + uz * 7));
           for (let i = 0; i < 40 && !g.scene.isReady(); i++) await sleep(250);
           await sleep(1200);
           const c = dev.debug().cue.find((q) => q.id === id);
@@ -165,7 +173,7 @@ for (const [name, query, camIds, laserIds] of MAPS) {
         continue;
       }
       const file = `${dir}/${tag}-${name}-${id}-${view}.webp`;
-      writeFileSync(file, await webp(page, await page.screenshot()));
+      writeFileSync(file, FULL ? await webp(page, await page.screenshot(), 1280, 640) : await webp(page, await page.screenshot()));
       console.log(`${file} ${JSON.stringify(info)}`);
     }
     if (l.errors.length) console.log(l.errors.slice(0, 5).join('\n'));

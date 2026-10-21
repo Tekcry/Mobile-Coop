@@ -7,18 +7,21 @@ const HOUSING = '#d6dade';
 const BRACKET = '#3a3f45';
 const LED_ON = '#ff2a1a';
 const LED_OFF = '#1a1d20';
+/** Flashes per second of a jammed camera's LED. */
+const LED_FLASH_HZ = 4;
 
 interface CameraView {
   node: TransformNode;
   led: InstancedMesh;
   lastYaw: number;
   lastMode: string;
+  lastLed: string;
 }
 
 /**
  * Greybox bodies for the security devices (S0 section 3): one shared box part, so every camera costs instanced
  * draws of the same mesh only (housing, mount, LED). A red LED shows a camera that sees; off, looped and destroyed
- * read as a dark LED, and a shot housing hangs tilted.
+ * read as a dark LED (a jammed one flashes), and a shot housing hangs tilted.
  */
 export class SecurityView {
   private views = new Map<CameraUnit, CameraView>();
@@ -45,7 +48,7 @@ export class SecurityView {
     box(HOUSING, H.w, H.h, H.len, 0, 0, 0);
     box(BRACKET, 0.05, 0.2, 0.05, 0, H.h / 2 + 0.1, -H.len / 4);
     const led = box(LED_ON, CAMERA.ledSize, CAMERA.ledSize, 0.02, 0, 0, H.len / 2 + 0.01);
-    this.views.set(c, { node, led, lastYaw: c.yaw, lastMode: 'online' });
+    this.views.set(c, { node, led, lastYaw: c.yaw, lastMode: 'online', lastLed: LED_ON });
   }
 
   /** Follow the cameras' yaw and mode (cheap: only touches what changed). */
@@ -60,8 +63,14 @@ export class SecurityView {
       }
       if (v.lastMode !== c.mode) {
         v.lastMode = c.mode;
-        this.parts.setColor(v.led, c.mode === 'online' ? LED_ON : LED_OFF);
+        // (sector-fixes C) the housing points down its pitch (a shot one hangs further)
         v.node.rotation.x = c.pitch + (c.mode === 'destroyed' ? 0.5 : 0);
+      }
+      // (marlow-jammer, item 7) the LED flashes while the camera is jammed (dark while it reboots)
+      const led = c.mode === 'online' ? LED_ON : c.jam === 1 && ((c.jamT * LED_FLASH_HZ * 2) | 0) % 2 === 0 ? LED_ON : LED_OFF;
+      if (v.lastLed !== led) {
+        v.lastLed = led;
+        this.parts.setColor(v.led, led);
       }
     }
   }

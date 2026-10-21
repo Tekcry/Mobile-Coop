@@ -1,26 +1,47 @@
 import { Color4, TransformNode, Vector3, type InstancedMesh, type Vector4 } from '../core/babylon';
 import { CAMERA } from '../config/security';
 import { hyp2, hyp3 } from '../core/mathx';
-import { CameraUnit } from '../security/camera';
+import { CameraUnit, sweepYaw } from '../security/camera';
 import { SecurityView } from '../security/securityView';
 import { CameraCueView } from '../vfx/cameraCueView';
 import { cameraSight, newSeenBody, remoteHeadY, type SecurityEvent, type SeenBody } from '../security/securitySystem';
 import { seenAt } from '../ai/perception';
 import { addGlow } from '../player/goggleGlow';
 import { DRAW_DRAWN } from '../weapons/drawState';
+import { G } from '../physics/groups';
 import type { PlayerRef } from '../ai/enemy';
+import type { LightDef } from '../world/lights';
 import type { GameState } from './gameState';
 import {
+  DEV_IDLE,
+  DEV_JAMMED,
+  DEV_RECOVER,
+  HALL_BACK,
+  HALL_BACK_HOLD,
+  HALL_IDLE,
+  HALL_SENT,
   JAMMER,
   LASER,
+  advanceDevJam,
   deviceAlarm,
+  hallStep,
   inBox,
+  jamHudKey,
+  jamHudText,
+  jamLeft,
   laserCooldown,
   laserTouch,
+  lightLit,
+  mirrorDevJam,
+  newDevJam,
   newJam,
   pickJamTarget,
   rearmZones,
+  stepDevJam,
   stepJam,
+  type DevJam,
+  type DevPhase,
+  type HallRule,
   type JamState,
   type JamTarget,
   type LaserDef,
@@ -45,14 +66,19 @@ import {
   type ScannerDef,
 } from './scanners';
 
-/** The host's device state for the clients (a field of the `course` message): camera clock, who jams what, charges, alarm stage. */
+/** The host's device state for the clients (a field of the `course` / `sector` message): camera clocks, who jams what,
+ *  each jammer's use and cooldown, the devices' jam timelines, alarm stage. */
 export interface SecWire {
-  /** The cameras' shared clock (s). */
-  ck: number;
+  /** (26) Each camera's clock (s), in the map's camera order (a jammed camera's clock stops: its sweep is frozen). */
+  ck: number[];
   /** Target id each player (0 host, 1 client) is actively jamming ('' none). */
   j: [string, string];
-  /** Jammer charge (s) of each player. */
+  /** (26) Jam seconds left of each player (`jamLeft`: the rest of the jam, `useMax` when ready, 0 cooling). */
   ch: [number, number];
+  /** (26) Cooldown seconds left of each player. */
+  cd: [number, number];
+  /** (26) The devices that are not idle: [id, phase (1 jammed, 2 recovering), seconds in the phase]. */
+  dv: [string, number, number][];
   /** Alarm stage 0..ALARM_MAX. */
   al: number;
   /** (B6) The scanner pair: [phase A, phase B, occupied bits (1 A, 2 B), hack progress A, B (tenths of s)]. */
@@ -83,6 +109,8 @@ export interface PassZone {
   box: [number, number, number, number];
   flag: string;
   floorY?: number;
+  /** (marlow-jammer fix round 1) The camera hallway before this zone: its send-back rule (`hallStep`). */
+  hall?: HallRule;
 }
 
 const BEAM = '#ff2a1a';
@@ -91,14 +119,36 @@ const BEAM_W = 0.035;
 const BEAM_NV_GLOW = 0.9;
 const IDLE = new Color4(1, 0.1, 0.08, 1);
 const AIMED = new Color4(0.2, 1, 0.3, 1);
-const ON = new Color4(0.7, 1, 0.75, 1);
+/** (marlow-jammer) Jamming: a bright cyan pulse (the old "jamming" green matched the aimed green: a jam did not show). */
+const ON = new Color4(0.35, 0.85, 1, 1);
+const ON_DIM = new Color4(0.05, 0.2, 0.3, 1);
+/** Cooling down: dim red; aimed at a target that reboots: amber. */
 const EMPTY = new Color4(0.35, 0.03, 0.03, 1);
+const BUSY = new Color4(1, 0.6, 0.1, 1);
 
 interface LaserRt {
   def: LaserDef;
   meshes: InstancedMesh[];
   on: boolean;
 }
+
+/** (marlow-jammer) One jam target: its pick record, its jam timeline and the device it drives. */
+interface DevRt {
+  t: JamTarget;
+  d: DevJam;
+  cam: CameraUnit | null;
+  laser: LaserRt | null;
+  light: LightDef | null;
+  /** The phase last put on the device (a light restores its on state when it goes back to idle). */
+  lastPh: DevPhase;
+  /** A light's on state when its jam started. */
+  wasOn: boolean;
+  /** (fix round 1) Client: seconds since the mirror ran its own reboot down to idle (Infinity: it did not). */
+  idleFor: number;
+}
+
+/** (marlow-jammer, item 8) Light kinds the jammer can switch off: fixed electric lamps. */
+const JAM_LIGHT_KINDS: readonly string[] = ['lamp', 'spot'];
 
 export interface CtHooks {
   /** Radio line (LANTERN). */
@@ -127,6 +177,23 @@ export class CtDevices {
   /** The jam targets that are live (Sector Ops: only the live section's devices). */
   readonly targets: JamTarget[] = [];
   private readonly allTargets: JamTarget[] = [];
+  /** (marlow-jammer) Every jam target's runtime (cameras, lasers, lights) and by id. */
+  private readonly devs: DevRt[] = [];
+  private readonly devOf = new Map<string, DevRt>();
+  /** (marlow-jammer) The jammer's HUD line (use left, cooldown) and its last text. */
+  private hudEl: HTMLDivElement | null = null;
+  private hudText = '';
+  private hudKey = -1;
+  /** Aim at a light that is switched off (not jammed): not a target. */
+  private readonly skipPick = (t: JamTarget): boolean => {
+    if (t.kind !== 'light') return false;
+    const dv = this.devOf.get(t.id);
+    const l = dv?.light;
+    return !dv || !l || l.destroyed || (!l.on && dv.d.ph === DEV_IDLE);
+  };
+  private readonly losA = new Vector3();
+  private readonly losB = new Vector3();
+  private lampT = 0;
   /** Sector Ops: devices of a section that is not live (off and blind; lasers dark and harmless). */
   private readonly dead = new Set<string>();
   /** Sector Ops: the live section (-1 none; devices without a section are always live). */
@@ -149,7 +216,6 @@ export class CtDevices {
   private cueT = 0;
   private readonly refTmp: PlayerRef[] = [];
   private readonly bodies: SeenBody[] = [newSeenBody()];
-  private readonly lit = { lightAt: (x: number, y: number, z: number): number => this.g.world.lightField.totalAt(x, y, z) };
   private time = 0;
   private want: [string, string] = ['', ''];
   private wantAt: [number, number] = [-9, -9];
@@ -165,6 +231,14 @@ export class CtDevices {
   private nv = false;
   private lamp: InstancedMesh | null = null;
   private zoneSet = new Set<string>();
+  /** (fix round 1) Per pass zone with a hallway rule: each player's hallway state (zone * 2 + player), its camera. */
+  private hallRun = new Uint8Array(0);
+  /** (fix round 2) Per zone and player: seconds left of the sent-back hold (`HALL_BACK_HOLD`, the client only). */
+  private hallHold = new Float32Array(0);
+  private hallCam: (CameraUnit | null)[] = [];
+  private readonly backAt = new Vector3();
+  /** (fix round 1) Players the hallway camera sent back (tests). */
+  sendBacks = 0;
   private readonly p = new Vector3();
   private readonly dir = new Vector3();
   /** (B6) The paired scanners (station 6), null on maps without them. */
@@ -194,25 +268,46 @@ export class CtDevices {
         this.view.addCamera(c);
       }
     }
-    for (const c of this.cams) this.allTargets.push({ id: c.def.id, kind: 'camera', x: c.x, y: c.y, z: c.z });
+    for (const c of this.cams) this.addDev({ id: c.def.id, kind: 'camera', x: c.x, y: c.y, z: c.z }, c, null, null);
+    this.hallRun = new Uint8Array(this.zones.length * 2);
+    this.hallHold = new Float32Array(this.zones.length * 2);
+    this.hallCam = this.zones.map((z) => (z.hall && role === 'host' ? (this.cams.find((c) => c.def.id === z.hall!.camera) ?? null) : null));
     this.cueSeen = new Uint8Array(this.cams.length);
     if (this.cams.length > 0) {
       const b = g.ballistics;
       this.cue = new CameraCueView(g.scene, this.cams, (a, z, m) => b.hitDistance(a, z, m), g.app.quality.level.minimal);
     }
     for (const def of lay.lasers ?? []) {
-      this.lasers.push({ def, meshes: this.buildBeams(def), on: true });
+      const l: LaserRt = { def, meshes: this.buildBeams(def), on: true };
+      this.lasers.push(l);
       const base = def.floorY ?? 0;
       const ym = def.ys.reduce((a, b) => a + b, 0) / Math.max(1, def.ys.length);
-      this.allTargets.push({ id: def.id, kind: 'laser', x: (def.x1 + def.x2) / 2, y: base + ym, z: (def.z1 + def.z2) / 2 });
+      this.addDev({ id: def.id, kind: 'laser', x: (def.x1 + def.x2) / 2, y: base + ym, z: (def.z1 + def.z2) / 2 }, null, l, null);
+    }
+    // (marlow-jammer, item 8) the map's fixed electric lamps are jam targets too (id `lt-<registry id>`, the same on both
+    // pages: both build the level's lights in the same order)
+    for (const l of g.world.level.lights.lights) {
+      if (!l.electric || !JAM_LIGHT_KINDS.includes(l.kind)) continue;
+      this.addDev({ id: `lt-${l.id}`, kind: 'light', x: l.x, y: l.y, z: l.z }, null, null, l);
     }
     for (const t of this.allTargets) this.targets.push(t);
+    this.hudEl = document.createElement('div');
+    this.hudEl.className = 'hud-jammer';
+    this.hudEl.style.cssText = 'position:absolute;left:50%;top:58%;transform:translateX(-50%);font:600 13px/1.2 sans-serif;letter-spacing:0.08em;color:#bfe9ff;text-shadow:0 1px 2px #000;pointer-events:none;display:none';
+    g.hud.el.appendChild(this.hudEl);
     const sd = lay.scanners?.[0];
     const devs = lay.course?.devices;
     const da = sd && devs?.[sd.a];
     const db = sd && devs?.[sd.b];
     if (sd && da && db) this.scan = this.buildScan(sd, da.x, da.z, db.x, db.z);
     (window as unknown as { __ctdev?: unknown }).__ctdev = this;
+  }
+
+  private addDev(t: JamTarget, cam: CameraUnit | null, laser: LaserRt | null, light: LightDef | null): void {
+    const dv: DevRt = { t, d: newDevJam(), cam, laser, light, lastPh: DEV_IDLE, wasOn: true, idleFor: Infinity };
+    this.devs.push(dv);
+    this.devOf.set(t.id, dv);
+    this.allTargets.push(t);
   }
 
   private buildScan(def: ScannerDef, ax: number, az: number, bx: number, bz: number): ScanRt {
@@ -391,6 +486,26 @@ export class CtDevices {
     }
   }
 
+  /**
+   * (marlow-jammer, item 7) The nearest device being jammed now to (x, y, z), into out; false when nothing is jammed.
+   * The jam buzz plays there on both pages (audio/jamBuzz.ts). No allocation.
+   */
+  nearestJammed(x: number, y: number, z: number, out: { x: number; y: number; z: number }): boolean {
+    let best = Infinity;
+    for (let k = 0; k < this.devs.length; k++) {
+      const dv = this.devs[k]!;
+      if (dv.d.ph !== DEV_JAMMED) continue;
+      const t = dv.t;
+      const d = hyp3(t.x - x, t.y - y, t.z - z);
+      if (d >= best) continue;
+      best = d;
+      out.x = t.x;
+      out.y = t.y;
+      out.z = t.z;
+    }
+    return best < Infinity;
+  }
+
   /** The device works now (Sector Ops: its section is live). */
   live(id: string): boolean {
     return !this.dead.has(id);
@@ -415,18 +530,22 @@ export class CtDevices {
     if (pistol) {
       const cam = g.player.cam.gamePos;
       const f = g.player.cam.forward;
-      const i = pickJamTarget(this.targets, cam.x, cam.y, cam.z, f.x, f.y, f.z);
+      const i = pickJamTarget(this.targets, cam.x, cam.y, cam.z, f.x, f.y, f.z, JAMMER.range, JAMMER.cone, this.skipPick);
       if (i >= 0) pick = this.targets[i]!.id;
       else if (held && this.lockId) {
         // a held jam keeps its target through a small drift of the aim
-        const k = this.targets.find((t) => t.id === this.lockId);
-        if (k && pickJamTarget([k], cam.x, cam.y, cam.z, f.x, f.y, f.z, JAMMER.range, JAMMER.cone * 2.5) === 0) pick = this.lockId;
+        const k = this.devOf.get(this.lockId)?.t;
+        if (k && this.targets.includes(k) && pickJamTarget([k], cam.x, cam.y, cam.z, f.x, f.y, f.z, JAMMER.range, JAMMER.cone * 2.5) === 0) pick = this.lockId;
       }
+      // (marlow-jammer) only a target the aim has a clear line to: no jamming through walls
+      if (pick && !this.clearLine(cam, pick)) pick = '';
     }
     this.localPick = pick;
     const want = held && pistol ? pick : '';
     this.lockId = want;
+    this.lampT += dt;
     this.updateLamp(pistol);
+    this.updateHud(pistol);
     if (this.role === 'host') {
       this.want[0] = want;
       this.wantAt[0] = this.time;
@@ -441,9 +560,50 @@ export class CtDevices {
     }
   }
 
+  /** A clear static line from the eye to the target (a hit within `JAMMER.losSlack` of it counts as clear). */
+  private clearLine(eye: Vector3, id: string): boolean {
+    return this.clearFrom(eye.x, eye.y, eye.z, id);
+  }
+
+  /** A clear static line from (x, y, z) to the target, `JAMMER.losSlack` of slack. No allocation. */
+  private clearFrom(x: number, y: number, z: number, id: string): boolean {
+    const t = this.devOf.get(id)?.t;
+    if (!t) return false;
+    this.losA.set(x, y, z);
+    this.losB.set(t.x, t.y, t.z);
+    const d = hyp3(t.x - x, t.y - y, t.z - z);
+    return this.g.ballistics.hitDistance(this.losA, this.losB, G.STATIC) >= d - JAMMER.losSlack;
+  }
+
+  /** (marlow-jammer) The jammer's HUD line: shown while the pistol is out or a jam / cooldown runs. */
+  private updateHud(pistol: boolean): void {
+    const el = this.hudEl;
+    if (!el) return;
+    const s = this.jam[this.me];
+    const dv = this.localPick ? this.devOf.get(this.localPick) : undefined;
+    const show = pistol || s.active || s.cool > 0;
+    const rec = dv?.d.ph === DEV_RECOVER;
+    // (fix round 1) the text is only rebuilt when what it shows changes (kind and tenths): no string per frame
+    const key = show ? jamHudKey(s, !!dv, rec) : 0;
+    if (key === this.hudKey) return;
+    this.hudKey = key;
+    const text = key === 0 ? '' : jamHudText(s, !!dv, rec);
+    if (text === this.hudText) return;
+    this.hudText = text;
+    el.textContent = text;
+    el.style.display = text ? '' : 'none';
+  }
+
   /** The client's intent (host side, from a `jam` message). */
   onRemoteJam(tgt: string): void {
-    this.want[1] = this.targets.some((t) => t.id === tgt) ? tgt : '';
+    let ok = tgt !== '' && this.targets.some((t) => t.id === tgt);
+    // (fix round 1) the same static line of sight the client checks, from the client's head (its eye on the host):
+    // a modified client cannot jam through walls. Runs per message (a change or the heartbeat), no allocation
+    if (ok) {
+      const r = this.g.playerRefsInto(this.refTmp)[1];
+      ok = !!r && this.clearFrom(r.feet.x + (r.peekX ?? 0), remoteHeadY(r.feet.y, r.crouched), r.feet.z + (r.peekZ ?? 0), tgt);
+    }
+    this.want[1] = ok ? tgt : '';
     this.wantAt[1] = this.time;
   }
 
@@ -457,9 +617,9 @@ export class CtDevices {
     }
     this.lamp.isVisible = pistol;
     if (!pistol) return;
-    const mine = this.jamId[this.me] !== '';
-    const dry = !mine && this.jam[this.me].charge < JAMMER.minStart;
-    this.lamp.instancedBuffers.color = mine ? ON : dry ? EMPTY : this.localPick ? AIMED : IDLE;
+    const s = this.jam[this.me];
+    const busy = this.localPick !== '' && this.devOf.get(this.localPick)?.d.ph === DEV_RECOVER;
+    this.lamp.instancedBuffers.color = s.active ? (((this.lampT * 8) | 0) % 2 === 0 ? ON : ON_DIM) : s.cool > 0 ? EMPTY : busy ? BUSY : this.localPick ? AIMED : IDLE;
   }
 
   // ---- host authority ----
@@ -473,8 +633,11 @@ export class CtDevices {
       const alive = r.target.alive;
       const fresh = alive && this.time - this.wantAt[i]! <= JAMMER.stale;
       const tgt = fresh ? this.want[i]! : '';
-      const ok = tgt !== '' && this.inReach(tgt, r);
-      const on = stepJam(this.jam[i]!, ok, r.speed, dt);
+      const dv = tgt !== '' ? this.devOf.get(tgt) : undefined;
+      const s = this.jam[i]!;
+      // a device that reboots cannot be jammed (A3); a jam keeps its own target (aiming at another one ends it)
+      const ok = !!dv && !this.dead.has(tgt) && dv.d.ph !== DEV_RECOVER && this.inReach(dv.t, r) && (!s.active || tgt === this.jamId[i]);
+      const on = stepJam(s, ok, r.speed, dt);
       const id = on ? tgt : '';
       if (id !== this.jamId[i]) {
         this.jamId[i] = id as string;
@@ -482,10 +645,16 @@ export class CtDevices {
       }
     }
     for (let i = n; i < 2; i++) {
+      stepJam(this.jam[i]!, false, 0, dt);
       if (this.jamId[i] !== '') {
         this.jamId[i] = '';
         this.changed = true;
       }
+    }
+    // each device's timeline: jammed while someone holds it, then its reboot / the light's off and flicker back
+    for (let k = 0; k < this.devs.length; k++) {
+      const dv = this.devs[k]!;
+      if (stepDevJam(dv.d, this.jammed(dv.t.id), dv.t.kind, dt)) this.changed = true;
     }
     this.applyJam();
     this.cue?.update(dt, this.g.vision.kind === 2);
@@ -498,37 +667,102 @@ export class CtDevices {
     for (let z = 0; z < this.zones.length; z++) {
       const zone = this.zones[z]!;
       if (this.zoneSet.has(zone.id)) continue;
+      // (fix round 1) the hallway rule runs until the zone is passed (then the station is done)
+      const hall = zone.hall;
+      if (hall) this.stepHall(z, zone, hall, refs, n, dt);
       let inside = 0;
       for (let i = 0; i < n; i++) {
         const r = refs[i]!;
+        // (fix round 1) a player still running the camera hallway does not count; (fix round 2) nor one sent back
+        // who has not been seen in the entry lobby since
+        if (hall && this.hallRun[z * 2 + i] !== HALL_IDLE) continue;
         if (r.target.alive && inBox(zone.box, r.feet.x, r.feet.z) && Math.abs(r.feet.y - (zone.floorY ?? 0)) < 1) inside++;
       }
       if (inside >= (this.hooks.solo?.() ? 1 : Math.max(2, n))) {
         this.zoneSet.add(zone.id);
+        this.hallRun[z * 2] = this.hallRun[z * 2 + 1] = 0;
+        this.hallHold[z * 2] = this.hallHold[z * 2 + 1] = 0;
         this.hooks.flag?.(zone.flag);
       }
     }
   }
 
-  /** The player is near enough to the target (the aim itself is the client's; the host bounds the claim). */
-  private inReach(id: string, r: PlayerRef): boolean {
-    for (let i = 0; i < this.targets.length; i++) {
-      const t = this.targets[i]!;
-      if (t.id === id) return hyp3(t.x - r.feet.x, t.y - r.feet.y - 1.5, t.z - r.feet.z) <= JAMMER.range + 3;
+  /**
+   * (marlow-jammer fix round 1, Michael item 5) The camera hallway's hard rule (`hallStep`): a player its camera has
+   * while in the hallway (or still running in the far lobby) goes back to the entry lobby's spot. The host moves its
+   * own player; the client's goes through the co-op layer (`sendBack`: a `back` event). Being seen also raises the
+   * alarm stage as everywhere (both kept: the simpler choice).
+   */
+  private stepHall(z: number, zone: PassZone, hall: HallRule, refs: PlayerRef[], n: number, dt: number): void {
+    const cam = this.hallCam[z] ?? null;
+    const fy = zone.floorY ?? 0;
+    for (let i = 0; i < n; i++) {
+      const r = refs[i]!;
+      const k = z * 2 + i;
+      const hold = Math.max(0, this.hallHold[k]! - dt);
+      this.hallHold[k] = hold;
+      if (!r.target.alive) continue;
+      const level = Math.abs(r.feet.y - fy) < 1;
+      const inLobby = level && inBox(hall.lobby, r.feet.x, r.feet.z);
+      const inHall = level && inBox(hall.box, r.feet.x, r.feet.z);
+      const inFar = level && inBox(zone.box, r.feet.x, r.feet.z);
+      const m = cam ? cam.meters.get(r.id) : undefined;
+      const st = hallStep(this.hallRun[k]!, inLobby, inHall, inFar, m ? m.stage : 0, hold > 0);
+      if (st !== HALL_BACK) {
+        this.hallRun[k] = st;
+        continue;
+      }
+      // (fix round 2) sent back: not counted until seen in the entry lobby; the client's copy takes stale positions
+      // (sent before the `back` event reached it) for HALL_BACK_HOLD, so its reports count only after that
+      this.hallRun[k] = HALL_SENT;
+      this.hallHold[k] = i === 0 ? 0 : HALL_BACK_HOLD;
+      // the camera forgets them (a fresh run starts from an empty meter)
+      if (m) {
+        m.meter = m.full = m.stage = 0;
+        m.sinceSeen = 99;
+      }
+      const bx = hall.back[0];
+      const bz = hall.back[1];
+      const yaw = hall.back[2];
+      this.sendBacks++;
+      this.changed = true;
+      this.hooks.say(hall.say);
+      if (i === 0) {
+        const g = this.g;
+        g.team.end(true);
+        g.traversal.reset();
+        g.player.controller.override = null;
+        g.player.controller.teleport(this.backAt.set(bx, fy, bz), yaw);
+        g.player.cam.yaw = yaw;
+      } else this.g.net?.sendBack?.(r.id, bx, fy, bz, yaw);
     }
-    return false;
+  }
+
+  /** The player is near enough to the target (the aim itself is the client's; the host bounds the claim). */
+  private inReach(t: JamTarget, r: PlayerRef): boolean {
+    return hyp3(t.x - r.feet.x, t.y - r.feet.y - 1.5, t.z - r.feet.z) <= JAMMER.range + 3;
   }
 
   private jammed(id: string): boolean {
     return this.jamId[0] === id || this.jamId[1] === id;
   }
 
-  /** Put the jam on the devices: a jammed camera is blind (mode off, LED dark), a jammed laser is off. */
+  /**
+   * Put the jam timelines on the devices (both roles). A jammed or rebooting camera is blind (mode off: no grid, no
+   * meter) and frozen (its sweep stops), its LED flashing while jammed; a jammed or rebooting laser is off; a jammed
+   * light follows `lightLit` in the registry, which the bake, the light meter and the guards read (light parity).
+   */
   private applyJam(): void {
-    for (let i = 0; i < this.cams.length; i++) {
-      const c = this.cams[i]!;
+    for (let k = 0; k < this.devs.length; k++) {
+      const dv = this.devs[k]!;
+      const c = dv.cam;
+      if (!c) continue;
       const id = c.def.id;
-      if (this.jammed(id) || this.dead.has(id)) {
+      const ph = dv.d.ph;
+      c.frozen = ph !== DEV_IDLE;
+      c.jam = ph;
+      c.jamT = dv.d.t;
+      if (ph !== DEV_IDLE || this.dead.has(id)) {
         if (c.mode === 'online') {
           c.setMode('off');
           this.camOff.add(id);
@@ -541,10 +775,27 @@ export class CtDevices {
     for (let i = 0; i < this.lasers.length; i++) {
       const l = this.lasers[i]!;
       const off = l.def.offFlag !== undefined && !!this.hooks.has?.(l.def.offFlag);
-      const on = !off && !this.jammed(l.def.id) && !this.dead.has(l.def.id);
+      const on = !off && this.devOf.get(l.def.id)?.d.ph === DEV_IDLE && !this.dead.has(l.def.id);
       if (on === l.on) continue;
       l.on = on;
       this.showLaser(l);
+    }
+    const reg = this.g.world.level.lights;
+    for (let k = 0; k < this.devs.length; k++) {
+      const dv = this.devs[k]!;
+      const l = dv.light;
+      if (!l) continue;
+      const ph = dv.d.ph;
+      const was = dv.lastPh;
+      dv.lastPh = ph;
+      if (ph !== DEV_IDLE && was === DEV_IDLE) dv.wasOn = l.on;
+      if (l.destroyed) continue;
+      if (ph === DEV_IDLE) {
+        // back from a jam: on as it was (the step it went idle); otherwise the course's switches own it
+        if (was !== DEV_IDLE && dv.wasOn) reg.setOn(l.id, true);
+        continue;
+      }
+      reg.setOn(l.id, dv.wasOn && lightLit(dv.d));
     }
   }
 
@@ -622,10 +873,14 @@ export class CtDevices {
 
   /** Host: the field for the `course` message. */
   wire(): SecWire {
+    const dv: [string, number, number][] = [];
+    for (const d of this.devs) if (d.d.ph !== DEV_IDLE) dv.push([d.t.id, d.d.ph, Math.round(d.d.t * 100) / 100]);
     return {
-      ck: this.cams[0]?.clock ?? 0,
+      ck: this.cams.map((c) => Math.round(c.clock * 1000) / 1000),
       j: [this.jamId[0], this.jamId[1]],
-      ch: [Math.round(this.jam[0].charge * 10) / 10, Math.round(this.jam[1].charge * 10) / 10],
+      ch: [Math.round(jamLeft(this.jam[0]) * 100) / 100, Math.round(jamLeft(this.jam[1]) * 100) / 100],
+      cd: [Math.round(this.jam[0].cool * 100) / 100, Math.round(this.jam[1].cool * 100) / 100],
+      dv,
       al: this.alarm,
       ...(this.scan ? { sc: [this.scan.pair.ph[0], this.scan.pair.ph[1], this.scan.occ, Math.round(this.scan.pair.t[0] * 10), Math.round(this.scan.pair.t[1] * 10)] } : {}),
     };
@@ -637,8 +892,28 @@ export class CtDevices {
   apply(s: SecWire): void {
     this.jamId[0] = s.j[0];
     this.jamId[1] = s.j[1];
-    this.jam[0].charge = s.ch[0];
-    this.jam[1].charge = s.ch[1];
+    for (let k = 0; k < 2; k++) {
+      const st = this.jam[k as 0 | 1];
+      st.active = s.j[k] !== '';
+      st.use = st.active ? JAMMER.useMax - s.ch[k]! : 0;
+      st.cool = s.cd[k]!;
+    }
+    // the devices' timelines: those listed take the host's phase and time, the rest are idle; (fix round 1) only ever
+    // forward: a late host reboot the mirror already ran down is dropped (`mirrorDevJam`: no blink back into it)
+    for (let k = 0; k < this.devs.length; k++) {
+      const dv = this.devs[k]!;
+      let ph: DevPhase = DEV_IDLE;
+      let t = 0;
+      for (let j = 0; j < s.dv.length; j++) {
+        const e = s.dv[j]!;
+        if (e[0] !== dv.t.id) continue;
+        ph = e[1] === DEV_JAMMED ? DEV_JAMMED : DEV_RECOVER;
+        t = e[2];
+        break;
+      }
+      const was = dv.d.ph;
+      if (mirrorDevJam(dv.d, ph, t, dv.idleFor) && (ph !== DEV_IDLE || was !== DEV_IDLE)) dv.idleFor = Infinity;
+    }
     this.alarm = s.al;
     const sc = this.scan;
     if (sc && s.sc) {
@@ -653,8 +928,10 @@ export class CtDevices {
     }
     for (let i = 0; i < this.cams.length; i++) {
       const c = this.cams[i]!;
-      c.clock = s.ck;
-      c.setMode(this.jammed(c.def.id) || this.dead.has(c.def.id) ? 'off' : 'online');
+      const ck = s.ck[i];
+      if (ck === undefined) continue;
+      c.clock = ck;
+      c.yaw = sweepYaw(c.def, ck);
     }
     this.applyJam();
   }
@@ -662,6 +939,20 @@ export class CtDevices {
   /** Client, per frame: the cameras keep turning between the host's clock updates. */
   frame(dt: number): void {
     if (this.role !== 'client') return;
+    // the host's timelines run on between its messages: the jams, the cooldowns, the reboots and the light flickers
+    for (let k = 0; k < 2; k++) {
+      const st = this.jam[k as 0 | 1];
+      if (st.active) st.use = Math.min(JAMMER.useMax, st.use + dt);
+      else if (st.cool > 0) st.cool = Math.max(0, st.cool - dt);
+    }
+    for (let k = 0; k < this.devs.length; k++) {
+      const dv = this.devs[k]!;
+      const rec = dv.d.ph === DEV_RECOVER;
+      advanceDevJam(dv.d, dv.t.kind, dt);
+      if (rec && dv.d.ph === DEV_IDLE) dv.idleFor = 0;
+      else if (dv.d.ph === DEV_IDLE && dv.idleFor < Infinity) dv.idleFor += dt;
+    }
+    this.applyJam();
     for (let i = 0; i < this.cams.length; i++) this.cams[i]!.advance(dt);
     this.followVision();
     if (this.cue) {
@@ -687,7 +978,6 @@ export class CtDevices {
       b.crouched = own.crouched;
       b.speed = own.speed;
       b.head.set(own.feet.x + (own.peekX ?? 0), remoteHeadY(own.feet.y, own.crouched), own.feet.z + (own.peekZ ?? 0));
-      b.light = own.light;
       n = 1;
     }
     n += g.net?.partnerBodies?.(this.bodies, n) ?? 0;
@@ -696,7 +986,7 @@ export class CtDevices {
       let s = 0;
       for (let k = 0; k < n && s === 0; k++) {
         const b = this.bodies[k]!;
-        if (seenAt(cameraSight(c, b.head, b.crouched, b.speed, b.light, g.ballistics, this.lit))) s = 1;
+        if (seenAt(cameraSight(c, b.head, b.crouched, b.speed, g.ballistics))) s = 1;
       }
       this.cueSeen[i] = s;
     }
@@ -707,11 +997,19 @@ export class CtDevices {
     return {
       role: this.role,
       jam: [...this.jamId],
-      charge: [this.jam[0].charge, this.jam[1].charge],
+      left: [jamLeft(this.jam[0]), jamLeft(this.jam[1])],
+      cool: [this.jam[0].cool, this.jam[1].cool],
+      hud: this.hudText,
+      devs: this.devs.filter((d) => d.d.ph !== DEV_IDLE).map((d) => ({ id: d.t.id, kind: d.t.kind, ph: d.d.ph, t: d.d.t, on: d.light ? d.light.on : undefined })),
+      lights: this.devs.filter((d) => d.light).map((d) => ({ id: d.t.id, x: d.t.x, y: d.t.y, z: d.t.z, on: d.light!.on })),
       alarm: this.alarm,
       hits: this.hits,
+      sendBacks: this.sendBacks,
+      // (fix round 2) each zone's hallway state per player (0 idle, 1 running, 3 sent back) and the sent-back hold
+      hall: [...this.hallRun],
+      hallHold: [...this.hallHold],
       pick: this.localPick,
-      cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, live: this.live(c.def.id), stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
+      cams: this.cams.map((c) => ({ id: c.def.id, mode: c.mode, yaw: c.yaw, clock: c.clock, frozen: c.frozen, jam: c.jam, live: this.live(c.def.id), stage: [...c.meters.values()].map((m) => m.stage), meter: [...c.meters.values()].map((m) => m.meter) })),
       lasers: this.lasers.map((l) => ({ id: l.def.id, on: l.on, live: this.live(l.def.id) })),
       live: this.liveSection,
       range: CAMERA.range,
@@ -749,6 +1047,8 @@ export class CtDevices {
     this.lasers.length = 0;
     this.lamp?.dispose();
     this.lamp = null;
+    this.hudEl?.remove();
+    this.hudEl = null;
     if (this.g.security) this.g.security.onEvent = null;
     const w = window as unknown as { __ctdev?: unknown };
     if (w.__ctdev === this) delete w.__ctdev;
