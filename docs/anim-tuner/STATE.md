@@ -102,6 +102,10 @@ run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, ste
 the pelvis `dx / dy / dz`) and a clip whose Mirror box is off with its halves edited apart is written in full
 (`mirror: false`, every key); the rebake then writes the clip channels `fore`, `head`, `sh`. A version 1 export (before
 the own rows of the shared states) is read with each new row given its old row's value, as the tuner's import does.
+(marlow-bays item 23) Key timing: the Keys tab's "◀ Earlier" / "Later ▶" (one bake frame, 1/48 of the cycle) and time
+slider slide the picked key in its clip, previewed live, between its neighbours (key 1 fixed; Mirror on moves the mirror
+key with it). The bake writes the key's `phase` and `src/anim/tuneKeysMeta.ts`, then prints the clip's rebake. No new
+pad button: they are Keys tab controls in its D-pad order.
 - **Identity after bake.** The code value moves (x the slider for a `mul`, + it for an `add`, in the code's unit); the
   slider's default stays identity. The tuner's own save still holds the old values: reset the sliders the table reports
   "baked" (keep the manual ones), then export again. The ledger keeps `group|id=value` of every baked value: a later

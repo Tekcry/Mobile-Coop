@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.40.0 - Animation tuner: slide a key earlier or later in its clip, baked into the key files (2026-10-21, PR #87)
+- Animation tuner, Keys tab: slide a key earlier or later in its clip ("◀ Earlier" / "Later ▶", one bake frame = 1/48
+  of the cycle, or the time slider), previewed live. Keys keep their order, the first key stays at the cycle start, and
+  with Mirror on the mirror key moves with its own key. Undo, reset, export and import work as for every slider.
+- The bake (`scripts/anim-tune-bake.mjs`, and `scripts/anim-keys/apply-tune.mjs`) writes a moved key's phase into its
+  key file, regenerates the tuner's key list (`src/anim/tuneKeysMeta.ts`) and prints the clip's rebake. An export with
+  no timing edit bakes exactly as before; the 28 clips are unchanged.
+
 ## 4.39.0 - Animation tuner redesign: docked panel in the menu style, body map, pinned sliders, folding groups; brighter studio (2026-10-21, PR #86)
 - The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
   looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values
