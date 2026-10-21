@@ -229,6 +229,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] Close the host tab: the client is told and returns to the menu.
+- [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
+  guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
+- [ ] Station 2: only the host does the leg-up, jumps over and picks Unbolt: the door opens; the near side shows
+  "Bolted from the other side" to whoever pressed it.
+- [ ] Station 3: the camera shows the red grid only, no flashing red border when it sees you (GPU look: pending PC run).
+- [ ] Host: Start (Esc) > Restart at checkpoint: the confirm opens on Stay; Restart puts both players at the bay start.
+  Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
+- [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.
+- [ ] Solo Sector Ops: Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
 
 ## Release checklist (before a job merges)
 

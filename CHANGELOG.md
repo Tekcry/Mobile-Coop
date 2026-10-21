@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - marlow-bays B+M
+- Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
+  when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
+  non-solid there, as on the host and in solo (bullets still hit him). On the host, the joiner's hostage follows the
+  joiner's drawn body instead of stepping ahead of it. Solo hold and carry speeds are unchanged.
+- Marlow Yard station 2: the host can unbolt the door alone after the leg-up (Michael: "stays closed and locked").
+  The host's own presses on course devices were counted as the joiner's, so the bolt checked the joiner's side of the
+  door (and "Bolted from the other side" went to the joiner's screen). The same fix credits the host's own hold
+  consoles, pickups and finish correctly.
+- Camera cue: the pulsing red frame edge while a camera sees a player is gone; the cue is the red grid only (in
+  electro, the white grid). The two red lines on station 3's floor are the painted edges of that camera's +-30 deg
+  sweep (course spec M2), kept.
+- Pause menu: "Restart at checkpoint" in Sector Ops and the co-op course (the section or the bay starts again, both
+  players back at the checkpoint) and, in co-op, "Return to lobby" (both players back to the room lobby). Each asks
+  first, with Stay focused. In co-op both are the host's: the joiner sees them disabled, "Host only".
+
 ## 4.35.0 - Animation tuner: free mouse, selection highlight, Keyed tick box, on the spot from every tab, studio light (2026-10-21, PR #82)
 - Animation tuner with keyboard and mouse (Michael: "the player camera locks the mouse in position"): the open panel
   leaves the pointer free in "Drag view": drag the scene with the left button to turn the camera, the wheel zooms (the
