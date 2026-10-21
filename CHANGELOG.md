@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - anim-run-half
+- The run's feet no longer cross the midline: the keyed clips' track half-width (`half`) is measured in the pelvis's
+  yaw frame (`scripts/anim-keys/py/key_clip.py`), not the world x, so the run keys' +-22.5 deg pelvis yaw no longer
+  leaks the stride into it. Run half -0.02039 -> 0.05128 (0.045 before the 2026-10-22 bake).
+- Every keyed clip with a pelvis yaw rebaked (key JSONs unchanged): walk 0.0466 -> 0.05181, jog 0.04592 -> 0.05418,
+  sneak 0.06355 -> 0.06501, crouch walk 0.06203 -> 0.0655, crouch run 0.06071 -> 0.06665, glide fwd 0.05672 ->
+  0.05806, glide back 0.057 -> 0.058, wall crouch slide 0.06195 -> 0.06542, ready stance 0.07927 -> 0.09353, guard
+  held hands 0.09392 -> 0.09389, held stumble 0.07274 -> 0.07634, choke sag 0.10495 -> 0.1047, knife collapse
+  0.12162 -> 0.10075. Clips with no pelvis yaw keep their half.
+- Tests: the walk footage limit `half <= 0.05` -> 0.053; the skeleton identity fixtures re-captured (the yawed keyed
+  clips, skeleton_test, the partner path and the guards' walk / aim walk); e2e-anim's run limits re-measured (track
+  0.16 -> 0.18, knee bow 0.09 -> 0.047; knee separation and elbows kept).
+
 ## 4.48.0 - Marlow Yard bay 3: a jam-handoff hallway, the jammer's 5 s use / 5 s cooldown with a buzz, camera reboot and lamp flicker; cameras see in the dark (2026-10-22, PR #101)
 - Jammer rules (Michael 2026-10-21 item 7, A3, J1): each player jams for at most 5 s, then a 5 s cooldown; letting go
   early (or moving: the stand-still rule) also starts the cooldown. The 20 s charge (drain / refill / minStart) is gone.

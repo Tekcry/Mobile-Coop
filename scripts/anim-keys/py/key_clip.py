@@ -466,6 +466,12 @@ for i in range(N):
                 q = [-v for v in q]
             lastq[n] = q
             wrists += q
+    # (anim-run-half) each ankle's lateral offset in the pelvis's yaw frame (about the vertical through the pelvis; its
+    # pitch and roll left out): the game's planner places the feet in the facing frame and the pelvis yaw does not move
+    # them, so a yawed pelvis (the run's +-22.5 deg, mirrored with the stride) must not leak the fore / aft stride into
+    # the track half-width (it did with the world x: the run's half baked -0.02)
+    pf = W['pelvis'] @ Vector((0, 0, 1))
+    unyaw = ry(-math.atan2(pf.x, pf.z))
     frames.append({
         'pel': [pel.x, pel.y, pel.z],
         'q': qs,
@@ -478,7 +484,7 @@ for i in range(N):
         **({'fing': skel['fing']} if HAS_FING else {}),
         **({'leg': skel['leg']} if HAS_LEGS else {}),
         **({'legd': skel['legd']} if HAS_LEGD else {}),
-        'ankle': [X['anL'].x / K, X['anR'].x / K],
+        'ankle': [(unyaw @ (X['anL'] - X['pelvis'])).x / K, (unyaw @ (X['anR'] - X['pelvis'])).x / K],
         'X': {n: list(X[n]) for n in ORDER},
     })
 

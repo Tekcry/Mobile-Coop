@@ -183,6 +183,12 @@ the live preview blends an added or deleted key linearly between its neighbours 
 rotations with Bezier (`py/key_clip.py` line 261), so after a rebake the in-betweens around an added or deleted key
 shift a little; the key poses match. Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
 `tests/tuneKeysEdit.test.ts`.
+(anim-run-half) A clip's `half` (the planner's track half-width) is the mean of (R - L) / 2 of the ankles' lateral
+offsets in the pelvis's yaw frame (about the vertical through the pelvis; its pitch and roll left out), not their world
+x: the planner places the feet in the facing frame and the pelvis yaw does not move them, so a yawed pelvis must not
+leak the fore / aft stride into the half (the run's +-22.5 deg yaw baked -0.020 in the world frame, the feet crossing
+the midline; in the pelvis frame 0.051). Clips with no pelvis yaw bake the same half; every clip with a pelvis yaw was
+rebaked in anim-run-half.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
 code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip
