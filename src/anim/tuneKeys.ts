@@ -12,11 +12,12 @@
  * apart); off, every key is its own (`tuneKeysMirror` copies the mirror image in when it goes off, so nothing jumps).
  */
 import './tuneV2Sections'; // the tuner-v2 sections register first (the panel order ends Stepping, then Keys)
-import type { KeyedClip, KeyedOffsets } from './keyed';
+import type { KeyedClip, KeyedOffsets, KeyedTime } from './keyed';
 import { KEY_CLIPS } from './tuneKeysMeta';
 import { KEY_FIELDS, KEY_FIELD_INDEX, keyGroupId, keyMirrorGroupId, mirrorDelta } from './tuneKeysFile';
 import { registerTuneSection, TUNE_LOG, tuneSet, type TuneChange, type TuneTunable } from './tuneRegistry';
 import { keyCount, keyPhase } from './keyTimeline';
+import { KEY_SPAN, KEY_TIME_ID, KEY_TIME_MAX, KEY_TIMES, keyBasePos, keyRetimeRange, keyTimeSolve, type KeyRetimeRange } from './tuneKeysTime';
 
 const NF = KEY_FIELDS.length;
 /** The bake keys at round(phase * 48) of a 48-frame span (key_clip.py `SPAN`). */
@@ -54,6 +55,9 @@ const sliders: TuneTunable[] = KEY_FIELDS.map((f) => ({
   groups: ALL_KEY_GROUPS,
   hook: `keyed sampler: key ${f.seg}${f.sub ? `.${f.sub}` : ''}.${f.field} (+ ${f.unit}), baked by scripts/anim-keys/apply-tune.mjs`,
 }));
+// (marlow-bays item 23) the key's time: bake frames (1/48 of the cycle), + later. The Keys tab's timing control sets it
+// (clamped between the neighbouring keys, `tuneKeysRetime`); the panel shows no plain slider row for it.
+sliders.push({ id: KEY_TIME_ID, label: 'key time (bake frames, 1/48 of the cycle; + later)', kind: 'add', def: 0, min: -KEY_TIME_MAX, max: KEY_TIME_MAX, step: 1, unit: 'fr', groups: ALL_KEY_GROUPS, hook: 'tuneKeys: the key slid in its clip (keyed sampler keyTime), baked by scripts/anim-keys/apply-tune.mjs into the key phase' });
 sliders.push({ id: 'mirror', label: 'mirror the keys onto the other arm (1 on, 0 off)', kind: 'add', def: 1, min: 0, max: 1, step: 1, unit: '', groups: MIRROR_GROUPS, hook: 'tuneKeys: the mirrored half follows the own keys (off: every key its own; the bake writes the clip in full)' });
 
 export const KEYS_SECTION = registerTuneSection({
@@ -128,6 +132,61 @@ interface ClipEdit {
   readonly off: KeyedOffsets;
 }
 const EDITS: (ClipEdit | null)[] = KEY_CLIPS.map(() => null);
+
+/** (marlow-bays item 23) One clip's key timing: the registry moves, the solved positions and the sampler's knots. */
+interface ClipTime {
+  readonly offs: Float64Array;
+  readonly pos: Int16Array;
+  readonly kt: KeyedTime;
+  /** The Mirror box the positions were solved with (-1: never). */
+  mirror: number;
+  /** A key sits off its baked position. */
+  on: boolean;
+}
+const TIMES: (ClipTime | null)[] = KEY_CLIPS.map(() => null);
+
+/**
+ * Registry -> one clip's key positions (`KEY_TIMES`, `KeyedClip.keyTime`); allocates only on the clip's first retime.
+ * True when the positions moved (the per-key offsets are rebuilt on them).
+ */
+function syncTime(ci: number, clip: KeyedClip | undefined, mir: number): boolean {
+  const meta = KEY_CLIPS[ci]!;
+  const groups = KEY_GROUP_IDS[ci]!;
+  let t = TIMES[ci];
+  if (!t) {
+    let any = false;
+    for (let k = 0; k < groups.length; k++) if (KEYS_SECTION.values[groups[k]!]![KEY_TIME_ID] !== 0) any = true;
+    if (!any) return false;
+    const total = groups.length;
+    const oldPos = new Float64Array(total);
+    for (let k = 0; k < total; k++) oldPos[k] = keyBasePos(meta, k);
+    t = { offs: new Float64Array(total), pos: new Int16Array(total), kt: { n: total, newPos: Float64Array.from(oldPos), oldPos }, mirror: -1, on: false };
+    TIMES[ci] = t;
+  }
+  let diff = t.mirror !== mir;
+  for (let k = 0; k < groups.length; k++) {
+    const v = KEYS_SECTION.values[groups[k]!]![KEY_TIME_ID]!;
+    if (v !== t.offs[k]) {
+      t.offs[k] = v;
+      diff = true;
+    }
+  }
+  if (!diff) return false;
+  t.mirror = mir;
+  const moved = keyTimeSolve(meta, t.offs, mir === 1, t.pos);
+  let changed = moved !== t.on;
+  for (let k = 0; k < t.pos.length; k++) {
+    if (t.kt.newPos[k] !== t.pos[k]) {
+      t.kt.newPos[k] = t.pos[k]!;
+      changed = true;
+    }
+  }
+  t.on = moved;
+  if (moved) KEY_TIMES.set(meta.name, t.pos);
+  else KEY_TIMES.delete(meta.name); // back to the keys as baked: the sampler reads the clip bit for bit
+  if (clip) clip.keyTime = moved ? t.kt : null;
+  return changed;
+}
 
 const D2R = Math.PI / 180;
 /** Ry(yaw) * Rx(pitch) * Rz(roll) (deg) into o[t] (Babylon's RotationYawPitchRoll). */
@@ -257,7 +316,9 @@ function syncClip(ci: number): void {
   const e = EDITS[ci];
   const mir = mirrorOf(ci);
   const nk = meta.phases.length;
-  let diff = !!e && e.mirror !== mir;
+  // (item 23) the key timing first: moved keys move the per-key offsets with them
+  const timeMoved = syncTime(ci, CLIPS.get(meta.name), mir);
+  let diff = timeMoved || (!!e && e.mirror !== mir);
   let any = false;
   for (let k = 0; k < groups.length; k++) {
     const vals = KEYS_SECTION.values[groups[k]!] as Record<string, number>;
@@ -269,7 +330,7 @@ function syncClip(ci: number): void {
       if (e ? v !== e.deg[k * NF + j] : v !== 0) diff = true;
     }
   }
-  if (!diff) return;
+  if (!diff || (!e && !any)) return;
   const clip = CLIPS.get(meta.name);
   if (!clip) return;
   let ed = e;
@@ -358,6 +419,7 @@ export function tuneKeysClipValues(clip: string): Record<string, Record<string, 
   for (const g of KEY_GROUP_IDS[ci] ?? []) {
     const vals = KEYS_SECTION.values[g] as Record<string, number>;
     for (const id of FIELD_IDS) if (vals[id] !== 0) (out[g] ??= {})[id] = vals[id]!;
+    if (vals[KEY_TIME_ID] !== 0) (out[g] ??= {})[KEY_TIME_ID] = vals[KEY_TIME_ID]!;
   }
   const mg = KEY_MIRROR_IDS[ci];
   if (mg && KEYS_SECTION.values[mg]!.mirror !== 1) out[mg] = { mirror: KEYS_SECTION.values[mg]!.mirror! };
@@ -387,12 +449,72 @@ export function tuneKeysMirror(clip: string, on: boolean): boolean {
   if (!on) {
     for (let j = 0; j < n; j++) {
       const mine = KEYS_SECTION.values[groups[n + j]!] as Record<string, number>;
-      if (FIELD_IDS.some((id) => mine[id] !== 0)) continue;
-      const m = mirrorDelta(KEYS_SECTION.values[groups[j]!] as Record<string, number>);
+      if (FIELD_IDS.some((id) => mine[id] !== 0) || mine[KEY_TIME_ID] !== 0) continue;
+      const own = KEYS_SECTION.values[groups[j]!] as Record<string, number>;
+      const m = mirrorDelta(own);
       for (const id of FIELD_IDS) mine[id] = (m[id] ?? 0) + 0;
+      // (item 23) the mirrored key keeps its place half a cycle after its own key (the first key is fixed)
+      mine[KEY_TIME_ID] = j === 0 ? 0 : own[KEY_TIME_ID]! + 0;
     }
   }
   tuneSet(mg, 'mirror', on ? 1 : 0);
+  syncClip(ci);
+  return true;
+}
+
+/**
+ * (marlow-bays item 23) Key `k`'s timing now, in its own positions (a mirrored key half a cycle after its own key): where
+ * it is, where it was baked, how far it can move (`lo` .. `hi`); whose `time` value moves it; its clip's frames.
+ */
+export interface KeyTimeInfo extends KeyRetimeRange {
+  /** The clip's runtime frames. */
+  frames: number;
+  /** The key's phase (0..1) and runtime frame. */
+  phase: number;
+  frame: number;
+  /** The key that moves with it (the mirror partner while the Mirror box is on; -1 none). */
+  partner: number;
+}
+
+/** Key `k` (every key the bake poses) of `clip`: its timing from the registry (null: not a keyed clip). UI rate. */
+export function tuneKeysTimeInfo(clip: string, k: number): KeyTimeInfo | null {
+  const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
+  const meta = KEY_CLIPS[ci];
+  if (!meta || k < 0 || k >= keyCount(meta)) return null;
+  const groups = KEY_GROUP_IDS[ci]!;
+  const on = mirrorOf(ci) === 1;
+  const offs = groups.map((g) => KEYS_SECTION.values[g]![KEY_TIME_ID]!);
+  const pos = new Int16Array(groups.length);
+  keyTimeSolve(meta, offs, on, pos);
+  const r = keyRetimeRange(meta, pos, on, k);
+  const n = meta.phases.length;
+  const sh = pos[k]! - r.pos; // a mirrored key: half a cycle after the own key that moves it
+  const phase = pos[k]! / KEY_SPAN;
+  return {
+    ...r,
+    pos: pos[k]!,
+    base: keyBasePos(meta, k),
+    lo: r.lo + sh,
+    hi: r.hi + sh,
+    frames: meta.frames,
+    phase,
+    frame: Math.round(phase * meta.frames) % meta.frames,
+    partner: meta.mirror && on ? (k < n ? k + n : k - n) : -1,
+  };
+}
+
+/**
+ * (marlow-bays item 23) Slide key `k` of `clip` by `delta` bake frames (1/48 of the cycle; + later), clamped between
+ * its neighbours (`tuneKeysTime.ts`: the first key fixed; with the Mirror box on its mirror key moves with it). One
+ * change log entry, the live preview at once. False: nothing moved (the first key, at a neighbour, not a key).
+ */
+export function tuneKeysRetime(clip: string, k: number, delta: number): boolean {
+  const info = tuneKeysTimeInfo(clip, k);
+  if (!info || info.fixed || !Number.isFinite(delta)) return false;
+  const p = Math.max(info.lo, Math.min(info.hi, info.pos + Math.round(delta)));
+  if (p === info.pos) return false;
+  const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
+  tuneSet(KEY_GROUP_IDS[ci]![info.owner]!, KEY_TIME_ID, p - info.base);
   syncClip(ci);
   return true;
 }

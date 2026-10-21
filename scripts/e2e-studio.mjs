@@ -19,6 +19,8 @@
 // with the picker following, the edited bone is marked; a forearm twist edit turns the forearm bone; Mirror off lets the
 // arms differ. The playback bar shows on every tab (F9 plays / pauses); a weapon, a climb move and a co-op role picked in
 // a tab play; the aim stances (standing, crouched still and moving) play with the picked gun.
+// (marlow-bays item 23) Key timing: a key slid three bake frames later moves the readout's frame (jog key 2: 4 -> 6),
+// the studio lands on it at its new time with its pose, the pose at the old frame changes, undo restores both.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -522,6 +524,55 @@ try {
     window.__animTune.set('key.walk.1', 'armL_elbow', 0);
   });
   await frames(page, 3);
+
+  // (marlow-bays item 23) key timing: jog key 2 (frame 4 of 32, bake frame 6 of 48) three bake frames later
+  await G(() => window.__animTune.tab('keys'));
+  await G(() => {
+    window.__animTune.pickLevel('keys', 0, 'jog');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 12);
+  await G(() => window.__studio.seek(0.125));
+  await frames(page, 12);
+  const k23a = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), s: window.__studio.state() }));
+  assert(
+    k23a.s.key === 1 && k23a.s.onKey && k23a.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 4') && k23a.time.info?.pos === 6 && k23a.time.readout.includes('as baked'),
+    `jog key 2 as baked before the retime (${JSON.stringify({ key: k23a.s.key, readout: k23a.keys.readout, time: k23a.time.readout })})`,
+  );
+  const old0 = await bones();
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.keysRetime(3));
+  await G(() => window.__animTune.settle());
+  await frames(page, 12);
+  const k23b = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), s: window.__studio.state(), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
+  assert(
+    k23b.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 6') && k23b.time.info?.pos === 9 && k23b.time.info?.partner === 5 && k23b.time.readout.includes('moved +3'),
+    `the retime moves the key's frame in the readout (${JSON.stringify({ readout: k23b.keys.readout, time: k23b.time.readout })})`,
+  );
+  assert(k23b.s.key === 1 && k23b.s.onKey && Math.abs(k23b.d - 9 / 48) < 1e-6, `the studio stands on the key at its new time (${JSON.stringify({ key: k23b.s.key, onKey: k23b.s.onKey, phase: k23b.d })})`);
+  const new1 = await bones();
+  const keySame = Math.max(ang(foreDir(new1, 'L'), foreDir(old0, 'L')), ang(foreDir(new1, 'R'), foreDir(old0, 'R')));
+  assert(keySame < 0.5, `the key's pose moved with it to its new time (forearms within ${keySame.toFixed(2)} deg)`);
+  await G(() => window.__studio.seek(0.125));
+  await frames(page, 12);
+  const old1 = await bones();
+  const oldMoved = Math.max(ang(foreDir(old1, 'L'), foreDir(old0, 'L')), ang(foreDir(old1, 'R'), foreDir(old0, 'R')));
+  assert(oldMoved > 0.75, `the pose at the old frame 4 changed (now between keys: the forearms turned ${oldMoved.toFixed(2)} deg)`);
+  await G(() => window.__animTune.undo());
+  await G(() => window.__studio.seek(0.125));
+  await frames(page, 12);
+  const k23c = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), t: window.__animTune.get('key.jog.1', 'time') }));
+  const old2 = await bones();
+  const back = Math.max(ang(foreDir(old2, 'L'), foreDir(old0, 'L')), ang(foreDir(old2, 'R'), foreDir(old0, 'R')));
+  assert(
+    k23c.t === 0 && k23c.time.info?.pos === 6 && k23c.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 4') && back < 0.2,
+    `undo puts the key back: frame 4, the pose as before (${JSON.stringify({ t: k23c.t, readout: k23c.keys.readout })}, ${back.toFixed(2)} deg)`,
+  );
+  // the first key starts the cycle: its time is fixed
+  await G(() => window.__animTune.pickLevel('keys', 1, '0'));
+  await frames(page, 12);
+  const k23d = await G(() => ({ time: window.__animTune.keysTime(), early: document.querySelector('.anim-tune-keys-early')?.disabled, late: document.querySelector('.anim-tune-keys-late')?.disabled }));
+  assert(k23d.time.info?.fixed && k23d.early && k23d.late && k23d.time.readout.includes('fixed'), `the first key's time is fixed (${JSON.stringify({ readout: k23d.time.readout, early: k23d.early, late: k23d.late })})`);
 
   // (T1a, item 16) the playback bar on every tab: shown on the Body tab, F9 plays / pauses, a weapon picked in a tab
   // swaps her gun (a holstered loop plays the low ready), a climb move and a co-op role play their loops

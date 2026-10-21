@@ -39,7 +39,8 @@ import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
 import { StudioPanel } from './studioPanel';
 import { keyGroupId, parseKeyGroup } from '../anim/tuneKeysFile';
 import { keyClip, keyReadout } from '../anim/keyTimeline';
-import { tuneKeysMirror, tuneKeysMirrorOn } from '../anim/tuneKeys';
+import { tuneKeysMirror, tuneKeysMirrorOn, tuneKeysRetime, tuneKeysTimeInfo } from '../anim/tuneKeys';
+import { KEY_SPAN, KEY_TIME_ID } from '../anim/tuneKeysTime';
 
 /** (marlow-bays T1a, item 18) A Keys list choice shown: a key (not the Mirror box group); with the box on, an own key. */
 function keyListed(clip: string, seg: string): boolean {
@@ -431,6 +432,11 @@ export class AnimTunePanel {
   private keyBackBtn: HTMLButtonElement | null = null;
   private keyFwdBtn: HTMLButtonElement | null = null;
   private nextKeys = 0;
+  // --- (marlow-bays item 23) the Keys tab's timing control: earlier / later, the slider, the readout
+  private keyEarlyBtn: HTMLButtonElement | null = null;
+  private keyLateBtn: HTMLButtonElement | null = null;
+  private keyTimeRange: HTMLInputElement | null = null;
+  private keyTimeEl: HTMLDivElement | null = null;
   // --- (marlow-bays item 10) the selected row (its pad key), its target on the body and the scene marker
   private selKey = '';
   /** The pad focus last taken as the selection. */
@@ -943,6 +949,19 @@ export class AnimTunePanel {
         };
       },
       keysStep: (dir: number) => this.keysStep(dir),
+      // (marlow-bays item 23) the timing control: slide the key the readout names (bake frames, + later), as the buttons
+      keysRetime: (delta: number) => this.keysRetime(delta),
+      keysTime: () => {
+        const k = this.keysTimeKey();
+        const i = k ? tuneKeysTimeInfo(k[0], k[1]) : null;
+        return {
+          clip: k?.[0] ?? '',
+          key: k?.[1] ?? -1,
+          info: i,
+          readout: this.keyTimeEl?.textContent ?? '',
+          slider: this.keyTimeRange ? { value: Number(this.keyTimeRange.value), min: Number(this.keyTimeRange.min), max: Number(this.keyTimeRange.max), disabled: this.keyTimeRange.disabled } : null,
+        };
+      },
       keysMirror: (on: boolean) => {
         const b = this.keyMirrorBox;
         if (b && !b.disabled && b.checked !== on) b.click();
@@ -1582,7 +1601,9 @@ export class AnimTunePanel {
       (t) =>
         (!this.changedOnly || tuneGet(group, t.id) !== t.def) &&
         (!q || t.label.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || plainLabel(kind, t.id, t.label).toLowerCase().includes(q)) &&
-        rowHasPart(kind, t.id, part),
+        rowHasPart(kind, t.id, part) &&
+        // (marlow-bays item 23) a key's time has its own control in the Keys block (clamped between its neighbours)
+        !(kind === 'keys' && t.id === KEY_TIME_ID),
     );
     if (!list.length) {
       const none = document.createElement('div');
@@ -3066,11 +3087,60 @@ export class AnimTunePanel {
     this.keyMirrorBox.title = 'On: an edit to this key also shows on its mirror key (the other arm, half a cycle on). Off: this key and this arm only (the bake writes the clip in full).';
     const r = (this.keyReadoutEl = document.createElement('div'));
     r.className = 'anim-tune-keys-readout tt-note';
+    // (marlow-bays item 23) the key's timing: one bake frame (1/48 of the cycle) earlier / later, or the slider
+    const tb = this.mkBar();
+    tb.classList.add('anim-tune-keys-timebar');
+    this.keyEarlyBtn = this.mkBtn('◀ Earlier', () => this.keysRetime(-1), 'k:early', 'anim-tune-keys-early');
+    this.keyLateBtn = this.mkBtn('Later ▶', () => this.keysRetime(1), 'k:late', 'anim-tune-keys-late');
+    this.keyEarlyBtn.title = 'Slide this key one bake frame (1/48 of the cycle) earlier; never past the key before it';
+    this.keyLateBtn.title = 'Slide this key one bake frame (1/48 of the cycle) later; never past the key after it';
+    const tr = (this.keyTimeRange = document.createElement('input'));
+    tr.type = 'range';
+    tr.className = 'anim-tune-keys-time';
+    tr.min = '0';
+    tr.max = String(KEY_SPAN - 1);
+    tr.step = '1';
+    tr.title = 'The key\'s time in its clip (bake frames, 48 a cycle), between the keys either side';
+    tr.addEventListener('input', () => {
+      const k = this.keysTimeKey();
+      const i = k ? tuneKeysTimeInfo(k[0], k[1]) : null;
+      if (i) this.keysRetime(Number(tr.value) - i.pos);
+    });
+    // (the slider lets go of the keyboard, so the arrow keys stay the game's)
+    tr.addEventListener('change', () => tr.blur());
+    tb.append(this.keyEarlyBtn, tr, this.keyLateBtn);
+    const te = (this.keyTimeEl = document.createElement('div'));
+    te.className = 'anim-tune-keys-timing tt-note';
     const h = document.createElement('div');
     h.className = 'anim-tune-keys-hint anim-tune-keyhint tt-note';
     h.textContent = 'Key edits change one pose; whole-cycle changes go in the state tabs.';
-    d.append(b, r, h);
+    d.append(b, r, tb, te, h);
     return d;
+  }
+
+  /** (marlow-bays item 23) The key the timing control moves: the one the readout names (the studio's key when it stands on one). */
+  private keysTimeKey(): [string, number] | null {
+    const p = this.keysShown();
+    if (!p) return null;
+    const playing = STUDIO.active && STUDIO.entry === `keyed:${p[0]}`;
+    return [p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]];
+  }
+
+  /**
+   * (marlow-bays item 23) Slide the key `delta` bake frames (+ later), clamped between its neighbours (with the Mirror
+   * box on its mirror key moves too). Paused in the studio, the clip lands on the key at its new time at once.
+   */
+  private keysRetime(delta: number): void {
+    const k = this.keysTimeKey();
+    if (!k) return;
+    if (!tuneKeysRetime(k[0], k[1], delta)) {
+      const i = tuneKeysTimeInfo(k[0], k[1]);
+      if (i?.fixed) this.flashInfo(`${k[0]}: key 1 starts the cycle; its time is fixed`);
+      else if (i) this.flashInfo(`${k[0]}: key ${k[1] + 1} is against the next key; it cannot move further`);
+      return;
+    }
+    if (STUDIO.active && (this.frozen || STUDIO.entry !== `keyed:${k[0]}`)) this.studioUi.showKey(k[0], k[1]);
+    this.nextKeys = 0;
   }
 
   /** The clip and key the Keys section shows (null: none). */
@@ -3119,6 +3189,7 @@ export class AnimTunePanel {
     const c = p ? keyClip(p[0]) : null;
     if (!p || !c) {
       this.keyReadoutEl.textContent = '';
+      if (this.keyTimeEl) this.keyTimeEl.textContent = '';
       return;
     }
     const n = c.phases.length;
@@ -3139,6 +3210,35 @@ export class AnimTunePanel {
     const box = this.keyMirrorBox!;
     if (box.checked !== mirrorOn) box.checked = mirrorOn;
     if (box.disabled !== !c.mirror) box.disabled = !c.mirror;
+    this.keysTimeShow(p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]);
+  }
+
+  /** (marlow-bays item 23) The timing control follows the key: its time, phase, how far it moved, its range. */
+  private keysTimeShow(clip: string, k: number): void {
+    const el = this.keyTimeEl;
+    const tr = this.keyTimeRange;
+    if (!el || !tr) return;
+    const i = tuneKeysTimeInfo(clip, k);
+    let t = '';
+    if (i) {
+      const d = i.pos - i.base;
+      const moved = d === 0 ? 'as baked' : `moved ${d > 0 ? '+' : ''}${d} (baked at ${i.base})`;
+      const mir = i.partner >= 0 ? `; key ${i.partner + 1} (its mirror) moves with it` : '';
+      t = i.fixed
+        ? `Time: frame ${i.frame} of ${i.frames}, phase 0.000. Key 1 starts the cycle: its time is fixed.`
+        : `Time: frame ${i.frame} of ${i.frames}, phase ${i.phase.toFixed(3)} (bake frame ${i.pos} of ${KEY_SPAN}, ${moved}; ${i.lo}-${i.hi} between its neighbours${mir})`;
+      const v = String(i.pos);
+      const lo = String(i.lo);
+      const hi = String(i.hi);
+      if (tr.min !== lo) tr.min = lo;
+      if (tr.max !== hi) tr.max = hi;
+      if (tr.value !== v && document.activeElement !== tr) tr.value = v;
+    }
+    const off = !i || i.fixed;
+    if (tr.disabled !== off) tr.disabled = off;
+    if (this.keyEarlyBtn && this.keyEarlyBtn.disabled !== (off || i.pos <= i.lo)) this.keyEarlyBtn.disabled = off || i.pos <= i.lo;
+    if (this.keyLateBtn && this.keyLateBtn.disabled !== (off || i.pos >= i.hi)) this.keyLateBtn.disabled = off || i.pos >= i.hi;
+    if (el.textContent !== t) el.textContent = t;
   }
 
   /** The header button follows the studio and the switch (cheap compares, every frame). */
