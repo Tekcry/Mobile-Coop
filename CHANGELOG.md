@@ -11,7 +11,7 @@
   highlight, pause and speed work on it. Who = Wren brings her back.
 - Saves, exports, imports, presets and undo carry the guard rows; older saves and exports load as before.
 
-## Unreleased - marlow-bays item 29 (tuner v3)
+## 4.49.0 - Animation tuner v3: one simpler layout for pad, touch and mouse; analogue stick lists; plain labels; iPad and phone fit; touch camera; game touch for menus and camera (2026-10-22, PR #97)
 - Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the
   button hints), the screen size alone picks the dock, the side drawer or the bottom sheet. One column: tabs, the
   playback bar, Part and State, folding slider groups, then More. The body map, search, recent and pinned sliders, the
