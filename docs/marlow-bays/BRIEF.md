@@ -94,12 +94,12 @@ that order; the laptop tests all three:
   `scripts/anim-keys/*`.
 - B - CT Core Build: T1b (COVERAGE gaps 1, 2 and 3: Joints / Hands & feet / IK / Weapon bake into a generated base
   table every rig reads, the partner included; tables keyed by row id with move and action rows; split rows for
-  crouched wall, crouch run, aim still, holds vs carries, rifle vs pistol) on `feature/anim-bake` in
-  `C:/NightShift/Mobile-Coop-anim-bake`, from master 4.35.0. Owns `src/anim/tuneJoints*`, `src/anim/tuneV2Sections.ts`,
+  crouched wall, crouch run, aim still, holds vs carries, rifle vs pistol) on `feature/anim-joints` in
+  `C:/NightShift/Mobile-Coop-anim-joints`, from master 4.35.0. Owns `src/anim/tuneJoints*`, `src/anim/tuneV2Sections.ts`,
   `src/anim/tuneBake*`, `scripts/anim-tune-bake.mjs`, the row plumbing in `src/anim/animGraph.ts` and
   `src/player/*`. Exports made before T1b must bake (test with a literal old export). New rows register through the
   tuner registry, so A's panel shows them with no UI change.
-- C - Menu Notes Build: T3 (item 21) on `feature/anim-rig` in `C:/NightShift/Mobile-Coop-anim-rig`, from master 4.35.0.
+- C - Menu Notes Build: T3 (item 21) on `feature/anim-skeleton` in `C:/NightShift/Mobile-Coop-anim-skeleton`, from master 4.35.0.
   Prototype first: the rig change in Blender (`-b` only), one test clip, a screenshot to the orchestrator before the
   full build. Owns the rig, the skin, `src/anim/clips/*`, `scripts/anim-keys/build*` (shared with A: A adds key fields,
   C adds clip channels; C rebases on A's merge). Merges after A and B.
