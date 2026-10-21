@@ -134,7 +134,7 @@ One layout for every input: the pad, keyboard / mouse and touch see the same pan
 | --- | --- |
 | Left stick up / down | Move through the list (analogue: the further and the longer, the faster it repeats); in an open list, move the highlight |
 | Left stick left / right | Change the focused value (analogue; held, it speeds up) |
-| D-pad (optional) | Up / down rows, left / right one step of the value (held: repeats, x5 after 1 s) |
+| D-pad (optional) | Up / down rows, left / right one step of the value (held: repeats, x5 after 1 s); on a State / Move picker left / right step its choice (CT Core #90's padGroup, at the group's own level) |
 | A | Open a list (Part, State, Weapon, Clip, Key, Loop), pick, press a button, tick a box, open / fold a group or More |
 | B | Back out: close a list (nothing changes) or the quick menu; from a slider to its State list |
 | X | Reset the focused slider |

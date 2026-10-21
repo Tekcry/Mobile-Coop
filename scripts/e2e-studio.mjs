@@ -236,7 +236,130 @@ try {
   const jp1 = await jbones();
   assert(jang(jp0.bEl, jp1.bEl) > 20, `role B's puppet takes its base row (${jp0.bBody} elbowR: ${jang(jp0.bEl, jp1.bEl).toFixed(1)} deg)`);
   await G(() => window.__animBase.reset());
+  // (anim-joints J2) a team move row: scrubbed into the boost (B assisting), role B's puppet picks its team row from the
+  // pair's role (`team.boost.b`) and a base row there turns its elbow
+  await G((v) => window.__studio.seek(v), (1.4 + 0.6) / cyc);
+  await frames(page, 4);
+  const jt = () => G(() => {
+    const pb = window.__app.current.studio.puppets[1].rig;
+    const p = pb.tuneSt.pick;
+    const x = pb.elbowR.rotationQuaternion;
+    return { rows: Array.from({ length: p.n }, (_, k) => p.ids[k]), state: window.__studio.pair().bState, el: [x.x, x.y, x.z, x.w] };
+  });
+  const jt0 = await jt();
+  assert(jt0.rows.includes('team.boost.b'), `role B's puppet picks its team row while assisting (${jt0.state}: ${jt0.rows.join(', ')})`);
+  await G(() => window.__animBase.setJoint('team.boost.b', 'elbowR', [40, 0, 0]));
+  await frames(page, 6);
+  const jt1 = await jt();
+  assert(jang(jt0.el, jt1.el) > 20, `a team.boost.b base row turns role B's elbow (${jang(jt0.el, jt1.el).toFixed(1)} deg)`);
+  await G(() => window.__animBase.reset());
   await G(() => window.__studio.play());
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
+  // (anim-joints J2) a traversal move row: a `trav.vault` base row turns Wren's elbow during the vault loop (paused in the
+  // vault: the row on, then off) and not after it (the loop walks on: no vault row, the offset back to identity)
+  const jv = () => G(() => {
+    const r = window.__app.current.player.rig;
+    const p = r.tuneSt.pick;
+    const j = window.__tuneV2.J.elbowR;
+    const c = r.tuneSt.joints.cur;
+    const x = r.elbowR.rotationQuaternion;
+    return { rows: Array.from({ length: p.n }, (_, k) => p.ids[k]), live: r.tuneSt.joints.live[j], offW: c[j * 4 + 3], el: [x.x, x.y, x.z, x.w] };
+  });
+  await G(() => window.__animBase.setJoint('trav.vault', 'elbowR', [40, 0, 0]));
+  await G(() => window.__studio.pick('trav:vault'));
+  // (stepped and paused inside one evaluate: no live frame can carry her out of the short vault in between)
+  const vin = await G(() => {
+    const r = window.__app.current.player.rig;
+    const inVault = () => Array.from({ length: r.tuneSt.pick.n }, (_, k) => r.tuneSt.pick.ids[k]).includes('trav.vault');
+    let n = 0;
+    for (let i = 0; i < 600 && n < 8; i++) {
+      window.__app.loop.stepHeadless(1 / 60);
+      if (inVault()) n++;
+    }
+    window.__studio.pause();
+    return n;
+  });
+  await frames(page, 4);
+  const v1 = await jv();
+  assert(vin >= 8 && v1.rows.includes('trav.vault') && v1.live === 1, `the vault loop: Wren picks the trav.vault row (${vin} frames, ${v1.rows.join(', ')}, elbow offset live ${v1.live})`);
+  await G(() => window.__animBase.reset());
+  await frames(page, 4);
+  const v2 = await jv();
+  assert(jang(v1.el, v2.el) > 20, `the trav.vault base row turns Wren's elbow during the vault (${jang(v1.el, v2.el).toFixed(1)} deg)`);
+  await G(() => window.__animBase.setJoint('trav.vault', 'elbowR', [40, 0, 0]));
+  await G(() => window.__studio.play());
+  const vout = await G(() => {
+    const r = window.__app.current.player.rig;
+    const j = window.__tuneV2.J.elbowR;
+    let out = 0;
+    for (let i = 0; i < 600 && out < 60; i++) {
+      window.__app.loop.stepHeadless(1 / 60);
+      out = Array.from({ length: r.tuneSt.pick.n }, (_, k) => r.tuneSt.pick.ids[k]).includes('trav.vault') ? 0 : out + 1;
+    }
+    return { out, live: r.tuneSt.joints.live[j], w: r.tuneSt.joints.cur[j * 4 + 3] };
+  });
+  assert(vout.out >= 60 && vout.live === 0 && vout.w === 1, `and not after the vault (1 s out of it: elbow offset live ${vout.live}, w ${vout.w})`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
+  // (anim-gear) Gear offsets: the panel lists the Gear section (its own tab, no UI change); a gear.holster base row (the
+  // tuner at identity) moves Wren's holstered pistol by the offset along the holster's own x axis, the tuner's delta adds
+  // on top, a slingHip row moves the sling node; role B's puppet (a second Wren rig) composes the same rows and its sling
+  // node moves; a reset puts everything back exactly
+  const gearTab = await G(() => ({ secs: window.__animTune.sections(), tabs: window.__animTune.tabs(), rows: !!document.querySelector('.anim-tune-rows-gear') }));
+  assert(gearTab.secs.includes('gear') && gearTab.tabs.includes('sec:gear') && gearTab.rows, `the tuner panel lists the Gear section in its own tab (${gearTab.tabs.join(', ')}; rows ${gearTab.rows})`);
+  const gearOf = () => G(() => {
+    const g = window.__app.current;
+    const m = g.weapons.slots.map((s) => s.model).find((x) => x.slot === 'thigh');
+    const sh = g.player.rig.slingHip.position;
+    if (!m) return { p: null, sh: [sh.x, sh.y, sh.z] };
+    const n = m.node;
+    const q = n.rotationQuaternion;
+    return { p: [n.position.x, n.position.y, n.position.z], q: [q.x, q.y, q.z, q.w], parent: n.parent ? n.parent.name : '', sh: [sh.x, sh.y, sh.z] };
+  });
+  // the x axis of a quaternion's frame
+  const gearQx = (q) => [1 - 2 * (q[1] * q[1] + q[2] * q[2]), 2 * (q[0] * q[1] + q[2] * q[3]), 2 * (q[0] * q[2] - q[1] * q[3])];
+  const gearMiss = (a, b, ax, k) => Math.max(...[0, 1, 2].map((i) => Math.abs(b[i] - a[i] - k * ax[i])));
+  const gear0 = await gearOf();
+  assert(!!gear0.p && /hipR/.test(gear0.parent), `Wren's pistol sits in her thigh holster (${gear0.parent})`);
+  await G(() => window.__animBase.setGear('holster', 'x', 0.03));
+  await G(() => window.__animBase.setGear('slingHip', 'z', -0.02));
+  await frames(page, 4);
+  const gear1 = await gearOf();
+  const gearAx = gearQx(gear0.q);
+  assert(gearMiss(gear0.p, gear1.p, gearAx, 0.03) < 1e-5 && gear1.q.every((v, i) => Math.abs(v - gear0.q[i]) < 1e-9), `a gear.holster base row (x 3 cm) moves the holstered pistol 3 cm along the holster's x (miss ${gearMiss(gear0.p, gear1.p, gearAx, 0.03).toExponential(1)} m)`);
+  assert(Math.abs(gear1.sh[2] - gear0.sh[2] + 0.02) < 1e-9 && gear1.sh[0] === gear0.sh[0], `a gear.slingHip row moves the sling node 2 cm back (${(gear1.sh[2] - gear0.sh[2]).toFixed(4)} m)`);
+  await G(() => window.__animTune.set('gear.holster', 'x', 0.01));
+  await frames(page, 4);
+  const gear2 = await gearOf();
+  assert(gearMiss(gear0.p, gear2.p, gearAx, 0.04) < 1e-5, `the tuner's Gear delta adds on the base row (4 cm; miss ${gearMiss(gear0.p, gear2.p, gearAx, 0.04).toExponential(1)} m)`);
+  await G(() => window.__animTune.set('gear.holster', 'x', 0));
+  await G(() => window.__animBase.reset());
+  await frames(page, 4);
+  const gear3 = await gearOf();
+  assert(gear3.p.every((v, i) => v === gear0.p[i]) && gear3.sh.every((v, i) => v === gear0.sh[i]), 'reset: the pistol and the sling node are back exactly');
+  // the pair puppet (role B of the boost)
+  await G(() => window.__studio.pick('pair:boost'));
+  await frames(page, 6);
+  const gearPupOf = () => G(() => {
+    const r = window.__app.current.studio.puppets[1].rig;
+    const sh = r.slingHip.position;
+    const g = r.tuneSt.gear;
+    return { x: g.out[0], live: g.live[0], sh: [sh.x, sh.y, sh.z] };
+  });
+  const gearP0 = await gearPupOf();
+  await G(() => window.__animBase.setGear('holster', 'x', 0.03));
+  await G(() => window.__animBase.setGear('slingHip', 'z', -0.02));
+  await frames(page, 6);
+  const gearP1 = await gearPupOf();
+  assert(gearP0.live === 0 && gearP1.live === 1 && Math.abs(gearP1.x - 0.03) < 1e-12 && Math.abs(gearP1.sh[2] - gearP0.sh[2] + 0.02) < 1e-9, `role B's puppet takes the gear rows (holster x ${gearP1.x}, sling node ${(gearP1.sh[2] - gearP0.sh[2]).toFixed(4)} m)`);
+  await G(() => window.__animBase.reset());
+  await frames(page, 6);
+  const gearP2 = await gearPupOf();
+  assert(gearP2.live === 0 && gearP2.sh.every((v, i) => v === gearP0.sh[i]), "reset: the puppet's sling node is back exactly");
   await G(() => window.__studio.pick('state:idle'));
   await frames(page, 4);
 
@@ -259,17 +382,29 @@ try {
   const mm0 = await G(() => ({ ...window.__animTune.mouse(), lockEl: !!document.pointerLockElement, gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
   assert(mm0.mode === 'drag' && mm0.free && !mm0.locked && !mm0.lockEl && !mm0.gamecam && mm0.button === 'Mouse: drag view', `tuner open: drag view, the pointer free (${JSON.stringify(mm0)})`);
   // a point on the scene, clear of the panel and the overlay
-  const at = await G(() => {
+  // (anim-joints #90) the studio opens the debug overlay too, and its width follows its live text: the preferred points
+  // first, then a grid over the canvas; the point and the drag's end (80 px right) both on the scene
+  const atProbe = await G(() => {
     const c = window.__app.canvas;
     const r = c.getBoundingClientRect();
-    for (const [fx, fy] of [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]]) {
+    const onScene = (x, y) => document.elementFromPoint(x, y) === c && document.elementFromPoint(x + 80, y) === c;
+    const pts = [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]];
+    for (let gy = 0.35; gy <= 0.95; gy += 0.1) for (let gx = 0.1; gx <= 0.8; gx += 0.1) pts.push([gx, gy]);
+    for (const [fx, fy] of pts) {
       const x = r.left + r.width * fx;
       const y = r.top + r.height * fy;
-      if (document.elementFromPoint(x, y) === c) return { x, y };
+      if (onScene(x, y)) return { at: { x, y } };
     }
-    return null;
+    const el = (x, y) => {
+      const e = document.elementFromPoint(x, y);
+      return e ? `${e.tagName.toLowerCase()}.${String(e.className).trim().split(/\s+/).slice(0, 2).join('.')}` : 'none';
+    };
+    const d = document.querySelector('.debug-overlay');
+    const dr = d && !d.hidden ? d.getBoundingClientRect() : null;
+    return { at: null, vw: innerWidth, vh: innerHeight, canvas: [r.left, r.top, r.width, r.height].map(Math.round), debug: dr ? [dr.left, dr.top, dr.width, dr.height].map(Math.round) : null, hits: pts.slice(0, 5).map(([fx, fy]) => el(r.left + r.width * fx, r.top + r.height * fy)) };
   });
-  assert(!!at, 'a point on the scene clear of the panel');
+  const at = atProbe.at;
+  assert(!!at, `a point on the scene clear of the panel and the debug overlay (${JSON.stringify(atProbe)})`);
   const camYaw = () => G(() => window.__app.current.player.cam.camera.rotation.y);
   const y0 = await camYaw();
   await page.mouse.move(at.x, at.y);

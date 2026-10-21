@@ -154,6 +154,12 @@ interface Section {
   eff: HTMLDivElement;
 }
 
+/** (anim-joints J2 fix) The picker level of the section's own group: its path's depth, capped at the level count (the
+ *  ids nest to different depths per section, so the deepest picker can be empty for the current group). */
+function ownLevel(sec: Section): number {
+  return Math.max(0, Math.min(groupPath(sec.group, sec.prefix).length, sec.levels.length) - 1);
+}
+
 /** The rendered camera the barrel marker projects through (a FreeCamera: vertical FOV, Euler rotation). */
 interface MarkerCam {
   position: Vector3;
@@ -1741,7 +1747,7 @@ export class AnimTunePanel {
   private fillLevels(sec: Section): void {
     const groups = sec.reg.groups;
     const path = groupPath(sec.group, sec.prefix);
-    const last = sec.levels.length - 1;
+    const last = ownLevel(sec);
     for (let k = 0; k < sec.levels.length; k++) {
       const sel = sec.levels[k]!;
       let opts = levelOptions(groups, sec.prefix, path, k);
@@ -2568,6 +2574,8 @@ export class AnimTunePanel {
     const range = f instanceof HTMLInputElement && f.type === 'range' && !this.menuOpen ? f : null;
     if (o.side !== 0) {
       if (range) this.padAdjust(range, o.side);
+      // (merge, CT Core #90 padGroup) on a State / Move picker left / right step its choice (v3 gives LT / RT the zoom)
+      else if (this.padKey.startsWith('lv:')) this.padGroup(o.side < 0 ? -1 : 1);
       else this.padNav(o.side < 0 ? -1 : 1);
     }
     if (range && o.stick !== 0) this.padStick(range, o.stick);
@@ -2746,8 +2754,21 @@ export class AnimTunePanel {
     const sid = key.split(':')[1] ?? '';
     const sec = this.sections.find((s) => s.reg.id === sid);
     if (!sec) return;
-    this.padKey = `lv:${sid}:${sec.levels.length - 1}`;
+    this.padKey = `lv:${sid}:${ownLevel(sec)}`;
     this.markPadFocus(true);
+  }
+
+  /** (v3: D-pad left / right on a State / Move picker; LT / RT are the zoom) The focused section's previous / next choice at its group's own level (follow off, as a manual pick); the same
+   *  slider stays focused when the new group has it. */
+  private padGroup(d: number): void {
+    const sec = this.sections[this.lastSec];
+    if (!sec) return;
+    const k = ownLevel(sec);
+    const path = groupPath(sec.group, sec.prefix);
+    const opts = levelOptions(sec.reg.groups, sec.prefix, path, k);
+    if (opts.length < 2) return;
+    const at = Math.max(0, opts.indexOf(path[k] ?? ''));
+    this.pickLevel(sec, k, opts[(at + d + opts.length) % opts.length]!);
   }
 
   /** X: the focused slider back to its default. */

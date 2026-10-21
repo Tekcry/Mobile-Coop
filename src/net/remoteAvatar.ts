@@ -28,6 +28,7 @@ import { RAPPEL } from '../config/movement';
 import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
+import { teamRowOfWire } from '../anim/tuneMoveRows';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
@@ -507,6 +508,8 @@ export class RemoteAvatar {
       lean: mp.lean,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
+      // (anim-joints J2, A6) the partner's own team role (its move mode and sub on the wire): the tuner's team rows
+      tuneTeam: mv ? teamRowOfWire(mv.m, mv.sub) : '',
       melee: mp.melee,
       bend: this.cqBend,
       bendDrop: this.cqDrop,

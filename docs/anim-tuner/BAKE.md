@@ -140,6 +140,25 @@ pair puppets; guards and other rigs never do). Result "baked (base table)"; targ
 - Code: `src/anim/tuneBakeBase.ts` (parse, apply, print); the runtime base + delta is `tuneJoints.ts` /
   `tuneHands.ts`, the per-rig window `tuneJointsRig.ts`. Dev hook: `window.__animBase` (`get`, `load`, `setJoint`,
   `reset`) loads a base table object in the running game until a reload. Tests: `tests/animJointsBase.test.ts`.
+- Move and action rows (anim-joints J2, COVERAGE gap 2) bake like any row: the row is the group id after the section
+  (and after the weapon for Hands & feet / Weapon), dots and all. `joint.trav.vault` -> `joints["trav.vault"]`,
+  `joint.team.boost.b` -> `joints["team.boost.b"]`, `hand.rifle.reload` -> `hands.rifle.reload`, `ik.air` ->
+  `ik.air`, `weapon.pistol.throw` -> `hands.pistol.throw`. The rows (`src/anim/tuneMoveRows.ts` `TUNE_ROW_IDS`): the body
+  states, `trav.<kind>` (vault, mantle, step, climbUp, windowVault, rappel, drop, hop, roll, wallKick, split, brace),
+  `team.<move>.<a|b>` (boost, relay, throw, hang, rope, revive), `air`, `land`, `slide`, `melee`, `reload`, `swap`,
+  `throw`, `hit`. At run time a move row composes over the stance row by its weight (`docs/systems/ui.md`). Test: the
+  literal export in `tests/animMoveRows.test.ts`.
+
+**Gear** (anim-gear, marlow-bays item 22): baked into the same base table under the key `gear`. Result "baked (base
+table)"; target `src/anim/animBase.ts: gear.<row>.<param> + (m)` or `+ (deg, wrapped)`.
+- Shape: `"gear": { row: { param: v } }`, row = the group id after `gear.` (`holster`, `backL`, `backC`, `backR`,
+  `slingHip`, and each with `.crouch`: `gear.holster.crouch` -> `gear["holster.crouch"]`),
+  param = `x` / `y` / `z` (metres, the socket's own frame) or `pitch` / `yaw` / `roll` (degrees). Offsets add (angles
+  wrapped to -180..180), the same at run time (base + the tuner's delta) and in the bake (old base + the export's value).
+- The key is optional and printed only when a row has an offset (sorted, about 4 significant digits, 0 left out): a
+  table without it (every table before anim-gear) parses and prints exactly as before, and old exports bake as before.
+- Code: `src/anim/tuneBakeBase.ts`; the runtime table and the per-rig composition `src/anim/tuneGear.ts`. Dev hook:
+  `window.__animBase.setGear(row, param, value)`. Test: the literal export in `tests/animGear.test.ts`.
 
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock). (marlow-bays item 23, track A) A key's

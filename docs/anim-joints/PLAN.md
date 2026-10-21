@@ -56,6 +56,32 @@ Build:
 Checks: `npm run check`; `e2e-studio` + `e2e-anim` (desktop), slice tier (`e2e:quick` + `e2e-ctcourse`, `e2e-coop`,
 `e2e-netmove`: `src/player` changed), desktop.
 
-## PR
-Merge master (with T1a) in, full `npm run e2e` (desktop, `E2E_JOBS=2`), CI check, PR to master "anim-joints (T1b)", message the
+## J1 PR (orchestrator ~17:20)
+J1 shipped alone: [Tekcry/Mobile-Coop#84](https://github.com/Tekcry/Mobile-Coop/pull/84) from `feature/anim-joints-j1`
+(worktree `C:/NightShift/Mobile-Coop-anim-joints-j1`), full e2e on its head. J2 continues on `feature/anim-joints`.
+
+## havok-stall (orchestrator ~21:45: right after the J2 PR, ahead of 22 and 24; branch feature/havok-stall from master)
+- The desktop e2e-menus stall (`J2-STALL.md`, backlog "Flaky e2e suites"): a main-thread spin inside Havok after the
+  tuner's long timeScale 0 pause. Try first: a huge fixed-step accumulator on release, or a degenerate shape cast
+  (zero-length direction, a huge sweep). Reproduce with a unit or e2e that pauses a long real time, then resumes; fix
+  the cause in the loop or the controller, minimal; then e2e-menus on the desktop in a full run.
+- From Menu Notes' #88 analysis (`docs/anim-skeleton/s2/REPORT.md`, "#88 fix round"): e2e-levels "a runner climbs the
+  rack ladder" takes 9-30 s on master against a 30 s budget (guard think ticks, real-time frames): seed Math.random and
+  use loop.manual around that chase (or widen the budget); list it in backlog's flaky suites until then.
+- Log only (no change): gameplay reads the rig pose in `enemy.ts:1779-1781` (perception eye from `rig.headNode`),
+  `game/playerTarget.ts:101-119` (hit volumes), `ai/body.ts:96-124`: not graphics state, but gameplay tied to animation.
+
+## After J2 (marlow-bays BRIEF items 22 and 24, be300901; each its own PR)
+- **G1, item 22, gear offsets:** per-socket sliders for worn gear (holster, the gun on her back, the sling, grenade
+  pouches, goggles), per state where useful, baked into the base table; the partner sees them. Holster / back mount /
+  sling apply in `characterRig.ts` (ours: it reads `thighMount` / `backMount` and the sling nodes each frame; no
+  operators edit). Orchestrator ~17:30: `src/weapons/carrySlots.ts` is ours for the pouches (minimal, named in the PR
+  body); goggles through track C's offset hook in `goggle.ts` (stowed and worn) once it lands, else 22 ships without
+  goggles and they follow.
+- **G2, item 24, guard tuning (MOVED to Course Ready, track A, orchestrator ~22:15, Michael's choice; it may make minimal edits in `animBase.ts` / `tuneJointsRig.ts` for a guard table and a flag line in `src/ai/enemyRig.ts`: keep them when merging):** a guard target in the tuner and studio (the studio's guard puppet) with its own rows
+  (Joints, Weight, Stepping where guards use them), a guard base table; Wren rows never touch guards. Needs a flag line
+  in `src/ai/enemyRig.ts` and a target hook in the studio / panel (track A): exact lines to the orchestrator first.
+
+## PR (J2)
+Merge master (with J1) in, full `npm run e2e` (desktop, `E2E_JOBS=2`), CI check, PR to master "anim-joints (T1b)", message the
 orchestrator with the PR and the open items (A6 / A7 hooks if still pending).

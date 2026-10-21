@@ -141,7 +141,18 @@ export function groupForPath(groups: readonly string[], prefix: number, path: re
 }
 
 /** The pickers' names per section (the level's heading). */
+/** (merge, CT Core #95) The Gear tab's sockets and the crouched variant in plain words. */
+const GEAR_WORDS: Readonly<Record<string, string>> = {
+  holster: 'Pistol holster',
+  backL: 'Back, left gun',
+  backC: 'Back, centre gun',
+  backR: 'Back, right gun',
+  slingHip: 'Hip sling',
+  crouch: 'Crouched (added)',
+};
+
 const LEVEL_NAMES: Readonly<Record<string, readonly string[]>> = {
+  gear: ['Item', 'Pose'],
   body: ['State'],
   joint: ['State', 'Armed state'],
   ik: ['State'],
@@ -229,6 +240,8 @@ const STATE_WORDS: Readonly<Record<string, string>> = {
 
 /** One picker choice (a segment of a group id) in plain words: `keys` keys count from 1. */
 export function plainGroupWord(section: string, level: number, seg: string): string {
+  // (merge, CT Core #95 Gear) the worn gear and its crouched variant
+  if (section === 'gear') return GEAR_WORDS[seg] ?? plainWords(seg);
   if (section === 'keys' && level === 1 && /^\d+$/.test(seg)) return `Key ${Number(seg) + 1}`;
   // the body state words: not the gun hold's or the camera's own states; the weapon level of hands / gun in hand stays
   const states = section !== 'gun' && section !== 'cam' && !((section === 'hand' || section === 'weapon') && level === 0);
@@ -322,6 +335,13 @@ const PLAIN: Readonly<Record<string, string>> = {
   'joint:mirror': 'Mirror left and right',
   // (marlow-bays T1a) the Keys tab's Mirror box (its own tick box; the slider never shows)
   'keys:mirror': 'Mirror keys',
+  // (merge, CT Core #95) Gear: each item in its own seat's frame
+  'gear:x': 'Move to the side',
+  'gear:y': 'Move up',
+  'gear:z': 'Move forward',
+  'gear:pitch': 'Tilt',
+  'gear:yaw': 'Turn',
+  'gear:roll': 'Roll',
   // gun in hand
   gunScale: 'Gun size',
   // (item 29 phase 2) the gun moves in her gun hand; the support hand stays on the gun, so it follows

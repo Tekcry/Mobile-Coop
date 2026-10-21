@@ -1886,6 +1886,11 @@ body {
   max-height: calc(60 * var(--vh));
   overflow-y: auto;
 }
+/* (anim-joints #90) the display rules above override the `hidden` attribute: hidden means hidden */
+.debug-tune[hidden],
+.debug-warp[hidden] {
+  display: none;
+}
 .debug-tune label {
   display: grid;
   grid-template-columns: 92px 110px 34px;

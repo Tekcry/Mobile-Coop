@@ -37,6 +37,10 @@ Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchL
 inside an accumulator (max 4 steps/frame, backlog dropped). Order per step:
 `fixedUpdate(dt)` -> `onBeforePhysicsObservable` -> `physics._step` -> `onAfterPhysicsObservable`.
 After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
+Pause and resume (havok-stall): a frame's real time is capped (250 ms between ticks, 0.1 s fed in), `timeScale` 0 (the
+tuner's freeze) adds nothing to the accumulator, so releasing it after any real time runs at most 4 steps and physics
+always gets exactly 1/60 s. A NaN or negative interval or time scale counts as 0 (it once could poison the accumulator
+and stop the sim for good). `tests/havokStall.test.ts`.
 Hidden-page tick (coop-fix): a live co-op session (any transport; not in automated browsers, `navigator.webdriver`, whose e2e pumps step hidden pages themselves) holds `loop.holdBackgroundTicks()` (counted,
 released at its dispose). While `document.hidden` (rAF stopped: another window over it, minimised), a bundled worker
 (`core/bgTickWorker.ts`, 30 Hz) runs the same steps and frame updates for the elapsed time (capped 0.1 s,

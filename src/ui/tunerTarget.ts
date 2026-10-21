@@ -143,6 +143,8 @@ export function tuneTarget(section: string, id: string, out: TuneTarget = emptyT
   if (section === 'gun') return weapon(out, 'Gun hold (both hands)');
   if (section === 'step') return pair(out, 'ankleL', 'ankleR', 'Feet (stepping)');
   if (section === 'weight') return one(out, 'hips', 'Body weight (pelvis)');
+  // (merge, CT Core #95) the worn gear: one group, marked like the weapon (no line over her body)
+  if (section === 'gear') return weapon(out, 'Worn gear');
   if (!id) {
     if (section === 'weapon') return weapon(out, 'Gun in hand');
     if (section === 'hand') return pair(out, 'wristL', 'wristR', 'Hands');
