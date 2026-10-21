@@ -16,7 +16,7 @@ import { TUNE_SECTIONS, TUNE_STATE_BAG, tuneResetAll } from '../src/anim/tuneReg
 import { HAND_GROUP_IDS, IK_GROUP_IDS, JOINT_GROUP_IDS, WEAPON_GROUP_IDS, tuneV2Frame, tuneV2JointRow, tuneV2SyncAll } from '../src/anim/tuneV2Sections';
 import { bakeCatalogue, tuneBake, type BakeResult } from '../src/anim/tuneBake';
 import { BAKE_RULES } from '../src/anim/tuneBakeTable';
-import { BAKE_BASE_FILE } from '../src/anim/tuneBakeBase';
+import { BAKE_BASE_FILE, emptyBase, spliceAnimBase } from '../src/anim/tuneBakeBase';
 import { ANIM_BASE } from '../src/anim/animBase';
 import { J, JOINT_ROWS, eulerQuat, jointRowIndex, jointsBeginRigRows, jointsLoad, jointsRigState } from '../src/anim/tuneJoints';
 import { HANDS_CUR, HP, handsBeginRigRows, handsGroupIndex, handsLoad, handsRigState, handsWeaponIndex } from '../src/anim/tuneHands';
@@ -363,6 +363,8 @@ describe('anim-joints J2: move rows bake like any row', () => {
     for (const f of [...TABLE_FILES, BAKE_BASE_FILE]) {
       mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
       cpSync(path.join(ROOT, f), path.join(dir, f));
+      // (anim-bake-1022) the generated table is no longer empty: the literal MOVE_BASE assumes an untuned base
+      if (f === BAKE_BASE_FILE) writeFileSync(path.join(dir, f), spliceAnimBase(readFileSync(path.join(dir, f), "utf8"), emptyBase()));
     }
     const read = (p: string): string | null => (existsSync(path.join(dir, p)) ? readFileSync(path.join(dir, p), 'utf8') : null);
     const r: BakeResult = tuneBake(MOVE_EXPORT, CAT, read);
@@ -405,6 +407,8 @@ async function runRig(wren: boolean, frames: number, poseAt: (f: number) => RigP
   const rg = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook(), 1.75, 'm0');
   rg.carrier = true;
   rg.tuneRows = wren;
+  // (anim-bake-1022) both rigs hold Wren's ready poses, so only the tuner rows differ
+  rg.graph.wrenReady = true;
   const out: Run = { at: {}, rows: {} };
   for (let f = 0; f <= frames; f++) {
     if (f === hit) rg.hit(1, 0);
@@ -436,6 +440,7 @@ describe('anim-joints J2: the real rig', () => {
   const reloadPose = (f: number): RigPoseLit => (f < 90 ? still({ reload: f / 90 }) : still());
 
   it('nothing live: a Wren rig through a vault and a reload is bit-identical to a rig without the flag', async () => {
+    animBaseLoad(emptyBase()); // (anim-bake-1022) test-local: the generated table is no longer empty
     const a = await runRig(true, 150, (f) => (f < 75 ? vaultPose(f) : reloadPose(f - 75)), [30, 100, 150]);
     const b = await runRig(false, 150, (f) => (f < 75 ? vaultPose(f) : reloadPose(f - 75)), [30, 100, 150]);
     expect(a.at).toEqual(b.at);
@@ -443,6 +448,7 @@ describe('anim-joints J2: the real rig', () => {
   });
 
   it('a trav.vault base row turns the elbow during the vault and not after', async () => {
+    animBaseLoad(emptyBase()); // (anim-bake-1022) the baseline from an empty base (the generated one has idle rows)
     const base = await runRig(true, 150, vaultPose, [30, 150]);
     animBaseLoad({ version: 1, joints: { 'trav.vault': { elbowR: [40, 0, 0] } }, hands: {}, ik: {} });
     const row = await runRig(true, 150, vaultPose, [30, 150]);
@@ -452,6 +458,7 @@ describe('anim-joints J2: the real rig', () => {
   });
 
   it('a reload base row shows while reloading (the graph\'s reload weight) and not after', async () => {
+    animBaseLoad(emptyBase()); // (anim-bake-1022) the baseline from an empty base (the generated one has idle rows)
     const base = await runRig(true, 200, reloadPose, [45, 200]);
     expect(base.rows[45]).toEqual(['reload:1.00']);
     expect(base.rows[200]).toEqual([]);

@@ -3,6 +3,10 @@
  * rig's world matrices and local TRS and the poser's output on every LOD file, for every keyed clip, a set of
  * procedural states and a partner-style sequence. The fixture was captured by `tests/helpers/animSkeletonIdentity.ts`
  * on the pre-S2 code (4e3cbbda) with `ANIM_SKELETON_CAPTURE=1`.
+ * (anim-bake-1022) Re-captured after the bake of Michael's 2026-10-22 tune (dbd466c7: the jog / run keys, the rifle and
+ * pistol low ready, the base table's idle / walk / jog upperArm roll), which changed 33 of the 39 hashes. Before the
+ * re-capture, the run with the pre-bake data restored at run time (the old jog / run clips, the low ready and pistol
+ * ready, now WREN_READY_LOW / WREN_PISTOL_READY, an empty base) matched the 4e3cbbda fixture bit for bit: the bake changed data, not the rig code.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
