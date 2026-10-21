@@ -26,3 +26,10 @@ same rule improves them; e2e-anim's guard metrics must not get worse).
   snap (foot speed at the first swing frame), feet crossing; numbers in REPORT.md.
 - e2e-anim metrics no worse (tightened where improved, never loosened); a new e2e-anim check for the turn rule.
 - npm run check, e2e-anim, e2e-studio on the desktop; GPU sheets before / after (desktop, E2E_GPU=1); the laptop full e2e.
+
+## N0 audit numbers (orchestrator, 2026-10-22; `feature/anim-natural` 720b1088, docs/anim-natural/AUDIT.md, metrics.json, GPU sheets in docs/anim-natural/audit/)
+- Jog / run turns: the body turns 90 deg in 0.18 s on a planted foot; the pelvis trails up to 50 deg; the planted foot
+  winds 19-25 deg and scrubs 4-9 cm (limit 1 cm).
+- Walk / crouch turns: the foot winds 10-13 deg and scrubs 5-7 cm.
+- Holds and carries: the feet slide 9-21 cm (the trunk moves as one block; the trunk part is N2, the feet are N1's).
+- Left alone: side sway (SWAY_MAX, with Michael), N2's trunk / head / arms, N3's draws.
