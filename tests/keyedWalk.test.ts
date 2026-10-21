@@ -41,8 +41,8 @@ describe('the keyed walk against the footage (105509 @ 33-34, 105949 @ 12.0-12.5
     // track: the feet under the body (CT ~0.6-0.75 hip widths; ours was 0.98); (anim-rework S2, Michael 14:45 "wide
     // stance") the ankle centres about a foot width apart (>= 0.09 m: the lifted swing foot passes the planted one)
     expect(C.half * 2).toBeGreaterThanOrEqual(0.09);
-    // (anim-run-half) the half is measured in the pelvis's yaw frame (the walk's +-2 deg pelvis yaw no longer leaks the
-    // stride into it): the same keys measure 0.0518 (was 0.0466 in the world frame): was 0.05
+    // (anim-run-half) the half is measured with the stride-locked pelvis yaw removed (the walk's +-2 deg pelvis yaw no
+    // longer leaks the stride into it): the same keys measure 0.0519 (was 0.0466 in the world frame): was 0.05
     expect(C.half).toBeLessThanOrEqual(0.053);
     expect((C.half * 2) / (2 * proportions().hipHalf)).toBeLessThanOrEqual(0.75);
     expect(C.kneeOut).toBeLessThanOrEqual(0.05);

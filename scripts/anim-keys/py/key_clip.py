@@ -466,13 +466,13 @@ for i in range(N):
                 q = [-v for v in q]
             lastq[n] = q
             wrists += q
-    # (anim-run-half) each ankle's lateral offset in the pelvis's yaw frame (about the vertical through the pelvis; its
-    # pitch and roll left out): the game's planner places the feet in the facing frame and the pelvis yaw does not move
-    # them, so a yawed pelvis (the run's +-22.5 deg, mirrored with the stride) must not leak the fore / aft stride into
-    # the track half-width (it did with the world x: the run's half baked -0.02)
-    pf = W['pelvis'] @ Vector((0, 0, 1))
-    unyaw = ry(-math.atan2(pf.x, pf.z))
+    # (anim-run-half) the pelvis yaw (about the vertical; its pitch and roll left out) and each ankle from the pelvis,
+    # kept for the track half-width after the loop (it needs the clip's mean yaw); the yaw is read off the pelvis's
+    # lateral axis, not its forward axis, which goes vertical in face-down frames (the knife collapse flipped ~180 deg)
+    pl = W['pelvis'] @ Vector((1, 0, 0))
     frames.append({
+        'yaw': math.atan2(-pl.z, pl.x),
+        'anRel': [X['anL'] - X['pelvis'], X['anR'] - X['pelvis']],
         'pel': [pel.x, pel.y, pel.z],
         'q': qs,
         'arm': arms,
@@ -484,9 +484,18 @@ for i in range(N):
         **({'fing': skel['fing']} if HAS_FING else {}),
         **({'leg': skel['leg']} if HAS_LEGS else {}),
         **({'legd': skel['legd']} if HAS_LEGD else {}),
-        'ankle': [(unyaw @ (X['anL'] - X['pelvis'])).x / K, (unyaw @ (X['anR'] - X['pelvis'])).x / K],
         'X': {n: list(X[n]) for n in ORDER},
     })
+
+# (anim-run-half) each ankle's lateral offset with only the stride-locked pelvis yaw removed (the frame's yaw minus the
+# clip's mean yaw, a circular mean): the game's planner places the feet in the facing frame and the swing of the pelvis
+# yaw does not move them, so a yawed pelvis (the run's +-22.5 deg, mirrored with the stride) must not leak the fore / aft
+# stride into the track half-width (it did with the world x: the run's half baked -0.02); a constant stance yaw (the
+# ready stance's ~6 deg) is not removed, so such a clip keeps its world-x half
+mean_yaw = math.atan2(sum(math.sin(f['yaw']) for f in frames), sum(math.cos(f['yaw']) for f in frames))
+for f in frames:
+    unyaw = ry(-(f.pop('yaw') - mean_yaw))
+    f['ankle'] = [(unyaw @ v).x / K for v in f.pop('anRel')]
 
 half = sum((f['ankle'][1] - f['ankle'][0]) / 2 for f in frames) / N
 out = {
