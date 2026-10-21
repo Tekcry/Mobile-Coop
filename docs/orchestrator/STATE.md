@@ -1,4 +1,4 @@
-# Orchestrator - resume point (2026-10-22 ~09:30 Sydney)
+# Orchestrator - resume point (2026-10-22 ~10:05 Sydney)
 
 Read CLAUDE.md (above all "Sessions") and docs/ROADMAP.md first (its "Decided" list holds Michael's answers verbatim).
 Work folder C:/NightShift/Mobile-Coop-menu, branch feature/menu (orchestrator docs; merge origin/master before each
@@ -6,30 +6,26 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
-v4.49.0 (#97, c38feca2). /preview/ = dev = c38feca2 (09:55). Merged 2026-10-21/22 in order:
-4.33.0 #80 tuner pad layout, 4.33.1 #79 GL warnings, 4.34.0 #81 co-op guard torches, 4.35.0 #82 tuner free mouse,
-4.36.0 #83 T1a keys / playback, 4.37.0 #84 J1 base table, 4.38.0 #85 bays B+M (cloud), 4.39.0 #86 T2 redesign,
-4.40.0 #87 key timing, 4.41.0 #89 phone tuner, 4.42.0 #88 skeleton S1+S2, 4.43.0 #91 add / delete keys, 4.43.1 #93
-restart-hold, 4.43.2 #94 test fixes, 4.44.0 #90 J2 move rows, 4.45.0 #95 gear offsets, 4.46.0 #96 Michael's first bake,
-4.47.0 #98 skeleton S3+S4, 4.47.1 #100 keyCurve, 4.48.0 #101 bay 3 jammer hallway (protocol 26), #104 docs.
+v4.49.1 (#102, dc4326a6). /preview/ = dev = dc4326a6 (10:05). Earlier today: 4.49.0 #97 tuner v3; see ROADMAP Done for the full list.
 
 ## Pacing (Michael)
 - 5-hour window: use as much as possible, never hit it; trim in order (cloud, laptop job, one agent per session) and
   pause at 97%. A recurring cron (17, 37, 57 past) checks it in this session; recreate it after a clear.
 - Weekly: "Full speed, swap account" (09:20): at weekly ~98% pause everything at clean commits, save, and hand off with
-  docs/orchestrator/HANDOFF.md (prompts one at a time). Weekly was 61% at 09:20, rising ~5.5%/h (out ~16:30).
+  docs/orchestrator/HANDOFF.md (prompts one at a time). Weekly 65% at 10:02 (pace slowed to ~3%/h with one agent per session).
+- Pace now: one agent per session (since 09:45); 5-hour 30% at 10:02, projecting ~88% at the 14:10 reset.
 - Overnight: never leave a question dialog open (it blocks the turn and the cron); log assumed decisions instead.
 - Context: sessions over ~60% get cleared at clean points (Michael approved 09:30): save STATE, clear, send resume.
 
 ## Sessions (titles are the message addresses)
 | Session | Owns now | Next |
 | --- | --- | --- |
-| CT Core Build (desktop, local_164e4c5a) | anim-bake-all (checker), anim-run-half (run clip track half bake bug, key_clip.py:481), e2e-coop-takedown test PR, #102 goggle (merge master: characterRig conflict), #103 bake-targets | anim-natural N1 feet (turn-step rule), N2 body motion layer |
-| Course Ready Build (desktop, local_7cc5a94a) | #97 tuner v3 (laptop full on 2dcc601e: e2e-lightbake 16/17 solo rerun pending), guard tuning (item 24, PR after #97), item 30 (wave, apply to keys, smooth between, compare, exact preview via keyCurve) | - |
-| Menu Notes Build (desktop, local_b81e3537) | anim-natural N0 audit (AUDIT.md on feature/anim-natural) and N3 weapon draws (feature/anim-n3) | sector-fixes parked: L c436f677, C abc24880, W 3f048e43 (WIP.md each); then P, S, R |
-| Character Build (laptop, bridge:session_01Argkzi1eYdbWRrGaWyozTe) | test runner (queue: #97 lightbake solo, #103 full; then #92, #99); jammer-fixes (review items 1-4, protocol 27) | - |
-| Bays Cloud (cloud, one-way) | #92 rejoin (slice R), #99 server browser (slice S) | done; needs laptop full runs, then merge |
-Open PRs: #92, #97, #99, #102, #103 (#67 parked for Michael).
+| CT Core Build (desktop, local_164e4c5a; cleared + resumed 10:00 from docs/orchestrator/resume-ct-core.md) | anim-run-half (option c approved, walk pin 0.053), #103 bake-targets (laptop solo reruns of e2e-stealth-ai / e2e-clip), anim-bake-all (PR after #103), e2e-coop-takedown (PR) | anim-natural N1 feet, then N2 body motion |
+| Course Ready Build (desktop, local_7cc5a94a; cleared + resumed 09:45 from docs/marlow-bays/RESUME-trackA.md) | #105 guard tuning, #106 item 30 key tools (both queued on the laptop) | idle; N4 rows after the audit |
+| Menu Notes Build (desktop, local_b81e3537) | anim-natural N0 audit (AUDIT.md), N3 weapon draws paused as WIP (feature/anim-n3 786f993f; animGraph / tuneBakeTable edits approved, tell CT Core) | clear at a clean point after the audit; sector-fixes parked (L c436f677, C abc24880, W 3f048e43) |
+| Character Build (laptop, bridge:session_01Argkzi1eYdbWRrGaWyozTe) | test runner: #103 solo reruns, #92 (6d42d9ee), #99 (98ffe573), #105, #106; jammer-fixes (review items 1-4; item 5 withdrawn: IR stays everywhere) | - |
+| Bays Cloud (cloud, one-way) | done: #92 rejoin, #99 server browser | - |
+Open PRs: #92, #99, #103, #105, #106 (#67 parked for Michael). Protocol: #92, #99 and jammer-fixes all claim 27: the first merged keeps 27, the orchestrator renumbers the others (28, 29) at their merge (one constant + its test).
 
 ## Decisions to remember (also in ROADMAP Decided)
 - Michael's bake: bake all as exported, widen only the tripped limits, each marked "Michael's 2026-10-22 tune".
