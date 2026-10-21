@@ -15,7 +15,8 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   lower 0.2 s. Recoil (row 11): no visible flip (weapon flip 0.02 rad per kick, rifle recoilPitch 0.6, no shot shake).
 - Decided, not built yet (G104): normal aiming has no zoom; the marksman (sniper) attachment's scope has hold breath.
 - Decided, not built yet (G105): loadouts are Stealth / Assault / Recommended. Code: Silent / Flash / Loud.
-- Decided (G16): no aim assist (code still has pad aim assist, `docs/systems/movement.md`).
+- Decided and built (G16): no aim assist on any input. The pad's aim assist code and its `gamepad.aimAssist` setting are
+  gone; an old stored value is dropped when settings load (`sanitizeSettings`).
 - Decided (G20, G98): health comes back only at wall medkit stations; no carried medkits, no kit count (built). Stations in
   every map: not built yet (only Proving Grounds has one).
 - Open (DECISIONS, unanswered): which gun comes out first (WEAP-09), how guns are carried when put away (WEAP-10).

@@ -24,6 +24,7 @@ import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CtDevices } from '../game/ctDevices';
+import { newSeenBody, remoteHeadY, type SeenBody } from '../security/securitySystem';
 import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
 import { keepSimInBackground } from './bgTicks';
@@ -223,6 +224,20 @@ export class CoopClient implements NetAttachment {
       out.push({ id, pos: a.pos, yaw: a.yaw, mode: a.mode, anchor: a.anchor, s: a.s, sub: a.sub });
     }
     return out;
+  }
+
+  partnerBodies(out: SeenBody[], from: number): number {
+    let n = 0;
+    for (const a of this.avatars.values()) {
+      if (a.dead) continue;
+      const k = from + n++;
+      const b = out[k] ?? (out[k] = newSeenBody());
+      b.crouched = (a.flags & PF.crouch) !== 0;
+      b.speed = a.moveSpeed;
+      b.head.set(a.pos.x, remoteHeadY(a.pos.y, b.crouched), a.pos.z);
+      b.light = this.g.bodyLight(a.pos.x, a.pos.y, a.pos.z, a.rig.height, b.crouched);
+    }
+    return n;
   }
 
   private avatar(st: PlayerState): RemoteAvatar | null {

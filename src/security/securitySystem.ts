@@ -21,6 +21,52 @@ export type SecurityEvent =
   | { kind: 'stage'; camera: string; player: string; stage: 1 | 2; x: number; z: number }
   | { kind: 'cameraDown'; camera: string; x: number; z: number };
 
+/** The no-allocation static ray the camera test casts (`Ballistics.hitDistance`). */
+export interface SightRay {
+  hitDistance(from: Vector3, to: Vector3, collideWith: number): number;
+}
+
+const LENS = new Vector3();
+
+/** (camera-cue fix) A body as the camera test reads it: head centre, crouch, speed and its light (undefined: sample). */
+export interface SeenBody {
+  head: Vector3;
+  crouched: boolean;
+  speed: number;
+  light: number | undefined;
+}
+
+export function newSeenBody(): SeenBody {
+  return { head: new Vector3(), crouched: false, speed: 0, light: undefined };
+}
+
+/** The standing / crouched head height the host gives a remote body (`RemotePlayer.headPoint` off a wall). */
+export function remoteHeadY(feetY: number, crouched: boolean): number {
+  return feetY + (crouched ? 1.05 : 1.6);
+}
+
+/**
+ * (camera-cue fix) One camera's per-player test, shared by the host's think and the co-op client's cue pulse: 0 unless
+ * the head is in the camera's frame with a clear `G.STATIC` ray from the lens, else the meter rate (the guard formula
+ * at the body's light). The camera "sees" the body when `seenAt(rate)` (the light lifts it over the leak level).
+ */
+export function cameraSight(
+  c: CameraUnit,
+  head: Vector3,
+  crouched: boolean,
+  speed: number,
+  light: number | undefined,
+  ray: SightRay,
+  lit: { lightAt(x: number, y: number, z: number): number },
+): number {
+  if (!c.covers(head.x, head.y, head.z)) return 0;
+  LENS.set(c.x, c.y, c.z);
+  const dist = hyp3(head.x - c.x, head.y - c.y, head.z - c.z);
+  // a hit within 0.2 m of the head is the body's own surroundings, not an occluder (no hit returns the length)
+  if (ray.hitDistance(LENS, head, G.STATIC) <= dist - 0.2) return 0;
+  return cameraRate(dist, light ?? lit.lightAt(head.x, head.y, head.z), crouched, speed);
+}
+
 /**
  * Host-side security logic (S0 section 2): the cameras think at `CAMERA.thinkHz`, each tests every living player
  * with one ray to the head when the player is inside the frame, and fills a meter by the guard formula. Cameras
@@ -30,7 +76,6 @@ export class SecuritySystem {
   readonly cameras: CameraUnit[] = [];
   onEvent: ((e: SecurityEvent) => void) | null = null;
   private thinkT = 0;
-  private readonly lens = new Vector3();
   private readonly head = new Vector3();
 
   constructor(
@@ -79,15 +124,7 @@ export class SecuritySystem {
         if (c.sees && p.target.alive) {
           if (p.target.headPoint) p.target.headPoint(this.head);
           else p.target.aimPoint(this.head);
-          if (c.covers(this.head.x, this.head.y, this.head.z)) {
-            this.lens.set(c.x, c.y, c.z);
-            const dist = hyp3(this.head.x - c.x, this.head.y - c.y, this.head.z - c.z);
-            const h = this.host.ballistics.ray(this.lens, this.head, G.STATIC);
-            if (!h.hit || h.distance > dist - 0.2) {
-              const light = p.light ?? this.host.lightAt(this.head.x, this.head.y, this.head.z);
-              rate = cameraRate(dist, light, p.crouched, p.speed);
-            }
-          }
+          rate = cameraSight(c, this.head, p.crouched, p.speed, p.light, this.host.ballistics, this.host);
         }
         const rose = stepCamMeter(m, rate, dt);
         if (rose) this.onEvent?.({ kind: 'stage', camera: c.def.id, player: p.id, stage: rose, x: p.feet.x, z: p.feet.z });
