@@ -14,7 +14,8 @@ import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
-import { KA, KE, KQ, KW, type KeyedPose } from '../anim/keyed';
+import { KA, KD, KE, KEYED_LEG_SIDE, KEYED_LEGD_SIDE, KL, KQ, KW, type KeyedPose } from '../anim/keyed';
+import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
@@ -26,7 +27,7 @@ import { GUARD_STEP_ROWS } from '../anim/tuneGuard';
 import { STEP_IDENTITY_ROWS } from '../anim/tuneStep';
 import { gearCompose, GS } from '../anim/tuneGear';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
-import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavPoint, clavQuat } from '../anim/clavicle';
+import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
 import { GOGGLE_OFFSET } from '../operators/runtime/goggle';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
@@ -267,6 +268,21 @@ const protV = new Vector3();
 const clavBuf = new Float64Array(4);
 const clavV = new Vector3();
 const scTmp = { x: 0, y: 0, z: 0 };
+/** (anim-skeleton S4) Scratch for the leg deltas: the hip, solved knee, plant, raw and planted knee, a direction; the
+ *  planted foot, the ankle delta, the raw hip / knee / ankle locals. */
+const ldH = new Vector3();
+const ldK0 = new Vector3();
+const ldA0 = new Vector3();
+const ldKr = new Vector3();
+const ldKp = new Vector3();
+const ldV = new Vector3();
+const ldX = new Vector3();
+const ldN = new Vector3();
+const ldF0 = new Quaternion();
+const ldD = new Quaternion();
+const ldQh = new Quaternion();
+const ldQk = new Quaternion();
+const ldQa = new Quaternion();
 /** (S2) The tuner's per-finger rows (Hands & feet): each hand's thumb curl index (spread next, then the next finger). */
 const HP_FING_L = HP.thumbLCurl!;
 const HP_FING_R = HP.thumbRCurl!;
@@ -531,12 +547,30 @@ export class CharacterRig {
   readonly clavL: TransformNode;
   readonly clavR: TransformNode;
   /**
-   * (S2) Clavicle input (anim/clavicle.ts layout: per side pitch, yaw, roll in degrees, chest frame): the slot S3's clip
-   * channel and S4's Joints row write; a test or dev tool may set it directly. Zero: identity, nothing moves.
+   * (S2) Clavicle input (anim/clavicle.ts layout: per side pitch, yaw, roll in degrees, chest frame) for a test or dev
+   * tool; (S3) the clip channel and (S4) the Joints clavicle rows turn on the node beside it (`clavFrame`). Zero: identity.
    */
   readonly clavIn = new Float64Array(CLAV_LEN);
   /** (S2) Per side whether the clavicle is turned this frame. */
   private readonly clavOn = new Uint8Array(2);
+  /**
+   * (anim-skeleton S3) The clip's clavicle channel this frame (L, R quaternions in the chest frame, already weighted),
+   * a quaternion path beside the Euler `clavIn` (no Euler round trip); per side whether it turns (0: not keyed).
+   */
+  private readonly clavKey = new Float64Array(8);
+  private readonly clavKeyOn = new Uint8Array(2);
+  /** (S3) 1 while the clip's finger channel is in `fingerClip` (cleared once when it stops; else the slot is untouched). */
+  private fingClipOn = 0;
+  /**
+   * (anim-skeleton S4) Per side, cm the planted foot (its ankle) moved off the planner's solved plant during its current
+   * contact (the most this contact), by the clip's FK legs or leg deltas; 0 when the foot is not planted or nothing
+   * keyed turns the leg. The studio shows it (Course Ready's line); the re-solve keeps it ~0. Written each frame, no
+   * allocation.
+   */
+  readonly footSlide = { l: 0, r: 0 };
+  /** (S4) The planted ankles before the keyed leg stages (world, L then R) and last frame's contacts (footSlide). */
+  private readonly plantAt = new Float64Array(6);
+  private readonly slideContact = new Uint8Array(2);
   /**
    * (S2, A9) The hands' per-finger curl and spread (anim/fingers.ts layout), composed at the end of each frame: the grip
    * closure's shape (`handGrip`), this rig's own Hands & feet finger rows (tuner), and `fingerClip`. The figure turns
@@ -1864,21 +1898,33 @@ export class CharacterRig {
   }
 
   /**
-   * (anim-skeleton S2) The clavicle nodes from `clavIn` (before the arms: a turned clavicle carries its shoulder's rest
-   * about the SC point in `solveArm`). An untouched side stays at the identity it was built with. No allocation.
+   * (anim-skeleton S2) The clavicle nodes from `clavIn` and (S3) the clip's clavicle channel (`clavKey`: the Joints / tool
+   * input turns on top of it in the chest frame), before the arms: a turned clavicle carries its shoulder's rest about
+   * the SC point in `solveArm`. (S3, the S2 polish note) `applyTargets` has no early return: this and both `solveArm`
+   * calls run as a pair on every animated frame, and nothing else writes the clavicle nodes or the shoulders' positions
+   * after them, so the node's turn and the shoulder's carry always agree and `readRig`'s un-carry is exact (an LOD-skipped
+   * frame changes neither). An untouched side stays at the identity it was built with. No allocation.
    */
   private clavFrame(): void {
     for (let k = 0; k < 2; k++) {
       const o = k === 0 ? CLAV_L : CLAV_R;
       const q = (k === 0 ? this.clavL : this.clavR).rotationQuaternion!;
-      if (clavActive(this.clavIn, o)) {
-        clavQuat(this.clavIn, o, clavBuf, 0);
+      const tuned = clavActive(this.clavIn, o);
+      const keyed = this.clavKeyOn[k] === 1;
+      if (tuned || keyed) {
+        if (tuned) {
+          clavQuat(this.clavIn, o, clavBuf, 0);
+          if (keyed) clavCompose(clavBuf, 0, this.clavKey, k * 4);
+        } else for (let c = 0; c < 4; c++) clavBuf[c] = this.clavKey[k * 4 + c]!;
         q.set(clavBuf[0]!, clavBuf[1]!, clavBuf[2]!, clavBuf[3]!);
         this.clavOn[k] = 1;
       } else if (this.clavOn[k] === 1) {
         q.set(0, 0, 0, 1);
         this.clavOn[k] = 0;
       }
+      // (anim-skeleton S4) the Joints clavicle row (this rig's composed base + tuner delta, eased; outside a tuner window
+      // or at zero: no-op) on top in the chest frame, as the shoulder rows turn in their parent's frame
+      if (jointApply(q, k === 0 ? J.clavicleL : J.clavicleR, true)) this.clavOn[k] = 1;
     }
   }
 
@@ -2292,6 +2338,12 @@ export class CharacterRig {
       }
     }
     if (HANDS_CUR.ikOn) this.ikStrengthLimbs(2); // (tuner-v2 item 2) IK targeting strength, before the joint offsets
+    // (anim-skeleton S4) the planted ankles before the keyed leg stages (footSlide), then the deltas over the planner
+    const legKeyed = kw > 0 && (kq.hasLeg === 1 || kq.hasLegd === 1);
+    if (legKeyed) this.plantMark();
+    if (kw > 0 && kq.hasLeg) this.keyedLegs(kq, kw); // (anim-skeleton S3, A7) the clip's FK legs over the IK legs
+    if (kw > 0 && kq.hasLegd === 1) this.keyedLegDeltas(kq, kw);
+    this.footSlideStep(legKeyed);
     if (JOINTS_CUR.on) this.jointOffsets(1); // (tuner-v2) per-joint offsets on the solved legs
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
@@ -2393,6 +2445,12 @@ export class CharacterRig {
     const hm = this.heldModel;
     if (hm) hm.tuneVisual(HANDS_CUR.on && HANDS_GUN.on && hm.node === this.heldWeapon ? HANDS_GUN : null);
     this.triggerTune = HANDS_CUR.on ? HANDS_CUR.trigger : 0;
+    // (anim-skeleton S3) the clip's clavicle and finger channels by the keyed arms' weight (free hands), else the drawn
+    // set's edit weight (a gun in hand), as the shoulder channel
+    {
+      const kaw0 = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
+      this.keyedUpper(kq, kaw0 > 0 ? kaw0 : kw * t.keyDrawn);
+    }
     this.clavFrame(); // (anim-skeleton S2) the clavicles before the arms reach from the shoulders
     this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
     this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
@@ -2558,6 +2616,197 @@ export class CharacterRig {
       Quaternion.SlerpToRef(wr.rotationQuaternion!, kT, w, wr.rotationQuaternion!);
     }
     fresh(wr);
+  }
+
+  /**
+   * (anim-skeleton S3) The clip's clavicle channel into `clavKey` (each side by `w`, as `keyPow`; a side left at the
+   * identity is off) and its finger channel into `fingerClip` (x `w`). Without the channel (or `w` 0) the clavicle path
+   * is off and `fingerClip` is cleared once, then left to whoever else writes it (a test, a tool). No allocation.
+   */
+  private keyedUpper(kq: KeyedPose, w: number): void {
+    const clav = w > 0 && kq.hasClav === 1;
+    for (let k = 0; k < 2; k++) {
+      this.clavKeyOn[k] = 0;
+      if (!clav) continue;
+      keyPow(kq.clav, k * 4, w, kT);
+      if (kT.x === 0 && kT.y === 0 && kT.z === 0) continue;
+      const b = k * 4;
+      this.clavKey[b] = kT.x;
+      this.clavKey[b + 1] = kT.y;
+      this.clavKey[b + 2] = kT.z;
+      this.clavKey[b + 3] = kT.w;
+      this.clavKeyOn[k] = 1;
+    }
+    const c = this.fingerClip;
+    if (w > 0 && kq.hasFing === 1) {
+      for (let i = 0; i < FING_LEN; i++) c[i] = kq.fing[i]! * w;
+      this.fingClipOn = 1;
+    } else if (this.fingClipOn === 1) {
+      c.fill(0);
+      this.fingClipOn = 0;
+    }
+  }
+
+  /**
+   * (anim-skeleton S3, A7) The clip's FK legs over the solved IK legs, per side by its keyed weight (0..1) x `kw`: the
+   * hip (local to the pelvis), the knee flex (about its local X), the ankle (local to the knee) and the toe slerped from
+   * the IK solution toward the clip's. Runs after the legs' solves and the IK strength, before the Joints offsets and
+   * the rate limits; at weight 0 the planner's leg is untouched (a planted foot stays planted). No allocation.
+   */
+  private keyedLegs(kq: KeyedPose, kw: number): void {
+    const g = kq.leg;
+    for (let k = 0; k < 2; k++) {
+      const b = k * KEYED_LEG_SIDE;
+      const lw = g[b + KL.w]!;
+      const w = (lw < 0 ? 0 : lw > 1 ? 1 : lw) * kw;
+      if (!(w > 0)) continue;
+      const hip = k === 0 ? this.hipL : this.hipR;
+      const knee = k === 0 ? this.kneeL : this.kneeR;
+      const ankle = k === 0 ? this.ankleL : this.ankleR;
+      const toe = k === 0 ? this.toeL : this.toeR;
+      const h = b + KL.hip;
+      kT.set(g[h]!, g[h + 1]!, g[h + 2]!, g[h + 3]!);
+      Quaternion.SlerpToRef(hip.rotationQuaternion!, kT, w, hip.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, g[b + KL.knee]!, 0, kT);
+      Quaternion.SlerpToRef(knee.rotationQuaternion!, kT, w, knee.rotationQuaternion!);
+      const a = b + KL.ankle;
+      kT.set(g[a]!, g[a + 1]!, g[a + 2]!, g[a + 3]!);
+      Quaternion.SlerpToRef(ankle.rotationQuaternion!, kT, w, ankle.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, g[b + KL.toe]!, 0, kT);
+      Quaternion.SlerpToRef(toe.rotationQuaternion!, kT, w, toe.rotationQuaternion!);
+      freshBelow(toe, this.hips);
+    }
+  }
+
+  /** (anim-skeleton S4) Each ankle's world position into `plantAt` (the plant footSlide measures from). No allocation. */
+  private plantMark(): void {
+    for (let k = 0; k < 2; k++) {
+      const an = k === 0 ? this.ankleL : this.ankleR;
+      freshBelow(an, this.hips);
+      const a = an.getAbsolutePosition();
+      this.plantAt[k * 3] = a.x;
+      this.plantAt[k * 3 + 1] = a.y;
+      this.plantAt[k * 3 + 2] = a.z;
+    }
+  }
+
+  /**
+   * (anim-skeleton S4) `footSlide` per side: in contact, the most the ankle moved off `plantAt` this contact (cm; this
+   * frame's offset counts only when `active`, the keyed leg stages ran); not in contact, 0. No allocation.
+   */
+  private footSlideStep(active: boolean): void {
+    for (let k = 0; k < 2; k++) {
+      const f = k === 0 ? this.planner.L : this.planner.R;
+      let s = k === 0 ? this.footSlide.l : this.footSlide.r;
+      if (!f.contact) s = 0;
+      else {
+        let e = 0;
+        if (active) {
+          const an = k === 0 ? this.ankleL : this.ankleR;
+          freshBelow(an, this.hips);
+          const a = an.getAbsolutePosition();
+          const dx = a.x - this.plantAt[k * 3]!;
+          const dy = a.y - this.plantAt[k * 3 + 1]!;
+          const dz = a.z - this.plantAt[k * 3 + 2]!;
+          e = Math.sqrt(dx * dx + dy * dy + dz * dz) * 100;
+        }
+        s = this.slideContact[k] === 1 && s > e ? s : e;
+      }
+      this.slideContact[k] = f.contact ? 1 : 0;
+      if (k === 0) this.footSlide.l = s;
+      else this.footSlide.r = s;
+    }
+  }
+
+  /**
+   * (anim-skeleton S4) The clip's leg deltas (`legd`, rad, rig frame, x `kw`) over the solved legs, right after the FK
+   * blend: raw, each joint's local rotation turned by its delta (hip yaw / pitch / roll, the knee and ankle and toe
+   * about their hinges). A planted leg (the planner's contact weight, `legdContactW`) is re-solved onto its plant: the
+   * knee moves to the plant's circle on the raw knee's side (`plantKnee`), the hip and the shin turned by the shortest
+   * arcs onto it and back onto the plant, the foot keeps its planted world rotation turned by the ankle delta, the toe
+   * takes its delta; raw and planted are slerped per joint by that weight. Zero deltas leave a side untouched.
+   * No allocation.
+   */
+  private keyedLegDeltas(kq: KeyedPose, kw: number): void {
+    const d = kq.legd;
+    for (let k = 0; k < 2; k++) {
+      const b = k * KEYED_LEGD_SIDE;
+      let any = false;
+      for (let c = 0; c < KEYED_LEGD_SIDE; c++) if (d[b + c] !== 0) any = true;
+      if (!any) continue;
+      const hip = k === 0 ? this.hipL : this.hipR;
+      const knee = k === 0 ? this.kneeL : this.kneeR;
+      const ankle = k === 0 ? this.ankleL : this.ankleR;
+      const toe = k === 0 ? this.toeL : this.toeR;
+      const f = k === 0 ? this.planner.L : this.planner.R;
+      const wc = LEGD_OPT.resolve ? legdContactW(f.contact, f.swing) : 0;
+      freshBelow(ankle, this.hips);
+      // the plant: the solved leg as it stands
+      ldH.copyFrom(hip.getAbsolutePosition());
+      ldK0.copyFrom(knee.getAbsolutePosition());
+      ldA0.copyFrom(ankle.getAbsolutePosition());
+      ldF0.copyFrom(ankle.absoluteRotationQuaternion);
+      // raw: each joint turned in its own frame
+      Quaternion.RotationYawPitchRollToRef(d[b + KD.hipYaw]! * kw, d[b + KD.hipPitch]! * kw, d[b + KD.hipRoll]! * kw, kT);
+      hip.rotationQuaternion!.multiplyInPlace(kT);
+      Quaternion.RotationYawPitchRollToRef(0, d[b + KD.knee]! * kw, 0, kT);
+      knee.rotationQuaternion!.multiplyInPlace(kT);
+      Quaternion.RotationYawPitchRollToRef(0, d[b + KD.anklePitch]! * kw, d[b + KD.ankleRoll]! * kw, ldD);
+      ankle.rotationQuaternion!.multiplyInPlace(ldD);
+      Quaternion.RotationYawPitchRollToRef(0, d[b + KD.toe]! * kw, 0, kT);
+      toe.rotationQuaternion!.multiplyInPlace(kT);
+      if (!(wc > 0)) {
+        freshBelow(toe, this.hips);
+        continue;
+      }
+      freshBelow(ankle, this.hips);
+      ldQh.copyFrom(hip.rotationQuaternion!);
+      ldQk.copyFrom(knee.rotationQuaternion!);
+      ldQa.copyFrom(ankle.rotationQuaternion!);
+      // planted: the raw leg swung about the hip onto the plant line gives the knee's side (a hip yaw or roll swivels
+      // the knee about the hip-ankle line); the knee onto the plant's circle there (`plantKnee`)
+      ldKr.copyFrom(knee.getAbsolutePosition()).subtractInPlace(ldH);
+      ankle.getAbsolutePosition().subtractToRef(ldH, ldX).normalize();
+      ldA0.subtractToRef(ldH, ldV).normalize();
+      Quaternion.FromUnitVectorsToRef(ldX, ldV, kF);
+      ldKr.rotateByQuaternionToRef(kF, ldX).addInPlace(ldH);
+      plantKnee(ldH, ldA0, ldK0, ldX, ldKp);
+      // the thigh: the shortest arc from the raw knee onto the planted one, then twisted about itself so its hinge (local
+      // x) is normal to the hip-knee-ankle plane (the knee stays a hinge; on the side the hinge already faced)
+      ldKr.normalize();
+      ldKp.subtractToRef(ldH, ldV).normalize();
+      Quaternion.FromUnitVectorsToRef(ldKr, ldV, kF);
+      kF.multiplyToRef(hip.absoluteRotationQuaternion, tmpQ3);
+      ldA0.subtractToRef(ldKp, ldX);
+      Vector3.CrossToRef(ldV, ldX, ldN);
+      if (ldN.lengthSquared() > 1e-10) {
+        ldN.normalize();
+        ldX.set(1, 0, 0).rotateByQuaternionToRef(tmpQ3, ldX);
+        if (Vector3.Dot(ldN, ldX) < 0) ldN.scaleInPlace(-1);
+        ldX.subtractInPlace(ldV.scaleToRef(Vector3.Dot(ldX, ldV), ldKr));
+        if (ldX.lengthSquared() > 1e-10) {
+          Quaternion.FromUnitVectorsToRef(ldX.normalize(), ldN, kF);
+          kF.multiplyToRef(tmpQ3, tmpQ3);
+        }
+      }
+      this.setWorldRot(hip, hip.parent as TransformNode, tmpQ3);
+      freshBelow(ankle, this.hips);
+      const K = knee.getAbsolutePosition();
+      ankle.getAbsolutePosition().subtractToRef(K, ldKr).normalize();
+      ldA0.subtractToRef(K, ldV).normalize();
+      Quaternion.FromUnitVectorsToRef(ldKr, ldV, kF);
+      kF.multiplyToRef(knee.absoluteRotationQuaternion, tmpQ3);
+      this.setWorldRot(knee, hip, tmpQ3);
+      // the foot: its planted world rotation turned by the ankle delta (the ankle stays on the plant)
+      ldF0.multiplyToRef(ldD, tmpQ3);
+      this.setWorldRot(ankle, knee, tmpQ3);
+      if (wc < 1) {
+        Quaternion.SlerpToRef(ldQh, hip.rotationQuaternion!, wc, hip.rotationQuaternion!);
+        Quaternion.SlerpToRef(ldQk, knee.rotationQuaternion!, wc, knee.rotationQuaternion!);
+        Quaternion.SlerpToRef(ldQa, ankle.rotationQuaternion!, wc, ankle.rotationQuaternion!);
+      }
+      freshBelow(toe, this.hips);
+    }
   }
 
   /** (T1a, item 17) The keyed shoulder (chest frame, the arm with it) and the forearm twist (about the bone) by `w`. */

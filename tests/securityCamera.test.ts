@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAMERA } from '../src/config/security';
-import { PERCEPTION } from '../src/ai/perception';
+import { PERCEPTION, sightRate } from '../src/ai/perception';
+import { SENSITIVITY } from '../src/ai/alertState';
 import { LIGHT } from '../src/world/lights';
 import { CameraUnit, cameraRate, inFrame, newMeter, segmentHitsHousing, stepCamMeter, sweepCycle, sweepYaw } from '../src/security/camera';
 import { validateSecurity, type CameraDevice } from '../src/security/data';
@@ -101,31 +102,35 @@ describe('camera frame test (SN01-SN03)', () => {
 
 describe('camera meter (SN08-SN10, derived from PERCEPTION)', () => {
   it('a lit walking body at 10 m fills in about 1.3 s (within 10 %)', () => {
-    const t = timeToFull(cameraRate(10, 1, false, WALK));
+    const t = timeToFull(cameraRate(10, false, WALK));
     expect(t).toBeGreaterThanOrEqual(1.3 * 0.9 - 0.25);
     expect(t).toBeLessThanOrEqual(1.3 * 1.1 + 0.25);
   });
 
   it('a lit crouched still body at 10 m takes about 9 s (within 10 %)', () => {
-    const t = timeToFull(cameraRate(10, 1, true, 0));
+    const t = timeToFull(cameraRate(10, true, 0));
     expect(t).toBeGreaterThanOrEqual(9 * 0.9);
     expect(t).toBeLessThanOrEqual(9 * 1.1);
   });
 
-  it('a body in shadow (0.28) walking at 4 m takes about 13 s (within 10 %)', () => {
-    const t = timeToFull(cameraRate(4, LIGHT.shadow, false, WALK));
-    expect(t).toBeGreaterThanOrEqual(13 * 0.9);
-    expect(t).toBeLessThanOrEqual(13 * 1.1);
-  });
-
-  it('a body in shadow at 10 m is never detected', () => {
-    expect(timeToFull(cameraRate(10, LIGHT.shadow, false, WALK), 120)).toBe(Infinity);
-    expect(timeToFull(cameraRate(10, 0.1, true, 0), 120)).toBe(Infinity);
+  it('(marlow-jammer M3) sees by its own IR: the rate is the fully lit guard rate whatever the lamps', () => {
+    expect(CAMERA.irLight).toBeGreaterThanOrEqual(LIGHT.lit);
+    const guard = (dist: number, light: number, crouched: boolean, speed: number): number =>
+      sightRate({ dist, angle: 0, light, crouched, speed, exposure: 1, sensitivity: SENSITIVITY.unaware });
+    for (const [dist, crouched, speed] of [[4, false, WALK], [10, false, WALK], [10, true, 0], [16, false, 4]] as const) {
+      expect(cameraRate(dist, crouched, speed)).toBeCloseTo(guard(dist, 1, crouched, speed), 9);
+      // a guard reads the lamps: in shadow it is much slower; the camera is not
+      expect(guard(dist, LIGHT.shadow, crouched, speed)).toBeLessThan(cameraRate(dist, crouched, speed));
+    }
+    // the old shadow cases: a body walking in shadow at 4 m (13 s by the lamps) is now caught as if lit, and one at 10 m
+    // (never by the lamps) too
+    expect(timeToFull(cameraRate(4, false, WALK))).toBeLessThan(2);
+    expect(timeToFull(cameraRate(10, false, WALK), 120)).toBeLessThan(2);
   });
 
   it('raises the suspicious stage at 0.3 and the full stage at 1, each once', () => {
     const m = newMeter();
-    const rate = cameraRate(8, 1, false, WALK);
+    const rate = cameraRate(8, false, WALK);
     const rose: number[] = [];
     for (let i = 0; i < 40; i++) {
       const r = stepCamMeter(m, rate, 1 / CAMERA.thinkHz);
@@ -138,7 +143,7 @@ describe('camera meter (SN08-SN10, derived from PERCEPTION)', () => {
 
   it('leaving the frame drains the meter and resets the stage', () => {
     const m = newMeter();
-    for (let i = 0; i < 6; i++) stepCamMeter(m, cameraRate(8, 1, false, WALK), 1 / CAMERA.thinkHz);
+    for (let i = 0; i < 6; i++) stepCamMeter(m, cameraRate(8, false, WALK), 1 / CAMERA.thinkHz);
     expect(m.meter).toBeGreaterThan(PERCEPTION.suspicious);
     for (let i = 0; i < 80; i++) stepCamMeter(m, 0, 1 / CAMERA.thinkHz);
     expect(m.meter).toBe(0);

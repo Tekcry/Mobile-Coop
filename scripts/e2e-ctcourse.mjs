@@ -3,7 +3,7 @@
 // order: station 1 read the three panels, then each station's gate opens and both pages see its door unlock (station 2:
 // the real leg-up, station 5: leg-up + ledge relay onto the roof, then the roof plates; the others are still placeholder
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
-// next bay. (B3) station 3 is the real camera (held jammer, jam and pass), station 4 has a real laser. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
+// next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
 import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS } from './e2e-net-lib.mjs';
 
@@ -197,57 +197,155 @@ const lt = async (P, on) => {
 };
 const sleep = (ms) => waitSim(ms);
 
-/** Station 3: the camera. Seen it raises the alarm stage; the held jammer blinds it on both pages; jam and pass, then swap. */
+/**
+ * Station 3 (marlow-jammer): the camera hallway. Seen, the camera raises the alarm stage; (fix round 1, Michael item 5)
+ * seen in the hallway, a player is sent back to the entry lobby and the gate stays shut (the host, then the client
+ * through the co-op `back` event). The host jams it: blind (no
+ * grid), frozen (no sweep), LED flashing, buzzing, on both pages; the client runs to the far lobby; the 5 s cap ends the
+ * jam and starts the host's cooldown; the 1.5 s reboot refuses the client's jam; then the client jams from the far end
+ * and the host comes through: both in the far lobby unlock the airlock door. Last, a hallway lamp jammed: off in the
+ * registry gameplay reads (both pages), still off 2 s after the release, back on after its 4 s and the flicker.
+ */
 async function station3(x0) {
-  const CAM = [x0 + 8.6, 2.4, 7];
-  await moveHost(x0 + 3, 5.5);
-  await moveClient(x0 + 3, 8.5);
-  await until(A, () => window.__ctdev?.alarm >= 1, null, 90000, 'station 3: the camera sees the pair and raises the alarm stage');
+  const CAM = [x0 + 15.6, 2.4, 1.6];
+  // the host stands in the hallway (9.6 m from the camera, lit); the client waits in the entry lobby, out of its view
+  await moveHost(x0 + 6, 1.6);
+  await moveClient(x0 + 1.5, 8);
+  await until(A, () => window.__ctdev?.alarm >= 1, null, 90000, 'station 3: the camera sees the host and raises the alarm stage').catch(async (e) => {
+    console.error(JSON.stringify((await dev(A)).cams), await GA(() => JSON.stringify({ light: window.__app.current.localRef?.light, crouched: window.__app.current.player.controller.crouched })));
+    throw e;
+  });
   const d0 = await dev(A);
   assert(d0.alarm >= 1 && d0.cams[0].mode === 'online', `station 3: the camera raised the alarm stage to ${d0.alarm} and the run goes on`);
   await until(B, () => window.__ctdev?.alarm >= 1, null, 8000, 'station 3: the client page knows the alarm stage');
-  // (camera-cue) the vision cue is drawn while the camera works, on both pages, and records when the camera itself sees someone
+  // (fix round 1) the hard rule: seen in the hallway, unjammed, the host goes back to the entry lobby spot facing the
+  // hallway; the gate stays shut
+  const BACK = [x0 + 1.5, 1.6];
+  const gateShut = async (what) => {
+    const gs = await GA(() => ({ flag: window.__course.state.hasFlag('s3-clear'), gate: window.__course.debug().gates['g-s3'] }));
+    assert(!gs.flag && !gs.gate, `station 3: ${what}: the gate stays shut (s3-clear ${gs.flag}, g-s3 ${gs.gate})`);
+  };
+  await until(A, () => window.__ctdev.sendBacks >= 1, null, 10000, 'station 3: seen in the hallway, the host is sent back');
+  await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.5; }, BACK, 5000, 'station 3: the host stands at the entry lobby spot');
+  await gateShut('the host sent back');
+  // (camera-cue) the vision cue is drawn while the camera works, on both pages (its seen state is checked once the station is
+  // passed: before that, a player the camera sees in the hallway is sent back)
   const cueOn = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.baked && c.tris > 0 && c.a === 1 && c.shown; };
   const cueOff = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.a === 0 && !c.shown && !c.seen; };
   await until(A, cueOn, null, 10000, 'station 3: the host draws the camera cue');
   await until(B, cueOn, null, 10000, 'station 3: the client draws the camera cue');
-  await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.shown; }, null, 30000, 'station 3: the cue sees a player (grid only, no edge pulse: marlow-bays item 6)');
-  // (camera-cue fix) the client derives the seen state itself (the host's sight test on both bodies, nothing sent)
-  await until(B, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.shown; }, null, 30000, 'station 3: the cue sees a player on the client page too');
+  // the client runs the hallway unjammed: sent back too (the host's `back` event moves it on its page). (fix round 2) The
+  // host waits in the far lobby (teleported there, never ran: it counts for the gate)
+  await moveHost(x0 + 14.8, 9);
+  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await GB(([x, z]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, 0.1, z), Math.PI / 2); }, [x0 + 6, 1.6]);
+  await until(A, () => window.__ctdev.sendBacks >= 2, null, 30000, 'station 3: seen in the hallway, the client is sent back');
+  // (fix round 2) stale positions: for 0.8 s the host takes every client report as a far-lobby position (as if sent
+  // before the `back` event reached the client, inside the host's teleport grace; the camera's meter on it is empty).
+  // The client must not count: the gate stays shut with the host already in the far lobby
+  const stale = await GA(([fx, fz]) => new Promise((res) => {
+    const r = window.__app.current.net.remotes.values().next().value;
+    const orig = r.accept;
+    let n = 0;
+    let far = 0;
+    let opened = false;
+    r.accept = function (st, ...rest) { n++; return orig.call(this, { ...st, x: fx, z: fz }, ...rest); };
+    const t0 = performance.now();
+    const tick = () => {
+      if (window.__course.state.hasFlag('s3-clear') || window.__course.debug().gates['g-s3']) opened = true;
+      if (Math.abs(r.feet.x - fx) < 0.3) far++;
+      if (performance.now() - t0 < 800) requestAnimationFrame(tick);
+      else { r.accept = orig; r.allowTeleport(3); res({ n, far, opened, hall: window.__ctdev.debug().hall }); }
+    };
+    tick();
+  }), [x0 + 14.5, 7]);
+  assert(stale.n > 0 && stale.far > 0, `station 3: stale far-lobby positions reached the host (${stale.n} reports, ${stale.far} frames there)`);
+  assert(!stale.opened, `station 3: a sent-back client's stale far-lobby positions do not count for the gate (hall ${JSON.stringify(stale.hall)})`);
+  await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 0.5; }, BACK, 8000, 'station 3: the client page moved its player to the entry lobby spot');
+  // seen back in the entry lobby after the hold, the client is no longer "sent back"
+  await until(A, () => window.__ctdev.debug().hall[1] === 0, null, 15000, 'station 3: the sent-back client clears once seen in the entry lobby');
+  await gateShut('the client sent back');
+  // the jam handoff: the client waits out of view, the host jams from the lobby spot, down the hallway
+  await moveClient(x0 + 1.5, 8);
+  await moveHost(...BACK);
   await drawPistol(A);
   await drawPistol(B);
-  // the host jams from where it stands (still), aiming at the camera
+  // the host jams from the lobby spot, down the hallway
   await lt(A, true);
-  await aimAt(A, ...CAM); // (anim-rework S1) aim once the aim camera is in
+  await aimAt(A, ...CAM);
   await until(A, () => window.__ctdev.debug().jam[0] === 'cam-s3', null, 20000, 'station 3: the host jams the camera');
   await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 20000, 'station 3: the client page sees the camera blind');
   const dj = await dev(A);
-  assert(dj.cams[0].mode === 'off' && dj.charge[0] < 20, `station 3: the jam blinds the camera and drains the charge (${dj.charge[0]})`);
-  await until(A, cueOff, null, 3000, "station 3: the jammed camera's cue fades out (host)");
-  await until(B, cueOff, null, 3000, "station 3: the jammed camera's cue fades out (client)");
-  // the client crosses to the blind spot under it while it is blind
+  assert(dj.cams[0].mode === 'off' && dj.cams[0].frozen && dj.cams[0].jam === 1 && dj.left[0] < 5, `station 3: the jam blinds and freezes the camera and counts down (${dj.left[0]})`);
+  assert(/JAMMING/.test(dj.hud), `station 3: the host's HUD shows the jam (${dj.hud})`);
+  // frozen: the sweep stands still on both pages; the LED flashes (jam phase 1), the buzz plays at it on both pages
+  const yA = dj.cams[0].yaw;
+  const yB = (await dev(B)).cams[0].yaw;
+  await sleep(800);
+  const [fA, fB] = [await dev(A), await dev(B)];
+  assert(fA.cams[0].jam === 1 && Math.abs(fA.cams[0].yaw - yA) < 1e-6 && Math.abs(fB.cams[0].yaw - yB) < 1e-6 && fB.cams[0].frozen, `station 3: the jammed camera stops sweeping on both pages (${yA} -> ${fA.cams[0].yaw}; client ${yB} -> ${fB.cams[0].yaw})`);
+  const buzz = (P) => P.evaluate(() => window.__ctdev.nearestJammed(0, 0, 0, { x: 0, y: 0, z: 0 }));
+  assert((await buzz(A)) && (await buzz(B)), 'station 3: both pages have a jammed device to buzz at');
+  await until(A, cueOff, null, 3000, "station 3: the jammed camera's grid fades out (host)");
+  await until(B, cueOff, null, 3000, "station 3: the jammed camera's grid fades out (client)");
+  // the client runs through to the far lobby while it is blind, and aims at the camera (LT only) from there
   const al = dj.alarm;
-  await moveClient(x0 + 8.0, 7);
-  await sleep(2500);
+  await moveClient(x0 + 14.6, 6);
+  await P5(B, 6, 1);
+  await sleep(300);
+  await aimAt(B, ...CAM);
+  // the 5 s cap ends the host's jam (still held): the cooldown runs, the camera reboots, still blind and frozen
+  await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, "station 3: the 5 s cap ends the host's held jam");
   const dc = await dev(A);
-  assert(dc.alarm === al && dc.cams[0].mode === 'off', 'station 3: the client crosses to the blind spot without the camera reacting');
-  // swap: the client jams from the pocket, the host lets go and walks over
-  await lt(B, true);
-  await aimAt(B, ...CAM); // (anim-rework S1) aim once the aim camera is in
-  await until(A, () => window.__ctdev.debug().jam[1] === 'cam-s3', null, 20000, 'station 3: the client jams the camera (the host sees it)');
+  assert(dc.cool[0] > 3 && dc.cams[0].jam === 2 && dc.cams[0].mode === 'off' && dc.cams[0].frozen, `station 3: the host cools down (${dc.cool[0]}), the camera reboots blind (${dc.cams[0].jam}, ${dc.cams[0].mode})`);
+  assert(dc.alarm === al, 'station 3: the client crossed without the camera reacting');
+  // the reboot refuses a jam: the client holds Co-op on it now
+  await P5(B, 5, 1);
+  await sleep(400);
+  const dr = await dev(A);
+  if (dr.cams[0].jam === 2) assert(dr.jam[1] === '', 'station 3: the rebooting camera refuses the client\'s jam');
+  else console.log('  (the reboot ended before the refusal check; refusal unchecked this run)');
+  // back online, the client's held jam takes it; the host walks the hallway to the far lobby: the airlock door unlocks
+  await until(A, () => window.__ctdev.debug().jam[1] === 'cam-s3', null, 20000, 'station 3: after the reboot the client jams the camera from the far end');
   await lt(A, false);
-  await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go');
-  assert((await dev(A)).cams[0].mode === 'off', 'station 3: the camera stays blind while the partner jams');
-  await moveHost(x0 + 7.9, 6.2);
-  await until(A, () => window.__course.debug().gates['g-s3'], null, 15000, 'station 3: both in the blind spot opens the gate');
-  await lt(B, false);
-  await until(A, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: released, the camera sees again');
+  await moveHost(x0 + 14.8, 9);
+  await until(A, () => window.__course.debug().gates['g-s3'], null, 15000, 'station 3: both in the far lobby opens the gate');
+  await P5(B, 5, 0);
+  await P5(B, 6, 0);
+  await until(A, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: released, the camera is back online after its reboot');
   await until(B, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: the client page sees it online again');
-  await until(A, cueOn, null, 5000, 'station 3: released, the cue fades back in (host)');
-  await until(B, cueOn, null, 5000, 'station 3: released, the cue fades back in (client)');
-  await holster(A);
+  await until(A, cueOn, null, 5000, 'station 3: back online, the grid fades back in (host)');
+  await until(B, cueOn, null, 5000, 'station 3: back online, the grid fades back in (client)');
+  // the station is passed (the hallway rule is off): the client stands in the hallway, the cue sees a player on both
+  // pages (grid only, no edge pulse: marlow-bays item 6); the client derives the seen state itself (nothing sent)
+  await moveClient(x0 + 6, 1.6);
+  await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.shown; }, null, 30000, 'station 3: the cue sees a player (grid only, no edge pulse: marlow-bays item 6)');
+  await until(B, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.shown; }, null, 30000, 'station 3: the cue sees a player on the client page too');
+  assert((await dev(A)).sendBacks === 2, 'station 3: no send-back once the station is passed');
+  await moveClient(x0 + 14.6, 6);
   await holster(B);
+  // item 8: a hallway lamp, jammed from the camera's blind spot at the far end (the host's cooldown is over by now)
+  const LAMP = [x0 + 11, 4.35, 1.6];
+  const lampId = await GA(([x, y, z]) => window.__ctdev.debug().lights.find((l) => Math.abs(l.x - x) < 0.05 && Math.abs(l.y - y) < 0.05 && Math.abs(l.z - z) < 0.05)?.id, LAMP);
+  assert(!!lampId, 'station 3: the hallway lamp is a jam target');
+  const reg = Number(lampId.slice(3));
+  const lit = (P) => P.evaluate((i) => window.__app.current.world.level.lights.get(i).on, reg);
+  await moveHost(x0 + 14.8, 1.6);
+  await until(A, () => window.__ctdev.debug().cool[0] === 0, null, 10000, "station 3: the host's cooldown is over");
+  await lt(A, true);
+  await aimAt(A, ...LAMP);
+  await until(A, (id) => window.__ctdev.debug().jam[0] === id, lampId, 20000, 'station 3: the host jams the hallway lamp');
+  await sleep(800);
+  assert(!(await lit(A)) && !(await lit(B)), 'station 3: the jammed lamp is off in the light registry on both pages (after its flicker)');
+  await lt(A, false);
+  await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go of the lamp');
+  await sleep(2000);
+  assert(!(await lit(A)) && !(await lit(B)), 'station 3: the lamp stays off after the release');
+  await until(A, (i) => window.__app.current.world.level.lights.get(i).on && window.__ctdev.debug().devs.length === 0, reg, 10000, 'station 3: the lamp flickers back on after its 4 s');
+  await until(B, (i) => window.__app.current.world.level.lights.get(i).on, reg, 10000, 'station 3: the client page sees the lamp on again');
+  await holster(A);
 }
+const P5 = (P, b, v) => P.evaluate(([b, v]) => window.__pad.set(b, v), [b, v]);
 
 /** Station 4: a laser touch costs health and never ends the run; the held jammer switches the laser off. */
 async function laserTest(x0) {
@@ -268,7 +366,8 @@ async function laserTest(x0) {
   await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
   const hp2 = await hp();
   await moveClient(x0 + 9 - 0.2, 7);
-  await sleep(3000);
+  // (marlow-jammer) inside the 5 s jam (it then reboots 1.5 s): 2 s on the beam line costs nothing
+  await sleep(2000);
   assert((await hp()) === hp2, 'station 4: no cost while the laser is jammed');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: released, the laser is on again');
@@ -518,7 +617,8 @@ async function station6(x0) {
 /** Open a station's gate (B2: the leg-up wall and the relay roof are real; the rest are placeholders): plates A (host, south wall) and B (client, north wall), or a held console. */
 async function openGate(n, i) {
   const x0 = PITCH * i;
-  const door = `S${n}-door`;
+  // (marlow-jammer) station 3's gate unlocks its exit airlock's door (the hallway has no door of its own)
+  const door = n === 3 ? 'A3-near' : `S${n}-door`;
   if (n === 2) {
     // the real wall (4.4 m, bolted door): the client boosts the host, the host crosses and unbolts the door from the far side
     await legUp(x0 + 8.0, 3, 'station 2');
