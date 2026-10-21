@@ -151,6 +151,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-21 | #87 | 4.40.0: tuner key timing (slide a key in its clip, baked) |
 | 2026-10-21 | #89 | 4.41.0: tuner and Anim Studio on phones (compact drawer or sheet, pad mode, touch camera) |
 | 2026-10-21 | #88 | 4.42.0: Wren skeleton (collarbones, 30 finger bones, smoother glove fingers); hands close on weapons again |
+| 2026-10-21 | #91 | 4.43.0: tuner add / delete keys in a keyed clip (mirror kept, baked) |
 | 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
 | 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
 | 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
