@@ -19,7 +19,8 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 ## Waiting on Michael
 1. Walk slice F on /ct/ in the morning (CT Core, overnight).
 2. Prune old branches and worktrees when convenient (docs/process-audit/REPORT.md section 5). feature/ct-research is deleted.
-3. Before the campaign spec resumes (feature/campaign-spec 6ba3726e, STATE has the research): a rule clash, level-design
+3. #67 S2b walk (step length vs the wall peek): Michael fixes it himself in animation dev (2026-10-21 13:20); stays parked.
+4. Before the campaign spec resumes (feature/campaign-spec 6ba3726e, STATE has the research): a rule clash, level-design
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-19 dashboard)
@@ -129,6 +130,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
 | 2026-10-21 | #78 | 4.32.3: e2e-stealth-ai wall peek picks its spot with the guard's own eye (test only; no render read in perception) |
+| 2026-10-21 | #80 | 4.33.0: animation tuner laid out for the pad (tabs, drop-downs, one step at a time) |
 | 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
 | 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
 | 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
