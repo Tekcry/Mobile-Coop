@@ -132,7 +132,7 @@ that order; the laptop tests all three:
         without a model change.
     23. Key timing (track A, after T2): slide a key earlier / later in its clip (its phase), preview live, the bake
         writes the key file and rebakes the clip.
-    24. Guard tuning (track B, after 22): a guard target in the tuner and studio (a guard puppet) with its own rows
+    24. Guard tuning (track A since ~22:20, Michael's pick; was track B): a guard target in the tuner and studio (a guard puppet) with its own rows
         (Joints, Weight, Stepping where guards use them), baked into a guard base table; Wren rows never touch guards.
     25. Add / delete keys (track A, after 23): insert a key between two (copying the blended pose) or remove one;
         mirrored clips keep their mirror; the bake rewrites the key file and the clip. Track C rebases its key-field
