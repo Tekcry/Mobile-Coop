@@ -42,12 +42,28 @@ Done: check; e2e-anim, e2e-studio, e2e-netmove; a GPU screenshot of curled finge
 Done: check; the clip modules diff empty except the new one; e2e-studio plays `skeleton_test`; GPU screenshot.
 
 ## S4 - tuner rows
-- Joints rows: `clavicleL` / `clavicleR` (3 axes) and per-finger joints in `tuneJoints.ts` (B's file).
-- Keys fields: `armX.clav*`, per-finger curl / spread, `legL` / `legR` per key in `tuneKeysFile.ts` (A's file); the
-  bake writes them back to the key JSON.
-- Done through the orchestrator: either the owners add them from our spec, or we add them after their merges with
-  their OK. The panel shows them with no UI change (registry).
-Done: check; the rows appear in the panel (e2e-studio); an old export still loads (identity).
+Ships with S3 in one PR (orchestrator, 2026-10-22). Starts from master after B's #90 (J2) merges; #91 (A's add /
+delete keys) is in master as 4.43.0. Design (2026-10-22, docs only):
+- **Joints: clavicles only.** Add `clavicleL` / `clavicleR` to `tuneJoints.ts` JOINTS (B's file; two entries, the L / R
+  suffix gives the mirror pair; `tuneV2Sections` makes the pitch / yaw / roll sliders from the list with no edit). The
+  rig reads the composed value (base table + tuner delta, like B's other rows) in our `clavFrame` and adds it to
+  `rig.clavIn`; B's `jointOffsets` code is not touched. Named in the PR body. Axis words for the panel ("Shrug", "Push
+  forward", "Tilt") go to Course Ready's `tunerLayout.ts` only if it wants them (its file).
+- **Fingers: no new Joints rows.** Hands & feet already has curl and spread per finger and per weapon / state, and
+  since S2 they move each finger on its own. Per-segment finger rows (45 per hand) would clutter the panel for no
+  gain at the prototype stage; `tuneHands.ts` needs no edit.
+- **Keys fields** (A's `tuneKeysFile.ts` KEY_FIELDS, appended; shown only for clips whose key file opts in with `clav` /
+  `fingers` / `legs`, so the 28 clips' panels are unchanged): `armX.clav.{pitch, yaw, roll}`;
+  `handX.{thumb..little}.{curl, spread}`; `legX.{flex, add, knee, ankle, toe, w}`. Added keys (#91) copy every field.
+- **Live key edits**: `KeyedOffsets` (our `keyed.ts`) gains `clav`, `fing`, `leg` arrays and flags like `wrist`;
+  `tuneKeys.ts` (A) builds them from the new fields the same way it builds the arm / wrist offsets, append-only next to
+  that code. Legs: the edit offsets the clip's FK channel, so it shows only where the key's `w` > 0 (the panel hint
+  says so).
+- **Bake**: key edits write the new fields into the key JSON (the existing keys bake path, generic over KEY_FIELDS: check
+  it writes nested `handX.<finger>` objects; extend append-only if not), then the Blender rebake of that clip.
+- Track A lines and the B entry are sent to Course Ready and CT Core before editing.
+Done: check; e2e-studio (the Keys tab lists the new fields for skeleton_test; the Joints tab shows the clavicles);
+the S2 identity tests unchanged; an old tuner export still loads (identity); a GPU shot of a clavicle row moved.
 
 ## S5 - finish
 Rebase on A's and B's merges, the bit-identity test re-run, docs (`CHANGELOG` Unreleased - anim-skeleton, `TESTING.md`,
