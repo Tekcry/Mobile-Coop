@@ -8,9 +8,7 @@ timeScale Infinity with a zero interval still gives NaN (nothing sets it); run-e
 streaming (outside the area).
 
 ## Next
-1. Implementer: reproduce (long real-time pause, then resume), find the cause, fix in the loop or controller; the
-   e2e-levels ladder chase; the backlog lines.
-2. Fresh checker, one fix round; e2e-menus in a full run on the desktop; full e2e on the laptop; PR.
+1. The PR green (laptop full e2e, CI); the orchestrator merges.
 
 ## Done
 - 2026-10-22 01:00: checker PASS (CHECK.md).
