@@ -13,6 +13,8 @@ S1 checker, then S2 (runtime rig): clavicle and finger nodes, per-finger drive, 
   assets are C's). After #83 (T1a) merges: C edits `key_clip.py`, `tuneKeysFile.ts`, `tuneKeys.ts` and a `studio.ts`
   `skeleton_test` entry (opt-in, the 28 clips byte-identical), and tells Course Ready which lines. After B merges: C
   adds clavicle and finger joints to `tuneJoints.ts` JOINTS and per-finger curl / spread to `tuneHands.ts` (B's now).
+- #83 (T1a) merged as 4.36.0 (orchestrator, 2026-10-21): merge master into this branch after S1 (not mid-slice); the
+  A-file edits (S3 / S4) are open; tell Course Ready (on T2, tuner UI) the exact lines before editing.
 - Reported to the orchestrator: LOD0-2 lost their grip morphs in the 10-20 rebake (BRIEF "Facts").
 
 ## Done
