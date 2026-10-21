@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-gear
+## 4.45.0 - Animation tuner: Gear offsets for the holster, the guns on her back and the hip sling, baked (2026-10-22, PR #95)
 - Gear offsets (marlow-bays item 22): the animation tuner has a Gear tab with sliders that move worn gear per socket:
   the holstered pistol on the thigh, the guns on the back (left, centre, right) and the hip sling socket
   (the hip sling's gun with it). Each moves in its own frame (x / y / z in metres) and turns
