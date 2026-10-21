@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-bays item 26 (tuner on phones)
+## 4.41.0 - Animation tuner and Anim Studio on phones: compact drawer or sheet, pad mode, touch camera (2026-10-21, PR #89)
 - The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
   the game itself stays desktop only). A phone (a touch screen as the main pointer, short side 600 px or less) in
   landscape gets a side drawer on the right (38% wide: she keeps the left 62%); in portrait a bottom sheet (45% high:
