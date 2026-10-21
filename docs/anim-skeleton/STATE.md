@@ -1,10 +1,10 @@
 # anim-skeleton - state
 
 ## Now
-P0 prototype done (docs/anim-skeleton/proto/): sheets sent to the orchestrator; waiting on its go before S1.
+S1 (asset) building: Michael approved P0 ("Go, smooth fingers too"); shipped GLBs gain clavicles and fingers, LOD0 / LOD1 knuckle loops within the triangle budgets.
 
 ## Next
-S1 (asset): LOD0 / LOD1 fingers and clavicles, LOD2 clavicles, from the P0 script; clavicle pivot at the SC joint (proto REPORT).
+S1 checker, then S2 (runtime rig): clavicle and finger nodes, per-finger drive, bit-identity test; stop the hero grip morphs doubling the finger bones.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger

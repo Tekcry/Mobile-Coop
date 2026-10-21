@@ -31,7 +31,9 @@ rest from above; original LOD0 next to the new LOD0 at rest).
 - No tearing at the knuckles, shoulders, hip or knee. The fist and the spread read clearly. The shrug lifts the
   trapezius line and the whole arm; the push shows clearly from above.
 - The glove is low-poly, so curled fingers look faceted.
-- The vest straps stretch over the clavicle blend.
+- The vest straps stretch over the clavicle blend. Accepted for now (orchestrator, 2026-10-21).
+- Michael approved the prototype (via the orchestrator): "Go, smooth fingers too": S1 adds knuckle loops to the LOD0 /
+  LOD1 glove fingers within the LOD triangle budgets.
 - An armpit flap is in the original mesh too.
 - Linear blend skinning will likely thin the groin crease at 60-70 deg hip flex (not visible in these views).
 
