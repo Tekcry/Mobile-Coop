@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - marlow-bays item 30 (key tools, exact preview)
+- Animation tuner, Keys tab: key tools for changing many keys at once, each one undo step and baked like any key edit.
+  "Key tools" fold: Wave (pick a slider by name, an amount and a timing; "Fill keys" puts a smooth sine over the cycle
+  on every key, the mirrored half following the Mirror rule), Apply to keys (the selected slider's value on this key
+  to the ticked keys, All / None) and Smooth between (the keys between two keys eased from one pose to the other, every
+  slider or the selected one).
+- Compare (off by default): a light ghost of the previous or a picked key over her in the Anim Studio, and a line of
+  how this key differs ("Key 2 vs key 1: Right forearm twist, palm in +12°, Chest turn -3°").
+- Exact preview: a key edit now previews the way the Blender rebake makes it (the same Bezier curve; the trunk exact,
+  the arms within 0.7 cm between the keys, the pelvis exact), also with retimed, added and deleted keys, so the
+  in-betweens no longer shift after a rebake. "+ Add key" keeps the pose where the key goes.
+
 ## Unreleased - marlow-bays item 29 (tuner v3)
 - Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the
   button hints), the screen size alone picks the dock, the side drawer or the bottom sheet. One column: tabs, the

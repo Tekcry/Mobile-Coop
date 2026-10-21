@@ -181,6 +181,26 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     timing control moves an added key's `at` and keeps every key between its live neighbours. Undo, reset, presets,
     export and import work as for every slider. The bake writes the key file with the new key list (phase order),
     regenerates `tuneKeysMeta.ts` and prints the rebake; buttons `k:add` / `k:del` (pad focus, no new binding).
+  - Key tools (marlow-bays item 30; `ui/tunerKeyTools.ts`, pure parts `anim/tuneKeysTools.ts`, registry glue
+    `tuneKeysWave` / `tuneKeysApply` / `tuneKeysSmooth` / `tuneKeysDiff` / `tuneKeysToolKeys` in `anim/tuneKeys.ts`),
+    under the key buttons. The Compare row (always shown): "Compare" (off by default) with "Previous key" or a picked
+    key; on, the studio overlay draws a light ghost of that key's skeleton over her (`STUDIO.compare`,
+    `STUDIO.comparePhase`; recorded root-local while she stands on that key: paused, the tools visit the key once and
+    come back, the picker waits) and a line "Key 2 vs key 1: Right forearm twist, palm in +12°, Chest turn -3°" (the bake's
+    poses, the key file's values plus the deltas; the four largest, "+N more"). The "Key tools" fold holds one tool at
+    a time: Wave (Channel: any key slider by its plain name, a newly selected Keys slider by default; Amount; Timing, a
+    share of the cycle; "Fill keys" sets that slider on every key with its own sliders to amount x sin(2 pi (phase +
+    timing)), Mirror on: the mirrored half follows the mirror rule), Apply to keys (the selected slider's value on this
+    key given to the ticked keys; a tick per key, All / None) and Smooth between (From / to keys, every slider or the
+    selected one: the keys between, going forward, on a smoothstep blend of the two keys' poses; loads the key file
+    first). Each tool closes the undo run before and after (one undo step) and writes only key sliders (bakes as
+    them). Pad keys `kt:*` (ranges by left / right, drop-downs, ticks, buttons), no new binding; hooks
+    `__animTune.keyTools()`, `keyToolsSet(o)`, `keyToolsRun(tool)`.
+  - Exact preview (marlow-bays item 30e, `anim/tuneKeys.ts` `build`, `anim/tuneKeysCurve.ts`): a clip's key file loads
+    on its first edit; then the Bezier-keyed fields spread on Blender's curve (`keyCurve.ts`), the trunk re-keyed in
+    the bake's channel frames and the arms composed as the bake's FK, against the baked keys' curve read where the
+    sampler reads the clip (retimed: warped). Retimed, added and deleted keys re-key the curve. Allocation: the curve
+    tables once per clip (on its first edit), the baked keys' curves once per clip (on its file load).
   - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /
     yaw / roll (`head.*`), pelvis shift (`pelvis.dx / dy / dz`, cm, now a slider), per arm the shoulder
     (`armX.sh.{pitch,yaw,roll}`, "shoulder forward / turn / out"), the upper arm twist (`armX.twistUpper`) and the

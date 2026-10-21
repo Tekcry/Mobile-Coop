@@ -21,6 +21,12 @@ anim-tuner merged as 4.20.0 (PR #56). tuner-pad (pad control) PR open from featu
   step and a game speed slider, every control by pad (edit mode, Y menu, the map below), smooth state changes (section
   `tau`), import, wide ranges, typed values, bypass, slider search, the barrel marker as a 2D overlay (`CAMERA.md`,
   "Pass 2").
+- 2026-10-22 (marlow-bays item 30, branch feature/key-tools off feature/tuner-v3): the Keys tab's key tools (Wave,
+  Apply to keys, Smooth between in a "Key tools" fold; Compare with the studio ghost and the values line;
+  `ui/tunerKeyTools.ts`, `anim/tuneKeysTools.ts`) and the exact preview (30e: `tuneKeys.ts` `build` on the bake's
+  curve, `anim/tuneKeysCurve.ts`; the S4b fixture: pelvis and trunk exact, arms 0.07-0.70 cm between keys). Docs:
+  `docs/systems/ui.md` (Keys tab), BAKE.md. Not done: the curve view (Michael left it out); the arms' last 0.7 cm
+  (needs the shoulder / elbow channels re-keyed with location, a TS port of key_clip.py `fk`).
 
 ## Section registry (for other jobs)
 `src/anim/tuneRegistry.ts` (pure, Babylon-free). A section is a set of sliders over a set of state groups. Every

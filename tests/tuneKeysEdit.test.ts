@@ -272,7 +272,8 @@ describe('item 25: the live preview, undo, the store', () => {
     expect(KEYED_SNEAK.keyOff).not.toBeNull();
     // at the deleted key's time the pose is now its neighbours' blend (it moved); a kept key does not move
     expect(maxDiff(pose(KEYED_SNEAK, 0.25), p25)).toBeGreaterThan(1e-3);
-    expect(maxDiff(pose(KEYED_SNEAK, 0.125), p125)).toBeLessThan(1e-6);
+    // (item 30e: the trunk re-keyed on the bake's curve lands on the kept key to float32 noise)
+    expect(maxDiff(pose(KEYED_SNEAK, 0.125), p125)).toBeLessThan(2e-5);
     tuneApplyValues(before);
     tuneKeysSync();
     expect(keyCount(sneak)).toBe(8);

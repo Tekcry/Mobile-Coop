@@ -167,9 +167,15 @@ table)"; target `src/anim/animBase.ts: gear.<row>.<param> + (m)` or `+ (deg, wra
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock). (marlow-bays item 23, track A) A key's
 `time` (bake frames, + later) moves its `phase` to frame / 48 (moved keys only, clamped as in the tuner; key 0 is fixed:
-skipped) and regenerates `src/anim/tuneKeysMeta.ts`; an export with no timing edit bakes exactly as before. The live preview stretches the curve piecewise-linearly between
-the keys while the Blender bake interpolates with Bezier, so after a rebake the in-betweens differ slightly; the key
-poses match.
+skipped) and regenerates `src/anim/tuneKeysMeta.ts`; an export with no timing edit bakes exactly as before. (marlow-bays
+item 30e) The live preview now matches the rebake: once the clip's key file loads (on its first edit) the fields the
+bake keys on Blender's Bezier curve (trunk yaw / pitch / roll, pelvis shift, arm flex / abd / elbow / inward / upper arm
+twist, wrist) spread on that same curve (`src/anim/keyCurve.ts`), the trunk re-keyed in the bake's channel frames and
+the arms composed as its FK (`src/anim/tuneKeysCurve.ts`); a retimed key re-keys the clip at its new time. Measured
+against a Blender rebake (`tests/keyedExactPreview.test.ts`): pelvis and trunk exact (under 0.001 cm / 0.0001 deg), arms
+within 0.7 cm between the keys (exact at them); the lerped fields (head, shoulder, forearm twist, clavicle, fingers, leg
+deltas, FK weight) were exact already. Before the key file loads (the first frames after the first edit) the preview
+spreads linearly.
 (marlow-bays item 25, track A) Add / delete keys: `del` 1 removes the key (key 0 never: skipped; past the minimum of
 4 keys a cycle: skipped; with the Mirror box on the bake drops its mirror with it); an added-key group
 `key.<clip>.a<s>` adds a key at `at` / 48 whose fields are the original keys' blend there (every numeric field of the
@@ -178,11 +184,15 @@ on) outside the own half is skipped. A key file with an add / delete is written 
 the Mirror box off a mirrored file is written in full first), `src/anim/tuneKeysMeta.ts` is regenerated and the rebake
 printed; `key_clip.py` sorts any key list, so it needs no change. An export with no add / delete bakes exactly as
 before. The meta is regenerated whenever a key file is written (also a file written in full with no time edit: it
-holds the mirror flag and the own phases); unchanged files give byte-identical meta. Accepted difference (as item 23):
-the live preview blends an added or deleted key linearly between its neighbours while key_clip.py keys the bone
-rotations with Bezier (`py/key_clip.py` line 261), so after a rebake the in-betweens around an added or deleted key
-shift a little; the key poses match. Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
+holds the mirror flag and the own phases); unchanged files give byte-identical meta. (item 30e) The live preview keys
+an added or deleted key on the bake's curve too (an added key a knot on the original keys' blend plus its deltas, a
+deleted key no knot), so the in-betweens around it no longer shift after a rebake; "+ Add key" gives the new key the
+value the preview shows there, so nothing moves at its time (its curve-field deltas are small non-zero numbers: the
+curve minus the linear blend). Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
 `tests/tuneKeysEdit.test.ts`.
+(marlow-bays item 30, track A) The key tools (Wave, Apply to keys, Smooth between) only write the key sliders above
+(field deltas on keys with their own sliders; with the Mirror box on the mirrored half follows), so they bake exactly as
+those; no new bake format. Compare writes nothing.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
 code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip
