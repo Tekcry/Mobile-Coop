@@ -1,6 +1,6 @@
 import type { Scene } from '../core/babylon';
 import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, stageLightScale, studioEntry, studioKey, type StudioSnap, type StudioWeapon } from '../anim/studio';
-import { keyClip, keyFrame, keyReadout } from '../anim/keyTimeline';
+import { keyClip, keyFrame, keyRank, keyReadout } from '../anim/keyTimeline';
 import { FREE_VIEW, type FreeMode } from '../player/freeView';
 import { StudioOverlay } from './studioOverlay';
 import type { PanelKit } from './tuneSnapshots';
@@ -288,7 +288,7 @@ export class StudioPanel {
       const moving = inPlace ? '' : ' (moving: loop on the spot to step keys)';
       if (c && STUDIO.key >= 0) {
         if (STUDIO.onKey) return `${keyReadout(c, STUDIO.key)}${moving}`;
-        return `${c.name} - between keys (nearest key ${STUDIO.key + 1}, frame ${keyFrame(c, STUDIO.key)}), frame ${Math.round(STUDIO.phase * n) % n}${moving}`;
+        return `${c.name} - between keys (nearest key ${keyRank(c, STUDIO.key) + 1}, frame ${keyFrame(c, STUDIO.key)}), frame ${Math.round(STUDIO.phase * n) % n}${moving}`;
       }
       return `${name} | frame ${studioKey(STUDIO.phase, n) + 1}/${n}${moving}`;
     }

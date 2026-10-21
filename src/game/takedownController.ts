@@ -513,7 +513,8 @@ export class TakedownController {
   frameUpdate(): void {
     const a = this.active;
     const rig = this.g.player.rig;
-    if (!a) return;
+    // (course-restart-hold) a victim gone since the last tick (disposed, killed): no hands on him; the tick aborts
+    if (!a || !a.e.alive) return;
     const vr = a.e.bodyRig;
     vr.neck.computeWorldMatrix(true);
     const n = vr.neck.getAbsolutePosition();
