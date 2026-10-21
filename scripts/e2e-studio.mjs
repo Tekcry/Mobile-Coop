@@ -190,7 +190,72 @@ try {
   const jp1 = await jbones();
   assert(jang(jp0.bEl, jp1.bEl) > 20, `role B's puppet takes its base row (${jp0.bBody} elbowR: ${jang(jp0.bEl, jp1.bEl).toFixed(1)} deg)`);
   await G(() => window.__animBase.reset());
+  // (anim-joints J2) a team move row: scrubbed into the boost (B assisting), role B's puppet picks its team row from the
+  // pair's role (`team.boost.b`) and a base row there turns its elbow
+  await G((v) => window.__studio.seek(v), (1.4 + 0.6) / cyc);
+  await frames(page, 4);
+  const jt = () => G(() => {
+    const pb = window.__app.current.studio.puppets[1].rig;
+    const p = pb.tuneSt.pick;
+    const x = pb.elbowR.rotationQuaternion;
+    return { rows: Array.from({ length: p.n }, (_, k) => p.ids[k]), state: window.__studio.pair().bState, el: [x.x, x.y, x.z, x.w] };
+  });
+  const jt0 = await jt();
+  assert(jt0.rows.includes('team.boost.b'), `role B's puppet picks its team row while assisting (${jt0.state}: ${jt0.rows.join(', ')})`);
+  await G(() => window.__animBase.setJoint('team.boost.b', 'elbowR', [40, 0, 0]));
+  await frames(page, 6);
+  const jt1 = await jt();
+  assert(jang(jt0.el, jt1.el) > 20, `a team.boost.b base row turns role B's elbow (${jang(jt0.el, jt1.el).toFixed(1)} deg)`);
+  await G(() => window.__animBase.reset());
   await G(() => window.__studio.play());
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
+  // (anim-joints J2) a traversal move row: a `trav.vault` base row turns Wren's elbow during the vault loop (paused in the
+  // vault: the row on, then off) and not after it (the loop walks on: no vault row, the offset back to identity)
+  const jv = () => G(() => {
+    const r = window.__app.current.player.rig;
+    const p = r.tuneSt.pick;
+    const j = window.__tuneV2.J.elbowR;
+    const c = r.tuneSt.joints.cur;
+    const x = r.elbowR.rotationQuaternion;
+    return { rows: Array.from({ length: p.n }, (_, k) => p.ids[k]), live: r.tuneSt.joints.live[j], offW: c[j * 4 + 3], el: [x.x, x.y, x.z, x.w] };
+  });
+  await G(() => window.__animBase.setJoint('trav.vault', 'elbowR', [40, 0, 0]));
+  await G(() => window.__studio.pick('trav:vault'));
+  // (stepped and paused inside one evaluate: no live frame can carry her out of the short vault in between)
+  const vin = await G(() => {
+    const r = window.__app.current.player.rig;
+    const inVault = () => Array.from({ length: r.tuneSt.pick.n }, (_, k) => r.tuneSt.pick.ids[k]).includes('trav.vault');
+    let n = 0;
+    for (let i = 0; i < 600 && n < 8; i++) {
+      window.__app.loop.stepHeadless(1 / 60);
+      if (inVault()) n++;
+    }
+    window.__studio.pause();
+    return n;
+  });
+  await frames(page, 4);
+  const v1 = await jv();
+  assert(vin >= 8 && v1.rows.includes('trav.vault') && v1.live === 1, `the vault loop: Wren picks the trav.vault row (${vin} frames, ${v1.rows.join(', ')}, elbow offset live ${v1.live})`);
+  await G(() => window.__animBase.reset());
+  await frames(page, 4);
+  const v2 = await jv();
+  assert(jang(v1.el, v2.el) > 20, `the trav.vault base row turns Wren's elbow during the vault (${jang(v1.el, v2.el).toFixed(1)} deg)`);
+  await G(() => window.__animBase.setJoint('trav.vault', 'elbowR', [40, 0, 0]));
+  await G(() => window.__studio.play());
+  const vout = await G(() => {
+    const r = window.__app.current.player.rig;
+    const j = window.__tuneV2.J.elbowR;
+    let out = 0;
+    for (let i = 0; i < 600 && out < 60; i++) {
+      window.__app.loop.stepHeadless(1 / 60);
+      out = Array.from({ length: r.tuneSt.pick.n }, (_, k) => r.tuneSt.pick.ids[k]).includes('trav.vault') ? 0 : out + 1;
+    }
+    return { out, live: r.tuneSt.joints.live[j], w: r.tuneSt.joints.cur[j * 4 + 3] };
+  });
+  assert(vout.out >= 60 && vout.live === 0 && vout.w === 1, `and not after the vault (1 s out of it: elbow offset live ${vout.live}, w ${vout.w})`);
+  await G(() => window.__animBase.reset());
   await G(() => window.__studio.pick('state:idle'));
   await frames(page, 4);
 

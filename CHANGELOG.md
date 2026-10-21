@@ -10,6 +10,12 @@
   tuner's sliders are changes on top of the base table (reset them after a bake: the look stays).
 - With the game paused (the tuner's Pause, the studio's pause) a Joints, Hands & feet, IK or Weapon edit now shows at
   once, as the Body and Gun sliders do (before it waited for the game to run).
+- Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every
+  traversal move (vault, mantle, step up, climb up, window vault, rappel, drop, hop, roll, wall kick, split, brace),
+  each co-op move per role (leg-up, relay, throw, hang-down, rope, revive: A and B), and air, landing, slide, melee,
+  reload, weapon swap, grenade throw and hit. A row blends in over the stance while its move or action plays (by the
+  animation's own fade) and out after it; the tuner follows the strongest one. They bake like the other rows; old
+  exports and saves load as before.
 
 ## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in

@@ -75,7 +75,9 @@ describe('tuner-ui: group levels', () => {
     expect(sharedPrefix(sec('body').groups)).toBe(0);
     expect(levelCount(sec('body').groups, 0)).toBe(1);
     expect(sharedPrefix(sec('hand').groups)).toBe(1);
-    expect(levelCount(sec('hand').groups, 1)).toBe(2);
+    // (anim-joints J2) the team rows (`hand.rifle.team.boost.b`) go two levels deeper than the states
+    expect(levelCount(sec('hand').groups, 1)).toBe(4);
+    expect(levelCount(sec('joint').groups, sharedPrefix(sec('joint').groups))).toBe(3);
     expect(sharedPrefix(sec('team_boost').groups)).toBe(2);
     expect(sharedPrefix(sec('keys').groups)).toBe(1);
     expect(levelCount(sec('keys').groups, 1)).toBe(2);

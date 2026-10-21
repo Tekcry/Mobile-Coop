@@ -95,6 +95,8 @@ export interface RigPose {
   intent?: number;
   traverse?: TraverseKind;
   traverseT?: number;
+  /** (anim-joints J2) This rig's co-op team role row (`team.<move>.<a|b>`, '' / unset none): the tuner's team rows. */
+  tuneTeam?: string;
   melee?: number;
   /** (G7) Close quarters: the spine bent forward (rad), the pelvis dropped (m), the hold sway (m); see AnimInput. */
   bend?: number;

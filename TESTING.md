@@ -143,6 +143,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   feet), Export, run `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts`
   changes), rebuild, reset those sliders: the pose looks the same. In a co-op pair loop (and with a partner) role B /
   the partner shows the same tune; the guard in a hold pair does not.
+- [ ] Move rows (anim-joints J2): in the Anim Studio pick "traversal: vault the low wall", then in Body > Joints pick
+  the state `Trav` > `Vault` (a studio loop turns follow off); turn her right elbow there: it shows during the vault
+  only and is gone when she walks on. In the leg-up pair, `Team` > `Boost` > `B` moves role B only.
+- [ ] Reload row (anim-joints J2): in play (follow on), reload; the Joints picker shows `Reload` while the reload plays;
+  a left elbow edit there shows during each reload and not between them.
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
