@@ -98,6 +98,10 @@ an export's values into the code defaults. Always `--dry-run` first (the diff an
 result, target; nothing written). A real run writes the source files, the Keys section's key JSONs (the apply-tune
 functions) and the ledger `src/anim/tuneBakeLog.json`, then prints the rebake command per key clip (Blender is never
 run). Sections for `--only`: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight. Detail: `BAKE.md`.
+(marlow-bays T1a) The Keys rows also write the new key fields (`head`, `armX.twist`, `armX.twistUpper`, `armX.sh`,
+the pelvis `dx / dy / dz`) and a clip whose Mirror box is off with its halves edited apart is written in full
+(`mirror: false`, every key); the rebake then writes the clip channels `fore`, `head`, `sh`. A version 1 export (before
+the own rows of the shared states) is read with each new row given its old row's value, as the tuner's import does.
 - **Identity after bake.** The code value moves (x the slider for a `mul`, + it for an `add`, in the code's unit); the
   slider's default stays identity. The tuner's own save still holds the old values: reset the sliders the table reports
   "baked" (keep the manual ones), then export again. The ledger keeps `group|id=value` of every baked value: a later
@@ -131,8 +135,15 @@ pad glyphs when a pad is in use and key / mouse help otherwise. `src/ui/animTune
 | Left stick X | - | - | Fast adjust |
 | R3 (held) | Untuned (bypass; Backquote on the keyboard) | Same | Same |
 | L3 | (marlow-bays item 13, Anim Studio) "Loop on the spot" on / off (F8 on the keyboard; also with the free view) | Same | Same |
+| Right stick left / right | (marlow-bays T1a, Anim Studio) One key back / forward (a flick past 0.6; repeats while held, 0.4 s then every 0.15 s; F1 / F2 on the keyboard). The tuner mode only: in the free view the right stick stays the camera's | Same | Same |
+| Right stick up | (T1a, Anim Studio) Play / pause (a flick; F9 on the keyboard) | Same | Same |
 | View | Swap the pad between the tuner and the game (or the free camera while it is on). With "Pause game while tuning" (Settings, on by default) the game holds still while the tuner has the pad, and runs while the game has it | Closes the list | Ends the edit (kept) |
 | Menu (Start) | Close the panel | Close | Close |
+
+(marlow-bays T1a) In the Anim Studio the playback bar (Play / Pause, ◀ Key, Key ▶, Gun, On the spot, Time, Speed) sits
+under the tabs on every tab and comes first in the D-pad order (a tab change still focuses the tab's own first control).
+Keys while the panel is open in the studio (reserved, never bindable): F9 play / pause, F1 / F2 one key back / forward,
+F8 on the spot, F4 the mouse mode (any time). Nothing else in the map changed: every button above keeps its job.
 
 While the pause menu is open the menus get the pad (held buttons stay swallowed when it closes). A camera snap (View tab:
 Front / Side / Back / Top) holds and keeps the pad on the panel; the free view "Orbit her" / "Fly" from its list gives

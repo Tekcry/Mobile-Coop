@@ -14,12 +14,13 @@ import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
-import { KA, KQ, KW, type KeyedPose } from '../anim/keyed';
+import { KA, KE, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
+import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -98,6 +99,8 @@ export interface RigPose {
   /** (G7) Close quarters: the spine bent forward (rad), the pelvis dropped (m), the hold sway (m); see AnimInput. */
   bend?: number;
   bendDrop?: number;
+  /** (marlow-bays T1a) The bend is over a body (lift, carry, put down), not a held guard: the tuner's `carry` row. */
+  carryBody?: boolean;
   sway?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
@@ -375,6 +378,18 @@ const kF = new Quaternion();
 const kSave = new Quaternion();
 const kV = new Vector3();
 const kH = new Vector3();
+
+/** (T1a) The quaternion q[o..o+3] (x y z w) taken `w` of the way from identity (nlerp, normalised) into `out`. */
+function keyPow(q: Float64Array, o: number, w: number, out: Quaternion): Quaternion {
+  const sg = q[o + 3]! < 0 ? -1 : 1;
+  const x = sg * q[o]! * w;
+  const y = sg * q[o + 1]! * w;
+  const z = sg * q[o + 2]! * w;
+  const ww = 1 + (sg * q[o + 3]! - 1) * w;
+  const l = Math.sqrt(x * x + y * y + z * z + ww * ww) || 1;
+  out.set(x / l, y / l, z / l, ww / l);
+  return out;
+}
 /**
  * (operators step 11e) An elbow keeps this far (m) outside the trunk's half depth from the trunk line (pelvis -> neck
  * base). A rate-limited arm swinging from a back draw to the grip (G72's lower shoulder) passed the elbow through the
@@ -563,6 +578,19 @@ export class CharacterRig {
   }
   /** (tuner-v2 item 2) Trigger finger mode from the tuner this frame: -1 off, 0 auto, 1 on (only the local player's). */
   triggerTune = 0;
+  /** (anim-joints J1) This rig's tuner window state (`tuneRows`); null: the rig never reads the tables. */
+  tuneSt: TuneRigState | null = null;
+  /**
+   * (anim-joints J1, A2 / A7) A Wren rig reads the animation base table and the tuner's Joints / Hands & feet / IK /
+   * Weapon deltas (set where the rig is made: `operatorRig`). Its state is allocated once here; off for every other rig.
+   */
+  get tuneRows(): boolean {
+    return this.tuneSt !== null;
+  }
+  set tuneRows(on: boolean) {
+    if (on && !this.tuneSt) this.tuneSt = tuneRigState();
+    else if (!on) this.tuneSt = null;
+  }
   /**
    * (tuner-v2 item 2) The held gun's model (WeaponModel.hold sets it): the tuner's visual gun transform goes on its
    * rendered mesh while `node` is `heldWeapon`. Gameplay never reads it.
@@ -1379,6 +1407,22 @@ export class CharacterRig {
     }
     dt += this.lodDt;
     this.lodDt = 0;
+    // (anim-joints J1) a Wren rig (`tuneRows`) opens its own tuner window: its rows of the base table + the tuner deltas
+    const ts = this.tuneSt;
+    if (ts === null) {
+      this.animateFrame(dt, s);
+      return;
+    }
+    tuneRigBegin(ts, s, this, dt);
+    try {
+      this.animateFrame(dt, s);
+    } finally {
+      tuneRigEnd();
+    }
+  }
+
+  /** (anim-joints J1) One solved frame of `animate` (after the LOD skip; inside the rig's tuner window when it has one). */
+  private animateFrame(dt: number, s: RigPose): void {
     const i = this.input;
     i.speed = s.speed;
     i.localX = s.localX;
@@ -1932,6 +1976,9 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * t.stockWeld * NECK_WELD * TUNE_CUR.headDropMul, t.head.roll * 0.4, this.neck.rotationQuaternion!);
     // (anim-rework S3) the trunk by keyTrunk: aiming the upper body stays the procedural gun platform
     if (kw * t.keyTrunk > 0) this.keyedTrunk(kq, kw * t.keyTrunk, t.head.yaw * 0.4);
+    // (marlow-bays T1a, COVERAGE gap 4) aiming, the keyed trunk is not applied (the gun platform): the glide's and the
+    // ready stance's per-key trunk edits go on over it by the share the keyed trunk leaves
+    if (kq.edOn && kw * (1 - t.keyTrunk) > 0) this.keyedTrunkEdit(kq, kw * (1 - t.keyTrunk));
     if (JOINTS_CUR.on) this.jointOffsets(0); // (tuner-v2) per-joint offsets on the trunk, before the leg and arm IK
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
@@ -2060,6 +2107,11 @@ export class CharacterRig {
       tmpQ,
     );
     this.setWorldRot(this.headNode, this.neck, tmpQ);
+    // (marlow-bays T1a, item 17) a keyed head turn (local, on the look)
+    if (kq.hasHead && kw > 0) {
+      keyPow(kq.head, 0, kw, kT);
+      this.headNode.rotationQuaternion!.multiplyInPlace(kT);
+    }
     if (JOINTS_CUR.on) this.jointOffsets(2); // (tuner-v2) the head's offset on the look
     this.limitJoint(this.headNode, dt);
 
@@ -2161,6 +2213,13 @@ export class CharacterRig {
         this.kneeRest(-1, t.kneeRest * (1 - Math.min(1, this.reachL.w)));
       }
     }
+    // (marlow-bays T1a, COVERAGE gap 4) a gun in hand (the keyed arms are off): the drawn set's per-key arm edits (the
+    // ready stance, the glides) and its forearm twist and shoulder keys over the solved arms
+    const kew = kaw > 0 ? 0 : kw * t.keyDrawn;
+    if (kew > 0 && (kq.edOn || kq.hasFore || kq.hasSh)) {
+      this.keyedArmEdit(1, kew, kq);
+      this.keyedArmEdit(-1, kew, kq);
+    }
     if (HANDS_CUR.ikOn) this.ikStrengthLimbs(0); // (tuner-v2 item 2) IK targeting strength, before the joint offsets
     if (JOINTS_CUR.on) this.jointOffsets(3); // (tuner-v2) per-joint offsets on the solved arms, before the self-collision
     this.keepElbowOut(1);
@@ -2173,7 +2232,7 @@ export class CharacterRig {
   }
 
   /**
-   * (tuner-v2 item 1) The local player's per-joint offsets (`anim/tuneJoints`), only while `JOINTS_CUR.on`: 0 the trunk
+   * (tuner-v2 item 1, anim-joints J1) A Wren rig's per-joint offsets (`anim/tuneJoints`), only while `JOINTS_CUR.on`: 0 the trunk
    * (pelvis, spine, chest, neck: before the IK), 1 the legs (hips, knees, ankles, toes: on the IK's solution, so an
    * offset there moves the foot off its plant), 2 the head (on the look), 3 the arms (shoulders in the chest frame, upper
    * arms, elbows, wrists: on the IK's solution). A joint with no offset is untouched. No allocation.
@@ -2279,6 +2338,8 @@ export class CharacterRig {
     this.setWorldRot(el, sh, tmpQ3);
     Quaternion.SlerpToRef(kSave, el.rotationQuaternion!, w, el.rotationQuaternion!);
     fresh(el);
+    // (marlow-bays T1a, item 17) the keyed shoulder (the whole arm about the shoulder joint, chest frame) and forearm twist
+    this.keyedShFore(side, w, kq);
     // (anim-rig) a clip's keyed wrist frame (local to the forearm) turns the free hand; a clip without one (the walk)
     // leaves the solve's wrist (identity: the hand continues the forearm)
     if (kq.hasWrist) {
@@ -2287,6 +2348,90 @@ export class CharacterRig {
       Quaternion.SlerpToRef(wr.rotationQuaternion!, kT, w, wr.rotationQuaternion!);
     }
     fresh(wr);
+  }
+
+  /** (T1a, item 17) The keyed shoulder (chest frame, the arm with it) and the forearm twist (about the bone) by `w`. */
+  private keyedShFore(side: 1 | -1, w: number, kq: KeyedPose): void {
+    const o = side > 0 ? KW.wristR : KW.wristL;
+    const sh = side > 0 ? this.shoulderR : this.shoulderL;
+    const el = side > 0 ? this.elbowR : this.elbowL;
+    if (kq.hasSh) {
+      keyPow(kq.sh, o, w, kT);
+      // the shoulder node's parent is the chest: a chest-frame turn is a pre-multiply of its local rotation
+      kT.multiplyToRef(sh.rotationQuaternion!, sh.rotationQuaternion!);
+      fresh(sh);
+      fresh(el);
+    }
+    if (kq.hasFore) {
+      keyPow(kq.fore, o, w, kT);
+      el.rotationQuaternion!.multiplyInPlace(kT);
+      fresh(el);
+    }
+  }
+
+  /**
+   * (marlow-bays T1a, COVERAGE gap 4) The drawn set's per-key edits on one solved arm by `w` (a gun in hand): the upper
+   * arm turned about the shoulder and the forearm about the elbow by the edit offsets (chest frame, as the sampler turns
+   * the keyed points), the upper arm twist about the shoulder-elbow line, then the keyed shoulder and forearm twist. The
+   * hand leaves the grip by as much (as a Joints offset does). No allocation.
+   */
+  private keyedArmEdit(side: 1 | -1, w: number, kq: KeyedPose): void {
+    const sh = side > 0 ? this.shoulderR : this.shoulderL;
+    const el = side > 0 ? this.elbowR : this.elbowL;
+    const wr = side > 0 ? this.wristR : this.wristL;
+    if (kq.edOn) {
+      const e = kq.ed;
+      const up = KE.arm + (side > 0 ? 8 : 0);
+      fresh(sh);
+      fresh(el);
+      const Rc = this.torso.absoluteRotationQuaternion;
+      kSave.copyFrom(el.absoluteRotationQuaternion);
+      // the upper arm: a chest-frame turn of the shoulder node
+      keyPow(e, up, w, kT);
+      kT.multiplyToRef(sh.rotationQuaternion!, sh.rotationQuaternion!);
+      fresh(sh);
+      // the forearm: its world rotation turned by Rc * O * Rc^-1 from where it was
+      keyPow(e, up + 4, w, kT);
+      Quaternion.InverseToRef(Rc, kF);
+      Rc.multiplyToRef(kT, kP);
+      kP.multiplyToRef(kF, kP);
+      kP.multiplyToRef(kSave, tmpQ3);
+      this.setWorldRot(el, sh, tmpQ3);
+      fresh(el);
+      // the upper arm twist: the arm turned about the shoulder-elbow line (the elbow stays, the forearm swings)
+      const th = e[KE.twist + (side > 0 ? 1 : 0)]! * w;
+      if (th !== 0) {
+        kV.copyFrom(el.getAbsolutePosition()).subtractInPlace(sh.getAbsolutePosition());
+        if (kV.lengthSquared() > 1e-10) {
+          kV.normalize();
+          Quaternion.RotationAxisToRef(kV, th, kF);
+          kF.multiplyToRef(sh.absoluteRotationQuaternion, tmpQ3);
+          this.setWorldRot(sh, this.torso, tmpQ3);
+          fresh(sh);
+          fresh(el);
+        }
+      }
+    }
+    this.keyedShFore(side, w, kq);
+    fresh(wr);
+  }
+
+  /** (marlow-bays T1a) The per-key trunk edits by `w` over the procedural trunk: each segment turned in its own frame,
+   *  its child counter-turned (as the sampler applies them to the keyed trunk). No allocation. */
+  private keyedTrunkEdit(kq: KeyedPose, w: number): void {
+    const e = kq.ed;
+    for (let s = 0; s < 4; s++) {
+      const t = KE.trunk + s * 4;
+      if (e[t] === 0 && e[t + 1] === 0 && e[t + 2] === 0) continue;
+      const node = s === 0 ? this.hips : s === 1 ? this.spine : s === 2 ? this.torso : this.neck;
+      keyPow(e, t, w, kT);
+      node.rotationQuaternion!.multiplyInPlace(kT);
+      if (s < 3) {
+        const child = s === 0 ? this.spine : s === 1 ? this.torso : this.neck;
+        Quaternion.InverseToRef(kT, kF);
+        kF.multiplyToRef(child.rotationQuaternion!, child.rotationQuaternion!);
+      }
+    }
   }
 
   /**

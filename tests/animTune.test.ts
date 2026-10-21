@@ -116,7 +116,7 @@ describe('anim tuner table', () => {
     tuneSet('rifle.lowReady', 'gunPitch', -0.1, T0 + 2000);
     const e = tuneExport(new Date(T0 + 3000));
     expect(e.magic).toBe(TUNE_EXPORT_MAGIC);
-    expect(e.version).toBe(1);
+    expect(e.version).toBe(2); // (marlow-bays T1a: the rows' version)
     expect(e.exported).toBe(new Date(T0 + 3000).toISOString());
     expect(e.changed.map((c) => [c.group, c.id, c.value, c.default])).toEqual([
       ['ledge', 'handOutAdd', 0.06, 0],

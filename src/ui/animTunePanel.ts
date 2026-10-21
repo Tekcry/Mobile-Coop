@@ -37,9 +37,20 @@ import { FINE_STEP, TunePadCtl } from './animTunePad';
 import { projectPoint } from './overlayProject';
 import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
 import { StudioPanel } from './studioPanel';
+import { keyGroupId, parseKeyGroup } from '../anim/tuneKeysFile';
+import { keyClip, keyReadout } from '../anim/keyTimeline';
+import { tuneKeysMirror, tuneKeysMirrorOn } from '../anim/tuneKeys';
+
+/** (marlow-bays T1a, item 18) A Keys list choice shown: a key (not the Mirror box group); with the box on, an own key. */
+function keyListed(clip: string, seg: string): boolean {
+  if (!/^\d+$/.test(seg)) return false;
+  const c = keyClip(clip);
+  if (!c || !c.mirror) return true;
+  return !tuneKeysMirrorOn(clip) || Number(seg) < c.phases.length;
+}
 import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioEntry } from '../anim/studio';
 import { promptHtml, type PromptButton } from './prompts';
-import { TUNER_MOUSE_KEY, TUNER_MOUSE_LABEL, TUNER_SPOT_KEY, TunerMouseCtl, type TunerMouseMode } from './tunerMouse';
+import { TUNER_KEY_BACK, TUNER_KEY_FWD, TUNER_MOUSE_KEY, TUNER_MOUSE_LABEL, TUNER_PLAY_KEY, TUNER_SPOT_KEY, TunerMouseCtl, type TunerMouseMode } from './tunerMouse';
 import { emptyTarget, rowKeyParts, tuneTarget, type RigJoint } from './tunerTarget';
 import {
   bodyCarry,
@@ -142,6 +153,9 @@ font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.35;border-radius
 .anim-tune .tt-title{flex:1;color:var(--tt-acc);font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .anim-tune .anim-tune-pad{color:var(--tt-warn);font-size:0.9em;white-space:nowrap}
 .anim-tune .anim-tune-tabs{display:flex;align-items:center;gap:0.2em;flex:none;overflow-x:auto;margin:0.25em 0;padding-bottom:0.1em;scrollbar-width:thin}
+.anim-tune .anim-tune-playbar{flex:none;border-bottom:1px solid var(--tt-line);padding:0 0 0.2em;margin-bottom:0.2em}
+.anim-tune.tt-folded .anim-tune-playbar{display:none!important}
+.anim-tune .anim-tune-keyhint{color:var(--tt-warn)}
 .anim-tune .tt-tab{flex:none;min-height:1.9em;padding:0.1em 0.5em;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:3px 3px 0 0;cursor:pointer;white-space:nowrap;-webkit-appearance:none;appearance:none}
 .anim-tune .tt-tab.active{background:#2d5a78;border-color:var(--tt-acc);font-weight:bold;box-shadow:inset 0 -3px 0 #ffe600}
 .anim-tune .tt-row.tt-sel{background-color:rgba(255,230,0,0.14);box-shadow:inset 4px 0 0 #ffe600}
@@ -349,6 +363,15 @@ export class AnimTunePanel {
   // --- (marlow-bays item 13) "Loop on the spot" in the header (the studio), and a loop picked from a tab's state list
   private spotBtn: HTMLButtonElement;
   private loopFromTab = false;
+  // --- (marlow-bays T1a, items 15 and 18) the Keys tab: its buttons, readout, Mirror box, and the key the picker shows
+  private keyPicking = false;
+  private keyShown = -1;
+  private keyClipShown = '';
+  private keyReadoutEl: HTMLDivElement | null = null;
+  private keyMirrorBox: HTMLInputElement | null = null;
+  private keyBackBtn: HTMLButtonElement | null = null;
+  private keyFwdBtn: HTMLButtonElement | null = null;
+  private nextKeys = 0;
   // --- (marlow-bays item 10) the selected row (its pad key), its target on the body and the scene marker
   private selKey = '';
   /** The pad focus last taken as the selection. */
@@ -411,12 +434,13 @@ export class AnimTunePanel {
     this.mouseBtn = this.mkBtn(TUNER_MOUSE_LABEL.drag, () => this.toggleMouse(), 'mouse', 'anim-tune-mouse');
     this.mouseBtn.title = `Mouse mode (${TUNER_MOUSE_KEY}): drag view (drag the scene to turn the camera, wheel zooms, the panel takes clicks) or game camera (mouse look; the panel ignores the mouse)`;
     delete this.mouseBtn.dataset.pad;
-    // (marlow-bays item 13) loop on the spot from every tab (the studio only; also the key and L3)
-    this.spotBtn = this.mkBtn('On the spot: on', () => this.toggleSpot(), 'spot', 'anim-tune-spot');
+    // (marlow-bays item 13) loop on the spot from every tab (the studio only; also the key and L3); (T1a, item 16) in the
+    // playback bar docked under the tabs (it was the header's)
+    this.spotBtn = this.mkBtn('On the spot: on', () => this.toggleSpot(), 'pb:spot', 'anim-tune-spot');
     this.spotBtn.title = `Loop on the spot (${TUNER_SPOT_KEY}, pad L3): a moving state runs in place, or off: she really moves`;
-    delete this.spotBtn.dataset.pad;
     this.spotBtn.hidden = true;
-    head.append(title, this.padLine, this.spotBtn, this.mouseBtn, this.foldBtn, close);
+    this.studioUi.bar.firstElementChild?.append(this.spotBtn);
+    head.append(title, this.padLine, this.mouseBtn, this.foldBtn, close);
     this.tabBar = document.createElement('div');
     this.tabBar.className = 'anim-tune-tabs';
     // (pass 2) the Y menu: the rarer actions, by pad
@@ -603,11 +627,19 @@ export class AnimTunePanel {
     window.addEventListener(
       'keydown',
       (e) => {
-        if (!this.open || (e.code !== TUNER_MOUSE_KEY && !(e.code === TUNER_SPOT_KEY && STUDIO.active))) return;
+        // (marlow-bays T1a, item 16) the playback bar's keys in the studio: F9 play / pause, F1 / F2 one key back / forward
+        const barKey = e.code === TUNER_SPOT_KEY || e.code === TUNER_PLAY_KEY || e.code === TUNER_KEY_BACK || e.code === TUNER_KEY_FWD;
+        if (!this.open || (e.code !== TUNER_MOUSE_KEY && !barKey)) return;
+        // the browser never sees the tuner's keys while the panel is open (F1 is Chromium's help), studio or not
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (e.repeat) return;
+        if (barKey && !STUDIO.active) return;
+        // a held key steps on (the key buttons repeat), the toggles do not
+        if (e.repeat && e.code !== TUNER_KEY_BACK && e.code !== TUNER_KEY_FWD) return;
         if (e.code === TUNER_MOUSE_KEY) this.toggleMouse();
+        else if (e.code === TUNER_PLAY_KEY) this.studioUi.playPause();
+        else if (e.code === TUNER_KEY_BACK) this.studioUi.stepKey(-1);
+        else if (e.code === TUNER_KEY_FWD) this.studioUi.stepKey(1);
         else this.toggleSpot();
       },
       true,
@@ -648,7 +680,7 @@ export class AnimTunePanel {
     this.dropList = document.createElement('div');
     this.dropList.className = 'anim-tune-drop-list';
     this.dropList.hidden = true;
-    el.append(head, this.tabBar, menu, body, infoEl, this.hint, this.dropList);
+    el.append(head, this.tabBar, this.studioUi.bar, menu, body, infoEl, this.hint, this.dropList);
     // (tuner-camera) every registered section, in registration order, into its tab
     for (const r of TUNE_SECTIONS) this.addSection(r, false);
     TUNE_REGISTRY_HOOKS.added = (r) => this.addSection(r, true);
@@ -734,6 +766,28 @@ export class AnimTunePanel {
       lock: (s: FreeSnap) => this.lockSnap(s),
       unlock: () => this.unlockSnap(),
       group: (sec: string) => this.sections.find((s) => s.reg.id === sec)?.group ?? '',
+      // (marlow-bays T1a) a section's level picked as the panel's list would (a click on a choice)
+      pickLevel: (sid: string, level: number, v: string) => {
+        const s = this.sections.find((x) => x.reg.id === sid);
+        if (s) this.pickLevel(s, level, v);
+      },
+      // (T1a, items 15 and 18) the Keys tab: its readout, Mirror box and key list; its buttons
+      keys: () => {
+        const s = this.sections.find((x) => x.reg.id === 'keys');
+        return {
+          group: s?.group ?? '',
+          readout: this.keyReadoutEl?.textContent ?? '',
+          mirror: this.keyMirrorBox?.checked ?? true,
+          mirrorDisabled: this.keyMirrorBox?.disabled ?? true,
+          list: s ? Array.from(s.levels[1]?.options ?? []).map((o) => o.value) : [],
+          hint: s?.wrap.querySelector('.anim-tune-keys-hint')?.textContent ?? '',
+        };
+      },
+      keysStep: (dir: number) => this.keysStep(dir),
+      keysMirror: (on: boolean) => {
+        const b = this.keyMirrorBox;
+        if (b && !b.disabled && b.checked !== on) b.click();
+      },
       // (marlow-bays item 9) the mouse mode
       mouse: () => ({ mode: this.mouseCtl.mode, free: this.mouseCtl.free, locked: this.mouseHost?.locked() ?? false, dragging: this.mouseHost?.dragging() ?? false, button: this.mouseBtn.textContent ?? '' }),
       mouseMode: (m: TunerMouseMode) => {
@@ -1125,7 +1179,9 @@ export class AnimTunePanel {
     if (focus) {
       this.padKey = '';
       this.padIdx = 0;
-      const first = this.padItems()[0];
+      // (T1a) the tab's own first control (the playback bar above it is reached with D-pad up)
+      const items = this.padItems();
+      const first = items.find((e) => !this.studioUi.bar.contains(e)) ?? items[0];
       this.padKey = first?.dataset.pad ?? '';
     }
     const t = this.tabs[i]!;
@@ -1193,7 +1249,11 @@ export class AnimTunePanel {
       sec.group = pick.value;
       this.rebuild(sec);
     });
-    wrap.append(head, rows);
+    wrap.append(head);
+    // (marlow-bays T1a, items 15 and 18) the Keys tab: key back / forward (the picker follows), the readout, the Mirror
+    // box and the hint, between the pickers and the sliders
+    if (kind === 'keys') wrap.append(this.keysBlock());
+    wrap.append(rows);
     this.tabEl(tabId).append(wrap);
     this.sections.push(sec);
     this.cand.push('');
@@ -1215,7 +1275,27 @@ export class AnimTunePanel {
     if (sec.reg.id === 'body') this.carryBody(g);
     // (marlow-bays item 13) in the studio a state picked here plays its loop (the tab and its part stay)
     if (STUDIO.active) {
-      const id = loopForGroup(sec.reg.id, g, STUDIO.entry);
+      const sid = sec.reg.id;
+      // (marlow-bays T1a, item 16) a weapon picked (Hands & feet, Gun in hand, the gun hold): every armed loop takes it
+      const w = sid === 'hand' || sid === 'weapon' || sid === 'gun' ? (groupPath(g, sec.prefix)[0] ?? '') : '';
+      if (w === 'rifle' || w === 'pistol') this.studioUi.setWeapon(w);
+      // (T1a, item 15) a clip or key picked in the Keys tab: that clip on the spot, paused on that key
+      const kg = sid === 'keys' ? parseKeyGroup(g) : null;
+      if (kg) {
+        this.loopFromTab = this.keyPicking = true;
+        try {
+          this.studioUi.showKey(kg[0], kg[1]);
+        } finally {
+          this.loopFromTab = this.keyPicking = false;
+        }
+        // the picker stays on the picked key (the stage lands on it next frame)
+        this.keyShown = kg[1];
+        this.keyClipShown = kg[0];
+        return;
+      }
+      let id = loopForGroup(sid, g, STUDIO.entry);
+      // a gun picked while a holstered loop plays: its low ready (the stance shows the gun)
+      if (!id && (w === 'rifle' || w === 'pistol') && !studioEntry(STUDIO.entry).drawn) id = 'state:lowReady';
       if (id && studioEntry(id).id === id) {
         this.loopFromTab = true;
         try {
@@ -1230,7 +1310,10 @@ export class AnimTunePanel {
   /** (fix round) A body state onto Joints, Limb reach, Hands & feet, Gun in hand, the gun hold (where it maps), Stepping
    *  and Weight; each section keeps its other levels (the weapon) and only takes a group it has. */
   private carryBody(b: string): void {
-    const c = bodyCarry(b, this.carryOut);
+    // (marlow-bays T1a) the gun shown (the studio's pick, else the Hands & feet part's weapon): its own Joints row
+    const hs = this.sections.find((s) => s.reg.id === 'hand');
+    const w = STUDIO.active ? STUDIO.weapon : hs ? (groupPath(hs.group, hs.prefix)[0] ?? '') : '';
+    const c = bodyCarry(b, this.carryOut, w);
     this.showGroup('joint', c.joint);
     this.showGroup('ik', c.ik);
     this.showLast('hand', c.handState);
@@ -1259,7 +1342,10 @@ export class AnimTunePanel {
     const last = sec.levels.length - 1;
     for (let k = 0; k < sec.levels.length; k++) {
       const sel = sec.levels[k]!;
-      const opts = levelOptions(groups, sec.prefix, path, k);
+      let opts = levelOptions(groups, sec.prefix, path, k);
+      // (marlow-bays T1a, item 18) the Keys tab's key list: the keys only (not the Mirror box's group); with the Mirror
+      // box on, a mirrored clip's own keys (its mirrored half follows them)
+      if (sec.reg.id === 'keys' && k === 1) opts = opts.filter((s) => keyListed(path[0] ?? '', s));
       sel.replaceChildren();
       for (const seg of opts) {
         const o = document.createElement('option');
@@ -1426,7 +1512,7 @@ export class AnimTunePanel {
     // the loop's own gait wins (the crouch run's stepping)
     this.showGroup('step', lg.step);
     this.showGroup('weight', lg.weight);
-    if (lg.clip) {
+    if (lg.clip && !this.keyPicking) {
       const keys = this.sections.find((s) => s.reg.id === 'keys');
       if (keys) {
         const g = groupForPath(keys.reg.groups, keys.prefix, [lg.clip, '0']);
@@ -1621,7 +1707,7 @@ export class AnimTunePanel {
       const b = btns[i]!;
       if (b.pressed || b.value > 0.5) mask |= 1 << i;
     }
-    const o = this.pad.update(mask, pad.axes[0] ?? 0, now, dt);
+    const o = this.pad.update(mask, pad.axes[0] ?? 0, now, dt, pad.axes[2] ?? 0, pad.axes[3] ?? 0);
     if (!this.open) return o.consume;
     // (pass 2) R3 held: the bypass
     if (o.bypass !== this.padBypass) {
@@ -1646,6 +1732,11 @@ export class AnimTunePanel {
       return o.consume;
     }
     if (this.pad.mode !== 'tuner') return o.consume;
+    // (marlow-bays T1a, item 16) the playback bar from any tab: right stick left / right a key, up play / pause
+    if (STUDIO.active) {
+      if (o.key !== 0) this.studioUi.stepKey(o.key);
+      if (o.play) this.studioUi.playPause();
+    }
     // (tuner-ui) an open list: the D-pad moves, A picks, B backs out
     if (this.drop.open) {
       if (o.nav !== 0) this.dropMove(o.nav);
@@ -1756,6 +1847,11 @@ export class AnimTunePanel {
     } else {
       pad = hint(['LB', 'RB'], 'tab') + hint(['DPAD'], 'move') + hint(['A'], 'open / edit') + hint(['B'], 'back') + hint(['X'], 'reset') + hint(['Y'], 'more') + hint(['VIEW'], 'game') + hint(['START'], 'close');
       keys = 'Click a tab, a list or a slider. Type a value, Enter. Ctrl+Z: undo. ` held: untuned.';
+      // (marlow-bays T1a, item 16) the playback bar's buttons in the studio
+      if (STUDIO.active) {
+        pad += hint([], 'Right stick: ◀ key ▶, up play / pause') + hint([], 'L3: on the spot');
+        keys += ` ${TUNER_PLAY_KEY}: play / pause. ${TUNER_KEY_BACK} / ${TUNER_KEY_FWD}: key back / forward. ${TUNER_SPOT_KEY}: on the spot.`;
+      }
     }
     const k = `${m}|${pad}|${keys}`;
     if (k === this.hintKey) return;
@@ -1768,6 +1864,9 @@ export class AnimTunePanel {
     const root = this.menuOpen ? this.menu : this.tabEls.get(this.tabs[this.tabIdx]?.id ?? '');
     const out: HTMLElement[] = [];
     if (!root) return out;
+    // (marlow-bays T1a, item 16) the playback bar over every tab comes first (the studio only)
+    const bar = this.studioUi.bar;
+    if (!this.menuOpen && !bar.hidden) for (const e of Array.from(bar.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
     for (const e of Array.from(root.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
     return out;
   }
@@ -2160,6 +2259,7 @@ export class AnimTunePanel {
   setFolded(v: boolean): void {
     this.folded = v;
     this.body.hidden = this.tabBar.hidden = v;
+    this.el.classList.toggle('tt-folded', v);
     this.closeDrop();
     this.foldBtn.textContent = v ? '+' : '_';
   }
@@ -2243,6 +2343,7 @@ export class AnimTunePanel {
     }
     this.snaps.frame(nowMs);
     this.studioUi.frame(nowMs, this.scene);
+    this.keysFrame(nowMs);
     this.showSpot();
     if (!this.folded && nowMs >= this.nextDrops) {
       // the drop-down buttons follow their selects (a value set in code: the studio, presets)
@@ -2275,6 +2376,99 @@ export class AnimTunePanel {
     const on = this.studioUi.toggleSpot();
     this.showSpot();
     this.flashInfo(on ? 'Loop on the spot: a moving state runs in place' : 'Loop on the spot off: she moves');
+  }
+
+  /**
+   * (marlow-bays T1a, items 15 and 18) The Keys tab's block: "◀ Key" / "Key ▶" (in the studio the clip steps key by key
+   * and the picker follows), the readout ("jog - key 2 of 8 (mirror of 6), frame 4"), the Mirror box (on: an edit shows
+   * on the mirror key too, the other arm half a cycle on; off: this key only) and the hint.
+   */
+  private keysBlock(): HTMLDivElement {
+    const d = document.createElement('div');
+    d.className = 'anim-tune-keys-block';
+    const b = this.mkBar();
+    this.keyBackBtn = this.mkBtn('◀ Key', () => this.keysStep(-1), 'k:back', 'anim-tune-keys-back');
+    this.keyFwdBtn = this.mkBtn('Key ▶', () => this.keysStep(1), 'k:fwd', 'anim-tune-keys-fwd');
+    this.keyBackBtn.title = `The previous key (${TUNER_KEY_BACK}; pad: right stick left)`;
+    this.keyFwdBtn.title = `The next key (${TUNER_KEY_FWD}; pad: right stick right)`;
+    b.append(this.keyBackBtn, this.keyFwdBtn);
+    this.keyMirrorBox = this.mkCheck(b, 'Mirror', true, (v) => this.keysMirror(v), 'k:mirror', 'anim-tune-keys-mirror');
+    this.keyMirrorBox.title = 'On: an edit to this key also shows on its mirror key (the other arm, half a cycle on). Off: this key and this arm only (the bake writes the clip in full).';
+    const r = (this.keyReadoutEl = document.createElement('div'));
+    r.className = 'anim-tune-keys-readout tt-note';
+    const h = document.createElement('div');
+    h.className = 'anim-tune-keys-hint anim-tune-keyhint tt-note';
+    h.textContent = 'Key edits change one pose; whole-cycle changes go in the state tabs.';
+    d.append(b, r, h);
+    return d;
+  }
+
+  /** The clip and key the Keys section shows (null: none). */
+  private keysShown(): [string, number] | null {
+    const sec = this.sections.find((s) => s.reg.id === 'keys');
+    return sec ? parseKeyGroup(sec.group) : null;
+  }
+
+  /** (T1a) "◀ Key" / "Key ▶": in the studio the shown clip steps a key (it plays first if another loop does); outside it
+   *  the picker moves to the clip's previous / next key. */
+  private keysStep(dir: number): void {
+    const p = this.keysShown();
+    if (!p) return;
+    if (STUDIO.active) {
+      if (STUDIO.entry !== `keyed:${p[0]}`) this.studioUi.showKey(p[0], p[1]);
+      this.studioUi.stepKey(dir);
+      return;
+    }
+    const c = keyClip(p[0]);
+    if (!c) return;
+    const n = c.mirror && tuneKeysMirrorOn(p[0]) ? c.phases.length : c.mirror ? c.phases.length * 2 : c.phases.length;
+    this.showGroup('keys', keyGroupId(p[0], (((p[1] + dir) % n) + n) % n));
+  }
+
+  /** (T1a, item 18) The Mirror box: the shown clip's mirrored half follows its own keys (on) or is edited on its own. */
+  private keysMirror(on: boolean): void {
+    const p = this.keysShown();
+    if (!p) return;
+    tuneKeysMirror(p[0], on);
+    const c = keyClip(p[0]);
+    // on again: a mirrored-half key shows as the own key it follows
+    if (on && c && p[1] >= c.phases.length) this.showGroup('keys', keyGroupId(p[0], p[1] - c.phases.length));
+    const sec = this.sections.find((s) => s.reg.id === 'keys');
+    if (sec) this.rebuild(sec);
+    this.flashInfo(on ? `${p[0]}: Mirror on, an edit shows on both arms half a cycle apart` : `${p[0]}: Mirror off, each key and arm on its own`);
+  }
+
+  /**
+   * (T1a, item 15) Every 100 ms with the panel open: in the studio the Keys picker follows the key the clip stands on
+   * (a mirrored-half key shows as the own key it mirrors while the Mirror box is on); the readout and the box follow.
+   */
+  private keysFrame(nowMs: number): void {
+    if (!this.keyReadoutEl || nowMs < this.nextKeys) return;
+    this.nextKeys = nowMs + 100;
+    const p = this.keysShown();
+    const c = p ? keyClip(p[0]) : null;
+    if (!p || !c) {
+      this.keyReadoutEl.textContent = '';
+      return;
+    }
+    const n = c.phases.length;
+    const mirrorOn = tuneKeysMirrorOn(p[0]);
+    const playing = STUDIO.active && STUDIO.entry === `keyed:${p[0]}`;
+    if (playing && STUDIO.onKey && STUDIO.key >= 0 && (STUDIO.key !== this.keyShown || p[0] !== this.keyClipShown)) {
+      this.keyShown = STUDIO.key;
+      this.keyClipShown = p[0];
+      const g = keyGroupId(p[0], c.mirror && mirrorOn && STUDIO.key >= n ? STUDIO.key - n : STUDIO.key);
+      if (!this.pressing && !this.drop.open && !this.edit) this.showGroup('keys', g);
+    }
+    const k = playing && STUDIO.key >= 0 ? STUDIO.key : p[1];
+    let t = keyReadout(c, k);
+    if (playing && !STUDIO.onKey) t = `${t} (between keys)`;
+    if (c.mirror && mirrorOn && k >= n) t += `: the sliders edit key ${k - n + 1} (this key is its mirror, the arms swapped)`;
+    if (!STUDIO.active) t += ' (open the Anim Studio to see the key)';
+    if (this.keyReadoutEl.textContent !== t) this.keyReadoutEl.textContent = t;
+    const box = this.keyMirrorBox!;
+    if (box.checked !== mirrorOn) box.checked = mirrorOn;
+    if (box.disabled !== !c.mirror) box.disabled = !c.mirror;
   }
 
   /** The header button follows the studio and the switch (cheap compares, every frame). */

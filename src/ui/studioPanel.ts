@@ -1,9 +1,11 @@
 import type { Scene } from '../core/babylon';
-import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_SPEED, TURN_RATES, stageLightScale, studioEntry, studioKey, type StudioSnap } from '../anim/studio';
+import { STAGE_LIGHT_RANGE, STUDIO, STUDIO_ENTRIES, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_SPEED, STUDIO_WEAPONS, TURN_RATES, stageLightScale, studioEntry, studioKey, type StudioSnap, type StudioWeapon } from '../anim/studio';
+import { keyClip, keyFrame, keyReadout } from '../anim/keyTimeline';
 import { FREE_VIEW, type FreeMode } from '../player/freeView';
 import { StudioOverlay } from './studioOverlay';
 import type { PanelKit } from './tuneSnapshots';
 import { loopKeyed, loopKeyedPick, plainLoop, plainWords, type LoopKeyed } from './tunerLayout';
+import { TUNER_KEY_BACK, TUNER_KEY_FWD, TUNER_PLAY_KEY } from './tunerMouse';
 
 /** What the studio section drives in the tuner panel (`AnimTunePanel`). */
 export interface StudioPanelApi {
@@ -24,16 +26,23 @@ export interface StudioPanelApi {
   saveUi(): void;
 }
 
+/** (marlow-bays T1a) The pad's and the keys' names for the playback bar (the hint and the button titles). */
+export const PLAYBAR_KEYS = { play: TUNER_PLAY_KEY, back: TUNER_KEY_BACK, fwd: TUNER_KEY_FWD } as const;
+
 /**
  * (anim-studio) The Loop player block at the top of the tuner's View tab, shown only inside the Anim Studio
- * (`STUDIO.active`): the loop list, play / pause, a key back / forward, the time and speed sliders, loop on the spot (or
- * move on the circle), mirror, the guard figure, the turntable, and the viewing aids (skeleton, feet, ghost poses).
- * (tuner-ui) Plain labels; picking a loop sets the tuner's state to match (`api.picked`); the camera snaps moved to the
- * View tab's camera block (they work outside the studio too) and hold. Every control carries a `data-pad` key. Draws
- * the viewing aids (`StudioOverlay`).
+ * (`STUDIO.active`): the loop list, mirror, the guard figure, the turntable, and the viewing aids (skeleton, feet, ghost
+ * poses). (tuner-ui) Plain labels; picking a loop sets the tuner's state to match (`api.picked`); the camera snaps moved
+ * to the View tab's camera block (they work outside the studio too) and hold. Every control carries a `data-pad` key.
+ * Draws the viewing aids (`StudioOverlay`).
+ * (marlow-bays T1a, item 16) The transport is the playback bar (`bar`), docked over every tab by the panel: play /
+ * pause, key back / forward (a keyed clip by its keys, a pair by its frames), the time scrub and its readout, the speed
+ * and the gun every armed loop plays with (the panel adds "Loop on the spot" to it).
  */
 export class StudioPanel {
   readonly el: HTMLDivElement;
+  /** (T1a, item 16) The playback bar (the panel docks it under the tabs; hidden outside the studio). */
+  readonly bar: HTMLDivElement;
   readonly overlay = new StudioOverlay();
   private entrySel: HTMLSelectElement;
   private playBtn: HTMLButtonElement;
@@ -43,8 +52,8 @@ export class StudioPanel {
   private readout: HTMLSpanElement;
   private speedIn: HTMLInputElement;
   private speedVal: HTMLSpanElement;
+  private weaponSel: HTMLSelectElement;
   private mirrorBox: HTMLInputElement;
-  private spotBox: HTMLInputElement;
   private turnBox: HTMLInputElement;
   /** (marlow-bays item 14) "Stage light": the studio's following lights and ambient. */
   private stageIn: HTMLInputElement;
@@ -73,13 +82,25 @@ export class StudioPanel {
     // (marlow-bays item 11) the state's keyed clip or its procedural loop, one tick (no hunting the list)
     this.keyedBox = kit.check(b1, 'Keyed', false, (v) => this.setKeyed(v), 'st:keyed', 'studio-keyed');
     this.keyedBox.title = 'Ticked: this state plays its keyed clip. Clear: the procedural state.';
-    const b2 = kit.bar();
-    this.playBtn = kit.btn('Pause', () => this.api.freeze(!this.api.frozen()), 'st:play', 'studio-play');
-    this.backBtn = kit.btn('◀ Key', () => this.step(-1), 'st:back', 'studio-back');
-    this.fwdBtn = kit.btn('Key ▶', () => this.step(1), 'st:fwd', 'studio-fwd');
-    b2.append(this.playBtn, this.backBtn, this.fwdBtn);
+    // --- (T1a, item 16) the playback bar: every tab
+    const bar = (this.bar = document.createElement('div'));
+    bar.className = 'anim-tune-playbar';
+    bar.dataset.padSec = 'playbar';
+    bar.hidden = true;
+    const p1 = kit.bar();
+    this.playBtn = kit.btn('Pause', () => this.playPause(), 'pb:play', 'studio-play');
+    this.playBtn.title = `Play / pause (${PLAYBAR_KEYS.play}, pad: right stick up)`;
+    this.backBtn = kit.btn('◀ Key', () => this.stepKey(-1), 'pb:back', 'studio-back');
+    this.backBtn.title = `One key back (${PLAYBAR_KEYS.back}, pad: right stick left)`;
+    this.fwdBtn = kit.btn('Key ▶', () => this.stepKey(1), 'pb:fwd', 'studio-fwd');
+    this.fwdBtn.title = `One key forward (${PLAYBAR_KEYS.fwd}, pad: right stick right)`;
+    p1.append(this.playBtn, this.backBtn, this.fwdBtn);
+    // (T1a, item 19) the gun every armed loop plays with
+    this.weaponSel = kit.sel(p1, 'Gun', STUDIO_WEAPONS, (v) => this.setWeapon(v as StudioWeapon), 'pb:weapon', 'studio-weapon');
+    for (const o of Array.from(this.weaponSel.options)) o.textContent = plainWords(o.value);
+    this.weaponSel.value = STUDIO.weapon;
     // time (scrub) and the readout
-    const b3 = kit.bar();
+    const p2 = kit.bar();
     {
       const l = document.createElement('label');
       l.className = 'tt-field tt-grow';
@@ -90,16 +111,14 @@ export class StudioPanel {
       r.step = '0.001';
       r.value = '0';
       r.className = 'studio-scrub';
-      r.dataset.pad = 'st:scrub';
+      r.dataset.pad = 'pb:scrub';
       r.addEventListener('input', () => {
         this.api.freeze(true);
         STUDIO.seek = Number(r.value);
       });
       r.addEventListener('change', () => r.blur());
-      this.readout = document.createElement('span');
-      this.readout.className = 'studio-readout tt-val';
-      l.append('Time', r, this.readout);
-      b3.append(l);
+      l.append('Time', r);
+      p2.append(l);
     }
     // speed (the game speed: 0.1-2x here)
     {
@@ -112,18 +131,20 @@ export class StudioPanel {
       r.step = String(STUDIO_SPEED.step);
       r.value = '1';
       r.className = 'studio-speed';
-      r.dataset.pad = 'st:speed';
+      r.dataset.pad = 'pb:speed';
       this.speedVal = document.createElement('span');
       this.speedVal.className = 'tt-val';
       this.speedVal.textContent = '1×';
       r.addEventListener('input', () => this.api.setSpeed(Number(r.value)));
       r.addEventListener('change', () => r.blur());
       l.append('Speed', r, this.speedVal);
-      b3.append(l);
+      p2.append(l);
     }
+    this.readout = document.createElement('div');
+    this.readout.className = 'studio-readout tt-note';
+    bar.append(p1, p2, this.readout);
+    // --- the rest of the Loop player (View tab)
     const b4 = kit.bar();
-    // (tuner-ui) on the spot (a state on a treadmill, a clip in place) or along the 2 m circle
-    this.spotBox = kit.check(b4, 'Loop on the spot', STUDIO.spot, (v) => this.setSpot(v), 'st:spot', 'studio-spot');
     this.mirrorBox = kit.check(b4, 'Mirror', false, (v) => (STUDIO.mirror = v), 'st:mirror', 'studio-mirror');
     kit.check(b4, 'Guard', false, (v) => (STUDIO.guard = v), 'st:guard', 'studio-guard');
     const b5 = kit.bar();
@@ -160,7 +181,7 @@ export class StudioPanel {
       l.append('Stage light', r, this.stageVal);
       b7.append(l);
     }
-    el.append(h, note, b1, b2, b3, b4, b5, b6, b7);
+    el.append(h, note, b1, b4, b5, b6, b7);
     // (test hook) e2e and the console drive the studio through this
     (window as unknown as { __studio: unknown }).__studio = {
       state: () => ({ ...STUDIO }),
@@ -169,17 +190,22 @@ export class StudioPanel {
       play: () => this.api.freeze(false),
       pause: () => this.api.freeze(true),
       frozen: () => this.api.frozen(),
-      step: (dir: number) => this.step(dir),
+      // (T1a) one key back / forward (a keyed clip by its keys, a pair by its frames), as the bar's buttons
+      step: (dir: number) => this.stepKey(dir),
+      // (T1a, item 15) a clip paused on one of its keys (as the Keys tab's pick)
+      showKey: (clip: string, key: number) => this.showKey(clip, key),
       seek: (v: number) => {
         this.api.freeze(true);
         STUDIO.seek = v;
       },
       mirror: (on: boolean) => this.setBox(this.mirrorBox, on),
       // (tuner-ui) root motion is "Loop on the spot" off
-      rootMotion: (on: boolean) => this.setBox(this.spotBox, !on),
-      spot: (on: boolean) => this.setBox(this.spotBox, on),
+      rootMotion: (on: boolean) => this.setSpot(!on),
+      spot: (on: boolean) => this.setSpot(on),
       speed: (v: number) => this.api.setSpeed(v),
       snap: (s: StudioSnap) => this.api.lock(s),
+      // (T1a, item 19) the gun pick, as the bar's list sets it
+      weapon: (w: StudioWeapon) => this.setWeapon(w),
       // (anim-studio-2) a pair's roles and clock, a traversal loop's progress
       pair: () => ({ ...STUDIO_PAIR }),
       // (marlow-bays item 14) the Stage light slider (as the slider would set it)
@@ -193,6 +219,8 @@ export class StudioPanel {
         if (!this.keyedBox.disabled && this.keyedBox.checked !== on) this.keyedBox.click();
       },
       keyedState: () => ({ checked: this.keyedBox.checked, disabled: this.keyedBox.disabled, entry: STUDIO.entry }),
+      // (T1a) the playback bar's readout and whether it shows
+      readout: () => ({ text: this.readout.textContent ?? '', shown: !this.bar.hidden }),
     };
   }
 
@@ -201,14 +229,15 @@ export class StudioPanel {
     const on = STUDIO.active;
     this.shown = on;
     this.el.hidden = !on;
+    this.bar.hidden = !on;
     if (!on) {
       this.overlay.clear();
       return;
     }
     if (this.entrySel.value !== STUDIO.entry) this.entrySel.value = STUDIO.entry;
     this.mirrorBox.checked = STUDIO.mirror;
-    this.spotBox.checked = STUDIO.spot;
     this.turnBox.checked = STUDIO.turntable;
+    this.weaponSel.value = STUDIO.weapon;
     this.showStage();
     this.showKeyed();
     this.nextRead = 0;
@@ -237,25 +266,33 @@ export class StudioPanel {
     if (this.playBtn.textContent !== play) this.playBtn.textContent = play;
     this.backBtn.disabled = this.fwdBtn.disabled = this.scrub.disabled = !inPlace;
     this.mirrorBox.disabled = !keyed && !(pair && !e.team);
-    // (tuner-ui) on the spot: a moving state (treadmill) or a clip that can walk the circle
-    this.spotBox.disabled = !((e.kind === 'state' && e.pace > 0) || (keyed && e.circle));
     this.showKeyed();
-    const n = STUDIO.frames;
-    const p = STUDIO_PAIR;
-    const at = n > 0 ? `${e.team ? 'frame' : 'key'} ${studioKey(STUDIO.phase, n) + 1}/${n}${inPlace ? '' : ' (moving)'}` : '';
-    this.readout.textContent = e.team
-      ? `${at} | A ${plainWords(p.aState)}${p.k > 0 ? `, contact ${p.k.toFixed(2)}` : ''} | B ${plainWords(p.bState)}`
-      : e.trav
-        ? `${plainWords(p.travPhase)}, step ${p.travStep + 1}/${e.trav.steps.length}, loop ${p.travLoops}`
-        : n > 0
-          ? at
-          : e.kind === 'state'
-            ? 'live gait'
-            : '-';
+    if (this.weaponSel.value !== STUDIO.weapon) this.weaponSel.value = STUDIO.weapon;
+    const t = this.readText(e, inPlace);
+    if (this.readout.textContent !== t) this.readout.textContent = t;
     if (!this.api.busy(this.scrub)) this.scrub.value = String(STUDIO.phase);
     const sp = this.api.speed();
     if (!this.api.busy(this.speedIn)) this.speedIn.value = String(sp);
     this.speedVal.textContent = `${Number(sp.toFixed(2))}×`;
+  }
+
+  /** The bar's readout: the loop, then its key ("jog - key 2 of 8 (mirror of 6), frame 4"), a pair's roles, a loop's step. */
+  private readText(e: ReturnType<typeof studioEntry>, inPlace: boolean): string {
+    const n = STUDIO.frames;
+    const p = STUDIO_PAIR;
+    const name = plainLoop(e.id, e.label);
+    if (e.team) return `${name} | frame ${studioKey(STUDIO.phase, n) + 1}/${n} | A ${plainWords(p.aState)}${p.k > 0 ? `, contact ${p.k.toFixed(2)}` : ''} | B ${plainWords(p.bState)}`;
+    if (e.trav) return `${name} | ${plainWords(p.travPhase)}, step ${p.travStep + 1}/${e.trav.steps.length}, loop ${p.travLoops}`;
+    if (e.clip) {
+      const c = keyClip(e.clip.name);
+      const moving = inPlace ? '' : ' (moving: loop on the spot to step keys)';
+      if (c && STUDIO.key >= 0) {
+        if (STUDIO.onKey) return `${keyReadout(c, STUDIO.key)}${moving}`;
+        return `${c.name} - between keys (nearest key ${STUDIO.key + 1}, frame ${keyFrame(c, STUDIO.key)}), frame ${Math.round(STUDIO.phase * n) % n}${moving}`;
+      }
+      return `${name} | frame ${studioKey(STUDIO.phase, n) + 1}/${n}${moving}`;
+    }
+    return e.kind === 'state' ? `${name} | live gait${e.drawn ? `, ${STUDIO.weapon}` : ''}` : name;
   }
 
   /** The panel closed: the aids go (the studio itself keeps playing). */
@@ -280,10 +317,45 @@ export class StudioPanel {
     this.setEntry(id);
   }
 
-  /** (marlow-bays item 13) "Loop on the spot" flipped from the panel's header, its key or the pad (every tab). */
+  /** (marlow-bays item 13) "Loop on the spot" flipped from the playback bar, its key or the pad (every tab). */
   toggleSpot(): boolean {
-    this.setBox(this.spotBox, !STUDIO.spot);
+    this.setSpot(!STUDIO.spot);
     return STUDIO.spot;
+  }
+
+  /** (T1a, item 16) Play / pause (the bar, F9, the pad's right stick up). */
+  playPause(): void {
+    this.api.freeze(!this.api.frozen());
+  }
+
+  /**
+   * (T1a, item 15) One key back / forward (freezes first): a keyed clip steps to its next key (the mirrored half too), a
+   * pair one frame. The bar, F1 / F2, the pad's right stick, the Keys tab's buttons.
+   */
+  stepKey(dir: number): void {
+    this.api.freeze(true);
+    STUDIO.keyStep = dir < 0 ? -1 : 1;
+  }
+
+  /**
+   * (T1a, item 15) The Keys tab's pick: clip `clip` plays in place (loop on the spot) paused on its key `key` (0-based,
+   * the mirrored half's keys after the own keys). The loop list follows.
+   */
+  showKey(clip: string, key: number): void {
+    const id = `keyed:${clip}`;
+    if (studioEntry(id).id !== id) return;
+    if (!STUDIO.spot) this.setSpot(true);
+    if (STUDIO.entry !== id) this.setEntry(id);
+    this.api.freeze(true);
+    STUDIO.seekKey = Math.max(0, key);
+  }
+
+  /** (T1a, item 19) The gun every armed loop plays with (the bar's list, a weapon picked in a tab). */
+  setWeapon(w: StudioWeapon): void {
+    if (w !== 'rifle' && w !== 'pistol') return;
+    STUDIO.weapon = w;
+    if (this.weaponSel.value !== w) this.weaponSel.value = w;
+    this.nextRead = 0;
   }
 
   private pickEntry(v: string): void {
@@ -315,16 +387,9 @@ export class StudioPanel {
     if (this.keyedBox.disabled !== dis) this.keyedBox.disabled = dis;
   }
 
-  /** One key back / forward (freezes first). */
-  private step(dir: number): void {
-    this.api.freeze(true);
-    STUDIO.step = dir < 0 ? -1 : 1;
-  }
-
   private setBox(box: HTMLInputElement, on: boolean): void {
     box.checked = on;
     if (box === this.mirrorBox) STUDIO.mirror = on;
-    else if (box === this.spotBox) this.setSpot(on);
   }
 
   /** (tuner-ui) On the spot: a state on the treadmill, a keyed clip in place (root motion off); else both move. */

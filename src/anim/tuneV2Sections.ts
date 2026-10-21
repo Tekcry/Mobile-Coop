@@ -9,7 +9,7 @@
  */
 import { BODY_GROUPS, type BodyGroup } from './tune';
 import { HAND_PARAMS, HAND_WEAPONS, HP, handsGet, handsSet, ikGet, ikSet, IK_LIMBS, IK_RANGE, type HandWeapon, type IkLimb } from './tuneHands';
-import { J, JOINTS, JOINT_RANGE, MIRROR_OF, MIRROR_SIGN, jointsGet, jointsMirror, jointsSet, type JointAxis } from './tuneJoints';
+import { J, JOINTS, JOINT_RANGE, JOINT_ROWS, MIRROR_OF, MIRROR_SIGN, jointsGet, jointsMirror, jointsSet, type JointAxis } from './tuneJoints';
 import { registerTuneSection, TUNE_LOG, TUNE_STATE_BAG, type TuneTunable } from './tuneRegistry';
 import { SP, STEP_GAITS, STEP_PARAMS, stepGet, stepSet, type StepGait } from './tuneStep';
 
@@ -18,7 +18,16 @@ const AXIS_ID = ['x', 'y', 'z'] as const;
 
 /** Joint slider ids, index `joint * 3 + axis` (e.g. `elbowR_x`). */
 export const JOINT_KEYS: readonly string[] = JOINTS.flatMap((j) => AXIS_ID.map((a) => `${j}_${a}`));
-export const JOINT_GROUP_IDS: readonly string[] = BODY_GROUPS.map((g) => `joint.${g}`);
+/** (marlow-bays T1a) Every Joints row: the body states (`joint.<state>`), then the per-gun armed rows (`joint.rifle.aim`). */
+export const JOINT_GROUP_IDS: readonly string[] = JOINT_ROWS.map((g) => `joint.${g}`);
+/** (T1a) The Joints row index per weapon x body state: the gun's own row for an armed state with a rifle or pistol. */
+const JOINT_ROW_OF: readonly (readonly number[])[] = HAND_WEAPONS.map((w) =>
+  BODY_GROUPS.map((b, gi) => {
+    const r = JOINT_ROWS.indexOf(`${w}.${b}`);
+    return r >= 0 ? r : gi;
+  }),
+);
+let jointRowNow = '';
 export const JOINT_OPTIONS = 'joint.options';
 export const IK_GROUP_IDS: readonly string[] = BODY_GROUPS.map((g) => `ik.${g}`);
 /** `[weapon][state]` group ids. */
@@ -92,7 +101,7 @@ export const STEP_SECTION = registerTuneSection({
 const STEP_KEYS: readonly string[] = STEP_PARAMS.map((p) => p.id);
 const STEP_IDX: readonly number[] = STEP_PARAMS.map((p) => SP[p.id]);
 /** The follow group per body state (the planner picks its gait by pace; these are the states that name one). */
-const STEP_OF_BODY: Partial<Record<BodyGroup, StepGait>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk' };
+const STEP_OF_BODY: Partial<Record<BodyGroup, StepGait>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk', crouchRun: 'crouchRun' };
 const STEP_FOLLOW: readonly string[] = BODY_GROUPS.map((b) => {
   const g = STEP_OF_BODY[b];
   return g ? `step.${g}` : '';
@@ -130,7 +139,7 @@ export function tuneV2Mirror(): boolean {
  * change log's last entry, the partner untouched) gives the partner the mirrored value in the table and the registry
  * (no log entry of its own, so a drag stays one entry); a load or a group reset is copied as is.
  */
-function syncJoints(b: BodyGroup, gi: number): void {
+function syncJoints(b: string, gi: number): void {
   const group = JOINT_GROUP_IDS[gi]!;
   const vals = JOINT_SECTION.values[group] as Record<string, number>;
   const mirror = tuneV2Mirror();
@@ -161,9 +170,54 @@ function syncHandRow(w: HandWeapon, b: BodyGroup, vals: Record<string, number>, 
   }
 }
 
+/** (anim-joints J1) The round-robin cursors of `syncBackground`. */
+let bgJoint = 0;
+let bgHand = 0;
+let bgIk = 0;
+const BG_HAND_ROWS = HAND_WEAPONS.length * BODY_GROUPS.length;
+
 /**
- * Once per frame, for the local player before `jointsBegin` / `handsBegin`: write the follow keys and copy the active
- * state's (and weapon's) registry values into the item 1-2 tables where they differ. No allocation.
+ * (anim-joints J1, A2) Every Wren rig reads the tables, not only the local player in its active row: each frame a few
+ * more rows are copied registry -> table (2 Joints rows, 6 Hands & feet + Weapon rows, 2 IK rows; every row within about
+ * 0.4 s), so the partner and the studio puppets in another state see a panel edit too. No allocation.
+ */
+function syncBackground(): void {
+  for (let n = 0; n < 2; n++) {
+    const ri = bgJoint;
+    bgJoint = (bgJoint + 1) % JOINT_ROWS.length;
+    syncJoints(JOINT_ROWS[ri]!, ri);
+  }
+  for (let n = 0; n < 6; n++) {
+    const r = bgHand;
+    bgHand = (bgHand + 1) % BG_HAND_ROWS;
+    const w = Math.floor(r / BODY_GROUPS.length);
+    const g = r - w * BODY_GROUPS.length;
+    const wn = HAND_WEAPONS[w]!;
+    const b = BODY_GROUPS[g]!;
+    syncHandRow(wn, b, HAND_SECTION.values[HAND_GROUP_IDS[w]![g]!] as Record<string, number>, PLACE_KEYS, PLACE_IDX);
+    syncHandRow(wn, b, WEAPON_SECTION.values[WEAPON_GROUP_IDS[w]![g]!] as Record<string, number>, WEAPON_KEYS, WEAPON_IDX);
+  }
+  for (let n = 0; n < 2; n++) {
+    const g = bgIk;
+    bgIk = (bgIk + 1) % BODY_GROUPS.length;
+    syncIk(g);
+  }
+}
+
+/** One state's IK strengths: registry -> table. */
+function syncIk(gi: number): void {
+  const b = BODY_GROUPS[gi]!;
+  const ik = IK_SECTION.values[IK_GROUP_IDS[gi]!] as Record<string, number>;
+  for (let l = 0 as IkLimb; l < 4; l = (l + 1) as IkLimb) {
+    const v = ik[IK_LIMBS[l]]!;
+    if (v !== ikGet(b, l)) ikSet(b, l, v);
+  }
+}
+
+/**
+ * Once per frame, for the local player before its `rig.animate`: write the follow keys and copy the active state's (and
+ * weapon's) registry values into the item 1-2 tables where they differ, plus a few background rows (`syncBackground`).
+ * (anim-joints J1) Every Wren rig then reads the tables inside its own `animate` (`tuneJointsRig.ts`). No allocation.
  */
 export function tuneV2Frame(body: BodyGroup | '', weapon: HandWeapon): void {
   const gi = body === '' ? -1 : BODY_GROUPS.indexOf(body);
@@ -171,25 +225,28 @@ export function tuneV2Frame(body: BodyGroup | '', weapon: HandWeapon): void {
   syncStep();
   TUNE_STATE_BAG.step = gi < 0 ? '' : STEP_FOLLOW[gi]!;
   if (gi < 0 || wi < 0) {
+    jointRowNow = '';
     TUNE_STATE_BAG.joint = TUNE_STATE_BAG.hand = TUNE_STATE_BAG.ik = TUNE_STATE_BAG.weapon = '';
+    if (jointsMirror()) jointsMirror(false);
+    syncBackground();
     return;
   }
   const b = body as BodyGroup;
-  TUNE_STATE_BAG.joint = JOINT_GROUP_IDS[gi]!;
+  // (T1a) a rifle or pistol in an armed state: the gun's own Joints row
+  const ri = JOINT_ROW_OF[wi]![gi]!;
+  jointRowNow = JOINT_ROWS[ri]!;
+  TUNE_STATE_BAG.joint = JOINT_GROUP_IDS[ri]!;
   TUNE_STATE_BAG.ik = IK_GROUP_IDS[gi]!;
   const hg = HAND_GROUP_IDS[wi]![gi]!;
   const wg = WEAPON_GROUP_IDS[wi]![gi]!;
   TUNE_STATE_BAG.hand = hg;
   TUNE_STATE_BAG.weapon = wg;
   if (jointsMirror()) jointsMirror(false);
-  syncJoints(b, gi);
+  syncJoints(jointRowNow, ri);
   syncHandRow(weapon, b, HAND_SECTION.values[hg] as Record<string, number>, PLACE_KEYS, PLACE_IDX);
   syncHandRow(weapon, b, WEAPON_SECTION.values[wg] as Record<string, number>, WEAPON_KEYS, WEAPON_IDX);
-  const ik = IK_SECTION.values[IK_GROUP_IDS[gi]!] as Record<string, number>;
-  for (let l = 0 as IkLimb; l < 4; l = (l + 1) as IkLimb) {
-    const v = ik[IK_LIMBS[l]]!;
-    if (v !== ikGet(b, l)) ikSet(b, l, v);
-  }
+  syncIk(gi);
+  syncBackground();
 }
 
 /** Every state and weapon at once (tests; not hot). */
@@ -200,4 +257,9 @@ export function tuneV2SyncAll(): void {
 // the e2e reads the tables through this (dev / test hook, no game code reads it)
 if (typeof window !== 'undefined') {
   (window as unknown as { __tuneV2: unknown }).__tuneV2 = { jointsGet, handsGet, ikGet, J, HP, mirror: tuneV2Mirror };
+}
+
+/** (marlow-bays T1a) The Joints row `tuneV2Frame` picked last ('' none): the body state, or the gun's armed row. */
+export function tuneV2JointRow(): string {
+  return jointRowNow;
 }
