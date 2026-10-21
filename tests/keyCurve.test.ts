@@ -83,18 +83,24 @@ describe('anim-skeleton S4b: Blender keyframe curve', () => {
     // the ramp (Blender: free keys at 12 and 24 get handles of 0.4)
     expect(k.hr[1]).toBeCloseTo(0.4, 12);
     const add = Float64Array.of(0, 0.5, 0, 0);
-    let s = 0;
+    // A typed slot, not a captured let: += on a captured number boxes a 16-byte HeapNumber every iteration, which is
+    // exactly the ~1.6 MB CI measured (run 39669374229). Warm-up, a GC before each sample when exposed, the median.
+    const s = new Float64Array(1);
+    const gc = (globalThis as { gc?: () => void }).gc;
     const run = (): number => {
+      gc?.();
       const before = process.memoryUsage().heapUsed;
       for (let r = 0; r < 100000; r++) {
         keyCurveSet(k, t, v, 4, 1, 0, SPAN, r & 1 ? add : null);
-        s += keyCurveAt(k, (r % 480) / 10);
+        s[0]! += keyCurveAt(k, (r % 480) / 10);
       }
       return process.memoryUsage().heapUsed - before;
     };
     run();
-    const grown = Math.min(run(), run(), run());
-    expect(Number.isFinite(s)).toBe(true);
+    run();
+    const samples = [run(), run(), run(), run(), run()].sort((a, b) => a - b);
+    const grown = samples[2]!;
+    expect(Number.isFinite(s[0]!)).toBe(true);
     // a 16-byte allocation per iteration would grow ~1.6 MB a pass
     expect(grown).toBeLessThan(1_000_000);
   });
