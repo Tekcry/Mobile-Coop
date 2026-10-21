@@ -38,7 +38,7 @@ import { KEYED_WALL_IDLE } from './clips/keyed/wall_idle';
 import { KEYED_WALL_PEEK } from './clips/keyed/wall_peek';
 import { KEYED_WALL_SLIDE } from './clips/keyed/wall_slide';
 import { wrap01 } from './studioDrive';
-import { keyClip, keyCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
+import { keyClip, keyCount, keyIdCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
 import { pairCycle } from './studioPairs';
 import { travCycle, TRAV_ENTRIES, type TravEntry } from './studioTraversal';
@@ -312,7 +312,7 @@ export function studioScrub(v: number): number {
 export function studioKeyPhase(clip: string, phase: number, seekKey: number, keyStep: number): number {
   const c = keyClip(clip);
   if (!c) return Number.NaN;
-  if (seekKey >= 0) return keyPhase(c, Math.min(seekKey, keyCount(c) - 1));
+  if (seekKey >= 0) return keyPhase(c, Math.min(seekKey, keyIdCount(c) - 1)); // (item 25) a key id (added keys after the originals)
   if (keyStep !== 0) return keyPhase(c, keyStep_(c, phase, keyStep));
   return Number.NaN;
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased - marlow-bays item 25 (add / delete keys)
+- Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
+  Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is
+  edited. "Delete key" removes the picked key (never key 1, never below 4 keys a cycle; with Mirror on its mirror goes
+  too). Live at once; undo, reset, presets, export and import work as for every slider; works with key timing.
+- The bake writes the key file with the new key list, regenerates `src/anim/tuneKeysMeta.ts` and prints the clip's
+  rebake. An export with no add / delete bakes exactly as before; no clip changes.
+
 ## 4.40.0 - Animation tuner: slide a key earlier or later in its clip, baked into the key files (2026-10-21, PR #87)
 - Animation tuner, Keys tab: slide a key earlier or later in its clip ("◀ Earlier" / "Later ▶", one bake frame = 1/48
   of the cycle, or the time slider), previewed live. Keys keep their order, the first key stays at the cycle start, and
