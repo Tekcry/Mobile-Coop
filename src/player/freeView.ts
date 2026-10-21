@@ -32,9 +32,12 @@ export type FreeSnap = 'front' | 'side' | 'back' | 'top';
 /**
  * (anim-studio) A camera snap: the orbit's yaw and pitch to look at the body (facing `bodyYaw`) from its front, its
  * right side, its back, or from above (behind, looking down). Orbit yaw is the view direction (the camera sits `dist`
- * back along it).
+ * back along it). (marlow-bays item 26 fix) A snap centres her again: an orbit's touch pan (`panX` / `panZ`) is cleared
+ * (a held snap every frame, so no pan stays under it).
  */
-export function freeSnap(snap: FreeSnap, bodyYaw: number, out: { yaw: number; pitch: number }): void {
+export function freeSnap(snap: FreeSnap, bodyYaw: number, out: { yaw: number; pitch: number; panX?: number; panZ?: number }): void {
+  if (out.panX !== undefined) out.panX = 0;
+  if (out.panZ !== undefined) out.panZ = 0;
   if (snap === 'front') {
     out.yaw = bodyYaw + Math.PI;
     out.pitch = -0.1;

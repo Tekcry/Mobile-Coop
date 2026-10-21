@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GESTURE, nearestMapPart, PHONE_MAP_SCALE, phoneMapHitRadius, TOUCH_MIN, TouchGesture, tunerPhoneLayout } from '../src/ui/tunerPhone';
-import { clearTouchIn, FREE_CFG, FREE_IN, FreeViewCore } from '../src/player/freeView';
+import { clearTouchIn, FREE_CFG, FREE_IN, FreeViewCore, freeSnap } from '../src/player/freeView';
 
 describe('tunerPhoneLayout (marlow-bays item 26)', () => {
   it('keeps the desktop layout without a touch screen, at any size', () => {
@@ -152,6 +152,26 @@ describe('the orbit pan (free view)', () => {
     expect(Math.sqrt(c.panX * c.panX + c.panZ * c.panZ)).toBeCloseTo(FREE_CFG.panMax, 9);
     c.start('orbit', 0, 1.2, -3, 0, 0, 0, 0, 0);
     expect([c.panX, c.panZ]).toEqual([0, 0]);
+  });
+  it('a snap or a held snap centres her again (the pan cleared)', () => {
+    const c = new FreeViewCore();
+    c.start('orbit', 0, 1.2, -3, 0, 0, 0, 0, 0);
+    c.panR = 1.5;
+    c.place(0, 0, 0);
+    expect(c.panX).toBeCloseTo(1.5, 9);
+    freeSnap('front', 0, c);
+    expect([c.panX, c.panZ]).toEqual([0, 0]);
+    c.panR = 1;
+    c.place(0, 0, 0);
+    expect(c.panX).not.toBe(0);
+    c.lock = 'side';
+    c.place(0, 0, 0);
+    expect([c.panX, c.panZ]).toEqual([0, 0]);
+    expect(c.x).toBeCloseTo(-Math.sin(c.yaw) * Math.cos(c.pitch) * c.dist, 9);
+    // the plain {yaw, pitch} out still works
+    const o = { yaw: 0, pitch: 0 };
+    freeSnap('back', 1, o);
+    expect(o).toEqual({ yaw: 1, pitch: -0.1 });
   });
   it('clearTouchIn zeroes the touch sums only', () => {
     FREE_IN.wheel = 2;
