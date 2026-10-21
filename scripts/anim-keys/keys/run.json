@@ -12,9 +12,9 @@
       "phase": 0,
       "pelvis": {
         "dx": 0,
-        "dy": -3,
-        "dz": 2.4,
-        "yaw": 3,
+        "dy": 17,
+        "dz": 11.4,
+        "yaw": 25.5,
         "pitch": 12,
         "roll": 0
       },
@@ -24,8 +24,8 @@
         "roll": 0
       },
       "chest": {
-        "yaw": -4.5,
-        "pitch": 18,
+        "yaw": -26,
+        "pitch": 33,
         "roll": 0
       },
       "neck": {
@@ -35,15 +35,16 @@
       },
       "armL": {
         "flex": -7,
-        "abd": 4,
-        "elbow": 95,
-        "inward": 16
+        "abd": 19,
+        "elbow": 66,
+        "inward": 1.5
       },
       "armR": {
         "flex": 53,
-        "abd": 4,
+        "abd": 19,
         "elbow": 82,
-        "inward": 18
+        "inward": 18,
+        "twist": -161
       },
       "legL": {
         "flex": 26,
@@ -56,15 +57,18 @@
         "add": 3,
         "knee": 80,
         "ankle": -22
+      },
+      "head": {
+        "roll": -7
       }
     },
     {
-      "phase": 0.125,
+      "phase": 0.020833333333333332,
       "pelvis": {
         "dx": -0.5,
-        "dy": -3.8,
-        "dz": 2.4,
-        "yaw": 2,
+        "dy": 16.2,
+        "dz": 11.4,
+        "yaw": 9.5,
         "pitch": 12,
         "roll": -1.5
       },
@@ -74,8 +78,8 @@
         "roll": 0.8
       },
       "chest": {
-        "yaw": -3,
-        "pitch": 18,
+        "yaw": -10,
+        "pitch": 33,
         "roll": 0.8
       },
       "neck": {
@@ -85,15 +89,17 @@
       },
       "armL": {
         "flex": 5,
-        "abd": 4,
+        "abd": 19,
         "elbow": 92,
-        "inward": 16
+        "inward": 16,
+        "twist": 37
       },
       "armR": {
         "flex": 42,
-        "abd": 4,
+        "abd": 19,
         "elbow": 84,
-        "inward": 18
+        "inward": 18,
+        "twist": -153.5
       },
       "legL": {
         "flex": 12,
@@ -109,12 +115,12 @@
       }
     },
     {
-      "phase": 0.25,
+      "phase": 0.0625,
       "pelvis": {
         "dx": -0.6,
-        "dy": -2.6,
-        "dz": 2,
-        "yaw": 0,
+        "dy": 17.4,
+        "dz": 11,
+        "yaw": 0.5,
         "pitch": 12,
         "roll": -2
       },
@@ -124,8 +130,8 @@
         "roll": 1
       },
       "chest": {
-        "yaw": 0,
-        "pitch": 18,
+        "yaw": 7.5,
+        "pitch": 33,
         "roll": 1
       },
       "neck": {
@@ -135,15 +141,17 @@
       },
       "armL": {
         "flex": 23,
-        "abd": 4,
-        "elbow": 88,
-        "inward": 16
+        "abd": 19,
+        "elbow": 73.5,
+        "inward": 16,
+        "twist": -7
       },
       "armR": {
         "flex": 23,
-        "abd": 4,
+        "abd": 19,
         "elbow": 88,
-        "inward": 18
+        "inward": 18,
+        "twist": -109.5
       },
       "legL": {
         "flex": -6,
@@ -159,12 +167,12 @@
       }
     },
     {
-      "phase": 0.375,
+      "phase": 0.2708333333333333,
       "pelvis": {
         "dx": -0.3,
-        "dy": -1.2,
-        "dz": 2.2,
-        "yaw": -2,
+        "dy": 18.8,
+        "dz": 11.2,
+        "yaw": -9,
         "pitch": 12,
         "roll": -0.8
       },
@@ -174,8 +182,8 @@
         "roll": 0.4
       },
       "chest": {
-        "yaw": 3,
-        "pitch": 18,
+        "yaw": 10.5,
+        "pitch": 33,
         "roll": 0.4
       },
       "neck": {
@@ -185,13 +193,14 @@
       },
       "armL": {
         "flex": 42,
-        "abd": 4,
+        "abd": 19,
         "elbow": 84,
-        "inward": 16
+        "inward": 16,
+        "twist": -131.5
       },
       "armR": {
         "flex": 3,
-        "abd": 4,
+        "abd": 19,
         "elbow": 93,
         "inward": 18
       },
