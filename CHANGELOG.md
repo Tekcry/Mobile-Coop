@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-joints (track B: the base table every Wren rig reads)
+## Unreleased - anim-joints J1 (track B: the base table every Wren rig reads)
 - Joints, Hands & feet, IK strength and Weapon tunes now bake (Michael: "make sure i have full control over every stance
   and every body part"; COVERAGE gap 1): `scripts/anim-tune-bake.mjs` writes them into a generated base table
   (`src/anim/animBase.ts`) instead of listing them as manual, so a tuned elbow becomes the default after the merge.
