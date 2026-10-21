@@ -102,6 +102,38 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 
 ## Debug overlay (F3)
 - `ui/debugOverlay.ts`; buttons, lines and the anti-crab readout: `docs/systems/testing-tools.md`, "Debug overlay".
+- (tuner-ui, the current layout; the older bullets below are history where they differ) The animation tuner panel
+  (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
+  - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top
+    snaps that hold, Unlock, fly demo, hide HUD; time: Pause / Step, game speed), Body (parts Body, Joints, Limb reach,
+    Climb and vault), Hands & feet, Weapon (Gun hold, Gun in hand), Stepping (Stepping, Speed), Weight, Camera, Keys,
+    Co-op (one part per team move), any later registered section as its own tab, Settings (size, pause game while
+    tuning, follow my state, changed only, wide ranges, barrel line, find a slider, undo / A/B / presets, export /
+    share / import, reset all, clear change log). `tabOfSection` maps a section to a tab; `buildTabs` builds the list.
+  - In a tab: a Part drop-down (more than one section), then one drop-down per level of the group ids (the shared
+    prefix dropped: `hand.rifle.walk` is Weapon then State, `key.walk.0` Clip then Key), Reset group, then the rows
+    (plain label, slider, the value in a light box, the unit, × reset). Every drop-down is a hidden native select (code
+    and tests set `.value` and dispatch `change` as before; `.anim-tune-pick-<id>` holds every group id) shown as a
+    button that opens the panel's own list (`.anim-tune-drop-list`; `DropNav`).
+  - Look: explicit colours from one injected stylesheet (`style[data-tuner=ui]`); the pad focus is a class
+    (`tt-focus`, `tt-edit`), never an inline style. Size S / M / L (`tunerScale`), saved with "Pause game while tuning"
+    in the tuner's IndexedDB store, key `ui`. The hint strip is a flex row under the body (reserved space): pad glyphs
+    (`promptHtml`) under `body.input-gamepad`, key and mouse help otherwise.
+  - Pause: `GameState.menuPaused` (the pause menu or the results); `App` hands it to `AnimTunePanel.menuPaused`: the
+    tuner gives the pad to the menus; `GameState.fixedUpdate` uses a blank input (`menuInp`) under the pause menu, the
+    free view stops in co-op too. "Pause game while tuning" freezes (time scale 0) while the panel has the pad and a pad
+    is in use, outside the studio and co-op (edge triggered: a Resume by hand stays).
+  - Camera lock: `FREE_VIEW.lock` (`FreeViewCore.lock` / `bodyYaw`): the orbit takes `freeSnap` of her facing every
+    frame; the look and the turntable do not turn it; the pad stays on the panel (`TunePadCtl.setFree(on, false)`).
+  - (fix round) A State picked by hand on the Body part carries to Joints, Limb reach, Hands & feet, Gun in hand, the
+    gun hold where it maps, Stepping and Weight (`bodyCarry`, the panel's `carryBody`); a pick in any other section
+    stays local.
+  - Anim Studio: a loop pick calls `applyLoop` (`loopGroups`: body, joint, ik, hand / weapon state, step, weight, keys,
+    team role A, climb move; follow off). "Loop on the spot" (`STUDIO.spot`, default on; off = `rootMotion`): a moving
+    state's stick runs with no camera turn and `StudioStage.afterStep` moves her back by what she moved each fixed step
+    (`PlayerController.shift`, `CharacterRig.shiftWorld` / `FootPlanner.shift`: the feet slide back, no teleport).
+  - Hooks added to `window.__animTune`: `tabs`, `tab`, `size`, `lock`, `unlock`, `group(section)`, `pad()` gains `tab`,
+    `list`, `listIndex`, `listLength`, `hint`; `window.__studio.spot`.
 - (anim-tuner) Anim button: `ui/animTunePanel.ts`, a plain slider panel fixed top right (the overlay and its crab readout
   stay top left), any build. Two sections: the body state (20 groups) and the gun hold (rifle / pistol x low ready /
   aim / crouched aim), each a picker that follows the local player's state while "follow" is on (`TUNE_STATE`), with
