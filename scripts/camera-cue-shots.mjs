@@ -111,7 +111,7 @@ for (const [name, query] of MAPS) {
         const all = dev.debug().cue;
         const c = all[k];
         return {
-          id: c.id, mode: c.mode, a: c.a, seen: c.seen || seen, pulse: c.pulse, tris: c.tris,
+          id: c.id, mode: c.mode, a: c.a, seen: c.seen || seen, tris: c.tris,
           ...(view === 'inside' ? { at: [+at.x.toFixed(1), +at.z.toFixed(1)], lightAt: +at.light.toFixed(3), tried } : {}),
           ...(view === 'jammed' ? { cues: all.map((x) => `${x.id}:${x.mode}:${x.a.toFixed(2)}`) } : {}),
         };

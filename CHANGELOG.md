@@ -1,6 +1,45 @@
 # Changelog
 
-## Unreleased - anim-joints (track B: the base table every Wren rig reads)
+## 4.39.0 - Animation tuner redesign: docked panel in the menu style, body map, pinned sliders, folding groups; brighter studio (2026-10-21, PR #86)
+- The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
+  looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values
+  (Medium, now the default, is 19 px at 1080p; S / M / L 16 / 19 / 22).
+- Docked to the right edge, at most a third of the screen. In the Anim Studio the picture gives up the panel's width,
+  so she stands in the middle of the free area. The studio hides the game HUD (health, compass, objective, weapon and
+  ammo).
+- Pick a part on a body map (her joints seen from behind, the gun, the whole body), from the part list (the pad's way)
+  or by clicking her in the scene: only the sliders that move that part show, and the first one is selected. Click it
+  again for every part.
+- Rows sit in groups by what they move ("Right elbow", "Knees") that fold; the first group and the selected row's group
+  start open.
+- Pinned (☆ on a row, or Y menu > Pin) and recent sliders show as chips over the rows; a chip goes to its slider. The
+  search moved there and searches every tab.
+- The status line reads the stance really playing ("Walk · Rifle holstered", "Low ready · Rifle drawn"; outside the
+  studio "No gun drawn" for "Unarmed").
+- The studio's stage lights are brighter (key 2.4, fill 1.4, rim 1.5, top ambient 1.5; were 1.7, 0.9, 1.3, 0.8): she
+  read dark at 1080p on the hardware GPU. They now face the camera (key and fill on its side, the rim beyond her) from
+  any view: placed in front of her, the usual view from behind saw only the rim and the top light. The game's lighting
+  is untouched.
+- Pad: the D-pad reaches the part list and the chips (after the playback bar, before the tab's controls); the group
+  headers fold with A; the Y menu gains Pin / unpin this slider and Show every part. No button moved.
+
+## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
+- Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
+  when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
+  non-solid there, as on the host and in solo (bullets still hit him). On the host, the joiner's hostage follows the
+  joiner's drawn body instead of stepping ahead of it. Solo hold and carry speeds are unchanged.
+- Marlow Yard station 2: the host can unbolt the door alone after the leg-up (Michael: "stays closed and locked").
+  The host's own presses on course devices were counted as the joiner's, so the bolt checked the joiner's side of the
+  door (and "Bolted from the other side" went to the joiner's screen). The same fix credits the host's own hold
+  consoles, pickups and finish correctly.
+- Camera cue: the pulsing red frame edge while a camera sees a player is gone; the cue is the red grid only (in
+  electro, the white grid). The two red lines on station 3's floor are the painted edges of that camera's +-30 deg
+  sweep (course spec M2), kept.
+- Pause menu: "Restart at checkpoint" in Sector Ops and the co-op course (the section or the bay starts again, both
+  players back at the checkpoint) and, in co-op, "Return to lobby" (both players back to the room lobby). Each asks
+  first, with Stay focused. In co-op both are the host's: the joiner sees them disabled, "Host only".
+
+## 4.37.0 - Joints, Hands & feet, IK and Weapon tuning bake into a base table every Wren reads, the partner too (2026-10-21, PR #84)
 - Joints, Hands & feet, IK strength and Weapon tunes now bake (Michael: "make sure i have full control over every stance
   and every body part"; COVERAGE gap 1): `scripts/anim-tune-bake.mjs` writes them into a generated base table
   (`src/anim/animBase.ts`) instead of listing them as manual, so a tuned elbow becomes the default after the merge.

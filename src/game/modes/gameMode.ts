@@ -90,6 +90,9 @@ export interface GameMode {
   onRemoteJam?(id: string, tgt: string): void;
   /** Co-op host: a client's thrown gadget took effect (host-checked). */
   onRemoteGadget?(id: string, kind: string): void;
+  /** (marlow-bays item 3) The pause menu's "Restart at checkpoint" (solo or the co-op host): the same clean retry as
+   *  everyone down (Sector Ops: the section; Course: the bay), every player back at the checkpoint. False: not now. */
+  restartCheckpoint?(): boolean;
   blips(): Blip[];
   dispose(): void;
 }

@@ -35,6 +35,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `InputManager.applyModeClass`) show the pad's glyphs whenever a pad is the last device used. The binding table:
   `docs/systems/input-and-loop.md`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
+- Pause menu (`PauseScreen`, the field terminal): Resume, Objectives, (marlow-bays items 3-4) Restart at checkpoint
+  (Sector Ops and the course, `GameMode.restartCheckpoint`: the same clean retry as everyone down) and, in co-op,
+  Return to lobby (`SessionCallbacks.lobby`: the host's `backToLobby`, every client follows), then Settings, Report
+  feedback, the dev rows and Quit to menu. Both confirm in a `Dialog` that opens on Stay. In co-op they are host
+  actions (A1): the client's rows are blocked with the line "Host only" (`HOST_ONLY`) and it keeps its own Quit.
 - Controls (`ControlsScreen`, Settings > Controls > Remap controls, the one Controls place: no Pause item, menu-notes A2; loco D7): a Controller and a Keyboard & mouse tab to remap
   (`bindPanel`: two slots per verb, capture with a 5 s timeout, conflict warnings on both rows and a summary, reset per
   device with a confirm; pad: A rebinds, Y clears; Esc cancels, and on the pad holding B 1 s cancels). Decided, not
@@ -125,12 +130,13 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     keyed stays keyed; the Keys tab's clip plays that clip; the tab and part stay). "Loop on the spot" from every tab:
     the header button "On the spot: on / off" (studio only), F8 (`TUNER_SPOT_KEY`) and L3 on the pad (`TunePadOut.spot`).
   - Stage light (studio only, rendering only): four point lights (key, fill, rim, a soft top "ambient";
-    `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root and facing, made once by `StudioStage`, light
+    `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root, (T2) turned toward the camera (`stageViewYaw`: key and fill on the camera's side, the rim beyond her, from any view; they were in front of her facing, so the view from behind saw only the rim and the top light), made once by `StudioStage`, light
     only her meshes (`includedOnlyMeshes`, re-read once a second as the LODs load; once a second her materials are
     raised to every light on her mesh, `lightSources`, unfrozen and frozen again like `LightRig.fitMaterial`, so a later
     rig fit cannot leave the stage lights out), range falloff as the game's lamps. "Stage light" slider (View tab, Loop player; 0-2,
     default 1; `STUDIO_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The studio map's ambient
-    is 0.6 (was 0.45). The game's lights, light registry and light field are untouched. Hooks `__studioStage.lights()`,
+    is 0.6 (was 0.45). (T2) Intensities at scale 1: key 2.4, fill 1.4, rim 1.5, ambient 1.5 (were 1.7, 0.9, 1.3, 0.8:
+    she read dark at 1080 p on the hardware GPU). The game's lights, light registry and light field are untouched. Hooks `__studioStage.lights()`,
     `root()`, `__studio.stageLight(v)`.
 - (marlow-bays slice T1a, items 15-19, COVERAGE gaps 3, 4) Keys, playback bar, aim stances, own rows:
   - Playback bar (`StudioPanel.bar`, docked by the panel under the tabs, studio only, hidden folded): Play / Pause,
@@ -198,7 +204,46 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   lerp(1, move, w); the trigger the move row's at w >= 0.5 when not auto. A move with no body state (a vault) applies
   its row over identity. The panel follows the strongest move row while its weight is 0.5 or more, else the stance
   row. The per-gun Joints rows stay for the armed states only.
-- (tuner-ui, the current layout; the older bullets below are history where they differ) The animation tuner panel
+- (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
+  differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
+  `tests/marlowT2.test.ts`, `tests/tunerLayout.test.ts`):
+  - Look: the game menus' face and colours (`--font-menu`, `--text`, `--text-hi`, `--muted`, `--line`, `--hl`, `--warn`,
+    `--gold`, `--panel-2`; no palette of its own). Tabs as the menus' tab strip (caps, the active one white over a green
+    rule, wrapping to two lines). The pad focus is the menus' row focus (green bar, 3 px edge, white bold label); edit
+    mode the same in `--warn`; the selected row a gold edge. Size S / M / L is 16 / 19 / 22 px at 1080 p (Medium the
+    default; `tunerScale`: the screen height scales it, never under 11 px), the width at most a third of the screen
+    (`font * 25`). Values bold white (changed: amber); reset is ↺ (the unit keeps ×).
+  - Docked: fixed to the right edge, full height (`top` / `bottom` 0; folded: the header only). In the Anim Studio the
+    canvas gives up the panel's width (`body.tt-docked`, `--tt-dock-w`, one `engine.resize()` per change;
+    `syncDock`), so she stands in the middle of the free area; not folded, not outside the studio, not in co-op. The
+    studio hides the game HUD (`body.tt-studio`: `.hud`, `.hud-world`, the mouse capture hint; `syncStudioHud`, run
+    every frame open or not, off in co-op).
+  - The part strip (`.anim-tune-nav`, between the playback bar and the tab): the body map (`.anim-tune-map`, her joints
+    seen from behind, her left on the left with large L / R, the gun, "whole"; tap targets 8 units, about 11 px at
+    Medium; the part picked a green ring and fill, the selected slider's joints a gold dashed ring), "Showing" with the
+    part's name (`.anim-tune-partname`) and the part list (`.anim-tune-bodypart`, `BODY_PARTS`: the pad's way to the
+    map), Show every part, the pinned and recent chips (`.anim-tune-quick`, `q:<key>` pad items) and the search (moved
+    from Settings; it searches every tab). The map and the part list hide on View, Camera and Settings.
+  - A part picked (the map, the list, or a click on her in the scene) shows only the sliders that move it
+    (`rowHasPart`: slice T's `tuneTarget` in reverse: a joint by its joint, a bone by its first joint, a pair by either;
+    the weapon and the whole body by their own part; the camera never filtered): the shown section when it has any,
+    else Joints, Body, Hands & feet, Limb reach, Keys (the weapon: Gun in hand, Gun hold); its first slider is
+    selected (the scene marker). The same part again, the list's "All parts" or Show every part: every part.
+  - A click on her (drag view, a press and release on the canvas under 6 px and 450 ms): `pickOnBody` over her joints
+    projected through the rendered camera (a joint within 26 px, else the bone under the click within 36 px: its first
+    joint, else a joint within 64 px; the middle of the gun along its bore as one more point).
+  - Rows in groups by what they move (`tuneTarget`'s label: "Right elbow", "Knees"), a header each (`.tt-grp`, pad key
+    `g:<section>:<label>`, A or a click folds it); `groupOpen`: a choice by hand holds, else open when the first, holding
+    the selected row, filtered by a part or the search, or 8 rows or fewer in all. Folded rows stay in the DOM (code and
+    tests set them). A slider moved heads the recent list (`pushRecent`, 6); ☆ on a row (or Y menu > Pin / unpin this
+    slider) pins it (`togglePin`, 12, saved in the tuner's `ui` store as `pins`); a chip goes to its slider (tab, part,
+    group, follow off, its group open, selected; by pad the focus lands on it).
+  - The status line: `stanceText`: in the studio the loop playing and the gun as it is ("Walk · Rifle holstered", "Low
+    ready · Rifle drawn"); outside it the game's state ("Walk · No gun drawn").
+  - A level picker with no choice hides; the Joints' second level is "Armed state".
+  - Hooks added to `window.__animTune`: `part(p)`, `partState()` (part, label, shown section, its shown slider keys,
+    dock width), `clickAt(x, y)`, `reveal(key)`, `pin(key)`, `quick()`.
+- (tuner-ui, the layout before T2; the older bullets below are history where they differ) The animation tuner panel
   (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
   - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top
     snaps that hold, Unlock, fly demo, hide HUD; time: Pause / Step, game speed), Body (parts Body, Joints, Limb reach,

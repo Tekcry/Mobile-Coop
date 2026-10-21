@@ -238,6 +238,20 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
 - [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
   states show the values of the rows they shared.
+- [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
+  focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
+  compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).
+- [ ] Body tab: click her right elbow on the figure: "Showing: Right elbow" and only its sliders; click it again: every
+  part. Click her left knee in the scene (no drag): the left knee is picked. A drag still turns the camera.
+- [ ] Move a slider: it shows as a chip under "Pinned and recent"; ☆ pins it (★, a gold chip, kept after a reload);
+  click the chip on another tab: it goes back to the slider. Fold and open a group by its header.
+- [ ] By pad: from the tab's first list, D-pad up reaches the chips and the part list; A on the part list, pick Left
+  knee: the focus lands on its first slider. Y > Pin / unpin this slider. A on a group header folds it.
+- [ ] The status line in the studio: walk with Rifle picked reads "Walk · Rifle holstered"; Low ready "Low ready · Rifle
+  drawn".
+- [ ] Sizes S, M and L (Settings) and a 1280 x 720 window: the panel stays usable (tabs wrap, rows readable) and does
+  not cover her. Outside the studio (Pause > Animation tuner) the panel overlays play with no dock; in co-op the same
+  (no dock, the HUD stays).
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
@@ -249,6 +263,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] Close the host tab: the client is told and returns to the menu.
+- [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
+  guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
+- [ ] Station 2: only the host does the leg-up, jumps over and picks Unbolt: the door opens; the near side shows
+  "Bolted from the other side" to whoever pressed it.
+- [ ] Station 3: the camera shows the red grid only, no flashing red border when it sees you (GPU look: pending PC run).
+- [ ] Host: Start (Esc) > Restart at checkpoint: the confirm opens on Stay; Restart puts both players at the bay start.
+  Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
+- [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.
+- [ ] Solo Sector Ops: Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
 
 ## Release checklist (before a job merges)
 
