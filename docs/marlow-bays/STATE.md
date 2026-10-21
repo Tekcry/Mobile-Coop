@@ -1,6 +1,8 @@
 # marlow-bays - state
 
-B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): done, PR to master open (master 4.42.0 merged).
+B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): done, PR #92 open. Master 4.48.0 merged (2026-10-22):
+protocol 27 on top of the jammer's 26 (both `restore` and the jammer's `back` events kept). On that head check passes
+(2595 unit tests) and e2e-coop, e2e-menus and e2e-netmove pass (run on S's head, which carries it).
 Slice S (server browser, item 28): own branch `feature/server-browser` from R's head, own PR.
 Track A (Course Ready Build), 2026-10-21 ~21:40:
 - Merged: slice T #82 (4.35.0), T1a #83 (4.36.0), T2 #86 (4.39.0), item 23 key timing #87 (4.40.0), items 26 + 26b
