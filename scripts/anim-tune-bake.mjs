@@ -1,7 +1,8 @@
 // (anim-bake) Bake an animation tuner export into the code defaults, so the tune becomes the default and every baked
 // slider reads identity again once it is reset in the tuner.
 //   node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]
-// --dry-run prints the diff and the table and writes nothing. A real run writes the source files, the Keys section's key
+// --dry-run prints the diff and the table and writes nothing. A real run writes the source files (Joints, Hands & feet,
+// IK strength and Weapon into the generated base table src/anim/animBase.ts, anim-joints J1), the Keys section's key
 // JSONs (the apply-tune functions) and the ledger src/anim/tuneBakeLog.json, then prints the rebake commands (it never
 // runs Blender) and the table. Sections: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight.
 // The mapping is src/anim/tuneBakeTable.ts, the logic src/anim/tuneBake.ts; docs/anim-tuner/BAKE.md.

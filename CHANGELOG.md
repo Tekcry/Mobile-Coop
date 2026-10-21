@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.37.0 - Joints, Hands & feet, IK and Weapon tuning bake into a base table every Wren reads, the partner too (2026-10-21, PR #84)
+- Joints, Hands & feet, IK strength and Weapon tunes now bake (Michael: "make sure i have full control over every stance
+  and every body part"; COVERAGE gap 1): `scripts/anim-tune-bake.mjs` writes them into a generated base table
+  (`src/anim/animBase.ts`) instead of listing them as manual, so a tuned elbow becomes the default after the merge.
+  Exports from before (version 1 and 2) bake too.
+- Those four sections now act on every Wren rig, not only your own: the co-op partner's avatar and the Anim Studio's
+  pair puppets show the base table and your live tuner edits; guards and other characters are never touched. The
+  tuner's sliders are changes on top of the base table (reset them after a bake: the look stays).
+- With the game paused (the tuner's Pause, the studio's pause) a Joints, Hands & feet, IK or Weapon edit now shows at
+  once, as the Body and Gun sliders do (before it waited for the game to run).
+
 ## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in
   the Anim Studio plays that clip on the spot, paused on that key; "◀ Key" / "Key ▶" step the clip's keys (its mirrored

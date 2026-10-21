@@ -78,6 +78,8 @@ export function operatorRig(scene: Scene, make: PartFactory, look: AvatarLook, n
   // (anim-rig) the sling sockets on her own kit: the back plate at the left shoulder blade, the belt's hip socket
   rig.slingBack.position.set(WREN_SLING.back[0], WREN_SLING.back[1], WREN_SLING.back[2]);
   rig.slingHip.position.set(WREN_SLING.hip[0], WREN_SLING.hip[1], WREN_SLING.hip[2]);
+  // (anim-joints J1) every Wren rig (player, partner, studio puppets) reads the animation base table + tuner deltas
+  rig.tuneRows = true;
   const figure = new OperatorFigure(operatorLibrary(scene), rig, wrenManifest(), name);
   if (casters) figure.onMeshes = (ms) => { for (const m of ms) casters(m); };
   return { rig, figure };

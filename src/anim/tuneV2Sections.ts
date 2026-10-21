@@ -170,9 +170,54 @@ function syncHandRow(w: HandWeapon, b: BodyGroup, vals: Record<string, number>, 
   }
 }
 
+/** (anim-joints J1) The round-robin cursors of `syncBackground`. */
+let bgJoint = 0;
+let bgHand = 0;
+let bgIk = 0;
+const BG_HAND_ROWS = HAND_WEAPONS.length * BODY_GROUPS.length;
+
 /**
- * Once per frame, for the local player before `jointsBegin` / `handsBegin`: write the follow keys and copy the active
- * state's (and weapon's) registry values into the item 1-2 tables where they differ. No allocation.
+ * (anim-joints J1, A2) Every Wren rig reads the tables, not only the local player in its active row: each frame a few
+ * more rows are copied registry -> table (2 Joints rows, 6 Hands & feet + Weapon rows, 2 IK rows; every row within about
+ * 0.4 s), so the partner and the studio puppets in another state see a panel edit too. No allocation.
+ */
+function syncBackground(): void {
+  for (let n = 0; n < 2; n++) {
+    const ri = bgJoint;
+    bgJoint = (bgJoint + 1) % JOINT_ROWS.length;
+    syncJoints(JOINT_ROWS[ri]!, ri);
+  }
+  for (let n = 0; n < 6; n++) {
+    const r = bgHand;
+    bgHand = (bgHand + 1) % BG_HAND_ROWS;
+    const w = Math.floor(r / BODY_GROUPS.length);
+    const g = r - w * BODY_GROUPS.length;
+    const wn = HAND_WEAPONS[w]!;
+    const b = BODY_GROUPS[g]!;
+    syncHandRow(wn, b, HAND_SECTION.values[HAND_GROUP_IDS[w]![g]!] as Record<string, number>, PLACE_KEYS, PLACE_IDX);
+    syncHandRow(wn, b, WEAPON_SECTION.values[WEAPON_GROUP_IDS[w]![g]!] as Record<string, number>, WEAPON_KEYS, WEAPON_IDX);
+  }
+  for (let n = 0; n < 2; n++) {
+    const g = bgIk;
+    bgIk = (bgIk + 1) % BODY_GROUPS.length;
+    syncIk(g);
+  }
+}
+
+/** One state's IK strengths: registry -> table. */
+function syncIk(gi: number): void {
+  const b = BODY_GROUPS[gi]!;
+  const ik = IK_SECTION.values[IK_GROUP_IDS[gi]!] as Record<string, number>;
+  for (let l = 0 as IkLimb; l < 4; l = (l + 1) as IkLimb) {
+    const v = ik[IK_LIMBS[l]]!;
+    if (v !== ikGet(b, l)) ikSet(b, l, v);
+  }
+}
+
+/**
+ * Once per frame, for the local player before its `rig.animate`: write the follow keys and copy the active state's (and
+ * weapon's) registry values into the item 1-2 tables where they differ, plus a few background rows (`syncBackground`).
+ * (anim-joints J1) Every Wren rig then reads the tables inside its own `animate` (`tuneJointsRig.ts`). No allocation.
  */
 export function tuneV2Frame(body: BodyGroup | '', weapon: HandWeapon): void {
   const gi = body === '' ? -1 : BODY_GROUPS.indexOf(body);
@@ -182,6 +227,8 @@ export function tuneV2Frame(body: BodyGroup | '', weapon: HandWeapon): void {
   if (gi < 0 || wi < 0) {
     jointRowNow = '';
     TUNE_STATE_BAG.joint = TUNE_STATE_BAG.hand = TUNE_STATE_BAG.ik = TUNE_STATE_BAG.weapon = '';
+    if (jointsMirror()) jointsMirror(false);
+    syncBackground();
     return;
   }
   const b = body as BodyGroup;
@@ -198,11 +245,8 @@ export function tuneV2Frame(body: BodyGroup | '', weapon: HandWeapon): void {
   syncJoints(jointRowNow, ri);
   syncHandRow(weapon, b, HAND_SECTION.values[hg] as Record<string, number>, PLACE_KEYS, PLACE_IDX);
   syncHandRow(weapon, b, WEAPON_SECTION.values[wg] as Record<string, number>, WEAPON_KEYS, WEAPON_IDX);
-  const ik = IK_SECTION.values[IK_GROUP_IDS[gi]!] as Record<string, number>;
-  for (let l = 0 as IkLimb; l < 4; l = (l + 1) as IkLimb) {
-    const v = ik[IK_LIMBS[l]]!;
-    if (v !== ikGet(b, l)) ikSet(b, l, v);
-  }
+  syncIk(gi);
+  syncBackground();
 }
 
 /** Every state and weapon at once (tests; not hot). */

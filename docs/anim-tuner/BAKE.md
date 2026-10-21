@@ -119,8 +119,27 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
   - plant, landing, the spring rates and anticipation times -> WEIGHT_BASE.*.
 - Manual: the damping sliders (one zeta for four springs) and every add slider (the layer's amount is the slider).
 
-**Joints, Hands & feet, IK strength, Weapon:** manual, no code target. These are local-player tuner tables whose
-defaults are all identity.
+**Joints, Hands & feet, IK strength, Weapon** (anim-joints J1, COVERAGE gap 1): baked into the base table, a generated
+file `src/anim/animBase.ts` that every Wren rig reads (the local player, the co-op partner's avatar, the Anim Studio's
+pair puppets; guards and other rigs never do). Result "baked (base table)"; target `src/anim/animBase.ts: joints.<row>.
+<joint>[axis] +`, `hands.<weapon>.<row>.<param> +` / `x` / `=`, `ik.<row>[limb] x`.
+- The file: a header and the `AnimBaseData` type, then the JSON between the `// @anim-base-begin` and
+  `// @anim-base-end` lines, which the bake parses (`JSON.parse`) and rewrites (one write, in the diff and the ledger;
+  the rest of the file and its line ends are kept). Shape: `{ "version": 1, "joints": { row: { joint: [x, y, z] } },
+  "hands": { weapon: { row: { param: v } } }, "ik": { row: [handL, handR, footL, footR] } }`, keyed by row id, joint
+  name and param id (never an index), so new rows and joints fit with no format change. Printed with sorted keys, one
+  row per line, about 4 significant digits, identity values left out (a re-bake of identity gives the same text).
+  Empty = every row identity (the untuned rig, bit-identical).
+- The rules (A1), the same at run time (effective = base composed with the tuner's delta) and in the bake (new base =
+  old base composed with the export's value): joint degrees add per axis, then wrap to -180..180 (the offset is built
+  from the sum, so a bake is exact); Hands & feet and Weapon offsets add; the gun scale multiplies; the trigger mode is
+  the delta's when it is not 0 (auto), else the base's; IK strengths multiply, clamped 0..1.
+- The tuner's sliders stay deltas on the base: after the bake, reset them (the look stays). Values outside the
+  slider's wide range still refuse; the ledger makes a re-run a no-op. Version 1 exports get their new rows as for
+  every section (`joint.wallIdle` also bakes `joint.wallCrouchIdle`). `joint.options` (the mirror lock) stays manual.
+- Code: `src/anim/tuneBakeBase.ts` (parse, apply, print); the runtime base + delta is `tuneJoints.ts` /
+  `tuneHands.ts`, the per-rig window `tuneJointsRig.ts`. Dev hook: `window.__animBase` (`get`, `load`, `setJoint`,
+  `reset`) loads a base table object in the running game until a reload. Tests: `tests/animJointsBase.test.ts`.
 
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock).
@@ -137,8 +156,8 @@ test finds every file under `src/` that calls `registerTuneSection`, imports it,
 list or when any registered slider and group has no rule or manual entry.
 
 ## Assumed decisions (undo)
-- **A1** Sliders with no code value are reported manual; no runtime per-state base tables were added. Undo: a later job
-  adds base tables and swaps those manual entries for rules.
+- **A1** Sliders with no code value are reported manual. (anim-joints J1) Joints, Hands & feet, IK strength and Weapon
+  now bake into the base table `src/anim/animBase.ts` (above).
 - **A2** A ledger (`src/anim/tuneBakeLog.json`, `group|id=value` per baked value) makes any later export that still
   carries a baked value a no-op for it. Undo: delete the ledger and step 7 of `tuneBake()`.
 - **A3** Atomic per slider and group: a value bakes only when every rule covering it bakes. Undo: drop the blocking loop

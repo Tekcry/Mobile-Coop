@@ -139,6 +139,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
   Reset group puts it back; Export lists the `cam.` values.
+- [ ] Base table (anim-joints J1): in the Anim Studio on a state loop, turn an elbow in Joints (and a hand offset in Hands &
+  feet), Export, run `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts`
+  changes), rebuild, reset those sliders: the pose looks the same. In a co-op pair loop (and with a partner) role B /
+  the partner shows the same tune; the guard in a hold pair does not.
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
