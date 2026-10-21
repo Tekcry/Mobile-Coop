@@ -43,6 +43,11 @@ Added ~14:10:
     state drop-down plays that state's loop; "Loop on the spot" sits on every tab (a header toggle, plus a key and a pad
     button) and works for every moving state; if a state still drifts with it on, that is a bug to fix.
 
+14. (~14:50) "can you also make the anim level brighter, the character is quite dark. more light is fine but wont help
+    if the character is moving though". Anim Studio stage only: a three-point rig (key, fill, rim) that follows her
+    (moves with the root, keeps its angle to the camera or to her facing), a brighter ambient, and a "Stage light"
+    slider in the View tab (default bright). Studio only: the game's lighting and light parity are untouched.
+
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
 ## Order
