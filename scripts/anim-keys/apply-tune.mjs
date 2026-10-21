@@ -7,6 +7,8 @@
 // --force overrides. After baking, reset the Keys section before the next export.
 // (marlow-bays item 23) A key's timing edit moves its `phase`; written in place, src/anim/tuneKeysMeta.ts is
 // regenerated (meta.mjs) so the tuner reads the new key times.
+// (marlow-bays item 25) An added key (`key.<clip>.a<s>`) or a deleted key (`del`) rewrites the key list (phase order);
+// the meta is regenerated the same way.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';

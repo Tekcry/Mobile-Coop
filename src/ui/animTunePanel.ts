@@ -37,17 +37,37 @@ import { TunePadCtl } from './animTunePad';
 import { projectPoint } from './overlayProject';
 import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
 import { StudioPanel } from './studioPanel';
-import { keyGroupId, parseKeyGroup } from '../anim/tuneKeysFile';
-import { keyClip, keyReadout } from '../anim/keyTimeline';
-import { tuneKeysMirror, tuneKeysMirrorOn, tuneKeysRetime, tuneKeysTimeInfo } from '../anim/tuneKeys';
-import { KEY_SPAN, KEY_TIME_ID } from '../anim/tuneKeysTime';
+import { keyGroupId } from '../anim/tuneKeysFile';
+import { keyClip, keyIsLive, keyPhase, keyRank, keyReadout, keyStep } from '../anim/keyTimeline';
+import { tuneKeysAdd, tuneKeysDelete, tuneKeysEditInfo, tuneKeysGroupOf, tuneKeysIdOf, tuneKeysMirror, tuneKeysMirrorOn, tuneKeysRetime, tuneKeysTimeInfo } from '../anim/tuneKeys';
+import { KEY_SPAN, KEY_TIME_ID, keyTimeCount } from '../anim/tuneKeysTime';
+import { KEY_ADD_SLOTS, KEY_AT_ID, KEY_DEL_ID } from '../anim/tuneKeysEdit';
 
-/** (marlow-bays T1a, item 18) A Keys list choice shown: a key (not the Mirror box group); with the box on, an own key. */
+/**
+ * (marlow-bays T1a, item 18) A Keys list choice shown: a key (not the Mirror box group); with the box on, an own key.
+ * (item 25) A live key only: not deleted; an added key's group while it is placed.
+ */
 function keyListed(clip: string, seg: string): boolean {
-  if (!/^\d+$/.test(seg)) return false;
   const c = keyClip(clip);
-  if (!c || !c.mirror) return true;
-  return !tuneKeysMirrorOn(clip) || Number(seg) < c.phases.length;
+  if (!c) return /^\d+$/.test(seg);
+  const k = keySegId(clip, seg);
+  if (k < 0 || !keyIsLive(c, k)) return false;
+  if (k >= keyTimeCount(c) || !c.mirror) return true;
+  return !tuneKeysMirrorOn(clip) || k < c.phases.length;
+}
+
+/** (item 25) A Keys picker segment ('3', 'a0') of a clip -> its key id (-1: not a key). */
+function keySegId(clip: string, seg: string): number {
+  return /^(\d+|a\d+)$/.test(seg) ? (tuneKeysIdOf(`key.${clip}.${seg}`)?.[1] ?? -1) : -1;
+}
+
+/** (item 25) A Keys picker choice: "Key 3", numbered in phase order; an added key marked. */
+function keyPickLabel(clip: string, seg: string): string {
+  const c = keyClip(clip);
+  const k = keySegId(clip, seg);
+  if (!c || k < 0) return seg;
+  const r = keyRank(c, k);
+  return `Key ${(r < 0 ? k : r) + 1}${k >= keyTimeCount(c) ? ' (added)' : ''}`;
 }
 import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioEntry } from '../anim/studio';
 import { promptHtml, type PromptButton } from './prompts';
@@ -441,6 +461,9 @@ export class AnimTunePanel {
   private keyLateBtn: HTMLButtonElement | null = null;
   private keyTimeRange: HTMLInputElement | null = null;
   private keyTimeEl: HTMLDivElement | null = null;
+  // --- (marlow-bays item 25) the Keys tab's "Add key" / "Delete key"
+  private keyAddBtn: HTMLButtonElement | null = null;
+  private keyDelBtn: HTMLButtonElement | null = null;
   // --- (marlow-bays item 10) the selected row (its pad key), its target on the body and the scene marker
   private selKey = '';
   /** The pad focus last taken as the selection. */
@@ -1024,6 +1047,19 @@ export class AnimTunePanel {
         const b = this.keyMirrorBox;
         if (b && !b.disabled && b.checked !== on) b.click();
       },
+      // (marlow-bays item 25) "Add key" / "Delete key" (as the buttons) and what they would do on the key now
+      keysAdd: () => this.keysAdd(),
+      keysDelete: () => this.keysDelete(),
+      keysEdit: () => {
+        const k = this.keysTimeKey();
+        return {
+          clip: k?.[0] ?? '',
+          key: k?.[1] ?? -1,
+          info: k ? tuneKeysEditInfo(k[0], k[1]) : null,
+          add: this.keyAddBtn ? { disabled: this.keyAddBtn.disabled, title: this.keyAddBtn.title } : null,
+          del: this.keyDelBtn ? { disabled: this.keyDelBtn.disabled, title: this.keyDelBtn.title } : null,
+        };
+      },
       // (marlow-bays item 9) the mouse mode
       mouse: () => ({ mode: this.mouseCtl.mode, free: this.mouseCtl.free, locked: this.mouseHost?.locked() ?? false, dragging: this.mouseHost?.dragging() ?? false, button: this.mouseBtn.textContent ?? '' }),
       mouseMode: (m: TunerMouseMode) => {
@@ -1569,7 +1605,7 @@ export class AnimTunePanel {
       const w = sid === 'hand' || sid === 'weapon' || sid === 'gun' ? (groupPath(g, sec.prefix)[0] ?? '') : '';
       if (w === 'rifle' || w === 'pistol') this.studioUi.setWeapon(w);
       // (T1a, item 15) a clip or key picked in the Keys tab: that clip on the spot, paused on that key
-      const kg = sid === 'keys' ? parseKeyGroup(g) : null;
+      const kg = sid === 'keys' ? tuneKeysIdOf(g) : null; // (item 25) an added key too
       if (kg) {
         this.loopFromTab = this.keyPicking = true;
         try {
@@ -1634,12 +1670,19 @@ export class AnimTunePanel {
       let opts = levelOptions(groups, sec.prefix, path, k);
       // (marlow-bays T1a, item 18) the Keys tab's key list: the keys only (not the Mirror box's group); with the Mirror
       // box on, a mirrored clip's own keys (its mirrored half follows them)
-      if (sec.reg.id === 'keys' && k === 1) opts = opts.filter((s) => keyListed(path[0] ?? '', s));
+      // (item 25) live keys only, in phase order (added keys among them)
+      const keysLevel = sec.reg.id === 'keys' && k === 1;
+      if (keysLevel) {
+        const clip = path[0] ?? '';
+        const c = keyClip(clip);
+        opts = opts.filter((s) => keyListed(clip, s));
+        if (c) opts.sort((x, y) => keyPhase(c, keySegId(clip, x)) - keyPhase(c, keySegId(clip, y)));
+      }
       sel.replaceChildren();
       for (const seg of opts) {
         const o = document.createElement('option');
         o.value = seg;
-        let t = plainGroupWord(sec.reg.id, k, seg);
+        let t = keysLevel ? keyPickLabel(path[0] ?? '', seg) : plainGroupWord(sec.reg.id, k, seg);
         if (sec.reg.id.startsWith('team_') && (seg === 'a' || seg === 'b')) {
           const note = sec.reg.notes?.(`${groups[0]!.split('.').slice(0, sec.prefix).join('.')}.${seg}`, '')[0];
           if (note) t = note.replace(/^([AB]) /, 'Role $1: ');
@@ -1693,7 +1736,7 @@ export class AnimTunePanel {
       (t) =>
         (!this.changedOnly || tuneGet(group, t.id) !== t.def) &&
         // (marlow-bays item 23) a key's time has its own control in the Keys block (clamped between its neighbours)
-        !(kind === 'keys' && t.id === KEY_TIME_ID),
+        !(kind === 'keys' && (t.id === KEY_TIME_ID || t.id === KEY_DEL_ID || t.id === KEY_AT_ID)), // (item 25) add / delete: the Keys block's buttons
     );
     if (!list.length) {
       const none = document.createElement('div');
@@ -3042,13 +3085,75 @@ export class AnimTunePanel {
     // (the slider lets go of the keyboard, so the arrow keys stay the game's)
     tr.addEventListener('change', () => tr.blur());
     tb.append(this.keyEarlyBtn, tr, this.keyLateBtn);
+    // (marlow-bays item 25) insert a key after this one (midway to the next, the pose as it plays there) or remove it
+    const eb = this.mkBar();
+    eb.classList.add('anim-tune-keys-editbar');
+    this.keyAddBtn = this.mkBtn('+ Add key', () => this.keysAdd(), 'k:add', 'anim-tune-keys-add');
+    this.keyDelBtn = this.mkBtn('Delete key', () => this.keysDelete(), 'k:del', 'anim-tune-keys-del');
+    eb.append(this.keyAddBtn, this.keyDelBtn);
     const te = (this.keyTimeEl = document.createElement('div'));
     te.className = 'anim-tune-keys-timing tt-note';
     const h = document.createElement('div');
     h.className = 'anim-tune-keys-hint anim-tune-keyhint tt-note';
     h.textContent = 'Key edits change one pose; whole-cycle changes go in the state tabs.';
-    d.append(b, r, tb, te, h);
+    d.append(b, r, tb, te, eb, h);
     return d;
+  }
+
+  /**
+   * (marlow-bays item 25) "Add key": a key midway to the next one (wrapping; with Mirror on in the own half, mirrored
+   * half a cycle on), its pose the one playing there, so nothing changes until it is edited. The picker and (paused)
+   * the studio go to the new key.
+   */
+  private keysAdd(): void {
+    const k = this.keysTimeKey();
+    if (!k) return;
+    const id = tuneKeysAdd(k[0], k[1]);
+    if (id < 0) {
+      const i = tuneKeysEditInfo(k[0], k[1]);
+      this.flashInfo(`${k[0]}: no key added (${i?.addWhy || 'not a key'})`);
+      return;
+    }
+    this.keysGoTo(k[0], id);
+    const c = keyClip(k[0]);
+    this.flashInfo(`${k[0]}: key added at frame ${c ? Math.round(keyPhase(c, id) * c.frames) % c.frames : '?'} (the pose as it plays there; edit it, or Delete key)`);
+  }
+
+  /** (marlow-bays item 25) "Delete key": the key removed (never key 1, never below the fewest keys); the picker goes to the key before it. */
+  private keysDelete(): void {
+    const k = this.keysTimeKey();
+    if (!k) return;
+    const c = keyClip(k[0]);
+    if (!c) return;
+    const prev = keyStep(c, keyPhase(c, k[1]), -1);
+    if (!tuneKeysDelete(k[0], k[1])) {
+      const i = tuneKeysEditInfo(k[0], k[1]);
+      this.flashInfo(`${k[0]}: not deleted (${i?.delWhy || 'not a key'})`);
+      return;
+    }
+    this.keysGoTo(k[0], keyIsLive(c, prev) ? prev : 0);
+    this.flashInfo(`${k[0]}: key deleted, ${tuneKeysEditInfo(k[0], 0)?.count ?? '?'} keys a cycle (Undo brings it back)`);
+  }
+
+  /** (item 25) The Keys picker (and in the studio, paused, the clip) to key id `k` of `clip`. */
+  private keysGoTo(clip: string, k: number): void {
+    const sec = this.sections.find((s) => s.reg.id === 'keys');
+    const g = tuneKeysGroupOf(clip, k);
+    if (sec && g) {
+      sec.group = '';
+      this.showGroup('keys', g);
+    }
+    if (STUDIO.active) {
+      this.loopFromTab = this.keyPicking = true;
+      try {
+        this.studioUi.showKey(clip, k);
+      } finally {
+        this.loopFromTab = this.keyPicking = false;
+      }
+      this.keyShown = k;
+      this.keyClipShown = clip;
+    }
+    this.nextKeys = 0;
   }
 
   /** (marlow-bays item 23) The key the timing control moves: the one the readout names (the studio's key when it stands on one). */
@@ -3069,7 +3174,7 @@ export class AnimTunePanel {
     if (!tuneKeysRetime(k[0], k[1], delta)) {
       const i = tuneKeysTimeInfo(k[0], k[1]);
       if (i?.fixed) this.flashInfo(`${k[0]}: key 1 starts the cycle; its time is fixed`);
-      else if (i) this.flashInfo(`${k[0]}: key ${k[1] + 1} is against the next key; it cannot move further`);
+      else if (i) this.flashInfo(`${k[0]}: key ${keyRank(keyClip(k[0])!, k[1]) + 1} is against the next key; it cannot move further`);
       return;
     }
     if (STUDIO.active && (this.frozen || STUDIO.entry !== `keyed:${k[0]}`)) this.studioUi.showKey(k[0], k[1]);
@@ -3079,7 +3184,7 @@ export class AnimTunePanel {
   /** The clip and key the Keys section shows (null: none). */
   private keysShown(): [string, number] | null {
     const sec = this.sections.find((s) => s.reg.id === 'keys');
-    return sec ? parseKeyGroup(sec.group) : null;
+    return sec ? tuneKeysIdOf(sec.group) : null; // (item 25) [clip, key id]: an added key too
   }
 
   /** (T1a) "◀ Key" / "Key ▶": in the studio the shown clip steps a key (it plays first if another loop does); outside it
@@ -3094,8 +3199,15 @@ export class AnimTunePanel {
     }
     const c = keyClip(p[0]);
     if (!c) return;
-    const n = c.mirror && tuneKeysMirrorOn(p[0]) ? c.phases.length : c.mirror ? c.phases.length * 2 : c.phases.length;
-    this.showGroup('keys', keyGroupId(p[0], (((p[1] + dir) % n) + n) % n));
+    // (item 25) the listed keys in phase order (live keys only, added keys among them)
+    const T = keyTimeCount(c);
+    const ids: number[] = [];
+    for (let k = 0; k < T + KEY_ADD_SLOTS; k++) if (keyListed(p[0], k < T ? String(k) : `a${k - T}`)) ids.push(k);
+    if (!ids.length) return;
+    ids.sort((x, y) => keyPhase(c, x) - keyPhase(c, y));
+    const at = Math.max(0, ids.indexOf(p[1]));
+    const n = ids.length;
+    this.showGroup('keys', tuneKeysGroupOf(p[0], ids[(((at + dir) % n) + n) % n]!));
   }
 
   /** (T1a, item 18) The Mirror box: the shown clip's mirrored half follows its own keys (on) or is edited on its own. */
@@ -3105,7 +3217,9 @@ export class AnimTunePanel {
     tuneKeysMirror(p[0], on);
     const c = keyClip(p[0]);
     // on again: a mirrored-half key shows as the own key it follows
-    if (on && c && p[1] >= c.phases.length) this.showGroup('keys', keyGroupId(p[0], p[1] - c.phases.length));
+    if (on && c && p[1] >= c.phases.length && p[1] < keyTimeCount(c)) this.showGroup('keys', keyGroupId(p[0], p[1] - c.phases.length));
+    // (item 25) an added key the box now hides (Mirror on: added keys sit in the own half) shows key 1
+    else if (c && !keyListed(p[0], p[1] < keyTimeCount(c) ? String(p[1]) : `a${p[1] - keyTimeCount(c)}`)) this.showGroup('keys', keyGroupId(p[0], 0));
     const sec = this.sections.find((s) => s.reg.id === 'keys');
     if (sec) this.rebuild(sec);
     this.flashInfo(on ? `${p[0]}: Mirror on, an edit shows on both arms half a cycle apart` : `${p[0]}: Mirror off, each key and arm on its own`);
@@ -3131,19 +3245,39 @@ export class AnimTunePanel {
     if (playing && STUDIO.onKey && STUDIO.key >= 0 && (STUDIO.key !== this.keyShown || p[0] !== this.keyClipShown)) {
       this.keyShown = STUDIO.key;
       this.keyClipShown = p[0];
-      const g = keyGroupId(p[0], c.mirror && mirrorOn && STUDIO.key >= n ? STUDIO.key - n : STUDIO.key);
+      const g = tuneKeysGroupOf(p[0], STUDIO.key); // (item 25) an added key's group too
       if (!this.pressing && !this.drop.open) this.showGroup('keys', g);
     }
     const k = playing && STUDIO.key >= 0 ? STUDIO.key : p[1];
     let t = keyReadout(c, k);
     if (playing && !STUDIO.onKey) t = `${t} (between keys)`;
-    if (c.mirror && mirrorOn && k >= n) t += `: the sliders edit key ${k - n + 1} (this key is its mirror, the arms swapped)`;
+    const T = keyTimeCount(c);
+    if (c.mirror && mirrorOn && k >= n && k < T) t += `: the sliders edit key ${keyRank(c, k - n) + 1} (this key is its mirror, the arms swapped)`;
+    // (item 25) an added key's mirror half a cycle on
+    if (c.mirror && mirrorOn && k >= T + KEY_ADD_SLOTS) t += `: the sliders edit key ${keyRank(c, k - KEY_ADD_SLOTS) + 1} (this key is its mirror, the arms swapped)`;
+    this.keysEditShow(p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]);
     if (!STUDIO.active) t += ' (open the Anim Studio to see the key)';
     if (this.keyReadoutEl.textContent !== t) this.keyReadoutEl.textContent = t;
     const box = this.keyMirrorBox!;
     if (box.checked !== mirrorOn) box.checked = mirrorOn;
     if (box.disabled !== !c.mirror) box.disabled = !c.mirror;
     this.keysTimeShow(p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]);
+  }
+
+  /** (marlow-bays item 25) "Add key" / "Delete key" follow the key: off (with why in the tooltip) when they cannot. */
+  private keysEditShow(clip: string, k: number): void {
+    const i = tuneKeysEditInfo(clip, k);
+    const a = this.keyAddBtn;
+    const d = this.keyDelBtn;
+    if (!a || !d) return;
+    const aOff = !i || i.addAt < 0;
+    const dOff = !i || !i.canDelete;
+    if (a.disabled !== aOff) a.disabled = aOff;
+    if (d.disabled !== dOff) d.disabled = dOff;
+    const at = i && i.addAt >= 0 ? `Add a key at bake frame ${i.addAt} of ${KEY_SPAN} (midway to the next key), posed as the clip plays there (the preview blends linearly; after the clip rebakes the pose can shift slightly)` : `Add key: ${i?.addWhy || 'pick a key'}`;
+    const del = i && i.canDelete ? `Delete this key (${i.count} keys a cycle now; at least ${i.min}); Undo brings it back. After the clip rebakes the pose can shift slightly` : `Delete key: ${i?.delWhy || 'pick a key'}`;
+    if (a.title !== at) a.title = at;
+    if (d.title !== del) d.title = del;
   }
 
   /** (marlow-bays item 23) The timing control follows the key: its time, phase, how far it moved, its range. */
@@ -3155,8 +3289,10 @@ export class AnimTunePanel {
     let t = '';
     if (i) {
       const d = i.pos - i.base;
-      const moved = d === 0 ? 'as baked' : `moved ${d > 0 ? '+' : ''}${d} (baked at ${i.base})`;
-      const mir = i.partner >= 0 ? `; key ${i.partner + 1} (its mirror) moves with it` : '';
+      // (item 25) an added key has no baked time; key numbers count in phase order
+      const moved = i.added ? 'an added key' : d === 0 ? 'as baked' : `moved ${d > 0 ? '+' : ''}${d} (baked at ${i.base})`;
+      const kc = keyClip(clip);
+      const mir = i.partner >= 0 && kc ? `; key ${keyRank(kc, i.partner) + 1} (its mirror) moves with it` : '';
       t = i.fixed
         ? `Time: frame ${i.frame} of ${i.frames}, phase 0.000. Key 1 starts the cycle: its time is fixed.`
         : `Time: frame ${i.frame} of ${i.frames}, phase ${i.phase.toFixed(3)} (bake frame ${i.pos} of ${KEY_SPAN}, ${moved}; ${i.lo}-${i.hi} between its neighbours${mir})`;
