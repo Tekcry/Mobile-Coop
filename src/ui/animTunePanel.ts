@@ -123,6 +123,12 @@ interface Section {
   prefix: number;
 }
 
+/** (anim-joints J2 fix) The picker level of the section's own group: its path's depth, capped at the level count (the
+ *  ids nest to different depths per section, so the deepest picker can be empty for the current group). */
+function ownLevel(sec: Section): number {
+  return Math.max(0, Math.min(groupPath(sec.group, sec.prefix).length, sec.levels.length) - 1);
+}
+
 /** The rendered camera the barrel marker projects through (a FreeCamera: vertical FOV, Euler rotation). */
 interface MarkerCam {
   position: Vector3;
@@ -1516,7 +1522,7 @@ export class AnimTunePanel {
   private fillLevels(sec: Section): void {
     const groups = sec.reg.groups;
     const path = groupPath(sec.group, sec.prefix);
-    const last = sec.levels.length - 1;
+    const last = ownLevel(sec);
     for (let k = 0; k < sec.levels.length; k++) {
       const sel = sec.levels[k]!;
       let opts = levelOptions(groups, sec.prefix, path, k);
@@ -2584,16 +2590,16 @@ export class AnimTunePanel {
     const sid = key.split(':')[1] ?? '';
     const sec = this.sections.find((s) => s.reg.id === sid);
     if (!sec) return;
-    this.padKey = `lv:${sid}:${sec.levels.length - 1}`;
+    this.padKey = `lv:${sid}:${ownLevel(sec)}`;
     this.markPadFocus();
   }
 
-  /** LT / RT: the focused section's previous / next choice at its last level (follow off, as a manual pick); the same
+  /** LT / RT: the focused section's previous / next choice at its group's own level (follow off, as a manual pick); the same
    *  slider stays focused when the new group has it. */
   private padGroup(d: number): void {
     const sec = this.sections[this.lastSec];
     if (!sec) return;
-    const k = sec.levels.length - 1;
+    const k = ownLevel(sec);
     const path = groupPath(sec.group, sec.prefix);
     const opts = levelOptions(sec.reg.groups, sec.prefix, path, k);
     if (opts.length < 2) return;
