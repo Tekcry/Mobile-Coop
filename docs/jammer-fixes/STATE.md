@@ -1,11 +1,14 @@
 # jammer-fixes - state
 
-**Now:** implementer done (items 1-4, protocol 27, 10 new tests in tests/jammerFixes.test.ts); npm run check pass (2593 tests); e2e not run yet (laptop queue).
-**Next:** checker, e2e-ctcourse + e2e-coop, full e2e, PR (patch), tell
+**Now:** implementer done (items 1-4, protocol 27, 10 new tests in tests/jammerFixes.test.ts); npm run check pass (2593 tests); e2e not run yet (laptop queue). Checker PASS (116a6efc; 144 targeted tests, tsc clean). PR open.
+**Next:** e2e-ctcourse + e2e-coop, full e2e, PR (patch), tell
 "Night Shift | Orchestrator".
 
 ## Done
 - 2026-10-22: BRIEF, STATE.
+- 2026-10-22: fixes 116a6efc; checker PASS. Polish (not done): a client's setGroup(gid, true) relights a lamp an EMP
+  has out when the host sends the group on (pre-existing, not jam-related); `eyeClear` declared between `losA` and
+  `losB` in ctDevices.ts.
 
 ## Resume prompt
 ```
