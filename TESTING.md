@@ -46,6 +46,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
   station opening; at station 2 the far player unbolts and either player can then open the door; a bay restart brings
   an alive partner back to the airlock too.
+- [ ] Marlow Yard is a bunker: a ceiling over every cell and airlock (no sky anywhere), every lamp in a fitting (pendants
+  in the tall halls, strips / panels / caged bulkheads elsewhere); the S2 / S5 / S7 leg-ups, the S4 throw under the
+  header and the S7 rope work as before; the floor between the pools reads as before on the light meter.
+- [ ] Marlow Yard variety: each cell reads as what it is (sentry desk, monitor wall, kill-house plywood, scanner frames
+  and racks, training-block stair, the exit coffer); nothing new to climb or bump into but the S6 racks; the guard grab
+  at station 1 and every door work as before.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores
@@ -105,12 +111,17 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   feet move apart live and the crab readout (F3, top left) changes; the picker follows walk / jog / crouch / wall / ladder; reload the page and the value
   is kept; Export downloads `anim-tune-<date>.json`; Reset group puts it back. Saved values stay applied with F3 closed:
   press Reset all before judging the game's own defaults.
-- [ ] Animation tuner by pad (tuner-camera pass 2 map, strip at the bottom of the panel): Pause > Animation tuner (dev)
-  with A; "PAD: tuner" and an amber outline on a slider. The D-pad moves the outline through every control and never
-  changes a value; A on a slider turns the outline green (edit): left / right step it (hold: faster), LT held fine, A
-  keeps, B puts it back; X resets the row; Y opens the menu (B closes it); LB / RB jump between sections, LT / RT change
-  the state. View: "PAD: game", walk; View again: the game freezes mid-step, move a slider and the frozen pose changes;
-  View: it walks on. Hold R3: the untuned animation. Menu closes the panel.
+- [ ] Animation tuner by pad (tuner-ui map, glyph strip at the bottom of the panel, never over a row): Pause >
+  Animation tuner (dev) with A: the Body tab, "Pad: tuner · paused", the game holds still. LB / RB cycle the tabs (View
+  ... Co-op, Settings, wrapping). Every value shows in a light box without touching it. On "State" A opens a list you can
+  see; the D-pad moves, B backs out, A picks and the outline steps on to the sliders. A on a slider turns the outline
+  green (edit): left / right step it (hold: faster), LT held fine, A keeps, B puts it back; X resets the row; B from a
+  slider goes back to the State list; Y opens the menu (B closes it). View: "Pad: game", walk; View again: the game holds
+  still, move a slider and the still pose changes. Hold R3: the untuned animation. Menu closes the panel. Settings >
+  Size: Small / Medium / Large; the panel fits a 1080p screen and a phone in landscape. Labels are plain ("Foot width").
+- [ ] Pause and the tuner: open the pause menu with the tuner open (and in the Anim Studio with a walk loop playing):
+  she does not move behind the menu, the pad drives the menu. View tab: Side - the camera holds her side as she turns
+  and walks; Unlock frees it.
 - [ ] Free view: tools "free view" orbit - the right stick circles Wren, the triggers zoom, the left stick walks her;
   fly - the left stick flies, demo "walk" walks her in a circle; B ends it and the camera is back exactly where it was.
   "hide HUD" hides the HUD; "game speed" 0.25 slows the game; Pause / Step stop and step it.
@@ -126,11 +137,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
   Reset group puts it back; Export lists the `cam.` values.
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
-  grid, the tuner docked with a Studio section on top, the crab readout top left, the pad on the loop list. Pick
-  "keyed: walk": she walks in place, the feet stepping (green dots planted, orange rings swinging, short trails); Pause,
-  "key >" / "< key" and the scrub move one key / any point; speed 2x; mirror; root motion walks the circle; "state:
-  aim glide strafe" draws and strafes the circle. Onion skin shows the previous (blue) / next (orange) key once played;
-  turntable circles the view; Front / Side / Back / Top snap the view; guard puts a figure at the hold spot. Move a
+  grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
+  list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
+  trails), and the Body tab shows Walk; Pause, "Key ▶" / "◀ Key" and the time slider move one key / any point; speed 2x;
+  mirror; "Loop on the spot" off walks the circle; "Walk" (a state) on the spot: she walks without travelling, the
+  feet sliding back under her; "Aim glide strafe" with on the spot off draws and strafes the circle. Ghost poses show the
+  previous (blue) / next (orange) key once played; turntable circles the view; Front / Side / Back / Top lock the view;
+  guard puts a figure at the hold spot. Move a
   slider, Ctrl+Z (or Y menu > Undo) puts it back, Ctrl+Y redoes; Store A, change, Store B, A/B flips; Save a preset,
   Reset all, Load brings it back. Quit to the menu: normal speed, no studio left.
 - [ ] Anim Studio pairs and traversal (anim-studio-2): in the studio pick "pair: leg-up": two Wrens at the team block

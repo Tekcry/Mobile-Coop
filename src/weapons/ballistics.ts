@@ -36,6 +36,8 @@ interface Projectile {
 /** Shared ray/projectile logic for player and enemy weapons. */
 export class Ballistics {
   private res = new PhysicsRaycastResult();
+  /** (camera-cue fix) The one ray query every cast reuses (no object literal per ray). */
+  private readonly q = { membership: G.PROJECTILE, collideWith: 0 };
   private projectiles: Projectile[] = [];
   private eng: PhysicsEngine;
   /** Impact hook (audio). */
@@ -69,20 +71,23 @@ export class Ballistics {
   /** True when nothing in `collideWith` lies between the two points (no allocation). */
   clear(from: Vector3, to: Vector3, collideWith: number): boolean {
     this.res.reset();
-    this.eng.raycastToRef(from, to, this.res, { membership: G.PROJECTILE, collideWith });
+    this.q.collideWith = collideWith;
+    this.eng.raycastToRef(from, to, this.res, this.q);
     return !this.res.hasHit;
   }
 
   /** Distance to the first hit in `collideWith` along the segment, or the segment's length (no allocation). */
   hitDistance(from: Vector3, to: Vector3, collideWith: number): number {
     this.res.reset();
-    this.eng.raycastToRef(from, to, this.res, { membership: G.PROJECTILE, collideWith });
+    this.q.collideWith = collideWith;
+    this.eng.raycastToRef(from, to, this.res, this.q);
     return this.res.hasHit ? Vector3.Distance(from, this.res.hitPoint) : Vector3.Distance(from, to);
   }
 
   ray(from: Vector3, to: Vector3, collideWith: number): RayHit {
     this.res.reset();
-    this.eng.raycastToRef(from, to, this.res, { membership: G.PROJECTILE, collideWith });
+    this.q.collideWith = collideWith;
+    this.eng.raycastToRef(from, to, this.res, this.q);
     const r = this.res;
     if (!r.hasHit) return { hit: false, point: to.clone(), normal: Vector3.Up(), distance: Vector3.Distance(from, to) };
     const out: RayHit = {

@@ -428,22 +428,60 @@ try {
     assert(!(await GM(() => !!document.querySelector('.pause-screen .ps-notice:not([hidden])'))), 'a reconnect clears the line');
     await GM(() => window.__app.screens.top.resume());
     await frames(P, 4);
-    // (tuner-pad; pass 2 map) the tuner by pad: Pause > Animation tuner (A) takes the pad with the focus on a slider;
-    // the D-pad moves the focus and never changes a value; A edits (right / left adjust), B cancels, A keeps, X resets the
-    // row; Y opens the menu, B closes it; RB jumps to the next section, RT switches its state; the left stick does not
-    // reach the game; View hands the pad to the game and back (freezing the game), Menu (Start) closes
+    // (tuner-ui) the tuner by pad: Pause > Animation tuner (A) takes the pad on the Body tab's first picker and the game
+    // holds still (pause while tuning); every value shows without touching it, readable on dark; the hint strip sits
+    // under the rows; LB / RB cycle the tabs (wrapping); A opens a drop-down list (the D-pad moves, B backs out, A picks:
+    // the state changes and the focus steps on to the sliders); A edits a slider (right / left adjust), B cancels, A
+    // keeps, X resets; B from a slider goes back to the picker; Y opens the menu, B closes it; RT switches the state; RB
+    // reaches Keys; the left stick does not reach the game; View hands the pad to the game (running) and back (held);
+    // Menu (Start) closes and the game runs
     await GM(() => window.__app.current.pause());
     await frames(P, 4);
     await GM(() => window.__app.nav.focus(document.querySelector('.pause-screen [data-key="anim-tuner"]')));
     await press(P, BTN.A);
     await frames(P, 3);
     const tpad = () => GM(() => window.__animTune.pad());
+    const tScale = () => GM(() => window.__app.loop.timeScale);
     const tp0 = await tpad();
-    assert(tp0.mode === 'tuner' && tp0.id !== '' && (await GM(() => !document.querySelector('.anim-tune').hidden)), `tuner: Pause > Animation tuner by pad opens it with the pad on a slider (${JSON.stringify(tp0)})`);
+    assert(tp0.mode === 'tuner' && tp0.tab === 'body' && /^(part|lv):/.test(tp0.key) && (await GM(() => !document.querySelector('.anim-tune').hidden)), `tuner: Pause > Animation tuner by pad opens it on the Body tab's picker (${JSON.stringify(tp0)})`);
+    assert(tp0.frozen && (await tScale()) === 0, `tuner: the game holds still while the tuner has the pad (scale ${await tScale()})`);
+    const tvis = await GM(() => {
+      const nums = [...document.querySelectorAll('.anim-tune-tab:not([hidden]) .anim-tune-num')].filter((e) => e.offsetParent);
+      const c = nums[0] ? getComputedStyle(nums[0]) : null;
+      const rgb = (s) => (s?.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number).reduce((a, b) => a + b, 0);
+      const btn = [...document.querySelectorAll('.anim-tune-tab:not([hidden]) .tt-btn')].find((b) => b.offsetParent && !b.closest('.tt-focus'));
+      const hb = document.querySelector('.anim-tune-hints').getBoundingClientRect();
+      const bb = document.querySelector('.anim-tune-body').getBoundingClientRect();
+      return { n: nums.length, vals: nums.map((e) => e.value), fg: rgb(c?.color), btnFg: rgb(btn && getComputedStyle(btn).color), btnBg: rgb(btn && getComputedStyle(btn).backgroundColor), hintTop: hb.top, bodyBottom: bb.bottom, hintH: hb.height };
+    });
+    assert(tvis.n > 0 && tvis.vals.every((v) => v !== '' && Number.isFinite(Number(v))), `tuner: every value shows without touching it (${tvis.n} rows: ${tvis.vals.slice(0, 4).join(', ')})`);
+    assert(tvis.fg > 450 && tvis.btnFg > 450 && tvis.btnBg < 300, `tuner: values and buttons are light on dark (value ${tvis.fg}, button ${tvis.btnFg} on ${tvis.btnBg})`);
+    assert(tvis.hintH > 10 && tvis.hintTop >= tvis.bodyBottom - 0.5, `tuner: the hint strip is reserved space under the rows (${tvis.hintTop.toFixed(1)} >= ${tvis.bodyBottom.toFixed(1)})`);
+    // LB / RB cycle the tabs
+    const tabSeq = [];
+    for (const b of [BTN.RB, BTN.LB, BTN.LB, BTN.LB, BTN.RB, BTN.RB]) {
+      await press(P, b);
+      tabSeq.push((await tpad()).tab);
+    }
+    assert(tabSeq.join(',') === 'hands,body,view,settings,view,body', `tuner: LB / RB cycle the tabs and wrap (${tabSeq.join(',')})`);
+    // the drop-down: the state picker opens as a list, B backs out, A picks and the focus steps on
+    for (let i = 0; i < 4 && !(await tpad()).key.startsWith('lv:body:'); i++) await press(P, BTN.DOWN);
+    const g0 = await GM(() => window.__animTune.group('body'));
+    await press(P, BTN.A);
+    const dl = await tpad();
+    const dlShown = await GM(() => { const l = document.querySelector('.anim-tune-drop-list'); return l.hidden ? 0 : l.children.length; });
+    assert(dl.list && dlShown >= 10 && dl.key === 'lv:body:0', `tuner: A opens the state list where you can see the choices (${JSON.stringify({ key: dl.key, list: dl.list, shown: dlShown })})`);
     await press(P, BTN.DOWN);
-    const tp1 = await tpad();
-    assert(tp1.key !== tp0.key, `tuner: D-pad down moves the focus (${tp0.key} -> ${tp1.key})`);
-    for (let i = 0; i < 6 && !(await tpad()).id; i++) await press(P, BTN.DOWN);
+    const dl1 = await tpad();
+    await press(P, BTN.B);
+    assert(dl1.listIndex === Math.min(dl.listIndex + 1, dl.listLength - 1) && !(await tpad()).list && (await GM(() => window.__animTune.group('body'))) === g0, `tuner: the D-pad moves in the list, B backs out with nothing changed (${dl.listIndex} -> ${dl1.listIndex})`);
+    await press(P, BTN.A);
+    if (dl.listIndex === dl.listLength - 1) await press(P, BTN.UP);
+    else await press(P, BTN.DOWN);
+    await press(P, BTN.A);
+    const g1 = await GM(() => window.__animTune.group('body'));
+    const tpk = await tpad();
+    assert(g1 !== g0 && !tpk.list && tpk.key.startsWith('s:body:'), `tuner: A picks the state and the focus steps on to its sliders (${g0} -> ${g1}, ${tpk.key})`);
     const ts = await tpad();
     const tv = () => GM((q) => window.__animTune.get(q.group, q.id), ts);
     const tv0 = await tv();
@@ -473,39 +511,32 @@ try {
     assert(tm.menu && tm.key.startsWith('m:'), `tuner: Y opens the menu (${tm.key})`);
     await press(P, BTN.B);
     assert(!(await tpad()).menu && (await tpad()).key === ts.key, 'tuner: B closes the menu, the focus comes back');
-    const s0 = (await tpad()).section;
-    await press(P, BTN.RB);
+    await press(P, BTN.B);
+    assert((await tpad()).key === 'lv:body:0', `tuner: B from a slider goes back to the state picker (${(await tpad()).key})`);
     const s1 = await tpad();
-    assert(s1.section !== s0 && s1.key === `pick:${s1.section}`, `tuner: RB jumps to the next section (${s0} -> ${s1.section})`);
     await press(P, BTN.RT);
     const s2 = await tpad();
-    assert(s2.sectionGroup !== s1.sectionGroup, `tuner: RT switches that section's state (${s1.sectionGroup} -> ${s2.sectionGroup})`);
-    // (tuner-v2 wiring) RB steps through the sections and reaches Keys, the last registered one (item 4)
+    assert(s2.sectionGroup !== s1.sectionGroup, `tuner: RT switches the state (${s1.sectionGroup} -> ${s2.sectionGroup})`);
+    // RB steps through the tabs and reaches Keys
     let tpW = await tpad();
-    for (let k = 0; k < 12 && !String(tpW.sectionGroup ?? tpW.group ?? '').startsWith('key.'); k++) {
+    for (let k = 0; k < 12 && tpW.tab !== 'keys'; k++) {
       await press(P, BTN.RB);
       tpW = await tpad();
     }
-    assert(String(tpW.sectionGroup ?? tpW.group ?? '').startsWith('key.'), `tuner: the pad reaches the Keys section (${JSON.stringify(tpW)})`);
+    assert(tpW.tab === 'keys' && String(await GM(() => window.__animTune.group('keys'))).startsWith('key.'), `tuner: the pad reaches the Keys tab (${JSON.stringify(tpW)})`);
     await GM(() => window.__pad.axis(1, -1));
     await frames(P, 8);
     const tMove = await GM(() => window.__app.input.state.move.y);
     await GM(() => window.__pad.axis(1, 0));
     await frames(P, 3);
     assert(tMove === 0, `tuner: the left stick does not reach the game while the tuner has the pad (${tMove})`);
-    const tScale = () => GM(() => window.__app.loop.timeScale);
     await press(P, BTN.SELECT);
     await frames(P, 3);
-    assert((await tpad()).mode === 'game', 'tuner: View hands the pad to the game');
+    assert((await tpad()).mode === 'game' && !(await tpad()).frozen && (await tScale()) === 1, `tuner: View hands the pad to the game and it runs (scale ${await tScale()})`);
     await press(P, BTN.SELECT);
     await frames(P, 3);
     const fz = await tpad();
-    assert(fz.mode === 'tuner' && fz.frozen && (await tScale()) === 0, `tuner: View back to the tuner freezes the game (${JSON.stringify(fz)}, scale ${await tScale()})`);
-    await press(P, BTN.SELECT);
-    await frames(P, 3);
-    assert((await tpad()).mode === 'game' && !(await tpad()).frozen && (await tScale()) === 1, `tuner: View to the game resumes it (scale ${await tScale()})`);
-    await press(P, BTN.SELECT);
-    await frames(P, 3);
+    assert(fz.mode === 'tuner' && fz.frozen && (await tScale()) === 0, `tuner: View back to the tuner holds the game still (${JSON.stringify(fz)}, scale ${await tScale()})`);
     await press(P, BTN.START);
     await frames(P, 3);
     const tp2 = await tpad();

@@ -107,10 +107,16 @@ export class TunePadCtl {
     this.editing = false;
   }
 
-  /** The free view turned on (the pad goes to it) or off (the pad comes back to the panel). */
-  setFree(on: boolean): void {
+  /** (tuner-ui) The pause menu has the pad: every button held now stays swallowed once the tuner gets it back. */
+  hold(): void {
+    this.quiet = true;
+  }
+
+  /** The free view turned on (the pad goes to it, unless `take` is false: a held camera snap keeps the pad on the panel)
+   *  or off (the pad comes back to the panel). */
+  setFree(on: boolean, take = true): void {
     this.freeOn = on;
-    if (this.mode === 'off') return;
+    if (this.mode === 'off' || (on && !take)) return;
     const next = on ? 'free' : this.mode === 'free' ? 'tuner' : this.mode;
     if (next !== this.mode) {
       this.mode = next;

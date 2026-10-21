@@ -33,9 +33,9 @@ export interface Damageable {
   readonly id: string;
   readonly team: Team;
   readonly alive: boolean;
-  /** World position used for explosions, aim assist and radar. */
+  /** World position used for explosions and radar. */
   center(out: Vector3): Vector3;
-  /** Where aim assist should pull (usually chest). */
+  /** Where a shooter aims at this target (usually chest; the enemy AI reads it). */
   aimPoint(out: Vector3): Vector3;
   /** Head position, when it can be seen on its own (a player ducked behind low cover but peeking). */
   headPoint?(out: Vector3): Vector3;

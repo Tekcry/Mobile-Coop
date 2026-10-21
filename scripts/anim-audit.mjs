@@ -136,10 +136,6 @@ await G(([NODES, W, names, LOWER]) => {
   const rig = p.rig;
   const V = p.position.constructor;
   g.target.damageMul = 0;
-  // (step 12b fix r1) no aim assist: its magnetism turns the camera toward the map's guards, whose positions carry
-  // the real-time frames before the harness takes the loop (the wall entry and head read the camera: the open-side
-  // rows were not repeatable)
-  g['applyAimAssist'] = () => {};
   a.loop.manual = true;
   // step 07 carry (wall-clock leak between scenarios): with the loop manual the engine's render loop still ran
   // `scene.render()` every display frame between the page.evaluate calls (render observers, timers and the physics

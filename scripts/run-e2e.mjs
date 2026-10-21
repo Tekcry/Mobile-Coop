@@ -70,6 +70,8 @@ const COVERS = {
   'src/ui/tuneSnapshots': ['e2e-studio', 'e2e-menus'],
   'src/ui/overlayProject': ['e2e-studio', 'e2e-menus'],
   'src/ui/animTune': ['e2e-studio', 'e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
+  // (tuner-ui) the tuner panel's pure layout
+  'src/ui/tunerLayout': ['e2e-studio', 'e2e-menus'],
   'src/core/quality': ['e2e-desktop', 'e2e-lightbake'],
   'src/core/display': ['e2e-desktop'],
   'src/core/settings': ['e2e-desktop', 'e2e-menus'],

@@ -107,6 +107,7 @@ import type { MoveOverride } from '../player/playerController';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { coverQuality, exposureFraction, exposurePoints, exposurePointsPosed, segPointDist, Suppression, type P3 } from './tactics';
 import { lightSampleHeight, STANDARD_BODY } from './bodyHeight';
+import type { SeenBody } from '../security/securitySystem';
 import { hyp2 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
@@ -204,6 +205,9 @@ export interface NetAttachment {
   revivesLeft?(): number;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
   releaseHolds?(): void;
+  /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
+   *  `out` from index `from` (entries added when missing); returns how many. */
+  partnerBodies?(out: SeenBody[], from: number): number;
   /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
   sendJam?(tgt: string): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
@@ -369,6 +373,8 @@ export class GameState implements AppState {
   readonly gadgets: GadgetSystem;
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
   private readonly blankInp = new InputState();
+  /** (tuner-ui) The input while the pause menu is open: never written (no move, no button). */
+  private readonly menuInp = new InputState();
   /** (tuner-camera) The tuner's free view (dev): the game's own input while it runs (the orbit's move, the fly demo
    *  loop), its camera, the mode last frame, the demo loop's clock and the crouch press spacing. */
   private readonly freeInp = new InputState();
@@ -805,6 +811,11 @@ export class GameState implements AppState {
           for (const d of world.doors.list) world.doors.setOpen(d, false);
         },
         attachKind: () => (g.traversal.attached ? (g.traversal.attach.anchor?.kind ?? '') : ''),
+        // (tuner-ui) the treadmill of a state on the spot: the body and its feet back by what it moved
+        shift: (dx, dz) => {
+          g.player.controller.shift(dx, dz);
+          g.player.rig.shiftWorld(dx, dz);
+        },
       });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
@@ -988,6 +999,11 @@ export class GameState implements AppState {
 
   get simulating(): boolean {
     return !this.paused;
+  }
+
+  /** (tuner-ui) The pause menu (or the results) is open: the animation tuner gives the pad to the menus meanwhile. */
+  get menuPaused(): boolean {
+    return this.paused || this.menuOpen;
   }
 
   enter(): void {
@@ -1521,6 +1537,11 @@ export class GameState implements AppState {
     return this.lightRay.hasHit;
   };
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
+  /** (camera-cue fix) A remote body's light as this side samples remotes (the co-op client's camera cue). */
+  bodyLight(x: number, feetY: number, z: number, height: number, crouched: boolean): number {
+    return this.world.lightField.bodyLevel(x, feetY, z, lightSampleHeight(height, crouched ? 1 : 0), this.lightOccluder);
+  }
+
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);
     // stop short of the body so the player's own hit volumes never count
@@ -1543,7 +1564,8 @@ export class GameState implements AppState {
     // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop
-    const real = this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
+    // (tuner-ui) the pause menu open (co-op: the shared sim runs on): no synthesised input at all, the body stands
+    const real = this.paused || this.menuOpen ? this.menuInp : this.studio?.drives ? this.studio.input(dt) : FREE_VIEW.mode === 'off' ? realIn : this.freeInput(dt, realIn);
     this.time += dt;
     // back from down / dead (respawn, revive, co-op): the speed gear starts over
     if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
@@ -1715,6 +1737,8 @@ export class GameState implements AppState {
     this.suppression.update(dt);
     this.weapons.spreadMul = this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
+    // (tuner-ui) the studio's treadmill: a state on the spot is held where it started
+    if (this.studio && !this.paused) this.studio.afterStep();
     this.target.sync();
     this.weapons.fixedUpdate(dt, inp);
     this.ballistics.update(dt);
@@ -1864,7 +1888,8 @@ export class GameState implements AppState {
     const C = FREE_CFG;
     // real seconds (slow motion and the tuner's freeze do not slow the view; the pause menu stops it)
     const loop = this.app.loop;
-    const rdt = loop.paused ? 0 : loop.manual ? dt : loop.realDt;
+    // (tuner-ui) the co-op pause menu stops it too
+    const rdt = loop.paused || this.menuOpen ? 0 : loop.manual ? dt : loop.realDt;
     const real = this.app.input.state;
     core.dt = rdt;
     // (anim-studio) a camera snap (once) and the turntable's spin
@@ -1872,8 +1897,12 @@ export class GameState implements AppState {
       freeSnap(FREE_VIEW.snap, this.player.rig.root.rotation.y, core);
       FREE_VIEW.snap = '';
     }
-    core.lookX = look.x + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt;
-    core.lookY = look.y + FREE_IN.ry * C.pitchRate * rdt;
+    // (tuner-ui) a held snap: the angle to her facing every frame (the look and the spin do not turn it)
+    core.lock = FREE_VIEW.lock;
+    core.bodyYaw = this.player.rig.root.rotation.y;
+    const turn = core.lock ? 0 : 1;
+    core.lookX = (look.x + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt) * turn;
+    core.lookY = (look.y + FREE_IN.ry * C.pitchRate * rdt) * turn;
     look.x = look.y = 0;
     const up = (real.down('jump') ? 1 : 0) - (real.down('crouch') ? 1 : 0);
     if (mode === 'fly') {
@@ -2217,7 +2246,7 @@ export class GameState implements AppState {
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
     this.gadgets.frameUpdate(dt);
     this.updateGadgetHud();
     this.hud.barks.update(dt, this.placeBark);
