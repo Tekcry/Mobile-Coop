@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - tuner-ui
+## 4.33.0 - Animation tuner laid out for the pad: tabs, drop-downs, one step at a time (2026-10-21, PR #80)
 - Animation tuner layout pass for the pad (Michael, 2026-10-21: "Not practical for controller use. It's such a long
   list"): tabs across the top, LB / RB (or a click) cycle them: View, Body, Hands & feet, Weapon, Stepping, Weight,
   Camera, Keys, Co-op, then any later section, then Settings. One step at a time inside a tab: a drop-down for the part
