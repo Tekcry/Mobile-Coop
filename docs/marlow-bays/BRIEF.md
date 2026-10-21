@@ -171,6 +171,31 @@ that order; the laptop tests all three:
     rows, 11-12 px text), since nothing is tapped. Switches live with the input device. Screenshots of both, at both
     orientations, before the PR.
 
+29. (~22:45) Tuner v3, simpler (track A, FIRST: ahead of item 24). Michael, verbatim: "I've had instances with the
+    controller where I couldn't access the state menu, it was jogging and I couldn't change it to walking, it kept
+    closing the menu when I tried going up. The controller layout is slow, difficult, and not intuitive. I would like to
+    scroll the menus with an analogue stick, and easily swap between adjusting camera and adjusting sliders. The body
+    part diagram is useless and using d pad for menu usage is very loud clicking constantly. Can we make the Ui more
+    minimalistic and easier to navigate with keyboard/mouse, controller, and touch? Its very confusing. Everything needs
+    to be simpler. The body part highlight is too distracting and blocks the animation, it needs to be more subtle and
+    have an option to be disabled entirely. I also need to be able to control the game with touch input (menu, control
+    camera)." Touch scope chosen: "Menus + camera" (tap every menu and the pause menu, drag to look; no touch movement
+    or combat).
+    Direction (prototype first, screenshots and a written pad map to Michael before the full build):
+    - Bug first: the pad's state drop-down closes on Up instead of moving (jog -> walk impossible). Fix and test.
+    - Minimal panel: one column, top to bottom: tab, one "what" row (part / state / weapon as plain drop-downs, no body
+      map), the sliders; everything else (search, pins, presets, playback extras) under one "More". Remove the body map.
+    - Pad: left stick scrolls the list (analogue, repeat speeds up when held), left stick left / right changes the value
+      (hold accelerates), A opens / picks, B backs out, LB / RB tabs, right stick always moves the camera (no mode
+      switch), triggers zoom, View hands the pad to the game. D-pad still works but is optional. No UI click sound in
+      the tuner (or a quiet one, with an off switch).
+    - Keyboard / mouse: wheel scrolls, arrows move, click and drag sliders, right-drag or middle-drag moves the camera
+      while the panel stays usable.
+    - Touch: tap, drag sliders, swipe to scroll the panel, the camera gestures from item 26.
+    - Highlight: subtle (a thin outline or small dot on the joint, no ring over her), with an off switch.
+    - Game touch (outside the tuner): every menu and the pause menu tappable; a drag on the game view looks around;
+      an on-screen pause button. No touch movement (M21 stays for play).
+
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
     if a pose crosses it).
