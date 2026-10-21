@@ -135,6 +135,7 @@ describe('Keyed box', () => {
     expect(loopKeyedPick('state:walk', false)).toBe('state:walk');
   });
 
+  const NO_KEYED = ['state:aimStill', 'state:crouchAim', 'state:crouchAimFwd'];
   it('every pairing names real loop entries and every state has its keyed clip', () => {
     for (const e of STUDIO_ENTRIES) {
       const k = loopKeyed(e.id);
@@ -142,7 +143,8 @@ describe('Keyed box', () => {
         expect(ids.has(k.other), `${e.id} -> ${k.other}`).toBe(true);
         expect(loopKeyed(k.other).other).toBe(e.id);
       }
-      if (e.kind === 'state') expect(k.other, e.id).not.toBe('');
+      // (marlow-bays T1a, item 19) the aim stances have no keyed clip (procedural only)
+      if (e.kind === 'state' && !NO_KEYED.includes(e.id)) expect(k.other, e.id).not.toBe('');
     }
   });
 });
@@ -161,13 +163,18 @@ describe('a state picked in a tab plays its loop (item 13)', () => {
     expect(loopForGroup('keys', 'key.sneak.3', 'state:idle')).toBe('keyed:sneak');
   });
 
-  it('keyed stays keyed; the loop already playing the state, the camera and unknown states pick nothing', () => {
+  it('keyed stays keyed; the loop already playing the state, the camera and states with no loop pick nothing', () => {
     expect(loopForGroup('joint', 'joint.walk', 'keyed:idle')).toBe('keyed:walk');
     expect(loopForGroup('joint', 'joint.walk', 'keyed:walk')).toBe('');
     expect(loopForGroup('joint', 'joint.aim', 'state:aimStrafe')).toBe('');
     expect(loopForGroup('keys', 'key.sneak.3', 'keyed:sneak')).toBe('');
     expect(loopForGroup('cam', 'cam.explore', 'state:idle')).toBe('');
-    expect(loopForGroup('body', 'ladder', 'state:idle')).toBe('');
+    // (marlow-bays T1a, item 16) a climbing state, a climb move and a co-op role play their loops
+    expect(loopForGroup('body', 'ladder', 'state:idle')).toBe('trav:ladder');
+    expect(loopForGroup('trav', 'trav.vault', 'state:idle')).toBe('trav:vault');
+    expect(loopForGroup('team_boost', 'team.boost.b', 'state:idle')).toBe('pair:boost');
+    expect(loopForGroup('team_boost', 'team.boost.a', 'pair:boost')).toBe('');
+    expect(loopForGroup('body', 'carry', 'state:idle')).toBe('');
   });
 
   it('every body state of every section maps to a real loop entry or none', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CAMERA } from '../src/config/security';
 import { CameraUnit, inFrame, newMeter, sweepYaw } from '../src/security/camera';
-import { CUE, camSeesAny, cueDir, cueEdge, cueInk, cueMesh, cuePulse, cueReach, cueSpan, cueStrength, luma709, newCue, stepCue } from '../src/security/cameraCue';
+import { CUE, camSeesAny, cueDir, cueEdge, cueInk, cueMesh, cueReach, cueSpan, cueStrength, luma709, newCue, stepCue } from '../src/security/cameraCue';
 import { cameraSight } from '../src/security/securitySystem';
 import { seenAt } from '../src/ai/perception';
 import { ELECTRO } from '../src/vfx/visionLook';
@@ -136,28 +136,20 @@ describe('camera cue: state follows the camera', () => {
     expect(luma709(e.rgb) * e.fill).toBeLessThan(ELECTRO.glowFrom * 0.2);
     expect(luma709(e.rgb) * e.line).toBeGreaterThan(3 * luma709(n.rgb) * n.line);
     expect(luma709(n.rgb) * n.line).toBeLessThan(0.1);
-    expect(luma709(n.rgb) * (n.line + n.fill + CUE.edge)).toBeLessThan(ELECTRO.glowFrom);
+    expect(luma709(n.rgb) * (n.line + n.fill)).toBeLessThan(ELECTRO.glowFrom);
   });
 
-  it('the edge pulses only while the camera sees a player', () => {
+  it('is the grid only: no edge pulse while the camera sees a player (marlow-bays item 6), the seen state still kept', () => {
     const c = newCue();
     for (let i = 0; i < 120; i++) stepCue(c, 1 / 60, 'online', false);
     expect(cueStrength(c)).toBe(1);
-    expect(cuePulse(c)).toBe(0);
-    let hi = 0;
-    let lo = 1;
-    for (let i = 0; i < 120; i++) {
-      stepCue(c, 1 / 60, 'online', true);
-      if (i > 20) {
-        hi = Math.max(hi, cuePulse(c));
-        lo = Math.min(lo, cuePulse(c));
-      }
-    }
+    expect(c.seen).toBe(false);
+    for (let i = 0; i < 60; i++) stepCue(c, 1 / 60, 'online', true);
     expect(c.seen).toBe(true);
-    expect(hi).toBeGreaterThan(CUE.edge * 0.9);
-    expect(lo).toBeLessThan(CUE.edge * 0.5);
-    for (let i = 0; i < 30; i++) stepCue(c, 1 / 60, 'online', false);
-    expect(cuePulse(c)).toBe(0);
+    expect(cueStrength(c)).toBe(1);
+    expect(Object.keys(cueInk(false)).sort()).toEqual(['fill', 'line', 'rgb']);
+    stepCue(c, 1 / 60, 'off', true);
+    expect(c.seen).toBe(false);
   });
 
   it('shares one sight test (frame, clear static ray, light over the leak) between the host think and the client', () => {

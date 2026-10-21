@@ -38,6 +38,7 @@ import { KEYED_WALL_IDLE } from './clips/keyed/wall_idle';
 import { KEYED_WALL_PEEK } from './clips/keyed/wall_peek';
 import { KEYED_WALL_SLIDE } from './clips/keyed/wall_slide';
 import { wrap01 } from './studioDrive';
+import { keyClip, keyCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
 import { pairCycle } from './studioPairs';
 import { travCycle, TRAV_ENTRIES, type TravEntry } from './studioTraversal';
@@ -147,6 +148,10 @@ const BASE_ENTRIES: readonly StudioEntry[] = [
   state('aimFwd', 'aim glide fwd', 1.0, 'fwd', false, true, true),
   state('aimStrafe', 'aim glide strafe', 1.0, 'side', false, true, true),
   state('aimBack', 'aim glide back', 0.9, 'back', false, true, true),
+  // (marlow-bays T1a, item 19) the aim stances: standing still, crouched still and crouched moving
+  state('aimStill', 'aim standing', 0, 'none', false, true, true),
+  state('crouchAim', 'crouch aim standing', 0, 'none', true, true, true),
+  state('crouchAimFwd', 'crouch aim moving', 0.9, 'fwd', true, true, true),
   keyed(KEYED_IDLE, { cycle: 12 }),
   keyed(KEYED_WALK, { pace: 1.4, step: 0.7, circle: true }),
   keyed(KEYED_JOG, { pace: 3.0, step: 1.1, circle: true }),
@@ -201,6 +206,15 @@ export function studioEntry(id: string): StudioEntry {
   return off;
 }
 
+/** (marlow-bays T1a, item 19) The studio's gun pick for every armed loop. */
+export type StudioWeapon = 'rifle' | 'pistol';
+export const STUDIO_WEAPONS: readonly StudioWeapon[] = ['rifle', 'pistol'];
+
+/** (T1a) The weapon class a loop wants in hand ('' : holstered loops keep whatever is selected). */
+export function studioWeaponFor(e: StudioEntry, weapon: StudioWeapon): string {
+  return e.drawn ? weapon : '';
+}
+
 /** Front / side / top / back camera snaps (free-view orbit presets). */
 export type StudioSnap = 'front' | 'side' | 'back' | 'top';
 
@@ -224,9 +238,19 @@ export const STUDIO = {
   onion: false,
   seek: Number.NaN,
   step: 0,
-  /** Readout: the phase the pose shows (0..1) and the clip's key count (0: a procedural state). */
+  /** (marlow-bays T1a, item 15) Requests: go to key `seekKey` (-1 none) of the keyed clip, or one key back / forward
+   *  (`keyStep` -1 / 1; 0 none), in place. Pairs step by frame (`step`). */
+  seekKey: -1,
+  keyStep: 0,
+  /** (T1a, item 19) The gun every armed loop plays with ('rifle' or 'pistol'). */
+  weapon: 'rifle' as StudioWeapon,
+  /** Readout: the phase the pose shows (0..1) and the clip's frame count (0: a procedural state). */
   phase: 0,
   frames: 0,
+  /** (T1a) Readout: the keyed clip's key count (0: no keys) and the key nearest the phase, and whether the phase is on it. */
+  keys: 0,
+  key: -1,
+  onKey: false,
   /** Bumped by the panel on every tuner change (the onion skin's cached keys are stale then). */
   poseVer: 0,
 };
@@ -243,7 +267,10 @@ const PAIR_DEFAULTS = { ...STUDIO_PAIR };
 
 /** Leaving the studio: every switch back to its default (inactive). */
 export function studioReset(): void {
+  // (T1a) the gun pick is kept across studio visits, as the stage light
+  const weapon = STUDIO.weapon;
   Object.assign(STUDIO, DEFAULTS);
+  STUDIO.weapon = weapon;
   Object.assign(STUDIO_PAIR, PAIR_DEFAULTS);
   STUDIO_RIGS.length = 0;
   STUDIO_TARGET.rig = null;
@@ -276,6 +303,34 @@ export function studioStepPhase(phase: number, frames: number, dir: number): num
 export function studioScrub(v: number): number {
   if (!Number.isFinite(v)) return 0;
   return Math.max(0, Math.min(0.9999, v));
+}
+
+/**
+ * (marlow-bays T1a, item 15) A keyed clip's key request: the phase of key `seekKey` (>= 0), else of the next key back /
+ * forward (`keyStep` -1 / 1) from `phase`; NaN when there is nothing to do (no request, or a clip with no key table).
+ */
+export function studioKeyPhase(clip: string, phase: number, seekKey: number, keyStep: number): number {
+  const c = keyClip(clip);
+  if (!c) return Number.NaN;
+  if (seekKey >= 0) return keyPhase(c, Math.min(seekKey, keyCount(c) - 1));
+  if (keyStep !== 0) return keyPhase(c, keyStep_(c, phase, keyStep));
+  return Number.NaN;
+}
+
+/** (T1a) The readout's key fields for a keyed clip at `phase` (no key table: 0 keys, key -1). No allocation. */
+export function studioKeyInfo(clip: string, phase: number, out: { keys: number; key: number; onKey: boolean }): void {
+  const c = clip ? keyClip(clip) : null;
+  if (!c) {
+    out.keys = 0;
+    out.key = -1;
+    out.onKey = false;
+    return;
+  }
+  out.keys = keyCount(c);
+  out.key = keyNearest(c, phase);
+  let d = Math.abs(keyPhase(c, out.key) - wrap01(phase));
+  if (d > 0.5) d = 1 - d;
+  out.onKey = d < 1e-4;
 }
 
 /** The key nearest a phase (0..frames-1). */

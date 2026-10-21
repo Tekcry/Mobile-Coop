@@ -78,7 +78,7 @@ const ATT = 'src/player/attach.ts';
 const PLAN = 'src/anim/footPlanner.ts';
 const WEIGHT = 'src/anim/weight.ts';
 
-const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'aim', 'aimCrouch', 'wallSlide', 'hold'];
+const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
 const RIFLE_AIM = ['rifle.aim', 'rifle.aimCrouch'];
 const PISTOL_AIM = ['pistol.aim', 'pistol.aimCrouch'];
 const AIM_GUN = [...RIFLE_AIM, ...PISTOL_AIM];
@@ -123,7 +123,7 @@ rules.push(
   ], 'stepLength is linear in these lengths: exact when every moving state has the same value; the player\'s motion only (guards use ENEMY_MOTION)'),
   rule('body', 'kneeOutMul', ['ladder', 'pipe'], [e(RIG, 'CLIMB_KNEE_OUT', 'mul')], `close: the climb pole is max(stance knee-out, CLIMB_KNEE_OUT); ${RIG_NOTE}`),
   rule('body', 'kneeLiftMul', ['ladder', 'pipe'], [e(RIG, 'CLIMB_KNEE_UP', 'mul')], RIG_NOTE),
-  rule('body', 'peekLeanMul', ['wallPeek'], [e(WALLC, 'WALL.peekLean', 'mul')], 'the remote copy reads the same WALL.peekLean'),
+  rule('body', 'peekLeanMul', ['wallPeek', 'wallCrouchPeek'], [e(WALLC, 'WALL.peekLean', 'mul')], 'the remote copy reads the same WALL.peekLean'),
 );
 manuals.push(
   manual('body', 'armSwingMul', 'no code value: the keyed clips\' arm data (Keys section) and the READY_HANDS swing / pump terms together'),
@@ -308,12 +308,14 @@ for (const id of ['stopSettle', 'accelLean', 'stopLean', 'bank', 'plantDrop', 'l
 }
 
 // ------------------------------------------------------------------------------------------
-// Joints, Hands & feet, IK strength, Weapon (tuneV2Sections.ts): local-only tuner tables with no code default
+// Joints, Hands & feet, IK strength, Weapon (tuneV2Sections.ts): (anim-joints J1) the generated base table
 // ------------------------------------------------------------------------------------------
 
-const V2_REASON = 'no code value: a local-player tuner table (defaults all identity); a per-state base table every rig reads is a later job';
-/** Slider ids of the four v2 sections are many; one manual entry per section covers every slider (`*`). */
-for (const s of ['joint', 'hand', 'ik', 'weapon']) manuals.push(manual(s, '*', V2_REASON));
+/**
+ * Every slider and row of these four sections bakes into the generated base table `src/anim/animBase.ts`, which every
+ * Wren rig reads (`tuneBakeBase.ts`: `BAKE_BASE_FILE`, `BAKE_BASE_SECTIONS`; composed by the A1 rules, keyed by row id,
+ * joint name and param id). They need no rule here; only the panel option stays manual.
+ */
 manuals.push(manual('joint', 'mirror', 'a panel option (the mirror lock), nothing to bake', ['joint.options']));
 
 /**

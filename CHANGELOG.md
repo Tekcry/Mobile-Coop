@@ -1,5 +1,58 @@
 # Changelog
 
+## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
+- Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
+  when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
+  non-solid there, as on the host and in solo (bullets still hit him). On the host, the joiner's hostage follows the
+  joiner's drawn body instead of stepping ahead of it. Solo hold and carry speeds are unchanged.
+- Marlow Yard station 2: the host can unbolt the door alone after the leg-up (Michael: "stays closed and locked").
+  The host's own presses on course devices were counted as the joiner's, so the bolt checked the joiner's side of the
+  door (and "Bolted from the other side" went to the joiner's screen). The same fix credits the host's own hold
+  consoles, pickups and finish correctly.
+- Camera cue: the pulsing red frame edge while a camera sees a player is gone; the cue is the red grid only (in
+  electro, the white grid). The two red lines on station 3's floor are the painted edges of that camera's +-30 deg
+  sweep (course spec M2), kept.
+- Pause menu: "Restart at checkpoint" in Sector Ops and the co-op course (the section or the bay starts again, both
+  players back at the checkpoint) and, in co-op, "Return to lobby" (both players back to the room lobby). Each asks
+  first, with Stay focused. In co-op both are the host's: the joiner sees them disabled, "Host only".
+
+## 4.37.0 - Joints, Hands & feet, IK and Weapon tuning bake into a base table every Wren reads, the partner too (2026-10-21, PR #84)
+- Joints, Hands & feet, IK strength and Weapon tunes now bake (Michael: "make sure i have full control over every stance
+  and every body part"; COVERAGE gap 1): `scripts/anim-tune-bake.mjs` writes them into a generated base table
+  (`src/anim/animBase.ts`) instead of listing them as manual, so a tuned elbow becomes the default after the merge.
+  Exports from before (version 1 and 2) bake too.
+- Those four sections now act on every Wren rig, not only your own: the co-op partner's avatar and the Anim Studio's
+  pair puppets show the base table and your live tuner edits; guards and other characters are never touched. The
+  tuner's sliders are changes on top of the base table (reset them after a bake: the look stays).
+- With the game paused (the tuner's Pause, the studio's pause) a Joints, Hands & feet, IK or Weapon edit now shows at
+  once, as the Body and Gun sliders do (before it waited for the game to run).
+
+## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
+- Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in
+  the Anim Studio plays that clip on the spot, paused on that key; "◀ Key" / "Key ▶" step the clip's keys (its mirrored
+  half too) with the key list following; a readout names the key ("jog - key 2 of 8 (mirror of 6), frame 4"); the bone a
+  slider edits is marked; a hint: "Key edits change one pose; whole-cycle changes go in the state tabs."
+- A playback bar on every tab in the Anim Studio (Michael: "i should be able to alter speed/steps/pause etc no matter
+  which window im in"): Play / Pause, ◀ Key / Key ▶, the time, the speed, the gun (Rifle / Pistol) and "On the spot"
+  (moved from the header). Keys F9 play / pause, F1 / F2 a key back / forward, F8 on the spot; pad right stick left / right
+  a key, up play / pause, L3 on the spot. Every pick plays at once: a state, a weapon (the stance swaps to it), a clip
+  or key, a climb move, a co-op role.
+- Keys for every arm and trunk joint (Michael: "there is a forearm twist that i cant see to fix"): Forearm twist, Upper
+  arm twist, Shoulder forward / turn / out, Head bend / turn / roll and the Hips shift per key; the game plays them and
+  the key bake writes them (new key fields `armX.twist`, `armX.twistUpper`, `armX.sh`, `head`; new clip channels `fore`,
+  `head`, `sh`). Old key files load as before. The Joints part names the twists ("Right forearm twist").
+- A "Mirror" box in the Keys tab (Michael: "if they were uneven i dont know how id adjust them separetly"): on (default)
+  an edit shows on the other arm half a cycle on, as before; off, each key and arm is its own, and the bake writes the
+  clip in full where the arms differ.
+- Aim stances in the Anim Studio (Michael: "How do i just adjust aiming stance?"): aim standing, crouch aim standing
+  and crouch aim moving, each with the picked gun.
+- States that shared a tuner row have their own (COVERAGE gap 3): crouch run, aim standing (the glides keep "Aim
+  moving"), crouched aim moving, the crouched wall states and carrying a body, and the rifle and the pistol their own
+  Joints rows in the armed states. Saved values, presets and exports from before give each new row the value of the row
+  it shared, so nothing tuned is lost.
+- Key edits of the ready stance and the glides now show in play with the gun out (arms over the gun hold, the glides'
+  trunk while aiming).
+
 ## 4.35.0 - Animation tuner: free mouse, selection highlight, Keyed tick box, on the spot from every tab, studio light (2026-10-21, PR #82)
 - Animation tuner with keyboard and mouse (Michael: "the player camera locks the mouse in position"): the open panel
   leaves the pointer free in "Drag view": drag the scene with the left button to turn the camera, the wheel zooms (the

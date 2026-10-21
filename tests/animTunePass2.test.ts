@@ -229,7 +229,7 @@ describe('import', () => {
     });
     expect(late.values['later.x']!.q).toBe(0.3);
     expect(tuneImport({ magic: 'nope', version: 1, changed: [] }).ok).toBe(false);
-    expect(tuneImport({ magic: TUNE_EXPORT_MAGIC, version: 2, changed: [] }).error).toMatch(/version/);
+    expect(tuneImport({ magic: TUNE_EXPORT_MAGIC, version: 3, changed: [] }).error).toMatch(/version/); // (T1a: 2 is the rows' version)
     expect(tuneImport('junk').ok).toBe(false);
     // a refused import changes nothing
     expect(tuneGet('walk', 'trackMul')).toBe(1.2);

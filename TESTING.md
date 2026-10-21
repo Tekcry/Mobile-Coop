@@ -139,6 +139,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
   Reset group puts it back; Export lists the `cam.` values.
+- [ ] Base table (anim-joints J1): in the Anim Studio on a state loop, turn an elbow in Joints (and a hand offset in Hands &
+  feet), Export, run `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts`
+  changes), rebuild, reset those sliders: the pose looks the same. In a co-op pair loop (and with a partner) role B /
+  the partner shows the same tune; the guard in a hold pair does not.
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
@@ -218,6 +222,17 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Anim Studio: tick "Keyed" on walk: the keyed walk plays; clear it: the procedural walk. Pick "Run" in the Body
   tab's Joints state list: the run plays, the tab stays. "On the spot" (header, F8, pad L3) on: she runs in place; off:
   she runs the circle. She is well lit as she moves; "Stage light" (View tab) dims and brightens her.
+- [ ] (marlow-bays T1a) Anim Studio, Keys tab: pick Jog, then Key 2: the jog stops on that key and the readout says
+  "jog - key 2 of 8 (mirror of 6)"; "Key ▶", F2 and the pad's right stick right step on (the Key list follows), F1 /
+  stick left step back. Click "Right forearm twist": the forearm is ringed; drag it: the forearm turns about itself.
+- [ ] Keys tab: with Mirror on, bend the left elbow on key 2: step to key 6, the right elbow is bent too. Untick Mirror,
+  set the right elbow at key 6 back: key 6 is straight, key 2 still bent.
+- [ ] The playback bar shows on every tab (Body, Hands & feet, Keys ...): Play / Pause (F9, right stick up), the time,
+  the speed, On the spot (F8, L3). In Hands & feet pick Pistol: she draws the pistol; Gun: Rifle swaps back.
+- [ ] Loop list: "Aim standing", "Crouch aim standing", "Crouch aim moving" play with the picked gun; the Body tab shows
+  "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
+- [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
+  states show the values of the rows they shared.
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
@@ -229,6 +244,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] Close the host tab: the client is told and returns to the menu.
+- [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
+  guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
+- [ ] Station 2: only the host does the leg-up, jumps over and picks Unbolt: the door opens; the near side shows
+  "Bolted from the other side" to whoever pressed it.
+- [ ] Station 3: the camera shows the red grid only, no flashing red border when it sees you (GPU look: pending PC run).
+- [ ] Host: Start (Esc) > Restart at checkpoint: the confirm opens on Stay; Restart puts both players at the bay start.
+  Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
+- [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.
+- [ ] Solo Sector Ops: Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
 
 ## Release checklist (before a job merges)
 

@@ -49,7 +49,15 @@ export interface TunePadOut {
   bypass: boolean;
   /** (marlow-bays item 13) L3 (edge, the tuner or the free view has the pad): "Loop on the spot" on / off (the studio). */
   spot: boolean;
+  /** (marlow-bays T1a, item 16) The tuner has the pad: right stick left / right (a flick, then repeats while held) one
+   *  key back (-1) / forward (+1); right stick up (a flick) play / pause. The free view keeps the right stick. */
+  key: number;
+  play: boolean;
 }
+
+/** (T1a) The right stick's flick: past this it counts, back under the release it re-arms. */
+export const RS_FLICK = 0.6;
+export const RS_RELEASE = 0.3;
 
 const bit = (i: number): number => 1 << i;
 /** Left / right held this long (s) while editing: each repeat steps x5. */
@@ -83,7 +91,13 @@ export class TunePadCtl {
     freeOff: false,
     bypass: false,
     spot: false,
+    key: 0,
+    play: false,
   };
+  /** (T1a) The right stick's flick state: the held direction (-1 / 0 / 1) and the up latch. */
+  private rsDir = 0;
+  private rsUp = false;
+  private readonly rsRep = new NavRepeater(0.4, 0.15);
   private prev = 0;
   private quiet = false;
   private vDir = 0;
@@ -93,6 +107,27 @@ export class TunePadCtl {
   private readonly hRep = new NavRepeater(0.35, 0.06);
   /** The free view is on: View alternates the panel and the free view. */
   private freeOn = false;
+
+  /** (T1a) This frame's right stick result (read by `update` in the tuner mode). */
+  private rsKey = 0;
+  private rsPlay = false;
+
+  /** (T1a) The right stick: a flick left / right (repeating while held) and a flick up. No allocation. */
+  private rightStick(rx: number, ry: number, now: number): void {
+    this.rsKey = 0;
+    this.rsPlay = false;
+    const ax = Math.abs(rx);
+    const d = ax > RS_FLICK ? (rx < 0 ? -1 : 1) : ax < RS_RELEASE ? 0 : this.rsDir;
+    if (d !== this.rsDir) {
+      this.rsDir = d;
+      this.rsRep.update(false, now);
+    }
+    if (d !== 0 && this.rsRep.update(true, now)) this.rsKey = d;
+    const up = ry < -RS_FLICK;
+    if (up && !this.rsUp && ax < RS_FLICK) this.rsPlay = true;
+    if (up) this.rsUp = true;
+    else if (ry > -RS_RELEASE) this.rsUp = false;
+  }
 
   /** The panel opened: the pad is the tuner's (once every button is up). */
   open(): void {
@@ -131,11 +166,12 @@ export class TunePadCtl {
 
   /** One frame. `mask`: buttons held (bit per W3C index); `lx`: left stick X -1..1; `now`, `dt` in seconds. Returns the
    *  reused `out` (read it before the next call). No allocation. */
-  update(mask: number, lx: number, now: number, dt: number): TunePadOut {
+  update(mask: number, lx: number, now: number, dt: number, rx = 0, ry = 0): TunePadOut {
     const o = this.out;
     o.consume = false;
-    o.nav = o.adjust = o.stick = o.section = o.group = 0;
-    o.fine = o.select = o.back = o.reset = o.menu = o.close = o.toggled = o.freeOff = o.bypass = o.spot = false;
+    o.nav = o.adjust = o.stick = o.section = o.group = o.key = 0;
+    o.fine = o.select = o.back = o.reset = o.menu = o.close = o.toggled = o.freeOff = o.bypass = o.spot = o.play = false;
+    this.rightStick(rx, ry, now);
     const pressed = mask & ~this.prev;
     this.prev = mask;
     if (this.quiet) {
@@ -170,6 +206,8 @@ export class TunePadCtl {
       if (pressed & bit(PAD.B)) o.freeOff = true;
       return o;
     }
+    o.key = this.rsKey;
+    o.play = this.rsPlay;
     if (pressed & bit(PAD.A)) o.select = true;
     if (pressed & bit(PAD.B)) o.back = true;
     if (pressed & bit(PAD.X)) o.reset = true;

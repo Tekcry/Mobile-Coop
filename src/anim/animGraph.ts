@@ -39,7 +39,7 @@ import { DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, ST
 import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { effortSpeed } from './effort';
-import { mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
+import { clearKeyedArms, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
@@ -1746,6 +1746,9 @@ export class AnimGraph {
     const rph = this.idleT / READY_STANCE.period;
     // low ready: the speed set moving, the ready stance still
     this.speedSet(ph, es, idleShare < 1, this.kC, this.kD);
+    // (marlow-bays T1a, COVERAGE gap 4) the speed set's holstered arm keys and edits never reach the gun arms (its trunk
+    // edits are in its trunk already); the ready stance's and the glides' edits below do (the rig's `keyedArmEdit`)
+    clearKeyedArms(this.kC);
     const lHalf = this.sHalf + (R.half - this.sHalf) * idleShare;
     const lKnee = this.sKneeOut + (R.kneeOut - this.sKneeOut) * idleShare;
     const lDuty = this.sDuty + (R.duty - this.sDuty) * idleShare;
@@ -1809,7 +1812,7 @@ export class AnimGraph {
     // low ready, keyTrunk: aiming the upper body stays the procedural gun platform)
     const c = this.kCk;
     if (c > 0) {
-      mixKeyed(this.kC, this.kCr, c, this.kC);
+      mixKeyed(this.kC, this.kCr, c, this.kC, false);
       this.dHalf += (this.cHalf - this.dHalf) * c;
       this.dKneeOut += (this.cKneeOut - this.dKneeOut) * c;
       this.dDuty += (this.cDuty - this.dDuty) * c;

@@ -224,9 +224,14 @@ export interface NetHooks {
   attach(g: GameState): NetAttachment;
 }
 
+/** (marlow-bays item 3) The modes whose pause menu offers "Restart at checkpoint" (Sector Ops, the co-op course). */
+const CHECKPOINT_MODES: ReadonlySet<ModeId> = new Set<ModeId>(['sector', 'course']);
+
 export interface SessionCallbacks {
   quit(): void;
   restart(): void;
+  /** (marlow-bays item 4) Co-op host: end the match and take every connected player back to the room's lobby. */
+  lobby?(): void;
   /** The results screen's Missions (solo): the menu on the missions list. */
   missions?(): void;
   /** The results screen's Next (solo): the menu on that mission's briefing. */
@@ -816,6 +821,12 @@ export class GameState implements AppState {
           g.player.controller.shift(dx, dz);
           g.player.rig.shiftWorld(dx, dz);
         },
+        // (marlow-bays T1a, item 19) the studio's rifle / pistol pick
+        weaponClass: () => g.weapons.current.def.class,
+        switchWeapon: (cls) => {
+          const i = g.weapons.slots.findIndex((s) => s.def.class === cls);
+          if (i >= 0) g.weapons.switchTo(i);
+        },
       });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
@@ -1105,6 +1116,13 @@ export class GameState implements AppState {
     return t ? [{ label: t, done: false, current: true }] : [];
   }
 
+  /** (marlow-bays item 3) The pause menu's "Restart at checkpoint": solo or the co-op host only (the client's row is
+   *  disabled); the mode restarts as when everyone is down. */
+  restartCheckpoint(): boolean {
+    if (this.puppet || this.ended) return false;
+    return this.mode?.restartCheckpoint?.() ?? false;
+  }
+
   /** Opens the pause menu. `notice`: a line for the menu (a controller dropped out). */
   pause(notice = ''): void {
     if (this.paused || this.menuOpen) return;
@@ -1128,7 +1146,17 @@ export class GameState implements AppState {
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
-        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice, inStudio: !!this.studio },
+        {
+          coop: !!this.net,
+          objectives: () => this.objectiveLines(),
+          dof: this.stack.hasDof,
+          notice,
+          inStudio: !!this.studio,
+          // (marlow-bays items 3-4, A1) host actions in co-op: the client sees them disabled, "Host only"
+          host: !this.puppet,
+          restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
+          lobby: this.net && this.cb.lobby ? () => this.cb.lobby?.() : undefined,
+        },
       ),
     );
   }
@@ -1719,6 +1747,8 @@ export class GameState implements AppState {
       const st = this.stealth;
       pz.bend = this.takedown.bend + (st ? st.bend : 0);
       pz.bendDrop = this.takedown.bendDrop + (st ? st.bendDrop : 0);
+      // (marlow-bays T1a) the tuner's carry row: the bend is the body's, not a held guard's
+      pz.carryBody = !!st && (st.bend > 0 || st.bendDrop > 0);
       pz.sway = this.takedown.sway;
       pz.freeGait = this.takedown.stepping || (st ? st.stepping : false) || this.doorOpen.phase === 'step';
     }
