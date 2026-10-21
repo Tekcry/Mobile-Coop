@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-skeleton S3+S4
+## 4.47.0 - Animation tuner: collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys on every keyed clip (2026-10-22, PR #98)
 - Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real
   clips, jog, run, walk, idle ...). The Keys tab has, on every key: collarbone pitch / yaw / roll per side, curl and
   spread per finger, and leg changes per joint (hip pitch / yaw / roll, knee, ankle pitch / roll, toe). A clip takes
