@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-bays B+M
+## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
 - Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
   when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
   non-solid there, as on the host and in solo (bullets still hit him). On the host, the joiner's hostage follows the
