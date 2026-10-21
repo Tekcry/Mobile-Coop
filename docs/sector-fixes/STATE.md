@@ -1,9 +1,12 @@
 # sector-fixes - state
 
-Now: brief written by the orchestrator (2026-10-22 ~01:45). Not started (spare capacity; starts after the 04:00 usage
-reset, or when the orchestrator assigns a session).
-Next: slice L (lights), then C, P (after slice J merges), S, W, R.
-Open: none.
+Now: PARKED (2026-10-22 ~08:55, priority switch to anim-natural). Job lead: Night Shift | Menu Notes Build.
+- L (lights): WIP on this branch, c436f677 (docs/sector-fixes/l/WIP.md), unverified.
+- C (cameras, lasers): WIP on feature/sector-fixes-c, abc24880 (worktree C:/NightShift/Mobile-Coop-sector-fixes-c; master 4.48.0
+  merged with J; docs/sector-fixes/c/WIP.md), unverified after the merge.
+- W (wheel): WIP on feature/sector-fixes-w, 3f048e43 (worktree C:/NightShift/Mobile-Coop-sector-fixes-w, from master; docs/sector-fixes/w/WIP.md).
+Next: resume each from its WIP.md (fresh implementer, check, suites, checker), each its own PR; then P (unblocked: J merged), S, R.
+Open: heavy.lock is atomic now (noclobber, guarded release).
 
 ## Done
 - 2026-10-22: BRIEF.md (Michael's Sector Ops list).
