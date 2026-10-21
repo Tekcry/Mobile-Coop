@@ -7,6 +7,54 @@
   (the partner's and the studio puppets' rigs carry it too, but they always show the stowed goggle, so it shows on them once their vision mode is shown), guards never. At LOD1 / LOD2 only the lens moves (the housing
   is part of the head there). The stowed goggle has no slider yet (it has no separate parts). Untuned, nothing changes.
 
+## 4.48.0 - Marlow Yard bay 3: a jam-handoff hallway, the jammer's 5 s use / 5 s cooldown with a buzz, camera reboot and lamp flicker; cameras see in the dark (2026-10-22, PR #101)
+- Jammer rules (Michael 2026-10-21 item 7, A3, J1): each player jams for at most 5 s, then a 5 s cooldown; letting go
+  early (or moving: the stand-still rule) also starts the cooldown. The 20 s charge (drain / refill / minStart) is gone.
+- A jammed camera goes blind (its red grid fades out), stops sweeping where it is and flashes its LED; released (or at
+  5 s) it reboots for 1.5 s, still blind and frozen, and nobody can jam it again until it is back online. Lasers take the
+  same 1.5 s. A quiet buzz / interference synth voice plays at the jammed device on both pages (positional, no asset).
+- Lights are jam targets (item 8): a jammed lamp flickers off (0.5 s), stays off while held and 4 s after the release,
+  then flickers back on; the registry gameplay reads follows the same timeline (the meter and guards agree).
+- Only a target the aim has a clear line to can be jammed (no jamming through walls).
+- The jammer HUD: a line under the reticle (JAMMING 3.2 s / JAMMER COOLDOWN / TARGET REBOOTING / READY) and the gun
+  light: cyan pulse jamming, dim red cooling, amber on a rebooting target, green aimed (the old jamming colour was the
+  aimed green, so a jam did not show).
+- Marlow Yard station 3 is a camera hallway (item 5, A5): a 2.9 m hallway along the south wall, the camera at its far end
+  looking back down it with a +-8 deg sweep; its view stays inside the bay (no view into either airlock). One jam covers
+  one runner; the partner through jams it from the far lobby for the other. Both in the far lobby unlock airlock A3's
+  door. The painted sweep-edge floor lines are gone (Michael: the red view overlay shows the camera's area). New radio,
+  objective and panel text; the station's light levels re-taken for the hallway.
+- Co-op: `PROTOCOL_VERSION` 26: `sec` carries per-camera clocks, each player's jam left and cooldown, and the jammed /
+  recovering devices; the client draws the frozen camera, LED, grid, buzz and light flicker from it.
+- Station 3 hard rule (fix round 1, item 5 "impossible to pass without one player jamming"): a player the camera has
+  (its meter full) in the hallway, or still running in the far lobby, is sent back to the entry lobby facing the
+  hallway ("Camera saw you. Back to the start of the hallway."); the far lobby only counts players who got through
+  clean. Being seen still raises the alarm stage too. Co-op: a new `back` event moves the client (health kept).
+- Fix round 1: the host checks a client's jam target with the same static line of sight (from the client's head); the
+  client never blinks a camera back into its reboot on a late host message (device timelines only move forward); the
+  jammer HUD line and the buzz no longer rebuild a string or schedule audio every frame.
+- Fix round 2: a player the hallway camera sent back counts for the gate again only once seen back in the entry lobby
+  (a co-op client after the host's 3 s teleport grace): stale far-lobby positions sent before the `back` event arrived no
+  longer open it.
+- Security cameras see in the dark (Michael M3): each has its own IR illuminator, so inside its range and cone it reads
+  every body as fully lit whatever the lamps do. Putting lamps out (jam, EMP, shot) no longer hides anyone from a camera,
+  in Marlow Yard and Sector Ops alike; guards and the light meter still go by the lamps. Every station 3 lamp is jammable
+  again (the hardened bay x 6 hallway lamp of fix round 2 is undone).
+## 4.47.1 - Tuner groundwork: a Blender-exact key curve evaluator for the coming exact key preview (not wired yet) (2026-10-22, PR #100)
+- `src/anim/keyCurve.ts`: a pure, allocation-free port of Blender 5.2.2's auto-clamped Bezier solve (within 2e-6 of Blender on 124 curves), with tests and fixtures. Course Ready wires it into the Keys preview in item 30.
+
+## 4.47.0 - Animation tuner: collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys on every keyed clip (2026-10-22, PR #98)
+- Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real
+  clips, jog, run, walk, idle ...). The Keys tab has, on every key: collarbone pitch / yaw / roll per side, curl and
+  spread per finger, and leg changes per joint (hip pitch / yaw / roll, knee, ankle pitch / roll, toe). A clip takes
+  them on the first edit and the bake writes them; clips nobody edits stay exactly as they are.
+- Leg key changes keep planted feet still: while a foot is planted the leg is re-solved onto its plant with the change
+  folded in (a knee or hip change on jog's contact key leaves the foot within 0.5 cm; measured 0.00 cm); the swinging
+  leg takes the change as keyed. The rig reports how far a planted foot slid (`rig.footSlide`, the studio's foot
+  slide line).
+- Joints tab: a collarbone row per side (shrug, push forward, tilt) for every state.
+- Clips can be keyed with whole legs (an FK takeover with a per-key weight over the foot planner); the studio-only test
+  clip skeleton_test uses all of it (shrug, shoulder push, fingers one by one, a kick with the other foot planted).
 ## 4.46.0 - Michael's first tuner bake: jog and run keys, low-ready gun poses, Joints; Reset baked clears built-in values on load (2026-10-22, PR #96)
 - Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
   equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied
