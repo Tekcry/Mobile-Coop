@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased - havok-stall
+- The desktop e2e-menus "stall" after the animation tuner closed was not a freeze in the game: the test ran past the
+  runner's 600 s limit on software GL (the match page drew about 1.5 frames a second beside the open menu page). The
+  menu page now goes blank before the match page opens, and the tuner camera check settles on the sim clock: the suite
+  takes 312 s instead of 894 s on the desktop. The Havok stacks seen earlier were slow frames, not a spin.
+- The game loop treats a NaN or negative frame interval or time scale as no time, so a bad value can never stop the
+  simulation for good (new unit tests for the loop across a long tuner freeze and its release).
+- e2e-levels: the ladder chases run on the manual clock with a fixed random seed (they took 9-30 s of game time
+  against a 30 s budget; now 10-15.5 s).
+
 ## 4.42.0 - Wren skeleton: collarbones, 30 finger bones, smoother glove fingers; hands close on weapons again (2026-10-21, PR #88)
 - Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
   had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on

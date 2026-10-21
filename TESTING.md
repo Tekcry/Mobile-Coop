@@ -301,6 +301,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
   suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
   `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".
+- [ ] A suite that stops with no error at `E2E_JOBS=1` may have been killed at the suite limit (the streamed output
+  drops the KILLED line): check its time before reading a hang into it (havok-stall).
 
 ### Offline and install
 - [ ] First visit online; wait for the "Ready to play offline" toast. Go offline, close the tab, reopen: the game boots,

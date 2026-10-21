@@ -1,7 +1,10 @@
 # havok-stall - state
 
 ## Now
-Set up (worktree, BRIEF, STATE). The implementer starts after the 5-hour reset (23:00): the meter was 86% at 22:05.
+Implementer done (REPORT.md): no Havok spin; the desktop's software GL runs the page at 1-4 fps and e2e-menus ran
+past the 600 s suite limit (the runner prints no KILLED line at E2E_JOBS=1). Fixed in the test (sim-time waits, the
+idle menu page blanked): e2e-menus 312 s alone; the loop hardened against NaN. Next: a fresh checker (lean: one agent
+at a time, after #90's fix).
 
 ## Next
 1. Implementer: reproduce (long real-time pause, then resume), find the cause, fix in the loop or controller; the

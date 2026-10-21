@@ -382,6 +382,10 @@ try {
   assert((await top()) === 'main-menu', 'Esc: kit back to the main menu');
   // slice 5: the field terminal pause, objectives, quit confirm, controller disconnect, results
   console.log('pause (slice 5)');
+  // (havok-stall) the menu page is done: it leaves its 1920 x 1080 backdrop for a blank page, so on software GL its
+  // renderer no longer shares the CPU with the match page's (which ran at about 1.5 frames a second beside it on the
+  // desktop, 2.5-4 alone; the suite then ran past the runner's 600 s limit inside the tuner-camera block)
+  await page.goto('about:blank');
   const M = await launch({ url, params: 'autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot' });
   try {
     const P = M.page;
@@ -542,15 +546,20 @@ try {
     const tp2 = await tpad();
     assert(tp2.mode === 'off' && (await GM(() => document.querySelector('.anim-tune').hidden)) && (await tScale()) === 1, `tuner: Menu closes it and the game runs (${tp2.mode}, scale ${await tScale()})`);
     // (tuner-camera) the camera state's distance slider pulls the follow camera in live; its reset puts it back
-    await frames(P, 30);
+    // (havok-stall) the settles run on the sim clock (frame updates without rendering), not 360 rendered frames
+    const settle = async (s) => {
+      await GM((t) => window.__app.loop.stepHeadless(t), s);
+      await frames(P, 2);
+    };
+    await settle(0.5);
     const camG = await GM(() => window.__animTune.state.cam);
     const camBoom = () => GM(() => window.__app.current.player.cam.boomActual);
     const cb0 = await camBoom();
     await GM((g) => window.__animTune.set(g, 'camBoomAdd', -0.8), camG);
-    await frames(P, 90);
+    await settle(3);
     const cb1 = await camBoom();
     await GM((g) => window.__animTune.set(g, 'camBoomAdd', 0), camG);
-    await frames(P, 240);
+    await settle(6);
     const cb2 = await camBoom();
     assert(camG.startsWith('cam.') && (cb1 < cb0 - 0.3 || cb0 < 1.2), `tuner: a camera distance slider (${camG}) pulls the camera in live (${cb0.toFixed(2)} -> ${cb1.toFixed(2)} m)`);
     assert(Math.abs(cb2 - cb0) < 0.05, `tuner: the camera slider's reset puts the distance back (${cb0.toFixed(2)} -> ${cb2.toFixed(2)} m)`);
