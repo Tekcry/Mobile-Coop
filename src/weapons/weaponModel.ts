@@ -7,6 +7,7 @@ import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
 import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
 import { loadWeaponMesh } from './weaponMesh';
 import { rotInto, type GunVisual } from '../anim/tuneHands';
+import { gearSocketOfSlot, GS } from '../anim/tuneGear';
 import { diagTurn, diagTurnSling, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
@@ -27,6 +28,8 @@ export const DEFAULT_WEAPON_COLORS: WeaponColors = { body: '#2d3238', grip: '#1a
 
 /** Gap (m) between a carried weapon and the body or gear it rests against. */
 const CARRY_GAP = 0.012;
+/** (anim-gear) The slot pivot `place` hands to `CharacterRig.gearPlace` (item frame). */
+const gearV = new Vector3();
 /** (feature/weapons) The back stud's head sits this far (m) inside the socket's face (the keyhole's depth). */
 const STUD_SEAT = -0.002;
 /** (21w, PC-PASS 42) The weapon's last posed world matrix before a re-parent (scratch, no allocation). */
@@ -485,9 +488,11 @@ export class WeaponModel {
     this.tuneVisual(null);
     this.owner = rig;
     this.slot = slot;
-    this.track(rig, slot === 'sling');
+    // (anim-gear) every carried gun follows the rig's gear offsets (re-placed in `follow` when they change)
+    this.track(rig, true);
     const n = this.node;
     this.gearOn = false;
+    this.gearVer = rig.gearVer;
     this.place(n, rig, slot);
     this.setVisible(true);
     if (had) rig.glideWeapon(n, glideM);
@@ -511,6 +516,7 @@ export class WeaponModel {
       const backZ = rig.backMount ? rig.backMount.backC.origin[2]! : -p.chest.d / 2 - rig.backGear - CARRY_GAP;
       slungPosition(this.def.grip, e.x1, backZ, dPos);
       n.position.set(dPos[0]!, dPos[1]!, dPos[2]!);
+      gearV.set(this.def.grip[0], this.def.grip[1], this.def.grip[2]);
     } else if (mount) {
       // (feature/weapons) hung from the body's back plate socket by the gun's back stud: muzzle up, the left side flat to
       // the plate (its right side out), so the top faces the wearer's left and the pistol grip her right hand
@@ -524,6 +530,7 @@ export class WeaponModel {
       const oy = mount.origin[1]! + ax.y * STUD_SEAT;
       const oz = mount.origin[2]! + ax.z * STUD_SEAT;
       n.position.set(ox - ax.x * st[0] - ay.x * st[1] - az.x * st[2], oy - ax.y * st[0] - ay.y * st[1] - az.y * st[2], oz - ax.z * st[0] - ay.z * st[1] - az.z * st[2]);
+      gearV.set(st[0], st[1], st[2]);
     } else if (isBackSlot(slot)) {
       const side = slot === 'backL' ? -1 : slot === 'backR' ? 1 : 0;
       const a = side * BACK_SPLAY;
@@ -539,9 +546,11 @@ export class WeaponModel {
       // the centre gun passes behind the head: one whose bore runs near its top (no optic above it) stands off more
       const sz = -p.chest.d / 2 - rig.backGear - CARRY_GAP - (side === 0 ? Math.max(0, CENTRE_CLEAR - (e.y1 - this.def.muzzle[1])) : 0);
       n.position.set(sx - ay.x * e.y1 - az.x * e.z0, sy - ay.y * e.y1 - az.y * e.z0, sz - ay.z * e.y1 - az.z * e.z0);
+      gearV.set(0, e.y1, e.z0);
     } else if (slot === 'sling') {
       n.parent = rig.hips;
       if (n === this.node) this.placeSling(rig, SLING_SPLAY);
+      return; // (anim-gear) placeSling applies the slingHip offset
     } else if (rig.thighMount) {
       // (feature/weapons) the body's own built holster: its frame from the hip, the weapon point at its origin
       const h = rig.thighMount;
@@ -554,6 +563,7 @@ export class WeaponModel {
       const cy = h.centre[1]!;
       const cz = h.centre[2]!;
       n.position.set(h.origin[0]! - ax.x * cx - ay.x * cy - az.x * cz, h.origin[1]! - ax.y * cx - ay.y * cy - az.y * cz, h.origin[2]! - ax.z * cx - ay.z * cy - az.z * cz);
+      gearV.set(cx, cy, cz);
     } else {
       // right thigh, low: muzzle down, top of the gun forward, thin side flat against the thigh (moves with it)
       az.set(0, -1, 0);
@@ -567,7 +577,11 @@ export class WeaponModel {
       const yc = (e.y0 + e.y1) / 2;
       const zc = (e.z0 + e.z1) / 2;
       n.position.set(sx - ax.x * ((e.x0 + e.x1) / 2), cy - az.y * zc, -ay.z * yc);
+      gearV.set((e.x0 + e.x1) / 2, yc, zc);
     }
+    // (anim-gear) the slot's gear offset (a Wren rig's base table + Gear tuner; moved in the slot's frame, turned about
+    // the pivot set above): the gun in its slot and the travel's end (the draw / holster hand reach) both take it
+    rig.gearPlace(n, gearSocketOfSlot(slot), gearV.x, gearV.y, gearV.z);
   }
 
   /** Left-hip sling: muzzle down, top forward, thin side to the hip, splayed out by `splay` (rad). */
@@ -584,6 +598,8 @@ export class WeaponModel {
     const py = -0.02;
     const pz = -0.02;
     n.position.set(px - ax.x * e.x1 - ay.x * yc - az.x * e.z0, py - ax.y * e.x1 - ay.y * yc - az.y * e.z0, pz - ax.z * e.x1 - ay.z * yc - az.z * e.z0);
+    // (anim-gear) the slingHip socket's offset, about the stock-end pivot
+    rig.gearPlace(n, GS.slingHip, e.x1, yc, e.z0);
   }
 
   /**
@@ -592,7 +608,18 @@ export class WeaponModel {
    */
   private follow(): void {
     const rig = this.rig;
-    if (!rig || this.slot !== 'sling') return;
+    if (!rig) return;
+    if (this.slot !== 'sling') {
+      // (anim-gear) the rig's gear offsets changed (the tuner, a base table load, the crouch): back into the slot with
+      // them (not mid-glide: the glide lands on the slot, then this runs)
+      const v = rig.gearVer;
+      if (this.slot !== null && v !== this.gearVer && rig.gliding !== this.node && rig.travelNode !== this.node) {
+        this.gearVer = v;
+        this.gearOn = false;
+        this.place(this.node, rig, this.slot);
+      }
+      return;
+    }
     rig.hipL.getDirectionToRef(Vector3.DownReadOnly, ax);
     rig.hips.getDirectionToRef(Vector3.RightReadOnly, ay);
     // outward (to the left) swing of the thigh in the pelvis frame
@@ -641,6 +668,8 @@ export class WeaponModel {
   }
 
   private rig: CharacterRig | null = null;
+  /** (anim-gear) The rig's gear version this gun was placed in its slot at. */
+  private gearVer = 0;
   private splay = SLING_SPLAY;
   private readonly followFn = (): void => this.follow();
 
