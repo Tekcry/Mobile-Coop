@@ -4,6 +4,7 @@ import type { AvatarLook } from '../cosmetics/avatarLook';
 import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
+import { REJOIN_HOLD_S } from '../core/rejoin';
 
 export interface LocalProfile {
   name: string;
@@ -29,6 +30,10 @@ export interface SessionEvents {
   start: StartInfo;
   game: { msg: Msg; from: string };
   peerLeft: { id: string; name: string };
+  /** (marlow-bays R2, host) A joiner dropped mid-match: its slot is held (`PlayerInfo.away`) until it rejoins. */
+  away: { id: string; name: string };
+  /** (marlow-bays R2, host) A held joiner is back (same player id, new connection). */
+  rejoin: { id: string; name: string };
   hostLeft: Record<string, never>;
   full: Record<string, never>;
 }
@@ -37,6 +42,12 @@ export interface SessionEvents {
  * Lobby + message routing for a coop room. The host is authoritative: clients accept lobby/start/
  * snapshot/event/end messages only from the host, and the host accepts gameplay messages only from
  * players in its lobby. No host migration: if the host leaves, the session ends.
+ *
+ * (marlow-bays R2-R3) Rejoin: a player id outlives its connection. A joiner that drops mid-match keeps its slot
+ * (`away`) for `REJOIN_HOLD_S`; its `hello` token (or, in a full room, the only held slot) gives it back: the host
+ * aliases the new transport id to the held player id (`alias` / `route`), so the game code never sees the change, and
+ * tells the client its id (`you`). A client whose host drops keeps its session open (`hostId` cleared) and takes the
+ * next host that opens the room.
  */
 export class NetSession {
   readonly events = new EventBus<SessionEvents>();
@@ -53,15 +64,29 @@ export class NetSession {
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
+  /** (R2) Client: the player id the host knows us by (`you`); null = the transport id. */
+  private pid: string | null = null;
+  /** (R2) Host: a rejoined connection's transport id -> its held player id, and back. */
+  private readonly alias = new Map<string, string>();
+  private readonly route = new Map<string, string>();
+  /** (R2) Host: each joiner's rejoin token, and when a held slot went away (ms). */
+  private readonly tokOf = new Map<string, string>();
+  private readonly awayAt = new Map<string, number>();
+  private holdTimer: ReturnType<typeof setInterval> | null = null;
+  /** (R2) Client: refused by a full room; that room's lobbies are no longer ours to take. */
+  private refused = false;
 
   constructor(
     readonly transport: Transport,
     readonly role: 'host' | 'client',
     readonly code: string,
     private me: LocalProfile,
+    /** (R2) Client: this tab's rejoin token for the room ('' = none). */
+    private readonly tok = '',
   ) {
     this.hostId = role === 'host' ? transport.selfId : null;
-    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host' });
+    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', away: false });
+    if (role === 'host') this.holdTimer = setInterval(() => this.expireAway(Date.now()), 5000);
     transport.onMessage = (raw, from) => this.receive(raw, from);
     transport.onPeerJoin = (id) => {
       // introduce ourselves to every newcomer
@@ -73,20 +98,24 @@ export class NetSession {
     this.transport.send(this.hello());
   }
 
+  /** Our player id: the transport's, or (a rejoined client) the held slot's the host gave back. */
   get selfId(): string {
-    return this.transport.selfId;
+    return this.pid ?? this.transport.selfId;
   }
 
   get isHost(): boolean {
     return this.role === 'host';
   }
 
-  private hello(): Msg {
-    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, tag: this.me.tag, look: this.me.look, loadout: this.me.loadout };
+  /** Our hello; the rejoin token only in the one sent to the host (`withTok`): a broadcast would hand it to anyone in
+   *  the room. */
+  private hello(withTok = false): Msg {
+    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, tag: this.me.tag, look: this.me.look, loadout: this.me.loadout, tok: withTok ? this.tok : '' };
   }
 
+  /** Send to everyone, or to one player id (a rejoined player's current connection). */
   send(msg: Msg, to?: string): void {
-    if (!this.closed) this.transport.send(msg, to);
+    if (!this.closed) this.transport.send(msg, to === undefined ? undefined : (this.route.get(to) ?? to));
   }
 
   /** Client -> host convenience. */
@@ -97,25 +126,63 @@ export class NetSession {
   private receive(raw: unknown, from: string): void {
     const msg = parseMessage(raw);
     if (!msg || this.closed) return;
-    if (this.isHost) this.hostReceive(msg, from);
+    if (this.isHost) this.hostReceive(msg, this.alias.get(from) ?? from, from);
     else this.clientReceive(msg, from);
   }
 
-  private hostReceive(msg: Msg, from: string): void {
+  /** (R2) The held (away) slot a hello takes back: its token's, or in a full room the only one (a tab closed with its
+   *  token). A slot whose player is still connected is never taken. */
+  private heldFor(tok: string): string | null {
+    let only: string | null = null;
+    let held = 0;
+    for (const p of this.players.values()) {
+      if (p.host || !p.away) continue;
+      if (tok && this.tokOf.get(p.id) === tok) return p.id;
+      held++;
+      only = p.id;
+    }
+    return held === 1 && this.players.size >= capacity(this.mode) ? only : null;
+  }
+
+  private hostReceive(msg: Msg, from: string, conn: string): void {
     if (msg.t === 'hello') {
       if (msg.v !== PROTOCOL_VERSION) return;
-      if (!this.players.has(from) && this.players.size >= capacity(this.mode)) {
-        this.send({ t: 'bye', reason: 'Room is full' }, from);
+      let pid = from;
+      // a fresh connection: the token's held slot (its first, tokenless hello may already have made it a new player,
+      // which the held slot replaces), else in a full room the only held slot
+      const fresh = this.players.get(conn);
+      if (pid === conn && (!fresh || (msg.tok && !fresh.away))) {
+        const held = msg.tok ? (this.heldFor(msg.tok) ?? (fresh ? null : this.heldFor(''))) : fresh ? null : this.heldFor('');
+        if (held && held !== conn) {
+          if (fresh) {
+            this.players.delete(conn);
+            this.tokOf.delete(conn);
+          }
+          pid = held;
+          // the slot's earlier connection (if it is still around) is stale from here on
+          for (const [t, p] of this.alias) if (p === held) this.alias.delete(t);
+          this.alias.set(conn, held);
+          this.route.set(held, conn);
+        }
+      }
+      if (!this.players.has(pid) && this.players.size >= capacity(this.mode)) {
+        this.send({ t: 'bye', reason: 'Room is full' }, conn);
         return;
       }
-      const prev = this.players.get(from);
-      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false });
+      const prev = this.players.get(pid);
+      this.players.set(pid, { id: pid, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, away: false });
+      if (msg.tok) this.tokOf.set(pid, msg.tok);
+      this.awayAt.delete(pid);
       this.broadcastLobby();
+      // (the broadcast can run a nested hello: a token hello that moved this connection to its held slot wins)
+      if (!this.players.has(pid) || (pid === conn && this.alias.has(conn))) return;
+      this.send({ t: 'you', id: pid }, pid);
+      if (prev?.away) this.events.emit('rejoin', { id: pid, name: msg.name });
       // late join / reconnect during a match
-      if (this.phase === 'playing' && this.start) this.send(startMsg(this.start), from);
+      if (this.phase === 'playing' && this.start) this.send(startMsg(this.start), pid);
       return;
     }
-    if (!this.players.has(from)) return;
+    if (!this.players.has(from) || this.players.get(from)!.away) return;
     if (msg.t === 'ready') {
       const p = this.players.get(from)!;
       p.ready = msg.ready;
@@ -128,10 +195,21 @@ export class NetSession {
   }
 
   private clientReceive(msg: Msg, from: string): void {
+    if (msg.t === 'you') {
+      if (from !== this.hostId || msg.id === this.selfId) return;
+      const mine = this.players.get(this.selfId)!;
+      this.players.delete(this.selfId);
+      this.pid = msg.id === this.transport.selfId ? null : msg.id;
+      this.players.set(this.selfId, { ...(this.players.get(this.selfId) ?? mine), ...this.me, id: this.selfId, host: false, away: false });
+      this.events.emit('lobby', { players: [...this.players.values()] });
+      return;
+    }
     if (msg.t === 'lobby') {
+      if (this.refused) return;
       const host = msg.players.find((p) => p.host);
       if (!host || host.id !== from) return;
       if (this.hostId && this.hostId !== from) return;
+      const fresh = this.hostId === null;
       this.hostId = from;
       // keep our own entry authoritative locally
       const mine = this.players.get(this.selfId)!;
@@ -145,11 +223,14 @@ export class NetSession {
       this.weather = msg.weather;
       this.phase = msg.phase;
       this.events.emit('lobby', { players: [...this.players.values()] });
+      // a host taken now (the first, or the next after ours left): our hello with the rejoin token, to it alone
+      if (fresh) this.send(this.hello(true), from);
       return;
     }
     if (msg.t === 'hello') return; // other clients introducing themselves; the host's lobby is authoritative
     // a full room's host refuses us before we ever see its lobby
     if (msg.t === 'bye' && !this.hostId && /full/i.test(msg.reason)) {
+      this.refused = true;
       this.events.emit('full', {});
       return;
     }
@@ -161,19 +242,56 @@ export class NetSession {
       return;
     }
     if (msg.t === 'bye') {
-      if (/full/i.test(msg.reason)) this.events.emit('full', {});
-      else this.events.emit('hostLeft', {});
+      if (/full/i.test(msg.reason)) {
+        this.refused = true;
+        this.hostId = null;
+        this.events.emit('full', {});
+      } else {
+        // (R3) a host that quits: the session stays open for the next host of the room
+        this.hostId = null;
+        this.events.emit('hostLeft', {});
+      }
       return;
     }
     this.events.emit('game', { msg, from });
   }
 
-  private peerLeft(id: string): void {
-    const p = this.players.get(id);
-    if (id === this.hostId && !this.isHost) {
+  private peerLeft(conn: string): void {
+    if (conn === this.hostId && !this.isHost) {
+      // (R3) the session stays open: the next host to open the room is taken (`hostId` cleared)
+      this.hostId = null;
       this.events.emit('hostLeft', {});
       return;
     }
+    const id = this.alias.get(conn) ?? conn;
+    this.alias.delete(conn);
+    // a connection replaced by a rejoin: nothing left
+    const now = this.route.get(id);
+    if (now !== undefined && now !== conn) return;
+    this.route.delete(id);
+    const p = this.players.get(id);
+    if (!p) return;
+    // (R2) a joiner dropping mid-match keeps its slot, held, until it rejoins or the hold ends
+    if (this.isHost && this.phase === 'playing' && !p.host) {
+      if (p.away) return;
+      p.away = true;
+      this.awayAt.set(id, Date.now());
+      this.events.emit('away', { id, name: p.name });
+      this.broadcastLobby();
+      return;
+    }
+    this.drop(id);
+  }
+
+  /** (R2, host) Held slots older than the hold leave for good (called every few seconds; `now` in ms). */
+  expireAway(now: number): void {
+    for (const [id, at] of this.awayAt) if (now - at > REJOIN_HOLD_S * 1000) this.drop(id);
+  }
+
+  private drop(id: string): void {
+    const p = this.players.get(id);
+    this.awayAt.delete(id);
+    this.tokOf.delete(id);
     if (!p) return;
     this.players.delete(id);
     this.events.emit('peerLeft', { id, name: p.name });
@@ -230,6 +348,8 @@ export class NetSession {
   backToLobby(): void {
     this.phase = 'lobby';
     this.start = null;
+    // (R2) no match to hold a slot in
+    for (const id of [...this.awayAt.keys()]) this.drop(id);
     for (const p of this.players.values()) if (!p.host) p.ready = false;
     this.broadcastLobby();
   }
@@ -238,6 +358,7 @@ export class NetSession {
     if (this.closed) return;
     if (this.isHost) this.send({ t: 'bye', reason });
     this.closed = true;
+    if (this.holdTimer) clearInterval(this.holdTimer);
     await this.transport.leave().catch(() => {});
     this.events.clear();
   }

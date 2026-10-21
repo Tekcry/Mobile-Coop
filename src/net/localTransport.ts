@@ -66,13 +66,14 @@ export function createLocalTransport(roomId: string): Transport {
       }
     }
   };
-  // presence heartbeat; peers silent for 15 s are considered gone (a page loading the Warehouse under software
-  // GL - the tests - can block its main thread for several seconds)
+  // presence heartbeat; peers silent for 60 s are considered gone (a page loading a map under software GL - the tests
+  // on a small VM - can block its main thread for well over 15 s, which dropped the host from a waiting lobby: the
+  // e2e-coop "Host left" stall, marlow-bays R). A peer that leaves on purpose says bye at once.
   const beat = setInterval(() => {
     post({ k: 'hi', from: selfId });
     const now = Date.now();
     for (const [id, last] of peers) {
-      if (now - last > 15000) {
+      if (now - last > 60000) {
         peers.delete(id);
         t.onPeerLeave?.(id);
       }
