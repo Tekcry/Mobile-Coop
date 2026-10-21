@@ -371,9 +371,11 @@ export function tuneKeysMirrorOn(clip: string): boolean {
 }
 
 /**
- * (T1a, item 18) The Mirror box set. Off: the mirrored half takes the mirror image of the own keys' edits (so the pose
- * does not jump) and is edited on its own after. On: the mirrored half's own edits are dropped (it follows the own keys
- * again). One change log entry (the box); the values are saved with it. A clip keyed in full, or no change: false.
+ * (T1a, item 18) The Mirror box set. Off: a mirrored-half key with no edits of its own takes the mirror image of its own
+ * key's edits (so the pose does not jump) and is edited on its own after; one that kept edits from an earlier "off"
+ * keeps them. On: the mirrored half's values stay where they are (ignored while on: it follows the own keys), so turning
+ * it off again brings them back. One change log entry (the box); the values are saved with it. A clip keyed in full, or
+ * no change: false.
  */
 export function tuneKeysMirror(clip: string, on: boolean): boolean {
   const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
@@ -382,11 +384,13 @@ export function tuneKeysMirror(clip: string, on: boolean): boolean {
   const meta = KEY_CLIPS[ci]!;
   const groups = KEY_GROUP_IDS[ci]!;
   const n = meta.phases.length;
-  for (let j = 0; j < n; j++) {
-    const own = KEYS_SECTION.values[groups[j]!] as Record<string, number>;
-    const mine = KEYS_SECTION.values[groups[n + j]!] as Record<string, number>;
-    const m = on ? {} : mirrorDelta(own);
-    for (const id of FIELD_IDS) mine[id] = (m[id] ?? 0) + 0;
+  if (!on) {
+    for (let j = 0; j < n; j++) {
+      const mine = KEYS_SECTION.values[groups[n + j]!] as Record<string, number>;
+      if (FIELD_IDS.some((id) => mine[id] !== 0)) continue;
+      const m = mirrorDelta(KEYS_SECTION.values[groups[j]!] as Record<string, number>);
+      for (const id of FIELD_IDS) mine[id] = (m[id] ?? 0) + 0;
+    }
   }
   tuneSet(mg, 'mirror', on ? 1 : 0);
   syncClip(ci);

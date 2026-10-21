@@ -628,10 +628,12 @@ export class AnimTunePanel {
       'keydown',
       (e) => {
         // (marlow-bays T1a, item 16) the playback bar's keys in the studio: F9 play / pause, F1 / F2 one key back / forward
-        const bar = STUDIO.active && (e.code === TUNER_SPOT_KEY || e.code === TUNER_PLAY_KEY || e.code === TUNER_KEY_BACK || e.code === TUNER_KEY_FWD);
-        if (!this.open || (e.code !== TUNER_MOUSE_KEY && !bar)) return;
+        const barKey = e.code === TUNER_SPOT_KEY || e.code === TUNER_PLAY_KEY || e.code === TUNER_KEY_BACK || e.code === TUNER_KEY_FWD;
+        if (!this.open || (e.code !== TUNER_MOUSE_KEY && !barKey)) return;
+        // the browser never sees the tuner's keys while the panel is open (F1 is Chromium's help), studio or not
         e.preventDefault();
         e.stopImmediatePropagation();
+        if (barKey && !STUDIO.active) return;
         // a held key steps on (the key buttons repeat), the toggles do not
         if (e.repeat && e.code !== TUNER_KEY_BACK && e.code !== TUNER_KEY_FWD) return;
         if (e.code === TUNER_MOUSE_KEY) this.toggleMouse();

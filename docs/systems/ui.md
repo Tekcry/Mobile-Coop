@@ -150,7 +150,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     with Mirror on it shows the own key it mirrors), a readout, a Mirror box and the hint "Key edits change one pose;
     whole-cycle changes go in the state tabs." Mirror (default on, per clip, the Keys group `key.<clip>.mirror` slider
     `mirror`): on, an edit shows on the mirror key (the other arm half a cycle on); off (`tuneKeysMirror`), the mirrored
-    half (`key.<clip>.<n .. 2n-1>`) first takes the mirror image of the own keys' edits, then each key and arm is edited
+    half (`key.<clip>.<n .. 2n-1>`) takes the mirror image of the own keys' edits where it has none of its own (turning Mirror on keeps them, ignored), then each key and arm is edited
     on its own and the key list shows all 2n keys; the bake writes such a clip in full (`expandMirror`, `mirror: false`)
     where the halves differ. Selecting a row marks its bone (slice T's marker; `tunerTarget` knows the new fields).
   - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /

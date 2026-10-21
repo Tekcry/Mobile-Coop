@@ -221,6 +221,35 @@ describe('T1a item 18: the Mirror box', () => {
     expect(tuneKeysMirrorOn('walk')).toBe(true);
   });
 
+  it('(fix round) off, an edit to the mirrored half, on, off again: the edit is still there; untouched keys take the image', () => {
+    tuneSet(keyGroupId('walk', 0), 'armL_twist', 8);
+    tuneKeysMirror('walk', false);
+    expect(tuneGet(keyGroupId('walk', 4), 'armR_twist')).toBe(8);
+    tuneSet(keyGroupId('walk', 6), 'armR_elbow', 12);
+    tuneKeysMirror('walk', true);
+    expect(tuneGet(keyGroupId('walk', 6), 'armR_elbow')).toBe(12); // kept (ignored while on)
+    tuneSet(keyGroupId('walk', 1), 'head_yaw', 4); // an own key edited while on: its mirror key has nothing of its own
+    tuneKeysMirror('walk', false);
+    expect(tuneGet(keyGroupId('walk', 6), 'armR_elbow')).toBe(12);
+    expect(tuneGet(keyGroupId('walk', 4), 'armR_twist')).toBe(8);
+    expect(tuneGet(keyGroupId('walk', 5), 'head_yaw')).toBe(-4);
+  });
+
+  it('(fix round) the bake: Mirror off with the halves still mirror images, a mirrored-half value is baked, not manual', () => {
+    const data = { magic: TUNE_EXPORT_MAGIC, version: 2, exported: '2026-10-21T10:00:00.000Z', log: [], changed: [
+      { group: keyGroupId('walk', 1), id: 'armL_elbow', value: 10 },
+      { group: keyGroupId('walk', 5), id: 'armR_elbow', value: 10 },
+      { group: keyMirrorGroupId('walk'), id: 'mirror', value: 0 },
+    ] };
+    const read = (p: string): string | null => (p === `${BAKE_KEYS_DIR}walk.json` ? readFileSync(path.join(ROOT, p), 'utf8') : null);
+    const r = tuneBake(data, bakeCatalogue([]), read);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.rows.find((x) => x.group === keyGroupId('walk', 5))!.result).toMatch(/^baked \(the halves still mirror/);
+    expect(r.manual).toBe(0);
+    expect(r.baked).toBe(3);
+    expect((JSON.parse(r.writes.find((x) => x.path === `${BAKE_KEYS_DIR}walk.json`)!.after) as KeyFile).mirror).toBe(true);
+  });
+
   it('the bake: off with the halves apart, the clip is written in full (mirror: false); on, or still mirror images, mirrored', () => {
     const walk = JSON.parse(readFileSync(path.join(ROOT, 'scripts/anim-keys/keys/walk.json'), 'utf8')) as KeyFile;
     const n = walk.keys.length;

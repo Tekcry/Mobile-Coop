@@ -683,6 +683,12 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
       const f = KEY_FIELDS.find((x) => x.id === en.id)!;
       en.row.target = `${file} key ${pk[1]} ${f.seg}${f.sub ? `.${f.sub}` : ''}.${f.field} + (${f.unit})`;
       if (pk[1] >= (full ? 2 * n : n)) {
+        // Mirror off with the halves still mirror images: the mirrored own key carries this value (baked through it)
+        if (kf.mirror && pk[1] < 2 * n && !keyMirrorOn(keyVals, clip)) {
+          en.row.result = `baked (the halves still mirror: key ${pk[1]} is key ${pk[1] - n} mirrored; rebake the clip)`;
+          baked++;
+          continue;
+        }
         en.row.result = kf.mirror && pk[1] < 2 * n ? `skipped: the Mirror box is on (key ${pk[1]} follows key ${pk[1] - n})` : `skipped: ${clip} has ${n} keys`;
         manualN++;
         continue;
