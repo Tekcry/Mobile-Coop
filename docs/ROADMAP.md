@@ -165,6 +165,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #100 | 4.47.1: Blender-exact key curve evaluator (groundwork for the exact preview) |
 | 2026-10-22 | #101 | 4.48.0: Marlow bay 3 jam-handoff hallway, jammer rules (5 s use / 5 s cooldown, buzz, reboot, flicker), IR cameras; protocol 26 |
 | 2026-10-22 | #97 | 4.49.0: tuner v3 (one simpler layout for every input, stick lists, plain labels, iPad / phone fit, touch camera, game touch menus + camera) |
+| 2026-10-22 | #102 | 4.49.1: worn-goggle offsets in the Gear tab, baked |
 | 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
 | 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
 | 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
