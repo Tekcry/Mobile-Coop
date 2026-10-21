@@ -30,6 +30,7 @@ import { KEYED_IDLE } from './clips/keyed/idle';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_RUN } from './clips/keyed/run';
+import { KEYED_SKELETON_TEST } from './clips/keyed/skeleton_test';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_WALL_CROUCH_IDLE } from './clips/keyed/wall_crouch_idle';
@@ -181,6 +182,7 @@ const BASE_ENTRIES: readonly StudioEntry[] = [
   keyed(KEYED_GUARD_HELD_STUMBLE, { pace: 0.8, step: 0.26, move: 'back', guard: true }),
   keyed(KEYED_GUARD_CHOKE_SAG, { cycle: 5.5, guard: true }),
   keyed(KEYED_GUARD_KNIFE_COLLAPSE, { cycle: 3, guard: true }),
+  keyed(KEYED_SKELETON_TEST, { cycle: 2 }), // (anim-skeleton S3b) studio only: clavicles, fingers, an FK leg kick
 ];
 
 function base(id: string): StudioEntry {
