@@ -265,6 +265,64 @@ try {
   await G(() => window.__studio.pick('state:idle'));
   await frames(page, 4);
 
+  // (anim-gear) Gear offsets: the panel lists the Gear section (its own tab, no UI change); a gear.holster base row (the
+  // tuner at identity) moves Wren's holstered pistol by the offset along the holster's own x axis, the tuner's delta adds
+  // on top, a slingHip row moves the sling node; role B's puppet (a second Wren rig) composes the same rows and its sling
+  // node moves; a reset puts everything back exactly
+  const gearTab = await G(() => ({ secs: window.__animTune.sections(), tabs: window.__animTune.tabs(), rows: !!document.querySelector('.anim-tune-rows-gear') }));
+  assert(gearTab.secs.includes('gear') && gearTab.tabs.includes('sec:gear') && gearTab.rows, `the tuner panel lists the Gear section in its own tab (${gearTab.tabs.join(', ')}; rows ${gearTab.rows})`);
+  const gearOf = () => G(() => {
+    const g = window.__app.current;
+    const m = g.weapons.slots.map((s) => s.model).find((x) => x.slot === 'thigh');
+    const sh = g.player.rig.slingHip.position;
+    if (!m) return { p: null, sh: [sh.x, sh.y, sh.z] };
+    const n = m.node;
+    const q = n.rotationQuaternion;
+    return { p: [n.position.x, n.position.y, n.position.z], q: [q.x, q.y, q.z, q.w], parent: n.parent ? n.parent.name : '', sh: [sh.x, sh.y, sh.z] };
+  });
+  // the x axis of a quaternion's frame
+  const gearQx = (q) => [1 - 2 * (q[1] * q[1] + q[2] * q[2]), 2 * (q[0] * q[1] + q[2] * q[3]), 2 * (q[0] * q[2] - q[1] * q[3])];
+  const gearMiss = (a, b, ax, k) => Math.max(...[0, 1, 2].map((i) => Math.abs(b[i] - a[i] - k * ax[i])));
+  const gear0 = await gearOf();
+  assert(!!gear0.p && /hipR/.test(gear0.parent), `Wren's pistol sits in her thigh holster (${gear0.parent})`);
+  await G(() => window.__animBase.setGear('holster', 'x', 0.03));
+  await G(() => window.__animBase.setGear('slingHip', 'z', -0.02));
+  await frames(page, 4);
+  const gear1 = await gearOf();
+  const gearAx = gearQx(gear0.q);
+  assert(gearMiss(gear0.p, gear1.p, gearAx, 0.03) < 1e-5 && gear1.q.every((v, i) => Math.abs(v - gear0.q[i]) < 1e-9), `a gear.holster base row (x 3 cm) moves the holstered pistol 3 cm along the holster's x (miss ${gearMiss(gear0.p, gear1.p, gearAx, 0.03).toExponential(1)} m)`);
+  assert(Math.abs(gear1.sh[2] - gear0.sh[2] + 0.02) < 1e-9 && gear1.sh[0] === gear0.sh[0], `a gear.slingHip row moves the sling node 2 cm back (${(gear1.sh[2] - gear0.sh[2]).toFixed(4)} m)`);
+  await G(() => window.__animTune.set('gear.holster', 'x', 0.01));
+  await frames(page, 4);
+  const gear2 = await gearOf();
+  assert(gearMiss(gear0.p, gear2.p, gearAx, 0.04) < 1e-5, `the tuner's Gear delta adds on the base row (4 cm; miss ${gearMiss(gear0.p, gear2.p, gearAx, 0.04).toExponential(1)} m)`);
+  await G(() => window.__animTune.set('gear.holster', 'x', 0));
+  await G(() => window.__animBase.reset());
+  await frames(page, 4);
+  const gear3 = await gearOf();
+  assert(gear3.p.every((v, i) => v === gear0.p[i]) && gear3.sh.every((v, i) => v === gear0.sh[i]), 'reset: the pistol and the sling node are back exactly');
+  // the pair puppet (role B of the boost)
+  await G(() => window.__studio.pick('pair:boost'));
+  await frames(page, 6);
+  const gearPupOf = () => G(() => {
+    const r = window.__app.current.studio.puppets[1].rig;
+    const sh = r.slingHip.position;
+    const g = r.tuneSt.gear;
+    return { x: g.out[0], live: g.live[0], sh: [sh.x, sh.y, sh.z] };
+  });
+  const gearP0 = await gearPupOf();
+  await G(() => window.__animBase.setGear('holster', 'x', 0.03));
+  await G(() => window.__animBase.setGear('slingHip', 'z', -0.02));
+  await frames(page, 6);
+  const gearP1 = await gearPupOf();
+  assert(gearP0.live === 0 && gearP1.live === 1 && Math.abs(gearP1.x - 0.03) < 1e-12 && Math.abs(gearP1.sh[2] - gearP0.sh[2] + 0.02) < 1e-9, `role B's puppet takes the gear rows (holster x ${gearP1.x}, sling node ${(gearP1.sh[2] - gearP0.sh[2]).toFixed(4)} m)`);
+  await G(() => window.__animBase.reset());
+  await frames(page, 6);
+  const gearP2 = await gearPupOf();
+  assert(gearP2.live === 0 && gearP2.sh.every((v, i) => v === gearP0.sh[i]), "reset: the puppet's sling node is back exactly");
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
   // (anim-studio-2) a traversal loop: Wren walks to the ladder and attaches by the synthesised Y; then back to the middle
   await G(() => window.__studio.pick('trav:ladder'));
   let att = '';

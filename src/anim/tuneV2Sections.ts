@@ -8,6 +8,7 @@
  * `weapon.<weapon>.<state>`, `step.<gait>`. The follow keys of `TUNE_STATE_BAG`: `joint`, `hand`, `ik`, `weapon`, `step`.
  * (anim-joints J2) `<state>` is any row of `TUNE_ROW_IDS` (`tuneMoveRows.ts`): the body states, then the move rows
  * (`joint.trav.vault`, `hand.rifle.team.boost.b`) and the action rows (`joint.reload`, `ik.air`, `weapon.pistol.throw`).
+ * (anim-gear) Gear (`gear.<socket>`, `gear.<socket>.crouch`) registers last; every row is copied each frame.
  */
 import { BODY_GROUPS, type BodyGroup } from './tune';
 import { HAND_PARAMS, HAND_WEAPONS, HP, handsGet, handsSet, ikGet, ikSet, IK_LIMBS, IK_RANGE, type HandWeapon, type IkLimb } from './tuneHands';
@@ -15,6 +16,7 @@ import { J, JOINTS, JOINT_RANGE, JOINT_ROWS, MIRROR_OF, MIRROR_SIGN, jointsGet, 
 import { TUNE_MOVE_MAX, TUNE_ROW_IDS, tuneRowFollow, type TuneRowPick } from './tuneMoveRows';
 import { registerTuneSection, TUNE_LOG, TUNE_STATE_BAG, type TuneTunable } from './tuneRegistry';
 import { SP, STEP_GAITS, STEP_PARAMS, stepGet, stepSet, type StepGait } from './tuneStep';
+import { GEAR_PARAMS, GEAR_RANGE_DEG, GEAR_RANGE_M, GEAR_ROWS, gearGet, gearSet } from './tuneGear';
 
 const AXIS_NAME = ['pitch', 'yaw', 'roll'] as const;
 const AXIS_ID = ['x', 'y', 'z'] as const;
@@ -118,6 +120,37 @@ function syncStep(): void {
     for (let k = 0; k < STEP_KEYS.length; k++) {
       const v = vals[STEP_KEYS[k]!]!;
       if (v !== stepGet(g, STEP_IDX[k]!)) stepSet(g, STEP_IDX[k]!, v);
+    }
+  }
+}
+
+/**
+ * (anim-gear, G-A1) Gear: `gear.<socket>` (holster, backL, backC, backR, slingHip) and the crouched
+ * variant `gear.<socket>.crouch` (applied over the standing one by the rig's crouch amount); x / y / z (m) and pitch /
+ * yaw / roll (deg) in the socket's own frame, identity 0 (`tuneGear.ts`). Deltas on the base table's `gear` key; every
+ * Wren rig reads them. No follow (the picker stays where it is put).
+ */
+export const GEAR_GROUP_IDS: readonly string[] = GEAR_ROWS.map((r) => `gear.${r}`);
+export const GEAR_SECTION = registerTuneSection({
+  id: 'gear',
+  label: 'Gear',
+  note: 'Worn gear per socket (visual only): x / y / z in the socket frame, turns about its pivot; .crouch adds by the crouch amount',
+  groups: GEAR_GROUP_IDS,
+  tunables: GEAR_PARAMS.map((p) => {
+    const r = p.unit === 'm' ? GEAR_RANGE_M : GEAR_RANGE_DEG;
+    return { id: p.id, label: p.label, kind: 'add' as const, def: 0, min: r.min, max: r.max, step: r.step, unit: p.unit, groups: GEAR_GROUP_IDS, hook: `tuneGear ${p.id} (the socket's offset on every Wren rig)` };
+  }),
+});
+const GEAR_KEYS: readonly string[] = GEAR_PARAMS.map((p) => p.id);
+
+/** (anim-gear) Registry -> Gear delta table, every row (84 keyed reads; setters only on a real difference). */
+function syncGear(): void {
+  for (let g = 0; g < GEAR_ROWS.length; g++) {
+    const row = GEAR_ROWS[g]!;
+    const vals = GEAR_SECTION.values[GEAR_GROUP_IDS[g]!] as Record<string, number>;
+    for (let k = 0; k < GEAR_KEYS.length; k++) {
+      const v = vals[GEAR_KEYS[k]!]!;
+      if (v !== gearGet(row, k)) gearSet(row, k, v);
     }
   }
 }
@@ -243,6 +276,7 @@ export function tuneV2Frame(body: BodyGroup | '', weapon: HandWeapon, pick: Tune
   const gi = body === '' ? -1 : BODY_GROUPS.indexOf(body);
   const wi = HAND_WEAPONS.indexOf(weapon);
   syncStep();
+  syncGear();
   TUNE_STATE_BAG.step = gi < 0 ? '' : STEP_FOLLOW[gi]!;
   if (jointsMirror()) jointsMirror(false);
   jointRowNow = '';
@@ -289,6 +323,7 @@ export function tuneV2SyncAll(): void {
   for (let r = 0; r < JOINT_ROWS.length; r++) syncJoints(JOINT_ROWS[r]!, r);
   for (let w = 0; w < HAND_WEAPONS.length; w++) for (let g = 0; g < ROWS; g++) syncHands(w, g);
   for (let g = 0; g < ROWS; g++) syncIk(g);
+  syncGear();
   for (const w of HAND_WEAPONS) for (const b of BODY_GROUPS) tuneV2Frame(b, w);
 }
 
