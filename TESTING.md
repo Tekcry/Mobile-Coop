@@ -257,6 +257,22 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   not cover her. Outside the studio (Pause > Animation tuner) the panel overlays play with no dock; in co-op the same
   (no dock, the HUD stays).
 
+### Tuner on a phone (marlow-bays item 26; the tuner and Anim Studio only, the game stays desktop only)
+- [ ] On a phone, open the studio (`?autostart=studio`, or the main menu's studio row). Landscape: the panel is a
+  drawer on the right, she stands in the left part; no F3 readout. Portrait: a bottom sheet, she stands above it.
+- [ ] Tap "Hide panel" (the handle): only the header stays and she gets the whole screen; "Show panel" brings it back.
+- [ ] Landscape: the drawer is about 38% of the width; portrait: the sheet about 45% of the height. Text small but
+  readable (13 px).
+- [ ] Press a button on a paired controller: the panel gets smaller again (26 px rows, 11 px text, one-line sliders, a
+  narrower drawer / lower sheet) with no reload; touch the screen: back to the touch size.
+- [ ] Tabs, buttons, chips, the body map's joints, the playback bar and the sliders are easy to hit with a thumb; the
+  panel scrolls with a finger; a slider drags without scrolling the panel.
+- [ ] One finger dragged on the scene turns the view round her; a pinch zooms; two fingers dragged move the view's
+  centre; a tap on her head shows only the head's sliders. A drag on the panel never moves the camera.
+- [ ] Settings > "Debug readout (F3)" shows and hides the readout; reopening the studio keeps the choice.
+- [ ] A controller paired to the phone: the pad works as on desktop (tabs, rows, edit, View hands the pad over).
+- [ ] On the desktop the panel looks as before (docked right, no handle).
+
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.
