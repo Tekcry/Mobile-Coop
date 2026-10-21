@@ -37,7 +37,7 @@ const label = (id: string): string => TUNE_SECTIONS.find((s) => s.id === id)?.la
 describe('tuner-ui: tabs', () => {
   it('the fixed order, with every registered section in a tab', () => {
     const tabs = buildTabs(ids(), label);
-    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop', 'settings']);
+    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop', 'sec:gear', 'settings']); // (anim-gear) Gear: its own tab after Co-op
     const placed = tabs.flatMap((t) => t.sections);
     expect([...placed].sort()).toEqual([...ids()].sort());
     expect(tabs.find((t) => t.id === 'body')!.sections).toEqual(expect.arrayContaining(['body', 'joint', 'ik', 'trav']));
@@ -50,7 +50,7 @@ describe('tuner-ui: tabs', () => {
   it('an unmapped section gets its own tab after Co-op, before Settings', () => {
     const tabs = buildTabs([...ids(), 'face'], (id) => (id === 'face' ? 'Face (expressions)' : label(id)));
     const at = tabs.findIndex((t) => t.id === 'sec:face');
-    expect(at).toBe(tabs.findIndex((t) => t.id === 'coop') + 1);
+    expect(at).toBe(tabs.findIndex((t) => t.id === 'sec:gear') + 1); // (anim-gear) after Co-op and the Gear tab
     expect(tabs[at + 1]!.id).toBe('settings');
     expect(tabs[at]!.label).toBe('Face');
     expect(tabOfSection('team_boost')).toBe('coop');

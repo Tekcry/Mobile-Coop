@@ -148,6 +148,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   only and is gone when she walks on. In the leg-up pair, `Team` > `Boost` > `B` moves role B only.
 - [ ] Reload row (anim-joints J2): in play (follow on), reload; the Joints picker shows `Reload` while the reload plays;
   a left elbow edit there shows during each reload and not between them.
+- [ ] Gear offsets (anim-gear): in the Anim Studio open the Gear tab, pick `holster`, slide x (and z) until the pistol
+  sits out of the thigh, no clipping; pick `holster` > `crouch`, crouch: it moves on as she crouches and back as she
+  stands; draw and holster the pistol: the hand goes to the moved holster. Export, run
+  `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts` gets a `gear` key),
+  rebuild, reset the Gear sliders: the same look. With a partner (or role B of a pair loop) the partner's sling socket
+  and gear take the same rows; a guard does not.
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short

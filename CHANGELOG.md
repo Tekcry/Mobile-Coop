@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.45.0 - Animation tuner: Gear offsets for the holster, the guns on her back and the hip sling, baked (2026-10-22, PR #95)
+- Gear offsets (marlow-bays item 22): the animation tuner has a Gear tab with sliders that move worn gear per socket:
+  the holstered pistol on the thigh, the guns on the back (left, centre, right) and the hip sling socket
+  (the hip sling's gun with it). Each moves in its own frame (x / y / z in metres) and turns
+  about its own seat (pitch / yaw / roll in degrees); each has a crouched variant added as she crouches. A draw or
+  holster reaches to the moved slot. Visual only: what she carries and how long a draw takes are unchanged.
+- The Gear values bake into the animation base table like Joints and Hands & feet, so every Wren body takes them: the
+  co-op partner and the studio's pair puppets too, guards never. Old exports, saves and base tables load and bake as
+  before. The grenade pouches are part of her own kit, so they have no slider yet; the goggles follow
+  after track C's hook lands.
+
 ## 4.44.0 - Animation tuner: Joints, Hands & feet, IK and Weapon rows for every move and action (climbs, rappel, co-op moves, reload, melee, landing, hit) (2026-10-22, PR #90)
 - Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every
   traversal move (vault, mantle, step up, climb up, window vault, rappel, drop, hop, roll, wall kick, split, brace),
