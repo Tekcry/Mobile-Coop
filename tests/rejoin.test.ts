@@ -153,17 +153,52 @@ describe('rejoin session (R2-R3)', () => {
     expect(host.players.has('C2')).toBe(false);
   });
 
-  it('an old connection that drops after its rejoin does not hold the slot again', async () => {
-    const { h, host } = room();
-    const away: string[] = [];
-    host.events.on('away', (p) => away.push(p.id));
-    // the tab reloaded: the new connection comes before the old one times out
+  it('a reload before the old connection drops is refused until it drops, then takes its slot', async () => {
+    const { h, host, c1 } = room();
     const c2 = sess(h.make('C2'), 'client', 'ABCDE', prof('Cli'), 'tokA');
     c2.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Cli', tag: {}, look: {}, tok: 'tokA' }, 'H');
-    expect(c2.selfId).toBe('C1');
-    await sessions[1]!.transport.leave();
-    expect(away).toEqual([]);
+    expect(c2.selfId).toBe('C2');
     expect(host.players.get('C1')?.away).toBe(false);
+    await c1.transport.leave();
+    // the refused tab tries again (its menu's Rejoin): a new session with its token
+    const c3 = sess(h.make('C3'), 'client', 'ABCDE', prof('Cli'), 'tokA');
+    expect(c3.selfId).toBe('C1');
+    expect(host.players.get('C1')?.away).toBe(false);
+  });
+
+  it('the token goes to the host alone, and a live joiner\'s slot is never taken, even with its token', () => {
+    const h = hub();
+    const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    host.setSettings('infiltration', 'warehouse', 'normal');
+    const sniff = h.make('Z');
+    const seen: string[] = [];
+    sniff.onMessage = (m) => {
+      const v = m as { t?: string; tok?: string };
+      if (v.t === 'hello' && v.tok) seen.push(v.tok);
+    };
+    const c1 = sess(h.make('C1'), 'client', 'ABCDE', prof('Cli'), 'tokA');
+    host.startMatch();
+    expect(seen).toEqual([]);
+    expect(c1.hostId).toBe('H');
+    // a stranger that learnt the token anyway
+    const s = sess(h.make('S'), 'client', 'ABCDE', prof('S'), 'tokA');
+    s.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'S', tag: {}, look: {}, tok: 'tokA' }, 'H');
+    expect(s.selfId).toBe('S');
+    expect(host.players.get('C1')?.away).toBe(false);
+  });
+
+  it('a non-full room: the token hello moves a rejoin from its fresh entry to its held slot', async () => {
+    const h = hub();
+    const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    host.setSettings('infiltration', 'warehouse', 'normal');
+    const c1 = sess(h.make('C1'), 'client', 'ABCDE', prof('Cli'), 'tokA');
+    host.startMatch();
+    await c1.transport.leave();
+    const c2 = sess(h.make('C2'), 'client', 'ABCDE', prof('Cli'), 'tokA');
+    expect(c2.selfId).toBe('C1');
+    expect(host.players.has('C2')).toBe(false);
+    expect(host.players.get('C1')?.away).toBe(false);
+    expect(host.players.size).toBe(2);
   });
 
   it('(R3) a client whose host drops keeps its session and takes the host that reopens the room', async () => {

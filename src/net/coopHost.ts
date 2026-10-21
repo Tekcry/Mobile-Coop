@@ -305,32 +305,49 @@ export class CoopHost implements NetAttachment {
 
   /** (R2) Held joiners: where each stood (restored on its rejoin) and when the last restore went out. */
   private readonly restoreFor = new Map<string, { x: number; y: number; z: number; yaw: number; sent: number; until: number }>();
+  /** (R2) Rejoined joiners still loading: held until their first state arrives. */
+  private readonly rejoining = new Set<string>();
 
   /**
    * (marlow-bays R2) A joiner dropped mid-match: its body stays where it stood (frozen: no states arrive), takes no
-   * damage, and is out of the guards' and the course's player list until it rejoins; a line names the hold.
+   * damage, and is out of the guards' and the course's player list until it rejoins; a line names the hold. A guard it
+   * held is let go and a team move it was in ends.
    */
   private hold(id: string, name: string): void {
     const r = this.remotes.get(id);
     if (!r || r.held) return;
     r.held = true;
+    this.rejoining.delete(id);
     const i = this.remoteRefs.indexOf(r.ref);
     if (i >= 0) this.remoteRefs.splice(i, 1);
+    for (const [eid, sz] of this.seized) {
+      if (sz.by !== id) continue;
+      this.push({ e: 'tdDenied', player: id, enemy: eid });
+      this.release(eid);
+    }
+    if (this.teamPairs.has(id)) this.onTeamMove(id, 'end', '', 0, 0, 0);
     this.restoreFor.set(id, { x: r.feet.x, y: r.feet.y, z: r.feet.z, yaw: r.state?.yaw ?? 0, sent: -1, until: 0 });
     this.g.hud.setNetNotice(`${name} disconnected - reconnecting... (room ${this.s.code})`);
     this.g.app.toasts.show(`${name} disconnected. Their place is held for 10 minutes (room ${this.s.code}).`, 'warn');
   }
 
-  /** (R2) The held joiner is back: in play again, and put back where it was held (`restore`, repeated until it is). */
+  /** (R2) The held joiner is back on the room; it stays held while its match loads (`resume` on its first state). */
   private unhold(id: string, name: string): void {
-    const r = this.remotes.get(id);
-    if (!r) return;
+    if (!this.remotes.get(id)?.held) return;
+    this.rejoining.add(id);
+    this.g.hud.setNetNotice(`${name} rejoining... (room ${this.s.code})`);
+  }
+
+  /** (R2) The rejoined joiner's first state: in play again, and put back where it was held (`restore`, repeated until
+   *  it stands there, for 30 s). */
+  private resume(r: RemotePlayer): void {
+    this.rejoining.delete(r.id);
     r.held = false;
     if (!this.remoteRefs.includes(r.ref)) this.remoteRefs.push(r.ref);
-    const at = this.restoreFor.get(id);
-    if (at) at.until = this.time + 60;
+    const at = this.restoreFor.get(r.id);
+    if (at) at.until = this.time + 30;
     this.g.hud.setNetNotice(null);
-    this.g.app.toasts.show(`${name} rejoined`);
+    this.g.app.toasts.show(`${r.avatar.info.name} rejoined`);
   }
 
   /** (R2) Each state from a rejoined joiner: until it stands where it was held, the restore goes out every 0.5 s. */
@@ -353,6 +370,7 @@ export class CoopHost implements NetAttachment {
     this.partnerBoxes.get(id)?.dispose();
     this.partnerBoxes.delete(id);
     this.restoreFor.delete(id);
+    this.rejoining.delete(id);
     if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
@@ -368,7 +386,8 @@ export class CoopHost implements NetAttachment {
 
   private anyoneUp(except: string): boolean {
     if (except !== this.s.selfId && this.g.player.alive) return true;
-    for (const r of this.remotes.values()) if (r.id !== except && r.alive) return true;
+    // (marlow-bays R2) a held (dropped) partner cannot revive anyone
+    for (const r of this.remotes.values()) if (r.id !== except && r.alive && !r.held) return true;
     return false;
   }
 
@@ -482,7 +501,9 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     switch (msg.t) {
       case 'pstate':
-        // (R2) a rejoined joiner's first states come from its fresh spawn: the jump back is allowed
+        // (R2) a rejoined joiner's first state: back in play; its first states come from its fresh spawn (the jump back
+        // is allowed)
+        if (this.rejoining.has(from)) this.resume(r);
         if (this.restoreFor.has(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
