@@ -1,20 +1,24 @@
 # marlow-bays - state
 
-B + M (cloud): see "Slices B + M" below; PR to master open, waiting on the orchestrator's PC full e2e and GPU look.
-Track A (Course Ready Build), 2026-10-21 ~19:30:
-- Merged: slice T #82 (4.35.0), T1a #83 (4.36.0).
-- T2 (tuner redesign) = PR Tekcry/Mobile-Coop#86, branch `feature/marlow-tuner-t2` (worktree
-  `C:/NightShift/Mobile-Coop-marlow-t2`), head e4105dea; laptop short check passed; checker fixed; full e2e running on
-  the desktop at E2E_JOBS=1. Shots: `t2-layout-2026-10-21.png` (Michael OK'd), `t2-final-2026-10-21.png`,
-  `t2-stage-light-before-after.png`.
-- Item 26 (tuner on phones, M21 exception for the tuner and Anim Studio only) building on `feature/tuner-phone`
-  (worktree `C:/NightShift/Mobile-Coop-tuner-phone`, from T2 e4105dea; rebase on master after #86). Phone-size
-  screenshot to the orchestrator before its PR.
-- Item 23 (key timing) PARKED at 2781d490 on `feature/marlow-key-timing` (worktree `C:/NightShift/Mobile-Coop-key-timing`,
-  from T2): retime logic, live preview, export via the key `phase` field, Keys tab controls, e2e steps. Left: docs, the
-  e2e run, and (orchestrator ~19:25) the key `time` bake rule + keyMetaText write in `src/anim/tuneBake.ts` (track B's
-  file, done by A, minimal, keys-only, named in the PR body). Then item 25 (add / delete keys). Tell Menu Notes (track
-  C) when 23 / 25 open and land; keep the optional-channel path in key_clip.py / build.mjs.
+B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): done, PR #92 open. Master 4.48.0 merged (2026-10-22):
+protocol 27 on top of the jammer's 26 (both `restore` and the jammer's `back` events kept). On that head check passes
+(2595 unit tests) and e2e-coop, e2e-menus and e2e-netmove pass (run on S's head, which carries it).
+Slice S (server browser, item 28): own branch `feature/server-browser` from R's head, own PR.
+Track A (Course Ready Build), 2026-10-21 ~21:40:
+- Merged: slice T #82 (4.35.0), T1a #83 (4.36.0), T2 #86 (4.39.0), item 23 key timing #87 (4.40.0), items 26 + 26b
+  tuner on phones #89 (4.41.0; M21 exception for the tuner and Anim Studio only).
+- Item 25 (add / delete keys) = PR Tekcry/Mobile-Coop#91, branch `feature/marlow-key-edit` (worktree
+  `C:/NightShift/Mobile-Coop-key-edit`), head e79680b1 (master 4.41.0 merged). Sliders-only state (`del` per key,
+  `key.<clip>.a0..a7` with `at`), `src/anim/tuneKeysEdit.ts` (`KEY_LIVE`); the bake regenerates `tuneKeysMeta.ts` on
+  any key-file write (closes item 23's gap); keys-only tuneBake.ts lines marked "(item 25, track A)". Known: preview
+  linear vs the Blender Bezier (BAKE.md). Check + e2e-studio pass; checker fixed; full e2e queued on the laptop.
+- Next (orchestrator ~22:20, Michael chose): item 24 guard tuning moves to track A. Start after the 23:00 usage reset on
+  `feature/guard-tune` from master: a guard target in the tuner and studio (a guard puppet in studioStage), guard rows
+  keyed apart from Wren's (Joints, Weight, Stepping where guards use them), a guard base table the bake writes; a flag
+  line in `src/ai/enemyRig.ts`; minimal named edits to `src/anim/animBase.ts` / `tuneJointsRig`; Wren rows never touch
+  guards and guard rows never touch Wren; `tests/animSkeletonGuardIdentity.test.ts` green with no tuning. One checker,
+  one fix round, own PR.
+- Tell Menu Notes (track C) when 25 lands; keep the optional-channel path in key_clip.py / build.mjs.
 - T1b is track B (CT Core), T3 track C (Menu Notes). Bays J after the animation tracks.
 Open: none.
 
@@ -57,7 +61,45 @@ protection reset after it.
 Polish list: the host's view of a joiner's hostage may flicker its gait slightly below 60 fps (`holdAt` velocity per
 fixed step from a render-rate pose); a restart refused (already pending / op ending) closes the menu with no line.
 
+## Slice R - rejoin a match (cloud session "Night Shift | Bays Cloud", 2026-10-21)
+Built R1-R4 on the existing room (no server):
+- Identity: a player id outlives its connection. The client's `hello` carries a per-tab, per-room rejoin token
+  (`core/rejoin.ts`, `sessionStorage`); the host keeps a held slot (`PlayerInfo.away`) for `REJOIN_HOLD_S` (600 s)
+  when a joiner drops mid-match, and a hello with its token (or, in a full room, the only held slot: a tab closed with
+  its token) takes it back. The session aliases the new transport id to the held player id, so the game code never
+  sees the change, and tells the client its id (`you`). In the lobby a leaver still leaves.
+- Host (`coopHost` hold / unhold): the held body stays where it stood (no states arrive), takes no damage
+  (`RemotePlayer.held`), is out of `remotePlayers()` (guards, course pass zones, everyone-down), and a HUD line names
+  it with the code. On the rejoin the host sends `restore` (where it was held) every 0.5 s until the client stands
+  there; health, down state and the team's state come back through the snapshots and the course wire as usual.
+- Host drop (R3): the client session stays open (`hostId` cleared) and takes the next host that opens the room (its
+  hello on that host's first lobby). The joiner's match stays up with "Host disconnected - waiting (CODE)"; a resumed
+  host's start reloads it. "Resume hosting" (`resumeRoom`) reopens the room with the same mode, map, difficulty,
+  mission and weather and starts at `GameMode.resumeBay` (course: the bay they were in). Assumed R5: Sector Ops
+  resumes from its first section (no start-section option yet); undo by asking for a section start.
+- R1: the pause menu shows "Room CODE"; the main menu entry "Rejoin <code>" / "Resume hosting <code>" (order after
+  Sector Ops) is shown while the record is live (refreshed every 2 s while a match runs, kept on Leave, cleared when
+  the match ends or returns to the lobby).
+- Protocol 25 -> 27 (slice J holds 26; whichever merges second renumbers).
+Tests: unit `tests/rejoin.test.ts` (wire, held slot and token, full-room fallback, stranger refused, hold expiry, lobby
+leaver, stale connection, host drop and the next host, the record and token); e2e-coop: the joiner drops (held line,
+out of the guards' list) and rejoins from the main menu as the same player where it stood with its 60 hp; the host
+drops (the joiner waits on the code, no dialog) and resumes from the main menu with the joiner back; e2e-menus: the
+Rejoin row.
+Results (cloud, software GL, the head after master 4.42.0 merged): `npm run check` passes (2483 unit tests);
+e2e-coop passes end to end (both rejoin blocks: the joiner drops and rejoins as the same player where it stood with
+its health; the host drops, the joiner waits on the code, Resume hosting brings both back); e2e-netmove passes;
+e2e-menus passed on the slice (the Rejoin row). The old e2e-coop lobby stall on small VMs was the test transport's 15 s
+silent-peer limit (a "Host left" dialog while the other page loaded a map): now 60 s (`localTransport`, tests only).
+Checker (fresh): 5 defects, all fixed in the fix round: the token went out in broadcast hellos (now to the host alone;
+a live slot is never taken; a client refused as full ignores that room's lobbies); the restore clock started before a
+slow joiner loaded (now held until its first state, then 30 s); a held partner counted as able to revive; a hold kept
+the joiner's grabs and team moves (now let go / ended); a protocol test still read 25.
+Notes (not done): the full-room fallback lets anyone with the code take the only held slot (by design, R2); the token
+uses Math.random; a waiting joiner has no timeout; Sector Ops resumes from section 1 (R5).
+
 ## Done
+- 2026-10-21: slice R (cloud): item 27 rejoin; PR to master.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).
 

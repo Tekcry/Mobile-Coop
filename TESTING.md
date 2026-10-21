@@ -154,6 +154,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts` gets a `gear` key),
   rebuild, reset the Gear sliders: the same look. With a partner (or role B of a pair loop) the partner's sling socket
   and gear take the same rows; a guard does not.
+- [ ] Goggles (anim-goggle): in the Anim Studio (or a match, the tuner open) turn night vision on (the goggles come
+  down over her eyes), open the
+  Gear tab, pick `goggles`, slide y / z and pitch until the worn goggle sits off the brow and clear of the face, no
+  clipping; pick `goggles` > `crouch`, crouch: it follows. Vision off: the stowed goggle does not move (no stowed
+  socket yet). Zoom out to LOD1 / LOD2: only the lens moves there (the housing is fused into the head), a known limit.
+  Bake and reset as above: the same look; a guard never takes it (the partner and the studio puppets carry it but show the stowed goggle).
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
@@ -350,6 +356,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
 - [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.
 - [ ] Solo Sector Ops: Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
+- [ ] (marlow-bays R) Rejoin: in a co-op match, Start shows "Room CODE". Joiner: Start > Quit to menu; the host sees
+  "<name> disconnected - reconnecting..." and the joiner's body stays put. Joiner: Main menu > "Rejoin CODE": back in,
+  where you stood, same health.
+- [ ] Host: Start > Quit to menu; the joiner shows "Host disconnected - waiting (CODE)". Host: Main menu > "Resume
+  hosting CODE": the match restarts at the bay you were in and the joiner is pulled in.
 
 ## Release checklist (before a job merges)
 

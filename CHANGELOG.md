@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-bays item 30 (key tools, exact preview)
+## 4.51.0 - Animation tuner: key tools (wave, apply to ticked keys, smooth between, compare) and the exact key preview (2026-10-22, PR #106)
 - Animation tuner, Keys tab: key tools for changing many keys at once, each one undo step and baked like any key edit.
   "Key tools" fold: Wave (pick a slider by name, an amount and a timing; "Fill keys" puts a smooth sine over the cycle
   on every key, the mirrored half following the Mirror rule), Apply to keys (the selected slider's value on this key
@@ -11,6 +11,26 @@
 - Exact preview: a key edit now previews the way the Blender rebake makes it (the same Bezier curve; the trunk exact,
   the arms within 0.7 cm between the keys, the pelvis exact), also with retimed, added and deleted keys, so the
   in-betweens no longer shift after a rebake. "+ Add key" keeps the pose where the key goes.
+
+## 4.50.0 - Co-op rejoin: a dropped player rejoins the match (held slot, Resume hosting, room code on pause and main menu); protocol 27 (2026-10-22, PR #92)
+- Co-op: rejoin a match you left or dropped out of (Michael: "There should also be a way to rejoin a match you have
+  left"). The room code shows in the pause menu, and for 10 minutes after a match was last live the main menu offers
+  "Rejoin <code>" (the joiner) or "Resume hosting <code>" (the host): one press.
+- A joiner who drops or leaves mid-match keeps its place: the host holds its body where it stood (frozen, unhurt, unseen
+  by the guards) with a "<name> disconnected - reconnecting... (room CODE)" line, for 10 minutes. Rejoining puts it
+  back as the same player, where it stood, with the health the host kept and the team's state.
+- If the host drops or leaves, the joiner stays in the match with "Host disconnected - waiting (CODE)". "Resume
+  hosting" reopens the same room and starts the match again from its last checkpoint (Marlow Yard: the bay they were
+  in); the waiting joiner takes it at once, or rejoins from its menu. No server: the same room on the same relays.
+- Protocol 27 (26 is the jammer slice): the hello's rejoin token, the held flag in the lobby, the host's `you` and the
+  `restore` event.
+
+## 4.49.1 - Animation tuner: worn-goggle offsets in the Gear tab, baked (2026-10-22, PR #102)
+- Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
+  turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
+  the goggle's own pivot. It bakes into the animation base table like the other Gear rows; your own Wren shows it
+  (the partner's and the studio puppets' rigs carry it too, but they always show the stowed goggle, so it shows on them once their vision mode is shown), guards never. At LOD1 / LOD2 only the lens moves (the housing
+  is part of the head there). The stowed goggle has no slider yet (it has no separate parts). Untuned, nothing changes.
 
 ## 4.49.0 - Animation tuner v3: one simpler layout for pad, touch and mouse; analogue stick lists; plain labels; iPad and phone fit; touch camera; game touch for menus and camera (2026-10-22, PR #97)
 - Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the

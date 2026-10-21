@@ -250,8 +250,11 @@ export class RemotePlayer implements Damageable {
   /** Hits that do not hurt (team-mates); course friendly fire (D38) replaces it. */
   friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
 
+  /** (marlow-bays R2) Dropped mid-match and held by the host: frozen, takes no damage, until the player rejoins. */
+  held = false;
+
   applyDamage(h: HitInfo): DamageResult {
-    if (!this.alive || this.friendly(h)) return { dealt: 0, killed: false };
+    if (!this.alive || this.held || this.friendly(h)) return { dealt: 0, killed: false };
     const rolling = ((this.state?.f ?? 0) & PF.roll) !== 0;
     const dealt = this.health.damage(h.amount * this.damageMul * (rolling ? 0.5 : 1));
     if (dealt > 0) this.onDamaged?.(h, dealt);
