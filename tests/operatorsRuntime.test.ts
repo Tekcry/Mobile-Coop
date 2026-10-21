@@ -17,6 +17,7 @@ function rigRest(): Float64Array {
     head: [0, 0.15, 0.01], shL: [-0.19, 0.2, -0.01], elL: [0, -0.29, 0], wrL: [0, -0.25, 0], shR: [0.19, 0.2, -0.01],
     elR: [0, -0.29, 0], wrR: [0, -0.25, 0], hipL: [-0.09, -0.03, 0], knL: [0, -0.43, 0], anL: [0, -0.42, 0],
     hipR: [0.09, -0.03, 0], knR: [0, -0.43, 0], anR: [0, -0.42, 0], toeL: [0, -0.07, 0.12], toeR: [0, -0.07, 0.12],
+    clavL: [-0.03, 0.265, 0.04], clavR: [0.03, 0.265, 0.04],
   };
   const out = new Float64Array(RIG_JOINTS.length * TRS);
   RIG_JOINTS.forEach((n, j) => { out.set(off[n]!, j * TRS); out[j * TRS + 6] = 1; });
