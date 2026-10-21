@@ -71,7 +71,11 @@ Added ~14:10:
     other arm half a cycle later). Fix: a "Mirror" tick box in the Keys tab (default on, current behaviour); off, the
     edit goes to this key only and the mirror key keeps its own values (the bake writes the clip unmirrored where they
     differ).
-Items 17 and 18 go in slice T1 with 15 and 16.
+19. (~15:25) "i dont see an option just to view idle aiming stance either, only moving forward/strafing/backwards, How
+    do i just adjust aiming stance?" The studio has no standing aim loop (only aim glide fwd / strafe / back; the tuner's
+    `aim` body group and `rifle.aim` / `pistol.aim` gun groups exist). Fix: studio loops for aim standing, crouch aim
+    standing and crouch aim moving, and a weapon pick (rifle / pistol) that applies to every armed loop.
+Items 17, 18 and 19 go in slice T1 with 15 and 16.
 
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
