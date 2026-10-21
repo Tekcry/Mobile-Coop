@@ -120,7 +120,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
-import { demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
+import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
@@ -1931,8 +1931,9 @@ export class GameState implements AppState {
     core.lock = FREE_VIEW.lock;
     core.bodyYaw = this.player.rig.root.rotation.y;
     const turn = core.lock ? 0 : 1;
-    core.lookX = (look.x + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt) * turn;
-    core.lookY = (look.y + FREE_IN.ry * C.pitchRate * rdt) * turn;
+    // (marlow-bays item 26) the touch orbit adds to the look like the mouse drag
+    core.lookX = (look.x + FREE_IN.tlx + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt) * turn;
+    core.lookY = (look.y + FREE_IN.tly + FREE_IN.ry * C.pitchRate * rdt) * turn;
     look.x = look.y = 0;
     const up = (real.down('jump') ? 1 : 0) - (real.down('crouch') ? 1 : 0);
     if (mode === 'fly') {
@@ -1941,10 +1942,14 @@ export class GameState implements AppState {
       core.moveY = pad ? FREE_IN.ly : real.move.y;
       core.rise = Math.max(-1, Math.min(1, FREE_IN.rise + up));
     } else {
-      core.zoom = FREE_IN.zoom * C.zoomRate * rdt + FREE_IN.wheel * C.zoomStep;
+      core.zoom = FREE_IN.zoom * C.zoomRate * rdt + FREE_IN.wheel * C.zoomStep + FREE_IN.tzoom;
       core.nudge = Math.max(-1, Math.min(1, FREE_IN.nudge + up));
+      // (item 26) the touch pan: screen heights to metres at the orbit's distance
+      core.panR = FREE_IN.tpx * core.dist * C.panScale;
+      core.panU = FREE_IN.tpy * core.dist * C.panScale;
     }
     FREE_IN.wheel = 0;
+    clearTouchIn();
     return true;
   }
 
@@ -2277,6 +2282,8 @@ export class GameState implements AppState {
     this.stealth?.frameUpdate();
     this.takedown.frameUpdate();
     this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
+    this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);
     this.updateGadgetHud();
     this.hud.barks.update(dt, this.placeBark);
