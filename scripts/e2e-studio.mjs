@@ -10,8 +10,10 @@
 // mouse is marked in the panel and moves the scene marker to its joint; the camera tab has no body marker. The Keyed box
 // plays the state's keyed clip and, cleared, the procedural state. A moving state picked in the Body tab's Joints list
 // plays its loop; on the spot (the header toggle, F8) she holds her root over 2 s of play, off she walks.
-// (marlow-bays item 14) The stage lights (key, fill, rim, ambient) light her meshes, keep their offset in her frame as
+// (marlow-bays item 14; T2: placed toward the camera) The stage lights (key, fill, rim, ambient) light her meshes, keep their offset in the view frame as
 // she walks, and the Stage light slider scales them.
+// (marlow-bays T2) The studio hides the game HUD and docks the canvas beside the panel; a click on the body map or on
+// her in the scene shows only that part's sliders; pin / unpin and the recent chip; the Joints rows fold in groups.
 // (marlow-bays T1a) A key step lands on the clip's next key (its mirrored half too). The Keys tab: a clip and key picked
 // plays that clip on the spot paused on that key, the readout names it and its mirror, the key buttons and F1 / F2 step it
 // with the picker following, the edited bone is marked; a forearm twist edit turns the forearm bone; Mirror off lets the
@@ -215,6 +217,8 @@ try {
   await frames(page, 2);
   const clickRow = async (key) => {
     const p = await G((k) => {
+      // (marlow-bays T2) the row's group opens first (groups other than the first start folded)
+      window.__animTune.reveal(k);
       const inp = document.querySelector(`.anim-tune input[data-pad="${k}"]`);
       const name = inp?.closest('[data-pad-row]')?.querySelector('.tt-name');
       if (!name) return null;
@@ -239,6 +243,85 @@ try {
   await frames(page, 3);
   const s3 = await G(() => window.__animTune.selected());
   assert(s3.kind === 'camera' && !s3.mark.shown, `the camera tab: no body marker (${s3.kind}, ${s3.mark.shown})`);
+  // (marlow-bays T2) the studio hides the game HUD; the canvas is docked beside the panel (her free area excludes it)
+  const t2a = await G(() => {
+    const hud = document.querySelector('.hud');
+    const c = window.__app.canvas.getBoundingClientRect();
+    const p = document.querySelector('.anim-tune').getBoundingClientRect();
+    return { hud: !hud || getComputedStyle(hud).display === 'none', studio: document.body.classList.contains('tt-studio'), docked: document.body.classList.contains('tt-docked'), cRight: c.right, pLeft: p.left, dock: window.__animTune.partState().dock };
+  });
+  assert(t2a.hud && t2a.studio, `T2: the game HUD is hidden in the studio (${JSON.stringify(t2a)})`);
+  assert(t2a.docked && t2a.dock > 0 && t2a.cRight <= t2a.pLeft + 1, `T2: the canvas ends where the docked panel starts (${t2a.cRight.toFixed(0)} <= ${t2a.pLeft.toFixed(0)}, dock ${t2a.dock})`);
+  // a click on the body map's left knee shows only the sliders that move it, the knee marked on the map
+  await G(() => window.__animTune.tab('body'));
+  await frames(page, 2);
+  const kneeAt = await G(() => {
+    const r = document.querySelector('.anim-tune-map [data-part="kneeL"] .hit')?.getBoundingClientRect();
+    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  });
+  assert(!!kneeAt, 'T2: the body map shows on the Body tab');
+  await page.mouse.click(kneeAt.x, kneeAt.y);
+  await frames(page, 3);
+  const bm = await G(() => ({ ...window.__animTune.partState(), on: document.querySelector('.anim-tune-map [data-part="kneeL"]').classList.contains('on') }));
+  assert(bm.part === 'kneeL' && bm.on && bm.rows.length > 0 && bm.rows.every((k) => /knee/i.test(k)), `T2: the map's left knee shows only knee sliders (${JSON.stringify(bm)})`);
+  // a click on her head in the scene picks the head (the marker's place on the canvas, drag view)
+  await G(() => window.__animTune.part('headNode'));
+  await frames(page, 4);
+  const headMark = await G(() => {
+    const m = window.__animTune.selected().mark;
+    const c = window.__app.canvas.getBoundingClientRect();
+    return m.shown ? { x: c.left + m.ax, y: c.top + m.ay } : null;
+  });
+  await G(() => window.__animTune.part(''));
+  await frames(page, 2);
+  assert(!!headMark, 'T2: the head marker shows');
+  await page.mouse.click(headMark.x, headMark.y);
+  await frames(page, 3);
+  const sc = await G(() => window.__animTune.partState());
+  assert(sc.part === 'headNode' && sc.label === 'Head', `T2: a click on her head in the scene picks the head (${JSON.stringify(sc)})`);
+  // pin and unpin a slider; a moved slider heads the recent chips
+  const pinKey = sc.rows[0];
+  assert(!!pinKey, `T2: the head shows a slider (${JSON.stringify(sc.rows)})`);
+  await G((k) => window.__animTune.pin(k), pinKey);
+  await frames(page, 2);
+  const pq1 = await G(() => ({ q: window.__animTune.quick(), chip: document.querySelectorAll('.anim-tune-quick .tt-chip.pin').length, star: !!document.querySelector('.anim-tune .tt-row .tt-pin.on') }));
+  assert(pq1.q.pins.some((p) => p.endsWith(`|${pinKey.split(':')[2]}`)) && pq1.chip >= 1 && pq1.star, `T2: a pinned slider shows as a chip and a filled star (${JSON.stringify(pq1)})`);
+  await G((k) => window.__animTune.pin(k), pinKey);
+  await frames(page, 2);
+  const pq2 = await G(() => window.__animTune.quick());
+  assert(!pq2.pins.some((p) => p.endsWith(`|${pinKey.split(':')[2]}`)), `T2: pin again unpins (${JSON.stringify(pq2)})`);
+  const rec = await G((k) => {
+    const inp = document.querySelector(`.anim-tune input[data-pad="${k}"]`);
+    const g = inp.dataset.group;
+    const id = inp.dataset.id;
+    const v0 = window.__animTune.get(g, id);
+    inp.value = String(Number(inp.min) + (Number(inp.max) - Number(inp.min)) * 0.75);
+    inp.dispatchEvent(new Event('input'));
+    const q = window.__animTune.quick();
+    const chip = [...document.querySelectorAll('.anim-tune-quick .tt-chip')].length;
+    window.__animTune.set(g, id, v0);
+    return { first: q.recent[0] ?? '', want: `|${g}|${id}`, chip };
+  }, pinKey);
+  assert(rec.first.endsWith(rec.want) && rec.chip >= 1, `T2: a moved slider heads the recent chips (${JSON.stringify(rec)})`);
+  // the Joints part, every part shown: groups fold; a header opens its group and closes it again
+  await G(() => {
+    window.__animTune.part('');
+    const sel = document.querySelector('.anim-tune-part-body');
+    sel.value = 'joint';
+    sel.dispatchEvent(new Event('change'));
+  });
+  await frames(page, 2);
+  const fold = await G(() => {
+    const hs = [...document.querySelectorAll('.anim-tune-rows-joint .tt-grp')];
+    const h = hs.find((x) => !x.classList.contains('open'));
+    if (!h) return { n: hs.length, a: false, b: false };
+    h.click();
+    const a = h.classList.contains('open') && !h.nextElementSibling.hidden;
+    h.click();
+    const b = !h.classList.contains('open') && h.nextElementSibling.hidden;
+    return { n: hs.length, a, b };
+  });
+  assert(fold.n > 1 && fold.a && fold.b, `T2: the Joints rows fold in groups; a header opens and closes its group (${JSON.stringify(fold)})`);
   await G(() => window.__animTune.tab('view'));
 
   // (marlow-bays item 11) the Keyed box: the state's keyed clip, cleared the procedural state
@@ -296,13 +379,13 @@ try {
   await page.keyboard.press('F8');
   await frames(page, 2);
   const o13 = await G(() => ({ spot: window.__studio.state().spot, btn: document.querySelector('.anim-tune-spot').textContent }));
-  const stage = () => G(() => ({ lights: window.__studioStage.lights(), root: window.__studioStage.root() }));
-  // a light's offset in her frame (forward, right, up)
+  const stage = () => G(() => ({ lights: window.__studioStage.lights(), root: window.__studioStage.root(), cam: (({ x, y, z }) => ({ x, y, z }))(window.__app.current.scene.activeCamera.globalPosition) }));
+  // (marlow-bays T2) a light's offset in the view frame (forward: from her toward the camera, right, up)
   const local = (l, r) => {
     const dx = l.x - r.x;
     const dz = l.z - r.z;
-    const s = Math.sin(r.yaw);
-    const c = Math.cos(r.yaw);
+    const s = Math.sin(r.viewYaw);
+    const c = Math.cos(r.viewYaw);
     return { f: dx * s + dz * c, r: dx * c - dz * s, u: l.y - r.y };
   };
   const L0 = await stage();
@@ -316,9 +399,12 @@ try {
     return Math.hypot(a.f - b.f, a.r - b.r, a.u - b.u);
   });
   const rootMoved = Math.hypot(L1.root.x - L0.root.x, L1.root.z - L0.root.z);
+  // key and fill on the camera's side of her, the rim beyond her (flat distances to the camera)
+  const camD = (p) => Math.hypot(p.x - L1.cam.x, p.z - L1.cam.z);
+  const faceCam = camD(L1.lights[0]) < camD(L1.root) && camD(L1.lights[1]) < camD(L1.root) && camD(L1.lights[2]) > camD(L1.root);
   assert(
-    L0.lights.length === 4 && L0.lights.every((l) => l.enabled && l.meshes > 0 && l.intensity > 0) && rootMoved > 0.5 && offs.every((d) => d < 0.1),
-    `the stage lights light her and follow her root (${L0.lights.map((l) => `${l.name} ${l.intensity.toFixed(2)} on ${l.meshes}`).join(', ')}; root moved ${rootMoved.toFixed(2)} m; offset change ${offs.map((d) => d.toFixed(3)).join(' ')})`,
+    L0.lights.length === 4 && L0.lights.every((l) => l.enabled && l.meshes > 0 && l.intensity > 0) && rootMoved > 0.5 && offs.every((d) => d < 0.1) && faceCam,
+    `the stage lights light her, follow her root and face the camera (key / fill nearer it, rim beyond: ${faceCam}; ${L0.lights.map((l) => `${l.name} ${l.intensity.toFixed(2)} on ${l.meshes}`).join(', ')}; root moved ${rootMoved.toFixed(2)} m; offset change ${offs.map((d) => d.toFixed(3)).join(' ')})`,
   );
   await G(() => window.__studio.stageLight(0.5));
   await frames(page, 3);

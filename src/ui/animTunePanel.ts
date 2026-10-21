@@ -51,7 +51,8 @@ function keyListed(clip: string, seg: string): boolean {
 import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioEntry } from '../anim/studio';
 import { promptHtml, type PromptButton } from './prompts';
 import { TUNER_KEY_BACK, TUNER_KEY_FWD, TUNER_MOUSE_KEY, TUNER_MOUSE_LABEL, TUNER_PLAY_KEY, TUNER_SPOT_KEY, TunerMouseCtl, type TunerMouseMode } from './tunerMouse';
-import { emptyTarget, rowKeyParts, tuneTarget, type RigJoint } from './tunerTarget';
+import { BODY_PARTS, emptyTarget, partLabel, pickOnBody, RIG_BONES, RIG_JOINTS, rowHasPart, rowKeyParts, tuneTarget, type BodyPart, type RigJoint } from './tunerTarget';
+import type { TuneTunable } from '../anim/tuneRegistry';
 import {
   bodyCarry,
   buildTabs,
@@ -74,6 +75,14 @@ import {
   tunerScale,
   valueText,
   loopForGroup,
+  plainLoop,
+  stanceText,
+  groupOpen,
+  pushRecent,
+  quickKeyParts,
+  quickKeys,
+  togglePin,
+  PIN_MAX,
   type BodyCarry,
   type LoopGroups,
   type TunerSize,
@@ -136,60 +145,107 @@ const SNAPS: readonly FreeSnap[] = ['front', 'side', 'back', 'top'];
 
 /** (tuner-ui) The panel's look: explicit colours on every control (no browser default shows through), readable on dark. */
 const CSS = `
-.anim-tune{--tt-bg:rgba(8,12,16,0.94);--tt-fg:#e2edf5;--tt-dim:#93a4b1;--tt-acc:#8fd3ff;--tt-warn:#ffc040;--tt-ctl:#22303c;--tt-in:#0b1218;--tt-line:rgba(255,255,255,0.24);
-position:fixed;top:4px;right:4px;z-index:150;display:flex;flex-direction:column;box-sizing:border-box;background:var(--tt-bg);color:var(--tt-fg);
-font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.35;border-radius:4px;padding:0.3em 0.45em;pointer-events:auto;overscroll-behavior:contain}
+.anim-tune{--tt-bg:rgba(4,6,7,0.9);--tt-fg:var(--text,#d6dfdb);--tt-hi:var(--text-hi,#fff);--tt-dim:var(--muted,#7d8a86);--tt-acc:var(--hl,#38e08c);--tt-acc-rgb:var(--hl-rgb,56,224,140);--tt-warn:var(--warn,#f0b43b);--tt-sel:var(--gold,#f0c24b);--tt-ctl:var(--panel-2,rgba(14,24,23,0.94));--tt-in:var(--ink,#040607);--tt-line:var(--line,rgba(214,223,219,0.16));
+position:fixed;top:0;right:0;bottom:0;z-index:150;display:flex;flex-direction:column;box-sizing:border-box;background:linear-gradient(270deg,rgba(4,6,7,0.95),rgba(4,6,7,0.88));border-left:1px solid var(--tt-line);color:var(--tt-fg);
+font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight:500;line-height:1.3;padding:0.35em 0.6em 0.3em;pointer-events:auto;overscroll-behavior:contain;font-variant-numeric:tabular-nums}
 .anim-tune[hidden]{display:none!important}
 .anim-tune [hidden]{display:none!important}
 .anim-tune *{box-sizing:border-box}
 .anim-tune button,.anim-tune input,.anim-tune select,.anim-tune textarea{font:inherit;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg)}
-.anim-tune .tt-btn{-webkit-appearance:none;appearance:none;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:3px;padding:0.1em 0.55em;min-height:2em;cursor:pointer;text-align:left}
-.anim-tune .tt-btn:disabled{opacity:0.45;cursor:default}
-.anim-tune .tt-btn.on{background:#2d5a78}
-.anim-tune input[type=number],.anim-tune input[type=text],.anim-tune input[type=search],.anim-tune textarea{-webkit-appearance:none;appearance:none;background:var(--tt-in);border:1px solid var(--tt-line);border-radius:2px;min-height:1.9em;padding:0 0.3em}
-.anim-tune input[type=checkbox]{accent-color:#4fa3d9;width:1.15em;height:1.15em;margin:0 0.35em 0 0;flex:none}
-.anim-tune input[type=range]{accent-color:#4fa3d9;width:100%;min-width:0;height:1.9em;margin:0;background:transparent}
-.anim-tune .tt-head{display:flex;align-items:center;gap:0.3em;flex:none}
-.anim-tune .tt-title{flex:1;color:var(--tt-acc);font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.anim-tune .anim-tune-pad{color:var(--tt-warn);font-size:0.9em;white-space:nowrap}
-.anim-tune .anim-tune-tabs{display:flex;align-items:center;gap:0.2em;flex:none;overflow-x:auto;margin:0.25em 0;padding-bottom:0.1em;scrollbar-width:thin}
-.anim-tune .anim-tune-playbar{flex:none;border-bottom:1px solid var(--tt-line);padding:0 0 0.2em;margin-bottom:0.2em}
-.anim-tune.tt-folded .anim-tune-playbar{display:none!important}
+.anim-tune .tt-btn{-webkit-appearance:none;appearance:none;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:2px;padding:0.05em 0.6em;min-height:1.9em;cursor:pointer;text-align:left;font-weight:600;letter-spacing:0.02em}
+.anim-tune .tt-btn:hover{border-color:rgba(var(--tt-acc-rgb),0.6)}
+.anim-tune .tt-btn:disabled{opacity:0.4;cursor:default}
+.anim-tune .tt-btn.on{box-shadow:inset 0 -2px 0 var(--tt-acc);color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi)}
+.anim-tune input[type=number],.anim-tune input[type=text],.anim-tune input[type=search],.anim-tune textarea{-webkit-appearance:none;appearance:none;background:var(--tt-in);border:1px solid var(--tt-line);border-radius:2px;min-height:1.9em;padding:0 0.35em}
+.anim-tune input[type=search]{width:100%}
+.anim-tune input[type=search]:focus,.anim-tune input[type=number]:focus{outline:none;border-color:var(--tt-acc)}
+.anim-tune input[type=checkbox]{accent-color:var(--tt-acc);width:1.1em;height:1.1em;margin:0 0.35em 0 0;flex:none}
+.anim-tune input[type=range]{accent-color:var(--tt-acc);width:100%;min-width:0;height:1.8em;margin:0;background:transparent;cursor:pointer}
+.anim-tune .tt-head{display:flex;align-items:center;gap:0.4em;flex:none;padding-bottom:0.2em}
+.anim-tune .tt-title{flex:1;color:var(--tt-hi);font-weight:700;font-size:1.15em;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anim-tune .anim-tune-pad{color:var(--tt-warn);font-size:0.85em;white-space:nowrap;letter-spacing:0.04em}
+.anim-tune .anim-tune-fold,.anim-tune .anim-tune-close{min-width:1.9em;text-align:center;padding:0}
+.anim-tune .anim-tune-tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 0.1em;flex:none;margin:0 0 0.3em;border-bottom:1px solid var(--tt-line)}
+.anim-tune .tt-tab{flex:none;padding:0.25em 0.45em 0.3em;background:transparent;border:none;border-bottom:2px solid transparent;border-radius:0;cursor:pointer;white-space:nowrap;-webkit-appearance:none;appearance:none;font-size:0.92em;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--tt-dim);-webkit-text-fill-color:var(--tt-dim)}
+.anim-tune .tt-tab:hover{background:rgba(255,255,255,0.05)}
+.anim-tune .tt-tab.active{color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi);border-bottom-color:var(--tt-acc)}
+.anim-tune .tt-bump{flex:none;display:inline-flex;align-items:center}
+.anim-tune .anim-tune-playbar{flex:none;border-bottom:1px solid var(--tt-line);padding:0 0 0.25em;margin-bottom:0.25em}
+.anim-tune.tt-folded{bottom:auto}
+.anim-tune.tt-folded .anim-tune-playbar,.anim-tune.tt-folded .anim-tune-nav{display:none!important}
 .anim-tune .anim-tune-keyhint{color:var(--tt-warn)}
-.anim-tune .tt-tab{flex:none;min-height:1.9em;padding:0.1em 0.5em;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:3px 3px 0 0;cursor:pointer;white-space:nowrap;-webkit-appearance:none;appearance:none}
-.anim-tune .tt-tab.active{background:#2d5a78;border-color:var(--tt-acc);font-weight:bold;box-shadow:inset 0 -3px 0 #ffe600}
-.anim-tune .tt-row.tt-sel{background-color:rgba(255,230,0,0.14);box-shadow:inset 4px 0 0 #ffe600}
-.anim-tune .tt-row.tt-sel .tt-name{color:#fff6a0;font-weight:bold}
-.anim-tune .anim-tune-sel{color:#ffe600;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .anim-tune .anim-tune-mouse{min-height:1.7em;font-size:0.85em;white-space:nowrap}
-.anim-tune.tt-gamecam{pointer-events:none;opacity:0.85}
+.anim-tune.tt-gamecam{pointer-events:none;opacity:0.8}
 .anim-tune.tt-gamecam .anim-tune-mouse{pointer-events:auto}
-.anim-tune .tt-bump{flex:none}
-.anim-tune .anim-tune-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0.1em 0.15em}
-.anim-tune .tt-bar{display:flex;flex-wrap:wrap;gap:0.3em;align-items:center;margin:0.25em 0}
-.anim-tune .tt-field{display:flex;align-items:center;gap:0.35em;min-height:2em}
-.anim-tune .tt-grow{flex:1;min-width:10em}
-.anim-tune .tt-h{display:block;color:var(--tt-acc);margin:0.35em 0 0.1em}
-.anim-tune .tt-block{border:1px solid rgba(143,211,255,0.3);border-radius:3px;padding:0.15em 0.4em;margin:0.25em 0}
+.anim-tune .anim-tune-nav{flex:none;display:flex;flex-direction:column;gap:0.3em;padding-bottom:0.3em;margin-bottom:0.2em;border-bottom:1px solid var(--tt-line)}
+.anim-tune .tt-navrow{display:flex;gap:0.6em;align-items:stretch}
+.anim-tune .tt-map{flex:none;width:7.6em;height:12.9em;cursor:pointer;user-select:none;overflow:visible}
+.anim-tune .tt-map .bn{stroke:rgba(214,223,219,0.35);stroke-width:2.2;stroke-linecap:round}
+.anim-tune .tt-map .jt{fill:#0a0f10;stroke:var(--tt-fg);stroke-width:1.4}
+.anim-tune .tt-map .hit{fill:transparent;cursor:pointer}
+.anim-tune .tt-map .ring{fill:none;stroke:none;stroke-width:2.2}
+.anim-tune .tt-map .pt:hover .jt,.anim-tune .tt-map .pt:hover .gun{stroke:var(--tt-hi);fill:rgba(var(--tt-acc-rgb),0.35)}
+.anim-tune .tt-map .pt.tsel .ring{stroke:var(--tt-sel);stroke-dasharray:3 2}
+.anim-tune .tt-map .pt.tsel .jt{stroke:var(--tt-sel);stroke-width:2.2}
+.anim-tune .tt-map .pt.on .ring{stroke:var(--tt-acc);stroke-dasharray:none;stroke-width:2.6}
+.anim-tune .tt-map .pt.on .jt{fill:var(--tt-acc);stroke:var(--tt-hi);stroke-width:2}
+.anim-tune .tt-map .pt.tt-focus .ring{stroke:var(--tt-hi);stroke-dasharray:none}
+.anim-tune .tt-map .side{fill:var(--tt-hi);font-size:13px;font-weight:700}
+.anim-tune .tt-map .cap{fill:var(--tt-dim);font-size:8.5px;font-weight:600;text-anchor:middle;letter-spacing:0.04em}
+.anim-tune .tt-map .gun{fill:#0a0f10;stroke:var(--tt-fg);stroke-width:1.4}
+.anim-tune .tt-map .pt.on .gun{fill:var(--tt-acc)}
+.anim-tune .tt-partpick .tt-drop{min-width:0;max-width:100%}
+.anim-tune .tt-partbox{display:flex;flex-direction:column;gap:0.25em}
+.anim-tune .tt-navside{flex:1;min-width:0;display:flex;flex-direction:column;gap:0.25em}
+.anim-tune .tt-grp-h{font-size:0.75em;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--tt-dim)}
+.anim-tune .tt-partname{font-size:1.2em;font-weight:700;color:var(--tt-hi);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anim-tune .tt-partname.all{color:var(--tt-fg);font-weight:600}
+.anim-tune .tt-parthelp{font-size:0.82em;color:var(--tt-dim)}
+.anim-tune .tt-quick{display:flex;flex-wrap:wrap;gap:0.25em}
+.anim-tune .tt-chip{-webkit-appearance:none;appearance:none;background:var(--tt-ctl);border:1px solid var(--tt-line);border-radius:1em;padding:0 0.6em;min-height:1.6em;font-size:0.85em;cursor:pointer;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anim-tune .tt-chip.pin{border-color:rgba(240,194,75,0.55)}
+.anim-tune .tt-chip:hover{border-color:var(--tt-acc)}
+.anim-tune .anim-tune-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0.1em 0.3em 0.1em 0;scrollbar-width:thin;scrollbar-color:rgba(214,223,219,0.3) transparent}
+.anim-tune .tt-bar{display:flex;flex-wrap:wrap;gap:0.3em 0.45em;align-items:center;margin:0.2em 0}
+.anim-tune .tt-field{display:flex;align-items:center;gap:0.4em;min-height:1.9em}
+.anim-tune .tt-grow{flex:1;min-width:9em}
+.anim-tune .tt-h{display:block;font-size:0.78em;font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:var(--tt-dim);margin:0.45em 0 0.15em}
+.anim-tune .tt-block{border-top:1px solid var(--tt-line);padding:0.1em 0 0.3em;margin:0.2em 0}
 .anim-tune .tt-note{color:var(--tt-dim);font-size:0.85em}
-.anim-tune .tt-val{min-width:3.5em;color:var(--tt-fg)}
-.anim-tune .tt-drop{display:inline-flex;justify-content:space-between;align-items:center;gap:0.5em;min-width:7.5em;max-width:16em}
+.anim-tune .tt-val{min-width:3.2em;color:var(--tt-hi);font-weight:600;text-align:right}
+.anim-tune .tt-drop{display:inline-flex;justify-content:space-between;align-items:center;gap:0.5em;min-width:7em;max-width:15em;color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi)}
 .anim-tune .tt-drop span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.anim-tune .tt-drop::after{content:'▾';color:var(--tt-acc)}
-.anim-tune .anim-tune-drop-list{position:absolute;z-index:3;background:#0d171f;border:1px solid var(--tt-acc);border-radius:3px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.6)}
-.anim-tune .tt-opt{padding:0.2em 0.6em;min-height:1.9em;display:flex;align-items:center;cursor:pointer;white-space:nowrap}
+.anim-tune .tt-drop::after{content:'▾';color:var(--tt-acc);-webkit-text-fill-color:var(--tt-acc)}
+.anim-tune .anim-tune-drop-list{position:absolute;z-index:3;background:#0a0f10;border:1px solid var(--tt-acc);border-radius:2px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.7)}
+.anim-tune .tt-opt{padding:0.15em 0.7em;min-height:1.9em;display:flex;align-items:center;cursor:pointer;white-space:nowrap}
+.anim-tune .tt-opt:hover{background:rgba(255,255,255,0.06)}
 .anim-tune .tt-opt.cur::before{content:'✓';color:var(--tt-acc);margin-right:0.4em}
-.anim-tune .tt-opt.hi{background:rgba(255,192,64,0.25);outline:1px solid var(--tt-warn)}
-.anim-tune .tt-row{display:grid;grid-template-columns:minmax(5.5em,36%) minmax(3em,1fr) 4.6em 1.6em 1.6em;align-items:center;gap:0.3em;min-height:2em;border-radius:2px}
-.anim-tune .tt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.anim-tune .anim-tune-num{width:100%;min-width:0;font-weight:bold;text-align:right}
+.anim-tune .tt-opt.hi{background:linear-gradient(90deg,rgba(var(--tt-acc-rgb),0.34),rgba(var(--tt-acc-rgb),0.1));box-shadow:inset 3px 0 0 var(--tt-acc);color:var(--tt-hi);font-weight:700}
+.anim-tune .tt-grp{-webkit-appearance:none;appearance:none;display:flex;align-items:center;gap:0.4em;width:100%;background:transparent;border:none;border-top:1px solid var(--tt-line);padding:0.3em 0.2em 0.15em;margin-top:0.15em;cursor:pointer;text-align:left;font-size:0.8em;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--tt-dim);-webkit-text-fill-color:var(--tt-dim)}
+.anim-tune .tt-grp:hover{color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg)}
+.anim-tune .tt-grp::before{content:'▸';color:var(--tt-acc);-webkit-text-fill-color:var(--tt-acc);width:0.8em}
+.anim-tune .tt-grp.open::before{content:'▾'}
+.anim-tune .tt-grp .n{margin-left:auto;letter-spacing:0.04em}
+.anim-tune .tt-grp .chg{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn)}
+.anim-tune .tt-gbody{display:grid;gap:1px}
+.anim-tune .tt-row{display:grid;grid-template-columns:1.2em minmax(5em,38%) minmax(3em,1fr) 4.4em 1.1em 1.3em;align-items:center;gap:0.3em;min-height:2em;padding:0 0.1em 0 0.15em;border-radius:0}
+.anim-tune .tt-row:hover{background:rgba(255,255,255,0.035)}
+.anim-tune .tt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tt-fg)}
+.anim-tune .tt-row.tt-sel{background-color:rgba(240,194,75,0.13);box-shadow:inset 3px 0 0 var(--tt-sel)}
+.anim-tune .tt-row.tt-sel .tt-name{color:var(--tt-hi);font-weight:700}
+.anim-tune .anim-tune-sel{color:var(--tt-sel);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anim-tune .anim-tune-num{width:100%;min-width:0;font-weight:700;text-align:right;color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi);font-size:1.05em}
 .anim-tune .anim-tune-num.chg{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn)}
-.anim-tune .tt-unit{color:var(--tt-dim)}
-.anim-tune .tt-x{-webkit-appearance:none;appearance:none;background:none;border:none;padding:0;min-height:1.8em;cursor:pointer;color:var(--tt-dim);-webkit-text-fill-color:var(--tt-dim)}
-.anim-tune .anim-tune-hint{color:#8a98a4;font-size:0.8em;margin:-0.15em 0 0.15em 0.2em}
-.anim-tune .anim-tune-menu{display:none;flex-direction:column;gap:0.15em;margin:0.2em 0;padding:0.2em;border:1px solid var(--tt-warn);flex:none}
-.anim-tune .anim-tune-info{flex:none;color:var(--tt-dim);font-size:0.9em;padding:0.15em 0;border-top:1px solid var(--tt-line)}
-.anim-tune .anim-tune-hints{flex:none;color:var(--tt-warn);font-size:0.9em;padding:0.25em 0 0.15em;border-top:1px solid rgba(255,192,64,0.4);display:flex;flex-wrap:wrap;gap:0.2em 0.7em;align-items:center;min-height:2.2em}
+.anim-tune .tt-unit{color:var(--tt-dim);font-size:0.9em}
+.anim-tune .tt-x,.anim-tune .tt-pin{-webkit-appearance:none;appearance:none;background:none;border:none;padding:0;min-height:1.8em;cursor:pointer;color:var(--tt-dim);-webkit-text-fill-color:var(--tt-dim);text-align:center}
+.anim-tune .tt-x:hover,.anim-tune .tt-pin:hover{color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi)}
+.anim-tune .tt-pin{opacity:0.35}
+.anim-tune .tt-row:hover .tt-pin{opacity:1}
+.anim-tune .tt-pin.on{opacity:1;color:var(--tt-sel);-webkit-text-fill-color:var(--tt-sel)}
+.anim-tune .anim-tune-hint{color:var(--tt-dim);font-size:0.78em;margin:-0.2em 0 0.15em 1.6em}
+.anim-tune .anim-tune-menu{display:none;flex-direction:column;gap:0.15em;margin:0.2em 0;padding:0.25em;border:1px solid var(--tt-acc);background:#0a0f10;flex:none}
+.anim-tune .anim-tune-info{flex:none;color:var(--tt-dim);font-size:0.85em;padding:0.2em 0 0.1em;border-top:1px solid var(--tt-line)}
+.anim-tune .anim-tune-hints{flex:none;color:var(--tt-fg);font-size:0.85em;font-weight:600;padding:0.3em 0 0.1em;border-top:1px solid var(--tt-line);display:flex;flex-wrap:wrap;gap:0.2em 0.8em;align-items:center;min-height:2.2em}
 .anim-tune .anim-tune-hints .tt-h1{display:inline-flex;align-items:center;gap:0.25em;white-space:nowrap}
 .anim-tune .anim-tune-hints .glyph{height:1.55em;min-width:1.55em;font-size:0.85em}
 .anim-tune .anim-tune-hints .glyph.round{width:1.55em}
@@ -197,9 +253,12 @@ font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.35;border-radius
 body.input-gamepad .anim-tune .tt-keys{display:none}
 body:not(.input-gamepad) .anim-tune .tt-pad{display:none}
 body:not(.input-gamepad) .anim-tune .tt-bump{display:none}
-.anim-tune .tt-focus{outline:2px solid var(--tt-warn)!important;background-color:rgba(255,192,64,0.16)!important}
-.anim-tune .tt-edit{outline:2px solid #60ff80!important;background-color:rgba(96,255,128,0.16)!important}
+.anim-tune .tt-focus{outline:none!important;background:linear-gradient(90deg,rgba(var(--tt-acc-rgb),0.34) 0,rgba(var(--tt-acc-rgb),0.12) 70%,rgba(var(--tt-acc-rgb),0.04) 100%)!important;box-shadow:inset 3px 0 0 var(--tt-acc)!important;color:var(--tt-hi)}
+.anim-tune .tt-focus .tt-name,.anim-tune label.tt-focus,.anim-tune .tt-btn.tt-focus{color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi);font-weight:700}
+.anim-tune .tt-edit{outline:none!important;background:linear-gradient(90deg,rgba(240,180,59,0.32) 0,rgba(240,180,59,0.1) 80%)!important;box-shadow:inset 3px 0 0 var(--tt-warn)!important}
 .anim-tune textarea{width:100%;height:8em}
+body.tt-studio .hud,body.tt-studio .hud-world,body.tt-studio .mouse-capture-hint{display:none!important}
+body.tt-docked #game{width:calc(100% - var(--tt-dock-w,0px))!important;right:auto!important}
 `;
 
 let cssDone = false;
@@ -340,7 +399,7 @@ export class AnimTunePanel {
   private freezeBox: HTMLInputElement;
   private pauseBtn: HTMLButtonElement;
   private sizeSel: HTMLSelectElement;
-  private size: TunerSize = 'S';
+  private size: TunerSize = 'M';
   /** The game is frozen (time scale 0), by the tuner holding the pad (auto) or by Pause; the running scale to go back to. */
   private frozen = false;
   private autoFrozen = false;
@@ -391,6 +450,31 @@ export class AnimTunePanel {
   private readonly carryOut: BodyCarry = { joint: '', ik: '', handState: '', gunState: '', step: '', weight: '' };
   /** (tuner-ui) The Anim Studio was on at the last look: leaving it turns follow back on (a loop pick turned it off). */
   private wasStudio = false;
+  // --- (marlow-bays T2) the part filter (body map, a click on her), pinned and recent sliders, row groups, the dock
+  private bodyPart: BodyPart = '';
+  private nav: HTMLDivElement;
+  private mapEl: SVGSVGElement;
+  private readonly mapPts = new Map<string, SVGGElement>();
+  private partName: HTMLDivElement;
+  private partHelp: HTMLDivElement;
+  private partBox: HTMLDivElement;
+  /** (T2 phase 2) The part list (the pad's body map). */
+  private partPick: HTMLSelectElement;
+  private allBtn: HTMLButtonElement;
+  private quick: HTMLDivElement;
+  /** Pinned and recent sliders as `<section>|<group>|<id>`. */
+  private pins: string[] = [];
+  private recent: string[] = [];
+  /** A row group opened or closed by hand (`<section>|<label>`). */
+  private readonly grpOpen = new Map<string, boolean>();
+  private readonly rowScratch = emptyTarget();
+  /** The width the studio's canvas gives up to the docked panel (px; 0 none). */
+  private dockW = 0;
+  /** (phase 2) The game HUD hidden: the Anim Studio is on (not in co-op). */
+  private studioHud = false;
+  /** The panel width set by `applySize` (px). */
+  private panelW = 0;
+  private readonly down = { on: false, x: 0, y: 0, t: 0 };
 
   constructor() {
     injectCss();
@@ -421,7 +505,7 @@ export class AnimTunePanel {
     head.className = 'tt-head';
     const title = document.createElement('span');
     title.className = 'tt-title';
-    title.textContent = 'Animation tuner';
+    title.textContent = 'Anim tuner';
     this.padLine = document.createElement('span');
     this.padLine.className = 'anim-tune-pad';
     this.foldBtn = this.mkBtn('_', () => this.setFolded(!this.folded), 'fold', 'anim-tune-fold');
@@ -516,6 +600,7 @@ export class AnimTunePanel {
     const pb = this.mkBar();
     this.sizeSel = this.mkSel(pb, 'Size', TUNER_SIZES, (v) => this.setSize(v as TunerSize, true), 'size', 'anim-tune-size');
     for (const o of Array.from(this.sizeSel.options)) o.textContent = o.value === 'S' ? 'Small' : o.value === 'M' ? 'Medium' : 'Large';
+    this.sizeSel.value = this.size;
     this.freezeBox = this.mkCheck(pb, 'Pause game while tuning', true, () => {
       this.saveUi();
       this.syncTuneFreeze();
@@ -535,17 +620,19 @@ export class AnimTunePanel {
       this.marker = v;
       if (!v) this.clearMarker();
     }, 'marker', 'anim-tune-marker');
+    // (marlow-bays T2) the search moved to the part strip over the rows (every tab)
     const search = document.createElement('input');
     search.type = 'search';
-    search.placeholder = 'Find a slider';
+    search.placeholder = 'Find a slider (any tab)';
     search.className = 'anim-tune-search tt-grow';
     search.addEventListener('input', () => {
       this.search = search.value.trim().toLowerCase();
       this.rebuildAll();
     });
-    const pb4 = this.mkBar();
-    pb4.append(search);
-    panelB.append(pb, pb2, pb3, pb4);
+    search.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Enter') search.blur();
+    });
+    panelB.append(pb, pb2, pb3);
     const snapB = this.block(set, 'Undo and presets');
     snapB.append(this.snaps.bar, this.snaps.pbar);
     const fileB = this.block(set, 'Files');
@@ -587,6 +674,8 @@ export class AnimTunePanel {
     mItem('Store A', () => this.menuDo(() => this.snaps.abStore('A')), 'm:abA');
     mItem('Store B', () => this.menuDo(() => this.snaps.abStore('B')), 'm:abB');
     mItem('Flip A / B', () => this.menuDo(() => this.snaps.abToggle()), 'm:ab');
+    mItem('Pin / unpin this slider', () => this.menuDo(() => this.togglePinKey(this.menuBack)), 'm:pin');
+    mItem('Show every part', () => this.menuDo(() => this.pickPart('')), 'm:allparts');
     mItem('Reset this group', () => this.menuDo(() => this.resetFocusedGroup()), 'm:resetgroup');
     mItem('Reset all (A twice)', () => this.armResetAll(), 'm:resetall');
     mItem('Export file', () => this.menuDo(() => this.exportFile()), 'm:export');
@@ -680,7 +769,69 @@ export class AnimTunePanel {
     this.dropList = document.createElement('div');
     this.dropList.className = 'anim-tune-drop-list';
     this.dropList.hidden = true;
-    el.append(head, this.tabBar, this.studioUi.bar, menu, body, infoEl, this.hint, this.dropList);
+    // (marlow-bays T2) the part strip: the body map, the part shown, pinned and recent sliders, the search
+    this.nav = document.createElement('div');
+    this.nav.className = 'anim-tune-nav';
+    const navRow = document.createElement('div');
+    navRow.className = 'tt-navrow';
+    this.mapEl = this.buildMap();
+    const side = document.createElement('div');
+    side.className = 'tt-navside';
+    const ph = document.createElement('div');
+    ph.className = 'tt-grp-h';
+    ph.textContent = 'Showing';
+    this.partName = document.createElement('div');
+    this.partName.className = 'tt-partname anim-tune-partname';
+    this.partHelp = document.createElement('div');
+    this.partHelp.className = 'tt-parthelp';
+    this.allBtn = this.mkBtn('Show every part', () => this.pickPart(''), 'allparts', 'anim-tune-allparts');
+    delete this.allBtn.dataset.pad;
+    const qh = document.createElement('div');
+    qh.className = 'tt-grp-h';
+    qh.textContent = 'Pinned and recent';
+    this.quick = document.createElement('div');
+    this.quick.className = 'tt-quick anim-tune-quick';
+    this.partBox = document.createElement('div');
+    this.partBox.className = 'tt-partbox';
+    // (T2 phase 2) the part as a list too: the pad's way to the map (A opens it, the D-pad moves, A picks and the focus
+    // goes to the part's first slider)
+    const pickBar = this.mkBar();
+    pickBar.classList.add('tt-partpick');
+    this.partPick = this.mkSel(pickBar, '', BODY_PARTS, (v) => {
+      this.pickPart(v as BodyPart);
+      if (v && this.selKey) this.padKey = this.selKey;
+    }, 'bodypart', 'anim-tune-bodypart');
+    for (const o of Array.from(this.partPick.options)) o.textContent = partLabel(o.value as BodyPart);
+    this.partBox.append(ph, this.partName, this.partHelp, pickBar, this.allBtn);
+    side.append(this.partBox, qh, this.quick);
+    navRow.append(this.mapEl, side);
+    this.nav.append(navRow, search);
+    // a click on her in the scene (drag view, no drag): the nearest joint's part
+    window.addEventListener(
+      'pointerdown',
+      (e) => {
+        this.down.on = false;
+        if (!this.open || e.button !== 0 || !this.mouseCtl.free) return;
+        if (e.target !== this.scene?.getEngine().getRenderingCanvas()) return;
+        this.down.on = true;
+        this.down.x = e.clientX;
+        this.down.y = e.clientY;
+        this.down.t = performance.now();
+      },
+      true,
+    );
+    window.addEventListener(
+      'pointerup',
+      (e) => {
+        const d = this.down;
+        if (!d.on) return;
+        d.on = false;
+        if (!this.open || e.button !== 0 || Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 6 || performance.now() - d.t > 450) return;
+        this.pickAtScreen(e.clientX, e.clientY);
+      },
+      true,
+    );
+    el.append(head, this.tabBar, this.studioUi.bar, this.nav, menu, body, infoEl, this.hint, this.dropList);
     // (tuner-camera) every registered section, in registration order, into its tab
     for (const r of TUNE_SECTIONS) this.addSection(r, false);
     TUNE_REGISTRY_HOOKS.added = (r) => this.addSection(r, true);
@@ -705,8 +856,13 @@ export class AnimTunePanel {
     // (tuner-ui) the panel's own settings
     void loadAnimTuneUi().then((u) => {
       if (!u || typeof u !== 'object') return;
-      const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown };
+      const o = u as { size?: unknown; pauseTuning?: unknown; stageLight?: unknown; pins?: unknown };
       if (o.size === 'S' || o.size === 'M' || o.size === 'L') this.setSize(o.size, false);
+      // (marlow-bays T2) the pinned sliders
+      if (Array.isArray(o.pins)) {
+        this.pins = o.pins.filter((p): p is string => typeof p === 'string' && quickKeyParts(p) !== null).slice(0, PIN_MAX);
+        this.refreshQuick();
+      }
       if (typeof o.pauseTuning === 'boolean') this.freezeBox.checked = o.pauseTuning;
       if (typeof o.stageLight === 'number') this.studioUi.setStage(o.stageLight);
     });
@@ -795,6 +951,22 @@ export class AnimTunePanel {
       },
       // (marlow-bays item 10) the selected row, its target and the scene marker
       select: (key: string) => this.pickRow(key),
+      // (marlow-bays T2) the part filter, a click on her in the scene, row groups, pinned and recent sliders, the dock
+      part: (p: BodyPart) => this.pickPart(p),
+      partState: () => {
+        const s = this.shownSection();
+        return {
+          part: this.bodyPart,
+          label: this.partName.textContent ?? '',
+          section: s?.reg.id ?? '',
+          rows: s ? Array.from(s.rows.querySelectorAll<HTMLElement>('input[type=range][data-pad]')).filter((e) => e.offsetParent !== null).map((e) => e.dataset.pad ?? '') : [],
+          dock: this.dockW,
+        };
+      },
+      clickAt: (x: number, y: number) => this.pickAtScreen(x, y),
+      reveal: (key: string) => this.revealRow(key),
+      pin: (key: string) => this.togglePinKey(key),
+      quick: () => ({ pins: this.pins.slice(), recent: this.recent.slice() }),
       selected: () => ({
         key: this.selKey,
         section: this.selSec,
@@ -1044,7 +1216,9 @@ export class AnimTunePanel {
       const sec = this.sections.find((s) => s.reg.id === sid);
       if (sec) {
         const n = Number(k) + 1;
-        next = n < sec.levels.length && !sec.levels[n]!.disabled ? `lv:${sid}:${n}` : (sec.rows.querySelector<HTMLElement>('[data-pad]')?.dataset.pad ?? '');
+        // (marlow-bays T2) the first slider that shows (not a group's header)
+        const first = Array.from(sec.rows.querySelectorAll<HTMLElement>('input[type=range][data-pad]')).find((e) => e.offsetParent !== null);
+        next = n < sec.levels.length && !sec.levels[n]!.disabled ? `lv:${sid}:${n}` : (first?.dataset.pad ?? '');
       }
     }
     if (next) this.padKey = next;
@@ -1181,7 +1355,7 @@ export class AnimTunePanel {
       this.padIdx = 0;
       // (T1a) the tab's own first control (the playback bar above it is reached with D-pad up)
       const items = this.padItems();
-      const first = items.find((e) => !this.studioUi.bar.contains(e)) ?? items[0];
+      const first = this.firstTabItem(items);
       this.padKey = first?.dataset.pad ?? '';
     }
     const t = this.tabs[i]!;
@@ -1365,6 +1539,9 @@ export class AnimTunePanel {
         sel.append(o);
       }
       sel.disabled = opts.length === 0;
+      // (marlow-bays T2) a level with no choice here does not show
+      const lab = sel.parentElement;
+      if (lab && lab.hidden !== sel.disabled) lab.hidden = sel.disabled;
       if (path[k] !== undefined) sel.value = path[k]!;
     }
     for (const b of this.dropBtns) {
@@ -1384,102 +1561,560 @@ export class AnimTunePanel {
     this.markPadFocus();
   }
 
+  /**
+   * The slider rows of one section's group: filtered by "Changed only", the search and (marlow-bays T2) the part picked
+   * on the body map or on her in the scene; in groups by what they move (slice T's targets), each group a header that
+   * folds. A group shows open when it is the first, holds the selected row, or the part, the search or a short list
+   * leaves little to show; a header click (A) opens or closes it and that choice holds.
+   */
   private buildRows(sec: Section): void {
     sec.rows.replaceChildren();
     if (sec.pick.value !== sec.group) sec.pick.value = sec.group;
     const group = sec.group;
     const q = this.search;
     const kind = sec.reg.id;
-    const list = tunablesFor(group).filter(
-      (t) => (!this.changedOnly || tuneGet(group, t.id) !== t.def) && (!q || t.label.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || plainLabel(kind, t.id, t.label).toLowerCase().includes(q)),
+    const part = this.bodyPart;
+    const all = tunablesFor(group);
+    const list = all.filter(
+      (t) =>
+        (!this.changedOnly || tuneGet(group, t.id) !== t.def) &&
+        (!q || t.label.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || plainLabel(kind, t.id, t.label).toLowerCase().includes(q)) &&
+        rowHasPart(kind, t.id, part),
     );
     if (!list.length) {
       const none = document.createElement('div');
       none.className = 'tt-note';
-      none.textContent = q ? 'No slider matches the search.' : this.changedOnly ? 'Nothing changed here.' : 'No sliders.';
+      none.textContent = q
+        ? 'No slider matches the search.'
+        : this.changedOnly
+          ? 'Nothing changed here.'
+          : part && all.length
+            ? `Nothing in ${plainSection(kind, sec.reg.label)} moves the ${partLabel(part).toLowerCase()}. Pick another part, or Show every part.`
+            : 'No sliders.';
       sec.rows.append(none);
+      this.refreshSel();
       return;
     }
+    const labels: string[] = [];
+    const byLabel = new Map<string, TuneTunable[]>();
     for (const t of list) {
-      const row = document.createElement('div');
-      row.dataset.padRow = '1';
-      row.className = 'tt-row';
-      row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})`;
-      const name = document.createElement('span');
-      name.className = 'tt-name';
-      name.textContent = plainLabel(kind, t.id, t.label);
-      const input = document.createElement('input');
-      input.type = 'range';
-      input.min = String(tuneMin(t));
-      input.max = String(tuneMax(t));
-      input.step = String(t.step);
-      input.dataset.group = group;
-      input.dataset.id = t.id;
-      input.dataset.pad = `s:${kind}:${t.id}`;
-      // (pass 2) the value as a number field: type a value (clamped to the active range), Enter applies
-      const val = document.createElement('input');
-      val.type = 'number';
-      val.step = 'any';
-      val.className = 'anim-tune-num';
-      // (typing: the field keeps what is typed until Enter or blur; otherwise it shows the value)
-      val.addEventListener('input', () => (val.dataset.typing = '1'));
-      val.addEventListener('change', () => {
-        delete val.dataset.typing;
-        const v = Number(val.value);
-        if (val.value.trim() !== '' && Number.isFinite(v)) tuneSet(group, t.id, v);
-        show();
-      });
-      val.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') val.blur();
-      });
-      this.rowNum.set(input, val);
-      const unit = document.createElement('span');
-      unit.className = 'tt-unit';
-      unit.textContent = plainUnit(t.unit);
-      const x = document.createElement('button');
-      x.type = 'button';
-      x.textContent = '×';
-      x.title = 'Back to default';
-      x.className = 'tt-x';
-      const show = (): void => {
-        const v = tuneGet(group, t.id);
-        input.value = String(v);
-        if (val.dataset.typing !== '1') val.value = valueText(v, t.step);
-        val.classList.toggle('chg', v !== t.def);
-      };
-      this.rowShow.set(input, show);
-      show();
-      input.addEventListener('input', () => {
-        tuneSet(group, t.id, Number(input.value));
-        show();
-      });
-      // (the slider lets go of the keyboard, so the arrow keys and Space stay the game's)
-      input.addEventListener('change', () => input.blur());
-      // (pass 3) held: follow waits; released: the keys go back to the game
-      input.addEventListener('pointerdown', () => (this.pressing = true));
-      input.addEventListener('touchstart', () => (this.pressing = true), { passive: true });
-      const release = (): void => {
-        this.pressing = false;
-        input.blur();
-      };
-      for (const ev of ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'lostpointercapture']) input.addEventListener(ev, release);
-      x.addEventListener('click', (e) => {
-        e.preventDefault();
-        tuneReset(group, t.id);
-        show();
-      });
-      row.append(name, input, val, unit, x);
-      sec.rows.append(row);
-      // (pass 3) the real-world target, (tuner-camera) the game's value today: small grey lines under the slider
-      for (const note of tuneNotes(group, t.id)) {
-        const hl = document.createElement('div');
-        hl.className = note.startsWith('today:') ? 'anim-tune-hint anim-tune-today' : 'anim-tune-hint';
-        hl.textContent = note;
-        sec.rows.append(hl);
+      const l = tuneTarget(kind, t.id, this.rowScratch).label || plainSection(kind, sec.reg.label);
+      let g = byLabel.get(l);
+      if (!g) {
+        g = [];
+        byLabel.set(l, g);
+        labels.push(l);
       }
+      g.push(t);
+    }
+    const many = labels.length > 1;
+    const sel = rowKeyParts(this.selKey);
+    for (let gi = 0; gi < labels.length; gi++) {
+      const l = labels[gi]!;
+      const rows = byLabel.get(l)!;
+      let parent: HTMLElement = sec.rows;
+      if (many) {
+        const gk = `${kind}|${l}`;
+        const hasSel = !!sel && sel.section === kind && rows.some((t) => t.id === sel.id);
+        const open = groupOpen(this.grpOpen.get(gk), { first: gi === 0, hasSel, part: !!part, search: !!q, rows: list.length });
+        const h = document.createElement('button');
+        h.type = 'button';
+        h.className = open ? 'tt-grp open' : 'tt-grp';
+        h.dataset.pad = `g:${kind}:${l}`;
+        const name = document.createElement('span');
+        name.textContent = l.replace(/\s*\(key\)$/, '');
+        const n = document.createElement('span');
+        n.className = 'n';
+        const chg = rows.some((t) => tuneGet(group, t.id) !== t.def);
+        n.textContent = `${rows.length}`;
+        if (chg) {
+          const dot = document.createElement('span');
+          dot.className = 'chg';
+          dot.textContent = ' •';
+          n.append(dot);
+        }
+        h.append(name, n);
+        const body = document.createElement('div');
+        body.className = 'tt-gbody';
+        body.hidden = !open;
+        h.addEventListener('click', () => {
+          const o = !!body.hidden;
+          this.grpOpen.set(gk, o);
+          body.hidden = !o;
+          h.classList.toggle('open', o);
+          h.blur();
+          this.markPadFocus();
+        });
+        sec.rows.append(h, body);
+        parent = body;
+      }
+      for (const t of rows) this.buildRow(sec, t, parent);
     }
     // (marlow-bays item 10) the rows are new: the selected one is marked again
     this.refreshSel();
+  }
+
+  /** One slider row: pin, name, slider, value (type a value, Enter), unit, reset; the grey notes under it. */
+  private buildRow(sec: Section, t: TuneTunable, parent: HTMLElement): void {
+    const group = sec.group;
+    const kind = sec.reg.id;
+    const row = document.createElement('div');
+    row.dataset.padRow = '1';
+    row.className = 'tt-row';
+    row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})`;
+    // (marlow-bays T2) pin: the slider stays in the strip over the rows (the pad: Y menu > Pin)
+    const pk = `${kind}|${group}|${t.id}`;
+    const pin = document.createElement('button');
+    pin.type = 'button';
+    const pinned = this.pins.includes(pk);
+    pin.className = pinned ? 'tt-pin on' : 'tt-pin';
+    pin.textContent = pinned ? '★' : '☆';
+    pin.title = 'Pin this slider (it stays in the strip at the top)';
+    pin.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.togglePin(pk);
+      pin.blur();
+    });
+    const name = document.createElement('span');
+    name.className = 'tt-name';
+    name.textContent = plainLabel(kind, t.id, t.label);
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = String(tuneMin(t));
+    input.max = String(tuneMax(t));
+    input.step = String(t.step);
+    input.dataset.group = group;
+    input.dataset.id = t.id;
+    input.dataset.pad = `s:${kind}:${t.id}`;
+    // (pass 2) the value as a number field: type a value (clamped to the active range), Enter applies
+    const val = document.createElement('input');
+    val.type = 'number';
+    val.step = 'any';
+    val.className = 'anim-tune-num';
+    // (typing: the field keeps what is typed until Enter or blur; otherwise it shows the value)
+    val.addEventListener('input', () => (val.dataset.typing = '1'));
+    val.addEventListener('change', () => {
+      delete val.dataset.typing;
+      const v = Number(val.value);
+      if (val.value.trim() !== '' && Number.isFinite(v)) {
+        tuneSet(group, t.id, v);
+        this.noteRecent(pk);
+      }
+      show();
+    });
+    val.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') val.blur();
+    });
+    this.rowNum.set(input, val);
+    const unit = document.createElement('span');
+    unit.className = 'tt-unit';
+    unit.textContent = plainUnit(t.unit);
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '↺';
+    x.title = 'Back to default';
+    x.className = 'tt-x';
+    const show = (): void => {
+      const v = tuneGet(group, t.id);
+      input.value = String(v);
+      if (val.dataset.typing !== '1') val.value = valueText(v, t.step);
+      val.classList.toggle('chg', v !== t.def);
+    };
+    this.rowShow.set(input, show);
+    show();
+    input.addEventListener('input', () => {
+      tuneSet(group, t.id, Number(input.value));
+      this.noteRecent(pk);
+      show();
+    });
+    // (the slider lets go of the keyboard, so the arrow keys and Space stay the game's)
+    input.addEventListener('change', () => input.blur());
+    // (pass 3) held: follow waits; released: the keys go back to the game
+    input.addEventListener('pointerdown', () => (this.pressing = true));
+    input.addEventListener('touchstart', () => (this.pressing = true), { passive: true });
+    const release = (): void => {
+      this.pressing = false;
+      input.blur();
+    };
+    for (const ev of ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'lostpointercapture']) input.addEventListener(ev, release);
+    x.addEventListener('click', (e) => {
+      e.preventDefault();
+      tuneReset(group, t.id);
+      show();
+    });
+    row.append(pin, name, input, val, unit, x);
+    parent.append(row);
+    // (pass 3) the real-world target, (tuner-camera) the game's value today: small grey lines under the slider
+    for (const note of tuneNotes(group, t.id)) {
+      const hl = document.createElement('div');
+      hl.className = note.startsWith('today:') ? 'anim-tune-hint anim-tune-today' : 'anim-tune-hint';
+      hl.textContent = note;
+      parent.append(hl);
+    }
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // (marlow-bays T2) The part filter: the body map, a click on her in the scene, pinned and recent sliders
+  // ------------------------------------------------------------------------------------------
+
+  /** The section the shown tab shows (its picked part in a multi-section tab). */
+  private shownSection(): Section | undefined {
+    const t = this.tabs[this.tabIdx];
+    if (!t) return undefined;
+    const sid = t.sections.length > 1 ? this.partOf.get(t.id) : t.sections[0];
+    return this.sections.find((s) => s.reg.id === sid);
+  }
+
+  /**
+   * Show only the sliders that move part `p` ('' every part): the shown tab when it has any, else the first section
+   * that does (Joints, Body, Hands & feet, Limb reach, Keys; the weapon: Gun in hand, Gun hold); the first such slider is
+   * selected, so the scene marker lands on it.
+   */
+  private pickPart(p: BodyPart): void {
+    this.bodyPart = p;
+    const has = (s: Section): boolean => tunablesFor(s.group).some((t) => rowHasPart(s.reg.id, t.id, p));
+    const cur = this.shownSection();
+    let target = cur && (!p || has(cur)) ? cur : undefined;
+    if (!target && p) {
+      const order = p === 'weapon' ? ['weapon', 'gun', 'hand'] : p === 'body' ? ['body', 'joint'] : ['joint', 'body', 'hand', 'ik', 'keys'];
+      for (const id of order) {
+        const s = this.sections.find((x) => x.reg.id === id);
+        if (s && has(s)) {
+          target = s;
+          break;
+        }
+      }
+    }
+    if (target && target !== cur) {
+      const tabId = tabOfSection(target.reg.id);
+      const ti = this.tabs.findIndex((t) => t.id === tabId);
+      if (ti >= 0 && ti !== this.tabIdx) this.setTab(ti, false);
+      const tab = this.tabs[ti];
+      if (tab && tab.sections.length > 1) this.setPart(tab.id, target.reg.id);
+    }
+    this.rebuildAll();
+    const tg = target;
+    if (tg && p) {
+      const first = tunablesFor(tg.group).find((t) => rowHasPart(tg.reg.id, t.id, p));
+      if (first) this.pickRow(`s:${tg.reg.id}:${first.id}`);
+    }
+    this.refreshNav();
+  }
+
+  /** (T2) A click on the scene at (x, y) (page px): the nearest joint of hers, or the gun, within 48 px picks its part.
+   *  True: picked. */
+  private pickAtScreen(x: number, y: number): boolean {
+    const rig = this.rig?.();
+    const scene = this.scene;
+    const cam = scene?.activeCamera as unknown as MarkerCam | null | undefined;
+    const gc = scene?.getEngine().getRenderingCanvas();
+    if (!rig || !cam || !cam.rotation || !gc) return false;
+    const r = gc.getBoundingClientRect();
+    const n = RIG_JOINTS.length;
+    const xs = new Float32Array(n + 1);
+    const ys = new Float32Array(n + 1);
+    const ok: boolean[] = [];
+    const o = this.markSA;
+    const near = Math.max(0.05, cam.minZ);
+    for (let i = 0; i < n; i++) {
+      const node = rig[RIG_JOINTS[i]!];
+      ok[i] = false;
+      if (!node) continue;
+      const p = node.getAbsolutePosition();
+      projectPoint(cam, p.x, p.y, p.z, r.width, r.height, o);
+      xs[i] = o.x + r.left;
+      ys[i] = o.y + r.top;
+      ok[i] = o.z > near;
+    }
+    ok[n] = false;
+    const w = rig.heldWeapon;
+    if (w) {
+      Vector3.TransformCoordinatesFromFloatsToRef(0, rig.gunSpan.bore, rig.gunSpan.z1 * 0.5, w.getWorldMatrix(), this.markA);
+      projectPoint(cam, this.markA.x, this.markA.y, this.markA.z, r.width, r.height, o);
+      xs[n] = o.x + r.left;
+      ys[n] = o.y + r.top;
+      ok[n] = o.z > near;
+    }
+    const i = pickOnBody(xs, ys, ok, RIG_BONES, x, y);
+    if (i < 0) return false;
+    const part: BodyPart = i === n ? 'weapon' : RIG_JOINTS[i]!;
+    this.pickPart(part);
+    this.flashInfo(`Picked on her: ${partLabel(part)}`);
+    return true;
+  }
+
+  /** The part strip follows the tab, the part and the selection (DOM work on a change only). */
+  private refreshNav(): void {
+    if (!this.partName) return;
+    const p = this.bodyPart;
+    const tab = this.tabs[this.tabIdx]?.id ?? '';
+    // the body map where the tab's sliders move her (not View, Camera, Settings)
+    const mapOn = tab !== 'view' && tab !== 'camera' && tab !== 'settings';
+    if (this.mapEl.style.display !== (mapOn ? '' : 'none')) this.mapEl.style.display = mapOn ? '' : 'none';
+    if (this.partBox.hidden !== !mapOn) this.partBox.hidden = !mapOn;
+    const name = partLabel(p);
+    if (this.partName.textContent !== name) this.partName.textContent = name;
+    this.partName.classList.toggle('all', !p);
+    const s = this.shownSection();
+    const help = !mapOn
+      ? 'Pick a part on another tab, or search.'
+      : p
+        ? `Only its sliders show${s ? ` (${plainSection(s.reg.id, s.reg.label)})` : ''}. Click it again for every part.`
+        : 'Click a joint on her or on the figure to show only its sliders.';
+    if (this.partHelp.textContent !== help) this.partHelp.textContent = help;
+    this.allBtn.hidden = !p;
+    if (this.partPick.value !== p) {
+      this.partPick.value = p;
+      for (const b of this.dropBtns) if (this.dropSel.get(b) === this.partPick) this.refreshDrop(b);
+    }
+    const t = this.selTarget;
+    for (const [id, g] of this.mapPts) {
+      g.classList.toggle('on', id === p);
+      g.classList.toggle('tsel', (t.kind === 'weapon' && id === 'weapon') || ((t.kind === 'joint' || t.kind === 'body') && (id === t.a || id === t.b)));
+    }
+  }
+
+  /** The body map: her joints from behind (her left on the left), the bones between them, the gun; a click picks a part
+   *  (the same again: every part). */
+  private buildMap(): SVGSVGElement {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 170');
+    svg.setAttribute('class', 'tt-map anim-tune-map');
+    const P: Record<string, [number, number]> = {
+      headNode: [50, 12],
+      neck: [50, 26],
+      torso: [50, 40],
+      spine: [50, 56],
+      hips: [50, 72],
+      shoulderL: [35, 33],
+      elbowL: [29, 55],
+      wristL: [25, 76],
+      shoulderR: [65, 33],
+      elbowR: [71, 55],
+      wristR: [75, 76],
+      hipL: [42, 78],
+      kneeL: [40, 106],
+      ankleL: [39, 134],
+      toeL: [33, 146],
+      hipR: [58, 78],
+      kneeR: [60, 106],
+      ankleR: [61, 134],
+      toeR: [67, 146],
+    };
+    const BONES = [
+      ['headNode', 'neck'],
+      ['neck', 'torso'],
+      ['torso', 'spine'],
+      ['spine', 'hips'],
+      ['neck', 'shoulderL'],
+      ['shoulderL', 'elbowL'],
+      ['elbowL', 'wristL'],
+      ['neck', 'shoulderR'],
+      ['shoulderR', 'elbowR'],
+      ['elbowR', 'wristR'],
+      ['hips', 'hipL'],
+      ['hipL', 'kneeL'],
+      ['kneeL', 'ankleL'],
+      ['ankleL', 'toeL'],
+      ['hips', 'hipR'],
+      ['hipR', 'kneeR'],
+      ['kneeR', 'ankleR'],
+      ['ankleR', 'toeR'],
+    ];
+    for (const [a, b] of BONES) {
+      const l = document.createElementNS(NS, 'line');
+      const pa = P[a!]!;
+      const pb = P[b!]!;
+      l.setAttribute('x1', String(pa[0]));
+      l.setAttribute('y1', String(pa[1]));
+      l.setAttribute('x2', String(pb[0]));
+      l.setAttribute('y2', String(pb[1]));
+      l.setAttribute('class', 'bn');
+      svg.append(l);
+    }
+    // her left and right, large beside each hand, and how the figure faces
+    const text = (x: number, y: number, t: string, cls: string): void => {
+      const s = document.createElementNS(NS, 'text');
+      s.setAttribute('x', String(x));
+      s.setAttribute('y', String(y));
+      s.setAttribute('class', cls);
+      s.textContent = t;
+      svg.append(s);
+    };
+    text(1, 64, 'L', 'side');
+    text(89, 64, 'R', 'side');
+    text(50, 166, 'seen from behind', 'cap');
+    const point = (id: BodyPart, shape: SVGElement, hx: number, hy: number, hr: number): void => {
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('class', 'pt');
+      g.dataset.part = id;
+      // the ring that marks the part picked (green) or the selected slider's joint (gold)
+      const ring = document.createElementNS(NS, 'circle');
+      ring.setAttribute('cx', String(hx));
+      ring.setAttribute('cy', String(hy));
+      ring.setAttribute('r', String(hr));
+      ring.setAttribute('class', 'ring');
+      const hit = document.createElementNS(NS, 'circle');
+      hit.setAttribute('cx', String(hx));
+      hit.setAttribute('cy', String(hy));
+      hit.setAttribute('r', String(hr));
+      hit.setAttribute('class', 'hit');
+      const title = document.createElementNS(NS, 'title');
+      title.textContent = partLabel(id);
+      g.append(title, ring, shape, hit);
+      g.addEventListener('click', () => this.pickPart(this.bodyPart === id ? '' : id));
+      this.mapPts.set(id, g);
+      svg.append(g);
+    };
+    for (const j of RIG_JOINTS) {
+      const [x, y] = P[j]!;
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', String(x));
+      c.setAttribute('cy', String(y));
+      c.setAttribute('r', j === 'headNode' ? '7' : '4.2');
+      c.setAttribute('class', 'jt');
+      // tap targets: 8 units round a joint (about 11 px at Medium), the head 10
+      point(j, c, x, y, j === 'headNode' ? 10 : 8);
+    }
+    // the gun under her right hand and the whole body (a box under her left hand)
+    const gun = document.createElementNS(NS, 'path');
+    gun.setAttribute('d', 'M78 90 h18 v5 h-12 l-1.5 7 h-5 z');
+    gun.setAttribute('class', 'gun');
+    point('weapon', gun, 86, 95, 10);
+    const whole = document.createElementNS(NS, 'rect');
+    whole.setAttribute('x', '3');
+    whole.setAttribute('y', '90');
+    whole.setAttribute('width', '18');
+    whole.setAttribute('height', '11');
+    whole.setAttribute('rx', '2');
+    whole.setAttribute('class', 'gun');
+    point('body', whole, 12, 95, 10);
+    text(12, 112, 'whole', 'cap');
+    text(86, 112, 'gun', 'cap');
+    return svg;
+  }
+
+  /** A slider moved: it heads the recent list (`tunerLayout.pushRecent`). */
+  private noteRecent(k: string): void {
+    if (pushRecent(this.recent, k)) this.refreshQuick();
+  }
+
+  /** Pin or unpin a slider (`tunerLayout.togglePin`); saved with the panel's settings. */
+  private togglePin(k: string): void {
+    const was = this.pins.includes(k);
+    const on = togglePin(this.pins, k);
+    this.refreshQuick();
+    this.saveUi();
+    const p = quickKeyParts(k);
+    const sec = p ? this.sections.find((s) => s.reg.id === p.section) : undefined;
+    if (p && sec && sec.group === p.group) this.rebuild(sec);
+    if (p) this.flashInfo(on ? `Pinned: ${plainLabel(p.section, p.id, p.id)}` : was ? `Unpinned: ${plainLabel(p.section, p.id, p.id)}` : `Pins full (${PIN_MAX})`);
+  }
+
+  /** Pin by a row's pad key (`s:<section>:<id>`, the section's shown group). */
+  private togglePinKey(key: string): void {
+    const rk = rowKeyParts(key);
+    const sec = rk ? this.sections.find((s) => s.reg.id === rk.section) : undefined;
+    if (rk && sec) this.togglePin(`${rk.section}|${sec.group}|${rk.id}`);
+  }
+
+  /** The pinned and recent chips (a click, or A on the pad, goes to the slider). */
+  private refreshQuick(): void {
+    const q = this.quick;
+    if (!q) return;
+    q.replaceChildren();
+    const keys = quickKeys(this.pins, this.recent);
+    let n = 0;
+    for (const k of keys) {
+      const p = quickKeyParts(k);
+      const t = p ? tunablesFor(p.group).find((x) => x.id === p.id) : undefined;
+      if (!p || !t) continue;
+      const b = document.createElement('button');
+      b.type = 'button';
+      const pinned = this.pins.includes(k);
+      b.className = pinned ? 'tt-chip pin' : 'tt-chip';
+      b.dataset.pad = `q:${k}`;
+      const state = p.group.split('.').slice(1).join(' ');
+      b.textContent = `${pinned ? '★ ' : ''}${plainLabel(p.section, p.id, t.label)}`;
+      b.title = `${plainSection(p.section, p.section)}${state ? ` · ${plainWords(state)}` : ''}: ${valueText(tuneGet(p.group, p.id), t.step)} ${plainUnit(t.unit)}`;
+      b.addEventListener('click', () => {
+        this.goTo(k);
+        b.blur();
+      });
+      q.append(b);
+      n++;
+    }
+    if (!n) {
+      const s = document.createElement('span');
+      s.className = 'tt-parthelp';
+      s.textContent = 'Sliders you move or pin (☆) show here.';
+      q.append(s);
+    }
+    // the pad focus stays on its chip (or the next control) across the rebuild
+    if (this.padKey.startsWith('q:')) this.markPadFocus();
+  }
+
+  /** Go to a slider (`<section>|<group>|<id>`): its tab, part and group (follow off), its row open and selected. */
+  private goTo(k: string): void {
+    const qp = quickKeyParts(k);
+    if (!qp) return;
+    const { section: sid, group, id } = qp;
+    const s = this.sections.find((x) => x.reg.id === sid);
+    if (!s) return;
+    const tabId = tabOfSection(sid);
+    const ti = this.tabs.findIndex((t) => t.id === tabId);
+    if (ti >= 0 && ti !== this.tabIdx) this.setTab(ti, false);
+    const tab = this.tabs[ti];
+    if (tab && tab.sections.length > 1) this.setPart(tab.id, sid);
+    if (s.reg.groups.includes(group) && s.group !== group) {
+      this.setFollow(false);
+      s.group = group;
+    }
+    if (!rowHasPart(sid, id, this.bodyPart)) this.bodyPart = '';
+    this.grpOpen.set(`${sid}|${tuneTarget(sid, id, this.rowScratch).label}`, true);
+    this.selKey = `s:${sid}:${id}`;
+    this.rebuildAll();
+    this.revealRow(this.selKey);
+    this.refreshNav();
+    // by pad: the focus on the slider
+    this.padKey = this.selKey;
+    this.markPadFocus();
+  }
+
+  /** Open the group of a row (pad key) and scroll it into view. True: the row shows. */
+  private revealRow(key: string): boolean {
+    const inp = this.el.querySelector<HTMLElement>(`input[data-pad="${globalThis.CSS.escape(key)}"]`);
+    if (!inp) return false;
+    const body = inp.closest<HTMLElement>('.tt-gbody');
+    if (body?.hidden) {
+      const h = body.previousElementSibling as HTMLButtonElement | null;
+      h?.click();
+    }
+    inp.closest<HTMLElement>('[data-pad-row]')?.scrollIntoView({ block: 'nearest' });
+    return inp.offsetParent !== null;
+  }
+
+  /**
+   * (T2) In the Anim Studio the canvas gives up the docked panel's width, so she stands in the middle of the free area
+   * (the camera centres her in the canvas). Open, unfolded and in the studio only; one resize per change.
+   */
+  /** (T2 phase 2) The Anim Studio hides the game HUD (health, compass, objective, weapon and ammo); not in co-op. */
+  private syncStudioHud(): void {
+    const want = STUDIO.active && !(this.coop?.() ?? false);
+    if (want === this.studioHud) return;
+    this.studioHud = want;
+    document.body.classList.toggle('tt-studio', want);
+  }
+
+  private syncDock(): void {
+    // (phase 2) never over live co-op play: the canvas is the session's
+    const want = this.open && !this.folded && STUDIO.active && !this.coopOn ? this.panelW : 0;
+    if (want === this.dockW) return;
+    this.dockW = want;
+    document.documentElement.style.setProperty('--tt-dock-w', `${want}px`);
+    document.body.classList.toggle('tt-docked', want > 0);
+    this.scene?.getEngine().resize();
   }
 
   /** (tuner-ui) Show a section on a group (if it has it). */
@@ -1588,7 +2223,7 @@ export class AnimTunePanel {
 
   private saveUi(): void {
     // (marlow-bays item 14) the Anim Studio's Stage light goes with the panel's own settings
-    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale });
+    void saveAnimTuneUi({ size: this.size, pauseTuning: this.freezeBox.checked, stageLight: STUDIO_LIGHT.scale, pins: this.pins });
   }
 
   /** (tuner-ui) The panel size (S / M / L) scaled to the screen (`tunerLayout.tunerScale`). */
@@ -1605,7 +2240,9 @@ export class AnimTunePanel {
     const sc = tunerScale(this.size, window.innerWidth, window.innerHeight);
     this.el.style.fontSize = `${sc.font}px`;
     this.el.style.width = `${sc.width}px`;
-    this.el.style.maxHeight = `${sc.height}px`;
+    this.panelW = sc.width;
+    // (marlow-bays T2) docked: the full height of the screen (top and bottom 0)
+    this.el.style.maxHeight = '';
     this.closeDrop();
   }
 
@@ -1644,7 +2281,7 @@ export class AnimTunePanel {
     this.edit = null;
     this.stickAcc = 0;
     this.syncFollow(true);
-    const first = this.padItems()[0];
+    const first = this.firstTabItem(this.padItems());
     this.padKey = STUDIO.active ? 'st:entry' : (first?.dataset.pad ?? '');
     this.setPadLine();
     this.markPadFocus();
@@ -1653,6 +2290,7 @@ export class AnimTunePanel {
     this.mouseCtl.setOpen(true);
     this.applyMouse();
     this.refreshSel();
+    this.refreshQuick();
     this.onOpenChange?.(true);
   }
 
@@ -1673,6 +2311,7 @@ export class AnimTunePanel {
     this.padBypass = this.keyBypass = false;
     this.applyBypass();
     this.el.hidden = true;
+    this.syncDock();
     this.pad.close();
     this.markPadFocus();
     this.clearMarker();
@@ -1846,7 +2485,7 @@ export class AnimTunePanel {
       keys = 'Click an item.';
     } else {
       pad = hint(['LB', 'RB'], 'tab') + hint(['DPAD'], 'move') + hint(['A'], 'open / edit') + hint(['B'], 'back') + hint(['X'], 'reset') + hint(['Y'], 'more') + hint(['VIEW'], 'game') + hint(['START'], 'close');
-      keys = 'Click a tab, a list or a slider. Type a value, Enter. Ctrl+Z: undo. ` held: untuned.';
+      keys = 'Click a joint on her or the figure: its sliders. Type a value, Enter. Ctrl+Z: undo. ` held: untuned.';
       // (marlow-bays T1a, item 16) the playback bar's buttons in the studio
       if (STUDIO.active) {
         pad += hint([], 'Right stick: ◀ key ▶, up play / pause') + hint([], 'L3: on the spot');
@@ -1867,8 +2506,15 @@ export class AnimTunePanel {
     // (marlow-bays T1a, item 16) the playback bar over every tab comes first (the studio only)
     const bar = this.studioUi.bar;
     if (!this.menuOpen && !bar.hidden) for (const e of Array.from(bar.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
+    // (marlow-bays T2 phase 2) then the part strip: the part list and the pinned / recent chips (where they show)
+    if (!this.menuOpen) for (const e of Array.from(this.nav.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
     for (const e of Array.from(root.querySelectorAll<HTMLElement>('[data-pad]'))) if (e.offsetParent !== null && !(e as HTMLButtonElement).disabled) out.push(e);
     return out;
+  }
+
+  /** (T2) The first control of the tab itself (past the playback bar and the part strip): a tab change's focus. */
+  private firstTabItem(items: HTMLElement[]): HTMLElement | undefined {
+    return items.find((e) => !this.studioUi.bar.contains(e) && !this.nav.contains(e)) ?? items[0];
   }
 
   /** Mark the pad's focused control (only while the pad is the tuner's), keeping the focus by its key across rebuilds. */
@@ -2029,6 +2675,9 @@ export class AnimTunePanel {
     const id = e.dataset.id ?? '';
     tuneSet(g, id, tuneGet(g, id) + steps * unit);
     this.rowShow.get(e)?.();
+    // (marlow-bays T2) the recent list
+    const rk = rowKeyParts(e.dataset.pad ?? '');
+    if (rk) this.noteRecent(`${rk.section}|${g}|${id}`);
   }
 
   /** Editing a slider: the left stick, a share of its range per frame, applied in whole (fine) steps. */
@@ -2262,6 +2911,7 @@ export class AnimTunePanel {
     this.el.classList.toggle('tt-folded', v);
     this.closeDrop();
     this.foldBtn.textContent = v ? '+' : '_';
+    this.syncDock();
   }
 
   /**
@@ -2313,6 +2963,8 @@ export class AnimTunePanel {
 
   /** Every frame (driven by the debug overlay whether or not it is shown). */
   frame(nowMs: number): void {
+    // (marlow-bays T2) the studio hides the game HUD, open or not
+    this.syncStudioHud();
     if (!this.open) return;
     // (fix round) every frame, folded or not: one property read
     this.refreshCoop();
@@ -2345,6 +2997,8 @@ export class AnimTunePanel {
     this.studioUi.frame(nowMs, this.scene);
     this.keysFrame(nowMs);
     this.showSpot();
+    // (marlow-bays T2) the studio's canvas beside the docked panel
+    this.syncDock();
     if (!this.folded && nowMs >= this.nextDrops) {
       // the drop-down buttons follow their selects (a value set in code: the studio, presets)
       this.nextDrops = nowMs + 250;
@@ -2353,8 +3007,10 @@ export class AnimTunePanel {
     }
     if (!this.folded && nowMs >= this.nextInfo) {
       this.nextInfo = nowMs + 250;
-      const gun = TUNE_STATE.gun ? plainWords(TUNE_STATE.gun.replace('.', ' ')) : 'Unarmed';
-      this.now.textContent = `Now: ${TUNE_STATE.body ? plainWords(TUNE_STATE.body) : '-'} · ${gun}${this.follow ? '' : ' · follow off'}${this.frozen ? ' · paused' : ''}`;
+      // (marlow-bays T2) the stance really playing: in the studio the loop and the picked gun, drawn or holstered
+      const se = STUDIO.active ? studioEntry(STUDIO.entry) : null;
+      const st = se ? { loop: plainLoop(se.id, se.label), drawn: !!se.drawn || !!TUNE_STATE.gun, weapon: TUNE_STATE.gun ? (TUNE_STATE.gun.split('.')[0] ?? STUDIO.weapon) : STUDIO.weapon } : null;
+      this.now.textContent = `Now: ${stanceText(TUNE_STATE.body, TUNE_STATE.gun, st)}${this.follow ? '' : ' · follow off'}${this.frozen ? ' · paused' : ''}`;
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed`;
     }
     // (marlow-bays item 10) the barrel and the selection share the overlay
@@ -2542,6 +3198,8 @@ export class AnimTunePanel {
     }
     row?.classList.add('tt-sel');
     const sec = this.sections.find((s) => s.reg.id === sid);
+    // (marlow-bays T2) the body map marks the selected row's joints
+    this.refreshNav();
     if (!sec || this.selTarget.kind === 'none') {
       line.textContent = '';
       line.hidden = true;

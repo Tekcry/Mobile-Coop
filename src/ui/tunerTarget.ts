@@ -169,3 +169,162 @@ export function rowKeyParts(key: string): { section: string; id: string } | null
   if (i < 0) return null;
   return { section: key.slice(2, i), id: key.slice(i + 1) };
 }
+
+// ------------------------------------------------------------------------------------------
+// (marlow-bays T2) The body part filter: slice T's mapping in reverse (a part picked on the body map or by a click on
+// her in the scene shows only the sliders that move it)
+// ------------------------------------------------------------------------------------------
+
+/** A part to filter by: a rig joint, the weapon, the whole body; '' every part. */
+export type BodyPart = RigJoint | 'weapon' | 'body' | '';
+
+const PART_WORDS: Readonly<Record<string, string>> = {
+  hips: 'Hips',
+  spine: 'Spine',
+  torso: 'Chest',
+  neck: 'Neck',
+  headNode: 'Head',
+  shoulder: 'shoulder',
+  elbow: 'elbow',
+  wrist: 'hand',
+  hip: 'hip',
+  knee: 'knee',
+  ankle: 'foot',
+  toe: 'toes',
+  weapon: 'Weapon',
+  body: 'Whole body',
+};
+
+/** A part in plain words ("Left elbow", "Whole body"); '' "All parts". */
+export function partLabel(p: BodyPart): string {
+  if (!p) return 'All parts';
+  const m = /^([a-z]+)([LR])$/.exec(p);
+  if (m) return `${m[2] === 'L' ? 'Left' : 'Right'} ${PART_WORDS[m[1]!] ?? m[1]}`;
+  return PART_WORDS[p] ?? p;
+}
+
+/**
+ * Whether a target moves part `p`: a joint target by its joint (a bone by its first joint, a pair by either), the
+ * weapon and the whole body by their own part. The camera (and no target) is never filtered out.
+ */
+export function targetHasPart(t: TuneTarget, p: BodyPart): boolean {
+  if (!p || t.kind === 'camera' || t.kind === 'none') return true;
+  if (t.kind === 'weapon') return p === 'weapon';
+  if (t.kind === 'body') return p === 'body';
+  return t.a === p || (!t.line && t.b === p);
+}
+
+const scratch = emptyTarget();
+
+/** Whether slider `id` of `section` moves part `p` (allocation free). */
+export function rowHasPart(section: string, id: string, p: BodyPart): boolean {
+  if (!p) return true;
+  return targetHasPart(tuneTarget(section, id, scratch), p);
+}
+
+/**
+ * The part nearest a click at (x, y) among projected points (`xs`, `ys`; `ok[i]` false: behind the camera or off the
+ * rig), within `maxPx`; -1 none.
+ */
+export function nearestPoint(xs: ArrayLike<number>, ys: ArrayLike<number>, ok: ArrayLike<boolean>, x: number, y: number, maxPx: number): number {
+  let best = -1;
+  let bestD = maxPx * maxPx;
+  for (let i = 0; i < xs.length; i++) {
+    if (!ok[i]) continue;
+    const dx = xs[i]! - x;
+    const dy = ys[i]! - y;
+    const d = dx * dx + dy * dy;
+    if (d <= bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/** (T2) Her bones as joint index pairs into `RIG_JOINTS` (a click on a bone picks its first joint: the thigh, the hip). */
+export const RIG_BONES: readonly (readonly [number, number])[] = (() => {
+  const i = (j: RigJoint): number => RIG_JOINTS.indexOf(j);
+  const pairs: [RigJoint, RigJoint][] = [
+    ['hips', 'spine'],
+    ['spine', 'torso'],
+    ['torso', 'neck'],
+    ['neck', 'headNode'],
+    ['shoulderL', 'elbowL'],
+    ['elbowL', 'wristL'],
+    ['shoulderR', 'elbowR'],
+    ['elbowR', 'wristR'],
+    ['hipL', 'kneeL'],
+    ['kneeL', 'ankleL'],
+    ['ankleL', 'toeL'],
+    ['hipR', 'kneeR'],
+    ['kneeR', 'ankleR'],
+    ['ankleR', 'toeR'],
+  ];
+  return pairs.map(([a, b]) => [i(a), i(b)] as const);
+})();
+
+/**
+ * (T2) What a click at (x, y) picks on her: a joint within `jointPx` (the nearest), else the bone under it within
+ * `bonePx` (its first joint), else the nearest joint within `farPx`; -1 none. `bones` index pairs into the points.
+ */
+export function pickOnBody(
+  xs: ArrayLike<number>,
+  ys: ArrayLike<number>,
+  ok: ArrayLike<boolean>,
+  bones: readonly (readonly [number, number])[],
+  x: number,
+  y: number,
+  jointPx = 26,
+  bonePx = 36,
+  farPx = 64,
+): number {
+  const j = nearestPoint(xs, ys, ok, x, y, jointPx);
+  if (j >= 0) return j;
+  let best = -1;
+  let bestD = bonePx * bonePx;
+  for (const [a, b] of bones) {
+    if (!ok[a] || !ok[b]) continue;
+    const ax = xs[a]!;
+    const ay = ys[a]!;
+    const dx = xs[b]! - ax;
+    const dy = ys[b]! - ay;
+    const len = dx * dx + dy * dy;
+    const t = len > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
+    const ex = ax + dx * t - x;
+    const ey = ay + dy * t - y;
+    const d = ex * ex + ey * ey;
+    if (d <= bestD) {
+      bestD = d;
+      best = a;
+    }
+  }
+  if (best >= 0) return best;
+  return nearestPoint(xs, ys, ok, x, y, farPx);
+}
+
+/** (T2) The parts in the panel's part list (top to toe, her left before her right; '' every part first). */
+export const BODY_PARTS: readonly BodyPart[] = [
+  '',
+  'headNode',
+  'neck',
+  'torso',
+  'spine',
+  'hips',
+  'shoulderL',
+  'elbowL',
+  'wristL',
+  'shoulderR',
+  'elbowR',
+  'wristR',
+  'hipL',
+  'kneeL',
+  'ankleL',
+  'toeL',
+  'hipR',
+  'kneeR',
+  'ankleR',
+  'toeR',
+  'weapon',
+  'body',
+];

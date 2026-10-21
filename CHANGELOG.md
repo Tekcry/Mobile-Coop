@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased - marlow-bays slice T2 (tuner redesign)
+- The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
+  looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values
+  (Medium, now the default, is 19 px at 1080p; S / M / L 16 / 19 / 22).
+- Docked to the right edge, at most a third of the screen. In the Anim Studio the picture gives up the panel's width,
+  so she stands in the middle of the free area. The studio hides the game HUD (health, compass, objective, weapon and
+  ammo).
+- Pick a part on a body map (her joints seen from behind, the gun, the whole body), from the part list (the pad's way)
+  or by clicking her in the scene: only the sliders that move that part show, and the first one is selected. Click it
+  again for every part.
+- Rows sit in groups by what they move ("Right elbow", "Knees") that fold; the first group and the selected row's group
+  start open.
+- Pinned (☆ on a row, or Y menu > Pin) and recent sliders show as chips over the rows; a chip goes to its slider. The
+  search moved there and searches every tab.
+- The status line reads the stance really playing ("Walk · Rifle holstered", "Low ready · Rifle drawn"; outside the
+  studio "No gun drawn" for "Unarmed").
+- The studio's stage lights are brighter (key 2.4, fill 1.4, rim 1.5, top ambient 1.5; were 1.7, 0.9, 1.3, 0.8): she
+  read dark at 1080p on the hardware GPU. They now face the camera (key and fill on its side, the rim beyond her) from
+  any view: placed in front of her, the usual view from behind saw only the rim and the top light. The game's lighting
+  is untouched.
+- Pad: the D-pad reaches the part list and the chips (after the playback bar, before the tab's controls); the group
+  headers fold with A; the Y menu gains Pin / unpin this slider and Show every part. No button moved.
+
 ## Unreleased - marlow-bays slice T1a (animation tuner: keys, playback bar, aim stances)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in
   the Anim Studio plays that clip on the spot, paused on that key; "◀ Key" / "Key ▶" step the clip's keys (its mirrored
