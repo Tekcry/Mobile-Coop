@@ -7,7 +7,7 @@ stall is master's (J2-STALL.md), logged in the backlog.
 ## Next
 1. The J2 PR green (laptop full e2e, CI), the orchestrator merges.
 2. havok-stall (PLAN, branch `feature/havok-stall` from master, folder `C:/NightShift/Mobile-Coop-havok-stall`).
-3. G1 item 22 gear offsets (without goggles), G2 item 24 guard tuning (PLAN).
+3. G1 item 22 gear offsets (without goggles; PLAN). Item 24 moved to track A.
 
 ## Usage rule (orchestrator ~21:30, Michael: "Dont stop animation until 98% 5 hour, then pause them")
 Check `get_usage` before each agent; at a 5-hour meter of 98% or more stop at a clean commit, push, update STATE, tell

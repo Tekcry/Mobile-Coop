@@ -78,7 +78,7 @@ J1 shipped alone: [Tekcry/Mobile-Coop#84](https://github.com/Tekcry/Mobile-Coop/
   operators edit). Orchestrator ~17:30: `src/weapons/carrySlots.ts` is ours for the pouches (minimal, named in the PR
   body); goggles through track C's offset hook in `goggle.ts` (stowed and worn) once it lands, else 22 ships without
   goggles and they follow.
-- **G2, item 24, guard tuning:** a guard target in the tuner and studio (the studio's guard puppet) with its own rows
+- **G2, item 24, guard tuning (MOVED to Course Ready, track A, orchestrator ~22:15, Michael's choice; it may make minimal edits in `animBase.ts` / `tuneJointsRig.ts` for a guard table and a flag line in `src/ai/enemyRig.ts`: keep them when merging):** a guard target in the tuner and studio (the studio's guard puppet) with its own rows
   (Joints, Weight, Stepping where guards use them), a guard base table; Wren rows never touch guards. Needs a flag line
   in `src/ai/enemyRig.ts` and a target hook in the studio / panel (track A): exact lines to the orchestrator first.
 
