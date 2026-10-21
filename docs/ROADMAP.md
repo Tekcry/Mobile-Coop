@@ -133,6 +133,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-21 | #80 | 4.33.0: animation tuner laid out for the pad (tabs, drop-downs, one step at a time) |
 | 2026-10-21 | #79 | 4.33.1: no GL program warnings when graphics settings change on a hardware GPU |
 | 2026-10-21 | #81 | 4.34.0: co-op partner sees guards' flashlights (protocol 25) |
+| 2026-10-21 | #82 | 4.35.0: tuner free mouse, selection highlight, Keyed tick box, on the spot from every tab, studio light |
 | 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
 | 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
 | 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
