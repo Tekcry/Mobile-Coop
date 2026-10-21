@@ -1,16 +1,17 @@
 # Track A (Night Shift | Course Ready Build) - resume
 
-Written 2026-10-22 ~09:10 before a context clear. Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
+Written 2026-10-22 ~09:10, updated ~10:30 after the resume. Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
 24, 29, 30 and "Tracks") and this file. Report to "Night Shift | Orchestrator".
 
 ## Open jobs
 
 | Job | Branch / worktree | Head | State | Next |
 | --- | --- | --- | --- | --- |
-| Item 29 tuner v3 | `feature/tuner-v3`, `C:/NightShift/Mobile-Coop-tuner-v3` | 2dcc601e (master 4.48.0 merged) | PR Tekcry/Mobile-Coop#97. Check ok; laptop full e2e 33/34 ok; e2e-lightbake failed once ("gfx=epic&voxels=1: the lamp plugin is on every PBR material (16 / 17)"), solo rerun queued on the laptop (Character Build) | If the solo rerun passes: tell the orchestrator #97 is green (he merges). If it fails again: find the PBR material in the voxel path that misses the lamp plugin (v3 may have added one, e.g. studio / touch / highlight; compare with master) and fix |
-| Item 24 guard tuning | `feature/guard-tune`, `C:/NightShift/Mobile-Coop-guard-tune` | 0b90228c (v3 2dcc601e merged) | Built; checker's two findings fixed; tsc, vitest 2602, e2e-studio and e2e-anim pass. PR body written: `C:/Users/Micha/AppData/Local/Temp/claude/C--NightShift-Mobile-Coop-locomotion/b14cab22-8c21-46cf-aa89-f269d5441600/scratchpad/pr24.md` (scratch; text also below) | After #97 merges: merge origin/master, open the PR to master (`gh pr create --base master --head feature/guard-tune`), ask Character Build for check + full e2e |
-| Item 30 key tools + exact preview | `feature/key-tools`, `C:/NightShift/Mobile-Coop-key-tools` | 3e191b2f (from v3 2dcc601e), pushed | Built, all five: a "Key tools" fold in the Keys tab (Wave: channel / amount / timing, Fill keys; Apply to ticked keys, sets not adds; Smooth between From / to, smoothstep of the bake poses; Compare: ghost skeleton + diff line, off by default) and 30e (key file loads on first edit; Bezier fields on Blender's curve, trunk re-keyed in channel frames, arms as FK; vs fixture: pelvis 0.0005 cm, trunk 0.000 deg, arms between keys 0.07-0.70 cm, at keys < 0.02 cm). tsc, vitest 2605, e2e-studio, e2e-tuner-phone pass. Three old test bounds loosened to float noise (tuneKeys.test.ts midpoint range, unedited key 0.002 deg; tuneKeysEdit.test.ts 2e-5): the checker should judge those | One fresh Opus checker (also on the loosened bounds and "added keys now carry small curve deltas"), one fix round; after #97 merges: merge master, PR (name the tuneKeys.ts exact-preview change for Menu Notes), Character Build full e2e; tell Menu Notes |
+| Item 29 tuner v3 | `feature/tuner-v3` | merged | #97 merged as 4.49.0 (c38feca2). The JOBS=2 e2e-lightbake 16/17 was a timing race (solo 20/20, 26/26); v3 adds no materials | Done. Backlog: e2e-lightbake PBR-plugin assert should wait for the scene to settle |
+| Item 24 guard tuning | `feature/guard-tune`, `C:/NightShift/Mobile-Coop-guard-tune` | 555a6a57 (master 4.49.0 merged) | PR Tekcry/Mobile-Coop#105 open; Character Build check + full e2e queued (~11:00-11:35) | On green: tell the orchestrator (he merges) |
+| Item 30 key tools + exact preview | `feature/key-tools`, `C:/NightShift/Mobile-Coop-key-tools` | 0d25265c (master 4.49.0 merged) | PR Tekcry/Mobile-Coop#106 open. Checker FIX (Add key moved the trunk on multi-axis edits), fixed in the fix round 65da90cf; midpoint test tightened. vitest 2606. Menu Notes told. Character Build full e2e queued after #105 | On green: tell the orchestrator; when it merges, tell Menu Notes. Known, unmeasured: Add with the key file loaded and no edit live reads the per-field Euler trunk |
 
+Next (orchestrator, 10:30): stay idle (usage tight) until Menu Notes N0 audit (docs/anim-natural/AUDIT.md) lands; then the N4 rows in track A files (tuner / studio UI for the new sliders, studio loops).
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
 #89 items 26 / 26b 4.41.0, #91 item 25 4.43.0.
 
