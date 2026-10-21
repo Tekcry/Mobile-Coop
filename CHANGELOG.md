@@ -12,6 +12,7 @@
   in); the waiting joiner takes it at once, or rejoins from its menu. No server: the same room on the same relays.
 - Protocol 27 (26 is the jammer slice): the hello's rejoin token, the held flag in the lobby, the host's `you` and the
   `restore` event.
+
 ## 4.49.1 - Animation tuner: worn-goggle offsets in the Gear tab, baked (2026-10-22, PR #102)
 - Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
   turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
