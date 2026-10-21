@@ -35,7 +35,7 @@ Refused, with nothing written:
 - The file keeps its formatting and line ends.
 
 **Identity after bake:** the code value moves and the slider's default stays identity. The tuner's IndexedDB save still
-holds the tuned values, so after the merge Michael resets the sliders reported "baked" (keeping the manual ones) and
+holds the tuned values; after the merge the tuner resets the baked ones itself (Reset baked, step 7) and Michael
 exports again. The ledger records every baked `group|id=value`. A later export (the same one or a new one) that still
 carries that value for that slider is reported "already baked (same value as the bake of <date>; reset this slider in
 the tuner)" and is never baked twice; a different value for the slider is a new tune and bakes.
@@ -218,8 +218,16 @@ list or when any registered slider and group has no rule or manual entry.
 5. Run `npm run check`; unit tests that pin constants (GEARS, CAMERA, WALL ...) may need their expected values updated.
    Then run the e2e test tiers.
 6. Commit the sources, the key JSONs, the rebaked clips and the ledger in one PR.
-7. After the merge, tell Michael to reset the sliders reported "baked" (keeping the manual ones) and export again. The
-   old export is spent.
+7. After the merge nothing is left to reset by hand (anim-bake-1022, `src/anim/tuneBakedReset.ts`, tests
+   `tests/tuneBakedReset.test.ts`): the build bundles the ledger, and when the tuner's save loads (the panel is built
+   at boot) every slider whose saved value equals exactly a ledger `group|id=value` (compared as the ledger formats
+   numbers; a version 1 save migrated first; the record as saved, so a value past the normal range that the load clamps
+   still matches) goes back to its default through the registry (change log and save follow). The other changes are
+   kept. The ledger hashes applied are kept in the save (`TuneSnapshot.baked`), so it runs once per bake and a later
+   re-tune to the same value is not wiped. The panel's info line says "61 values are now built in; your other 13
+   changes are kept." (closed: when it next opens; also the console). The Y menu's **Reset baked** runs it again over
+   every bake, ignoring the record (it compares the loaded values, so a clamped one no longer matches). Tell Michael to
+   open the tuner, read the line and export again: the old export is spent.
 
 ## Fix round (CHECK-BAKE.md)
 - **B1** tuckMul: one rule over all 6 gun groups (READY_ELBOW_TUCK, READY_ELBOW_TUCK_CROUCH, AIM_ELBOW_TUCK x), exact

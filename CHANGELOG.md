@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - anim-bake-1022
+- Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
+  equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied
+  twice. The rest of the tuning is kept; the panel says how many ("61 values are now built in; your other 13 changes
+  are kept."). Y menu > "Reset baked" runs it again.
+
 ## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
 - Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
   Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is

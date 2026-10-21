@@ -249,6 +249,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
 - [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
   states show the values of the rows they shared.
+- [ ] (anim-bake-1022) After a bake merges, open the tuner with your old save: the info line says how many values are
+  now built in and that your other changes are kept; the baked sliders sit at their defaults, the rest as tuned, and she
+  looks as before the merge. Reload: nothing resets again. Y menu > Reset baked gives the line again.
 - [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
   focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
   compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).

@@ -503,7 +503,7 @@ export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
   // (anim-rework S3, BRIEF 3) muzzle ~40 deg down in front of the feet (pitch 0.8 -> 0.68), only a little inboard (yaw
   // -0.6 -> -0.22: it pointed 34 deg across the body), roll 0.2 -> 0.08
-  low: { x: 0, y: -0.08, z: -0.02, pitch: 0.68, yaw: -0.22, roll: 0.08 },
+  low: { x: 0, y: -0.08, z: -0.02, pitch: 0.75, yaw: -0.63, roll: 0.54 },
   high: { x: -0.03, y: 0.07, z: -0.12, pitch: -1.0, yaw: -0.08, roll: 0 },
   // pulled in tight to the chest, muzzle forward and down (never swung across into a wall beside you)
   compressed: { x: -0.06, y: -0.08, z: -0.12, pitch: 0.6, yaw: -0.12, roll: 0.1 },
@@ -517,7 +517,7 @@ export const READY_POSES = {
  * (compressed ready), elbows in") The pistol's low ready replaces READY_POSES.low by its weight (the light gun): the
  * gun in toward the centre line and in close at the lower chest, muzzle ~40 deg down, straight ahead.
  */
-export const PISTOL_READY = { x: -0.08, y: -0.05, z: -0.1, pitch: 0.7, yaw: -0.05, roll: 0 } as const;
+export const PISTOL_READY = { x: -0.08, y: -0.34, z: 0.08, pitch: 1.16, yaw: -0.05, roll: 0 } as const;
 export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
 /**
  * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine

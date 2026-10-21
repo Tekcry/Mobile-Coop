@@ -23,6 +23,7 @@
 // the studio lands on it at its new time with its pose, the pose at the old frame changes, undo restores both.
 // (marlow-bays item 25) Add / delete keys: "Add key" on jog key 2 puts a key midway to key 3 (10 keys with its mirror,
 // the pose there unchanged, the picker and the readout on it); "Delete key" removes it; undo brings it back.
+// (anim-bake-1022) Reset baked: a slider at a bundled ledger value resets, another change stays, the info line says so.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -783,6 +784,23 @@ try {
     window.__animTune.presetDelete('e2e studio');
     window.__animTune.set('walk', 'kneeOutMul', 1);
   });
+
+  // (anim-bake-1022) Reset baked (the Y menu): a slider at a bundled ledger value goes back to its default, another
+  // change stays, the info line says so; the fresh store's load recorded the ledger's bakes
+  const rb = await G(() => {
+    const t = window.__animTune;
+    const applied = t.bakedApplied();
+    t.set('rifle.lowReady', 'gunPitch', 0.07);
+    t.set('walk', 'kneeOutMul', 1.2);
+    const r = t.bakedReset();
+    const out = { applied, r, pitch: t.get('rifle.lowReady', 'gunPitch'), knee: t.get('walk', 'kneeOutMul'), info: t.infoText() };
+    t.set('walk', 'kneeOutMul', 1);
+    return out;
+  });
+  assert(
+    rb.applied.length > 0 && rb.r.reset === 1 && rb.pitch === 0 && rb.knee === 1.2 && rb.info.startsWith('1 value is now built in; your other'),
+    `Reset baked resets the baked slider and keeps the other (${JSON.stringify(rb)})`,
+  );
 
   // pause: no studio row inside the studio; quit to the main menu
   await G(() => window.__app.current.pause());

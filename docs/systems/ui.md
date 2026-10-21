@@ -245,6 +245,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
+- (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): when the tuner's save loads, the sliders at a value the
+  bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
+  the save, `TuneSnapshot.baked`); the info line gives the count (on the next open when closed). Y menu "Reset baked"
+  reruns it over every bake. Hooks: `__animTune.bakedReset()`, `bakedApplied()`, `infoText()`; BAKE.md step 7.
 - (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
   differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
   `tests/marlowT2.test.ts`, `tests/tunerLayout.test.ts`):
