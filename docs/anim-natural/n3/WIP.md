@@ -8,3 +8,8 @@ playerWeapons, weaponModel, backDiag}.ts`, `src/player/{characterRig, weaponStan
 `tests/helpers/draw{Harness, Scenarios}.ts` and tests `tests/n3*.test.ts` (n3Dbg / n3Trace / n3Capture look like
 debugging scaffolds: keep the real tests, delete the scaffolds before the PR). The cause of the mid-draw stop is not
 yet recorded here: on resume, read the diff and the n3Trace test, or resume the implementer.
+
+Routing (orchestrator, 2026-10-22): the edits in `src/anim/animGraph.ts` (the draw hand-off) and
+`src/anim/tuneBakeTable.ts` (the draw sliders' bake rows) are approved: keep them minimal and additive, name the lines
+in the PR body, and send them to CT Core (N1 / N2 work near those files) before the PR. Record the mid-draw stop's cause
+here as soon as the trace finds it.
