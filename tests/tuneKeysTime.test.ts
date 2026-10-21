@@ -14,6 +14,7 @@ import { KEY_SPAN, KEY_TIME_ID, KEY_TIMES, keyBasePos, keyRetimeRange, keyTimeOw
 import { TUNE_EXPORT_MAGIC, tuneExport, tuneGet, tuneImport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
 import { tuneApplyValues, tuneValues } from '../src/anim/tuneHistory';
 import { studioKeyInfo, studioKeyPhase } from '../src/anim/studio';
+import { bakeCatalogue, tuneBake } from '../src/anim/tuneBake';
 
 const DIR = path.join(__dirname, '..', 'scripts', 'anim-keys', 'keys');
 const text = (n: string): string => readFileSync(path.join(DIR, `${n}.json`), 'utf8');
@@ -293,5 +294,62 @@ describe('item 23: the store, the export and the key file', () => {
     tuneKeysSync();
     expect(KEY_TIMES.size).toBe(0);
     expect(KEYS_SECTION.values['key.run.2']![KEY_TIME_ID]).toBe(0);
+  });
+});
+
+// (item 23, track A) The in-app bake (src/anim/tuneBake.ts): the `time` rule writes the key phase and the tuner's key
+// meta; an export with no timing edit bakes exactly as before. Reads the real tree only (nothing written).
+describe('key timing: the bake (tuneBake)', () => {
+  const ROOT = path.join(__dirname, '..');
+  const read = (p: string): string | null => {
+    try {
+      return readFileSync(path.join(ROOT, p), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  const CAT = bakeCatalogue([]);
+  const META = 'src/anim/tuneKeysMeta.ts';
+  const exp = (changed: unknown[]) => ({ magic: 'night-shift-anim-tune', version: 2, exported: '2026-10-21T20:00:00.000Z', changed, log: [] });
+
+  it('a literal export with a retimed key: the key file gets the new phase, the meta follows, the clip is rebaked', () => {
+    const r = tuneBake(exp([{ group: 'key.jog.1', id: 'time', label: 'key time', kind: 'add', unit: 'fr', value: 3, default: 0 }, { group: 'key.jog.2', id: 'chest_yaw', label: 'chest yaw', kind: 'add', unit: 'deg', value: 2.5, default: 0 }]), CAT, read);
+    expect(r.ok, r.error).toBe(true);
+    const row = r.rows.find((x) => x.id === 'time')!;
+    expect(row.result).toBe('baked (key JSON; rebake the clip)');
+    expect(row.target).toBe('scripts/anim-keys/keys/jog.json key 1 phase + (bake frames / 48)');
+    const w = r.writes.find((x) => x.path === 'scripts/anim-keys/keys/jog.json')!;
+    const out = JSON.parse(w.after) as KeyFile;
+    expect(out.keys.map((k) => k.phase)).toEqual([0, 9 / 48, 0.25, 0.375]);
+    expect(w.after).toBe(keyFileText(applyKeyEdits(file('jog'), { 'key.jog.1': { time: 3 }, 'key.jog.2': { chest_yaw: 2.5 } })));
+    const m = r.writes.find((x) => x.path === META)!;
+    expect(m.after).toContain("{ name: 'jog', frames: 32, mirror: true, phases: [0, 0.1875, 0.25, 0.375] },");
+    // only the jog row of the meta changed; its line ends kept
+    const lines = (t: string): string[] => t.split('\n');
+    const diff = lines(m.after).filter((l, i) => l !== lines(m.before)[i]);
+    expect(diff.length).toBe(1);
+    expect(m.after.includes('\r\n')).toBe(m.before.includes('\r\n'));
+    expect(r.rebake).toEqual(['node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs jog']);
+    expect(r.writes.map((x) => x.path).sort()).toEqual([META, 'scripts/anim-keys/keys/jog.json', 'src/anim/tuneBakeLog.json'].sort());
+  });
+
+  it('the first key is fixed: its time is skipped, nothing written for it', () => {
+    const r = tuneBake(exp([{ group: 'key.jog.0', id: 'time', kind: 'add', value: 2 }]), CAT, read);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.rows[0]!.result).toBe('skipped: the first key is fixed (phase 0)');
+    expect(r.writes).toEqual([]);
+  });
+
+  it('no timing edit: the key file as before (the apply-tune functions), the meta never touched', () => {
+    const r = tuneBake(exp([{ group: 'key.jog.2', id: 'chest_yaw', kind: 'add', value: 2.5 }]), CAT, read);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.writes.map((x) => x.path).sort()).toEqual(['scripts/anim-keys/keys/jog.json', 'src/anim/tuneBakeLog.json']);
+    const w = r.writes.find((x) => x.path === 'scripts/anim-keys/keys/jog.json')!;
+    expect(w.after).toBe(keyFileText(applyKeyEdits(file('jog'), { 'key.jog.2': { chest_yaw: 2.5 } })));
+    const a = JSON.parse(w.after) as KeyFile;
+    const b = file('jog');
+    expect(a.keys.map((k) => k.phase)).toEqual(b.keys.map((k) => k.phase));
+    // every field but the edited chest yaw as it was
+    expect({ ...a.keys[2], chest: b.keys[2]!.chest }).toEqual(b.keys[2]);
   });
 });
