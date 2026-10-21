@@ -26,7 +26,7 @@
 - Key edits of the ready stance and the glides now show in play with the gun out (arms over the gun hold, the glides'
   trunk while aiming).
 
-## Unreleased - marlow-bays slice T (tuner mouse and highlight)
+## 4.35.0 - Animation tuner: free mouse, selection highlight, Keyed tick box, on the spot from every tab, studio light (2026-10-21, PR #82)
 - Animation tuner with keyboard and mouse (Michael: "the player camera locks the mouse in position"): the open panel
   leaves the pointer free in "Drag view": drag the scene with the left button to turn the camera, the wheel zooms (the
   free view's orbit), every slider and list stays clickable, and scene clicks never fire. F4 or the header button
