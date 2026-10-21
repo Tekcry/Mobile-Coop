@@ -472,6 +472,9 @@ export class AnimTunePanel {
   private dockW = 0;
   /** (phase 2) The game HUD hidden: the Anim Studio is on (not in co-op). */
   private studioHud = false;
+  /** (T2 fix round) The engine kept across scenes (the dock's resize), and a resize owed while no scene was set. */
+  private engine: { resize(): void } | null = null;
+  private resizePending = false;
   /** The panel width set by `applySize` (px). */
   private panelW = 0;
   private readonly down = { on: false, x: 0, y: 0, t: 0 };
@@ -2114,7 +2117,13 @@ export class AnimTunePanel {
     this.dockW = want;
     document.documentElement.style.setProperty('--tt-dock-w', `${want}px`);
     document.body.classList.toggle('tt-docked', want > 0);
-    this.scene?.getEngine().resize();
+    // (T2 fix round) through the kept engine: a scene released mid-change (a restart from the studio) must not leave
+    // the next match rendering at the docked width; with no engine yet the resize waits for the next scene
+    const eng = this.scene?.getEngine() ?? this.engine;
+    if (eng) {
+      this.resizePending = false;
+      eng.resize();
+    } else this.resizePending = true;
   }
 
   /** (tuner-ui) Show a section on a group (if it has it). */
@@ -2959,6 +2968,11 @@ export class AnimTunePanel {
   setScene(scene: Scene | null): void {
     this.clearMarker();
     this.scene = scene;
+    if (scene) this.engine = scene.getEngine();
+    if (this.resizePending && this.engine) {
+      this.resizePending = false;
+      this.engine.resize();
+    }
   }
 
   /** Every frame (driven by the debug overlay whether or not it is shown). */

@@ -205,7 +205,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     selected (the scene marker). The same part again, the list's "All parts" or Show every part: every part.
   - A click on her (drag view, a press and release on the canvas under 6 px and 450 ms): `pickOnBody` over her joints
     projected through the rendered camera (a joint within 26 px, else the bone under the click within 36 px: its first
-    joint, else a joint within 64 px; the gun's grip as one more point).
+    joint, else a joint within 64 px; the middle of the gun along its bore as one more point).
   - Rows in groups by what they move (`tuneTarget`'s label: "Right elbow", "Knees"), a header each (`.tt-grp`, pad key
     `g:<section>:<label>`, A or a click folds it); `groupOpen`: a choice by hand holds, else open when the first, holding
     the selected row, filtered by a part or the search, or 8 rows or fewer in all. Folded rows stay in the DOM (code and
