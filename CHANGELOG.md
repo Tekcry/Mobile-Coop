@@ -3,10 +3,14 @@
 ## Unreleased - marlow-bays item 26 (tuner on phones)
 - The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
   the game itself stays desktop only). A phone (a touch screen as the main pointer, short side 600 px or less) in
-  landscape gets a side drawer on the right (she keeps the left 54%); in portrait a bottom sheet (she keeps the top
-  45%). The studio frames her in the free area as on desktop. A grab handle collapses the panel to its header and
-  expands it. Every touch target is at least 44 px (tabs, buttons, chips, sliders, steppers, the body map's joints,
-  the playback bar); the text is 15 px; the panel scrolls inside itself; slider rows put the slider on its own line.
+  landscape gets a side drawer on the right (38% wide: she keeps the left 62%); in portrait a bottom sheet (45% high:
+  she keeps the top 55%). The studio frames her in the free area as on desktop. A grab handle collapses the panel to
+  its header and expands it. Every touch target is at least 34 px (tabs, buttons, chips, sliders, steppers, the body
+  map's joints, the playback bar); the text is 13 px, the padding tight; the panel scrolls inside itself; slider rows
+  put the slider on its own line.
+- (26b, Michael: "Smaller buttons, more compact. Adjust smaller with controller connected also") With a controller the
+  last input, smaller again: 26 px rows, 11 px text, no touch minimum, one-line slider rows, the drawer 34% wide and
+  the sheet 40% high. It switches live between touch and pad with the last input (a touch or a pad press), no reload.
 - The F3 debug readout (it covered the left half) is off on a phone; Settings > "Debug readout (F3)" shows it (the
   choice is saved) and F3 still toggles it with a keyboard.
 - Touch camera on the scene: one finger dragged orbits, a pinch zooms, two fingers dragged pan the point the view

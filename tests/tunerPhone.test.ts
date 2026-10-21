@@ -1,46 +1,59 @@
 import { describe, expect, it } from 'vitest';
-import { GESTURE, nearestMapPart, PHONE_MAP_SCALE, phoneMapHitRadius, TOUCH_MIN, TouchGesture, tunerPhoneLayout } from '../src/ui/tunerPhone';
+import { emptyPhoneLayout, GESTURE, nearestMapPart, PAD_ROW, PHONE_FONT, PHONE_MAP_SCALE, PHONE_PAD_FONT, PHONE_PAD_MAP_SCALE, phoneMapHitRadius, TOUCH_TARGET, TouchGesture, tunerPhoneLayout } from '../src/ui/tunerPhone';
 import { clearTouchIn, FREE_CFG, FREE_IN, FreeViewCore, freeSnap } from '../src/player/freeView';
 
-describe('tunerPhoneLayout (marlow-bays item 26)', () => {
-  it('keeps the desktop layout without a touch screen, at any size', () => {
-    for (const [w, h] of [[1920, 1080], [844, 390], [390, 844], [1280, 640]] as const) expect(tunerPhoneLayout(w, h, false).mode).toBe('desktop');
+describe('tunerPhoneLayout (marlow-bays item 26, 26b)', () => {
+  it('keeps the desktop layout without a touch screen, at any size, pad or not', () => {
+    for (const [w, h] of [[1920, 1080], [844, 390], [390, 844], [1280, 640]] as const) {
+      expect(tunerPhoneLayout(w, h, false).mode).toBe('desktop');
+      expect(tunerPhoneLayout(w, h, false, true)).toEqual(emptyPhoneLayout());
+    }
   });
   it('keeps the desktop layout on a large touch screen (a tablet)', () => {
     expect(tunerPhoneLayout(1024, 768, true).mode).toBe('desktop');
-    expect(tunerPhoneLayout(768, 1024, true).mode).toBe('desktop');
+    expect(tunerPhoneLayout(768, 1024, true, true).mode).toBe('desktop');
   });
-  it('a phone in landscape: the side drawer, her side at least 45% of the width', () => {
+  it('touch, landscape: the side drawer about 38% wide, 34 px targets, 13 px text', () => {
     const l = tunerPhoneLayout(844, 390, true);
-    expect(l.mode).toBe('drawer');
-    expect(l.width).toBe(388);
-    expect(l.height).toBe(0);
-    expect(l.font).toBeGreaterThanOrEqual(14);
+    expect(l).toMatchObject({ mode: 'drawer', pad: false, width: 321, height: 0, font: PHONE_FONT, target: TOUCH_TARGET, mapScale: PHONE_MAP_SCALE });
+    expect(l.font).toBeGreaterThanOrEqual(12);
+    expect(l.font).toBeLessThanOrEqual(13);
+    expect(l.target).toBeGreaterThanOrEqual(32);
+    expect(l.target).toBeLessThanOrEqual(36);
     const s = tunerPhoneLayout(640, 360, true);
     expect(s.mode).toBe('drawer');
-    expect(s.width).toBeGreaterThanOrEqual(280);
-    expect(640 - s.width).toBeGreaterThanOrEqual(640 * 0.45);
+    expect(640 - s.width).toBeGreaterThanOrEqual(640 * 0.55);
   });
-  it('a phone in portrait: the bottom sheet, her side at least 40% of the height', () => {
+  it('touch, portrait: the bottom sheet about 45% high', () => {
     const l = tunerPhoneLayout(390, 844, true);
-    expect(l.mode).toBe('sheet');
-    expect(l.height).toBe(464);
-    expect(l.width).toBe(0);
+    expect(l).toMatchObject({ mode: 'sheet', pad: false, height: 380, width: 0, target: TOUCH_TARGET });
     const s = tunerPhoneLayout(360, 640, true);
     expect(s.mode).toBe('sheet');
-    expect(640 - s.height).toBeGreaterThanOrEqual(640 * 0.4);
+    expect(640 - s.height).toBeGreaterThanOrEqual(640 * 0.5);
+  });
+  it('pad: smaller again (26 px rows, 11 px text, no touch minimum) and narrower, both orientations', () => {
+    const l = tunerPhoneLayout(844, 390, true, true);
+    expect(l).toMatchObject({ mode: 'drawer', pad: true, width: 287, font: PHONE_PAD_FONT, target: PAD_ROW, mapScale: PHONE_PAD_MAP_SCALE, mapHitR: 0 });
+    const p = tunerPhoneLayout(390, 844, true, true);
+    expect(p).toMatchObject({ mode: 'sheet', pad: true, height: 338, target: PAD_ROW });
+    expect(l.font).toBeLessThan(tunerPhoneLayout(844, 390, true).font);
+    expect(PAD_ROW).toBeLessThan(TOUCH_TARGET);
   });
   it('a bad viewport is desktop; the out object is reused', () => {
     expect(tunerPhoneLayout(0, 0, true).mode).toBe('desktop');
     const o = tunerPhoneLayout(844, 390, true);
-    expect(tunerPhoneLayout(1920, 1080, false, o)).toBe(o);
-    expect(o).toEqual({ mode: 'desktop', font: 0, width: 0, height: 0 });
+    expect(tunerPhoneLayout(844, 390, true, true, o)).toBe(o);
+    expect(o.pad).toBe(true);
+    expect(tunerPhoneLayout(1920, 1080, false, false, o)).toBe(o);
+    expect(o).toEqual(emptyPhoneLayout());
   });
 });
 
 describe('the body map on a phone', () => {
-  it('a hit radius that makes every target at least TOUCH_MIN across', () => {
-    expect(phoneMapHitRadius() * 2 * PHONE_MAP_SCALE).toBeGreaterThanOrEqual(TOUCH_MIN);
+  it('a touch hit radius that makes every target at least the touch target across', () => {
+    const l = tunerPhoneLayout(844, 390, true);
+    expect(l.mapHitR * 2 * l.mapScale).toBeGreaterThanOrEqual(TOUCH_TARGET);
+    expect(phoneMapHitRadius(1.5, 44) * 3).toBeGreaterThanOrEqual(44);
   });
   it('picks the nearest centre within the radius', () => {
     const px = [50, 42, 58];

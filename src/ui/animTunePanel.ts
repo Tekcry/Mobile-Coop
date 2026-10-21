@@ -90,7 +90,7 @@ import {
 } from './tunerLayout';
 import { flags } from '../core/flags';
 import { clearTouchIn } from '../player/freeView';
-import { GESTURE, nearestMapPart, PHONE_MAP_SCALE, phoneMapHitRadius, TouchGesture, tunerPhoneLayout, type TunerPhoneLayout } from './tunerPhone';
+import { emptyPhoneLayout, GESTURE, nearestMapPart, TouchGesture, tunerPhoneLayout, type TunerPhoneLayout } from './tunerPhone';
 
 /** What the barrel marker and (marlow-bays item 10) the selection marker read from the local player's rig (typed
  *  loosely: no player import; the joints are `CharacterRig`'s nodes). */
@@ -269,30 +269,32 @@ body:not(.input-gamepad) .anim-tune .tt-bump{display:none}
 body.tt-studio .hud,body.tt-studio .hud-world,body.tt-studio .mouse-capture-hint{display:none!important}
 body.tt-docked #game{width:calc(100% - var(--tt-dock-w,0px))!important;right:auto!important}
 .anim-tune .tt-handle{display:none}
-.anim-tune.tt-phone{overflow-y:auto;touch-action:pan-y;scroll-padding-top:7em;-webkit-overflow-scrolling:touch;padding:0 0.6em 0.3em}
-.anim-tune.tt-phone .tt-head{position:sticky;top:0;z-index:4;background:#040607;margin:0 -0.6em;padding:0 0.6em 0.2em}
-.anim-tune.tt-phone .tt-head{flex-wrap:wrap}
+.anim-tune.tt-phone{--tt-t:34px;overflow-y:auto;touch-action:pan-y;scroll-padding-top:6em;-webkit-overflow-scrolling:touch;padding:0 0.5em 0.25em}
+.anim-tune.tt-phone .tt-head{position:sticky;top:0;z-index:4;background:#040607;margin:0 -0.5em;padding:0 0.5em 0.15em;flex-wrap:wrap;gap:0.3em}
 .anim-tune.tt-phone .anim-tune-mouse{display:none}
 .anim-tune.tt-phone.tt-folded .anim-tune-info{display:none}
-.anim-tune.tt-phone .tt-handle{display:flex;align-items:center;justify-content:center;gap:0.6em;width:100%;min-height:44px;-webkit-appearance:none;appearance:none;background:transparent;border:none;cursor:pointer;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:0.85em}
-.anim-tune.tt-phone .tt-handle::before{content:'';width:3.2em;height:5px;border-radius:3px;background:rgba(214,223,219,0.55)}
+.anim-tune.tt-phone .tt-handle{display:flex;align-items:center;justify-content:center;gap:0.6em;width:100%;min-height:var(--tt-t);-webkit-appearance:none;appearance:none;background:transparent;border:none;cursor:pointer;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:0.85em}
+.anim-tune.tt-phone .tt-handle::before{content:'';width:3em;height:4px;border-radius:2px;background:rgba(214,223,219,0.55)}
 .anim-tune.tt-phone .anim-tune-body{flex:none;overflow:visible;min-height:auto;touch-action:pan-y}
 .anim-tune.tt-phone .anim-tune-hints{display:none}
-.anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-tab,.anim-tune.tt-phone .tt-chip,.anim-tune.tt-phone .tt-opt,.anim-tune.tt-phone .tt-grp,.anim-tune.tt-phone .tt-field,.anim-tune.tt-phone input[type=number],.anim-tune.tt-phone input[type=text],.anim-tune.tt-phone input[type=search]{min-height:44px}
-.anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-chip{min-width:44px}
-.anim-tune.tt-phone .tt-tab{padding:0 0.6em}
-.anim-tune.tt-phone .tt-chip{border-radius:22px;padding:0 0.9em}
-.anim-tune.tt-phone input[type=range]{height:44px;touch-action:none}
-.anim-tune.tt-phone input[type=checkbox]{width:24px;height:24px}
-.anim-tune.tt-phone .tt-x,.anim-tune.tt-phone .tt-pin{min-width:44px;min-height:44px;font-size:1.25em;opacity:1}
-.anim-tune.tt-phone .tt-row{grid-template-columns:44px minmax(0,1fr) 4.6em auto 44px;grid-template-areas:"pin name val unit x" "range range range range range";gap:0 0.3em;padding:0.15em 0 0.3em}
-.anim-tune.tt-phone .tt-row>.tt-pin{grid-area:pin}
-.anim-tune.tt-phone .tt-row>.tt-name{grid-area:name}
-.anim-tune.tt-phone .tt-row>input[type=range]{grid-area:range}
-.anim-tune.tt-phone .tt-row>.anim-tune-num{grid-area:val}
-.anim-tune.tt-phone .tt-row>.tt-unit{grid-area:unit}
-.anim-tune.tt-phone .tt-row>.tt-x{grid-area:x}
-.anim-tune.tt-phone .tt-navrow{flex-wrap:wrap}
+.anim-tune.tt-phone .tt-bar{gap:0.25em 0.35em;margin:0.15em 0}
+.anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-tab,.anim-tune.tt-phone .tt-chip,.anim-tune.tt-phone .tt-opt,.anim-tune.tt-phone .tt-grp,.anim-tune.tt-phone .tt-field,.anim-tune.tt-phone input[type=number],.anim-tune.tt-phone input[type=text],.anim-tune.tt-phone input[type=search]{min-height:var(--tt-t)}
+.anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-chip{min-width:var(--tt-t);padding:0 0.5em}
+.anim-tune.tt-phone .tt-tab{padding:0 0.45em}
+.anim-tune.tt-phone .tt-chip{border-radius:calc(var(--tt-t) / 2);padding:0 0.7em}
+.anim-tune.tt-phone input[type=range]{height:var(--tt-t);touch-action:none}
+.anim-tune.tt-phone input[type=checkbox]{width:calc(var(--tt-t) * 0.55);height:calc(var(--tt-t) * 0.55)}
+.anim-tune.tt-phone .tt-x,.anim-tune.tt-phone .tt-pin{min-width:var(--tt-t);min-height:var(--tt-t);font-size:1.2em;opacity:1}
+.anim-tune.tt-phone:not(.tt-ppad) .tt-row{grid-template-columns:var(--tt-t) minmax(0,1fr) 4.6em auto var(--tt-t);grid-template-areas:"pin name val unit x" "range range range range range";gap:0 0.25em;padding:0 0 0.15em}
+.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-pin{grid-area:pin}
+.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-name{grid-area:name}
+.anim-tune.tt-phone:not(.tt-ppad) .tt-row>input[type=range]{grid-area:range}
+.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.anim-tune-num{grid-area:val}
+.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-unit{grid-area:unit}
+.anim-tune.tt-phone:not(.tt-ppad) .tt-row>.tt-x{grid-area:x}
+.anim-tune.tt-phone.tt-ppad .tt-row{min-height:var(--tt-t);gap:0.25em}
+.anim-tune.tt-phone.tt-ppad .tt-x,.anim-tune.tt-phone.tt-ppad .tt-pin{min-width:0;font-size:1em}
+.anim-tune.tt-phone .tt-navrow{flex-wrap:wrap;gap:0.4em}
 .anim-tune.tt-drawer{top:0;bottom:0;right:0;left:auto}
 .anim-tune.tt-drawer.tt-folded{bottom:auto;overflow:visible}
 .anim-tune.tt-sheet{top:auto;left:0;right:0;bottom:0;border-left:none;border-top:1px solid var(--tt-line);background:rgba(4,6,7,0.95)}
@@ -518,7 +520,9 @@ export class AnimTunePanel {
   private panelW = 0;
   private readonly down = { on: false, x: 0, y: 0, t: 0 };
   // --- (marlow-bays item 26) the phone layout (drawer / sheet), the touch camera and the debug readout toggle
-  private readonly layout: TunerPhoneLayout = { mode: 'desktop', font: 0, width: 0, height: 0 };
+  private readonly layout: TunerPhoneLayout = emptyPhoneLayout();
+  /** (26b) A pad was the last input at the last layout (the body's `input-gamepad`). */
+  private padUi = false;
   private handle: HTMLButtonElement;
   /** The height the studio's canvas gives up to the bottom sheet (px; 0 none). */
   private dockH = 0;
@@ -530,7 +534,6 @@ export class AnimTunePanel {
   private debugBox: HTMLInputElement;
   /** On a phone: the readout the tuner's toggle chose (saved; default off). */
   private phoneDebug = false;
-  private readonly mapHitR = phoneMapHitRadius();
   private readonly mapPx = new Float32Array(32);
   private readonly mapPy = new Float32Array(32);
   private mapIds: BodyPart[] = [];
@@ -1075,6 +1078,9 @@ export class AnimTunePanel {
       // (marlow-bays item 26) the phone layout, the dock, the readout and the touch camera's last gesture
       phone: () => ({
         mode: this.layout.mode,
+        pad: this.layout.pad,
+        font: this.layout.font,
+        target: this.layout.target,
         width: this.layout.width,
         height: this.layout.height,
         dockW: this.dockW,
@@ -2135,7 +2141,7 @@ export class AnimTunePanel {
       // the viewBox is 100 x 170, drawn at the element's size (aspect kept: the map's CSS size has the same ratio)
       const x = ((e.clientX - r.left) / r.width) * 100;
       const y = ((e.clientY - r.top) / r.height) * 170;
-      const i = nearestMapPart(this.mapPx, this.mapPy, this.mapIds.length, x, y, this.mapHitR);
+      const i = nearestMapPart(this.mapPx, this.mapPy, this.mapIds.length, x, y, this.layout.mapHitR || 10);
       const id = i >= 0 ? this.mapIds[i] : undefined;
       if (id !== undefined) this.pickPart(this.bodyPart === id ? '' : id);
     });
@@ -2398,9 +2404,13 @@ export class AnimTunePanel {
   private applySize(): void {
     if (typeof window === 'undefined') return;
     // (marlow-bays item 26) a phone: the side drawer (landscape) or the bottom sheet (portrait); desktop as before
-    const lay = tunerPhoneLayout(window.innerWidth, window.innerHeight, flags.phone, this.layout);
+    // (26b) with a pad the last input, the pad density (smaller again; `padUi` is re-read every frame, see `frame`)
+    this.padUi = document.body.classList.contains('input-gamepad');
+    const lay = tunerPhoneLayout(window.innerWidth, window.innerHeight, flags.phone, this.padUi, this.layout);
     const el = this.el;
     el.classList.toggle('tt-phone', lay.mode !== 'desktop');
+    el.classList.toggle('tt-ppad', lay.mode !== 'desktop' && lay.pad);
+    el.style.setProperty('--tt-t', lay.target ? `${lay.target}px` : '');
     el.classList.toggle('tt-drawer', lay.mode === 'drawer');
     el.classList.toggle('tt-sheet', lay.mode === 'sheet');
     if (lay.mode === 'desktop') {
@@ -2415,12 +2425,14 @@ export class AnimTunePanel {
       el.style.height = lay.mode === 'sheet' ? `${lay.height}px` : '';
       this.panelW = lay.width;
     }
-    // (item 26) the body map's tap targets: TOUCH_MIN round each part on a phone (the map drawn at PHONE_MAP_SCALE)
-    const phoneR = lay.mode === 'desktop' ? '' : String(this.mapHitR);
-    if (this.mapEl.dataset.hitR !== phoneR) {
-      this.mapEl.dataset.hitR = phoneR;
-      this.mapEl.style.width = phoneR ? `${100 * PHONE_MAP_SCALE}px` : '';
-      this.mapEl.style.height = phoneR ? `${170 * PHONE_MAP_SCALE}px` : '';
+    // (item 26) the body map on a phone: drawn at the layout's scale, its tap targets the touch target round each part
+    // (by pad the map's own radii: nothing is tapped)
+    const phoneR = lay.mapHitR ? String(lay.mapHitR) : '';
+    const mapKey = lay.mode === 'desktop' ? '' : `${lay.mapScale}|${phoneR}`;
+    if (this.mapEl.dataset.hitR !== mapKey) {
+      this.mapEl.dataset.hitR = mapKey;
+      this.mapEl.style.width = mapKey ? `${100 * lay.mapScale}px` : '';
+      this.mapEl.style.height = mapKey ? `${170 * lay.mapScale}px` : '';
       for (const g of this.mapPts.values()) {
         const hit = g.querySelector<SVGCircleElement>('circle.hit');
         if (hit) hit.setAttribute('r', phoneR || (hit.dataset.r ?? '8'));
@@ -3199,6 +3211,9 @@ export class AnimTunePanel {
     // (marlow-bays T2) the studio hides the game HUD, open or not
     this.syncStudioHud();
     if (!this.open) return;
+    // (26b) the last input changed (touch / mouse <-> pad) on a phone: the layout's density follows, live (one class
+    // read per frame, no allocation; the layout changes only on a change)
+    if (flags.phone && document.body.classList.contains('input-gamepad') !== this.padUi) this.applySize();
     // (fix round) every frame, folded or not: one property read
     this.refreshCoop();
     if (this.wasStudio !== STUDIO.active) this.studioLeft();

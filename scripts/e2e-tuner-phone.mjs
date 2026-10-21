@@ -2,12 +2,16 @@
 // The tuner on a phone, logic only (software GL; no visual result is claimed). Three pages:
 // 1. Landscape 844 x 390 with touch (Playwright `hasTouch`, `isMobile`): the side drawer is chosen and the canvas gives
 //    up its width (she stands in the free area); every visible touch target (tabs, buttons, chips, sliders, steppers,
-//    the body map's joints, the playback bar, the handle) is at least 44 CSS px; the text is readable; the panel scrolls;
+//    the body map's joints, the playback bar, the handle) is at least the touch target (26b: 34 px; the drawer about
+//    38% wide, text 13 px); the panel scrolls;
 //    the F3 debug readout is off, the tuner's Settings toggle shows and hides it and F3 still works with a keyboard; a tap
 //    on her picks a part; one finger dragged orbits (the view's yaw turns); a pinch zooms (the orbit distance shrinks);
 //    two fingers dragged pan (the circled point moves); a touch drag on the panel never moves the camera; the handle
 //    collapses and expands the drawer.
-// 2. Portrait 390 x 844 with touch: the bottom sheet, the canvas above it, targets >= 44 px, the readout off.
+//    (26b) A pad press (the fake pad, e2e-lib's `window.__pad`) switches live to the pad density (26 px rows, 11 px text,
+//    narrower); a touch switches back.
+// 2. Portrait 390 x 844 with touch: the bottom sheet (about 45% high), the canvas above it, targets >= 34 px, the
+//    readout off; a pad press: the pad density (the sheet about 40% high).
 // 3. Desktop 1280 x 640, no touch: the layout is unchanged (the T2 dock, no phone class, the map's own targets, the
 //    readout on in the studio as before).
 import { launch, assert, frames } from './e2e-lib.mjs';
@@ -29,9 +33,9 @@ async function boot(viewport, context) {
   return r;
 }
 
-/** Every visible touch target in the panel smaller than 44 px (either side), with what it is. */
-const smallTargets = (page) =>
-  page.evaluate(() => {
+/** Every visible touch target in the panel smaller than `min` px (either side), with what it is. */
+const smallTargets = (page, min) =>
+  page.evaluate((min) => {
     const root = document.querySelector('.anim-tune');
     const sel = '.tt-tab, .tt-btn, .tt-chip, .tt-grp, .tt-x, .tt-pin, .tt-opt, .anim-tune-handle, input[type=range], input[type=number], input[type=search], label.tt-field, .anim-tune-map circle.hit';
     const bad = [];
@@ -44,10 +48,32 @@ const smallTargets = (page) =>
       n++;
       // a slider and a text field are wide; only their height counts across
       const wide = e.matches('input[type=range], input[type=search], label.tt-field');
-      if (r.height < 43.5 || (!wide && r.width < 43.5)) bad.push(`${e.tagName.toLowerCase()}.${String(e.className?.baseVal ?? e.className).split(' ')[0]} "${(e.textContent ?? '').trim().slice(0, 16)}" ${r.width.toFixed(0)}x${r.height.toFixed(0)}`);
+      if (r.height < min - 0.5 || (!wide && r.width < min - 0.5)) bad.push(`${e.tagName.toLowerCase()}.${String(e.className?.baseVal ?? e.className).split(' ')[0]} "${(e.textContent ?? '').trim().slice(0, 16)}" ${r.width.toFixed(0)}x${r.height.toFixed(0)}`);
     }
     return { n, bad };
+  }, min);
+
+/** (26b) The tallest visible slider row and the panel's font (px). */
+const rowSizes = (page) =>
+  page.evaluate(() => {
+    let hi = 0;
+    let n = 0;
+    for (const r of document.querySelectorAll('.anim-tune .tt-row')) {
+      const b = r.getBoundingClientRect();
+      if (b.height === 0) continue;
+      n++;
+      hi = Math.max(hi, b.height);
+    }
+    return { n, hi, font: parseFloat(getComputedStyle(document.querySelector('.anim-tune')).fontSize), cls: document.querySelector('.anim-tune').className, body: document.body.className };
   });
+
+/** (26b) A pad press: the fake pad connected, the D-pad up held two frames (the input layer's last input: the pad). */
+async function padPress(page) {
+  await page.evaluate(() => { window.__pad.connect(); window.__pad.set(12, 1); });
+  await frames(page, 3);
+  await page.evaluate(() => window.__pad.set(12, 0));
+  await frames(page, 4);
+}
 
 const phone = (page) => page.evaluate(() => window.__animTune.phone());
 const core = (page) => page.evaluate(() => { const f = window.__app.current.player.cam.free; return f ? { yaw: f.yaw, pitch: f.pitch, dist: f.dist, panX: f.panX, panZ: f.panZ, height: f.height, mode: window.__animTune.freeState().mode } : { mode: window.__animTune.freeState().mode }; });
@@ -84,15 +110,15 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     });
     assert(p0.mode === 'drawer' && lay.cls.includes('tt-drawer') && lay.cls.includes('tt-phone'), `landscape phone: the side drawer (${p0.mode}, ${lay.cls})`);
     assert(Math.abs(lay.pRight - lay.vw) < 1 && lay.pTop <= 0.5 && Math.abs(lay.pBottom - lay.vh) < 1 && p0.dockW === p0.width && lay.cRight <= lay.pLeft + 1 && lay.cLeft === 0, `the drawer is full height on the right and the canvas ends where it starts (she keeps ${lay.cRight.toFixed(0)} of ${lay.vw} px; dock ${p0.dockW})`);
-    assert(lay.font >= 14, `readable text in the drawer (${lay.font} px)`);
+    assert(lay.font >= 12 && lay.font <= 13 && !p0.pad && p0.target >= 32 && p0.target <= 36 && Math.abs(p0.width - 844 * 0.38) < 4, `touch density: text ${lay.font} px, targets ${p0.target} px, the drawer ${p0.width} px (${((p0.width / 844) * 100).toFixed(0)}%)`);
     assert(!p0.debug && !lay.overlay && !p0.debugBox, `the F3 debug readout is off on a phone (${JSON.stringify({ debug: p0.debug, overlay: lay.overlay })})`);
 
     // the touch targets on the View (playback bar, the loop list) and Body (map, part list, sliders) tabs
     for (const tab of ['view', 'body', 'settings']) {
       await G((t) => window.__animTune.tab(t), tab);
       await frames(page, 2);
-      const t = await smallTargets(page);
-      assert(t.n > 5 && t.bad.length === 0, `${tab} tab: every touch target >= 44 px (${t.n} checked${t.bad.length ? `; small: ${t.bad.slice(0, 6).join(', ')}` : ''})`);
+      const t = await smallTargets(page, p0.target);
+      assert(t.n > 5 && t.bad.length === 0, `${tab} tab: every touch target >= ${p0.target} px (${t.n} checked${t.bad.length ? `; small: ${t.bad.slice(0, 6).join(', ')}` : ''})`);
     }
     // scrolling inside the drawer
     const sc = await G(() => {
@@ -192,7 +218,22 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     await page.touchscreen.tap(hAt.x, hAt.y);
     await frames(page, 3);
     const f2 = await phone(page);
-    assert(hAt.h >= 44 && f1.folded && f1.dockW === 0 && Math.abs(f1.cw - lay.vw) < 1 && f1.text === 'Show panel' && !f2.folded && f2.dockW === p0.width, `the handle collapses (canvas ${f1.cw.toFixed(0)} px, "${f1.text}") and expands the drawer (dock ${f2.dockW})`);
+    assert(hAt.h >= p0.target - 0.5 && f1.folded && f1.dockW === 0 && Math.abs(f1.cw - lay.vw) < 1 && f1.text === 'Show panel' && !f2.folded && f2.dockW === p0.width, `the handle collapses (canvas ${f1.cw.toFixed(0)} px, "${f1.text}") and expands the drawer (dock ${f2.dockW})`);
+    // (26b) a pad press: the pad density, live; a touch: back to the touch density
+    await G(() => window.__animTune.tab('body'));
+    await frames(page, 2);
+    const rt = await rowSizes(page);
+    await padPress(page);
+    const pp = await phone(page);
+    const rp = await rowSizes(page);
+    const cp = await G(() => window.__app.canvas.getBoundingClientRect().right);
+    assert(pp.pad && pp.target === 26 && pp.font >= 11 && pp.font <= 12 && Math.abs(pp.width - 844 * 0.34) < 4 && pp.dockW === pp.width && Math.abs(cp - (844 - pp.width)) < 1 && rp.cls.includes('tt-ppad') && rp.body.includes('input-gamepad'), `a pad press switches to the pad density live (${JSON.stringify({ pad: pp.pad, target: pp.target, font: pp.font, width: pp.width, dock: pp.dockW })})`);
+    assert(rp.n > 3 && rp.hi <= 30 && rp.hi < rt.hi && rp.font === pp.font, `pad rows about 26 px (tallest ${rp.hi.toFixed(0)} px, touch ${rt.hi.toFixed(0)} px; ${rp.n} rows, text ${rp.font} px)`);
+    await page.touchscreen.tap(Math.round(cx * 0.3), 20);
+    await frames(page, 4);
+    const pt = await phone(page);
+    const rt2 = await rowSizes(page);
+    assert(!pt.pad && pt.target === p0.target && pt.width === p0.width && pt.dockW === p0.width && !rt2.cls.includes('tt-ppad') && Math.abs(rt2.hi - rt.hi) < 1, `a touch switches back to the touch density (${pt.target} px, ${pt.width} px, rows ${rt2.hi.toFixed(0)} px)`);
     assert(real(errors).length === 0, `no console errors (landscape): ${real(errors).slice(0, 3).join(' | ')}`);
   } catch (e) {
     console.error(e);
@@ -222,13 +263,23 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     for (const tab of ['view', 'body']) {
       await G((t) => window.__animTune.tab(t), tab);
       await frames(page, 2);
-      const t = await smallTargets(page);
-      assert(t.n > 5 && t.bad.length === 0, `portrait ${tab} tab: every touch target >= 44 px (${t.n} checked${t.bad.length ? `; small: ${t.bad.slice(0, 6).join(', ')}` : ''})`);
+      const t = await smallTargets(page, p.target);
+      assert(t.n > 5 && t.bad.length === 0, `portrait ${tab} tab: every touch target >= ${p.target} px (${t.n} checked${t.bad.length ? `; small: ${t.bad.slice(0, 6).join(', ')}` : ''})`);
     }
     await G(() => window.__animTune.fold(true));
     await frames(page, 3);
     const f = await G(() => ({ ...window.__animTune.phone(), top: document.querySelector('.anim-tune').getBoundingClientRect().top, ch: window.__app.canvas.getBoundingClientRect().height }));
     await G(() => window.__animTune.fold(false));
+    assert(Math.abs(p.height - 844 * 0.45) < 4 && p.target === 34 && !p.pad, `touch: the sheet ${p.height} px (${((p.height / 844) * 100).toFixed(0)}%), targets ${p.target} px`);
+    await padPress(page);
+    const pp = await phone(page);
+    const rp = await rowSizes(page);
+    const ch = await G(() => window.__app.canvas.getBoundingClientRect().bottom);
+    assert(pp.pad && pp.target === 26 && Math.abs(pp.height - 844 * 0.4) < 4 && pp.dockH === pp.height && Math.abs(ch - (844 - pp.height)) < 1 && rp.hi <= 30, `portrait pad: the sheet ${pp.height} px, rows ${rp.hi.toFixed(0)} px, text ${rp.font} px`);
+    await page.touchscreen.tap(195, 30);
+    await frames(page, 4);
+    const pt = await phone(page);
+    assert(!pt.pad && pt.height === p.height, `portrait: a touch switches back (${pt.height} px)`);
     assert(f.folded && f.dockH === 0 && f.top > lay.vh - 140 && Math.abs(f.ch - lay.vh) < 1, `collapsed, the sheet is its header at the bottom and the canvas the whole screen (top ${f.top.toFixed(0)}, canvas ${f.ch.toFixed(0)})`);
     assert(real(errors).length === 0, `no console errors (portrait): ${real(errors).slice(0, 3).join(' | ')}`);
   } catch (e) {

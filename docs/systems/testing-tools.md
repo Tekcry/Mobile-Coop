@@ -268,7 +268,9 @@ behind a VPN adapter).
 - `e2e-tuner-phone` (marlow-bays item 26; covers `src/ui/tuner*`, `src/ui/animTune*`, `src/game/studioStage`,
   `src/player/freeView`; about 1 minute): `?autostart=studio` on three pages. Landscape 844 x 390 and portrait 390 x 844
   with touch emulation (`hasTouch`, `isMobile`; `launch({ context })` in e2e-lib): the drawer / sheet is chosen and the
-  canvas gives up its width / height; every visible touch target >= 44 px; 15 px text; the panel scrolls; the F3
+  canvas gives up its width / height; (26b) touch: the drawer about 38% wide / the sheet about 45% high, every visible
+  touch target >= 34 px, 13 px text; a fake pad press (`window.__pad`) switches live to the pad density (26 px rows,
+  11 px text, 34% / 40%) and a touch back; the panel scrolls; the F3
   readout is off, the Settings toggle and F3 show and hide it; a tap on her head picks the head; one finger dragged
   orbits (camera yaw), a pinch zooms (orbit distance), two fingers pan (the circled point), touches on the panel move
   nothing; the handle collapses and expands. Multi-touch through the DevTools protocol (`Input.dispatchTouchEvent`);

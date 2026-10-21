@@ -1,10 +1,12 @@
 /**
  * (marlow-bays item 26, the M21 exception for the animation tuner and the Anim Studio only; the game stays desktop
  * only) The tuner on a phone, the pure part (no DOM, no Babylon; unit-tested in `tests/tunerPhone.test.ts`):
- * - which layout the panel takes from the viewport and the pointer (`tunerPhoneLayout`): a phone (a touch screen as the
- *   main pointer, `flags.phone`, and a short side of at most `PHONE_MAX_SIDE`) in landscape gets a side drawer on the
- *   right (height is scarce, width is not: she keeps the left of the screen), in portrait a bottom sheet (she keeps the
- *   top); anything else keeps the desktop layout untouched;
+ * - which layout the panel takes from the viewport, the pointer and the last input (`tunerPhoneLayout`): a phone (a
+ *   touch screen as the main pointer, `flags.phone`, and a short side of at most `PHONE_MAX_SIDE`) in landscape gets a
+ *   side drawer on the right (height is scarce, width is not: she keeps the left of the screen), in portrait a bottom
+ *   sheet (she keeps the top); anything else keeps the desktop layout untouched. (26b, Michael: "Smaller buttons, more
+ *   compact. Adjust smaller with controller connected also") Two densities: touch (targets `TOUCH_TARGET`) and, with a
+ *   pad the last input, pad (rows `PAD_ROW`, no touch minimum, narrower again);
  * - the touch camera's gesture classification (`TouchGesture`): a tap (no drag) picks a part, one finger dragged orbits,
  *   two fingers either pinch (zoom) or drag together (pan), decided once per two-finger gesture. Allocation-free.
  */
@@ -12,52 +14,74 @@
 /** The panel's layout: the desktop dock (unchanged), the phone's side drawer (landscape) or bottom sheet (portrait). */
 export type TunerLayoutMode = 'desktop' | 'drawer' | 'sheet';
 
-/** The smallest touch target on a phone (CSS px): sliders, steppers, tabs, chips, body map joints, the playback bar. */
-export const TOUCH_MIN = 44;
+/** (26b) The phone's touch target (CSS px): tabs, buttons, chips, sliders, steppers, body map joints, the playback bar. */
+export const TOUCH_TARGET = 34;
+/** (26b) The phone's row height with a pad the last input (nothing is tapped: no touch minimum). */
+export const PAD_ROW = 26;
 /** A viewport whose short side is longer than this is not a phone (a tablet keeps the desktop layout). */
 export const PHONE_MAX_SIDE = 600;
-/** The phone panel's text size (CSS px): readable at arm's length, independent of the S / M / L desktop sizes. */
-export const PHONE_FONT = 15;
+/** The phone panel's text size (CSS px), touch and pad, independent of the S / M / L desktop sizes. */
+export const PHONE_FONT = 13;
+export const PHONE_PAD_FONT = 11;
+/** The body map's scale on a phone (CSS px per map unit), touch and pad. */
+export const PHONE_MAP_SCALE = 1.2;
+export const PHONE_PAD_MAP_SCALE = 1;
 
 export interface TunerPhoneLayout {
   mode: TunerLayoutMode;
+  /** (26b) A phone with a pad the last input: the pad density. */
+  pad: boolean;
   /** The panel's font size (px; 0 on desktop: `tunerScale` decides). */
   font: number;
+  /** The smallest control (px): `TOUCH_TARGET` by touch, `PAD_ROW` by pad; 0 on desktop. */
+  target: number;
   /** The drawer's width (px; 0 otherwise). The canvas gives it up beside the drawer. */
   width: number;
   /** The sheet's height (px; 0 otherwise). The canvas gives it up above the sheet. */
   height: number;
+  /** The body map's scale (px per unit) and its hit radius (units; 0 on desktop and by pad: the map's own). */
+  mapScale: number;
+  mapHitR: number;
+}
+
+export function emptyPhoneLayout(): TunerPhoneLayout {
+  return { mode: 'desktop', pad: false, font: 0, target: 0, width: 0, height: 0, mapScale: 0, mapHitR: 0 };
+}
+
+/** The hit radius (map units) that gives a `target` px circle at `scale` px per unit. */
+export function phoneMapHitRadius(scale = PHONE_MAP_SCALE, target = TOUCH_TARGET): number {
+  return Math.ceil((target / 2 / scale) * 10) / 10;
 }
 
 /**
- * The layout for a viewport (`vw` x `vh` CSS px) and whether the device is a phone (a touch screen as the main pointer).
- * The drawer leaves her at least 45% of the width, the sheet at least 40% of the height.
+ * The layout for a viewport (`vw` x `vh` CSS px), whether the device is a phone (a touch screen as the main pointer) and
+ * whether a pad was the last input (`pad`). Touch: the drawer about 38% of the width, the sheet about 45% of the
+ * height; pad: about 34% and 40%. No allocation with `out`.
  */
-export function tunerPhoneLayout(vw: number, vh: number, phone: boolean, out?: TunerPhoneLayout): TunerPhoneLayout {
-  const o = out ?? { mode: 'desktop', font: 0, width: 0, height: 0 };
+export function tunerPhoneLayout(vw: number, vh: number, phone: boolean, pad = false, out?: TunerPhoneLayout): TunerPhoneLayout {
+  const o = out ?? emptyPhoneLayout();
   o.mode = 'desktop';
-  o.font = o.width = o.height = 0;
+  o.pad = false;
+  o.font = o.target = o.width = o.height = o.mapScale = o.mapHitR = 0;
   if (!phone || !(vw > 0) || !(vh > 0) || Math.min(vw, vh) > PHONE_MAX_SIDE) return o;
-  o.font = PHONE_FONT;
+  o.pad = pad;
+  o.font = pad ? PHONE_PAD_FONT : PHONE_FONT;
+  o.target = pad ? PAD_ROW : TOUCH_TARGET;
+  o.mapScale = pad ? PHONE_PAD_MAP_SCALE : PHONE_MAP_SCALE;
+  o.mapHitR = pad ? 0 : phoneMapHitRadius(o.mapScale, o.target);
   if (vw >= vh) {
     o.mode = 'drawer';
-    o.width = Math.round(Math.max(Math.min(300, vw * 0.55), Math.min(vw * 0.46, 440)));
+    o.width = Math.round(Math.max(Math.min(pad ? 240 : 270, vw * 0.5), Math.min(vw * (pad ? 0.34 : 0.38), pad ? 360 : 400)));
   } else {
     o.mode = 'sheet';
-    o.height = Math.round(Math.max(Math.min(260, vh * 0.6), Math.min(vh * 0.55, vh - 180)));
+    o.height = Math.round(Math.max(Math.min(pad ? 220 : 240, vh * 0.55), Math.min(vh * (pad ? 0.4 : 0.45), vh - 200)));
   }
   return o;
 }
 
-/** The body map's scale on a phone (CSS px per map unit) and the hit radius (map units) that gives a `TOUCH_MIN` target. */
-export const PHONE_MAP_SCALE = 1.5;
-export function phoneMapHitRadius(scale = PHONE_MAP_SCALE): number {
-  return Math.ceil((TOUCH_MIN / 2 / scale) * 10) / 10;
-}
-
 /**
  * The map part nearest a tap (map units), within `r`: index into the parallel arrays (`px`, `py`, `n` entries), -1 none.
- * The phone's map targets overlap (44 px circles on joints 10 units apart); the nearest centre wins, so every target is
+ * The phone's map targets overlap (34 px circles on joints 10 units apart); the nearest centre wins, so every target is
  * at least its own half of the gap and the whole circle where nothing else is near.
  */
 export function nearestMapPart(px: ArrayLike<number>, py: ArrayLike<number>, n: number, x: number, y: number, r: number): number {

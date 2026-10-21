@@ -49,11 +49,12 @@ export class InputManager {
       if (this.gameplayActive && this._mode === 'kbm') this.state.tap('pause');
     };
 
-    // Any mouse press anywhere (menus included) reverts to keyboard / mouse mode.
+    // Any mouse press anywhere (menus included) reverts to keyboard / mouse mode. (marlow-bays item 26b) A touch too:
+    // the tuner on a phone takes its touch density back from the pad's.
     window.addEventListener(
       'pointerdown',
       (e) => {
-        if (e.pointerType === 'mouse') this.setMode('kbm');
+        if (e.pointerType === 'mouse' || e.pointerType === 'touch') this.setMode('kbm');
       },
       { capture: true },
     );

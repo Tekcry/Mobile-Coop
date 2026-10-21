@@ -183,15 +183,21 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   parts `ui/tunerPhone.ts` (tests `tests/tunerPhone.test.ts`), suite `e2e-tuner-phone`:
   - Layout (`tunerPhoneLayout`): a phone is `flags.phone` (touch as the main pointer: `maxTouchPoints` and
     `pointer: coarse`) with a short side of at most 600 px; anything else keeps the T2 desktop layout exactly. Landscape:
-    a side drawer on the right, full height, 46% of the width (300-440 px; height is scarce, width is not, so she keeps
-    the left); portrait: a bottom sheet, full width, 55% of the height (she keeps the top). The studio dock gives the
+    a side drawer on the right, full height, 38% of the width (270-400 px; height is scarce, width is not, so she keeps
+    the left); portrait: a bottom sheet, full width, 45% of the height (she keeps the top). The studio dock gives the
     canvas up beside the drawer (`--tt-dock-w`, `body.tt-docked`) or above the sheet (`--tt-dock-h`,
     `body.tt-docked-b`), so she stands in the free area. Classes `tt-phone` + `tt-drawer` / `tt-sheet`.
-  - Look: 15 px text; every touch target at least 44 px (`TOUCH_MIN`: tabs, buttons, chips, group headers, steppers,
-    the ↺ and ☆, the drop-down rows, sliders 44 px high, check boxes 24 px in a 44 px row); a slider row is two lines
-    (pin, name, value, unit, reset; then the slider full width). The panel scrolls as a whole (`touch-action: pan-y`),
+  - Look (26b, Michael: "Smaller buttons, more compact. Adjust smaller with controller connected also"): two densities
+    from the layout's `target`, set as `--tt-t` on the panel. Touch: 13 px text, every touch target at least 34 px
+    (`TOUCH_TARGET`: tabs, buttons, chips, group headers, steppers, the ↺ and ☆, the drop-down rows, sliders 34 px
+    high, check boxes in a 34 px row), tight padding; a slider row is two lines (pin, name, value, unit, reset; then the
+    slider full width). Pad (a pad the last input, body `input-gamepad`; class `tt-ppad`): 11 px text, 26 px rows
+    (`PAD_ROW`, no touch minimum), the desktop one-line rows, the drawer 34% wide / the sheet 40% high, the map at 1 px
+    a unit with its own targets. It switches live: `frame()` compares the body class with the last layout's (one read a
+    frame, no allocation) and re-lays out only on a change; a touch anywhere now sets the input mode back to `kbm`
+    (`InputManager`, as a mouse press did), a pad press sets `gamepad`. The panel scrolls as a whole (`touch-action: pan-y`),
     the header sticky with a grab handle (`.anim-tune-handle`, "Hide panel" / "Show panel": the fold); the hint strip
-    and the mouse-mode button hide. The body map is drawn at 1.5 px a unit with 44 px hit circles; overlapping ones
+    and the mouse-mode button hide. By touch the body map is drawn at 1.2 px a unit with 34 px hit circles; overlapping ones
     resolve to the nearest joint (`nearestMapPart`). The pad focus scrolls the panel only while a pad is in use.
   - Debug readout: the studio no longer turns the F3 overlay on in the phone layout, and opening the tuner on a phone
     sets it to the saved choice (`phoneDebug` in the tuner's `ui` store, default off). Settings > "Debug readout (F3)"
