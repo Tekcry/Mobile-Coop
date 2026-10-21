@@ -201,7 +201,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
 // only one working) and the stage rises through the panel (not a direct onAlarm call); after a restart the panel and
 // the alarm are armed again and a second panel alarm works.
 console.log('sector ops: a guard raises the live section\'s alarm panel, again after a restart');
-await run(PARAMS, async ({ G, sim }) => {
+await run(PARAMS, async ({ page, G, sim }) => {
   await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
   await sim(0.5);
   const S = await sections(G);
@@ -249,7 +249,18 @@ await run(PARAMS, async ({ G, sim }) => {
     assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised})`);
   };
   await panelAlarm('section 2');
-  await G(() => window.__sector.restartSection());
+  // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
+  await G(() => window.__app.current.pause());
+  await frames(page, 3);
+  const prow = await G(() => { const b = document.querySelector('.pause-screen [data-key="restart-checkpoint"]'); return b ? { blocked: b.classList.contains('blocked') } : null; });
+  assert(!!prow && !prow.blocked, `solo Sector Ops pause has a live "Restart at checkpoint" (${JSON.stringify(prow)})`);
+  await G(() => { const b = document.querySelector('.pause-screen [data-key="restart-checkpoint"]'); window.__app.nav.focus(b); b.click(); });
+  await frames(page, 3);
+  const dlg = await G(() => ({ top: !!window.__app.screens.top?.el.classList.contains('dialog-screen'), f: window.__app.nav.focused?.textContent ?? '' }));
+  assert(dlg.top && /Stay/.test(dlg.f), `the restart confirm opens on Stay (${JSON.stringify(dlg)})`);
+  await G(() => [...document.querySelectorAll('.dialog-buttons .btn')].find((b) => /Restart/.test(b.textContent)).click());
+  await frames(page, 3);
+  assert(await G(() => !window.__app.current.paused && !document.querySelector('.pause-screen')), 'Restart closes the pause menu');
   await sim(1.5);
   const d2 = await G(() => ({ d: window.__sector.debug(), raised: window.__app.current.enemyMgr.alarmRaised }));
   assert(d2.d.index === 1 && d2.d.restarts === 1 && d2.raised === false, `the restart re-arms the panel alarm (${JSON.stringify(d2)})`);

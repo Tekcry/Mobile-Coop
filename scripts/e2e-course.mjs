@@ -60,7 +60,8 @@ const use = (P, id) =>
     const it = window.__app.current.interactables?.items.find((i) => i.id === id);
     if (!it) return 'missing';
     if (!it.enabled) return 'disabled';
-    it.onUse(it);
+    // 'local' like the game's own prompt and menu (gameState.ts): the host's press is P1 (marlow-bays item 2)
+    it.onUse(it, 'local');
     return 'ok';
   }, id);
 const hostDebug = () => GA(() => window.__course.debug());

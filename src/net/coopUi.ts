@@ -102,7 +102,7 @@ class CoopController {
           attach: (g) => (session.isHost ? new CoopHost(g, session) : new CoopClient(g, session)),
         },
       },
-      { quit: () => void this.leave(), restart: () => this.backToLobby() },
+      { quit: () => void this.leave(), restart: () => this.backToLobby(), lobby: () => this.backToLobby() },
     );
   }
 

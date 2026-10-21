@@ -49,6 +49,16 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   pickups, blips, end). Client sessions set `GameState.puppet` (no AI or mode; health from snapshots; local
   `damageMul = 0`). Co-op never pauses the sim (the pause menu only takes input). A hidden page keeps simulating and
   sending (`net/bgTicks.ts`; the hidden-page tick, input-and-loop.md).
+- (marlow-bays items 3-4) The host's pause menu restarts at the checkpoint (`GameMode.restartCheckpoint`; the host's
+  respawn runs `CoopHost.onRespawn`, which brings an alive partner back in Sector Ops and the course) and returns
+  everyone to the lobby (`CoopController.backToLobby` -> `NetSession.backToLobby`, phase `lobby`; the client's lobby
+  handler follows). The client's rows are disabled ("Host only"). No wire change.
+- (marlow-bays item 1) A held hostage is never solid to its holder: the client's `EnemyPuppet.setSolid` (the takedown's
+  `setSolid?.(false)` was a no-op there, so the puppet's capsule shoved the client's controller: slow, jittery movement
+  while holding) and the partner's hostage seen there (`remoteHeld`). The host places a client's hostage from that
+  client's drawn (interpolated) pose, not its raw 20 Hz state.
+- (marlow-bays item 2) Course items: the host's own press passes `'local'` (`gameState.ts`); `courseUser` reads it as
+  P1, a client's peer id as P2 (it read `'local'` as P2, so a host unbolting alone was tested on the client's feet).
 - Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
   snapshot, which always replaces it (an empty course-mode objective included), and "Waiting for host…" after 2 s
   without one, until the next. The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).

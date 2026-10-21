@@ -7,7 +7,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
 import { CourseState, type CourseEvent } from '../course/courseState';
-import { airlockPad, isPanelId, layoutKnownIds, validateCourse, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
+import { airlockPad, courseUser, isPanelId, layoutKnownIds, validateCourse, type CourseDef, type CourseLayout, type DrillDef, type GateDef, type PlayerIdx } from '../course/courseDef';
 import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
@@ -291,9 +291,19 @@ export class CourseMode implements GameMode {
     }
   }
 
-  /** Player index of whoever used an item: the host (undefined) is P1, the client P2. */
+  /** (marlow-bays item 3) The pause menu's restart: the current bay from its start, as everyone down (`bayRestart`
+   *  respawns the host at the checkpoint, and `CoopHost.onRespawn` brings the partner back beside it). */
+  restartCheckpoint(): boolean {
+    const st = this.state;
+    if (!st || st.over) return false;
+    this.restartT = -1;
+    st.restart();
+    return true;
+  }
+
+  /** Player index of whoever used an item (`courseUser`: the host is P1, the client P2). */
   private idx(by: string | undefined): PlayerIdx {
-    return by === undefined ? 0 : 1;
+    return courseUser(by);
   }
 
   private press(cid: string, p: PlayerIdx): void {
