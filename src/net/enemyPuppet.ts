@@ -342,6 +342,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   }
 
   dispose(): void {
+    // (course-restart-hold) gone: never alive again, so a stale reference (a takedown, a hold) lets go of it
+    this.dead = true;
+    this.taken = this.seized = this.remoteHold = false;
     this.hitboxes?.dispose();
     this.hitboxes = null;
     this.registry.removeTarget(this);

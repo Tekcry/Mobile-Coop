@@ -610,6 +610,7 @@ export class StudioStage {
     p.kneel = r.kneel;
     p.traverse = r.traverse;
     p.traverseT = r.traverseT;
+    p.tuneTeam = r.group; // (anim-joints J2, A6) the role's team row of the tuner tables
     p.tumble = r.tumble;
     this.grip(rig.reachL, r.grip !== 'none', r.hlx, r.hly, r.hlz, r.grip === 'lip');
     this.grip(rig.reachR, r.grip !== 'none', r.hrx, r.hry, r.hrz, r.grip === 'lip');

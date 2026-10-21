@@ -249,6 +249,22 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
   the save, `TuneSnapshot.baked`); the info line gives the count (on the next open when closed). Y menu "Reset baked"
   reruns it over every bake. Hooks: `__animTune.bakedReset()`, `bakedApplied()`, `infoText()`; BAKE.md step 7.
+- (anim-joints J2, COVERAGE gap 2) Move and action rows in Joints, Hands & feet, IK strength and Weapon: the tables are
+  keyed by the row list `TUNE_ROW_IDS` (`anim/tuneMoveRows.ts`): the body states (ids unchanged), then `trav.<kind>`
+  (the traversal moves without a body state, plus `brace`), `team.<move>.<a|b>` (each co-op move per role) and the
+  actions `air`, `land`, `slide`, `melee`, `reload`, `swap`, `throw` (the grenade), `hit`. Groups such as
+  `joint.trav.vault`, `joint.team.boost.b`, `hand.rifle.reload`, `ik.air`, `weapon.pistol.throw` register through the
+  registry, so the panel's pickers list them (State: `trav` > `vault`, `team` > `boost` > `b`, `reload`). When they
+  apply: each Wren rig picks the stance row plus up to 3 move / action rows with a weight 0..1 (`pickTuneRows`): a
+  traversal row 1 while the pose is in that move; a team row 1 while the rig is in that role (`RigPose.tuneTeam`: the
+  local player from `MOVE_TUNE_TEAM`, the studio pairs from their role, the co-op partner from its move mode and sub on
+  the wire; the partner's relay climb reads as the leg-up's role A and the revive has no wire state); an action row
+  the anim graph's own blend weight (`AnimGraph.rowW`: the air and slide fades, the landing envelope, the elbow strike's
+  hand weight, the reload / swap overlays, the grenade hands, the flinch spring; last frame's). Composition (A5):
+  joints stance x nlerp(identity, move, w) per row; offsets stance + w x move; gun scale and IK strength stance x
+  lerp(1, move, w); the trigger the move row's at w >= 0.5 when not auto. A move with no body state (a vault) applies
+  its row over identity. The panel follows the strongest move row while its weight is 0.5 or more, else the stance
+  row. The per-gun Joints rows stay for the armed states only.
 - (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
   differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
   `tests/marlowT2.test.ts`, `tests/tunerLayout.test.ts`):

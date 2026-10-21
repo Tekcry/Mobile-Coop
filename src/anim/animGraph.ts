@@ -38,6 +38,7 @@ import {
 import { DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
+import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
 import { clearKeyedArms, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
 import { KEYED_WALK } from './clips/keyed/walk';
@@ -576,6 +577,8 @@ export function wallBlockK(dist: number): number {
 }
 /** (step 09) Fade rate (1/s) of the swap overlay: in as a swap / draw / holster starts, out when it stops mid-clip. */
 const SWAP_FADE = 8;
+/** (anim-joints J2) The flinch spring's peak for a full hit (kick 4.5, omega 9: 4.5 / (9 e)) -> row weight 1. */
+const HIT_ROW_K = (9 * Math.E) / 4.5;
 /** (step 09) Carriage ease (s) during a weapon-to-weapon swap: out before the reach to the slot (~0.2 s in). */
 const CARRY_SWAP_TAU = 0.08;
 /** (fix 21-2) Time constant (s) of the right hand's holster offset (READY_HANDS.xHolster) easing in / out. */
@@ -598,6 +601,11 @@ const SLOTS = 10;
 
 export class AnimGraph {
   readonly weights: Record<LowerState, number> = { locomotion: 1, crouch: 0, kneel: 0, air: 0, slide: 0, wall: 0, traverse: 0 };
+  /**
+   * (anim-joints J2, row plumbing) The action weights 0..1 the tuner's action rows read (`tuneMoveRows.ts`), written at
+   * the end of each `update` from the graph's own blends: read only, nothing in the graph reads them back.
+   */
+  readonly rowW: TuneActionWeights = emptyActionWeights();
   state: LowerState = 'locomotion';
   /** Gait clock in use (driver's, or integrated from speed). */
   phase = 0;
@@ -1476,6 +1484,7 @@ export class AnimGraph {
     // body's own and overshoot). Weighted by the share of the ready hands the clips above left in place.
     this.handClipW = approach(this.handClipW, i.grenade >= 0 ? 1 : 0, 0.05, dt);
     const fw = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW);
+    this.writeRowW(i, hx);
     // (the hands hang a touch behind the shoulders, READY_HANDS.lag: a fast crouch folds the chest and drops the
     // pelvis together, and the hands ease through it instead of taking the sum of both at full speed)
     // (locomotion step 21, PC1) the shoulders' drop and reach as the rig bends the chain (characterRig applyTargets: the
@@ -2049,6 +2058,26 @@ export class AnimGraph {
     o.yaw = a.yaw + (b.yaw - a.yaw) * w;
     o.roll = a.roll + (b.roll - a.roll) * w;
     return o;
+  }
+
+  /**
+   * (anim-joints J2) The tuner's action row weights from this frame's blends (read only): air and slide the lower-state
+   * fades, land the landing clip's envelope (in over 0.1 s, out over its last part), melee the elbow arc's hand weight,
+   * reload / swap the overlay weights, throw the grenade hands weight, hit the flinch spring (1 at a full hit's peak).
+   */
+  private writeRowW(i: AnimInput, hx: number): void {
+    const r = this.rowW;
+    r.air = this.weights.air;
+    r.slide = this.weights.slide;
+    if (this.landT >= 0) {
+      const dur = this.landK > 0 ? LAND_DEEP.duration : LAND.duration;
+      r.land = smoothstep(this.landT / 0.1) * (1 - smoothstep((this.landT - 0.3) / Math.max(0.05, dur - 0.3)));
+    } else r.land = 0;
+    r.melee = i.melee >= 0 ? meleeHandW(clamp(i.melee, 0, 1)) : 0;
+    r.reload = this.reloadW;
+    r.swap = this.swapW;
+    r.throw = this.handClipW;
+    r.hit = Math.min(1, Math.abs(hx) * HIT_ROW_K);
   }
 
   /** Active clips this frame (debug overlay). */

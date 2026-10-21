@@ -276,6 +276,41 @@ try {
   assert(within(wpn.swap, 0.8, 1.0), `weapon swap ${f2(wpn.swap)} s (0.8-1.0 s)`);
   assert(within(wpn.grenade, 1.1, 1.3), `grenade throw ${f2(wpn.grenade)} s (1.2 s)`);
 
+  // (anim-joints J2) an action row: a `reload` base row (left elbow) shows on Wren while she reloads (the graph's reload
+  // weight picks the row) and not after
+  const rl = await G(() => {
+    const t = window.__t;
+    const g = window.__app.current;
+    const w = g.weapons;
+    const r = g.player.rig;
+    const j = window.__tuneV2.J.elbowL;
+    window.__animBase.setJoint('reload', 'elbowL', [0, 35, 0]);
+    t.tp(8, -14, -Math.PI / 2);
+    t.run(0.6, { ads: true });
+    w.current.mag = Math.max(1, w.current.mag - 5);
+    const c = r.tuneSt.joints.cur;
+    const deg = () => (2 * Math.acos(Math.min(1, Math.abs(c[j * 4 + 3]))) * 180) / Math.PI;
+    const rows = () => Array.from({ length: r.tuneSt.pick.n }, (_, k) => r.tuneSt.pick.ids[k]);
+    let inMax = 0;
+    let inRow = 0;
+    let wasOn = false;
+    let afterT = -1;
+    let after = { deg: -1, live: -1, rows: '' };
+    t.run(4.5, { ads: true, taps: { 1: 'reload' } }, (s) => {
+      if (w.reloading) {
+        wasOn = true;
+        if (rows().includes('reload')) inRow++;
+        inMax = Math.max(inMax, deg());
+      } else if (wasOn && afterT < 0) afterT = s;
+      if (afterT >= 0 && s - afterT >= 1.5 && after.deg < 0) after = { deg: deg(), live: r.tuneSt.joints.live[j], rows: rows().join(',') };
+      return 0;
+    });
+    window.__animBase.reset();
+    return { inMax, inRow, wasOn, after };
+  });
+  assert(rl.wasOn && rl.inRow > 60 && rl.inMax > 30, `a reload base row (elbowL 35 deg) shows while reloading (${rl.inRow} frames on the row, ${f2(rl.inMax)} deg)`);
+  assert(rl.after.deg === 0 && rl.after.live === 0 && !rl.after.rows.includes('reload'), `and not 1.5 s after (${f2(rl.after.deg)} deg, rows '${rl.after.rows}')`);
+
   // ---------------------------------------------------------------- foot locking
   console.log('foot locking');
   const gaits = [
