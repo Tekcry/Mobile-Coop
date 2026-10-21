@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-bays item 23 (key timing)
+## 4.40.0 - Animation tuner: slide a key earlier or later in its clip, baked into the key files (2026-10-21, PR #87)
 - Animation tuner, Keys tab: slide a key earlier or later in its clip ("◀ Earlier" / "Later ▶", one bake frame = 1/48
   of the cycle, or the time slider), previewed live. Keys keep their order, the first key stays at the cycle start, and
   with Mirror on the mirror key moves with its own key. Undo, reset, export and import work as for every slider.
