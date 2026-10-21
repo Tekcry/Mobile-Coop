@@ -1189,6 +1189,15 @@ export class CoopHost implements NetAttachment {
     return false;
   }
 
+  /** (marlow-jammer fix round 1) The camera hallway sends player `who` back: the host's copy moves at once (a
+   *  teleport is allowed), the client moves itself on the `back` event. Health and state are kept. */
+  sendBack(who: string, x: number, y: number, z: number, yaw: number): void {
+    const r = this.remotes.get(who);
+    if (!r || !r.alive) return;
+    r.moveTo(x, y, z);
+    this.push({ e: 'back', player: who, x, y, z, yaw });
+  }
+
   /** The host respawned at a checkpoint (co-op): everyone down comes back beside it. */
   onRespawn(at: Vector3): void {
     this.reviveClock.checkpoint();

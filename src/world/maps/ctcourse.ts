@@ -9,7 +9,7 @@ import { GUARD_INFO_LINE_MAX, type GuardInfo } from '../../ai/guardInfo';
 import type { LevelBuilder } from '../levelBuilder';
 import type { BayDef, CourseDef, CourseDevice, GateDef } from '../../game/course/courseDef';
 import type { LightFixture } from '../lights';
-import { bayCeiling, bayWalls, bulkheadCage, CELL_BANDS, doorFrame, emitter, floorLine, lidHaunches, liftDoors, pendantRods, plate, sweepLines, wallPaintZ } from './ctcourseBunker';
+import { bayCeiling, bayWalls, bulkheadCage, CELL_BANDS, doorFrame, emitter, floorLine, lidHaunches, liftDoors, pendantRods, plate, wallPaintZ } from './ctcourseBunker';
 import { buildVariety } from './ctcourseVariety';
 
 /**
@@ -41,9 +41,9 @@ const MID = CT_W / 2;
 
 export const bayX = (i: number): number => CT_PITCH * i;
 
-/** The airlock pads' floor colour and the station 3 blind spot's (distinct: course-ready F5). */
+/** The airlock pads' floor colour and the station 3 far end's (distinct: course-ready F5). */
 export const AIRLOCK_PAD_COLOR = '#2f6b4a';
-export const S3_POCKET_COLOR = '#6f8296';
+export const S3_PASS_COLOR = '#6f8296';
 /**
  * The leg-up spot (bay x offset, z) at stations 2, 5 and 7, where the striped square sits: the booster's tested spot
  * (e2e-ctcourse `legUp(x0 + 8.0, 3 / 3.6)`), 0.5 m from the 1 m walls' face (0.85 m from the annex lip), beside the door.
@@ -82,25 +82,53 @@ const AIRLOCK_LAMP = { intensity: 0.35, radius: 7 };
 const S2_TOP_LAMP = { intensity: 0.5, radius: 7.6 };
 const S7_TOP_LAMP = { intensity: 0.7, radius: 5 };
 const ANNEX_LAMP = 0.8;
+/** (marlow-jammer) Station 3's lamps [bay x, z, radius]: two over the hallway, one in each lobby. */
+const S3_LAMPS: readonly (readonly [number, number, number])[] = [
+  [6, 1.6, 8],
+  [11, 1.6, 8],
+  [1.5, MID, 11],
+  [14.8, MID, 9],
+];
 
-/** Obstacle wall heights by station (1-based; none for the panel station): S3, S6 and S8 run to the ceiling (bulkheads). */
-const OBST_H: Record<number, number> = { 2: LEDGE, 3: CT_CEIL[2]!, 4: CT_CEIL[3]!, 5: 4.0, 6: CT_CEIL[5]!, 7: LEDGE, 8: CT_CEIL[7]! };
+/** Obstacle wall heights by station (1-based; none for the panel station and the S3 hallway): S6 and S8 run to the ceiling (bulkheads). */
+const OBST_H: Record<number, number> = { 2: LEDGE, 4: CT_CEIL[3]!, 5: 4.0, 6: CT_CEIL[5]!, 7: LEDGE, 8: CT_CEIL[7]! };
 /** Station 4: the header over the laser gap (its underside; the walls beside the gap run to the 5.5 m ceiling). */
 export const S4_HEADER = 4.6;
 
 /** The map's footprint. */
 export const CT_BOUNDS = { minX: -1, maxX: bayX(7) + CT_BAY + 1, minZ: -1, maxZ: CT_W + 1 } as const;
 
-/** Station 3: the course flag the camera pocket sets (both players in the blind spot under the camera). */
+/** Station 3: the course flag the far end sets (both players past the camera hallway). */
 export const S3_FLAG = 's3-clear';
 
 /**
- * Station 3 camera (B3): over the door, 2.4 m up, sweeping +-30 deg across the approach. Its 45 deg vertical field leaves a
- * blind spot under it (SN04): the pocket in front of the door. Both players must stand in the pocket; the camera sees the
- * walk to it unless the partner's held jammer blinds it.
+ * (marlow-jammer, Michael item 5, A5) Station 3 is a camera hallway: from the entry lobby (bay x 0 - 3) a 2.9 m wide
+ * hallway runs along the south wall (z 0.15 - 3.05) to the far lobby (x 13.6 - 16) in front of airlock A3; the rest of the
+ * cell is sealed void. The camera hangs at the hallway's far end, 2.4 m up, looking back down it (west) with a +-8 deg
+ * sweep: it covers the hallway end to end, and its walls keep its view inside the bay (the entry airlock is behind the
+ * lobby's wall, the exit airlock behind the camera). One jam (5 s, then the 1.5 s reboot) covers one runner; the jammer
+ * must stand still, so the partner who got through jams it from the far lobby for the other.
  */
-export const S3_CAMERA = { x: bayX(2) + CT_OBST - 0.4, z: CT_W / 2 };
-export const S3_POCKET: PassZone = { id: 'p-s3', box: [bayX(2) + CT_OBST - 1.5, MID - 1.2, bayX(2) + CT_OBST - 0.5, MID + 1.2], flag: S3_FLAG };
+export const S3_HALL = { x0: bayX(2) + 3, x1: bayX(2) + 13.6, z0: 0.15, z1: 3.05, wallZ: 3.2 } as const;
+export const S3_CAMERA = { x: bayX(2) + 15.6, z: 1.6, y: 2.4, facing: 270, sweep: [262, 278] as [number, number] };
+/**
+ * (marlow-jammer fix round 1, Michael item 5: "impossible to pass without one player jamming") The hallway's hard rule
+ * (`hallStep`, this station only): a player the camera has (its meter full) in the hallway, or still running in the far
+ * lobby, goes back to this spot in the entry lobby, facing the hallway (+x), with `S3_BACK_RADIO`.
+ */
+export const S3_BACK: [number, number, number] = [bayX(2) + 1.5, 1.6, Math.PI / 2];
+export const S3_BACK_RADIO = 'Camera saw you. Back to the start of the hallway.';
+/** The far lobby: both players in it unlock the airlock's door (the gate); a player still running the hallway does not count. */
+export const S3_PASS: PassZone = {
+  id: 'p-s3',
+  box: [bayX(2) + 13.8, 0.4, bayX(2) + 15.7, CT_W - 0.4],
+  flag: S3_FLAG,
+  // the hallway box runs up to the far lobby's edge (no gap between the two)
+  // (fix round 2) the entry lobby (bay x 0 - 3, full width): a sent-back player must be seen there before counting again
+  hall: { camera: 'cam-s3', box: [S3_HALL.x0, S3_HALL.z0, bayX(2) + 13.8, S3_HALL.z1], lobby: [bayX(2), 0, S3_HALL.x0, CT_W], back: S3_BACK, say: S3_BACK_RADIO },
+};
+/** The station 3 panel sits in the entry lobby (the other stations' at bay x 3.5). */
+export const S3_PANEL_X = bayX(2) + 1.6;
 /** Station 6 (B6): the course flag the paired scanners set (both hacks finished within the sync window). */
 export const S6_FLAG = 's6-sync';
 export const S6_SCANNERS: ScannerDef = { id: 'sc-s6', a: 'sw-s6-a', b: 'sw-s6-b', flag: S6_FLAG };
@@ -120,7 +148,7 @@ export const S7_STAIR_Z = 1.0;
 export const S5_HATCH: [number, number, number, number] = [bayX(4) + 14.125, 1.0, bayX(4) + 14.675, 1.55];
 export const S5_PANEL = { x: bayX(4) + 14.4, y: 1.2, z: 0.4 };
 const SECURITY: SecurityData = {
-  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: 2.4, facing: 270, sweep: [240, 300], reason: 'Training camera for the jam-and-pass drill' }],
+  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: S3_CAMERA.y, facing: S3_CAMERA.facing, sweep: S3_CAMERA.sweep, reason: 'Training camera for the jam handoff hallway' }],
 };
 
 /**
@@ -168,7 +196,7 @@ export const PANEL_TEXT_MAX = 120;
 export const PANEL_TEXT: readonly string[] = [
   'Step onto the airlock pad at the end with your partner to go on',
   'Wall: crouch + Co-op (RB / F) boosts your partner; Y / Space climbs up. They unbolt the door (A / E) on the far side',
-  'Camera: LB / Tab to the pistol, X draws; aim (LT / RMB) and hold Co-op (RB / F) to jam. Partner: blind spot, then swap',
+  'Seen in the hallway: back to the start. LB / Tab to the pistol, X draws; aim LT / RMB, stand still, hold Co-op (RB / F)',
   'Laser: a beam costs health. Stand, Co-op (RB / F) throws your partner over; they press the red release on the left wall',
   'Annex: leg-up and relay onto the roof (Y / Space climbs up). Press both roof plates (A / E) together',
   'Scanners: one each. Press A / E at your scanner and stay; both hacks must finish within 1.5 s. Start on two green lights',
@@ -180,7 +208,7 @@ export const PANEL_TEXT: readonly string[] = [
 export const RADIO_ENTER: readonly string[] = [
   'Marlow Yard. Both of you onto the airlock pad at the end, then through.',
   'Wall one. Crouch + Co-op (RB / F): a leg-up. Unbolt the far door from the other side.',
-  'Camera. Pistol (LB / Tab), X; aim (LT / RMB), hold Co-op (RB / F) to jam. Partner: hide.',
+  'Camera hallway. One jams it (aim LT / RMB, hold Co-op (RB / F), stand still); one runs.',
   'Laser line. Stand, Co-op (RB / F): throw your partner. Red release on the left wall.',
   'Annex roof: leg-up and relay. Then both roof plates together.',
   'Two scanners, one each. Start the hacks together (A / E) and stay put. A fail hurts.',
@@ -191,7 +219,7 @@ export const RADIO_ENTER: readonly string[] = [
 /** LANTERN's line when a station's gate opens, keyed by gate id: it names the next step (course-ready F2). */
 export const GATE_RADIO: Readonly<Record<string, string>> = {
   'g-s2': 'Unbolted. Open the door for your partner.',
-  'g-s3': 'Door unlocked. Open it (A / E).',
+  'g-s3': 'Both through. Airlock door unlocked. Open it (A / E).',
   'g-s4': 'Laser down. Both of you through, then onto the airlock pad.',
   'g-s5': 'Plates done. Crouch at the hatch, face it, Co-op (RB / F): lower your partner to hack.',
   'g-s5-grid': 'Grid open. Off the roof, in the front door, through the grid to the airlock.',
@@ -202,7 +230,7 @@ export const GATE_RADIO: Readonly<Record<string, string>> = {
 export const OBJECTIVE_TEXT: readonly string[] = [
   'Read the panel if you like, then both of you onto the airlock pad.',
   'Leg-up your partner over the wall (crouch, RB / F); they unbolt the door on the far side.',
-  'Jam the camera: aim the pistol, hold Co-op (RB / F). Partner: into the blind spot.',
+  'Jam the camera while your partner runs the hallway; from the far end, they jam it for you.',
   'Throw your partner over the laser (RB / F); they press the red release on the left wall.',
   'Leg-up and relay onto the roof, press both plates, lower your partner through the hatch.',
   'One at each scanner: press A / E together and stay until both hacks finish.',
@@ -220,8 +248,9 @@ function courseDef(): CourseDef {
         // test is at the door plane (course-ready F7): any feet past the leaf count as the bolt side; the near side is refused
         return [{ kind: 'bolt', id: 'g-s2', doorId: 'S2-door', side: [1, 0], at: [bayX(1) + CT_OBST, DOOR_Z0 + DOOR_W / 2] }];
       case 3:
-        // B3: the door opens once BOTH stand in the camera's blind spot (the pass zone): one has to jam it for the other
-        return [{ kind: 'flag', id: 'g-s3', flag: S3_FLAG, doorId: 'S3-door' }];
+        // (marlow-jammer) the airlock's door unlocks once BOTH stand in the far lobby (the pass zone): each one ran the
+        // hallway under the other's jam
+        return [{ kind: 'flag', id: 'g-s3', flag: S3_FLAG, doorId: 'A3-near' }];
       case 4:
         // B4: the partner throw over the laser band; the thrown player's far-side release switches the band off
         return [{ kind: 'pickup', id: 'g-s4', switchId: 'sw-s4-release', flag: S4_FLAG, perPlayer: false }];
@@ -347,13 +376,17 @@ export const ctcourse: MapDef = {
           flush(x0 + 12.5, ceil, S5_ROOF_LAMP.intensity, S5_ROOF_LAMP.radius);
           ceilingLamps.push(x0 + 12.5);
         } else pendant(x0 + 12.5, 5, ceil, 0.9, 13);
+      } else if (n === 3) {
+        // (marlow-jammer) the hallway: two strips over it, one in each lobby; all jammable. The camera sees by its own IR
+        // (M3), so these light the hallway for the players and the meter, not for the camera
+        for (const [dx, z, r] of S3_LAMPS) flush(x0 + dx, ceil, LAMP_LOW.intensity, r, z);
+        for (const [dx] of S3_LAMPS) ceilingLamps.push(x0 + dx);
       } else {
         const k = n === 4 ? LAMP_S4 : LAMP_LOW;
         for (const dx of [4, 12.5]) flush(x0 + dx, ceil, k.intensity, k.radius, MID, STRIP, n === 4 ? LASER_RED : WHITE);
         ceilingLamps.push(x0 + 4, x0 + 12.5);
       }
       if (n === 2) ceilingLamps.push(x0 + CT_OBST + 0.9);
-      if (n === 3) ceilingLamps.push(x0 + 6);
       if (n === 7) ceilingLamps.push(x0 + CT_OBST);
       // (item 4) ribs, haunches, LED strips, panel seams and the cell's colour band (visual)
       bayCeiling(b, x0, x0 + CT_BAY, ceil, CT_W, ceilingLamps);
@@ -388,6 +421,14 @@ export const ctcourse: MapDef = {
         emitter(b, x0 + CT_OBST, S4_GAP[1], -1, S4_LASER.ys);
         mark(b, x0 + CT_OBST - 1.6, MID);
         mark(b, x0 + CT_OBST + 2.2, MID);
+      } else if (n === 3) {
+        // (marlow-jammer, item 5) the camera hallway: its north wall, and the two cross walls that close the void behind
+        // it from the lobbies; all to the ceiling (no lip)
+        from = b.boxes.length;
+        b.wallX(S3_HALL.wallZ, S3_HALL.x0, S3_HALL.x1, [], ceil, WALL, 0.3);
+        b.wallZ(S3_HALL.x0, S3_HALL.wallZ, CT_W, [], ceil, WALL, 0.3);
+        b.wallZ(S3_HALL.x1, S3_HALL.wallZ, CT_W, [], ceil, WALL, 0.3);
+        b.mark(from, { noLedge: true });
       } else if (n === 7) {
         // B7: the 4.4 m wall, 1 m thick (a top to stand on and hold the rope), full width, no door
         b.wallZ(x0 + CT_OBST, 0, CT_W, [], OBST_H[7]!, WALL, 1.0);
@@ -418,7 +459,7 @@ export const ctcourse: MapDef = {
 
     // One optional panel at the start of each station (F1b): it says what to do; the station's action opens the way.
     for (let n = 1; n <= 8; n++) {
-      const x = bayX(n - 1) + 3.5;
+      const x = n === 3 ? S3_PANEL_X : bayX(n - 1) + 3.5;
       devices[`sw-p${n}`] = dev(x, CT_W - 0.4, NORTH, PANEL_TEXT[n - 1]!);
       b.box(x, 1.4, CT_W - 0.2, 1.4, 0.9, 0.08, '#20252b', 0, 0, false);
       mark(b, x, CT_W - 2);
@@ -432,14 +473,9 @@ export const ctcourse: MapDef = {
     // (item 6) the leg-up spot's mark carried up the wall face under the lip (stations 2, 5 and 7: the same element)
     for (const i of [1, 4, 6]) wallPaintZ(b, bayX(i) + CT_OBST - (i === 4 ? 0.15 : 0.5), -1, LEGUP_SPOT[1] - 0.5, LEGUP_SPOT[1] + 0.5, LEDGE - 0.55, LEDGE - 0.1, WARN);
 
-    // 3 Camera: the real camera device (layout.security) sits over the door; the blind spot under it is marked
-    x0 = bayX(2);
-    // a pale blue-grey, not the airlock pads' green (course-ready F5)
-    mark(b, (S3_POCKET.box[0] + S3_POCKET.box[2]) / 2, MID, S3_POCKET.box[2] - S3_POCKET.box[0], S3_POCKET.box[3] - S3_POCKET.box[1], S3_POCKET_COLOR);
-    // (marlow-bunker) a pendant at today's 3.0 m on rods from the 4.5 m ceiling: no light change
-    pendant(x0 + 6, 3.0, CT_CEIL[2]!, 0.9, 7);
-    // (item 6) the camera's +-30 deg sweep edges on the floor, from the blind spot back to the cell's entry
-    sweepLines(b, S3_CAMERA.x, S3_CAMERA.z, x0 + 0.6, S3_POCKET.box[0] - 0.1, 30);
+    // 3 Camera hallway (marlow-jammer): the camera device (layout.security) at the hallway's far end; the far lobby (the
+    // pass zone) is marked pale blue-grey, not the airlock pads' green (course-ready F5). The old sweep lines are gone.
+    mark(b, (S3_PASS.box[0] + S3_PASS.box[2]) / 2, MID, S3_PASS.box[2] - S3_PASS.box[0], 4, S3_PASS_COLOR);
 
     // 4 Laser line (B4): the laser band (layout.lasers) across the wall's gap; the release switch is on the far side
     x0 = bayX(3);
@@ -525,7 +561,7 @@ export const ctcourse: MapDef = {
       navSeeds,
       security: SECURITY,
       lasers: [S4_LASER],
-      passZones: [S3_POCKET],
+      passZones: [S3_PASS],
       scanners: [S6_SCANNERS],
       course: { def: courseDef(), doors, devices, squads: SQUADS },
       // (G3, AUDIT-CAMERA row 1) the yard reads as open (the 2.8 m camera, the whole body in frame); the 6 m airlocks and

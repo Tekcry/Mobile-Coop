@@ -152,22 +152,22 @@ describe('camera cue: state follows the camera', () => {
     expect(c.seen).toBe(false);
   });
 
-  it('shares one sight test (frame, clear static ray, light over the leak) between the host think and the client', () => {
+  it('shares one sight test (frame, clear static ray, its own IR light) between the host think and the client', () => {
     const cam = new CameraUnit(fixed, 0);
-    const lit = { lightAt: () => 1 };
     let wall = Infinity;
     const ray = { hitDistance: (a: Vector3, b: Vector3) => Math.min(wall, Vector3.Distance(a, b)) };
     const head = new Vector3(Math.sin(cam.yaw) * 6, 1.6, Math.cos(cam.yaw) * 6);
-    expect(seenAt(cameraSight(cam, head, false, 0, 1, ray, lit))).toBe(true);
+    expect(seenAt(cameraSight(cam, head, false, 0, ray))).toBe(true);
     wall = 3;
-    expect(cameraSight(cam, head, false, 0, 1, ray, lit)).toBe(0);
+    expect(cameraSight(cam, head, false, 0, ray)).toBe(0);
     wall = Infinity;
-    expect(seenAt(cameraSight(cam, head, false, 0, 0, ray, lit))).toBe(false);
+    // (marlow-jammer M3) no lamp light matters: a still body in frame is seen by the IR
+    expect(seenAt(cameraSight(cam, head, false, 0, ray))).toBe(true);
     head.set(-head.x, 1.6, -head.z);
-    expect(cameraSight(cam, head, false, 0, 1, ray, lit)).toBe(0);
+    expect(cameraSight(cam, head, false, 0, ray)).toBe(0);
     cam.setMode('off');
     head.set(-head.x, 1.6, -head.z);
-    expect(cameraSight(cam, head, false, 0, 1, ray, lit)).toBe(0);
+    expect(cameraSight(cam, head, false, 0, ray)).toBe(0);
   });
 
   it("reads the camera's own seen state from its meters", () => {
