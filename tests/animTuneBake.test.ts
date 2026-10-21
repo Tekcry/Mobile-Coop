@@ -314,7 +314,8 @@ describe('anim-bake on a sample export (temp copies)', () => {
     expect(num(t.read(W)!, 'WALL.peekLean')).toBe(lean);
     expect(num(t.read(W)!, 'WALL.slideStand')).toBeCloseTo(num(real(W), 'WALL.slideStand') * 1.2, 6);
     // the ledger keeps group|id=value
-    expect(JSON.parse(t.read(BAKE_LEDGER)!).bakes[0].baked).toEqual(['wallPeek|peekLeanMul=1.5']);
+    // the ledger keeps group|id=value (marlow-bays T1a: a version 1 export gives the crouched peek, which shared the row, the same value)
+    expect(JSON.parse(t.read(BAKE_LEDGER)!).bakes[0].baked).toEqual(['wallPeek|peekLeanMul=1.5', 'wallCrouchPeek|peekLeanMul=1.5']);
     // a different value for the same slider is a new tune: baked
     const r3 = tuneBake(exportOf([entry('wallPeek', 'peekLeanMul', 'mul', 1.1)]), SCRIPT_CAT, t.read);
     expect(r3.rows[0]!.result).toBe('baked');
@@ -394,7 +395,7 @@ describe('anim-bake refusals (nothing written)', () => {
 
   it('a wrong magic or version, a malformed or doubled entry', () => {
     refused({ ...SAMPLE, magic: 'shoulder-strike-save' }, /wrong file/);
-    refused({ ...SAMPLE, version: 2 }, /unsupported version 2/);
+    refused({ ...SAMPLE, version: 3 }, /unsupported version 3/); // (T1a: 2 is the rows' version)
     refused(null, /not an animation tuner export/);
     refused({ ...SAMPLE, changed: 'x' }, /no values/);
     refused(exportOf([{ group: 'walk', id: 'trackMul', value: 'big' }]), /malformed entry/);

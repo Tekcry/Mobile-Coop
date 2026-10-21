@@ -5,6 +5,7 @@
  * export see it as any change). Not hot: the panel calls these on a press or once per frame (`settle`, a time check).
  */
 import { TUNE_SECTIONS, tuneChanged, tuneGet, tuneSet, tunablesFor } from './tuneRegistry';
+import { migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
 
 /** Values off their default: group -> slider -> value. */
 export type TuneValueMap = Record<string, Record<string, number>>;
@@ -174,7 +175,8 @@ export interface TunePreset {
 }
 
 export interface TunePresetFile {
-  version: 1;
+  /** (marlow-bays T1a) 2: the rows of tuneRows.ts; a version 1 file's presets load with their old rows migrated. */
+  version: 1 | 2;
   presets: TunePreset[];
 }
 
@@ -214,14 +216,15 @@ export function presetDelete(list: readonly TunePreset[], name: string): TunePre
 }
 
 export function presetFile(list: readonly TunePreset[]): TunePresetFile {
-  return { version: 1, presets: list.map((p) => ({ name: p.name, saved: p.saved, values: p.values })) };
+  return { version: TUNE_ROWS_VERSION, presets: list.map((p) => ({ name: p.name, saved: p.saved, values: p.values })) };
 }
 
 /** The presets of a stored file: anything malformed is skipped (unsafe keys too); a wrong version reads as none. */
 export function presetParse(data: unknown): TunePreset[] {
   if (!data || typeof data !== 'object') return [];
   const f = data as Partial<TunePresetFile>;
-  if (f.version !== 1 || !Array.isArray(f.presets)) return [];
+  if ((f.version !== 1 && f.version !== TUNE_ROWS_VERSION) || !Array.isArray(f.presets)) return [];
+  const old = f.version === 1;
   const out: TunePreset[] = [];
   for (const p of f.presets as unknown[]) {
     if (!p || typeof p !== 'object') continue;
@@ -236,7 +239,7 @@ export function presetParse(data: unknown): TunePreset[] {
         (values[g] ??= {})[id] = v;
       }
     }
-    out.push({ name, saved: typeof x.saved === 'string' ? x.saved : '', values });
+    out.push({ name, saved: typeof x.saved === 'string' ? x.saved : '', values: old ? migrateTuneRows(values) : values });
   }
   return out;
 }

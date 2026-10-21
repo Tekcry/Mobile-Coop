@@ -816,6 +816,12 @@ export class GameState implements AppState {
           g.player.controller.shift(dx, dz);
           g.player.rig.shiftWorld(dx, dz);
         },
+        // (marlow-bays T1a, item 19) the studio's rifle / pistol pick
+        weaponClass: () => g.weapons.current.def.class,
+        switchWeapon: (cls) => {
+          const i = g.weapons.slots.findIndex((s) => s.def.class === cls);
+          if (i >= 0) g.weapons.switchTo(i);
+        },
       });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
@@ -1719,6 +1725,8 @@ export class GameState implements AppState {
       const st = this.stealth;
       pz.bend = this.takedown.bend + (st ? st.bend : 0);
       pz.bendDrop = this.takedown.bendDrop + (st ? st.bendDrop : 0);
+      // (marlow-bays T1a) the tuner's carry row: the bend is the body's, not a held guard's
+      pz.carryBody = !!st && (st.bend > 0 || st.bendDrop > 0);
       pz.sway = this.takedown.sway;
       pz.freeGait = this.takedown.stepping || (st ? st.stepping : false) || this.doorOpen.phase === 'step';
     }

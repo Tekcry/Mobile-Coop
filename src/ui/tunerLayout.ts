@@ -5,6 +5,7 @@
  * (the ids never change: saves, exports and the bake table key on them), the drop-down list's navigation, the panel
  * size, and which tuner groups a loop of the Anim Studio uses.
  */
+import { ARMED_JOINT_STATES } from '../anim/tuneRows';
 
 /** The fixed tabs, in order. A registered section not mapped here gets its own tab after Co-op. */
 export const TUNER_TABS: readonly { id: string; label: string }[] = [
@@ -212,10 +213,29 @@ const GROUP_WORDS: Readonly<Record<string, string>> = {
   pipeH: 'Pipe along',
 };
 
+/** (marlow-bays T1a, COVERAGE gap 3) The body states in the state lists (not the gun hold's or the camera's own `aim`). */
+const STATE_WORDS: Readonly<Record<string, string>> = {
+  aim: 'Aim moving (glides)',
+  aimStill: 'Aim standing',
+  aimCrouch: 'Aim crouched, still',
+  aimCrouchMove: 'Aim crouched, moving',
+  crouchRun: 'Crouch run',
+  wallCrouchIdle: 'Wall crouched',
+  wallCrouchSlide: 'Wall crouched slide',
+  wallCrouchPeek: 'Wall crouched peek',
+  hold: 'Hold a guard',
+  carry: 'Carry a body',
+  rifle: 'Rifle (armed states)',
+  pistol: 'Pistol (armed states)',
+};
+
 /** One picker choice (a segment of a group id) in plain words: `keys` keys count from 1. */
 export function plainGroupWord(section: string, level: number, seg: string): string {
   if (section === 'keys' && level === 1 && /^\d+$/.test(seg)) return `Key ${Number(seg) + 1}`;
-  return GROUP_WORDS[seg] ?? plainWords(seg);
+  // the body state words: not the gun hold's or the camera's own states; the weapon level of hands / gun in hand stays
+  const states = section !== 'gun' && section !== 'cam' && !((section === 'hand' || section === 'weapon') && level === 0);
+  const w = states ? STATE_WORDS[seg] : undefined;
+  return w ?? GROUP_WORDS[seg] ?? plainWords(seg);
 }
 
 const JOINT_WORDS: Readonly<Record<string, string>> = {
@@ -234,6 +254,14 @@ const JOINT_WORDS: Readonly<Record<string, string>> = {
   toe: 'toes',
 };
 const AXIS_WORDS: Readonly<Record<string, string>> = { x: 'bend', y: 'turn', z: 'roll', pitch: 'bend', yaw: 'turn', roll: 'roll' };
+
+/** (marlow-bays T1a, COVERAGE gap 16) A joint's axis by its own name where it is a twist about the bone. */
+const JOINT_AXIS_WORDS: Readonly<Record<string, string>> = {
+  upperArm_y: 'upper arm twist',
+  elbow_y: 'forearm twist',
+  hip_y: 'thigh twist',
+  wrist_z: 'wrist roll',
+};
 
 /** A joint id (`elbowL`, `pelvis`) in plain words ("Left elbow", "Hips"). */
 function jointWords(j: string): string {
@@ -294,6 +322,8 @@ const PLAIN: Readonly<Record<string, string>> = {
   camPadAdd: 'Wall margin',
   // joints
   'joint:mirror': 'Mirror left and right',
+  // (marlow-bays T1a) the Keys tab's Mirror box (its own tick box; the slider never shows)
+  'keys:mirror': 'Mirror keys',
   // gun in hand
   gunScale: 'Gun size',
   gunX: 'Grip right',
@@ -381,12 +411,35 @@ export function plainLabel(section: string, id: string, label: string): string {
   if (own) return own;
   // joints (`elbowR_x`) and the keys' joints (`pelvis_pitch`)
   let m = /^([a-zA-Z]+)_(x|y|z|pitch|yaw|roll)$/.exec(id);
-  if (m) return `${jointWords(m[1]!)} ${AXIS_WORDS[m[2]!]}`;
+  if (m) {
+    // (T1a, gap 16) a twist about the bone by its own name ("Right forearm twist", not "Right elbow turn")
+    const j = /^([a-zA-Z]+?)([LR])$/.exec(m[1]!);
+    const tw = j ? JOINT_AXIS_WORDS[`${j[1]}_${m[2]}`] : undefined;
+    if (j && tw) return `${j[2] === 'L' ? 'Left' : 'Right'} ${tw}`;
+    return `${jointWords(m[1]!)} ${AXIS_WORDS[m[2]!]}`;
+  }
+  // (T1a) the keys' pelvis shift (cm)
+  m = /^pelvis_d([xyz])$/.exec(id);
+  if (m) return `Hips shift ${m[1] === 'x' ? 'right' : m[1] === 'y' ? 'up' : 'forward'}`;
   // the keys' arms (`armL_flex`, `armR_wristPitch`)
   m = /^arm([LR])_(\w+)$/.exec(id);
   if (m) {
     const side = m[1] === 'L' ? 'Left' : 'Right';
-    const what: Record<string, string> = { flex: 'arm forward', abd: 'arm out', elbow: 'elbow bend', inward: 'forearm in', wristPitch: 'wrist bend', wristYaw: 'wrist turn', wristRoll: 'wrist roll' };
+    const what: Record<string, string> = {
+      flex: 'arm forward',
+      abd: 'arm out',
+      elbow: 'elbow bend',
+      inward: 'forearm in',
+      wristPitch: 'wrist bend',
+      wristYaw: 'wrist turn',
+      wristRoll: 'wrist roll',
+      // (marlow-bays T1a, item 17)
+      twist: 'forearm twist',
+      twistUpper: 'upper arm twist',
+      shPitch: 'shoulder forward',
+      shYaw: 'shoulder turn',
+      shRoll: 'shoulder out',
+    };
     return `${side} ${what[m[2]!] ?? plainWords(m[2]!).toLowerCase()}`;
   }
   // limbs: IK strength (`handL`), targets (`handLFwd`) and hand rotation (`handLPitch`)
@@ -522,6 +575,10 @@ const STATE_BODY: Readonly<Record<string, string>> = {
   aimFwd: 'aim',
   aimStrafe: 'aim',
   aimBack: 'aim',
+  // (marlow-bays T1a, item 19) the aim stances' own rows
+  aimStill: 'aimStill',
+  crouchAim: 'aimCrouch',
+  crouchAimFwd: 'aimCrouchMove',
 };
 const CLIP_BODY: Readonly<Record<string, string>> = {
   idle: 'idle',
@@ -535,13 +592,13 @@ const CLIP_BODY: Readonly<Record<string, string>> = {
   crouch_idle: 'crouchIdle',
   sneak: 'sneak',
   crouch_walk: 'crouchWalk',
-  crouch_run: 'crouchWalk',
+  crouch_run: 'crouchRun',
   wall_idle: 'wallIdle',
   wall_slide: 'wallSlide',
   wall_peek: 'wallPeek',
-  wall_crouch_idle: 'wallIdle',
-  wall_crouch_slide: 'wallSlide',
-  wall_crouch_peek: 'wallPeek',
+  wall_crouch_idle: 'wallCrouchIdle',
+  wall_crouch_slide: 'wallCrouchSlide',
+  wall_crouch_peek: 'wallCrouchPeek',
   hold_idle: 'hold',
   hold_fwd: 'hold',
   hold_back: 'hold',
@@ -563,10 +620,10 @@ const TRAV_LOOP: Readonly<Record<string, { body: string; trav: string }>> = {
   wall: { body: 'wallIdle', trav: '' },
 };
 /** The Stepping gait per body state (the planner's gaits; the crouch run its own). */
-const BODY_STEP: Readonly<Record<string, string>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk' };
-const BODY_WEIGHT: Readonly<Record<string, string>> = { walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouch', crouchWalk: 'crouch', crouchIdle: 'crouch', aim: 'drawn', lowReady: 'drawn' };
+const BODY_STEP: Readonly<Record<string, string>> = { idle: 'idle', crouchIdle: 'idle', walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouchWalk', crouchWalk: 'crouchWalk', crouchRun: 'crouchRun' };
+const BODY_WEIGHT: Readonly<Record<string, string>> = { walk: 'walk', jog: 'jog', run: 'run', sneak: 'crouch', crouchWalk: 'crouch', crouchRun: 'crouch', crouchIdle: 'crouch', aim: 'drawn', aimStill: 'drawn', lowReady: 'drawn' };
 /** The gun hold's state per body state (the weapon stays as picked). */
-const BODY_GUN: Readonly<Record<string, string>> = { lowReady: 'lowReady', aim: 'aim', aimCrouch: 'aimCrouch' };
+const BODY_GUN: Readonly<Record<string, string>> = { lowReady: 'lowReady', aim: 'aim', aimStill: 'aim', aimCrouch: 'aimCrouch', aimCrouchMove: 'aimCrouch' };
 
 /** (tuner-ui fix round) What a body state carries to the other sections ('' none). */
 export interface BodyCarry {
@@ -585,8 +642,10 @@ export interface BodyCarry {
  * same state: Joints, Limb reach, Hands & feet, Gun in hand, the gun hold where it maps, Stepping and Weight. The panel
  * applies a group only when the section has it.
  */
-export function bodyCarry(body: string, out: BodyCarry = { joint: '', ik: '', handState: '', gunState: '', step: '', weight: '' }): BodyCarry {
-  out.joint = body ? `joint.${body}` : '';
+export function bodyCarry(body: string, out: BodyCarry = { joint: '', ik: '', handState: '', gunState: '', step: '', weight: '' }, weapon = ''): BodyCarry {
+  // (marlow-bays T1a, COVERAGE gap 3) an armed state with a rifle or pistol shown: that gun's own Joints row
+  const gunRow = (weapon === 'rifle' || weapon === 'pistol') && (ARMED_JOINT_STATES as readonly string[]).includes(body);
+  out.joint = body ? (gunRow ? `joint.${weapon}.${body}` : `joint.${body}`) : '';
   out.ik = body ? `ik.${body}` : '';
   out.handState = body;
   out.gunState = BODY_GUN[body] ?? '';
@@ -677,11 +736,20 @@ export function loopKeyedPick(entry: string, on: boolean): string {
  * loop: `section`'s new `group` (its last level is the state: `joint.walk`, `hand.rifle.walk`, `rifle.aim`,
  * `step.crouchRun`; the Keys tab's clip level names a keyed clip) to a loop entry, '' when it names none or the loop
  * `current` already plays that state. A keyed loop stays keyed where the state has a keyed clip (the Keyed box holds).
- * The camera and the co-op and climb sections never pick a loop.
+ * The camera never picks a loop. (marlow-bays T1a, item 16) A co-op role picks its pair, a climb move or a climbing
+ * state its traversal loop (`TRAV_OF`), a Joints row of a gun (`joint.rifle.aim`) its state.
  */
 export function loopForGroup(section: string, group: string, current: string): string {
-  if (section === 'cam' || section === 'trav' || section.startsWith('team_')) return '';
+  if (section === 'cam') return '';
   const seg = group.split('.');
+  if (section.startsWith('team_')) {
+    const id = seg[1] && seg[0] === 'team' ? `pair:${seg[1]}` : '';
+    return id === current ? '' : id;
+  }
+  if (section === 'trav') {
+    const id = TRAV_OF[seg[1] ?? ''] ?? '';
+    return id === current ? '' : id;
+  }
   if (section === 'keys') {
     const clip = seg[1] ?? '';
     if (!clip || current === `keyed:${clip}`) return '';
@@ -700,5 +768,20 @@ export function loopForGroup(section: string, group: string, current: string): s
   }
   if (proc) return keyedNow ? loopKeyedPick(proc, true) : proc;
   for (const clip in CLIP_BODY) if (CLIP_BODY[clip] === state) return `keyed:${clip}`;
-  return '';
+  const tr = TRAV_OF[state];
+  return tr && tr !== current ? tr : '';
 }
+
+/** (marlow-bays T1a, item 16) The traversal loop of a climb move (`trav.<kind>`) or a climbing body state. */
+const TRAV_OF: Readonly<Record<string, string>> = {
+  vault: 'trav:vault',
+  windowVault: 'trav:window',
+  rappel: 'trav:rappel',
+  climbUp: 'trav:ledge',
+  ladder: 'trav:ladder',
+  pipe: 'trav:pipeV',
+  ledge: 'trav:ledge',
+  hang: 'trav:pipeH',
+  crawl: 'trav:vent',
+  vent: 'trav:vent',
+};
