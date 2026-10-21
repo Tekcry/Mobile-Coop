@@ -177,6 +177,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     channels are cleared, `clearKeyedArms`).
   - Hooks: `__studio.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
     v)`, `keys()`, `keysStep(dir)`, `keysMirror(on)`.
+- (anim-joints J1, COVERAGE gap 1) The Joints, Hands & feet, IK strength and Weapon sliders are deltas on a generated
+  base table (`anim/animBase.ts`, written by the bake: `docs/anim-tuner/BAKE.md`) and act on every Wren rig
+  (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
+  its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
+  copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
 - (tuner-ui, the current layout; the older bullets below are history where they differ) The animation tuner panel
   (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, tests `tests/tunerLayout.test.ts`):
   - Tabs (LB / RB, a click): View (the Loop player in the Anim Studio, the camera: free view, Front / Side / Back / Top
