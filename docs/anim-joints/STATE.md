@@ -1,15 +1,12 @@
 # anim-joints - state
 
 ## Now
-J2 (move and action rows, COVERAGE gap 2) built, checked (one fix: tuner pad depth) and fixed at 6f65d2f8, master
-4.39.0 merged. Blocked on an `e2e-menus` stall at its "(tuner-camera)" step (frames() never returns after "Menu closes
-it and the game runs"; killed at 600 s), present with and without the fix. Character Build (laptop) runs e2e-menus on
-master 39b97591 and on f5006a92 to split T2 vs J2 (queued ~20:45 behind PR #88's full e2e).
+J2 PR open, its full e2e on the laptop (Character Build). Fix round check PASS (J2-FIX-CHECK.md). The e2e-menus desktop
+stall is master's (J2-STALL.md), logged in the backlog.
 
 ## Next
-1. The stall: master stalls -> track A's (orchestrator); only ours -> fix it in J2.
-2. A fresh checker on the fix round; then the J2 PR (full e2e on the laptop first, E2E_JOBS=2; PR body names the
-   outside-area lines: remoteAvatar tuneTeam, studioStage posePuppet, animTunePanel ownLevel).
+1. The J2 PR green (laptop full e2e, CI), the orchestrator merges.
+2. havok-stall (PLAN, branch `feature/havok-stall` from master, folder `C:/NightShift/Mobile-Coop-havok-stall`).
 3. G1 item 22 gear offsets (without goggles), G2 item 24 guard tuning (PLAN).
 
 ## Usage rule (orchestrator ~21:30, Michael: "Dont stop animation until 98% 5 hour, then pause them")
@@ -24,6 +21,8 @@ From J2: the partner's relay climber reads `team.boost.a` and the revive has no 
 action weights are one frame late; `trav.split` / `trav.rappel` stay on for the whole attach; curl params can add past
 -1..1; `HIT_ROW_K` assumes a full hit kick of 4.5; the e2e-netmove angle line measures a moving partner. Track A: the
 studio's trav / pair loops could point the sections at their move row (today Michael picks Trav > Vault by hand).
+From the J2 fix check: move `ownLevel` into `tunerLayout.ts` so the test calls the real function; LT / RT past the
+last state steps into the `trav` branch and only cycles trav kinds there.
 Goggles for item 22 via track C's hook (`goggleFrame()` copies GOGGLE_OFFSET per rig inside the animate window,
 feature/anim-skeleton c5ec9350); `rig.clavIn` for later Joints rows.
 
