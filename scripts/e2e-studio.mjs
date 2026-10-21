@@ -372,6 +372,20 @@ try {
   await frames(page, 4);
   const gog3 = await gogOf();
   assert(gog3.every((v) => v === 0), `reset: Wren's goggle offset is identity again (${gog3.join(', ')})`);
+  // (clip-speed, track A) the Clip speed tab; a draw speed of 2 halves the held gun's draw time (the aim camera's blend-in
+  // reads it: drawTime x 0.9), a reset puts it back exactly
+  const clipTab = await G(() => ({ tabs: window.__animTune.tabs(), rows: !!document.querySelector('.anim-tune-rows-clip') }));
+  assert(clipTab.tabs.includes('sec:clip') && clipTab.rows, `the tuner panel lists the Clip speed section in its own tab (${clipTab.tabs.join(', ')})`);
+  const adsIn = () => G(() => window.__app.current.player.cam.adsInTime);
+  const draw0 = await adsIn();
+  await G(() => { window.__animTune.set('clip.gun', 'rifleDraw', 2); window.__animTune.set('clip.gun', 'pistolDraw', 2); });
+  await frames(page, 4);
+  const draw1 = await adsIn();
+  assert(draw0 > 0 && Math.abs(draw1 - draw0 / 2) < 1e-9, `a draw speed of 2 halves the draw time (aim blend-in ${draw0.toFixed(3)} -> ${draw1.toFixed(3)} s)`);
+  await G(() => { window.__animTune.set('clip.gun', 'rifleDraw', 1); window.__animTune.set('clip.gun', 'pistolDraw', 1); });
+  await frames(page, 4);
+  const draw2 = await adsIn();
+  assert(draw2 === draw0, `reset: the draw time is back exactly (${draw2} s)`);
   // the pair puppet (role B of the boost)
   await G(() => window.__studio.pick('pair:boost'));
   await frames(page, 6);

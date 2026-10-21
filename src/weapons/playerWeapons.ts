@@ -26,6 +26,7 @@ const modelLength = (d: WeaponDef): number => {
 };
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
 import { DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, type DrawPhase } from './drawState';
+import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 
@@ -79,6 +80,9 @@ const TRAVEL_IN = 0.5;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
 const GRENADE_RELEASE = 0.68;
+// (clip-speed, track A) the tuner's "today" lines; the swap and throw clocks run at the tuner's clip speed (1: as before)
+CLIP_BASE.swap = SWAP_TIME;
+CLIP_BASE.grenade = GRENADE_TIME;
 /** Reload durations relative to the weapon's base reload time: rifle 1.9 s -> 2.6 s / 3.1 s. */
 export const RELOAD_TACTICAL_MULT = 1.37;
 export const RELOAD_EMPTY_MULT = 1.63;
@@ -563,7 +567,7 @@ export class PlayerWeapons {
         const left = this.draw.remaining(this.drawTime());
         const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
         this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);
-      } else this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
+      } else this.swapT += ((this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) * clipSpeed('swap')) / this.handsMul; // (clip-speed, track A) = SWAP_TIME / speed
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
       let f = this.swapT / SWAP_TIME;
@@ -614,7 +618,7 @@ export class PlayerWeapons {
     if (this.stowed && this.attachMode) return;
     // grenade: prep, pin, wind-up, release (thrown), recover
     if (this.grenadeT >= 0) {
-      this.grenadeT += dt;
+      this.grenadeT += dt * clipSpeed('grenade'); // (clip-speed, track A) = GRENADE_TIME / speed, the release with it
       if (!this.grenadeThrown && this.grenadeT >= GRENADE_TIME * GRENADE_RELEASE) {
         this.grenadeThrown = true;
         this.releaseGrenade();

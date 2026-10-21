@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased - clip-speed (tuner)
+- Animation tuner, Clip speed tab (Michael: "Can I fine tune the whole animation speed in anim tuner?"): a speed slider
+  per timed clip, 1 = today's timing, 2 = twice as fast. Draw, holster, swap and throw: rifle draw (every long gun),
+  pistol draw, holster, weapon swap, grenade throw. Start, stop and landing: the start-off weight shift, the stop
+  settle, the landings. Every clip: one slider that multiplies all of them. Each slider shows today's duration.
+- The draw speed is gameplay too: the gun can fire when the faster (or slower) draw ends, and the aim camera blends in
+  with it. Not the View tab's slow motion (that slows the whole game for viewing).
+- Bakes like the other sections (`node scripts/anim-tune-bake.mjs`, section `clip`): into the draw, holster, swap and
+  throw times and a new playback rate per timed body clip (`CLIP_RATE`). Untuned, nothing changes; the save is unchanged.
+
 ## 4.49.1 - Animation tuner: worn-goggle offsets in the Gear tab, baked (2026-10-22, PR #102)
 - Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
   turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about

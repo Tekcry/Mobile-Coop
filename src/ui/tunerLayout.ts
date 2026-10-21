@@ -200,6 +200,7 @@ const SECTION_PLAIN: Readonly<Record<string, string>> = {
   weight: 'Weight',
   cam: 'Camera',
   keys: 'Keys',
+  clip: 'Clip speed', // (clip-speed, track A)
 };
 
 /** A section's name in the part picker. */
@@ -238,10 +239,19 @@ const STATE_WORDS: Readonly<Record<string, string>> = {
   pistol: 'Pistol (armed states)',
 };
 
+/** (clip-speed, track A) The Clip speed groups. */
+const CLIP_WORDS: Readonly<Record<string, string>> = {
+  gun: 'Draw, holster, swap and throw',
+  body: 'Start, stop and landing',
+  all: 'Every clip',
+};
+
 /** One picker choice (a segment of a group id) in plain words: `keys` keys count from 1. */
 export function plainGroupWord(section: string, level: number, seg: string): string {
   // (merge, CT Core #95 Gear) the worn gear and its crouched variant
   if (section === 'gear') return GEAR_WORDS[seg] ?? plainWords(seg);
+  // (clip-speed, track A) the clip speed groups
+  if (section === 'clip') return CLIP_WORDS[seg] ?? plainWords(seg);
   if (section === 'keys' && level === 1 && /^\d+$/.test(seg)) return `Key ${Number(seg) + 1}`;
   // the body state words: not the gun hold's or the camera's own states; the weapon level of hands / gun in hand stays
   const states = section !== 'gun' && section !== 'cam' && !((section === 'hand' || section === 'weapon') && level === 0);
@@ -417,6 +427,16 @@ const PLAIN: Readonly<Record<string, string>> = {
   cFwd: 'Contact forward',
   cUp: 'Contact up',
   cSide: 'Contact right',
+  // (clip-speed, track A) Clip speed (1 = today's timing)
+  'clip:rifleDraw': 'Rifle draw speed',
+  'clip:pistolDraw': 'Pistol draw speed',
+  'clip:holster': 'Holster speed',
+  'clip:swap': 'Weapon swap speed',
+  'clip:grenade': 'Grenade throw speed',
+  'clip:startShift': 'Start-off weight shift speed',
+  'clip:stopSettle': 'Stop settle speed',
+  'clip:land': 'Landing speed',
+  'clip:all': 'Every clip speed',
 };
 
 const FINGERS = ['thumb', 'index', 'middle', 'ring', 'little'];

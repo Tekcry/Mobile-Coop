@@ -135,6 +135,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Animation tuner Weight (anim-weight): every Weight slider at its default leaves the walk, jog, run, crouch and
   drawn movement exactly as before; momentum sliders change the local player only (time to speed, stop, turn rate),
   the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
+- [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
+  "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
+  twice as slow and it cannot fire until it is up. Holster, swap (LB), grenade throw and Every clip speed change their
+  clip the same way; Start / Stop / Landing speed change the start-off shift, stop settle and landing dip. All at 1:
+  exactly as before. Export, bake (`--only clip`), reset: same timing.
 - [ ] Animation tuner Camera (tuner-camera): the Camera section's picker follows explore / crouched / low ready / aim
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);

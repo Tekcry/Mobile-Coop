@@ -11,7 +11,7 @@
   - prints one rebake command per touched clip
     (`node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs <clip>`). Blender is never run.
   - prints the table and the warnings.
-- `--only`: bake only these sections: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight.
+- `--only`: bake only these sections: body, gun, cam, speed, joint, hand, ik, weapon, step, gear, keys, weight, clip.
 - `--allow-shared`: bake a shared target when exactly one group changed (the summary warns).
 - The script loads the repo's TypeScript itself (it imports `scripts/operators/ts-resolve.mjs`).
 - Code:
@@ -185,6 +185,17 @@ the live preview blends an added or deleted key linearly between its neighbours 
 rotations with Bezier (`py/key_clip.py` line 261), so after a rebake the in-betweens around an added or deleted key
 shift a little; the key poses match. Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
 `tests/tuneKeysEdit.test.ts`.
+
+**Clip speed** (clip-speed, track A; `src/anim/tuneClipSpeed.ts`, its own tab): a speed per timed clip (1 = today's
+timing, 2 = half the time) and an every-clip speed (`clip.all`). A speed divides a duration or multiplies a rate:
+`clip.gun` rifleDraw / pistolDraw / holster -> `src/weapons/drawState.ts` `DRAW_TIME_PRIMARY` / `DRAW_TIME_SIDEARM` /
+`HOLSTER_TIME` (div); swap / grenade -> `src/weapons/playerWeapons.ts` `SWAP_TIME` / `GRENADE_TIME` (div);
+`clip.body` startShift / stopSettle / land -> `src/anim/clips/actions.ts` `CLIP_RATE.<id>` (mul; the timed clips are
+keyed in seconds, so their clock rate bakes, not their keys). `all` edits every one of these; with a clip's own slider
+too both ops apply (the product, as in the game). The draw times are gameplay too: the draw state gates `fireReady`
+over the same time, so the gun can fire when the draw clip ends, tuned or baked. Not in it: the gait cycles (paced by
+speed), the traversal / co-op one-shots (their own Timing sliders, manual), reloads (weapon data). Test:
+`tests/tuneClipSpeed.test.ts`.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
 code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip
