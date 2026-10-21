@@ -41,6 +41,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
+  the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
+  it raises the joiner's light meter as it raises the host's.
 - [ ] Co-op on the High or Epic preset, host and joiner in two windows (side by side, then one over the other): each
   sees the other's character, and the joiner's "Connecting to host" goes away once in the match.
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each

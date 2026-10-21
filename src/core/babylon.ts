@@ -164,4 +164,35 @@ import '@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineMa
 // Babylon 9 stubs out methods whose side-effect module is missing. Warn loudly
 // so the smoke test catches any missing import above.
 import { SetMissingSideEffectWarningsEnabled } from '@babylonjs/core/Misc/devTools';
+import { ThinEngine } from '@babylonjs/core/Engines/thinEngine';
+import type { IPipelineContext } from '@babylonjs/core/Engines/IPipelineContext';
+import type { WebGLPipelineContext } from '@babylonjs/core/Engines/WebGL/webGLPipelineContext';
 SetMissingSideEffectWarningsEnabled(true);
+
+// (gl-warning-fix, backlog 27) A program deleted while its parallel link is still running (KHR_parallel_shader_compile,
+// hardware GPUs only; a post stack rebuild or a material recompile disposes an effect that never finished compiling)
+// makes Chrome / ANGLE query the deleted program: "GL_INVALID_VALUE: glGetProgramiv: Program object expected", a dozen
+// per rebuild. Keep such a program until its link completes, then delete it; flag the context disposed at once so
+// Babylon's own readiness poll stops without touching it. Relies on Babylon internals: tests/glWarningFix.test.ts pins
+// the version and fails loudly on an upgrade (re-check this patch, then bump it there).
+const COMPLETION_STATUS_KHR = 0x91b1;
+const deletePipelineContext = ThinEngine.prototype._deletePipelineContext;
+ThinEngine.prototype._deletePipelineContext = function (this: ThinEngine, pipelineContext: IPipelineContext): void {
+  const ctx = pipelineContext as WebGLPipelineContext | null;
+  if (!ctx?.program || !ctx.isParallelCompiled) {
+    deletePipelineContext.call(this, pipelineContext);
+    return;
+  }
+  ctx._isDisposed = true;
+  let tries = 0;
+  const release = (): void => {
+    if (this.isDisposed) return;
+    const gl = this._gl;
+    // already deleted, or from a context lost and restored since: isProgram raises no GL error (getProgramParameter would)
+    if (ctx.program && !gl.isContextLost() && !gl.isProgram(ctx.program)) return;
+    const linking = !!ctx.program && !gl.isContextLost() && !gl.getProgramParameter(ctx.program, COMPLETION_STATUS_KHR);
+    if (linking && ++tries < 600) setTimeout(release, 16);
+    else deletePipelineContext.call(this, ctx);
+  };
+  release();
+};

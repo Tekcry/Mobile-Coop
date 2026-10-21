@@ -13,6 +13,7 @@ import { GRAVITY } from '../physics/havok';
 import { Body } from './body';
 import { BODY } from './bodies';
 import type { LightDef } from '../world/lights';
+import { beamReach, type BeamHit } from '../world/torches';
 import { nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef } from './archetypes';
@@ -345,45 +346,25 @@ export class EnemyManager {
 
   private torchTick = 0;
 
-  /** Longest unobstructed run of a cone light (centre and four edge rays), plus a little spill. */
+  /** Longest unobstructed run of a cone light (`beamReach` in `world/torches.ts`, shared with the co-op client). */
   private beamReach(l: LightDef): number {
-    const c = l.cone;
-    if (!c) return l.radius;
-    const half = Math.acos(c.cosOuter) * 0.75;
-    let best = 0;
-    this.earA.set(l.x, l.y, l.z);
-    // an orthonormal pair across the beam
-    const hx = -c.dz;
-    const hz = c.dx;
-    const hl = hyp2(hx, hz) || 1;
-    const ux = hx / hl;
-    const uz = hz / hl;
-    const vx = c.dy * uz;
-    const vy = c.dz * ux - c.dx * uz;
-    const vz = -c.dy * ux;
-    const t = Math.tan(half);
-    for (let k = 0; k < 5; k++) {
-      const a = k === 0 ? 0 : t * (k === 1 || k === 3 ? (k === 1 ? 1 : -1) : 0);
-      const b = k === 2 ? t : k === 4 ? -t : 0;
-      let dx = c.dx + ux * a + vx * b;
-      let dy = c.dy + vy * b;
-      let dz = c.dz + uz * a + vz * b;
-      const n = hyp3(dx, dy, dz) || 1;
-      dx /= n;
-      dy /= n;
-      dz /= n;
-      this.earB.set(l.x + dx * l.radius, l.y + dy * l.radius, l.z + dz * l.radius);
-      const d = this.ballistics.hitDistance(this.earA, this.earB, G.STATIC);
-      if (d > best) best = d;
-    }
-    return Math.min(l.radius, best + 0.4);
+    return beamReach(l, this.beamHit);
   }
+
+  /** One static-geometry ray for `beamReach` (allocation-free: two kept vectors). */
+  private readonly beamHit: BeamHit = (ax, ay, az, bx, by, bz) => this.ballistics.hitDistance(this.earA.set(ax, ay, az), this.earB.set(bx, by, bz), G.STATIC);
 
   /** Who has a flashlight on (tests / debug). */
   get torchesOn(): number {
     let n = 0;
     for (const o of this.torchOwner) if (o) n++;
     return n;
+  }
+
+  /** (coop-torches) Does this guard hold a lit flashlight (the co-op snapshot's torch bit)? Allocation-free. */
+  hasTorch(e: Enemy): boolean {
+    for (let i = 0; i < this.torchOwner.length; i++) if (this.torchOwner[i] === e) return true;
+    return false;
   }
 
   /** Wake a knocked-out victim: back on their feet, searching. */

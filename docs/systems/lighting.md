@@ -34,6 +34,14 @@ field (collision, the light bake, the noise model), never the render state.
   bake: registry ambient, every light dynamic.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
+- Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,
+  radius 13, intensity 0.85, cone 0.34 / 0.2 rad), `placeTorch` (eye height x scale, 0.35 m ahead, 0.15 m right,
+  pitched 0.16 rad down; crouched past half way 1.0 m) and `beamReach` (rendering only) are the one code for the host
+  (`EnemyManager` / `Enemy.placeTorch`) and the co-op client (`net/torchMirror.ts`, from the snapshot's torch bit and
+  the guard as drawn). Both pages light the same registry slots from the same values, so the client's meter (its own
+  `updateLight` over its field) reads a guard's torch as the host's perception does; the only difference is the
+  client's interpolation delay (about 0.12 s behind the host). `tests/coopTorches.test.ts` compares the light at points
+  from a host-built and a client-built torch.
 - `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`, `ambientAt` /
   `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.28 / 0.6 (bible L6); `visibilityFromLight`;
   `nearestLights`; `lightOnRay`.
