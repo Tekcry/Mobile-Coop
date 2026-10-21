@@ -1,14 +1,15 @@
 # anim-skeleton - state
 
 ## Now
-S1+S2 PR #88 (head c74c27a9); full e2e on the laptop queued after #87. S3a (runtime clip channels `clav` / `fing` /
-`leg`, the FK leg blend, the build.mjs emitter) building in the helper worktree `C:/NightShift/Mobile-Coop-anim-skeleton-s3`
-on `feature/anim-skeleton-s3` (cut from c74c27a9; merged into this branch after #88 lands).
+PR #88 (S1+S2) ready again after the fix round (22ee6ba3: the e2e-levels climb is seed variance, bisected; guard
+rig identity test added); waiting on the orchestrator. S3a done and checked on the helper branch
+`feature/anim-skeleton-s3` (worktree `C:/NightShift/Mobile-Coop-anim-skeleton-s3`, b346aa10, master 4.40.0 merged).
 
 ## Next
-S3b (key_clip.py, the `skeleton_test` key file, a studio entry) after #87 (key timing) merges, built on it; rebase on
-item 25 later. Lean mode lifted: check the 5-hour meter before each agent; at 98% stop at a clean commit and tell the
-orchestrator.
+S3b on the helper branch after the 5-hour reset (23:00; meter 85% at 22:00): `key_clip.py` writes `clav` / `fing` / `leg`
+in the rig frames when a key file opts in, the `skeleton_test` key file and clip, a studio entry (lines told to Course
+Ready). Keep leg w at 0 on contact frames (S3a checker). After #88 merges: merge the helper branch into this branch.
+Check the 5-hour meter before each agent; at 98% stop at a clean commit and tell the orchestrator.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger
