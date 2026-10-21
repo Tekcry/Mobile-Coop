@@ -101,14 +101,14 @@ describe('tuner-ui: group levels', () => {
 
 describe('tuner-ui: plain labels', () => {
   it('slider names are short plain words, ids unchanged', () => {
-    expect(plainLabel('body', 'trackMul', 'foot width / track')).toBe('Foot width');
-    expect(plainLabel('body', 'kneeOutMul', 'knee out (pole)')).toBe('Knee out');
+    expect(plainLabel('body', 'trackMul', 'foot width / track')).toBe('Feet apart');
+    expect(plainLabel('body', 'kneeOutMul', 'knee out (pole)')).toBe('Knees point out');
     expect(plainLabel('body', 'pelvisYAdd', 'pelvis height / crouch depth')).toBe('Hip height');
-    expect(plainLabel('body', 'leanAdd', 'forward lean')).toBe('Lean');
+    expect(plainLabel('body', 'leanAdd', 'forward lean')).toBe('Lean forward');
     expect(plainLabel('joint', 'elbowR_x', 'elbowR pitch')).toBe('Right elbow bend');
     expect(plainLabel('hand', 'handLFwd', 'handL IK target fwd')).toBe('Left hand forward');
     expect(plainLabel('ik', 'footR', 'footR IK strength (0 = FK: rest + joint offsets)')).toBe('Right foot reach');
-    expect(plainLabel('weapon', 'gunPitch', 'gun in the hand pitch')).toBe('Grip tilt');
+    expect(plainLabel('weapon', 'gunPitch', 'gun in the hand pitch')).toBe('Gun tilt in the gun hand');
     expect(plainLabel('gun', 'gunPitch', 'muzzle pitch (+ down)')).toBe('Muzzle tilt');
   });
 
@@ -277,12 +277,12 @@ describe('tuner-ui: camera snap lock', () => {
     c.start('orbit', 0, 2, -3, 0, 0, 0, 0, 0);
     c.lock = 'side';
     c.bodyYaw = 0.4;
-    c.lookX = 0.7; // the look does not turn a held view
+    c.lookX = 0.7; // (item 29 phase 2) the look turns the held angle around her
     c.dt = 1 / 60;
     c.place(0, 0, 0);
     const o = { yaw: 0, pitch: 0 };
     freeSnap('side', 0.4, o);
-    expect(c.yaw).toBeCloseTo(o.yaw, 9);
+    expect(c.yaw).toBeCloseTo(o.yaw + 0.7, 9);
     const rel0 = c.yaw - c.bodyYaw;
     c.bodyYaw = 1.9;
     c.place(5, 0, 2);
@@ -317,5 +317,39 @@ describe('tuner-ui: loop on the spot', () => {
     const d = spotShift(3.2, 4.1, 3, 4, { x: 0, z: 0 });
     expect(d.x).toBeCloseTo(0.2, 9);
     expect(d.z).toBeCloseTo(0.1, 9);
+  });
+});
+
+describe('tuner v3 phase 2: the orbit by hand and Side swapping sides', () => {
+  it('the left snap is the other side; the angle around her reads back as set', async () => {
+    const { orbitAngleDeg, orbitViewYaw } = await import('../src/player/freeView');
+    const o = { yaw: 0, pitch: 0 };
+    freeSnap('side', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(90, 9);
+    freeSnap('left', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(270, 9);
+    freeSnap('back', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(0, 9);
+    freeSnap('front', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(180, 9);
+    for (const a of [0, 45, 90, 180, 359]) expect(orbitAngleDeg(orbitViewYaw(a, 1.3), 1.3)).toBeCloseTo(a, 9);
+  });
+  it('setOrbit places the camera around her, held to her facing under a lock', () => {
+    const c = new FreeViewCore();
+    c.start('orbit', 0, 2, -3, 0, 0, 0, 0, 0);
+    c.lock = 'back';
+    c.bodyYaw = 0.5;
+    c.place(0, 0, 0);
+    c.setOrbit(90, 20, 4, 0.5);
+    c.place(0, 0, 0);
+    expect(c.dist).toBe(4);
+    expect(c.pitch).toBeCloseTo((-20 * Math.PI) / 180, 9);
+    const rel = c.yaw - c.bodyYaw;
+    c.bodyYaw = 2;
+    c.place(0, 0, 0);
+    expect(c.yaw - c.bodyYaw).toBeCloseTo(rel, 9);
+    // 90 degrees: on her right (the camera sits on her right side of the circled point)
+    const right = { x: Math.cos(2), z: -Math.sin(2) };
+    expect((c.x - 0) * right.x + (c.z - 0) * right.z).toBeGreaterThan(0.9 * c.dist * Math.cos(c.pitch));
   });
 });

@@ -6,6 +6,7 @@
  * size, and which tuner groups a loop of the Anim Studio uses.
  */
 import { ARMED_JOINT_STATES } from '../anim/tuneRows';
+import { CLIP_BODY } from '../anim/studio';
 
 /** The fixed tabs, in order. A registered section not mapped here gets its own tab after Co-op. */
 export const TUNER_TABS: readonly { id: string; label: string }[] = [
@@ -274,14 +275,14 @@ const PLAIN: Readonly<Record<string, string>> = {
   kneeFlexAdd: 'Knee bend',
   trunkTwistMul: 'Shoulder twist',
   strideMul: 'Step length',
-  trackMul: 'Foot width',
-  kneeOutMul: 'Knee out',
+  trackMul: 'Feet apart',
+  kneeOutMul: 'Knees point out',
   kneeLiftMul: 'Knee lift',
   pelvisYAdd: 'Hip height',
-  leanAdd: 'Lean',
-  armSwingGrow: 'Arm swing with speed',
-  elbowOutAdd: 'Elbow out',
-  elbowPoleMul: 'Elbow angle',
+  leanAdd: 'Lean forward',
+  armSwingGrow: 'More arm swing when faster',
+  elbowOutAdd: 'Elbows out from body',
+  elbowPoleMul: 'Elbows point out',
   headTurnMul: 'Head turn',
   peekLeanMul: 'Peek lean',
   wallGapAdd: 'Gap to wall',
@@ -292,7 +293,7 @@ const PLAIN: Readonly<Record<string, string>> = {
   handOutAdd: 'Hands apart',
   footUpAdd: 'Feet up',
   footFwdAdd: 'Feet forward',
-  footOutAdd: 'Feet apart',
+  footOutAdd: 'Feet further apart',
   guardGapAdd: 'Gap to guard',
   guardSideAdd: 'Guard to the side',
   // gun hold
@@ -303,9 +304,9 @@ const PLAIN: Readonly<Record<string, string>> = {
   'gun:gunYaw': 'Muzzle turn',
   gunCant: 'Gun roll',
   sightYAdd: 'Sight height',
-  headDropMul: 'Head to sights',
-  tuckMul: 'Elbow tuck',
-  glideTwistMul: 'Glide hip twist',
+  headDropMul: 'Head down to the sights',
+  tuckMul: 'Elbows in to the body',
+  glideTwistMul: 'Hip twist aiming on the move',
   // camera
   camBoomAdd: 'Distance',
   camHeightAdd: 'Height',
@@ -323,12 +324,13 @@ const PLAIN: Readonly<Record<string, string>> = {
   'keys:mirror': 'Mirror keys',
   // gun in hand
   gunScale: 'Gun size',
-  gunX: 'Grip right',
-  gunY: 'Grip up',
-  gunZ: 'Grip forward',
-  'weapon:gunPitch': 'Grip tilt',
-  'weapon:gunYaw': 'Grip turn',
-  gunRoll: 'Grip roll',
+  // (item 29 phase 2) the gun moves in her gun hand; the support hand stays on the gun, so it follows
+  gunX: 'Gun right in the gun hand',
+  gunY: 'Gun up in the gun hand',
+  gunZ: 'Gun forward in the gun hand',
+  'weapon:gunPitch': 'Gun tilt in the gun hand',
+  'weapon:gunYaw': 'Gun turn in the gun hand',
+  gunRoll: 'Gun roll in the gun hand',
   supportSlide: 'Support hand along gun',
   supportOut: 'Support hand out',
   supportUp: 'Support hand up',
@@ -424,14 +426,14 @@ export function plainLabel(section: string, id: string, label: string): string {
     const side = m[1] === 'L' ? 'Left' : 'Right';
     const what: Record<string, string> = {
       flex: 'arm forward',
-      abd: 'arm out',
+      abd: 'arm out from body',
       elbow: 'elbow bend',
       inward: 'forearm in',
       wristPitch: 'wrist bend',
       wristYaw: 'wrist turn',
       wristRoll: 'wrist roll',
       // (marlow-bays T1a, item 17)
-      twist: 'forearm twist',
+      twist: 'forearm twist, palm in',
       twistUpper: 'upper arm twist',
       shPitch: 'shoulder forward',
       shYaw: 'shoulder turn',
@@ -472,12 +474,62 @@ export function plainLoop(id: string, label: string): string {
   return plainWords(rest);
 }
 
-/** A unit beside a value ('' none). */
+/**
+ * (marlow-bays item 29 phase 2, Michael: "make terminology plain English") How a value shows: metres as cm, radians as
+ * degrees, frames, multipliers as ×, rates per m/s. `k` scales the stored value for display (the slider, the saves and
+ * the exports keep the stored value and id). No allocation (a table lookup).
+ */
+export interface ShownUnit {
+  k: number;
+  unit: string;
+}
+const SHOWN_UNITS: Readonly<Record<string, ShownUnit>> = {
+  x: { k: 1, unit: '×' },
+  deg: { k: 1, unit: '°' },
+  m: { k: 100, unit: 'cm' },
+  rad: { k: 180 / Math.PI, unit: '°' },
+  fr: { k: 1, unit: 'frames' },
+  s: { k: 1, unit: 's' },
+  cm: { k: 1, unit: 'cm' },
+  '1-zeta': { k: 1, unit: '' },
+  'x per m/s': { k: 1, unit: '× per m/s' },
+  'deg/(m/s2)': { k: 1, unit: '° per m/s²' },
+  'deg/(m/s)': { k: 1, unit: '° per m/s' },
+  'm/(m/s)': { k: 100, unit: 'cm per m/s' },
+  'm/m': { k: 100, unit: 'cm per m fallen' },
+};
+const SAME: ShownUnit = { k: 1, unit: '' };
+
+export function shownUnit(unit: string): ShownUnit {
+  return SHOWN_UNITS[unit] ?? (unit ? { k: 1, unit } : SAME);
+}
+
+/** A unit beside a value ('' none), in plain words. */
 export function plainUnit(unit: string): string {
-  if (unit === 'x') return '×';
-  if (unit === 'deg') return '°';
-  if (unit === '1-zeta') return '';
-  return unit;
+  return shownUnit(unit).unit;
+}
+
+/**
+ * (item 29 phase 2, Michael: "gun in hand and support modified the same hand") A hands row of an armed state names the
+ * hands by their job: with a rifle, pistol or launcher the right hand holds the gun ("Gun hand"), the left is on it
+ * ("Support hand"). `group` the section's group (`hand.rifle.aim`, `weapon.pistol.lowReady`).
+ */
+export function handRoles(section: string, group: string): boolean {
+  if (section !== 'hand' && section !== 'weapon') return false;
+  const w = group.split('.')[1];
+  return w === 'rifle' || w === 'pistol' || w === 'launcher';
+}
+
+/** A label with "Right hand" / "Left hand" (and fingers) named by the hand's job when `roles` is on. */
+export function roleWords(text: string, roles: boolean): string {
+  if (!roles) return text;
+  return text
+    .replace(/^Right hand\b/, 'Gun hand')
+    .replace(/^Left hand\b/, 'Support hand')
+    .replace(/^Right fingers\b/, 'Gun hand fingers')
+    .replace(/^Left fingers\b/, 'Support hand fingers')
+    .replace(/^Right (thumb|index|middle|ring|little)\b/, 'Gun hand $1')
+    .replace(/^Left (thumb|index|middle|ring|little)\b/, 'Support hand $1');
 }
 
 /** A value as text with as many decimals as its step needs. */
@@ -589,32 +641,7 @@ const STATE_BODY: Readonly<Record<string, string>> = {
   crouchAim: 'aimCrouch',
   crouchAimFwd: 'aimCrouchMove',
 };
-const CLIP_BODY: Readonly<Record<string, string>> = {
-  idle: 'idle',
-  walk: 'walk',
-  jog: 'jog',
-  run: 'run',
-  ready_stance: 'lowReady',
-  glide_fwd: 'aim',
-  glide_strafe: 'aim',
-  glide_back: 'aim',
-  crouch_idle: 'crouchIdle',
-  sneak: 'sneak',
-  crouch_walk: 'crouchWalk',
-  crouch_run: 'crouchRun',
-  wall_idle: 'wallIdle',
-  wall_slide: 'wallSlide',
-  wall_peek: 'wallPeek',
-  wall_crouch_idle: 'wallCrouchIdle',
-  wall_crouch_slide: 'wallCrouchSlide',
-  wall_crouch_peek: 'wallCrouchPeek',
-  hold_idle: 'hold',
-  hold_fwd: 'hold',
-  hold_back: 'hold',
-  hold_side: 'hold',
-  hold_choke: 'hold',
-  hold_knife: 'hold',
-};
+
 const TRAV_LOOP: Readonly<Record<string, { body: string; trav: string }>> = {
   vault: { body: '', trav: 'vault' },
   ledge: { body: 'ledge', trav: 'climbUp' },
@@ -834,4 +861,26 @@ export function stanceText(body: string, gun: string, studio: { loop: string; dr
     return `${loop} · ${w} ${studio.drawn ? 'drawn' : 'holstered'}`;
   }
   return `${b} · ${gun ? plainWords(gun.replace('.', ' ')) : 'No gun drawn'}`;
+}
+
+// ------------------------------------------------------------------------------------------
+// (track C request, item 29 phase 2) The studio's foot slide line
+// ------------------------------------------------------------------------------------------
+
+/** A planted foot sliding more than this (cm) in one contact shows the line amber. */
+export const FOOT_SLIDE_WARN = 0.5;
+
+/** A slide (cm) as whole tenths of a cm (the line's resolution; NaN / negative: 0). */
+export function footSlideTenths(cm: number): number {
+  return cm > 0 ? Math.round(cm * 10) : 0;
+}
+
+/** "Foot slide L 0.0 cm  R 0.0 cm" from the tenths. */
+export function footSlideText(l: number, r: number): string {
+  return `Foot slide L ${(l / 10).toFixed(1)} cm  R ${(r / 10).toFixed(1)} cm`;
+}
+
+/** Amber: either foot over the limit (the tenths, as shown). */
+export function footSlideWarn(l: number, r: number): boolean {
+  return l > FOOT_SLIDE_WARN * 10 || r > FOOT_SLIDE_WARN * 10;
 }

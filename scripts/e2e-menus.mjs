@@ -647,6 +647,63 @@ try {
   } finally {
     await M.browser.close();
   }
+  // (marlow-bays item 29, Michael's touch scope "Menus + camera") touch outside the tuner: a tap presses a menu item and
+  // the Back button; in play a finger dragged on the game view looks around (no movement); the on-screen pause button
+  // shows only after a touch, a tap on it pauses, a tap on Resume resumes; a key press hides it again
+  console.log('game touch (item 29)');
+  const T = await launch({ url, params: 'menuShot=T2', viewport: { width: 1280, height: 720 }, context: { hasTouch: true } });
+  try {
+    const P = T.page;
+    const GT = (f, a) => P.evaluate(f, a);
+    const ttop = () => GT(() => window.__app.screens.top?.el.classList[1] ?? '(none)');
+    const tapSel = async (sel) => {
+      const c = await GT((s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, sel);
+      assert(!!c, `touch: ${sel} is on screen`);
+      await P.touchscreen.tap(c[0], c[1]);
+      await frames(P, 4);
+    };
+    await P.waitForFunction(() => window.__app?.screens?.top?.el.classList.contains('main-menu'), null, { timeout: 90000 });
+    await frames(P, 6);
+    await tapSel('.main-menu [data-key="settings"]');
+    assert((await ttop()) === 'settings-screen', `a tap opens Settings (${await ttop()})`);
+    await tapSel('.settings-screen [data-legend="back"]');
+    assert((await ttop()) === 'main-menu', `a tap on the Back legend returns to the main menu (${await ttop()})`);
+    // in play
+    await P.goto(`${url}?autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot`);
+    await P.waitForFunction(() => window.__app.current?.player && window.__app.current.simulating, null, { timeout: 120000 });
+    await frames(P, 30);
+    const shown = () => GT(() => getComputedStyle(document.querySelector('.touch-pause')).display !== 'none');
+    assert(!(await shown()), 'no pause button before a touch');
+    const yaw = () => GT(() => window.__app.current.player.cam.camera.rotation.y);
+    const pos = () => GT(() => { const p = window.__app.current.player.rig.root.position; return { x: p.x, z: p.z }; });
+    const cdp = await T.ctx.newCDPSession(P);
+    const y0 = await yaw();
+    const p0 = await pos();
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 500, y: 400, id: 1 }] });
+    for (let k = 1; k <= 8; k++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 500 + k * 25, y: 400, id: 1 }] });
+      await frames(P, 1);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await frames(P, 6);
+    const y1 = await yaw();
+    const p1 = await pos();
+    const turned = Math.abs(Math.atan2(Math.sin(y1 - y0), Math.cos(y1 - y0)));
+    const moved = Math.hypot(p1.x - p0.x, p1.z - p0.z);
+    assert(turned > 0.2 && moved < 0.05, `a drag on the game view looks around (${turned.toFixed(2)} rad) and never moves her (${moved.toFixed(3)} m)`);
+    assert(await shown(), 'after a touch the pause button shows');
+    await tapSel('.touch-pause');
+    assert((await ttop()) === 'pause-screen', `a tap on the pause button pauses (${await ttop()})`);
+    await tapSel('.pause-screen [data-key="resume"]');
+    assert((await ttop()) === '(none)' && (await GT(() => window.__app.current.simulating)), 'a tap on Resume resumes');
+    await P.keyboard.press('Shift');
+    await frames(P, 3);
+    assert(!(await shown()), 'a key press hides the pause button');
+    const bad = T.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+    assert(bad.length === 0, `no console errors (game touch): ${bad.slice(0, 3).join(' | ')}`);
+  } finally {
+    await T.browser.close();
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

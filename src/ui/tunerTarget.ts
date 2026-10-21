@@ -105,7 +105,7 @@ function bodyRow(id: string, out: TuneTarget): TuneTarget {
   if (id === 'pelvisYAdd' || id === 'glideTwistMul') return one(out, 'hips', 'Pelvis');
   if (id === 'leanAdd') return one(out, 'spine', 'Spine');
   if (id === 'trunkTwistMul' || id === 'peekLeanMul') return one(out, 'torso', 'Chest');
-  if (id.startsWith('gun') || id === 'sightYAdd') return weapon(out, 'Gun hold');
+  if (id.startsWith('gun') || id === 'sightYAdd') return weapon(out, 'Gun hold (both hands)');
   return body(out);
 }
 
@@ -140,7 +140,7 @@ function keyRow(id: string, out: TuneTarget): TuneTarget {
 export function tuneTarget(section: string, id: string, out: TuneTarget = emptyTarget()): TuneTarget {
   if (!section) return set(out, 'none', '', '', false, '');
   if (section === 'cam') return set(out, 'camera', '', '', false, 'Camera');
-  if (section === 'gun') return weapon(out, 'Gun hold');
+  if (section === 'gun') return weapon(out, 'Gun hold (both hands)');
   if (section === 'step') return pair(out, 'ankleL', 'ankleR', 'Feet (stepping)');
   if (section === 'weight') return one(out, 'hips', 'Body weight (pelvis)');
   if (!id) {
@@ -155,7 +155,7 @@ export function tuneTarget(section: string, id: string, out: TuneTarget = emptyT
     const f = /^[a-z]+([LR])(Curl|Spread)$/.exec(id);
     if (f) return one(out, `wrist${f[1] as 'L' | 'R'}`, `${SIDE(f[1]!)} fingers`);
     if (id.startsWith('support')) return one(out, 'wristL', 'Support hand');
-    return weapon(out, 'Gun in hand');
+    return weapon(out, 'Gun in the gun hand (the support hand follows)');
   }
   if (section === 'body') return bodyRow(id, out);
   if (section === 'keys') return keyRow(id, out);

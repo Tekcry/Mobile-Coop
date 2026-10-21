@@ -453,6 +453,8 @@ try {
   assert(dr.xHoldT >= 0.35 && dr.xHoldT <= 0.6 && dr.xHoldStill && dr.xFull, `X held 0.4 s with the gun out reloads (A2) and stays drawn (${dr.xHoldT.toFixed(2)} s, full ${dr.xFull})`);
   assert(dr.xFullHol, 'X held with nothing to reload holsters');
   assert(dr.slingState === 'slingDraw' && dr.slingAim && dr.tSling > dr.tDraw * 1.3 && dr.slingLow, `LT from holstered: the sling draw straight to the aim, slower (M2: ${dr.tSling.toFixed(2)} s vs X ${dr.tDraw.toFixed(2)} s); let go: low ready (${dr.slingLow})`);
+  // (marlow-bays item 29) the on-screen pause button is a touch thing: never shown in pad play
+  assert(!(await page.evaluate(() => document.body.classList.contains('touch-play') || getComputedStyle(document.querySelector('.touch-pause')).display !== 'none')), 'pad play: no on-screen pause button');
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);

@@ -96,6 +96,35 @@ async function gesture(page, cdp, paths, steps = 8) {
 
 const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 
+/** (item 29 phase 2, the phone bug: the tabs and the playback bar scrolled away under the header) The panel scrolled to
+ *  its end (`scroll`; false: as it is): the active tab and the Play button still show at the top, nothing over them. */
+const topBlock = (page, scroll = true) =>
+  page.evaluate((scroll) => {
+    const el = document.querySelector('.anim-tune');
+    if (scroll) el.scrollTop = el.scrollHeight;
+    const pr = el.getBoundingClientRect();
+    const hit = (sel) => {
+      const e = el.querySelector(sel);
+      if (!e) return { ok: false, top: -1 };
+      const r = e.getBoundingClientRect();
+      const h = document.elementFromPoint(r.left + Math.min(12, r.width / 2), r.top + r.height / 2);
+      return { ok: !!h && e.contains(h), top: Math.round(r.top - pr.top) };
+    };
+    const out = { st: Math.round(el.scrollTop), tab: hit('.tt-tab.active'), play: hit('.studio-play') };
+    if (scroll) el.scrollTop = 0;
+    return out;
+  }, scroll);
+
+/** A held D-pad direction on the fake pad (13 down), `n` presses. */
+async function padDir(page, b, n) {
+  for (let i = 0; i < n; i++) {
+    await page.evaluate((b) => window.__pad.set(b, 1), b);
+    await frames(page, 2);
+    await page.evaluate((b) => window.__pad.set(b, 0), b);
+    await frames(page, 2);
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // 1. Landscape phone
 // ---------------------------------------------------------------------------------------------------------------
@@ -134,6 +163,8 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
       return { can, moved, oy: getComputedStyle(el).overflowY, ta: getComputedStyle(el).touchAction };
     });
     assert(sc.can && sc.moved && sc.oy === 'auto' && sc.ta.includes('pan-y'), `the drawer scrolls inside itself (${JSON.stringify(sc)})`);
+    const tb = await topBlock(page);
+    assert(tb.st > 40 && tb.tab.ok && tb.play.ok && tb.tab.top < 80, `scrolled to its end, the drawer keeps the tabs and the playback bar at the top (${JSON.stringify(tb)})`);
 
     // the readout: More's toggle shows and hides it; F3 (a keyboard) still toggles it and the box follows
     await G(() => window.__animTune.more(true));
@@ -205,7 +236,7 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     assert(g3 === 'pan' && panned > 0.05 && Math.abs(c3.dist - c2.dist) < 1e-6 && angle(c3.yaw, c2.yaw) < 0.01, `two fingers dragged pan the target (${panned.toFixed(3)} m, gesture ${g3}, distance and yaw kept)`);
     // a touch drag on the panel never moves the camera
     const onPanel = await G(() => {
-      const r = document.querySelector('.anim-tune .tt-title').getBoundingClientRect();
+      const r = document.querySelector('.anim-tune .anim-tune-tabs').getBoundingClientRect();
       return { x: Math.round(r.left + 10), y: Math.round(r.top + r.height / 2) };
     });
     await gesture(page, cdp, [[onPanel.x, onPanel.y, onPanel.x - 150, onPanel.y + 20]]);
@@ -235,6 +266,10 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     await frames(page, 4);
     const rt2 = await rowSizes(page);
     assert(rt2.body.includes('input-gamepad') && Math.abs(rt2.hi - rt.hi) < 1, `a tap during pad use keeps the pad mode and the layout (${rt2.body})`);
+    // (phase 2) the pad's focus walked down the Body tab scrolls the drawer: the tabs and the playback bar still show
+    await padDir(page, 13, 10);
+    const tp2 = await topBlock(page, false);
+    assert(tp2.st > 0 && tp2.tab.ok && tp2.play.ok, `pad focus down the Body tab: the drawer scrolled and the tabs and playback bar show (${JSON.stringify(tp2)})`);
     assert(real(errors).length === 0, `no console errors (landscape): ${real(errors).slice(0, 3).join(' | ')}`);
   } catch (e) {
     console.error(e);
@@ -267,6 +302,10 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
       const t = await smallTargets(page, p.target);
       assert(t.n > 5 && t.bad.length === 0, `portrait ${tab} tab: every touch target >= ${p.target} px (${t.n} checked${t.bad.length ? `; small: ${t.bad.slice(0, 6).join(', ')}` : ''})`);
     }
+    await G(() => window.__animTune.tab('body'));
+    await frames(page, 2);
+    const tb = await topBlock(page);
+    assert(tb.st > 40 && tb.tab.ok && tb.play.ok, `portrait: scrolled to its end, the sheet keeps the tabs and the playback bar at its top (${JSON.stringify(tb)})`);
     await G(() => window.__animTune.fold(true));
     await frames(page, 3);
     const f = await G(() => ({ ...window.__animTune.phone(), top: document.querySelector('.anim-tune').getBoundingClientRect().top, ch: window.__app.canvas.getBoundingClientRect().height }));
@@ -308,6 +347,7 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
         handle: getComputedStyle(document.querySelector('.anim-tune-handle')).display,
         docked: document.body.classList.contains('tt-docked'),
         dockedB: document.body.classList.contains('tt-docked-b'),
+        map: !!document.querySelector('.anim-tune-map'),
         overlay: !document.querySelector('.debug-overlay').hidden,
         vh: innerHeight,
       };
@@ -315,7 +355,7 @@ const angle = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
     // T2's desktop size at 1280 x 640, Medium: font round(19 * 0.75) = 14 px, width min(1280 * 0.34, 14 * 25) = 350 px
     assert(d.mode === 'desktop' && !d.cls.includes('tt-phone') && d.font === '14px' && Math.abs(d.width - 350) < 1 && Math.abs(d.right - 1280) < 1, `desktop: the T2 layout (${d.mode}, font ${d.font}, width ${d.width.toFixed(0)})`);
     assert(d.docked && !d.dockedB && d.dockW === 350 && d.dockH === 0 && d.cRight <= 1280 - 350 + 1 && Math.abs(d.cH - d.vh) < 1, `desktop: the T2 dock beside the panel (${d.dockW} px, canvas right ${d.cRight.toFixed(0)})`);
-    assert(d.handle === 'none' && !d.overlay && !d.debugBox && !document.querySelector('.anim-tune-map'), `desktop: no handle, no body map, the readout off in the studio (item 29) (handle ${d.handle}, overlay ${d.overlay})`);
+    assert(d.handle === 'none' && !d.overlay && !d.debugBox && !d.map, `desktop: no handle, no body map, the readout off in the studio (item 29) (handle ${d.handle}, overlay ${d.overlay})`);
     assert(real(errors).length === 0, `no console errors (desktop): ${real(errors).slice(0, 3).join(' | ')}`);
   } catch (e) {
     console.error(e);

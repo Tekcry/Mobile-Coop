@@ -29,7 +29,7 @@ import {
   tuneSnapshot,
 } from '../anim/tune';
 import { isTuneGroup, TUNE_REGISTRY_HOOKS, TUNE_SECTIONS, type TuneSection } from '../anim/tuneRegistry';
-import { FREE_DEMOS, FREE_IN, FREE_MODES, FREE_VIEW, GAME_SPEED, freeAxis, freeTimeScale, type FreeDemo, type FreeMode, type FreeSnap } from '../player/freeView';
+import { FREE_CFG, FREE_DEMOS, FREE_IN, FREE_MODES, FREE_ORBIT, FREE_SET, FREE_VIEW, GAME_SPEED, freeAxis, freeTimeScale, type FreeDemo, type FreeMode, type FreeSnap } from '../player/freeView';
 import { PAD } from '../input/gamepadMapping';
 import { loadAnimTune, loadAnimTuneUi, saveAnimTune, saveAnimTuneUi } from '../save/animTuneStore';
 import { download } from './fileOut';
@@ -69,7 +69,8 @@ function keyPickLabel(clip: string, seg: string): string {
   const r = keyRank(c, k);
   return `Key ${(r < 0 ? k : r) + 1}${k >= keyTimeCount(c) ? ' (added)' : ''}`;
 }
-import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioEntry } from '../anim/studio';
+import { STUDIO, STUDIO_LIGHT, STUDIO_SPEED, studioBodyPin, studioEntry } from '../anim/studio';
+import { effectMode, sliderEffect, type EffectMode } from './tunerEffect';
 import { promptHtml, type PromptButton } from './prompts';
 import { TUNER_KEY_BACK, TUNER_KEY_FWD, TUNER_MOUSE_KEY, TUNER_MOUSE_LABEL, TUNER_PLAY_KEY, TUNER_SPOT_KEY, TunerMouseCtl, type TunerMouseMode } from './tunerMouse';
 import { emptyTarget, partLabel, pickOnBody, RIG_BONES, RIG_JOINTS, rowHasPart, rowKeyParts, tuneTarget, type BodyPart, type RigJoint } from './tunerTarget';
@@ -88,7 +89,9 @@ import {
   plainGroupWord,
   plainLabel,
   plainSection,
-  plainUnit,
+  handRoles,
+  roleWords,
+  shownUnit,
   plainWords,
   sharedPrefix,
   tabOfSection,
@@ -147,6 +150,8 @@ interface Section {
   wrap: HTMLDivElement;
   group: string;
   prefix: number;
+  /** (item 29) The one line saying why some rows are greyed (nothing greyed: hidden). */
+  eff: HTMLDivElement;
 }
 
 /** The rendered camera the barrel marker projects through (a FreeCamera: vertical FOV, Euler rotation). */
@@ -221,7 +226,7 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-drop{display:inline-flex;justify-content:space-between;align-items:center;gap:0.5em;min-width:7em;max-width:15em;color:var(--tt-hi);-webkit-text-fill-color:var(--tt-hi)}
 .anim-tune .tt-drop span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .anim-tune .tt-drop::after{content:'▾';color:var(--tt-acc);-webkit-text-fill-color:var(--tt-acc)}
-.anim-tune .anim-tune-drop-list{position:absolute;z-index:3;background:#0a0f10;border:1px solid var(--tt-acc);border-radius:2px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.7)}
+.anim-tune .anim-tune-drop-list{position:absolute;z-index:5;background:#0a0f10;border:1px solid var(--tt-acc);border-radius:2px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.7)}
 .anim-tune .tt-opt{padding:0.15em 0.7em;min-height:1.9em;display:flex;align-items:center;cursor:pointer;white-space:nowrap}
 .anim-tune .tt-opt:hover{background:rgba(255,255,255,0.06)}
 .anim-tune .tt-opt.cur::before{content:'✓';color:var(--tt-acc);margin-right:0.4em}
@@ -236,6 +241,9 @@ font-family:var(--font-menu,'Barlow Condensed',system-ui,sans-serif);font-weight
 .anim-tune .tt-row{display:grid;grid-template-columns:minmax(5em,38%) minmax(3em,1fr) 4.4em 1.1em 1.3em;align-items:center;gap:0.3em;min-height:2em;padding:0 0.1em 0 0.15em;border-radius:0}
 .anim-tune .tt-row:hover{background:rgba(255,255,255,0.035)}
 .anim-tune .tt-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tt-fg)}
+.anim-tune .tt-row.tt-off{opacity:0.42}
+.anim-tune .studio-slide.warn{color:var(--tt-warn);-webkit-text-fill-color:var(--tt-warn);font-weight:700}
+.anim-tune .anim-tune-effect{color:var(--tt-warn);font-size:0.8em;margin:0 0 0.2em}
 .anim-tune .tt-row.tt-sel{background-color:rgba(240,194,75,0.13);box-shadow:inset 3px 0 0 var(--tt-sel)}
 .anim-tune .tt-row.tt-sel .tt-name{color:var(--tt-hi);font-weight:700}
 .anim-tune .anim-tune-sel{color:var(--tt-sel);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -263,16 +271,24 @@ body.tt-studio .hud,body.tt-studio .hud-world,body.tt-studio .mouse-capture-hint
 body.tt-docked #game{width:calc(100% - var(--tt-dock-w,0px))!important;right:auto!important}
 .anim-tune .tt-handle{display:none}
 .anim-tune.tt-phone{--tt-t:30px;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:0 max(0.5em,env(safe-area-inset-right)) max(0.25em,env(safe-area-inset-bottom)) max(0.5em,env(safe-area-inset-left))}
-.anim-tune.tt-phone .tt-head{position:sticky;top:0;z-index:4;background:#040607;margin:0 -0.5em;padding:max(0px,env(safe-area-inset-top)) 0.5em 0.15em;flex-wrap:wrap;gap:0.3em}
+.anim-tune .tt-top{flex:none}
+.anim-tune.tt-phone .tt-top{position:sticky;top:0;z-index:4;background:#040607;margin:0 -0.5em;padding:max(0px,env(safe-area-inset-top)) 0.5em 0}
+.anim-tune.tt-phone .tt-head{flex-wrap:nowrap;gap:0.3em;padding:0 0 0.1em}
+.anim-tune.tt-phone .tt-title,.anim-tune.tt-phone .anim-tune-fold{display:none}
+.anim-tune.tt-phone .anim-tune-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;margin-bottom:0.2em;overscroll-behavior-x:contain}
+.anim-tune.tt-phone .anim-tune-tabs::-webkit-scrollbar{display:none}
+.anim-tune.tt-phone .anim-tune-playbar{margin-bottom:0.15em}
+.anim-tune.tt-phone .anim-tune-playbar .tt-bar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.anim-tune.tt-phone .anim-tune-playbar .tt-bar::-webkit-scrollbar{display:none}
 .anim-tune.tt-phone .anim-tune-mouse{display:none}
 .anim-tune.tt-phone.tt-folded .anim-tune-info{display:none}
-.anim-tune.tt-phone .tt-handle{display:flex;align-items:center;justify-content:center;gap:0.6em;width:100%;min-height:var(--tt-t);-webkit-appearance:none;appearance:none;background:transparent;border:none;cursor:pointer;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:0.85em}
+.anim-tune.tt-phone .tt-handle{display:flex;align-items:center;justify-content:center;gap:0.6em;flex:1;min-width:0;min-height:var(--tt-t);-webkit-appearance:none;appearance:none;background:transparent;border:none;cursor:pointer;color:var(--tt-fg);-webkit-text-fill-color:var(--tt-fg);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:0.85em}
 .anim-tune.tt-phone .tt-handle::before{content:'';width:3em;height:4px;border-radius:2px;background:rgba(214,223,219,0.55)}
 .anim-tune.tt-phone .anim-tune-body{flex:none;overflow:visible;min-height:auto;touch-action:pan-y}
 .anim-tune.tt-phone .anim-tune-hints{min-height:0;font-size:0.8em}
 .anim-tune.tt-phone .tt-bar{gap:0.25em 0.35em;margin:0.15em 0}
 .anim-tune.tt-phone .tt-btn,.anim-tune.tt-phone .tt-tab,.anim-tune.tt-phone .tt-opt,.anim-tune.tt-phone .tt-grp,.anim-tune.tt-phone .tt-more-h,.anim-tune.tt-phone .tt-field,.anim-tune.tt-phone input[type=number],.anim-tune.tt-phone input[type=text]{min-height:var(--tt-t)}
-.anim-tune.tt-phone .tt-btn{min-width:var(--tt-t);padding:0 0.5em}
+.anim-tune.tt-phone .tt-btn{min-width:var(--tt-t);padding:0 0.5em;white-space:nowrap;flex:none}
 .anim-tune.tt-phone .tt-tab{padding:0 0.45em}
 .anim-tune.tt-phone input[type=range]{height:var(--tt-t);touch-action:none}
 .anim-tune.tt-phone input[type=checkbox]{width:calc(var(--tt-t) * 0.55);height:calc(var(--tt-t) * 0.55)}
@@ -405,6 +421,10 @@ export class AnimTunePanel {
   private stepBtn: HTMLButtonElement;
   private coopNote: HTMLDivElement;
   private lockLine: HTMLSpanElement;
+  /** (item 29 phase 2) The orbit sliders (around her, tilt, distance) and the values they show (rounded; NaN none). */
+  private readonly orbitIn: HTMLInputElement[] = [];
+  private readonly orbitVal: HTMLSpanElement[] = [];
+  private readonly orbitShown = [Number.NaN, Number.NaN, Number.NaN];
   private unlockBtn: HTMLButtonElement;
   private readonly snapBtns = new Map<FreeSnap, HTMLButtonElement>();
   /** (pass 2) Whether a co-op session runs (set by the app): the time controls are off then. */
@@ -515,6 +535,12 @@ export class AnimTunePanel {
   /** The height the studio's canvas gives up to the bottom sheet (px; 0 none). */
   private dockH = 0;
   private readonly gesture = new TouchGesture();
+  /** (item 29 phase 2) More's "View aids" block (the studio only). */
+  private aidsB!: HTMLElement;
+  /** (item 29 phase 2) The header, tabs and playback bar (sticky together on a drawer / sheet). */
+  private top!: HTMLDivElement;
+  /** (item 29) How the shown state plays now (the greyed rows follow it). */
+  private effMode: EffectMode = 'procedural';
   /** The touch camera's last move (the test hook). */
   private readonly touchLast = { kind: '', taps: 0 };
   /** The F3 readout (the debug overlay sets it). */
@@ -629,7 +655,35 @@ export class AnimTunePanel {
     const demo = this.mkSel(db, 'Fly demo', FREE_DEMOS, (v) => (FREE_VIEW.demo = v as FreeDemo), 'demo', 'anim-tune-demo');
     for (const o of Array.from(demo.options)) o.textContent = plainWords(o.value);
     this.hudBox = this.mkCheck(db, 'Hide HUD', false, (v) => document.body.classList.toggle('tune-hide-hud', v), 'hidehud', 'anim-tune-hidehud');
-    cam.append(cb, sb, db);
+    // (marlow-bays item 29 phase 2) the orbit by hand: around her (0 behind, 90 her right, 180 her front), the tilt and
+    // the distance; they follow the stick, the drag, the touch orbit and the snaps
+    const ob = this.mkBar();
+    const orbitRow = (label: string, min: number, max: number, step: number, unit: string, key: string, k: 0 | 1 | 2): void => {
+      const l = document.createElement('label');
+      l.className = 'tt-field tt-grow';
+      const r = document.createElement('input');
+      r.type = 'range';
+      r.min = String(min);
+      r.max = String(max);
+      r.step = String(step);
+      r.className = `anim-tune-orbit-${key}`;
+      r.dataset.pad = `orbit:${key}`;
+      l.style.flexBasis = '100%';
+      const v = document.createElement('span');
+      v.className = 'tt-val';
+      v.textContent = '–';
+      r.addEventListener('input', () => this.setOrbit(k, Number(r.value)));
+      r.addEventListener('change', () => r.blur());
+      l.append(label, r, v);
+      v.dataset.unit = unit;
+      this.orbitIn[k] = r;
+      this.orbitVal[k] = v;
+      ob.append(l);
+    };
+    orbitRow('Around her', 0, 359, 1, '°', 'angle', 0);
+    orbitRow('Camera tilt', -80, 80, 1, '°', 'tilt', 1);
+    orbitRow('Distance', FREE_CFG.distMin, FREE_CFG.distMax, 0.05, ' m', 'dist', 2);
+    cam.append(cb, sb, ob, db);
     const time = this.block(view, 'Time');
     const tb = this.mkBar();
     this.pauseBtn = this.mkBtn('Pause', () => this.setFrozen(!this.frozen), 'pause', 'anim-tune-pause');
@@ -683,6 +737,11 @@ export class AnimTunePanel {
     playB.classList.add('anim-tune-more-play');
     const p2 = this.studioUi.bar.children[1];
     if (p2) playB.append(p2);
+    // (item 29 phase 2) the studio's view aids (skeleton, feet, ghost poses; off by default), the studio only
+    this.aidsB = this.block(set, 'View aids');
+    this.aidsB.classList.add('anim-tune-more-aids');
+    this.aidsB.append(this.studioUi.aids);
+    this.aidsB.hidden = true;
     const panelB = this.block(set, 'Panel');
     const pb = this.mkBar();
     this.sizeSel = this.mkSel(pb, 'Size', TUNER_SIZES, (v) => this.setSize(v as TunerSize, true), 'size', 'anim-tune-size');
@@ -916,7 +975,14 @@ export class AnimTunePanel {
     );
     // (item 29) one column: the tabs, the playback bar (studio), the quick menu, the tab (its "what" row and sliders, then
     // More), the info line, the hints
-    el.append(head, this.tabBar, this.studioUi.bar, menu, body, infoEl, this.hint, this.dropList);
+    // (item 29 phase 2, the phone bug: the tabs and the playback bar scrolled away under the sticky header) the header,
+    // the tabs and the playback bar are one top block: sticky as a whole on a drawer / sheet, so they always show
+    const top = (this.top = document.createElement('div'));
+    top.className = 'tt-top';
+    top.append(head, this.tabBar, this.studioUi.bar);
+    el.append(top, menu, body, infoEl, this.hint, this.dropList);
+    // a scroll that brings a row into view keeps it clear of the sticky top block
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => this.syncTopPad()).observe(top);
     // (tuner-camera) every registered section, in registration order, into its tab
     for (const r of TUNE_SECTIONS) this.addSection(r, false);
     TUNE_REGISTRY_HOOKS.added = (r) => this.addSection(r, true);
@@ -1096,6 +1162,13 @@ export class AnimTunePanel {
         taps: this.touchLast.taps,
       }),
       fold: (v: boolean) => this.setFolded(v),
+      // (marlow-bays item 29) the loop's mode and, per section shown, the greyed rows (ids) and the reason line
+      effect: () => ({
+        mode: this.effMode,
+        sections: this.sections
+          .filter((s) => s.wrap.offsetParent !== null)
+          .map((s) => ({ id: s.reg.id, group: s.group, off: Array.from(s.rows.querySelectorAll<HTMLElement>('.tt-row.tt-off input[type=range]')).map((i) => i.dataset.id ?? ''), note: s.eff.hidden ? '' : (s.eff.textContent ?? '') })),
+      }),
       reveal: (key: string) => this.revealRow(key),
       // (item 29) More open / closed
       more: (open?: boolean) => {
@@ -1563,7 +1636,11 @@ export class AnimTunePanel {
     rows.className = `anim-tune-rows-${kind}`;
     rows.style.display = 'grid';
     rows.style.gap = '1px';
-    const sec: Section = { reg, pick, levels: [], rows, wrap, group: first, prefix };
+    // (item 29) the rows that do nothing in the loop playing now are greyed, this line says why
+    const eff = document.createElement('div');
+    eff.className = 'tt-note anim-tune-effect';
+    eff.hidden = true;
+    const sec: Section = { reg, pick, levels: [], rows, wrap, group: first, prefix, eff };
     for (let k = 0; k < nLev; k++) {
       const lv = k;
       sec.levels.push(this.mkSel(head, levelName(kind, k), [], (v) => this.pickLevel(sec, lv, v), `lv:${kind}:${k}`, `anim-tune-level anim-tune-level-${kind}-${k}`));
@@ -1578,7 +1655,7 @@ export class AnimTunePanel {
     // (marlow-bays T1a, items 15 and 18) the Keys tab: key back / forward (the picker follows), the readout, the Mirror
     // box and the hint, between the pickers and the sliders
     if (kind === 'keys') wrap.append(this.keysBlock());
-    wrap.append(rows);
+    wrap.append(eff, rows);
     this.tabEl(tabId).append(wrap);
     this.sections.push(sec);
     this.cand.push('');
@@ -1714,9 +1791,17 @@ export class AnimTunePanel {
 
   /** The slider rows of one section's group and its pickers (the pad's focus mark is put back on). */
   private rebuild(sec: Section): void {
+    // (marlow-bays item 29 phase 2, Michael: "when changing keys it returned the window to the top") a rebuild (a key
+    // stepped or picked, added or deleted, another state) keeps the panel's scroll and the focused slider
+    const sc = this.scroller();
+    const st = sc.scrollTop;
+    const act = document.activeElement as HTMLElement | null;
+    const fk = act && sec.rows.contains(act) ? act.dataset.pad : undefined;
     this.buildRows(sec);
     this.fillLevels(sec);
+    if (fk) sec.rows.querySelector<HTMLElement>(`[data-pad="${globalThis.CSS.escape(fk)}"]`)?.focus({ preventScroll: true });
     this.markPadFocus();
+    if (sc.scrollTop !== st) sc.scrollTop = st;
   }
 
   /**
@@ -1743,13 +1828,16 @@ export class AnimTunePanel {
       none.className = 'tt-note';
       none.textContent = this.changedOnly ? 'Nothing changed here.' : 'No sliders.';
       sec.rows.append(none);
+      sec.eff.hidden = true;
       this.refreshSel();
       return;
     }
     const labels: string[] = [];
     const byLabel = new Map<string, TuneTunable[]>();
+    // (item 29 phase 2) an armed row names the hands by their job (gun hand, support hand)
+    const roles = handRoles(kind, group);
     for (const t of list) {
-      const l = tuneTarget(kind, t.id, this.rowScratch).label || plainSection(kind, sec.reg.label);
+      const l = roleWords(tuneTarget(kind, t.id, this.rowScratch).label || plainSection(kind, sec.reg.label), roles);
       let g = byLabel.get(l);
       if (!g) {
         g = [];
@@ -1806,6 +1894,30 @@ export class AnimTunePanel {
     }
     // (marlow-bays item 10) the rows are new: the selected one is marked again
     this.refreshSel();
+    this.applyEffect(sec);
+  }
+
+  /**
+   * (marlow-bays item 29) The rows of `sec` that change nothing in the loop playing now (`tunerEffect.ts`, from the
+   * effect probe) greyed, with the reason in one line over them; they stay editable (the value applies to the other way
+   * of playing the state). No rebuild: classes only.
+   */
+  private applyEffect(sec: Section): void {
+    const why: string[] = [];
+    let n = 0;
+    for (const inp of Array.from(sec.rows.querySelectorAll<HTMLInputElement>('input[type=range][data-id]'))) {
+      const row = inp.closest<HTMLElement>('.tt-row');
+      if (!row) continue;
+      const r = sliderEffect(sec.reg.id, sec.group, inp.dataset.id ?? '', this.effMode);
+      row.classList.toggle('tt-off', r !== '');
+      if (r) {
+        row.dataset.off = r;
+        n++;
+        if (!why.includes(r)) why.push(r);
+      } else delete row.dataset.off;
+    }
+    sec.eff.hidden = n === 0;
+    sec.eff.textContent = n ? `Greyed (${n}): ${why.join('; ')}.` : '';
   }
 
   /** One slider row: name, slider, value (type a value, Enter), unit, reset; the grey notes under it. */
@@ -1818,7 +1930,9 @@ export class AnimTunePanel {
     row.title = `${t.label} (${t.id}, default ${t.def} ${t.unit})`;
     const name = document.createElement('span');
     name.className = 'tt-name';
-    name.textContent = plainLabel(kind, t.id, t.label);
+    name.textContent = roleWords(plainLabel(kind, t.id, t.label), handRoles(kind, group));
+    // (item 29 phase 2) the value in plain units (cm, degrees): `su.k` scales the stored value for the field only
+    const su = shownUnit(t.unit);
     const input = document.createElement('input');
     input.type = 'range';
     input.min = String(tuneMin(t));
@@ -1838,7 +1952,7 @@ export class AnimTunePanel {
       delete val.dataset.typing;
       const v = Number(val.value);
       if (val.value.trim() !== '' && Number.isFinite(v)) {
-        tuneSet(group, t.id, v);
+        tuneSet(group, t.id, v / su.k);
 
       }
       show();
@@ -1849,7 +1963,7 @@ export class AnimTunePanel {
     this.rowNum.set(input, val);
     const unit = document.createElement('span');
     unit.className = 'tt-unit';
-    unit.textContent = plainUnit(t.unit);
+    unit.textContent = su.unit;
     const x = document.createElement('button');
     x.type = 'button';
     x.textContent = '↺';
@@ -1858,7 +1972,7 @@ export class AnimTunePanel {
     const show = (): void => {
       const v = tuneGet(group, t.id);
       input.value = String(v);
-      if (val.dataset.typing !== '1') val.value = valueText(v, t.step);
+      if (val.dataset.typing !== '1') val.value = valueText(v * su.k, t.step * su.k);
       val.classList.toggle('chg', v !== t.def);
     };
     this.rowShow.set(input, show);
@@ -2019,14 +2133,16 @@ export class AnimTunePanel {
     const sc = this.scroller();
     const cr = sc.getBoundingClientRect();
     let top = cr.top;
-    if (sc === this.el) {
-      const hd = this.el.querySelector<HTMLElement>('.tt-head');
-      if (hd) top = Math.max(top, hd.getBoundingClientRect().bottom);
-    }
+    if (sc === this.el) top = Math.max(top, this.top.getBoundingClientRect().bottom);
     const over = body.getBoundingClientRect().bottom - cr.bottom;
     if (over <= 0) return;
     const d = Math.min(over, Math.max(0, h.getBoundingClientRect().top - top));
     if (d > 0) sc.scrollTop += d;
+  }
+
+  /** (item 29 phase 2) A drawer / sheet scrolls as a whole: a row brought into view stops under the sticky top block. */
+  private syncTopPad(): void {
+    this.el.style.scrollPaddingTop = this.layout.mode === 'desktop' ? '' : `${Math.ceil(this.top.getBoundingClientRect().height)}px`;
   }
 
   /** (item 29) More opened or closed (its header, A on it, the hook). */
@@ -2283,6 +2399,7 @@ export class AnimTunePanel {
       this.panelW = lay.width;
     }
     el.style.maxHeight = '';
+    this.syncTopPad();
     this.closeDrop();
     this.syncDock();
   }
@@ -2384,8 +2501,12 @@ export class AnimTunePanel {
    * (tuner-pad) The gamepad source's hook, every poll (seconds): returns true while the pad is the tuner's (the game and
    * the menus then get none of it). No allocation unless the focus, a value or the mode changes.
    */
-  padPoll(pad: Gamepad, now: number, dt: number): boolean {
-    this.lastPoll = performance.now();
+  padPoll(pad: Gamepad, _now: number, dt: number): boolean {
+    // (item 29 phase 2) the left stick's value change runs on real time: `dt` is the game's (0 while "Pause game while
+    // tuning" holds it, so the stick changed nothing in play)
+    const pnow = performance.now();
+    const rdt = this.lastPoll > 0 ? Math.min(0.1, Math.max(0, (pnow - this.lastPoll) / 1000)) : dt;
+    this.lastPoll = pnow;
     // (tuner-ui) the pause menu is open: the menus get the pad (every held button stays swallowed once it closes)
     if (this.open && this.menuPaused?.()) {
       this.pad.hold();
@@ -2399,7 +2520,7 @@ export class AnimTunePanel {
       const b = btns[i]!;
       if (b.pressed || b.value > 0.5) mask |= 1 << i;
     }
-    const o = this.pad.update(mask, pad.axes[0] ?? 0, pad.axes[1] ?? 0, now, dt);
+    const o = this.pad.update(mask, pad.axes[0] ?? 0, pad.axes[1] ?? 0, pnow / 1000, rdt);
     if (!this.open) return o.consume;
     // (pass 2) R3 held: the bypass
     if (o.bypass !== this.padBypass) {
@@ -2793,6 +2914,9 @@ export class AnimTunePanel {
   /** (tuner-ui) A camera snap that holds: the orbit keeps this angle to her facing until Unlock or another snap. The pad
    *  stays on the panel (View hands it to the camera). */
   private lockSnap(s: FreeSnap): void {
+    // (marlow-bays item 29 phase 2) Side pressed again swaps to her other side
+    if (s === 'side' && FREE_VIEW.lock === 'side') s = 'left';
+    else if (s === 'side' && FREE_VIEW.lock === 'left') s = 'side';
     FREE_VIEW.lock = s;
     FREE_VIEW.snap = s;
     if (FREE_VIEW.mode !== 'orbit') this.setFreeMode('orbit', false);
@@ -2807,9 +2931,41 @@ export class AnimTunePanel {
 
   private showLock(): void {
     const l = FREE_VIEW.lock;
-    this.lockLine.textContent = l ? `Locked: ${plainWords(l)}` : FREE_VIEW.mode === 'orbit' ? 'Not locked' : '';
+    this.lockLine.textContent = l ? `Locked: ${l === 'side' ? 'right side' : l === 'left' ? 'left side' : plainWords(l).toLowerCase()}` : FREE_VIEW.mode === 'orbit' ? 'Not locked' : '';
     this.unlockBtn.disabled = !l;
-    for (const [s, b] of this.snapBtns) b.classList.toggle('on', s === l);
+    for (const [s, b] of this.snapBtns) b.classList.toggle('on', s === l || (s === 'side' && l === 'left'));
+    const sb = this.snapBtns.get('side');
+    if (sb) sb.textContent = l === 'side' ? 'Side (right)' : l === 'left' ? 'Side (left)' : 'Side';
+  }
+
+  /** (item 29 phase 2) An orbit slider moved: the orbit starts if off, the game takes the value next frame. */
+  private setOrbit(k: 0 | 1 | 2, v: number): void {
+    if (FREE_VIEW.mode !== 'orbit') this.setFreeMode('orbit', false);
+    if (k === 0) FREE_SET.angle = v;
+    else if (k === 1) FREE_SET.tilt = v;
+    else FREE_SET.dist = v;
+    this.orbitShown[k] = Number.NaN;
+  }
+
+  /** (item 29 phase 2) The orbit sliders follow the orbit (a write only when the shown value changes; none while one is
+   *  held). */
+  private showOrbit(): void {
+    const on = FREE_ORBIT.on;
+    for (let k = 0; k < 3; k++) {
+      const r = this.orbitIn[k]!;
+      if (document.activeElement === r || this.pressing) continue;
+      const raw = !on ? Number.NaN : k === 0 ? FREE_ORBIT.angle : k === 1 ? FREE_ORBIT.tilt : FREE_ORBIT.dist;
+      const v = Number.isNaN(raw) ? Number.NaN : k === 2 ? Math.round(raw * 20) / 20 : Math.round(raw) % (k === 0 ? 360 : 1000);
+      if (v === this.orbitShown[k] || (Number.isNaN(v) && Number.isNaN(this.orbitShown[k]!))) continue;
+      this.orbitShown[k] = v;
+      const val = this.orbitVal[k]!;
+      if (Number.isNaN(v)) {
+        val.textContent = '–';
+        continue;
+      }
+      r.value = String(v);
+      val.textContent = `${k === 2 ? v.toFixed(2) : v}${val.dataset.unit ?? ''}`;
+    }
   }
 
   /** (tuner-camera) Slow motion: the running time scale (the fixed step stays). Frozen, it applies on resume. */
@@ -3005,7 +3161,9 @@ export class AnimTunePanel {
       this.showSpeed();
     }
     this.snaps.frame(nowMs);
+    this.showOrbit();
     this.studioUi.frame(nowMs, this.scene);
+    if (this.aidsB.hidden === STUDIO.active) this.aidsB.hidden = !STUDIO.active;
     this.keysFrame(nowMs);
     this.showSpot();
     // (marlow-bays T2) the studio's canvas beside the docked panel
@@ -3023,6 +3181,13 @@ export class AnimTunePanel {
       const st = se ? { loop: plainLoop(se.id, se.label), drawn: !!se.drawn || !!TUNE_STATE.gun, weapon: TUNE_STATE.gun ? (TUNE_STATE.gun.split('.')[0] ?? STUDIO.weapon) : STUDIO.weapon } : null;
       this.now.textContent = `Now: ${stanceText(TUNE_STATE.body, TUNE_STATE.gun, st)}${this.follow ? '' : ' · follow off'}${this.frozen ? ' · paused' : ''}`;
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed`;
+      // (marlow-bays item 29) the loop playing now: one of her keyed clips (the studio), a gun in hand or not; a change
+      // greys the rows that do nothing in it
+      const m = effectMode(!!se && se.kind === 'keyed' && studioBodyPin(se) !== '', se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun);
+      if (m !== this.effMode) {
+        this.effMode = m;
+        for (const s of this.sections) this.applyEffect(s);
+      }
     }
     // (marlow-bays item 10) the barrel and the selection share the overlay
     const k = this.selTarget.kind;

@@ -11,13 +11,13 @@ import { loadPlayLods, operatorRig, partnerFigureFrame, PLAYER_HEIGHT, type Oper
 import { GRAB } from './takedown';
 import { FREE_VIEW } from '../player/freeView';
 import { clearGripAxis } from '../player/attachGrips';
-import { TUNE_BODY } from '../anim/tune';
+import { TUNE_BODY, TUNE_PIN } from '../anim/tune';
 import { TUNE_FLAGS, TUNE_STATE_BAG } from '../anim/tuneRegistry';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 import { newStudioDrive } from '../anim/studioDrive';
 import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioBodyPin, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, type StudioEntry, type StudioInputOut } from '../anim/studio';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -266,6 +266,9 @@ export class StudioStage {
   frame(dt: number, look: { x: number; y: number }): void {
     const e = studioEntry(STUDIO.entry);
     this.configure(e);
+    // (marlow-bays item 29) a keyed clip of hers tunes with its own state (on the spot her pose alone says idle)
+    TUNE_PIN.body = this.drives ? studioBodyPin(e) : '';
+    TUNE_PIN.rig = this.host.player.rig;
     if (dt > 0 && this.drives && e.kind !== 'trav' && e.kind !== 'pair') look.x += studioInput(e, STUDIO.rootMotion, this.out, STUDIO.spot).turn * dt;
     const d = this.drive;
     if (e.kind === 'pair') {
@@ -656,6 +659,8 @@ export class StudioStage {
     const d = this.host.debug;
     d.animTune.setFreeMode('off');
     if (this.openedPanel && d.animTune.isOpen) d.animTune.hide();
+    TUNE_PIN.body = '';
+    TUNE_PIN.rig = null;
     studioReset();
   }
 }

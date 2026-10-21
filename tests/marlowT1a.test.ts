@@ -435,7 +435,7 @@ describe('T1a: plain names and the scene marker', () => {
   it('a twist is named as one; the new key fields have short plain names', () => {
     expect(plainLabel('joint', 'elbowR_y', '')).toBe('Right forearm twist');
     expect(plainLabel('joint', 'upperArmL_y', '')).toBe('Left upper arm twist');
-    expect(plainLabel('keys', 'armL_twist', '')).toBe('Left forearm twist');
+    expect(plainLabel('keys', 'armL_twist', '')).toBe('Left forearm twist, palm in');
     expect(plainLabel('keys', 'armR_twistUpper', '')).toBe('Right upper arm twist');
     expect(plainLabel('keys', 'armR_shPitch', '')).toBe('Right shoulder forward');
     expect(plainLabel('keys', 'head_yaw', '')).toBe('Head turn');

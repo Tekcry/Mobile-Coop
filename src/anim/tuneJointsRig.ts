@@ -11,7 +11,7 @@
  * so the output is bit-identical to the untuned rig. No allocation per frame.
  */
 import { ANIM_BASE, type AnimBaseData } from './animBase';
-import { BODY_GROUPS, selectBodyGroup, type TunePoseIn } from './tune';
+import { BODY_GROUPS, tuneBodyGroup, type TunePoseIn } from './tune';
 import { HAND_WEAPONS, handsBaseLoad, handsBeginRig, handsEnd, handsRigState, handsWeaponOf, type HandsRigIn, type HandsRigState } from './tuneHands';
 import { JOINT_ROWS, jointsBaseLoad, jointsBeginRig, jointsEnd, jointsRigState, type JointsRigState } from './tuneJoints';
 
@@ -49,7 +49,7 @@ const WEAPON_INDEX = Object.fromEntries(HAND_WEAPONS.map((w, i) => [w, i])) as R
 export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn, rig: TuneRigPick, dt: number): void {
   const armed = rig.heldWeapon !== null && rig.heldWeapon !== undefined;
   const ledge = rig.reachL.hook === 1 || rig.reachR.hook === 1;
-  const bg = selectBodyGroup(pose, ledge, armed);
+  const bg = tuneBodyGroup(pose, ledge, armed, rig); // (marlow-bays item 29) the studio's pin on her rig
   const gi = bg === null ? -1 : (BODY_INDEX[bg] ?? -1);
   const wi = WEAPON_INDEX[handsWeaponOf(rig)] ?? -1;
   st.body = bg ?? '';

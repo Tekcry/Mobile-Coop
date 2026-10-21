@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased - marlow-bays item 29 (tuner v3)
+- Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the
+  button hints), the screen size alone picks the dock, the side drawer or the bottom sheet. One column: tabs, the
+  playback bar, Part and State, folding slider groups, then More. The body map, search, recent and pinned sliders, the
+  Settings tab and the edit mode are gone. Pad: the left stick scrolls the lists and changes values, the right stick is
+  always the camera, the triggers zoom, the D-pad is optional; the state list's Up bug is fixed.
+- The highlight on her is a small dot with an off switch; the studio's green skeleton and foot marks start off
+  (More > View aids).
+- On phones the tabs and the playback bar stay at the top of the drawer and sheet while the panel scrolls.
+- Keyed clips: with Keyed ticked the Body, Joints, Limb reach, Hands & feet and gun rows now reach the clip (they did
+  nothing: the clip on the spot tuned the idle). Feet apart and Knee lift work on the keyed clip on the spot. Sliders
+  that do nothing in the loop playing now are greyed with the reason ("procedural only: the keyed clip is playing").
+- Plain words: values in cm and degrees, the hands of a gun stance named "Gun hand" and "Support hand", "Gun in the gun
+  hand" says the support hand follows the gun.
+- Camera: "Around her" (360 degrees), "Camera tilt" and "Distance" sliders in the View tab, in step with the stick,
+  the drag, the touch orbit and the snaps; Side pressed again swaps to her other side.
+- Changing keys (back, forward, pick, add, delete) keeps the panel's scroll and the focused slider.
+- Pad: the left stick changes values and scrolls while "Pause game while tuning" holds the game (it ran on game
+  time, so it did nothing in play).
+- The studio shows a foot slide line when the rig reports it (amber over 0.5 cm).
+- Game touch: tap every menu and the pause menu, drag on the game view to look around, an on-screen pause button after
+  a touch. No touch movement or combat.
+
 ## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
 - Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
   Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is

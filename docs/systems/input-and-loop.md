@@ -2,7 +2,16 @@
 Purpose: the fixed-step game loop, the action map and the gamepad and keyboard / mouse sources.
 Design authority: docs/DECISIONS.md (G16-G24, G96), then docs/design-bible.md (Sections 4 and 8).
 
-Desktop only: pad first, then keyboard and mouse (loco D1, G12). There is no touch input.
+Desktop only: pad first, then keyboard and mouse (loco D1, G12). No touch movement or combat (M21).
+
+Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchLook.ts` pure, wired in
+`InputManager`; e2e: `e2e-menus` "game touch"):
+- Every menu and the pause menu take a tap (FocusNav items are buttons: a tap is a click), the Back legend too.
+- In play one finger dragged on the game view looks around (`TouchLook`, `TOUCH_LOOK_RAD_PER_PX` x the mouse
+  sensitivity and invert). Camera only: a touch never moves, fires or aims, and never changes the input mode (the hint
+  glyphs stay). Not while the tuner has the pointer (its own touch camera).
+- An on-screen pause button (`.touch-pause`, top centre) shows in play only while the last input was a touch (body
+  class `touch-play`; a mouse press, a key or the pad hides it); a tap pauses. Hidden in the Anim Studio.
 
 ## Decided direction
 - Decided, not built yet (G96): CT's default pad layout, copied button for button. The CT prototype rebinds the table

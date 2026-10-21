@@ -8,6 +8,7 @@
  * input; leaving the studio resets it all (`studioReset`).
  */
 import type { KeyedClip } from './keyed';
+import type { BodyGroup } from './tune';
 import { stickMagFor } from '../player/speedGears';
 import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
@@ -210,6 +211,44 @@ export function studioEntry(id: string): StudioEntry {
 export type StudioWeapon = 'rifle' | 'pistol';
 export const STUDIO_WEAPONS: readonly StudioWeapon[] = ['rifle', 'pistol'];
 
+/** The tuner's body state of each keyed clip of Wren (the Keyed box's clip, a hold pair's clip). */
+export const CLIP_BODY: Readonly<Record<string, BodyGroup>> = {
+  idle: 'idle',
+  walk: 'walk',
+  jog: 'jog',
+  run: 'run',
+  ready_stance: 'lowReady',
+  glide_fwd: 'aim',
+  glide_strafe: 'aim',
+  glide_back: 'aim',
+  crouch_idle: 'crouchIdle',
+  sneak: 'sneak',
+  crouch_walk: 'crouchWalk',
+  crouch_run: 'crouchRun',
+  wall_idle: 'wallIdle',
+  wall_slide: 'wallSlide',
+  wall_peek: 'wallPeek',
+  wall_crouch_idle: 'wallCrouchIdle',
+  wall_crouch_slide: 'wallCrouchSlide',
+  wall_crouch_peek: 'wallCrouchPeek',
+  hold_idle: 'hold',
+  hold_fwd: 'hold',
+  hold_back: 'hold',
+  hold_side: 'hold',
+  hold_choke: 'hold',
+  hold_knife: 'hold',
+};
+
+/**
+ * (marlow-bays item 29) The body state Wren's rig tunes with while a loop plays ('' : chosen from her pose): a keyed clip
+ * of hers (and a hold pair) its own state, so the panel's sliders for that state reach the clip (on the spot the pose
+ * has no speed and alone would pick `idle`). A guard clip ('' : Wren stands by) and the procedural states are not pinned.
+ */
+export function studioBodyPin(e: StudioEntry): BodyGroup | '' {
+  if (e.guard || !e.clip || e.team || (e.kind !== 'keyed' && e.kind !== 'pair')) return '';
+  return CLIP_BODY[e.clip.name] ?? '';
+}
+
 /** (T1a) The weapon class a loop wants in hand ('' : holstered loops keep whatever is selected). */
 export function studioWeaponFor(e: StudioEntry, weapon: StudioWeapon): string {
   return e.drawn ? weapon : '';
@@ -233,8 +272,10 @@ export const STUDIO = {
   turntable: false,
   turnRate: 20 as number,
   guard: false,
-  skeleton: true,
-  feet: true,
+  /** (marlow-bays item 29 phase 2) The viewing aids start off (Michael: the green skeleton over her "is too distracting
+   *  and blocks the animation"); More > View aids turns them on. */
+  skeleton: false,
+  feet: false,
   onion: false,
   seek: Number.NaN,
   step: 0,

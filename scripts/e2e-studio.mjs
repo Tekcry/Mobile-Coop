@@ -42,6 +42,21 @@ try {
   }));
   assert(s0.map === 'studio' && s0.panel && s0.section, `the studio boots with the tuner panel and its Studio section (${JSON.stringify({ ...s0, entries: s0.entries.length })})`);
   assert(s0.entries.includes('keyed:walk') && s0.entries.includes('keyed:guard_choke_sag') && s0.entries.includes('state:aimStrafe'), `the loop list has the keyed clips and the states (${s0.entries.length})`);
+  // (marlow-bays item 29 phase 2) the green skeleton and feet over her start off; their switches are in More; the foot
+  // slide line (track C's `rig.footSlide`) shows only when her rig has the field
+  const av = await G(() => ({ ...window.__studio.aids(), slide: window.__studio.slide(), has: 'footSlide' in window.__app.current.player.rig }));
+  assert(!av.skeleton && !av.feet && !av.onion && av.inMore, `the view aids start off, in More (${JSON.stringify(av)})`);
+  assert(av.slide.shown === av.has && (!av.has || /^Foot slide L \d+\.\d cm {2}R \d+\.\d cm$/.test(av.slide.text)), `the foot slide line shows only with rig.footSlide (${JSON.stringify(av.slide)}, field ${av.has})`);
+  {
+    // a stand-in field (as S4 will add): the line shows, amber over 0.5 cm, and hides again without it
+    await G(() => (window.__app.current.player.rig.footSlide = { l: 0.2, r: 0.8 }));
+    await frames(page, 3);
+    const s1 = await G(() => window.__studio.slide());
+    await G(() => delete window.__app.current.player.rig.footSlide);
+    await frames(page, 3);
+    const s2 = await G(() => window.__studio.slide());
+    if (!av.has) assert(s1.shown && s1.text === 'Foot slide L 0.2 cm  R 0.8 cm' && s1.warn && !s2.shown, `a footSlide field shows the line amber over 0.5 cm, gone it hides (${JSON.stringify([s1, s2])})`);
+  }
 
   // a keyed clip in place: paused, one key forward moves the phase onto the next key ((marlow-bays T1a) the clip's own
   // keys: the walk's 4 keys and their mirrored half, 8 a cycle)
@@ -117,6 +132,31 @@ try {
   const c1 = await camRel();
   const turned = Math.abs(Math.atan2(Math.sin(c1.yaw - c0.yaw), Math.cos(c1.yaw - c0.yaw)));
   assert(c0.lock === 'side' && c0.pad === 'tuner' && turned > 0.3 && Math.abs(c1.rel - c0.rel) < 0.02, `a side snap holds the camera to her facing as she turns (the angle to the yaw the lock reads) (turned ${turned.toFixed(2)} rad, angle ${c0.rel.toFixed(3)} -> ${c1.rel.toFixed(3)}, pad ${c0.pad})`);
+  {
+    // (marlow-bays item 29 phase 2) Side pressed again swaps to her left; the orbit sliders put the camera at an angle
+    // around her (90 her right, 180 her front) and read back what the orbit shows
+    const angle = () => G(() => { const g = window.__app.current; const f = g.player.cam.free; const d = g.player.rig.root.rotation.y - f.yaw; const a = ((d * 180) / Math.PI) % 360; return { a: (a + 360) % 360, lock: window.__animTune.freeState().lock, btn: document.querySelector('.anim-tune-snap-side').textContent, slider: Number(document.querySelector('.anim-tune-orbit-angle').value) }; });
+    await G(() => { window.__animTune.unlock(); window.__animTune.lock('side'); });
+    await frames(page, 6);
+    const s1 = await angle();
+    await G(() => window.__animTune.lock('side'));
+    await frames(page, 6);
+    const s2 = await angle();
+    assert(s1.lock === 'side' && Math.abs(s1.a - 90) < 8 && s2.lock === 'left' && Math.abs(s2.a - 270) < 8 && /left/.test(s2.btn), `Side twice swaps sides (${s1.a.toFixed(1)}° ${s1.lock} -> ${s2.a.toFixed(1)}° ${s2.lock}, "${s2.btn}")`);
+    const setAngle = async (v) => {
+      await G((v) => { const r = document.querySelector('.anim-tune-orbit-angle'); r.value = String(v); r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')); }, v);
+      await frames(page, 8);
+      return angle();
+    };
+    const o90 = await setAngle(90);
+    const o180 = await setAngle(180);
+    assert(Math.abs(o90.a - 90) < 8 && Math.abs(o180.a - 180) < 8 && Math.abs(o180.slider - o180.a) <= 8, `the orbit slider at 90 / 180 puts the camera on her right / in front (${o90.a.toFixed(1)}°, ${o180.a.toFixed(1)}°, slider ${o180.slider})`);
+    // the slider follows a look turn (the right stick, a drag, the touch orbit)
+    await G(() => (window.__app.current.player.cam.free.relYaw += 0.5));
+    await frames(page, 30);
+    const back = await angle();
+    assert(Math.abs(back.slider - back.a) <= 8 && Math.abs(back.a - 180) > 20, `the orbit slider follows the camera (${back.slider} vs ${back.a.toFixed(1)}°)`);
+  }
   await G(() => window.__animTune.unlock());
   await G(() => window.__animTune.free('off'));
 
@@ -386,7 +426,9 @@ try {
     const l1 = await tp();
     await press(page, BTN.B);
     assert(l0.list && l1.list && l1.listIndex === l0.listIndex + 1, `the left stick down moves the list highlight (${l0.listIndex} -> ${l1.listIndex})`);
-    await G(() => window.__pad.disconnect());
+    // (phase 2) back to keyboard / mouse first: a pad dropping out in pad mode opens the pause menu (it stayed open and
+    // stopped the later live-play checks)
+    await G(() => { window.__app.input.setMode('kbm'); window.__pad.disconnect(); });
     await frames(page, 3);
   }
   // the Joints part, every part shown: groups fold; a header opens its group and closes it again
@@ -421,8 +463,34 @@ try {
   const kd1 = await drive();
   const kf1 = (await st()).frames;
   assert(k1.checked && k1.entry === 'keyed:walk' && kd1?.clip === 'walk' && kf1 > 0, `ticked: the walk plays its keyed clip (${JSON.stringify(k1)}, drive ${JSON.stringify(kd1)}, ${kf1} keys)`);
+  // (marlow-bays item 29 phase 2, Michael: "with Keyed ticked the Body sliders do nothing") the keyed walk on the spot
+  // tunes with the walk's rows (it was idle: no speed), and the Body tab greys the sliders that do nothing in it
+  await G(() => window.__animTune.tab('body'));
+  await frames(page, 20);
+  const ke1 = await G(() => ({ st: { ...window.__animTune.state }, eff: window.__animTune.effect() }));
+  const kb1 = ke1.eff.sections.find((s) => s.id === 'body');
+  assert(ke1.st.body === 'walk' && ke1.st.joint === 'joint.walk' && ke1.st.ik === 'ik.walk', `keyed walk: her rig tunes with the walk (${ke1.st.body}, ${ke1.st.joint}, ${ke1.st.ik})`);
+  assert(ke1.eff.mode === 'keyed' && kb1?.group === 'walk' && kb1.off.includes('strideMul') && !kb1.off.includes('armSwingMul') && /procedural only: the keyed clip is playing/.test(kb1.note), `keyed walk: Step length greyed, Arm swing not, the reason shown (${JSON.stringify(kb1)})`);
+  // a Joints slider moves the keyed walk (the probe's fix, live): her right elbow turns
+  const elbow = () => G(() => { const q = window.__app.current.player.rig.elbowR.rotationQuaternion; return [q.x, q.y, q.z, q.w]; });
+  // (the offsets ease in while she plays; the pose is compared paused at one phase)
+  const atPhase = async () => {
+    await G(() => window.__studio.seek(0.25));
+    await frames(page, 4);
+    return elbow();
+  };
+  const e0 = await atPhase();
+  await G(() => { window.__animTune.set('joint.walk', 'elbowR_x', 30); window.__studio.play(); });
+  await frames(page, 30);
+  const e1 = await atPhase();
+  await G(() => { window.__animTune.set('joint.walk', 'elbowR_x', 0); window.__studio.play(); });
+  const turnedEl = Math.max(...e0.map((v, i) => Math.abs(v - e1[i])));
+  assert(turnedEl > 0.05, `keyed walk: the Joints elbow slider turns her elbow (${turnedEl.toFixed(3)})`);
+  await G(() => window.__animTune.tab('view'));
   await G(() => window.__studio.keyed(false));
   await frames(page, 8);
+  const ke2 = await G(() => window.__animTune.effect());
+  assert(ke2.mode === 'procedural', `cleared: the procedural mode (${ke2.mode})`);
   const k2 = await G(() => window.__studio.keyedState());
   const kd2 = await drive();
   const kf2 = (await st()).frames;
@@ -537,6 +605,26 @@ try {
   await page.keyboard.press('F1');
   await frames(page, 12);
   assert((await st()).key === 4, `F1 steps back (${(await st()).key})`);
+  {
+    // (marlow-bays item 29 phase 2, Michael: "when changing keys it returned the window to the top") scrolled down with a
+    // slider focused, two key steps keep the scroll and the focus
+    const pre = await G(() => {
+      const sc = document.querySelector('.anim-tune-body');
+      for (const h of document.querySelectorAll('.anim-tune-sec-keys .tt-grp:not(.open)')) h.click();
+      const rs = [...document.querySelectorAll('.anim-tune-rows-keys input[type=range]')].filter((r) => r.offsetParent);
+      const r = rs[Math.min(rs.length - 1, 12)];
+      sc.scrollTop = Math.max(0, r.closest('.tt-row').offsetTop - 80);
+      r.focus({ preventScroll: true });
+      return { st: sc.scrollTop, max: sc.scrollHeight - sc.clientHeight, pad: r.dataset.pad };
+    });
+    await G(() => window.__animTune.keysStep(1));
+    await frames(page, 8);
+    await G(() => window.__animTune.keysStep(1));
+    await frames(page, 8);
+    const post = await G(() => ({ st: document.querySelector('.anim-tune-body').scrollTop, pad: document.activeElement?.dataset?.pad ?? '' }));
+    assert(pre.st > 50 && Math.abs(post.st - pre.st) <= 24 && post.pad === pre.pad, `two key steps keep the scroll (within a line: the key readout above may wrap) and the focused slider (${JSON.stringify({ pre, post })})`);
+    await G(() => document.activeElement?.blur());
+  }
   // the edited bone is marked: the forearm twist's row marks the forearm
   await G(() => window.__animTune.select('s:keys:armR_twist'));
   await frames(page, 4);
