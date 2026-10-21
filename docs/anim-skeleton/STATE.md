@@ -1,10 +1,14 @@
 # anim-skeleton - state
 
 ## Now
-S1+S2 PR to master (orchestrator: ship now; hands close on the rifle); full e2e on the laptop, queued after #87 and the phone layout.
+S1+S2 PR #88 (head c74c27a9); full e2e on the laptop queued after #87. S3a (runtime clip channels `clav` / `fing` /
+`leg`, the FK leg blend, the build.mjs emitter) building in the helper worktree `C:/NightShift/Mobile-Coop-anim-skeleton-s3`
+on `feature/anim-skeleton-s3` (cut from c74c27a9; merged into this branch after #88 lands).
 
 ## Next
-S3 (clip channels) after #87 (key timing) merges, built on it; rebase on item 25 (parked until after the 23:00 reset). Lean until 23:00: one agent at a time.
+S3b (key_clip.py, the `skeleton_test` key file, a studio entry) after #87 (key timing) merges, built on it; rebase on
+item 25 later. Lean mode lifted: check the 5-hour meter before each agent; at 98% stop at a clean commit and tell the
+orchestrator.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger
