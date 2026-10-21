@@ -1,6 +1,6 @@
 # Animation and controls rework - state
 
-Updated 2026-10-21 08:32 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
+Updated 2026-10-21 11:40 Sydney. Branch feature/ct-prototype (folder C:/NightShift/Mobile-Coop-ct-prototype), merged
 with master 4.14.1 and the side branches #38 / #40 (anim-metrics), #39 (anim-rig), #41 (anim-guard). Brief `BRIEF.md`
 (Michael 13:30-13:40, M1-M5, A1-A3), plan `PLAN.md` (slices 1-6 and the wide-stance findings), metrics `METRICS.md`,
 rig `RIG.md`.
@@ -10,6 +10,19 @@ New local session, Opus. Paste:
 ```
 CT Core Build: RESUME anim-rework. Work only in C:\NightShift\Mobile-Coop-ct-prototype on feature/ct-prototype (git pull --ff-only). Read CLAUDE.md ("Sessions"), docs/ROADMAP.md, docs/anim-rework/BRIEF.md, PLAN.md and STATE.md (this file), then carry on from STATE "Now". CT Core has first claim on the desktop lock; before any heavy run check C:/NightShift/heavy.lock, write your line while you run, delete it after; send long logic suites (e2e-ctcourse, e2e-coop, e2e-netmove, full e2e) with the exact commit to "Night Shift | Character Build" (laptop). Each slice: Opus implementer from the brief, Opus independent check, one fix round, npm run check, desktop e2e:quick + laptop co-op suites solo, a contact sheet for Michael, /ct/, a small PR to master the orchestrator merges. Report to "Night Shift | Orchestrator". No em dashes.
 ```
+
+## Pause (2026-10-21 ~11:10, account switch): CT Core resume point
+- In flight: PR #79 (feature/gl-warning-fix @ 005a4cfa, Menu Notes) npm run check + full e2e, run by CT Core as the
+  desktop test runner (laptop was offline) from the detached worktree C:/NightShift/Mobile-Coop-testrun-desktop with
+  scratchpad testrun.sh (E2E_PORT=4191 E2E_JOBS=2 E2E_SUITE_TIMEOUT=1500). Summary: C:/NightShift/scratch/runs/
+  desktop-pr79-005a4cfa/summary.txt (check.log, e2e.log beside it). It removes its heavy.lock line
+  ("CT Core Build | test runner pr79-005a4cfa") when it ends. NEXT SESSION: if that line is still in
+  C:/NightShift/heavy.lock and no node / e2e process runs from Mobile-Coop-testrun-desktop, the run died with the old
+  session: delete the line, then report the summary (or "did not finish") to Menu Notes and the orchestrator.
+- #67 (S2b) parked: see the S2b line below and "## #67 parked" in S2B-REPORT.md on feature/anim-s2b (6c96715f).
+- #77 (no-aim-assist) green on the laptop, for the orchestrator to merge (docs/no-aim-assist/STATE.md).
+- #80 tuner-ui: the laptop runs it, not CT Core.
+- After the switch: CT Core is idle unless the orchestrator sends work.
 
 ## Now
 - Movement slices are off (Michael 2026-10-21: "Turn off movement slices and any research"); CT Core does tool support.
