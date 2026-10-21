@@ -5,6 +5,13 @@
 // studio row inside the studio; leaving to the main menu puts the time scale back to 1 and leaves no studio state.
 // (tuner-ui) Picking a loop sets the tuner's state; a walk state on the spot keeps its root in place while the gait runs;
 // a side snap holds the camera to her facing while she turns; the pause menu stops a moving loop.
+// (marlow-bays slice T) Keyboard and mouse: the open tuner leaves the pointer free in drag view (the default); a left
+// drag on the scene turns the camera; F4 and the header button switch to the game camera and back. A row picked by the
+// mouse is marked in the panel and moves the scene marker to its joint; the camera tab has no body marker. The Keyed box
+// plays the state's keyed clip and, cleared, the procedural state. A moving state picked in the Body tab's Joints list
+// plays its loop; on the spot (the header toggle, F8) she holds her root over 2 s of play, off she walks.
+// (marlow-bays item 14) The stage lights (key, fill, rim, ambient) light her meshes, keep their offset in her frame as
+// she walks, and the Stage light slider scales them.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -143,6 +150,184 @@ try {
   await frames(page, 4);
   const home = await G(() => { const p = window.__app.current.player.position; return { x: p.x, z: p.z, att: window.__app.current.traversal.attached }; });
   assert(Math.hypot(home.x - 14, home.z - 14) < 0.5 && !home.att, `back in the middle, off the ladder (${home.x.toFixed(2)}, ${home.z.toFixed(2)})`);
+
+  // (marlow-bays item 9) the mouse mode: drag view by default, no pointer lock
+  await G(() => window.__animTune.free('off'));
+  await frames(page, 3);
+  const mm0 = await G(() => ({ ...window.__animTune.mouse(), lockEl: !!document.pointerLockElement, gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
+  assert(mm0.mode === 'drag' && mm0.free && !mm0.locked && !mm0.lockEl && !mm0.gamecam && mm0.button === 'Mouse: drag view', `tuner open: drag view, the pointer free (${JSON.stringify(mm0)})`);
+  // a point on the scene, clear of the panel and the overlay
+  const at = await G(() => {
+    const c = window.__app.canvas;
+    const r = c.getBoundingClientRect();
+    for (const [fx, fy] of [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]]) {
+      const x = r.left + r.width * fx;
+      const y = r.top + r.height * fy;
+      if (document.elementFromPoint(x, y) === c) return { x, y };
+    }
+    return null;
+  });
+  assert(!!at, 'a point on the scene clear of the panel');
+  const camYaw = () => G(() => window.__app.current.player.cam.camera.rotation.y);
+  const y0 = await camYaw();
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.move(at.x + 80, at.y, { steps: 4 });
+  const midDrag = await G(() => window.__animTune.mouse().dragging);
+  await page.mouse.move(at.x + 160, at.y, { steps: 4 });
+  await page.mouse.up();
+  await frames(page, 4);
+  const y1 = await camYaw();
+  const dYaw = Math.abs(Math.atan2(Math.sin(y1 - y0), Math.cos(y1 - y0)));
+  const mm1 = await G(() => ({ ...window.__animTune.mouse(), lockEl: !!document.pointerLockElement }));
+  assert(midDrag && dYaw > 0.1 && !mm1.dragging && !mm1.lockEl, `a left drag on the scene turns the camera, no capture (${dYaw.toFixed(3)} rad, dragging mid-drag ${midDrag})`);
+  // the header button: the game camera (the panel ignores the mouse but this button); F4: back to drag view; F4 twice
+  await page.click('.anim-tune .anim-tune-mouse');
+  await frames(page, 2);
+  const mm2 = await G(() => ({ ...window.__animTune.mouse(), gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
+  assert(mm2.mode === 'game' && !mm2.free && mm2.gamecam && mm2.button === 'Mouse: game camera', `the header button switches to the game camera (${JSON.stringify(mm2)})`);
+  await page.keyboard.press('F4');
+  await frames(page, 2);
+  const mm3 = await G(() => ({ ...window.__animTune.mouse(), gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
+  assert(mm3.mode === 'drag' && mm3.free && !mm3.gamecam && mm3.button === 'Mouse: drag view', `F4: back to drag view (${JSON.stringify(mm3)})`);
+  await page.keyboard.press('F4');
+  await frames(page, 2);
+  const mm4 = (await G(() => window.__animTune.mouse())).mode;
+  await page.keyboard.press('F4');
+  await frames(page, 2);
+  const mm5 = await G(() => window.__animTune.mouse());
+  assert(mm4 === 'game' && mm5.mode === 'drag' && mm5.free, `F4 toggles the mode (${mm4}, then ${mm5.mode})`);
+
+  // (marlow-bays item 10) a row picked by the mouse: marked in the panel, the scene marker on its joint
+  await G(() => {
+    window.__animTune.tab('body');
+    const sel = document.querySelector('.anim-tune-part-body');
+    sel.value = 'joint';
+    sel.dispatchEvent(new Event('change'));
+  });
+  await frames(page, 2);
+  const clickRow = async (key) => {
+    const p = await G((k) => {
+      const inp = document.querySelector(`.anim-tune input[data-pad="${k}"]`);
+      const name = inp?.closest('[data-pad-row]')?.querySelector('.tt-name');
+      if (!name) return null;
+      name.scrollIntoView({ block: 'center' });
+      const r = name.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, key);
+    assert(!!p, `the row ${key} is shown`);
+    await page.mouse.click(p.x, p.y);
+    await frames(page, 4);
+    return G(() => window.__animTune.selected());
+  };
+  const s1 = await clickRow('s:joint:elbowR_x');
+  const mark1 = await G(() => !!document.querySelector('.anim-tune .tt-row.tt-sel input[data-pad="s:joint:elbowR_x"]'));
+  assert(s1.section === 'joint' && s1.kind === 'joint' && s1.a === 'elbowR' && s1.row && mark1 && s1.line.includes('Right elbow'), `a picked row is marked and names its joint (${JSON.stringify({ ...s1, mark: undefined })})`);
+  assert(s1.mark.shown && !(await G(() => document.querySelector('.anim-tune-marker-overlay').hidden)), `the scene marker shows on the right elbow (${JSON.stringify(s1.mark)})`);
+  const s2 = await clickRow('s:joint:kneeL_x');
+  const moved2 = Math.hypot(s2.mark.ax - s1.mark.ax, s2.mark.ay - s1.mark.ay);
+  const one = await G(() => document.querySelectorAll('.anim-tune .tt-row.tt-sel').length);
+  assert(s2.a === 'kneeL' && s2.row && s2.mark.shown && moved2 > 5 && one === 1, `another row moves the marker to its joint (${s2.a}, ${moved2.toFixed(1)} px, ${one} row marked)`);
+  await G(() => window.__animTune.tab('camera'));
+  await frames(page, 3);
+  const s3 = await G(() => window.__animTune.selected());
+  assert(s3.kind === 'camera' && !s3.mark.shown, `the camera tab: no body marker (${s3.kind}, ${s3.mark.shown})`);
+  await G(() => window.__animTune.tab('view'));
+
+  // (marlow-bays item 11) the Keyed box: the state's keyed clip, cleared the procedural state
+  await G(() => window.__studio.pick('state:walk'));
+  await frames(page, 4);
+  const k0 = await G(() => window.__studio.keyedState());
+  assert(!k0.checked && !k0.disabled, `a state with a keyed clip: the box clear and enabled (${JSON.stringify(k0)})`);
+  await G(() => window.__studio.keyed(true));
+  await frames(page, 8);
+  const k1 = await G(() => window.__studio.keyedState());
+  const kd1 = await drive();
+  const kf1 = (await st()).frames;
+  assert(k1.checked && k1.entry === 'keyed:walk' && kd1?.clip === 'walk' && kf1 > 0, `ticked: the walk plays its keyed clip (${JSON.stringify(k1)}, drive ${JSON.stringify(kd1)}, ${kf1} keys)`);
+  await G(() => window.__studio.keyed(false));
+  await frames(page, 8);
+  const k2 = await G(() => window.__studio.keyedState());
+  const kd2 = await drive();
+  const kf2 = (await st()).frames;
+  assert(!k2.checked && k2.entry === 'state:walk' && kd2 === null && kf2 === 0, `cleared: the procedural walk (${JSON.stringify(k2)}, drive ${JSON.stringify(kd2)}, ${kf2} keys)`);
+  await G(() => window.__studio.pick('keyed:wall_idle'));
+  await frames(page, 3);
+  const k3 = await G(() => window.__studio.keyedState());
+  assert(k3.checked && k3.disabled, `a keyed-only clip: ticked and greyed (${JSON.stringify(k3)})`);
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
+  // (marlow-bays item 13) a moving state picked in a non-View tab plays its loop; on the spot holds her root in live play
+  await G(() => window.__studio.spot(true));
+  await G(() => {
+    window.__animTune.tab('body');
+    const part = document.querySelector('.anim-tune-part-body');
+    part.value = 'joint';
+    part.dispatchEvent(new Event('change'));
+    const lv = document.querySelector('.anim-tune-level-joint-0');
+    lv.value = 'walk';
+    lv.dispatchEvent(new Event('change'));
+  });
+  await frames(page, 4);
+  const t13 = await G(() => ({ entry: window.__studio.state().entry, tab: window.__animTune.pad().tab, spotBtn: document.querySelector('.anim-tune-spot')?.textContent ?? '', shown: !document.querySelector('.anim-tune-spot')?.hidden }));
+  assert(t13.entry === 'state:walk' && t13.tab === 'body' && t13.shown && t13.spotBtn === 'On the spot: on', `a state picked in the Joints list plays its loop, the tab stays, the header shows on the spot (${JSON.stringify(t13)})`);
+  // two seconds of game time in live play (not stepped)
+  const simFor = async (sec) => {
+    const t0 = await G(() => window.__app.current.time);
+    for (let i = 0; i < 300; i++) {
+      await frames(page, 5);
+      if ((await G(() => window.__app.current.time)) - t0 >= sec) break;
+    }
+    return (await G(() => window.__app.current.time)) - t0;
+  };
+  const q0 = await pos();
+  const sim1 = await simFor(2);
+  const q1 = await pos();
+  const drift = Math.hypot(q1.x - q0.x, q1.z - q0.z);
+  assert(sim1 >= 2 && drift < 0.05 && q1.v > 0.8, `on the spot the walk holds her root in live play (${drift.toFixed(3)} m over ${sim1.toFixed(2)} s, speed ${q1.v.toFixed(2)} m/s)`);
+  await page.keyboard.press('F8');
+  await frames(page, 2);
+  const o13 = await G(() => ({ spot: window.__studio.state().spot, btn: document.querySelector('.anim-tune-spot').textContent }));
+  const stage = () => G(() => ({ lights: window.__studioStage.lights(), root: window.__studioStage.root() }));
+  // a light's offset in her frame (forward, right, up)
+  const local = (l, r) => {
+    const dx = l.x - r.x;
+    const dz = l.z - r.z;
+    const s = Math.sin(r.yaw);
+    const c = Math.cos(r.yaw);
+    return { f: dx * s + dz * c, r: dx * c - dz * s, u: l.y - r.y };
+  };
+  const L0 = await stage();
+  const q2 = await pos();
+  const sim2 = await simFor(2);
+  const q3 = await pos();
+  const L1 = await stage();
+  const offs = L0.lights.map((l, i) => {
+    const a = local(l, L0.root);
+    const b = local(L1.lights[i], L1.root);
+    return Math.hypot(a.f - b.f, a.r - b.r, a.u - b.u);
+  });
+  const rootMoved = Math.hypot(L1.root.x - L0.root.x, L1.root.z - L0.root.z);
+  assert(
+    L0.lights.length === 4 && L0.lights.every((l) => l.enabled && l.meshes > 0 && l.intensity > 0) && rootMoved > 0.5 && offs.every((d) => d < 0.1),
+    `the stage lights light her and follow her root (${L0.lights.map((l) => `${l.name} ${l.intensity.toFixed(2)} on ${l.meshes}`).join(', ')}; root moved ${rootMoved.toFixed(2)} m; offset change ${offs.map((d) => d.toFixed(3)).join(' ')})`,
+  );
+  await G(() => window.__studio.stageLight(0.5));
+  await frames(page, 3);
+  const L2 = await stage();
+  await G(() => window.__studio.stageLight(1));
+  await frames(page, 3);
+  const L3 = await stage();
+  assert(L2.lights.every((l, i) => Math.abs(l.intensity - L3.lights[i].intensity * 0.5) < 1e-6) && L3.lights[0].intensity > 0, `the Stage light slider scales them (key ${L3.lights[0].intensity.toFixed(2)} -> ${L2.lights[0].intensity.toFixed(2)} at 0.5)`);
+  const walked = Math.hypot(q3.x - q2.x, q3.z - q2.z);
+  assert(!o13.spot && o13.btn === 'On the spot: off' && walked > 0.5, `F8: on the spot off, she walks (${walked.toFixed(2)} m over ${sim2.toFixed(2)} s, ${JSON.stringify(o13)})`);
+  await page.click('.anim-tune .anim-tune-spot');
+  await frames(page, 2);
+  assert((await st()).spot, 'the header button turns on the spot back on');
+  await G(() => window.__animTune.tab('view'));
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
 
   // undo a slider change
   const T = () => G(() => window.__animTune.get('walk', 'trackMul'));

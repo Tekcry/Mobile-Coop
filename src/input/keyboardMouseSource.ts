@@ -27,6 +27,13 @@ export class KeyboardMouseSource {
   adsActive = false;
   /** Called when the capture is lost during gameplay (not when the game released it). */
   onLockLost: (() => void) | null = null;
+  /** (marlow-bays item 9) Asked first when the capture is lost in play: true = handled (the animation tuner's game
+   *  camera drops back to its drag view), so `onLockLost` (the pause) is skipped. */
+  lockLostHook: (() => boolean) | null = null;
+  /** (marlow-bays item 9) The tuner's drag view: the pointer stays free in play (`setFreeMouse`). */
+  private freeMouse = false;
+  /** The pointer dragging the view (-1 none). */
+  private dragId = -1;
   private releasing = false;
   private wheelT = 0;
   private hint: HTMLElement;
@@ -57,6 +64,7 @@ export class KeyboardMouseSource {
     window.addEventListener('keydown', (e) => this.onKey(e, true));
     window.addEventListener('keyup', (e) => this.onKey(e, false));
     window.addEventListener('blur', () => {
+      this.dragId = -1;
       this.keys.clear();
       this.state.releaseSource(SRC);
       this.state.releaseSource(SRC + 'm');
@@ -88,6 +96,19 @@ export class KeyboardMouseSource {
     canvas.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'mouse') return;
       this.onActive();
+      // (marlow-bays item 9) the tuner's drag view: a left press on the scene starts a view drag; no button fires,
+      // aims or captures the mouse
+      if (this.freeMouse) {
+        if (e.button === 0) {
+          this.dragId = e.pointerId;
+          try {
+            canvas.setPointerCapture(e.pointerId);
+          } catch {
+            /* the drag still runs while the pointer stays over the canvas */
+          }
+        }
+        return;
+      }
       const extra = e.button === 1 ? 'Mouse1' : e.button === 3 ? 'Mouse3' : e.button === 4 ? 'Mouse4' : '';
       if (extra && this.locked) {
         this.syncBinds();
@@ -105,6 +126,10 @@ export class KeyboardMouseSource {
     });
     window.addEventListener('pointerup', (e) => {
       if (e.pointerType !== 'mouse') return;
+      if (e.pointerId === this.dragId && e.button === 0) {
+        this.dragId = -1;
+        return;
+      }
       const extra = e.button === 1 ? 'Mouse1' : e.button === 3 ? 'Mouse3' : e.button === 4 ? 'Mouse4' : '';
       if (extra) for (const a of this.map.get(extra) ?? []) this.state.set(SRC + 'm', a, false);
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', false);
@@ -113,7 +138,14 @@ export class KeyboardMouseSource {
     // (step 09) a second button pressed or released while another is held fires no pointerdown / pointerup
     // (chorded buttons arrive as a pointermove with `button` set): RMB held to aim, then LMB to fire
     window.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse' || e.button < 0 || !this.locked) return;
+      if (e.pointerType !== 'mouse') return;
+      // (marlow-bays item 9) the tuner's view drag reads pointer events: the engine cancels the canvas pointerdown, and a
+      // cancelled pointerdown stops the browser's compatibility mouse events (mousemove too) until the button is up
+      if (this.freeMouse && e.pointerId === this.dragId && !this.locked) {
+        this.mouseLook(e.movementX, e.movementY);
+        return;
+      }
+      if (e.button < 0 || !this.locked) return;
       const bit = e.button === 0 ? 1 : e.button === 1 ? 4 : e.button === 2 ? 2 : 1 << e.button;
       const down = (e.buttons & bit) !== 0;
       const extra = e.button === 1 ? 'Mouse1' : e.button === 3 ? 'Mouse3' : e.button === 4 ? 'Mouse4' : '';
@@ -124,11 +156,9 @@ export class KeyboardMouseSource {
       if (e.button === 0) this.state.set(SRC + 'm', 'fire', down);
       if (e.button === 2) this.state.set(SRC + 'm', 'ads', down);
     });
+    canvas.addEventListener('lostpointercapture', () => (this.dragId = -1));
     window.addEventListener('mousemove', (e) => {
-      if (!this.locked) return;
-      const s = this.getSettings().mouse;
-      const k = MOUSE_RAD_PER_PX * s.sensitivity * (this.adsActive ? s.adsMultiplier : 1);
-      this.state.addLook(e.movementX * k, (s.invertY ? 1 : -1) * e.movementY * k);
+      if (this.locked) this.mouseLook(e.movementX, e.movementY);
     });
     canvas.addEventListener(
       'wheel',
@@ -148,7 +178,7 @@ export class KeyboardMouseSource {
       if (!locked) {
         // buttons held through the capture loss are let go
         this.state.releaseSource(SRC + 'm');
-        if (this.wantPointerLock && !this.releasing) this.onLockLost?.();
+        if (this.wantPointerLock && !this.releasing && !this.lockLostHook?.()) this.onLockLost?.();
       }
       this.releasing = false;
       this.refreshHint();
@@ -165,7 +195,7 @@ export class KeyboardMouseSource {
    * for a moment after the user released it with Esc; a refusal just leaves the hint up.
    */
   requestLock(): void {
-    if (this.locked) return;
+    if (this.locked || this.freeMouse) return;
     try {
       // raw input (no OS pointer acceleration) where the browser has it; a refusal falls back to plain capture
       const raw = this.getSettings().mouse.raw && !this.rawUnsupported;
@@ -194,7 +224,41 @@ export class KeyboardMouseSource {
 
   /** "Click to capture the mouse" while a match wants the mouse and it is free (keyboard / mouse only). */
   refreshHint(): void {
-    this.hint.hidden = !(this.wantPointerLock && !this.locked && document.body.classList.contains('input-kbm'));
+    this.hint.hidden = !(this.wantPointerLock && !this.freeMouse && !this.locked && document.body.classList.contains('input-kbm'));
+  }
+
+  /**
+   * (marlow-bays item 9) The animation tuner's drag view on / off. On: the capture is released and never requested, the
+   * hint stays hidden, the buttons on the scene neither fire nor aim, and a left drag on the canvas is the look. Off:
+   * play's own locking again (requested now in a match by keyboard and mouse: the key or click that turned it off is the
+   * gesture; a refusal leaves the "click to capture" hint).
+   */
+  setFreeMouse(on: boolean): void {
+    if (on === this.freeMouse) return;
+    this.freeMouse = on;
+    this.dragId = -1;
+    if (on) {
+      this.state.releaseSource(SRC + 'm');
+      this.releasePointerLock();
+    } else if (this.wantPointerLock && document.body.classList.contains('input-kbm')) this.requestLock();
+    this.refreshHint();
+  }
+
+  /** Mouse pixels to the look (the settings' sensitivity, the aim multiplier, invert Y): the captured look and the
+   *  tuner's view drag. */
+  private mouseLook(dx: number, dy: number): void {
+    const s = this.getSettings().mouse;
+    const k = MOUSE_RAD_PER_PX * s.sensitivity * (this.adsActive ? s.adsMultiplier : 1);
+    this.state.addLook(dx * k, (s.invertY ? 1 : -1) * dy * k);
+  }
+
+  /** The pointer is free for the tuner (drag view), and a view drag is held. */
+  get mouseFree(): boolean {
+    return this.freeMouse;
+  }
+
+  get dragging(): boolean {
+    return this.dragId >= 0;
   }
 
   /** Rebinding: hand the next key or extra mouse button to `cb` (Esc: null, Backspace / Delete: ''). */
