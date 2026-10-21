@@ -21,7 +21,8 @@ describe('anim-skeleton: bit identity of the pre-T3 joints (A5)', () => {
     expect(existsSync(FIXTURE)).toBe(true);
     const want = JSON.parse(readFileSync(FIXTURE, 'utf8')) as IdentityFixture;
     const got = await runIdentity();
-    expect(Object.keys(got).sort()).toEqual(Object.keys(want).sort());
+    // every pre-T3 scenario is still run; clips added after the capture (skeleton_test, S3b) are not part of it
+    for (const id of Object.keys(want)) expect(got[id], `${id} still runs`).toBeDefined();
     expect(Object.keys(got).length).toBeGreaterThanOrEqual(28 + 10 + 1);
     for (const id of Object.keys(want)) {
       const w = want[id]!;

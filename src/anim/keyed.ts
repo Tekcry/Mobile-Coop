@@ -15,8 +15,8 @@
  *   nodes in the chest frame (a shrug, a shoulder pushed forward); `fing` (20, A6): per hand L then R, per finger thumb
  *   .. little, [curl, spread] added to the grip's shape (anim/fingers.ts units: curl 1 = closed, spread 1 = 30 deg);
  *   `leg` (22, A7): per side L then R (11 each, `KL`): the hip's local quaternion (4, under the pelvis), the knee flex
- *   (1, rad, + bends the shin back), the ankle's local quaternion (4, under the knee), the toe (1, rad, + up, as the toe
- *   roll), the FK weight (1, 0..1: 0 the foot planner's IK leg as without the channel, 1 the clip's FK leg). A clip
+ *   (1, rad, + bends the shin back), the ankle's local quaternion (4, under the knee), the toe (1, rad, the toe roll's
+ *   pitch: - bends the toes up), the FK weight (1, 0..1: 0 the foot planner's IK leg as without the channel, 1 the clip's FK leg). A clip
  *   without one samples identity / 0 (the rig is untouched). Per-key edits (`keyOff`) do not reach them yet (S4).
  * Per clip: the foot planner's `duty` and `liftH`, the knee pole's `kneeOut` and the track `half` width (ankle centre
  * from the midline). Sampling never allocates.

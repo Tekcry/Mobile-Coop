@@ -1,15 +1,21 @@
 # anim-skeleton - state
 
 ## Now
-PR #88 (S1+S2) ready again after the fix round (22ee6ba3: the e2e-levels climb is seed variance, bisected; guard
-rig identity test added); waiting on the orchestrator. S3a done and checked on the helper branch
-`feature/anim-skeleton-s3` (worktree `C:/NightShift/Mobile-Coop-anim-skeleton-s3`, b346aa10, master 4.40.0 merged).
+PAUSED (orchestrator, 2026-10-22 00:20, usage pacing) mid S3b on the helper branch `feature/anim-skeleton-s3`
+(worktree `C:/NightShift/Mobile-Coop-anim-skeleton-s3`; master 4.42.0 merged at bc811528; #88 = S1+S2 is merged as
+4.42.0). S3b WIP committed: key_clip.py opt-in channels (`clav`, `fingers`, `legs` flags), `skeleton_test.json` and its
+baked clip + check fixture, the studio entry, `tests/animSkeletonBake.test.ts`. Code review PASS (math, back-compat, file
+areas). Not yet run: `npm run check`, e2e-studio / e2e-anim, the GPU sheet, the rebake-of-one-clip no-diff check.
+Known failing: `animSkeletonBake` "a keyed curl closes the hand toward the palm" (fingerR_2_3 alignment 0.29 < 0.5:
+the index DIP's motion vs the hero's grip morph; check the test's expectation or the curl axis for the DIP). The
+implementer was mid-way through the checker's polish (ANIM_BASE guard, psi threshold 1e-8, lever print, spread sign).
 
 ## Next
-S3b on the helper branch after the 5-hour reset (23:00; meter 85% at 22:00): `key_clip.py` writes `clav` / `fing` / `leg`
-in the rig frames when a key file opts in, the `skeleton_test` key file and clip, a studio entry (lines told to Course
-Ready). Keep leg w at 0 on contact frames (S3a checker). After #88 merges: merge the helper branch into this branch.
-Check the 5-hour meter before each agent; at 98% stop at a clean commit and tell the orchestrator.
+Resume when the orchestrator says "resume" (or after the 04:00 reset): fix the finger test, finish the polish, then the
+checks above (take heavy.lock; first come, CT Core's agents also want it), the GPU sheet, a fresh checker, then merge
+the helper branch into `feature/anim-skeleton` and S4 after B's #90 merges. Before each agent check the 5-hour meter;
+at 97% pause at a clean commit and tell the orchestrator. Overnight: Michael chose "Proceed, review AM": shots go to
+the orchestrator for the morning.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger

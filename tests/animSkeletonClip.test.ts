@@ -71,8 +71,12 @@ describe('anim-skeleton S3a: the clip channels (pure)', () => {
     p.clav.forEach((v, i) => expect(v).toBeCloseTo(CLAV[i]!, 6));
     p.fing.forEach((v, i) => expect(v).toBeCloseTo(FING[i]!, 6));
     p.leg.forEach((v, i) => expect(v).toBeCloseTo(LEG_KICK[i]!, 6));
-    // every shipped clip keys none of them
-    for (const f of readdirSync('src/anim/clips/keyed')) expect(readFileSync(`src/anim/clips/keyed/${f}`, 'utf8')).not.toMatch(/^ {2}(clav|fing|leg):/m);
+    // every shipped clip keys none of them (S3b: but the studio-only skeleton_test, all three)
+    for (const f of readdirSync('src/anim/clips/keyed')) {
+      const src = readFileSync(`src/anim/clips/keyed/${f}`, 'utf8');
+      if (f === 'skeleton_test.ts') expect(src.match(/^ {2}(clav|fing|leg):/gm)).toHaveLength(3);
+      else expect(src).not.toMatch(/^ {2}(clav|fing|leg):/m);
+    }
   });
 
   it('a wrong channel length throws; the FK weight lerps between frames but is not scaled by amp', () => {
@@ -176,9 +180,9 @@ function parseModule(src: string): { name: string; clip: Record<string, unknown>
 }
 
 describe('anim-skeleton S3a: the build emitter (scripts/anim-keys/build.mjs)', () => {
-  it('re-emits every shipped clip module byte for byte (no new channel lines)', () => {
+  it('re-emits every shipped clip module byte for byte (no new channel lines; S3b: skeleton_test with all three)', () => {
     const files = readdirSync('src/anim/clips/keyed').filter((f) => f.endsWith('.ts'));
-    expect(files).toHaveLength(28);
+    expect(files).toHaveLength(29);
     for (const f of files) {
       const src = readFileSync(`src/anim/clips/keyed/${f}`, 'utf8').replace(/\r\n/g, '\n');
       const { name, clip } = parseModule(src);

@@ -105,6 +105,60 @@ HAS_FORE = any(k.get(a, {}).get('twist', 0) for k in clip['keys'] for a in ('arm
 HAS_SH = any(any((k.get(a, {}).get('sh') or {}).get(x, 0) for x in ('pitch', 'yaw', 'roll')) for k in clip['keys'] for a in ('armL', 'armR'))
 HAS_HEAD = any(any(k.get('head', {}).get(x, 0) for x in ('pitch', 'yaw', 'roll')) for k in clip['keys'])
 
+# (anim-skeleton S3b) the opt-in clavicle, finger and FK leg channels (src/anim/keyed.ts `clav` 8, `fing` 20, `leg` 22):
+# only when the key file sets `"clav"`, `"fingers"` or `"legs": true` (every older key file has leg values but none of
+# the flags, so its output is unchanged). Per key: `armL` / `armR` `clav {pitch, yaw, roll}` (deg, chest frame, right side
+# as written and the left mirrored like `sh`: a shrug is roll + on both sides, a shoulder pushed forward yaw - on
+# both); `handL` / `handR` `{thumb|index|middle|ring|little: {curl, spread}}` (curl in fingers.ts units, 1 = closed,
+# added to the grip shape; spread in deg, + away from the middle finger, the middle toward the index); `legL` / `legR`
+# `toe` (deg, + the toes up, as `ankle`) and `w` (the FK weight 0..1; 0 = the foot planner's IK leg).
+HAS_CLAV = bool(clip.get('clav'))
+HAS_FING = bool(clip.get('fingers'))
+HAS_LEGS = bool(clip.get('legs'))
+FINGER_NAMES = ('thumb', 'index', 'middle', 'ring', 'little')
+SPREAD_MAX_DEG = 30.0  # src/anim/fingers.ts SPREAD_MAX_DEG (spread 1 = 30 deg)
+CHECK = []  # the frame proof at the key file's `checkFrames` (sample indices), written as the JSON's `check`
+with open(os.path.join(os.path.dirname(__file__), '..', '..', 'anim-skeleton', 'skeleton.json'), encoding='utf-8') as f:
+    _SC = json.load(f)['clavicle']
+
+
+def clav_local(a, s):
+    """(anim-skeleton S3b) A key's clavicle turn: the rig's clavicle node local to the chest (Babylon YawPitchRoll, as
+    the Joints clavicle row's right side; the left mirrored: yaw and roll negated)."""
+    e = a.get('clav') or {}
+    return ry(d2r(s * e.get('yaw', 0))) @ rx(d2r(e.get('pitch', 0))) @ rz(d2r(s * e.get('roll', 0)))
+
+
+def sc_point(side):
+    """(anim-skeleton S3b) The sternoclavicular point in the chest frame (src/anim/clavicle.ts `clavPoint`)."""
+    s = -1 if side == 'L' else 1
+    return Vector((s * _SC['lateral'], P['neck'].y - P['chest'].y - _SC['belowNeck'], _SC['forward']))
+
+
+def leg_rig(W, side):
+    """(anim-skeleton S3b) One evaluated leg in the rig's local frames (src/player/characterRig.ts: the hip, knee, ankle
+    and toe nodes hang along -Y at an identity rest, the knee a hinge about its local X). Returns the hip rotation under
+    the pelvis, the knee flex (rad, + the shin back), the ankle rotation under the knee and the toe angle (rad, about
+    the toe's X: - the toes up, the toe roll's sense). The bake's knee hinges about the pelvis X before the thigh's
+    adduction, so with `add` it is not a pure local-X hinge: the hip is twisted about the thigh by the angle that brings
+    the shin into the hip's YZ plane, so the thigh, the shin and the foot come out exactly (the twist is 0 at add 0)."""
+    hip, kn, an, toe = 'hip' + side, 'kn' + side, 'an' + side, 'toe' + side
+    pinv = W['pelvis'].inverted()
+    s = (W[hip].inverted() @ W[kn]) @ DOWN  # the shin in the bake's thigh frame
+    psi = 0.0
+    if s.x * s.x + s.z * s.z > 1e-8:  # a near-straight knee: no hinge to align (no twist flip on round-off)
+        psi = math.atan2(s.x, s.z)
+        if psi > math.pi / 2:
+            psi -= math.pi
+        elif psi <= -math.pi / 2:
+            psi += math.pi
+    v = ry(-psi) @ s
+    knee = math.atan2(-v.z, -v.y)
+    hq = pinv @ W[hip] @ ry(psi)
+    aq = (hq @ rx(knee)).inverted() @ pinv @ W[an]
+    t = W[an].inverted() @ W[toe]
+    return hq, knee, aq, math.atan2(t[2][1], t[1][1])
+
 
 def mirror_key(k):
     """The right step from the left one: sides swapped, lateral offsets, yaws and rolls negated."""
@@ -119,6 +173,9 @@ def mirror_key(k):
         m[seg] = e
     for a, b in (('armL', 'armR'), ('legL', 'legR')):
         m[a], m[b] = dict(k[b]), dict(k[a])
+    # (anim-skeleton S3b) the hands' finger values swap too (each hand's own: symmetric)
+    if 'handL' in k or 'handR' in k:
+        m['handL'], m['handR'] = dict(k.get('handR', {})), dict(k.get('handL', {}))
     return m
 
 
@@ -180,7 +237,9 @@ def fk(k):
         W[kn] = shin
         X[an] = X[kn] + shin @ DOWN * OFF[an].length
         foot = shin @ rx(-d2r(g['ankle']))
-        W[an] = W[toe] = foot
+        # (anim-skeleton S3b) an optional toe bend at the ball (deg, + the toes up, as the ankle); 0 = the foot, as before
+        W[an] = foot
+        W[toe] = foot @ rx(-d2r(g.get('toe', 0)))
         X[toe] = X[an] + foot @ OFF[toe]
     return W, X
 
@@ -327,6 +386,43 @@ for i in range(N):
         extra['fore'] += quat(ry(s * d2r(tw)))
     hy, hp, hr = lerp_key(i / N, lambda k: [k.get('head', {}).get(f, 0) for f in ('yaw', 'pitch', 'roll')])
     extra['head'] = quat(ypr({'yaw': hy, 'pitch': hp, 'roll': hr}))
+    # (anim-skeleton S3b) the clavicles (keys lerped, as `sh`), the fingers (lerped) and the FK legs (the evaluated
+    # armature in the rig's frames, `leg_rig`; the weight lerped): only for a key file that opts in
+    skel = {'clav': [], 'fing': [], 'leg': []}
+    clq = {}
+    for side, s in (('L', -1), ('R', 1)):
+        cy, cp, cr = lerp_key(i / N, arm_get(side, 'clav', ('yaw', 'pitch', 'roll')))
+        clq[side] = clav_local({'clav': {'yaw': cy, 'pitch': cp, 'roll': cr}}, s)
+        skel['clav'] += quat(clq[side])
+        for fn in FINGER_NAMES:
+            curl, spread = lerp_key(i / N, lambda k, h='hand' + side, fn=fn: [(k.get(h, {}).get(fn) or {}).get(x, 0) for x in ('curl', 'spread')])
+            skel['fing'] += [curl, spread / SPREAD_MAX_DEG]
+        if HAS_LEGS:
+            hq, knee, aq, toe_a = leg_rig(W, side)
+            for nm, m in (('hip' + side, hq), ('an' + side, aq)):
+                q = quat(m)
+                if nm in lastq and sum(a * b for a, b in zip(q, lastq[nm])) < 0:
+                    q = [-v for v in q]
+                lastq[nm] = q
+                skel['leg'] += q
+                if nm.startswith('hip'):
+                    skel['leg'].append(knee)
+            skel['leg'] += [toe_a, lerp_key(i / N, lambda k, g='leg' + side: [k.get(g, {}).get('w', 0)])[0]]
+    # (anim-skeleton S3b) the frame proof (tests/animSkeletonBake.test.ts): at the key file's `checkFrames`, the evaluated
+    # knee / ankle / toe (and a toe tip 6 cm along the toe) from the hip in the pelvis frame, and the shoulder carried by
+    # the clavicle about the SC point in the chest frame (Wren's metres; kept out of the clip module)
+    if i in clip.get('checkFrames', []):
+        pinv = W['pelvis'].inverted()
+        c = {'frame': i}
+        for side, s in (('L', -1), ('R', 1)):
+            hip, kn, an, toe = 'hip' + side, 'kn' + side, 'an' + side, 'toe' + side
+            rel = [pinv @ (X[j] - X[hip]) for j in (kn, an, toe)]
+            tip = pinv @ (X[toe] + W[toe] @ Vector((0, 0, 0.06)) - X[hip])
+            lever = P['sh' + side] - P['chest'] - sc_point(side)
+            c['leg' + side] = {'kn': list(rel[0]), 'an': list(rel[1]), 'toe': list(rel[2]), 'toeTip': list(tip)}
+            c['sh' + side] = list(clq[side] @ lever - lever)
+            c['lever' + side] = list(lever)
+        CHECK.append(c)
     loc = {
         'pelvis': W['pelvis'],
         'spine': W['pelvis'].inverted() @ W['spine'],
@@ -364,6 +460,9 @@ for i in range(N):
         **({'fore': extra['fore']} if HAS_FORE else {}),
         **({'head': extra['head']} if HAS_HEAD else {}),
         **({'sh': extra['sh']} if HAS_SH else {}),
+        **({'clav': skel['clav']} if HAS_CLAV else {}),
+        **({'fing': skel['fing']} if HAS_FING else {}),
+        **({'leg': skel['leg']} if HAS_LEGS else {}),
         'ankle': [X['anL'].x / K, X['anR'].x / K],
         'X': {n: list(X[n]) for n in ORDER},
     })
@@ -380,6 +479,7 @@ out = {
     'kneeOut': clip.get('kneeOut', 0.12),
     'half': half,
     'samples': [{k: v for k, v in f.items() if k != 'X'} for f in frames],
+    **({'check': CHECK} if CHECK else {}),
 }
 with open(args.out, 'w', encoding='utf-8') as fh:
     json.dump(out, fh)

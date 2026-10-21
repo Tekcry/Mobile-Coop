@@ -75,6 +75,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   mkdirSync(path.dirname(tsOut), { recursive: true });
   writeFileSync(tsOut, src);
   console.log(`anim-keys: ${name} -> ${path.relative(ROOT, tsOut)}`);
+  // (anim-skeleton S3b) a key file with `checkFrames` gets its frame proof (Blender-evaluated positions) as a test fixture
+  if (clip.check) {
+    const chk = path.join(ROOT, 'tests', 'fixtures', `keyed-check-${name}.json`);
+    const round = (_k, v) => (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v);
+    writeFileSync(chk, JSON.stringify({ name, blender: clip.blender, check: clip.check }, round) + '\n');
+    console.log(`anim-keys: ${name} frame proof -> ${path.relative(ROOT, chk)}`);
+  }
   if (preview) {
     const FF = process.env.FFMPEG ?? 'C:/Users/Micha/AppData/Local/Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe';
     for (const view of ['side', 'front']) {
