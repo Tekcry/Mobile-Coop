@@ -24,6 +24,11 @@ Format: `N. Item - destination - status`.
 25. **A30 must judge fire stairs per building** (`rooms[].building`). Today A30 compares floor heights only, so a fire stair in one building counts as serving a level of the other (`docs/kestrel/schema.md` section 6). Destination: Kestrel tools, when Kestrel resumes (G53).
 27. **FIXED (gl-warning-fix, docs/gl-warning-fix/REPORT.md).** **GPU-only GL warning on RT + TAAU + Panini (2026-10-21, Menu Notes GPU run).** e2e-desktop under `E2E_GPU=1` fails "ray traced + TAAU + Panini render without console errors" on master d537cbd8 and #58 alike: repeated "GL_INVALID_VALUE: glGetProgramiv: Program object expected" (ANGLE D3D11 only; software GL passes). Something queries a deleted program on that path. Fix the query, or let that assert ignore the warning if it is harmless.
 26. **Phone is launch-only and untested (G182).** A phone opens the game on the minimum settings with the UI scaled to its screen and a Bluetooth pad as the input; no touch controls, no phone checks or tests, no device runs. Destination: none (testing only).
+28. **Gameplay reads the rig pose (log only, havok-stall 2026-10-21; for later review).** Not graphics state, but gameplay
+    tied to the animation: the guard's perception eye comes from `rig.headNode` (`src/ai/enemy.ts:1779-1781`), the
+    player's hit volumes follow the rig (`src/game/playerTarget.ts:101-119`), and `src/ai/body.ts:96-124` reads the
+    pose too. An animation change can move what a guard sees or where a shot lands. No change made; review whether these
+    should read the gameplay root (controller position, crouch, lean) instead. Destination: unscheduled.
 
 ## Flaky e2e suites
 
@@ -37,6 +42,21 @@ GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/coop-test
 (sim-clock waits), plus stale test numbers (the walk-off crouch, the medkit heal) and a crouch race; e2e-coop,
 e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop. `KNOWN_FLAKY` is e2e-pad only.
 
+- **e2e-menus "stall" at (tuner-camera) on the desktop (fixed in the test, havok-stall 2026-10-21; `docs/havok-stall/REPORT.md`)** -
+  the full suite failed 5 of 5 on the desktop (i7-7700K, software GL) right after "tuner: Menu closes it and the game
+  runs". It was not a hang: the runner killed the suite at its 600 s limit (`E2E_SUITE_TIMEOUT`), and at `E2E_JOBS=1`
+  the runner streams the output and drops its "KILLED" line, so it looked like one. The match page ran at about 1.5
+  rendered frames a second (the menu page's 1920 x 1080 backdrop stayed open beside it, both on SwiftShader, the CPU at
+  100%), and the tuner-camera block waited 360 rendered frames; with `E2E_SUITE_TIMEOUT=900` the old suite passed in
+  894 s. The Havok stacks from CDP pauses (J2-STALL) were samples of slow frames, not a spin: frames kept completing,
+  physics always got 1/60 s, at most 4 steps a frame. Fix: the menu page goes to about:blank before the match page
+  launches, and the tuner-camera settles run on the sim clock (`stepHeadless`); the suite alone 894 s -> 312 s. Not on
+  `KNOWN_FLAKY`. Open (outside the job): `scripts/run-e2e.mjs` should print the KILLED line in streamed mode too.
+- **e2e-levels "a runner climbs the rack ladder" (watch, havok-stall 2026-10-21)** - took 9-30 s of game time on master
+  against its 30 s budget (guard think ticks draw `Math.random`; real-time frames before each chase). Now the chases
+  run on the manual clock and each seeds `Math.random` (7919): 3 solo runs gave 15.5, 10.25 and 15.5 s (the rest of the
+  spread is the world state when the manual clock takes over). Not on `KNOWN_FLAKY`; remove this entry after a few
+  clean full runs.
 - **e2e-coop** (fixed 2026-10-19, `docs/coop-tests/`; off the list) - failed 1 of 4 full serial runs, about 1 of 5 alone (2026-10-09). Failure: "client grabs a host guard from behind": the match's guards re-alert after the steps before and the picked guard turns to face the client, so the offer becomes the front takedown. Kept fix: the picked guard's `update` is switched off (a statue) from the pick until the grab is held. **The statue covers the netcode only; guard perception and turning in co-op are not tested by this step.** Open: "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true).
 - **e2e-darkness** (moved to the GPU list: it reads final pixels) - failed on an idle machine in the Epic look (the driver compiles the probe card's shaders for seconds after first draw). Fixed in the test: wait for `scene.isReady()` and filter the driver's "glGetProgramiv: Program object expected" warning. Kept in the list until it has run clean for a few full runs.
 - **e2e-netmove** (fixed 2026-10-19, `docs/coop-tests/`: sim-clock waits, the walk-off un-crouch; off the list) - timing failures under load: "ladder after a climb: host mode ground" (fixed in the test), "timed out waiting for host braces" (host frames 307-418 ms with other suites running; passed serially), and once "Execution context was destroyed", suspected to be the app reloading when a service worker activates externally (`src/pwa`). Blocking service workers in the test contexts makes every suite's "no console errors" check fail; not fixed.
