@@ -50,6 +50,10 @@ export const JOINTS = [
   'ankleR',
   'toeL',
   'toeR',
+  // (anim-skeleton S4) the clavicles (the rig's clavL / clavR nodes, chest frame: a shrug, a shoulder pushed forward),
+  // appended so every older joint keeps its index
+  'clavicleL',
+  'clavicleR',
 ] as const;
 export type Joint = (typeof JOINTS)[number];
 /** Joint index by name (the rig hook passes these). */

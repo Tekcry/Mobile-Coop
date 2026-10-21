@@ -17,7 +17,14 @@
  *   `leg` (22, A7): per side L then R (11 each, `KL`): the hip's local quaternion (4, under the pelvis), the knee flex
  *   (1, rad, + bends the shin back), the ankle's local quaternion (4, under the knee), the toe (1, rad, the toe roll's
  *   pitch: - bends the toes up), the FK weight (1, 0..1: 0 the foot planner's IK leg as without the channel, 1 the clip's FK leg). A clip
- *   without one samples identity / 0 (the rig is untouched). Per-key edits (`keyOff`) do not reach them yet (S4).
+ *   without one samples identity / 0 (the rig is untouched). (S4) Per-key edits (`keyOff`) reach them: `clav` turned on
+ *   top in the chest frame, `fing` added, the FK weight added (clips with `leg` only).
+ * - (anim-skeleton S4; optional) `legd` (14, `KD`): per side L then R (7 each) deltas on the foot planner's solved IK leg,
+ *   rad in the rig's local frames (each joint's own node: x the hinge, y along the bone, z forward; the rig's
+ *   `RotationYawPitchRoll` order): hip pitch, yaw, roll, knee (+ bends the shin back), ankle pitch, roll, toe (the toe
+ *   roll's sense). The rig turns a swinging leg by them and re-solves a planted one onto its plant with them folded in.
+ *   The key files' `legX.d` degrees are anatomical (the same sense on both sides): `LEGD_SIGN` converts. A clip without
+ *   it samples 0 (the rig is untouched).
  * Per clip: the foot planner's `duty` and `liftH`, the knee pole's `kneeOut` and the track `half` width (ankle centre
  * from the midline). Sampling never allocates.
  */
@@ -44,6 +51,8 @@ export interface KeyedClipDef {
   clav?: readonly number[];
   fing?: readonly number[];
   leg?: readonly number[];
+  /** (anim-skeleton S4) Optional leg deltas on the IK legs (14 per frame, `KD`). */
+  legd?: readonly number[];
 }
 
 export interface KeyedClip {
@@ -77,6 +86,9 @@ export interface KeyedClip {
   readonly meanClav: Float32Array;
   readonly meanFing: Float32Array;
   readonly meanLeg: Float32Array;
+  /** (anim-skeleton S4) The leg deltas (null: not keyed, sampled as 0) and their mean. */
+  readonly legd: Float32Array | null;
+  readonly meanLegd: Float32Array;
   /** (tuner-v2 item 4) The per-key edit offsets (`tuneKeys` builds them on the first edit), or null: sampled exactly as baked. */
   keyOff: KeyedOffsets | null;
   /** (marlow-bays item 23) The key timing edits (`tuneKeys` sets them on the first retime), or null: the keys as baked. */
@@ -129,6 +141,22 @@ export interface KeyedOffsets {
   readonly twU: Float32Array;
   readonly twUMean: Float32Array;
   twUOn: number;
+  /** (anim-skeleton S4) Clavicle L, R (8 a frame: chest frame, turned on top of the clip's), on with `clavOn`. */
+  readonly clav: Float32Array;
+  readonly clavMean: Float32Array;
+  clavOn: number;
+  /** (S4) The fingers' [curl, spread] offsets (20 a frame, the `fing` layout), added. */
+  readonly fing: Float32Array;
+  readonly fingMean: Float32Array;
+  fingOn: number;
+  /** (S4) The leg deltas (14 a frame, `KD`, rad, rig frame), added to the clip's. */
+  readonly legd: Float32Array;
+  readonly legdMean: Float32Array;
+  legdOn: number;
+  /** (S4) The FK leg weights L, R (2 a frame), added to a clip's `leg` weight (a clip without `leg` ignores them). */
+  readonly legW: Float32Array;
+  readonly legWMean: Float32Array;
+  legWOn: number;
 }
 
 /** One sampled keyed pose (preallocate with `newKeyedPose`). */
@@ -164,6 +192,9 @@ export interface KeyedPose {
   hasClav: number;
   hasFing: number;
   hasLeg: number;
+  /** (anim-skeleton S4) The leg deltas (`KD`, 0 when not keyed) and their flag (0: the rig leaves the legs alone). */
+  readonly legd: Float64Array;
+  hasLegd: number;
 }
 
 export const KEYED_PEL = 3;
@@ -195,6 +226,23 @@ export const KL = { hip: 0, knee: 4, ankle: 5, toe: 9, w: 10 } as const;
 const LEG_Q = [KL.hip, KL.ankle, KEYED_LEG_SIDE + KL.hip, KEYED_LEG_SIDE + KL.ankle] as const;
 const LEG_S = [KL.knee, KL.toe, KEYED_LEG_SIDE + KL.knee, KEYED_LEG_SIDE + KL.toe] as const;
 const LEG_W = [KL.w, KEYED_LEG_SIDE + KL.w] as const;
+/** (anim-skeleton S4) The leg delta channel: 7 a side (L then R), slots in one side (`KD`), rad in the rig frame. */
+export const KEYED_LEGD = 14;
+export const KEYED_LEGD_SIDE = 7;
+export const KD = { hipPitch: 0, hipYaw: 1, hipRoll: 2, knee: 3, anklePitch: 4, ankleRoll: 5, toe: 6 } as const;
+/** (S4) The key files' `legX.d` fields in `KD` order (degrees, anatomical: the same sense on both sides). */
+export const LEGD_FIELDS = ['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe'] as const;
+/**
+ * (S4) Key degrees -> the rig's channel (times pi / 180), per side [L, R] in `KD` order: hip pitch + the thigh forward,
+ * hip yaw + the knee turned out, hip roll + the thigh out, knee + bent, ankle pitch + the toes up, ankle roll + the sole
+ * in, toe + up. key_clip.py `LEGD_SIGN` is the same table.
+ */
+export const LEGD_SIGN: readonly (readonly number[])[] = [
+  [-1, -1, -1, 1, -1, 1, -1],
+  [-1, 1, 1, 1, -1, -1, -1],
+];
+/** (S4) The rig-frame slots a left / right mirror negates (yaw and roll about the reflected axes). */
+const LEGD_NEG = [KD.hipYaw, KD.hipRoll, KD.ankleRoll] as const;
 
 /** Quaternions (x y z w) at identity, `n` floats. */
 function idQ(n: number): Float64Array {
@@ -234,6 +282,8 @@ export function newKeyedPose(): KeyedPose {
     hasClav: 0,
     hasFing: 0,
     hasLeg: 0,
+    legd: new Float64Array(KEYED_LEGD),
+    hasLegd: 0,
   };
 }
 
@@ -276,6 +326,7 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
   if (def.clav) check(def, KEYED_CLAV, def.clav.length, 'clav');
   if (def.fing) check(def, KEYED_FING, def.fing.length, 'fing');
   if (def.leg) check(def, KEYED_LEG, def.leg.length, 'leg');
+  if (def.legd) check(def, KEYED_LEGD, def.legd.length, 'legd');
   const N = def.frames;
   const q = Float32Array.from(def.q);
   hemispheres(q, N, KEYED_Q);
@@ -317,6 +368,10 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
   const meanLeg = new Float32Array(KEYED_LEG);
   legIdentity(meanLeg);
   if (leg) legMean(leg, N, meanLeg);
+  // (anim-skeleton S4) the leg deltas: scalars, averaged
+  const legd = def.legd ? Float32Array.from(def.legd) : null;
+  const meanLegd = new Float32Array(KEYED_LEGD);
+  if (legd) for (let f = 0; f < N; f++) for (let c = 0; c < KEYED_LEGD; c++) meanLegd[c]! += legd[f * KEYED_LEGD + c]! / N;
   return {
     name: def.name,
     frames: N,
@@ -344,6 +399,8 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
     meanClav,
     meanFing,
     meanLeg,
+    legd,
+    meanLegd,
     keyOff: null,
     keyTime: null,
   };
@@ -433,6 +490,14 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
     out.hasFing = 0;
   }
   out.hasLeg = sampleLeg(clip.leg, clip.meanLeg, i0, i1, u, amp, out.leg);
+  // (anim-skeleton S4) the leg deltas (0 when not keyed)
+  if (clip.legd) {
+    sampleLin(clip.legd, clip.meanLegd, KEYED_LEGD, i0, i1, u, amp, out.legd, 0);
+    out.hasLegd = 1;
+  } else {
+    out.legd.fill(0);
+    out.hasLegd = 0;
+  }
   if (K) {
     keyOffLimbs(K, j0, j1, v, amp, amp * TUNE_CUR.armSwingK, out);
     keyOffExtra(K, j0, j1, v, amp, amp * TUNE_CUR.armSwingK, out);
@@ -447,6 +512,8 @@ const OW = new Float64Array(KEYED_WRIST);
 // (T1a) the pelvis shift, and one of the forearm / head / shoulder offsets
 const OP = new Float64Array(KEYED_PEL);
 const OX = new Float64Array(KEYED_SH);
+// (anim-skeleton S4) one of the finger / leg delta / leg weight offsets
+const OF = new Float64Array(KEYED_FING);
 
 const isId = (o: Float64Array, s: number): boolean => o[s] === 0 && o[s + 1] === 0 && o[s + 2] === 0 && o[s + 3] === 1;
 
@@ -632,6 +699,7 @@ function keyOffExtra(K: KeyedOffsets, i0: number, i1: number, u: number, amp: nu
     for (let s = 0; s < KEYED_SH; s += 4) if (!isId(OX, s)) qmul(out.sh, s, OX, s, false, 1);
     out.hasSh = 1;
   }
+  keyOffSkeleton(K, i0, i1, u, amp, armAmp, out);
   const e = out.ed;
   for (let c = 0; c < KEYED_Q; c++) {
     e[KE.trunk + c] = OT[c]!;
@@ -647,6 +715,33 @@ function keyOffExtra(K: KeyedOffsets, i0: number, i1: number, u: number, amp: nu
     }
   }
   out.edOn = 1;
+}
+
+/**
+ * (anim-skeleton S4) The skeleton channels' key offsets: the clavicles turned on top of the clip's in the chest frame
+ * (as `clavCompose`: offset x clip), the fingers and the leg deltas added, the FK leg weights added to a clip that has
+ * legs. Each sets its channel's flag. No allocation.
+ */
+function keyOffSkeleton(K: KeyedOffsets, i0: number, i1: number, u: number, amp: number, armAmp: number, out: KeyedPose): void {
+  if (K.clavOn) {
+    sampleQuats(K.clav, K.clavMean, KEYED_CLAV, i0, i1, u, armAmp, OX);
+    for (let s = 0; s < KEYED_CLAV; s += 4) if (!isId(OX, s)) qmul(out.clav, s, OX, s, false, 1);
+    out.hasClav = 1;
+  }
+  if (K.fingOn) {
+    sampleLin(K.fing, K.fingMean, KEYED_FING, i0, i1, u, amp, OF, 0);
+    for (let c = 0; c < KEYED_FING; c++) out.fing[c] = out.fing[c]! + OF[c]!;
+    out.hasFing = 1;
+  }
+  if (K.legdOn) {
+    sampleLin(K.legd, K.legdMean, KEYED_LEGD, i0, i1, u, amp, OF, 0);
+    for (let c = 0; c < KEYED_LEGD; c++) out.legd[c] = out.legd[c]! + OF[c]!;
+    out.hasLegd = 1;
+  }
+  if (K.legWOn && out.hasLeg) {
+    sampleLin(K.legW, K.legWMean, 2, i0, i1, u, 1, OF, 0);
+    for (let k = 0; k < 2; k++) out.leg[LEG_W[k]!] = out.leg[LEG_W[k]!]! + OF[k]!;
+  }
 }
 
 /** (T1a) The wrist point a[o+3..] turned by `th` (rad) about the shoulder-elbow line a[o..o+2] (Rodrigues). */
@@ -738,6 +833,9 @@ export function mixKeyed(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose, 
     out.hasFing = a.hasFing;
   }
   mixLeg(a, b, u, out);
+  // (anim-skeleton S4) the leg deltas always blend with the legs (a pose without them is 0: a blend fades them)
+  for (let c = 0; c < KEYED_LEGD; c++) out.legd[c] = a.legd[c]! + (b.legd[c]! - a.legd[c]!) * u;
+  out.hasLegd = a.hasLegd || b.hasLegd ? 1 : 0;
   return out;
 }
 
@@ -877,6 +975,18 @@ export function mirrorKeyed(p: KeyedPose): KeyedPose {
   for (let k = 0; k < LEG_Q.length; k++) {
     g[LEG_Q[k]! + 1] = -g[LEG_Q[k]! + 1]!;
     g[LEG_Q[k]! + 2] = -g[LEG_Q[k]! + 2]!;
+  }
+  // (anim-skeleton S4) the leg deltas swapped side for side, the yaws and rolls negated (rig frame)
+  const d = p.legd;
+  for (let c = 0; c < KEYED_LEGD_SIDE; c++) {
+    const l = d[c]!;
+    d[c] = d[c + KEYED_LEGD_SIDE]!;
+    d[c + KEYED_LEGD_SIDE] = l;
+  }
+  for (let k = 0; k < LEGD_NEG.length; k++) {
+    const s = LEGD_NEG[k]!;
+    d[s] = -d[s]! + 0;
+    d[KEYED_LEGD_SIDE + s] = -d[KEYED_LEGD_SIDE + s]! + 0;
   }
   return p;
 }

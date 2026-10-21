@@ -6,10 +6,13 @@
  * of the midline, `belowNeck` under the neck joint, `forward` of the chest joint (m). The rig places it the same way
  * relative to its own chest and neck (`clavPoint`).
  *
- * Input (`CharacterRig.clavIn`, the slot S3's clip channel and S4's Joints row write): per side pitch / yaw / roll in
+ * Input (`CharacterRig.clavIn`, a test's or tool's slot): per side pitch / yaw / roll in
  * degrees, in the chest frame (+X right, +Y up, +Z forward), composed as `RotationYawPitchRoll` like the Joints rows.
  * A shrug lifts the shoulder: roll -deg on the left, +deg on the right; pushed forward: yaw +deg on the left, -deg on
- * the right. No mirroring is done here: each side's numbers are its own.
+ * the right. No mirroring is done here: each side's numbers are its own. (S3) The clip's channel turns beside it;
+ * (S4) the Joints rows `clavicleL` / `clavicleR` (tuneJoints, the same chest-frame angles, the base table + the tuner
+ * delta, eased) turn on top of both in the rig's `clavFrame`; their mirror lock writes the partner mirrored (yaw and
+ * roll negated), so one + roll shrugs both shoulders.
  */
 import { eulerQuat } from './tuneJoints';
 

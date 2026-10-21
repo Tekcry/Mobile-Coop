@@ -116,6 +116,16 @@ HAS_CLAV = bool(clip.get('clav'))
 HAS_FING = bool(clip.get('fingers'))
 HAS_LEGS = bool(clip.get('legs'))
 FINGER_NAMES = ('thumb', 'index', 'middle', 'ring', 'little')
+# (anim-skeleton S4) auto opt-in: a key file whose keys set a non-zero clavicle or finger value (the tuner's Keys edits
+# on any clip) gets that channel without the flag; any non-zero leg delta `legL` / `legR` `d` {hipPitch, hipYaw, hipRoll,
+# knee, anklePitch, ankleRoll, toe} (deg, anatomical: the same sense on both sides) gets the `legd` channel (14 a frame,
+# rad in the rig frame, src/anim/keyed.ts `KD`): deltas on the foot planner's solved IK leg. Untouched files: unchanged.
+LEGD_FIELDS = ('hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe')
+# key degrees -> the rig frame per side (src/anim/keyed.ts LEGD_SIGN, the same table)
+LEGD_SIGN = {'L': (-1, -1, -1, 1, -1, 1, -1), 'R': (-1, 1, 1, 1, -1, -1, -1)}
+HAS_CLAV = HAS_CLAV or any(any((k.get(a, {}).get('clav') or {}).get(x, 0) for x in ('pitch', 'yaw', 'roll')) for k in clip['keys'] for a in ('armL', 'armR'))
+HAS_FING = HAS_FING or any(any((k.get(h, {}).get(fn) or {}).get(x, 0) for fn in FINGER_NAMES for x in ('curl', 'spread')) for k in clip['keys'] for h in ('handL', 'handR'))
+HAS_LEGD = any(any((k.get(g, {}).get('d') or {}).get(x, 0) for x in LEGD_FIELDS) for k in clip['keys'] for g in ('legL', 'legR'))
 SPREAD_MAX_DEG = 30.0  # src/anim/fingers.ts SPREAD_MAX_DEG (spread 1 = 30 deg)
 CHECK = []  # the frame proof at the key file's `checkFrames` (sample indices), written as the JSON's `check`
 with open(os.path.join(os.path.dirname(__file__), '..', '..', 'anim-skeleton', 'skeleton.json'), encoding='utf-8') as f:
@@ -408,6 +418,10 @@ for i in range(N):
                 if nm.startswith('hip'):
                     skel['leg'].append(knee)
             skel['leg'] += [toe_a, lerp_key(i / N, lambda k, g='leg' + side: [k.get(g, {}).get('w', 0)])[0]]
+        # (anim-skeleton S4) the leg deltas (keys lerped, as the live preview spreads them), key degrees -> rig radians
+        dl = lerp_key(i / N, lambda k, g='leg' + side: [(k.get(g, {}).get('d') or {}).get(x, 0) for x in LEGD_FIELDS])
+        skel.setdefault('legd', [])
+        skel['legd'] += [sg * d2r(v) for sg, v in zip(LEGD_SIGN[side], dl)]
     # (anim-skeleton S3b) the frame proof (tests/animSkeletonBake.test.ts): at the key file's `checkFrames`, the evaluated
     # knee / ankle / toe (and a toe tip 6 cm along the toe) from the hip in the pelvis frame, and the shoulder carried by
     # the clavicle about the SC point in the chest frame (Wren's metres; kept out of the clip module)
@@ -463,6 +477,7 @@ for i in range(N):
         **({'clav': skel['clav']} if HAS_CLAV else {}),
         **({'fing': skel['fing']} if HAS_FING else {}),
         **({'leg': skel['leg']} if HAS_LEGS else {}),
+        **({'legd': skel['legd']} if HAS_LEGD else {}),
         'ankle': [X['anL'].x / K, X['anR'].x / K],
         'X': {n: list(X[n]) for n in ORDER},
     })
