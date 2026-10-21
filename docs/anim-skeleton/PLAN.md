@@ -72,6 +72,15 @@ delete keys) is in master as 4.43.0. Design (2026-10-22, docs only):
   planner), zero = untouched. Key JSON: `legX.d.{hipPitch, hipYaw, hipRoll, knee, anklePitch, ankleRoll, toe}` (deg);
   key_clip.py writes `legd` when any key has a non-zero delta. The S3a FK takeover (`legs` flag, `w`) stays for clips
   authored with FK legs like skeleton_test; the panel shows `w` only there.
+- **Planted feet never slide (orchestrator, 2026-10-22).** While a foot is planted (the planner's contact state for
+  that side), the delta is not applied raw: the leg is re-solved to the plant with the delta folded in (hip and knee
+  deltas become a knee-pole / bend change that keeps the foot on the plant; ankle and toe deltas turn the foot about
+  the plant point), so the foot stays put. On the swing leg the raw delta applies. A blend between the two over the
+  planner's contact weight so nothing pops at lift-off / touch-down. Test: a knee or hip delta on jog's contact key
+  leaves the planted foot within 0.5 cm of the no-delta plant.
+- **Foot slide readout in the studio.** The rig exposes `rig.footSlide` (per side, cm the planted foot moved this
+  contact; no allocation); the studio shows it. The readout's UI is in Course Ready's studio files (A): we ask it to
+  add one line reading `rig.footSlide`, or add it with its OK.
 - Track A lines and the B entry are sent to Course Ready and CT Core before editing.
 Done: check; e2e-studio (the Keys tab lists the new fields for skeleton_test; the Joints tab shows the clavicles);
 the S2 identity tests unchanged; an old tuner export still loads (identity); a GPU shot of a clavicle row moved.
