@@ -41,7 +41,7 @@ Not ours: `src/ui/tuner*`, `src/ui/studio*`, `src/anim/studio.ts`, `src/anim/tun
 - A2: On this machine the live tuner deltas apply to every Wren rig (the local player, the co-op partner's avatar, the
   studio's pair rigs), not only the local player, so a preview shows what the bake gives everyone. Guards, the VIP,
   the dummy and every non-Wren rig never read the tables. Undo: deltas on the local rig only (one flag).
-- A3: `src/anim/tuneHands.ts` is in no track's list; T1b takes it (gap 1 needs it). Undo: the orchestrator reassigns it.
+- A3: `src/anim/tuneHands.ts` is in no track's list; T1b takes it (gap 1 needs it). Approved by the orchestrator (~16:40).
 - A4: The base table is a generated TypeScript file (`src/anim/animBase.ts`, a JSON literal between markers) that the
   bake script rewrites whole: plain Node and Vite load it, and the bake parses it with `JSON.parse`. Empty at the start
   (every row identity), so the default output is bit-identical to today.

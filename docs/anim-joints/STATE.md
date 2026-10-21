@@ -7,9 +7,10 @@ Slice J1 (the base table every Wren rig reads): implementer starting. Branch at 
 J1 checker, fix round, commit; J2 (move and action rows); PR after master has T1a.
 
 ## Open
-- A6 / A7: one-line hooks outside our area requested from the orchestrator (`operatorRig` sets `rig.tuneRows`;
-  `remoteAvatar` and `studioStage` pass the team role into the pose).
-- A3: `src/anim/tuneHands.ts` taken by T1b (no track listed it).
+- Approved by the orchestrator (~16:40), each edit minimal and named in the PR body: A3 `src/anim/tuneHands.ts` is
+  ours; A7 `rig.tuneRows = true` in `operatorRig` (`src/operators/runtime/playerFigure.ts`, J1); A6 `RigPose.tuneTeam`
+  in `src/net/remoteAvatar.ts` (no wire change: if one is needed, stop and tell the orchestrator) and one line in
+  `src/game/studioStage.ts` posePuppet (J2). A cloud session (bays B + M) may touch `src/net`: expect a small merge.
 
 ## Done
 - 2026-10-21 16:20: branch from `feature/marlow-tuner-t1` 1db6e593 (orchestrator, BRIEF "Tracks"); BRIEF, PLAN, STATE.
