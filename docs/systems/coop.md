@@ -53,6 +53,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   respawn runs `CoopHost.onRespawn`, which brings an alive partner back in Sector Ops and the course) and returns
   everyone to the lobby (`CoopController.backToLobby` -> `NetSession.backToLobby`, phase `lobby`; the client's lobby
   handler follows). The client's rows are disabled ("Host only"). No wire change.
+- (marlow-bays R, protocol 27) Rejoin: `NetSession` keeps a player id across connections (the hello's rejoin token from
+  `core/rejoin.ts`; the host's `alias` / `route` maps; `you` tells the client its id). A joiner dropping mid-match is
+  held (`PlayerInfo.away`, `RemotePlayer.held`, out of `remotePlayers()`) for `REJOIN_HOLD_S`; its rejoin gets a
+  `restore` event (where it was held). A client whose host drops keeps the session (`hostId` null) and takes the next
+  host of the room; `CoopController` keeps its match up ("waiting") and reloads it on that host's start. The main menu's
+  "Rejoin" / "Resume hosting" entry (main.ts) reads the record without importing `src/net`.
 - (marlow-bays item 1) A held hostage is never solid to its holder: the client's `EnemyPuppet.setSolid` (the takedown's
   `setSolid?.(false)` was a no-op there, so the puppet's capsule shoved the client's controller: slow, jittery movement
   while holding) and the partner's hostage seen there (`remoteHeld`). The host places a client's hostage from that

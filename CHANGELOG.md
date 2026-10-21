@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - marlow-bays R (rejoin)
+- Co-op: rejoin a match you left or dropped out of (Michael: "There should also be a way to rejoin a match you have
+  left"). The room code shows in the pause menu, and for 10 minutes after a match was last live the main menu offers
+  "Rejoin <code>" (the joiner) or "Resume hosting <code>" (the host): one press.
+- A joiner who drops or leaves mid-match keeps its place: the host holds its body where it stood (frozen, unhurt, unseen
+  by the guards) with a "<name> disconnected - reconnecting... (room CODE)" line, for 10 minutes. Rejoining puts it
+  back as the same player, where it stood, with the health the host kept and the team's state.
+- If the host drops or leaves, the joiner stays in the match with "Host disconnected - waiting (CODE)". "Resume
+  hosting" reopens the same room and starts the match again from its last checkpoint (Marlow Yard: the bay they were
+  in); the waiting joiner takes it at once, or rejoins from its menu. No server: the same room on the same relays.
+- Protocol 27 (26 is the jammer slice): the hello's rejoin token, the held flag in the lobby, the host's `you` and the
+  `restore` event.
+
 ## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
 - Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
   when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now

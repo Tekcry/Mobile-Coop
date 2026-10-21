@@ -1,6 +1,7 @@
 # marlow-bays - state
 
-B + M (cloud): see "Slices B + M" below; PR to master open, waiting on the orchestrator's PC full e2e and GPU look.
+B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): see "Slice R" below; its PR to master is open.
+Next (cloud): slice S (server browser, item 28) on `feature/server-browser`, cut from R's head.
 Track A (Course Ready Build), 2026-10-21 ~19:30:
 - Merged: slice T #82 (4.35.0), T1a #83 (4.36.0).
 - T2 (tuner redesign) = PR Tekcry/Mobile-Coop#86, branch `feature/marlow-tuner-t2` (worktree
@@ -57,7 +58,34 @@ protection reset after it.
 Polish list: the host's view of a joiner's hostage may flicker its gait slightly below 60 fps (`holdAt` velocity per
 fixed step from a render-rate pose); a restart refused (already pending / op ending) closes the menu with no line.
 
+## Slice R - rejoin a match (cloud session "Night Shift | Bays Cloud", 2026-10-21)
+Built R1-R4 on the existing room (no server):
+- Identity: a player id outlives its connection. The client's `hello` carries a per-tab, per-room rejoin token
+  (`core/rejoin.ts`, `sessionStorage`); the host keeps a held slot (`PlayerInfo.away`) for `REJOIN_HOLD_S` (600 s)
+  when a joiner drops mid-match, and a hello with its token (or, in a full room, the only held slot: a tab closed with
+  its token) takes it back. The session aliases the new transport id to the held player id, so the game code never
+  sees the change, and tells the client its id (`you`). In the lobby a leaver still leaves.
+- Host (`coopHost` hold / unhold): the held body stays where it stood (no states arrive), takes no damage
+  (`RemotePlayer.held`), is out of `remotePlayers()` (guards, course pass zones, everyone-down), and a HUD line names
+  it with the code. On the rejoin the host sends `restore` (where it was held) every 0.5 s until the client stands
+  there; health, down state and the team's state come back through the snapshots and the course wire as usual.
+- Host drop (R3): the client session stays open (`hostId` cleared) and takes the next host that opens the room (its
+  hello on that host's first lobby). The joiner's match stays up with "Host disconnected - waiting (CODE)"; a resumed
+  host's start reloads it. "Resume hosting" (`resumeRoom`) reopens the room with the same mode, map, difficulty,
+  mission and weather and starts at `GameMode.resumeBay` (course: the bay they were in). Assumed R5: Sector Ops
+  resumes from its first section (no start-section option yet); undo by asking for a section start.
+- R1: the pause menu shows "Room CODE"; the main menu entry "Rejoin <code>" / "Resume hosting <code>" (order after
+  Sector Ops) is shown while the record is live (refreshed every 2 s while a match runs, kept on Leave, cleared when
+  the match ends or returns to the lobby).
+- Protocol 25 -> 27 (slice J holds 26; whichever merges second renumbers).
+Tests: unit `tests/rejoin.test.ts` (wire, held slot and token, full-room fallback, stranger refused, hold expiry, lobby
+leaver, stale connection, host drop and the next host, the record and token); e2e-coop: the joiner drops (held line,
+out of the guards' list) and rejoins from the main menu as the same player where it stood with its 60 hp; the host
+drops (the joiner waits on the code, no dialog) and resumes from the main menu with the joiner back; e2e-menus: the
+Rejoin row. Results: see the PR.
+
 ## Done
+- 2026-10-21: slice R (cloud): item 27 rejoin; PR to master.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).
 
