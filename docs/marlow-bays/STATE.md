@@ -12,7 +12,12 @@ Track A (Course Ready Build), 2026-10-21 ~21:40:
   `key.<clip>.a0..a7` with `at`), `src/anim/tuneKeysEdit.ts` (`KEY_LIVE`); the bake regenerates `tuneKeysMeta.ts` on
   any key-file write (closes item 23's gap); keys-only tuneBake.ts lines marked "(item 25, track A)". Known: preview
   linear vs the Blender Bezier (BAKE.md). Check + e2e-studio pass; checker fixed; full e2e queued on the laptop.
-- After #91: nothing queued for track A; asked the orchestrator for the next item.
+- Next (orchestrator ~22:20, Michael chose): item 24 guard tuning moves to track A. Start after the 23:00 usage reset on
+  `feature/guard-tune` from master: a guard target in the tuner and studio (a guard puppet in studioStage), guard rows
+  keyed apart from Wren's (Joints, Weight, Stepping where guards use them), a guard base table the bake writes; a flag
+  line in `src/ai/enemyRig.ts`; minimal named edits to `src/anim/animBase.ts` / `tuneJointsRig`; Wren rows never touch
+  guards and guard rows never touch Wren; `tests/animSkeletonGuardIdentity.test.ts` green with no tuning. One checker,
+  one fix round, own PR.
 - Tell Menu Notes (track C) when 25 lands; keep the optional-channel path in key_clip.py / build.mjs.
 - T1b is track B (CT Core), T3 track C (Menu Notes). Bays J after the animation tracks.
 Open: none.
