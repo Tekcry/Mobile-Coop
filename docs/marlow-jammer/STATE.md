@@ -1,12 +1,13 @@
 # marlow-jammer - state (resume point)
 
-**Now:** PR open (2026-10-22). IR cameras (Michael M3, J4 undone) fc980dd4: check + full e2e green at JOBS=2; final
-light checker PASS. Master 4.47.1 merged (b8a68b27, CHANGELOG only; tsc clean); check + full e2e rerunning on the merged
-head on the laptop.
-**Next:** the full e2e result on the merged head to the orchestrator; the bay 3 GPU look on the desktop (orchestrator);
-the orchestrator merges. Follow-ups for Michael: the camera IR is not shown visually (night vision); the 3 s hold before
-a sent-back partner counts again; the Kestrel security tool still tints cones by light (paused, G53);
-`docs/kestrel/S0-security-spec.md` quotes the old light-dependent camera line.
+**Now:** merged 2026-10-22 as 4.48.0 (PR #101, f1c4a6c6), PROTOCOL_VERSION 26. Job done.
+**Next:** nothing in this job. Polish for later (orchestrator's bay 3 GPU look on dca117dd, which passed all five items):
+- The camera end of the hallway and the far lobby are very dark; the camera is barely readable from the entry.
+- The orange-red cell band (#b54a2e) at waist height on the south wall can read as a laser / sweep line next to the
+  camera's red grid.
+Other follow-ups: the camera IR is not shown visually (night vision); a sent-back partner waits up to 3 s before
+counting again; the Kestrel security tool still tints cones by light (paused, G53); `docs/kestrel/S0-security-spec.md`
+quotes the old light-dependent camera line.
 **Open:** PROTOCOL_VERSION vs the cloud B + M PR (whichever merges second takes the next number); item 6 overlap on the
 bay 3 floor lines (BRIEF "Limits").
 
@@ -17,7 +18,7 @@ bay 3 floor lines (BRIEF "Limits").
   assert, forward-only mirror, allocations).
 - 2026-10-22: checker 2 FIX (stale-position gate hole); fix round 2 + master 4.44.0 merge (J4 lamp).
 - 2026-10-22: Michael M1-M3 (J2, J3 approved; J4 rejected); IR cameras fc980dd4; final checker PASS; master 4.47.1
-  merged b8a68b27; PR.
+  merged b8a68b27; PR #101; full e2e green on dca117dd; bay 3 GPU look passed (desktop); merged as 4.48.0.
 
 ## Resume prompt
 ```
