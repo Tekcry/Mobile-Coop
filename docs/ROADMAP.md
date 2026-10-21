@@ -24,6 +24,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-19 dashboard)
+- Weekly (2026-10-22 ~09:20): weekly at 61% rising ~5.5%/h; Michael chose "Full speed, swap account": keep going, and at weekly ~98% save everything and hand off to another account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
 - Cameras (2026-10-22 ~09:05): "Cameras should still work in the dark." Every security camera sees in the dark (IR), every map including Sector Ops; light still matters for guards and the meter.
 - Animation pass (2026-10-22 ~09:00): "All movements must move naturally with twisting/swaying/balancing hands... The feet also need to get fixed... I want you to do a full pass over all animations and I will fine tune. Pulling any weapons out also should be believable, and there's a random stop animation when taking out the weapons". Job anim-natural (docs/anim-natural/BRIEF.md): N0 audit, N1 feet + N2 body motion (CT Core), N3 weapons (Menu Notes), N4 the rest. Top priority.
 - Sector Ops fixes (2026-10-22 ~01:40): Michael's list (warehouse lights, LED fittings, camera range and pitch, subtle grid, lasers in one vision mode and alarm-only, laser power panels, security room, wheel default goggles, more co-op routes); "Priority is still animations right now but any spare capacity can be used as you see fit." Job sector-fixes (docs/sector-fixes/BRIEF.md), spare capacity, after the 04:00 reset.
