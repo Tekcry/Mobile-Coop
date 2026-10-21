@@ -17,7 +17,7 @@ import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelec
 import { newStudioDrive } from '../anim/studioDrive';
 import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STUDIO, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioReset, studioScrub, studioStepPhase, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { STUDIO, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioReset, studioScrub, studioSpot, studioStepPhase, spotShift, type StudioEntry, type StudioInputOut } from '../anim/studio';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -37,6 +37,8 @@ export interface StudioHost {
   doorsShut(): void;
   /** (anim-studio-2) The anchor kind Wren is attached to ('' none). */
   attachKind(): string;
+  /** (tuner-ui) Move Wren and her feet by (dx, dz) with no teleport (the treadmill of a state on the spot). */
+  shift(dx: number, dz: number): void;
 }
 
 /** The pairs' viewing spot: Wren (hidden) stands here, so the camera and the free view frame the team block. */
@@ -104,6 +106,11 @@ export class StudioStage {
   // (anim-studio-2) the traversal loop
   private readonly trav = newTravState();
   private readonly travOut = newTravOut();
+  // (tuner-ui) a state on the spot: held at (spotX, spotZ) from its first step
+  private spotOn = false;
+  private spotX = 0;
+  private spotZ = 0;
+  private readonly spotD = { x: 0, z: 0 };
 
   constructor(private readonly host: StudioHost) {
     studioReset();
@@ -134,7 +141,7 @@ export class StudioStage {
     fi.tick(dt);
     const e = studioEntry(STUDIO.entry);
     if (e.trav) return this.travInput(dt, e.trav);
-    const o = studioInput(e, STUDIO.rootMotion, this.out);
+    const o = studioInput(e, STUDIO.rootMotion, this.out, STUDIO.spot);
     fi.move.x = o.x;
     fi.move.y = o.y;
     fi.set('studio', 'ads', o.ads);
@@ -150,6 +157,25 @@ export class StudioStage {
     for (let i = 0; i < TRAV_BUTTONS.length; i++) if (TRAV_BUTTONS[i] !== 'drop') fi.set('studio', TRAV_BUTTONS[i]!, false);
     this.drawTap(dt, o.drawn, o.ads);
     return fi;
+  }
+
+  /**
+   * (tuner-ui) After the player's fixed step: a moving state on the spot is held where it started (a treadmill): the
+   * body goes back by what it moved and the planted feet with it, so the gait runs with no travel. No allocation.
+   */
+  afterStep(): void {
+    const e = studioEntry(STUDIO.entry);
+    const on = this.drives && studioSpot(e, STUDIO.spot);
+    const p = this.host.player.position;
+    if (on && !this.spotOn) {
+      this.spotX = p.x;
+      this.spotZ = p.z;
+    }
+    this.spotOn = on;
+    if (!on) return;
+    const d = spotShift(p.x, p.z, this.spotX, this.spotZ, this.spotD);
+    if (d.x * d.x + d.z * d.z < 1e-12) return;
+    this.host.shift(-d.x, -d.z);
   }
 
   /** One draw tap per 0.6 s while drawn differs from what the loop wants. */
@@ -200,7 +226,7 @@ export class StudioStage {
   frame(dt: number, look: { x: number; y: number }): void {
     const e = studioEntry(STUDIO.entry);
     this.configure(e);
-    if (dt > 0 && this.drives && e.kind !== 'trav' && e.kind !== 'pair') look.x += studioInput(e, STUDIO.rootMotion, this.out).turn * dt;
+    if (dt > 0 && this.drives && e.kind !== 'trav' && e.kind !== 'pair') look.x += studioInput(e, STUDIO.rootMotion, this.out, STUDIO.spot).turn * dt;
     const d = this.drive;
     if (e.kind === 'pair') {
       // the pair's one clock: both rigs (the puppets, or Wren and the guard) at the same phase

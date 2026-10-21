@@ -52,6 +52,17 @@ export function saveAnimTunePresets(value: unknown): Promise<boolean> {
   return putKey(PRESETS_KEY, value);
 }
 
+/** (tuner-ui) The panel's own settings (size, pause while tuning), a third key: `{ size, pauseTuning }`. */
+const UI_KEY = 'ui';
+
+export function loadAnimTuneUi(): Promise<unknown> {
+  return getKey(UI_KEY);
+}
+
+export function saveAnimTuneUi(value: unknown): Promise<boolean> {
+  return putKey(UI_KEY, value);
+}
+
 async function getKey(key: string): Promise<unknown> {
   try {
     const db = await open();

@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.33.0 - Animation tuner laid out for the pad: tabs, drop-downs, one step at a time (2026-10-21, PR #80)
+- Animation tuner layout pass for the pad (Michael, 2026-10-21: "Not practical for controller use. It's such a long
+  list"): tabs across the top, LB / RB (or a click) cycle them: View, Body, Hands & feet, Weapon, Stepping, Weight,
+  Camera, Keys, Co-op, then any later section, then Settings. One step at a time inside a tab: a drop-down for the part
+  (when the tab holds more than one), one for the state (and weapon then state, clip then key), then that group's
+  sliders. Every list opens as a visible drop-down (A or a click; D-pad or arrows move, A / Enter picks, B / Esc backs
+  out); a pick steps the focus on to the sliders, B from a slider goes back to the picker.
+- Every value shows at all times, light on dark: the panel sets explicit colours on all its controls (the old focus
+  mark cleared the buttons' background, and a value at its default lost its colour: white on white, dark on dark).
+- The panel scales to the screen (Small by default; Settings > Size: Small / Medium / Large, saved in the tuner's own
+  IndexedDB store, key `ui`). The hint strip is reserved space at the bottom, pad glyphs with a pad, key and mouse help
+  otherwise, switching live.
+- Plain short labels ("Foot width", "Knee out", "Hip height", "Lean", "Right elbow bend"), units beside the values; ids,
+  saves, exports and the bake table unchanged.
+- Pause stops the game: under the pause menu no synthesised input (the studio loop, the free view demo) moves her and
+  the menus get the pad; "Pause game while tuning" (Settings, on by default) holds the game still while the panel has
+  the pad (not in the Anim Studio, where Play / Pause rules, nor in co-op).
+- Camera snaps (View tab: Front / Side / Back / Top) lock: the orbit holds that angle to her facing as she turns and
+  moves, until Unlock or another snap; the pad stays on the panel. They work outside the studio too.
+- Anim Studio: picking a loop sets the tuner's state to match (body state, joints, reach, hands, stepping, weight, the
+  clip's keys, the co-op role, the climb move); "Loop on the spot" (default on): a moving state walks a treadmill (the
+  gait runs, the root is held, the feet slide back with it) and a clip plays in place; off, both walk the 2 m circle.
+- Pure parts in `src/ui/tunerLayout.ts` (`tests/tunerLayout.test.ts`); e2e-menus and e2e-studio follow the new
+  navigation (tabs, the drop-down, values shown, pause, the snap lock, loop on the spot).
 ## 4.32.3 - e2e-stealth-ai wall peek picks its spot with the guard's own eye (2026-10-21, PR #78)
 - e2e-stealth-ai's wall peek block keeps a guard spot only if the spawned guard's own eye sees the peeking head and
   not the chest. It picked the spot with a 1.55 m eye guess, 4 cm below a grunt's eye, so the real guard could see the
