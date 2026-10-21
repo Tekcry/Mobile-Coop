@@ -6,7 +6,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
-v4.48.0 (#101, f1c4a6c6) plus #104 docs (ea3399ed). /preview/ = dev = ea3399ed. Merged 2026-10-21/22 in order:
+v4.49.0 (#97, c38feca2). /preview/ = dev = c38feca2 (09:55). Merged 2026-10-21/22 in order:
 4.33.0 #80 tuner pad layout, 4.33.1 #79 GL warnings, 4.34.0 #81 co-op guard torches, 4.35.0 #82 tuner free mouse,
 4.36.0 #83 T1a keys / playback, 4.37.0 #84 J1 base table, 4.38.0 #85 bays B+M (cloud), 4.39.0 #86 T2 redesign,
 4.40.0 #87 key timing, 4.41.0 #89 phone tuner, 4.42.0 #88 skeleton S1+S2, 4.43.0 #91 add / delete keys, 4.43.1 #93
