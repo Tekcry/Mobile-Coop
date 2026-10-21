@@ -93,6 +93,13 @@ visual check (item 6's red lines and surround, the bay looks) is "pending PC run
 files (below). A co-op protocol change bumps PROTOCOL_VERSION past 25. Slice J (jammer, items 5, 7, 8) stays for a
 local session later. One PR for B + M; the full e2e and the GPU look run on the PCs before the merge.
 
+**Slice J on the laptop (Michael, ~17:50, "Yes").** Character Build (laptop) builds slice J (items 5, 7, 8: the bay 3
+hallway, the jammer rules and buzz, the light flicker) between test requests; test runs always come first. Own branch
+`feature/marlow-jammer` from master in `C:/NightShift/Mobile-Coop-marlow-jammer` (the cloud session holds
+`feature/marlow-bays`). Laptop: logic e2e only; the bay 3 GPU look runs on the desktop before the merge. Protocol: the
+jam state crosses the wire, so PROTOCOL_VERSION goes past 25; if the cloud B + M PR also bumps it, whichever merges
+second takes the next number. Own PR; one checker, one fix round.
+
 **Tracks (Michael, ~16:10: "is there anything we can do to split sessions to focus heavily on the animation work?";
 chose three tracks, bays wait).** Three sessions at once, one owner per file area, the orchestrator merges A, B, C in
 that order; the laptop tests all three:
