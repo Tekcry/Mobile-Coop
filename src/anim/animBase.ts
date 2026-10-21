@@ -1,7 +1,7 @@
 /**
  * (anim-joints J1, COVERAGE gap 1) The animation base table: GENERATED. `scripts/anim-tune-bake.mjs` (logic
  * `src/anim/tuneBakeBase.ts`) rewrites the JSON between the `@anim-base-begin` / `@anim-base-end` lines when it bakes
- * Joints, Hands & feet, IK strength or Weapon values (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
+ * Joints, Hands & feet, IK strength, Weapon or (anim-gear) Gear values (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
  *
  * Every Wren rig (`CharacterRig.tuneRows`) reads it: the tuner's Joints / Hands & feet / IK / Weapon values are deltas on
  * it (`tuneJoints.ts`, `tuneHands.ts`: joints add degrees per axis, offsets add, gun scale and IK strength multiply, the
@@ -16,13 +16,23 @@ export interface AnimBaseData {
   hands: Record<string, Record<string, Record<string, number>>>;
   /** IK strength: row -> [handL, handR, footL, footR]. */
   ik: Record<string, [number, number, number, number]>;
+  /**
+   * (anim-gear) Gear offsets: row (`holster`, `holster.crouch`, ...; `tuneGear.ts` GEAR_ROWS) -> param id (x / y / z
+   * m, pitch / yaw / roll deg) -> value; offsets add, the tuner's Gear values are deltas on it. Optional: a table
+   * without it has every socket at 0 (the bake prints the key only when a row has an offset).
+   */
+  gear?: Record<string, Record<string, number>>;
 }
 
 export const ANIM_BASE: AnimBaseData =
 // @anim-base-begin
 {
   "version": 1,
-  "joints": {},
+  "joints": {
+    "idle": { "upperArmL": [0, 0, -4], "upperArmR": [0, 0, 4] },
+    "jog": { "upperArmL": [0, 0, -4], "upperArmR": [0, 0, 4] },
+    "walk": { "upperArmL": [0, 0, -4], "upperArmR": [0, 0, 4] }
+  },
   "hands": {},
   "ik": {}
 }

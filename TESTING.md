@@ -148,6 +148,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   only and is gone when she walks on. In the leg-up pair, `Team` > `Boost` > `B` moves role B only.
 - [ ] Reload row (anim-joints J2): in play (follow on), reload; the Joints picker shows `Reload` while the reload plays;
   a left elbow edit there shows during each reload and not between them.
+- [ ] Gear offsets (anim-gear): in the Anim Studio open the Gear tab, pick `holster`, slide x (and z) until the pistol
+  sits out of the thigh, no clipping; pick `holster` > `crouch`, crouch: it moves on as she crouches and back as she
+  stands; draw and holster the pistol: the hand goes to the moved holster. Export, run
+  `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts` gets a `gear` key),
+  rebuild, reset the Gear sliders: the same look. With a partner (or role B of a pair loop) the partner's sling socket
+  and gear take the same rows; a guard does not.
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
@@ -173,6 +179,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
 - [ ] Co-op: the partner's hands also close on their gun.
 - [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
+- [ ] (S3+S4) Anim Studio: play skeleton_test: shrug, right shoulder forward, fingers curl one by one then spread, a
+  left kick with the right foot planted.
+- [ ] (S3+S4) Keys tab on jog: on a contact key raise the knee: the leg bends but the planted foot does not slide (foot
+  slide readout under 0.5 cm); on a swing key the leg moves as keyed. A collarbone or finger field changes that key.
+- [ ] (S3+S4) Joints tab: the collarbone row shrugs and pushes the shoulder forward; reset returns it exactly.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
@@ -261,6 +272,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
 - [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
   states show the values of the rows they shared.
+- [ ] (anim-bake-1022) After a bake merges, open the tuner with your old save: the info line says how many values are
+  now built in and that your other changes are kept; the baked sliders sit at their defaults, the rest as tuned, and she
+  looks as before the merge. Reload: nothing resets again. Y menu > Reset baked gives the line again.
 - [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
   focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
   compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).

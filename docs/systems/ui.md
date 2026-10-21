@@ -245,6 +245,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
+- (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): when the tuner's save loads, the sliders at a value the
+  bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
+  the save, `TuneSnapshot.baked`); the info line gives the count (on the next open when closed). Y menu "Reset baked"
+  reruns it over every bake. Hooks: `__animTune.bakedReset()`, `bakedApplied()`, `infoText()`; BAKE.md step 7.
 - (anim-joints J2, COVERAGE gap 2) Move and action rows in Joints, Hands & feet, IK strength and Weapon: the tables are
   keyed by the row list `TUNE_ROW_IDS` (`anim/tuneMoveRows.ts`): the body states (ids unchanged), then `trav.<kind>`
   (the traversal moves without a body state, plus `brace`), `team.<move>.<a|b>` (each co-op move per role) and the
@@ -261,6 +265,19 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   lerp(1, move, w); the trigger the move row's at w >= 0.5 when not auto. A move with no body state (a vault) applies
   its row over identity. The panel follows the strongest move row while its weight is 0.5 or more, else the stance
   row. The per-gun Joints rows stay for the armed states only.
+- (anim-gear, marlow-bays item 22) Gear (`anim/tuneV2Sections.ts` `GEAR_SECTION`, tables `anim/tuneGear.ts`): worn-gear
+  offsets per socket, its own tuner tab (`sec:gear`, "Gear": the panel builds it from the registry, no UI change).
+  Groups `gear.<socket>` (holster, backL, backC, backR, slingHip) and `gear.<socket>.crouch` (added
+  over the standing row by the rig's crouch amount 0..1); sliders x / y / z (m, -0.1..0.1) and pitch / yaw / roll (deg,
+  -45..45), identity 0, no follow. Deltas on the base table's `gear` key; every Wren rig composes its own
+  (`TuneRigState.gear`, in `tuneRigBegin`). Where each applies: holster -> the thigh pistol (`WeaponModel.place`, the
+  `thighMount` branch, about the holster's weapon point; the generic thigh slot likewise); backL / backR -> the back
+  mount's guns (about the stud); backC -> the diagonal centre sling (about the grip); slingHip -> the rig's `slingHip`
+  node and the compact gun on the hip sling (about its stock-end pivot). No slingBack socket (nothing reads that node yet) and no
+  pouches socket: Wren's kit draws her grenade pouches (the GrenadePouches meshes are hidden on her rig), so it would
+  move nothing (dropped until they can move). A gun's frame is its own in the slot (x right, y top, z toward the muzzle); a node's is its
+  parent's. A draw / holster's travel targets the moved slot (it places its end through `place`). Visual only (G-A3).
+  Hook: `__animBase.setGear(row, param, v)`.
 - (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
   differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
   `tests/marlowT2.test.ts`, `tests/tunerLayout.test.ts`):

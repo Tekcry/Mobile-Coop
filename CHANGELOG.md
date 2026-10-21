@@ -33,6 +33,43 @@
   every body as fully lit whatever the lamps do. Putting lamps out (jam, EMP, shot) no longer hides anyone from a camera,
   in Marlow Yard and Sector Ops alike; guards and the light meter still go by the lamps. Every station 3 lamp is jammable
   again (the hardened bay x 6 hallway lamp of fix round 2 is undone).
+## 4.47.1 - Tuner groundwork: a Blender-exact key curve evaluator for the coming exact key preview (not wired yet) (2026-10-22, PR #100)
+- `src/anim/keyCurve.ts`: a pure, allocation-free port of Blender 5.2.2's auto-clamped Bezier solve (within 2e-6 of Blender on 124 curves), with tests and fixtures. Course Ready wires it into the Keys preview in item 30.
+
+## 4.47.0 - Animation tuner: collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys on every keyed clip (2026-10-22, PR #98)
+- Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real
+  clips, jog, run, walk, idle ...). The Keys tab has, on every key: collarbone pitch / yaw / roll per side, curl and
+  spread per finger, and leg changes per joint (hip pitch / yaw / roll, knee, ankle pitch / roll, toe). A clip takes
+  them on the first edit and the bake writes them; clips nobody edits stay exactly as they are.
+- Leg key changes keep planted feet still: while a foot is planted the leg is re-solved onto its plant with the change
+  folded in (a knee or hip change on jog's contact key leaves the foot within 0.5 cm; measured 0.00 cm); the swinging
+  leg takes the change as keyed. The rig reports how far a planted foot slid (`rig.footSlide`, the studio's foot
+  slide line).
+- Joints tab: a collarbone row per side (shrug, push forward, tilt) for every state.
+- Clips can be keyed with whole legs (an FK takeover with a per-key weight over the foot planner); the studio-only test
+  clip skeleton_test uses all of it (shrug, shoulder push, fingers one by one, a kick with the other foot planted).
+## 4.46.0 - Michael's first tuner bake: jog and run keys, low-ready gun poses, Joints; Reset baked clears built-in values on load (2026-10-22, PR #96)
+- Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
+  equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied
+  twice. The rest of the tuning is kept; the panel says how many ("61 values are now built in; your other 13 changes
+  are kept."). Y menu > "Reset baked" runs it again.
+- Tests follow Michael's 2026-10-22 tune (the jog / run keys, the rifle and pistol low ready, the idle / walk / jog
+  upper-arm roll): the identity fixtures re-captured (proven data only first), the tuner key tests moved to the evenly
+  spaced sneak / walk keys, and the run's anti-crab and arm limits widened for the run alone (marked to restore).
+- Michael's rifle and pistol low ready are Wren's alone (`WREN_READY_LOW`, `WREN_PISTOL_READY`, picked once per rig by
+  `tuneRows`): guards, the VIP and the dummy keep the pre-bake ready poses, the gun bake rules target Wren's copies,
+  the guard identity fixture is back to master's, and e2e-anim's player low-ready limits follow the tune (marked).
+
+## 4.45.0 - Animation tuner: Gear offsets for the holster, the guns on her back and the hip sling, baked (2026-10-22, PR #95)
+- Gear offsets (marlow-bays item 22): the animation tuner has a Gear tab with sliders that move worn gear per socket:
+  the holstered pistol on the thigh, the guns on the back (left, centre, right) and the hip sling socket
+  (the hip sling's gun with it). Each moves in its own frame (x / y / z in metres) and turns
+  about its own seat (pitch / yaw / roll in degrees); each has a crouched variant added as she crouches. A draw or
+  holster reaches to the moved slot. Visual only: what she carries and how long a draw takes are unchanged.
+- The Gear values bake into the animation base table like Joints and Hands & feet, so every Wren body takes them: the
+  co-op partner and the studio's pair puppets too, guards never. Old exports, saves and base tables load and bake as
+  before. The grenade pouches are part of her own kit, so they have no slider yet; the goggles follow
+  after track C's hook lands.
 
 ## 4.44.0 - Animation tuner: Joints, Hands & feet, IK and Weapon rows for every move and action (climbs, rappel, co-op moves, reload, melee, landing, hit) (2026-10-22, PR #90)
 - Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every

@@ -35,7 +35,7 @@ Refused, with nothing written:
 - The file keeps its formatting and line ends.
 
 **Identity after bake:** the code value moves and the slider's default stays identity. The tuner's IndexedDB save still
-holds the tuned values, so after the merge Michael resets the sliders reported "baked" (keeping the manual ones) and
+holds the tuned values; after the merge the tuner resets the baked ones itself (Reset baked, step 7) and Michael
 exports again. The ledger records every baked `group|id=value`. A later export (the same one or a new one) that still
 carries that value for that slider is reported "already baked (same value as the bake of <date>; reset this slider in
 the tuner)" and is never baked twice; a different value for the slider is a new tune and bakes.
@@ -66,9 +66,13 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
 
 **Gun.**
 - Baked:
-  - rifle.lowReady -> READY_POSES.low.* +. Close: the other carries keep theirs, so a gun tune made at a wall (the wall
+  - rifle.lowReady -> WREN_READY_LOW.* +. Close: the other carries keep theirs, so a gun tune made at a wall (the wall
     tuck) is not carried over.
-  - pistol.lowReady -> PISTOL_READY.* +.
+  - pistol.lowReady -> WREN_PISTOL_READY.* +.
+  - (anim-bake-1022) Both are Wren's own copies (`animGraph.ts`): every Wren rig (`CharacterRig.tuneRows`: the player,
+    the partner, the studio puppets) reads them, every other rig (guards, VIP, dummy) READY_POSES.low and PISTOL_READY,
+    which no bake touches ("Wren's rows never touch guards"). The first bake wrote into the shared poses; the split moved
+    those values into the Wren copies and put the guards' pre-bake values back.
   - gunFwd / gunSide, rifle aims -> SIGHT_RAISE.z / x +, with PISTOL_REACH.z / x - so the pistol aim stays.
   - gunFwd / gunSide, pistol aims -> PISTOL_REACH.z / x +.
   - sightYAdd -> SIGHT_EYE +.
@@ -149,6 +153,17 @@ pair puppets; guards and other rigs never do). Result "baked (base table)"; targ
   `throw`, `hit`. At run time a move row composes over the stance row by its weight (`docs/systems/ui.md`). Test: the
   literal export in `tests/animMoveRows.test.ts`.
 
+**Gear** (anim-gear, marlow-bays item 22): baked into the same base table under the key `gear`. Result "baked (base
+table)"; target `src/anim/animBase.ts: gear.<row>.<param> + (m)` or `+ (deg, wrapped)`.
+- Shape: `"gear": { row: { param: v } }`, row = the group id after `gear.` (`holster`, `backL`, `backC`, `backR`,
+  `slingHip`, and each with `.crouch`: `gear.holster.crouch` -> `gear["holster.crouch"]`),
+  param = `x` / `y` / `z` (metres, the socket's own frame) or `pitch` / `yaw` / `roll` (degrees). Offsets add (angles
+  wrapped to -180..180), the same at run time (base + the tuner's delta) and in the bake (old base + the export's value).
+- The key is optional and printed only when a row has an offset (sorted, about 4 significant digits, 0 left out): a
+  table without it (every table before anim-gear) parses and prints exactly as before, and old exports bake as before.
+- Code: `src/anim/tuneBakeBase.ts`; the runtime table and the per-rig composition `src/anim/tuneGear.ts`. Dev hook:
+  `window.__animBase.setGear(row, param, value)`. Test: the literal export in `tests/animGear.test.ts`.
+
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock). (marlow-bays item 23, track A) A key's
 `time` (bake frames, + later) moves its `phase` to frame / 48 (moved keys only, clamped as in the tuner; key 0 is fixed:
@@ -224,10 +239,30 @@ list or when any registered slider and group has no rule or manual entry.
 3. Real run (`--only` for a staged bake if wanted).
 4. Rebake each printed key clip with build.mjs (desktop, under the heavy lock).
 5. Run `npm run check`; unit tests that pin constants (GEARS, CAMERA, WALL ...) may need their expected values updated.
-   Then run the e2e test tiers.
+   Then run the e2e test tiers. What the first bake (anim-bake-1022) needed:
+   - The identity fixtures (`tests/fixtures/anim-skeleton-identity.json`, `...-guard-identity.json`): first prove the
+     change is data only (a temporary test that restores the pre-bake data at run time must match the old fixture bit
+     for bit), then re-capture with `ANIM_SKELETON_CAPTURE=1`. A gun bake changes only Wren's fixture (the gun rules target
+     Wren's copies); the guard fixture changes only when a bake writes a shared constant (Body, Stepping, keyed clips).
+   - Tests that need the untuned rig load a test-local empty base table (`animBaseLoad(emptyBase())`,
+     `jointsBaseLoad(undefined)`); the base file test reads against `ANIM_BASE`.
+   - The tuner key tests (retime, add / delete, the step) need a mirrored clip with evenly spaced keys: they run on
+     sneak (unit) and walk (e2e-studio, frames read from `tuneKeysMeta.ts`), each with a precondition check. A tune that
+     retimes those clips moves the tests to another evenly spaced clip.
+   - Quality limits a tune breaks (e2e-anim anti-crab, the keyedWalk jog / run arm check) are widened for that gait only
+     to the measured value plus ~10%, each with a `(anim-bake-1022) ... was <old>` comment so it can be restored, after
+     the orchestrator agrees.
 6. Commit the sources, the key JSONs, the rebaked clips and the ledger in one PR.
-7. After the merge, tell Michael to reset the sliders reported "baked" (keeping the manual ones) and export again. The
-   old export is spent.
+7. After the merge nothing is left to reset by hand (anim-bake-1022, `src/anim/tuneBakedReset.ts`, tests
+   `tests/tuneBakedReset.test.ts`): the build bundles the ledger, and when the tuner's save loads (the panel is built
+   at boot) every slider whose saved value equals exactly a ledger `group|id=value` (compared as the ledger formats
+   numbers; a version 1 save migrated first; the record as saved, so a value past the normal range that the load clamps
+   still matches) goes back to its default through the registry (change log and save follow). The other changes are
+   kept. The ledger hashes applied are kept in the save (`TuneSnapshot.baked`), so it runs once per bake and a later
+   re-tune to the same value is not wiped. The panel's info line says "61 values are now built in; your other 13
+   changes are kept." (closed: when it next opens; also the console). The Y menu's **Reset baked** runs it again over
+   every bake, ignoring the record (it compares the loaded values, so a clamped one no longer matches). Tell Michael to
+   open the tuner, read the line and export again: the old export is spent.
 
 ## Fix round (CHECK-BAKE.md)
 - **B1** tuckMul: one rule over all 6 gun groups (READY_ELBOW_TUCK, READY_ELBOW_TUCK_CROUCH, AIM_ELBOW_TUCK x), exact
