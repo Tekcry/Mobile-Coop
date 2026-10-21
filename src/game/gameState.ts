@@ -692,7 +692,7 @@ export class GameState implements AppState {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
         world.layout.security,
-        { ballistics: this.ballistics, players: () => this.playerRefs(), lightAt: (x, y, z) => world.lightField.totalAt(x, y, z) },
+        { ballistics: this.ballistics, players: () => this.playerRefs() },
         new SecurityView(this.scene, world.parts),
       );
       const prevRay = this.weapons.onRay;
@@ -1568,10 +1568,6 @@ export class GameState implements AppState {
     return this.lightRay.hasHit;
   };
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
-  /** (camera-cue fix) A remote body's light as this side samples remotes (the co-op client's camera cue). */
-  bodyLight(x: number, feetY: number, z: number, height: number, crouched: boolean): number {
-    return this.world.lightField.bodyLevel(x, feetY, z, lightSampleHeight(height, crouched ? 1 : 0), this.lightOccluder);
-  }
 
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);

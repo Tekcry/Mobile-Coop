@@ -9,8 +9,10 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_HALL, S3_HARD_LAMP_X, S3_PANEL_X, S5_PANEL } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_HALL, S3_PANEL_X, S5_PANEL } from '../src/world/maps/ctcourse';
 import { cameraRate, newMeter, stepCamMeter } from '../src/security/camera';
+import { sightRate } from '../src/ai/perception';
+import { SENSITIVITY } from '../src/ai/alertState';
 import { CAMERA } from '../src/config/security';
 import { GEARS } from '../src/config/movement';
 import { dressingOn } from '../src/world/detailPass';
@@ -209,7 +211,8 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
       for (const id of ids) reg.setOn(id, false);
       const off = pts.map(([x, z]) => body(f, x, 0, z));
       for (const id of ids) reg.setOn(id, true);
-      // the camera sees through `visibilityFromLight`, which saturates at LIGHT.lit: compare what it sees
+      // guards and the meter see through `visibilityFromLight`, which saturates at LIGHT.lit: compare what they see (the
+      // camera has its own IR, marlow-jammer M3)
       pts.forEach(([x, z], k) => expect(Math.abs(Math.min(on[k]!, LIGHT.lit) - Math.min(off[k]!, LIGHT.lit)), `S3 ${x.toFixed(1)}, ${z}`).toBeLessThanOrEqual(0.005));
     }
   });
@@ -270,31 +273,37 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
     expect(bad).toEqual([]);
   });
 
-  it('(marlow-jammer fix round 2) every darkenable station 3 lamp out: an unjammed runner is still caught in the hallway', () => {
+  it('(marlow-jammer M3) every station 3 lamp out: the hallway goes dark, yet the camera (its own IR) still catches an unjammed runner', () => {
     const x0 = bayX(2);
     const s3 = reg.lights.filter((l) => l.x > x0 - 0.5 && l.x < x0 + CT_BAY + 0.5 && l.kind !== 'flashlight');
-    const hard = s3.filter((l) => Math.abs(l.x - (x0 + S3_HARD_LAMP_X)) < 0.01);
-    expect(hard.length).toBe(1);
-    expect(hard[0]!.electric || hard[0]!.destructible).toBe(false);
-    // out: every lamp a jam, an EMP or a shot can put out
-    const out = s3.filter((l) => l.electric || l.destructible);
-    expect(out.length).toBe(s3.length - 1);
-    for (const l of out) reg.setOn(l.id, false);
+    // every station 3 lamp can be put out (a jam, an EMP or a shot): no hardened lamp (J4 undone)
+    expect(s3.length).toBe(4);
+    for (const l of s3) expect(l.electric && l.destructible).toBe(true);
+    for (const l of s3) reg.setOn(l.id, false);
     const blind = (S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2);
-    const caughtAt = (speed: number, crouched: boolean): number => {
+    let darkest = 1;
+    // `guard`: the same walk scored by the lamps (what a guard / the old camera saw), to show the dark is real
+    const caughtAt = (speed: number, crouched: boolean, guard: boolean): number => {
       const m = newMeter();
       const dt = 1 / 30;
       for (let x = S3_HALL.x0; x < x0 + 13.8; x += speed * dt) {
         const dist = Math.hypot(S3_CAMERA.x - x, S3_CAMERA.y - (crouched ? 1.05 : 1.6));
-        const rate = S3_CAMERA.x - x > blind ? cameraRate(dist, body(open, x, 0, S3_CAMERA.z), crouched, speed) : 0;
+        const light = body(open, x, 0, S3_CAMERA.z);
+        darkest = Math.min(darkest, light);
+        const inView = S3_CAMERA.x - x > blind;
+        const rate = !inView ? 0 : guard ? sightRate({ dist, angle: 0, light, crouched, speed, exposure: 1, sensitivity: SENSITIVITY.unaware }) : cameraRate(dist, crouched, speed);
         stepCamMeter(m, rate, dt);
         if (m.stage === 2) return x - x0;
       }
       return -1;
     };
-    const run = caughtAt(GEARS.stand[4], false);
-    const crouch = caughtAt(0.8, true);
-    for (const l of out) reg.setOn(l.id, true);
+    const run = caughtAt(GEARS.stand[4], false, false);
+    const crouch = caughtAt(0.8, true, false);
+    const runByLamps = caughtAt(GEARS.stand[4], false, true);
+    for (const l of s3) reg.setOn(l.id, true);
+    if (process.env.CTLIGHT_PRINT === '1') console.info(`S3 lamps out: hallway light >= ${darkest.toFixed(2)}, runner caught at bay x ${run.toFixed(1)}, crouch ${crouch.toFixed(1)}, by the lamps ${runByLamps.toFixed(1)}`);
+    expect(darkest).toBeLessThan(LIGHT.lit);
+    expect(runByLamps).toBe(-1);
     expect(run).toBeGreaterThan(0);
     expect(run).toBeLessThan(13.8);
     expect(crouch).toBeGreaterThan(0);

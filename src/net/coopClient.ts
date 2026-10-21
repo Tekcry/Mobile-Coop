@@ -235,7 +235,6 @@ export class CoopClient implements NetAttachment {
       b.crouched = (a.flags & PF.crouch) !== 0;
       b.speed = a.moveSpeed;
       b.head.set(a.pos.x, remoteHeadY(a.pos.y, b.crouched), a.pos.z);
-      b.light = this.g.bodyLight(a.pos.x, a.pos.y, a.pos.z, a.rig.height, b.crouched);
     }
     return n;
   }

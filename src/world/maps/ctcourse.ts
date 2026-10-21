@@ -89,13 +89,6 @@ const S3_LAMPS: readonly (readonly [number, number, number])[] = [
   [1.5, MID, 11],
   [14.8, MID, 9],
 ];
-/**
- * (marlow-jammer fix round 2) The hallway lamp at bay x 6 is hardened: not electric (no jam, no EMP) and not
- * destructible. With both hallway lamps out the hallway falls to the 0.30 fill and a runner never fills the camera's
- * meter (0.63 at the far lobby), which would pass bay 3 without jamming the camera; with this lamp on, a runner is caught
- * by bay x 6.3 even with every other station 3 lamp off.
- */
-export const S3_HARD_LAMP_X = 6;
 
 /** Obstacle wall heights by station (1-based; none for the panel station and the S3 hallway): S6 and S8 run to the ceiling (bulkheads). */
 const OBST_H: Record<number, number> = { 2: LEDGE, 4: CT_CEIL[3]!, 5: 4.0, 6: CT_CEIL[5]!, 7: LEDGE, 8: CT_CEIL[7]! };
@@ -384,11 +377,9 @@ export const ctcourse: MapDef = {
           ceilingLamps.push(x0 + 12.5);
         } else pendant(x0 + 12.5, 5, ceil, 0.9, 13);
       } else if (n === 3) {
-        // (marlow-jammer) the hallway: two strips over it (the camera sees by the light, like a guard), one in each lobby
-        for (const [dx, z, r] of S3_LAMPS) {
-          if (dx === S3_HARD_LAMP_X) b.light({ x: x0 + dx, y: ceil - FLUSH, z, radius: r, intensity: LAMP_LOW.intensity, color: WHITE, fixture: STRIP, electric: false, destructible: false });
-          else flush(x0 + dx, ceil, LAMP_LOW.intensity, r, z);
-        }
+        // (marlow-jammer) the hallway: two strips over it, one in each lobby; all jammable. The camera sees by its own IR
+        // (M3), so these light the hallway for the players and the meter, not for the camera
+        for (const [dx, z, r] of S3_LAMPS) flush(x0 + dx, ceil, LAMP_LOW.intensity, r, z);
         for (const [dx] of S3_LAMPS) ceilingLamps.push(x0 + dx);
       } else {
         const k = n === 4 ? LAMP_S4 : LAMP_LOW;

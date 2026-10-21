@@ -38,6 +38,8 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   a laser 1.5 s (`reboot`); a lamp 4 s off then a 0.5 s flicker on (`JAM_LIGHT`). A jammed / rebooting camera is blind
   (mode off: its grid fades, no meter), frozen (`CameraUnit.frozen`: its clock stops, the sweep resumes where it
   stopped), its LED flashing while jammed (`SecurityView`). A jammed lamp follows `lightLit` in the light registry.
+- Cameras see by their own IR (Michael M3, `CAMERA.irLight` in `config/security.ts`): putting lamps out (jam, EMP, shot)
+  hides a player from guards and the meter, never from a camera; only jamming the camera itself (or shooting it) does.
 - Feedback: the HUD line under the reticle (`jamHudText`), the gun light (cyan pulse jamming, dim red cooling, amber on a
   rebooting target, green aimed, red idle) and the buzz (`audio/jamBuzz.ts`: a quiet synth voice at the nearest jammed
   device, positional, on both pages; A4).

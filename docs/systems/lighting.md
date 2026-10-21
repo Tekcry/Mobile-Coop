@@ -5,6 +5,9 @@ Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G100-G102), then docs/d
 
 Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
 field (collision, the light bake, the noise model), never the render state.
+Security cameras are outside the light model (marlow-jammer, Michael M3): each has its own IR illuminator, so inside its
+range and cone it reads every body at `CAMERA.irLight` 1 (fully lit); lamps, jammed or shot lamps and dark corners do
+not change what a camera sees. Lights matter for guards and the meter only.
 
 ## Decided direction
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:

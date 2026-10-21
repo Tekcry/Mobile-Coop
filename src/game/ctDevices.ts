@@ -216,7 +216,6 @@ export class CtDevices {
   private cueT = 0;
   private readonly refTmp: PlayerRef[] = [];
   private readonly bodies: SeenBody[] = [newSeenBody()];
-  private readonly lit = { lightAt: (x: number, y: number, z: number): number => this.g.world.lightField.totalAt(x, y, z) };
   private time = 0;
   private want: [string, string] = ['', ''];
   private wantAt: [number, number] = [-9, -9];
@@ -943,7 +942,6 @@ export class CtDevices {
       b.crouched = own.crouched;
       b.speed = own.speed;
       b.head.set(own.feet.x + (own.peekX ?? 0), remoteHeadY(own.feet.y, own.crouched), own.feet.z + (own.peekZ ?? 0));
-      b.light = own.light;
       n = 1;
     }
     n += g.net?.partnerBodies?.(this.bodies, n) ?? 0;
@@ -952,7 +950,7 @@ export class CtDevices {
       let s = 0;
       for (let k = 0; k < n && s === 0; k++) {
         const b = this.bodies[k]!;
-        if (seenAt(cameraSight(c, b.head, b.crouched, b.speed, b.light, g.ballistics, this.lit))) s = 1;
+        if (seenAt(cameraSight(c, b.head, b.crouched, b.speed, g.ballistics))) s = 1;
       }
       this.cueSeen[i] = s;
     }

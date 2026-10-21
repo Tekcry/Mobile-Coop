@@ -182,3 +182,44 @@ Written by the fix-round implementer (2026-10-22). Scope cut by the orchestrator
 Checks (laptop, after the runner freed the laptop): `npm run check` pass, 4 min 17 s (lint 0 errors / 41 warnings,
 Vitest 229 files / 2536 passed / 7 skipped, build 1m 45s). The visionIsolation snapshot (line endings only) restored.
 Not run: full `npm run e2e` and e2e-ctcourse with the new assert (orchestrator: after 04:00). Bay 3 GPU look: pending PC run.
+
+## IR cameras (Michael M3)
+Written by the implementer (2026-10-22). Michael did not approve J4; cameras see in the dark instead.
+
+1. J4 undone. The bay x 6 hallway lamp is a plain jammable / EMP-able / shootable strip again (`S3_HARD_LAMP_X` and its
+   special case gone from `src/world/maps/ctcourse.ts`; light levels unchanged, same intensity and radius).
+2. Cameras see by their own IR. `CAMERA.irLight` = 1 (`src/config/security.ts`): `cameraRate(dist, crouched, speed)`
+   (`src/security/camera.ts`) runs the guard formula at that light instead of the body's light. Why 1: the perception
+   light factor saturates at `LIGHT.lit` 0.6, so a fully lit body already scored 1; every lit detection rate is exactly
+   what it was (the SN08 / SN09 times hold), only dark bodies change. The frame test (range 18 m, 70 x 45 deg cone, clear
+   static ray) is unchanged, so "inside its range and cone" is the existing `covers` + ray. Applies to every security
+   camera (Marlow Yard, Sector Ops, the Kestrel seclab). The camera path no longer samples light at all:
+   `cameraSight(c, head, crouched, speed, ray)`, `SeenBody.light`, `SecurityHost.lightAt`, the co-op client's
+   `GameState.bodyLight` and `CtDevices.lit` removed. Guards and the light meter unchanged (light parity for them holds).
+3. Regression (`tests/ctcourseLight.test.ts`): all four station 3 lamps out (every one now darkenable, asserted): the
+   hallway falls to 0.30 at body level; an unjammed runner (4 m/s) is caught at bay x 6.3 (the same point as lamps on),
+   a crouch walker at bay x 7.1; scored by the lamps (the old maths, a guard) the runner is never caught - the dark is
+   real, only the camera ignores it.
+4. Sector Ops: nothing in tests, scripts or the sector-ops docs relied on darkness hiding a player from a camera; the
+   PLAN's "dark lanes / dark aisles" are guard cover and stay so. Behaviour change: a player in shadow inside a camera's
+   cone is now seen there (before: in shadow 0.28 a walker at 4 m took about 13 s, at 10 m never). e2e-sectorops passes.
+   The Kestrel `e2e-security` (legacy, report only) asserted a crouched player in the seclab's dark corner is not seen;
+   now it asserts the IR sees it (meter 1.00 in 15 s at light 0.17); passes solo.
+5. Unit tests: `securityCamera.test.ts` - the two shadow cases replaced by an IR case (camera rate = the lit guard rate
+   at 4 / 10 / 16 m, walk / crouch-still / run; a guard in shadow is slower); `cameraCue.test.ts` - a still body in
+   frame is seen (no light argument).
+6. Docs: `docs/systems/lighting.md`, `docs/systems/gadgets.md`, bible Sensors line (it said "light-dependent like
+   guards"), CHANGELOG (the fix-round-2 lamp sentence dropped, an IR line added).
+
+Checks (laptop, software GL, port 4191): `npm run check` pass, 5 min 23 s (lint 0 errors / 41 warnings, Vitest 229
+files / 2535 passed / 7 skipped, build 1m 59s; no light-test timeouts this time). Full `E2E_JOBS=2 npm run e2e`: all
+required suites passed, wall 1526 s (e2e-ctcourse 3 parts 356 / 286 / 282 s, coop 263, netmove 250, sectorops 120, pad
+137; no failures, no reruns). e2e-ctcourse ran the fix-round-2 stale-report assert: ok (2 stale reports, gate shut).
+`e2e-security` solo: ok. visionIsolation snapshot (line endings only) restored. Bay 3 GPU look: pending PC run.
+
+Follow-ups:
+- Visual: the camera's IR is not shown (e.g. an IR glow on the housing in night vision, or the cone reading as lit in
+  night vision). No visual work in this change.
+- The Kestrel editor's security tool (paused, G53) still tints a camera's cone by the light (`src/editor/security.ts`
+  `camera class ... by the light`); with IR every in-frame cell is "lit". Update if Kestrel resumes.
+- Light disruptor / lamp shots no longer help against cameras (ct-toolkit 3.5 says nothing either way; noted only).
