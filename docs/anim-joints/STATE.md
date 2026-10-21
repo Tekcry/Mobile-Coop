@@ -31,8 +31,8 @@ J2 checker, fix round, commit; then the PR (full e2e on the desktop).
 ```
 Night Shift | CT Core Build: anim-joints RESUME. Read CLAUDE.md, docs/ROADMAP.md, then docs/anim-joints/BRIEF.md,
 PLAN.md and STATE.md in C:/NightShift/Mobile-Coop-anim-joints (branch feature/anim-joints; branch guard before every
-write). Resume from STATE "Now": implementer + fresh checker per slice, one fix round; the desktop is the main test
-machine (full e2e E2E_JOBS=2, port 4191, one heavy job under C:/NightShift/heavy.lock); the laptop ("Night Shift |
-Character Build") only when the desktop lock is held. Message "Night Shift | Orchestrator" at each slice and the PR.
+write). Resume from STATE "Now": implementer + fresh checker per slice, one fix round; the full e2e goes to the
+laptop first ("Night Shift | Character Build", E2E_JOBS=2, a pushed commit), on the desktop only at E2E_JOBS=1 when
+the laptop is busy; named suites wherever is free (desktop: port 4191 under C:/NightShift/heavy.lock). Message "Night Shift | Orchestrator" at each slice and the PR.
 Model Opus, effort high.
 ```
