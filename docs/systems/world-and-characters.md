@@ -236,7 +236,11 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   (standing off `rig.thighOuter`); `GrenadePouches` on the belt. (feature/weapons) An operator body brings its own
   kit frames: `rig.thighMount` (her built holster's `pistolHolster` frame) and `rig.backMount` (her back plate's
   receiver sockets, the long gun hung by its `backStud`, left side flat to the plate), and her hands (`rig.setHands`:
-  holds solved so the palm sits on the grip, handHold.ts; `rig.handGrip` closes her fingers through the grip morph
-  targets); a weapon hand out of reach brings its shoulder forward (`PROTRACT_MAX` 7 cm). Swaps: holster at 38%, take the next from its
+  holds solved so the palm sits on the grip, handHold.ts; `rig.handGrip` closes her fingers; since anim-skeleton S2 through 15 finger joints per hand on the hero, LOD0 and
+  LOD1 (`anim/fingers.ts`: per-finger curl / spread -> MCP / PIP / DIP, the thumb with opposition; grip shapes plus the
+  Hands & feet values (base table plus tuner delta, every Wren rig) plus the clip slot `rig.fingerClip`), the grip morphs left at 0 on those files;
+  LOD2 has no finger joints. A clavicle per side (`clavL` / `clavR`, `anim/clavicle.ts`, input `rig.clavIn`; at zero
+  the shoulders are exactly as before) and goggle joints `goggleUse` / `goggleStow` under the head (`GOGGLE_OFFSET`,
+  copied per rig in `goggleFrame`). Asset patch: `scripts/anim-skeleton/skin.mjs`; docs/anim-skeleton); a weapon hand out of reach brings its shoulder forward (`PROTRACT_MAX` 7 cm). Swaps: holster at 38%, take the next from its
   slot at 58%, in the aim pocket at 80% (0.9 s). Co-op remotes build the same from the lobby `loadout`. Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with ball-and-socket joints at hips
   and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.

@@ -13,6 +13,41 @@
 - The debug overlay's Tune and Teleport lists stay hidden until their buttons open them (their display rule overrode
   `hidden`, so Tune always showed and the overlay covered much of the Anim Studio's scene on a small window).
 
+## 4.43.2 - Tests: e2e-menus waits on sim time on slow software GL; the e2e-levels ladder chase is seeded; a NaN guard in the loop (2026-10-22, PR #94)
+- The desktop e2e-menus "stall" after the animation tuner closed was not a freeze in the game: the test ran past the
+  runner's 600 s limit on software GL (the match page drew about 1.5 frames a second beside the open menu page). The
+  menu page now goes blank before the match page opens, and the tuner camera check settles on the sim clock: the suite
+  takes 312 s instead of 894 s on the desktop. The Havok stacks seen earlier were slow frames, not a spin.
+- The game loop treats a NaN or negative frame interval or time scale as no time, so a bad value can never stop the
+  simulation for good (new unit tests for the loop across a long tuner freeze and its release).
+- e2e-levels: the ladder chases run on the manual clock with a fixed random seed (they took 9-30 s of game time
+  against a 30 s budget; now 10-15.5 s).
+
+## 4.43.1 - Co-op: restart at checkpoint no longer crashes a joiner holding a guard (2026-10-22, PR #93)
+- Co-op course: "Restart at checkpoint" (or a bay restart) while a guard is held no longer crashes the client; the hold is
+  let go first (as Sector Ops does), and a disposed guard puppet counts as gone, so a stale takedown lets go of it.
+
+## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
+- Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
+  Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is
+  edited. "Delete key" removes the picked key (never key 1, never below 4 keys a cycle; with Mirror on its mirror goes
+  too). Live at once; undo, reset, presets, export and import work as for every slider; works with key timing.
+- The bake writes the key file with the new key list, regenerates `src/anim/tuneKeysMeta.ts` and prints the clip's
+  rebake. An export with no add / delete bakes exactly as before; no clip changes.
+
+## 4.42.0 - Wren skeleton: collarbones, 30 finger bones, smoother glove fingers; hands close on weapons again (2026-10-21, PR #88)
+- Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
+  had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on
+  the two nearest models (each finger bends at three knuckles), and the game's grip drives them on every Wren,
+  the co-op partner included. The fingers got extra knuckle loops so they bend smoothly (Michael: "Go, smooth fingers
+  too"): nearest model 39 809 -> 43 431 triangles, second 13 578 -> 14 242, both inside their budgets.
+- The tuner's per-finger curl and spread (Hands & feet) now move each finger on its own instead of one average close.
+- New joints for the next steps (T3, BRIEF item 21): a real clavicle on each side (a shrug or a shoulder pushed forward
+  moves the shoulder joint itself; tuner rows come in S4) and the goggle on its own joint (CT Core's gear-offset rows
+  will move it). At rest nothing moves: every joint that existed before is bit-identical for all 28 keyed clips, the
+  procedural states and the partner (tests/animSkeletonIdentity.test.ts).
+- Cost: about +2.3 us per Wren figure per frame (figure update 6.9 -> 9.2 us at the nearest model); +264 KB of models.
+
 ## 4.41.0 - Animation tuner and Anim Studio on phones: compact drawer or sheet, pad mode, touch camera (2026-10-21, PR #89)
 - The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
   the game itself stays desktop only). A phone (a touch screen as the main pointer, short side 600 px or less) in

@@ -155,6 +155,19 @@ rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock
 skipped) and regenerates `src/anim/tuneKeysMeta.ts`; an export with no timing edit bakes exactly as before. The live preview stretches the curve piecewise-linearly between
 the keys while the Blender bake interpolates with Bezier, so after a rebake the in-betweens differ slightly; the key
 poses match.
+(marlow-bays item 25, track A) Add / delete keys: `del` 1 removes the key (key 0 never: skipped; past the minimum of
+4 keys a cycle: skipped; with the Mirror box on the bake drops its mirror with it); an added-key group
+`key.<clip>.a<s>` adds a key at `at` / 48 whose fields are the original keys' blend there (every numeric field of the
+two keys either side, linear in time, the retimed times; `keyBlendAt`) plus its deltas; one sitting on a key or (Mirror
+on) outside the own half is skipped. A key file with an add / delete is written with its keys in phase order (with
+the Mirror box off a mirrored file is written in full first), `src/anim/tuneKeysMeta.ts` is regenerated and the rebake
+printed; `key_clip.py` sorts any key list, so it needs no change. An export with no add / delete bakes exactly as
+before. The meta is regenerated whenever a key file is written (also a file written in full with no time edit: it
+holds the mirror flag and the own phases); unchanged files give byte-identical meta. Accepted difference (as item 23):
+the live preview blends an added or deleted key linearly between its neighbours while key_clip.py keys the bone
+rotations with Bezier (`py/key_clip.py` line 261), so after a rebake the in-betweens around an added or deleted key
+shift a little; the key poses match. Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
+`tests/tuneKeysEdit.test.ts`.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
 code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip

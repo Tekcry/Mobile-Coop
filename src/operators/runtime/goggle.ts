@@ -37,6 +37,43 @@ export class GoggleState {
   }
 }
 
+/**
+ * Gear offset for the goggle (marlow-bays item 22: track B's gear-offset rows drive it). Per pose, a move in metres and
+ * a turn in degrees (pitch about +X, yaw about +Y, roll about +Z) in the head frame (game frame: +X right, +Y up, +Z
+ * forward), applied about the goggle's own pivot after its rest pose. Identity by default; the figure reads it each
+ * frame (anim-skeleton S2: the goggle parts ride their own skin joints under the head).
+ */
+export interface GoggleOffset {
+  x: number;
+  y: number;
+  z: number;
+  pitch: number;
+  yaw: number;
+  roll: number;
+}
+
+export const GOGGLE_OFFSET: Readonly<Record<GogglePose, GoggleOffset>> = {
+  stowed: { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 },
+  inUse: { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 },
+};
+
+/** Sets one pose's goggle offset in place (no allocation). */
+export function setGoggleOffset(pose: GogglePose, x: number, y: number, z: number, pitch: number, yaw: number, roll: number): void {
+  const o = GOGGLE_OFFSET[pose];
+  o.x = x;
+  o.y = y;
+  o.z = z;
+  o.pitch = pitch;
+  o.yaw = yaw;
+  o.roll = roll;
+}
+
+/** True when a pose's offset is the identity (the figure then leaves the goggle joint at its rest pose). */
+export function goggleOffsetIdentity(pose: GogglePose): boolean {
+  const o = GOGGLE_OFFSET[pose];
+  return o.x === 0 && o.y === 0 && o.z === 0 && o.pitch === 0 && o.yaw === 0 && o.roll === 0;
+}
+
 export interface GogglePartition {
   /** Triangle indices ordered [stowed][body][in use]. */
   indices: Uint32Array;

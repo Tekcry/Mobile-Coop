@@ -19,8 +19,11 @@ import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
-import { HANDS_CUR, HANDS_GUN, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
+import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
+import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
+import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavPoint, clavQuat } from '../anim/clavicle';
+import { GOGGLE_OFFSET } from '../operators/runtime/goggle';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -256,6 +259,13 @@ const gripYaw = new Quaternion();
 const gripLocal = new Quaternion();
 const PALM_DEPTH = 0.014;
 const protV = new Vector3();
+/** (anim-skeleton S2) Scratch: a clavicle's quaternion, the shoulder rest about the SC point, the SC point. */
+const clavBuf = new Float64Array(4);
+const clavV = new Vector3();
+const scTmp = { x: 0, y: 0, z: 0 };
+/** (S2) The tuner's per-finger rows (Hands & feet): each hand's thumb curl index (spread next, then the next finger). */
+const HP_FING_L = HP.thumbLCurl!;
+const HP_FING_R = HP.thumbRCurl!;
 
 /**
  * Wrist position relative to the palm point on the gun (weapon space: x across, y up, z along the bore;
@@ -507,6 +517,34 @@ export class CharacterRig {
   readonly neck: TransformNode;
   readonly shoulderL: TransformNode;
   readonly shoulderR: TransformNode;
+  /**
+   * (anim-skeleton S2, A2) The clavicles: under the chest at the sternoclavicular points (anim/clavicle.ts), identity at
+   * rest. Not the shoulders' parents (the shoulders' world transforms stay bit-identical): a turned clavicle carries its
+   * shoulder's rest about the SC point (`solveArm`) and drives the skin's clavicle joint (the figure's poser).
+   */
+  readonly clavL: TransformNode;
+  readonly clavR: TransformNode;
+  /**
+   * (S2) Clavicle input (anim/clavicle.ts layout: per side pitch, yaw, roll in degrees, chest frame): the slot S3's clip
+   * channel and S4's Joints row write; a test or dev tool may set it directly. Zero: identity, nothing moves.
+   */
+  readonly clavIn = new Float64Array(CLAV_LEN);
+  /** (S2) Per side whether the clavicle is turned this frame. */
+  private readonly clavOn = new Uint8Array(2);
+  /**
+   * (S2, A9) The hands' per-finger curl and spread (anim/fingers.ts layout), composed at the end of each frame: the grip
+   * closure's shape (`handGrip`), this rig's own Hands & feet finger rows (tuner), and `fingerClip`. The figure turns
+   * them into the finger joints. Render side only.
+   */
+  readonly fingers = new Float64Array(FING_LEN);
+  /** (S2) Per-finger input slot (curl / spread offsets, same layout) for S3's clip channel; a test may set it. */
+  readonly fingerClip = new Float64Array(FING_LEN);
+  /**
+   * (S2) The goggle gear offsets (goggle.ts GOGGLE_OFFSET: stowed x y z pitch yaw roll, then in use) as they stood inside
+   * this rig's animate window (its tuner window): the figure reads this copy, so per-rig values written in the window
+   * reach the right body.
+   */
+  readonly goggleOff = new Float64Array(12);
   readonly elbowL: TransformNode;
   readonly elbowR: TransformNode;
   readonly wristL: TransformNode;
@@ -959,6 +997,11 @@ export class CharacterRig {
     this.headNode = n('head', this.neck, 0, p.neck.len + p.head.h * 0.42, 0.01);
     this.shoulderL = n('shL', this.torso, -p.shoulderHalf, Y.shoulder - chestY, -0.01);
     this.shoulderR = n('shR', this.torso, p.shoulderHalf, Y.shoulder - chestY, -0.01);
+    // (anim-skeleton S2) the clavicles at the SC points, placed off the rig's own chest and neck as the skin's are
+    clavPoint(-1, Y.neck - chestY, scTmp);
+    this.clavL = n('clavL', this.torso, scTmp.x, scTmp.y, scTmp.z);
+    clavPoint(1, Y.neck - chestY, scTmp);
+    this.clavR = n('clavR', this.torso, scTmp.x, scTmp.y, scTmp.z);
     this.elbowL = n('elL', this.shoulderL, 0, -p.upperArm.len, 0);
     this.elbowR = n('elR', this.shoulderR, 0, -p.upperArm.len, 0);
     this.wristL = n('wrL', this.elbowL, 0, -p.forearm.len, 0);
@@ -1672,7 +1715,70 @@ export class CharacterRig {
     this.emoteW = Math.max(0, Math.min(1, this.emoteW + (fk ? dt : -dt) / 0.2));
     if (this.emoteW > 0 && this.lastFk) this.applyFk(this.lastFk, this.emoteW);
     if (this.emoteW === 0) this.lastFk = null;
+    // (anim-skeleton S2) the hands' fingers and this window's goggle offsets, for the figure
+    this.fingerFrame();
+    this.goggleFrame();
     for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
+  }
+
+  /**
+   * (anim-skeleton S2, A9) The per-finger curl / spread: the grip closures' hand shapes, then (a rig with tuner rows)
+   * this rig's own Hands & feet finger values (inside its window: the closure carries their mean, taken back out so each
+   * finger gets its own), then the clip slot `fingerClip`. No allocation.
+   */
+  private fingerFrame(): void {
+    const f = this.fingers;
+    const st = this.tuneSt;
+    const rows = st !== null && st.hands.curAny;
+    const meanOn = rows && HANDS_CUR.on && HANDS_CUR.curlOn;
+    const gl = meanOn ? Math.min(1, Math.max(0, this.handGrip.l - HANDS_CUR.curl[1]!)) : this.handGrip.l;
+    const gr = meanOn ? Math.min(1, Math.max(0, this.handGrip.r - HANDS_CUR.curl[0]!)) : this.handGrip.r;
+    handGripShape(gl, gr, this.rightTrigger, f);
+    if (rows) {
+      const cur = st.hands.cur;
+      for (let k = 0; k < FINGER_N; k++) {
+        f[FING_L + k * 2] = f[FING_L + k * 2]! + cur[HP_FING_L + k * 2]!;
+        f[FING_L + k * 2 + 1] = f[FING_L + k * 2 + 1]! + cur[HP_FING_L + k * 2 + 1]! / SPREAD_MAX_DEG;
+        f[FING_R + k * 2] = f[FING_R + k * 2]! + cur[HP_FING_R + k * 2]!;
+        f[FING_R + k * 2 + 1] = f[FING_R + k * 2 + 1]! + cur[HP_FING_R + k * 2 + 1]! / SPREAD_MAX_DEG;
+      }
+    }
+    const c = this.fingerClip;
+    for (let i = 0; i < FING_LEN; i++) f[i] = f[i]! + c[i]!;
+  }
+
+  /** (S2) This window's goggle gear offsets into `goggleOff` (the figure applies its own pose's). No allocation. */
+  private goggleFrame(): void {
+    const g = this.goggleOff;
+    for (let k = 0; k < 2; k++) {
+      const o = k === 0 ? GOGGLE_OFFSET.stowed : GOGGLE_OFFSET.inUse;
+      const b = k * 6;
+      g[b] = o.x;
+      g[b + 1] = o.y;
+      g[b + 2] = o.z;
+      g[b + 3] = o.pitch;
+      g[b + 4] = o.yaw;
+      g[b + 5] = o.roll;
+    }
+  }
+
+  /**
+   * (anim-skeleton S2) The clavicle nodes from `clavIn` (before the arms: a turned clavicle carries its shoulder's rest
+   * about the SC point in `solveArm`). An untouched side stays at the identity it was built with. No allocation.
+   */
+  private clavFrame(): void {
+    for (let k = 0; k < 2; k++) {
+      const o = k === 0 ? CLAV_L : CLAV_R;
+      const q = (k === 0 ? this.clavL : this.clavR).rotationQuaternion!;
+      if (clavActive(this.clavIn, o)) {
+        clavQuat(this.clavIn, o, clavBuf, 0);
+        q.set(clavBuf[0]!, clavBuf[1]!, clavBuf[2]!, clavBuf[3]!);
+        this.clavOn[k] = 1;
+      } else if (this.clavOn[k] === 1) {
+        q.set(0, 0, 0, 1);
+        this.clavOn[k] = 0;
+      }
+    }
   }
 
   /**
@@ -2186,6 +2292,7 @@ export class CharacterRig {
     const hm = this.heldModel;
     if (hm) hm.tuneVisual(HANDS_CUR.on && HANDS_GUN.on && hm.node === this.heldWeapon ? HANDS_GUN : null);
     this.triggerTune = HANDS_CUR.on ? HANDS_CUR.trigger : 0;
+    this.clavFrame(); // (anim-skeleton S2) the clavicles before the arms reach from the shoulders
     this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
     this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
     // (feature/weapons) the fingers close round the grips (the support hand by its foregrip / magazine weight, open on
@@ -2735,22 +2842,32 @@ export class CharacterRig {
     // height stays the weld's)
     {
       // the shoulder's rest (this pose's weld height) first, so the reach is measured from there
-      const rx = side * p.shoulderHalf;
-      const ry = this.shoulderY || sh.position.y;
+      let rx = side * p.shoulderHalf;
+      let ry = this.shoulderY || sh.position.y;
+      let rz = -0.01;
+      // (anim-skeleton S2) a turned clavicle carries the rest about its SC point (chest frame); untouched: as before
+      if (this.clavOn[side > 0 ? 1 : 0] === 1) {
+        const c = side > 0 ? this.clavR : this.clavL;
+        const cp = c.position;
+        clavV.set(rx - cp.x, ry - cp.y, rz - cp.z).rotateByQuaternionToRef(c.rotationQuaternion!, clavV);
+        rx = cp.x + clavV.x;
+        ry = cp.y + clavV.y;
+        rz = cp.z + clavV.z;
+      }
       protV.copyFrom(target).subtractInPlace(S);
       // from where the shoulder is now back to its rest, in world space, so the excess is the rest pose's
       Quaternion.InverseToRef(this.torso.absoluteRotationQuaternion, protQ);
       protV.rotateByQuaternionToRef(protQ, protV);
       protV.x += sh.position.x - rx;
       protV.y += sh.position.y - ry;
-      protV.z += sh.position.z + 0.01;
+      protV.z += sh.position.z - rz;
       // aim for 93 % of the arm's length, so the elbow keeps a bend
       const over = protV.length() - (p.upperArm.len + p.forearm.len) * 0.93;
       const want = gripW > 0 && this.heldWeapon ? Math.min(PROTRACT_MAX, Math.max(0, over)) * Math.min(1, gripW) : 0;
       protV.normalize();
       const px = rx + protV.x * want;
       const py = ry + protV.y * want;
-      const pz = -0.01 + protV.z * want;
+      const pz = rz + protV.z * want;
       if (Math.abs(sh.position.x - px) > 1e-6 || Math.abs(sh.position.y - py) > 1e-6 || Math.abs(sh.position.z - pz) > 1e-6) {
         sh.position.set(px, py, pz);
         fresh(sh);
