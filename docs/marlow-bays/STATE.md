@@ -1,10 +1,9 @@
 # marlow-bays - state
 
 B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): done, PR to master open (master 4.42.0 merged).
-Slice S (server browser, item 28): PAUSED (orchestrator, usage pacing) on `feature/server-browser` (from R's head):
-built, fresh checker run, fix round done, `npm run check` passes; its e2e-coop / e2e-menus run was stopped by the
-pause (the browse steps had not run). Resume S: build, run e2e-coop and e2e-menus once (`E2E_SUITE_TIMEOUT=2400
-E2E_JOBS=1` on a cloud VM), then open its own PR (CHANGELOG "## Unreleased - server browser (prototype)").
+Slice S (server browser, item 28): done on `feature/server-browser` (from R's head, master 4.45.0 merged), own PR to
+master. Its head passes check (2539 unit tests), e2e-coop (the browse steps and both rejoin blocks), e2e-menus and
+e2e-netmove (cloud, software GL). Pending PC: one real-relay check on two machines, and the full e2e.
 Track A (Course Ready Build), 2026-10-21 ~21:40:
 - Merged: slice T #82 (4.35.0), T1a #83 (4.36.0), T2 #86 (4.39.0), item 23 key timing #87 (4.40.0), items 26 + 26b
   tuner on phones #89 (4.41.0; M21 exception for the tuner and Anim Studio only).
@@ -122,7 +121,7 @@ Branch `feature/server-browser`, cut from slice R's head (its PR carries R until
   say a match is in progress.
 
 ## Done
-- 2026-10-21: slice S (cloud): item 28 built, checked, fix round; paused before its e2e and PR.
+- 2026-10-22: slice S (cloud): item 28 server browser prototype; own PR.
 - 2026-10-21: slice R (cloud): item 27 rejoin; PR to master.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).
