@@ -24,6 +24,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-19 dashboard)
+- Phone tuner (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for phones only? Touch input and controller will be used." Chose "Yes, tuner only": the animation tuner and Anim Studio get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/marlow-bays/BRIEF.md item 26).
 - Laptop (2026-10-21 ~17:45): "I'm not on the laptop any more, it can be loaded up." Until Michael says otherwise the laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job lead's run when free).
 - Machines (2026-10-21 16:40): "i dont care about usage on the desktop, i use the laptop." Desktop = main test machine at full power (full e2e E2E_JOBS=2); laptop = overflow only (CLAUDE.md "Machines").
 - Animation focus (2026-10-21 16:10): three animation tracks at once (A tuner tools Course Ready, B joint bake CT Core, C skeleton Menu Notes; docs/marlow-bays/BRIEF.md "Tracks"); bays B + M in a cloud session; jammer / hallway (slice J) later.
