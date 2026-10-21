@@ -226,21 +226,15 @@ function addDeltas(key: Obj, vals: Readonly<Record<string, number>> | undefined)
   }
 }
 
-/** (marlow-bays item 25) An edit set adds or deletes a key of `clip` (`del` on, or an added slot placed). */
-export function keyAddDelAny(values: Values, clip: string, total: number): boolean {
-  for (let i = 1; i < total; i++) if ((values[keyGroupId(clip, i)]?.[KEY_DEL_ID] ?? 0) >= 0.5) return true;
-  for (let s = 0; s < KEY_ADD_SLOTS; s++) if ((values[keyAddedGroupId(clip, s)]?.[KEY_AT_ID] ?? 0) >= 1) return true;
-  return false;
-}
-
 /**
  * (T1a, item 18; item 25) A mirrored file is written in full (every key, `mirror: false`) when its Mirror box is off and
- * its halves were edited apart, or (item 25) a key is added or deleted with the box off.
+ * its halves were edited apart, or (item 25) a key is really added or deleted with the box off (the solved list: a
+ * refused `del` or `at` forces nothing).
  */
 export function keyWrittenFull(file: KeyFile, values: Values): boolean {
   if (!file.mirror || keyMirrorOn(values, file.name)) return false;
   const n = file.keys.length;
-  return keyHalvesDiffer(values, file.name, n) || keyAddDelAny(values, file.name, 2 * n);
+  return keyHalvesDiffer(values, file.name, n) || planAs(file, values, true).live.edited;
 }
 
 /** (marlow-bays item 25) What an edit set does to a key file's keys: the solved original positions and the live list. */
@@ -254,7 +248,11 @@ export interface KeyEditPlan {
 
 /** (marlow-bays item 25) The plan of an edit set on a key file (as read from disk, before the edits). */
 export function keyEditPlan(file: KeyFile, values: Values): KeyEditPlan {
-  const full = keyWrittenFull(file, values);
+  return planAs(file, values, keyWrittenFull(file, values));
+}
+
+/** The plan with the file written in full (every key its own) or not (a mirrored file's own keys move their mirrors). */
+function planAs(file: KeyFile, values: Values, full: boolean): KeyEditPlan {
   const c = { phases: file.keys.map((k) => k.phase as number), mirror: !!file.mirror };
   const T = keyTimeCount(c);
   const offs: number[] = [];

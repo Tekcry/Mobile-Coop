@@ -758,12 +758,17 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     manualN++;
   }
 
-  // (item 23, track A) a baked timing edit: regenerate the tuner's key meta (as scripts/anim-keys/meta.mjs does) from
-  // every key file the meta lists, the written ones as written. No timing edit: the meta is never touched.
-  // (item 25, track A) also a baked add / delete (the key count and phases change)
-  if (entries.some((en) => en.section === 'keys' && (en.id === KEY_TIME_ID || en.id === KEY_DEL_ID || en.id === KEY_AT_ID) && en.row.result.startsWith('baked'))) {
-    const before = read(BAKE_KEYS_META);
-    if (before === null) return fail(`${BAKE_KEYS_META}: not found`);
+  // (item 23, track A) regenerate the tuner's key meta (as scripts/anim-keys/meta.mjs does) from every key file the meta
+  // lists, the written ones as written. (item 25, track A) whenever a key file is written (a timing edit, an add /
+  // delete, a file written in full: the meta holds each clip's mirror flag and own key phases); keyMetaText is
+  // byte-identical for unchanged files, so a field-only bake writes no meta.
+  const keyListBaked = entries.some((en) => en.section === 'keys' && (en.id === KEY_TIME_ID || en.id === KEY_DEL_ID || en.id === KEY_AT_ID) && en.row.result.startsWith('baked'));
+  const metaBefore = writes.some((w) => w.path.startsWith(BAKE_KEYS_DIR)) ? read(BAKE_KEYS_META) : null;
+  // the meta must exist when the key times or the key list change; otherwise a tree without it (a partial copy) skips it
+  if (keyListBaked && metaBefore === null) return fail(`${BAKE_KEYS_META}: not found`);
+  if (metaBefore === null && writes.some((w) => w.path.startsWith(BAKE_KEYS_DIR))) warnings.push(`${BAKE_KEYS_META}: not found, not regenerated`);
+  if (metaBefore !== null) {
+    const before = metaBefore;
     const files: KeyFile[] = [];
     for (const m of before.matchAll(/name: '([^']+)'/g)) {
       const text = keyAfter.get(m[1]!) ?? read(`${BAKE_KEYS_DIR}${m[1]!}.json`);

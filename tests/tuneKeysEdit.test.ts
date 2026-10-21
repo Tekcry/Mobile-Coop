@@ -366,6 +366,24 @@ describe('add / delete keys: the bake (tuneBake)', () => {
     expect(r.rebake.some((c) => c.endsWith('build.mjs jog'))).toBe(true);
   });
 
+  it('(fix round) Mirror off with the halves edited apart and no time edit: the full write regenerates the meta', () => {
+    const r = tuneBake(exp([{ group: 'key.jog.mirror', id: 'mirror', value: 0 }, { group: 'key.jog.5', id: 'armR_elbow', value: 4 }]), CAT, read);
+    expect(r.ok, r.error).toBe(true);
+    const w = r.writes.find((x) => x.path === 'scripts/anim-keys/keys/jog.json')!;
+    expect((JSON.parse(w.after) as KeyFile).mirror).toBe(false);
+    expect(r.writes.find((x) => x.path === META)?.after).toContain("{ name: 'jog', frames: 32, mirror: false, phases: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875] },");
+  });
+
+  it('(fix round) a refused delete (the first key, Mirror off) forces no full write and writes no key file or meta', () => {
+    const vals: Record<string, Record<string, number>> = { [keyMirrorGroupId('jog')]: { mirror: 0 }, [keyGroupId('jog', 0)]: { del: 1 } };
+    expect(keyEditPlan(file('jog'), vals).full).toBe(false);
+    expect(keyFileText(applyKeyEdits(file('jog'), vals))).toBe(text('jog'));
+    const r = tuneBake(exp([{ group: 'key.jog.mirror', id: 'mirror', value: 0 }, { group: 'key.jog.0', id: 'del', value: 1 }]), CAT, read);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.rows.find((x) => x.group === 'key.jog.0')!.result).toBe('skipped: the first key is never deleted');
+    expect(r.writes.filter((x) => x.path.startsWith('scripts/anim-keys/keys/') || x.path === META)).toEqual([]);
+  });
+
   it('an export with no add / delete bakes as before: no meta write, the key count kept', () => {
     const r = tuneBake(exp([{ group: 'key.jog.2', id: 'chest_yaw', value: 2.5 }, { group: 'key.jog.2', id: 'del', value: 0 }]), CAT, read);
     expect(r.ok, r.error).toBe(true);

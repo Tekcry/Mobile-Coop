@@ -3575,8 +3575,8 @@ export class AnimTunePanel {
     const dOff = !i || !i.canDelete;
     if (a.disabled !== aOff) a.disabled = aOff;
     if (d.disabled !== dOff) d.disabled = dOff;
-    const at = i && i.addAt >= 0 ? `Add a key at bake frame ${i.addAt} of ${KEY_SPAN} (midway to the next key), posed as the clip plays there` : `Add key: ${i?.addWhy || 'pick a key'}`;
-    const del = i && i.canDelete ? `Delete this key (${i.count} keys a cycle now; at least ${i.min}); Undo brings it back` : `Delete key: ${i?.delWhy || 'pick a key'}`;
+    const at = i && i.addAt >= 0 ? `Add a key at bake frame ${i.addAt} of ${KEY_SPAN} (midway to the next key), posed as the clip plays there (the preview blends linearly; after the clip rebakes the pose can shift slightly)` : `Add key: ${i?.addWhy || 'pick a key'}`;
+    const del = i && i.canDelete ? `Delete this key (${i.count} keys a cycle now; at least ${i.min}); Undo brings it back. After the clip rebakes the pose can shift slightly` : `Delete key: ${i?.delWhy || 'pick a key'}`;
     if (a.title !== at) a.title = at;
     if (d.title !== del) d.title = del;
   }
