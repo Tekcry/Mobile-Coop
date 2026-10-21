@@ -4,7 +4,7 @@
 - The run's feet no longer cross the midline: the keyed clips' track half-width (`half`) is measured with the
   stride-locked pelvis yaw removed (`scripts/anim-keys/py/key_clip.py`: each frame's ankles turned back by that frame's
   pelvis yaw minus the clip's mean pelvis yaw; the yaw read off the pelvis's lateral axis, which stays level in the
-  face-down frames of the knife collapse), not in the world x, so the run keys' +-22.5 deg pelvis yaw no longer leaks
+  face-down frames of the knife collapse), not in the world x, so the run keys' +-25.5 deg pelvis yaw no longer leaks
   the stride into it, and a constant stance yaw (the ready stance's 6 deg) keeps its world value. Run half -0.02039 ->
   0.05042 (0.045 before the 2026-10-22 bake).
 - Every keyed clip rebaked (key JSONs unchanged); the clips whose pelvis yaw swings changed: walk 0.0466 -> 0.05188,

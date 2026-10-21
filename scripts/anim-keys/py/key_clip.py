@@ -489,12 +489,13 @@ for i in range(N):
 
 # (anim-run-half) each ankle's lateral offset with only the stride-locked pelvis yaw removed (the frame's yaw minus the
 # clip's mean yaw, a circular mean): the game's planner places the feet in the facing frame and the swing of the pelvis
-# yaw does not move them, so a yawed pelvis (the run's +-22.5 deg, mirrored with the stride) must not leak the fore / aft
+# yaw does not move them, so a yawed pelvis (the run's +-25.5 deg, mirrored with the stride) must not leak the fore / aft
 # stride into the track half-width (it did with the world x: the run's half baked -0.02); a constant stance yaw (the
 # ready stance's ~6 deg) is not removed, so such a clip keeps its world-x half
 mean_yaw = math.atan2(sum(math.sin(f['yaw']) for f in frames), sum(math.cos(f['yaw']) for f in frames))
 for f in frames:
     unyaw = ry(-(f.pop('yaw') - mean_yaw))
+    # each sample's 'ankle' is now pelvis-relative and un-yawed (was world x / K); only 'half' below reads it
     f['ankle'] = [(unyaw @ v).x / K for v in f.pop('anRel')]
 
 half = sum((f['ankle'][1] - f['ankle'][0]) / 2 for f in frames) / N
