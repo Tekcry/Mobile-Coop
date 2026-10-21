@@ -4,20 +4,25 @@ B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): PAUSED by the o
 clean commit on `feature/marlow-bays`; built, checked and fix round done, no PR yet. See "Slice R" below.
 Resume R: build, run e2e-coop and e2e-netmove once on the head (`E2E_SUITE_TIMEOUT=2400 E2E_JOBS=1` on a cloud VM),
 then open the PR to master. Then slice S (server browser, item 28) on `feature/server-browser`, cut from R's head.
-Track A (Course Ready Build), 2026-10-21 ~19:30:
-- Merged: slice T #82 (4.35.0), T1a #83 (4.36.0).
-- T2 (tuner redesign) = PR Tekcry/Mobile-Coop#86, branch `feature/marlow-tuner-t2` (worktree
-  `C:/NightShift/Mobile-Coop-marlow-t2`), head e4105dea; laptop short check passed; checker fixed; full e2e running on
-  the desktop at E2E_JOBS=1. Shots: `t2-layout-2026-10-21.png` (Michael OK'd), `t2-final-2026-10-21.png`,
-  `t2-stage-light-before-after.png`.
-- Item 26 (tuner on phones, M21 exception for the tuner and Anim Studio only) building on `feature/tuner-phone`
-  (worktree `C:/NightShift/Mobile-Coop-tuner-phone`, from T2 e4105dea; rebase on master after #86). Phone-size
-  screenshot to the orchestrator before its PR.
-- Item 23 (key timing) PARKED at 2781d490 on `feature/marlow-key-timing` (worktree `C:/NightShift/Mobile-Coop-key-timing`,
-  from T2): retime logic, live preview, export via the key `phase` field, Keys tab controls, e2e steps. Left: docs, the
-  e2e run, and (orchestrator ~19:25) the key `time` bake rule + keyMetaText write in `src/anim/tuneBake.ts` (track B's
-  file, done by A, minimal, keys-only, named in the PR body). Then item 25 (add / delete keys). Tell Menu Notes (track
-  C) when 23 / 25 open and land; keep the optional-channel path in key_clip.py / build.mjs.
+Track A (Course Ready Build), 2026-10-21 ~20:15 (running lean until the 23:00 usage reset: one agent at a time):
+- Merged: slice T #82 (4.35.0), T1a #83 (4.36.0), T2 #86 (4.39.0).
+- Item 23 (key timing) = PR Tekcry/Mobile-Coop#87, branch `feature/marlow-key-timing` (worktree
+  `C:/NightShift/Mobile-Coop-key-timing`), head 2504c787 (master 4.39.0 merged). Checker: no defects; fix round fixed
+  an e2e-studio state leak; check + e2e-studio pass. Includes the keys-only `time` rule in `src/anim/tuneBake.ts`
+  (track B's file, marked "(item 23, track A)"). Full e2e queued on the laptop.
+- Item 26 + 26b (tuner on phones; M21 exception for the tuner and Anim Studio only) on `feature/tuner-phone` (worktree
+  `C:/NightShift/Mobile-Coop-tuner-phone`), head 71b272c2 (master 4.39.0 merged). 26b (Michael: "Smaller buttons,
+  more compact. Adjust smaller with controller connected also"): touch 34 px / 13 px, drawer 38% / sheet 45%; pad
+  26 px rows / 11 px, drawer 34% / sheet 40%; live switch on the last input (a touch returns input mode to kbm,
+  `src/input/inputManager.ts`). Shots `phone-{touch,pad}-{landscape,portrait}.png` sent; waits on Michael's OK, then
+  e2e-pad + e2e-tuner-phone, the PR and the laptop full e2e.
+- Item 25 (add / delete keys) PARKED before any code at 2504c787 on `feature/marlow-key-edit` (worktree
+  `C:/NightShift/Mobile-Coop-key-edit`, from item 23). Design settled: all state as sliders (no store version bump):
+  a `del` slider per original key; 8 added-key groups per clip `key.<clip>.a<s>` (an `at` slider + the field
+  sliders); the live key list in a `KEY_LIVE` map that `keyTimeline` reads; a deleted key's offset needs the key
+  files' field values (lazy load); `key_clip.py` needs no change (sorts any list); minimum 4 keys a cycle (2 own keys
+  with Mirror on); the bake extends the "(item 23, track A)" block in tuneBake.ts as "(item 25, track A)".
+- Tell Menu Notes (track C) when 23 / 25 land; keep the optional-channel path in key_clip.py / build.mjs.
 - T1b is track B (CT Core), T3 track C (Menu Notes). Bays J after the animation tracks.
 Open: none.
 
