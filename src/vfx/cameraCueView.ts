@@ -9,7 +9,6 @@ import {
   camSeesAny,
   cueDir,
   cueMesh,
-  cuePulse,
   cueReach,
   cueSpan,
   cueInk,
@@ -33,7 +32,7 @@ void main(void) {
   gl_Position = viewProjection * vec4(position, 1.0);
 }`;
 
-// look: x shown amount, y edge pulse, z grid cell (rad), w edge width; ink: rgb colour, w unused; wt: x line, y fill
+// look: x shown amount, y unused, z grid cell (rad), w edge width (the frame mask); ink: rgb colour, w unused; wt: x line, y fill
 Effect.ShadersStore['cameraCueFragmentShader'] = `
 #extension GL_OES_standard_derivatives : enable
 precision highp float;
@@ -53,7 +52,7 @@ void main(void) {
   vec2 g = vec2(a, atan(d.y, length(d.xz))) / look.z;
   vec2 q = abs(fract(g + 0.5) - 0.5) / max(fwidth(g), vec2(1e-5));
   float line = 1.0 - min(min(q.x, q.y), 1.0);
-  float k = look.x * (wt.x * line + wt.y) + look.y * e;
+  float k = look.x * (wt.x * line + wt.y);
   gl_FragColor = vec4(ink.rgb * k, 1.0);
 }`;
 
@@ -81,8 +80,8 @@ interface CueCam {
 /**
  * The security camera vision cue (camera-cue): per camera one world-space mesh of the surfaces its lens can reach over
  * its whole sweep (rays against `G.STATIC`, the detection ray's colliders), drawn additive and depth-tested with a
- * projected red scan grid; the shader keeps only the current yaw's frame (`cueEdge`). Render only: never a light,
- * gameplay never reads it. The rays are spread over frames (a first bake, then a slow refresh for doors).
+ * projected red scan grid (grid only, no frame edge: marlow-bays item 6); the shader keeps only the current yaw's frame
+ * (`cueEdge`). Render only: never a light, gameplay never reads it. The rays are spread over frames (a first bake, then a slow refresh for doors).
  */
 export class CameraCueView {
   private readonly list: CueCam[] = [];
@@ -150,7 +149,6 @@ export class CameraCueView {
       if (!show) continue;
       c.frame.x = c.cam.yaw;
       c.look.x = cueStrength(c.st);
-      c.look.y = cuePulse(c.st) * ink.edge;
       c.mat.setVector4('cam', c.frame);
       c.mat.setVector4('look', c.look);
       c.mat.setVector4('ink', this.ink);
@@ -239,13 +237,12 @@ export class CameraCueView {
   }
 
   /** Test view (`__ctdev.debug().cue`): the cue follows each camera's mode and its own seen state. */
-  debug(): { id: string; mode: string; a: number; seen: boolean; pulse: number; baked: boolean; tris: number; shown: boolean }[] {
+  debug(): { id: string; mode: string; a: number; seen: boolean; baked: boolean; tris: number; shown: boolean }[] {
     return this.list.map((c) => ({
       id: c.cam.def.id,
       mode: c.cam.mode,
       a: c.st.a,
       seen: c.st.seen,
-      pulse: cuePulse(c.st),
       baked: c.baked,
       tris: c.tris,
       shown: !!c.mesh?.isEnabled(false),

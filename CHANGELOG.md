@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
+- Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
+  when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
+  non-solid there, as on the host and in solo (bullets still hit him). On the host, the joiner's hostage follows the
+  joiner's drawn body instead of stepping ahead of it. Solo hold and carry speeds are unchanged.
+- Marlow Yard station 2: the host can unbolt the door alone after the leg-up (Michael: "stays closed and locked").
+  The host's own presses on course devices were counted as the joiner's, so the bolt checked the joiner's side of the
+  door (and "Bolted from the other side" went to the joiner's screen). The same fix credits the host's own hold
+  consoles, pickups and finish correctly.
+- Camera cue: the pulsing red frame edge while a camera sees a player is gone; the cue is the red grid only (in
+  electro, the white grid). The two red lines on station 3's floor are the painted edges of that camera's +-30 deg
+  sweep (course spec M2), kept.
+- Pause menu: "Restart at checkpoint" in Sector Ops and the co-op course (the section or the bay starts again, both
+  players back at the checkpoint) and, in co-op, "Return to lobby" (both players back to the room lobby). Each asks
+  first, with Stay focused. In co-op both are the host's: the joiner sees them disabled, "Host only".
+
 ## 4.37.0 - Joints, Hands & feet, IK and Weapon tuning bake into a base table every Wren reads, the partner too (2026-10-21, PR #84)
 - Joints, Hands & feet, IK strength and Weapon tunes now bake (Michael: "make sure i have full control over every stance
   and every body part"; COVERAGE gap 1): `scripts/anim-tune-bake.mjs` writes them into a generated base table
