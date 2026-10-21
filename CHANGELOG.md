@@ -7,7 +7,8 @@
 - The bake (`scripts/anim-tune-bake.mjs`, and `scripts/anim-keys/apply-tune.mjs`) writes a moved key's phase into its
   key file, regenerates the tuner's key list (`src/anim/tuneKeysMeta.ts`) and prints the clip's rebake. An export with
   no timing edit bakes exactly as before; the 28 clips are unchanged.
-## Unreleased - marlow-bays slice T2 (tuner redesign)
+
+## 4.39.0 - Animation tuner redesign: docked panel in the menu style, body map, pinned sliders, folding groups; brighter studio (2026-10-21, PR #86)
 - The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
   looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values
   (Medium, now the default, is 19 px at 1080p; S / M / L 16 / 19 / 22).
@@ -29,6 +30,7 @@
   is untouched.
 - Pad: the D-pad reaches the part list and the chips (after the playback bar, before the tab's controls); the group
   headers fold with A; the Y menu gains Pin / unpin this slider and Show every part. No button moved.
+
 ## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
 - Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
   when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
