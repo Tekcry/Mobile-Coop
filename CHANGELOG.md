@@ -7,6 +7,29 @@
   (the partner's and the studio puppets' rigs carry it too, but they always show the stowed goggle, so it shows on them once their vision mode is shown), guards never. At LOD1 / LOD2 only the lens moves (the housing
   is part of the head there). The stowed goggle has no slider yet (it has no separate parts). Untuned, nothing changes.
 
+## 4.49.0 - Animation tuner v3: one simpler layout for pad, touch and mouse; analogue stick lists; plain labels; iPad and phone fit; touch camera; game touch for menus and camera (2026-10-22, PR #97)
+- Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the
+  button hints), the screen size alone picks the dock, the side drawer or the bottom sheet. One column: tabs, the
+  playback bar, Part and State, folding slider groups, then More. The body map, search, recent and pinned sliders, the
+  Settings tab and the edit mode are gone. Pad: the left stick scrolls the lists and changes values, the right stick is
+  always the camera, the triggers zoom, the D-pad is optional; the state list's Up bug is fixed.
+- The highlight on her is a small dot with an off switch; the studio's green skeleton and foot marks start off
+  (More > View aids).
+- On phones the tabs and the playback bar stay at the top of the drawer and sheet while the panel scrolls.
+- Keyed clips: with Keyed ticked the Body, Joints, Limb reach, Hands & feet and gun rows now reach the clip (they did
+  nothing: the clip on the spot tuned the idle). Feet apart and Knee lift work on the keyed clip on the spot. Sliders
+  that do nothing in the loop playing now are greyed with the reason ("procedural only: the keyed clip is playing").
+- Plain words: values in cm and degrees, the hands of a gun stance named "Gun hand" and "Support hand", "Gun in the gun
+  hand" says the support hand follows the gun.
+- Camera: "Around her" (360 degrees), "Camera tilt" and "Distance" sliders in the View tab, in step with the stick,
+  the drag, the touch orbit and the snaps; Side pressed again swaps to her other side.
+- Changing keys (back, forward, pick, add, delete) keeps the panel's scroll and the focused slider.
+- Pad: the left stick changes values and scrolls while "Pause game while tuning" holds the game (it ran on game
+  time, so it did nothing in play).
+- The studio shows a foot slide line when the rig reports it (amber over 0.5 cm).
+- Game touch: tap every menu and the pause menu, drag on the game view to look around, an on-screen pause button after
+  a touch. No touch movement or combat.
+
 ## 4.48.0 - Marlow Yard bay 3: a jam-handoff hallway, the jammer's 5 s use / 5 s cooldown with a buzz, camera reboot and lamp flicker; cameras see in the dark (2026-10-22, PR #101)
 - Jammer rules (Michael 2026-10-21 item 7, A3, J1): each player jams for at most 5 s, then a 5 s cooldown; letting go
   early (or moving: the stand-still rule) also starts the cooldown. The 20 s charge (drain / refill / minStart) is gone.
@@ -43,6 +66,7 @@
 ## 4.47.1 - Tuner groundwork: a Blender-exact key curve evaluator for the coming exact key preview (not wired yet) (2026-10-22, PR #100)
 - `src/anim/keyCurve.ts`: a pure, allocation-free port of Blender 5.2.2's auto-clamped Bezier solve (within 2e-6 of Blender on 124 curves), with tests and fixtures. Course Ready wires it into the Keys preview in item 30.
 
+
 ## 4.47.0 - Animation tuner: collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys on every keyed clip (2026-10-22, PR #98)
 - Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real
   clips, jog, run, walk, idle ...). The Keys tab has, on every key: collarbone pitch / yaw / roll per side, curl and
@@ -55,6 +79,7 @@
 - Joints tab: a collarbone row per side (shrug, push forward, tilt) for every state.
 - Clips can be keyed with whole legs (an FK takeover with a per-key weight over the foot planner); the studio-only test
   clip skeleton_test uses all of it (shrug, shoulder push, fingers one by one, a kick with the other foot planted).
+
 ## 4.46.0 - Michael's first tuner bake: jog and run keys, low-ready gun poses, Joints; Reset baked clears built-in values on load (2026-10-22, PR #96)
 - Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
   equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied

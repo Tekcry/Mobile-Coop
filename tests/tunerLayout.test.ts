@@ -11,6 +11,7 @@ import {
   buildTabs,
   cycleTab,
   DropNav,
+  listScrollFor,
   groupForPath,
   groupPath,
   levelCount,
@@ -37,7 +38,7 @@ const label = (id: string): string => TUNE_SECTIONS.find((s) => s.id === id)?.la
 describe('tuner-ui: tabs', () => {
   it('the fixed order, with every registered section in a tab', () => {
     const tabs = buildTabs(ids(), label);
-    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop', 'sec:gear', 'settings']); // (anim-gear) Gear: its own tab after Co-op
+    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop', 'sec:gear']); // (anim-gear) Gear: its own tab after Co-op; (item 29) no Settings tab
     const placed = tabs.flatMap((t) => t.sections);
     expect([...placed].sort()).toEqual([...ids()].sort());
     expect(tabs.find((t) => t.id === 'body')!.sections).toEqual(expect.arrayContaining(['body', 'joint', 'ik', 'trav']));
@@ -47,18 +48,18 @@ describe('tuner-ui: tabs', () => {
     expect(TUNER_TABS[0]!.id).toBe('view');
   });
 
-  it('an unmapped section gets its own tab after Co-op, before Settings', () => {
+  it('an unmapped section gets its own tab after Co-op (item 29: no Settings tab)', () => {
     const tabs = buildTabs([...ids(), 'face'], (id) => (id === 'face' ? 'Face (expressions)' : label(id)));
     const at = tabs.findIndex((t) => t.id === 'sec:face');
     expect(at).toBe(tabs.findIndex((t) => t.id === 'sec:gear') + 1); // (anim-gear) after Co-op and the Gear tab
-    expect(tabs[at + 1]!.id).toBe('settings');
+    expect(tabs.some((t) => t.id === 'settings')).toBe(false);
     expect(tabs[at]!.label).toBe('Face');
     expect(tabOfSection('team_boost')).toBe('coop');
     expect(tabOfSection('face')).toBe('sec:face');
   });
 
-  it('a tab with no section is left out (View and Settings always stay)', () => {
-    expect(buildTabs(['body'], label).map((t) => t.id)).toEqual(['view', 'body', 'settings']);
+  it('a tab with no section is left out (View always stays)', () => {
+    expect(buildTabs(['body'], label).map((t) => t.id)).toEqual(['view', 'body']);
   });
 
   it('LB / RB cycle and wrap', () => {
@@ -158,14 +159,14 @@ describe('tuner-ui: LT / RT, B and the changed dot use the group own level (anim
 
 describe('tuner-ui: plain labels', () => {
   it('slider names are short plain words, ids unchanged', () => {
-    expect(plainLabel('body', 'trackMul', 'foot width / track')).toBe('Foot width');
-    expect(plainLabel('body', 'kneeOutMul', 'knee out (pole)')).toBe('Knee out');
+    expect(plainLabel('body', 'trackMul', 'foot width / track')).toBe('Feet apart');
+    expect(plainLabel('body', 'kneeOutMul', 'knee out (pole)')).toBe('Knees point out');
     expect(plainLabel('body', 'pelvisYAdd', 'pelvis height / crouch depth')).toBe('Hip height');
-    expect(plainLabel('body', 'leanAdd', 'forward lean')).toBe('Lean');
+    expect(plainLabel('body', 'leanAdd', 'forward lean')).toBe('Lean forward');
     expect(plainLabel('joint', 'elbowR_x', 'elbowR pitch')).toBe('Right elbow bend');
     expect(plainLabel('hand', 'handLFwd', 'handL IK target fwd')).toBe('Left hand forward');
     expect(plainLabel('ik', 'footR', 'footR IK strength (0 = FK: rest + joint offsets)')).toBe('Right foot reach');
-    expect(plainLabel('weapon', 'gunPitch', 'gun in the hand pitch')).toBe('Grip tilt');
+    expect(plainLabel('weapon', 'gunPitch', 'gun in the hand pitch')).toBe('Gun tilt in the gun hand');
     expect(plainLabel('gun', 'gunPitch', 'muzzle pitch (+ down)')).toBe('Muzzle tilt');
   });
 
@@ -217,32 +218,53 @@ describe('tuner-ui: the drop-down list', () => {
     const c = new TunePadCtl();
     c.open();
     const bit = (i: number) => 1 << i;
-    c.update(0, 0, 0, 1 / 60);
-    let o = c.update(bit(PAD.A), 0, 0.1, 1 / 60);
+    c.update(0, 0, 0, 0, 1 / 60);
+    let o = c.update(bit(PAD.A), 0, 0, 0.1, 1 / 60);
     expect(o.select).toBe(true);
-    c.update(0, 0, 0.2, 1 / 60);
-    o = c.update(bit(PAD.DOWN), 0, 0.3, 1 / 60);
+    c.update(0, 0, 0, 0.2, 1 / 60);
+    o = c.update(bit(PAD.DOWN), 0, 0, 0.3, 1 / 60);
     expect(o.nav).toBe(1);
-    c.update(0, 0, 0.4, 1 / 60);
-    o = c.update(bit(PAD.B), 0, 0.5, 1 / 60);
+    c.update(0, 0, 0, 0.4, 1 / 60);
+    o = c.update(bit(PAD.B), 0, 0, 0.5, 1 / 60);
     expect(o.back).toBe(true);
-    c.update(0, 0, 0.6, 1 / 60);
-    o = c.update(bit(PAD.RB), 0, 0.7, 1 / 60);
+    c.update(0, 0, 0, 0.6, 1 / 60);
+    o = c.update(bit(PAD.RB), 0, 0, 0.7, 1 / 60);
     expect(o.section).toBe(1);
     // the pause menu held the pad: buttons held then stay swallowed until released
     c.hold();
-    o = c.update(bit(PAD.A), 0, 0.8, 1 / 60);
+    o = c.update(bit(PAD.A), 0, 0, 0.8, 1 / 60);
     expect(o.select).toBe(false);
     expect(o.consume).toBe(true);
   });
 
-  it('a held snap keeps the pad on the panel', () => {
+  it('(item 29 bug) an open list: Up moves the highlight and never closes it (jog -> walk)', () => {
+    const states = ['idle', 'walk', 'jog', 'run'];
+    const d = new DropNav();
+    d.openAt(states.indexOf('jog'), states.length);
     const c = new TunePadCtl();
     c.open();
-    c.setFree(true, false);
-    expect(c.mode).toBe('tuner');
-    c.setFree(true);
-    expect(c.mode).toBe('free');
+    c.update(0, 0, 0, 0, 1 / 60);
+    const o = c.update(1 << PAD.UP, 0, 0, 0.1, 1 / 60);
+    expect(o.nav).toBe(-1);
+    expect(o.back).toBe(false);
+    d.move(o.nav);
+    expect(d.open).toBe(true);
+    expect(states[d.index]).toBe('walk');
+    // the left stick up does the same
+    c.update(0, 0, 0, 0.2, 1 / 60);
+    d.openAt(states.indexOf('jog'), states.length);
+    d.move(c.update(0, 0, -0.9, 0.3, 1 / 60).nav);
+    expect(d.open).toBe(true);
+    expect(states[d.pick()]).toBe('walk');
+  });
+
+  it('(item 29 bug) the list keeps its highlight in view by scrolling only itself', () => {
+    // a 100 px list scrolled to 40: a row at 20..40 above the view scrolls up to it, one below scrolls down, one in
+    // view stays (the list never asks its ancestors to scroll: their scroll closed the list)
+    expect(listScrollFor(40, 100, 20, 20)).toBe(20);
+    expect(listScrollFor(40, 100, 150, 20)).toBe(70);
+    expect(listScrollFor(40, 100, 60, 20)).toBe(40);
+    expect(listScrollFor(0, 100, 0, 20)).toBe(0);
   });
 });
 
@@ -313,12 +335,12 @@ describe('tuner-ui: camera snap lock', () => {
     c.start('orbit', 0, 2, -3, 0, 0, 0, 0, 0);
     c.lock = 'side';
     c.bodyYaw = 0.4;
-    c.lookX = 0.7; // the look does not turn a held view
+    c.lookX = 0.7; // (item 29 phase 2) the look turns the held angle around her
     c.dt = 1 / 60;
     c.place(0, 0, 0);
     const o = { yaw: 0, pitch: 0 };
     freeSnap('side', 0.4, o);
-    expect(c.yaw).toBeCloseTo(o.yaw, 9);
+    expect(c.yaw).toBeCloseTo(o.yaw + 0.7, 9);
     const rel0 = c.yaw - c.bodyYaw;
     c.bodyYaw = 1.9;
     c.place(5, 0, 2);
@@ -353,5 +375,39 @@ describe('tuner-ui: loop on the spot', () => {
     const d = spotShift(3.2, 4.1, 3, 4, { x: 0, z: 0 });
     expect(d.x).toBeCloseTo(0.2, 9);
     expect(d.z).toBeCloseTo(0.1, 9);
+  });
+});
+
+describe('tuner v3 phase 2: the orbit by hand and Side swapping sides', () => {
+  it('the left snap is the other side; the angle around her reads back as set', async () => {
+    const { orbitAngleDeg, orbitViewYaw } = await import('../src/player/freeView');
+    const o = { yaw: 0, pitch: 0 };
+    freeSnap('side', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(90, 9);
+    freeSnap('left', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(270, 9);
+    freeSnap('back', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(0, 9);
+    freeSnap('front', 0.4, o);
+    expect(orbitAngleDeg(o.yaw, 0.4)).toBeCloseTo(180, 9);
+    for (const a of [0, 45, 90, 180, 359]) expect(orbitAngleDeg(orbitViewYaw(a, 1.3), 1.3)).toBeCloseTo(a, 9);
+  });
+  it('setOrbit places the camera around her, held to her facing under a lock', () => {
+    const c = new FreeViewCore();
+    c.start('orbit', 0, 2, -3, 0, 0, 0, 0, 0);
+    c.lock = 'back';
+    c.bodyYaw = 0.5;
+    c.place(0, 0, 0);
+    c.setOrbit(90, 20, 4, 0.5);
+    c.place(0, 0, 0);
+    expect(c.dist).toBe(4);
+    expect(c.pitch).toBeCloseTo((-20 * Math.PI) / 180, 9);
+    const rel = c.yaw - c.bodyYaw;
+    c.bodyYaw = 2;
+    c.place(0, 0, 0);
+    expect(c.yaw - c.bodyYaw).toBeCloseTo(rel, 9);
+    // 90 degrees: on her right (the camera sits on her right side of the circled point)
+    const right = { x: Math.cos(2), z: -Math.sin(2) };
+    expect((c.x - 0) * right.x + (c.z - 0) * right.z).toBeGreaterThan(0.9 * c.dist * Math.cos(c.pitch));
   });
 });
