@@ -23,8 +23,7 @@ import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStan
 import { TUNE_LOCAL, TUNE_STATE, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
 import { WEIGHT_POSE, weightFrameIn, weightJumpKind } from '../anim/weight';
 import { weightBegin, weightEnd } from './weightTune';
-import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
-import { handsBegin, handsEnd, handsWeaponOf } from '../anim/tuneHands';
+import { handsWeaponOf } from '../anim/tuneHands';
 import { tuneV2Frame } from '../anim/tuneV2Sections';
 import { tuneKeysFrame } from '../anim/tuneKeys';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
@@ -62,6 +61,8 @@ export interface PlayerPose {
   sway: number;
   /** (G7) A scripted step-in under a kinematic override: the legs step from the measured speed. */
   freeGait: boolean;
+  /** (marlow-bays T1a) The bend is over a body (the stealth controller's lift / carry / drop), not a held guard. */
+  carryBody?: boolean;
   /** (3.2.0) Whole-body tumble about the hips (rad; pipe legs up / inverted), 0 = upright. */
   tumble: number;
   /** (G6) The rig root's step toward a wall edge while peeking (world XZ, m; `WallCore.stX`). Visual only. */
@@ -476,6 +477,7 @@ export class Player {
     rp.melee = cp.melee;
     rp.bend = cp.bend;
     rp.bendDrop = cp.bendDrop;
+    rp.carryBody = cp.carryBody === true;
     rp.sway = cp.sway;
     rp.tumble = cp.tumble;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
@@ -545,16 +547,13 @@ export class Player {
     const handW = handsWeaponOf(this.rig);
     tuneV2Frame(TUNE_STATE.body, handW); // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
-    jointsBegin(TUNE_STATE.body, dt); // (tuner-v2) the per-joint offsets of the same state, eased over dt
-    handsBegin(TUNE_STATE.body, handW, dt); // (tuner-v2 item 2) hand / foot placement, the Weapon group
+    // (anim-joints J1) the Joints / Hands & feet / IK / Weapon windows: the rig opens its own inside animate (tuneRows)
     moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)
     try {
       weightBegin(wi, c.crouched, this.wasDrawn); // inside the try: weightEnd always closes it
       this.rig.animate(dt, rp);
     } finally {
       moveTuneEnd(this.rig);
-      handsEnd();
-      jointsEnd();
       tuneEnd(this.rig);
       weightEnd();
     }

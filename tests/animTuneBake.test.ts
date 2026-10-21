@@ -15,6 +15,7 @@ import { WEIGHT_GROUPS, WEIGHT_TUNABLES } from '../src/anim/weight';
 import { bakeCatalogue, bakeDiff, bakeFmt, bakeTable, editValue, locate, tuneBake, wideRange, type BakeResult } from '../src/anim/tuneBake';
 import { BAKE_CATALOGUE_MODULES, BAKE_LEDGER, BAKE_MANUAL, BAKE_OTHER_SECTION_FILES, BAKE_RULES, DECLARED_SECTIONS, type BakeRule } from '../src/anim/tuneBakeTable';
 import { readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
+import { BAKE_BASE_FILE, BAKE_BASE_SECTIONS } from '../src/anim/tuneBakeBase';
 
 const ROOT = path.join(__dirname, '..');
 const real = (p: string): string => readFileSync(path.join(ROOT, p), 'utf8');
@@ -51,7 +52,7 @@ const dirs: string[] = [];
 function tempTree(): { dir: string; read: (p: string) => string | null; write: (r: BakeResult) => void } {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'anim-bake-'));
   dirs.push(dir);
-  for (const f of [...TABLE_FILES, 'scripts/anim-keys/keys/walk.json']) {
+  for (const f of [...TABLE_FILES, BAKE_BASE_FILE, 'scripts/anim-keys/keys/walk.json']) {
     mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     cpSync(path.join(ROOT, f), path.join(dir, f));
   }
@@ -84,10 +85,10 @@ const SAMPLE = exportOf([
   entry('spd.aim', 'glideFwdMul', 'mul', 1.2), // manual (fix round B2)
   entry('spd.aim', 'glideStrafeMul', 'mul', 0.8),
   entry('spd.climb', 'ladderMul', 'mul', 1.2), // a NAME * n form
-  entry('joint.walk', 'elbowR_x', 'add', 5), // joints: manual
-  entry('hand.rifle.aim', 'handLFwd', 'add', 0.01), // hands & feet: manual
-  entry('ik.walk', 'handL', 'mul', 0.5), // IK: manual
-  entry('weapon.rifle.aim', 'gunScale', 'mul', 1.1), // weapon: manual
+  entry('joint.walk', 'elbowR_x', 'add', 5), // joints: the base table (anim-joints J1)
+  entry('hand.rifle.aim', 'handLFwd', 'add', 0.01), // hands & feet: the base table
+  entry('ik.walk', 'handL', 'mul', 0.5), // IK: the base table
+  entry('weapon.rifle.aim', 'gunScale', 'mul', 1.1), // weapon: the base table
   entry('step.idle', 'lift', 'mul', 1.4), // stepping
   entry('key.walk.0', 'spine_pitch', 'add', 2), // keys
   ...WEIGHT5.map((g) => entry(g, 'startMul', 'mul', 1.2)), // weight: shared by every group, equal
@@ -103,14 +104,17 @@ describe('anim-bake table', () => {
     for (const s of TUNE_SECTIONS) if (s.id !== 'keys') expect(SCRIPT_CAT.bySection.has(s.id), `section ${s.id}`).toBe(true);
   });
 
-  it('covers every slider of every section and group exactly once (a rule, or a manual entry)', () => {
+  it('covers every slider of every section and group exactly once (a rule, a manual entry, or the base table)', () => {
     for (const s of TUNE_SECTIONS) {
       if (s.id === 'keys') continue;
       for (const t of s.tunables) {
         for (const g of t.groups) {
           const r = BAKE_RULES.some((x) => x.section === s.id && x.id === t.id && x.groups.includes(g));
           const m = BAKE_MANUAL.filter((x) => x.section === s.id && (x.id === t.id || x.id === '*') && (x.groups ? x.groups.includes(g) : !r));
-          expect(r || m.length > 0, `${s.id} ${t.id} ${g}`).toBe(true);
+          // (anim-joints J1) Joints, Hands & feet, IK and Weapon bake into the base table (no rule; joint.options manual)
+          const base = BAKE_BASE_SECTIONS.includes(s.id) && !r && m.length === 0;
+          expect(r || m.length > 0 || base, `${s.id} ${t.id} ${g}`).toBe(true);
+          if (BAKE_BASE_SECTIONS.includes(s.id)) expect(r, `${s.id} ${t.id} ${g}: a base table section has no code rule`).toBe(false);
           if (r) expect(BAKE_MANUAL.some((x) => x.section === s.id && x.id === t.id && x.groups?.includes(g)), `${s.id} ${t.id} ${g}: rule and manual`).toBe(false);
         }
       }
@@ -248,7 +252,7 @@ describe('anim-bake on a sample export (temp copies)', () => {
       ['hand.rifle.aim', 'handLFwd'],
       ['ik.walk', 'handL'],
       ['weapon.rifle.aim', 'gunScale'],
-    ]) expect(res(g!, id!)).toBe('manual: no code target');
+    ]) expect(res(g!, id!)).toBe('baked (base table)');
     expect(res('weight.walk', 'chestHzMul')).toMatch(/^manual: shared target \(weight\.walk 1\.3, weight\.jog 1, /);
     expect(res('weight.jog', 'startMul')).toBe('baked');
     expect(res('key.walk.0', 'spine_pitch')).toMatch(/^baked \(key JSON/);
@@ -314,7 +318,8 @@ describe('anim-bake on a sample export (temp copies)', () => {
     expect(num(t.read(W)!, 'WALL.peekLean')).toBe(lean);
     expect(num(t.read(W)!, 'WALL.slideStand')).toBeCloseTo(num(real(W), 'WALL.slideStand') * 1.2, 6);
     // the ledger keeps group|id=value
-    expect(JSON.parse(t.read(BAKE_LEDGER)!).bakes[0].baked).toEqual(['wallPeek|peekLeanMul=1.5']);
+    // the ledger keeps group|id=value (marlow-bays T1a: a version 1 export gives the crouched peek, which shared the row, the same value)
+    expect(JSON.parse(t.read(BAKE_LEDGER)!).bakes[0].baked).toEqual(['wallPeek|peekLeanMul=1.5', 'wallCrouchPeek|peekLeanMul=1.5']);
     // a different value for the same slider is a new tune: baked
     const r3 = tuneBake(exportOf([entry('wallPeek', 'peekLeanMul', 'mul', 1.1)]), SCRIPT_CAT, t.read);
     expect(r3.rows[0]!.result).toBe('baked');
@@ -394,7 +399,7 @@ describe('anim-bake refusals (nothing written)', () => {
 
   it('a wrong magic or version, a malformed or doubled entry', () => {
     refused({ ...SAMPLE, magic: 'shoulder-strike-save' }, /wrong file/);
-    refused({ ...SAMPLE, version: 2 }, /unsupported version 2/);
+    refused({ ...SAMPLE, version: 3 }, /unsupported version 3/); // (T1a: 2 is the rows' version)
     refused(null, /not an animation tuner export/);
     refused({ ...SAMPLE, changed: 'x' }, /no values/);
     refused(exportOf([{ group: 'walk', id: 'trackMul', value: 'big' }]), /malformed entry/);

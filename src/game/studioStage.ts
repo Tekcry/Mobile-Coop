@@ -17,7 +17,7 @@ import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelec
 import { newStudioDrive } from '../anim/studioDrive';
 import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioReset, studioScrub, studioSpot, studioStepPhase, spotShift, stageLightPlace, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, type StudioEntry, type StudioInputOut } from '../anim/studio';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -39,6 +39,10 @@ export interface StudioHost {
   attachKind(): string;
   /** (tuner-ui) Move Wren and her feet by (dx, dz) with no teleport (the treadmill of a state on the spot). */
   shift(dx: number, dz: number): void;
+  /** (marlow-bays T1a, item 19) The selected weapon's class ('rifle', 'pistol', ...), and a swap to the first gun of a
+   *  class in the loadout (no-op without one). */
+  weaponClass(): string;
+  switchWeapon(cls: string): void;
 }
 
 /** The pairs' viewing spot: Wren (hidden) stands here, so the camera and the free view frame the team block. */
@@ -82,6 +86,7 @@ export class StudioStage {
   private readonly guardPose: RigPose = { speed: 0, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, stride: 'facing' };
   private crouchCd = 0;
   private drawCd = 0;
+  private weaponCd = 0;
   // the configuration applied (changes rebuild the drive)
   private cEntry = '';
   private cRoot = false;
@@ -184,6 +189,13 @@ export class StudioStage {
     // a traversal loop's buttons up (the drop stays the crouch's alias)
     for (let i = 0; i < TRAV_BUTTONS.length; i++) if (TRAV_BUTTONS[i] !== 'drop') fi.set('studio', TRAV_BUTTONS[i]!, false);
     this.drawTap(dt, o.drawn, o.ads);
+    // (marlow-bays T1a, item 19) an armed loop plays with the picked gun (one swap request per 0.8 s until it is in hand)
+    this.weaponCd = Math.max(0, this.weaponCd - dt);
+    const want = studioWeaponFor(e, STUDIO.weapon);
+    if (want && this.weaponCd <= 0 && this.host.weaponClass() !== want) {
+      this.host.switchWeapon(want);
+      this.weaponCd = 0.8;
+    }
     return fi;
   }
 
@@ -265,13 +277,26 @@ export class StudioStage {
     } else if (d.clip && d.inPlace) {
       if (!Number.isNaN(STUDIO.seek)) d.phase = studioScrub(STUDIO.seek);
       if (STUDIO.step !== 0) d.phase = studioStepPhase(d.phase, d.clip.frames, STUDIO.step);
+      // (marlow-bays T1a, item 15) onto a key (the Keys tab's pick), or the next key back / forward
+      const kp = studioKeyPhase(d.clip.name, d.phase, STUDIO.seekKey, STUDIO.keyStep);
+      if (!Number.isNaN(kp)) d.phase = kp;
+      else if (STUDIO.keyStep !== 0) d.phase = studioStepPhase(d.phase, d.clip.frames, STUDIO.keyStep);
+    }
+    if (e.kind === 'pair' && STUDIO.keyStep !== 0) {
+      // a pair has no key table: a frame step (as the old key step)
+      this.pairPhase = studioStepPhase(this.pairPhase, e.team ? pairFrames(e.cycle) : (e.clip?.frames ?? 1), STUDIO.keyStep);
+      d.phase = this.gdrive.phase = this.pairPhase;
     }
     STUDIO.seek = Number.NaN;
     STUDIO.step = 0;
+    // a key request waits for its clip's drive (a pick that changes the loop lands a frame later)
+    if (d.clip || e.kind !== 'keyed') STUDIO.seekKey = -1;
+    STUDIO.keyStep = 0;
     if (this.guard) this.guardFrame(dt, e.kind === 'pair');
     if (e.team) this.pairFrame(dt, e);
     STUDIO.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
     STUDIO.frames = e.team ? pairFrames(e.cycle) : d.clip ? d.clip.frames : 0;
+    studioKeyInfo(d.clip && !e.team ? d.clip.name : '', STUDIO.phase, STUDIO);
     this.stageFrame();
   }
 

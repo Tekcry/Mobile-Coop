@@ -248,7 +248,16 @@ behind a VPN adapter).
   its joint, another row moves it, the Camera tab has none; the Keyed box plays `keyed:walk` from `state:walk` and back,
   greyed on a keyed-only clip; a state picked in the Joints part's state list plays its loop (the tab stays); on the spot
   (header button, F8) the walk holds its root under 5 cm over 2 s of live play, off she walks; the four stage lights light
-  her meshes, keep their offset in her frame as she walks, and the Stage light slider scales them. (anim-studio-2, also
+  her meshes, keep their offset in her frame as she walks, and the Stage light slider scales them. (marlow-bays T1a) A
+  key step lands on the clip's next key (the walk's 8 keys, the mirrored half included); the Keys tab's clip and key
+  pick plays `keyed:jog` on the spot paused on key 2 (the readout "jog - key 2 of 8 (mirror of 6), frame 4", the hint,
+  the Mirror box on, the list of own keys), "Key ▶" and F2 step with the picker following (on key 6 it shows key 2), F1
+  steps back, the forearm twist row marks the forearm; a forearm twist key edit turns the right forearm bone 30-60 deg
+  with the elbow still; Mirror on carries a left elbow edit at key 2 to the right arm at key 6, Mirror off lists 8 keys
+  and lets the right arm at key 6 go back while key 2 keeps its edit; the playback bar shows on the Body tab and F9
+  plays and pauses; a pistol picked in Hands & feet plays the low ready and the pistol comes out; a climb move and a
+  co-op role play `trav:vault` and `pair:boost`; aim standing (pistol), crouch aim standing and moving (rifle) put the
+  tuner's state on `aimStill`, `aimCrouch` and `aimCrouchMove` with that gun. (anim-studio-2, also
   covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
   hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
   (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder
