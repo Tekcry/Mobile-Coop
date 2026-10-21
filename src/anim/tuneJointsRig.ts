@@ -27,6 +27,7 @@ import { HAND_WEAPONS, handsBaseLoad, handsBeginRigRows, handsEnd, handsRigState
 import { JOINT_ROWS, jointsBaseLoad, jointsBeginRigRows, jointsEnd, jointsRigState, type JointsRigState } from './tuneJoints';
 import { pickTuneRows, TUNE_MOVE_MAX, TUNE_ROW_IDS, tuneRowPick, type TuneActionWeights, type TuneMovePoseIn, type TuneRowPick } from './tuneMoveRows';
 import { GEAR_PARAMS, gearBaseLoad, gearRigState, gearRigUpdate, type GearRigState } from './tuneGear';
+import { tuneBaseLoad } from './tuneRegistry';
 
 export interface TuneRigState {
   readonly joints: JointsRigState;
@@ -103,10 +104,10 @@ export function tuneRigEnd(): void {
 const clone = (b: AnimBaseData): AnimBaseData => JSON.parse(JSON.stringify(b)) as AnimBaseData;
 let baseNow: AnimBaseData = clone(ANIM_BASE);
 
-/** Load a base table object into the Joints / Hands / IK tables (every rig jumps). Returns the unknown names skipped. */
+/** Load a base table object into the Joints / Hands / IK / Gear / Body tables and (anim-bake-all) the registry's generic `sections` (every rig jumps). Returns the unknown names skipped. */
 export function animBaseLoad(b: AnimBaseData): string[] {
   baseNow = clone(b);
-  return [...jointsBaseLoad(baseNow.joints), ...handsBaseLoad(baseNow.hands, baseNow.ik), ...gearBaseLoad(baseNow.gear).map((n) => `gear.${n}`), ...bodyBaseLoad(baseNow.body).map((n) => `body.${n}`)];
+  return [...jointsBaseLoad(baseNow.joints), ...handsBaseLoad(baseNow.hands, baseNow.ik), ...gearBaseLoad(baseNow.gear).map((n) => `gear.${n}`), ...bodyBaseLoad(baseNow.body).map((n) => `body.${n}`), ...tuneBaseLoad(baseNow.sections).map((n) => `sections.${n}`)];
 }
 
 /** The base table in use (a copy). */
@@ -137,6 +138,12 @@ if (typeof window !== 'undefined') {
       if (!(BODY_BASE_FIELDS as readonly string[]).includes(param as BodyField)) return [`body.${row}.${param}`];
       const b = clone(baseNow);
       ((b.body ??= {})[row] ??= {})[param] = v;
+      return animBaseLoad(b);
+    },
+    /** (anim-bake-all) One slider's value in the generic table (`sections.<section>.<group>.<id>`; mul multiplies, add adds). */
+    setSection: (section: string, group: string, id: string, v: number): string[] => {
+      const b = clone(baseNow);
+      (((b.sections ??= {})[section] ??= {})[group] ??= {})[id] = v;
       return animBaseLoad(b);
     },
     /** Back to the generated table. */

@@ -248,6 +248,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - (anim-bake-targets) Every tuner slider bakes. The Body sliders without a code value are deltas on the base table's
   `body` key (each Wren rig composes its own row, `tune.ts` bodyRigBegin); the gun tuck bakes per gun state into
   `WREN_TUCK` (`animGraph.ts`). Hook: `__animBase.setBody(row, id, v)`.
+- (anim-bake-all) Every other slider with no code value (aimed gun, FOV / zoom / aim-in blend, glide forward, the
+  Stepping rest, Weight damping and amounts, strideMul per state, the co-op and traversal moves) bakes into the base
+  table's generic `sections` key; the registry composes it with the tuner's values (`TuneSection.eff`, rebuilt on an
+  edit or a load) for every consumer, the bypass reads the base. Hook: `__animBase.setSection(section, group, id, v)`.
 - (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): when the tuner's save loads, the sliders at a value the
   bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
   the save, `TuneSnapshot.baked`); the info line gives the count (on the next open when closed). Y menu "Reset baked"

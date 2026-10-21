@@ -9,6 +9,9 @@
  * (anim-bake-targets, BT-A1 / A3) The Body section's sliders without a code value of their own (`tune.ts`
  * BODY_BASE_FIELDS; every Body slider and group no rule in `tuneBakeTable.ts` covers) bake into the `body` key: row = the
  * Body group id, param = the slider id, mul sliders multiply, add sliders add; printed only when a row is set.
+ * (anim-bake-all, BA-A1) Every other slider with no code value of its own bakes into the generic `sections` key
+ * (section id -> group -> slider id -> value; mul multiplies, add adds, identity dropped), which the registry composes
+ * with the tuner's value for every consumer (`tuneRegistry.ts` `eff`); printed only when a value is set.
  */
 import type { AnimBaseData } from './animBase';
 import { HAND_PARAMS, HP, IK_LIMBS, handCompose } from './tuneHands';
@@ -53,6 +56,8 @@ export function parseAnimBase(text: string): AnimBaseData {
   if (j.gear) b.gear = j.gear;
   // (anim-bake-targets) likewise the Body base
   if (j.body) b.body = j.body;
+  // (anim-bake-all) and the generic table
+  if (j.sections) b.sections = j.sections;
   return b;
 }
 
@@ -122,8 +127,20 @@ export function printAnimBase(b: AnimBaseData): string {
     }
     if (parts.length) body.push(`    ${q(r)}: { ${parts.join(', ')} }`);
   }
+  // (anim-bake-all) section -> group -> slider id -> value (one group per line); the key only when a value is set
+  const secs: string[] = [];
+  const sc = b.sections ?? {};
+  for (const s of keys(sc)) {
+    const rows: string[] = [];
+    for (const g of keys(sc[s]!)) {
+      const row = sc[s]![g]!;
+      const parts = keys(row).map((id) => `${q(id)}: ${bakeFmt(round(row[id]!))}`);
+      if (parts.length) rows.push(`      ${q(g)}: { ${parts.join(', ')} }`);
+    }
+    if (rows.length) secs.push(`    ${q(s)}: {\n${rows.join(',\n')}\n    }`);
+  }
   const block = (name: string, lines: string[]): string => (lines.length ? `  ${q(name)}: {\n${lines.join(',\n')}\n  }` : `  ${q(name)}: {}`);
-  const tail = (gear.length ? `,\n${block('gear', gear)}` : '') + (body.length ? `,\n${block('body', body)}` : '');
+  const tail = (gear.length ? `,\n${block('gear', gear)}` : '') + (body.length ? `,\n${block('body', body)}` : '') + (secs.length ? `,\n${block('sections', secs)}` : '');
   return `{\n  "version": 1,\n${block('joints', joints)},\n${block('hands', weapons)},\n${block('ik', ik)}${tail}\n}\n`;
 }
 
@@ -222,5 +239,53 @@ export function applyBaseEntries(base: AnimBaseData, entries: readonly BaseEntry
       t[l] = round(Math.max(0, Math.min(1, (t[l] ?? 1) * e.value)));
     }
   }
+  return b;
+}
+
+// ------------------------------------------------------------------------------------------
+// (anim-bake-all, BA-A1) The generic table: `sections.<section>.<group>.<id>`
+// ------------------------------------------------------------------------------------------
+
+/** Sections that never bake into the generic table (their own base keys, or the Keys section's key JSONs). */
+export const GENERIC_REFUSED: readonly string[] = ['joint', 'hand', 'ik', 'weapon', 'gear', 'keys'];
+
+export interface SectionEntry {
+  readonly section: string;
+  readonly group: string;
+  readonly id: string;
+  readonly value: number;
+  /** The slider's kind and identity (a mul 1, an add 0). */
+  readonly kind: 'mul' | 'add';
+  readonly def: number;
+}
+
+/** Where a generic entry goes (the bake's target column). Throws for an entry it cannot place. */
+export function sectionTarget(e: Omit<SectionEntry, 'value'>): string {
+  if (GENERIC_REFUSED.includes(e.section)) throw new Error(`${e.section} ${e.group} ${e.id}: the ${e.section} section has its own base key`);
+  if (e.section === 'body' && BODY_FIELD_SET.has(e.id)) throw new Error(`${e.group} ${e.id}: a Body base param bakes into the body key`);
+  if (e.def !== (e.kind === 'mul' ? 1 : 0)) throw new Error(`${e.section} ${e.group} ${e.id}: the default ${e.def} is not identity`);
+  for (const k of [e.section, e.group, e.id]) if (k === '__proto__' || k === 'constructor' || k === 'prototype' || k === '') throw new Error(`${e.section} ${e.group} ${e.id}: not a key`);
+  return `${BAKE_BASE_FILE}: sections.${e.section}.${e.group}.${e.id} ${e.kind === 'mul' ? 'x' : '+'}`;
+}
+
+/**
+ * The base table with the generic entries composed in: a mul slider's value multiplies the base, an add slider's adds
+ * (as the registry composes `eff`), rounded as printed; a result at identity is dropped (and an emptied group or
+ * section with it). Returns a new object; `base` is untouched. Throws for an entry it cannot place.
+ */
+export function applySectionEntries(base: AnimBaseData, entries: readonly SectionEntry[]): AnimBaseData {
+  const b = JSON.parse(JSON.stringify(base)) as AnimBaseData;
+  for (const e of entries) {
+    sectionTarget(e); // validates
+    const sec = ((b.sections ??= {})[e.section] ??= {});
+    const row = (sec[e.group] ??= {});
+    const old = row[e.id] ?? e.def;
+    const v = round(e.kind === 'mul' ? old * e.value : old + e.value);
+    if (v === e.def) delete row[e.id];
+    else row[e.id] = v;
+    if (Object.keys(row).length === 0) delete sec[e.group];
+    if (Object.keys(sec).length === 0) delete b.sections![e.section];
+  }
+  if (b.sections && Object.keys(b.sections).length === 0) delete b.sections;
   return b;
 }

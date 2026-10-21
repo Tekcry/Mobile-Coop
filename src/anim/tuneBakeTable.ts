@@ -13,9 +13,11 @@
  * Ops: a `mul` slider's value `v` multiplies (`mul`) or divides (`div`, a rate when the slider scales a time) the code
  * value; an `add` slider's value times `scale` (unit conversion, default 1) is added (`add`) or subtracted (`sub`).
  *
- * A manual entry has no code value to bake into (the reason says why); its changed values are listed for a person.
- * A new section (PR #71's `moveTune.ts`: `team_*`, `trav`) needs only its rules or manual entries here, plus its module
- * in `BAKE_CATALOGUE_MODULES` (or a `DECLARED_SECTIONS` entry when plain Node cannot load it).
+ * A manual entry is a pure option (the Joints mirror lock): nothing to bake. (anim-bake-all, BA-A1) Every other slider and
+ * group no rule covers, and every group of a shared rule whose groups differ, bakes into the base table's generic
+ * `sections` key (`tuneBakeBase.ts`; the registry composes it into every consumer's values), so none is manual.
+ * A new section needs no entry here (its sliders bake into the generic table) unless a code value should take it, plus
+ * its module in `BAKE_CATALOGUE_MODULES` (or a `DECLARED_SECTIONS` entry when plain Node cannot load it).
  */
 
 export type BakeOp = 'mul' | 'div' | 'add' | 'sub';
@@ -72,13 +74,11 @@ const MOV = 'src/config/movement.ts';
 const CAM = 'src/config/camera.ts';
 const RIG = 'src/player/characterRig.ts';
 const GRAPH = 'src/anim/animGraph.ts';
-const MOTION = 'src/anim/motion.ts';
 const WALLC = 'src/player/wallController.ts';
 const ATT = 'src/player/attach.ts';
 const PLAN = 'src/anim/footPlanner.ts';
 const WEIGHT = 'src/anim/weight.ts';
 
-const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
 const RIFLE_AIM = ['rifle.aim', 'rifle.aimCrouch'];
 const PISTOL_AIM = ['pistol.aim', 'pistol.aimCrouch'];
 const AIM_GUN = [...RIFLE_AIM, ...PISTOL_AIM];
@@ -108,25 +108,14 @@ const manuals: ManualRule[] = [];
 
 const RIG_NOTE = 'shared rig constant: every rig reads it (the partner and guards too)';
 rules.push(
-  rule('body', 'strideMul', MOVING, [
-    e(MOV, 'MOVEMENT.stepLen0', 'mul'),
-    e(MOV, 'MOVEMENT.stepLenK', 'mul'),
-    e(MOV, 'MOVEMENT.stepLenMax', 'mul'),
-    e(MOTION, 'CROUCH_STEP.k', 'mul'),
-    e(MOTION, 'CROUCH_STEP.max', 'mul'),
-    e(MOTION, 'WALK_STEP.k', 'mul'),
-    e(MOV, 'TENSE.step', 'mul'),
-    e(MOTION, 'GLIDE_STEP.lat0', 'mul'),
-    e(MOTION, 'GLIDE_STEP.latK', 'mul'),
-    e(MOTION, 'GLIDE_STEP.fwd0', 'mul'),
-    e(MOTION, 'GLIDE_STEP.fwdK', 'mul'),
-  ], 'stepLength is linear in these lengths: exact when every moving state has the same value; the player\'s motion only (guards use ENEMY_MOTION)'),
+  // (anim-bake-all, BA-A2) strideMul has no rule: each of the 13 moving states bakes apart into the generic table
+  // (`sections.body.<state>.strideMul`, the local player's motion step as in the tuner; the shared MOVEMENT rule is gone)
   rule('body', 'kneeOutMul', ['ladder', 'pipe'], [e(RIG, 'CLIMB_KNEE_OUT', 'mul')], `close: the climb pole is max(stance knee-out, CLIMB_KNEE_OUT); ${RIG_NOTE}`),
   rule('body', 'kneeLiftMul', ['ladder', 'pipe'], [e(RIG, 'CLIMB_KNEE_UP', 'mul')], RIG_NOTE),
   rule('body', 'peekLeanMul', ['wallPeek', 'wallCrouchPeek'], [e(WALLC, 'WALL.peekLean', 'mul')], 'the remote copy reads the same WALL.peekLean'),
 );
 // (anim-bake-targets, BT-A1 / A3) every other Body slider and group (no rule above) bakes into the base table's `body`
-// key (`tuneBakeBase.ts`, read by every Wren rig: `tune.ts` BODY_BASE_FIELDS); none is manual
+// key (`tuneBakeBase.ts`, read by every Wren rig: `tune.ts` BODY_BASE_FIELDS), strideMul into `sections.body`; none is manual
 
 // ------------------------------------------------------------------------------------------
 // Gun (tune.ts): the weapon pose offsets (animGraph) on the rig's weaponPivot; same units (m, rad)
@@ -156,9 +145,8 @@ for (const [id, f] of [
     rule('gun', id, PISTOL_AIM, [e(GRAPH, `PISTOL_REACH.${f}`, 'add')]),
   );
 }
-for (const id of ['gunUp', 'gunPitch', 'gunYaw', 'gunCant']) {
-  manuals.push(manual('gun', id, id === 'gunUp' ? 'aimed, the sight-to-eye solve holds the sight at the eye (tune sightYAdd); PISTOL_REACH.y is also the sight drop' : 'no code value: aimed, the weapon rotation follows the aim (the ready poses are weighted out)', AIM_GUN));
-}
+// (anim-bake-all) aimed gunUp / gunPitch / gunYaw / gunCant (AIM_GUN) have no code value: the generic table
+// (`sections.gun.<weapon.state>.<id>`, composed into the Gun section's values the local player's rig reads)
 rules.push(
   rule('gun', 'sightYAdd', AIM_GUN, [e(RIG, 'SIGHT_EYE', 'add')], RIG_NOTE),
   rule('gun', 'headDropMul', AIM_GUN, [e(RIG, 'NECK_WELD', 'mul')], RIG_NOTE),
@@ -212,11 +200,8 @@ rules.push(
   rule('cam', 'camBoomRateMul', ALL_CAM, [e(CAM, 'CAMERA.boomIn', 'mul'), e(CAM, 'CAMERA.boomOut', 'mul')]),
   rule('cam', 'camPadAdd', ALL_CAM, [e(CAM, 'CAMERA.castPad', 'add')], 'the pad is clamped at 0 in code'),
 );
-manuals.push(
-  manual('cam', 'camFovAdd', 'a player setting (video.fovH); CAMERA.fov is only the settings default'),
-  manual('cam', 'camZoomMul', 'no code value: the aim zoom is 1 without a scope (a scope\'s adsZoom is weapon data)'),
-  manual('cam', 'camBlendMul', 'the aim-in time comes from the weapon\'s draw time (playerWeapons), not a camera constant', CAM_AIM),
-);
+// (anim-bake-all, BA-A4) camFovAdd (a delta on the player's video.fovH setting, which stays the player's), camZoomMul and
+// the aim groups' camBlendMul: the generic table (`sections.cam.<group>.<id>`, composed into TUNE_CAM_CUR)
 
 // ------------------------------------------------------------------------------------------
 // Speed (speedTune.ts): gameplay speeds, per state
@@ -232,8 +217,8 @@ PACE_IDS.forEach((id, i) => {
     rule('speed', id, ['spd.crouch'], [e(MOV, `GEARS.crouch[${i}]`, 'mul')], GEARS_NOTE),
   );
 });
-// (fix round B2) the tuned glide is min(v, adsSpeed) x (fwd f + x strafe s + back backM k) / w: f scales the whole glide
-manuals.push(manual('speed', 'glideFwdMul', 'the tuner scales the whole aimed glide; adsSpeed only caps it, so below the cap the forward speed would lose it and the strafe / back shares would drop by 1/f'));
+// (fix round B2) the tuned glide is min(v, adsSpeed) x (fwd f + x strafe s + back backM k) / w: f scales the whole glide,
+// so no code value takes it; (anim-bake-all) the generic table (`sections.speed.spd.aim.glideFwdMul`, GAMEPLAY)
 rules.push(
   rule('speed', 'glideStrafeMul', ['spd.aim'], [e(MOV, 'MOVEMENT.strafeMult', 'mul')]),
   rule('speed', 'glideBackMul', ['spd.aim'], [e(MOV, 'MOVEMENT.backMult', 'mul')]),
@@ -253,18 +238,9 @@ rules.push(
   rule('step', 'lift', ['step.idle'], [e(PLAN, 'PLANNER.idleLift', 'mul')], 'the idle and stop-close steps'),
   rule('step', 'lock', STEP_MOVING, [e(PLAN, 'TURN_FOLLOW.twistFree', 'mul'), e(PLAN, 'TURN_FOLLOW.twistMax', 'mul'), e(PLAN, 'TURN_FOLLOW.scrubSpeed', 'div')], 'close: the touchdown twist cap reads twistFree too'),
 );
-manuals.push(
-  manual('step', 'lift', 'the moving gaits\' lift is the gait liftH (clip data)'),
-  manual('step', 'lock', 'no effect while still (the plant lock runs only while moving)', ['step.idle']),
-  manual('step', 'dur', 'no single constant: the step duration comes from several planner terms'),
-  manual('step', 'slide', 'inline literals (footPlanner holdOrStep reach, + 0.3)'),
-  manual('step', 'stride0', 'no per-pace constant (LAND_AHEAD is one share for every pace)'),
-  manual('step', 'stride1', 'no per-pace constant (LAND_AHEAD is one share for every pace)'),
-  manual('step', 'stride2', 'no per-pace constant (LAND_AHEAD is one share for every pace)'),
-  manual('step', 'toeOff', 'HEEL_RAISE plus an inline literal (the swing toe-off 0.45)'),
-  manual('step', 'heel', 'HEEL_ROLL.pitch plus an inline literal (the pre-landing toe up 0.22)'),
-  manual('step', 'replant', 'inline literals (reach x 0.92, the idle error > 1)'),
-);
+// (anim-bake-all) the moving gaits' lift, the idle lock, dur, slide, stride0..2, toeOff, heel and replant (clip data,
+// inline literals, no per-pace constant): the generic table (`sections.step.step.<gait>.<id>`, which tuneStep.ts composes
+// into the rows every planner reads)
 
 // ------------------------------------------------------------------------------------------
 // Weight (weight.ts / weightTune.ts)
@@ -283,10 +259,8 @@ rules.push(
   rule('weight', 'gearHzMul', WEIGHT_ALL, [e(WEIGHT, 'WEIGHT_BASE.gearHz', 'mul')]),
   rule('weight', 'antTimeMul', WEIGHT_ALL, [e(WEIGHT, 'WEIGHT_BASE.antTime', 'mul')]),
 );
-for (const id of ['chestDampMul', 'headDampMul', 'armDampMul', 'gearDampMul']) manuals.push(manual('weight', id, 'WEIGHT_BASE.zeta is one value for all four springs'));
-for (const id of ['stopSettle', 'accelLean', 'stopLean', 'bank', 'plantDrop', 'landDepth', 'chestLag', 'headLag', 'armLag', 'gearLag', 'antStart', 'antJump', 'camLag', 'camDip']) {
-  manuals.push(manual('weight', id, 'no code value: the layer\'s amount is the slider (identity 0 = off); a per-state default table is a later job'));
-}
+// (anim-bake-all) the four damping sliders (WEIGHT_BASE.zeta is one value for four springs) and every add slider (the
+// layer's amount is the slider): the generic table (`sections.weight.<group>.<id>`, the local player's weight)
 
 // ------------------------------------------------------------------------------------------
 // Joints, Hands & feet, IK strength, Weapon (tuneV2Sections.ts): (anim-joints J1) the generated base table
@@ -302,14 +276,12 @@ manuals.push(manual('joint', 'mirror', 'a panel option (the mirror lock), nothin
 /**
  * (anim-studio-2, src/anim/moveTune.ts) The co-op role / contact sections and the Traversal moves section: every slider
  * is a visual offset on the local rig (root, grips, plants, tumble, crouch, the one-shot clip clock), never a code
- * value; the moves' paths and timing come from TEAM / the attach data and stay. Folding them in needs per-move base
- * offsets every rig reads (a later job).
+ * value; the moves' paths and timing come from TEAM / the attach data and stay. (anim-bake-all, BA-A3) They bake into the
+ * generic table (`sections.<team_move | trav>.<group>.<id>`), which the local rig reads as today; the remote partner
+ * reading them is a later job (the role on the wire).
  */
 export const TEAM_MOVE_IDS = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive'] as const;
 export const TRAV_KIND_IDS = ['vault', 'mantle', 'step', 'climbUp', 'windowVault', 'rappel', 'drop', 'hop', 'roll', 'wallKick', 'split'] as const;
-const MOVE_REASON = 'no code value: a visual offset on the local rig (root, grips, plants, lean, crouch, clip clock); per-move base offsets every rig reads are a later job';
-for (const m of TEAM_MOVE_IDS) manuals.push(manual(`team_${m}`, '*', MOVE_REASON));
-manuals.push(manual('trav', '*', MOVE_REASON));
 
 export const BAKE_RULES: readonly BakeRule[] = rules;
 export const BAKE_MANUAL: readonly ManualRule[] = manuals;

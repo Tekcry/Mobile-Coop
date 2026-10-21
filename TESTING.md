@@ -179,6 +179,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   run; at low ready the elbows sit out and the rifle tuck is lighter, the pistol elbows untucked.
 - [ ] Co-op: the partner shows the same track, swing and elbows. Guards look as before.
 
+### Every slider bakes, also those with no code value (anim-bake-all)
+- [ ] Tune one slider in each of Camera (FOV on explore, zoom on rifle aim), Gun (rifle aim gun up), Speed (aimed glide
+  forward), Stepping (walk stride middle), Weight (walk chest damping), Body (walk step length, then jog at another
+  value) and a co-op or traversal move (vault body fwd). Export, run `node scripts/anim-tune-bake.mjs <export> --dry-run`:
+  every row "baked" or "baked (base table)", 0 manual; the walk and jog step lengths are two rows
+  (`sections.body.walk.strideMul`, `sections.body.jog.strideMul`).
+- [ ] After the real run and a reload (the tuner resets those sliders), each state looks and moves as it did tuned: the
+  wider / narrower FOV while exploring, the rifle aim's zoom and gun height, the faster glide (gameplay), the step length
+  at walk and jog apart. Hold the bypass: the baked values stay (they are the code defaults now).
+- [ ] Co-op: the partner and the guards look as before (none of these act on other rigs, Stepping excepted: every foot
+  planner reads it, as in the tuner).
+
 ### Wren's hands and joints (anim-skeleton S1+S2)
 - [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
   the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.

@@ -29,7 +29,12 @@ Format: `N. Item - destination - status`.
     player's hit volumes follow the rig (`src/game/playerTarget.ts:101-119`), and `src/ai/body.ts:96-124` reads the
     pose too. An animation change can move what a guard sees or where a shot lands. No change made; review whether these
     should read the gameplay root (controller position, crouch, lean) instead. Destination: unscheduled.
-29. **Tuner sliders that do not bake yet (rule: every slider the tuner shows must bake; anim-bake-targets, 2026-10-22).**
+29. **DONE (anim-bake-all, 2026-10-22): every tuner slider bakes.** The sliders below bake into the base table's generic
+    `sections` key (`docs/anim-tuner/BAKE.md`, "The generic table"), strideMul per moving state; a shared target whose
+    groups differ bakes per state; BAKE_MANUAL holds the Joints mirror lock only. Still open (a later job): the remote
+    partner reading the move sections (it needs the role on the wire), and the Body root offsets on the partner and
+    puppets (BAKE.md, Body base, "Open"). The list as it was:
+    **Tuner sliders that do not bake yet (rule: every slider the tuner shows must bake; anim-bake-targets, 2026-10-22).**
     The bake reports these "manual" (`src/anim/tuneBakeTable.ts` BAKE_MANUAL; `docs/anim-tuner/BAKE.md`). Each needs
     a code target (usually a per-state default every rig reads). Destination: unscheduled (a later bake-targets job).
     - Body strideMul: one shared target (MOVEMENT step lengths); bakes only when all 13 moving states agree, otherwise

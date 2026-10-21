@@ -8,17 +8,20 @@
  * kind that differs from the slider's, a target file outside the write roots, a code value not found exactly once, or a
  * code value that is not a number literal (or a simple `NAME * n` / `NAME + n` form).
  *
- * Per slider and group the result is one of: baked; manual: shared target (the groups reading one code value differ;
- * `allowShared` bakes a single changed group and warns); manual: no code target (the table's reason); Keys (the key
- * JSONs via the apply-tune functions, then a rebake per clip); already baked (the ledger: this group and slider were
- * baked before at this same value, in this export or an earlier one); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
+ * Per slider and group the result is one of: baked (a code value); baked (base table) (the generated `animBase.ts`:
+ * the Joints / Hands / IK / Weapon / Gear / Body keys, or (anim-bake-all, BA-A1) the generic `sections` key for every
+ * slider and group no rule covers, and for every group of a shared rule whose groups differ: per state, so nothing is
+ * left in the tuner; `allowShared` instead bakes a single changed group into the shared value and warns); manual: no code
+ * target (a pure option, the Joints mirror lock); Keys (the key JSONs via the apply-tune functions, then a rebake per
+ * clip); already baked (the ledger: this group and slider were baked before at this same value, in this export or an
+ * earlier one); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
  */
 import { applyKeyEdits, editedClips, KEY_FIELDS, keyEditPlan, keyEditRow, keyFileText, keyMetaText, keyMirrorOn, keyWrittenFull, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile'; // (item 25, track A) keyEditPlan, keyEditRow, keyWrittenFull
 import { KEY_TIME_ID, KEY_TIME_MAX } from './tuneKeysTime';
 import { KEY_AT_ID, KEY_DEL_ID, parseKeyAdded } from './tuneKeysEdit'; // (item 25, track A)
 import { migrateTuneChanged } from './tuneRows';
 import { BODY_BASE_FIELDS } from './tune';
-import { applyBaseEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, spliceAnimBase } from './tuneBakeBase';
+import { applyBaseEntries, applySectionEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, sectionTarget, spliceAnimBase, type SectionEntry } from './tuneBakeBase';
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
 
 export const BAKE_MAGIC = 'night-shift-anim-tune';
@@ -603,6 +606,21 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   // (anim-bake-targets) also every Body slider and group no code rule covers (the `body` key)
   const isBase = (en: Entry): boolean => BAKE_BASE_SECTIONS.includes(en.section) && !(byEntry.get(en)?.length) && (en.section !== 'body' || BODY_BASE_IDS.has(en.id)) && !MANUAL.some((x) => x.section === en.section && (x.id === en.id || x.id === '*') && (x.groups ? x.groups.includes(en.group) : true));
   const baseEntries: Entry[] = [];
+  // (anim-bake-all, BA-A1) the generic table: every entry no rule covers (pure options excepted), and every entry whose
+  // rules cannot all bake (a shared target whose groups differ): per state, composed as the registry composes `eff`
+  const genericEntries: SectionEntry[] = [];
+  const generic = (en: Entry, why: string): BakeResult | null => {
+    try {
+      en.row.target = sectionTarget({ section: en.section, group: en.group, id: en.id, kind: en.t.kind, def: en.t.def });
+    } catch (err) {
+      return fail((err as Error).message);
+    }
+    if (why) en.row.target += ` [${why}]`;
+    en.row.result = 'baked (base table)';
+    genericEntries.push({ section: en.section, group: en.group, id: en.id, value: en.value, kind: en.t.kind, def: en.t.def });
+    baked++;
+    return null;
+  };
   for (const en of entries) {
     const row = en.row;
     if (en.section === 'keys') continue;
@@ -620,19 +638,38 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     const sts = byEntry.get(en);
     if (!sts || sts.length === 0) {
       const m = MANUAL.find((x) => x.section === en.section && (x.id === en.id || x.id === '*') && (x.groups ? x.groups.includes(en.group) : !RULES.some((r) => r.section === en.section && r.id === en.id && r.groups.includes(en.group))));
-      row.target = m ? m.reason : '';
-      row.result = m ? 'manual: no code target' : 'skipped: no bake rule';
-      manualN++;
+      if (m) {
+        row.target = m.reason;
+        row.result = 'manual: no code target';
+        manualN++;
+        continue;
+      }
+      const f = generic(en, 'no code value of its own');
+      if (f) return f;
+      continue;
+    }
+    const bad = sts.find((s) => s.status === 'manual' || s.status === 'blocked');
+    if (bad) {
+      // (anim-bake-all) the shared code value stays; this state's value goes per state: a Body base param into the
+      // body key (as every other group of it), anything else into the generic table
+      const m = sts.find((s) => s.status === 'manual') ?? bad;
+      const why = `per state: the shared ${editText(m.r)} has differing groups (${m.r.groups.map((g, i) => `${g} ${m.vals[i]}`).join(', ')})`;
+      if (en.section === 'body' && BODY_BASE_IDS.has(en.id)) {
+        try {
+          row.target = `${baseTarget(en)} [${why}]`;
+        } catch (err) {
+          return fail((err as Error).message);
+        }
+        row.result = 'baked (base table)';
+        baseEntries.push(en);
+        baked++;
+        continue;
+      }
+      const f = generic(en, why);
+      if (f) return f;
       continue;
     }
     row.target = sts.map((s) => editText(s.r)).join(' | ');
-    const bad = sts.find((s) => s.status === 'manual' || s.status === 'blocked');
-    if (bad) {
-      const m = sts.find((s) => s.status === 'manual') ?? bad;
-      row.result = `manual: shared target (${m.r.groups.map((g, i) => `${g} ${m.vals[i]}`).join(', ')})`;
-      manualN++;
-      continue;
-    }
     const shared = sts.filter((s) => s.status === 'shared');
     row.result = shared.length ? `baked (--allow-shared: changes ${[...new Set(shared.flatMap((s) => s.r.groups))].join(', ')})` : 'baked';
     const notes = sts.map((s) => s.r.note).filter((n): n is string => !!n);
@@ -676,12 +713,12 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     for (const r of reps) after = after.slice(0, r.start) + r.text + after.slice(r.end);
     if (after !== before) writes.push({ path: file, before, after });
   }
-  // (anim-joints J1) the base table: one write, the entries composed in by the A1 rules
-  if (baseEntries.length) {
+  // (anim-joints J1) the base table: one write, the entries composed in by the A1 rules (anim-bake-all: and the generic table)
+  if (baseEntries.length || genericEntries.length) {
     const before = read(BAKE_BASE_FILE);
     if (before === null) return fail(`${BAKE_BASE_FILE}: not found`);
     try {
-      const after = spliceAnimBase(before, applyBaseEntries(parseAnimBase(before), baseEntries));
+      const after = spliceAnimBase(before, applySectionEntries(applyBaseEntries(parseAnimBase(before), baseEntries), genericEntries));
       if (after !== before) writes.push({ path: BAKE_BASE_FILE, before, after });
     } catch (err) {
       return fail((err as Error).message);

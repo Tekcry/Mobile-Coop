@@ -608,8 +608,10 @@ export function tuneEnd(rig: TuneRigIn): void {
 
 /**
  * The Body sliders that bake into the base table's `body` key (`animBase.ts`): every Body slider but the two with a code
- * value of their own (strideMul: the motion constants; peekLeanMul: WALL.peekLean). kneeOutMul / kneeLiftMul keep their
- * climb constants for ladder and pipe (CLIMB_KNEE_OUT / CLIMB_KNEE_UP) and bake here for every other state.
+ * value of their own (peekLeanMul: WALL.peekLean) or that act on the local player only (strideMul: its motion step,
+ * `tuneSim`; (anim-bake-all, BA-A2) it bakes per state into the base table's generic `sections.body`, which the registry
+ * composes into the Body section's effective values). kneeOutMul / kneeLiftMul keep their climb constants for ladder
+ * and pipe (CLIMB_KNEE_OUT / CLIMB_KNEE_UP) and bake here for every other state.
  */
 export const BODY_BASE_FIELDS: readonly BodyField[] = BODY_FIELDS.filter((f) => f !== 'strideMul' && f !== 'peekLeanMul');
 const NBF = BODY_BASE_FIELDS.length;
