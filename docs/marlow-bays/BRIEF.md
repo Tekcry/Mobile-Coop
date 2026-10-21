@@ -200,6 +200,24 @@ that order; the laptop tests all three:
       takes up valuable interface room." So: one layout for every input (item 26b's pad-only density mode goes; input
       changes only the hint glyphs); only screen size changes the layout (dock vs drawer / sheet, scale). Search,
       recent and pinned sliders are removed, not moved under More.
+    - (~23:25, iPad, screenshot `michael-ipad-2026-10-21.png`, 4.42.0): "iPad display strange ui fitment, blurred top,
+      empty gap on bottom. Would love to be able to pinch, move, and zoom camera with touch" and "When opening sections
+      for body parts that need to be scrolled to, the window automatically scrolls back to top". So: respect the safe
+      areas (`env(safe-area-inset-*)`: the panel top sat under the iPad status bar and looked faded); size to the real
+      visible height (`100dvh` / visualViewport, no gap at the bottom); touch camera gestures (one finger orbit, pinch
+      zoom, two-finger pan) in EVERY layout, not only the phone one; the F3 readout off by default on touch devices;
+      opening or folding a group keeps the scroll position (no jump to the top), and a newly opened group scrolls into
+      view. Test at iPad sizes (1180x820, 820x1180) as well as phone and desktop.
+
+30. (~01:20) Faster key editing. Michael: "I was adjusting the body to twist realistically while running but I had to
+    adjust each key manually." Chose all but the curve view: "Proceed with all but the curve view."
+    - Track A (after tuner v3): (a) Wave tool: pick a channel, set amount and timing (phase), and it fills every key with
+      a smooth sine over the cycle; the mirrored half flips sign as the mirror rule says. (b) Apply to keys: one change
+      applied to all keys or the ticked ones. (c) Smooth between: pick two keys, and the keys between get an eased
+      blend. (d) Compare keys: a ghost of the previous (or a picked) key over the current one, plus a values diff line.
+    - Track C (with or after S4, keyed.ts is C's): (e) Exact preview: the live preview samples the same Bezier curve as
+      the Blender bake, so the in-betweens don't shift after a rebake.
+    Each one bakes through the existing keys path; each its own small PR, or A's four in one.
 
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire

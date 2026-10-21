@@ -59,7 +59,7 @@ Not ours: `src/ui/tuner*`, `src/ui/studio*`, `src/anim/studio.ts`, `src/anim/tun
 ## Limits
 Hard rules in CLAUDE.md. Hot paths allocate nothing (per-rig state preallocated at rig creation). Gameplay never reads
 these tables (visual pose only; the capsule, aim ray, muzzle and the wire are unchanged). No save-shape change: the
-tuner store keeps its v2 shape (new groups load as identity). Tests (orchestrator ~16:30, Michael: "i dont care about
-usage on the desktop, i use the laptop"): the desktop is the main test machine at full power (full e2e `E2E_JOBS=2`,
-port 4191, one heavy job at a time under `C:/NightShift/heavy.lock`); the laptop ("Night Shift | Character Build") only
-when the desktop lock is held. #67 (S2b walk) stays parked: Michael fixes it himself.
+tuner store keeps its v2 shape (new groups load as identity). Tests (orchestrator ~18:15, after the desktop full e2e
+timed out at `E2E_JOBS=2`): the full e2e goes to the laptop first ("Night Shift | Character Build", `E2E_JOBS=2`, a
+pushed commit); on the desktop a full e2e runs only at `E2E_JOBS=1` and only when the laptop is busy. Named suites run
+wherever is free (desktop: port 4191, one heavy job at a time under `C:/NightShift/heavy.lock`). #67 (S2b walk) stays parked: Michael fixes it himself.

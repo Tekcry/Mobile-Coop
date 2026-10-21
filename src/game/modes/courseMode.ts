@@ -620,6 +620,13 @@ export class CourseMode implements GameMode {
   private spawnSquad(ids: string[]): void {
     const em = this.g.enemyMgr;
     if (!em) return;
+    if (this.squad.length) {
+      // (course-restart-hold) a held guard is let go first, as Sector Ops does: the host's own takedown or grab, and
+      // co-op every guard a client holds (`tdDenied` aborts its takedown) before the squad is disposed
+      const g = this.g;
+      if (g.takedown.active) g.takedown.reset();
+      g.net?.releaseHolds?.();
+    }
     for (const e of this.squad) {
       const k = em.enemies.indexOf(e);
       if (k >= 0) em.enemies.splice(k, 1);

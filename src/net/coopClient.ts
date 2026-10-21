@@ -317,6 +317,8 @@ export class CoopClient implements NetAttachment {
     // enemies the host no longer reports (despawned without a kill event)
     for (const [id, p] of this.puppets) {
       if (!live.has(id) && !p.dead && (p.stale += 1 / 15) > 0.5) {
+        // (course-restart-hold) our takedown or grab on him ends before his rig goes
+        if (g.takedown.active?.e === p) g.takedown.abort();
         p.dispose();
         this.puppets.delete(id);
       }

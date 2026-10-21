@@ -37,7 +37,7 @@ const label = (id: string): string => TUNE_SECTIONS.find((s) => s.id === id)?.la
 describe('tuner-ui: tabs', () => {
   it('the fixed order, with every registered section in a tab', () => {
     const tabs = buildTabs(ids(), label);
-    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop', 'settings']);
+    expect(tabs.map((t) => t.id)).toEqual(['view', 'body', 'hands', 'weapon', 'stepping', 'weight', 'camera', 'keys', 'coop', 'sec:gear', 'settings']); // (anim-gear) Gear: its own tab after Co-op
     const placed = tabs.flatMap((t) => t.sections);
     expect([...placed].sort()).toEqual([...ids()].sort());
     expect(tabs.find((t) => t.id === 'body')!.sections).toEqual(expect.arrayContaining(['body', 'joint', 'ik', 'trav']));
@@ -50,7 +50,7 @@ describe('tuner-ui: tabs', () => {
   it('an unmapped section gets its own tab after Co-op, before Settings', () => {
     const tabs = buildTabs([...ids(), 'face'], (id) => (id === 'face' ? 'Face (expressions)' : label(id)));
     const at = tabs.findIndex((t) => t.id === 'sec:face');
-    expect(at).toBe(tabs.findIndex((t) => t.id === 'coop') + 1);
+    expect(at).toBe(tabs.findIndex((t) => t.id === 'sec:gear') + 1); // (anim-gear) after Co-op and the Gear tab
     expect(tabs[at + 1]!.id).toBe('settings');
     expect(tabs[at]!.label).toBe('Face');
     expect(tabOfSection('team_boost')).toBe('coop');
@@ -75,7 +75,9 @@ describe('tuner-ui: group levels', () => {
     expect(sharedPrefix(sec('body').groups)).toBe(0);
     expect(levelCount(sec('body').groups, 0)).toBe(1);
     expect(sharedPrefix(sec('hand').groups)).toBe(1);
-    expect(levelCount(sec('hand').groups, 1)).toBe(2);
+    // (anim-joints J2) the team rows (`hand.rifle.team.boost.b`) go two levels deeper than the states
+    expect(levelCount(sec('hand').groups, 1)).toBe(4);
+    expect(levelCount(sec('joint').groups, sharedPrefix(sec('joint').groups))).toBe(3);
     expect(sharedPrefix(sec('team_boost').groups)).toBe(2);
     expect(sharedPrefix(sec('keys').groups)).toBe(1);
     expect(levelCount(sec('keys').groups, 1)).toBe(2);
@@ -96,6 +98,62 @@ describe('tuner-ui: group levels', () => {
     const g2 = groupForPath(k, 1, ['jog', '11']);
     expect(g2).toBe('key.jog.0');
   });
+});
+
+describe('tuner-ui: LT / RT, B and the changed dot use the group own level (anim-joints J2 fix)', () => {
+  const sec = (id: string) => TUNE_SECTIONS.find((s) => s.id === id)!;
+  // the panel's `ownLevel` (src/ui/animTunePanel.ts): the group path's depth, capped at the section's level count
+  const ownLevel = (groups: readonly string[], group: string): number => {
+    const prefix = sharedPrefix(groups);
+    return Math.max(0, Math.min(groupPath(group, prefix).length, levelCount(groups, prefix)) - 1);
+  };
+  /** One LT / RT step as the panel does it: the next choice at the group's own level, through `groupForPath`. */
+  const step = (groups: readonly string[], group: string, d: number): { opts: string[]; next: string | null } => {
+    const prefix = sharedPrefix(groups);
+    const k = ownLevel(groups, group);
+    const path = groupPath(group, prefix);
+    const opts = levelOptions(groups, prefix, path, k);
+    const at = Math.max(0, opts.indexOf(path[k] ?? ''));
+    path[k] = opts[(at + d + opts.length) % opts.length]!;
+    return { opts, next: groupForPath(groups, prefix, path) };
+  };
+
+  const cases: [string, string, string, string][] = [
+    // section, body-state row, team row, its other role
+    ['joint', 'joint.idle', 'joint.team.boost.a', 'joint.team.boost.b'],
+    ['hand', 'hand.rifle.idle', 'hand.rifle.team.boost.a', 'hand.rifle.team.boost.b'],
+    ['weapon', 'weapon.rifle.idle', 'weapon.rifle.team.boost.a', 'weapon.rifle.team.boost.b'],
+    ['ik', 'ik.idle', 'ik.team.boost.a', 'ik.team.boost.b'],
+  ];
+
+  for (const [id, body, team, other] of cases) {
+    it(`${id}: a body state row steps through the states, a team row through A / B`, () => {
+      const g = sec(id).groups;
+      const prefix = sharedPrefix(g);
+      expect(g).toContain(body);
+      expect(g).toContain(team);
+      // the deepest picker is empty for a body state row (the bug: LT / RT did nothing, B landed on a hidden picker)
+      expect(levelOptions(g, prefix, groupPath(body, prefix), levelCount(g, prefix) - 1)).toEqual([]);
+      // body row: its own level is the state level, with every state as a choice
+      const b = step(g, body, 1);
+      expect(b.opts.length).toBeGreaterThan(20);
+      expect(b.opts).toContain('walk');
+      expect(b.next).not.toBe(body);
+      expect(b.next && groupPath(b.next, prefix).length).toBe(groupPath(body, prefix).length);
+      expect(step(g, b.next!, -1).next).toBe(body);
+      // team row: its own level is the role, A <-> B
+      const t = step(g, team, 1);
+      expect(t.opts).toEqual(['a', 'b']);
+      expect(t.next).toBe(other);
+      expect(step(g, other, 1).next).toBe(team);
+      // a trav row steps through the trav kinds
+      const trav = g.find((x) => groupPath(x, prefix).includes('trav'))!;
+      const tr = step(g, trav, 1);
+      expect(tr.opts).toContain('vault');
+      expect(tr.opts).toContain('mantle');
+      expect(tr.next).toMatch(/\.trav\./);
+    });
+  }
 });
 
 describe('tuner-ui: plain labels', () => {

@@ -22,9 +22,12 @@
  *
  * Save / Export: additive key `hands` on the tuner's record (`handsAttach`, `handsLoadFrom`); a record without it (every
  * save before this) loads as all default.
+ *
+ * (anim-joints J2) The rows are `TUNE_ROW_IDS` (`tuneMoveRows.ts`): the body states, then the move and action rows
+ * (`trav.vault`, `team.boost.b`, `reload`, ...); `handsBeginRigRows` composes up to 3 of them over the stance row (A5).
  */
 import { ANIM_BASE } from './animBase';
-import { BODY_GROUPS, type BodyGroup } from './tune';
+import { TUNE_ROW_IDS, TUNE_ROW_INDEX } from './tuneMoveRows';
 import { eulerQuat, mulInto, type QuatLike } from './tuneJoints';
 
 export const HAND_WEAPONS = ['none', 'rifle', 'pistol', 'launcher', 'knife'] as const;
@@ -70,9 +73,10 @@ export const HP = Object.freeze(Object.fromEntries(PARAMS.map((p, i) => [p.id, i
 const DEF = new Float64Array(PARAMS.map((p) => p.def));
 
 const P = HAND_PARAM_COUNT;
-const G = BODY_GROUPS.length;
+/** (anim-joints J2) The rows: the body states, then the move and action rows (`TUNE_ROW_IDS`). */
+const G = TUNE_ROW_IDS.length;
 const W = HAND_WEAPONS.length;
-const GROUP_INDEX = Object.fromEntries(BODY_GROUPS.map((g, i) => [g, i])) as Record<BodyGroup, number>;
+const GROUP_INDEX = TUNE_ROW_INDEX as Record<string, number>;
 const WEAPON_INDEX = Object.fromEntries(HAND_WEAPONS.map((w, i) => [w, i])) as Record<HandWeapon, number>;
 
 /** The tuner's delta values, [weapon][group][param] flat (the source of truth of the panel). */
@@ -111,7 +115,7 @@ export const HANDS_HOOKS: { changed: (() => void) | null } = { changed: null };
 // The panel API (not hot)
 // ------------------------------------------------------------------------------------------
 
-function row(weapon: HandWeapon, group: BodyGroup): number {
+function row(weapon: HandWeapon, group: string): number {
   const w = WEAPON_INDEX[weapon];
   const g = GROUP_INDEX[group];
   if (w === undefined || g === undefined) throw new Error(`tuneHands: unknown row ${weapon} / ${group}`);
@@ -145,23 +149,23 @@ function put(r: number, i: number, v: number): boolean {
   return true;
 }
 
-export function handsGet(weapon: HandWeapon, group: BodyGroup, param: number): number {
+export function handsGet(weapon: HandWeapon, group: string, param: number): number {
   return VAL[row(weapon, group) * P + param]!;
 }
 
 /** Set one param of one (weapon, state) row (clamped to its range, a non-finite value is refused). True if it changed. */
-export function handsSet(weapon: HandWeapon, group: BodyGroup, param: number, v: number): boolean {
+export function handsSet(weapon: HandWeapon, group: string, param: number, v: number): boolean {
   if (!Number.isFinite(v) || param < 0 || param >= P) return false;
   const ch = put(row(weapon, group), param, clampParam(param, v));
   if (ch) HANDS_HOOKS.changed?.();
   return ch;
 }
 
-export function handsReset(weapon: HandWeapon, group: BodyGroup, param: number): void {
+export function handsReset(weapon: HandWeapon, group: string, param: number): void {
   handsSet(weapon, group, param, DEF[param]!);
 }
 
-export function handsResetGroup(weapon: HandWeapon, group: BodyGroup): void {
+export function handsResetGroup(weapon: HandWeapon, group: string): void {
   const r = row(weapon, group);
   let ch = false;
   for (let i = 0; i < P; i++) ch = put(r, i, DEF[i]!) || ch;
@@ -174,11 +178,11 @@ export function handsResetAll(): void {
   if (ch) HANDS_HOOKS.changed?.();
 }
 
-export function handsChanged(weapon: HandWeapon, group: BodyGroup, param: number): boolean {
+export function handsChanged(weapon: HandWeapon, group: string, param: number): boolean {
   return VAL[row(weapon, group) * P + param] !== DEF[param];
 }
 
-export function handsGroupChanged(weapon: HandWeapon, group: BodyGroup): boolean {
+export function handsGroupChanged(weapon: HandWeapon, group: string): boolean {
   return ROW_LIVE[row(weapon, group)] === 1;
 }
 
@@ -403,14 +407,14 @@ const OWN = handsRigState();
  * The module's own window (tests, tools): ease toward the (weapon, state) row ('' = toward the defaults) over `dt`
  * seconds (the default `Infinity` jumps). No allocation.
  */
-export function handsBegin(group: BodyGroup | '', weapon: HandWeapon, dt = Number.POSITIVE_INFINITY): void {
+export function handsBegin(group: string, weapon: HandWeapon, dt = Number.POSITIVE_INFINITY): void {
   const g = group === '' ? undefined : GROUP_INDEX[group];
   handsBeginRig(OWN, g === undefined ? -1 : g, WEAPON_INDEX[weapon] ?? -1, dt);
 }
 
-/** (J1) A body state's row index (-1: '' or unknown) and a weapon's index, for `handsBeginRig`. Not hot. */
+/** (J1) A row's index (a body state, J2: or a move / action row; -1: '' or unknown) and a weapon's index, for `handsBeginRig`. Not hot. */
 export function handsGroupIndex(group: string): number {
-  return GROUP_INDEX[group as BodyGroup] ?? -1;
+  return GROUP_INDEX[group] ?? -1;
 }
 export function handsWeaponIndex(weapon: HandWeapon): number {
   return WEAPON_INDEX[weapon] ?? -1;
@@ -423,6 +427,25 @@ export function handsWeaponIndex(weapon: HandWeapon): number {
  * the window stays off, no work. No allocation.
  */
 export function handsBeginRig(st: HandsRigState, g: number, w: number, dt: number): void {
+  handsBeginRigRows(st, g, w, NO_ROWS, NO_W, 0, dt);
+}
+
+const NO_ROWS = new Int16Array(0);
+const NO_W = new Float64Array(0);
+/** (J2) Per param: 0 adds, 1 multiplies (`x`: the gun scale), 2 the mode (the trigger). */
+const UNIT_CODE = new Uint8Array(PARAMS.map((p) => (p.unit === 'x' ? 1 : p.unit === 'mode' ? 2 : 0)));
+/** (J2) The live move rows of this frame (table row indices `w * G + row`, -1 none) and their weights. Scratch. */
+const MR = new Int32Array(8);
+const MW = new Float64Array(8);
+
+/**
+ * (anim-joints J2, A5) `handsBeginRig` with up to `n` move / action rows (`rows[k]` row indices into `TUNE_ROW_IDS`,
+ * `wts[k]` 0..1) over the stance row `g`, same weapon: offsets stance + w x move, the gun scale stance x lerp(1, move, w),
+ * the trigger mode the move row's when w >= 0.5 and it is not 0 (auto), the strongest first; IK strengths stance x
+ * lerp(1, move, w). A move row with nothing set takes no part, so with none the target is the stance row exactly (J1).
+ * No allocation.
+ */
+export function handsBeginRigRows(st: HandsRigState, g: number, w: number, rows: ArrayLike<number>, wts: ArrayLike<number>, n: number, dt: number): void {
   const gi = g < 0 || g >= G ? -1 : g;
   const r = gi < 0 || w < 0 || w >= W ? -1 : w * G + gi;
   const gun = w === W_RIFLE || w === W_PISTOL || w === W_LAUNCHER;
@@ -431,8 +454,26 @@ export function handsBeginRig(st: HandsRigState, g: number, w: number, dt: numbe
   if (st.gen !== loadGen) stateReset(st);
   // (J1) dt 0 (a frozen game: the tuner's Pause, the studio's pause) = at once, as the registry's sections
   const k = dt > 0 ? 1 - Math.exp(-dt / HAND_EASE_TAU) : 1;
-  const ik = ikEase(st, gi, k);
-  if (!st.curAny && (r < 0 || EROW_LIVE[r] !== 1)) {
+  // (J2) the live move rows: hands / weapon (MR / MW from 0), IK (from 4)
+  let mn = 0;
+  let ikn = 0;
+  for (let m = 0; m < n && m < 4; m++) {
+    const row = rows[m]!;
+    const lw = wts[m]!;
+    if (!(lw > 0) || row < 0 || row >= G) continue;
+    if (w >= 0 && w < W && EROW_LIVE[w * G + row] === 1) {
+      MR[mn] = w * G + row;
+      MW[mn] = lw > 1 ? 1 : lw;
+      mn++;
+    }
+    if (IK_ELIVE[row] === 1) {
+      MR[4 + ikn] = row;
+      MW[4 + ikn] = lw > 1 ? 1 : lw;
+      ikn++;
+    }
+  }
+  const ik = ikEase(st, gi, k, ikn);
+  if (!st.curAny && (r < 0 || EROW_LIVE[r] !== 1) && mn === 0) {
     // the common case: nothing applied, nothing to apply (the IK strengths alone may be live)
     st.out.on = ik;
     st.out.ikOn = ik;
@@ -444,7 +485,23 @@ export function handsBeginRig(st: HandsRigState, g: number, w: number, dt: numbe
   let moved = gun !== st.lastGun;
   let any = false;
   for (let i = 0; i < P; i++) {
-    const t = r >= 0 ? EVAL[b + i]! : DEF[i]!;
+    let t = r >= 0 ? EVAL[b + i]! : DEF[i]!;
+    if (mn > 0) {
+      const u = UNIT_CODE[i]!;
+      let modeSet = false;
+      for (let m = 0; m < mn; m++) {
+        const v = EVAL[MR[m]! * P + i]!;
+        const lw = MW[m]!;
+        if (u === 0) {
+          if (v !== 0) t += lw * v;
+        } else if (u === 1) {
+          if (v !== 1) t *= 1 + (v - 1) * lw;
+        } else if (!modeSet && lw >= 0.5 && v !== 0) {
+          t = v;
+          modeSet = true;
+        }
+      }
+    }
     let c = CUR[i]!;
     if (c !== t) {
       if (PARAMS[i]!.unit === 'mode') c = t;
@@ -503,29 +560,29 @@ function ikPut(g: number, limb: number, v: number): boolean {
   return true;
 }
 
-function gIdx(group: BodyGroup): number {
+function gIdx(group: string): number {
   const g = GROUP_INDEX[group];
   if (g === undefined) throw new Error(`tuneHands: unknown group ${group}`);
   return g;
 }
 
-export function ikGet(group: BodyGroup, limb: IkLimb): number {
+export function ikGet(group: string, limb: IkLimb): number {
   return IK[gIdx(group) * 4 + limb]!;
 }
 
 /** Set one limb's IK strength in one state (clamped 0..1, a non-finite value is refused). True if it changed. */
-export function ikSet(group: BodyGroup, limb: IkLimb, v: number): boolean {
+export function ikSet(group: string, limb: IkLimb, v: number): boolean {
   if (!Number.isFinite(v) || limb < 0 || limb > 3) return false;
   const ch = ikPut(gIdx(group), limb, Math.max(IK_RANGE.min, Math.min(IK_RANGE.max, v)));
   if (ch) HANDS_HOOKS.changed?.();
   return ch;
 }
 
-export function ikReset(group: BodyGroup, limb: IkLimb): void {
+export function ikReset(group: string, limb: IkLimb): void {
   ikSet(group, limb, 1);
 }
 
-export function ikResetGroup(group: BodyGroup): void {
+export function ikResetGroup(group: string): void {
   const g = gIdx(group);
   let ch = false;
   for (let l = 0; l < 4; l++) ch = ikPut(g, l, 1) || ch;
@@ -538,17 +595,24 @@ export function ikResetAll(): void {
   if (ch) HANDS_HOOKS.changed?.();
 }
 
-export function ikGroupChanged(group: BodyGroup): boolean {
+export function ikGroupChanged(group: string): boolean {
   return IK_LIVE[gIdx(group)] === 1;
 }
 
-/** Ease a rig's applied strengths toward group `g`'s effective row (-1: toward 1). True when any limb is below 1. */
-function ikEase(st: HandsRigState, g: number, k: number): boolean {
-  if (!st.ikAny && (g < 0 || IK_ELIVE[g] !== 1)) return false;
+/**
+ * Ease a rig's applied strengths toward group `g`'s effective row (-1: toward 1), (J2) times lerp(1, move, w) for each of
+ * the `ikn` live move rows in `MR` / `MW` from 4. True when any limb is below 1.
+ */
+function ikEase(st: HandsRigState, g: number, k: number, ikn: number): boolean {
+  if (!st.ikAny && (g < 0 || IK_ELIVE[g] !== 1) && ikn === 0) return false;
   const IK_CUR = st.ikCur;
   let any = false;
   for (let l = 0; l < 4; l++) {
-    const t = g >= 0 ? IK_EFF[g * 4 + l]! : 1;
+    let t = g >= 0 ? IK_EFF[g * 4 + l]! : 1;
+    for (let m = 0; m < ikn; m++) {
+      const v = IK_EFF[MR[4 + m]! * 4 + l]!;
+      if (v !== 1) t *= 1 + (v - 1) * MW[4 + m]!;
+    }
     let c = IK_CUR[l]!;
     if (c !== t) {
       c += (t - c) * k;
@@ -656,14 +720,14 @@ export function handsSnapshot(): HandsSnapshot {
       if (ROW_LIVE[r] !== 1) continue;
       const out: Record<string, number> = {};
       for (let i = 0; i < P; i++) if (VAL[r * P + i] !== DEF[i]) out[PARAMS[i]!.id] = VAL[r * P + i]!;
-      (values[HAND_WEAPONS[w]!] ??= {})[BODY_GROUPS[g]!] = out;
+      (values[HAND_WEAPONS[w]!] ??= {})[TUNE_ROW_IDS[g]!] = out;
     }
   }
   const snap: HandsSnapshot = { version: 1, values };
   for (let g = 0; g < G; g++) {
     if (IK_LIVE[g] !== 1) continue;
     const b = g * 4;
-    (snap.ik ??= {})[BODY_GROUPS[g]!] = [IK[b]!, IK[b + 1]!, IK[b + 2]!, IK[b + 3]!];
+    (snap.ik ??= {})[TUNE_ROW_IDS[g]!] = [IK[b]!, IK[b + 1]!, IK[b + 2]!, IK[b + 3]!];
   }
   return snap;
 }
@@ -684,7 +748,7 @@ export function handsLoad(s: unknown): void {
   const ikv = (s as Partial<HandsSnapshot>).ik;
   if (ikv && typeof ikv === 'object') {
     for (const [gName, v] of Object.entries(ikv)) {
-      const g = GROUP_INDEX[gName as BodyGroup];
+      const g = GROUP_INDEX[gName];
       if (g === undefined || !Array.isArray(v)) continue;
       for (let l = 0; l < 4; l++) {
         const n: unknown = v[l];
@@ -698,7 +762,7 @@ export function handsLoad(s: unknown): void {
     const w = WEAPON_INDEX[wName as HandWeapon];
     if (w === undefined || !rows || typeof rows !== 'object') continue;
     for (const [gName, rv] of Object.entries(rows)) {
-      const g = GROUP_INDEX[gName as BodyGroup];
+      const g = GROUP_INDEX[gName];
       if (g === undefined || !rv || typeof rv !== 'object') continue;
       for (const [pid, v] of Object.entries(rv as Record<string, unknown>)) {
         const i = HP[pid];
@@ -742,7 +806,7 @@ export function handsBaseLoad(hands: unknown, ik: unknown): string[] {
         continue;
       }
       for (const [gName, rv] of Object.entries(rows as Record<string, unknown>)) {
-        const g = GROUP_INDEX[gName as BodyGroup];
+        const g = GROUP_INDEX[gName];
         if (g === undefined || !rv || typeof rv !== 'object') {
           unknown.push(`${wName}.${gName}`);
           continue;
@@ -760,7 +824,7 @@ export function handsBaseLoad(hands: unknown, ik: unknown): string[] {
   }
   if (ik && typeof ik === 'object') {
     for (const [gName, v] of Object.entries(ik as Record<string, unknown>)) {
-      const g = GROUP_INDEX[gName as BodyGroup];
+      const g = GROUP_INDEX[gName];
       if (g === undefined || !Array.isArray(v)) {
         unknown.push(`ik.${gName}`);
         continue;
@@ -781,20 +845,20 @@ export function handsBaseLoad(hands: unknown, ik: unknown): string[] {
 }
 
 /** The base table's value of one param. */
-export function handsBaseGet(weapon: HandWeapon, group: BodyGroup, param: number): number {
+export function handsBaseGet(weapon: HandWeapon, group: string, param: number): number {
   return BASE[row(weapon, group) * P + param]!;
 }
 
 /** The effective value of one param (base composed with the delta): what every Wren rig applies. */
-export function handsEffective(weapon: HandWeapon, group: BodyGroup, param: number): number {
+export function handsEffective(weapon: HandWeapon, group: string, param: number): number {
   return EVAL[row(weapon, group) * P + param]!;
 }
 
 /** The base table's IK strength of one limb, and the effective one (base x delta, 0..1). */
-export function ikBaseGet(group: BodyGroup, limb: IkLimb): number {
+export function ikBaseGet(group: string, limb: IkLimb): number {
   return IK_BASE[gIdx(group) * 4 + limb]!;
 }
-export function ikEffective(group: BodyGroup, limb: IkLimb): number {
+export function ikEffective(group: string, limb: IkLimb): number {
   return IK_EFF[gIdx(group) * 4 + limb]!;
 }
 

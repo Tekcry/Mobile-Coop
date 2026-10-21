@@ -167,6 +167,20 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     The preview is live (the keyed sampler reads the baked clip at the warped phase, `KeyedClip.keyTime`); undo and
     reset work as for every slider. The bake writes the key's `phase` (frame / 48) only for moved keys, regenerates
     `src/anim/tuneKeysMeta.ts` and prints the clip's rebake.
+  - Add / delete keys (marlow-bays item 25; `anim/tuneKeysEdit.ts`, `tuneKeysAdd` / `tuneKeysDelete` / `tuneKeysEditInfo`):
+    "+ Add key" inserts a key midway (in time, bake frames) between the picked key and the next (wrapping; with Mirror
+    on in the own half, the bake mirrors it half a cycle on); its deltas copy the live offset there, so play looks the
+    same until it is edited. "Delete key" removes the picked key (never key 1, never below 4 keys a cycle: 2 own keys
+    with Mirror on; with Mirror on its mirror goes too). State as sliders, no store version bump: `del` (0 / 1) in a
+    key's group; 8 added-key groups per clip `key.<clip>.a<s>` (`at`, bake frames, 0 empty, and the field sliders as
+    deltas on the original keys' blended pose there). Key ids: the original keys, then the slots, then (Mirror on) the
+    slots' mirrors; the live list goes to `KEY_LIVE`, which `keyTimeline` (count, phase, step, readout numbered in
+    phase order, "(added)") and the picker (live keys in phase order) read. Live: an added key is one more knot of the
+    offset tables; a deleted key's knot takes its live neighbours' blended pose minus its own, from the key files
+    (loaded on the clip's first delete). Mirror off copies the own half's adds / deletes onto the other half. The
+    timing control moves an added key's `at` and keeps every key between its live neighbours. Undo, reset, presets,
+    export and import work as for every slider. The bake writes the key file with the new key list (phase order),
+    regenerates `tuneKeysMeta.ts` and prints the rebake; buttons `k:add` / `k:del` (pad focus, no new binding).
   - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /
     yaw / roll (`head.*`), pelvis shift (`pelvis.dx / dy / dz`, cm, now a slider), per arm the shoulder
     (`armX.sh.{pitch,yaw,roll}`, "shoulder forward / turn / out"), the upper arm twist (`armX.twistUpper`) and the
@@ -231,6 +245,35 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
+- (anim-joints J2, COVERAGE gap 2) Move and action rows in Joints, Hands & feet, IK strength and Weapon: the tables are
+  keyed by the row list `TUNE_ROW_IDS` (`anim/tuneMoveRows.ts`): the body states (ids unchanged), then `trav.<kind>`
+  (the traversal moves without a body state, plus `brace`), `team.<move>.<a|b>` (each co-op move per role) and the
+  actions `air`, `land`, `slide`, `melee`, `reload`, `swap`, `throw` (the grenade), `hit`. Groups such as
+  `joint.trav.vault`, `joint.team.boost.b`, `hand.rifle.reload`, `ik.air`, `weapon.pistol.throw` register through the
+  registry, so the panel's pickers list them (State: `trav` > `vault`, `team` > `boost` > `b`, `reload`). When they
+  apply: each Wren rig picks the stance row plus up to 3 move / action rows with a weight 0..1 (`pickTuneRows`): a
+  traversal row 1 while the pose is in that move; a team row 1 while the rig is in that role (`RigPose.tuneTeam`: the
+  local player from `MOVE_TUNE_TEAM`, the studio pairs from their role, the co-op partner from its move mode and sub on
+  the wire; the partner's relay climb reads as the leg-up's role A and the revive has no wire state); an action row
+  the anim graph's own blend weight (`AnimGraph.rowW`: the air and slide fades, the landing envelope, the elbow strike's
+  hand weight, the reload / swap overlays, the grenade hands, the flinch spring; last frame's). Composition (A5):
+  joints stance x nlerp(identity, move, w) per row; offsets stance + w x move; gun scale and IK strength stance x
+  lerp(1, move, w); the trigger the move row's at w >= 0.5 when not auto. A move with no body state (a vault) applies
+  its row over identity. The panel follows the strongest move row while its weight is 0.5 or more, else the stance
+  row. The per-gun Joints rows stay for the armed states only.
+- (anim-gear, marlow-bays item 22) Gear (`anim/tuneV2Sections.ts` `GEAR_SECTION`, tables `anim/tuneGear.ts`): worn-gear
+  offsets per socket, its own tuner tab (`sec:gear`, "Gear": the panel builds it from the registry, no UI change).
+  Groups `gear.<socket>` (holster, backL, backC, backR, slingHip) and `gear.<socket>.crouch` (added
+  over the standing row by the rig's crouch amount 0..1); sliders x / y / z (m, -0.1..0.1) and pitch / yaw / roll (deg,
+  -45..45), identity 0, no follow. Deltas on the base table's `gear` key; every Wren rig composes its own
+  (`TuneRigState.gear`, in `tuneRigBegin`). Where each applies: holster -> the thigh pistol (`WeaponModel.place`, the
+  `thighMount` branch, about the holster's weapon point; the generic thigh slot likewise); backL / backR -> the back
+  mount's guns (about the stud); backC -> the diagonal centre sling (about the grip); slingHip -> the rig's `slingHip`
+  node and the compact gun on the hip sling (about its stock-end pivot). No slingBack socket (nothing reads that node yet) and no
+  pouches socket: Wren's kit draws her grenade pouches (the GrenadePouches meshes are hidden on her rig), so it would
+  move nothing (dropped until they can move). A gun's frame is its own in the slot (x right, y top, z toward the muzzle); a node's is its
+  parent's. A draw / holster's travel targets the moved slot (it places its end through `place`). Visual only (G-A3).
+  Hook: `__animBase.setGear(row, param, v)`.
 - (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
   differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests
   `tests/marlowT2.test.ts`, `tests/tunerLayout.test.ts`):
