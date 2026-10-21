@@ -112,7 +112,8 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
   without the tuner).
 
 **Stepping.** Every planner reads these, guards included. (item 24) The Stepping sliders themselves are Wren's alone at
-run time (a guard's planner reads the guards' table); these baked constants stay shared.
+run time (a guard's planner reads the guards' table, any other rig's an identity table); these baked constants stay
+shared.
 - Baked:
   - idle lift -> PLANNER.idleLift.
   - lock (the 5 moving gaits) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads

@@ -6,7 +6,8 @@
  * size, and which tuner groups a loop of the Anim Studio uses.
  */
 import { ARMED_JOINT_STATES } from '../anim/tuneRows';
-import { CLIP_BODY } from '../anim/studio';
+import { CLIP_BODY, STUDIO_ENTRIES } from '../anim/studio';
+import { STEP_GAITS, stepGaitIndex } from '../anim/tuneStep';
 
 /** The fixed tabs, in order. A registered section not mapped here gets its own tab after Co-op. */
 export const TUNER_TABS: readonly { id: string; label: string }[] = [
@@ -893,8 +894,13 @@ const GUARD_LOOP_ROW: Readonly<Record<string, string>> = {
   'guard:crouchAim': 'crouch',
   'guard:cover': 'cover',
 };
-/** The stepping gait each guard loop steps in ('' none). */
-const GUARD_LOOP_GAIT: Readonly<Record<string, string>> = { 'guard:idle': 'idle', 'guard:patrol': 'walk', 'guard:alert': 'walk', 'guard:run': 'run', 'guard:aim': 'idle', 'guard:crouchAim': 'idle', 'guard:cover': 'idle' };
+/**
+ * The stepping gait each guard loop steps in: the planner's own pick for the loop's pace and stance (`stepGaitIndex`),
+ * so the shown row is the one the puppet uses (the run at 3.2 m/s steps in the jog gait: the jog / run split is 3.5).
+ */
+export const GUARD_LOOP_GAIT: Readonly<Record<string, string>> = Object.fromEntries(
+  STUDIO_ENTRIES.filter((e) => e.gloop).map((e) => [e.id, STEP_GAITS[stepGaitIndex(e.gloop!.speed > 0, e.gloop!.speed, e.gloop!.crouch ? 1 : 0)]!]),
+);
 
 /** (item 24) The guard row a guard loop plays through ('' not a guard loop). */
 export function guardRowOfLoop(loop: string): string {
@@ -910,7 +916,11 @@ export function guardLoopGroups(loop: string): { joint: string; step: string; we
 
 /** (item 24) The guard loop of a guard section's row or gait ('' none). */
 export function guardLoopOf(section: string, seg: string): string {
-  if (section === 'guardStep') return seg === 'idle' ? 'guard:idle' : seg === 'walk' || seg === 'jog' ? 'guard:patrol' : seg === 'run' ? 'guard:run' : '';
+  // a gait: the first guard loop that steps in it (the same pick as GUARD_LOOP_GAIT)
+  if (section === 'guardStep') {
+    for (const id in GUARD_LOOP_GAIT) if (GUARD_LOOP_GAIT[id] === seg) return id;
+    return '';
+  }
   for (const id in GUARD_LOOP_ROW) if (GUARD_LOOP_ROW[id] === seg) return id;
   return '';
 }

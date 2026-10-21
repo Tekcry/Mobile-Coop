@@ -244,7 +244,8 @@ const STAGGER = { min: 0.4, hold: 0.3 } as const;
 export class FootPlanner {
   readonly L = newFoot();
   readonly R = newFoot();
-  /** (item 24, track A) The stepping table this planner reads (null: the shared one, Wren's rows; a guard: the guards'). */
+  /** (item 24, track A) The stepping table this planner reads (null: the shared one, Wren's rows; a guard: the guards';
+   *  any other rig: the identity table, set by `CharacterRig`). */
   stepRows: Float64Array | null = null;
   /** Moving on the last update (a quick stop acts on the change to still). */
   private wasMoving = false;

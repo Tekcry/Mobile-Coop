@@ -15,7 +15,7 @@ import { GUARD_JOINT_GROUPS, GUARD_ROW_LIVE, GUARD_STEP_GROUPS, GUARD_STEP_ROWS,
 import { guardRigBegin, guardRigState } from '../src/anim/tuneGuardRig';
 import { ANIM_BASE_GUARD } from '../src/anim/animBaseGuard';
 import { J, JOINTS_CUR } from '../src/anim/tuneJoints';
-import { STEP_N, SP } from '../src/anim/tuneStep';
+import { STEP_GAITS, STEP_N, SP, stepGaitIndex } from '../src/anim/tuneStep';
 import { bakeCatalogue, tuneBake } from '../src/anim/tuneBake';
 import { BAKE_BASE_FILE } from '../src/anim/tuneBakeBase';
 import { applyGuardBaseEntries, BAKE_GUARD_FILE, emptyGuardBase, guardBaseTarget, parseAnimBaseGuard, printAnimBaseGuard, spliceAnimBaseGuard } from '../src/anim/tuneBakeGuard';
@@ -68,6 +68,9 @@ async function runRigs(): Promise<Record<string, number[]>[]> {
       const q = node.rotationQuaternion;
       o[n] = [q.x, q.y, q.z, q.w, node.position.x, node.position.y, node.position.z];
     }
+    // the planner's own values (the VIP's, the dummy's: a plain rig)
+    const pl = rg.planner;
+    o.planner = [pl.L.x, pl.L.y, pl.L.z, pl.R.x, pl.R.y, pl.R.z, Number(pl.L.contact), Number(pl.R.contact)];
     return o;
   });
   for (const rg of rigs) rg.dispose();
@@ -123,7 +126,8 @@ describe('item 24: guard rows apart from Wren\'s', () => {
     const wren = await runRigs();
     expect(wren[0]).not.toEqual(base[0]);
     expect(wren[1]).toEqual(base[1]);
-    // (the plain rig, neither Wren's nor a guard's, keeps the shared stepping table: it may follow Wren's step row)
+    // the plain rig (the VIP, the dummy, a carried body: neither Wren's nor a guard's) reads the identity stepping table
+    expect(wren[2]).toEqual(base[2]);
     tuneResetAll();
     tuneV2SyncAll();
     // the guard's Joints, Stepping and Weight rows of the walk
@@ -321,11 +325,17 @@ describe('item 24: the panel and the studio (pure parts)', () => {
     const o = studioInput(e, false, { x: 0, y: 0, turn: 0, ads: false, crouch: false, drawn: false }, true);
     expect([o.x, o.y, o.turn, o.ads, o.crouch, o.drawn]).toEqual([0, 0, 0, false, false, false]);
     expect(plainLoop('guard:patrol', e.label)).toBe('Guard: patrol walk');
-    expect(guardLoopGroups('guard:run')).toEqual({ joint: 'guard.joint.run', step: 'guard.step.run', weight: 'guard.weight.run' });
+    // the run at 3.2 m/s steps in the jog gait (the planner's jog / run split is 3.5 m/s)
+    expect(guardLoopGroups('guard:run')).toEqual({ joint: 'guard.joint.run', step: 'guard.step.jog', weight: 'guard.weight.run' });
+    for (const en of STUDIO_ENTRIES.filter((x) => x.gloop)) {
+      const g = en.gloop!;
+      expect(guardLoopGroups(en.id).step, en.id).toBe(`guard.step.${STEP_GAITS[stepGaitIndex(g.speed > 0, g.speed, g.crouch ? 1 : 0)]}`);
+    }
     expect(guardLoopGroups('guard:crouchAim').joint).toBe('guard.joint.crouch');
     expect(loopForGroup('guardJoint', 'guard.joint.aim', 'guard:idle')).toBe('guard:aim');
     expect(loopForGroup('guardJoint', 'guard.joint.walk', 'guard:alert')).toBe('');
-    expect(loopForGroup('guardStep', 'guard.step.run', 'state:idle')).toBe('guard:run');
+    expect(loopForGroup('guardStep', 'guard.step.jog', 'state:idle')).toBe('guard:run');
+    expect(loopForGroup('guardStep', 'guard.step.run', 'state:idle')).toBe('');
     expect(loopForGroup('guardStep', 'guard.step.crouchRun', 'guard:idle')).toBe('');
   });
 });

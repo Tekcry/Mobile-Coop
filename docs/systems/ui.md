@@ -289,8 +289,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   guard rig (`CharacterRig.guardRows`, set in `buildEnemyRig`) picks its own row in its own `animate`, eases its joint
   offsets and opens the joints window on the guard table only (`tuneJoints.jointsOpen`), steps its own Weight layers
   (`WEIGHT_POSE` for its frame only, the camera signal put back) and its planner reads `GUARD_STEP_ROWS`
-  (`FootPlanner.stepRows`); no Wren rig reads them, and Wren's Joints / Stepping rows never reach a guard (the plain
-  rigs, the VIP and the dummy, keep the shared stepping table). `tuneGuardFrame` (player.ts) copies the rows in once a
+  (`FootPlanner.stepRows`); no Wren rig reads them, and Wren's Joints / Stepping rows never reach a guard; the plain rigs
+  (the VIP, the training dummy, a carried body) read a fixed identity stepping table (`tuneStep.STEP_IDENTITY_ROWS`),
+  so Wren's Stepping rows reach Wren only. The guard loops' Stepping gait is the planner's own pick for the loop's pace
+  (`tunerLayout.GUARD_LOOP_GAIT` from `stepGaitIndex`: the run at 3.2 m/s steps in the jog gait). `tuneGuardFrame` (player.ts) copies the rows in once a
   frame. Deltas on the generated guard base table `anim/animBaseGuard.ts` (BAKE.md). Saves, exports, imports, presets
   and undo carry them through the registry (additive group ids; old records load with the guard rows at identity).
   Anim Studio: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`studioStage` `makePuppet`: a grunt from
