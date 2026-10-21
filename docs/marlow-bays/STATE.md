@@ -1,16 +1,21 @@
 # marlow-bays - state
 
 B + M (cloud): see "Slices B + M" below; PR to master open, waiting on the orchestrator's PC full e2e and GPU look.
-Now (2026-10-21 ~15:05): slice T = PR Tekcry/Mobile-Coop#82 (branch `feature/marlow-tuner`, worktree
-`C:/NightShift/Mobile-Coop-marlow-tuner`, head f3b77e38, master 4.34.0 merged): items 9, 10, 11, 13, 14. Check,
-e2e-studio, e2e-menus, e2e-mouse pass; checker's two findings fixed; full e2e running on the laptop (Character Build,
-15:00). Slice T1a (items 15-19, COVERAGE gaps 3-5) is being built by an implementer subagent on
-`feature/marlow-tuner-t1` (worktree `C:/NightShift/Mobile-Coop-marlow-t1`, cut from T f3b77e38). Master 4.34.0 is
-merged here (protocol 25).
-Next: T1a PR; T1b (COVERAGE gaps 1-2: Joints / Hands & feet / IK / Weapon bake and reach every rig and the partner;
-move and action rows; Michael's existing exports must bake, backward compatible, tested with a literal old export);
-T3 (rig: per-finger control, a real clavicle, per-key legs; prototype first, screenshot of the new joints to the
-orchestrator before building it all); T2 (UI redesign; screenshot before its PR); then B, J, M.
+Track A (Course Ready Build), 2026-10-21 ~19:30:
+- Merged: slice T #82 (4.35.0), T1a #83 (4.36.0).
+- T2 (tuner redesign) = PR Tekcry/Mobile-Coop#86, branch `feature/marlow-tuner-t2` (worktree
+  `C:/NightShift/Mobile-Coop-marlow-t2`), head e4105dea; laptop short check passed; checker fixed; full e2e running on
+  the desktop at E2E_JOBS=1. Shots: `t2-layout-2026-10-21.png` (Michael OK'd), `t2-final-2026-10-21.png`,
+  `t2-stage-light-before-after.png`.
+- Item 26 (tuner on phones, M21 exception for the tuner and Anim Studio only) building on `feature/tuner-phone`
+  (worktree `C:/NightShift/Mobile-Coop-tuner-phone`, from T2 e4105dea; rebase on master after #86). Phone-size
+  screenshot to the orchestrator before its PR.
+- Item 23 (key timing) PARKED at 2781d490 on `feature/marlow-key-timing` (worktree `C:/NightShift/Mobile-Coop-key-timing`,
+  from T2): retime logic, live preview, export via the key `phase` field, Keys tab controls, e2e steps. Left: docs, the
+  e2e run, and (orchestrator ~19:25) the key `time` bake rule + keyMetaText write in `src/anim/tuneBake.ts` (track B's
+  file, done by A, minimal, keys-only, named in the PR body). Then item 25 (add / delete keys). Tell Menu Notes (track
+  C) when 23 / 25 open and land; keep the optional-channel path in key_clip.py / build.mjs.
+- T1b is track B (CT Core), T3 track C (Menu Notes). Bays J after the animation tracks.
 Open: none.
 
 ## Slices B + M (cloud session "Night Shift | Bays Cloud", 2026-10-21)
