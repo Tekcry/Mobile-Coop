@@ -355,3 +355,52 @@ describe('anim-skeleton S4b: the key preview against a Blender rebake', () => {
     if (process.env.S4B_PRINT) console.info(rows.join('\n'));
   });
 });
+
+// (marlow-bays item 30e) The preview's own build, the key file loaded: the curve fields on Blender's curve, the trunk
+// re-keyed in the bake's channel frames, the arms as FK (tuneKeys.ts `build`, tuneKeysCurve.ts). Runs after the
+// measurement above (its "today" is the linear spread before the key file loads).
+import { TRUNK_REST_MATS } from '../src/anim/tuneKeysCurve';
+import { tuneKeysFilesReady } from '../src/anim/tuneKeys';
+
+describe('marlow-bays item 30e: the exact preview', () => {
+  it("the trunk rest frames are the fixture's", () => {
+    const rest = (JSON.parse(readFileSync(path.join(__dirname, 'fixtures', 'key-curve-blender.json'), 'utf8')) as { rest: Record<string, number[][]> }).rest;
+    ['pelvis', 'spine', 'chest', 'neck'].forEach((b, s) => {
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) expect(TRUNK_REST_MATS[s]![i]![j]!).toBeCloseTo(rest[b]![i]![j]!, 6);
+    });
+  });
+
+  it('one key edited: the build matches the Blender rebake (pelvis and trunk exact, arms within 1 cm)', async () => {
+    const out: string[] = [];
+    for (const c of FIX.cases) {
+      const clip = keyedClipByName(c.clip)!;
+      for (const [id, v] of Object.entries(c.edit)) tuneSet(keyGroupId(c.clip, c.key), id, v);
+      tuneKeysSync();
+      await tuneKeysFilesReady();
+      tuneKeysSync();
+      expect(clip.keyOff).not.toBeNull();
+      const e = errors(clip, c.edited);
+      out.push(`${c.clip}: ${fmt2(e)}`);
+      expect(e.pel, c.clip).toBeLessThan(2e-5);
+      for (const q of e.q) expect(q, `${c.clip} trunk`).toBeLessThan(0.005);
+      expect(e.arm, `${c.clip} arms`).toBeLessThan(1e-2);
+      expect(e.head, `${c.clip} head`).toBeLessThan(0.002);
+      // at the keys themselves the arms are exact too (FK at the keys' own values)
+      const meta = KEY_CLIPS.find((m) => m.name === c.clip)!;
+      const T = meta.mirror ? meta.phases.length * 2 : meta.phases.length;
+      const atKeys = errors(clip, c.edited, (f) => {
+        for (let k = 0; k < T; k++) if (Math.abs((keyBasePos(meta, k) / 48) * clip.frames - f) < 1e-9) return true;
+        return false;
+      });
+      expect(atKeys.arm, `${c.clip} arms at the keys`).toBeLessThan(2e-4);
+      tuneResetAll();
+      tuneKeysSync();
+      expect(clip.keyOff).toBeNull();
+    }
+    if (process.env.S4B_PRINT) console.info(out.join('\n'));
+  });
+});
+
+function fmt2(e: Err): string {
+  return `pel ${(e.pel * 100).toFixed(4)} cm, trunk ${e.q.map((q) => q.toFixed(4)).join(' / ')} deg, arm ${(e.arm * 100).toFixed(3)} cm, head ${e.head.toFixed(4)} deg`;
+}

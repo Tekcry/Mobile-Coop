@@ -46,6 +46,15 @@ export class StudioOverlay {
   private onionMirror = false;
   private onionRoot = false;
   private onionVer = -1;
+  // (marlow-bays item 30d) the compare ghost: the compared key's joints root-local, recorded when she stands on it
+  private cmp = new Float32Array(0);
+  private cmpOk = false;
+  private cmpClip: KeyedClip | null = null;
+  private cmpRig: StudioRigView | null = null;
+  private cmpFrame = -1;
+  private cmpMirror = false;
+  private cmpRoot = false;
+  private cmpVer = -1;
 
   /** Every frame while the studio runs (after the render). */
   frame(nowMs: number, scene: Scene | null): void {
@@ -76,8 +85,10 @@ export class StudioOverlay {
     const cam = scene?.activeCamera as unknown as OverlayCam | null | undefined;
     if (!cam || !cam.rotation || !(this.W > 0)) return;
     this.recordOnion();
+    this.recordCompare();
     this.recordTrail();
     if (STUDIO.onion) this.drawOnion(g, cam);
+    if (STUDIO.compare) this.drawCompare(g, cam);
     if (STUDIO.skeleton) for (let i = 0; i < STUDIO_RIGS.length; i++) this.drawSkeleton(g, cam, STUDIO_RIGS[i]!);
     if (STUDIO.feet) {
       this.drawTrail(g, cam);
@@ -97,6 +108,87 @@ export class StudioOverlay {
     this.trailRig = null;
     this.onionClip = null;
     this.onionRig = null;
+    this.cmpClip = null;
+    this.cmpRig = null;
+    this.cmpOk = false;
+  }
+
+  /** (item 30d) The compare ghost is recorded for the compared key (the panel visits the key once when it is not). */
+  compareReady(): boolean {
+    return this.cmpOk && this.cmpClip === STUDIO_TARGET.clip && this.cmpRig === STUDIO_TARGET.rig && this.cmpFrame === this.compareFrame();
+  }
+
+  /** The compared key's frame of the clip playing (-1 none). */
+  private compareFrame(): number {
+    const clip = STUDIO_TARGET.clip;
+    return clip && Number.isFinite(STUDIO.comparePhase) ? studioKey(STUDIO.comparePhase, clip.frames) : -1;
+  }
+
+  /** (item 30d) Record the target's joints (root-local) while she stands on the compared key's frame. */
+  private recordCompare(): void {
+    const rig = STUDIO_TARGET.rig;
+    const clip = STUDIO_TARGET.clip;
+    const fr = this.compareFrame();
+    if (!rig || !clip || fr < 0) {
+      this.cmpOk = false;
+      return;
+    }
+    const b = this.bonesOf(rig);
+    const J = b.joints.length;
+    if (clip !== this.cmpClip || rig !== this.cmpRig || fr !== this.cmpFrame || STUDIO.mirror !== this.cmpMirror || STUDIO.rootMotion !== this.cmpRoot || STUDIO.compareVer !== this.cmpVer) {
+      this.cmpClip = clip;
+      this.cmpRig = rig;
+      this.cmpFrame = fr;
+      this.cmpMirror = STUDIO.mirror;
+      this.cmpRoot = STUDIO.rootMotion;
+      this.cmpVer = STUDIO.compareVer;
+      this.cmpOk = false;
+      if (this.cmp.length !== J * 3) this.cmp = new Float32Array(J * 3);
+    }
+    const ph = STUDIO_TARGET.drive?.live ?? STUDIO.phase;
+    // (on the key itself: its phase; a key sits on the bake's 1/48 grid, not always on a clip frame)
+    let dp = Math.abs(ph - STUDIO.comparePhase) % 1;
+    if (dp > 0.5) dp = 1 - dp;
+    if (dp > 1e-4) return;
+    const rp = rig.root.position;
+    const yaw = rig.root.rotation.y;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const o = this.cmp;
+    for (let j = 0; j < J; j++) {
+      const p = b.joints[j]!.getAbsolutePosition();
+      const dx = p.x - rp.x;
+      const dz = p.z - rp.z;
+      o[j * 3] = dx * c - dz * s;
+      o[j * 3 + 1] = p.y - rp.y;
+      o[j * 3 + 2] = dx * s + dz * c;
+    }
+    this.cmpOk = true;
+  }
+
+  /** (item 30d) The compare ghost: the compared key's skeleton, light, over her. */
+  private drawCompare(g: CanvasRenderingContext2D, cam: OverlayCam): void {
+    const rig = this.cmpRig;
+    if (!rig || !this.compareReady()) return;
+    const b = this.bonesOf(rig);
+    const o = this.cmp;
+    const rp = rig.root.position;
+    const yaw = rig.root.rotation.y;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    g.lineWidth = 3;
+    g.strokeStyle = 'rgba(235,225,255,0.5)';
+    g.beginPath();
+    for (let i = 0; i < b.pairs.length; i += 2) {
+      const a = b.pairs[i]! * 3;
+      const e = b.pairs[i + 1]! * 3;
+      const ax = rp.x + o[a]! * c + o[a + 2]! * s;
+      const az = rp.z - o[a]! * s + o[a + 2]! * c;
+      const ex = rp.x + o[e]! * c + o[e + 2]! * s;
+      const ez = rp.z - o[e]! * s + o[e + 2]! * c;
+      this.seg(g, cam, ax, rp.y + o[a + 1]!, az, ex, rp.y + o[e + 1]!, ez);
+    }
+    g.stroke();
   }
 
   private ensureCanvas(): HTMLCanvasElement {
