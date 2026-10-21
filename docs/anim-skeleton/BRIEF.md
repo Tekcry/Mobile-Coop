@@ -72,6 +72,10 @@ something is tuned or keyed.
   not 30 quaternions; the rig turns them into the three segment rotations.
 - A7: The leg channel is opt-in per key file (`"legs": true`); the rig blends FK legs over the IK by a per-key weight,
   default 0 for a planted foot, so the planner keeps the feet on the ground unless a key asks otherwise.
+- A9: The game's own hand closure (`handGrip`, gun holds) drives the finger bones on every rig, so LOD0 / LOD1 hands
+  close again (lost with the grip morphs on 2026-10-20); the hero's grip morphs are switched off where its finger bones
+  are driven, so the closure is not applied twice. A visible change that restores the intended look, not tuning: the
+  bit-identity test covers every joint that existed before T3. Undo: drive the fingers from the tuner only.
 - A8: The test clip is a new key file `skeleton_test` (studio only, never played in the game) that uses all three.
 
 ## Limits

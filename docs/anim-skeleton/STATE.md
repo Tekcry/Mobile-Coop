@@ -1,10 +1,10 @@
 # anim-skeleton - state
 
 ## Now
-S1 (asset) building: Michael approved P0 ("Go, smooth fingers too"); shipped GLBs gain clavicles and fingers, LOD0 / LOD1 knuckle loops within the triangle budgets.
+S2 (runtime rig) building: clavicle, finger and goggle nodes on the rig, the poser drives the new skin joints, hand grip curls the finger bones, bit-identity test.
 
 ## Next
-S1 checker, then S2 (runtime rig): clavicle and finger nodes, per-finger drive, bit-identity test; stop the hero grip morphs doubling the finger bones.
+S2 checker; GPU look (studio, LOD0) under the desktop lock; then S3 (clip channels) after track A items 23 and 25 land.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger
@@ -27,6 +27,7 @@ S1 checker, then S2 (runtime rig): clavicle and finger nodes, per-finger drive, 
 - Reported to the orchestrator: LOD0-2 lost their grip morphs in the 10-20 rebake (BRIEF "Facts").
 
 ## Done
+- 2026-10-21: S1 asset (f3fdd667): clavicle, finger (LOD0 / LOD1, knuckle loops) and goggle joints in the Wren GLBs; checker PASS; laptop smoke, e2e-anim, e2e-studio pass. Master 4.38.0 merged (0c285c9d: T1a #83, J1 #84). Polish: thumb-index web spike, faceted fingers, hero poser test (S2), bake_lods SPEC bones text, half-patched re-run.
 - 2026-10-21: survey; BRIEF, PLAN, STATE.
 - 2026-10-21: P0 prototype: 55-bone game armature (clavicles + 30 fingers), rest error 1.2e-7 m, skeleton_test clip, sheets.
 
