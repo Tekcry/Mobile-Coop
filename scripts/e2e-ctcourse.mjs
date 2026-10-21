@@ -90,7 +90,8 @@ const use = (P, id) =>
     const it = window.__app.current.interactables?.items.find((i) => i.id === id);
     if (!it) return 'missing';
     if (!it.enabled) return 'disabled';
-    it.onUse(it);
+    // 'local' like the game's own prompt and menu (gameState.ts): the host's press is P1 (marlow-bays item 2)
+    it.onUse(it, 'local');
     return 'ok';
   }, id);
 const hostDebug = () => GA(() => window.__course.debug());
@@ -205,14 +206,14 @@ async function station3(x0) {
   const d0 = await dev(A);
   assert(d0.alarm >= 1 && d0.cams[0].mode === 'online', `station 3: the camera raised the alarm stage to ${d0.alarm} and the run goes on`);
   await until(B, () => window.__ctdev?.alarm >= 1, null, 8000, 'station 3: the client page knows the alarm stage');
-  // (camera-cue) the vision cue is drawn while the camera works, on both pages, and pulses when the camera itself sees someone
+  // (camera-cue) the vision cue is drawn while the camera works, on both pages, and records when the camera itself sees someone
   const cueOn = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.baked && c.tris > 0 && c.a === 1 && c.shown; };
   const cueOff = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.a === 0 && !c.shown && !c.seen; };
   await until(A, cueOn, null, 10000, 'station 3: the host draws the camera cue');
   await until(B, cueOn, null, 10000, 'station 3: the client draws the camera cue');
-  await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses while the camera sees a player');
-  // (camera-cue fix) the client derives the pulse itself (the host's sight test on both bodies, nothing sent)
-  await until(B, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses on the client page too');
+  await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.shown; }, null, 30000, 'station 3: the cue sees a player (grid only, no edge pulse: marlow-bays item 6)');
+  // (camera-cue fix) the client derives the seen state itself (the host's sight test on both bodies, nothing sent)
+  await until(B, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.shown; }, null, 30000, 'station 3: the cue sees a player on the client page too');
   await drawPistol(A);
   await drawPistol(B);
   // the host jams from where it stands (still), aiming at the camera
@@ -651,6 +652,30 @@ try {
     await moveClient(3.5, 12.4);
     assert((await use(B, 'c-sw-p1')) === 'ok', 'the client reads the station 1 panel');
     assert((await hostDebug()).bay === 0, 'reading a panel does not move the course on');
+    // (marlow-bays items 3-4, A1-A2) the pause menu: the host has "Restart at checkpoint" and "Return to lobby"; the
+    // client sees both disabled, "Host only"; the host's restart (a confirm opening on Stay) brings the client back too
+    console.log('pause: restart at checkpoint (host only) brings both players back to the bay start');
+    const rows = (P) => P.evaluate(() => ['restart-checkpoint', 'return-lobby'].map((k) => { const b = document.querySelector(`.pause-screen [data-key="${k}"]`); return b ? { k, blocked: b.classList.contains('blocked'), sub: b.querySelector('.btn-sub')?.textContent ?? '' } : { k, missing: true }; }));
+    await GA(() => window.__app.current.pause());
+    await GB(() => window.__app.current.pause());
+    await waitSim(200);
+    const ra = await rows(A);
+    const rb = await rows(B);
+    assert(ra.every((r) => !r.missing && !r.blocked), `the host's pause has live restart and lobby rows (${JSON.stringify(ra)})`);
+    assert(rb.every((r) => !r.missing && r.blocked && r.sub === 'Host only'), `the client's pause shows them disabled, "Host only" (${JSON.stringify(rb)})`);
+    await GB(() => document.querySelector('.pause-screen [data-key="restart-checkpoint"]').click());
+    await waitSim(200);
+    assert(await GB(() => !!window.__app.screens.top?.el.classList.contains('pause-screen')), "the client's disabled row does nothing");
+    await GB(() => window.__app.screens.top.resume());
+    await moveClient(10, 3);
+    await GA(() => { const b = document.querySelector('.pause-screen [data-key="restart-checkpoint"]'); window.__app.nav.focus(b); b.click(); });
+    await waitSim(200);
+    const dlg = await GA(() => ({ top: !!window.__app.screens.top?.el.classList.contains('dialog-screen'), f: window.__app.nav.focused?.textContent ?? '' }));
+    assert(dlg.top && /Stay/.test(dlg.f), `the restart confirm opens on Stay (${JSON.stringify(dlg)})`);
+    await GA(() => [...document.querySelectorAll('.dialog-buttons .btn')].find((b) => /Restart/.test(b.textContent)).click());
+    const cp = await GA(() => { const p = window.__course.checkpointPos(); return [p.x, p.z]; });
+    await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 2.5; }, cp, 15000, 'the host restart brings the client back to the checkpoint');
+    assert((await hostDebug()).bay === 0 && (await GA(() => !document.querySelector('.pause-screen'))), 'the restart keeps bay 1 and closes the host pause');
     await throughAirlock(0);
   }
 

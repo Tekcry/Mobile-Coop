@@ -34,21 +34,16 @@ export const CUE = {
   ink: [1.0, 0.07, 0.04] as const,
   /** (camera-cue fix) Electro: its post maps the scene's luma to navy and glows only above `ELECTRO.glowFrom` (0.5), so
    *  a red line (luma ~0.27 x strength) vanished. There the cue writes white ink (luma 1): the lines land in the glow
-   *  band (0.72, a clear light lattice), the fill stays under it (0.05, a faint sheen), the edge pulse is lifted too. */
+   *  band (0.72, a clear light lattice), the fill stays under it (0.05, a faint sheen). */
   electroInk: [1.0, 1.0, 1.0] as const,
   electroLine: 0.72,
   electroFill: 0.05,
-  electroEdge: 1.5,
-  /** Peak strength of the pulsing frame edge while the camera sees a player. */
-  edge: 0.5,
-  /** Width of the frame edge as a fraction of the half field / range. */
+  /** Width of the frame edge band `cueEdge` reports, as a fraction of the half field / range. (marlow-bays item 6: the
+   *  pulsing red frame edge drawn there while the camera saw a player is gone; the cue is the grid only.) */
   edgeWidth: 0.1,
-  pulseHz: 1.6,
   /** Seconds to fade out (jammed, off, looped, shot) and back in (online). */
   fadeOut: 0.35,
   fadeIn: 0.8,
-  /** The seen pulse eases in and out over this (s), so a 4 Hz think does not flicker it. */
-  seenEase: 0.2,
   /** Rays per fixed step (host and client alike, `FIXED_DT`): the first bake, then the refresh (doors and breakables are
    *  static colliders that move). */
   bakeRays: 512,
@@ -195,26 +190,19 @@ float cueEdge(vec3 p, vec3 lens, vec4 cam, float edgeW) {
 export interface CueState {
   /** Shown amount 0..1 (1 while the camera sees, 0 when jammed / off / looped / shot). */
   a: number;
-  /** The camera's own "sees a player" state now (from its meters). */
+  /** The camera's own "sees a player" state now (from its meters; the test view reads it, the look does not). */
   seen: boolean;
-  /** Eased seen amount 0..1, the edge pulse's envelope. */
-  s: number;
-  /** Clock for the pulse (s). */
-  t: number;
 }
 
 export function newCue(): CueState {
-  return { a: 0, seen: false, s: 0, t: 0 };
+  return { a: 0, seen: false };
 }
 
-/** Advance a cue: it follows the camera's mode (fades) and its own seen state (pulse envelope). */
+/** Advance a cue: it follows the camera's mode (fades) and records its own seen state. */
 export function stepCue(c: CueState, dt: number, mode: CameraMode, seen: boolean): void {
   const on = mode === 'online';
   c.a = on ? Math.min(1, c.a + dt / CUE.fadeIn) : Math.max(0, c.a - dt / CUE.fadeOut);
   c.seen = on && seen;
-  c.s = c.seen ? Math.min(1, c.s + dt / CUE.seenEase) : Math.max(0, c.s - dt / CUE.seenEase);
-  c.t += dt;
-  if (c.t > 1000) c.t -= 1000;
 }
 
 /** Shown amount for the shader (0 = nothing drawn); the look itself is `cueInk`. */
@@ -222,22 +210,15 @@ export function cueStrength(c: CueState): number {
   return c.a;
 }
 
-/** Edge pulse strength for the shader: 0 unless the camera sees a player, then a slow throb. */
-export function cuePulse(c: CueState): number {
-  const ph = 0.5 + 0.5 * Math.sin(c.t * CUE.pulseHz * 2 * Math.PI);
-  return c.a * c.s * CUE.edge * (0.35 + 0.65 * ph);
-}
-
-/** The cue's ink: colour, line and fill strengths and the edge pulse's scale (normal: faint red; electro: white). */
+/** The cue's ink: colour, line and fill strengths (normal: faint red; electro: white). */
 export interface CueInk {
   rgb: readonly [number, number, number];
   line: number;
   fill: number;
-  edge: number;
 }
 
-const INK_NORMAL: CueInk = { rgb: CUE.ink, line: CUE.line, fill: CUE.fill, edge: 1 };
-const INK_ELECTRO: CueInk = { rgb: CUE.electroInk, line: CUE.electroLine, fill: CUE.electroFill, edge: CUE.electroEdge };
+const INK_NORMAL: CueInk = { rgb: CUE.ink, line: CUE.line, fill: CUE.fill };
+const INK_ELECTRO: CueInk = { rgb: CUE.electroInk, line: CUE.electroLine, fill: CUE.electroFill };
 
 export function cueInk(electro: boolean): CueInk {
   return electro ? INK_ELECTRO : INK_NORMAL;
