@@ -2,102 +2,96 @@ import { PAD } from '../input/gamepadMapping';
 import { NavRepeater } from '../input/navRepeat';
 
 /**
- * (tuner-pad; pass 2 tuner-camera: the streamlined map) Pad control of the animation tuner, the pure part (no DOM, no
- * Babylon; unit-tested). The panel feeds it the active pad's buttons as a bit mask (bit i = W3C standard button i held,
- * a trigger past half way counts as held) and the left stick X once per frame; it says whether the pad is the tuner's
- * this frame (`consume`: the game sees none of it) and what to do. The panel tells it when a slider or dropdown is in
- * edit mode (`editing`).
+ * (tuner-pad; marlow-bays item 29: tuner v3, the simpler map) Pad control of the animation tuner, the pure part (no DOM,
+ * no Babylon; unit-tested in `tests/animTunePad.test.ts`). The panel feeds it the active pad's buttons as a bit mask (bit
+ * i = W3C standard button i held, a trigger past half way counts as held) and the left stick once per frame; it says
+ * whether the pad is the tuner's this frame (`consume`: the game sees none of it) and what to do.
  *
- * Modes: `off` (panel closed), `tuner` (the pad drives the panel), `game` (the pad plays), `free` (the free view runs and
- * owns the pad; the panel reads its sticks, triggers, bumpers and D-pad itself). View moves the pad from the tuner to the
- * game (or to the free view while it is on) and back. After opening, closing or switching, every press is swallowed
- * until all buttons are up (`quiet`), so the press that opened the panel never selects and the B that ends an edit never
- * crouches. The map is in `docs/anim-tuner/STATE.md` ("Pad map").
+ * The v3 map (item 29, Michael: "scroll the menus with an analogue stick, and easily swap between adjusting camera and
+ * adjusting sliders"): the left stick up / down moves through the list (analogue: the further and the longer it is held,
+ * the faster it repeats), the left stick left / right changes the focused value (analogue; held, it speeds up), A opens /
+ * picks, B backs out, X resets, Y the quick menu, LB / RB the tabs. The right stick and the triggers are ALWAYS the
+ * camera (the panel reads them straight from the pad; no camera mode to switch). The D-pad still works (up / down rows,
+ * left / right one step of the value) but is optional. View hands the pad to the game and back; Menu closes the panel.
+ * There is no edit mode: the focused slider is the one the stick changes.
+ *
+ * Modes: `off` (panel closed), `tuner` (the pad drives the panel), `game` (the pad plays). After opening, closing or
+ * switching, every press is swallowed until all buttons are up (`quiet`), so the press that opened the panel never selects
+ * and the B that backs out never crouches. The map is in `docs/anim-tuner/STATE.md` ("Pad map").
  */
-export type TunePadMode = 'off' | 'tuner' | 'game' | 'free';
+export type TunePadMode = 'off' | 'tuner' | 'game';
 
 export interface TunePadOut {
   /** The pad is the tuner's this frame: the game gets none of it. */
   consume: boolean;
-  /** Not editing: D-pad up / left -1 (the previous control), down / right +1 (the next); first press, then repeats. */
+  /** Up / down through the list (-1 / +1): the D-pad (first press, then repeats) or the left stick (analogue repeat). */
   nav: number;
-  /** Editing: D-pad left / right in whole steps (first press, then repeats while held; x5 after `NUDGE_FAST_S`). */
-  adjust: number;
-  /** Editing: left stick X, a signed fraction of the control's range to add this frame (analogue). */
+  /** D-pad left / right (-1 / +1, repeats while held; x5 after `NUDGE_FAST_S`): one step of the focused value. */
+  side: number;
+  /** Left stick X: a signed share of the focused control's range to add this frame (analogue; held, it accelerates). */
   stick: number;
-  /** Editing: LT held (fine steps). */
-  fine: boolean;
-  /** LB / RB (edge): the previous / next section. */
+  /** LB / RB (edge): the previous / next tab. */
   section: number;
-  /** Not editing, LT / RT (edge): the focused section's previous / next state group. */
-  group: number;
-  /** A (edge): select (press a button, tick a box, start or confirm an edit). */
+  /** A (edge): open a list, pick, press a button, tick a box. */
   select: boolean;
-  /** B (edge): back (cancel an edit, close the context menu). */
+  /** B (edge): back out (close a list or the quick menu; from a slider to its state list). */
   back: boolean;
-  /** X (edge): reset the focused row. */
+  /** X (edge): reset the focused slider. */
   reset: boolean;
-  /** Y (edge): the context menu. */
+  /** Y (edge): the quick menu. */
   menu: boolean;
   /** Menu / Start (edge): close the panel. */
   close: boolean;
-  /** View (edge): the pad moved between the tuner and the game (or the free view) this frame. */
+  /** View (edge): the pad moved between the tuner and the game this frame. */
   toggled: boolean;
-  /** B (edge) while the free view has the pad: turn the free view off (the pad goes back to the panel). */
-  freeOff: boolean;
-  /** (pass 2) R3 held (the tuner or the free view has the pad): the bypass, the untuned animation and camera. */
+  /** R3 held (the tuner has the pad): the bypass, the untuned animation and camera. */
   bypass: boolean;
-  /** (marlow-bays item 13) L3 (edge, the tuner or the free view has the pad): "Loop on the spot" on / off (the studio). */
+  /** (marlow-bays item 13) L3 (edge, the tuner has the pad): "Loop on the spot" on / off (the studio). */
   spot: boolean;
-  /** (marlow-bays T1a, item 16) The tuner has the pad: right stick left / right (a flick, then repeats while held) one
-   *  key back (-1) / forward (+1); right stick up (a flick) play / pause. The free view keeps the right stick. */
-  key: number;
-  play: boolean;
 }
 
-/** (T1a) The right stick's flick: past this it counts, back under the release it re-arms. */
-export const RS_FLICK = 0.6;
-export const RS_RELEASE = 0.3;
-
 const bit = (i: number): number => 1 << i;
-/** Left / right held this long (s) while editing: each repeat steps x5. */
+/** D-pad left / right held this long (s): each repeat steps x5. */
 export const NUDGE_FAST_S = 1.0;
-/** Left stick: deadzone, and the seconds a full deflection takes to cross a control's whole range. */
+/** Left stick: deadzone; a full deflection crosses a control's whole range in this many seconds (before the speed-up). */
 export const STICK_DZ = 0.2;
 export const STICK_FULL_S = 2.0;
-/** The fine-step share (LT held while editing). */
-export const FINE_STEP = 0.2;
+/** Left stick X held: the speed-up grows by this per second held, up to `STICK_ACCEL_MAX` times. */
+export const STICK_ACCEL = 2;
+export const STICK_ACCEL_MAX = 4;
+/** Left stick Y: past this it scrolls; the repeat interval (s) at the threshold and at full deflection; held longer than
+ *  `SCROLL_FAST_S` the interval halves. */
+export const SCROLL_DZ = 0.35;
+export const SCROLL_SLOW_S = 0.32;
+export const SCROLL_FULL_S = 0.07;
+export const SCROLL_FAST_S = 1.0;
 /** The button that moves the pad between the tuner and the game (View / Back / Select; unbound in play by default). */
 export const TUNE_PAD_TOGGLE = PAD.SELECT;
 
+/** The left stick's scroll repeat interval (s) for a deflection `t` (0 at the threshold .. 1 full) held `heldS` seconds. */
+export function scrollInterval(t: number, heldS: number): number {
+  const c = Math.max(0, Math.min(1, t));
+  const base = SCROLL_SLOW_S + (SCROLL_FULL_S - SCROLL_SLOW_S) * c;
+  return heldS >= SCROLL_FAST_S ? base * 0.5 : base;
+}
+
 export class TunePadCtl {
   mode: TunePadMode = 'off';
-  /** Set by the panel: a slider or dropdown is in edit mode. */
-  editing = false;
   readonly out: TunePadOut = {
     consume: false,
     nav: 0,
-    adjust: 0,
+    side: 0,
     stick: 0,
-    fine: false,
     section: 0,
-    group: 0,
     select: false,
     back: false,
     reset: false,
     menu: false,
     close: false,
     toggled: false,
-    freeOff: false,
     bypass: false,
     spot: false,
-    key: 0,
-    play: false,
   };
-  /** (T1a) The right stick's flick state: the held direction (-1 / 0 / 1) and the up latch. */
-  private rsDir = 0;
-  private rsUp = false;
-  private readonly rsRep = new NavRepeater(0.4, 0.15);
   private prev = 0;
   private quiet = false;
   private vDir = 0;
@@ -105,44 +99,23 @@ export class TunePadCtl {
   private hStart = 0;
   private readonly vRep = new NavRepeater(0.35, 0.06);
   private readonly hRep = new NavRepeater(0.35, 0.06);
-  /** The free view is on: View alternates the panel and the free view. */
-  private freeOn = false;
-
-  /** (T1a) This frame's right stick result (read by `update` in the tuner mode). */
-  private rsKey = 0;
-  private rsPlay = false;
-
-  /** (T1a) The right stick: a flick left / right (repeating while held) and a flick up. No allocation. */
-  private rightStick(rx: number, ry: number, now: number): void {
-    this.rsKey = 0;
-    this.rsPlay = false;
-    const ax = Math.abs(rx);
-    const d = ax > RS_FLICK ? (rx < 0 ? -1 : 1) : ax < RS_RELEASE ? 0 : this.rsDir;
-    if (d !== this.rsDir) {
-      this.rsDir = d;
-      this.rsRep.update(false, now);
-    }
-    if (d !== 0 && this.rsRep.update(true, now)) this.rsKey = d;
-    const up = ry < -RS_FLICK;
-    if (up && !this.rsUp && ax < RS_FLICK) this.rsPlay = true;
-    if (up) this.rsUp = true;
-    else if (ry > -RS_RELEASE) this.rsUp = false;
-  }
+  /** The left stick's scroll: the held direction, since when, the last step. */
+  private sDir = 0;
+  private sStart = 0;
+  private sLast = 0;
+  /** The left stick X held since (s; -1 not held). */
+  private xStart = -1;
 
   /** The panel opened: the pad is the tuner's (once every button is up). */
   open(): void {
     this.mode = 'tuner';
-    this.quiet = true;
-    this.editing = false;
-    this.vDir = this.hDir = 0;
+    this.reset();
   }
 
   /** The panel closed: held pad buttons stay swallowed until released. */
   close(): void {
-    if (this.mode === 'tuner' || this.mode === 'free') this.quiet = true;
+    if (this.mode === 'tuner') this.quiet = true;
     this.mode = 'off';
-    this.freeOn = false;
-    this.editing = false;
   }
 
   /** (tuner-ui) The pause menu has the pad: every button held now stays swallowed once the tuner gets it back. */
@@ -150,28 +123,19 @@ export class TunePadCtl {
     this.quiet = true;
   }
 
-  /** The free view turned on (the pad goes to it, unless `take` is false: a held camera snap keeps the pad on the panel)
-   *  or off (the pad comes back to the panel). */
-  setFree(on: boolean, take = true): void {
-    this.freeOn = on;
-    if (this.mode === 'off' || (on && !take)) return;
-    const next = on ? 'free' : this.mode === 'free' ? 'tuner' : this.mode;
-    if (next !== this.mode) {
-      this.mode = next;
-      this.quiet = true;
-      this.editing = false;
-      this.vDir = this.hDir = 0;
-    }
+  private reset(): void {
+    this.quiet = true;
+    this.vDir = this.hDir = this.sDir = 0;
+    this.xStart = -1;
   }
 
-  /** One frame. `mask`: buttons held (bit per W3C index); `lx`: left stick X -1..1; `now`, `dt` in seconds. Returns the
-   *  reused `out` (read it before the next call). No allocation. */
-  update(mask: number, lx: number, now: number, dt: number, rx = 0, ry = 0): TunePadOut {
+  /** One frame. `mask`: buttons held (bit per W3C index); `lx`, `ly`: the left stick -1..1 (y down +); `now`, `dt` in
+   *  seconds. Returns the reused `out` (read it before the next call). No allocation. */
+  update(mask: number, lx: number, ly: number, now: number, dt: number): TunePadOut {
     const o = this.out;
     o.consume = false;
-    o.nav = o.adjust = o.stick = o.section = o.group = o.key = 0;
-    o.fine = o.select = o.back = o.reset = o.menu = o.close = o.toggled = o.freeOff = o.bypass = o.spot = o.play = false;
-    this.rightStick(rx, ry, now);
+    o.nav = o.side = o.stick = o.section = 0;
+    o.select = o.back = o.reset = o.menu = o.close = o.toggled = o.bypass = o.spot = false;
     const pressed = mask & ~this.prev;
     this.prev = mask;
     if (this.quiet) {
@@ -183,11 +147,9 @@ export class TunePadCtl {
     }
     if (this.mode === 'off') return o;
     if (pressed & bit(TUNE_PAD_TOGGLE)) {
-      this.mode = this.mode === 'tuner' ? (this.freeOn ? 'free' : 'game') : 'tuner';
+      this.mode = this.mode === 'tuner' ? 'game' : 'tuner';
       // either way the rest of this press (and anything held with it) reaches nobody
-      this.quiet = true;
-      this.editing = false;
-      this.vDir = this.hDir = 0;
+      this.reset();
       this.vRep.update(false, now);
       this.hRep.update(false, now);
       o.toggled = true;
@@ -202,18 +164,13 @@ export class TunePadCtl {
       return o;
     }
     o.spot = (pressed & bit(PAD.LS)) !== 0;
-    if (this.mode === 'free') {
-      if (pressed & bit(PAD.B)) o.freeOff = true;
-      return o;
-    }
-    o.key = this.rsKey;
-    o.play = this.rsPlay;
     if (pressed & bit(PAD.A)) o.select = true;
     if (pressed & bit(PAD.B)) o.back = true;
     if (pressed & bit(PAD.X)) o.reset = true;
     if (pressed & bit(PAD.Y)) o.menu = true;
     if (pressed & bit(PAD.LB)) o.section = -1;
     else if (pressed & bit(PAD.RB)) o.section = 1;
+    // the D-pad: up / down rows, left / right one step (both repeat while held)
     const v = mask & bit(PAD.UP) ? -1 : mask & bit(PAD.DOWN) ? 1 : 0;
     const h = mask & bit(PAD.LEFT) ? -1 : mask & bit(PAD.RIGHT) ? 1 : 0;
     if (v !== this.vDir) {
@@ -225,22 +182,33 @@ export class TunePadCtl {
       this.hStart = now;
       this.hRep.update(false, now);
     }
-    const vStep = v !== 0 && this.vRep.update(true, now);
-    const hStep = h !== 0 && this.hRep.update(true, now);
-    if (this.editing) {
-      if (hStep) o.adjust = now - this.hStart >= NUDGE_FAST_S ? h * 5 : h;
-      o.fine = (mask & bit(PAD.LT)) !== 0;
-      const ax = Math.abs(lx);
-      if (ax > STICK_DZ) {
-        const t = (Math.min(1, ax) - STICK_DZ) / (1 - STICK_DZ);
-        o.stick = (lx < 0 ? -1 : 1) * t * t * (dt / STICK_FULL_S);
+    if (v !== 0 && this.vRep.update(true, now)) o.nav = v;
+    if (h !== 0 && this.hRep.update(true, now)) o.side = now - this.hStart >= NUDGE_FAST_S ? h * 5 : h;
+    // the left stick: the axis it leans on most decides (a scroll never nudges the value, a nudge never scrolls)
+    const ax = Math.abs(lx);
+    const ay = Math.abs(ly);
+    const sy = ay > ax && ay > SCROLL_DZ ? (ly < 0 ? -1 : 1) : 0;
+    if (sy !== this.sDir) {
+      this.sDir = sy;
+      this.sStart = now;
+      if (sy !== 0) {
+        // the first lean steps at once
+        this.sLast = now;
+        if (o.nav === 0) o.nav = sy;
       }
-      return o;
+    } else if (sy !== 0) {
+      const t = (ay - SCROLL_DZ) / (1 - SCROLL_DZ);
+      if (now - this.sLast >= scrollInterval(t, now - this.sStart)) {
+        this.sLast = now;
+        if (o.nav === 0) o.nav = sy;
+      }
     }
-    if (vStep) o.nav = v;
-    else if (hStep) o.nav = h;
-    if (pressed & bit(PAD.LT)) o.group = -1;
-    else if (pressed & bit(PAD.RT)) o.group = 1;
+    if (ax > STICK_DZ && ax >= ay) {
+      if (this.xStart < 0) this.xStart = now;
+      const t = (Math.min(1, ax) - STICK_DZ) / (1 - STICK_DZ);
+      const accel = Math.min(STICK_ACCEL_MAX, 1 + (now - this.xStart) * STICK_ACCEL);
+      o.stick = (lx < 0 ? -1 : 1) * t * t * accel * (dt / STICK_FULL_S);
+    } else this.xStart = -1;
     return o;
   }
 }

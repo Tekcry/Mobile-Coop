@@ -306,6 +306,20 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] A controller paired to the phone: the pad works as on desktop (tabs, rows, edit, View hands the pad over).
 - [ ] On the desktop the panel looks as before (docked right, no handle).
 
+### Tuner v3 and game touch (marlow-bays item 29)
+- [ ] The tuner looks the same with the pad, the mouse and touch (only the hints change); on a phone (844 x 390 and
+  390 x 844) scroll the Body tab to the end: the tabs and the playback bar stay at the top.
+- [ ] Anim Studio, jog, Keyed ticked: Body > Lean and a Joints slider move her; Step length is greyed with
+  "procedural only: the keyed clip is playing". Untick Keyed: Arm swing greys ("keyed clip only").
+- [ ] No green skeleton over her at start; More > View aids turns it on.
+- [ ] Weapon tab with a rifle: "Support hand ..." moves only the left hand; "Gun ... in the gun hand" moves the gun and
+  the left hand stays on it; values read in cm and degrees.
+- [ ] View tab: Side, then Side again: her right, then her left. "Around her" at 90 / 180: her right / her front; the
+  right stick moves the slider.
+- [ ] Keys tab: scroll down, focus a slider, step the key twice: the panel stays where it was.
+- [ ] Touch screen, main menu: tap Settings, tap Back; in a match drag on the view to look round (she does not move),
+  the pause button appears top centre, tap it, tap Resume; press a key: the button hides.
+
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.
