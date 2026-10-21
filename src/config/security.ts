@@ -9,10 +9,14 @@ const DEG = Math.PI / 180;
 export const CAMERA = {
   /** SN01 horizontal field of view (rad). */
   hFov: 70 * DEG,
-  /** SN02 vertical field of view (rad). The camera looks level (no tilt number in S0), so a body under the mount is out of frame (SN04). */
+  /** SN02 vertical field of view (rad). Centred on the camera's pitch (sector-fixes C: `aim` in the map data pitches it down
+   *  to a floor patch; none looks level, so a body under the mount is out of frame, SN04). */
   vFov: 45 * DEG,
-  /** SN03 range (m). */
+  /** SN03 range (m): the most any camera reaches (a camera's own `range` in the map data may be shorter). */
   range: 18,
+  /** (sector-fixes C) Shortest per-camera range and nearest aim point (m) the map data may set. */
+  rangeMin: 4,
+  aimMin: 2,
   /** SN04 mount height above the floor: lowest and highest (m). */
   mountMin: 2.4,
   mountMax: 3.5,

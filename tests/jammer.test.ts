@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ALARM_MAX, JAMMER, LASER, distToSegment, inBox, laserCooldown, laserDamage, laserTouch, newJam, nextAlarm, pickJamTarget, stepJam, type JamTarget, type LaserDef } from '../src/game/jammer';
+import { ALARM_GAP, ALARM_MAX, JAMMER, LASER, deviceAlarm, distToSegment, inBox, laserCooldown, laserTouch, newJam, nextAlarm, pickJamTarget, stepJam, type JamTarget, type LaserDef } from '../src/game/jammer';
 
 describe('held jammer charge', () => {
   it('drains while held and still, and runs dry after chargeMax seconds', () => {
@@ -81,11 +81,12 @@ describe('laser touch', () => {
     expect(laserTouch({ ...def, floorY: 4.4 }, 10, 0, 7, LASER.standHeight)).toBe(false);
     expect(laserTouch({ ...def, floorY: 4.4 }, 10, 4.4, 7, LASER.standHeight)).toBe(true);
   });
-  it('a touch costs health but never ends the run', () => {
-    expect(laserDamage(100)).toBe(LASER.damage);
-    expect(laserDamage(10)).toBe(10 - LASER.floorHp);
-    expect(laserDamage(1)).toBe(0);
-    expect(laserDamage(0)).toBe(0);
+  it('(sector-fixes C, item 5) a break sets off the alarm on the camera path and has no damage numbers', () => {
+    expect('damage' in LASER).toBe(false);
+    expect('floorHp' in LASER).toBe(false);
+    expect(deviceAlarm(0, 99)).toBe(1);
+    expect(deviceAlarm(1, ALARM_GAP - 0.1)).toBe(-1);
+    expect(deviceAlarm(ALARM_MAX, 99)).toBe(ALARM_MAX);
   });
   it('the cooldown lands one touch per LASER.cooldown seconds', () => {
     const c = { t: 0 };
@@ -123,8 +124,7 @@ describe('ctcourse devices', () => {
   it('station 3 has a real camera blind under it and a pocket gate; station 4 a laser across the doorway', async () => {
     const { ctcourse, S3_FLAG, S3_POCKET } = await import('../src/world/maps/ctcourse');
     const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { CAMERA } = await import('../src/config/security');
-    const { inFrame } = await import('../src/security/camera');
+    const { camPitch, camRange, inFrame } = await import('../src/security/camera');
     const lay = ctcourse.build(new LevelBuilder(), 0);
     const cam = lay.security!.devices[0]!;
     expect(cam.kind).toBe('camera');
@@ -132,11 +132,16 @@ describe('ctcourse devices', () => {
     expect(gate && gate.kind === 'flag' && gate.flag).toBe(S3_FLAG);
     expect(lay.course!.def.externalFlags).toContain(S3_FLAG);
     // the pocket's far corner (standing head 1.7 m) is outside the camera's vertical field at every sweep angle; the approach 4 m back is inside it
+    // (sector-fixes C) with the camera's own pitch and range, as its detection reads them
     const cy = cam.y;
+    const pt = camPitch(cam);
+    const rg = camRange(cam);
     const [x0, z0, x1, z1] = S3_POCKET.box;
-    for (const x of [x0, x1]) for (const z of [z0, z1]) for (let a = 240; a <= 300; a += 10) expect(inFrame((a * Math.PI) / 180, cam.at[0], cy, cam.at[1], x, 1.7, z)).toBe(false);
-    expect(inFrame((270 * Math.PI) / 180, cam.at[0], cy, cam.at[1], cam.at[0] - 5, 1.7, cam.at[1])).toBe(true);
-    expect(CAMERA.range).toBeGreaterThan(cam.at[0] - 44);
+    for (const x of [x0, x1]) for (const z of [z0, z1]) for (let a = 240; a <= 300; a += 10) expect(inFrame((a * Math.PI) / 180, cam.at[0], cy, cam.at[1], x, 1.7, z, pt, rg)).toBe(false);
+    expect(inFrame((270 * Math.PI) / 180, cam.at[0], cy, cam.at[1], cam.at[0] - 5, 1.7, cam.at[1], pt, rg)).toBe(true);
+    // its range reaches the bay's entry (x 44) and stops there, short of the airlock behind it (sector-fixes C, item 3)
+    expect(rg).toBeGreaterThan(Math.hypot(cam.at[0] - 44, cam.y - 1.7));
+    expect(inFrame((270 * Math.PI) / 180, cam.at[0], cy, cam.at[1], 42.5, 1.7, cam.at[1], pt, rg)).toBe(false);
     const laser = lay.lasers![0]!;
     expect(laser.ys.length).toBeGreaterThanOrEqual(3);
     // a body walking through the doorway at its centre touches it

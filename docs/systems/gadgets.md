@@ -53,3 +53,19 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   release its sleeping gas once, X = next cam, B / crouch / gadget = back.
 - Gadget counts and the loadout: the loadout presets are named Silent / Flash / Loud in code (`progression/suit.ts`);
   decided, not built yet (G105): Stealth / Assault / Recommended everywhere.
+
+## Security cameras and lasers (sector-fixes C, Michael 2026-10-22 items 3-5)
+- Camera aim (`security/camera.ts`): each camera's map data may set `aim` (m, the floor point at the centre of its frame:
+  it pitches down by `camPitch` = atan2(mount height, aim)) and `range` (m, its detection range, at most `CAMERA.range`
+  18; `camRange`). `CameraUnit.pitch` / `range` feed both detection (`covers` -> `inFrame`) and the cue: one source of
+  truth. No `aim` looks level. Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14, the others 6 / 12
+  (`warehouseSectors.ts`). Marlow Yard cam-s3: range 9 (the bay), level (the station's blind pocket under it).
+- Cue (`security/cameraCue.ts`, `vfx/cameraCueView.ts`): the sample grid spans the pitched field, the rays reach
+  `cueReach(range)`, and the shader's frame mask (`CUE_MASK_GLSL`, mirrored by `cueEdge`) takes the camera's pitch and
+  range, so the grid is drawn only where the camera can detect. Normal vision is very subtle (`CUE.line` 0.055,
+  `fill` 0.006, `lineW` 0.6 px hairlines); electro keeps the stronger white lattice.
+- Lasers (`game/jammer.ts`, `game/ctDevices.ts`): a break raises the alarm on the camera's path (`deviceAlarm`: one stage
+  per `ALARM_GAP`, the course stat / Sector Ops `cameraAlarm` hook, the banner, a radio line) and never deals damage (the
+  damage path is gone). The beams are infrared: drawn (glowing, `pattern.w`) only while the laser is on and night vision
+  is on screen; hidden in normal, thermal and electro. Render only: the sensor reads `on`, never the drawing
+  (`tests/laserAlarm.test.ts`).

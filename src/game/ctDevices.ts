@@ -1,4 +1,4 @@
-import { Color4, TransformNode, Vector3, type InstancedMesh } from '../core/babylon';
+import { Color4, TransformNode, Vector3, type InstancedMesh, type Vector4 } from '../core/babylon';
 import { CAMERA } from '../config/security';
 import { hyp2, hyp3 } from '../core/mathx';
 import { CameraUnit } from '../security/camera';
@@ -11,15 +11,13 @@ import { DRAW_DRAWN } from '../weapons/drawState';
 import type { PlayerRef } from '../ai/enemy';
 import type { GameState } from './gameState';
 import {
-  ALARM_GAP,
   JAMMER,
   LASER,
+  deviceAlarm,
   inBox,
   laserCooldown,
-  laserDamage,
   laserTouch,
   newJam,
-  nextAlarm,
   pickJamTarget,
   rearmZones,
   stepJam,
@@ -89,6 +87,8 @@ export interface PassZone {
 
 const BEAM = '#ff2a1a';
 const BEAM_W = 0.035;
+/** (sector-fixes C, item 4) The IR beams' glow in night vision (`pattern.w`, the render-only emissive flag). */
+const BEAM_NV_GLOW = 0.9;
 const IDLE = new Color4(1, 0.1, 0.08, 1);
 const AIMED = new Color4(0.2, 1, 0.3, 1);
 const ON = new Color4(0.7, 1, 0.75, 1);
@@ -137,7 +137,7 @@ export class CtDevices {
   alarm = 0;
   /** What the local aim is on (the gun light's green), '' none. */
   localPick = '';
-  /** Laser touches landed and radio lines said (tests). */
+  /** Laser breaks counted (each raises the alarm; none deals damage: sector-fixes C, item 5) (tests). */
   hits = 0;
   readonly zones: PassZone[];
   private readonly me: 0 | 1;
@@ -161,6 +161,8 @@ export class CtDevices {
   private alarmT = -99;
   private radioT = -99;
   private changed = true;
+  /** (sector-fixes C, item 4) Night vision is on screen: the IR beams are drawn (render only). */
+  private nv = false;
   private lamp: InstancedMesh | null = null;
   private zoneSet = new Set<string>();
   private readonly p = new Vector3();
@@ -333,6 +335,8 @@ export class CtDevices {
       m.position.set((def.x1 + def.x2) / 2, (def.floorY ?? 0) + y, (def.z1 + def.z2) / 2);
       m.rotation.y = rot;
       m.isPickable = false;
+      // (sector-fixes C, item 4) infrared: hidden until night vision (`showLaser`)
+      m.setEnabled(false);
       out.push(m);
     }
     return out;
@@ -485,7 +489,8 @@ export class CtDevices {
     }
     this.applyJam();
     this.cue?.update(dt, this.g.vision.kind === 2);
-    // laser touches
+    this.followVision();
+    // laser breaks: the alarm, never damage (sector-fixes C, item 5)
     for (let i = 0; i < n; i++) this.touch(i, refs[i]!, dt);
     this.stepScan(dt, refs, n);
     // pass zones: both (or the solo player) inside sets the flag; (B8) a bay restart that cleared the flag re-arms it
@@ -539,7 +544,30 @@ export class CtDevices {
       const on = !off && !this.jammed(l.def.id) && !this.dead.has(l.def.id);
       if (on === l.on) continue;
       l.on = on;
-      for (let k = 0; k < l.meshes.length; k++) l.meshes[k]!.setEnabled(on);
+      this.showLaser(l);
+    }
+  }
+
+  /** (sector-fixes C, item 4) Night vision on or off: the IR beams follow it (render only, every fixed step / frame). */
+  private followVision(): void {
+    const nv = this.g.vision.night === 1;
+    if (nv === this.nv) return;
+    this.nv = nv;
+    for (let i = 0; i < this.lasers.length; i++) this.showLaser(this.lasers[i]!);
+  }
+
+  /**
+   * (sector-fixes C, item 4, Michael's answer "Night vision") A laser's beams are infrared: drawn, glowing, only while it
+   * is on and night vision is on screen; invisible in normal, thermal and electro vision. Render only: the sensor
+   * (`touch`) reads `l.on`, never this.
+   */
+  private showLaser(l: LaserRt): void {
+    const show = l.on && this.nv;
+    for (let k = 0; k < l.meshes.length; k++) {
+      const m = l.meshes[k]!;
+      if (m.isEnabled(false) !== show) m.setEnabled(show);
+      const pt = m.instancedBuffers.pattern as Vector4 | undefined;
+      if (show && pt) pt.w = BEAM_NV_GLOW;
     }
   }
 
@@ -553,17 +581,29 @@ export class CtDevices {
       }
     }
     if (!laserCooldown(this.cool[i]!, dt, hit !== null) || !hit) return;
-    const health = (r.target as unknown as { health?: { hp: number } }).health;
-    const dmg = laserDamage(health?.hp ?? 100);
+    // (sector-fixes C, item 5) a break sets off the alarm on the camera's path; it never hurts (no damage path)
     this.hits++;
     const l = hit.def;
-    this.p.set((l.x1 + l.x2) / 2, (l.floorY ?? 0) + 1, (l.z1 + l.z2) / 2);
-    this.dir.set(r.feet.x - this.p.x, 0, r.feet.z - this.p.z);
-    if (dmg > 0) r.target.applyDamage({ amount: dmg, point: this.p, dir: this.dir, part: 'body', kind: 'melee', attackerTeam: 'enemy', attackerId: 'laser', sourcePos: this.p, impulse: 0 });
+    const raised = this.raiseAlarm(`${l.label ?? 'Laser'} tripped`);
     if (this.time - this.radioT > 6) {
       this.radioT = this.time;
-      this.hooks.say(`${l.label ?? 'Laser'}: that cost you. Jam it with the pistol, or stay clear.`);
+      this.hooks.say(raised ? `${l.label ?? 'Laser'} tripped: alarm stage ${this.alarm}. Night vision shows the beams; jam it with the pistol.` : `${l.label ?? 'Laser'} tripped again. Night vision shows the beams.`);
     }
+  }
+
+  /**
+   * (sector-fixes C, item 5) The devices' one alarm path (a camera at full awareness, a laser break): up one stage unless
+   * one went up under `ALARM_GAP` ago; the course stat / Sector Ops hook, the banner. Returns true when the stage rose.
+   */
+  private raiseAlarm(why: string): boolean {
+    const next = deviceAlarm(this.alarm, this.time - this.alarmT);
+    if (next < 0) return false;
+    this.alarmT = this.time;
+    this.alarm = next;
+    this.hooks.record('alarms');
+    this.g.hud.banner(`ALARM STAGE ${this.alarm}`, why, 2200);
+    this.changed = true;
+    return true;
   }
 
   private onCamera(e: SecurityEvent): void {
@@ -576,13 +616,8 @@ export class CtDevices {
       return;
     }
     // full awareness: the alarm stage goes up one (G125: escalating, it never ends the run)
-    if (this.time - this.alarmT < ALARM_GAP) return;
-    this.alarmT = this.time;
-    this.alarm = nextAlarm(this.alarm);
-    this.hooks.record('alarms');
-    this.g.hud.banner(`ALARM STAGE ${this.alarm}`, 'A camera has you', 2200);
+    if (!this.raiseAlarm('A camera has you')) return;
     this.hooks.say(`Camera alert, stage ${this.alarm}. It keeps watching until someone jams it.`);
-    this.changed = true;
   }
 
   /** Host: the field for the `course` message. */
@@ -628,6 +663,7 @@ export class CtDevices {
   frame(dt: number): void {
     if (this.role !== 'client') return;
     for (let i = 0; i < this.cams.length; i++) this.cams[i]!.advance(dt);
+    this.followVision();
     if (this.cue) {
       this.cueT += dt;
       const step = 1 / CAMERA.thinkHz;

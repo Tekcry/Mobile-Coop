@@ -17,6 +17,12 @@ export interface CameraDevice {
   reason: string;
   /** Sector Ops: the section the camera belongs to (live only while that section is; none = always live). */
   section?: number;
+  /** (sector-fixes C, item 3) The floor patch it watches: horizontal distance (m) from the mount to the floor point at the
+   *  centre of its frame. The camera pitches down to it (`camPitch`); none = it looks level (SN02's old default). */
+  aim?: number;
+  /** (sector-fixes C, item 3) Its detection range (m, at most `CAMERA.range`; none = `CAMERA.range`): the section in
+   *  front of it that it monitors. Detection and the cue both read `camRange`. */
+  range?: number;
 }
 
 export type SecurityDevice = CameraDevice;
@@ -42,6 +48,8 @@ export function validateSecurity(d: SecurityData): string[] {
     }
     cams++;
     if (dev.y < CAMERA.mountMin || dev.y > CAMERA.mountMax) errs.push(`${dev.id}: mount height ${dev.y} outside ${CAMERA.mountMin}-${CAMERA.mountMax} (SN04)`);
+    if (dev.aim !== undefined && (dev.aim < CAMERA.aimMin || dev.aim > (dev.range ?? CAMERA.range))) errs.push(`${dev.id}: aim ${dev.aim} m outside ${CAMERA.aimMin} m - its range`);
+    if (dev.range !== undefined && (dev.range < CAMERA.rangeMin || dev.range > CAMERA.range)) errs.push(`${dev.id}: range ${dev.range} m outside ${CAMERA.rangeMin}-${CAMERA.range} m`);
     if (dev.sweep) {
       const span = Math.abs(dev.sweep[1] - dev.sweep[0]);
       if (span > CAMERA.sweepMaxDeg) errs.push(`${dev.id}: sweep ${span} deg is over ${CAMERA.sweepMaxDeg} (SN13)`);

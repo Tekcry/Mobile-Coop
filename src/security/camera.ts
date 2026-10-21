@@ -47,16 +47,32 @@ export function sweepYaw(def: Pick<CameraDevice, 'facing' | 'sweep'>, t: number)
   return b + (a - b) * ((u - 2 * CAMERA.sweepPause - travel) / travel);
 }
 
-/** True when the point is inside the camera's field of view (horizontal and vertical) and range. */
-export function inFrame(yaw: number, cx: number, cy: number, cz: number, px: number, py: number, pz: number): boolean {
+/**
+ * (sector-fixes C, item 3) The camera's pitch (rad, + = down): it looks at the floor point `aim` m in front of its mount
+ * (`y` above its level's floor), so its frame covers a patch of floor and route, not the ceiling. No `aim`: level (0).
+ */
+export function camPitch(def: Pick<CameraDevice, 'y' | 'aim'>): number {
+  return def.aim !== undefined && def.aim > 0 ? Math.atan2(def.y, def.aim) : 0;
+}
+
+/** (sector-fixes C, item 3) The camera's detection range (m): its own `range`, else `CAMERA.range`, never more. */
+export function camRange(def: Pick<CameraDevice, 'range'>): number {
+  return Math.min(CAMERA.range, def.range ?? CAMERA.range);
+}
+
+/**
+ * True when the point is inside the camera's field of view and range: within half the horizontal field of its yaw, half
+ * the vertical field of its `pitch` (rad, + = down; sector-fixes C) and `range` (m). The cue's `cueEdge` is the same test.
+ */
+export function inFrame(yaw: number, cx: number, cy: number, cz: number, px: number, py: number, pz: number, pitch = 0, range: number = CAMERA.range): boolean {
   const dx = px - cx;
   const dz = pz - cz;
   const dy = py - cy;
-  if (hyp3(dx, dy, dz) > CAMERA.range) return false;
+  if (hyp3(dx, dy, dz) > range) return false;
   const h = hyp2(dx, dz);
   if (h < 1e-6) return false;
   if (Math.abs(wrap(Math.atan2(dx, dz) - yaw)) > CAMERA.hFov / 2) return false;
-  return Math.abs(Math.atan2(dy, h)) <= CAMERA.vFov / 2;
+  return Math.abs(Math.atan2(dy, h) + pitch) <= CAMERA.vFov / 2;
 }
 
 /** Meter fill rate (/s) for a body the camera has a clear ray to: the guard formula with the camera's fixed cone. */
@@ -138,6 +154,10 @@ export class CameraUnit {
   readonly x: number;
   readonly y: number;
   readonly z: number;
+  /** (sector-fixes C) Pitch down to its floor patch (rad, `camPitch`) and detection range (m, `camRange`): the one source
+   *  of truth for detection (`covers`) and the cue (`CameraCueView`). */
+  readonly pitch: number;
+  readonly range: number;
   readonly meters = new Map<string, CamMeter>();
 
   constructor(
@@ -149,6 +169,8 @@ export class CameraUnit {
     this.z = def.at[1];
     this.y = floorY + def.y;
     this.yaw = sweepYaw(def, 0);
+    this.pitch = camPitch(def);
+    this.range = camRange(def);
   }
 
   get sees(): boolean {
@@ -164,7 +186,7 @@ export class CameraUnit {
 
   /** The point is inside the frame now. */
   covers(px: number, py: number, pz: number): boolean {
-    return this.sees && inFrame(this.yaw, this.x, this.y, this.z, px, py, pz);
+    return this.sees && inFrame(this.yaw, this.x, this.y, this.z, px, py, pz, this.pitch, this.range);
   }
 
   meter(id: string): CamMeter {

@@ -32,6 +32,8 @@ export class SecurityView {
     const node = new TransformNode(`sec-cam-${c.def.id}`, this.scene);
     node.position.set(c.x, c.y, c.z);
     node.rotation.y = c.yaw;
+    // (sector-fixes C) the housing points down its pitch, at the floor patch it watches
+    node.rotation.x = c.pitch;
     const H = CAMERA.housing;
     const box = (hex: string, sx: number, sy: number, sz: number, x: number, y: number, z: number): InstancedMesh => {
       const m = this.parts.instance('box', hex, 'sec-cam');
@@ -59,7 +61,7 @@ export class SecurityView {
       if (v.lastMode !== c.mode) {
         v.lastMode = c.mode;
         this.parts.setColor(v.led, c.mode === 'online' ? LED_ON : LED_OFF);
-        v.node.rotation.x = c.mode === 'destroyed' ? 0.5 : 0;
+        v.node.rotation.x = c.pitch + (c.mode === 'destroyed' ? 0.5 : 0);
       }
     }
   }

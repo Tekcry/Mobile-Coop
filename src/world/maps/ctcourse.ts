@@ -97,7 +97,9 @@ export const S3_FLAG = 's3-clear';
 /**
  * Station 3 camera (B3): over the door, 2.4 m up, sweeping +-30 deg across the approach. Its 45 deg vertical field leaves a
  * blind spot under it (SN04): the pocket in front of the door. Both players must stand in the pocket; the camera sees the
- * walk to it unless the partner's held jammer blinds it.
+ * walk to it unless the partner's held jammer blinds it. (sector-fixes C, item 3) Its range is the bay (9 m: the cue and
+ * detection stop at the bay's entry, not in the airlock behind it); it keeps looking level, since the pocket under it is
+ * the station (slice J's hallway rebuild pitches it: aim 8, range 13).
  */
 export const S3_CAMERA = { x: bayX(2) + CT_OBST - 0.4, z: CT_W / 2 };
 export const S3_POCKET: PassZone = { id: 'p-s3', box: [bayX(2) + CT_OBST - 1.5, MID - 1.2, bayX(2) + CT_OBST - 0.5, MID + 1.2], flag: S3_FLAG };
@@ -120,7 +122,7 @@ export const S7_STAIR_Z = 1.0;
 export const S5_HATCH: [number, number, number, number] = [bayX(4) + 14.125, 1.0, bayX(4) + 14.675, 1.55];
 export const S5_PANEL = { x: bayX(4) + 14.4, y: 1.2, z: 0.4 };
 const SECURITY: SecurityData = {
-  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: 2.4, facing: 270, sweep: [240, 300], reason: 'Training camera for the jam-and-pass drill' }],
+  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: 2.4, facing: 270, sweep: [240, 300], range: 9, reason: 'Training camera for the jam-and-pass drill' }],
 };
 
 /**
@@ -169,7 +171,7 @@ export const PANEL_TEXT: readonly string[] = [
   'Step onto the airlock pad at the end with your partner to go on',
   'Wall: crouch + Co-op (RB / F) boosts your partner; Y / Space climbs up. They unbolt the door (A / E) on the far side',
   'Camera: LB / Tab to the pistol, X draws; aim (LT / RMB) and hold Co-op (RB / F) to jam. Partner: blind spot, then swap',
-  'Laser: a beam costs health. Stand, Co-op (RB / F) throws your partner over; they press the red release on the left wall',
+  'Laser: a beam trips the alarm (NV shows it). Co-op (RB / F) throws your partner; press the red release on the left wall',
   'Annex: leg-up and relay onto the roof (Y / Space climbs up). Press both roof plates (A / E) together',
   'Scanners: one each. Press A / E at your scanner and stay; both hacks must finish within 1.5 s. Start on two green lights',
   'High wall: leg-up one; on top, face back down and Co-op (RB / F) drops a rope. Partner: climb it, Y / Space at the top',
