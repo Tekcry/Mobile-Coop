@@ -58,15 +58,17 @@ try {
   const av = await G(() => ({ ...window.__studio.aids(), slide: window.__studio.slide(), has: 'footSlide' in window.__app.current.player.rig }));
   assert(!av.skeleton && !av.feet && !av.onion && av.inMore, `the view aids start off, in More (${JSON.stringify(av)})`);
   assert(av.slide.shown === av.has && (!av.has || /^Foot slide L \d+\.\d cm {2}R \d+\.\d cm$/.test(av.slide.text)), `the foot slide line shows only with rig.footSlide (${JSON.stringify(av.slide)}, field ${av.has})`);
-  {
-    // a stand-in field (as S4 will add): the line shows, amber over 0.5 cm, and hides again without it
+  if (!av.has) {
+    // a stand-in field (as S4 will add): the line shows, amber over 0.5 cm, and hides again without it. Only without
+    // S4's own field: since 4.47.0 (#98) the rig has a real `footSlide` that `footSlideStep` writes every frame, and
+    // deleting it threw in her animate each frame (her later poses, the Joints base rows included, never ran)
     await G(() => (window.__app.current.player.rig.footSlide = { l: 0.2, r: 0.8 }));
     await frames(page, 3);
     const s1 = await G(() => window.__studio.slide());
     await G(() => delete window.__app.current.player.rig.footSlide);
     await frames(page, 3);
     const s2 = await G(() => window.__studio.slide());
-    if (!av.has) assert(s1.shown && s1.text === 'Foot slide L 0.2 cm  R 0.8 cm' && s1.warn && !s2.shown, `a footSlide field shows the line amber over 0.5 cm, gone it hides (${JSON.stringify([s1, s2])})`);
+    assert(s1.shown && s1.text === 'Foot slide L 0.2 cm  R 0.8 cm' && s1.warn && !s2.shown, `a footSlide field shows the line amber over 0.5 cm, gone it hides (${JSON.stringify([s1, s2])})`);
   }
 
   // a keyed clip in place: paused, one key forward moves the phase onto the next key ((marlow-bays T1a) the clip's own
