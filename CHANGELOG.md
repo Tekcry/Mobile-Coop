@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - anim-bake-1022
+## 4.46.0 - Michael's first tuner bake: jog and run keys, low-ready gun poses, Joints; Reset baked clears built-in values on load (2026-10-22, PR #96)
 - Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
   equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied
   twice. The rest of the tuning is kept; the panel says how many ("61 values are now built in; your other 13 changes
