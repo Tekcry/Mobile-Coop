@@ -1,7 +1,7 @@
 # course-restart-hold - state
 
 **Now:** PR open to master (patch). Fix a86f0ad3; independent checker PASS.
-**Next:** the orchestrator merges (patch version at merge, G183).
+**Next:** the orchestrator merges (patch version at merge, G183). Full e2e on 1b4ec12e: green (32 ok at JOBS=2; e2e-pad and e2e-levels passed solo).
 
 ## Done
 - 2026-10-21: BRIEF, STATE (8c9134c7).
