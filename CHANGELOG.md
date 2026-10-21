@@ -10,6 +10,8 @@
   the leg-up's climber; the revive has no row on the partner).
 - Tuner by pad: LT / RT steps the state (or the move, or A / B on a co-op row) in every section again, B goes back to
   that picker, and the changed dot marks the right picker (the pickers' depth now differs per row).
+- The debug overlay's Tune and Teleport lists stay hidden until their buttons open them (their display rule overrode
+  `hidden`, so Tune always showed and the overlay covered much of the Anim Studio's scene on a small window).
 
 ## 4.41.0 - Animation tuner and Anim Studio on phones: compact drawer or sheet, pad mode, touch camera (2026-10-21, PR #89)
 - The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
