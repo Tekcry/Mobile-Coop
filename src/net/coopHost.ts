@@ -1066,7 +1066,10 @@ export class CoopHost implements NetAttachment {
         const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
         if (e && e.alive) {
           s.t = 0;
-          const yaw = by.state!.yaw;
+          // (marlow-bays item 1) placed from the client's drawn (interpolated) body, not its raw 20 Hz state: the hostage
+          // stays with the body on screen instead of running 0.1 s ahead in steps (each step a velocity spike in holdAt)
+          const at = by.avatar.pos;
+          const yaw = by.avatar.yaw;
           if (!s.hostage) {
             s.hostage = true;
             e.holdAsHostage();
@@ -1074,7 +1077,7 @@ export class CoopHost implements NetAttachment {
           }
           const sy = Math.sin(yaw);
           const cy = Math.cos(yaw);
-          e.holdAt(by.feet.x + sy * GRAB.hold + cy * GRAB.side, by.feet.y, by.feet.z + cy * GRAB.hold - sy * GRAB.side, yaw);
+          e.holdAt(at.x + sy * GRAB.hold + cy * GRAB.side, at.y, at.z + cy * GRAB.hold - sy * GRAB.side, yaw);
           // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
           else if (mv.ph > 0 && !(mv.sub & 1)) {

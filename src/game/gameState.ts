@@ -120,7 +120,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
-import { demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
+import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
@@ -227,9 +227,14 @@ export interface NetHooks {
   attach(g: GameState): NetAttachment;
 }
 
+/** (marlow-bays item 3) The modes whose pause menu offers "Restart at checkpoint" (Sector Ops, the co-op course). */
+const CHECKPOINT_MODES: ReadonlySet<ModeId> = new Set<ModeId>(['sector', 'course']);
+
 export interface SessionCallbacks {
   quit(): void;
   restart(): void;
+  /** (marlow-bays item 4) Co-op host: end the match and take every connected player back to the room's lobby. */
+  lobby?(): void;
   /** The results screen's Missions (solo): the menu on the missions list. */
   missions?(): void;
   /** The results screen's Next (solo): the menu on that mission's briefing. */
@@ -1114,6 +1119,13 @@ export class GameState implements AppState {
     return t ? [{ label: t, done: false, current: true }] : [];
   }
 
+  /** (marlow-bays item 3) The pause menu's "Restart at checkpoint": solo or the co-op host only (the client's row is
+   *  disabled); the mode restarts as when everyone is down. */
+  restartCheckpoint(): boolean {
+    if (this.puppet || this.ended) return false;
+    return this.mode?.restartCheckpoint?.() ?? false;
+  }
+
   /** Opens the pause menu. `notice`: a line for the menu (a controller dropped out). */
   pause(notice = ''): void {
     if (this.paused || this.menuOpen) return;
@@ -1137,7 +1149,17 @@ export class GameState implements AppState {
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
-        { coop: !!this.net, objectives: () => this.objectiveLines(), dof: this.stack.hasDof, notice, inStudio: !!this.studio },
+        {
+          coop: !!this.net,
+          objectives: () => this.objectiveLines(),
+          dof: this.stack.hasDof,
+          notice,
+          inStudio: !!this.studio,
+          // (marlow-bays items 3-4, A1) host actions in co-op: the client sees them disabled, "Host only"
+          host: !this.puppet,
+          restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
+          lobby: this.net && this.cb.lobby ? () => this.cb.lobby?.() : undefined,
+        },
       ),
     );
   }
@@ -1912,8 +1934,9 @@ export class GameState implements AppState {
     core.lock = FREE_VIEW.lock;
     core.bodyYaw = this.player.rig.root.rotation.y;
     const turn = core.lock ? 0 : 1;
-    core.lookX = (look.x + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt) * turn;
-    core.lookY = (look.y + FREE_IN.ry * C.pitchRate * rdt) * turn;
+    // (marlow-bays item 26) the touch orbit adds to the look like the mouse drag
+    core.lookX = (look.x + FREE_IN.tlx + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt) * turn;
+    core.lookY = (look.y + FREE_IN.tly + FREE_IN.ry * C.pitchRate * rdt) * turn;
     look.x = look.y = 0;
     const up = (real.down('jump') ? 1 : 0) - (real.down('crouch') ? 1 : 0);
     if (mode === 'fly') {
@@ -1922,10 +1945,14 @@ export class GameState implements AppState {
       core.moveY = pad ? FREE_IN.ly : real.move.y;
       core.rise = Math.max(-1, Math.min(1, FREE_IN.rise + up));
     } else {
-      core.zoom = FREE_IN.zoom * C.zoomRate * rdt + FREE_IN.wheel * C.zoomStep;
+      core.zoom = FREE_IN.zoom * C.zoomRate * rdt + FREE_IN.wheel * C.zoomStep + FREE_IN.tzoom;
       core.nudge = Math.max(-1, Math.min(1, FREE_IN.nudge + up));
+      // (item 26) the touch pan: screen heights to metres at the orbit's distance
+      core.panR = FREE_IN.tpx * core.dist * C.panScale;
+      core.panU = FREE_IN.tpy * core.dist * C.panScale;
     }
     FREE_IN.wheel = 0;
+    clearTouchIn();
     return true;
   }
 
@@ -2258,6 +2285,8 @@ export class GameState implements AppState {
     this.stealth?.frameUpdate();
     this.takedown.frameUpdate();
     this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
+    // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
+    this.studio?.lightsFrame();
     this.gadgets.frameUpdate(dt);
     this.updateGadgetHud();
     this.hud.barks.update(dt, this.placeBark);

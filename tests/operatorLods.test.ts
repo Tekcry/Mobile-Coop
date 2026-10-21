@@ -26,8 +26,8 @@ function glb(json: object, bin: Uint8Array): Uint8Array {
   return out;
 }
 
-/** A skinned LOD: root > pelvis > chest, pelvis > hipR, anchors on their joints, optional finger bone. */
-function lodJson(opts: { drop?: string; finger?: boolean; holsterOn?: number } = {}): GltfJson {
+/** A skinned LOD: root > pelvis > chest, pelvis > hipR, anchors on their joints, optional finger / per-toe bone. */
+function lodJson(opts: { drop?: string; finger?: boolean; toes?: boolean; holsterOn?: number } = {}): GltfJson {
   const nodes: GltfJson['nodes'] = [
     { name: 'root', children: [1] }, { name: 'pelvis', children: [2, 3] }, { name: 'chest', children: [] }, { name: 'hipR', children: [] },
     { name: 'mesh', mesh: 0 },
@@ -41,6 +41,10 @@ function lodJson(opts: { drop?: string; finger?: boolean; holsterOn?: number } =
   const joints = [0, 1, 2, 3];
   if (opts.finger) {
     nodes.push({ name: 'fingerL_1_1' });
+    joints.push(nodes.length - 1);
+  }
+  if (opts.toes) {
+    nodes.push({ name: 'toesL_1' });
     joints.push(nodes.length - 1);
   }
   return { nodes, skins: [{ joints }], meshes: [{ primitives: [{}, {}, {}] }], materials: [{}, {}, {}] };
@@ -57,9 +61,19 @@ describe('LOD export checks (step 10)', () => {
     expect(wrong.pass).toBe(false);
     expect(wrong.value).toEqual(['pistolHolster: on chest, not hipR']);
   });
-  it('keeps hero finger bones out of the game LODs', () => {
-    expect(lodChecks('lod1', lodJson({ finger: true }), 13_000).find((x) => x.name === 'gameJoints')!.pass).toBe(false);
-    expect(lodChecks('hero', lodJson({ finger: true }), 200_000).find((x) => x.name === 'gameJoints')!.pass).toBe(true);
+  it('keeps the per-toe bones on the hero and the finger bones on hero, LOD0 and LOD1 (anim-skeleton S1)', () => {
+    const gj = (lod: string, o: Parameters<typeof lodJson>[0]) => lodChecks(lod, lodJson(o), 13_000).find((x) => x.name === 'gameJoints')!.pass;
+    expect(gj('lod0', { finger: true })).toBe(true);
+    expect(gj('lod1', { finger: true })).toBe(true);
+    expect(gj('lod2', { finger: true })).toBe(false);
+    expect(gj('lod1', { toes: true })).toBe(false);
+    expect(gj('hero', { finger: true, toes: true })).toBe(true);
+  });
+  it('flags a skin with more joints than its LOD budget (anim-skeleton S1: 67 / 57 / 57 / 27)', () => {
+    const j = lodJson();
+    for (let i = 0; i < 24; i++) { j.nodes.push({ name: `x${i}` }); j.skins![0]!.joints.push(j.nodes.length - 1); }
+    expect(lodChecks('lod2', j, 5_000).find((x) => x.name === 'bones')).toMatchObject({ pass: false, flag: true, value: 28 });
+    expect(lodChecks('lod1', j, 13_000).find((x) => x.name === 'bones')!.pass).toBe(true);
   });
   it('flags SPEC 6.4 overruns without failing them', () => {
     const t = lodChecks('lod2', lodJson(), 9_000).find((x) => x.name === 'triangles')!;

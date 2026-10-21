@@ -147,6 +147,13 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     rig.emoteTime = 0;
   }
 
+  /** (marlow-bays item 1) Solid to bodies or not, as the host's `Enemy`: the hostage held 0.32 m in front must not push
+   *  the holder back (the takedown's `setSolid?.(false)` was a no-op here, so the client's own controller kept shoving
+   *  into its hostage: slow, jittery movement while holding). Bullets still hit (`ENEMY_HITBOX` stays). */
+  setSolid(on: boolean): void {
+    this.hitboxes?.setSolid(on);
+  }
+
   /** (G7) Held as a hostage here (the client's own grab): as the host's guard. */
   holdAsHostage(): void {
     if (this.rig && this.rig.emote === this.cqEmote) this.cq.set('hostage');
@@ -168,6 +175,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   releaseTakedown(): void {
     if (!this.seized) return;
     this.seized = this.taken = false;
+    this.hitboxes?.setSolid(true);
     if (this.rig) this.rig.emote = null;
     this.gun?.setVisible(true);
     this.onTakedown?.('abort', false);
@@ -182,6 +190,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     if (ph < 0) {
       if (this.remoteHold) {
         this.remoteHold = false;
+        this.hitboxes?.setSolid(true);
         if (rig.emote === this.cqEmote) rig.emote = null;
         this.gun?.setVisible(true);
       }
@@ -189,6 +198,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     }
     if (!this.remoteHold || rig.emote !== this.cqEmote) {
       this.remoteHold = true;
+      // (marlow-bays item 1) not solid while the partner holds him, as on the host
+      this.hitboxes?.setSolid(false);
       this.cq.seed = seedOf(this.id);
       this.cq.seize(false, 0);
       rig.emote = this.cqEmote;
@@ -223,6 +234,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   /** The host refused (or the enemy broke free there): let go locally. */
   deny(): void {
     this.seized = this.taken = false;
+    this.hitboxes?.setSolid(true);
     if (this.rig) this.rig.emote = null;
     this.gun?.setVisible(true);
   }
@@ -330,6 +342,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   }
 
   dispose(): void {
+    // (course-restart-hold) gone: never alive again, so a stale reference (a takedown, a hold) lets go of it
+    this.dead = true;
+    this.taken = this.seized = this.remoteHold = false;
     this.hitboxes?.dispose();
     this.hitboxes = null;
     this.registry.removeTarget(this);

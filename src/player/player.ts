@@ -23,9 +23,8 @@ import { emptyStanceInput, WeaponStance, type WeaponStateId } from './weaponStan
 import { TUNE_LOCAL, TUNE_STATE, tuneBegin, tuneEnd, tuneRoot } from '../anim/tune';
 import { WEIGHT_POSE, weightFrameIn, weightJumpKind } from '../anim/weight';
 import { weightBegin, weightEnd } from './weightTune';
-import { jointsBegin, jointsEnd } from '../anim/tuneJoints';
-import { handsBegin, handsEnd, handsWeaponOf } from '../anim/tuneHands';
-import { tuneV2Frame, tuneV2JointRow } from '../anim/tuneV2Sections';
+import { handsWeaponOf } from '../anim/tuneHands';
+import { tuneV2Frame } from '../anim/tuneV2Sections';
 import { tuneKeysFrame } from '../anim/tuneKeys';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 
@@ -473,6 +472,7 @@ export class Player {
     rp.headCap = Number.isNaN(cp.headCap) ? undefined : cp.headCap;
     rp.traverse = cp.traverse;
     rp.traverseT = cp.traverseT;
+    rp.tuneTeam = MOVE_TUNE_TEAM.group; // (anim-joints J2) this player's own team role: the tuner's team rows
     rp.slide = cp.slide;
     rp.check = cp.check;
     rp.melee = cp.melee;
@@ -546,18 +546,17 @@ export class Player {
     this.weightTraverse = cp.traverse;
     tuneBegin(rp, this.rig, dt); // (anim-tuner) the local player's slider values, this rig only (pass 2: eased over dt)
     const handW = handsWeaponOf(this.rig);
-    tuneV2Frame(TUNE_STATE.body, handW); // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables
+    // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables; (anim-joints J2) plus the move /
+    // action rows this rig picked last frame (the panel follows the strongest at weight 0.5 or more)
+    tuneV2Frame(TUNE_STATE.body, handW, this.rig.tuneSt ? this.rig.tuneSt.pick : null);
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
-    jointsBegin(tuneV2JointRow(), dt); // (tuner-v2) the per-joint offsets of the same state (T1a: the gun's row armed), eased over dt
-    handsBegin(TUNE_STATE.body, handW, dt); // (tuner-v2 item 2) hand / foot placement, the Weapon group
+    // (anim-joints J1) the Joints / Hands & feet / IK / Weapon windows: the rig opens its own inside animate (tuneRows)
     moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)
     try {
       weightBegin(wi, c.crouched, this.wasDrawn); // inside the try: weightEnd always closes it
       this.rig.animate(dt, rp);
     } finally {
       moveTuneEnd(this.rig);
-      handsEnd();
-      jointsEnd();
       tuneEnd(this.rig);
       weightEnd();
     }

@@ -1,6 +1,7 @@
 /**
  * Step 10 LOD export checks (pure, no Babylon): every LOD glTF holds the integration anchors (A36, A40, A41) as nodes
- * parented to a skin joint, the game LODs carry the game joints only (no hero finger / toe bones), and the measured
+ * parented to a skin joint, the game LODs carry the game joints only (no hero per-toe bones; finger bones on LOD0 / LOD1
+ * only since anim-skeleton S1), and the measured
  * costs are compared with SPEC 6.4 (an overrun is a flag, not a failure: the step reports it).
  */
 
@@ -13,14 +14,19 @@ export const ANCHOR_JOINT: Record<(typeof LOD_ANCHORS)[number], string> = {
 
 /**
  * SPEC 6.4 per LOD: triangles [min, max], draws (materials) plus the goggle glow draw (SPEC's "+ glow" for LOD2, read
- * for LOD1 too: A75), skin bones.
+ * for LOD1 too: A75), skin bones. Bones (anim-skeleton S1, 2026-10-21; were SPEC's ~17 game / 30 hero): the 21 game
+ * joints (the rig's 19 + root, body) + handL / handR stubs + clavL / clavR + goggleStow / goggleUse on every LOD (27),
+ * + the hero's 30 finger joints on LOD0 / LOD1 (57), + the hero's 10 per-toe joints on the hero (67).
  */
 export const LOD_BUDGET: Record<string, { tris: [number, number]; draws: number; glow: number; bones: number }> = {
-  hero: { tris: [150_000, 250_000], draws: 4, glow: 0, bones: 30 },
-  lod0: { tris: [35_000, 45_000], draws: 3, glow: 0, bones: 17 },
-  lod1: { tris: [12_000, 15_000], draws: 2, glow: 1, bones: 17 },
-  lod2: { tris: [4_000, 6_000], draws: 1, glow: 1, bones: 17 },
+  hero: { tris: [150_000, 250_000], draws: 4, glow: 0, bones: 67 },
+  lod0: { tris: [35_000, 45_000], draws: 3, glow: 0, bones: 57 },
+  lod1: { tris: [12_000, 15_000], draws: 2, glow: 1, bones: 57 },
+  lod2: { tris: [4_000, 6_000], draws: 1, glow: 1, bones: 27 },
 };
+
+/** (anim-skeleton S1) The LODs that carry the hero's finger joints (LOD2 folds them into the wrist; distant). */
+export const FINGER_LODS: readonly string[] = ['hero', 'lod0', 'lod1'];
 
 export interface GltfJson {
   nodes: { name?: string; children?: number[]; mesh?: number }[];
@@ -50,7 +56,11 @@ export function glbJson(buf: Uint8Array): GltfJson {
   return JSON.parse(new TextDecoder().decode(buf.subarray(20, 20 + len))) as GltfJson;
 }
 
-const HERO_ONLY = /^(finger|toes)/;
+/** A joint this LOD must not carry: the hero's per-toe joints below the hero, finger joints outside FINGER_LODS. */
+function heroOnly(lod: string, name: string): boolean {
+  if (lod === 'hero') return false;
+  return name.startsWith('toes') || (name.startsWith('finger') && !FINGER_LODS.includes(lod));
+}
 
 /** Checks one LOD file. `triangles` comes from the export report (the file's index counts give the same number). */
 export function lodChecks(lod: string, json: GltfJson, triangles: number): LodCheck[] {
@@ -66,7 +76,7 @@ export function lodChecks(lod: string, json: GltfJson, triangles: number): LodCh
     if (i < 0) wrong.push(`${a}: missing`);
     else if (p === undefined || !joints.has(p) || names[p] !== ANCHOR_JOINT[a]) wrong.push(`${a}: on ${p === undefined ? 'nothing' : names[p]}, not ${ANCHOR_JOINT[a]}`);
   }
-  const heroBones = jointNames.filter((n) => HERO_ONLY.test(n));
+  const heroBones = jointNames.filter((n) => heroOnly(lod, n));
   const draws = (json.meshes ?? []).reduce((s, m) => s + m.primitives.length, 0);
   const b = LOD_BUDGET[lod];
   // a tangent-space normal map baked in MikkTSpace needs the file's tangents (fix round 1): without them the engine
@@ -78,13 +88,13 @@ export function lodChecks(lod: string, json: GltfJson, triangles: number): LodCh
     ktx2Check(json),
     { name: 'tangents', pass: noTangent.length === 0, value: noTangent, limit: 'every primitive with a normal map has TANGENT' },
     { name: 'anchors', pass: wrong.length === 0, value: wrong, limit: `${LOD_ANCHORS.join(', ')} on their joints` },
-    { name: 'gameJoints', pass: lod === 'hero' || heroBones.length === 0, value: heroBones.length, limit: 'game LODs: no finger or toe bones' },
+    { name: 'gameJoints', pass: heroBones.length === 0, value: heroBones.length, limit: 'game LODs: no per-toe bones; finger bones on LOD0 / LOD1 only' },
   ];
   if (b) {
     out.push(
       { name: 'triangles', pass: triangles <= b.tris[1], flag: true, value: triangles, limit: `SPEC 6.4 ${b.tris[0]}-${b.tris[1]}` },
       { name: 'draws', pass: draws <= b.draws + b.glow, flag: true, value: draws, limit: `SPEC 6.4 <= ${b.draws}${b.glow ? ' + glow (A75)' : ''}` },
-      { name: 'bones', pass: joints.size - heroBones.length <= b.bones + 6 && (lod !== 'hero' || joints.size <= b.bones), flag: true, value: joints.size, limit: `SPEC 6.4 ~${b.bones} (+ root, body, hand and toe helpers)` },
+      { name: 'bones', pass: joints.size <= b.bones, flag: true, value: joints.size, limit: `<= ${b.bones} (SPEC 6.4 ~17 game joints + helpers, clavicles, goggle${FINGER_LODS.includes(lod) ? ', fingers' : ''}${lod === 'hero' ? ', toes' : ''}: anim-skeleton S1)` },
     );
   }
   return out;

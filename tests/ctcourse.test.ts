@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { AIRLOCK_LID, AIRLOCK_PAD_COLOR, bayX, ctcourse, CT_BAY, CT_CEIL, CT_EXIT_ZONE, CT_W, FENCE, S4_GAP, S4_HEADER, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_PASS, S3_PASS_COLOR, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
-import { bayObjective, exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
+import { bayObjective, courseUser, exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState, REFUSE_BOLT, REFUSE_PAIR } from '../src/game/course/courseState';
 import { COURSE_TEXT_MAX } from '../src/config/course';
 import { getMap } from '../src/world/maps';
@@ -265,6 +265,24 @@ describe('course-ready S1: station fixes and text', () => {
       expect(s.press('S2-door', 1)).toBe(REFUSE_BOLT);
       expect(s.isGateOpen('g-s2')).toBe(false);
     }
+  });
+
+  it("marlow-bays item 2: the host's own press ('local') is P1, so a host alone past the door unbolts it", () => {
+    expect(courseUser('local')).toBe(0);
+    expect(courseUser(undefined)).toBe(0);
+    expect(courseUser('peer-abc')).toBe(1);
+    const s = at2();
+    // the host crossed alone; the client still waits on the near side
+    s.setPlayer(0, DOOR_X + 0.6, 0, 7, false);
+    s.setPlayer(1, DOOR_X - 3, 0, 7, false);
+    expect(s.press('S2-door', courseUser('local'))).toBeNull();
+    expect(s.isGateOpen('g-s2')).toBe(true);
+    // and the other way round: the client crossed alone, its id is P2
+    const c = at2();
+    c.setPlayer(0, DOOR_X - 3, 0, 7, false);
+    c.setPlayer(1, DOOR_X + 0.6, 0, 7, false);
+    expect(c.press('S2-door', courseUser('peer-abc'))).toBeNull();
+    expect(c.isGateOpen('g-s2')).toBe(true);
   });
 
   it('F8: the "Unbolt" item is live only while the bolt is shut; a bay restart brings it back', () => {

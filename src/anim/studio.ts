@@ -38,7 +38,7 @@ import { KEYED_WALL_IDLE } from './clips/keyed/wall_idle';
 import { KEYED_WALL_PEEK } from './clips/keyed/wall_peek';
 import { KEYED_WALL_SLIDE } from './clips/keyed/wall_slide';
 import { wrap01 } from './studioDrive';
-import { keyClip, keyCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
+import { keyClip, keyCount, keyIdCount, keyNearest, keyPhase, keyStep as keyStep_ } from './keyTimeline';
 import { TEAM_MOVE_LABEL, TEAM_MOVES, TEAM_ROLE_LABEL, type TeamMoveId } from './moveTune';
 import { pairCycle } from './studioPairs';
 import { travCycle, TRAV_ENTRIES, type TravEntry } from './studioTraversal';
@@ -312,7 +312,7 @@ export function studioScrub(v: number): number {
 export function studioKeyPhase(clip: string, phase: number, seekKey: number, keyStep: number): number {
   const c = keyClip(clip);
   if (!c) return Number.NaN;
-  if (seekKey >= 0) return keyPhase(c, Math.min(seekKey, keyCount(c) - 1));
+  if (seekKey >= 0) return keyPhase(c, Math.min(seekKey, keyIdCount(c) - 1)); // (item 25) a key id (added keys after the originals)
   if (keyStep !== 0) return keyPhase(c, keyStep_(c, phase, keyStep));
   return Number.NaN;
 }
@@ -424,10 +424,10 @@ export interface StageLightDef {
 }
 
 export const STAGE_LIGHTS: readonly StageLightDef[] = [
-  { name: 'key', fwd: 2.0, right: 1.6, up: 2.3, intensity: 1.7, range: 7, color: [1, 0.95, 0.88] },
-  { name: 'fill', fwd: 2.2, right: -1.8, up: 1.2, intensity: 0.9, range: 7, color: [0.82, 0.88, 1] },
-  { name: 'rim', fwd: -2.0, right: -0.6, up: 2.5, intensity: 1.3, range: 7, color: [0.92, 0.96, 1] },
-  { name: 'ambient', fwd: 0.3, right: 0, up: 3.6, intensity: 0.8, range: 9, color: [1, 1, 1] },
+  { name: 'key', fwd: 2.0, right: 1.6, up: 2.3, intensity: 2.4, range: 7, color: [1, 0.95, 0.88] },
+  { name: 'fill', fwd: 2.2, right: -1.8, up: 1.2, intensity: 1.4, range: 7, color: [0.82, 0.88, 1] },
+  { name: 'rim', fwd: -2.0, right: -0.6, up: 2.5, intensity: 1.5, range: 7, color: [0.92, 0.96, 1] },
+  { name: 'ambient', fwd: 0.3, right: 0, up: 3.6, intensity: 1.5, range: 9, color: [1, 1, 1] },
 ];
 
 /** A stage light's world place for her root (x, y, z) facing `yaw` (Babylon: forward (sin, cos), right (cos, -sin)). */
@@ -444,4 +444,16 @@ export function stageLightPlace(l: StageLightDef, x: number, y: number, z: numbe
 export function stageLightScale(v: number): number {
   if (!Number.isFinite(v)) return STAGE_LIGHT_RANGE.def;
   return Math.max(STAGE_LIGHT_RANGE.min, Math.min(STAGE_LIGHT_RANGE.max, v));
+}
+
+/**
+ * (marlow-bays T2) The frame the stage lights take: "forward" from her root toward the camera (Babylon yaw: forward
+ * (sin, cos)), so the key and the fill sit on the camera's side and the rim on the far side, whatever side she is seen
+ * from (the game's view from behind, the orbit, a snap). The camera on her root (or none): her own facing `fallback`.
+ */
+export function stageViewYaw(rx: number, rz: number, cx: number, cz: number, fallback: number): number {
+  const dx = cx - rx;
+  const dz = cz - rz;
+  if (dx * dx + dz * dz < 1e-6) return fallback;
+  return Math.atan2(dx, dz);
 }

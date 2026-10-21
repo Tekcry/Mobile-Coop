@@ -119,11 +119,55 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
   - plant, landing, the spring rates and anticipation times -> WEIGHT_BASE.*.
 - Manual: the damping sliders (one zeta for four springs) and every add slider (the layer's amount is the slider).
 
-**Joints, Hands & feet, IK strength, Weapon:** manual, no code target. These are local-player tuner tables whose
-defaults are all identity.
+**Joints, Hands & feet, IK strength, Weapon** (anim-joints J1, COVERAGE gap 1): baked into the base table, a generated
+file `src/anim/animBase.ts` that every Wren rig reads (the local player, the co-op partner's avatar, the Anim Studio's
+pair puppets; guards and other rigs never do). Result "baked (base table)"; target `src/anim/animBase.ts: joints.<row>.
+<joint>[axis] +`, `hands.<weapon>.<row>.<param> +` / `x` / `=`, `ik.<row>[limb] x`.
+- The file: a header and the `AnimBaseData` type, then the JSON between the `// @anim-base-begin` and
+  `// @anim-base-end` lines, which the bake parses (`JSON.parse`) and rewrites (one write, in the diff and the ledger;
+  the rest of the file and its line ends are kept). Shape: `{ "version": 1, "joints": { row: { joint: [x, y, z] } },
+  "hands": { weapon: { row: { param: v } } }, "ik": { row: [handL, handR, footL, footR] } }`, keyed by row id, joint
+  name and param id (never an index), so new rows and joints fit with no format change. Printed with sorted keys, one
+  row per line, about 4 significant digits, identity values left out (a re-bake of identity gives the same text).
+  Empty = every row identity (the untuned rig, bit-identical).
+- The rules (A1), the same at run time (effective = base composed with the tuner's delta) and in the bake (new base =
+  old base composed with the export's value): joint degrees add per axis, then wrap to -180..180 (the offset is built
+  from the sum, so a bake is exact); Hands & feet and Weapon offsets add; the gun scale multiplies; the trigger mode is
+  the delta's when it is not 0 (auto), else the base's; IK strengths multiply, clamped 0..1.
+- The tuner's sliders stay deltas on the base: after the bake, reset them (the look stays). Values outside the
+  slider's wide range still refuse; the ledger makes a re-run a no-op. Version 1 exports get their new rows as for
+  every section (`joint.wallIdle` also bakes `joint.wallCrouchIdle`). `joint.options` (the mirror lock) stays manual.
+- Code: `src/anim/tuneBakeBase.ts` (parse, apply, print); the runtime base + delta is `tuneJoints.ts` /
+  `tuneHands.ts`, the per-rig window `tuneJointsRig.ts`. Dev hook: `window.__animBase` (`get`, `load`, `setJoint`,
+  `reset`) loads a base table object in the running game until a reload. Tests: `tests/animJointsBase.test.ts`.
+- Move and action rows (anim-joints J2, COVERAGE gap 2) bake like any row: the row is the group id after the section
+  (and after the weapon for Hands & feet / Weapon), dots and all. `joint.trav.vault` -> `joints["trav.vault"]`,
+  `joint.team.boost.b` -> `joints["team.boost.b"]`, `hand.rifle.reload` -> `hands.rifle.reload`, `ik.air` ->
+  `ik.air`, `weapon.pistol.throw` -> `hands.pistol.throw`. The rows (`src/anim/tuneMoveRows.ts` `TUNE_ROW_IDS`): the body
+  states, `trav.<kind>` (vault, mantle, step, climbUp, windowVault, rappel, drop, hop, roll, wallKick, split, brace),
+  `team.<move>.<a|b>` (boost, relay, throw, hang, rope, revive), `air`, `land`, `slide`, `melee`, `reload`, `swap`,
+  `throw`, `hit`. At run time a move row composes over the stance row by its weight (`docs/systems/ui.md`). Test: the
+  literal export in `tests/animMoveRows.test.ts`.
 
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
-rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock).
+rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock). (marlow-bays item 23, track A) A key's
+`time` (bake frames, + later) moves its `phase` to frame / 48 (moved keys only, clamped as in the tuner; key 0 is fixed:
+skipped) and regenerates `src/anim/tuneKeysMeta.ts`; an export with no timing edit bakes exactly as before. The live preview stretches the curve piecewise-linearly between
+the keys while the Blender bake interpolates with Bezier, so after a rebake the in-betweens differ slightly; the key
+poses match.
+(marlow-bays item 25, track A) Add / delete keys: `del` 1 removes the key (key 0 never: skipped; past the minimum of
+4 keys a cycle: skipped; with the Mirror box on the bake drops its mirror with it); an added-key group
+`key.<clip>.a<s>` adds a key at `at` / 48 whose fields are the original keys' blend there (every numeric field of the
+two keys either side, linear in time, the retimed times; `keyBlendAt`) plus its deltas; one sitting on a key or (Mirror
+on) outside the own half is skipped. A key file with an add / delete is written with its keys in phase order (with
+the Mirror box off a mirrored file is written in full first), `src/anim/tuneKeysMeta.ts` is regenerated and the rebake
+printed; `key_clip.py` sorts any key list, so it needs no change. An export with no add / delete bakes exactly as
+before. The meta is regenerated whenever a key file is written (also a file written in full with no time edit: it
+holds the mirror flag and the own phases); unchanged files give byte-identical meta. Accepted difference (as item 23):
+the live preview blends an added or deleted key linearly between its neighbours while key_clip.py keys the bone
+rotations with Bezier (`py/key_clip.py` line 261), so after a rebake the in-betweens around an added or deleted key
+shift a little; the key poses match. Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
+`tests/tuneKeysEdit.test.ts`.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
 code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip
@@ -137,8 +181,8 @@ test finds every file under `src/` that calls `registerTuneSection`, imports it,
 list or when any registered slider and group has no rule or manual entry.
 
 ## Assumed decisions (undo)
-- **A1** Sliders with no code value are reported manual; no runtime per-state base tables were added. Undo: a later job
-  adds base tables and swaps those manual entries for rules.
+- **A1** Sliders with no code value are reported manual. (anim-joints J1) Joints, Hands & feet, IK strength and Weapon
+  now bake into the base table `src/anim/animBase.ts` (above).
 - **A2** A ledger (`src/anim/tuneBakeLog.json`, `group|id=value` per baked value) makes any later export that still
   carries a baked value a no-op for it. Undo: delete the ledger and step 7 of `tuneBake()`.
 - **A3** Atomic per slider and group: a value bakes only when every rule covering it bakes. Undo: drop the blocking loop

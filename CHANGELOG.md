@@ -27,6 +27,133 @@
   client never blinks a camera back into its reboot on a late host message (device timelines only move forward); the
   jammer HUD line and the buzz no longer rebuild a string or schedule audio every frame.
 
+## 4.44.0 - Animation tuner: Joints, Hands & feet, IK and Weapon rows for every move and action (climbs, rappel, co-op moves, reload, melee, landing, hit) (2026-10-22, PR #90)
+- Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every
+  traversal move (vault, mantle, step up, climb up, window vault, rappel, drop, hop, roll, wall kick, split, brace),
+  each co-op move per role (leg-up, relay, throw, hang-down, rope, revive: A and B), and air, landing, slide, melee,
+  reload, weapon swap, grenade throw and hit. A row blends in over the stance while its move or action plays (by the
+  animation's own fade) and out after it; the tuner follows the strongest one. They bake like the other rows; old
+  exports and saves load as before. The co-op partner picks its role row from its move state (the relay climb reads as
+  the leg-up's climber; the revive has no row on the partner).
+- Tuner by pad: LT / RT steps the state (or the move, or A / B on a co-op row) in every section again, B goes back to
+  that picker, and the changed dot marks the right picker (the pickers' depth now differs per row).
+- The debug overlay's Tune and Teleport lists stay hidden until their buttons open them (their display rule overrode
+  `hidden`, so Tune always showed and the overlay covered much of the Anim Studio's scene on a small window).
+
+## 4.43.2 - Tests: e2e-menus waits on sim time on slow software GL; the e2e-levels ladder chase is seeded; a NaN guard in the loop (2026-10-22, PR #94)
+- The desktop e2e-menus "stall" after the animation tuner closed was not a freeze in the game: the test ran past the
+  runner's 600 s limit on software GL (the match page drew about 1.5 frames a second beside the open menu page). The
+  menu page now goes blank before the match page opens, and the tuner camera check settles on the sim clock: the suite
+  takes 312 s instead of 894 s on the desktop. The Havok stacks seen earlier were slow frames, not a spin.
+- The game loop treats a NaN or negative frame interval or time scale as no time, so a bad value can never stop the
+  simulation for good (new unit tests for the loop across a long tuner freeze and its release).
+- e2e-levels: the ladder chases run on the manual clock with a fixed random seed (they took 9-30 s of game time
+  against a 30 s budget; now 10-15.5 s).
+
+## 4.43.1 - Co-op: restart at checkpoint no longer crashes a joiner holding a guard (2026-10-22, PR #93)
+- Co-op course: "Restart at checkpoint" (or a bay restart) while a guard is held no longer crashes the client; the hold is
+  let go first (as Sector Ops does), and a disposed guard puppet counts as gone, so a stale takedown lets go of it.
+
+## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
+- Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
+  Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is
+  edited. "Delete key" removes the picked key (never key 1, never below 4 keys a cycle; with Mirror on its mirror goes
+  too). Live at once; undo, reset, presets, export and import work as for every slider; works with key timing.
+- The bake writes the key file with the new key list, regenerates `src/anim/tuneKeysMeta.ts` and prints the clip's
+  rebake. An export with no add / delete bakes exactly as before; no clip changes.
+
+## 4.42.0 - Wren skeleton: collarbones, 30 finger bones, smoother glove fingers; hands close on weapons again (2026-10-21, PR #88)
+- Wren's hands close on her weapons again: since the 2026-10-20 rebake the in-game models
+  had lost their hand-closing shapes, so only the close-up camera showed a grip. Her fingers are now real joints on
+  the two nearest models (each finger bends at three knuckles), and the game's grip drives them on every Wren,
+  the co-op partner included. The fingers got extra knuckle loops so they bend smoothly (Michael: "Go, smooth fingers
+  too"): nearest model 39 809 -> 43 431 triangles, second 13 578 -> 14 242, both inside their budgets.
+- The tuner's per-finger curl and spread (Hands & feet) now move each finger on its own instead of one average close.
+- New joints for the next steps (T3, BRIEF item 21): a real clavicle on each side (a shrug or a shoulder pushed forward
+  moves the shoulder joint itself; tuner rows come in S4) and the goggle on its own joint (CT Core's gear-offset rows
+  will move it). At rest nothing moves: every joint that existed before is bit-identical for all 28 keyed clips, the
+  procedural states and the partner (tests/animSkeletonIdentity.test.ts).
+- Cost: about +2.3 us per Wren figure per frame (figure update 6.9 -> 9.2 us at the nearest model); +264 KB of models.
+
+## 4.41.0 - Animation tuner and Anim Studio on phones: compact drawer or sheet, pad mode, touch camera (2026-10-21, PR #89)
+- The animation tuner and the Anim Studio work on a phone (Michael's written exception to M21 for these two tools only;
+  the game itself stays desktop only). A phone (a touch screen as the main pointer, short side 600 px or less) in
+  landscape gets a side drawer on the right (38% wide: she keeps the left 62%); in portrait a bottom sheet (45% high:
+  she keeps the top 55%). The studio frames her in the free area as on desktop. A grab handle collapses the panel to
+  its header and expands it. Every touch target is at least 34 px (tabs, buttons, chips, sliders, steppers, the body
+  map's joints, the playback bar); the text is 13 px, the padding tight; the panel scrolls inside itself; slider rows
+  put the slider on its own line.
+- (26b, Michael: "Smaller buttons, more compact. Adjust smaller with controller connected also") With a controller the
+  last input, smaller again: 26 px rows, 11 px text, no touch minimum, one-line slider rows, the drawer 34% wide and
+  the sheet 40% high. It switches live between touch and pad with the last input (a touch or a pad press), no reload.
+- The F3 debug readout (it covered the left half) is off on a phone; Settings > "Debug readout (F3)" shows it (the
+  choice is saved) and F3 still toggles it with a keyboard.
+- Touch camera on the scene: one finger dragged orbits, a pinch zooms, two fingers dragged pan the point the view
+  circles; a tap on her picks a part as a click does. Touches on the panel never move the camera. The pad works as
+  before. Desktop sizes and a mouse keep the T2 layout unchanged.
+- The Anim Studio's stage lights are placed after she moves and from the camera's position this frame (they lagged
+  one frame, up to 0.1 m on a busy machine; e2e-studio's light check failed under load).
+- New suite `e2e-tuner-phone` (required).
+
+
+## 4.40.0 - Animation tuner: slide a key earlier or later in its clip, baked into the key files (2026-10-21, PR #87)
+- Animation tuner, Keys tab: slide a key earlier or later in its clip ("◀ Earlier" / "Later ▶", one bake frame = 1/48
+  of the cycle, or the time slider), previewed live. Keys keep their order, the first key stays at the cycle start, and
+  with Mirror on the mirror key moves with its own key. Undo, reset, export and import work as for every slider.
+- The bake (`scripts/anim-tune-bake.mjs`, and `scripts/anim-keys/apply-tune.mjs`) writes a moved key's phase into its
+  key file, regenerates the tuner's key list (`src/anim/tuneKeysMeta.ts`) and prints the clip's rebake. An export with
+  no timing edit bakes exactly as before; the 28 clips are unchanged.
+
+## 4.39.0 - Animation tuner redesign: docked panel in the menu style, body map, pinned sliders, folding groups; brighter studio (2026-10-21, PR #86)
+- The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
+  looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values
+  (Medium, now the default, is 19 px at 1080p; S / M / L 16 / 19 / 22).
+- Docked to the right edge, at most a third of the screen. In the Anim Studio the picture gives up the panel's width,
+  so she stands in the middle of the free area. The studio hides the game HUD (health, compass, objective, weapon and
+  ammo).
+- Pick a part on a body map (her joints seen from behind, the gun, the whole body), from the part list (the pad's way)
+  or by clicking her in the scene: only the sliders that move that part show, and the first one is selected. Click it
+  again for every part.
+- Rows sit in groups by what they move ("Right elbow", "Knees") that fold; the first group and the selected row's group
+  start open.
+- Pinned (☆ on a row, or Y menu > Pin) and recent sliders show as chips over the rows; a chip goes to its slider. The
+  search moved there and searches every tab.
+- The status line reads the stance really playing ("Walk · Rifle holstered", "Low ready · Rifle drawn"; outside the
+  studio "No gun drawn" for "Unarmed").
+- The studio's stage lights are brighter (key 2.4, fill 1.4, rim 1.5, top ambient 1.5; were 1.7, 0.9, 1.3, 0.8): she
+  read dark at 1080p on the hardware GPU. They now face the camera (key and fill on its side, the rim beyond her) from
+  any view: placed in front of her, the usual view from behind saw only the rim and the top light. The game's lighting
+  is untouched.
+- Pad: the D-pad reaches the part list and the chips (after the playback bar, before the tab's controls); the group
+  headers fold with A; the Y menu gains Pin / unpin this slider and Show every part. No button moved.
+
+## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
+- Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
+  when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
+  non-solid there, as on the host and in solo (bullets still hit him). On the host, the joiner's hostage follows the
+  joiner's drawn body instead of stepping ahead of it. Solo hold and carry speeds are unchanged.
+- Marlow Yard station 2: the host can unbolt the door alone after the leg-up (Michael: "stays closed and locked").
+  The host's own presses on course devices were counted as the joiner's, so the bolt checked the joiner's side of the
+  door (and "Bolted from the other side" went to the joiner's screen). The same fix credits the host's own hold
+  consoles, pickups and finish correctly.
+- Camera cue: the pulsing red frame edge while a camera sees a player is gone; the cue is the red grid only (in
+  electro, the white grid). The two red lines on station 3's floor are the painted edges of that camera's +-30 deg
+  sweep (course spec M2), kept.
+- Pause menu: "Restart at checkpoint" in Sector Ops and the co-op course (the section or the bay starts again, both
+  players back at the checkpoint) and, in co-op, "Return to lobby" (both players back to the room lobby). Each asks
+  first, with Stay focused. In co-op both are the host's: the joiner sees them disabled, "Host only".
+
+## 4.37.0 - Joints, Hands & feet, IK and Weapon tuning bake into a base table every Wren reads, the partner too (2026-10-21, PR #84)
+- Joints, Hands & feet, IK strength and Weapon tunes now bake (Michael: "make sure i have full control over every stance
+  and every body part"; COVERAGE gap 1): `scripts/anim-tune-bake.mjs` writes them into a generated base table
+  (`src/anim/animBase.ts`) instead of listing them as manual, so a tuned elbow becomes the default after the merge.
+  Exports from before (version 1 and 2) bake too.
+- Those four sections now act on every Wren rig, not only your own: the co-op partner's avatar and the Anim Studio's
+  pair puppets show the base table and your live tuner edits; guards and other characters are never touched. The
+  tuner's sliders are changes on top of the base table (reset them after a bake: the look stays).
+- With the game paused (the tuner's Pause, the studio's pause) a Joints, Hands & feet, IK or Weapon edit now shows at
+  once, as the Body and Gun sliders do (before it waited for the game to run).
+
 ## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in
   the Anim Studio plays that clip on the spot, paused on that key; "◀ Key" / "Key ▶" step the clip's keys (its mirrored

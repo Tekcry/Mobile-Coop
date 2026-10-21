@@ -139,6 +139,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
   Reset group puts it back; Export lists the `cam.` values.
+- [ ] Base table (anim-joints J1): in the Anim Studio on a state loop, turn an elbow in Joints (and a hand offset in Hands &
+  feet), Export, run `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts`
+  changes), rebuild, reset those sliders: the pose looks the same. In a co-op pair loop (and with a partner) role B /
+  the partner shows the same tune; the guard in a hold pair does not.
+- [ ] Move rows (anim-joints J2): in the Anim Studio pick "traversal: vault the low wall", then in Body > Joints pick
+  the state `Trav` > `Vault` (a studio loop turns follow off); turn her right elbow there: it shows during the vault
+  only and is gone when she walks on. In the leg-up pair, `Team` > `Boost` > `B` moves role B only.
+- [ ] Reload row (anim-joints J2): in play (follow on), reload; the Joints picker shows `Reload` while the reload plays;
+  a left elbow edit there shows during each reload and not between them.
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
@@ -157,6 +166,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   choke on one clock. "traversal: ladder up and over the top": Wren walks to the ladder, climbs it, tops out, resets and
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
+
+### Wren's hands and joints (anim-skeleton S1+S2)
+- [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
+  the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.
+- [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
+- [ ] Co-op: the partner's hands also close on their gun.
+- [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
@@ -225,6 +241,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Anim Studio: tick "Keyed" on walk: the keyed walk plays; clear it: the procedural walk. Pick "Run" in the Body
   tab's Joints state list: the run plays, the tab stays. "On the spot" (header, F8, pad L3) on: she runs in place; off:
   she runs the circle. She is well lit as she moves; "Stage light" (View tab) dims and brightens her.
+- [ ] (marlow-bays item 23) Anim Studio, Keys tab: pick Jog, Key 2, press "Later ▶" three times: the readout says
+  "moved +3 (baked at 6)", the jog plays with that pose later in the stride; "◀ Earlier" stops at the key before it;
+  Key 1's buttons are off (fixed). Ctrl+Z three times: back as baked. Export, then `node scripts/anim-tune-bake.mjs
+  <export> --dry-run --only keys`: the row reads "baked (key JSON; rebake the clip)", target "jog.json key 1 phase".
+- [ ] (marlow-bays item 25) Anim Studio, Keys tab: pick Jog, Key 2, press "+ Add key": the readout says "jog - key 3 of
+  10 (mirror of 8) (added), frame 6", the pose does not jump; bend the left elbow: it shows there (and on the right arm
+  half a cycle on). "Delete key": 8 keys again. Delete Key 3 (an original): the jog blends over it; Key 1's Delete is
+  off; Ctrl+Z brings the key back. Pad: the D-pad reaches both buttons, A presses. Export and bake `--dry-run --only
+  keys`: "baked (key added to the key JSON ...)" / "baked (key removed ...)", the meta regenerated.
 - [ ] (marlow-bays T1a) Anim Studio, Keys tab: pick Jog, then Key 2: the jog stops on that key and the readout says
   "jog - key 2 of 8 (mirror of 6)"; "Key ▶", F2 and the pad's right stick right step on (the Key list follows), F1 /
   stick left step back. Click "Right forearm twist": the forearm is ringed; drag it: the forearm turns about itself.
@@ -236,6 +261,36 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
 - [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
   states show the values of the rows they shared.
+- [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
+  focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
+  compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).
+- [ ] Body tab: click her right elbow on the figure: "Showing: Right elbow" and only its sliders; click it again: every
+  part. Click her left knee in the scene (no drag): the left knee is picked. A drag still turns the camera.
+- [ ] Move a slider: it shows as a chip under "Pinned and recent"; ☆ pins it (★, a gold chip, kept after a reload);
+  click the chip on another tab: it goes back to the slider. Fold and open a group by its header.
+- [ ] By pad: from the tab's first list, D-pad up reaches the chips and the part list; A on the part list, pick Left
+  knee: the focus lands on its first slider. Y > Pin / unpin this slider. A on a group header folds it.
+- [ ] The status line in the studio: walk with Rifle picked reads "Walk · Rifle holstered"; Low ready "Low ready · Rifle
+  drawn".
+- [ ] Sizes S, M and L (Settings) and a 1280 x 720 window: the panel stays usable (tabs wrap, rows readable) and does
+  not cover her. Outside the studio (Pause > Animation tuner) the panel overlays play with no dock; in co-op the same
+  (no dock, the HUD stays).
+
+### Tuner on a phone (marlow-bays item 26; the tuner and Anim Studio only, the game stays desktop only)
+- [ ] On a phone, open the studio (`?autostart=studio`, or the main menu's studio row). Landscape: the panel is a
+  drawer on the right, she stands in the left part; no F3 readout. Portrait: a bottom sheet, she stands above it.
+- [ ] Tap "Hide panel" (the handle): only the header stays and she gets the whole screen; "Show panel" brings it back.
+- [ ] Landscape: the drawer is about 38% of the width; portrait: the sheet about 45% of the height. Text small but
+  readable (13 px).
+- [ ] Press a button on a paired controller: the panel gets smaller again (26 px rows, 11 px text, one-line sliders, a
+  narrower drawer / lower sheet) with no reload; touch the screen: back to the touch size.
+- [ ] Tabs, buttons, chips, the body map's joints, the playback bar and the sliders are easy to hit with a thumb; the
+  panel scrolls with a finger; a slider drags without scrolling the panel.
+- [ ] One finger dragged on the scene turns the view round her; a pinch zooms; two fingers dragged move the view's
+  centre; a tap on her head shows only the head's sliders. A drag on the panel never moves the camera.
+- [ ] Settings > "Debug readout (F3)" shows and hides the readout; reopening the studio keeps the choice.
+- [ ] A controller paired to the phone: the pad works as on desktop (tabs, rows, edit, View hands the pad over).
+- [ ] On the desktop the panel looks as before (docked right, no handle).
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
@@ -247,6 +302,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
 - [ ] Close the host tab: the client is told and returns to the menu.
+- [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
+  guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
+- [ ] Station 2: only the host does the leg-up, jumps over and picks Unbolt: the door opens; the near side shows
+  "Bolted from the other side" to whoever pressed it.
+- [ ] Station 3: the camera shows the red grid only, no flashing red border when it sees you (GPU look: pending PC run).
+- [ ] Host: Start (Esc) > Restart at checkpoint: the confirm opens on Stay; Restart puts both players at the bay start.
+  Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
+- [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.
+- [ ] Solo Sector Ops: Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
 
 ## Release checklist (before a job merges)
 
@@ -254,6 +318,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
   suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
   `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".
+- [ ] A suite that stops with no error at `E2E_JOBS=1` may have been killed at the suite limit (the streamed output
+  drops the KILLED line): check its time before reading a hang into it (havok-stall).
 
 ### Offline and install
 - [ ] First visit online; wait for the "Ready to play offline" toast. Go offline, close the tab, reopen: the game boots,

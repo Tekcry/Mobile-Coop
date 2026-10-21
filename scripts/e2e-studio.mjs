@@ -10,13 +10,19 @@
 // mouse is marked in the panel and moves the scene marker to its joint; the camera tab has no body marker. The Keyed box
 // plays the state's keyed clip and, cleared, the procedural state. A moving state picked in the Body tab's Joints list
 // plays its loop; on the spot (the header toggle, F8) she holds her root over 2 s of play, off she walks.
-// (marlow-bays item 14) The stage lights (key, fill, rim, ambient) light her meshes, keep their offset in her frame as
+// (marlow-bays item 14; T2: placed toward the camera) The stage lights (key, fill, rim, ambient) light her meshes, keep their offset in the view frame as
 // she walks, and the Stage light slider scales them.
+// (marlow-bays T2) The studio hides the game HUD and docks the canvas beside the panel; a click on the body map or on
+// her in the scene shows only that part's sliders; pin / unpin and the recent chip; the Joints rows fold in groups.
 // (marlow-bays T1a) A key step lands on the clip's next key (its mirrored half too). The Keys tab: a clip and key picked
 // plays that clip on the spot paused on that key, the readout names it and its mirror, the key buttons and F1 / F2 step it
 // with the picker following, the edited bone is marked; a forearm twist edit turns the forearm bone; Mirror off lets the
 // arms differ. The playback bar shows on every tab (F9 plays / pauses); a weapon, a climb move and a co-op role picked in
 // a tab play; the aim stances (standing, crouched still and moving) play with the picked gun.
+// (marlow-bays item 23) Key timing: a key slid three bake frames later moves the readout's frame (jog key 2: 4 -> 6),
+// the studio lands on it at its new time with its pose, the pose at the old frame changes, undo restores both.
+// (marlow-bays item 25) Add / delete keys: "Add key" on jog key 2 puts a key midway to key 3 (10 keys with its mirror,
+// the pose there unchanged, the picker and the readout on it); "Delete key" removes it; undo brings it back.
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -145,6 +151,120 @@ try {
   assert(Math.abs(pr2.tA - pr.tA - 1 / 30) < 0.01 && pr2.tA === pr2.tB, `a key step moves both by one frame (${pr.tA.toFixed(3)} -> ${pr2.tA.toFixed(3)})`);
   await G(() => window.__studio.play());
 
+  // (anim-joints J1) the base table every Wren rig reads: a base row set through the dev hook (the tuner at identity)
+  // turns Wren's elbow in the hold pair and leaves the guard (not a Wren rig) as it was; in the boost pair role B's
+  // puppet picks its own row and takes it too
+  const jbones = () => G(() => {
+    const q = (r, n) => { const x = r[n].rotationQuaternion; return [x.x, x.y, x.z, x.w]; };
+    const st = window.__app.current.studio;
+    const pl = window.__app.current.player.rig;
+    const gd = st.guard;
+    const pb = st.puppets?.[1]?.rig ?? null;
+    const N = ['elbowR', 'elbowL', 'shoulderR', 'wristR', 'kneeL', 'hipL', 'spine', 'neck'];
+    return { body: pl.tuneSt?.body ?? null, el: q(pl, 'elbowR'), guard: gd ? N.map((n) => q(gd, n)) : null, guardFlag: gd ? gd.tuneRows : null, bBody: pb?.tuneSt?.body ?? null, bEl: pb ? q(pb, 'elbowR') : null };
+  });
+  const jang = (a, b) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
+  await G(() => window.__studio.pick('pair:hold_idle'));
+  await frames(page, 6);
+  await G(() => window.__studio.pause());
+  await frames(page, 6);
+  const jb0 = await jbones();
+  await frames(page, 4);
+  const jb1 = await jbones();
+  assert(!!jb1.body && !!jb1.guard && jb1.guardFlag === false, `the hold pair: Wren picks a row, the guard has no flag (${jb1.body}, ${jb1.guardFlag})`);
+  assert(jang(jb0.el, jb1.el) < 2, `paused, Wren's elbow holds still (${jang(jb0.el, jb1.el).toFixed(2)} deg)`);
+  await G((row) => window.__animBase.setJoint(row, 'elbowR', [40, 0, 0]), jb1.body);
+  await frames(page, 6);
+  const jb2 = await jbones();
+  const gMax = Math.max(...jb1.guard.map((q, i) => jang(q, jb2.guard[i])));
+  assert(jang(jb1.el, jb2.el) > 20, `a base row (${jb1.body} elbowR 40 deg) turns Wren's elbow with the tuner at identity (${jang(jb1.el, jb2.el).toFixed(1)} deg)`);
+  assert(gMax < 1, `the guard is untouched (${gMax.toFixed(3)} deg)`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.pick('pair:boost'));
+  await frames(page, 4);
+  await G(() => window.__studio.pause());
+  // (role B's assist itself has no stance row until J2's move rows: a moment where B stands in a stance)
+  let jp0 = null;
+  for (let k = 0; k < 10 && !jp0?.bBody; k++) {
+    await G((v) => window.__studio.seek(v), k / 10);
+    await frames(page, 4);
+    jp0 = await jbones();
+  }
+  assert(!!jp0.bBody && !!jp0.bEl, `the boost pair's role B picks its own stance row (${jp0.bBody})`);
+  await G((row) => window.__animBase.setJoint(row, 'elbowR', [40, 0, 0]), jp0.bBody);
+  await frames(page, 6);
+  const jp1 = await jbones();
+  assert(jang(jp0.bEl, jp1.bEl) > 20, `role B's puppet takes its base row (${jp0.bBody} elbowR: ${jang(jp0.bEl, jp1.bEl).toFixed(1)} deg)`);
+  await G(() => window.__animBase.reset());
+  // (anim-joints J2) a team move row: scrubbed into the boost (B assisting), role B's puppet picks its team row from the
+  // pair's role (`team.boost.b`) and a base row there turns its elbow
+  await G((v) => window.__studio.seek(v), (1.4 + 0.6) / cyc);
+  await frames(page, 4);
+  const jt = () => G(() => {
+    const pb = window.__app.current.studio.puppets[1].rig;
+    const p = pb.tuneSt.pick;
+    const x = pb.elbowR.rotationQuaternion;
+    return { rows: Array.from({ length: p.n }, (_, k) => p.ids[k]), state: window.__studio.pair().bState, el: [x.x, x.y, x.z, x.w] };
+  });
+  const jt0 = await jt();
+  assert(jt0.rows.includes('team.boost.b'), `role B's puppet picks its team row while assisting (${jt0.state}: ${jt0.rows.join(', ')})`);
+  await G(() => window.__animBase.setJoint('team.boost.b', 'elbowR', [40, 0, 0]));
+  await frames(page, 6);
+  const jt1 = await jt();
+  assert(jang(jt0.el, jt1.el) > 20, `a team.boost.b base row turns role B's elbow (${jang(jt0.el, jt1.el).toFixed(1)} deg)`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.play());
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
+  // (anim-joints J2) a traversal move row: a `trav.vault` base row turns Wren's elbow during the vault loop (paused in the
+  // vault: the row on, then off) and not after it (the loop walks on: no vault row, the offset back to identity)
+  const jv = () => G(() => {
+    const r = window.__app.current.player.rig;
+    const p = r.tuneSt.pick;
+    const j = window.__tuneV2.J.elbowR;
+    const c = r.tuneSt.joints.cur;
+    const x = r.elbowR.rotationQuaternion;
+    return { rows: Array.from({ length: p.n }, (_, k) => p.ids[k]), live: r.tuneSt.joints.live[j], offW: c[j * 4 + 3], el: [x.x, x.y, x.z, x.w] };
+  });
+  await G(() => window.__animBase.setJoint('trav.vault', 'elbowR', [40, 0, 0]));
+  await G(() => window.__studio.pick('trav:vault'));
+  // (stepped and paused inside one evaluate: no live frame can carry her out of the short vault in between)
+  const vin = await G(() => {
+    const r = window.__app.current.player.rig;
+    const inVault = () => Array.from({ length: r.tuneSt.pick.n }, (_, k) => r.tuneSt.pick.ids[k]).includes('trav.vault');
+    let n = 0;
+    for (let i = 0; i < 600 && n < 8; i++) {
+      window.__app.loop.stepHeadless(1 / 60);
+      if (inVault()) n++;
+    }
+    window.__studio.pause();
+    return n;
+  });
+  await frames(page, 4);
+  const v1 = await jv();
+  assert(vin >= 8 && v1.rows.includes('trav.vault') && v1.live === 1, `the vault loop: Wren picks the trav.vault row (${vin} frames, ${v1.rows.join(', ')}, elbow offset live ${v1.live})`);
+  await G(() => window.__animBase.reset());
+  await frames(page, 4);
+  const v2 = await jv();
+  assert(jang(v1.el, v2.el) > 20, `the trav.vault base row turns Wren's elbow during the vault (${jang(v1.el, v2.el).toFixed(1)} deg)`);
+  await G(() => window.__animBase.setJoint('trav.vault', 'elbowR', [40, 0, 0]));
+  await G(() => window.__studio.play());
+  const vout = await G(() => {
+    const r = window.__app.current.player.rig;
+    const j = window.__tuneV2.J.elbowR;
+    let out = 0;
+    for (let i = 0; i < 600 && out < 60; i++) {
+      window.__app.loop.stepHeadless(1 / 60);
+      out = Array.from({ length: r.tuneSt.pick.n }, (_, k) => r.tuneSt.pick.ids[k]).includes('trav.vault') ? 0 : out + 1;
+    }
+    return { out, live: r.tuneSt.joints.live[j], w: r.tuneSt.joints.cur[j * 4 + 3] };
+  });
+  assert(vout.out >= 60 && vout.live === 0 && vout.w === 1, `and not after the vault (1 s out of it: elbow offset live ${vout.live}, w ${vout.w})`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
   // (anim-studio-2) a traversal loop: Wren walks to the ladder and attaches by the synthesised Y; then back to the middle
   await G(() => window.__studio.pick('trav:ladder'));
   let att = '';
@@ -164,17 +284,29 @@ try {
   const mm0 = await G(() => ({ ...window.__animTune.mouse(), lockEl: !!document.pointerLockElement, gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
   assert(mm0.mode === 'drag' && mm0.free && !mm0.locked && !mm0.lockEl && !mm0.gamecam && mm0.button === 'Mouse: drag view', `tuner open: drag view, the pointer free (${JSON.stringify(mm0)})`);
   // a point on the scene, clear of the panel and the overlay
-  const at = await G(() => {
+  // (anim-joints #90) the studio opens the debug overlay too, and its width follows its live text: the preferred points
+  // first, then a grid over the canvas; the point and the drag's end (80 px right) both on the scene
+  const atProbe = await G(() => {
     const c = window.__app.canvas;
     const r = c.getBoundingClientRect();
-    for (const [fx, fy] of [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]]) {
+    const onScene = (x, y) => document.elementFromPoint(x, y) === c && document.elementFromPoint(x + 80, y) === c;
+    const pts = [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]];
+    for (let gy = 0.35; gy <= 0.95; gy += 0.1) for (let gx = 0.1; gx <= 0.8; gx += 0.1) pts.push([gx, gy]);
+    for (const [fx, fy] of pts) {
       const x = r.left + r.width * fx;
       const y = r.top + r.height * fy;
-      if (document.elementFromPoint(x, y) === c) return { x, y };
+      if (onScene(x, y)) return { at: { x, y } };
     }
-    return null;
+    const el = (x, y) => {
+      const e = document.elementFromPoint(x, y);
+      return e ? `${e.tagName.toLowerCase()}.${String(e.className).trim().split(/\s+/).slice(0, 2).join('.')}` : 'none';
+    };
+    const d = document.querySelector('.debug-overlay');
+    const dr = d && !d.hidden ? d.getBoundingClientRect() : null;
+    return { at: null, vw: innerWidth, vh: innerHeight, canvas: [r.left, r.top, r.width, r.height].map(Math.round), debug: dr ? [dr.left, dr.top, dr.width, dr.height].map(Math.round) : null, hits: pts.slice(0, 5).map(([fx, fy]) => el(r.left + r.width * fx, r.top + r.height * fy)) };
   });
-  assert(!!at, 'a point on the scene clear of the panel');
+  const at = atProbe.at;
+  assert(!!at, `a point on the scene clear of the panel and the debug overlay (${JSON.stringify(atProbe)})`);
   const camYaw = () => G(() => window.__app.current.player.cam.camera.rotation.y);
   const y0 = await camYaw();
   await page.mouse.move(at.x, at.y);
@@ -215,6 +347,8 @@ try {
   await frames(page, 2);
   const clickRow = async (key) => {
     const p = await G((k) => {
+      // (marlow-bays T2) the row's group opens first (groups other than the first start folded)
+      window.__animTune.reveal(k);
       const inp = document.querySelector(`.anim-tune input[data-pad="${k}"]`);
       const name = inp?.closest('[data-pad-row]')?.querySelector('.tt-name');
       if (!name) return null;
@@ -239,6 +373,85 @@ try {
   await frames(page, 3);
   const s3 = await G(() => window.__animTune.selected());
   assert(s3.kind === 'camera' && !s3.mark.shown, `the camera tab: no body marker (${s3.kind}, ${s3.mark.shown})`);
+  // (marlow-bays T2) the studio hides the game HUD; the canvas is docked beside the panel (her free area excludes it)
+  const t2a = await G(() => {
+    const hud = document.querySelector('.hud');
+    const c = window.__app.canvas.getBoundingClientRect();
+    const p = document.querySelector('.anim-tune').getBoundingClientRect();
+    return { hud: !hud || getComputedStyle(hud).display === 'none', studio: document.body.classList.contains('tt-studio'), docked: document.body.classList.contains('tt-docked'), cRight: c.right, pLeft: p.left, dock: window.__animTune.partState().dock };
+  });
+  assert(t2a.hud && t2a.studio, `T2: the game HUD is hidden in the studio (${JSON.stringify(t2a)})`);
+  assert(t2a.docked && t2a.dock > 0 && t2a.cRight <= t2a.pLeft + 1, `T2: the canvas ends where the docked panel starts (${t2a.cRight.toFixed(0)} <= ${t2a.pLeft.toFixed(0)}, dock ${t2a.dock})`);
+  // a click on the body map's left knee shows only the sliders that move it, the knee marked on the map
+  await G(() => window.__animTune.tab('body'));
+  await frames(page, 2);
+  const kneeAt = await G(() => {
+    const r = document.querySelector('.anim-tune-map [data-part="kneeL"] .hit')?.getBoundingClientRect();
+    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  });
+  assert(!!kneeAt, 'T2: the body map shows on the Body tab');
+  await page.mouse.click(kneeAt.x, kneeAt.y);
+  await frames(page, 3);
+  const bm = await G(() => ({ ...window.__animTune.partState(), on: document.querySelector('.anim-tune-map [data-part="kneeL"]').classList.contains('on') }));
+  assert(bm.part === 'kneeL' && bm.on && bm.rows.length > 0 && bm.rows.every((k) => /knee/i.test(k)), `T2: the map's left knee shows only knee sliders (${JSON.stringify(bm)})`);
+  // a click on her head in the scene picks the head (the marker's place on the canvas, drag view)
+  await G(() => window.__animTune.part('headNode'));
+  await frames(page, 4);
+  const headMark = await G(() => {
+    const m = window.__animTune.selected().mark;
+    const c = window.__app.canvas.getBoundingClientRect();
+    return m.shown ? { x: c.left + m.ax, y: c.top + m.ay } : null;
+  });
+  await G(() => window.__animTune.part(''));
+  await frames(page, 2);
+  assert(!!headMark, 'T2: the head marker shows');
+  await page.mouse.click(headMark.x, headMark.y);
+  await frames(page, 3);
+  const sc = await G(() => window.__animTune.partState());
+  assert(sc.part === 'headNode' && sc.label === 'Head', `T2: a click on her head in the scene picks the head (${JSON.stringify(sc)})`);
+  // pin and unpin a slider; a moved slider heads the recent chips
+  const pinKey = sc.rows[0];
+  assert(!!pinKey, `T2: the head shows a slider (${JSON.stringify(sc.rows)})`);
+  await G((k) => window.__animTune.pin(k), pinKey);
+  await frames(page, 2);
+  const pq1 = await G(() => ({ q: window.__animTune.quick(), chip: document.querySelectorAll('.anim-tune-quick .tt-chip.pin').length, star: !!document.querySelector('.anim-tune .tt-row .tt-pin.on') }));
+  assert(pq1.q.pins.some((p) => p.endsWith(`|${pinKey.split(':')[2]}`)) && pq1.chip >= 1 && pq1.star, `T2: a pinned slider shows as a chip and a filled star (${JSON.stringify(pq1)})`);
+  await G((k) => window.__animTune.pin(k), pinKey);
+  await frames(page, 2);
+  const pq2 = await G(() => window.__animTune.quick());
+  assert(!pq2.pins.some((p) => p.endsWith(`|${pinKey.split(':')[2]}`)), `T2: pin again unpins (${JSON.stringify(pq2)})`);
+  const rec = await G((k) => {
+    const inp = document.querySelector(`.anim-tune input[data-pad="${k}"]`);
+    const g = inp.dataset.group;
+    const id = inp.dataset.id;
+    const v0 = window.__animTune.get(g, id);
+    inp.value = String(Number(inp.min) + (Number(inp.max) - Number(inp.min)) * 0.75);
+    inp.dispatchEvent(new Event('input'));
+    const q = window.__animTune.quick();
+    const chip = [...document.querySelectorAll('.anim-tune-quick .tt-chip')].length;
+    window.__animTune.set(g, id, v0);
+    return { first: q.recent[0] ?? '', want: `|${g}|${id}`, chip };
+  }, pinKey);
+  assert(rec.first.endsWith(rec.want) && rec.chip >= 1, `T2: a moved slider heads the recent chips (${JSON.stringify(rec)})`);
+  // the Joints part, every part shown: groups fold; a header opens its group and closes it again
+  await G(() => {
+    window.__animTune.part('');
+    const sel = document.querySelector('.anim-tune-part-body');
+    sel.value = 'joint';
+    sel.dispatchEvent(new Event('change'));
+  });
+  await frames(page, 2);
+  const fold = await G(() => {
+    const hs = [...document.querySelectorAll('.anim-tune-rows-joint .tt-grp')];
+    const h = hs.find((x) => !x.classList.contains('open'));
+    if (!h) return { n: hs.length, a: false, b: false };
+    h.click();
+    const a = h.classList.contains('open') && !h.nextElementSibling.hidden;
+    h.click();
+    const b = !h.classList.contains('open') && h.nextElementSibling.hidden;
+    return { n: hs.length, a, b };
+  });
+  assert(fold.n > 1 && fold.a && fold.b, `T2: the Joints rows fold in groups; a header opens and closes its group (${JSON.stringify(fold)})`);
   await G(() => window.__animTune.tab('view'));
 
   // (marlow-bays item 11) the Keyed box: the state's keyed clip, cleared the procedural state
@@ -296,13 +509,13 @@ try {
   await page.keyboard.press('F8');
   await frames(page, 2);
   const o13 = await G(() => ({ spot: window.__studio.state().spot, btn: document.querySelector('.anim-tune-spot').textContent }));
-  const stage = () => G(() => ({ lights: window.__studioStage.lights(), root: window.__studioStage.root() }));
-  // a light's offset in her frame (forward, right, up)
+  const stage = () => G(() => ({ lights: window.__studioStage.lights(), root: window.__studioStage.root(), cam: (({ x, y, z }) => ({ x, y, z }))(window.__app.current.scene.activeCamera.globalPosition) }));
+  // (marlow-bays T2) a light's offset in the view frame (forward: from her toward the camera, right, up)
   const local = (l, r) => {
     const dx = l.x - r.x;
     const dz = l.z - r.z;
-    const s = Math.sin(r.yaw);
-    const c = Math.cos(r.yaw);
+    const s = Math.sin(r.viewYaw);
+    const c = Math.cos(r.viewYaw);
     return { f: dx * s + dz * c, r: dx * c - dz * s, u: l.y - r.y };
   };
   const L0 = await stage();
@@ -316,9 +529,12 @@ try {
     return Math.hypot(a.f - b.f, a.r - b.r, a.u - b.u);
   });
   const rootMoved = Math.hypot(L1.root.x - L0.root.x, L1.root.z - L0.root.z);
+  // key and fill on the camera's side of her, the rim beyond her (flat distances to the camera)
+  const camD = (p) => Math.hypot(p.x - L1.cam.x, p.z - L1.cam.z);
+  const faceCam = camD(L1.lights[0]) < camD(L1.root) && camD(L1.lights[1]) < camD(L1.root) && camD(L1.lights[2]) > camD(L1.root);
   assert(
-    L0.lights.length === 4 && L0.lights.every((l) => l.enabled && l.meshes > 0 && l.intensity > 0) && rootMoved > 0.5 && offs.every((d) => d < 0.1),
-    `the stage lights light her and follow her root (${L0.lights.map((l) => `${l.name} ${l.intensity.toFixed(2)} on ${l.meshes}`).join(', ')}; root moved ${rootMoved.toFixed(2)} m; offset change ${offs.map((d) => d.toFixed(3)).join(' ')})`,
+    L0.lights.length === 4 && L0.lights.every((l) => l.enabled && l.meshes > 0 && l.intensity > 0) && rootMoved > 0.5 && offs.every((d) => d < 0.1) && faceCam,
+    `the stage lights light her, follow her root and face the camera (key / fill nearer it, rim beyond: ${faceCam}; ${L0.lights.map((l) => `${l.name} ${l.intensity.toFixed(2)} on ${l.meshes}`).join(', ')}; root moved ${rootMoved.toFixed(2)} m; offset change ${offs.map((d) => d.toFixed(3)).join(' ')})`,
   );
   await G(() => window.__studio.stageLight(0.5));
   await frames(page, 3);
@@ -436,6 +652,108 @@ try {
     window.__animTune.set('key.walk.1', 'armL_elbow', 0);
   });
   await frames(page, 3);
+
+  // (marlow-bays item 23) key timing: jog key 2 (frame 4 of 32, bake frame 6 of 48) three bake frames later
+  await G(() => window.__animTune.tab('keys'));
+  await G(() => {
+    window.__animTune.pickLevel('keys', 0, 'jog');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 12);
+  await G(() => window.__studio.seek(0.125));
+  await frames(page, 12);
+  const k23a = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), s: window.__studio.state() }));
+  assert(
+    k23a.s.key === 1 && k23a.s.onKey && k23a.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 4') && k23a.time.info?.pos === 6 && k23a.time.readout.includes('as baked'),
+    `jog key 2 as baked before the retime (${JSON.stringify({ key: k23a.s.key, readout: k23a.keys.readout, time: k23a.time.readout })})`,
+  );
+  const old0 = await bones();
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.keysRetime(3));
+  await G(() => window.__animTune.settle());
+  await frames(page, 12);
+  const k23b = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), s: window.__studio.state(), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
+  assert(
+    k23b.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 6') && k23b.time.info?.pos === 9 && k23b.time.info?.partner === 5 && k23b.time.readout.includes('moved +3'),
+    `the retime moves the key's frame in the readout (${JSON.stringify({ readout: k23b.keys.readout, time: k23b.time.readout })})`,
+  );
+  assert(k23b.s.key === 1 && k23b.s.onKey && Math.abs(k23b.d - 9 / 48) < 1e-6, `the studio stands on the key at its new time (${JSON.stringify({ key: k23b.s.key, onKey: k23b.s.onKey, phase: k23b.d })})`);
+  const new1 = await bones();
+  const keySame = Math.max(ang(foreDir(new1, 'L'), foreDir(old0, 'L')), ang(foreDir(new1, 'R'), foreDir(old0, 'R')));
+  assert(keySame < 0.5, `the key's pose moved with it to its new time (forearms within ${keySame.toFixed(2)} deg)`);
+  await G(() => window.__studio.seek(0.125));
+  await frames(page, 12);
+  const old1 = await bones();
+  const oldMoved = Math.max(ang(foreDir(old1, 'L'), foreDir(old0, 'L')), ang(foreDir(old1, 'R'), foreDir(old0, 'R')));
+  assert(oldMoved > 0.75, `the pose at the old frame 4 changed (now between keys: the forearms turned ${oldMoved.toFixed(2)} deg)`);
+  await G(() => window.__animTune.undo());
+  await G(() => window.__studio.seek(0.125));
+  await frames(page, 12);
+  const k23c = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), t: window.__animTune.get('key.jog.1', 'time') }));
+  const old2 = await bones();
+  const back = Math.max(ang(foreDir(old2, 'L'), foreDir(old0, 'L')), ang(foreDir(old2, 'R'), foreDir(old0, 'R')));
+  assert(
+    k23c.t === 0 && k23c.time.info?.pos === 6 && k23c.keys.readout.startsWith('jog - key 2 of 8 (mirror of 6), frame 4') && back < 0.2,
+    `undo puts the key back: frame 4, the pose as before (${JSON.stringify({ t: k23c.t, readout: k23c.keys.readout })}, ${back.toFixed(2)} deg)`,
+  );
+  // the first key starts the cycle: its time is fixed
+  await G(() => window.__animTune.pickLevel('keys', 1, '0'));
+  await frames(page, 12);
+  const k23d = await G(() => ({ time: window.__animTune.keysTime(), early: document.querySelector('.anim-tune-keys-early')?.disabled, late: document.querySelector('.anim-tune-keys-late')?.disabled }));
+  assert(k23d.time.info?.fixed && k23d.early && k23d.late && k23d.time.readout.includes('fixed'), `the first key's time is fixed (${JSON.stringify({ readout: k23d.time.readout, early: k23d.early, late: k23d.late })})`);
+  const k25del0 = await G(() => ({ e: window.__animTune.keysEdit(), del: document.querySelector('.anim-tune-keys-del')?.disabled }));
+  assert(k25del0.del && /never deleted/.test(k25del0.e.info?.delWhy ?? ''), `(item 25) the first key is never deleted (${JSON.stringify(k25del0.e.info)})`);
+
+  // (marlow-bays item 25) add / delete keys: on jog key 2 (bake frame 6) "Add key" puts a key midway to key 3 (bake
+  // frame 9, frame 6 of 32) with its mirror, 8 -> 10 keys, the pose there unchanged; "Delete key" removes it (8 again);
+  // undo brings it back, a second undo leaves the clip as it was
+  await G(() => window.__animTune.pickLevel('keys', 1, '1'));
+  await frames(page, 12);
+  await G(() => window.__studio.seek(9 / 48));
+  await frames(page, 12);
+  const p25a = await bones();
+  const k25a = await G(() => ({ e: window.__animTune.keysEdit(), s: window.__studio.state(), add: document.querySelector('.anim-tune-keys-add')?.disabled }));
+  assert(k25a.s.keys === 8 && k25a.e.key === 1 && k25a.e.info?.addAt === 9 && !k25a.add, `(item 25) jog has 8 keys; Add key on key 2 lands at bake frame 9 (${JSON.stringify({ keys: k25a.s.keys, e: k25a.e })})`);
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.keysAdd());
+  await G(() => window.__animTune.settle());
+  await frames(page, 12);
+  const k25b = await G(() => ({ keys: window.__animTune.keys(), s: window.__studio.state(), at: window.__animTune.get('key.jog.a0', 'at'), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
+  const p25b = await bones();
+  const addSame = Math.max(ang(foreDir(p25b, 'L'), foreDir(p25a, 'L')), ang(foreDir(p25b, 'R'), foreDir(p25a, 'R')));
+  assert(
+    k25b.at === 9 && k25b.s.keys === 10 && k25b.keys.group === 'key.jog.a0' && k25b.keys.list.includes('a0') && k25b.keys.readout.startsWith('jog - key 3 of 10 (mirror of 8) (added), frame 6'),
+    `(item 25) the added key: 10 keys, the picker and the readout on it (${JSON.stringify({ at: k25b.at, keys: k25b.s.keys, group: k25b.keys.group, readout: k25b.keys.readout })})`,
+  );
+  assert(Math.abs(k25b.d - 9 / 48) < 1e-6 && addSame < 0.2, `(item 25) the studio stands on the added key, the pose as before (${k25b.d}, forearms within ${addSame.toFixed(2)} deg)`);
+  await G(() => window.__animTune.keysDelete());
+  await G(() => window.__animTune.settle());
+  await frames(page, 12);
+  const k25c = await G(() => ({ keys: window.__animTune.keys(), s: window.__studio.state(), at: window.__animTune.get('key.jog.a0', 'at') }));
+  assert(k25c.at === 0 && k25c.s.keys === 8 && !k25c.keys.list.includes('a0') && k25c.keys.group === 'key.jog.1', `(item 25) Delete key: 8 keys again, the picker on key 2 (${JSON.stringify({ at: k25c.at, keys: k25c.s.keys, group: k25c.keys.group })})`);
+  await G(() => window.__animTune.undo());
+  await frames(page, 12);
+  const k25d = await G(() => ({ at: window.__animTune.get('key.jog.a0', 'at'), keys: window.__studio.state().keys }));
+  await G(() => window.__animTune.settle());
+  await G(() => window.__animTune.undo());
+  await frames(page, 12);
+  const k25e = await G(() => ({ at: window.__animTune.get('key.jog.a0', 'at'), keys: window.__studio.state().keys }));
+  assert(k25d.at === 9 && k25d.keys === 10 && k25e.at === 0 && k25e.keys === 8, `(item 25) undo brings the added key back, a second undo removes it (${JSON.stringify({ k25d, k25e })})`);
+  // the clean state for the asserts below: no added key, jog key 2 shown
+  await G(() => {
+    window.__animTune.set('key.jog.a0', 'at', 0);
+    window.__animTune.pickLevel('keys', 0, 'jog');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 6);
+  // back to the state the Mirror steps left (the Keys picker and the studio on walk key 2) for the asserts below
+  await G(() => {
+    window.__animTune.pickLevel('keys', 0, 'walk');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 6);
+  await G(() => window.__studio.showKey('walk', 1));
+  await frames(page, 6);
 
   // (T1a, item 16) the playback bar on every tab: shown on the Body tab, F9 plays / pauses, a weapon picked in a tab
   // swaps her gun (a holstered loop plays the low ready), a climb move and a co-op role play their loops
