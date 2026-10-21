@@ -407,6 +407,14 @@ export class SectorMode implements GameMode {
     g.hud.banner(SECTOR_RESTART_TITLE, this.run.current?.name ?? '', 2200);
   }
 
+  /** (marlow-bays item 3) The pause menu's restart: the section from its checkpoint, as everyone down (not once the op
+   *  is ending, nor while a restart is already counting down). */
+  restartCheckpoint(): boolean {
+    if (this.endT >= 0 || this.restartT >= 0) return false;
+    this.restartSection();
+    return true;
+  }
+
   fixedUpdate(dt: number): void {
     const g = this.g;
     if (this.endT > 0) {

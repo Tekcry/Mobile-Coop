@@ -147,6 +147,55 @@ try {
   assert(Math.abs(pr2.tA - pr.tA - 1 / 30) < 0.01 && pr2.tA === pr2.tB, `a key step moves both by one frame (${pr.tA.toFixed(3)} -> ${pr2.tA.toFixed(3)})`);
   await G(() => window.__studio.play());
 
+  // (anim-joints J1) the base table every Wren rig reads: a base row set through the dev hook (the tuner at identity)
+  // turns Wren's elbow in the hold pair and leaves the guard (not a Wren rig) as it was; in the boost pair role B's
+  // puppet picks its own row and takes it too
+  const jbones = () => G(() => {
+    const q = (r, n) => { const x = r[n].rotationQuaternion; return [x.x, x.y, x.z, x.w]; };
+    const st = window.__app.current.studio;
+    const pl = window.__app.current.player.rig;
+    const gd = st.guard;
+    const pb = st.puppets?.[1]?.rig ?? null;
+    const N = ['elbowR', 'elbowL', 'shoulderR', 'wristR', 'kneeL', 'hipL', 'spine', 'neck'];
+    return { body: pl.tuneSt?.body ?? null, el: q(pl, 'elbowR'), guard: gd ? N.map((n) => q(gd, n)) : null, guardFlag: gd ? gd.tuneRows : null, bBody: pb?.tuneSt?.body ?? null, bEl: pb ? q(pb, 'elbowR') : null };
+  });
+  const jang = (a, b) => (2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) * 180) / Math.PI;
+  await G(() => window.__studio.pick('pair:hold_idle'));
+  await frames(page, 6);
+  await G(() => window.__studio.pause());
+  await frames(page, 6);
+  const jb0 = await jbones();
+  await frames(page, 4);
+  const jb1 = await jbones();
+  assert(!!jb1.body && !!jb1.guard && jb1.guardFlag === false, `the hold pair: Wren picks a row, the guard has no flag (${jb1.body}, ${jb1.guardFlag})`);
+  assert(jang(jb0.el, jb1.el) < 2, `paused, Wren's elbow holds still (${jang(jb0.el, jb1.el).toFixed(2)} deg)`);
+  await G((row) => window.__animBase.setJoint(row, 'elbowR', [40, 0, 0]), jb1.body);
+  await frames(page, 6);
+  const jb2 = await jbones();
+  const gMax = Math.max(...jb1.guard.map((q, i) => jang(q, jb2.guard[i])));
+  assert(jang(jb1.el, jb2.el) > 20, `a base row (${jb1.body} elbowR 40 deg) turns Wren's elbow with the tuner at identity (${jang(jb1.el, jb2.el).toFixed(1)} deg)`);
+  assert(gMax < 1, `the guard is untouched (${gMax.toFixed(3)} deg)`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.pick('pair:boost'));
+  await frames(page, 4);
+  await G(() => window.__studio.pause());
+  // (role B's assist itself has no stance row until J2's move rows: a moment where B stands in a stance)
+  let jp0 = null;
+  for (let k = 0; k < 10 && !jp0?.bBody; k++) {
+    await G((v) => window.__studio.seek(v), k / 10);
+    await frames(page, 4);
+    jp0 = await jbones();
+  }
+  assert(!!jp0.bBody && !!jp0.bEl, `the boost pair's role B picks its own stance row (${jp0.bBody})`);
+  await G((row) => window.__animBase.setJoint(row, 'elbowR', [40, 0, 0]), jp0.bBody);
+  await frames(page, 6);
+  const jp1 = await jbones();
+  assert(jang(jp0.bEl, jp1.bEl) > 20, `role B's puppet takes its base row (${jp0.bBody} elbowR: ${jang(jp0.bEl, jp1.bEl).toFixed(1)} deg)`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.play());
+  await G(() => window.__studio.pick('state:idle'));
+  await frames(page, 4);
+
   // (anim-studio-2) a traversal loop: Wren walks to the ladder and attaches by the synthesised Y; then back to the middle
   await G(() => window.__studio.pick('trav:ladder'));
   let att = '';

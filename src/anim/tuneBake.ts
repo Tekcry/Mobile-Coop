@@ -15,6 +15,7 @@
  */
 import { applyKeyEdits, editedClips, KEY_FIELDS, keyFileText, keyHalvesDiffer, keyMirrorOn, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile';
 import { migrateTuneChanged } from './tuneRows';
+import { applyBaseEntries, BAKE_BASE_FILE, BAKE_BASE_SECTIONS, baseTarget, bakeFmt, parseAnimBase, spliceAnimBase } from './tuneBakeBase';
 import { BAKE_KEYS_DIR, BAKE_LEDGER, BAKE_MANUAL, BAKE_RULES, BAKE_WRITE_ROOTS, type BakeOp, type BakeRule, type DeclaredSection, type DeclaredTunable, type ManualRule } from './tuneBakeTable';
 
 export const BAKE_MAGIC = 'night-shift-anim-tune';
@@ -238,12 +239,8 @@ const RE_MUL2 = new RegExp(`^(${NUM})(\\s*\\*\\s*${IDENT})$`);
 const RE_ADD = new RegExp(`^(${IDENT})(\\s*)([+-])(\\s*)(${NUM})$`);
 const RE_ID = new RegExp(`^${IDENT}$`);
 
-/** About 4 significant digits, no -0. */
-export function bakeFmt(v: number): string {
-  if (!Number.isFinite(v)) throw new Error(`not a finite result (${v})`);
-  const r = Number(v.toPrecision(4)) + 0;
-  return String(r);
-}
+/** About 4 significant digits, no -0 (`tuneBakeBase.ts`, shared with the base table). */
+export { bakeFmt };
 
 interface PendingOp {
   op: BakeOp;
@@ -589,9 +586,23 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
   const pending = new Map<string, Map<string, PendingOp[]>>();
   let baked = 0;
   let manualN = skippedN;
+  // (anim-joints J1) Joints, Hands & feet, IK strength and Weapon: the generated base table (`animBase.ts`)
+  const isBase = (en: Entry): boolean => BAKE_BASE_SECTIONS.includes(en.section) && !MANUAL.some((x) => x.section === en.section && (x.id === en.id || x.id === '*') && (x.groups ? x.groups.includes(en.group) : true));
+  const baseEntries: Entry[] = [];
   for (const en of entries) {
     const row = en.row;
     if (en.section === 'keys') continue;
+    if (isBase(en)) {
+      try {
+        row.target = baseTarget(en);
+      } catch (err) {
+        return fail((err as Error).message);
+      }
+      row.result = 'baked (base table)';
+      baseEntries.push(en);
+      baked++;
+      continue;
+    }
     const sts = byEntry.get(en);
     if (!sts || sts.length === 0) {
       const m = MANUAL.find((x) => x.section === en.section && (x.id === en.id || x.id === '*') && (x.groups ? x.groups.includes(en.group) : !RULES.some((r) => r.section === en.section && r.id === en.id && r.groups.includes(en.group))));
@@ -650,6 +661,17 @@ export function tuneBake(data: unknown, cat: Catalogue, read: (path: string) => 
     let after = before;
     for (const r of reps) after = after.slice(0, r.start) + r.text + after.slice(r.end);
     if (after !== before) writes.push({ path: file, before, after });
+  }
+  // (anim-joints J1) the base table: one write, the entries composed in by the A1 rules
+  if (baseEntries.length) {
+    const before = read(BAKE_BASE_FILE);
+    if (before === null) return fail(`${BAKE_BASE_FILE}: not found`);
+    try {
+      const after = spliceAnimBase(before, applyBaseEntries(parseAnimBase(before), baseEntries));
+      if (after !== before) writes.push({ path: BAKE_BASE_FILE, before, after });
+    } catch (err) {
+      return fail((err as Error).message);
+    }
   }
 
   // 6. Keys: the key JSONs (the apply-tune functions), then a rebake per clip

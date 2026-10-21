@@ -20,6 +20,7 @@ import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
+import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -577,6 +578,19 @@ export class CharacterRig {
   }
   /** (tuner-v2 item 2) Trigger finger mode from the tuner this frame: -1 off, 0 auto, 1 on (only the local player's). */
   triggerTune = 0;
+  /** (anim-joints J1) This rig's tuner window state (`tuneRows`); null: the rig never reads the tables. */
+  tuneSt: TuneRigState | null = null;
+  /**
+   * (anim-joints J1, A2 / A7) A Wren rig reads the animation base table and the tuner's Joints / Hands & feet / IK /
+   * Weapon deltas (set where the rig is made: `operatorRig`). Its state is allocated once here; off for every other rig.
+   */
+  get tuneRows(): boolean {
+    return this.tuneSt !== null;
+  }
+  set tuneRows(on: boolean) {
+    if (on && !this.tuneSt) this.tuneSt = tuneRigState();
+    else if (!on) this.tuneSt = null;
+  }
   /**
    * (tuner-v2 item 2) The held gun's model (WeaponModel.hold sets it): the tuner's visual gun transform goes on its
    * rendered mesh while `node` is `heldWeapon`. Gameplay never reads it.
@@ -1393,6 +1407,22 @@ export class CharacterRig {
     }
     dt += this.lodDt;
     this.lodDt = 0;
+    // (anim-joints J1) a Wren rig (`tuneRows`) opens its own tuner window: its rows of the base table + the tuner deltas
+    const ts = this.tuneSt;
+    if (ts === null) {
+      this.animateFrame(dt, s);
+      return;
+    }
+    tuneRigBegin(ts, s, this, dt);
+    try {
+      this.animateFrame(dt, s);
+    } finally {
+      tuneRigEnd();
+    }
+  }
+
+  /** (anim-joints J1) One solved frame of `animate` (after the LOD skip; inside the rig's tuner window when it has one). */
+  private animateFrame(dt: number, s: RigPose): void {
     const i = this.input;
     i.speed = s.speed;
     i.localX = s.localX;
@@ -2202,7 +2232,7 @@ export class CharacterRig {
   }
 
   /**
-   * (tuner-v2 item 1) The local player's per-joint offsets (`anim/tuneJoints`), only while `JOINTS_CUR.on`: 0 the trunk
+   * (tuner-v2 item 1, anim-joints J1) A Wren rig's per-joint offsets (`anim/tuneJoints`), only while `JOINTS_CUR.on`: 0 the trunk
    * (pelvis, spine, chest, neck: before the IK), 1 the legs (hips, knees, ankles, toes: on the IK's solution, so an
    * offset there moves the foot off its plant), 2 the head (on the look), 3 the arms (shoulders in the chest frame, upper
    * arms, elbows, wrists: on the IK's solution). A joint with no offset is untouched. No allocation.

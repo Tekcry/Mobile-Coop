@@ -308,12 +308,14 @@ for (const id of ['stopSettle', 'accelLean', 'stopLean', 'bank', 'plantDrop', 'l
 }
 
 // ------------------------------------------------------------------------------------------
-// Joints, Hands & feet, IK strength, Weapon (tuneV2Sections.ts): local-only tuner tables with no code default
+// Joints, Hands & feet, IK strength, Weapon (tuneV2Sections.ts): (anim-joints J1) the generated base table
 // ------------------------------------------------------------------------------------------
 
-const V2_REASON = 'no code value: a local-player tuner table (defaults all identity); a per-state base table every rig reads is a later job';
-/** Slider ids of the four v2 sections are many; one manual entry per section covers every slider (`*`). */
-for (const s of ['joint', 'hand', 'ik', 'weapon']) manuals.push(manual(s, '*', V2_REASON));
+/**
+ * Every slider and row of these four sections bakes into the generated base table `src/anim/animBase.ts`, which every
+ * Wren rig reads (`tuneBakeBase.ts`: `BAKE_BASE_FILE`, `BAKE_BASE_SECTIONS`; composed by the A1 rules, keyed by row id,
+ * joint name and param id). They need no rule here; only the panel option stays manual.
+ */
 manuals.push(manual('joint', 'mirror', 'a panel option (the mirror lock), nothing to bake', ['joint.options']));
 
 /**

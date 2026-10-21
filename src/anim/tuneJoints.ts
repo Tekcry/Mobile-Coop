@@ -4,10 +4,17 @@
  * (`BODY_GROUPS`). Every value defaults to 0 and a joint whose three values are 0 is never touched, so the default
  * output is bit-identical to the untuned rig.
  *
- * Hot path: `jointsBegin(group, dt)` (around the LOCAL player's `rig.animate`, like `tuneBegin`) eases the applied offsets
- * toward the group's row (`JOINT_EASE_TAU`, so a state change never snaps; settled values are exact, identity included);
- * `jointApply` multiplies a node's local rotation by the joint's applied offset quaternion (buffer lookup, no trig, no
- * allocation). Outside the window (remotes, guards, every other rig) `JOINTS_CUR.on` is false and nothing is touched.
+ * (anim-joints J1) Base and delta: the table here is the tuner's DELTA (what the panel edits, saves and exports); the
+ * generated base table `animBase.ts` (baked exports) sits under it. The EFFECTIVE row applied is base + delta per axis
+ * in degrees, wrapped to -180..180 (`wrapDeg`), its quaternion built from that sum (so a bake is exact); rebuilt on an
+ * edit or a load, never per frame.
+ *
+ * Hot path: each Wren rig (`CharacterRig.tuneRows`) owns a `JointsRigState` and opens its window inside its own
+ * `animate` (`jointsBeginRig`, via `tuneJointsRig.ts`): the rig's applied offsets ease toward its row's effective values
+ * (`JOINT_EASE_TAU`, so a state change never snaps; settled values are exact, identity included); `jointApply`
+ * multiplies a node's local rotation by the open rig's applied offset quaternion (buffer lookup, no trig, no
+ * allocation). Outside a window (guards, the VIP, every non-Wren rig) `JOINTS_CUR.on` is false and nothing is touched.
+ * `jointsBegin(group, dt)` opens the module's own state (tests, tools).
  *
  * Mirror lock (`jointsMirror`): an edit to a left / right joint also writes its partner mirrored across the body's
  * sagittal plane. The rig's bones all rest at identity in the body frame (x right, y up, z forward), so the mirror of a
@@ -16,6 +23,7 @@
  * Save / Export: additive key `joints` on the tuner's existing IndexedDB record and export (`jointsAttach`,
  * `jointsLoadFrom`); `tuneLoad` ignores unknown keys and a record without `joints` loads as all zero.
  */
+import { ANIM_BASE } from './animBase';
 import { BODY_GROUPS } from './tune';
 import { JOINT_WEAPON_ROWS } from './tuneRows';
 
@@ -65,13 +73,19 @@ export const JOINT_ROWS: readonly string[] = [...BODY_GROUPS, ...JOINT_WEAPON_RO
 const G = JOINT_ROWS.length;
 const GROUP_INDEX = Object.fromEntries(JOINT_ROWS.map((g, i) => [g, i])) as Record<string, number>;
 
-/** Degrees, [group][joint][axis] flat. The source of truth. */
+/** The tuner's delta, degrees, [group][joint][axis] flat. The source of truth of the panel. */
 const DEG = new Float64Array(G * JOINT_COUNT * 3);
-/** The offset quaternions (x y z w), [group][joint] flat, rebuilt on every edit. */
+/** (J1) The base table's degrees (`animBase.ts`), same layout. */
+const BASE = new Float64Array(G * JOINT_COUNT * 3);
+/** The EFFECTIVE offset quaternions (x y z w, base + delta), [group][joint] flat, rebuilt on every edit or load. */
 const QUAT = new Float64Array(G * JOINT_COUNT * 4);
-/** 1 when the joint has any non-zero angle. */
+/** 1 when the joint's delta has any non-zero angle (the panel's "changed", the snapshot). */
 const LIVE = new Uint8Array(G * JOINT_COUNT);
+/** (J1) 1 when the joint's effective offset (base + delta) is not identity (the hot path). */
+const ELIVE = new Uint8Array(G * JOINT_COUNT);
 for (let i = 0; i < G * JOINT_COUNT; i++) QUAT[i * 4 + 3] = 1;
+/** (J1) Bumped by every load (delta or base): each rig's applied offsets jump (no ease from the old values). */
+let loadGen = 0;
 
 let mirror = false;
 
@@ -103,12 +117,19 @@ function gi(group: string): number {
   return i;
 }
 
+/** (J1) Degrees wrapped into -180..180 (inside it unchanged; no -0). */
+export function wrapDeg(v: number): number {
+  const w = v > 180 || v < -180 ? v - 360 * Math.round(v / 360) : v;
+  return w + 0;
+}
+
 function rebuild(slot: number): void {
   const d = slot * 3;
-  const x = DEG[d]!;
-  const y = DEG[d + 1]!;
-  const z = DEG[d + 2]!;
-  LIVE[slot] = x !== 0 || y !== 0 || z !== 0 ? 1 : 0;
+  LIVE[slot] = DEG[d] !== 0 || DEG[d + 1] !== 0 || DEG[d + 2] !== 0 ? 1 : 0;
+  const x = wrapDeg(BASE[d]! + DEG[d]!);
+  const y = wrapDeg(BASE[d + 1]! + DEG[d + 1]!);
+  const z = wrapDeg(BASE[d + 2]! + DEG[d + 2]!);
+  ELIVE[slot] = x !== 0 || y !== 0 || z !== 0 ? 1 : 0;
   eulerQuat(x * D2R, y * D2R, z * D2R, QUAT, slot * 4);
 }
 
@@ -190,52 +211,89 @@ export function jointsGroupChanged(group: string): boolean {
 // Hot path
 // ------------------------------------------------------------------------------------------
 
-/**
- * The applied offsets (x y z w per joint), eased toward the active state's row so a state change never snaps an offset
- * in (the arm hooks run after their `limitJoint`, so nothing else would smooth them). `CUR_LIVE` = not exact identity.
- */
-const CUR = new Float64Array(JOINT_COUNT * 4);
-const CUR_LIVE = new Uint8Array(JOINT_COUNT);
-for (let j = 0; j < JOINT_COUNT; j++) CUR[j * 4 + 3] = 1;
-let curAny = false;
 /** The ease time constant (s): exponential, like the rig's `approachTo` 0.06 s (velocity / rest shift); ~95% in 0.18 s. */
 export const JOINT_EASE_TAU = 0.06;
 /** Within this (per component) of the target the current offset snaps to it exactly, so identity stays bit-exact. */
 const SNAP_EPS = 1e-6;
 
-function curReset(): void {
+/**
+ * (J1) One rig's applied offsets (x y z w per joint), eased toward its row so a state change never snaps an offset in
+ * (the arm hooks run after their `limitJoint`, so nothing else would smooth them). `live` per joint = not exact
+ * identity. Allocated once per rig (`jointsRigState`).
+ */
+export interface JointsRigState {
+  readonly cur: Float64Array;
+  readonly live: Uint8Array;
+  any: boolean;
+  gen: number;
+  /** The row this rig picked last (index into `JOINT_ROWS`, -1 none). */
+  row: number;
+}
+
+export function jointsRigState(): JointsRigState {
+  const cur = new Float64Array(JOINT_COUNT * 4);
+  for (let j = 0; j < JOINT_COUNT; j++) cur[j * 4 + 3] = 1;
+  return { cur, live: new Uint8Array(JOINT_COUNT), any: false, gen: loadGen, row: -1 };
+}
+
+function stateReset(st: JointsRigState): void {
+  const c = st.cur;
   for (let j = 0; j < JOINT_COUNT; j++) {
     const o = j * 4;
-    CUR[o] = CUR[o + 1] = CUR[o + 2] = 0;
-    CUR[o + 3] = 1;
-    CUR_LIVE[j] = 0;
+    c[o] = c[o + 1] = c[o + 2] = 0;
+    c[o + 3] = 1;
+    st.live[j] = 0;
   }
-  curAny = false;
+  st.any = false;
+  st.gen = loadGen;
+}
+
+/** The module's own state (`jointsBegin`: tests and tools). */
+const OWN = jointsRigState();
+/** The state of the open window (`jointApply` reads it). */
+let act: JointsRigState = OWN;
+
+/** (J1) A Joints row's index ('' or unknown: -1). Not hot. */
+export function jointRowIndex(row: string): number {
+  return row === '' ? -1 : (GROUP_INDEX[row] ?? -1);
 }
 
 /**
- * Before the LOCAL player's `rig.animate`: ease the applied offsets toward the state's row ('' = toward none) over `dt`
- * seconds (nlerp, `JOINT_EASE_TAU`; the default `Infinity` jumps straight to the row). No allocation.
+ * The module's own window (tests, tools): ease toward the state's row ('' = toward none) over `dt` seconds (the default
+ * `Infinity` jumps straight to the row). No allocation.
  */
 export function jointsBegin(group: string, dt = Number.POSITIVE_INFINITY): void {
-  const g = group === '' ? undefined : GROUP_INDEX[group];
-  const b = g === undefined ? -1 : g * JOINT_COUNT;
+  jointsBeginRig(OWN, jointRowIndex(group), dt);
+}
+
+/**
+ * (J1) Before a rig's own `animate`: ease `st`'s applied offsets toward row `g`'s effective values (-1 = toward none)
+ * over `dt` seconds (nlerp, `JOINT_EASE_TAU`) and open the window on `st`. Nothing applied and nothing live in the row:
+ * the window stays off, no work. No allocation.
+ */
+export function jointsBeginRig(st: JointsRigState, g: number, dt: number): void {
+  const b = g < 0 || g >= G ? -1 : g * JOINT_COUNT;
   JOINTS_CUR.on = false;
-  if (!curAny) {
+  st.row = b < 0 ? -1 : g;
+  if (st.gen !== loadGen) stateReset(st);
+  if (!st.any) {
     // the common case: nothing applied, and nothing live in this row -> off, no work
     let any = false;
-    if (b >= 0) for (let j = 0; j < JOINT_COUNT; j++) if (LIVE[b + j] === 1) any = true;
+    if (b >= 0) for (let j = 0; j < JOINT_COUNT; j++) if (ELIVE[b + j] === 1) any = true;
     if (!any) return;
   }
-  const k = dt > 0 ? 1 - Math.exp(-dt / JOINT_EASE_TAU) : 0;
-  curAny = false;
+  const CUR = st.cur;
+  const CUR_LIVE = st.live;
+  // (J1) dt 0 (a frozen game: the tuner's Pause, the studio's pause) = at once, as the registry's sections
+  const k = dt > 0 ? 1 - Math.exp(-dt / JOINT_EASE_TAU) : 1;
+  let curAny = false;
   for (let j = 0; j < JOINT_COUNT; j++) {
     const o = j * 4;
     let tx = 0;
     let ty = 0;
     let tz = 0;
     let tw = 1;
-    if (b >= 0 && LIVE[b + j] === 1) {
+    if (b >= 0 && ELIVE[b + j] === 1) {
       const t = (b + j) * 4;
       tx = QUAT[t]!;
       ty = QUAT[t + 1]!;
@@ -285,10 +343,12 @@ export function jointsBegin(group: string, dt = Number.POSITIVE_INFINITY): void 
     CUR_LIVE[j] = live;
     if (live) curAny = true;
   }
+  st.any = curAny;
+  act = st;
   JOINTS_CUR.on = curAny;
 }
 
-/** After the local player's `rig.animate`. */
+/** After the rig's `animate` (closes whichever window is open). */
 export function jointsEnd(): void {
   JOINTS_CUR.on = false;
 }
@@ -302,15 +362,17 @@ export interface QuatLike {
 }
 
 /**
- * Apply joint `joint`'s offset to a node's local rotation `q`: `parent` false = in the joint's own frame (q * off),
- * true = in the parent's frame (off * q; the shoulders, which share the arm's node with the upper arms). Returns false
- * and leaves `q` untouched when the window is off or the joint has no offset. No allocation.
+ * Apply joint `joint`'s offset (the open window's rig) to a node's local rotation `q`: `parent` false = in the joint's
+ * own frame (q * off), true = in the parent's frame (off * q; the shoulders, which share the arm's node with the upper
+ * arms). Returns false and leaves `q` untouched when the window is off or the joint has no offset. No allocation.
  */
 export function jointApply(q: QuatLike, joint: number, parent = false): boolean {
   if (!JOINTS_CUR.on) return false;
-  if (CUR_LIVE[joint] !== 1) return false;
+  const st = act;
+  if (st.live[joint] !== 1) return false;
   const o = joint * 4;
-  mulInto(q, CUR[o]!, CUR[o + 1]!, CUR[o + 2]!, CUR[o + 3]!, parent);
+  const c = st.cur;
+  mulInto(q, c[o]!, c[o + 1]!, c[o + 2]!, c[o + 3]!, parent);
   return true;
 }
 
@@ -373,7 +435,7 @@ export function jointsSnapshot(): JointsSnapshot {
 export function jointsLoad(s: unknown): void {
   for (let i = 0; i < DEG.length; i++) DEG[i] = 0;
   for (let i = 0; i < LIVE.length; i++) rebuild(i);
-  curReset(); // a load jumps (no ease from the old values)
+  loadGen++; // a load jumps (no ease from the old values), on every rig
   mirror = false;
   if (!s || typeof s !== 'object') return;
   const snap = s as Partial<JointsSnapshot>;
@@ -407,4 +469,63 @@ export function jointsAttach<T extends object>(rec: T): T & { joints?: JointsSna
 /** Load the `joints` key of a tuner record (a record without it, an old save, loads as all zero). */
 export function jointsLoadFrom(rec: unknown): void {
   jointsLoad(rec && typeof rec === 'object' ? (rec as { joints?: unknown }).joints : undefined);
+}
+
+// ------------------------------------------------------------------------------------------
+// (anim-joints J1) The base table (`animBase.ts`): loaded at start, or by the dev hook
+// ------------------------------------------------------------------------------------------
+
+/**
+ * Load the base table's joints (row -> joint name -> [x, y, z] degrees): every base value back to 0 first, then the
+ * known rows and joints (by name); the effective rows are rebuilt and every rig jumps. Returns the unknown `row` /
+ * `row.joint` names (skipped).
+ */
+export function jointsBaseLoad(joints: unknown): string[] {
+  const unknown: string[] = [];
+  BASE.fill(0);
+  if (joints && typeof joints === 'object') {
+    for (const [rName, row] of Object.entries(joints as Record<string, unknown>)) {
+      const g = GROUP_INDEX[rName];
+      if (g === undefined || !row || typeof row !== 'object') {
+        unknown.push(rName);
+        continue;
+      }
+      for (const [jName, v] of Object.entries(row as Record<string, unknown>)) {
+        const j = (J as Record<string, number | undefined>)[jName];
+        if (j === undefined || !Array.isArray(v)) {
+          unknown.push(`${rName}.${jName}`);
+          continue;
+        }
+        for (let a = 0; a < 3; a++) {
+          const n: unknown = v[a];
+          if (typeof n === 'number' && Number.isFinite(n)) BASE[(g * JOINT_COUNT + j) * 3 + a] = wrapDeg(n);
+        }
+      }
+    }
+  }
+  for (let i = 0; i < LIVE.length; i++) rebuild(i);
+  loadGen++;
+  return unknown;
+}
+
+/** The base table's value of one axis (degrees). */
+export function jointsBaseGet(group: string, joint: number, axis: JointAxis): number {
+  return BASE[(gi(group) * JOINT_COUNT + joint) * 3 + axis]!;
+}
+
+/** The effective value of one axis (base + delta, wrapped; degrees): what every Wren rig applies. */
+export function jointsEffective(group: string, joint: number, axis: JointAxis): number {
+  const d = (gi(group) * JOINT_COUNT + joint) * 3 + axis;
+  return wrapDeg(BASE[d]! + DEG[d]!);
+}
+
+/** True when any row has an effective offset (base or delta). Not hot. */
+export function jointsAnyLive(): boolean {
+  for (let i = 0; i < ELIVE.length; i++) if (ELIVE[i] === 1) return true;
+  return false;
+}
+
+{
+  const bad = jointsBaseLoad(ANIM_BASE.joints);
+  if (bad.length) console.warn(`animBase: unknown Joints rows / joints skipped: ${bad.join(', ')}`);
 }

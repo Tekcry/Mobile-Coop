@@ -20,7 +20,8 @@
   one frame, up to 0.1 m on a busy machine; e2e-studio's light check failed under load).
 - New suite `e2e-tuner-phone` (required).
 
-## Unreleased - marlow-bays slice T2 (tuner redesign)
+
+## 4.39.0 - Animation tuner redesign: docked panel in the menu style, body map, pinned sliders, folding groups; brighter studio (2026-10-21, PR #86)
 - The animation tuner redesigned (Michael: "the UI is currently very poor": hard to read, cluttered, hard to navigate,
   looks unfinished). It now looks like the game's menus (their font, colours and focus bar), with larger text and values
   (Medium, now the default, is 19 px at 1080p; S / M / L 16 / 19 / 22).
@@ -42,6 +43,33 @@
   is untouched.
 - Pad: the D-pad reaches the part list and the chips (after the playback bar, before the tab's controls); the group
   headers fold with A; the Y menu gains Pin / unpin this slider and Show every part. No button moved.
+
+## 4.38.0 - Marlow Yard fixes: co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (2026-10-21, PR #85)
+- Co-op: holding a guard as the joiner no longer slows and shoves you (Michael: "coop player unusual and slow movement
+  when holding guard"). The held guard stayed solid on the joiner's side and kept pushing the holder back; it is now
+  non-solid there, as on the host and in solo (bullets still hit him). On the host, the joiner's hostage follows the
+  joiner's drawn body instead of stepping ahead of it. Solo hold and carry speeds are unchanged.
+- Marlow Yard station 2: the host can unbolt the door alone after the leg-up (Michael: "stays closed and locked").
+  The host's own presses on course devices were counted as the joiner's, so the bolt checked the joiner's side of the
+  door (and "Bolted from the other side" went to the joiner's screen). The same fix credits the host's own hold
+  consoles, pickups and finish correctly.
+- Camera cue: the pulsing red frame edge while a camera sees a player is gone; the cue is the red grid only (in
+  electro, the white grid). The two red lines on station 3's floor are the painted edges of that camera's +-30 deg
+  sweep (course spec M2), kept.
+- Pause menu: "Restart at checkpoint" in Sector Ops and the co-op course (the section or the bay starts again, both
+  players back at the checkpoint) and, in co-op, "Return to lobby" (both players back to the room lobby). Each asks
+  first, with Stay focused. In co-op both are the host's: the joiner sees them disabled, "Host only".
+
+## 4.37.0 - Joints, Hands & feet, IK and Weapon tuning bake into a base table every Wren reads, the partner too (2026-10-21, PR #84)
+- Joints, Hands & feet, IK strength and Weapon tunes now bake (Michael: "make sure i have full control over every stance
+  and every body part"; COVERAGE gap 1): `scripts/anim-tune-bake.mjs` writes them into a generated base table
+  (`src/anim/animBase.ts`) instead of listing them as manual, so a tuned elbow becomes the default after the merge.
+  Exports from before (version 1 and 2) bake too.
+- Those four sections now act on every Wren rig, not only your own: the co-op partner's avatar and the Anim Studio's
+  pair puppets show the base table and your live tuner edits; guards and other characters are never touched. The
+  tuner's sliders are changes on top of the base table (reset them after a bake: the look stays).
+- With the game paused (the tuner's Pause, the studio's pause) a Joints, Hands & feet, IK or Weapon edit now shows at
+  once, as the Body and Gun sliders do (before it waited for the game to run).
 
 ## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in
