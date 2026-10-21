@@ -16,9 +16,9 @@ beforeEach(() => {
 });
 
 describe('tuner-v2 sections in the registry', () => {
-  it('register after Body, Gun and Camera: Joints, Hands & feet, IK strength, Weapon, Stepping; unique groups', () => {
+  it('register after Body, Gun and Camera: Joints, Hands & feet, IK strength, Weapon, Stepping, Gear; unique groups', () => {
     const ids = TUNE_SECTIONS.map((s) => s.id);
-    expect(ids.slice(-5)).toEqual(['joint', 'hand', 'ik', 'weapon', 'step']);
+    expect(ids.slice(-6)).toEqual(['joint', 'hand', 'ik', 'weapon', 'step', 'gear']); // (anim-gear) Gear last
     expect(ids.indexOf('joint')).toBeGreaterThan(2);
     const groups = TUNE_SECTIONS.flatMap((s) => s.groups);
     expect(new Set(groups).size).toBe(groups.length);
