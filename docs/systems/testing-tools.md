@@ -50,7 +50,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
-  `overlayProject`, `animTune*`, `tunerLayout`: `e2e-studio` plus their folder's suites), `src/core/quality`, `display`, `settings`
+  `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget): `e2e-studio` plus their folder's suites), `src/core/quality`, `display`, `settings`
   and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
@@ -242,7 +242,13 @@ behind a VPN adapter).
   `src/ui/tunerLayout`) Picking a loop sets the tuner's state; a walk state on the spot keeps the root within 5 cm while
   the gait runs; a side snap holds the camera to her facing as she turns; the pause menu stops a moving loop. (e2e-menus
   has the tuner-ui pad checks: tabs by LB / RB, the drop-down, values shown and light on dark, the hint strip under the
-  rows, pause while tuning.) (anim-studio-2, also
+  rows, pause while tuning.) (marlow-bays slice T, also covers `src/ui/tunerMouse`, `tunerTarget`) Keyboard and mouse: the
+  open tuner is in drag view with no pointer lock; a left drag on the scene turns the camera; the header button and F4
+  switch to the game camera and back; a row clicked in the Joints part is marked (`tt-sel`) and the scene marker sits on
+  its joint, another row moves it, the Camera tab has none; the Keyed box plays `keyed:walk` from `state:walk` and back,
+  greyed on a keyed-only clip; a state picked in the Joints part's state list plays its loop (the tab stays); on the spot
+  (header button, F8) the walk holds its root under 5 cm over 2 s of live play, off she walks; the four stage lights light
+  her meshes, keep their offset in her frame as she walks, and the Stage light slider scales them. (anim-studio-2, also
   covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
   hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
   (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder

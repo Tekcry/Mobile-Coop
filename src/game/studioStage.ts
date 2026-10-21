@@ -1,4 +1,4 @@
-import type { Scene } from '../core/babylon';
+import { Color3, PointLight, Vector3, type AbstractMesh, type Material, type Scene } from '../core/babylon';
 import { hyp2 } from '../core/mathx';
 import { InputState } from '../input/inputState';
 import { CharacterRig, type RigPose, type WorldTarget } from '../player/characterRig';
@@ -17,7 +17,7 @@ import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelec
 import { newStudioDrive } from '../anim/studioDrive';
 import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STUDIO, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioReset, studioScrub, studioSpot, studioStepPhase, spotShift, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioReset, studioScrub, studioSpot, studioStepPhase, spotShift, stageLightPlace, type StudioEntry, type StudioInputOut } from '../anim/studio';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -111,11 +111,39 @@ export class StudioStage {
   private spotX = 0;
   private spotZ = 0;
   private readonly spotD = { x: 0, z: 0 };
+  // (marlow-bays item 14) the stage lights that follow her (made once; only her meshes take them)
+  private readonly stageLights: PointLight[] = [];
+  private stageMeshes = -1;
+  private stageNext = 0;
+  private readonly stageP = { x: 0, y: 0, z: 0 };
+  /** Her meshes the stage lights take (the source of an instance). */
+  private stageSrc: AbstractMesh[] = [];
 
   constructor(private readonly host: StudioHost) {
     studioReset();
     STUDIO.active = true;
     STUDIO_RIGS.push(host.player.rig);
+    for (const l of STAGE_LIGHTS) {
+      const p = new PointLight(`studio-stage-${l.name}`, new Vector3(0, -50, 0), host.scene);
+      // the game's range falloff (her PBR materials would take the inverse square otherwise)
+      p.falloffType = PointLight.FALLOFF_STANDARD;
+      p.range = l.range;
+      p.diffuse = new Color3(l.color[0], l.color[1], l.color[2]);
+      p.specular = new Color3(l.color[0] * 0.3, l.color[1] * 0.3, l.color[2] * 0.3);
+      p.intensity = 0;
+      // no meshes yet: an empty include list would light everything, so the light waits disabled
+      p.setEnabled(false);
+      this.stageLights.push(p);
+    }
+    // (test hook) the stage lights: place, intensity, the meshes they light
+    (window as unknown as { __studioStage?: unknown }).__studioStage = {
+      lights: () =>
+        this.stageLights.map((p) => ({ name: p.name, x: p.position.x, y: p.position.y, z: p.position.z, intensity: p.intensity, enabled: p.isEnabled(), meshes: p.includedOnlyMeshes.length })),
+      root: () => {
+        const r = this.host.player.rig.root;
+        return { x: r.position.x, y: r.position.y, z: r.position.z, yaw: r.rotation.y };
+      },
+    };
     const d = host.debug;
     if (!d.isVisible) {
       d.toggle(true);
@@ -244,6 +272,67 @@ export class StudioStage {
     if (e.team) this.pairFrame(dt, e);
     STUDIO.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
     STUDIO.frames = e.team ? pairFrames(e.cycle) : d.clip ? d.clip.frames : 0;
+    this.stageFrame();
+  }
+
+  /**
+   * (marlow-bays item 14) The stage lights onto her root and facing, at the "Stage light" scale; her meshes (the LODs
+   * load late) are re-read once a second, the include lists only rewritten when they change, and her materials checked
+   * to take every light on her (`fitStageMaterials`). Rendering only. No allocation per frame.
+   */
+  private stageFrame(): void {
+    const root = this.host.player.rig.root;
+    const now = performance.now();
+    if (now >= this.stageNext) {
+      this.stageNext = now + 1000;
+      const ms = root.getChildMeshes(false);
+      if (ms.length !== this.stageMeshes) {
+        this.stageMeshes = ms.length;
+        const src: AbstractMesh[] = [];
+        for (const m of ms) {
+          const s = (m as AbstractMesh & { sourceMesh?: AbstractMesh }).sourceMesh ?? m;
+          if (!src.includes(s)) src.push(s);
+        }
+        this.stageSrc = src;
+        for (const p of this.stageLights) {
+          p.includedOnlyMeshes = src.slice();
+          p.setEnabled(src.length > 0);
+        }
+      }
+      this.fitStageMaterials();
+    }
+    const k = STUDIO_LIGHT.scale;
+    const pos = root.position;
+    const yaw = root.rotation.y;
+    for (let i = 0; i < this.stageLights.length; i++) {
+      const p = this.stageLights[i]!;
+      const l = STAGE_LIGHTS[i]!;
+      const o = stageLightPlace(l, pos.x, pos.y, pos.z, yaw, this.stageP);
+      p.position.set(o.x, o.y, o.z);
+      p.intensity = l.intensity * k;
+    }
+  }
+
+  /**
+   * Her materials take every light on her: the game's (`LightRig.fitMaterial` sets those) plus the stage's. Re-checked
+   * once a second, so a later rig fit (a quality change) that leaves fewer slots is lifted again. Most of them are frozen
+   * (the shared skin material): unfrozen, set, frozen again, as `LightRig.fitMaterial` does, so the shader recompiles.
+   * Only ever raises the count. No allocation.
+   */
+  private fitStageMaterials(): void {
+    const src = this.stageSrc;
+    for (let i = 0; i < src.length; i++) {
+      const s = src[i]!;
+      const mat = s.material as (Material & { maxSimultaneousLights?: number; disableLighting?: boolean }) | null;
+      if (!mat || typeof mat.maxSimultaneousLights !== 'number' || mat.disableLighting) continue;
+      // every light on this mesh now, the stage's included (Babylon lists them all; the material caps what it takes)
+      const want = s.lightSources.length;
+      if (mat.maxSimultaneousLights >= want) continue;
+      const frozen = mat.isFrozen;
+      if (frozen) mat.unfreeze();
+      mat.maxSimultaneousLights = want;
+      if (frozen) mat.freeze();
+    }
   }
 
   /** Apply a changed choice: the drive onto the right rig (Wren, or the guard for a guard clip while it is on); a hold
@@ -509,6 +598,9 @@ export class StudioStage {
   }
 
   dispose(): void {
+    for (const p of this.stageLights) p.dispose();
+    this.stageLights.length = 0;
+    delete (window as unknown as { __studioStage?: unknown }).__studioStage;
     this.detach();
     this.dropGuard();
     this.hideWren(false);

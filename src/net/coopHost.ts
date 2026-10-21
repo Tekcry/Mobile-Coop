@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
@@ -77,11 +77,11 @@ interface Hist {
 type Tally = EndStats['players'][string];
 const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
 
-/** The enemy alert level on the wire (`EnemyState.al`). */
-function alertCode(e: Enemy): number {
+/** The enemy alert level on the wire (`EnemyState.al`): level, seized and (25, coop-torches) his flashlight on. */
+function alertCode(e: Enemy, torch: boolean): number {
   const l = e.level;
   const a = l === 'alert' ? 3 : l === 'searching' ? 2 : l === 'suspicious' || l === 'investigating' ? 1 : 0;
-  return a + (e.taken ? 4 : 0);
+  return packAlert(a, e.taken, torch);
 }
 
 /**
@@ -959,9 +959,13 @@ export class CoopHost implements NetAttachment {
       players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
     }
     const enemies: EnemyState[] = [];
-    for (const e of this.g.enemyMgr?.enemies ?? []) {
+    const em = this.g.enemyMgr;
+    for (const e of em?.enemies ?? []) {
       if (!e.alive || enemies.length >= MAX_ENEMIES) continue;
-      enemies.push({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e) });
+      // (coop-torches) every snapshot carries every listed guard's torch bit (no deltas), so a guard that drops out of
+      // the list and comes back is shown right from his first snapshot; the client places the light from x, y, z,
+      // yaw and st as `Enemy.placeTorch` does here
+      enemies.push({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) });
     }
     const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(wirePlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
     // items and doors when they change (and every few seconds for late joiners)

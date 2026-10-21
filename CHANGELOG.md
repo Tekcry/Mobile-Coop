@@ -1,5 +1,43 @@
 # Changelog
 
+## 4.35.0 - Animation tuner: free mouse, selection highlight, Keyed tick box, on the spot from every tab, studio light (2026-10-21, PR #82)
+- Animation tuner with keyboard and mouse (Michael: "the player camera locks the mouse in position"): the open panel
+  leaves the pointer free in "Drag view": drag the scene with the left button to turn the camera, the wheel zooms (the
+  free view's orbit), every slider and list stays clickable, and scene clicks never fire. F4 or the header button
+  switches to "Game camera" (the normal captured mouse look; the panel ignores the mouse) and back; Esc in the game camera
+  returns to drag view instead of pausing. Closing the panel gives play its normal mouse capture back. The pad is
+  unchanged.
+- The part being adjusted is marked (Michael: "clearly highlight the body part/weapon/animation"): the selected row has
+  a yellow bar and bold name, the active tab a yellow underline, a "▶ part · state · row → target" line names it, and the
+  scene shows a pulsing yellow ring (black edged, on top, readable on light and dark) on the joint, bone, both feet or
+  knees, the weapon or the whole body the row edits.
+- Anim Studio: a "Keyed" tick box beside the Loop list plays the state's keyed clip (cleared: the procedural state),
+  instead of hunting the keyed loop in the list.
+- Anim Studio: a state picked in any tab's state list plays that state's loop; "Loop on the spot" is on every tab (the
+  header button "On the spot: on / off", F8, L3 on the pad).
+- Anim Studio: stage lights that follow her (key, fill, rim and a soft top light, on her only), a brighter studio
+  ambient, and a "Stage light" slider (View tab; bright by default, saved with the tuner's settings). The game's lighting
+  is unchanged.
+
+## 4.34.0 - Co-op: the partner sees guards' flashlights (2026-10-21, PR #81)
+- Co-op: the joiner now sees the guards' flashlights. Each guard in the host's snapshot carries a torch bit in his
+  enemy `al` (`AL_TORCH` 8; protocol 24 -> 25). The client lights one of its own map's torch slots per lit guard and
+  places it with the host's code (`world/torches.ts`: `placeTorch`, `beamReach`, `addTorchSlots`) from the guard as
+  drawn, so the picture, the haze and the client's light meter read the same light the host's guard perception reads
+  (light parity). The aim is derived from the position, yaw and crouch already on the wire. Cost: 0 bytes for a guard
+  without a torch, at most 1 byte for a lit one.
+- `net/torchMirror.ts` (pure) is the client's mirror; `EnemyPuppet.torch` / `torchCrouch` feed it. A guard missing
+  from a snapshot loses his torch at once; listed again, it comes back from that snapshot.
+- Test hook: `Enemy.torchOverride` (true / false forces the torch rule; null in play). `EnemyManager.hasTorch(e)`.
+- Tests: `tests/coopTorches.test.ts` (the wire round trip, host vs client light at points, the mirror), the protocol
+  asserts at 25; e2e-coop checks a host guard's torch on, then off, on the client.
+
+## 4.33.1 - No more GL program warnings when graphics settings change on a hardware GPU (2026-10-21, PR #79)
+- Hardware GPUs: no more "GL_INVALID_VALUE: glGetProgramiv: Program object expected" warnings when the post stack is
+  rebuilt (a graphics setting change). A shader program that is still compiling in parallel is now deleted only once its
+  compile finishes (`src/core/babylon.ts`). e2e-desktop under `E2E_GPU=1` passes its console-errors check again
+  (backlog 27).
+
 ## 4.33.0 - Animation tuner laid out for the pad: tabs, drop-downs, one step at a time (2026-10-21, PR #80)
 - Animation tuner layout pass for the pad (Michael, 2026-10-21: "Not practical for controller use. It's such a long
   list"): tabs across the top, LB / RB (or a click) cycle them: View, Body, Hands & feet, Weapon, Stepping, Weight,
@@ -24,6 +62,7 @@
   gait runs, the root is held, the feet slide back with it) and a clip plays in place; off, both walk the 2 m circle.
 - Pure parts in `src/ui/tunerLayout.ts` (`tests/tunerLayout.test.ts`); e2e-menus and e2e-studio follow the new
   navigation (tabs, the drop-down, values shown, pause, the snap lock, loop on the spot).
+
 ## 4.32.3 - e2e-stealth-ai wall peek picks its spot with the guard's own eye (2026-10-21, PR #78)
 - e2e-stealth-ai's wall peek block keeps a guard spot only if the spawned guard's own eye sees the peeking head and
   not the chest. It picked the spot with a 1.55 m eye guess, 4 cm below a grunt's eye, so the real guard could see the

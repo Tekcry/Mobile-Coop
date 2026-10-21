@@ -41,6 +41,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
+- [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
+  the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in
+  it raises the joiner's light meter as it raises the host's.
 - [ ] Co-op on the High or Epic preset, host and joiner in two windows (side by side, then one over the other): each
   sees the other's character, and the joiner's "Connecting to host" goes away once in the match.
 - [ ] Marlow Yard in co-op: every station's task shows as the HUD step line on both screens; a radio line follows each
@@ -206,6 +209,15 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab
   wheel, N goggles, Z ping, V shoulder swap; Esc pauses and Resume re-captures.
 - [ ] Settings > Mouse & Keyboard: rebind a key, a conflict warns, Esc cancels a capture.
+- [ ] (marlow-bays slice T) Animation tuner (Pause > Animation tuner, or the Anim Studio): the cursor stays free; drag
+  the scene with the left button to turn the camera, the wheel zooms, sliders and lists click; no shot fires. F4 (or the
+  header "Mouse:" button) gives the normal mouse look and back; Esc in the game camera returns to drag view, no pause.
+  Closing the tuner, a click captures the mouse again as in play.
+- [ ] Click a slider row: it gets a yellow bar, the "▶" line names it, and a yellow ring sits on that joint / bone (the
+  weapon for a gun row, both feet for Stepping), clear on a light wall and in a dark corner; other tabs move it.
+- [ ] Anim Studio: tick "Keyed" on walk: the keyed walk plays; clear it: the procedural walk. Pick "Run" in the Body
+  tab's Joints state list: the run plays, the tab stays. "On the spot" (header, F8, pad L3) on: she runs in place; off:
+  she runs the circle. She is well lit as she moves; "Stage light" (View tab) dims and brightens her.
 
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows

@@ -47,6 +47,8 @@ export interface TunePadOut {
   freeOff: boolean;
   /** (pass 2) R3 held (the tuner or the free view has the pad): the bypass, the untuned animation and camera. */
   bypass: boolean;
+  /** (marlow-bays item 13) L3 (edge, the tuner or the free view has the pad): "Loop on the spot" on / off (the studio). */
+  spot: boolean;
 }
 
 const bit = (i: number): number => 1 << i;
@@ -80,6 +82,7 @@ export class TunePadCtl {
     toggled: false,
     freeOff: false,
     bypass: false,
+    spot: false,
   };
   private prev = 0;
   private quiet = false;
@@ -132,7 +135,7 @@ export class TunePadCtl {
     const o = this.out;
     o.consume = false;
     o.nav = o.adjust = o.stick = o.section = o.group = 0;
-    o.fine = o.select = o.back = o.reset = o.menu = o.close = o.toggled = o.freeOff = o.bypass = false;
+    o.fine = o.select = o.back = o.reset = o.menu = o.close = o.toggled = o.freeOff = o.bypass = o.spot = false;
     const pressed = mask & ~this.prev;
     this.prev = mask;
     if (this.quiet) {
@@ -162,6 +165,7 @@ export class TunePadCtl {
       o.close = true;
       return o;
     }
+    o.spot = (pressed & bit(PAD.LS)) !== 0;
     if (this.mode === 'free') {
       if (pressed & bit(PAD.B)) o.freeOff = true;
       return o;

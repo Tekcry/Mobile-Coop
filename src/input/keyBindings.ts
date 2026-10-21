@@ -112,7 +112,7 @@ export function menuNavTap(code: string, typing: boolean): ButtonAction | null {
   if (typing && !code.startsWith('Arrow')) return null;
   return MENU_NAV_KEYS[code] ?? null;
 }
-const RESERVED = new Set(['Escape', 'Enter', 'NumpadEnter', 'Backspace', 'F3', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'MetaLeft', 'MetaRight']);
+const RESERVED = new Set(['Escape', 'Enter', 'NumpadEnter', 'Backspace', 'F3', 'F4', 'F8', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'MetaLeft', 'MetaRight']);
 /** Mouse buttons that can be bound (the left and right buttons are fire / aim). */
 export const MOUSE_CODES = ['Mouse1', 'Mouse3', 'Mouse4'] as const;
 
