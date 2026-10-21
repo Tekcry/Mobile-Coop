@@ -421,6 +421,8 @@ export interface TunePoseIn {
   lookYaw?: number;
   /** (T1a) A body lifted, carried or put down (not a held guard): the bend selects `carry`, else `hold`. */
   carryBody?: boolean;
+  /** (anim-bake-targets) False in the air off a traversal (a fall, a jump): no group, so a landing roll starts untuned. */
+  grounded?: boolean;
 }
 
 /** Speed bands (m/s), the same as the F3 crab readout's gait label; (T1a) `crouchRun` from the crouch's 4th gear down. */
@@ -430,6 +432,10 @@ export const TUNE_BANDS = { idle: 0.15, walk: 2.2, jog: 3.7, sneak: 1.2, crouchR
 export function selectBodyGroup(p: TunePoseIn, ledge: boolean, armed: boolean): BodyGroup | null {
   if ((p.bend ?? 0) > 0 || (p.bendDrop ?? 0) > 0) return p.carryBody ? 'carry' : 'hold';
   const tr = p.traverse ?? 'none';
+  // (anim-bake-targets) in the air (a fall or a jump, speed ~0) the stance rows would read as `idle`: its narrow stance
+  // (Michael's trackMul 0.05) carried into the landing roll's first frames (e2e-clip: the feet 2.1 cm apart); the air
+  // has no group, so the values ease back to the untuned ones over the fall (BODY_TAU)
+  if (p.grounded === false && tr === 'none') return null;
   if (tr !== 'none') {
     switch (tr) {
       case 'climb':
