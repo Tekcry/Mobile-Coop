@@ -59,9 +59,10 @@ WIP.md with the resume step.
 - Then P (laser panels; unblocked, J merged), S, R.
 
 ## 3. anim-skeleton (T3) - DONE apart from follow-ups
-PRs merged: #88 (S1+S2, 4.42.0), #98 (S3+S4, 4.47.0), #100 (keyCurve evaluator, 4.47.1). Course Ready's #106 (item 30,
-OPEN at 0d25265c) wires keyCurve into tuneKeys.ts (the exact preview, 30(e)); Course Ready was told #100 merged (10:30); nothing more
-is owed to it.
+PRs merged: #88 (S1+S2, 4.42.0), #98 (S3+S4, 4.47.0), #100 (keyCurve evaluator, 4.47.1). Course Ready's #106 (item 30)
+landed as 4.51.0 (d52d37a5): tuneKeys.ts previews keys on Blender's curve (trunk as channel quaternions, arms as FK, the
+key file loads on the first edit), so BRIEF item 30(e) is done. Merge master before touching tuneKeys (N3's branch is
+from 4.48.0: merge master 4.51.0+ into feature/anim-n3 first on resume).
 Follow-ups held by Course Ready (after S4 on master): hide `legX_w` except on `legs` clips; a "Collarbone" part label in
 tunerTarget.ts; the studio foot-slide line (reads `rig.footSlide`). Polish list in docs/anim-skeleton/STATE.md and the
 s1-s4b reports. The helper worktree C:/NightShift/Mobile-Coop-anim-skeleton-s3 (branch feature/anim-skeleton-s4b, merged)
