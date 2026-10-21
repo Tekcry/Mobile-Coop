@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.46.0 - Michael's first tuner bake: jog and run keys, low-ready gun poses, Joints; Reset baked clears built-in values on load (2026-10-22, PR #96)
+- Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
+  equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied
+  twice. The rest of the tuning is kept; the panel says how many ("61 values are now built in; your other 13 changes
+  are kept."). Y menu > "Reset baked" runs it again.
+- Tests follow Michael's 2026-10-22 tune (the jog / run keys, the rifle and pistol low ready, the idle / walk / jog
+  upper-arm roll): the identity fixtures re-captured (proven data only first), the tuner key tests moved to the evenly
+  spaced sneak / walk keys, and the run's anti-crab and arm limits widened for the run alone (marked to restore).
+- Michael's rifle and pistol low ready are Wren's alone (`WREN_READY_LOW`, `WREN_PISTOL_READY`, picked once per rig by
+  `tuneRows`): guards, the VIP and the dummy keep the pre-bake ready poses, the gun bake rules target Wren's copies,
+  the guard identity fixture is back to master's, and e2e-anim's player low-ready limits follow the tune (marked).
+
 ## 4.45.0 - Animation tuner: Gear offsets for the holster, the guns on her back and the hip sling, baked (2026-10-22, PR #95)
 - Gear offsets (marlow-bays item 22): the animation tuner has a Gear tab with sliders that move worn gear per socket:
   the holstered pistol on the thigh, the guns on the back (left, centre, right) and the hip sling socket

@@ -204,6 +204,11 @@ describe('the graph plays the keyed walk', () => {
   it('(anim-rework S2) the jog and run keys: elbows bent and close to the ribs, the hands never across the midline', () => {
     const o = newKeyedPose();
     for (const clip of [KEYED_JOG, KEYED_RUN]) {
+      const run = clip === KEYED_RUN;
+      // (anim-bake-1022) Michael's 2026-10-22 run tune (arm abd 4 -> 19): measured elbow out 0.1000 m: was 0.05
+      const outMax = run ? 0.11 : 0.05;
+      // (anim-bake-1022) Michael's 2026-10-22 run tune: measured elbow flex min 61.6 deg: was 70
+      const flexLo = run ? 55 : 70;
       let flexMin = 999;
       for (let f = 0; f < 32; f++) {
         sampleKeyed(clip, f / 32, 1, o);
@@ -211,7 +216,7 @@ describe('the graph plays the keyed walk', () => {
           const e = side < 0 ? KA.elbowL : KA.elbowR;
           const w = side < 0 ? KA.wristL : KA.wristR;
           // the elbow at most 5 cm out from the shoulder (the chest frame; the METRICS elbow wing is 6 cm)
-          expect(side * o.arm[e]!, `${clip.name} elbow out`).toBeLessThanOrEqual(0.05);
+          expect(side * o.arm[e]!, `${clip.name} elbow out`).toBeLessThanOrEqual(outMax);
           // the hand inside the shoulder line but not across the midline (the shoulder joint is ~0.17 m out)
           expect(side * o.arm[w]!, `${clip.name} hand in`).toBeGreaterThan(-0.15);
           const ux = o.arm[e]!, uy = o.arm[e + 1]!, uz = o.arm[e + 2]!;
@@ -221,7 +226,7 @@ describe('the graph plays the keyed walk', () => {
         }
       }
       // elbows bent 70+ deg all through the cycle (the jog / run carriage, not a straight-arm swing)
-      expect(flexMin, `${clip.name} elbow flex`).toBeGreaterThanOrEqual(70);
+      expect(flexMin, `${clip.name} elbow flex`).toBeGreaterThanOrEqual(flexLo);
       expect(clip.duty).toBeLessThan(0.5);
     }
   });
