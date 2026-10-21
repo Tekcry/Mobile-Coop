@@ -1,7 +1,7 @@
 # anim-skeleton - state
 
 ## Now
-S2 (runtime rig) building: clavicle, finger and goggle nodes on the rig, the poser drives the new skin joints, hand grip curls the finger bones, bit-identity test.
+S2 (runtime rig) built (docs/anim-skeleton/s2/REPORT.md): check, e2e-anim / studio / netmove / smoke and the bit-identity test pass; fresh checker next.
 
 ## Next
 S2 checker; GPU look (studio, LOD0) under the desktop lock; then S3 (clip channels) after track A items 23 and 25 land.
@@ -21,7 +21,9 @@ S2 checker; GPU look (studio, LOD0) under the desktop lock; then S3 (clip channe
   point to CT Core when S2 is pushed. CT Core ships the goggle rows in a small PR after T3 reaches master.
 - Track A items 23 (key timing, feature/marlow-key-timing) and 25 (add / delete keys) change tuneKeys*, the key
   format, build.mjs and key_clip.py: S3 / S4 rebase on both after they land (Course Ready tells us); our planned
-  fields and channels were sent to it so it keeps an optional-channel path like `wrist`.
+  fields and channels were sent to it so it keeps an optional-channel path like `wrist`. Item 23 is PR #87 (head
+  2504c787): a retimed key writes `phase`; new `scripts/anim-keys/meta.mjs` regenerates `src/anim/tuneKeysMeta.ts`
+  (S3 / S4's new key fields must go through it); key_clip.py and build.mjs unchanged. Item 25 next (tuneKeys, key list).
 - Test placement (orchestrator, 2026-10-21): full e2e goes to the laptop first (Character Build, E2E_JOBS=2); on the
   desktop only at E2E_JOBS=1 when the laptop is busy. Blender and GPU looks stay on the desktop.
 - Reported to the orchestrator: LOD0-2 lost their grip morphs in the 10-20 rebake (BRIEF "Facts").

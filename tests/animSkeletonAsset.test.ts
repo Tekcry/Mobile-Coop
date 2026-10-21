@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { parseGlb } from '../src/operators/lab/glb';
 import { glbJson, lodChecks, LOD_BUDGET, type GltfJson } from '../src/operators/lodChecks';
 import { validateModel } from '../src/operators/runtime/manifest';
-import { OperatorPoser, poserSetup, RIG_JOINTS, TRS } from '../src/operators/runtime/pose';
+import { OperatorPoser, poserSetup, RIG_JOINTS, RIG_T3, TRS } from '../src/operators/runtime/pose';
 // @ts-expect-error plain .mjs build script without types
 import { patchGlb } from '../scripts/anim-skeleton/skin.mjs';
 
@@ -92,7 +92,8 @@ describe('anim-skeleton S1: the shipped Wren skeletons', () => {
   });
 
   it('the runtime poser: clavicles follow the chest, fingers the wrist, the goggle joints the head (skin matrices equal to float rounding), any pose', () => {
-    for (const lod of ['lod0', 'lod1', 'lod2'] as const) {
+    // (S2 polish) the hero too: its clavicles and goggle joints, its fingers (pre-T3 there) on the wrist
+    for (const lod of LODS) {
       const buf = read(lod);
       const m = parseGlb(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer);
       const S = poserSetup(m.nodes, m.joints);
@@ -100,10 +101,11 @@ describe('anim-skeleton S1: the shipped Wren skeletons', () => {
       const rig = new Float64Array(RIG_JOINTS.length * TRS);
       for (let j = 0; j < RIG_JOINTS.length; j++) rig[j * TRS + 6] = 1;
       poser.solve(rig);
-      // a deterministic pose: every rig joint turned about its own axis by up to ~40 degrees
+      // a deterministic pose: every pre-T3 rig joint turned about its own axis by up to ~40 degrees (the S2 clavicle rig
+      // joints stay at identity: untouched clavicles follow the chest)
       let seed = 7;
       const rnd = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
-      for (let j = 1; j < RIG_JOINTS.length; j++) {
+      for (let j = 1; j < RIG_T3; j++) {
         const ax = [rnd(), rnd(), rnd()];
         const l = Math.sqrt(ax[0]! * ax[0]! + ax[1]! * ax[1]! + ax[2]! * ax[2]!);
         const h = rnd() * 0.35;

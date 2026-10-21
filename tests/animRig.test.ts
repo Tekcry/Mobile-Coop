@@ -66,8 +66,17 @@ describe('anim-rig: the joint map (export list, operator figure, runtime rig map
       expect(figParent.get(`toe${s}` as never)).toBe(`an${s}`);
       expect(rigParent.get(`toe${s}` as never)).toBe(`an${s}`);
     }
-    // every rig map joint's parent is its figure parent (the figure has extra leaf helpers: hands)
-    for (const [n, p] of rigParent) if (n !== 'root') expect(figParent.get(n as never), n).toBe(p);
+    // every rig map joint's parent is its figure parent (the figure has extra leaf helpers: hands); (anim-skeleton S2,
+    // A2) the clavicles are rig joints under the chest but stay out of the figure (operatorJoints, every clip bake)
+    for (const [n, p] of rigParent) {
+      if (n === 'root') continue;
+      if (n === 'clavL' || n === 'clavR') {
+        expect(p, n).toBe('chest');
+        expect(figParent.has(n as never), n).toBe(false);
+        continue;
+      }
+      expect(figParent.get(n as never), n).toBe(p);
+    }
   });
 
   it("the shipped LODs: every required joint skinned, toe under ankle, sling socket on the pelvis, toes weighted at the ball", () => {
