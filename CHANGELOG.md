@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - coop-torches
+## 4.34.0 - Co-op: the partner sees guards' flashlights (2026-10-21, PR #81)
 - Co-op: the joiner now sees the guards' flashlights. Each guard in the host's snapshot carries a torch bit in his
   enemy `al` (`AL_TORCH` 8; protocol 24 -> 25). The client lights one of its own map's torch slots per lit guard and
   places it with the host's code (`world/torches.ts`: `placeTorch`, `beamReach`, `addTorchSlots`) from the guard as
