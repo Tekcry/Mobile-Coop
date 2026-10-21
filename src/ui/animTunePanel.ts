@@ -3204,7 +3204,7 @@ export class AnimTunePanel {
       if (!this.confirmAll) this.info.textContent = `${tuneChanged().length} changed`;
       // (marlow-bays item 29) the loop playing now: one of her keyed clips (the studio), a gun in hand or not; a change
       // greys the rows that do nothing in it
-      const m = effectMode(!!se && se.kind === 'keyed' && studioBodyPin(se) !== '', se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun);
+      const m = effectMode(!!se && se.kind === 'keyed' && studioBodyPin(se) !== '', se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot);
       if (m !== this.effMode) {
         this.effMode = m;
         for (const s of this.sections) this.applyEffect(s);

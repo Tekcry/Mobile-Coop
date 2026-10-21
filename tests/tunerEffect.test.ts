@@ -47,5 +47,9 @@ describe('tuner v3: the keyed-clip effect table', () => {
     expect(effectMode(true, true)).toBe('keyed');
     expect(effectMode(false, true)).toBe('armed');
     expect(effectMode(false, false)).toBe('procedural');
+    // off the spot the keyed clip really moves: not probed, nothing greyed (arm swing with speed works there)
+    expect(effectMode(true, false, false)).toBe('keyedMoving');
+    expect(sliderEffect('body', 'jog', 'armSwingGrow', 'keyedMoving')).toBe('');
+    expect(sliderEffect('body', 'jog', 'strideMul', 'keyedMoving')).toBe('');
   });
 });

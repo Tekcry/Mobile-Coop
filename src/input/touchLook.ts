@@ -1,6 +1,6 @@
 /**
  * (marlow-bays item 29, Michael's touch scope "Menus + camera") Touch in the game outside the tuner, the pure part (no
- * DOM; unit-tested in `tests/touchLook.test.ts`): one finger dragged on the game view looks around (the camera only: no
+ * DOM; unit-tested in `tests/tunerV3.test.ts`): one finger dragged on the game view looks around (the camera only: no
  * touch movement, fire or aim; M21 stays for play), and whether the last input was a touch (the on-screen pause button
  * shows only then). The DOM wiring is `InputManager`'s. Allocation-free.
  */

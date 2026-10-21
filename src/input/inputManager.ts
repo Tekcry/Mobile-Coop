@@ -83,7 +83,7 @@ export class InputManager {
     );
     window.addEventListener('keydown', () => this.setLastTouch(false), { capture: true });
     // (marlow-bays item 29, Michael: "Menus + camera") in play a finger dragged on the game view looks around; no touch
-    // movement or combat (M21). Not while the tuner has the pointer (its own touch camera) or the mouse is captured.
+    // movement or combat (M21). Not while the tuner has the pointer (its own touch camera, `mouseFree`).
     canvas.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'touch' || !this.gameplayActive || this.kbm.mouseFree) return;
       this.touchLook.down(e.pointerId, e.clientX, e.clientY);

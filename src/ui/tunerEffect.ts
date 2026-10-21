@@ -11,8 +11,10 @@
  * still applies to the other way of playing the state).
  */
 
-/** How the state plays now: its keyed clip (the studio's Keyed box), procedural holstered, procedural with a gun. */
-export type EffectMode = 'keyed' | 'procedural' | 'armed';
+/** How the state plays now: its keyed clip (the studio's Keyed box), procedural holstered, procedural with a gun.
+ *  `keyedMoving`: the keyed clip off the spot (she really moves, so speed-driven sliders work); not probed, so nothing
+ *  is greyed in it. */
+export type EffectMode = 'keyed' | 'keyedMoving' | 'procedural' | 'armed';
 export const EFFECT_MODES: readonly EffectMode[] = ['keyed', 'procedural', 'armed'];
 
 /** Per probed state, per mode: the sliders (`<section>:<id>`) that change nothing. A mode not listed: not probed. */
@@ -70,7 +72,9 @@ export function sliderEffect(section: string, group: string, id: string, mode: E
   return mode === 'keyed' ? 'no effect on the keyed clip on the spot' : 'no effect in this state';
 }
 
-/** The loop's mode: the studio playing one of her keyed clips, else a gun in hand or not. */
-export function effectMode(keyedClip: boolean, armed: boolean): EffectMode {
-  return keyedClip ? 'keyed' : armed ? 'armed' : 'procedural';
+/** The loop's mode: the studio playing one of her keyed clips (on the spot: the probed case; off it: not probed), else
+ *  a gun in hand or not. */
+export function effectMode(keyedClip: boolean, armed: boolean, onSpot = true): EffectMode {
+  if (keyedClip) return onSpot ? 'keyed' : 'keyedMoving';
+  return armed ? 'armed' : 'procedural';
 }
