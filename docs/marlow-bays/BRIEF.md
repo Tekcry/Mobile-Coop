@@ -164,6 +164,13 @@ that order; the laptop tests all three:
     versions hidden, live refresh, pad and keyboard / mouse) that joins by the code as today. No TURN relay, no
     server. Prototype only: a fake relay for unit and logic e2e, one real-relay check on the PC later. Own PR.
 
+26b. (~20:10) Phone layout feedback on the 844x390 / 390x844 shots: "Smaller buttons, more compact. Adjust smaller with
+    controller connected also". Touch: smaller targets (about 32-36 px, text 12-13 px), tighter rows and padding,
+    the panel narrower (landscape about 38% wide, portrait about 45% high) so more of her shows and more sliders fit on
+    the first screen. With a pad connected (the last input a pad), smaller again (no touch target minimum: about 26 px
+    rows, 11-12 px text), since nothing is tapped. Switches live with the input device. Screenshots of both, at both
+    orientations, before the PR.
+
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
     if a pose crosses it).
