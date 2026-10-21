@@ -32,7 +32,8 @@ import { LightRig } from './lightRig';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { Ropes } from './ropes';
-import { makeCone, type LightRegistry } from './lights';
+import type { LightRegistry } from './lights';
+import { addTorchSlots } from './torches';
 import { GI_STRIDE } from '../voxel/skyBake';
 import { TEXTURE_ANISO, TEXTURE_SIZE, VOXEL_TIER, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import type { Adaptive } from '../core/governor';
@@ -51,8 +52,8 @@ import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 
-/** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
-export const FLASHLIGHTS = 4;
+/** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
+export { FLASHLIGHTS } from './torches';
 
 export interface WorldOptions {
   seed: number;
@@ -170,13 +171,9 @@ export class World {
     this.parts = new PartLibrary(scene, atlas);
     // gameplay light level everywhere (moonlight / daylight)
     level.lights.ambient = th.lightLevel ?? 0.75;
-    // dark maps: a few flashlight slots enemies switch on to search (moving cone lights, off until used)
-    const reg = level.lights;
-    if (reg.ambient < 0.5 || reg.zones.some((z) => z.ambient < 0.5)) {
-      for (let i = 0; i < FLASHLIGHTS; i++) {
-        reg.add({ kind: 'flashlight', x: 0, y: -50, z: 0, radius: 13, intensity: 0.85, color: [0.95, 0.96, 1], cone: makeCone(0, 0, 1, 0.34, 0.2), on: false, destructible: false, electric: false });
-      }
-    }
+    // dark maps: a few flashlight slots enemies switch on to search (moving cone lights, off until used); the co-op
+    // client builds the same slots and mirrors them (`torches.ts`, coop-torches)
+    addTorchSlots(level.lights);
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
     for (const m of level.meshes) this.addStatic(m);

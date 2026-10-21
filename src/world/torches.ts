@@ -1,0 +1,93 @@
+/**
+ * Guard flashlights (pure: no Babylon / DOM), one code path for the host and the co-op client (coop-torches).
+ *
+ * A dark map gets `FLASHLIGHTS` slots in its light registry (`addTorchSlots`, called by `World`). On the host the
+ * `EnemyManager` hands a slot to a guard that wants one and moves it with `placeTorch` each step; the co-op client's
+ * `TorchMirror` (`net/torchMirror.ts`) does the same from the snapshot's torch bit and the guard's shown position.
+ * Everything that reads light (the light field: the meter and guard perception; the light rig, the haze and the
+ * reflections: the picture) reads these registry entries, so both pages light a point from the same values
+ * (light parity, bible 5.1). `beamReach` (rendering only: where the beam stops at a wall) is shared the same way.
+ */
+import { hyp2, hyp3 } from '../core/mathx';
+import { makeCone, type LightDef, type LightRegistry } from './lights';
+
+/** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
+export const FLASHLIGHTS = 4;
+
+/** The torch itself: range (m), peak level, colour (rendering), cone half-angles (rad), and how it is held. */
+export const TORCH = {
+  radius: 13,
+  intensity: 0.85,
+  color: [0.95, 0.96, 1] as [number, number, number],
+  outer: 0.34,
+  inner: 0.2,
+  /** Pitched down this much (rad) from where the guard faces. */
+  pitch: 0.16,
+  /** Ahead of the feet along the facing, and to the right of it (m). */
+  ahead: 0.35,
+  side: 0.15,
+  /** Height over the feet standing / crouched, times the guard's scale (m). */
+  eyeStand: 1.45,
+  eyeCrouch: 1.0,
+} as const;
+
+/** A dark map (ambient or any zone below 0.5): the flashlight slots, off and parked under the floor until used. */
+export function addTorchSlots(reg: LightRegistry): void {
+  if (!(reg.ambient < 0.5 || reg.zones.some((z) => z.ambient < 0.5))) return;
+  for (let i = 0; i < FLASHLIGHTS; i++) {
+    reg.add({ kind: 'flashlight', x: 0, y: -50, z: 0, radius: TORCH.radius, intensity: TORCH.intensity, color: [...TORCH.color], cone: makeCone(0, 0, 1, TORCH.outer, TORCH.inner), on: false, destructible: false, electric: false });
+  }
+}
+
+/** The flashlight follows the head: at eye height ahead of the face, pointing where it looks (a bit down).
+ *  `crouched`: the guard's crouch past half way (the snapshot's `st` 2). Allocation-free. */
+export function placeTorch(l: LightDef, x: number, y: number, z: number, yaw: number, crouched: boolean, scale: number): void {
+  const s = Math.sin(yaw);
+  const c = Math.cos(yaw);
+  l.x = x + s * TORCH.ahead + c * TORCH.side;
+  l.y = y + (crouched ? TORCH.eyeCrouch : TORCH.eyeStand) * scale;
+  l.z = z + c * TORCH.ahead - s * TORCH.side;
+  const cone = l.cone;
+  if (cone) {
+    const p = TORCH.pitch;
+    cone.dx = s * Math.cos(p);
+    cone.dy = -Math.sin(p);
+    cone.dz = c * Math.cos(p);
+  }
+}
+
+/** Distance (m) from a to b before static geometry stops a ray (b's distance when nothing does). */
+export type BeamHit = (ax: number, ay: number, az: number, bx: number, by: number, bz: number) => number;
+
+/** Rendering only: the longest unobstructed run of a cone light (centre and four edge rays), plus a little spill, so
+ *  the beam never lights the room behind a wall. Allocation-free (with an allocation-free `hit`). */
+export function beamReach(l: LightDef, hit: BeamHit): number {
+  const c = l.cone;
+  if (!c) return l.radius;
+  const half = Math.acos(c.cosOuter) * 0.75;
+  let best = 0;
+  // an orthonormal pair across the beam
+  const hx = -c.dz;
+  const hz = c.dx;
+  const hl = hyp2(hx, hz) || 1;
+  const ux = hx / hl;
+  const uz = hz / hl;
+  const vx = c.dy * uz;
+  const vy = c.dz * ux - c.dx * uz;
+  const vz = -c.dy * ux;
+  const t = Math.tan(half);
+  for (let k = 0; k < 5; k++) {
+    const a = k === 0 ? 0 : t * (k === 1 || k === 3 ? (k === 1 ? 1 : -1) : 0);
+    const b = k === 2 ? t : k === 4 ? -t : 0;
+    let dx = c.dx + ux * a + vx * b;
+    let dy = c.dy + vy * b;
+    let dz = c.dz + uz * a + vz * b;
+    const n = hyp3(dx, dy, dz) || 1;
+    dx /= n;
+    dy /= n;
+    dz /= n;
+    const d = hit(l.x, l.y, l.z, l.x + dx * l.radius, l.y + dy * l.radius, l.z + dz * l.radius);
+    if (d > best) best = d;
+  }
+  return Math.min(l.radius, best + 0.4);
+}
