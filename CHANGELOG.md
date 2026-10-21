@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased - server browser (prototype)
+- Co-op: public rooms (Michael: a server browser, "prototype only, quick and fast to build"). The host lobby has a
+  Room row, Private (default: only the code brings anyone in) or Public. A public room posts a notice (code, map, mode,
+  version, players, host name) on the same relays as every room, every 30 s and to anyone who opens the list; it is
+  taken off when the room is full, goes private or closes, and a notice not refreshed for 75 s drops out.
+- Co-op > Browse rooms: the public rooms of this exact version and protocol, live, with pad, keyboard and mouse; a pick
+  joins by its code as today. No quick match, no relay server, no game server.
+
 ## Unreleased - marlow-bays R (rejoin)
 - Co-op: rejoin a match you left or dropped out of (Michael: "There should also be a way to rejoin a match you have
   left"). The room code shows in the pause menu, and for 10 minutes after a match was last live the main menu offers

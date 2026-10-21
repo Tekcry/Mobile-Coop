@@ -99,7 +99,23 @@ the joiner's grabs and team moves (now let go / ended); a protocol test still re
 Notes (not done): the full-room fallback lets anyone with the code take the only held slot (by design, R2); the token
 uses Math.random; a waiting joiner has no timeout; Sector Ops resumes from section 1 (R5).
 
+## Slice S - server browser prototype (cloud, 2026-10-21)
+Branch `feature/server-browser`, cut from slice R's head (its PR carries R until R merges). Item 28, prototype only.
+- `net/roomDirectory.ts`: public rooms announce in one shared directory room on the same relays (Trystero / Nostr
+  signalling, P2P data), not raw Nostr events: no signing code, no server. Assumed S1 (undo: ask for raw Nostr notes):
+  the notice reaches browsers over the directory room's peer links, so a browser opening the list connects to the
+  public hosts in it (fine at prototype scale).
+- Host lobby: a Room row, Private (default) / Public (`CoopController.setPublic`); notice = code, map, mode, version
+  (`LISTED_VERSION` = game version + protocol), players (held slots not counted), cap, host name; every 30 s, at once
+  to an `ask` or a newcomer, `gone` when full, private or closed.
+- Co-op > Browse rooms (`BrowseScreen`): live list (on each notice, plus a 5 s refresh for the 75 s expiry), other
+  versions hidden, full rooms hidden, focus kept across refreshes; a pick joins by the code.
+- Tests: unit `tests/roomDirectory.test.ts` (validation, listing, other version hidden, gone on full / private /
+  close, refresh and expiry, on a fake relay); e2e-coop (local relay): a new room is Private, Public lists it in Browse
+  rooms (1 / 2, code and map), full takes it off. Pending PC: one real-relay check on two machines.
+
 ## Done
+- 2026-10-21: slice S (cloud): item 28 server browser prototype; own PR.
 - 2026-10-21: slice R (cloud): item 27 rejoin built, checked, fix round; paused before the final e2e and the PR.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).

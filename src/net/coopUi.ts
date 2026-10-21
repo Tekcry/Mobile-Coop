@@ -11,11 +11,12 @@ import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
 import { difficultyRows, DIFFICULTY_OPTS } from '../ui/difficultyRows';
 import { MISSIONS, missionById } from '../game/missions';
-import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { capacity, CODE_ALPHABET, makeRoomCode, normalizeRoomCode, PROTOCOL_VERSION, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
+import { DIRECTORY_ROOM, DirectoryBrowser, DirectoryPoster, type ListedRoom, type RoomNotice } from './roomDirectory';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
 import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
@@ -40,6 +41,14 @@ async function openTransport(code: string): Promise<Transport> {
   return flags.net === 'local' ? createLocalTransport(roomId(code)) : createTrysteroTransport(roomId(code));
 }
 
+/** (server browser) The shared directory room of public rooms, on the same relays (`?net=local`: this device). */
+async function openDirectory(): Promise<Transport> {
+  return flags.net === 'local' ? createLocalTransport(DIRECTORY_ROOM) : createTrysteroTransport(DIRECTORY_ROOM);
+}
+
+/** (server browser) The version a public room is listed under: only the same game and protocol see it. */
+export const LISTED_VERSION = `${__APP_VERSION__}/p${PROTOCOL_VERSION}`;
+
 export function shareLink(code: string): string {
   const u = new URL(location.href);
   u.search = '';
@@ -61,6 +70,9 @@ class CoopController {
   private left = false;
   /** (R1) Refreshes the rejoin record while a match runs. */
   private recT: ReturnType<typeof setInterval> | null = null;
+  /** (server browser) Host: the room is listed in Browse rooms (default Private). */
+  isPublic = false;
+  dir: DirectoryPoster | null = null;
 
   constructor(
     readonly app: App,
@@ -73,6 +85,8 @@ class CoopController {
       ev.on('hostLeft', () => this.hostLost()),
       ev.on('full', () => this.fail('Room full', 'That room already has its two players. Ask the host to free a slot, or host your own room.')),
       ev.on('lobby', () => {
+        // (server browser) the player count changed: the notice now (a full room is taken off)
+        this.dir?.post();
         // host went back to the lobby while we were still in the match
         if (!session.isHost && this.inGame && !this.waiting && session.phase === 'lobby') {
           this.app.toasts.show('Host ended the match');
@@ -80,6 +94,41 @@ class CoopController {
         }
       }),
     );
+  }
+
+  /** (server browser) The room's notice now: null when not listed (private, full, left). */
+  private notice(): RoomNotice | null {
+    const s = this.session;
+    if (!this.isPublic || this.left || !s.isHost) return null;
+    const players = [...s.players.values()].filter((p) => !p.away).length;
+    const cap = capacity(s.mode);
+    if (s.players.size >= cap) return null;
+    return { code: s.code, map: s.map, mode: s.mode, v: LISTED_VERSION, players, cap, host: s.players.get(s.selfId)?.name ?? 'Operator' };
+  }
+
+  /** (server browser) Host: list the room in Browse rooms, or take it off. */
+  async setPublic(on: boolean): Promise<void> {
+    if (!this.session.isHost || this.left || on === this.isPublic) return;
+    this.isPublic = on;
+    if (!on) {
+      const d = this.dir;
+      this.dir = null;
+      await d?.close();
+      return;
+    }
+    let t: Transport;
+    try {
+      t = await openDirectory();
+    } catch {
+      this.isPublic = false;
+      this.app.toasts.show('Could not reach the room list', 'warn');
+      return;
+    }
+    if (!this.isPublic || this.left) {
+      void t.leave();
+      return;
+    }
+    this.dir = new DirectoryPoster(t, () => this.notice());
   }
 
   showLobby(): void {
@@ -178,6 +227,10 @@ class CoopController {
     this.record();
     this.stopRecord();
     this.left = true;
+    // (server browser) off the list
+    const d = this.dir;
+    this.dir = null;
+    void d?.close();
     for (const o of this.offs) o();
     await this.session.leave(this.session.isHost ? 'Host left' : 'left');
     if (toMenu || this.inGame) this.api.goToMenu();
@@ -222,6 +275,7 @@ class CoopScreen extends MenuScreen {
     this.list.replaceChildren(
       this.item('Host a room', 'host', 'Open a room for one other player. You choose the mission and difficulty; the room code appears in the lobby.', () => void hostRoom(this.app, this.api), true),
       this.item('Join with code', 'join', 'Enter the five character code the host shows in their lobby.', () => this.app.screens.push(new JoinScreen(this.app, this.api))),
+      this.item('Browse rooms', 'browse', 'Public rooms of this version, live. Pick one to join it by its code.', () => this.app.screens.push(new BrowseScreen(this.app, this.api))),
     );
   }
 }
@@ -495,11 +549,22 @@ class LobbyScreen extends MenuScreen {
           ]
         : []),
       ...(s.mode === 'course' ? [this.bayChoice()] : []),
+      // (server browser) listed in Browse rooms or not (default Private: only the code brings anyone in)
+      choice(
+        'Room',
+        [
+          { value: 'private', label: 'Private' },
+          { value: 'public', label: 'Public' },
+        ],
+        () => (this.c.isPublic ? 'public' : 'private'),
+        (v) => void this.c.setPublic(v === 'public'),
+      ),
     );
     // the host's rows describe themselves in the context panel
     for (const r of Array.from(this.opts.children) as HTMLElement[]) {
       const label = r.querySelector('.row-label')?.textContent ?? '';
-      describe(r, label, `Choose the ${label.toLowerCase()}. The other player sees it but cannot change it.`);
+      if (label === 'Room') describe(r, label, 'Private: only players with the code can join. Public: the room is listed under Co-op > Browse rooms until it is full.');
+      else describe(r, label, `Choose the ${label.toLowerCase()}. The other player sees it but cannot change it.`);
     }
   }
 
@@ -585,6 +650,84 @@ class LobbyScreen extends MenuScreen {
     }
   }
 
+}
+
+/** (server browser) Co-op > Browse rooms: the public rooms of this version, live; a pick joins by the code. */
+class BrowseScreen extends MenuScreen {
+  private list: HTMLElement;
+  private browser: DirectoryBrowser | null = null;
+  private tick: ReturnType<typeof setInterval> | null = null;
+  private opening = false;
+
+  constructor(
+    private app: App,
+    private api: CoopApi,
+  ) {
+    super('coop-screen browse-screen', ['Browse', 'Rooms']);
+    this.list = h('div', { class: 'menu-list ms-list browse-rows', attrs: { 'data-wrap': '' } });
+    this.body.append(h('div', { class: 'join-note', text: 'Public rooms of this version. Rooms list themselves when the host sets Room: Public.' }), this.list);
+    this.render();
+  }
+
+  override onShow(): void {
+    this.render();
+    if (!this.browser && !this.opening) void this.open();
+    this.tick = setInterval(() => this.render(), 5000);
+  }
+
+  override onHide(): void {
+    if (this.tick) clearInterval(this.tick);
+    this.tick = null;
+    const b = this.browser;
+    this.browser = null;
+    void b?.close();
+  }
+
+  private async open(): Promise<void> {
+    this.opening = true;
+    let t: Transport;
+    try {
+      t = await openDirectory();
+    } catch {
+      this.opening = false;
+      this.app.toasts.show('Could not reach the room list', 'warn');
+      return;
+    }
+    this.opening = false;
+    // left before the list opened
+    if (this.manager.top !== this) {
+      void t.leave();
+      return;
+    }
+    this.browser = new DirectoryBrowser(t, LISTED_VERSION);
+    this.browser.onChange = () => this.render();
+    this.render();
+  }
+
+  private row(r: ListedRoom): HTMLElement {
+    const map = MAPS.find((m) => m.id === r.map)?.name ?? r.map;
+    const mode = MODE_OPTS.find((m) => m.value === r.mode)?.label ?? r.mode;
+    const b = button(`${r.code} · ${map}`, () => void joinRoom(this.app, this.api, r.code), { class: 'menu-item ms-item', key: `room-${r.code}`, sub: `${mode} · host ${r.host}` });
+    b.append(h('span', { class: 'ms-ctr', text: `${r.players} / ${r.cap}` }));
+    b.dataset.ctx = `<p>Join ${r.host}'s room ${r.code} (${map}, ${mode}).</p>`;
+    return b;
+  }
+
+  private render(): void {
+    const rooms = this.browser?.list() ?? [];
+    const keep = (this.app.nav.focused as HTMLElement | null)?.dataset.key ?? null;
+    const rows = rooms.map((r) => this.row(r));
+    if (!rows.length) {
+      const empty = button(this.browser ? 'No public rooms yet' : 'Looking for rooms…', () => {}, { class: 'menu-item ms-item', key: 'none' });
+      empty.dataset.ctx = '<p>Rooms appear here live when a host of this version sets Room: Public.</p>';
+      rows.push(empty);
+    }
+    this.list.replaceChildren(...rows);
+    if (this.manager?.top === this) {
+      const again = keep ? this.list.querySelector<HTMLElement>(`[data-key="${keep}"]`) : null;
+      this.app.nav.setRoot(this.el, again ?? (this.list.firstElementChild as HTMLElement | null));
+    }
+  }
 }
 
 /** Shown while the transport connects (WebRTC signalling can take a few seconds). */

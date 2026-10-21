@@ -53,6 +53,11 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   respawn runs `CoopHost.onRespawn`, which brings an alive partner back in Sector Ops and the course) and returns
   everyone to the lobby (`CoopController.backToLobby` -> `NetSession.backToLobby`, phase `lobby`; the client's lobby
   handler follows). The client's rows are disabled ("Host only"). No wire change.
+- (server browser, prototype; `net/roomDirectory.ts`) Public rooms: one shared directory room (`DIRECTORY_ROOM`) on the
+  same relays (Trystero; `?net=local`: BroadcastChannel). A public host's `DirectoryPoster` sends its notice to all every
+  `NOTICE_EVERY_S`, to a newcomer or an `ask` at once, and `gone` when full, private or closed; `DirectoryBrowser`
+  (Co-op > Browse rooms) keeps the notices of its own `LISTED_VERSION` (game version + protocol) for `NOTICE_TTL_S`.
+  Not the co-op wire: no protocol change. Joining is by the code.
 - (marlow-bays R, protocol 27) Rejoin: `NetSession` keeps a player id across connections (the hello's rejoin token from
   `core/rejoin.ts`; the host's `alias` / `route` maps; `you` tells the client its id). A joiner dropping mid-match is
   held (`PlayerInfo.away`, `RemotePlayer.held`, out of `remotePlayers()`) for `REJOIN_HOLD_S`; its rejoin gets a
