@@ -213,6 +213,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
   Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
   A team boost climb-up still works.
+- [ ] Marlow Yard station 3 (co-op, marlow-jammer): the camera hallway. Aim the pistol at the camera, hold RB / F and
+  stand still: the red grid goes, the camera stops turning, its LED flashes, a quiet buzz plays (both hear it); the HUD
+  counts 5 s, then COOLDOWN 5 s; released, the camera stays blind 1.5 s and cannot be jammed meanwhile. One jams while
+  the other runs; from the far lobby, the one through jams for the other; both there unlock the airlock door. The camera's
+  grid never shows inside an airlock. Jam a hallway lamp: it flickers off, stays off 4 s after you let go, flickers on.
+  Run the hallway without a jam: the camera catches you and you are put back at the hallway's start (radio line); the
+  airlock door stays locked until both got through under a jam.
 - [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
   10 HP.
 - [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LID, AIRLOCK_PAD_COLOR, bayX, ctcourse, CT_BAY, CT_CEIL, CT_EXIT_ZONE, CT_W, FENCE, S4_GAP, S4_HEADER, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_POCKET, S3_POCKET_COLOR, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LID, AIRLOCK_PAD_COLOR, bayX, ctcourse, CT_BAY, CT_CEIL, CT_EXIT_ZONE, CT_W, FENCE, S4_GAP, S4_HEADER, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_PASS, S3_PASS_COLOR, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
 import { bayObjective, courseUser, exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState, REFUSE_BOLT, REFUSE_PAIR } from '../src/game/course/courseState';
 import { COURSE_TEXT_MAX } from '../src/config/course';
@@ -365,10 +365,10 @@ describe('course-ready S1: station fixes and text', () => {
   });
 
   it('F5: the station 3 blind spot is not the airlock pads\' colour', () => {
-    expect(S3_POCKET_COLOR).not.toBe(AIRLOCK_PAD_COLOR);
-    const px = (S3_POCKET.box[0] + S3_POCKET.box[2]) / 2;
+    expect(S3_PASS_COLOR).not.toBe(AIRLOCK_PAD_COLOR);
+    const px = (S3_PASS.box[0] + S3_PASS.box[2]) / 2;
     const sq = b.boxes.find((p) => !p.collide && Math.abs(p.c[0] - px) < 0.01 && Math.abs(p.c[2] - 7) < 0.01 && p.c[1] < 0.05);
-    expect(sq?.color).toBe(S3_POCKET_COLOR);
+    expect(sq?.color).toBe(S3_PASS_COLOR);
   });
 
   it('F11: the leg-up squares at stations 2, 5 and 7 sit on a spot where a leg-up finds a climbable lip', () => {
