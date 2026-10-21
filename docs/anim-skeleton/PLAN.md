@@ -85,6 +85,16 @@ delete keys) is in master as 4.43.0. Design (2026-10-22, docs only):
 Done: check; e2e-studio (the Keys tab lists the new fields for skeleton_test; the Joints tab shows the clavicles);
 the S2 identity tests unchanged; an old tuner export still loads (identity); a GPU shot of a clavicle row moved.
 
+## S4b - exact preview (marlow-bays BRIEF item 30(e), Michael approved; with or after S4)
+"Exact preview: the live preview samples the same Bezier curve as the Blender bake, so the in-betweens don't shift
+after a rebake." The key edit offsets (`KeyedOffsets`, built per key by `tuneKeys`) are spread over the clip's frames
+in `keyed.ts`; today that spread is not the bake's curve. Change (ours, `keyed.ts`): spread each key's offset over the
+frames with the same interpolation key_clip.py gives Blender (its keyframe interpolation and handle type: Bezier,
+the auto / auto-clamped handles Blender computes, cyclic extrapolation; read key_clip.py `curves()` / `set_pose` for
+the exact settings) as a pure, allocation-free evaluator. Test: for a few clips and an edit on one key, the preview's
+sampled frames equal a rebake's frames within float noise (a fixture from one Blender run). Applies to the new S4
+fields as well.
+
 ## S5 - finish
 Rebase on A's and B's merges, the bit-identity test re-run, docs (`CHANGELOG` Unreleased - anim-skeleton, `TESTING.md`,
 `docs/systems/world-and-characters.md` rig section, `docs/operators` LOD note), full e2e, PR to master.
