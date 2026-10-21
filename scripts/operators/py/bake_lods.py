@@ -11,7 +11,11 @@ has its own 1K set (A71: decimating with LOD0's atlas UVs kept stalls at twice t
 phone LOD. Every LOD is skinned by nearest body vertex (the Lab export's rule) except the rigid parts (D28, step 11b,
 rigid_skin.py: one bone or one fixed blend per part, identical on every vertex; they stay separate pieces below LOD0
 and carry their part id as the '_rigid' glTF attribute for operators:check); the game LODs carry the game joints only
-(finger weights go to the wrist; anim-rig: toe weights to the toe joint at the ball, toeL / toeR). Every LOD carries the integration anchors (A40, A41) as
+(anim-rig: toe weights to the toe joint at the ball, toeL / toeR; anim-skeleton S1: LOD0 / LOD1 keep the hero's finger
+joints and weights and get knuckle loops on the glove fingers, LOD2's finger weights go to the wrist, and every LOD has
+the clavicle joints clavL / clavR with the chest weight near each shoulder split onto them, and the goggle parts on
+their own head joints goggleUse / goggleStow: ../../anim-skeleton/py/
+skeleton.py, the same rules as scripts/anim-skeleton/skin.mjs). Every LOD carries the integration anchors (A40, A41) as
 empties parented to the joints that carry them.
 
 Writes <out>/export/<lod>/<op>-<lod>.glb (WebP inside), <out>/export/<lod>/textures/*.png (the KTX2 encoder input),
@@ -35,6 +39,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 import common  # noqa: E402
 import render as R  # noqa: E402
 import rigid_skin  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'anim-skeleton', 'py'))
+import skeleton  # noqa: E402  (anim-skeleton S1: clavicle and finger joints, knuckle loops)
 
 args = common.parse_args({
     '--operator': {'required': True},
@@ -97,6 +103,8 @@ SHARP_SPLIT = {'lod0': 30.0}
 SHARP_ABOVE_Z = -1.0   # m: everywhere since the step 10 retry (A95; was 0.20: the split stopped at the boots)
 GAME_JOINTS = ['pelvis', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'wrL', 'shR', 'elR', 'wrR',
                'hipL', 'knL', 'anL', 'toeL', 'hipR', 'knR', 'anR', 'toeR']  # anim-rig: the toe joints skinned
+# (anim-skeleton S1) also skinned, but not rig joints yet (they follow chest / wrist / head until S2): clavL / clavR and
+# goggleStow / goggleUse on every LOD, the hero's 30 finger joints on LOD0 / LOD1 (skeleton.FINGER_LODS)
 
 CLOTH_PREFIX = ('suit', 'glove', 'hood', 'balaclava')
 CLOTH = {'thread', 'binding', 'loop', 'knit', 'ripstop', 'ripstop patch', 'softshell', 'softshell patch',
@@ -675,10 +683,12 @@ kd.balance()
 bw_raw = [[(names_vg[g.group], g.weight) for g in v.groups if g.weight > 0] for v in body.data.vertices]
 
 
-def game_joint(n):
-    if n.startswith('fingerL'):
+def game_joint(n, fingers=False):
+    """The game joint a body bone's weight goes to. fingers: the LOD keeps the finger joints (anim-skeleton S1: LOD0 /
+    LOD1; LOD2 folds them into the wrist)."""
+    if n.startswith('fingerL') and not fingers:
         return 'wrL'
-    if n.startswith('fingerR'):
+    if n.startswith('fingerR') and not fingers:
         return 'wrR'
     # anim-rig (docs/anim-rework/RIG.md): the toes ride the toe joint at the ball of the foot (was the ankle: a rigid
     # foot). Undo: return 'anL' / 'anR' here and drop toeL / toeR from GAME_JOINTS.
@@ -689,12 +699,20 @@ def game_joint(n):
     return n
 
 
-def weight_table(game):
+def joint_map(mode):
+    """'hero': every bone as it is; 'fingers': toes folded, fingers kept (LOD0 / LOD1); 'game': both folded (LOD2)."""
+    if mode == 'hero':
+        return lambda n: n
+    return lambda n: game_joint(n, fingers=mode == 'fingers')
+
+
+def weight_table(mode):
     out = []
+    jm = joint_map(mode)
     for ws in bw_raw:
         acc = {}
         for n, w in ws:
-            n = game_joint(n) if game else n
+            n = jm(n)
             acc[n] = acc.get(n, 0.0) + w
         top = sorted(acc.items(), key=lambda kv: -kv[1])[:4]
         s = sum(w for _, w in top) or 1.0
@@ -702,7 +720,11 @@ def weight_table(game):
     return out
 
 
-BW = {False: weight_table(False), True: weight_table(True)}
+BW = {m: weight_table(m) for m in ('hero', 'fingers', 'game')}
+
+
+def lod_mode(lod):
+    return 'hero' if lod == 'hero' else 'fingers' if lod in skeleton.FINGER_LODS else 'game'
 
 
 SRC_IDS = rigid_skin.ids_of(src.data)
@@ -713,18 +735,22 @@ ADOPT = rigid_skin.adopter(_sc.reshape(-1, 3)[_rig], SRC_IDS[_rig], RIGID_ADOPT)
 RIGID_COUNT = {}
 
 
-def skin(obj, arm, game, lod=None):
+def skin(obj, arm, lod):
     """Nearest-body weights; rigid parts (D28) their declared bone(s) on every vertex; shell vertices near a rigid
-    part's source take its id (rigid_skin.py)."""
-    table = BW[game]
+    part's source take its id (rigid_skin.py); then the clavicle split and 4 influences (anim-skeleton S1)."""
+    table = BW[lod_mode(lod)]
 
     def nearest(p):
         _, idx, _ = kd.find(p)
         return table[idx]
     shell_lod = lod in SHELL_KEEP
     used, count = rigid_skin.apply(obj, RIGID_REG, nearest, [v.co.copy() for v in obj.data.vertices],
-                                   adopt=ADOPT if shell_lod else None, joint=game_joint if game else (lambda n: n))
+                                   adopt=ADOPT if shell_lod else None, joint=joint_map(lod_mode(lod)))
     RIGID_COUNT[lod] = {str(k): v for k, v in sorted(count.items())}
+    skeleton.clavicle_split(obj)
+    skeleton.goggle_split(obj)  # the goggle parts ride goggleUse / goggleStow (gear offsets)
+    skeleton.limit_influences(obj, 4)
+    used = sorted(set(used) | {g.name for g in obj.vertex_groups if g.name.startswith(('clav', 'goggle'))})
     am = obj.modifiers.new('rig', 'ARMATURE')
     am.object = arm
     obj.parent = arm
@@ -732,11 +758,11 @@ def skin(obj, arm, game, lod=None):
     return used
 
 
-def game_rig():
-    """A copy of the rig without the hero-only finger and toe bones (the game LODs' skeleton)."""
+def game_rig(fingers, name):
+    """A copy of the rig without the hero-only toe bones and, unless `fingers` (LOD0 / LOD1), the finger bones."""
     arm = rig.copy()
     arm.data = rig.data.copy()
-    arm.name = f'{op_id}-rig-game'
+    arm.name = name
     scene.collection.objects.link(arm)
     arm.hide_viewport = False
     bpy.ops.object.select_all(action='DESELECT')
@@ -744,7 +770,7 @@ def game_rig():
     bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode='EDIT')
     for b in list(arm.data.edit_bones):
-        if b.name.startswith(('finger', 'toes')):
+        if b.name.startswith('toes') or (b.name.startswith('finger') and not fingers):
             arm.data.edit_bones.remove(b)
     bpy.ops.object.mode_set(mode='OBJECT')
     return arm
@@ -801,7 +827,15 @@ def anchors_for(arm, tag):
 
 # ---------------------------------------------------------------- LOD geometry
 lods = {}
-game_arm = game_rig()
+skeleton.add_joints(rig)  # anim-skeleton S1: clavL / clavR, goggleStow / goggleUse on the hero rig (every game rig copy too)
+game_arm = game_rig(True, f'{op_id}-rig-game')  # LOD0 / LOD1: fingers kept
+far_arm = game_rig(False, f'{op_id}-rig-game-far')  # LOD2
+
+
+def is_hand(co):
+    """Glove: the nearest body vertex is weighted to a wrist or a finger (knuckle loops)."""
+    return any(n.startswith(('wr', 'finger')) for n, _ in bw_raw[kd.find(co)[1]])
+
 prev = src.data
 for lod in ('hero', 'lod0', 'lod1', 'lod2'):
     if lod in SHELL_KEEP:
@@ -828,6 +862,8 @@ for lod in ('hero', 'lod0', 'lod1', 'lod2'):
             me.edges.foreach_get('vertices', ev)
             low = co.reshape(-1, 3)[ev.reshape(-1, 2)][:, :, 2].max(axis=1) < SHARP_ABOVE_Z
             me.attributes['sharp_edge'].data.foreach_set('value', sh & ~low)
+    if lod in skeleton.FINGER_LODS:  # anim-skeleton S1: the glove fingers bend smoothly
+        log(lod, 'knuckle loops:', skeleton.knuckle_loops(me, rig, skeleton.CFG['knuckles'][lod], is_hand), 'vertices')
     me.validate(clean_customdata=False)
     obj = bpy.data.objects.new(f'{op_id}-{lod}', me)
     scene.collection.objects.link(obj)
@@ -1110,7 +1146,7 @@ SPEC = {'hero': {'tris': [150000, 250000], 'draws': 4, 'bones': 30, 'texDesktopM
         'lod1': {'tris': [12000, 15000], 'draws': 2, 'bones': 17, 'texDesktopMB': "shares LOD0's"},
         'lod2': {'tris': [4000, 6000], 'draws': 1, 'bones': 17, 'texDesktopMB': [0, 1.5]}}
 hero_arm = rig
-anchor_objs = {'hero': anchors_for(hero_arm, 'hero'), 'game': anchors_for(game_arm, 'game')}
+anchor_objs = {'hero': anchors_for(hero_arm, 'hero'), 'game': anchors_for(game_arm, 'game'), 'far': anchors_for(far_arm, 'far')}
 tex_root = os.path.join(EXP, 'textures')
 
 
@@ -1127,8 +1163,9 @@ def max_edge(me):
 for lod in ('hero', 'lod0', 'lod1', 'lod2'):
     obj = lods[lod]['obj']
     game = lod != 'hero'
-    arm = game_arm if game else hero_arm
-    used = skin(obj, arm, game, lod)
+    tag = 'hero' if not game else 'game' if lod in skeleton.FINGER_LODS else 'far'
+    arm = {'hero': hero_arm, 'game': game_arm, 'far': far_arm}[tag]
+    used = skin(obj, arm, lod)
     tex_set = BAKED[lod]
     files = []
     tex = {'desktopVramMB_rgba8': 0.0, 'bc7MB': 0.0, 'astc4x4MB': 0.0, 'pngMB': 0.0}
@@ -1149,12 +1186,12 @@ for lod in ('hero', 'lod0', 'lod1', 'lod2'):
             tex['bc7MB'] += n * 1 * 4 / 3 / 2 ** 20
             tex['astc4x4MB'] += n * 1 * 4 / 3 / 2 ** 20
     tex = {k: round(v, 2) for k, v in tex.items()}
-    for e in anchor_objs['hero'] + anchor_objs['game']:
+    for e in anchor_objs['hero'] + anchor_objs['game'] + anchor_objs['far']:
         e.name = f"{e['anchor']}#{e['tag']}"
-    for e in anchor_objs['game' if game else 'hero']:
+    for e in anchor_objs[tag]:
         e.name = e['anchor']  # the glTF node names are the anchor names
     bpy.ops.object.select_all(action='DESELECT')
-    sel = [arm, obj, *anchor_objs['game' if game else 'hero']]
+    sel = [arm, obj, *anchor_objs[tag]]
     for o in sel:
         o.hide_viewport = False
         o.select_set(True)
