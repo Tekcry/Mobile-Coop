@@ -34,6 +34,11 @@ import { tuneBakedReset, type BakedResetResult } from '../anim/tuneBakedReset';
 import bakeLedger from '../anim/tuneBakeLog.json';
 /** (anim-bake-1022) How long a Reset baked notice holds the info line (ms). */
 const BAKED_NOTICE_MS = 8000;
+/** (anim-skeleton S4 note) Whether a Keys group (`key.<clip>.<k>` / `key.<clip>.a<s>`) belongs to an FK-leg clip. */
+function keyClipLegs(group: string): boolean {
+  const clip = group.split('.')[1] ?? '';
+  return KEY_CLIPS.some((c) => c.name === clip && c.legs === true);
+}
 import { FREE_CFG, FREE_DEMOS, FREE_IN, FREE_MODES, FREE_ORBIT, FREE_SET, FREE_VIEW, GAME_SPEED, freeAxis, freeTimeScale, type FreeDemo, type FreeMode, type FreeSnap } from '../player/freeView';
 import { PAD } from '../input/gamepadMapping';
 import { loadAnimTune, loadAnimTuneUi, saveAnimTune, saveAnimTuneUi } from '../save/animTuneStore';
@@ -44,6 +49,7 @@ import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
 import { StudioPanel } from './studioPanel';
 import { keyGroupId } from '../anim/tuneKeysFile';
 import { keyClip, keyIsLive, keyPhase, keyRank, keyReadout, keyStep } from '../anim/keyTimeline';
+import { KEY_CLIPS } from '../anim/tuneKeysMeta';
 import { tuneKeysAdd, tuneKeysDelete, tuneKeysEditInfo, tuneKeysGroupOf, tuneKeysIdOf, tuneKeysMirror, tuneKeysMirrorOn, tuneKeysRetime, tuneKeysTimeInfo } from '../anim/tuneKeys';
 import { KEY_SPAN, KEY_TIME_ID, keyTimeCount } from '../anim/tuneKeysTime';
 import { KEY_ADD_SLOTS, KEY_AT_ID, KEY_DEL_ID } from '../anim/tuneKeysEdit';
@@ -1948,6 +1954,8 @@ export class AnimTunePanel {
   private buildRow(sec: Section, t: TuneTunable, parent: HTMLElement): void {
     const group = sec.group;
     const kind = sec.reg.id;
+    // (anim-skeleton S4 note) the leg FK weight only matters on a clip whose key file sets `legs`: not shown elsewhere
+    if (kind === 'keys' && /^leg[LR]_w$/.test(t.id) && !keyClipLegs(group)) return;
     const row = document.createElement('div');
     row.dataset.padRow = '1';
     row.className = 'tt-row';
