@@ -6,7 +6,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
-v4.50.0 (#92 rejoin, 1a2c60ca, ~11:00; protocol 27 taken: #99 -> 28, #108 -> 29 at their merges). /preview/ = dev = dc4326a6 (dev push blocked by auto mode at 11:00; asked Michael). Earlier today: 4.49.0 #97 tuner v3; see ROADMAP Done for the full list.
+v4.51.0 (#106 key tools, d52d37a5, ~11:10). 4.50.0 (#92 rejoin, 1a2c60ca, ~11:00; protocol 27 taken: #99 -> 28, #108 -> 29 at their merges). /preview/ = dev = dc4326a6 (dev push blocked by auto mode at 11:00; asked Michael). Earlier today: 4.49.0 #97 tuner v3; see ROADMAP Done for the full list.
 
 ## Pacing (Michael)
 - 5-hour window: use as much as possible, never hit it; trim in order (cloud, laptop job, one agent per session) and
