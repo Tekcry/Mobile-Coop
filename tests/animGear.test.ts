@@ -64,7 +64,7 @@ describe('anim-gear: the Gear section', () => {
   it('registers a socket group and a crouched group per socket, six identity sliders, in its own tuner tab', () => {
     expect(GEAR_SECTION.id).toBe('gear');
     expect(GEAR_SECTION.label).toBe('Gear');
-    expect(GEAR_SOCKETS).toEqual(['holster', 'backL', 'backC', 'backR', 'slingBack', 'slingHip', 'pouches']);
+    expect(GEAR_SOCKETS).toEqual(['holster', 'backL', 'backC', 'backR', 'slingBack', 'slingHip']);
     expect(GEAR_SECTION.groups).toEqual([...GEAR_SOCKETS.map((s) => `gear.${s}`), ...GEAR_SOCKETS.map((s) => `gear.${s}.crouch`)]);
     expect(GEAR_GROUP_IDS).toEqual(GEAR_SECTION.groups);
     expect(GEAR_SECTION.tunables.map((t) => t.id)).toEqual(['x', 'y', 'z', 'pitch', 'yaw', 'roll']);
@@ -129,7 +129,7 @@ describe('anim-gear: composition', () => {
     animBaseLoad(ANIM_BASE);
     gearRigUpdate(st, 0.7);
     expect(st.on).toBe(false);
-    expect(Array.from(st.live)).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(Array.from(st.live)).toEqual(GEAR_SOCKETS.map(() => 0));
     const v = st.ver;
     gearRigUpdate(st, 0.2);
     expect(st.ver).toBe(v); // off and nothing live: no work at all

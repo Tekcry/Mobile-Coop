@@ -3,12 +3,12 @@
 ## Unreleased - anim-gear
 - Gear offsets (marlow-bays item 22): the animation tuner has a Gear tab with sliders that move worn gear per socket:
   the holstered pistol on the thigh, the guns on the back (left, centre, right), the sling sockets at the back and the
-  hip (the hip sling's gun with it) and the grenade pouches. Each moves in its own frame (x / y / z in metres) and turns
+  hip (the hip sling's gun with it). Each moves in its own frame (x / y / z in metres) and turns
   about its own seat (pitch / yaw / roll in degrees); each has a crouched variant added as she crouches. A draw or
   holster reaches to the moved slot. Visual only: what she carries and how long a draw takes are unchanged.
 - The Gear values bake into the animation base table like Joints and Hands & feet, so every Wren body takes them: the
   co-op partner and the studio's pair puppets too, guards never. Old exports, saves and base tables load and bake as
-  before. On Wren the pouches are part of her own kit, so their slider has nothing to move yet; the goggles follow
+  before. The grenade pouches are part of her own kit, so they have no slider yet; the goggles follow
   after track C's hook lands.
 
 ## Unreleased - anim-joints J2 (track B: move and action rows)

@@ -8,8 +8,8 @@
  * - `backL` / `backC` / `backR`: the long guns on the back (`CharacterRig.backMount` slots, the diagonal centre sling);
  * - `slingHip`: the rig's `slingHip` node (the belt's sling socket) and the compact gun on the left-hip sling;
  * - `slingBack`: the rig's `slingBack` node (the back plate's sling anchor);
- * - `pouches`: the grenade pouches (`GRENADE_POUCHES`); composed per rig, no drawn item reads it on Wren (her own kit
- *   draws the pouches, the GrenadePouches meshes are hidden on her rig).
+ * (No pouches socket: on Wren her own kit draws the grenade pouches and the GrenadePouches meshes are hidden, so a
+ * pouches slider would move nothing; orchestrator 2026-10-22: dropped until the kit's pouches can move.)
  * A gun socket's frame is the gun's own frame in its slot (x its right side, y its top, z along the bore toward the
  * muzzle) and it turns about the slot's pivot (the holster's weapon point, the back stud, the grip on the diagonal
  * sling, the sling's stock-end pivot); a node socket's frame is its parent's (x right, y up, z forward), about the node.
@@ -21,7 +21,7 @@
 import { ANIM_BASE } from './animBase';
 import { eulerQuat, wrapDeg } from './tuneJoints';
 
-export const GEAR_SOCKETS = ['holster', 'backL', 'backC', 'backR', 'slingBack', 'slingHip', 'pouches'] as const;
+export const GEAR_SOCKETS = ['holster', 'backL', 'backC', 'backR', 'slingBack', 'slingHip'] as const;
 export type GearSocket = (typeof GEAR_SOCKETS)[number];
 export const GEAR_SOCKET_COUNT = GEAR_SOCKETS.length;
 /** Socket index by id. */
