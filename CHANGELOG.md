@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.47.1 - Tuner groundwork: a Blender-exact key curve evaluator for the coming exact key preview (not wired yet) (2026-10-22, PR #100)
+- `src/anim/keyCurve.ts`: a pure, allocation-free port of Blender 5.2.2's auto-clamped Bezier solve (within 2e-6 of Blender on 124 curves), with tests and fixtures. Course Ready wires it into the Keys preview in item 30.
+
 ## 4.47.0 - Animation tuner: collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys on every keyed clip (2026-10-22, PR #98)
 - Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real
   clips, jog, run, walk, idle ...). The Keys tab has, on every key: collarbone pitch / yaw / roll per side, curl and
