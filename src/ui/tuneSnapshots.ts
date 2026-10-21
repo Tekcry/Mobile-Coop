@@ -49,14 +49,14 @@ export class TuneSnapshotsUi {
     this.abBtn = kit.btn('A/B', () => this.abToggle(), 'ab', 'anim-tune-ab');
     bar.append(this.undoBtn, this.redoBtn, kit.btn('Store A', () => this.abStore('A'), 'abA', 'anim-tune-aba'), kit.btn('Store B', () => this.abStore('B'), 'abB', 'anim-tune-abb'), this.abBtn);
     const pbar = (this.pbar = kit.bar());
-    this.pick = kit.sel(pbar, 'preset', [], () => this.disarm(), 'preset', 'anim-tune-preset');
+    this.pick = kit.sel(pbar, 'Preset', [], () => this.disarm(), 'preset', 'anim-tune-preset');
     // (the keyboard's name box: the pad skips it; Save by pad with it empty takes the next free "preset N")
     const name = (this.nameIn = document.createElement('input'));
     name.type = 'text';
-    name.placeholder = 'name';
+    name.placeholder = 'Preset name';
     name.maxLength = 40;
     name.className = 'anim-tune-preset-name';
-    name.style.cssText = 'font:inherit;color:#cfe;background:#123;border:1px solid rgba(255,255,255,0.25);min-height:24px;width:80px;';
+    name.style.width = '8em';
     name.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         this.save();
@@ -161,7 +161,7 @@ export class TuneSnapshotsUi {
     if (!n || !this.presets.some((p) => p.name === n)) return false;
     if (name === undefined && !this.delArmed) {
       this.delArmed = true;
-      this.delBtn.textContent = 'Delete? (again)';
+      this.delBtn.textContent = 'Delete? Again';
       return false;
     }
     this.disarm();

@@ -50,7 +50,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
-  `overlayProject`, `animTune*`: `e2e-studio` plus their folder's suites), `src/core/quality`, `display`, `settings`
+  `overlayProject`, `animTune*`, `tunerLayout`: `e2e-studio` plus their folder's suites), `src/core/quality`, `display`, `settings`
   and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
@@ -238,7 +238,11 @@ behind a VPN adapter).
   the tuner panel and its Studio section; a keyed clip in place on Wren's graph, paused a key step moves the phase by one
   key and back; mirror reaches the drive; a state walks by synthesised input; 2x game speed in the studio; a slider
   change undoes and redoes; a preset saves to the tuner's IndexedDB store and loads back; no studio row in the studio's
-  pause menu; quitting to the menu leaves time scale 1 and no studio state; the main menu row. (anim-studio-2, also
+  pause menu; quitting to the menu leaves time scale 1 and no studio state; the main menu row. (tuner-ui, also covers
+  `src/ui/tunerLayout`) Picking a loop sets the tuner's state; a walk state on the spot keeps the root within 5 cm while
+  the gait runs; a side snap holds the camera to her facing as she turns; the pause menu stops a moving loop. (e2e-menus
+  has the tuner-ui pad checks: tabs by LB / RB, the drop-down, values shown and light on dark, the hint strip under the
+  rows, pause while tuning.) (anim-studio-2, also
   covers `src/anim/moveTune`) A co-op pair (`pair:boost`): two puppets, paused and scrubbed into the boost A is up off B's
   hands and B on the floor, both posed at one clock time, a key step moves both by one frame; a traversal loop
   (`trav:ladder`) reaches the ladder by the synthesised Y; `state:idle` puts Wren back in the middle, off the ladder
