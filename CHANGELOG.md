@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased - marlow-jammer (feature/marlow-jammer)
+- Jammer rules (Michael 2026-10-21 item 7, A3, J1): each player jams for at most 5 s, then a 5 s cooldown; letting go
+  early (or moving: the stand-still rule) also starts the cooldown. The 20 s charge (drain / refill / minStart) is gone.
+- A jammed camera goes blind (its red grid fades out), stops sweeping where it is and flashes its LED; released (or at
+  5 s) it reboots for 1.5 s, still blind and frozen, and nobody can jam it again until it is back online. Lasers take the
+  same 1.5 s. A quiet buzz / interference synth voice plays at the jammed device on both pages (positional, no asset).
+- Lights are jam targets (item 8): a jammed lamp flickers off (0.5 s), stays off while held and 4 s after the release,
+  then flickers back on; the registry gameplay reads follows the same timeline (the meter and guards agree).
+- Only a target the aim has a clear line to can be jammed (no jamming through walls).
+- The jammer HUD: a line under the reticle (JAMMING 3.2 s / JAMMER COOLDOWN / TARGET REBOOTING / READY) and the gun
+  light: cyan pulse jamming, dim red cooling, amber on a rebooting target, green aimed (the old jamming colour was the
+  aimed green, so a jam did not show).
+- Marlow Yard station 3 is a camera hallway (item 5, A5): a 2.9 m hallway along the south wall, the camera at its far end
+  looking back down it with a +-8 deg sweep; its view stays inside the bay (no view into either airlock). One jam covers
+  one runner; the partner through jams it from the far lobby for the other. Both in the far lobby unlock airlock A3's
+  door. The painted sweep-edge floor lines are gone (Michael: the red view overlay shows the camera's area). New radio,
+  objective and panel text; the station's light levels re-taken for the hallway.
+- Co-op: `PROTOCOL_VERSION` 26: `sec` carries per-camera clocks, each player's jam left and cooldown, and the jammed /
+  recovering devices; the client draws the frozen camera, LED, grid, buzz and light flicker from it.
+
 ## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in
   the Anim Studio plays that clip on the spot, paused on that key; "◀ Key" / "Key ▶" step the clip's keys (its mirrored

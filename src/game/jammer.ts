@@ -2,57 +2,173 @@
  * The held pistol jammer, the laser device and the camera pocket (CT prototype B3, DECISIONS G152 / G125). Pure (no
  * Babylon / DOM), unit-tested. Every number is a prototype starting value (G10).
  *
- * The jammer: drawn pistol, hold the secondary trigger on one camera, laser or light. While held, charged and the
- * player stands still the target is blind / off. The charge drains while jamming and refills when released.
+ * The jammer: drawn pistol, hold the co-op button on one camera, laser or light while aiming. (marlow-jammer, Michael
+ * 2026-10-21 items 7 and 8; A3, J1) Each player jams for at most `JAMMER.useMax` seconds, then cools down for
+ * `JAMMER.cooldown`; letting go early (or moving: the stand-still rule) also starts the cooldown. A jammed device runs
+ * its own timeline (`DevJam`): jammed while someone holds it, then it recovers (a camera reboots 1.5 s, a light stays off
+ * 4 s and flickers back on) and nobody can jam it again until it is back. The 20 s charge model (drain / refill /
+ * minStart) is gone (J1; undo: restore it here).
  */
 import { hyp2, hyp3 } from '../core/mathx';
 
 export const JAMMER = {
-  /** Charge (s of jamming) from full; one report of CT's gives about 20 s on a drone. */
-  chargeMax: 20,
-  /** Charge lost per second of jamming. */
-  drain: 1,
-  /** Charge regained per second while not jamming. */
-  refill: 1.5,
-  /** Charge needed to start (or restart after running dry): no stuttering on the last drop. */
-  minStart: 1.5,
+  /** (J1) Seconds one jam lasts at most. */
+  useMax: 5,
+  /** (J1) Seconds after a jam ends (the cap, a release, a move) before that player can jam again. */
+  cooldown: 5,
+  /** (A3) Seconds a camera (or a laser) takes to come back online after its jam; it cannot be jammed meanwhile. */
+  reboot: 1.5,
   /** Horizontal speed (m/s) above which the player is moving and the jam breaks. */
   stillSpeed: 0.45,
   /** Reach to a target (m). */
   range: 20,
   /** Aim cone half-angle (rad) a target must sit inside to be picked (about 9 deg). */
   cone: 0.16,
+  /** A target the aim has a clear line to: a static hit closer than this to the target (m) counts as clear. */
+  losSlack: 0.4,
   /** A client's intent is dropped after this long without a heartbeat (s); the client sends every `heartbeat`. */
   stale: 0.7,
   heartbeat: 0.25,
 } as const;
 
+/** (item 8) A jammed light's timeline: a flicker to off as the jam starts, off while jammed, off `offHold` after the
+ *  release, then a flicker back on. The flicker toggles at `edges` (s, irregular), an even count: it ends as it began. */
+export const JAM_LIGHT = {
+  flickerOff: 0.5,
+  offHold: 4,
+  flickerOn: 0.5,
+  edges: [0.06, 0.11, 0.21, 0.26, 0.37, 0.44] as readonly number[],
+} as const;
+
 /** One player's jammer. */
 export interface JamState {
-  charge: number;
+  /** Jamming now. */
   active: boolean;
+  /** Seconds into the current jam. */
+  use: number;
+  /** Cooldown seconds left (0: ready). */
+  cool: number;
 }
 
 export function newJam(): JamState {
-  return { charge: JAMMER.chargeMax, active: false };
+  return { active: false, use: 0, cool: 0 };
+}
+
+/** Seconds of jam left now: the rest of the current jam, the full `useMax` when ready, 0 while cooling down. */
+export function jamLeft(s: JamState): number {
+  if (s.active) return Math.max(0, JAMMER.useMax - s.use);
+  return s.cool > 0 ? 0 : JAMMER.useMax;
 }
 
 /**
- * One step: `want` = the trigger is held on a valid target, `speed` the player's horizontal speed (m/s). Returns true
- * while the jam is on. Moving, releasing or running dry ends it; starting needs `minStart` charge.
+ * One step: `want` = the trigger is held on a target that may be jammed, `speed` the player's horizontal speed (m/s).
+ * Returns true while the jam is on. A jam ends at `useMax`, on a release or on a move; each end starts the cooldown, and
+ * no jam starts while it runs.
  */
 export function stepJam(s: JamState, want: boolean, speed: number, dt: number): boolean {
-  const still = speed <= JAMMER.stillSpeed;
-  const ok = want && still && (s.active ? s.charge > 0 : s.charge >= JAMMER.minStart);
-  if (ok) {
-    s.active = true;
-    s.charge = Math.max(0, s.charge - JAMMER.drain * dt);
-    if (s.charge <= 0) s.active = false;
-  } else {
+  const ok = want && speed <= JAMMER.stillSpeed;
+  if (s.active) {
+    if (ok) {
+      s.use += dt;
+      if (s.use < JAMMER.useMax - 1e-6) return true;
+    }
     s.active = false;
-    s.charge = Math.min(JAMMER.chargeMax, s.charge + JAMMER.refill * dt);
+    s.use = 0;
+    s.cool = JAMMER.cooldown;
+    return false;
   }
-  return s.active;
+  if (s.cool > 0) {
+    s.cool = Math.max(0, s.cool - dt);
+    return false;
+  }
+  if (!ok) return false;
+  s.active = true;
+  s.use = dt;
+  return true;
+}
+
+/** A device's jam phase: idle (working), jammed (someone holds it), recovering (back soon, cannot be jammed). */
+export const DEV_IDLE = 0;
+export const DEV_JAMMED = 1;
+export const DEV_RECOVER = 2;
+export type DevPhase = typeof DEV_IDLE | typeof DEV_JAMMED | typeof DEV_RECOVER;
+
+/** One jam target's timeline. */
+export interface DevJam {
+  ph: DevPhase;
+  /** Seconds in the phase. */
+  t: number;
+}
+
+export function newDevJam(): DevJam {
+  return { ph: DEV_IDLE, t: 0 };
+}
+
+/** Seconds a device of `kind` takes to recover after its jam (a light: the 4 s off and the flicker back on). */
+export function recoverTime(kind: JamTarget['kind']): number {
+  return kind === 'light' ? JAM_LIGHT.offHold + JAM_LIGHT.flickerOn : JAMMER.reboot;
+}
+
+/** Advance a device's timeline by `dt` with `jammed` = someone jams it now. Returns true when the phase changed. */
+export function stepDevJam(d: DevJam, jammed: boolean, kind: JamTarget['kind'], dt: number): boolean {
+  if (jammed) {
+    if (d.ph === DEV_JAMMED) {
+      d.t += dt;
+      return false;
+    }
+    d.ph = DEV_JAMMED;
+    d.t = 0;
+    return true;
+  }
+  if (d.ph === DEV_JAMMED) {
+    d.ph = DEV_RECOVER;
+    d.t = 0;
+    return true;
+  }
+  if (d.ph === DEV_RECOVER) {
+    d.t += dt;
+    if (d.t >= recoverTime(kind) - 1e-6) {
+      d.ph = DEV_IDLE;
+      d.t = 0;
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Client: advance a mirrored timeline between the host's messages (it never starts or ends a jam itself). */
+export function advanceDevJam(d: DevJam, kind: JamTarget['kind'], dt: number): void {
+  if (d.ph === DEV_IDLE) return;
+  d.t += dt;
+  if (d.ph === DEV_RECOVER && d.t >= recoverTime(kind) - 1e-6) {
+    d.ph = DEV_IDLE;
+    d.t = 0;
+  }
+}
+
+/** A flicker `t` s in: lit or not; it starts lit (`startOn`) or dark and toggles at each of `JAM_LIGHT.edges`. */
+export function flickerLit(t: number, startOn: boolean): boolean {
+  const e = JAM_LIGHT.edges;
+  let n = 0;
+  for (let i = 0; i < e.length; i++) if (t >= e[i]!) n++;
+  return (n % 2 === 0) === startOn;
+}
+
+/** (item 8) Is a jammed light lit now: one function of its timeline, for the bake / meter / guards and the picture alike. */
+export function lightLit(d: DevJam): boolean {
+  if (d.ph === DEV_IDLE) return true;
+  if (d.ph === DEV_JAMMED) return d.t < JAM_LIGHT.flickerOff ? flickerLit(d.t, false) : false;
+  if (d.t < JAM_LIGHT.offHold) return false;
+  return flickerLit(d.t - JAM_LIGHT.offHold, true);
+}
+
+/** The jammer's HUD line: the jam's seconds left, the cooldown, a refused target, or ready on a target ('' = hidden). */
+export function jamHudText(s: JamState, pick: boolean, pickRecovering: boolean): string {
+  if (s.active) return `JAMMING ${jamLeft(s).toFixed(1)} s`;
+  if (s.cool > 0) return `JAMMER COOLDOWN ${s.cool.toFixed(1)} s`;
+  if (pick && pickRecovering) return 'TARGET REBOOTING';
+  if (pick) return 'JAMMER READY: hold Co-op, stand still';
+  return '';
 }
 
 /** A thing the jammer can be pointed at. */
@@ -66,7 +182,7 @@ export interface JamTarget {
 
 /**
  * The target nearest the aim line: inside `range` and the `cone` around the unit direction (dx, dy, dz) from the eye
- * (ox, oy, oz). Returns its index in `targets`, or -1.
+ * (ox, oy, oz), not refused by `skip` (a light switched off). Returns its index in `targets`, or -1.
  */
 export function pickJamTarget(
   targets: readonly JamTarget[],
@@ -78,11 +194,13 @@ export function pickJamTarget(
   dz: number,
   range: number = JAMMER.range,
   cone: number = JAMMER.cone,
+  skip: ((t: JamTarget) => boolean) | null = null,
 ): number {
   let best = -1;
   let bestA = cone;
   for (let i = 0; i < targets.length; i++) {
     const t = targets[i]!;
+    if (skip && skip(t)) continue;
     const vx = t.x - ox;
     const vy = t.y - oy;
     const vz = t.z - oz;

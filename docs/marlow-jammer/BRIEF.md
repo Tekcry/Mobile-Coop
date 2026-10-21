@@ -19,6 +19,10 @@ d3ab0b75), slice J. Test runs for other job leads always come before this job (O
 Slice J on the laptop (Michael, ~17:50, "Yes"): Character Build builds it between test requests; own branch and PR;
 logic e2e on the laptop; the bay 3 GPU look runs on the desktop before the merge.
 
+Added (Michael, 2026-10-21, via the orchestrator; marlow-bays BRIEF c2421115): "Don't show the red lines painted on the
+floor, that's the point of the red laser overlay to show the cameras view area." Bay 3's painted sweep-edge lines
+(`docs/ct-prototype/CTCOURSE-SPEC.md` M2) go in the hallway rebuild, and the spec row says so.
+
 ## Goal
 Michael can replay bay 3 of Marlow Yard in co-op: a hallway the camera covers, passable only by a jam handoff, with a
 jammer that visibly and audibly works. Prototype quality (G4): no polish beyond the list.

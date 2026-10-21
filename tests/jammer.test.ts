@@ -1,43 +1,157 @@
 import { describe, expect, it } from 'vitest';
-import { ALARM_MAX, JAMMER, LASER, distToSegment, inBox, laserCooldown, laserDamage, laserTouch, newJam, nextAlarm, pickJamTarget, stepJam, type JamTarget, type LaserDef } from '../src/game/jammer';
+import {
+  ALARM_MAX,
+  DEV_IDLE,
+  DEV_JAMMED,
+  DEV_RECOVER,
+  JAMMER,
+  JAM_LIGHT,
+  LASER,
+  advanceDevJam,
+  distToSegment,
+  flickerLit,
+  inBox,
+  jamHudText,
+  jamLeft,
+  laserCooldown,
+  laserDamage,
+  laserTouch,
+  lightLit,
+  newDevJam,
+  newJam,
+  nextAlarm,
+  pickJamTarget,
+  recoverTime,
+  stepDevJam,
+  stepJam,
+  type JamTarget,
+  type LaserDef,
+} from '../src/game/jammer';
 
-describe('held jammer charge', () => {
-  it('drains while held and still, and runs dry after chargeMax seconds', () => {
+const DT = 1 / 60;
+
+describe('jammer use and cooldown (marlow-jammer J1: 5 s use, 5 s cooldown)', () => {
+  it('a held jam lasts useMax seconds, then the cooldown runs and nothing jams until it ends', () => {
     const s = newJam();
     let t = 0;
-    while (stepJam(s, true, 0, 0.1) && t < 40) t += 0.1;
-    expect(t).toBeGreaterThan(JAMMER.chargeMax - 0.5);
-    expect(t).toBeLessThan(JAMMER.chargeMax + 0.5);
-    expect(s.charge).toBe(0);
+    while (stepJam(s, true, 0, DT) && t < 20) t += DT;
+    expect(t).toBeGreaterThan(JAMMER.useMax - 0.05);
+    expect(t).toBeLessThan(JAMMER.useMax + 0.05);
     expect(s.active).toBe(false);
+    expect(s.cool).toBeCloseTo(JAMMER.cooldown, 5);
+    let c = 0;
+    while (!stepJam(s, true, 0, DT) && c < 20) c += DT;
+    expect(c).toBeGreaterThan(JAMMER.cooldown - 0.05);
+    expect(c).toBeLessThan(JAMMER.cooldown + 0.05);
+    expect(s.active).toBe(true);
   });
-  it('refills when released, capped at the max, at the refill rate', () => {
+  it('releasing early starts the full cooldown', () => {
     const s = newJam();
-    s.charge = 5;
-    stepJam(s, false, 0, 2);
-    expect(s.charge).toBeCloseTo(5 + JAMMER.refill * 2);
-    stepJam(s, false, 0, 100);
-    expect(s.charge).toBe(JAMMER.chargeMax);
+    for (let i = 0; i < 60; i++) stepJam(s, true, 0, DT);
+    expect(s.active).toBe(true);
+    expect(stepJam(s, false, 0, DT)).toBe(false);
+    expect(s.cool).toBe(JAMMER.cooldown);
+    expect(stepJam(s, true, 0, DT)).toBe(false);
   });
-  it('does not start under minStart and restarts once it has refilled to it', () => {
+  it('moving breaks the jam (the stand-still rule) and starts the cooldown', () => {
     const s = newJam();
-    s.charge = JAMMER.minStart - 0.1;
-    expect(stepJam(s, true, 0, 0.01)).toBe(false);
-    s.charge = JAMMER.minStart;
-    expect(stepJam(s, true, 0, 0.01)).toBe(true);
+    expect(stepJam(s, true, JAMMER.stillSpeed, DT)).toBe(true);
+    expect(stepJam(s, true, JAMMER.stillSpeed + 0.5, DT)).toBe(false);
+    expect(s.cool).toBe(JAMMER.cooldown);
   });
-  it('moving breaks the jam (the stand-still rule) and the charge refills meanwhile', () => {
+  it('jamLeft and the HUD line: the jam counts down, the cooldown shows, ready on a target, refused on a rebooting one', () => {
     const s = newJam();
-    expect(stepJam(s, true, 0, 0.1)).toBe(true);
-    const c = s.charge;
-    expect(stepJam(s, true, JAMMER.stillSpeed + 0.5, 0.1)).toBe(false);
-    expect(s.charge).toBeGreaterThan(c);
-    expect(stepJam(s, true, JAMMER.stillSpeed, 0.1)).toBe(true);
+    expect(jamLeft(s)).toBe(JAMMER.useMax);
+    expect(jamHudText(s, false, false)).toBe('');
+    expect(jamHudText(s, true, false)).toMatch(/READY/);
+    expect(jamHudText(s, true, true)).toBe('TARGET REBOOTING');
+    for (let i = 0; i < 120; i++) stepJam(s, true, 0, DT);
+    expect(jamLeft(s)).toBeCloseTo(JAMMER.useMax - 2, 1);
+    expect(jamHudText(s, true, false)).toBe('JAMMING 3.0 s');
+    stepJam(s, false, 0, DT);
+    expect(jamLeft(s)).toBe(0);
+    expect(jamHudText(s, true, false)).toBe('JAMMER COOLDOWN 5.0 s');
   });
-  it('releasing the trigger ends it', () => {
-    const s = newJam();
-    stepJam(s, true, 0, 0.1);
-    expect(stepJam(s, false, 0, 0.1)).toBe(false);
+});
+
+describe('device jam timelines (A3: the 1.5 s reboot; item 8: the light)', () => {
+  it('a camera is jammed while held, then reboots 1.5 s, then is idle', () => {
+    const d = newDevJam();
+    expect(stepDevJam(d, true, 'camera', DT)).toBe(true);
+    expect(d.ph).toBe(DEV_JAMMED);
+    for (let i = 0; i < 60; i++) stepDevJam(d, true, 'camera', DT);
+    expect(stepDevJam(d, false, 'camera', DT)).toBe(true);
+    expect(d.ph).toBe(DEV_RECOVER);
+    let t = 0;
+    while (d.ph === DEV_RECOVER && t < 5) {
+      stepDevJam(d, false, 'camera', DT);
+      t += DT;
+    }
+    expect(t).toBeGreaterThan(JAMMER.reboot - 0.05);
+    expect(t).toBeLessThan(JAMMER.reboot + 0.05);
+    expect(d.ph).toBe(DEV_IDLE);
+    expect(recoverTime('laser')).toBe(JAMMER.reboot);
+  });
+  it('the client mirror runs the reboot on but never starts or ends a jam itself', () => {
+    const d = newDevJam();
+    advanceDevJam(d, 'camera', 1);
+    expect(d.ph).toBe(DEV_IDLE);
+    d.ph = DEV_JAMMED;
+    advanceDevJam(d, 'camera', 10);
+    expect(d.ph).toBe(DEV_JAMMED);
+    d.ph = DEV_RECOVER;
+    d.t = 0;
+    advanceDevJam(d, 'camera', JAMMER.reboot);
+    expect(d.ph).toBe(DEV_IDLE);
+  });
+  it('the flicker is deterministic, irregular and ends where it should', () => {
+    const e = JAM_LIGHT.edges;
+    expect(e.length % 2).toBe(0);
+    expect(e[e.length - 1]!).toBeLessThan(JAM_LIGHT.flickerOff);
+    // irregular: not one fixed period
+    const gaps = e.slice(1).map((x, i) => +(x - e[i]!).toFixed(3));
+    expect(new Set(gaps).size).toBeGreaterThan(1);
+    expect(flickerLit(0, false)).toBe(false);
+    expect(flickerLit(e[0]!, false)).toBe(true);
+    expect(flickerLit(JAM_LIGHT.flickerOff, false)).toBe(false);
+    expect(flickerLit(0, true)).toBe(true);
+    expect(flickerLit(JAM_LIGHT.flickerOn, true)).toBe(true);
+    // the same time gives the same state (host and client agree from the sim clock)
+    for (let t = 0; t < 0.5; t += 0.01) expect(flickerLit(t, false)).toBe(flickerLit(t, false));
+  });
+  it('a light: flickers off, stays off while jammed, 4 s off after the release, flickers back on, cannot be re-jammed meanwhile', () => {
+    const d = newDevJam();
+    const lit: boolean[] = [];
+    let t = 0;
+    // jammed 3 s
+    for (; t < 3; t += DT) {
+      stepDevJam(d, true, 'light', DT);
+      lit.push(lightLit(d));
+    }
+    const flick = lit.slice(0, Math.round(JAM_LIGHT.flickerOff / DT));
+    expect(flick.some((x) => x)).toBe(true);
+    expect(flick.some((x) => !x)).toBe(true);
+    expect(lit.slice(Math.round(JAM_LIGHT.flickerOff / DT) + 1).every((x) => !x)).toBe(true);
+    // released: off for 4 s
+    stepDevJam(d, false, 'light', DT);
+    expect(d.ph).toBe(DEV_RECOVER);
+    let off = 0;
+    while (!lightLit(d) && off < 10) {
+      stepDevJam(d, false, 'light', DT);
+      off += DT;
+    }
+    expect(off).toBeGreaterThan(JAM_LIGHT.offHold - 0.05);
+    expect(off).toBeLessThan(JAM_LIGHT.offHold + 0.1);
+    // then the flicker back on: on and off frames, and on at the end (idle)
+    const back: boolean[] = [];
+    while (d.ph === DEV_RECOVER) {
+      back.push(lightLit(d));
+      stepDevJam(d, false, 'light', DT);
+    }
+    expect(back.some((x) => !x)).toBe(true);
+    expect(d.ph).toBe(DEV_IDLE);
+    expect(lightLit(d)).toBe(true);
+    expect(recoverTime('light')).toBe(JAM_LIGHT.offHold + JAM_LIGHT.flickerOn);
   });
 });
 
@@ -117,26 +231,22 @@ describe('jam wire', () => {
     expect(parseMessage({ t: 'jam', tgt: '<script>' })).toBeNull();
     expect(parseMessage({ t: 'jam' })).toBeNull();
   });
+  it('(26) the sec field round-trips the jam state: camera clocks, use, cooldown, device timelines; junk is clamped or dropped', async () => {
+    const { parseMessage, PROTOCOL_VERSION } = await import('../src/net/protocol');
+    expect(PROTOCOL_VERSION).toBe(26);
+    const sec = { ck: [12.5, 3], j: ['cam-s3', ''], ch: [2.5, 5], cd: [0, 3.2], dv: [['cam-s3', 1, 2.5], ['lt-4', 2, 1.25]], al: 1 };
+    const msg = { t: 'sector', sec };
+    expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);
+    const bad = parseMessage({ t: 'sector', sec: { ck: [-4, 'x', 2e9], j: ['<x>', 5], ch: [99, -1], cd: [50, 'a'], dv: [['ok', 2, 99], ['<b>', 1, 1], 'junk', ['z', 0, 1], ['y', 7, 1]], al: 4 } });
+    expect(bad).toEqual({ t: 'sector', sec: { ck: [0, 0, 1e6], j: ['', ''], ch: [10, 0], cd: [10, 0], dv: [['ok', 2, 30]], al: 4 } });
+  });
 });
 
 describe('ctcourse devices', () => {
-  it('station 3 has a real camera blind under it and a pocket gate; station 4 a laser across the doorway', async () => {
-    const { ctcourse, S3_FLAG, S3_POCKET } = await import('../src/world/maps/ctcourse');
+  it('station 4 has a laser across the doorway', async () => {
+    const { ctcourse } = await import('../src/world/maps/ctcourse');
     const { LevelBuilder } = await import('../src/world/levelBuilder');
-    const { CAMERA } = await import('../src/config/security');
-    const { inFrame } = await import('../src/security/camera');
     const lay = ctcourse.build(new LevelBuilder(), 0);
-    const cam = lay.security!.devices[0]!;
-    expect(cam.kind).toBe('camera');
-    const gate = lay.course!.def.bays[2]!.gates.find((g) => g.kind === 'flag');
-    expect(gate && gate.kind === 'flag' && gate.flag).toBe(S3_FLAG);
-    expect(lay.course!.def.externalFlags).toContain(S3_FLAG);
-    // the pocket's far corner (standing head 1.7 m) is outside the camera's vertical field at every sweep angle; the approach 4 m back is inside it
-    const cy = cam.y;
-    const [x0, z0, x1, z1] = S3_POCKET.box;
-    for (const x of [x0, x1]) for (const z of [z0, z1]) for (let a = 240; a <= 300; a += 10) expect(inFrame((a * Math.PI) / 180, cam.at[0], cy, cam.at[1], x, 1.7, z)).toBe(false);
-    expect(inFrame((270 * Math.PI) / 180, cam.at[0], cy, cam.at[1], cam.at[0] - 5, 1.7, cam.at[1])).toBe(true);
-    expect(CAMERA.range).toBeGreaterThan(cam.at[0] - 44);
     const laser = lay.lasers![0]!;
     expect(laser.ys.length).toBeGreaterThanOrEqual(3);
     // a body walking through the doorway at its centre touches it
@@ -158,5 +268,120 @@ describe('ctcourse devices', () => {
     expect(gate && gate.kind === 'pickup' && gate.flag).toBe(S4_FLAG);
     expect(c.devices['sw-s4-a']).toBeUndefined();
     expect(c.doors['S4-door']).toBeUndefined();
+  });
+});
+
+describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
+  const DEG = Math.PI / 180;
+  /** The first collide box (yaw 0) the segment a -> b passes through, or false. */
+  type Box = { c: number[]; s: number[]; yaw: number; collide: boolean };
+  const blocked = (boxes: Box[], a: number[], b: number[]): boolean => {
+    for (const bx of boxes) {
+      if (!bx.collide || bx.yaw !== 0) continue;
+      let t0 = 0;
+      let t1 = 1;
+      let hit = true;
+      for (let k = 0; k < 3 && hit; k++) {
+        const d = b[k]! - a[k]!;
+        const lo = bx.c[k]! - bx.s[k]! / 2;
+        const hi = bx.c[k]! + bx.s[k]! / 2;
+        if (Math.abs(d) < 1e-9) {
+          if (a[k]! < lo || a[k]! > hi) hit = false;
+          continue;
+        }
+        let u = (lo - a[k]!) / d;
+        let v = (hi - a[k]!) / d;
+        if (u > v) [u, v] = [v, u];
+        t0 = Math.max(t0, u);
+        t1 = Math.min(t1, v);
+        if (t0 > t1) hit = false;
+      }
+      // the segment's own ends (the lens, the point) are not occluders
+      if (hit && t1 > 0.001 && t0 < 0.999) return true;
+    }
+    return false;
+  };
+  const build = async () => {
+    const m = await import('../src/world/maps/ctcourse');
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const b = new LevelBuilder();
+    const lay = m.ctcourse.build(b, 0);
+    return { m, b, lay };
+  };
+
+  it('the camera sits at the hallway end, looking back down it, and covers it end to end at every sweep angle', async () => {
+    const { m, b, lay } = await build();
+    const { inFrame } = await import('../src/security/camera');
+    const cam = lay.security!.devices.find((d) => d.id === 'cam-s3')!;
+    expect(cam.at[0]).toBe(m.S3_CAMERA.x);
+    const [s0, s1] = cam.sweep!;
+    const lens = [cam.at[0], cam.y, cam.at[1]];
+    // standing and crouched heads along the hallway's centre and both edges, from its mouth to 3 m short of the camera
+    for (let x = m.S3_HALL.x0 + 0.3; x <= m.S3_CAMERA.x - 3; x += 0.5) {
+      for (const z of [m.S3_HALL.z0 + 0.35, (m.S3_HALL.z0 + m.S3_HALL.z1) / 2, m.S3_HALL.z1 - 0.35]) {
+        for (const y of [1.6, 1.05]) {
+          for (let a = s0; a <= s1; a += 2) expect(inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z), `${x.toFixed(1)}, ${y}, ${z} at ${a}`).toBe(true);
+          expect(blocked(b.boxes, lens, [x, y, z]), `clear line to ${x.toFixed(1)}, ${z}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('its view stays inside the bay: no point of either airlock is seen, the doors open', async () => {
+    const { b, lay, m } = await build();
+    const { inFrame } = await import('../src/security/camera');
+    const cam = lay.security!.devices.find((d) => d.id === 'cam-s3')!;
+    const lens = [cam.at[0], cam.y, cam.at[1]];
+    const x0 = m.bayX(2);
+    let tested = 0;
+    // A2 (behind the entry lobby's wall) and A3 (behind the camera); door leaves are not boxes: every door counts as open
+    for (const [ax0, ax1] of [[x0 - 6, x0], [x0 + 16, x0 + 22]] as const) {
+      for (let x = ax0 + 0.2; x < ax1; x += 0.4) {
+        for (let z = 4.2; z < 10; z += 0.4) {
+          for (const y of [0.3, 1.0, 1.7, 2.5]) {
+            for (let a = cam.sweep![0]; a <= cam.sweep![1]; a += 4) {
+              if (!inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z)) continue;
+              tested++;
+              expect(blocked(b.boxes, lens, [x, y, z]), `airlock point ${x.toFixed(1)}, ${y}, ${z.toFixed(1)} is seen`).toBe(true);
+            }
+          }
+        }
+      }
+    }
+    // A2 lies in the camera's frame and range (behind the wall): the test really tested something
+    expect(tested).toBeGreaterThan(0);
+  });
+
+  it('one jam covers one runner, never both: the covered stretch at the course speeds', async () => {
+    const { m } = await build();
+    const { CAMERA } = await import('../src/config/security');
+    const { GEARS } = await import('../src/config/movement');
+    // a standing head (1.7 m) leaves the vertical frame this close to the camera: the covered stretch ends there
+    const blind = (m.S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2);
+    const len = m.S3_CAMERA.x - blind - m.S3_HALL.x0;
+    const run = GEARS.stand[4];
+    // one runner gets through inside one 5 s jam
+    expect(len / run).toBeLessThan(JAMMER.useMax);
+    // two in a row would not fit in one jam (and the jammer must stand still while it jams)
+    expect((2 * len) / run).toBeGreaterThan(JAMMER.useMax);
+    // the jammer cannot follow inside the 1.5 s reboot either
+    expect(len / run).toBeGreaterThan(JAMMER.reboot);
+    // a narrow hallway (2.5 - 3.5 m)
+    const w = m.S3_HALL.z1 - m.S3_HALL.z0;
+    expect(w).toBeGreaterThanOrEqual(2.5);
+    expect(w).toBeLessThanOrEqual(3.5);
+  });
+
+  it('the gate: both players in the far lobby unlock the exit airlock door; the old pocket door is gone', async () => {
+    const { m, lay } = await build();
+    const c = lay.course!;
+    const gate = c.def.bays[2]!.gates.find((g) => g.kind === 'flag');
+    expect(gate && gate.kind === 'flag' && gate.flag).toBe(m.S3_FLAG);
+    expect(gate && gate.kind === 'flag' && gate.doorId).toBe('A3-near');
+    expect(c.def.externalFlags).toContain(m.S3_FLAG);
+    expect(c.doors['S3-door']).toBeUndefined();
+    const zone = lay.passZones!.find((z) => z.flag === m.S3_FLAG)!;
+    expect(Math.min(zone.box[0], zone.box[2])).toBeGreaterThanOrEqual(m.S3_HALL.x1);
+    expect(inBox(zone.box, m.bayX(2) + 15, 7)).toBe(true);
   });
 });

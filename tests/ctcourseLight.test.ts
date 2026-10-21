@@ -9,7 +9,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S5_PANEL } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_PANEL_X, S5_PANEL } from '../src/world/maps/ctcourse';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE } from '../src/voxel/lampBake';
@@ -76,14 +76,18 @@ const readSpot = (p: Spot): number => {
   return p.kind === 'body' ? body(f, p.x, p.y, p.z) : f.levelAt(p.x, p.y, p.z);
 };
 
+/** (marlow-jammer) Station 3's route is its camera hallway along the south wall (the camera's line, z 1.6); its panel
+ *  is in the entry lobby. The S3 levels in the tuned table were re-taken for the hallway (REPORT.md). */
+const routeZ = (i: number): number => (i === 2 ? S3_CAMERA.z : MID);
 const SPOTS: Spot[] = [];
 for (let i = 0; i < 8; i++) {
   const x0 = bayX(i);
   const n = i + 1;
-  for (const dx of [0.6, 4, 7, 9.8, 12.5, 15.4]) SPOTS.push(spot(`S${n} route x0+${dx}`, 'body', x0 + dx, 0, MID, 0.6));
-  SPOTS.push(spot(`S${n} route x0+8.4`, 'body', x0 + 8.4, 0, MID, 0.55));
-  SPOTS.push(spot(`S${n} panel reader`, 'body', x0 + 3.5, 0, 12.8, 0.45));
-  SPOTS.push(spot(`S${n} panel face`, 'surf', x0 + 3.5, 1.4, 13.55, 0.4));
+  const px = i === 2 ? S3_PANEL_X : x0 + 3.5;
+  for (const dx of [0.6, 4, 7, 9.8, 12.5, 15.4]) SPOTS.push(spot(`S${n} route x0+${dx}`, 'body', x0 + dx, 0, routeZ(i), 0.6));
+  SPOTS.push(spot(`S${n} route x0+8.4`, 'body', x0 + 8.4, 0, routeZ(i), 0.55));
+  SPOTS.push(spot(`S${n} panel reader`, 'body', px, 0, 12.8, 0.45));
+  SPOTS.push(spot(`S${n} panel face`, 'surf', px, 1.4, 13.55, 0.4));
   if (i < 7) {
     SPOTS.push(spot(`A${n} centre (shut)`, 'body', x0 + 19, 0, MID, 0.55, true));
     SPOTS.push(spot(`A${n} pad (shut)`, 'surf', x0 + 19, 0.3, MID, 0.45, true));
@@ -136,8 +140,10 @@ SPOTS.push(
 const CORNERS: [string, number, number][] = [];
 for (let i = 0; i < 8; i++) {
   const x0 = bayX(i);
+  // (marlow-jammer) station 3: the hallway (z 0.6) is lit on purpose and x0 + 8.3 / 9.8 at z 13.4 are sealed void; its
+  // corners are the two lobbies' far corners
   const dxs = i === 4 ? [0.6, 8.3] : [0.6, 8.3, 9.8, 15.4];
-  for (const dx of dxs) for (const z of [0.6, 13.4]) CORNERS.push([`S${i + 1} corner x0+${dx} z${z}`, x0 + dx, z]);
+  for (const dx of dxs) for (const z of [0.6, 13.4]) if (i !== 2 || ((dx === 0.6 || dx === 15.4) && z === 13.4)) CORNERS.push([`S${i + 1} corner x0+${dx} z${z}`, x0 + dx, z]);
 }
 
 describe('Marlow Yard light pass (course-ready S2)', () => {
@@ -191,9 +197,10 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
   it('the station 3 camera bay reads the same with the new lamps off and on', () => {
     const ids = NEW_LAMPS.map(([x, y, z]) => lampId(x, y, z));
     const x0 = bayX(2);
-    const pts: [number, number][] = [[52, MID]];
-    for (let x = x0 + 0.6; x <= x0 + 15.4; x += 0.8) pts.push([x, MID]);
-    for (const dx of [0.6, 8.3, 9.8, 15.4]) for (const z of [0.6, 13.4]) pts.push([x0 + dx, z]);
+    // (marlow-jammer) the camera hallway along the south wall, and the two lobbies
+    const pts: [number, number][] = [];
+    for (let x = x0 + 0.6; x <= x0 + 15.4; x += 0.8) pts.push([x, S3_CAMERA.z]);
+    for (const [dx, z] of [[0.6, 13.4], [1.6, MID], [15.4, 13.4], [14.8, MID]] as const) pts.push([x0 + dx, z]);
     for (const f of [open, shut]) {
       const on = pts.map(([x, z]) => body(f, x, 0, z));
       for (const id of ids) reg.setOn(id, false);

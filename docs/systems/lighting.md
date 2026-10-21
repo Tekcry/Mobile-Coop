@@ -32,6 +32,10 @@ field (collision, the light bake, the noise model), never the render state.
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
   `totalAt`; `bodyLevel` = brighter of chest / head. Allocation-free (a unit test bounds the bytes per query). Without a
   bake: registry ambient, every light dynamic.
+- (marlow-jammer) Jammed lamps: the pistol jammer switches a fixed electric lamp (`lamp` / `spot`) through
+  `LightRegistry.setOn` from one timeline (`jammer.ts` `lightLit`: a 0.5 s flicker off, off while held, 4 s off after the
+  release, a 0.5 s flicker on), so the bake's lamp term, the meter, the guards and the picture agree on every frame; the
+  co-op client runs the host's timeline (`sec.dv`) on its own registry.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,

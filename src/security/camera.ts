@@ -139,6 +139,11 @@ export class CameraUnit {
   readonly y: number;
   readonly z: number;
   readonly meters = new Map<string, CamMeter>();
+  /** (marlow-jammer) Jammed or rebooting: the sweep stops where it is (its clock does not run). */
+  frozen = false;
+  /** (marlow-jammer) The jam phase (0 working, 1 jammed: the LED flashes, 2 rebooting) and seconds in it (render only). */
+  jam = 0;
+  jamT = 0;
 
   constructor(
     readonly def: CameraDevice,
@@ -155,9 +160,10 @@ export class CameraUnit {
     return this.mode === 'online';
   }
 
-  /** Advance the clock (every fixed step; the sweep keeps turning while off or looped, it is only blind). */
+  /** Advance the clock (every fixed step; the sweep keeps turning while off or looped, it is only blind; a jammed or
+   *  rebooting camera is frozen: its clock stops, so the sweep resumes where it stopped). */
   advance(dt: number): void {
-    if (this.mode === 'destroyed') return;
+    if (this.mode === 'destroyed' || this.frozen) return;
     this.clock += dt;
     this.yaw = sweepYaw(this.def, this.clock);
   }
