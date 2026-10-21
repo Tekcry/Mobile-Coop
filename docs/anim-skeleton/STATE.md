@@ -1,13 +1,11 @@
 # anim-skeleton - state
 
 ## Now
-S3 done (S3a + S3b, docs/anim-skeleton/s3/): the helper branch is merged into feature/anim-skeleton. Waiting for B's #90
-to merge before S4 (tuner rows).
+S3+S4 PR to master (S4 3cf98038 + checker fix); full e2e on the laptop.
 
 ## Next
-S4 from master after #90: Joints rows clavicleL / R and fingers (tuneJoints JOINTS, additive), per-finger curl /
-spread in tuneHands, Keys fields for clav / fingers / legs (tuneKeysFile KEY_FIELDS, tuneKeys), named in the PR body.
-Then S5 (docs, full e2e, PR). Check the 5-hour meter before each agent; pause at 97%.
+S4b exact preview (BRIEF item 30(e), PLAN S4b) after the PR. Then S5 leftovers. Check the 5-hour meter before each
+agent; pause at 97%.
 
 ## Open
 - Routing (orchestrator, 2026-10-21): C edits the rig parts of `src/player/characterRig.ts` (clavicle and finger
@@ -32,6 +30,7 @@ Then S5 (docs, full e2e, PR). Check the 5-hour meter before each agent; pause at
 - Reported to the orchestrator: LOD0-2 lost their grip morphs in the 10-20 rebake (BRIEF "Facts").
 
 ## Done
+- 2026-10-22: S4 tuner rows (3cf98038): clavicle Joints rows, Keys fields on every keyed clip, legd with the planted-foot re-solve (0.00 cm on jog), rig.footSlide, auto opt-in bake; checker fix (allocation test); check pass.
 - 2026-10-22: S3b (clip bake: key_clip.py opt-in clav / fing / leg, skeleton_test clip and studio entry, frame proof under 0.01 cm legs / 0.26 cm shoulders); check, e2e-studio, e2e-anim pass; GPU sheet s3/skeleton-test-studio.webp.
 - 2026-10-21: S3a (runtime channels clav / fing / leg, FK leg blend, build.mjs emitter); checker PASS.
 - 2026-10-21: #88 (S1+S2) merged as 4.42.0.

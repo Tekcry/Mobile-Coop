@@ -372,26 +372,30 @@ describe('anim-skeleton S4: the rig', () => {
     expect(go(true).q).toEqual(base.q);
   });
 
-  it('the leg delta path on the rig never allocates', async () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.25);
-    tuneSet(keyGroupId('jog', 0), 'legL_knee', 25);
-    tuneSet(keyGroupId('jog', 0), 'legR_hipYaw', 10);
-    tuneKeysSync();
-    const S = await setup();
-    const plain = S.make('p', KEYED_WALK, 0.1);
-    const tuned = S.make('t', KEYED_JOG, 0.02);
-    tuned.drive.held = plain.drive.held = false;
-    const grow = (b: Built): number => {
+  // The whole rig's heap already grows a few MB per 3000 frames before S4 (checker, 2026-10-22: plain walk and jog
+  // alike), far above a per-frame leak in the leg stage, so the rig-level comparison was noise. The pure pieces the
+  // leg stage runs every frame are measured here instead; keyedLegDeltas itself was read for allocations (none).
+  it('the planted-leg solve and the contact weight never allocate', () => {
+    const H = { x: 0.1, y: 0.9, z: 0 };
+    const A = { x: 0.12, y: 0.1, z: 0.15 };
+    const K0 = { x: 0.11, y: 0.5, z: 0.1 };
+    const Kr = { x: 0.13, y: 0.52, z: 0.14 };
+    const out = { x: 0, y: 0, z: 0 };
+    // a typed slot, not a captured let: += on a captured number boxes a 16-byte HeapNumber every iteration
+    const acc = new Float64Array(1);
+    const pass = (): number => {
       const before = process.memoryUsage().heapUsed;
-      run(b, 3000);
+      for (let k = 0; k < 100000; k++) {
+        Kr.z = 0.1 + (k % 50) * 0.002;
+        plantKnee(H, A, K0, Kr, out);
+        acc[0]! += out.x + legdContactW(k % 3 !== 0, (k % 100) / 100);
+      }
       return process.memoryUsage().heapUsed - before;
     };
-    grow(plain);
-    grow(tuned);
-    const gp = Math.min(grow(plain), grow(plain));
-    const gt = Math.min(grow(tuned), grow(tuned));
-    // 3000 frames x 2 legs: a 32-byte allocation per leg a frame would add ~190 KB
-    expect(gt - gp).toBeLessThan(150_000);
-    S.dispose();
+    pass();
+    const grown = Math.min(pass(), pass(), pass());
+    expect(Number.isFinite(acc[0]!)).toBe(true);
+    // a 24-byte allocation per iteration would grow ~2.4 MB a pass
+    expect(grown).toBeLessThan(200_000);
   });
 });

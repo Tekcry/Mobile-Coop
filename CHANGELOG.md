@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased - anim-skeleton S3+S4
+- Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real
+  clips, jog, run, walk, idle ...). The Keys tab has, on every key: collarbone pitch / yaw / roll per side, curl and
+  spread per finger, and leg changes per joint (hip pitch / yaw / roll, knee, ankle pitch / roll, toe). A clip takes
+  them on the first edit and the bake writes them; clips nobody edits stay exactly as they are.
+- Leg key changes keep planted feet still: while a foot is planted the leg is re-solved onto its plant with the change
+  folded in (a knee or hip change on jog's contact key leaves the foot within 0.5 cm; measured 0.00 cm); the swinging
+  leg takes the change as keyed. The rig reports how far a planted foot slid (`rig.footSlide`, the studio's foot
+  slide line).
+- Joints tab: a collarbone row per side (shrug, push forward, tilt) for every state.
+- Clips can be keyed with whole legs (an FK takeover with a per-key weight over the foot planner); the studio-only test
+  clip skeleton_test uses all of it (shrug, shoulder push, fingers one by one, a kick with the other foot planted).
+
 ## 4.44.0 - Animation tuner: Joints, Hands & feet, IK and Weapon rows for every move and action (climbs, rappel, co-op moves, reload, melee, landing, hit) (2026-10-22, PR #90)
 - Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every
   traversal move (vault, mantle, step up, climb up, window vault, rappel, drop, hop, roll, wall kick, split, brace),

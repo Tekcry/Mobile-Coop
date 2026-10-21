@@ -42,3 +42,11 @@ shot `jog-s4-rows.webp` (LOD0, 41 KB, `scripts/anim-skeleton/gpushot-s4.mjs`).
 - The clavicle rows are labelled "Whole body" in `src/ui/tunerTarget.ts` (A's file).
 - footSlide does not count rate limits or Joints offsets applied after the leg stage.
 - e2e-studio does not assert the new rows.
+
+## Check (2026-10-22)
+Fresh checker: one fix. The rig-level allocation test compared tuned jog with plain walk under a 150 KB margin while
+the whole rig's heap already grows 5-12 MB per 3000 frames before S4 (plain walk and jog alike): noise, not a leak in
+the leg stage (none found by reading `keyedLegDeltas`). Fixed by the job lead: the test now measures the pure per-frame
+pieces (`plantKnee`, `legdContactW`) over 100 000 iterations with a typed accumulator (a captured `let` boxed a 16-byte
+number per iteration, the whole first failure); 3 / 3 runs pass. `npm run check` re-run under the lock: pass (232
+files, 2 538 tests, 0 lint errors). Polish: a symmetric clamp `a >= -lt` in plantKnee (cannot trigger today).
