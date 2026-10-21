@@ -37,3 +37,12 @@ e2e-studio, e2e-anim pass.
   x right, y up, z forward): Blender bone frames need converting.
 - Per-key edits of the new channels (keyOff) are S4 (tuneKeys).
 - Leaving FK for IK lands a few mrad off a rig that never used FK (the leg rate limits remember the last frame).
+
+## Check
+Fresh checker PASS (13 test files, 141 pass; keyed.ts consistent in every function; mirror correct for the rig's
+frames; FK blend placement, weight-0 exactness, no allocation; file areas clean; direct-run guard works on Windows).
+Fixed: the build.mjs `--preview` ffmpeg label path (`C\:` had become `C\:` in the re-indent). Polish: an FK leg at
+w > 0 skips the anatomy guards (reach, knee-floor lift, knee-gap bow, wall knee swing) and a planted foot at w > 0
+slides from the planner's world foot (footsteps, noise): clip authors keep w at 0 on contact frames; the clavicle /
+finger weight does not fade with reachL.w / reachR.w like keyedArm; FK -> IK lands a few mrad off; the direct-run guard
+would fail through a symlinked path.
