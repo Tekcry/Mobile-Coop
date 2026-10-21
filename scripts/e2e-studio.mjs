@@ -282,17 +282,26 @@ try {
   const mm0 = await G(() => ({ ...window.__animTune.mouse(), lockEl: !!document.pointerLockElement, gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
   assert(mm0.mode === 'drag' && mm0.free && !mm0.locked && !mm0.lockEl && !mm0.gamecam && mm0.button === 'Mouse: drag view', `tuner open: drag view, the pointer free (${JSON.stringify(mm0)})`);
   // a point on the scene, clear of the panel and the overlay
-  const at = await G(() => {
+  const atProbe = await G(() => {
     const c = window.__app.canvas;
     const r = c.getBoundingClientRect();
+    const hits = [];
     for (const [fx, fy] of [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]]) {
       const x = r.left + r.width * fx;
       const y = r.top + r.height * fy;
-      if (document.elementFromPoint(x, y) === c) return { x, y };
+      const el = document.elementFromPoint(x, y);
+      if (el === c) return { at: { x, y } };
+      const chain = [];
+      for (let e = el; e && chain.length < 4; e = e.parentElement) chain.push(`${e.tagName.toLowerCase()}.${String(e.className).trim().split(/\s+/).slice(0, 2).join('.')}`);
+      hits.push(chain.join('<'));
     }
-    return null;
+    const p = document.querySelector('.anim-tune');
+    const pr = p ? p.getBoundingClientRect() : null;
+    return { at: null, hits, vw: innerWidth, vh: innerHeight, dpr: devicePixelRatio, coarse: matchMedia('(pointer: coarse)').matches, touch: navigator.maxTouchPoints, canvas: [r.left, r.top, r.width, r.height].map(Math.round), panel: pr ? [pr.left, pr.top, pr.width, pr.height].map(Math.round) : null, cls: p ? p.className : '', body: document.body.className };
   });
-  assert(!!at, 'a point on the scene clear of the panel');
+  console.log(`DIAG probe: ${JSON.stringify(atProbe)}`);
+  const at = atProbe.at;
+  assert(!!at, `a point on the scene clear of the panel (${JSON.stringify(atProbe)})`);
   const camYaw = () => G(() => window.__app.current.player.cam.camera.rotation.y);
   const y0 = await camYaw();
   await page.mouse.move(at.x, at.y);
