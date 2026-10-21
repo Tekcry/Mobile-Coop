@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - havok-stall
+## 4.43.2 - Tests: e2e-menus waits on sim time on slow software GL; the e2e-levels ladder chase is seeded; a NaN guard in the loop (2026-10-22, PR #94)
 - The desktop e2e-menus "stall" after the animation tuner closed was not a freeze in the game: the test ran past the
   runner's 600 s limit on software GL (the match page drew about 1.5 frames a second beside the open menu page). The
   menu page now goes blank before the match page opens, and the tuner camera check settles on the sim clock: the suite
