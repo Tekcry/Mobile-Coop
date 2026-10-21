@@ -92,3 +92,52 @@ In co-op Marlow Yard, bay 3: one player aims the pistol at the camera at the end
 still (grid goes, camera stops, LED flashes, quiet buzz, HUD counts 5 s); the other runs the hallway; from the far lobby
 the runner jams it for the partner; both in the far lobby, open the airlock door. Also: re-jam during the 1.5 s reboot
 (refused); move while jamming (breaks, cooldown); jam a hallway lamp (flickers off, off 4 s after release, flickers on).
+
+## Fix round 1
+Written by the fix-round implementer (2026-10-22) after the independent checker's FIX verdict.
+
+1. Bay 3 cannot be passed without a jam (blocking; Michael item 5). Done. A hard rule for this station only
+   (`PassZone.hall`, pure `hallStep` in `src/game/jammer.ts`): a player the hallway camera has (meter full, stage 2) while
+   in the hallway is sent back to a fixed spot in the entry lobby (bay x 1.5, z 1.6, facing the hallway), radio "Camera
+   saw you. Back to the start of the hallway." (49 chars). A player who entered the hallway stays "running" until they
+   stand in the far lobby with the camera's meter on them empty (a jammed or rebooting camera keeps it empty); a running
+   player the camera has in the far lobby is sent back too; the far lobby's pass counts only players not running. The
+   camera's meter on the sent-back player is cleared. The rule stops once the station is passed. Alarm: both kept
+   (being seen still raises the alarm stage; the send-back is added; the simpler choice). Host-authoritative: the host
+   moves its own player; the client through a new `back` event (protocol 26, not yet merged, so no new bump): the host's
+   copy moves at once (`RemotePlayer.moveTo`, teleport allowed), the client teleports itself, health kept (the `revive`
+   event was not reused: it resets health and shows BACK IN). Panel text now leads with "Seen in the hallway: back to the
+   start." (119 chars). Files: `jammer.ts`, `ctDevices.ts`, `ctcourse.ts` (`S3_BACK`, `S3_BACK_RADIO`, `S3_PASS.hall`),
+   `gameState.ts` (`NetAttachment.sendBack`), `net/coopHost.ts`, `net/coopClient.ts`, `net/protocol.ts`,
+   `net/remotePlayer.ts`.
+2. Host line-of-sight check on the client's jam target. Done. `onRemoteJam` runs the same static ray as the client
+   (`G.STATIC`, 0.4 m slack) from the client's head on the host (`remoteHeadY`, peek offset); per message only (change or
+   heartbeat), no allocation (`playerRefsInto`, shared ray vectors). Note: the client checks from its camera, the host
+   from the head; in the hallway both see the camera.
+3. Client-page cue pulse assert restored. Done, moved: before the gate a player the camera sees in the hallway is sent
+   back, so both pulse checks (host and client page) now run after the gate opens, with the client standing in the
+   hallway (also asserts no send-back once the station is passed). The host at the lobby spot is not seen by the camera
+   (first try failed there).
+4. Client camera blink. Done. `mirrorDevJam` (pure): the client only moves a device's timeline forward; a host RECOVER
+   arriving within 1 s (`MIRROR_STALE`) after the mirror ran that reboot down itself is dropped; inside a phase the time
+   only grows; host idle always wins; a new jam is taken at once.
+5. Allocation. Done. HUD line cached by `jamHudKey` (kind + shown tenths): the string is built only when the shown
+   value changes. Buzz: gain and pan automation only on a change (none while silent or steady).
+
+Known behaviour for Michael (unchanged, as asked): a chained jam - player B joining A's jam on the same camera keeps it
+jammed past A's 5 s (each player's own 5 s cap still applies). It is a valid handoff.
+
+Tests: `tests/jammer.test.ts` + 9 (`hallStep` rule cases and an unjammed-runner walk, `mirrorDevJam` stale / forward /
+new jam, `jamHudKey`, the `back` event round trip, the station 3 hall data: box to the far lobby, spot in the entry
+lobby facing +x, line length). `scripts/e2e-ctcourse.mjs` station 3: unjammed in the hallway, the host is sent back to
+the spot, gate shut (`s3-clear` unset, `g-s3` closed); then the client is sent back the same way through the `back`
+event, gate shut; then the existing jam handoff (the host now jams from the lobby spot).
+
+Checks (laptop, software GL, port 4191):
+- `npm run check`: lint 0 errors / 41 warnings, build ok (1m 48s); Vitest 2401 passed, 2 files failed under load:
+  `smoothWorldLight.test.ts` (beforeAll hook timeout 120 s) and `ctcourseLight.test.ts` ("bakes in node fast enough",
+  timing). Rerun alone with `jammer.test.ts`: 3 files passed (51 tests, 1 skipped), 62 s.
+- e2e, E2E_JOBS=2: e2e-coop ok 153 s, e2e-netmove ok 212 s, e2e-sectorops ok 148 s, e2e-ctcourse FAIL 264 s (the cue
+  pulse check with the host at the lobby spot: the camera does not see it there). After moving the pulse checks: e2e-
+  ctcourse rerun alone ok 307 s (station 3 all asserts ok, both send-backs).
+- Full `npm run e2e`: not run (before the PR). Bay 3 GPU look: pending PC run.

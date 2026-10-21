@@ -19,6 +19,13 @@
   objective and panel text; the station's light levels re-taken for the hallway.
 - Co-op: `PROTOCOL_VERSION` 26: `sec` carries per-camera clocks, each player's jam left and cooldown, and the jammed /
   recovering devices; the client draws the frozen camera, LED, grid, buzz and light flicker from it.
+- Station 3 hard rule (fix round 1, item 5 "impossible to pass without one player jamming"): a player the camera has
+  (its meter full) in the hallway, or still running in the far lobby, is sent back to the entry lobby facing the
+  hallway ("Camera saw you. Back to the start of the hallway."); the far lobby only counts players who got through
+  clean. Being seen still raises the alarm stage too. Co-op: a new `back` event moves the client (health kept).
+- Fix round 1: the host checks a client's jam target with the same static line of sight (from the client's head); the
+  client never blinks a camera back into its reboot on a late host message (device timelines only move forward); the
+  jammer HUD line and the buzz no longer rebuild a string or schedule audio every frame.
 
 ## 4.36.0 - Animation tuner: key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (2026-10-21, PR #83)
 - Keys tab (Michael: "how do the keys work ... i dont understand how to view each frame"): picking a clip and a key in

@@ -542,6 +542,15 @@ export class CoopClient implements NetAttachment {
         g.app.sfx.playerHurt();
         break;
       }
+      case 'back':
+        // (marlow-jammer fix round 1) the camera hallway sent us back to the entry lobby, facing the hallway
+        if (e.player !== me) break;
+        g.team.end(true);
+        g.player.controller.override = null;
+        g.traversal.reset();
+        g.player.controller.teleport(new Vector3(e.x, e.y, e.z), e.yaw);
+        g.player.cam.yaw = e.yaw;
+        break;
       case 'revive':
         if (e.player !== me) break;
         g.player.controller.override = null;

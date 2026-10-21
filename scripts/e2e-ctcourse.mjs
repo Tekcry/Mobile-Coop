@@ -197,7 +197,9 @@ const lt = async (P, on) => {
 const sleep = (ms) => waitSim(ms);
 
 /**
- * Station 3 (marlow-jammer): the camera hallway. Seen, the camera raises the alarm stage. The host jams it: blind (no
+ * Station 3 (marlow-jammer): the camera hallway. Seen, the camera raises the alarm stage; (fix round 1, Michael item 5)
+ * seen in the hallway, a player is sent back to the entry lobby and the gate stays shut (the host, then the client
+ * through the co-op `back` event). The host jams it: blind (no
  * grid), frozen (no sweep), LED flashing, buzzing, on both pages; the client runs to the far lobby; the 5 s cap ends the
  * jam and starts the host's cooldown; the 1.5 s reboot refuses the client's jam; then the client jams from the far end
  * and the host comes through: both in the far lobby unlock the airlock door. Last, a hallway lamp jammed: off in the
@@ -215,15 +217,35 @@ async function station3(x0) {
   const d0 = await dev(A);
   assert(d0.alarm >= 1 && d0.cams[0].mode === 'online', `station 3: the camera raised the alarm stage to ${d0.alarm} and the run goes on`);
   await until(B, () => window.__ctdev?.alarm >= 1, null, 8000, 'station 3: the client page knows the alarm stage');
-  // (camera-cue) the vision cue is drawn while the camera works, on both pages, and pulses when the camera itself sees someone
+  // (fix round 1) the hard rule: seen in the hallway, unjammed, the host goes back to the entry lobby spot facing the
+  // hallway; the gate stays shut
+  const BACK = [x0 + 1.5, 1.6];
+  const gateShut = async (what) => {
+    const gs = await GA(() => ({ flag: window.__course.state.hasFlag('s3-clear'), gate: window.__course.debug().gates['g-s3'] }));
+    assert(!gs.flag && !gs.gate, `station 3: ${what}: the gate stays shut (s3-clear ${gs.flag}, g-s3 ${gs.gate})`);
+  };
+  await until(A, () => window.__ctdev.sendBacks >= 1, null, 10000, 'station 3: seen in the hallway, the host is sent back');
+  await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.5; }, BACK, 5000, 'station 3: the host stands at the entry lobby spot');
+  await gateShut('the host sent back');
+  // (camera-cue) the vision cue is drawn while the camera works, on both pages (its pulse is checked once the station is
+  // passed: before that, a player the camera sees in the hallway is sent back)
   const cueOn = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.baked && c.tris > 0 && c.a === 1 && c.shown; };
   const cueOff = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.a === 0 && !c.shown && !c.seen; };
   await until(A, cueOn, null, 10000, 'station 3: the host draws the camera cue');
   await until(B, cueOn, null, 10000, 'station 3: the client draws the camera cue');
-  await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses while the camera sees a player');
+  // the client runs the hallway unjammed: sent back too (the host's `back` event moves it on its page)
+  await moveHost(x0 + 1.5, 6);
+  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await GB(([x, z]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, 0.1, z), Math.PI / 2); }, [x0 + 6, 1.6]);
+  await until(A, () => window.__ctdev.sendBacks >= 2, null, 30000, 'station 3: seen in the hallway, the client is sent back');
+  await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 0.5; }, BACK, 8000, 'station 3: the client page moved its player to the entry lobby spot');
+  await gateShut('the client sent back');
+  // the jam handoff: the client waits out of view, the host jams from the lobby spot, down the hallway
+  await moveClient(x0 + 1.5, 8);
+  await moveHost(...BACK);
   await drawPistol(A);
   await drawPistol(B);
-  // the host jams from where it stands, down the hallway
+  // the host jams from the lobby spot, down the hallway
   await lt(A, true);
   await aimAt(A, ...CAM);
   await until(A, () => window.__ctdev.debug().jam[0] === 'cam-s3', null, 20000, 'station 3: the host jams the camera');
@@ -269,6 +291,13 @@ async function station3(x0) {
   await until(B, () => window.__ctdev.debug().cams[0].mode === 'online', null, 8000, 'station 3: the client page sees it online again');
   await until(A, cueOn, null, 5000, 'station 3: back online, the grid fades back in (host)');
   await until(B, cueOn, null, 5000, 'station 3: back online, the grid fades back in (client)');
+  // the station is passed (the hallway rule is off): the client stands in the hallway, the cue pulses on both pages;
+  // (fix round 1, restored) the client derives the pulse itself (the host's sight test on both bodies, nothing sent)
+  await moveClient(x0 + 6, 1.6);
+  await until(A, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses while the camera sees a player');
+  await until(B, () => { const c = window.__ctdev.debug().cue[0]; return c.seen && c.pulse > 0; }, null, 30000, 'station 3: the cue pulses on the client page too');
+  assert((await dev(A)).sendBacks === 2, 'station 3: no send-back once the station is passed');
+  await moveClient(x0 + 14.6, 6);
   await holster(B);
   // item 8: a hallway lamp, jammed from the camera's blind spot at the far end (the host's cooldown is over by now)
   const LAMP = [x0 + 11, 4.35, 1.6];

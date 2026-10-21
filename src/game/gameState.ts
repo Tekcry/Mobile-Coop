@@ -210,6 +210,9 @@ export interface NetAttachment {
   partnerBodies?(out: SeenBody[], from: number): number;
   /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
   sendJam?(tgt: string): void;
+  /** (marlow-jammer fix round 1) Host, course mode: move player `who` to (x, y, z) facing `yaw` (the camera hallway's
+   *  send-back; a `back` event, the client moves itself). */
+  sendBack?(who: string, x: number, y: number, z: number, yaw: number): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */

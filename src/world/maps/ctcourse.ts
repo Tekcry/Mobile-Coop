@@ -111,8 +111,21 @@ export const S3_FLAG = 's3-clear';
  */
 export const S3_HALL = { x0: bayX(2) + 3, x1: bayX(2) + 13.6, z0: 0.15, z1: 3.05, wallZ: 3.2 } as const;
 export const S3_CAMERA = { x: bayX(2) + 15.6, z: 1.6, y: 2.4, facing: 270, sweep: [262, 278] as [number, number] };
-/** The far lobby: both players in it unlock the airlock's door (the gate). */
-export const S3_PASS: PassZone = { id: 'p-s3', box: [bayX(2) + 13.8, 0.4, bayX(2) + 15.7, CT_W - 0.4], flag: S3_FLAG };
+/**
+ * (marlow-jammer fix round 1, Michael item 5: "impossible to pass without one player jamming") The hallway's hard rule
+ * (`hallStep`, this station only): a player the camera has (its meter full) in the hallway, or still running in the far
+ * lobby, goes back to this spot in the entry lobby, facing the hallway (+x), with `S3_BACK_RADIO`.
+ */
+export const S3_BACK: [number, number, number] = [bayX(2) + 1.5, 1.6, Math.PI / 2];
+export const S3_BACK_RADIO = 'Camera saw you. Back to the start of the hallway.';
+/** The far lobby: both players in it unlock the airlock's door (the gate); a player still running the hallway does not count. */
+export const S3_PASS: PassZone = {
+  id: 'p-s3',
+  box: [bayX(2) + 13.8, 0.4, bayX(2) + 15.7, CT_W - 0.4],
+  flag: S3_FLAG,
+  // the hallway box runs up to the far lobby's edge (no gap between the two)
+  hall: { camera: 'cam-s3', box: [S3_HALL.x0, S3_HALL.z0, bayX(2) + 13.8, S3_HALL.z1], back: S3_BACK, say: S3_BACK_RADIO },
+};
 /** The station 3 panel sits in the entry lobby (the other stations' at bay x 3.5). */
 export const S3_PANEL_X = bayX(2) + 1.6;
 /** Station 6 (B6): the course flag the paired scanners set (both hacks finished within the sync window). */
@@ -182,7 +195,7 @@ export const PANEL_TEXT_MAX = 120;
 export const PANEL_TEXT: readonly string[] = [
   'Step onto the airlock pad at the end with your partner to go on',
   'Wall: crouch + Co-op (RB / F) boosts your partner; Y / Space climbs up. They unbolt the door (A / E) on the far side',
-  'Camera hallway: LB / Tab to the pistol, X draws; aim (LT / RMB), stand still, hold Co-op (RB / F): 5 s jam. Swap ends',
+  'Seen in the hallway: back to the start. LB / Tab to the pistol, X draws; aim LT / RMB, stand still, hold Co-op (RB / F)',
   'Laser: a beam costs health. Stand, Co-op (RB / F) throws your partner over; they press the red release on the left wall',
   'Annex: leg-up and relay onto the roof (Y / Space climbs up). Press both roof plates (A / E) together',
   'Scanners: one each. Press A / E at your scanner and stay; both hacks must finish within 1.5 s. Start on two green lights',

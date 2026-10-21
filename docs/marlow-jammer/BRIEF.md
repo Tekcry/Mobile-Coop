@@ -37,6 +37,12 @@ jammer that visibly and audibly works. Prototype quality (G4): no polish beyond 
   the 1.5 s reboot make it a real handoff).
 - J1 (this job): the 5 s use / 5 s cooldown replace the old 20 s charge model (drain / refill / minStart) for every
   player; the HUD charge readout shows use left and cooldown. Undo: restore the charge constants in `src/game/jammer.ts`.
+- J2 (checker fix 1): bay 3 is a hard rule (G125 allows one per mission): a player the camera detects in the hallway is
+  sent back to the entry lobby with a radio line, and only players who reached the far lobby unseen count for the gate.
+  Makes item 5's "impossible to pass without jamming" literal. Undo: back to alarm-only (the gate counts anyone in the
+  far lobby).
+- J3: player B may join A's jam on the same camera, so it stays jammed past A's 5 s with no reboot between (a valid
+  handoff). Undo: block a second jammer on a target that is already jammed.
 
 ## Limits
 - CLAUDE.md hard rules. Gameplay never reads graphics state; light parity holds (the meter and guards see a jammed

@@ -26,13 +26,21 @@ export class JamBuzz {
       if (gain <= 0) return;
       this.build(ctx);
     }
-    const t = ctx.currentTime;
-    if (Math.abs(gain - this.level) > 0.002) {
+    // (fix round 1) automation only when something changes: nothing scheduled per frame while silent or steady
+    const was = this.level;
+    if (Math.abs(gain - was) > 0.002 || (gain === 0 && was !== 0)) {
       this.level = gain;
-      this.mix!.gain.setTargetAtTime(gain, t, 0.04);
+      this.mix!.gain.setTargetAtTime(gain, ctx.currentTime, 0.04);
     }
-    this.pan?.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), t, 0.05);
+    if (gain <= 0 && was <= 0) return;
+    const p = Math.max(-1, Math.min(1, pan));
+    if (Math.abs(p - this.panV) > 0.01) {
+      this.panV = p;
+      this.pan?.pan.setTargetAtTime(p, ctx.currentTime, 0.05);
+    }
   }
+
+  private panV = 0;
 
   private build(ctx: AudioContext): void {
     const out = this.a.out('sfx', 1, 0, Infinity);

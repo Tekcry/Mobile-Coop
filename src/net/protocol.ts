@@ -127,6 +127,8 @@ export type NetEvent =
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
   | { e: 'revive'; player: string; x: number; y: number; z: number }
+  /** (26, marlow-jammer fix round 1) The camera hallway sent `player` back to (x, y, z), facing `yaw` (alive, health kept). */
+  | { e: 'back'; player: string; x: number; y: number; z: number; yaw: number }
   /** Co-op: a takedown the host refused (the client lets go of its puppet). */
   | { e: 'tdDenied'; player: string; enemy: string }
   /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
@@ -333,6 +335,14 @@ function netEvent(v: unknown): NetEvent | null {
       const y = num(v.y, -50, 100);
       const z = num(v.z, -WORLD, WORLD);
       return player && x !== null && y !== null && z !== null ? { e: 'revive', player, x, y, z } : null;
+    }
+    case 'back': {
+      const player = id(v.player);
+      const x = num(v.x, -WORLD, WORLD);
+      const y = num(v.y, -50, 100);
+      const z = num(v.z, -WORLD, WORLD);
+      const yaw = num(v.yaw, -10, 10);
+      return player && x !== null && y !== null && z !== null && yaw !== null ? { e: 'back', player, x, y, z, yaw } : null;
     }
     case 'tdDenied': {
       const player = id(v.player);

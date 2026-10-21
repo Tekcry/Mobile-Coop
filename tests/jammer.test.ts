@@ -4,19 +4,26 @@ import {
   DEV_IDLE,
   DEV_JAMMED,
   DEV_RECOVER,
+  HALL_BACK,
+  HALL_IDLE,
+  HALL_RUN,
   JAMMER,
   JAM_LIGHT,
   LASER,
   advanceDevJam,
   distToSegment,
   flickerLit,
+  hallStep,
   inBox,
+  jamHudKey,
   jamHudText,
   jamLeft,
   laserCooldown,
   laserDamage,
   laserTouch,
   lightLit,
+  MIRROR_STALE,
+  mirrorDevJam,
   newDevJam,
   newJam,
   nextAlarm,
@@ -155,6 +162,85 @@ describe('device jam timelines (A3: the 1.5 s reboot; item 8: the light)', () =>
   });
 });
 
+describe('fix round 1: the client mirror only moves forward, the HUD key', () => {
+  it('a late host reboot the mirror already ran down is dropped (no blink); a new jam after it is taken', () => {
+    const d = newDevJam();
+    expect(mirrorDevJam(d, DEV_RECOVER, 1.2, Infinity)).toBe(true);
+    // the mirror runs the reboot down itself
+    advanceDevJam(d, 'camera', 0.35);
+    expect(d.ph).toBe(DEV_IDLE);
+    // a host message sent before the host's own reboot ended arrives now: dropped, the camera stays idle
+    expect(mirrorDevJam(d, DEV_RECOVER, 1.45, 0.05)).toBe(false);
+    expect(d.ph).toBe(DEV_IDLE);
+    // a fresh jam is taken at once, and its later reboot too
+    expect(mirrorDevJam(d, DEV_JAMMED, 0.1, 0.2)).toBe(true);
+    expect(d.ph).toBe(DEV_JAMMED);
+    expect(mirrorDevJam(d, DEV_RECOVER, 0, Infinity)).toBe(true);
+    expect(d.ph).toBe(DEV_RECOVER);
+    // long idle (past MIRROR_STALE): a reboot from the host is a real one
+    const e = newDevJam();
+    expect(mirrorDevJam(e, DEV_RECOVER, 0.3, MIRROR_STALE + 0.1)).toBe(true);
+    expect(e.ph).toBe(DEV_RECOVER);
+  });
+  it('inside one phase the time only moves on; the host idle always wins', () => {
+    const d = newDevJam();
+    mirrorDevJam(d, DEV_RECOVER, 1.0, Infinity);
+    mirrorDevJam(d, DEV_RECOVER, 0.8, Infinity);
+    expect(d.t).toBe(1.0);
+    mirrorDevJam(d, DEV_RECOVER, 1.1, Infinity);
+    expect(d.t).toBe(1.1);
+    expect(mirrorDevJam(d, DEV_IDLE, 0, Infinity)).toBe(true);
+    expect(d.ph).toBe(DEV_IDLE);
+  });
+  it('the HUD key changes only when the shown text does (kind and tenths)', () => {
+    const s = newJam();
+    expect(jamHudKey(s, false, false)).toBe(0);
+    stepJam(s, true, 0, 0.01);
+    const k = jamHudKey(s, true, false);
+    stepJam(s, true, 0, 0.01);
+    expect(jamHudKey(s, true, false)).toBe(k);
+    stepJam(s, true, 0, 0.2);
+    expect(jamHudKey(s, true, false)).not.toBe(k);
+    const ready = newJam();
+    expect(jamHudKey(ready, true, false)).not.toBe(jamHudKey(ready, true, true));
+  });
+});
+
+describe('fix round 1: the camera hallway send-back (Michael item 5, station 3 only)', () => {
+  it('seen (stage 2) in the hallway: sent back; seen less: keeps running', () => {
+    expect(hallStep(false, true, false, 2)).toBe(HALL_BACK);
+    expect(hallStep(true, true, false, 2)).toBe(HALL_BACK);
+    expect(hallStep(false, true, false, 1)).toBe(HALL_RUN);
+    expect(hallStep(false, true, false, 0)).toBe(HALL_RUN);
+  });
+  it('a runner reaches the far lobby clean only with an empty meter; seen there still running: sent back', () => {
+    expect(hallStep(true, false, true, 1)).toBe(HALL_RUN);
+    expect(hallStep(true, false, true, 2)).toBe(HALL_BACK);
+    expect(hallStep(true, false, true, 0)).toBe(HALL_IDLE);
+    // through (not running): the camera seeing them in the far lobby is only the alarm, no send-back
+    expect(hallStep(false, false, true, 2)).toBe(HALL_IDLE);
+  });
+  it('outside both boxes nothing changes (the entry lobby, the airlock)', () => {
+    expect(hallStep(false, false, false, 2)).toBe(HALL_IDLE);
+    expect(hallStep(true, false, false, 2)).toBe(HALL_RUN);
+  });
+  it('an unjammed runner is sent back before the far lobby: the pass never counts them', () => {
+    // a runner along the hallway at 4 m/s, the meter filling (stage 2 after about 1 s): sent back, never clean through
+    let run = false;
+    let back = false;
+    for (let t = 0, x = 3; x < 16 && !back; t += 0.1, x += 0.4) {
+      const st = hallStep(run, x < 13.8, x >= 13.8, t >= 1 ? 2 : t >= 0.3 ? 1 : 0);
+      if (st === HALL_BACK) back = true;
+      else run = st === HALL_RUN;
+    }
+    expect(back).toBe(true);
+    // jammed (the meter held empty): clean through, counted
+    run = false;
+    for (let x = 3; x < 15; x += 0.4) run = hallStep(run, x < 13.8, x >= 13.8, 0) === HALL_RUN;
+    expect(run).toBe(false);
+  });
+});
+
 describe('jam target pick', () => {
   const ts: JamTarget[] = [
     { id: 'near', kind: 'camera', x: 0, y: 0, z: 10 },
@@ -239,6 +325,12 @@ describe('jam wire', () => {
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);
     const bad = parseMessage({ t: 'sector', sec: { ck: [-4, 'x', 2e9], j: ['<x>', 5], ch: [99, -1], cd: [50, 'a'], dv: [['ok', 2, 99], ['<b>', 1, 1], 'junk', ['z', 0, 1], ['y', 7, 1]], al: 4 } });
     expect(bad).toEqual({ t: 'sector', sec: { ck: [0, 0, 1e6], j: ['', ''], ch: [10, 0], cd: [10, 0], dv: [['ok', 2, 30]], al: 4 } });
+  });
+  it('(26, fix round 1) the back event (the hallway send-back) round-trips; junk is dropped', async () => {
+    const { parseMessage } = await import('../src/net/protocol');
+    const ev = { e: 'back', player: 'p2', x: 41.5, y: 0, z: 1.6, yaw: Math.PI / 2 };
+    expect(parseMessage({ t: 'ev', events: [ev] })).toEqual({ t: 'ev', events: [ev] });
+    expect(parseMessage({ t: 'ev', events: [{ e: 'back', player: 'p2', x: 1, y: 0, z: 1 }] })).toEqual({ t: 'ev', events: [] });
   });
 });
 
@@ -383,5 +475,18 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
     const zone = lay.passZones!.find((z) => z.flag === m.S3_FLAG)!;
     expect(Math.min(zone.box[0], zone.box[2])).toBeGreaterThanOrEqual(m.S3_HALL.x1);
     expect(inBox(zone.box, m.bayX(2) + 15, 7)).toBe(true);
+    // (fix round 1) the hallway rule: its box covers the hallway up to the far lobby (no gap), the camera is the bay's,
+    // the send-back spot is in the entry lobby facing the hallway, the radio line fits
+    const hall = zone.hall!;
+    expect(hall.camera).toBe('cam-s3');
+    expect(inBox(hall.box, m.S3_HALL.x0 + 0.1, 1.6)).toBe(true);
+    expect(Math.max(hall.box[0], hall.box[2])).toBeCloseTo(Math.min(zone.box[0], zone.box[2]));
+    const [bx, bz, yaw] = hall.back;
+    expect(bx).toBeGreaterThan(m.bayX(2));
+    expect(bx).toBeLessThan(m.S3_HALL.x0);
+    expect(inBox(hall.box, bx, bz)).toBe(false);
+    expect(inBox(zone.box, bx, bz)).toBe(false);
+    expect(yaw).toBeCloseTo(Math.PI / 2);
+    expect(hall.say.length).toBeLessThanOrEqual(90);
   });
 });

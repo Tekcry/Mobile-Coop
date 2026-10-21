@@ -133,7 +133,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   the stand-still rule) and every device's timeline (`DevJam`: jammed, then the 1.5 s reboot or a light's 4 s off and
   flicker back) and sends them in `sec`; the client takes the phases and times and runs them on between messages
   (`advanceDevJam`), so it draws the frozen camera, its flashing LED, the hidden grid, the buzz and the light flicker
-  from host state (marlow-jammer).
+  from host state (marlow-jammer). The client only moves a device's timeline forward (`mirrorDevJam`: a late host
+  reboot it already ran down is dropped). The host checks a client's jam target with the static line of sight from the
+  client's head (0.4 m slack), as the client does from its camera.
+- (marlow-jammer fix round 1) The camera hallway's send-back (`PassZone.hall`, `hallStep`, Marlow Yard station 3): the
+  host moves its own player, and a client with the `back` event (`{ e: 'back', player, x, y, z, yaw }`, protocol 26):
+  the host's copy moves at once (`RemotePlayer.moveTo`, a teleport allowed), the client teleports itself facing `yaw`,
+  alive with its health kept.
 
 ## Sector Ops wire (`sector`)
 - `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and

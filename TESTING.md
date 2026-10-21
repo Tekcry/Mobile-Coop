@@ -191,6 +191,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   counts 5 s, then COOLDOWN 5 s; released, the camera stays blind 1.5 s and cannot be jammed meanwhile. One jams while
   the other runs; from the far lobby, the one through jams for the other; both there unlock the airlock door. The camera's
   grid never shows inside an airlock. Jam a hallway lamp: it flickers off, stays off 4 s after you let go, flickers on.
+  Run the hallway without a jam: the camera catches you and you are put back at the hallway's start (radio line); the
+  airlock door stays locked until both got through under a jam.
 - [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
   10 HP.
 - [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the

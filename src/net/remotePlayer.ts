@@ -167,6 +167,13 @@ export class RemotePlayer implements Damageable {
   /** (step 12 r1) The peek blend amount from the time since the peek bit came on (0..1). */
   private peekK = 0;
 
+  /** (marlow-jammer fix round 1) Moved by the host (the camera hallway's send-back): alive, health kept. */
+  moveTo(x: number, y: number, z: number): void {
+    this.feet.set(x, y, z);
+    this.allowTeleport(3);
+    this.sync();
+  }
+
   allowTeleport(seconds = 1.5): void {
     this.teleportGrace = seconds;
   }

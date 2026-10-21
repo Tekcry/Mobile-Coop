@@ -311,3 +311,75 @@ export function rearmZones(set: Set<string>, zones: readonly { id: string; flag:
     if (set.has(z.id) && !has(z.flag)) set.delete(z.id);
   }
 }
+
+/**
+ * (marlow-jammer fix round 1, Michael item 5: "it should be impossible to pass without one player jamming in to walk
+ * past") A camera hallway's hard rule, one station only (bay 3): a player the hallway's camera has (its meter full,
+ * stage 2) while in the hallway is sent back to a fixed spot in the entry lobby, facing the hallway, with a radio line.
+ * A player who entered the hallway is "running" until they stand in the far lobby with the camera's meter on them empty
+ * (stage 0; a jammed or rebooting camera keeps it empty); a running player the camera has in the far lobby is sent back
+ * too. The far lobby's pass zone counts only players who are not running (a sent-back player must run it again).
+ */
+export interface HallRule {
+  /** The camera that watches the hallway. */
+  camera: string;
+  /** The hallway's plan box [x0, z0, x1, z1]. */
+  box: [number, number, number, number];
+  /** The send-back spot in the entry lobby: x, z and yaw (facing the hallway; 0 is +z). */
+  back: [number, number, number];
+  /** LANTERN's line on a send-back (<= 90 characters). */
+  say: string;
+}
+
+/** A player's hallway state: not running, running (entered the hallway, not yet clean through), sent back now. */
+export const HALL_IDLE = 0;
+export const HALL_RUN = 1;
+export const HALL_BACK = 2;
+export type HallStep = typeof HALL_IDLE | typeof HALL_RUN | typeof HALL_BACK;
+
+/**
+ * One player's step of the hallway rule. `running`: they were running; `inHall` / `inFar`: their feet in the hallway /
+ * the far lobby; `stage`: the hallway camera's meter stage on them (2 = it has them). Returns the new state, or
+ * `HALL_BACK` when they must be sent back now (the caller moves them and they are no longer running).
+ */
+export function hallStep(running: boolean, inHall: boolean, inFar: boolean, stage: number): HallStep {
+  if (stage >= 2 && (inHall || (inFar && running))) return HALL_BACK;
+  if (inHall) return HALL_RUN;
+  if (running && inFar && stage === 0) return HALL_IDLE;
+  return running ? HALL_RUN : HALL_IDLE;
+}
+
+/**
+ * (fix round 1) Client: take the host's phase and time for a mirrored device timeline, only ever forward. A host
+ * RECOVER that arrives while the mirror is idle because it ran that same reboot down itself less than `MIRROR_STALE` s
+ * ago (`idleFor`; Infinity when the mirror did not) is late and dropped (no blink back into the reboot); inside one
+ * phase the time only moves on. Returns true when the host's state was taken.
+ */
+export const MIRROR_STALE = 1;
+export function mirrorDevJam(d: DevJam, ph: DevPhase, t: number, idleFor: number): boolean {
+  if (ph === DEV_IDLE) {
+    d.ph = DEV_IDLE;
+    d.t = 0;
+    return true;
+  }
+  if (ph === DEV_RECOVER && d.ph === DEV_IDLE && idleFor < MIRROR_STALE) return false;
+  if (ph === d.ph) {
+    if (t > d.t) d.t = t;
+    return true;
+  }
+  d.ph = ph;
+  d.t = t;
+  return true;
+}
+
+/**
+ * (fix round 1) The HUD line's cache key: its kind and its shown tenths, so the text (a new string) is only built when
+ * what it shows changes. 0 = hidden.
+ */
+export function jamHudKey(s: JamState, pick: boolean, pickRecovering: boolean): number {
+  if (s.active) return 100000 + Math.round(jamLeft(s) * 10);
+  if (s.cool > 0) return 200000 + Math.round(s.cool * 10);
+  if (pick && pickRecovering) return 3;
+  if (pick) return 4;
+  return 0;
+}
