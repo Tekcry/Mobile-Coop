@@ -622,6 +622,14 @@ try {
   await frames(page, 12);
   const k23d = await G(() => ({ time: window.__animTune.keysTime(), early: document.querySelector('.anim-tune-keys-early')?.disabled, late: document.querySelector('.anim-tune-keys-late')?.disabled }));
   assert(k23d.time.info?.fixed && k23d.early && k23d.late && k23d.time.readout.includes('fixed'), `the first key's time is fixed (${JSON.stringify({ readout: k23d.time.readout, early: k23d.early, late: k23d.late })})`);
+  // back to the state the Mirror steps left (the Keys picker and the studio on walk key 2) for the asserts below
+  await G(() => {
+    window.__animTune.pickLevel('keys', 0, 'walk');
+    window.__animTune.pickLevel('keys', 1, '1');
+  });
+  await frames(page, 6);
+  await G(() => window.__studio.showKey('walk', 1));
+  await frames(page, 6);
 
   // (T1a, item 16) the playback bar on every tab: shown on the Body tab, F9 plays / pauses, a weapon picked in a tab
   // swaps her gun (a holstered loop plays the low ready), a climb move and a co-op role play their loops
