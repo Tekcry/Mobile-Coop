@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - anim-goggle
+- Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
+  turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
+  the goggle's own pivot. It bakes into the animation base table like the other Gear rows; every Wren body takes it
+  (the co-op partner and the studio's pair puppets too), guards never. At LOD1 / LOD2 only the lens moves (the housing
+  is part of the head there). The stowed goggle has no slider yet (it has no separate parts). Untuned, nothing changes.
+
 ## 4.45.0 - Animation tuner: Gear offsets for the holster, the guns on her back and the hip sling, baked (2026-10-22, PR #95)
 - Gear offsets (marlow-bays item 22): the animation tuner has a Gear tab with sliders that move worn gear per socket:
   the holstered pistol on the thigh, the guns on the back (left, centre, right) and the hip sling socket

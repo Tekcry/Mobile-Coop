@@ -301,6 +301,24 @@ try {
   await frames(page, 4);
   const gear3 = await gearOf();
   assert(gear3.p.every((v, i) => v === gear0.p[i]) && gear3.sh.every((v, i) => v === gear0.sh[i]), 'reset: the pistol and the sling node are back exactly');
+  // (anim-goggle) a gear.goggles base row moves Wren's worn goggle offset (`rig.goggleOff` slots 6..11: in use, head
+  // frame, m and deg), the stowed slots stay identity, the tuner's delta adds; reset exact
+  const gogOf = () => G(() => Array.from(window.__app.current.player.rig.goggleOff));
+  const gog0 = await gogOf();
+  await G(() => window.__animBase.setGear('goggles', 'y', 0.015));
+  await G(() => window.__animBase.setGear('goggles', 'pitch', -12));
+  await frames(page, 4);
+  const gog1 = await gogOf();
+  assert(gog0.every((v) => v === 0) && gog1[7] === 0.015 && gog1[9] === -12 && [6, 8, 10, 11].every((k) => gog1[k] === 0) && gog1.slice(0, 6).every((v) => v === 0), `a gear.goggles base row (y 1.5 cm, pitch -12) moves Wren's worn goggle offset (in use ${gog1.slice(6).join(', ')}; stowed ${gog1.slice(0, 6).join(', ')})`);
+  await G(() => window.__animTune.set('gear.goggles', 'y', 0.005));
+  await frames(page, 4);
+  const gog2 = await gogOf();
+  assert(Math.abs(gog2[7] - 0.02) < 1e-12, `the tuner's goggles delta adds on the base row (y ${gog2[7]})`);
+  await G(() => window.__animTune.set('gear.goggles', 'y', 0));
+  await G(() => window.__animBase.reset());
+  await frames(page, 4);
+  const gog3 = await gogOf();
+  assert(gog3.every((v) => v === 0), `reset: Wren's goggle offset is identity again (${gog3.join(', ')})`);
   // the pair puppet (role B of the boost)
   await G(() => window.__studio.pick('pair:boost'));
   await frames(page, 6);
@@ -308,18 +326,21 @@ try {
     const r = window.__app.current.studio.puppets[1].rig;
     const sh = r.slingHip.position;
     const g = r.tuneSt.gear;
-    return { x: g.out[0], live: g.live[0], sh: [sh.x, sh.y, sh.z] };
+    return { x: g.out[0], live: g.live[0], sh: [sh.x, sh.y, sh.z], gg: Array.from(r.goggleOff) };
   });
   const gearP0 = await gearPupOf();
   await G(() => window.__animBase.setGear('holster', 'x', 0.03));
   await G(() => window.__animBase.setGear('slingHip', 'z', -0.02));
+  await G(() => window.__animBase.setGear('goggles', 'y', 0.015));
   await frames(page, 6);
   const gearP1 = await gearPupOf();
   assert(gearP0.live === 0 && gearP1.live === 1 && Math.abs(gearP1.x - 0.03) < 1e-12 && Math.abs(gearP1.sh[2] - gearP0.sh[2] + 0.02) < 1e-9, `role B's puppet takes the gear rows (holster x ${gearP1.x}, sling node ${(gearP1.sh[2] - gearP0.sh[2]).toFixed(4)} m)`);
+  assert(gearP0.gg.every((v) => v === 0) && gearP1.gg[7] === 0.015 && gearP1.gg.every((v, k) => k === 7 || v === 0), `(anim-goggle) role B's puppet takes the goggles row (in use y ${gearP1.gg[7]})`);
   await G(() => window.__animBase.reset());
   await frames(page, 6);
   const gearP2 = await gearPupOf();
   assert(gearP2.live === 0 && gearP2.sh.every((v, i) => v === gearP0.sh[i]), "reset: the puppet's sling node is back exactly");
+  assert(gearP2.gg.every((v) => v === 0), "(anim-goggle) reset: the puppet's goggle offset is identity again");
   await G(() => window.__studio.pick('state:idle'));
   await frames(page, 4);
 
