@@ -41,6 +41,9 @@ export interface PadFrame {
   move: Vec2;
   /** Look rate -1..1 (x right, y up). Multiply by sensitivity * dt. */
   look: Vec2;
+  /** (sector-fixes W) Right stick position after the dead zone, no curve, no invert (x right, y up): the selection
+   *  wheel's cursor (absolute: let go and it is back on the vision slot). */
+  stick: Vec2;
   fireAnalog: number;
   /** True if anything is being actuated (for input-mode switching). */
   active: boolean;
@@ -146,6 +149,8 @@ export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readon
   const rs = applyCurve(applyRadialDeadzone(ax(2), ax(3), t.deadzoneRight), t.curve);
   const move = { x: ls.x, y: -ls.y };
   const look = { x: rs.x, y: t.invertY ? rs.y : -rs.y };
+  const rsd = applyRadialDeadzone(ax(2), ax(3), t.deadzoneRight);
+  const stick = { x: rsd.x, y: -rsd.y };
 
   // Left stick also navigates menus.
   const rawLx = ax(0);
@@ -160,7 +165,7 @@ export function mapPad(p: PadSnapshot, t: PadTuning, table: ReadonlyArray<readon
 
   const active =
     Object.keys(out).length > 0 || move.x !== 0 || move.y !== 0 || look.x !== 0 || look.y !== 0 || lt > 0 || rt > 0;
-  return { buttons: out, move, look, fireAnalog: rt, active };
+  return { buttons: out, move, look, stick, fireAnalog: rt, active };
 }
 
 export type PadStyle = 'xbox' | 'playstation' | 'nintendo';

@@ -1,7 +1,8 @@
 /**
  * (CT prototype F1a, G181) The selection wheel (pure, unit-tested): a ring of segments, the vision modes stacked at the
  * top, then the guns, then the mission kit gadgets, clockwise. Held open over the live game (no time slow), the right
- * stick / mouse moves a cursor, release picks the highlighted item; on the vision slot A / E steps the mode (carousel). Layout reference: docs/ct-prototype/WHEEL-REF.md.
+ * stick / mouse moves a cursor, release picks the highlighted item; on the vision slot A / E steps the mode (carousel).
+ * (sector-fixes W) The vision slot is the default: lit on open and whenever the cursor is back in the centre. Layout reference: docs/ct-prototype/WHEEL-REF.md.
  * Babylon-free; the DOM lives in `ui/hud/gadgetWheel.ts`, the open / close and the picks in `gadgetSystem.ts`.
  */
 import { hyp2 } from '../core/mathx';
@@ -34,8 +35,11 @@ export type WheelPick =
   | { kind: 'gun'; index: number }
   | { kind: 'gadget'; id: GadgetId };
 
-/** Cursor length below which nothing is highlighted. */
+/** Cursor length below which no direction is read (the cursor is back on the vision slot, sector-fixes W). */
 export const WHEEL_DEAD = 0.35;
+/** (sector-fixes W, Michael item 8) The default slot: the goggles / vision slot, lit when the wheel opens and whenever
+ *  the cursor is back in the dead zone (stick let go), so hold LB + A cycles the vision modes with no stick. */
+export const WHEEL_HOME = 0;
 
 /** The ring: the vision slot at the top (index 0), the guns, then the gadgets (every one the kit has, an empty one dimmed). */
 export function buildWheel(guns: readonly WheelGun[], gadgets: readonly WheelGadget[]): WheelSeg[] {
@@ -50,6 +54,14 @@ export function segmentAt(x: number, y: number, n: number, dead = WHEEL_DEAD): n
   if (n <= 0 || hyp2(x, y) < dead) return -1;
   const k = Math.round((Math.atan2(x, y) / (Math.PI * 2)) * n);
   return ((k % n) + n) % n;
+}
+
+/** (sector-fixes W) The lit segment for a cursor: its direction's segment, or the vision slot (`WHEEL_HOME`) inside the
+ *  dead zone; the wheel never holds a previous pick. -1 only for an empty ring. */
+export function wheelSegment(x: number, y: number, n: number): number {
+  if (n <= 0) return -1;
+  const s = segmentAt(x, y, n);
+  return s < 0 ? WHEEL_HOME : s;
 }
 
 /** (nv-pass slice 3) The carousel's next mode: night -> thermal -> electro -> night (the stack's order, G181). */
@@ -72,15 +84,15 @@ export class SelectionWheel {
   /** Cursor, x right / y up, length <= 1. */
   cx = 0;
   cy = 0;
-  /** Highlighted segment (-1 none) and the vision slot's mode (the carousel: A / E steps it while the slot is lit). */
+  /** Highlighted segment (the vision slot by default; -1 only shut / empty) and the vision slot's mode (the carousel: A / E steps it while the slot is lit). */
   seg = -1;
   mode: WheelVision = 'night';
 
-  /** Open on the selected vision mode (the carousel starts there). */
+  /** Open on the selected vision mode (the carousel starts there), the vision slot lit (sector-fixes W). */
   begin(mode: WheelVision = 'night'): void {
     this.open = true;
     this.cx = this.cy = 0;
-    this.seg = -1;
+    this.seg = WHEEL_HOME;
     this.mode = mode;
   }
 
@@ -111,16 +123,16 @@ export class SelectionWheel {
     this.clamp();
   }
 
-  /** Put the cursor straight on a stick position. */
+  /** Put the cursor straight on a stick position (the pad drives it absolutely: let go = the centre = the vision slot). */
   place(x: number, y: number): void {
     this.cx = x;
     this.cy = y;
     this.clamp();
   }
 
-  /** Recompute the highlight for a ring of `n` segments. */
+  /** Recompute the highlight for a ring of `n` segments (the dead zone lights the vision slot, sector-fixes W). */
   update(n: number): void {
-    this.seg = segmentAt(this.cx, this.cy, n);
+    this.seg = wheelSegment(this.cx, this.cy, n);
   }
 
   /** What release picks (null: nothing highlighted). */
