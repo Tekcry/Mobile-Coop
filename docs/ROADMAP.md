@@ -24,6 +24,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-19 dashboard)
+- Usage (2026-10-21 ~20:05): "I don't care about weekly, just don't hit 5 hour. Trim to animation until 5 hour reset clears, or there's spare headroom around 80%". At ~60% of the 5-hour window: slice J and the cloud (R / S) pause, the animation tracks run lean (one agent at a time); at ~85% pause the tracks too; resume everything after the reset or when the window has headroom (under ~80% projected).
 - Server browser (2026-10-21 ~19:50): "Yes add it to the pipeline. It can proceed as low priority whenever there is spare capacity. Must be prototype only, quick and fast to build." Public / Private rooms listed through the existing Nostr relays; no quick match, no TURN, no server (docs/marlow-bays/BRIEF.md item 28, Bays Cloud after rejoin).
 - Focus (2026-10-21 ~19:20): "We'll focus on fine tuning the animations, gameplay, and bunker for now." Dev tools + level editor on Later.
 - Phone tuner (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for phones only? Touch input and controller will be used." Chose "Yes, tuner only": the animation tuner and Anim Studio get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/marlow-bays/BRIEF.md item 26).
