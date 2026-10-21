@@ -52,7 +52,7 @@ delete keys) is in master as 4.43.0. Design (2026-10-22, docs only):
 - **Fingers: no new Joints rows.** Hands & feet already has curl and spread per finger and per weapon / state, and
   since S2 they move each finger on its own. Per-segment finger rows (45 per hand) would clutter the panel for no
   gain at the prototype stage; `tuneHands.ts` needs no edit.
-- **Keys fields** (A's `tuneKeysFile.ts` KEY_FIELDS, appended; shown only for clips whose key file opts in with `clav` /
+- **Keys fields** (A's `tuneKeysFile.ts` KEY_FIELDS, appended; superseded below: shown on every keyed clip; was: only opt-in `clav` /
   `fingers` / `legs`, so the 28 clips' panels are unchanged): `armX.clav.{pitch, yaw, roll}`;
   `handX.{thumb..little}.{curl, spread}`; `legX.{flex, add, knee, ankle, toe, w}`. Added keys (#91) copy every field.
 - **Live key edits**: `KeyedOffsets` (our `keyed.ts`) gains `clav`, `fing`, `leg` arrays and flags like `wrist`;
@@ -61,6 +61,17 @@ delete keys) is in master as 4.43.0. Design (2026-10-22, docs only):
   says so).
 - **Bake**: key edits write the new fields into the key JSON (the existing keys bake path, generic over KEY_FIELDS: check
   it writes nested `handX.<finger>` objects; extend append-only if not), then the Blender rebake of that clip.
+- **Every keyed clip (Michael via the orchestrator, 2026-10-22: per-key legs, collarbones and fingers on the real
+  clips: jog, run, walk, idle ...).** The new Keys fields show on every keyed clip, not only opt-in ones. A clip opts in
+  automatically the first time one of those fields is edited; the bake then sets its key file's flag and writes the
+  channel. Untouched clips stay byte-identical.
+- **Legs over the planner.** On the real clips the feet must stay on the foot planner, so a leg key edit is a
+  per-joint DELTA on the solved IK leg (hip pitch / yaw / roll, knee, ankle pitch / roll, toe), keyed and interpolated,
+  shown live at once with no weight to raise. New optional runtime channel `legd` (per side 7 floats, 14 a frame) in
+  our `keyed.ts`, applied in the rig right after the S3a FK blend (the same place, so the preview shows the edit over the
+  planner), zero = untouched. Key JSON: `legX.d.{hipPitch, hipYaw, hipRoll, knee, anklePitch, ankleRoll, toe}` (deg);
+  key_clip.py writes `legd` when any key has a non-zero delta. The S3a FK takeover (`legs` flag, `w`) stays for clips
+  authored with FK legs like skeleton_test; the panel shows `w` only there.
 - Track A lines and the B entry are sent to Course Ready and CT Core before editing.
 Done: check; e2e-studio (the Keys tab lists the new fields for skeleton_test; the Joints tab shows the clavicles);
 the S2 identity tests unchanged; an old tuner export still loads (identity); a GPU shot of a clavicle row moved.
