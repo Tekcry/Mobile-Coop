@@ -60,6 +60,17 @@ Checks: `npm run check`; `e2e-studio` + `e2e-anim` (desktop), slice tier (`e2e:q
 J1 shipped alone: [Tekcry/Mobile-Coop#84](https://github.com/Tekcry/Mobile-Coop/pull/84) from `feature/anim-joints-j1`
 (worktree `C:/NightShift/Mobile-Coop-anim-joints-j1`), full e2e on its head. J2 continues on `feature/anim-joints`.
 
+## havok-stall (orchestrator ~21:45: right after the J2 PR, ahead of 22 and 24; branch feature/havok-stall from master)
+- The desktop e2e-menus stall (`J2-STALL.md`, backlog "Flaky e2e suites"): a main-thread spin inside Havok after the
+  tuner's long timeScale 0 pause. Try first: a huge fixed-step accumulator on release, or a degenerate shape cast
+  (zero-length direction, a huge sweep). Reproduce with a unit or e2e that pauses a long real time, then resumes; fix
+  the cause in the loop or the controller, minimal; then e2e-menus on the desktop in a full run.
+- From Menu Notes' #88 analysis (`docs/anim-skeleton/s2/REPORT.md`, "#88 fix round"): e2e-levels "a runner climbs the
+  rack ladder" takes 9-30 s on master against a 30 s budget (guard think ticks, real-time frames): seed Math.random and
+  use loop.manual around that chase (or widen the budget); list it in backlog's flaky suites until then.
+- Log only (no change): gameplay reads the rig pose in `enemy.ts:1779-1781` (perception eye from `rig.headNode`),
+  `game/playerTarget.ts:101-119` (hit volumes), `ai/body.ts:96-124`: not graphics state, but gameplay tied to animation.
+
 ## After J2 (marlow-bays BRIEF items 22 and 24, be300901; each its own PR)
 - **G1, item 22, gear offsets:** per-socket sliders for worn gear (holster, the gun on her back, the sling, grenade
   pouches, goggles), per state where useful, baked into the base table; the partner sees them. Holster / back mount /
