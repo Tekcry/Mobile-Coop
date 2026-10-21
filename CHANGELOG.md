@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - marlow-bays item 25 (add / delete keys)
+## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
 - Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
   Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is
   edited. "Delete key" removes the picked key (never key 1, never below 4 keys a cycle; with Mirror on its mirror goes
