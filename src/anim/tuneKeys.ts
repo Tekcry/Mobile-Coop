@@ -18,8 +18,10 @@
  */
 import './tuneV2Sections'; // the tuner-v2 sections register first (the panel order ends Stepping, then Keys)
 import type { KeyedClip, KeyedOffsets, KeyedTime } from './keyed';
+import { KEYED_LEGD_SIDE, LEGD_SIGN } from './keyed'; // (anim-skeleton S4) the leg deltas' key -> rig signs
 import { KEY_CLIPS } from './tuneKeysMeta';
 import { KEY_FIELDS, KEY_FIELD_INDEX, keyGroupId, keyMirrorGroupId, mirrorDelta, parseKeyGroup, readKeys, type KeyFile } from './tuneKeysFile';
+import { KEY_FINGERS, KEY_LEGD, keySidePartner } from './tuneKeysFile'; // (anim-skeleton S4)
 import { registerTuneSection, TUNE_LOG, tuneSet, type TuneChange, type TuneTunable } from './tuneRegistry';
 import { keyCount, keyPhase, keyRank } from './keyTimeline';
 import { KEY_SPAN, KEY_TIME_ID, KEY_TIME_MAX, KEY_TIMES, keyBasePos, keyRetimeRange, keyTimeCount, keyTimeSolve, type KeyRetimeRange } from './tuneKeysTime';
@@ -108,6 +110,13 @@ KEY_FIELDS.forEach((f, j) => {
   const partner = arm ? KEY_FIELD_INDEX[`arm${f.seg === 'armL' ? 'R' : 'L'}${f.id.slice(4)}`]! : j;
   MIR_IDX[j] = partner;
   MIR_SGN[j] = !arm && (f.field === 'yaw' || f.field === 'roll' || f.field === 'dx') ? -1 : 1;
+});
+// (anim-skeleton S4) the hands and legs swap side for side like the arms (their key fields read the same on both sides)
+KEY_FIELDS.forEach((f, j) => {
+  const p = f.seg.startsWith('hand') || f.seg.startsWith('leg') ? keySidePartner(f.seg) : '';
+  if (!p) return;
+  MIR_IDX[j] = KEY_FIELD_INDEX[`${p}${f.id.slice(f.seg.length)}`]!;
+  MIR_SGN[j] = 1;
 });
 const FI = (id: string): number => KEY_FIELD_INDEX[id]!;
 const TRUNK4 = ['pelvis', 'spine', 'chest', 'neck'] as const;
@@ -520,6 +529,73 @@ function build(e: ClipEdit): void {
   off.twUOn = on(ON_TWU);
   off.headOn = on(HEAD);
   off.pelOn = on(PEL);
+  buildSkeleton(e); // (anim-skeleton S4)
+}
+
+// (anim-skeleton S4) the clavicle, finger, leg delta and FK weight fields per side (KEY_FIELDS indexes)
+const SIDES = ['L', 'R'] as const;
+const CLAV_IX = SIDES.map((s) => [FI(`arm${s}_clavYaw`), FI(`arm${s}_clavPitch`), FI(`arm${s}_clavRoll`)] as const);
+const FING_IX = SIDES.map((s) => KEY_FINGERS.flatMap((fn) => [FI(`hand${s}_${fn}Curl`), FI(`hand${s}_${fn}Spread`)]));
+const LEGD_IX = SIDES.map((s) => KEY_LEGD.map((f) => FI(`leg${s}_${f}`)));
+const LEGW_IX = SIDES.map((s) => FI(`leg${s}_w`));
+const ON_CLAV = CLAV_IX.flat();
+const ON_FING = FING_IX.flat();
+const ON_LEGD = LEGD_IX.flat();
+/** fingers.ts SPREAD_MAX_DEG: a key's spread (deg) -> the clip's spread (1 = 30 deg), as key_clip.py writes it. */
+const SPREAD_DEG = 30;
+
+/**
+ * (anim-skeleton S4) The skeleton fields' offset tables, spread over the frames exactly as `build` spreads the others:
+ * the clavicles (chest frame, right as written and the left mirrored, key_clip.py `clav_local`), the fingers (curl as
+ * keyed, spread / 30), the leg deltas (key degrees -> the rig frame, `LEGD_SIGN`) and the FK weights; their flags.
+ */
+function buildSkeleton(e: ClipEdit): void {
+  const { meta, off } = e;
+  const N = meta.frames;
+  const kph = e.kph;
+  const kv = e.kval;
+  const m = e.kn;
+  for (let f = 0; f < N; f++) {
+    const p = f / N;
+    let a = m - 1;
+    for (let s = 0; s < m; s++) if (kph[s]! <= p) a = s;
+    const b = (a + 1) % m;
+    let pa = kph[a]!;
+    let pb = kph[b]!;
+    if (pa > p) pa -= 1;
+    if (pb <= pa) pb += 1;
+    const t = pb > pa ? (p - pa) / (pb - pa) : 0;
+    for (let j = 0; j < NF; j++) {
+      const va = kv[a * NF + j]!;
+      D[j] = va + (kv[b * NF + j]! - va) * t;
+    }
+    for (let side = 0; side < 2; side++) {
+      const sg = side === 0 ? -1 : 1;
+      const c = CLAV_IX[side]!;
+      eul(off.clav, f * 8 + side * 4, sg * D[c[0]]!, D[c[1]]!, sg * D[c[2]]!);
+      const fi = FING_IX[side]!;
+      for (let k = 0; k < fi.length; k += 2) {
+        off.fing[f * 20 + side * 10 + k] = D[fi[k]!]!;
+        off.fing[f * 20 + side * 10 + k + 1] = D[fi[k + 1]!]! / SPREAD_DEG;
+      }
+      const li = LEGD_IX[side]!;
+      const sgn = LEGD_SIGN[side]!;
+      for (let k = 0; k < li.length; k++) off.legd[f * 14 + side * KEYED_LEGD_SIDE + k] = sgn[k]! * D[li[k]!]! * D2R;
+      off.legW[f * 2 + side] = D[LEGW_IX[side]!]!;
+    }
+  }
+  meanInto(off.clav, N, 8, off.clavMean);
+  meanLin(off.fing, N, 20, off.fingMean);
+  meanLin(off.legd, N, 14, off.legdMean);
+  meanLin(off.legW, N, 2, off.legWMean);
+  const on = (ix: readonly number[]): number => {
+    for (let r = 0; r < m; r++) for (const j of ix) if (kv[r * NF + j] !== 0) return 1;
+    return 0;
+  };
+  off.clavOn = on(ON_CLAV);
+  off.fingOn = on(ON_FING);
+  off.legdOn = on(ON_LEGD);
+  off.legWOn = on(LEGW_IX);
 }
 
 /** (T1a) The Mirror box of clip `ci` in the registry (1 on, 0 off; a clip keyed in full: 1). */
@@ -606,6 +682,19 @@ function syncClip(ci: number): void {
         twU: new Float32Array(N * 2),
         twUMean: new Float32Array(2),
         twUOn: 0,
+        // (anim-skeleton S4)
+        clav: idq(N * 8),
+        clavMean: idq(8),
+        clavOn: 0,
+        fing: new Float32Array(N * 20),
+        fingMean: new Float32Array(20),
+        fingOn: 0,
+        legd: new Float32Array(N * 14),
+        legdMean: new Float32Array(14),
+        legdOn: 0,
+        legW: new Float32Array(N * 2),
+        legWMean: new Float32Array(2),
+        legWOn: 0,
       },
     };
     EDITS[ci] = ed;

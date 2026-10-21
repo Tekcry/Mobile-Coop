@@ -6,6 +6,10 @@
  * arm (flex, abd, twistUpper), the elbow bend, the forearm (inward, twist) and the wrist frame (pitch, yaw, roll).
  * (marlow-bays T1a, item 17) head, shoulder, the two twists and the pelvis offset are new; a key file without them
  * reads 0 (as the bake reads it). The legs stay the foot planner's (rig gap R3).
+ * (anim-skeleton S4) Appended on every keyed clip: per arm the clavicle `clav` (pitch, yaw, roll; deg), per hand
+ * `handX.<finger>` curl (fingers.ts units) and spread (deg), per leg the deltas on the IK leg `legX.d` (hip pitch / yaw /
+ * roll, knee, ankle pitch / roll, toe; deg, anatomical) and the FK weight `legX.w` (shown on `legs` clips only). The bake
+ * (key_clip.py) opts a clip into the matching channel as soon as one of these is non-zero.
  * Registry groups `key.<clip>.<key index>` (a mirrored clip: indexes 0 .. 2n-1, the second half the mirrored keys, used
  * only with its Mirror box off) and `key.<clip>.mirror` (the Mirror box, slider `mirror`: 1 on, 0 off); slider ids are
  * `KEY_FIELDS[].id`.
@@ -29,16 +33,28 @@ export interface KeyField {
   readonly seg: string;
   /** The field in it (`pitch`, `flex`, ...); with `sub`, the field of the arm's `wrist` / `sh` object. */
   readonly field: string;
-  /** The arm's sub-object ('' none, `wrist` the wrist frame, `sh` the shoulder). */
-  readonly sub: '' | 'wrist' | 'sh';
+  /** The arm's sub-object ('' none, `wrist` the wrist frame, `sh` the shoulder; (anim-skeleton S4) `clav` the
+   *  clavicle, a hand's finger `thumb` .. `little`, a leg's `d` deltas on the IK leg). */
+  readonly sub: KeySub;
   /** `sub === 'wrist'` (the older callers read this). */
   readonly wrist: boolean;
-  /** 'deg' or 'cm' (the pelvis offset). */
-  readonly unit: 'deg' | 'cm';
+  /** 'deg' or 'cm' (the pelvis offset); (S4) '' a plain number (a finger's curl, 1 = closed; a leg's FK weight). */
+  readonly unit: 'deg' | 'cm' | '';
   readonly min: number;
   readonly max: number;
   readonly step: number;
 }
+
+/** (anim-skeleton S4) The fingers of a key's `handL` / `handR` (key_clip.py `FINGER_NAMES`). */
+export const KEY_FINGERS = ['thumb', 'index', 'middle', 'ring', 'little'] as const;
+/** (S4) A leg's `d` deltas on the IK leg (src/anim/keyed.ts `LEGD_FIELDS`, the same order). */
+export const KEY_LEGD = ['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe'] as const;
+export type KeySub = '' | 'wrist' | 'sh' | 'clav' | 'd' | (typeof KEY_FINGERS)[number];
+/** (S4) The finger curl slider (fingers.ts units, + closes) and the FK leg weight slider. */
+export const KEY_RANGE_CURL = { min: -1, max: 1, step: 0.01 } as const;
+export const KEY_RANGE_W = { min: -1, max: 1, step: 0.05 } as const;
+/** (S4) A finger spread's slider range (deg; fingers.ts SPREAD_MAX_DEG, spread 1 = 30 deg). */
+const KEY_RANGE_SPREAD = 30;
 
 /** The trunk segments a key has (pelvis first: its child is counter-turned, as the bake's FK). */
 export const KEY_TRUNK = ['pelvis', 'spine', 'chest', 'neck', 'head'] as const;
@@ -50,7 +66,7 @@ export const KEY_RANGE_CM = { min: -10, max: 10, step: 0.1 } as const;
 
 function fields(): KeyField[] {
   const out: KeyField[] = [];
-  const deg = (id: string, label: string, seg: string, field: string, sub: '' | 'wrist' | 'sh' = ''): void => {
+  const deg = (id: string, label: string, seg: string, field: string, sub: KeySub = ''): void => {
     out.push({ id, label, seg, field, sub, wrist: sub === 'wrist', unit: 'deg', min: KEY_RANGE.min, max: KEY_RANGE.max, step: KEY_RANGE.step });
   };
   for (const s of KEY_TRUNK) {
@@ -72,7 +88,33 @@ function fields(): KeyField[] {
     deg(`${seg}_twist`, `${side} forearm twist (+ the palm in)`, seg, 'twist');
     for (const a of TAXES) deg(`${seg}_wrist${a[0]!.toUpperCase()}${a.slice(1)}`, `${side} wrist ${a}`, seg, a, 'wrist');
   }
+  // (anim-skeleton S4) appended (every older field keeps its index), on every keyed clip: the clavicles, the fingers,
+  // the leg deltas on the planner's IK leg; the FK leg weight (the Keys section shows it only on a `legs` clip)
+  const CLAV_WORD = { pitch: 'tilt', yaw: '- forward', roll: '+ shrug' } as const;
+  for (const side of ['L', 'R'] as const) {
+    const seg = `arm${side}`;
+    for (const a of TAXES) deg(`${seg}_clav${a[0]!.toUpperCase()}${a.slice(1)}`, `${side} clavicle ${a} (${CLAV_WORD[a]})`, seg, a, 'clav');
+  }
+  for (const side of ['L', 'R'] as const) {
+    const seg = `hand${side}`;
+    for (const fn of KEY_FINGERS) {
+      out.push({ id: `${seg}_${fn}Curl`, label: `${side} ${fn} curl (+ closed, 1 = fist)`, seg, field: 'curl', sub: fn, wrist: false, unit: '', min: KEY_RANGE_CURL.min, max: KEY_RANGE_CURL.max, step: KEY_RANGE_CURL.step });
+      out.push({ id: `${seg}_${fn}Spread`, label: `${side} ${fn} spread (+ away from the middle finger)`, seg, field: 'spread', sub: fn, wrist: false, unit: 'deg', min: -KEY_RANGE_SPREAD, max: KEY_RANGE_SPREAD, step: KEY_RANGE.step });
+    }
+  }
+  const LEGD_WORD = { hipPitch: '+ thigh forward', hipYaw: '+ knee out', hipRoll: '+ thigh out', knee: '+ bent', anklePitch: '+ toes up', ankleRoll: '+ sole in', toe: '+ up' } as const;
+  for (const side of ['L', 'R'] as const) {
+    const seg = `leg${side}`;
+    for (const f of KEY_LEGD) deg(`${seg}_${f}`, `${side} leg ${f} delta (${LEGD_WORD[f]}; a planted foot stays on its plant)`, seg, f, 'd');
+    out.push({ id: `${seg}_w`, label: `${side} leg FK weight (FK-leg clips only, KEY_CLIPS legs; 0 the planner's IK leg, 1 the key's FK leg)`, seg, field: 'w', sub: '', wrist: false, unit: '', min: KEY_RANGE_W.min, max: KEY_RANGE_W.max, step: KEY_RANGE_W.step });
+  }
   return out;
+}
+
+/** (anim-skeleton S4) A sided key segment's mirror partner (`armL` <-> `armR`, `handL`, `legL` ...), or '' (the trunk). */
+export function keySidePartner(seg: string): string {
+  const m = /^(arm|hand|leg)([LR])$/.exec(seg);
+  return m ? `${m[1]}${m[2] === 'L' ? 'R' : 'L'}` : '';
 }
 
 export const KEY_FIELDS: readonly KeyField[] = fields();
@@ -118,7 +160,9 @@ export function mirrorDelta(vals: Readonly<Record<string, number>> | undefined):
   for (const f of KEY_FIELDS) {
     const v = vals[f.id];
     if (typeof v !== 'number' || v === 0) continue;
-    if (f.seg === 'armL' || f.seg === 'armR') out[`arm${f.seg === 'armL' ? 'R' : 'L'}${f.id.slice(4)}`] = v;
+    // (anim-skeleton S4) hands and legs swap like the arms (their fields read the same on both sides)
+    const p = keySidePartner(f.seg);
+    if (p) out[`${p}${f.id.slice(f.seg.length)}`] = v;
     else out[f.id] = f.field === 'yaw' || f.field === 'roll' || f.field === 'dx' ? -v : v;
   }
   return out;
@@ -143,6 +187,12 @@ function mirrorKey(k: Obj): Obj {
     const t = m[a];
     m[a] = m[b];
     m[b] = t;
+  }
+  // (anim-skeleton S4) the hands too (key_clip.py `mirror_key`, S3b), only when the key has one
+  if ('handL' in k || 'handR' in k) {
+    const t = m.handL ?? {};
+    m.handL = m.handR ?? {};
+    m.handR = t;
   }
   return m;
 }
@@ -220,7 +270,8 @@ function addDeltas(key: Obj, vals: Readonly<Record<string, number>> | undefined)
     const d = vals[f.id];
     if (typeof d !== 'number' || !Number.isFinite(d) || d === 0) continue;
     let o = (key[f.seg] ??= {}) as Obj;
-    if (f.sub) o = (o[f.sub] ??= { yaw: 0, pitch: 0, roll: 0 }) as Obj;
+    // (anim-skeleton S4) a finger or a leg's `d` object starts empty (only the fields edited)
+    if (f.sub) o = (o[f.sub] ??= f.sub === 'wrist' || f.sub === 'sh' || f.sub === 'clav' ? { yaw: 0, pitch: 0, roll: 0 } : {}) as Obj;
     const base = typeof o[f.field] === 'number' ? (o[f.field] as number) : 0;
     o[f.field] = r3(base + d);
   }
@@ -437,7 +488,7 @@ export function readKeys(file: KeyFile): ReadKey[] {
 export function keyMetaText(files: readonly KeyFile[]): string {
   const rows = [...files]
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
-    .map((k) => `  { name: '${k.name}', frames: ${k.frames ?? 32}, mirror: ${!!k.mirror}, phases: [${k.keys.map((x) => String(x.phase)).join(', ')}] },`);
+    .map((k) => `  { name: '${k.name}', frames: ${k.frames ?? 32}, mirror: ${!!k.mirror}, phases: [${k.keys.map((x) => String(x.phase)).join(', ')}]${k.legs ? ', legs: true' : ''} },`);
   return `// GENERATED from scripts/anim-keys/keys/*.json (tuner-v2 item 4): each keyed clip's own keys (the mirrored half is
 // made by the bake). tests/tuneKeys.test.ts checks it against the JSON files; regenerate when a key file changes.
 export interface KeyClipMeta {
@@ -445,6 +496,8 @@ export interface KeyClipMeta {
   readonly frames: number;
   readonly mirror: boolean;
   readonly phases: readonly number[];
+  /** (anim-skeleton S4) The key file sets \`legs\` (FK legs: the Keys section shows the FK weight). */
+  readonly legs?: boolean;
 }
 
 export const KEY_CLIPS: readonly KeyClipMeta[] = [

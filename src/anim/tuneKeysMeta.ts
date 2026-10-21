@@ -5,6 +5,8 @@ export interface KeyClipMeta {
   readonly frames: number;
   readonly mirror: boolean;
   readonly phases: readonly number[];
+  /** (anim-skeleton S4) The key file sets `legs` (FK legs: the Keys section shows the FK weight). */
+  readonly legs?: boolean;
 }
 
 export const KEY_CLIPS: readonly KeyClipMeta[] = [
@@ -28,6 +30,7 @@ export const KEY_CLIPS: readonly KeyClipMeta[] = [
   { name: 'jog', frames: 32, mirror: true, phases: [0, 0.125, 0.14583333333333334, 0.375] },
   { name: 'ready_stance', frames: 32, mirror: false, phases: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875] },
   { name: 'run', frames: 32, mirror: true, phases: [0, 0.020833333333333332, 0.0625, 0.2708333333333333] },
+  { name: 'skeleton_test', frames: 48, mirror: false, phases: [0, 0.10416666666666667, 0.20833333333333334, 0.25, 0.2916666666666667, 0.3333333333333333, 0.375, 0.3958333333333333, 0.4166666666666667, 0.4583333333333333, 0.5, 0.5625, 0.5833333333333334, 0.6458333333333334, 0.7083333333333334, 0.75, 0.875, 0.9375], legs: true },
   { name: 'sneak', frames: 32, mirror: true, phases: [0, 0.125, 0.25, 0.375] },
   { name: 'walk', frames: 32, mirror: true, phases: [0, 0.125, 0.25, 0.375] },
   { name: 'wall_crouch_idle', frames: 64, mirror: false, phases: [0, 0.08333333333333333, 0.16666666666666666, 0.25, 0.3333333333333333, 0.4166666666666667, 0.5, 0.5833333333333334, 0.6666666666666666, 0.75, 0.8333333333333334, 0.9166666666666666] },
