@@ -158,6 +158,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #90 | 4.44.0: Joints, Hands & feet, IK and Weapon rows for every move and action |
 | 2026-10-22 | #95 | 4.45.0: tuner Gear offsets (holster, back guns, hip sling), baked |
 | 2026-10-22 | #96 | 4.46.0: Michael's first tuner bake (jog / run keys, low-ready gun poses, Joints); Reset baked on load |
+| 2026-10-22 | #98 | 4.47.0: tuner collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys |
 | 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
 | 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
 | 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
