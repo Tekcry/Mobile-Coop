@@ -39,3 +39,16 @@ export function clavActive(v: ArrayLike<number>, o: number): boolean {
 export function clavQuat(v: ArrayLike<number>, o: number, out: Float64Array, q: number): void {
   eulerQuat(v[o]! * D2R, v[o + 1]! * D2R, v[o + 2]! * D2R, out, q);
 }
+
+/**
+ * (anim-skeleton S3) The clavicle's rotation when both inputs act: the Joints / tool input `e` (out[q..], from
+ * `clavQuat`) turned in the chest frame on top of the clip's keyed rotation `k` (k[o..]): out = e * k. No allocation.
+ */
+export function clavCompose(out: Float64Array, q: number, k: ArrayLike<number>, o: number): void {
+  const ax = out[q]!, ay = out[q + 1]!, az = out[q + 2]!, aw = out[q + 3]!;
+  const bx = k[o]!, by = k[o + 1]!, bz = k[o + 2]!, bw = k[o + 3]!;
+  out[q] = aw * bx + ax * bw + ay * bz - az * by;
+  out[q + 1] = aw * by - ax * bz + ay * bw + az * bx;
+  out[q + 2] = aw * bz + ax * by - ay * bx + az * bw;
+  out[q + 3] = aw * bw - ax * bx - ay * by - az * bz;
+}

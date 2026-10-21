@@ -14,7 +14,7 @@ import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
-import { KA, KE, KQ, KW, type KeyedPose } from '../anim/keyed';
+import { KA, KE, KEYED_LEG_SIDE, KL, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
@@ -22,7 +22,7 @@ import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
-import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavPoint, clavQuat } from '../anim/clavicle';
+import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
 import { GOGGLE_OFFSET } from '../operators/runtime/goggle';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
@@ -529,6 +529,14 @@ export class CharacterRig {
   readonly clavIn = new Float64Array(CLAV_LEN);
   /** (S2) Per side whether the clavicle is turned this frame. */
   private readonly clavOn = new Uint8Array(2);
+  /**
+   * (anim-skeleton S3) The clip's clavicle channel this frame (L, R quaternions in the chest frame, already weighted),
+   * a quaternion path beside the Euler `clavIn` (no Euler round trip); per side whether it turns (0: not keyed).
+   */
+  private readonly clavKey = new Float64Array(8);
+  private readonly clavKeyOn = new Uint8Array(2);
+  /** (S3) 1 while the clip's finger channel is in `fingerClip` (cleared once when it stops; else the slot is untouched). */
+  private fingClipOn = 0;
   /**
    * (S2, A9) The hands' per-finger curl and spread (anim/fingers.ts layout), composed at the end of each frame: the grip
    * closure's shape (`handGrip`), this rig's own Hands & feet finger rows (tuner), and `fingerClip`. The figure turns
@@ -1761,15 +1769,24 @@ export class CharacterRig {
   }
 
   /**
-   * (anim-skeleton S2) The clavicle nodes from `clavIn` (before the arms: a turned clavicle carries its shoulder's rest
-   * about the SC point in `solveArm`). An untouched side stays at the identity it was built with. No allocation.
+   * (anim-skeleton S2) The clavicle nodes from `clavIn` and (S3) the clip's clavicle channel (`clavKey`: the Joints / tool
+   * input turns on top of it in the chest frame), before the arms: a turned clavicle carries its shoulder's rest about
+   * the SC point in `solveArm`. (S3, the S2 polish note) `applyTargets` has no early return: this and both `solveArm`
+   * calls run as a pair on every animated frame, and nothing else writes the clavicle nodes or the shoulders' positions
+   * after them, so the node's turn and the shoulder's carry always agree and `readRig`'s un-carry is exact (an LOD-skipped
+   * frame changes neither). An untouched side stays at the identity it was built with. No allocation.
    */
   private clavFrame(): void {
     for (let k = 0; k < 2; k++) {
       const o = k === 0 ? CLAV_L : CLAV_R;
       const q = (k === 0 ? this.clavL : this.clavR).rotationQuaternion!;
-      if (clavActive(this.clavIn, o)) {
-        clavQuat(this.clavIn, o, clavBuf, 0);
+      const tuned = clavActive(this.clavIn, o);
+      const keyed = this.clavKeyOn[k] === 1;
+      if (tuned || keyed) {
+        if (tuned) {
+          clavQuat(this.clavIn, o, clavBuf, 0);
+          if (keyed) clavCompose(clavBuf, 0, this.clavKey, k * 4);
+        } else for (let c = 0; c < 4; c++) clavBuf[c] = this.clavKey[k * 4 + c]!;
         q.set(clavBuf[0]!, clavBuf[1]!, clavBuf[2]!, clavBuf[3]!);
         this.clavOn[k] = 1;
       } else if (this.clavOn[k] === 1) {
@@ -2189,6 +2206,7 @@ export class CharacterRig {
       }
     }
     if (HANDS_CUR.ikOn) this.ikStrengthLimbs(2); // (tuner-v2 item 2) IK targeting strength, before the joint offsets
+    if (kw > 0 && kq.hasLeg) this.keyedLegs(kq, kw); // (anim-skeleton S3, A7) the clip's FK legs over the IK legs
     if (JOINTS_CUR.on) this.jointOffsets(1); // (tuner-v2) per-joint offsets on the solved legs
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
@@ -2290,6 +2308,12 @@ export class CharacterRig {
     const hm = this.heldModel;
     if (hm) hm.tuneVisual(HANDS_CUR.on && HANDS_GUN.on && hm.node === this.heldWeapon ? HANDS_GUN : null);
     this.triggerTune = HANDS_CUR.on ? HANDS_CUR.trigger : 0;
+    // (anim-skeleton S3) the clip's clavicle and finger channels by the keyed arms' weight (free hands), else the drawn
+    // set's edit weight (a gun in hand), as the shoulder channel
+    {
+      const kaw0 = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
+      this.keyedUpper(kq, kaw0 > 0 ? kaw0 : kw * t.keyDrawn);
+    }
     this.clavFrame(); // (anim-skeleton S2) the clavicles before the arms reach from the shoulders
     this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
     this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
@@ -2455,6 +2479,66 @@ export class CharacterRig {
       Quaternion.SlerpToRef(wr.rotationQuaternion!, kT, w, wr.rotationQuaternion!);
     }
     fresh(wr);
+  }
+
+  /**
+   * (anim-skeleton S3) The clip's clavicle channel into `clavKey` (each side by `w`, as `keyPow`; a side left at the
+   * identity is off) and its finger channel into `fingerClip` (x `w`). Without the channel (or `w` 0) the clavicle path
+   * is off and `fingerClip` is cleared once, then left to whoever else writes it (a test, a tool). No allocation.
+   */
+  private keyedUpper(kq: KeyedPose, w: number): void {
+    const clav = w > 0 && kq.hasClav === 1;
+    for (let k = 0; k < 2; k++) {
+      this.clavKeyOn[k] = 0;
+      if (!clav) continue;
+      keyPow(kq.clav, k * 4, w, kT);
+      if (kT.x === 0 && kT.y === 0 && kT.z === 0) continue;
+      const b = k * 4;
+      this.clavKey[b] = kT.x;
+      this.clavKey[b + 1] = kT.y;
+      this.clavKey[b + 2] = kT.z;
+      this.clavKey[b + 3] = kT.w;
+      this.clavKeyOn[k] = 1;
+    }
+    const c = this.fingerClip;
+    if (w > 0 && kq.hasFing === 1) {
+      for (let i = 0; i < FING_LEN; i++) c[i] = kq.fing[i]! * w;
+      this.fingClipOn = 1;
+    } else if (this.fingClipOn === 1) {
+      c.fill(0);
+      this.fingClipOn = 0;
+    }
+  }
+
+  /**
+   * (anim-skeleton S3, A7) The clip's FK legs over the solved IK legs, per side by its keyed weight (0..1) x `kw`: the
+   * hip (local to the pelvis), the knee flex (about its local X), the ankle (local to the knee) and the toe slerped from
+   * the IK solution toward the clip's. Runs after the legs' solves and the IK strength, before the Joints offsets and
+   * the rate limits; at weight 0 the planner's leg is untouched (a planted foot stays planted). No allocation.
+   */
+  private keyedLegs(kq: KeyedPose, kw: number): void {
+    const g = kq.leg;
+    for (let k = 0; k < 2; k++) {
+      const b = k * KEYED_LEG_SIDE;
+      const lw = g[b + KL.w]!;
+      const w = (lw < 0 ? 0 : lw > 1 ? 1 : lw) * kw;
+      if (!(w > 0)) continue;
+      const hip = k === 0 ? this.hipL : this.hipR;
+      const knee = k === 0 ? this.kneeL : this.kneeR;
+      const ankle = k === 0 ? this.ankleL : this.ankleR;
+      const toe = k === 0 ? this.toeL : this.toeR;
+      const h = b + KL.hip;
+      kT.set(g[h]!, g[h + 1]!, g[h + 2]!, g[h + 3]!);
+      Quaternion.SlerpToRef(hip.rotationQuaternion!, kT, w, hip.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, g[b + KL.knee]!, 0, kT);
+      Quaternion.SlerpToRef(knee.rotationQuaternion!, kT, w, knee.rotationQuaternion!);
+      const a = b + KL.ankle;
+      kT.set(g[a]!, g[a + 1]!, g[a + 2]!, g[a + 3]!);
+      Quaternion.SlerpToRef(ankle.rotationQuaternion!, kT, w, ankle.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, g[b + KL.toe]!, 0, kT);
+      Quaternion.SlerpToRef(toe.rotationQuaternion!, kT, w, toe.rotationQuaternion!);
+      freshBelow(toe, this.hips);
+    }
   }
 
   /** (T1a, item 17) The keyed shoulder (chest frame, the arm with it) and the forearm twist (about the bone) by `w`. */

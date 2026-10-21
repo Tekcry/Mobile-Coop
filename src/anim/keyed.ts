@@ -11,6 +11,13 @@
  * - (marlow-bays T1a, item 17; optional) `fore` (8): the forearm twist L, R (a local quaternion of the elbow node, about
  *   the bone), `head` (4): the head's local turn on the neck, `sh` (8): the shoulder L, R (a rotation in the chest frame
  *   about the shoulder joint, the whole arm with it). A clip without one samples identity (the rig is untouched).
+ * - (anim-skeleton S3; optional) `clav` (8): the clavicle L, R as local quaternions (x, y, z, w) of the rig's clavicle
+ *   nodes in the chest frame (a shrug, a shoulder pushed forward); `fing` (20, A6): per hand L then R, per finger thumb
+ *   .. little, [curl, spread] added to the grip's shape (anim/fingers.ts units: curl 1 = closed, spread 1 = 30 deg);
+ *   `leg` (22, A7): per side L then R (11 each, `KL`): the hip's local quaternion (4, under the pelvis), the knee flex
+ *   (1, rad, + bends the shin back), the ankle's local quaternion (4, under the knee), the toe (1, rad, + up, as the toe
+ *   roll), the FK weight (1, 0..1: 0 the foot planner's IK leg as without the channel, 1 the clip's FK leg). A clip
+ *   without one samples identity / 0 (the rig is untouched). Per-key edits (`keyOff`) do not reach them yet (S4).
  * Per clip: the foot planner's `duty` and `liftH`, the knee pole's `kneeOut` and the track `half` width (ankle centre
  * from the midline). Sampling never allocates.
  */
@@ -32,6 +39,10 @@ export interface KeyedClipDef {
   fore?: readonly number[];
   head?: readonly number[];
   sh?: readonly number[];
+  /** (anim-skeleton S3) Optional clavicles L, R (8 per frame), fingers (20), FK legs (22). */
+  clav?: readonly number[];
+  fing?: readonly number[];
+  leg?: readonly number[];
 }
 
 export interface KeyedClip {
@@ -58,6 +69,13 @@ export interface KeyedClip {
   readonly meanFore: Float32Array;
   readonly meanHead: Float32Array;
   readonly meanSh: Float32Array;
+  /** (anim-skeleton S3) The clavicle, finger and leg frames (null: not keyed, sampled as identity / 0) and their means. */
+  readonly clav: Float32Array | null;
+  readonly fing: Float32Array | null;
+  readonly leg: Float32Array | null;
+  readonly meanClav: Float32Array;
+  readonly meanFing: Float32Array;
+  readonly meanLeg: Float32Array;
   /** (tuner-v2 item 4) The per-key edit offsets (`tuneKeys` builds them on the first edit), or null: sampled exactly as baked. */
   keyOff: KeyedOffsets | null;
 }
@@ -123,6 +141,14 @@ export interface KeyedPose {
    */
   readonly ed: Float64Array;
   edOn: number;
+  /** (anim-skeleton S3) Clavicle L, R (chest frame), the fingers' [curl, spread] offsets, the FK legs (`KL`); identity /
+   *  0 when not keyed, with their flags (0: the rig leaves them alone). */
+  readonly clav: Float64Array;
+  readonly fing: Float64Array;
+  readonly leg: Float64Array;
+  hasClav: number;
+  hasFing: number;
+  hasLeg: number;
 }
 
 export const KEYED_PEL = 3;
@@ -142,6 +168,18 @@ export const KQ = { pelvis: 0, spine: 4, chest: 8, neck: 12 } as const;
 export const KA = { elbowL: 0, wristL: 3, elbowR: 6, wristR: 9 } as const;
 /** (anim-rig) Wrist frame slots in `wrist` (offset of x); (T1a) the same slots in `fore` and `sh`. */
 export const KW = { wristL: 0, wristR: 4 } as const;
+/** (anim-skeleton S3) Clavicle (L, R quaternions: the `KW` slots), finger (fingers.ts layout) and leg channels. */
+export const KEYED_CLAV = 8;
+export const KEYED_FING = 20;
+export const KEYED_LEG = 22;
+/** (S3) One side's leg values; the right side starts at KEYED_LEG_SIDE. */
+export const KEYED_LEG_SIDE = 11;
+/** (S3) Slots in one side of `leg`: hip quaternion, knee flex (rad), ankle quaternion, toe (rad), FK weight. */
+export const KL = { hip: 0, knee: 4, ankle: 5, toe: 9, w: 10 } as const;
+/** (S3) The leg channel's quaternion offsets (hip L, ankle L, hip R, ankle R) and its scalar offsets (knee, toe x 2). */
+const LEG_Q = [KL.hip, KL.ankle, KEYED_LEG_SIDE + KL.hip, KEYED_LEG_SIDE + KL.ankle] as const;
+const LEG_S = [KL.knee, KL.toe, KEYED_LEG_SIDE + KL.knee, KEYED_LEG_SIDE + KL.toe] as const;
+const LEG_W = [KL.w, KEYED_LEG_SIDE + KL.w] as const;
 
 /** Quaternions (x y z w) at identity, `n` floats. */
 function idQ(n: number): Float64Array {
@@ -150,9 +188,17 @@ function idQ(n: number): Float64Array {
   return q;
 }
 
+/** (S3) The leg channel at rest into `g` (identity hips and ankles; knees, toes and weights 0). */
+function legIdentity(g: Float64Array | Float32Array): void {
+  g.fill(0);
+  for (let k = 0; k < LEG_Q.length; k++) g[LEG_Q[k]! + 3] = 1;
+}
+
 export function newKeyedPose(): KeyedPose {
   const ed = new Float64Array(KEYED_ED);
   for (let s = 3; s < 32; s += 4) ed[s] = 1;
+  const leg = new Float64Array(KEYED_LEG);
+  legIdentity(leg);
   return {
     pel: new Float64Array(KEYED_PEL),
     q: new Float64Array(KEYED_Q),
@@ -167,6 +213,12 @@ export function newKeyedPose(): KeyedPose {
     hasSh: 0,
     ed,
     edOn: 0,
+    clav: idQ(KEYED_CLAV),
+    fing: new Float64Array(KEYED_FING),
+    leg,
+    hasClav: 0,
+    hasFing: 0,
+    hasLeg: 0,
   };
 }
 
@@ -206,6 +258,9 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
   if (def.fore) check(def, KEYED_FORE, def.fore.length, 'fore');
   if (def.head) check(def, KEYED_HEAD, def.head.length, 'head');
   if (def.sh) check(def, KEYED_SH, def.sh.length, 'sh');
+  if (def.clav) check(def, KEYED_CLAV, def.clav.length, 'clav');
+  if (def.fing) check(def, KEYED_FING, def.fing.length, 'fing');
+  if (def.leg) check(def, KEYED_LEG, def.leg.length, 'leg');
   const N = def.frames;
   const q = Float32Array.from(def.q);
   hemispheres(q, N, KEYED_Q);
@@ -238,6 +293,15 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
   const [fore, meanFore] = opt(def.fore, KEYED_FORE);
   const [head, meanHead] = opt(def.head, KEYED_HEAD);
   const [sh, meanSh] = opt(def.sh, KEYED_SH);
+  // (anim-skeleton S3) the clavicles like the shoulders; the fingers and legs below
+  const [clav, meanClav] = opt(def.clav, KEYED_CLAV);
+  const fing = def.fing ? Float32Array.from(def.fing) : null;
+  const meanFing = new Float32Array(KEYED_FING);
+  if (fing) for (let f = 0; f < N; f++) for (let c = 0; c < KEYED_FING; c++) meanFing[c]! += fing[f * KEYED_FING + c]! / N;
+  const leg = def.leg ? Float32Array.from(def.leg) : null;
+  const meanLeg = new Float32Array(KEYED_LEG);
+  legIdentity(meanLeg);
+  if (leg) legMean(leg, N, meanLeg);
   return {
     name: def.name,
     frames: N,
@@ -259,8 +323,35 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
     meanFore,
     meanHead,
     meanSh,
+    clav,
+    fing,
+    leg,
+    meanClav,
+    meanFing,
+    meanLeg,
     keyOff: null,
   };
+}
+
+/**
+ * (anim-skeleton S3) A leg channel's quaternions kept on one hemisphere frame to frame, and its mean into `m`: the
+ * quaternions averaged and normalised, the knee, toe and weight averaged. Module load time only.
+ */
+function legMean(g: Float32Array, N: number, m: Float32Array): void {
+  for (let f = 1; f < N; f++) {
+    for (let k = 0; k < LEG_Q.length; k++) {
+      const a = (f - 1) * KEYED_LEG + LEG_Q[k]!;
+      const b = f * KEYED_LEG + LEG_Q[k]!;
+      if (g[a]! * g[b]! + g[a + 1]! * g[b + 1]! + g[a + 2]! * g[b + 2]! + g[a + 3]! * g[b + 3]! < 0) for (let c = 0; c < 4; c++) g[b + c] = -g[b + c]!;
+    }
+  }
+  m.fill(0);
+  for (let f = 0; f < N; f++) for (let c = 0; c < KEYED_LEG; c++) m[c]! += g[f * KEYED_LEG + c]! / N;
+  for (let k = 0; k < LEG_Q.length; k++) {
+    const s = LEG_Q[k]!;
+    const l = Math.sqrt(m[s]! ** 2 + m[s + 1]! ** 2 + m[s + 2]! ** 2 + m[s + 3]! ** 2) || 1;
+    for (let c = 0; c < 4; c++) m[s + c] = m[s + c]! / l;
+  }
 }
 
 /**
@@ -303,6 +394,16 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
   out.hasFore = optQuats(clip.fore, clip.meanFore, KEYED_FORE, i0, i1, u, amp, out.fore);
   out.hasHead = optQuats(clip.head, clip.meanHead, KEYED_HEAD, i0, i1, u, amp, out.head);
   out.hasSh = optQuats(clip.sh, clip.meanSh, KEYED_SH, i0, i1, u, amp, out.sh);
+  // (anim-skeleton S3) the clavicle, finger and leg channels (identity / 0 when not keyed)
+  out.hasClav = optQuats(clip.clav, clip.meanClav, KEYED_CLAV, i0, i1, u, amp, out.clav);
+  if (clip.fing) {
+    sampleLin(clip.fing, clip.meanFing, KEYED_FING, i0, i1, u, amp, out.fing, 0);
+    out.hasFing = 1;
+  } else {
+    out.fing.fill(0);
+    out.hasFing = 0;
+  }
+  out.hasLeg = sampleLeg(clip.leg, clip.meanLeg, i0, i1, u, amp, out.leg);
   if (K) {
     keyOffLimbs(K, i0, i1, u, amp, amp * TUNE_CUR.armSwingK, out);
     keyOffExtra(K, i0, i1, u, amp, amp * TUNE_CUR.armSwingK, out);
@@ -407,6 +508,50 @@ function optQuats(Q: Float32Array | null, M: Float32Array, stride: number, i0: n
     out[s + 3] = 1;
   }
   return 0;
+}
+
+/**
+ * (anim-skeleton S3) The leg channel into `out` (1), or at rest (0: no channel): the hip and ankle quaternions nlerped
+ * between frames and scaled about their mean by `amp`, the knee and toe likewise; the FK weight between frames only (a
+ * slow walk's smaller swing never lifts a planted foot's weight off 0). No allocation.
+ */
+function sampleLeg(G: Float32Array | null, M: Float32Array, i0: number, i1: number, u: number, amp: number, out: Float64Array): number {
+  if (!G) {
+    legIdentity(out);
+    return 0;
+  }
+  for (let k = 0; k < LEG_Q.length; k++) {
+    const s = LEG_Q[k]!;
+    const a = i0 * KEYED_LEG + s;
+    const b = i1 * KEYED_LEG + s;
+    const sg = G[a]! * G[b]! + G[a + 1]! * G[b + 1]! + G[a + 2]! * G[b + 2]! + G[a + 3]! * G[b + 3]! < 0 ? -1 : 1;
+    let x = G[a]! + (sg * G[b]! - G[a]!) * u;
+    let y = G[a + 1]! + (sg * G[b + 1]! - G[a + 1]!) * u;
+    let z = G[a + 2]! + (sg * G[b + 2]! - G[a + 2]!) * u;
+    let w = G[a + 3]! + (sg * G[b + 3]! - G[a + 3]!) * u;
+    if (amp !== 1) {
+      const sm = M[s]! * x + M[s + 1]! * y + M[s + 2]! * z + M[s + 3]! * w < 0 ? -1 : 1;
+      x = sm * M[s]! + (x - sm * M[s]!) * amp;
+      y = sm * M[s + 1]! + (y - sm * M[s + 1]!) * amp;
+      z = sm * M[s + 2]! + (z - sm * M[s + 2]!) * amp;
+      w = sm * M[s + 3]! + (w - sm * M[s + 3]!) * amp;
+    }
+    const l = Math.sqrt(x * x + y * y + z * z + w * w) || 1;
+    out[s] = x / l;
+    out[s + 1] = y / l;
+    out[s + 2] = z / l;
+    out[s + 3] = w / l;
+  }
+  for (let k = 0; k < LEG_S.length; k++) {
+    const s = LEG_S[k]!;
+    const v = G[i0 * KEYED_LEG + s]! + (G[i1 * KEYED_LEG + s]! - G[i0 * KEYED_LEG + s]!) * u;
+    out[s] = M[s]! + (v - M[s]!) * amp;
+  }
+  for (let k = 0; k < LEG_W.length; k++) {
+    const s = LEG_W[k]!;
+    out[s] = G[i0 * KEYED_LEG + s]! + (G[i1 * KEYED_LEG + s]! - G[i0 * KEYED_LEG + s]!) * u;
+  }
+  return 1;
 }
 
 /** (T1a) The edit channel at identity (a clip with no per-key edits). */
@@ -546,6 +691,11 @@ export function mixKeyed(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose, 
     out.ed[32] = a.ed[32]! + (b.ed[32]! - a.ed[32]!) * u;
     out.ed[33] = a.ed[33]! + (b.ed[33]! - a.ed[33]!) * u;
     out.edOn = a.edOn || b.edOn ? 1 : 0;
+    // (anim-skeleton S3) the clavicles and fingers go with the arm channels
+    nlerpInto(a.clav, b.clav, KEYED_CLAV, u, out.clav);
+    for (let c = 0; c < KEYED_FING; c++) out.fing[c] = a.fing[c]! + (b.fing[c]! - a.fing[c]!) * u;
+    out.hasClav = a.hasClav || b.hasClav ? 1 : 0;
+    out.hasFing = a.hasFing || b.hasFing ? 1 : 0;
   } else if (out !== a) {
     out.fore.set(a.fore);
     out.sh.set(a.sh);
@@ -553,8 +703,47 @@ export function mixKeyed(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose, 
     out.hasFore = a.hasFore;
     out.hasSh = a.hasSh;
     out.edOn = a.edOn;
+    out.clav.set(a.clav);
+    out.fing.set(a.fing);
+    out.hasClav = a.hasClav;
+    out.hasFing = a.hasFing;
   }
+  mixLeg(a, b, u, out);
   return out;
+}
+
+/**
+ * (anim-skeleton S3) The leg channels blended (always, with the legs): both keyed, the quaternions nlerp and the knee,
+ * toe and weight lerp; one keyed, its leg is kept and only its weight fades (toward the other's 0), so a blend never
+ * bends an FK leg toward the straight rest. No allocation; `out` may be `a` or `b`.
+ */
+function mixLeg(a: KeyedPose, b: KeyedPose, u: number, out: KeyedPose): void {
+  const A = a.leg;
+  const B = b.leg;
+  const O = out.leg;
+  if (a.hasLeg && b.hasLeg) {
+    for (let k = 0; k < LEG_Q.length; k++) {
+      const s = LEG_Q[k]!;
+      const sg = A[s]! * B[s]! + A[s + 1]! * B[s + 1]! + A[s + 2]! * B[s + 2]! + A[s + 3]! * B[s + 3]! < 0 ? -1 : 1;
+      const x = A[s]! + (sg * B[s]! - A[s]!) * u;
+      const y = A[s + 1]! + (sg * B[s + 1]! - A[s + 1]!) * u;
+      const z = A[s + 2]! + (sg * B[s + 2]! - A[s + 2]!) * u;
+      const w = A[s + 3]! + (sg * B[s + 3]! - A[s + 3]!) * u;
+      const l = Math.sqrt(x * x + y * y + z * z + w * w) || 1;
+      O[s] = x / l;
+      O[s + 1] = y / l;
+      O[s + 2] = z / l;
+      O[s + 3] = w / l;
+    }
+    for (let k = 0; k < LEG_S.length; k++) O[LEG_S[k]!] = A[LEG_S[k]!]! + (B[LEG_S[k]!]! - A[LEG_S[k]!]!) * u;
+    for (let k = 0; k < LEG_W.length; k++) O[LEG_W[k]!] = A[LEG_W[k]!]! + (B[LEG_W[k]!]! - A[LEG_W[k]!]!) * u;
+  } else if (a.hasLeg || b.hasLeg) {
+    const src = a.hasLeg ? A : B;
+    const k = a.hasLeg ? 1 - u : u;
+    if (O !== src) O.set(src);
+    for (let j = 0; j < LEG_W.length; j++) O[LEG_W[j]!] = src[LEG_W[j]!]! * k;
+  } else if (O !== A) O.set(A);
+  out.hasLeg = a.hasLeg || b.hasLeg ? 1 : 0;
 }
 
 /**
@@ -570,6 +759,13 @@ export function clearKeyedArms(p: KeyedPose): KeyedPose {
   }
   p.hasFore = p.hasSh = 0;
   edIdentity(p);
+  // (anim-skeleton S3) the clavicles and fingers too (the gun hands keep their grip); the legs stay
+  for (let s = 0; s < KEYED_CLAV; s += 4) {
+    p.clav[s] = p.clav[s + 1] = p.clav[s + 2] = 0;
+    p.clav[s + 3] = 1;
+  }
+  p.fing.fill(0);
+  p.hasClav = p.hasFing = 0;
   return p;
 }
 
@@ -634,5 +830,24 @@ export function mirrorKeyed(p: KeyedPose): KeyedPose {
   const t = e[KE.twist]!;
   e[KE.twist] = -e[KE.twist + 1]!;
   e[KE.twist + 1] = -t;
+  // (anim-skeleton S3) the clavicles swapped and reflected; the hands' finger values swapped (curl and spread are each
+  // hand's own: symmetric); the legs swapped side for side, hip and ankle reflected, knee, toe and weight as they are
+  swapReflect(p.clav, 0, 4);
+  const f = p.fing;
+  for (let c = 0; c < 10; c++) {
+    const l = f[c]!;
+    f[c] = f[c + 10]!;
+    f[c + 10] = l;
+  }
+  const g = p.leg;
+  for (let c = 0; c < KEYED_LEG_SIDE; c++) {
+    const l = g[c]!;
+    g[c] = g[c + KEYED_LEG_SIDE]!;
+    g[c + KEYED_LEG_SIDE] = l;
+  }
+  for (let k = 0; k < LEG_Q.length; k++) {
+    g[LEG_Q[k]! + 1] = -g[LEG_Q[k]! + 1]!;
+    g[LEG_Q[k]! + 2] = -g[LEG_Q[k]! + 2]!;
+  }
   return p;
 }
