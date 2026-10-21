@@ -16,7 +16,6 @@ const LED = '#dfe8f0';
 const LIFT = '#5d646b';
 const SIGNAL = '#cfe6ff';
 const PAINT = '#d6dadf';
-const SWEEP = '#a83a3a';
 const HAZARD = '#1d1f22';
 
 /** Paint and plates: this thin, so the light bake never sees them. */
@@ -109,12 +108,6 @@ export function floorLine(b: LevelBuilder, ax: number, az: number, bx: number, b
   const dz = bz - az;
   const len = Math.sqrt(dx * dx + dz * dz);
   b.box((ax + bx) / 2, 0.012, (az + bz) / 2, wd, THIN, len, color, Math.atan2(dx, dz), 0, false);
-}
-
-/** Station 3: the camera's sweep edges painted on the floor, from just west of the blind spot (x `x1`) back to `x0`. */
-export function sweepLines(b: LevelBuilder, camX: number, camZ: number, x0: number, x1: number, halfDeg: number): void {
-  const t = Math.tan((halfDeg * Math.PI) / 180);
-  for (const s of [-1, 1]) floorLine(b, x1, camZ + s * (camX - x1) * t, x0, camZ + s * (camX - x0) * t, 0.08, SWEEP);
 }
 
 /** Station 4: an emitter plate on a wall end (face at z, the gap on the `into` side): the three beam heads. */

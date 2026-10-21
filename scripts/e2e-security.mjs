@@ -1,6 +1,7 @@
 // Kestrel S1: the CCTV cameras on the debug map seclab (`?autostart=seclab&mode=sandbox`).
 // Part A (cameras): a player walking in the lit strip is detected within the S0 time (SN08 + 0.5 s) and standing still within
-// the slowest lit case (SN09 + 0.5 s); a player crouched in the dark corner is not; the panning camera misses a player during its
+// the slowest lit case (SN09 + 0.5 s); a player crouched in the dark corner is seen too (marlow-jammer M3: the camera's own
+// IR, lamps do not matter to it); the panning camera misses a player during its
 // far pause and sees the same player at the near pause; a shot camera (the weapon ray hook) stops detecting.
 // Part B adds the desk and panel checks (switch off at the panel, a manned desk alerts its guard).
 // `node scripts/e2e-security.mjs [url]`
@@ -155,7 +156,8 @@ try {
   });
   assert(dark.crouched && dark.covered, 'the crouched player is inside the fixed camera frame');
   assert(dark.light < SHADOW, `the dark corner reads dark (light ${dark.light.toFixed(2)} below ${SHADOW})`);
-  assert(dark.max < 0.05, `crouched in the dark corner for 15 s is not detected (meter max ${dark.max.toFixed(2)})`);
+  // (marlow-jammer M3) the camera sees by its own IR: the dark corner no longer hides a body in its frame
+  assert(dark.max >= 0.3, `crouched in the dark corner for 15 s is seen by the camera's IR (meter max ${dark.max.toFixed(2)})`);
 
   // ---- the panning camera: far pause misses, near pause sees ------------------------------------------------------------------------
   console.log('panning camera');

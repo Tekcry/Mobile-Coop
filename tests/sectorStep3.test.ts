@@ -50,9 +50,9 @@ describe('sector ops step 3', () => {
     expect(starsText([false, false, false, false])).toBe('☆☆☆☆');
   });
 
-  it('protocol 24 (now 25, the guard torch bit): the sector message carries the live section, locked doors, shot cameras and syringes', () => {
-    expect(PROTOCOL_VERSION).toBe(25);
-    const sec = { ck: 1.5, j: ['', 'cam-dock'], ch: [3, 2.5], al: 1 };
+  it('protocol 24 (now 26, the jammer rules): the sector message carries the live section, locked doors, shot cameras and syringes', () => {
+    expect(PROTOCOL_VERSION).toBe(26);
+    const sec = { ck: [1.5], j: ['', 'cam-dock'], ch: [3, 5], cd: [2.5, 0], dv: [['cam-dock', 1, 0.5]], al: 1 };
     const msg = { t: 'sector', sec, ls: 1, lk: [3, 7], dn: ['cam-floor'], sy: 2 };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);
     // clamps and junk: section and syringes clamped, door indices in range, bad ids dropped
