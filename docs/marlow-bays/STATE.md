@@ -1,12 +1,15 @@
 # marlow-bays - state
 
-Now: slice T started 2026-10-21 ~14:05 on its own branch `feature/marlow-tuner` (worktree
-`C:/NightShift/Mobile-Coop-marlow-tuner`, from master 4.33.0 c3af5fac) so it can merge alone; an implementer subagent
-builds it. Split (orchestrator OK, ~15:20): T = items 9, 10, 11, 13, 14; T1 = 15, 16, 17, 18. T built (F4 mouse mode,
-F8 / L3 / header "On the spot", "Keyed" tick box, "Stage light" slider, yellow ring + row bar); check and e2e-menus
-pass; e2e-studio failed at the drag assert (camera yaw 0); checker: stage-light cap on a frozen material, F4 / F8 not
-reserved. Fix round running. coop-torches #81 passed the full e2e (4.34.0); merge master here after it lands.
-Next: T PR (full e2e on the laptop), then T1, T2 (screenshot to the orchestrator before its PR), then B, J, M.
+Now (2026-10-21 ~15:05): slice T = PR Tekcry/Mobile-Coop#82 (branch `feature/marlow-tuner`, worktree
+`C:/NightShift/Mobile-Coop-marlow-tuner`, head f3b77e38, master 4.34.0 merged): items 9, 10, 11, 13, 14. Check,
+e2e-studio, e2e-menus, e2e-mouse pass; checker's two findings fixed; full e2e running on the laptop (Character Build,
+15:00). Slice T1a (items 15-19, COVERAGE gaps 3-5) is being built by an implementer subagent on
+`feature/marlow-tuner-t1` (worktree `C:/NightShift/Mobile-Coop-marlow-t1`, cut from T f3b77e38). Master 4.34.0 is
+merged here (protocol 25).
+Next: T1a PR; T1b (COVERAGE gaps 1-2: Joints / Hands & feet / IK / Weapon bake and reach every rig and the partner;
+move and action rows; Michael's existing exports must bake, backward compatible, tested with a literal old export);
+T3 (rig: per-finger control, a real clavicle, per-key legs; prototype first, screenshot of the new joints to the
+orchestrator before building it all); T2 (UI redesign; screenshot before its PR); then B, J, M.
 Open: none.
 
 ## Done
