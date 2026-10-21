@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.49.2 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22)
+- The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
+  the takedown is done, as the grab step already does: on a slow page the guards alerted or turned between the host's
+  pin and the client's read, so the offer never came (the master-wide flake). The start, the reach check and the
+  knock-out are still the real code. A failure now prints both pages' view of the guard and the client.
+
 ## 4.49.1 - Animation tuner: worn-goggle offsets in the Gear tab, baked (2026-10-22, PR #102)
 - Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
   turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
