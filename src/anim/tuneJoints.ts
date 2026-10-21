@@ -26,6 +26,7 @@
 import { ANIM_BASE } from './animBase';
 import { BODY_GROUPS } from './tune';
 import { JOINT_WEAPON_ROWS } from './tuneRows';
+import { TUNE_MOVE_ROW_IDS } from './tuneMoveRows';
 
 export const JOINTS = [
   'pelvis',
@@ -68,8 +69,11 @@ export const MIRROR_OF: readonly number[] = JOINTS.map((j) => {
 /** The mirror's sign per axis: pitch kept, yaw and roll flipped. */
 export const MIRROR_SIGN: readonly number[] = [1, -1, -1];
 
-/** (marlow-bays T1a) The table's rows: every body state, then the per-gun rows of the armed states (`rifle.aim`, ...). */
-export const JOINT_ROWS: readonly string[] = [...BODY_GROUPS, ...JOINT_WEAPON_ROWS];
+/**
+ * (marlow-bays T1a) The table's rows: every body state, then the per-gun rows of the armed states (`rifle.aim`, ...);
+ * (anim-joints J2) then the move and action rows (`trav.vault`, `team.boost.b`, `reload`, ...: `tuneMoveRows.ts`).
+ */
+export const JOINT_ROWS: readonly string[] = [...BODY_GROUPS, ...JOINT_WEAPON_ROWS, ...TUNE_MOVE_ROW_IDS];
 const G = JOINT_ROWS.length;
 const GROUP_INDEX = Object.fromEntries(JOINT_ROWS.map((g, i) => [g, i])) as Record<string, number>;
 
@@ -272,15 +276,45 @@ export function jointsBegin(group: string, dt = Number.POSITIVE_INFINITY): void 
  * the window stays off, no work. No allocation.
  */
 export function jointsBeginRig(st: JointsRigState, g: number, dt: number): void {
+  jointsBeginRigRows(st, g, NO_ROWS, NO_W, 0, dt);
+}
+
+const NO_ROWS = new Int16Array(0);
+const NO_W = new Float64Array(0);
+
+/** (J2) A move row's weight at or above this applies the row as is (no nlerp, no normalise: exact). */
+const W_FULL = 1;
+
+/** (J2) Whether row `g` (index into `JOINT_ROWS`, -1 none) has any effective offset. */
+function rowLive(g: number): boolean {
+  if (g < 0 || g >= G) return false;
+  const b = g * JOINT_COUNT;
+  for (let j = 0; j < JOINT_COUNT; j++) if (ELIVE[b + j] === 1) return true;
+  return false;
+}
+
+/**
+ * (anim-joints J2, A5) `jointsBeginRig` with up to `n` move / action rows over the stance row `g`: each joint's target
+ * is stance x nlerp(identity, move, w) for each move row in turn (`rows[k]` an index into `JOINT_ROWS`, `w[k]` 0..1;
+ * a stance of -1 is identity, so a traversal move's row applies over identity). Only the rows with an offset on the
+ * joint take part, so with no move row (or none live) the target is the stance row's quaternion exactly, as in J1. The
+ * rig's applied offsets then ease toward the target as before. No allocation.
+ */
+export function jointsBeginRigRows(st: JointsRigState, g: number, rows: ArrayLike<number>, w: ArrayLike<number>, n: number, dt: number): void {
   const b = g < 0 || g >= G ? -1 : g * JOINT_COUNT;
   JOINTS_CUR.on = false;
   st.row = b < 0 ? -1 : g;
   if (st.gen !== loadGen) stateReset(st);
-  if (!st.any) {
-    // the common case: nothing applied, and nothing live in this row -> off, no work
-    let any = false;
-    if (b >= 0) for (let j = 0; j < JOINT_COUNT; j++) if (ELIVE[b + j] === 1) any = true;
-    if (!any) return;
+  // the move rows with an offset and a weight (their table bases; -1 skipped)
+  let mn = 0;
+  for (let m = 0; m < n; m++) {
+    const r = rows[m]!;
+    const lw = w[m]!;
+    if (lw > 0 && rowLive(r)) mn++;
+  }
+  if (!st.any && mn === 0) {
+    // the common case: nothing applied, and nothing live in these rows -> off, no work
+    if (!rowLive(b < 0 ? -1 : g)) return;
   }
   const CUR = st.cur;
   const CUR_LIVE = st.live;
@@ -293,12 +327,57 @@ export function jointsBeginRig(st: JointsRigState, g: number, dt: number): void 
     let ty = 0;
     let tz = 0;
     let tw = 1;
+    let ident = true;
     if (b >= 0 && ELIVE[b + j] === 1) {
       const t = (b + j) * 4;
       tx = QUAT[t]!;
       ty = QUAT[t + 1]!;
       tz = QUAT[t + 2]!;
       tw = QUAT[t + 3]!;
+      ident = false;
+    }
+    if (mn > 0) {
+      for (let m = 0; m < n; m++) {
+        const r = rows[m]!;
+        const lw = w[m]!;
+        if (!(lw > 0) || r < 0 || r >= G || ELIVE[r * JOINT_COUNT + j] !== 1) continue;
+        const q = (r * JOINT_COUNT + j) * 4;
+        let nx = QUAT[q]!;
+        let ny = QUAT[q + 1]!;
+        let nz = QUAT[q + 2]!;
+        let nw = QUAT[q + 3]!;
+        if (lw < W_FULL) {
+          // nlerp(identity, move, w), shortest arc
+          const s = nw < 0 ? -lw : lw;
+          nx *= s;
+          ny *= s;
+          nz *= s;
+          nw = nw * s + (1 - lw);
+          const l = Math.sqrt(nx * nx + ny * ny + nz * nz + nw * nw) || 1;
+          nx /= l;
+          ny /= l;
+          nz /= l;
+          nw /= l;
+        }
+        if (ident) {
+          tx = nx;
+          ty = ny;
+          tz = nz;
+          tw = nw;
+          ident = false;
+        } else {
+          // target = target x n (Hamilton), normalised
+          const x = tw * nx + tx * nw + ty * nz - tz * ny;
+          const y = tw * ny - tx * nz + ty * nw + tz * nx;
+          const z = tw * nz + tx * ny - ty * nx + tz * nw;
+          const ww = tw * nw - tx * nx - ty * ny - tz * nz;
+          const l = Math.sqrt(x * x + y * y + z * z + ww * ww) || 1;
+          tx = x / l;
+          ty = y / l;
+          tz = z / l;
+          tw = ww / l;
+        }
+      }
     }
     let cx = CUR[o]!;
     let cy = CUR[o + 1]!;
