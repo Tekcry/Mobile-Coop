@@ -1,5 +1,6 @@
 # marlow-bays - state
 
+B + M (cloud): see "Slices B + M" below; PR to master open, waiting on the orchestrator's PC full e2e and GPU look.
 Now (2026-10-21 ~15:05): slice T = PR Tekcry/Mobile-Coop#82 (branch `feature/marlow-tuner`, worktree
 `C:/NightShift/Mobile-Coop-marlow-tuner`, head f3b77e38, master 4.34.0 merged): items 9, 10, 11, 13, 14. Check,
 e2e-studio, e2e-menus, e2e-mouse pass; checker's two findings fixed; full e2e running on the laptop (Character Build,
@@ -38,7 +39,18 @@ Found and fixed:
 - Item 4: pause > Return to lobby (co-op): the existing `backToLobby` (the client follows on the lobby broadcast). No
   protocol change (stays 25).
 - A1: in co-op both are host only; the joiner's rows are blocked, "Host only", and keep Quit to menu.
-Polish list (not done, no fix round needed): none raised yet.
+Tests (cloud, software GL, 4 cores): `npm run check` passes. e2e-sectorops, e2e-ctcourse and e2e-netmove pass (with
+`E2E_SUITE_TIMEOUT=2400`: at the default 600 s this VM is too slow for them). The new steps pass: e2e-ctcourse's pause
+rows (host live, joiner "Host only") and host restart bringing the joiner back, the station 2 host unbolt with the real
+`'local'` press; e2e-sectorops' pause restart; e2e-coop's "held guard not solid". Pre-existing on this VM, master
+fails the same way: e2e-menus "holding right repeats and accelerates" (slider repeat timing), and e2e-coop stalls when
+a match starts after a return to the lobby (a dialog over the joiner's lobby; master 4.35.0 at origin/master stalls at
+the same step). So e2e-coop's new pause "Return to lobby" block (in its infiltration section) did not run here:
+pending the PC full run.
+Checkers: B no defects; M no blockers. Fix round: e2e-ctcourse restart step on a clear spot (8, 7) and the spawn
+protection reset after it.
+Polish list: the host's view of a joiner's hostage may flicker its gait slightly below 60 fps (`holdAt` velocity per
+fixed step from a render-rate pose); a restart refused (already pending / op ending) closes the menu with no line.
 
 ## Done
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
