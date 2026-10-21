@@ -1,13 +1,13 @@
 # anim-natural N1 - state
 
 ## Now
-Worktree and docs set up (2026-10-22 ~10:20). Waiting for anim-run-half's runs to finish (one agent at a time).
+Implementer A done (REPORT-A.md: the harness tests/footTurnHarness.ts + footTurn.test.ts, the master table, 10 causes,
+the proposed rule, the job lead's decisions). Implementer B building (2026-10-22 ~11:05).
 
 ## Next
-1. Implementer A (diagnosis): a headless turn harness (sim time) measuring the BRIEF's numbers on master; find why the
-   planted foot sticks (twist cap 0.9 rad, band only while turning > 1 rad/s, replant threshold); propose the rule.
-2. Implementer B (build): the turn-step rule + ball pivot + sliders; e2e-anim check. Fresh checker, one fix round.
-3. GPU sheets before / after, laptop full e2e, PR.
+1. Implementer B: the turn step + ball pivot + per-state rules + 5 Stepping sliders that bake; harness limits; e2e-anim
+   turn block. Fresh checker, one fix round.
+2. check + e2e-anim / e2e-studio / e2e-netmove on the desktop; GPU sheets before / after; full e2e; PR.
 
 ## Carried for N2 (orchestrator, 2026-10-22 ~10:40)
 Michael approved lifting SWAY_MAX to ~5 cm (realistic side sway; he fine-tunes in the tuner).
