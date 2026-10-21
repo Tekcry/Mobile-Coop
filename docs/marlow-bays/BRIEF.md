@@ -83,7 +83,12 @@ Added ~14:10:
     hips, knees, ankles, toes), per-key editing with 3 axes, left / right separately, the bake writing it. Every gap
     is filled in T1 unless it needs a rig change (say so in the table). The orchestrator sends Michael the table before
     T1's PR.
-Items 17-20 go in slice T1 with 15 and 16.
+Items 17-20 go in slice T1 with 15 and 16. T1 split (orchestrator OK, ~15:45): T1a = items 15-19 + COVERAGE gaps 3-5;
+T1b = gaps 1-2 (Joints / Hands & feet / IK / Weapon bake and every rig reads them; move and action rows), taking
+exports made before T1b (test with a literal old export).
+21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
+    Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
+    if a pose crosses it).
 
 Goal: quick prototype fixes so Michael can replay bays 1-3 in co-op and continue. No polish beyond the list.
 
