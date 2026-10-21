@@ -1,5 +1,39 @@
 # Changelog
 
+## 4.45.0 - Animation tuner: Gear offsets for the holster, the guns on her back and the hip sling, baked (2026-10-22, PR #95)
+- Gear offsets (marlow-bays item 22): the animation tuner has a Gear tab with sliders that move worn gear per socket:
+  the holstered pistol on the thigh, the guns on the back (left, centre, right) and the hip sling socket
+  (the hip sling's gun with it). Each moves in its own frame (x / y / z in metres) and turns
+  about its own seat (pitch / yaw / roll in degrees); each has a crouched variant added as she crouches. A draw or
+  holster reaches to the moved slot. Visual only: what she carries and how long a draw takes are unchanged.
+- The Gear values bake into the animation base table like Joints and Hands & feet, so every Wren body takes them: the
+  co-op partner and the studio's pair puppets too, guards never. Old exports, saves and base tables load and bake as
+  before. The grenade pouches are part of her own kit, so they have no slider yet; the goggles follow
+  after track C's hook lands.
+
+## 4.44.0 - Animation tuner: Joints, Hands & feet, IK and Weapon rows for every move and action (climbs, rappel, co-op moves, reload, melee, landing, hit) (2026-10-22, PR #90)
+- Moves and actions have their own rows in Joints, Hands & feet, IK strength and Weapon (COVERAGE gap 2): every
+  traversal move (vault, mantle, step up, climb up, window vault, rappel, drop, hop, roll, wall kick, split, brace),
+  each co-op move per role (leg-up, relay, throw, hang-down, rope, revive: A and B), and air, landing, slide, melee,
+  reload, weapon swap, grenade throw and hit. A row blends in over the stance while its move or action plays (by the
+  animation's own fade) and out after it; the tuner follows the strongest one. They bake like the other rows; old
+  exports and saves load as before. The co-op partner picks its role row from its move state (the relay climb reads as
+  the leg-up's climber; the revive has no row on the partner).
+- Tuner by pad: LT / RT steps the state (or the move, or A / B on a co-op row) in every section again, B goes back to
+  that picker, and the changed dot marks the right picker (the pickers' depth now differs per row).
+- The debug overlay's Tune and Teleport lists stay hidden until their buttons open them (their display rule overrode
+  `hidden`, so Tune always showed and the overlay covered much of the Anim Studio's scene on a small window).
+
+## 4.43.2 - Tests: e2e-menus waits on sim time on slow software GL; the e2e-levels ladder chase is seeded; a NaN guard in the loop (2026-10-22, PR #94)
+- The desktop e2e-menus "stall" after the animation tuner closed was not a freeze in the game: the test ran past the
+  runner's 600 s limit on software GL (the match page drew about 1.5 frames a second beside the open menu page). The
+  menu page now goes blank before the match page opens, and the tuner camera check settles on the sim clock: the suite
+  takes 312 s instead of 894 s on the desktop. The Havok stacks seen earlier were slow frames, not a spin.
+- The game loop treats a NaN or negative frame interval or time scale as no time, so a bad value can never stop the
+  simulation for good (new unit tests for the loop across a long tuner freeze and its release).
+- e2e-levels: the ladder chases run on the manual clock with a fixed random seed (they took 9-30 s of game time
+  against a 30 s budget; now 10-15.5 s).
+
 ## 4.43.1 - Co-op: restart at checkpoint no longer crashes a joiner holding a guard (2026-10-22, PR #93)
 - Co-op course: "Restart at checkpoint" (or a bay restart) while a guard is held no longer crashes the client; the hold is
   let go first (as Sector Ops does), and a disposed guard puppet counts as gone, so a stale takedown lets go of it.
