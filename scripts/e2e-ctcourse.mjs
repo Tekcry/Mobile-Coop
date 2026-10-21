@@ -667,7 +667,8 @@ try {
     await waitSim(200);
     assert(await GB(() => !!window.__app.screens.top?.el.classList.contains('pause-screen')), "the client's disabled row does nothing");
     await GB(() => window.__app.screens.top.resume());
-    await moveClient(10, 3);
+    // a clear spot (away from the bay 1 guard post at 10.5, 3.2)
+    await moveClient(8, 7);
     await GA(() => { const b = document.querySelector('.pause-screen [data-key="restart-checkpoint"]'); window.__app.nav.focus(b); b.click(); });
     await waitSim(200);
     const dlg = await GA(() => ({ top: !!window.__app.screens.top?.el.classList.contains('dialog-screen'), f: window.__app.nav.focused?.textContent ?? '' }));
@@ -676,6 +677,9 @@ try {
     const cp = await GA(() => { const p = window.__course.checkpointPos(); return [p.x, p.z]; });
     await until(B, ([x, z]) => { const p = window.__app.current.player.position; return Math.hypot(p.x - x, p.z - z) < 2.5; }, cp, 15000, 'the host restart brings the client back to the checkpoint');
     assert((await hostDebug()).bay === 0 && (await GA(() => !document.querySelector('.pause-screen'))), 'the restart keeps bay 1 and closes the host pause');
+    // the respawn's 2 s spawn protection ends at damageMul 1: the run keeps the host unhurt as before
+    await waitSim(2200);
+    await GA(() => { window.__app.current.target.damageMul = 0; });
     await throughAirlock(0);
   }
 
