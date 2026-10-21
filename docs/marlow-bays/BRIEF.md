@@ -138,6 +138,14 @@ that order; the laptop tests all three:
         mirrored clips keep their mirror; the bake rewrites the key file and the clip. Track C rebases its key-field
         work on 23 and 25.
 
+26. (~19:00) "Is it difficult to do a fast ui adjustment for phones only? Touch input and controller will be used."
+    (screenshot: the tuner on a phone in landscape, the F3 readout covering the left half, the panel crowding the
+    right). Chose "Yes, tuner only": an exception to M21 (phones dropped) for the animation tuner and Anim Studio only;
+    the game stays desktop-only. Track A, right after T2 (#86) merges, ahead of item 23 (park it): a phone layout
+    (bottom sheet or collapsible drawer, touch targets >= 44 px, she stays in view), the debug readout off by default
+    on phones with a toggle, touch camera (one-finger drag orbits, pinch zooms, two-finger drag pans), pad as today.
+    Logic e2e at a phone viewport (touch emulation); a phone-size screenshot to the orchestrator before the PR.
+
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
     if a pose crosses it).
