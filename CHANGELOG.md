@@ -10,6 +10,10 @@
 - e2e-levels: the ladder chases run on the manual clock with a fixed random seed (they took 9-30 s of game time
   against a 30 s budget; now 10-15.5 s).
 
+## 4.43.1 - Co-op: restart at checkpoint no longer crashes a joiner holding a guard (2026-10-22, PR #93)
+- Co-op course: "Restart at checkpoint" (or a bay restart) while a guard is held no longer crashes the client; the hold is
+  let go first (as Sector Ops does), and a disposed guard puppet counts as gone, so a stale takedown lets go of it.
+
 ## 4.43.0 - Animation tuner: add or delete keys in a keyed clip, mirror kept, baked (2026-10-21, PR #91)
 - Animation tuner, Keys tab: "+ Add key" inserts a key midway between the picked key and the next (wrapping; with
   Mirror on in the own half, mirrored half a cycle on), posed as the clip plays there, so nothing changes until it is
