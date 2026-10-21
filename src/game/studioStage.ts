@@ -153,7 +153,8 @@ export class StudioStage {
       },
     };
     const d = host.debug;
-    if (!d.isVisible) {
+    // (marlow-bays item 26) not on a phone: the readout covered her (the tuner's Settings toggle shows it)
+    if (!d.isVisible && d.animTune.layoutMode === 'desktop') {
       d.toggle(true);
       this.shownDebug = true;
     }
@@ -300,6 +301,12 @@ export class StudioStage {
     STUDIO.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
     STUDIO.frames = e.team ? pairFrames(e.cycle) : d.clip ? d.clip.frames : 0;
     studioKeyInfo(d.clip && !e.team ? d.clip.name : '', STUDIO.phase, STUDIO);
+  }
+
+  /** (marlow-bays item 26 round) Per rendered frame, after the player animates and the camera updates: the stage
+   *  lights onto this frame's root and camera. They were placed in `frame`, before the player moved, so they lagged her
+   *  root by one frame of motion (a slow frame on a busy machine: up to 0.1 m in e2e-studio). */
+  lightsFrame(): void {
     this.stageFrame();
   }
 
@@ -333,7 +340,9 @@ export class StudioStage {
     const pos = root.position;
     // (marlow-bays T2) placed toward the camera: key and fill on its side, the rim beyond her, the top light above
     const cam = this.host.scene.activeCamera;
-    const cp = cam ? cam.globalPosition : null;
+    // (item 26 round) the camera's own position (set this frame by the follow / free view): `globalPosition` is only
+    // refreshed when the camera's world matrix is computed at render, so it held last frame's place
+    const cp = cam ? (cam.parent ? cam.globalPosition : cam.position) : null;
     const yaw = cp ? stageViewYaw(pos.x, pos.z, cp.x, cp.z, root.rotation.y) : root.rotation.y;
     for (let i = 0; i < this.stageLights.length; i++) {
       const p = this.stageLights[i]!;

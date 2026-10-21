@@ -150,7 +150,11 @@ pair puppets; guards and other rigs never do). Result "baked (base table)"; targ
   literal export in `tests/animMoveRows.test.ts`.
 
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
-rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock).
+rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock). (marlow-bays item 23, track A) A key's
+`time` (bake frames, + later) moves its `phase` to frame / 48 (moved keys only, clamped as in the tuner; key 0 is fixed:
+skipped) and regenerates `src/anim/tuneKeysMeta.ts`; an export with no timing edit bakes exactly as before. The live preview stretches the curve piecewise-linearly between
+the keys while the Blender bake interpolates with Bezier, so after a rebake the in-betweens differ slightly; the key
+poses match.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
 code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip
