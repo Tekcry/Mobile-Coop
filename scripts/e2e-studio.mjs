@@ -282,17 +282,29 @@ try {
   const mm0 = await G(() => ({ ...window.__animTune.mouse(), lockEl: !!document.pointerLockElement, gamecam: document.querySelector('.anim-tune').classList.contains('tt-gamecam') }));
   assert(mm0.mode === 'drag' && mm0.free && !mm0.locked && !mm0.lockEl && !mm0.gamecam && mm0.button === 'Mouse: drag view', `tuner open: drag view, the pointer free (${JSON.stringify(mm0)})`);
   // a point on the scene, clear of the panel and the overlay
-  const at = await G(() => {
+  // (anim-joints #90) the studio opens the debug overlay too, and its width follows its live text: the preferred points
+  // first, then a grid over the canvas; the point and the drag's end (80 px right) both on the scene
+  const atProbe = await G(() => {
     const c = window.__app.canvas;
     const r = c.getBoundingClientRect();
-    for (const [fx, fy] of [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]]) {
+    const onScene = (x, y) => document.elementFromPoint(x, y) === c && document.elementFromPoint(x + 80, y) === c;
+    const pts = [[0.3, 0.55], [0.25, 0.75], [0.4, 0.85], [0.15, 0.6], [0.5, 0.9]];
+    for (let gy = 0.35; gy <= 0.95; gy += 0.1) for (let gx = 0.1; gx <= 0.8; gx += 0.1) pts.push([gx, gy]);
+    for (const [fx, fy] of pts) {
       const x = r.left + r.width * fx;
       const y = r.top + r.height * fy;
-      if (document.elementFromPoint(x, y) === c) return { x, y };
+      if (onScene(x, y)) return { at: { x, y } };
     }
-    return null;
+    const el = (x, y) => {
+      const e = document.elementFromPoint(x, y);
+      return e ? `${e.tagName.toLowerCase()}.${String(e.className).trim().split(/\s+/).slice(0, 2).join('.')}` : 'none';
+    };
+    const d = document.querySelector('.debug-overlay');
+    const dr = d && !d.hidden ? d.getBoundingClientRect() : null;
+    return { at: null, vw: innerWidth, vh: innerHeight, canvas: [r.left, r.top, r.width, r.height].map(Math.round), debug: dr ? [dr.left, dr.top, dr.width, dr.height].map(Math.round) : null, hits: pts.slice(0, 5).map(([fx, fy]) => el(r.left + r.width * fx, r.top + r.height * fy)) };
   });
-  assert(!!at, 'a point on the scene clear of the panel');
+  const at = atProbe.at;
+  assert(!!at, `a point on the scene clear of the panel and the debug overlay (${JSON.stringify(atProbe)})`);
   const camYaw = () => G(() => window.__app.current.player.cam.camera.rotation.y);
   const y0 = await camYaw();
   await page.mouse.move(at.x, at.y);
