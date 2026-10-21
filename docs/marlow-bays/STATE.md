@@ -1,7 +1,10 @@
 # marlow-bays - state
 
 B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): done, PR to master open (master 4.42.0 merged).
-Slice S (server browser, item 28): own branch `feature/server-browser` from R's head, own PR.
+Slice S (server browser, item 28): PAUSED (orchestrator, usage pacing) on `feature/server-browser` (from R's head):
+built, fresh checker run, fix round done, `npm run check` passes; its e2e-coop / e2e-menus run was stopped by the
+pause (the browse steps had not run). Resume S: build, run e2e-coop and e2e-menus once (`E2E_SUITE_TIMEOUT=2400
+E2E_JOBS=1` on a cloud VM), then open its own PR (CHANGELOG "## Unreleased - server browser (prototype)").
 Track A (Course Ready Build), 2026-10-21 ~21:40:
 - Merged: slice T #82 (4.35.0), T1a #83 (4.36.0), T2 #86 (4.39.0), item 23 key timing #87 (4.40.0), items 26 + 26b
   tuner on phones #89 (4.41.0; M21 exception for the tuner and Anim Studio only).
@@ -110,9 +113,16 @@ Branch `feature/server-browser`, cut from slice R's head (its PR carries R until
 - Tests: unit `tests/roomDirectory.test.ts` (validation, listing, other version hidden, gone on full / private /
   close, refresh and expiry, on a fake relay); e2e-coop (local relay): a new room is Private, Public lists it in Browse
   rooms (1 / 2, code and map), full takes it off. Pending PC: one real-relay check on two machines.
+- Checker (fresh): 5 defects, all fixed in the fix round: the Browse screen leaked a timer and kept its list open
+  through a join (one timer now, the list closed on a pick); fast Public toggles made two posters (one open / close at
+  a time now: Trystero shares one room per id); a lost `gone` left a closed room listed 75 s (a host leaving the
+  directory now drops its rooms, and close waits a moment after the gone); any peer could remove or fake another's
+  code (a code now belongs to its first poster); no cap on the list (50). Also: the Room row redrawn after a failed
+  open. Not done: every public host and browser shares one full-mesh room (prototype scale only); the notice does not
+  say a match is in progress.
 
 ## Done
-- 2026-10-21: slice S (cloud): item 28 server browser prototype; own PR.
+- 2026-10-21: slice S (cloud): item 28 built, checked, fix round; paused before its e2e and PR.
 - 2026-10-21: slice R (cloud): item 27 rejoin; PR to master.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).
