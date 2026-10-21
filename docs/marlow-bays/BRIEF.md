@@ -146,6 +146,16 @@ that order; the laptop tests all three:
     on phones with a toggle, touch camera (one-finger drag orbits, pinch zooms, two-finger drag pans), pad as today.
     Logic e2e at a phone viewport (touch emulation); a phone-size screenshot to the orchestrator before the PR.
 
+27. (~19:30) "There should also be a way to rejoin a match you have left. The code should be displayed in the host and
+    joiners session main menu in case either person gets disconnected so they can rejoin." Slice R (Bays Cloud, own
+    PR from this branch after master 4.38.0). Assumed: R1 the room code shows in the pause menu and on the main menu
+    for both players while a match is live or was left in the last 10 minutes ("Rejoin <code>" item on the main menu,
+    one press); R2 a joiner who drops or leaves keeps its slot: the host holds its player (frozen, invulnerable, a
+    "Reconnecting..." tag) for 10 minutes and a rejoin restores position, health, loadout and team state; R3 if the host
+    drops, the joiner sees "Host disconnected - waiting (code)" and the host's main menu offers "Resume hosting <code>",
+    which reopens the same room and restarts from the last checkpoint with the joiner rejoining on the code; R4 no new
+    server: the same Trystero / Nostr room. Logic e2e via localTransport (drop and rejoin both sides).
+
 21. (~15:50) Rig gaps from COVERAGE.md, Michael chose all three: per-finger control, a real clavicle, per-key legs.
     Slice T3 after T1b (rig change: the Blender rig, the voxel / mesh skin, the clip channels, the bake; the co-op wire
     if a pose crosses it).
