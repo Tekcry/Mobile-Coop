@@ -1,7 +1,7 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~20:17 (5-hour 96%) by the resumed CT Core session (overflow session). Every branch
-below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
+Written 2026-10-22 ~14:55 at the 5-hour pause; saved ~20:20 for the account swap by the CT Core session (overflow session). Every
+branch below is committed and pushed; no agent is running (the three running at the save are lost: the resume prompt redoes them).
 
 ## Rules carried
 - (Michael 15:25, via the orchestrator) CT Core is the overflow session: it ignores the 97 / 98 / 99% stops and works and
@@ -41,8 +41,8 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | --- | --- | --- | --- | --- |
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
 | idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (a separate clone: use origin/ refs) | 1135bc41 | Jog 180 fix (REPORT-D), rule A2 for run 180 (REPORT-E: test-window max 6.11 -> 2.59 m/s), master 4.56.0 merged (no conflicts; fixtures byte-identical), CHANGELOG Unreleased added. 19:58: laptop asked for check + e2e-anim e2e-move e2e-clip e2e-studio e2e-coop e2e-netmove on 1135bc41; a fresh checker reads the N1 folder (verdict -> CHECK-3.md; lost on a clear: rerun). | Laptop verdict + checker PASS -> open the PR (minor) for train 7 (body: REPORT-C "Metrics switched" + REPORT-D / E tables); GPU sheets on the laptop. |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 849c081b | Steps 2 + 3 in; master 4.56.0 merged (b69e1a26; proof clean, no re-capture; STATE 20:15). Running at 20:17: the step 3 fresh checker (reads C:/NightShift/Mobile-Coop-anim-natural-n2-merge; verdict -> CHECK-4.md) and the run arm pop fix agent in the N2 folder (edits the run key, Blender rebake under the desktop lock, re-captures, commits locally; appends to REPORT-3). Lost on a clear: check git log / status in the N2 folder (an uncommitted run key or a lock naming "n2 run arm pop"), rerun if absent. | Push; open the PR when CHECK-4 passes (no pre-run: no src/net / protocol / save); then steps 4-5 on top (or as a follow-up PR); #128 alloc test. |
+| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (separate clone) | 1135bc41 | Jog 180 fix (REPORT-D), rule A2 (REPORT-E), master 4.56.0 merged, CHANGELOG section. No pre-run needed (laptop run cancelled). Fresh checker was running at the save: lost, rerun. PR body drafted: C:/NightShift/n1-pr.md. | Checker -> CHECK-3; on PASS the PR (train 7 / 8). |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 849c081b | Steps 2 + 3 + master 4.56.0 (b69e1a26; STATE 20:15). Step 3 checker and the run arm pop fix agent were running at the save: lost, rerun both (no uncommitted change, no lock held). | CHECK-4; run arm pop fix; PR; steps 4-5. |
 | anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
@@ -57,18 +57,28 @@ ours runs, the lock is stale: delete it.
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME (after a clear or a pause). Model Opus, effort high. Read CLAUDE.md, docs/ROADMAP.md,
-then docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
-origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (full burn with parallel agents,
-overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
-orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
-versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. N1 (priority, train 7): no pre-run needed (orchestrator 20:00; the laptop run was cancelled). When CHECK-3 passes (rerun the
-   checker if absent): write CHECK-3.md, push, then open the PR: gh pr create --base master --head feature/anim-natural-n1
-   --title "anim-natural N1: feet in turns (turn step, ball pivot, contact hold)" --body-file C:/NightShift/n1-pr.md
-   (body drafted; add the checker verdict line), and message the orchestrator.
-2. N2: CHECK-4 (step 3 checker) and the run arm pop agent, or rerun; push; PR when CHECK-4 passes; steps 4-5.
-3. #123 in train 6 (master 4.56.0 merged).
-Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
-Message "Night Shift | Orchestrator" at each slice, verdict and PR.
+Night Shift | CT Core Build: RESUME (after the account swap, ~20:20 save). Model Opus, effort high. Read CLAUDE.md
+(on origin/feature/menu: "Main test machine: the laptop", the test tiers), docs/ROADMAP.md, then
+docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
+origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried" (overflow session to 100%,
+WIP pushed after each agent hand-back, atomic desktop heavy.lock for Blender / quick single suites only, the laptop
+"Night Shift | Character Build" for check / e2e / GPU, only touched suites, PRs straight to a train once the fresh
+checker passes, no pre-run without src/net / protocol / save). Everything was committed and pushed at the save; three
+agents were running and are lost (their results were not in): redo them.
+1. N1 (feature/anim-natural-n1, C:/NightShift/Mobile-Coop-anim-natural-n1, a separate clone: use origin/ refs; head
+   1135bc41): rerun the fresh checker (scope: REPORT-D jog 180 fix f8e98b26, REPORT-E rule A2 1b6c6d8e, the master
+   4.56.0 merge; CHECK-2's open items; whole job vs master) -> CHECK-3.md, push. On PASS open the PR:
+   gh pr create --base master --head feature/anim-natural-n1 --title "anim-natural N1: feet in turns (turn step, ball
+   pivot, contact hold)" --body-file C:/NightShift/n1-pr.md (drafted; add the checker line); message the orchestrator
+   (train 7 or 8). On FAIL: one fix round.
+2. N2 (feature/anim-natural-n2, C:/NightShift/Mobile-Coop-anim-natural-n2, head 849c081b; steps 2 + 3 + master 4.56.0):
+   (a) rerun the step 3 fresh checker (diff 4028d386..4e974ea1 on feature/anim-natural-n2-s3, REPORT-3) -> CHECK-4.md;
+   (b) the run arm pop fix (orchestrator 19:45, a defect: the right wrist jumps 22 cm in one run clip frame at the half
+   wrap, frames 16 -> 17, chest peak 17.3 m/s): an implementer retimes / smooths that run key (not the A1 trunk keys,
+   legs or half), Blender -b rebake under the desktop lock (node --import ./scripts/operators/ts-resolve.mjs
+   scripts/anim-keys/build.mjs run), re-captures both Wren fixtures (expect keyed:run + partner:moves), pins arm
+   continuity in runKeyContinuity, appends "Run arm pop fix" to REPORT-3; then push. On CHECK-4 PASS + the pop fix:
+   open the PR (minor) and message the orchestrator; steps 4-5 after (PLAN), and the #128 alloc test (STATE 17:55).
+3. #123 anim-bake-all (ad967e39, master 4.56.0 merged): in train 6; nothing unless it fails.
+Message "Night Shift | Orchestrator" at each verdict and PR.
 ```
