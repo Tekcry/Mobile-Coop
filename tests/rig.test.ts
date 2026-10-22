@@ -325,6 +325,8 @@ describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
     const { scene, rig } = await setup();
     const { EDGE_HAND_TIME } = await import('../src/player/characterRig');
     const half = Math.round((EDGE_HAND_TIME * 60) / 2);
+    const { HAND_SWAP } = await import('../src/anim/handSwapPath');
+    const dipStep = (Math.PI * Math.sqrt(HAND_SWAP.drop ** 2 + HAND_SWAP.fwd ** 2)) / (EDGE_HAND_TIME * 60);
     // reverse early, at the middle and late in the switch, both directions
     for (const at of [3, half, half + 4]) {
       for (const startLeft of [false, true]) {
@@ -337,6 +339,7 @@ describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
         let pz = p.z;
         let prevStep = 0;
         let worst = 0;
+        let worstYZ = 0;
         let worstJerk = 0;
         for (let k = 0; k < 60; k++) {
           const left = k < at ? !startLeft : startLeft;
@@ -347,7 +350,7 @@ describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
           // edge peek's own move)
           const st = Math.abs(p.x - px);
           worst = Math.max(worst, st);
-          if (rig.handSwap >= 0) worst = Math.max(worst, Math.abs(p.y - py), Math.abs(p.z - pz));
+          if (rig.handSwap >= 0) worstYZ = Math.max(worstYZ, Math.abs(p.y - py), Math.abs(p.z - pz));
           worstJerk = Math.max(worstJerk, Math.abs(st - prevStep));
           prevStep = st;
           px = p.x;
@@ -357,6 +360,10 @@ describe('open-side weapon at wall edges (step 12b, D9 / D10)', () => {
         // the pose stays on the starting edge; only the hand target flips and flips back. The same limits as a
         // plain switch: no frame jumps, and it ends back where it started
         expect(worst, `reverse at ${at} from ${startLeft ? 'left' : 'right'}`).toBeLessThan(0.05);
+        // (anim-n4c) height and depth: the plain limit plus the aimed swap's designed dip (handSwapPath.ts: down and
+        // forward under the chin while the sight lets go of the eye) at its peak rate (~7 cm a frame over 0.25 s), and
+        // the sight's release on the same envelope; the old centre-line pop was 28-41 cm in a frame
+        expect(worstYZ, `reverse at ${at} from ${startLeft ? 'left' : 'right'} (height / depth)`).toBeLessThan(0.05 + dipStep + 0.02);
         expect(worstJerk, `reverse at ${at} from ${startLeft ? 'left' : 'right'} (jerk)`).toBeLessThan(0.012);
         expect(rig.handSwap).toBe(-1);
         expect(Math.sign(p.x)).toBe(startLeft ? -1 : 1);

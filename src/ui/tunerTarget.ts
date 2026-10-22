@@ -108,7 +108,7 @@ function bodyRow(id: string, out: TuneTarget): TuneTarget {
   if (id === 'pelvisYAdd' || id === 'glideTwistMul') return one(out, 'hips', 'Pelvis');
   if (id === 'leanAdd') return one(out, 'spine', 'Spine');
   if (id === 'trunkTwistMul' || id === 'peekLeanMul') return one(out, 'torso', 'Chest');
-  if (id.startsWith('gun') || id === 'sightYAdd' || id === 'recoilMul') return weapon(out, 'Gun hold (both hands)');
+  if (id.startsWith('gun') || id === 'sightYAdd' || id === 'recoilMul' || id === 'swapDropMul') return weapon(out, 'Gun hold (both hands)');
   return body(out);
 }
 

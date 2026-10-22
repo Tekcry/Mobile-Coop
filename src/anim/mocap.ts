@@ -2,8 +2,8 @@
  * (mocap-trial) The rollback switch for mocap locomotion (pure, Babylon-free; docs/mocap-trial/BRIEF.md, CLIP-FORMAT.md).
  *
  * Two clip sets in the one keyed format (`keyed.ts`, sampled by the same code): the hand-keyed set (`HAND_KEYED_SET`, the
- * game as it was) and the mocap set (`MOCAP_SET`, `clips/mocap/*`: CMU takes retargeted onto Wren; until the retarget
- * writes them the walk / jog / run files re-export the hand-keyed clips and the slots are empty). `LOCO.set` is the set
+ * game as it was) and the mocap set (`MOCAP_SET`, `clips/mocap/*`: CMU takes retargeted onto Wren: walk / jog / run from one
+ * performer, subject 16; the walking turns, start and stop from subject 16, the turn on the spot from subject 69). `LOCO.set` is the set
  * Wren's graph samples for the holstered standing walk / jog / run and, when filled, the turn / start / stop slots
  * (`MocapSlots`). It is resolved once per change (`applyMocapSwitch`, from `?mocap=0/1` and the "Mocap locomotion"
  * setting); the graph reads the reference every frame (no allocation, no lookup). (A3) A mocap clip with a `feet`
@@ -41,19 +41,28 @@ import { MOCAP_STOP, MOCAP_STOP_SECONDS } from './clips/mocap/stop';
  * - `pelvisFollow`: the hips trailing the chest toward the planted feet standing holstered (`PELVIS_FOLLOW_KEYED`, rig),
  *   on top of the clip's own pelvis yaw.
  * - `weightLoad`: the Weight section's plant / landing pelvis drop (`WEIGHT_POSE.pelY`) on top of the clip's own load dip.
+ * - `elbowOut`: the Body tune's elbow-out push on the keyed arms (`TUNE_CUR.elbowOutAdd`, rig keyedArm), on top of the
+ *   clip's own elbows (a capture carries its elbows where the performer did).
  * - `stopSettle`: the procedural stop settle clip's weight (`STOP_SETTLE`, remote copies from the derived motion state)
  *   on top of a captured stop.
  * - `bodyMotion`, `turnStep`: reserved for the anim-natural N2 body motion layer (counter-rotation, sway, arm balance)
  *   and N1's turn-step rule; neither is on master yet, so nothing reads them here (their merge reads them).
+ * (integration, measured on the headless rig, tests/mocapSwitch.test.ts) Every layer that doubles the capture is off on
+ * the mocap share: Michael's Body tune swings the keyed arms 1.7x at the jog and 1.6x at the run (the capture's own swing
+ * doubled: elbows 10.3 cm out at the jog, over e2e-anim's 8) and pushes the elbows out 3 cm (the walk's 9.0 cm, over
+ * 8.3); the twist, lean, Weight load and stop settle sliders sit at identity today and stay off the capture if moved;
+ * the pelvis follow added its own yaw over the capture's (a walking 90 deg turn's pelvis 30.6 deg p2p, 25.3 off). The
+ * N2 body motion is the capture's own; N1's turn steps stay (fast turns hand the steps to the planner).
  */
 export const MOCAP_LAYERS = {
-  armSwing: 1,
-  trunkTwist: 1,
-  keyLean: 1,
-  pelvisFollow: 1,
-  weightLoad: 1,
-  stopSettle: 1,
-  bodyMotion: 1,
+  armSwing: 0,
+  trunkTwist: 0,
+  keyLean: 0,
+  pelvisFollow: 0,
+  weightLoad: 0,
+  elbowOut: 0,
+  stopSettle: 0,
+  bodyMotion: 0,
   turnStep: 1,
 };
 export type MocapLayers = typeof MOCAP_LAYERS;
@@ -152,6 +161,9 @@ export function applyMocapSwitch(url: boolean | null, setting: boolean): boolean
  *   of yaw plays the whole clip (a longer spin on the spot replays it); it ends early under half `turnRate`.
  * - Each one-shot fades in over the first `fadeIn` and out over the last `fadeOut` of its progress; `tau` (s) eases the
  *   weight (a cut-off one fades out from where it was).
+ * - (integration) The filled slots are walking takes (start, stop, the 90 deg turns on the move): they play only at a
+ *   walking pace, up to `walkMax` m/s (a start or a turn on the move cut off past it; a stop braking from over it never
+ *   starts). The jog / run turns, the jog stop and the run start are not wired yet (build/mocap/clips/extra).
  */
 export const MOCAP_SLOT = {
   restSpeed: 0.05,
@@ -163,6 +175,7 @@ export const MOCAP_SLOT = {
   fadeIn: 0.1,
   fadeOut: 0.25,
   tau: 0.06,
+  walkMax: 2.2,
 };
 
 /** The planner values the slots blend (track half-width, knee pole, duty, lift). */
@@ -228,6 +241,8 @@ export class MocapSlots {
         this.stopT = -1;
       }
     }
+    // (integration) a walking start: cut off past a walking pace (a start into a jog or a run keeps the gait's body)
+    if (this.startT >= 0 && speed > M.walkMax) this.startT = -1;
     if (this.startT >= 0) {
       this.startT += dt / Math.max(0.05, S.startSeconds);
       this.startP = this.startT;
@@ -235,6 +250,8 @@ export class MocapSlots {
     }
     // a stop: hard braking from a pace (once per braking: re-armed when the pace stops falling)
     if (accelFwd >= 0) this.stopArmed = true;
+    // (integration) braking from over a walking pace never plays the walking stop (not even once it falls through it)
+    if (accelFwd < -M.stopDecel && speed > M.walkMax) this.stopArmed = false;
     if (S.stop !== null && this.stopT < 0 && this.stopArmed && speed > M.stopFrom && accelFwd < -M.stopDecel) {
       this.stopT = 0;
       this.startT = -1;
@@ -250,7 +267,7 @@ export class MocapSlots {
     const ay = yawRate < 0 ? -yawRate : yawRate;
     const side = yawRate < 0 ? -1 : 1;
     if (this.turnT < 0) {
-      if (ay > M.turnRate) {
+      if (ay > M.turnRate && speed <= M.walkMax) {
         const spot = speed < M.spotSpeed;
         if (this.pickTurn(S, spot, side)) {
           this.turnT = 0;
@@ -258,7 +275,7 @@ export class MocapSlots {
           this.turnSpot = spot;
         }
       }
-    } else if ((side !== this.turnSide && ay > M.turnRate) || ay < M.turnRate * 0.5) this.turnT = -1;
+    } else if ((side !== this.turnSide && ay > M.turnRate) || ay < M.turnRate * 0.5 || speed > M.walkMax) this.turnT = -1;
     else {
       this.turnT += (ay * dt) / QUARTER;
       if (this.turnT >= 1) this.turnT = this.turnSpot ? this.turnT - 1 : -1;
@@ -320,7 +337,11 @@ export class MocapSlots {
  * - `share`: the mocap share of the keyed pose (`RigTargets.keyMocap`) at or over which new steps follow the clip (under
  *   it: drawn, crouched, at a wall, standing still, they are the planner's);
  * - `turnMax` (rad/s): turning faster hands new steps back to the planner and its turn rules (the turn-step clock, the
- *   twist cap, the band; anim-natural N1's rules once merged); a clip swing already in the air finishes under the clip;
+ *   twist cap, the band; anim-natural N1's rules once merged); a clip swing already in the air finishes under the clip.
+ *   (integration) Or faster, up to what turns the body `twistMax` (rad) over one of the clip's stances (duty x cycle
+ *   time): the jog's and the run's short stances keep their clip feet through steering (about 2.5 / 3.6 rad/s). The gait
+ *   clock keeps the clip's stance window through a hand-off (animGraph clipFeet), and `pitchRate` (rad/s, the rig) caps
+ *   how fast a foot's pitch turns while the switch is on: the two foot models swapped a frame apart (30-40 deg snaps);
  * - `minSpeed` (m/s): slower, the planner's (the start's first steps and the stop's last ones stay planned: the start /
  *   stop slots pose the body, not the feet, in this pass).
  * Stride and cadence: the cadence stays the game's gait clock (`stepLength(speed)`: two steps a cycle, the same on the
@@ -329,7 +350,7 @@ export class MocapSlots {
  * root's speed and its pin holds with no slide; sideways and lift scale with the body (height / 1.75). A take whose own
  * speed is near the gait it stands for keeps that scale near 1 (CLIP-FORMAT.md).
  */
-export const MOCAP_FEET = { share: 0.5, turnMax: 1.0, minSpeed: 0.3 };
+export const MOCAP_FEET = { share: 0.5, turnMax: 1.0, twistMax: 0.35, minSpeed: 0.3, pitchRate: 18 };
 
 /** (A3) The graph's clip feet for the rig: the planner input (`ClipFeetIn`) plus whether it is valid this frame. */
 export interface ClipFeetFrame extends ClipFeetIn {

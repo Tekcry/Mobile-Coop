@@ -175,8 +175,11 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   the drawn, crouched, idle and wall sets stay hand-keyed), plus its optional one-shot slots (`MocapSlots`: turn in place,
   turn on the move L / R, start, stop). A mocap clip with a `feet` channel drives the planner's clip feet mode
   (`FootPlanner.clipFoot`: the clip places the steps, the planner grounds and pins them; `MOCAP_FEET` gates it: holstered,
-  under 1 rad/s of turn, over 0.3 m/s). `MOCAP_LAYERS` scales the procedural layers on the mocap share
-  (`RigTargets.keyMocap`), all 1. One switch per machine (the co-op partner drawn here follows it; nothing on the wire).
+  under 1 rad/s of turn or what turns the body 0.35 rad over one stance, over 0.3 m/s; the gait clock keeps the clip's stance
+  window through a hand-off, the rig caps foot pitch at 18 rad/s). The CMU clips: walk / jog / run from subject 16, the
+  walking turns / start / stop (walking pace only, `MOCAP_SLOT.walkMax`), a turn on the spot from subject 69.
+  `MOCAP_LAYERS` scales the procedural layers on the mocap share (`RigTargets.keyMocap`): all 0 (the capture holds its own
+  arm swing, elbows, twist, lean, load and settle) but N1's `turnStep`. One switch per machine (the co-op partner drawn here follows it; nothing on the wire).
   Off is bit-identical (`tests/mocapSwitch.test.ts`). Format: `docs/mocap-trial/CLIP-FORMAT.md`.
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from

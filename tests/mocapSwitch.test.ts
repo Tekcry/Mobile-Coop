@@ -1,10 +1,16 @@
 /**
  * (mocap-trial) The "Mocap locomotion" rollback switch (src/anim/mocap.ts, docs/mocap-trial/CLIP-FORMAT.md):
  * - default off, `?mocap=1` / `?mocap=0` and the stored setting pick the set (the URL wins for the page);
- * - with the placeholders (the mocap walk / jog / run are the hand-keyed clips, no slot filled) and the switch ON, the
- *   anim-skeleton identity capture still equals its fixture, and a holstered free-gait walk / jog / run / stop (the path
- *   the switch actually changes, which the fixture's scenarios do not take) is bit-identical on and off: the plumbing
- *   changes nothing but the clip source;
+ * - the mocap files are the CMU clips (subject 16's walk / jog / run with clip feet, the walking turns, start and stop,
+ *   subject 69's turn on the spot), the layer table tuned (docs/mocap-trial/TAKES.md, CLIP-FORMAT.md);
+ * - with the placeholders (the mocap walk / jog / run swapped back to the hand-keyed clips, no slot filled, the layers and
+ *   the foot pitch rate neutral) and the switch ON, the anim-skeleton identity capture still equals its fixture, and a
+ *   holstered free-gait walk / jog / run / stop (the path the switch actually changes, which the fixture's scenarios do
+ *   not take) is bit-identical on and off: the plumbing changes nothing but the clip source;
+ * - (integration) with the switch on, the CMU walk / jog / run on a headless rig (tests/helpers/mocapMeasure.ts): planted
+ *   feet locked (e2e-anim's < 1 cm), e2e-anim's anti-crab ranges per gait (BODY_GAIT / RUN_TUNE), the landed stride the
+ *   game's and the clip's stride scaled within 10 %, the gaze level, no bone turning past the bible's 25 deg a frame
+ *   across the walk / jog / run blend, the clip feet / planner hand-offs (turns, starts, stops) and the slots;
  * - a different clip in the mocap set reaches the rig only with the switch on (the switch is live);
  * - clip feet (A3): a clip with a `feet` channel places the steps, the planner pins them (no slide) and the planted foot
  *   stays on the clip's target through the stance (the stride scaled to the game's);
@@ -12,11 +18,14 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
-import { applyMocapSwitch, hasSlots, HAND_KEYED_SET, LOCO, MOCAP_LAYERS, MOCAP_SET, MocapSlots, mocapWanted, setMocapLocomotion, type LocoClipSet } from '../src/anim/mocap';
+import { applyMocapSwitch, hasSlots, HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SET, MocapSlots, mocapWanted, setMocapLocomotion, type LocoClipSet } from '../src/anim/mocap';
 import { KEYED_WALK } from '../src/anim/clips/keyed/walk';
 import { KEYED_JOG } from '../src/anim/clips/keyed/jog';
 import { KEYED_RUN } from '../src/anim/clips/keyed/run';
 import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
+import { MOCAP_JOG } from '../src/anim/clips/mocap/jog';
+import { MOCAP_RUN } from '../src/anim/clips/mocap/run';
+import { driveRig, gaitNumbers, GAIT_RANGES, pops, POP_DEG, steady, type GaitName, type Plan } from './helpers/mocapMeasure';
 import { KEYED_FEET, KEYED_FEET_SIDE, KF, keyedClip, newKeyedPose, sampleKeyed, type KeyedClip } from '../src/anim/keyed';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { FootPlanner, emptyPlannerInput, type ClipFeetIn } from '../src/anim/footPlanner';
@@ -30,14 +39,23 @@ import type { CharacterRig, RigPose } from '../src/player/characterRig';
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 const SET = MOCAP_SET as Mutable<LocoClipSet>;
 const SAVED: LocoClipSet = { ...MOCAP_SET };
+const SAVED_LAYERS = { ...MOCAP_LAYERS };
+const SAVED_FEET = { ...MOCAP_FEET };
 
-/** The placeholder set: the hand-keyed walk / jog / run, no slot (the proofs below run on it even once the real clips land). */
+/**
+ * The placeholder set: the hand-keyed walk / jog / run, no slot, every layer scale 1 and the foot pitch rate unbounded
+ * (the plumbing's neutral settings: the proofs below show the switch's path itself changes nothing but the clip source).
+ */
 function placeholders(): void {
   Object.assign(SET, { walk: KEYED_WALK, jog: KEYED_JOG, run: KEYED_RUN, turnInPlace: null, turnMoveL: null, turnMoveR: null, start: null, stop: null });
+  for (const k of Object.keys(MOCAP_LAYERS) as (keyof typeof MOCAP_LAYERS)[]) MOCAP_LAYERS[k] = 1;
+  MOCAP_FEET.pitchRate = Number.POSITIVE_INFINITY;
 }
 
 afterEach(() => {
   Object.assign(SET, SAVED);
+  Object.assign(MOCAP_LAYERS, SAVED_LAYERS);
+  Object.assign(MOCAP_FEET, SAVED_FEET);
   setMocapLocomotion(false);
 });
 
@@ -104,15 +122,41 @@ describe('mocap switch: default and selection', () => {
     expect(LOCO.set).toBe(HAND_KEYED_SET);
   });
 
-  // (delete this case when the retarget's clips land in src/anim/clips/mocap/)
-  it('today the mocap files are placeholders: the hand-keyed clips, no slot filled, every layer scale 1', () => {
-    expect(MOCAP_SET.walk).toBe(KEYED_WALK);
-    expect(MOCAP_SET.jog).toBe(KEYED_JOG);
-    expect(MOCAP_SET.run).toBe(KEYED_RUN);
-    expect(MOCAP_WALK.feet).toBeNull();
-    expect(hasSlots(MOCAP_SET)).toBe(false);
+  it('the mocap files are the CMU clips: walk / jog / run with clip feet, the slots filled, the layers tuned', () => {
+    expect(MOCAP_SET.walk).toBe(MOCAP_WALK);
+    expect(MOCAP_SET.jog).toBe(MOCAP_JOG);
+    expect(MOCAP_SET.run).toBe(MOCAP_RUN);
+    const gaits = [MOCAP_WALK, MOCAP_JOG, MOCAP_RUN];
+    expect(gaits.map((c) => c.name)).toEqual(['mocap_walk', 'mocap_jog', 'mocap_run']);
+    for (const c of gaits) {
+      expect(c.feet, c.name).not.toBeNull();
+      expect(c.stride).toBeGreaterThan(0);
+    }
+    // the stance window is the clip's own (the ankle-pinned share of the take's contact), shorter as the pace rises
+    expect(MOCAP_WALK.duty).toBeGreaterThan(MOCAP_JOG.duty);
+    expect(MOCAP_JOG.duty).toBeGreaterThan(MOCAP_RUN.duty);
+    // liftH keeps its meaning (the planner's own swing lift, read only for the steps the planner places): the hand-keyed values
+    expect([MOCAP_WALK.liftH, MOCAP_JOG.liftH, MOCAP_RUN.liftH]).toEqual([KEYED_WALK.liftH, KEYED_JOG.liftH, KEYED_RUN.liftH]);
+    // the head written; the wrist, forearm, shoulder, clavicle and finger channels absent (CMU's hands are noise): sampled
+    // they read as not keyed, so the rig keeps its own hands (as under the hand-keyed walk, which keys none of them either)
+    const pose = newKeyedPose();
+    for (const c of gaits) {
+      expect(c.head, c.name).not.toBeNull();
+      expect([c.wrist, c.fore, c.sh, c.clav, c.fing]).toEqual([null, null, null, null, null]);
+      sampleKeyed(c, 0.3, 1, pose);
+      expect([pose.hasHead, pose.hasWrist, pose.hasFore, pose.hasSh, pose.hasClav, pose.hasFing]).toEqual([1, 0, 0, 0, 0, 0]);
+    }
+    expect(MOCAP_SET.turnInPlace).not.toBeNull();
+    expect(MOCAP_SET.turnMoveL).not.toBeNull();
+    expect(MOCAP_SET.turnMoveR).not.toBeNull();
+    expect(MOCAP_SET.start).not.toBeNull();
+    expect(MOCAP_SET.stop).not.toBeNull();
+    expect(MOCAP_SET.startSeconds).toBeGreaterThan(1);
+    expect(MOCAP_SET.stopSeconds).toBeGreaterThan(1);
+    expect(hasSlots(MOCAP_SET)).toBe(true);
     expect(hasSlots(HAND_KEYED_SET)).toBe(false);
-    for (const v of Object.values(MOCAP_LAYERS)) expect(v).toBe(1);
+    // every layer that doubles the capture off on the mocap share; N1's turn steps kept
+    expect(MOCAP_LAYERS).toEqual({ armSwing: 0, trunkTwist: 0, keyLean: 0, pelvisFollow: 0, weightLoad: 0, elbowOut: 0, stopSettle: 0, bodyMotion: 0, turnStep: 1 });
   });
 });
 
@@ -307,12 +351,86 @@ describe('mocap switch: clip feet (A3)', () => {
   }, 60_000);
 });
 
+/** The integration's paces: the brief's walk / jog / run, then e2e-anim's own (walk gear 4 at half stick, jog gear 4). */
+const GAITS: [GaitName, number][] = [['walk', 1.4], ['jog', 2.5], ['run', 4.0], ['walk', 1.5], ['jog', 3.0]];
+const f1 = (v: number, d = 1): string => v.toFixed(d);
+
+describe('mocap switch: the CMU clips on the rig (integration)', () => {
+  it('walk / jog / run: feet locked, inside the e2e-anim crab ranges, the game stride, a level gaze, no pops', async () => {
+    const rows: string[] = [];
+    for (const [g, v] of GAITS) {
+      const C = GAIT_RANGES[g];
+      for (const on of [false, true]) {
+        setMocapLocomotion(on);
+        const [n, plan] = steady(v);
+        const m = gaitNumbers(await driveRig(n, plan), C);
+        rows.push(
+          `${g} ${v} ${on ? 'on ' : 'off'}: knees ${m.knee.map((x) => f1(x, 2)).join('/')}, track ${f1(m.track[0] * 100)}..${f1(m.track[1] * 100)} cm, knee-out ${f1(m.bow * 100)} cm, slide ${f1(m.slide * 100, 2)} cm (${m.plants} plants), elbows ${f1(m.wing * 100)} cm | pelvis / shoulder yaw ${f1(m.pelvisYawP2P)} / ${f1(m.shoulderYawP2P)} deg, sway ${f1(m.swayP2P * 100)} cm, bob ${f1(m.bobP2P * 100)} cm, wrist swing ${f1(m.wristSwing * 100)} cm | stride ${f1(m.stride, 3)} m (game ${f1(m.gameStride, 3)}), clip scale ${f1(m.clipScale, 3)} | gaze ${f1(m.gaze)} deg | bone step ${f1(m.maxStepDeg)} deg`,
+        );
+        if (!on) continue;
+        const at = `${g} at ${v} m/s`;
+        // the mocap set drives it: its share and its clip feet all the way
+        expect(m.share, at).toBeGreaterThan(0.99);
+        expect(m.clipOn, at).toBeGreaterThan(0.99);
+        // planted feet locked (e2e-anim foot locking, < 1 cm) and e2e-anim's anti-crab ranges for the gait
+        expect(m.plants, at).toBeGreaterThanOrEqual(3);
+        expect(m.slide, `${at}: slide`).toBeLessThan(C.slide);
+        expect(m.pinErr, `${at}: planted ankle on its pin`).toBeLessThan(0.005);
+        expect(m.out, at).toEqual([]);
+        // the landed stride is the game's; the clip's own stride scaled within 10 % to reach it
+        expect(Math.abs(m.strideRatio - 1), `${at}: landed stride`).toBeLessThan(0.01);
+        expect(Math.abs(m.clipScale - 1), `${at}: clip stride scale`).toBeLessThanOrEqual(0.1);
+        // the head looks ahead (the takes' look at the floor is taken out), and nothing pops
+        expect(Math.abs(m.gaze), `${at}: gaze`).toBeLessThan(5);
+        expect(m.maxStepDeg, `${at}: bone step`).toBeLessThan(POP_DEG);
+      }
+    }
+    console.info(rows.join(String.fromCharCode(10)));
+  }, 120_000);
+
+  it('no pops across the walk / jog / run blend, the clip feet hand-offs (turns, starts, stops) and the slots', async () => {
+    const PLANS: [string, number, Plan][] = [
+      // the speed blend's edges, slowly both ways (walk -> jog 2.0-2.6, jog -> run 3.2-3.8 effort pace)
+      ['blend ramp', 60 * 18, (_k, t) => ({ speed: t < 1 ? 1.2 : t < 9 ? 1.2 + (3.2 * (t - 1)) / 8 : t < 17 ? 4.4 - (3.2 * (t - 9)) / 8 : 1.2, yawRate: 0, rec: t > 0.8 })],
+      // steering at a run and a jog: the clip feet hand the steps to the planner and back
+      ['run steering', 60 * 10, (_k, t) => ({ speed: 4.0, yawRate: t > 2 && t % 1 < 0.5 ? 2.0 : 0, rec: t > 1.5 })],
+      ['jog steering', 60 * 10, (_k, t) => ({ speed: 2.8, yawRate: t > 2 && t % 1.2 < 0.6 ? (t % 2.4 < 1.2 ? 1.6 : -1.6) : 0, rec: t > 1.5 })],
+      // 90 deg turns on the walk (the turn slots) and starts / stops (the start / stop slots, the planner at rest)
+      ['walk 90 turns', 60 * 10, (_k, t) => ({ speed: 1.4, yawRate: t > 2 && t % 1.5 < 0.393 ? (t % 3 < 1.5 ? 4 : -4) : 0, rec: t > 1.5 })],
+      ['starts and stops', 60 * 12, (_k, t) => ({ speed: t % 4 < 1.5 ? 0 : 1.4, yawRate: 0, rec: t > 1 })],
+      // 90 deg turns on the spot (the turn-in-place slot)
+      ['spot turns', 60 * 8, (_k, t) => ({ speed: 0, yawRate: t > 1.5 && t % 1 < 0.26 ? 6 : 0, rec: t > 1 })],
+    ];
+    const rows: string[] = [];
+    for (const [name, n, plan] of PLANS) {
+      setMocapLocomotion(false);
+      const off = pops(await driveRig(n, plan));
+      setMocapLocomotion(true);
+      let slide = 0;
+      const R = await driveRig(n, plan, (rig) => {
+        slide = Math.max(slide, rig.planner.L.slide, rig.planner.R.slide);
+      });
+      const on = pops(R);
+      const ankleSlide = gaitNumbers(R, GAIT_RANGES.run).slide;
+      rows.push(`${name}: largest bone turn a frame off ${f1(off.maxStepDeg)} deg (${off.bone}), on ${f1(on.maxStepDeg)} deg (${on.bone}); joint jerk off ${f1(off.maxJerk * 100)}, on ${f1(on.maxJerk * 100)} cm/frame2; planted ankle slide on ${f1(ankleSlide * 100, 2)} cm`);
+      expect(on.maxStepDeg, `${name}: bone step`).toBeLessThan(POP_DEG);
+      expect(on.maxJerk, `${name}: jerk no worse than the hand-keyed set`).toBeLessThanOrEqual(off.maxJerk + 0.005);
+      expect(slide, `${name}: planner slide`).toBe(0);
+      expect(ankleSlide, `${name}: planted ankle slide`).toBeLessThan(0.01);
+    }
+    console.info(rows.join(String.fromCharCode(10)));
+  }, 120_000);
+});
+
 describe('mocap switch: slots', () => {
   it('a filled start / stop / turn plays its clip over the gait and fades back out', () => {
     SET.start = KEYED_JOG;
     SET.stop = KEYED_RUN;
     SET.turnMoveR = KEYED_JOG;
     SET.turnInPlace = KEYED_RUN;
+    // (the timing below is a 0.6 s start / stop; the real clips play their takes' 1.95 / 2.1 s)
+    SET.startSeconds = 0.6;
+    SET.stopSeconds = 0.6;
     setMocapLocomotion(true);
     expect(LOCO.slots).toBe(true);
     const m = new MocapSlots();
@@ -346,6 +464,19 @@ describe('mocap switch: slots', () => {
     }
     expect(peak).toBeGreaterThan(0.5);
     expect(Math.abs(endedAt - Math.PI / 2)).toBeLessThanOrEqual(4 * dt + 1e-9);
+    // (integration) the filled slots are walking takes: a start into a run is cut off, braking from a run never plays the
+    // walking stop (not even as the pace falls through a walk), a turn at a run never plays the walking turn
+    m.reset();
+    m.update(dt, MOCAP_SET, 0, 0, 0);
+    m.update(dt, MOCAP_SET, 0.5, 20, 0);
+    expect(m.startT).toBeGreaterThan(0);
+    m.update(dt, MOCAP_SET, 4.0, 20, 0);
+    expect(m.startT).toBe(-1);
+    for (let k = 0; k < 20; k++) m.update(dt, MOCAP_SET, 4.0 - k * 0.2, -12, 0);
+    expect(m.stopT).toBe(-1);
+    for (let k = 0; k < 30; k++) m.update(dt, MOCAP_SET, 4.0, 0, 4);
+    expect(m.turnT).toBe(-1);
+    expect(m.wTurn).toBe(0);
     // the pose: a slot at full weight is its clip's
     const pose = newKeyedPose();
     const tmp = newKeyedPose();
