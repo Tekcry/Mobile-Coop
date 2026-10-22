@@ -11,6 +11,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
+v4.58.0 (train 7 #137 = #132 + #134, 00d7a653, ~20:05; /preview/ = dev = 00d7a653; studio tier, laptop solo suites green). Train 8 candidates: #119 N4b (c22b6719, master merged), #135 N1, #136 P (area suites on the laptop), R (fix round), N2 (checker), N4c (feature/anim-n4c, checker; Michael "Faster arm" for the strike timing).
 v4.57.0 (train 6 #133 = #122 + #123 + #127 + #128 + #129 + #131 + docs, 703b5063, ~19:25; /preview/ = dev = 703b5063). Train 7 = train/7 9ff4542d (#132, #134) on the laptop; #119 left out (src conflicts, Course Ready merges master).
 v4.56.0 (train 5 #130 = #118 + #120 + #125 + #126, 79216e49, ~18:15; /preview/ = dev = 79216e49). Train 6 candidates: #119, #122, #123, #127, #128, #129.
 v4.55.1 (#124 guardInfo test fix, 170ee701, ~16:35; /preview/ = dev = 170ee701; master CI green). v4.55.0 (train 4 #121 = #110 + #115 + #116, 9287a095; merged with CI red, fixed by #124). Merge rule: gate gh pr merge on the CI exit code.

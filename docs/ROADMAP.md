@@ -14,7 +14,7 @@ runs only on spare capacity and yields the desktop lock whenever CT Core needs i
 
 Priority (Michael, 2026-10-20 10:30): "movement and animations are the top priority". CT Core (G8 keyframed clips, then movement gaps) has first claim on the desktop lock, the laptop runner and the orchestrator's reviews; everything else fits around it.
 
-Last updated: 2026-10-22 19:25 Sydney (account swap at 19:25; master 4.57.0).
+Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #119 N4b, #135 N1, #136 P, R, N2, N4c).
 
 ## Waiting on Michael
 1. Walk 4.56.0+ on /preview/ (menus, the version label): weapon draws / holsters (LT mid-holster gun-through-trunk known), security room in bay 3, wheel opens on goggles; then the full anim tune once train 6 + N1 / N2 land.
@@ -28,6 +28,7 @@ Last updated: 2026-10-22 19:25 Sydney (account swap at 19:25; master 4.57.0).
 5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Elbow strike timing (2026-10-22 ~20:05, Menu Notes N4c: knockout at STRIKE.hitAt 0.08 s, arm contact ~0.38 s): chose "Faster arm": the knockout timing stays, the strike animation reaches contact then.
 - Laptop (2026-10-22 ~19:30 / ~19:45): "Finish train 7 only" (the laptop was slow while he used it); then, asked whether it may run the job area suites after train 7, chose "Yes, queue them" (P, R, N2 one at a time). Other laptop experiments stay off until he frees it.
 - Machines and rules (2026-10-22 ~17:50-18:00): the laptop's CPU / GPU are far stronger: "Laptop main", "Yes, laptop GPU" (CLAUDE.md "Main test machine"). Rule review: chose "Your picks": (1) checker-passed PRs go straight into trains, src/net / protocol / save PRs keep their area suites; (2) a docs / CHANGELOG / fragments / test-script delta keeps a test result; (3) the laptop runs two queues (4191, 4192); (4) test-speed round 2 (full run ~27 -> ~15 min); (5) changelog fragments per PR, assembled at the version step; (6) one merge-train script that merges only on a passing check; (8) refresh stale roadmap and dashboard. (7) lock queue file skipped. Michael also: "if the desktop is a problem, why haven't you mentioned it? ... you should take initiative to identify bottlenecks and make recommendations to increase the speed and quality of the results."
 - 2026-10-22 ~16:25: firing body recoil above CT's 0.5 deg (N3b A1): "Keep it". Prune: "Delete merged ones" (merged branches and clean worktrees; dirty or in-use ones kept). #67 S2b walk: "Close it" (superseded by the tuner bakes, N1, N2).
@@ -182,6 +183,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #137 | 4.58.0: train 7: Anim Studio stage lights on Wren only, pair puppets hold LOD0 (#134), the full animation audit scripts and docs (#132, anim-natural N0) |
 | 2026-10-22 | #133 | 4.57.0: train 6: Wren body recoil and wall block without the stall (#122), every tuner slider bakes (#123), Sector Ops cameras, lasers in night vision, alarm-only lasers (#127) and lights (#129), deterministic heap tests (#128), changelog fragments and the merge-train script (#131) |
 | 2026-10-22 | #130 | 4.56.0: train 5: believable weapon draws, holsters and swaps (#118, anim-natural N3), idle stance clears the shins (#120), co-op local channel closed guard (#125), e2e-pad wheel wait (#126) |
 | 2026-10-22 | #124 | 4.55.1: tests: guardInfo admits the station 3 security guard (master CI green again) |
