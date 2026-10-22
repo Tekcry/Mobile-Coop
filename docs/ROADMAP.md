@@ -27,7 +27,7 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 6. #119 (holds, traversal): a landing roll now needs about 1.5 m of room, otherwise she lands without it (ROLL_CLEAR 0.9 m): look on the walk.
 7. Vents (T1, feature/vent-kick): tap jump = kick, holding jump alone unscrews quietly (A1), pad matches keyboard: review on the walk.
 8. Mocap locomotion trial (CT Core): Settings > Gameplay > "Mocap locomotion" (off by default) once it merges; the side-by-side comes first.
-5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
+5. Sector Ops lights: the strip-light fog cones are fixed in 4.61.0 (#156; before / after sheet sent 2026-10-22 ~23:30): S1 goods-in, workshop and girder read darker now; look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
 - Mocap locomotion (2026-10-22 ~23:20, after the side-by-side sheets and videos, feature/mocap-sheets-real docs/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to the old limits (walk pelvis bob 5.5-6.6 cm vs bible D2 4 cm, walk knee-out 3.5 cm, run wrist swing 24 cm vs his 85 cm hand-keyed tune); checkers report those as notes, not fails. Fix rounds still fix pops and slides.
@@ -162,6 +162,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #157 | 4.61.0: train 8: Wren's body moves with the gait (twist, sway, head, arms) and run pops fixed (#138), feet in turns (#135, inside #138), Sector Ops strip lights no longer throw fog cones; floods and torches keep their beams (#156; closes Waiting item 5) |
 | 2026-10-22 | #155 | 4.60.1: train 11: GPU condition waits before UI asserts (#150), netmove compare on the same idle phase (#154), backlog note on touch look-drag (#149); #144 left out on a voxelFit CI fail |
 | 2026-10-22 | #153 | 4.60.0: train 10: takedown blow and grab kill land on the kill, co-op strike accept never steps back (#142 n4d), baked lamps get the plugin on a material added the frame another is disposed (#145) |
 | 2026-10-22 | #151 | 4.59.0: train 9: Sector Ops laser power panels (#136, protocol 29), hand swap low across the chest and an elbow strike that turns the body and lands on the hit (#139), vent unscrew on keyboard and pad (#141), touch and GPU test fixes (#147, #148) |
