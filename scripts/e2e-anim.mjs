@@ -380,7 +380,7 @@ try {
       const want = weapon;
       if (want && W.current.def.class !== want) {
         p.stance.holster();
-        t.run(0.4, {});
+        t.run(1.6, {}); // (anim-natural N3) the 1.0 s holster and the 0.4 s release
         const j = W.slots.findIndex((q) => q.def.class === want);
         if (j >= 0) {
           W.index = j;
@@ -396,10 +396,15 @@ try {
       // (anim-rework S3) a drawn recording (`draw` or `ads` in a segment) starts at low ready with the gun out (an aimed
       // one from holstered would run the slower sling draw into the recording)
       const drawn = segs.some((sg) => sg.inp?.ads || sg.inp?.draw);
-      if (!drawn) p.stance.holster();
-      else if (p.stance.base !== 'lowReady' || W.drawPhase !== 2) {
+      // (anim-natural N3) the holster takes 1.0 s and the hand lets go over 0.4 s more, the X draw up to 1.1 s: wait for
+      // both before the warm-up (the 0.15 s holster used to fit inside it; the first holstered row measured mid-holster)
+      if (!drawn) {
+        const wasOut = W.drawPhase !== 0;
+        p.stance.holster();
+        if (wasOut) t.run(1.8, {});
+      } else if (p.stance.base !== 'lowReady' || W.drawPhase !== 2) {
         p.stance.base = 'lowReady';
-        t.run(0.6, {});
+        t.run(1.5, {});
       }
       // (S2 fix round) each recording starts from a fresh stance (as a teleport puts the feet): `t.tp` left the feet where
       // the last recording (the crouched sneak) planted them, and the idle stepped only past its 7.5 cm error
@@ -614,7 +619,7 @@ try {
         const st = window.__app.input.state;
         const V = p.position.constructor;
         p.stance.holster();
-        t.run(0.4, {});
+        t.run(1.6, {}); // (anim-natural N3) the 1.0 s holster and the 0.4 s release
         const ray = (x0, y0, z0, x1, y1, z1) => !g.ballistics.ray(new V(x0, y0, z0), new V(x1, y1, z1), 1).hit;
         const segs = g.world.level.coverSegments;
         let seg = -1;
@@ -792,13 +797,13 @@ try {
         const W = g.weapons;
         if (W.current.def.class !== weapon) {
           p.stance.holster();
-          t.run(0.4, {});
+          t.run(1.6, {}); // (anim-natural N3) the 1.0 s holster and the 0.4 s release
           const j = W.slots.findIndex((q) => q.def.class === weapon);
           if (j >= 0) W.index = j;
         }
         t.tp(12, -14, -Math.PI / 2);
         p.stance.base = 'lowReady';
-        t.run(1.0, aim ? { ads: true } : {});
+        t.run(1.8, aim ? { ads: true } : {});
         let down = 0;
         let yaw = 0;
         let tilt = 0;
@@ -843,7 +848,7 @@ try {
       const p = window.__app.current.player;
       p.stance.holster();
       p.controller.speedMul = o.mul;
-      window.__t.run(0.5, {});
+      window.__t.run(1.6, {});
     }, orig);
   }
 
@@ -908,7 +913,7 @@ try {
       t.tp(12, -14, -Math.PI / 2);
       rig.planner.L.init = rig.planner.R.init = false;
       c['crouchToggled'] = true;
-      t.run(1.5, {});
+      t.run(1.8, {}); // (anim-natural N3) the 1.0 s holster and the 0.4 s release first
       const H = { L: { d: [0.07779, -0.99681, 0.01766], n: [0.9529, 0.06913, -0.2953], palm: [0.00372, -0.04769, 0.00084] }, R: { d: [-0.07779, -0.99681, 0.01766], n: [-0.9529, 0.06913, -0.2953], palm: [-0.00372, -0.04769, 0.00084] } };
       const out = { dist: 0, down: 1, fwd: 1, above: window.__kneeAbove, off: [0, 0, 0], n: 0 };
       const xf = (m, v, w) => [m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12] * w, m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13] * w, m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14] * w];
@@ -958,7 +963,7 @@ try {
       const p = window.__app.current.player;
       p.stance.holster();
       p.controller.speedMul = o.mul;
-      window.__t.run(0.5, {});
+      window.__t.run(1.6, {});
     }, orig);
   }
 
@@ -1028,11 +1033,11 @@ try {
       };
       const hol = () => {
         p.stance.holster();
-        t.run(0.5, {});
+        t.run(1.6, {}); // (anim-natural N3) the 1.0 s holster and the 0.4 s release
       };
       const low = () => {
         p.stance.base = 'lowReady';
-        t.run(0.8, {});
+        t.run(1.5, {}); // (anim-natural N3) the X draw takes up to 1.1 s
       };
       const C = { taps: { 1: 'crouch' } };
       seq('holstered still: stand -> crouch -> stand', hol, [{ sec: 0.8, inp: {} }, { sec: 1.2, inp: C, rec: true }, { sec: 1.2, inp: C, rec: true }]);

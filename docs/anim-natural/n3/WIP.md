@@ -176,3 +176,14 @@ tuck / pole (master's per-gun `wrenTuckMul` and `ELBOW_POLE_OUT` with N3's relea
 holstered-pistol tolerance 5 -> 7 mm (#103's body bake moved the thigh ~1.3 mm against the ea3399ed numbers).
 Orchestrator change to A3: an old single `holster` value now maps to both gun holsters (tuneRows.ts ID_ALIASES) on load,
 import, presets, the baked reset and the bake, with literal 4.53.0 records in tuneClipSpeed.test.ts.
+
+## PR checks (2026-10-22 ~15:10, desktop under heavy.lock)
+- 60782562 build: e2e-weapons-carry ok (35 s); e2e-anim FAIL test-side: "walk: elbows in (13.8 cm)" - the crab walk was
+  recorded 1 s after `p.stance.holster()`, inside N3's 1.0 s holster + 0.4 s release (the old 0.15 s holster fitted).
+  Fix (scripts only): e2e-anim waits out the holster / release (1.6-1.8 s) and the X draw (1.5 s) before its recordings
+  (9 places). Rerun: e2e-anim ok (62 s).
+- GPU after-sheets (`docs/anim-natural/n3/after/`, port 4189; draw / holster / swap rows with `--dtmul=2.5` so the
+  tiles span the 1.1-1.5 s draws; ready-to-aim at 1x). "Before" = the pass 1 sheets on feature/anim-natural
+  (`docs/anim-natural/audit/`). The audit's "stall" flag on the draws (0.08-0.22 s at 0.15-0.27 s) is the gun resting
+  in its slot while the hand reaches for it, not a stop; after the grab the gun moves in one arc to low ready (rifle
+  settled by ~1.0 s). Polish for Michael's look: the rifle's X draw swings the muzzle past vertical (0.67-0.83 s).
