@@ -15,7 +15,8 @@ import { TUNE_BODY, TUNE_PIN } from '../anim/tune';
 import { TUNE_FLAGS, TUNE_STATE_BAG } from '../anim/tuneRegistry';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 import { newStudioDrive } from '../anim/studioDrive';
-import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
+import { newPairRole, pairFrames, pairPose, ropeHoldLine, ropeLine, type PairRole } from '../anim/studioPairs';
+import { TeamPoser } from '../anim/clips/team';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
 import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioBodyPin, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, type GuardLoop, type StudioEntry, type StudioInputOut } from '../anim/studio';
 import { buildEnemyRig } from '../ai/enemyRig';
@@ -52,6 +53,7 @@ export interface StudioHost {
 /** The pairs' viewing spot: Wren (hidden) stands here, so the camera and the free view frame the team block. */
 const PAIR_VIEW = { x: PAIR_STATION.x, z: PAIR_STATION.z - 6.5, yaw: 0 };
 const ROPE_KEY = 'studio-pair-rope';
+const ROPE_HOLD_KEY = 'studio-pair-rope-hold';
 const TRAV_BUTTONS: readonly TravButton[] = ['jump', 'interact', 'drop', 'cover'];
 
 /** A puppet's pose bag (reused). */
@@ -104,6 +106,9 @@ export class StudioStage {
   private readonly rB: PairRole = newPairRole();
   private readonly pA: RigPose = newPose();
   private readonly pB: RigPose = newPose();
+  /** (anim-n4b, track A) Each puppet's team pose (B's working body, A's push), as the players' in real play. */
+  private readonly tA = new TeamPoser();
+  private readonly tB = new TeamPoser();
   private pairPhase = 0;
   private readonly rope = { x0: 0, y0: 0, z0: 0, x1: 0, y1: 0, z1: 0 };
   private ropeShown = false;
@@ -426,7 +431,7 @@ export class StudioStage {
       this.away = true;
     }
     if (!e.team && this.ropeShown) {
-      this.host.world.ropes.hide(ROPE_KEY);
+      this.hideRopes();
       this.ropeShown = false;
     }
     const d = this.drive;
@@ -635,8 +640,8 @@ export class StudioStage {
     if (!ps || !e.team) return;
     const t = this.pairPhase * e.cycle;
     pairPose(e.team, t, PAIR_STATION, PLAYER_HEIGHT, this.rA, this.rB);
-    this.posePuppet(ps[0], this.rA, this.pA, dt);
-    this.posePuppet(ps[1], this.rB, this.pB, dt);
+    this.posePuppet(ps[0], this.rA, this.pA, this.tA, dt);
+    this.posePuppet(ps[1], this.rB, this.pB, this.tB, dt);
     const s = STUDIO_PAIR;
     s.aState = this.rA.state;
     s.bState = this.rB.state;
@@ -654,15 +659,24 @@ export class StudioStage {
       ropeLine(PAIR_STATION, this.rope);
       const r = this.rope;
       this.host.world.ropes.set(ROPE_KEY, r.x0, r.y0, r.z0, r.x1, r.y1, r.z1);
+      // (anim-n4b, track A) and from the holder's hands over the lip, as the game's rope line
+      if (ropeHoldLine(this.rB, PLAYER_HEIGHT, r)) this.host.world.ropes.set(ROPE_HOLD_KEY, r.x0, r.y0, r.z0, r.x1, r.y1, r.z1);
+      else this.host.world.ropes.hide(ROPE_HOLD_KEY);
       this.ropeShown = true;
     } else if (this.ropeShown) {
-      this.host.world.ropes.hide(ROPE_KEY);
+      this.hideRopes();
       this.ropeShown = false;
     }
   }
 
+  /** The pair's rope (the line down the face and the holder's length over the lip). */
+  private hideRopes(): void {
+    this.host.world.ropes.hide(ROPE_KEY);
+    this.host.world.ropes.hide(ROPE_HOLD_KEY);
+  }
+
   /** One puppet: the root, the pose, the hand grips, the role's move section (as the local player in real play). */
-  private posePuppet(op: OperatorRig, r: PairRole, p: RigPose, dt: number): void {
+  private posePuppet(op: OperatorRig, r: PairRole, p: RigPose, tp: TeamPoser, dt: number): void {
     const rig = op.rig;
     const root = rig.root;
     const ry = r.y + (r.lie ? 0.22 : 0);
@@ -687,11 +701,15 @@ export class StudioStage {
     this.grip(rig.reachR, r.grip !== 'none', r.hrx, r.hry, r.hrz, r.grip === 'lip');
     moveTuneSelect(r.group, r.k, r.traverse, false);
     moveTuneRoot(root.position, root.rotation);
+    // (anim-n4b, track A) the team pose (B's working body, A's push) on the pose and the grips, as in real play
+    p.bend = p.bendDrop = p.sway = 0;
+    tp.begin(dt, r.tp, p, rig);
     moveTuneBegin(p, rig);
     try {
       rig.animate(dt, p);
     } finally {
       moveTuneEnd(rig);
+      tp.end(rig);
     }
     partnerFigureFrame(op.figure, rig, dt, this.host.scene.activeCamera);
   }
@@ -726,7 +744,7 @@ export class StudioStage {
       }
       this.puppets = null;
     }
-    if (this.ropeShown) this.host.world.ropes.hide(ROPE_KEY);
+    if (this.ropeShown) this.hideRopes();
     MOVE_TUNE_TEAM.follow = '';
     FREE_VIEW.spin = 0;
     FREE_VIEW.snap = '';

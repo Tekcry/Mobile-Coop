@@ -18,6 +18,7 @@ import { boostPath, hangRootY, relayPath, relaySlot, ropeTopY, throwArc } from '
 import { hangPoint, HANG, makeLedge, type Ledge } from '../world/anchors';
 import type { TraverseKind } from './animGraph';
 import { teamContactK, teamGroup, teamRoleGroup, type TeamMoveId } from './moveTune';
+import { clearTeamPoseIn, newTeamPoseIn, ropeGripWorld, type TeamPoseIn, type TeamPoseMove } from './clips/team';
 import { PAIR_TOP } from './studioProps';
 
 /** A team-move station: the block face (`x`, `z` its foot's middle; `yaw` the outward normal). */
@@ -55,10 +56,32 @@ export interface PairRole {
   state: string;
   group: string;
   k: number;
+  /** (anim-n4b, track A) The role's team pose input (clips/team.ts `TeamPoser`, as in real play). */
+  tp: TeamPoseIn;
 }
 
 export function newPairRole(): PairRole {
-  return { x: 0, y: 0, z: 0, yaw: 0, speed: 0, crouch: 0, kneel: false, lie: false, traverse: 'none', traverseT: 0, tumble: 0, grip: 'none', hlx: 0, hly: 0, hlz: 0, hrx: 0, hry: 0, hrz: 0, state: 'none', group: '', k: 0 };
+  return { x: 0, y: 0, z: 0, yaw: 0, speed: 0, crouch: 0, kneel: false, lie: false, traverse: 'none', traverseT: 0, tumble: 0, grip: 'none', hlx: 0, hly: 0, hlz: 0, hrx: 0, hry: 0, hrz: 0, state: 'none', group: '', k: 0, tp: newTeamPoseIn() };
+}
+
+/** (anim-n4b, track A) A role's team pose input: the move, role, phase and the partner's feet / facing (no allocation). */
+function teamIn(r: PairRole, move: TeamPoseMove, role: 'a' | 'b', k: number, p: PairRole): void {
+  const i = r.tp;
+  i.move = move;
+  i.role = role;
+  i.k = k;
+  i.px = p.x;
+  i.py = p.y;
+  i.pz = p.z;
+  i.pyaw = p.yaw;
+}
+
+/** The rope holder's input: the lip the rope goes over (the rope's line at the top). */
+function ropeIn(b: PairRole, k: number, a: PairRole, rx: number, top: number, rz: number): void {
+  teamIn(b, 'rope', 'b', k, a);
+  b.tp.lx = rx;
+  b.tp.ly = top + 0.05;
+  b.tp.lz = rz;
 }
 
 /** Seconds a co-op revive takes (net/coopHost `REVIVE_TIME`; copied here: single player never imports src/net). */
@@ -125,6 +148,7 @@ function clear(r: PairRole): void {
   r.grip = 'none';
   r.state = 'none';
   r.k = 0;
+  clearTeamPoseIn(r.tp);
 }
 
 /** The lip of a station (its top front edge; the outward normal along the station's yaw), cached per station. */
@@ -233,6 +257,9 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
         a.state = 'boost';
         pt = tm;
       } else hangOn(a, l, mid, h, tm - P.move);
+      // (anim-n4b, track A) B works the lift on the boost's clock; A's foot on B's hands, the push
+      if (tm < P.move) teamIn(b, 'boost', 'b', tm < 0 ? -1 : tm / P.move, a);
+      if (tm >= 0 && tm < P.move) teamIn(a, 'boost', 'a', tm / P.move, b);
       break;
     }
     case 'relay': {
@@ -281,6 +308,8 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
         place(a, st, OPEN_F, -TEAM.throwDist, 0, runYaw);
         a.crouch = 1 - smooth((tm - P.move - 0.4) / 0.4);
       }
+      // (anim-n4b, track A) B loads and throws on the throw's clock
+      if (tm < P.move) teamIn(b, 'throw', 'b', tm < 0 ? -1 : tm / P.move, a);
       break;
     }
     case 'hang': {
@@ -304,6 +333,7 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
       const sz = sp.z;
       if (tm < 0) {
         place(a, st, -0.45, 0.8, top, out);
+        teamIn(b, 'hang', 'b', -1, a); // (anim-n4b, track A) the offer
         break;
       }
       const th = tm - P.move;
@@ -340,6 +370,11 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
         place(a, st, -0.45, 0.8, top, out);
         a.crouch = 1 - smooth((t - pull - HANG_PULL) / 0.3);
       }
+      // (anim-n4b, track A) B's hands on A's ankles while A is over the edge, let go as A rolls back over it
+      if (b.state === 'hangHold') {
+        teamIn(b, 'hang', 'b', a.state === 'hangPull' && a.tumble === 0 ? -1 : 1, a);
+        b.tp.depth = depth;
+      }
       break;
     }
     case 'rope': {
@@ -356,13 +391,14 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
       }
       // the rope hangs just off the face in front of B; A hangs 0.35 m off it on the outside, facing it
       const ty = ropeTopY(top);
-      if (tm < 0) {
-        walk(a, st, t, P.walk, 2.6, 0, ROPE_F + 0.35, 0, 0, inw);
-        break;
-      }
       const rp = world(st, ROPE_F, 0);
       const rx = rp.x;
       const rz = rp.z;
+      if (tm < 0) {
+        walk(a, st, t, P.walk, 2.6, 0, ROPE_F + 0.35, 0, 0, inw);
+        ropeIn(b, -1, a, rx, top, rz); // (anim-n4b, track A) the offer: the rope's own weight
+        break;
+      }
       if (tm < P.move) {
         const y = Math.min(ty, tm * TEAM.ropeUp);
         place(a, st, ROPE_F + 0.35, 0, y, inw);
@@ -394,6 +430,8 @@ export function pairPose(move: TeamMoveId, t: number, st: PairStation, h: number
         a.state = 'ropeTop';
         pt = t - climbEnd;
       } else place(a, st, -0.45, 0.8, top, out);
+      // (anim-n4b, track A) B braced on the rope under A's weight while A climbs it
+      if (b.state === 'ropeHold') ropeIn(b, a.state === 'ropeClimb' ? 1 : -1, a, rx, top, rz);
       break;
     }
     case 'revive': {
@@ -427,4 +465,20 @@ export function ropeLine(st: PairStation, out: { x0: number; y0: number; z0: num
   out.z0 = out.z1 = w.z;
   out.y0 = st.top + 0.05;
   out.y1 = 0.02;
+}
+
+const RG = { x: 0, y: 0, z: 0 };
+/** (anim-n4b, track A) The rope from the holder's hands to the lip (world), as the game's rope line; false when role B
+ *  is not holding the rope. */
+export function ropeHoldLine(b: PairRole, h: number, out: { x0: number; y0: number; z0: number; x1: number; y1: number; z1: number }): boolean {
+  const i = b.tp;
+  if (i.move !== 'rope' || i.role !== 'b') return false;
+  ropeGripWorld(b.x, b.y, b.z, b.yaw, i.k >= 0 ? 1 : 0.25, h, RG);
+  out.x0 = RG.x;
+  out.y0 = RG.y;
+  out.z0 = RG.z;
+  out.x1 = i.lx;
+  out.y1 = i.ly;
+  out.z1 = i.lz;
+  return true;
 }

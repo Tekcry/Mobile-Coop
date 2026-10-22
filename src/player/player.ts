@@ -28,6 +28,7 @@ import { tuneV2Frame } from '../anim/tuneV2Sections';
 import { tuneGuardFrame } from '../anim/tuneGuard';
 import { tuneKeysFrame } from '../anim/tuneKeys';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
+import { TEAM_POSE_LOCAL, TeamPoser } from '../anim/clips/team'; // (anim-n4b, track A)
 
 /** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
@@ -166,6 +167,8 @@ export class Player {
   onWeightGear: ((dx: number, dy: number, dz: number) => void) | null = null;
   /** (anim-weight) The Weight layers' frame input (reused) and last frame's foot plant, motion state and traversal. */
   private readonly weightIn = weightFrameIn();
+  /** (anim-n4b, track A) The co-op team pose (the holder's working body, the leg-up's push) from TEAM_POSE_LOCAL. */
+  private readonly teamPose = new TeamPoser();
   private weightPlant = false;
   private weightMotion = '';
   private weightTraverse = 'none';
@@ -559,6 +562,7 @@ export class Player {
     tuneGuardFrame(); // (item 24, track A) the guard rows into the guard tables every guard rig reads
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
     // (anim-joints J1) the Joints / Hands & feet / IK / Weapon windows: the rig opens its own inside animate (tuneRows)
+    this.teamPose.begin(dt, TEAM_POSE_LOCAL, rp, this.rig); // (anim-n4b, track A) the co-op team pose (GameState wrote it)
     moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)
     try {
       weightBegin(wi, c.crouched, this.wasDrawn); // inside the try: weightEnd always closes it
@@ -567,6 +571,7 @@ export class Player {
       moveTuneEnd(this.rig);
       tuneEnd(this.rig);
       weightEnd();
+      this.teamPose.end(this.rig); // (anim-n4b, track A)
     }
     if (this.onWeightGear) this.onWeightGear(WEIGHT_POSE.gearX, WEIGHT_POSE.gearY, WEIGHT_POSE.gearZ);
     // footfalls (no camera bob, D2: the view follows the smoothed capsule only)
