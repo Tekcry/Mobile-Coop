@@ -389,6 +389,9 @@ const REST_SHIFT_RATE = 0.6;
  * capsule), eased over `tau` s: a side-step's weight goes onto the lead foot, then the trailing foot closes under it.
  */
 export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
+/** (mocap-trial-2 strafe fix) In the mocap strafe the hips stay this far (m) inside each planted foot across the body (the
+ *  captures keep theirs 4.4 cm inside; the planted knee then stays over its toes). */
+export const STRAFE_HIP_IN = 0.06;
 /** (anim-rework S3, BRIEF 3 "elbows down and close to the ribs") With a gun in the hands the elbow pole's outward share
  *  is cut by this much at low ready (AIM_ELBOW_TUCK raised). */
 export const READY_ELBOW_TUCK = 0.5;
@@ -1174,6 +1177,8 @@ export class CharacterRig {
   /** (n138 fix 2) The keyed pelvis offset applied last frame (m: height, forward; KEY_PEL_RATE). */
   private keyPelY = 0;
   private keyPelZ = 0;
+  /** (mocap-trial-2 strafe fix) The mocap strafe's hips shift inside the planted feet (m, eased; STRAFE_HIP_IN). */
+  private strafeHip = 0;
   private keyPelOn = false;
   /** (anim-rework S3) The glide's lateral hip shift over the feet (m, eased; GLIDE_HIP). */
   private glideShift = 0;
@@ -2425,6 +2430,25 @@ export class CharacterRig {
       const want = gk > 0 ? Math.max(-GLIDE_HIP.max, Math.min(GLIDE_HIP.max, midX - pex)) * GLIDE_HIP.share * gk : 0;
       this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
       pex += this.glideShift;
+    }
+    // (mocap-trial-2 strafe fix, the e2e-anim knee-out) in the mocap strafe the hips stay STRAFE_HIP_IN inside each planted
+    // foot across the body (the captures keep the pelvis 4.4 cm inside theirs; played over the planner's longer side-steps
+    // the hips sat over or past the planted trailing foot and its knee bowed out 7.6 cm); both planted closer than that:
+    // their midpoint. Eased (GLIDE_HIP.tau), by the strafe's share; never with the switch off (keyStrafe 0, strafeHip 0)
+    if (t.keyStrafe > 0 || this.strafeHip !== 0) {
+      let want = 0;
+      if (t.keyStrafe > 0 && !free && !this.input.wall) {
+        const cy = Math.cos(yaw);
+        const sy = Math.sin(yaw);
+        const lo = L.contact ? (L.x - rp.x) * cy - (L.z - rp.z) * sy + STRAFE_HIP_IN : -1e9;
+        const hi = R.contact ? (R.x - rp.x) * cy - (R.z - rp.z) * sy - STRAFE_HIP_IN : 1e9;
+        const at = pex;
+        const tgt = lo > hi ? (lo + hi) * 0.5 : at < lo ? lo : at > hi ? hi : at;
+        want = (tgt - at) * t.keyStrafe;
+      }
+      this.strafeHip = approachTo(this.strafeHip, want, dt, GLIDE_HIP.tau);
+      if (t.keyStrafe <= 0 && this.strafeHip < 1e-5 && this.strafeHip > -1e-5) this.strafeHip = 0;
+      pex += this.strafeHip;
     }
     // (anim-natural-n2) the body motion layer's pelvis sway, before the feet's reach (a Wren rig on foot; 0 on any other)
     if (t.motion.pelX !== 0) pex += t.motion.pelX * kk;
