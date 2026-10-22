@@ -8,7 +8,7 @@
  * bars their lock, and on a light registry change the grouped LED lines their circuit.
  */
 import { Color3, Mesh, PBRMaterial, StandardMaterial, VertexData, type AbstractMesh, type Material, type Observer, type Scene } from '../../core/babylon';
-import { parseGlb, type GlbMesh } from '../../operators/lab/glb';
+import { parseGlb, type GlbMesh, type GlbModel } from '../../operators/lab/glb';
 import { markLampLevel } from '../bakedLamps';
 import type { DoorState } from '../doors';
 import type { LightRegistry } from '../lights';
@@ -61,7 +61,11 @@ export class KitRender {
     if (!url) throw new Error('facility kit GLB missing (npm run kit:build)');
     const res = await fetch(url);
     if (!res.ok) throw new Error(`facility kit GLB: HTTP ${res.status}`);
-    const model = parseGlb(await res.arrayBuffer());
+    return KitRender.fromModel(scene, parseGlb(await res.arrayBuffer()), layout, doors, reg, addCaster);
+  }
+
+  /** The draws from a read kit GLB (`create` after its fetch; tests on a NullEngine). */
+  static fromModel(scene: Scene, model: GlbModel, layout: KitLayout, doors: readonly DoorState[], reg: LightRegistry, addCaster: (m: AbstractMesh) => void): KitRender {
     const k = new KitRender(scene, layout, reg, doors);
     if (scene.isDisposed) return k;
     k.build(model.meshes, addCaster);
@@ -241,6 +245,16 @@ export class KitRender {
     }
     if (moved) this.writeLeaves();
     if (relock) this.paintStatus();
+  }
+
+  /** A draw's per-instance colours (LED and status meshes; null otherwise) by mesh name (tests). */
+  colorsOf(name: string): Float32Array | null {
+    return this.draws.find((d) => d.mesh.name === name)?.colors ?? null;
+  }
+
+  /** A draw's instance matrices (16 floats each) by mesh name (tests). */
+  matricesOf(name: string): Float32Array | null {
+    return this.draws.find((d) => d.mesh.name === name)?.matrices ?? null;
   }
 
   /** Every kit mesh (tests and the debug overlay count draws). */

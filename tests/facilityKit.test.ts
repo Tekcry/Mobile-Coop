@@ -329,6 +329,71 @@ describe('kit build (facility-kit.glb and its report)', () => {
     expect(kitShare).toBeCloseTo(rifle > 0.5 ? 1 : 0, 2);
   });
 
+  it('draws one thin-instanced mesh per (piece, material) placed; the leaves follow the door, the bar its lock', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { Doors } = await import('../src/world/doors');
+    const { KitRender } = await import('../src/world/kit/kitRender');
+    const b = new LevelBuilder();
+    const kit = new FacilityKit(b);
+    kit.wall(-6, 0, -1, 0, 3);
+    kit.wall(1, 0, 6, 0, 3);
+    const door = kit.slidingDoor(0, 0, 2, Math.PI / 2, { locked: true });
+    kit.ledSlot(0, 3, 2, 4.8, 0, { light: { group: 1 } });
+    kit.skirting(0, 4, 3, Math.PI, { group: 1 });
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const doors = new Doors(scene, b.anchors);
+    const casters: unknown[] = [];
+    const model = parseGlb(glb(path.join(ASSETS, 'facility-kit.glb')));
+    const r = KitRender.fromModel(scene, model, kit.layout, doors.list, b.lights, (m) => casters.push(m));
+    const names = r.meshes.map((m) => m.name).sort();
+    const placed = new Set(kit.instances.map((i) => i.piece));
+    const want = Object.entries(report.pieces)
+      .filter(([p]) => placed.has(p as never))
+      .flatMap(([p, rp]) => Object.keys(rp.meshes).filter((m) => !(p === 'ledSlot' && m === 'led')).map((m) => `kit-${p}.${m}`))
+      .sort();
+    expect(names).toEqual(want);
+    const mesh = (n: string) => r.meshes.find((m) => m.name === `kit-${n}`)!;
+    expect(mesh('wallPanel.composite').thinInstanceCount).toBe(kit.instances.filter((i) => i.piece === 'wallPanel').length);
+    expect(casters).toEqual([mesh('doorLeaf.composite')]);
+    // the status bar is red while locked; green once unlocked (next frame)
+    const status = mesh('doorFrame.status');
+    const col = () => r.colorsOf(status.name)!;
+    expect(col()[0]!).toBeGreaterThan(col()[1]!);
+    const ds = doors.list[0]!;
+    ds.anchor.locked = false;
+    r.frame();
+    expect(col()[1]!).toBeGreaterThan(col()[0]!);
+    // the leaves slide by the door's open state
+    const leaf = mesh('doorLeaf.composite');
+    const xz = () => { const m = r.matricesOf(leaf.name)!; return [0, 1].map((i) => [m[i * 16 + 12]!, m[i * 16 + 14]!]); };
+    const shut = xz();
+    ds.open = 1;
+    r.frame();
+    const open = xz();
+    for (let i = 0; i < 2; i++) {
+      const d0 = Math.abs(shut[i]![0]!);
+      const d1 = Math.abs(open[i]![0]!);
+      expect(d0).toBeCloseTo(0.5, 5);
+      expect(d1).toBeCloseTo(0.5 + 1 - LEAF_LIP, 5);
+    }
+    expect(door.leaf).toBe('slide');
+    // the accent skirting on circuit 1 goes dark when the circuit's lamps are off
+    const sk = mesh('skirting.led');
+    // (the walls' own skirting comes first and stays lit; the grouped run is the last instance)
+    const skc = () => { const c = r.colorsOf(sk.name)!; return c[c.length - 4]!; };
+    expect(r.colorsOf(sk.name)![0]).toBeCloseTo(skc(), 6);
+    const lit = skc();
+    b.lights.setGroup(1, false);
+    r.frame();
+    expect(skc()).toBeLessThan(lit * 0.1);
+    expect(r.colorsOf(sk.name)![0]).toBeCloseTo(lit, 6);
+    r.dispose();
+    scene.dispose();
+    engine.dispose();
+  });
+
   it('counts a layout\'s triangles from the report (an area budget check)', () => {
     const kit = new FacilityKit(new LevelBuilder());
     kit.wall(0, 0, 0, 6, 3);
