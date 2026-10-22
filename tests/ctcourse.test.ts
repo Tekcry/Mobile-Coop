@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LID, AIRLOCK_PAD_COLOR, bayX, ctcourse, CT_BAY, CT_CEIL, CT_EXIT_ZONE, CT_W, FENCE, S4_GAP, S4_HEADER, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_PASS, S3_PASS_COLOR, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LID, AIRLOCK_PAD_COLOR, bayX, ctcourse, CT_BAY, CT_CEIL, CT_EXIT_ZONE, CT_W, FENCE, S4_GAP, S4_HEADER, GATE_RADIO, LEGUP_SPOT, OBJECTIVE_TEXT, PANEL_TEXT, PANEL_TEXT_MAX, RADIO_ENTER, S3_CAMS_OFF, S3_CONSOLE, S3_HALL, S3_PASS, S3_PASS_COLOR, S3_ROOM_RADIO, S3_SEC_GUARD, S3_SEC_POST, S3_SEC_ROOM, S5_HATCH, S5_PANEL, S7_STAIR_Z } from '../src/world/maps/ctcourse';
+import { CONSOLE_DONE, CONSOLE_GUARD_UP, consoleErrors } from '../src/game/course/securityRoom';
 import { bayObjective, courseUser, exitZoneReady, inExitZone, isPanelId, layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
 import { CourseState, REFUSE_BOLT, REFUSE_PAIR } from '../src/game/course/courseState';
 import { COURSE_TEXT_MAX } from '../src/config/course';
@@ -316,7 +317,7 @@ describe('course-ready S1: station fixes and text', () => {
   });
 
   it('F2: each station gate has a radio line naming the next step, in its own bay; flag gates are keyed by gate id', () => {
-    const want: [string, number][] = [['g-s2', 2], ['g-s3', 3], ['g-s4', 4], ['g-s5', 5], ['g-s5-grid', 5], ['g-s6', 6]];
+    const want: [string, number][] = [['g-s2', 2], ['g-s3', 3], ['g-s3-cams', 3], ['g-s4', 4], ['g-s5', 5], ['g-s5-grid', 5], ['g-s6', 6]];
     for (const [id, n] of want) {
       const bay = def.bays[n - 1]!;
       expect(bay.gates.some((g) => g.id === id)).toBe(true);
@@ -339,7 +340,8 @@ describe('course-ready S1: station fixes and text', () => {
 
   it('every panel, radio and objective line is within its limit, has no em or en dash, says pad and keyboard words', () => {
     const radio = def.bays.flatMap((bay) => bay.radio.map((r) => r.text));
-    expect(radio.length).toBe(RADIO_ENTER.length + Object.keys(GATE_RADIO).length);
+    // (sector-fixes S) + 1: station 3's second enter line names the security room
+    expect(radio.length).toBe(RADIO_ENTER.length + Object.keys(GATE_RADIO).length + 1);
     for (const t of [...radio, ...OBJECTIVE_TEXT]) {
       expect(t.length, t).toBeLessThanOrEqual(COURSE_TEXT_MAX);
       expect(t).not.toMatch(/[\u2013\u2014]/);
@@ -462,5 +464,99 @@ describe('marlow-variety: the dressing adds no climb and keeps the routes clear'
     const inArea = full.boxes.filter((p) => p.collide && p.c[1] - p.s[1] / 2 < 2 && p.c[1] + p.s[1] / 2 > 0.05 &&
       p.c[0] + p.s[0] / 2 > 2 && p.c[0] - p.s[0] / 2 < 10.5 && p.c[2] + p.s[2] / 2 > 2.5 && p.c[2] - p.s[2] / 2 < 5);
     expect(inArea).toHaveLength(0);
+  });
+});
+
+describe('sector-fixes S: the station 3 security room', () => {
+  const b = new LevelBuilder();
+  const lay = ctcourse.build(b, 0);
+  const c = lay.course!;
+  const R = S3_SEC_ROOM;
+  /** A solid piece holds (x, y, z), its yaw honoured (walls along x are turned a quarter). */
+  const solidAt = (x: number, y: number, z: number): boolean =>
+    b.boxes.some((p) => {
+      if (!p.collide || Math.abs(y - p.c[1]) >= p.s[1] / 2) return false;
+      const dx = x - p.c[0];
+      const dz = z - p.c[2];
+      const cy = Math.cos(p.yaw);
+      const sy = Math.sin(p.yaw);
+      return Math.abs(dx * cy - dz * sy) < p.s[0] / 2 && Math.abs(dx * sy + dz * cy) < p.s[2] / 2;
+    });
+  const inRoom = (x: number, z: number): boolean => x > R.x0 + 0.15 && x < R.x1 - 0.15 && z > R.z0 + 0.15 && z < R.z1 - 0.15;
+
+  it('the console layout passes its rules: device, guard slot, pickup gate, a camera switched by its flag', () => {
+    expect(c.consoles).toEqual([{ id: S3_CONSOLE, guard: S3_SEC_GUARD, flag: S3_CAMS_OFF }]);
+    expect(consoleErrors(c, lay.security!.devices)).toEqual([]);
+    const gate = c.def.bays[2]!.gates.find((g) => g.id === 'g-s3-cams');
+    expect(gate).toEqual({ kind: 'pickup', id: 'g-s3-cams', switchId: S3_CONSOLE, flag: S3_CAMS_OFF, perPlayer: false });
+    expect(lay.security!.devices.find((d) => d.id === 'cam-s3')).toMatchObject({ offFlag: S3_CAMS_OFF });
+    // the jam handoff is untouched: the pass zone gate is still station 3's door gate (A11)
+    expect(c.def.bays[2]!.gates.find((g) => g.id === 'g-s3')?.kind).toBe('flag');
+  });
+
+  it('the duty guard is a passive slot of bay 3 only, inside the room, facing -x (the monitors), with one line to give', () => {
+    const s = c.squads[S3_SEC_GUARD]!;
+    expect(s.passive).toBe(true);
+    expect(inRoom(s.x, s.z)).toBe(true);
+    expect([s.x, s.z, s.yaw]).toEqual([S3_SEC_POST.x, S3_SEC_POST.z, S3_SEC_POST.yaw]);
+    expect(Math.sin(s.yaw)).toBeCloseTo(-1, 6);
+    expect(c.def.bays.map((bay) => bay.squad.includes(S3_SEC_GUARD))).toEqual([false, false, true, false, false, false, false, false]);
+    expect(s.info?.lines).toHaveLength(1);
+    for (const l of s.info!.lines) expect(l.length).toBeLessThanOrEqual(90);
+    // nothing solid where he stands (the desk is dressing)
+    expect(solidAt(s.x, 1, s.z)).toBe(false);
+  });
+
+  it('the console is in the room, within reach (1.4 m) of a standing spot clear of the guard and his body', () => {
+    const d = c.devices[S3_CONSOLE]!;
+    expect(inRoom(d.x, d.z)).toBe(true);
+    expect(d.label).toBe('Security console: cameras off');
+    let best = Infinity;
+    for (let x = R.x0 + 0.5; x < R.x1 - 0.4; x += 0.1) {
+      for (let z = R.z0 + 0.5; z < R.z1 - 0.4; z += 0.1) {
+        // a body clear of the guard (and of where he falls by the desk), off the desk's footprint (x 52.05 - 52.65)
+        if (Math.hypot(x - S3_SEC_POST.x, z - S3_SEC_POST.z) < 1.2 || x < R.x0 + 1.4 || solidAt(x, 1, z)) continue;
+        best = Math.min(best, Math.hypot(x - d.x, z - d.z));
+      }
+    }
+    expect(best).toBeLessThan(1.4 - 0.2);
+  });
+
+  it('a door gap with a lintel in the far cross wall; the rest of the void stays sealed', () => {
+    const [z0, z1] = R.door;
+    const zm = (z0 + z1) / 2;
+    expect(R.x1).toBe(S3_HALL.x1);
+    expect(solidAt(R.x1, 1, zm)).toBe(false);
+    expect(solidAt(R.x1, 3, zm)).toBe(true);
+    expect(b.anchors.doors.some((dr) => Math.abs(dr.hinge.x - R.x1) < 1e-6 && Math.abs(dr.hinge.z - z0) < 1e-6 && dr.width === z1 - z0 && !dr.locked)).toBe(true);
+    // the far cross wall is whole but for the door
+    for (let z = S3_HALL.wallZ + 0.15; z < CT_W - 0.15; z += 0.1) if (z < z0 - 0.01 || z > z1 + 0.01) expect(solidAt(R.x1, 1, z), `x ${R.x1} z ${z.toFixed(2)}`).toBe(true);
+    // the room's south and west walls, and the void's other sides (the hallway wall, the entry cross wall), have no opening
+    for (let x = R.x0 + 0.05; x < R.x1; x += 0.1) expect(solidAt(x, 1, R.z0), `south wall x ${x.toFixed(2)}`).toBe(true);
+    for (let z = R.z0 + 0.05; z < R.z1; z += 0.1) expect(solidAt(R.x0, 1, z), `west wall z ${z.toFixed(2)}`).toBe(true);
+    for (let x = S3_HALL.x0 + 0.05; x < S3_HALL.x1; x += 0.1) expect(solidAt(x, 1, S3_HALL.wallZ)).toBe(true);
+    for (let z = S3_HALL.wallZ + 0.05; z < CT_W; z += 0.1) expect(solidAt(S3_HALL.x0, 1, z)).toBe(true);
+    // all of it to the ceiling
+    for (const [x, z] of [[R.x0, 11], [54.6, R.z0], [R.x1, 12]] as const) expect(solidAt(x, CT_CEIL[2]! - 0.05, z)).toBe(true);
+  });
+
+  it('no new ledge in or round the room', () => {
+    const anchors = generateLedges(b.boxes);
+    const near = anchors.ledges.filter((l) => {
+      const x = (l.a.x + l.b.x) / 2;
+      const z = (l.a.z + l.b.z) / 2;
+      return x > R.x0 - 0.5 && x < R.x1 + 0.5 && z > R.z0 - 0.5 && l.top < FENCE - 1e-3;
+    });
+    expect(near).toEqual([]);
+  });
+
+  it('text: the enter line names the room, the gate line and the refusals fit the radio (90)', () => {
+    const radio = c.def.bays[2]!.radio;
+    expect(radio.filter((r) => r.at === 'enter').map((r) => r.text)).toEqual([RADIO_ENTER[2], S3_ROOM_RADIO]);
+    expect(radio.find((r) => r.at === 'g-s3-cams')?.text).toBe(GATE_RADIO['g-s3-cams']);
+    for (const t of [S3_ROOM_RADIO, GATE_RADIO['g-s3-cams']!, CONSOLE_GUARD_UP, CONSOLE_DONE, c.devices[S3_CONSOLE]!.label!]) {
+      expect(t.length, t).toBeLessThanOrEqual(COURSE_TEXT_MAX);
+      expect(t).not.toMatch(/[\u2013\u2014]/);
+    }
   });
 });

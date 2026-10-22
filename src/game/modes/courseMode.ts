@@ -12,6 +12,7 @@ import type { CourseWire } from '../course/courseWire';
 import { COURSE_CALLSIGNS, COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { hyp2 } from '../../core/mathx';
 import { CtDevices } from '../ctDevices';
+import { consoleFor, consoleRefusal } from '../course/securityRoom';
 import { CourseFeed } from '../course/courseFeed';
 import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
@@ -124,6 +125,8 @@ export class CourseMode implements GameMode {
   private airSeen: string | null = null;
   private doorOf = new Map<string, DoorState>();
   private squad: Enemy[] = [];
+  /** (sector-fixes S) The squad slot id of each `squad` guard (same order). */
+  private squadIds: string[] = [];
   private radioQ: string[] = [];
   private radioT = 0;
   private sendT = 0;
@@ -317,6 +320,16 @@ export class CourseMode implements GameMode {
     if (isPanelId(cid)) {
       this.refuse(this.layout?.devices[cid]?.label ?? null, p);
       return;
+    }
+    // (sector-fixes S) a security console: refused while its guard is up (alive, held or not) or the cameras are off
+    const con = consoleFor(this.layout?.consoles, cid);
+    if (con) {
+      const guard = this.squadOf(con.guard);
+      const no = consoleRefusal(!!guard && guard.alive, !!this.state?.hasFlag(con.flag));
+      if (no) {
+        this.refuse(no, p);
+        return;
+      }
     }
     // (B6) a scanner panel: the host's scanner pair checks the player and starts the hack
     const sw = this.ct?.scanPress(cid, p);
@@ -631,6 +644,7 @@ export class CourseMode implements GameMode {
       e.dispose();
     }
     this.squad.length = 0;
+    this.squadIds.length = 0;
     for (const id of ids) {
       const s = this.layout!.squads[id];
       if (!s) continue;
@@ -641,7 +655,14 @@ export class CourseMode implements GameMode {
       if (s.info) e.info = s.info;
       if (s.route) e.setPatrol({ points: s.route, wait: s.wait, waits: s.waits, faces: s.faces, start: s.start, loop: s.loop });
       this.squad.push(e);
+      this.squadIds.push(id);
     }
+  }
+
+  /** (sector-fixes S) The current bay's guard spawned from squad slot `slot` (alive or down), or null. */
+  squadOf(slot: string): Enemy | null {
+    const k = this.squadIds.indexOf(slot);
+    return k >= 0 ? (this.squad[k] ?? null) : null;
   }
 
   /** Restart: the course's light groups back on and its shot-out lamps restored. */

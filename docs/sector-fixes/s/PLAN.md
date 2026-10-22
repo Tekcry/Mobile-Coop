@@ -29,8 +29,9 @@ The room takes the void's north-east corner, entered from the **far lobby** (A2)
 | Lamp | flush `PANEL` at (54.6, 4.35, 11.0), intensity 0.8, radius 6, `WHITE` (a ceiling panel on the cell's circuit) |
 | Camera space | `{ box: [51.6, 8, 57.6, 14], size: 'tight' }` |
 
-Why there: the camera lesson stays (the first runner still needs the partner's jam); the room replaces the second jam,
-a co-op beat for whoever got through first. Both players reach it (the second after crossing). The door is behind the
+Why there: the camera lesson stays (the first runner still needs the partner's jam); the room is an alternative to the
+second jam (the jam handoff J2 / J3, #101, is Michael's approved design and keeps working unchanged, A11), a co-op beat
+for whoever got through first. Both players reach it (the second after crossing). The door is behind the
 camera (about 76 deg off its axis, out of frame at every sweep angle) and a blast-cell security room off the guarded
 side is the CT shape. Level standard: 16.6.2 (a guarded valuable room off the secure side), 16.8.1 (lamp owner and
 fitting), 16.8.2 / 4.1 (a guard with a job: the duty officer at the monitors), 16.9 (register rows, part C).
@@ -143,6 +144,10 @@ Slice tier: `e2e:quick` + `e2e-ctcourse` + `e2e-coop` / `e2e-netmove` (src/game 
 - A8 The S3 monitor wall (V3) moves from the south wall into the room. Undo: keep a copy on the south wall.
 - A9 Desk `collide=false` (no vault / mantle, no nav change). Undo: collide with `noLedge`.
 - A10 A second LANTERN line at S3 start names the room. Undo: drop the line (the guard's INTERROGATE line stays).
+- A11 (orchestrator guard rail, 2026-10-22) The security room is an alternative to the second jam, not a replacement:
+  both jams (J2 / J3, #101) work unchanged; a camera the console switched off is simply no longer a jam target. Called
+  out in the PR for Michael's walk. Undo: remove the room's door (`S3_SEC_ROOM.door`) or the console's gate; nothing in
+  the jam flow changes either way.
 
 ## 8. Risks
 - `ctDevices.ts` and `e2e-ctcourse.mjs` are also edited by slice C (Menu Notes: laser and cue). S touches camera
