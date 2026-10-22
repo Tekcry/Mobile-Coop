@@ -58,14 +58,15 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Course Ready Build: RESUME (cleared session). Job: sector-redesign (lead), branch feature/sector-redesign,
-worktree C:/NightShift/Mobile-Coop-sector-redesign. git fetch, then read: CLAUDE.md and docs/ROADMAP.md (origin/feature/menu
-for the live "Decided"); docs/sector-redesign/BRIEF.md (Michael M1-M11, assumptions A1-A45), STATE.md (this file: Now,
-Rules after the reset, Next, MORNING-REVIEW), PLAN.md and SPEC.md, all on origin/feature/sector-redesign. Other open
-items are in docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (PRs #169 g44-above and #176 sw-reload in
-the orchestrator's train 16: post the laptop rerun of sw-reload 0a34662b on #176 when Character Build replies).
-In flight at the save: see STATE "Now" (check each branch log; an agent from the old session is gone, so rerun its slice from its brief or PLAN.md if its work is not committed). Carry on from "Next" under "Rules after the reset" (99% windows, max 3 agents,
-Opus briefs / checks, Sonnet 5.5 builds greyboxes, Opus for engine work). Michael is asleep: log assumptions, no
-question dialogs. Every e2e is E2E_GPU=1 and goes to Night Shift | Character Build on the laptop. Report to
-"Night Shift | Orchestrator" at each slice and PR.
+Night Shift | Course Ready Build: RESUME (cleared session / new account). Job: sector-redesign (lead), branch
+feature/sector-redesign, worktree C:/NightShift/Mobile-Coop-sector-redesign. git fetch, then read: CLAUDE.md; docs/ROADMAP.md
+(the live "Decided" is on origin/feature/menu); docs/sector-redesign/BRIEF.md (Michael M1-M12, assumptions A1-A68),
+STATE.md (Now, Rules after the reset, Next), PLAN.md, SPEC.md and briefs/, all on origin/feature/sector-redesign.
+PR #184 (part 1) is in the orchestrator's train 19. In flight at the save: STATE "Now" lists each agent, its worktree,
+branch and WIP ref (wip/sector-redesign-<x>); the agents are gone, so collect what is committed / reported and rerun
+the rest from its brief or the prompt summary in "Next". Agent count and pacing: as the orchestrator says (it messages
+after the swap). Opus plans, writes strict briefs and runs every checker; Sonnet 5.5 builds map greyboxes / data / e2e
+routes; Opus for engine work; one fix round per slice. Michael may be asleep: log assumptions, no question dialogs.
+Every e2e is E2E_GPU=1, on Night Shift | Character Build (laptop) or, when it is down, the desktop second lane
+(heavy2.lock, port 4189 or 4192). Report to "Night Shift | Orchestrator" at each slice end, PR or blocker.
 ```
