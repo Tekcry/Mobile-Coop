@@ -30,10 +30,20 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
     10 s sample), GPU 3D avg 9% max 20%, RAM free min 7.6 of 31.7 GB.
   - Sector-fixes R 2f40ed74 (Course Ready): sectorops FAIL (route geometry, S1 monorail stop, S3 headroom); Course
     Ready fixes on the desktop. P 66995a22 RED earlier; train 9's #136 P passed ctcourse.
-- PR #143 gpu-tests-2 OPEN (proof green: studio x2 on the GPU, 26 s each). RUNNING through the swap as scheduled task
-  ns-chain-1022w (C:/NightShift/scratch/chain-1022w.ps1): train 9 e2e-menus narrowing, GPU solo on 4189, stops at the
-  first failing head: #136 P d98262dc, #141 T1 ebce0da7, #139 N4c 5f6a0d9d (runs/t9narrow-*). Send the orchestrator the
-  result; if none fails alone, the P + T1 pair is next (needs a merge commit of both heads).
+- #143 gpu-tests-2 MERGED (4.58.2). PR #148 gpu-tests-3 OPEN (be8e2027): e2e-menus' touch-pause failure on the laptop
+  was a TEST bug: the look drag (8 CDP touchMoves in ~80 ms on a fast GPU) became a Chrome fling and the next touch only
+  cancelled it, so the pause tap was lost (not late: still unpaused 1 s later; a 2nd tap pauses). The desktop is slower,
+  no fling. Fix: hold still before the lift. Proof: cherry-picked on train 9 b0cb16b6 (local ae620095) e2e-menus PASS 40
+  s twice (GPU). #147 (3 s wait for the pause screen) does NOT fix it. Diagnostic suite kept at
+  C:/NightShift/scratch/work/e2e-touchdiag.mjs (copy into a worktree's scripts/ untracked, run as a suite name).
+  Narrowing: #136 P passes menus alone, #141 T1 fails alone (laptop only), N4c skipped.
+- RUNNING through the swap as scheduled task ns-chain-1022y (C:/NightShift/scratch/chain-1022y.ps1): train/9 6536111d
+  (master 4.58.3 + P + N4c + T1 + #147): e2e-menus alone (runs/train9b-6536111d-menus; expect FAIL unless #148 is in),
+  then the FULL run E2E_GPU=1 JOBS=3 on 4189 = the first 3-browser trial run (runs/train9b-6536111d, load
+  runs/load-train9b.csv). On resume: send the orchestrator the verdict per suite plus the trial check against the train 9
+  JOBS=2 numbers below (wall 740 s, CPU avg 35%) and write the trial result here.
+- MONITOR RULE: never `tail -F` a file a chain appends to (it locks chain-1022.log; Add-Content fails and the chain
+  dies; expired monitors leave the tail running). Poll summary.txt files instead.
 - NEXT (ask the orchestrator first): train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
   the trial); d7571102 test-speed-2 proof (now on the GPU, re-ask). Worktrees: Mobile-Coop-gpu-tests (merged),
   Mobile-Coop-gpu-tests-2, Mobile-Coop-test-speed-2 (master merged, 36b5a270).
