@@ -18,6 +18,9 @@ S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
   (the new S5 posts block never ran before; its site search returns null) -> S5 fix round after the chain merge.
 - S8 implementer RUNNING (Opus) in ...-guard-ai-s8 on the WIP 2d3dfc51; writes slices/S8.md. Then: merge s7 into s8,
   fresh checker, PR stacked on S7.
+- S5b and S6 implementers RUNNING (Opus, ~10:20) in worktrees ...-guard-ai-s5b / -s6, branches off the chain tip
+  ae1f1895 (pushed empty). A-numbers reserved: S8 A23-A25, S5b A26-A28, S6 A29-A31, S10 from A32. Each writes
+  slices/S<n>.md; then commit, one checker for S5b + S6 (batch), PRs stacked on #196 after S8. S10 next when CPU allows.
 - Then the chain tip e2e (E2E_GPU=1: e2e-stealth-ai, e2e-takedown, e2e-sectorops, e2e-ctcourse, e2e-ct-warehouse).
 
 (Before, at the swap:)
