@@ -3,12 +3,10 @@
 Job lead: Night Shift | Menu Notes Build. Branch `feature/anim-n4d` (C:/NightShift/Mobile-Coop-anim-n4d, from
 feature/anim-n4c). Updated 2026-10-22 ~21:45.
 
-Now (~21:55): built at 74cb0634; fresh checker PASS; desktop run on 74cb0634 COMPLETE and green (below); PR open.
-`npm run check` + GPU e2e (takedown, netmove, coop, anim, ctcourse) was running under heavy.lock ("Menu Notes Build |
-n4d-e2e") at the save; its logs: C:/NightShift/n4d-check.log, n4d-build.log, n4d-e2e.log.
-Next: read those logs (complete runs only count: every suite ran to the end and passed, on the GPU); if the run did not
-finish, rerun it (heavy.lock or GPU lane 2 heavy2.lock / port 4192). Then merge origin/master (4.58.1+) and, once #139
-(train 9) merges, master again; open the PR to master listing every suite with its result; message the orchestrator.
+Now (~21:55): built at 74cb0634; fresh checker PASS; desktop GPU run on 74cb0634 COMPLETE and green (below);
+PR #142 open (stacked on #139).
+Next: once #139 (train 9) merges, merge origin/master into feature/anim-n4d (the diff then shows n4d only); the
+orchestrator puts #142 in a train.
 Open: none.
 
 ## Checker (fresh Opus, ~22:00, on 74cb0634): PASS
