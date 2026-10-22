@@ -156,7 +156,8 @@ function contactPts(n: CharacterRig['ankleL'], heel: number[], ball: number[]): 
 /**
  * (N1 merge) The planted feet's slide as e2e-anim reads it (metrics.ts `footSlide`, N1 decisions 1 / 2): a plant the
  * planner anchors (N1's held contact: the ankle rolls / pivots round the heel or ball by design) at its contact points,
- * any other plant (the clip's pinned feet among them) at the ankle. A plant whose holder changes (the planner's anchored
+ * any other plant at the ankle. (mt2-fixF) The clip's plants are anchored too now (held at the heel / ball as the clip's
+ * stance pitch rolls), so they read at the contact; before, pinned at the ankle, they read at the ankle. A plant whose holder changes (the planner's anchored
  * foot taken over by the clip at a turn's end, or handed back) is read in its parts, each by its own holder's measure.
  * Worst over both feet (m).
  */
