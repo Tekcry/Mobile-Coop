@@ -2,7 +2,7 @@
 
 ## Now (2026-10-22 ~14:50 save point)
 #103 merged in (86694475: master 4.53.0 via #103; guard tuning and clip speed: the guard sections and clip are refused
-by the generic table, ; tsc + 12 unit files green; identity bake dry-run no diff). #103 is now on master
+by the generic table, `GENERIC_REFUSED`; tsc + 12 unit files green; identity bake dry-run no diff). #103 is now on master
 (4.54.0, #114).
 
 ## Next
