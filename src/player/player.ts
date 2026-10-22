@@ -25,6 +25,7 @@ import { WEIGHT_POSE, weightFrameIn, weightJumpKind } from '../anim/weight';
 import { weightBegin, weightEnd } from './weightTune';
 import { handsWeaponOf } from '../anim/tuneHands';
 import { tuneV2Frame } from '../anim/tuneV2Sections';
+import { tuneGuardFrame } from '../anim/tuneGuard';
 import { tuneKeysFrame } from '../anim/tuneKeys';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 
@@ -63,6 +64,10 @@ export interface PlayerPose {
   freeGait: boolean;
   /** (marlow-bays T1a) The bend is over a body (the stealth controller's lift / carry / drop), not a held guard. */
   carryBody?: boolean;
+  /** (anim-n4) The carried body's load: its shoulder (1 right, -1 left) x its weight on it (0..1, the hoist / put down). */
+  carrySide?: number;
+  /** (anim-n4 fix) The body lift's step-in 0..1, -1 no lift (the rig's lift crouch pose). */
+  liftStep?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad; pipe legs up / inverted), 0 = upright. */
   tumble: number;
   /** (G6) The rig root's step toward a wall edge while peeking (world XZ, m; `WallCore.stX`). Visual only. */
@@ -479,6 +484,8 @@ export class Player {
     rp.bend = cp.bend;
     rp.bendDrop = cp.bendDrop;
     rp.carryBody = cp.carryBody === true;
+    rp.carrySide = cp.carrySide ?? 0;
+    rp.liftStep = cp.liftStep ?? -1;
     rp.sway = cp.sway;
     rp.tumble = cp.tumble;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
@@ -549,6 +556,7 @@ export class Player {
     // (tuner-v2 wiring) the panel values of this state / weapon into the item 1-2 tables; (anim-joints J2) plus the move /
     // action rows this rig picked last frame (the panel follows the strongest at weight 0.5 or more)
     tuneV2Frame(TUNE_STATE.body, handW, this.rig.tuneSt ? this.rig.tuneSt.pick : null);
+    tuneGuardFrame(); // (item 24, track A) the guard rows into the guard tables every guard rig reads
     tuneKeysFrame(); // (tuner-v2 item 4) Keys section edits -> the keyed clips' per-key offset tables
     // (anim-joints J1) the Joints / Hands & feet / IK / Weapon windows: the rig opens its own inside animate (tuneRows)
     moveTuneBegin(rp, this.rig); // (anim-studio-2) the move sections selected above (identity unless a slider moved)

@@ -29,6 +29,12 @@ export const JAMMER = {
   /** A client's intent is dropped after this long without a heartbeat (s); the client sends every `heartbeat`. */
   stale: 0.7,
   heartbeat: 0.25,
+  /** (jammer-fixes) The host takes a client's claimed camera eye (the `jam` message's `e`) only this close to the
+   *  client's head (m) and with a clear static line between them; otherwise it checks from the head. The settled pistol
+   *  aim puts the eye about 0.5 m from the head (`boomAds` 0.4, `shoulderAds` 0.3). */
+  eyeTol: 1.5,
+  /** (jammer-fixes) Slack (m) on the head-to-eye line: a static hit closer than this to the eye still counts as clear. */
+  eyeSlack: 0.1,
 } as const;
 
 /** (item 8) A jammed light's timeline: a flicker to off as the jam starts, off while jammed, off `offHold` after the
@@ -160,6 +166,55 @@ export function lightLit(d: DevJam): boolean {
   if (d.ph === DEV_JAMMED) return d.t < JAM_LIGHT.flickerOff ? flickerLit(d.t, false) : false;
   if (d.t < JAM_LIGHT.offHold) return false;
   return flickerLit(d.t - JAM_LIGHT.offHold, true);
+}
+
+/** (jammer-fixes) What a light's jam driver needs from the light registry (`LightRegistry` has these). */
+export interface JamLights {
+  jamStart(id: number): void;
+  jamLit(id: number, lit: boolean): void;
+  jamEnd(id: number): void;
+}
+
+/**
+ * (jammer-fixes) Put a light's jam timeline on the registry (host and client alike): a jam starts, flickers, ends. At
+ * the end the light takes the state its switches / EMP / shots give it NOW (the registry's base), never its state at
+ * the jam's start. `was`: the phase the light had the last call. No allocation.
+ */
+export function applyJamLight(reg: JamLights, id: number, d: DevJam, was: DevPhase): void {
+  if (d.ph === DEV_IDLE) {
+    if (was !== DEV_IDLE) reg.jamEnd(id);
+    return;
+  }
+  if (was === DEV_IDLE) reg.jamStart(id);
+  reg.jamLit(id, lightLit(d));
+}
+
+/**
+ * (jammer-fixes) The host's line-of-sight origin for a client's jam: the client's claimed camera eye when it is within
+ * `JAMMER.eyeTol` of the client's head and `clear(head, eye)` (a static line) holds; otherwise the head. Writes the origin
+ * into `out` and returns true when the eye was taken. `eye` null: no claim (the head). No allocation.
+ */
+export function jamOrigin(
+  hx: number,
+  hy: number,
+  hz: number,
+  eye: readonly [number, number, number] | null | undefined,
+  clear: (ax: number, ay: number, az: number, bx: number, by: number, bz: number) => boolean,
+  out: { x: number; y: number; z: number },
+): boolean {
+  out.x = hx;
+  out.y = hy;
+  out.z = hz;
+  if (!eye) return false;
+  const ex = eye[0];
+  const ey = eye[1];
+  const ez = eye[2];
+  if (hyp3(ex - hx, ey - hy, ez - hz) > JAMMER.eyeTol) return false;
+  if (!clear(hx, hy, hz, ex, ey, ez)) return false;
+  out.x = ex;
+  out.y = ey;
+  out.z = ez;
+  return true;
 }
 
 /** The jammer's HUD line: the jam's seconds left, the cooldown, a refused target, or ready on a target ('' = hidden). */

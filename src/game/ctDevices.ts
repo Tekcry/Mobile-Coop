@@ -23,15 +23,16 @@ import {
   JAMMER,
   LASER,
   advanceDevJam,
+  applyJamLight,
   deviceAlarm,
   hallStep,
   inBox,
   jamHudKey,
   jamHudText,
   jamLeft,
+  jamOrigin,
   laserCooldown,
   laserTouch,
-  lightLit,
   mirrorDevJam,
   newDevJam,
   newJam,
@@ -139,10 +140,8 @@ interface DevRt {
   cam: CameraUnit | null;
   laser: LaserRt | null;
   light: LightDef | null;
-  /** The phase last put on the device (a light restores its on state when it goes back to idle). */
+  /** The phase last put on the device (a light's jam starts and ends on its changes). */
   lastPh: DevPhase;
-  /** A light's on state when its jam started. */
-  wasOn: boolean;
   /** (fix round 1) Client: seconds since the mirror ran its own reboot down to idle (Infinity: it did not). */
   idleFor: number;
 }
@@ -192,6 +191,14 @@ export class CtDevices {
     return !dv || !l || l.destroyed || (!l.on && dv.d.ph === DEV_IDLE);
   };
   private readonly losA = new Vector3();
+  /** (jammer-fixes) The host's line-of-sight origin for the client's jam (`jamOrigin`). */
+  private readonly eyeAt = { x: 0, y: 0, z: 0 };
+  /** (jammer-fixes) A clear static line from a client's head to its claimed eye (`JAMMER.eyeSlack`). No allocation. */
+  private readonly eyeClear = (ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean => {
+    this.losA.set(ax, ay, az);
+    this.losB.set(bx, by, bz);
+    return this.g.ballistics.hitDistance(this.losA, this.losB, G.STATIC) >= hyp3(bx - ax, by - ay, bz - az) - JAMMER.eyeSlack;
+  };
   private readonly losB = new Vector3();
   private lampT = 0;
   /** Sector Ops: devices of a section that is not live (off and blind; lasers dark and harmless). */
@@ -304,7 +311,7 @@ export class CtDevices {
   }
 
   private addDev(t: JamTarget, cam: CameraUnit | null, laser: LaserRt | null, light: LightDef | null): void {
-    const dv: DevRt = { t, d: newDevJam(), cam, laser, light, lastPh: DEV_IDLE, wasOn: true, idleFor: Infinity };
+    const dv: DevRt = { t, d: newDevJam(), cam, laser, light, lastPh: DEV_IDLE, idleFor: Infinity };
     this.devs.push(dv);
     this.devOf.set(t.id, dv);
     this.allTargets.push(t);
@@ -556,7 +563,8 @@ export class CtDevices {
     if (want !== this.sentId || (want !== '' && this.sentT <= 0)) {
       this.sentId = want;
       this.sentT = JAMMER.heartbeat;
-      this.g.net?.sendJam?.(want);
+      // (jammer-fixes) the camera eye the aim was checked from goes with the claim: the host checks the same line
+      this.g.net?.sendJam?.(want, g.player.cam.gamePos);
     }
   }
 
@@ -594,14 +602,20 @@ export class CtDevices {
     el.style.display = text ? '' : 'none';
   }
 
-  /** The client's intent (host side, from a `jam` message). */
-  onRemoteJam(tgt: string): void {
+  /** The client's intent (host side, from a `jam` message); `eye`: the client's camera eye it aimed from. */
+  onRemoteJam(tgt: string, eye?: readonly [number, number, number]): void {
     let ok = tgt !== '' && this.targets.some((t) => t.id === tgt);
-    // (fix round 1) the same static line of sight the client checks, from the client's head (its eye on the host):
-    // a modified client cannot jam through walls. Runs per message (a change or the heartbeat), no allocation
+    // (fix round 1) the same static line of sight the client checks: a modified client cannot jam through walls.
+    // (jammer-fixes) from the client's camera eye (where its aim was checked), taken only within `JAMMER.eyeTol` of its
+    // head with a clear line between them (no eye through a wall); otherwise from its head. Runs per message (a change
+    // or the heartbeat), no allocation
     if (ok) {
       const r = this.g.playerRefsInto(this.refTmp)[1];
-      ok = !!r && this.clearFrom(r.feet.x + (r.peekX ?? 0), remoteHeadY(r.feet.y, r.crouched), r.feet.z + (r.peekZ ?? 0), tgt);
+      if (!r) ok = false;
+      else {
+        jamOrigin(r.feet.x + (r.peekX ?? 0), remoteHeadY(r.feet.y, r.crouched), r.feet.z + (r.peekZ ?? 0), eye, this.eyeClear, this.eyeAt);
+        ok = this.clearFrom(this.eyeAt.x, this.eyeAt.y, this.eyeAt.z, tgt);
+      }
     }
     this.want[1] = ok ? tgt : '';
     this.wantAt[1] = this.time;
@@ -785,17 +799,11 @@ export class CtDevices {
       const dv = this.devs[k]!;
       const l = dv.light;
       if (!l) continue;
-      const ph = dv.d.ph;
       const was = dv.lastPh;
-      dv.lastPh = ph;
-      if (ph !== DEV_IDLE && was === DEV_IDLE) dv.wasOn = l.on;
-      if (l.destroyed) continue;
-      if (ph === DEV_IDLE) {
-        // back from a jam: on as it was (the step it went idle); otherwise the course's switches own it
-        if (was !== DEV_IDLE && dv.wasOn) reg.setOn(l.id, true);
-        continue;
-      }
-      reg.setOn(l.id, dv.wasOn && lightLit(dv.d));
+      dv.lastPh = dv.d.ph;
+      // (jammer-fixes) the registry keeps the switches' / EMP's state under the jam: back from a jam the light takes
+      // that state as it is now (a group switched off meanwhile stays off), on the host and the client alike
+      applyJamLight(reg, l.id, dv.d, was);
     }
   }
 
