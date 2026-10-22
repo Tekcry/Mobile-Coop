@@ -2,6 +2,7 @@ import { Vector3 } from '../core/babylon';
 import type { PlayerRef } from '../ai/enemy';
 import type { DoorState } from '../world/doors';
 import type { Interactable, InteractKind } from './interactables';
+import { addDoorClosure } from './sectorStage';
 import {
   BOLT_DEPTH,
   BOLT_REACH,
@@ -18,9 +19,6 @@ import {
 
 /** A door is found within this of its doorway centre (m). */
 const DOOR_FIND = 1.2;
-/** (sector-fixes-r2 nav) A team door's nav closure: the door width plus this along (m), and this half depth across. */
-const TEAM_NAV_ALONG = 0.5;
-const TEAM_NAV_ACROSS = 0.35;
 
 /** The local feed lines (the client gets none: no host-to-client feed message, R2-PATHS "Open"). */
 export const FEED_UNBOLTED = 'Unbolted - open the door for your partner';
@@ -143,7 +141,8 @@ export class SectorTeamDoors {
     const nav = this.host.nav;
     if (!door || !nav) return -1;
     const a = door.anchor;
-    const id = nav.addClosure(at[0], at[1], TEAM_NAV_ACROSS, (a.width + TEAM_NAV_ALONG) / 2, a.yaw, a.hinge.y);
+    // (merge E5) one closure size for every locked door: E5's pure helper (STAGE_NAV_*)
+    const id = addDoorClosure(nav, { cx: at[0], cz: at[1], yaw: a.yaw, width: a.width, y: a.hinge.y });
     nav.setClosed(id, true);
     return id;
   }
