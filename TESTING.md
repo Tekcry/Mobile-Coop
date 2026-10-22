@@ -326,6 +326,17 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Touch screen, main menu: tap Settings, tap Back; in a match drag on the view to look round (she does not move),
   the pause button appears top centre, tap it, tap Resume; press a key: the button hides.
 
+### Guard tuning (marlow-bays item 24)
+- [ ] Anim Studio, Body tab: Who = Guard. A guard stands where Wren stood (she is hidden), idle; the what-row shows
+  Who, then the guard state; the rows read "Right elbow bend" and the like.
+- [ ] Loop list: Guard: patrol walk, run, aim, crouched aim, wall cover: each plays on the spot; the guard state list
+  follows (walk, run, aim, crouched, wall cover). Pause and Speed work; the highlight dot sits on the guard.
+- [ ] Patrol walk, a Guard joints elbow slider: the guard's elbow turns. Who = Wren, walk: her elbow is as before.
+- [ ] Stepping tab, Who = Guard: Foot lift on the walk lifts the guard's feet; Weight tab, Who = Guard, patrol walk:
+  Hip drop per step dips the guard's hips at each step (the lean and spring sliders need real travel: a match).
+- [ ] A Hands & feet tab with Who = Guard shows "Wren's sliders: guards have ..." over her rows.
+- [ ] Export with guard rows, Import it back: the guard values return. A Warehouse match: guards patrol with the tune.
+
 ### Key tools and the exact preview (marlow-bays item 30)
 - [ ] Anim Studio, Keys tab, jog key 2: open "Key tools", Wave, Channel "Chest turn", Amount 8, "Fill keys": the chest
   turns side to side over the run (the other half mirrored); Undo once takes all of it back.

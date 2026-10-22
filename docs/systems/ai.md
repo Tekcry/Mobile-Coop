@@ -92,6 +92,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   cone, `onDroneSpot`, `empAt`), officer buffs (2 Hz), the alarm runner weighted to officers, `joinSquad` +
   `radioCheckNow` (period `ARCHETYPE.radio`, stealth only), radio delays x reaction x officer.
 - Which archetypes stay is settled by the CT co-op research (G1, G49).
+- (marlow-bays item 24) Every guard rig (`buildEnemyRig`: the host's guards and the co-op client's puppets) reads its
+  tuned base table (`anim/animBaseGuard.ts`) plus the tuner's guard rows (`anim/tuneGuard.ts`; `rig.guardRows`), never
+  Wren's; the brain reads only the posed rig (the head is the eye), as before. Untuned: bit-identical.
 - Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView`; `bark` event ->
   `sfx.radio()` for radio lines.
 

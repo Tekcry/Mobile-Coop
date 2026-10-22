@@ -16,6 +16,7 @@ import { bakeCatalogue, bakeDiff, bakeFmt, bakeTable, editValue, locate, tuneBak
 import { BAKE_CATALOGUE_MODULES, BAKE_LEDGER, BAKE_MANUAL, BAKE_OTHER_SECTION_FILES, BAKE_RULES, DECLARED_SECTIONS, type BakeRule } from '../src/anim/tuneBakeTable';
 import { readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
 import { BAKE_BASE_FILE, BAKE_BASE_SECTIONS } from '../src/anim/tuneBakeBase';
+import { BAKE_GUARD_FILE, BAKE_GUARD_SECTIONS } from '../src/anim/tuneBakeGuard';
 
 const ROOT = path.join(__dirname, '..');
 const real = (p: string): string => readFileSync(path.join(ROOT, p), 'utf8');
@@ -52,7 +53,7 @@ const dirs: string[] = [];
 function tempTree(): { dir: string; read: (p: string) => string | null; write: (r: BakeResult) => void } {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'anim-bake-'));
   dirs.push(dir);
-  for (const f of [...TABLE_FILES, BAKE_BASE_FILE, 'scripts/anim-keys/keys/walk.json']) {
+  for (const f of [...TABLE_FILES, BAKE_BASE_FILE, BAKE_GUARD_FILE, 'scripts/anim-keys/keys/walk.json']) {
     mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     cpSync(path.join(ROOT, f), path.join(dir, f));
   }
@@ -112,7 +113,8 @@ describe('anim-bake table', () => {
           const r = BAKE_RULES.some((x) => x.section === s.id && x.id === t.id && x.groups.includes(g));
           const m = BAKE_MANUAL.filter((x) => x.section === s.id && (x.id === t.id || x.id === '*') && (x.groups ? x.groups.includes(g) : !r));
           // (anim-joints J1) Joints, Hands & feet, IK and Weapon bake into the base table (no rule; joint.options manual)
-          const base = BAKE_BASE_SECTIONS.includes(s.id) && !r && m.length === 0;
+          // (item 24, track A) the guard sections bake into the guard base table the same way
+          const base = (BAKE_BASE_SECTIONS.includes(s.id) || BAKE_GUARD_SECTIONS.includes(s.id)) && !r && m.length === 0;
           expect(r || m.length > 0 || base, `${s.id} ${t.id} ${g}`).toBe(true);
           if (BAKE_BASE_SECTIONS.includes(s.id)) expect(r, `${s.id} ${t.id} ${g}: a base table section has no code rule`).toBe(false);
           if (r) expect(BAKE_MANUAL.some((x) => x.section === s.id && x.id === t.id && x.groups?.includes(g)), `${s.id} ${t.id} ${g}: rule and manual`).toBe(false);
