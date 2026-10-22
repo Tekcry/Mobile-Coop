@@ -7,3 +7,4 @@ kind: minor
 - Sector Ops restart: a section restart also puts the lights (switched off, shot out, jammed) and the doors back as they
   were when the section began.
 - Camera limit: 12 cameras live per Sector section (was 12 per map), at most 16 per map.
+- Sector Ops co-op: the host's lights (switched circuits, shot lamps; jams as before) now match on the client's screen, light meter and guard reads; a client can shoot lamps out through the host (protocol 31, slice L).

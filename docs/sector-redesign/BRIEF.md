@@ -167,3 +167,7 @@ Lead, M12 chokes (2026-10-23, after the clear; A52-A59 are left for the slice L 
 - A63 Each choke gets an e2e / unit assert: with the posted guard's view cone (at post, at rest facing) marked as a
   nav blocker, no nav route joins the section entry to its objective (K4) or exit door (K1-K3); without the blocker
   the route exists. Undo: drop the assert.
+- A52 (slice L) Sector co-op lamp jams keep riding `sector.sec.dv` (protocol 26); the new `lamps` message carries only
+  the base state (switched off, shot out), so a jam is never sent twice. A client's lamp shot is host-authoritative (no
+  local prediction: dark after about a round trip) and travels as a `shot` at `lt-<id>`, not a new message. Lights past
+  registry id 1023 are not synced (`LAMP_MAX`). Undo: add jam timers to `lamps`, predict the shot, raise `LAMP_MAX`.

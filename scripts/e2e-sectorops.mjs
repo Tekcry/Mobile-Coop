@@ -649,6 +649,24 @@ console.log('sector ops: co-op client mirrors the live section');
     await GA(() => { window.__ctdev.__forceJam = ''; });
     await until(A, () => window.__ctdev.debug().lasers.find((l) => l.id === 'laser-workshop').on, null, 10000, 'after the reboot the workshop band is back (host)');
     await until(B, () => window.__ctdev.debug().lasers.find((l) => l.id === 'laser-workshop').on, null, 10000, 'after the reboot the workshop band is back (client)');
+    // (sector-redesign slice L, protocol 31) light state: the host throws a wall switch; that circuit's lamps go dark on
+    // the client too (the `lamps` message), and both pages' light fields read the same level under a lamp (the meter
+    // and the guards read that field); switched back on, they come back on the client
+    const sw = await GA(() => {
+      const g = window.__app.current;
+      const it = g.interactables.items.find((x) => x.id === 'switch-0');
+      const grp = g.world.layout.switches[0].group;
+      const l = g.world.level.lights.lights.find((q) => q.group === grp && q.kind !== 'flashlight');
+      it.onUse(it, 'local');
+      return { id: l.id, x: l.x, y: l.y, z: l.z, on: l.on };
+    });
+    assert(sw.on === false, 'the host switch puts its circuit out (host)');
+    await until(B, (id) => { const l = window.__app.current.world.level.lights.lights[id]; return !l.on && !l.destroyed; }, sw.id, 8000, 'the host-switched lamp is dark on the client');
+    const lvl = (P) => P.evaluate((p) => window.__app.current.world.lightField.levelAt(p.x, p.y - 2, p.z), sw);
+    const [la, lb] = [await lvl(A), await lvl(B)];
+    assert(Math.abs(la - lb) < 1e-3, `the light under the switched lamp agrees on both pages (host ${la}, client ${lb})`);
+    await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'switch-0'); it.onUse(it, 'local'); });
+    await until(B, (id) => window.__app.current.world.level.lights.lights[id].on, sw.id, 8000, 'switched back on, the lamp is lit on the client');
     const locks = () => GA(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
     const lk0 = await locks();
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk0, 15000, 'the client mirrors the locked doors');
