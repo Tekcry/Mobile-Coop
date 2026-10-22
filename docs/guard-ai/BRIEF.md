@@ -89,5 +89,9 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
 - **A12** A lured posted guard looks toward the lure for at least 5 s at his leash edge (sweep <= +-0.6 rad, so he
   faces away from the choke) before walking back; Course Ready's K4 solo clear (two single takedowns) relies on it.
   Undo: the post look time in the `POST` table (tell Course Ready).
+- **A13** (S3) Loud alerts (a hit, gunfire close by, the end of a flashbang, spawned alerted) take the same voice shout
+  and 2.5 s contact call as a sighting, instead of the old instant 22 m fan-out: taking out a guard who was just shot
+  at also stops his call. Undo: in `Enemy.onLevel` (src/ai/enemy.ts, the `netOn` branch) route `loudAlert || gunfire`
+  to an immediate `radioCall` completion (hold 0).
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.
