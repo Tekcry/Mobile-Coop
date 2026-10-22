@@ -455,7 +455,7 @@ export class StealthSystems {
     this.g.events.emit('lightSwitch', { on: sw.on });
     if (!sw.on) {
       // the room going dark is noticed; someone comes to look at the switch
-      this.em.lightsOut(sw.it.pos.x, sw.it.pos.z);
+      this.em.lightsOut(sw.it.pos.x, sw.it.pos.z, sw.it.pos.y);
     }
   }
 

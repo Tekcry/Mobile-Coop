@@ -24,6 +24,8 @@ import { HEARING, ambientDb, effectiveReach, hearTier, pickNearest, wallMatters,
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
 export const MAX_ALIVE = 12;
+/** (sector-redesign) A wall switch going dark sends a guard from its own floor only (feet within this many m of it). */
+export const LIGHTS_OUT_FLOOR = 2;
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
@@ -281,12 +283,15 @@ export class EnemyManager {
   }
 
   /** Lights went out at a point: the nearest calm enemy comes to look (with a flashlight in the dark), others
-   *  nearby turn to look. */
-  lightsOut(x: number, z: number): void {
+   *  nearby turn to look. `y` (a wall switch: the floor it stands on) limits the one who comes to look to that floor
+   *  (`LIGHTS_OUT_FLOOR`): a guard two storeys up over an atrium is not sent to a ground-floor switch. */
+  lightsOut(x: number, z: number, y = Number.NaN): void {
     let best: Enemy | null = null;
     let bd = 25;
+    const floor = !Number.isNaN(y);
     for (const e of this.enemies) {
       if (!e.alive || e.alerted || e.def.melee) continue;
+      if (floor && Math.abs(e.pos.y - y) > LIGHTS_OUT_FLOOR) continue;
       const d = hyp2(e.pos.x - x, e.pos.z - z);
       if (d < bd) {
         bd = d;
