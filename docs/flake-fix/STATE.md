@@ -10,6 +10,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   JOBS=5). Results in C:/NightShift/scratch/runs/<label>/ (summary.txt DONE; the suite log), load
   runs/load-stress-0067b5f5.csv. FIRST THING on resume: read those three and tell the orchestrator. Any failure that
   passes solo is a load miss to fix (tests only, never a weaker limit); if all green, open the load-audit PR.
+- ALSO SCHEDULED (ns-chain-1022ap, started 00:49): polls origin/train/15 (#159 mocap-trial on 4.63.1) every 30 s for
+  up to 90 min; when it appears it stops the stress chain ao and its burner, runs train15-<sha> (build + full, GPU,
+  JOBS=5, 4189, load runs/load-train15.csv), then the stress remainder on 0067b5f5 (loadstress2b-0067b5f5 with a 4-core
+  burner, then loadaudit-full-0067b5f5) unless ao finished them. FIRST on resume: send train 15's per-suite verdict to
+  the orchestrator (runs/train15-*/summary.txt + full.log). Stress pass 1 (loadstress1-0067b5f5) was GREEN: 9 suites at
+  JOBS=5 + burner, CPU avg 52%, every fixed check passed (crash report, coop grab, move 2.88 m/s, mouse look, ctcourse
+  lamp / laser windows).
 - LOAD-AUDIT branch (worktree C:/NightShift/Mobile-Coop-load-audit), 7 commits on master af56ab43:
   4da742ce / 777a056e / 2746f123 (context-level 120 s navigation default, smoke's own context, 60 s menu waits on the
   crash-log page; fresh checker PASS WITH NOTES, applied), 7d4dbc5f (crash step waits for the 'crash' event and closes
