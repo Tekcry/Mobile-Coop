@@ -25,6 +25,10 @@ export const VAULT_LAND_CROUCH = 0.3;
 /** Landing roll: furthest it travels (m) and the least room it needs to be worth playing (m). */
 const ROLL_LENGTH = 1.6;
 const ROLL_MIN = 0.6;
+/** (anim-n4b fix) Room kept clear past a roll's end (m, to a wall 0.45 m up): the grounded shoulder roll's dive puts the
+ *  head ~0.8 m ahead of the feet late in the roll (animation `rollBody`; was 0.4 for the old tight somersault: the head
+ *  went 30 cm into the wall after the vent drop, e2e-clip 'duct crawl + vent'). */
+export const ROLL_CLEAR = 0.9;
 
 /** Committed duration at an entry speed: in stride the move takes about as long as covering it. */
 export function traverseDuration(kind: keyof typeof TRAVERSE_TIME, speed: number, length: number): number {
@@ -323,6 +327,9 @@ export class TraversalController {
       this.path(k);
       pose.traverse = this.throughWindow ? 'windowVault' : this.kind;
       pose.traverseT = k;
+      // (anim-n4b) the move's geometry for the mantle's hand plant (animation only)
+      pose.traverseH = this.top - this.from.y;
+      pose.traverseD = hyp2(this.to.x - this.from.x, this.to.z - this.from.z);
       c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' || this.ctRoll };
       if (k >= 1) {
         const inStride = this.speed0 >= 1;
@@ -497,8 +504,8 @@ export class TraversalController {
       dz /= sp;
     }
     const full = forward ? CT.rollLength : ROLL_LENGTH;
-    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (full + 0.4), c.pos.y + 0.45, c.pos.z + dz * (full + 0.4)));
-    const len = hit === null ? full : Math.min(full, hit - 0.4);
+    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (full + ROLL_CLEAR), c.pos.y + 0.45, c.pos.z + dz * (full + ROLL_CLEAR)));
+    const len = hit === null ? full : Math.min(full, hit - ROLL_CLEAR);
     if (len < ROLL_MIN) return false;
     this.kind = 'roll';
     this.throughWindow = false;

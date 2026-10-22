@@ -1018,6 +1018,10 @@ export class AttachController {
     // (G4) onto a ladder from its top: a mantle backwards (crouched at the rim through the turn, then lowered over it)
     const topIn = m.phase === 'enter' && m.entry === 'top' && a.kind === 'ladder' && k < 0.85;
     pose.traverse = climbOut ? (m.exitReason === 'climb' || ladderTop ? 'climbUp' : 'mantle') : crawlOut ? 'crawlOut' : topIn ? 'mantle' : this.ventDrop > 0 && m.phase === 'exit' ? (k < VENT_LOWER_K ? 'ventDrop' : 'drop') : fam;
+    // (anim-n4b fix) an attach mantle has no measured move (0: the nominal block, not a traversal's stale values); the
+    // backward one onto a ladder's top has no hand plant (-1: its sink put the legs 30 cm through the rim)
+    pose.traverseH = topIn ? -1 : 0;
+    pose.traverseD = 0;
     const fenceClimb = a.kind === 'fence' && fam === 'climb';
     pose.traverseT = ladderTop
       ? k * CLIMB_UP_CROUCH_K

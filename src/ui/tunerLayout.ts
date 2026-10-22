@@ -28,6 +28,7 @@ const SECTION_TAB: Readonly<Record<string, string>> = {
   joint: 'body',
   ik: 'body',
   trav: 'body',
+  cq: 'body', // (anim-n4, track A) Holds and carries
   hand: 'hands',
   gun: 'weapon',
   weapon: 'weapon',

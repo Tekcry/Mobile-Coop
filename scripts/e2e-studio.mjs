@@ -452,7 +452,10 @@ try {
   assert(!!bodyPick, `the boost pair's role B picks a Body row (${bodySeen.map(([t, r]) => `${t}: ${r}`).join(', ')})`);
   const [bodyT, bodyRow] = bodyPick;
   await G((v) => window.__studio.seek(v), bodyT);
-  await frames(page, 6);
+  // (N4b train-8 fix) paused, a joint still turns at most its rate x 1/240 s a frame (characterRig limitJoint: ~5 deg for
+  // the arms), so after a scrub the puppet takes up to ~30 frames to arrive; read the pose before the rows once it has,
+  // as the reads after them (30 frames each)
+  await frames(page, 30);
   const bodyBaked = await G((row) => window.__animBase.get().body?.[row] ?? {}, bodyRow);
   const bp0 = await bodyPup();
   for (const [id, v] of BODY_SET) await G(([row, i, x]) => window.__animBase.setBody(row, i, x), [bodyRow, id, v]);
@@ -757,6 +760,8 @@ try {
   await G(() => window.__studio.keyed(false));
   await frames(page, 8);
   await panel();
+  // (N4b train-8 fix) the same 250 ms panel refresh as the keyed wait above, the other way
+  await page.waitForFunction(() => window.__animTune.effect().mode === 'procedural', null, { timeout: 3000 }).catch(() => {});
   const ke2 = await G(() => window.__animTune.effect());
   assert(ke2.mode === 'procedural', `cleared: the procedural mode (${ke2.mode})`);
   const k2 = await G(() => window.__studio.keyedState());

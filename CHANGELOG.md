@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.62.0 - Train 12: Co-op holders, mantle drop roll and brace, holds that breathe, co-op offer test fix (2026-10-23, PR #160; #119, #158)
+
+### anim-natural N4b (track A: co-op holders, traversal, holds)
+- Co-op team moves: the partner who helps is no longer a statue. Leg-up: cupped hands take her foot, he dips, then drives
+  up with legs and arms while she pushes off his hands. Throw: he loads and throws with his whole body. Hang-down: his
+  hands hold her ankles, leaning back or bending over the edge with the depth. Rope: both hands on the rope, leaning
+  back against her weight. Animation only (no timing, position or protocol change).
+- Mantle: both hands plant on the top edge and she presses over them. Drops: a step off with the arms up for balance, the
+  legs ahead in the air, and a landing that bends more for a longer drop. Roll: a grounded shoulder roll instead of an
+  airborne somersault (slower hands, the slung rifle swings far less). Split brace: hands braced on the walls instead of
+  arms straight out.
+- Holding a guard still: she braces, breathes and shifts her weight against him (the trunk no longer stays at 0 deg).
+  Animation tuner (Holds and carries): brace, brace roll and breath sliders; they bake. Anim Studio: the hold walks
+  travel with planted feet instead of sliding on the spot.
+- (PR fix) Letting go of a ladder, a drainpipe or a hang, the legs stay under her in the fall (the legs-ahead air pose is
+  for walking off a ledge or a jump; off a ladder it went into the wall). The split brace's breath runs from the moment
+  she braces, so the partner's copy breathes in step with her.
+- (PR fix 2) Stepping onto a ladder from its top no longer sinks her legs 30 cm through the rim (the mantle's hand plant
+  is off for that backward climb-on). A landing or forward roll needs 0.9 m clear past its end (was 0.4): the shoulder
+  roll's dive put her head 30 cm into the wall after the vent drop; with less room she lands without the roll.
+- (Train 8 fix) A co-op holder's braced pose (boost, throw, hang-down, rope) no longer counts as a hostage hold: the hold
+  Body rows and the hold camera stay off it, as before the team pose. In the Anim Studio, a paused scrub of a team pair
+  shows that phase's team pose at once (it kept the weight it was paused at).
+
+### Coop offer under load
+- Tests: e2e-coop's client takedown holds under load. The host keeps the picked guard pinned (calm, still, the client
+  unspotted) on every frame until the takedown starts, and the client starts it in the frame its offer comes up
+  within 6 s of its own match clock (was 40 polls 150 ms apart in real time, which a loaded page spent in a fraction
+  of that game time). The assert is unchanged.
+
 ## 4.61.0 - Train 8: Wren's body moves with the gait, feet in turns, Sector Ops strip-light fog fix (2026-10-22, PR #157; #138, #156)
 
 ### Wren's feet in turns (anim-natural N1)
