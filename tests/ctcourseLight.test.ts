@@ -9,7 +9,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_CEIL, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_HALL, S3_PANEL_X, S3_SEC_POST, S3_SEC_ROOM, S5_PANEL } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_CEIL, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_CAMERA_AIM, S3_HALL, S3_PANEL_X, S3_SEC_POST, S3_SEC_ROOM, S5_PANEL } from '../src/world/maps/ctcourse';
 import { cameraRate, newMeter, stepCamMeter } from '../src/security/camera';
 import { sightRate } from '../src/ai/perception';
 import { SENSITIVITY } from '../src/ai/alertState';
@@ -281,7 +281,8 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
     expect(s3.length).toBe(5);
     for (const l of s3) expect(l.electric && l.destructible).toBe(true);
     for (const l of s3) reg.setOn(l.id, false);
-    const blind = (S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2);
+    // (sector-fixes C) the frame's lower edge is half the field below the camera's pitch (aimed at the hallway floor)
+    const blind = (S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2 + Math.atan2(S3_CAMERA.y, S3_CAMERA_AIM));
     let darkest = 1;
     // `guard`: the same walk scored by the lamps (what a guard / the old camera saw), to show the dark is real
     const caughtAt = (speed: number, crouched: boolean, guard: boolean): number => {
