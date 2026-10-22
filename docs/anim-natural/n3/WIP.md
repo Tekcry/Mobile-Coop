@@ -187,3 +187,12 @@ import, presets, the baked reset and the bake, with literal 4.53.0 records in tu
   (`docs/anim-natural/audit/`). The audit's "stall" flag on the draws (0.08-0.22 s at 0.15-0.27 s) is the gun resting
   in its slot while the hand reaches for it, not a stop; after the grab the gun moves in one arc to low ready (rifle
   settled by ~1.0 s). Polish for Michael's look: the rifle's X draw swings the muzzle past vertical (0.67-0.83 s).
+
+## Train 5 e2e-clip (2026-10-22 ~17:30)
+Train 5's full run failed e2e-clip "sling draw + glide": the gun went through the legs (min -4.0 cm) and the trunk
+(-8.0 cm). Cause in the test: it pressed LT 0.8 s into the (now 1.0 s) holster and glided 1.0 s into the (now 1.5 s) LT
+sling draw. Fix (scripts only): wait 1.8 s after the holster and 1.7 s after LT, so the scenario measures what it names.
+**Polish for Michael's walk (real, not hidden by the fix):** pressing LT while the gun is still going back to its slot
+reverses it into the sling draw, and on the way the gun passes through her trunk (up to ~8 cm) and legs (~4 cm) - the
+same family as the checker's "X / LT mid-rewind pops". Fix later: a holster interrupted by LT should rewind like an
+interrupted draw (the reverse path), not start the sling draw from the part-seated gun.
