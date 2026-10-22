@@ -16,10 +16,10 @@ Rerun (desktop GPU, port 4192, after `npm run build`): `E2E_GPU=1 E2E_PORT=4192 
 | walk | walk 1.4 m/s straight, one cycle | [side](walk-side.png) [front](walk-front.png) [34](walk-34.png) | [webm](walk.webm) | 8cb4d26c | 244 / 14923 px |
 | jog | jog 2.5 m/s straight, one cycle | [side](jog-side.png) [front](jog-front.png) [34](jog-34.png) | [webm](jog.webm) | 8cb4d26c | 244 / 13061 px |
 | run | run 4.0 m/s straight, one cycle | [side](run-side.png) [front](run-front.png) [34](run-34.png) | [webm](run.webm) | 8cb4d26c | 243 / 15756 px |
-| turn90walk | 90 deg turn right at a walk (1.4 m/s; stick swung 90 deg at t = 0) | [side](turn90walk-side.png) [front](turn90walk-front.png) [34](turn90walk-34.png) | [webm](turn90walk.webm) | 8cb4d26c | 232 / 12834 px |
-| turn90jog | 90 deg turn right at a jog (2.5 m/s; stick swung 90 deg at t = 0) | [side](turn90jog-side.png) [front](turn90jog-front.png) [34](turn90jog-34.png) | [webm](turn90jog.webm) | 8cb4d26c | 244 / 16342 px |
-| turn180walk | 180 deg turn at a walk (1.4 m/s; stick reversed at t = 0) | [side](turn180walk-side.png) [front](turn180walk-front.png) [34](turn180walk-34.png) | [webm](turn180walk.webm) | 8cb4d26c | 246 / 15013 px |
-| start | start from standing to a walk (stick to 1.4 m/s at t = 0) | [side](start-side.png) [front](start-front.png) [34](start-34.png) | [webm](start.webm) | 8cb4d26c | 238 / 13598 px |
+| turn90walk | 90 deg turn right at a walk (1.4 m/s; stick swung 90 deg at t = 0) | [side](turn90walk-side.png) [front](turn90walk-front.png) [34](turn90walk-34.png) | [webm](turn90walk.webm) | f027fc98 | 232 / 12295 px |
+| turn90jog | 90 deg turn right at a jog (2.5 m/s; stick swung 90 deg at t = 0) | [side](turn90jog-side.png) [front](turn90jog-front.png) [34](turn90jog-34.png) | [webm](turn90jog.webm) | f027fc98 | 244 / 16338 px |
+| turn180walk | 180 deg turn at a walk (1.4 m/s; stick reversed at t = 0) | [side](turn180walk-side.png) [front](turn180walk-front.png) [34](turn180walk-34.png) | [webm](turn180walk.webm) | f027fc98 | 246 / 15013 px |
+| start | start from standing to a walk (stick to 1.4 m/s at t = 0) | [side](start-side.png) [front](start-front.png) [34](start-34.png) | [webm](start.webm) | f027fc98 | 238 / 13442 px |
 | stop | stop from a walk (1.4 m/s; stick released at t = 0) | [side](stop-side.png) [front](stop-front.png) [34](stop-34.png) | [webm](stop.webm) | 8cb4d26c | 239 / 13764 px |
 
 ## Capture vs old limit (for Michael to judge by eye)
@@ -42,5 +42,5 @@ mocap=1 run (max `mc`).
 - turn90walk: window 1.50 s, 10 sheet frames, 46 video frames; mc max 1.00, clip feet on; worst pixel diff 232 (side t 0.30s)
 - turn90jog: window 1.20 s, 10 sheet frames, 37 video frames; mc max 1.00, clip feet on; worst pixel diff 244 (front t 1.00s)
 - turn180walk: window 1.80 s, 10 sheet frames, 55 video frames; mc max 1.00, clip feet on; worst pixel diff 246 (front t 1.03s)
-- start: window 1.20 s, 10 sheet frames, 37 video frames; mc max 1.00, clip feet on; worst pixel diff 238 (front t 0.63s)
+- start: window 1.20 s, 10 sheet frames, 37 video frames; mc max 1.00, clip feet on; worst pixel diff 238 (front t 0.67s)
 - stop: window 1.40 s, 10 sheet frames, 43 video frames; mc max 1.00, clip feet on; worst pixel diff 239 (front t 0.03s)
