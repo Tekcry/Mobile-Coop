@@ -1,7 +1,7 @@
 /**
  * (anim-joints J1, COVERAGE gap 1) The animation base table: GENERATED. `scripts/anim-tune-bake.mjs` (logic
  * `src/anim/tuneBakeBase.ts`) rewrites the JSON between the `@anim-base-begin` / `@anim-base-end` lines when it bakes
- * Joints, Hands & feet, IK strength, Weapon or (anim-gear) Gear values (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
+ * Joints, Hands & feet, IK strength, Weapon, (anim-gear) Gear or (anim-bake-targets) Body values (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
  *
  * Every Wren rig (`CharacterRig.tuneRows`) reads it: the tuner's Joints / Hands & feet / IK / Weapon values are deltas on
  * it (`tuneJoints.ts`, `tuneHands.ts`: joints add degrees per axis, offsets add, gun scale and IK strength multiply, the
@@ -22,6 +22,13 @@ export interface AnimBaseData {
    * without it has every socket at 0 (the bake prints the key only when a row has an offset).
    */
   gear?: Record<string, Record<string, number>>;
+  /**
+   * (anim-bake-targets, BT-A1 / A3) Body base values: row (a Body group id: `idle`, `walk`, `lowReady`, ...) -> param (a
+   * Body slider id, `tune.ts` BODY_BASE_FIELDS) -> value; a mul slider's value multiplies, an add slider's adds, and the
+   * tuner's Body values compose on top. Every Wren rig reads its own row (`tuneJointsRig.ts`), guards never. Optional:
+   * printed only when a row is set.
+   */
+  body?: Record<string, Record<string, number>>;
 }
 
 export const ANIM_BASE: AnimBaseData =
@@ -34,7 +41,14 @@ export const ANIM_BASE: AnimBaseData =
     "walk": { "upperArmL": [0, 0, -4], "upperArmR": [0, 0, 4] }
   },
   "hands": {},
-  "ik": {}
+  "ik": {},
+  "body": {
+    "idle": { "elbowOutAdd": 0.03, "trackMul": 0.05 },
+    "jog": { "armSwingMul": 1.7, "elbowOutAdd": 0.03, "trackMul": 0.05 },
+    "lowReady": { "elbowPoleMul": 2.25 },
+    "run": { "armSwingMul": 1.6, "kneeLiftMul": 1.55, "trackMul": 0.05 },
+    "walk": { "elbowOutAdd": 0.03, "trackMul": 0.05 }
+  }
 }
 // @anim-base-end
 ;
