@@ -1,6 +1,18 @@
 # Guard AI - state
 
 ## Now
+SAVED ~10:30 (98% window). Top items for the resume:
+- Chain 'bodies': PASSED on the S8 tip 54627243 (laptop), FAILED on ae1f1895 -> timing-sensitive. s7 head 8094c5b1 =
+  WIP diagnostic logs ("DBG bodies": who found the body, levels) in e2e-stealth-ai; laptop run requested (stealth-ai
+  2x + sectorops all; verdict to Guard AI Build and, if possible, a comment on PR #196). From the DBG lines: make the
+  scenario deterministic (or fix the game if the finder truly never searches), REMOVE the DBG logs, push, then the
+  chain tip laptop GPU run -> one train-ready message. The chain fix agent's own diagnosis, if it handed back, is in
+  slices/S7.md "Chain fix (bodies)" (else lost: redo from the DBG output).
+- S8 tip 54627243 laptop run: 8/9 (sectorops:1 = the old posts site bug, fixed on s7); stealth-ai, ct-warehouse,
+  wall, takedown, sectorops 2-5 PASS.
+- Built and checked, not yet merged: S8 (check PASS), S5b (PASS), S6 (PASS); S10 built (no checker yet). Merge
+  must-dos below. Stealth over shooting planner: "Next".
+
 RESUMED (~09:40, new account; session Night Shift | Guard AI Build [4656d4]). Orchestrator: train 21 = #191 S3 on
 4.69.0; S4 -> S5 -> S7 enter train 22 together once their PRs are open and the chain tip's E2E_GPU=1 pass is green;
 S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
