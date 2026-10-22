@@ -29,9 +29,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
   there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
 - [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is a fitting
-  on its ceiling (dome on a rod, batten on hangers), its wall (caged bulkhead) or a roof mast: none floats or pokes
-  through a ceiling; a lamp switched off or shot goes dark on its lens. The roof's open strips are pale corrugated
+  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
+  fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
+  a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
+  on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes
+  through a ceiling; a lamp switched off or shot goes dark on its diffuser. The roof's open strips are pale corrugated
   sheets (moonlight still comes through); the walls carry pipes, trays, signs and fire points, trusses span the roof,
   and the halls' dead corners hold pallets, drums and cartons, none on a route or patrol.
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
@@ -79,7 +81,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   (over the shoulder), let go and it drops to low ready; LT from holstered draws straight to the aim, slower (the rifle
   comes off the sling round the right side, muzzle down under the arm, then up into the shoulder). Aiming, strafe both
   ways and back up: short side-steps, the feet never cross or splay, the gun steady (anim-rework S3).
-  RT fires only while aiming; holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
+  RT fires only while aiming (each shot kicks her hands and chest a little, settled in 0.3 s; aimed into a wall up close
+  the gun tips muzzle-down and comes back up when you step off, no stall); holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
   Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
   things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming
   alone does not jam, and RB not aiming the pistol is still the co-op action.
@@ -104,6 +107,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
   holster) before the next comes out; no gun passes through the head, chest or legs.
+- [ ] Draws and holsters (anim-natural N3): X draws the rifle in about 1.1 s, the pistol in 0.75 s, in one smooth move
+  with no stop or flick; X again holsters slower (1.0 / 0.9 s). Tap X twice fast, or vault mid-draw: the gun goes back
+  the way it came, no snap into the slot. RT while holstering: the holster hurries and the strike follows.
 - [ ] Reload (hold X with the gun out; A no longer reloads): the magazine comes out in the support hand, goes to its pouch (rifle chest, pistol left hip) and a fresh
   one goes in; on an empty gun she works the charging handle / racks the slide. Swapping mid-reload leaves no magazine in
   the hand.
@@ -149,7 +155,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
 - [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
   "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
-  twice as slow and it cannot fire until it is up. Holster, swap (LB), grenade throw and Every clip speed change their
+  twice as slow and it cannot fire until it is up. Rifle / Pistol holster (one row each), swap (LB), grenade throw and Every clip speed change their
   clip the same way; Start / Stop / Landing speed change the start-off shift, stop settle and landing dip. All at 1:
   exactly as before. Export, bake (`--only clip`), reset: same timing.
 - [ ] Animation tuner Camera (tuner-camera): the Camera section's picker follows explore / crouched / low ready / aim
@@ -202,6 +208,18 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   run; at low ready the elbows sit out and the rifle tuck is lighter, the pistol elbows untucked.
 - [ ] Co-op: the partner shows the same track, swing and elbows. Guards look as before.
 
+### Every slider bakes, also those with no code value (anim-bake-all)
+- [ ] Tune one slider in each of Camera (FOV on explore, zoom on rifle aim), Gun (rifle aim gun up), Speed (aimed glide
+  forward), Stepping (walk stride middle), Weight (walk chest damping), Body (walk step length, then jog at another
+  value) and a co-op or traversal move (vault body fwd). Export, run `node scripts/anim-tune-bake.mjs <export> --dry-run`:
+  every row "baked" or "baked (base table)", 0 manual; the walk and jog step lengths are two rows
+  (`sections.body.walk.strideMul`, `sections.body.jog.strideMul`).
+- [ ] After the real run and a reload (the tuner resets those sliders), each state looks and moves as it did tuned: the
+  wider / narrower FOV while exploring, the rifle aim's zoom and gun height, the faster glide (gameplay), the step length
+  at walk and jog apart. Hold the bypass: the baked values stay (they are the code defaults now).
+- [ ] Co-op: the partner and the guards look as before (none of these act on other rigs, Stepping excepted: every foot
+  planner reads it, as in the tuner).
+
 ### Wren's hands and joints (anim-skeleton S1+S2)
 - [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
   the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.
@@ -249,6 +267,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   grid never shows inside an airlock. Jam a hallway lamp: it flickers off, stays off 4 s after you let go, flickers on.
   Run the hallway without a jam: the camera catches you and you are put back at the hallway's start (radio line); the
   airlock door stays locked until both got through under a jam.
+- [ ] Cameras and lasers (sector-fixes C): in Sector Ops and Marlow Yard station 3 each camera points down at the floor
+  in front of it; its red grid is faint (thin lines) and covers only that patch, never far walls or the ceiling, and it
+  catches you only there. Lasers are invisible until night vision (not in thermal or electro); walking through one
+  raises the alarm stage (banner, radio) and costs no health.
 - [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
   10 HP.
 - [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the

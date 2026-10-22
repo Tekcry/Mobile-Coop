@@ -29,7 +29,12 @@ Format: `N. Item - destination - status`.
     player's hit volumes follow the rig (`src/game/playerTarget.ts:101-119`), and `src/ai/body.ts:96-124` reads the
     pose too. An animation change can move what a guard sees or where a shot lands. No change made; review whether these
     should read the gameplay root (controller position, crouch, lean) instead. Destination: unscheduled.
-29. **Tuner sliders that do not bake yet (rule: every slider the tuner shows must bake; anim-bake-targets, 2026-10-22).**
+29. **DONE (anim-bake-all, 2026-10-22): every tuner slider bakes.** The sliders below bake into the base table's generic
+    `sections` key (`docs/anim-tuner/BAKE.md`, "The generic table"), strideMul per moving state; a shared target whose
+    groups differ bakes per state; BAKE_MANUAL holds the Joints mirror lock only. Still open (a later job): the remote
+    partner reading the move sections (it needs the role on the wire), and the Body root offsets on the partner and
+    puppets (BAKE.md, Body base, "Open"). The list as it was:
+    **Tuner sliders that do not bake yet (rule: every slider the tuner shows must bake; anim-bake-targets, 2026-10-22).**
     The bake reports these "manual" (`src/anim/tuneBakeTable.ts` BAKE_MANUAL; `docs/anim-tuner/BAKE.md`). Each needs
     a code target (usually a per-state default every rig reads). Destination: unscheduled (a later bake-targets job).
     - Body strideMul: one shared target (MOVEMENT step lengths); bakes only when all 13 moving states agree, otherwise
@@ -49,6 +54,12 @@ Format: `N. Item - destination - status`.
       antJump, camLag, camDip (no code value: the layer's amount is the slider; needs a per-state default table).
     - Co-op moves (team_boost, team_relay, team_throw, team_hang, team_rope, team_revive) and Traversal (trav, every
       slider): visual offsets on the local rig only, no code value; needs per-move base offsets every rig reads.
+30. **Baked lamps can miss a material made in the same frame one is disposed (possible real bug, gpu-tests
+    2026-10-22).** `BakedLamps.frame` (`src/world/bakedLamps.ts`) attaches the lamp plugin to new materials only when
+    `scene.materials.length` changes, so an add and a dispose in one frame leave the new material unlit by the baked
+    lamps (a light parity break). Not seen in a run: found while fixing e2e-lightbake's GPU-only timing failure. Fix:
+    track a material-added flag (the scene's new-material event, read next frame) instead of the count. Destination:
+    unscheduled (the light parity work).
 
 ## Flaky e2e suites
 

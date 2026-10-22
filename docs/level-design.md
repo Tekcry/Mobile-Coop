@@ -384,6 +384,8 @@ The standard changes only with Michael's approval, so these rules stand as writt
 1. Section 11 "Solo first", 11.2 "Solo invariance", 11.4 "anyone can leave alone" and the solo ghost run in 15 assume a
    level complete in solo; the campaign is two players and cannot be completed solo (G2, G50, G111), and campaign maps
    follow the CT co-op level research (G3, G117).
+   Michael 2026-10-22: "Co-op only" wins: these solo rules do not bind campaign maps; section 11 is rewritten for
+   two players when the campaign spec resumes.
 2. 3.6 "Guards do not look up": the engine has no vertical sight limit today (12.1); the decision is "guards see poorly
    above them" (G44), a limit, not blindness.
 3. 11.5 "Unplanned boost targets": two-player boosts work only at marked spots (G81), so an unmarked lip cannot be a

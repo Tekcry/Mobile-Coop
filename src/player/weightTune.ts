@@ -30,11 +30,12 @@ export const WEIGHT_LAYERS = new WeightLayers();
 
 /**
  * Before the local player's motion step: the momentum values of its group (`crouched`, a weapon `drawn`, `speed` the
- * larger of the wanted and the current pace). `weightSimEnd` after it. The bypass reads identity. No allocation.
+ * larger of the wanted and the current pace). `weightSimEnd` after it. (anim-bake-all) The effective values: the base
+ * table's `sections.weight` composed with the tuner's; the bypass reads the base alone (identity untuned). No allocation.
  */
 export function weightSim(crouched: boolean, drawn: boolean, speed: number): void {
-  if (TUNE_FLAGS.bypass) weightMoveLoad(null);
-  else weightMoveLoad(WEIGHT_SECTION.values[weightGroupFor(crouched, drawn, speed)] ?? null);
+  const g = weightGroupFor(crouched, drawn, speed);
+  weightMoveLoad((TUNE_FLAGS.bypass ? WEIGHT_SECTION.base[g] : WEIGHT_SECTION.eff[g]) ?? null);
 }
 
 export function weightSimEnd(): void {

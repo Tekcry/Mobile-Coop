@@ -13,6 +13,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   Code: (CT prototype G2, footage wins, AUDIT-AIM rows 1 / 2 / 7) rifle 0.3 s draw with the raise running from the press
   (about 0.55 s to settled, muzzle up at the shoulder, no chest hold), pistol 0.5 s, holster 0.15 s (CT instant), carry
   lower 0.2 s. Recoil (row 11): no visible flip (weapon flip 0.02 rad per kick, rifle recoilPitch 0.6, no shot shake).
+  (anim-n3b) Wren's body takes a per-shot kick (`anim/recoil.ts`, visual only: the camera and the aim do not move): rifle
+  about 3 cm back at the hands, 1.1 deg muzzle rise, 1.5 deg chest; pistol 1.8 cm up, 3.6 deg flip; settled in 0.3 s.
+  Tuner: Gun `recoilMul`. Guards keep the CT prototype G2 values.
 - Decided, not built yet (G104): normal aiming has no zoom; the marksman (sniper) attachment's scope has hold breath.
 - Decided, not built yet (G105): loadouts are Stealth / Assault / Recommended. Code: Silent / Flash / Loud.
 - Decided and built (G16): no aim assist on any input. The pad's aim assist code and its `gamepad.aimAssist` setting are
@@ -29,8 +32,10 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 - Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
 - HUD rules: `docs/systems/ui.md`.
 - Holstered unless aiming (step 09, G21): `weapons/drawState.ts` (pure) holds the draw phase (0 holstered, 1 drawing, 2
-  drawn, 3 holstering; `DRAW_TIME_SIDEARM` 0.3 s, `DRAW_TIME_PRIMARY` 0.4 s, `HOLSTER_TIME` 0.4 s; a release mid-draw
-  reverses from the current progress). Aim pressed draws, released holsters, in every alert state. `PlayerWeapons` drives
+  drawn, 3 holstering; `DRAW_TIME_SIDEARM` 0.75 s, `DRAW_TIME_PRIMARY` 1.1 s, `HOLSTER_TIME_SIDEARM` 0.9 s,
+  `HOLSTER_TIME_PRIMARY` 1.0 s, a traversal or busy move `HOLSTER_TIME_MOVE` 0.15 s (anim-natural N3, real-world times in
+  docs/anim-natural/n3/DRAW-TIMES.md; scaled by the tuner's Clip speed); a release mid-draw rewinds the draw from the
+  current progress). Aim pressed draws, released holsters, in every alert state. `PlayerWeapons` drives
   the stow path from it (weapon-to-weapon swaps keep `SWAP_TIME` 0.9; RB swaps while aiming; a swap while holstered only
   changes the selection). A match starts holstered. Attached stow and the one-handed sidearm (split, rappel, inverted pipe,
   hostage) win over aim. Grenades and gadgets work holstered.

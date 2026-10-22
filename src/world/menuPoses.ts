@@ -49,7 +49,7 @@ export interface MenuPoseExtra {
 export function menuPoseInput(): RigPose {
   return {
     speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0.05, kick: 0, carry: { low: 1, high: 0, compressed: 0 }, weight: 1, armed: true,
-    wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallFace: 0, lean: 0, lookYaw: 0, lookPitch: 0, reload: -1, check: -1,
+    wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallFace: 0, lean: 0, lookYaw: 0, lookPitch: 0, reload: -1,
   };
 }
 

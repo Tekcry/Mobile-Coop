@@ -198,17 +198,21 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
   },
 ];
 
-/** The cameras, by section (`section`: live only while that section is). */
+/**
+ * The cameras, by section (`section`: live only while that section is). (sector-fixes C, item 3) Each pitches down to the
+ * floor point `aim` m in front of its mount and sees `range` m: a patch of floor and route in front of it, not the
+ * ceiling or the far walls.
+ */
 export const WAREHOUSE_OPS_SECURITY: SecurityData = {
   levels: { ground: 0, mezz: 3.3 },
   devices: [
-    { id: 'cam-yard', kind: 'camera', level: 'ground', at: [-8.4, -18.35], y: 3.5, facing: 180, sweep: [140, 220], reason: 'Section 1: the entrance and the shutters from the facade', section: 0 },
-    { id: 'cam-bay', kind: 'camera', level: 'ground', at: [-23.6, -9.4], y: 2.8, facing: 135, sweep: [110, 165], reason: 'Section 1: the west lane and the crawl landing in the bay', section: 0 },
-    { id: 'cam-rack-sw', kind: 'camera', level: 'ground', at: [-23.6, -5.6], y: 2.8, facing: 15, sweep: [0, 40], reason: 'Section 2: up the west aisle', section: 1 },
-    { id: 'cam-rack-ne', kind: 'camera', level: 'ground', at: [-4.4, 17.6], y: 2.8, facing: 255, sweep: [235, 285], reason: 'Section 2: the north gangway to the office door', section: 1 },
-    { id: 'cam-floor', kind: 'camera', level: 'ground', at: [23.6, 1.2], y: 3.5, facing: 260, sweep: [230, 290], reason: 'Section 3: the east bay and the plant room doors', section: 2 },
-    { id: 'cam-stairs', kind: 'camera', level: 'ground', at: [23.6, 11.6], y: 2.6, facing: 225, sweep: [200, 250], reason: 'Section 3: the stair and the parts store front', section: 2 },
-    { id: 'cam-mezz', kind: 'camera', level: 'mezz', at: [-3.6, 17.6], y: 2.4, facing: 100, sweep: [80, 120], reason: 'Section 3: along the mezzanine deck from its west end', section: 2 },
+    { id: 'cam-yard', kind: 'camera', level: 'ground', at: [-8.4, -18.35], y: 3.5, aim: 5, range: 10, facing: 180, sweep: [140, 220], reason: 'Section 1: the entrance and the shutters from the facade', section: 0 },
+    { id: 'cam-bay', kind: 'camera', level: 'ground', at: [-23.6, -9.4], y: 2.8, aim: 6, range: 12, facing: 135, sweep: [110, 165], reason: 'Section 1: the west lane and the crawl landing in the bay', section: 0 },
+    { id: 'cam-rack-sw', kind: 'camera', level: 'ground', at: [-23.6, -5.6], y: 2.8, aim: 6, range: 12, facing: 15, sweep: [0, 40], reason: 'Section 2: up the west aisle', section: 1 },
+    { id: 'cam-rack-ne', kind: 'camera', level: 'ground', at: [-4.4, 17.6], y: 2.8, aim: 6, range: 12, facing: 255, sweep: [235, 285], reason: 'Section 2: the north gangway to the office door', section: 1 },
+    { id: 'cam-floor', kind: 'camera', level: 'ground', at: [23.6, 1.2], y: 3.5, aim: 7, range: 14, facing: 260, sweep: [230, 290], reason: 'Section 3: the east bay and the plant room doors', section: 2 },
+    { id: 'cam-stairs', kind: 'camera', level: 'ground', at: [23.6, 11.6], y: 2.6, aim: 6, range: 12, facing: 225, sweep: [200, 250], reason: 'Section 3: the stair and the parts store front', section: 2 },
+    { id: 'cam-mezz', kind: 'camera', level: 'mezz', at: [-3.6, 17.6], y: 2.4, aim: 6, range: 12, facing: 100, sweep: [80, 120], reason: 'Section 3: along the mezzanine deck from its west end', section: 2 },
   ],
 };
 

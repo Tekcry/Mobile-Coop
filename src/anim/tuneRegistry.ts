@@ -7,10 +7,18 @@
  * Group ids are global (the save and the export key values by group id), so they must be unique across sections; a
  * slider id is unique within its section. Defaults are identity (a `mul` 1, an `add` 0).
  *
- * Hot paths read a section's preallocated objects: `values[group][field]`, or `cur[field]` after `tuneSectionLoad`
+ * Hot paths read a section's preallocated objects: `eff[group][field]`, or `cur[field]` after `tuneSectionLoad`
  * (a copy loop, no allocation). The API is documented in `docs/anim-tuner/STATE.md` ("Section registry").
+ *
+ * (anim-bake-all, BA-A1) `values` holds the tuner's own values (the panel, the save and the export: deltas). `base` holds
+ * the generated base table's `sections` key for the section (`animBase.ts`; identity where unset), and `eff` the two
+ * composed (a mul slider multiplies, an add slider adds): what every consumer reads. `eff` is rebuilt on an edit, a load,
+ * an import or a base load, never per frame. With no base value `eff` equals `values` exactly (1 x v, 0 + v). The bypass
+ * reads `base` (the code defaults, as every baked constant).
  */
-import { migrateTuneChanged, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
+import { ANIM_BASE } from './animBase';
+import { aliasTuneChanged, aliasTuneValues, migrateTuneChanged, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
+import { isRemovedTuneGroup } from './tuneMoveRows';
 
 export interface TuneTunable {
   id: string;
@@ -27,7 +35,7 @@ export interface TuneTunable {
 }
 
 /**
- * (pass 2) Registry-wide switches: `bypass` (held: every section reads identity, the untuned animation and camera);
+ * (pass 2) Registry-wide switches: `bypass` (held: every section reads its base, the untuned animation and camera: identity, or (anim-bake-all) the baked generic values);
  * `wide` (every slider's range doubled around its default). Never saved.
  */
 export const TUNE_FLAGS = { bypass: false, wide: false };
@@ -66,8 +74,12 @@ export interface TuneSection<V extends Record<string, number> = Record<string, n
   readonly tunables: readonly TuneTunable[];
   readonly select: ((state: Readonly<TuneStateBag>) => string | null) | null;
   readonly notes: ((group: string, id: string) => readonly string[]) | null;
-  /** The live values per group (every field of the section in each, preallocated). */
+  /** The tuner's values per group (every field of the section in each, preallocated): the panel, save and export. */
   readonly values: Record<string, V>;
+  /** (anim-bake-all) The base table's values per group (`ANIM_BASE.sections[id]`; identity where unset). */
+  readonly base: Record<string, V>;
+  /** (anim-bake-all) The effective values per group: `base` composed with `values` (mul x, add +). Consumers read these. */
+  readonly eff: Record<string, V>;
   /** The current values a hot path reads (`tuneSectionLoad`, or the section's own step). */
   readonly cur: V;
   /** The defaults (never written). */
@@ -106,7 +118,13 @@ export function registerTuneSection<V extends Record<string, number> = Record<st
     return o as V;
   };
   const values = {} as Record<string, V>;
-  for (const g of def.groups) values[g] = defaults();
+  const base = {} as Record<string, V>;
+  const eff = {} as Record<string, V>;
+  for (const g of def.groups) {
+    values[g] = defaults();
+    base[g] = defaults();
+    eff[g] = defaults();
+  }
   const sec: TuneSection<V> = {
     id: def.id,
     label: def.label,
@@ -116,6 +134,8 @@ export function registerTuneSection<V extends Record<string, number> = Record<st
     select: def.select ?? null,
     notes: def.notes ?? null,
     values,
+    base,
+    eff,
     cur: def.cur ?? defaults(),
     identity: Object.freeze(defaults()),
     keys,
@@ -135,13 +155,124 @@ export function registerTuneSection<V extends Record<string, number> = Record<st
     }
     delete pending[g];
   }
+  // (anim-bake-all) the base table's values for this section (a table loaded before it registered), then eff
+  baseFill(sec as unknown as TuneSection);
+  effAll(sec as unknown as TuneSection);
   TUNE_REGISTRY_HOOKS.added?.(sec as unknown as TuneSection);
   return sec;
 }
 
-/** Copy a group's values (null, or the bypass held: the defaults) into the section's `cur`. No allocation. */
+// ------------------------------------------------------------------------------------------
+// (anim-bake-all, BA-A1) The base table's `sections` key: section id -> group -> slider id -> value
+// ------------------------------------------------------------------------------------------
+
+/** The generic base table: section id -> group -> slider id -> value (mul multiplies, add adds). */
+export type TuneBaseSections = Record<string, Record<string, Record<string, number>>>;
+
+const copyTable = (t: Readonly<TuneBaseSections> | undefined): TuneBaseSections => {
+  const out: TuneBaseSections = {};
+  for (const [s, rows] of Object.entries(t ?? {})) {
+    if (unsafeKey(s) || !rows || typeof rows !== 'object') continue;
+    const o: Record<string, Record<string, number>> = {};
+    for (const [g, row] of Object.entries(rows)) {
+      if (unsafeKey(g) || !row || typeof row !== 'object') continue;
+      const r: Record<string, number> = {};
+      for (const [id, v] of Object.entries(row)) if (!unsafeKey(id)) r[id] = v;
+      o[g] = r;
+    }
+    out[s] = o;
+  }
+  return out;
+};
+/** The table in use (the generated `ANIM_BASE.sections` at start; `tuneBaseLoad` replaces it). */
+let BASE_TABLE: TuneBaseSections = copyTable(ANIM_BASE.sections);
+/** Told after a base load (tables that compose the base themselves, `tuneStep.ts`, rebuild). */
+export const TUNE_BASE_HOOKS: (() => void)[] = [];
+
+/** A slider's base value from the table (undefined: none). Not hot (a load). */
+export function tuneBaseValue(section: string, group: string, id: string): number | undefined {
+  const v = BASE_TABLE[section]?.[group]?.[id];
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
+/** The table in use (a copy). */
+export function tuneBaseNow(): TuneBaseSections {
+  return copyTable(BASE_TABLE);
+}
+
+/** A slider whose default is its op's identity (mul 1, add 0): only these take a base value. */
+const identityDef = (t: TuneTunable): boolean => t.def === (t.kind === 'mul' ? 1 : 0);
+
+/**
+ * A section's `base` from the table: the effective value at the tuner's default (what the bypass reads; the slider's
+ * default where unset, and always for a slider whose default is not its op's identity, the Keys Mirror box, which takes
+ * no base value). Returns the names it skipped (`<section>.<group>.<id>`).
+ */
+function baseFill(sec: TuneSection): string[] {
+  const skipped: string[] = [];
+  for (const g of sec.groups) {
+    const b = sec.base[g] as Record<string, number>;
+    for (const t of sec.tunables) b[t.id] = t.def;
+  }
+  for (const [g, row] of Object.entries(BASE_TABLE[sec.id] ?? {})) {
+    for (const [id, v] of Object.entries(row)) {
+      if (OWNER.get(g) !== sec || !hasTunable(g, id) || !identityDef(sec.byId.get(id)!) || typeof v !== 'number' || !Number.isFinite(v)) {
+        skipped.push(`${sec.id}.${g}.${id}`);
+        continue;
+      }
+      (sec.base[g] as Record<string, number>)[id] = v;
+    }
+  }
+  return skipped;
+}
+
+/** A slider's effective value from its base and the tuner's value (a slider with a non-identity default: the tuner's). */
+function effOf(t: TuneTunable, b: number, v: number): number {
+  return identityDef(t) ? tuneCompose(t.kind, b, v) : v;
+}
+
+/** Compose a base value with a tuner value (mul multiplies, add adds); the bake composes the same way. */
+export function tuneCompose(kind: 'mul' | 'add', base: number, v: number): number {
+  return kind === 'mul' ? base * v : base + v;
+}
+
+/** One group's `eff` from its `base` and `values`. Not hot (an edit or a load). */
+function effGroup(sec: TuneSection, g: string): void {
+  const b = sec.base[g] as Record<string, number> | undefined;
+  const v = sec.values[g] as Record<string, number> | undefined;
+  const e = sec.eff[g] as Record<string, number> | undefined;
+  if (!b || !v || !e) return;
+  for (const t of sec.tunables) e[t.id] = effOf(t, b[t.id]!, v[t.id]!);
+}
+
+function effAll(sec: TuneSection): void {
+  for (const g of sec.groups) effGroup(sec, g);
+}
+
+/**
+ * Load a base table's `sections` key (the dev hook `__animBase`, tests): every registered section's `base` and `eff`
+ * rebuilt; a section that registers later picks it up. Returns the names it skipped (an unknown group or slider of a
+ * registered section). Not hot.
+ */
+export function tuneBaseLoad(t: Readonly<TuneBaseSections> | undefined): string[] {
+  BASE_TABLE = copyTable(t);
+  const skipped: string[] = [];
+  for (const s of TUNE_SECTIONS) {
+    skipped.push(...baseFill(s));
+    effAll(s);
+  }
+  for (const h of TUNE_BASE_HOOKS) h();
+  return skipped;
+}
+
+/** An effective value (base composed with the tuner's), NaN when not a slider of that group. */
+export function tuneEffGet(group: string, id: string): number {
+  return (OWNER.get(group)?.eff[group] as Record<string, number> | undefined)?.[id] ?? Number.NaN;
+}
+
+/** Copy a group's effective values (null: the defaults; the bypass held: its base) into the section's `cur`. No allocation. */
 export function tuneSectionLoad(sec: TuneSection, group: string | null): void {
-  const src = group && !TUNE_FLAGS.bypass ? sec.values[group] : undefined;
+  const src = group ? (TUNE_FLAGS.bypass ? sec.base[group] : sec.eff[group]) : undefined;
   const from = (src ?? sec.identity) as Record<string, number>;
   const cur = sec.cur as Record<string, number>;
   const keys = sec.keys;
@@ -152,13 +283,13 @@ export function tuneSectionLoad(sec: TuneSection, group: string | null): void {
 }
 
 /**
- * (pass 2) Ease the section's `cur` toward a group's values (null, or the bypass held: the defaults) with its `tau`
- * over `dt` s (`tau` 0, `dt` 0 or the bypass: at once). A value equal to its target is never touched, and a value
- * within 1e-6 of it lands on it exactly, so identity stays bit-exact. No allocation.
+ * (pass 2) Ease the section's `cur` toward a group's effective values (null: the defaults; the bypass held: its base)
+ * with its `tau` over `dt` s (`tau` 0, `dt` 0 or the bypass: at once). A value equal to its target is never touched, and
+ * a value within 1e-6 of it lands on it exactly, so identity stays bit-exact. No allocation.
  */
 export function tuneSectionEase(sec: TuneSection, group: string | null, dt: number): void {
   const by = TUNE_FLAGS.bypass;
-  const src = group && !by ? sec.values[group] : undefined;
+  const src = group ? (by ? sec.base[group] : sec.eff[group]) : undefined;
   const to = (src ?? sec.identity) as Record<string, number>;
   const cur = sec.cur as Record<string, number>;
   const k = sec.tau > 0 && dt > 0 && !by ? 1 - Math.exp(-dt / sec.tau) : 1;
@@ -268,6 +399,8 @@ export function tuneSet(group: string, id: string, value: number, now = Date.now
   const from = vals[id]!;
   if (v === from) return true;
   vals[id] = v;
+  // (anim-bake-all) the effective value follows
+  (sec.eff[group] as Record<string, number>)[id] = effOf(t, (sec.base[group] as Record<string, number>)[id]!, v);
   const last = TUNE_LOG[TUNE_LOG.length - 1];
   if (last && last.group === group && last.id === id && now - lastLogAt < LOG_MERGE_MS) last.to = v;
   else {
@@ -397,9 +530,10 @@ export function tuneLoad(s: unknown): void {
     pending = Object.create(null) as Record<string, Record<string, number>>;
     // (marlow-bays T1a) a save from before the own rows of the shared states: each new row takes its old row's values
     const raw = snap.values && typeof snap.values === 'object' ? snap.values : {};
-    const saved = snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw);
+    const saved = aliasTuneValues(snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw)); // (anim-natural N3) split sliders
     for (const [g, vals] of Object.entries(saved)) {
-      if (unsafeKey(g)) continue;
+      // (anim-n3b) a deleted move's rows (the dash-in slide) are dropped, not kept for a section that never registers
+      if (unsafeKey(g) || isRemovedTuneGroup(g)) continue;
       if (!vals || typeof vals !== 'object') continue;
       const sec = OWNER.get(g);
       if (!sec) {
@@ -419,6 +553,7 @@ export function tuneLoad(s: unknown): void {
     bakedApplied = Array.isArray(snap.baked) ? (snap.baked as unknown[]).filter((h): h is string => typeof h === 'string') : [];
   } finally {
     TUNE_HOOKS.changed = hook;
+    for (const sec of TUNE_SECTIONS) effAll(sec); // (anim-bake-all) the effective values follow the load
   }
 }
 
@@ -463,10 +598,10 @@ export function tuneImport(data: unknown, name = 'import', now = Date.now()): Tu
     pending = Object.create(null) as Record<string, Record<string, number>>;
     // (marlow-bays T1a) an export from before the own rows: each new row takes its old row's values
     const list = (e.changed as unknown[]).filter((c): c is { group: string } => !!c && typeof c === 'object' && typeof (c as { group?: unknown }).group === 'string');
-    for (const c of e.version === 1 ? migrateTuneChanged(list) : list) {
+    for (const c of aliasTuneChanged(e.version === 1 ? migrateTuneChanged(list) : list)) { // (anim-natural N3) split sliders
       const { group, id, value } = c as Partial<TuneValue>;
       if (typeof group !== 'string' || typeof id !== 'string' || typeof value !== 'number' || !Number.isFinite(value)) continue;
-      if (unsafeKey(group) || unsafeKey(id)) continue;
+      if (unsafeKey(group) || unsafeKey(id) || isRemovedTuneGroup(group)) continue;
       const sec = OWNER.get(group);
       if (!sec) {
         (pending[group] ??= {})[id] = value;
@@ -482,6 +617,7 @@ export function tuneImport(data: unknown, name = 'import', now = Date.now()): Tu
     lastLogAt = 0;
   } finally {
     TUNE_HOOKS.changed = hook;
+    for (const sec of TUNE_SECTIONS) effAll(sec); // (anim-bake-all) the effective values follow the import
   }
   res.ok = true;
   TUNE_HOOKS.changed?.();

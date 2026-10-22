@@ -3,6 +3,7 @@ import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import type { MapLayout } from '../mapDef';
 import { makeCone } from '../lights';
+import { addLampRooms, EXIT_GREEN, passLamps, type LampRoom } from './lampRooms';
 
 /**
  * Sector Ops section 1 of the Warehouse (warehouse-redesign step 4, `docs/warehouse-redesign/SPEC.md` 2.1 and 5): the
@@ -44,45 +45,55 @@ export const S1_ROOMS: RoomDef[] = [
   { id: 'workshop', name: 'Workshop', minX: 8, maxX: 24, minZ: -18, maxZ: -8.8 },
 ].map((r) => ({ ...r, squad: [] }));
 
+const FLOOD = makeCone(0, -1, -0.25, 0.7);
+/** The hall strips' beam optic (a 90 degree LED high-bay beam). */
+const HALL = makeCone(0, -1, 0, Math.PI / 4);
+/** A wall bulkhead's forward-down beam (35 degrees out from straight down, 55 degree half angle): facing -z (the facade, the walkway). */
+const WALL_S = makeCone(0, -0.819, -0.574, 0.96);
+// <lamps:S1>
 /**
- * Section 1's lamp pass (warehouse-s23, Michael M1: "I cant see properly at night"): added fixtures so the key routes and
- * the objective areas read without night vision. Real lamps in the registry (baked, light parity); the dark pockets (the
- * spawn corner, the lane behind the trailer, the smoker's shelter, the east corridor end, the skip and the charger
- * corner) get none. Same circuits as the lamps already there. `tests/warehouseS1Light.test.ts` pins the levels.
- * [x, y, z, radius, intensity, group, colour].
+ * Section 1's lamps by room (sector-fixes L, Michael 2026-10-22: one height and a regular layout per room, nothing on the
+ * roof or on a climbing pipe, LED fittings; the levels of warehouse-s23 M1 kept: `tests/warehouseS1Light.test.ts`). The
+ * hall (the goods-in bay, the lobby-block roof, the plant deck and the workshop share the 5.8 roof): LED strips 0.22 under
+ * it in grids over the bays (the bay and workshop with a 45 degree beam); the rooms: LED panels flush under their
+ * ceilings; the facade: two floods at 5.0 over the shutters and door bulkheads at 3.0 (the drainpipe's 1.0 m east of the
+ * pipe), on 0.3 m brackets with a forward-down beam; the crane walkway: bulkheads at 5.0 on the wall over it; no lamp on
+ * the roof (it reads by the moon). Radius and intensity per fitting are tuned against the light tests' bands (sector-fixes
+ * L); dead fittings (intensity 0) keep the grids regular over the dark pockets. [x, z, radius, intensity].
  */
-export type S1Lamp = readonly [x: number, y: number, z: number, radius: number, intensity: number, group: number, colour?: readonly [number, number, number]];
-export const S1_LIGHT_PASS: readonly S1Lamp[] = [
-  // goods-in bay (circuit 30): a high-bay over the east lane and the wrapper, the reception door
-  [-11.65, 5.05, -11.2, 7, 0.785, 30],
-  [-9.8, 3.2, -16, 4, 0.345, 30],
-  // fire lobby C2 (circuit 31): the ceiling panel (the exit sign is gone: the column cap)
-  [-13.3, 2.75, -7.4, 4, 0.868, 31],
-  // lobby-block roof space under the main roof (the storage, the smoke vent)
-  [-17.8, 5.3, -7.6, 6.5, 0.878, 31],
-  // reception and the corridor's west end
-  [-6.3, 2.85, -15.4, 4.5, 0.568, 33],
-  [-5.5, 2.65, -12.3, 4.5, 0.645, 32],
-  // the void's three openings (lamps up in the crawl, over h2, h1 and the catwalk opening)
-  [2.6, 4.5, -10, 2.4, 0.428, 35],
-  [-5.6, 4.5, -12.3, 2.4, 0.428, 32],
-  [7.4, 4.5, -9.15, 1.8, 0.738, 36],
-  // plant deck (over the south rooms, under the roof)
-  [6.2, 5.3, -15.2, 3.2, 0.895, 34],
-  // workshop pendants (circuit 36) under the crane runway, and two lamps over the catwalk
-  [11.5, 4, -12.5, 5.5, 0.492, 36],
-  [17.5, 4, -12.5, 6, 0.565, 36],
-  [22.8, 4, -11.6, 5, 0.601, 36],
-  [10.4, 5.1, -9.7, 4.2, 0.845, 36],
-  [14.6, 5.1, -9.7, 4.2, 0.453, 36],
-  [18.8, 5.1, -9.7, 4.2, 0.472, 36],
-  [22.4, 5.1, -9.7, 4.2, 0.36, 36],
-  // outside: a wall lamp at the drainpipe, roof masts at the pipe top, the hatch and the smoke vent
-  [-22.4, 3.2, -18.6, 3, 0.385, 20],
-  [-22.2, 7.3, -16.8, 4, 0.202, 20],
-  [5, 7.3, -14.2, 1.9, 0.593, 20],
-  [-19.6, 7.3, -10.4, 3, 0.445, 20],
+export const S1_LAMPS: readonly LampRoom[] = [
+  // the facade (z -18, south face -18.15): the floods over shutters W and E (5.0), the drainpipe, entrance and workshop door lamps (3.0)
+  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: true, lamps: [[-19, -18.45, 5.09, 0.418]] },
+  { id: 'facade', model: 'bulkhead', y: 5.0, group: 20, yaw: PI, cone: FLOOD, colour: [0.85, 0.9, 1], pass: false, lamps: [[-11, -18.45, 7.5, 0]] },
+  { id: 'facadeDoor', model: 'bulkhead', y: 3.0, group: 20, yaw: PI, cone: WALL_S, pass: true, lamps: [[-21.4, -18.45, 2.27, 1.315]] },
+  { id: 'facadeDoor', model: 'bulkhead', y: 3.0, group: 20, yaw: PI, cone: WALL_S, pass: false, lamps: [[-5, -18.45, 5.59, 0.261], [11, -18.45, 5.97, 0.197]] },
+  // the gatehouse door lamp (its north wall, z -22.6)
+  { id: 'gatehouse', model: 'bulkhead', y: 2.3, group: 20, yaw: 0, pass: false, lamps: [[11.25, -22.3, 5.76, 0.242]] },
+  // the hall: the goods-in bay (circuit 30), the lobby-block roof (31), the plant deck (34), the workshop (36)
+  { id: 'bay', model: 'strip', y: 5.58, group: 30, yaw: 0, cone: HALL, pass: true, lamps: [[-22, -15.4, 7.02, 0.7], [-18, -15.4, 6.78, 0.7], [-14, -15.4, 5.51, 0.852], [-10, -15.4, 5.05, 1.022], [-22, -11.6, 5.4, 0.7], [-18, -11.6, 4.8, 0.7], [-14, -11.6, 5.55, 1.345], [-10, -11.6, 8.8, 0.579]] },
+  { id: 'lobbyRoof', model: 'strip', y: 5.58, group: 31, yaw: 0, pass: true, lamps: [[-22, -7.4, 6.09, 0.567], [-17, -7.4, 6.49, 0.608], [-12, -7.4, 1.5, 0.4], [-7, -7.4, 3.5, 0]] },
+  { id: 'plantDeck', model: 'strip', y: 5.58, group: 34, yaw: 0, pass: true, lamps: [[-5, -14.6, 3.5, 0], [-1, -14.6, 3.5, 0], [3, -14.6, 5.19, 0.976], [7, -14.6, 1.5, 0.726]] },
+  // the crane walkway (y 3 along the z -8.8 wall's south face): LED bulkheads at 5.0 on brackets, one every 7 m
+  { id: 'walkway', model: 'bulkhead', y: 5.0, group: 36, yaw: PI, cone: WALL_S, pass: true, lamps: [[8.6, -9.25, 2.12, 0.365], [15.6, -9.25, 2.31, 0.303], [22.6, -9.25, 2.5, 0.349]] },
+  { id: 'workshop', model: 'strip', y: 5.58, group: 36, yaw: 0, cone: HALL, pass: true, lamps: [[10.7, -15.8, 5.51, 0.967], [16, -15.8, 6.7, 0.921], [21.3, -15.8, 7.5, 0.921], [10.7, -11.8, 5.43, 0.921], [16, -11.8, 6.83, 1.376], [21.3, -11.8, 6.3, 1.182]] },
+  // the lobby block (ceiling 3.0): the goods-in office, the fire lobby C2; the charging bay's sign on the z -6 wall
+  { id: 'goodsInOffice', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: false, lamps: [[-20.25, -7.4, 4, 0]] },
+  { id: 'lobby', model: 'panel', y: 2.95, group: 31, yaw: 0, pass: true, lamps: [[-15.5, -7.4, 4, 0], [-13.5, -7.4, 5.65, 0.626]] },
+  { id: 'charging', model: 'bulkhead', y: 2.4, group: 31, yaw: PI, colour: EXIT_GREEN, pass: false, lamps: [[-10.2, -6.24, 0.6, 0.15]] },
+  // the office block: the south rooms (ceiling 3.0 under the plant deck), the corridor and the mess (2.8 under the void), the void (4.6)
+  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: true, lamps: [[-6.5, -15.9, 6.93, 0.496]] },
+  { id: 'reception', model: 'panel', y: 2.95, group: 33, yaw: 0, pass: false, lamps: [[-3.5, -15.9, 4.5, 0]] },
+  { id: 'security', model: 'panel', y: 2.95, group: 34, yaw: 0, pass: false, lamps: [[4.3, -15.9, 4.42, 0.706], [6.7, -15.9, 2.18, 0.45]] },
+  { id: 'corridor', model: 'panel', y: 2.75, group: 32, yaw: 0, pass: true, lamps: [[-6.8, -12.3, 3.46, 0.321], [-3.4, -12.3, 5.82, 0.411], [0, -12.3, 2.84, 0.314], [3.4, -12.3, 3.4, 0.664], [6.8, -12.3, 4, 0]] },
+  { id: 'mess', model: 'panel', y: 2.75, group: 35, yaw: 0, pass: false, lamps: [[4.5, -9.8, 4.14, 0.861]] },
+  { id: 'void', model: 'panel', y: 4.55, group: 32, yaw: 0, pass: true, lamps: [[-5.3, -12.3, 2.53, 0.513], [-1.1, -12.3, 2.8, 0], [3.1, -12.3, 2.8, 0], [7.3, -12.3, 2.8, 0], [-5.3, -10, 2.8, 0], [-1.1, -10, 2.8, 0], [3.1, -10, 2.89, 0.623], [7.3, -10, 2, 0.732]] },
+  // the workshop door's exit sign (the facade's inside face)
+  { id: 'workshop', model: 'bulkhead', y: 2.4, group: 36, yaw: 0, colour: EXIT_GREEN, pass: false, lamps: [[11, -17.76, 3.14, 0.06]] },
 ];
+
+/** The section's lamp pass (the light test switches these off to compare): the pass rooms' lit lamps. */
+export const S1_LIGHT_PASS = passLamps(S1_LAMPS);
+// </lamps:S1>
 
 /** Light switches (circuits 30, 32, 34: the bay lane, the corridor, the security office). */
 export const S1_SWITCHES: NonNullable<MapLayout['switches']> = [
@@ -381,23 +392,7 @@ export function buildServiceS1(b: LevelBuilder): void {
   b.box(10, 2.95, -10.9, 4, 0.14, 0.14, PIPE, 0, 0, false);
   b.box(5.0, 2.25, -17.9, 0.05, 0.3, 0.05, GLASS, 0, 0, false);
 
-  // ---- lights (groups 30 - 36 are the new circuits, 20 is outside)
-  const lamp = (x: number, y: number, z: number, radius: number, intensity: number, group: number, color: [number, number, number] = [1, 0.92, 0.75]): void => {
-    b.light({ kind: 'lamp', x, y, z, radius, intensity, color, group, fixture: { sx: 0.5, sy: 0.08, sz: 0.5, oy: 0.1 } });
-  };
-  lamp(-17.8, 5.05, -14.9, 8, 0.62, 30);
-  lamp(-20.2, 2.75, -7.4, 4, 0.8, 31);
-  lamp(-10.2, 2.75, -7.4, 3, 0.4, 31, [0.5, 1, 0.6]);
-  lamp(2.4, 2.65, -13.35, 6.2, 0.834, 32);
-  lamp(-5, 2.85, -14.4, 3, 0.17, 33);
-  lamp(4.8, 2.85, -15.8, 4.5, 0.75, 34, [0.55, 0.7, 1]);
-  lamp(5.55, 2.65, -10.25, 4, 1.36, 35);
-  lamp(11, 2.4, -17.6, 3, 0.4, 36, [0.5, 1, 0.6]);
-  b.light({ kind: 'spot', x: -11, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
-  b.light({ kind: 'lamp', x: -5, y: 2.6, z: -18.5, radius: 5, intensity: 0.33, color: [1, 0.92, 0.75], group: 20, fixture: { sx: 0.3, sy: 0.1, sz: 0.2, oy: 0.1 } });
-  b.light({ kind: 'lamp', x: 11, y: 2.6, z: -18.5, radius: 4, intensity: 0.28, color: [1, 0.92, 0.75], group: 20, fixture: { sx: 0.3, sy: 0.1, sz: 0.2, oy: 0.1 } });
-  b.light({ kind: 'lamp', x: 11.25, y: 2.45, z: -22.45, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
+  // ---- lights (sector-fixes L: by room, `S1_LAMPS`; circuit 20 outside, 30 - 36 inside)
   b.ambientZone(-8, 8, -13.8, -8.8, 0.05, 2.95, 4.65); // the void
-  b.light({ kind: 'spot', x: -19, y: 5.6, z: -18.6, radius: 5.2, intensity: 0.62, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } }); // the yard floodlight over shutter W (the crawl)
-  for (const [x, y, z, r, i, g, c] of S1_LIGHT_PASS) lamp(x, y, z, r, i, g, c ? [c[0], c[1], c[2]] : undefined);
+  addLampRooms(b, S1_LAMPS);
 }

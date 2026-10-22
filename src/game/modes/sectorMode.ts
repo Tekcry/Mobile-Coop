@@ -410,7 +410,7 @@ export class SectorMode implements GameMode {
     return true;
   }
 
-  /** A camera has someone at full awareness: `CtDevices` already raised its own stage and showed the banner. */
+  /** A camera has someone at full awareness, or a laser was broken (sector-fixes C): `CtDevices` already raised its own stage and showed the banner. */
   private cameraAlarm(): void {
     this.camAlarms++;
     const ct = this.ct;

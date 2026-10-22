@@ -191,10 +191,12 @@ const res = await page.evaluate(([only, log]) => {
     // strafing both ways and backing up, then low ready (LT let go) into a crouch and back up drawn
     'sling draw + glide': () => {
       tp(0, -14, Math.PI / 2);
+      // (anim-natural N3) the holster takes 1.0 s and the hand lets go over 0.4 s more; the LT sling draw takes 1.5 s:
+      // holstered before LT, drawn before the glide (the old 0.8 s / 1.0 s waits pressed LT mid-holster and glided mid-draw)
       p.stance.holster();
-      run(0.8);
+      run(1.8);
       st.set('t', 'ads', true);
-      const r = run(1.0);
+      const r = run(1.7);
       const parts = [run(1.2, () => move(1, 0)), run(1.2, () => move(-1, 0)), run(1.0, () => move(0, -1))];
       st.set('t', 'ads', false);
       move(0, 0);

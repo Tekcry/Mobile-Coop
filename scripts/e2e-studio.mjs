@@ -380,16 +380,20 @@ try {
   // reads it: drawTime x 0.9), a reset puts it back exactly
   const clipTab = await G(() => ({ tabs: window.__animTune.tabs(), rows: !!document.querySelector('.anim-tune-rows-clip') }));
   assert(clipTab.tabs.includes('sec:clip') && clipTab.rows, `the tuner panel lists the Clip speed section in its own tab (${clipTab.tabs.join(', ')})`);
-  const adsIn = () => G(() => window.__app.current.player.cam.adsInTime);
-  const draw0 = await adsIn();
-  await G(() => { window.__animTune.set('clip.gun', 'rifleDraw', 2); window.__animTune.set('clip.gun', 'pistolDraw', 2); });
+  // (anim-natural N3) the aim camera blends over AIM_IN from low ready now, so read the held gun's draw / holster times
+  // directly (PlayerWeapons.drawTime / deliberateHolster); the holster has a row per gun
+  const times = () => G(() => [window.__app.current.weapons.drawTime(), window.__app.current.weapons.deliberateHolster()]);
+  const SPD = ['rifleDraw', 'pistolDraw', 'holsterPrimary', 'holsterSidearm'];
+  const [draw0, hol0] = await times();
+  await G((ids) => { for (const id of ids) window.__animTune.set('clip.gun', id, 2); }, SPD);
   await frames(page, 4);
-  const draw1 = await adsIn();
-  assert(draw0 > 0 && Math.abs(draw1 - draw0 / 2) < 1e-9, `a draw speed of 2 halves the draw time (aim blend-in ${draw0.toFixed(3)} -> ${draw1.toFixed(3)} s)`);
-  await G(() => { window.__animTune.set('clip.gun', 'rifleDraw', 1); window.__animTune.set('clip.gun', 'pistolDraw', 1); });
+  const [draw1, hol1] = await times();
+  assert(draw0 > 0 && Math.abs(draw1 - draw0 / 2) < 1e-9, `a draw speed of 2 halves the draw time (${draw0.toFixed(3)} -> ${draw1.toFixed(3)} s)`);
+  assert(hol0 > 0 && Math.abs(hol1 - hol0 / 2) < 1e-9, `a holster speed of 2 halves the holster time (${hol0.toFixed(3)} -> ${hol1.toFixed(3)} s)`);
+  await G((ids) => { for (const id of ids) window.__animTune.set('clip.gun', id, 1); }, SPD);
   await frames(page, 4);
-  const draw2 = await adsIn();
-  assert(draw2 === draw0, `reset: the draw time is back exactly (${draw2} s)`);
+  const [draw2, hol2] = await times();
+  assert(draw2 === draw0 && hol2 === hol0, `reset: the draw and holster times are back exactly (${draw2} / ${hol2} s)`);
   // the pair puppet (role B of the boost)
   await G(() => window.__studio.pick('pair:boost'));
   await frames(page, 6);
@@ -722,6 +726,9 @@ try {
   // tunes with the walk's rows (it was idle: no speed), and the Body tab greys the sliders that do nothing in it
   await G(() => window.__animTune.tab('body'));
   await frames(page, 20);
+  // (gpu-tests) the panel re-reads the mode at most every 250 ms of wall time: on a hardware GPU 20 frames can pass
+  // before that, so wait for the keyed mode (a miss falls through to the assert below)
+  await page.waitForFunction(() => window.__animTune.effect().mode === 'keyed', null, { timeout: 3000 }).catch(() => {});
   const ke1 = await G(() => ({ st: { ...window.__animTune.state }, eff: window.__animTune.effect() }));
   const kb1 = ke1.eff.sections.find((s) => s.id === 'body');
   assert(ke1.st.body === 'walk' && ke1.st.joint === 'joint.walk' && ke1.st.ik === 'ik.walk', `keyed walk: her rig tunes with the walk (${ke1.st.body}, ${ke1.st.joint}, ${ke1.st.ik})`);

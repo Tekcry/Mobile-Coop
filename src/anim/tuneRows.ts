@@ -75,3 +75,41 @@ export function migrateTuneChanged<T extends { group: string }>(changed: readonl
   }
   return out;
 }
+
+/**
+ * (anim-natural N3) Sliders that were split into several: (group, old id, new ids). An old record's value goes to every
+ * new id that has no value of its own, at any record version (Michael's saved tuning and exports keep working). Applied
+ * by the registry's load and import, the presets, the baked-reset plan and the bake script.
+ * - Clip speed's single holster row (4.53.0) is one row per gun: rifle and pistol holster.
+ */
+export const ID_ALIASES: readonly (readonly [string, string, readonly string[]])[] = [['clip.gun', 'holster', ['holsterPrimary', 'holsterSidearm']]];
+
+/** A values map with the split sliders filled from their old id (a copy of each touched group; `values` is untouched). */
+export function aliasTuneValues<M extends Readonly<Record<string, Readonly<Record<string, number>>>>>(values: M): M {
+  let out: Record<string, Record<string, number>> | null = null;
+  for (const [g, old, ids] of ID_ALIASES) {
+    const v = (out ?? values)[g];
+    if (!v || typeof v !== 'object') continue;
+    const x = v[old];
+    if (typeof x !== 'number' || !Number.isFinite(x) || ids.every((n) => typeof v[n] === 'number')) continue;
+    out ??= { ...(values as Record<string, Record<string, number>>) };
+    const copy: Record<string, number> = { ...v };
+    for (const n of ids) if (typeof copy[n] !== 'number') copy[n] = x;
+    out[g] = copy;
+  }
+  return (out ?? values) as M;
+}
+
+/** An export's `changed` list with an entry per split slider added from its old id's entry (when it has none). */
+export function aliasTuneChanged<T>(changed: readonly T[]): T[] {
+  const out = changed.slice();
+  for (const [g, old, ids] of ID_ALIASES) {
+    const src = changed.find((c) => !!c && typeof c === 'object' && (c as { group?: unknown }).group === g && (c as { id?: unknown }).id === old);
+    if (!src) continue;
+    for (const n of ids) {
+      if (changed.some((c) => !!c && typeof c === 'object' && (c as { group?: unknown }).group === g && (c as { id?: unknown }).id === n)) continue;
+      out.push({ ...(src as object), id: n } as T);
+    }
+  }
+  return out;
+}

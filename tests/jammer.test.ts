@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ALARM_GAP,
   ALARM_MAX,
   DEV_IDLE,
   DEV_JAMMED,
@@ -13,6 +14,7 @@ import {
   JAM_LIGHT,
   LASER,
   advanceDevJam,
+  deviceAlarm,
   distToSegment,
   flickerLit,
   hallStep,
@@ -21,7 +23,6 @@ import {
   jamHudText,
   jamLeft,
   laserCooldown,
-  laserDamage,
   laserTouch,
   lightLit,
   MIRROR_STALE,
@@ -352,11 +353,12 @@ describe('laser touch', () => {
     expect(laserTouch({ ...def, floorY: 4.4 }, 10, 0, 7, LASER.standHeight)).toBe(false);
     expect(laserTouch({ ...def, floorY: 4.4 }, 10, 4.4, 7, LASER.standHeight)).toBe(true);
   });
-  it('a touch costs health but never ends the run', () => {
-    expect(laserDamage(100)).toBe(LASER.damage);
-    expect(laserDamage(10)).toBe(10 - LASER.floorHp);
-    expect(laserDamage(1)).toBe(0);
-    expect(laserDamage(0)).toBe(0);
+  it('(sector-fixes C, item 5) a break sets off the alarm on the camera path and has no damage numbers', () => {
+    expect('damage' in LASER).toBe(false);
+    expect('floorHp' in LASER).toBe(false);
+    expect(deviceAlarm(0, 99)).toBe(1);
+    expect(deviceAlarm(1, ALARM_GAP - 0.1)).toBe(-1);
+    expect(deviceAlarm(ALARM_MAX, 99)).toBe(ALARM_MAX);
   });
   it('the cooldown lands one touch per LASER.cooldown seconds', () => {
     const c = { t: 0 };
@@ -474,7 +476,8 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
 
   it('the camera sits at the hallway end, looking back down it, and covers it end to end at every sweep angle', async () => {
     const { m, b, lay } = await build();
-    const { inFrame } = await import('../src/security/camera');
+    // (sector-fixes C) with the camera's own pitch (aimed at the hallway floor) and range, as its detection reads them
+    const { camPitch, camRange, inFrame } = await import('../src/security/camera');
     const cam = lay.security!.devices.find((d) => d.id === 'cam-s3')!;
     expect(cam.at[0]).toBe(m.S3_CAMERA.x);
     const [s0, s1] = cam.sweep!;
@@ -483,7 +486,7 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
     for (let x = m.S3_HALL.x0 + 0.3; x <= m.S3_CAMERA.x - 3; x += 0.5) {
       for (const z of [m.S3_HALL.z0 + 0.35, (m.S3_HALL.z0 + m.S3_HALL.z1) / 2, m.S3_HALL.z1 - 0.35]) {
         for (const y of [1.6, 1.05]) {
-          for (let a = s0; a <= s1; a += 2) expect(inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z), `${x.toFixed(1)}, ${y}, ${z} at ${a}`).toBe(true);
+          for (let a = s0; a <= s1; a += 2) expect(inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z, camPitch(cam), camRange(cam)), `${x.toFixed(1)}, ${y}, ${z} at ${a}`).toBe(true);
           expect(blocked(b.boxes, lens, [x, y, z]), `clear line to ${x.toFixed(1)}, ${z}`).toBe(false);
         }
       }
@@ -492,7 +495,8 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
 
   it('its view stays inside the bay: no point of either airlock is seen, the doors open', async () => {
     const { b, lay, m } = await build();
-    const { inFrame } = await import('../src/security/camera');
+    // (sector-fixes C) with the camera's own pitch (aimed at the hallway floor) and range, as its detection reads them
+    const { camPitch, camRange, inFrame } = await import('../src/security/camera');
     const cam = lay.security!.devices.find((d) => d.id === 'cam-s3')!;
     const lens = [cam.at[0], cam.y, cam.at[1]];
     const x0 = m.bayX(2);
@@ -503,7 +507,7 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
         for (let z = 4.2; z < 10; z += 0.4) {
           for (const y of [0.3, 1.0, 1.7, 2.5]) {
             for (let a = cam.sweep![0]; a <= cam.sweep![1]; a += 4) {
-              if (!inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z)) continue;
+              if (!inFrame(a * DEG, cam.at[0], cam.y, cam.at[1], x, y, z, camPitch(cam), camRange(cam))) continue;
               tested++;
               expect(blocked(b.boxes, lens, [x, y, z]), `airlock point ${x.toFixed(1)}, ${y}, ${z.toFixed(1)} is seen`).toBe(true);
             }
@@ -520,7 +524,8 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
     const { CAMERA } = await import('../src/config/security');
     const { GEARS } = await import('../src/config/movement');
     // a standing head (1.7 m) leaves the vertical frame this close to the camera: the covered stretch ends there
-    const blind = (m.S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2);
+    // (sector-fixes C) the frame's lower edge is half the field below the camera's pitch
+    const blind = (m.S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2 + Math.atan2(m.S3_CAMERA.y, m.S3_CAMERA_AIM));
     const len = m.S3_CAMERA.x - blind - m.S3_HALL.x0;
     const run = GEARS.stand[4];
     // one runner gets through inside one 5 s jam

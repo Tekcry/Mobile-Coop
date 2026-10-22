@@ -12,24 +12,26 @@ import '../src/anim/tune';
 import '../src/anim/tuneV2Sections';
 import { BODY_GROUPS } from '../src/anim/tune';
 import { TEAM_MOVES, TRAV_KINDS } from '../src/anim/moveTune';
-import { TUNE_SECTIONS, TUNE_STATE_BAG, tuneResetAll } from '../src/anim/tuneRegistry';
-import { HAND_GROUP_IDS, IK_GROUP_IDS, JOINT_GROUP_IDS, WEAPON_GROUP_IDS, tuneV2Frame, tuneV2JointRow, tuneV2SyncAll } from '../src/anim/tuneV2Sections';
+import { TUNE_EXPORT_MAGIC, TUNE_SECTIONS, TUNE_STATE_BAG, tuneImport, tuneLoad, tuneResetAll, tuneSnapshot } from '../src/anim/tuneRegistry';
+import { HAND_GROUP_IDS, HAND_SECTION, IK_GROUP_IDS, IK_SECTION, JOINT_GROUP_IDS, WEAPON_GROUP_IDS, WEAPON_SECTION, tuneV2Frame, tuneV2JointRow, tuneV2SyncAll } from '../src/anim/tuneV2Sections';
 import { bakeCatalogue, tuneBake, type BakeResult } from '../src/anim/tuneBake';
 import { BAKE_RULES } from '../src/anim/tuneBakeTable';
 import { BAKE_BASE_FILE, emptyBase, spliceAnimBase } from '../src/anim/tuneBakeBase';
 import { ANIM_BASE } from '../src/anim/animBase';
-import { J, JOINT_ROWS, eulerQuat, jointRowIndex, jointsBeginRigRows, jointsLoad, jointsRigState } from '../src/anim/tuneJoints';
-import { HANDS_CUR, HP, handsBeginRigRows, handsGroupIndex, handsLoad, handsRigState, handsWeaponIndex } from '../src/anim/tuneHands';
+import { J, JOINT_ROWS, eulerQuat, jointRowIndex, jointsBeginRigRows, jointsGet, jointsLoad, jointsLoadFrom, jointsRigState } from '../src/anim/tuneJoints';
+import { HANDS_CUR, HP, handsBeginRigRows, handsGroupIndex, handsLoad, handsLoadFrom, handsRigState, handsWeaponIndex } from '../src/anim/tuneHands';
 import { animBaseLoad } from '../src/anim/tuneJointsRig';
 import {
   ACTION_ROWS,
   MOVE_TEAM_MOVES,
   MOVE_TRAV_KINDS,
+  REMOVED_TUNE_ROWS,
   TEAM_WIRE_BITS,
   TUNE_MOVE_MAX,
   TUNE_ROW_IDS,
   TUNE_ROW_INDEX,
   emptyActionWeights,
+  isRemovedTuneGroup,
   pickTuneRows,
   teamRowOfWire,
   tuneRowFollow,
@@ -55,7 +57,7 @@ afterEach(() => {
   handsLoad(undefined);
 });
 
-const pose = (o: Partial<TuneMovePoseIn> = {}): TuneMovePoseIn => ({ grounded: true, traverse: 'none', landing: 0, slide: -1, melee: -1, reload: -1, swap: -1, grenade: -1, tuneTeam: '', ...o });
+const pose = (o: Partial<TuneMovePoseIn> = {}): TuneMovePoseIn => ({ grounded: true, traverse: 'none', landing: 0, melee: -1, reload: -1, swap: -1, grenade: -1, tuneTeam: '', ...o });
 const rowsOf = (p: ReturnType<typeof tuneRowPick>): [string, number][] => Array.from({ length: p.n }, (_, k) => [p.ids[k]!, p.w[k]!]);
 
 describe('anim-joints J2: the row list', () => {
@@ -67,7 +69,9 @@ describe('anim-joints J2: the row list', () => {
     expect(TUNE_ROW_IDS).toContain('trav.brace');
     expect(TUNE_ROW_IDS).toContain('team.boost.b');
     expect(TUNE_ROW_IDS).toContain('team.revive.a');
-    expect(TUNE_ROW_IDS.slice(-ACTION_ROWS.length)).toEqual(['air', 'land', 'slide', 'melee', 'reload', 'swap', 'throw', 'hit']);
+    expect(TUNE_ROW_IDS.slice(-ACTION_ROWS.length)).toEqual(['air', 'land', 'melee', 'reload', 'swap', 'throw', 'hit']);
+    // (anim-n3b) the dash-in slide's row is gone with its move
+    expect(TUNE_ROW_IDS).not.toContain('slide');
     expect(new Set(TUNE_ROW_IDS).size).toBe(TUNE_ROW_IDS.length);
     // the prototype is null: 'constructor' is no row
     expect(TUNE_ROW_INDEX.constructor).toBeUndefined();
@@ -117,7 +121,6 @@ describe('anim-joints J2: the pick', () => {
     expect(p.stanceIdx).toBe(BODY_GROUPS.indexOf('crouchIdle'));
     expect(rowsOf(pickTuneRows(pose({ grounded: false }), null, 'run', p))).toEqual([['air', 1]]);
     expect(rowsOf(pickTuneRows(pose({ landing: 0.8 }), null, 'idle', p))).toEqual([['land', 1]]);
-    expect(rowsOf(pickTuneRows(pose({ slide: 0.2 }), null, '', p))).toEqual([['slide', 1]]);
     expect(rowsOf(pickTuneRows(pose({ melee: 0.4 }), null, 'idle', p))).toEqual([['melee', 1]]);
     expect(rowsOf(pickTuneRows(pose({ reload: 0.1 }), null, 'lowReady', p))).toEqual([['reload', 1]]);
     expect(rowsOf(pickTuneRows(pose({ swap: 0.5 }), null, 'idle', p))).toEqual([['swap', 1]]);
@@ -142,7 +145,7 @@ describe('anim-joints J2: the pick', () => {
     pickTuneRows(pose(), w, 'aim', p);
     expect(tuneRowFollow(p)).toBe(TUNE_ROW_INDEX.reload);
     // five at once: the three strongest; a tie keeps the row order (air before land)
-    Object.assign(w, { air: 0.4, land: 0.4, slide: 0.2, melee: 0.0005, reload: 0.9, swap: 0.1, throw: 0, hit: 0.7 });
+    Object.assign(w, { air: 0.4, land: 0.4, melee: 0.0005, reload: 0.9, swap: 0.1, throw: 0, hit: 0.7 });
     pickTuneRows(pose({ traverse: 'none' }), w, 'run', p);
     expect(rowsOf(p)).toEqual([
       ['reload', 0.9],
@@ -479,5 +482,48 @@ describe('anim-joints J2: the real rig', () => {
     expect(JOINT_ROWS.filter((r) => r.startsWith('rifle.') || r.startsWith('pistol.')).length).toBe(10);
     expect(JOINT_ROWS.filter((r) => r === 'trav.vault').length).toBe(1);
     expect(JOINT_ROWS.some((r) => r.startsWith('rifle.reload'))).toBe(false);
+  });
+});
+
+describe('anim-n3b: the deleted dash-in slide row', () => {
+  it('names only the removed rows of the row tables (not the wall slide, not other sections)', () => {
+    expect(REMOVED_TUNE_ROWS).toEqual(['slide']);
+    for (const g of ['joint.slide', 'ik.slide', 'hand.rifle.slide', 'weapon.pistol.slide']) expect(isRemovedTuneGroup(g)).toBe(true);
+    for (const g of ['joint.reload', 'joint.wallSlide', 'joint.rifle.aim', 'hand.rifle.reload', 'ik.air', 'step.walk', 'slide', 'joint.slide.x', 'body.slide']) expect(isRemovedTuneGroup(g)).toBe(false);
+  });
+
+  it('an old export and an old save that still carry the slide rows load: those rows are dropped, the rest applies', () => {
+    const hp = HAND_SECTION.tunables[0]!.id;
+    const wp = WEAPON_SECTION.tunables[0]!.id;
+    const ik = IK_SECTION.tunables[0]!.id;
+    // a literal export from before anim-n3b (version 2, the slide action row present)
+    const OLD = {
+      magic: TUNE_EXPORT_MAGIC,
+      version: 2,
+      exported: '2026-10-21T08:00:00.000Z',
+      changed: [
+        { group: 'joint.slide', id: 'elbowR_x', label: 'elbowR pitch', kind: 'add', unit: 'deg', value: 12, default: 0 },
+        { group: 'ik.slide', id: ik, label: '', kind: 'mul', unit: 'x', value: 0.5, default: 1 },
+        { group: 'hand.rifle.slide', id: hp, label: '', kind: 'add', unit: 'm', value: 0.01, default: 0 },
+        { group: 'weapon.pistol.slide', id: wp, label: '', kind: 'add', unit: 'm', value: 0.01, default: 0 },
+        { group: 'joint.reload', id: 'elbowR_x', label: 'elbowR pitch', kind: 'add', unit: 'deg', value: 7, default: 0 },
+      ],
+      log: [],
+      joints: { version: 1, mirror: false, values: { slide: { elbowR: [12, 0, 0] }, reload: { elbowR: [7, 0, 0] } } },
+      hands: { values: { rifle: { slide: { [hp]: 0.01 } } }, ik: { slide: [0.5, 1, 1, 1] } },
+    };
+    const r = tuneImport(JSON.parse(JSON.stringify(OLD)));
+    expect(r).toMatchObject({ ok: true, error: '', applied: 1, pending: 0 });
+    expect(() => jointsLoadFrom(OLD)).not.toThrow();
+    expect(jointsGet('reload', J.elbowR, 0)).toBe(7);
+    expect(() => handsLoadFrom(OLD)).not.toThrow();
+    let snap = tuneSnapshot();
+    expect(Object.keys(snap.values).some(isRemovedTuneGroup)).toBe(false);
+    expect(snap.values['joint.reload']).toEqual({ elbowR_x: 7 });
+    // a saved snapshot (IndexedDB) from before: the same
+    tuneLoad({ version: 2, values: { 'joint.slide': { elbowR_x: 12 }, 'ik.slide': { [ik]: 0.5 }, 'joint.reload': { elbowR_x: 5 } }, log: [] });
+    snap = tuneSnapshot();
+    expect(Object.keys(snap.values).some(isRemovedTuneGroup)).toBe(false);
+    expect(snap.values['joint.reload']).toEqual({ elbowR_x: 5 });
   });
 });

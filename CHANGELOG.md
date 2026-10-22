@@ -1,21 +1,139 @@
 # Changelog
 
-## Unreleased - sector-fixes R (track A)
-- Sector Ops Warehouse: co-op-only routes, each a 4.4 m lip (out of solo reach, inside the leg-up) with the partner
-  following by relay or the two-person rope. Section 1: the AHU service door high in the yard facade onto the plant
-  deck, and the goods-in hoist monorail over the checker (the two east-lane loads by it are now 2.0 m stacks you cannot
-  climb alone). Section 2: rack row R3 rebuilt as high-bay (4.4 m tops, its rolling ladder gone), R3S reached from the
-  east gangway: a vantage over the lane, A3 and the picker; (Michael, "Add another") the old dispatch landing on the x -4
-  wall over the east gangway, a second leg-up route (a vantage and a hang-drop onto the picker). Section 3: the sprinkler zone-valve platform (a way onto the
-  5.0 m main) and the crane drive platform over the CNC supervisor (hang-drop).
-- Team doors: one door per section bolted from one side (section 1 the mess back door, section 2 the VNA aisle escape
-  gate, section 3 the plant room's lobby door). Only a player on the far side gets "Unbolt"; it opens for both; a
-  checkpoint restart bolts it again. Host-authoritative, no wire change (protocol stays 28).
-- A player downed on a co-op-only top cannot be revived there; the checkpoint respawn takes over (PLAN A3).
-- (e2e fix) Section 3's two platforms sit under raised roof hoods, so you can climb up onto them (the roof left too little
-  room). Section 1's single east-lane pallet is now an empty pallet: a running jump or a mantle off the old one got a
-  player alone onto the stacks by the monorail. `run-e2e.mjs`: a named suite with parts (`e2e-sectorops`) now runs as its
-  parts.
+## 4.58.1 - GPU test fixes: studio keyed walk and lightbake waits (2026-10-22, PR #140)
+- Tests: e2e-studio and e2e-lightbake pass on a hardware GPU (the laptop's default for logic e2e, `E2E_GPU=1`). Both
+  waited a fixed number of rendered frames, which a GPU finishes in ~0.1 s: the studio's keyed-walk check now waits
+  for the tuner panel's keyed mode (re-read every 250 ms of wall time), the lamp-plugin check waits (5 s cap) until
+  every PBR material has the plugin. Software GL is unchanged.
+
+## 4.58.0 - Train 7: Anim Studio co-op pairs, animation audit scripts (2026-10-22, PR #137; #132, #134)
+
+### anim-natural N0: the full animation audit (docs and scripts only)
+- `docs/anim-natural/AUDIT.md`: every animation scored against the realism standard (pass 1 and pass 2), with the fix
+  list that N1-N4 build from; `PASS2.md`: the pass 2 reruns and the N0 leftovers (rows 29 / 39 / 49: script problems,
+  no game bug); GPU contact sheets and `metrics.json` in `docs/anim-natural/audit/`.
+- `scripts/anim-natural/audit.mjs`: the audit driver (studio loops, proving rows, pass 2 rows, per-row metrics and
+  `ev` move summary; `NAT_PORT` for a software-GL logic check). Stage lights never include shared part bases, which lit
+  every instance in the scene. No game change.
+
+### studio-pairs (track A, AUDIT fix 12)
+- Anim Studio: the stage lights light only Wren's own meshes, so the guard in the hold pairs (and the props) no longer
+  turn white under them; he reads by the room's light as in game.
+- Anim Studio pairs: the puppets stay on their full-detail model for the whole loop (a distance swap mid-loop could
+  blank a puppet for a moment while the new model's shaders compiled). Test hook `__studioStage.puppets()`.
+- Anim Studio (GPU round): a shared part base pushed into a stage light's list later (the anim audit's pair rows did)
+  is dropped again within a second and the parts it lit recompile, so the hold pairs' guard no longer turns white after
+  a team pair has played. `__studioStage.puppets()` also gives `lodName` (`lod` 1 is LOD0).
+
+## 4.57.0 - Train 6: body recoil and wall block, every tuner slider bakes, Sector Ops cameras, lasers and lights, steady heap tests, merge-train script (2026-10-22, PR #133; #123, #128, #129, #127, #122, #131)
+
+### Process: changelog fragments and a merge-train script
+- Changelog fragments: each PR adds one `changes/<branch>.md` (`# title`, optional `kind: minor|patch`, the entries)
+  instead of a "## Unreleased - <job>" block in `CHANGELOG.md`, so merges stop conflicting there.
+  `scripts/changelog-assemble.mjs <version> <title> <date> <PR> [members...]` writes them as one released section at
+  the version step, folds any legacy "Unreleased" blocks on top (dropping ones already released) and deletes the
+  fragments. Format: `changes/README.md`.
+- `scripts/merge-train.mjs`: `build <n> <branch>...` makes `train/<n>` from origin/master and the branches (CHANGELOG /
+  fragment conflicts resolved keeping both sides; a branch with any other conflict is left out and listed);
+  `release <n> <version> "<title>"` and `single <branch> <version> "<title>"` merge master in, open the train PR,
+  assemble the changelog, set the version, push and wait for CI on that exact commit, and only on a pass merge, tag and
+  move `dev` (exit 2 on red CI with the failing log tail, 3 on a source conflict). `--dry-run` moves nothing.
+- Tests: `tests/changelogAssemble.test.ts`, `tests/mergeTrain.test.ts` (tool only, no game change).
+
+### anim-n3b
+- Deleted the dash-in slide and the doorway check sweep animations (Michael 2026-10-22: "Delete them"; never set in
+  play, CT has neither): the `slide` lower state and clip, `AnimInput` / `RigPose` / `PlayerPose` `slide` and `check`, the
+  tuner's `slide` action row. Old tuner saves and exports that still carry `joint.slide` / `ik.slide` /
+  `hand.<gun>.slide` / `weapon.<gun>.slide` load with those rows dropped (`isRemovedTuneGroup`).
+- Firing: Wren's body kicks per shot (`src/anim/recoil.ts`): rifle about 3 cm back at the hands, 1.1 deg muzzle rise, 1.5
+  deg chest give; pistol 1.8 cm lift, 3.6 deg flip; settled within 0.3 s. Local and co-op partner alike (from the kick, no
+  wire change). New Gun slider `recoilMul` (aim states) with a bake rule. Guards unchanged.
+- Wall block: no more muzzle-up swing (69 deg) and stall; the rifle comes off the eye and tips about 66 deg under the aim
+  line about the butt, pulled in, in one eased 0.4 s move with hysteresis (no half-way hold).
+
+### sector-fixes
+#### Slice C: cameras and lasers (Michael 2026-10-22, items 3-5)
+- Security cameras pitch down to a floor patch (`aim` in the map data, `camPitch`) and see only their own `range`
+  (`camRange`, at most 18 m). Detection (`CameraUnit.covers`) and the red grid cue read the same pitch and range, so the
+  grid is drawn only where the camera can detect. Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14, the others
+  6 / 12. Marlow Yard cam-s3: aim 6.5 (pitch 20 deg), range 18. The housing points down its pitch.
+- The camera grid is very subtle in normal vision (line 0.16 -> 0.055, fill 0.025 -> 0.006, 0.6 px hairlines); electro
+  keeps the stronger white lattice.
+- Lasers are infrared: drawn (glowing) only in night vision, invisible in normal, thermal and electro. Render only: the
+  sensor works the same in every mode.
+- A laser break raises the alarm stage (the camera alarm path: one stage per `ALARM_GAP`, the course stat / Sector Ops
+  alarm, banner, radio line) and never deals damage (`LASER.damage`, `floorHp` and `laserDamage` removed). Station 4
+  panel text updated. No wire change (protocol unchanged).
+
+#### Slice L: Sector Ops lights (Michael 2026-10-22: "light fittings in same rooms are different heights and locations. Theres random lights on the roof. Theres a light in the middle of a climbing pipe." / "All lights should look like LED designs.")
+- Every Sector Ops lamp is laid out by room (`world/maps/lampRooms.ts`): one LED model, one height and a regular grid or
+  row per room; flush LED panels in the rooms, LED strips on short wires under the hall roofs (on the solid roof strips,
+  never under a sheet), slim LED bulkheads on 0.3 m wall brackets. No lamp on the roof (the roof reads by the moon), none
+  within 0.8 m of a climbing pipe, ladder or duct (the drainpipe's lamp moved 1 m east). Dead fittings keep the grids
+  regular over the dark pockets. The three fitting models are rebuilt as flat LED housings with opal diffusers.
+- Light parity: every fitting is a registry light (the bake, the meter and the guards read it); radius and intensity per
+  fitting are tuned so the light tests' route, objective and pocket bands still hold (sections 1 to 3).
+- The light grid lists a cone light only in the columns its beam can reach (`lampPlanReach`, lossless), so a 2 m column
+  stays within its 8 lights with the hall strips' and wall packs' beams.
+- Section 2's two roof rafters are dressing (out of the light shapes): they no longer cut the hall strips' light off the
+  rack tops.
+
+### heap-asserts (track A)
+- Tests: every "allocates nothing" check now measures bytes per call deterministically (a garbage collection before each
+  round, the new-space size, rounds with a collection discarded; shared helper `tests/helpers/allocPerCall.ts`), so
+  they no longer pass or fail on when a collection happens to land.
+- Menus: the menu camera director no longer allocates every frame (`menuShots.ts` `held()`: a closure per frame in the
+  title, loadout and lobby menus; same shots chosen).
+
+### anim-bake-all
+- Animation tuner: every slider bakes, also those with no code value of their own: the aimed gun's height and angles,
+  the camera FOV (a change on top of the player's FOV setting), aim zoom and aim-in blend, the aimed glide forward
+  speed, the rest of Stepping (lift on the moving gaits, idle lock, duration, slide, the three stride points, toe-off,
+  heel, replant), the Weight damping and every Weight amount, and every co-op and traversal move slider. They go into
+  the base table's new generic `sections` key, which the game composes with the tuner's values wherever the slider
+  acts today (the local player; Stepping: every foot planner). The step length bakes per moving state (13 apart; the
+  old shared step-length rule is gone). A slider whose states share one code value but were tuned apart now bakes per
+  state instead of staying in the tuner. Gameplay: a baked Speed value (the glide forward) changes the player's speed.
+- Untuned nothing changes (the table has no `sections` key yet).
+
+## 4.56.0 - Train 5: believable weapon draws, idle stance clears the shins, co-op channel closed guard (2026-10-22, PR #130; #118, #120, #125, #126)
+
+### #118 Believable draws, holsters and swaps (anim-natural N3)
+
+- Draw, holster and swap are one continuous move per gun (reach, grip, lift / clear, present, settle;
+  `anim/drawMotion.ts`): the "random stop" when taking a gun out is gone (the swap clip held the gun level at its
+  pocket for 0.08-0.17 s, then pitched it 34-53 deg into the low ready), and so are the 28 / 11 / 7 cm one-frame jumps at
+  the swap press, the hand-off and the pistol LT draw.
+- Real-world times (Michael: "Research what is believable and realistic"; sources in docs/anim-natural/n3/DRAW-TIMES.md):
+  rifle draw 0.3 -> 1.1 s, pistol draw 0.5 -> 0.75 s, rifle holster 0.15 -> 1.0 s, pistol holster 0.15 -> 0.9 s. A
+  traversal or busy move still holsters in 0.15 s (`HOLSTER_TIME_MOVE`); the aim camera from low ready keeps the old
+  0.3 / 0.5 s blend (`AIM_IN_*`). Gameplay: the gun can fire, strike, reload or use a gadget only when the longer draw
+  ends; the LT sling draw is about 1.5 / 1.2 s.
+- A holster or a traversal mid-draw runs the draw backwards from where the gun is (no snap to the slot: 4.7-39 cm
+  one-frame jumps -> 0.4-2.3 cm); RT pressed during a holster queues the strike (tap / hold from the press) and the
+  holster speeds up to finish first; a re-draw just after the seat starts from the hand still on the gun.
+- Tuner: a Draw section per gun (reach, grip, hand-over, settle, lift and present paths; bakes into `DRAW_MOTION`). The
+  times are Clip speed's: the holster row is now one per gun (Rifle / Pistol holster speed) and the draw / holster rows
+  go up to 7x so the old times stay reachable; an older save, preset or export with the single holster value sets both.
+
+### #120 Idle stance: the shins clear at a teleport
+
+- A teleport (spawn, respawn, checkpoint, the anim-audit's `tp`) plants Wren's feet no closer to the midline than the
+  standing stance band's floor (3 cm, `TURN_FOLLOW.standMinLateral`), as every free-movement landing already does.
+  `FootPlanner.reset` skipped the band, so Michael's idle track 0.05 (kept) put the feet 0.4 cm off the midline and
+  the audit's shank capsules sat 3.18 cm into each other (limit 2.00) from the teleport to the first step, the first
+  frame of every standing row. Michael: "Widen just enough. They didn't clip when I viewed it though": the mesh never
+  clipped (its knees sit wider than the rig's proxy knees); only the capsules overlapped. Wren rigs only (guard and
+  dog rigs unchanged, bit-identical). Headless 2.36 -> 0.3 cm. The 0.3 idle track tried first is reverted.
+
+### #125 Co-op: the local channel ignores sends after close
+
+- Co-op over the local (same-device) transport: a message sent after leaving the room is dropped instead of throwing
+  "BroadcastChannel is closed" (`src/net/localTransport.ts`; a teardown race that failed e2e-coop console checks).
+  Test: `tests/localTransport.test.ts`.
+
+### #126 e2e-pad wheel let-go waits sim time (test only)
+- `scripts/e2e-pad.mjs`: the sector-fixes W let-go step waits 0.3 s of sim time instead of 300 ms of wall time, so the 5-step let-go grace has always passed under load.
 
 ## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
 - `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
