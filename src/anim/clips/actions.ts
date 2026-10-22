@@ -310,15 +310,29 @@ export const STEP_UP = makeClip({
   },
 });
 
-/** Drop off a ledge (normalized): crouch and push off, then a heavy landing absorbed in the knees. */
+/** Drop off a ledge (normalized, the 0.25 - 0.35 s step off the edge): a small dip, the lead leg steps out over the edge
+ *  and the rear foot pushes off, the chest back, the arms rising out for balance; it ends in the air pose (animGraph
+ *  AIR_POSE: legs a little ahead, arms out and up), the fall keeps it and the landing absorbs by the drop.
+ *  (anim-n4b, PASS2 row 64: it was one fixed half squat) The hand keys hold over the graph's hanging hands
+ *  (`TRAV_CLIP_HANDS`); a gun in the hands keeps them on the gun. */
 export const DROP = makeClip({
   name: 'drop',
   duration: 1,
   keys: {
-    pelY: [0, 0, 0.3, -0.12, 0.6, -0.04, 1, -0.08],
-    pelPitch: [0, 0, 0.3, 0.25, 0.7, 0.15, 1, 0.2],
-    fLY: [0, 0, 0.5, 0.12, 1, 0.05],
-    fRY: [0, 0, 0.5, 0.08, 1, 0.03],
+    pelY: [0, 0, 0.35, -0.1, 1, -0.05],
+    pelPitch: [0, 0, 0.35, 0.18, 1, 0.04],
+    spPitch: [0, 0, 0.4, -0.04, 1, -0.08],
+    hdPitch: [0, 0, 0.5, 0.12, 1, 0.15],
+    fLZ: [0, 0, 0.5, 0.22, 1, 0.16],
+    fLY: [0, 0, 0.4, 0.14, 1, 0.12],
+    fRZ: [0, 0, 0.5, -0.08, 1, 0.08],
+    fRY: [0, 0, 0.55, 0.16, 1, 0.08],
+    hLX: [0, -0.26, 0.5, -0.42, 1, -0.55],
+    hLY: [0, 0.8, 0.5, 1.04, 1, 1.2],
+    hLZ: [0, 0.05, 0.5, 0.12, 1, 0.1],
+    hRX: [0, 0.26, 0.5, 0.42, 1, 0.55],
+    hRY: [0, 0.8, 0.5, 1.04, 1, 1.2],
+    hRZ: [0, 0.05, 0.5, 0.12, 1, 0.1],
   },
 });
 

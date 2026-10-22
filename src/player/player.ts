@@ -49,6 +49,10 @@ export interface PlayerPose {
   headCap: number;
   traverse: TraverseKind;
   traverseT: number;
+  /** (anim-n4b) The committed move's top above its start feet and start-to-end distance (m; the traversal sets them while
+   *  a move runs): the mantle's hand plant. */
+  traverseH?: number;
+  traverseD?: number;
   /** Dash-in slide 0..1, or < 0. */
   slide: number;
   /** Doorway check 0..1, or < 0. */
@@ -477,6 +481,8 @@ export class Player {
     rp.headCap = Number.isNaN(cp.headCap) ? undefined : cp.headCap;
     rp.traverse = cp.traverse;
     rp.traverseT = cp.traverseT;
+    rp.traverseH = cp.traverseH ?? 0;
+    rp.traverseD = cp.traverseD ?? 0;
     rp.tuneTeam = MOVE_TUNE_TEAM.group; // (anim-joints J2) this player's own team role: the tuner's team rows
     rp.slide = cp.slide;
     rp.check = cp.check;

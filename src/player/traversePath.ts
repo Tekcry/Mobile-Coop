@@ -9,6 +9,8 @@ export interface PathPoint {
   z: number;
 }
 
+import { MANTLE_PATH, mantleAlong, mantleRise, rollRide } from '../anim/clips/traverse';
+
 export type PathKind = 'step' | 'vault' | 'mantle' | 'drop' | 'hop' | 'roll';
 
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -19,10 +21,10 @@ export function traversePath(kind: PathKind, f: PathPoint, e: PathPoint, top: nu
   let y: number;
   switch (kind) {
     case 'mantle': {
-      // hands on top, pull up (rise first), then step onto it
-      const up = smooth(k / 0.65);
-      h = smooth((k - 0.35) / 0.65);
-      y = f.y + (e.y + 0.04 - f.y) * up;
+      // hands on top, pull up (rise first), then step onto it ((anim-n4b) the shares the hand plant reads)
+      const up = mantleRise(k);
+      h = mantleAlong(k);
+      y = f.y + (e.y + MANTLE_PATH.topLift - f.y) * up;
       break;
     }
     case 'vault': {
@@ -37,8 +39,9 @@ export function traversePath(kind: PathKind, f: PathPoint, e: PathPoint, top: nu
     case 'roll': {
       // momentum carries through, easing out as the body comes back up; the curled body rides up a little
       // over its back (the tumble pivot is at the hips) so the shoulders roll over the floor, not through it
+      // ((anim-n4b) the grounded roll's rig takes the ride back out of the body: `rollRide`, characterRig tumbleDrop)
       h = k * (2 - k);
-      y = f.y + (e.y - f.y) * h + 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
+      y = f.y + (e.y - f.y) * h + rollRide(k);
       break;
     }
     case 'hop': {

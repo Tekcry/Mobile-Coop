@@ -508,6 +508,9 @@ export class RemoteAvatar {
       lean: mp.lean,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
+      // (anim-n4b) the replayed move's geometry: the mantle's hand plant on the edge
+      traverseH: rp ? rp.c.top - rp.c.y0 : 0,
+      traverseD: rp ? hyp2(rp.c.x1 - rp.c.x0, rp.c.z1 - rp.c.z0) : 0,
       // (anim-joints J2, A6) the partner's own team role (its move mode and sub on the wire): the tuner's team rows
       tuneTeam: mv ? teamRowOfWire(mv.m, mv.sub) : '',
       melee: mp.melee,

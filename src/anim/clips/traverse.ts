@@ -180,29 +180,162 @@ export const CRAWL_OUT = makeClip({
   },
 });
 
-/** Landing roll (normalised): tuck, the rig tumbles the body a full turn forward (`rollTumble`), feet come
- *  back under it, rise into the run. The tuck keeps the curled body about a shoulder's width off the floor. */
+/**
+ * Roll (normalised; the CT forward roll and the landing roll). (anim-n4b, anim-natural PASS2 row 66 / AUDIT fix 28: it
+ * was a full somersault about the hips 0.57 m up, feet overhead and off the ground, wrists 28 m/s) A grounded shoulder
+ * roll: the rig's body path is `rollBody` (dive forward low onto the right shoulder, roll across the back about the
+ * hips-to-feet line close to the floor, come up over the tucked feet); this clip curls the body round it: chin tucked,
+ * feet together a little ahead under the hips (on the roll axis, so they never rise above the hips), the hands reaching
+ * ahead to the floor as she goes down (0.1 - 0.25), tucked to the chest through the roll, out to the knees as she rises.
+ * Hand channels in the body frame (the rig's free-hand targets turn with the body); the graph keeps them over its
+ * default hanging hands (`TRAV_CLIP_HANDS`).
+ */
 export const ROLL = makeClip({
   name: 'roll',
   duration: 1,
   keys: {
-    pelY: [0, -0.2, 0.15, -0.5, 0.7, -0.5, 0.9, -0.3, 1, -0.05],
-    pelPitch: [0, 0.3, 0.15, 0.7, 0.7, 0.7, 1, 0.1],
-    spPitch: [0, 0.2, 0.15, 0.6, 0.7, 0.6, 1, 0.05],
-    hdPitch: [0, 0.3, 0.15, 0.7, 0.7, 0.7, 1, 0],
-    fLY: [0, 0.05, 0.2, 0.35, 0.7, 0.35, 0.9, 0.08, 1, 0],
-    fRY: [0, 0.05, 0.2, 0.3, 0.7, 0.3, 0.9, 0.05, 1, 0],
-    fLZ: [0, 0, 0.2, 0.2, 0.7, 0.2, 1, 0],
-    fRZ: [0, -0.05, 0.2, 0.15, 0.7, 0.15, 1, -0.05],
+    pelY: [0, -0.12, 0.25, -0.22, 0.72, -0.22, 0.9, -0.3, 1, -0.14],
+    // the hips on the roll axis (it leans `ROLL_BODY.tilt` back up the body): they ride level through the spin
+    pelZ: [0, 0, 0.2, -0.03, 0.78, -0.03, 1, 0],
+    pelPitch: [0, 0.2, 0.25, 0.15, 0.72, 0.15, 0.9, 0.4, 1, 0.15],
+    spPitch: [0, 0.15, 0.25, 0.12, 0.72, 0.12, 0.9, 0.25, 1, 0.05],
+    hdPitch: [0, 0.2, 0.18, 0.45, 0.78, 0.45, 1, 0],
+    width: [0, 1, 0.18, 0.35, 0.8, 0.35, 1, 1],
+    // the lifts turn with the body in a roll (characterRig: `tumbleLift`): the knees bend, the feet stay near the axis
+    fLY: [0, 0, 0.22, 0.12, 0.75, 0.12, 0.9, 0.06, 1, 0],
+    fRY: [0, 0, 0.22, 0.12, 0.75, 0.12, 0.9, 0.06, 1, 0],
+    // both soles the same way ahead of the pivot (the traversal stance staggers them +-0.04)
+    fLZ: [0, 0, 0.2, 0.04, 0.78, 0.04, 1, 0],
+    fRZ: [0, 0, 0.2, 0.12, 0.78, 0.12, 1, 0],
+    hLX: [0, -0.24, 0.2, -0.2, 0.34, -0.12, 0.7, -0.12, 0.88, -0.22, 1, -0.24],
+    hLY: [0, 0.82, 0.2, 0.88, 0.34, 1.0, 0.7, 1.0, 0.88, 0.78, 1, 0.8],
+    hLZ: [0, 0.12, 0.2, 0.4, 0.34, 0.15, 0.7, 0.15, 0.88, 0.28, 1, 0.1],
+    hRX: [0, 0.24, 0.2, 0.2, 0.34, 0.12, 0.7, 0.12, 0.88, 0.22, 1, 0.24],
+    hRY: [0, 0.82, 0.2, 0.88, 0.34, 1.0, 0.7, 1.0, 0.88, 0.78, 1, 0.8],
+    hRZ: [0, 0.12, 0.2, 0.4, 0.34, 0.15, 0.7, 0.15, 0.88, 0.28, 1, 0.1],
     wpPitch: [0, 0, 0.2, -0.5, 0.8, -0.5, 1, 0],
     offGrip: [0, 1, 0.15, 0.6, 0.85, 0.6, 1, 1],
   },
 });
 
-/** Body tumble (rad) through a roll at progress t: a full turn between the tuck and the rise. */
-export function rollTumble(t: number): number {
-  const k = Math.max(0, Math.min(1, (t - 0.12) / 0.72));
-  return Math.PI * 2 * k * k * (3 - 2 * k);
+const smooth01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+
+/**
+ * (anim-n4b) The roll's body path over progress t (`rollBody`): `pitch` forward (rad, about the right axis at the rig's
+ * tumble pivot) dives the body to near level by 0.3 and brings it back up over 0.7 - 0.98; `spin` (rad, negative: the
+ * right shoulder goes down first) turns it a full turn about the hips-to-feet line (`tilt`: that line leans `tilt`
+ * forward at the feet) over 0.16 - 0.84, so it rolls shoulder, back, hip along the floor; `drop` (m at 1.75 m) sinks the
+ * pivot towards the floor with the dive (it also takes out the path's ride, `rollRide`, so the body stays down).
+ */
+export const ROLL_BODY = { pitch: 1.5, pitchIn: 0.38, pitchOut: 0.68, pitchOutT: 0.3, spinFrom: 0.16, spinTo: 0.84, drop: 0.32, dropIn: 0.36, dropOut: 0.66, dropOutT: 0.32, tilt: 0.237 } as const;
+
+export interface RollBodyOut {
+  pitch: number;
+  spin: number;
+  drop: number;
+}
+
+/** The roll's body pitch, spin and pivot drop (m at 1.75 m, before the ride) at progress t (allocation-free). */
+export function rollBody(t: number, out: RollBodyOut): RollBodyOut {
+  const B = ROLL_BODY;
+  out.pitch = B.pitch * (smooth01(t / B.pitchIn) - smooth01((t - B.pitchOut) / B.pitchOutT));
+  out.spin = -Math.PI * 2 * smooth01((t - B.spinFrom) / (B.spinTo - B.spinFrom));
+  out.drop = B.drop * (smooth01(t / B.dropIn) - smooth01((t - B.dropOut) / B.dropOutT));
+  return out;
+}
+
+/** The roll path's ride (m): the root rises a little over the roll (`traversePath` 'roll'; shared so the rig can take it
+ *  back out of the body). */
+export function rollRide(k: number): number {
+  return 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
+}
+
+/**
+ * A body-frame offset from the tumble pivot (x right, y up, z forward) turned by a roll's `pitch` and `spin` (the rig's
+ * body rotation: the spin about the tilted hips-to-feet line first, then the pitch about the right axis), into `out`
+ * (allocation-free; the rig builds the same rotation as a quaternion, tests check them against each other).
+ */
+export function rollTurn(pitch: number, spin: number, x: number, y: number, z: number, out: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+  // Rodrigues about u = (0, cos tilt, -sin tilt)
+  const uy = Math.cos(ROLL_BODY.tilt);
+  const uz = -Math.sin(ROLL_BODY.tilt);
+  const c = Math.cos(spin);
+  const s = Math.sin(spin);
+  const d = y * uy + z * uz;
+  // u x v = (uy z - uz y, uz x, -uy x)
+  const sx = x * c + (uy * z - uz * y) * s;
+  const sy = y * c + uz * x * s + uy * d * (1 - c);
+  const sz = z * c - uy * x * s + uz * d * (1 - c);
+  const cp = Math.cos(pitch);
+  const sp = Math.sin(pitch);
+  out.x = sx;
+  out.y = sy * cp - sz * sp;
+  out.z = sy * sp + sz * cp;
+  return out;
+}
+
+/**
+ * (anim-n4b, PASS2 row 61 / AUDIT fix 26) The mantle's root path shares (as `traversePath` 'mantle', which uses these):
+ * the feet rise to the top (+ `MANTLE_PATH.topLift`) over 0 - 0.65 and move along to the end (`standIn` past the edge)
+ * over 0.35 - 1.
+ */
+export const MANTLE_PATH = { riseEnd: 0.65, alongFrom: 0.35, topLift: 0.04, standIn: 0.4 } as const;
+export function mantleRise(k: number): number {
+  return smooth01(k / MANTLE_PATH.riseEnd);
+}
+export function mantleAlong(k: number): number {
+  return smooth01((k - MANTLE_PATH.alongFrom) / (1 - MANTLE_PATH.alongFrom));
+}
+
+/**
+ * (anim-n4b) The mantle's hand plant: both hands reach up to the top edge (an arc over the lip, 0.06 - 0.2), press on it
+ * while the body rises past and over them (the palms stay where they landed, so in the root frame they move down and
+ * back), and leave as the knee comes on (0.52 - 0.72). `H` the top above the start feet, `D` the start-to-end distance
+ * (m; 0 = unknown: the 0.9 m audit block). Hand targets in the root frame (m, x the half spacing, y up, z forward);
+ * `sink` (m) lowers the pelvis so the shoulders stay `reachUp` over the palms (the arms bent, pressing), given the
+ * shoulders' root-frame height without it.
+ */
+export const MANTLE_PLANT = { on: 0.06, onT: 0.14, off: 0.52, offT: 0.2, halfX: 0.19, palmY: 0.04, palmZ: 0.06, arc: 0.12, nominalH: 0.9, nominalD: 0.75, reachUp: 0.45, sinkMax: 0.55 } as const;
+
+export interface MantlePlantOut {
+  w: number;
+  x: number;
+  y: number;
+  z: number;
+  sink: number;
+}
+
+export function mantlePlant(k: number, H: number, D: number, shoulderY: number, out: MantlePlantOut): MantlePlantOut {
+  const P = MANTLE_PLANT;
+  const h = H > 0.05 ? H : P.nominalH;
+  const d = D > 0.05 ? D : P.nominalD;
+  const on = smooth01((k - P.on) / P.onT);
+  out.w = on * (1 - smooth01((k - P.off) / P.offT));
+  out.x = P.halfX;
+  // the palm on the top, just past the edge; reaching in, the hand arcs up over the lip
+  out.y = h - (h + MANTLE_PATH.topLift) * mantleRise(k) + P.palmY + P.arc * Math.sin(Math.PI * on);
+  out.z = d - MANTLE_PATH.standIn - d * mantleAlong(k) + P.palmZ;
+  out.sink = Math.min(P.sinkMax, Math.max(0, shoulderY - (out.y + P.reachUp))) * out.w;
+  return out;
+}
+
+/**
+ * (anim-n4b, PASS2 row 64 / AUDIT fix 26) Landing absorb by the landing's strength (`AnimInput.landing`, 0..1: the
+ * controller's recovery, which grows with the fall speed): `light` the shallow landing's share (from a ~0.5 m drop),
+ * `deep` the deep landing's (knees and hips flex further the harder it lands: ~1.2 m starts it, ~2.4 m and more full).
+ */
+export const LAND_ABSORB = { lightFrom: 0.3, lightTo: 0.55, deepFrom: 0.55, deepTo: 0.95 } as const;
+export function landLight(landing: number): number {
+  return smooth01((landing - LAND_ABSORB.lightFrom) / (LAND_ABSORB.lightTo - LAND_ABSORB.lightFrom));
+}
+export function landDeep(landing: number): number {
+  return smooth01((landing - LAND_ABSORB.deepFrom) / (LAND_ABSORB.deepTo - LAND_ABSORB.deepFrom));
+}
+
+/** (anim-n4b) The air pose's share after `airT` s off the ground (a drop, a fall, the jump's flight): legs a little
+ *  ahead, arms out and up for balance (animGraph AIR_POSE). */
+export function airPoseW(airT: number): number {
+  return smooth01((airT - 0.05) / 0.2);
 }
 
 /**
@@ -336,7 +469,10 @@ export const WINDOW_VAULT = makeClip({
 // --- 3.2.0 Chaos Theory: split jump, wall jump, pipe legs up / inverted
 
 /** Braced in a split between two walls (the rig plants the feet on the walls and the hands beside the chest): the
- *  hips sink between the legs, back upright, head level, arms out to the walls. */
+ *  hips sink between the legs, back upright, head level, arms out to the walls.
+ *  (anim-n4b, AUDIT fix 36 / row 58: a T-pose, the arms straight out level, the trunk still) The palms press on the walls
+ *  below the shoulders (`SPLIT_HANDS`, attachGrips; these hand keys are only the fallback), and the trunk breathes and
+ *  balances over the brace (`splitBreath`, animGraph). */
 export const SPLIT_BRACE = makeClip({
   name: 'split',
   duration: 1,
@@ -352,13 +488,47 @@ export const SPLIT_BRACE = makeClip({
     fRY: [0, 0, 1, 0],
     hLX: [0, -0.62, 1, -0.62],
     hRX: [0, 0.62, 1, 0.62],
-    hLY: [0, 1.0, 1, 1.0],
-    hRY: [0, 1.0, 1, 1.0],
-    hLZ: [0, 0.12, 1, 0.12],
-    hRZ: [0, 0.12, 1, 0.12],
+    hLY: [0, 0.69, 1, 0.69],
+    hRY: [0, 0.69, 1, 0.69],
+    hLZ: [0, 0.16, 1, 0.16],
+    hRZ: [0, 0.16, 1, 0.16],
     wpPitch: [0, -0.9, 1, -0.9],
   },
 });
+
+/**
+ * (anim-n4b, AUDIT fix 36) Where the split brace's palms press on the two walls: `up` over the feet line (m at 1.75 m;
+ * the shoulders sit ~0.57 over it, so the palms are ~0.25 under them: the arms angle down onto the walls, bent where the
+ * gap allows) and `fwd` ahead of the body line.
+ */
+export const SPLIT_HANDS = { up: 0.32, fwd: 0.16 } as const;
+
+/** (anim-n4b) The split brace's breath (chest pitch, a 3.6 s cycle) and balance (the pelvis rolls and shifts over the
+ *  legs, the chest and head counter it, a 5.3 s cycle): rad and pose m. */
+export const SPLIT_BREATH = { breathT: 3.6, chest: 0.03, head: 0.015, swayT: 5.3, pelRoll: 0.035, pelX: 0.015, spRoll: 0.022, hdRoll: 0.015 } as const;
+
+export interface SplitBreathOut {
+  spPitch: number;
+  hdPitch: number;
+  pelRoll: number;
+  pelX: number;
+  spRoll: number;
+  hdRoll: number;
+}
+
+/** The split brace's trunk offsets at time `t` (s) braced (allocation-free). */
+export function splitBreath(t: number, out: SplitBreathOut): SplitBreathOut {
+  const B = SPLIT_BREATH;
+  const br = Math.sin((t / B.breathT) * Math.PI * 2);
+  const sw = Math.sin((t / B.swayT) * Math.PI * 2);
+  out.spPitch = -B.chest * br;
+  out.hdPitch = B.head * br;
+  out.pelRoll = B.pelRoll * sw;
+  out.pelX = B.pelX * sw;
+  out.spRoll = -B.spRoll * sw;
+  out.hdRoll = -B.hdRoll * sw;
+  return out;
+}
 
 /** Wall jump (normalised over the run-up kick into the hang): a step in, the right foot kicks off the wall high,
  *  the body rises with the arms reaching for the lip, the legs trail into the hang. */

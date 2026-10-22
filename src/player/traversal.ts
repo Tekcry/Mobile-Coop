@@ -323,6 +323,9 @@ export class TraversalController {
       this.path(k);
       pose.traverse = this.throughWindow ? 'windowVault' : this.kind;
       pose.traverseT = k;
+      // (anim-n4b) the move's geometry for the mantle's hand plant (animation only)
+      pose.traverseH = this.top - this.from.y;
+      pose.traverseD = hyp2(this.to.x - this.from.x, this.to.z - this.from.z);
       c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' || this.ctRoll };
       if (k >= 1) {
         const inStride = this.speed0 >= 1;
