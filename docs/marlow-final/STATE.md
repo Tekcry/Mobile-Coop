@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:25 0f IN (30b89647): props batch 2, 55 props / 11420 tris; the facilityProps hang was an infinite loop in
+  `propRow` (fixed, 11/11 in 1.4 s); hook `MapLayout.facilityProps` + `World.facilityProps` (PA7: `props` names were
+  taken). A4 dressing: check the security room and warehouse floor as separate areas (26 draws together vs 12).
+  Props GPU look pending (with the first dressed set). Running: 0d, set docs x2 (3; trim cap 2: no new agent).
 - ~02:15 slice 0 CODE GREEN: e2e-ctcourse :1-:3 PASS on 5920cce5 (security room looped feed ok); with 1949764e,
   8/8 suites green on the laptop GPU. Remaining slice 0: 0d (running), 0e (after 0d checked), 0f (running).
 - ~02:05 TRIM (orchestrator): window 11% after ~11 min; at most 2 agents until the orchestrator loosens; in-flight
