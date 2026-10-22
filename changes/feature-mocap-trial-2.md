@@ -32,3 +32,5 @@ kind: minor
   moving again.
 - Mocap locomotion (switch on): a run start after a short stand no longer pops the first step's foot forward (knee
   47 deg, hips 9 cm down at 4 m/s): the start's leftover step restarts its swing from where it is.
+- Settings > Gameplay > Mocap locomotion is now ON by default (Michael: "On by default"); a save from before keeps the
+  new default once, after that the player's choice stays. Off uses the hand-keyed animations.
