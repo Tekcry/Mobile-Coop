@@ -640,7 +640,7 @@ try {
         await wait(100);
       }
     } finally {
-      await GA(() => { window.__skPinGen = (window.__skPinGen ?? 0) + 1; });
+      await GA(() => { window.__skPinGen = (window.__skPinGen ?? 0) + 1; }).catch(() => {});
     }
   }
   await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, skv);
@@ -655,8 +655,16 @@ try {
     await wait(1200);
     // (the host's sim runs slow under software GL: its record of the last strike ends 0.9 s of host time after t0)
     await until(A, () => window.__app.current.net['strikes'].size === 0, null, 10000, 'host strike record ends');
+    // (load-latent) the client's own strike can still be running (its clock runs slow under load) or its body not yet
+    // free: the request is sent only once a strike can start, and the start is asserted (a refused `begin` sent nothing,
+    // and the wait below timed out on a denial that never came)
+    const skFree = () => { const g = window.__app.current; return !g.strike.active && g.strike.canStart(); };
+    const skWhy = () => GB(() => { const g = window.__app.current; const tr = g.traversal; return JSON.stringify({ active: g.strike.active, t: g.strike.t, alive: g.player.alive, draw: g.weapons.drawPhase, reload: g.weapons.reloadBusy, grounded: g.player.controller.grounded, attached: tr.attached, committed: tr.committed, takedown: g.takedown.active, team: g.team.active, carrying: g.stealth?.carrying ?? false }); });
+    await until(B, skFree, null, 10000, 'client strike can start').catch(() => {});
     const d0 = await GB(() => window.__app.current.strike.count.denied);
-    await GB((id) => window.__app.current.strike.begin(id), skd);
+    const skWhy0 = await skWhy();
+    const skBegan = await GB((id) => window.__app.current.strike.begin(id), skd);
+    assert(skBegan, `the client starts a strike on the held guard (${skBegan ? 'ok' : skWhy0})`);
     await until(B, (n) => window.__app.current.strike.count.denied > n && !window.__app.current.strike.active, d0, 5000, 'client strike denied');
     const dn = await GB(() => ({ why: window.__app.current.strike.lastDenied, back: window.__app.current.strike.lastBackT }));
     const alive = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); e.taken = false; return e.alive; }, skd);
