@@ -419,46 +419,616 @@ k. Objective lines are 90 characters or less, British, voiceable (N1 renders the
   | --- | --- | --- | --- | --- |
   | a4-room | Take the duty officer quietly, then loop the floor cameras from his desk. | Take the officer from behind while your partner waits. | Use the console once the officer is down. | `a4-loop` set |
   | a4-floor | The cameras are blind for sixty seconds. Cross to the dock. | Main aisle: move fast while the cameras are looped. | Back aisle or mezzanine: keep out of the lit rows. | both west of x 84 |
-  | a4-dock | Two at the dock desk. Take one each, together, or wait for the kettle. | Take the man by the desk when your partner is set. | Take the man by the kettle when your partner is set. | both dock guards down, or both through the wicket |
+  | a4-dock | Two at the dock desk. Take one each, together, or wait for the kettle. | Take the man by the desk when your partner is set. | Take the man by the kettle when your partner is set. | both through the wicket (the push-bar sets the flag) |
   | a4-lock | Both of you into holding room four. There is a medkit there. | - | - | L4 cycled |
 
 - **Target.** 2:15.
 
+### A5 - Set 5, the Substation (teach: the partner throw with a far-side release; combine: jam a light). Tension 3
+- **Mock-up.** An urban grid substation, built indoors as a switchgear hall (real at city sites; no sky needed). The
+  apron (x 58-70, z 24-48) inside the east door; an inner security wall at x 58 (0.3 m, to the set ceiling, no lip) with
+  a 6 m cable gateway (z 33-39), left open for tonight's cable-drum delivery and guarded by three IR beams (0.35 / 0.9 /
+  1.45 m) between two beam towers, header 4.8 m; the inner zone (x 40-58): two transformer pens (3.5 m units, `noLedge`,
+  in 1.2 m bunds, low cover), the switchroom (x 40-46, z 36-48, 4 m) on the west wall with a floodlight on its face
+  lighting the 8 m in front of the zone control kiosk (the release, x 47, z 30), and the beam towers' power panel high
+  on the switchroom's south face (jammable, existing laser panel, shown in electro).
+- **Footprint.** 30 x 24 m, 6 m set ceiling.
+- **Entry / exit.** L4 (west door at x 70) onto the apron; L5 (50-56, 48-54) in the inner zone's north wall.
+- **Exercise E6 + E4 (CR-S3, CR-S15).** A stands behind pen 2's bund on the apron and throws B over the beams into the
+  dark pocket between pen 2 and the switchroom (mixed zone: the pen's own shadow; no lamp reaches it). B must then cross
+  the floodlit 8 m in front of the kiosk: A jams the floodlight through the gateway (5 s held plus 4 s off). B keys the
+  kiosk (the release: the beams off for good, `offFlag`) and A walks through. Sync: the thrower is stranded until the
+  release; the floodlight jam covers the runner.
+- **Observe, then plan.** From behind pen 2's bund (occluded from the patrol by the bund and the tower) both see the
+  beams (night vision), the kiosk across the gateway, the floodlit strip and the patrol's loop.
+- **Routes.** Throw and release (taught). Jam the beam towers' panel (6.5 s window) so one walks through, then keys the
+  kiosk for the jammer. Cross the floodlight in the patrol's gap instead of jamming. Loud: walk the beams (alarm stage).
+  Loop: round pen 1 (both ends open). Secret: behind the switchroom (a 1.2 m cable trench edge path, z 46-48).
+- **Guards.** `a5-patrol`: job, substation security walking the inner zone. Loop kiosk -> pen 1 -> switchroom door ->
+  gateway -> kiosk; 4 s stop at the kiosk reading the log; cycle 34 s. Isolation moment: behind pen 1 (x 44, z 27),
+  dark. Lure: the inner zone switch (group 51) draws him to the switchroom door. Body: the kiosk is on his loop. Hide
+  spots: the pen 2 bund corner, the trench edge.
+- **Lights.** Apron group 50 (switch at the L4 door); inner zone general group 51 (switch inside the switchroom door);
+  floodlight group 52 (photocell: jam or shoot only); kiosk lamp group 53 (no switch: the kiosk's own panel light,
+  emergency circuit). Chokepoint (the kiosk strip): darkened by the jam or by shooting the flood; avoided by timing.
+- **Surfaces.** Gravel in the bunds (loud), concrete apron and inner zone (quiet).
+- **Toys.** The floodlight (jam, shoot), the inner switch, the beam panel, the kiosk, the switchroom door.
+- **Devices.** Laser `laser-a5` (3 beams, `offFlag` `a5-release`), panel `panel-a5`, pickup gate `g-a5-release` at the
+  kiosk; the L5 near door is a `flag` gate on `a5-release` (fixes the old S4 skip: no walking through the beams to the
+  pad).
+- **Objective lines.**
+
+  | Step | Shared | A | B | Done when |
+  | --- | --- | --- | --- | --- |
+  | a5-throw | Throw one of you over the beams. The release is at the kiosk. | Stand behind the bund and throw your partner over the beams. | Land in the dark by the switchroom and wait for the jam. | B west of x 57 |
+  | a5-kiosk | Kill the floodlight so the kiosk can be reached unseen. | Jam the floodlight through the gateway for your partner. | Cross under the jam and key the release at the kiosk. | `a5-release` set |
+  | a5-lock | Beams are off. Both of you into holding room five. | - | - | L5 cycled |
+
+- **Target.** 1:45.
+
+### A6 - Set 6, the Pump House (teach: the hang-down; the rope once, untimed). Tension 3
+- **Mock-up.** A tidal-barrier pumping station: the pump floor (y 0) with three vertical pumps on 1.2 m plinths (low
+  cover); the motor gallery (2.4 m wide along the north wall, z 69.6-72, deck edge 4.4 m) with a bridge over the drive
+  bay (x 50-53, z 62-72, deck 4.4); the staff stair at the lit east end by the attendant's desk (rise 0.165, run 0.285,
+  handrails); the drive cage under the bridge (mesh 2.4 m with solid 1.2 m kick panels, push-bar door), with a 0.6 m
+  cable gland plate in the bridge deck directly over the drive cabinet (too small for a body: the hang-down only); the
+  outfall door on the east wall (x 64, z 59-65 to L6), interlocked shut while the duty pump runs (a real interlock,
+  shown by a red lamp).
+- **Footprint.** 24 x 18 m, 9 m high.
+- **Entry / exit.** L5 into the dark south-west corner (mixed zone: the high-bay over the old sump is tagged out); the
+  outfall door to L6 (64-70, 59-65).
+- **Exercise 1, rope (CR-S7).** A boosts B onto the gallery at its dark west end; B takes the rescue line from the
+  gallery's davit box (confined-space kit, real in wet-well stations) and drops it; A climbs (existing two-person rope).
+  The ledge relay also works there (a second tool, LD 7.1). Untimed, no threat at the west end.
+- **Exercise 2, hang-down hack (CR-S10, E9).** A crouches at the gland plate and lowers B head-first into the cage; B
+  holds the drive panel's isolate key (hold 3 s, N4, with a hold noise pulse: the panel's buzzer) while the attendant is
+  at the far pump; A watches his loop and pulls B up if he turns back. The pump runs down (the noise drops), the
+  interlock lamp turns green, the outfall door unlocks (`flag` gate). Both leave by the staff stair.
+- **Observe, then plan.** From the south-west corner (dark) both see the attendant's loop within one cycle, the cage, the
+  gland plate's yellow lifting-point sign on the bridge (the tell is visible from below) and the outfall door's red
+  interlock lamp.
+- **Routes.** Up: rope / relay at the dark west end (shadow), or the staff stair at the lit east end timed on the
+  attendant's desk stop (risky). Then the hang-down, the only way to the drive. If B is seen hanging or the holder lets
+  go, B drops into the cage, finishes the hold from the floor (the cabinet is in reach) and leaves by the push-bar door
+  (no stranding). Loop: round the three pumps.
+- **Guards.** `a6-attendant`: job, reading pump gauges. Loop desk -> pump 1 -> pump 2 -> pump 3 (far, x 42, z 58) ->
+  desk; 4 s stop at each gauge; cycle 32 s; he passes the cage side-on. Isolation moment: at pump 3 (dark corner,
+  unwatched). Lure: the gallery switch (group 61) draws him to the stair foot. Body: the pump floor is his loop. Hide
+  spots: behind pump 3's plinth, the cage's kick-panel corner.
+- **Lights.** Pump floor high-bays group 60 (switch by the outfall door); gallery strip group 61 (switch at the stair
+  head); attendant's desk lamp group 62 (switch on the desk); cage lamp group 63 (on the drive panel's own circuit, no
+  switch: it is the panel's work light). The west end is dark by design (the tagged-out high-bay).
+- **Surfaces.** Wet concrete pump floor (quiet), gallery and bridge chequer plate (loud: drop from the hang is quieter
+  than walking the bridge).
+- **Toys.** The gallery switch, the desk lamp, the high-bays (jam, shoot), the cage door, the gland plate.
+- **Objective lines.**
+
+  | Step | Shared | A | B | Done when |
+  | --- | --- | --- | --- | --- |
+  | a6-up | Get both of you onto the motor gallery at the dark west end. | Boost your partner up, then climb the rescue line. | Drop the rescue line from the davit box for your partner. | both on the gallery (y > 4) |
+  | a6-hang | Lower one of you through the gland plate to the drive panel. | Hold your partner over the drive cabinet. Watch the attendant. | Hold the isolate key on the drive panel while he is away. | `a6-drive` set |
+  | a6-lock | The interlock is green. Out by the outfall door. | - | - | L6 cycled |
+
+- **Target.** 2:00.
+
+### A7 - Set 7, the Data Hall (teach: split paths and a synced hack). Tension 4
+- **Mock-up.** A colocation data hall (Mission 1's kind of site): racks 2.2 m in rows east-west (`noLedge`), aisles
+  3.0 m, 4.0 m slab; the target cage (10 x 6 m mesh, 2.4 m, x 86-96, z 60-66) with dual-control terminals T1 on its
+  west face (in the hall) and T2 on its east face (inside the hot-aisle containment pod, x 96-100, z 58-68, reached only
+  from the plant corridor's east door: real pods have doors at their ends); the plant corridor 3.5 m wide along the
+  south side (z 52-55.5) with 2.0 m cooling units (`noLedge`) and a 6 m grating over the cable trench (loud); the entry
+  lobby at the west end (x 70-74) with a glazed door into the hall and one into the plant corridor, and the fire plan on
+  the wall.
+- **Footprint.** 30 x 20 m.
+- **Entry / exit.** L6 into the lobby; the hall's east door (maglocked until the cage's dual control opens, `flag`) to
+  L7 (100-106, 57-63).
+- **Exercise E11 (CR-S20, CR-S34).** A takes the hall: the technician's round plus the fixed north-east camera. B takes
+  the plant corridor: the grating (silent crouch, slow) plus the sweeping camera at its east door. Each path is about
+  45 s. At the cage, each terminal's ready lamp is visible to the other through the mesh. Both hack (2 s) and finish
+  inside 1.5 s of each other (the existing paired scanners, G131, G193). Sync: the hack.
+- **Observe, then plan.** Both glazed lobby doors and the fire plan show both routes, both terminals and the cameras.
+- **Routes.** Either player takes either path. Hall: north or south aisles (loop round the rows). Plant corridor: slow
+  and silent or fast and loud on the grating. Jam either camera (each player alone, still): the solo stealth test.
+- **Guards.** `a7-tech`: job, a data-hall technician on his rounds. Loop along the aisles west -> east -> back by the
+  south aisle; 5 s stop at the cage reading a rack screen; cycle 40 s. Isolation moment: the south aisle's west end.
+  Lure: the aisle lights (group 71) draw him to their switch. Body: the cage front is on his loop. Hide spots: the end
+  of each rack row, the lobby's coat bay.
+- **Cameras (2).** `a7-cam1` fixed at the hall's north-east corner over T1's approach; `a7-cam2` sweeping at the
+  plant corridor's east door.
+- **Lights.** Hall rack-row lights group 70 (switch in the lobby); aisle end lights 71 (switch at the south aisle's
+  west end); plant corridor group 72 (switch at its west door); pod lights 73 (no switch: on the cage's own control,
+  stated reason).
+- **Surfaces.** Raised floor tiles (quiet), the trench grating (loud).
+- **Toys.** Two cameras (jam, shoot), three switches, the grating (a loud and a quiet way across), the lobby doors.
+- **Devices.** Scanner pair `sc-a7` (`a7-t1`, `a7-t2`, flag `a7-sync`) on the cage; `flag` gate on `A7-east`.
+- **Objective lines.**
+
+  | Step | Shared | A | B | Done when |
+  | --- | --- | --- | --- | --- |
+  | a7-split | Split up: one through the hall, one through the plant corridor. | Hall route: slip past the technician's round to terminal one. | Plant corridor: quiet on the grating, past the camera, to terminal two. | each player at their terminal |
+  | a7-sync | Hack both terminals together. Start on the ready lamps. | Hack terminal one on your partner's count. | Hack terminal two on your partner's count. | `a7-sync` set |
+  | a7-lock | The east door is open. Both of you into holding room seven. | - | - | L7 cycled |
+
+- **Target.** 1:50.
+
+### A8 - Set 8, the Strongroom (graduation: everything, in sync). Tension 5
+- **Mock-up.** A Victorian bank's banking hall, security office and vault (the old town's private vault company kind of
+  site). Banking hall x 106-134, z 50-78 (9 m, chandeliers), 1.2 m oak counters (low cover), the night desk at the lit
+  front; the public gallery along the north wall (3 m deep, deck edge and cornice at 4.4 m, z 75-78) with the public
+  stair at the lit front by the night desk; the security office (x 134-142, z 72-78, 3.0 m) at gallery level at the
+  gallery's east end, with its own stair down into the vault lobby (its door opens only from the office side); the vault
+  lobby (x 134-146, z 56-68, 5.5 m, room for the throw's arc) behind the public grille (3 m bars at x 134, maglocked
+  fail-safe on the hall's night circuit: the lights and the grille share one isolator), an inner beam curtain at x 140,
+  time-lock panels T1 (outer zone, north wall) and T2 (inner zone beside the vault door), 13.6 m apart; the vault
+  (x 146-150, z 58-66) and the cash dock (x 150-160, z 58-66, the exit zone).
+- **Footprint.** 44 x 28 m.
+- **Entry / exit.** L7 into the vestibule at the hall's west end (mixed zone: under the gallery's return, no fitting).
+  Exit: through the vault to the cash dock; both in the exit zone end the course (G138).
+- **The model.** L7's vitrine holds a scale model of this set, so the pair plans before entering (LD 10.3), with a
+  wall medkit: the rest beat before the finale.
+- **Sequence (ROUTE A8, CR-S17, CR-S26, CR-S28, CR-S20).**
+  1. **Split.** B boosts A to the gallery at the dark west end and stays on the floor (leg-up).
+  2. **Cross-level jam.** From the dark centre of the floor (behind the counters), B jams C2 (about 15 m) while A covers
+     the gallery's last 10 m to the security office door (jammer timer).
+  3. **Security office.** A takes the duty officer and loops C1-C3 for 60 s (N3). The loop shows on the monitor wall and
+     in the objective line.
+  4. **Timed light and lock isolation.** B isolates the hall circuit at the lighting board under the gallery: 25 s
+     dark (N2), and the grille, on the same circuit, opens (existing `mains` gate). N1 walks to the board (lure); B hides
+     or takes him there. B slips through the grille. A comes down the office stair into the lobby.
+  5. **Throw.** A throws B over the inner beam curtain.
+  6. **Sync.** A at T1 and B at T2 hack together inside 1.5 s, on the ready lamps (second scanner pair, N6), before the
+     loop ends and between N2's visits to the grille. The vault opens, the beams drop with the time lock, and both walk
+     out to the cash dock.
+- **Routes.** Ghost: time N1 and N2, no takedowns. Clear the hall: a dual takedown when N2 stops at N1's desk (B takes
+  N1 from behind the counters while A drops from the gallery onto N2, the existing drop takedown, inside 1.5 s). Loud:
+  shoot C2 or the hall lamps (alarm, rating). Gallery: the boost or the public stair (timed on N1). Loop: round the
+  counters.
+- **Fail and retry (escalation).** The loop ends: C3 returns; a hack in its view raises the alarm stage; A loops again
+  (the office stair, 10 m; console re-arms after 20 s). The lights restore: the grille relocks; isolate again, or the
+  player inside opens it with the request-to-exit button (existing `egress`). A failed sync: as A7 (10 HP, G193).
+- **Guards (3).** `a8-night1` (N1: the night desk clerk, static post, sweeping the front, 6 s head turns). `a8-night2`
+  (N2: the hall patrol, 40 s loop hall -> grille, 5 s stop looking through the bars, 5 s talk at N1's desk).
+  `a8-officer` (the security office duty officer, seated, static, info lines). Isolation moments: N1 at the lighting
+  board when lured; N2 at the grille; the officer alone by design. Lure: the board (lights out) draws N1. Body: N2's
+  loop crosses the counters. Hide spots: behind the counters' ends, the vestibule.
+- **Cameras (3).** C1 over the hall floor, C2 on the east wall watching the last 10 m of the gallery, C3 in the vault
+  lobby covering both panels; shared `offFlag` `a8-loop`.
+- **Lights.** Hall chandeliers and counter lamps group 81 (the night circuit: the lighting board isolator, N2 25 s;
+  the grille's `mains` gate reads it); gallery wall lights group 82 (switch at the public stair head); security office
+  group 83 (switch by its door); vault lobby group 84 (on the time lock's circuit, no switch); vestibule dark by design.
+- **Surfaces.** Marble hall floor (loud at a run, quiet crouched: `tile`), gallery oak boards (quiet), lobby steel
+  plate (loud).
+- **Toys.** The board, the gallery switch, the chandeliers (jam, shoot), three cameras, the grille, the office stair.
+- **Objective lines.**
+
+  | Step | Shared | A | B | Done when |
+  | --- | --- | --- | --- | --- |
+  | a8-split | Split up: one onto the gallery, one stays on the floor. | Take the boost to the gallery at the dark west end. | Boost your partner up, then keep to the counters. | A on the gallery |
+  | a8-office | Get to the security office unseen and loop the cameras. | Reach the office on your partner's jam, then take the officer. | Jam the gallery camera from the floor for your partner. | `a8-loop` set |
+  | a8-grille | Kill the hall lights to open the grille. Sixty seconds on the loop. | Come down the office stair into the vault lobby. | Isolate the hall lights at the board, then slip through the grille. | both in the vault lobby |
+  | a8-beams | Over the beam curtain to the second time lock. | Throw your partner over the beams. | Land by the vault door and take time lock two. | B east of x 140 |
+  | a8-sync | Both time locks together, on the ready lamps. | Hack time lock one on your partner's count. | Hack time lock two on your partner's count. | `a8-sync` set |
+  | a8-out | The vault is open. Both of you out to the cash dock. | - | - | both in the exit zone |
+
+- **Target.** 3:30.
+
+### Route summary
+| Set | Teaches | Combines | Guards | Cameras | Tension |
+| --- | --- | --- | --- | --- | --- |
+| A1 Gate | Leg-up, ledge relay, bolt | - | 1 passive | 0 | 1 |
+| A2 Carriage Shed | Timed light isolation (lure comes with it) | Leg-up (staging) | 1 | 0 | 2 |
+| A3 Office Range | Timed jam relay | One guard (offices route) | 1 | 1 | 2 |
+| A4 Goods Shed | Security room camera loop, dual takedown | Jam fallback, light lure | 3 | 3 | 3 |
+| A5 Substation | Partner throw with release | Jam a light, patrol timing | 1 | 0 | 3 |
+| A6 Pump House | Hang-down (+ rope once) | Leg-up, patrol timing | 1 | 0 | 3 |
+| A7 Data Hall | Split paths and sync hack | Solo stealth, cameras | 1 | 2 | 4 |
+| A8 Strongroom | Graduation | Everything, under two windows | 3 | 3 | 5 |
+| **Total** | | | **12 (11 perceiving)** | **9 of 12** | |
+
+Releases after peaks: L4 (medkit) after A4, L7 (the model room, medkit, 30 s rest) before A8; every holding room is tension 1.
+
+Plan (ASCII, not to scale, north up):
+
+```
+ z 78 |                                                   +--------A8 STRONGROOM---------+
+      |  north strip (gallery y 4.5) x 40-106             | gallery 4.4 N   sec.office NE |
+ z 72 |           +---A6 PUMP---+  +----A7 DATA HALL----+ |                               |--+
+      |           | gallery N   |L6| lobby W  cage  pod  |L7 hall           vault lobby  |EX|
+ z 54 |           +-----L5------+  +--plant corridor S--+ +-------------------------------+--+
+ z 48 |  ====================================== north strip ========
+      |           +--A5 SUBSTATION--+  B  +------A4 GOODS SHED------+
+      |           | inner | beams|ap|L4 R | dock      racking        |
+ z 24 |           +-----------------+  I  +-----------------------SR-+
+ z 20 | ===================== south strip (gallery y 4.5) x 0-112 ============
+      | +-A1 GATE-+  +----A2 CARRIAGE SHED----+  +-A3 OFFICES-+
+      | |lounge wall|L1| rakes  neck   rakes   |L2| corridor  cam|L3
+ z  0 | +---------+  +------------------------+  +------------+
+        x 0         x 28                         x 76        x 100      x 150 x 160
+ BRI = the instructor bridge (x 70-76, z 24-48, over L4). SR = security room (x 100-106, z 13-19).
+ Route: lounge -> A1 -> L1 -> A2 -> L2 -> A3 -> L3 -> SR -> A4 floor (E to W) -> L4 -> A5 (E to W) -> L5 -> A6 ->
+        L6 -> A7 (W to E) -> L7 -> A8 (W to E) -> cash dock.
+```
+
 ## 10. Timing table
-TODO
+First co-op run, a pair who know the controls, no deaths (A2). Min = clean and quick; Max = one failed attempt or one
+restart in that set. From ROUTE-DRAFT section 4 (walk speeds from `GEARS`: about 1.5 m/s on stealth ground, 2.1 m/s in
+holding rooms).
+
+| Step | Walk (m) | Min | Target | Max | Cumulative target |
+| --- | --- | --- | --- | --- | --- |
+| Start in the arrival lounge | 0 | 0:15 | 0:30 | 0:45 | 0:30 |
+| A1 Gate | 25 | 0:40 | 1:10 | 2:00 | 1:40 |
+| L1 | 8 | 0:08 | 0:12 | 0:20 | 1:52 |
+| A2 Carriage Shed | 55 | 1:00 | 1:45 | 3:00 | 3:37 |
+| L2 | 8 | 0:08 | 0:12 | 0:20 | 3:49 |
+| A3 Office Range | 35 | 0:50 | 1:30 | 2:30 | 5:19 |
+| L3 | 8 | 0:08 | 0:12 | 0:20 | 5:31 |
+| A4 Goods Shed (security room + floor) | 55 | 1:20 | 2:15 | 3:30 | 7:46 |
+| L4 (medkit) | 8 | 0:08 | 0:12 | 0:20 | 7:58 |
+| A5 Substation | 45 | 1:00 | 1:45 | 3:00 | 9:43 |
+| L5 | 8 | 0:08 | 0:12 | 0:20 | 9:55 |
+| A6 Pump House | 50 | 1:10 | 2:00 | 3:15 | 11:55 |
+| L6 | 8 | 0:08 | 0:12 | 0:20 | 12:07 |
+| A7 Data Hall | 45 | 1:10 | 1:50 | 3:00 | 13:57 |
+| L7 (model, medkit, rest) | 8 | 0:15 | 0:30 | 0:45 | 14:27 |
+| A8 Strongroom | 70 | 2:15 | 3:30 | 5:30 | 17:57 |
+| Cash dock | 10 | 0:05 | 0:10 | 0:15 | 18:07 |
+| **Total** | **~446 m** | **~10:50** | **~18:05** | **~29:30** | |
+
+- M3's 15-20 min holds at the target column (a retry in two or three sets). Practised pairs run about 11 min.
+- If Michael's first walk runs long: fold A3's relay into the A4 approach (saves about 1:40), or drop A2's staging.
+  If it runs short: add the A2 second isolation pass or A6's staff-stair timing as required steps.
+- Co-op spacing: a co-op beat about every minute (denser than CT's 2-3 min, on purpose for a training course); set
+  pieces at about 6-8 min (A4), 13-14 min (A7) and 15-18 min (A8); no player idle over about 30 s (each waiting player
+  has a live job: jam, hold, watch, isolate).
+- Dead time: seven holding rooms at about 12 s each (1.4 min), down from about 1.5-2 min of identical airlocks plus
+  8 empty back halves today.
 
 ## 11. Michael's list mapped
-TODO
+Michael's words (BRIEF): "timed isolation of lights, cameras, locks, accessing security room to disable cameras, timed
+jammer exercises, hacking devices in sync, and any other coop "wow thats cool" experience".
+
+| Michael's item | Where | How | Device |
+| --- | --- | --- | --- |
+| Timed isolation of lights | A2 (taught), A8 (combined) | A2: two-way neck isolators, 15 s dark, lure; A8: the hall night circuit, 25 s dark | N2 timed isolator (new), `lightsOut` lure (exists) |
+| Timed isolation of cameras | A4 (taught), A8 | The security console loops a camera set for 60 s, re-arms 20 s after | N3 timed console (new) |
+| Timed isolation of locks | A8 (grille opens while the hall lights are off), A6 (interlocked outfall door), A7 (maglocked east door on the dual control) | The grille is a `mains` gate on the isolated circuit, so the light window is also the lock window; N5 for a plain timed release where a set wants one | `mains` (exists); N5 not needed |
+| Accessing the security room to disable cameras | A4 (taught), A8 (combined) | Take the duty officer, use his console | `SecurityConsole` (exists) + N3 |
+| Timed jammer exercises | A3 (taught), A5 (floodlight), A7 (solo, each path), A8 (cross-level jam) | The 5 s hold, 5 s cooldown and 1.5 s reboot force the relay | Held jammer (exists) |
+| Hacking devices in sync | A7 (taught), A8 (finale) | Paired terminals inside 1.5 s, ready lamps | Paired scanners (exist; a second pair is N6) |
+| Other co-op "wow" | A1 leg-up and bolt; A2 "kill the lights, I'll cross"; A4 dual takedown at the dock; A5 throw over the beams into the dark; A6 upside-down hack under a live patrol; A8 split levels, jam for the partner, the two-timer finale | | Team moves (exist), dual takedown banner (exists) |
+
+Not used (not built, Future): living key, throw-landing knockout, hang-down neck-snap, joint interrogation, operator and
+spotter, wire cut (section 21).
 
 ## 12. Co-op routes and plans
-TODO
+Under G253 (co-op only) and G180 (the CT verb set: leg-up, ledge relay, partner throw, hang-down, two-person rope,
+revive; jammer handoff, paired hacks) the template's "solo route to the same surface" is dropped (T1, T13: a doc fix,
+not a loosening).
+
+| Id | Where | CT verbs | Why one player cannot | Way back for a lone or downed player |
+| --- | --- | --- | --- | --- |
+| C1 | A1 wall, 4.4 m lip | Leg-up, relay, bolt | Lip 0.6 m over solo reach (3.8), wicket bolted on the far side | The wicket (unbolted from the yard side); the yard is ground level |
+| C2 | A2 neck | Timed isolation relay | The isolator is 26 m by route from far cover; the window is 15 s | Both rakes are ground level; the cabinets re-arm |
+| C3 | A2 staging, 4.4 m lip | Leg-up, relay | Lip out of solo reach; the west stair is locked | The east stair |
+| C4 | A3 corridor | Jam relay | A jam needs the jammer standing still; nobody jams himself across | The send-back returns to the lobby, the partner keeps his place |
+| C5 | A4 security room + dock | Takedown + console; dual takedown | The talking pair covers each other; the loop helps both | The wicket is egress from the floor side; the security room stays open |
+| C6 | A5 gateway | Partner throw, light jam, release | The beams cover the full 6 m gap; the release is on the far side | The kiosk release frees the thrower; the L5 door needs the release |
+| C7 | A6 gallery, 4.4 m lip | Leg-up, two-person rope (or relay) | Lip out of solo reach | The staff stair at the east end |
+| C8 | A6 gland plate | Hang-down | The plate is too small for a body; the cabinet is inside a locked cage | A dropped hanger finishes the hold from the cage floor and leaves by the push-bar door |
+| C9 | A7 cage | Paired hack (split paths) | Terminals 10 m apart with the cage between, inside 1.5 s | Both paths are ground level and open both ways |
+| C10 | A8 gallery, grille, beams, time locks | Leg-up, jam, console, isolation, throw, paired hack | Every step has two bodies in two places (gallery and floor, outer and inner zone) | The public stair (gallery), the office stair, the grille's request-to-exit, the beams drop with the time lock |
+
+- **Co-op lips.** Every co-op lip is 4.4 m (`COOP_LIPS`, exported from the map, with a unit test that each is 0.5 m or
+  more over `WALL_JUMP.maxUp` 3.8 and within `TEAM.boostMax` 4.5, LD 11.3). The human ladder grabs 4.1 m
+  (`TEAM.ladderGrab`), so the relay at 4.4 works only as the hanging partner's body climb, as today (CONSTRAINTS 12).
+- **Unplanned boost targets.** Every box top or lip 3.8-4.5 m above its floor is in `COOP_LIPS` or has `noLedge` (unit
+  test over every box top in the band, LD 11.5).
+- **Revive.** A player downed on each co-op surface (A1 yard, A2 staging, A6 gallery, A8 gallery) can be revived (e2e,
+  LD 15). Revive window 30 s, 2 per mission (`reviveClock.ts`).
+- **Both extract** (G138): the cash dock exit zone needs both.
+- **Plans per set** (bible 7): co-op plan = the table above; light plan = section 7 and each set's Lights row; sound
+  plan = each set's Surfaces row; checkpoint plan = every holding room (L1-L7) is the next set's checkpoint, on a floor,
+  lit by the house circuit but out of every guard's view (no guard in a holding room); medkit plan = L4 and L7 wall
+  medkits (G98, G119), plus the A8 security office (a third, near the finale's only damage source, the scanner fail).
 
 ## 13. Mission and modes (objectives, rules, theme)
-TODO
+- **Modes.** `modes: ['course']`, id `ctcourse`, name "Marlow Yard", not listed; campaign default stays
+  (`CAMPAIGN_MAP`, `session.map`). No `missions.json` entry (Course mode has none).
+- **Course def.** Bays `A1`..`A8` (ids change from `S1`..`S8`, section 16), airlocks `L1`..`L7` (6 x 6), chain
+  start -> L1 .. L7 -> end; the exit zone is the cash dock. No explainer panels (M4): `sw-p1..8` and `PANEL_TEXT` go.
+- **Objectives.** The step lists of section 9 (N1), in route order; each bay's last row is the existing "Both onto the
+  Ln airlock pad" / "Finish the course".
+- **Radio (LANTERN, from the instructor bridge; 90 characters, British, voiceable; at most three in a row).** One
+  entry line per set and a line on each timed window's start and last 5 s, for example:
+  - A1: "Evening. Same rules as the real thing. Over the wall, open the gate for your partner."
+  - A2: "The neck is on two isolators. Fifteen seconds of dark each time. Use them well."
+  - A3: "That camera sends you back to the lobby if it sees you. Jam it for each other."
+  - A4: "The duty officer's console loops the floor cameras. Sixty seconds. Don't dawdle."
+  - A5: "Those beams cover the whole gateway. One of you goes over, the other stays put."
+  - A6: "The drive panel is inside the cage. The gland plate is your way in. Mind the attendant."
+  - A7: "Two terminals, two routes. You'll be on your own for a bit. Meet at the cage."
+  - A8: "Last one. Everything you've done tonight, in one room. Take your time."
+  - Window lines: "Lights back in five." / "Cameras back in five." / "Grille's locking again."
+- **Rules.** Both extract (G138); revive 30 s, 2 per mission; set restart when both down; the A3 send-back; rating per
+  set as today (`courseRating.ts`), so the finale's rating now means something (A8 has guards and cameras).
+- **Theme.** Indoor, no moon, no weather; `lightLevel` 0.30 (the lounge, holding rooms and dock), set `ambientZone`s at
+  0.14 standby (section 7); grade: neutral-warm facility, each set its own palette (section 6).
+- **`reinforce`, `alarms`, `hideSpots`, `switches`.** No reinforcements and no alarm panels (course alarms stay a
+  stat; P7 asks about `em.stealth`). `hideSpots` per set sheet. `switches` per set sheet (every one by a door).
 
 ## 14. New code needed
-TODO
+The smallest set that the route needs (A3, the current goal: basic prototypes). Sources: COOP-INVENTORY section 2,
+DEVICE-INVENTORY section 7. Line counts are estimates without tests. Every item is also proposal P9 (Michael may strike
+it; each has a fallback there).
+
+| Id | Item | Needed by | Size | Files | Wire / `PROTOCOL_VERSION` |
+| --- | --- | --- | --- | --- | --- |
+| N1 | **Objective steps with per-player lines (M4).** `CourseObjective` grows into an ordered step list per bay: `{ id, bay, text, a?, b?, done }`, `done` = a course flag (set by a pass zone, pickup, pair, scanner or gate) or "gate open". The HUD shows the current step's shared line plus the line for this player's role (A = the bay's lead by the existing swap rule, B = the other). A timed gate's remaining seconds (already in `PackedCourse.gates[].t`) are appended while it runs ("Lights back in 9 s"). Plus a one-player pass zone (`PassZone.any`) for "B past x" steps. `validateCourse` checks ids and the 90-character limit. Panels are simply not placed (the panel code stays for `courselab`). | Every set | ~120 lines + tests | `src/game/course/courseDef.ts`, `courseState.ts`, `src/ui/hud/courseHud.ts`, `src/game/ctDevices.ts` (pass zone) | Flags and gate timers already ride `PackedCourse`: no shape change |
+| N2 | **Timed light isolator.** Gate kind `isolator { id, switchIds, group, seconds, rearm }`: a press turns course group `group` off for `seconds`, then back on; any switch on the circuit works (two-way); presses while off do nothing; re-arms after `rearm` s. On "off" it calls the `lightsOut` lure for that group's lamps. Fix `resetLights`' early return so a restart restores the map's lamps. | A2, A8 (and A8's `mains` grille) | ~80-100 lines | `courseDef.ts`, `courseState.ts`, `src/game/modes/courseMode.ts`, `src/game/stealthSystems.ts` (lure call only) | Group state rides `lights.groups` / `groupsOff`; timer rides `gates[].t`: no shape change |
+| N3 | **Timed security console.** `SecurityConsole.seconds?` and `rearm?`: the console sets its `offFlag` for `seconds`, then the host clears it and the cameras come back on both pages; re-arm after `rearm`. Needs a flag clear in `courseState` (flags are set-only today) and the timer on a gate slot so N1 can show it. | A4, A8 | ~40-60 lines | `src/game/course/securityRoom.ts`, `courseState.ts`, `courseMode.ts` | Flags ride `PackedCourse.flags`: no shape change |
+| N4 | **Hold device.** `CourseDevice.hold?: number` and `holdNoise?` passed to `ints.add(..., holdTime)` (`courseMode.ts:251`); a completed hold counts as the press. | A6 drive panel | ~15-25 lines | `courseDef.ts`, `courseMode.ts` | `NetItem.hold` exists: none |
+| N5 | Timed lock gate (press -> door unlocked N s -> relock). **Not built:** A8's grille uses the existing `mains` gate on the isolated circuit, which is the timed lock Michael asked for. Kept here so a set that needs a plain timed release can add it (~30 lines). | - | 0 | - | - |
+| N6 | **Several scanner pairs.** `CtDevices` builds every `lay.scanners` entry (today only `[0]`), `SecWire.sc` becomes one entry per pair, and the ready-lamp glow is placed from the device's position and yaw (today hard-coded to Marlow's z 0.3 / 13.7). | A7 and A8 | ~60-80 lines | `src/game/ctDevices.ts`, `src/game/scanners.ts`, `src/net/protocol.ts` | **Yes: `SecWire.sc` shape. Bump `PROTOCOL_VERSION` 29 -> 30** and the tests that assert it |
+| N7 | **Live course guards.** Data only: squad slots without `passive`, with `route` points (`rooms.ts` `SquadSlot.route`, applied at `courseMode.ts:666`). Re-confirm in Phase 0 that a course guard with a route patrols, perceives, investigates a lights-out and fights (course `em.stealth` stays false, P7). | A2-A8 | 0 (data) | map files | none |
+| N8 | **Free bay layout.** The map's `bayX(i) = 22 i` helpers and the tests that import them go; bays are placed by their own boxes. `coopUi.ts:595` "Start at" stops assuming 9 bays (reads the course def). | All | ~10 lines outside the map | `src/net/coopUi.ts` | none |
+
+Not needed (checked): a new HUD element (N1 reuses the course HUD's step line and table); new net messages; new input
+bindings; new AI behaviour. The one wire change is N6, so slice 0 bumps `PROTOCOL_VERSION` once to 30 and runs
+`e2e-coop` and `e2e-netmove`. If N6 is struck, A8's time locks become two N4 hold devices feeding a `pair` gate
+(`window` 1.5) and no bump is needed.
 
 ## 15. Proposals for Michael (never applied)
-TODO
+Every loosening of `docs/level-design.md`, the template, the bible or DECISIONS that the design uses. None is applied
+to the standard's text; the map is built to the "design uses" column so Michael can test it, and each has a fallback
+the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS section 4; "CR 6" is SCENARIOS section 6.
+
+| P | Rule | What the design uses | Reason | Fallback if Michael says no |
+| --- | --- | --- | --- | --- |
+| P1 | LD 3.1 entry vantage is dark | A concealed vantage: out of every guard's view by occlusion (a van end, a bund, a counter), dark only where a mixed zone allows | M6: sets are lit by default | A dark mixed-zone pocket (no fitting, reason in the register) at each vantage |
+| P2 | G225 "keep the open floor at 0.30" (T6) | Sets' `ambientZone` at 0.14 standby; 0.30 kept in the lounge, holding rooms and dock | M6 "lit, players cut it": a cut circuit must be dark (under 0.28) or isolation teaches nothing | Keep 0.30: isolations then work only as guard lures, never as darkness |
+| P3 | LD 6.3, bible 5.8 / 6 "no forced timers in stealth sections" (T4, CR 6) | Device windows only: A2 15 s, A4 / A8 60 s loop, A8 25 s lights, the jam's 5 s; player-started, shown, re-armable, never a fail; no course clock | Michael asked for "timed isolation" and "timed jammer exercises" | Windows become held: an isolator stays off while a player holds it (`timedHold`), the console stays off until restart (today) |
+| P4 | Level design standard for every map (M5 "review the rule", M6 "levels are quite dark and not realistic") | Proposed new LD 5.5: "Spaces are lit as the real building would be at night. Darkness is made by the players (switches, isolators, jams, shots) or is where the building really has none." | Michael's note covers all levels, not only this one | Apply to Marlow Yard only |
+| P5 | LD 9.2-9.3, G125 at most one hard rule (T5) | Not used. ROUTE-DRAFT wanted "an alarm resets the set"; this spec keeps escalation and A3's send-back only | - | (If Michael wants it: alarm stage 3 restarts the set, about 30 lines) |
+| P6 | Template "guard total 9 or fewer" (T8) | 12 role-players in the yard (11 perceiving), at most 3 alive per set (Course mode spawns per set; `MAX_ALIVE` 12; G254 "maximum amount") | Every set from A2 needs a live guard; A4 and A8 need pairs | Drop `a4-dock2` and `a8-night2` and the A1 checker's slot moves to A4 (9) |
+| P7 | Course guards fight alone (`em.stealth` false in Course mode) | Unchanged (false) | Keeps the prototype small | Set `em.stealth = true` in Course mode (1 line: radios, shared last-known position) |
+| P8 | LD 3.6 "guards do not look up" vs G44 not built (T10) | Occluders on every high route (A2 screens, A6 cage kick panels, A8 cornice) | Guards see straight up today | Build G44's look-up penalty (~15 lines in `perception.ts`) |
+| P9 | Template "Scope: existing systems only" (T12) | New code N1-N4, N6, N8 (section 14) | M4 asks for N1; Michael's list needs the timed devices | N1 dropped: one shared step line per set (today's `bayObjective`); N2 -> manual switches and `mains`; N3 -> permanent console; N4 -> a press; N6 -> two hold devices and a `pair` gate |
+| P10 | LD 6.1 one new mechanic per space | A4 teaches the console loop and the dual takedown (the takedown optional); A6 teaches the hang-down and uses the rope once with no threat | Fits 15-20 min with eight sets | Move A6's rope to A8's gallery as a second way up |
+| P11 | LD 3.2 three routes plus a secret in every guarded space (T2) | Two or three ways per set, a secret in A2, A3, A5; A1 is an unguarded teach set | Training sets teach one co-op route on purpose | Add a secret route per guarded set in the dressing pass |
+| P12 | The marlow-bunker rule "walls to ceilings, no lip over a bulkhead" | A1's 4.4 m boundary wall and the A2 / A6 / A8 decks stop under the 10 m hall roof | They are set flats inside a studio hall, built to their real height; the hall's own walls go to the roof | Run a charcoal panel wall above each set wall to the roof, with the 4.4 m lip as a walkway edge |
+| P13 | LD 16.5.3 rail 1.1 m where people work at height (T14) | The co-op lip spans of A2 staging, A6 gallery and A8 gallery are open loading edges with a drop chain (visual, no collision); rails elsewhere | A rail would remove the lip | Full rails; the lips move to a parapet-free hoist bay in each |
+| P14 | G206 "one interrogation guard" | Info lines on the A1 checker, A4 officer and A8 officer | The A4 and A8 lines plan the next beat (ROUTE-DRAFT) | Info only on the A1 checker |
+| P15 | G225 / marlow-bunker fiction (a bunker gallery) | The luxury rehearsal centre (M5) | M5 asks for it; M1 "rebuild freely" | - (M5 is Michael's word; recorded for DECISIONS at the merge) |
+| P16 | Bible / level standard "no co-op markers" (LD 11.2, T1) | The striped leg-up squares stay at A1, A2, A6, A8 | Solo invariance falls with G253; CT's training used marks | No marks; the objective line names the spot |
 
 ## 16. What the rebuild keeps and breaks
-TODO
+### Keeps (AUDIT section 6, MAP-AUDIT section 5)
+- **Identity.** Map id `ctcourse`, name "Marlow Yard", `modes: ['course']`, unlisted, its place in `MAPS`
+  (`tests/rooms.test.ts:140`), `CAMPAIGN_MAP = 'ctcourse'` (`coopUi.ts:382`, `:811`), `session.map` default
+  (`session.ts:58`), `e2e-park.mjs:92`, `e2e-coop.mjs:93` ("Marlow Yard|ctcourse").
+- **e2e-coop's bay-1 guard.** A grabbable, not-alerted guard in the first bay's squad: the A1 gate checker
+  (`e2e-coop.mjs:750-790`).
+- **Course framework contract.** Airlocks 6 x 6 +-0.5; the chain start -> airlocks -> end; text 90 characters; every read
+  flag set by a gate, a device or `externalFlags`; interactable ids `c-<device id>`; the both-in exit (G138); restart
+  rules; consoles need their guard in the bay squad (`consoleErrors`).
+- **Device systems** reused as they are: `PassZone.hall` (A3), `SecurityConsole` (A4, A8, timed by N3), lasers with
+  `offFlag` and power panels (A5, A8), paired scanners (A7, A8 via N6), the held jammer on every electric lamp,
+  camera and panel, the team moves, revive, medkit walls, the dual takedown banner.
+- **Debug hooks** the e2e reads: `window.__course`, `window.__ctdev.debug()`, team counters, `net.reviveClock`.
+- **Dressing kit.** `ctcourseBunker.ts` / `ctcourseVariety.ts` props are reused where a set fits them (plant faces,
+  hazard frames, racks, the coffer); the rest is retired with the bays.
+
+### Breaks, and the plan for each
+| What breaks | Why | Plan |
+| --- | --- | --- |
+| Course save record (`src/save/courseRecord.ts`): bay ids `S1..S8`, best times per bay | Bays become `A1..A8` | No `SAVE_VERSION` bump (a kv key, sanitised on read); old best times orphan. Say so in the changelog fragment and `TESTING.md`. "Start at" lists the new bays |
+| Rejoin / resume by bay index (`coopUi.ts:183`, `:205`; `tests/rejoin.test.ts:215-226`; `e2e-menus.mjs:352` bay 2) | Indexes still valid (8 bays) | Keep 8 bays; re-check the e2e-menus record and the rejoin test literals |
+| "Start at" with the all-bays dev flag hard-coded to 9 (`coopUi.ts:595`) | Bay count | N8: read the course def |
+| `tests/ctcourse.test.ts` (28 imports, every block pins the old layout) | New layout | Rewrite per set in slice 1-8 (one `describe` per set file); keep the text-limit, lips, door-width and register tests |
+| `tests/ctcourseLight.test.ts` + `ctcourseLight.tuned.json` (190 tuned levels) | New lamps, new ambient | Rewrite per set: lit pools on the route are lit, cut circuits go under 0.28, standby 0.14, holding rooms 0.30; re-tune with `CTLIGHT_PRINT=1` |
+| `tests/guardInfo.test.ts` (`GUARD_INFO`, `GUARD_SLOT`, `S3_SEC_GUARD`) | New guards | Rewrite for `a1-checker`, `a4-officer`, `a8-officer` |
+| `tests/jammer.test.ts:410-560` (S4 band, S3 hallway) | Moved devices | Point at `A5_LASER`, `A3_HALL` exports |
+| `tests/laserPanels.test.ts:31` (`S4_PANEL`, `S4_PANEL_JAM`, hidden box) | Moved panel | `A5_PANEL`, its jam spot and vantage trace |
+| `tests/scanners.test.ts:19` (`S6_FLAG`, `S6_SCANNERS`) | Two pairs | `A7_SCANNERS`, `A8_SCANNERS` |
+| `tests/camSpaces.test.ts`, `tests/smoothWorldLight.test.ts` (`bayX`, `CT_BAY`, `CT_OBST`, `CT_CEIL`) | Helpers go | Per-set spots from the set exports |
+| `tests/securityRoom.test.ts` (map-free) | N3 | Add the timed cases |
+| `tests/lampGridLossless.test.ts`, `levelFillParity.test.ts`, `voxelFit.test.ts`, `rooms.test.ts`, `rejoin.test.ts`, `roomDirectory.test.ts` | Map-generic | Run as they are; fix only real failures |
+| `scripts/e2e-ctcourse.mjs` (938 lines, literal ids and offsets; parts `{1:[1,3],2:[4,5],3:[6,8]}`) | New route | Rewrite (A1). One part per two sets: `:1` A1-A2, `:2` A3-A4, `:3` A5-A6, `:4` A7-A8 (`run-e2e.mjs:30`, `:43-44`, the `GROUPS` table, `e2e-times.json` keys) |
+| `scripts/e2e-coop.mjs:748-800` (bay-1 guard) | Kept by the A1 checker | Re-run, no change expected |
+| `scripts/e2e-anchors.mjs:9` (ctcourse places no anchors) | Still none planned (no ladders, pipes, ducts) | No change; if a builder adds an anchor, add ctcourse there |
+| GPU and shot scripts with coordinates: `shots-ctcourse.mjs`, `nv-shots.mjs`, `sector-lights-shots.mjs:62-64`, `sector-fixes-c-shots.mjs:18` (`cam-s3`, `laser-s4`), `camera-cue-shots.mjs`, `wheel-shots.mjs` | New ids and places | Rewrite `shots-ctcourse.mjs` with one vantage per set (the per-set GPU shots of M5); update the others' ids |
+| `PROTOCOL_VERSION` 29 | N6 | 30, with the tests that assert it |
+| Docs: `docs/ct-prototype/CTCOURSE-SPEC.md`, `TESTING.md:45-60`, `:263-294`, `docs/systems/testing-tools.md:33`, `:42-44`, `docs/course-ready/WALKTHROUGH.md`, `docs/systems/coop.md` (N1-N6) | Superseded | CTCOURSE-SPEC gets a header pointing here; TESTING per-set checks; WALKTHROUGH rewritten in the last slice |
 
 ## 17. 16.10 review answers
-TODO
+Answered for the design in this spec (LD 16.10); the checker re-asks each after every slice's greybox.
+
+| Q | Question (short) | Answer |
+| --- | --- | --- |
+| 1 | Room shape that forces a path? | None. Sets are rectangles on the 6 m grid; A3's corridor is straight; A2's rakes are parked stock, A4's racking is real aisles |
+| 2 | Space with no purpose, or too easy for its value? | None. Every set copies a site; the lounge, holding rooms and dock have facility jobs; the cage, security rooms and vault are locked or guarded |
+| 3 | Ladder beside a stair, or outside a plant space? | None. No ladders on the route |
+| 4 | Stair without handrails or with a gap? | Fix list: every stair (A2 staging east stair, A4 mezzanine stairs, A6 staff stair, A8 public and office stairs) gets handrails both sides and balustrades; the checker tests for gaps |
+| 5 | Roof reached by anything but a covered stair or fire stair? | None. No roof is on the route (the 4.4 m decks are working platforms, see P13) |
+| 6 | Roof object that is not roof equipment? | None (no roofs used) |
+| 7 | Floor or roof not fully covered, or a hole without a reason? | One planned opening: A6's 0.6 m gland plate (a real cable gland, with its plate lifted; the tell sign) |
+| 8 | Block without a named object; object blocking a door or window? | None planned: every block is named in the register (vans, racks, pens, pumps, counters, cooling units); 1.0 m clear in front of every panel, isolator, console and door |
+| 9 | Barrier in front of a room for no reason? | None. A1's wall and A5's inner wall are the sites' real security walls |
+| 10 | Ladder in a floor hole? | None |
+| 11 | Vent not at the end of a real duct? | None (no vents) |
+| 12 | Dead end needing an invented side entrance? | None. A3's offices have communicating doors (a real suite); the A4 security room's second door is the staff passage; A8's office stair is the vault company's real staff stair |
+| 13 | Every element has a register row with a real reason? | Section 18 (one compact table per set); a missing row fails review |
+| 14 | Would an architect recognise every room; can a visitor guess the stairs? | Yes: the facility is a studio with sets; each set's stairs sit where the real site has them (staging end, mezzanine ends, pump-house staff stair by the desk, bank public stair at the front) |
 
 ## 18. Element register
-TODO
+One row per route element (LD 16.9). Lamps are listed by group (each lamp in a group shares the row's owner, fitting
+and switch); builders add a row for any element they add, and the checker counts rows against every `b.light`,
+collidable `b.box`, anchor and door in the code (CONSTRAINTS 2). Rule column: same look = same behaviour (LD 2.5).
+
+**Facility (all sets)**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| F1 | Holding rooms L1-L7 (6 x 6, two sliding doors) | The set crew's interlock lobby between sets: resets the next set unseen | Checkpoint, both-on-pad, glimpse | Every holding room looks and works the same |
+| F2 | Holding-room glass slot | Crew view into the set before release | Glimpse (visual, solid) | All glass is solid to gameplay (T11) |
+| F3 | Instructor gallery glazing | Clients and instructors watch the sets | Fiction, landmark | Visual only, solid |
+| F4 | LED coves (house circuit, group 10 / 34 / per set) | The facility's architectural lighting, instructor-owned | Read light | No wall switch: instructor circuit |
+| F5 | Set doors with backlit name plates | Fire and access doors between sets and service corridors | Landmarks; locked staff doors never open | Locked staff doors look different (no handle, red plate) |
+| F6 | Wall medkits L4, L7, A8 office | First-aid stations required in a training centre | Healing (G98) | Same cabinet everywhere |
+
+**A1 Gate**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A1-1 | Boundary wall 4.4 m, 0.6 brick | The goods yard's security wall, copied full height | Co-op lip (C1) | Every coped 4.4 m brick wall top is a co-op lip |
+| A1-2 | Wicket door, bolted yard side | Staff gate, bolted at night from inside | Bolt gate | Bolts open from the bolt side only |
+| A1-3 | Vehicle gate 3 x 3, chained | The lorry gate, chained after hours | None (landmark) | Chained gates never open |
+| A1-4 | Gate checker's cabin | Where the checker logs lorries | Interrogation guard, switches | - |
+| A1-5 | Apron lamp group 11 | Gatehouse security light (photocell) | Lit apron | Photocell lamps: no switch |
+| A1-6 | Yard lamps group 12, cabin panel 13 | Yard and cabin lighting, switched in the cabin | Toys | Switch by the door |
+| A1-7 | Striped leg-up mark | The facility's training mark (P16) | Names the leg-up spot | Every mark is a leg-up spot |
+
+**A2 Carriage Shed**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A2-1 | Box vans 10 x 2.6 x 3.4 (`noLedge`) | Parked stock on the roads | Cover, loops | Vans are never climbable |
+| A2-2 | Rails and ballast | The siding's roads | Loud floor | Ballast is loud everywhere |
+| A2-3 | Neck high-bays group 21 | Shunting neck lighting on a contactor | The timed isolation | Isolators drive one circuit each |
+| A2-4 | Isolator cabinets 1 and 2 | Two-way lighting push stations at each door (real) | N2 | Same cabinet = same circuit control |
+| A2-5 | Shunter's cabin + back door | The shunter's mess and its yard door | Lure destination, secret route | - |
+| A2-6 | Cleaning staging, 4.4 m deck, open loading edge span | Carriage-cleaning platform at roof height | Co-op lip (C3), high route | Open loading edges are co-op lips (P13) |
+| A2-7 | Staging screens 1.2 m solid | Splash and fall screens | Cover on the high route | - |
+| A2-8 | East stair; west stair behind the permit gate | Platform access; the west stair locked off for work | Way down; reason for the leg-up | Padlocked permit gates never open |
+| A2-9 | Shed general group 20, cabin 22, staging 23 | Shed, cabin and platform lighting, switched by doors | Toys | Switch by the door |
+
+**A3 Office Range**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A3-1 | Corridor 3.5 x 18 | The office floor's main corridor (widened, T16) | The jam relay | - |
+| A3-2 | Ceiling IR camera | Corridor CCTV covering the stair lobby | Jam relay, send-back | Every camera sees in the dark |
+| A3-3 | Office 2 door reveal 1.0 m | The office door's recess | Stepping stone | - |
+| A3-4 | Offices 1-3, communicating doors | A suite let to one tenant | Alternative route, loop | - |
+| A3-5 | Frosted partitions | Office privacy glazing | Visual; solid | All glass solid (T11) |
+| A3-6 | Corridor group 30, office groups 31-33 | Office lighting on door switches | Toys, lure | Switch by the door |
+| A3-7 | Cleaner's trolley | The cleaner's kit | Cover, the cleaner's job | - |
+
+**A4 Goods Shed**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A4-1 | Security room, monitor wall, console | The site's CCTV office | N3 loop, interrogation | Consoles need their officer down |
+| A4-2 | Staff passage under the gallery | The foreman's door to the floor | Connector | - |
+| A4-3 | Pallet racking 5.4 m (`noLedge`) | Wide-aisle storage | Cover, loops | Racking is never climbable |
+| A4-4 | Pick mezzanine 3.3 m, chequer plate, two stairs | Order-picking floor | High route, loud floor | Chequer plate is loud everywhere |
+| A4-5 | Dispatch office, kettle, dock desk | The loaders' office | Guard jobs, lure switch | - |
+| A4-6 | Dock wicket (push-bar) | Fire-code exit door in the dock door | Exit (egress) | Push-bars open from inside only |
+| A4-7 | Cameras C1-C3 | Warehouse CCTV | The loop | - |
+| A4-8 | Groups 40-43 | Room, high-bay, aisle, mezzanine lighting on door / stair switches | Toys, lure | Switch by the door |
+| A4-9 | South back aisle (dark) | Bulk-store row on motion sensors, off tonight | Shadow route (mixed zone) | - |
+
+**A5 Substation**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A5-1 | Inner security wall to the ceiling | The compound's inner security line | Splits the set | No lip on security walls |
+| A5-2 | Cable gateway 6 m + beam towers | Opened for a cable-drum delivery, guarded by IR beams | The throw | Beams are seen only in night vision |
+| A5-3 | Beam power panel (high, switchroom face) | The towers' supply | Jam window | Panels are shown in electro |
+| A5-4 | Transformer pens, 1.2 m bunds (`noLedge` units) | Transformers in oil bunds | Low cover, loop | - |
+| A5-5 | Switchroom 12 x 6 | HV switchgear room | Floodlight mount, lure switch | - |
+| A5-6 | Floodlight group 52 | Security flood on the switchroom (photocell) | The light jam | Photocell lamps: no switch |
+| A5-7 | Zone control kiosk | The compound's alarm and access kiosk | The release | Releases are red push plates |
+| A5-8 | Cable trench edge path | Cable route behind the switchroom | Secret route | - |
+| A5-9 | Groups 50, 51, 53 | Apron, inner zone, kiosk panel lighting | Toys | Switch by the door; kiosk on emergency |
+
+**A6 Pump House**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A6-1 | Pumps on 1.2 m plinths | The station's vertical pumps | Low cover, loop, guard job | - |
+| A6-2 | Motor gallery 4.4 m, open loading edge at the west end | Motor access platform | Co-op lip (C7) | Open loading edges are co-op lips (P13) |
+| A6-3 | Davit box + rescue line | Confined-space rescue kit (real in wet wells) | Two-person rope | Rope points are marked davits |
+| A6-4 | Bridge over the drive bay | Crane bridge over the drive | Holder's spot | - |
+| A6-5 | Cable gland plate 0.6 m | Cable entry into the drive cage | Hang-down (C8) | Gland plates are hang-down spots only |
+| A6-6 | Drive cage, kick panels, push-bar door | Guarded VFD cabinet | Target, no stranding | - |
+| A6-7 | Drive panel (hold 3 s, buzzer) | The drive's local isolate key | N4 hold | Hold devices buzz while held |
+| A6-8 | Outfall door + interlock lamp | Interlocked with the duty pump | Exit gate (flag) | Red lamp = locked |
+| A6-9 | Staff stair with handrails | Gallery access by the desk | Way up / down | - |
+| A6-10 | Groups 60-63; the dark SW corner | Pump floor, gallery, desk, cage work light; the sump high-bay tagged out | Toys, mixed zone | - |
+
+**A7 Data Hall**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A7-1 | Rack rows 2.2 m (`noLedge`) | Colocation racks | Cover, loops | Racks are never climbable |
+| A7-2 | Cage 10 x 6, terminals T1, T2 | A client cage with dual-control entry | Sync hack | Same terminal look = scanner |
+| A7-3 | Hot-aisle containment pod | Cooling containment with end doors | B's side of the split | - |
+| A7-4 | Plant corridor, cooling units (`noLedge`), trench grating | CRAC units and the cable trench | B's route, loud floor | Gratings are loud everywhere |
+| A7-5 | Entry lobby, glazed doors, fire plan | The hall's airlock lobby | Observe, then plan | - |
+| A7-6 | Cameras 1 and 2 | Hall and corridor CCTV | Solo jam tests | - |
+| A7-7 | East door maglock | Released by the cage's dual control | Exit gate | - |
+| A7-8 | Groups 70-73 | Row, aisle, corridor, pod lighting | Toys, lure | Switch by the door; pod on the cage control |
+
+**A8 Strongroom**
+| Id | Element | Real-world reason | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+| A8-1 | Oak counters 1.2 m | The banking hall's counters | Low cover, loop | - |
+| A8-2 | Public gallery, cornice 4.4 m, open edge span at the west end | The hall's upper gallery | Co-op lip, split | Open loading edges are co-op lips (P13) |
+| A8-3 | Public stair (lit front) | Gallery access by the night desk | Alternative way up | - |
+| A8-4 | Security office + office stair | The vault company's staff office and stair | N3 loop, way down | - |
+| A8-5 | Lighting board under the gallery | The hall's night-circuit isolator | N2, lure | Isolators drive one circuit each |
+| A8-6 | Public grille, maglock on the night circuit | Fail-safe grille on the hall lighting supply | The timed lock (`mains`) | - |
+| A8-7 | Inner beam curtain | The vault lobby's intruder beams | The throw | Beams seen only in night vision |
+| A8-8 | Time-lock panels T1, T2 | Two-person rule for the vault | Sync hack (N6) | Same terminal look = scanner |
+| A8-9 | Vault door, vault, cash dock | Cash-in-transit route | Exit zone | - |
+| A8-10 | Cameras C1-C3 | Bank CCTV | The loop, the cross-level jam | - |
+| A8-11 | Groups 81-84; the dark vestibule | Night circuit, gallery, office, time-lock lights; the vestibule unlit under the return | Toys, mixed zone | - |
 
 ## 19. Engine questions for Phase 0
-TODO
+Re-grep in slice 0 (Phase 0) and write the answers into STATE.md "Decisions" with file:line.
+1. Every CONSTRAINTS section 2 constant (reach, jammer, scanner, laser, camera, nav, lamp grid, course timers).
+2. Does a Course-mode guard with a `route` patrol, perceive, follow a `lightsOut` lure to a switch and fight while
+   `em.stealth` is false? (N7)
+3. Per-set `ambientZone`: can a set's zone sit at 0.14 while the theme's `lightLevel` stays 0.30 for the lounge,
+   holding rooms and dock? Which `minY` / `maxY` per zone?
+4. Guards per set: does `courseMode.ts:634-668` despawn the previous set's squad before spawning the next, so 3 per set
+   never stacks past `MAX_ALIVE` 12?
+5. `TEAM.ladderGrab` 4.1 vs the 4.4 lips: confirm the relay at 4.4 is the hanging-partner climb (as S5 today).
+6. Revive "within 1.5 m of height": confirm or find the real rule (CONSTRAINTS: not found by grep).
+7. Glass: confirm a visual-only glass mesh over a solid box passes no light in the bake and no sight in perception.
+8. Can the jammer's line pass a mesh cage (A7) or the A8 grille bars? If not, keep planned jams off those lines.
+9. Does the `mains` gate relock a door with a player in its doorway? (The A8 grille must never close on a player.)
+10. Does the scanner panel `feet.y < 1.5` rule hold for both A7 and A8 panels (all at ground level)?
+11. Does the dual takedown banner need both guards in one squad, or any two takedowns within 1.5 s?
+12. `holdNoise` on a course hold device (N4): does the noise reach guards in Course mode?
+13. The scale sheet predates the CT camera (LD open item 8, G54): re-measure A3's 3.5 m corridor and the 3.0 m aisles
+    with the shoulder camera before the greybox is dressed.
 
 ## 20. Phases
-TODO
+The template's phases, as M2 and G87 run them (no stops for Michael; the job lead's loop per slice; PLAN.md has the
+slices):
+- **Phase 0** (slice 0): the section 19 greps, the section 14 code (N1-N4, N6, N8), the map scaffold and the test
+  rewrite frame.
+- **Phase 1-2** (this spec): building brief, routes, set sheets, guard jobs, register, proposals. Missing LD 13
+  deliverables (floor plan SVGs per storey and the `*-gameplay.svg` overlays, the full guard sheets, coverage table,
+  tool / problem matrix, metrics check, self-critique, playtest checklist) are written per set by its builder into
+  `docs/marlow-final/sets/<set>.md` and `docs/marlow-final/plans/*.svg` before that set's greybox; `scripts/plan-svg.mjs`
+  renders the built set for the comparison (LD 14 Phase 3).
+- **Phase 3..n** (slices 1-8): per set, greybox + lights baked + guards + one e2e route, then dressing with the kit
+  straight after (M5).
+- **Verification** (slice 9): the full route e2e, revive per co-op surface, perf and GPU shots via Character Build,
+  docs.
 
 ## 21. Future recommendations
-TODO
+Not built here; one line each on how they would fit.
+- **Living key** (force a held guard onto a scanner, CR-S21): the grab menu stub (`grabMenu.ts:25`) plus a scanner that
+  accepts a held guard; A7's cage is the natural second solution. Wire claim: a bump.
+- **Throw-landing knockout** (CR-S4): ~30 lines in `onTeamMove`; A5's patrol passes the landing.
+- **Hang-down neck-snap and hide pose** (CR-S10): in `runHang`; A6's attendant passes under the gland plate.
+- **G44 look-up penalty**: ~15 lines in `perception.ts`; frees the A6 and A8 high routes from heavy occluders (P8).
+- **Joint interrogation** (G148, CR-S32): host flags; the A8 officer.
+- **Operator and spotter** (CR-S23): a pump-house crane in A6; needs a remote-control device.
+- **Wire cut** (CR-S24): a scanner-pair variant with a per-run live wire in thermal; A8's time locks.
+- **Keypad with a per-run code** (G143): a code device read from the A4 officer's interrogation.
+- **Alarm consequences in Course mode** (reinforcements, P5, P7).
+- **Guard avatar** (M6): a later roadmap item.
 
 ## 22. Report format
-TODO
+Per slice and at the end: files changed (one line each); decisions; checks run with their summary lines (never claim a
+check not run in that slice); anything left undone; manual desktop checks per set for Michael (also in `TESTING.md`,
+desktop only, G12); then message the job lead and stop.
+
