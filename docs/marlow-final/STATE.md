@@ -67,6 +67,9 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 03:25 slice 1 checker PASS (S1-check.md); its should-fix done by the job lead (da79b984: e2e opens the wicket by
+  hand). A1 dressing started on Sonnet (a1Gate.ts dressing section + tests + S1.md "Dressing"). Laptop: A1 e2e on the
+  newest commit, then guard-cap perf on 155fbec0. Usage 62% at 03:22, 3 h 18 left.
 - 03:20 Character Build on 153db3e8: 12 GPU shots on the LAPTOP at C:/NightShift/scratch/runs/marlowfinal-153db3e8/shots/
   (a1-a8 stub halls, f-dock, f-gallery-from-a1, f-l1-holding, f-l7-model; not on the desktop); e2e-ctcourse:1 PASS 153 s.
   Perf: scripts/perf.mjs has no Course-mode path (spawns Warehouse guards; crash at perf.mjs:81). Baseline from
