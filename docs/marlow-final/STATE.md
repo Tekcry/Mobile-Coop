@@ -1,17 +1,18 @@
 # marlow-final - STATE
 
-## Now (2026-10-23 ~00:55, save point before the account swap)
-Done and committed: AUDIT.md, COOP-INVENTORY.md, CONSTRAINTS.md, ROUTE-DRAFT.md (all 4 step-1 reports), BRIEF M1-M6.
-SPEC.md is WIP (committed partial at each save). Running: KIT agent (scripts/facility-kit, src/world/kit, edits to
-levelBuilder / doors / anchors), PROPS agent (scripts/facility-props, src/world/props, PROPS.md), LIGHTING-PLAN agent
-(LIGHTING-PLAN.md), and the SPEC WRITER. Code from the kit agents is UNCHECKED WIP: run tsc + tests before building on it
-(started ~00:55; writes SPEC.md section by section, then PLAN.md: commit whatever is on disk at the save). Course
-Ready's three prep notes are in (feature/marlow-bays docs/marlow-final-prep/).
-Step 1 (read-only research) ran as 4 agents: yard audit -> `AUDIT.md`, co-op mechanics inventory + CT scenarios +
-exercise list -> `COOP-INVENTORY.md`, route + timing draft -> `ROUTE-DRAFT.md`, standard / engine constraints ->
-`CONSTRAINTS.md`. An art-kit agent (implementer) started in parallel: `KIT.md` + `scripts/facility-kit/` + a placement
-helper, uncommitted in this worktree until it hands back. Any of those files missing at resume = that agent did not
-hand back before the swap: rerun it (the prompts are in "Agent briefs" below).
+## Now (2026-10-23 ~01:10, SAVED at the account swap, usage 94%)
+In, committed: AUDIT.md, COOP-INVENTORY.md, CONSTRAINTS.md, ROUTE-DRAFT.md (all 4 step-1 reports), BRIEF M1-M6.
+WIP, committed partial (the agents may have been mid-work at the swap; check each file's last section):
+- SPEC.md (spec writer): partial; rerun the spec writer to finish SPEC.md and write PLAN.md (Next 1).
+- KIT.md + scripts/facility-kit/ + src/world/kit/ + tests/facilityKit.test.ts + hooks in levelBuilder / doors /
+  anchors / mapDef / world.ts + package.json (architecture kit agent, commit 93d1eab1): UNCHECKED. First run
+  `npx tsc --noEmit` and `npx vitest run tests/facilityKit.test.ts`; if broken, fix or revert the hooks.
+- LIGHTING-PLAN.md (lighting agent): partial.
+- PROPS.md + scripts/facility-props/ + src/world/props/ (props agent): may be missing or partial.
+Any of these missing or cut short: rerun that agent from "Agent briefs" (the props and lighting briefs are in the
+RESUME of the session, summarised here: props = Blender headless props per set + placement helper + PROPS.md;
+lighting = M6 rule review, per-set lit default / light groups / timed breakers / dark pockets, code and tests).
+Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (MAP-AUDIT, DEVICE-INVENTORY, SCENARIOS).
 
 ## Next
 1. Spec writer (one Opus agent): merges AUDIT, COOP-INVENTORY, ROUTE-DRAFT, CONSTRAINTS AND Course Ready's independent
