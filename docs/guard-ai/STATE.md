@@ -26,7 +26,18 @@ S4 PR based on feature/guard-ai, each PR retargeted to master after train 21.
   + placeSlot sets tacticsProfile (post -> P_POST, 'aggressive' -> P_AGGRESSIVE), posted guards keep the leash in
   combat. Then fresh Opus checker, e2e (e2e-stealth-ai 'radio' / 'radio stagger' / 'shots' / 'alarm' at risk: role
   guards wait out of sight; plus e2e-ct-warehouse, e2e-sectorops, e2e-wall), PR stacked on #196.
-- S5b and S6 implementers RUNNING (Opus, ~10:20) in worktrees ...-guard-ai-s5b / -s6, branches off the chain tip
+- ~11:00: 4.70.0 released (train 21 #197 with #191 S3). #193 retargeted to master; master merged into s4 (49ff29fe,
+  fragment keeps S4 only) and s4 into s5 (22c89012); s7 gets s5 once the chain fix agent hands back, then s8 gets s7.
+  Train 22 = S4 / S5 / S7 + #194 once the chain tip laptop GPU run is green (ONE message to the orchestrator then).
+- S8 fresh check PASS (e22e6cff, slices/S8-CHECK.md): polish: reinforcements P_STANDARD (S6 sets 'aggressive'),
+  no 4-guard e2e, role guard frozen in the open <= 12 s; e2e-levels LADDER_SEED may shift (Enemy ctor draws 1 not 4).
+- S5b BUILT 6c214068 (A26-A28), S6 BUILT 88ce08dd (A29-A31; RADIO_ALARM on, command call, aggressive reinforcements;
+  three profile reads in the combat branch that S8 must carry). Batch checker S5b + S6 RUNNING (Opus; writes
+  S5b-CHECK.md / S6-CHECK.md + the merge plan with S8). S10 implementer RUNNING (Opus) in ...-guard-ai-s10, branch off
+  S5b 6c214068 (A32-A34).
+- Planned order after checks: s8 <- s7; then S5b, S6, S10 stacked on S8 (merge each into the next), one laptop GPU
+  run on that tip (e2e-stealth-ai, e2e-sectorops, e2e-levels, e2e-enemies, e2e-wall, e2e-takedown), one PR each.
+- (done) S5b and S6 implementers (Opus, ~10:20) in worktrees ...-guard-ai-s5b / -s6, branches off the chain tip
   ae1f1895 (pushed empty). A-numbers reserved: S8 A23-A25, S5b A26-A28, S6 A29-A31, S10 from A32. Each writes
   slices/S<n>.md; then commit, one checker for S5b + S6 (batch), PRs stacked on #196 after S8. S10 next when CPU allows.
 - Then the chain tip e2e (E2E_GPU=1: e2e-stealth-ai, e2e-takedown, e2e-sectorops, e2e-ctcourse, e2e-ct-warehouse).
