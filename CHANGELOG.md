@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.58.3 - Decisions G229-G269 folded from the roadmap (2026-10-22, PR #146)
+- docs/DECISIONS.md: roadmap decisions of 2026-10-21 16:10 to 2026-10-22 ~21:50 folded in as G229-G269.
+
 ## 4.58.2 - GPU test waits for the tuner panel reads (2026-10-22, PR #143)
 - Tests: e2e-studio's reads of the tuner panel's effect mode and Keys readout wait 300 ms of wall time first (the
   panel refreshes them every 250 / 100 ms; a few frames on a hardware GPU pass in ~50 ms), so the suite no longer
