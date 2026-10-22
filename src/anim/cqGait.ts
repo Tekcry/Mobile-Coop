@@ -74,17 +74,17 @@ const CARRY: readonly CqGroup[] = ['cq.carry'];
 const mul = (id: string, label: string, g: readonly CqGroup[], hook: string, max = 3): TuneTunable => ({ id, label, kind: 'mul', def: 1, min: 0, max, step: 0.05, unit: 'x', groups: g, hook });
 
 export const CQ_TUNABLES: readonly TuneTunable[] = [
-  mul('holdTwist', 'Hold walk: hip and shoulder twist', HOLD, 'cqGait.ts CQ_GAIT.hold.pelvis (the pelvis yaw with the step; the shoulders follow by the counter share)'),
-  mul('holdCounter', 'Hold walk: shoulders against the hips', HOLD, 'cqGait.ts CQ_GAIT.hold.counter (0: the shoulders hold square, 1: as far as the hips the other way)'),
+  mul('holdTwist', 'Hold walk: hips and shoulders', HOLD, 'cqGait.ts CQ_GAIT.hold.pelvis (the pelvis yaw with the step; the shoulders follow by the counter share)'),
+  mul('holdCounter', 'Hold walk: shoulders vs hips', HOLD, 'cqGait.ts CQ_GAIT.hold.counter (0: the shoulders hold square, 1: as far as the hips the other way)'),
   mul('holdDip', 'Hold walk: step weight (dip)', HOLD, 'cqGait.ts CQ_GAIT.hold.dip (the pelvis drop at each loading response)'),
-  mul('holdStride', 'Hold walk: step length (cadence)', HOLD, 'cqGait.ts CQ_GAIT.hold.stride (longer steps at the same pace: a slower cadence)', 1.6),
+  mul('holdStride', 'Hold walk: step length', HOLD, 'cqGait.ts CQ_GAIT.hold.stride (longer steps at the same pace: a slower cadence)', 1.6),
   // (anim-n4b) the hold standing still
-  mul('holdBrace', 'Hold still: shoulders bracing (turn)', HOLD, 'cqGait.ts CQ_GAIT.hold.brace (the slow shoulder turn keeping the guard; the hips 0.3 of it the other way)'),
-  mul('holdBraceRoll', 'Hold still: chest against the weight shift', HOLD, 'cqGait.ts CQ_GAIT.hold.braceRoll (the chest roll against the side-to-side sway)'),
+  mul('holdBrace', 'Hold still: shoulder brace', HOLD, 'cqGait.ts CQ_GAIT.hold.brace (the slow shoulder turn keeping the guard; the hips 0.3 of it the other way)'),
+  mul('holdBraceRoll', 'Hold still: chest vs weight', HOLD, 'cqGait.ts CQ_GAIT.hold.braceRoll (the chest roll against the side-to-side sway)'),
   mul('holdBreath', 'Hold still: braced breath', HOLD, 'cqGait.ts CQ_GAIT.hold.breath (the slow spine pitch)'),
   mul('carryTwist', 'Carry: hip and shoulder twist', CARRY, 'cqGait.ts CQ_GAIT.carry.pelvis'),
-  mul('carryCounter', 'Carry: shoulders against the hips', CARRY, 'cqGait.ts CQ_GAIT.carry.counter'),
-  { id: 'carryLean', label: 'Carry: lean away from the load', kind: 'add', def: 0, min: -10, max: 10, step: 0.5, unit: 'deg', groups: CARRY, hook: 'cqGait.ts CQ_GAIT.carry.lean (the trunk away from the loaded shoulder; + = further)' },
+  mul('carryCounter', 'Carry: shoulders vs hips', CARRY, 'cqGait.ts CQ_GAIT.carry.counter'),
+  { id: 'carryLean', label: 'Carry: lean off the load', kind: 'add', def: 0, min: -10, max: 10, step: 0.5, unit: 'deg', groups: CARRY, hook: 'cqGait.ts CQ_GAIT.carry.lean (the trunk away from the loaded shoulder; + = further)' },
   mul('carryShift', 'Carry: hips under the load', CARRY, 'cqGait.ts CQ_GAIT.carry.shift'),
   mul('carryDip', 'Carry: step weight (dip)', CARRY, 'cqGait.ts CQ_GAIT.carry.dip'),
   mul('carryStride', 'Carry: step length (cadence)', CARRY, 'cqGait.ts CQ_GAIT.carry.stride', 1.6),
