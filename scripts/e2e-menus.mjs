@@ -686,8 +686,10 @@ try {
     await P.waitForFunction(() => window.__app?.screens?.top?.el.classList.contains('main-menu'), null, { timeout: 90000 });
     await frames(P, 6);
     await tapSel('.main-menu [data-key="settings"]');
+    await P.waitForFunction(() => (window.__app.screens.top?.el.classList[1] ?? '(none)') === 'settings-screen', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
     assert((await ttop()) === 'settings-screen', `a tap opens Settings (${await ttop()})`);
     await tapSel('.settings-screen [data-legend="back"]');
+    await P.waitForFunction(() => (window.__app.screens.top?.el.classList[1] ?? '(none)') === 'main-menu', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
     assert((await ttop()) === 'main-menu', `a tap on the Back legend returns to the main menu (${await ttop()})`);
     // in play
     await P.goto(`${url}?autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot`);
@@ -714,11 +716,13 @@ try {
     assert(turned > 0.2 && moved < 0.05, `a drag on the game view looks around (${turned.toFixed(2)} rad) and never moves her (${moved.toFixed(3)} m)`);
     assert(await shown(), 'after a touch the pause button shows');
     await tapSel('.touch-pause');
+    await P.waitForFunction(() => (window.__app.screens.top?.el.classList[1] ?? '(none)') === 'pause-screen', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
     assert((await ttop()) === 'pause-screen', `a tap on the pause button pauses (${await ttop()})`);
     await tapSel('.pause-screen [data-key="resume"]');
     assert((await ttop()) === '(none)' && (await GT(() => window.__app.current.simulating)), 'a tap on Resume resumes');
     await P.keyboard.press('Shift');
     await frames(P, 3);
+    await P.waitForFunction(() => getComputedStyle(document.querySelector('.touch-pause')).display === 'none', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
     assert(!(await shown()), 'a key press hides the pause button');
     const bad = T.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
     assert(bad.length === 0, `no console errors (game touch): ${bad.slice(0, 3).join(' | ')}`);
