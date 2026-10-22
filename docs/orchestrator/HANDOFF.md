@@ -1,36 +1,40 @@
 # Account handoff
 
-Michael (2026-10-22 ~13:00, 5-hour window ~95%): "Can you prepare all of these to be moved to another account?"
-Earlier handoffs (2026-10-21) are in git history.
+Michael (2026-10-22 ~19:15, old account's 5-hour window at 98%, reset 21:10): "Now, swap back once the next 5h limit
+is reached on the other account". So: work moves to the other account now; when that account's 5-hour window reaches
+~98%, everything saves and moves back here (this account's window is fresh after 21:10). Repeat as long as it pays.
+Earlier handoffs (2026-10-21, 2026-10-22 13:10) are in git history.
 
-## State at the switch (2026-10-22 ~13:10)
-Master v4.53.0 (#112, 5220f79c); /preview/ = dev = master. Every session was told to start no new agent, commit, push
-and write a stand-alone resume prompt. Rules changed today (all in CLAUDE.md "Sessions" and STATE.md): tuner / tests-only
-tier, merge trains (one PR and one version per train), full check / vitest takes the heavy lock, hard stop at 99%
-(97% no new agent, 98% save).
+## State at the switch (2026-10-22 ~19:20)
+Master v4.56.0 (#130). Train 6 (train/6 54b92b62, version commit 4.57.0) passed the laptop full run; merge-train.mjs was
+waiting on CI run 39744259308 when the old session stopped. Check first: `gh pr list --head train/6 --state all`.
+- Merged: tag v4.57.0 and dev should exist (`git ls-remote origin refs/tags/v4.57.0 dev`); if not, tag the merge commit and push it to dev.
+- Open and CI green on 54b92b62: `gh pr merge <n> --merge`, then tag v4.57.0 and push the merge to dev (separate commands).
+- CI red: read the failure; nothing is merged.
+Then: ROADMAP Done row for 4.57.0, STATE Master line.
 
-Open work:
-- #103 anim-bake-targets (CT Core, head 41becc22): desktop full run had 7 load failures; solo reruns: 6 of 7 ok, only ctcourse:1 FAILS
-  ("station 3: stale far-lobby positions reached the host (0 reports)", the jammer send-back test; may be real: first step a rerun and a master comparison) on the
-  desktop (CT Core reports the verdict). Pass -> it merges alone, or in the next train.
-- #110 anim-run-half (CT Core): after #103 merges: merge master, re-capture the identity fixture, check + e2e-anim +
-  e2e-studio, then a train.
-- anim-natural N1 feet (CT Core, feature/anim-natural-n1 bccc42e8): checker FAIL (heel scrub in the heel-first roll, 6
-  should-fix; docs/anim-natural-n1/CHECK.md): one fix round, then check, e2e, GPU sheets.
-- anim-natural N3 draws (Menu Notes, feature/anim-n3 5348f9be): checker PASS WITH FIXES; fix round half done, unverified
-  (fix 1 has no test; fix 2 fails 5 of 8 mid-draw scenarios, suspects in WIP.md) (RT during holster
-  dropped; holster / traversal mid-draw snaps the gun), merge master (4.53.0 has #109 clip speed), area e2e, PR.
-- anim-natural N4 holds and carries (Course Ready, feature/anim-n4 082be068): checker FIX; fix round (load share on the
-  carry lean; the lift crouch must not wait on animation foot contact in the sim), merge master, PR.
-- flake-fix (Character Build, feature/flake-fix 54c3576d): four fixes written, unverified; lint, vitest, two JOBS=2
-  proof runs, PR (tests-only tier).
-- N0 audit pass 2 (Menu Notes, after N3). N2 body motion (CT Core, after N1; SWAY_MAX to ~5 cm approved).
-Parked: #67 (Michael fixes it himself), sector-fixes, campaign-spec.
+Train 7 (build right after train 6 merges, from C:/NightShift/Mobile-Coop-phone-native):
+`node C:/NightShift/Mobile-Coop-merge-tools/scripts/merge-train.mjs build 7 feature/anim-n4b feature/anim-natural feature/studio-pairs` (+ feature/anim-natural-n1 if its PR is open).
+Members: #119 (aee3fd34), #132 N0 leftovers (docs + scripts), #134 studio-pairs (c30d3391). Pushing train/7 is enough:
+the laptop's unattended chain (C:/NightShift/scratch/chain-1022n.ps1) polls origin/train/7 until ~20:10 and runs its
+full e2e first; results land in C:/NightShift/scratch/runs/<label>. If the poll window has passed, ask Character Build to start it.
+
+Open work (each job's own resume file has the detail):
+- CT Core: N1 (feature/anim-natural-n1 1135bc41, fresh checker was running, no laptop pre-run needed: PR -> train 7 or 8);
+  N2 step 3 arms (feature/anim-natural-n2-s3 4e974ea1) being merged into N2 with master 4.56.0; then fix the run arm
+  22 cm one-frame pop inside N2. Resume: docs/orchestrator/resume-ct-core.md on feature/menu.
+- Course Ready: sector-fixes R (feature/sector-fixes-r e0e50027; uncommitted e2e WIP in C:/NightShift/Mobile-Coop-sector-fixes-r);
+  next: commit the e2e, checker, laptop area suites (coop, netmove, sectorops), PR -> train 8. Resume: docs/marlow-bays/RESUME-trackA.md on feature/marlow-bays.
+- Menu Notes: sector-fixes P (feature/sector-fixes-p db839845, PROTOCOL_VERSION 29, laptop suites running on 4191);
+  next: checker, PR -> train 8. Resume: docs/anim-natural/RESUME-menu-notes.md on feature/anim-natural.
+- Character Build: unattended chain (train 7 full, GPU full-run experiment, anim-natural GPU audit, test-speed-2), P singles.
+  Resume: docs/flake-fix/STATE.md on feature/flake-fix.
 
 ## In the new account
 Michael signs in to the other account in the desktop app (and on the laptop for Character Build), then pastes the
 orchestrator prompt into a new session. The new orchestrator gives each next prompt with its session title, model and
-effort, one per message, as the last thing in that message. Sessions are new: each prompt stands alone.
+effort, one per message, as the last thing in that message. Sessions are new: each prompt stands alone. Swapping back
+uses the same table and prompts.
 
 | Order | Session title | Model | Effort | Where |
 | --- | --- | --- | --- | --- |
@@ -42,25 +46,25 @@ effort, one per message, as the last thing in that message. Sessions are new: ea
 
 ### 1. Orchestrator
 ```
-Night Shift | Orchestrator (new account). Resume from docs/orchestrator/STATE.md and docs/orchestrator/HANDOFF.md on feature/menu in C:/NightShift/Mobile-Coop-menu (git fetch; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. Sessions from the old account are gone: give Michael each job's prompt from HANDOFF.md "In the new account", one at a time, with session title, model and effort, as the last thing in the message. Recreate the usage and bottleneck cron (17, 37, 57 past; STATE "Pacing" and "How Michael works") and check get_usage now. Then carry on: merge trains per STATE "Merge procedure", route work per "Sessions". Short replies, native multiple choice only, hyphens not em dashes.
+Night Shift | Orchestrator (account swap). Resume from docs/orchestrator/HANDOFF.md and docs/orchestrator/STATE.md on feature/menu in C:/NightShift/Mobile-Coop-menu (git fetch; git pull; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md. First: HANDOFF "State at the switch" (finish the train 6 release, build and push train 7). Then give Michael each session's prompt from HANDOFF "In the new account", one at a time, with session title, model and effort, as the last thing in the message. Recreate the usage and bottleneck cron (17, 37, 57 past) with the prompt in STATE "Cron prompt" and check get_usage now. Swap back to the other account when this account's 5-hour window reaches ~98% (HANDOFF top). Short replies, native multiple choice only, hyphens not em dashes.
 ```
 
 ### 2. CT Core Build
 ```
-Night Shift | CT Core Build (new account). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md). Detached test scripts from the old session may have died: a C:/NightShift/heavy.lock naming CT Core Build with no node process running is stale; delete it. Message "Night Shift | Orchestrator" with the #103 verdict and at each slice and PR.
+Night Shift | CT Core Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md). Scripts from the old session may have died: a C:/NightShift/heavy.lock naming CT Core Build with no node process running is stale; delete it. You are the overflow session (STATE "Pacing"). Message "Night Shift | Orchestrator" at each slice and PR.
 ```
 
 ### 3. Menu Notes Build
 ```
-Night Shift | Menu Notes Build (new account). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch feature/anim-natural; git pull first). Message "Night Shift | Orchestrator" at each slice and PR.
+Night Shift | Menu Notes Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch feature/anim-natural; git pull first). Current job: sector-fixes P in C:/NightShift/Mobile-Coop-sector-fixes-p (docs/sector-fixes/STATE.md there): fresh checker, then the PR. Message "Night Shift | Orchestrator" at each slice and PR.
 ```
 
 ### 4. Course Ready Build
 ```
-Night Shift | Course Ready Build (new account). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (git fetch; read it with git show origin/feature/marlow-bays:docs/marlow-bays/RESUME-trackA.md). Message "Night Shift | Orchestrator" at each slice and PR.
+Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (git fetch; git show origin/feature/marlow-bays:docs/marlow-bays/RESUME-trackA.md). Current job: sector-fixes R (C:/NightShift/Mobile-Coop-sector-fixes-r, uncommitted e2e WIP there). Message "Night Shift | Orchestrator" at each slice and PR.
 ```
 
 ### 5. Character Build (laptop)
 ```
-Night Shift | Character Build (new account, laptop, the test runner). Read CLAUDE.md "Sessions" ("The laptop is the test runner"), then follow the resume prompt in the last fenced block of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Take run requests from the orchestrator and job leads first; flake-fix fills the gaps. Message "Night Shift | Orchestrator" with each verdict.
+Night Shift | Character Build (account swap, laptop, the test runner). Read CLAUDE.md "Sessions" ("Main test machine: the laptop"), then follow the resume prompt in the last fenced block of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Your unattended chain (C:/NightShift/scratch/chain-1022n.ps1) may still be running: check its results in C:/NightShift/scratch/runs before starting anything. Take run requests from the orchestrator and job leads; at most one full run at a time. Message "Night Shift | Orchestrator" with each verdict.
 ```
