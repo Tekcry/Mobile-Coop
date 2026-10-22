@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~03:15 SLICE 0 COMPLETE: 0e checker PASS (S0e-check.md, polish P1-P5 only; P1 prop emissives on no circuit, P2 L7
+  vitrine 16 cm float). Orchestrator told. Slice 1 (A1 the Gate, steps 2-4) started on Sonnet from a strict brief
+  (owns a1Gate.ts, tests/ctcourse/a1Gate.test.ts, a1Gate.light.json, scripts/e2e-ctcourse/a1Gate.mjs, slices/S1.md).
+  Then: Opus checker, laptop e2e-ctcourse:1, dressing (Sonnet), then A2.
 - ~03:05 0e IN (153db3e8; slices/S0e.md): shell clad (visual), gallery (circuit 90, drawn only), lounge (group 10:
   dark until A1 builds its lamps), holding rooms, dock; 140 props; gallery 53.6 k kit tris; gallery and lounge at the
   12-draw limit; detail pass off. 57 map tests pass. Opus checker on 0e running; GPU shots + perf + e2e-ctcourse:1 sent
