@@ -72,7 +72,7 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     await check([flick(1.4, 90, 0), flick(1.4, 180, 0.41), flick(1.4, 180, 0.83), flick(2.0, 90, 0), flick(2.0, 180, 0), flick(2.0, 180, 0.41), flick(2.8, 180, 0), flick(2.8, 180, 0.41), flick(2.8, 180, 0.83)]);
   }, 300_000);
 
-  itOther('4: spot turns keep the anchored foot (other round)', async () => {
+  it('4: spot turns keep the anchored foot (fix C: the knee pole eases on the mocap share)', async () => {
     await check([
       { label: 'spot flick 180', target: (t) => ({ v: 0, yr: t > 1.5 && t % 1.5 < Math.PI / 7.85 ? (t % 3 < 1.5 ? 7.85 : -7.85) : 0 }), steps: 540, recFrom: 1 },
       { label: 'spot spin 6', target: (t) => ({ v: 0, yr: t > 1.5 && t % 3 < 1.5 ? 6 : 0 }), steps: 540, recFrom: 1 },
