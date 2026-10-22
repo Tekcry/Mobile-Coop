@@ -96,8 +96,8 @@ Open work (each job's resume file has the detail):
 Michael's answers tonight: ROADMAP "Decided" (top entries) and DECISIONS G270-G275 (#162, in train 13).
 
 ## In the new account
-Michael signs in to the other account in the desktop app (and on the laptop for Character Build), then pastes the
-orchestrator prompt into a new session. The new orchestrator gives each next prompt with its session title, model and
+Michael (2026-10-23 ~10:45: "all at once. also tell me when its safe to log out of the desktop/laptop accounts without distrupting work. must hit 99% usage on each"): at 99% with every session saved the old orchestrator says "Safe to log out" and gives ALL the prompts below in one message (title, model, effort each). Michael signs in to the other account in the desktop app (and on the laptop for Character Build), then pastes the
+orchestrator prompt and the other five into new sessions back to back. (Old rule, replaced: the new orchestrator gave each next prompt with its session title, model and
 effort, one per message, as the last thing in that message. Sessions are new: each prompt stands alone. Swapping back
 uses the same table and prompts.
 
