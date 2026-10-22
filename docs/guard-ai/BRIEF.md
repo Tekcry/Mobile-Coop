@@ -83,5 +83,8 @@ patrols. G190 guard pairs are the double-takedown beat. Every map's guards are a
 - **A10** Posted high-security guards: a distraction pulls them to the edge of their leash circle (which map authors size
   so the edge is off the choke), they look, then return facing their post; they never join a search or run to a panel
   outside the leash. Undo: `highSecurity: false` on the slot.
+- **A12** A lured posted guard looks toward the lure for at least 5 s at his leash edge (sweep <= +-0.6 rad, so he
+  faces away from the choke) before walking back; Course Ready's K4 solo clear (two single takedowns) relies on it.
+  Undo: the post look time in the `POST` table (tell Course Ready).
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.
