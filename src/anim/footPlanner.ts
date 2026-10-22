@@ -375,6 +375,9 @@ export class FootPlanner {
   private pick = 0;
   /** (anim-natural N1 fix round) Time (s) since the body last turned faster than kRate (the turn step's arming). */
   private rateT = 9;
+  /** (anim-natural N1) Per foot (L, R): the gait duty when its clock swing window opened in a turn (the foot's lift; -1 none). */
+  private swDutyL = -1;
+  private swDutyR = -1;
 
   /**
    * (tuner-ui) Move both feet (planted spots and swing ends) by (dx, dz) in the world: the world slid under the body (the
@@ -714,7 +717,6 @@ export class FootPlanner {
       const sinceStrike = (((i.phase - strike) % 1) + 1) % 1;
       const wantContact = sinceStrike < i.duty;
       if (!wantContact) {
-        const s = (sinceStrike - i.duty) / (1 - i.duty);
         // (G1) a rule step (a turn's step round, a no-crossing step) mostly done when the clock's swing window opens, past
         // a start: it lands, and the clock's swing starts from there (taking it over jumped the foot up to its landing
         // spot, ~0.5 m in a frame in a crouched turn)
@@ -746,6 +748,21 @@ export class FootPlanner {
         // over the rest of the swing (it jumped up to 68 cm in one frame on a remote copy, the pelvis dropped 9 cm to
         // reach it and the ankle snapped 70-80 deg)
         const takeover = !fresh && f.swBase < 0;
+        // (anim-natural N1, e2e-anim jog 180 snap) with the turn rules a duty that falls mid-swing no longer moves the swing
+        // on: its progress runs from the duty its window opened at (the foot's lift) while the live duty is lower. As a
+        // turn ends the graph's duty falls (TURN_DUTY 0.52 -> the jog's 0.44) and the progress read from it jumped ahead
+        // (0.09-0.1 a frame, twice the clock's rate there; first swing frames 4.9-5.3 m/s). A rising duty reads live as
+        // before (from the lift's duty a held spin's swings ran ahead and crossed at the no-crossing window's edge)
+        // Only a swing whose window opened while the body turned (turnT < BAND_TURN_TIME): a start's or a stop's duty
+        // change on the straight is left as it was
+        if (fresh || takeover) {
+          const d = this.turnOn && this.turnT < BAND_TURN_TIME ? i.duty : -1;
+          if (side < 0) this.swDutyL = d;
+          else this.swDutyR = d;
+        }
+        const d0 = this.turnOn ? Math.max(i.duty, side < 0 ? this.swDutyL : this.swDutyR) : i.duty;
+        const s0 = (sinceStrike - d0) / (1 - d0);
+        const s = s0 > 0 ? s0 : 0;
         if (takeover) {
           f.swBase = f.swing;
           f.offBase = -1;

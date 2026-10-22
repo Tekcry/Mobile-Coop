@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SP, STEP_GAITS, stepResetAll, stepSet } from '../src/anim/tuneStep';
-import { FOOT_TURN_SCENARIOS, footTurnTable, GUARD_SCENARIOS, runFootTurn } from './footTurnHarness';
+import { GEARS } from '../src/config/movement';
+import { FOOT_TURN_SCENARIOS, footTurnTable, GUARD_SCENARIOS, runFootTurn, type Scenario } from './footTurnHarness';
 
 // (anim-natural N1) The feet in turns, measured headless in sim time (tests/footTurnHarness.ts). The table is the
 // measurement (BRIEF "measured before / after"); the limits are REPORT-A's where the turn rules reach them.
@@ -116,6 +117,26 @@ describe('foot turn harness (anim-natural N1)', () => {
     // (fix round) 120 Hz: the same 0.25 s (master's longest at 60 Hz) to a frame (jog sweep 3: 0.258 s; master 0.25 there)
     for (const r of rows120.filter((q) => /^(jog|run)/.test(q.name))) expect(r.plantTurnS, `${r.name} @120`).toBeLessThanOrEqual(0.25 + 1 / 120 + 1e-9);
     for (const r of both) expect(r.snap, r.name).toBeLessThanOrEqual(5);
+  });
+
+  it('e2e-anim turn block timing (0.4 s still, ~1 s of jog / run, then the flick): first swing frames under 5 m/s', () => {
+    // (anim-natural N1, desktop e2e-anim on 7955f883: "jog 180 ... first swing frames 5.29 m/s") the in-game rows start
+    // from a standstill and turn after ~1 s, another gait phase at the flick than PRE's 1.8 s. Over 0.97-1.10 s of travel,
+    // before the fix (the swing's progress read from the live duty, which falls as the turn ends): jog 180 2.7-6.1 m/s
+    // (5.26 at 1.0 s), jog 90 up to 7.8, run 180 up to 6.8; now jog 180 <= 3.6, jog 90 <= 3.9, run 90 <= 4.1, run 180 <= 5.0
+    const S = GEARS.stand;
+    const rows: [string, number, number][] = [['jog 90', S[3], 90], ['jog 180', S[3], 179.9], ['run 90', S[4], 90], ['run 180', S[4], 179.9]];
+    for (const [name, v, deg] of rows) {
+      for (let k = 10; k <= 18; k++) {
+        const t0 = 0.4 + 0.8 + k / 60;
+        const sc: Scenario = { name, seconds: t0 + 1.2, t0, stick: (t) => (t < 0.4 ? null : { dir: t < t0 ? 0 : (deg * Math.PI) / 180, speed: v }) };
+        const r = runFootTurn(sc);
+        const at = `${name} after ${(t0 - 0.4).toFixed(3)} s`;
+        expect(r.snap, at).toBeLessThanOrEqual(5);
+        expect(r.twistAtLift, at).toBeLessThanOrEqual(30);
+        expect(r.plantTurnS, at).toBeLessThanOrEqual(0.25);
+      }
+    }
   });
 
   it('guards (they share the planner, CHECK finding 6): the floor contact slides less than master\'s in every guard row, no wind-up', () => {
