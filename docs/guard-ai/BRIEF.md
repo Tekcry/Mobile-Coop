@@ -93,5 +93,18 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   and 2.5 s contact call as a sighting, instead of the old instant 22 m fan-out: taking out a guard who was just shot
   at also stops his call. Undo: in `Enemy.onLevel` (src/ai/enemy.ts, the `netOn` branch) route `loudAlert || gunfire`
   to an immediate `radioCall` completion (hold 0).
+- **A14** (S4) A knockout seen by a calm guard is a knockout found: he goes to wake him (both get the timed caution), not
+  a held "witnessed kill" (design 4 had the witness unable to tell; M1 "wake them up (if knocked out)" read literally).
+  A kill seen is a dead body found at once (every witness held, the nearest shouts and radios it). Undo: in
+  `EnemyManager.witnessKill` (src/ai/enemyManager.ts) open a `witness` hold with the mask for a knockout too.
+- **A15** (S4) Guard keys are given at spawn: the lowest key not held by a guard on the list or a knocked-out body (the
+  live section; deterministic, as spawn order is), not the map's squad-slot index; a woken guard keeps his, a dead
+  guard's key is reused (clean slate). Undo: S5 `placeSlot` / a `SquadSlot.key` override sets `Enemy.key`.
+- **A16** (S4) Caution is the cooldown level: a cautious calm guard sits in `cooldown` (sight x1.3 =
+  `SENSITIVITY.cooldown` = `CAUTION.sens`, never unaware while it lasts), patrols at 0.95, pauses x0.6, torch rule as
+  searching; investigating or searching he keeps that level's own sensitivity (no x1.3 on top). Only death holds
+  (`dead`, `witness`) are wired; contact and missing holds are not (combat keeps `AlertMachine.fought` as each guard's
+  permanent caution, as before). Undo: x`CAUTION.sens` in `Enemy.perceive` while `caution > 0`; open `contact` /
+  `missing` holds from the board.
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.

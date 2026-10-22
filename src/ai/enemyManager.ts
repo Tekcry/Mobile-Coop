@@ -26,6 +26,8 @@ import { EYE_STAND, PERCEPTION } from './perception';
 import { roomAt } from '../world/rooms';
 import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type RadioSink } from './radioNet';
 import type { P2 } from './navGrid';
+import { Awareness, CAUTION, MAX_KEYS } from './awareness';
+import { bodyNoticed } from './bodies';
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
@@ -34,6 +36,11 @@ export const MAX_ALIVE = 12;
 /** (guard-ai S3) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
  *  Off until S6 starts command calls and finishes the alarm; nothing starts one yet. */
 export const RADIO_ALARM = false;
+
+/** (guard-ai S4) The bit of guard key `k` in an awareness mask (0 when out of range). */
+function keyBit(k: number): number {
+  return k >= 0 && k < MAX_KEYS ? (1 << k) >>> 0 : 0;
+}
 
 /** (guard-ai S3) The radio net's tick (s): 10 Hz. */
 const RADIO_TICK = 0.1;
@@ -74,8 +81,8 @@ export class EnemyManager {
   lkpValid = false;
   /** Seconds since an alerted enemy last had a player in sight. */
   sightT = 99;
-  /** Radio range for a detection call (m): the parked modes' call (`callAlert`) and, until S4, the body-found
-   *  call. (guard-ai S3) The live modes' contact call reaches the whole section (`radioNet`), not a circle. */
+  /** Radio range for a detection call (m): the parked modes' call (`callAlert`) and body-found search. (guard-ai S3,
+   *  S4) The live modes' contact and body calls reach the whole section (`radioNet`), not a circle. */
   static readonly RADIO = 22;
   /** Downed enemies lying in the world (findable, carriable). */
   readonly bodies: Body[] = [];
@@ -177,13 +184,33 @@ export class EnemyManager {
   private readonly ackInc = new Int32Array(8);
   private readonly ackKind = new Int32Array(8);
   private ackK = 0;
+  /**
+   * (guard-ai S4, design 4, M1 / M3) Awareness and caution (`awareness.ts`): guards by stable key (`Enemy.key`,
+   * stamped at `spawn`, kept by a woken guard). A death (a body found dead, a kill seen) opens a held caution for the
+   * guards aware of it (the finder or witnesses, his voice hearers, the section once his `body` report gets through);
+   * it clears only when every one of them is dead or knocked out and not woken. A knockout found: the waker and the
+   * woken guard search `CAUTION.koSearch`, stay cautious `koCautious`, then normal. Coordinated modes only; one table
+   * (Sector Ops has one live section; cleared with the guards by `clear`).
+   */
+  readonly awareness = new Awareness();
+  /** The caution table (tests / e2e read the numbers from here). */
+  readonly cautionTable = CAUTION;
+  /** Kills seen by a calm guard (tests / debug), and how many saw the last one. */
+  killsWitnessed = 0;
+  lastWitnesses = 0;
+  /** The hold the last dead body (or witnessed kill) opened (tests / debug; -1 none). */
+  lastHold = -1;
+  /** `voiceMask`'s nearest calm hearer (scratch). */
+  private voiceNear: Enemy | null = null;
   /** Where completed calls go (made once). */
   private readonly sink: RadioSink = {
     deliver: (gid, inc, kind, caller) => this.radioDeliver(gid, inc, kind, caller),
     alarm: (_section, caller) => this.radioAlarm(caller),
     completed: (caller, _inc, kind) => {
-      // the spotter's radio line, as the section hears it
+      // the spotter's radio line, as the section hears it; (S4) the body reports
       if (kind === 'contact') this.byNum(caller)?.bark('callIn');
+      else if (kind === 'body') this.byNum(caller)?.bark('deadReport');
+      else if (kind === 'ko') this.byNum(caller)?.bark('koReport');
     },
   };
 
@@ -230,6 +257,8 @@ export class EnemyManager {
       onKilled: (e, h) => {
         this.kills++;
         this.releaseCover(e);
+        // (guard-ai S4) the awareness roster, and who saw it
+        if (this.coordinated) this.downed(e);
         this.onKilled?.(e, h);
       },
       onShot: (e, a, b) => this.onEnemyShot?.(e, a, b),
@@ -290,11 +319,13 @@ export class EnemyManager {
       addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
         const b = new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll());
         b.enemyId = e.id;
+        b.guardKey = e.key;
+        b.guard = e;
         this.addBody(b);
       },
       bodies: () => this.bodies,
       bodyFound: (e, b) => this.bodyFound(e, b),
-      revive: (b) => this.revive(b),
+      revive: (b, by) => this.revive(b, by),
       alarmRaised: () => this.alarmRaised,
       raiseAlarm: (e, p) => this.raiseAlarm(e, p),
     };
@@ -328,11 +359,34 @@ export class EnemyManager {
     this.onBodyRemoved?.(b);
   }
 
-  /** A body was spotted: the finder searches round it (a knocked-out victim gets woken), the squad is told. */
-  private bodyFound(e: Enemy, b: Body): void {
+  /**
+   * A body was spotted: the finder searches round it (a knocked-out victim gets woken). Parked modes: the squad within
+   * `RADIO` searches too. (guard-ai S4, design 4, M1) Coordinated: dead, the finder shouts (his voice hearers know, the
+   * nearest calm one searches with him) and radios it (`body` call: the section knows once it gets through; A2: no
+   * alarm); all of them, with `also` (the other witnesses of a kill), are held cautious (`awareness`). Knocked out: he
+   * walks over and wakes him (`revive` -> `woke`); nobody else is told yet.
+   */
+  private bodyFound(e: Enemy, b: Body, also = 0): void {
     if (b.found || !b.present) return;
     b.found = true;
     this.bodiesFound++;
+    if (this.coordinated) {
+      if (b.lethal) {
+        e.bark('body');
+        e.searchAt(b.pos.x, b.pos.z, null);
+        const mask = (this.voiceMask(e) | keyBit(e.key) | also) >>> 0;
+        this.voiceNear?.searchAt(b.pos.x, b.pos.z, null);
+        const h = this.awareness.openHold('dead', mask);
+        this.lastHold = h;
+        this.radioNet.startCall(e.num, h, 'body', callHold('body', this.reactionOf(e)));
+      } else {
+        e.bark('koFound');
+        e.searchAt(b.pos.x, b.pos.z, b);
+      }
+      this.syncCaution();
+      this.onBodyFound?.(e, b);
+      return;
+    }
     e.bark('body');
     e.searchAt(b.pos.x, b.pos.z, b.lethal ? null : b);
     for (const o of this.enemies) {
@@ -548,15 +602,134 @@ export class EnemyManager {
     return false;
   }
 
-  /** Wake a knocked-out victim: back on their feet, searching. */
-  private revive(b: Body): void {
+  /**
+   * Wake a knocked-out victim: back on their feet, searching. (guard-ai S4) He is the same guard (`Enemy.inherit`: key,
+   * route, post, squad, room, what he knows), facing as he went down (A7: no random yaw); `by` woke him (`woke`).
+   */
+  private revive(b: Body, by: Enemy | null = null): void {
     if (!b.present || b.lethal) return;
-    const e = new Enemy(this.ctx, b.def, b.pos.clone(), Math.random() * 6);
+    const old = b.guard;
+    const e = new Enemy(this.ctx, b.def, b.pos.clone(), old ? old.yaw : 0);
     e.health.damage(e.health.maxHp * 0.4);
+    if (old) {
+      e.inherit(old, b.age);
+      this.swapSquad(old, e);
+    }
     this.enemies.push(e);
     this.removeBody(b);
     e.searchAt(e.pos.x, e.pos.z, null);
+    if (by) this.woke(by, e);
     this.onRevived?.(e, b);
+  }
+
+  /** (guard-ai S4) A woken guard takes his old self's place on the squad roster (radio checks). */
+  private swapSquad(old: Enemy, e: Enemy): void {
+    this.silent.delete(old);
+    if (old.squad < 0) return;
+    const r = this.squads.get(old.squad);
+    if (!r) return;
+    const k = r.indexOf(old);
+    if (k >= 0) r[k] = e;
+    else if (!r.includes(e)) r.push(e);
+  }
+
+  /**
+   * (guard-ai S4, M3, A4) `by` woke `e`: both search round the spot `CAUTION.koSearch` s, stay cautious `koCautious`
+   * s, then normal (`awareness.startKo`; a hold the woken guard knew of holds again, A3). `by` radios it (`ko` call:
+   * "Found him out cold"; the section only acknowledges it, nobody else turns cautious).
+   */
+  private woke(by: Enemy, e: Enemy): void {
+    if (!this.coordinated) return;
+    this.awareness.startKo(by.key, e.key);
+    by.koSearch(e.pos.x, e.pos.z);
+    this.radioNet.startCall(by.num, -1, 'ko', callHold('ko', this.reactionOf(by)));
+    this.syncCaution();
+  }
+
+  /** (guard-ai S4) A guard went down (killed or knocked out; coordinated): the awareness roster, then who saw it. */
+  private downed(e: Enemy): void {
+    this.awareness.onDown(e.key, !e.ko);
+    this.witnessKill(e);
+    this.syncCaution();
+  }
+
+  /**
+   * (guard-ai S4, design 4, M1) A guard went down in view: every calm guard who would notice his body there (the body
+   * rule `bodyNoticed`: field of view, the light on him, distance to `BODY.range`) with one line-of-sight ray saw it.
+   * The nearest finds the body at once (`bodyFound`: dead -> the shout, the report, held caution for every witness;
+   * knocked out -> he goes to wake him, M1 "wake them up (if knocked out)", A14). A dog leaves no body: the witnesses
+   * are held and the nearest searches and radios it. A witness who sees the player too is in combat by his own sight.
+   */
+  private witnessKill(v: Enemy): void {
+    const list = this.enemies;
+    const vx = v.pos.x;
+    const vy = v.pos.y;
+    const vz = v.pos.z;
+    const light = this.world.lightField.totalAt(vx, vy + 0.2, vz);
+    let mask = 0;
+    let n = 0;
+    let first: Enemy | null = null;
+    let fd = Infinity;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]!;
+      if (o === v || !o.alive || o.alerted || o.taken || o.passive || o.def.melee || o.dog) continue;
+      const d = hyp3(vx - o.pos.x, vy - o.pos.y, vz - o.pos.z);
+      if (d >= BODY.range) continue;
+      let a = Math.atan2(vx - o.pos.x, vz - o.pos.z) - o.yaw;
+      a = Math.atan2(Math.sin(a), Math.cos(a));
+      if (!bodyNoticed(d, a, light) || !this.seesPoint(o, vx, vy + 0.9, vz)) continue;
+      n++;
+      mask = (mask | keyBit(o.key)) >>> 0;
+      if (d < fd) {
+        fd = d;
+        first = o;
+      }
+    }
+    this.lastWitnesses = n;
+    if (!first) return;
+    this.killsWitnessed++;
+    const bs = this.bodies;
+    let b: Body | null = null;
+    for (let i = 0; i < bs.length; i++) if (bs[i]!.enemyId === v.id) b = bs[i]!;
+    if (b && b.present && !b.found) {
+      this.bodyFound(first, b, b.lethal ? mask : 0);
+      return;
+    }
+    // no body to find (a dog): the witnesses are held, the nearest searches and radios it
+    first.bark('body');
+    first.searchAt(vx, vz, null);
+    const h = this.awareness.openHold('witness', mask);
+    this.lastHold = h;
+    this.radioNet.startCall(first.num, h, 'body', callHold('body', this.reactionOf(first)));
+  }
+
+  /** (guard-ai S4) Every guard's caution from the awareness table (5 Hz and after each change; no allocation). */
+  private syncCaution(): void {
+    const list = this.enemies;
+    const aw = this.awareness;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (!e.alive) continue;
+      const c = e.key >= 0 ? aw.cautionOf(e.key) : 0;
+      if (c !== e.caution) e.setCaution(c);
+    }
+  }
+
+  /** (guard-ai S4) The lowest guard key not held by a guard on the list or by a knocked-out body (he may be woken);
+   *  -1 when all `MAX_KEYS` are taken. A dead guard's key is free again (`awareness.resetKey` on reuse). */
+  private freeKey(): number {
+    let used = 0;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) used |= keyBit(list[i]!.key);
+    const bs = this.bodies;
+    for (let i = 0; i < bs.length; i++) if (!bs[i]!.lethal) used |= keyBit(bs[i]!.guardKey);
+    for (let k = 0; k < MAX_KEYS; k++) if (!(used & keyBit(k))) return k;
+    return -1;
+  }
+
+  /** (guard-ai S4) A guard's caution (0 none, 1 timed, 2 held; tests / e2e). */
+  cautionOf(e: Enemy): number {
+    return e.key >= 0 && this.coordinated ? this.awareness.cautionOf(e.key) : 0;
   }
 
   private releaseCover(e: Enemy): void {
@@ -598,6 +771,8 @@ export class EnemyManager {
     this.silent.delete(e);
     // (guard-ai S3) gone mid-call: the call is lost (his queued receptions are skipped: he is out of the view)
     this.radioNet.cut(e.num);
+    // (guard-ai S4) gone for good: out of every hold, as if dead
+    if (e.key >= 0) this.awareness.onDown(e.key, true);
     if (this.alarmRunner === e) this.alarmRunner = null;
     if (this.flanker === e) this.flanker = null;
     for (let i = 0; i < this.torchOwner.length; i++) {
@@ -643,6 +818,9 @@ export class EnemyManager {
     if (c < 0) return null;
     const [x, z] = this.nav.center(c);
     const e = new Enemy(this.ctx, ENEMIES[kind], new Vector3(x, this.nav.height[c]!, z), yaw);
+    // (guard-ai S4) his stable key: a clean slate in the awareness roster
+    e.key = this.freeKey();
+    if (e.key >= 0) this.awareness.resetKey(e.key);
     if (alerted) e.alert();
     this.enemies.push(e);
     if (kind === 'droneOp') this.drones.push(new ReconDrone(this.scene, this.world.parts, this.registry, this.ballistics, this.vfx, e));
@@ -778,18 +956,45 @@ export class EnemyManager {
     for (let i = 0; i < list.length; i++) {
       const o = list[i]!;
       if (o === e || !o.alive || o.alerted || o.taken) continue;
-      const d = hyp3(o.pos.x - e.pos.x, o.pos.y - e.pos.y, o.pos.z - e.pos.z);
-      if (d >= RADIO.voice) continue;
-      const amb = this.noisy.length ? ambientDb(this.noisy, o.pos.x, o.pos.z, o.pos.y) : 0;
-      if (!hearsVoice(d, 0, amb)) continue;
-      if (!hearsVoice(d, 1, amb)) {
-        // a wall between them would stop it: one ray, head to head
-        this.earA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
-        this.earB.set(o.pos.x, o.pos.y + 1.6, o.pos.z);
-        if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) continue;
-      }
-      o.radio(RADIO.voiceDelay);
+      if (this.hearsShout(e, o) >= 0) o.radio(RADIO.voiceDelay);
     }
+  }
+
+  /** (guard-ai S3) Does `o` hear `e`'s shout (the voice model)? The distance, or -1. One wall ray at most, only where
+   *  one wall decides it. */
+  private hearsShout(e: Enemy, o: Enemy): number {
+    const d = hyp3(o.pos.x - e.pos.x, o.pos.y - e.pos.y, o.pos.z - e.pos.z);
+    if (d >= RADIO.voice) return -1;
+    const amb = this.noisy.length ? ambientDb(this.noisy, o.pos.x, o.pos.z, o.pos.y) : 0;
+    if (!hearsVoice(d, 0, amb)) return -1;
+    if (!hearsVoice(d, 1, amb)) {
+      // a wall between them would stop it: one ray, head to head
+      this.earA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+      this.earB.set(o.pos.x, o.pos.y + 1.6, o.pos.z);
+      if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) return -1;
+    }
+    return d;
+  }
+
+  /** (guard-ai S4) The keys of the guards who hear `e`'s shout (a body found: "Man down!"), on their feet, not held,
+   *  in combat too; the nearest calm one goes in `voiceNear` (he searches with the finder). */
+  private voiceMask(e: Enemy): number {
+    const list = this.enemies;
+    let m = 0;
+    let bd = Infinity;
+    this.voiceNear = null;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]!;
+      if (o === e || !o.alive || o.taken || o.passive) continue;
+      const d = this.hearsShout(e, o);
+      if (d < 0) continue;
+      m = (m | keyBit(o.key)) >>> 0;
+      if (!o.alerted && !o.def.melee && !o.dog && d < bd) {
+        bd = d;
+        this.voiceNear = o;
+      }
+    }
+    return m;
   }
 
   /** (guard-ai S3) One radio net tick (10 Hz): the board's view and the reaction lane, then complete / deliver. */
@@ -818,6 +1023,8 @@ export class EnemyManager {
       e.radio(0);
       return;
     }
+    // (guard-ai S4) a death reported (`inc` is the hold): he knows of it now (held caution)
+    if (kind === 'body' && this.awareness.addAware(inc, e.key)) this.syncCaution();
     const k = CALL_KIND.indexOf(kind);
     for (let j = 0; j < this.ackCaller.length; j++) if (this.ackCaller[j] === caller && this.ackInc[j] === inc && this.ackKind[j] === k) return;
     const j = this.ackK;
@@ -1035,6 +1242,9 @@ export class EnemyManager {
         this.boardT += 0.2;
         if (this.boardT <= 0) this.boardT = 0.2;
         this.boardStep(0.2);
+        // (guard-ai S4) timed caution counts down with the board; every guard's caution follows the table
+        this.awareness.tick(0.2);
+        this.syncCaution();
       }
       // (guard-ai S3) the section radio net at 10 Hz: calls complete, receivers hear them staggered
       this.netT -= dt;
@@ -1141,6 +1351,9 @@ export class EnemyManager {
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
     this.radioNet.clear();
+    // (S4) and every caution: the section starts calm
+    this.awareness.clear();
+    this.lastHold = -1;
     this.ackCaller.fill(-1);
     for (const b of [...this.bodies]) this.removeBody(b);
     // nobody left to hold a job: the alarm run, the flank, the flashlights

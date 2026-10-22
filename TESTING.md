@@ -101,6 +101,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
   nearest first. Take the spotter down before his radio line and nobody beyond shouting range comes.
+- [ ] Bodies and caution (guard-ai S4): kill a guard in view of another: he shouts "Man down!", searches and radios it;
+  take him out within ~2 s and the rest stay normal; let it through and the section stays on edge until everyone who
+  knows is down. Knock one out and let him be found: the finder wakes him, both search ~1 min, stay on edge ~3 min,
+  then normal; nobody else changes.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

@@ -41,6 +41,7 @@ import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
 import { DogModel } from './dogModel';
+import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
@@ -111,7 +112,8 @@ export interface AiContext {
   addBody(e: Enemy, rig: CharacterRig, impulse: Vector3, lethal: boolean): void;
   bodies(): readonly Body[];
   bodyFound(e: Enemy, b: Body): void;
-  revive(b: Body): void;
+  /** Wake the knocked-out guard of body `b`; `by` woke him (guard-ai S4: both turn cautious, timed). */
+  revive(b: Body, by: Enemy): void;
   alarmRaised(): boolean;
   raiseAlarm(e: Enemy, p: AlarmPanel): void;
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
@@ -147,10 +149,12 @@ const rand = (a: number, b: number): number => a + Math.random() * (b - a);
  * Calm paces (x the combat walk, which is a slow aimed walk). (guard-ai S2, A9) Coordinated guards investigate at 0.85
  * and search at 0.75 (they were faster than the patrol: backwards); the parked modes (Hunter, Mission) keep the old
  * 1.2 / 1.3. Patrol 1.1 is unchanged (the Sector pace checks, `CHECK_PATROL_PACE`). Walking to wake a knocked-out
- * squadmate keeps 1.3 until S4 (bodies).
+ * squadmate keeps 1.3 (he hurries to a man down). (guard-ai S4, A9) A cautious guard patrols at 0.95 (not on a timed
+ * loop: its schedule is the map's).
  */
 export const PACE = {
   patrol: 1.1,
+  cautious: 0.95,
   investigate: 0.85,
   search: 0.75,
   revive: 1.3,
@@ -522,6 +526,7 @@ export class Enemy implements Damageable {
   /** Walk a route while unaware (null = stand post at the spawn point). */
   setPatrol(route: PatrolRoute | null): void {
     this.walker = new PatrolWalker(route, this.post[0], this.post[1], this.yaw, this.num);
+    this.setCaution(this.caution);
   }
 
   /** 0 standing .. 1 crouched (cover). */
@@ -590,6 +595,51 @@ export class Enemy implements Damageable {
   passive = false;
   /** (PR 3) What INTERROGATE gets out of him (null: nothing, or spent); set by the squad slot that spawned him. */
   info: GuardInfo | null = null;
+  /** (guard-ai S4, design 4) Stable guard key in his section (0-31: the awareness roster), stamped at spawn by the
+   *  manager and kept by a woken guard (`inherit`); -1 none (keys run out, or no manager). */
+  key = -1;
+  /** (guard-ai S4) His caution (`awareness.ts` `Caution`: 0 none, 1 timed, 2 held), written by the manager. */
+  caution = 0;
+
+  /** (guard-ai S4) Set his caution: cautious he stays on edge (cooldown: sight x `CAUTION.sens`), patrols at
+   *  `PACE.cautious` and pauses x `CAUTION.waitMul`. */
+  setCaution(c: number): void {
+    this.caution = c;
+    this.walker.waitMul = c > 0 ? CAUTION.waitMul : 1;
+  }
+
+  /**
+   * (guard-ai S4) A woken guard is the guard who went down (`EnemyManager.revive` builds a new `Enemy` on the body):
+   * his key, squad, held room, passive flag, what he knows (`info`, unless spent), the sniper post and his patrol
+   * walker (route, post and facing; its clock moved on by `downFor` s, so a timed loop rejoins where the schedule
+   * says), back on the route at the nearest point.
+   */
+  inherit(o: Enemy, downFor = 0): void {
+    this.key = o.key;
+    this.squad = o.squad;
+    this.hold = o.hold;
+    this.passive = o.passive;
+    this.info = o.info;
+    this.post[0] = o.post[0];
+    this.post[1] = o.post[1];
+    this.walker = o.walker;
+    this.walker.tick(downFor);
+    this.walker.rejoin(this.pos.x, this.pos.z);
+    this.setCaution(0);
+  }
+
+  /** (guard-ai S4, M3) The knockout search: search round (x, z) from now (a waker already searching starts over, so
+   *  he and the woken guard search `CAUTION.koSearch` together). */
+  koSearch(x: number, z: number): void {
+    if (!this.alive || this.alerted) return;
+    if (this.aware.level === 'searching') {
+      this.aware.t = 0;
+      this.searchK = 0;
+      this.spotSet = false;
+      this.combatSearch = false;
+    }
+    this.searchAt(x, z, null);
+  }
 
   /** The perception multiplier: difficulty, plus an officer close by. */
   private get perceptionMul(): number {
@@ -801,7 +851,9 @@ export class Enemy implements Damageable {
     const o = this.torchOverride;
     if (typeof o === 'boolean') return o && carriesTorch(this.def);
     // (warehouse-redesign M1) dogs carry no light: the rule says no before the field is read
-    return torchRule(this.def, this.aware.level, this.los, this.def.quadruped ? 1 : field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z), holding);
+    // (guard-ai S4, design 4) cautious and calm: the torch rule of a searching guard
+    const lvl = this.caution > 0 && this.aware.calmNow ? 'searching' : this.aware.level;
+    return torchRule(this.def, lvl, this.los, this.def.quadruped ? 1 : field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z), holding);
   }
 
   /** (coop-torches) Tests / debug only: true or false forces the torch rule (`torchWanted`); null (always in play)
@@ -828,7 +880,8 @@ export class Enemy implements Damageable {
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
-    else if (to === 'cooldown') this.bark(this.incident >= 0 ? 'standDown' : 'clear');
+    // (guard-ai S4) unaware -> cooldown is caution setting in: nothing to say
+    else if (to === 'cooldown' && from !== 'unaware') this.bark(this.incident >= 0 ? 'standDown' : 'clear');
     else if (to === 'unaware' && this.incident >= 0) this.bark('standDown');
     // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
     if ((to === 'cooldown' || to === 'unaware') && this.incident >= 0) this.ctx.radioCall?.(this, this.incident, 'standDown');
@@ -1185,6 +1238,8 @@ export class Enemy implements Damageable {
     i.turning = this.turnT > 0;
     // (guard-ai S3, S2 check polish 2) sent to a plain noise / lure: nothing found -> back to normal, no cooldown
     i.calmEnd = this.incident >= 0 && this.incMode === MODE_INVESTIGATE && this.incCalm;
+    // (guard-ai S4) cautious (a death he knows of, a knockout he found or woke from): on edge, never unaware
+    i.cautious = this.caution > 0;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -1260,7 +1315,8 @@ export class Enemy implements Damageable {
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
         const wp = g ? (this.goTo(g, dt, 0.05) ?? g) : null;
-        return { point: wp, speed: def.walkSpeed * (this.walker.route?.loop ? 1 : PATROL_PACE), face: g || Number.isNaN(ly) ? null : ly };
+        // (guard-ai S4, A9) cautious: a slower, watchful patrol (a timed loop keeps its schedule's pace)
+        return { point: wp, speed: def.walkSpeed * (this.walker.route?.loop ? 1 : this.caution > 0 ? PACE.cautious : PATROL_PACE), face: g || Number.isNaN(ly) ? null : ly };
       }
       case 'suspicious': {
         // stop and look at what caught the eye / ear
@@ -1282,7 +1338,7 @@ export class Enemy implements Damageable {
               if (rv.reviveT >= BODY.reviveTime) {
                 this.reviving = null;
                 this.wantCrouch = false;
-                this.ctx.revive(rv);
+                this.ctx.revive(rv, this);
               }
               return { point: null, speed: 0, face: Math.atan2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z) };
             }
