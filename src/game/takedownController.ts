@@ -15,6 +15,7 @@ import { wrapPi } from '../anim/motion';
 import type { MoveOverride } from '../player/playerController';
 import { GUARD_INFO_GAP, takeInfo, type GuardInfo } from '../ai/guardInfo';
 import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
+import { GRAB_KILL_BLOW, KILL_TAIL_END, killWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
@@ -98,6 +99,13 @@ export class TakedownController {
   grabs = { held: 0, ko: 0, killed: 0, shoved: 0, lost: 0, interrogated: 0 };
   /** The press that started it is still held (pad / keyboard). */
   holding = false;
+  /** (anim-n4d) The lethal blow's own phase (0..1, the kill at 1; -1 none): the wire's `ph` (`localMoveState`). The
+   *  pose plays it through `killWarp`. */
+  blowPh = -1;
+  /** (anim-n4d, M1) After a kill: the blow's follow-through, pose only (the blow's phase past 1, up to
+   *  `KILL_TAIL_END`; -1 none), and which blow. */
+  tailU = -1;
+  private tailB: KillBlow = TAKEDOWN_BLOW;
   /** Counts (stats / tests). */
   done = { lethal: 0, nonLethal: 0, aborted: 0, byKind: {} as Record<string, number> };
   private inp: TakedownInput = { state: 'ground', ax: 0, ay: 0, az: 0, vx: 0, vy: 0, vz: 0, vyaw: 0, vCalm: true, los: true };
@@ -181,6 +189,7 @@ export class TakedownController {
     const g = this.g;
     this.bend = this.bendDrop = this.sway = 0;
     this.stepping = false;
+    if (this.tailU >= 0) this.killTail(dt);
     if (this.carryId) this.carryStep(dt);
     if (this.active) {
       this.holding = held;
@@ -383,7 +392,8 @@ export class TakedownController {
     if (gr.strikeT >= 0) {
       gr.strikeT += dt / this.handsMul;
       if (a.lethal) {
-        g.player.pose.melee = Math.min(1, gr.strikeT / GRAB.killTime);
+        // (anim-n4d, M1) the arc's contact on the kill (`killWarp`); the wire keeps the raw phase (`grabWire`)
+        g.player.pose.melee = killWarp(Math.min(1, gr.strikeT / GRAB.killTime), GRAB_KILL_BLOW);
         if (gr.strikeT >= GRAB.killTime) {
           c.speedCap = Infinity;
           this.grabs.killed++;
@@ -452,6 +462,23 @@ export class TakedownController {
     } else if (pick === 'interrogate') gr.interT = 0;
   }
 
+  /** (anim-n4d, M1) The kill blow's follow-through and return after the kill (pose only; gameplay is done): the blow's
+   *  phase runs on from 1 at its nominal pace. A new takedown or a strike takes the arc over; a death ends it. */
+  private killTail(dt: number): void {
+    const g = this.g;
+    if (this.active || g.strike.active) {
+      this.tailU = -1;
+      return;
+    }
+    this.tailU += dt / this.tailB.dur;
+    if (this.tailU >= KILL_TAIL_END || !g.player.alive) {
+      this.tailU = -1;
+      g.player.pose.melee = -1;
+      return;
+    }
+    g.player.pose.melee = killWarp(this.tailU, this.tailB);
+  }
+
   /** (A4) A carry pick: once the knocked-out guard's body exists, the operator shoulders it. */
   private carryStep(dt: number): void {
     const g = this.g;
@@ -504,7 +531,9 @@ export class TakedownController {
     // the strike / choke pose
     const ks = (a.t - plan.approach) / plan.strike;
     const pose = g.player.pose;
-    pose.melee = a.lethal && ks >= 0 ? Math.min(1, ks) : -1;
+    this.blowPh = a.lethal && ks >= 0 ? Math.min(1, ks) : -1;
+    // (anim-n4d, M1) the arc's contact on the kill (`killWarp`), the follow-through after it (`killTail`)
+    pose.melee = killWarp(this.blowPh, TAKEDOWN_BLOW);
     // (never finishes before the choice is made)
     if (a.t >= total && (a.decided || a.t >= TAKEDOWN.lethalHold)) this.finish();
   }
@@ -588,6 +617,7 @@ export class TakedownController {
       if (this.active.e.alive) this.active.e.setSolid?.(true);
     }
     g.player.pose.melee = -1;
+    this.blowPh = -1;
     const rig = g.player.rig;
     rig.reachL.w = rig.reachR.w = 0;
     this.active = null;
@@ -598,6 +628,12 @@ export class TakedownController {
     const a = this.active!;
     const e = a.e;
     this.release();
+    // (anim-n4d, M1) the blow's contact landed on the kill: its follow-through plays on (pose only)
+    if (a.lethal) {
+      this.tailB = a.grab ? GRAB_KILL_BLOW : TAKEDOWN_BLOW;
+      this.tailU = 1;
+      g.player.pose.melee = killWarp(1, this.tailB);
+    }
     e.taken = false;
     e.bodyRig.emote = null;
     const dir = new Vector3(Math.sin(a.plan.faceYaw), 0, Math.cos(a.plan.faceYaw));
@@ -624,6 +660,10 @@ export class TakedownController {
 
   reset(): void {
     this.abort();
+    if (this.tailU >= 0) {
+      this.tailU = -1;
+      this.g.player.pose.melee = -1;
+    }
     this.offer = null;
     this.holding = false;
     this.carryId = '';

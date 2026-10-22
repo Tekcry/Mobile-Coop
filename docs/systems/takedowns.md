@@ -98,6 +98,9 @@ To be replaced by the palm strike (G42); this is the current build.
   Contact is resolved only where the guards live, at t0 + 0.5 s, re-checking reach and cone.
 - Pose: MoveState `strike` (`ph`, `tid`) -> `poseFromMoveState` `melee` -> the anim graph's elbow arc.
   `PlayerWeapons.handsBusy` blocks the draw, so the local rig and remotes pose from the same inputs (D8). The lethal
-  takedown blow shares the arc.
+  takedown blow and the grab kill share the arc. (anim-n4c / n4d, Michael M1 "Faster arm") Each move's arc is warped
+  so its visual contact lands on its gameplay moment (`strikeWarp` / `killWarp` in `src/anim/strikeBody.ts`): the
+  strike's elbow lands at `STRIKE.hitAt`; the takedown blow and the grab kill land at their kill, then a pose-only
+  follow-through plays (`TakedownController.killTail`). The wire keeps the raw phase; both sides warp.
 - Tests: `tests/elbowStrike.test.ts`, `tests/committedMoves.test.ts`; e2e-pad, e2e-mouse, e2e-takedown, e2e-netmove
   (`strike`, `denied`), e2e-coop; anim-audit scenario `strike`.
