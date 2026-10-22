@@ -8,6 +8,8 @@ any building. Branch feature/marlow-final from af56ab43.
 - Spec writer inputs: AUDIT.md, COOP-INVENTORY.md, ROUTE-DRAFT.md, CONSTRAINTS.md (this job's 4 agents) AND Course
   Ready's independent second opinions in C:/NightShift/scratch/course-ready/marlow-final/ (MAP-AUDIT.md,
   DEVICE-INVENTORY.md with placement APIs / wire hooks, SCENARIOS.md).
+- Desktop e2e only when CPU < ~60% at the start, else Character Build (orchestrator, max burn).
+- Spec must carry M4: no explainer pads; a per-area objective list guiding both players (per-player lines on splits).
 - Spec (`SPEC.md`, from `docs/templates/map-spec.md`) and `PLAN.md` (slices, some whole slices for Course Ready).
 - Build slices: greybox, lights baked, guards, one e2e route per slice; checker + 1 fix round; GPU suites
   (e2e-ctcourse :1-:3, course, coop, netmove) via Character Build.

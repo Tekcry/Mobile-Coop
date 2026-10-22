@@ -16,6 +16,9 @@ and any other coop "wow thats cool" experience. Ask questions if needed."
 - M1 "Rebuild freely": new layout and routes where the bays do not flow; keep what works, remove filler.
 - M2 "Plan, then build": a spec from his words tonight, then build straight on; he reviews both in the morning.
 - M3 One co-op run: "15-20 min".
+- M4 (~00:25) "im happy to remove the pads in each section that explain things also, we can have the objective list
+  update and keep the players guided throughout the yard". So: no explainer pads; the objective list updates per area
+  and guides both players through the whole yard, with per-player lines where the team splits.
 
 ## Goal
 Marlow Yard becomes a finished 2-player co-op training level: one route that flows, each area a purpose-built
