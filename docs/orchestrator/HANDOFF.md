@@ -8,7 +8,7 @@ Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 New account live 2026-10-23 ~00:57 (5-hour 0%, resets 05:50); all four sessions resumed ~01:05; full burn to 100% (Michael 01:05). See STATE "Now" top entry for the live state.
 
-**~10:30: 98% save sent (80% at 10:28, 98% ~10:43). Guard AI SAVED c2d27d82 (S4-S7 chain not train-ready: stealth-ai bodies, diagnostic 8094c5b1). Prompts below refreshed. Michael decisions ~10:10-10:25 in ROADMAP Decided (stealth over shooting, ammo crate, Sector Ops 4 players after redesign).**
+**~10:35: ALL FIVE SAVED (CT Core e5b447c3, Menu Notes 4a8945f4, Course Ready 92ece78c, Guard AI c2d27d82, Character Build 256ea351 + guard-render S1 f1bdb3ba). Pending for Michael: campus kit-level dressing (G278 extension, ~5-7 h after S4 / S5 greybox), not yet decided.** **~10:30: 98% save sent (80% at 10:28, 98% ~10:43). Guard AI SAVED c2d27d82 (S4-S7 chain not train-ready: stealth-ai bodies, diagnostic 8094c5b1). Prompts below refreshed. Michael decisions ~10:10-10:25 in ROADMAP Decided (stealth over shooting, ammo crate, Sector Ops 4 players after redesign).**
 
 **~10:06: 4.70.0 RELEASED (train 21 #197, 8e5dbd83; dev moved; laptop 39/39 616 s). Train 22 = #193 S4 -> #195 S5 -> #196 S7 (after the chain tip laptop GPU run) + #194 hostage-gait (ready). CT Core hang-down in a fix round (batch PR).**
 
