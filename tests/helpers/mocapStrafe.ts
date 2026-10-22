@@ -27,8 +27,9 @@ function contactPts(n: CharacterRig['ankleL'], heel: number[], ball: number[]): 
   for (const [z, out] of [[-HEEL_BACK, heel], [TOE_BALL, ball]] as const) out.push(m[12]! + (m[4]! / ly) * y + (m[8]! / lz) * z, m[13]! + (m[5]! / ly) * y + (m[9]! / lz) * z, m[14]! + (m[6]! / ly) * y + (m[10]! / lz) * z);
 }
 
-/** Run an aimed plan for `steps` 60 Hz steps, recording from `recFrom` s; mode 'off' / 'on' (the switch). */
-export async function aimRun(target: AimTarget, steps: number, recFrom: number, mode: Mode, onStep?: (rig: CharacterRig, k: number) => void): Promise<Rec> {
+/** Run an aimed plan for `steps` 60 Hz steps, recording from `recFrom` s; mode 'off' / 'on' (the switch); `carrier` false:
+ *  a guard-style rig (the switch must not reach it; its driver never asks the mocap side-step). */
+export async function aimRun(target: AimTarget, steps: number, recFrom: number, mode: Mode, onStep?: (rig: CharacterRig, k: number) => void, carrier = true): Promise<Rec> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene, TransformNode, Quaternion } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
@@ -46,7 +47,7 @@ export async function aimRun(target: AimTarget, steps: number, recFrom: number, 
   try {
     const op = operatorRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook(), 'measure');
     const rig: CharacterRig = op.rig;
-    rig.carrier = true;
+    rig.carrier = carrier;
     const gun = new TransformNode('gun', scene);
     gun.parent = rig.weaponPivot;
     gun.rotationQuaternion = Quaternion.Identity();
@@ -57,6 +58,7 @@ export async function aimRun(target: AimTarget, steps: number, recFrom: number, 
     mi.ct = true;
     mi.aiming = true;
     mi.faceTravel = true;
+    mi.mocapSide = mode === 'on' && carrier;
     for (let k = 0; k < steps; k++) {
       const t = k * DT;
       const s = target(t);

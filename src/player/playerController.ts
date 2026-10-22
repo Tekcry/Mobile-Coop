@@ -15,6 +15,7 @@ import { EasedVelocity, paceSpeed, targetSpeed, landingKind, LANDING, crouchWant
 import { AnalogGear, GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
+import { LOCO } from '../anim/mocap';
 import { hyp2 } from '../core/mathx';
 import { tuneSim } from '../anim/tune';
 import { cqSim } from '../anim/cqGait';
@@ -518,6 +519,8 @@ export class PlayerController {
     mi.vx = tx;
     mi.vz = tz;
     mi.aiming = aiming;
+    // (mocap-trial-2, strafe) the player is a carrier: the mocap strafe's side-step on its gait clock with the switch on
+    mi.mocapSide = LOCO.mocap;
     mi.sprinting = !!ov?.run;
     mi.slowest = snapped === 1;
     // (G1, audit row 26) the tense sneak near an unaware guard: long deliberate steps on the gait clock
