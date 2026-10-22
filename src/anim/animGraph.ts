@@ -2288,20 +2288,18 @@ export class AnimGraph {
         if (sk > 0 && SL !== null && SR !== null) {
           // (mocap-trial-2, strafe) each capture as captured (the left one leads with the left foot: it lands at 0), the
           // aimed head on the gun platform (no keyed head turn, as the trunk)
-          // (its hips' own height kept: the captures sink 3.6 cm into the wide side-step, as captured)
+          // (their hips at the procedural height: kept at their own, the 3.6 cm sink bent the knees out past the ankles)
           if (stW < 1) {
             // (the glide's own amp once the ease has settled on it: no new boxed double a frame)
             if (this.stAmp === amp) sampleKeyed(SL, ph, amp, this.kD);
             else sampleKeyed(SL, ph, this.stAmp, this.kD);
             this.dynPel(this.kD, SL, pose);
-            this.kD.pel[1] = this.kD.pel[1]! + SL.meanPel[1]!;
           }
           if (stW > 0) {
             const k = stW < 1 ? this.kSt : this.kD;
             if (this.stAmp === amp) sampleKeyed(SR, ph, amp, k);
             else sampleKeyed(SR, ph, this.stAmp, k);
             this.dynPel(k, SR, pose);
-            k.pel[1] = k.pel[1]! + SR.meanPel[1]!;
             if (stW < 1) mixKeyed(this.kD, this.kSt, stW, this.kD);
           }
           // the hips back over the planner's steps (STRAFE_LEAD.hips of a cycle's travel against the travel); the captures'

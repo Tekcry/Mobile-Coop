@@ -2424,8 +2424,8 @@ export class CharacterRig {
     // the hips ride over the feet's centre across the body (GLIDE_HIP: the weight moves onto the lead foot of a side-step
     // before the trailing foot closes), eased; the chest above stays square (the spine counters only the tilt)
     {
-      // (mocap-trial-2, strafe) less the mocap strafe's share (keyStrafe: its hips ride over its own steps; 0 switch off)
-      const gk = free || this.input.wall ? 0 : t.keyDrawn * t.aimW * kw * (1 - t.keyStrafe);
+      // (mocap-trial-2 strafe fix) also under the mocap strafe: its hips over the planner's feet, not a fixed hold (knee-out)
+      const gk = free || this.input.wall ? 0 : t.keyDrawn * t.aimW * kw;
       const midX = ((L.x + R.x) * 0.5 - rp.x) * Math.cos(yaw) - ((L.z + R.z) * 0.5 - rp.z) * Math.sin(yaw);
       const want = gk > 0 ? Math.max(-GLIDE_HIP.max, Math.min(GLIDE_HIP.max, midX - pex)) * GLIDE_HIP.share * gk : 0;
       this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
