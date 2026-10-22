@@ -222,7 +222,10 @@ try {
     const moving = t.run(0.5, { y: 1, taps: { 1: 'crouch' } }, () => p.controller.speed);
     t.run(0.5, { y: 1, taps: { 1: 'crouch' } });
     // (step 09) holstered unless aiming: aim draws first, the raise runs from the drawn hands; (anim-natural N3) the LT
-    // sling draw takes 1.5 s (rifle) / 1.2 s (pistol)
+    // sling draw takes 1.5 s (rifle) / 1.2 s (pistol). The aiming turn above lets go of LT mid sling-draw, which leaves
+    // the gun at low ready (anim-rework controls): holster it first, or the "draw" is already drawn (0.02 s)
+    p.stance.holster();
+    t.run(1.4, {});
     const raise = t.run(2.2, { ads: true }, (s) => [s, p.carry.raise, window.__app.current.weapons.drawPhase]);
     const lower = t.run(1.0, {}, (s) => [s, p.carry.raise]);
     return { down, up, minMoving: Math.min(...moving), raise, lower };
