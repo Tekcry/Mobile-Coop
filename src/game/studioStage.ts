@@ -15,9 +15,10 @@ import { TUNE_BODY, TUNE_PIN } from '../anim/tune';
 import { TUNE_FLAGS, TUNE_STATE_BAG } from '../anim/tuneRegistry';
 import { MOVE_TUNE_TEAM, moveTuneBegin, moveTuneEnd, moveTuneRoot, moveTuneSelect } from '../anim/moveTune';
 import { newStudioDrive } from '../anim/studioDrive';
-import { newPairRole, pairFrames, pairPose, ropeLine, type PairRole } from '../anim/studioPairs';
+import { newPairRole, pairFrames, pairPose, ropeHoldLine, ropeLine, type PairRole } from '../anim/studioPairs';
+import { TeamPoser } from '../anim/clips/team';
 import { newTravOut, newTravState, PAIR_STATION, STUDIO_MID, travTick, type TravButton, type TravEntry } from '../anim/studioTraversal';
-import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioBodyPin, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, type GuardLoop, type StudioEntry, type StudioInputOut } from '../anim/studio';
+import { STAGE_LIGHTS, STUDIO, STUDIO_LIGHT, STUDIO_PAIR, STUDIO_RIGS, STUDIO_TARGET, studioAdvance, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioBodyPin, studioReset, studioScrub, studioSpot, studioStepPhase, studioWeaponFor, spotShift, stageLightPlace, stageViewYaw, studioCq, holdPairTravel, type GuardLoop, type HoldTravel, type StudioEntry, type StudioInputOut } from '../anim/studio';
 import { buildEnemyRig } from '../ai/enemyRig';
 import { ENEMIES } from '../ai/enemyDefs';
 import { TUNE_WHO } from '../anim/tuneGuard';
@@ -54,6 +55,7 @@ export interface StudioHost {
 /** The pairs' viewing spot: Wren (hidden) stands here, so the camera and the free view frame the team block. */
 const PAIR_VIEW = { x: PAIR_STATION.x, z: PAIR_STATION.z - 6.5, yaw: 0 };
 const ROPE_KEY = 'studio-pair-rope';
+const ROPE_HOLD_KEY = 'studio-pair-rope-hold';
 const TRAV_BUTTONS: readonly TravButton[] = ['jump', 'interact', 'drop', 'cover'];
 
 /** A puppet's pose bag (reused). */
@@ -106,7 +108,13 @@ export class StudioStage {
   private readonly rB: PairRole = newPairRole();
   private readonly pA: RigPose = newPose();
   private readonly pB: RigPose = newPose();
+  /** (anim-n4b, track A) Each puppet's team pose (B's working body, A's push), as the players' in real play. */
+  private readonly tA = new TeamPoser();
+  private readonly tB = new TeamPoser();
   private pairPhase = 0;
+  /** (anim-n4b) A walking hold pair: its travel state and how far (m) Wren has been moved along it. */
+  private readonly holdTr: HoldTravel = { n: 0, last: 0 };
+  private holdOff = 0;
   private readonly rope = { x0: 0, y0: 0, z0: 0, x1: 0, y1: 0, z1: 0 };
   private ropeShown = false;
   /** Wren is hidden (a team pair plays with the puppets). */
@@ -317,12 +325,33 @@ export class StudioStage {
     // a key request waits for its clip's drive (a pick that changes the loop lands a frame later)
     if (d.clip || e.kind !== 'keyed') STUDIO.seekKey = -1;
     STUDIO.keyStep = 0;
+    this.holdTravel(e);
     if (this.guard) this.guardFrame(dt, e.kind === 'pair');
     if (this.puppet && e.gloop) this.puppetFrame(dt, e.gloop);
     if (e.team) this.pairFrame(dt, e);
     STUDIO.phase = e.kind === 'pair' ? this.pairPhase : d.clip ? d.phase : 0;
     STUDIO.frames = e.team ? pairFrames(e.cycle) : d.clip ? d.clip.frames : 0;
     studioKeyInfo(d.clip && !e.team ? d.clip.name : '', STUDIO.phase, STUDIO);
+  }
+
+  /**
+   * (anim-n4b, PASS2 row 44) A walking hold pair (hold_back) travels with its clip on the pair clock: Wren (and the guard
+   * placed in front of her) moves along the clip's travel at its pace, so the treadmill's planted feet stay on the floor
+   * (on the spot they slid 22-32 cm); after `HOLD_PAIR_CYCLES` cycles back to the start at a heel strike. No allocation.
+   */
+  private holdTravel(e: StudioEntry): void {
+    const tr = holdPairTravel(e, this.pairPhase, this.holdTr);
+    const dd = tr - this.holdOff;
+    if (dd === 0) return;
+    this.holdOff = tr;
+    const d = this.drive;
+    const yaw = this.host.player.rig.root.rotation.y;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const bx = (d.mirror ? -d.dirX : d.dirX) * dd;
+    const bz = d.dirZ * dd;
+    this.host.shift(bx * c + bz * s, -bx * s + bz * c);
+    this.away = true;
   }
 
   /** (marlow-bays item 26 round) Per rendered frame, after the player animates and the camera updates: the stage
@@ -434,6 +463,9 @@ export class StudioStage {
     this.detach();
     if (clipChanged) {
       this.pairPhase = 0;
+      this.holdTr.n = 0;
+      this.holdTr.last = 0;
+      this.holdOff = 0;
       this.trav.phase = 'reset';
       this.trav.step = 0;
       this.trav.t = 0;
@@ -462,7 +494,7 @@ export class StudioStage {
       this.away = true;
     }
     if (!e.team && this.ropeShown) {
-      this.host.world.ropes.hide(ROPE_KEY);
+      this.hideRopes();
       this.ropeShown = false;
     }
     const d = this.drive;
@@ -482,6 +514,7 @@ export class StudioStage {
       d.dirZ = e.move === 'fwd' ? 1 : e.move === 'back' ? -1 : 0;
       if (clipChanged) d.phase = 0;
       d.inL = d.inR = true;
+      d.cq = studioCq(e); // (anim-n4b) a hold clip: the close-quarters layer on its keyed trunk
       rig.graph.drive = d;
       rig.planner.L.init = rig.planner.R.init = false;
       this.target = rig;
@@ -494,7 +527,9 @@ export class StudioStage {
         g.cycle = e.cycle;
         g.mirror = STUDIO.mirror;
         g.drawn = g.crouch = false;
-        g.pace = e.pace * 0.8;
+        // (anim-n4b) the pair walks together (it travels with the clip): the guard at her pace, so his planted feet stay
+        // down too (his clip is keyed at 0.8 m/s: a slightly longer step)
+        g.pace = e.pace;
         g.dirX = d.dirX;
         g.dirZ = d.dirZ;
         g.phase = d.phase;
@@ -671,8 +706,8 @@ export class StudioStage {
     if (!ps || !e.team) return;
     const t = this.pairPhase * e.cycle;
     pairPose(e.team, t, PAIR_STATION, PLAYER_HEIGHT, this.rA, this.rB);
-    this.posePuppet(ps[0], this.rA, this.pA, dt);
-    this.posePuppet(ps[1], this.rB, this.pB, dt);
+    this.posePuppet(ps[0], this.rA, this.pA, this.tA, dt);
+    this.posePuppet(ps[1], this.rB, this.pB, this.tB, dt);
     const s = STUDIO_PAIR;
     s.aState = this.rA.state;
     s.bState = this.rB.state;
@@ -690,15 +725,24 @@ export class StudioStage {
       ropeLine(PAIR_STATION, this.rope);
       const r = this.rope;
       this.host.world.ropes.set(ROPE_KEY, r.x0, r.y0, r.z0, r.x1, r.y1, r.z1);
+      // (anim-n4b, track A) and from the holder's hands over the lip, as the game's rope line
+      if (ropeHoldLine(this.rB, PLAYER_HEIGHT, r)) this.host.world.ropes.set(ROPE_HOLD_KEY, r.x0, r.y0, r.z0, r.x1, r.y1, r.z1);
+      else this.host.world.ropes.hide(ROPE_HOLD_KEY);
       this.ropeShown = true;
     } else if (this.ropeShown) {
-      this.host.world.ropes.hide(ROPE_KEY);
+      this.hideRopes();
       this.ropeShown = false;
     }
   }
 
+  /** The pair's rope (the line down the face and the holder's length over the lip). */
+  private hideRopes(): void {
+    this.host.world.ropes.hide(ROPE_KEY);
+    this.host.world.ropes.hide(ROPE_HOLD_KEY);
+  }
+
   /** One puppet: the root, the pose, the hand grips, the role's move section (as the local player in real play). */
-  private posePuppet(op: OperatorRig, r: PairRole, p: RigPose, dt: number): void {
+  private posePuppet(op: OperatorRig, r: PairRole, p: RigPose, tp: TeamPoser, dt: number): void {
     const rig = op.rig;
     const root = rig.root;
     const ry = r.y + (r.lie ? 0.22 : 0);
@@ -723,11 +767,17 @@ export class StudioStage {
     this.grip(rig.reachR, r.grip !== 'none', r.hrx, r.hry, r.hrz, r.grip === 'lip');
     moveTuneSelect(r.group, r.k, r.traverse, false);
     moveTuneRoot(root.position, root.rotation);
+    // (anim-n4b, track A) the team pose (B's working body, A's push) on the pose and the grips, as in real play
+    p.bend = p.bendDrop = p.sway = 0;
+    // (N4b train-8 fix) paused (dt 0: a scrub, a key step) the team pose shows this phase's, not the weight it was paused at
+    if (dt <= 0) tp.jump(r.tp);
+    tp.begin(dt, r.tp, p, rig);
     moveTuneBegin(p, rig);
     try {
       rig.animate(dt, p);
     } finally {
       moveTuneEnd(rig);
+      tp.end(rig);
     }
     // (studio-pairs, AUDIT fix 12) no camera: the figure stays on its nearest game LOD (LOD0) through the loop. By the
     // view's distance the puppets stand at the LOD0 / LOD1 edge (8.8 m out, 7.2 m back) from a framing camera, and a
@@ -765,7 +815,7 @@ export class StudioStage {
       }
       this.puppets = null;
     }
-    if (this.ropeShown) this.host.world.ropes.hide(ROPE_KEY);
+    if (this.ropeShown) this.hideRopes();
     MOVE_TUNE_TEAM.follow = '';
     FREE_VIEW.spin = 0;
     FREE_VIEW.snap = '';

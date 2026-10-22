@@ -463,38 +463,74 @@ try {
   let tdStarted = 'offer none';
   let knocked = false;
   for (let attempt = 0; attempt < 6 && !knocked; attempt++) {
-    tdStarted = 'offer none';
-    for (let i = 0; i < 40 && tdStarted !== true; i++) {
-      await GA((id) => {
-        const g = window.__app.current;
-        for (const r of g.net.remotes.values()) r.allowTeleport(1);
-        // (e2e-coop-takedown, as the grab step below: on a slow page the match's guards alert or turn between the pin
-        // and the client's read - a spotted client skips an alert guard, and a guard turned to the side offers only
-        // while calm - so the host is calmed and the picked guard is a statue until the takedown is done; the start, the
-        // reach check and the knock-out are the real code, `knockOut` does not need his brain)
+    // (e2e-coop-takedown, as the grab step below: on a slow page the match's guards alert or turn between the pin
+    // and the client's read - a spotted client skips an alert guard, and a guard turned to the side offers only
+    // while calm - so the host is calmed and the picked guard is a statue until the takedown starts; the start, the
+    // reach check and the knock-out are the real code, `knockOut` does not need his brain)
+    // (coop-offer-load) the pin holds on every host frame, not only between polls: under load the host ran frames
+    // between two polls in which the guard alerted again
+    await GA((id) => {
+      const g = window.__app.current;
+      const v = g.enemyMgr.enemies.find((e) => e.id === id);
+      window.__tdPinOn = true;
+      const pin = () => {
+        if (!window.__tdPinOn) return;
+        for (const r of g.net.remotes.values()) {
+          r.allowTeleport(1);
+          r.ref.spotted = false;
+        }
         for (const e of g.enemyMgr.enemies) if (!e.taken) e.aware.set('unaware');
-        for (const r of g.net.remotes.values()) r.ref.spotted = false;
-        const v = g.enemyMgr.enemies.find((e) => e.id === id);
         if (v?.alive && !v.taken) {
           v.update = () => {};
           v.pos.set(6, 0, -6);
           v.yaw = 0;
         }
-      }, tdv);
-      tdStarted = await GB((id) => {
-        const g = window.__app.current;
+        requestAnimationFrame(pin);
+      };
+      pin();
+    }, tdv);
+    // (coop-offer-load) the client starts the takedown in the frame its offer comes up (latched: the offer can come and go
+    // between two polls), within 6 s of the client's match clock (was 40 polls 150 ms apart in real time, which a loaded
+    // page spent in a fraction of that game time); 90 s real-time cap
+    tdStarted = await GB((id) => new Promise((res) => {
+      const g = window.__app.current;
+      const t0 = g.time;
+      const w0 = performance.now();
+      const tick = () => {
         if (g.takedown.offer?.e.id === id && !g.takedown.active) {
           g.takedown.start(false);
-          return true;
-        }
-        return `offer ${g.takedown.offer?.e.id ?? 'none'}`;
-      }, tdv);
-      if (tdStarted !== true) await wait(150);
-    }
+          res(true);
+        } else if (g.time - t0 > 6 || performance.now() - w0 > 90000) res(`offer ${g.takedown.offer?.e.id ?? 'none'}`);
+        else requestAnimationFrame(tick);
+      };
+      tick();
+    }), tdv);
+    await GA(() => { window.__tdPinOn = false; });
     for (let i = 0; i < 20 && !knocked; i++) {
       await wait(400);
       knocked = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv);
-      if (!knocked && (await GB(() => !window.__app.current.takedown.active))) break;
+      if (!knocked && (await GB(() => !window.__app.current.takedown.active))) {
+        // (load-audit) the client's takedown ended, but its 'done' can still be on its way to the host: under load the
+        // next attempt started first, the late knock-out removed the guard, and the retry found no guard (host
+        // found:false, client offer null) and overwrote the start. Before a retry the host settles on its match clock:
+        // the knock-out, or the guard free (not held) for 1.5 s of host time (a denied start); 30 s real-time cap.
+        // (polled from here, as waitHostSim: the host page is in the background, where rAF stops but its clock runs on)
+        const hostTd = (id) => GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); return { t: g.time, ko: !e || (!e.alive && e.ko), taken: !!e?.taken }; }, id);
+        const w0 = Date.now();
+        let lastTakenT = (await hostTd(tdv)).t;
+        for (;;) {
+          const s = await hostTd(tdv);
+          if (s.ko) {
+            knocked = true;
+            break;
+          }
+          if (s.taken) lastTakenT = s.t;
+          else if (s.t - lastTakenT > 1.5) break;
+          if (Date.now() - w0 > 30000) break;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        break;
+      }
     }
   }
   if (tdStarted !== true) {
@@ -624,18 +660,17 @@ try {
     for (let attempt = 0; attempt < 6 && !grabbed; attempt++) {
       // (load-audit, as coop-offer-load's takedown fix) the pin holds on every host frame until the grab starts, not once
       // per attempt: under load the host ran frames between the pin and the client's read in which the guard alerted or
-      // turned again
+      // turned again. (load-audit review) The teleport window is granted once per attempt, by moveClient (a grant every
+      // frame kept the host's reach check open for the whole wait); each attempt's pin carries its own generation, so a
+      // pin from an earlier attempt stops when the next one starts, and the finally below always ends it
       await GA((id) => {
         const g = window.__app.current;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
-        window.__grabPinOn = true;
+        const gen = (window.__grabPinGen = (window.__grabPinGen ?? 0) + 1);
         const pin = () => {
           // (stops once the guard is taken: his brain is back on as soon as the grab is held)
-          if (!window.__grabPinOn || v?.taken) return;
-          for (const r of g.net.remotes.values()) {
-            r.allowTeleport(2);
-            r.ref.spotted = false;
-          }
+          if (window.__grabPinGen !== gen || v?.taken) return;
+          for (const r of g.net.remotes.values()) r.ref.spotted = false;
           // (3.6: the checks above - a gas cloud - can leave guards in combat having spotted the client, and a
           // guard in combat who knows an operator is there cannot be taken by surprise (by design): calm the host first)
           for (const e of g.enemyMgr.enemies) e.aware.set('unaware');
@@ -652,24 +687,28 @@ try {
         };
         pin();
       }, gg);
-      await moveClient(B, 6, 0.1, -7.1, 0);
-      // (load-audit) the client starts the grab in the frame its offer from behind comes up (latched: the offer can come and go
-      // between two polls), then waits for the hostage, within 6 s of the client's match clock (was 30 polls 150 ms apart in
-      // real time, which a loaded page spent in a fraction of that game time); 90 s real-time cap
-      grabbed = await GB((id) => new Promise((res) => {
-        const g = window.__app.current;
-        const t0 = g.time;
-        const w0 = performance.now();
-        const tick = () => {
-          // (only the offer from behind is taken: a guard who turned round in the instant before offers the front takedown, a knock-out, not a grab)
-          if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
-          if (g.takedown.hostage?.id === id) res(true);
-          else if (g.time - t0 > 6 || performance.now() - w0 > 90000) res(false);
-          else requestAnimationFrame(tick);
-        };
-        tick();
-      }), gg);
-      await GA(() => { window.__grabPinOn = false; });
+      try {
+        await moveClient(B, 6, 0.1, -7.1, 0);
+        // (load-audit) the client starts the grab in the frame its offer from behind comes up (latched: the offer can come and go
+        // between two polls), then waits for the hostage, within 4.5 s of the client's match clock (was 30 polls 150 ms apart,
+        // 4.5 s of real time, which a loaded page spent in a fraction of that game time); 90 s real-time cap
+        grabbed = await GB((id) => new Promise((res) => {
+          const g = window.__app.current;
+          const t0 = g.time;
+          const w0 = performance.now();
+          const tick = () => {
+            // (only the offer from behind is taken: a guard who turned round in the instant before offers the front takedown, a knock-out, not a grab)
+            if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
+            if (g.takedown.hostage?.id === id) res(true);
+            else if (g.time - t0 > 4.5 || performance.now() - w0 > 90000) res(false);
+            else requestAnimationFrame(tick);
+          };
+          tick();
+        }), gg);
+      } finally {
+        // (a crashed page's own error is the one reported)
+        await GA(() => { window.__grabPinGen = (window.__grabPinGen ?? 0) + 1; }).catch(() => {});
+      }
     }
     if (!grabbed) {
       console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ found: !!e, alive: e?.alive, taken: e?.taken, ko: e?.ko, level: e?.level, gas: e?.gas, stagger: e?.['stagger'], pos: e && [e.pos.x, e.pos.z], yaw: e?.yaw, client: [r.feet.x, r.feet.z], mv: r.state?.mv?.m }); }, gg));

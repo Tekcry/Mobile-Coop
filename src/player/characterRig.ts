@@ -6,6 +6,7 @@ import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, wrenTuckMul, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { ROLL_BODY, rollTurn } from '../anim/clips/traverse'; // (anim-n4b) the grounded roll's body turn
 import { gripClose, smoothInv } from '../anim/drawMotion';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
@@ -106,6 +107,9 @@ export interface RigPose {
   intent?: number;
   traverse?: TraverseKind;
   traverseT?: number;
+  /** (anim-n4b) A committed move's top above its start feet and its start-to-end distance (m): the mantle's hand plant. */
+  traverseH?: number;
+  traverseD?: number;
   /** (anim-joints J2) This rig's co-op team role row (`team.<move>.<a|b>`, '' / unset none): the tuner's team rows. */
   tuneTeam?: string;
   melee?: number;
@@ -492,6 +496,9 @@ const HEAD_CAP_MAX = 0.3;
 const CLEAR_MARGIN = 0.015;
 const tmpQ2 = new Quaternion();
 const tmpQ3 = new Quaternion();
+/** (anim-n4b) The roll's spin axis and a turned foot point (applyTargets; reused). */
+const rollAxisV = new Vector3();
+const rollV = { x: 0, y: 0, z: 0 };
 /** (21w) Weapon glide scratch. */
 /** (anim-gear) `gearPlace`'s result (position, rotation). */
 const gearRes = new Float64Array(7);
@@ -1148,6 +1155,8 @@ export class CharacterRig {
   private pelvisWorldYaw = 0;
   /** (G6 fix) The legs' yaw override this frame (side-on at a wall: the body's), NaN = the planner's foot yaws. */
   private legYaw = Number.NaN;
+  /** (anim-n4b fix) A grounded roll this frame (the body spun / tumbled with `tumbleLift`): the knee poles turn with the body. */
+  private rollPole = false;
 
   constructor(
     scene: Scene,
@@ -1726,6 +1735,8 @@ export class CharacterRig {
     else if (trav !== 'climbUp') i.ledgeClimb = false;
     i.traverse = trav;
     i.traverseT = s.traverseT ?? 0;
+    i.travH = s.traverseH ?? 0;
+    i.travD = s.traverseD ?? 0;
     i.melee = s.melee ?? -1;
     i.bend = s.bend ?? 0;
     i.bendDrop = s.bendDrop ?? 0;
@@ -2154,7 +2165,15 @@ export class CharacterRig {
 
   private applyTargets(t: ReturnType<AnimGraph['update']>, dt: number, free: boolean): void {
     const p = this.p;
-    this.body.rotationQuaternion!.copyFrom(Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ));
+    this.rollPole = t.tumbleLift || t.tumbleSpin !== 0;
+    // (anim-n4b, PASS2 row 66) a roll: the spin about the hips-to-feet line first, then the tumble's pitch (as `rollTurn`),
+    // and the pivot sunk toward the floor (`tumbleDrop`)
+    if (t.tumbleSpin !== 0) {
+      rollAxisV.set(0, Math.cos(ROLL_BODY.tilt), -Math.sin(ROLL_BODY.tilt));
+      Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ);
+      tmpQ.multiplyToRef(Quaternion.RotationAxisToRef(rollAxisV, t.tumbleSpin, tmpQ2), this.body.rotationQuaternion!);
+    } else this.body.rotationQuaternion!.copyFrom(Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ));
+    this.body.position.y = this.bodyPivot - t.tumbleDrop;
     // root (moved by the caller) and body: the one forced update per frame; everything below is
     // refreshed top-down with `fresh`
     this.body.computeWorldMatrix(true);
@@ -2176,7 +2195,23 @@ export class CharacterRig {
       L.yaw = R.yaw = yaw;
       L.pitch = R.pitch = 0;
       // tumbling (landing roll): the feet turn over with the body about the hip pivot
-      if (Math.abs(t.tumble) > 1e-3) {
+      // (anim-n4b) a roll: with the spin and the sunk pivot, the clip's lifts turning with the body (the IK adds the lift
+      // back on top: the sole lands on the turned point)
+      if (t.tumbleLift) {
+        // (the soles in the body frame: they sink with the pivot)
+        const py = rp.y + this.bodyPivot - t.tumbleDrop;
+        for (let k = 0; k < 2; k++) {
+          const f = k === 0 ? L : R;
+          const lift = k === 0 ? st.lY : st.rY;
+          const dx = f.x - rp.x;
+          const dz = f.z - rp.z;
+          rollTurn(t.tumble, t.tumbleSpin, dx * c - dz * s, f.y + p.y.ankle + lift - rp.y - this.bodyPivot, dx * s + dz * c, rollV);
+          f.x = rp.x + rollV.x * c + rollV.z * s;
+          f.z = rp.z - rollV.x * s + rollV.z * c;
+          f.y = py + rollV.y - p.y.ankle - lift;
+          f.pitch = t.tumble;
+        }
+      } else if (Math.abs(t.tumble) > 1e-3) {
         const tc = Math.cos(t.tumble);
         const ts = Math.sin(t.tumble);
         const py = rp.y + this.bodyPivot;
@@ -2344,7 +2379,7 @@ export class CharacterRig {
     need = Math.max(0, Math.min(0.4, need));
     hard = Math.max(0, Math.min(0.4, hard));
     // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
-    const turned = Math.abs(this.input.tumble) > 0.3;
+    const turned = Math.abs(this.input.tumble) > 0.3 || t.tumbleLift; // (anim-n4b) and a roll (its feet turn with the body)
     if (turned) need = 0;
     // (BC note 6) walking, the drop is held near its per-step peak (slow release) so the chest does not bob with every
     // step: a growing need is still met at once (no overstretched leg), only the easing back up slows with speed
@@ -2550,7 +2585,7 @@ export class CharacterRig {
     // the graph's compressed carry at the mid-point), so aimed low the butt never rises past the face
     const aimPitch = this.input.aimPitch * (0.35 + 0.65 * t.aimW) * (1 - swapK);
     Quaternion.RotationYawPitchRollToRef(aimYaw + (w.yaw + TUNE_CUR.gunYaw) * mirror, -aimPitch + w.pitch + TUNE_CUR.gunPitch, (w.roll + TUNE_CUR.gunCant) * mirror, tmpQ);
-    if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
+    if (Math.abs(t.tumble) > 1e-3 || t.tumbleSpin !== 0) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
     // (3.2.0) upside down the raised weapon aims in world space
     if (this.aimWorldYaw !== null && t.aimW > 0) {
       Quaternion.RotationYawPitchRollToRef(this.aimWorldYaw, -this.aimWorldPitch, 0, tmpQ3);
@@ -3735,6 +3770,14 @@ export class CharacterRig {
     const climbK = this.input.traverse === 'climb' || this.input.traverse === 'pipeClimb';
     const o = climbK ? Math.max(out, CLIMB_KNEE_OUT * TUNE_CUR.kneeOutMul) : out;
     tmpPole.set(sn + side * o * c, climbK ? CLIMB_KNEE_UP * TUNE_CUR.kneeLiftMul : 0, c - side * o * sn);
+    if (this.rollPole) {
+      // (anim-n4b fix) in a roll the pole turns with the body (into the root frame, then the body's world rotation): a
+      // level world pole lay along the pitched, spun hip-to-ankle line and the knees bent through the floor (-0.21 m)
+      const ry = this.root.rotation.y;
+      const rc = Math.cos(ry);
+      const rs = Math.sin(ry);
+      Vector3.TransformNormalFromFloatsToRef(tmpPole.x * rc - tmpPole.z * rs, tmpPole.y, tmpPole.x * rs + tmpPole.z * rc, this.body.getWorldMatrix(), tmpPole);
+    }
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
     // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away
     // from the shin, the shin faces along the thigh; the pole only steers them when the leg is straight

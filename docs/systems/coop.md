@@ -119,6 +119,15 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `RemoteAvatar` never reads them: the partner always plays the shared defaults until an export is folded into the
   code. Nothing goes on the wire; visual only (the paths, timing and capsule are the game's). The Anim Studio plays both
   roles of each move on one clock with two local puppets (`anim/studioPairs.ts`).
+- (anim-n4b, track A) Team-move poses (`anim/clips/team.ts`, `TeamPoser`, one per rig: the local player, each
+  `RemoteAvatar`, the studio puppets): role B works the move on the brace clip (hands on the contact through
+  `reachL / R`: cupped at knee height for the leg-up, at the waist for the throw, round A's shins for the hang-down,
+  on the rope; trunk `bend`, pelvis up through a negative `bendDrop`, a visual root turn to the runner / step back),
+  and the leg-up's climber puts its lead sole on B's hands (`plantR`) with the hips held low under the path, then
+  drives up off them (a visual root offset, gone by the end). No wire change: on each page the LOCAL player's team
+  clock drives both bodies (`TEAM_LINK`, written by GameState; the partner's avatar reads it when the partner is ours:
+  `MoveState.tid` / mode / sub / `s` / `ph` as before); an unlinked holder plays the offer pose. The rope line starts in
+  the holder's hands (`ropeGripWorld`).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
@@ -177,6 +186,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
   snapshot's `info`. Objectives, markers and banners use the item and event mirror.
+- (sector-fixes-r RT) Team doors, no wire change: a section's `bolts` (`SectorDef.bolts`: door centre `at`, unbolting
+  `side`) are locked at the start and each gets an "Unbolt" item `c-sbolt-<section>-<k>` (kind `door`, reach 1.6 m;
+  the `c-` prefix sorts it with the course devices ahead of the item cap). `Interactable.side` makes `nearest` offer it
+  only with the feet past the door plane on `side` (the course F7 test); the client mirror sets the same `side` from its
+  own map data (`boltById`), so the near side sees no item. A client's use is the ordinary `use` request; the host's
+  `onUse` runs the side test again on the client's feet (`SectorBolts.use`), unlocks the door (it leaves `lk`) and turns
+  the item off (the item list's `on`). A section restart bolts its doors again (`SectorBolts.rebolt`).
 - Revives are the op's syringes (`CoopHost.reviveClock.cap = syringesFor(difficulty)`, `revivesLeft()`). `goOut`
   outside the course calls `GameMode.onPlayerOut` (Sector Ops restarts the section); `onRespawn` in Sector Ops also
   brings a partner still up to the checkpoint (`revive` event). Before a section unloads or restarts the mode calls

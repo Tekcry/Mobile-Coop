@@ -91,6 +91,86 @@ export interface SectorDef {
   perStage: number;
   /** The ways to the objective and on to the exit (M8: at least 2). */
   routes: SectorRoute[];
+  /** (sector-fixes-r RT) Team doors: doors bolted from one side (the course's B2 rule); none when absent. */
+  bolts?: readonly SectorBolt[];
+}
+
+/**
+ * (sector-fixes-r RT) A team door: a door bolted from one side (the course's B2 bolt, `BoltGate`). `at` is the door's
+ * plan centre [x, z] (the door is found by position, `Doors.nearest`); `side` the unit plan direction from the door
+ * toward the side that can unbolt it. The door starts locked; a player whose feet are past the door plane on `side`
+ * (the course F7 test) within reach gets an "Unbolt" item; using it unlocks the door for both. A section restart
+ * bolts its doors again. Guards treat a bolted door as any locked door (no guard route uses one).
+ */
+export interface SectorBolt {
+  readonly at: readonly [number, number];
+  readonly side: readonly [number, number];
+}
+
+/** Reach (m) of a team door's "Unbolt" item (the course bolt's). */
+export const BOLT_REACH = 1.6;
+
+/** Is (x, z) on a bolt's unbolting side: past the door plane through `at` along `side` (course F7)? */
+export function onBoltSide(b: SectorBolt, x: number, z: number): boolean {
+  return (x - b.at[0]) * b.side[0] + (z - b.at[1]) * b.side[1] > 0;
+}
+
+const BOLT_ID = /^c-sbolt-(\d+)-(\d+)$/;
+
+/**
+ * The "Unbolt" item id of section `sec`'s bolt `k`. The `c-` prefix puts it first in the co-op item list (the course
+ * devices' rule, so the item cap never drops it); the client reads the bolt back from its own map data (`boltById`).
+ */
+export function boltItemId(sec: number, k: number): string {
+  return `c-sbolt-${sec}-${k}`;
+}
+
+/** The bolt an "Unbolt" item id names (section, index and data), or null. */
+export function boltById(defs: readonly SectorDef[] | undefined, id: string): { sec: number; k: number; bolt: SectorBolt } | null {
+  const m = BOLT_ID.exec(id);
+  if (!m || !defs) return null;
+  const sec = Number(m[1]);
+  const k = Number(m[2]);
+  const bolt = defs[sec]?.bolts?.[k];
+  return bolt ? { sec, k, bolt } : null;
+}
+
+/**
+ * The team doors' state (host only, pure): which bolts are shut, per section. `use` is the host-authoritative press
+ * (the user's feet must be on the bolt's side, the course B2 / F7 rule); `rebolt` shuts a section's bolts again (a
+ * section restart, M9).
+ */
+export class SectorBolts {
+  /** `shut[sec][k]`: the bolt is shut (its door locked). */
+  readonly shut: boolean[][];
+
+  constructor(readonly defs: readonly SectorDef[]) {
+    this.shut = defs.map((d) => (d.bolts ?? []).map(() => true));
+  }
+
+  isShut(sec: number, k: number): boolean {
+    return this.shut[sec]?.[k] === true;
+  }
+
+  /** A player at (x, z) used bolt `k` of section `sec`: true when it unbolts (shut, and the feet on its side). */
+  use(sec: number, k: number, x: number, z: number): boolean {
+    const b = this.defs[sec]?.bolts?.[k];
+    if (!b || !this.isShut(sec, k) || !onBoltSide(b, x, z)) return false;
+    this.shut[sec]![k] = false;
+    return true;
+  }
+
+  /** Shut every bolt of section `sec` again; returns the indices that were open (their doors lock again). */
+  rebolt(sec: number): number[] {
+    const out: number[] = [];
+    const row = this.shut[sec];
+    if (!row) return out;
+    for (let k = 0; k < row.length; k++) {
+      if (!row[k]) out.push(k);
+      row[k] = true;
+    }
+    return out;
+  }
 }
 
 /** Tuning (prototype values). */
@@ -161,6 +241,9 @@ export function checkSectors(defs: readonly SectorDef[]): string[] {
     if (!last && d.extract) out.push(`${d.id}: an extraction before the last section`);
     if (last && !d.extract) out.push(`${d.id}: the last section has no extraction`);
     if (last && d.connector) out.push(`${d.id}: a connector after the last section`);
+    d.bolts?.forEach((b, k) => {
+      if (b.side[0] === 0 && b.side[1] === 0) out.push(`${d.id}: bolt ${k} side is zero`);
+    });
   }
   return out;
 }
