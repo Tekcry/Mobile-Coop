@@ -17,6 +17,7 @@ import { DrillDetect, emptySnap, VERBS } from '../course/drillDetect';
 import { summarise } from '../course/courseRating';
 import { CourseHud } from '../../ui/hud/courseHud';
 import { recordBay, recordRun, updateCourseRecord } from '../../save/courseRecord';
+import { groupBaseOn } from '../../world/lights';
 
 /** Seconds between two LANTERN radio lines. */
 const RADIO_GAP = 3;
@@ -225,8 +226,8 @@ export class CourseMode implements GameMode {
   }
 
   /** Co-op host: the client's held jammer target (CT prototype B3). */
-  onRemoteJam(_id: string, tgt: string): void {
-    this.ct?.onRemoteJam(tgt);
+  onRemoteJam(_id: string, tgt: string, eye?: readonly [number, number, number]): void {
+    this.ct?.onRemoteJam(tgt, eye);
   }
 
   /** Dev toggle (debug overlay): the solo flag (A6). */
@@ -515,13 +516,10 @@ export class CourseMode implements GameMode {
     }
   }
 
+  /** A light group is on: one of its lamps is on by its switches, EMP and shots. (jammer-fixes) A jam never counts: the
+   *  registry's base state leaves it out, so jamming the mains lamp neither opens its gate nor toggles it with the flicker. */
   private groupOn(group: number): boolean {
-    const ls = this.g.world.level.lights.lights;
-    for (let i = 0; i < ls.length; i++) {
-      const l = ls[i]!;
-      if (l.group === group && l.on) return true;
-    }
-    return false;
+    return groupBaseOn(this.g.world.level.lights, group);
   }
 
   /** Act on the course's events. */

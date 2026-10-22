@@ -506,8 +506,8 @@ export class SectorMode implements GameMode {
   }
 
   /** Co-op host: the client's held jammer target. */
-  onRemoteJam(_id: string, tgt: string): void {
-    this.ct?.onRemoteJam(tgt);
+  onRemoteJam(_id: string, tgt: string, eye?: readonly [number, number, number]): void {
+    this.ct?.onRemoteJam(tgt, eye);
   }
 
   blips(): Blip[] {

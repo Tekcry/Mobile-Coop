@@ -79,6 +79,20 @@ try {
   setSimPages([A, B]);
   const GB = (f, a) => B.evaluate(f, a);
   await B.click('.main-menu .btn:has-text("Co-op")');
+  // (server browser, prototype) the host's Room row (default Private) set Public lists the room under Browse rooms, live,
+  // on the same relays (here the local test relay); full, it leaves the list
+  console.log('server browser: a public room shows in Browse rooms; full, it leaves the list');
+  const roomRow = '.lobby-opts .row-choice:has-text("Room")';
+  const rv0 = (await A.textContent(`${roomRow} .choice-val`)) ?? '';
+  assert(/Private/.test(rv0) && (await GA(() => !window.__coop.isPublic)), `a new room is Private (${rv0})`);
+  await A.click(`${roomRow} .choice-arrow >> nth=1`);
+  await until(A, () => window.__coop.isPublic && !!window.__coop.dir?.posted, null, 15000, 'the public room posts its notice');
+  await B.click('.btn:has-text("Browse rooms")');
+  await until(B, (c) => /1 \/ 2/.test(document.querySelector(`.browse-screen [data-key="room-${c}"]`)?.textContent ?? ''), code, 20000, 'Browse rooms lists the public room (1 / 2)');
+  const listed = await GB((c) => document.querySelector(`.browse-screen [data-key="room-${c}"]`)?.textContent ?? '', code);
+  assert(listed.includes(code) && /Marlow Yard|ctcourse/.test(listed), `the listed room names its code and map (${listed})`);
+  await B.keyboard.press('Escape');
+  await until(B, () => !!document.querySelector('.coop-screen:not(.browse-screen) [data-key="join"]'), null, 8000, 'back to the co-op menu');
   await B.click('.btn:has-text("Join with code")');
   await B.keyboard.type(code.toLowerCase());
   const typed = await GB(() => [...document.querySelectorAll('.code-slot')].map((s) => s.textContent).join(''));
@@ -86,6 +100,7 @@ try {
   await B.keyboard.press('Enter');
   await until(B, () => window.__coop?.session.hostId && window.__coop.session.players.size === 2, null, 15000, 'client sees host lobby');
   await until(A, () => window.__coop.session.players.size === 2, null, 5000, 'host sees client');
+  await until(A, () => window.__coop.isPublic && window.__coop.dir?.posted === '', null, 8000, 'the full room leaves the list (gone)');
   if (process.env.SHOTS) await B.screenshot({ path: `${process.env.SHOTS}/coop-lobby.png` });
   const startBlocked = await GA(() => document.querySelector('.lobby-actions .btn')?.classList.contains('blocked'));
   assert(startBlocked, 'start is blocked until everyone is ready');
@@ -453,8 +468,15 @@ try {
       await GA((id) => {
         const g = window.__app.current;
         for (const r of g.net.remotes.values()) r.allowTeleport(1);
+        // (e2e-coop-takedown, as the grab step below: on a slow page the match's guards alert or turn between the pin
+        // and the client's read - a spotted client skips an alert guard, and a guard turned to the side offers only
+        // while calm - so the host is calmed and the picked guard is a statue until the takedown is done; the start, the
+        // reach check and the knock-out are the real code, `knockOut` does not need his brain)
+        for (const e of g.enemyMgr.enemies) if (!e.taken) e.aware.set('unaware');
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
         if (v?.alive && !v.taken) {
+          v.update = () => {};
           v.pos.set(6, 0, -6);
           v.yaw = 0;
         }
@@ -475,6 +497,11 @@ try {
       if (!knocked && (await GB(() => !window.__app.current.takedown.active))) break;
     }
   }
+  if (tdStarted !== true) {
+    console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ found: !!e, alive: e?.alive, taken: e?.taken, ko: e?.ko, level: e?.level, pos: e && [e.pos.x, e.pos.z], yaw: e?.yaw, spotted: r?.ref.spotted, client: r && [r.feet.x, r.feet.z] }); }, tdv));
+    console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); const o = g.takedown.offer; return JSON.stringify({ puppet: p && { pos: [p.pos.x, p.pos.z], yaw: p.yaw, alive: p.alive, taken: p.taken, level: p.level }, me: [g.player.position.x, g.player.position.z], spotted: g.net.spotted?.(), offer: o ? { id: o.e.id, kind: o.plan?.kind } : null, active: g.takedown.active }); }, tdv));
+  }
+  await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, tdv);
   assert(tdStarted === true, `client takedown offered on the host's guard (${tdStarted})`);
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv, 8000, 'host knocks the guard out');
   assert(true, 'client takedown knocks the host enemy out');
