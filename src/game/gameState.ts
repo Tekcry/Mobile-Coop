@@ -431,6 +431,8 @@ export class GameState implements AppState {
     return this.player.adsWanted && this.weapons.current.def.class === 'pistol';
   }
   private rtRes: 'tap' | 'hold' | null = null;
+  /** (hang-down) The hanging player's inverted pistol aim band (`Player.attachAim`), reused. */
+  private hangAimRef: { yaw: number; range: number; pitchMin: number; pitchMax: number; inverted: boolean } | null = null;
   private readonly ctxIn = emptyCtxInput();
   /** The menu owns A this step (a list is up, or its press is still held): the other A readers see it up. */
   private ctxOwnsA = false;
@@ -1712,8 +1714,12 @@ export class GameState implements AppState {
     const hangAim = this.team.hangActs && this.weapons.sidearmIndex >= 0;
     const sidearm = (ac.sidearmAim || hangAim) && this.weapons.sidearmIndex >= 0;
     const pl = this.player;
-    if (hangAim) pl.attachAim = { yaw: pl.controller.yaw + Math.PI, range: PIPE.aimYaw, pitchMin: PIPE.pitchMin, pitchMax: PIPE.pitchMax, inverted: true };
-    else if (sidearm) {
+    if (hangAim) {
+      // (reused: no object per step)
+      const ha = (this.hangAimRef ??= { yaw: 0, range: PIPE.aimYaw, pitchMin: PIPE.pitchMin, pitchMax: PIPE.pitchMax, inverted: true });
+      ha.yaw = pl.controller.yaw + Math.PI;
+      pl.attachAim = ha;
+    } else if (sidearm) {
       const a = ac.m.anchor!;
       const inverted = a.kind === 'pipeH';
       if (a.kind === 'rappel') pl.attachAim = { yaw: Math.atan2(a.nx, a.nz), range: RAPPEL.aimYaw, pitchMin: RAPPEL.pitchMin, pitchMax: RAPPEL.pitchMax, inverted: false };
