@@ -1920,6 +1920,9 @@ export class CharacterRig {
     pin.ground = free ? null : this.groundProbe;
     // (mocap-trial, A3) the mocap clip's feet place the steps (graph `clipFeet`; null: the planner's, as always)
     pin.clipFeet = t.clipFeet.valid && !free ? t.clipFeet : null;
+    // (mt2-pop1) each planted leg's reach need last frame (the planner reads it with clip feet only)
+    pin.reachNeedL = this.liftL;
+    pin.reachNeedR = this.liftR;
     // (mocap-trial, fix 2) the switch turned off mid-game: no clip feet state is left on the feet (a clip-planted foot kept
     // its flag, read at a stop), so the planner has them as if the switch had never been on
     if (LOCO.mocap !== this.mocapWas) {
@@ -2583,6 +2586,24 @@ export class CharacterRig {
     if (rh) {
       fresh(this.hipR);
       fresh(this.kneeR);
+    }
+    // (mt2-pop1) clip feet on hand: a rate-limited hip / knee carried the foot round with it for the frame (the knee pole's
+    // swing / stance share swaps at a landing: in a fast walk turn the landed foot flicked 24-25 deg in a frame and back);
+    // the foot keeps the planner's yaw and pitch (its pitch already turns at most MOCAP_FEET.pitchRate), its Joints offset on top
+    if ((lh || rh) && this.pin.clipFeet && !legKeyed && !HANDS_CUR.ikOn) {
+      const ly = Number.isNaN(this.legYaw);
+      if (lh) {
+        Quaternion.RotationYawPitchRollToRef(ly ? L.yaw : this.legYaw, L.pitch + st.lPitch, 0, tmpQ3);
+        this.setWorldRot(this.ankleL, this.kneeL, tmpQ3);
+        if (JOINTS_CUR.on) jointApply(this.ankleL.rotationQuaternion!, J.ankleL);
+        freshBelow(this.toeL, this.kneeL);
+      }
+      if (rh) {
+        Quaternion.RotationYawPitchRollToRef(ly ? R.yaw : this.legYaw, R.pitch + st.rPitch, 0, tmpQ3);
+        this.setWorldRot(this.ankleR, this.kneeR, tmpQ3);
+        if (JOINTS_CUR.on) jointApply(this.ankleR.rotationQuaternion!, J.ankleR);
+        freshBelow(this.toeR, this.kneeR);
+      }
     }
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
     // (anim-rework S2) plus the keyed idle's head scan (standing holstered and still only; the keyed neck alone was

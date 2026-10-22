@@ -179,6 +179,9 @@ export interface PlannerInput {
   turnRule: number;
   /** (mocap-trial, A3) The clip feet this frame (mocap set clips with a `feet` channel), or absent / null: the planner's steps. */
   clipFeet?: ClipFeetIn | null;
+  /** (mt2-pop1) The rig's reach need per planted leg last frame (m: how far the pelvis drops for it; read with clip feet only). */
+  reachNeedL?: number;
+  reachNeedR?: number;
 }
 
 /**
@@ -298,6 +301,16 @@ const CLIP_PITCH_EASE = 0.15;
  * first clip swing after a start: 0.10 -> 0.93 rad, the ankle-toe bone 26 deg in a frame).
  */
 const CLIP_PITCH_SWING = 0.3;
+/**
+ * (mt2-pop1, CHECK-2 required 1) Clip feet on hand (a fast walk turn hands the steps to the planner): a planted foot the
+ * turn left behind toes off once the other foot's swing is past CLIP_TOE_OFF_SWING and the rig already drops the pelvis
+ * more than CLIP_TOE_OFF_NEED (m) for its leg (`PlannerInput.reachNeedL` / `R`, last frame's), not only once the other
+ * foot has landed. At a walk the trailing foot was held planted at its reach until the other landed at phase 0.50 while
+ * the turn slot faded out over it: the pelvis sank 9-12 cm in ~6 frames (2.0 m/s x 4 rad/s 2.1-2.3 cm a frame beyond
+ * pace x dt). The need is a frame late and grows 2-3 cm a frame there, hence the low threshold.
+ */
+const CLIP_TOE_OFF_SWING = 0.75;
+const CLIP_TOE_OFF_NEED = 0.01;
 /** (step 22) A fresh swing the clock starts further into its window than this fades in from the foot (`OFF_FADE`). */
 const FRESH_LATE = 0.2;
 /** (step 22) Shares of a step tried, in turn, when its landing spot has no ground under it (0: back where it left). */
@@ -1447,7 +1460,9 @@ export class FootPlanner {
     // being dragged (it showed once the start's clock moved the stride's phase)
     // (anim-rework S2) at a walk (no flight phase) never with the other foot in the air: a turn from a standstill lifted both
     // feet at once (a hop)
-    const flight = o.contact || hyp2(i.velX, i.velZ) > 2;
+    // (mt2-pop1) clip feet on hand: or the other foot nearly down and this leg already at its reach (CLIP_TOE_OFF_SWING), a
+    // short double flight instead of the pelvis sinking
+    const flight = o.contact || hyp2(i.velX, i.velZ) > 2 || (!!i.clipFeet && o.swing >= CLIP_TOE_OFF_SWING && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) > CLIP_TOE_OFF_NEED);
     if (i.moving && flight && (turnLeft || startOff || (dl > i.reach * 0.92 * STEP[SP.replant]! && (hyp2(i.velX, i.velZ) > 2 || i.quickStop > 0)))) {
       // accelerating (a sprint or a walk start): the trailing foot toes off early instead of sliding or pulling the
       // pelvis down; the clock's contact window then lands it ahead
