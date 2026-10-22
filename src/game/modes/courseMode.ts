@@ -345,6 +345,8 @@ export class CourseMode implements GameMode {
     if (!st || st.over) return false;
     this.restartT = -1;
     st.restart();
+    // (marlow-final) hold the pass zones now: the next step's device update runs before `handle` sees `bayRestart`
+    this.ct?.holdZones(2);
     return true;
   }
 

@@ -699,7 +699,7 @@ export function buildFacility(b: LevelBuilder, kit: FacilityKit): FacilityPart {
     shotVantages: [
       { name: 'f-l1-holding', feet: [24, 0, 10], cam: [23.2, 1.8, 9], target: [28, 1.4, 12] },
       { name: 'f-l7-model', feet: [102, 0, 61], cam: [101, 2.0, 62.3], target: [103, 0.9, 57.6] },
-      { name: 'f-gallery-from-a1', feet: [12, 0, 14], cam: [11, 1.8, 12], target: [14, 6, 21] },
+      { name: 'f-gallery-from-a1', feet: [14.5, 0, 14], cam: [14, 1.8, 12], target: [14, 6, 21] },
       { name: 'f-dock', feet: [152, 0, 62], cam: [151, 2.0, 60], target: [157, 1, 63] },
     ],
   };
