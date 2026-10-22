@@ -13,28 +13,46 @@ export const DRAW_HOLSTERING = 3;
 export type DrawPhase = 0 | 1 | 2 | 3;
 
 /**
- * Draw (raise) time (s). (CT prototype G2, AUDIT-AIM rows 1 / 7, "Footage wins" over F1a / G103) primary 0.4 -> 0.3: the
- * rifle comes off the back muzzle up at the shoulder and tips onto the line, reach to settled about 0.55 s with the raise
- * (105845 2.77-3.37, 111908 20.62-21.1); sidearm 0.3 -> 0.5: the pistol settles about 0.55 s after the press (111908
- * 0.6-1.17, 051739 0.63-0.73 s). Starting values.
+ * Draw (raise) time (s): the press to the gun settled at low ready (hand movement only; the LT sling draw is
+ * `STANCE.slingDrawMult` / `slingDrawLong` x it). History: F1a 0.3 / 0.4; (CT prototype G2, AUDIT-AIM rows 1 / 7) primary
+ * 0.3, sidearm 0.5 from the footage.
+ * (anim-natural N3, Michael 2026-10-22: "Research what is believable and realistic") real-world times, derived with their
+ * sources in `docs/anim-natural/n3/DRAW-TIMES.md`: pistol 0.75 s (the holster adds 0.75 s over low ready to the first
+ * shot), rifle 1.1 s (a slung rifle on target in ~2 s, minus the raise to fire and the reaction). One move (reach, grip,
+ * lift / clear, present, settle: `anim/drawMotion.ts`) whose phases scale with the time. Undo: primary 0.3, sidearm 0.5
+ * (or the tuner's Clip speed rifle / pistol draw sliders).
  */
-export const DRAW_TIME_SIDEARM = 0.5;
-export const DRAW_TIME_PRIMARY = 0.3;
+export const DRAW_TIME_SIDEARM = 0.75;
+export const DRAW_TIME_PRIMARY = 1.1;
 /**
- * Holster (lower) time (s), every class. (G2, AUDIT-AIM row 2) 0.55 -> 0.15: CT's holster is instant (111908 31.9 aimed,
- * 32.0 slung; the pistol gone 15.87 -> 15.93); G103's 0.5-0.6 was the camera pull-out, which keeps its own rate.
+ * Holster (lower) time (s), per class: the gun guided in, seated, then the hand lets go. History: (G2, AUDIT-AIM row 2)
+ * 0.55 -> 0.15 both (CT's holster is instant).
+ * (anim-natural N3, Michael 2026-10-22, `docs/anim-natural/n3/DRAW-TIMES.md`) pistol 0.9 s, rifle 1.0 s: no timed standard
+ * exists and instructors teach it slow and deliberate, so slower than the draw. Undo: 0.15 both (or the tuner's Clip speed
+ * holster time multiplier, down to 0.15x). A traversal's or a busy move's holster keeps 0.15 s (`HOLSTER_TIME_MOVE`).
  */
-export const HOLSTER_TIME = 0.15;
+export const HOLSTER_TIME_PRIMARY = 1.0;
+export const HOLSTER_TIME_SIDEARM = 0.9;
+/** The long gun's holster time (`DrawState.update`'s default, for callers with no class). */
+export const HOLSTER_TIME = HOLSTER_TIME_PRIMARY;
+/**
+ * (anim-natural N3) The holster for a traversal or a busy move (`WeaponStance.suspended`: a vault, a mantle, a drop, a
+ * team move): the gun goes away as fast as before N3 (G2's 0.15 s), so no move gets slower or carries the gun through it.
+ */
+export const HOLSTER_TIME_MOVE = 0.15;
+/**
+ * (anim-natural N3) The aim camera's blend in from low ready (the gun drawn), per class: the pre-N3 draw times. The camera
+ * blended over 0.9 x the draw time drawn or not, and the shot waits on it (`ADS_FIRE`), so the longer draws would have
+ * slowed every aim from low ready; a draw from holstered still blends over 0.9 x its own draw time.
+ */
+export const AIM_IN_PRIMARY = 0.3;
+export const AIM_IN_SIDEARM = 0.5;
 
 // (clip-speed, track A) the tuner's "today" lines read the durations from here
 CLIP_BASE.rifleDraw = DRAW_TIME_PRIMARY;
 CLIP_BASE.pistolDraw = DRAW_TIME_SIDEARM;
-CLIP_BASE.holster = HOLSTER_TIME;
-
-/** (clip-speed, track A) The holster time with the tuner's holster speed (HOLSTER_TIME at identity). */
-export function holsterTime(): number {
-  return HOLSTER_TIME / clipSpeed('holster');
-}
+CLIP_BASE.holsterPrimary = HOLSTER_TIME_PRIMARY;
+CLIP_BASE.holsterSidearm = HOLSTER_TIME_SIDEARM;
 
 /** A shot needs the aim this far in (`cam.ads`). */
 export const ADS_FIRE = 0.9;
@@ -52,27 +70,35 @@ export function drawTimeFor(cls: string): number {
   return cls === 'pistol' ? DRAW_TIME_SIDEARM / clipSpeed('pistolDraw') : DRAW_TIME_PRIMARY / clipSpeed('rifleDraw');
 }
 
+/**
+ * (anim-natural N3) The deliberate (X) holster time for a weapon class, divided by the tuner's rifle / pistol holster
+ * speed (Clip speed; 1 at identity). A traversal's or a busy move's HOLSTER_TIME_MOVE is not scaled.
+ */
+export function holsterTimeFor(cls: string): number {
+  return cls === 'pistol' ? HOLSTER_TIME_SIDEARM / clipSpeed('holsterSidearm') : HOLSTER_TIME_PRIMARY / clipSpeed('holsterPrimary');
+}
+
 export class DrawState {
   /** 0 holstered .. 1 drawn. */
   progress = 0;
   phase: DrawPhase = DRAW_HOLSTERED;
 
-  /** Advance one step: `aim` held draws (over `drawTime`), released holsters (over HOLSTER_TIME). */
-  update(dt: number, aim: boolean, drawTime: number): DrawPhase {
+  /** Advance one step: `aim` held draws (over `drawTime`), released holsters (over `holsterTime`). */
+  update(dt: number, aim: boolean, drawTime: number, holsterTime = HOLSTER_TIME): DrawPhase {
     if (aim) {
       this.progress = Math.min(1, this.progress + dt / Math.max(1e-3, drawTime));
       this.phase = this.progress >= 1 ? DRAW_DRAWN : DRAW_DRAWING;
     } else {
-      this.progress = Math.max(0, this.progress - dt / holsterTime()); // (clip-speed, track A)
+      this.progress = Math.max(0, this.progress - dt / Math.max(1e-3, holsterTime));
       this.phase = this.progress <= 0 ? DRAW_HOLSTERED : DRAW_HOLSTERING;
     }
     return this.phase;
   }
 
   /** Seconds left to the current target (drawn while drawing, holstered while holstering; 0 when settled). */
-  remaining(drawTime: number): number {
+  remaining(drawTime: number, holsterTime = HOLSTER_TIME): number {
     if (this.phase === DRAW_DRAWING) return (1 - this.progress) * drawTime;
-    if (this.phase === DRAW_HOLSTERING) return this.progress * holsterTime(); // (clip-speed, track A)
+    if (this.phase === DRAW_HOLSTERING) return this.progress * holsterTime;
     return 0;
   }
 

@@ -338,7 +338,7 @@ try {
   console.log('rappel');
   // the rappel house (x 21.5..26.5, z 26.5..29.5, roof 5.7): on the roof at the south edge, facing out
   await tp(24, 5.72, 26.9, Math.PI);
-  await run(0.9); // A2.1: the holster takes 0.55 s (G103)
+  await run(1.2); // settle after the teleport (anim-natural N3: a holster takes up to 1.0 s)
   i = await I();
   assert(i.hint === 'rappel:above' && i.prompt === 'Rappel', `rappel offered at the roof edge (${i.hint}, "${i.prompt}")`);
   await tap(BTN.Y);

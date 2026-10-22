@@ -31,7 +31,11 @@ export const BACK_DIAG = {
  *   AUDIT-AIM row 2), twists flat to the back and swings the last 38 deg into the sling.
  */
 export const DIAG_TURN = {
-  draw: { sweep: 0.4, twist: 0.55 },
+  // (anim-natural N3) sweep 0.4 -> 0.55, twist 0.55 -> 0.72: the 218 deg sweep had 40 % of the turn (the muzzle swung
+  // at 36 m/s), the 90 deg roll 15 % (the wrist swung 4 cm a frame round the bore), the 110 deg tip onto the line
+  // 45 %; now about in proportion to the angles, turned at an even rate
+  // (drawMotion.turnEase)
+  draw: { sweep: 0.55, twist: 0.72 },
   holster: { down: 0.4, twist: 0.6 },
 };
 
@@ -60,6 +64,12 @@ const smooth = (x: number): number => {
   const c = x < 0 ? 0 : x > 1 ? 1 : x;
   return c * c * (3 - 2 * c);
 };
+/**
+ * (anim-natural N3) Each key segment's own ease: half linear, half smoothstep, so the turn slows at a key but never
+ * stops there (a smoothstep per segment stopped the gun's turn dead at every key: two stalls in each draw / holster);
+ * the travel's own ease (drawMotion.drawEase) starts and ends the whole turn.
+ */
+const soft = (x: number): number => 0.5 * (x < 0 ? 0 : x > 1 ? 1 : x) + 0.5 * smooth(x);
 
 /** The sling angle as an in-plane theta (bore = (sin theta, cos theta, 0)): pi + angle (down-left). */
 export function slungTheta(): number {
@@ -74,17 +84,17 @@ export function diagTurn(draw: boolean, r: number, out: DiagTurnStep): DiagTurnS
     const D = DIAG_TURN.draw;
     if (u < D.sweep) {
       out.kind = 0;
-      out.theta = th * (1 - smooth(u / D.sweep));
+      out.theta = th * (1 - soft(u / D.sweep));
     } else if (u < D.twist) {
       out.kind = 1;
       out.from = 'plane0';
       out.to = 'up';
-      out.t = smooth((u - D.sweep) / (D.twist - D.sweep));
+      out.t = soft((u - D.sweep) / (D.twist - D.sweep));
     } else {
       out.kind = 1;
       out.from = 'up';
       out.to = 'end';
-      out.t = smooth((u - D.twist) / (1 - D.twist));
+      out.t = soft((u - D.twist) / (1 - D.twist));
     }
   } else {
     const H = DIAG_TURN.holster;
@@ -92,15 +102,15 @@ export function diagTurn(draw: boolean, r: number, out: DiagTurnStep): DiagTurnS
       out.kind = 1;
       out.from = 'start';
       out.to = 'down';
-      out.t = smooth(u / H.down);
+      out.t = soft(u / H.down);
     } else if (u < H.twist) {
       out.kind = 1;
       out.from = 'down';
       out.to = 'planePi';
-      out.t = smooth((u - H.down) / (H.twist - H.down));
+      out.t = soft((u - H.down) / (H.twist - H.down));
     } else {
       out.kind = 0;
-      out.theta = Math.PI + (th - Math.PI) * smooth((u - H.twist) / (1 - H.twist));
+      out.theta = Math.PI + (th - Math.PI) * soft((u - H.twist) / (1 - H.twist));
     }
   }
   return out;

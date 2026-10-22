@@ -5,7 +5,7 @@
  * export see it as any change). Not hot: the panel calls these on a press or once per frame (`settle`, a time check).
  */
 import { TUNE_SECTIONS, tuneChanged, tuneGet, tuneSet, tunablesFor } from './tuneRegistry';
-import { migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
+import { aliasTuneValues, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
 
 /** Values off their default: group -> slider -> value. */
 export type TuneValueMap = Record<string, Record<string, number>>;
@@ -239,7 +239,7 @@ export function presetParse(data: unknown): TunePreset[] {
         (values[g] ??= {})[id] = v;
       }
     }
-    out.push({ name, saved: typeof x.saved === 'string' ? x.saved : '', values: old ? migrateTuneRows(values) : values });
+    out.push({ name, saved: typeof x.saved === 'string' ? x.saved : '', values: aliasTuneValues(old ? migrateTuneRows(values) : values) }); // (anim-natural N3) split sliders
   }
   return out;
 }
