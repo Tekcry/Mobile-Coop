@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~19:58 by the resumed CT Core session (overflow session). Every branch
+Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~20:17 (5-hour 96%) by the resumed CT Core session (overflow session). Every branch
 below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
 
 ## Rules carried
@@ -42,7 +42,7 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
 | idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
 | anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (a separate clone: use origin/ refs) | 1135bc41 | Jog 180 fix (REPORT-D), rule A2 for run 180 (REPORT-E: test-window max 6.11 -> 2.59 m/s), master 4.56.0 merged (no conflicts; fixtures byte-identical), CHANGELOG Unreleased added. 19:58: laptop asked for check + e2e-anim e2e-move e2e-clip e2e-studio e2e-coop e2e-netmove on 1135bc41; a fresh checker reads the N1 folder (verdict -> CHECK-3.md; lost on a clear: rerun). | Laptop verdict + checker PASS -> open the PR (minor) for train 7 (body: REPORT-C "Metrics switched" + REPORT-D / E tables); GPU sheets on the laptop. |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 77b21ea4 | Step 2 DONE (laptop PASS on 53e6dc03). Step 3 (arms) built and pushed on `feature/anim-natural-n2-s3` (4e974ea1, REPORT-3). Two agents (19:35): a fresh checker reading the s3 folder C:/NightShift/Mobile-Coop-anim-natural-n2-merge (verdict -> CHECK-4.md); a merge agent in the N2 folder: s3 + master 4.56.0 + fixture proof (commits locally). Both reports are lost on a clear: check git log / status in the N2 folder, rerun the checker if no CHECK-4.md. | Then an agent: fix the run arm pop (orchestrator 19:45: right wrist jumps 22 cm in one clip frame at the half wrap, run clip frames 16 -> 17; retime / smooth that key, Blender rebake under the desktop lock, before / after in REPORT-3); push N2; laptop: only the touched suites (e2e-anim, e2e-move, + e2e-coop / e2e-netmove since step 3 touched src/player); open the PR when its checker passes (train 7); step 4 (drawn stills), step 5 (tuner + bake); #128 alloc test. |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 849c081b | Steps 2 + 3 in; master 4.56.0 merged (b69e1a26; proof clean, no re-capture; STATE 20:15). Running at 20:17: the step 3 fresh checker (reads C:/NightShift/Mobile-Coop-anim-natural-n2-merge; verdict -> CHECK-4.md) and the run arm pop fix agent in the N2 folder (edits the run key, Blender rebake under the desktop lock, re-captures, commits locally; appends to REPORT-3). Lost on a clear: check git log / status in the N2 folder (an uncommitted run key or a lock naming "n2 run arm pop"), rerun if absent. | Push; open the PR when CHECK-4 passes (no pre-run: no src/net / protocol / save); then steps 4-5 on top (or as a follow-up PR); #128 alloc test. |
 | anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
@@ -67,7 +67,7 @@ versions at merge). Work the "Open jobs" table top to bottom, each from its own 
    checker if absent): write CHECK-3.md, push, then open the PR: gh pr create --base master --head feature/anim-natural-n1
    --title "anim-natural N1: feet in turns (turn step, ball pivot, contact hold)" --body-file C:/NightShift/n1-pr.md
    (body drafted; add the checker verdict line), and message the orchestrator.
-2. N2: CHECK-4 (step 3 checker) and the s3 + 4.56.0 merge agent, or rerun; push; laptop suites; steps 4-5.
+2. N2: CHECK-4 (step 3 checker) and the run arm pop agent, or rerun; push; PR when CHECK-4 passes; steps 4-5.
 3. #123 in train 6 (master 4.56.0 merged).
 Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
 Message "Night Shift | Orchestrator" at each slice, verdict and PR.
