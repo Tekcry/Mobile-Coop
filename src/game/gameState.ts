@@ -1654,6 +1654,9 @@ export class GameState implements AppState {
     ti.dropHeldT = inp.heldTime('drop');
     ti.useHeld = aFree && inp.down('interact');
     ti.useHeldT = aFree ? inp.heldTime('interact') : 0;
+    // (vent-kick, M1) jump (Y / Space, any held source) held on from a vent start: no kick yet, the hold runs on into
+    // interact (A / E); a scripted tap('jump') holds nothing (a kick)
+    ti.startHeld = inp.down('jump');
     ti.sprintHeld = inp.down('dash');
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
@@ -1672,6 +1675,7 @@ export class GameState implements AppState {
       ti.dropHeldT = 0;
       ti.useHeld = false;
       ti.useHeldT = 0;
+      ti.startHeld = false;
     }
     if (this.team.active) this.traversal.hint = null;
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !carrying && !busy, this.team.active);
