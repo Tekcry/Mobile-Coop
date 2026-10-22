@@ -43,7 +43,7 @@ slice with up to 6 parallel Opus agents; Course Ready no longer builds marlow-fi
 | `tests/ctcourse.test.ts` (whole-map frame), `tests/ctcourseLight.test.ts` (frame), the five map-coupled tests (`guardInfo`, `jammer`, `laserPanels`, `scanners`, `camSpaces` / `smoothWorldLight`) | 0d |
 | `scripts/e2e-ctcourse.mjs` (runner, shared helpers, part dispatch), `scripts/run-e2e.mjs`, `scripts/e2e-times.json`, `scripts/shots-ctcourse.mjs` | 0d |
 | `docs/marlow-final/plans/facility-*.svg`, `docs/ct-prototype/CTCOURSE-SPEC.md` (pointer header) | 0d |
-| `SPEC.md`, `PLAN.md`, `STATE.md`, `BRIEF.md`, `TESTING.md`, `docs/systems/*`, `docs/course-ready/WALKTHROUGH.md`, `changes/feature-marlow-final.md`, `package.json` | the job lead (slice 9 for the docs) |
+| `SPEC.md`, `PLAN.md`, `CONSTRAINTS.md`, `STATE.md`, `BRIEF.md`, `TESTING.md`, `docs/systems/*`, `docs/course-ready/WALKTHROUGH.md`, `changes/feature-marlow-final.md`, `package.json` | the job lead (slice 9 for the docs) |
 
 ### Per-set files: only that set's slice edits these
 For set `<set>` in `a1Gate`, `a2CarriageShed`, `a3OfficeRange`, `a4GoodsShed`, `a5Substation`, `a6PumpHouse`,
@@ -92,10 +92,10 @@ sent to 0a / 0b by the job lead.
 
 | Part | Goal | Owns | Depends | Status |
 | --- | --- | --- | --- | --- |
-| 0a | N1 (objective steps, `flag:<id>` drill tick, role claims), N2 (isolator, `resetLights` fix), N3 (timed console, course side), N4 (hold device), N8 (free bays, "Start at") | `src/game/course/*`, `courseHud.ts`, `courseMode.ts`, `stealthSystems.ts` (lure call), `coopUi.ts` N8 line; their tests; report `slices/S0-course.md` | - | running |
-| 0b | N6 (every scanner pair, glow from position and yaw, `SecWire.sc` per pair, `PROTOCOL_VERSION` 29 -> 30 and its tests), `PassZone.any`, the `looped` camera setter for N3 | `ctDevices.ts`, `passZones.ts`, `scanners.ts`, `protocol.ts`, `coopHost.ts`; their tests; report `slices/S0-devices.md` | - | running |
-| 0c | SPEC section 19 answers with file:line (read-only) | `docs/marlow-final/ENGINE-ANSWERS.md` | - | running |
-| 0d | The scaffold: `ctcourse.ts` rewritten as the merge; `types.ts`; `facility.ts` greybox (shell, gallery as out-of-bounds boxes and `kit.glass`, service corridors, plant room, L1-L7 with 1.8 m `kit.slidingDoor`s, pads, glass slots, L4 / L7 medkits, the L7 model plinth); eight stub set files (an empty lit room, its entry and exit doors open, one objective step "Cross to the next holding room", one lamp group) so the course walks end to end; `ctcourseBunker.ts` / `ctcourseVariety.ts` retired; the test frames (`tests/ctcourse.test.ts`: chain, `validateCourse`, text limits, lips band and unplanned boost targets, every lamp grouped (N12), door widths, register count; `tests/ctcourseLight.test.ts` reading per-set spots and json); the map-coupled cases cut from the five shared tests; the e2e frame (runner with 4 parts, `run-e2e.mjs` `PARTS` `'4'` and the quick-run map for `src/world/maps/ctcourseSets/`, `e2e-times.json` `:4`, eight stub step modules that walk each set); `shots-ctcourse.mjs` reading `SHOT_VANTAGES`; facility plan SVGs; CTCOURSE-SPEC pointer header | the shared map, test and script files in section 2 (0d rows) | 0a, 0b landed (it builds on their types) | waiting |
+| 0a | N1 (objective steps, `flag:<id>` drill tick, role claims), N2 (isolator, `resetLights` fix), N3 (timed console, course side), N4 (hold device, no `holdNoise` yet), N8 (free bays, "Start at"); from ENGINE-ANSWERS: `em.stealth = true` in Course mode (A8, Q2), `em.despawn` in `spawnSquad` (Q4), remote players in `StealthSystems.occupied` and the door-menu close (Q9) | `src/game/course/*`, `courseHud.ts`, `courseMode.ts`, `stealthSystems.ts` (lure call, `occupied`), `coopUi.ts` N8 line; their tests; report `slices/S0-course.md` | - | running (WIP in the working tree) |
+| 0b | N6 (every scanner pair, glow from position and yaw, `SecWire.sc` per pair, `PROTOCOL_VERSION` 29 -> 30 and its tests), `PassZone.any`, the `looped` camera setter for N3 | `ctDevices.ts`, `passZones.ts`, `scanners.ts`, `protocol.ts`, `coopHost.ts`; their tests; report `slices/S0-devices.md` | - | N6 and `PassZone.any` DONE (34cb5b52); the `looped` setter open |
+| 0c | SPEC section 19 answers with file:line (read-only) | `docs/marlow-final/ENGINE-ANSWERS.md` | - | DONE (Q1-13; Q14-16 go to 0d / 0g) |
+| 0d | The scaffold: `ctcourse.ts` rewritten as the merge; `types.ts`; `facility.ts` greybox (shell, gallery as out-of-bounds boxes and `kit.glass`, service corridors, plant room, L1-L7 with 1.8 m `kit.slidingDoor`s, pads, glass slots, L4 / L7 medkits, the L7 model plinth); eight stub set files (an empty lit room, its entry and exit doors open, one objective step "Cross to the next holding room", one lamp group) so the course walks end to end; `ctcourseBunker.ts` / `ctcourseVariety.ts` retired; the test frames (`tests/ctcourse.test.ts`: chain, `validateCourse`, text limits, lips band and unplanned boost targets, every lamp grouped (N12), door widths, register count; `tests/ctcourseLight.test.ts` reading per-set spots and json); the map-coupled cases cut from the five shared tests; the e2e frame (runner with 4 parts, `run-e2e.mjs` `PARTS` `'4'` and the quick-run map for `src/world/maps/ctcourseSets/`, `e2e-times.json` `:4`, eight stub step modules that walk each set); `shots-ctcourse.mjs` reading `SHOT_VANTAGES`; facility plan SVGs; CTCOURSE-SPEC pointer header; per-set ambient zone and `camSpaces` fields in the contract (SPEC sections 7, 13). Follow-up item (small, after the scaffold, owner: the 0d agent or a short agent of its own, files `protocol.ts`, `coopHost.ts`, `coopClient.ts` and a net test, coordinated with 0b): N4's client hold-pulse message so a client's hold reaches guards (`em.hear(pos, holdNoise)` on the host after a reach check, ~15 lines), inside the unmerged `PROTOCOL_VERSION` 30, no second bump | the shared map, test and script files in section 2 (0d rows) | 0a, 0b landed (it builds on their types) | waiting |
 | 0e | Facility dressing (M5): clad shell walls (`kit.wall` faces), gallery interior (glazing, balustrade, `galleryConsole`, `galleryScreen`, `galleryChair`, lit slots on group 1), lounge pieces that sit in the shell, holding rooms (cool slots on group 2, `holdingBench`, signage plate stand-ins), the L7 `modelVitrine` | `facility.ts` | 0d checked; the props it uses (0f) | waiting |
 | 0f | Props batch 2: every P prop in PROPS.md section 3 (so dressers never wait), the props renderer and helper tests | `scripts/facility-props/*`, `src/world/props/*`, `PROPS.md`, `tests/facilityProps.test.ts` | batch 1 (props agent) | after batch 1 |
 | 0g | N9 (slide doors offer Open only: no crack, peek, bash, committed swing), N10 (only if 0c's Q7 says kit glass passes camera sight), the greybox helpers' Vitest tests (GREYBOX-HELPERS.md "Tests to write": `soloJumpThreats`, `COOP_BAND`, boost search, throw arc over the beams, hang reach in and out of the cage, `syncMinGap`, `JAM_HOP`, and `GREY_KEEP_CLEAR` against `soloJumpReach`), helper fixes they expose | `doorMenu.ts`, `doorOpen.ts`, `ctcourseGreybox.ts`, `tests/ctcourseGreybox.test.ts`, a door test | - (can start now) | waiting |
@@ -105,7 +105,7 @@ sent to 0a / 0b by the job lead.
   `npm run check` and `e2e-ctcourse:1..4` on the stubs (the course walks start to finish on two pages) plus `e2e-coop`
   (the bay-1 guard: 0d's A1 stub keeps a passive grabbable `a1-checker` in the bay-1 squad); after 0e, GPU shots of the
   lounge, a holding room and the gallery from A1 (`E2E_GPU=1`, 4189) and one perf run.
-- Done: N1-N4, N6, N8, N9 merged with tests; `PROTOCOL_VERSION` 30; ENGINE-ANSWERS.md answers all 16 questions; the
+- Done: N1-N4, N6, N8, N9 merged with tests; `PROTOCOL_VERSION` 30; ENGINE-ANSWERS.md Q1-13 answered and Q14-16 answered by 0d / 0g in their reports; the
   stub course runs end to end in e2e on two pages; `npm run check` green; frames ready for the set slices; facility
   dressed under budget; props batch 2 built.
 
@@ -146,9 +146,9 @@ Per-set notes (what is special; sizes are greybox + dressing):
 | 3 | A3 Office Range | Hall send-back (`PassZone.hall`), archways, the cleaner's office loop | `jamRelay` (17.5 m, one recess) | four jams with a send-back; the A3 cases cut from `jammer.test.ts` re-added here | 2 + 1 h |
 | 4 | A4 Goods Shed | N3 timed loop on C1-C3 (60 s, re-arm 20 s), officer info lines, the dock pair and kettle clock, dual takedown, mezzanine and stairs | - | officer down, loop, cross, dual takedown, wicket; the guard-info cases | 3.5 + 2 h |
 | 5 | A5 Substation | Laser, panel and release; floodlight jam; L5 flag gate (no skip) | `throwGateway` | throw, flood jam, release; panel-jam variant; the laser-panel cases | 2.5 + 1.5 h |
-| 6 | A6 Pump House | N4 hold with noise on the drive panel; rope from the davit; sump kerb vantage; 5 m bridge over the 4.2 m cage | `coopDeck` (gallery, rope), `hangPlate` | boost, rope, hang-down hold, drop-to-cage fallback | 3 + 1.5 h |
-| 7 | A7 Data Hall | Scanner pair `sc-a7` (N6), pod and cage doors on the sync, two cameras, grating surface | `syncStation` (scan) | split, sync, both through the cage; the scanner cases | 2.5 + 1.5 h |
-| 8 | A8 Strongroom | Gallery and return, office stair, N3 loop, N2 night circuit with the `mains` grille, inner beam curtain, second scanner pair, exit zone and dock | `coopDeck` (gallery), `throwGateway`, `syncStation` | the full six-step sequence; grille relock with egress; exit both-in | 4 + 2 h |
+| 6 | A6 Pump House | N4 hold on the drive panel (guard noise only after the 0d client pulse); rope from the davit; sump kerb vantage; 5 m bridge over the 4.2 m cage | `coopDeck` (gallery, rope), `hangPlate` | boost, rope, hang-down hold, drop-to-cage fallback | 3 + 1.5 h |
+| 7 | A7 Data Hall | Scanner pair `sc-a7` (N6), pod and cage doors on the sync, the cage as `b.fence` mesh over kick-panel boxes with a `noLedge` lid and locked fence anchors, two cameras, grating surface | `syncStation` (scan) | split, sync, both through the cage; the scanner cases | 2.5 + 1.5 h |
+| 8 | A8 Strongroom | Gallery and return, office stair, N3 loop, N2 night circuit with the `mains` grille (opaque while shut, stays open until a player closes it; nothing planned through it), inner beam curtain, second scanner pair, exit zone and dock | `coopDeck` (gallery), `throwGateway`, `syncStation` | the full six-step sequence; grille relock with egress; exit both-in | 4 + 2 h |
 
 ### Slice 9 - verification and the PR
 - Goal: the whole route proven and documented (SPEC sections 12, 15, 20).
@@ -196,8 +196,10 @@ Character Build queue.
 ## 6. Open items
 - Slice 0 is in flight from the ~01:30 section 14; 0a / 0b reports must confirm the claim rule and the `looped` console
   match SPEC N1 / N3 as rewritten (the job lead sent them the same items).
-- 0c's answers may move numbers (Q2 live course guards, Q3 per-set ambient, Q7 glass and camera sight, Q14 slide
-  doors): any change goes into the set sheet before that set's greybox.
+- 0c's answers (Q1-13) are folded into SPEC and CONSTRAINTS section 2. Q14-16 (slide-door verbs, claim race, LED
+  accent re-read) stay open for 0d / 0g; any change goes into the set sheet before that set's greybox.
+- N4 ships without client guard noise until the 0d follow-up pulse lands.
+- Q13's GPU shot of the corridor and aisle widths is pending on Character Build (per set, with the dressing shots).
 - Greybox helpers: not yet tested (0g); `GREY_KEEP_CLEAR` 3.0 m is unchecked against `soloJumpReach`; no overwatch
   ledge or one-way drop helper (not needed on this route). The A6 bridge vs cage clash is settled in SPEC (5 m bridge,
   4.2 m cage); the plate is 0.55 m.

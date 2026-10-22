@@ -31,6 +31,10 @@ Status: COMPLETE (spec writer, 2026-10-23)
   the rule review; P2 / P4 point at `docs/lighting-review/PROPOSAL.md` (Michael 01:40); Course Ready's greybox helpers
   adopted (A3 corridor 17.5 m, A6 gland plate 0.55 m and a 4.2 m cage under a 5 m bridge); a CONSTRAINTS checklist
   cover added to section 17; per-set file ownership for PLAN.md.
+- Changelog (spec writer, ~02:15, engine-answers pass): ENGINE-ANSWERS Q1-13 folded in (P7 applied as A8
+  `em.stealth = true`; per-set ambient zones; `em.despawn`; 4.1 caveat dropped; revive rule; glass stops sight, jam and
+  bullets but passes baked light; A7 cage as lidded fence mesh, A8 grille closing rule; N4 without client noise for now;
+  camera spaces per set; N6 done); CONSTRAINTS section 2 corrected.
 
 ## 1. Context
 Night Shift (repo Tekcry/Mobile-Coop). Branch `feature/marlow-final` from master af56ab43 (merge master when train 12,
@@ -120,10 +124,11 @@ The template's "existing systems only" is the default (T12). This map is a proto
   - the instructor bridge x 70-76, z 24-48 (the cross strip, above L4), with the control desk, the monitor wall and the
     lighting board in view of four sets.
   A3 (3.0 m office ceilings, the plant room behind) is the one set with no glazing; the bridge's monitor wall shows it.
-  Players never enter the gallery (sight only). The glazing is the kit's glass (`kit.glass`, KIT.md 1): a
-  collision-only box that stops bodies, bullets and guard sight, with the panes drawn over it. Light passes it in the
-  bake, the meter, the guards and the picture alike (G45's light rule), so parity holds; the sight rule differs from
-  G45 for clear glass (proposal P17). Gallery lamps are on the instructors' circuit (group 1, no switch: the instructors
+  Players never enter the gallery (sight only). The glazing is the kit's glass (`kit.glass`, KIT.md 1): an invisible
+  collide box with the panes drawn over it. It stops bodies, bullets, guard and camera sight and jam lines; baked lamp
+  light passes it in the bake, the meter, the guards and the picture alike (G45's light rule), so parity holds; the
+  sight rule differs from G45 for clear glass (proposal P17). A guard's torch is the one gap: the box blocks torch
+  light for the meter while the picture shows the beam (ENGINE-ANSWERS Q7), so no guard carries a torch near glass. Gallery lamps are on the instructors' circuit (group 1, no switch: the instructors
   own it), small and dim (radius 3 m or less) so their spill reaches at most 1-2 m into a set; no planned dark pocket sits
   within 4 m of a gallery wall. The "instructors" are static dressing (chairs, lit screens; seated figures wait for a
   figure / avatar job, N14), never guards, so nothing behind the glass perceives.
@@ -237,10 +242,21 @@ lamps baked, gameplay reads only the light field.
   Target: a standing player in any lit pool on the route reads clearly lit on the meter (builders set the band in
   `tests/ctcourseLight.test.ts`, suggested 0.55 or more) and every surface reads at the Low preset.
 - **Players cut it.** Darkness is something the pair makes: a timed isolator (N2), a wall switch, a jammed lamp (one
-  5 s jam is about 10 s dark), a shot lamp (loud, rating cost). Every exercise that needs dark says which circuit.
+  5 s jam is about 10 s dark), a shot lamp (loud, rating cost). Every exercise that needs dark says which circuit. A
+  switch, an isolator or a shot lamp lures the nearest calm guard within 25 m; a jammed lamp lures nobody
+  (ENGINE-ANSWERS Q2), so every planned lure uses a switch or an isolator.
 - **Standby fill under the circuits.** Each set has an `ambientZone` at a standby level below the 0.28 shadow line
   (suggested 0.14, the level of real emergency and standby lighting), so a cut circuit gives true dark that the meter and
-  the guards agree on (settles T6 as M6 directs). The lounge, holding rooms and exit dock keep G225's 0.30 fill.
+  the guards agree on (settles T6 as M6 directs). The lounge, holding rooms and exit dock keep G225's 0.30 fill (the
+  theme level). Zones (ENGINE-ANSWERS Q3: a zone overrides the theme, the smallest containing zone wins, the bake, the
+  meter, the guards and the picture read the same 1 m grid):
+  - edges on whole metres, on the wall line between a set and its lounge or holding room (a cell takes the zone when its
+    centre is inside, so 70.3 snaps to 70);
+  - `minY` -1, `maxY` the set's ceiling or roof underside - 0.1;
+  - every upper level (the gallery strips and bridge, A2 staging, A4 mezzanine, A6 motor gallery, A8 public gallery
+    and security office) gets its own zone with `minY` = its floor - 0.5;
+  - L4 sits under the instructor bridge: its zone (0.30) stops below the bridge floor, and the gallery's own zone sits
+    above it.
 - **Mixed zones** where they play better (M6): a set may keep permanent dark pockets that a real building has at night
   (the pump floor's far corners in A6, the A8 vestibule under the gallery, the dark goods-floor back aisle in A4, the
   cabin corner in A2). Each is named in its set sheet with its reason.
@@ -565,7 +581,7 @@ k. Objective lines are 90 characters or less, British, voiceable (N1 renders the
   G180). The ledge relay also works there (a second tool, LD 7.1). Untimed; the west end is screened from the pump
   floor by pump 3's 4.0 m motor column and the gallery's 1.2 m kick plate (P8: guards see straight up) and is dark.
 - **Exercise 2, hang-down hack (CR-S10, E9).** A crouches at the gland plate and lowers B head-first into the cage; B
-  holds the drive panel's isolate key (hold 3 s, N4, with a hold noise pulse: the panel's buzzer) while the attendant is
+  holds the drive panel's isolate key (hold 3 s, N4; the panel's buzzer is heard by the players, and reaches guards only once N4's client pulse lands) while the attendant is
   at the far pump; A watches his loop and pulls B up if he turns back. The pump runs down (the noise drops), the
   interlock lamp turns green, the outfall door unlocks (`flag` gate). Both leave by the staff stair.
 - **Observe, then plan.** Crouched behind the sump kerb (dark, out of view) both see the attendant's loop within one
@@ -630,6 +646,12 @@ k. Objective lines are 90 characters or less, British, voiceable (N1 renders the
 - **Toys.** Two cameras (jam, shoot), three switches, the grating (a loud and a quiet way across), the lobby doors.
 - **Devices.** Scanner pair `sc-a7` (`a7-t1`, `a7-t2`, flag `a7-sync`) on the cage; `flag` gates on `A7-cage-w`,
   `A7-cage-e` and `A7-east`; one-player pass zone `a7-pod` (flag `a7-pod`) in the pod.
+- **Cage build (ENGINE-ANSWERS Q8).** The mesh runs are `b.fence` (sight, the ready lamps and the jam line pass the
+  mesh; bodies and guards on foot do not), over solid 1.2 m kick-panel boxes (no planned jam or sight through the kick
+  band); a fence is climbable, so the cage gets a mesh lid (a `noLedge` box at 2.4 m, real colocation cages are
+  roofed) and its fence anchors are locked by an `anchorLock` gate that never opens. Cage doors are doors (opaque while
+  shut). The A6 drive cage is different: `hangPlate` builds it from collide boxes under the bridge (no jam or sight
+  through it is planned).
 - **Roles (claim).** B = the first player into the plant corridor (z 52-55.5); A = the hall player.
 - **Objective lines.**
 
@@ -680,7 +702,14 @@ k. Objective lines are 90 characters or less, British, voiceable (N1 renders the
   (the office stair, 10 m; console re-arms after 20 s). The lights restore: the grille relocks; isolate again, or the
   player inside opens it with the request-to-exit button (existing `egress`). A failed sync: as A7 (10 HP, G193).
 - **Guards (3).** `a8-night1` (N1: the night desk clerk, static post, sweeping the front, 6 s head turns). `a8-night2`
-  (N2: the hall patrol, 40 s loop hall -> grille, 5 s stop looking through the bars, 5 s talk at N1's desk).
+  (N2: the hall patrol, 40 s loop hall -> grille, 5 s stop at the grille, 5 s talk at N1's desk).
+- **The grille (ENGINE-ANSWERS Q8, Q9).** Built as a maglocked sliding or swing door on the `mains` gate: while shut it
+  is opaque to jam, sight and lamp light (no see-through leaf exists), so no planned jam or sight line passes the shut
+  grille; the vault lobby's lamps and panel lamps are seen once it opens. The relock never shuts the door: it only
+  stops it opening. Nobody closes it automatically: the player who goes through closes it behind him (door menu) or
+  leaves it open, and then N2, who stops at the grille, sees into the lobby (a choice with a cost). A calm guard who
+  opened a door shuts it 1.5 s after it is clear; slice 0a adds the remote players to `StealthSystems.occupied` so that
+  never shuts a door onto the client.
   `a8-officer` (the security office duty officer, seated, static, info lines). Isolation moments: N1 at the lighting
   board when lured; N2 at the grille; the officer alone by design. Lure: the board (lights out) draws N1. Body: N2's
   loop crosses the counters. Hide spots: behind the counters' ends, the vestibule.
@@ -821,17 +850,21 @@ not a loosening).
   spec took the helper's numbers: the gland plate is 0.55 m, the A6 cage 4.2 m square under a 5 m bridge. Not covered
   by a helper (built by hand): the overwatch ledge and a one-way drop (neither is on this route).
 - **Co-op lips.** Every co-op lip is 4.4 m (`COOP_LIPS`, exported from the map, with a unit test that each is 0.5 m or
-  more over `WALL_JUMP.maxUp` 3.8 and within `TEAM.boostMax` 4.5, LD 11.3). The human ladder grabs 4.1 m
-  (`TEAM.ladderGrab`), so the relay at 4.4 works only as the hanging partner's body climb, as today (CONSTRAINTS 12).
+  more over `WALL_JUMP.maxUp` 3.8 and within `TEAM.boostMax` 4.5, LD 11.3). The leg-up reaches 4.5 m and the ledge
+  relay serves a hanging partner up to 4.6 m, so 4.4 m lips work for both (ENGINE-ANSWERS Q5; `TEAM.ladderGrab` 4.1
+  has no reader: the old shoulder-stand ladder is gone).
 - **Unplanned boost targets.** Every box top or lip 3.8-4.5 m above its floor is in `COOP_LIPS` or has `noLedge` (unit
   test over every box top in the band, LD 11.5).
 - **Revive.** A player downed on each co-op surface (A1 yard, A2 staging, A6 gallery, A8 gallery) can be revived (e2e,
-  LD 15). Revive window 30 s, 2 per mission (`reviveClock.ts`).
+  LD 15). Revive window 30 s, 2 per mission for the team (`reviveClock.ts`), a 2.5 s hold. The revive is an
+  interactable on the downed body: offered within 1.8 m horizontally and under 1.5 m of height (ENGINE-ANSWERS Q6), so
+  a player downed on a deck or gallery is revived only from that level; each co-op surface needs room to stand beside
+  a downed player.
 - **Both extract** (G138): the cash dock exit zone needs both.
 - **Plans per set** (bible 7): co-op plan = the table above; light plan = section 7 and each set's Lights row; sound
   plan = each set's Surfaces row; checkpoint plan = every holding room (L1-L7) is the next set's checkpoint, on a floor,
   lit by the house circuit but out of every guard's view (no guard in a holding room); medkit plan = L4 and L7 wall
-  medkits (G98, G119), plus the A8 security office (a third, near the finale's only damage source, the scanner fail).
+  medkits (G98, G119), plus the A8 security office (a third, near the finale's armed guards and the scanner fail).
 
 ## 13. Mission and modes (objectives, rules, theme)
 - **Modes.** `modes: ['course']`, id `ctcourse`, name "Marlow Yard", not listed; campaign default stays
@@ -845,9 +878,14 @@ not a loosening).
   resets the set's steps and claim. A timed window adds its seconds left to the line ("Lights back in 9 s"). This list
   is the only guidance: no pads, no panels, no world markers (bible 6), only the striped leg-up marks (P16).
 - **Map data.** Spawns in the arrival lounge (x 2, z 10 and 12, facing +x); one `navSeeds` point per set and per
-  holding room; `camSize: 'open'` with `camSpaces` `tight` boxes for the holding rooms, the lounge, the A3 offices and
-  corridor, the A4 and A8 security rooms and the A7 pod (the old map's pattern); the gallery and service corridors are
-  outside every nav seed (players can never reach them).
+  holding room; the gallery and service corridors are outside every nav seed (players can never reach them).
+- **Camera spaces per set (ENGINE-ANSWERS Q13).** Without `camSpaces` the probe calls any space under about 4 m wide
+  tight, so each set declares its own in its `SetPart`: `camSize: 'open'` for the halls (A1 yard, A2 shed, A4 floor,
+  A5, A6 pump floor, A7 hall, A8 banking hall); `tight` boxes for the holding rooms, the lounge, the A3 corridor and
+  offices, the A4 racking aisles and security room, the A7 plant corridor and pod, the A8 security office and vault
+  lobby. Numbers: the camera needs 0.31 m beside the spine (the scale sheet's 0.78 is stale); looking across a 3.0 m
+  aisle or the 3.5 m corridor the boom pulls in to about 1.3 / 1.6 m from 1.8 m, which is acceptable. The visual
+  re-measure is a GPU shot per set (Character Build, pending).
 - **Radio (LANTERN, from the instructor bridge; 90 characters, British, voiceable; at most three in a row).** One
   entry line per set and a line on each timed window's start and last 5 s, for example:
   - A1: "Evening. Same rules as the real thing. Over the wall, open the gate for your partner."
@@ -864,7 +902,10 @@ not a loosening).
 - **Theme.** Indoor, no moon, no weather; `lightLevel` 0.30 (the lounge, holding rooms and dock), set `ambientZone`s at
   0.14 standby (section 7); grade: neutral-warm facility, each set its own palette (section 6).
 - **`reinforce`, `alarms`, `hideSpots`, `switches`.** No reinforcements and no alarm panels (course alarms stay a
-  stat; P7 asks about `em.stealth`). `hideSpots` per set sheet. `switches` per set sheet (every one by a door).
+  stat). `em.stealth = true` in Course mode (assumed A8, built in 0a; ENGINE-ANSWERS Q2): a spotted guard shouts to
+  8 m and calls in after 2.5 s, guards share a last known position, search 60 s and cool down, and detections count for
+  the rating. Radio checks and alarm runners do not start (no squad rosters, no alarm panels). `hideSpots` per set
+  sheet. `switches` per set sheet (every one by a door).
 
 ## 14. New code needed
 The smallest set that the route needs (A3, the current goal: basic prototypes). Sources: COOP-INVENTORY section 2,
@@ -876,13 +917,13 @@ it; each has a fallback there).
 | N1 | **Objective steps with per-player lines (M4; gap 6a, 6b).** `CourseObjective` grows into an ordered step list per bay: `{ id, bay, text, a?, b?, done }`, `done` = a course flag (set by a pass zone, pickup, pair, scanner, console or gate; `who` per role for per-player flags) or "gate open". Drills tick from a flag as well as a verb (`flag:<id>`, `FLAG_VERB`). Roles follow a per-bay claim (`BayDef.roles: RoleClaim[]`: the first press of a named device or the first entry into a zone takes the role, until the bay restarts; without a claim the swap rule `leadOf` gives them). The HUD (the existing drill table and step line, `courseHud.ts:56-82`) shows the current step's shared line plus this player's A or B line. A timed gate's remaining seconds (already in `PackedCourse.gates[].t`) are appended while it runs. Plus a one-player pass zone (`PassZone.any`, `src/game/passZones.ts`) for "B past x" steps. `validateCourse` checks ids and the 90-character limit. Panels are simply not placed (the panel code stays for `courselab`). | Every set | ~150 lines + tests | course side: `src/game/course/courseDef.ts`, `courseState.ts`, `src/ui/hud/courseHud.ts`; pass zone: `src/game/passZones.ts`, `src/game/ctDevices.ts` | Flags, claims and gate timers ride `PackedCourse`: no shape change (if the claim needs a new packed field, it rides the N6 bump) |
 | N2 | **Timed light isolator.** Gate kind `isolator { id, switchIds, group, seconds, rearm }`: a press turns course group `group` off for `seconds`, then back on; any switch on the circuit works (two-way); presses while off do nothing; re-arms after `rearm` s. On "off" it calls the `lightsOut` lure for that group's lamps. Fix `resetLights`' early return so a restart restores the map's lamps. | A2, A8 (and A8's `mains` grille) | ~80-100 lines | `courseDef.ts`, `courseState.ts`, `src/game/modes/courseMode.ts`, `src/game/stealthSystems.ts` (lure call only) | Group state rides `lights.groups` / `groupsOff`; timer rides `gates[].t`: no shape change |
 | N3 | **Timed security console ("loop the feed", gap 2).** `SecurityConsole.seconds?` and `rearm?`: the console sets its flag for `seconds`; while set, its cameras run in the existing `looped` mode (drawn already: the view fade and LED, `cameraCue.ts:48, 196`, `securityView.ts:23`; only the setter and the timer are new), then the host clears the flag and the cameras come back on both pages; re-arm after `rearm`. Needs a flag clear in `courseState` (flags are set-only today) and the timer on a gate slot so N1 can show it. | A4, A8 | ~40-60 lines | `src/game/course/securityRoom.ts`, `courseState.ts`, `courseMode.ts`, the camera mode setter in `ctDevices.ts` | Flags ride `PackedCourse.flags`: no shape change |
-| N4 | **Hold device.** `CourseDevice.hold?: number` and `holdNoise?` passed to `ints.add(..., holdTime)` (`courseMode.ts:251`); a completed hold counts as the press. | A6 drive panel | ~15-25 lines | `courseDef.ts`, `courseMode.ts` | `NetItem.hold` exists: none |
+| N4 | **Hold device.** `CourseDevice.hold?: number` passed to `ints.add(..., holdTime)` (`courseMode.ts:251`); a completed hold counts as the press. **Ships without `holdNoise` for now** (ENGINE-ANSWERS Q12): only the host's own hold reaches guards (a client has no `EnemyManager`), and A6's hanger can be either player, so a host-only buzz would be unfair. Later small item (PLAN 0d follow-up): a client hold-pulse message, the host checks reach and calls `em.hear(pos, holdNoise)` (~15 lines and a net test, inside the same unmerged `PROTOCOL_VERSION` 30). Until then the A6 sheet's buzzer is visual and sound only. | A6 drive panel | ~15-25 lines (+15 later) | `courseDef.ts`, `courseMode.ts`; later `protocol.ts`, `coopHost.ts`, `coopClient.ts` | `NetItem.hold` exists: none now; the later pulse rides 30 |
 | N5 | Timed lock gate (press -> door unlocked N s -> relock). **Not built:** A8's grille uses the existing `mains` gate on the isolated circuit, which is the timed lock Michael asked for. Kept here so a set that needs a plain timed release can add it (~30 lines). | - | 0 | - | - |
-| N6 | **Several scanner pairs.** `CtDevices` builds every `lay.scanners` entry (today only `[0]`), `SecWire.sc` becomes one entry per pair, and the ready-lamp glow is placed from the device's position and yaw (today hard-coded to Marlow's z 0.3 / 13.7). | A7 and A8 | ~60-80 lines | `src/game/ctDevices.ts`, `src/game/scanners.ts`, `src/net/protocol.ts` | **Yes: `SecWire.sc` shape. Bump `PROTOCOL_VERSION` 29 -> 30** and the tests that assert it |
-| N7 | **Live course guards.** Data only: squad slots without `passive`, with `route` points (`rooms.ts` `SquadSlot.route`, applied at `courseMode.ts:666`). Re-confirm in Phase 0 that a course guard with a route patrols, perceives, investigates a lights-out and fights (course `em.stealth` stays false, P7). | A2-A8 | 0 (data) | map files | none |
+| N6 | **DONE (34cb5b52; `tests/marlowN6Scanners.test.ts`; the panel height rule is now per panel floor).** **Several scanner pairs.** `CtDevices` builds every `lay.scanners` entry (today only `[0]`), `SecWire.sc` becomes one entry per pair, and the ready-lamp glow is placed from the device's position and yaw (today hard-coded to Marlow's z 0.3 / 13.7). | A7 and A8 | ~60-80 lines | `src/game/ctDevices.ts`, `src/game/scanners.ts`, `src/net/protocol.ts` | **Yes: `SecWire.sc` shape. Bump `PROTOCOL_VERSION` 29 -> 30** and the tests that assert it |
+| N7 | **Live course guards.** Data only: squad slots without `passive`, with `route` points (`rooms.ts` `SquadSlot.route`, applied at `courseMode.ts:666`). Confirmed (ENGINE-ANSWERS Q2): a course guard with a route patrols, perceives, follows a switch or isolator lights-out (a jammed lamp is no lure) and fights. Two one-line fixes ride slice 0a: `em.stealth = true` in Course mode (A8, was P7) and `em.despawn` in `spawnSquad` so a restarted set does not keep the old squad's bodies (Q4). | A2-A8 | 0 (data) + 2 lines | map files; `courseMode.ts` (0a) | none |
 | N8 | **Free bay layout.** The map's `bayX(i) = 22 i` helpers and the tests that import them go; bays are placed by their own boxes. `coopUi.ts:595` "Start at" stops assuming 9 bays (reads the course def). | All | ~10 lines outside the map | `src/net/coopUi.ts` | none |
 | N9 | **Sliding doors: no swing-only verbs (gap 7b).** The kit's slide leaf (`Door.leaf: 'slide'`, KIT.md 7, gap 7a: covered) draws right, but committed open (`doorOpen.ts`), crack, peek, bash and the stealth-open row assume a swing. On a slide door the door menu offers Open only (no crack, peek or bash); the leaf slides on the same `DoorState`. | Holding rooms, lounge | ~20-30 lines + a unit test | `src/game/doorMenu.ts`, `src/world/doorOpen.ts` (and wherever the crack / bash checks live; grep first) | none |
-| N10 | **Glass wall without a window anchor (gap 8b).** Covered by the kit: `kit.glass` writes a collision-only `noLedge` box (no window anchor, so no takedown or vault prompt) and draws the panes. Phase 0 confirms it stops guard sight and camera sight (`losClear`, `securitySystem.ts:56`) as a `windowAt` pane does (Q7); if camera sight passes it, add the box to the camera's ray filter (~5 lines). | Gallery, holding-room slots, A3 partitions, A7 lobby doors' glazing | 0-5 lines | `src/world/kit/facilityKit.ts` (only if Q7 fails) | none |
+| N10 | **Glass wall without a window anchor (gap 8b).** Covered by the kit (ENGINE-ANSWERS Q7, confirmed): `kit.glass` writes an invisible collide box in the static body (never a lip, no window anchor, so no takedown or vault prompt) and draws the panes; it stops bodies, bullets, guard and camera sight and jam lines, and passes baked lamp light. A light-blocking see-through pane does not exist (a builder flag, ~5 lines, if ever needed; this spec needs none). | Gallery, holding-room slots, A3 partitions | 0 | - | none |
 | N11 | **Glow tied to a circuit (gap 9).** Covered by the kit: accent LED lines carry a `group` and go dark when that circuit has no lit lamp (KIT.md 3). Rule for builders: every glow in a set has its circuit's `group`; decor lamps that are not real fittings are `electric: false` so they are not jam targets. Non-kit glow (prop screens, status lamps) is tinted per instance by its device (PROPS.md 1). | Every set | 0 | - | none |
 | N12 | **Every yard lamp in a group (gap 1).** Data: every `b.light` and lit `kit.ledSlot` in the map names a `group`, every changeable group is in `course.groups` (section 7). A unit test fails a lamp with no group. | Every set | 0 + 1 test | map files, `tests/ctcourse.test.ts` | none |
 | N13 | **Zone-based area advance (gap 6c).** Not built: this route keeps the course's bay-and-airlock chain on purpose (the holding rooms are the airlocks, section 5), so the existing pad advance fits. Kept for a later map without holding rooms (M size). | - | 0 | - | - |
@@ -894,8 +935,10 @@ like a push button; Future). The one wire change is N6, so slice 0 bumps `PROTOC
 `e2e-coop` and `e2e-netmove`. If N6 is struck, A8's time locks become two N4 hold devices feeding a `pair` gate
 (`window` 1.5) and no bump is needed.
 
-Build state (job lead, ~01:30): N1-N4 and N8 (course files) and N6 with `PassZone.any` (devices, protocol) are being
-built as slice 0a / 0b; N9-N12 are slice 0d (PLAN.md).
+Build state (ENGINE-ANSWERS, ~02:00): N6 and `PassZone.any` are DONE (34cb5b52, `PROTOCOL_VERSION` 30,
+`tests/marlowN6Scanners.test.ts`, `tests/marlowPassAny.test.ts`); N1-N4 and N8 are in the working tree (slice 0a), with
+0a also taking `em.stealth = true` (A8), `em.despawn` in `spawnSquad` and remote players in `occupied`; N9-N12 are
+slices 0d / 0g (PLAN.md).
 
 ## 15. Proposals for Michael (never applied)
 Every loosening of `docs/level-design.md`, the template, the bible or DECISIONS that the design uses. None is applied
@@ -910,7 +953,7 @@ the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS sect
 | P4 | Level design standard for every map (M5 "review the rule", M6 "levels are quite dark and not realistic") | Proposed new LD 5.5: "Spaces are lit as the real building would be at night. Darkness is made by the players (switches, isolators, jams, shots) or is where the building really has none." | Michael's note covers all levels (01:40: "the rules may be too strict and the levels are very dark and unrealistic ... the player may have to make shadows"); the all-maps proposal is `docs/lighting-review/PROPOSAL.md` (lighting agent), never applied here | Apply to Marlow Yard only |
 | P5 | LD 9.2-9.3, G125 at most one hard rule (T5) | Not used. ROUTE-DRAFT wanted "an alarm resets the set"; this spec keeps escalation and A3's send-back only | - | (If Michael wants it: alarm stage 3 restarts the set, about 30 lines) |
 | P6 | Template "guard total 9 or fewer" (T8) | 12 role-players in the yard (11 perceiving), at most 3 alive per set (Course mode spawns per set; `MAX_ALIVE` 12; G254 "maximum amount") | Every set from A2 needs a live guard; A4 and A8 need pairs. Also listed (T8): the passive A1 checker is classed as a role-player prop, not a section-4 guard | Drop `a4-dock2` and `a8-night2` and the A1 checker's slot moves to A4 (9) |
-| P7 | Course guards fight alone (`em.stealth` false in Course mode) | Unchanged (false) | Keeps the prototype small | Set `em.stealth = true` in Course mode (1 line: radios, shared last-known position) |
+| P7 | (Applied as assumed A8, ENGINE-ANSWERS Q2) Course mode ran with `em.stealth` false: a spotted guard radios everyone within 22 m, chases the players' real positions, never searches or cools down, and detections never count | `em.stealth = true` in Course mode (1 line, built in 0a): shout, call-in, shared last known position, search, cooldown, the detection stat | The false setting was the harsher one and broke the rating; this is P7's own former fallback, so it is logged for Michael, not asked | Back to false (1 line) |
 | P8 | LD 3.6 "guards do not look up" vs G44 not built (T10) | Occluders on every high route (A2 screens, A6 cage kick panels, A8 cornice) | Guards see straight up today | Build G44's look-up penalty (~15 lines in `perception.ts`) |
 | P9 | Template "Scope: existing systems only" (T12); N3 also changes Michael's sector-fixes console (permanent off) to a timed loop (CR 6) | New code N1-N4, N6, N8, N9 (section 14; N10-N12 are kit use and data) | M4 asks for N1; Michael's list needs the timed devices; N9 keeps swing-only verbs off slide doors | N1 dropped: one shared step line per set (today's `bayObjective`); N2 -> manual switches and `mains`; N3 -> permanent console; N4 -> a press; N6 -> two hold devices and a `pair` gate; N9 -> hinged doors in the holding rooms |
 | P10 | LD 6.1 one new mechanic per space | A4 teaches the console loop and the dual takedown (the takedown optional); A6 teaches the hang-down and uses the rope once with no threat | Fits 15-20 min with eight sets | Move A6's rope to A8's gallery as a second way up |
@@ -920,7 +963,7 @@ the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS sect
 | P14 | G206 "one interrogation guard" | Info lines on the A1 checker, A4 officer and A8 officer | The A4 and A8 lines plan the next beat (ROUTE-DRAFT) | Info only on the A1 checker |
 | P15 | G225 / marlow-bunker fiction (a bunker gallery) | The luxury rehearsal centre (M5) | M5 asks for it; M1 "rebuild freely" | - (M5 is Michael's word; recorded for DECISIONS at the merge) |
 | P16 | Bible / level standard "no co-op markers" (LD 11.2, T1) | The striped leg-up squares stay at A1, A2, A6, A8 | Solo invariance falls with G253; CT's training used marks | No marks; the objective line names the spot |
-| P17 | G45 "clear glass passes light and sight" (gap 8a) | All glass (`kit.glass`, a `windowAt` pane alike) stops guard and camera sight; light passes. The gallery is view only, so this is what the fiction wants | G45's sight rule is not built (T11); a view-only gallery must not let anything behind the glass see the players | Build G45's clear-glass sight (then keep the gallery free of anything that perceives: static figures only, N14) |
+| P17 | G45 "clear glass passes light and sight" (gap 8a) | All glass (`kit.glass`, a `windowAt` pane alike) stops guard and camera sight and jam lines; baked lamp light passes. The gallery is view only, so this is what the fiction wants | G45's sight rule is not built (T11); a view-only gallery must not let anything behind the glass see the players | Build G45's clear-glass sight (then keep the gallery free of anything that perceives: static figures only, N14) |
 
 **Course Ready's rule clashes (SCENARIOS section 6), resolved:**
 
@@ -1030,7 +1073,7 @@ collidable `b.box`, anchor and door in the code (CONSTRAINTS 2). Rule column: sa
 | Id | Element | Real-world reason | Gameplay use | Rule |
 | --- | --- | --- | --- | --- |
 | F1 | Holding rooms L1-L7 (6 x 6, two 1.8 m sliding doors) | The set crew's interlock lobby between sets: resets the next set unseen | Checkpoint, both-on-pad, glimpse | Every holding room looks and works the same |
-| F2 | Holding-room glass slot | Crew view into the set before release | Glimpse | All glass stops bodies, bullets and sight and passes light (P17) |
+| F2 | Holding-room glass slot (`kit.glass`) | Crew view into the set before release | Glimpse | All glass stops bodies, bullets, guard and camera sight and jam lines, and passes baked lamp light (P17, ENGINE-ANSWERS Q7) |
 | F3 | Instructor gallery glazing and lamps (group 1) | Clients and instructors watch the sets | Fiction, landmark; out of bounds | Glass as F2; gallery lamps never go off (instructors' circuit) |
 | F4 | LED read slots and accent lines (group 2 holding rooms, group 10 lounge, per-set groups) | The facility's architectural lighting | Read light (slots); accent lines follow their circuit | No wall switch on house circuits: instructor-owned; set lines follow the set's switches |
 | F7 | Plant room, service corridors, locked staff doors | Power, air and crew access between sets | None (closed) | Staff doors: no handle, red plate, never open |
@@ -1068,7 +1111,7 @@ collidable `b.box`, anchor and door in the code (CONSTRAINTS 2). Rule column: sa
 | A3-2 | Ceiling IR camera | Corridor CCTV covering the stair lobby | Jam relay, send-back | Every camera sees in the dark |
 | A3-3 | Office 2 door reveal 1.0 m | The office door's recess | Stepping stone | - |
 | A3-4 | Offices 1-3, communicating doors | A suite let to one tenant | Alternative route, loop | - |
-| A3-5 | Frosted partitions | Office privacy glazing | Stops sight, passes light | All glass as F2 |
+| A3-5 | Frosted partitions (`kit.glass` frosted) | Office privacy glazing | Stops sight, jam lines and bullets; passes baked lamp light (the cleaner carries no torch) | All glass as F2 |
 | A3-8 | Lobby archways | The office floor's open lift lobbies | Vantage (west), safe end (east) | - |
 | A3-6 | Corridor group 30, office groups 31-33 | Office lighting on door switches | Toys, lure | Switch by the door |
 | A3-7 | Cleaner's trolley | The cleaner's kit | Cover, the cleaner's job | - |
@@ -1110,7 +1153,7 @@ collidable `b.box`, anchor and door in the code (CONSTRAINTS 2). Rule column: sa
 | A6-4 | Bridge over the drive bay | Crane bridge over the drive | Holder's spot | - |
 | A6-5 | Cable gland plate 0.55 m | Cable entry into the drive cage | Hang-down (C8) | Gland plates are hang-down spots only |
 | A6-6 | Drive cage, kick panels, push-bar door | Guarded VFD cabinet | Target, no stranding | - |
-| A6-7 | Drive panel (hold 3 s, buzzer) | The drive's local isolate key | N4 hold | Hold devices buzz while held |
+| A6-7 | Drive panel (hold 3 s, buzzer) | The drive's local isolate key | N4 hold | Hold devices buzz while held (guards hear it once N4's client pulse lands) |
 | A6-8 | Outfall door + interlock lamp | Interlocked with the duty pump | Exit gate (flag) | Red lamp = locked |
 | A6-9 | Staff stair with handrails | Gallery access by the desk | Way up / down | - |
 | A6-10 | Groups 60-63; the dark sump bay | Pump floor, gallery, desk, cage work light; the sump high-bay tagged out | Toys, mixed zone | - |
@@ -1146,26 +1189,32 @@ collidable `b.box`, anchor and door in the code (CONSTRAINTS 2). Rule column: sa
 ## 19. Engine questions for Phase 0
 Re-grep in slice 0 (Phase 0) and write the answers with file:line into `docs/marlow-final/ENGINE-ANSWERS.md` (the
 Phase 0 agent); any design change that follows goes in STATE.md "Decisions" and, if it changes a set, a line in that
-set's sheet here.
-1. Every CONSTRAINTS section 2 constant (reach, jammer, scanner, laser, camera, nav, lamp grid, course timers).
-2. Does a Course-mode guard with a `route` patrol, perceive, follow a `lightsOut` lure to a switch and fight while
-   `em.stealth` is false? (N7)
-3. Per-set `ambientZone`: can a set's zone sit at 0.14 while the theme's `lightLevel` stays 0.30 for the lounge,
-   holding rooms and dock? Which `minY` / `maxY` per zone?
-4. Guards per set: does `courseMode.ts:634-668` despawn the previous set's squad before spawning the next, so 3 per set
-   never stacks past `MAX_ALIVE` 12?
-5. `TEAM.ladderGrab` 4.1 vs the 4.4 lips: confirm the relay at 4.4 is the hanging-partner climb (as S5 today).
-6. Revive "within 1.5 m of height": confirm or find the real rule (CONSTRAINTS: not found by grep).
-7. Glass (N10, P17): confirm `kit.glass`'s collision-only box stops guard sight (`losClear`) and camera sight
-   (`securitySystem.ts:56`) like a `windowAt` pane, passes light the same in the bake, the meter and the picture, and
-   offers no window prompt (takedown, vault).
-8. Can the jammer's line pass a mesh cage (A7) or the A8 grille bars? If not, keep planned jams off those lines.
-9. Does the `mains` gate relock a door with a player in its doorway? (The A8 grille must never close on a player.)
-10. Does the scanner panel `feet.y < 1.5` rule hold for both A7 and A8 panels (all at ground level)?
-11. Does the dual takedown banner need both guards in one squad, or any two takedowns within 1.5 s?
-12. `holdNoise` on a course hold device (N4): does the noise reach guards in Course mode?
-13. The scale sheet predates the CT camera (LD open item 8, G54): re-measure A3's 3.5 m corridor and the 3.0 m aisles
-    with the shoulder camera before the greybox is dressed.
+set's sheet here. Questions 1-13 are answered (ENGINE-ANSWERS.md, 2026-10-23) and folded into this spec and into
+CONSTRAINTS section 2; 14-16 stay open for slices 0d / 0g.
+1. Every CONSTRAINTS section 2 constant. Answer: all values confirmed; line moves and six substantive corrections are
+   now in CONSTRAINTS section 2 (guards close doors, G41; camera IR covers players only; nav layers; auto lips by world
+   Y; revive; perf).
+2. A Course-mode guard with a `route` (N7). Answer: patrols, perceives, follows a switch / isolator / shot-lamp lure
+   (not a jam) and fights; with `em.stealth` false he never searches or cools down, so A8 sets it true (section 13).
+3. Per-set `ambientZone` at 0.14 under the 0.30 theme. Answer: yes; whole-metre edges, `minY` -1, `maxY` ceiling - 0.1,
+   upper levels their own zones (section 7).
+4. Squad despawn before spawn. Answer: yes, but bodies stayed; 0a switches to `em.despawn` (section 14 N7).
+5. `TEAM.ladderGrab` 4.1 vs the 4.4 lips. Answer: moot; leg-up to 4.5, relay to 4.6, `ladderGrab` unread (section 12).
+6. The revive height rule. Answer: an interactable on the body, 1.8 m horizontal, under 1.5 m of height (section 12).
+7. Glass (N10, P17). Answer: `kit.glass` (an invisible collide box in the static body) stops bodies, bullets, guard and
+   camera sight and jam lines, passes baked lamp light, offers no window prompt; a guard's torch is blocked for the
+   meter but drawn in the picture; no see-through pane blocks light (sections 5, 14 N10, 18 F2 / A3-5).
+8. The jam line through a cage or grille. Answer: `b.fence` mesh passes it (and sight) but is climbable; collide boxes,
+   kit glass and shut doors stop it. A7's cage is fence mesh with a lid and locked anchors; nothing is planned through
+   the shut A8 grille (sections A7, A8).
+9. The `mains` relock and a player in the doorway. Answer: the relock never shuts a door; an opened grille stays open
+   until a player closes it; guard auto-close checked only the host, and 0a adds the remote players (section A8).
+10. The scanner panel height rule. Answer: per panel floor since N6; A7 and A8 panels at y 0 pass. No change.
+11. The dual takedown. Answer: any two takedowns finished by different players within 1.5 s; banner only, no course
+    flag (an objective gated on it would need a ~5-line flag hook; none is planned while it stays optional, P10).
+12. `holdNoise` on a course hold device. Answer: host-only; N4 ships without it, a client pulse follows (section 14).
+13. Corridor and aisle widths under the shoulder camera. Answer by the numbers: they fit; camera spaces per set
+    (section 13); the GPU shot is pending on Character Build.
 14. Sliding doors (N9): with `leaf: 'slide'`, which door verbs still assume a swing (committed open, crack, peek, bash,
     the light / sight closed-leaf test, `lightField.ts:336-345`)? Do course airlock locks drive a slide door unchanged?
 15. Does a course `pickup` / console press by the client and a role claim (N1) reach the host in the same tick order as
@@ -1201,7 +1250,9 @@ Not built here; one line each on how they would fit.
 - **Operator and spotter** (CR-S23): a pump-house crane in A6; needs a remote-control device.
 - **Wire cut** (CR-S24): a scanner-pair variant with a per-run live wire in thermal; A8's time locks.
 - **Keypad with a per-run code** (G143): a code device read from the A4 officer's interrogation.
-- **Alarm consequences in Course mode** (reinforcements, P5, P7).
+- **Alarm consequences in Course mode** (reinforcements, P5; radio checks need squad rosters, alarm runners need
+  panels).
+- **A dual-takedown course flag** (~5 lines from `takedownDone`), if Michael wants the A4 / A8 pairs required.
 - **Guard avatar** (M6): a later roadmap item; the same job can give the gallery its seated instructor figures (N14).
 - **Client shots on lamps and cameras**: the host's `onShot` handles enemies and players only, so a client's shot lamp
   relights within 2 s and a client cannot shoot a camera; a `shot` claim plus the `dn` mirror in the course message

@@ -119,6 +119,9 @@ Format: rule - source - how to verify.
 
 ## 2. Engine limits (grep-confirmed 2026-10-23)
 
+Re-checked by the Phase 0 engine answers (`ENGINE-ANSWERS.md` question 1, commit 52632ed6): every value holds; the line
+references and six claims below were corrected on 2026-10-23 (spec writer).
+
 **Map extents**
 - No hard cap in code (`LevelBuilder.bounds`, `src/world/levelBuilder.ts:130`, :228).
 - References: the current yard is 172 x 16 m (`CT_BOUNDS`, `ctcourse.ts:100`); Fallow is 143 x 147 (`bunker.ts:10`).
@@ -144,43 +147,45 @@ Format: rule - source - how to verify.
 - Lamp haze marches at most 3.2 m (`VOL_LAMP_MAX`); a beam at most 14 m (`VOL_BEAM_MAX`, `volLights.ts:18-20`).
 
 **Physics**
-- Dynamic props 28, ragdolls 4, projectiles 24 (`BUDGET`, `physics/groups.ts:35-38`).
+- Dynamic props 28, ragdolls 4, projectiles 24 (`BUDGET`, `physics/groups.ts:35-39`).
 - Bodies kept: 12 (`BODY.max`, `ai/bodies.ts:16`).
 
 **Guards**
-- `MAX_ALIVE` 12 awake (`enemyManager.ts:26`; `spawn` returns null at the cap, :458).
-- `SQUAD_CAP` 9 exists only in the Infiltration and Hunter modes (`infiltrationMode.ts:14`, `clearMode.ts:12`).
-- Course mode spawns each bay's squad at bay start and removes it at the next. A failed spawn skips the rest of that bay's squad (`courseMode.ts:634-668`).
+- `MAX_ALIVE` 12 awake (`enemyManager.ts:32`, the default of the instance's `maxAlive`; `spawn` returns null at the cap, :458). Course mode keeps 12.
+- `SQUAD_CAP` 9 exists only in the Infiltration and Hunter modes (`infiltrationMode.ts:14`, `clearMode.ts:12`); it does not apply to Course mode.
+- Course mode spawns each bay's squad at bay start and removes the old squad first (`courseMode.ts:634-670`, splice and dispose :644-648). A failed spawn (the cap, or no walkable cell within 8 m) skips the rest of that bay's squad (:661). The removal does not use `em.despawn`, so knocked-out bodies stayed after a restart; slice 0a switches to `em.despawn`.
+- Course mode ran with `em.stealth` false: a guard in combat radios every calm guard within 22 m, chases real positions, never searches or cools down, and detections never count. marlow-final sets it true (assumed A8, slice 0a).
 - So the practical limit is 12 or fewer alive per area. G254: "as many guards as allowed", and suggest ways past the cap.
 
 **Cameras**
-- 12 per map (`SECURITY_LIMITS.cameras`, `config/security.ts:49`, checked by `validateSecurity`, `security/data.ts:61`).
+- 12 per map (`SECURITY_LIMITS.cameras`, `config/security.ts:50`, checked by `validateSecurity`, `security/data.ts:39`, count check :61).
 - Mount 2.4-3.5 m, range 4-18 m, aim at least 2 m, sweep at most 120 deg (`config/security.ts:16-34`).
 - Only `camera` devices are built (`data.ts:47`).
-- IR: every body in the camera's cone reads light 1 (`irLight`).
+- IR: every living player in the camera's cone reads light 1 (`irLight`, `config/security.ts:45`; one ray, lens to head, `security/camera.ts:84`, `securitySystem.ts:51-57`). Guards and the light meter still read the lamps.
 
 **Nav grid**
-- Cell 0.5 m, agent radius 0.32, headroom 1.7 (`navBuild.ts:9`, :78).
-- Drops 1.0-2.2 m one way (`navBuild.ts:11-12`); step 0.45 (player 0.42).
-- Surfaces need normal.y > 0.65 (about 49 deg).
-- 3 layers per column by default (`DEFAULT_NAV_LAYERS`, `navBuild.ts:14`); `MapDef.navLayers` raises it (Fallow 5); up to 8 (scale-sheet 1).
-- The sampler casts down to y -2 only.
+- Cell 0.5 m (`navBuild.ts:78`), agent radius 0.32 (:79), headroom 1.7 (:9).
+- Drops 1.0-2.2 m one way (`navBuild.ts:11-12`); step 0.45 (:80; player 0.42).
+- Surfaces need normal.y > 0.65 (about 49 deg, `navBuild.ts:98`).
+- 3 layers per column by default (`DEFAULT_NAV_LAYERS`, `navBuild.ts:14`); `MapDef.navLayers` raises it (Fallow 5). `NavGrid` takes any count (`navGrid.ts:187`), but the sampler casts at most 8 rays per column (`navBuild.ts:91`), so a 9th surface is never found.
+- The sampler stops at y -1.5 and casts to y -2.
 - A door 1.2 m or wider always passes the grid; 1.0 m only on cell-aligned centres (scale-sheet 4).
 - Patrol points are `[x, z]` (`rooms.ts` `SquadSlot.route`). Engine question: the storey pick for routes on upper floors.
 
 **Doors**
-- Light, sound and sight pass past `DOOR_SHUT` 0.05 of the swing; the crack (0.12) counts as closed.
-- Guards push doors open and never close them (G41 not built).
-- Bash at a sprint; quiet open noise 2 m, bash 10 m (`ai.md`).
+- Light, sound and sight pass past `DOOR_SHUT` 0.05 of the swing (`lightField.ts:27`); the crack (0.12, `doorPeek.ts:13`) counts as closed.
+- Guards close doors (G41 built): a calm guard shuts a door he opened 1.5 s after he is 2.2 m clear (`stealthSystems.ts:22`, :556-571). Its `occupied` check (:539-544) and the door menu's close (:105) look only at the host's player and guards, so it can shut a door onto the client; slice 0a adds the remote players.
+- A `mains` relock only locks a door; it never shuts it (`courseState.ts:194-205`, `doors.ts:200-202`). Only an airlock's rear door is forced shut (`courseMode.ts:700-704`).
+- Bash at a sprint; quiet open noise 2 m, bash 10 m (`stealthSystems.ts:24`, :30).
 - No door count cap found.
 
 **Anchors**
 - No count cap found.
-- Box tops at 1.9 m or more become lips automatically; use `noLedge` / `mark` (LD 12.1).
+- Box tops at 1.9 m or more become lips automatically; use `noLedge` / `mark` (LD 12.1). The 1.9 m filter is the box top's world Y, not its height over the local floor (`anchors.ts:319-325`): on an upper storey every solid visible box passes it, so upper-floor furniture and rails need `noLedge`. Invisible collide boxes (kit glass, kit handrails) are never lips (`anchors.ts:319`).
 
 **Course framework**
-- Every bay boundary is an airlock 6 x 6 m (tolerance 0.5), enforced by `validateCourse` (`config/course.ts:15-19`, `courseDef.ts:232`).
-- Bays chain start -> A1..An -> end (`courseDef.ts:249-256`).
+- Every bay boundary is an airlock 6 x 6 m (tolerance 0.5; `AIRLOCK_SIZE` `config/course.ts:18`, tolerance :20), enforced by `validateCourse` (`courseDef.ts:213`, airlock check :229-233).
+- Bays chain start -> A1..An -> end (`courseDef.ts:247-256`).
 - Airlock cycle 4 s; pad inset 1.0; doorway clear 0.75.
 - `PAIR_WINDOW` 1.0 s; `TIMED_HOLD_AFTER` 6 s; `RESTART_DELAY` 2 s; text 90 characters.
 
@@ -188,22 +193,23 @@ Format: rule - source - how to verify.
 - Jammer (`jammer.ts:14-46`): hold at most 5 s; cooldown 5 s; camera reboot 1.5 s; range 20 m; the jammer must stand still (0.45 m/s).
 - Jammed lamp: 0.5 s flicker, off while held, 4 s off after release, 0.5 s flicker on.
 - Scanner (`scanners.ts:12-22`): hack 2.0 s; sync window 1.5 s; a fail costs 10 hp.
-- Laser: `ALARM_MAX` 3 stages, 5 s gap.
+- Laser: `ALARM_MAX` 3 stages, `ALARM_GAP` 5 s (`jammer.ts:343`, :345).
+- Jam line: one ray against static bodies with 0.4 m slack at the target (`JAMMER.losSlack`); `b.fence` mesh passes it, collide boxes, kit glass and shut doors stop it. A jammed lamp lures no guard (only switches, isolators and shot lamps call `lightsOut`).
 - Sync windows never scale with difficulty (G131).
 
 **Reach** (`config/movement.ts`)
-- `WALL_JUMP.maxUp` 3.8 (:338); `TEAM.boostMax` 4.5 (:447).
-- `TEAM.ladderGrab` 4.1 (:452): G57's 4.5 m is not built, so a human-ladder target at 4.3-4.5 fails today; the boost / leg-up reaches it.
+- `WALL_JUMP.maxUp` 3.8 (:338); `TEAM.boostMax` 4.5 (:459).
+- `TEAM.ladderGrab` 4.1 (:464) has no reader: the shoulder-stand human ladder is gone. The co-op "ladder" is the ledge relay: the partner hangs 0.3-4.6 m above the climber, within 1.6 m horizontally (`relayReach` / `relayMax`, `movement.ts:475-476`; `teamMoves.ts:60-66`). The leg-up reaches 4.5 m, so 4.4 m lips serve both moves.
 
 **Revive**
-- 30 s window, 2 per mission (`reviveClock.ts:8-10`); a 2.5 s hold (`coopHost.ts:51`).
+- 30 s window; 2 revives per mission as a team total (`reviveClock.ts:8-10`); a 2.5 s hold divided by the HQ revive speed (`coopHost.ts:51`, :148).
 - LD 12.1's "there is no bleed-out" is stale.
-- The "within 1.5 m of height" rule could not be confirmed by grep: re-confirm in Phase 0.
+- The height rule: the revive is an interactable on the downed body (`coopHost.ts:401`, :428-433), moved onto it every step (:1125-1129), offered within 1.8 m horizontally and under 1.5 m of height between the item and the reviver's feet (`interactables.ts:132-140`); the host accepts a client's use within 2.55 m and 2 m of height (`coopHost.ts:575`). A player downed on a ledge or deck is revived only from that level.
 
 **Draws, CPU, memory** (`docs/systems/performance.md`)
 - At most 600 draws and 8 M triangles per frame over every pass.
 - Per preset: Low 120, Medium 170, High 230, Ultra 250 draws (0.8-2 M triangles).
-- `?gfx=min` regression check: at most 55 draws and 0.2 M triangles; sim p95 2.5 ms.
+- `?gfx=min` regression check: at most 55 draws and 0.2 M triangles; sim p95 2.5 ms (`perf.mjs`, `performance.md:32-34`). The doc also has a gfx=min CPU line (main 3.6 ms, sim 1.1 ms, `performance.md:18`).
 - Epic: main thread p95 5.5 ms; sim p95 2.9 ms; animation 0.075 ms per character.
 - Allocations: 11.5 MB/s at most.
 - Memory: VRAM 12 GB at Epic; tab 6 GB; JS heap 1.5 GB; load 4 s cold / 1.5 s cached (Warehouse figures, "pending a PC run").
@@ -347,7 +353,7 @@ Format: rule - source - how to verify.
 9. LD 16.5.3: the annex roof (players press plates there) has no 1.1 m rail (T14).
 10. LD 16.2.4 / scale sheet 6: the S7 "return stair" has 1.1 m rises (`ctcourse.ts:598-601`); it is climbing blocks, not a stair.
 11. LD 13: no space sheets, guard sheets, beat chart, gameplay overlays or plan SVGs exist for ctcourse.
-12. LD 11.3 vs code: lips at 4.4 are above `TEAM.ladderGrab` 4.1, so the human ladder cannot reach them (only the leg-up / boost can). Fine if no exercise uses the human ladder.
+12. (Moot, ENGINE-ANSWERS Q5.) `TEAM.ladderGrab` 4.1 has no reader; the ledge relay serves hangs up to 4.6 m and the leg-up reaches 4.5 m, so 4.4 m lips are fine.
 13. LD 6.4 / M4: eight explainer panels (`sw-p1..8`, `PANEL_TEXT`) are to be removed.
 
 **Holds**
