@@ -5,46 +5,38 @@ save tokens, i will reset usage as soon as you hit 100%": sessions run to 100% (
 (the swap back to the first account) and pastes the orchestrator prompt below.
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
-## State at the switch (2026-10-22 ~22:00)
-Master v4.58.2 (#143 GPU test waits 2, ee51908f; v4.58.1 #140; v4.58.0 train 7 #137 = #132 + #134). /preview/ = dev = ee51908f.
-Ready for trains: #119 N4b e957db2f (studio reset fixed), #142 n4d, #144 R (all suites GPU green). Train 9's e2e-menus
-touch pause ("a tap on the pause button pauses ((none))") passes on P and n4c alone: T1 #141 or an interaction
-(Menu Notes / CT Core narrowing; laptop scheduled task ns-chain-1022w also narrowing). Train 10 = #142 + #144 after
-trains 8 and 9 merge.
+## State at the switch (2026-10-22 ~22:29, 99% save point; Michael: "make 99% a save point and we can run a clear on all sessions again")
+Master v4.58.3 (#146 decisions G229-G269, cb198a91; 4.58.2 #143, 4.58.1 #140, 4.58.0 train 7). /preview/ = dev = cb198a91.
 
-New rules today (CLAUDE.md on feature/menu, "GPU for logic e2e"): every e2e run is `E2E_GPU=1` on both machines
-(laptop full run 14 min vs 34 in software); a GPU failure counts. Desktop: `heavy.lock` (check, software) plus a
-second GPU-only lane `heavy2.lock` on 4192 when CPU < 50%. Laptop: one slot, full runs at E2E_JOBS=2. A PR enters a
-train only when every suite it touches ran to completion and passed on the GPU (STATE "Known"). A "stopped" background
-runner can survive on Windows: taskkill /T /F and confirm.
+Rules today (CLAUDE.md on feature/menu "GPU for logic e2e"; STATE "Known"): every e2e run E2E_GPU=1, a GPU failure counts;
+desktop heavy.lock (check / software) + heavy2.lock GPU lane on 4192 when CPU < 50%; laptop trial (Michael ~21:50): full
+runs JOBS=3 + a second single-suite slot on 4192, kept only if times within ~15%, no new load failures, CPU < ~90%.
+A PR enters a train only when every suite it touches ran to completion on the GPU. Stop runners with taskkill /T /F.
+Long runs go detached (scheduled tasks) so a session end does not kill them.
 
-Train 9 = train/9 765162a6 (master 4.58.3 + #136 P, #139 N4c, #141 T1, feature/gpu-tests-3 be8e2027 (its PR), #147
-menus-tap-wait; rebuilt ~22:15). The first build b0cb16b6 failed e2e-menus "a tap on the pause button pauses ((none))":
-a test bug that depends on machine speed. On the fast laptop GPU the look drag ends in a fling, and the next touch-down only
-cancels it, so the first tap is lost (Character Build's diagnostic). gpu-tests-3 holds the finger still before the lift. Laptop: e2e-menus on 765162a6, then the full run at JOBS=3
-(the 3-browser + second-slot trial, Michael ~21:50; sampler on). On a pass, from
-C:/NightShift/Mobile-Coop-train: `node scripts/merge-train.mjs release 9 4.59.0 "<title>" --dry-run`, then for real.
-On a failure: narrow per member head on the laptop GPU, the member's lead fixes.
+Train 9 = train/9 765162a6 (#136 P, #139 N4c, #141 T1, #148 gpu-tests-3 touch-fling fix, #147 menus-tap-wait): e2e-menus
+alone PASS on the laptop; full run JOBS=3 started 22:12 as scheduled task ns-chain-1022z (results
+C:/NightShift/scratch/runs/train9c-765162a6, load runs/load-train9c.csv). On a pass, from C:/NightShift/Mobile-Coop-train:
+merge-train.mjs release 9 4.59.0 "<title>" with --dry-run first, then for real; also judge the JOBS=3 trial against the
+JOBS=2 run (740 s, CPU avg 35%).
 
-Train 8 (#119 N4b + #138 N2, which contains #135 N1) was RED on 4cc73665: e2e-studio :468 reset pose (role B on "hold
-at 0", bones 120-130 deg) = #119's (Course Ready fixing); e2e-anim "run 90: the feet never cross (-17.4 cm)" and e2e-clip
-"crouched holstered ... min -3.2 cm" = N1's own (CT Core fixing on feature/anim-natural-n2). When both fix shas land,
-rebuild: `node scripts/merge-train.mjs build 8 feature/anim-n4b feature/anim-natural-n2` (after train 9 merges, so
-master moves first; resolve only CHANGELOG / package), laptop GPU full run, release 4.60.0. #135 shows merged then.
+Train 8 next: #119 N4b e957db2f (ready) + #138 N2 (contains N1): fix round 2 running (run 180 planted contact 14 cm; then
+merge master 4.58.3, rerun its six GPU suites, send the sha). Build after train 9 merges, from C:/NightShift/Mobile-Coop-train:
+merge-train.mjs build 8 feature/anim-n4b feature/anim-natural-n2, laptop full run, release 4.60.0.
+Train 10 after that: #142 n4d, #144 R, #145 lamp-plugin-gap, #149 backlog note, #150 gpu-waits-sweep (merge master first:
+it touches e2e-menus lines that #147 / #148 change).
 
 Open work (each job's resume file has the detail):
-- CT Core (top): mocap-trial (feature/mocap-trial; docs/mocap-trial/: CMU only, "Mocap locomotion" toggle off by
-  default, clip-feet mode, side-by-side GPU sheets for Michael next; more CMU takes approved); #138 N2 fix round
-  (the two N1 failures). Resume: docs/orchestrator/resume-ct-core.md on feature/menu.
-- Menu Notes: n4d (feature/anim-n4d on n4c; takedown / grab-kill contact on the gameplay moment, M1 "Faster arm";
-  checker PASS, suites running) -> PR -> train 10. Resume: docs/anim-natural/RESUME-menu-notes.md on feature/anim-natural.
-- Course Ready: sector-fixes R fix round (S1 monorail, S3 climbs under the 1.63 m roof, plus Michael's "Add another"
-  S2 co-op route with >= 0.5 m solo margin) -> PR -> train 10; #119 studio reset fix -> train 8. Resume:
-  docs/marlow-bays/RESUME-trackA.md on feature/marlow-bays.
-- Character Build: train 9 verdict + load numbers, then train 8 rebuild; test-speed-2 levers held (GPU made them minor);
-  d7571102 proof after train 8. Resume: docs/flake-fix/STATE.md on feature/flake-fix.
-Michael's answers today are in ROADMAP "Decided" (GPU tests, mocap, warehouse L1-L15 approved and restart after
-Marlow Yard, R second S2 route, vent pad = keyboard, strike "Faster arm", CMU downloads).
+- CT Core: mocap-trial first cut feature/mocap-trial 06e773e1 (clips a05bdde7; ?mocap=1 or Settings > Gameplay > "Mocap
+  locomotion", off by default; 15 gap takes downloaded); its GPU suites queued (/c/NightShift/mt-e2e.out); N2 round 2.
+  Resume: docs/orchestrator/resume-ct-core.md on feature/menu.
+- Course Ready: fresh checker on mocap-trial 06e773e1 (C:/NightShift/Mobile-Coop-mocap-check; old-limit numbers are notes
+  for Michael, BRIEF A4). Resume: docs/marlow-bays/RESUME-trackA.md on feature/marlow-bays.
+- Menu Notes: the mocap side-by-side GPU sheets (feature/mocap-sheets, current vs mocap) and a Sector Ops strip-light look
+  (Waiting item 5). Resume: docs/anim-natural/RESUME-menu-notes.md on feature/anim-natural.
+- Character Build: train 9 verdict + trial numbers, then the train 8 rebuild; second slot for single suites.
+  Resume: docs/flake-fix/STATE.md on feature/flake-fix.
+Michael's answers today: ROADMAP "Decided" and DECISIONS G229-G269.
 
 ## In the new account
 Michael signs in to the other account in the desktop app (and on the laptop for Character Build), then pastes the
