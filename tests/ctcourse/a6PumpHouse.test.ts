@@ -297,7 +297,10 @@ describe('A6 the Pump House: the motor gallery (the co-op lip, the leg-up, the r
     expect(n).toBeGreaterThan(300);
     expect(open).toBeGreaterThan(n / 2);
     // a filler never stands over the line a body walks on (its top under the nosing line at its low end)
-    for (const f of fillers) expect(top(f)).toBeLessThanOrEqual(lineAt(f.c[0] + f.s[0] / 2) + 1e-6);
+    for (const f of fillers) {
+      expect(top(f)).toBeCloseTo(lineAt(f.c[0] + f.s[0] / 2) - A6_STAIR_FILL.gap, 6);
+      expect(f.s[0]).toBeLessThanOrEqual(A6_STAIR_FILL.step + 1e-6);
+    }
   });
 });
 
