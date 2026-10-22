@@ -1,17 +1,16 @@
 # flake-fix - state
 
-**Now (2026-10-22 ~13:00, account handoff):** WIP, paused. All four load-flaky steps have a fix written in the tests
-(causes and fixes in `docs/backlog.md` "Flaky e2e suites", entry "Four load flakes"; CHANGELOG line added):
-e2e-stealth-ai (peek spot checked over 4 s of the held peek with a 1 cm margin), e2e-netmove (`watchTeam` in
-`scripts/e2e-net-lib.mjs` logs every team state with sim time), e2e-mouse (the page times the capture give-up),
-e2e-ctcourse station 4 (the press waits until the client's view of the host matches the host). Syntax ok.
-NOT yet verified: `npm run lint`, `npx vitest run`, and the proof (the four suites twice at E2E_JOBS=2) - the
-implementer was stopped at the handoff before its proof run finished; no result was recorded.
-**Next:** lint + vitest; review the diff (`git diff 71ce1bff HEAD -- scripts docs/backlog.md`) against BRIEF ("never
-loosen what a test proves"); the proof runs; one checker; PR (test-only tier: CI + the edited suites); tell
-"Night Shift | Orchestrator".
+**Now (2026-10-22 ~13:45, new account):** fixes verified except the final proof. Lint 0 errors, vitest 242 files
+pass. Checker (fresh): FIX - stealth-ai vetted grid spots, not the guard's real standing point; ctcourse cause
+overstated. Fix round 1 bd8e5ebf (snapped points, ctcourse cause "suspected", `teamLog` prints the press gates).
+Proof on 54c3576d (JOBS=2, two rounds): netmove, mouse, ctcourse 2/2 pass; stealth-ai 0/2 (the strict filter left no
+spot: the head-only wedge is a few cm wide). Fix round 2 e5211e02 (5 cm floor grid, per-step sway check, a passive
+grunt placed on the exact spot, the guard's own los + head at every think over 2 s): stealth-ai 2/2 at JOBS=2.
+**Next:** final proof on e5211e02 (label flakefix-e5211e02-proof: check + the four suites twice at JOBS=2, queued
+behind run requests); then PR (test-only tier: CI + the edited suites) and tell "Night Shift | Orchestrator".
 
 ## Done
+- 2026-10-22 ~13:45: lint, vitest, checker FIX, fix rounds 1 (bd8e5ebf) and 2 (e5211e02); proof partial.
 - 2026-10-22: BRIEF, STATE; implementer 1 (stopped for usage) -> WIP 58bb1b31; implementer 2 -> this WIP commit.
 
 ## Resume prompt
