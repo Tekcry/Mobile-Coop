@@ -21,7 +21,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   -> hostagegait-c581a9c4 (CT Core spare #10: e2e-coop e2e-netmove) -> hangdown-0578d554 (CT Core spare #2: e2e-coop
   [new hang-down section] e2e-ctcourse e2e-netmove e2e-takedown e2e-anim, JOBS=3; CT Core may be swapping: verdict also
   to the orchestrator).
-  4192: guardrender-s1-70470c30 (own job: smoke e2e-stealth-ai e2e-sectorops e2e-ctcourse e2e-coop e2e-netmove e2e-anim
+  4192: [DONE 09:29: guardrender-s1-70470c30 GREEN 14/14 GPU JOBS=2, wall 500 s; smoke ok = shader compiles] (own job: smoke e2e-stealth-ai e2e-sectorops e2e-ctcourse e2e-coop e2e-netmove e2e-anim
   e2e-takedown, JOBS=2; first real-GPU shader check: missing guards in smoke = compile error) -> guardais5-80efb8b4
   (Guard AI S5, same 4 suites as S7, JOBS=2) -> sectorredesign-22e755bf (Course Ready: e2e-coop e2e-netmove).
   Guard AI S4: no request received yet.
