@@ -452,6 +452,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Installed app (desktop Chrome / Edge install) offline: the same; Co-op shows the offline notice and nothing else
   is blocked.
 - [ ] Deploy a new version while the app is closed; the next online launch picks it up, progress intact.
+- [ ] Deploy a new version while a (co-op) match is open: no reload mid-match, an "Update ready - restarts at the menu"
+  toast; back on the main menu the game reloads once into the new version (sw-reload).
 - [ ] Switch to another window mid-match: on return a solo match is paused, sound was silent while away, progress saved.
 
 ### Save migration
