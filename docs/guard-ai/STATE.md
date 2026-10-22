@@ -6,7 +6,7 @@ slices/S3-CHECK.md; e2e GPU desktop 4192 all green: e2e-stealth-ai, e2e-sectorop
 e2e-ctcourse 1-3), train 21 after train 20 releases. Parallel slices, each its own worktree + branch off 7a4167b2 +
 own PR (node_modules junction -> C:/NightShift/Mobile-Coop/node_modules; remove with `cmd /c rmdir node_modules`
 before `git worktree remove`):
-- S4 awareness / caution: C:/NightShift/Mobile-Coop-guard-ai-s4, feature/guard-ai-s4, Opus implementer RUNNING
+- S4 awareness / caution: C:/NightShift/Mobile-Coop-guard-ai-s4, feature/guard-ai-s4, BUILT fd3a0018 (pushed); fresh checker RUNNING (S4-CHECK.md); e2e desktop 4192 (stealth-ai, takedown, sectorops; logs scratch/runs/guardai-s4-fd3a0018)
   (report slices/S4.md, BRIEF A14-A16).
 - S5 posts + map data: C:/NightShift/Mobile-Coop-guard-ai-s5, feature/guard-ai-s5, BUILT 80efb8b4 (pushed); fresh checker RUNNING (S5-CHECK.md); e2e asked of Character Build after s7; S5.md has the note for the map teams (send it after the check); open: revive loses the post (S4 merge carries postDef / postYaw / section / profile)
   (slices/S5.md, A17-A19).
@@ -19,7 +19,7 @@ If the window cut them off: in each worktree `git status`, read slices/S<n>.md i
 finishes from the WIP (same brief: the module report's wiring list) or a checker if done. Then per slice: commit,
 push, fresh Opus checker, e2e on a free GPU lane (desktop 4192 heavy2.lock or laptop Character Build [06fe56],
 E2E_GPU=1, PLAN row suites), PR, message the orchestrator. S10 pairs after S5 (patrol overlap); S5b and S6 after S5;
-S9 only if needed (protocol 32). Next agents (when desktop CPU < 90%): S5b and S6 off feature/guard-ai-s5, then S10.
+Stacking plan: once checked, chain the branches s4 <- s5 (merge s4) <- s7 (merge s5) so each PR merges cleanly after the one before (trains take no src conflicts); S5b / S6 / S10 then start off the chain tip. S9 only if needed (protocol 32). Next agents (when desktop CPU < 90%): S5b and S6 off feature/guard-ai-s5, then S10.
 
 (~08:40, account swap 2) #185 S2: master 4.68.0 merged (a0554459; conflict stealthSystems.shootLight = S2's
 `lightsOut(x, z, y, id)` before the noise + master's `return true`); no wire change, so no protocol (registry: master
