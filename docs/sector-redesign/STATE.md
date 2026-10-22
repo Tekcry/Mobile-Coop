@@ -23,7 +23,9 @@
   merge-join J1-J4. IN FLIGHT: Opus fix + integrator: S5 M8 fix on -s5, then feature/sector-redesign-s45 off -m
   (worktree -s45) = -e8 + -s4 + -s5, J1-J4, E8 flags on S4 / S5 cameras; report checks/merge-s45.md. Then lead:
   GPU part 6 on -s45, PR 3 (S4 / S5 / E8) after PR 2.
-- E9-crate brief DONE: briefs/E9-CRATE.md (ce574d71, A99-A109). Needs a protocol number (NetItem kind 'crate' + event
+- E9-crate brief DONE: briefs/E9-CRATE.md (ce574d71, A99-A109). PROTOCOL 35 (orchestrator ~11:25; registry 31 master,
+  32 guard-ai, 33 marlow-final, 34 hang-down; renumbering at train build is the orchestrator's). IN FLIGHT: Opus part (a)
+  engine + net on feature/sector-redesign-e9 off -m (worktree -e9, checks/e9-engine.md). Was: needs a number (NetItem kind 'crate' + event
   'crate'); asked the orchestrator ~11:20. Build (a) Opus engine + net, then (b) Sonnet crate model / placement / tests.
 - (done) Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
   missing.
@@ -194,7 +196,7 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Course Ready Build: RESUME (cleared session / new account). Job: sector-redesign (lead), branch
+Night Shift | Sector Ops Build (was Course Ready Build): RESUME (cleared session / new account). Job: sector-redesign (lead), branch
 feature/sector-redesign, worktree C:/NightShift/Mobile-Coop-sector-redesign. git fetch, then read: CLAUDE.md; docs/ROADMAP.md
 (the live "Decided" is on origin/feature/menu: Sector Ops redesign 01:08-01:25, unavoidable guards 01:50, lean windows
 01:45); docs/sector-redesign/BRIEF.md (M1-M12, A1-A77), STATE.md ("Now" and "Next" at the top), PLAN.md, SPEC.md,
