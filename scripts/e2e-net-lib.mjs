@@ -79,19 +79,23 @@ export async function waitSim(ms) {
 
 /**
  * (load-audit) Let `ms` of ONE page's game clock pass (the host's, for windows the host times: a jam, a hold, a lamp's
- * off time). `waitSim` counts the slowest clock page, and under load the client runs at x0.2-0.3 while the pumped host
- * runs near real time, so a client-timed wait lets 3-5x more host time pass. `sample()` (optional) runs every poll,
- * to latch a state over the window. Wall time when the page is in no match; the same wall cap.
+ * off time; a client's, for what its own frames do over a window). `waitSim` counts the slowest clock page, and under
+ * load the client runs at x0.2-0.3 while the pumped host runs near real time, so a client-timed wait lets 3-5x more
+ * host time pass. `sample()` (optional) runs every poll, to latch a state over the window. Returns the page's elapsed
+ * game time (ms): short of `ms` when the wall cap ended the wait (a paused or stalled page), -1 at once when the page is
+ * in no match (no clock). Every caller asserts the result is >= `ms`, so a window that never ran never passes.
  */
 export async function waitHostSim(P, ms, sample) {
   const wall0 = Date.now();
   const t0 = await simNow(P);
+  if (t0 === null) return -1;
   const cap = Math.max(ms * SIM_WALL_CAP, 60000);
   for (;;) {
     if (sample) await sample();
     const t = await simNow(P);
-    const wall = Date.now() - wall0;
-    if ((t === null || t0 === null ? wall : (t - t0) * 1000) >= ms || wall > cap) return;
+    if (t === null) return -1;
+    const el = (t - t0) * 1000;
+    if (el >= ms || Date.now() - wall0 > cap) return el;
     await new Promise((r) => setTimeout(r, 50));
   }
 }

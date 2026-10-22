@@ -144,7 +144,7 @@ try {
     window.__ff();
   }), [0.5, 0.3]);
   const side = sidePace.v;
-  assert(side > 2.15, `pushing sideways turns and goes at the gear's pace, no strafe penalty when not aiming (${side.toFixed(2)} m/s: ${sidePace.path.toFixed(2)} m over ${sidePace.el.toFixed(2)} s game time after a 0.5 s warm-up; speed ${sidePace.spd.toFixed(2)}, crouched ${sidePace.crouched}, move ${sidePace.move.map((m) => m.toFixed(2)).join(',')})`);
+  assert(side > 2.15 && sidePace.spd > 2.15, `pushing sideways turns and goes at the gear's pace, no strafe penalty when not aiming (${side.toFixed(2)} m/s: ${sidePace.path.toFixed(2)} m over ${sidePace.el.toFixed(2)} s game time after a 0.5 s warm-up; speed ${sidePace.spd.toFixed(2)}, crouched ${sidePace.crouched}, move ${sidePace.move.map((m) => m.toFixed(2)).join(',')})`);
   const faced = await page.evaluate(() => { const c = window.__app.current.player.controller; return Math.atan2(Math.sin(c.yaw - Math.atan2(c.motion.vx, c.motion.vz)), Math.cos(c.yaw - Math.atan2(c.motion.vx, c.motion.vz))); });
   assert(Math.abs(faced) < 0.1, `the body faces the travel direction (${faced.toFixed(2)} rad off)`);
   await settle(0.3);
