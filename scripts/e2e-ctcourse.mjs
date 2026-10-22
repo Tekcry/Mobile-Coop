@@ -645,6 +645,9 @@ async function hangDown(x0) {
   // pulled back up (the client's Co-op)
   await holdUntil(B, RB, () => window.__app.current.team.count.pulls >= 1, 'station 5: the client is pulled back up');
   await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'station 5: the holder is free');
+  // (load-latent-net) the holder frees on the host step; the client's own pull-up still runs on its slower clock: wait for
+  // it there, then the same check
+  await until(B, () => { const g = window.__app.current; return g.player.controller.pos.y > 4.2 && g.player.pose.tumble === 0 && g.team.state === 'none'; }, null, 8000, 'station 5: the client is back on the roof, upright').catch(() => {});
   const up = await GB(() => { const g = window.__app.current; return { y: g.player.controller.pos.y, tumble: g.player.pose.tumble, st: g.team.state }; });
   assert(up.y > 4.2 && up.tumble === 0 && up.st === 'none', `station 5: the client is back on the roof, upright (y ${up.y.toFixed(2)})`);
 }
