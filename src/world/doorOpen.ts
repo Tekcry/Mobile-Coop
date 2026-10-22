@@ -9,8 +9,15 @@
  * Phases: `step` (to the spot beside the latch, turned to the door), `wait` (the hand up, until `leafAt`), `push` (the
  * leaf swings; the hand follows the leaf to `letGo`), `back` (the arm down), then off. The door itself opens through
  * the caller (`act` OPEN at `leafAt`: the host's door in co-op, as before).
+ * (marlow-final N9) A sliding door has no committed move (no swing to step aside from, no leaf to push): `doorOpenMove`
+ * is false and the caller opens it at once.
  */
-import { DOOR_PEEK, type PeekDoorAnchor } from './doorPeek';
+import { DOOR_PEEK, isSlideDoor, type PeekDoorAnchor } from './doorPeek';
+
+/** (N9) Whether Open door at this door is the committed step-and-push move (hinged), or an at-once open (sliding). */
+export function doorOpenMove(a: { leaf?: 'swing' | 'slide' }): boolean {
+  return !isSlideDoor(a);
+}
 
 export const DOOR_OPEN = {
   /** The step to the spot (s; CT 5.4-5.9 after a 0.25 s beat: the pick to the step). */
@@ -100,7 +107,9 @@ export class DoorOpenCore {
     return this.phase !== 'off';
   }
 
-  start(door: number, a: PeekDoorAnchor, px: number, pz: number): void {
+  /** Start the move; false (and nothing starts) at a sliding door (N9: the caller opens it at once). */
+  start(door: number, a: PeekDoorAnchor, px: number, pz: number): boolean {
+    if (!doorOpenMove(a)) return false;
     this.phase = 'step';
     this.door = door;
     this.t = 0;
@@ -108,6 +117,7 @@ export class DoorOpenCore {
     this.fromX = px;
     this.fromZ = pz;
     doorOpenSpot(a, px, pz, this.spot);
+    return true;
   }
 
   reset(): void {
