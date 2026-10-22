@@ -1,19 +1,18 @@
 # sector-fixes - state
 
-Job lead: Night Shift | Menu Notes Build. Updated 2026-10-22 ~19:05 (paused at the 98% 5-hour stop; reset 21:10).
+Job lead: Night Shift | Menu Notes Build. Updated 2026-10-22 ~19:35 (resumed after the account swap).
 
 Now:
-- L lights: PR #129 (feature/sector-fixes), in train/6.
-- C cameras and lasers: PR #127 (feature/sector-fixes-c), in train/6.
+- L lights (#129) and C cameras and lasers (#127): merged in train 6 (4.57.0, #133).
 - W wheel: PR #116, merged (4.55.0).
 - P laser panels: feature/sector-fixes-p in C:/NightShift/Mobile-Coop-sector-fixes-p, from master 4.56.0 (79216e49)
-  with feature/sector-fixes-c merged in (58950220). Implementer pass 1 committed (built; tsc, eslint and 16 related
+  with feature/sector-fixes-c merged in (58950220); master 4.57.0 merged in (340264d5, C's diff gone). Implementer pass 1 committed (built; tsc, eslint and 16 related
   Vitest files / 279 tests pass; NOT checked, no e2e yet): docs/sector-fixes/p/WIP.md (A1-A5, placements). A1: the panel
   is the lasers' only jam point. PROTOCOL_VERSION 28 -> 29 (A2: jam ids now name panels). 4 warehouse panels + Marlow
   station 4 panel-s4.
 Next (P): send `npm run check` plus e2e-ctcourse,
 e2e-sectorops, e2e-coop, e2e-netmove (src/net touched) to Character Build on the laptop; fresh checker; PR with
-`changes/feature-sector-fixes-p.md` (no CHANGELOG.md edit). When train 6 lands, merge master in (C's diff drops out).
+`changes/feature-sector-fixes-p.md` (no CHANGELOG.md edit).
 Then S (security room, maps with cameras except Sector Ops) and R (Course Ready has R).
 Open: none.
 
