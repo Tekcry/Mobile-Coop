@@ -115,8 +115,8 @@ Everything a map places comes back from `MapDef.build(b, seed): MapLayout` (`src
   per player. Off for good by a far-side release (`offFlag`), or for the duration of a panel jam.
 - **Code:** `jammer.ts:277` `LaserDef`, `:300` `LASER`, `:324` `laserTouch`; `ctDevices.ts:943` `touch`.
 - **Placement:** `lasers: [{ id, x1, z1, x2, z2, ys: [heights], floorY?, label?, offFlag?, section? }]`. Example
-  `ctcourse.ts:149`: three beams 0.35 / 0.9 / 1.45 m across a 6 m gap; standing body 1.75 m, crouched 1.1 m (crouch
-  clears a 1.45 top beam? no: 1.1 > 0.9 - choose heights to make crouch / jump matter).
+  `ctcourse.ts:149`: three beams 0.35 / 0.9 / 1.45 m across a 6 m gap (no way through on foot). Body heights: standing
+  1.75 m, crouched 1.1 m, so a band with only beams above 1.1 m can be crouched under (a stance puzzle).
 - **Co-op:** host-auth; panel phases in `sec.dv`; `offFlag` via course flags.
 - **Tests:** `tests/laserAlarm.test.ts`, `tests/laserPanels.test.ts`; e2e-ctcourse station 4, e2e-sectorops.
 
@@ -273,8 +273,8 @@ Old human ladder / brace / stack: gone (G52's brace removed; `ladder` is now the
    under partner's jam, takes the duty guard (interrogate for the hint), kills the cameras for partner 2. Two routes,
    same outcome (station 3 today); scale up with several cameras sharing one `offFlag`.
 3. **Panel-and-runner laser crossing.** Laser band + a high panel visible only from a far vantage: A jams the panel
-   (5 s + 1.5 s reboot = 6.5 s window), B crosses; the band is back, B finds the far release (`offFlag`) for A, or B
-   throws ... (throw over the band is the alternative). One panel can power two bands (`panel-mezz`).
+   (5 s + 1.5 s reboot = 6.5 s window), B crosses; then B presses the far release (`offFlag`) for A. The partner throw over
+   the band stays the alternative route. One panel can power two bands (`panel-mezz`).
 4. **Thrown into the dark.** Lamp jam (one jam = ~10 s dark) on the landing zone, then the partner throw over a laser
    gap into it, then the thrown player presses the release / unbolts.
 5. **Lights-out door (mains).** A pulls a switch on circuit G (lights out in B's room: guards investigate the switch);
