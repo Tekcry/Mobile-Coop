@@ -11,8 +11,9 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
-v4.54.0 (train 3 #114 = #103 + #113, 99f3e488, ~14:30; /preview/ = dev = 99f3e488). Train 4 candidates: #115 sector-fixes S,
-W (Character Build), flake-fix, #110 (after re-capture), N3 / N3b, N1.
+v4.54.1 (#117 flake-fix, 6c2d50a4, ~15:20; /preview/ = dev = 6c2d50a4). v4.54.0 (train 3 #114 = #103 + #113, 99f3e488, ~14:30).
+Train 4 = train/4 4e1bbec1 (#110 16b1a044, #115 a070e504, #116 b8022c1f): full e2e on the laptop since ~15:10; merge master
+(4.54.1, test-only + CHANGELOG) at the version commit. Train 5 lead: #118 N3 (9c31355c); then N4b, N1, idle-shins, N3b, sector-fixes C.
 v4.53.0 (train 2 #112 = #105 + #109, 5220f79c, ~13:05). 4.52.0 (train 1 #111 = #99 + #108, protocol 28, b1f13b19, ~12:30). 4.51.1 (#107, 71ce1bff, ~11:25). 4.51.0 (#106 key tools, d52d37a5, ~11:10). 4.50.0 (#92 rejoin, 1a2c60ca, ~11:00; protocol 27 taken: #99 -> 28, #108 -> 29 at their merges). /preview/ = dev = 5220f79c (4.53.0). Michael 2026-10-22 ~11:20: "Yes I'll allow it" (pushing master merges to dev and editing ROADMAP after auto mode blocked them). Menu Notes cleared and resumed ~11:20. Earlier today: 4.49.0 #97 tuner v3; see ROADMAP Done for the full list.
 
 ## Pacing (Michael)
