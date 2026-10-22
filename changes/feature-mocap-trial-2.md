@@ -27,3 +27,6 @@ kind: minor
   skims a foot along unplanted.
 - Mocap locomotion (switch on): fast flick turns while walking no longer lurch the hips or snap the feet as the turn
   ends; turning the switch on or off mid-move cross-fades the pose over 0.25 s instead of snapping it.
+- Mocap locomotion (switch on): spot turns, sprint and crouched sneak flicks keep the planted foot on its spot;
+  crouching mid-jog no longer snaps the swing leg; a stop's hold fades out softly and no longer jolts the hips when
+  moving again.
