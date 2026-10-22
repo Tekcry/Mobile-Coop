@@ -53,7 +53,8 @@ uses the same table and prompts.
 | 2 | Night Shift \| CT Core Build | Opus 5.5 | high | desktop |
 | 3 | Night Shift \| Menu Notes Build | Opus 5.5 | high | desktop |
 | 4 | Night Shift \| Course Ready Build | Opus 5.5 | medium | desktop |
-| 5 | Night Shift \| Character Build | Opus 5.5 | medium | laptop (Remote Control) |
+| 5 | Night Shift 
+| 6 | Night Shift | Guard AI Build | Opus 5.5 | high | desktop |\| Character Build | Opus 5.5 | medium | laptop (Remote Control) |
 
 ### 1. Orchestrator
 ```
@@ -78,4 +79,9 @@ Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP
 ### 5. Character Build (laptop)
 ```
 Night Shift | Character Build (account swap, laptop, the test runner). Read CLAUDE.md "Sessions" ("Main test machine: the laptop"), then follow the resume prompt in the last fenced block of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Your last chain (C:/NightShift/scratch/chain-1022*.ps1, newest) may still be running: check its results in C:/NightShift/scratch/runs before starting anything. Take run requests from the orchestrator and job leads; at most one full run at a time. Message "Night Shift | Orchestrator" with each verdict.
+```
+
+### 6. Guard AI Build (new 2026-10-23 ~01:40)
+```
+Night Shift | Guard AI Build (account swap). Read CLAUDE.md and docs/ROADMAP.md (top "Decided": Guard AI, Michael 01:30 / 01:35 / 01:37), then follow the resume prompt in the last fenced block of docs/guard-ai/STATE.md on origin/feature/guard-ai (git fetch; worktree C:/NightShift/Mobile-Coop-guard-ai). Job: guard-ai lead (behaviour in src/ai/*, all maps). Every e2e run is E2E_GPU=1; full runs and GPU suites go to Character Build on the laptop. Full burn to 100% now; after Michael's reset, pace each 5-hour window and save at 97%. Message "Night Shift | Orchestrator" at the plan, each slice and PR.
 ```
