@@ -14,6 +14,7 @@ import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { newStrikeBody, strikeBodyAt, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
+import { LOCO, MOCAP_FEET, MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -210,6 +211,7 @@ const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 
 
 // (anim-natural N1) the foot's contact geometry (HEEL_BACK, HEEL_DOWN, TOE_BALL) and the raised heel's ankle lift
 // (`heelLift`) moved to the pure `anim/footGeom.ts`: the foot planner's ball pivot turns about the same ball.
+// (mocap-trial) with it the clip feet swing's branch (`clipOwn`).
 
 /**
  * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
@@ -232,6 +234,8 @@ const JOINT_RATE = new Map<string, number>([
 ]);
 
 const approachTo = (x: number, target: number, dt: number, tau: number): number => target + (x - target) * Math.exp(-dt / tau);
+/** (mocap-trial) `x` moved toward `target` by at most `max`. */
+const rateTo = (x: number, target: number, max: number): number => (target > x + max ? x + max : target < x - max ? x - max : target);
 
 /** Aim pocket rest in the chest frame: x as a fraction of the shoulder half-width, y below the shoulder, z forward. */
 export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
@@ -1089,6 +1093,9 @@ export class CharacterRig {
   /** (locomotion step 22) Acceleration and motion state derived from the measured velocity (remote copies). */
   private derive = new MotionDerive();
   private pelvisDrop = 0;
+  /** (mocap-trial) Each foot's pitch as last posed (the switch on: rate-limited, MOCAP_FEET.pitchRate). */
+  private footPitchL = 0;
+  private footPitchR = 0;
   /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
   /** Soft-knee share per foot [L, R] (0..1). (operators step 11e) A Float64Array, not two fields: the fields started as
    *  the integer 1 and turned fractional mid-match, a representation change that deoptimised the rig's hot update. */
@@ -1901,9 +1908,25 @@ export class CharacterRig {
     pin.turnRule = s.turnRule ?? 1;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
+    // (mocap-trial, A3) the mocap clip's feet place the steps (graph `clipFeet`; null: the planner's, as always)
+    pin.clipFeet = t.clipFeet.valid && !free ? t.clipFeet : null;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
     if (free) this.planner.L.init = this.planner.R.init = false;
     this.planner.update(pin);
+    // (mocap-trial) with the switch on, a foot's pitch turns at most MOCAP_FEET.pitchRate: a hand-off between the clip's
+    // feet and the planner's (a fast turn, a stop, a start) swapped one foot model for the other in a frame (the ankle
+    // snapped 30-40 deg); the clips' own pitch stays under it
+    // (orchestrator review #159) only on this rig's mocap share or a clip-owned / clip-planted foot: guards and the drawn /
+    // crouched rigs keep the planner's landings uncapped with the switch on
+    const PL = this.planner;
+    if (LOCO.mocap && (t.keyMocap > 0 || PL.L.clipOwn || PL.L.clipPlant || PL.R.clipOwn || PL.R.clipPlant)) {
+      const mx = MOCAP_FEET.pitchRate * dt;
+      this.footPitchL = this.planner.L.pitch = rateTo(this.footPitchL, this.planner.L.pitch, mx);
+      this.footPitchR = this.planner.R.pitch = rateTo(this.footPitchR, this.planner.R.pitch, mx);
+    } else {
+      this.footPitchL = this.planner.L.pitch;
+      this.footPitchR = this.planner.R.pitch;
+    }
     if (this.graph.drive) studioFeet(this.graph.drive, this.planner, rp.x, rp.y, rp.z, yaw, this.p.height / 1.75); // (anim-studio) the treadmill feet, studio only
     const L = this.planner.L;
     const R = this.planner.R;
@@ -1913,7 +1936,9 @@ export class CharacterRig {
     // (anim-rework S2) standing holstered the hips trail further (PELVIS_FOLLOW_KEYED, by this frame's keyHol); crouched and
     // drawn as before
     const holK = t.keyHol;
-    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt, PELVIS_FOLLOW_MAX + (PELVIS_FOLLOW_KEYED - PELVIS_FOLLOW_MAX) * holK);
+    // (mocap-trial) MOCAP_LAYERS.pelvisFollow on the mocap share (1: PELVIS_FOLLOW_KEYED exactly)
+    const folK = PELVIS_FOLLOW_KEYED * mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap);
+    this.follow = pelvisFollow(this.follow, yaw, L.yaw, R.yaw, follows && L.contact, follows && R.contact, dt, PELVIS_FOLLOW_MAX + (folK - PELVIS_FOLLOW_MAX) * holK);
 
     this.applyTargets(t, dt, free);
     this.lastTargets = t;
@@ -2271,7 +2296,8 @@ export class CharacterRig {
     let pex = pe.x + (kq.pel[0]! * kk - pe.x) * kw;
     // (the height adds to the procedural one: the posture's knee bend and the legs' reach stay; the clip shapes the step)
     // (n138 fix 2) the keyed offsets (height, forward) change at most KEY_PEL_RATE m/s (unchanged when under it)
-    const kpm = KEY_PEL_RATE * dt;
+    // (mocap-trial) MOCAP_LAYERS.keyPelRate on the mocap share (1: KEY_PEL_RATE exactly; 0 lets the limit go there)
+    const kpm = (KEY_PEL_RATE * dt) / mocapLayerK(MOCAP_LAYERS.keyPelRate, t.keyMocap);
     let kpy = kq.pel[1]! * kk * kw;
     let kpz = (kq.pel[2]! * kk - pe.z) * kw;
     if (this.keyPelOn) {
@@ -2692,6 +2718,8 @@ export class CharacterRig {
     // (G8) the keyed walk's arms (free hands only: no grip, no world grip, no knee hand)
     const kaw = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
     if (kaw > 0) {
+      // (mocap-trial) MOCAP_LAYERS.elbowOut: the Body tune's elbow-out on the mocap share (1: elbowOutAdd exactly)
+      this.elbowOutK = mocapLayerK(MOCAP_LAYERS.elbowOut, t.keyMocap);
       this.keyedArm(1, kaw * (1 - Math.min(1, this.reachR.w)), kq);
       this.keyedArm(-1, kaw * (1 - Math.min(1, this.reachL.w)), kq);
       // (anim-rework S4) the crouched idle's hands onto the knees the legs actually posed
@@ -2901,6 +2929,8 @@ export class CharacterRig {
    * forearm onto the keyed wrist point (both from the shoulder joint in the chest frame), with the rig's own bone frames
    * (+Z toward the body's front), so the free hand keeps its orientation. No allocation.
    */
+  /** (mocap-trial) This frame's share of the Body tune's elbow-out on the keyed arms (MOCAP_LAYERS.elbowOut; 1: as is). */
+  private elbowOutK = 1;
   private keyedArm(side: 1 | -1, w: number, kq: KeyedPose): void {
     if (w <= 0) return;
     const sh = side > 0 ? this.shoulderR : this.shoulderL;
@@ -2919,7 +2949,8 @@ export class CharacterRig {
     const Rc = this.torso.absoluteRotationQuaternion;
     this.dirToWorld(0, 0, 1, kH);
     const O = this.armCapO;
-    O[0] = a[eo]! * kk + side * TUNE_CUR.elbowOutAdd;
+    // (mocap-trial) MOCAP_LAYERS.elbowOut on the mocap share (elbowOutK 1: elbowOutAdd exactly)
+    O[0] = a[eo]! * kk + side * TUNE_CUR.elbowOutAdd * this.elbowOutK;
     O[1] = a[eo + 1]! * kk;
     O[2] = a[eo + 2]! * kk;
     O[3] = a[wo]! * kk;

@@ -47,6 +47,9 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   Settings > Controls also holds hold / toggle (aim, crouch, back to wall, sprint) and the pad sensitivities.
 - Settings > Controller: Vibration (on / off), Rumble strength (`gameplay.rumble` 0-100%, `config/rumble.ts`), Test
   vibration.
+- (mocap-trial) Settings > Gameplay > "Mocap locomotion" (`gameplay.mocapLoco`, default off; `?mocap=0/1` overrides it
+  for a page): the CMU mocap walk / jog / run trial; the animation tuner's More > Panel has the same box (`mocapHost`).
+  World-and-characters.md "Mocap locomotion switch".
 - Difficulty (`ui/difficultyRows.ts`): one row, CT's fixed levels Rookie, Normal, Realistic, Perfectionist (G106; no
   sliders). Shown on the Play screen (hidden in Free Roam) and in the co-op host's lobby; a client sees the host's level
   read-only. Rows carry `data-diff` for the e2e suites.

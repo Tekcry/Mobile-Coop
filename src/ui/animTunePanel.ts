@@ -491,6 +491,9 @@ export class AnimTunePanel {
   private readonly markSB = { x: 0, y: 0, z: 0 };
   // --- (marlow-bays item 9) the mouse mode (drag view / game camera) with keyboard and mouse
   mouseHost: TuneMouseHost | null = null;
+  /** (mocap-trial) The game's "Mocap locomotion" setting (set by `App`; null: the box stays off and disabled). */
+  mocapHost: { get(): boolean; set(on: boolean): void } | null = null;
+  private mocapBox: HTMLInputElement | null = null;
   private readonly mouseCtl = new TunerMouseCtl();
   private mouseBtn: HTMLButtonElement;
   // --- (marlow-bays item 13) "Loop on the spot" in the header (the studio), and a loop picked from a tab's state list
@@ -811,7 +814,10 @@ export class AnimTunePanel {
         this.saveUi();
       }
     }, 'debugreadout', 'anim-tune-debugreadout');
-    panelB.append(pb, pb2, pb3);
+    // (mocap-trial) the rollback switch, the same setting as Settings > Gameplay > "Mocap locomotion"
+    const pb4 = this.mkBar();
+    this.mocapBox = this.mkCheck(pb4, 'Mocap locomotion', false, (v) => this.mocapHost?.set(v), 'mocaploco', 'anim-tune-mocap');
+    panelB.append(pb, pb2, pb3, pb4);
     const snapB = this.block(set, 'Undo and presets');
     snapB.append(this.snaps.bar, this.snaps.pbar);
     const fileB = this.block(set, 'Files');
@@ -2591,6 +2597,11 @@ export class AnimTunePanel {
     // tuner's toggle chose it (it covered her)
     if (this.touchDevice && this.debugHost && this.debugHost.visible() !== this.phoneDebug) this.debugHost.set(this.phoneDebug);
     this.debugShown(this.debugHost?.visible() ?? false);
+    // (mocap-trial) the box shows the stored setting (changed in Settings meanwhile)
+    if (this.mocapBox) {
+      this.mocapBox.checked = this.mocapHost?.get() ?? false;
+      this.mocapBox.disabled = !this.mocapHost;
+    }
     // (anim-studio) in the studio the loop player shows, and the pad starts on the loop list in the View tab
     this.studioUi.sync();
     if (STUDIO.active) this.setTab(this.tabs.findIndex((t) => t.id === 'view'), false);
