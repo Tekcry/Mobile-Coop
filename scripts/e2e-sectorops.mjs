@@ -653,12 +653,12 @@ const PI = Math.PI;
 const COOP = [
   { id: 'S1 C1 plant-room sill', sec: 0, spot: [-2.6, -18.9], yaw: 0, kind: 'ledge', lip: [-2.6, 4.4, -18.15], runFrom: [-2.6, -22.4] },
   { id: 'S1 C2 hoist monorail', sec: 0, spot: [-11.0, -16.6], yaw: 0, kind: 'pipeH', lip: [-11.0, 4.4, -16.6], runFrom: [-14.0, -16.6] },
-  { id: 'S2 C1a high bay R3S from A3', sec: 1, spot: [-11.0, 1.8], yaw: PI / 2, kind: 'ledge', lip: [-10.5, 4.4, 1.8], runFrom: [-13.2, 1.8] },
   { id: 'S2 C1b high bay R3S from the gangway', sec: 1, spot: [-7.7, 2.2], yaw: -PI / 2, kind: 'ledge', lip: [-8.2, 4.4, 2.2], runFrom: [-5.2, 2.2] },
-  { id: 'S2 C2 high bay R3N', sec: 1, spot: [-11.0, 10.0], yaw: PI / 2, kind: 'ledge', lip: [-10.5, 4.4, 10.0], runFrom: [-13.2, 10.0] },
   { id: 'S3 C1 valve platform', sec: 2, spot: [18.0, 6.1], yaw: PI, kind: 'ledge', lip: [18.0, 4.4, 5.5], runFrom: [18.0, 9.1] },
   { id: 'S3 C2 crane drive platform', sec: 2, spot: [11.8, 6.6], yaw: PI, kind: 'ledge', lip: [11.8, 4.4, 6.0], runFrom: [11.8, 9.6] },
 ];
+// (sector-fixes-r fix) S2 C1a (R3S from A3) and C2 (R3N from A3) are gone: a top-gear running jump off the R2 rack tops
+// (3.0 m across A3) caught their lips alone. R3's A3 face is lipless; the leg-up there finds nothing (boost targets).
 const route = (id) => COOP.find((c) => c.id.startsWith(id));
 /** Grip heights at or over this are a co-op lip (the 4.3-4.5 band, LD 11.3); a solo try must never hold one. */
 const BAND_LO = 4.25;
@@ -797,12 +797,15 @@ if (want(2)) {
         }, [c.spot[0], c.spot[1], c.yaw]);
         assert(!!t && t.kind === c.kind && Math.abs(t.y - c.lip[1]) < 0.1 && Math.hypot(t.x - c.lip[0], t.z - c.lip[2]) < 1.0, `${c.id}: a leg-up from (${c.spot}) reaches the planned ${c.kind} at 4.4 (${JSON.stringify(t)})`);
       }
-      const none = await G(() => {
-        const g = window.__app.current;
-        const r = g.team['boostTarget']({ id: 'm', pos: new g.player.position.constructor(-7.7, 0, 10.0), yaw: -Math.PI / 2, mode: 'brace' });
-        return r ? { kind: r.anchor.kind, y: r.grip.y, x: r.grip.x, z: r.grip.z } : null;
-      });
-      assert(none === null, `S2: a leg-up at R3N's east face (-7.7, 10.0), no planned lip there, finds nothing (${JSON.stringify(none)})`);
+      // (sector-fixes-r fix) R3N's east face, and A3's side of R3S and R3N (the old C1a / C2 spots): no lip, nothing found
+      for (const [x, z, yaw, what] of [[-7.7, 10.0, -PI / 2, "R3N's east face"], [-11.0, 1.8, PI / 2, "R3S's A3 face (old C1a)"], [-11.0, 10.0, PI / 2, "R3N's A3 face (old C2)"]]) {
+        const none = await G(([x, z, yaw]) => {
+          const g = window.__app.current;
+          const r = g.team['boostTarget']({ id: 'm', pos: new g.player.position.constructor(x, 0, z), yaw, mode: 'brace' });
+          return r ? { kind: r.anchor.kind, y: r.grip.y, x: r.grip.x, z: r.grip.z } : null;
+        }, [x, z, yaw]);
+        assert(none === null, `S2: a leg-up at ${what} (${x}, ${z}), no planned lip there, finds nothing (${JSON.stringify(none)})`);
+      }
     });
 
     // ---- solo refusal: one player alone at each co-op lip (standing under it, the traverse button there: a grab, a wall
@@ -826,12 +829,13 @@ if (want(2)) {
         }
         const stand = { max, topY };
         // the run-up: from `runFrom` at the spot, at the top gear; the traverse button at the spot, then every other 50 ms
+        // ((sector-fixes-r fix) the top gear is 5, the spawn gear: 4.0 m/s, `GEARS.stand`; 3 was the 2.1 m/s walk)
         const [rx, rz] = c.runFrom;
         const ry = Math.atan2(x - rx, z - rz);
         const fx = Math.sin(ry);
         const fz = Math.cos(ry);
         await put(rx, 0, rz, ry);
-        await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 3; });
+        await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 5; });
         let jumped = -1;
         for (let k = 0; k < 60; k++) {
           const i = await info();
@@ -849,35 +853,52 @@ if (want(2)) {
       });
     }
 
-    // ---- (R2 leg 4) the solo running jump off R2N's 4.0 top at R3N's 4.4 lip (3.0 m across A3) must fail: take-offs
-    // 0.6, 0.3 and 0.05 m before the edge (x -13.5) and a plain run off it, the traverse button pressed through the flight
-    await check('S2 rack-top jump refused', async () => {
-      for (const off of [0.6, 0.3, 0.05, null]) {
-        await put(-15.4, 4.05, 10.0, PI / 2);
-        await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 3; });
-        const top0 = (await info()).y;
-        let max = 0;
-        let topY = 0;
-        let jumped = -1;
-        let edge = null;
-        for (let k = 0; k < 70; k++) {
-          const i = await info();
-          if (jumped < 0 && off !== null && i.x > -13.5 - off) {
-            jumped = k;
-            edge = i.x;
+    // ---- (R2 leg 4; sector-fixes-r fix) solo running jumps off the solo tops nearest a co-op grip, at the top gear (5,
+    // 4.0 m/s): R2N's and R2S's 4.0 tops at R3N's and R3S's A3 faces (3.0 m across A3; their lips are gone), and the S1 east
+    // lane at the monorail (4.4): off the single pallet (1.0) and from the floor, at the two 2.0 noLedge stacks by its end
+    // (neither may be stood on: `standMax`). Take-offs 0.6, 0.3 and 0.05 m before the edge and a plain run off it, the
+    // traverse button pressed through the flight: no grip at 4.25 or over is ever held.
+    // `from` the start, `yaw` the run, `ax` the axis run along (0 x, 2 z), `edge` the top's edge (or the stack's face) on it.
+    const TOPS = [
+      { id: 'S2 R2N to R3N', from: [-15.4, 4.05, 10.0], yaw: PI / 2, ax: 0, edge: -13.5 },
+      { id: 'S2 R2S to R3S', from: [-15.4, 4.05, 1.8], yaw: PI / 2, ax: 0, edge: -13.5 },
+      { id: 'S1 E-lane single pallet (1.0) over the stacks to the monorail', from: [-11.0, 1.05, -11.2], yaw: PI, ax: 2, edge: -12.1, standMax: 1.9 },
+      { id: 'S1 E-lane floor at the stacks (2.0) and the monorail', from: [-10.5, 0.05, -11.0], yaw: PI, ax: 2, edge: -13.3, standMax: 1.9 },
+    ];
+    for (const t of TOPS) {
+      await check(`${t.id}: solo running jump refused`, async () => {
+        const sg = t.ax === 0 ? Math.sign(Math.sin(t.yaw)) : Math.sign(Math.cos(t.yaw));
+        const along = (i) => sg * (t.ax === 0 ? i.x : i.z);
+        const edge = sg * t.edge;
+        for (const off of [0.6, 0.3, 0.05, null]) {
+          await put(t.from[0], t.from[1], t.from[2], t.yaw);
+          await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 5; });
+          const top0 = (await info()).y;
+          let max = 0;
+          let topY = 0;
+          let jumped = -1;
+          let at = null;
+          let speed = 0;
+          for (let k = 0; k < 70; k++) {
+            const i = await info();
+            if (jumped < 0 && off !== null && along(i) > edge - off) {
+              jumped = k;
+              at = [i.x, i.z];
+              speed = await G(() => { const v = window.__app.current.player.controller.vel; return Math.round(Math.hypot(v.x, v.z) * 100) / 100; });
+            }
+            if (off === null && jumped < 0 && !i.grounded) jumped = k;
+            await step(0.05, 0, 1, jumped >= 0 && (k - jumped) % 2 === 0 ? [BTN.Y] : []);
+            const j = await info();
+            if (j.attached && j.grip !== null) max = Math.max(max, j.grip);
+            if (j.grounded && along(j) > edge + 0.5) topY = Math.max(topY, j.y);
           }
-          if (off === null && jumped < 0 && !i.grounded) jumped = k;
-          await step(0.05, 0, 1, jumped >= 0 && (k - jumped) % 2 === 0 ? [BTN.Y] : []);
-          const j = await info();
-          if (j.attached && j.grip !== null) max = Math.max(max, j.grip);
-          if (j.grounded && j.x > -12) topY = Math.max(topY, j.y);
+          await step(1.0);
+          const fin = await info();
+          assert(Math.abs(top0 - (t.from[1] - 0.05)) < 0.15 && jumped >= 0, `${t.id}: on the top (y ${top0}) and off its edge (${off === null ? 'run off' : `take-off at ${at} at ${speed} m/s`})`);
+          assert(max < BAND_LO && topY < (t.standMax ?? BAND_LO) && !(fin.y > BAND_LO), `${t.id}: alone, the ${off === null ? 'run off' : `running jump (${off} m before the edge, ${speed} m/s)`} never holds a co-op grip (held ${max}, stood ${topY}, ends ${JSON.stringify([fin.x, fin.y, fin.z, fin.attached ? fin.grip : null])})`);
         }
-        await step(1.0);
-        const fin = await info();
-        assert(top0 > 3.9 && jumped >= 0, `S2: on R2N's top (y ${top0}) and off its east edge (${off === null ? 'run off' : `take-off at x ${edge}`})`);
-        assert(max < BAND_LO && topY < BAND_LO && !(fin.y > BAND_LO), `S2: alone, the ${off === null ? 'run off' : `running jump (${off} m before the edge)`} from R2N never reaches R3N's 4.4 lip (held ${max}, stood ${topY}, ends ${JSON.stringify([fin.x, fin.y, fin.z])})`);
-      }
-    });
+      });
+    }
 
     // ---- section 1, C2: the monorail (4.4) up to the bay main (5.0) where it crosses 0.6 m under it, hand over hand
     // east, then let go onto the plant deck (3.3); and the monorail's way down alone (north end, let go)
@@ -955,10 +976,11 @@ if (want(2)) {
 
     // ---- section 2: the climb-up onto each high-bay top; the ways down alone (R3S walk off the west edge; R3N along
     // the top, crouched under the roof-sheet band, to the north end and off it by the wrapped stack)
+    // ((sector-fixes-r fix) C1 is the east gangway lip only; R3N has no lip, so no C2 climb-up)
     await check('S2 C1 top and way down', async () => {
-      await put(-11.0, 0, 1.8, PI / 2);
-      const a = await attach('ledge', -10.5, 4.4, 1.8);
-      assert(a.attached && Math.abs(a.grip - 4.4) < 0.05, `S2 C1: hanging on R3S's west lip (${JSON.stringify(a)})`);
+      await put(-7.7, 0, 2.2, -PI / 2);
+      const a = await attach('ledge', -8.2, 4.4, 2.2);
+      assert(a.attached && Math.abs(a.grip - 4.4) < 0.05, `S2 C1: hanging on R3S's east lip (${JSON.stringify(a)})`);
       await tap(BTN.Y);
       await step(1.6);
       const s = await info();
@@ -970,27 +992,6 @@ if (want(2)) {
       }
       assert(d.grounded && d.y < 0.3 && d.alive, `S2 C1: way down alone: off the west edge to the A3 floor (${JSON.stringify([d.x, d.y, d.z])})`);
     });
-    await check('S2 C2 top and way down', async () => {
-      await put(-11.0, 0, 10.0, PI / 2);
-      const a = await attach('ledge', -10.5, 4.4, 10.0);
-      assert(a.attached && Math.abs(a.grip - 4.4) < 0.05, `S2 C2: hanging on R3N's west lip (${JSON.stringify(a)})`);
-      await tap(BTN.Y);
-      await step(1.6);
-      const s = await info();
-      assert(s.grounded && Math.abs(s.y - 4.4) < 0.1, `S2 C2: the climb-up onto R3N's top (${JSON.stringify([s.x, s.y, s.z])})`);
-      let far = -99;
-      let d = await walk(0, 14, (q) => {
-        if (q.y > 4.3 && q.grounded) far = Math.max(far, q.z);
-        return q.grounded && q.y < 0.3;
-      });
-      if (!(d.y < 0.3)) {
-        await tap(BTN.Y);
-        d = await walk(0, 3, (q) => q.grounded && q.y < 0.3);
-      }
-      assert(far > 14.3, `S2 C2: along R3N's top north to its end, under the sheet band (furthest z ${far} at 4.4)`);
-      assert(d.grounded && d.y < 0.3 && d.z > 14.8 && d.alive, `S2 C2: way down alone: off the north end by the wrapped stack (${JSON.stringify([d.x, d.y, d.z])})`);
-    });
-
     // ---- section 3: the climb-up onto each hung platform (a crouch under the 1.63 m roof), the lip to the main (5.0)
     // and back, the branch to the main, the ways down alone (let go of the north lip)
     for (const c of [route('S3 C1'), route('S3 C2')]) {
@@ -1372,7 +1373,8 @@ if (want(3)) {
 }
 
 if (want(4)) {
-  await coop('sector ops (R): co-op section 2 - R3S by the rope, R3N by the relay, the VNA gate', async (h) => {
+  // (sector-fixes-r fix) R3N's C2 is gone: R3S's C1b is walked twice, by the rope and by the relay
+  await coop('sector ops (R): co-op section 2 - R3S by the rope and by the relay, the VNA gate', async (h) => {
     const { A, B, legUp, relay, pullUp, rope, bothOnTop, advance, teamDoor, leg } = h;
     await advance(0);
     await leg('S2 C1b', async () => {
@@ -1382,10 +1384,10 @@ if (want(4)) {
       await rope(c, [-8.5, 2.2, PI / 2], [-7.6, 2.2]);
       await bothOnTop(c);
     });
-    await leg('S2 C2', async () => {
-      const c = route('S2 C2');
+    await leg('S2 C1b relay', async () => {
+      const c = route('S2 C1b');
       const a = await legUp(c);
-      await relay(c, a.id, [-11.0, 10.0]);
+      await relay(c, a.id, [-7.7, 2.2]);
       await pullUp(A, `${c.id} host`);
       await pullUp(B, `${c.id} client`);
       await bothOnTop(c);

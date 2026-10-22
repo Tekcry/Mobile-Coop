@@ -47,11 +47,16 @@ export const S2_HIGH_TOP = 4.4;
 
 /**
  * (sector-fixes-r R2) Section 2's co-op-only routes: a leg-up onto a planned lip of the high-bay row, then the relay or
- * the two-person rope for the partner. `bay` is the block's plan box [x0, z0, x1, z1]; each lip is a run of one face
+ * the two-person rope for the partner. (sector-fixes-r fix) Each entry is one high bay; a bay with no lip is a plain
+ * `noLedge` block. `bay` is the block's plan box [x0, z0, x1, z1]; each lip is a run of one face
  * (`nx` its outward normal along x) from `z0` to `z1`, the rest of the block is `noLedge` (cut back 3 m from every solo
  * surface: rack tops, the sprinkler mains, the staged loads and stacks); `spot` is the booster's feet [x, z], facing the
  * face. The lips stay out from under the roof-sheet bands (their collision at 6.03 leaves 1.63 m over a 4.4 top: there
  * the top is crouch-walked). `tests/warehouseCoopS2.test.ts` checks the band, the solo gap and the way down; docs/sector-fixes/r/R2.md.
+ * (sector-fixes-r fix) No lip faces A3: the R2 rack tops (4.0) are 3.0 m across it, and a top-gear running jump off them
+ * meets R3's face with the feet still over the lip's in-air grab window (`FALL_GRAB`, tests/helpers/soloJumpReach.ts:
+ * 4.5 m of reach), so a player alone would hang on it. C1a (R3S from A3) and C2 (R3N from A3) are gone; R3S keeps C1b
+ * (the east gangway), R3N is a lipless block.
  */
 export interface S2CoopRoute {
   name: string;
@@ -60,17 +65,15 @@ export interface S2CoopRoute {
 }
 export const S2_COOP: readonly S2CoopRoute[] = [
   {
-    name: 'C1 south high bay (R3S): leg-up from the east gangway or A3, vantage over the lane, A3 and the picker',
+    name: 'C1 south high bay (R3S): leg-up from the east gangway, vantage over the lane, A3 and the picker',
     bay: [-10.5, -3, -8.2, 4],
-    lips: [
-      { x: -10.5, nx: -1, z0: 0.2, z1: 3.3, spot: [-11.0, 1.8] },
-      { x: -8.2, nx: 1, z0: 1.0, z1: 3.3, spot: [-7.7, 2.2] },
-    ],
+    lips: [{ x: -8.2, nx: 1, z0: 1.0, z1: 3.3, spot: [-7.7, 2.2] }],
   },
   {
-    name: 'C2 north high bay (R3N): leg-up from A3 north, vantage over the goods-out corner and the C3 door',
+    // (sector-fixes-r fix) no lip: A3's side is in a solo jump's reach from R2N, the gangway's within 2.2 m of the main (x -6)
+    name: 'R3N north high bay: no co-op lip (C2 removed in the fix round)',
     bay: [-10.5, 7, -8.2, 15],
-    lips: [{ x: -10.5, nx: -1, z0: 9.4, z1: 10.6, spot: [-11.0, 10.0] }],
+    lips: [],
   },
 ];
 

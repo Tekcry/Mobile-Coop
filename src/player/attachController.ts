@@ -21,7 +21,7 @@ import {
   type RappelPoint,
   type WindowAnchor,
 } from '../world/anchors';
-import { FENCE, LEAP, RAPPEL } from '../config/movement';
+import { FALL_GRAB, FENCE, LEAP, RAPPEL } from '../config/movement';
 import { AttachMachine, attachPose, axisInput, GAMEPLAY_HEIGHT, LADDER_DOWN_RATE, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
 import { AttachGrips, VENT_LOWER_K } from './attachGrips';
 import { attachGripWeight, climbUpFootWeight } from './moveState';
@@ -318,15 +318,16 @@ export class AttachController {
 
   /**
    * Falling past a lip (or a pipe): it is in the hands' path when it sits 1.5-2.35 m above the falling feet, within
-   * reach of the body on its outer side. Returns it as a 'below' entry (the traverse button grabs it).
+   * reach of the body on its outer side. Returns it as a 'below' entry (the traverse button grabs it). (sector-fixes-r
+   * fix) The window and the plan reach are `FALL_GRAB`, shared with the co-op solo-reach tests.
    */
   fallProbe(feet: Vector3): ReachResult | null {
-    const near = anchorsNear(this.anchors, feet.x, feet.y, feet.z, 0.7, ['ledge', 'pipeH']);
+    const near = anchorsNear(this.anchors, feet.x, feet.y, feet.z, FALL_GRAB.plan, ['ledge', 'pipeH']);
     for (const n of near) {
       const a = n.anchor;
       const top = a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : 0;
       const up = top - feet.y;
-      if (up < 1.5 || up > 2.35) continue;
+      if (up < FALL_GRAB.minAbove || up > FALL_GRAB.maxAbove) continue;
       if (a.kind === 'ledge') {
         if (!a.canHang) continue;
         const q = closestOn(a, feet.x, feet.y, feet.z);

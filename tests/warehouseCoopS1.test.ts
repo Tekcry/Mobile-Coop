@@ -11,6 +11,7 @@ import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { generateLedges, REACH } from '../src/world/anchors';
 import { MOVEMENT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { hyp2 } from '../src/core/mathx';
+import { LEAP_APEX, MANTLE, soloJumpThreats } from './helpers/soloJumpReach';
 
 const b = new LevelBuilder();
 warehouseOps.build(b, 0);
@@ -69,6 +70,10 @@ describe('R1 plant-room service door (yard to the plant deck)', () => {
     expect(lips.map((l) => `${l.a.x.toFixed(2)},${l.a.z.toFixed(2)} y ${l.top}`)).toEqual([]);
   });
 
+  it('(sector-fixes-r fix) no solo top on the yard side within a top-gear running jump of the sill (the in-air grab)', () => {
+    expect(soloJumpThreats(solid, { y: d.sill, a: { x: d.x0, z: d.z0 }, b: { x: d.x1, z: d.z0 }, n: { x: 0, z: -1 } })).toEqual([]);
+  });
+
   it('ways down alone: the deck 1.1 m under the sill (mantle back), the roof lips of the notch 1.6 m over it, the yard drop', () => {
     expect(floorAt(mx, d.z1 + 0.4, d.sill - 0.2)).toBeCloseTo(d.deck, 3);
     expect(d.sill - d.deck).toBeLessThanOrEqual(1.8);
@@ -93,12 +98,25 @@ describe('R1 goods-in hoist monorail (over the east lane)', () => {
   });
 
   it('nothing a player alone stands on comes within a jump-grab of it', () => {
-    // a standing grab from any top within 2.7 m under it (jumps rise 1.2 m at most, so this is the only solo way on)
+    // a standing grab from any top within 2.7 m under it (a hang's jump to another grip rises 1.2 m at most; the running
+    // jump off a top, which lifts the feet LEAP_APEX, is the next test)
     const near = solid.filter((p) => !p.overhead && top(p) >= h.y - REACH.grabMax - 0.05 && top(p) < h.y && boxToSeg(p, h.x, h.z0, h.x, h.z1) < REACH.horiz + 0.3);
     expect(near.map((p) => p.c.join(','))).toEqual([]);
     // nor a lip from which a hanging player reaches it
     const lips = anchors.ledges.filter((l) => l.top < h.y && l.top > h.y - REACH.grabMax - 0.05 && Math.min(hyp2(l.a.x - h.x, Math.max(0, h.z0 - l.a.z, l.a.z - h.z1)), hyp2(l.b.x - h.x, Math.max(0, h.z0 - l.b.z, l.b.z - h.z1))) < REACH.horiz + 0.3);
     expect(lips.map((l) => `${l.a.x.toFixed(2)},${l.a.z.toFixed(2)} y ${l.top}`)).toEqual([]);
+  });
+
+  it('(sector-fixes-r fix) no solo top within a top-gear running jump of it (the in-air grab, FALL_GRAB); the deck is the planned way on from above', () => {
+    // the east lane's two loads by its end: stacked over the mantle, no lips (nothing a player alone climbs)
+    const stacks = solid.filter((p) => boxToSeg(p, h.x, h.z0, h.x, h.z1) < 2.0 && Math.abs(top(p) - S1_COOP.hoist.laneStack) < 1e-3);
+    expect(stacks.length).toBe(2);
+    for (const p of stacks) expect(!!p.noLedge && top(p) > MANTLE && p.c[1] - p.s[1] / 2 < 0.05).toBe(true);
+    // nor from the single pallet north of them: a jump off it peaks under their tops (it is itself past the reach, below)
+    const single = solid.find((p) => Math.abs(p.c[0] + 11.4) < 1e-3 && Math.abs(p.c[2] + 11.6) < 1e-3)!;
+    expect(top(single) + LEAP_APEX).toBeLessThan(S1_COOP.hoist.laneStack);
+    const deck = S1_COOP.plantDoor.deck;
+    expect(soloJumpThreats(solid, { y: h.y, a: { x: h.x, z: h.z0 }, b: { x: h.x, z: h.z1 } }, (p) => top(p) >= deck - 1e-3)).toEqual([]);
   });
 
   it('the checker stops under its end (the drop takedown); way down: let go (bay floor under it)', () => {

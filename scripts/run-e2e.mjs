@@ -91,8 +91,9 @@ const COVERS = {
   'src/game/sectors': ['e2e-sectorops'],
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
-  // (sector-fixes-r RE) the Sector Ops section files (warehouseS1-S3: the co-op routes and team doors) and the usual world suites
-  'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-lightbake', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
+  // (sector-fixes-r RE) the Sector Ops section files (warehouseS1-S3: the co-op routes and team doors) and the usual world
+  // suites; (sector-fixes-r fix) not e2e-ctcourse: Marlow Yard never loads warehouseOps
+  'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-lightbake', 'e2e-levels', 'e2e-anchors'],
   'src/game/': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops'],
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // the camera files (CAM): the camera bounds suite on top of what their folders run

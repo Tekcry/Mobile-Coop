@@ -199,6 +199,8 @@ export class SectorMode implements GameMode {
     if (!b) return true;
     if (b.door) this.lockDoor(b.door, false);
     this.g.interactables?.setEnabled(b.it, false);
+    // (sector-fixes-r fix) the client's door lock rides the next sector send: send it now, not up to SEC_SEND later
+    this.secT = 0;
     if (r === refs[0]) this.g.hud.feedItem('Unbolted - open the door for your partner');
     return true;
   }
@@ -211,6 +213,8 @@ export class SectorMode implements GameMode {
       if (b.door) this.lockDoor(b.door, true);
       if (!b.it.enabled) this.g.interactables?.setEnabled(b.it, true);
     }
+    // (sector-fixes-r fix) the re-bolted locks reach the client on the next step's sector send
+    this.secT = 0;
   }
 
   /** Test hook (e2e): this machine's player uses section `sec`'s bolt `k` (the side test applies). */

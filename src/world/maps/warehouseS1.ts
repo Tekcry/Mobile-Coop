@@ -107,12 +107,16 @@ export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [{ pos: new Vec
  *   the sill and drop to the yard, or the deck's ladders / the pallet gate; up to the roof: the notch's 6.0 lips.
  * - `hoist`: the goods-in monorail (the hoist beam off shutter E into the east lane), a hand-over-hand pipe at 4.4 from
  *   the shutter head to over the checker's east-lane stop (a drop takedown); it passes 0.6 m under the bay main (5.0, z
- *   -17.0), which runs east to the plant deck. It stops 1.3 m short of the 1.8 m east-lane pallets (out of a solo grab
- *   from their tops: `REACH.horiz` 0.85) and 2.8 m from the deck edge. Way down: let go.
+ *   -17.0), which runs east to the plant deck (a solo way on from the deck, planned: A2). (sector-fixes-r fix) The east
+ *   lane's two loads 1.3 m north of its end are stacked `laneStack` (2.0) high, `noLedge`: over the mantle (1.8) with
+ *   nothing to grab, no one alone stands on them (their old 1.8 tops were in a top-gear running jump's reach of the pipe:
+ *   the in-air grab, `FALL_GRAB`, tests/helpers/soloJumpReach.ts). The single pallet (1.0) is 3.5 m off, out of reach,
+ *   and a jump off it peaks under the stacks' tops.
+ *   Way down: let go.
  */
 export const S1_COOP = {
   plantDoor: { x0: -3.2, x1: -2.0, z0: -18.15, z1: -17.35, sill: 4.4, deck: 3.3 },
-  hoist: { x: -11.0, z0: -17.5, z1: -15.6, y: 4.4 },
+  hoist: { x: -11.0, z0: -17.5, z1: -15.6, y: 4.4, laneStack: 2.0 },
 } as const;
 
 /** (sector-fixes R1) The mess's back door into the workshop (x 8, z -10.6 to -9.4), bolted from the mess side. */
@@ -338,7 +342,14 @@ export function buildServiceS1(b: LevelBuilder): void {
 
   // ---- bay
   for (const x of [-19.8, -18.4, -17.0]) b.block(x, -14.4, 1.2, 1.6, 1.0, SHRINK); // the W lane pallets
-  b.block(-12.0, -13.8, 1.2, 1.8, 1.0, CRATE).block(-10.8, -13.8, 1.2, 1.8, 1.0, CRATE).block(-11.4, -11.6, 1.2, 1.2, 1.0, CRATE); // the E lane
+  // the E lane: (sector-fixes-r fix) the two loads by the monorail are stacked `laneStack` (2.0) high without lips: over
+  // the mantle, nothing to grab, so no one alone stands on them (a 1.8 top was in a running jump's reach of the pipe);
+  // they still screen the checker's stop from the forklift lane (M8). The single pallet (1.2 -> 1.0: a jump off it peaks
+  // under the stacks' tops) is 3.5 m off the monorail's end.
+  const ls = b.boxes.length;
+  b.block(-12.0, -13.8, 1.2, S1_COOP.hoist.laneStack, 1.0, CRATE).block(-10.8, -13.8, 1.2, S1_COOP.hoist.laneStack, 1.0, CRATE);
+  b.mark(ls, { noLedge: true });
+  b.block(-11.4, -11.6, 1.2, 1.0, 1.0, CRATE);
   b.block(-16.0, -11.8, 1.6, 0.15, 1.6, STEEL).block(-16.0, -12.75, 0.3, 2.4, 0.3, STEEL); // the wrapper
   b.block(-22.8, -15.6, 0.8, 1.05, 1.6, DESK);
   b.block(-23.4, -11.4, 1.0, 1.5, 1.2, CRATE).block(-23.4, -10.1, 1.0, 0.9, 1.2, CRATE); // empty stacks

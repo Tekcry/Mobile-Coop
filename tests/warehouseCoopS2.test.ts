@@ -12,13 +12,18 @@ import { findJumpTarget, generateLedges, type Ledge } from '../src/world/anchors
 import { MOVEMENT, SPLIT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { inBoostBand, ropeRoom } from '../src/game/teamMoves';
 import { hyp2 } from '../src/core/mathx';
+import { soloJumpThreats } from './helpers/soloJumpReach';
 
 const b = new LevelBuilder();
 warehouseOps.build(b, 0);
 const anchors = generateLedges(b.boxes);
 const BAND_MIN = WALL_JUMP.maxUp + 0.5;
 const BAND_MAX = TEAM.boostMax;
-/** The widest gap a solo player crosses at rack-top height (SPEC 2.2: the 3.0 m aisles A1 and A3 part the tops; A2's 1.8 is the jump). */
+/**
+ * A hang's jump from a pipe, ladder or drainpipe to a lip spans 2.5 m at most (`findJumpTarget`'s gap): the lips keep this
+ * clear of every one. (sector-fixes-r fix) It is not the solo reach from a top: a top-gear running jump off a 4.0 rack top
+ * carries the in-air grab about 4.5 m (tests/helpers/soloJumpReach.ts), checked against every top below.
+ */
 const SOLO_GAP = 3.0;
 const HALL = S2_ROOMS.find((r) => r.id === 'storage')!;
 const SEC = WAREHOUSE_SECTORS[1]!;
@@ -76,7 +81,8 @@ describe('R2 the high-bay row (C1 R3S, C2 R3N): co-op lips in the band', () => {
     expect(S2_HIGH_TOP).toBeGreaterThanOrEqual(BAND_MIN);
     expect(S2_HIGH_TOP).toBeLessThanOrEqual(BAND_MAX);
     expect(inBoostBand(S2_HIGH_TOP)).toBe(true);
-    expect(S2_COOP.length).toBeGreaterThanOrEqual(2);
+    // (sector-fixes-r fix) one route with a lip (C1b); R3N is a lipless block
+    expect(S2_COOP.filter((r) => r.lips.length > 0).length).toBeGreaterThanOrEqual(1);
   });
 
   it('every generated lip on the high bays is a planned one, hangable and climbable onto a full top; every planned lip exists', () => {
@@ -120,24 +126,19 @@ describe('R2 the high-bay row (C1 R3S, C2 R3N): co-op lips in the band', () => {
 });
 
 describe('R2 no unplanned solo access to the high bays', () => {
-  // the solo-standable tops in and round the hall (floor objects, racks, stacks; not the high bays, not the walls, whose
-  // tops are sealed by parapets): any whose top is within a wall jump of the lip (`WALL_JUMP.maxUp`) must be SOLO_GAP away
-  const soloTops = solid.filter((p) => {
-    if (bayPieces.includes(p)) return false;
-    const t = top(p);
-    if (t > 4.05 || t < 0.3) return false;
-    return inHall(p.c[0], p.c[2], 3);
-  });
-
-  it('every co-op lip is at least SOLO_GAP from every solo top it could be reached from (rack tops, stacks, desks)', () => {
+  // (sector-fixes-r fix) the solo-standable tops round the hall (floor objects, racks, stacks; not the high bays): none
+  // within a top-gear running jump of a co-op lip (the in-air grab, FALL_GRAB, from the constants)
+  it('no solo top within a top-gear running jump of a co-op lip (rack tops, stacks, desks)', () => {
     const near: string[] = [];
     for (const l of coopLips)
-      for (const p of soloTops) {
-        if (l.top - top(p) > WALL_JUMP.maxUp) continue;
-        const d = boxToSeg(p, l.a.x, l.a.z, l.b.x, l.b.z);
-        if (d < SOLO_GAP - 1e-6) near.push(`lip (${l.a.x}, ${l.a.z.toFixed(1)}-${l.b.z.toFixed(1)}) ${d.toFixed(2)} m from top ${top(p)} at (${p.c[0]}, ${p.c[2]})`);
-      }
+      for (const t of soloJumpThreats(solid, { y: l.top, a: l.a, b: l.b, n: { x: l.nx, z: l.nz } }, (p) => bayPieces.includes(p) || !inHall(p.c[0], p.c[2], 3)))
+        near.push(`lip (${l.a.x}, ${l.a.z.toFixed(1)}-${l.b.z.toFixed(1)}): ${t}`);
     expect(near).toEqual([]);
+  });
+
+  it('no lip faces A3 (the R2 rack tops 3.0 m across it are within a running jump)', () => {
+    for (const r of S2_COOP) for (const l of r.lips) expect(l.nx, r.name).toBe(1);
+    expect(coopLips.filter((l) => l.nx < -0.5)).toEqual([]);
   });
 
   it('and SOLO_GAP from every pipe, ladder and drainpipe (a grip-to-grip jump reaches 2.5 m)', () => {
