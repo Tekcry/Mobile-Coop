@@ -3,7 +3,7 @@
 // order: station 1 read the three panels, then each station's gate opens and both pages see its door unlock (station 2:
 // the real leg-up, station 5: leg-up + ledge relay onto the roof, then the roof plates; the others are still placeholder
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
-// next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
+// next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser; (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
 import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS } from './e2e-net-lib.mjs';
 
@@ -204,7 +204,8 @@ const sleep = (ms) => waitSim(ms);
  * grid), frozen (no sweep), LED flashing, buzzing, on both pages; the client runs to the far lobby; the 5 s cap ends the
  * jam and starts the host's cooldown; the 1.5 s reboot refuses the client's jam; then the client jams from the far end
  * and the host comes through: both in the far lobby unlock the airlock door. Last, a hallway lamp jammed: off in the
- * registry gameplay reads (both pages), still off 2 s after the release, back on after its 4 s and the flicker.
+ * registry gameplay reads (both pages), still off 2 s after the release, back on after its 4 s and the flicker. Then the
+ * security room (`securityRoom`).
  */
 async function station3(x0) {
   const CAM = [x0 + 15.6, 2.4, 1.6];
@@ -344,8 +345,75 @@ async function station3(x0) {
   await until(A, (i) => window.__app.current.world.level.lights.get(i).on && window.__ctdev.debug().devs.length === 0, reg, 10000, 'station 3: the lamp flickers back on after its 4 s');
   await until(B, (i) => window.__app.current.world.level.lights.get(i).on, reg, 10000, 'station 3: the client page sees the lamp on again');
   await holster(A);
+  await securityRoom(x0);
 }
-const P5 = (P, b, v) => P.evaluate(([b, v]) => window.__pad.set(b, v), [b, v]);
+
+/**
+ * (sector-fixes S) Station 3's security room, off the far lobby: the duty guard watches the monitors; the desk console
+ * refuses while he is up, and once he is down (knocked out here) it switches the hallway camera off on both pages (no
+ * detection, cue hidden) until the bay restarts. An alternative to the second jam (A11): the jam handoff above is
+ * unchanged. The client presses (its press goes to the host through `use`); the host decides.
+ */
+async function securityRoom(x0) {
+  const GUARD = 's3-sec-guard';
+  const CONSOLE = 'c-sw-s3-console';
+  const FLAG = 'cams-off-s3';
+  // a standing spot in reach of the console (x0 + 8.55, 11.6) and clear of the guard's post (x0 + 9.25, 10.75) and of
+  // where his body falls (toward the desk, -x)
+  const SPOT = [x0 + 9.3, 12.4];
+  const cueHidden = () => { const c = window.__ctdev.debug().cue[0]; return !!c && c.a === 0 && !c.shown && !c.seen; };
+  // the guard spawned at his post (part A has no nav seed in the room: a failed spawn shows here first)
+  const g0 = await GA((s) => { const e = window.__course.squadOf?.(s); return e ? { alive: e.alive, passive: e.passive, x: e.pos.x, z: e.pos.z } : null; }, GUARD);
+  assert(!!g0 && g0.alive && g0.passive && Math.hypot(g0.x - (x0 + 9.25), g0.z - 10.75) < 0.6, `security room: the duty guard is up at his post (${JSON.stringify(g0)})`);
+  // the client in the room presses the console with the guard up: refused, the camera stays on
+  await moveClient(...SPOT);
+  assert((await use(B, CONSOLE)) === 'ok', 'security room: the client presses the console');
+  await until(A, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'security room: the console refuses while the guard is up (host)');
+  await until(B, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'security room: the client gets the refusal');
+  assert(!(await GA((f) => window.__course.state.hasFlag(f), FLAG)), 'security room: the refused press sets no flag');
+  assert((await dev(A)).cams[0].mode === 'online' && (await dev(B)).cams[0].mode === 'online', 'security room: the camera stays online on both pages');
+  // the host knocks the guard out (a HitInfo as `CtDevices.touch` builds one; dir -x, toward the desk)
+  await GA((s) => {
+    const g = window.__app.current;
+    const e = window.__course.squadOf(s);
+    const V = g.player.position.constructor;
+    e.knockOut({ amount: 100, point: e.pos.clone(), dir: new V(-1, 0, 0), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 0, nonLethal: true });
+  }, GUARD);
+  assert(await GA((s) => !window.__course.squadOf(s).alive, GUARD), 'security room: the guard is down');
+  // pressed again: the cameras go off on both pages, the cue hides, LANTERN's line reaches the client
+  assert((await use(B, CONSOLE)) === 'ok', 'security room: the client presses the console again');
+  await until(A, (f) => window.__course.state.hasFlag(f) && window.__course.debug().gates['g-s3-cams'], FLAG, 8000, 'security room: the console sets the flag');
+  await until(B, (f) => window.__course.wire.s.flags.includes(f), FLAG, 8000, 'security room: the client has the flag');
+  await until(A, () => window.__ctdev.debug().cams[0].mode === 'off', null, 8000, 'security room: the camera is off (host)');
+  await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 8000, 'security room: the camera is off (client)');
+  // the cue fades out over `CUE.fadeOut` (0.35 s): wait past it, then it must be hidden on both pages
+  await sleep(600);
+  await until(A, cueHidden, null, 3000, 'security room: the camera cue is hidden (host)');
+  await until(B, cueHidden, null, 3000, 'security room: the camera cue is hidden (client)');
+  await until(B, () => /Cameras off/.test(window.__course.wire.rl ?? ''), null, 15000, "security room: LANTERN's line reaches the client");
+  // the client walks into the hallway, in the camera's view: nothing sees it for 3 s
+  const d0 = await dev(A);
+  await moveClient(x0 + 6, 1.6);
+  let seen = false;
+  let on = false;
+  for (let k = 0; k < 10; k++) {
+    await sleep(300);
+    const [a, b] = [await dev(A), await dev(B)];
+    if (a.cue[0]?.seen || b.cue[0]?.seen) seen = true;
+    if (a.cams[0].mode !== 'off' || b.cams[0].mode !== 'off') on = true;
+  }
+  const d1 = await dev(A);
+  assert(!seen && !on, `security room: the switched-off camera never sees the client in the hallway (seen ${seen}, back on ${on})`);
+  assert(d1.alarm === d0.alarm && d1.sendBacks === d0.sendBacks, `security room: the alarm stage is unchanged (${d0.alarm} -> ${d1.alarm}, send-backs ${d0.sendBacks} -> ${d1.sendBacks})`);
+  // a third press: already off
+  await moveClient(...SPOT);
+  assert((await use(B, CONSOLE)) === 'ok', 'security room: the client presses the console a third time');
+  await until(A, () => /already off/.test(window.__course.debug().refusal ?? ''), null, 8000, 'security room: the console says the cameras are already off (host)');
+  await until(B, () => /already off/.test(window.__course.debug().refusal ?? ''), null, 8000, 'security room: the client gets "already off"');
+  // back to the far lobby for the airlock
+  await moveClient(x0 + 14.6, 6);
+}
+const P5 =(P, b, v) => P.evaluate(([b, v]) => window.__pad.set(b, v), [b, v]);
 
 /** Station 4: a laser touch costs health and never ends the run; the held jammer switches the laser off. */
 async function laserTest(x0) {

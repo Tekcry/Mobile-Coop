@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased - sector-fixes S (security room)
+- Marlow Yard, station 3 (Michael: "If there are cameras, there should be a security room with a guard watching the
+  cameras. You can take him out and shut off cameras"): a security room off the far lobby, through a plain door behind
+  the camera. A duty guard stands at the monitor wall (a training guard like station 1's: he sees and hears nothing);
+  grabbed, INTERROGATE gets "All right! The desk console switches the hallway camera off."
+- The desk console refuses while he is up ("The guard is watching the monitors. Take him out first."). Knock him out or
+  kill him (takedown, strike or shot), then use it: the hallway camera goes off for both players (no detection, no
+  alarm, no send-back, its LED dark, its red view hidden) until the bay restarts, which brings the camera and the guard
+  back. LANTERN: "Cameras off. Your partner can walk the hallway." A second line at the station start names the room.
+- The jam handoff still works exactly as before: the first runner still needs the partner's jam to reach the far lobby,
+  and the second can still be jammed through. The room is an alternative to the second jam, not a replacement; a
+  camera switched off at the console is simply no longer a jam target.
+- The station's monitor wall moved from the hallway's south wall into the room, with a desk under it; the room has
+  its own ceiling panel (jammable and shootable like the other lamps).
+- Not in Sector Ops (Michael): its cameras have no console. Co-op: no protocol change.
+
 ## Unreleased - anim-run-half: the run's feet no longer cross
 - The run's feet no longer cross the midline: the keyed clips' track half-width (`half`) is measured with the
   stride-locked pelvis yaw removed (`scripts/anim-keys/py/key_clip.py`: each frame's ankles turned back by that frame's

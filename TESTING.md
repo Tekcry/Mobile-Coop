@@ -55,6 +55,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Marlow Yard variety: each cell reads as what it is (sentry desk, monitor wall, kill-house plywood, scanner frames
   and racks, training-block stair, the exit coffer); nothing new to climb or bump into but the S6 racks; the guard grab
   at station 1 and every door work as before.
+- [ ] Marlow Yard station 3 security room (co-op): the first runner crosses under the partner's jam, opens the door
+  off the far lobby; the console refuses while the duty guard stands; take him down, use it: the camera goes dark and
+  the second player walks the hallway unseen on both screens. Restart the bay: the camera and the guard are back. The
+  second jam still works if you skip the room.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores

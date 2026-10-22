@@ -9,7 +9,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_HALL, S3_PANEL_X, S5_PANEL } from '../src/world/maps/ctcourse';
+import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_CEIL, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_HALL, S3_PANEL_X, S3_SEC_POST, S3_SEC_ROOM, S5_PANEL } from '../src/world/maps/ctcourse';
 import { cameraRate, newMeter, stepCamMeter } from '../src/security/camera';
 import { sightRate } from '../src/ai/perception';
 import { SENSITIVITY } from '../src/ai/alertState';
@@ -276,8 +276,9 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
   it('(marlow-jammer M3) every station 3 lamp out: the hallway goes dark, yet the camera (its own IR) still catches an unjammed runner', () => {
     const x0 = bayX(2);
     const s3 = reg.lights.filter((l) => l.x > x0 - 0.5 && l.x < x0 + CT_BAY + 0.5 && l.kind !== 'flashlight');
-    // every station 3 lamp can be put out (a jam, an EMP or a shot): no hardened lamp (J4 undone)
-    expect(s3.length).toBe(4);
+    // every station 3 lamp can be put out (a jam, an EMP or a shot): no hardened lamp (J4 undone). (sector-fixes S) 4 -> 5:
+    // the security room's panel
+    expect(s3.length).toBe(5);
     for (const l of s3) expect(l.electric && l.destructible).toBe(true);
     for (const l of s3) reg.setOn(l.id, false);
     const blind = (S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2);
@@ -307,6 +308,33 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
     expect(run).toBeGreaterThan(0);
     expect(run).toBeLessThan(13.8);
     expect(crouch).toBeGreaterThan(0);
+  });
+
+  it('(sector-fixes S) the security room lamp: baked, lights the duty guard, leaves the tuned station 3 spots alone', () => {
+    const R = S3_SEC_ROOM;
+    const roomLamps = reg.lights.filter((l) => l.kind !== 'flashlight' && l.x > R.x0 && l.x < R.x1 && l.z > R.z0 && l.z < R.z1);
+    expect(roomLamps).toHaveLength(1);
+    const lamp = roomLamps[0]!;
+    expect(lamp.y).toBeCloseTo(CT_CEIL[2]! - 0.15, 6);
+    expect(lamp.electric && lamp.destructible).toBe(true);
+    expect(lampIdx(lamp.x, lamp.y, lamp.z)).toBeGreaterThanOrEqual(0);
+    // the room reads lit where the guard stands (door open or shut): out of the dark band, what the meter and guards see
+    const guard = [body(open, S3_SEC_POST.x, 0, S3_SEC_POST.z), body(shut, S3_SEC_POST.x, 0, S3_SEC_POST.z)];
+    if (process.env.CTLIGHT_PRINT === '1') console.info(`S3 security room at the guard: open ${guard[0]!.toFixed(2)}, shut ${guard[1]!.toFixed(2)}`);
+    for (const v of guard) expect(v).toBeGreaterThan(LIGHT.lit);
+    // every tuned spot of station 3 and its airlock outside the room moves 0.08 at most with the room lamp on or off
+    const x0 = bayX(2);
+    const pts = [...SPOTS.map((p) => [p.name, p.x, p.y, p.z, p.kind] as const), ...CORNERS.map(([name, x, z]) => [name, x, 0, z, 'body'] as const)]
+      .filter(([, x, , z]) => x > x0 - 0.5 && x < x0 + CT_BAY + 6.5 && !(x > R.x0 && x < R.x1 && z > R.z0 && z < R.z1));
+    expect(pts.length).toBeGreaterThan(10);
+    for (const f of [open, shut]) {
+      const read = (): number[] => pts.map(([, x, y, z, kind]) => (kind === 'body' ? body(f, x, y, z) : f.levelAt(x, y, z)));
+      const on = read();
+      reg.setOn(lamp.id, false);
+      const off = read();
+      reg.setOn(lamp.id, true);
+      pts.forEach(([name], k) => expect(Math.abs(on[k]! - off[k]!), `${name} (${f === open ? 'open' : 'shut'})`).toBeLessThanOrEqual(0.08));
+    }
   });
 
   it.runIf(process.env.CTLIGHT_PRINT === '1')('prints the levels', () => {
