@@ -54,7 +54,8 @@ means this session only; the session running a job is its **job lead**.
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
 slot, or on the laptop (Character Build), the second slot, which Michael is still using: there at BelowNormal priority
 and `E2E_JOBS=1`, so it never takes all his bandwidth, and never GPU or visual checks. One heavy job at a time per
-machine: before a heavy run, check that machine's `C:/NightShift/heavy.lock`; if absent, write "<session> | <job> |
+machine (a full `npm run check` or full `vitest run` counts as heavy; a single test file does not; 2026-10-22, after
+a full e2e ran at twice its time beside unlocked checks): before a heavy run, check that machine's `C:/NightShift/heavy.lock`; if absent, write "<session> | <job> |
 <start>" and delete it when done; if present, wait and do light work. Create it atomically, never overwrite it (2026-10-22, after collisions): `( set -o noclobber; echo "<session> | <job> | <start>" > C:/NightShift/heavy.lock )`, retry while it fails, and delete it only while it still names you. All work on both machines is headless and
 invisible (Michael: "dont allow my mouse to be taken or random windows terminals to be made, all works must be headless
 and it shouldnt affect me"): never `E2E_HEADED`, no new terminal or console windows, no pointer lock or mouse capture,
