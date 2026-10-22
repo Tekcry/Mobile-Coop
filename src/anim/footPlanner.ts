@@ -445,6 +445,9 @@ export class FootPlanner {
   private restR = false;
   /** (locomotion step 21, A80) Time since moving began (s). */
   private moveT = 0;
+  /** (mt2-fixB) The switch (`i.mocap`) last frame, and turned off this frame. */
+  private mocapWas = false;
+  private mocapOff = false;
   /** (mocap-trial-2, pop3) Per foot (bit 1 L, 2 R): a start's clip lift went to the planner, which keeps it until it lifts. */
   private clipWait = 0;
   /** (mocap-trial-2, pop3) Per foot (bit 1 L, 2 R): an idle step still in the air when the move began. */
@@ -548,6 +551,9 @@ export class FootPlanner {
   }
 
   update(i: PlannerInput): void {
+    // (mt2-fixB) the switch turned off this frame (the clip swings in the air are taken over where they are)
+    this.mocapOff = this.mocapWas && !i.mocap;
+    this.mocapWas = !!i.mocap;
     if (!this.L.init) this.reset(i);
     // (anim-natural N1) the aimed turn on the spot (moving only by its turn) reads the idle row
     // (fix round, CHECK finding 2) only with the turn rules on and the body turning (faster than 1 rad/s, or within
@@ -991,13 +997,16 @@ export class FootPlanner {
         // reversal the held offset put the swing foot across the planted one, turn180 selfShanks 1.3 -> 8 cm).
         // (A82) Not when the travel has reversed against the foot's heading: the body's yaw has only begun to turn on
         // a reversal's first frames (0.2 rad, inside the yaw test), but the velocity already points back
+        // (mt2-fixB, CHECK-3 item 5) and the frame the switch goes off (`mocapOff`): a clip swing in the air taken over by
+        // the clock jumped to the clock's swing (60 cm in a frame at a jog); it keeps where it is, the difference fades
         if (
           takeover &&
-          f.swBase > 0 &&
-          f.swBase < 0.9 &&
-          this.moveT < START_TOE_OFF &&
-          Math.abs(wrap(i.yaw - f.fromYaw)) < 0.35 &&
-          i.velX * Math.sin(f.fromYaw) + i.velZ * Math.cos(f.fromYaw) > 0
+          ((f.swBase > 0 &&
+            f.swBase < 0.9 &&
+            this.moveT < START_TOE_OFF &&
+            Math.abs(wrap(i.yaw - f.fromYaw)) < 0.35 &&
+            i.velX * Math.sin(f.fromYaw) + i.velZ * Math.cos(f.fromYaw) > 0) ||
+            this.mocapOff)
         ) {
           f.offX -= f.x;
           f.offY -= f.y;
