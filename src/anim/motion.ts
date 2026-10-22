@@ -110,12 +110,19 @@ export const WALK_STEP = { k: 0.2, to: 2.1, blend: 3.0 } as const;
 export const GLIDE_STEP = { lat0: 0.075, latK: 0.05, back: 0.35, fwd0: 0.25, fwdK: 0.15 } as const;
 
 /**
- * (mocap-trial-2, strafe, BRIEF A10) The mocap strafe's side-step (m) at a pace, standing, in place of the glide's
- * (`GLIDE_STEP.lat0 + latK x speed`), or NaN: the glide's own. `mocap.ts` sets `step` (`mocapSideStep`: NaN unless the
- * switch is on with a strafe in the set); null until then. Read only when the caller passes `mside` (a carrier's clock: the
- * graph's `mOn`, the player's driver `mocapSide`). The crouched aimed glide keeps its shuffle (blended by the crouch).
+ * (mocap-trial-2, strafe, BRIEF A10) The mocap strafe's side-step, standing, in place of the glide's (`GLIDE_STEP.lat0 +
+ * latK x speed`): half a cycle's travel, the captures' `stride` (m, a cycle at their pace `stride` / `cycle`) scaled
+ * by (v / that pace)^`exp` (`sideStepAt`). `mocap.ts` sets them from the mocap set's strafe captures (stride NaN: none).
+ * Read only when the caller passes `mside` (a carrier's clock with the strafes in its set: the graph's `mSide`, the
+ * player's driver `mocapSide`). The crouched aimed glide keeps its shuffle (blended by the crouch).
  */
-export const GLIDE_SIDE: { step: ((speed: number) => number) | null } = { step: null };
+export const GLIDE_SIDE = { stride: Number.NaN, cycle: 1, exp: 0.25 };
+
+/** (mocap-trial-2, strafe) GLIDE_SIDE's side-step (m) at pace v, or NaN (no strafe captures, or not moving). No allocation. */
+export function sideStepAt(v: number): number {
+  const s = GLIDE_SIDE.stride;
+  return s > 0 && v > 0 ? 0.5 * s * Math.pow(v / (s / GLIDE_SIDE.cycle), GLIDE_SIDE.exp) : Number.NaN;
+}
 
 /**
  * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
@@ -146,7 +153,7 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   const l2 = lateral * lateral;
   // (mocap-trial-2, strafe) a carrier's mocap strafe side-step standing (GLIDE_SIDE; NaN or not `mside`: the glide's, as before)
   const sideG = GLIDE_STEP.lat0 + GLIDE_STEP.latK * v;
-  const sideM = !mside || GLIDE_SIDE.step === null ? Number.NaN : GLIDE_SIDE.step(v);
+  const sideM = mside ? sideStepAt(v) : Number.NaN;
   const side = Math.min(fwd, !Number.isNaN(sideM) ? sideG + (sideM - sideG) * (1 - Math.max(0, Math.min(1, crouch))) : sideG);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
   return (old + (step - old) * g) * TUNE_CUR.strideMul;

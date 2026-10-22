@@ -123,3 +123,28 @@ export async function aimRun(target: AimTarget, steps: number, recFrom: number, 
   }
   return R;
 }
+
+/** The aimed stick plans the strafe checks run (name, target, steps, record from s): steady strafes, CT starts / stops
+ *  (moving 1.5 s of every 3 s), L <-> R flips, snaps off the strafe onto forward / back. */
+export const STRAFE_PLANS = {
+  steady: (sg: number, v: number): [AimTarget, number, number] => [() => ({ x: sg * v, z: 0 }), 300, 2],
+  startStop: (sg: number, v: number): [AimTarget, number, number] => [(t) => ({ x: t > 1 && t % 3 < 1.7 && t % 3 > 0.2 ? sg * v : 0, z: 0 }), 600, 0.5],
+  flip: (v: number, per: number): [AimTarget, number, number] => [(t) => ({ x: Math.floor(t / per) % 2 ? v : -v, z: 0 }), 420, 1],
+  snap: (sg: number, fwd: number): [AimTarget, number, number] => [(t) => (Math.floor(t / 1.5) % 2 ? { x: 0, z: fwd } : { x: sg * 0.7, z: 0 }), 480, 1],
+};
+
+/** The feet's smallest sideways gap (m): the right ankle's x less the left's (the body faces +z: under 0 they cross). */
+export function footGap(R: Rec): number {
+  let m = Infinity;
+  for (let i = 0; i < R.n; i++) m = Math.min(m, R.pos.ankleR[i * 3]! - R.pos.ankleL[i * 3]!);
+  return m;
+}
+
+/** The largest ankle move in one frame (m), either foot: a swing foot that jumps (a re-aimed target) reads here. */
+export function ankleJump(R: Rec): number {
+  let m = 0;
+  for (const A of [R.pos.ankleL, R.pos.ankleR]) {
+    for (let i = 1; i < R.n; i++) m = Math.max(m, Math.hypot(A[i * 3]! - A[i * 3 - 3]!, A[i * 3 + 1]! - A[i * 3 - 2]!, A[i * 3 + 2]! - A[i * 3 - 1]!));
+  }
+  return m;
+}

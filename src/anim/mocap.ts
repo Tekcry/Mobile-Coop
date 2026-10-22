@@ -15,7 +15,7 @@
  * stay hand-keyed; so do the guards, the studio's keyed loops and every weapon clip. (mocap-trial-2) Except the holstered
  * crouched sneak band's body: the set's `crouchWalk` (CMU 136_09) over the planner's feet (animGraph `crouchSet`, BRIEF A5).
  */
-import { GLIDE_SIDE, TURN_GAIT_MIN } from './motion';
+import { GLIDE_SIDE, sideStepAt, TURN_GAIT_MIN } from './motion';
 import type { ClipFeetIn } from './footPlanner';
 import { layerMul, mirrorKeyed, mixKeyed, mixKeyedArms, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
 import { KEYED_WALK } from './clips/keyed/walk';
@@ -191,14 +191,16 @@ export function setMocapLocomotion(on: boolean): void {
 export const MOCAP_STRAFE = { cycle: 0.983, height: 1.68, strideExp: 0.25 } as const;
 
 /** (mocap-trial-2, strafe) The aimed side-step (m, half a cycle's travel) at pace v with the switch on and a strafe in the
- *  set (motion.ts `GLIDE_SIDE`, read by `stepLength`: the driver's and the graph's gait clocks), else NaN. No allocation. */
+ *  set (motion.ts `GLIDE_SIDE` / `sideStepAt`, read by `stepLength`: the driver's and the graph's gait clocks), else NaN.
+ *  No allocation. */
 export function mocapSideStep(v: number): number {
   const S = LOCO.set;
-  if (!LOCO.mocap || S.strafeL === null || S.strafeR === null || !(v > 0)) return Number.NaN;
-  const stride = ((S.strafeL.stride + S.strafeR.stride) * 0.5 * MOCAP_STRAFE.height) / 1.75;
-  return 0.5 * stride * Math.pow(v / (stride / MOCAP_STRAFE.cycle), MOCAP_STRAFE.strideExp);
+  return !LOCO.mocap || S.strafeL === null || S.strafeR === null ? Number.NaN : sideStepAt(v);
 }
-GLIDE_SIDE.step = mocapSideStep;
+// the captures' mean stride at Wren's height, their cycle, the stride's pace exponent (the mocap set's strafes)
+GLIDE_SIDE.stride = ((MOCAP_STRAFE_L.stride + MOCAP_STRAFE_R.stride) * 0.5 * MOCAP_STRAFE.height) / 1.75;
+GLIDE_SIDE.cycle = MOCAP_STRAFE.cycle;
+GLIDE_SIDE.exp = MOCAP_STRAFE.strideExp;
 
 /** On or off: the URL flag (`?mocap=1` / `?mocap=0`, null when absent) wins for the page, else the stored setting. */
 export function mocapWanted(url: boolean | null, setting: boolean): boolean {

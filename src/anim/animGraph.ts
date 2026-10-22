@@ -850,6 +850,8 @@ export class AnimGraph {
   private stIdle = 1;
   /** (mocap-trial-2, strafe) stIdle's first stage: the fade runs through two (C1: a stop's fade starts at rest, no hips kink). */
   private stIdleA = 1;
+  /** (mocap-trial-2, strafe) stIdle's ease a frame (exp(-dt / (STRAFE_IDLE_TAU / 2)), set by `strafeTrack`). */
+  private stIdleK = 0;
   /** (mocap-trial-2, strafe) The hips' shift back over the planner's side-steps (m, + right; rate-limited, STRAFE_LEAD). */
   private stHip = 0;
   /** (mocap-trial-2, strafe) The captures' cycle amplitude (the glide's `amp`, eased: STRAFE_AMP_TAU). */
@@ -875,6 +877,8 @@ export class AnimGraph {
   private mOn = false;
   private mS: LocoClipSet = HAND_KEYED_SET;
   private mSl = false;
+  /** (mocap-trial-2, strafe) The switch with the strafe captures in its set: the mocap side-step on the gait clock. */
+  private mSide = false;
   private readonly mVals: SlotLegValues = { half: 0, kneeOut: 0, duty: 0, lift: 0 };
   private mShare = 0;
   private mFeet = false;
@@ -1016,6 +1020,7 @@ export class AnimGraph {
     this.mOn = LOCO.mocap && i.mocapOk;
     this.mS = this.mOn ? LOCO.set : HAND_KEYED_SET;
     this.mSl = this.mOn && LOCO.slots;
+    this.mSide = this.mOn && this.mS.strafeL !== null && this.mS.strafeR !== null;
     let trigger = false;
 
     // --- lower state (inertialized on change)
@@ -1037,7 +1042,7 @@ export class AnimGraph {
     } else {
       this.phRate = 0;
       // (A1.2) no driver (remotes, enemies): the same clock from distance and turning
-      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW, clamp(i.crouch, 0, 1), backShare(i), this.glideK(i), this.mOn) * dt) % 1;
+      if ((i.speed > 0.02 || Math.abs(i.yawRate) > TURN_GAIT_MIN) && i.grounded) this.phase = (this.phase + gaitRate(i.speed, i.yawRate, undefined, lateralShare(i), this.tenseW, clamp(i.crouch, 0, 1), backShare(i), this.glideK(i), this.mSide) * dt) % 1;
     }
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
@@ -1075,18 +1080,8 @@ export class AnimGraph {
     const dn = hyp2(this.dirX, this.dirZ) || 1;
     this.dirX /= dn;
     this.dirZ /= dn;
-    // (mocap-trial-2, strafe) switch on: the side of the travel the mocap strafe plays (dirX holds its side through a pure
-    // flip: renormalised with no forward part it never crosses 0), eased so a flip cross-fades the left and right captures
-    if (this.mOn && dl > 0.1 && i.speed > 0.05 && (i.localX > 0.1 * dl || i.localX < -0.1 * dl)) this.stSide = approach(this.stSide, i.localX > 0 ? 1 : 0, STRAFE_SIDE_TAU, dt);
-    if (this.mOn) {
-      // (and the hips' shift against the travel: a quarter of the side-step's cycle travel, at most STRAFE_LEAD.rate m/s)
-      const st = mocapSideStep(locoSpeed);
-      const want = Number.isNaN(st) ? 0 : (2 * this.stSide - 1) * STRAFE_LEAD.hips * 2 * st;
-      const dm = STRAFE_LEAD.rate * dt;
-      this.stHip = want > this.stHip + dm ? this.stHip + dm : want < this.stHip - dm ? this.stHip - dm : want;
-      // (and the captures' amplitude, eased: a CT stop's last pace step scaled their wide hips swing by 8 % in a frame)
-      this.stAmp = approach(this.stAmp, clamp(GLIDE.ampMin + ((1 - GLIDE.ampMin) * locoSpeed) / GLIDE.full, 0, 1), STRAFE_AMP_TAU, dt);
-    }
+    // (mocap-trial-2, strafe) switch on: the mocap strafe's side, hips shift and amplitude (`strafeTrack`)
+    if (this.mOn) this.strafeTrack(i, dt, dl, locoSpeed);
     this.raiseS = approach(this.raiseS, i.raise, 0.02, dt);
     this.dashS = approach(this.dashS, i.dash, 0.15, dt);
     this.wallS = approach(this.wallS, i.wallSide, 0.2, dt);
@@ -1881,11 +1876,6 @@ export class AnimGraph {
       this.keyedSet(ph, this.mOn ? this.mPace : es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
-      if (this.mOn) {
-        const iD = locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0;
-        this.stIdleA = approach(this.stIdleA, iD, iD > this.stIdleA ? STRAFE_IDLE_TAU * 0.5 : 0, dt);
-        this.stIdle = approach(this.stIdle, this.stIdleA, this.stIdleA > this.stIdle ? STRAFE_IDLE_TAU * 0.5 : 0, dt);
-      }
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
       // (anim-rework S4) the crouched clips' height is the crouch's whole depth: by the crouched share it replaces the
       // procedural one (the rig adds the keyed height to the pose's)
@@ -2266,6 +2256,13 @@ export class AnimGraph {
       const SL = this.mOn ? this.mS.strafeL : null;
       const SR = this.mOn ? this.mS.strafeR : null;
       const stW = this.stSide;
+      // (mocap-trial-2, strafe) the pose's still share with the mocap strafe (stIdle): the drawn set's, rising through two
+      // stages, each STRAFE_IDLE_TAU / 2, falling at once (a CT stop fades the moving pose out in ~0.1 s, the captures' wide
+      // hips swing popped it; written out here, not in update(): there the switch-off frame boxed a double)
+      if (SL !== null && SR !== null) {
+        this.stIdleA = idleShare > this.stIdleA ? idleShare + (this.stIdleA - idleShare) * this.stIdleK : idleShare;
+        this.stIdle = this.stIdleA > this.stIdle ? this.stIdleA + (this.stIdle - this.stIdleA) * this.stIdleK : this.stIdleA;
+      }
       const sDuty = SL !== null && SR !== null ? SL.duty + (SR.duty - SL.duty) * stW : S.duty;
       this.stShare = SL !== null && SR !== null ? sk * aimK * (1 - this.stIdle) * (1 - this.kCk) : 0;
       const mHalf = zc.half * GLIDE.halfK + (S.half * GLIDE.halfKSide - zc.half * GLIDE.halfK) * sk;
@@ -2314,7 +2311,8 @@ export class AnimGraph {
       if (pIdle > 0) {
         sampleKeyed(R, rph, 1, this.kD);
         this.dynPel(this.kD, R, pose);
-        if (loco) mixKeyed(this.kE, this.kD, pIdle, this.kE);
+        // (the glide's share passed as it came: a merged double is boxed for the call, an allocation the switch off)
+        if (loco) mixKeyed(this.kE, this.kD, SL !== null && SR !== null ? this.stIdle : idleShare, this.kE);
         else mixKeyed(this.kD, this.kD, 0, this.kE);
       }
       gHalf = mHalf + (R.half - mHalf) * idleShare;
@@ -2354,6 +2352,27 @@ export class AnimGraph {
    *  `aiming`). Enemies keep their steps. */
   private glideK(i: AnimInput): number {
     return i.keyedDrawn && i.raise > 0.5 ? 1 : 0;
+  }
+
+  /** (mocap-trial-2, strafe) Switch on (`mOn`), once a frame: the mocap strafe's eased side, the hips' shift over its
+   *  side-steps, the captures' eased amplitude and the still share's ease (a method of its own: in update() the aimed
+   *  frame allocated more). The eases are written out: a double returned from a call is boxed. */
+  private strafeTrack(i: AnimInput, dt: number, dl: number, locoSpeed: number): void {
+    // the side of the travel the captures play (dirX holds its side through a pure flip: renormalised with no forward part it
+    // never crosses 0), eased so a flip cross-fades the left and right captures
+    if (dl > 0.1 && i.speed > 0.05 && (i.localX > 0.1 * dl || i.localX < -0.1 * dl)) this.stSide = approach(this.stSide, i.localX > 0 ? 1 : 0, STRAFE_SIDE_TAU, dt);
+    // the hips' shift against the travel: a quarter of the side-step's cycle travel, at most STRAFE_LEAD.rate m/s; aimed only
+    // (the captures play under the raise): holstered it eases back to 0 at the rate
+    const st = this.raiseS > 1e-4 ? mocapSideStep(locoSpeed) : Number.NaN;
+    const want = Number.isNaN(st) ? 0 : (2 * this.stSide - 1) * STRAFE_LEAD.hips * 2 * st;
+    const dm = STRAFE_LEAD.rate * dt;
+    this.stHip = want > this.stHip + dm ? this.stHip + dm : want < this.stHip - dm ? this.stHip - dm : want;
+    // the captures' amplitude, eased: a CT stop's last pace step scaled their wide hips swing by 8 % in a frame
+    const amp = GLIDE.ampMin + ((1 - GLIDE.ampMin) * locoSpeed) / GLIDE.full;
+    const ampT = amp < 0 ? 0 : amp > 1 ? 1 : amp;
+    this.stAmp = ampT + (this.stAmp - ampT) * Math.exp(-dt / STRAFE_AMP_TAU);
+    // the still share's ease a frame (keyedDrawnSet's stIdle)
+    this.stIdleK = Math.exp(-dt / (STRAFE_IDLE_TAU * 0.5));
   }
 
   /** (anim-rework S3) A sampled aimed pose's pelvis offsets as the procedural pose's plus the clip's swing about its mean. */
@@ -2494,9 +2513,9 @@ export class AnimGraph {
     const tense = i.crouch > 0.5 ? this.tenseW : 0;
     // (G1 fix) moving on a driver's clock that runs ahead of the pace (a start), the swings keep to the clock
     const ckw = clamp(i.crouch, 0, 1);
-    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense, ckw, bk, gl, this.mOn), i.motion === 'move' ? this.phRate : 0);
+    const rate = Math.max(gaitRate(s > 0.05 ? s : 0, yr, undefined, lat, tense, ckw, bk, gl, this.mSide), i.motion === 'move' ? this.phRate : 0);
     g.cycleTime = rate > 1e-3 ? 1 / rate : 1.2;
-    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense, ckw, bk, gl, this.mOn) : 0;
+    const linRate = s > 0.05 ? gaitRate(s, 0, undefined, lat, tense, ckw, bk, gl, this.mSide) : 0;
     const angRate = yr > TURN_GAIT_MIN ? yr / (2 * TURN_STEP) : 0;
     g.turning = smoothstep((linRate > 1e-3 ? angRate / linRate : angRate > 0 ? 10 : 0) - 0.5);
     const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;

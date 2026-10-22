@@ -520,7 +520,7 @@ export class PlayerController {
     mi.vz = tz;
     mi.aiming = aiming;
     // (mocap-trial-2, strafe) the player is a carrier: the mocap strafe's side-step on its gait clock with the switch on
-    mi.mocapSide = LOCO.mocap;
+    mi.mocapSide = LOCO.mocap && LOCO.set.strafeL !== null && LOCO.set.strafeR !== null;
     mi.sprinting = !!ov?.run;
     mi.slowest = snapped === 1;
     // (G1, audit row 26) the tense sneak near an unaware guard: long deliberate steps on the gait clock
