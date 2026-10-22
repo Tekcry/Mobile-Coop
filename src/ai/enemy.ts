@@ -24,7 +24,7 @@ import { ENEMY_CALM_MOTION, ENEMY_MOTION } from '../config/movement';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
-import { EYE_STAND, instantDetect, losClear, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
+import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt, sightRate, stepMeter, type SightInput } from './perception';
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { HEARING } from './hearing';
 import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
@@ -36,6 +36,7 @@ import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
+import { INCIDENT, lightRingPoint, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import type { GuardInfo } from './guardInfo';
 import { DogModel } from './dogModel';
 import type { InstancedMesh } from '../core/babylon';
@@ -114,6 +115,9 @@ export interface AiContext {
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
    *  sent at it, as in Wave). */
   stealth(): boolean;
+  /** (guard-ai S2) Coordinated guards (the incident board): the new paces (A9) and the calm turn when searching.
+   *  Absent / false (Hunter, Mission): the old paces. */
+  coordinated?(): boolean;
   /** Shared last known position of the target (valid once anyone has seen / located it). */
   lkp: Vector3;
   lkpValid(): boolean;
@@ -131,10 +135,25 @@ export interface AiContext {
 
 let nextId = 1;
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
-/** Calm paces (x the combat walk, which is a slow aimed walk): patrol, investigating, searching. */
-const PATROL_PACE = 1.1;
-const INVESTIGATE_PACE = 1.2;
-const SEARCH_PACE = 1.3;
+/**
+ * Calm paces (x the combat walk, which is a slow aimed walk). (guard-ai S2, A9) Coordinated guards investigate at 0.85
+ * and search at 0.75 (they were faster than the patrol: backwards); the parked modes (Hunter, Mission) keep the old
+ * 1.2 / 1.3. Patrol 1.1 is unchanged (the Sector pace checks, `CHECK_PATROL_PACE`). Walking to wake a knocked-out
+ * squadmate keeps 1.3 until S4 (bodies).
+ */
+export const PACE = {
+  patrol: 1.1,
+  investigate: 0.85,
+  search: 0.75,
+  revive: 1.3,
+  oldInvestigate: 1.2,
+  oldSearch: 1.3,
+} as const;
+const PATROL_PACE = PACE.patrol;
+/** (guard-ai S2) The light check gives up walking to the light after this (s; then looks from where he is), and to a
+ *  ring point after `RING_WALK` s (the next point). */
+const LIGHT_WALK = 30;
+const RING_WALK = 8;
 /** Out of sight in combat: walking up on the last known position (x walk speed); a hold between bounds (s). */
 const ADVANCE_PACE = 1.15;
 const ADVANCE_HOLD = 2.5;
@@ -211,6 +230,18 @@ export class Enemy implements Damageable {
   private heard = false;
   /** (guard-ai S1) Seconds left looking towards a sound he was not sent to (`hearTurn`): stands and faces it. */
   private turnT = 0;
+  /** (guard-ai S2) The incident this guard was sent to by the board (its id), -1 none; cleared when he is back
+   *  (calm), in combat, or on another search. */
+  incident = -1;
+  /** What he was sent to do (`MODE_*` in `incidents.ts`). */
+  private incMode = 0;
+  /** The light check: -1 none; 0 walking to the light, 1 looking at the fixture, 2.. the ring points; its clock, the
+   *  light's floor point, the ring's start direction and the pair slot (a partner sweeps the ring offset). */
+  private lightK = -1;
+  private lightT = 0;
+  private readonly lightC: P2 = [0, 0];
+  private lightBase = 0;
+  private lightSlot = 0;
   private gunfire = false;
   private called = 0;
   /** Seconds until a spotter's radio call goes out (0 = none pending); taking them out first stops it. */
@@ -589,7 +620,8 @@ export class Enemy implements Damageable {
       if (s > this.meter) this.meter = s;
     }
     const lvl = this.aware.level;
-    if (lvl === 'investigating' || lvl === 'searching') return;
+    // (guard-ai S2) sent somewhere by the board: the board owns his target (a later noise does not re-aim him)
+    if (lvl === 'investigating' || lvl === 'searching' || this.incident >= 0) return;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
@@ -599,6 +631,81 @@ export class Enemy implements Damageable {
   /** (guard-ai S1) Looking towards a sound he was not sent to (tests / debug). */
   get turning(): boolean {
     return this.turnT > 0;
+  }
+
+  /** (guard-ai S2) May the board's command reach him (alive, calm enough, a brain)? */
+  private get sendable(): boolean {
+    return this.alive && !this.alerted && !this.passive && !this.taken;
+  }
+
+  /**
+   * (guard-ai S2) The board sends him to a noise, gunfire heard far off or a lure at (x, z): he says so on the radio,
+   * looks (`ALERT.hearLook`), then walks over and looks round (the `heard` path), and is back to his route after.
+   */
+  sendTo(x: number, z: number, incident: number): void {
+    if (!this.sendable) return;
+    this.incident = incident;
+    this.incMode = MODE_INVESTIGATE;
+    this.turnT = 0;
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.heard = true;
+    this.bark('checking');
+  }
+
+  /**
+   * (guard-ai S2, M1 goal 4) The board sends him to a light that went out at (x, z) (its floor point, or the switch):
+   * walk there at the investigate pace, look at the fixture, sweep a 4-point ring 2-6 m round it (`INCIDENT.lightCheck`
+   * s at the spot), say "nothing here" and go back to his route calm (no cooldown: "return back to normal"). `slot` 1:
+   * the second of a pair (his ring starts offset). Torch on in the dark (the investigating torch rule).
+   */
+  checkLight(x: number, z: number, incident: number, slot = 0): void {
+    if (!this.sendable) return;
+    this.incident = incident;
+    this.incMode = MODE_LIGHT;
+    this.turnT = 0;
+    this.lightK = 0;
+    this.lightT = 0;
+    this.lightSlot = slot;
+    this.lightC[0] = x;
+    this.lightC[1] = z;
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.bark('lightOut');
+    const from = this.aware.level;
+    if (from !== 'investigating') {
+      this.aware.set('investigating');
+      this.onLevel(from, 'investigating');
+    }
+    this.spotSet = false;
+  }
+
+  /**
+   * (guard-ai S2, G11) An investigator went quiet: the board sends a pair to (x, z) (where he was last). The lead
+   * radios it and searches the spot; the cover searches from `INCIDENT.pairBack` short of it.
+   */
+  pairSearch(x: number, z: number, incident: number, lead: boolean): void {
+    if (!this.sendable) return;
+    if (lead) this.bark('missing');
+    this.searchAt(x, z, null);
+    this.incident = incident;
+    this.incMode = lead ? MODE_LEAD : MODE_COVER;
+    this.turnT = 0;
+  }
+
+  /** (guard-ai S2) Someone else is checking what he perceived: look towards it `INCIDENT.ackLook` s and carry on
+   *  (`copy`: say "Copy."). Already busy (sent, investigating, searching): only the line. */
+  ack(x: number, z: number, copy: boolean): void {
+    if (!this.alive || this.alerted || this.passive || this.taken) return;
+    if (copy) this.bark('ack');
+    const lvl = this.aware.level;
+    if (this.incident >= 0 || lvl === 'investigating' || lvl === 'searching') return;
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.turnT = Math.max(this.turnT, INCIDENT.ackLook);
   }
 
   /** Gunfire close by: straight to combat, towards it. */
@@ -683,7 +790,15 @@ export class Enemy implements Damageable {
     else if (to === 'investigating') this.bark('investigate');
     else if (to === 'alert') this.bark('contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
-    else if (to === 'cooldown') this.bark('clear');
+    else if (to === 'cooldown') this.bark(this.incident >= 0 ? 'standDown' : 'clear');
+    else if (to === 'unaware' && this.incident >= 0) this.bark('standDown');
+    // (guard-ai S2) off the board's task: back (calm), in combat, or on another search (a body, a call)
+    if (this.incident >= 0) {
+      const pair = this.incMode === MODE_LEAD || this.incMode === MODE_COVER;
+      const keep = to === 'suspicious' || to === 'investigating' ? !pair : to === 'searching' ? pair : false;
+      if (!keep) this.incident = -1;
+    }
+    if (to !== 'investigating') this.lightK = -1;
     if (to === 'alert') {
       this.meter = 1;
       if (this.state === 'idle') this.setState('chase');
@@ -1009,6 +1124,14 @@ export class Enemy implements Damageable {
     i.damaged = false;
     i.gunfire = this.gunfire;
     i.search = this.searchReq;
+    // (guard-ai S2) a glimpse during the light check: he drops it and investigates what he saw (the board sees him off
+    // its task and closes the light)
+    if (this.lightK >= 0 && this.meter >= PERCEPTION.investigate) {
+      this.lightK = -1;
+      this.incident = -1;
+    }
+    i.hold = this.lightK >= 0;
+    i.turning = this.turnT > 0;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -1109,9 +1232,10 @@ export class Enemy implements Damageable {
               }
               return { point: null, speed: 0, face: Math.atan2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z) };
             }
-            return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * SEARCH_PACE, face: null };
+            return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * PACE.revive, face: null };
           }
         }
+        if (lvl === 'investigating' && this.lightK >= 0) return this.lightStep(dt);
         if (lvl === 'investigating') {
           // the latest stimulus is the spot
           this.spot[0] = this.stimulus[0];
@@ -1159,11 +1283,105 @@ export class Enemy implements Damageable {
           this.searchK++;
           this.spotSet = false;
         }
-        return { point: wp, speed: def.walkSpeed * (lvl === 'searching' ? SEARCH_PACE : INVESTIGATE_PACE), face: null };
+        return { point: wp, speed: def.walkSpeed * (lvl === 'searching' ? this.searchPace : this.investigatePace), face: null };
       }
       default:
         return { point: null, speed: 0, face: null };
     }
+  }
+
+  /** (guard-ai S2) Coordinated (the incident board) or the parked modes' old rules. */
+  private get coordinated(): boolean {
+    return this.ctx.coordinated?.() === true;
+  }
+
+  private get investigatePace(): number {
+    return this.coordinated ? PACE.investigate : PACE.oldInvestigate;
+  }
+
+  private get searchPace(): number {
+    return this.coordinated ? PACE.search : PACE.oldSearch;
+  }
+
+  /**
+   * (guard-ai S2) The light check, step by step (investigating): walk to the light's floor point, look at the fixture
+   * `INCIDENT.lightLook` s, then `ringN` points round it (`lightRingPoint`, 2-6 m), `ringLook` s at each; a point he
+   * cannot reach (or not within `RING_WALK` s) is skipped. Then he stands down: calm, back to his route.
+   */
+  private lightStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
+    const L = INCIDENT;
+    const speed = this.def.walkSpeed * this.investigatePace;
+    const cx = this.lightC[0];
+    const cz = this.lightC[1];
+    if (this.lightK === 0) {
+      const d = hyp2(cx - this.pos.x, cz - this.pos.z);
+      this.lightT += dt;
+      // (a pair's second stops a little short: the first stands at the spot)
+      if (d >= (this.lightSlot ? 2.2 : 1.1) && this.lightT < LIGHT_WALK) {
+        const wp = this.goTo(this.lightC, dt);
+        if (wp || this.routePath.length > 0) return { point: wp, speed, face: null };
+      }
+      // there (or as near as he gets): the ring starts on the side he came from
+      this.lightK = 1;
+      this.lightT = 0;
+      this.lightBase = d > 0.05 ? Math.atan2(this.pos.x - cx, this.pos.z - cz) : this.yaw + Math.PI;
+    }
+    if (this.lightK === 1) {
+      this.spotArrived = true;
+      this.lightT += dt;
+      if (this.lightT >= L.lightLook) {
+        this.lightK = 2;
+        this.lightT = 0;
+        this.spotSet = false;
+      }
+      return { point: null, speed: 0, face: Math.atan2(cx - this.pos.x, cz - this.pos.z) };
+    }
+    const k = this.lightK - 2;
+    if (k >= L.ringN) {
+      this.standDown();
+      return { point: null, speed: 0, face: null };
+    }
+    if (!this.spotSet) {
+      lightRingPoint(cx, cz, k, this.lightBase, this.lightSlot, this.spot);
+      const c = this.ctx.nav.nearestWalkable(this.spot[0], this.spot[1], 4, this.pos.y);
+      if (c >= 0) {
+        const cc = this.ctx.nav.center(c);
+        this.spot[0] = cc[0];
+        this.spot[1] = cc[1];
+      }
+      this.spotSet = true;
+      this.spotLookT = 0;
+      this.lightT = 0;
+    }
+    const d = hyp2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z);
+    if (d < 1.1) {
+      if (this.spotLookT === 0) this.lookBase = Math.atan2(this.spot[0] - cx, this.spot[1] - cz);
+      this.spotLookT += dt;
+      this.spotArrived = true;
+      if (this.spotLookT >= L.ringLook) {
+        this.lightK++;
+        this.spotSet = false;
+      }
+      // look outward from the light, a sweep either side
+      return { point: null, speed: 0, face: this.lookBase + Math.sin(this.spotLookT * 2.1) * 0.7 };
+    }
+    this.lightT += dt;
+    const wp = this.lightT < RING_WALK ? this.goTo(this.spot, dt) : null;
+    if (!wp && this.routePath.length === 0) {
+      // unreachable (or too long): the next point
+      this.lightK++;
+      this.spotSet = false;
+      return { point: null, speed: 0, face: null };
+    }
+    return { point: wp, speed, face: null };
+  }
+
+  /** (guard-ai S2) The light check is done: "nothing here", back to his route calm (cautious only if he has fought). */
+  private standDown(): void {
+    this.lightK = -1;
+    const to = this.aware.fought ? 'cooldown' : 'unaware';
+    this.aware.set(to);
+    this.onLevel('investigating', to);
   }
 
   private decide(dt: number): { point: P2 | null; speed: number; face: number | null } {
@@ -1646,7 +1864,8 @@ export class Enemy implements Damageable {
     mi.yaw = face ?? (dl > 0.3 ? Math.atan2(desired.x, desired.z) : this.motion.yaw);
     mi.aiming = face !== null && !this.def.melee;
     mi.sprinting = running;
-    this.motion.step(dt, mi, this.alerted || this.level === 'searching' ? ENEMY_MOTION : ENEMY_CALM_MOTION);
+    // (guard-ai S2) coordinated guards search at the calm turn rate too (the old rules: the aimed one)
+    this.motion.step(dt, mi, this.alerted || (this.level === 'searching' && !this.coordinated) ? ENEMY_MOTION : ENEMY_CALM_MOTION);
     this.vel.x = this.motion.outX;
     this.vel.z = this.motion.outZ;
     const nx = this.pos.x + this.vel.x * dt;

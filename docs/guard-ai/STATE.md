@@ -1,11 +1,13 @@
 # Guard AI - state
 
 ## Now
-S2 incident board (PLAN.md): Opus implementer; its brief also carries the S1 checker's fixes 1-4
-(slices/S1-CHECK.md). S1 e2e (cd37c3e8) queued on the laptop (Character Build, results ~02:50).
+PAUSED at the orchestrator's TRIM 4 (usage pace) until it messages (~04:00). S2 incident board built (slices/S2.md,
+check green), e2e queued on the laptop; its fresh checker NOT run yet. S1 is PR #179 (feature/guard-ai-s1 5e019d9c,
+train 17).
 
 ## Next
-S3 radio net, then S4-S10 in PLAN order.
+S2 fresh checker (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
+S4-S10 in PLAN order.
 
 ## Open
 - Data shapes: Course Ready AGREED ~02:25: placeSlot reads squad / handler / zone / role / pair / reason; `post` and
@@ -31,7 +33,8 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 
 ## Done
 - 2026-10-23 ~02:45: S1 hearing cd37c3e8 (check, tsc, lint, unit 70/70); fresh checker PASS (slices/S1-CHECK.md, 5e019d9c),
-  4 non-blocking fixes folded into S2. e2e pending on the laptop.
+  4 non-blocking fixes folded into S2. e2e GREEN on the laptop (GPU): e2e-stealth-ai, e2e-sectorops 1-5, e2e-stealth,
+  e2e-gadgets, e2e-ctcourse 1-3, e2e-coop, e2e-netmove (Character Build ~02:50).
 - 2026-10-23 ~02:00: worktree off master ffade187, g44-above merged (e5e66e5e); BRIEF.md (a9ab3a29).
 - 2026-10-23 ~02:10: research (research/audit.md, ct-behaviour.md, tactics-design.md); PLAN.md; BRIEF A2-A11.
 
