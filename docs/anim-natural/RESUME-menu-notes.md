@@ -3,6 +3,17 @@
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
 
+## LIVE 2026-10-22 ~23:00 (after the clear) - check these first
+- vol-cone-fix: worktree C:/NightShift/Mobile-Coop-vol-cone-fix, feature/vol-cone-fix from master 2f1961ad (not pushed
+  yet). Implementer agent running (uncommitted work there: git status / diff on resume; report target
+  docs/vol-cone-fix/NOTE.md, shots before-/after-*.webp, changes/feature-vol-cone-fix.md). Waits on heavy2.lock (both
+  desktop locks Course Ready's at 22:55). Next: fresh checker, commit, push, PR, message the orchestrator.
+- mocap-sheets: real-clip rerun sent to Character Build (laptop slot 2, 4192 GPU) on feature/mocap-sheets-real 8cb4d26c
+  (79005dfd + mocap-trial 82f43716, CT Core's ok; worktree C:/NightShift/Mobile-Coop-mocap-sheets-real); it pushes the
+  regenerated docs/mocap-trial/sheets/ to that branch. Send the orchestrator the sheet paths at once (Michael waits).
+  Start / stop cause: agent running in C:/NightShift/Mobile-Coop-mocap-sheets (may commit there: script fix, merge of
+  82f43716, start / stop rerun). CT Core's fix sha comes later: rerun turn + start rows on it if cheap.
+
 ## FIRST NEXT STEP after the ~22:30 save (orchestrator ~22:35)
 **vol-cone-fix** (patch, render only, its own PR): branch feature/vol-cone-fix from master in
 C:/NightShift/Mobile-Coop-vol-cone-fix. The general fix from docs/sector-fixes/l/look-4.58/NOTE.md (PR #152): only
