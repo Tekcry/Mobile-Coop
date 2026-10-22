@@ -705,6 +705,13 @@ try {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 500 + k * 25, y: 400, id: 1 }] });
       await frames(P, 1);
     }
+    // (gpu-tests-3) hold still before the lift: on a fast GPU the 200 px drag takes ~80 ms, Chrome flings it, and the
+    // next touch only cancels the fling, so the pause button's first tap was lost (a zero-velocity release flings nothing)
+    for (let k = 0; k < 3; k++) {
+      await new Promise((r) => setTimeout(r, 60));
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 700, y: 400, id: 1 }] });
+    }
+    await new Promise((r) => setTimeout(r, 150));
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await frames(P, 6);
     const y1 = await yaw();
