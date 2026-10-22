@@ -662,6 +662,9 @@ export class FootPlanner {
       const f = side < 0 ? this.L : this.R;
       // (G1) a heel raised at the end of a stance comes back down once still (~0.15 s)
       if (f.contact && f.roll <= 0 && f.pitch > 0) f.pitch = f.pitch < 1e-3 ? 0 : f.pitch * Math.exp(-dt / 0.05);
+      // (mocap-trial) a clip's heel strike (toe up) left on a planted foot at a stop goes flat the same way (never
+      // otherwise: the planner's heel roll ends at 0)
+      else if (f.contact && f.roll <= 0 && f.pitch < 0) f.pitch = f.pitch > -1e-3 ? 0 : f.pitch * Math.exp(-dt / 0.05);
       if (f.contact) continue;
       // finish the step; a gait swing left over from moving (slow near a stop) finishes at idle pace (a quick stop
       // sets it down sooner, already timed above)

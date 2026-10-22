@@ -12,7 +12,7 @@ import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './han
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
-import { MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
+import { LOCO, MOCAP_FEET, MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -210,8 +210,15 @@ const HEEL_DOWN = 0.08;
 /** (G1) The ball of the foot ahead of the ankle (m): a planted foot rising onto its toes (`pitch` > 0) turns about it. */
 const TOE_BALL = 0.12;
 function heelLift(f: { contact: boolean; pitch: number; swing: number; clipOwn?: boolean }): number {
-  // (mocap-trial, A3) a clip feet swing carries the clip's own ankle lift (its pitch's rise included)
-  if (f.clipOwn === true && !f.contact) return 0;
+  // (mocap-trial, A3) a clip feet swing carries the clip's own ankle lift (its pitch's rise included); (integration) over
+  // its last fifth it eases in the heel the planted foot takes on landing (a heel-first strike lifted the ankle target
+  // 2-4 cm in one frame, the near-straight knee hit its rate limit and the landed ankle missed its spot by 5 cm)
+  if (f.clipOwn === true && !f.contact) {
+    if (!(f.swing > 0.8)) return 0;
+    const u = Math.min(1, (f.swing - 0.8) / 0.2);
+    const e = u * u * (3 - 2 * u);
+    return f.pitch < 0 ? (-Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN) * e : (Math.sin(f.pitch) * TOE_BALL - (1 - Math.cos(f.pitch)) * HEEL_DOWN) * e;
+  }
   // (G1 fix) also in the air: the heel-first landing's toe-up (terminal swing) lifts the ankle as it will on the floor, and
   // the toe-off's raised heel fades over the first 0.3 of the swing (the ankle target jumped 1-5 cm at strike and toe-off)
   if (f.pitch < 0) return f.contact || f.swing > 0.5 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
@@ -244,6 +251,8 @@ const JOINT_RATE = new Map<string, number>([
 ]);
 
 const approachTo = (x: number, target: number, dt: number, tau: number): number => target + (x - target) * Math.exp(-dt / tau);
+/** (mocap-trial) `x` moved toward `target` by at most `max`. */
+const rateTo = (x: number, target: number, max: number): number => (target > x + max ? x + max : target < x - max ? x - max : target);
 
 /** Aim pocket rest in the chest frame: x as a fraction of the shoulder half-width, y below the shoulder, z forward. */
 export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
@@ -1078,6 +1087,9 @@ export class CharacterRig {
   /** (locomotion step 22) Acceleration and motion state derived from the measured velocity (remote copies). */
   private derive = new MotionDerive();
   private pelvisDrop = 0;
+  /** (mocap-trial) Each foot's pitch as last posed (the switch on: rate-limited, MOCAP_FEET.pitchRate). */
+  private footPitchL = 0;
+  private footPitchR = 0;
   /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
   /** Soft-knee share per foot [L, R] (0..1). (operators step 11e) A Float64Array, not two fields: the fields started as
    *  the integer 1 and turned fractional mid-match, a representation change that deoptimised the rig's hot update. */
@@ -1886,6 +1898,17 @@ export class CharacterRig {
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
     if (free) this.planner.L.init = this.planner.R.init = false;
     this.planner.update(pin);
+    // (mocap-trial) with the switch on, a foot's pitch turns at most MOCAP_FEET.pitchRate: a hand-off between the clip's
+    // feet and the planner's (a fast turn, a stop, a start) swapped one foot model for the other in a frame (the ankle
+    // snapped 30-40 deg); the clips' own pitch stays under it
+    if (LOCO.mocap) {
+      const mx = MOCAP_FEET.pitchRate * dt;
+      this.footPitchL = this.planner.L.pitch = rateTo(this.footPitchL, this.planner.L.pitch, mx);
+      this.footPitchR = this.planner.R.pitch = rateTo(this.footPitchR, this.planner.R.pitch, mx);
+    } else {
+      this.footPitchL = this.planner.L.pitch;
+      this.footPitchR = this.planner.R.pitch;
+    }
     if (this.graph.drive) studioFeet(this.graph.drive, this.planner, rp.x, rp.y, rp.z, yaw, this.p.height / 1.75); // (anim-studio) the treadmill feet, studio only
     const L = this.planner.L;
     const R = this.planner.R;
@@ -2610,6 +2633,8 @@ export class CharacterRig {
     // (G8) the keyed walk's arms (free hands only: no grip, no world grip, no knee hand)
     const kaw = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
     if (kaw > 0) {
+      // (mocap-trial) MOCAP_LAYERS.elbowOut: the Body tune's elbow-out on the mocap share (1: elbowOutAdd exactly)
+      this.elbowOutK = mocapLayerK(MOCAP_LAYERS.elbowOut, t.keyMocap);
       this.keyedArm(1, kaw * (1 - Math.min(1, this.reachR.w)), kq);
       this.keyedArm(-1, kaw * (1 - Math.min(1, this.reachL.w)), kq);
       // (anim-rework S4) the crouched idle's hands onto the knees the legs actually posed
@@ -2712,6 +2737,8 @@ export class CharacterRig {
    * forearm onto the keyed wrist point (both from the shoulder joint in the chest frame), with the rig's own bone frames
    * (+Z toward the body's front), so the free hand keeps its orientation. No allocation.
    */
+  /** (mocap-trial) This frame's share of the Body tune's elbow-out on the keyed arms (MOCAP_LAYERS.elbowOut; 1: as is). */
+  private elbowOutK = 1;
   private keyedArm(side: 1 | -1, w: number, kq: KeyedPose): void {
     if (w <= 0) return;
     const sh = side > 0 ? this.shoulderR : this.shoulderL;
@@ -2726,7 +2753,7 @@ export class CharacterRig {
     const Rc = this.torso.absoluteRotationQuaternion;
     this.dirToWorld(0, 0, 1, kH);
     // upper arm onto the keyed elbow
-    kV.set(a[eo]! * kk + side * TUNE_CUR.elbowOutAdd, a[eo + 1]! * kk, a[eo + 2]! * kk);
+    kV.set(a[eo]! * kk + side * TUNE_CUR.elbowOutAdd * this.elbowOutK, a[eo + 1]! * kk, a[eo + 2]! * kk);
     kV.rotateByQuaternionToRef(Rc, kV);
     kSave.copyFrom(sh.rotationQuaternion!);
     boneRotation(kV, kH, tmpQ3);

@@ -2205,8 +2205,16 @@ export class AnimGraph {
       CF.f[s + KF.contact] = src[s + KF.contact]!;
     }
     const M = MOCAP_FEET;
-    CF.on = o.keyMocap >= M.share && Math.abs(i.yawRate) < M.turnMax && speed > M.minSpeed;
-    if (CF.on) o.gait.duty = this.mDuty;
+    // (integration) a turn hands the steps to the planner past `turnMax`, or past what turns the body `twistMax` over one
+    // of the clip's stances (a run's short stance keeps its clip feet through steering)
+    const st = this.mDuty * o.gait.cycleTime;
+    const turnMax = st > 0 && M.twistMax / st > M.turnMax ? M.twistMax / st : M.turnMax;
+    CF.on = o.keyMocap >= M.share && Math.abs(i.yawRate) < turnMax && speed > M.minSpeed;
+    // (integration) the gait clock keeps the clip's stance window whenever clip feet are on hand (by the mocap share), on
+    // or handed to the planner: a hand-off never moves the windows under a foot in the air (it landed mid-swing, 18 cm
+    // down in a frame, or jumped half its swing)
+    const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
+    o.gait.duty += (this.mDuty - o.gait.duty) * w;
   }
 
   /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */
