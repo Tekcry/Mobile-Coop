@@ -16,7 +16,8 @@ export const JAMMER = {
   useMax: 5,
   /** (J1) Seconds after a jam ends (the cap, a release, a move) before that player can jam again. */
   cooldown: 5,
-  /** (A3) Seconds a camera (or a laser) takes to come back online after its jam; it cannot be jammed meanwhile. */
+  /** (A3) Seconds a camera (or a laser power panel, sector-fixes P) takes to come back online after its jam; it cannot
+   *  be jammed meanwhile. */
   reboot: 1.5,
   /** Horizontal speed (m/s) above which the player is moving and the jam breaks. */
   stillSpeed: 0.45,
@@ -226,10 +227,11 @@ export function jamHudText(s: JamState, pick: boolean, pickRecovering: boolean):
   return '';
 }
 
-/** A thing the jammer can be pointed at. */
+/** A thing the jammer can be pointed at. (sector-fixes P, A1) Lasers are jammed at their power panel ('panel'); the
+ *  'laser' kind stays for the undo (per-laser jam targets) and reboots like a panel. */
 export interface JamTarget {
   id: string;
-  kind: 'camera' | 'laser' | 'light';
+  kind: 'camera' | 'laser' | 'light' | 'panel';
   x: number;
   y: number;
   z: number;

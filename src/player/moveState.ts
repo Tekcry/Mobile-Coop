@@ -8,6 +8,7 @@
  */
 import type { TraverseKind } from '../anim/animGraph';
 import { CLIMB_UP_CROUCH_K } from '../anim/clips/traverse';
+import { strikeWarp } from '../anim/strikeBody';
 import { WALL } from './wallController';
 
 /** Every mode on the wire, in a fixed order (an index is a u8). Later phases append, never reorder. */
@@ -391,8 +392,9 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
       if (mv.sub & 1) out.melee = mv.ph;
       return out;
     case 'strike':
-      // (step 10) the elbow arc with the hip turn (animGraph melee), the hands free (holstered)
-      out.melee = mv.ph;
+      // (step 10) the elbow arc with the hip turn (animGraph melee), the hands free (holstered); (anim-n4c M1) the wire
+      // carries the strike's own phase, posed warped onto the hit as the local player's (strikeWarp)
+      out.melee = strikeWarp(mv.ph);
       out.drawn = false;
       return out;
     case 'brace':
