@@ -97,4 +97,53 @@ describe('NavGrid closures', () => {
     g.setClosed(id, true);
     expect(g.findPath([0, -4], [0, 4])).toBeNull();
   });
+
+  it("(sector-redesign fix) the Warehouse mess door: a straight lineClear is no measure, the guards' path is", () => {
+    // the mess back door (warehouseS1.ts MESS_DOOR, moved to the origin): a 1.2 m doorway in a wall along x = 0, its
+    // centre z 0 on a cell boundary, the mess worktop (x -6..-1, z 0.45..1.05) on the bolt side, the mess wall at z -0.8
+    const wall = (cz: number, hz: number): NavBlocker => ({ cx: 0, cz, hx: 0.05, hz, yaw: 0, bottom: 0, top: 2.8 });
+    const g = new NavGrid({
+      minX: -8, maxX: 8, minZ: -6, maxZ: 6, cell: 0.5,
+      sample: () => ({ h: 0, ok: true }),
+      blockers: [
+        wall(-3.3, 2.7),
+        wall(3.3, 2.7),
+        { cx: -3.5, cz: 0.75, hx: 2.5, hz: 0.3, yaw: 0, bottom: 0, top: 0.9 },
+        { cx: -4, cz: -0.85, hx: 4, hz: 0.05, yaw: 0, bottom: 0, top: 2.8 },
+      ],
+      agentRadius: 0.32, stepHeight: 0.45, seed: [4, 0],
+    });
+    const pathLen = (a: [number, number], b: [number, number]): number => {
+      const p = g.findPath(a, b, 20000);
+      if (!p) return -1;
+      let L = 0;
+      let x = a[0];
+      let z = a[1];
+      for (const w of p) {
+        L += Math.hypot(w[0] - x, w[1] - z);
+        x = w[0];
+        z = w[1];
+      }
+      return L;
+    };
+    const A: [number, number] = [-1.2, 0];
+    const B: [number, number] = [1.2, 0];
+    const id = g.addClosure(0, 0, 0.35, (1.2 + 0.5) / 2, 0, 0);
+    // open (unbolted): the centre cell walkable, the straight line from the bolt side's start cell blocked by the
+    // worktop's margin (what the e2e measured before), yet the guards' path runs straight through the doorway
+    expect(g.isWalkable(g.cellOf(0, 0, 0))).toBe(true);
+    expect(g.lineClear(A, B, 0, 0)).toBe(false);
+    const open = pathLen(A, B);
+    expect(open).toBeGreaterThan(0);
+    expect(open).toBeLessThanOrEqual(3.4);
+    // shut (bolted): no short path through (this test map has no way round), and reopened: short again
+    g.setClosed(id, true);
+    expect(g.isWalkable(g.cellOf(0, 0, 0))).toBe(false);
+    const shut = pathLen(A, B);
+    expect(shut < 0 || shut > 3.4).toBe(true);
+    g.setClosed(id, false);
+    const again = pathLen(A, B);
+    expect(again).toBeGreaterThan(0);
+    expect(again).toBeLessThanOrEqual(3.4);
+  });
 });

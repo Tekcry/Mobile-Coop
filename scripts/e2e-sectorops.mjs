@@ -1153,13 +1153,23 @@ if (want(2)) {
           const [ax, az] = b.at;
           const [sx, sz] = b.side;
           const past = (i) => (i.x - ax) * sx + (i.z - az) * sz;
-          // (sector-fixes-r2 nav) the guards' nav grid: the bolted doorway is shut (no straight walk through, its centre
-          // cell blocked), so a guard re-routes instead of stalling at the locked door
+          // (sector-fixes-r2 nav) the guards' nav grid: the bolted doorway is shut (its centre cell blocked, no short
+          // path through), so a guard re-routes instead of stalling at the locked door. (sector-redesign fix) `line` is
+          // the guards' own path from 1.2 m in front to 1.2 m behind (findPath, as a guard plans it), through the doorway
+          // when it is no longer than the straight 2.4 m + 1 m: a straight lineClear there is no measure, its ends land in
+          // furniture-blocked cells (the mess worktop, door 0; the lobby side, door 2) and the door centre sits on a cell
+          // boundary, so it was false with the doorway open
           const navThrough = () => G(([ax, az, sx, sz, door]) => {
             const g = window.__app.current;
             const n = g.nav;
             const y = g.world.doors.list[door].anchor.hinge.y;
-            return { open: n.isWalkable(n.cellOf(ax, az, y)), line: n.lineClear([ax - sx * 1.2, az - sz * 1.2], [ax + sx * 1.2, az + sz * 1.2], y, y) };
+            const a = [ax - sx * 1.2, az - sz * 1.2];
+            const p = n.findPath(a, [ax + sx * 1.2, az + sz * 1.2], 20000, y, y);
+            let len = p ? 0 : -1;
+            let px = a[0];
+            let pz = a[1];
+            for (const w of p ?? []) { const wx = w.x ?? w[0]; const wz = w.z ?? w[1]; len += Math.hypot(wx - px, wz - pz); px = wx; pz = wz; }
+            return { open: n.isWalkable(n.cellOf(ax, az, y)), line: len >= 0 && len <= 3.4, len: +len.toFixed(2) };
           }, [ax, az, sx, sz, b.door]);
           const n0 = await navThrough();
           assert(!n0.open && !n0.line, `${tag}: bolted, the doorway is shut on the guards' nav grid (${JSON.stringify(n0)})`);
