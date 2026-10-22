@@ -453,8 +453,15 @@ try {
       await GA((id) => {
         const g = window.__app.current;
         for (const r of g.net.remotes.values()) r.allowTeleport(1);
+        // (e2e-coop-takedown, as the grab step below: on a slow page the match's guards alert or turn between the pin
+        // and the client's read - a spotted client skips an alert guard, and a guard turned to the side offers only
+        // while calm - so the host is calmed and the picked guard is a statue until the takedown is done; the start, the
+        // reach check and the knock-out are the real code, `knockOut` does not need his brain)
+        for (const e of g.enemyMgr.enemies) if (!e.taken) e.aware.set('unaware');
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
         if (v?.alive && !v.taken) {
+          v.update = () => {};
           v.pos.set(6, 0, -6);
           v.yaw = 0;
         }
@@ -475,6 +482,11 @@ try {
       if (!knocked && (await GB(() => !window.__app.current.takedown.active))) break;
     }
   }
+  if (tdStarted !== true) {
+    console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ found: !!e, alive: e?.alive, taken: e?.taken, ko: e?.ko, level: e?.level, pos: e && [e.pos.x, e.pos.z], yaw: e?.yaw, spotted: r?.ref.spotted, client: r && [r.feet.x, r.feet.z] }); }, tdv));
+    console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); const o = g.takedown.offer; return JSON.stringify({ puppet: p && { pos: [p.pos.x, p.pos.z], yaw: p.yaw, alive: p.alive, taken: p.taken, level: p.level }, me: [g.player.position.x, g.player.position.z], spotted: g.net.spotted?.(), offer: o ? { id: o.e.id, kind: o.plan?.kind } : null, active: g.takedown.active }); }, tdv));
+  }
+  await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, tdv);
   assert(tdStarted === true, `client takedown offered on the host's guard (${tdStarted})`);
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv, 8000, 'host knocks the guard out');
   assert(true, 'client takedown knocks the host enemy out');

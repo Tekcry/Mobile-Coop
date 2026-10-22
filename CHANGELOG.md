@@ -11,6 +11,12 @@
 - The tuner resets those 13 sliders once on the next load (they would otherwise apply twice): each bake now has its
   own id in the save, so a second bake of the same export is not mistaken for the one already applied.
 
+## 4.51.1 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22, PR #107)
+- The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
+  the takedown is done, as the grab step already does: on a slow page the guards alerted or turned between the host's
+  pin and the client's read, so the offer never came (the master-wide flake). The start, the reach check and the
+  knock-out are still the real code. A failure now prints both pages' view of the guard and the client.
+
 ## 4.51.0 - Animation tuner: key tools (wave, apply to ticked keys, smooth between, compare) and the exact key preview (2026-10-22, PR #106)
 - Animation tuner, Keys tab: key tools for changing many keys at once, each one undo step and baked like any key edit.
   "Key tools" fold: Wave (pick a slider by name, an amount and a timing; "Fill keys" puts a smooth sine over the cycle
