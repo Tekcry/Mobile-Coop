@@ -754,6 +754,8 @@ try {
   await G(() => window.__animTune.tab('view'));
   await G(() => window.__studio.keyed(false));
   await frames(page, 8);
+  // (N4b train-8 fix) the same 250 ms panel refresh as the keyed wait above, the other way
+  await page.waitForFunction(() => window.__animTune.effect().mode === 'procedural', null, { timeout: 3000 }).catch(() => {});
   const ke2 = await G(() => window.__animTune.effect());
   assert(ke2.mode === 'procedural', `cleared: the procedural mode (${ke2.mode})`);
   const k2 = await G(() => window.__studio.keyedState());
