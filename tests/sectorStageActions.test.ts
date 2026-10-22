@@ -4,7 +4,8 @@ import { NavGrid, type NavBlocker } from '../src/ai/navGrid';
 import { LightRegistry } from '../src/world/lights';
 import { SectionStartState, type ResetDoor, type ResetDoors } from '../src/game/sectorReset';
 import { SECTOR, SECTOR_REINFORCE_KIND, checkSectors, type SectorDef } from '../src/game/sectors';
-import { STAGE_MAX, SectorStageRun, addDoorClosure, checkStageActions, doorFinder, reinforceSlot, type SectorStageAction } from '../src/game/sectorStage';
+import { STAGE_DOOR_CLEAR, STAGE_MAX, SectorStageRun, addDoorClosure, checkStageActions, doorFinder, doorwayClear, reinforceSlot, type SectorStageAction } from '../src/game/sectorStage';
+import { DOOR } from '../src/world/doors';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 
 /** (sector-redesign E5, EW9) Alarm-stage extras: lights to full, lockdown doors, the response route, restart undo. */
@@ -54,7 +55,7 @@ function stubDoors(n: number): ResetDoors<StubDoor> & { list: StubDoor[] } {
 }
 
 /** The mode's wiring in miniature: the registry, the doors (lock = shut + locked), the nav grid. */
-function rig(defs: SectorDef[]) {
+function rig(defs: SectorDef[], canShut?: (d: StubDoor) => boolean) {
   const reg = new LightRegistry();
   // group 4: two lamps off (cut before the alarm); group 5: one lamp on
   reg.add({ x: 0, y: 3, z: 0, group: 4, on: false });
@@ -72,6 +73,7 @@ function rig(defs: SectorDef[]) {
         if (on) d.target = 0;
       },
       navClosed: (id, on) => nav.setClosed(id, on),
+      canShut,
     },
     (_sec, x, z) => {
       const info = find(x, z);
@@ -117,6 +119,110 @@ describe('stage actions: the data shape and checks', () => {
     expect(nav.findPath([-4, 0], [4, 0])).not.toBeNull();
     // a lockdown with no door there
     expect(checkSectors([section([{ stage: 2, lockDoors: [[3, -6]] }])], check)).toContain('s: no door at lockdown (3, -6)');
+  });
+});
+
+describe('stage actions: a player shut in behind a lockdown door (E5 fix)', () => {
+  /** The wall along x = 0 with doorway A only (a side room west of it), or A and a back corridor B (`twoDoorGrid`). */
+  function oneDoorGrid(): NavGrid {
+    const wall = (cz: number, hz: number): NavBlocker => ({ cx: 0, cz, hx: 0.1, hz, yaw: 0, bottom: 0, top: 3 });
+    return new NavGrid({
+      minX: -6, maxX: 6, minZ: -10, maxZ: 10, cell: 0.5,
+      sample: () => ({ h: 0, ok: true }),
+      blockers: [wall(-5.45, 4.55), wall(5.45, 4.55)],
+      agentRadius: 0.3, stepHeight: 0.45, seed: [4, -4],
+    });
+  }
+  /** Start, objective and exit all east of the wall: only the side-room legs cross a door. */
+  const east = (stageActions: SectorStageAction[]): SectorDef => ({ ...section(stageActions), start: { x: 4, y: 0, z: -4, yaw: 0 } });
+
+  it('a one-door side room locked down is a softlock (a player inside cannot reach the exit)', () => {
+    const nav = oneDoorGrid();
+    // unlocked, the room's side of the door reaches the exit
+    expect(nav.findPath([-0.8, 0], [4, 8])).not.toBeNull();
+    const e = checkSectors([east([{ stage: 2, lockDoors: [DOOR_A] }])], { nav, doorAt: doorFinder(ANCHORS.slice(0, 1)) });
+    expect(e).toContain('s: the stage lockdown doors leave no nav path from beside the lockdown door (0.0, 0.0) at (-0.8, 0.0) to the exit (a softlock)');
+    // the exit side of the door is fine, and the start / objective legs never cross it
+    expect(e.length).toBe(1);
+  });
+
+  it('the same room with a back corridor passes', () => {
+    const nav = twoDoorGrid();
+    expect(checkSectors([east([{ stage: 2, lockDoors: [DOOR_A] }])], { nav, doorAt: doorFinder(ANCHORS) })).toEqual([]);
+  });
+});
+
+describe('a lockdown door never shuts on a player (E5 fix)', () => {
+  const player = (x: number, z: number, alive = true) => ({ feet: { x, z }, target: { alive } });
+
+  it('doorwayClear: a living player within DOOR.clearance of the doorway centre blocks it; a down one, or one 1 m off, does not', () => {
+    expect(STAGE_DOOR_CLEAR).toBe(DOOR.clearance);
+    expect(doorwayClear(0, 0, [])).toBe(true);
+    expect(doorwayClear(0, 0, [player(0, 0)])).toBe(false);
+    expect(doorwayClear(0, 0, [player(3, 3), player(0.5, 0.5)])).toBe(false);
+    expect(doorwayClear(0, 0, [player(0, 0, false)])).toBe(true);
+    expect(doorwayClear(0, 0, [player(1, 0), player(0, -1)])).toBe(true);
+  });
+
+  /** The rig with the mode's occupancy test over a mutable player list (host and partner). */
+  function occupied(defs: SectorDef[]) {
+    const players = [player(0, 0)];
+    const r = rig(defs, (d) => doorwayClear(0, d.id === 1 ? 6 : 0, players));
+    return { ...r, players };
+  }
+
+  it('occupied: the door waits pending, open and walkable; once the player steps 1 m away it shuts on the next step', () => {
+    const { doors, nav, run, players } = occupied([section([{ stage: 2, lockDoors: [DOOR_A] }])]);
+    const a = doors.list[0]!;
+    const cell = nav.cellOf(0.1, 0.1);
+    expect(run.raise(0, 1, 2).doors).toBe(0);
+    expect(run.pendingCount()).toBe(1);
+    expect(run.lockedCount()).toBe(0);
+    expect(a.anchor.locked).toBe(false);
+    expect(a.target).toBe(1);
+    expect(nav.isWalkable(cell)).toBe(true);
+    // still in the doorway: still waiting
+    expect(run.step()).toBe(0);
+    // the partner in the doorway holds it too
+    players[0]!.feet.x = 1;
+    players.push(player(-0.3, 0.2));
+    expect(run.step()).toBe(0);
+    players.pop();
+    // clear: it shuts, locks and closes its nav
+    expect(run.step()).toBe(1);
+    expect(a.anchor.locked).toBe(true);
+    expect(a.target).toBe(0);
+    expect(nav.isWalkable(cell)).toBe(false);
+    expect(run.pendingCount()).toBe(0);
+    expect(run.lockedCount()).toBe(1);
+    expect(run.step()).toBe(0);
+  });
+
+  it('clear at the stage: it shuts at once', () => {
+    const { doors, run, players } = occupied([section([{ stage: 2, lockDoors: [DOOR_A] }])]);
+    players[0]!.feet.z = -3;
+    expect(run.raise(0, 1, 2).doors).toBe(1);
+    expect(doors.list[0]!.anchor.locked).toBe(true);
+  });
+
+  it('release drops a pending lock: it never shuts after the restart, and nothing is unlocked', () => {
+    const { doors, nav, run, players } = occupied([section([{ stage: 2, lockDoors: [DOOR_A] }])]);
+    run.raise(0, 1, 2);
+    expect(run.pendingCount()).toBe(1);
+    expect(run.release()).toBe(0);
+    expect(run.pendingCount()).toBe(0);
+    players[0]!.feet.x = 4;
+    expect(run.step()).toBe(0);
+    expect(doors.list[0]!.anchor.locked).toBe(false);
+    expect(nav.isWalkable(nav.cellOf(0.1, 0.1))).toBe(true);
+    // the stage again after the restart: it locks (the doorway is clear now)
+    expect(run.raise(0, 1, 2).doors).toBe(1);
+  });
+
+  it('the mode retries the pending locks every fixed tick and tests the living players at the doorway', () => {
+    const src = readFileSync(new URL('../src/game/modes/sectorMode.ts', import.meta.url), 'utf8');
+    expect(src).toContain('canShut: (d) => doorwayClear(d.cx, d.cz, g.playerRefsInto(this.refs))');
+    expect(src).toContain('if (this.stageRun?.step()) this.secT = 0;');
   });
 });
 

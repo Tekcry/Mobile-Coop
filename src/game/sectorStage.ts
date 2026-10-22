@@ -45,6 +45,13 @@ export const STAGE_DOOR_FIND = 1.2;
 /** A lockdown door's nav closure: the door width plus this along (m), and this half depth across (the bolt closure). */
 export const STAGE_NAV_ALONG = 0.5;
 export const STAGE_NAV_ACROSS = 0.35;
+/** The softlock check's player either side of a lockdown door: this far from the doorway centre along its normal (m). */
+export const STAGE_SIDE_STEP = 0.8;
+/**
+ * A lockdown door waits to shut while a living player's feet are within this of its doorway centre (m, plan; mirrors
+ * `DOOR.clearance`, a test keeps them equal): a door forced shut on a player would pin them.
+ */
+export const STAGE_DOOR_CLEAR = 0.75;
 /** Path search budget of the softlock check (cells expanded; a whole section). */
 const CHECK_EXPAND = 200000;
 
@@ -140,10 +147,14 @@ function softlocks(d: SectorDef, cp: { x: number; y: number; z: number } | undef
   const out: string[] = [];
   const { nav } = check;
   const ids: number[] = [];
+  const found: StageDoorInfo[] = [];
   for (const at of doors) {
     const info = check.doorAt(at[0], at[1]);
     if (!info) out.push(`${d.id}: no door at lockdown (${at[0]}, ${at[1]})`);
-    else ids.push(addDoorClosure(nav, info));
+    else {
+      ids.push(addDoorClosure(nav, info));
+      found.push(info);
+    }
   }
   const o = d.objective;
   const zone = d.connector ?? d.extract;
@@ -152,7 +163,19 @@ function softlocks(d: SectorDef, cp: { x: number; y: number; z: number } | undef
   if (cp) legs.push({ what: 'the checkpoint to the objective', a: [cp.x, cp.z], ay: cp.y, b: [o.x, o.z], by: o.y });
   if (zone) {
     const [x0, z0, x1, z1] = zone.box;
-    legs.push({ what: 'the objective to the exit', a: [o.x, o.z], ay: o.y, b: [(x0 + x1) / 2, (z0 + z1) / 2], by: zone.floorY ?? 0 });
+    const exit: [number, number] = [(x0 + x1) / 2, (z0 + z1) / 2];
+    const ey = zone.floorY ?? 0;
+    legs.push({ what: 'the objective to the exit', a: [o.x, o.z], ay: o.y, b: exit, by: ey });
+    // (E5 fix) a player either side of a lockdown door as it shuts (shut in a side room, or co-op partners split by it)
+    for (const f of found) {
+      const nx = Math.cos(f.yaw) * STAGE_SIDE_STEP;
+      const nz = -Math.sin(f.yaw) * STAGE_SIDE_STEP;
+      for (let s = -1; s <= 1; s += 2) {
+        const x = f.cx + s * nx;
+        const z = f.cz + s * nz;
+        legs.push({ what: `beside the lockdown door (${f.cx.toFixed(1)}, ${f.cz.toFixed(1)}) at (${x.toFixed(1)}, ${z.toFixed(1)}) to the exit`, a: [x, z], ay: f.y, b: exit, by: ey });
+      }
+    }
   }
   const open = legs.map((l) => nav.findPath(l.a, l.b, CHECK_EXPAND, l.ay, l.by) !== null);
   for (const id of ids) nav.setClosed(id, true);
@@ -185,6 +208,29 @@ export interface StageHooks<D> {
   lock(door: D, on: boolean): void;
   /** Shut or open a nav closure (`NavGrid.setClosed`). */
   navClosed(id: number, on: boolean): void;
+  /**
+   * May this lockdown door shut now (`doorwayClear` over the living players)? Absent: always. A door that may not
+   * waits, pending, and `step` tries it again.
+   */
+  canShut?(door: D): boolean;
+}
+
+/** A player as the doorway test needs it (`PlayerRef`: the feet, alive). */
+export interface StagePlayer {
+  readonly feet: { readonly x: number; readonly z: number };
+  readonly target: { readonly alive: boolean };
+}
+
+/**
+ * (E5 fix) May a lockdown door at doorway centre (cx, cz) shut now: no living player's feet within `clear` of it (plan
+ * distance). Allocation-free (the mode calls it every fixed tick while a lock is pending).
+ */
+export function doorwayClear(cx: number, cz: number, players: readonly StagePlayer[], clear = STAGE_DOOR_CLEAR): boolean {
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i]!;
+    if (p.target.alive && hyp2(p.feet.x - cx, p.feet.z - cz) < clear) return false;
+  }
+  return true;
 }
 
 interface StageLock<D> {
@@ -192,7 +238,10 @@ interface StageLock<D> {
   stage: number;
   door: D;
   nav: number;
+  /** Raised (the stage was reached): locked, or pending. */
   on: boolean;
+  /** Raised but not yet shut: a player stands in the doorway (`canShut`). */
+  pending: boolean;
 }
 
 /**
@@ -201,6 +250,8 @@ interface StageLock<D> {
  */
 export class SectorStageRun<D> {
   private readonly locks: StageLock<D>[] = [];
+  /** Locks raised but not yet shut (`step` skips its loop at 0). */
+  private pendingN = 0;
   /** Stub (EW9 dog release): a stage with `releaseDogs` was reached in the live section. guard-ai reads it. */
   dogsReleased = false;
   /** Lockdown doors that could not be found (tests, the mode's warning). */
@@ -215,19 +266,21 @@ export class SectorStageRun<D> {
       for (const a of d.stageActions ?? []) {
         for (const at of a.lockDoors ?? []) {
           const r = resolve(sec, at[0], at[1]);
-          if (r) this.locks.push({ sec, stage: a.stage, door: r.door, nav: r.nav, on: false });
+          if (r) this.locks.push({ sec, stage: a.stage, door: r.door, nav: r.nav, on: false, pending: false });
           else this.missing.push(`${d.id}: no door at lockdown (${at[0]}, ${at[1]})`);
         }
       }
     });
   }
 
-  /** The alarm went from stage `from` to `to` in section `sec`: the actions of stages from+1..to. Counts changed. */
+  /**
+   * The alarm went from stage `from` to `to` in section `sec`: the actions of stages from+1..to. Counts changed (`doors`:
+   * shut now; a door with a player in its doorway is left pending for `step`).
+   */
   raise(sec: number, from: number, to: number): { lights: number; doors: number } {
     let lights = 0;
-    let doors = 0;
     const d = this.defs[sec];
-    if (!d?.stageActions || to <= from) return { lights, doors };
+    if (!d?.stageActions || to <= from) return { lights, doors: 0 };
     for (const a of d.stageActions) {
       if (a.stage <= from || a.stage > to) continue;
       for (const g of a.lightsFull ?? []) lights += this.hooks.groupOn(g);
@@ -236,31 +289,63 @@ export class SectorStageRun<D> {
     for (const l of this.locks) {
       if (l.sec !== sec || l.on || l.stage <= from || l.stage > to) continue;
       l.on = true;
-      this.hooks.lock(l.door, true);
-      if (l.nav >= 0) this.hooks.navClosed(l.nav, true);
-      doors++;
+      l.pending = true;
+      this.pendingN++;
     }
-    return { lights, doors };
+    return { lights, doors: this.step() };
   }
 
-  /** Undo every lockdown (a section restart or unload): the doors unlock (left shut), their nav opens. Count unlocked. */
+  /**
+   * (E5 fix) Shut the pending lockdown doors whose doorway is clear now (`canShut`): lock and close the nav. The mode
+   * calls it every fixed tick; a plain loop, no allocation, nothing at all while none is pending. Count shut.
+   */
+  step(): number {
+    if (this.pendingN === 0) return 0;
+    let n = 0;
+    const locks = this.locks;
+    for (let i = 0; i < locks.length; i++) {
+      const l = locks[i]!;
+      if (!l.pending || (this.hooks.canShut && !this.hooks.canShut(l.door))) continue;
+      l.pending = false;
+      this.pendingN--;
+      this.hooks.lock(l.door, true);
+      if (l.nav >= 0) this.hooks.navClosed(l.nav, true);
+      n++;
+    }
+    return n;
+  }
+
+  /**
+   * Undo every lockdown (a section restart or unload): the doors unlock (left shut), their nav opens; pending ones are
+   * dropped (never shut). Count unlocked.
+   */
   release(): number {
     let n = 0;
     for (const l of this.locks) {
       if (!l.on) continue;
       l.on = false;
+      if (l.pending) {
+        l.pending = false;
+        continue;
+      }
       this.hooks.lock(l.door, false);
       if (l.nav >= 0) this.hooks.navClosed(l.nav, false);
       n++;
     }
+    this.pendingN = 0;
     this.dogsReleased = false;
     return n;
   }
 
-  /** Lockdown doors locked now (tests). */
+  /** Lockdown doors locked now (tests, `debug().lockdown`; pending ones not counted). */
   lockedCount(): number {
     let n = 0;
-    for (const l of this.locks) if (l.on) n++;
+    for (const l of this.locks) if (l.on && !l.pending) n++;
     return n;
+  }
+
+  /** Lockdown doors waiting on a player in their doorway (tests). */
+  pendingCount(): number {
+    return this.pendingN;
   }
 }

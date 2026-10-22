@@ -37,7 +37,7 @@ import {
 } from '../sectors';
 import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
-import { SectorStageRun, addDoorClosure, reinforceSlot } from '../sectorStage';
+import { SectorStageRun, addDoorClosure, doorwayClear, reinforceSlot } from '../sectorStage';
 import { markCompleted } from '../../save/sectorRecord';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
@@ -259,6 +259,8 @@ export class SectorMode implements GameMode {
         groupOn: (gr) => g.world.level.lights.setGroup(gr, true),
         lock: (d, on) => this.lockDoor(d, on),
         navClosed: (id, on) => g.nav?.setClosed(id, on),
+        // (E5 fix) never shut on a player: a living player within DOOR.clearance of the doorway keeps it pending
+        canShut: (d) => doorwayClear(d.cx, d.cz, g.playerRefsInto(this.refs)),
       },
       (_sec, x, z) => {
         const d = ds.nearest(x, z, DOOR_FIND);
@@ -618,6 +620,8 @@ export class SectorMode implements GameMode {
       this.fillT = 0.5;
       this.fill();
     }
+    // (E5 fix) a lockdown door waiting on a player in its doorway shuts once they step clear (no allocation; idle at 0)
+    if (this.stageRun?.step()) this.secT = 0;
     const s = this.run.current;
     if (!s) return;
     if (this.run.phase === 'objective' && this.run.downloading) {
