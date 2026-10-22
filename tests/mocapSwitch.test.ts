@@ -48,6 +48,7 @@ const SAVED_FEET = { ...MOCAP_FEET };
  */
 function placeholders(): void {
   Object.assign(SET, { walk: KEYED_WALK, jog: KEYED_JOG, run: KEYED_RUN, turnInPlace: null, turnMoveL: null, turnMoveR: null, start: null, stop: null });
+  Object.assign(SET, { crouchWalk: null, sprint: null }); // (mocap-trial-2, crouch) the crouched sneak stays hand-keyed
   for (const k of Object.keys(MOCAP_LAYERS) as (keyof typeof MOCAP_LAYERS)[]) MOCAP_LAYERS[k] = 1;
   MOCAP_FEET.pitchRate = Number.POSITIVE_INFINITY;
 }
@@ -355,8 +356,21 @@ describe('mocap switch: clip feet (A3)', () => {
 /** The integration's paces: the brief's walk / jog / run, then e2e-anim's own (walk gear 4 at half stick, jog gear 4). */
 const GAITS: [GaitName, number][] = [['walk', 1.4], ['jog', 2.5], ['run', 4.0], ['walk', 1.5], ['jog', 3.0]];
 const f1 = (v: number, d = 1): string => v.toFixed(d);
-/** (fix 1) Walking at `v` m/s, turning `yr` rad/s for 1.2 s left then right every 2.5 s (Course Ready's sweep). */
-const sweepTurn = (v: number, yr: number): Plan => (_k, t) => ({ speed: v, yawRate: t > 2 && t % 2.5 < 1.2 ? (t % 5 < 2.5 ? yr : -yr) : 0, rec: t > 1.5 });
+/**
+ * (fix 1) Walking at `v` m/s, turning `yr` rad/s for 1.2 s left then right every 2.5 s (Course Ready's sweep); (mt2-pop1,
+ * CHECK-2) the turns starting `off` s later (another gait phase at the turn's start and end).
+ */
+const sweepTurn = (v: number, yr: number, off = 0): Plan => (_k, t) => {
+  const u = t - off;
+  return { speed: v, yawRate: t > 2 + off && ((u % 2.5) + 2.5) % 2.5 < 1.2 ? (((u % 5) + 5) % 5 < 2.5 ? yr : -yr) : 0, rec: t > 1.5 };
+};
+/** (mt2-pop1, CHECK-2) Walking at `v` m/s, turning `yr` rad/s for 0.8 s then ramping down to 0 over `ramp` s, every 3 s, left then right. */
+const rampTurn = (v: number, yr: number, ramp: number): Plan => (_k, t) => {
+  if (t < 2) return { speed: v, yawRate: 0, rec: t > 1.5 };
+  const u = (t - 2) % 3;
+  const r = u < 0.8 ? yr : u < 0.8 + ramp ? yr * (1 - (u - 0.8) / ramp) : 0;
+  return { speed: v, yawRate: (t - 2) % 6 < 3 ? r : -r, rec: t > 1.5 };
+};
 /** (fix 1) The pelvis's largest move in one frame beyond what the pace carries it (m). */
 function pelvisStep(R: Rec): number {
   const h = R.pos.hips;
@@ -419,6 +433,27 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
       ['walk 1.4 turning 4 rad/s', 60 * 12, sweepTurn(1.4, 4)],
       ['walk 2.0 turning 1.5 rad/s', 60 * 12, sweepTurn(2.0, 1.5)],
       ['walk 2.0 turning 2.5 rad/s', 60 * 12, sweepTurn(2.0, 2.5)],
+      // (mt2-pop1, CHECK-2 required 1) the fast walk turns at other turn-start offsets and with ramped ends: the turn slot
+      // fading out mid-turn while the trailing planted foot was held at its reach (the other foot's swing landing only at
+      // phase 0.50) sank the pelvis 9-12 cm in ~6 frames (2.0 x 4 rad/s 2.06 cm a frame beyond pace x dt at offset 0.37,
+      // 2.25 with a ramped end; 2.0 x 3.5 at 0.37 2.04)
+      ['walk 2.0 turning 4 rad/s', 60 * 12, sweepTurn(2.0, 4)],
+      ['walk 1.4 turning 2.5 rad/s, offset 0.37', 60 * 12, sweepTurn(1.4, 2.5, 0.37)],
+      ['walk 1.4 turning 2.5 rad/s, offset 0.71', 60 * 12, sweepTurn(1.4, 2.5, 0.71)],
+      ['walk 1.4 turning 4 rad/s, offset 0.37', 60 * 12, sweepTurn(1.4, 4, 0.37)],
+      ['walk 1.4 turning 4 rad/s, offset 0.71', 60 * 12, sweepTurn(1.4, 4, 0.71)],
+      ['walk 2.0 turning 2.5 rad/s, offset 0.37', 60 * 12, sweepTurn(2.0, 2.5, 0.37)],
+      ['walk 2.0 turning 2.5 rad/s, offset 0.71', 60 * 12, sweepTurn(2.0, 2.5, 0.71)],
+      ['walk 2.0 turning 3 rad/s, offset 0.37', 60 * 12, sweepTurn(2.0, 3, 0.37)],
+      ['walk 2.0 turning 3.5 rad/s, offset 0.37', 60 * 12, sweepTurn(2.0, 3.5, 0.37)],
+      ['walk 2.0 turning 3.5 rad/s, offset 0.71', 60 * 12, sweepTurn(2.0, 3.5, 0.71)],
+      ['walk 2.0 turning 4 rad/s, offset 0.37', 60 * 12, sweepTurn(2.0, 4, 0.37)],
+      ['walk 2.0 turning 4 rad/s, offset 0.71', 60 * 12, sweepTurn(2.0, 4, 0.71)],
+      ['walk 1.4 turning 4 rad/s, ramped end 0.25 s', 60 * 14, rampTurn(1.4, 4, 0.25)],
+      ['walk 1.4 turning 4 rad/s, ramped end 0.5 s', 60 * 14, rampTurn(1.4, 4, 0.5)],
+      ['walk 2.0 turning 3 rad/s, ramped end 0.25 s', 60 * 14, rampTurn(2.0, 3, 0.25)],
+      ['walk 2.0 turning 4 rad/s, ramped end 0.25 s', 60 * 14, rampTurn(2.0, 4, 0.25)],
+      ['walk 2.0 turning 4 rad/s, ramped end 0.5 s', 60 * 14, rampTurn(2.0, 4, 0.5)],
       // (fix 1, CHECK required 2) a start's first clip swing lifted from the planner's pitch (the ankle-toe bone 26 deg)
       ['starts, the first clip swing', 60 * 16, (_k, t) => ({ speed: t % 4 < 1.5 ? 0 : 1.4, yawRate: 0, rec: t > 1 })],
     ];

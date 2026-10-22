@@ -42,6 +42,12 @@ export interface Interactable {
    * (a team door's "Unbolt", the course F7 test, `onBoltSide`). None: any side.
    */
   side?: readonly [number, number];
+  /**
+   * (sector-fixes-r2) With `side`: the most the feet may be off the item along the plane (m, either way) and out from
+   * it (m) (a team door's `boltHalfSpan` and `BOLT_DEPTH`, `inBoltReach`). None: no limit.
+   */
+  sideHalf?: number;
+  sideDepth?: number;
   /** Noise radius (m) the hold makes while it runs (a manhole cover, a padlock); none = silent. */
   holdNoise?: number;
   /** Called when used (else the mode handles it). */
@@ -135,7 +141,14 @@ export class Interactables {
     for (const it of this.items) {
       if (!it.enabled || it.done || it.kind === 'extract') continue;
       if (only ? it.kind !== only : it.kind === 'hide') continue;
-      if (it.side && (feet.x - it.pos.x) * it.side[0] + (feet.z - it.pos.z) * it.side[1] <= 0) continue;
+      if (it.side) {
+        const dx = feet.x - it.pos.x;
+        const dz = feet.z - it.pos.z;
+        const depth = dx * it.side[0] + dz * it.side[1];
+        if (depth <= 0) continue;
+        if (it.sideDepth !== undefined && depth > it.sideDepth) continue;
+        if (it.sideHalf !== undefined && Math.abs(dz * it.side[0] - dx * it.side[1]) > it.sideHalf) continue;
+      }
       const d = hyp2(it.pos.x - feet.x, it.pos.z - feet.z);
       if (d < (it.reach ?? reach) && d < bd && Math.abs(it.pos.y - feet.y) < 1.5) {
         bd = d;
