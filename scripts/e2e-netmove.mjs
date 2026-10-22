@@ -34,7 +34,12 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
     settled = sp < 0.05 && Math.max(...JOINTS.map((n) => err(a[n], b[n]))) < 0.01;
   }
   if (!settled) console.log('  (client never settled)', await GB(() => JSON.stringify({ sp: window.__app.current.player.controller.speed, axes: navigator.getGamepads()[0]?.axes, ov: !!window.__app.current.player.controller.override })));
-  await wait(800);
+  // (test-speed-2) the host has the settled pose: a client state received 0.15 s (host clock, the one its interpolation
+  // runs on) after the client was seen still, so the host's render time (receipt - 0.1 s) is past states sent in the
+  // still window. Was a fixed 0.8 s of sim; the host-copy settle loop below still waits for the copy to stand still.
+  // A slow link falls back to the old 0.8 s.
+  const tH = await GA(() => performance.now() / 1000);
+  await until(A, (t) => (window.__app.current.net.remotes.values().next().value?.avatar.buf.latestTime() ?? -Infinity) > t + 0.15, tH, 3000, 'host buffers the settled client').catch(() => wait(800));
   // attached: the host's copy settled onto the owner's planted grips too (one limb at a time after 0.25 s still; the
   // host page is in the background, its frames throttled, so two foot swings after a climb can take seconds)
   await A.waitForFunction(() => {
@@ -47,13 +52,15 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
   }, null, { timeout: 8000, polling: 100 }).catch(() => {});
   // (test-speed) and the host's copy settled too (its joints still for 0.3 s of sim): under load its pose and feet were
   // still on their way when sampled (doorPeek ankle 10.8-12.9 cm in loaded runs, 2-2.5 cm alone)
-  for (let k = 0; k < 20; k++) {
+  let remStill = false;
+  for (let k = 0; k < 20 && !remStill; k++) {
     const a = (await remoteJoints()).j;
     await wait(300);
     const b = (await remoteJoints()).j;
-    if (Math.max(...joints.map((n) => err(a[n], b[n]))) < 0.01) break;
+    remStill = Math.max(...joints.map((n) => err(a[n], b[n]))) < 0.01;
   }
-  await wait(300);
+  // (test-speed-2) the extra 0.3 s only when the host's copy never stood still (a copy still for 0.3 s is sampled now)
+  if (!remStill) await wait(300);
   const [loc, rem] = [await localJoints(), await remoteJoints()];
   const errs = Object.fromEntries(joints.map((n) => [n, +err(loc[n], rem.j[n]).toFixed(3)]));
   const worst = Math.max(...Object.values(errs));
@@ -79,7 +86,8 @@ async function attach(kind, at = 0.5, entry = 'side') {
   }, [kind, at, entry]);
   if (!ok) throw new Error(`client could not attach to a ${kind}`);
   await until(B, () => { const m = window.__app.current.traversal.attach; return m.phase === 'on'; }, null, 8000, `client on the ${kind}`);
-  await wait(400);
+  // (test-speed-2) no fixed 0.4 s here: every attach is followed by `compare`, which waits for the host to show the mode,
+  // then for the client and the host's copy to stand still
 }
 
 /** Let the client go of whatever it holds and stand it on open floor. */
@@ -91,7 +99,21 @@ async function reset() {
     g.player.controller.clearCrouchToggle();
     g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0);
   });
-  await wait(600);
+  await landed(B, 0, 0);
+}
+
+/**
+ * (test-speed-2) After a client teleport, instead of a fixed 0.6 s of sim: at least 0.15 s of the client's sim (the
+ * controller's `grounded` is stale right after a teleport), then the client stands (grounded, free, uncrouched, still)
+ * and the host's copy of its feet is at the spot (x, z; null: anywhere). A miss is no failure: the old 0.6 s minus what
+ * was waited, as before.
+ */
+async function landed(P, x = null, z = null) {
+  const t0 = await P.evaluate(() => window.__app.current.time);
+  const ok = await until(P, (t0) => { const g = window.__app.current; const c = g.player.controller; return g.time - t0 >= 0.15 && c.grounded && !c.override && !g.traversal.attached && !c.crouched && c.crouchBlend < 0.01 && c.speed < 0.05; }, t0, 3000, 'the client stands after the teleport').then(() => true, () => false);
+  if (ok && x !== null) await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.3; }, [x, z], 3000, 'the host has the client at the spot').catch(() => {});
+  const left = 0.6 - ((await P.evaluate(() => window.__app.current.time)) - t0);
+  if (!ok && left > 0) await wait(left * 1000);
 }
 
 try {
@@ -117,7 +139,7 @@ try {
       if (m.s - s0 >= 0.6) { window.__pad.axis(1, 0); st.fixedUpdate = orig; res(); }
     };
   }));
-  await wait(500);
+  // (test-speed-2) no fixed 0.5 s: `compare` waits for the client to stand still (0.3 s) and the host's copy to settle
   await compare('ladder after a climb', 'ladder');
   await reset();
   await attach('pipeV');
@@ -150,7 +172,7 @@ try {
   const attachedNow = () => window.__app.current.traversal.attached;
   await allowTeleport(A);
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(10, 0, 24.8), Math.PI / 2); g.player.cam.yaw = Math.PI / 2; });
-  await wait(600);
+  await landed(B); // (test-speed-2) was a fixed 0.6 s
   await until(B, () => window.__app.current.traversal.attachCtl.split?.anchor.kind === 'split', null, 5000, 'split offered');
   // (3.2.0) a double jump: Y jumps, Y again in the air 0.1 s later braces (timed in the client's own fixed steps)
   await GB(() => new Promise((res) => {
@@ -182,7 +204,7 @@ try {
   await GB(() => window.__app.input.state.set('t', 'ads', false));
   await reset();
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(17.5, 0, 23.3), 0); g.player.cam.yaw = 0; });
-  await wait(600);
+  await landed(B); // (test-speed-2) was a fixed 0.6 s
   await until(B, () => window.__app.current.traversal.attachCtl.hint?.entry === 'wall', null, 5000, 'wall jump offered');
   await GA(() => { window.__seen = new Set(); const r = window.__app.current.net.remotes.values().next().value; const tick = () => { window.__seen.add(r.avatar.mode); if (window.__seen.size < 50) requestAnimationFrame(tick); }; tick(); });
   await pressUntil(3, attachedNow);
@@ -191,7 +213,7 @@ try {
   await compare('hanging after the wall jump', 'ledge', 0.1, ['wristL', 'wristR', 'headNode']);
   await reset();
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(0.5, 0, 22.7), 0); g.player.cam.yaw = 0; });
-  await wait(600);
+  await landed(B); // (test-speed-2) was a fixed 0.6 s
   await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'pipeH', null, 5000, 'pipe offered');
   await pressUntil(3, attachedNow);
   await until(B, () => window.__app.current.traversal.attach.phase === 'on', null, 5000, 'on the pipe');
@@ -218,7 +240,7 @@ try {
 
   console.log('3.2.0 phase 3: rappel, fence');
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(24, 5.72, 26.9), Math.PI); g.player.cam.yaw = Math.PI; });
-  await wait(600);
+  await landed(B); // (test-speed-2) was a fixed 0.6 s
   await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'rappel', null, 5000, 'rappel offered');
   await pressUntil(3, attachedNow);
   await until(B, () => window.__app.current.traversal.attach.phase === 'on', null, 6000, 'on the rope');
@@ -230,7 +252,7 @@ try {
   assert(rope === 1, `the host draws the client's rope (${rope})`);
   await reset();
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(-9, 0.1, 25.3), 0); g.player.cam.yaw = 0; });
-  await wait(600);
+  await landed(B); // (test-speed-2) was a fixed 0.6 s
   await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'fence', null, 5000, 'fence offered');
   await pressUntil(3, attachedNow);
   await GB(() => { window.__pad.axis(1, -1); });
@@ -464,7 +486,7 @@ try {
   assert(Math.abs(sl - sr) <= 0.05, `the host's copy is at s ${sr.toFixed(3)} (client ${sl.toFixed(3)}), within 5 cm`);
   await GB(() => window.__app.input.state.tap('crouch'));
   await until(B, () => (window.__app.current.wallCore.sub() & 1) !== 0 && window.__app.current.player.controller.crouchBlend > 0.99, null, 3000, 'client crouched on the wall');
-  await wait(600);
+  // (test-speed-2) no fixed 0.6 s: the crouch is in (above) and `compare` waits for both poses to stand still
   await compare('wall crouch', 'wall');
   [sl, sr] = await wallS();
   assert(Math.abs(sl - sr) <= 0.05, `crouched: the host's copy at s ${sr.toFixed(3)} (client ${sl.toFixed(3)})`);
