@@ -28,6 +28,11 @@ v4.53.0 (train 2 #112 = #105 + #109, 5220f79c, ~13:05). 4.52.0 (train 1 #111 = #
   leads start no new agent and pause at 97% or their current agent's end; a one-shot cron at 14:13 resumes everyone.
 - Overnight: never leave a question dialog open (it blocks the turn and the cron); log assumed decisions instead.
 - Context: sessions over ~60% get cleared at clean points (Michael approved 09:30): save STATE, clear, send resume.
+  2026-10-22 13:40 (Michael asked for the best clear times): clear at ~40% context (1M windows) at the next clean point
+  (PR opened, slice done, or the 98% save before a reset, the best point since the session idles anyway). The cron
+  reads each session's context (get_usage session_id). Desktop sessions have Remote Control on, so the orchestrator
+  cannot clear them: it tells the session to save and refresh its resume prompt, then gives Michael the clear and the
+  paste-in resume prompt (title, model, effort).
 
 ## Sessions (titles are the message addresses)
 | Session | Owns now | Next |
