@@ -72,7 +72,7 @@ Night Shift | Menu Notes Build (account swap). Read CLAUDE.md and docs/ROADMAP.m
 
 ### 4. Course Ready Build
 ```
-Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP.md (top "Decided": Sector Ops redesign, Michael 01:35 / 01:40), then follow the resume prompt in the last fenced block of docs/sector-redesign/STATE.md on origin/feature/sector-redesign (git fetch). Job: sector-redesign lead (up to 5 sections, plan then build), plus the camera-range engine cut (all maps) and spare jobs sw-reload / g44-above. Every e2e run is E2E_GPU=1; full runs and GPU suites go to Character Build on the laptop. A C:/NightShift/heavy.lock or heavy2.lock naming Course Ready with no node process running is stale; tell the orchestrator. Full burn to 100% (Michael 01:05): WIP pushed and STATE current after every agent hand-back. Message "Night Shift | Orchestrator" at the spec, each slice and PR.
+Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP.md (top "Decided": Sector Ops redesign, Michael 01:08 / 01:10), then follow the resume prompt in the last fenced block of docs/sector-redesign/STATE.md on origin/feature/sector-redesign (git fetch). Job: sector-redesign lead (up to 5 sections, plan then build), plus the camera-range engine cut (all maps) and spare jobs sw-reload / g44-above. Every e2e run is E2E_GPU=1; full runs and GPU suites go to Character Build on the laptop. A C:/NightShift/heavy.lock or heavy2.lock naming Course Ready with no node process running is stale; tell the orchestrator. Full burn to 100% (Michael 01:05): WIP pushed and STATE current after every agent hand-back. Message "Night Shift | Orchestrator" at the spec, each slice and PR.
 ```
 
 ### 5. Character Build (laptop)
