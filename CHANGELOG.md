@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.63.1 - Train 14: Load-proof heap check, faster e2e start order (2026-10-23, PR #166; #163, #165)
+
+### E2E start order
+- Tests: `scripts/e2e-times.json` refreshed from a full laptop GPU run (adds e2e-sectorops and its parts, e2e-studio,
+  e2e-tuner-phone; e2e-anim 5 s -> 37 s), and a suite with no recorded time now sorts at the median known time instead
+  of 0, so a new or renamed suite no longer starts last at E2E_JOBS=5 and sets the tail.
+
+### lightField allocation check holds under load
+- Tests only: the shared allocation helper (`tests/helpers/allocPerCall.ts`) tiers code up synchronously
+  (`--no-concurrent-recompilation`, `--no-concurrent-osr`), so every heap check reads the optimized code on any machine
+  instead of whatever tier a starved background compiler had reached. lightField "allocation-free under a loop" now
+  reads levelAt 32.0, bodyLevel 64.8 (was 100-127 B in Sparkplug against its 128 B limit), control 272.0 B every run;
+  same asserts and limits. `ALLOC_TRACE=1` logs each round with its optimization tier.
+
 ## 4.63.0 - Train 13: Sector Ops co-op routes and team doors, fence rattle test, decisions G270-G275 (2026-10-23, PR #164; #144, #161, #162)
 
 ### e2e-ct: the fence rattle check latches its noise samples
