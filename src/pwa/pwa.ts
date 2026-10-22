@@ -26,6 +26,7 @@ export function setupServiceWorker(hooks: ServiceWorkerHooks = {}): void {
   let takenOver = false;
   let applying = false;
   let told = false;
+  let reloading = false;
   let timer = 0;
   const tick = (): void => {
     const facts = hooks.probe?.();
@@ -34,8 +35,10 @@ export function setupServiceWorker(hooks: ServiceWorkerHooks = {}): void {
     if (d === 'apply') {
       applying = true;
       window.clearInterval(timer);
-      if (takenOver) window.location.reload();
-      else void update(true);
+      if (takenOver) {
+        reloading = true;
+        window.location.reload();
+      } else void update(true);
     } else if (d === 'defer' && !told && !facts.booting) {
       told = true;
       hooks.onDeferred?.();
@@ -53,14 +56,23 @@ export function setupServiceWorker(hooks: ServiceWorkerHooks = {}): void {
       hooks.onReady?.();
     },
     onNeedRefresh: pend,
-    // the new worker controls the page: our own SKIP_WAITING (reload now) or another window's (wait for the menu)
-    onNeedReload() {
-      if (applying) window.location.reload();
-      else {
-        takenOver = true;
-        pend();
-      }
-    },
+    // (a no-op so the plugin never reloads by itself; its `controlling` event misses pages with no controller at load)
+    onNeedReload() {},
+  });
+  // (sw-reload fix r1) the new worker controls the page: our own SKIP_WAITING (reload now) or another window's (wait
+  // for the menu). The first claim of a page that had no worker (first install, hard reload) is not an update.
+  let controlled = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    const was = controlled;
+    controlled = !!navigator.serviceWorker.controller;
+    if (!was || reloading) return;
+    if (applying) {
+      reloading = true;
+      window.location.reload();
+    } else {
+      takenOver = true;
+      pend();
+    }
   });
 }
 

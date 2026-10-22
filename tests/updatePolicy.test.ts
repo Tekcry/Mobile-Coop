@@ -24,6 +24,11 @@ describe('sw-reload update policy', () => {
     expect(decideUpdate(contextFrom(true, { ...menu, topClasses: ['settings-screen'], coopOpen: true }))).toBe('defer');
     // a stale main-menu top with a lobby somewhere in the stack still waits
     expect(decideUpdate(contextFrom(true, { ...menu, coopOpen: true }))).toBe('defer');
+    expect(decideUpdate(contextFrom(true, { ...menu, topClasses: ['title-screen'], coopOpen: true }))).toBe('defer');
+  });
+
+  it('defers on the results screen (the match state still runs)', () => {
+    expect(decideUpdate(contextFrom(true, { ...menu, menuState: false, topClasses: ['results-screen'] }))).toBe('defer');
   });
 
   it('defers on other menu screens (settings, loadout) until the player is back on the main menu', () => {

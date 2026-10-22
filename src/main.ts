@@ -72,6 +72,9 @@ async function boot(): Promise<void> {
   // (M2) the wordmark-only boot is for a launch that shows the title; any other keeps the status lines
   if (titleShown || (navigator.webdriver && !titleFlag)) endLaunchBoot();
   suppressBrowserGestures();
+
+  const canvas = document.getElementById('game') as HTMLCanvasElement;
+  const app = new App(canvas);
   // (sw-reload) a new deploy applies only on the title / main menu, never mid-match or in a co-op lobby
   setupServiceWorker({
     onReady: () => app.toasts.show('Ready to play offline', 'ok'),
@@ -83,9 +86,6 @@ async function boot(): Promise<void> {
     }),
     onDeferred: () => app.toasts.show('Update ready - restarts at the menu', 'info', 4000),
   });
-
-  const canvas = document.getElementById('game') as HTMLCanvasElement;
-  const app = new App(canvas);
   (window as unknown as { __app: App }).__app = app;
   // tests: the bundled mission definitions
   (window as unknown as { __missions: typeof MISSIONS }).__missions = MISSIONS;
