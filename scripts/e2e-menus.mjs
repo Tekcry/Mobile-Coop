@@ -707,6 +707,13 @@ try {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 500 + k * 25, y: 400, id: 1 }] });
       await frames(P, 1);
     }
+    // (gpu-tests-3) hold still before the lift: on a fast GPU the 200 px drag takes ~80 ms, Chrome flings it, and the
+    // next touch only cancels the fling, so the pause button's first tap was lost (a zero-velocity release flings nothing)
+    for (let k = 0; k < 3; k++) {
+      await new Promise((r) => setTimeout(r, 60));
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 700, y: 400, id: 1 }] });
+    }
+    await new Promise((r) => setTimeout(r, 150));
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await frames(P, 6);
     const y1 = await yaw();
@@ -715,11 +722,19 @@ try {
     const moved = Math.hypot(p1.x - p0.x, p1.z - p0.z);
     assert(turned > 0.2 && moved < 0.05, `a drag on the game view looks around (${turned.toFixed(2)} rad) and never moves her (${moved.toFixed(3)} m)`);
     assert(await shown(), 'after a touch the pause button shows');
+    // (menus-tap-wait) the tap reaches the game as `state.tap('pause')`, handled on a later sim step: wait for the screen
+    // (3 s cap) instead of reading it after 4 frames (train 9 laptop run: "((none))" under the full parallel load)
+    const untilTop = async (want, more = async () => true) => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 3000 && !((await ttop()) === want && (await more()))) await frames(P, 2);
+    };
     await tapSel('.touch-pause');
-    await P.waitForFunction(() => (window.__app.screens.top?.el.classList[1] ?? '(none)') === 'pause-screen', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
+    await untilTop('pause-screen');
     assert((await ttop()) === 'pause-screen', `a tap on the pause button pauses (${await ttop()})`);
     await tapSel('.pause-screen [data-key="resume"]');
-    assert((await ttop()) === '(none)' && (await GT(() => window.__app.current.simulating)), 'a tap on Resume resumes');
+    const sim = () => GT(() => window.__app.current.simulating);
+    await untilTop('(none)', sim);
+    assert((await ttop()) === '(none)' && (await sim()), 'a tap on Resume resumes');
     await P.keyboard.press('Shift');
     await frames(P, 3);
     await P.waitForFunction(() => getComputedStyle(document.querySelector('.touch-pause')).display === 'none', null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep)
