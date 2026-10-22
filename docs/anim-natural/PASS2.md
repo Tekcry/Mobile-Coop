@@ -109,8 +109,77 @@ too (pass 2 checked both sides). With the audit key light the limbs read. A note
 
 | Row | Why | Next |
 | --- | --- | --- |
-| 29 Hand swap, 39 peek aim | Both stick signs tried (one fix round): she slides along the wall but the aim at the end steps her off the wall and turns her round instead of the open-side lean-out, so the hand swap never runs | Drive it as `scripts/anim-audit.mjs`'s `wall` open rows do (its `tp` resets the gait clock, gear 3; maybe the aim must come while the stick is held toward the end) |
-| 49 Elbow strike | No whiff exists (`StrikeController` starts only with a guard in reach); with the Warehouse guard, faced, a KBM `altFire` tap still started nothing | Check what blocks it with a calm guard in reach (`takedown.offer` or the context menu may own the press) |
+| 29 Hand swap, 39 peek aim | Both stick signs tried (one fix round): she slides along the wall but the aim at the end steps her off the wall and turns her round instead of the open-side lean-out, so the hand swap never runs | Resolved 2026-10-22 (N0 leftovers, below): script problem, not a game bug; the lean-out is gone by decision |
+| 49 Elbow strike | No whiff exists (`StrikeController` starts only with a guard in reach); with the Warehouse guard, faced, a KBM `altFire` tap still started nothing | Resolved 2026-10-22 (N0 leftovers, below): script problem (the guard out of reach), not a game bug |
+
+## N0 leftovers (2026-10-22, rows 29 / 39 / 49)
+
+Read-only for the game again: only `scripts/anim-natural/audit.mjs` and these docs changed. No game bug found.
+
+**Rows 29 / 39 (the wall end): script problem; the game is as decided.**
+- The lean-out aim at a wall end and its hand swap no longer exist: removed by decision (loco M20 Q1, G52; the
+  comment on `WallCore.edgeVerbs`, `src/player/wallController.ts:624-627`, and `docs/systems/movement.md` "Wall edge
+  verbs"). Aiming leaves the wall by design (A3 / loco M25, CT): `src/game/gameState.ts:2535`
+  `i.leave = inp.pressed('dash') || pl.ads || pl.adsWanted || other`. `scripts/anim-audit.mjs:457` dropped its open-side
+  rows for the same reason, so its old `+end` drive was no longer a working reference.
+- What a real player gets at an end: the peek (stopped on the end, the stick pushed toward it over 0.4 or the look past
+  it: `wallController.ts:628-650`). At the LEFT end (the b end, `edgeL`) the peek puts the weapon in the left hand
+  (`wallLeftHand`, `wallController.ts:112`; `gameState.ts:2565` `pl.rig.openLeft = w.leftHand || ...`; the rig blends
+  `handBlend` over `EDGE_HAND_TIME`). The other hand swap is aiming from the left shoulder (`player.ts:274`, the shoulder
+  swap while aiming; `gameState.ts:2565`).
+- Why pass 2 missed it: (1) the stick was a fixed `x` sign (pass 1 `+end`, the rerun `-end`): which way that moves her
+  depends on the segment's winding against the camera frame, so she may never have stopped on the end to peek; (2) the
+  gun was holstered, so a swap had nothing to show; (3) the aim came with the camera still facing the wall, so leaving
+  the wall into the aim turned her round to aim at it ("turns her round").
+- Changed: the wall end rows push the stick toward the end in the world (`tw`, turned into the stick from the live
+  camera yaw: the inverse of `wallStep`'s stick frame), draw the gun before the entry (left and right ends; the low end
+  stays holstered), then turn the camera to look past the end before the aim, so row 39 shows the real verb: the exit
+  from the wall into an aim round the corner. New row `hand-swap-shoulder` (row 29): aimed, the shoulder swapped and
+  swapped back. Each row now logs `ev` (edges reached, peek peak, hand blend peak, strike phase / count / KOs, aimed)
+  and the tile labels print `pk` / `hand` / `strike` / `aim` when they run.
+
+**Row 49 (the elbow strike): script problem (the guard out of reach), not a game bug.**
+- The press path is clear for a calm guard in reach: KBM Z (`altFire`) or an RT / LMB tap holstered reaches
+  `strike.fixedUpdate` (`gameState.ts:1761`; `inp` is the real input unless the context list is held, the wheel / a
+  remote view takes it, or a guard is held: `gameState.ts:1626`); `fixedUpdate` starts it when `pickTarget()` finds a
+  live guard within `STRIKE.reach` 1.3 m and the 140 deg cone of the camera yaw (`strikeController.ts:148-150`,
+  `elbowStrike.ts:10-12, 64-69`). The context menu and `takedown.offer` do not read `altFire` or `fire` while not
+  holding a guard.
+- The audit stood her at a fixed (2, -2.2) and spawned the guard at (2, -1): 1.2 m, but `EnemyManager.spawn` snaps him to
+  the centre of a 0.5 m nav cell (`enemyManager.ts:459-462`), which can put him ~1.45 m off, past the 1.3 m reach. The
+  grab rows worked from the same spot because the takedown reach is 1.8 m (`takedown.ts:17`). e2e-takedown's palm
+  strike stands 0.9 m off and passes.
+- Changed: the row's face code `FS` stands her 0.85 m behind the guard where he really is, facing him (body and
+  camera), 0.8 s before the `altFire` tap; the log prints the gap and `ev.strikes` / `ev.ko`.
+
+**Verification (software GL, logic only, port 4191, under heavy.lock, 18:16-18:52; the branch's dist, built after its last
+src change):** `NAT_PORT=4191 node scripts/anim-natural/audit.mjs proving --only=...`. The first attempt was killed by the
+tool before any row; the second ran the four wall / swap rows (the strike row hit the 25 min timeout: ~5-7.5 min a row
+in software GL) and the strike row then ran alone.
+
+| Row | `ev` (software GL) | Result |
+| --- | --- | --- |
+| `wall-edge-left` (29, 39) | edges [0, 1], peekMax 1, handMax 1, aimed | pass: the end, the peek, the weapon to the left hand, the aim off the wall round the corner |
+| `wall-edge-right` (39) | edges [0, -1], peekMax 1, handMax 0, aimed | pass: the peek, no swap (right end), the aim |
+| `wall-edge-low` (39) | edges [0, 1], peekMax 1, handMax 1, aimed | pass (holstered: the hand blend runs with nothing in the hand); the stick held through the aim walked her off, so the aim's stick is now idle (not rerun) |
+| `hand-swap-shoulder` (29) | handMax 1, aimed | pass: left hand at 0.5 s, back at 1.8 s |
+| `elbow-strike-guard` (49) | gap 0.85 m, strikes 1, ko 1, meleeMax 0.98 | pass: the strike runs and knocks him out |
+
+Look notes from the logic sheets (to confirm on the GPU sheets, not a visual result): the hand swap swings the rifle
+muzzle-up over the shoulder mid-swap (the wall peek and the shoulder swap alike, as row 24's wall block), and the strike
+turns the shoulders 0.8 deg (arm only). The software-GL sheets and metrics are kept out of the repo
+(`docs/anim-natural/audit/` still holds pass 2's GPU sheets and metrics); the new rows' sheets come from the GPU run.
+
+GPU sheets for Michael (the laptop's GPU run, under its `heavy.lock`, after `npm run build`; port 4189 is the default):
+
+```
+E2E_GPU=1 timeout 1800 node scripts/anim-natural/audit.mjs proving --only=wall-edge-left,wall-edge-right,wall-edge-low,hand-swap-shoulder,elbow-strike-guard
+```
 | 31 Launcher | Not in the game (weapons.json has the rifle and pistol only) | When a launcher lands |
 | 80 Downed (solo) | Solo has no downed pose | Covered by the revive pair's role B |
 | 70, 72 | Deleted (Michael 2026-10-22) | - |
+
+**Stage-light fix (2026-10-22, from Course Ready's studio-pairs fix via the orchestrator):** the stage key / fill lights
+took shared PartLibrary part bases (`ms.sourceMesh`) into `includedOnlyMeshes`, which lit every instance of that part in
+the scene (white guard, glowing skin in the sheets). `audit.mjs` now adds a mesh only when it is not an instance
+(`!ms.sourceMesh`), at both sites (the pair stage lights and the key light). Sheets made before this fix may show it.

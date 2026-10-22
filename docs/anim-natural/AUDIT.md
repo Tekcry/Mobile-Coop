@@ -136,12 +136,12 @@ Scores are pass 1 reads of the sheet plus the numbers; rows marked "Pass 2" are 
 | 26 | Reload rifle | 3 | `reload-rifle` | Shoulders 17 deg with the reach; gun still 1 s while the mag changes (expected) |
 | 27 | Reload pistol | 3 | `reload-pistol` | As 26 |
 | 28 | Swap, draw, holster | 1 | `draw-lowready-*`, `draw-*`, `swap-drawn`, `holster-*`, `ready-to-aim` | The stop (rows 2-3 of the fix list), pops at the slot and the hand-off; holster and ready-to-aim are smooth (4) |
-| 29 | Hand swap | - | `wall-edge-left` | not captured: both stick signs tried; the aim at the wall end steps her off the wall instead of the open-side lean-out, so the hand swap never runs |
+| 29 | Hand swap | - | `wall-edge-left`, `hand-swap-shoulder` | 2026-10-22 (N0 leftovers): a script problem, no game bug. The lean-out aim (and its swap) is gone by decision (G52, `wallController.ts:624-627`); the swap now runs on the peek at a left wall end with the gun out (`wallLeftHand`) and on the left-shoulder aim. The rows now push the stick toward the end in the world, draw first, and add the shoulder swap (PASS2.md "N0 leftovers"). Sheets pending the GPU run; software-GL logic check 18:19-18:46 passed (left end: edge reached, peek 1.0, weapon to the left hand 1.0, then the aim; shoulder swap: left hand 1.0 and back). Seen in the logic sheets (look pending GPU): the rifle swings muzzle-up over the shoulder mid-swap, wall and shoulder alike (as row 24) |
 | 30 | Knife in hand | 3 | `knife-in-hand` | Pass 2: fist closed on the knife, the walk swings it as an empty hand (22.6 cm); no guard of the blade |
 | 31 | Launcher in hand | - | - | not in the game (weapons.json: rifle and pistol only) |
 | 32 | Jammer | 2 | `jammer` | = pistol aim still (row 18): 0 deg trunk, no pose of its own |
 | 33-38 | Wall idle / slide / peek, crouched | 2 | `wall-set` | One studio loop (enter, slide both ways, leave); right foot wound 23 deg; prior knees / track out of range |
-| 39 | Aim at a wall / peek aim | - | `wall-edge-left / -right / -low` | not captured (as 29) |
+| 39 | Aim at a wall / peek aim | - | `wall-edge-left / -right / -low` | 2026-10-22 (N0 leftovers): no game bug. Aiming leaves the wall by design (A3 / loco M25, CT: `gameState.ts:2535`); she turned round because the camera still faced the wall. The rows now peek at the end, turn the view past it, then aim round the corner. Sheets pending the GPU run; software-GL logic check passed: left / right / low ends reached (edge 1 / -1 / 1), peek 1.0 on each, the aim leaves the wall and she aims round the corner (right end: no swap, as designed) |
 | 40 | Door peek | 3 | `door-peek` | Pass 2 rerun (Stealth open pick, camera behind): steps to the latch side, a hand to the frame, holds, steps back |
 | 41 | Door open, walk through | 3 | `trav-door` | Hips do the turn (15 vs 3 deg) |
 | 42 | Grab | 3 | `grab` | Trunk as a block (corr +0.2), feet ok (1.2 cm) |
@@ -151,7 +151,7 @@ Scores are pass 1 reads of the sheet plus the numbers; rows marked "Pass 2" are 
 | 46 | Knife kill | 3 | `knife-kill`, `pair-hold_knife` | Pass 2: the strike and the lowering read; trunk turns as a block (corr +0.81); Wren dark in the Warehouse (guard bright) |
 | 47 | Interrogate | 2 | `interrogate` | Pass 2 rerun: the free hand goes to his jaw (12 cm); trunk, head and stance 0.0 deg |
 | 48 | Body pick-up, carry, drop | 2 | `lift`, `carry-walk` | Lift slide 21 cm; carry block trunk (+0.95), slide 8.7 cm |
-| 49 | Elbow strike | - | `elbow-strike-guard` | not captured: no whiff in the game (needs a guard in reach); with the Warehouse guard faced, an `altFire` tap started nothing |
+| 49 | Elbow strike | - | `elbow-strike-guard` | 2026-10-22 (N0 leftovers): a script problem, no game bug. The guard snaps to a 0.5 m nav cell centre and could stand ~1.45 m off, past `STRIKE.reach` 1.3 m (the grab's 1.8 m reach hid it); the row now stands her 0.85 m behind him where he really is. Sheet pending the GPU run; software-GL logic check 18:46-18:51 passed: 0.85 m gap, the `altFire` tap started 1 strike (phase to 0.98 in 0.67 s), 1 knock-out. Trunk moves 0.8 deg (shoulders) through the strike: an arm-only strike, for N4 |
 | 50 | Ladder | 3 | `trav-ladder` | Reach and step alternate; trunk twist 13 deg; top-out stiff |
 | 51 | Drainpipe | 3 | `trav-pipeV` | Twist 10 deg |
 | 52 | Pipe legs up | 3 | `trav-bar` | Twist 19 deg |

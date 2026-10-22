@@ -17,7 +17,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { launch, waitOperator } from '../e2e-lib.mjs';
 
-const PORT = 4189;
+// (N0 leftovers) NAT_PORT: 4191 for a software-GL logic check (no E2E_GPU); the GPU sheets stay on 4189
+const PORT = Number(process.env.NAT_PORT ?? 4189);
 const OUT = 'docs/anim-natural/audit';
 const MET = `${OUT}/metrics.json`;
 const group = process.argv[2] ?? 'studio';
@@ -130,12 +131,20 @@ const PROVING = [
 function PASS2() {
   const J = "a.input.state.tap('jump');";
   const ramp = (t, d) => Math.min(1, Math.max(0, t / d));
-  // the open-side wall drive of anim-audit (step 12b) as a timeline: enter, slide to the end, stop, peek (stick toward
-  // it), release, aim (high: the lean-out; low: the stick toward the end), release
-  const wallEdge = (n, end, low, row) => {
-    // (rerun) the stick toward the end is -end in this harness's frame (anim-audit's +end slid her away from it here)
-    const toEnd = -end;
-    const segs = [{ d: 0.6, tap: 'cover' }, { d: 1.2, x: toEnd }, { d: 0.4 }, { d: 1.0, x: toEnd }, { d: 0.6 }, { d: 1.2, ads: true, x: low ? toEnd : 0 }, { d: 0.8 }];
+  // The wall end as the game has it now (N0 leftovers, 2026-10-22): the lean-out aim and its hand swap are gone by
+  // decision (loco M20 Q1 / G52, `wallController.ts` edgeVerbs: "an end holds the body on the wall") and aiming leaves the
+  // wall (A3 / loco M25, CT: `gameState.ts` wallStep `i.leave = ... pl.ads || pl.adsWanted`). What is left at an end:
+  // the peek (stopped on the end, the stick pushed toward it or the look past it), and at the LEFT end (`end` 1, the b
+  // end, edgeL) the peek puts the weapon in the left hand (`wallLeftHand`, rig `openLeft` / `handBlend`): row 29 needs
+  // the gun out (low ready, drawn before the entry) to show it. Timeline: enter, slide to the end, stop, peek (stick
+  // toward it), release, the camera turns to look past the end (a real player's view round the corner), aim (row 39:
+  // she leaves the wall into the aim round the corner, not back toward the wall), release.
+  // The stick is `tw` (toward the end, in the world: setInput turns it into the stick from the live camera yaw), so no
+  // sign guess: pass 2's fixed `x` (+end, then -end) depended on the segment's winding against the camera frame.
+  const wallEdge = (n, end, low, row, drawn) => {
+    const segs = [{ d: 0.6, tap: 'cover' }, { d: 1.8, tw: 1 }, { d: 0.4 }, { d: 1.0, tw: 1 }, { d: 0.6 }, { d: 0.8, look: 'ramp' }, { d: 1.2, ads: true, look: 1 }, { d: 0.6, look: 1 }];
+    // (the low end's aim used to hold the stick toward the end for the crouched side lean; aiming leaves the wall now, so
+    // that stick only walked her off at 1.4 m/s in the logic check: the stick is idle for the aim on both)
     const at = {};
     let t0 = 0;
     for (const s of segs) {
@@ -145,12 +154,14 @@ function PASS2() {
     const input = (t) => {
       let u = 0;
       for (const s of segs) {
-        if (t < u + s.d) return { x: s.x ?? 0, ads: !!s.ads };
+        if (t < u + s.d) return { tw: s.tw ?? 0, ads: !!s.ads, look: s.look === 'ramp' ? (t - u) / s.d : s.look ?? 0 };
         u += s.d;
       }
       return {};
     };
-    return { n, pass: 2, row, find: ['end', end, low], pre: 0.3, input, at, f: 18, dt: 0.32, cam: 'follow', fixCam: true };
+    const e = { n, pass: 2, row, find: ['end', end, low], pre: drawn ? 1.2 : 0.3, input, at, f: 18, dt: 0.39, cam: 'follow', fixCam: true };
+    if (drawn) e.at0 = "a.input.state.tap('draw');";
+    return e;
   };
   return [
     // (row 7) the turn on the spot: the player's body only turns standing while aiming (strafe-locked to the aim; held
@@ -171,10 +182,14 @@ function PASS2() {
     // (row 25) fire and recoil: the rifle held on, the pistol tapped
     { n: 'fire-rifle', pass: 2, row: 25, ...P0, pre: 1.4, warm: { ads: true }, input: (t) => ({ ads: true, fire: t < 1.0 }), f: 18, dt: 1 / 15, cam: 'front34' },
     { n: 'fire-pistol', pass: 2, row: 25, ...P0, pre: 1.4, weapon: 'pistol', warm: { ads: true }, input: (t) => ({ ads: true, fire: t < 1.2 && (t * 4) % 1 < 0.4 }), f: 18, dt: 1 / 15, cam: 'front34' },
-    // (rows 29, 39) the wall edges: aiming out at the open-left end changes hands; right end; a low wall's end
-    wallEdge('wall-edge-left', 1, false, '29, 39'),
-    wallEdge('wall-edge-right', -1, false, 39),
-    wallEdge('wall-edge-low', 1, true, 39),
+    // (rows 29, 39) the wall ends: the gun out, the peek at the left end changes hands, then the aim leaves the wall
+    // round the corner; the right end (no swap) and a low wall's end holstered
+    wallEdge('wall-edge-left', 1, false, '29, 39', true),
+    wallEdge('wall-edge-right', -1, false, 39, true),
+    wallEdge('wall-edge-low', 1, true, 39, false),
+    // (row 29) the other hand swap in the game: aiming from the left shoulder (the shoulder swap, G17; `gameState.ts`
+    // wallStep `openLeft = ... pl.cam.shoulder < 0 && weapons.handSwitchOk`), swapped and swapped back
+    { n: 'hand-swap-shoulder', pass: 2, row: 29, ...P0, pre: 1.4, warm: { ads: true }, input: () => ({ ads: true }), at: { 0.2: "a.input.state.tap('shoulderSwap');", 1.6: "a.input.state.tap('shoulderSwap');" }, f: 18, dt: 0.16, cam: 'front34' },
     // (row 30) the knife in hand (`weapons.knife.show`: no knife verb in the game yet), standing then walking
     { n: 'knife-in-hand', pass: 2, row: 30, ...P0, pre: 0.8, at0: 'g.weapons.knife.show(true);', input: (t) => (t < 1.0 ? {} : { y: 0.5 }), f: 12, dt: 0.2, cam: 'front34' },
     // (row 32) the jammer: the pistol aimed, the co-op button held (no pose of its own: the pistol aim)
@@ -212,7 +227,9 @@ function PASS2() {
       ['hold-still', 43, { 0.4: 'P' }, {}, {}, 0.25],
       ['knife-kill', 46, { 0.4: 'P' }, {}, { 0: 'K1' }, 0.12],
       ['interrogate', 47, { 0.4: 'P' }, {}, { 0: "g.takedown.menuPick = 'interrogate';" }, 0.3],
-      ['elbow-strike-guard', 49, { 1.0: 'F' }, {}, { 0: "a.input.state.tap('altFire');" }, 0.08],
+      // (N0 leftovers) 'FS' stands her 0.85 m behind the guard where he really stands (the spawn snaps him to a 0.5 m nav
+      // cell centre: from the fixed spot he could be ~1.45 m off, past STRIKE.reach 1.3 m; e2e-takedown uses 0.9 m)
+      ['elbow-strike-guard', 49, { 1.0: 'FS' }, {}, { 0: "a.input.state.tap('altFire');" }, 0.08],
     ].map(([n, row, preAt, inp, at, dt]) => ({ n, pass: 2, row, g7: true, pre: 1.8, preAt, input: () => inp, at, f: n === 'knife-kill' ? 18 : 12, dt, cam: 'follow' })),
   ];
 }
@@ -303,6 +320,8 @@ const SAMPLER = () => {
         gun, gunPitch, state: gw.player?.controller?.motion?.state ?? '',
         speed: gw.player?.controller?.speed ?? 0,
         torsoPitch, shRoll, trav: rig ? '' : gw.player?.pose?.wall ? 'wall' : (gw.player?.pose?.traverse ?? ''),
+        // (N0 leftovers) did the move run: the wall edge / peek, the weapon hand blend (0 right .. 1 left), the strike
+        ev: rig ? null : { edge: gw.wallCore?.active ? gw.wallCore.edge : 0, peek: gw.wallCore?.active ? gw.wallCore.peek : 0, hand: r.handBlend ?? 0, melee: gw.player?.pose?.melee ?? -1, strikes: gw.strike?.count?.started ?? 0, ko: gw.strike?.count?.ko ?? 0, ads: !!gw.player?.ads },
       });
     },
   };
@@ -381,6 +400,9 @@ function summarise(rows, dtSim) {
     // (pass 2) the trunk's lean ranges (deg) and the motion states / traversals seen (did the scenario do its move?)
     lean: { torsoPitchRange: r1(range(col((r) => r.torsoPitch ?? 0))), shoulderRollRange: r1(range(col((r) => r.shRoll ?? 0))) },
     seen: [...new Set(rows.map((r) => (r.state ?? '') + (r.trav && r.trav !== 'none' ? `/${r.trav}` : '')))],
+    // (N0 leftovers) the wall edge reached (1 = the b end, the body's left; -1 = a), the peek's peak, the weapon hand
+    // blend's peak (1 = the left hand), the strike phase's peak, strikes started / knock-outs over the capture, aimed
+    ev: rows.some((r) => r.ev) ? { edges: [...new Set(rows.map((r) => r.ev?.edge ?? 0))], peekMax: r1(Math.max(...rows.map((r) => r.ev?.peek ?? 0)), 2), handMax: r1(Math.max(...rows.map((r) => r.ev?.hand ?? 0)), 2), meleeMax: r1(Math.max(...rows.map((r) => r.ev?.melee ?? -1)), 2), strikes: Math.max(...rows.map((r) => r.ev?.strikes ?? 0)), ko: Math.max(...rows.map((r) => r.ev?.ko ?? 0)), aimed: rows.some((r) => r.ev?.ads) } : null,
   };
 }
 
@@ -640,7 +662,7 @@ async function runStudio() {
               for (const op of ps) {
                 for (const ms of op.rig.root.getChildMeshes(false)) {
                   const s = ms.sourceMesh ?? ms;
-                  if (!l.includedOnlyMeshes.includes(s)) l.includedOnlyMeshes.push(s);
+                  if (!ms.sourceMesh && !l.includedOnlyMeshes.includes(s)) l.includedOnlyMeshes.push(s); // never a shared part base: it lights every instance in the scene
                   const mat = s.material;
                   if (mat && typeof mat.maxSimultaneousLights === 'number' && !mat.disableLighting && mat.maxSimultaneousLights < s.lightSources.length) {
                     const fr = mat.isFrozen;
@@ -783,6 +805,8 @@ async function runProving() {
           if (w) place = { pos: [w.sx, w.sz], yaw: w.syaw, y: w.y };
         }
         if (!w) throw new Error(`no ${sc.find.join(' ')} placement on this map`);
+        // (N0 leftovers) the wall end's plane for the `tw` / `look` inputs
+        if (kind === 'end') await page.evaluate((w) => { window.__natW = w; }, w);
       }
       // (pass 2) the camera on the sun side: of the scenario's two mirror sides, the one nearer the sun's azimuth
       const sunAz = SUN ? await page.evaluate(SUN_AZ) : Number.NaN;
@@ -846,7 +870,7 @@ async function runProving() {
           keyNext = now + 500;
           for (const ms of p.rig.root.getChildMeshes(false)) {
             const s = ms.sourceMesh ?? ms;
-            if (!key.includedOnlyMeshes.includes(s)) key.includedOnlyMeshes.push(s);
+            if (!ms.sourceMesh && !key.includedOnlyMeshes.includes(s)) key.includedOnlyMeshes.push(s); // never a shared part base (as above)
             const mat = s.material;
             if (mat && typeof mat.maxSimultaneousLights === 'number' && !mat.disableLighting && mat.maxSimultaneousLights < s.lightSources.length) {
               const fr = mat.isFrozen;
@@ -883,7 +907,9 @@ async function runProving() {
         a.loop.stepHeadless(y0 > 0 ? 0.01 : 0.3);
       }, { pos: place.pos, yaw: place.yaw, weapon: sc.weapon ?? null, y0: place.y, cam: sc.cam, fixCam: !!sc.fixCam, g7: !!sc.g7, g7at0: G7AT0, natAz, natFaz, sideAz, keyK: KEY });
       const pick = (k) => `g.grabMenu.sel = ${k}; a.input.state.tap('interact');`;
-      const CODE = { P: "a.input.state.tap('interact');", K0: pick(0), K1: pick(1), K2: pick(2), K4: pick(4), F: 'const e = window.__natE; const q = g.player.position; g.player.cam.yaw = Math.atan2(e.pos.x - q.x, e.pos.z - q.z);' };
+      // FS: on the line from the guard to her, 0.85 m from him, facing him (body and camera)
+      const FS = 'const e = window.__natE; const p = g.player; const q = p.position; let dx = q.x - e.pos.x; let dz = q.z - e.pos.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d; const yw = Math.atan2(-dx, -dz); p.controller.teleport(new q.constructor(e.pos.x + dx * 0.85, e.pos.y, e.pos.z + dz * 0.85), yw); p.cam.yaw = yw; p.cam.snap?.(); window.__natYaw0 = yw; window.__natGap = Math.hypot(p.position.x - e.pos.x, p.position.z - e.pos.z);';
+      const CODE = { P: "a.input.state.tap('interact');", K0: pick(0), K1: pick(1), K2: pick(2), K4: pick(4), F: 'const e = window.__natE; const q = g.player.position; g.player.cam.yaw = Math.atan2(e.pos.x - q.x, e.pos.z - q.z);', FS };
       const code = (c) => (c ? CODE[c] ?? c : null);
       // the stick, the held buttons (aim always; fire, crouch, co-op when the row names them), the aim yaw `cy` from the
       // start yaw, a one-off code and the row's `every` code (with `t`)
@@ -895,6 +921,24 @@ async function runProving() {
         s.set('nat-ads', 'ads', !!inp.ads);
         for (const b of ['fire', 'crouch', 'coop']) if (b in inp) s.set(`nat-${b}`, b, !!inp[b]);
         if (typeof inp.cy === 'number') a.current.player.cam.yaw = window.__natYaw0 + inp.cy;
+        // (N0 leftovers) the wall end rows: `look` 0..1 turns the camera from the start yaw (facing the wall) to look past
+        // the end (along the wall, a little out); `tw` pushes the stick toward the end in the world, from the live
+        // camera yaw (the inverse of gameState.wallStep's stick frame)
+        const w = window.__natW;
+        if (w && typeof inp.look === 'number' && inp.look > 0) {
+          const ty = Math.atan2(w.end * w.tx + w.nx * 0.35, w.end * w.tz + w.nz * 0.35);
+          const d = Math.atan2(Math.sin(ty - window.__natYaw0), Math.cos(ty - window.__natYaw0));
+          a.current.player.cam.yaw = window.__natYaw0 + d * Math.min(1, inp.look);
+        }
+        if (w && inp.tw) {
+          const cy = a.current.player.cam.yaw;
+          const fx = Math.sin(cy);
+          const fz = Math.cos(cy);
+          const dx = w.end * w.tx * inp.tw;
+          const dz = w.end * w.tz * inp.tw;
+          s.move.x = fz * dx - fx * dz;
+          s.move.y = fx * dx + fz * dz;
+        }
         if (c) new Function('a', 'g', c)(a, a.current);
         if (every) new Function('a', 'g', 't', every)(a, a.current, t);
       }, [inp, c, every ?? null, t ?? 0]);
@@ -927,7 +971,10 @@ async function runProving() {
             const c = g.player.controller;
             const q = g.player.pose;
             const tv = q.wall ? ' wall' : q.traverse && q.traverse !== 'none' ? ` ${q.traverse}` : '';
-            return `${c.motion?.state ?? ''}${tv} ${c.speed.toFixed(1)} ${r.planner?.L?.contact ? 'L' : '-'}${r.planner?.R?.contact ? 'R' : '-'}`;
+            // (N0 leftovers) the peek amount, the weapon in the left hand, the strike phase, when they run
+            const w = g.wallCore;
+            const ex = `${w?.active && w.peek > 0.01 ? ` pk${w.peek.toFixed(1)}` : ''}${(r.handBlend ?? 0) > 0.01 ? ` hand${r.handBlend.toFixed(1)}` : ''}${q.melee >= 0 ? ` strike${q.melee.toFixed(2)}` : ''}${g.player.ads ? ' aim' : ''}`;
+            return `${c.motion?.state ?? ''}${tv} ${c.speed.toFixed(1)} ${r.planner?.L?.contact ? 'L' : '-'}${r.planner?.R?.contact ? 'R' : '-'}${ex}`;
           });
           const buf = await page.screenshot({ type: 'png' });
           tiles.push(`data:image/png;base64,${buf.toString('base64')}`);
@@ -962,7 +1009,7 @@ async function runProving() {
         turn = { yawAt90pct: reach(Math.abs(yawT[yawT.length - 1]) * 0.9), finalYaw: r1(yawT[yawT.length - 1]), firstLiftS: firstLift, windDegMax: [sum.feet.L.windDegMax, sum.feet.R.windDegMax], plantSlideCm: [sum.feet.L.slideCmMax, sum.feet.R.slideCmMax] };
       }
       saveMet(`proving:${sc.n}`, { params, file, topFile, turn, pass: sc.pass ?? 1, row: sc.row ?? null, ...sum });
-      console.log(`${sc.n}: ${file} ${size} B ${((Date.now() - t0) / 1000).toFixed(0)} s ${JSON.stringify({ seen: sum?.seen, trunk: sum?.trunk, lean: sum?.lean, feet: sum?.feet, turn, gun: sum?.gun ? { peak: sum.gun.peak, stall: sum.gun.stall } : null })}`);
+      console.log(`${sc.n}: ${file} ${size} B ${((Date.now() - t0) / 1000).toFixed(0)} s ${JSON.stringify({ seen: sum?.seen, trunk: sum?.trunk, lean: sum?.lean, feet: sum?.feet, turn, gun: sum?.gun ? { peak: sum.gun.peak, stall: sum.gun.stall } : null, ev: sum?.ev, gap: await page.evaluate(() => window.__natGap ?? null) })}`);
       const real = errors.filter((x) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(x));
       if (real.length) console.log('  console:', real.slice(0, 3).join(' | '));
     } catch (err) {
