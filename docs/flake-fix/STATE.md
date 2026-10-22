@@ -15,6 +15,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   runs/chain-1023p.log (start / end per label). Order: wait marlowcap-5100141d (runner live, ALONE 4189) ->
   4192 sectorredesign-3796700d-ops6 -> guardaichain-62884858 -> hangdown-4072e2b9 -> wait no locks -> 4189 ALONE
   guardrender-s6cap-c181002e (guard-cap S6 sun rules on: work/guardrender-s6-on; ?guardsun=0: work/guardrender-s6-off).
+  THEN chain-1023q.ps1 (log runs/chain-1023q.log; starts when chain-1023p.log says "done"), Menu Notes marlow-final,
+  ALONE 4189: marlowcap-cc24e992 (perf "after", same spots script as 5100141d; out runs/guardcap-cc24e992-out, -a7) ->
+  s9shots-before-5100141d -> s9shots-after-cc24e992 (runs/s9-shots, suffix before / after). Reply Menu Notes: per-cell
+  before (work/marlowcap-5100141d*) / after (frame med, CPU, GPU, draws, tris, shadow passes); shots: meter / field rows
+  within 0.02, flag f-gallery-from-a1, f-l7-model, f-dock and the a3 / a4 / a7 glass vantages. Their ctcourse :1-:4 /
+  coop / netmove / course e2e request on the fix commit goes AHEAD of chain q if q has not started.
   It skips a label that is already DONE. On resume: send each DONE verdict (below); if chain-1023p.log has no "done"
   line and no live powershell runs it, restart it (same file; DONE labels are skipped).
 - IN FLIGHT at the save (session-bound bash chains die in the swap; a runner already started keeps going). On resume
