@@ -77,3 +77,19 @@ layout and the rafter change rebake on their own. `LAMP_VERSION` unchanged (the 
   hall fittings at 4.5): they glow but light nothing walkable; a look pass may dim them or make them dead.
 - Intensities up to 1.6 (two S3 hall strips at x -2.8 and 2.4, z -2.6): check the GPU look for glare.
 - Many dead fittings in the grids (S2 north, S3 deck west, S1 void): the look pass may prefer fewer fittings.
+
+## Fresh checker (2026-10-22 ~18:05, on c845bd06 + master 4.55.1 merge 8be5798c): PASS, no must-fix, no should-fix
+BRIEF items 1-2 met (one model / height / regular grid per room, nothing on or over a roof, every fitting >= 0.8 m from
+pipes / ladders / ducts, panel / strip / bulkhead LED models). Light parity holds: every fitting is a registry light;
+`LightField` and the shader read the one `lampGrid`; dead fittings contribute 0. The bake cache key covers the shapes and
+the light floats, so no stale bake is reused (LAMP_VERSION unchanged is right). WALL_GAP is a validation limit and the
+bracket length only (Sector Ops only).
+**lampGrid reach listing is lossless** (orchestrator asked for proof; `tests/lampGridLossless.test.ts`): new listing vs a
+reference listing every light whose radius touches the column, uncapped, sampled every 0.5 m at 0.05 / 1.0 / 1.7 m and up
+the bake box: ctcourse 338,256 samples, bunker 6,350,400, warehouse 267,904, warehouseOps 291,200 - max abs difference 0
+on all four. Against the OLD capped listing: identical on ctcourse, bunker and the base Warehouse (so e2e-lightbake /
+e2e-darkness maps are unchanged); on the new Sector Ops layout the old rule would overflow 44 columns and drop light
+(147 samples, max 0.085), which the reach listing fixes. `LightField.levelAt` equals the listed sum.
+Polish: warehouseS2.ts:80 east exit signs may face the wall (yaw pi/2; check in the GPU look); fittings whose radius is
+under their drop; S3 hall intensities up to 1.6; many dead fittings; warehouseOps sits at exactly 8 lights in its worst
+column (the light tests catch an overflow).
