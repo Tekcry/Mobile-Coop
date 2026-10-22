@@ -17,8 +17,11 @@ second GPU-only lane `heavy2.lock` on 4192 when CPU < 50%. Laptop: one slot, ful
 train only when every suite it touches ran to completion and passed on the GPU (STATE "Known"). A "stopped" background
 runner can survive on Windows: taskkill /T /F and confirm.
 
-Train 9 = train/9 b0cb16b6 (#136 P d98262dc, #139 N4c 5f6a0d9d, #141 T1 vent-kick), laptop GPU full run from ~21:27
-with a CPU / GPU / RAM sampler (scratch/runs/load-train9.csv; Michael asked for the load numbers). On a pass, from
+Train 9 = train/9 6536111d (master 4.58.3 + #136 P, #139 N4c, #141 T1, #147 menus-tap-wait; rebuilt ~22:10). The first
+build b0cb16b6 failed e2e-menus "a tap on the pause button pauses ((none))" only on the laptop and only with T1 (desktop
+passes every combination); #147 waits up to 3 s for the pause screen. CT Core checks whether T1 has a real fast-frame
+bug (Character Build's touch diagnostic, runs/t9diag-*). Laptop: e2e-menus on 6536111d, then the full run at JOBS=3
+(the 3-browser + second-slot trial, Michael ~21:50; sampler on). On a pass, from
 C:/NightShift/Mobile-Coop-train: `node scripts/merge-train.mjs release 9 4.59.0 "<title>" --dry-run`, then for real.
 On a failure: narrow per member head on the laptop GPU, the member's lead fixes.
 
