@@ -36,6 +36,8 @@ Skeletons: 16.asf, 35.asf, 69.asf.
 | 16_31 (16.asf) | 0-2.183 | `start.ts` | start from standing (walking) |
 | 16_34 (16.asf) | 0.458-2.883 | `stop.ts` | stop to standing (walking) |
 | 69_13 (69.asf) | 15.5-19.058 (the first 90 deg of a walking turnaround) | `turn_in_place.ts` | 90 deg turn on the spot (the left one mirrored) |
+| 136_09 (136.asf) | 4.233-5.508 (one R-strike cycle, 120 fps frames 508-661; scripts/mocap/m3.mjs) | `crouch_walk.ts` | (mocap-trial-2) the crouched sneak band's body (BRIEF A5, MT2-CROUCH.md) |
+| 127_07 (127.asf) | 0.325-1.008 (one R-strike cycle, 120 fps frames 39-121, 0.683 s, 4.42 m/s performer, about 4.0 m/s at Wren's size; scripts/mocap/m3.mjs) | `sprint.ts` | (mocap-trial-2) the sprint band past the run (BRIEF A6, MT2-SPRINT.md) |
 
 Emitted, not in the game yet (`build/mocap/clips/`, a later step): `extra/` 16_41 / 16_44 (jog 90 turns), 16_51 / 16_53
 (run turns, performed at a jog, 16_53 cut at 68 deg), 69_14 (the left turn on the spot and both 180 turnarounds with
@@ -50,3 +52,30 @@ To list from the site's search (gun / rifle / aim / carry) when the weapon step 
 104.asf + 104_06, 104_08 (StartJog), 104_53, 104_54, 104_55 (StartRun), 104_09, 104_10 (JogStop); 69_16, 69_17, 69_18
 (turn in place); 127.asf + 127_15, 127_16 (Run Turn Left / Right); 143.asf + 143_03 (Start to Run); 78.asf + 78_31
 (Pivoting).
+
+## Downloaded 2026-10-23 (M3), not yet used
+Approval: BRIEF M3 (Michael ~00:20, "Yes, download them"). Found with the site's own search (sneak, crouch, sidestep,
+side step, sideways, wall, peek, sprint, fast, dash, creep, shuffle, hide) and the subject pages of 139, 143, 127 and 9;
+fetched one at a time from http://mocap.cs.cmu.edu/subjects/<S>/ (a 2 s pause between files). 21 takes + 2 new skeletons
+(136.asf, 139.asf; 69.asf, 127.asf and 143.asf were already in the cache), 13.2 MB in all. Every take parses (asfamc.mjs
+self-check OK). Analysis: TAKES.md "M3 takes".
+| Take | Site description | Size KB | Category |
+| --- | --- | --- | --- |
+| 136_10 | Walk Crouched (subject 136 "Weird Walks") | 1053 | crouch walk (runner-up; 136_09, 890 KB, is used: "Used" above) |
+| 139_29, 139_32, 139_34 | Sneaking (subject 139 "Action Walks, sneaking, wounded, looking around") | 1638, 1478, 878 | sneak |
+| 139_11 | Run To Sneak | 248 | sneak (from a run) |
+| 127_06, 127_07, 127_08 | Run (subject 127 "Action Adventure Obstacles, running, jumping, ducking, rolling") | 135, 113, 109 | sprint (127_07 is used: "Used" above) |
+| 127_03 | Run (from standing) | 261 | sprint start |
+| 127_04 | Walk to Run | 350 | sprint start (from a walk) |
+| 143_42 | Run (subject 143 "General Subject Capture") | 418 | sprint (second performer) |
+| 143_40 | Walk Sideways | 751 | strafe (walk, left then right; crosses the feet) |
+| 69_56 | walk sideways and turn (opposite direction) (subject 69 "walking") | 600 | strafe right; standing wall side-step right |
+| 69_59 | walk sideways and turn | 546 | strafe left; standing wall side-step left |
+| 127_13, 127_14 | Run Side Step Left / Right | 144, 118 | fetched for a run strafe; a forward run with a sidestep dodge (TAKES.md) |
+| 139_14, 139_15 | Sneak Sideways | 773, 842 | crouched back-to-wall side-step |
+| 139_01, 139_04 | Looking Around | 849, 689 | back-to-wall peek (stand-in) |
+
+Not on the site: no "sprint" (the fastest named runs stand in), no back-to-wall, wall slide or corner peek ("wall" and
+"peek" only hit a wall smash and peekaboo games: the sideways sneak and "Looking Around" stand in), no jogging strafe.
+Skipped: subject 77 "careful creeping" / "creeping walk" (captured at 60 fps; the pipeline reads 120 fps), 120 "Mickey
+sneaky walk" (cartoon style), 142_22 "Sneaky" (stylized walks), 83 sidesteps (single steps on and off a ledge).
