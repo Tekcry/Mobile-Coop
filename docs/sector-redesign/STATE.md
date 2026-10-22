@@ -30,7 +30,7 @@
 00. M12 (unavoidable posted guards, BRIEF): log the chokes as A-numbers, fold them into SPEC (which sections, which
    guard, solo clear, co-op option, e2e nav-with-view-cone assert) and PLAN, and send Guard AI Build the posted-guard
    data shape (ENGINE.md section 7: `role: 'posted'`, `zone`, allowed distractions).
-0. (99% stop, ~03:45) Slice 0 DONE at b0b7bc24 (A46-A51 in BRIEF; ENGINE.md section 7 = guard-ai requests;
+0. camera-range DONE at 8fda08b9 (feature/camera-range; range default 18 -> 12, falloff over the camera's own range, cap 14; MEASURE.md): owed a fresh Opus checker, laptop e2e-security, e2e-ctcourse, e2e-sectorops (E2E_GPU=1), PR. Slice 0 DONE at b0b7bc24 (A46-A51 in BRIEF; ENGINE.md section 7 = guard-ai requests;
    docs/sector-redesign/FOR-CAMERA-RANGE.md = one hunk for camera-range). Owed: a fresh Opus checker, the full npm
    test + e2e-sectorops (all parts), coop, netmove, lightbake, levels, anchors at E2E_GPU=1 via Character Build.
    Open: co-op client lamps not reset on restart until slice L.
