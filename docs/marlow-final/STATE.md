@@ -67,6 +67,11 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~03:05 0e IN (153db3e8; slices/S0e.md): shell clad (visual), gallery (circuit 90, drawn only), lounge (group 10:
+  dark until A1 builds its lamps), holding rooms, dock; 140 props; gallery 53.6 k kit tris; gallery and lounge at the
+  12-draw limit; detail pass off. 57 map tests pass. Opus checker on 0e running; GPU shots + perf + e2e-ctcourse:1 sent
+  to Character Build. Known flake: marlowLightingLevels "bodyEstimate does not allocate" failed once under load (2.63 MB
+  vs 2 MB), passes alone. Next after the 0e check: slice 1 A1 on Sonnet from a strict Opus brief.
 - ~02:45 0d scaffold e2e GREEN on the laptop GPU (3e41b859): smoke, e2e-ctcourse :1-:4, coop, course, netmove all
   PASS (logs C:/NightShift/scratch/runs/marlowfinal-3e41b859/). Slice 0 left: 0e (running), then its check.
 - ~02:35 (clock) bounds test IN (stubs add no geometry yet, so it bites from the first real set). 0e facility
