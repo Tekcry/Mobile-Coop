@@ -10,15 +10,23 @@
  * jam targets, not shootable, each stopping short of its glazing (LIGHTING-PLAN 2, `spillsPast`).
  *
  * Every facility piece is `noLedge` (the shell never offers a lip; co-op lips are the sets'), every slab `overhead`.
- * Wall boxes are plain `LevelBuilder` boxes in the kit's charcoal: 0e clads their faces (`kit.wallPanel`) without
- * moving them. Prototype starting values (G10).
+ * Wall boxes are plain `LevelBuilder` boxes in the kit's charcoal.
+ *
+ * Dressing (slice 0e, SPEC 6, M5): the shell is clad over its existing boxes (`kit.wallPanel` / `kit.skirting`: visual
+ * only, no box moves and none is added), so every collision box and door is as 0d built it; the only new collision is
+ * the props' own boxes (`FacilityProps.write`: the reception desk, the lounge seats, the benches, the L7 vitrine, the
+ * kit cases). Holding rooms: cool panels, skirting and accent strips on their circuit (91-97), a bench, door plates. Lounge:
+ * the reception desk, green wall, kit cases and seats on the west shell wall (accent lines on circuit 10). Dock: warm
+ * panels on circuit 98 and a plate board. Gallery (out of bounds, sight only): console runs, chairs and screens (no
+ * collision, drawn only), back-wall panels, a visual-only balustrade on the bridge and ceiling strips, all on circuit 90.
+ * Every glowing kit piece carries its circuit's group (N11); no lamp was added. Prototype starting values (G10).
  */
 import { AIRLOCK_PAD_INSET } from '../../../config/course';
 import type { AirlockDef } from '../../../game/course/courseDef';
 import type { CamSpace } from '../../camSpaces';
-import type { FacilityKit } from '../../kit/facilityKit';
+import { FacilityKit, KIT_PANEL_DEPTH, type KitBuilder } from '../../kit/facilityKit';
 import type { LevelBuilder } from '../../levelBuilder';
-import type { PropPlacement } from '../../props/facilityProps';
+import { FacilityProps, propToWorld, type PropPlacement } from '../../props/facilityProps';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { marlowCourseGroups } from '../../lighting/marlowCircuits';
 import {
@@ -358,6 +366,243 @@ function facilitySpots(): LightSpot[] {
   return out;
 }
 
+// ------------------------------------------------------------------------------------------------ dressing (slice 0e)
+
+/** The arrival lounge's house circuit (`MARLOW_CIRCUITS` `a1-lounge`, group 10: instructor-owned, no switch). The lounge's
+ *  accent lines follow it, so they light once A1 builds its group-10 lamps (the 0d stub has none: they sit dark until). */
+export const LOUNGE_GROUP = 10;
+/** A hung `signPlate`'s bottom edge over a door (m; the door frame's top is 2.42). */
+export const PLATE_Y = 2.55;
+/** Panel runs stay this far from a door's centre (the sliding door's architrave reaches 0.99 m) ... */
+const DOOR_CLEAR = 1.0;
+/** ... and this far from the glass slot's edges. */
+const SLOT_CLEAR = 0.12;
+/** A panel run shorter than this is left bare. */
+const MIN_RUN = 0.4;
+/** A perpendicular wall's run stops this far short of the first wall's panel (0.06 m deep) at a corner. */
+const CORNER = 0.09;
+/** Where each holding room's bench stands: the side wall it backs on and its place along it (x, or z on a west wall). */
+const BENCH: Readonly<Record<HoldId, { wall: 'south' | 'north' | 'west'; at: number }>> = {
+  L1: { wall: 'south', at: 25 },
+  L2: { wall: 'south', at: 73 },
+  L3: { wall: 'south', at: 101.9 },
+  L4: { wall: 'south', at: 73 },
+  L5: { wall: 'west', at: 51 },
+  L6: { wall: 'south', at: 67 },
+  L7: { wall: 'north', at: 104.6 },
+};
+
+/**
+ * A kit builder that writes nothing: pieces drawn over the shell with no collision. The gallery's balustrade stands
+ * behind glass in an out-of-bounds walkway, so `kit.handrail`'s collision-only box is not wanted (0e keeps every
+ * collision box as 0d left it).
+ */
+const NO_COLLISION: KitBuilder = {
+  boxes: [],
+  box: () => undefined,
+  door: () => {
+    throw new Error('facility: a visual-only kit builds no door');
+  },
+  light: () => undefined,
+  mark: () => undefined,
+};
+
+/** The runs of [lo, hi] left between the gaps (each at least `MIN_RUN` long). */
+export function wallRuns(lo: number, hi: number, gaps: readonly (readonly [number, number])[]): [number, number][] {
+  const out: [number, number][] = [];
+  let s = lo;
+  for (const [a, e] of [...gaps].sort((p, q) => p[0] - q[0])) {
+    if (a >= hi) break;
+    if (a - s >= MIN_RUN) out.push([s, a]);
+    s = Math.max(s, e);
+  }
+  if (hi - s >= MIN_RUN) out.push([s, hi]);
+  return out;
+}
+
+/** One room-side wall face: the plan line it lies on, its normal into the room and the span along it. */
+interface Face {
+  /** 'x': runs along x at z = `face`; 'z': along z at x = `face`. */
+  axis: 'x' | 'z';
+  /** The wall's centre line. */
+  at: number;
+  /** The face's own line (the wall's centre line, `FAC_T` / 2 into the room). */
+  face: number;
+  nx: number;
+  nz: number;
+  lo: number;
+  hi: number;
+  /** The door openings and the glass slot on it ([a, b] along the face). */
+  gaps: [number, number][];
+  doors: number;
+}
+
+/** The four room-side faces of `box` (walls `FAC_T` thick on its edges), with a holding room's doors and glass slot marked. */
+function roomFaces(box: Box, h: HoldId | null): Face[] {
+  const [x0, z0, x1, z1] = box;
+  const t = FAC_T / 2;
+  const faces: Face[] = [
+    { axis: 'x', at: z0, face: z0 + t, nx: 0, nz: 1, lo: x0 + t, hi: x1 - t, gaps: [], doors: 0 },
+    { axis: 'x', at: z1, face: z1 - t, nx: 0, nz: -1, lo: x0 + t, hi: x1 - t, gaps: [], doors: 0 },
+    { axis: 'z', at: x0, face: x0 + t, nx: 1, nz: 0, lo: z0 + t + CORNER, hi: z1 - t - CORNER, gaps: [], doors: 0 },
+    { axis: 'z', at: x1, face: x1 - t, nx: -1, nz: 0, lo: z0 + t + CORNER, hi: z1 - t - CORNER, gaps: [], doors: 0 },
+  ];
+  if (h) {
+    for (const end of ['near', 'far'] as const) {
+      const s = HOLD_DOORS[h][end];
+      for (const f of faces) {
+        if (f.axis === 'x' ? s.yaw !== 0 && s.z === f.at : s.yaw === 0 && s.x === f.at) {
+          const c = f.axis === 'x' ? s.x : s.z;
+          f.gaps.push([c - DOOR_CLEAR, c + DOOR_CLEAR]);
+          f.doors++;
+          if (end === 'far') f.gaps.push([c + SLOT.off - SLOT.w / 2 - SLOT_CLEAR, c + SLOT.off + SLOT.w / 2 + SLOT_CLEAR]);
+        }
+      }
+    }
+  }
+  return faces;
+}
+
+/** Charcoal wall panels (and from the floor, a skirting LED line) over the runs of a face: visual only, the wall boxes stay as 0d built them. */
+function cladFace(kit: FacilityKit, f: Face, h: number, y: number, tone: 'warm' | 'cool', group: number): void {
+  const yaw = Math.atan2(f.nx, f.nz);
+  for (const [a, e] of wallRuns(f.lo, f.hi, f.gaps)) {
+    const m = (a + e) / 2;
+    const x = f.axis === 'x' ? m : f.face;
+    const z = f.axis === 'x' ? f.face : m;
+    kit.wallPanel(x, z, e - a, yaw, { h, y, tone, group });
+    if (y === 0) kit.skirting(x, z, e - a, yaw, { tone, group, standoff: KIT_PANEL_DEPTH });
+  }
+}
+
+/** Distance from point (px, pz) to the segment a-b on the plan. */
+function segDist(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const l = dx * dx + dz * dz;
+  const t = l > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / l)) : 0;
+  return Math.sqrt((px - ax - dx * t) ** 2 + (pz - az - dz * t) ** 2);
+}
+
+/** Where a `signPlate` hangs on a door's wall: [x, z, yaw] on the room's face or on the set's face. */
+function plateAt(s: { x: number; z: number; into: readonly [number, number] }, side: 'room' | 'set'): [number, number, number] {
+  const k = side === 'set' ? 1 : -1;
+  const nx = s.into[0] * k;
+  const nz = s.into[1] * k;
+  return [s.x + nx * (FAC_T / 2), s.z + nz * (FAC_T / 2), Math.atan2(nx, nz)];
+}
+
+/** A holding room's panels and skirting (cool, on its circuit), accent strips on its side walls, a bench and the plates over its doors. */
+function dressHold(kit: FacilityKit, props: FacilityProps, h: HoldId): void {
+  const g = holdGroup(h);
+  const faces = roomFaces(HOLD_BOX[h], h);
+  for (const f of faces) cladFace(kit, f, HOLD_H, 0, 'cool', g);
+  // accent LED strips 0.55 m in from each side wall (the walls with no door), kept 0.7 m off the lit read slots
+  const lit = holdLampSpots(h).map((s) => (h === 'L3' ? { a: [s.x, s.z - 1.2], b: [s.x, s.z + 1.2] } : { a: [s.x - 1.2, s.z], b: [s.x + 1.2, s.z] }));
+  for (const f of faces) {
+    if (f.doors > 0) continue;
+    const len = f.hi - f.lo - 1.0;
+    const m = (f.lo + f.hi) / 2;
+    const x = f.axis === 'x' ? m : f.face + f.nx * 0.55;
+    const z = f.axis === 'x' ? f.face + f.nz * 0.55 : m;
+    const ax = f.axis === 'x' ? x - len / 2 : x;
+    const az = f.axis === 'x' ? z : z - len / 2;
+    const bx = f.axis === 'x' ? x + len / 2 : x;
+    const bz = f.axis === 'x' ? z : z + len / 2;
+    let clash = false;
+    for (let k = 0; k <= 10; k++) {
+      const px = ax + ((bx - ax) * k) / 10;
+      const pz = az + ((bz - az) * k) / 10;
+      for (const s of lit) if (segDist(px, pz, s.a[0]!, s.a[1]!, s.b[0]!, s.b[1]!) < 0.7) clash = true;
+    }
+    if (!clash) kit.ledSlot(x, HOLD_H, z, len, f.axis === 'x' ? 0 : Math.PI / 2, { tone: 'cool', light: false, group: g });
+  }
+  // a bench backed on a side wall, 0.24 m off its face (the pad's 1 m inset and the medkit and vitrine walls stay clear)
+  const bench = BENCH[h];
+  const side = faces.find((f) => (bench.wall === 'south' ? f.axis === 'x' && f.nz === 1 : bench.wall === 'north' ? f.axis === 'x' && f.nz === -1 : f.axis === 'z' && f.nx === 1))!;
+  const bx = side.axis === 'x' ? bench.at : side.face + side.nx * 0.24;
+  const bz = side.axis === 'x' ? side.face + side.nz * 0.24 : bench.at;
+  props.add('holdingBench', bx, bz, Math.atan2(side.nx, side.nz));
+  // signage stand-ins over both doors on the room side, and one on the set side of the far door (SET n - NAME: text waits for a texture, KIT.md 6)
+  for (const end of ['near', 'far'] as const) props.add('signPlate', ...plateAt(HOLD_DOORS[h][end], 'room'), { y: PLATE_Y });
+  props.add('signPlate', ...plateAt(HOLD_DOORS[h].far, 'set'), { y: PLATE_Y });
+  if (h === 'L7') {
+    // A8's model on the plinth 0d built (1.6 x 0.6 x 0.9 on the south wall): the vitrine's own plinth is 0.74 high, so it stands 0.16 up and its
+    // top skin (0.91) clears the old box's top (0.90); the old box shows under it as a recessed foot
+    const [x0, z0, x1] = HOLD_BOX.L7;
+    props.add('modelVitrine', (x0 + x1) / 2, z0 + FAC_T / 2 + 0.6, 0, { y: 0.16 });
+  }
+}
+
+/** The arrival lounge's pieces on the west shell wall (A1 builds the lounge's other walls and its sliding doors): the reception desk with the
+ *  green wall behind it, the kit cases, two seats, and the hall's upper panels with their cove on circuit 10. */
+function dressLounge(kit: FacilityKit, props: FacilityProps): void {
+  const face = FAC_T / 2;
+  props.add('receptionDesk', 1.0, 10.2, Math.PI / 2);
+  props.row('greenWall', face, 12.0, face, 8.4);
+  props.add('kitCaseWall', face, 12.75, Math.PI / 2);
+  props.add('loungeSeat', 4.2, 9.1, -Math.PI / 2);
+  props.add('loungeSeat', 4.2, 12.9, -Math.PI / 2);
+  kit.wallPanel(face, 11.0, 5.6, Math.PI / 2, { h: HALL_H - 3, y: 3.0, tone: 'warm', group: LOUNGE_GROUP });
+}
+
+/** The cash dock as a VIP debrief bay: warm panels on circuit 98 over its three walls (the west side is open to A8's vault) and a board of plates. */
+function dressDock(kit: FacilityKit, props: FacilityProps): void {
+  for (const f of roomFaces(DOCK_BOX, null)) if (f.at !== DOCK_BOX[0]) cladFace(kit, f, DOCK_H, 0, 'warm', DOCK_GROUP);
+  const z = (DOCK_BOX[1] + DOCK_BOX[3]) / 2;
+  for (const dz of [-1.2, 0, 1.2]) props.add('signPlate', DOCK_BOX[2] - FAC_T / 2, z + dz, -Math.PI / 2, { y: 2.6 });
+}
+
+/** A chair `d` m out of the front of console `p`, facing it: [x, z, yaw]. */
+function seatAt(p: PropPlacement, d: number): [number, number, number] {
+  const [x, , z] = propToWorld(p, 0, 0, d);
+  return [x, z, p.yaw + Math.PI];
+}
+
+/**
+ * The instructor gallery's interior (out of bounds: sight only, so props are drawn with no collision): console runs facing the glazing
+ * with a chair to every second console, observers' chairs, the bridge's monitor wall and control desk with LANTERN's chair, feed
+ * screens on the back wall, the back wall's panels, a balustrade along the bridge's glass and ceiling strips, all on circuit 90.
+ */
+function dressGallery(kit: FacilityKit, visual: FacilityKit, gal: FacilityProps): void {
+  const y = GAL_FLOOR;
+  const g = GALLERY_GROUP;
+  /** A console run from (x1, z) to (x2, z) with a chair behind every second console. */
+  const run = (x1: number, x2: number, z: number, chairs = true): void => {
+    const first = gal.row('galleryConsole', x1, z, x2, z, { y });
+    const n = gal.placements.length;
+    if (chairs) for (let i = first; i < n; i += 2) gal.add('galleryChair', ...seatAt(gal.placements[i]!, 1.15), { y });
+  };
+  // south strip: along the glazing into A1 and A2
+  run(3, 19, 21.0);
+  run(29.5, 68.5, 21.0);
+  // north strip: along the glazing into A5 and A4 (south side), into A6 (north side), observers facing A7
+  run(41, 69, 49.0);
+  run(77, 105, 49.0);
+  run(63, 41, 53.0);
+  for (const x of [72, 78, 84, 90, 96]) gal.add('galleryChair', x, 51.0, 0, { y });
+  // the bridge: the monitor wall facing the desk, the desk, two operators and LANTERN's chair behind them
+  gal.add('monitorWall', 73, 26.0, 0, { y });
+  run(70.6, 75.4, 29.5, false);
+  for (const x of [71.8, 74.2]) gal.add('galleryChair', x, 30.65, Math.PI, { y });
+  gal.add('galleryChair', 73, 32.1, Math.PI, { y });
+  // feed screens on the south strip's back wall (hung on its panels, 3 each: sets in blue, green and amber)
+  const FEEDS: [number, number, [number, number, number]][] = [
+    [10, 4, [0.16, 0.26, 0.34]],
+    [22, 16, [0.12, 0.26, 0.2]],
+    [34, 28, [0.28, 0.22, 0.12]],
+  ];
+  for (const [a, e, tint] of FEEDS) gal.row('galleryScreen', a, 23.7, e, 23.7, { y: y + 0.9, tint });
+  // the back wall's panels with their cove and skirting line, then the balustrade and the ceiling strips
+  kit.wallPanel(20.2, 23.75, 39.65, Math.PI, { h: GAL_TOP - GAL_FLOOR, y, tone: 'warm', group: g });
+  kit.skirting(20.2, 23.75, 39.65, Math.PI, { y, tone: 'warm', group: g, standoff: KIT_PANEL_DEPTH });
+  for (const x of [70.45, 75.55]) visual.handrail(x, 24.5, x, 47.5, { y, tone: 'warm', group: g });
+  kit.ledSlot(56, GAL_TOP, 22, 110, 0, { tone: 'warm', light: false, group: g });
+  kit.ledSlot(73, GAL_TOP, 36, 22, Math.PI / 2, { tone: 'warm', light: false, group: g });
+  kit.ledSlot(52, GAL_TOP, 51, 22, 0, { tone: 'warm', light: false, group: g });
+  kit.ledSlot(85, GAL_TOP, 50, 40, 0, { tone: 'warm', light: false, group: g });
+}
+
 /** Build the facility into `b` (with the kit's sliding doors and glass). Call once, before the sets. */
 export function buildFacility(b: LevelBuilder, kit: FacilityKit): FacilityPart {
   const from = b.boxes.length;
@@ -406,8 +651,22 @@ export function buildFacility(b: LevelBuilder, kit: FacilityKit): FacilityPart {
     slab(b, PLANT_BOX, GAL_FLOOR - GAL_SLAB, GAL_SLAB);
     slab(b, DOCK_BOX, DOCK_H, 0.4);
   });
-  // F6: the wall medkits are layout data (no builder piece)
+  // 0e dressing: the kit's panels, strips and balustrade are drawn over the boxes above (no box moves, none is added); the walk-in props
+  // (desk, seats, benches, vitrine, kit cases) write their own boxes, the gallery's props are drawn only
+  const dress = new FacilityProps();
+  const gal = new FacilityProps();
+  const visual = new FacilityKit(NO_COLLISION);
+  tally(b, rows, 'F8', 'Dressing: the walk-in props\' own boxes (reception desk, lounge seats, kit cases, benches, the L7 vitrine); kit panels and strips add none', () => {
+    for (const h of HOLD_IDS) dressHold(kit, dress, h);
+    dressLounge(kit, dress);
+    dressDock(kit, dress);
+    dress.write(b);
+  });
+  dressGallery(kit, visual, gal);
+  kit.instances.push(...visual.instances);
+  // F6: the wall medkits are layout data (no builder piece); F5: the door plates are props (no box)
   rows.push({ id: 'F6', element: 'Wall medkits in L4 and L7 (layout medkitWalls)' });
+  rows.push({ id: 'F5', element: 'Door plates: signPlate stand-ins over every holding-room door and the dock board (props, no box)' });
   // the shell never offers a lip (the sets' planned co-op lips are their own)
   b.mark(from, { noLedge: true });
 
@@ -435,7 +694,7 @@ export function buildFacility(b: LevelBuilder, kit: FacilityKit): FacilityPart {
       { id: 'dock', label: 'Cash dock', pos: { x: ex, y: 0, z: ez }, yaw: Math.PI / 2 },
     ],
     register: rows,
-    props: [],
+    props: [...dress.placements, ...gal.placements],
     lightSpots: facilitySpots(),
     shotVantages: [
       { name: 'f-l1-holding', feet: [24, 0, 10], cam: [23.2, 1.8, 9], target: [28, 1.4, 12] },

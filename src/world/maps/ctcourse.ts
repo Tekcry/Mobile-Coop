@@ -170,6 +170,8 @@ export const ctcourse: MapDef = {
     grade: { tint: [1.0, 0.98, 0.96], saturation: 0.8, contrast: 1.08 },
   },
   modes: ['course'],
+  // (marlow-final 0e) the kit and props dress every wall on purpose: no generated skirting, conduits or clutter
+  detail: false,
   build(b): MapLayout {
     return buildCtcourse(b).layout;
   },
