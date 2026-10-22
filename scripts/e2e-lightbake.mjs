@@ -22,6 +22,13 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
     await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 240000 });
     // (materials made after the load get the lamp plugin on the next frame)
     await frames(page, 6);
+    // (gpu-tests) on a hardware GPU 6 frames pass in ~0.1 s while loaders still make materials: wait (5 s cap) until
+    // every PBR material has the plugin, so a material made just before the read is not counted unplugged (a real miss
+    // still fails the assert)
+    await page.waitForFunction(() => {
+      const pbr = window.__app.current.world.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
+      return pbr.every((m) => !!m.pluginManager?.getPlugin('BakedLamps'));
+    }, null, { timeout: 5000 }).catch(() => {});
     const info = await page.evaluate(() => {
       const w = window.__app.current.world;
       const q = window.__app.quality.level;

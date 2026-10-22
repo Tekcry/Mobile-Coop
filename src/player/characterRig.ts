@@ -11,6 +11,7 @@ import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
+import { newStrikeBody, strikeBodyAt, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import { LOCO, MOCAP_FEET, MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
 import type { MotionState } from '../anim/motion';
@@ -21,6 +22,7 @@ import { KA, KD, KE, KEYED_LEG_SIDE, KEYED_LEGD_SIDE, KL, KQ, KW, type KeyedPose
 import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
+import { HAND_SWAP, handSwapK } from '../anim/handSwapPath'; // (anim-n4c)
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
@@ -438,6 +440,8 @@ const kF = new Quaternion();
 const kSave = new Quaternion();
 const kV = new Vector3();
 const kH = new Vector3();
+// (anim-natural N4c) the elbow strike's arm target scratch
+const sbFree = { x: 0, y: 0, z: 0 };
 
 /** (T1a) The quaternion q[o..o+3] (x y z w) taken `w` of the way from identity (nlerp, normalised) into `out`. */
 function keyPow(q: Float64Array, o: number, w: number, out: Quaternion): Quaternion {
@@ -1069,6 +1073,8 @@ export class CharacterRig {
   readonly planner = new FootPlanner();
   /** (anim-n4, track A) The body lift's crouch pose (cqGait.ts). */
   private readonly liftCrouch = new CqLiftCrouch();
+  /** (anim-natural N4c) The elbow strike's hips and trunk this frame (strikeBody.ts; rest on every non-Wren rig). */
+  private readonly sb = newStrikeBody();
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
@@ -2137,15 +2143,17 @@ export class CharacterRig {
     // (anim-natural N3) while a travel carries the gun the pocket is its target, measured where the gun will be held:
     // in the swap's compressed pocket that push jumped 10-17 cm a frame as contacts came and went, and the gun followed;
     // the push is eased then (TRAVEL_PUSH_TAU) and held in step otherwise, so the hold at the end takes it as it is
+    // (anim-n4c) and while changing hands: the gun crosses the trunk's centre line, where a contact's push turns over
     const ps = this.travelPush;
-    if (this.weaponTravel) {
+    const easePush = this.weaponTravel || this.handSwap >= 0;
+    if (easePush) {
       const k = 1 - Math.exp(-dt / TRAVEL_PUSH_TAU);
       ps.x += (clrDir.x - ps.x) * k;
       ps.y += (clrDir.y - ps.y) * k;
       ps.z += (clrDir.z - ps.z) * k;
       clrDir.copyFrom(ps);
     } else ps.copyFrom(clrDir);
-    if (pushed > 0 || this.weaponTravel) {
+    if (pushed > 0 || easePush) {
       this.weaponPivot.position.addInPlace(clrDir);
       fresh(this.weaponPivot);
       freshBelow(w, this.weaponPivot);
@@ -2278,7 +2286,12 @@ export class CharacterRig {
       this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
       pex += this.glideShift;
     }
-    const peZ = pez + this.restShift;
+    // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
+    // shifts back over the rear foot on the wind-up and onto the lead foot driving, on the feet only (attached, a takedown
+    // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
+    const sb = strikeBodyAt(this.graph.wrenReady ? this.input.melee : -1, this.sb);
+    if (!free) pex += sb.side;
+    const peZ = pez + this.restShift + (free ? 0 : sb.fwd);
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
     let need = 0;
@@ -2369,6 +2382,7 @@ export class CharacterRig {
     // (marlow-bays T1a, COVERAGE gap 4) aiming, the keyed trunk is not applied (the gun platform): the glide's and the
     // ready stance's per-key trunk edits go on over it by the share the keyed trunk leaves
     if (kq.edOn && kw * (1 - t.keyTrunk) > 0) this.keyedTrunkEdit(kq, kw * (1 - t.keyTrunk));
+    if (sb.pel !== 0 || sb.chest !== 0) this.strikeTrunk(sb); // (anim-natural N4c) after the keyed trunk, which wiped it
     if (JOINTS_CUR.on) this.jointOffsets(0); // (tuner-v2) per-joint offsets on the trunk, before the leg and arm IK
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
@@ -2522,11 +2536,16 @@ export class CharacterRig {
     }
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
-    this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x + TUNE_CUR.gunSide) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y + TUNE_CUR.gunUp, AIM_POCKET.z + w.z + TUNE_CUR.gunFwd);
+    // (anim-n4c, AUDIT row 29) changing hands aimed, the gun drops and comes forward under the chin (handSwapPath.ts)
+    const swapK = handSwapK(this.handSwap);
+    const swapDrop = swapK * t.aimW * TUNE_CUR.swapDropMul;
+    this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x + TUNE_CUR.gunSide) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y + TUNE_CUR.gunUp - HAND_SWAP.drop * swapDrop, AIM_POCKET.z + w.z + TUNE_CUR.gunFwd + HAND_SWAP.fwd * swapDrop);
     // raised the weapon points along the aim; lowered (ready) it is carried with the body, so a lowered gun
     // never swings towards wherever the camera looks (into a wall beside you)
     const aimYaw = yaw + this.input.aimYaw * t.aimW;
-    const aimPitch = this.input.aimPitch * (0.35 + 0.65 * t.aimW);
+    // (anim-n4c) changing hands the gun lets go of the aim's pitch: it passes at the carry's own tip (muzzle forward-down,
+    // the graph's compressed carry at the mid-point), so aimed low the butt never rises past the face
+    const aimPitch = this.input.aimPitch * (0.35 + 0.65 * t.aimW) * (1 - swapK);
     Quaternion.RotationYawPitchRollToRef(aimYaw + (w.yaw + TUNE_CUR.gunYaw) * mirror, -aimPitch + w.pitch + TUNE_CUR.gunPitch, (w.roll + TUNE_CUR.gunCant) * mirror, tmpQ);
     if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
     // (3.2.0) upside down the raised weapon aims in world space
@@ -2544,7 +2563,9 @@ export class CharacterRig {
       freshBelow(this.heldWeapon, this.weaponPivot);
       // raised: the sight line comes level with the eye, closed loop on the posed head (any stance, hunch or
       // lean), so an aimed or fired weapon is always up at the eye, never down at the chest
-      if (t.weld > 0.01) this.sightToEye(t.weld, t.sightDrop);
+      // (anim-n4c) changing hands the sight lets go of the eye (the gun passes under the chin, not round the head)
+      const weld = t.weld * (1 - swapK);
+      if (weld > 0.01) this.sightToEye(weld, t.sightDrop);
       // self-collision: the weapon never passes through the trunk or the head (pushed out before the hands
       // take it, so the grips stay in the hands)
       this.gunPush = this.clearBody(dt);
@@ -2699,6 +2720,24 @@ export class CharacterRig {
         if (c) freshBelow(wr, this.torso);
       }
     }
+  }
+
+  /**
+   * (anim-natural N4c, AUDIT row 49) The elbow strike's hip and trunk turn (strikeBody.ts) on top of the trunk as posed
+   * (keyed or procedural): the pelvis turns by `pel` about the vertical, the spine and chest take the rest of the
+   * shoulder line's `chest` between them, the neck takes `neck` back (the head is world-stabilised on the target after
+   * this). No allocation.
+   */
+  private strikeTrunk(sb: StrikeBodyOut): void {
+    const rest = sb.chest - sb.pel;
+    Quaternion.RotationYawPitchRollToRef(sb.pel, 0, 0, kF);
+    kF.multiplyToRef(this.hips.rotationQuaternion!, this.hips.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(rest * 0.45, 0, 0, kF);
+    kF.multiplyToRef(this.spine.rotationQuaternion!, this.spine.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(rest * 0.55, 0, 0, kF);
+    kF.multiplyToRef(this.torso.rotationQuaternion!, this.torso.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(sb.neck, 0, 0, kF);
+    kF.multiplyToRef(this.neck.rotationQuaternion!, this.neck.rotationQuaternion!);
   }
 
   /**
@@ -3258,6 +3297,18 @@ export class CharacterRig {
     const p = this.p;
     fresh(sh);
     let S = sh.getAbsolutePosition();
+    // (anim-natural N4c) the elbow strike: the arm targets turn with the shoulder line about the shoulder (the ready
+    // follow below carries the shoulder's own move), so the elbow drives through with the chest
+    const sc = this.sb.chest;
+    if (sc !== 0) {
+      const c = Math.cos(sc);
+      const s = Math.sin(sc);
+      const dx = free.x - side * p.shoulderHalf;
+      sbFree.x = side * p.shoulderHalf + dx * c + free.z * s;
+      sbFree.y = free.y;
+      sbFree.z = -dx * s + free.z * c;
+      free = sbFree;
+    }
     // free-swing target, then the weapon grip blended over it
     const target = this.bodyToWorld(free, tmpA);
     if (this.readyRf > 0) {

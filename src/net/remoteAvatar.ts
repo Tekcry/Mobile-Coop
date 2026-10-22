@@ -24,6 +24,7 @@ import { PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
+import { strikeWarp } from '../anim/strikeBody';
 import { RAPPEL } from '../config/movement';
 import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
@@ -395,7 +396,7 @@ export class RemoteAvatar {
     if (sb?.m === 'strike' && (mv?.m === 'strike' || mv?.m === 'ground') && !rp) {
       // (a denial blends back down; a queued second strike restarts from 0)
       const ph0 = sa?.m === 'strike' && sa.ph < sb.ph + 0.5 ? sa.ph : 0;
-      mp.melee = ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k));
+      mp.melee = strikeWarp(ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k))); // (anim-n4c M1) as the local pose
     }
     if (attached && this.world.level.anchors.all[mv!.a]) {
       const a = this.world.level.anchors.all[mv!.a]!;
