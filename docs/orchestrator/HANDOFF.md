@@ -16,7 +16,7 @@ failures"). Before a train build: `gh pr checks <n>` green for every member. Doc
 by the orchestrator. A load-only failure that passes solo on the same commit counts as known. Trains: merge-train.mjs from
 C:/NightShift/Mobile-Coop-train. CLAUDE.md now allows CMU mocap takes (credited in docs/art-credits.md).
 
-Train 13 RELEASED as 4.63.0 (#164). Train 14 next: #163 lightfield-heap (deb5211d) + #165 e2e-start-order (tests only, CI check only), then #159 mocap when its six GPU suites pass, load-audit PR when proven.
+Train 13 RELEASED as 4.63.0 (#164). Train 14 (#163 lightfield-heap + #165 e2e-start-order, tests only) releasing as 4.63.1 at the save (log C:/NightShift/scratch/runs/release-train14.log; check it merged). Train 15 = #159 mocap-trial f4b5b7c1 (CI green, six GPU suites pass, review fixes 1 / 2 / 6 in): build it on master after 4.63.1 (`merge-train.mjs build 15 feature/mocap-trial`); the laptop task ns-chain-1022ap starts its full run as soon as origin/train/15 appears; verdict in C:/NightShift/scratch/runs/train15-<sha>/ on the laptop (Character Build reports it). Release 4.64.0 on a pass. An orchestrator review of the merge (d10d68f2) was still running at the save; rerun it if no report. load-audit (Character Build): review found 2 blockers (e2e-move sidePace can hang: no wall cap; e2e-ctcourse station 3 / 4 windows shrink up to 4x) + 2 fixes (coop allowTeleport per frame, desktop crash null unchecked); stress pass 1 green.
 requested (JOBS=5). On a pass: `node scripts/merge-train.mjs release 13 4.63.0 "Sector Ops co-op routes and team doors, fence
 rattle test, decisions G270-G275"` from C:/NightShift/Mobile-Coop-train. If e2e-desktop:1 or e2e-move fail, they are the
 known load-audit pair (solo rerun). Pending review of #144 / #161 (orchestrator agent) - read its findings if it reported.
@@ -33,7 +33,7 @@ Open work (each job's resume file has the detail):
   after each slice (luxury training facility, instructor gallery behind glass, LED strips, sliding doors; lighting
   sufficient; rule loosenings proposed, not applied; no explainer pads, objective list guides). Resume:
   docs/anim-natural/RESUME-menu-notes.md on feature/anim-natural.
-- Course Ready: lightfield-heap (agent), marlow-final prep files (C:/NightShift/scratch/course-ready/marlow-final/ -> to
+- Course Ready: feature/sector-fixes-r2 from 4.63.0 (Michael ~00:45 "true 2-player pathways that cannot be used solo, but doesnt break solo play"; plus bolted-door nav blockers, unbolt side cap, solo-jump probe) as four agent branches r2-nav / r2-bolt / r2-jump / r2-paths, then one GPU run, checker, PR; then marlow-final second builder; mocap-trial-2 checker. Resume: docs/marlow-bays/RESUME-trackA.md.
   Menu Notes), then second builder on marlow-final slices; checker for mocap-trial-2. Resume: docs/marlow-bays/RESUME-trackA.md.
 - Character Build: train 13 run; load-audit (feature/load-audit: e2e-desktop:1 crash-page hang fix 7d4dbc5f, e2e-move
   game-time windows; PR when proven under load); guard-cap measure (report only, docs/guard-cap/REPORT.md).
