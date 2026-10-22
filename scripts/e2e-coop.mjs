@@ -1009,20 +1009,19 @@ console.log('offline state');
   try {
     // (operators 11e, A104) an offline player has the service worker from an earlier online visit: the co-op screen is a
     // lazy chunk only the worker can serve offline. Wait for it to control the page (the old player body's build used
-    // to delay the menu past the worker's claim; Wren loads async and the menu is up ~200 ms before it)
-    await page.evaluate(async () => {
-      await navigator.serviceWorker.ready;
-      for (let i = 0; i < 200 && !navigator.serviceWorker.controller; i++) await new Promise((r) => setTimeout(r, 50));
-    });
+    // to delay the menu past the worker's claim; Wren loads async and the menu is up ~200 ms before it).
+    // (load-latent) waited for, not polled 10 s and passed on: under load the worker claimed the page later and the
+    // offline click then had no co-op chunk; 120 s, a timeout throws
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 120000 });
     await c2.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
     await page.click('.main-menu .btn:has-text("Co-op")');
-    await page.waitForSelector('.coop-offline', { timeout: 8000 });
+    await page.waitForSelector('.coop-offline', { timeout: 30000 });
     assert(true, 'co-op shows an offline state');
     await press(page, BTN.B).catch(() => {});
     await c2.setOffline(false);
     await page.click('.btn:has-text("Retry")');
-    await page.waitForSelector('.btn:has-text("Host a room")', { timeout: 5000 });
+    await page.waitForSelector('.btn:has-text("Host a room")', { timeout: 30000 });
     assert(true, 'retry recovers when back online');
   } catch (e) {
     failed = true;
