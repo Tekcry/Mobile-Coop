@@ -244,14 +244,15 @@ export const A8_DESK_PROP = { x: 128.5, z: 70.5 } as const;
 /** The vault's deposit walls: three 1.2 m modules on each flank, backs on the flank walls (z 58.15 and 65.85). */
 export const A8_DEPOSIT_X: readonly number[] = [146.75, 147.95, 149.15];
 export const A8_DEPOSIT_Z = { south: 58.45, north: 65.55 } as const;
-/** Sign plates (props, hung, no collision): [x, z, yaw, mount y]: over the grille on the hall face, over the vault door on the lobby face, over the stair foot door on the
- *  lobby face, over the stair-top door on the office face and over the office door on the hall face. */
-export const A8_SIGNS: readonly (readonly [number, number, number, number])[] = [
-  [133.85, 62.0, -Math.PI / 2, 3.7],
-  [145.85, 62.0, -Math.PI / 2, 2.75],
-  [135.0, 67.85, Math.PI, 2.35],
-  [143.2, 71.55, 0, 6.75],
-  [133.85, 76.6, -Math.PI / 2, 6.8],
+/** Sign plates (props, hung, no collision): [x, z, yaw, mount y, light circuit]: over the grille on the hall face (81, the hall night circuit), over the vault door on the lobby
+ *  face (84), over the stair foot door on the lobby face (84), over the stair-top door on the office face (83) and over the office door on the hall face at gallery level
+ *  (82, the gallery wall lights over it). The circuit is the one that lights the plate's wall (S3-7 S1: the plate's lamp dims with it). */
+export const A8_SIGNS: readonly (readonly [number, number, number, number, number])[] = [
+  [133.85, 62.0, -Math.PI / 2, 3.7, 81],
+  [145.85, 62.0, -Math.PI / 2, 2.75, 84],
+  [135.0, 67.85, Math.PI, 2.35, 84],
+  [143.2, 71.55, 0, 6.75, 83],
+  [133.85, 76.6, -Math.PI / 2, 6.8, 82],
 ];
 /** The lighting board's place on the north wall (x range): the cabinet's width 1.2 m plus a hand's width of dado each side. */
 export const A8_BOARD_FIT = [126.25, 127.75] as const;
@@ -1211,7 +1212,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   });
 
   // ---- A8-28: the vault: plate walls with the door's inner surround, ceiling ribs, a brass line; the deposit walls are props (A8-31) ----
-  tally(b, p.register, 'A8-28', "Vault dressing (visual skins, no collision; the deposit walls are props, A8-31): plate on the vault's west wall (x 146.15) on a darker dado with the door's inner surround (jambs 0.3 m, a head), four ribs under the 3.0 roof, end caps on the deposit walls' open ends (x 149.75, the cash dock side)", () => {
+  tally(b, p.register, 'A8-28', "Vault dressing (visual skins, no collision; the deposit walls are props, A8-31): plate on the vault's west wall (x 146.15) on a darker dado with the door's inner surround (jambs 0.3 m, a head), three ribs under the 3.0 roof, end caps on the deposit walls' open ends (x 149.75, the cash dock side)", () => {
     const top = A8_H.vault;
     plainWall('e', 146.15, 58.15, 65.85, 0, 1.2, top, lobbyPal, [[vd.z0 - 0.3, vd.z1 + 0.3]]);
     faceH('e', 146.15, vd.z0 - 0.3, vd.z1 + 0.3, vd.h + 0.3, top, lobbyPal[1], 0);
@@ -1265,11 +1266,11 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   // ---- A8-31: the props kit (PROPS.md 3 A8): bank counters over the two counter boxes and the night desk over its box (no collision written: the boxes are the greybox's), deposit walls on the vault's two flanks (their own boxes), five sign plates ----
   const greyProps = new FacilityProps();
   const vaultProps = new FacilityProps();
-  tally(b, p.register, 'A8-31', "Props kit: 8 bankCounter (five over the main run, three over the return; visual over the greybox boxes, no box written: 2 cm / 3 cm proud on the front, a skin back panel behind), 1 nightDesk over the night desk's box (5 cm north of it), 6 depositWall (three a flank on the vault's backs z 58.15 and 65.85: their own 6 solid noLedge boxes via FacilityProps.write, 0.56 m deep, the vault stays 6.6 m wide at the narrowest and the door's axis is clear) and 5 signPlate stand-ins (hung, none): over the grille (hall face), the vault door (lobby face), the stair foot door (lobby face), the stair-top door (office face) and the office door (hall face)", () => {
+  tally(b, p.register, 'A8-31', "Props kit: 8 bankCounter (five over the main run, three over the return; visual over the greybox boxes, no box written: 2 cm / 3 cm proud on the front, a skin back panel behind), 1 nightDesk over the night desk's box (5 cm north of it), 6 depositWall (three a flank on the vault's backs z 58.15 and 65.85: their own 6 solid noLedge boxes via FacilityProps.write, 0.56 m deep, the vault stays 6.6 m wide at the narrowest and the door's axis is clear) and 5 signPlate stand-ins (hung, none), each plate and the desk on the circuit that lights its wall (S3-7 S1, `group`: the grille 81, the vault door and the stair foot door 84, the stair-top door 83, the office door 82; the desk 81): over the grille (hall face), the vault door (lobby face), the stair foot door (lobby face), the stair-top door (office face) and the office door (hall face)", () => {
     for (const x of A8_COUNTER_MAIN_X) greyProps.add('bankCounter', x, A8_COUNTER_MAIN_Z, Math.PI, { y: A8_PROP_LIFT });
     for (const z of A8_COUNTER_RETURN_Z) greyProps.add('bankCounter', A8_COUNTER_RETURN_X, z, -Math.PI / 2, { y: A8_PROP_LIFT });
-    greyProps.add('nightDesk', A8_DESK_PROP.x, A8_DESK_PROP.z, 0, { y: A8_PROP_LIFT });
-    for (const [x, z, yaw, y] of A8_SIGNS) greyProps.add('signPlate', x, z, yaw, { y });
+    greyProps.add('nightDesk', A8_DESK_PROP.x, A8_DESK_PROP.z, 0, { y: A8_PROP_LIFT, group: G_HALL });
+    for (const [x, z, yaw, y, group] of A8_SIGNS) greyProps.add('signPlate', x, z, yaw, { y, group });
     for (const x of A8_DEPOSIT_X) {
       vaultProps.add('depositWall', x, A8_DEPOSIT_Z.south, 0);
       vaultProps.add('depositWall', x, A8_DEPOSIT_Z.north, Math.PI);

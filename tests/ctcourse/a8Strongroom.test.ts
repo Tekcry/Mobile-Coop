@@ -33,7 +33,7 @@ import { validateSecurity, type CameraDevice } from '../../src/security/data';
 import { remoteHeadY } from '../../src/security/securitySystem';
 import { findJumpTarget, generateLedges, LEDGE, type Ledge } from '../../src/world/anchors';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_OVERHANG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_OVERHANG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
@@ -532,7 +532,7 @@ describe('A8 the Strongroom: the doors, the night circuit and the grille', () =>
     expect(s.locked(A8_VAULT)).toBe(false);
   });
 
-  it("the push bar (and the request-to-exit when it goes in) are out of reach (item 1.4 m + the host's 0.75 m margin) from the wrong side of their walls: the rte from the hall and the stairs, the bar from the hall and the lobby", () => {
+  it("the push bar and the request-to-exit (both built, A8_RTE_GATE_ON) are out of reach (item 1.4 m + the host's 0.75 m margin) from the wrong side of their walls: the rte from the hall and the stairs, the bar from the hall and the lobby", () => {
     const rte = A8_RTE_AT;
     const bar = part.devices[A8_STAIR_BAR]!;
     expect(minDist(hallSide, rte)).toBeGreaterThan(DEVICE_REACH);
@@ -1616,6 +1616,27 @@ describe('A8 the Strongroom: dressing (slice 8 step 5)', () => {
       const q = plates.find((p2) => Math.abs(p2.x - sx) < 1e-6 && Math.abs(p2.z - sz) < 1e-6)!;
       expect(q.y).toBeGreaterThanOrEqual(d.hinge.y + d.height);
     }
+  });
+
+  it("every prop with an emissive part carries a circuit group (S3-7 S1, light parity): the night desk's screen and lamp on the hall night circuit (81), each sign plate on the circuit that lights its wall (grille 81, vault door and stair foot door 84, stair-top door 83, office door 82); the counters and the deposit walls have nothing that glows", () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const glowing = own.filter((q) => propGlows(q) && !PROP_OWN_SUPPLY.includes(q.prop));
+    const of = (prop: string): PropPlacement[] => glowing.filter((q) => q.prop === prop);
+    expect(of('nightDesk')).toHaveLength(1);
+    expect(of('signPlate')).toHaveLength(5);
+    expect(glowing).toHaveLength(6);
+    expect(own.filter((q) => q.prop === 'bankCounter' || q.prop === 'depositWall').some((q) => propGlows(q))).toBe(false);
+    for (const q of glowing) {
+      expect(q.group, `${q.prop} at ${q.x}, ${q.y}, ${q.z}`).toBeDefined();
+      expect(plan.has(q.group!), `${q.prop} group ${q.group}`).toBe(true);
+      expect(q.group!).toBeGreaterThanOrEqual(81);
+      expect(q.group!).toBeLessThanOrEqual(84);
+    }
+    expect(of('nightDesk')[0]!.group).toBe(81);
+    // the plate's circuit is the one whose lamps are nearest on its side: the greybox's lamps of that group
+    expect(of('signPlate').map((q) => [Math.round(q.x * 100) / 100, Math.round(q.z * 100) / 100, q.group])).toEqual(A8_SIGNS.map(([x, z, , , g]) => [x, z, g]));
+    expect(of('signPlate').map((q) => q.group)).toEqual([81, 84, 84, 83, 82]);
+    for (const q of of('signPlate')) expect(lamps.some((l) => l.group === q.group), `a lamp on group ${q.group}`).toBe(true);
   });
 
   it("every kit glow in A8 carries a circuit of the plan's A8 rows: the hall's panels above the 9.2 slab top on 81 (south, north and west) and 83 / 84 over the office, plant and lobby side, the accent slots on 82 (under the gallery's front), 83, 84 (no light); no lamp was added", () => {
