@@ -67,6 +67,8 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:45 0d scaffold e2e GREEN on the laptop GPU (3e41b859): smoke, e2e-ctcourse :1-:4, coop, course, netmove all
+  PASS (logs C:/NightShift/scratch/runs/marlowfinal-3e41b859/). Slice 0 left: 0e (running), then its check.
 - ~02:35 (clock) bounds test IN (stubs add no geometry yet, so it bites from the first real set). 0e facility
   dressing started on Sonnet (facility.ts + tests/ctcourse/facility.test.ts; report slices/S0e.md). Usage 43% at
   02:32, 4 h 08 left: one agent at a time.
