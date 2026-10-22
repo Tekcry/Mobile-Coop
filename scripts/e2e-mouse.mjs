@@ -38,7 +38,9 @@ try {
   }
   const yaw0 = s.yaw;
   await page.mouse.move(760, 320, { steps: 6 });
-  await page.waitForTimeout(200);
+  // (load-audit) was a fixed 200 ms wall wait then one read: at 2-3 fps the frame applying the move may not have run.
+  // Wait (up to 30 s) for the frames to turn the camera, then read; the assert's limit is unchanged
+  await page.waitForFunction((y0) => Math.abs(window.__app.current.player.cam.yaw - y0) > 0.1, yaw0, { timeout: 30000, polling: 50 }).catch(() => {});
   s = await st();
   assert(Math.abs(s.yaw - yaw0) > 0.1, `captured mouse movement looks (yaw ${yaw0.toFixed(2)} -> ${s.yaw.toFixed(2)})`);
   const mag = () => page.evaluate(() => window.__app.current.weapons.current.mag);
@@ -111,7 +113,8 @@ try {
   assert(up.gear === s0.gear && down.gear === s0.gear && down.weapon === s0.weapon, `the wheel changes neither the speed (${s0.gear} -> ${up.gear} -> ${down.gear}) nor the weapon (${s0.weapon} -> ${down.weapon})`);
   // T swaps weapons
   await page.keyboard.press('KeyT');
-  await page.waitForTimeout(1200);
+  // (load-audit) was a fixed 1.2 s wall wait then one read: wait (up to 30 s) for the frames to apply the swap, then read
+  await page.waitForFunction((w0) => window.__app.current.weapons.index !== w0, s0.weapon, { timeout: 30000, polling: 50 }).catch(() => {});
   s = await st();
   assert(s.weapon !== s0.weapon, `T swaps weapons (${s0.weapon} -> ${s.weapon})`);
   // (anim-rework S1, A1) WASD walk, Left Shift held runs, Left Alt held creeps (the asked speed; the test cap off); = / - do nothing
@@ -127,7 +130,15 @@ try {
         v = await want();
         if (v > 0) break;
       }
-      await page.waitForTimeout(150);
+      // (load-audit) was a fixed 150 ms wall wait: 0.15 s of the match clock instead (60 s real-time cap), so the held
+      // modifier's frames have run however slow the page
+      await page.evaluate(() => new Promise((res) => {
+        const g = window.__app.current;
+        const t0 = g.time;
+        const w0 = performance.now();
+        const tick = () => (g.time - t0 >= 0.15 || performance.now() - w0 > 60000 ? res() : requestAnimationFrame(tick));
+        tick();
+      }));
       v = await want();
       await page.keyboard.up('KeyW');
       for (const m of mods) await page.keyboard.up(m);

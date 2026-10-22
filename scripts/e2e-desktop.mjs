@@ -223,11 +223,17 @@ try {
   // 3.1.4 crash log: a page that dies while open leaves a note for the next start; a reload is a clean close
   await G(() => window.__app.crashLog.stage('crash test: run 2/9'));
   const cdp = await page.context().newCDPSession(page);
+  // (load-audit) wait for the crash itself (not a fixed 2 s) and close the dead page before the new one: under load
+  // the new page's goto hung past 120 s, the crashed renderer not yet torn down when it opened
+  const crashed = page.waitForEvent('crash', { timeout: 60000 }).catch(() => null);
   // (the command never answers: the page is gone)
   await Promise.race([cdp.send('Page.crash').catch(() => undefined), wait(2000)]);
+  assert(!!(await crashed), 'the page crashed (Page.crash)');
+  await page.close().catch(() => undefined);
   const p2 = await page.context().newPage();
   await p2.goto(url + '?gfx=min');
-  await p2.waitForSelector('.main-menu');
+  // (load-audit) the crash-log page's menu waits (after the load and the reload): 60 s, as smoke's boot wait
+  await p2.waitForSelector('.main-menu', { timeout: 60000 });
   const crashes = async () => p2.evaluate(async () => (await window.__app.feedback.all()).filter((e) => /^Crash report/.test(e.text)).map((e) => e.text));
   let cr = [];
   for (let i = 0; i < 40 && !cr.length; i++) {
@@ -236,7 +242,7 @@ try {
   }
   assert(cr.length === 1 && /crash test: run 2\/9/.test(cr[0]), `a crash leaves a report naming what was running (${cr[0]?.slice(0, 160)})`);
   await p2.reload();
-  await p2.waitForSelector('.main-menu');
+  await p2.waitForSelector('.main-menu', { timeout: 60000 });
   await wait(800);
   assert((await crashes()).length === 1, 'a reload is not reported as a crash');
   await browser.close();
