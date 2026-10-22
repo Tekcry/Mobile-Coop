@@ -276,3 +276,31 @@ describe('foot planner: turns (A1.1)', () => {
     }
   });
 });
+
+describe('(anim-natural N1) still: the idle step tie', () => {
+  it('a crouch re-step from a square stance: the foot planted longer steps first (turnRule 0: the left, as before)', () => {
+    for (const rule of [1, 0])
+      for (const longer of [-1, 1] as const) {
+        const p = new FootPlanner();
+        const i = emptyPlannerInput();
+        i.dt = 1 / 120;
+        i.stride = 'facing';
+        i.turnRule = rule;
+        i.lX = -0.06;
+        i.rX = 0.06;
+        i.lZ = i.rZ = 0;
+        for (let k = 0; k < 60; k++) p.update(i);
+        expect(p.L.contact && p.R.contact).toBe(true);
+        // this foot has stood longer (the other one stepped last)
+        (longer < 0 ? p.L : p.R).plantT += 1;
+        // crouched: the stance widens by 2.5 cm a side, the stance change's re-step
+        i.crouch = 1;
+        i.lX = -0.085;
+        i.rX = 0.085;
+        p.update(i);
+        const first = rule === 0 ? p.L : longer < 0 ? p.L : p.R;
+        expect(first.contact, `rule ${rule} longer ${longer}`).toBe(false);
+        expect((first === p.L ? p.R : p.L).contact, `rule ${rule} longer ${longer}`).toBe(true);
+      }
+  });
+});

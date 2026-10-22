@@ -329,6 +329,11 @@ const SWING_YAW_RATE = 12;
  * frames early). The round before turned a toe-up foot about the virtual ball spot (the heel swept 4.6 cm at 60 Hz).
  */
 const TURN_ON = { toe: 0.05, lift: 0.04, heel: 0.1 } as const;
+/**
+ * (anim-natural N1) Still with the turn rules: two planted feet whose idle errors differ by less than this share of the
+ * larger are a tie, and the foot planted longer steps first (`updateIdle`; was always the left).
+ */
+const IDLE_TIE = 0.1;
 
 export class FootPlanner {
   readonly L = newFoot();
@@ -1062,6 +1067,8 @@ export class FootPlanner {
     let worst: FootState | null = null;
     let worstSide: -1 | 1 = -1;
     let worstErr = 0;
+    let errL = 0;
+    let errR = 0;
     for (const side of [-1, 1] as const) {
       const f = side < 0 ? this.L : this.R;
       this.ideal(i, side, i.rootX, i.rootZ, i.goalYaw);
@@ -1076,11 +1083,21 @@ export class FootPlanner {
       // the feet square, so both stepped; flat-crouch3-aim balance 36 cm)
       if (fwd < 0 && (side < 0 ? i.lZ - i.rZ : i.rZ - i.lZ) > STAGGER.min) fwd = Math.min(0, fwd + STAGGER.hold);
       const err = hyp2(fwd / PLANNER.idleStagger, lat / (this.restepT > 0 ? RESTEP.err : PLANNER.idleErr)) + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
+      if (side < 0) errL = err;
+      else errR = err;
       if (err > worstErr) {
         worstErr = err;
         worst = f;
         worstSide = side;
       }
+    }
+    // (anim-natural N1) with the turn rules a near tie (both feet about as far off: a crouch's re-step from the square
+    // stance a turn's steps leave) is not always the left foot's: the foot planted longer steps first, the feet take
+    // turns (the left foot's crouch-entry re-step right after its own step: the right wrist 3.2 cm into the right thigh,
+    // e2e-clip crouched holstered)
+    if (this.turnOn && worst && Math.abs(errL - errR) < IDLE_TIE * worstErr && this.L.plantT !== this.R.plantT) {
+      worstSide = this.L.plantT > this.R.plantT ? -1 : 1;
+      worst = worstSide < 0 ? this.L : this.R;
     }
     if (worst && worstErr > STEP[SP.replant]!) {
       this.beginSwing(worst, i, idleT, PLANNER.idleLift);
