@@ -4,10 +4,13 @@ Every open job this session leads, with branches, heads, next steps and rules. R
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
 
 ## LIVE 2026-10-22 ~23:00 (after the clear) - check these first
-- vol-cone-fix: worktree C:/NightShift/Mobile-Coop-vol-cone-fix, feature/vol-cone-fix from master 2f1961ad (not pushed
-  yet). Implementer agent running (uncommitted work there: git status / diff on resume; report target
-  docs/vol-cone-fix/NOTE.md, shots before-/after-*.webp, changes/feature-vol-cone-fix.md). Waits on heavy2.lock (both
-  desktop locks Course Ready's at 22:55). Next: fresh checker, commit, push, PR, message the orchestrator.
+- vol-cone-fix: worktree C:/NightShift/Mobile-Coop-vol-cone-fix, feature/vol-cone-fix from master 2f1961ad: BEFORE
+  533a1f30 (shot script, 14 views; Marlow has no spot or flood = no-change control), AFTER db0ffadf (src/vfx/volLights.ts
+  general variant: only kind 'flashlight' beams; tests/volLights.test.ts; changes/feature-vol-cone-fix.md; NOTE.md table
+  pending). Laptop main slot (Character Build, 4189) shoots both + --sheet + e2e smoke e2e-darkness e2e-desktop:3 on
+  db0ffadf, pushes the shots on top. Fresh checker agent running (read-only). Next: review the pairs (LED-only fallback
+  if Marlow / floods change: volBeam one-liner in volLights.ts), fill NOTE.md, PR, message the orchestrator. Master is
+  now 4.60.0 (d01300d3); keep the shots on the 2f1961ad base, merge master only before the PR if needed.
 - mocap-sheets: real-clip rerun sent to Character Build (laptop slot 2, 4192 GPU) on feature/mocap-sheets-real 8cb4d26c
   (79005dfd + mocap-trial 82f43716, CT Core's ok; worktree C:/NightShift/Mobile-Coop-mocap-sheets-real); it pushes the
   regenerated docs/mocap-trial/sheets/ to that branch. Send the orchestrator the sheet paths at once (Michael waits).
