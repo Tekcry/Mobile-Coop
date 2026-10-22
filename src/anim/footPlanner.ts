@@ -1055,6 +1055,8 @@ export class FootPlanner {
         // a reversal's first frames (0.2 rad, inside the yaw test), but the velocity already points back
         // (mt2-fixB, CHECK-3 item 5) and the frame the switch goes off (`mocapOff`): a clip swing in the air taken over by
         // the clock jumped to the clock's swing (60 cm in a frame at a jog); it keeps where it is, the difference fades
+        // (mocap-trial-2 strafe fix) a strafe swing taken over by the clock (a snap at sp 0.82 re-aimed it 60 cm: 37 cm in a frame)
+        const stTake = takeover && (i.strafe ?? 0) > STRAFE_ON;
         if (
           takeover &&
           ((f.swBase > 0 &&
@@ -1062,7 +1064,8 @@ export class FootPlanner {
             this.moveT < START_TOE_OFF &&
             Math.abs(wrap(i.yaw - f.fromYaw)) < 0.35 &&
             i.velX * Math.sin(f.fromYaw) + i.velZ * Math.cos(f.fromYaw) > 0) ||
-            this.mocapOff)
+            this.mocapOff ||
+            stTake)
         ) {
           f.offX -= f.x;
           f.offY -= f.y;
@@ -1070,7 +1073,9 @@ export class FootPlanner {
           f.offBase = 0;
           // (mt2-fixB) the switch off: over the swing left (it lands on its target, not short of it: a run's next stance
           // started 30 cm behind and the pelvis dropped 34 cm for it), at least OFF_FADE
-          f.offDur = this.mocapOff ? Math.max(OFF_FADE, toLand) : 0;
+          // (mocap-trial-2 strafe fix) and the clock's takeover of a mocap strafe swing (stTake): the same, so a snap into or
+          // out of the strafe re-aims the long side-step without a jump and lands with the offset spent (no planted slide)
+          f.offDur = this.mocapOff || stTake ? Math.max(OFF_FADE, toLand) : 0;
           f.x += f.offX;
           f.y += f.offY;
           f.z += f.offZ;
