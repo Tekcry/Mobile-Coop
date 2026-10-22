@@ -9,6 +9,8 @@ any building. Branch feature/marlow-final from af56ab43.
   Ready's independent second opinions in C:/NightShift/scratch/course-ready/marlow-final/ (MAP-AUDIT.md,
   DEVICE-INVENTORY.md with placement APIs / wire hooks, SCENARIOS.md).
 - Desktop e2e only when CPU < ~60% at the start, else Character Build (orchestrator, max burn).
+- Spec must carry M5: a facility look section (A5-A6) and a lighting section (rule review, loosening only as a proposal).
+- Art kit agent running in parallel (in-repo Blender, headless, CC0 only): docs/marlow-final/KIT.md + scripts.
 - Spec must carry M4: no explainer pads; a per-area objective list guiding both players (per-player lines on splits).
 - Spec (`SPEC.md`, from `docs/templates/map-spec.md`) and `PLAN.md` (slices, some whole slices for Course Ready).
 - Build slices: greybox, lights baked, guards, one e2e route per slice; checker + 1 fix round; GPU suites

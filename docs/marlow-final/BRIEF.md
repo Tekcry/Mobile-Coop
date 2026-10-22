@@ -19,6 +19,24 @@ and any other coop "wow thats cool" experience. Ask questions if needed."
 - M4 (~00:25) "im happy to remove the pads in each section that explain things also, we can have the objective list
   update and keep the players guided throughout the yard". So: no explainer pads; the objective list updates per area
   and guides both players through the whole yard, with per-player lines where the team splits.
+- M5 (~00:30) Dressing and detail art STRAIGHT AFTER GREYBOX (each area dressed as its greybox passes; he accepts
+  ~3-5 h rework if his walk changes the layout). Verbatim: "make it a believable training facility that reproduces
+  potential real level scenarios. Ensure lighting is sufficient, review the rule if needed. This facility should also
+  be very expensive, and should adopt a design that is luxurious (LED strips, glass panel where an "instructor" can
+  watch you train throughout the course, sliding doors, any suggestions you have, these do not have to be in the level,
+  only giving examples) again you can ask me questions if needed". The no-detail-art-before-playtest rule is lifted for
+  marlow-final only. Art: a reusable kit from in-repo Blender scripts (headless `-b`, CC0 textures only); perf budgets
+  and GPU shots per area via Character Build. Lighting: sufficient to read the space; any loosening of the darkness /
+  light rules goes to Michael as a proposal in the spec, never applied.
+
+## More assumed decisions (M5)
+- A5 One instructor gallery: a raised, glazed walkway / control room running along the course spine, so most areas have
+  a glass wall onto it; the gallery is out of bounds for players (sight only). Undo: per-area observation windows.
+- A6 The look: dark premium surfaces (charcoal composite panels, brushed metal trims, polished concrete floors), warm and
+  cool LED strip coves as the main read light, frosted and clear glass, motorised sliding doors (existing door logic,
+  new kit mesh). Mock-up areas inside it (a rail siding, an office floor, a server room) keep their own materials so the
+  scenarios read as "real sites" built inside a luxury hall. Undo: retexture the kit.
+- A7 Guards in the training scenarios stay normal guards (live training targets in the fiction); no new archetype.
 
 ## Goal
 Marlow Yard becomes a finished 2-player co-op training level: one route that flows, each area a purpose-built
