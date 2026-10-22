@@ -27,8 +27,11 @@ pelvis pops 5.8 cm/frame, start toe pop 26 deg/frame; switch off bit-identical, 
 Train 8 next: #119 N4b e957db2f (ready) + #138 N2 (contains N1): fix round 2 running (run 180 planted contact 14 cm; then
 merge master 4.58.3, rerun its six GPU suites, send the sha). Build after train 9 merges, from C:/NightShift/Mobile-Coop-train:
 merge-train.mjs build 8 feature/anim-n4b feature/anim-natural-n2, laptop full run, release 4.60.0.
-Train 10 after that: #142 n4d, #144 R, #145 lamp-plugin-gap, #149 backlog note, #150 gpu-waits-sweep (merge master first:
-it touches e2e-menus lines that #147 / #148 change).
+4.59.0 MERGED (#151, 2f1961ad, ~22:32; /preview/ = dev = 2f1961ad): add its ROADMAP Done row if missing.
+Train 10 = train/10 0c6bf0bd (#142 n4d, #145 lamp-plugin-gap), laptop full run (JOBS=3) started ~22:35. Left out on
+conflicts with 4.59.0: #144 R (warehouseOps / warehouseSectors vs P), #150 gpu-waits-sweep (e2e-menus), and #149
+touch-fling-note (backlog.md). Owners merge master (Course Ready: R, #150; Character Build: #149), then train 11 with
+them; train 8 (#119 + #138) builds as soon as #138's six GPU suites pass (detached run /c/NightShift/n138-e2e.out).
 
 Open work (each job's resume file has the detail):
 - CT Core: mocap-trial first cut feature/mocap-trial 06e773e1 (clips a05bdde7; ?mocap=1 or Settings > Gameplay > "Mocap
