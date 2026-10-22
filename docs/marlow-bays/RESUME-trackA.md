@@ -1,6 +1,6 @@
 # Track A (Night Shift | Course Ready Build) - resume
 
-Written 2026-10-22 ~09:10, updated ~14:55 (paused at 80% of the 5-hour window until the 16:10 reset; full burn otherwise). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
+Written 2026-10-22 ~09:10, updated ~15:35 (full burn; stop new agents at 97% of the 5-hour window). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
 24, 29, 30 and "Tracks") and this file. Report to "Night Shift | Orchestrator".
 
 ## Open jobs
@@ -13,7 +13,7 @@ Written 2026-10-22 ~09:10, updated ~14:55 (paused at 80% of the 5-hour window un
 | clip-speed | `feature/clip-speed` | merged | #109 merged in train/2 #112 as 4.53.0 (5220f79c) | Done. Menu Notes N3 splits holster per gun (agreed) |
 | anim-natural N4 holds and carries | `feature/anim-n4` | merged | #113 merged in train/3 #114 as 4.54.0 (99f3e488) | Done |
 | sector-fixes slice S (security room) | `feature/sector-fixes-s`, `C:/NightShift/Mobile-Coop-sector-fixes-s` | a070e504 | PR Tekcry/Mobile-Coop#115; checker PASS, notes applied; in train/4 (4e1bbec1 = 4.54.0 + #110 + #115 + W): the laptop full e2e on the train is its test. A11 (jam handoff unchanged). docs/sector-fixes/s/STATE.md | Train/4 verdict; GPU look of the room (scripts/shots-ctcourse.mjs s3-monitors) queued on the desktop lock after CT Core |
-| anim-n4b (N4 pass 2 rows 3, 4, 6, 8 + fix 36 split brace) | `feature/anim-n4b`, `C:/NightShift/Mobile-Coop-anim-n4b` (feature/anim-n4b-team merged in) | a6a6a09d | Built and committed: 47a42d03 holds brace / breath + studio hold walks planted; 3fba0433 mantle plant, drop air + scaled landing, grounded roll, split brace hands on walls; e2feeaed co-op holders (team.ts); master 4.54.0 merged; tsc clean, 122 unit tests pass; CHANGELOG. No wire change. Laptop asked for check + e2e-anim / studio / coop / netmove / ctcourse | One Opus checker, one fix round, GPU audit rows (desktop lock), full vitest / build, PR |
+| anim-n4b (N4 pass 2 rows 3, 4, 6, 8 + fix 36 split brace) | `feature/anim-n4b`, `C:/NightShift/Mobile-Coop-anim-n4b` | 0a6bc567 | PR Tekcry/Mobile-Coop#119 (train 5 with #118). Checker FIX (roll knees through the floor) -> fix round 0a6bc567 (knee min +1.9 cm, landing at g 18, partnerYaw rope-only, path constants in traversePath, no brace on team holder); 269 unit tests pass. Laptop asked: check + e2e-anim / studio / coop / netmove / ctcourse / clip / traverse on 0a6bc567. GPU audit script ready: `bash C:/NightShift/an4b-gpu.sh` (build + audit rows; one atomic lock try, no wait loop; scripts/anim-natural/audit.mjs copied untracked into the worktree) | Run an4b-gpu.sh when Menu Notes messages that the lock is free; post rows before / after (PASS2.md) and the laptop verdict on #119; delete the untracked scripts/anim-natural + docs/anim-natural/audit |
 
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
 #89 items 26 / 26b 4.41.0, #91 item 25 4.43.0.
@@ -67,18 +67,9 @@ work (full vitest, build, e2e, GPU) takes C:/NightShift/heavy.lock atomically
 the orchestrator's lock queue, deleted only if it still names you; the laptop ("Night Shift | Character Build") runs
 area suites and train e2e on request.
 
-Next (2026-10-22, after the 16:10 reset):
-1. anim-n4b (feature/anim-n4b a6a6a09d, worktree C:/NightShift/Mobile-Coop-anim-n4b): read the laptop verdict if one
-   came; spawn one fresh Opus checker (read-only) on `git diff origin/master...feature/anim-n4b` against
-   origin/feature/anim-natural docs/anim-natural/PASS2.md + AUDIT.md fix list (items 3, 4, 6, 8, 36), CLAUDE.md rules
-   (no allocation in hot paths, co-op parity, no wire change); one fix round. Then, when the orchestrator gives you the
-   desktop lock: npm run build, then the GPU audit: copy scripts/anim-natural/audit.mjs from origin/feature/anim-natural
-   into the worktree (untracked), `E2E_GPU=1 node scripts/anim-natural/audit.mjs proving --only=mantle,drop-ledge,drop-hang,roll,split-brace,hold-still`
-   and `... studio --only=pair-boost,pair-throw,pair-hang,pair-rope,pair-hold_idle,pair-hold_back` (port 4189), compare
-   with PASS2.md's numbers, then delete the copied script and docs/anim-natural/audit. Full vitest + e2e-anim +
-   e2e-studio on the desktop or the laptop. Open the PR to master (body: the rows before / after, hooks marked
-   "(anim-n4b, track A)", open items: split brace elbows in the 1.8 m corridor, landing trigger ~0.3 m, remote hold
-   sway on its own clock, studio 8-cycle snap), report to the orchestrator.
+Next (2026-10-22):
+1. anim-n4b PR #119 (feature/anim-n4b 0a6bc567): see the Open jobs row: GPU audit when the lock is handed to you
+   (Menu Notes messages), laptop verdict, comments on the PR, orchestrator report.
 2. #115 (slice S) rides train/4: act only if the train fails on S. GPU look of the room when the lock is yours.
 3. Then ask the orchestrator for the next job.
 ```
