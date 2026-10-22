@@ -24,6 +24,8 @@
 
 - PR #184 (part 1: slices 0 + L + 1) from feature/sector-redesign-p1 @ d21399f5, train 19 with #180 (orchestrator). Slices 2-3 + E items go in a second PR from feature/sector-redesign.
 
+- Guard AI types on feature/guard-ai 971711c4 (types only; to master with its PR after #185): SquadSlot `post?: PostDef` / `profile?`, SectorDef `noisy?` / `entries?`, BoxPiece `glass?` (levelBuilder.ts:61); src/ai/posts.ts (POST.lureLook 5 s, lureSweep 0.6 rad), src/ai/guardAiData.ts (validateGuardAi / validatePosts). When it lands on master: merge master, move CAMPUS_POSTS onto each slot's `post`, call validatePosts in the campus tests, then build E2 (skip glass in canonicalLightShapes).
+
 ## Next
 1. Slice 1: Opus checker (with the open items above), laptop e2e-sectorops (campus part 1) + e2e-coop,
    one fix round at most; then message the orchestrator (slice 1 on the branch).
