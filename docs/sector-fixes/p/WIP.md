@@ -72,3 +72,13 @@ laptop (queued after train 7).
 - The panel look (proportions, LED glow strength, the conduit poking over the mezzanine shelf) is a prototype: polish list.
 - The vantage spots are traced statically (eye 1.6 m); the real third-person aim camera sits about 0.5 m off the head;
   the station 4 e2e checks the real aim, the Sector Ops e2e forces the host's intent (the aim is covered by the unit test).
+
+## Laptop suites and the station 3 flake (2026-10-22 ~21:05)
+- Laptop, 66995a22 (software GL, solo): check PASS 360 s, e2e-sectorops / coop / netmove PASS, e2e-ctcourse FAIL at
+  station 3 "stale far-lobby positions reached the host (0 reports)".
+- Diagnosis (desktop, b57c2fbf = P + master 4.58.0): a test-timing flake, not P. The stale-position window was a fixed
+  0.8 s of host wall time; the client sends `pstate` only from its frame loop (20 Hz), which on software GL under load
+  runs ~3 frames/s, so 0-1 reports arrive. The same assert failed on anim-bake-targets today. No page errors.
+  e2e-ctcourse GPU: PASS 264 s (full) and 193 s (:1); software GL: the assert passed with n = 1.
+- Fix (test only): the window lasts at least 0.8 s AND until 3 client reports were seen in the far lobby, capped at
+  10 s (`scripts/e2e-ctcourse.mjs` station 3).

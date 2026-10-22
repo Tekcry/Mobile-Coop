@@ -255,7 +255,10 @@ async function station3(x0) {
     const tick = () => {
       if (window.__course.state.hasFlag('s3-clear') || window.__course.debug().gates['g-s3']) opened = true;
       if (Math.abs(r.feet.x - fx) < 0.3) far++;
-      if (performance.now() - t0 < 800) requestAnimationFrame(tick);
+      // at least 0.8 s AND 3 client reports seen in the far lobby: on software GL under load the client runs ~3 frames/s
+      // and sent 0-1 reports in 0.8 s (sector-fixes P laptop run, anim-bake-targets); capped at 10 s
+      const el = performance.now() - t0;
+      if (el < 10000 && (el < 800 || n < 3 || far < 1)) requestAnimationFrame(tick);
       else { r.accept = orig; r.allowTeleport(3); res({ n, far, opened, hall: window.__ctdev.debug().hall }); }
     };
     tick();
