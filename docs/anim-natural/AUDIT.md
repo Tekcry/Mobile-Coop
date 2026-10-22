@@ -1,4 +1,4 @@
-# anim-natural N0 - naturalness audit of Wren's animations
+| 80 | Downed | 3 | `pair-revive` (role B) | Solo has no pose; the revive pair lies B on its side, still || 79 | Hit flinch | 1 | `hit-flinch-2`, `hit-flinch-aim` | Pass 2: `rig.hit` is the right call (pass 1 used it too); the flinch is invisible: shoulders 0.9 deg, torso pitch 0.2 deg, holstered or aiming || 73-78 | Co-op moves | 2 | `pair-boost`, `pair-relay`, `pair-throw`, `pair-hang`, `pair-rope`, `pair-revive` | Pass 2 (camera on the puppets): role B is a statue in boost, throw, hang and rope (trunk 0.0 deg) with the hands at the hips, not on A, the rope or a step; A is lifted with no push; relay and revive read (3); puppets vanish ~0.5 s after the pair clock wraps (studio) || 72 | Doorway sweep | - | `door-sweep-driven` | dead in play (`pose.check` never set); driven: shoulders 5.9 deg, head 14 deg: barely a sweep || 70 | Dash slide | - | `dash-slide-driven` | dead in play (`pose.slide` never set); driven: a knee-drop lunge || 61-67 | Mantle, step up, climb up, drop, hop, roll, wall kick | 2 | `mantle`, `step-up`, `climb-up`, `drop-ledge`, `drop-hang`, `hop`, `roll`, `wall-kick` | Pass 2: mantle 0.9 m with no hand plant (wrists 3-7 cm); ledge drop 2.6 m in a fixed half squat (no air or land pose); drop from a pipe hang: straight to a crouch; roll reads as an airborne somersault (feet overhead, wrists 28 m/s, slung rifle swings 106 deg); hop, climb up and wall kick read (3) || 58 | Split brace | 3 | `split-brace` (numbers only) | Pass 2: braced (seen split), trunk counter ok; the sheet is inside the corridor wall || 49 | Elbow strike | - | `elbow-strike`, `elbow-strike-guard` | not captured: a fire tap holstered started no strike in either scenario || 47 | Interrogate | - | `interrogate` | not captured: the scripted pick 4 started nothing (numbers = hold still) || 46 | Knife kill | 3 | `knife-kill`, `pair-hold_knife` | Pass 2: the strike and the lowering read; trunk turns as a block (corr +0.81); Wren dark in the Warehouse (guard bright) || 43 | Hostage hold still | 2 | `hold-still`, `pair-hold_idle` | Pass 2: trunk 0.0 deg in play and in the studio clip: a statue holding him || 40 | Door peek | - | `door-peek` | not captured: camera inside the shed wall, and the metrics show no peek (still idle) || 39 | Aim at a wall / peek aim | - | `wall-edge-left / -right / -low` | not captured at the edge (as 29); aiming mid-wall she steps off the wall and turns round (sheet) || 32 | Jammer | 2 | `jammer` | = pistol aim still (row 18): 0 deg trunk, no pose of its own || 31 | Launcher in hand | - | - | not in the game (weapons.json: rifle and pistol only) || 30 | Knife in hand | 3 | `knife-in-hand` | Pass 2: fist closed on the knife, the walk swings it as an empty hand (22.6 cm); no guard of the blade || 29 | Hand swap | - | `wall-edge-left` | not captured: the slide never reached the wall end (stick side wrong for the game camera), so no open-left aim || 25 | Fire, recoil | 1 | `fire-rifle`, `fire-pistol` | Pass 2: 1 s of rifle fire moves nothing: gun 0.12 m/s, wrists 1.4 cm, trunk 0 deg (casings fly; no kick in the arms or shoulder) || 24 | Wall block | 3 | `wall-block` | Pass 2: at the wall the rifle swings to muzzle-up (69 deg) and the gun stalls 0.42 s mid-way, then comes back down; reads, abrupt || 16 | Low ready walk / jog / run | 2 | `lowready-walk / -jog / -run` | Pass 2: arms locked to the gun (wrist range 0.6 / 1.8 / 11 cm), head 0 deg, sway 1.2-1.7 cm: the gun rides a statue torso; run pelvis range 50 deg unexplained (sheet straight) || 12 | Crouch run | 2 | `crouch-run`, `crouch-run-keyed` | Pass 2: in play the arms are the jog swing (21.8 cm), trunk 5 / 6 deg, head 0; the studio keyed sheet is half off-frame (rerun pending) || 10 | Tense sneak | 3 | `tense-sneak` | Pass 2: good counter-rotation (pelvis 7.5 / shoulders 3.3 deg, corr -0.99), long deliberate steps; knife hand parked (1.1 cm), head 0 deg || 7 | Start, stop, turn, pivot | 1 | `start-jog`, `stop-*`, `turn90-*`, `turn180-*`, `curve-jog`, `turn-in-place-aim90 / -aim180` | Turns: wind-up 10-25 deg, scrub 4-9 cm, pelvis lag 50 deg at run; curve fine. Pass 2: holstered she never turns on the spot (by design, `motion.ts`: standing holds facing), so the pass 1 scenario could not turn; aimed, 90 deg in 0.28 s in two steps, each planted foot swivels 51 deg and slides 4-5 cm (top plot fans) |# anim-natural N0 - naturalness audit of Wren's animations
 
 Branch `feature/anim-natural` at master 4.48.0 (ea3399ed). Read-only: no game code changed. Our animation only (no
 reference footage traced). Row list: `feature/marlow-bays:docs/marlow-bays/COVERAGE.md` (80 rows).
@@ -21,8 +21,9 @@ How the numbers read (all in the root frame, ranges are peak to peak over the ca
 - gun: the held gun model's world speed per frame and its muzzle pitch (deg, + up): a stall = speed under 0.1 m/s
   between two moving spans.
 
-Caveats: the Proving sheets are back-lit (the sun behind the camera's subject: silhouettes; poses read, detail does
-not); the studio sheets are lit by the stage light. GPU visual reads are from Michael's desktop. Not run: e2e-anim's
+Caveats: the Proving sheets are dark silhouettes (pass 2 found this is not back-lighting: her suit renders near-black in
+the daylight maps from the sun side too; pass 2 sheets add an audit-only key light on her, and pass 1's `fixed` turn
+camera stood ~15 m off, now fixed); the studio sheets are lit by the stage light. GPU visual reads are from Michael's desktop. Not run: e2e-anim's
 CRAB table and anim-audit (logic numbers already in `docs/anim-rework/METRICS.md`).
 
 ## 1. Summary for Michael (worst first)
@@ -45,8 +46,9 @@ CRAB table and anim-audit (logic numbers already in `docs/anim-rework/METRICS.md
 8. Swaps and draws to aim end in a hard stop or a one-frame jump (swap: 12 cm in one frame at the hand-off).
 9. Holds and carries move the trunk as one block (pelvis and shoulders together, corr +0.85 / +0.95) and the
    carried / lifting feet slide 9-21 cm.
-10. Not yet captured: the six co-op moves, holds' keyed clips, knife / launcher, melee, mantle / hop / roll / wall
-    kick, hit flinch, downed (second pass).
+10. Pass 2 (`PASS2.md`): the hit flinch is invisible (0.9 deg) and firing kicks nothing (0 deg, 1.4 cm); co-op holders
+    are statues with their hands off their partner; the mantle has no hand plant and the 2.6 m drop no air pose; the
+    roll is an airborne somersault; the aimed turn on the spot swivels planted feet 51 deg.
 
 ## 2. Ranked fix list
 
@@ -81,9 +83,26 @@ N4 the rest (owner per area: walls `src/anim/wallKeyed.ts`; close quarters `src/
 | 21 | Traversal set (50-56) | Trunk twist 10-18 deg, otherwise rigid; ladder top-out reads stiff (sheet) | `trav-*` | Body layer weight / sway rows for climbs (reach-side shoulder up, hips off the ladder) | N4 (traversal) |
 | 22 | Door open (41) | Pelvis yaw 15 deg against shoulders 3 deg (the hips do the turn) | `trav-door` | Shoulders lead the reach to the leaf | N4 |
 
+Pass 2 adds fixes 23-34 (ranked among themselves; where they sit against 1-22: 23 and 24 rank with 2-3, 25-27 with 9-14):
+
+| # | Row (COVERAGE #) | What is wrong | Evidence | Fix (one line) | Slice |
+| --- | --- | --- | --- | --- | --- |
+| 23 | Hit flinch (79) | Invisible: shoulders 0.9 deg, torso pitch 0.2 deg after `rig.hit(1, +-0.8)`, aiming 0.2 deg | `hit-flinch-2`, `hit-flinch-aim`; `lean.*` | Additive hit layer: chest 6-10 deg away from the side hit, head snap, shoulder drop, a half step when standing, arms jolt; recovers over 0.4-0.6 s | N4 (`animGraph.hitReact`, CT Core) |
+| 24 | Fire, recoil (25) | 1 s of rifle fire: gun 0.12 m/s, wrists 1.4 cm, trunk 0 deg; pistol the same | `fire-rifle`, `fire-pistol` | Per-shot kick through the arms into the shoulder: 2-4 cm back, 1-2 deg muzzle rise, shoulder and chest absorb, settle in ~0.1 s | N3 |
+| 25 | Co-op holders (73, 75-77) | Role B trunk 0.0 deg through boost, throw, hang and rope; hands at the hips, not on A's foot, legs or the rope; A rises with no push | `pair-boost`, `pair-throw`, `pair-hang`, `pair-rope`; `b.trunk` | B's hands on the contact (cupped step, A's shins, the rope) with a braced lean and a leg push timed to A's rise | N4 (co-op team moves) |
+| 26 | Mantle, ledge drop (61, 64) | Mantle 0.9 m with the hands at the sides (wrist range 3-7 cm); 2.6 m drop-down in one fixed half squat, no air or landing pose; drop from a pipe hang goes straight to a crouch | `mantle`, `drop-ledge`, `drop-hang` | Mantle: both hands plant on the top, then a knee; drop: step off, legs extend in the air, land into a knee bend | N4 (`clips/traverse.ts`) |
+| 27 | Aimed turn on the spot (7) | 90 deg in 0.28 s in two steps; each planted foot swivels 51 deg and slides 4-5 cm | `turn-in-place-aim90 / -aim180(-top)` | The N1 turn-step rule at the aim's turn rate: step, do not swivel a planted foot past ~15 deg | N1 |
+| 28 | Roll (66) | An airborne somersault: feet overhead off the ground at 0.47-0.6 s, wrists 28 m/s, slung rifle swings 106 deg | `roll` | Ground roll over the shoulder (hands, shoulder, back, feet in contact order), rifle held to the back | N4 (traversal) |
+| 29 | Low ready gaits (16) | Arms locked to the gun (wrist range 0.6 / 1.8 cm walk / jog), head 0 deg, sway 1.2-1.7 cm | `lowready-*` | The N2 layer under a carried gun: chest twist and bob carry the gun, arms ride it with a small lag | N2 |
+| 30 | Holds still (43, 44) | Wren's trunk 0.0 deg holding the guard, in play and in the studio clips | `hold-still`, `pair-hold_idle`, `pair-hold_back` | Breathing, weight shift and his struggle fed into her trunk | N4 (closeQuarters) |
+| 31 | Crouch run (12) | The jog's arm swing (21.8 cm), trunk 5 / 6 deg, head 0 | `crouch-run` | N2 crouch-run row: lower, forward lean, shorter arm swing | N2 |
+| 32 | Wall block (24) | The rifle swings to muzzle-up (69 deg) at the wall with a 0.42 s stall mid-swing | `wall-block`; `gun.stall` | Pull the gun in to the chest (CT) in one eased move; no stall | N3 |
+| 33 | Dead channels (70, 72) | `pose.slide` and `pose.check` are never set in play; driven, the check sweep is 5.9 deg of shoulder | `dash-slide-driven`, `door-sweep-driven` | Michael's call: wire them (CT has neither as a verb, A-assumed: delete) | N4 |
+| 34 | Studio pairs (tool) | Puppets are not drawn for ~0.5 s after the pair clock wraps; the hold pairs' guard is over-lit by the stage light | `pair-*` first tiles, `pair-hold_choke` | Studio fixes: draw the puppets through the wrap; keep the guard out of the stage lights | N4 (studio) |
+
 ## 3. Per-row table (naturalness 1 = broken, 5 = believable)
 
-Scores are pass 1 reads of the sheet plus the numbers. "-" = not captured in pass 1.
+Scores are pass 1 reads of the sheet plus the numbers; rows marked "Pass 2" are pass 2 reads. "-" = not captured.
 
 | # | Animation | Score | Sheet | Notes |
 | --- | --- | --- | --- | --- |
@@ -172,7 +191,7 @@ numbers land in `metrics.json` under the same keys. e2e-anim's foot locking and 
 - N4: `hold-walk`, `carry-walk`, `grenade`, `trav-*`, `wall-set`: counterCorr from positive to negative on the
   walks, hip-lead on the throw (pelvis peak before shoulders), wall planted wind-up under 15 deg.
 
-## Pass 2 (not covered yet)
+## Pass 2
 
-Rows 10, 12, 16, 24, 25, 29-32, 39, 40, 43, 46, 47, 49, 58, 61-67, 70, 72, 73-78 (co-op pairs: frame the puppets),
-79 (hit: `rig.hit`), 80. Proving camera: light from the sun side (the sheets are back-lit).
+Run 2026-10-22 13:41-14:00 (desktop GPU): see `docs/anim-natural/PASS2.md` (what ran, per-row scores, fixes 23-34, what is
+still not captured and why). `node scripts/anim-natural/audit.mjs <studio|proving|all> --pass=2` runs pass 2's rows alone.
