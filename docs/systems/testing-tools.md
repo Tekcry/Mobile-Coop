@@ -223,8 +223,9 @@ behind a VPN adapter).
 - `e2e-netmove` two pages, Free Roam on Proving: the client on a ladder, drainpipe, pipe, ledge, duct (hands / feet /
   head within 10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted,
   rappel + rope, fence); team moves (the client braces and boosts the host onto the 4.2 m lip, the human ladder, a
-  request without a braced partner is denied); wall, wall crouch, stack; lean-out at a wall end (CT prototype) (known
-  flaky)
+  request without a braced partner is denied); wall, wall crouch, stack; lean-out at a wall end (CT prototype); last,
+  role-swapped (test-chores-13): the host braces and the client leads the leg-up, the host's brace on the client's copy
+  and the client's hang on the host's copy within 10 cm (known flaky)
 - `e2e-course` two pages, Course on courselab: the airlock refuses one player, cycles with both; a forced both-down
   restart, then every gate kind by the client (the host's gates are e2e-ctcourse's); door locks and the lamp group reach the client within 0.5 s; friendly fire
   (a host shot and a client grenade down the partner, who is revived); automatic airlocks and the locked rear door

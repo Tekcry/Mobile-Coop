@@ -53,7 +53,11 @@ export class ClearMode implements GameMode {
 
   start(): void {
     // stealth rules: squads know only what they see and hear
-    if (this.g.enemyMgr) this.g.enemyMgr.stealth = true;
+    if (this.g.enemyMgr) {
+      this.g.enemyMgr.stealth = true;
+      // (guard-ai S1) the parked Hunter keeps the old hearing: everyone in reach hears and walks over
+      this.g.enemyMgr.coordinated = false;
+    }
     this.rooms.forEach((r, i) => {
       for (const slot of r.squad ?? []) {
         this.pending.push({ room: i, slot });

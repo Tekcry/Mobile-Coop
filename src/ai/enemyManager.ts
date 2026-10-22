@@ -19,7 +19,7 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
-import { MUFFLE } from '../config/noise';
+import { HEARING, ambientDb, effectiveReach, hearTier, pickNearest, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
@@ -32,6 +32,8 @@ export class EnemyManager {
   maxAlive = MAX_ALIVE;
   private flowField: Float32Array;
   private flowT = 0;
+  /** The nav grid's `version` the flow field was built under. */
+  private flowVer = -1;
   private coverOwner = new Map<number, Enemy>();
   private ctx: AiContext;
   onKilled: ((e: Enemy, h: HitInfo) => void) | null = null;
@@ -95,6 +97,21 @@ export class EnemyManager {
   private buffT = 0;
   /** Callouts (GameState shows them). */
   onBark: ((e: Enemy, line: string, radio: boolean) => void) | null = null;
+  /**
+   * (guard-ai S1) Coordinated hearing: of the guards a noise reaches, one is sent to investigate and the rest only turn
+   * to look (`hear`, `noise`). Off (Hunter, Mission: the parked modes): everyone in reach hears and walks over, and
+   * gunfire sends everyone in reach to combat (the old rule).
+   */
+  coordinated = true;
+  /** (guard-ai S1) The map's noisy things (machinery, generators, vents): they mask sounds for guards near them. */
+  private noisy: readonly NoisySource[] = [];
+  /** The hearing table (tests / e2e read the numbers from here). */
+  readonly hearingTable = HEARING;
+  /** Hearing scratch (no allocation per noise): tier-2 hearers, every guard's position and effective reach. */
+  private hearIdx = new Int16Array(32);
+  private hearX = new Float32Array(32);
+  private hearZ = new Float32Array(32);
+  private hearR = new Float32Array(32);
 
   constructor(
     private scene: Scene,
@@ -519,36 +536,130 @@ export class EnemyManager {
     return n;
   }
 
-  /** Gunfire heard within radius: those enemies go to combat towards it (and it locates the shooter). */
-  noise(pos: Vector3, radius: number): void {
-    let any = false;
-    for (const e of this.enemies) {
-      if (!e.alive || Vector3.Distance(e.pos, pos) >= radius) continue;
-      e.hearGunfire(pos.x, pos.z);
-      any = true;
+  /** (guard-ai S1) Set the map's noisy things (masking for guards near them); none by default. */
+  setNoisy(list: readonly NoisySource[]): void {
+    this.noisy = list;
+  }
+
+  /** Room for `n` guards in the hearing scratch (grows by doubling: no allocation once the cast is in). */
+  private hearRoom(n: number): void {
+    if (n <= this.hearIdx.length) return;
+    let c = this.hearIdx.length;
+    while (c < n) c *= 2;
+    this.hearIdx = new Int16Array(c);
+    this.hearX = new Float32Array(c);
+    this.hearZ = new Float32Array(c);
+    this.hearR = new Float32Array(c);
+  }
+
+  /**
+   * One listener's hearing tier for a noise of `reach` at `pos` (`hearing.ts`): ambient masking at the guard, then the
+   * wall ray only where one wall could change the tier (at head height: low cover and crates do not muffle, walls do).
+   * Writes the effective reach into `hearR[i]`.
+   */
+  private tierOf(e: Enemy, i: number, pos: Vector3, reach: number, d: number, loud: boolean): HearTier {
+    const amb = this.noisy.length ? ambientDb(this.noisy, e.pos.x, e.pos.z, e.pos.y) : 0;
+    let r = effectiveReach(reach, 0, amb);
+    if (wallMatters(d, r, loud)) {
+      this.earA.set(pos.x, pos.y + 1.5, pos.z);
+      this.earB.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+      if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) r *= WALL_FACTOR;
     }
-    if (any) {
+    this.hearR[i] = r;
+    return hearTier(d, r, loud);
+  }
+
+  /**
+   * Gunfire (unsuppressed) audible to `reach` m. Coordinated (guard-ai S1): walls and masking cut the reach per
+   * listener; inside a quarter of it (tier 3) a guard goes to combat towards it; farther, the nearest guard inside half
+   * of it is sent to look (and the shot locates the shooter for him) and everyone else in reach only turns. Guards
+   * already fighting locate it from anywhere in reach. A shot behind walls far off sends nobody to combat.
+   * Uncoordinated (parked modes): everyone within `reach` goes to combat, no walls (the old rule).
+   */
+  noise(pos: Vector3, reach: number): void {
+    const list = this.enemies;
+    const n = list.length;
+    let locate = false;
+    if (!this.coordinated) {
+      for (let i = 0; i < n; i++) {
+        const e = list[i]!;
+        if (!e.alive || hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z) >= reach) continue;
+        e.hearGunfire(pos.x, pos.z);
+        locate = true;
+      }
+    } else {
+      this.hearRoom(n);
+      const idx = this.hearIdx;
+      let nh = 0;
+      for (let i = 0; i < n; i++) {
+        const e = list[i]!;
+        if (!e.alive) continue;
+        const d = hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z);
+        if (d >= reach) continue;
+        const tier = this.tierOf(e, i, pos, reach, d, true);
+        if (tier === 0) continue;
+        if (e.alerted || tier === 3) {
+          e.hearGunfire(pos.x, pos.z);
+          locate = true;
+        } else if (e.def.melee) e.hear(pos.x, pos.z, this.hearR[i]!);
+        else if (tier === 2 && !e.passive) {
+          this.hearX[i] = e.pos.x;
+          this.hearZ[i] = e.pos.z;
+          idx[nh++] = i;
+        } else e.hearTurn(pos.x, pos.z, this.hearR[i]!);
+      }
+      if (this.sendOne(pos, nh)) locate = true;
+    }
+    if (locate) {
       this.lkp.copyFrom(pos);
       this.lkpValid = true;
     }
   }
 
-  /** A noise (footsteps, landings, glass...): unalerted enemies within radius grow suspicious and look. A wall
-   *  between the noise and the listener muffles it to `MUFFLE` of its reach. */
-  hear(pos: Vector3, radius: number): void {
-    for (const e of this.enemies) {
-      if (!e.alive || e.alerted) continue;
-      const d = Vector3.Distance(e.pos, pos);
-      if (d >= radius) continue;
-      let r = radius;
-      if (d > radius * MUFFLE) {
-        // (at head height: low cover and crates do not muffle, walls do)
-        this.earA.set(pos.x, pos.y + 1.5, pos.z);
-        this.earB.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
-        if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) r = radius * MUFFLE;
-      }
-      if (d < r) e.hear(pos.x, pos.z, r);
+  /**
+   * A noise (footsteps, landings, glass...) audible to `reach` m: unalerted guards it reaches react by hearing tier
+   * (`hearing.ts`: walls and masking near noisy things cut the reach per listener). Coordinated (guard-ai S1): the
+   * nearest guard inside half the reach is sent to investigate (`Enemy.hear`, a stub until the incident board), every
+   * other guard in reach turns to look (`Enemy.hearTurn`). Melee guards (dogs, runners) keep their own rule: in reach
+   * they hear it (and a dog close by charges). Uncoordinated (parked modes): everyone in reach hears and walks over.
+   */
+  hear(pos: Vector3, reach: number): void {
+    const list = this.enemies;
+    const n = list.length;
+    this.hearRoom(n);
+    const idx = this.hearIdx;
+    let nh = 0;
+    for (let i = 0; i < n; i++) {
+      const e = list[i]!;
+      if (!e.alive || e.alerted || e.passive) continue;
+      const d = hyp3(e.pos.x - pos.x, e.pos.y - pos.y, e.pos.z - pos.z);
+      // ambient and walls only shrink the reach: beyond it nothing is heard
+      if (d >= reach) continue;
+      const tier = this.tierOf(e, i, pos, reach, d, false);
+      if (tier === 0) continue;
+      if (!this.coordinated || e.def.melee) e.hear(pos.x, pos.z, this.hearR[i]!);
+      else if (tier === 2) {
+        this.hearX[i] = e.pos.x;
+        this.hearZ[i] = e.pos.z;
+        idx[nh++] = i;
+      } else e.hearTurn(pos.x, pos.z, this.hearR[i]!);
     }
+    this.sendOne(pos, nh);
+  }
+
+  /** Of the `nh` tier-2 hearers in the scratch, the nearest is sent to the noise (`Enemy.hear`: suspicious, then he
+   *  investigates); the rest turn to look. Returns whether anyone was sent. (Stub until the incident board, S2.) */
+  private sendOne(pos: Vector3, nh: number): boolean {
+    if (nh === 0) return false;
+    const idx = this.hearIdx;
+    const pick = pickNearest(idx, nh, this.hearX, this.hearZ, pos.x, pos.z);
+    for (let k = 0; k < nh; k++) {
+      const i = idx[k]!;
+      const e = this.enemies[i]!;
+      if (i === pick) e.hear(pos.x, pos.z, this.hearR[i]!);
+      else e.hearTurn(pos.x, pos.z, this.hearR[i]!);
+    }
+    return pick >= 0;
   }
 
   /** Any enemy in combat (the operator has been detected). */
@@ -591,6 +702,7 @@ export class EnemyManager {
     // heights pick the storey (a roof, an upper floor) the goal is on
     const ys = this.stealth ? [this.lkp.y] : live.map((p) => p.feet.y);
     if (goals.length) this.nav.flowField(goals, this.flowField, ys);
+    this.flowVer = this.nav.version;
   }
 
   update(dt: number): void {
@@ -598,7 +710,8 @@ export class EnemyManager {
     // nobody hunting any more: the last known position is forgotten
     if (this.lkpValid && this.sightT > 2 && !this.hunting) this.lkpValid = false;
     this.flowT -= dt;
-    if (this.flowT <= 0) {
+    // (sector-fixes-r2 nav) a nav closure opened or shut (a team door): the flow field is rebuilt at once
+    if (this.flowT <= 0 || this.flowVer !== this.nav.version) {
       this.flowT = 0.5;
       this.refreshFlow();
       this.assignFlanker();

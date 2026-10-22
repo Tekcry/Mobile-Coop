@@ -246,22 +246,50 @@ try {
     try {
       await F.page.waitForSelector('.main-menu .ms-item.focused', { timeout: 60000 });
       const s0 = await shotOf(F.page);
-      await F.page.waitForFunction((n) => (window.__app.current?.shotChanges ?? 0) > n, s0.n, { timeout: 8000, polling: 100 });
+      // (load-latent-ui1) was 8 s of wall time: under CPU load few frames ran and the menu clock (clamped frame dt) had not
+      // reached the next shot. 8 s of frame time (summed min(dt, 0.1), as the loop clamps it), 120 s real-time cap; the
+      // assert below fails a miss. The cap is also a timer, in case rAF stops
+      await F.page.evaluate((n) => new Promise((res) => {
+        const w0 = performance.now();
+        let last = w0;
+        let sum = 0;
+        const cap = setTimeout(res, 120000);
+        const tick = (t) => {
+          sum += Math.min(Math.max(t - last, 0) / 1000, 0.1);
+          last = t;
+          if ((window.__app.current?.shotChanges ?? 0) > n || sum >= 8 || t - w0 > 120000) {
+            clearTimeout(cap);
+            res();
+          } else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }), s0.n);
       const s1 = await shotOf(F.page);
       assert(s1.n > s0.n && s1.id !== s0.id, `?menuClock=fast changes the shot within a few seconds (${s0.id} -> ${s1.id})`);
       // during a fade the menu still moves: wait for black over the stage, move the focus in that frame
       const r = await F.page.evaluate(
         () =>
           new Promise((res) => {
+            // (load-latent-ui1) gives up after 10 s of frame time (summed min(dt, 0.1)), not 10 s of wall time: under CPU
+            // load the menu clock ran slower than the wall. 120 s real-time cap (also a timer, in case rAF stops)
             const t0 = performance.now();
+            let last = t0;
+            let sum = 0;
+            const cap = setTimeout(() => res({ fade: window.__app.current?.shotFade ?? 0, before: '', after: '' }), 120000);
             const tick = () => {
+              const now = performance.now();
+              sum += Math.min(Math.max(now - last, 0) / 1000, 0.1);
+              last = now;
               const fade = window.__app.current?.shotFade ?? 0;
               if (fade > 0.15) {
+                clearTimeout(cap);
                 const before = window.__app.nav.focused?.dataset.key;
                 window.__app.nav.move('down');
                 res({ fade, before, after: window.__app.nav.focused?.dataset.key });
-              } else if (performance.now() - t0 > 10000) res({ fade, before: '', after: '' });
-              else requestAnimationFrame(tick);
+              } else if (sum >= 10 || now - t0 > 120000) {
+                clearTimeout(cap);
+                res({ fade, before: '', after: '' });
+              } else requestAnimationFrame(tick);
             };
             tick();
           }),
@@ -724,9 +752,14 @@ try {
     assert(await shown(), 'after a touch the pause button shows');
     // (menus-tap-wait) the tap reaches the game as `state.tap('pause')`, handled on a later sim step: wait for the screen
     // (3 s cap) instead of reading it after 4 frames (train 9 laptop run: "((none))" under the full parallel load)
+    // (load-latent-ui1) the 3 s cap was wall time: under CPU load it ran out after a handful of frames. Now at least 30
+    // checks 2 frames apart AND at least 3 s (never shorter than before), 60 s real-time cap
     const untilTop = async (want, more = async () => true) => {
       const t0 = Date.now();
-      while (Date.now() - t0 < 3000 && !((await ttop()) === want && (await more()))) await frames(P, 2);
+      for (let i = 0; (i < 30 || Date.now() - t0 < 3000) && Date.now() - t0 < 60000; i++) {
+        if ((await ttop()) === want && (await more())) break;
+        await frames(P, 2);
+      }
     };
     await tapSel('.touch-pause');
     await untilTop('pause-screen');

@@ -1,4 +1,5 @@
 import { CAMERA, SECURITY_LIMITS } from '../config/security';
+import { camRange } from './camera';
 
 /**
  * Security map data (S0 section 6). Part A of S1 reads cameras only; the desk, panel and the rest join as their
@@ -20,8 +21,9 @@ export interface CameraDevice {
   /** (sector-fixes C, item 3) The floor patch it watches: horizontal distance (m) from the mount to the floor point at the
    *  centre of its frame. The camera pitches down to it (`camPitch`); none = it looks level (SN02's old default). */
   aim?: number;
-  /** (sector-fixes C, item 3) Its detection range (m, at most `CAMERA.range`; none = `CAMERA.range`): the section in
-   *  front of it that it monitors. Detection and the cue both read `camRange`. */
+  /** (sector-fixes C, item 3) Its detection range (m, at most `CAMERA.rangeMax`): the section in front of it that it
+   *  monitors. None: `CAMERA.aimReach` x `aim` when aimed, else `CAMERA.range` (camera-range). Detection and the cue
+   *  both read `camRange`. */
   range?: number;
   /** (sector-fixes S) A course flag that switches the camera off until the bay restarts (a security room's console). */
   offFlag?: string;
@@ -50,14 +52,40 @@ export function validateSecurity(d: SecurityData): string[] {
     }
     cams++;
     if (dev.y < CAMERA.mountMin || dev.y > CAMERA.mountMax) errs.push(`${dev.id}: mount height ${dev.y} outside ${CAMERA.mountMin}-${CAMERA.mountMax} (SN04)`);
-    if (dev.aim !== undefined && (dev.aim < CAMERA.aimMin || dev.aim > (dev.range ?? CAMERA.range))) errs.push(`${dev.id}: aim ${dev.aim} m outside ${CAMERA.aimMin} m - its range`);
-    if (dev.range !== undefined && (dev.range < CAMERA.rangeMin || dev.range > CAMERA.range)) errs.push(`${dev.id}: range ${dev.range} m outside ${CAMERA.rangeMin}-${CAMERA.range} m`);
+    if (dev.aim !== undefined && (dev.aim < CAMERA.aimMin || dev.aim > camRange(dev))) errs.push(`${dev.id}: aim ${dev.aim} m outside ${CAMERA.aimMin} m - its range`);
+    if (dev.range !== undefined && (dev.range < CAMERA.rangeMin || dev.range > CAMERA.rangeMax)) errs.push(`${dev.id}: range ${dev.range} m outside ${CAMERA.rangeMin}-${CAMERA.rangeMax} m`);
     if (dev.sweep) {
       const span = Math.abs(dev.sweep[1] - dev.sweep[0]);
       if (span > CAMERA.sweepMaxDeg) errs.push(`${dev.id}: sweep ${span} deg is over ${CAMERA.sweepMaxDeg} (SN13)`);
       if (span < 1) errs.push(`${dev.id}: sweep span under 1 deg`);
     }
   }
-  if (cams > SECURITY_LIMITS.cameras) errs.push(`${cams} cameras is over ${SECURITY_LIMITS.cameras} (SN60)`);
+  // (sector-redesign G1) SN60 caps the cameras live at once: per Sector Ops section (an untagged camera is live in
+  // every section), the whole map when none is tagged
+  const live = liveCameraPeak(d.devices);
+  if (live > SECURITY_LIMITS.cameras) errs.push(`${live} cameras live in one section is over ${SECURITY_LIMITS.cameras} (SN60)`);
+  if (cams > WIRE_CAMERAS) errs.push(`${cams} cameras on the map is over the co-op wire's ${WIRE_CAMERAS} (sec.ck)`);
   return errs;
+}
+
+/**
+ * (sector-redesign G1) The co-op `sec` field carries one sweep clock per camera of the map, at most this many
+ * (`SEC_CAMS` in `net/protocol.ts`; single player never imports `src/net`, so the number is mirrored here and a test
+ * holds the two equal). More cameras per map needs a wire change (clocks for the live section only) and a
+ * `PROTOCOL_VERSION` bump.
+ */
+export const WIRE_CAMERAS = 16;
+
+/** (sector-redesign G1) The most cameras live at once: untagged cameras plus the busiest section's own. */
+export function liveCameraPeak(devices: readonly SecurityDevice[]): number {
+  let always = 0;
+  const per = new Map<number, number>();
+  for (const dev of devices) {
+    if (dev.kind !== 'camera') continue;
+    if (dev.section === undefined) always++;
+    else per.set(dev.section, (per.get(dev.section) ?? 0) + 1);
+  }
+  let peak = 0;
+  for (const n of per.values()) peak = Math.max(peak, n);
+  return always + peak;
 }

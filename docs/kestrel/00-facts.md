@@ -103,7 +103,7 @@ Added by S1 Part A (cameras). Values are the constants in `src/config/security.t
 | --- | --- | --- | --- | --- |
 | F40 | Camera horizontal field (SN01) | 70 deg | src/config/security.ts:11 (`CAMERA.hFov`) | `hFov: 70 * DEG,` |
 | F41 | Camera vertical field (SN02); the camera looks level, so a head under the mount is out of frame | 45 deg | src/config/security.ts:13 (`CAMERA.vFov`) | `vFov: 45 * DEG,` |
-| F42 | Camera range (SN03) | 18 m | src/config/security.ts:15 (`CAMERA.range`) | `range: 18,` |
+| F42 | Camera range (SN03): the default for a camera with no `range` or `aim` (camera-range: was 18; aimed: 2 x aim; at most `rangeMax` 14) | 12 m | src/config/security.ts:17 (`CAMERA.range`) | `range: 12,` |
 | F43 | Camera mount height, lowest and highest (SN04) | 2.4 to 3.5 m | src/config/security.ts:17-18 (`CAMERA.mountMin`, `mountMax`) | `mountMin: 2.4,` ; `mountMax: 3.5,` |
 | F44 | Camera housing, the shot target box (SN05) | 0.35 long x 0.15 wide x 0.15 high | src/config/security.ts:20 (`CAMERA.housing`) | `housing: { len: 0.35, w: 0.15, h: 0.15 },` |
 | F45 | Status LED size (SN06) | 0.04 m | src/config/security.ts:22 (`CAMERA.ledSize`) | `ledSize: 0.04,` |

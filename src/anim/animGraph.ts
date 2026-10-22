@@ -93,6 +93,10 @@ export interface AnimInput {
   /** (anim-rework S3) A carrier (the player, a remote player) with the gun out, free on foot (no wall, door settle, held
    *  guard): the drawn keyed set may play (ready stance, the low ready walk / jog / run legs, the aimed glide). */
   keyedDrawn: boolean;
+  /** (mt2-guardgate, CHECK-6 R1) The mocap switch may drive this rig: a carrier (the player, a remote player; the rig sets
+   *  it from `CharacterRig.carrier`). Guards and the menu preview keep the hand-keyed set whatever the switch says (BRIEF
+   *  M4: the switch is Wren's). On by default (a bare graph, the tests). */
+  mocapOk: boolean;
   /** Aim pitch (up +) and aim yaw relative to the body (radians). */
   aimPitch: number;
   aimYaw: number;
@@ -222,6 +226,7 @@ export function defaultInput(): AnimInput {
     tense: false,
     keyedOk: false,
     keyedDrawn: false,
+    mocapOk: true,
     aimPitch: 0,
     aimYaw: 0,
     raise: 0,
@@ -861,6 +866,11 @@ export class AnimGraph {
    *  feet (`kA`), its blended root travel per cycle and duty. */
   private readonly mSlots = new MocapSlots();
   private mSet: LocoClipSet = HAND_KEYED_SET;
+  /** (mt2-guardgate) This frame's switch for this rig (`LOCO.mocap && i.mocapOk`), its clip set (LOCO.set, or the hand-keyed
+   *  set off) and slots (LOCO.slots, or none off): every mocap read in the graph goes through these. */
+  private mOn = false;
+  private mS: LocoClipSet = HAND_KEYED_SET;
+  private mSl = false;
   private readonly mVals: SlotLegValues = { half: 0, kneeOut: 0, duty: 0, lift: 0 };
   private mShare = 0;
   private mFeet = false;
@@ -959,7 +969,7 @@ export class AnimGraph {
     const sw = Math.abs(this.dirX);
     const tot = fw + bw + sw || 1;
     // (step 22, D5.1) posed at the effort pace: each gear keeps its gait at the slower M14 caps
-    const s = LOCO.mocap && !crouched ? this.mPace : effortSpeed(this.locoSpeed, crouched); // (mt2-qstop)
+    const s = this.mOn && !crouched ? this.mPace : effortSpeed(this.locoSpeed, crouched); // (mt2-qstop)
     this.moveAcc = 0;
     this.tmpMove.set(out);
     // forward: between the neighbouring speed nodes of the posture's set
@@ -999,6 +1009,9 @@ export class AnimGraph {
     const k = p.height / 1.75;
     const mass = clamp(i.weight, 0.5, 1.6);
     this.nSlots = 0;
+    this.mOn = LOCO.mocap && i.mocapOk;
+    this.mS = this.mOn ? LOCO.set : HAND_KEYED_SET;
+    this.mSl = this.mOn && LOCO.slots;
     let trigger = false;
 
     // --- lower state (inertialized on change)
@@ -1042,7 +1055,7 @@ export class AnimGraph {
     // a walking stop's walk at its own pace faded 2.1 cm a frame). A stop's fade to the idle (the moving share) is slower
     // from over a walk, by the pose's pace (the run's pelvis is ~14 cm under the idle's: 0.19 of it a frame at 0.08 s)
     const esNow = effortSpeed(locoSpeed, false);
-    const capt = LOCO.mocap && LOCO.set.run !== HAND_KEYED_SET.run;
+    const capt = this.mOn && this.mS.run !== HAND_KEYED_SET.run;
     const fallTo = this.mPace - MOCAP_SLOT.paceFall * dt;
     this.mEase = capt && esNow < fallTo && (this.mPace > MOCAP_SLOT.walkMax || this.mEase);
     this.mPace = this.mEase ? fallTo : esNow;
@@ -1060,8 +1073,8 @@ export class AnimGraph {
     this.dirZ /= dn;
     // (mocap-trial-2, strafe) switch on: the side of the travel the mocap strafe plays (dirX holds its side through a pure
     // flip: renormalised with no forward part it never crosses 0), eased so a flip cross-fades the left and right captures
-    if (LOCO.mocap && dl > 0.1 && i.speed > 0.05 && (i.localX > 0.1 * dl || i.localX < -0.1 * dl)) this.stSide = approach(this.stSide, i.localX > 0 ? 1 : 0, STRAFE_SIDE_TAU, dt);
-    if (LOCO.mocap) {
+    if (this.mOn && dl > 0.1 && i.speed > 0.05 && (i.localX > 0.1 * dl || i.localX < -0.1 * dl)) this.stSide = approach(this.stSide, i.localX > 0 ? 1 : 0, STRAFE_SIDE_TAU, dt);
+    if (this.mOn) {
       // (and the hips' shift against the travel: a quarter of the side-step's cycle travel, at most STRAFE_LEAD.rate m/s)
       const st = mocapSideStep(locoSpeed);
       const want = Number.isNaN(st) ? 0 : (2 * this.stSide - 1) * STRAFE_LEAD.hips * 2 * st;
@@ -1806,12 +1819,12 @@ export class AnimGraph {
       // pelvis let go mid-turn lifted the head 8 cm, g1Locomotion)
       const spin = o.gait.turning * (1 - smoothstep((i.speed - 0.3) / 0.4));
       // (mocap-trial) the mocap set's slots: their timers every frame while the set has one filled (reset on a switch)
-      const S = LOCO.set;
+      const S = this.mS;
       if (S !== this.mSet) {
         this.mSet = S;
         this.mSlots.reset();
       }
-      if (LOCO.slots) this.mSlots.update(dt, S, i.speed, i.accelFwd, i.yawRate);
+      if (this.mSl) this.mSlots.update(dt, S, i.speed, i.accelFwd, i.yawRate);
       // (anim-rework S2) holstered (free hands, `fw`) the keyed set covers every standing pace (walk, jog, run as one
       // blend, KEYED_GAITS) and the standing idle (KEYED_IDLE: breathing, weight shifts, a head scan, the arms in); drawn
       // it keeps the walk band as before (slice 3 owns the drawn carriage)
@@ -1854,15 +1867,15 @@ export class AnimGraph {
       this.cPace = approach(this.cPace, effortSpeed(locoSpeed, true), KEYED_CROUCH.paceTau / Math.max(0.05, this.moveW), dt);
       // (mocap-trial-2) switch on, the crouched sneak's capture (LOCO.set.crouchWalk) into kCr; the drawn set's crouched legs
       // stay hand-keyed (kCrD, as the drawn speed set: weapons are not part of the mocap trial)
-      const mcC = LOCO.mocap ? LOCO.set.crouchWalk : null;
+      const mcC = this.mOn ? this.mS.crouchWalk : null;
       if (this.kCk > 0) {
         if (mcC !== null && dS > 1e-4) this.crouchSet(ph, this.cPace, this.cIdleS, this.kCrD, null);
         this.crouchSet(ph, this.cPace, this.cIdleS, this.kCr, mcC);
       }
-      this.keyedSet(ph, LOCO.mocap ? this.mPace : es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
+      this.keyedSet(ph, this.mOn ? this.mPace : es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
-      if (LOCO.mocap) {
+      if (this.mOn) {
         const iD = locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0;
         this.stIdle = approach(this.stIdle, iD, iD > this.stIdle ? STRAFE_IDLE_TAU : 0, dt);
       }
@@ -1875,9 +1888,9 @@ export class AnimGraph {
       if (o.keyW > 0 && this.keyWallS > 1e-4) this.keyedWallSet(ph, this.keyWallS, crouchK, Math.abs(bd) / WALL_KEYS.peekLean, pose, o);
       // (mocap-trial) the mocap set's share of the keyed pose: the standing holstered gait and slots, less the drawn,
       // crouched and wall shares mixed over it (0 with the switch off)
-      o.keyMocap = LOCO.mocap ? o.keyW * (1 - dS) * (1 - this.kCk) * (1 - this.keyWallS) * this.mShare : 0;
+      o.keyMocap = this.mOn ? o.keyW * (1 - dS) * (1 - this.kCk) * (1 - this.keyWallS) * this.mShare : 0;
       // (mocap-trial-2, strafe) the mocap strafe's share (keyedDrawnSet's, by the drawn share; 0 with the switch off)
-      o.keyStrafe = LOCO.mocap && dS > 1e-4 ? dS * this.stShare : 0;
+      o.keyStrafe = this.mOn && dS > 1e-4 ? dS * this.stShare : 0;
       // (mocap-trial-2) the crouched capture's share of the keyed pose, for the layer scales (bodyMotion); not in keyMocap:
       // clip feet and the rig's mocap rules stay with the standing gait (the crouch keeps the planner's feet, BRIEF A5)
       this.mcK = mcC !== null ? o.keyW * (1 - dS) * this.kCk * (1 - this.keyWallS) * this.cMocap : 0;
@@ -1973,7 +1986,7 @@ export class AnimGraph {
     const needLoco = o.keyW > 0 && idleShare < 1;
     const needIdle = o.keyW > 0 && idleShare > 0;
     // (mocap-trial) the switch's clip set (LOCO.set: the hand-keyed set, or the mocap one)
-    const S = LOCO.set;
+    const S = this.mS;
     this.speedSet(ph, es, needLoco, this.kA, this.kB, S);
     // (A3) the clip feet's source: the speed set's own sample (kA, before the idle and slots mix), its travel and duty
     this.mFeet = needLoco && this.kA.hasFeet === 1;
@@ -1995,8 +2008,8 @@ export class AnimGraph {
     half += (KEYED_IDLE.half - half) * idleShare;
     kneeOut += (KEYED_IDLE.kneeOut - kneeOut) * idleShare;
     // (mocap-trial) the mocap set's share of this standing pose (its gait), then its filled slots over it (start, stop, turn)
-    let share = LOCO.mocap && needLoco ? 1 - idleShare : 0;
-    if (LOCO.slots && o.keyW > 0) {
+    let share = this.mOn && needLoco ? 1 - idleShare : 0;
+    if (this.mSl && o.keyW > 0) {
       const v = this.mVals;
       v.half = half;
       v.kneeOut = kneeOut;
@@ -2064,7 +2077,7 @@ export class AnimGraph {
       if (c0 === mc) {
         // the sneak's amplitude by pace, the set's layer scales; the sway centred on the planner's track (the clip's root sits
         // under the pelvis at phase 0, 3.7 cm off its mean)
-        sampleKeyed(mc, ph, C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1), out, LOCO.set.layers);
+        sampleKeyed(mc, ph, C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1), out, this.mS.layers);
         out.pel[0] = out.pel[0]! - mc.meanPel[0]!;
       } else sampleKeyed(c0, ph, c0 === KEYED_SNEAK ? C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1) : 1, out);
       scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0)); // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip
@@ -2243,8 +2256,8 @@ export class AnimGraph {
       const sk = swW / tot;
       // (mocap-trial-2, strafe, BRIEF A10) switch on with a strafe in the set: the captured sideways cycles (left, right by the
       // eased side) in place of the glide strafe, on their own side-step (motion.ts GLIDE_SIDE) and stance share
-      const SL = LOCO.mocap ? LOCO.set.strafeL : null;
-      const SR = LOCO.mocap ? LOCO.set.strafeR : null;
+      const SL = this.mOn ? this.mS.strafeL : null;
+      const SR = this.mOn ? this.mS.strafeR : null;
       const stW = this.stSide;
       const sDuty = SL !== null && SR !== null ? SL.duty + (SR.duty - SL.duty) * stW : S.duty;
       this.stShare = SL !== null && SR !== null ? sk * aimK * (1 - this.stIdle) * (1 - this.kCk) : 0;
@@ -2312,7 +2325,7 @@ export class AnimGraph {
     // low ready, keyTrunk: aiming the upper body stays the procedural gun platform)
     const c = this.kCk;
     if (c > 0) {
-      mixKeyed(this.kC, LOCO.mocap && LOCO.set.crouchWalk !== null ? this.kCrD : this.kCr, c, this.kC, false);
+      mixKeyed(this.kC, this.mOn && this.mS.crouchWalk !== null ? this.kCrD : this.kCr, c, this.kC, false);
       this.dHalf += (this.cHalf - this.dHalf) * c;
       this.dKneeOut += (this.cKneeOut - this.dKneeOut) * c;
       this.dDuty += (this.cDuty - this.dDuty) * c;
@@ -2533,14 +2546,14 @@ export class AnimGraph {
   private clipFeet(i: AnimInput, k: number, speed: number): void {
     const o = this.out;
     const CF = o.clipFeet;
-    CF.valid = LOCO.mocap && this.mFeet && this.mStride > 0 && o.keyMocap > 0 && o.gait.moving;
+    CF.valid = this.mOn && this.mFeet && this.mStride > 0 && o.keyMocap > 0 && o.gait.moving;
     CF.on = false;
     // (fix 2 check) clip feet gone with the switch on while the gait moves (a crouch, a draw or a wall taking the share to
     // 0): the duty goes on easing from the clip's window to the planner's at the same rate below (it jumped 0.18-0.30 in
     // the frame they went, a foot in the air back in its stance window). Else nothing is carried (the switch off: as before)
-    if (!CF.valid && (!LOCO.mocap || !this.mCarry || !o.gait.moving)) {
+    if (!CF.valid && (!this.mOn || !this.mCarry || !o.gait.moving)) {
       // (and the switch on, moving: this frame's duty, the next clip feet frame moves on from it)
-      const on = LOCO.mocap && o.gait.moving;
+      const on = this.mOn && o.gait.moving;
       this.mCarry = false;
       this.mDutyGait = on ? o.gait.duty : -1;
       this.mPh = on ? o.gait.phase : -1;

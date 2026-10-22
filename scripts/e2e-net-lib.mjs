@@ -77,6 +77,90 @@ export async function waitSim(ms) {
   }
 }
 
+/**
+ * (load-audit) Let `ms` of ONE page's game clock pass (the host's, for windows the host times: a jam, a hold, a lamp's
+ * off time; a client's, for what its own frames do over a window). `waitSim` counts the slowest clock page, and under
+ * load the client runs at x0.2-0.3 while the pumped host runs near real time, so a client-timed wait lets 3-5x more
+ * host time pass. `sample()` (optional) runs every poll, to latch a state over the window. Returns the page's elapsed
+ * game time (ms): short of `ms` when the wall cap ended the wait (a paused or stalled page), -1 at once when the page is
+ * in no match (no clock). Every caller asserts the result is >= `ms`, so a window that never ran never passes.
+ */
+export async function waitHostSim(P, ms, sample) {
+  const wall0 = Date.now();
+  const t0 = await simNow(P);
+  if (t0 === null) return -1;
+  const cap = Math.max(ms * SIM_WALL_CAP, 60000);
+  for (;;) {
+    if (sample) await sample();
+    const t = await simNow(P);
+    if (t === null) return -1;
+    const el = (t - t0) * 1000;
+    if (el >= ms || Date.now() - wall0 > cap) return el;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+/**
+ * (load-latent-net) Run `fn(g, arg, st)` on the host page after every fixed sim step (`g` = `__app.current`, `st` = a
+ * per-hook object kept across steps) until it returns a value other than undefined / null / false; that value (cloned
+ * on that step) is the result, read with `hostStepResult`. The host page is in the background and the suites' pump
+ * steps it with `stepHeadless` when its rAF did not run, so a hook on its rAF misses steps: this one wraps the loop's
+ * `fixedUpdate` hook (`__app.loop.hooks`, set per match; a new match drops the hooks), the way `watchTeam` turns
+ * `team.state` into an accessor. A host action that must land inside a game-time window of a client action (a pair
+ * press, a synced hack) or a state that lasts a few steps (a reboot) is then caught on the step it happens, not after
+ * Node polls that took seconds of host time under load. `fn` is sent as source: it sees only the page and its args.
+ * Returns the hook's key.
+ */
+const installStep = (fn, arg) => {
+  const h = window.__app.loop.hooks;
+  const S = (window.__hostStep ??= { n: 0, res: {} });
+  if (!h.__steps) {
+    const steps = (h.__steps = []);
+    const f = h.fixedUpdate;
+    h.fixedUpdate = (dt) => {
+      f(dt);
+      if (!steps.length) return;
+      const g = window.__app.current;
+      for (const s of steps.slice()) {
+        let r;
+        try {
+          r = s.fn(g, s.arg, s.st);
+        } catch (e) {
+          r = { __error: String(e?.stack ?? e) };
+        }
+        if (r === undefined || r === null || r === false) continue;
+        S.res[s.key] = JSON.parse(JSON.stringify({ v: r, t: +(g?.time ?? 0).toFixed(3) }));
+        steps.splice(steps.indexOf(s), 1);
+      }
+    };
+  }
+  const key = ++S.n;
+  h.__steps.push({ key, fn, arg, st: {} });
+  return key;
+};
+export const onHostStep = (A, fn, arg) => A.evaluate(`(${installStep})(${fn}, ${JSON.stringify(arg) ?? 'undefined'})`);
+/** Drop host step hook `key` if it has not fired (a path that will not read it), so it never fires late. */
+export const offHostStep = (A, key) => A.evaluate((k) => {
+  const s = window.__app?.loop?.hooks?.__steps;
+  const i = s?.findIndex((x) => x.key === k) ?? -1;
+  if (i >= 0) s.splice(i, 1);
+  if (window.__hostStep) delete window.__hostStep.res[k];
+}, key);
+/** Wait (the `until` clocks) for host step hook `key`'s result and return it; logs the host sim time it fired at. On a
+ * timeout the hook is dropped before the error is rethrown. */
+export async function hostStepResult(A, key, timeout = 8000, what = 'host step hook') {
+  try {
+    await until(A, (k) => window.__hostStep?.res[k] !== undefined, key, timeout, what);
+  } catch (e) {
+    await offHostStep(A, key).catch(() => {});
+    throw e;
+  }
+  const { v, t } = await A.evaluate((k) => { const r = window.__hostStep.res[k]; delete window.__hostStep.res[k]; return r; }, key);
+  if (v && typeof v === 'object' && v.__error) throw new Error(`${what}: the host step hook threw: ${v.__error}`);
+  console.log(`  (${what}: on the host step at ${t} s)`);
+  return v;
+}
+
 /** (test-speed) A match load (map build, light bake, both pages joining) runs outside the sim clock, in wall time: on a
  * loaded machine two pages build at 2-3 frames/s and took over 50 s (e2e-coop, 2026-10-20). The load waits use this
  * (ms; `E2E_LOAD_MS`); a hang still ends there. */

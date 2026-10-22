@@ -518,11 +518,18 @@ try {
   await page.evaluate(() => window.__app.loop.stepHeadless(0.4, 120));
   await page.evaluate(() => { window.__app.loop.manual = false; });
   await frames(page, 6);
-  /** Press a key, retrying across frames, until `done` (at most 0.7 s after each press); returns whether it happened. */
+  /**
+   * Press a key, retrying across frames, until `done` (at most 0.7 s of game time after each press; a 30 s real-time cap
+   * per press in case the clock stops); returns whether it happened. (load-latent-ui2) the 0.7 s was host time (18 x
+   * 40 ms): under load the live loop runs only a few frames in it, so a press got no game time to take effect.
+   */
+  const gameTime = () => page.evaluate(() => window.__app.current.time);
   const pressUntil = async (code, done) => {
     for (let k = 0; k < 4; k++) {
       await page.keyboard.press(code);
-      for (let w = 0; w < 18 && !(await done()); w++) await page.waitForTimeout(40);
+      const t0 = await gameTime();
+      const w0 = Date.now();
+      while (!(await done()) && (await gameTime()) - t0 < 0.7 && Date.now() - w0 < 30000) await page.waitForTimeout(40);
       if (await done()) return true;
     }
     return false;
