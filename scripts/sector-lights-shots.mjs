@@ -64,8 +64,9 @@ const ROWS = [
   ['marlow-s7-hall', [141, 4.5, 7], [137, 3.6, 3.2], [141, 4.6, 7], 'marlow'],
   // (vol-cone-fix) base Warehouse (sandbox) yard: the facade floods over the dock doors (-18.5 / -10.5, 5.6, -18.6) and
   // the workshop door (11.5, 4.6, -18.6), FLOOD cones 0.7 rad tilted out to the yard (warehouse.ts ~:408)
-  ['wh-floods-dock', [-14, 0, -25], [-25, 2.2, -27.5], [-13, 2.5, -19], 'warehouse'],
-  ['wh-flood-workshop', [8, 0, -25], [5, 1.8, -26.5], [11.5, 2.2, -19], 'warehouse'],
+  // cameras inside the yard (the perimeter south wall is z -27 to -26) and east of the container (x 6-12)
+  ['wh-floods-dock', [-23, 0, -25.2], [-22, 2.2, -25], [-13, 2.5, -19], 'warehouse'],
+  ['wh-flood-workshop', [19, 0, -24.8], [17, 2.4, -25], [11.5, 2.2, -19.5], 'warehouse'],
 ];
 
 /** Draw a PNG buffer into a canvas in `page` and return a webp buffer `w` px wide. */

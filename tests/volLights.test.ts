@@ -52,6 +52,8 @@ describe('volumetric pass per-light values (vol-cone-fix)', () => {
     addTorchSlots(reg);
     const torches = reg.lights.filter((l) => volBeam(l));
     expect(torches.length).toBeGreaterThan(0);
+    // every torch slot has a cone (the old code chose the beam by the cone, the new one by kind: same branch)
+    for (const l of torches) expect(l.cone).toBeTruthy();
     const t = torches[0]!;
     t.reach = 9;
     writeVolLight(t, 2, pos, dir, col);
