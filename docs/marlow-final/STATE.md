@@ -20,7 +20,8 @@
   may be too strict and the levels are very dark and unrealistic. there shouldnt always be shadows, the player may
   have to make shadows (disabling lights etc)": the lighting agent writes the shared docs/lighting-review/PROPOSAL.md
   (proposals only, never applied). Course Ready's camera-range cut (feature/camera-range) stays off ctDevices.ts /
-  securityRoom.ts or sends us the hunk. Their greybox worktree (scratch/marlow-final-greybox) was empty: dropped.
+  securityRoom.ts or sends us the hunk. Their greybox helpers arrived later (8ae26f6a): src/world/maps/ctcourseGreybox.ts +
+  GREYBOX-HELPERS.md now on this branch, unwired, NO tests yet (slice 0 writes them; list in the doc).
 - After the spec: slice 0 (scaffold + section 14 code), then sets in parallel with Course Ready, dressing after each.
 
 ### At the swap (~01:10, history)
