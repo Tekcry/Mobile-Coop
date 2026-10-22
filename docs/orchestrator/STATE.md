@@ -11,6 +11,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
+v4.58.1 (#140 gpu-tests, 2016e063, ~21:25; /preview/ = dev = 2016e063).
 Train 8 = train/8 4cc73665 (#119 N4b c22b6719, #135 N1 08023227, #138 N2 e6274d36 which contains N1), built 20:50, laptop GPU full run after R's run (known GPU-only test bugs: studio keyed walk, lightbake 7/10, fixed on feature/gpu-tests 130cf522 -> train 9). P #136 red (ctcourse station 3, Menu Notes diagnosing). R 2f40ed74 suites on the laptop. CT Core's new top job: mocap-trial (CMU, toggle, side-by-side; ROADMAP Decided 20:45). Laptop GPU full run on 4.58.0: 842 s at JOBS=2 (vs 2025 s software at JOBS=3).
 v4.58.0 (train 7 #137 = #132 + #134, 00d7a653, ~20:05; /preview/ = dev = 00d7a653; studio tier, laptop solo suites green). Train 8 candidates: #119 N4b (c22b6719, master merged), #135 N1, #136 P (area suites on the laptop), R (fix round), N2 (checker), N4c (feature/anim-n4c, checker; Michael "Faster arm" for the strike timing).
 v4.57.0 (train 6 #133 = #122 + #123 + #127 + #128 + #129 + #131 + docs, 703b5063, ~19:25; /preview/ = dev = 703b5063). Train 7 = train/7 9ff4542d (#132, #134) on the laptop; #119 left out (src conflicts, Course Ready merges master).
