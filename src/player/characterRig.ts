@@ -4260,30 +4260,28 @@ export class CharacterRig {
   }
 
   /** Blend an FK pose (scripted poses) over the procedural result. */
+  /** (guard-render S5 L4) the FK joint names, in `fkNodes` order. */
+  private static readonly FK_JOINTS: readonly JointName[] = [
+    'pelvis', 'spine', 'chest', 'neck', 'head', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR',
+  ];
+  /** The nodes of `FK_JOINTS`, built on the first emote (no per-frame map / entries allocation). */
+  private fkNodes: TransformNode[] | null = null;
+
   private applyFk(fk: FkPose, w: number): void {
-    const map: Record<JointName, TransformNode> = {
-      pelvis: this.hips,
-      spine: this.spine,
-      chest: this.torso,
-      neck: this.neck,
-      head: this.headNode,
-      shoulderL: this.shoulderL,
-      shoulderR: this.shoulderR,
-      elbowL: this.elbowL,
-      elbowR: this.elbowR,
-      hipL: this.hipL,
-      hipR: this.hipR,
-      kneeL: this.kneeL,
-      kneeR: this.kneeR,
-    };
-    for (const [k, e] of Object.entries(fk) as [JointName | 'pelvisLift', readonly [number, number, number] | number][]) {
-      if (k === 'pelvisLift') {
-        this.hips.position.y += (e as number) * w;
-        continue;
-      }
-      const node = map[k];
-      const [x, y, z] = e as readonly [number, number, number];
-      Quaternion.RotationYawPitchRollToRef(y, x, z, tmpQ);
+    let nodes = this.fkNodes;
+    if (nodes === null) {
+      nodes = this.fkNodes = [
+        this.hips, this.spine, this.torso, this.neck, this.headNode, this.shoulderL, this.shoulderR, this.elbowL, this.elbowR,
+        this.hipL, this.hipR, this.kneeL, this.kneeR,
+      ];
+    }
+    if (fk.pelvisLift !== undefined) this.hips.position.y += fk.pelvisLift * w;
+    const names = CharacterRig.FK_JOINTS;
+    for (let j = 0; j < names.length; j++) {
+      const e = fk[names[j]!];
+      if (e === undefined) continue;
+      const node = nodes[j]!;
+      Quaternion.RotationYawPitchRollToRef(e[1], e[0], e[2], tmpQ);
       Quaternion.SlerpToRef(node.rotationQuaternion!, tmpQ, w, node.rotationQuaternion!);
     }
     if (fk.shoulderL || fk.shoulderR) {
