@@ -11,6 +11,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
+RED: train 4 #121 merged 9287a095 (4.55.0) with CI check FAILING (guardInfo.test.ts: s3-sec-guard from #115 counted as an info guard); not tagged, dev not moved (still 4.54.1). Course Ready patches it after the 16:10 reset; then tag v4.55.0 on the fix merge or as 4.55.1, move dev. Lesson: gate gh pr merge on gh pr checks exit code.
 v4.54.1 (#117 flake-fix, 6c2d50a4, ~15:20; /preview/ = dev = 6c2d50a4). v4.54.0 (train 3 #114 = #103 + #113, 99f3e488, ~14:30).
 Train 4 = train/4 4e1bbec1 (#110 16b1a044, #115 a070e504, #116 b8022c1f): full e2e on the laptop since ~15:10; merge master
 (4.54.1, test-only + CHANGELOG) at the version commit. Train 5 lead: #118 N3 (9c31355c); then N4b, N1, idle-shins, N3b, sector-fixes C.
