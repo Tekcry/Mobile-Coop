@@ -3,6 +3,7 @@ import type { SecurityData } from '../../security/data';
 import { C1_BOX, S1_DOORS } from './campusS1';
 import { C2_BOX, C2_FLOOR, S2_DOORS } from './campusS2';
 import { S3_DOORS, S3_L1 } from './campusS3';
+import { S4_ALARMS, S4_CAMERAS, S4_DESKS, S4_POSTS, S4_SECTOR } from './campusS4Data';
 
 const PI = Math.PI;
 
@@ -132,6 +133,7 @@ export const CAMPUS_POSTS: Record<string, { leash: number; highSecurity?: boolea
   's1#5': { leash: 5, guards: 'c1-door' },
   // K2: the bridge officer (guard 11 of section 2); the card door is 3 m behind him, inside the leash circle
   's2#11': { leash: 5, guards: 'c2-door' },
+  ...S4_POSTS,
 };
 
 // ---- Section 3 (slice 3): the lab block (SPEC "S3" guard table; `campusS3.ts` builds it) ------------------------------
@@ -278,7 +280,9 @@ export const CAMPUS_SECURITY: SecurityData = {
     // S2: over the card door inside the bridge landing, faces west down the landing; sees the doorways, not the NE stair door 14 m along
     { id: 'cam-bridge', kind: 'camera', level: 'l1', at: [3.7, -13], y: 3.0, aim: 6, range: 9, facing: 270, reason: "S2: the bridge door and landing (the lab block's only link)", section: 1 },
     ...S3_CAMERAS,
+    ...S4_CAMERAS,
   ],
+  desks: [...S4_DESKS],
 };
 
 /** The alarm panels by section (only the live section's works): the gatehouse's, by its door, facing into the room; S2's and S3's. `y`: the floor (default 0). */
@@ -288,6 +292,7 @@ export const CAMPUS_ALARMS: { at: [number, number]; yaw: number; section: number
   { at: [-8.3, -24.4], yaw: -PI / 2, section: 1 },
   { at: [3.7, -15.3], yaw: -PI / 2, section: 1, y: 4.4 },
   ...S3_ALARMS,
+  ...S4_ALARMS,
 ];
 
 /** A one-route stub: start -> the objective -> the exit. */
@@ -409,23 +414,7 @@ export const CAMPUS_SECTORS: SectorDef[] = [
     dogs: 0,
     routes: S3_ROUTES,
   },
-  {
-    id: 's4',
-    name: 'Data hall (stub)',
-    start: { x: 24, y: 0, z: 8, yaw: 0 },
-    objective: { kind: 'grab', label: 'Copy the build logs (stub)', x: 24, y: 0, z: 30, yaw: 0 },
-    connector: {
-      label: 'Along the colonnade (stub)',
-      box: [-26, 26, -10, 32],
-      nearAt: [-10, 29],
-      farAt: [-26, 29],
-      checkpoint: { x: -18, y: 0, z: 29, yaw: -PI / 2 },
-    },
-    guards: [],
-    reinforce: [[24, 22]],
-    perStage: 2,
-    routes: stubRoute('Stub', [24, 8], [24, 30], [-18, 29]),
-  },
+  S4_SECTOR,
   {
     id: 's5',
     name: 'The Old House (stub)',
