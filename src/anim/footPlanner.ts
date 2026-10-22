@@ -553,8 +553,21 @@ export class FootPlanner {
     // (mocap-trial, A3) no clip feet (or still): every foot is the planner's (a clip swing in the air finishes as a rule step)
     // (fix 1) and the planted feet's pitch is the planner's: the clip eases it back in when it takes them again
     if (!i.clipFeet || !i.moving) {
-      this.L.clipOwn = this.R.clipOwn = false;
-      this.L.clipPitchT = this.R.clipPitchT = -1;
+      for (let k = 0; k < 2; k++) {
+        const f = k === 0 ? this.L : this.R;
+        // (mocap-trial-2, CHECK-2 required 2) a clip swing in the air finishes as the planner's from the clip's pitch:
+        // swingTo eases it onto the planner's over CLIP_PITCH_EASE (mid-swing the planner's 0 snapped a 0.86 rad toe-off
+        // flat at the rig's pitch cap, the ankle-toe bone 35-41 deg in a frame at a stop); a planner swing in the air
+        // keeps its ease running. Its place eases over too (swingTo: the gap to the planner's swing fades out over
+        // OFF_FADE; it dropped the clip's 13 cm lift or jumped 21 cm back in a frame), standing with the planner's lift.
+        // A quick stop's set-down already starts from the foot, its pitch too (setDown, swingTo's quick ease)
+        if (f.clipOwn && !f.contact && !this.quick) {
+          f.clipPitchT = 0;
+          f.clipPitchOff = f.pitch;
+          if (!i.moving) f.stepLift = i.liftH * STEP[SP.lift]!;
+        } else if (f.contact || f.clipOwn) f.clipPitchT = -1;
+        f.clipOwn = false;
+      }
     }
     if (i.moving) this.updateMoving(i);
     else this.updateIdle(i);
@@ -1702,6 +1715,12 @@ export class FootPlanner {
 
   /** Position along the swing at progress s. */
   private swingTo(f: FootState, i: PlannerInput, s: number): void {
+    // (mocap-trial-2, CHECK-2 required 2) a clip swing the planner just took over (clipPitchT 0, never with the switch
+    // off): where the clip had it, the gap fading out below as a taken-over toe-off's
+    const hand = f.clipPitchT === 0;
+    const hx = f.x;
+    const hy = f.y;
+    const hz = f.z;
     f.swing = s;
     const h = smooth(s);
     f.x = f.fromX + (f.toX - f.fromX) * h;
@@ -1709,6 +1728,12 @@ export class FootPlanner {
     // lift peaks early (heel comes up first), sets down gently
     const arc = Math.sin(Math.PI * Math.min(1, s * 1.08)) * (1 - 0.25 * s);
     f.y = f.fromY + (f.toY - f.fromY) * h + f.stepLift * Math.max(0, arc);
+    if (hand) {
+      f.offX = hx - f.x;
+      f.offY = hy - f.y;
+      f.offZ = hz - f.z;
+      f.offBase = 0;
+    }
     if (f.offBase >= 0) {
       // (fix 21-2) a taken-over early toe-off: the gap to the clock's swing fades out over OFF_FADE s (a landing
       // before then lands where the foot is)
@@ -1773,6 +1798,14 @@ export class FootPlanner {
     // there tipped the ankle 22 deg in a frame at 120 Hz, flat-stand4)
     if (this.quick) f.pitch = f.fromPitch * (1 - smooth(s));
     else f.pitch = s < 0.3 ? Math.max(0.45 * STEP[SP.toeOff]! * (1 - s / 0.3) * smooth(s / 0.1), f.fromPitch * (1 - smooth(s / 0.3))) : s > 0.72 ? -0.22 * STEP[SP.heel]! * smooth((s - 0.72) / 0.2) * (1 - (this.rollOn ? 1 - HEEL_ROLL.pitch / 0.22 : 1) * smooth((s - 0.92) / 0.08)) : 0;
+    // (mocap-trial-2, CHECK-2 required 2) a clip swing the planner took over (a stop) eases from the clip's pitch
+    // (`clipPitchOff`, the pitch then) onto the planner's over CLIP_PITCH_EASE; never with the switch off (-1)
+    if (f.clipPitchT >= 0) {
+      f.clipPitchT += i.dt;
+      const k = smooth(f.clipPitchT / CLIP_PITCH_EASE);
+      f.pitch = f.clipPitchOff + (f.pitch - f.clipPitchOff) * k;
+      if (k >= 1) f.clipPitchT = -1;
+    }
   }
 
   private land(f: FootState): void {
@@ -1791,13 +1824,17 @@ export class FootPlanner {
     // (anim-natural N1) a new plant: no pivot yet
     f.early = f.turn = f.anchored = false;
     f.plantT = f.pivot = f.heelP = 0;
+    // (mocap-trial-2, CHECK-2 required 2) a taken-over clip swing still easing its pitch lands on it, flagged as the clip's
+    // plant so standing flattens it either way (updateIdle): set to 0 here, the rig's pitch cap wrote the capped pitch
+    // back and a toe up stayed up (-0.27 rad) for the whole stand
+    const eased = f.clipPitchT >= 0;
     // (step 22, A79) heel first at a walking pace: the toe comes down over HEEL_ROLL.time
-    f.roll = this.rollOn ? HEEL_ROLL.time : 0;
-    f.pitch = this.rollOn ? -HEEL_ROLL.pitch * STEP[SP.heel]! : 0;
+    f.roll = this.rollOn && !eased ? HEEL_ROLL.time : 0;
+    if (!eased) f.pitch = this.rollOn ? -HEEL_ROLL.pitch * STEP[SP.heel]! : 0;
     f.landed = true;
     // (mocap-trial, fix 1) a landing is the planner's (clipFoot claims its own after this)
     f.clipOwn = false;
-    f.clipPlant = false;
+    f.clipPlant = eased;
     f.clipPitchT = -1;
   }
 }
