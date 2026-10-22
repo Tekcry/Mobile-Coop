@@ -54,16 +54,22 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
 - **already baked:** the ledger holds this slider and group at this value.
 
 ## Mapping per section
-**Body.** These constants are the shared rig's, so every rig reads them: the partner and the guards too.
+**Body.** The rule (anim-bake-targets): every slider the tuner shows bakes, per state; one that does not is a bug.
+The one exception is strideMul (below). The constants below are the shared rig's, so every rig reads them: the partner
+and the guards too. Every other Body slider and group bakes into the base table's `body` key (below).
 - Baked:
-  - strideMul: the 9 moving groups share it -> MOVEMENT.stepLen0 / stepLenK / stepLenMax, CROUCH_STEP.k / max,
-    WALK_STEP.k, TENSE.step, GLIDE_STEP (x). Exact only when every moving group agrees.
+  - strideMul, the one Body exception: one shared code target for the 13 moving groups (MOVING: walk, jog, run, sneak,
+    crouchWalk, crouchRun, aim, aimCrouch, aimCrouchMove, wallSlide, wallCrouchSlide, hold, carry) -> MOVEMENT.stepLen0
+    / stepLenK / stepLenMax, CROUCH_STEP.k / max, WALK_STEP.k, TENSE.step, GLIDE_STEP (x). It bakes only when every
+    moving group agrees; when they disagree every row reports "manual: shared target (values per group)" and nothing is
+    written (`tests/animTuneBake.test.ts`, "Body strideMul"). A per-state stride table is a later job (backlog, "Tuner
+    sliders that do not bake yet").
   - kneeOutMul (ladder, pipe) -> CLIMB_KNEE_OUT x. Close: the climb pole is max(stance knee-out, CLIMB_KNEE_OUT).
   - kneeLiftMul (ladder, pipe) -> CLIMB_KNEE_UP x.
   - peekLeanMul (wallPeek) -> WALL.peekLean x.
-- Manual (no code target): arm swing, trunk twist, pelvis height, lean, elbow out (clip data or several terms); arm
-  swing growth; knee flex; track; knee out and lift in the other groups (keyed clip data); elbow pole and wall gap
-  (inline literals); head turn; body / hand / foot / guard offsets (visual).
+- Base table (anim-bake-targets, BT-A1 / A3): every other Body slider and group (`tune.ts` BODY_BASE_FIELDS: all but
+  strideMul and peekLeanMul; kneeOutMul / kneeLiftMul outside ladder and pipe) -> `animBase.ts: body.<row>.<id> x`
+  (mul) or `+` (add). None is manual. The elbow pole share is the named ELBOW_POLE_OUT (was the inline 0.55).
 
 **Gun.**
 - Baked:
@@ -78,9 +84,11 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
   - gunFwd / gunSide, pistol aims -> PISTOL_REACH.z / x +.
   - sightYAdd -> SIGHT_EYE +.
   - headDropMul -> NECK_WELD x.
-  - tuckMul: one rule over all 6 gun groups -> READY_ELBOW_TUCK, READY_ELBOW_TUCK_CROUCH and AIM_ELBOW_TUCK x. Every
-    gun state reads max(aim tuck, ready tuck) x tuckMul, and max(a m, b m) = m max(a, b), so it is exact when all 6
-    agree; otherwise "manual: shared target".
+  - tuckMul (anim-bake-targets, BT-A2): per gun state -> `WREN_TUCK.<rifle|pistol>.<lowReady|aim|aimCrouch>` x
+    (`animGraph.ts`, identity 1). A Wren rig's tuck is max(aim tuck, ready tuck) x tuckMul x `wrenTuckMul` (the low
+    ready's at aimK 0, the aim's (crouched by the crouch) at aimK 1, blended between); every other rig times 1, so
+    the guards keep READY_ELBOW_TUCK / _CROUCH / AIM_ELBOW_TUCK, which no bake touches. Exact per state (was one shared
+    rule over all six, B1).
   - glideTwistMul -> GLIDE.yawCut x.
 - Manual: aimed gunUp, gunPitch, gunYaw and gunCant (the sight-to-eye solve and the aim hold them).
 
@@ -169,6 +177,23 @@ table)"; target `src/anim/animBase.ts: gear.<row>.<param> + (m)` or `+ (deg, wra
   `window.__animBase.setGear(row, param, value)`. Test: the literal export in `tests/animGear.test.ts`; the goggle rows
   in `tests/animGoggle.test.ts` (no bake code change: the bake keys by row id).
 
+**Body base** (anim-bake-targets, BT-A1 / A3): the same base table under the key `body`. Result "baked (base table)";
+target `src/anim/animBase.ts: body.<row>.<id> x` (mul) or `+` (add).
+- Shape: `"body": { row: { id: v } }`, row = the Body group id (`idle`, `walk`, `lowReady`, ...), id = the slider id.
+  Mul sliders multiply, add sliders add, the same at run time (base composed with the tuner's value) and in the bake
+  (old base composed with the export's value). Printed only when a row is set (sorted, about 4 significant digits,
+  identity dropped): a table without it prints exactly as before.
+- Run time (`tune.ts` bodyBaseLoad / bodyRigBegin / bodyRigEnd, opened per rig in `tuneJointsRig.ts` tuneRigBegin): each
+  Wren rig eases its own applied values toward its own row (BODY_TAU) and composes them onto TUNE_CUR (the local
+  player's tuner values, identity for every other rig), the pose's head turn and the grip targets, all put back in the
+  rig's `finally`; nothing leaks into the next rig and nothing allocates. The local player's rig also gets them in
+  TUNE_LOCAL (the wall gap and the root offset, read outside the window). Guards never open a window. Empty: nothing
+  opens (bit-identical). Dev hook `window.__animBase.setBody(row, id, v)`. Tests: `tests/animBodyBase.test.ts`, the
+  literal export in `tests/animTuneBake.test.ts`.
+- Open: the root offsets (bodyFwdAdd, bodyUpAdd, guardGapAdd, guardSideAdd) and the wall gap are applied by the local
+  player's `player.ts` only; the partner's and the puppets' roots are placed elsewhere (`src/net`, the studio) and do
+  not read them yet.
+
 **Guard joints, Guard stepping, Guard weight** (marlow-bays item 24, track A): baked into the guard base table, a
 generated file `src/anim/animBaseGuard.ts` that every guard rig reads (`CharacterRig.guardRows`, set in
 `buildEnemyRig`: the host's guards, the co-op client's puppets, the Anim Studio's guard puppet); no Wren rig ever reads
@@ -256,12 +281,14 @@ list or when any registered slider and group has no rule or manual entry.
 - **A7** The Speed section is declared in the table (plain Node cannot load speedTune); a test pins it to the registry.
 - **A8** Results are rounded to 4 significant digits.
 
-## Tests (`tests/animTuneBake.test.ts`, 22; temp copies in `os.tmpdir()`, never the real tree)
+## Tests (`tests/animTuneBake.test.ts`, 24; temp copies in `os.tmpdir()`, never the real tree)
 - **Coverage:** every registering file under `src/` is imported and listed; the table covers every slider and group of
   every registered section. Every target is found exactly once in the real tree (read only). The declared sections
   match the registry.
-- **tuckMul:** the aim groups alone at 0.6 are manual; all 6 at 0.6 bake, and the tuned max equals the old max x 0.6
-  for aim, crouched aim and low ready.
+- **tuckMul:** (anim-bake-targets) each gun state alone at 0.6 bakes into its own WREN_TUCK constant (that state's tuck
+  x 0.6, the others and the guards' constants unchanged); the six constants and `wrenTuckMul` (exactly 1 untuned).
+- **Body base:** every Body slider bakes (none manual); Michael's 13 literal values give 0 manual; the real ledger
+  holds them.
 - **glideFwdMul:** manual.
 - **Ledger by value:** a new export still carrying a baked value is "already baked"; a new value bakes.
 - **Editing:** units, object keys, indexes, folded forms, rounding, the diff format.
@@ -302,12 +329,16 @@ list or when any registered slider and group has no rule or manual entry.
 7. After the merge nothing is left to reset by hand (anim-bake-1022, `src/anim/tuneBakedReset.ts`, tests
    `tests/tuneBakedReset.test.ts`): the build bundles the ledger, and when the tuner's save loads (the panel is built
    at boot) every slider whose saved value equals exactly a ledger `group|id=value` (compared as the ledger formats
-   numbers; a version 1 save migrated first; the record as saved, so a value past the normal range that the load clamps
-   still matches) goes back to its default through the registry (change log and save follow). The other changes are
-   kept. The ledger hashes applied are kept in the save (`TuneSnapshot.baked`), so it runs once per bake and a later
-   re-tune to the same value is not wiped. The panel's info line says "61 values are now built in; your other 13
-   changes are kept." (closed: when it next opens; also the console). The Y menu's **Reset baked** runs it again over
-   every bake, ignoring the record (it compares the loaded values, so a clamped one no longer matches). Tell Michael to
+   numbers; a version 1 save migrated first; the record as saved; a baked value past its slider's normal range also matches its clamped value, since a re-save
+   stores it clamped, e.g. 4.46.x saved trackMul 0.05 as 0.3; a deliberate 0.3 there resets once too) goes back to its default through the registry (change log and save follow). The other changes are
+   kept. The ids of the bakes applied are kept in the save (`TuneSnapshot.baked`), so it runs once per bake and a later
+   re-tune to the same value is not wiped. A bake's id is `hash@at` (`bakeAppliedIds`): the hash is the export's, so
+   two bakes of one export (anim-bake-targets re-baked PR #96's export for 13 new targets) share it and only the bake
+   time tells them apart. A bare hash (a 4.46.x save, before the ids) counts as applied for the first ledger bake with
+   that hash only, so a 4.46.x save resets the second bake's 13 sliders once. The panel's info line then says "13
+   values are now built in; your other 1 change is kept." (with one other change; closed: when it next opens; also the
+   console). The Y menu's **Reset baked** runs it again over
+   every bake, ignoring the record (it compares the loaded values, clamped values included). Tell Michael to
    open the tuner, read the line and export again: the old export is spent.
 
 ## Fix round (CHECK-BAKE.md)

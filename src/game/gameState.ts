@@ -125,6 +125,7 @@ import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
+import { TEAM_POSE_LOCAL, teamLinkFrame, teamPoseOfState } from '../anim/clips/team'; // (anim-n4b, track A)
 import { clearGripAxis } from '../player/attachGrips';
 import { setTenseSource } from '../player/tenseSneak';
 
@@ -2275,6 +2276,7 @@ export class GameState implements AppState {
     const ts = it && it.kind === 'revive' && it.progress > 0 ? 'revive' : this.team.state;
     MOVE_TUNE_TEAM.group = teamRoleGroup(ts);
     MOVE_TUNE_TEAM.k = MOVE_TUNE_TEAM.group === '' ? 0 : teamContactK(ts, this.team.partT, TEAM);
+    this.teamPoseFrame(dt); // (anim-n4b, track A) the co-op holder's working body and the leg-up's push
     // the wheel cursor / remote view takes the look
     const gadgetInput = this.gadgets.takesInput;
     if (gadgetInput) {
@@ -2315,7 +2317,8 @@ export class GameState implements AppState {
     this.mode?.frameUpdate(dt);
     this.net?.frameUpdate(dt);
     // (B8) the two-person rope, drawn while it is out (render only; built on first use)
-    if (this.ropeLine || this.team.state.startsWith('rope')) (this.ropeLine ??= new RopeLine(this.scene)).update(this.team, this.player.position);
+    // (anim-n4b, track A) the rope starts in the holder's hands (its facing on this page)
+    if (this.ropeLine || this.team.state.startsWith('rope')) (this.ropeLine ??= new RopeLine(this.scene)).update(this.team, this.player.position, this.player.controller.renderYaw, this.team.partnerYaw(), this.player.rig.height);
     this.drawShadows();
     this.renderPings(dt);
     this.updateHud();
@@ -2821,6 +2824,31 @@ export class GameState implements AppState {
       rig.reachL.w = rig.reachR.w = 0;
       this.openUse = null;
     }
+  }
+
+  /**
+   * (anim-n4b, track A) The co-op team pose: this player's input (`TEAM_POSE_LOCAL`, the Player rig reads it) and the
+   * link the partner's avatar on this page reads (`TEAM_LINK`): our team clock, feet and facing. Visual only, nothing
+   * on the wire.
+   */
+  private teamPoseFrame(dt: number): void {
+    const tm = this.team;
+    const i = teamPoseOfState(tm.state, tm.partT, TEAM_POSE_LOCAL);
+    i.px = i.py = i.pz = i.pyaw = NaN;
+    const p = i.move !== '' ? tm.partnerPos() : null;
+    if (p) {
+      i.px = p.x;
+      i.py = p.y;
+      i.pz = p.z;
+      i.pyaw = tm.partnerYaw();
+    }
+    i.depth = tm.hang.depth;
+    const rope = i.move === 'rope';
+    i.lx = rope ? tm.rope.x : NaN;
+    i.ly = rope ? tm.rope.edgeY : NaN;
+    i.lz = rope ? tm.rope.z : NaN;
+    const c = this.player.controller;
+    teamLinkFrame(dt, tm.partner, i, c.renderPos.x, c.renderPos.y, c.renderPos.z, c.renderYaw);
   }
 
   /** (step 13 fix r1) A team-mate in mode doorPeek at the door centred (cx, cz) (within the host's crack reach). */
