@@ -99,7 +99,7 @@ logic e2e and design only; every GPU check there is "pending PC run".
   `cd /c/NightShift/Mobile-Coop-<job> && test "$(git rev-parse --abbrev-ref HEAD)" = feature/<job> && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-<job>"`.
 - The job lead builds a quick prototype first when the job needs a feel or look decision (G4), then runs the loop in
   `docs/systems/session-method.md` (G87): an implementer, a fresh checker, at most 1 fix round per slice while the
-  current goal holds. Opus builds and checks; a lighter model only for mechanical chores (G88). Subagents start from
+  current goal holds. Opus plans, writes strict slice briefs, reviews and runs every fresh checker; Sonnet 5.5 may build a slice from a strict Opus brief (map greybox and data, tests, wiring), Haiku 5.5 does mechanical chores (logs, CHANGELOG, renames); tricky engine, AI and animation code stays Opus; a Sonnet slice that fails its checker gets its fix round from Opus (Michael 2026-10-23 ~01:45 "Apply it", replacing G88 "Opus builds"). Subagents start from
   `docs/systems/agent-preamble.md`.
 - Three files in `docs/<job>/`:
   - `BRIEF.md`: the ask with Michael's words, the goal and limits; Michael's answers M1, M2, ... and assumed decisions
