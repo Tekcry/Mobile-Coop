@@ -5,7 +5,7 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser (sector-fixes P: jammed at its power panel); (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog, onHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -302,6 +302,15 @@ async function station3(x0) {
     left3 = dr.left[0];
     assert(left3 * 1000 >= 800 + 300, `station 3: a fresh jam leaves room for the 800 ms freeze check (${left3} s left)`);
   }
+  // (load-latent-net) the reboot (jam phase 2) is read on the host step it starts: polled from here, under load it could
+  // be over (or the cooldown run down) before the read
+  const rebootKey = await onHostStep(A, (g, _a, st) => {
+    const d = window.__ctdev.debug();
+    const j = d.cams[0].jam;
+    const hit = st.prev === 1 && j === 2;
+    st.prev = j;
+    return hit ? d : undefined;
+  });
   await waitHostSim(A, 800);
   const [fA, fB] = [await dev(A), await dev(B)];
   assert(fA.cams[0].jam === 1 && Math.abs(fA.cams[0].yaw - yA) < 1e-6 && Math.abs(fB.cams[0].yaw - yB) < 1e-6 && fB.cams[0].frozen, `station 3: the jammed camera stops sweeping on both pages (${yA} -> ${fA.cams[0].yaw}; client ${yB} -> ${fB.cams[0].yaw})`);
@@ -317,7 +326,7 @@ async function station3(x0) {
   await aimAt(B, ...CAM);
   // the 5 s cap ends the host's jam (still held): the cooldown runs, the camera reboots, still blind and frozen
   await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, "station 3: the 5 s cap ends the host's held jam");
-  const dc = await dev(A);
+  const dc = await hostStepResult(A, rebootKey, 8000, 'station 3: the host step the camera starts its reboot');
   assert(dc.cool[0] > 3 && dc.cams[0].jam === 2 && dc.cams[0].mode === 'off' && dc.cams[0].frozen, `station 3: the host cools down (${dc.cool[0]}), the camera reboots blind (${dc.cams[0].jam}, ${dc.cams[0].mode})`);
   assert(dc.alarm === al, 'station 3: the client crossed without the camera reacting');
   // the reboot refuses a jam: the client holds Co-op on it now
