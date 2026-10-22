@@ -29,8 +29,9 @@ all walk over, aimless patrols, speeds backwards).
   investigate if so."
 
 Related standing decisions: G240 cameras keep IR everywhere (cutting lights beats guards and the light meter, never
-cameras; Answers 3 ~01:25). G11 impromptu search pairs. G44 guards see poorly above (#169). G143 no randomness in
-patrols. G190 guard pairs are the double-takedown beat. Every map's guards are armed (Answers 3).
+cameras; Answers 3 ~01:25). G11 impromptu search pairs. G44 guards see poorly above (#169). Bible "No randomness that
+defeats planning. Patrol cycles are fixed per map" (G143 is the per-run randomised codes / items / rooms). G190 room to
+manoeuvre beats guard count. Every map's guards are armed (Answers 3).
 
 ## The asks, as testable goals
 1. Hearing by range with masking: a noise reaches a guard only within its range, cut by walls, and less near a noisy
@@ -79,12 +80,18 @@ patrols. G190 guard pairs are the double-takedown beat. Every map's guards are a
 - **A8** Cautious music: the held caution does not hold the Cautious music (G67) for its whole length; music follows the
   existing alert levels. Undo: map caution to the music tier.
 - **A9** Paces: patrol 1.1 (unchanged, keeps the Sector pace checks), cautious patrol 0.95, investigate 0.85, search 0.75
-  x walkSpeed; runs only between covers, to a panel, or for aggressive profiles. Undo: `enemy.ts` pace table.
+  x walkSpeed; runs only between covers, to a panel, or for aggressive profiles. The slow search pace and calm turn
+  apply to calm searches only (a body, a call, a pair); a search that follows combat keeps 1.3 and the aimed turn
+  (S2 fix round 2, `Enemy.combatSearch`). Undo: `enemy.ts` pace table.
 - **A10** Posted high-security guards: a distraction pulls them to the edge of their leash circle (which map authors size
   so the edge is off the choke), they look, then return facing their post; they never join a search or run to a panel
   outside the leash. Undo: `highSecurity: false` on the slot.
 - **A12** A lured posted guard looks toward the lure for at least 5 s at his leash edge (sweep <= +-0.6 rad, so he
   faces away from the choke) before walking back; Course Ready's K4 solo clear (two single takedowns) relies on it.
   Undo: the post look time in the `POST` table (tell Course Ready).
+- **A13** (S3) Loud alerts (a hit, gunfire close by, the end of a flashbang, spawned alerted) take the same voice shout
+  and 2.5 s contact call as a sighting, instead of the old instant 22 m fan-out: taking out a guard who was just shot
+  at also stops his call. Undo: in `Enemy.onLevel` (src/ai/enemy.ts, the `netOn` branch) route `loudAlert || gunfire`
+  to an immediate `radioCall` completion (hold 0).
 - **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
   passed to Course Ready, not changed here.

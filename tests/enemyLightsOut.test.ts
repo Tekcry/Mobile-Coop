@@ -9,7 +9,7 @@ import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 
-// (sector-redesign part 6) a wall switch going dark sends the nearest calm guard on the switch's own floor: S2's reception
+// (sector-redesign part 6) uncoordinated modes: a wall switch going dark (y = switch + 2.5) sends the nearest calm guard on its own floor: S2's reception
 // panel (-8.4, 0, -28.5) lures #1 at the reception desk (G, 12.1 m), not #4 on the L2 balcony (8.4 m up, 7.8 m in plan)
 
 function manager(): EnemyManager {
@@ -28,7 +28,8 @@ describe('EnemyManager.lightsOut floor', () => {
     const g1 = guard(-20, 0, -24.9);
     const g4 = guard(-11.5, 8.4, -21.3);
     em.enemies.push(g1 as unknown as Enemy, g4 as unknown as Enemy);
-    em.lightsOut(-8.4, -28.5, 0);
+    em.coordinated = false;
+    em.lightsOut(-8.4, -28.5, 2.5);
     expect(g1.hear).toHaveBeenCalledTimes(1);
     expect(g4.hear).not.toHaveBeenCalled();
     // the other one still turns to look
@@ -41,6 +42,7 @@ describe('EnemyManager.lightsOut floor', () => {
     const g1 = guard(-20, 0, -24.9);
     const g4 = guard(-11.5, 8.4, -21.3);
     em.enemies.push(g1 as unknown as Enemy, g4 as unknown as Enemy);
+    em.coordinated = false;
     em.lightsOut(-8.4, -28.5);
     expect(g4.hear).toHaveBeenCalledTimes(1);
     expect(g1.hear).not.toHaveBeenCalled();

@@ -215,6 +215,37 @@ describe('patrols and searches', () => {
     }
     expect(visited.slice(0, 5)).toEqual([0, 1, 2, 0, 1]);
   });
+  it('a wait of 0 passes straight through (Menu Notes: waits [4, 0, 3, 0] froze the guard at the first 0)', () => {
+    const route = { points: [[0, 0], [4, 0], [4, 4], [0, 4]] as Pt[], wait: 1, waits: [4, 0, 3, 0] };
+    const w = new PatrolWalker(route, 0, 0, 0);
+    let x = 0;
+    let z = 0;
+    const visited: number[] = [];
+    const paused = [0, 0, 0, 0];
+    const dt = 1 / 60;
+    for (let t = 0; t < 60; t += dt) {
+      const g = w.step(dt, x, z);
+      if (visited.at(-1) !== w.idx) visited.push(w.idx);
+      if (!g) {
+        paused[w.idx] = paused[w.idx]! + dt;
+        continue;
+      }
+      const dx = g[0] - x;
+      const dz = g[1] - z;
+      const d = Math.hypot(dx, dz);
+      if (d < 1e-9) continue;
+      const s = Math.min(d, 1.2 / 60);
+      x += (dx / d) * s;
+      z += (dz / d) * s;
+    }
+    // laps of 16 m / 1.2 m/s + 7 s = ~20.3 s: about 3 laps in 60 s, every point in order
+    expect(visited.slice(0, 10)).toEqual([0, 1, 2, 3, 0, 1, 2, 3, 0, 1]);
+    // no pause at the 0 points (one frame at most per visit), the full ones at 4 s and 3 s
+    expect(paused[1]).toBeLessThan(0.1);
+    expect(paused[3]).toBeLessThan(0.1);
+    expect(paused[0]).toBeGreaterThan(7.5);
+    expect(paused[2]).toBeGreaterThan(5.5);
+  });
   it('a two-point route goes back and forth', () => {
     const w = new PatrolWalker({ points: [[0, 0], [3, 0]], wait: 0.2 }, 0, 0, 0);
     let x = 0;

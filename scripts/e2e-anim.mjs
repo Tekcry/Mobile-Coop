@@ -22,7 +22,9 @@ const FG = await import(pathToFileURL(`${LIB}/footGeom.js`).href);
 const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+// (mocap-trial M1) E2E_MOCAP=0 / 1 forces the mocap locomotion switch for the page (`?mocap=`); unset: the stored setting
+const mocapParam = process.env.E2E_MOCAP === '0' || process.env.E2E_MOCAP === '1' ? `&mocap=${process.env.E2E_MOCAP}` : '';
+const { browser, page, errors } = await launch({ url, params: `autostart=proving${mocapParam}` });
 const G = (f, a) => page.evaluate(f, a);
 let failed = false;
 const within = (v, lo, hi) => v >= lo && v <= hi;
@@ -32,6 +34,17 @@ const assert = (cond, msg) => {
   failed = true;
   console.log('  FAIL -', msg);
 };
+// (mocap-trial M1 "Mocap, as captured") with the switch on, the old procedural shape / style limits (walk bob, knee-out,
+// arm swing and the like, tuned for the hand-keyed clips) are notes, not fails: printed with the value. Pops, foot
+// slides, crossing feet, clipping, speed and timing stay `assert`. Switch off: `shape` asserts exactly as `assert`.
+const MOCAP = await G(() => window.__mocapOn?.() ?? false);
+if (MOCAP) console.log('mocap locomotion ON: the old shape / style limits are notes (M1 as captured)');
+const shape = (cond, msg) => {
+  if (!MOCAP) return assert(cond, msg);
+  console.log(`  note - ${msg} [M1 as captured${cond ? '' : ': past the old limit'}]`);
+};
+// the planted track's width is shape; its crossed side (a foot planted over the line past the limit) stays a fail
+const shapeTrack = (tr, half, msg) => (MOCAP && tr.min < -half ? assert(false, msg) : shape(tr.pass, msg));
 const f2 = (v) => (typeof v === 'number' ? v.toFixed(2) : String(v));
 
 await G(() => {
@@ -679,11 +692,11 @@ try {
     console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
     if (gated) {
       const C = r.C;
-      assert(r.knee.pass, `${name}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
-      assert(r.track.pass, `${name}: planted feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
-      assert(r.bow.pass, `${name}: knees over the toes (outside by ${r.row.bow} cm)`);
+      shape(r.knee.pass, `${name}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
+      shapeTrack(r.track, C.trackHalf, `${name}: planted feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
+      shape(r.bow.pass, `${name}: knees over the toes (outside by ${r.row.bow} cm)`);
       assert(r.slide < C.slide && r.plants >= 3, `${name}: planted feet locked (${r.row.slide} cm, ${r.plants} plants)`);
-      assert(r.wing.pass, `${name}: elbows in (${r.row.wing} cm outside the shoulder)`);
+      shape(r.wing.pass, `${name}: elbows in (${r.row.wing} cm outside the shoulder)`);
     }
   }
   if (process.env.CRAB_JSON) console.log(`CRAB_JSON ${JSON.stringify(crabRows)}`);
@@ -761,11 +774,11 @@ try {
         const C = r.C;
         const want = L.CRAB_STATE_CHECKS[key];
         const n = r.name;
-        if (want.includes('knees')) assert(r.knee.pass, `${n}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
-        if (want.includes('track')) assert(r.track.pass, `${n}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
-        if (want.includes('knee-out')) assert(r.bow.pass, `${n}: knees over the toes (outside by ${r.row.bow} cm)`);
+        if (want.includes('knees')) shape(r.knee.pass, `${n}: knee separation within ${C.kneeSep.min}-${C.kneeSep.max} x the hips (${r.row.knee.join(' / ')})`);
+        if (want.includes('track')) shapeTrack(r.track, C.trackHalf, `${n}: feet within ${cm(C.trackHalf)} cm of the line under the hips (${r.row.track.join(' / ')} cm)`);
+        if (want.includes('knee-out')) shape(r.bow.pass, `${n}: knees over the toes (outside by ${r.row.bow} cm)`);
         if (want.includes('slide')) assert(r.slide < C.slide, `${n}: planted feet locked (${r.row.slide} cm)`);
-        if (want.includes('elbows')) assert(r.wing.pass, `${n}: elbows in (${r.row.wing} cm outside the shoulder)`);
+        if (want.includes('elbows')) shape(r.wing.pass, `${n}: elbows in (${r.row.wing} cm outside the shoulder)`);
       }
     }
     if (process.env.CRAB_JSON) console.log(`CRAB_STATES_JSON ${JSON.stringify(stateRows)}`);
@@ -1332,29 +1345,30 @@ try {
     for (const r of bm) console.log(`  ${r.name} (${f2(r.speed)} m/s): pelvis ${f2(r.pelvis)} / shoulders ${f2(r.shoulders)} deg p2p, corr ${f2(r.corr)}, lateral ${cm(r.lateral)} cm, head yaw ${f2(r.headYaw)} / pitch ${f2(r.headPitch)} deg`);
     const inR = (v, lo, hi) => v >= lo && v <= hi;
     const w = B.walk;
-    assert(inR(w.pelvis, 7, 9) && inR(w.shoulders, 7, 9), `walk: pelvis / shoulders counter-rotate ~8 / 8 deg p2p (${f2(w.pelvis)} / ${f2(w.shoulders)}; 7-9)`);
+    shape(inR(w.pelvis, 7, 9) && inR(w.shoulders, 7, 9), `walk: pelvis / shoulders counter-rotate ~8 / 8 deg p2p (${f2(w.pelvis)} / ${f2(w.shoulders)}; 7-9)`);
     // (fix round, anim-natural-n2 A11) the sway at 0.7x: headless 3.6 cm; (A12) the walk sway 0.6 (master's Body base
     // narrows the feet: the knee-out margin under BODY_GAIT.walk): headless 2.9 cm, the band was 3.2-4.2
-    assert(inR(w.lateral, 0.025, 0.035), `walk: pelvis lateral sway 2.5-3.5 cm (${cm(w.lateral)})`);
+    shape(inR(w.lateral, 0.025, 0.035), `walk: pelvis lateral sway 2.5-3.5 cm (${cm(w.lateral)})`);
     const j = B.jog;
-    assert(inR(j.pelvis, 11, 13) && inR(j.shoulders, 14.5, 17), `jog: pelvis / shoulders ~12 / 16 deg p2p (${f2(j.pelvis)} / ${f2(j.shoulders)}; 11-13 / 14.5-17)`);
+    shape(inR(j.pelvis, 11, 13) && inR(j.shoulders, 14.5, 17), `jog: pelvis / shoulders ~12 / 16 deg p2p (${f2(j.pelvis)} / ${f2(j.shoulders)}; 11-13 / 14.5-17)`);
     const s = B.sneak;
-    assert(inR(s.pelvis, 4.5, 5.5) && inR(s.shoulders, 4.5, 6), `sneak: pelvis / shoulders ~5 / 5 deg p2p (${f2(s.pelvis)} / ${f2(s.shoulders)}; 4.5-5.5 / 4.5-6)`);
+    shape(inR(s.pelvis, 4.5, 5.5) && inR(s.shoulders, 4.5, 6), `sneak: pelvis / shoulders ~5 / 5 deg p2p (${f2(s.pelvis)} / ${f2(s.shoulders)}; 4.5-5.5 / 4.5-6)`);
     const cw = B['crouch walk'];
-    assert(inR(cw.pelvis, 7, 9) && inR(cw.shoulders, 7, 9.5), `crouch walk: pelvis / shoulders ~8 / 8 deg p2p (${f2(cw.pelvis)} / ${f2(cw.shoulders)}; 7-9 / 7-9.5)`);
-    assert(inR(B.run.lateral, 0.02, 0.03), `run: pelvis lateral sway 2-3 cm (${cm(B.run.lateral)}; its yaw ${f2(B.run.pelvis)} deg report-only)`);
+    shape(inR(cw.pelvis, 7, 9) && inR(cw.shoulders, 7, 9.5), `crouch walk: pelvis / shoulders ~8 / 8 deg p2p (${f2(cw.pelvis)} / ${f2(cw.shoulders)}; 7-9 / 7-9.5)`);
+    shape(inR(B.run.lateral, 0.02, 0.03), `run: pelvis lateral sway 2-3 cm (${cm(B.run.lateral)}; its yaw ${f2(B.run.pelvis)} deg report-only)`);
     // (fix round) the run's head yaw asserts too (headFollow 0.18 after A1)
-    assert(inR(B.run.headYaw, 2, 6), `run: the head follows the chest a little (${f2(B.run.headYaw)} deg p2p; 2-6)`);
+    shape(inR(B.run.headYaw, 2, 6), `run: the head follows the chest a little (${f2(B.run.headYaw)} deg p2p; 2-6)`);
     for (const n of ['walk', 'jog', 'sneak', 'crouch walk']) {
-      assert(B[n].corr < -0.9, `${n}: pelvis and shoulders counter-rotate (corr ${f2(B[n].corr)} < -0.9)`);
-      assert(inR(B[n].headYaw, 2, 6), `${n}: the head follows the chest a little (${f2(B[n].headYaw)} deg p2p; 2-6)`);
+      shape(B[n].corr < -0.9, `${n}: pelvis and shoulders counter-rotate (corr ${f2(B[n].corr)} < -0.9)`);
+      shape(inR(B[n].headYaw, 2, 6), `${n}: the head follows the chest a little (${f2(B[n].headYaw)} deg p2p; 2-6)`);
     }
     assert(inR(B['aim glide fwd'].pelvis, 3, 4.5), `aim glide fwd: pelvis 3-4 deg p2p (${f2(B['aim glide fwd'].pelvis)})`);
     for (const n of ['aim glide fwd', 'aim glide side']) {
       assert(B[n].corr < -0.8, `${n}: the pelvis counters the shoulders (corr ${f2(B[n].corr)} < -0.8)`);
       assert(B[n].headYaw < 0.05, `${n}: the head stays on the aim (${f2(B[n].headYaw)} deg p2p)`);
     }
-    for (const r of bm) assert(r.headPitch <= 2, `${r.name}: head pitch p2p <= 2 deg (${f2(r.headPitch)})`);
+    // (mocap-trial M1) the holstered gaits the mocap set plays: their style bars are notes with the switch on; aimed stays keyed
+    for (const r of bm) (r.name.startsWith('aim') ? assert : shape)(r.headPitch <= 2, `${r.name}: head pitch p2p <= 2 deg (${f2(r.headPitch)})`);
   }
 
   // ---------------------------------------------------------------- transitions and flinch
