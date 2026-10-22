@@ -12,7 +12,11 @@ export function createLocalTransport(roomId: string): Transport {
   const ch = new BroadcastChannel(`ss-room-${roomId}`);
   const peers = new Map<string, number>();
   type Wire = { k: 'hi' | 'bye' | 'msg' | 'ack'; from: string; to?: string; data?: string };
-  const post = (w: Wire): void => ch.postMessage(w);
+  // a send after leave() (a delayed NetSim delivery or a teardown reply) is dropped: a closed channel throws
+  let closed = false;
+  const post = (w: Wire): void => {
+    if (!closed) ch.postMessage(w);
+  };
   const q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
   const preset = netSimPreset(q?.get('netsim'));
   const sim = preset ? new NetSim(preset, Number(q?.get('netseed')) || 1) : null;
@@ -29,6 +33,7 @@ export function createLocalTransport(roomId: string): Transport {
     peers: () => [...peers.keys()],
     async leave() {
       post({ k: 'bye', from: selfId });
+      closed = true;
       clearInterval(beat);
       ch.close();
     },
