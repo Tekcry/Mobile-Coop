@@ -388,10 +388,13 @@ export function buildAssemblyS3(b: LevelBuilder): void {
     b.box(cx, hu + 0.1, cz, p.x1 - p.x0 + 2 * W, 0.2, p.z1 - p.z0 + 2 * W, ROOF);
     b.mark(p0, { overhead: true, noLedge: true });
   };
+  // (sector-fixes-r CI fix, train 11 voxelFit) a rail is an undrawn blocker (it cuts the lip and stops a body) plus the
+  // drawn rail: no cover faces up there (no guard reaches a co-op-only top), and the 4 cm blocker stays out of the voxel fit
   const rail = (cx: number, cz: number, sx: number, sz: number, y: number): void => {
     p0 = b.boxes.length;
-    b.box(cx, y + 0.5, cz, sx, 1.0, sz, HAZARD);
+    b.box(cx, y + 0.5, cz, sx, 1.0, sz, HAZARD, 0, 0, true, false);
     b.mark(p0, { noLedge: true, overhead: true });
+    b.box(cx, y + 0.5, cz, sx, 1.0, sz, HAZARD, 0, 0, false);
   };
   // the zone-valve platform beside the main (east bay): rail on the south (the lamp at (18.0, 4.0, 3.5) is under that edge)
   const vp = S3_COOP.valve;

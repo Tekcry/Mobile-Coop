@@ -236,8 +236,11 @@ export function buildStorageS2(b: LevelBuilder): void {
   b.box(lcx, ld.top - 0.15, lcz, ld.x1 - ld.x0, 0.3, ld.z1 - ld.z0, STEEL);
   b.mark(l0, { overhead: true });
   const r0 = b.boxes.length;
-  for (const z of [ld.z0 + 0.02, ld.z1 - 0.02]) b.box(lcx, ld.top + 0.5, z, ld.x1 - ld.x0, 1.0, 0.04, HAZARD);
+  // (sector-fixes-r CI fix, train 11 voxelFit) each rail is an undrawn blocker (it cuts the lip and stops a body) plus the
+  // drawn rail: no cover faces up there (no guard reaches the landing), and the 4 cm blocker stays out of the voxel fit
+  for (const z of [ld.z0 + 0.02, ld.z1 - 0.02]) b.box(lcx, ld.top + 0.5, z, ld.x1 - ld.x0, 1.0, 0.04, HAZARD, 0, 0, true, false);
   b.mark(r0, { overhead: true, noLedge: true });
+  for (const z of [ld.z0 + 0.02, ld.z1 - 0.02]) b.box(lcx, ld.top + 0.5, z, ld.x1 - ld.x0, 1.0, 0.04, HAZARD, 0, 0, false);
   for (const z of [ld.z0 + 0.1, ld.z1 - 0.1]) b.box(ld.x0 + 0.1, (ld.top + 6.03) / 2, z, 0.04, 6.03 - ld.top, 0.04, STEEL, 0, 0, false);
 
   // ---- the high-value cage (x -24 to -19.9, z 12 to 18; mesh 2.4 high, open top)
