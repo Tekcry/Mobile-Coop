@@ -56,6 +56,13 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~10:45 kept working past the save (orchestrator: to 99%). Running: e2e fixer (told to hand back), A8 dresser,
+  prop emissives on circuits A1-A7 (Sonnet, appends to S3-7-dress-check.md), slice 9 docs draft (Sonnet,
+  slices/S9-docs.md). Laptop queue (survives the swap): guard-cap after on cc24e992, shots before / after.
+  PERF BASELINE 5100141d (laptop alone, Epic 1080p; frame / CPU / GPU ms, draws): N0 facing 4.4 / 4.1 / 5.30 / 375;
+  N0 A7 hall 4.6 / 4.4 / 4.58 / 207; N0 A8 hall 3.3 / 3.0 / 3.13 / 95; N12 facing 7.6 / 7.4 / 7.19 / 393; N12 alert
+  9.2 / 8.5 / 8.02 / 407 (GPU over 7.5 only at N12 alert). 155fbec0's 03:45 times were 3-4x high (machine load): not a
+  time baseline. Files C:/NightShift/scratch/work/marlowcap-5100141d/ (laptop).
 - 10:30 SAVED FOR THE ACCOUNT SWAP (orchestrator: 80% at 10:28). Done this window: A4-A6 dressing (ea111da9), A3-A7
   dressing check PASS (S3-7-dress-check.md; should-fix 2 done d6c68cc6), A8 greybox check (S8-check.md) + its
   must-fix (2e58f265), facility perf pass (cc24e992, S9-perf.md: skins drawn before level boxes, static merge 126 -> 59
