@@ -4,7 +4,14 @@ Patch job (orchestrator, 2026-10-22 ~09:00, approved key_clip.py edit; Course Re
 -0.02039 (feet cross the midline) because key_clip.py:481 measured the ankles in world x and Michael's run keys yaw the
 pelvis +-25.5 deg with the stride.
 
-## Now (built, runs pending)
+## 2026-10-22 ~14:40 (new account): ready for train 4
+Master 4.54.0 merged (c0869e2f, the skeleton identity fixture re-captured; the run limits keep #103's kneeSep min 0.44
+and kneeBow 0.107 with #110's trackHalf 0.18, marked). Desktop on c0869e2f: npm run check 2682 passed; e2e-anim ok
+(169 s); e2e-studio FAIL at JOBS=2 ("a guard loop on the spot ... knee 0.010", the limit is > 0.01 over 25 frames, a
+phase-sampling edge) then ok solo (235 s). Next: the orchestrator's train 4. Note for N2: the A1 run key fix
+(feature/anim-n2-runkey) rebaked run.ts with master's key_clip.py; after #110 merges, N2 rebakes run once more.
+
+## Earlier (built, runs pending)
 Option (c) built (orchestrator OK 2026-10-22), with the yaw read off the pelvis lateral axis (job lead's call: the
 forward axis goes vertical in face-down frames and flipped the knife collapse ~180 deg). key_clip.py un-yaws each frame's
 ankles by (that frame's pelvis yaw minus the clip's circular-mean pelvis yaw): only the stride-locked swing is removed, a
