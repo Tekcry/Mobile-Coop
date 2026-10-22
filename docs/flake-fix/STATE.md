@@ -5,8 +5,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 
 **Character Build now (2026-10-22 ~21:50, stopped for the ~22:04 account swap; this block wins over the older ones):**
 - RULES (Michael): every e2e run is `E2E_GPU=1` (runner `RUN_GPU=1`); a GPU failure counts (fix the test or the game);
-  software reruns only to tell a test timing bug from a game bug. TRIAL from the next full run (Michael ~21:50 "trial
-  3 browsers + 2nd slot"): full runs JOBS=3 on 4189 (heavy-4189.lock); a second slot for single GPU suites JOBS=1 on
+  software reruns only to tell a test timing bug from a game bug. TRIAL (Michael ~21:50 "trial 3 browsers + 2nd slot"; FAILED (b) at 22:25, see TRIAL RESULT below: one slot, JOBS=2 now): full runs JOBS=3 on 4189 (heavy-4189.lock); a second slot for single GPU suites JOBS=1 on
   4192 (heavy-4192.lock); the load sampler on for every run (`C:/NightShift/scratch/load-sampler.ps1 -Out <csv>`, see
   chain-1022v.ps1). Passes only if (a) suite times in both slots stay within ~15% of today's (train 9 JOBS=2 numbers
   below, solo times in runs/*/summary.txt), (b) no new timeouts or load failures, (c) CPU under ~90% outside short
@@ -37,11 +36,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   s twice (GPU). #147 (3 s wait for the pause screen) does NOT fix it. Diagnostic suite kept at
   C:/NightShift/scratch/work/e2e-touchdiag.mjs (copy into a worktree's scripts/ untracked, run as a suite name).
   Narrowing: #136 P passes menus alone, #141 T1 fails alone (laptop only), N4c skipped.
-- RUNNING through the swap as scheduled task ns-chain-1022y (C:/NightShift/scratch/chain-1022y.ps1): train/9 6536111d
-  (master 4.58.3 + P + N4c + T1 + #147): e2e-menus alone (runs/train9b-6536111d-menus; expect FAIL unless #148 is in),
-  then the FULL run E2E_GPU=1 JOBS=3 on 4189 = the first 3-browser trial run (runs/train9b-6536111d, load
-  runs/load-train9b.csv). On resume: send the orchestrator the verdict per suite plus the trial check against the train 9
-  JOBS=2 numbers below (wall 740 s, CPU avg 35%) and write the trial result here.
+- TRIAL RESULT (2026-10-22 22:25): the 3-browser trial FAILED criterion (b) on its first run, so the laptop is back to
+  ONE slot, full runs at E2E_GPU=1 JOBS=2 (until the orchestrator says otherwise). Train/9 765162a6 at JOBS=3: 34/35,
+  wall 443 s (JOBS=2 train 9: 740 s); e2e-netmove :245 "drawn: host mode ground, joints within 10 cm" ankleL 0.107
+  under load, PASS solo twice on the same commit (ankleL 0.078; 135 / 137 s). (a) times within 15% or faster: pass;
+  (c) CPU avg 40%, max 93% one sample, GPU 3D avg 9% max 18%, RAM free min 5.8 GB: pass. Train 9 765162a6 is GREEN on
+  its code (e2e-menus solo PASS 40 s). Runs: runs/train9c-765162a6 (+ -menus, -netmove), load runs/load-train9c.csv.
 - MONITOR RULE: never `tail -F` a file a chain appends to (it locks chain-1022.log; Add-Content fails and the chain
   dies; expired monitors leave the tail running). Poll summary.txt files instead.
 - NEXT (ask the orchestrator first): train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
