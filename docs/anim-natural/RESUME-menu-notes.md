@@ -1,4 +1,4 @@
-# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~14:55)
+# Night Shift | Menu Notes Build - resume (updated 2026-10-22 ~15:05, before the clear for the 16:10 reset)
 
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
@@ -23,13 +23,14 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
 ## 1. anim-natural (TOP PRIORITY) - docs branch `feature/anim-natural` (C:/NightShift/Mobile-Coop-anim-natural)
 Brief: docs/anim-natural/BRIEF.md. Menu Notes owns N0, N3 and N3b. CT Core owns N1 / N2 (+ hitReact); Course Ready owns
 N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
-- **N3 weapons:** `feature/anim-n3`, worktree C:/NightShift/Mobile-Coop-anim-n3, head b2e2689f (master 4.54.0 merged).
+- **N3 weapons:** `feature/anim-n3`, worktree C:/NightShift/Mobile-Coop-anim-n3, head 60782562 (master 4.54.0 merged).
   Fix round done (96134b16), fresh checker PASS WITH FIXES (no must-fix; should-fix / polish list in
   docs/anim-natural/n3/WIP.md, "Fresh checker"). Clip speed is the only draw / holster time control; holster split per
   gun; an old single `holster` value maps to both (tuneRows.ts ID_ALIASES). CHANGELOG / TESTING / combat.md done.
   Side branch feature/anim-n3-merge (worktree C:/NightShift/Mobile-Coop-anim-n3-merge) is merged in; removable.
-  **Waiting:** Character Build runs `npm run check` + e2e-anim, e2e-weapons-carry, e2e-studio, e2e-combat, e2e-takedown,
-  e2e-stealth, e2e-netmove on 9de88a66 (docs-only commits after it).
+  **Laptop on b2e2689f:** `npm run check` PASS; e2e-netmove, e2e-studio, e2e-stealth, e2e-combat, e2e-takedown PASS;
+  e2e-anim and e2e-weapons-carry failed test-side (a draw already done; the swap reach counted only parented samples),
+  fixed in 60782562 (scripts only). **Waiting:** Character Build's rerun of e2e-anim + e2e-weapons-carry on 60782562.
   **Next:** (1) on a pass: GPU before / after sheets under the lock (`E2E_GPU=1 node scripts/anim-natural/audit.mjs
   proving --only=draw-lowready-rifle,draw-lowready-pistol,draw-rifle,draw-pistol,swap-drawn,holster-rifle,holster-pistol,ready-to-aim`
   from the N3 worktree after `npm run build`, port 4189; "before" = the pass 1 sheets on feature/anim-natural);
@@ -57,14 +58,16 @@ N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
 ```
 Night Shift | Menu Notes Build: RESUME (new session or account). Read CLAUDE.md and docs/ROADMAP.md (latest on
 origin/feature/menu), then C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch
-feature/anim-natural; git pull first) and follow it. Order: (1) anim-natural N3 on feature/anim-n3 (worktree
-C:/NightShift/Mobile-Coop-anim-n3): check the laptop runner's verdict on 9de88a66 (ask "Night Shift | Character
-Build" if none arrived); on a pass take the desktop heavy.lock when the orchestrator's queue allows, build, take the
-GPU after sheets (audit.mjs proving --only=draw/holster/swap rows, port 4189), release, then open the PR to master
-(minor; body per the resume file) and message the orchestrator. (2) N3b on feature/anim-n3b (worktree
-C:/NightShift/Mobile-Coop-anim-n3b): read docs/anim-natural/n3b/STATE.md; if the implementer's work is uncommitted,
-review and commit it, run a fresh checker, merge master, area suites (laptop or lock), PR. (3) Then sector-fixes L and
-C. Parallel agents allowed (full burn). Branch guard before every write; the atomic heavy.lock rule; check the 5-hour
-meter before each agent (97% no new agent, 98% commit / push / update the resume file, stopped by 99%). Message
-"Night Shift | Orchestrator" at each slice and PR.
+feature/anim-natural; git pull first) and follow it. Message "Night Shift | Orchestrator" that you resumed.
+Order: (1) anim-natural N3 on feature/anim-n3 (worktree C:/NightShift/Mobile-Coop-anim-n3, head 60782562): get
+Character Build's verdict on its rerun of e2e-anim + e2e-weapons-carry on 60782562 (ask "Night Shift | Character Build"
+if none arrived; everything else passed on b2e2689f). On a pass, when the orchestrator's desktop lock queue allows, take
+C:/NightShift/heavy.lock atomically, npm run build, take the GPU after-sheets (E2E_GPU=1 node scripts/anim-natural/audit.mjs
+proving --only=<the N3 draw / holster / swap rows>, port 4189), release the lock, then open the PR to master (minor;
+body per the resume file and docs/anim-natural/n3/WIP.md) and message the orchestrator. Merge master again first if it
+moved. (2) N3b on feature/anim-n3b (worktree C:/NightShift/Mobile-Coop-anim-n3b): read docs/anim-natural/n3b/STATE.md;
+fresh checker, merge master, area suites (laptop or lock), PR. (3) N0 pass 2 leftovers (rows 29 / 39 wall-end aim, 49
+elbow strike) only if spare. (4) sector-fixes L and C (W is Character Build's). Parallel agents allowed (full burn).
+Branch guard before every write; the atomic heavy.lock rule; check the 5-hour meter before each agent (97% no new
+agent, 98% commit / push / update the resume file, stopped by 99%). Message the orchestrator at each slice and PR.
 ```
