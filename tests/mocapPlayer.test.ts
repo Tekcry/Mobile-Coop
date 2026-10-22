@@ -66,11 +66,10 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
   }, 120_000);
 
   it('2: CT starts after a stand (quickStop, the stop hold) neither drag nor skim a foot', async () => {
+    // (mt2-fixD, CHECK-4 required 1) all 5 go phases after a 0.3 s stand at 1.4 / 2.8 / 4.0 m/s (2.8 go 1.73 and 4.0 go 1.99
+    // failed on 5d40ae25: fix A's sped-up idle step retargeted mid-air)
     await check([
-      startStop(1.4, 0.3, 2.12),
-      startStop(2.8, 0.3, 1.6),
-      startStop(2.8, 0.3, 1.86),
-      startStop(2.8, 0.3, 2.12),
+      ...[1.4, 2.8, 4.0].flatMap((v) => [1.6, 1.73, 1.86, 1.99, 2.12].map((go) => startStop(v, 0.3, go))),
       startStop(4.0, 2.0, 2.12),
       startStop(1.4, 2.0, 1.6),
     ]);

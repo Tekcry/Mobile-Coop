@@ -910,7 +910,10 @@ export class FootPlanner {
           f.toZ = f.z;
           this.land(f);
         }
-        const fresh = f.contact || f.swing < 0;
+        // (mt2-fixD, CHECK-4 required 1) clip feet on: a start's sped-up idle step (`clipIdle`) still in the air as the window
+        // opens is never retargeted: the clock's swing starts afresh from where it is (taken over at 0.66-0.74 it jumped to
+        // the clock's landing a run stride on, 37-49 cm in a frame, and crawled there: the pelvis 48 cm down at 4 m/s)
+        const fresh = f.contact || f.swing < 0 || (!!i.clipFeet && f.swBase < 0 && (this.clipIdle & (side < 0 ? 1 : 2)) !== 0);
         // (anim-rework S2) at a walk (no flight phase) the clock's swing waits while the other foot is still in the air
         // from a rule step (a turn's step round, a start's first step): a turn from a standstill lifted both feet (a hop).
         // Nearly down, the other foot lands now (an early swap)
