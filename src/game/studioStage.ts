@@ -22,6 +22,7 @@ import { buildEnemyRig } from '../ai/enemyRig';
 import { ENEMIES } from '../ai/enemyDefs';
 import { TUNE_WHO } from '../anim/tuneGuard';
 import type { WeaponModel } from '../weapons/weaponModel';
+import { stageLightMeshes } from '../anim/studio';
 
 /** What the stage needs from the match (GameState). */
 export interface StudioHost {
@@ -124,7 +125,7 @@ export class StudioStage {
   private stageMeshes = -1;
   private stageNext = 0;
   private readonly stageP = { x: 0, y: 0, z: 0 };
-  /** Her meshes the stage lights take (the source of an instance). */
+  /** Her meshes the stage lights take (her own; never an instance, `stageLightMeshes`). */
   private stageSrc: AbstractMesh[] = [];
   // (marlow-bays item 24, track A) the guard puppet: a real guard rig (`buildEnemyRig`, guard rows on), no AI
   private puppet: CharacterRig | null = null;
@@ -158,6 +159,14 @@ export class StudioStage {
         const viewYaw = c ? stageViewYaw(r.position.x, r.position.z, c.x, c.z, r.rotation.y) : r.rotation.y;
         return { x: r.position.x, y: r.position.y, z: r.position.z, yaw: r.rotation.y, viewYaw };
       },
+      // (studio-pairs, AUDIT fix 12) each pair puppet's figure: the LOD shown, its meshes drawn (enabled) and whether
+      // they are ready to draw (material and shaders; false = not drawn this frame), its root
+      puppets: () =>
+        (this.puppets ?? []).map((op) => {
+          const ms = op.figure.renderMeshes.filter((m) => m.isEnabled());
+          const r = op.rig.root.position;
+          return { lod: op.figure.current, shown: ms.length, ready: ms.length > 0 && ms.every((m) => m.isReady(true)), x: r.x, y: r.y, z: r.z };
+        }),
     };
     const d = host.debug;
     // (marlow-bays item 29) the studio leaves the F3 debug readout as it is, off by default on every device (it covered
@@ -331,11 +340,9 @@ export class StudioStage {
       const ms = root.getChildMeshes(false);
       if (ms.length !== this.stageMeshes) {
         this.stageMeshes = ms.length;
-        const src: AbstractMesh[] = [];
-        for (const m of ms) {
-          const s = (m as AbstractMesh & { sourceMesh?: AbstractMesh }).sourceMesh ?? m;
-          if (!src.includes(s)) src.push(s);
-        }
+        // (studio-pairs, AUDIT fix 12) her own meshes only: an instance's source is the shared part base, which lit
+        // every part instance in the scene (the hold pair's guard read white)
+        const src = stageLightMeshes(ms, []);
         this.stageSrc = src;
         for (const p of this.stageLights) {
           p.includedOnlyMeshes = src.slice();
@@ -693,7 +700,10 @@ export class StudioStage {
     } finally {
       moveTuneEnd(rig);
     }
-    partnerFigureFrame(op.figure, rig, dt, this.host.scene.activeCamera);
+    // (studio-pairs, AUDIT fix 12) no camera: the figure stays on its nearest game LOD (LOD0) through the loop. By the
+    // view's distance the puppets stand at the LOD0 / LOD1 edge (8.8 m out, 7.2 m back) from a framing camera, and a
+    // LOD shown for the first time draws nothing until its shaders compile (~0.5 s gone after a crossing or a wrap)
+    partnerFigureFrame(op.figure, rig, dt, null);
   }
 
   private grip(t: WorldTarget, on: boolean, x: number, y: number, z: number, hook: boolean): void {

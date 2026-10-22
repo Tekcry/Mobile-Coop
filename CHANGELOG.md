@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - studio-pairs (track A, AUDIT fix 12)
+- Anim Studio: the stage lights light only Wren's own meshes, so the guard in the hold pairs (and the props) no longer
+  turn white under them; he reads by the room's light as in game.
+- Anim Studio pairs: the puppets stay on their full-detail model for the whole loop (a distance swap mid-loop could
+  blank a puppet for a moment while the new model's shaders compiled). Test hook `__studioStage.puppets()`.
+
 ## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 
 ### #110 The run's feet no longer cross

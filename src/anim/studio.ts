@@ -537,3 +537,17 @@ export function stageViewYaw(rx: number, rz: number, cx: number, cz: number, fal
   if (dx * dx + dz * dz < 1e-6) return fallback;
   return Math.atan2(dx, dz);
 }
+
+/**
+ * (studio-pairs, AUDIT fix 12) The meshes the stage lights take, from her root's meshes (`ms`): her own, each once, never
+ * an instance. An instance is drawn with its source's lights, and the source of a part instance is the world's shared
+ * part base (`PartLibrary`): in the include list it lit every part instance in the scene. Her rig's parts are hidden
+ * instances (her figure draws her), so the hold pair's guard (a parts rig in light grey cloth) took the four lights
+ * raised for her dark suit and read white, as did the guard loop's guard and the props. Only her figure's meshes are
+ * left; the part-built gun in her hands reads by the room's light, as in the game. `out` is cleared and returned.
+ */
+export function stageLightMeshes<T extends object>(ms: readonly T[], out: T[]): T[] {
+  out.length = 0;
+  for (const m of ms) if ((m as { sourceMesh?: unknown }).sourceMesh == null && !out.includes(m)) out.push(m);
+  return out;
+}

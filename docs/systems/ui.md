@@ -131,7 +131,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     the header button "On the spot: on / off" (studio only), F8 (`TUNER_SPOT_KEY`) and L3 on the pad (`TunePadOut.spot`).
   - Stage light (studio only, rendering only): four point lights (key, fill, rim, a soft top "ambient";
     `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root, (T2) turned toward the camera (`stageViewYaw`: key and fill on the camera's side, the rim beyond her, from any view; they were in front of her facing, so the view from behind saw only the rim and the top light), made once by `StudioStage`, light
-    only her meshes (`includedOnlyMeshes`, re-read once a second as the LODs load; once a second her materials are
+    only her own meshes, never an instance or its shared part base (`includedOnlyMeshes` from `stageLightMeshes`; fix 12: a part base in the list lit every instance in the scene, the hold-pair guard went white), re-read once a second as the LODs load; once a second her materials are
     raised to every light on her mesh, `lightSources`, unfrozen and frozen again like `LightRig.fitMaterial`, so a later
     rig fit cannot leave the stage lights out), range falloff as the game's lamps. "Stage light" slider (View tab, Loop player; 0-2,
     default 1; `STUDIO_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The studio map's ambient
