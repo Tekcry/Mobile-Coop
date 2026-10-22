@@ -3,7 +3,17 @@
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
 
-## LIVE 2026-10-22 ~23:00 (after the clear) - check these first
+## LIVE 2026-10-23 ~00:30 - marlow-final is TOP PRIORITY (orchestrator, Michael ~00:10)
+- marlow-final (Marlow Yard redesign and finish): worktree C:/NightShift/Mobile-Coop-marlow-final, feature/marlow-final
+  from master af56ab43 (merge 4.62.0 when train 12 lands). Resume from docs/marlow-final/STATE.md there (BRIEF has
+  Michael's words, M1-M3, A1-A4). Step 1 running: 4 read-only agents (yard audit, co-op inventory, route draft,
+  standard constraints) -> AUDIT.md, COOP-INVENTORY.md, ROUTE-DRAFT.md, CONSTRAINTS.md -> spec writer -> SPEC.md +
+  PLAN.md -> greybox slices (Course Ready joins as second builder). MAX BURN: up to 6 Opus agents; save at 99%.
+- mocap-sheets STOPPED (Michael: no sheets needed); the start / stop agent was told to stop and report; its finding goes
+  in docs/mocap-trial (note) on feature/mocap-sheets.
+- vol-cone-fix: PR #156 open, nothing to do.
+
+## LIVE 2026-10-22 ~23:00 (after the clear) - older
 - vol-cone-fix: PR #156 OPEN (feature/vol-cone-fix 85413567, master 4.60.1 merged; patch). LED-only variant 72102b7e
   (round 1 general variant took the Warehouse flood beams off). Checker PASS, GPU e2e smoke / darkness / desktop:3 pass,
   round 2 shots 3135a783. Orchestrator told; nothing to do unless the train sends it back.
