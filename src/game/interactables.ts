@@ -37,6 +37,11 @@ export interface Interactable {
   light: InstancedMesh | null;
   /** Reach from the feet (m; default 1.8). */
   reach?: number;
+  /**
+   * (sector-fixes-r RT) Offered only from one side: the feet past the plane through `pos` along this plan direction
+   * (a team door's "Unbolt", the course F7 test, `onBoltSide`). None: any side.
+   */
+  side?: readonly [number, number];
   /** Noise radius (m) the hold makes while it runs (a manhole cover, a padlock); none = silent. */
   holdNoise?: number;
   /** Called when used (else the mode handles it). */
@@ -130,6 +135,7 @@ export class Interactables {
     for (const it of this.items) {
       if (!it.enabled || it.done || it.kind === 'extract') continue;
       if (only ? it.kind !== only : it.kind === 'hide') continue;
+      if (it.side && (feet.x - it.pos.x) * it.side[0] + (feet.z - it.pos.z) * it.side[1] <= 0) continue;
       const d = hyp2(it.pos.x - feet.x, it.pos.z - feet.z);
       if (d < (it.reach ?? reach) && d < bd && Math.abs(it.pos.y - feet.y) < 1.5) {
         bd = d;

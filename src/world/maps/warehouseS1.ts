@@ -98,6 +98,33 @@ export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [
 
 export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [{ pos: new Vector3(-21.3, 0, -21.5) }, { pos: new Vector3(-6.0, 0, -7.2) }];
 
+/**
+ * (sector-fixes R1) Section 1's co-op-only routes (docs/sector-fixes/r/R1.md). Lips at 4.4 m over the floor they start
+ * from: out of a solo wall jump (`WALL_JUMP.maxUp` 3.8 + 0.5), inside the leg-up (`TEAM.boostMax` 4.5).
+ * - `plantDoor`: the AHU's service door high in the facade over the yard (its hoist platform is gone). Sill top 4.4 over
+ *   the yard, 0.8 deep (z0..z1), the eaves notched over it under a weather hood (underside 6.3) so a climb-up stands
+ *   (`MOVEMENT.standHeight` 1.75 over the sill); inside it steps down 1.1 m onto the plant deck's west part (3.3): the void opening, hatches h1 / h2, the pallet gate. Way down alone: hang off
+ *   the sill and drop to the yard, or the deck's ladders / the pallet gate; up to the roof: the notch's 6.0 lips.
+ * - `hoist`: the goods-in monorail (the hoist beam off shutter E into the east lane), a hand-over-hand pipe at 4.4 from
+ *   the shutter head to over the checker's east-lane stop (a drop takedown); it passes 0.6 m under the bay main (5.0, z
+ *   -17.0), which runs east to the plant deck. It stops 1.3 m short of the 1.8 m east-lane pallets (out of a solo grab
+ *   from their tops: `REACH.horiz` 0.85) and 2.8 m from the deck edge. Way down: let go.
+ */
+export const S1_COOP = {
+  plantDoor: { x0: -3.2, x1: -2.0, z0: -18.15, z1: -17.35, sill: 4.4, deck: 3.3 },
+  hoist: { x: -11.0, z0: -17.5, z1: -15.6, y: 4.4 },
+} as const;
+
+/** (sector-fixes R1) The mess's back door into the workshop (x 8, z -10.6 to -9.4), bolted from the mess side. */
+const MESS_DOOR = { x: 8, hinge: -10.6, w: 1.2 } as const;
+
+/**
+ * (sector-fixes R1, team-door contract in docs/sector-fixes/r/PLAN.md) Doors bolted from one side: the plan centre and the
+ * unit direction from the door toward the side that can unbolt it. The mess back door: the mess (x < 8) unbolts it for a
+ * partner waiting in the workshop under the catwalk (past the office patrol's turn at the corridor's east door).
+ */
+export const S1_BOLTS: readonly { at: [number, number]; side: [number, number] }[] = [{ at: [MESS_DOOR.x, MESS_DOOR.hinge + MESS_DOOR.w / 2], side: [-1, 0] }];
+
 /** The yard's dark south-west corner (A4): four spawns around (-20, -24.6). */
 export const S1_SPAWNS: MapLayout['playerSpawns'] = [
   { pos: new Vector3(-20, 0, -24.6), yaw: 0.5 },
@@ -160,7 +187,12 @@ export function buildServiceS1(b: LevelBuilder): void {
   const over = (from: number): void => void b.mark(from, { overhead: true });
 
   // ---- facade (z -18, 6.0 high): shutters W (raised 1.5 m), E and the workshop's; the entrance, two windows, the workshop door
-  wallX(-18, -24, 24, [[-21, -17], [-13, -9], [-5.6, -4.4], [0.6, 1.8], [5.4, 6.6], [10.4, 11.6], [13, 17]], 6.0, WALL_DARK);
+  const pd = S1_COOP.plantDoor;
+  wallX(-18, -24, 24, [[-21, -17], [-13, -9], [-5.6, -4.4], [pd.x0, pd.x1], [0.6, 1.8], [5.4, 6.6], [10.4, 11.6], [13, 17]], 6.0, WALL_DARK);
+  // (R1) the plant-room service door: the facade under it to the deck slab, the sill (deck slab to 4.4, 0.8 deep: the
+  // co-op lip over the yard); over it the eaves are notched (the roof hole below) under a weather hood at 6.3
+  b.box((pd.x0 + pd.x1) / 2, 1.5, -18, pd.x1 - pd.x0, 3.0, T, WALL_DARK);
+  b.box((pd.x0 + pd.x1) / 2, (3.0 + pd.sill) / 2, (pd.z0 + pd.z1) / 2, pd.x1 - pd.x0, pd.sill - 3.0, pd.z1 - pd.z0, STEEL);
   b.box(-19, 3.0, -18, 4.0, 3.0, 0.1, STEEL); // shutter W: y 1.5 - 4.5, the crouch gap under it
   lintel(b, -19, 5.25, -18, 4.0, 1.5, T, WALL_DARK);
   b.box(-11, 2.25, -18, 4.0, 4.5, 0.1, STEEL); // shutter E, closed
@@ -206,8 +238,9 @@ export function buildServiceS1(b: LevelBuilder): void {
   wallZ(-8, -13.8, -8.8, [[-12.9, -11.7]], 2.8);
   lintel(b, -8, 2.45, -12.3, T, 0.7, 1.2);
   wallZ(8, -17.85, -13.8, [], 3.0);
-  wallZ(8, -13.8, -8.8, [[-12.9, -11.7]], 2.8);
+  wallZ(8, -13.8, -8.8, [[-12.9, -11.7], [MESS_DOOR.hinge, MESS_DOOR.hinge + MESS_DOOR.w]], 2.8);
   lintel(b, 8, 2.45, -12.3, T, 0.7, 1.2);
+  lintel(b, MESS_DOOR.x, 2.45, MESS_DOOR.hinge + MESS_DOOR.w / 2, T, 0.7, MESS_DOOR.w); // (R1) the mess back door's head
   b.box(-8, 3.8, -11.3, T, 2.0, 5.0, WALL); // void west wall
   b.box(8, 3.8, -11.975, T, 2.0, 3.65, WALL); // void east wall with the catwalk opening z -10.15 to -8.95 (y 3.0 - 4.6)
   // (the openings' sills and caps are not ledges: the catwalk walks straight in)
@@ -247,12 +280,18 @@ export function buildServiceS1(b: LevelBuilder): void {
   b.door(-8, 0, -16.4, 1.2, 0, { swing: 1 });
   for (const x of [-5.1, -0.1, 3.9]) b.door(x, 0, -13.8, 1.2, PI / 2, { swing: 1 });
   for (const x of [-7.1, -2.1, 1.9]) b.door(x, 0, -10.8, 1.2, PI / 2, { swing: -1 });
+  // (R1) the team door: the mess's back door into the workshop, bolted from the mess side (S1_BOLTS)
+  b.door(MESS_DOOR.x, 0, MESS_DOOR.hinge, MESS_DOOR.w, 0, { swing: -1, locked: true, breachable: false });
 
   // ---- roof (top 6.0): the lobby-block part with the smoke vent, the main part with the roof hatch; parapets, gables
   const roof0 = b.boxes.length;
   plate(b, -24, -4, -18.15, -6.15, 6.0, 0.2, [[-20.6, -19.4, -8.0, -6.8]], ROOF);
-  plate(b, -4, 24, -18.15, -8.95, 6.0, 0.2, [[4.5, 5.5, -14.8, -14.0]], ROOF);
+  plate(b, -4, 24, -18.15, -8.95, 6.0, 0.2, [[4.5, 5.5, -14.8, -14.0], [pd.x0, pd.x1, pd.z0, pd.z1]], ROOF);
   over(roof0);
+  // (R1) the service door's weather hood over the eaves notch: high enough for a climb-up to stand on the sill
+  const hood0 = b.boxes.length;
+  b.box((pd.x0 + pd.x1) / 2, 6.375, (pd.z0 + pd.z1) / 2, pd.x1 - pd.x0, 0.15, pd.z1 - pd.z0, ROOF);
+  b.mark(hood0, { overhead: true, noLedge: true });
   b.surface('metal', -24, 24, -18.15, -6, 6.0);
   const p0 = b.boxes.length;
   b.box(-14, 6.75, -6, 20.3, 1.5, T, WALL_DARK);
@@ -267,6 +306,8 @@ export function buildServiceS1(b: LevelBuilder): void {
   b.rappel(1.2, 6.0, -18.15, PI, 6.0);
   b.pipeH(-6.8, -17.0, -23.4, -17.0, 5.0); // the bay main
   b.pipeH(12.0, -10.35, 12.0, -17.4, 4.7); // the workshop branch
+  const ho = S1_COOP.hoist;
+  b.pipeH(ho.x, ho.z0, ho.x, ho.z1, ho.y, BEAM, 0.08); // (R1) the goods-in hoist monorail: leg-up onto it (4.4)
   b.ladder(5.0, -14.45, 3.3, 6.0, 0); // the roof hatch ladder (top (5.0, 6.0, -14.0))
   b.ladder(8.5, -14.6, 0, 3.3, -PI / 2); // workshop to the deck
   b.ladder(23.5, -9.55, 0, 3.0, -PI / 2); // the catwalk's east end

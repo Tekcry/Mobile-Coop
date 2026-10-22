@@ -17,9 +17,12 @@ import {
   CONN_UNLOAD,
   CONN_UNLOCK_FAR,
   CONN_UNLOCK_NEAR,
+  BOLT_REACH,
   SECTOR,
   SECTOR_RESTART_TITLE,
+  SectorBolts,
   SectorRun,
+  boltItemId,
   exitZone,
   inDoorway,
   inZone,
@@ -50,6 +53,14 @@ interface ConnDoors {
   near: DoorState | null;
   far: DoorState | null;
   seal: DoorState[];
+}
+
+/** (sector-fixes-r RT) A team door's "Unbolt" item and its door (found by position at the start). */
+interface BoltIt {
+  sec: number;
+  k: number;
+  it: Interactable;
+  door: DoorState | null;
 }
 
 /** Co-op: the devices' state goes to the client at least this often (s), and at once on a change. */
@@ -83,6 +94,9 @@ export class SectorMode implements GameMode {
   private reinforceK = 0;
   private readonly connIn: ConnectorInput = { allInside: false, doorwayClear: true };
   private readonly doors: ConnDoors[] = [];
+  /** (sector-fixes-r RT) The team doors: which bolts are shut, and their items. */
+  readonly bolts: SectorBolts;
+  private readonly boltIts: BoltIt[] = [];
   /** Run time (s) for the result. */
   private t = 0;
   private secT = 0;
@@ -99,6 +113,7 @@ export class SectorMode implements GameMode {
 
   constructor(private g: GameState) {
     this.run = new SectorRun(g.world.map.sectors ?? []);
+    this.bolts = new SectorBolts(this.run.defs);
   }
 
   start(): void {
@@ -116,6 +131,7 @@ export class SectorMode implements GameMode {
     g.ctDev = this.ct;
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     this.findDoors();
+    this.findBolts();
     const s = this.run.current;
     if (s) {
       g.player.controller.teleport(new Vector3(s.start.x, s.start.y, s.start.z), s.start.yaw);
@@ -143,6 +159,71 @@ export class SectorMode implements GameMode {
       if (far) this.lockDoor(far, true);
       for (const d of seal) this.lockDoor(d, true);
     }
+  }
+
+  /**
+   * (sector-fixes-r RT) The team doors: each bolted door locked, and its "Unbolt" item at the door centre, offered only
+   * on the bolt's side (`Interactable.side`, the course F7 test) and live while the bolt is shut (course F8). The client
+   * mirrors the item (its side from its own map data) and the door lock (`lk`); its use comes back as `use`.
+   */
+  private findBolts(): void {
+    const g = this.g;
+    const ds = g.world.doors;
+    const ints = g.interactables;
+    this.run.defs.forEach((s, sec) => {
+      s.bolts?.forEach((b, k) => {
+        const door = ds.nearest(b.at[0], b.at[1], DOOR_FIND);
+        if (door) this.lockDoor(door, true);
+        else console.warn(`[sector] ${s.id}: no door at bolt ${k} (${b.at[0]}, ${b.at[1]})`);
+        if (!ints) return;
+        const y = door ? door.anchor.hinge.y : 0;
+        const it = ints.add(boltItemId(sec, k), 'door', new Vector3(b.at[0], y, b.at[1]), 'Unbolt', 0);
+        it.reach = BOLT_REACH;
+        it.side = b.side;
+        it.onUse = (_it, by) => this.unbolt(sec, k, by);
+        ints.setEnabled(it, true);
+        this.boltIts.push({ sec, k, it, door });
+      });
+    });
+  }
+
+  /**
+   * A player used a team door's "Unbolt" (`by`: 'local' or none for this machine's player, else a client's peer id).
+   * Host-authoritative: the user's feet must be on the bolt's side; then the door unlocks for both and the item goes off.
+   */
+  private unbolt(sec: number, k: number, by?: string): boolean {
+    const refs = this.g.playerRefsInto(this.refs);
+    const r = by === undefined || by === 'local' ? refs[0] : refs.find((q) => q.id === by);
+    if (!r || !this.bolts.use(sec, k, r.feet.x, r.feet.z)) return false;
+    const b = this.boltIts.find((q) => q.sec === sec && q.k === k);
+    if (!b) return true;
+    if (b.door) this.lockDoor(b.door, false);
+    this.g.interactables?.setEnabled(b.it, false);
+    if (r === refs[0]) this.g.hud.feedItem('Unbolted - open the door for your partner');
+    return true;
+  }
+
+  /** (M9) A section restart bolts its team doors again (shut and locked, the "Unbolt" items back). */
+  private rebolt(sec: number): void {
+    this.bolts.rebolt(sec);
+    for (const b of this.boltIts) {
+      if (b.sec !== sec) continue;
+      if (b.door) this.lockDoor(b.door, true);
+      if (!b.it.enabled) this.g.interactables?.setEnabled(b.it, true);
+    }
+  }
+
+  /** Test hook (e2e): this machine's player uses section `sec`'s bolt `k` (the side test applies). */
+  useBolt(sec: number, k: number): boolean {
+    return this.unbolt(sec, k, 'local');
+  }
+
+  /** Test view: the team doors (item id, door index, plan centre, side, shut, door locked). */
+  boltInfo(): { id: string; sec: number; k: number; door: number; at: readonly [number, number]; side: readonly [number, number]; shut: boolean; locked: boolean | null }[] {
+    return this.boltIts.map((b) => {
+      const def = this.run.defs[b.sec]!.bolts![b.k]!;
+      return { id: b.it.id, sec: b.sec, k: b.k, door: b.door?.index ?? -1, at: def.at, side: def.side, shut: this.bolts.isShut(b.sec, b.k), locked: b.door ? b.door.anchor.locked : null };
+    });
   }
 
   /** Lock (shut) or unlock a door, and its door item with it (the course pattern, `courseMode.applyLocks`). */
@@ -389,6 +470,8 @@ export class SectorMode implements GameMode {
       if (d) for (const k of d.seal) this.lockDoor(k, false);
     }
     this.restarts++;
+    // (sector-fixes-r RT) the section's team doors are bolted again (a clean retry)
+    this.rebolt(this.run.index);
     this.unloadSection();
     // (M9) a clean start: the guards' shared memory back at its match-start state (alarm, last known position, sighting
     // flags, clocks), and the players' side: the section's loadout reloaded, gadgets and grenades out in the world gone,
@@ -537,6 +620,7 @@ export class SectorMode implements GameMode {
       farLocked: locked(d?.far),
       doors: this.doors.map((k) => ({ near: locked(k.near), far: locked(k.far), seal: k.seal.map((x) => x.anchor.locked) })),
       live: this.ct?.liveSection ?? null,
+      bolts: this.bolts.shut.map((row) => row.slice()),
       ...this.result(),
     };
   }
