@@ -12,7 +12,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { MOCAP_FEET, MOCAP_SET, MOCAP_SLOT, MocapSlots, setMocapLocomotion } from '../src/anim/mocap';
-import { mixKeyed, newKeyedPose } from '../src/anim/keyed';
+import { mixKeyed, newKeyedPose, sampleKeyed } from '../src/anim/keyed';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { proportions } from '../src/player/proportions';
 import { driveRig, type Plan } from './helpers/mocapMeasure';
@@ -125,6 +125,63 @@ describe('mocap fix 2: a spin on the spot plays the turn clip on (item 4)', () =
     expect(last).toBeGreaterThan(1 - MOCAP_SLOT.fadeOut);
     expect(peak).toBeGreaterThan(0.5);
   });
+
+  // (fix 2 check) every joint of the slot's pose over a standing keyed pose: the largest turn of any joint a frame
+  const spin = (plan: (t: number) => readonly [number, number]): { step: number; low: number; m: MocapSlots } => {
+    const m = new MocapSlots();
+    const base = newKeyedPose();
+    sampleKeyed(MOCAP_SET.walk, 0, 1, base, null);
+    const pose = newKeyedPose();
+    const tmp = newKeyedPose();
+    const v = { half: 0, kneeOut: 0, duty: 0, lift: 0 };
+    const prev = new Float64Array(pose.q.length);
+    let step = 0;
+    let low = 1;
+    for (let k = 0; k < 300; k++) {
+      const [sp, yr] = plan(k * DT);
+      m.update(DT, MOCAP_SET, sp, 0, yr);
+      mixKeyed(base, base, 0, pose);
+      m.apply(MOCAP_SET, pose, tmp, v);
+      const q = pose.q;
+      if (k > 0) {
+        for (let j = 0; j < q.length; j += 4) {
+          const d = Math.abs(q[j]! * prev[j]! + q[j + 1]! * prev[j + 1]! + q[j + 2]! * prev[j + 2]! + q[j + 3]! * prev[j + 3]!);
+          step = Math.max(step, (2 * Math.acos(Math.min(1, d)) * 180) / Math.PI);
+        }
+      }
+      prev.set(q);
+      if (k > 30 && k < 150) low = Math.min(low, m.wTurn);
+    }
+    return { step, low, m };
+  };
+
+  it('(fix 2 check) a spin reversed on the spot: the other side plays on at full weight from where it was (no pose jump)', () => {
+    const one = spin(() => [0, 3]);
+    const rev = spin((t) => [0, t < 1.5 ? 3 : -3]);
+    console.info(`spin 3 rad/s: largest joint step a frame ${one.step.toFixed(2)} deg; reversed at 1.5 s ${rev.step.toFixed(2)} deg, lowest turn weight ${rev.low.toFixed(3)}`);
+    // (before: 15.8 deg the frame after the reversal and a dip to 0.49; the clip's own joints turn up to ~3.3 deg a frame)
+    expect(rev.step).toBeLessThan(one.step + 0.5);
+    expect(rev.low).toBeGreaterThan(0.9);
+    expect(rev.m.turnSide).toBe(-1);
+  });
+
+  it('(fix 2 check) a slow spin (0.8 rad/s, under the start rate, over the end rate) wraps at full weight too', () => {
+    const slow = spin((t) => [0, t < 0.3 ? 3 : 0.8]);
+    console.info(`spin slowing to 0.8 rad/s: lowest turn weight over its first wrap ${slow.low.toFixed(3)}, largest joint step ${slow.step.toFixed(2)} deg`);
+    // (before: faded to 0.06 over each pass's last 22 deg, back to full after the wrap)
+    expect(slow.low).toBeGreaterThan(0.9);
+    expect(slow.m.turnSpot).toBe(true);
+  });
+
+  it('(fix 2 check) a spin that walks off the spot ends its pass and hands over to a turn on the move', () => {
+    const r = spin((t) => [t < 1.5 ? 0 : Math.min(1.4, (t - 1.5) * 3), 3]);
+    const walk = spin(() => [1.4, 3]);
+    console.info(`spin walking off at 1.5 s: largest joint step a frame ${r.step.toFixed(2)} deg (a turn on the move alone ${walk.step.toFixed(2)})`);
+    // (before: the turn on the spot replayed on the move for good, at full weight)
+    expect(r.m.turnSpot).toBe(false);
+    expect(r.m.turnT).toBeGreaterThanOrEqual(0);
+    expect(r.step).toBeLessThan(Math.max(4.5, walk.step + 0.5));
+  });
 });
 
 describe('mocap fix 2: the clip duty only with clip feet on (item 5)', () => {
@@ -196,22 +253,122 @@ describe('mocap fix 2: the clip duty only with clip feet on (item 5)', () => {
     expect(turnOff).toBeGreaterThan(30);
     expect(turnLo).toBeLessThan(0.3);
   });
+
+  it('(fix 2 check) the edges: the switch on mid-jog, clip feet gone under a quick crouch and back: no window moves under a foot in the air', () => {
+    setMocapLocomotion(false);
+    const g = new AnimGraph(proportions('average', 1.68));
+    const i = defaultInput();
+    i.keyedOk = true;
+    i.ready = true;
+    i.armed = false;
+    i.localZ = 1;
+    i.speed = 2.8;
+    let onStep = 0;
+    let edge = 0;
+    let edges = 0;
+    let carried = 0;
+    let back = 0;
+    let lastDuty = -1;
+    let lastPh = 0;
+    let lastValid = false;
+    for (let k = 0; k < 60 * 8; k++) {
+      const t = k / 60;
+      if (k === 120) setMocapLocomotion(true);
+      // (a crouch in 0.3 s takes the mocap share to 0 before the duty has eased into the planner's clamp)
+      i.crouch = t < 4 ? 0 : t < 4.3 ? (t - 4) / 0.3 : t < 5.5 ? 1 : t < 5.8 ? 1 - (t - 5.5) / 0.3 : 0;
+      g.update(DT, i);
+      const o = g.out;
+      const valid = o.clipFeet.valid;
+      if (lastDuty >= 0 && o.gait.moving) {
+        let dPh = o.gait.phase - lastPh;
+        if (dPh < 0) dPh += 1;
+        // a foot in its swing window last frame put back into its stance window (not past its strike)
+        for (const strike of [0, 0.5]) {
+          const s0 = (((lastPh - strike) % 1) + 1) % 1;
+          const s1 = (((o.gait.phase - strike) % 1) + 1) % 1;
+          if (s0 >= lastDuty && s1 < o.gait.duty && s1 >= s0) back++;
+        }
+        if (k === 120) onStep = Math.abs(o.gait.duty - lastDuty);
+        if (valid !== lastValid && k > 125) {
+          edges++;
+          edge = Math.max(edge, Math.abs(o.gait.duty - lastDuty) - 0.5 * dPh);
+        }
+        if (!valid && (g as unknown as { mCarry: boolean }).mCarry) carried++;
+      }
+      lastDuty = o.gait.duty;
+      lastPh = o.gait.phase;
+      lastValid = valid;
+    }
+    console.info(`jog 2.8: duty step at the switch on ${onStep.toFixed(4)}, at the clip feet edges (${edges}) past half the clock ${edge.toFixed(4)}, eased on ${carried} frames after they went, swing -> stance ${back}`);
+    // (before: 0.23 at the switch on (the clip's 0.21 from the planner's 0.44 in a frame); 0.18 past the limit as the
+    // crouch took clip feet away, a foot in the air put back in its stance window)
+    expect(onStep).toBeLessThan(0.05);
+    expect(edges).toBeGreaterThanOrEqual(2);
+    expect(edge).toBeLessThanOrEqual(1e-9);
+    expect(carried).toBeGreaterThan(3);
+    expect(back).toBe(0);
+  });
 });
 
 describe('mocap fix 2: the switch off mid-walk leaves the planner clean (item 8)', () => {
   const clipSet = (f: FootState): boolean => f.clipOwn || f.clipPlant || f.clipPitchT !== -1 || f.clipPitchOff !== 0;
-  it('no clip feet state from the first frame off, through the walk and a stop', async () => {
+  it('no clip feet state from the first frame off, through the walk and a stop (but a planted plant flag until it lifts)', async () => {
     setMocapLocomotion(true);
     let setBefore = 0;
     let setAfter = 0;
+    let kept = 0;
+    const keep = [false, false];
     await driveRig(60 * 7, (_k, t) => ({ speed: t < 4 ? 1.4 : 0, yawRate: 0, rec: false }), (rig, k) => {
       const P = rig.planner;
       if (k < 180) {
         if (clipSet(P.L) || clipSet(P.R)) setBefore++;
         if (k === 179) setMocapLocomotion(false);
-      } else if (clipSet(P.L) || clipSet(P.R)) setAfter++;
+        return;
+      }
+      // (fix 2 check) a planted foot on the clip's heel strike (toe up) keeps `clipPlant` until it lifts: the stop flattens
+      // it by the flag (cleared, the switch off mid-stop left it toe up at idle)
+      for (const [s, f] of [[0, P.L], [1, P.R]] as const) {
+        if (k === 180 && f.clipPlant && f.contact) keep[s] = true;
+        if (!f.contact) keep[s] = false;
+        if (keep[s]) kept++;
+        if (f.clipOwn || f.clipPitchT !== -1 || f.clipPitchOff !== 0 || (f.clipPlant && !keep[s])) setAfter++;
+      }
     });
+    console.info(`switch off mid-walk: clip state on ${setBefore} of 180 frames before, ${setAfter} after (a toe-up plant's flag kept ${kept} foot-frames)`);
     expect(setBefore).toBeGreaterThan(60);
     expect(setAfter).toBe(0);
   }, 60_000);
+
+  it('(fix 2 check) the switch off mid-stop: a foot planted toe up on the clip goes flat at idle', async () => {
+    const worst: string[] = [];
+    let toeUp = 0;
+    for (const v of [1.4, 2.0]) {
+      for (const off of [6, 12, 18]) {
+        setMocapLocomotion(true);
+        let at = 0;
+        let end = 0;
+        let flags = 0;
+        await driveRig(60 * 6, (_k, t) => ({ speed: t < 3 ? v : Math.max(0, v - (t - 3) * 6), yawRate: 0, rec: false }), (rig, k) => {
+          const P = rig.planner;
+          if (k === 180 + off) {
+            at = Math.min(P.L.contact ? P.L.pitch : 0, P.R.contact ? P.R.pitch : 0);
+            setMocapLocomotion(false);
+          }
+          if (k === 60 * 6 - 1) {
+            end = Math.max(Math.abs(P.L.pitch), Math.abs(P.R.pitch));
+            // (a kept plant flag stays on its planted foot until it lifts: only the stop's flatten reads it with the switch off)
+            const loose = (f: FootState): boolean => f.clipOwn || f.clipPitchT !== -1 || f.clipPitchOff !== 0 || (f.clipPlant && !f.contact);
+            flags = loose(P.L) || loose(P.R) ? 1 : 0;
+          }
+        });
+        if (at < -0.01) toeUp++;
+        worst.push(`${v} m/s +${off}: ${at.toFixed(3)} -> ${end.toFixed(4)} rad`);
+        expect(end, `${v} m/s, off ${off} frames into the stop`).toBeLessThan(1e-3);
+        expect(flags).toBe(0);
+      }
+    }
+    console.info(`switch off mid-stop, the planted feet's pitch at the switch -> after 3 s idle: ${worst.join(', ')}`);
+    // (the case is exercised: a foot planted toe up when the switch goes off)
+    expect(toeUp).toBeGreaterThan(2);
+  }, 120_000);
 });
