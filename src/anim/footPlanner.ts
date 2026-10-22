@@ -1,5 +1,5 @@
 import { hyp2 } from '../core/mathx';
-import { SP, STEP, stepSelect, stepStride } from './tuneStep';
+import { SP, STEP, stepSelect, stepSelectRows, stepStride } from './tuneStep';
 /**
  * World-space foot planner (pure, allocation-free, unit-tested).
  *
@@ -244,6 +244,9 @@ const STAGGER = { min: 0.4, hold: 0.3 } as const;
 export class FootPlanner {
   readonly L = newFoot();
   readonly R = newFoot();
+  /** (item 24, track A) The stepping table this planner reads (null: the shared one, Wren's rows; a guard: the guards';
+   *  any other rig: the identity table, set by `CharacterRig`). */
+  stepRows: Float64Array | null = null;
   /** Moving on the last update (a quick stop acts on the change to still). */
   private wasMoving = false;
   /** (step 22, A79) Landings this frame roll heel to toe. */
@@ -315,7 +318,8 @@ export class FootPlanner {
 
   update(i: PlannerInput): void {
     if (!this.L.init) this.reset(i);
-    stepSelect(i.moving, hyp2(i.velX, i.velZ), i.crouch); // (tuner-v2 item 3) this gait's stepping row (tuneStep)
+    // (tuner-v2 item 3) this gait's stepping row; (item 24, track A) a guard's planner reads the guards' table (one line: the stepping test strips it)
+    if (this.stepRows) stepSelectRows(this.stepRows, i.moving, hyp2(i.velX, i.velZ), i.crouch); else stepSelect(i.moving, hyp2(i.velX, i.velZ), i.crouch);
     this.L.landed = this.R.landed = false;
     // (anim-rework S4) a stance change (the crouch past half way either way) re-steps the feet into the new stance
     const crouchNow = i.crouch > 0.5;

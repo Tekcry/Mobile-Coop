@@ -4,6 +4,7 @@
  * progress (and a press mid-holster draws again from where the hand is). The phase rides on the wire as
  * `MoveState.dw` (host-authoritative, D8).
  */
+import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 
 export const DRAW_HOLSTERED = 0;
 export const DRAW_DRAWING = 1;
@@ -25,6 +26,16 @@ export const DRAW_TIME_PRIMARY = 0.3;
  */
 export const HOLSTER_TIME = 0.15;
 
+// (clip-speed, track A) the tuner's "today" lines read the durations from here
+CLIP_BASE.rifleDraw = DRAW_TIME_PRIMARY;
+CLIP_BASE.pistolDraw = DRAW_TIME_SIDEARM;
+CLIP_BASE.holster = HOLSTER_TIME;
+
+/** (clip-speed, track A) The holster time with the tuner's holster speed (HOLSTER_TIME at identity). */
+export function holsterTime(): number {
+  return HOLSTER_TIME / clipSpeed('holster');
+}
+
 /** A shot needs the aim this far in (`cam.ads`). */
 export const ADS_FIRE = 0.9;
 
@@ -33,9 +44,12 @@ export function fireReady(phase: DrawPhase, ads: number): boolean {
   return phase === DRAW_DRAWN && ads >= ADS_FIRE;
 }
 
-/** Draw time for a weapon class. */
+/**
+ * Draw time for a weapon class. (clip-speed, track A) Divided by the tuner's draw speed (1 at identity): the draw state
+ * reaches DRAW_DRAWN, the gate of `fireReady`, over this same time, so the gun can fire when the draw clip ends.
+ */
 export function drawTimeFor(cls: string): number {
-  return cls === 'pistol' ? DRAW_TIME_SIDEARM : DRAW_TIME_PRIMARY;
+  return cls === 'pistol' ? DRAW_TIME_SIDEARM / clipSpeed('pistolDraw') : DRAW_TIME_PRIMARY / clipSpeed('rifleDraw');
 }
 
 export class DrawState {
@@ -49,7 +63,7 @@ export class DrawState {
       this.progress = Math.min(1, this.progress + dt / Math.max(1e-3, drawTime));
       this.phase = this.progress >= 1 ? DRAW_DRAWN : DRAW_DRAWING;
     } else {
-      this.progress = Math.max(0, this.progress - dt / HOLSTER_TIME);
+      this.progress = Math.max(0, this.progress - dt / holsterTime()); // (clip-speed, track A)
       this.phase = this.progress <= 0 ? DRAW_HOLSTERED : DRAW_HOLSTERING;
     }
     return this.phase;
@@ -58,7 +72,7 @@ export class DrawState {
   /** Seconds left to the current target (drawn while drawing, holstered while holstering; 0 when settled). */
   remaining(drawTime: number): number {
     if (this.phase === DRAW_DRAWING) return (1 - this.progress) * drawTime;
-    if (this.phase === DRAW_HOLSTERING) return this.progress * HOLSTER_TIME;
+    if (this.phase === DRAW_HOLSTERING) return this.progress * holsterTime(); // (clip-speed, track A)
     return 0;
   }
 
