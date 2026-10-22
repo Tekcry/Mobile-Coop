@@ -251,8 +251,8 @@ const S3_ROUTES: SectorDef['routes'] = [
 
 /** The cameras of section 3 (SPEC register): cam-view on L1, cam-dock over the C3 door. */
 const S3_CAMERAS: SecurityData['devices'] = [
-  // at the viewing corridor's store end, facing west down it: the store hatch and the corridor end; the back corridor is behind its wall
-  { id: 'cam-view', kind: 'camera', level: 's3-l1', at: [51.7, -7.0], y: 2.8, aim: 6, range: 10, facing: 270, reason: 'S3: the prototype store hatch and the viewing corridor', section: 2 },
+  // at the viewing corridor's store end, facing west down it: the store hatch and the corridor end; the back corridor is behind its wall; bulletproof (E8, A95: shots ricochet, jam it or slip the sweep); cam-dock stays shootable
+  { id: 'cam-view', kind: 'camera', level: 's3-l1', at: [51.7, -7.0], y: 2.8, aim: 6, range: 10, facing: 270, reason: 'S3: the prototype store hatch and the viewing corridor', section: 2, bulletproof: true },
   // over the dock door (C3), fixed, facing in: the dock floor in front of the door
   { id: 'cam-dock', kind: 'camera', level: 'ground', at: [24, -0.4], y: 3.2, aim: 6, range: 10, facing: 180, reason: 'S3: the goods-in dock door', section: 2 },
 ];

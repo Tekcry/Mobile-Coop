@@ -708,6 +708,13 @@ export class GameState implements AppState {
         { ballistics: this.ballistics, players: () => this.playerRefsInto(this.aiRefs) },
         new SecurityView(this.scene, world.parts),
       );
+      // (sector-redesign E8) a round off a bulletproof camera: the bullet-impact sparks and sound at the lens (the
+      // impact noise is the onRay chain's own, as for any round that lands)
+      w.security.onRicochet = (x, y, z) => {
+        const at = new Vector3(x, y, z);
+        this.vfx.sparks(at, Vector3.Down(), 8);
+        this.ballistics.onImpact?.(at, false);
+      };
       const prevRay = this.weapons.onRay;
       this.weapons.onRay = (a, b) => {
         prevRay?.(a, b);
