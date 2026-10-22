@@ -4,10 +4,17 @@
 // checkpoint (M7); and the nav check (M8): every route leg is walkable for the guards' nav grid, and a section is
 // reached only through its connector. `?sectorGuards=4` keeps software GL quick (4 guards per section).
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until, hostAndJoin } from './e2e-net-lib.mjs';
+import { until, hostAndJoin, waitSim, teamLog } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
+// (sector-fixes-r RE) `--part=N` runs one group (the runner runs them as parallel jobs, like e2e-ctcourse): 1 the
+// sections, alarms, restarts, nav and the co-op mirror (the suite before slice R); 2 solo: the co-op lips out of reach
+// alone, the engine links the routes rely on (pipe jumps, crouch-walk, climb-ups), the ways down alone, every team door;
+// 3-5 two pages: section 1, 2, 3's co-op routes walked by host and client (leg-up, relay / rope) and its team door
+// unbolted by the client for both pages, re-bolted by a restart. Named alone the suite runs every part in sequence.
+const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
+const want = (n) => PART === 0 || PART === n;
 let failed = false;
 const all = [];
 async function run(params, fn) {
@@ -46,6 +53,7 @@ const sections = (G) =>
 /** Teleport the local player (x, y, z). */
 const tp = (G, x, y, z, yaw = 0) => G(([a, b, c, w]) => { const g = window.__app.current; const P = g.player.position.constructor; g.player.controller.teleport(new P(a, b, c), w); }, [x, y, z, yaw]);
 
+if (want(1)) {
 console.log('sector ops: every section, ghost');
 await run(PARAMS, async ({ page, G, sim }) => {
   await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
@@ -634,6 +642,780 @@ console.log('sector ops: co-op client mirrors the live section');
     all.push(...eA, ...eB);
     await browser.close();
   }
+}
+} // part 1
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (sector-fixes-r RE) Slice R: the co-op-only routes and the team doors (docs/sector-fixes/r/R1.md, R2.md, R3.md, RT.md;
+// report docs/sector-fixes/r/RE.md). Yaw 0 faces +z, PI / 2 faces +x.
+const PI = Math.PI;
+/** Each co-op lip: the booster's spot on the floor (y 0) facing it, the lip (or pipe) grip, a run-up start for the solo try. */
+const COOP = [
+  { id: 'S1 C1 plant-room sill', sec: 0, spot: [-2.6, -18.9], yaw: 0, kind: 'ledge', lip: [-2.6, 4.4, -18.15], runFrom: [-2.6, -22.4] },
+  { id: 'S1 C2 hoist monorail', sec: 0, spot: [-11.0, -16.6], yaw: 0, kind: 'pipeH', lip: [-11.0, 4.4, -16.6], runFrom: [-14.0, -16.6] },
+  { id: 'S2 C1a high bay R3S from A3', sec: 1, spot: [-11.0, 1.8], yaw: PI / 2, kind: 'ledge', lip: [-10.5, 4.4, 1.8], runFrom: [-13.2, 1.8] },
+  { id: 'S2 C1b high bay R3S from the gangway', sec: 1, spot: [-7.7, 2.2], yaw: -PI / 2, kind: 'ledge', lip: [-8.2, 4.4, 2.2], runFrom: [-5.2, 2.2] },
+  { id: 'S2 C2 high bay R3N', sec: 1, spot: [-11.0, 10.0], yaw: PI / 2, kind: 'ledge', lip: [-10.5, 4.4, 10.0], runFrom: [-13.2, 10.0] },
+  { id: 'S3 C1 valve platform', sec: 2, spot: [18.0, 6.1], yaw: PI, kind: 'ledge', lip: [18.0, 4.4, 5.5], runFrom: [18.0, 9.1] },
+  { id: 'S3 C2 crane drive platform', sec: 2, spot: [11.8, 6.6], yaw: PI, kind: 'ledge', lip: [11.8, 4.4, 6.0], runFrom: [11.8, 9.6] },
+];
+const route = (id) => COOP.find((c) => c.id.startsWith(id));
+/** Grip heights at or over this are a co-op lip (the 4.3-4.5 band, LD 11.3); a solo try must never hold one. */
+const BAND_LO = 4.25;
+
+if (want(2)) {
+  console.log('sector ops (R): solo - the co-op lips refuse one player, the engine links, the ways down, the team doors');
+  await run(PARAMS, async ({ G }) => {
+    await G(() => {
+      const g = window.__app.current;
+      g.target.damageMul = 0;
+      g.enemyMgr.update = () => {};
+      if (g.security) g.security.fixedUpdate = () => {};
+      if (window.__ctdev) window.__ctdev.fixedUpdate = () => {};
+      window.__app.settings.update((d) => { d.gamepad.curve = 'linear'; d.gamepad.deadzoneLeft = 0; });
+      // the e2e-ct-warehouse / e2e-traverse pattern: the loop stepped by hand at 120 Hz, the pad driven per step
+      const H = {
+        st: () => window.__app.current,
+        grip: (a) => (!a ? null : a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : null),
+        step(s, sx = 0, sy = 0, btns = []) {
+          const pad = window.__pad;
+          pad.axis(0, sx);
+          pad.axis(1, -sy);
+          for (const b of btns) pad.set(b, 1);
+          window.__app.loop.stepHeadless(s, 120);
+          pad.axis(0, 0);
+          pad.axis(1, 0);
+          for (const b of btns) pad.set(b, 0);
+        },
+        tap(b) {
+          window.__pad.set(b, 1);
+          window.__app.loop.stepHeadless(2 / 60, 120);
+          window.__pad.set(b, 0);
+          window.__app.loop.stepHeadless(2 / 60, 120);
+        },
+        tp(x, y, z, yaw) {
+          const st = H.st();
+          st.team.end(true);
+          st.traversal.reset();
+          const c = st.player.controller;
+          c.clearCrouchToggle();
+          c.teleport(new c.pos.constructor(x, y, z), yaw);
+          st.player.cam.yaw = yaw;
+          st.player.cam.pitch = 0;
+          H.step(0.3);
+        },
+        info() {
+          const st = H.st();
+          const c = st.player.controller;
+          const ac = st.traversal.attachCtl;
+          const a = ac.active ? ac.m.anchor : null;
+          const h = ac.hint ?? ac.lower;
+          const r = (v) => Math.round(v * 100) / 100;
+          return {
+            x: r(c.pos.x), y: r(c.pos.y), z: r(c.pos.z), grounded: c.grounded, crouched: c.crouched, alive: st.player.alive,
+            attached: ac.active, kind: a?.kind ?? null, id: a?.id ?? -1, grip: H.grip(a), phase: ac.m.phase, canClimb: !!ac.canClimb,
+            along: a && a.kind === 'pipeH' ? (Math.abs(a.a.x - a.b.x) < 0.1 ? 'z' : Math.abs(a.a.z - a.b.z) < 0.1 ? 'x' : 'xz') : null,
+            hint: h ? `${h.anchor.kind}:${h.entry}` : null, hintGrip: h ? H.grip(h.anchor) : null, geo: st.traversal.hint?.kind ?? null, jump: ac.jump ? `${ac.jump.anchor.kind}@${r(ac.jump.grip.y)}` : null,
+          };
+        },
+        /** The anchor of `kind` whose grip is at `y` nearest (x, z) in plan, and the distance along it. */
+        find(kind, x, y, z, rad = 0.7) {
+          let best = null;
+          let bd = rad;
+          for (const a of H.st().world.level.anchors.all) {
+            if (a.kind !== kind || Math.abs(H.grip(a) - y) > 0.25) continue;
+            const dx = a.b.x - a.a.x;
+            const dz = a.b.z - a.a.z;
+            const L = Math.hypot(dx, dz);
+            const s = Math.max(0, Math.min(L, ((x - a.a.x) * dx + (z - a.a.z) * dz) / L));
+            const d = Math.hypot(a.a.x + (dx * s) / L - x, a.a.z + (dz * s) / L - z);
+            if (d < bd) {
+              bd = d;
+              best = { a, s, d };
+            }
+          }
+          return best;
+        },
+        /** Take hold of that anchor from where the body is (the test way in, e2e-ct-warehouse), then 1 s to settle. */
+        attach(kind, x, y, z) {
+          const f = H.find(kind, x, y, z);
+          if (!f) return { found: false };
+          const ok = H.st().traversal.attachCtl.attachTo(f.a, f.s, 'below', 1);
+          H.step(1.0);
+          return { found: true, ok, aid: f.a.id, ...H.info() };
+        },
+      };
+      window.__re = H;
+      window.__app.loop.manual = true;
+    });
+    const step = (s, sx = 0, sy = 0, btns = []) => G(([s, sx, sy, b]) => window.__re.step(s, sx, sy, b), [s, sx, sy, btns]);
+    const tap = (b) => G((b) => window.__re.tap(b), b);
+    const put = (x, y, z, yaw) => G(([x, y, z, w]) => window.__re.tp(x, y, z, w), [x, y, z, yaw]);
+    const info = () => G(() => window.__re.info());
+    const face = (yaw) => G((w) => { window.__re.st().player.cam.yaw = w; }, yaw);
+    const attach = (kind, x, y, z) => G(([k, x, y, z]) => window.__re.attach(k, x, y, z), [kind, x, y, z]);
+    /** The stick forward (camera at `yaw`) in 0.1 s steps until `stop(info)` or `max` s; `btns` pressed each step. */
+    const walk = async (yaw, max, stop, btns = []) => {
+      await face(yaw);
+      let i = await info();
+      for (let t = 0; t < max && !stop(i); t += 0.1) {
+        await step(0.1, 0, 1, btns);
+        i = await info();
+      }
+      return i;
+    };
+    /** Stick (camera at `yaw`) held, then the traverse button: a jump from a hang where the stick points. */
+    const hangJump = async (yaw) => {
+      await face(yaw);
+      await step(0.3, 0, 1);
+      await step(0.1, 0, 1, [BTN.Y]);
+      await step(1.0);
+      return info();
+    };
+    const check = async (name, f) => {
+      try {
+        await f();
+      } catch (e) {
+        failed = true;
+        console.error(`  CHECK FAIL - ${name}: ${String(e)}`);
+        try {
+          console.error('  at', JSON.stringify(await info()));
+        } catch {}
+      }
+    };
+    await step(0.5);
+
+    // ---- the boost search (the game's own, `TeamController.boostTarget`) finds each planned lip from its spot; a
+    // spot along R3's faces with no planned lip finds none (R2 leg 4)
+    await check('boost targets', async () => {
+      for (const c of COOP) {
+        const t = await G(([x, z, yaw]) => {
+          const g = window.__app.current;
+          const V = g.player.position.constructor;
+          const r = g.team['boostTarget']({ id: 'm', pos: new V(x, 0, z), yaw, mode: 'brace' });
+          return r && { kind: r.anchor.kind, x: +r.grip.x.toFixed(2), y: +r.grip.y.toFixed(2), z: +r.grip.z.toFixed(2) };
+        }, [c.spot[0], c.spot[1], c.yaw]);
+        assert(!!t && t.kind === c.kind && Math.abs(t.y - c.lip[1]) < 0.1 && Math.hypot(t.x - c.lip[0], t.z - c.lip[2]) < 1.0, `${c.id}: a leg-up from (${c.spot}) reaches the planned ${c.kind} at 4.4 (${JSON.stringify(t)})`);
+      }
+      const none = await G(() => {
+        const g = window.__app.current;
+        const r = g.team['boostTarget']({ id: 'm', pos: new g.player.position.constructor(-7.7, 0, 10.0), yaw: -Math.PI / 2, mode: 'brace' });
+        return r ? { kind: r.anchor.kind, y: r.grip.y, x: r.grip.x, z: r.grip.z } : null;
+      });
+      assert(none === null, `S2: a leg-up at R3N's east face (-7.7, 10.0), no planned lip there, finds nothing (${JSON.stringify(none)})`);
+    });
+
+    // ---- solo refusal: one player alone at each co-op lip (standing under it, the traverse button there: a grab, a wall
+    // jump or a jump; and a running jump at it, pressed at the face and again in the air) never holds the lip or stands on top
+    for (const c of COOP) {
+      await check(`${c.id}: solo refusal`, async () => {
+        const [x, z] = c.spot;
+        let max = 0;
+        let topY = 0;
+        const track = (i) => {
+          if (i.attached && i.grip !== null) max = Math.max(max, i.grip);
+          if (i.grounded) topY = Math.max(topY, i.y);
+        };
+        await put(x, 0, z, c.yaw);
+        await step(0.4);
+        const i0 = await info();
+        await tap(BTN.Y);
+        for (let k = 0; k < 15; k++) {
+          await step(0.1);
+          track(await info());
+        }
+        const stand = { max, topY };
+        // the run-up: from `runFrom` at the spot, at the top gear; the traverse button at the spot, then every other 50 ms
+        const [rx, rz] = c.runFrom;
+        const ry = Math.atan2(x - rx, z - rz);
+        const fx = Math.sin(ry);
+        const fz = Math.cos(ry);
+        await put(rx, 0, rz, ry);
+        await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 3; });
+        let jumped = -1;
+        for (let k = 0; k < 60; k++) {
+          const i = await info();
+          const d = (x - i.x) * fx + (z - i.z) * fz;
+          if (jumped < 0 && (d < 0.3 || k === 40)) jumped = k;
+          await step(0.05, 0, 1, jumped >= 0 && (k - jumped) % 2 === 0 ? [BTN.Y] : []);
+          track(await info());
+        }
+        await step(1.0);
+        track(await info());
+        const fin = await info();
+        assert(!(i0.hintGrip >= BAND_LO), `${c.id}: alone under it the traverse button offers no 4.4 m grip (hint ${i0.hint} at ${i0.hintGrip})`);
+        assert(stand.max < BAND_LO && stand.topY < BAND_LO, `${c.id}: alone, the traverse button at the spot (grab / wall jump / jump) never holds the lip (held ${stand.max}, stood ${stand.topY})`);
+        assert(max < BAND_LO && topY < BAND_LO && fin.y < BAND_LO, `${c.id}: alone, a running jump at it (pressed at the face and in the air) never holds the lip (held ${max}, stood ${topY}, ends y ${fin.y})`);
+      });
+    }
+
+    // ---- (R2 leg 4) the solo running jump off R2N's 4.0 top at R3N's 4.4 lip (3.0 m across A3) must fail: take-offs
+    // 0.6, 0.3 and 0.05 m before the edge (x -13.5) and a plain run off it, the traverse button pressed through the flight
+    await check('S2 rack-top jump refused', async () => {
+      for (const off of [0.6, 0.3, 0.05, null]) {
+        await put(-15.4, 4.05, 10.0, PI / 2);
+        await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 3; });
+        const top0 = (await info()).y;
+        let max = 0;
+        let topY = 0;
+        let jumped = -1;
+        let edge = null;
+        for (let k = 0; k < 70; k++) {
+          const i = await info();
+          if (jumped < 0 && off !== null && i.x > -13.5 - off) {
+            jumped = k;
+            edge = i.x;
+          }
+          if (off === null && jumped < 0 && !i.grounded) jumped = k;
+          await step(0.05, 0, 1, jumped >= 0 && (k - jumped) % 2 === 0 ? [BTN.Y] : []);
+          const j = await info();
+          if (j.attached && j.grip !== null) max = Math.max(max, j.grip);
+          if (j.grounded && j.x > -12) topY = Math.max(topY, j.y);
+        }
+        await step(1.0);
+        const fin = await info();
+        assert(top0 > 3.9 && jumped >= 0, `S2: on R2N's top (y ${top0}) and off its east edge (${off === null ? 'run off' : `take-off at x ${edge}`})`);
+        assert(max < BAND_LO && topY < BAND_LO && !(fin.y > BAND_LO), `S2: alone, the ${off === null ? 'run off' : `running jump (${off} m before the edge)`} from R2N never reaches R3N's 4.4 lip (held ${max}, stood ${topY}, ends ${JSON.stringify([fin.x, fin.y, fin.z])})`);
+      }
+    });
+
+    // ---- section 1, C2: the monorail (4.4) up to the bay main (5.0) where it crosses 0.6 m under it, hand over hand
+    // east, then let go onto the plant deck (3.3); and the monorail's way down alone (north end, let go)
+    await check('S1 C2 monorail to the bay main', async () => {
+      await put(-11.0, 0, -17.0, 0);
+      const a = await attach('pipeH', -11.0, 4.4, -17.0);
+      assert(a.found && a.attached && a.kind === 'pipeH' && Math.abs(a.grip - 4.4) < 0.05, `S1 C2: hanging on the monorail at z -17.0 (${JSON.stringify(a)})`);
+      const i = await hangJump(PI / 2);
+      assert(i.attached && i.kind === 'pipeH' && i.id !== a.id && Math.abs(i.grip - 5.0) < 0.05 && i.along === 'x', `S1 C2: stick east + traverse: the jump up 0.6 m from the monorail onto the bay main (${JSON.stringify(i)})`);
+      const e = await walk(PI / 2, 15, (q) => q.x >= -7.6 || !q.attached);
+      assert(e.attached && e.x >= -7.6, `S1 C2: hand over hand east along the main over the plant deck (x ${e.x})`);
+      await tap(BTN.B);
+      await step(1.5);
+      const d = await info();
+      assert(!d.attached && d.grounded && Math.abs(d.y - 3.3) < 0.15, `S1 C2: let go over the deck: feet on the plant deck at 3.3 (${JSON.stringify([d.x, d.y, d.z])})`);
+    });
+    await check('S1 C2 way down', async () => {
+      await put(-11.0, 0, -17.0, 0);
+      const a = await attach('pipeH', -11.0, 4.4, -17.0);
+      assert(a.attached && a.kind === 'pipeH', 'S1 C2: on the monorail again');
+      const e = await walk(0, 8, (q) => q.z >= -15.8 || !q.attached);
+      assert(e.attached && e.z >= -15.8, `S1 C2: hand over hand north to the monorail's end over the checker's stop (z ${e.z})`);
+      await tap(BTN.B);
+      await step(1.5);
+      const d = await info();
+      assert(!d.attached && d.grounded && d.y < 0.2 && Math.hypot(d.x + 11.0, d.z + 15.7) < 0.6, `S1 C2: way down alone: let go, feet on the bay floor at (-11.0, -15.7) (${JSON.stringify([d.x, d.y, d.z])})`);
+    });
+
+    // ---- section 1, C1: the climb-up onto the sill (the hood leaves standing room), the crouch-walk under the 1.4 m
+    // clearance onto the deck; the way back alone: the 1.1 m mantle onto the sill, lower onto its outer lip, drop
+    await check('S1 C1 sill and deck', async () => {
+      await put(-2.6, 0, -18.7, 0);
+      const a = await attach('ledge', -2.6, 4.4, -18.15);
+      assert(a.attached && a.kind === 'ledge' && Math.abs(a.grip - 4.4) < 0.05, `S1 C1: hanging on the sill lip (${JSON.stringify(a)})`);
+      await tap(BTN.Y);
+      await step(1.6);
+      const s = await info();
+      assert(!s.attached && s.grounded && Math.abs(s.y - 4.4) < 0.1, `S1 C1: the climb-up stands on the sill (canClimb ${a.canClimb}, ${JSON.stringify([s.x, s.y, s.z])})`);
+      if (!s.crouched) await tap(BTN.B);
+      const d = await walk(0, 5, (q) => q.grounded && q.y < 3.5 && q.z > -17.3);
+      assert(d.grounded && Math.abs(d.y - 3.3) < 0.1 && d.z > -17.3, `S1 C1: crouch-walk north under the 1.4 m clearance from the sill onto the deck (${JSON.stringify([d.x, d.y, d.z, d.crouched])})`);
+      await step(0.6, 0, 1);
+      // back: face the sill, walk to it, the traverse button mantles onto it
+      const w = await walk(PI, 1.2, () => false);
+      await step(0.3);
+      const pre = await info();
+      await tap(BTN.Y);
+      await step(1.6);
+      let m = await info();
+      for (let k = 0; k < 2 && !(m.grounded && m.y > 4.3); k++) {
+        await walk(PI, 0.4, () => false);
+        await tap(BTN.Y);
+        await step(1.6);
+        m = await info();
+      }
+      assert(m.grounded && Math.abs(m.y - 4.4) < 0.1, `S1 C1: way back: from the deck the 1.1 m mantle onto the sill (at ${JSON.stringify([w.x, w.y, w.z])}, offered ${pre.geo ?? pre.hint}; ends ${JSON.stringify([m.x, m.y, m.z])})`);
+      // lower onto the outer lip (drop held at the edge), then let go into the yard
+      let h = await info();
+      for (let k = 0; k < 4 && !h.attached; k++) {
+        await face(PI);
+        await step(0.6, 0, 0, [BTN.B]);
+        await step(0.8);
+        h = await info();
+        if (!h.attached) {
+          await walk(PI, 0.2, () => false);
+          h = await info();
+        }
+      }
+      assert(h.attached && h.kind === 'ledge' && Math.abs(h.grip - 4.4) < 0.05, `S1 C1: holding drop at the sill's edge lowers into the hang (${JSON.stringify(h)})`);
+      await tap(BTN.B);
+      await step(1.5);
+      const y = await info();
+      assert(!y.attached && y.grounded && y.y < 0.2 && y.z < -18.3, `S1 C1: way down alone: let go, feet in the yard (${JSON.stringify([y.x, y.y, y.z])})`);
+    });
+
+    // ---- section 2: the climb-up onto each high-bay top; the ways down alone (R3S walk off the west edge; R3N along
+    // the top, crouched under the roof-sheet band, to the north end and off it by the wrapped stack)
+    await check('S2 C1 top and way down', async () => {
+      await put(-11.0, 0, 1.8, PI / 2);
+      const a = await attach('ledge', -10.5, 4.4, 1.8);
+      assert(a.attached && Math.abs(a.grip - 4.4) < 0.05, `S2 C1: hanging on R3S's west lip (${JSON.stringify(a)})`);
+      await tap(BTN.Y);
+      await step(1.6);
+      const s = await info();
+      assert(s.grounded && Math.abs(s.y - 4.4) < 0.1, `S2 C1: the climb-up onto R3S's top (${JSON.stringify([s.x, s.y, s.z])})`);
+      let d = await walk(-PI / 2, 3, (q) => q.grounded && q.y < 0.3);
+      if (!(d.y < 0.3)) {
+        await tap(BTN.Y);
+        d = await walk(-PI / 2, 3, (q) => q.grounded && q.y < 0.3);
+      }
+      assert(d.grounded && d.y < 0.3 && d.alive, `S2 C1: way down alone: off the west edge to the A3 floor (${JSON.stringify([d.x, d.y, d.z])})`);
+    });
+    await check('S2 C2 top and way down', async () => {
+      await put(-11.0, 0, 10.0, PI / 2);
+      const a = await attach('ledge', -10.5, 4.4, 10.0);
+      assert(a.attached && Math.abs(a.grip - 4.4) < 0.05, `S2 C2: hanging on R3N's west lip (${JSON.stringify(a)})`);
+      await tap(BTN.Y);
+      await step(1.6);
+      const s = await info();
+      assert(s.grounded && Math.abs(s.y - 4.4) < 0.1, `S2 C2: the climb-up onto R3N's top (${JSON.stringify([s.x, s.y, s.z])})`);
+      let far = -99;
+      let d = await walk(0, 14, (q) => {
+        if (q.y > 4.3 && q.grounded) far = Math.max(far, q.z);
+        return q.grounded && q.y < 0.3;
+      });
+      if (!(d.y < 0.3)) {
+        await tap(BTN.Y);
+        d = await walk(0, 3, (q) => q.grounded && q.y < 0.3);
+      }
+      assert(far > 14.3, `S2 C2: along R3N's top north to its end, under the sheet band (furthest z ${far} at 4.4)`);
+      assert(d.grounded && d.y < 0.3 && d.z > 14.8 && d.alive, `S2 C2: way down alone: off the north end by the wrapped stack (${JSON.stringify([d.x, d.y, d.z])})`);
+    });
+
+    // ---- section 3: the climb-up onto each hung platform (a crouch under the 1.63 m roof), the lip to the main (5.0)
+    // and back, the branch to the main, the ways down alone (let go of the north lip)
+    for (const c of [route('S3 C1'), route('S3 C2')]) {
+      await check(`${c.id}: climb-up and way down`, async () => {
+        await put(c.spot[0], 0, c.spot[1], c.yaw);
+        const a = await attach('ledge', c.lip[0], 4.4, c.lip[2]);
+        assert(a.attached && Math.abs(a.grip - 4.4) < 0.05, `${c.id}: hanging on the north lip (${JSON.stringify(a)})`);
+        await tap(BTN.Y);
+        await step(1.6);
+        const s = await info();
+        assert(!s.attached && s.grounded && Math.abs(s.y - 4.4) < 0.1 && s.crouched, `${c.id}: the climb-up onto the platform ends crouched under the 1.63 m roof (canClimb ${a.canClimb}; ends ${JSON.stringify(s)})`);
+      });
+      await check(`${c.id}: way down`, async () => {
+        await put(c.spot[0], 0, c.spot[1], c.yaw);
+        const a = await attach('ledge', c.lip[0], 4.4, c.lip[2]);
+        assert(a.attached, `${c.id}: on the north lip`);
+        await tap(BTN.B);
+        await step(1.5);
+        const d = await info();
+        assert(!d.attached && d.grounded && d.y < 0.2, `${c.id}: way down alone: let go of the north lip, feet on the floor (${JSON.stringify([d.x, d.y, d.z])})`);
+      });
+    }
+    await check('S3 C1 lip to the main and back', async () => {
+      await put(16.9, 0, 4.75, PI / 2);
+      const a = await attach('ledge', 17.4, 4.4, 4.75);
+      assert(a.attached && a.kind === 'ledge' && Math.abs(a.grip - 4.4) < 0.05, `S3 C1: hanging on the valve platform's west lip (${JSON.stringify(a)})`);
+      let i = await hangJump(-PI / 2);
+      if (!(i.kind === 'pipeH')) i = await hangJump(PI / 2);
+      assert(i.attached && i.kind === 'pipeH' && Math.abs(i.grip - 5.0) < 0.05 && i.along === 'z', `S3 C1: from the west lip the jump up 0.6 m onto the hall main (${JSON.stringify(i)})`);
+      const e = await walk(0, 16, (q) => q.z >= 12.3 || !q.attached);
+      assert(e.attached && e.z >= 12.3, `S3 C1: hand over hand north along the main to z 12.4 (${JSON.stringify([e.x, e.y, e.z])})`);
+      await tap(BTN.B);
+      await step(1.5);
+      const d = await info();
+      assert(!d.attached && d.grounded && Math.abs(d.y - 3.3) < 0.15, `S3 C1: let go: feet on the deck strip at 3.3 (${JSON.stringify([d.x, d.y, d.z])})`);
+      // and back: from the main the drop-across onto the west lip
+      await put(16.4, 0, 4.75, PI / 2);
+      const m = await attach('pipeH', 17.0, 5.0, 4.75);
+      assert(m.attached && m.kind === 'pipeH' && Math.abs(m.grip - 5.0) < 0.05, `S3 C1: on the main beside the platform (${JSON.stringify(m)})`);
+      const b = await hangJump(PI / 2);
+      assert(b.attached && b.kind === 'ledge' && Math.abs(b.grip - 4.4) < 0.05 && b.x > 16.8, `S3 C1: the drop-across from the main back onto the west lip (${JSON.stringify(b)})`);
+    });
+    await check('S3 C2 lip to the branch and the main', async () => {
+      await put(12.8, 0, 4.9, -PI / 2);
+      const a = await attach('ledge', 12.3, 4.4, 4.9);
+      assert(a.attached && a.kind === 'ledge' && Math.abs(a.grip - 4.4) < 0.05, `S3 C2: hanging on the drive platform's east lip (${JSON.stringify(a)})`);
+      const i = await hangJump(PI / 2);
+      assert(i.attached && i.kind === 'pipeH' && Math.abs(i.grip - 5.0) < 0.05 && i.along === 'x', `S3 C2: from the east lip the jump up onto the sprinkler branch (${JSON.stringify(i)})`);
+      const e = await walk(PI / 2, 10, (q) => q.x >= 16.6 || !q.attached);
+      assert(e.attached && e.x >= 16.6, `S3 C2: hand over hand east along the branch to the main (${JSON.stringify([e.x, e.y, e.z])})`);
+      const m = await hangJump(0);
+      assert(m.attached && m.kind === 'pipeH' && Math.abs(m.grip - 5.0) < 0.05 && m.along === 'z', `S3 C2: from the branch's end onto the hall main (${JSON.stringify(m)})`);
+    });
+
+    // ---- the team doors, section by section (each live in turn): bolted at the start; the near side gets no Unbolt,
+    // useBolt is refused and the door stays shut (the stick into it goes nowhere); the far side's Unbolt opens it and the
+    // partner walks through from the near side; a checkpoint restart bolts it again
+    for (let sec = 0; sec < 3; sec++) {
+      await check(`section ${sec + 1} team door`, async () => {
+        const bs = (await G(() => window.__sector.boltInfo())).filter((b) => b.sec === sec);
+        assert(bs.length >= 1 && (await G(() => window.__sector.debug().index)) === sec, `section ${sec + 1} is live and has a team door (${bs.length})`);
+        for (const b of bs) {
+          const tag = `section ${sec + 1} team door ${b.k} (${b.at})`;
+          assert(b.shut && b.locked === true && b.door >= 0, `${tag}: bolted and locked at the start (${JSON.stringify(b)})`);
+          const [ax, az] = b.at;
+          const [sx, sz] = b.side;
+          const past = (i) => (i.x - ax) * sx + (i.z - az) * sz;
+          await put(ax - sx * 0.8, 0, az - sz * 0.8, Math.atan2(sx, sz));
+          const near = await G(([sec, k, door, id]) => {
+            const g = window.__app.current;
+            const n = g.interactables.nearest(g.player.position);
+            const used = window.__sector.useBolt(sec, k);
+            const opened = g.world.doors.open(g.world.doors.list[door], 'quiet');
+            return { nearest: n?.id ?? null, used, opened, it: g.interactables.items.find((q) => q.id === id)?.enabled ?? null };
+          }, [sec, b.k, b.door, b.id]);
+          assert(near.nearest !== b.id && near.used === false && near.opened === false && near.it === true, `${tag}: the near side gets no Unbolt, the bolt and the door refuse (${JSON.stringify(near)})`);
+          const pushed = await walk(Math.atan2(sx, sz), 1.5, () => false);
+          const nb = (await G(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
+          assert(past(pushed) < 0 && nb.shut && nb.locked === true, `${tag}: walking into it from the near side goes nowhere, it stays locked (${past(pushed).toFixed(2)} past the plane)`);
+          await put(ax + sx * 0.8, 0, az + sz * 0.8, Math.atan2(-sx, -sz));
+          const far = await G(([id]) => {
+            const g = window.__app.current;
+            const n = g.interactables.nearest(g.player.position);
+            const ok = n && n.id === id;
+            if (ok) n.onUse(n, 'local');
+            return { nearest: n?.id ?? null, label: n?.label ?? null, it: g.interactables.items.find((q) => q.id === id)?.enabled ?? null };
+          }, [b.id]);
+          const ub = (await G(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
+          assert(far.nearest === b.id && far.label === 'Unbolt' && far.it === false && !ub.shut && ub.locked === false, `${tag}: the far side's Unbolt opens the bolt and the door's lock (${JSON.stringify(far)}, ${JSON.stringify(ub)})`);
+          const op = await G((door) => { const d = window.__app.current.world.doors; return d.open(d.list[door], 'quiet'); }, b.door);
+          await step(1.5);
+          assert(op === true, `${tag}: the door opens now`);
+          await put(ax - sx * 0.8, 0, az - sz * 0.8, Math.atan2(sx, sz));
+          const thr = await walk(Math.atan2(sx, sz), 4, (q) => past(q) > 1.2);
+          assert(past(thr) > 1.2, `${tag}: the partner walks through from the near side (${past(thr).toFixed(2)} m past)`);
+          assert(await G(() => window.__sector.restartCheckpoint()), `${tag}: the checkpoint restart runs`);
+          await step(1.0);
+          const rb = (await G(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
+          const rs = await G(([door, id]) => { const g = window.__app.current; return { target: g.world.doors.list[door].target, it: g.interactables.items.find((q) => q.id === id)?.enabled ?? null }; }, [b.door, b.id]);
+          assert(rb.shut && rb.locked === true && rs.it === true && rs.target === 0, `${tag}: the restart bolts it again, shut, its Unbolt back (${JSON.stringify(rb)}, ${JSON.stringify(rs)})`);
+        }
+        if (sec < 2) {
+          // on into the next section: its objective told done, the connector cycled
+          await G(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+          await step(0.3);
+          const cp = await G((s) => window.__app.current.world.map.sectors[s].connector.checkpoint, sec);
+          await put(cp.x, cp.y, cp.z, cp.yaw);
+          await step(4.8);
+          const d = await G(() => window.__sector.debug());
+          assert(d.index === sec + 1, `on into section ${sec + 2} (${d.index}, ${d.phase})`);
+        }
+      });
+    }
+  });
+}
+
+/**
+ * Two pages over ?net=local in Sector Ops (the host page pumped headless while the client page is in front, the
+ * e2e-ctcourse pattern); `fn` gets the leg helpers. Each route runs on its own: a failed one is reported and the next
+ * still runs.
+ */
+async function coop(title, fn) {
+  console.log(title);
+  const { browser, A, B, errors: [eA, eB], startMode } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4' });
+  let pumping = false;
+  const pump = setInterval(async () => {
+    if (pumping) return;
+    pumping = true;
+    try {
+      await A.evaluate(() => {
+        if (window.__raf === undefined) {
+          window.__raf = 0;
+          const f = () => { window.__raf++; requestAnimationFrame(f); };
+          requestAnimationFrame(f);
+        }
+        const now = performance.now();
+        const last = window.__pumpT ?? now;
+        const idle = window.__pumpRaf === window.__raf;
+        window.__pumpT = now;
+        window.__pumpRaf = window.__raf;
+        if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+      });
+    } catch {}
+    pumping = false;
+  }, 40);
+  const GA = (f, a) => A.evaluate(f, a);
+  const GB = (f, a) => B.evaluate(f, a);
+  const RB = BTN.RB;
+  const holdUntil = async (P, btn, cond, what, arg, timeout = 20000) => {
+    await P.evaluate((b) => window.__pad.set(b, 1), btn);
+    try {
+      await until(P, cond, arg, timeout, what);
+    } finally {
+      await P.evaluate((b) => window.__pad.set(b, 0), btn);
+    }
+  };
+  const padReady = (P) => P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); window.__app.current.player.controller.clearCrouchToggle(); });
+  const crouch = async (P) => {
+    await until(P, () => !window.__app.current.player.controller.crouched, null, 3000, 'stands before the crouch').catch(() => {});
+    await holdUntil(P, BTN.B, () => window.__app.current.player.controller.crouched, 'crouches');
+    await waitSim(150);
+  };
+  const place = (P, x, y, z, yaw) => P.evaluate(([x, y, z, w]) => { const g = window.__app.current; g.team.end(true); g.traversal.reset(); g.player.controller.teleport(new g.player.position.constructor(x, y, z), w); g.player.cam.yaw = w; g.player.cam.pitch = 0; }, [x, y, z, yaw]);
+  const moveHost = async (x, z, yaw, y = 0.1) => {
+    await place(A, x, y, z, yaw);
+    await until(A, ([x, z]) => { const p = window.__app.current.player.controller.pos; return Math.hypot(p.x - x, p.z - z) < 0.4; }, [x, z], 15000, `the host at ${x}, ${z}`);
+  };
+  const moveClient = async (x, z, yaw, y = 0.1) => {
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+    await place(B, x, y, z, yaw);
+    await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.4; }, [x, z], 15000, `the host sees the client at ${x}, ${z}`);
+  };
+  const hostFeet = () => GA(() => { const p = window.__app.current.player.controller.pos; return [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)]; });
+  const clientFeet = () => GA(() => { const r = window.__app.current.net.remotes.values().next().value; return [+r.feet.x.toFixed(2), +r.feet.y.toFixed(2), +r.feet.z.toFixed(2)]; });
+  /** The stick forward (camera at `yaw`) until `cond` on that page. */
+  const walkP = async (P, yaw, cond, arg, what, timeout = 20000) => {
+    await P.evaluate((w) => { window.__app.current.player.cam.yaw = w; window.__pad.axis(0, 0); window.__pad.axis(1, -1); }, yaw);
+    try {
+      await until(P, cond, arg, timeout, what);
+    } finally {
+      await P.evaluate(() => window.__pad.axis(1, 0));
+    }
+  };
+  /** The client crouches at the route's spot facing the lip and offers; the host behind it takes the leg-up. */
+  const legUp = async (c) => {
+    const [x, z] = c.spot;
+    const fx = Math.sin(c.yaw);
+    const fz = Math.cos(c.yaw);
+    await moveClient(x, z, c.yaw);
+    await moveHost(x - fx * 0.8, z - fz * 0.8, c.yaw);
+    await waitSim(500);
+    await padReady(B);
+    await padReady(A);
+    await crouch(B);
+    await holdUntil(B, RB, () => window.__app.current.team.state === 'offer', `${c.id}: the client offers a leg-up`);
+    await until(A, () => !!window.__app.current.team.offer?.boost, null, 8000, `${c.id}: the host is offered the leg-up (a lip in the boost band)`);
+    const b0 = await GA(() => window.__app.current.team.count.boosts);
+    await holdUntil(A, RB, (n) => window.__app.current.team.count.boosts > n, `${c.id}: the host takes the leg-up`, b0);
+    await until(A, (k) => { const t = window.__app.current.traversal; return t.attach.phase === 'on' && t.attach.anchor?.kind === k; }, c.kind, 12000, `${c.id}: the host hangs on the ${c.kind === 'pipeH' ? 'monorail' : 'lip'}`);
+    const a = await GA(() => { const an = window.__app.current.traversal.attach.anchor; return { id: an.id, grip: an.kind === 'ledge' ? an.top : an.hangHeight }; });
+    assert(Math.abs(a.grip - 4.4) < 0.1, `${c.id}: the client's leg-up puts the host on the 4.4 m ${c.kind === 'pipeH' ? 'monorail' : 'lip'} (${a.grip}, host ${JSON.stringify(await hostFeet())})`);
+    await until(B, () => window.__app.current.team.state === 'none', null, 20000, `${c.id}: the booster is free again`);
+    return a;
+  };
+  /** The hanging host offers the relay; the client at `foot` climbs it onto the same lip. */
+  const relay = async (c, lipId, foot) => {
+    await moveClient(foot[0], foot[1], c.yaw);
+    await waitSim(400);
+    const n0 = await GB(() => window.__app.current.team.count.ladders);
+    await holdUntil(A, RB, () => window.__app.current.team.state === 'relayOffer', `${c.id}: the hanging host offers the relay`);
+    await until(B, () => !!window.__app.current.team.offer?.relay, null, 8000, `${c.id}: the client is offered the relay`);
+    await holdUntil(B, RB, (n) => window.__app.current.team.count.ladders > n, `${c.id}: the client climbs the relay`, n0);
+    await until(B, (id) => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.id === id, lipId, 40000, `${c.id}: the client hangs on the same lip`);
+    await until(A, () => window.__app.current.team.state === 'none' && window.__app.current.traversal.attached, null, 8000, `${c.id}: the host is free and still hanging`);
+    assert(true, `${c.id}: the relay: the client climbed the hanging host onto the lip`);
+  };
+  const pullUp = async (P, what) => {
+    await holdUntil(P, BTN.Y, () => !window.__app.current.traversal.attached, `${what}: pulls up`);
+    await until(P, () => window.__app.current.player.controller.grounded, null, 30000, `${what}: stands on top`);
+  };
+  /** The host on top at `top` [x, z, yaw] (facing the drop) drops the rope; the client at `foot` climbs it to the top. */
+  const rope = async (c, top, foot) => {
+    const y0 = (await hostFeet())[1];
+    await GA(([x, y, z, w]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, y, z), w); g.player.cam.yaw = w; }, [top[0], y0 + 0.02, top[1], top[2]]);
+    await until(A, ([x, z]) => { const p = window.__app.current.player.controller.pos; return Math.hypot(p.x - x, p.z - z) < 0.4 && p.y > 4.2; }, [top[0], top[1]], 15000, `${c.id}: the host on the top facing the drop`);
+    await moveClient(foot[0], foot[1], c.yaw);
+    await waitSim(500);
+    await padReady(A);
+    await padReady(B);
+    await holdUntil(A, RB, () => window.__app.current.team.state === 'ropeOffer', `${c.id}: the host drops the rope`);
+    await until(B, () => !!window.__app.current.team.offer?.rope, null, 8000, `${c.id}: the client is offered the rope`);
+    const n0 = await GB(() => window.__app.current.team.count.ropes);
+    await holdUntil(B, RB, (n) => window.__app.current.team.count.ropes > n, `${c.id}: the client takes the rope`, n0);
+    await until(A, () => window.__app.current.team.state === 'ropeHold', null, 8000, `${c.id}: the host holds the rope`);
+    // the stick up until the climber tops out (let go on the step it does, as e2e-ctcourse station 7)
+    const t0 = await GB(() => window.__app.current.team.count.tops);
+    await GB((t0) => {
+      const st = window.__app.current;
+      const orig = st.fixedUpdate.bind(st);
+      st.fixedUpdate = (dt) => {
+        orig(dt);
+        if (st.team.count.tops > t0) {
+          window.__pad.axis(1, 0);
+          st.fixedUpdate = orig;
+        }
+      };
+      window.__pad.axis(1, -1);
+    }, t0);
+    try {
+      await until(B, (t) => window.__app.current.team.count.tops > t, t0, 40000, `${c.id}: the client climbs the rope and tops out`);
+    } finally {
+      await GB(() => window.__pad.axis(1, 0));
+    }
+    await until(A, () => window.__app.current.team.state === 'none', null, 8000, `${c.id}: the holder is free once the partner is up`);
+    await waitSim(400);
+  };
+  /** Both players on the top (4.4): each page's own feet and the host's view of the client. */
+  const bothOnTop = async (c) => {
+    await until(B, () => { const c = window.__app.current.player.controller; return c.grounded && c.pos.y > 4.25; }, null, 8000, `${c.id}: the client stands on the top`);
+    await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r.feet.y > 4.25; }, null, 8000, `${c.id}: the host sees the client on the top`);
+    const h = await hostFeet();
+    const cl = await clientFeet();
+    const cr = await GB(() => window.__app.current.player.controller.crouched);
+    assert(h[1] > 4.3 && h[1] < 4.5 && cl[1] > 4.3 && cl[1] < 4.5, `${c.id}: both players on the 4.4 m top (host ${JSON.stringify(h)}, client ${JSON.stringify(cl)}, client crouched ${cr})`);
+  };
+  /** On into the next section (its objective told done, both players into the connector). */
+  const advance = async (i) => {
+    await GA(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+    const cp = await GA((i) => window.__app.current.world.map.sectors[i].connector.checkpoint, i);
+    await moveClient(cp.x + 0.6, cp.z, cp.yaw, cp.y);
+    await moveHost(cp.x - 0.6, cp.z, cp.yaw, cp.y);
+    await until(A, (n) => window.__sector.debug().index === n, i + 1, 20000, `both inside connector ${i + 1}: section ${i + 2} loads`);
+    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+  };
+  /** The section's team door with two players: the client unbolts it from the far side for both pages; a restart re-bolts it. */
+  const teamDoor = async (sec) => {
+    const bs = (await GA(() => window.__sector.boltInfo())).filter((q) => q.sec === sec);
+    assert(bs.length >= 1 && (await GA(() => window.__sector.debug().index)) === sec, `co-op: section ${sec + 1} is live and has a team door`);
+    for (const b of bs) {
+      const tag = `co-op section ${sec + 1} team door ${b.k}`;
+      assert(b.shut && b.locked === true, `${tag}: bolted at the start (${JSON.stringify(b)})`);
+      await until(B, (d) => window.__app.current.world.doors.list[d].anchor.locked === true, b.door, 8000, `${tag}: the client's door is locked`);
+      const [ax, az] = b.at;
+      const [sx, sz] = b.side;
+      // near side: no Unbolt on the client; its use sent from there by hand is refused by the host (the side test)
+      await moveClient(ax - sx * 0.8, az - sz * 0.8, Math.atan2(sx, sz));
+      await waitSim(800);
+      const near = await GB((id) => {
+        const g = window.__app.current;
+        const n = g.interactables.nearest(g.player.position);
+        const it = g.interactables.items.find((q) => q.id === id);
+        if (it) it.onUse(it);
+        return { mirrored: !!it, on: it?.enabled ?? null, nearest: n?.id ?? null };
+      }, b.id);
+      assert(near.mirrored && near.on === true && near.nearest !== b.id, `${tag}: the client mirrors the Unbolt but is not offered it on the near side (${JSON.stringify(near)})`);
+      await waitSim(1500);
+      const still = (await GA(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
+      const cl0 = await GB((d) => window.__app.current.world.doors.list[d].anchor.locked, b.door);
+      assert(still.shut && still.locked === true && cl0 === true, `${tag}: the client's use from the near side is refused, locked on both pages (${JSON.stringify(still)}, client ${cl0})`);
+      // far side: the client is offered "Unbolt" and uses it
+      await moveClient(ax + sx * 0.8, az + sz * 0.8, Math.atan2(-sx, -sz));
+      await waitSim(800);
+      const far = await GB(() => { const g = window.__app.current; const n = g.interactables.nearest(g.player.position); return { nearest: n?.id ?? null, label: n?.label ?? null }; });
+      assert(far.nearest === b.id && far.label === 'Unbolt', `${tag}: the client on the far side is offered "Unbolt" (${JSON.stringify(far)})`);
+      await GB((id) => { const it = window.__app.current.interactables.items.find((q) => q.id === id); it.onUse(it); }, b.id);
+      await until(A, (id) => { const q = window.__sector.boltInfo().find((r) => r.id === id); return !q.shut && q.locked === false; }, b.id, 8000, `${tag}: the host unbolts it for the client`);
+      await until(B, (d) => window.__app.current.world.doors.list[d].anchor.locked === false, b.door, 8000, `${tag}: the client's door unlocks`);
+      await until(B, (id) => window.__app.current.interactables.items.find((q) => q.id === id)?.enabled === false, b.id, 8000, `${tag}: the client's Unbolt goes off`);
+      assert(true, `${tag}: the client's Unbolt from the far side opens it on both pages`);
+      // a checkpoint restart bolts it again on both pages
+      assert(await GA(() => window.__sector.restartCheckpoint()), `${tag}: the host's checkpoint restart runs`);
+      await until(A, (id) => { const q = window.__sector.boltInfo().find((r) => r.id === id); return q.shut && q.locked === true; }, b.id, 8000, `${tag}: the restart bolts it again (host)`);
+      await until(B, (d) => window.__app.current.world.doors.list[d].anchor.locked === true, b.door, 8000, `${tag}: the client's door is locked again`);
+      await until(B, (id) => window.__app.current.interactables.items.find((q) => q.id === id)?.enabled === true, b.id, 8000, `${tag}: the client's Unbolt is back`);
+      assert(true, `${tag}: the restart re-bolts it on both pages`);
+    }
+  };
+  const leg = async (name, f) => {
+    try {
+      await f();
+    } catch (e) {
+      failed = true;
+      console.error(`  ROUTE FAIL - ${name}: ${String(e)}`);
+      try {
+        console.error('  host', await teamLog(A));
+        console.error('  client', await teamLog(B));
+      } catch {}
+    } finally {
+      for (const P of [A, B]) await P.evaluate(() => { for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); const g = window.__app.current; g.team.end(true); g.traversal.reset(); }).catch(() => {});
+    }
+  };
+  try {
+    await startMode('sector', 'warehouseOps');
+    await GA(() => { const g = window.__app.current; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    await until(B, () => !!window.__app.current?.player && !!window.__ctdev, null, 15000, 'the client is in the match');
+    await fn({ A, B, GA, GB, legUp, relay, pullUp, rope, bothOnTop, advance, teamDoor, leg, walkP, holdUntil, hostFeet, clientFeet, moveClient, moveHost });
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    clearInterval(pump);
+    all.push(...eA, ...eB);
+    await browser.close();
+  }
+}
+
+if (want(3)) {
+  await coop('sector ops (R): co-op section 1 - the sill (leg-up, relay, onto the deck), the monorail, the mess door', async (h) => {
+    const { A, B, legUp, relay, pullUp, bothOnTop, teamDoor, leg, walkP, holdUntil, hostFeet, clientFeet } = h;
+    await leg('S1 C1', async () => {
+      const c = route('S1 C1');
+      const a = await legUp(c);
+      await relay(c, a.id, [-2.6, -18.6]);
+      await pullUp(A, `${c.id} host`);
+      await pullUp(B, `${c.id} client`);
+      await bothOnTop(c);
+      // the destination: both crouch-walk north under the 1.4 m clearance onto the plant deck (3.3)
+      const deck = () => { const p = window.__app.current.player.controller; return p.grounded && p.pos.y < 3.5 && p.pos.z > -17.4; };
+      await walkP(A, 0, deck, null, `${c.id}: the host crouch-walks onto the deck`);
+      await walkP(B, 0, deck, null, `${c.id}: the client crouch-walks onto the deck`);
+      const hf = await hostFeet();
+      const cf = await clientFeet();
+      assert(Math.abs(hf[1] - 3.3) < 0.1 && Math.abs(cf[1] - 3.3) < 0.15, `${c.id}: both on the plant deck at 3.3 (host ${JSON.stringify(hf)}, client ${JSON.stringify(cf)})`);
+    });
+    await leg('S1 C2', async () => {
+      const c = route('S1 C2');
+      await legUp(c);
+      // over the checker's stop: hand over hand north to the monorail's end, then let go (the way down alone)
+      await walkP(A, 0, () => { const t = window.__app.current.traversal; return !t.attached || window.__app.current.player.controller.pos.z >= -15.85; }, null, `${c.id}: the host goes hand over hand north`);
+      const at = await hostFeet();
+      assert(at[2] >= -15.9, `${c.id}: the host over the checker's stop at the monorail's north end (${JSON.stringify(at)})`);
+      await holdUntil(A, BTN.B, () => !window.__app.current.traversal.attached, `${c.id}: the host lets go`);
+      await until(A, () => { const p = window.__app.current.player.controller; return p.grounded && p.pos.y < 0.3; }, null, 8000, `${c.id}: the host lands on the bay floor`);
+      const d = await hostFeet();
+      assert(d[1] < 0.3 && Math.hypot(d[0] + 11.0, d[2] + 15.7) < 0.7, `${c.id}: way down alone: let go onto the bay floor by (-11.0, -15.7) (${JSON.stringify(d)})`);
+    });
+    await leg('S1 team door', () => teamDoor(0));
+  });
+}
+
+if (want(4)) {
+  await coop('sector ops (R): co-op section 2 - R3S by the rope, R3N by the relay, the VNA gate', async (h) => {
+    const { A, B, legUp, relay, pullUp, rope, bothOnTop, advance, teamDoor, leg } = h;
+    await advance(0);
+    await leg('S2 C1b', async () => {
+      const c = route('S2 C1b');
+      await legUp(c);
+      await pullUp(A, `${c.id} host`);
+      await rope(c, [-8.5, 2.2, PI / 2], [-7.6, 2.2]);
+      await bothOnTop(c);
+    });
+    await leg('S2 C2', async () => {
+      const c = route('S2 C2');
+      const a = await legUp(c);
+      await relay(c, a.id, [-11.0, 10.0]);
+      await pullUp(A, `${c.id} host`);
+      await pullUp(B, `${c.id} client`);
+      await bothOnTop(c);
+    });
+    await leg('S2 team door', () => teamDoor(1));
+  });
+}
+
+if (want(5)) {
+  await coop('sector ops (R): co-op section 3 - the valve platform by the relay, the drive platform by the rope, the lobby door', async (h) => {
+    const { A, B, legUp, relay, pullUp, rope, bothOnTop, advance, teamDoor, leg } = h;
+    await advance(0);
+    await advance(1);
+    await leg('S3 C1', async () => {
+      const c = route('S3 C1');
+      const a = await legUp(c);
+      await relay(c, a.id, [18.0, 5.9]);
+      await pullUp(A, `${c.id} host`);
+      await pullUp(B, `${c.id} client`);
+      await bothOnTop(c);
+    });
+    await leg('S3 C2', async () => {
+      const c = route('S3 C2');
+      await legUp(c);
+      await pullUp(A, `${c.id} host`);
+      await rope(c, [11.8, 5.8, 0], [11.8, 6.5]);
+      await bothOnTop(c);
+    });
+    await leg('S3 team door', () => teamDoor(2));
+  });
 }
 
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');
