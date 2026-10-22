@@ -93,3 +93,11 @@ e2e-darkness maps are unchanged); on the new Sector Ops layout the old rule woul
 Polish: warehouseS2.ts:80 east exit signs may face the wall (yaw pi/2; check in the GPU look); fittings whose radius is
 under their drop; S3 hall intensities up to 1.6; many dead fittings; warehouseOps sits at exactly 8 lights in its worst
 column (the light tests catch an overflow).
+
+## GPU after shots (2026-10-22 ~18:10, laptop hardware GPU, 985b0916)
+`docs/sector-fixes/l/after-*.webp`, `sheet-before-after.webp`; e2e-darkness (GPU) PASS. The roof reads by the moon only;
+the drainpipe lamp is off the pipe; the halls show regular strip rows; s2-aisle's round ceiling disc is a strip now.
+**Polish for Michael's look:** s1-goods-in and s1-workshop now show strong white volumetric cones under the strip lights
+(the fog volume over the new cone strips; visual only, the light meter and guards read the light field, not the fog);
+s3-lobby's wall reads brighter. Tone the strips' volumetric weight or intensity in the visual pass if they read too
+foggy.
