@@ -8,6 +8,8 @@ Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25
 ## State at the switch (2026-10-23 ~00:40, 97% save point; Michael: "I'd suggest stopping around 97% to allow sufficient usage to stop and save all sessions")
 New account live 2026-10-23 ~00:57 (5-hour 0%, resets 05:50); all four sessions resumed ~01:05; full burn to 100% (Michael 01:05). See STATE "Now" top entry for the live state.
 
+**04:58: Character Build (laptop) unreachable (bridge HTTP 409, dropped off ListAgents). Morning for Michael: restart Night Shift | Character Build on the laptop (HANDOFF section 5 prompt) and check its last runs in C:/NightShift/scratch/runs. Until then job leads run their own GPU suites on the desktop lanes (heavy.lock 4191 / heavy2.lock 4192, E2E_JOBS=1, CPU under ~60%).**
+
 **04:34:** 81%, on pace (0.15%/min) for ~99% at the 06:40 reset. 4.66.0 out (train 17 #181 guard-ai S1). Active: CT Core only (mocap-trial-2 Opus rounds A / B / C after checker FIX: 53/188 CT-driven plans; default ON waits for the re-check). Paused to the reset: Menu Notes (next: client wall-switch press never reaches the host in Course mode, a co-op light bug; A2), Course Ready (e2e-sectorops:2 regression, #177 pad light, same client-switch check), Guard AI (S2 light pair never stands down), guard-render step 1. At the reset resume all (CT Core, Menu Notes, Course Ready, Guard AI, Character Build).
 
 **Update 2026-10-23 ~03:21 (window since ~01:40 reset, resets 06:40; 62%, ~0.3-0.4%/min vs 0.19 pace; weekly 11%).**
