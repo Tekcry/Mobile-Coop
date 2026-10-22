@@ -118,6 +118,78 @@ export interface SectorDef {
   routes: SectorRoute[];
   /** (sector-fixes-r RT) Team doors: doors bolted from one side (the course's B2 rule); none when absent. */
   bolts?: readonly SectorBolt[];
+  /** (sector-redesign EW5, A4) Keypad doors: locked until the team holds the code (`SectorKeypad`); none when absent. */
+  keypads?: readonly SectorKeypad[];
+  /** (sector-redesign EW5, A4) Where the codes are found in this section (`SectorIntel`); none when absent. */
+  intel?: readonly SectorIntel[];
+}
+
+/**
+ * (sector-redesign EW5, A4) A keypad door. `at` is the door's plan centre [x, z] (found by position, `Doors.nearest`,
+ * as the team doors). The door starts locked; its keypad ("Enter code", either side) opens it only once the team holds
+ * the flag `code`. Codes are found in the level (`SectorIntel`), never typed. A section restart locks its keypads again.
+ * Guards treat a keypad door as any locked door while it is locked (no guard route uses one).
+ */
+export interface SectorKeypad {
+  readonly at: readonly [number, number];
+  /** The code flag that opens it (any string; several keypads may share one, e.g. the lab block's codes). */
+  readonly code: string;
+}
+
+/**
+ * (sector-redesign EW5, A4) A place a code is found; using it gives the team the flag `grants` and shows `line` once as
+ * a radio subtitle (written to be voiced later, G82; at most `INTEL_LINE_MAX` characters so it fits the co-op feed).
+ * - `overhear`: a player stands in the plan box `box` (feet on `floorY`, default 0) for `hold` s (default
+ *   `OVERHEAR_HOLD`) in a row while a talking pair is in earshot (the pair is the map's guard data, not checked here).
+ * - `board`: a readable board at `at` [x, y, z] (a "Read" item, held `BOARD_READ` s).
+ * - `objective`: the section's own objective is done (the S2 BMS hack gives the lab block's codes).
+ */
+export type SectorIntel =
+  | { readonly kind: 'overhear'; readonly grants: string; readonly line: string; readonly box: PlanBox; readonly floorY?: number; readonly hold?: number }
+  | { readonly kind: 'board'; readonly grants: string; readonly line: string; readonly at: readonly [number, number, number]; readonly yaw?: number }
+  | { readonly kind: 'objective'; readonly grants: string; readonly line: string };
+
+/** (EW5) A keypad is used from this far (m) of the door centre, and held this long (s). */
+export const KEYPAD_REACH = 1.6;
+export const KEYPAD_HOLD = 1;
+/** (EW5) An overheard code takes this long (s) in the zone, unless the intel sets `hold`. */
+export const OVERHEAR_HOLD = 4;
+/** (EW5) A board is read in this long (s). */
+export const BOARD_READ = 1;
+/** (EW5) The longest intel line: the co-op `feed` event's text cap (`net/protocol.ts`). */
+export const INTEL_LINE_MAX = 60;
+
+/** (EW5) The keypad item id of section `sec`'s keypad `k` (`c-`: first in the co-op item list, as the bolts). */
+export function keypadItemId(sec: number, k: number): string {
+  return `c-skey-${sec}-${k}`;
+}
+
+/** (EW5) The "Read" item id of section `sec`'s board intel `k`. */
+export function intelItemId(sec: number, k: number): string {
+  return `c-sintel-${sec}-${k}`;
+}
+
+/**
+ * (EW5) A section's keypads and intel against the rules (empty when fine): every keypad's code is found somewhere a
+ * solo player can reach first (an intel in an earlier section, or an overhear / board intel in its own section: its own
+ * objective may sit behind the keypad), every line fits `INTEL_LINE_MAX`, every overhear hold is above 0.
+ */
+export function checkSectorCodes(defs: readonly SectorDef[]): string[] {
+  const out: string[] = [];
+  const earlier = new Set<string>();
+  for (const d of defs) {
+    const here = new Set<string>();
+    d.intel?.forEach((n, k) => {
+      if (n.kind !== 'objective') here.add(n.grants);
+      if (n.line.length > INTEL_LINE_MAX) out.push(`${d.id}: intel ${k} line is over ${INTEL_LINE_MAX} characters`);
+      if (n.kind === 'overhear' && !((n.hold ?? OVERHEAR_HOLD) > 0)) out.push(`${d.id}: intel ${k} overhear hold is not above 0`);
+    });
+    d.keypads?.forEach((p, k) => {
+      if (!earlier.has(p.code) && !here.has(p.code)) out.push(`${d.id}: keypad ${k} code '${p.code}' is not found before it`);
+    });
+    for (const n of d.intel ?? []) earlier.add(n.grants);
+  }
+  return out;
 }
 
 /**
@@ -299,6 +371,7 @@ export function checkSectors(defs: readonly SectorDef[]): string[] {
     });
     out.push(...checkSectorGuards(d));
   }
+  out.push(...checkSectorCodes(defs));
   return out;
 }
 

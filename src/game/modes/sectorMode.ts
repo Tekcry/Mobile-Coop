@@ -17,8 +17,11 @@ import {
   CONN_UNLOAD,
   CONN_UNLOCK_FAR,
   CONN_UNLOCK_NEAR,
+  BOARD_READ,
   BOLT_DEPTH,
   BOLT_REACH,
+  KEYPAD_HOLD,
+  KEYPAD_REACH,
   SECTOR,
   SECTOR_REINFORCE_KIND,
   SECTOR_RESTART_TITLE,
@@ -27,6 +30,8 @@ import {
   boltHalfSpan,
   boltItemId,
   exitZone,
+  intelItemId,
+  keypadItemId,
   inDoorway,
   inZone,
   sectorInfoHtml,
@@ -37,6 +42,7 @@ import {
 } from '../sectors';
 import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
+import { SectorCodes, inOverhear } from '../sectorKeypads';
 import { markCompleted } from '../../save/sectorRecord';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
@@ -67,6 +73,21 @@ interface BoltIt {
   /** (sector-fixes-r2 nav) Its closure on the host's nav grid (-1: none, a client or no door). */
   nav: number;
 }
+/** (sector-redesign EW5) A keypad door's item and its door (found by position at the start). */
+interface KeyIt {
+  sec: number;
+  k: number;
+  it: Interactable;
+  door: DoorState | null;
+  /** Its closure on the host's nav grid while locked (-1: none). */
+  nav: number;
+}
+/** (EW5) The keypad's prompt with the code and without it. */
+const KEYPAD_LABEL = 'Enter code';
+const KEYPAD_LABEL_NONE = 'Keypad - code needed';
+/** (EW5) A board intel's prompt. */
+const BOARD_LABEL = 'Read';
+
 /** (sector-fixes-r2 nav) A bolted door's nav closure: the door width plus this along (m), and this half depth across. */
 const BOLT_NAV_ALONG = 0.5;
 const BOLT_NAV_ACROSS = 0.35;
@@ -107,6 +128,11 @@ export class SectorMode implements GameMode {
   /** (sector-fixes-r RT) The team doors: which bolts are shut, and their items. */
   readonly bolts: SectorBolts;
   private readonly boltIts: BoltIt[] = [];
+  /** (sector-redesign EW5, A4) The keypad codes the team holds (host / solo), the keypad items and the board items. */
+  readonly codes: SectorCodes;
+  private readonly keyIts: KeyIt[] = [];
+  private readonly boardIts: { sec: number; k: number; it: Interactable }[] = [];
+  private readonly granted: number[] = [];
   /** Run time (s) for the result. */
   private t = 0;
   private secT = 0;
@@ -127,6 +153,7 @@ export class SectorMode implements GameMode {
   constructor(private g: GameState) {
     this.run = new SectorRun(g.world.map.sectors ?? []);
     this.bolts = new SectorBolts(this.run.defs);
+    this.codes = new SectorCodes(this.run.defs);
   }
 
   start(): void {
@@ -145,6 +172,7 @@ export class SectorMode implements GameMode {
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     this.findDoors();
     this.findBolts();
+    this.findKeypads();
     const s = this.run.current;
     if (s) {
       g.player.controller.teleport(new Vector3(s.start.x, s.start.y, s.start.z), s.start.yaw);
@@ -189,12 +217,7 @@ export class SectorMode implements GameMode {
         if (door) this.lockDoor(door, true);
         else console.warn(`[sector] ${s.id}: no door at bolt ${k} (${b.at[0]}, ${b.at[1]})`);
         // (sector-fixes-r2 nav) guards route round a bolted door: its doorway is shut on the nav grid (host / solo)
-        let nav = -1;
-        if (door && g.nav) {
-          const a = door.anchor;
-          nav = g.nav.addClosure(b.at[0], b.at[1], BOLT_NAV_ACROSS, (a.width + BOLT_NAV_ALONG) / 2, a.yaw, a.hinge.y);
-          g.nav.setClosed(nav, true);
-        }
+        const nav = this.navClose(door, b.at);
         if (!ints) return;
         const y = door ? door.anchor.hinge.y : 0;
         const it = ints.add(boltItemId(sec, k), 'door', new Vector3(b.at[0], y, b.at[1]), 'Unbolt', 0);
@@ -240,6 +263,132 @@ export class SectorMode implements GameMode {
     }
     // (sector-fixes-r fix) the re-bolted locks reach the client on the next step's sector send
     this.secT = 0;
+  }
+
+  /** (sector-fixes-r2 nav) A locked door's closure on the host's nav grid (shut now), so guards route round it; -1 none. */
+  private navClose(door: DoorState | null, at: readonly [number, number]): number {
+    const nav = this.g.nav;
+    if (!door || !nav) return -1;
+    const a = door.anchor;
+    const id = nav.addClosure(at[0], at[1], BOLT_NAV_ACROSS, (a.width + BOLT_NAV_ALONG) / 2, a.yaw, a.hinge.y);
+    nav.setClosed(id, true);
+    return id;
+  }
+
+  /**
+   * (sector-redesign EW5, A4) The keypad doors: each locked (a nav closure, as a team door), with a keypad item at the
+   * door centre ("Enter code" once the team holds the code, else "Keypad - code needed"; either side), and each board
+   * intel's "Read" item. Host / solo only (the client mirrors the items and the door locks, `lk`; its use comes back as
+   * `use`).
+   */
+  private findKeypads(): void {
+    const g = this.g;
+    const ds = g.world.doors;
+    const ints = g.interactables;
+    this.run.defs.forEach((s, sec) => {
+      s.keypads?.forEach((p, k) => {
+        const door = ds.nearest(p.at[0], p.at[1], DOOR_FIND);
+        if (door) this.lockDoor(door, true);
+        else console.warn(`[sector] ${s.id}: no door at keypad ${k} (${p.at[0]}, ${p.at[1]})`);
+        const nav = this.navClose(door, p.at);
+        if (!ints) return;
+        const y = door ? door.anchor.hinge.y : 0;
+        const it = ints.add(keypadItemId(sec, k), 'door', new Vector3(p.at[0], y, p.at[1]), KEYPAD_LABEL_NONE, KEYPAD_HOLD, 0);
+        it.reach = KEYPAD_REACH;
+        it.onUse = (u, by) => this.enterCode(sec, k, u, by);
+        ints.setEnabled(it, true);
+        this.keyIts.push({ sec, k, it, door, nav });
+      });
+      s.intel?.forEach((n, k) => {
+        if (n.kind !== 'board' || !ints) return;
+        const it = ints.add(intelItemId(sec, k), 'intel', new Vector3(n.at[0], n.at[1], n.at[2]), BOARD_LABEL, BOARD_READ, n.yaw ?? 0);
+        it.onUse = () => {
+          if (this.codes.grant(sec, k)) this.learned(sec, k);
+        };
+        ints.setEnabled(it, true);
+        this.boardIts.push({ sec, k, it });
+      });
+    });
+    this.keypadLabels();
+  }
+
+  /** (EW5) A keypad was used (`by` as `unbolt`): with the code, its door unlocks for both and the item goes off. */
+  private enterCode(sec: number, k: number, it: Interactable, by?: string): void {
+    const local = by === undefined || by === 'local';
+    if (!this.codes.useKeypad(sec, k)) {
+      // no code yet: the hold starts again, and the user is told
+      it.progress = 0;
+      if (local && !this.codes.isOpen(sec, k)) this.g.hud.feedItem('Locked - find the code', 'warn');
+      return;
+    }
+    const q = this.keyIts.find((x) => x.sec === sec && x.k === k);
+    if (!q) return;
+    if (q.door) this.lockDoor(q.door, false);
+    if (q.nav >= 0) this.g.nav?.setClosed(q.nav, false);
+    this.g.interactables?.setEnabled(q.it, false);
+    // the client's door lock rides the next sector send: send it now
+    this.secT = 0;
+    if (local) this.g.hud.feedItem('Code accepted');
+  }
+
+  /** (EW5) Intel k of section sec gave its code: the line once as a radio subtitle (G82), to the co-op client too. */
+  private learned(sec: number, k: number): void {
+    const n = this.codes.intel(sec, k);
+    if (!n) return;
+    for (const b of this.boardIts) if (b.sec === sec && b.k === k && b.it.enabled) this.g.interactables?.setEnabled(b.it, false);
+    this.g.hud.barks.say('lantern', n.line, true);
+    this.g.net?.radioLine?.(n.line);
+    this.keypadLabels();
+  }
+
+  /** (EW5) Each keypad's prompt from the codes held. */
+  private keypadLabels(): void {
+    for (const q of this.keyIts) {
+      const p = this.run.defs[q.sec]!.keypads![q.k]!;
+      q.it.label = this.codes.has(p.code) ? KEYPAD_LABEL : KEYPAD_LABEL_NONE;
+    }
+  }
+
+  /** (EW5, A50) A section restart: its codes dropped, its intel found again, its keypad doors locked again. */
+  private rekey(sec: number): void {
+    const shut = this.codes.restart(sec);
+    for (const q of this.keyIts) {
+      if (q.sec !== sec) continue;
+      if (shut.includes(q.k)) {
+        if (q.door) this.lockDoor(q.door, true);
+        if (q.nav >= 0) this.g.nav?.setClosed(q.nav, true);
+      }
+      q.it.progress = 0;
+      if (!q.it.enabled) this.g.interactables?.setEnabled(q.it, true);
+    }
+    for (const b of this.boardIts) if (b.sec === sec && !b.it.enabled) this.g.interactables?.setEnabled(b.it, true);
+    this.keypadLabels();
+    this.secT = 0;
+  }
+
+  /** (EW5) The overhear intel of the live section: a living player in the zone long enough learns its code. */
+  private overhearStep(dt: number, sec: number, s: SectorDef): void {
+    const list = s.intel;
+    if (!list) return;
+    const refs = this.g.playerRefsInto(this.refs);
+    for (let k = 0; k < list.length; k++) {
+      const n = list[k]!;
+      if (n.kind !== 'overhear' || this.codes.got[sec]![k]) continue;
+      let inside = false;
+      for (let i = 0; i < refs.length && !inside; i++) {
+        const r = refs[i]!;
+        if (r.target.alive && inOverhear(n, r.feet.x, r.feet.y, r.feet.z)) inside = true;
+      }
+      if (this.codes.hear(sec, k, dt, inside)) this.learned(sec, k);
+    }
+  }
+
+  /** Test hook (e2e): this machine's player uses section `sec`'s keypad `k`. True when its door unlocked. */
+  useKeypad(sec: number, k: number): boolean {
+    const q = this.keyIts.find((x) => x.sec === sec && x.k === k);
+    if (!q || !q.it.enabled) return false;
+    this.enterCode(sec, k, q.it, 'local');
+    return this.codes.isOpen(sec, k);
   }
 
   /** Test hook (e2e): this machine's player uses section `sec`'s bolt `k` (the side test applies). */
@@ -347,6 +496,8 @@ export class SectorMode implements GameMode {
   private objectiveDone(s: SectorDef): void {
     const g = this.g;
     if (this.run.phase === 'objective' && !this.run.objectiveDone()) return;
+    // (EW5) an objective that gives codes (the S2 BMS hack): each once
+    for (const k of this.codes.objectiveDone(this.run.index, this.granted)) this.learned(this.run.index, k);
     g.stats.objectives++;
     g.stats.score += 500;
     g.style.record('objective', g.detected);
@@ -506,6 +657,8 @@ export class SectorMode implements GameMode {
     this.restarts++;
     // (sector-fixes-r RT) the section's team doors are bolted again (a clean retry)
     this.rebolt(this.run.index);
+    // (EW5, A50) the codes found in this section go, and its keypad doors lock again
+    this.rekey(this.run.index);
     this.unloadSection();
     // (M9) a clean start: the guards' shared memory back at its match-start state (alarm, last known position, sighting
     // flags, clocks), and the players' side: the section's loadout reloaded, gadgets and grenades out in the world gone,
@@ -575,6 +728,7 @@ export class SectorMode implements GameMode {
     }
     const s = this.run.current;
     if (!s) return;
+    this.overhearStep(dt, this.run.index, s);
     if (this.run.phase === 'objective' && this.run.downloading) {
       const o = s.objective;
       const refs = g.playerRefsInto(this.refs);
@@ -663,6 +817,9 @@ export class SectorMode implements GameMode {
       doors: this.doors.map((k) => ({ near: locked(k.near), far: locked(k.far), seal: k.seal.map((x) => x.anchor.locked) })),
       live: this.ct?.liveSection ?? null,
       bolts: this.bolts.shut.map((row) => row.slice()),
+      codes: this.codes.codes(),
+      keypads: this.codes.open.map((row) => row.slice()),
+      keypadLocked: this.keyIts.map((q) => (q.door ? q.door.anchor.locked : null)),
       ...this.result(),
     };
   }
