@@ -13,7 +13,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   without "build" serves whatever dist the slot worktree holds: always build.
 - IN FLIGHT at the save (session-bound bash chains die in the swap; a runner already started keeps going). On resume
   read each summary.txt; no DONE = rerun with the same steps:
-  4189 ALONE (queue-1023f.sh): guardrender-s0cap-0b4805a4 (4.68.0 baseline: build; scripts/guard-cap.mjs --counts=0,12,16,24
+  4189 ALONE (queue-1023f.sh): guardrender-s0cap-0b4805a4 DONE (4.68.0 baseline: build; scripts/guard-cap.mjs --counts=0,12,16,24
   --cells=patrol,away,alert --maps=sectorops,ctcourse --out=C:/NightShift/scratch/work/guardrender-s0-base) -> then
   marlowcap-5100141d (Menu Notes "before" baseline: build; node C:/NightShift/scratch/work/guard-cap-spots.mjs
   --maps=ctcourse:course --counts=0,12 --gfx=epic --viewport=1920x1080 --warm=5 --secs=10 --spots=a8hall:112,0.05,69,90
@@ -27,7 +27,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   orchestrator; coop + ctcourse already pass on the desktop).
 - GUARD-RENDER:
   S1 668d623d DONE + measured (f1bdb3ba docs/guard-render/run-s1, run-s1-off): 24 facing sectorops frame 9.7 -> 7.1 ms,
-  render CPU 7.6 -> 4.9, GPU 6.7 -> 5.5, active 1429 -> 493; ctcourse 9.2 -> 6.3. Next: compare with s0 base, look
+  render CPU 7.6 -> 4.9, GPU 6.7 -> 5.5, active 1429 -> 493; ctcourse 9.2 -> 6.3. S0 base 4.68.0 DONE (e46693de
+  run-s0-base: sectorops 10.1 ms, ctcourse 9.5 = merge-off, so the off path is the true baseline). Next: look
   check shots (normal / thermal / NV, one guard on vs off), changelog fragment, TESTING.md, systems doc, PR (merge
   origin/master first).
   S5 1b895175: checker PASS WITH NOTES (L2 dropped), CT Core OK. PR after S1 (stacked): merge master, rerun
