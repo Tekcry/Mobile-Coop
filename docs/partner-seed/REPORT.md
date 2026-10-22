@@ -14,10 +14,9 @@ MoveState speed (clamped 0..12) and the stride heading from the from->to directi
 ## Tests
 - vitest tests/remoteAvatarSeed.test.ts: 8 passed. tsc --noEmit and eslint on the changed files: clean.
 - The unit test drives the pure helpers off a SnapshotBuffer; no test builds a full RemoteAvatar (needs a World).
-- e2e-coop / e2e-netmove: NOT RUN. heavy2.lock was held by another job (Course Ready | sector-redesign slice 1).
+- e2e-coop / e2e-netmove (E2E_GPU=1, laptop, Character Build, 5fa702d2 with master 4.68.0): e2e-coop ok 95 s, e2e-netmove ok 179 s (max joint error 7.6 cm, drawn 0.5 cm).
 
 ## Open items
-- Run e2e-coop then e2e-netmove one at a time on the second lane (port 4192, heavy2.lock) before merge.
 - Seeding only applies when a MoveState is present; a state with no `mv` keeps the old ease from 0.
 
 ## Changelog line
