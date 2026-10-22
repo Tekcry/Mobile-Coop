@@ -67,6 +67,22 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 08:40 SAVED for the account swap (window ~79%+). WIP commit "WIP A4-A7 greybox (agents mid-work, UNCHECKED)" holds
+  a4GoodsShed / a5Substation / a6PumpHouse / a7DataHall .ts + tests + light.json as the agents left them; A8 had not
+  written yet. On resume: for each of A4-A8 read the set file and its test; if the agent's report (slices/S4-S8.md) is
+  missing, rerun that set's builder with the SET BRIEF below (A4 Sonnet ok; A5-A8 Opus), telling it to continue from
+  the WIP. Then per set: Opus checker (S<n>-check.md), dressing (Sonnet, A1 / A2 dressing as the example), e2e parts
+  :2-:4 via the scratchpad-style script in the clean run worktree C:/NightShift/Mobile-Coop-marlow-final-run (heavy.lock,
+  port 4191, E2E_GPU=1; recreate the script from the 07:40 note if the scratchpad is gone).
+  SET BRIEF (copy into each builder): owned files = src/world/maps/ctcourseSets/<set>.ts, tests/ctcourse/<set>.test.ts,
+  tests/ctcourse/<set>.light.json, scripts/e2e-ctcourse/<set>.mjs, docs/marlow-final/slices/S<n>.md; the spec is
+  docs/marlow-final/sets/<set>.md (section 13 overrides SPEC); worked examples A1-A3 (set files, tests, e2e modules,
+  S1-S3.md, S1-check / S2-check / S-switch.md); API S0d.md 128-168, types.ts, S0-course.md, S0-devices.md; co-op pieces
+  via ctcourseGreybox.ts (GREYBOX-HELPERS.md); lights marlowCircuits.ts + LIGHTING-PLAN 3; rules: armed guard kinds,
+  no src/ai edits, cameras IR, waits never 0 (0.1 s until guard-ai PR #185 lands), at most 3 guards, every lamp grouped;
+  e2e lessons: hang let-go only at attach.phase 'on'; doors opened by use('door-<anchor>') and asserted open on both
+  pages; client presses within reach; lure waits only within 25 m; asserts that can fail; checks: tsc, eslint, vitest
+  on the set test + ctcourse, ctcourseLight, facility, voxelFit, levelFillParity (never loosen a test).
 - 08:35 A3 greybox IN (7286d6c6; slices/S3.md; 43 A3 tests). Job lead: tests/ctcourse.test.ts lets house lamps stand
   in A3's lobbies (group 34; LIGHTING-PLAN's own rows; A3-C4 table change is the undo). A3 moved office 3's corridor
   door to x 91.4-92.6 (the camera's vertical frame missed a crouched head at the doc's x 94: simulated, tested).
