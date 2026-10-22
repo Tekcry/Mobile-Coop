@@ -208,9 +208,11 @@ try {
       await leak.send('Runtime.releaseObjectGroup', { objectGroup: 'leak' });
       return r.value;
     };
+    // (load-latent-ui2) up to 60 s, a count after every 2 rendered frames: the release runs on the page's frames, which a
+    // loaded CPU slows far past the old fixed 20 x 500 ms
     const result = { value: await count() };
-    for (let i = 0; i < 20 && result.value !== 0; i++) {
-      await page.waitForTimeout(500);
+    for (const t0 = Date.now(); result.value !== 0 && Date.now() - t0 < 60000; ) {
+      await frames(page, 2);
       result.value = await count();
     }
     assert(result.value === 0, `no match is kept in memory after it ends (${result.value} left)`);
@@ -267,7 +269,8 @@ try {
     assert(m.item >= (m.W - m.w) / 2 - 1, `${label}: the menu sits inside it (x ${m.item.toFixed(0)})`);
     if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-menu.png` });
     await P.goto(url + '?autostart=warehouse&mode=sandbox&gfx=min');
-    await P.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
+    // (load-latent-ui2) 120 s, as the other match loads: the shaders compile on the loading screen first
+    await P.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 120000 });
     await GA(() => window.__app.settings.update((d) => { d.video.fovH = 100; d.video.maxFov = 120; }));
     await frames(P, 4);
     const v = await GA(() => {
