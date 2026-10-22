@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 08:20 Guard AI: `MapLayout.guardAi` (zones / noisy / entries / squads) and `SquadSlot.post` / `profile` types are on
+  feature/guard-ai 971711c4 (src/ai/guardAiData.ts, posts.ts); the PatrolWalker wait-0 freeze is fixed in PR #185. Both
+  reach master with the next guard-ai PR: after merging master, fill guardAi per set (zones per set, A5 / A6 noisy
+  machinery, A4 / A8 posts, A1 checker leash 0) and set the 0.1 s waits back to 0 (A2, others).
 - 08:15 e2e-ctcourse:1 GREEN on the desktop (clean run worktree, 12919c85, E2E_GPU=1): A1 (leg-up, hang-drop, bolt,
   restart, relay variant, client yard switch) and A2 (isolator crossings, re-arm, restart) pass on two pages. A2's
   dressing (4827cc7d) came after: rerun :1 with the next batch.
