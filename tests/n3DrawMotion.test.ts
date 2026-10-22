@@ -9,7 +9,7 @@ import { DRAW_BEAT, DRAW_CUR, DRAW_MOTION, drawArrive, drawEase, drawEnter, draw
 import { DRAW_SECTION, DRAW_TIME_MUL, drawTuneApply } from '../src/weapons/drawTune';
 import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
 import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM, HOLSTER_TIME_MOVE, HOLSTER_TIME_PRIMARY, HOLSTER_TIME_SIDEARM } from '../src/weapons/drawState';
-import { STANCE } from '../src/player/weaponStance';
+import { STANCE, StrikeTrigger } from '../src/player/weaponStance';
 import { drawHarness, DT, type DrawHarness, type DrawSample } from './helpers/drawHarness';
 import { DRAW_SCENARIOS, runScenario } from './helpers/drawScenarios';
 
@@ -200,6 +200,31 @@ function jerk(s: readonly DrawSample[], i: number, k: K): number {
   return Math.sqrt(sum);
 }
 
+/** The gun's direction (grip to muzzle, world, unit) of sample `s` into `o`. */
+function gunDir(s: DrawSample, o: Float64Array, k: number): void {
+  const x = s.mx - s.gx;
+  const y = s.my - s.gy;
+  const z = s.mz - s.gz;
+  const l = Math.sqrt(x * x + y * y + z * z);
+  o[k] = x / l;
+  o[k + 1] = y / l;
+  o[k + 2] = z / l;
+}
+const dirs = new Float64Array(9);
+/** The change of the gun direction's one-frame step into frame i (rad, small angles): a snap in its turn. */
+function angJerk(s: readonly DrawSample[], i: number): number {
+  if (s[i]!.gun !== s[i - 1]!.gun || s[i - 1]!.gun !== s[i - 2]!.gun) return 0;
+  gunDir(s[i - 2]!, dirs, 0);
+  gunDir(s[i - 1]!, dirs, 3);
+  gunDir(s[i]!, dirs, 6);
+  let sum = 0;
+  for (let k = 0; k < 3; k++) sum += (dirs[6 + k]! - 2 * dirs[3 + k]! + dirs[k]!) ** 2;
+  return Math.sqrt(sum);
+}
+/** The muzzle's turn may change by at most this in a frame (deg); the turn back of a draw holstered mid-way (frames). */
+const ANG_JERK = 15;
+const TURN_MAX = 10;
+
 /** Final pose on master ea3399ed after 200 frames (chest frame, m): grip x y z, muzzle x y z. */
 const LOW_RIFLE = [0.1188, 0.0141, 0.2528, -0.2012, -0.2528, 0.7046];
 const AIM_RIFLE = [0.1361, 0.3055, 0.2168, 0.0186, 0.5761, 0.7559];
@@ -221,7 +246,8 @@ const MASTER_FINAL: Record<string, readonly number[]> = {
 describe('the real rig: draw, holster, swap and low ready to aim are one continuous move (NullEngine)', () => {
   for (const sc of DRAW_SCENARIOS) {
     it(sc.name, async () => {
-      const s = await runScenario(sc, 200);
+      const { REWIND_QUICK } = await import('../src/weapons/playerWeapons');
+      const s = await runScenario(sc, sc.frames ?? 200);
       const f = s[s.length - 1]!;
       // the move's end: the swap clock's last frame (a holster: the gun seated); the settle: from where the grip stays
       // within 2 cm of its final place (chest frame)
@@ -237,20 +263,59 @@ describe('the real rig: draw, holster, swap and low ready to aim are one continu
       const c = (i: number): number => Math.max(speed(s, i, 'w'), speed(s, i, 'g'));
       let first = 1;
       while (first < s.length && c(first) < 0.3) first++;
-      // no stop between the start and the settle: never 3 frames (50 ms) in a row with the hand and the gun both under
-      // 0.15 m/s (master: the gun held 0.08-0.17 s at the clip's level pocket, then moved again)
-      let run = 0;
+      // (a holster's end is the seat: the gun comes to rest in its slot before the hand lets go; a draw holstered mid-way
+      // seats the gun before its clock ends, the reach let go last: its last frame with the gun moving)
+      let stop = end > 0 ? Math.min(settle, end - 3) : settle;
+      const back = (sc.name.includes('mid-draw') || sc.name.startsWith('redraw')) && sc.then ? sc.then.at : -1;
+      if (back >= 0 && sc.name.includes('mid-draw')) {
+        let gMax = 0;
+        for (let i = back; i < s.length; i++) gMax = Math.max(gMax, speed(s, i, 'g'));
+        let seat = s.length - 1;
+        while (seat > back && speed(s, seat, 'g') < 0.1 * gMax) seat--;
+        stop = Math.min(stop, seat + 1);
+      }
+      // (anim-natural N3 fix, check finding 4: was the hand and the gun under 0.15 m/s) no stop between the start and the
+      // settle: never 3 frames (50 ms) in a row with the wrist, the grip and the muzzle all under 10 % of their peak in
+      // the move (master: the gun held 0.08-0.17 s at the clip's level pocket, then moved again). A draw holstered
+      // mid-way is two moves, the draw and its rewind, each with its own peaks; between them the gun turns back and
+      // passes through rest once: that turn may take up to TURN_MAX frames
+      // (a re-draw after the seat: the holster's move ends at its seat, as every holster's; then the hand lets go until X)
+      let endA = back + 1;
+      if (sc.name.startsWith('redraw')) {
+        let e1 = first;
+        while (e1 < back && s[e1]!.swap >= 0) e1++;
+        endA = Math.min(endA, e1 - 3);
+      }
+      const segs = back >= 0 ? [first, endA, back + 1, stop] : [first, stop];
+      const pk = [0, 0, 0];
+      const slow = (i: number): boolean => speed(s, i, 'w') < 0.1 * pk[0]! && speed(s, i, 'g') < 0.1 * pk[1]! && speed(s, i, 'm') < 0.1 * pk[2]!;
       let worst = 0;
       let at = -1;
-      // (a holster's end is the seat: the gun comes to rest in its slot before the hand lets go)
-      const stop = end > 0 ? Math.min(settle, end - 3) : settle;
-      for (let i = first; i < stop; i++) {
-        if (c(i) < 0.15) {
-          run++;
-          if (run > worst) [worst, at] = [run, i];
-        } else run = 0;
+      let turn = 0;
+      for (let g = 0; g + 1 < segs.length; g++) {
+        if (g === 1) continue;
+        const a = segs[g]!;
+        const b = segs[g + 1]!;
+        pk.fill(0);
+        for (let i = a; i < b; i++) {
+          pk[0] = Math.max(pk[0]!, speed(s, i, 'w'));
+          pk[1] = Math.max(pk[1]!, speed(s, i, 'g'));
+          pk[2] = Math.max(pk[2]!, speed(s, i, 'm'));
+        }
+        let run = 0;
+        for (let i = a; i <= b; i++) {
+          if (i < b && slow(i)) {
+            run++;
+            continue;
+          }
+          // the run touching the press that turns the draw back is the turn
+          if (back >= 0 && i - run <= back + 3 && i >= back - 2) turn += run;
+          else if (run > worst) [worst, at] = [run, i - run];
+          run = 0;
+        }
       }
       expect(worst, `${sc.name}: a stop of ${worst} frames at ${(at * DT * 1000).toFixed(0)} ms`).toBeLessThan(3);
+      expect(turn, `${sc.name}: the turn back takes ${turn} frames`).toBeLessThanOrEqual(TURN_MAX);
       // no one-frame jump: the grip's and the wrist's step never changes by more than 3.5 cm in a frame (master: the
       // rifle jumped 28 cm at a swap's press and 11 cm at its hand-off; the pistol's LT draw 7 cm at its end)
       for (const k of ['g', 'w'] as const) {
@@ -262,11 +327,25 @@ describe('the real rig: draw, holster, swap and low ready to aim are one continu
         }
         expect(jmax, `${sc.name}: ${k === 'g' ? 'grip' : 'wrist'} jumps ${(jmax * 100).toFixed(1)} cm at ${(jat * DT * 1000).toFixed(0)} ms`).toBeLessThan(0.035);
       }
-      // the rifle comes off the back at an even turn (master: the muzzle swung 218 deg in 0.2 s, 17 m/s)
+      // the rifle comes off the back at an even turn (master: the muzzle swung 218 deg in 0.2 s, 17 m/s); a draw rewound
+      // for a traversal goes back REWIND_QUICK x the draw's pace, so its muzzle at most that much faster
       if (sc.name.startsWith('draw rifle') || sc.name.includes('mid-draw')) {
         let mx = 0;
         for (let i = 2; i < s.length; i++) mx = Math.max(mx, speed(s, i, 'm'));
-        expect(mx, `${sc.name}: muzzle peak ${mx.toFixed(1)} m/s`).toBeLessThan(10);
+        const lim = sc.name.includes('traversal') ? 10 * REWIND_QUICK : 10;
+        expect(mx, `${sc.name}: muzzle peak ${mx.toFixed(1)} m/s`).toBeLessThan(lim);
+      }
+      // (anim-natural N3 fix, check finding 4) no snap in the gun's turn: the one-frame change of its direction (grip to
+      // muzzle, world) never changes by more than ANG_JERK in a frame (the mid-draw snap into the slot turned it 90+ deg in
+      // a frame; the worst kept move, the swap's hand-off, measures 12.5 deg)
+      {
+        let aj = 0;
+        let ajAt = -1;
+        for (let i = 2; i < s.length; i++) {
+          const j = angJerk(s, i);
+          if (j > aj) [aj, ajAt] = [j, i];
+        }
+        expect(aj * (180 / Math.PI), `${sc.name}: the muzzle's turn jumps ${(aj * (180 / Math.PI)).toFixed(1)} deg at ${(ajAt * DT * 1000).toFixed(0)} ms`).toBeLessThan(ANG_JERK);
       }
       // nothing moves again once it is over (a draw / swap: the gun in its final pose; master: 3-3.8 m/s at the muzzle
       // as the overlay faded); a holster's body carriage settles after it, so only the draws and swaps
@@ -348,14 +427,85 @@ describe('gameplay: what the longer draw and holster gate (anim-natural N3, step
     expect(t).toBeLessThanOrEqual(HOLSTER_TIME_MOVE + 2 * DT);
   });
 
+  it('RT pressed during the holster (0.2 s after X) is kept: the holster finishes as a busy move, the strike starts at the slot', async () => {
+    // (anim-natural N3 fix, check finding 1: armed only when holstered, the press made during the 0.9-1.0 s holster was
+    // dropped) GameState's order per step: the trigger, the strike, then the weapons
+    for (const gun of ['rifle', 'pistol'] as const) {
+      const hol = gun === 'pistol' ? HOLSTER_TIME_SIDEARM : HOLSTER_TIME_PRIMARY;
+      for (const kind of ['tap', 'hold'] as const) {
+        const h = await drawHarness();
+        h.run(40);
+        if (gun === 'pistol') {
+          h.tap('swapNext');
+          h.run(30);
+        }
+        h.tap('draw');
+        h.run(100);
+        const trig = new StrikeTrigger();
+        const press = Math.round(0.2 / DT);
+        const release = kind === 'tap' ? press + 3 : 1e9;
+        h.tap('draw');
+        let phase0 = -1;
+        let at = -1;
+        let res: 'tap' | 'hold' | null = null;
+        let pend = false;
+        for (let k = 0; k < 120; k++) {
+          const ph = h.weapons.drawPhase;
+          trig.update(k >= press && k < release, DT, ph, h.stance.base === 'holstered', false);
+          h.weapons.strikePending = trig.pending;
+          if (k === press + 1) pend = trig.pending;
+          const r = trig.strike(ph);
+          if (ph === 0 && phase0 < 0) phase0 = k;
+          if (r !== null && at < 0) [at, res] = [k, r];
+          h.step();
+        }
+        h.dispose();
+        const name = `${gun} ${kind}`;
+        expect(pend, `${name}: waiting on the holster`).toBe(true);
+        // the rest of the holster runs at the busy move's pace: (1 - 0.2 / holster time) x HOLSTER_TIME_MOVE after the press,
+        // plus the ease onto it (HOLSTER_EASE 0.04 s: switched in a frame, the gun jumped 8 cm)
+        expect((phase0 - press) * DT, `${name}: holstered after the press`).toBeLessThanOrEqual((1 - 0.2 / hol) * HOLSTER_TIME_MOVE + 0.1);
+        expect(phase0 * DT, `${name}: holstered`).toBeLessThan(hol - 0.5);
+        // decided from the press: a tap (let go before the slot) starts as the gun is in its slot; a hold once held
+        // STANCE.rtHold from the press (after the slot here)
+        expect(res, name).toBe(kind);
+        if (kind === 'tap') expect(at, `${name}: starts at the slot`).toBe(phase0);
+        else {
+          expect(at, `${name}: not before the slot`).toBeGreaterThanOrEqual(phase0);
+          expect(Math.abs(at - press - STANCE.rtHold / DT), `${name}: at the hold time from the press`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
   it('the aim camera from low ready keeps its pre-N3 blend; a draw from holstered blends with the draw', async () => {
     const h = await drawHarness();
     h.run(40);
     h.hold('ads', true);
-    h.run(2);
-    // the LT sling draw from holstered: 0.9 x its 1.5 s
-    expect(h.adsInTime()).toBeCloseTo(0.9 * DRAW_TIME_PRIMARY * STANCE.slingDrawLong, 6);
+    // the LT sling draw from holstered: 0.9 x what is left of its 1.5 s, never under the aim's own blend, with no jump
+    // (anim-natural N3 fix, check finding 6: 1.35 s -> 0.27 s in a frame as the draw ended, the dolly sped up mid-way)
+    h.step();
+    const t0 = h.adsInTime();
+    expect(t0).toBeLessThanOrEqual(0.9 * DRAW_TIME_PRIMARY * STANCE.slingDrawLong + 1e-9);
+    expect(t0).toBeGreaterThan(0.9 * (DRAW_TIME_PRIMARY * STANCE.slingDrawLong - 2 * DT));
+    let prev = t0;
+    let dmax = 0;
+    for (let k = 0; k < 120; k++) {
+      h.step();
+      dmax = Math.max(dmax, Math.abs(h.adsInTime() - prev));
+      prev = h.adsInTime();
+    }
+    expect(dmax).toBeLessThan(0.03);
+    expect(h.adsInTime()).toBeCloseTo(0.9 * AIM_IN_PRIMARY, 6);
+    // LT during an X draw: the aim's own blend at once (was 0.9 x the 1.1 s draw until drawn, then 0.27 s)
+    h.hold('ads', false);
+    h.tap('draw');
     h.run(120);
+    h.tap('draw');
+    h.run(10);
+    h.hold('ads', true);
+    h.step();
+    expect(h.weapons.drawPhase).toBe(1);
     expect(h.adsInTime()).toBeCloseTo(0.9 * AIM_IN_PRIMARY, 6);
     h.dispose();
   });

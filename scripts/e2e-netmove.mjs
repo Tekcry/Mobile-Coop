@@ -243,7 +243,7 @@ try {
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; g.player.forceAds = true; });
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return !!r && r.state?.mv?.dw === 2 && !!r.avatar.rig.heldWeapon; }, null, 6000, 'host remote has the weapon in hand');
   await compare('drawn', 'ground');
-  // timestamps taken inside the pages: the client's sim (release to holstered, its own 0.4 s); the host's receipt of
+  // timestamps taken inside the pages: the client's sim (release to holstered, its own class holster time); the host's receipt of
   // the first dw 0 state (stamped as the packet is buffered) and the frame its copy stows the weapon. Network delivery
   // (VM latency) is not the remote pose's behaviour: the check is the client's holster time plus the host's receipt
   // to stow, against the class's holster (anim-natural N3: 1.0 s rifle / 0.9 s pistol, drawState holsterTimeFor) + 0.1 s

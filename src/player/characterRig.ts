@@ -6,7 +6,7 @@ import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
-import { gripClose } from '../anim/drawMotion';
+import { gripClose, smoothInv } from '../anim/drawMotion';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
@@ -838,11 +838,17 @@ export class CharacterRig {
    * fingers close over its last part (`gripClose`).
    */
   travelReach = 1;
+  /** (anim-natural N3 fix) The trigger hand's weight still on `node` as it lets go of it (0: not letting go of it). */
+  releaseOf(node: TransformNode): number {
+    return node === this.relNode ? this.relK : 0;
+  }
   /** (anim-natural N3) The gun the trigger hand is letting go of (put away last frame), its weight left, eased (0..1). */
   private relNode: TransformNode | null = null;
   private relPrev: TransformNode | null = null;
   private relW = 0;
   private relK = 0;
+  /** (anim-natural N3 fix) The trigger hand's weight on the held gun last frame (a release starts from it). */
+  private relFrom = 1;
   /** (anim-natural N3) That gun's grip point (weapon space), and the held gun's, kept each frame. */
   private readonly relGrip = new Vector3();
   private readonly relGripPrev = new Vector3();
@@ -2478,16 +2484,20 @@ export class CharacterRig {
     this.travelHold = this.weaponTravel ? 1 : Math.max(0, this.travelHold - TRAVEL_HOLD_RATE * dt);
     // (anim-natural N3) a draw from the slot reaches first: the hand's weight on the grip rises with the reach
     const travelling = this.weaponTravel;
-    const gripW = this.heldWeapon ? (travelling ? this.travelReach : Math.max(t.grip, this.travelHold)) : 0;
     // (anim-natural N3) a gun just put away (the hands empty, or the next gun taken in a swap): the trigger hand eases off
     // its grip over RELEASE_TIME (its grip point kept: the next gun's replaces `grip` as it is taken)
+    // (anim-natural N3 fix) from the weight the hand had on it (a rewound draw seats the gun with the reach already let
+    // go: the release started at 1 and put the hand back on the grip in a frame); a re-draw while letting go starts its
+    // reach at the release's weight (`releaseOf`, WeaponModel.beginTravel)
     const held = this.heldWeapon;
     const relP = this.relPrev;
     if (relP !== null && held !== relP && !relP.isDisposed() && relP.isEnabled(false)) {
       this.relNode = relP;
-      this.relW = 1;
+      this.relW = smoothInv(this.relFrom);
       this.relGrip.copyFrom(this.relGripPrev);
     } else if (held !== null && held === this.relNode) this.relW = 0;
+    this.relFrom = held !== null && travelling ? this.travelReach : 1;
+    const gripW = this.heldWeapon ? (travelling ? this.travelReach : Math.max(t.grip, this.travelHold)) : 0;
     this.relPrev = held;
     if (held !== null) this.relGripPrev.copyFrom(this.grip);
     const rw = this.relW;

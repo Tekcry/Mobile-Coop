@@ -7,7 +7,7 @@ import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
 import { loadWeaponMesh } from './weaponMesh';
 import { rotInto, type GunVisual } from '../anim/tuneHands';
 import { gearSocketOfSlot, GS } from '../anim/tuneGear';
-import { DRAW_CUR, drawClass, drawEase, drawPath, liftStart, reachWeight, settleAt, turnEase, type DrawClass } from '../anim/drawMotion';
+import { DRAW_CUR, drawClass, drawEase, drawPath, liftStart, reachStart, reachWeight, settleAt, turnEase, type DrawClass } from '../anim/drawMotion';
 import { diagTurn, diagTurnSling, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
@@ -314,6 +314,8 @@ export class WeaponModel {
   private trFromSlot = false;
   /** (anim-natural N3) This draw reaches for the gun in its slot first (a draw from the slot, not a reversal). */
   private trReach = false;
+  /** (anim-natural N3 fix) Where this draw's travel starts (`u`): past 0 when the hand is still on the gun (a re-draw). */
+  private trU0 = 0;
   /** (anim-natural N3) The draw motion class (`DRAW_CUR` row) of this gun. */
   private readonly trCls: DrawClass;
 
@@ -348,7 +350,10 @@ export class WeaponModel {
     this.trDraw = draw;
     this.trSling = sling && draw && this.trFromSlot && useDiagTurn(slot, true, true);
     this.trReach = draw && this.trFromSlot;
-    rig.travelReach = this.trReach ? 0 : 1;
+    // (anim-natural N3 fix) drawn again while the hand still lets go of it (within RELEASE_TIME of the seat): the reach is
+    // that far along already and the gun leaves sooner (it restarted at 0: the hand left the grip, 5-7 cm in a frame)
+    this.trU0 = this.trReach ? reachStart(rig.releaseOf(this.node), DRAW_CUR[this.trCls]) : 0;
+    rig.travelReach = this.trReach ? reachWeight(this.trU0, DRAW_CUR[this.trCls]) : 1;
     this.setVisible(true);
   }
 
@@ -362,6 +367,15 @@ export class WeaponModel {
     const slot = this.trSlot;
     if (!slot) return;
     const g = this.ghost;
+    if (this.trDraw && this.trFromSlot) {
+      // (anim-natural N3 fix) a draw from the slot starts from the slot where it is now (chest frame), not where it was
+      // at the press: the thigh holster moves with the hip, so a draw rewound to the slot (holstered mid-draw) seated the
+      // pistol 7 cm off its holster and it jumped there in a frame
+      this.place(g, rig, slot);
+      rig.torso.computeWorldMatrix(true).invertToRef(trInv);
+      g.computeWorldMatrix(true).multiplyToRef(trInv, trM);
+      trM.decompose(trS, this.trQ0, this.trP0);
+    }
     if (this.trDraw) {
       g.parent = rig.weaponPivot;
       g.position.setAll(0);
@@ -371,7 +385,8 @@ export class WeaponModel {
     g.computeWorldMatrix(true).multiplyToRef(trInv, trM);
     trM.decompose(trS, trQ, trP);
     const m = DRAW_CUR[this.trCls];
-    const uc = u < 0 ? 0 : u > 1 ? 1 : u;
+    const uc0 = u < 0 ? 0 : u > 1 ? 1 : u;
+    const uc = this.trReach ? this.trU0 + (1 - this.trU0) * uc0 : uc0;
     let p: number;
     // (anim-natural N3) a draw from the slot turns the gun at an even rate over its lift / present (drawMotion.turnEase)
     let turn = -1;

@@ -97,3 +97,42 @@ src/game/gameState.ts, src/weapons/playerWeapons.ts, tests/helpers/drawScenarios
   a 0.15 s HOLSTER_TIME_MOVE stow from mid-draw may not fit a 3.5 cm / frame limit at all (decide: a slower traversal
   stow from mid-draw, e.g. the remaining draw time mirrored, or a traversal-specific limit).
 - Then should-fixes 3-4 and the "Then" list above.
+
+## Fix round finished (2026-10-22, implementer) - uncommitted on top of 5348f9be
+`tests/n3DrawMotion.test.ts`: 35 / 35 (was 5 failed / 27 passed of 32). tsc clean, eslint clean, the 36 test files of
+the changed modules pass (444 tests). Not run: full vitest, `npm run check`, e2e (heavy lock).
+- **Fix 2, cause:** two things. (a) The reversal restarted the swap clip at time 0 (a fresh holster) while the draw had
+  entered it at the holstered beat: `drawEnter(st < swapInT)` is 0, so the clip's reach pose (chest turn 0.12 rad, weapon
+  pitch) dropped out in one frame (the 5.3 cm rifle X@0.3 jump; chest-frame grip only 1.7 cm). (b) The new holster travel
+  started from rest (smoothstep) and the 0.15 s traversal holster could not fit. Fix: the draw **rewinds**
+  (`playerWeapons` `startRewind` / `rewindStep`): the swap clock runs back down the draw half to the holstered beat, so
+  the clip, its `drawEnter` / `drawRelease` weights and the gun's draw path all play backwards, turning from the draw's
+  rate to the return over 0.12 s (`REWIND_TURN`), then at the draw's own rate (X: the elapsed draw mirrored); the reach
+  lets go last. The draw state's holster time follows the rewind (`rewHol`) so the phase reaches 0 as the gun seats.
+  Two seat fixes the rewind exposed: the rig's release now starts from the hand's weight on the gun (`relFrom`; it
+  started at 1 and put the hand back on the grip, 11-12 cm), and a draw from the slot starts from the slot where it is
+  now (`WeaponModel.travel`; the thigh moves with the hip, the pistol seated 8-9 cm off and jumped).
+  Grip jumps before (WIP) -> after: rifle X@0.3 5.3 -> 0.6, X@0.6 3.7 -> 0.9, X@0.9 pass -> 0.4, traversal 13.8 -> 1.6;
+  pistol X@0.3 4.8 -> 1.0, X@0.6 pass -> 1.1, X@0.9 pass -> 0.6, traversal 18.2 -> 2.3 cm (the original snap: 4.7-39 cm).
+- **Assumed:** a traversal, busy move, queued strike, attach or forced holster mid-draw rewinds at 2x the draw's pace
+  (`REWIND_QUICK`), easing to 1x as the gun seats (the reach let go at 2x left the wrist 10 cm behind); its rifle muzzle
+  peaks 16.5 m/s, so the muzzle check for the traversal scenarios is 10 x REWIND_QUICK. Undo: `REWIND_QUICK = 1`.
+- **Fix 1:** the queue logic moved into a pure `StrikeTrigger` (weaponStance.ts; GameState uses it, same behaviour as the
+  WIP). New: a holster sped up mid-way (RT queued, or a traversal during an X holster) eases onto HOLSTER_TIME_MOVE
+  (`holS`, tau 0.04 s): it switched in a frame (8.4 cm grip, rifle muzzle 21.6 m/s), now 4.1 cm / 13.5 m/s, holstered
+  0.18 s after RT instead of 0.12 s. Test: rifle / pistol x tap / hold, RT 0.2 s after X.
+- **Should-fix 3:** a draw from the slot while the hand still lets go of the gun starts its travel at the reach point of
+  the release's weight (`drawMotion.reachStart`, `CharacterRig.releaseOf`): the hand never leaves, the gun comes out
+  sooner. Scenarios `redraw rifle / pistol (X again 0.1 s after the seat)`: wrist jump before 4.9 / 7.4 cm, after 1.3 / 1.0.
+- **Should-fix 4:** the stop rule is relative: 3+ frames with the wrist, grip and muzzle all under 10 % of their own peak
+  in the move; a mid-draw holster / re-draw is two moves, and the turn between them (through rest) may take <= 10 frames
+  (measured <= 7); a rewind's window ends at the seat. New check: the muzzle's turn changes by < 15 deg in a frame (worst
+  kept: the swap pistol -> rifle hand-off 12.5 deg). "Low ready to aim" was not a stop (its grip creeps the last 2 cm
+  while the muzzle still turns 1.4 m/s); no real stop found.
+- **Nice-to-haves:** 6 done (LT during an X draw blends at AIM_IN at once; the LT sling draw over what is left of it,
+  never under AIM_IN: no jump at drawn); 9 done (e2e-anim `drawnT` 1.3-1.6, e2e-netmove comment; not run); 10 done.
+  7 / 8 left to the job lead.
+- **Open:** a re-draw (X) during a rewind continues forward from the rewind's backward rate in a frame (no scenario);
+  a swap press during a rewind snaps the gun to its slot (the old mid-draw snap, kept for that corner); a rewind's quick
+  return under a real traversal clip is not measured (the harness plays no traversal body); the G2 0.15 s holster itself
+  (from drawn, for a vault) moves the gun several cm per frame, as before N3.

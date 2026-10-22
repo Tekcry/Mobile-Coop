@@ -1,6 +1,6 @@
 /**
  * (anim-natural N3) The draw / holster / swap motion: one continuous move in believable phases (pure, Babylon-free,
- * unit-tested in `tests/drawMotion.test.ts`; Michael 2026-10-22: "Pulling any weapons out also should be believable, and
+ * unit-tested in `tests/n3DrawMotion.test.ts`; Michael 2026-10-22: "Pulling any weapons out also should be believable, and
  * there's a random stop animation when taking out the weapons before it ends up in its final position").
  *
  * The incoming gun's part of the swap clip runs from the holstered beat (`DRAW_BEAT`, the clip time where a draw from
@@ -67,6 +67,19 @@ const smooth = (x: number): number => {
 /** The hand's IK weight onto the gun's grip at the incoming travel's `u` (eased over the reach). */
 export function reachWeight(u: number, m: DrawMotion): number {
   return m.reach <= 1e-4 ? 1 : smooth(u / m.reach);
+}
+
+/** (anim-natural N3 fix) The smoothstep's inverse on 0..1. */
+export function smoothInv(y: number): number {
+  return y >= 1 ? 1 : y <= 0 ? 0 : 0.5 - Math.sin(Math.asin(1 - 2 * y) / 3);
+}
+
+/**
+ * (anim-natural N3 fix) Where a draw from the slot starts its travel (`u`) when the hand is still on the gun with weight
+ * `w` (letting go of it after a holster): the reach is that far along, never past the lift's start.
+ */
+export function reachStart(w: number, m: DrawMotion): number {
+  return Math.min(liftStart(m), m.reach * smoothInv(w));
 }
 
 /** The travel's `u` at which the gun leaves its slot (the lift's start). */

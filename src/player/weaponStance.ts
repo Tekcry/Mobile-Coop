@@ -210,3 +210,44 @@ export class TriggerTapHold {
     this.fired = false;
   }
 }
+
+/** (anim-natural N3 fix) The draw phases the strike trigger reads (`weapons/drawState`: 0 holstered, 3 holstering). */
+const PH_HOLSTERED = 0;
+const PH_HOLSTERING = 3;
+
+/**
+ * (anim-natural N3 fix, check finding 1: RT during the 0.9-1.0 s holster was dropped) The strike trigger (RT / LMB) over
+ * the draw phase, pure: a press arms when holstered, holding a guard, or holstering (X pressed, the gun on its way to the
+ * slot). Its tap / hold is decided from the press as always (`TriggerTapHold`); decided while holstering it waits
+ * (`pending`: the weapons finish the holster as a busy move, HOLSTER_TIME_MOVE) and `strike` hands it over once the phase
+ * is holstered. Drawing or drawn again (X), the waiting strike is dropped. One `update` then one `strike` per step.
+ */
+export class StrikeTrigger {
+  readonly tapHold = new TriggerTapHold();
+  private queued: 'tap' | 'hold' | null = null;
+  /** This step's result for a press decided now and not waiting on the holster (the grab menu reads it too). */
+  now: 'tap' | 'hold' | null = null;
+  /** A strike waits on the holster (pressed or decided while holstering). */
+  pending = false;
+
+  /** `free`: alive, not aiming, the stance holstered; `holding`: a guard held and not aiming. */
+  update(down: boolean, dt: number, phase: number, free: boolean, holding: boolean): 'tap' | 'hold' | null {
+    const holstering = free && phase === PH_HOLSTERING;
+    let r = this.tapHold.update(down, dt, (free && phase === PH_HOLSTERED) || holding || holstering);
+    if (phase !== PH_HOLSTERED && phase !== PH_HOLSTERING) this.queued = null;
+    if (r !== null && phase === PH_HOLSTERING && !holding) {
+      this.queued = r;
+      r = null;
+    }
+    this.pending = phase === PH_HOLSTERING && (this.queued !== null || (holstering && this.tapHold.pending));
+    this.now = r;
+    return r;
+  }
+
+  /** The strike to start this step (`now`, or the one that waited, once `phase` is holstered); null: none. */
+  strike(phase: number): 'tap' | 'hold' | null {
+    const q = phase === PH_HOLSTERED ? this.queued : null;
+    if (phase === PH_HOLSTERED) this.queued = null;
+    return this.now ?? q;
+  }
+}

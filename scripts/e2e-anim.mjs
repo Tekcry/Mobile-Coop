@@ -234,7 +234,8 @@ try {
   assert(stance.minMoving > 1.3, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
   const drawnT = stance.raise.find(([, , d]) => d === 2)?.[0] ?? 99;
   // (anim-natural N3, docs/anim-natural/n3/DRAW-TIMES.md) the LT sling draw: rifle 1.5 s, pistol 1.2 s (was 0.75 / 0.8)
-  assert(drawnT <= 1.6, `aim draws first: drawn in ${f2(drawnT)} s (<= 1.6; N3: 1.5 rifle / 1.2 pistol)`);
+  // (anim-natural N3 fix, check finding 9) and not the old 0.75 s: the rifle (the loadout's current gun here) at 1.5 s
+  assert(drawnT >= 1.3 && drawnT <= 1.6, `aim draws first: drawn in ${f2(drawnT)} s (1.3-1.6; N3: 1.5 rifle / 1.2 pistol)`);
   // the raise starts while the draw finishes: timed from the last frame the weapon was still low
   const lowT = [...stance.raise].reverse().find(([, v]) => v <= 0.1)?.[0] ?? 0;
   const raiseT = (stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99) - lowT;

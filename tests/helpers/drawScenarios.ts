@@ -15,6 +15,8 @@ export interface DrawScenario {
   then?: { at: number; act: (h: DrawHarness) => void };
   /** The scenario whose final pose this one ends in (default: its own name). */
   final?: string;
+  /** Recorded frames the motion test runs (default 200: a move that starts late needs as long after it). */
+  frames?: number;
 }
 
 const settle = (h: DrawHarness, n = 70): void => void h.run(n);
@@ -41,6 +43,10 @@ export const DRAW_SCENARIOS: readonly DrawScenario[] = [
   { name: 'draw rifle (X, LT held mid-draw)', setup: () => {}, go: (h) => h.tap('draw'), then: { at: 20, act: (h) => h.hold('ads', true) } },
   { name: 'swap rifle to pistol (aiming)', setup: (h) => (drawn(h), h.hold('ads', true), settle(h, 60)), go: (h) => h.tap('swapNext') },
   ...midDraw(),
+  // (anim-natural N3 fix, check finding 3) X again 0.1 s after the holster seats the gun, while the hand still lets go of
+  // it (RELEASE_TIME 0.4 s): the reach starts from the release's weight (it restarted at 0: a 7-14 cm wrist jump)
+  { name: 'redraw rifle (X again 0.1 s after the seat)', setup: drawn, go: (h) => h.tap('draw'), then: { at: 66, act: (h) => h.tap('draw') }, final: 'draw rifle (X, low ready)', frames: 266 },
+  { name: 'redraw pistol (X again 0.1 s after the seat)', setup: (h) => (pistol(h), drawn(h)), go: (h) => h.tap('draw'), then: { at: 60, act: (h) => h.tap('draw') }, final: 'draw pistol (X, low ready)', frames: 260 },
 ];
 
 /**

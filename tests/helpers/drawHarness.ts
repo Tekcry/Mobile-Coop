@@ -7,6 +7,7 @@
 import type { CharacterRig, RigPose } from '../../src/player/characterRig';
 import type { PlayerWeapons } from '../../src/weapons/playerWeapons';
 import type { InputState } from '../../src/input/inputState';
+import type { WeaponStance } from '../../src/player/weaponStance';
 
 export interface DrawSample {
   t: number;
@@ -46,6 +47,8 @@ export interface DrawHarness {
   rig: CharacterRig;
   weapons: PlayerWeapons;
   inp: InputState;
+  /** The weapon stance (holstered / low ready / aiming) the steps drive. */
+  stance: WeaponStance;
   /** One fixed step + one frame (60 Hz), returning the sample after it. */
   step(): DrawSample;
   /** Runs `n` steps, collecting samples. */
@@ -174,6 +177,7 @@ export async function drawHarness(): Promise<DrawHarness> {
     rig,
     weapons,
     inp,
+    stance,
     step() {
       t += DT;
       inp.tick(DT);
