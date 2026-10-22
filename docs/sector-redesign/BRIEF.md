@@ -150,3 +150,20 @@ Slice 0 implementer (engine prerequisites), 2026-10-23:
 - A51 (G1) The camera cap is 12 live at once per Sector section (untagged cameras count in every section) instead of 12
   per map, plus 16 per map, the co-op wire's per-camera clock list (`SEC_CAMS`); more than 16 per map needs a wire change
   (clocks for the live section only, protocol 31). Undo: the old per-map line in `security/data.ts`.
+Lead, M12 chokes (2026-10-23, after the clear; A52-A59 are left for the slice L agent's notes; detail in SPEC
+"Unavoidable posted guards (M12)"):
+- A60 Four sections (of 5; M12's "sections" read as at least 3) have a choke: every route from the section entry to its
+  objective or exit passes in sight of one posted guard (or pair) who must be distracted, knocked out or killed: K1 S1
+  #5 doorman (C1 door), K2 S2 #11 bridge officer (C2 card door), K3 S4 #19 colonnade sentry (C4 gate), K4 S5 #9-10
+  keyholders (anteroom, the token). S3 has none (its lasers and the clean room are the test). Undo: drop a K row and
+  its `post` data and e2e assert.
+- A61 Each choke guard carries guard-ai's `post: { leash, highSecurity?, guards }` (Guard AI Build's shape, agreed
+  2026-10-23): K1-K3 leash 5 m, edge off the door, so a lure pulls him clear for a slip; K4 leash 3 m each,
+  `highSecurity` (two-person rule: never leave the anteroom, no search, no alarm run outside it). Undo: leash values
+  are data.
+- A62 Every choke is clearable solo: K1-K3 by a lure to the leash edge then a slip or a takedown from behind; K4 by a
+  lure that turns one keyholder away, then two single takedowns inside his look time. Co-op adds an easier way: K1 the
+  CR1 canopy drop takedown, K2 / K3 one lures while the other slips, K4 the CR7 dual takedown. Undo: n/a (design).
+- A63 Each choke gets an e2e / unit assert: with the posted guard's view cone (at post, at rest facing) marked as a
+  nav blocker, no nav route joins the section entry to its objective (K4) or exit door (K1-K3); without the blocker
+  the route exists. Undo: drop the assert.

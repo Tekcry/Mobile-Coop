@@ -491,6 +491,23 @@ meets the response team.
 
 ---
 
+## Unavoidable posted guards (M12)
+Michael ~01:50: "make sure there are sections where at least one guard is unavoidable to reach the objective/exit. they
+must be distracted, knocked out, or killed." BRIEF A60-A63. Each choke guard is placed as `SectorGuard` data with
+`role: 'posted'`, `zone`, `reason` and guard-ai's `post` block; the behaviour (hold, pulled to the leash edge by a lure,
+return facing) is guard-ai GA3.
+
+| K | Section | Guard | Choke | `post` | Allowed distractions | Solo clear | Co-op option | Assert |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| K1 | S1 | #5 doorman (-20, -35), faces S | C1 near door, the only staff door | leash 5, guards `c1-door` | noise, thrown item, the canopy light cut | lure him to the leash edge in cam-walk's sweep-away, takedown from behind | CR1 drop takedown from the canopy | no route verge -> C1 near door past his cone |
+| K2 | S2 | #11 bridge officer, L1 | C2 card door, the labs' only link | leash 5, guards `c2-door` | noise, thrown item (from the NE stair door, out of cam-bridge) | lure, then takedown or slip through | one lures from the NE stair, the other slips | no route C1 far door -> C2 door past his cone |
+| K3 | S4 | #19 colonnade sentry | C4 gate | leash 5, guards `c4-gate` | noise, thrown item, the colonnade lights | lure, then slip or takedown | one lures, the other slips | no route C3 -> C4 gate past his cone |
+| K4 | S5 | #9-10 keyholders, talking post | Anteroom, the token (objective) | leash 3 each, `highSecurity`, guards `token` | noise, the anteroom light | lure turns one away; two single takedowns inside his look time | CR7 dual takedown from the light well | no route C4 -> token past either cone |
+
+Build-time rule: the leash edge (K1-K3) sits at least 1 m off the door's nav cell, so a lure opens the way. S3 has no
+choke (A60). Slice build sheets give the exact post point, yaw and leash; the slice's unit test checks the `post` block
+is present for each K guard.
+
 ## Co-op routes (summary)
 | Id | Section | Verb | Lip / device | Solo bypass | Engine need |
 | --- | --- | --- | --- | --- | --- |
