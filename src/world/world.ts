@@ -51,6 +51,7 @@ import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 import { LightField } from './lightField';
 import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
+import { SunCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -327,6 +328,12 @@ export class World {
   private sunT = 0;
   /** Low: the moon shades only the level (`ShadowSpec.staticSun`). */
   private staticSun = false;
+  private readonly cascadeLists = new SunCascadeLists();
+  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact). */
+  private readonly cascadeList = (layer: number): AbstractMesh[] | null => {
+    const g = this.shadow;
+    return g instanceof CascadedShadowGenerator ? this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null) : null;
+  };
 
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
   private updateSunCasters(dt: number): void {
@@ -597,7 +604,10 @@ export class World {
     csm.darkness = 0.35;
     csm.depthClamp = true;
     const sm = csm.getShadowMap();
-    if (sm) sm.renderList = this.sunCasters;
+    if (sm) {
+      sm.renderList = this.sunCasters;
+      if (flags.guardSun) sm.getCustomRenderList = this.cascadeList;
+    }
     this.shadow = csm;
   }
 
