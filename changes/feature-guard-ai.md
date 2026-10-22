@@ -36,3 +36,10 @@
   wakes him; then they search the area. Looped, switched-off, jammed or shot-out cameras see nothing, so hide bodies out
   of a camera's view or take the camera down first. Dogs never answer the call. Hunter and Mission (parked) are
   unchanged.
+- S6 alarm and reinforcements: guards can now raise the alarm by radio. Once a spotter's contact call gets through, he
+  (or an officer close by) calls command: "Command, contact. Send backup." About 4 s later the alarm goes off, even with
+  no alarm panel nearby. Take the spotter out before his first call gets through and there is no alarm at all; take out
+  the guard calling command and the next guard still fighting picks up the radio 3 s later, so stopping it then means
+  dropping everyone in the fight. Reinforcements that come in on an alarm are aggressive: they already know where you
+  were last seen, run straight in from the section's entry points, spend less time in cover, push forward faster and
+  never calm down until you are found. Hunter and Mission (parked) keep their old alarms.

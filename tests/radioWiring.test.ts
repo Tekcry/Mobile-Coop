@@ -252,15 +252,16 @@ describe('radio net wired: reports and the command call', () => {
     }
   });
 
-  it('RADIO_ALARM is off until S6: a completed command call raises no alarm', () => {
-    expect(RADIO_ALARM).toBe(false);
+  it('(S6) RADIO_ALARM is on: a completed command call raises the alarm (no panel needed) and queues nobody', () => {
+    expect(RADIO_ALARM).toBe(true);
     const caller = guard(0, 0);
     const other = guard(4, 0);
     const { em, run } = manager([caller, other]);
     em.radioNet.startCall(caller.num, -1, 'command', 0.2);
     run(1);
     expect(em.radioNet.alarms).toBe(1);
-    expect(em.alarmRaised).toBe(false);
+    expect(em.alarmRaised).toBe(true);
+    expect(em.alarmBy).toBe('radio');
     expect(other.radio).not.toHaveBeenCalled();
   });
 });

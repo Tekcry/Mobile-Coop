@@ -79,7 +79,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (grab, choke, hostage, interrogation), `blind` and `EnemyManager.despawn` (and a held caller at completion) loses it,
   so only the voice hearers know; a blinded or released guard still in combat calls again. Reports are calls of their
   kind: `checkLight` -> `light`, the pair lead -> `missing`, a board task ending calm -> `standDown`; their first receiver
-  says "Copy." (bark only). `command` calls (S6) raise the alarm through `raiseAlarm` only with `RADIO_ALARM` (false).
+  says "Copy." (bark only). `command` calls raise the alarm (S6, `RADIO_ALARM` true; see Alarms).
   One net: Sector Ops loads one section at a time, so the live section is the whole cast (cleared by `despawnAll` /
   `resetMemory` via `clear`); other maps are one section (A6). Ticked at 10 Hz from `update` with the board's
   `GuardView` and a reaction lane (no allocation). `EnemyManager.radioLeft(e)` reads a pending call (e2e).
@@ -136,9 +136,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `entries`; `EnemyManager.mapNoisy` loads the map's noisy things as the masking, Sector Ops swaps in the live
   section's (`setNoisy` on load). Checks: `validateGuardAi` / `validatePosts` run on load in dev (console warnings via
   `reportGuardAi`, never a throw) and in `tests/postsWiring.test.ts` over every live map's sectors.
-- Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
-  an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold, then the next; the last
-  stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet
+- Tactics: from sight into cover first (85%; the profile's `coverFirst`, S6), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
+  an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold (`advanceHold`), then the next; the last
+  stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
   to the head kills any guard but a heavy (`Enemy.applyDamage`). The close-range sense from behind ignores a sneak /
   crouched approach.
 - `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
@@ -187,6 +187,27 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Alarms: `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted enemy to work
   it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the `MapLayout.reinforce` point furthest from the
   player). The player disables a panel with a hold.
+- Alarm by radio (guard-ai S6, design 7, M4; `CommandCall` in `ai/alarm.ts` pure, `EnemyManager.command`; stealth rules
+  and coordinated modes only, as panels). A `contact` call that gets through (`sink.completed`) owes the alarm
+  (`contactThrough`): the officer in the caller's voice range (alive, free), else the caller, else the next guard in the
+  fight holds a `command` call (`RADIO.report` 4 s x reaction, bark `command` "Command, contact. Send backup." at its
+  start); its completion raises the alarm with no panel (`raiseAlarm(e, null)`, `alarmBy` 'radio'). One at a time (the
+  net refuses a second `command`). Cut (down, grabbed, blinded, despawned): after `ALARM_CALL.retry` 3 s the next guard
+  in the fight (in combat, or the search after it; not blind, held, passive, melee or a dog) takes it: out of the
+  target's sight first (`Enemy.targetInView`), then an officer, then the lower key; nobody: the debt lapses (A29). The
+  contact call cut first: nothing is owed (only the voice hearers know, and they do not call). A panel alarm settles it;
+  `resetAlarm` (Sector load / restart) and `clear` drop it. Sector Ops sets the net's section to the live `SectorDef`
+  index (`setSection`). `onAlarm(e, p)` takes `p` null for a radio alarm.
+- Reinforcements (guard-ai S6, M1 "any reinforcements must be aggressive"): `EnemyManager.spawnReinforcement` /
+  `joinReinforcement` -> `Enemy.joinAsReinforcement(route)`: `profile` 'aggressive' (the S5 string; `Enemy.behaviour` =
+  `BEHAVIOUR[profile]` in `squadRoles.ts`), told by command (`radio(0)`: in combat on the shared LKP the next step, bark
+  `joining`, no contact call of his own), runs the entry route first at run speed (dropped on sight or after 30 s), and
+  never calms (`AlertInput.hunting`: an aggressive guard who has fought keeps searching). Profile reads in the combat
+  branch: cover first on contact `behaviour.coverFirst` (standard 0.85 as before, aggressive 0.3), the hold between
+  bounds `advanceHold` (2.5 / 0.8 s), the last stretch out of sight at 0.75 x run speed for `runToContact` (else walk x
+  1.15). Where: Sector Ops `SectorDef.entries` in turn (route, yaw, y), else `reinforce`; other live maps
+  `MapLayout.guardAi.entries` of the alarm's section (`entriesFor`), the one furthest from the player, else the furthest
+  `MapLayout.reinforce` point (grunt, grunt, heavy). Parked modes (Hunter, Mission): their own reinforcements, unchanged.
 - Sound: `world/surfaces.ts` (pure) `surfaceAt` scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice. Shots:
   `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise` (combat); `onRay` hits
   are heard within `IMPACT_NOISE`.
@@ -265,7 +286,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Sector Ops guard rules (sector-redesign slice 0): `checkSectorGuards` (`game/sectors.ts`, run by `checkSectors`)
   fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
   and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements spawn as
-  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage. `SectorGuard` also carries optional `squad`, `zone`, `role`,
+  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage, aggressive at the section's entries (guard-ai S6). `SectorGuard` also carries optional `squad`, `zone`, `role`,
   `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
   joins no squads, so radio checks do not run there.
 - Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact

@@ -42,6 +42,7 @@ import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
 import { clampToLeash, inLeash, LURE, lurePoint, POST, PostLure, type PostDef, type PostLureOut } from './posts';
 import type { BehaviourProfile } from './guardAiData';
+import { BEHAVIOUR, type BehaviourProfile as TacticsProfile } from './squadRoles';
 import { DogModel } from './dogModel';
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
@@ -166,7 +167,11 @@ export const PACE = {
 const PATROL_PACE = PACE.patrol;
 /** Out of sight in combat: walking up on the last known position (x walk speed); a hold between bounds (s). */
 const ADVANCE_PACE = 1.15;
-const ADVANCE_HOLD = 2.5;
+/** (guard-ai S6) The hold between bounds is the profile's (`BEHAVIOUR.standard.advanceHold` 2.5 s, as before;
+ *  aggressive 0.8 s); an aggressive guard's last stretch is a jog (x run speed), not `ADVANCE_PACE`. */
+const AGGRESSIVE_JOG = 0.75;
+/** (guard-ai S6) A reinforcement gives up his entry route after this long (s; a blocked route). */
+const ENTRY_MAX = 30;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
 const EXPOSE_HIPS = 0.52;
 
@@ -904,9 +909,45 @@ export class Enemy implements Damageable {
   postDef: PostDef | null = null;
   postYaw = 0;
   /** (guard-ai S5) His section (Sector Ops: the `SectorDef` index; other maps `sectionAt`) and behaviour profile
-   *  (read by S5b / S6; nothing acts on them yet). */
+   *  ('standard' / 'aggressive': a slot's `profile`; (guard-ai S6) every alarm reinforcement is 'aggressive', M1). */
   section = 0;
   profile: BehaviourProfile = 'standard';
+
+  /** (guard-ai S6) His profile's numbers (`squadRoles.ts` `BEHAVIOUR[profile]`, keyed off the string): advance hold,
+   *  cover first, run to contact, never calm. */
+  get behaviour(): Readonly<TacticsProfile> {
+    return BEHAVIOUR[this.profile];
+  }
+
+  /** (guard-ai S6) Has the target in sight now (the command caller is picked from guards who do not: "hide and report"). */
+  get targetInView(): boolean {
+    return this.los;
+  }
+
+  /** (guard-ai S6, design 7) A reinforcement's run-in route (`ReinforceEntry.route`): the next point and the seconds on it;
+   *  null = none (straight to the last known position by nav). */
+  private entry: readonly (readonly [number, number])[] | null = null;
+  private entryK = 0;
+  private entryT = 0;
+  private readonly entryP: P2 = [0, 0];
+
+  /** (guard-ai S6) Still running his entry route (e2e / debug). */
+  get entering(): boolean {
+    return this.entry !== null;
+  }
+
+  /**
+   * (guard-ai S6, design 7, M1 "any reinforcements must be aggressive") He came in on the alarm: profile aggressive, told
+   * by command (the next step he is in combat on the shared last known position, `radio(0)`: he answers, he does not call
+   * a contact in), and he first runs `route` into the section (if any) unless he sees the target on the way.
+   */
+  joinAsReinforcement(route: readonly (readonly [number, number])[] | null): void {
+    this.profile = 'aggressive';
+    this.entry = route && route.length ? route : null;
+    this.entryK = 0;
+    this.entryT = 0;
+    this.radio(0);
+  }
   private readonly lure = new PostLure();
   private readonly lureOut: PostLureOut = { x: 0, z: 0, yaw: 0, moving: false, phase: LURE.idle };
   private readonly lureP: P2 = [0, 0];
@@ -1417,6 +1458,8 @@ export class Enemy implements Damageable {
     i.calmEnd = this.incident >= 0 && this.incMode === MODE_INVESTIGATE && this.incCalm;
     // (guard-ai S4) cautious (a death he knows of, a knockout he found or woke from): on edge, never unaware
     i.cautious = this.caution > 0;
+    // (guard-ai S6) an aggressive guard who has fought (a reinforcement) never calms: his search does not end
+    i.hunting = this.aware.fought && this.behaviour.neverCautious;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search
@@ -1652,6 +1695,20 @@ export class Enemy implements Damageable {
         return { point: this.goTo(this.alarmPt, dt, 0.5), speed: def.runSpeed, face: null };
       }
     }
+    // (guard-ai S6, design 7) a reinforcement runs his entry route into the section first (until he sees the target)
+    const en = this.entry;
+    if (en) {
+      this.entryT += dt;
+      if (this.los || this.entryK >= en.length || this.entryT > ENTRY_MAX) this.entry = null;
+      else {
+        const p = en[this.entryK]!;
+        this.entryP[0] = p[0];
+        this.entryP[1] = p[1];
+        const wp = this.goTo(this.entryP, dt, 0.8);
+        if (!wp || hyp2(p[0] - this.pos.x, p[1] - this.pos.z) < 1) this.entryK++;
+        return { point: wp, speed: def.runSpeed, face: null };
+      }
+    }
     // stealth: out of sight they go for where they last knew the target was, not where it is
     const known = this.los || this.smelled || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
     const tp: P2 = [known.x, known.z];
@@ -1713,7 +1770,8 @@ export class Enemy implements Damageable {
         if (this.los && this.dist <= def.engageMax) {
           // in a fight they get behind something first
           this.advancing = false;
-          this.setState(def.usesCover && Math.random() < 0.85 ? 'seekCover' : 'attack');
+          // (guard-ai S6) the profile's cover-first weight (standard 0.85, as before; aggressive 0.3)
+          this.setState(def.usesCover && Math.random() < this.behaviour.coverFirst ? 'seekCover' : 'attack');
           return { point: null, speed: 0, face: toTarget };
         }
         if (outside) {
@@ -1735,7 +1793,7 @@ export class Enemy implements Damageable {
             }
             this.advanceCd = 1.5;
           }
-          return { point: this.chasePoint(tp, false), speed: def.walkSpeed * ADVANCE_PACE, face: null };
+          return { point: this.chasePoint(tp, false), speed: this.behaviour.runToContact ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, face: null };
         }
         return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
@@ -1796,7 +1854,7 @@ export class Enemy implements Damageable {
         if (this.advancing && !this.los) {
           this.coverPose = cp.low ? 'low' : 'high';
           this.wantCrouch = cp.low;
-          if (this.stateT > ADVANCE_HOLD) this.setState('chase');
+          if (this.stateT > this.behaviour.advanceHold) this.setState('chase');
           return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
         }
         this.advancing = false;

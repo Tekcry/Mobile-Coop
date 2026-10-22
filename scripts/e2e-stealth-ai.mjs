@@ -36,6 +36,7 @@ try {
         em.lkpValid = false;
         em.sightT = 99;
         em.alarmRaised = false;
+        em.alarmBy = '';
         for (const p of em.alarms) p.disabled = false;
         for (const it of g.interactables.items) if (it.kind === 'alarm') { it.done = false; g.interactables.setEnabled(it, true); }
         const reg = g.world.level.lights;
@@ -365,6 +366,8 @@ try {
       while (!a.alerted && k++ < 300) t.step(1 / 60);
       const bBefore = b.alerted;
       const pending = em.radioLeft(a);
+      // (guard-ai S6) the contact call completing (his command call opens at once, so radioLeft stays > 0)
+      const c0 = em.radioNet.completed;
       let time = 0;
       let bT = -1;
       let farT = -1;
@@ -372,7 +375,7 @@ try {
       while (time < pending + R.staggerMax + 1.5) {
         t.step(0.05);
         time += 0.05;
-        if (done < 0 && em.radioLeft(a) === 0) done = time;
+        if (done < 0 && em.radioNet.completed > c0) done = time;
         if (bT < 0 && b.alerted) bT = time;
         if (farT < 0 && far.alerted) farT = time;
       }
@@ -434,6 +437,8 @@ try {
       while (!a.alerted && k++ < 300) t.step(1 / 60);
       const before = os.filter((e) => e.alerted).length;
       const pending = em.radioLeft(a);
+      // (guard-ai S6) the contact call completing (his command call opens at once, so radioLeft stays > 0)
+      const c0 = em.radioNet.completed;
       const at = os.map(() => -1);
       let dist = null;
       let time = 0;
@@ -441,7 +446,7 @@ try {
         t.step(0.05);
         time += 0.05;
         // distances from the spotter where the call completes (the net sorts by them)
-        if (!dist && em.radioLeft(a) === 0) dist = os.map((e) => Math.hypot(e.pos.x - a.pos.x, e.pos.y - a.pos.y, e.pos.z - a.pos.z));
+        if (!dist && em.radioNet.completed > c0) dist = os.map((e) => Math.hypot(e.pos.x - a.pos.x, e.pos.y - a.pos.y, e.pos.z - a.pos.z));
         os.forEach((e, i) => {
           if (at[i] < 0 && e.alerted) at[i] = time;
         });
@@ -783,6 +788,8 @@ try {
         t.step(0.1);
         raised = em.alarmRaised;
       }
+      // (guard-ai S6) the panel 6 m off is worked before his command call (contact + report, ~6.5 s) gets through
+      const by = em.alarmBy;
       t.step(0.5);
       const n1 = em.alive;
       // disable a panel first (hold), then nobody can raise it
@@ -800,14 +807,94 @@ try {
       t.tp(-22, 16, 0);
       const e2 = t.spawn('grunt', 2, 6, 0);
       e2.alert();
-      t.step(8);
+      // (guard-ai S6) with both panels off he never runs to one; his command call by radio may still raise it
+      let ran = false;
+      for (let i = 0; i < 80; i++) {
+        t.step(0.1);
+        if (e2.runningAlarm) ran = true;
+      }
       t.light(null);
-      return { raised, n0, n1, offer, dis, raised2: em.alarmRaised };
+      return { raised, by, n0, n1, offer, dis, ran, raised2: em.alarmRaised, by2: em.alarmBy };
     });
-    assert(r.raised, 'an alerted guard runs to the alarm panel and raises it');
+    assert(r.raised && r.by === 'panel', `an alerted guard runs to the alarm panel and raises it (${r.by})`);
     assert(r.n1 > r.n0, `reinforcements come in (${r.n0} -> ${r.n1})`);
     assert(/Disable alarm/.test(r.offer ?? ''), `the panel can be disabled (${r.offer})`);
-    assert(r.dis && !r.raised2, 'a disabled panel never raises the alarm');
+    assert(r.dis && !r.ran && r.by2 !== 'panel', `a disabled panel never raises the alarm (ran ${r.ran}, raised ${r.raised2} by '${r.by2}')`);
+  });
+
+  await scen('alarm call', async () => {
+    // (guard-ai S6, design 7, M4) the alarm by radio, the panels off (only the radio path): (A) the spotter taken out
+    // during his contact call: no command call, no alarm, nobody comes; (B) his contact gets through: he holds the
+    // command call (RADIO.report x reaction) and the alarm goes off by radio, reinforcements come; (C) the commander
+    // taken out during that call: the squadmate still fighting takes it ALARM_CALL.retry s later and it gets through
+    const r = await G(() => {
+      const t = window.__t;
+      const em = window.__app.current.enemyMgr;
+      const R = em.radioTable;
+      const retry = em.alarmCallTable.retry;
+      const off = () => {
+        for (const p of em.alarms) p.disabled = true;
+      };
+      const spot = () => {
+        const a = t.spawn('grunt', 0, 5, Math.PI);
+        t.tp(-0.5, 0, 0);
+        let k = 0;
+        while (!a.alerted && k++ < 300) t.step(1 / 60);
+        return a;
+      };
+      const until = (f, max) => {
+        let s = 0;
+        while (!f() && s < max) {
+          t.step(0.05);
+          s += 0.05;
+        }
+        return s;
+      };
+      const out = {};
+      // (A)
+      t.light(1);
+      off();
+      const s0 = em.command.started;
+      const a = spot();
+      out.aLeft = em.radioLeft(a);
+      t.kill(a, true);
+      const n0 = em.alive;
+      t.step(12);
+      Object.assign(out, { aStarted: em.command.started - s0, aRaised: em.alarmRaised, aNew: em.alive - n0 });
+      // (B)
+      t.reset();
+      t.light(1);
+      off();
+      const b = spot();
+      const pending = em.radioLeft(b);
+      const tCmd = until(() => em.command.caller === b.num, pending + 2);
+      const report = em.radioLeft(b);
+      const nb = em.alive;
+      const tAl = tCmd + until(() => em.alarmRaised, report + 2);
+      t.step(0.5);
+      Object.assign(out, { pending, tCmd, report, tAl, bBy: em.alarmBy, bNew: em.alive - nb });
+      // (C)
+      t.reset();
+      t.light(1);
+      off();
+      const c = spot();
+      const mate = t.spawn('grunt', 10, 9, Math.PI);
+      until(() => em.command.caller === c.num, em.radioLeft(c) + 2);
+      out.cCaller = em.command.caller === c.num;
+      t.kill(c, true);
+      const tB = until(() => em.command.caller === mate.num, retry + 3);
+      const tAl2 = tB + until(() => em.alarmRaised, R.report * 2 + 2);
+      t.light(null);
+      Object.assign(out, { tB, mateUp: mate.alive && mate.alerted, tAl2, cBy: em.alarmBy, retry, R: R.report });
+      return out;
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.aLeft > 0.3 && r.aStarted === 0 && !r.aRaised && r.aNew === 0, `the spotter taken out during his call (${f(r.aLeft)} s left): no command call, no alarm, nobody comes (${r.aStarted}, ${r.aRaised}, +${r.aNew})`);
+    assert(Math.abs(r.tCmd - r.pending) < 0.2, `his contact gets through, then he calls command (${f(r.tCmd)} s, contact ${f(r.pending)} s)`);
+    assert(r.report > r.R * 0.5 && Math.abs(r.tAl - r.tCmd - r.report) < 0.2 && r.bBy === 'radio', `the command call (${f(r.report)} s) raises the alarm by radio (at ${f(r.tAl)} s, '${r.bBy}')`);
+    assert(r.bNew > 0, `reinforcements come in (+${r.bNew})`);
+    assert(r.cCaller && r.mateUp && Math.abs(r.tB - r.retry) < 0.3, `the commander taken out: the squadmate in the fight takes the call ${f(r.tB)} s later (retry ${r.retry} s)`);
+    assert(r.cBy === 'radio' && r.tAl2 > r.tB && r.tAl2 - r.tB < r.R * 1.6 + 0.3, `...and it gets through: the alarm ${f(r.tAl2 - r.tB)} s after he took it ('${r.cBy}')`);
   });
 
   await scen('revive', async () => {

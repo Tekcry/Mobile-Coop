@@ -14,7 +14,7 @@ import { Body } from './body';
 import { BODY } from './bodies';
 import type { LightDef } from '../world/lights';
 import { beamReach, type BeamHit } from '../world/torches';
-import { nearestPanel, type AlarmPanel } from './alarm';
+import { ALARM_CALL, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, type DifficultyDef } from './archetypes';
 import { ALERT } from './alertState';
@@ -24,7 +24,7 @@ import { MUFFLE } from '../config/noise';
 import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, GV_POSTED, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
 import { roomAt, type SquadSlot } from '../world/rooms';
-import { reportGuardAi, sectionAt, validateGuardAi } from './guardAiData';
+import { reportGuardAi, sectionAt, validateGuardAi, type ReinforceEntry } from './guardAiData';
 import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type RadioSink } from './radioNet';
 import type { P2 } from './navGrid';
 // (guard-ai S7) cameras see bodies
@@ -38,9 +38,9 @@ import { bodyNoticed } from './bodies';
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
 export const MAX_ALIVE = 12;
 
-/** (guard-ai S3) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
- *  Off until S6 starts command calls and finishes the alarm; nothing starts one yet. */
-export const RADIO_ALARM = false;
+/** (guard-ai S3, S6) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
+ *  On since S6: a contact call that gets through starts one (`contactThrough`). Undo: false (panels only). */
+export const RADIO_ALARM = true;
 
 /** (guard-ai S4) The bit of guard key `k` in an awareness mask (0 when out of range). */
 function keyBit(k: number): number {
@@ -102,7 +102,18 @@ export class EnemyManager {
   /** Alarm panels on the map; raised once per match (reinforcements). */
   readonly alarms: AlarmPanel[] = [];
   alarmRaised = false;
-  onAlarm: ((e: Enemy, p: AlarmPanel) => void) | null = null;
+  /** The alarm went off: `e` raised it, at panel `p` (null: (guard-ai S6) by radio, a command call that got through). */
+  onAlarm: ((e: Enemy, p: AlarmPanel | null) => void) | null = null;
+  /** (guard-ai S6) How the alarm was raised ('' not yet; tests / e2e / debug). */
+  alarmBy: '' | 'panel' | 'radio' = '';
+  /**
+   * (guard-ai S6, design 7, M4) The section's command call: once a contact call gets through, the caller (or the officer
+   * in his voice range) holds a `command` call (`RADIO.report` x reaction) whose completion raises the alarm; cut, the
+   * next guard in the fight takes it `ALARM_CALL.retry` s later; nobody left, no alarm. Stealth modes only (as panels).
+   */
+  readonly command = new CommandCall();
+  /** The command call's numbers (tests / e2e read them from here). */
+  readonly alarmCallTable = ALARM_CALL;
   private alarmRunner: Enemy | null = null;
   private alarmT = 0;
   /** Flashlight slots (dark maps) and who holds each. */
@@ -216,7 +227,11 @@ export class EnemyManager {
     alarm: (_section, caller) => this.radioAlarm(caller),
     completed: (caller, _inc, kind) => {
       // the spotter's radio line, as the section hears it; (S4) the body reports
-      if (kind === 'contact') this.byNum(caller)?.bark('callIn');
+      if (kind === 'contact') {
+        this.byNum(caller)?.bark('callIn');
+        // (S6) the section knows: now command must be told (the alarm)
+        this.contactThrough(caller);
+      }
       else if (kind === 'body') this.byNum(caller)?.bark('deadReport');
       else if (kind === 'ko') this.byNum(caller)?.bark('koReport');
     },
@@ -413,18 +428,122 @@ export class EnemyManager {
     this.onBodyFound?.(e, b);
   }
 
-  /** (Sector Ops) A section load or restart: a panel alarm can be raised again, and no guard holds the run. */
+  /** (Sector Ops) A section load or restart: a panel alarm can be raised again, and no guard holds the run. (guard-ai
+   *  S6) Nor the command call: no alarm is owed. */
   resetAlarm(): void {
     this.alarmRaised = false;
     this.alarmRunner = null;
+    this.alarmBy = '';
+    this.command.clear();
   }
 
-  /** An alerted enemy worked a panel: reinforcements (once per match). */
-  private raiseAlarm(e: Enemy, p: AlarmPanel): void {
-    if (this.alarmRaised || p.disabled) return;
+  /** An alerted enemy worked a panel, or (guard-ai S6) a command call got through (`p` null): reinforcements (once per
+   *  match; Sector Ops once per section load). */
+  private raiseAlarm(e: Enemy, p: AlarmPanel | null): void {
+    if (this.alarmRaised || (p && p.disabled)) return;
     this.alarmRaised = true;
+    this.alarmBy = p ? 'panel' : 'radio';
     this.alarmRunner = null;
+    this.command.raised();
     this.onAlarm?.(e, p);
+  }
+
+  /**
+   * (guard-ai S6, design 7, M4) A contact call from `caller` got through: the alarm is owed. Stealth modes with the radio
+   * alarm on, no alarm yet: the officer in the caller's voice range (alive, free) holds the command call, else the caller,
+   * else the next guard in the fight. One command call at a time (the net refuses a second).
+   */
+  private contactThrough(caller: number): void {
+    if (!RADIO_ALARM || !this.stealth || !this.coordinated || this.alarmRaised) return;
+    if (!this.command.owe()) return;
+    const c = this.byNum(caller);
+    let who: Enemy | null = null;
+    if (c) {
+      const list = this.enemies;
+      for (let i = 0; i < list.length && !who; i++) {
+        const o = list[i]!;
+        if (o !== c && o.def.kind === 'officer' && this.canCall(o) && this.hearsShout(c, o) >= 0) who = o;
+      }
+      if (!who && this.canCall(c)) who = c;
+    }
+    if (!who) who = this.nextCaller();
+    if (who) this.startCommand(who);
+    else this.command.lapse();
+  }
+
+  /** (guard-ai S6) May he hold the command call (alive, free, not blinded, armed, not passive)? */
+  private canCall(e: Enemy): boolean {
+    return e.alive && !e.taken && e.blindT <= 0 && !e.def.melee && !e.dog && !e.passive;
+  }
+
+  /**
+   * (guard-ai S6, design 7) The next guard to make the command call: one in the fight (in combat, or on the search after
+   * it) who may call; out of the target's sight first ("hide and report"), then an officer, then the lower guard key
+   * (no randomness, A7). Null when nobody is left.
+   */
+  private nextCaller(): Enemy | null {
+    const list = this.enemies;
+    let best: Enemy | null = null;
+    let bs = Infinity;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (!this.canCall(e)) continue;
+      if (!e.alerted && !(e.level === 'searching' && e.aware.fought)) continue;
+      const s = (e.targetInView ? 1000 : 0) + (e.def.kind === 'officer' ? 0 : 100) + (e.key >= 0 ? e.key : 99) + e.num * 1e-6;
+      if (s < bs) {
+        bs = s;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  /** (guard-ai S6) `e` holds the command call ("Command, contact. Send backup."): the alarm when it gets through. */
+  private startCommand(e: Enemy): void {
+    const id = this.radioNet.startCall(e.num, -1, 'command', callHold('command', this.reactionOf(e)));
+    if (id < 0) {
+      this.command.refused();
+      return;
+    }
+    this.command.start(e.num);
+    e.bark('command');
+  }
+
+  /** (guard-ai S6) Sector Ops: the live section's index (the radio net's section; the alarm and its entries). */
+  setSection(i: number): void {
+    this.radioNet.section = i;
+  }
+
+  /**
+   * (guard-ai S6, design 7, M1 "any reinforcements must be aggressive") Bring one reinforcement in at `at` (`yaw`), on
+   * the alarm: aggressive, told by command (in combat on the shared last known position the next step), in `section`,
+   * running `route` into it first when one is given (`ReinforceEntry.route`). The parked modes (`coordinated` off) keep
+   * the old way: spawned alerted (`reinforce`). Null when the live cap is full or there is no floor there.
+   */
+  spawnReinforcement(kind: EnemyKind, at: Vector3, yaw: number, section: number, route: readonly (readonly [number, number])[] | null = null): Enemy | null {
+    const e = this.spawn(kind, at, !this.coordinated, yaw);
+    if (!e) return null;
+    this.joinReinforcement(e, section, route);
+    return e;
+  }
+
+  /** (guard-ai S6) A guard just spawned (and placed) on the alarm becomes a reinforcement (`spawnReinforcement`). */
+  joinReinforcement(e: Enemy, section: number, route: readonly (readonly [number, number])[] | null = null): void {
+    e.section = section;
+    if (!this.coordinated) {
+      e.alert();
+      return;
+    }
+    e.joinAsReinforcement(route);
+  }
+
+  /** (guard-ai S6) The map's reinforcement entries for `section` (`MapLayout.guardAi.entries`); empty: none (the
+   *  caller falls back to `MapLayout.reinforce`). Sector Ops reads `SectorDef.entries` itself. */
+  entriesFor(section: number, out: ReinforceEntry[]): ReinforceEntry[] {
+    out.length = 0;
+    const es = this.world.layout.guardAi?.entries;
+    if (es) for (let i = 0; i < es.length; i++) if (es[i]!.section === section) out.push(es[i]!);
+    return out;
   }
 
   /** Bring a reinforcement squad in at `at` (alerted, told the last known position). */
@@ -1051,6 +1170,12 @@ export class EnemyManager {
     const list = this.enemies;
     for (let i = 0; i < v.n; i++) this.rxReaction[i] = this.reactionOf(list[i]!);
     this.radioNet.tick(dt, v, this.sink, this.rxReaction, null);
+    // (guard-ai S6) the command call: cut -> the next guard in the fight after `ALARM_CALL.retry` s; nobody: no alarm
+    if (this.command.tick(dt, this.radioNet.commandOpen)) {
+      const c = this.alarmRaised ? null : this.nextCaller();
+      if (c) this.startCommand(c);
+      else this.command.lapse();
+    }
   }
 
   /**
@@ -1077,13 +1202,12 @@ export class EnemyManager {
     e.bark('ack');
   }
 
-  /** (guard-ai S3) A `command` call got through: the alarm (reinforcements, M4), behind `RADIO_ALARM` until S6. */
+  /** (guard-ai S3, S6) A `command` call got through: the alarm (reinforcements, M4), no panel needed (`RADIO_ALARM`). */
   private radioAlarm(caller: number): void {
     if (!RADIO_ALARM || this.alarmRaised) return;
     const e = this.byNum(caller);
     if (!e) return;
-    const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, Infinity, e.pos.y) ?? this.alarms[0];
-    if (p) this.raiseAlarm(e, p);
+    this.raiseAlarm(e, null);
   }
 
   /** (guard-ai S3) Seconds until this guard's open radio call gets through (0: none). Tests / e2e / debug. */
@@ -1467,6 +1591,8 @@ export class EnemyManager {
     // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
     this.radioNet.clear();
+    // (S6) and the command call it may have owed
+    this.command.clear();
     // (S4) and every caution: the section starts calm
     this.awareness.clear();
     this.lastHold = -1;

@@ -50,6 +50,9 @@ const DOOR_FIND = 1.2;
 interface Pending {
   slot: SquadSlot;
   alerted: boolean;
+  /** (guard-ai S6) An alarm reinforcement (aggressive, told by command), and the entry route it runs in. */
+  reinforce?: boolean;
+  route?: readonly (readonly [number, number])[] | null;
 }
 
 /** The doors of one connector, found by position at the start. */
@@ -274,6 +277,8 @@ export class SectorMode implements GameMode {
     this.g.enemyMgr?.resetAlarm();
     // (guard-ai S5) the section's noisy things mask hearing (else the map's); dev / tests check its posts (warnings)
     const em = this.g.enemyMgr;
+    // (guard-ai S6, S3-CHECK) the radio net serves the live section (its command call raises this section's alarm)
+    if (em && s) em.setSection(i);
     if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
     if (s && import.meta.env.DEV) reportGuardAi(s.id, validatePosts(s.guards, s.id));
     if (!s) return;
@@ -431,11 +436,14 @@ export class SectorMode implements GameMode {
         continue;
       }
       this.tmp.set(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z);
-      const e = em.spawn(p.slot.kind, this.tmp, p.alerted, p.slot.yaw);
+      // (guard-ai S6) a reinforcement is told by command (`joinReinforcement`), not spawned alerted (no contact call)
+      const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw);
       if (!e) break;
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });
       // (guard-ai S5) post, profile, section (the live SectorDef's index)
       em.placeSlot(e, p.slot, this.run.index);
+      // (guard-ai S6, M1) aggressive, knows the last known position, runs its entry route in
+      if (p.reinforce) em.joinReinforcement(e, this.run.index, p.route ?? null);
       this.pending.splice(i, 1);
     }
   }
@@ -464,11 +472,18 @@ export class SectorMode implements GameMode {
     if (this.ct) this.ct.alarm = stage;
     if (stage > from && banner) g.hud.banner(`ALARM STAGE ${stage}`, send ? 'Reinforcements coming' : '', 2200);
     const s = this.run.current;
-    if (!s || !send || s.reinforce.length === 0) return;
+    // (guard-ai S6, design 7) the section's entries (`SectorDef.entries`, with their run-in routes) first, else its
+    // reinforce points; taken in turn
+    const ents = s?.entries?.length ? s.entries : null;
+    if (!s || !send || (!ents && s.reinforce.length === 0)) return;
     for (let i = 0; i < send; i++) {
-      const at = s.reinforce[this.reinforceK++ % s.reinforce.length]!;
+      const k = this.reinforceK++;
+      const en = ents ? ents[k % ents.length]! : null;
+      const at = en ? en.at : s.reinforce[k % s.reinforce.length]!;
       // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`
-      this.pending.push({ slot: { kind: SECTOR_REINFORCE_KIND, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
+      const slot: SquadSlot = { kind: SECTOR_REINFORCE_KIND, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: en?.yaw ?? 0 };
+      if (en?.y !== undefined) slot.y = en.y;
+      this.pending.push({ slot, alerted: true, reinforce: true, route: en?.route ?? null });
     }
     this.reinforced += send;
     this.fill();
