@@ -116,6 +116,7 @@ import { InfiltrationMode } from './modes/infiltrationMode';
 import { CourseMode } from './modes/courseMode';
 import { SectorMode } from './modes/sectorMode';
 import type { CourseWire } from './course/courseWire';
+import { PANEL_PART } from './laserPanels';
 import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
@@ -1654,6 +1655,9 @@ export class GameState implements AppState {
     ti.dropHeldT = inp.heldTime('drop');
     ti.useHeld = aFree && inp.down('interact');
     ti.useHeldT = aFree ? inp.heldTime('interact') : 0;
+    // (vent-kick, M1) jump (Y / Space, any held source) held on from a vent start: no kick yet, the hold runs on into
+    // interact (A / E); a scripted tap('jump') holds nothing (a kick)
+    ti.startHeld = inp.down('jump');
     ti.sprintHeld = inp.down('dash');
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
@@ -1672,6 +1676,7 @@ export class GameState implements AppState {
       ti.dropHeldT = 0;
       ti.useHeld = false;
       ti.useHeldT = 0;
+      ti.startHeld = false;
     }
     if (this.team.active) this.traversal.hint = null;
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !wallWas && !teamTook && !this.team.active && !carrying && !busy, this.team.active);
@@ -2440,7 +2445,7 @@ export class GameState implements AppState {
     }
   }
 
-  /** (Step 14) electro's live devices: security cameras, alarm panels, switches, terminals, laser sights. */
+  /** (Step 14) electro's live devices: security cameras, alarm panels, switches, terminals, laser sights, laser power panels. */
   private paintElectro(k: number): void {
     if (k > 0 && this.electroK === 0) {
       // gathered on each switch to electro (not per frame): devices built since are included
@@ -2449,7 +2454,8 @@ export class GameState implements AppState {
       for (const m of this.scene.meshes) {
         if (!(m instanceof InstancedMesh)) continue;
         const pn = m.parent?.name ?? '';
-        if (m.name === 'laser' || m.name === 'stickycam-lens' || pn.startsWith('sec-cam-')) list.push(m);
+        // (sector-fixes P) the lasers' power panels' housings too (`PANEL_PART`; their LED keeps its own glow)
+        if (m.name === 'laser' || m.name === PANEL_PART || m.name === 'stickycam-lens' || pn.startsWith('sec-cam-')) list.push(m);
       }
       // interactables by kind: only the powered ones (no intel folders, cache crates, beacons or hide spots)
       const its = this.interactables?.items;

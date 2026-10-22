@@ -93,3 +93,15 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   (`tests/laserAlarm.test.ts`). While night vision is on the glow is re-set every step (leaving electro zeroes the
   `pattern.w` of every mesh named `laser` in gameState's `paintElectro`). In Sector Ops a break goes through the same
   `cameraAlarm` hook as a camera (it counts in `camAlarms`).
+- Laser power panels (sector-fixes P, Michael item 6; `game/laserPanels.ts`, `MapLayout.laserPanels`): every laser is
+  powered by exactly one panel (one panel may power several bands of a group; `checkPanels`, every map in
+  `tests/laserPanels.test.ts`). The panel is the lasers' jam point (A1): a jam target of kind `'panel'` at its door face
+  (`panelTarget`, `PANEL.face` out of the wall); jamming it (the slice J rules: 5 s at most, a 5 s cooldown, stand
+  still, a clear line) cuts every band it powers for the jam and its `JAMMER.reboot` (`laserLive`); the beams
+  themselves are no jam targets. A Sector Ops panel of a section that is not live is dark and no target, like its
+  lasers. Placement: near its bands, out of plain sight and hard to reach (behind cover, high, round a corner, in a
+  crawl void), jammable from a vantage a player reaches; the test traces each through the level's pieces (hidden from
+  the floor round its band, a clear line from the vantage). Look (render only, no collision): a box housing, door
+  plate, seam, hinge, label strip, conduit and a status LED (green powered, cyan blink jammed, amber rebooting, dark
+  when dead or released); electro paints the housing (parts named `PANEL_PART`). Co-op: the panel ids ride the existing
+  `jam` claim and `sec.dv` timelines (protocol 29); the client mirrors the panel and its lasers.

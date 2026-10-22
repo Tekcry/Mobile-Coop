@@ -8,8 +8,13 @@
 import { Vector3 } from '../core/babylon';
 import { gearCap } from '../player/speedGears';
 import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeReach } from './elbowStrike';
+import { strikeSimSet, strikeWarp } from '../anim/strikeBody';
 import type { CDenyReason } from './committedMoves';
 import type { GameState } from './gameState';
+
+/** (anim-n4d, n4c polish 7) After an accept's rewind the pose clock gains on `t` this much per second (its lead
+ *  drains at half pace: the posed phase still moves on, never back). */
+const LEAD_CATCH = 0.5;
 
 export class StrikeController {
   /** Seconds into the running strike (-1 = none). */
@@ -27,6 +32,9 @@ export class StrikeController {
   private backFrom = 0;
   private hp0 = 0;
   private queued = false;
+  /** (anim-n4d, n4c polish 7) The pose clock's lead on `t` (s): a co-op client's accept rewinds `t` onto the host's
+   *  clock (gameplay unchanged); the pose (and the wire's `ph`) keeps its place and `t` catches up (`LEAD_CATCH`). */
+  private lead = 0;
   /** False on a co-op client: the host resolves contact. */
   authority = true;
   /** (anim-rework S1, M3) The running strike is the lethal one (RT / LMB held holstered); false = the knockout (an RT /
@@ -48,11 +56,11 @@ export class StrikeController {
     return this.t >= 0;
   }
 
-  /** MoveState phase 0..1 (blending back after a denial). */
+  /** MoveState phase 0..1 (blending back after a denial): the pose clock (`t` plus the accept's `lead`). */
   get ph(): number {
     if (this.t < 0) return 0;
     if (this.back >= 0) return this.backFrom * (this.back / STRIKE.blendBack);
-    return strikePhase(this.t);
+    return strikePhase(this.t + this.lead);
   }
 
   /** May a strike start now: alive, holstered, on the ground and free (not attached, traversing, in a takedown,
@@ -98,6 +106,7 @@ export class StrikeController {
     const g = this.g;
     this.tid = target ?? this.pickTarget();
     this.t = 0;
+    this.lead = 0;
     this.back = -1;
     this.resolved = false;
     this.approved = false;
@@ -121,8 +130,10 @@ export class StrikeController {
     if (!this.active || id !== this.id || this.back >= 0) return;
     this.approved = true;
     // (never ahead of the local clock: the press started it before t0, so only a late estimate of the host's
-    // clock reads further on)
-    this.t = Math.max(0, Math.min(this.t, elapsed));
+    // clock reads further on); (anim-n4d) the pose keeps its place: the rewind goes into the lead
+    const t = Math.max(0, Math.min(this.t, elapsed));
+    this.lead += this.t - t;
+    this.t = t;
   }
 
   /** Host: refused (or interrupted); blend back with no hit. */
@@ -144,6 +155,9 @@ export class StrikeController {
   /** Fixed step (before the player's movement). */
   fixedUpdate(dt: number, pressed: boolean, lethal = false): void {
     const g = this.g;
+    // (anim-natural N4c) the tuner's Elbow strike follow: the local player's elbow arc (this strike or a takedown's
+    // blow, both posed by `melee`) as it stood after the last step
+    strikeSimSet(g.player.pose.melee >= 0);
     if (pressed) this.lethal = lethal;
     if (!this.active) {
       // (F1b) no swing at nothing: the press only starts a strike when a guard is in reach
@@ -165,7 +179,10 @@ export class StrikeController {
       if (this.back <= 0) return this.end();
     } else {
       const frozen = this.freezeAt >= 0 && strikePhase(this.t) >= this.freezeAt;
-      if (!frozen) this.t += dt;
+      if (!frozen) {
+        this.t += dt;
+        this.lead = Math.max(0, this.lead - dt * LEAD_CATCH);
+      }
       if (!this.approved && this.t > STRIKE.replyTimeout) this.cancel('timeout');
       // the host decides interruptions: damage before contact cancels it
       else if (this.authority && !this.resolved && g.target.health.hp < this.hp0) {
@@ -178,7 +195,8 @@ export class StrikeController {
       }
       if (this.t >= (this.tid ? STRIKE_DUR : STRIKE_WHIFF_DUR)) return this.end();
     }
-    g.player.pose.melee = this.ph;
+    // (anim-n4c M1) the pose plays the arc warped onto the hit (strikeWarp): the elbow lands at `STRIKE.hitAt`
+    g.player.pose.melee = strikeWarp(this.ph);
   }
 
   private wasActive = false;
@@ -186,6 +204,7 @@ export class StrikeController {
   private end(): void {
     if (this.sinceDeny >= 0) this.lastBackT = this.sinceDeny;
     this.t = -1;
+    this.lead = 0;
     this.back = -1;
     this.sinceDeny = -1;
     this.g.player.pose.melee = -1;
@@ -228,10 +247,12 @@ export class StrikeController {
 
   reset(): void {
     this.t = -1;
+    this.lead = 0;
     this.back = -1;
     this.queued = false;
     this.lethal = false;
     this.wasActive = false;
     this.g.player.pose.melee = -1;
+    strikeSimSet(false); // (anim-n4c) the tuner's Elbow strike follow
   }
 }

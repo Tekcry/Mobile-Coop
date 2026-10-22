@@ -1,4 +1,4 @@
-import { BaseTexture, Constants, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
+import { BaseTexture, Constants, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
 import { dropCpuCopy } from '../voxel/voxelWorld';
 import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid, packLampAtlas, type LampResult } from '../voxel/lampBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
@@ -208,12 +208,20 @@ export class BakedLamps {
   attachAll(): void {
     for (const m of this.scene.materials) this.attach(m);
     // (Step 4b: a material made later is attached on the next frame (`frame`), once its constructor has run - the
-    // scene's new-material event fires inside Babylon's base constructor, too early for a plugin)
+    // plugin is not added from the scene's new-material event (Babylon notifies it a tick after the add): the event
+    // only marks the next frame, beside the count check; backlog 30: the count alone missed an add and a dispose in
+    // one frame)
     this.matCount = this.scene.materials.length;
+    this.matObs ??= this.scene.onNewMaterialAddedObservable.add(() => {
+      this.matAdded = true;
+    });
   }
 
   /** Materials in the scene at the last check (a change: attach the new ones). */
   private matCount = -1;
+  /** A material was made since the last check (the scene's new-material event). */
+  private matAdded = false;
+  private matObs: Observer<Material> | null = null;
 
   attach(m: Material): void {
     if (this.plugins.has(m)) return;
@@ -260,7 +268,8 @@ export class BakedLamps {
   frame(): void {
     let dirty = false;
     const mats = this.scene.materials;
-    if (this.matCount >= 0 && mats.length !== this.matCount) {
+    if (this.matCount >= 0 && (this.matAdded || mats.length !== this.matCount)) {
+      this.matAdded = false;
       this.matCount = mats.length;
       for (let i = 0; i < mats.length; i++) this.attach(mats[i]!);
     }
@@ -362,6 +371,8 @@ export class BakedLamps {
   }
 
   dispose(): void {
+    if (this.matObs) this.scene.onNewMaterialAddedObservable.remove(this.matObs);
+    this.matObs = null;
     this.vis.dispose();
     this.data.dispose();
     this.moonTex?.dispose();

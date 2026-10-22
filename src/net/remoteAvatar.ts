@@ -25,6 +25,7 @@ import { PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
+import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
 import { RAPPEL } from '../config/movement';
 import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
@@ -64,6 +65,11 @@ export class RemoteAvatar {
   private hhL = { x: 0, y: 0, z: 0 };
   private hhR = { x: 0, y: 0, z: 0 };
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
+  /** (anim-n4d, M1) The last kill blow seen (null none), its last phase, and its follow-through after the kill (the
+   *  blow's phase past 1; -1 not started): as the owner's `TakedownController` tail, pose only. */
+  private blowB: KillBlow | null = null;
+  private blowU = 0;
+  private tailU = -1;
   readonly buf = new SnapshotBuffer<PlayerState>(40, 0.25);
   readonly pos = new Vector3();
   yaw = 0;
@@ -392,6 +398,21 @@ export class RemoteAvatar {
       wallHandPoint(this.pos.x, this.pos.y, this.pos.z, wseg.nx, wseg.nz, wseg.tx, wseg.tz, this.wallFace, this.rig.weaponHand, this.crouch, this.wallHandPt);
       this.rig.wallHand = this.wallHandPt;
     } else this.rig.wallHand = null;
+    // (anim-n4d, M1) a kill blow's follow-through: the owner's takedown ended on the kill (the wire moved on), the arc
+    // plays on from contact as the owner's (a strike below takes it over)
+    const blowB = mv && !rp ? (mv.m === 'takedown' ? TAKEDOWN_BLOW : mv.m === 'grab' && mv.sub & 1 ? GRAB_KILL_BLOW : null) : null;
+    if (blowB) {
+      this.blowB = blowB;
+      this.blowU = mv!.ph;
+      this.tailU = -1;
+    } else if (this.blowB) {
+      this.tailU = this.tailU >= 0 ? this.tailU + dt / this.blowB.dur : this.blowU >= KILL_SEEN ? 1 : KILL_TAIL_END;
+      if (this.tailU < KILL_TAIL_END) mp.melee = killWarp(this.tailU, this.blowB);
+      else {
+        this.blowB = null;
+        this.tailU = -1;
+      }
+    }
     // (locomotion step 10) the strike's phase eased between the two states around the render time (the sampled state is
     // the older one: a 20 Hz step in `ph` would jerk the elbow arc); a strike starting eases in from phase 0
     const sa = s.from.mv;
@@ -399,7 +420,7 @@ export class RemoteAvatar {
     if (sb?.m === 'strike' && (mv?.m === 'strike' || mv?.m === 'ground') && !rp) {
       // (a denial blends back down; a queued second strike restarts from 0)
       const ph0 = sa?.m === 'strike' && sa.ph < sb.ph + 0.5 ? sa.ph : 0;
-      mp.melee = ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k));
+      mp.melee = strikeWarp(ph0 + (sb.ph - ph0) * Math.min(1, Math.max(0, s.k))); // (anim-n4c M1) as the local pose
     }
     if (attached && this.world.level.anchors.all[mv!.a]) {
       const a = this.world.level.anchors.all[mv!.a]!;

@@ -7,7 +7,7 @@ import { buildWarehouse, warehouse } from './warehouse';
 import { buildServiceS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './warehouseS1';
 import { buildStorageS2, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './warehouseS2';
 import { buildAssemblyS3, S3_NAV_SEEDS, S3_PICKUPS, S3_ROOMS, S3_SWITCHES } from './warehouseS3';
-import { WAREHOUSE_OPS_ALARMS, WAREHOUSE_OPS_LASERS, WAREHOUSE_OPS_SECURITY, WAREHOUSE_SECTORS } from './warehouseSectors';
+import { WAREHOUSE_OPS_ALARMS, WAREHOUSE_OPS_LASERS, WAREHOUSE_OPS_PANELS, WAREHOUSE_OPS_SECURITY, WAREHOUSE_SECTORS } from './warehouseSectors';
 
 const DESK = '#8a6a4c';
 
@@ -116,6 +116,7 @@ export const warehouseOps: MapDef = {
       alarms,
       security: WAREHOUSE_OPS_SECURITY,
       lasers: WAREHOUSE_OPS_LASERS,
+      laserPanels: WAREHOUSE_OPS_PANELS,
     };
   },
 };

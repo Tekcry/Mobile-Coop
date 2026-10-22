@@ -19,6 +19,7 @@ import { AttachGrips } from '../src/player/attachGrips';
 import { attachPose } from '../src/player/attach';
 import { makeLedge, TraversalAnchors, type Ladder, type Ledge } from '../src/world/anchors';
 import { GEARS } from '../src/config/movement';
+import { killWarp, TAKEDOWN_BLOW } from '../src/anim/strikeBody';
 
 const anchors = new TraversalAnchors();
 const ladder = anchors.add<Ladder>({ kind: 'ladder', base: { x: 0, y: 0, z: 0 }, top: { x: 0, y: 4, z: 0.45 }, facing: 0, rung: 0.3, width: 0.5 });
@@ -112,7 +113,7 @@ describe('move state (3.2.0 phase 1)', () => {
   });
 
   it('PROTOCOL_VERSION is 28 (the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
-    expect(PROTOCOL_VERSION).toBe(28);
+    expect(PROTOCOL_VERSION).toBe(29);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {
@@ -128,7 +129,8 @@ describe('move state (3.2.0 phase 1)', () => {
     poseFromMoveState({ ...emptyMoveState(), m: 'roll', ph: 0.5 }, 0, out);
     expect(out).toMatchObject({ traverse: 'roll', traverseT: 0.5 });
     poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0.7, tid: 'e1' }, 0, out);
-    expect(out).toMatchObject({ traverse: 'none', melee: 0.7 });
+    expect(out).toMatchObject({ traverse: 'none' });
+    expect(out.melee).toBeCloseTo(killWarp(0.7, TAKEDOWN_BLOW), 12); // (anim-n4d) the blow's phase posed warped onto the kill
     poseFromMoveState(emptyMoveState(), 0, out);
     expect(out).toMatchObject({ wallSide: 0, traverse: 'none', melee: -1 });
     for (const m of MOVE_MODES) expect(isAttachedMode(m)).toBe(['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'].includes(m));

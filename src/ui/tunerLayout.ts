@@ -37,6 +37,8 @@ const SECTION_TAB: Readonly<Record<string, string>> = {
   weight: 'weight',
   cam: 'camera',
   keys: 'keys',
+  // (anim-n4c) the elbow strike's trunk sliders sit with the body's
+  strike: 'body',
   // (marlow-bays item 24, track A) the guard sections sit beside Wren's; the "Who" choice shows one or the other
   guardJoint: 'body',
   guardStep: 'stepping',
@@ -377,6 +379,7 @@ const PLAIN: Readonly<Record<string, string>> = {
   tuckMul: 'Elbows in to the body',
   glideTwistMul: 'Hip twist aiming on the move',
   recoilMul: 'Recoil kick per shot',
+  swapDropMul: 'Gun drop changing hands',
   // camera
   camBoomAdd: 'Distance',
   camHeightAdd: 'Height',
