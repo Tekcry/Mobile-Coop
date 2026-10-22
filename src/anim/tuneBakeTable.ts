@@ -158,6 +158,13 @@ rules.push(
   }),
   rule('gun', 'glideTwistMul', AIM_GUN, [e(GRAPH, 'GLIDE.yawCut', 'mul')], RIG_NOTE),
 );
+// (anim-n3b) the per-shot body recoil: Wren's own amounts per gun (the springs' rates stay)
+const RECOIL_FILE = 'src/anim/recoil.ts';
+const RECOIL_AMOUNTS = ['back', 'up', 'flip', 'spine', 'yaw', 'pelvis'];
+rules.push(
+  rule('gun', 'recoilMul', RIFLE_AIM, RECOIL_AMOUNTS.map((f) => e(RECOIL_FILE, `WREN_RECOIL_RIFLE.${f}`, 'mul'))),
+  rule('gun', 'recoilMul', PISTOL_AIM, RECOIL_AMOUNTS.map((f) => e(RECOIL_FILE, `WREN_RECOIL_PISTOL.${f}`, 'mul'))),
+);
 
 // ------------------------------------------------------------------------------------------
 // Camera (tune.ts): config/camera.ts, same units (m, s, 1/s)
