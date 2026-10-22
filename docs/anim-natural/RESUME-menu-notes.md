@@ -3,6 +3,11 @@
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
 
+## Update 2026-10-22 ~19:10 (after the clear)
+- N0 leftovers committed: feature/anim-natural 81102f93 (rows 29 / 39 / 49 script problems, no game bug; logic check passed; stage-light !ms.sourceMesh fix in). GPU sheets requested from Character Build (5 rows, docs/anim-natural/audit/).
+- #122 / #127 / #129 are in train/6 (6551afe9): no master merges unless train 6 sends one back.
+- sector-fixes P: feature/sector-fixes-p in C:/NightShift/Mobile-Coop-sector-fixes-p, from master 4.56.0 with feature/sector-fixes-c merged in (58950220). Implementer running (uncommitted work there: check git status / diff on resume; WIP docs/sector-fixes/p/WIP.md). A1: the panel is the lasers' jam point. Next: laptop suites, fresh checker, PR (write changes/feature-sector-fixes-p.md instead of CHANGELOG once #131 lands).
+
 ## Rules in force (orchestrator, 2026-10-22)
 - (Michael 17:50, CLAUDE.md on origin/feature/menu "Machines") The LAPTOP (Character Build) is the main test machine, GPU
   included: full runs, co-op suites (e2e-coop / netmove / ctcourse) and GPU work (anim-audit, sheets, shots) go there with
