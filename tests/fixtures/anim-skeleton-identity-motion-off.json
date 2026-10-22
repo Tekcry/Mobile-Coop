@@ -31,12 +31,12 @@
  },
  "keyed:run": {
   "steps": 48,
-  "rig": "437bb22b9be4aa91",
+  "rig": "b032353408655cc7",
   "poser": {
-   "hero": "ce6f5e97f28ce809",
-   "lod0": "89eca9391aaa1ab7",
-   "lod1": "89eca9391aaa1ab7",
-   "lod2": "89eca9391aaa1ab7"
+   "hero": "a3cd7f50989f132b",
+   "lod0": "cb873a06238b5fd3",
+   "lod1": "cb873a06238b5fd3",
+   "lod2": "cb873a06238b5fd3"
   }
  },
  "keyed:ready_stance": {
@@ -279,6 +279,16 @@
    "lod2": "5d386e282e1d9ef2"
   }
  },
+ "keyed:skeleton_test": {
+  "steps": 48,
+  "rig": "0d0e6147da920d3b",
+  "poser": {
+   "hero": "ba6973aaf055d4b1",
+   "lod0": "591beb4e68077588",
+   "lod1": "591beb4e68077588",
+   "lod2": "591beb4e68077588"
+  }
+ },
  "state:idle": {
   "steps": 90,
   "rig": "97201bc16d0c6460",
@@ -381,12 +391,12 @@
  },
  "partner:moves": {
   "steps": 180,
-  "rig": "483be6b4c8fc5e00",
+  "rig": "a7fab7ee3ac7b9d1",
   "poser": {
-   "hero": "d6171d7b6592191c",
-   "lod0": "4a1d8f17d4384784",
-   "lod1": "4a1d8f17d4384784",
-   "lod2": "4a1d8f17d4384784"
+   "hero": "8811662f5d2b9bb0",
+   "lod0": "6f112a82d57559ba",
+   "lod1": "6f112a82d57559ba",
+   "lod2": "6f112a82d57559ba"
   }
  }
 }

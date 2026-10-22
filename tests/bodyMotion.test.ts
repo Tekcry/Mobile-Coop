@@ -157,7 +157,8 @@ describe('body motion: amounts 0 are the pre-layer Wren rig bit for bit', () => 
     writeFileSync(OFF_FIXTURE, `${JSON.stringify(o, null, 1)}\n`);
   }, 600000);
 
-  // the off fixture is the Wren identity fixture before the layer (master 5220f79c): with every amount 0 the rig's
+  // the off fixture is the Wren identity fixture before the layer (master 5220f79c; keyed:run and partner:moves re-captured
+  // after the A1 merge, equal on all 40 entries to feature/anim-n2-runkey 038e2519's fixture): with every amount 0 the rig's
   // world matrices, local TRS and the poser output on every LOD match it, so the layer adds only its own swings
   it.skipIf(CAPTURE)('every clip, state and the partner path hash as before the layer', async () => {
     expect(existsSync(OFF_FIXTURE)).toBe(true);
@@ -173,7 +174,8 @@ describe('body motion: amounts 0 are the pre-layer Wren rig bit for bit', () => 
 
 /**
  * Measured at 60 Hz (sim time), before (amounts 0) and after. Before: the N2 research table (PLAN.md "Measured now").
- * After: PLAN step 2's targets. The run keeps its keyed pelvis pop (A1, waits for Michael): pinned as measured.
+ * After: PLAN step 2's targets (fix round: the sway at 0.7x, A11, walk lateral 3.6 cm). The run after A1 (the key pop gone):
+ * pinned as measured.
  */
 describe('body motion: measured on a headless Wren rig', () => {
   let off: Record<string, MotionMetrics>;
@@ -209,7 +211,7 @@ describe('body motion: measured on a headless Wren rig', () => {
     };
     inR(on.walk!.pelvisYaw, 7, 9, 'walk pelvis');
     inR(on.walk!.shoulderYaw, 7, 9, 'walk shoulders');
-    inR(on.walk!.lateralCm, 4, 5, 'walk lateral');
+    inR(on.walk!.lateralCm, 3.3, 4, 'walk lateral');
     inR(on.jog!.pelvisYaw, 11, 13, 'jog pelvis');
     inR(on.jog!.shoulderYaw, 14.5, 17, 'jog shoulders');
     inR(on.sneak!.pelvisYaw, 4.5, 5.5, 'sneak pelvis');
@@ -218,7 +220,7 @@ describe('body motion: measured on a headless Wren rig', () => {
     inR(on.crouchWalk!.shoulderYaw, 7, 9.5, 'crouch walk shoulders');
     inR(on.aimFwd!.pelvisYaw, 3, 4.5, 'aim glide pelvis');
     inR(on.run!.lateralCm, 2, 3, 'run lateral');
-    for (const k of ['walk', 'jog', 'sneak', 'crouchWalk', 'crouchRun', 'lowReadyWalk']) {
+    for (const k of ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'lowReadyWalk']) {
       expect(on[k]!.counterCorr, `${k} corr`).toBeLessThan(-0.9);
       inR(on[k]!.headYaw, 2, 6, `${k} head yaw`);
     }
@@ -231,8 +233,9 @@ describe('body motion: measured on a headless Wren rig', () => {
     for (const k of Object.keys(on)) expect(on[k]!.headPitch, `${k} head pitch`).toBeLessThanOrEqual(2);
     // the stills are untouched in this step (step 4 adds them)
     for (const k of ['idle', 'aimStill']) expect(on[k], k).toEqual(off[k]);
-    // (A1 open) the run's keyed pop stays: pelvis ~51 deg p2p before, the layer's 3 deg added on top
-    inR(on.run!.pelvisYaw, 50, 60, 'run pelvis (A1 pop)');
+    // (A1 merged) the run's keyed trunk ~20 / 21 deg p2p, the layer's 3 / 4 deg added on top
+    inR(on.run!.pelvisYaw, 24, 28, 'run pelvis (after A1)');
+    inR(on.run!.shoulderYaw, 27, 31, 'run shoulders (after A1)');
   }, 600000);
 
   it('the same ranges at 120 and 240 Hz (phase-locked, sim time)', async () => {

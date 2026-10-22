@@ -45,3 +45,10 @@ Feet / footPlanner / tuneStep / turnFollow (N1), draws / swap overlay / armed ar
 - A8: wrist speed cap 6 m/s in the chest frame, keyed arms only. Undo: armSpeed at its maximum.
 - A9: the 20 deg turn follow (PELVIS_FOLLOW_KEYED) stays N1's.
 - A10: the stills breathe on the graph's random idleT clock (remote out of phase, as the idle already is). Undo: a fixed seed.
+- A11 (job lead, step 2 fix round, CHECK-2 finding 1): the gated crab track and knee-out are read in the facing frame
+  through the hip midpoint (a frame fix, as METRICS.md uses for turns: the body layer's added hip yaw must not rotate the
+  measuring line); undo: back to the pelvis frame. Built as `src/anim/audit/crabFacing.ts` (N1's metrics.ts untouched),
+  used by scripts/e2e-anim.mjs crabRow on every crabRecord row except the turn sub-states (turn round, 90 / 180 deg
+  change: the root yaw sweeps ahead of the pelvis, they keep the pelvis frame) and the wall rows (no root yaw recorded,
+  layer off); limits unchanged. With it the sway is cut to 0.7x (walk 1.4 -> 0.98, jog / sneak / crouch walk / crouch
+  run 0.8 -> 0.56 cm; the run keeps 0.6) so the knee-out stays <= 2.9 cm.

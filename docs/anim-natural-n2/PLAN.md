@@ -41,7 +41,9 @@ From the research agent's survey (2026-10-22 ~14:00, read-only on master 5220f79
    ~2394. Defaults (deg hip / chest, sway cm): walk 2.5 / 2.5 / +1.4, jog 3.5 / 4.5 / +0.8, run 3 / 4 / +0.6 (after
    A1), sneak 1.5 / 1.5, crouch walk 2 / 2, crouch run 2.5 / 3 (crouch rows +0.8), aim glide 1.5 / 0, crouch aim
    moving 1.2 / 0; head follow 0.35, nod 0.6 deg. Targets: walk ~8 / 8, jog 12 / 16, sneak 5 / 5, crouch walk 8 / 8,
-   aim counterCorr < -0.8, walk lateral 4-5 cm, head yaw 2-6 moving / 0 aiming, head pitch p2p <= 2.
+   aim counterCorr < -0.8, walk lateral 3.2-4.2 cm (fix round, A11: the sway at 0.7x, walk 0.98 / jog, sneak, crouch
+   0.56 cm, so the knee-out stays <= 2.9 cm in the facing frame; was 4-5), head yaw 2-6 moving (the run too, headFollow
+   0.18 after A1) / 0 aiming, head pitch p2p <= 2.
    Tests: amounts 0 bit-identical first, then re-capture the Wren identity fixture; the guard fixture stays
    bit-identical; row-weight continuity; phase-locked 60 / 120 / 240 Hz; e2e-anim "body motion" block; remote parity
    (graph-internal inputs only, never owner-only RigPose fields).

@@ -43,24 +43,28 @@ export const BODY_MOTION_FIELDS = ['hipTurn', 'hipTime', 'chestTurn', 'chestTime
  * tests/bodyMotion.test.ts), so the totals reach the targets (walk ~8 / 8 deg p2p pelvis / shoulders, jog ~12 / 16,
  * sneak 5 / 5, crouch walk 8 / 8, walk lateral 4-5 cm). Aiming the pelvis swings against the shoulders (counter
  * rotation) and the chest stays on the aim (chestTurn 0). The stills are 0 here (step 4 adds breathing and shifts).
- * The run keeps its keyed pop (A1, waits for Michael): its amounts are added as given. The sneak's headFollow is 0.4
- * (0.35 left its head yaw at 1.9 deg p2p, under the 2-6 target). Times are in the rig's yaw sense (+ about +Y): the
- * hip-joint line's measured yaw (the e2e / harness metric) is the opposite sign, so it peaks half a cycle on.
+ * (fix round, anim-natural-n2 A11) The sway is 0.7x the first values (walk 1.4 -> 0.98 cm, jog / sneak / crouch walk /
+ * crouch run 0.8 -> 0.56): at 1x the stance hip swung outside the stance foot (knee-out 3.0-3.1 cm at the walk even in
+ * the facing frame, limit 3); the run keeps 0.6 (its lateral 2-3 cm). Aiming nods 0 (the weld stays still). The run's
+ * headFollow is 0.18 (after A1 the keyed run trunk swings ~20 deg p2p: 0.35 gave 10 deg head yaw, over the 2-6 target).
+ * The sneak's headFollow is 0.4 (0.35 left its head yaw at 1.9 deg p2p, under the 2-6 target). Times are in the rig's
+ * yaw sense (+ about +Y): the hip-joint line's measured yaw (the e2e / harness metric) is the opposite sign, so it peaks
+ * half a cycle on.
  */
 export const BODY_MOTION: Record<BodyMotionRowId, BodyMotionRow> = {
   idle: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
-  walk: { hipTurn: 2.5, hipTime: 0.01, chestTurn: 2.5, chestTime: 0.51, sway: 1.4, swayTime: 0.75, headFollow: 0.35, headNod: 0.6 },
-  jog: { hipTurn: 3.5, hipTime: 0.96, chestTurn: 4.5, chestTime: 0.45, sway: 0.8, swayTime: 0.74, headFollow: 0.35, headNod: 0.6 },
-  run: { hipTurn: 3, hipTime: 0.91, chestTurn: 4, chestTime: 0.38, sway: 0.6, swayTime: 0.69, headFollow: 0.35, headNod: 0.6 },
+  walk: { hipTurn: 2.5, hipTime: 0.01, chestTurn: 2.5, chestTime: 0.51, sway: 0.98, swayTime: 0.75, headFollow: 0.35, headNod: 0.6 },
+  jog: { hipTurn: 3.5, hipTime: 0.96, chestTurn: 4.5, chestTime: 0.45, sway: 0.56, swayTime: 0.74, headFollow: 0.35, headNod: 0.6 },
+  run: { hipTurn: 3, hipTime: 0.91, chestTurn: 4, chestTime: 0.38, sway: 0.6, swayTime: 0.69, headFollow: 0.18, headNod: 0.6 },
   crouchIdle: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
-  sneak: { hipTurn: 1.5, hipTime: 0.05, chestTurn: 1.5, chestTime: 0.53, sway: 0.8, swayTime: 0.75, headFollow: 0.4, headNod: 0.6 },
-  crouchWalk: { hipTurn: 2, hipTime: 0.05, chestTurn: 2, chestTime: 0.53, sway: 0.8, swayTime: 0.75, headFollow: 0.35, headNod: 0.6 },
-  crouchRun: { hipTurn: 2.5, hipTime: 0.05, chestTurn: 3, chestTime: 0.52, sway: 0.8, swayTime: 0.74, headFollow: 0.35, headNod: 0.6 },
+  sneak: { hipTurn: 1.5, hipTime: 0.05, chestTurn: 1.5, chestTime: 0.53, sway: 0.56, swayTime: 0.75, headFollow: 0.4, headNod: 0.6 },
+  crouchWalk: { hipTurn: 2, hipTime: 0.05, chestTurn: 2, chestTime: 0.53, sway: 0.56, swayTime: 0.75, headFollow: 0.35, headNod: 0.6 },
+  crouchRun: { hipTurn: 2.5, hipTime: 0.05, chestTurn: 3, chestTime: 0.52, sway: 0.56, swayTime: 0.74, headFollow: 0.35, headNod: 0.6 },
   lowReady: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
   aimStill: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
-  aim: { hipTurn: 1.5, hipTime: 0.95, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0.6 },
+  aim: { hipTurn: 1.5, hipTime: 0.95, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
   aimCrouch: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
-  aimCrouchMove: { hipTurn: 1.2, hipTime: 0.9, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0.6 },
+  aimCrouchMove: { hipTurn: 1.2, hipTime: 0.9, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
 };
 
 /** Where the nod peaks (cycles; it repeats every half cycle): just after each heel strike (left at 0, right at 0.5). */

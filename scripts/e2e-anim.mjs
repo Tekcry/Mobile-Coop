@@ -12,9 +12,11 @@ import { launch, assert as hard } from './e2e-lib.mjs';
 // (anim-metrics) the pure audit metrics and limits for node (as anim-audit: bundled with esbuild at start; node + its JS
 // entry, not .bin, which is a .cmd shim on Windows)
 const LIB = resolve('test-results/e2e-anim/lib');
-execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', 'src/anim/audit/crabFacing.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
 const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
 const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
+// (anim-natural-n2 A11) the anti-crab facing frame (the gated track and knee-out through the hip midpoint)
+const CF = await import(pathToFileURL(`${LIB}/crabFacing.js`).href);
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -402,6 +404,8 @@ try {
       const out = Object.fromEntries(joints.map((j) => [j, []]));
       out.contactL = [];
       out.contactR = [];
+      // (anim-natural-n2 A11) the root's facing yaw per frame: crabRow reads the track and knee-out in the facing frame
+      out.yaw = [];
       let speed = 0;
       for (const sg of segs) {
         t.run(sg.sec, sg.inp, sg.rec ? () => {
@@ -413,6 +417,7 @@ try {
           }
           out.contactL.push(rig.planner.L.contact ? 1 : 0);
           out.contactR.push(rig.planner.R.contact ? 1 : 0);
+          out.yaw.push(rig.root.rotation.y);
           speed += c.speed;
           return 0;
         } : undefined);
@@ -424,14 +429,21 @@ try {
     }, [gear ?? null, !!crouch, segs, weapon ?? null]);
   const cm = (v) => (v * 100).toFixed(1);
   /** The crab numbers of a recording against the stance's ranges (`L.crabRanges`). */
-  const crabRow = (name, rec, crouch, idle, ranges) => {
+  // (anim-natural-n2 A11) The planted-foot track and the knee-out read in the facing frame through the hip midpoint (a
+  // frame fix: the body motion layer's added hip yaw must not rotate the measuring line; src/anim/audit/crabFacing.ts)
+  // whenever the recording has the root's yaw (crabRecord) and the row is not a turn (`pelvisFrame`: the root yaw sweeps
+  // ahead of the pelvis there, so the turns keep the pelvis frame, METRICS.md). Limits unchanged. Undo: the hip joints.
+  const crabRow = (name, rec, crouch, idle, ranges, pelvisFrame = false) => {
     // (anim-rework S2) a standstill reads against the idle's hip-width stance (L.CRAB_IDLE)
     const C = ranges ?? (idle ? L.CRAB_IDLE : L.crabRanges(!!crouch));
+    const fh = rec.yaw && !pelvisFrame ? CF.facingHips(rec.hipL, rec.hipR, rec.yaw) : rec;
     const knee = M.kneeSeparation(rec.hipL, rec.hipR, rec.kneeL, rec.kneeR, C.kneeSep.min, C.kneeSep.max);
     // (a standstill has no plants to sample: the track then reads every frame of both feet)
     const anyPlant = rec.contactL.some(Boolean) || rec.contactR.some(Boolean);
-    const track = M.footTrack(rec.hipL, rec.hipR, rec.ankleL, rec.ankleR, C.trackHalf, anyPlant ? rec.contactL : undefined, anyPlant ? rec.contactR : undefined);
-    const bow = M.kneeBow(rec.hipL, rec.hipR, rec.kneeL, rec.kneeR, rec.ankleL, rec.ankleR, C.kneeBow);
+    // (anim-natural-n2 A11) facing frame
+    const track = M.footTrack(fh.hipL, fh.hipR, rec.ankleL, rec.ankleR, C.trackHalf, anyPlant ? rec.contactL : undefined, anyPlant ? rec.contactR : undefined);
+    // (anim-natural-n2 A11) facing frame
+    const bow = M.kneeBow(fh.hipL, fh.hipR, rec.kneeL, rec.kneeR, rec.ankleL, rec.ankleR, C.kneeBow);
     const slL = M.plantedSlide(rec.ankleL, rec.contactL, C.slide);
     const slR = M.plantedSlide(rec.ankleR, rec.contactR, C.slide);
     const wing = M.elbowWing(rec.shoulderL, rec.shoulderR, rec.elbowL, rec.elbowR, C.elbowWing);
@@ -506,7 +518,8 @@ try {
         const gated = !!(key && L.CRAB_STATE_GATES[key]);
         if (!all && !gated) continue;
         const rec = await crabRecord(gear, false, segs);
-        const r = crabRow(`speed ${gear} ${name}`, rec, false, L.CRAB_IDLE_TRACK.includes(key));
+        // (anim-natural-n2 A11) the turns keep the pelvis frame
+        const r = crabRow(`speed ${gear} ${name}`, rec, false, L.CRAB_IDLE_TRACK.includes(key), undefined, key === 'turn' || key === 'change90' || key === 'change180');
         stateRows.push({ gear, ...r.row });
         console.log(crabLine(r, rec) + (gated ? '' : ' [report-only]'));
         if (!gated) continue;
@@ -975,8 +988,8 @@ try {
     // shoulder-joint lines in the root frame), their correlation (counter-rotation), the pelvis lateral swing off the
     // root, the head's yaw off the root and its pitch, each a peak-to-peak over the recording, sampled every 60 Hz step.
     // The same maths as the unit harness (tests/helpers/bodyMotionMeasure.ts, tests/bodyMotion.test.ts); the targets are
-    // PLAN step 2's (docs/anim-natural-n2/PLAN.md). The run keeps its keyed pelvis pop (A1, waits for Michael): its yaw is
-    // report-only, its lateral asserts.
+    // PLAN step 2's (docs/anim-natural-n2/PLAN.md). (fix round) The sway is 0.7x (A11: walk lateral ~3.6 cm, the knee-out
+    // margin); the run's key pop is gone (A1 merged): its yaw stays report-only, its lateral and head yaw assert.
     console.log('body motion');
     const bm = await G(() => {
       const t = window.__t;
@@ -1056,14 +1069,17 @@ try {
     const inR = (v, lo, hi) => v >= lo && v <= hi;
     const w = B.walk;
     assert(inR(w.pelvis, 7, 9) && inR(w.shoulders, 7, 9), `walk: pelvis / shoulders counter-rotate ~8 / 8 deg p2p (${f2(w.pelvis)} / ${f2(w.shoulders)}; 7-9)`);
-    assert(inR(w.lateral, 0.04, 0.05), `walk: pelvis lateral sway 4-5 cm (${cm(w.lateral)})`);
+    // (fix round, anim-natural-n2 A11) the sway at 0.7x: headless 3.6 cm
+    assert(inR(w.lateral, 0.032, 0.042), `walk: pelvis lateral sway 3.2-4.2 cm (${cm(w.lateral)})`);
     const j = B.jog;
     assert(inR(j.pelvis, 11, 13) && inR(j.shoulders, 14.5, 17), `jog: pelvis / shoulders ~12 / 16 deg p2p (${f2(j.pelvis)} / ${f2(j.shoulders)}; 11-13 / 14.5-17)`);
     const s = B.sneak;
     assert(inR(s.pelvis, 4.5, 5.5) && inR(s.shoulders, 4.5, 6), `sneak: pelvis / shoulders ~5 / 5 deg p2p (${f2(s.pelvis)} / ${f2(s.shoulders)}; 4.5-5.5 / 4.5-6)`);
     const cw = B['crouch walk'];
     assert(inR(cw.pelvis, 7, 9) && inR(cw.shoulders, 7, 9.5), `crouch walk: pelvis / shoulders ~8 / 8 deg p2p (${f2(cw.pelvis)} / ${f2(cw.shoulders)}; 7-9 / 7-9.5)`);
-    assert(inR(B.run.lateral, 0.02, 0.03), `run: pelvis lateral sway 2-3 cm (${cm(B.run.lateral)}; its yaw ${f2(B.run.pelvis)} deg is the keyed pop, A1, report-only)`);
+    assert(inR(B.run.lateral, 0.02, 0.03), `run: pelvis lateral sway 2-3 cm (${cm(B.run.lateral)}; its yaw ${f2(B.run.pelvis)} deg report-only)`);
+    // (fix round) the run's head yaw asserts too (headFollow 0.18 after A1)
+    assert(inR(B.run.headYaw, 2, 6), `run: the head follows the chest a little (${f2(B.run.headYaw)} deg p2p; 2-6)`);
     for (const n of ['walk', 'jog', 'sneak', 'crouch walk']) {
       assert(B[n].corr < -0.9, `${n}: pelvis and shoulders counter-rotate (corr ${f2(B[n].corr)} < -0.9)`);
       assert(inR(B[n].headYaw, 2, 6), `${n}: the head follows the chest a little (${f2(B[n].headYaw)} deg p2p; 2-6)`);
