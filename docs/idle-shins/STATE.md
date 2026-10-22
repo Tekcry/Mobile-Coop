@@ -11,6 +11,16 @@ interpenetrate (closest gap 4.8 cm at 0.05, 10.4 at 0.3): only the audit's proxy
 at +-12.8 cm, the rig's proxy knees +-7.5 cm), which is why Michael saw no clip. tests/idleShins.test.ts; the Wren
 identity fixture re-captured (26 of 40 entries, every scene through the idle row); guard fixture unchanged.
 
+## Desktop anim-audit on 9257c788 (14:47-14:50, /c/NightShift/ish-audit.log)
+Not enough: selfShanks 3.18 -> 2.40 cm (limit 2.00), still at frame 0 of every standing row (local fails 689 / remote 89
+vs #103's 703 / 108, master's 645 / 89). The headless estimate (0.85 cm at 0.3) does not match the audit's frame 0: the
+overlap at frame 0 is the moment right after the audit's teleport (`tp`), so it likely comes from the stance the
+teleport leaves (the walk / run rows' trackMul 0.05 easing over BODY_TAU, or the planner's re-init placing the feet on
+the narrow track before the idle row takes over), not the settled idle stance.
+
 ## Next
-1. Desktop anim-audit on this head: selfShanks under 2.0 in the standing rows.
-2. PR (patch) to master: joins train 4. The PR body says the mesh never clipped (audit capsules only).
+1. Find what sets the shins at the audit's frame 0 (scripts/anim-audit.mjs `tp` and the first recorded frame; the body
+   row the rig holds then; the planner's init placement): measure headless the same way the audit does at frame 0
+   (not after 3 s of idle). Widen only that, just enough (Michael: "Widen just enough").
+2. Desktop anim-audit: selfShanks < 2.0. Then PR (patch) for train 4; the body says the mesh never clipped (audit
+   capsules only: the GLB shins are 4.8 cm apart at 0.05).
