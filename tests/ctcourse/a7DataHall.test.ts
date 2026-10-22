@@ -6,7 +6,10 @@
  * says (`a7-cam1` short of T1's spot, C2; `a7-cam2`'s two blind windows and the cooling units' lees) and the jam lines pass the
  * mesh but not the kick band, every lamp is on its circuit with the tuned levels, the technician is an armed `grunt` on a
  * walkable loop inside the 71 lure, the steps validate and read per player with the corridor claim, the pass zone and the sync
- * open the doors. The map-wide frames (`tests/ctcourse.test.ts`, `tests/ctcourseLight.test.ts`) run the contract, the register
+ * open the doors. The last block is the dressing (slice 7 step 5): the greybox pinned (no new collision at all), every hand-built box a
+ * thin skin, the racks and cooling units as props over the greybox boxes (5 cm proud, ends capped), the budgets, the cage, door, camera
+ * and lane clearances, the raised floor and grating, the riser block as a services core, every kit glow on its circuit. The map-wide
+ * frames (`tests/ctcourse.test.ts`, `tests/ctcourseLight.test.ts`) run the contract, the register
  * and the light bands over this part too. Moved here from the old station 6 scanner cases (`A7_SCANNERS`).
  */
 import { readFileSync } from 'node:fs';
@@ -18,6 +21,7 @@ import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
 import { surfaceAt } from '../../src/world/surfaces';
 import { MOVEMENT } from '../../src/config/movement';
 import { COURSE_TEXT_MAX } from '../../src/config/course';
+import { CAMERA } from '../../src/config/security';
 import { layoutKnownIds, validateCourse, type FlagGate } from '../../src/game/course/courseDef';
 import { CourseState } from '../../src/game/course/courseState';
 import { JAMMER } from '../../src/game/jammer';
@@ -28,6 +32,9 @@ import { remoteHeadY } from '../../src/security/securitySystem';
 import { hyp2 } from '../../src/core/mathx';
 import { buildCtcourse, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { SILENT_CROUCH, syncMinGap, syncStation } from '../../src/world/maps/ctcourseGreybox';
+import { kitTriangles } from '../../src/world/kit/facilityKit';
+import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import {
   A7_CAGE,
   A7_CAGE_E,
@@ -46,11 +53,15 @@ import {
   A7_NEVER_FLAG,
   A7_PANEL_Y,
   A7_PASS_WAIT,
+  A7_PROP_LIFT,
   A7_PLANT_DOOR,
   A7_POD_DOOR,
   A7_POD_FLAG,
   A7_POD_ZONE,
+  A7_RACK_FRONT,
   A7_RACK_H,
+  A7_RACK_PITCH,
+  A7_RACK_PROUD,
   A7_RACKS,
   A7_SCANNER,
   A7_SYNC_FLAG,
@@ -65,10 +76,14 @@ import {
   A7_TECH_FACES,
   A7_TECH_ROUTE,
   A7_TECH_WAITS,
+  A7_RISER,
+  A7_TRAYS,
   A7_UNIT,
+  A7_UNIT_Z,
   A7_UNITS,
 } from '../../src/world/maps/ctcourseSets/a7DataHall';
-import { checkSetPart, holdDoorId, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, setExitDoor } from '../../src/world/maps/ctcourseSets/types';
+import { GAL_TOP } from '../../src/world/maps/ctcourseSets/facility';
+import { checkSetPart, HALL_H, holdDoorId, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, setExitDoor, setGroups } from '../../src/world/maps/ctcourseSets/types';
 import { circuitOf, LURE_RANGE, marlowCourseGroups } from '../../src/world/lighting/marlowCircuits';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
 import { MANTLE, soloJumpThreats } from '../helpers/soloJumpReach';
@@ -81,6 +96,10 @@ const course = lay.course!;
 const def = course.def;
 const range = built.ranges.a7DataHall;
 const mine = b.boxes.slice(range.boxes[0], range.boxes[1]);
+/** The greybox as S7 built it (slice 7 steps 2-4): its 46 boxes (36 solids), 15 lamps, 5 doors, 6 anchors. The dressing is appended after. */
+const GREY = { boxes: 46, solids: 36, lights: 15, doors: 5, anchors: 6, checksum: 17438.80738438888 };
+const grey = mine.slice(0, GREY.boxes);
+const dressing = mine.slice(GREY.boxes);
 const box = SET_BOX.a7DataHall[0]!;
 const lamps = b.lights.lights.filter((l) => l.kind !== 'flashlight' && inBox(box, l.x, l.z));
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
@@ -361,7 +380,7 @@ describe('A7 the Data Hall: the terminals (scanner pair sc-a7, N6)', () => {
     expect(t1.x + Math.sin(t1.yaw) * 0.6).toBeCloseTo(A7_T1_SPOT[0], 9);
     expect(t2.x + Math.sin(t2.yaw) * 0.6).toBeCloseTo(A7_T2_SPOT[0], 9);
     for (const [x, z] of [A7_T1_SPOT, A7_T2_SPOT]) expect(blockedAt(x, z), `${x}, ${z}`).toEqual([]);
-    const housings = mine.filter((p) => !p.collide && Math.abs(p.c[1] - (A7_PANEL_Y + 0.2)) < 1e-6 && Math.abs(p.s[1] - 0.9) < 1e-6);
+    const housings = grey.filter((p) => !p.collide && Math.abs(p.c[1] - (A7_PANEL_Y + 0.2)) < 1e-6 && Math.abs(p.s[1] - 0.9) < 1e-6);
     expect(housings).toHaveLength(2);
   });
 
@@ -469,7 +488,7 @@ describe('A7 the Data Hall: the cameras', () => {
     // the mesh passes sight: nothing solid between cam1 and T1's spot, so only the frame keeps it out (the doc's C2)...
     expect(blockers(lens(A7_CAM1), [A7_T1_SPOT[0], remoteHeadY(0, false), A7_T1_SPOT[1]])).toEqual([]);
     // ...and with a long aim (10.2 m) the same camera would frame the hacker: the short aim is what keeps T1 clear
-    expect(inFrame(A7_CAM1.facing * (Math.PI / 180), A7_CAM1.at[0], A7_CAM1.y, A7_CAM1.at[1], A7_T1_SPOT[0], remoteHeadY(0, false), A7_T1_SPOT[1], camPitch({ y: A7_CAM1.y, aim: 10.2 }), 18)).toBe(true);
+    expect(inFrame(A7_CAM1.facing * (Math.PI / 180), A7_CAM1.at[0], A7_CAM1.y, A7_CAM1.at[1], A7_T1_SPOT[0], remoteHeadY(0, false), A7_T1_SPOT[1], camPitch({ y: A7_CAM1.y, aim: 10.2 }), CAMERA.rangeMax)).toBe(true);
   });
 
   it('cam2 frames the corridor while its axis is near west and leaves it in two blind windows of about 4 s a cycle (17.3 s)', () => {
@@ -544,7 +563,7 @@ describe('A7 the Data Hall: the lights (LIGHTING-PLAN 3, A7)', () => {
       expect(l.electric).toBe(row!.electric);
       expect(l.destructible).toBe(row!.destructible);
     }
-    expect(by(70).length).toBe(circuitOf(70)!.lamps + 1);
+    expect(by(70).length).toBe(circuitOf(70)!.lamps);
     for (const g of [71, 72, 73]) expect(by(g).length).toBe(circuitOf(g)!.lamps);
     // the lobby panel is the one row lamp inside the lobby; the pod strips under the pod roof; the corridor lamps in the corridor
     expect(by(70).filter((l) => l.x < 76)).toHaveLength(1);
@@ -801,5 +820,306 @@ describe('A7 the Data Hall: map data the e2e and the modes read', () => {
     expect(part.laserPanels).toEqual([]);
     expect(part.consoles).toEqual([]);
     expect(part.hideSpots).toEqual([]);
+  });
+});
+
+describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
+  const kitReport = JSON.parse(readFileSync('src/world/kit/assets/facility-kit.json', 'utf8')) as { pieces: Record<string, { meshes: Record<string, number> }> };
+  const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
+  const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
+  const own = part.props;
+  const skins = dressing.filter((p) => !p.collide);
+  const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+  const racks = own.filter((p) => p.prop === 'serverRack');
+  const units = own.filter((p) => p.prop === 'coolingUnit');
+  /** A skin box's extent as [x0, x1, y0, y1, z0, z1]. */
+  const ext = (p: BoxPiece): [number, number, number, number, number, number] => [p.c[0] - p.s[0] / 2, p.c[0] + p.s[0] / 2, p.c[1] - p.s[1] / 2, p.c[1] + p.s[1] / 2, p.c[2] - p.s[2] / 2, p.c[2] + p.s[2] / 2];
+  /** The skins whose box overlaps the volume [x0, x1] x [y0, y1] x [z0, z1] (1 mm in). */
+  const skinsIn = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): BoxPiece[] =>
+    skins.filter((p) => {
+      const [a, e, c, d, f, g] = ext(p);
+      return a < x1 - 1e-3 && e > x0 + 1e-3 && c < y1 - 1e-3 && d > y0 + 1e-3 && f < z1 - 1e-3 && g > z0 + 1e-3;
+    });
+
+  it('the greybox is as S7 built it: its 46 boxes (checksum), 36 solids, 15 lamps, 5 doors, 6 anchors; the dressing adds NO collision (every dressing box is a skin)', () => {
+    let sum = 0;
+    for (const p of grey) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
+    expect(sum).toBeCloseTo(GREY.checksum, 3);
+    expect(grey.filter((p) => p.collide)).toHaveLength(GREY.solids);
+    expect(dressing.length).toBeGreaterThan(500);
+    expect(dressing.filter((p) => p.collide)).toEqual([]);
+    expect(built.counts.sets.a7DataHall).toEqual({ lights: GREY.lights, solids: GREY.solids, doors: GREY.doors, anchors: GREY.anchors });
+    expect(lamps).toHaveLength(GREY.lights);
+    expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(['A7-12', 'A7-13', 'A7-14', 'A7-15', 'A7-16', 'A7-17', 'A7-18', 'A7-19', 'A7-20', 'A7-21', 'A7-22', 'A7-23']));
+    expect(Object.keys(part.doors)).toHaveLength(GREY.doors);
+    expect(Object.keys(part.anchors)).toHaveLength(GREY.anchors);
+  });
+
+  it('every dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes, so the bake, the meter, the guards and the cameras see the greybox as built)', () => {
+    for (const p of skins) {
+      expect(p.noLedge, `skin at (${p.c.join(', ')})`).toBe(true);
+      expect(Math.min(...p.s), `skin at (${p.c.join(', ')}) size (${p.s.join(', ')})`).toBeLessThan(CANON_MIN_THICK);
+      expect(p.visible).not.toBe(false);
+      expect(p.overhead).toBeFalsy();
+    }
+    expect(dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK)).toEqual([]);
+    // the game still generates no ledge, lip or split gap in the set with the skins in
+    const inSetBox = (x: number, z: number): boolean => inBox(box, x, z, 0.3);
+    expect(anchors.ledges.filter((l) => inSetBox((l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2))).toEqual([]);
+    expect(anchors.splits.filter((s) => inSetBox(s.a.x, s.a.z))).toEqual([]);
+  });
+
+  it("every skin lies inside the set box (0.3 m of wall slack) and under its own room's ceiling (lobby 3.0, corridor 3.5, pod 2.6, hall 4.0)", () => {
+    const [x0, z0, x1, z1] = box;
+    for (const p of skins) {
+      const [a, e, , d, f, g] = ext(p);
+      expect(a, `skin (${p.c.join(', ')})`).toBeGreaterThanOrEqual(x0 - 0.3);
+      expect(e).toBeLessThanOrEqual(x1 + 0.3);
+      expect(f).toBeGreaterThanOrEqual(z0 - 0.3);
+      expect(g).toBeLessThanOrEqual(z1 + 0.3);
+      const cx = p.c[0];
+      const cz = p.c[2];
+      const inPod = cx > 95.8 && cz < 68.2;
+      const roof = cz < 55.65 ? A7_H.corridor : cx < 75.85 && cz < 65.85 ? A7_H.lobby : inPod ? A7_H.pod : A7_H.slab;
+      // (the gas-suppression main runs over the pod's roof, in the hall's air at 3.6 m: that is the one skin allowed above a pod roof)
+      if (!(inPod && p.c[1] > A7_H.pod)) expect(d, `skin (${p.c.join(', ')}) top`).toBeLessThanOrEqual(roof + 1e-6);
+      expect(d).toBeLessThanOrEqual(A7_H.slab);
+    }
+  });
+
+  it('racks and cooling units are props over the greybox boxes: 37 racks in runs of 7 / 16 / 7 / 7, 3 units; each stands 5 cm proud on its front and 1 cm up, never past the skin rule, with no box written', () => {
+    expect(racks).toHaveLength(37);
+    expect(units).toHaveLength(3);
+    expect(A7_RACK_PROUD).toBeLessThanOrEqual(0.05);
+    for (const [i, [x0, x1, z0, z1]] of A7_RACKS.entries()) {
+      const front = A7_RACK_FRONT[i]!;
+      const run = racks.filter((r) => r.x > x0 && r.x < x1 && Math.abs(r.z - (z0 + z1) / 2) < 0.2);
+      expect(run, `run ${i}`).toHaveLength(Math.round((x1 - x0) / A7_RACK_PITCH));
+      for (const r of run) {
+        expect(r.y).toBeCloseTo(A7_PROP_LIFT, 9);
+        expect(r.yaw).toBeCloseTo(front > 0 ? 0 : Math.PI, 9);
+        // the drawn body (0.6 x 1.2): its front is 5 cm out of the run's box, its back inside or flush
+        const boxFront = front > 0 ? z1 : z0;
+        const boxBack = front > 0 ? z0 : z1;
+        expect((r.z + front * 0.6 - boxFront) * front, `rack at ${r.x} front`).toBeCloseTo(A7_RACK_PROUD, 6);
+        expect(((r.z - front * 0.6) - boxBack) * front, `rack at ${r.x} back`).toBeGreaterThanOrEqual(-1e-6);
+        expect(((r.z - front * 0.6) - boxBack) * front).toBeLessThanOrEqual(A7_RACK_PROUD + 1e-6);
+        expect(r.x - 0.3).toBeGreaterThanOrEqual(x0 - 1e-6);
+        expect(r.x + 0.3).toBeLessThanOrEqual(x1 + 1e-6);
+      }
+      // the run's own greybox box is the collision: a solid 2.2 m noLedge box exactly on A7_RACKS, unchanged
+      const g = grey.find((p) => p.collide && Math.abs(p.c[0] - (x0 + x1) / 2) < 1e-6 && Math.abs(p.c[2] - (z0 + z1) / 2) < 1e-6)!;
+      expect(g.noLedge && Math.abs(g.s[1] - A7_RACK_H) < 1e-9).toBe(true);
+    }
+    for (const u of units) {
+      expect(A7_UNITS.some((x) => Math.abs(u.x - x) < 1e-9)).toBe(true);
+      expect(u.z).toBeCloseTo(A7_UNIT_Z, 9);
+      expect(u.yaw).toBeCloseTo(Math.PI, 9);
+      expect(u.y).toBeCloseTo(A7_PROP_LIFT, 9);
+      // front (-z) 5 cm out of the greybox box at z 54.75-55.65, back 5 cm short of the corridor wall
+      expect(u.z - 0.45).toBeCloseTo(A7_UNIT.z0 - A7_RACK_PROUD, 6);
+      expect(u.z + 0.45).toBeCloseTo(A7_UNIT.z1 - A7_RACK_PROUD, 6);
+    }
+    // no prop box is written (nothing the dressing adds collides); the props' solid boxes sit within 5 cm of the greybox runs they cover
+    expect(dressing.filter((p) => p.collide)).toEqual([]);
+    for (const r of racks) {
+      const w = propCollisionBox(r)![0]!;
+      const cover = A7_RACKS.find(([x0, x1, z0, z1]) => w.c[0] > x0 && w.c[0] < x1 && Math.abs(w.c[2] - (z0 + z1) / 2) < 0.2)!;
+      expect(w.noLedge).toBe(true);
+      expect(w.c[0] - w.s[0] / 2).toBeGreaterThanOrEqual(cover[0] - A7_RACK_PROUD - 1e-6);
+      expect(w.c[0] + w.s[0] / 2).toBeLessThanOrEqual(cover[1] + A7_RACK_PROUD + 1e-6);
+      expect(w.c[2] - w.s[2] / 2).toBeGreaterThanOrEqual(cover[2] - A7_RACK_PROUD - 1e-6);
+      expect(w.c[2] + w.s[2] / 2).toBeLessThanOrEqual(cover[3] + A7_RACK_PROUD + 1e-6);
+    }
+  });
+
+  it("the rack ends and the unit flanks (faces the props share with the greybox boxes) are capped by skins 3 cm out, over the props' whole depth; the racks' hot sides carry rear panels", () => {
+    for (const [i, [x0, x1, z0, z1]] of A7_RACKS.entries()) {
+      const front = A7_RACK_FRONT[i]!;
+      const zc = (front > 0 ? z1 : z0) + front * A7_RACK_PROUD - front * 0.6;
+      for (const [x, dir] of [[x0, -1], [x1, 1]] as const) {
+        const cap = skinsIn(dir < 0 ? x - 0.03 : x, dir < 0 ? x : x + 0.03, 0.1, 2.1, Math.min(z0, zc - 0.6) + 0.01, Math.max(z1, zc + 0.6) - 0.01);
+        expect(cap.length, `run ${i} end at x ${x}`).toBeGreaterThan(0);
+        expect(cap.some((p) => p.s[1] > 2.0 && p.s[2] > 1.1)).toBe(true);
+      }
+      // the rear (not on the east run, which stands on the cage's kick panel)
+      const at = front > 0 ? z0 : z1;
+      if (i !== 1) expect(skinsIn(x0 + 0.1, x1 - 0.1, 0.1, 2.0, at - 0.03, at + 0.03).some((p) => p.s[0] > 4.1)).toBe(true);
+    }
+    for (const u of units) {
+      for (const dir of [-1, 1]) {
+        const x = u.x + dir * 0.9;
+        const flank = skinsIn(dir < 0 ? x - 0.03 : x, dir < 0 ? x : x + 0.03, 0.1, 1.9, A7_UNIT_Z - 0.4, A7_UNIT.z1 - 0.05);
+        expect(flank.some((p) => p.s[1] > 1.9 && p.s[2] > 0.9), `unit ${u.x} flank ${dir}`).toBe(true);
+      }
+    }
+  });
+
+  it("budgets (computed): kit triangles <= 60 k; the props pass FacilityProps.check against the set box at 60 k triangles and 12 draws, with the facility's set-side plate in the box counted", () => {
+    expect(kitIn.some((i) => i.piece === 'wallPanel')).toBe(true);
+    const kitTris = kitTriangles({ instances: kitIn, doors: [] }, kitReport);
+    expect(kitTris).toBeGreaterThan(0);
+    expect(kitTris, `${kitTris} kit triangles`).toBeLessThanOrEqual(60_000);
+    const facilityIn = built.facility.props.filter((p) => inBox(box, p.x, p.z));
+    expect(facilityIn.some((p) => p.prop === 'signPlate')).toBe(true);
+    const counted = [...own, ...facilityIn];
+    const checker = (list: readonly PropPlacement[]): FacilityProps => {
+      const f = new FacilityProps();
+      f.placements.push(...list);
+      return f;
+    };
+    expect(checker(counted).check(area, propReport)).toEqual([]);
+    expect(propTriangles(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
+    expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
+    expect(new Set(own.map((p) => p.prop))).toEqual(new Set(['serverRack', 'coolingUnit', 'cableTray', 'signPlate']));
+  });
+
+  it('props inside the set box: every drawn footprint; the cable trays are hung props above head height (2.25 m or more) with no gameplay box; every sign plate hangs on a wall face', () => {
+    for (const p of own) {
+      const f = PROP_FOOTPRINT[p.prop];
+      for (const [lx, lz] of [[f[0], f[1]], [f[2], f[1]], [f[2], f[3]], [f[0], f[3]]] as const) {
+        const w = propToWorld(p, lx, 0, lz);
+        expect(inBox(box, w[0], w[2], 1e-6), `${p.prop} at ${p.x}, ${p.z}`).toBe(true);
+      }
+    }
+    const trays = own.filter((p) => p.prop === 'cableTray');
+    expect(trays.length).toBeGreaterThanOrEqual(40);
+    expect(PROP_HUNG).toContain('cableTray');
+    expect(PROP_HUNG).toContain('signPlate');
+    for (const t of trays) {
+      expect(t.y).toBeGreaterThanOrEqual(2.25 - 1e-9);
+      expect(propCollisionBox(t)).toBeNull();
+      // under the room's ceiling
+      expect(t.y + 0.5, `tray at ${t.x}, ${t.z}`).toBeLessThan(t.z < 55.65 ? A7_H.corridor : A7_H.slab);
+    }
+    for (const [x0, z0, x1, z1, y] of A7_TRAYS) {
+      expect(y).toBeGreaterThan(A7_RACK_H);
+      expect(trays.some((t) => Math.abs(t.y - y) < 1e-9 && t.x >= Math.min(x0, x1) - 1e-6 && t.x <= Math.max(x0, x1) + 1e-6 && t.z >= Math.min(z0, z1) - 0.2 && t.z <= Math.max(z0, z1) + 0.2)).toBe(true);
+    }
+    const plates = own.filter((p) => p.prop === 'signPlate');
+    expect(plates.length).toBeGreaterThanOrEqual(9);
+    for (const p of plates) {
+      expect(propCollisionBox(p)).toBeNull();
+      expect(p.y).toBeGreaterThanOrEqual(2.15);
+    }
+    // three of them on the riser block's two faces, over its doors
+    expect(plates.filter((p) => Math.abs(p.x - A7_RISER.x1) < 1e-9 && p.z > A7_RISER.z0).length).toBe(2);
+    expect(plates.filter((p) => Math.abs(p.z - A7_RISER.z0) < 1e-9 && p.x < A7_RISER.x1).length).toBe(1);
+  });
+
+  it("every kit glow in A7 carries a circuit of the plan's A7 rows: hall panels on 70 from the slab's top (4.2 m), the wall over the gallery glazing on 72 from 7.5 m, the accent slots on 70 / 72 / 73 (no light); no lamp was added", () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a7DataHall');
+    const glowing = kitIn.filter((i) => ['wallPanel', 'skirting', 'column', 'handrail'].includes(i.piece) || (i.piece === 'ledSlot' && !i.noLed));
+    expect(glowing.length).toBeGreaterThan(40);
+    for (const i of glowing) {
+      expect(i.group, `${i.piece} at ${i.x}, ${i.y}, ${i.z}`).toBeDefined();
+      expect(plan.has(i.group!), `${i.piece} group ${i.group}`).toBe(true);
+      expect(i.group!).toBeGreaterThanOrEqual(g0);
+      expect(i.group!).toBeLessThanOrEqual(g1);
+    }
+    const panels = glowing.filter((i) => i.piece === 'wallPanel');
+    // only the hall's panels above the slab (the set's own walls keep their finish)
+    for (const i of panels) expect(i.y, `panel at ${i.x}, ${i.z}`).toBeGreaterThanOrEqual(A7_H.slab + 0.2 - 1e-9);
+    for (const i of panels) expect(i.group, `panel at ${i.x}, ${i.y}, ${i.z}`).toBe(i.y >= GAL_TOP - 1e-9 ? 72 : 70);
+    expect(panels.filter((i) => i.group === 70 && Math.abs(i.x - 70.25) < 0.1).length).toBeGreaterThan(8);
+    expect(panels.filter((i) => i.group === 70 && Math.abs(i.z - 71.75) < 0.1).length).toBeGreaterThan(10);
+    expect(panels.filter((i) => i.group === 70 && Math.abs(i.x - 99.75) < 0.1).length).toBeGreaterThan(8);
+    expect(panels.filter((i) => i.group === 72 && Math.abs(i.z - 52.25) < 0.1 && i.y >= GAL_TOP - 1e-9).length).toBeGreaterThan(10);
+    // the accent slots: cool under the rack-row trays (70), the corridor ceiling line (72), the pod roof line (73), all without a light
+    const slots = kitIn.filter((i) => i.piece === 'ledSlot');
+    expect(slots.filter((i) => i.group === 70)).toHaveLength(4);
+    expect(slots.filter((i) => i.group === 72)).toHaveLength(1);
+    expect(slots.filter((i) => i.group === 73)).toHaveLength(1);
+    expect(slots.every((i) => !i.noLed)).toBe(true);
+    expect(lamps).toHaveLength(GREY.lights);
+    expect(HALL_H).toBeGreaterThan(A7_H.slab + 0.2);
+    for (const l of lamps) expect(l.group).toBeGreaterThanOrEqual(g0);
+  });
+
+  it("the cage keeps its clearances: no skin on the ready lamps' line (fence x 86 and 96, z 61.4-61.6, y 1.9-2.3), none within 0.5 m of either hack spot above the floor, the doors' clear openings and the cameras' lenses bare", () => {
+    for (const x of [cage.x0, cage.x1]) expect(skinsIn(x - 0.15, x + 0.15, 1.9, 2.3, 61.4, 61.6).map((p) => p.c), `fence ${x}`).toEqual([]);
+    for (const [sx, sz] of [A7_T1_SPOT, A7_T2_SPOT]) {
+      expect(skinsIn(sx - 0.5, sx + 0.5, 0.05, 3.0, sz - 0.5, sz + 0.5).map((p) => p.c), `spot ${sx}, ${sz}`).toEqual([]);
+    }
+    // the doors' clear openings (1.2 x 2.1, through the wall's thickness): the hall door, the plant door, the pod door, both cage doors
+    const d = (id: string) => b.anchors.doors.find((q) => q.id === course.doors[id])!;
+    for (const id of [A7_HALL_DOOR, A7_PLANT_DOOR, A7_POD_DOOR, A7_CAGE_W, A7_CAGE_E]) {
+      const q = d(id);
+      const alongZ = Math.abs(Math.sin(q.yaw)) < 0.5;
+      const x0 = alongZ ? q.hinge.x - 0.14 : q.hinge.x;
+      const x1 = alongZ ? q.hinge.x + 0.14 : q.hinge.x + q.width;
+      const z0 = alongZ ? q.hinge.z : q.hinge.z - 0.14;
+      const z1 = alongZ ? q.hinge.z + q.width : q.hinge.z + 0.14;
+      expect(skinsIn(x0, x1, 0.05, 2.1, z0, z1).map((p) => p.c), id).toEqual([]);
+    }
+    // the L6 far and L7 near sliding doors (1.8 m, frames to 2.42 m) on the set box's edges
+    expect(skinsIn(70.2, 70.3, 0.05, 2.45, 61.0, 63.0)).toEqual([]);
+    expect(skinsIn(99.7, 99.8, 0.05, 2.45, 59.0, 61.0)).toEqual([]);
+    // the cameras lenses (the 0.2 m round the mount point) are free of skins
+    for (const c of [A7_CAM1, A7_CAM2]) expect(skinsIn(c.at[0] - 0.1, c.at[0] + 0.1, c.y - 0.15, c.y + 0.15, c.at[1] - 0.1, c.at[1] + 0.1).map((p) => p.c), c.id).toEqual([]);
+    // the units west lees: no skin above the floor within 0.25 m of the lee foot (the body is 0.3: a skin stands at most 5 cm off a box face, inside the capsule standoff)
+    for (const [x, z] of A7_LEES) expect(skinsIn(x - 0.25, x + 0.25, 0.05, 1.8, z - 0.25, z + 0.25).map((p) => p.c), `lee ${x}`).toEqual([]);
+  });
+
+  it('the raised floor and the grating: 0.6 m tile seams across the lobby and hall (60 or more), 14 perforated tiles in aisle B, every floor skin flush (under 4 cm), the grating 60 bars across x 86-92 over a dark pit', () => {
+    const floor = skins.filter((p) => top(p) <= 0.04);
+    expect(floor.length).toBeGreaterThan(150);
+    const seams = skins.filter((p) => top(p) < 0.0061 && (p.s[0] < 0.021 || p.s[2] < 0.021) && p.c[2] > 56 && p.c[0] > 70 && p.c[2] < 72 && Math.max(p.s[0], p.s[2]) > 5);
+    expect(seams.length).toBeGreaterThan(60);
+    // perforated tiles: the darker squares 0.48 on a side, one row on each side of aisle B (z 60.3 and 62.7), seven columns from x 78.9
+    const tiles = skins.filter((p) => Math.abs(p.s[0] - 0.48) < 1e-6 && Math.abs(p.s[2] - 0.48) < 1e-6);
+    expect(tiles).toHaveLength(14);
+    for (const t of tiles) {
+      expect([60.3, 62.7].some((z) => Math.abs(t.c[2] - z) < 1e-6)).toBe(true);
+      expect(t.c[0]).toBeGreaterThan(78.6);
+      expect(t.c[0]).toBeLessThan(83.0);
+    }
+    const bars = skins.filter((p) => p.c[0] > A7_GRATING.x0 && p.c[0] < A7_GRATING.x1 && Math.abs(p.s[0] - 0.04) < 1e-6 && p.s[2] > 3.3 && top(p) < 0.03);
+    expect(bars).toHaveLength(60);
+    // the grating stays flush (nothing over 4 cm on the trench) and its surface is still metal
+    for (const p of skinsIn(A7_GRATING.x0, A7_GRATING.x1, 0, 5, 52.4, 55.5)) expect(top(p)).toBeLessThanOrEqual(0.04 + 1e-9);
+    for (const z of [52.4, 53.9, 55.5]) expect(surfaceAt(b.surfaces, 89, 0, z, 'concrete')).toBe('metal');
+  });
+
+  it("the riser block reads as a services core: its box is the greybox's (solid, noLedge, 6 x 6 m), and both faces carry doors, hatches, ladders, conduit, pipes and plates as skins", () => {
+    const riser = grey.find((p) => p.collide && Math.abs(p.c[0] - (70.25 + 76.15) / 2) < 1e-6 && Math.abs(p.c[2] - (65.85 + 71.75) / 2) < 1e-6)!;
+    expect(riser).toBeDefined();
+    expect(riser.noLedge).toBe(true);
+    expect(riser.s[0]).toBeCloseTo(5.9, 9);
+    expect(riser.s[2]).toBeCloseTo(5.9, 9);
+    const eastFace = skinsIn(A7_RISER.x1, A7_RISER.x1 + 0.2, 0, A7_H.slab, A7_RISER.z0, A7_RISER.z1);
+    const southFace = skinsIn(A7_RISER.x0, A7_RISER.x1, 0, A7_H.lobby, A7_RISER.z0 - 0.2, A7_RISER.z0);
+    expect(eastFace.length).toBeGreaterThan(100);
+    expect(southFace.length).toBeGreaterThan(50);
+    // two riser doors on the hall face (z 67.0 and 70.4: a 1.04 m frame to 2.12 m), one on the lobby face (x 71.35)
+    for (const z of [67.0, 70.4]) expect(eastFace.some((p) => Math.abs(p.c[2] - z) < 0.01 && p.s[2] > 1.0 && top(p) > 2.1)).toBe(true);
+    expect(southFace.some((p) => Math.abs(p.c[0] - 71.35) < 0.01 && p.s[0] > 1.0 && top(p) > 2.1)).toBe(true);
+    // a vertical cable ladder (two rails and rungs every 0.3 m), conduit risers and two pipe runs at 3.2 / 3.45
+    expect(eastFace.filter((p) => p.s[2] < 0.045 && p.s[1] > 3.5 && p.c[2] > 69 && p.c[2] < 70).length).toBeGreaterThanOrEqual(2);
+    expect(eastFace.filter((p) => p.s[1] > 3.5 && p.c[2] > 66 && p.c[2] < 66.5).length).toBeGreaterThanOrEqual(3);
+    for (const y of [3.27, 3.52]) expect(eastFace.some((p) => Math.abs(p.c[1] - y) < 0.01 && p.s[2] > 5)).toBe(true);
+    // the three access hatches on the hall face
+    expect(eastFace.filter((p) => Math.abs(p.c[2] - 68.55) < 0.01 && Math.abs(p.s[2] - 0.5) < 1e-6 && Math.abs(p.s[1] - 0.6) < 1e-6)).toHaveLength(3);
+    // a hazard base on both faces (yellow with black dashes)
+    expect(eastFace.filter((p) => top(p) < 0.16 && p.c[1] < 0.1).length).toBeGreaterThan(15);
+    expect(southFace.filter((p) => top(p) < 0.16 && p.c[1] < 0.1).length).toBeGreaterThan(10);
+    // no skin leaves the face's wall by more than 15 cm
+    for (const p of eastFace) expect(p.c[0] - p.s[0] / 2).toBeLessThanOrEqual(A7_RISER.x1 + 0.15 + 1e-9);
+  });
+
+  it("the tech's round and the lanes are as the greybox left them: no skin stands in the aisles above the floor (the loop's legs, the corridor lane and the pod are open to 2.1 m)", () => {
+    for (let i = 1; i < A7_TECH_ROUTE.length; i++) {
+      const [ax, az] = A7_TECH_ROUTE[i - 1]!;
+      const [bx, bz] = A7_TECH_ROUTE[i]!;
+      const n = Math.ceil(hyp2(bx - ax, bz - az) / 0.1);
+      for (let k = 0; k <= n; k++) {
+        const x = ax + ((bx - ax) * k) / n;
+        const z = az + ((bz - az) * k) / n;
+        expect(skinsIn(x - 0.3, x + 0.3, 0.05, 2.1, z - 0.3, z + 0.3).map((p) => p.c), `route leg ${i} at ${x.toFixed(2)}, ${z.toFixed(2)}`).toEqual([]);
+      }
+    }
+    for (const z of [53.9, 54.2]) for (let x = 73; x <= 98; x += 0.25) expect(skinsIn(x - 0.3, x + 0.3, 0.05, 2.1, z - 0.3, z + 0.3).map((p) => p.c), `corridor ${x}, ${z}`).toEqual([]);
+    for (const [x, z] of [[98, 57.5], [98, 62], [98, 66.5], [A7_T2_SPOT[0], A7_T2_SPOT[1]]] as const) expect(skinsIn(x - 0.3, x + 0.3, 0.05, 2.1, z - 0.3, z + 0.3).map((p) => p.c), `pod ${x}, ${z}`).toEqual([]);
   });
 });
