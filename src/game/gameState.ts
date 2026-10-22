@@ -2946,7 +2946,7 @@ export class GameState implements AppState {
       wv.gun = this.weapons.slotIndex;
       wv.gadget = this.weapons.gadgets.selected;
       const pad = this.app.input.mode === 'gamepad';
-      wv.hint = pad ? 'Hold LB for the selection wheel, right stick to pick, release to select; on the vision slot A cycles the mode. Tap LB to switch weapon. D-pad left toggles the vision, D-pad right uses the gadget.' : `Hold [${keyLabels.wheel}] for the selection wheel, move the mouse to pick, release to select; on the vision slot [${keyLabels.interact}] cycles the mode. Tap [${keyLabels.wheel}] to switch weapon.`;
+      wv.hint = pad ? 'Hold LB for the selection wheel (it opens on vision: A cycles the mode), right stick to pick, release to select. Tap LB to switch weapon. D-pad left toggles the vision, D-pad right uses the gadget.' : `Hold [${keyLabels.wheel}] for the selection wheel (it opens on vision: [${keyLabels.interact}] cycles the mode), move the mouse to pick, release to select. Tap [${keyLabels.wheel}] to switch weapon.`;
     }
     this.hud.gadgets.update(wv);
     this.hud.gadgets.setFeed(gs.feedText(this.app.input.mode));
