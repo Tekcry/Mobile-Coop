@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~16:03 by the resumed CT Core session (overflow session). Every branch
+Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~16:40 by the resumed CT Core session (overflow session). Every branch
 below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
 
 ## Rules carried
@@ -31,10 +31,10 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
-| idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 555e7884 | PR #120 open (patch), master 4.54.1 merged. check 2684 ok; e2e-netmove / move / anim / clip ok; anim-audit frame-0 shins gone (659 / 80). Orchestrator: train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | edb9bc23 | Decision 5 green (e2e-move 0.00 cm at the contact). e2e-clip FAILS crouched holstered -3.2 (right wrist / right thigh, crouched still t 5-16; master -2.7; N1 feet 1.1 cm wider). An agent (16:02) traces the cause headless and may commit a fix. | Agent result -> e2e-clip on the fix (desktop after Menu Notes and Course Ready, or laptop); laptop: e2e-move e2e-anim e2e-clip + the 14 area suites; master 4.54.1 merge; GPU sheets; PR (minor). Then STATE item 5. |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | e00fb62c | Step 2 (additive body layer, Wren only) built, checker FAIL, fix round done (A11 facing-frame crab reads, sway 0.7x). A1 (run key pop, Michael: "Only fix it if it will result in a more believable, realistic, less rigid run") KEPT and merged; run elbow key fixed (keyedWalk green). No desktop e2e on it yet. | STATE "Next": check + e2e-anim (new body motion block) + e2e-studio + e2e-netmove + e2e-clip; master merge (rebake run after #110 merges); steps 3-5 (arms + PASS2 items 7 / 9 + AUDIT fix 35, stills + PASS2 item 1 hit flinch, tuner section + bake). |
-| anim-bake-all | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ae0777ff | Master 4.54.1 merged; cq refused like clip (accepted). Laptop: check + 12 suites on a850e103 queued after train 4. Desktop anim-audit: /c/NightShift/ctb7.sh (16:00, frees the lock; ctb7.out, ctb7-audit.log). | Laptop verdict + ctb7 audit vs master; PR (minor, name the gameplay values). |
+| idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | d0245244 | PR #120, master 4.55.0 merged. Train 5. | Nothing unless train 5 fails. |
+| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | 7955f883 | Crouched-wrist fix 1e4556a8 (idle step tie -> the foot planted longer; headless -3.0 -> -2.7). Laptop asked for check + e2e-clip e2e-anim e2e-move on 1e4556a8; else /c/NightShift/ctb8.sh on the desktop in lock order (Menu Notes, Course Ready, then CT Core). | Verdict; laptop 14 area suites; master 4.55.0 merge; GPU sheets; PR (minor). Then STATE item 5. |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | see STATE | Master 4.54.1 merged (14cbecc2; fixtures re-captured, identity proof clean). crabFacing walk knee-out 3.6 (master base 3.1 + layer): A12 (crabFacing vs master's widened e2e-anim limits, walk sway cut to fit) by an agent (16:35). 4.55.0 (#121 keyed clips) not merged yet. | A12 result; step 2 suites (check, e2e-anim, e2e-studio, e2e-netmove, e2e-clip); 4.55.0 merge; steps 3-5. |
+| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | see STATE | PR #123 open; master 4.55.0 merged (cba9e371). Desktop anim-audit = #103 locally. Laptop check failed only animSkeletonRows alloc: a vitest GC-timing flake identical on master (STATE 0c). Laptop asked for the e2e suites on cba9e371. | Laptop verdict -> PR body tests; train. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
 ## Test logs on the desktop
