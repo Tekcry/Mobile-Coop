@@ -20,8 +20,6 @@
 - Co-op > Browse rooms: the public rooms of this exact version and protocol, live, with pad, keyboard and mouse; a pick
   joins by its code as today. No quick match, no relay server, no game server.
 
-## Unreleased - marlow-bays R (rejoin)
-
 ## 4.51.1 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22, PR #107)
 - The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
   the takedown is done, as the grab step already does: on a slow page the guards alerted or turned between the host's
