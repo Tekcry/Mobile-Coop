@@ -64,3 +64,9 @@ not decision 1's min(heel, ball)); limits unchanged.
 5. Unit bounds loosened: turnFollow planted twist (body and pelvis, player and remote) twistFree 0.25 -> 0.54 rad;
    turnFollow crouched planted lateral CROUCH_BAND.max + 0.05 -> + 0.09 (0.15 -> 0.19 m; measured 0.178); tuneStep
    crouched `worstBehind > thr - 0.03` -> `<= thr`.
+
+## Desktop check on ccc1a14d (2026-10-22 13:04, job lead)
+`npm run check`: 1 failed, 2602 passed. `tests/tunerLayout.test.ts` "tuner-ui: plain labels > no label keeps brackets,
+'x2' or 'pole'": `step:turnTwist: expected 63 to be less than 30` (tuner v3's plain labels: under 30 characters, no
+brackets). Fix 10 for the fix round: short plain labels for the 5 new Stepping sliders (and `plainLabel`'s table if it
+maps ids). The area e2e did not run (check failed first).
