@@ -11,6 +11,9 @@
   state instead of staying in the tuner. Gameplay: a baked Speed value (the glide forward) changes the player's speed.
 - Untuned nothing changes (the table has no `sections` key yet).
 
+## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
+- `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
+
 ## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 
 ### #110 The run's feet no longer cross
