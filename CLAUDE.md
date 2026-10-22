@@ -181,9 +181,11 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 - Pure logic lives in Babylon-free modules with Vitest tests; each new player-facing system extends the e2e suite that
   owns its area (a new suite only when none does).
 - New or changed animations match the CT footage (G1) and meet the bible's animation realism standard.
-- Docs updated: `CHANGELOG.md`, `TESTING.md` (the short desktop checklist, G92), the relevant `docs/systems/*.md`
+- Docs updated: the changelog fragment, `TESTING.md` (the short desktop checklist, G92), the relevant `docs/systems/*.md`
   (the orchestrator updates `docs/ROADMAP.md`).
-- Versions (G183): a job's CHANGELOG entries sit under "Unreleased - <job>" until its merge. Every merge to master gets
+- Versions (G183): a job never edits `CHANGELOG.md`; it writes its entries in one fragment `changes/<branch-with-dashes>.md`
+  (`changes/README.md`), which the orchestrator assembles into `CHANGELOG.md` at the version step
+  (`scripts/changelog-assemble.mjs`, or `scripts/merge-train.mjs`). Every merge to master gets
   the next `4.MINOR.PATCH`, set by the orchestrator in the PR just before it merges: a job or feature (game change) is a
   minor step, a fix or docs-only merge a patch. Jobs never bump `package.json` themselves.
 - A save-shape change bumps `SAVE_VERSION` with a migration and a test using a literal old save. A wire change bumps
