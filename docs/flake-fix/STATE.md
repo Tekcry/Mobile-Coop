@@ -55,6 +55,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   commit to come). sw-reload 0a34662b GREEN. sector-redesign d9a27c4f: all PASS except e2e-sectorops:2 team-door
   asserts (reported, likely real). Running: camera-range 8fda08b9 (4192), guard-ai S1 cd37c3e8 (4189, JOBS=3); queued
   marlow-final 3e41b859 (4189, JOBS=3); then guard-cap e2123367 ALONE (watcher waits for all three DONE + no locks).
+- ~03:05: GUARD-CAP DONE: PR #180 (e2123367 + results d610c609): render-bound, ~2.2 ms frame CPU + 1.1 ms GPU per
+  awake guard, AI ~0.03 ms; 12 facing = 27.5 fps, 24 = 17 fps (Epic, 4090). Numbers sent to orchestrator + Course Ready.
+  Also green and reported: guard-ai S1 cd37c3e8, marlow-final 3e41b859, camera-range 9f3a5b6f e2e-security (master reads
+  1.00, branch 0.84). Running chain scratch/queue-1023c.sh: marlow-final 153db3e8 ALONE on 4189 (shots to
+  runs/marlowfinal-153db3e8/shots, perf via scratch/work/perf-with-server.mjs MAP=ctcourse STEALTH=1 --desktop --budget,
+  e2e-ctcourse:1) -> then train 17 7fb372a9 (JOBS=3, 4189; verdict to orchestrator) + guard-ai S2 661c258a (4192, JOBS=2).
+  Waiting: sector-redesign fix commit (sectorops:2 team doors), Menu Notes facilityProps fix commit.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
