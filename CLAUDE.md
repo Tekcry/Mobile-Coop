@@ -77,7 +77,7 @@ Build runs them on the laptop in its own worktree `C:/NightShift/Mobile-Coop-tes
 failing assert and the run time, and copies the orchestrator. Logic e2e only: GPU, perf and visual checks stay on the
 desktop. A result counts for the test tier only for the exact commit it ran on, or for a later commit whose only
 difference is docs, `CHANGELOG.md`, changelog fragments or test scripts (Michael, 2026-10-22 ~18:00). The laptop runs
-two requests at once, one per port (4191 and 4192; GPU on 4189), each with its own lock file. Between requests Character Build works
+two requests at once, one per port (4191 and 4192; GPU on 4189), each with its own lock file, but at most ONE full run (`npm run e2e`, a train) at a time: the other slots take single suites (2026-10-22, after overlapping full runs timed out). Between requests Character Build works
 its own small jobs from the roadmap. Cloud sessions run unit tests,
 logic e2e and design only; every GPU check there is "pending PC run".
 
