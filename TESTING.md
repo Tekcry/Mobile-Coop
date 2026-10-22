@@ -184,6 +184,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
 
+### Every tuner slider bakes (anim-bake-targets)
+- [ ] Open the tuner: the info line says the baked values are built in (none of the 2026-10-22 values left as changes).
+- [ ] Walk, jog and run: the feet land close to one line, the arms swing more at jog and run, the knees lift more at
+  run; at low ready the elbows sit out and the rifle tuck is lighter, the pistol elbows untucked.
+- [ ] Co-op: the partner shows the same track, swing and elbows. Guards look as before.
+
 ### Wren's hands and joints (anim-skeleton S1+S2)
 - [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
   the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.

@@ -546,6 +546,25 @@ export interface ReadyPose {
  */
 export const WREN_READY_LOW = { x: 0, y: -0.08, z: -0.02, pitch: 0.75, yaw: -0.63, roll: 0.54 } as const;
 export const WREN_PISTOL_READY = { x: -0.08, y: -0.34, z: 0.08, pitch: 1.16, yaw: -0.05, roll: 0 } as const;
+/**
+ * (anim-bake-targets, BT-A2) Wren's elbow tuck multiplier per gun state (the tuner's gun groups; the bake writes each,
+ * `tuneBakeTable.ts`): a Wren rig's tuck (max(AIM_ELBOW_TUCK x aimK, READY_ELBOW_TUCK .. _CROUCH)) times this, every other
+ * rig (guards, VIP, dummy) times 1. Identity 1 everywhere = the old shared tuck, bit-identical.
+ */
+export const WREN_TUCK = {
+  rifle: { lowReady: 0.75, aim: 1, aimCrouch: 1 },
+  pistol: { lowReady: 0, aim: 1, aimCrouch: 1 },
+};
+/**
+ * A Wren rig's tuck multiplier: the low ready's at aimK 0, the aim's (crouched by `crouch` 0..1) at aimK 1, blended
+ * between (no pop on raise); exact per state in the steady states. No allocation.
+ */
+export function wrenTuckMul(pistol: boolean, aimK: number, crouch: number): number {
+  const t = pistol ? WREN_TUCK.pistol : WREN_TUCK.rifle;
+  if (aimK <= 0) return t.lowReady;
+  const aim = crouch <= 0 ? t.aim : crouch >= 1 ? t.aimCrouch : t.aim + (t.aimCrouch - t.aim) * crouch;
+  return aimK >= 1 ? aim : t.lowReady + (aim - t.lowReady) * aimK;
+}
 export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
 /**
  * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine
