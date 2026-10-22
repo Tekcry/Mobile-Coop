@@ -67,6 +67,12 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 03:15 (clock) slice 1 A1 steps 2-4 IN (155fbec0; slices/S1.md): wall + 4.4 m lips via boostWall, wicket bolt
+  from the yard, lounge with group-10 coves and closed 3.2 m ceiling, cabin (noLedge), 9 lamps, passive armed checker,
+  steps / claim / pass zone, e2e route. 6 map test files 83 pass + 23 neighbours 310 pass. Opus checker running;
+  e2e-ctcourse:1 + e2e-coop sent to Character Build. Usage 59%, 3 h 25 left. Then: A1 dressing (Sonnet), then A2.
+  Small follow-ups (job lead): e2e-times.json :1 real time; marlowCircuits A1 switch hints (7.7, 15.15), (9.5, 15.15);
+  stub.ts a1Gate branch dead.
 - ~03:15 SLICE 0 COMPLETE: 0e checker PASS (S0e-check.md, polish P1-P5 only; P1 prop emissives on no circuit, P2 L7
   vitrine 16 cm float). Orchestrator told. Slice 1 (A1 the Gate, steps 2-4) started on Sonnet from a strict brief
   (owns a1Gate.ts, tests/ctcourse/a1Gate.test.ts, a1Gate.light.json, scripts/e2e-ctcourse/a1Gate.mjs, slices/S1.md).
