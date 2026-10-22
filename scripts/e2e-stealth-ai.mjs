@@ -544,12 +544,18 @@ try {
       t.kill(v);
       const w = t.spawn('grunt', 0.5, 6, Math.PI);
       const mate = t.spawn('grunt', 8, 8, 0);
+      const DBG = { f00: em.bodiesFound, finds: [] };
+      const ob = em.onBodyFound;
+      em.onBodyFound = (e, b) => { DBG.finds.push([e === w ? 'w' : e === mate ? 'mate' : e.id, e.level, b.id, em.bodiesFound]); ob?.(e, b); };
       let found = false;
       for (let i = 0; i < 40 && !found; i++) {
         t.step(0.1);
         found = em.bodiesFound > 0;
       }
       const lw = w.level;
+      DBG.after = [em.bodiesFound, w.level, w.meter, mate.level];
+      em.onBodyFound = ob;
+      console.log('DBG bodies', JSON.stringify(DBG));
       // (guard-ai S4) the finder is held cautious at once and radios it; the mate (out of voice range) learns of it
       // when the report gets through: cautious (on edge), not searching
       const cw = em.cautionOf(w);
@@ -569,8 +575,9 @@ try {
       t.step(5);
       const dark = em.bodiesFound - f0;
       t.light(null);
-      return { found, lw, lmate, dark, bodies: em.bodies.length, cw, left, cmate0, cmate };
+      return { found, lw, lmate, dark, bodies: em.bodies.length, cw, left, cmate0, cmate, DBG };
     });
+    console.log('DBG bodies', JSON.stringify(r.DBG));
     assert(r.found, 'a body in the light is found');
     assert(r.lw === 'searching', `the finder searches (${r.lw})`);
     assert(r.cw === 2 && r.left > 0, `the finder is held cautious and radios it (caution ${r.cw}, call ${r.left.toFixed(2)} s)`);
