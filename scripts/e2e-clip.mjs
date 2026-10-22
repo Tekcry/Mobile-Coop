@@ -153,6 +153,8 @@ const res = await page.evaluate(([only, log]) => {
       }
     }
     if (window.__dbg && worst < -0.03) acc.log.push(`t ${acc.n} LIMB ${(worst * 100).toFixed(1)} at ${where} crouch ${c.crouched} speed ${c.speed.toFixed(2)}`);
+    // (anim-natural N2, #138 fix round 4) where the least clearance was (report only: the GPU run cannot be replayed headless)
+    if (worst < acc.minLimb) acc.minAt = `${where} frame ${acc.n}`;
     acc.minLimb = Math.min(acc.minLimb, worst);
     acc.minKnees = Math.min(acc.minKnees, V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition()));
     acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
@@ -173,7 +175,9 @@ const res = await page.evaluate(([only, log]) => {
       st.tap('crouch');
       parts.push(runLimbs(1.0));
       const r = parts[0];
-      for (const r2 of parts.slice(1)) {
+      r.minAt = `part 0 ${r.minAt}`;
+      for (const [i, r2] of parts.slice(1).entries()) {
+        if (r2.minLimb < r.minLimb) r.minAt = `part ${i + 1} ${r2.minAt}`;
         r.n += r2.n;
         r.log.push(...r2.log);
         for (const k of ['minLimb', 'minKnees', 'minFeet']) r[k] = Math.min(r[k], r2[k]);
@@ -229,7 +233,7 @@ const res = await page.evaluate(([only, log]) => {
     if (only && !k.includes(only)) continue;
     const r = f();
     move(0, 0); st.releaseAll();
-    out.push({ name: k, limb: true, ...r, text: `${k.padEnd(22)} frames ${String(r.n).padStart(3)}  arms vs thighs / trunk min ${(r.minLimb * 100).toFixed(1)} cm  knees ${(r.minKnees * 100).toFixed(1)} feet ${(r.minFeet * 100).toFixed(1)}` + (r.log.length ? '\n  ' + r.log.join('\n  ') : '') });
+    out.push({ name: k, limb: true, ...r, text: `${k.padEnd(22)} frames ${String(r.n).padStart(3)}  arms vs thighs / trunk min ${(r.minLimb * 100).toFixed(1)} cm (${r.minAt ?? ''})  knees ${(r.minKnees * 100).toFixed(1)} feet ${(r.minFeet * 100).toFixed(1)}` + (r.log.length ? '\n  ' + r.log.join('\n  ') : '') });
   }
   for (const [k, f] of Object.entries(S)) {
     if (only && !k.includes(only)) continue;

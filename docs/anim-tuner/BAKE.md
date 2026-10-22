@@ -132,16 +132,25 @@ slider and group bakes into the base table's `body` key (below), strideMul into 
 
 **Stepping.** Every planner reads these, guards included. (item 24) The Stepping sliders themselves are Wren's alone at
 run time (a guard's planner reads the guards' table, any other rig's an identity table); these baked constants stay
-shared.
+shared. (anim-natural N1) The idle row is also the aimed turn on the spot (stride 'velocity' under 0.3 m/s, the body
+turning): it reads the idle row for every slider.
 - Baked:
-  - idle lift -> PLANNER.idleLift.
-  - lock (the 5 moving gaits) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads
-    twistFree too.
-- Generic table (anim-bake-all): the moving gaits' lift (clip data), the idle lock, dur, slide, stride0..2, toeOff,
-  heel, replant (inline literals, no per-pace constant) -> `sections.step.step.<gait>.<id>` x. `tuneStep.ts` composes
-  them into Wren's planner rows (base x the tuner's value), so Wren's planners read them (the player, the partner, the
-  studio puppets), as in the tuner; the guards' rows (Guard stepping, the guard table) and the identity table never take
-  them.
+  - idle lift -> PLANNER.idleLift. Close: the aimed spot turn's swings read the idle lift on the gait liftH.
+  - lock (all 6 gaits, a shared target) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: twistFree is also the
+    ball pivot's allowance and the turn rules' cap floor (without the turn rules, the touchdown lead).
+  - (anim-natural N1) the turn rules, per gait into the gait's own entry of a table in `footPlanner.ts` (index = the
+    gait in tuneStep STEP_GAITS order: idle 0, walk 1, jog 2, run 3, crouchWalk 4, crouchRun 5):
+    - turnTwist -> `FOOT_TURN_STEP.twist[i]` (the twist a planted foot may reach before it steps round; also the cap
+      backstop, TURN_CAP x it).
+    - turnRate -> `FOOT_TURN_STEP.rate[i]` (the body turn rate that arms the turn step).
+    - pivot -> `TURN_PIVOT.max[i]` (how far a planted foot turns on its ball in one plant; 0 locked).
+    - pivotHeel -> `TURN_PIVOT.heel[i]` (the heel raise while it turns).
+    - landTurn -> `LAND_TURN[i]` (the landing's yaw lead into the turn), the 5 moving gaits.
+- Generic table (anim-bake-all): the moving gaits' lift (clip data), the idle landTurn (no effect: the aimed spot turn
+  lands along its own yaw prediction), dur, slide, stride0..2, toeOff, heel, replant (inline literals, no per-pace
+  constant) -> `sections.step.step.<gait>.<id>` x. `tuneStep.ts` composes them into Wren's planner rows (base x the
+  tuner's value), so Wren's planners read them (the player, the partner, the studio puppets), as in the tuner; the
+  guards' rows (Guard stepping, the guard table) and the identity table never take them.
 
 **Weight.**
 - Baked:
