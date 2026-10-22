@@ -105,6 +105,11 @@ Train 1 merged as #111 (#99 + #108; #105 left on a real e2e-menus failure, fixed
   and fixed each run instead of questioning the machine split (the batching mistake again). Every cron check now names
   the longest wait of the last period and its cause; when the cause is a rule or a setup choice (machine, port, tier,
   model, tooling), bring Michael a concrete change with the time it saves, unasked.
+- 2026-10-22 ~18:05 (Michael): "Do not let these bottlenecks compound. You are the orchestrator. Any issues or patterns
+  causing failures/delays/problems should be identified by you and fixed. If you need my input you can ask, so long as
+  it's not an overnight session where a question prevents progress as I won't respond." So: fix patterns myself
+  (rules, routing, tooling, assigning fix jobs); ask him only by day and only when his answer changes the outcome;
+  overnight, decide, log the assumption, carry on.
 - Bottlenecks (Michael 2026-10-22 ~10:45: "You must review constantly for bottlenecks and advise if there's more efficient ways to progress"): every cron check also reviews idle sessions, the laptop queue, the desktop lock and waiting PRs; fix what is in my authority, advise Michael on the rest. The cron prompt carries this. Michael (~11:45) asked why batching was not proposed earlier: I treated CLAUDE.md's test and merge rules as fixed and only optimised inside them. The review now also questions the rules: where work waited longest, which rule caused it, and a cheaper rule to propose.
 - 10:45: Menu Notes cleared after N0 pass 1 (resume: C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md, plus N3 draw-time research). Course Ready got clip-speed (baked per-clip speed slider). CT Core got the N1 / N2 findings and the SWAY_MAX lift. Laptop order: #92 solo ctcourse, #103 solos, #106 (studio + anim), #107 (coop x2), #105 full, #99 full, #108 full.
 
