@@ -644,6 +644,8 @@ const SWAP_FADE_HOLSTER = 2;
 const HIT_ROW_K = (9 * Math.E) / 4.5;
 /** (step 09) Carriage ease (s) during a weapon-to-weapon swap: out before the reach to the slot (~0.2 s in). */
 const CARRY_SWAP_TAU = 0.08;
+/** (mt2-fixC) Switch on, captured gaits: the stop hold's fade out of the stride (tau, s; 0.05 otherwise). */
+const HOLD_TAU_CAPT = 0.08;
 /** (fix 21-2) Time constant (s) of the right hand's holster offset (READY_HANDS.xHolster) easing in / out. */
 const HOLSTER_TAU = 0.06;
 /** (step 09) Grip weight rate (1/s): the hands take / leave the grip and the foregrip in at least 0.2 s. */
@@ -1030,7 +1032,9 @@ export class AnimGraph {
     this.mEase = capt && esNow < fallTo && (this.mPace > MOCAP_SLOT.walkMax || this.mEase);
     this.mPace = this.mEase ? fallTo : esNow;
     const fadeTau = capt ? 0.08 * Math.max(1, this.mPace / MOCAP_SLOT.walkMax) : 0.08;
-    this.moveW = approach(this.moveW, moveTarget, holding ? 0.05 : i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : moveTarget < this.moveW ? fadeTau : 0.08, dt);
+    // (mt2-fixC, CHECK-3 item 6d) with the captured gaits the hold comes up out of the stride over HOLD_TAU_CAPT (0.05: a
+    // stop from 5 m/s turned the forearm 30.2 deg in a frame in the fade, OFF 28.0)
+    this.moveW = approach(this.moveW, moveTarget, holding ? (capt ? HOLD_TAU_CAPT : 0.05) : i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : moveTarget < this.moveW ? fadeTau : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {
       this.dirX = approach(this.dirX, i.localX / dl, 0.18, dt);

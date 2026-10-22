@@ -986,11 +986,15 @@ export class FootPlanner {
         }
         if (side < 0) this.restL = clamped;
         else this.restR = clamped;
+        // (mt2-fixC, CHECK-3 item 6a) a clip swing handed over this frame (clipPitchT 0: never with the switch off) already
+        // keeps where it is and fades its whole gap (swingTo); the late start below put back only the residual (8 mm of a
+        // 23 cm gap: crouching at a jog the swing foot jumped 23 cm the next frame, knee-ankle 25 deg)
+        const handNow = f.clipPitchT === 0;
         this.swingTo(f, i, sp);
         // (step 22, M14) a swing the clock starts late in its window (the first frame moving after a landing: the pace
         // now carries over a drop) starts from where the foot is and fades onto the clock's swing over OFF_FADE (it
         // jumped 0.4 m in one frame, drop24 ankle 43 deg a frame); along the ground only (its height follows the swing)
-        if (fresh && s > FRESH_LATE) {
+        if (fresh && s > FRESH_LATE && !handNow) {
           f.offX = f.fromX - f.x;
           f.offY = 0;
           f.offZ = f.fromZ - f.z;

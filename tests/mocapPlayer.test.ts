@@ -2,10 +2,10 @@
  * mocap-trial-2 fix A (CHECK-3): the rig driven the way player.ts drives it for a CT player (pace through CT's springs,
  * quickStop 0.12 always, the stop hold's holdSpeed, flicks at CT's 7.85 rad/s, the 0.22 s eased crouch; the helper is
  * tests/helpers/mocapPlayer.ts). Each plan runs switch OFF and ON; ON must hold the rules: bone and ankle-toe steps
- * <= OFF + 2 deg or <= 24 deg, planted slide < 2 cm, the pelvis step beyond pace x dt <= max(2 cm, OFF).
+ * <= OFF + 2 deg or <= 24 deg, planted slide < 2 cm (or no more than OFF's), the pelvis step beyond pace x dt <= max(2 cm, OFF).
  * Items 1 (pace changes while turning, pace swings) and 2 (CT starts after a short stand) are fixed in fix A, item 3
- * (walking flicks) in fix B; 5 (the switch toggled mid-move, partly fixed in fix B) and 4 and 6 are skipped
- * (MOCAP_PLAYER_ALL=1 runs them; MOCAP_PLAYER_LOG=<file> appends every row).
+ * (walking flicks) in fix B, items 4 and 6 in fix C; 5 (the switch toggled mid-move, partly fixed in fix B) is skipped
+ * (MOCAP_PLAYER_ALL=1 runs it; MOCAP_PLAYER_LOG=<file> appends every row).
  */
 import { appendFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -38,6 +38,16 @@ const swing = (a: number, b: number): Case => ({
 const flick = (v: number, ang: number, off: number): Case => ({ label: `flick ${ang} at ${v} m/s, offset ${off}`, target: flickPlan(v, ang, off), steps: 660, recFrom: 1.5 });
 const LADDER = [1.4, 2.0, 2.4, 2.8, 3.4, 4.0, 4.6, 5.0, 4.0, 2.8, 1.4, 0.8, 2.8, 5.0, 1.4];
 const itOther = process.env.MOCAP_PLAYER_ALL ? it : it.skip;
+/** CHECK-3 6c: a crouched sneak at 1.0 m/s, a 90 deg flick at 7.85 rad/s every 2 s (both ways), after `off` s. */
+const sneakFlick = (off: number): Case => {
+  const dur = Math.PI / 2 / 7.85;
+  return {
+    label: `sneak 1.0 flick 90 offset ${off}`,
+    target: (t) => { const u = t - 2 - off; const ph = ((u % 2) + 2) % 2; const turning = u > 0 && ph < dur; return { v: turning ? 1.0 * (1 - 0.55 / 2) : 1.0, yr: turning ? (Math.floor(u / 2) % 2 === 0 ? 7.85 : -7.85) : 0, crouch: 1 }; },
+    steps: 600,
+    recFrom: 1.5,
+  };
+};
 
 describe('mocap switch: a CT player (CHECK-3)', () => {
   it('1: pace changes through the spring while turning and pace swings keep the pelvis and planted feet', async () => {
@@ -72,7 +82,7 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     await check([flick(1.4, 90, 0), flick(1.4, 180, 0.41), flick(1.4, 180, 0.83), flick(2.0, 90, 0), flick(2.0, 180, 0), flick(2.0, 180, 0.41), flick(2.8, 180, 0), flick(2.8, 180, 0.41), flick(2.8, 180, 0.83)]);
   }, 300_000);
 
-  itOther('4: spot turns keep the anchored foot (other round)', async () => {
+  it('4: spot turns keep the anchored foot (fix C: the knee pole eases on the mocap share)', async () => {
     await check([
       { label: 'spot flick 180', target: (t) => ({ v: 0, yr: t > 1.5 && t % 1.5 < Math.PI / 7.85 ? (t % 3 < 1.5 ? 7.85 : -7.85) : 0 }), steps: 540, recFrom: 1 },
       { label: 'spot spin 6', target: (t) => ({ v: 0, yr: t > 1.5 && t % 3 < 1.5 ? 6 : 0 }), steps: 540, recFrom: 1 },
@@ -96,25 +106,24 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     }))));
   }, 300_000);
 
-  itOther('6: smaller cases (other round)', async () => {
-    const sneakFlick = (off: number): Case => {
-      const dur = Math.PI / 2 / 7.85;
-      return {
-        label: `sneak 1.0 flick 90 offset ${off}`,
-        target: (t) => { const u = t - 2 - off; const ph = ((u % 2) + 2) % 2; const turning = u > 0 && ph < dur; return { v: turning ? 1.0 * (1 - 0.55 / 2) : 1.0, yr: turning ? (Math.floor(u / 2) % 2 === 0 ? 7.85 : -7.85) : 0, crouch: 1 }; },
-        steps: 600,
-        recFrom: 1.5,
-      };
-    };
+  // (fix C) 6b / 6c: a landing's knee (the limit held the 5 m/s flick's landed ankle 2.2 cm off) and a crouched toe-off's
+  // limited leg (the sneak flick's ball 2.1 cm, ankle-toe 28.3)
+  it('6b / 6c: sprint and crouched sneak flicks keep the planted feet', async () => {
+    await check([flick(5.0, 180, 0.83), sneakFlick(0), sneakFlick(0.5)]);
+  }, 300_000);
+
+  // (fix C) 6d: the hold's fade out of the stride (elbow-wrist 30.2 deg); the hold's release as the stick moves again (the
+  // hips' settle over the feet let go 1.7 cm in a frame: pelvis 2.05 cm); 6e (passes since fix A)
+  it('6d / 6e: a CT stop from 5 m/s, the stop hold released, a draw at 4 m/s', async () => {
     await check([
-      { label: 'crouch at 2.8 m/s', target: (t) => { const c = t > 2.51 && t < 4.51 ? 1 : 0; return { v: c ? 2.6 : 2.8, yr: 0, crouch: c }; }, steps: 360, recFrom: 1.5 },
-      flick(5.0, 180, 0.83),
-      sneakFlick(0),
-      sneakFlick(0.5),
       startStop(5.0, 2.0, 1.73),
-      // the hold's release as the stick moves again (the graph's locoSpeed holdSpeed 0.8 -> 0.03 in a frame): pelvis 2.05 cm
       startStop(1.4, 0.3, 1.99),
       { label: 'draw at 4.0 m/s', target: (t) => ({ v: 4.0, yr: 0, armed: t > 2.34 && t < 4.34 }), steps: 360, recFrom: 1.5 },
     ]);
+  }, 300_000);
+
+  // (fix C) 6a: a clip swing handed to the planner as the crouch takes the jog's share kept its whole gap (23 cm a frame)
+  it('6a: crouching while jogging', async () => {
+    await check([{ label: 'crouch at 2.8 m/s', target: (t) => { const c = t > 2.51 && t < 4.51 ? 1 : 0; return { v: c ? 2.6 : 2.8, yr: 0, crouch: c }; }, steps: 360, recFrom: 1.5 }]);
   }, 300_000);
 });

@@ -382,6 +382,8 @@ const REACH_HARD = 0.999;
 const CROUCH_REACH = 0.8;
 /** (G1 fix) Standing still, the hips settle at most this far (m) fore-aft toward the feet's midpoint. */
 const REST_SHIFT = 0.22;
+/** (mt2-fixC) While the mocap share keeps the hips off the feet, the settle moves at most this fast (m/s). */
+const REST_SHIFT_RATE = 0.6;
 /**
  * (anim-rework S3) Gliding aimed, the hips move `share` of the way across to the feet's centre (at most `max` m off the
  * capsule), eased over `tau` s: a side-step's weight goes onto the lead foot, then the trailing foot closes under it.
@@ -2397,7 +2399,11 @@ export class CharacterRig {
       const still = !free && !t.gait.moving && !this.input.wall && L.contact && R.contact && this.input.crouch < 0.5;
       const mid = ((L.x + R.x) * 0.5 - rp.x) * Math.sin(yaw) + ((L.z + R.z) * 0.5 - rp.z) * Math.cos(yaw);
       const target = still ? Math.max(-REST_SHIFT, Math.min(REST_SHIFT, mid)) : 0;
-      this.restShift = approachTo(this.restShift, target, dt, 0.06);
+      const rs = approachTo(this.restShift, target, dt, 0.06);
+      // (mt2-fixC, CHECK-3 item 6) and at most REST_SHIFT_RATE while the mocap share keeps the hips off the feet (the
+      // pelvis-follow layer, as the knee pole below): a CT stop hold's release let go of a 7 cm settle by 1.7 cm in a frame
+      const rm = REST_SHIFT_RATE * dt;
+      this.restShift = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1 && (rs > this.restShift + rm || rs < this.restShift - rm) ? this.restShift + (rs > this.restShift ? rm : -rm) : rs;
     }
     // (anim-rework S3, BRIEF 3 "the centre of mass over the base of support") gliding aimed (the drawn keyed set raised)
     // the hips ride over the feet's centre across the body (GLIDE_HIP: the weight moves onto the lead foot of a side-step
@@ -2540,8 +2546,12 @@ export class CharacterRig {
     // (mt2-fixB, CHECK-3 item 3) clip feet on hand: each knee pole's swing / stance share moves at most 1 / POLE_SWAP a
     // second (a landing swapped KNEE_SWING_SHARE for half way in a frame: in a 7.85 rad/s flick the knee swung round, the
     // hip / knee rate limit held it and the landed ankle missed its spot by 2.4 cm); off: -1, exactly as before
+    // (mt2-fixC, CHECK-3 item 4) and while the mocap share keeps the hips off the feet (MOCAP_LAYERS.pelvisFollow: a spot
+    // turn's turn-in-place slot, no clip feet), until a swap under way has run out: a spot flick's landing missed its spot
+    // by 2.1 cm the same way. Placeholder clips (every layer 1) are left as before
+    const poleM = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1;
     for (let k = 0; k < 2; k++) {
-      if (this.pin.clipFeet === null) {
+      if (this.pin.clipFeet === null && !poleM && !(this.poleShare[k]! >= 0 && this.poleShare[k] !== this.poleWant(k === 0 ? -1 : 1))) {
         this.poleShare[k] = -1;
         continue;
       }
@@ -2640,9 +2650,11 @@ export class CharacterRig {
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     // (mt2-fixB) while the switch's cross-fade runs (`switchFade`) a planted leg goes unlimited: the new pose's legs jump at the
     // toggle and the limit held a planted ankle 3.6 cm off its plant; the fade eases what is seen (undefined: as before)
+    // (mt2-fixC, CHECK-3 item 6) and on the mocap share (`poleM`), a leg on its landing frame (plantT 0): the knee leaves
+    // the swing's bow and pole there, and the limit held a 5 m/s flick's landed ankle 2.2 cm off its plant for the frame
     const xf = this.xfT >= 0 || this.xfStart;
-    const xl = xf && L.contact ? 1e9 : undefined;
-    const xrr = xf && R.contact ? 1e9 : undefined;
+    const xl = (xf || (poleM && L.plantT === 0)) && L.contact ? 1e9 : undefined;
+    const xrr = (xf || (poleM && R.plantT === 0)) && R.contact ? 1e9 : undefined;
     const lHip = this.limitJoint(this.hipL, dt, xl);
     const lh = this.limitJoint(this.kneeL, dt, xl) || lHip;
     const rHip = this.limitJoint(this.hipR, dt, xrr);
@@ -2658,7 +2670,9 @@ export class CharacterRig {
     // (mt2-pop1) clip feet on hand: a rate-limited hip / knee carried the foot round with it for the frame (the knee pole's
     // swing / stance share swaps at a landing: in a fast walk turn the landed foot flicked 24-25 deg in a frame and back);
     // the foot keeps the planner's yaw and pitch (its pitch already turns at most MOCAP_FEET.pitchRate), its Joints offset on top
-    if ((lh || rh) && this.pin.clipFeet && !legKeyed && !HANDS_CUR.ikOn) {
+    // (mt2-fixC, CHECK-3 item 6c) also on the mocap share (`poleM`) and in the crouched capture (switch on, crouchWalk set):
+    // a crouched sneak flick's toe-off turned the limited leg's foot off the planner's and its ball slid 2.1 cm
+    if ((lh || rh) && (this.pin.clipFeet || poleM || (LOCO.mocap && LOCO.set.crouchWalk !== null && this.input.crouch > 0)) && !legKeyed && !HANDS_CUR.ikOn) {
       const ly = Number.isNaN(this.legYaw);
       if (lh) {
         Quaternion.RotationYawPitchRollToRef(ly ? L.yaw : this.legYaw, L.pitch + st.lPitch, 0, tmpQ3);
