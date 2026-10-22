@@ -25,6 +25,13 @@
  *   roll's sense). The rig turns a swinging leg by them and re-solves a planted one onto its plant with them folded in.
  *   The key files' `legX.d` degrees are anatomical (the same sense on both sides): `LEGD_SIGN` converts. A clip without
  *   it samples 0 (the rig is untouched).
+ * - (mocap-trial; optional) `feet` (10, `KF`): per side L then R the ankle in the ROOT frame (x right, y up, z forward,
+ *   1.75 m body units: x, z from the root's ground point, y the ankle's lift over its flat-foot rest height), the foot's
+ *   pitch (rad, + heel up / toe down, the planner's sense) and contact (0 / 1). With the clip's `stride` (the root's
+ *   travel over one cycle, 1.75 m units) it drives the "clip feet" mode of the foot planner (`FootPlanner`, mocap set
+ *   only): the clip places the steps, the planner only grounds and pins them. Sampled at full amplitude (never scaled by
+ *   `amp`: the stride must match the travel). A clip without it samples 0 with `hasFeet` 0 (the planner's steps).
+ *   docs/mocap-trial/CLIP-FORMAT.md.
  * Per clip: the foot planner's `duty` and `liftH`, the knee pole's `kneeOut` and the track `half` width (ankle centre
  * from the midline). Sampling never allocates.
  */
@@ -53,6 +60,9 @@ export interface KeyedClipDef {
   leg?: readonly number[];
   /** (anim-skeleton S4) Optional leg deltas on the IK legs (14 per frame, `KD`). */
   legd?: readonly number[];
+  /** (mocap-trial) Optional clip feet (10 per frame, `KF`) and the root's travel over one cycle (1.75 m units). */
+  feet?: readonly number[];
+  stride?: number;
 }
 
 export interface KeyedClip {
@@ -89,6 +99,9 @@ export interface KeyedClip {
   /** (anim-skeleton S4) The leg deltas (null: not keyed, sampled as 0) and their mean. */
   readonly legd: Float32Array | null;
   readonly meanLegd: Float32Array;
+  /** (mocap-trial) The clip feet (null: none, the planner places the steps) and the cycle's root travel (0: none). */
+  readonly feet: Float32Array | null;
+  readonly stride: number;
   /** (tuner-v2 item 4) The per-key edit offsets (`tuneKeys` builds them on the first edit), or null: sampled exactly as baked. */
   keyOff: KeyedOffsets | null;
   /** (marlow-bays item 23) The key timing edits (`tuneKeys` sets them on the first retime), or null: the keys as baked. */
@@ -195,6 +208,9 @@ export interface KeyedPose {
   /** (anim-skeleton S4) The leg deltas (`KD`, 0 when not keyed) and their flag (0: the rig leaves the legs alone). */
   readonly legd: Float64Array;
   hasLegd: number;
+  /** (mocap-trial) The clip feet (`KF`, 0 when not keyed) and their flag (0: the planner places the steps). */
+  readonly feet: Float64Array;
+  hasFeet: number;
 }
 
 export const KEYED_PEL = 3;
@@ -230,6 +246,23 @@ const LEG_W = [KL.w, KEYED_LEG_SIDE + KL.w] as const;
 export const KEYED_LEGD = 14;
 export const KEYED_LEGD_SIDE = 7;
 export const KD = { hipPitch: 0, hipYaw: 1, hipRoll: 2, knee: 3, anklePitch: 4, ankleRoll: 5, toe: 6 } as const;
+/** (mocap-trial) The clip feet channel: 5 a side (L then R), slots in one side (`KF`). */
+export const KEYED_FEET = 10;
+export const KEYED_FEET_SIDE = 5;
+export const KF = { x: 0, y: 1, z: 2, pitch: 3, contact: 4 } as const;
+/**
+ * (mocap-trial) Per-layer scales a clip set samples with (`mocap.ts` MOCAP_LAYERS): `armSwing` on the tuner's arm swing
+ * gain, `trunkTwist` on its trunk counter-rotation, `keyLean` on its forward lean. 1 keeps each exactly as it is.
+ */
+export interface KeyedLayerScale {
+  readonly armSwing: number;
+  readonly trunkTwist: number;
+  readonly keyLean: number;
+}
+/** A multiplier layer `k` (identity 1) moved toward 1 by scale `s` (1: `k` exactly, 0: 1). */
+export function layerMul(k: number, s: number): number {
+  return s === 1 ? k : 1 + (k - 1) * s;
+}
 /** (S4) The key files' `legX.d` fields in `KD` order (degrees, anatomical: the same sense on both sides). */
 export const LEGD_FIELDS = ['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe'] as const;
 /**
@@ -284,6 +317,8 @@ export function newKeyedPose(): KeyedPose {
     hasLeg: 0,
     legd: new Float64Array(KEYED_LEGD),
     hasLegd: 0,
+    feet: new Float64Array(KEYED_FEET),
+    hasFeet: 0,
   };
 }
 
@@ -327,6 +362,8 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
   if (def.fing) check(def, KEYED_FING, def.fing.length, 'fing');
   if (def.leg) check(def, KEYED_LEG, def.leg.length, 'leg');
   if (def.legd) check(def, KEYED_LEGD, def.legd.length, 'legd');
+  if (def.feet) check(def, KEYED_FEET, def.feet.length, 'feet');
+  if (def.feet && !(typeof def.stride === 'number' && def.stride > 0)) throw new Error(`keyed clip ${def.name}: feet need a stride > 0`);
   const N = def.frames;
   const q = Float32Array.from(def.q);
   hemispheres(q, N, KEYED_Q);
@@ -401,6 +438,8 @@ export function keyedClip(def: KeyedClipDef): KeyedClip {
     meanLeg,
     legd,
     meanLegd,
+    feet: def.feet ? Float32Array.from(def.feet) : null,
+    stride: def.feet ? def.stride! : 0,
     keyOff: null,
     keyTime: null,
   };
@@ -431,7 +470,7 @@ function legMean(g: Float32Array, N: number, m: Float32Array): void {
  * Sample `clip` at gait `phase` (cycles, any real) into `out`, the cycle scaled about its mean by `amp` (1 = as keyed,
  * 0 = the mean pose: a slow walk swings less). Linear between frames, quaternions normalised (nlerp).
  */
-export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: KeyedPose): KeyedPose {
+export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: KeyedPose, L: KeyedLayerScale | null = null): KeyedPose {
   const N = clip.frames;
   // (marlow-bays item 23) retimed keys: the baked clip read at the warped phase (null: exactly as before)
   const KT = clip.keyTime;
@@ -447,10 +486,12 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
     out.pel[c] = m + (v - m) * amp;
   }
   const A = clip.arm;
+  // (mocap-trial) the arm swing gain, scaled for a set with layer scales (null or 1: exactly the tuner's)
+  const armK = L === null ? TUNE_CUR.armSwingK : layerMul(TUNE_CUR.armSwingK, L.armSwing);
   for (let c = 0; c < KEYED_ARM; c++) {
     const v = A[i0 * KEYED_ARM + c]! + (A[i1 * KEYED_ARM + c]! - A[i0 * KEYED_ARM + c]!) * u;
     const m = clip.meanArm[c]!;
-    out.arm[c] = m + (v - m) * amp * TUNE_CUR.armSwingK;
+    out.arm[c] = m + (v - m) * amp * armK;
   }
   sampleQuats(clip.q, clip.meanQ, KEYED_Q, i0, i1, u, amp, out.q);
   const K = clip.keyOff; // (tuner-v2 item 4) per-key edits: null unless the Keys section edits this clip
@@ -465,8 +506,8 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
     v = g - Math.floor(g);
   }
   if (K) keyOffTrunk(K, j0, j1, v, amp, out.q);
-  tuneKeyedTwist(out.q, clip.meanQ); // (anim-tuner) the trunk counter-rotation slider (identity at 1)
-  tuneKeyedLean(out.q); // (anim-tuner) the forward lean slider (identity unless the local player's group sets one)
+  tuneKeyedTwist(out.q, clip.meanQ, L === null ? 1 : L.trunkTwist); // (anim-tuner) the trunk counter-rotation slider (identity at 1)
+  tuneKeyedLean(out.q, L === null ? 1 : L.keyLean); // (anim-tuner) the forward lean slider (identity unless the local player's group sets one)
   const W = out.wrist;
   if (clip.wrist) {
     sampleQuats(clip.wrist, clip.meanWrist, KEYED_WRIST, i0, i1, u, amp, W);
@@ -498,9 +539,18 @@ export function sampleKeyed(clip: KeyedClip, phase: number, amp: number, out: Ke
     out.legd.fill(0);
     out.hasLegd = 0;
   }
+  // (mocap-trial) the clip feet: between frames at full amplitude (the stride must match the travel), contact lerped
+  if (clip.feet) {
+    const F = clip.feet;
+    for (let c = 0; c < KEYED_FEET; c++) out.feet[c] = F[i0 * KEYED_FEET + c]! + (F[i1 * KEYED_FEET + c]! - F[i0 * KEYED_FEET + c]!) * u;
+    out.hasFeet = 1;
+  } else if (out.hasFeet) {
+    out.feet.fill(0);
+    out.hasFeet = 0;
+  }
   if (K) {
-    keyOffLimbs(K, j0, j1, v, amp, amp * TUNE_CUR.armSwingK, out);
-    keyOffExtra(K, j0, j1, v, amp, amp * TUNE_CUR.armSwingK, out);
+    keyOffLimbs(K, j0, j1, v, amp, amp * armK, out);
+    keyOffExtra(K, j0, j1, v, amp, amp * armK, out);
   } else edIdentity(out);
   return out;
 }
@@ -836,7 +886,36 @@ export function mixKeyed(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose, 
   // (anim-skeleton S4) the leg deltas always blend with the legs (a pose without them is 0: a blend fades them)
   for (let c = 0; c < KEYED_LEGD; c++) out.legd[c] = a.legd[c]! + (b.legd[c]! - a.legd[c]!) * u;
   out.hasLegd = a.hasLegd || b.hasLegd ? 1 : 0;
+  // (mocap-trial) the clip feet: both keyed lerp; one keyed is kept as it is (a blend with a clip without feet never
+  // drags the steps toward 0); none: left at 0
+  if (a.hasFeet && b.hasFeet) {
+    for (let c = 0; c < KEYED_FEET; c++) out.feet[c] = a.feet[c]! + (b.feet[c]! - a.feet[c]!) * u;
+    out.hasFeet = 1;
+  } else if (a.hasFeet || b.hasFeet) {
+    const src = a.hasFeet ? a.feet : b.feet;
+    if (out.feet !== src) out.feet.set(src);
+    out.hasFeet = 1;
+  } else if (out.hasFeet) {
+    out.feet.fill(0);
+    out.hasFeet = 0;
+  }
   return out;
+}
+
+/**
+ * (mocap-trial) Only the arm channels of `b` toward `a` by `t` into `out` (`out` may be `b`): `t` = 0 is `a`'s arms, 1
+ * `b`'s. The arm points and finger offsets lerp, the wrist, forearm, shoulder and clavicle quaternions nlerp; the flags,
+ * trunk, head, legs and feet are left as `out` has them. A slot mixed at weight w after this plays its arms at t x w (the
+ * walking start's arms capped, MocapSlots). No allocation.
+ */
+export function mixKeyedArms(a: KeyedPose, b: KeyedPose, t: number, out: KeyedPose): void {
+  const u = t < 0 ? 0 : t > 1 ? 1 : t;
+  for (let c = 0; c < KEYED_ARM; c++) out.arm[c] = a.arm[c]! + (b.arm[c]! - a.arm[c]!) * u;
+  for (let c = 0; c < KEYED_FING; c++) out.fing[c] = a.fing[c]! + (b.fing[c]! - a.fing[c]!) * u;
+  nlerpInto(a.wrist, b.wrist, KEYED_WRIST, u, out.wrist);
+  nlerpInto(a.fore, b.fore, KEYED_FORE, u, out.fore);
+  nlerpInto(a.sh, b.sh, KEYED_SH, u, out.sh);
+  nlerpInto(a.clav, b.clav, KEYED_CLAV, u, out.clav);
 }
 
 /**
@@ -987,6 +1066,17 @@ export function mirrorKeyed(p: KeyedPose): KeyedPose {
     const s = LEGD_NEG[k]!;
     d[s] = -d[s]! + 0;
     d[KEYED_LEGD_SIDE + s] = -d[KEYED_LEGD_SIDE + s]! + 0;
+  }
+  // (mocap-trial) the clip feet swapped side for side, x negated
+  if (p.hasFeet) {
+    const t = p.feet;
+    for (let c = 0; c < KEYED_FEET_SIDE; c++) {
+      const l = t[c]!;
+      t[c] = t[c + KEYED_FEET_SIDE]!;
+      t[c + KEYED_FEET_SIDE] = l;
+    }
+    t[KF.x] = -t[KF.x]! + 0;
+    t[KEYED_FEET_SIDE + KF.x] = -t[KEYED_FEET_SIDE + KF.x]! + 0;
   }
   return p;
 }

@@ -24,11 +24,12 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
     await frames(page, 6);
     // (gpu-tests) on a hardware GPU 6 frames pass in ~0.1 s while loaders still make materials: wait (5 s cap) until
     // every PBR material has the plugin, so a material made just before the read is not counted unplugged (a real miss
-    // still fails the assert)
+    // still fails the assert). (load-latent-ui1) 120 s cap: four browsers bake side by side, and under CPU load the
+    // loaders and the next frame ran past 5 s
     await page.waitForFunction(() => {
       const pbr = window.__app.current.world.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
       return pbr.every((m) => !!m.pluginManager?.getPlugin('BakedLamps'));
-    }, null, { timeout: 5000 }).catch(() => {});
+    }, null, { timeout: 120000 }).catch(() => {});
     const info = await page.evaluate(() => {
       const w = window.__app.current.world;
       const q = window.__app.quality.level;
@@ -68,7 +69,14 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
       info.lampLevel = lvl;
       // the smooth default at Ray traced: no voxel world to trace, so screen space reflections run instead (no crash)
       await page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.adaptive = false; }));
-      await new Promise((r) => setTimeout(r, 1500));
+      // (load-latent-ui1) was a fixed 1.5 s wall wait: under CPU load the frame rebuilding the pipeline had not run.
+      // Wait (60 s cap) for the fallback, then read; a real miss still fails the assert. Epic already runs SSR, so the
+      // wait also needs the stack rebuilt with Ray traced (its settings key), or it would pass before the switch
+      await page.waitForFunction(() => {
+        const g = window.__app.current;
+        const n = g.player.cam.camera._postProcesses.filter(Boolean).map((p) => p.name);
+        return String(g.stack?.key ?? '').includes('"reflections":"rt"') && n.includes('ssr') && !n.includes('rtReflect');
+      }, null, { timeout: 60000 }).catch(() => {});
       const pps = await page.evaluate(() => window.__app.current.player.cam.camera._postProcesses.filter(Boolean).map((p) => p.name));
       info.rtFallback = pps.includes('ssr') && !pps.includes('rtReflect');
       info.pps = pps.join(',');

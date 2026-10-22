@@ -25,7 +25,8 @@ import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
 import { EYE_STAND, instantDetect, losClear, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
-import { AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
+import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
+import { HEARING } from './hearing';
 import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
@@ -201,13 +202,15 @@ export class Enemy implements Damageable {
   /** Sight fill rate at the last think (/s) and seconds since the target was last in sight. */
   private rate = 0;
   sinceSeen = 99;
-  private sight: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1 };
+  private sight: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
   private alertIn = emptyAlertInput();
   private walker: PatrolWalker;
   /** Where the last stimulus (glimpse, noise) came from, and whether there is one. */
   private stimulus: P2 = [0, 0];
   private hasStimulus = false;
   private heard = false;
+  /** (guard-ai S1) Seconds left looking towards a sound he was not sent to (`hearTurn`): stands and faces it. */
+  private turnT = 0;
   private gunfire = false;
   private called = 0;
   /** Seconds until a spotter's radio call goes out (0 = none pending); taking them out first stops it. */
@@ -575,6 +578,31 @@ export class Enemy implements Damageable {
     this.heard = true;
   }
 
+  /**
+   * (guard-ai S1) A sound he hears but is not sent to (hearing tier 1, or a tier-2 hearer the coordinator did not
+   * pick): stop and look towards it for `ALERT.hearLook`, the meter pushed to the sound's floor (`noiseSuspicion`,
+   * capped at `HEARING.turnMax`, so a sound alone never makes him investigate). No `heard` flag: he never walks over.
+   * Already investigating or searching: only the meter (he keeps his own spot). `radius` 0: no meter bump.
+   */
+  hearTurn(x: number, z: number, radius = 0): void {
+    if (this.alerted || !this.alive || this.passive) return;
+    if (radius > 0) {
+      const s = Math.min(noiseSuspicion(hyp2(x - this.pos.x, z - this.pos.z), radius), HEARING.turnMax);
+      if (s > this.meter) this.meter = s;
+    }
+    const lvl = this.aware.level;
+    if (lvl === 'investigating' || lvl === 'searching') return;
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.turnT = ALERT.hearLook;
+  }
+
+  /** (guard-ai S1) Looking towards a sound he was not sent to (tests / debug). */
+  get turning(): boolean {
+    return this.turnT > 0;
+  }
+
   /** Gunfire close by: straight to combat, towards it. */
   hearGunfire(x: number, z: number): void {
     if (!this.alive) return;
@@ -874,6 +902,8 @@ export class Enemy implements Damageable {
     // line of sight to the chest, head and hips: in combat any of them is enough to shoot at; the fraction
     // in view scales how fast an unaware enemy notices
     best.target.aimPoint(this.tmp);
+    // (G44) elevation of the chest above the eye line: the vertical view limit (perception `pitchFactor`)
+    const pitch = Math.atan2(this.tmp.y - eye.y, hyp2(this.tmp.x - eye.x, this.tmp.z - eye.z));
     const chest = this.losTo(eye, this.tmp, 0.3);
     if (chest) this.lastKnown.copyFrom(this.tmp);
     let head = false;
@@ -910,6 +940,8 @@ export class Enemy implements Damageable {
     si.speed = best.speed;
     si.exposure = this.alerted ? (this.los ? 1 : 0) : n / samples;
     si.sensitivity = this.aware.sensitivity * this.perceptionMul;
+    // in combat the guard tracks the target in 3D, and a dog's low eye looks up at everyone: no vertical limit
+    si.pitch = this.alerted || this.dog !== null ? 0 : pitch;
     this.rate = sightRate(si);
     // the dog smells what it cannot see (no light or line of sight needed)
     this.smelled = false;
@@ -962,6 +994,7 @@ export class Enemy implements Damageable {
   private updateAwareness(dt: number): void {
     const seen = this.alerted ? this.los || this.smelled : seenAt(this.rate);
     this.sinceSeen = seen ? 0 : this.sinceSeen + dt;
+    if (this.turnT > 0) this.turnT -= dt;
     if (!this.alerted) this.meter = stepMeter(this.meter, this.rate, dt, this.sinceSeen);
     if (this.called > 0) {
       this.called -= dt;
@@ -1033,6 +1066,8 @@ export class Enemy implements Damageable {
     switch (lvl) {
       case 'unaware':
       case 'cooldown': {
+        // (guard-ai S1) a sound he was not sent to: stand and look towards it a moment (`hearTurn`)
+        if (this.turnT > 0 && this.hasStimulus) return { point: null, speed: 0, face: Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) };
         // the dog heels beside its handler
         if (this.dog) {
           const h = this.findLeader();

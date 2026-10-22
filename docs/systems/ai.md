@@ -6,8 +6,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Decided, not built yet (G41): guards close doors behind them on a calm patrol and notice any door open that should be
   shut; one 15% open threshold for light, sound and sight. Code: guards push doors open and leave them; the light cut is
   `DOOR_SHUT` 0.05 (`docs/systems/lighting.md`).
-- Decided, not built yet (G44): guards see poorly above them, as in CT. Code: the sight field is a horizontal cone only (a
-  player 4 m above a guard is seen as well as one at his height).
+- Decided, built (G44, g44-above): guards see poorly above them. `pitchFactor` (`PERCEPTION.up*` / `down*`) scales the
+  sight term by the chest's elevation from the eye line: 1 up to +22 deg, smoothstep to 0.15 by +48 deg; below, 1 to -40
+  deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
+  dogs; the close-range felt term (1.8 m, moving) is unchanged. The light meter is untouched (a view limit, not light).
+  Numbers are Night Shift's own: the CT research is silent on looking up.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only.
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
@@ -31,8 +34,18 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`updateAwareness`), `calmDecide` drives patrol (`PatrolWalker`: `SquadSlot.route` / post with glances; per-point
   `waits`), looks at the stimulus, walks to it (`goTo`: straight or A*), search sweeps (`searchPoint`, `searchSlot`).
   Inputs: `hear(x, z, radius)`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies / lights), `alert()`.
-- Hearing: `EnemyManager.hear` muffles a noise to `MUFFLE` (0.45) of its reach when a wall is between it and the listener
-  (one ray at head height; low cover does not muffle). `noiseSuspicion` rises with the square of closeness.
+- Hearing (guard-ai S1, `ai/hearing.ts`, pure): a noise's reach becomes an effective reach per listener,
+  `reach x 10^(-(walls x 6.9 + ambientDb) / 20)`: one wall (head-height ray, cast only where it could change the tier;
+  low cover does not muffle) keeps 0.45 of it (the old `MUFFLE`), and a noisy thing near the guard (`NoisySource`,
+  `EnemyManager.setNoisy`; no map sets any yet) masks it (6 dB halves, 12 dB quarters). Tiers (`HEARING`): inside the
+  effective reach he turns to look (`Enemy.hearTurn`: stands facing it `hearLook`, meter floor `noiseSuspicion` capped
+  at 0.45, no `heard`); inside half of it he may be sent; loud gunfire (`EnemyManager.noise`) is combat only inside a
+  quarter of it. Coordinated managers (default) send one guard per noise, the nearest tier-2 hearer (`pickNearest`, a
+  stub until the incident board): `Enemy.hear` sets `heard` (suspicious, investigates after `hearLook`); the rest only
+  turn. A gunfire investigator (or any tier-3 / already fighting hearer) sets the shared LKP; turning guards do not.
+  Melee kinds (dogs, runners) keep `Enemy.hear` anywhere in reach. Hunter and Mission (parked) set
+  `coordinated = false`: everyone in reach hears and walks over, gunfire sends everyone in reach to combat.
+  `noiseSuspicion` rises with the square of closeness.
 - Pace and patience: `PATROL.wait` 5.5 s, glances every 10 s, `searchLook` 3 s, `hearLook` 2.4 s; `ENEMY_CALM_MOTION` (60
   deg/s turns while not in combat / searching). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
   never returns to unaware (`AlertMachine.fought`).

@@ -28,6 +28,7 @@ import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceT
 import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { controlsMigrationNotes, setAuto } from './settings';
 import { flags } from './flags';
+import { applyMocapSwitch } from '../anim/mocap';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -131,7 +132,13 @@ export class App {
     this.input.events.on('padConnected', ({ id }) => this.toasts.show(`Controller connected: ${shortPadName(id)}`, 'ok'));
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));
     setAvatarStyle(this.settings.get().video.avatarStyle);
+    // (mocap-trial) the mocap locomotion switch: `?mocap=0/1` over the stored setting, resolved on every settings change
+    // (the load included), never per frame
+    applyMocapSwitch(flags.mocap, this.settings.get().gameplay.mocapLoco);
+    // (the animation tuner's "Mocap locomotion" box writes the same setting)
+    tune.mocapHost = { get: () => this.settings.get().gameplay.mocapLoco, set: (on) => this.settings.update((d) => void (d.gameplay.mocapLoco = on)) };
     this.settings.subscribe((s) => {
+      applyMocapSwitch(flags.mocap, s.gameplay.mocapLoco);
       this.audio.setVolumes(s.audio);
       if (s.video.avatarStyle !== avatarStyle()) {
         setAvatarStyle(s.video.avatarStyle);

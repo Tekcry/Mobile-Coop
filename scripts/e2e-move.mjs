@@ -105,8 +105,46 @@ try {
   // not aiming the body faces where it goes: sideways runs at the full gear pace
   await tp(-10, 0, -14, Math.PI / 2);
   await settle(0.2);
-  const side = await speedAt(1, 0);
-  assert(side > 2.15, `pushing sideways turns and goes at the gear's pace, no strafe penalty when not aiming (${side.toFixed(2)} m/s)`);
+  // (load-audit) measured in game time: the stick goes down inside the same step hook (no real frames between), a 0.5 s
+  // game-time warm-up (the turn and the start), then the ground path walked over the next 0.3 s of the match clock
+  // (`g.time`), positions and the clock read together in each step, speed = path / elapsed game time. Was the controller's
+  // speed read after a wall-time round trip, which on a loaded page (sim at x0.3) read 0.00 m/s.
+  const sidePace = await page.evaluate(([warm, win]) => new Promise((res) => {
+    const st = window.__app.current;
+    const c = st.player.controller;
+    const orig = st.fixedUpdate.bind(st);
+    window.__pad.axis(0, 1);
+    window.__pad.axis(1, 0);
+    const t0 = st.time;
+    let tw = -1;
+    let px = 0;
+    let pz = 0;
+    let path = 0;
+    // (review) a stray pause stops `g.time` (fixedUpdate returns before it moves): 30 s real-time cap, resolving 0 m/s
+    const w0 = performance.now();
+    const cap = setInterval(() => {
+      if (performance.now() - w0 < 30000) return;
+      clearInterval(cap);
+      st.fixedUpdate = orig;
+      res({ v: 0, path, el: tw < 0 ? 0 : st.time - tw, spd: c.speed, crouched: c.crouched, move: [window.__app.input.state.move.x, window.__app.input.state.move.y] });
+    }, 500);
+    st.fixedUpdate = (dt) => {
+      orig(dt);
+      const t = st.time - t0;
+      if (tw < 0) {
+        if (t >= warm) { tw = st.time; px = c.pos.x; pz = c.pos.z; }
+        return;
+      }
+      path += Math.hypot(c.pos.x - px, c.pos.z - pz);
+      px = c.pos.x;
+      pz = c.pos.z;
+      const el = st.time - tw;
+      if (el >= win) { clearInterval(cap); st.fixedUpdate = orig; res({ v: path / el, path, el, spd: c.speed, crouched: c.crouched, move: [window.__app.input.state.move.x, window.__app.input.state.move.y] }); }
+    };
+    window.__ff();
+  }), [0.5, 0.3]);
+  const side = sidePace.v;
+  assert(side > 2.15 && sidePace.spd > 2.15, `pushing sideways turns and goes at the gear's pace, no strafe penalty when not aiming (${side.toFixed(2)} m/s: ${sidePace.path.toFixed(2)} m over ${sidePace.el.toFixed(2)} s game time after a 0.5 s warm-up; speed ${sidePace.spd.toFixed(2)}, crouched ${sidePace.crouched}, move ${sidePace.move.map((m) => m.toFixed(2)).join(',')})`);
   const faced = await page.evaluate(() => { const c = window.__app.current.player.controller; return Math.atan2(Math.sin(c.yaw - Math.atan2(c.motion.vx, c.motion.vz)), Math.cos(c.yaw - Math.atan2(c.motion.vx, c.motion.vz))); });
   assert(Math.abs(faced) < 0.1, `the body faces the travel direction (${faced.toFixed(2)} rad off)`);
   await settle(0.3);

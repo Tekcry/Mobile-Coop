@@ -47,9 +47,8 @@ try {
   assert(await G(() => !!navigator.serviceWorker.controller), 'page is controlled by the service worker');
   // (A109) once the worker controls the page, the game warms Wren's play LODs into its runtime cache (`?gfx=min`:
   // LOD2; the menu's own fetch ran before the worker took control, so it never reached the cache)
-  // (the worker's activation can reload the page once - vite-plugin-pwa reloads when the worker that activates came
-  // from another page load, e.g. the reload above - and a reload ends a wait: the warm runs again on the new page,
-  // so the wait is retried until its one 60 s deadline)
+  // (sw-reload: the worker no longer reloads the page on activation, registerType 'prompt'; the wait is still retried
+  // until its one 60 s deadline in case a reload ends it - the warm then runs again on the new page)
   const warmBy = Date.now() + 60000;
   let warm = null;
   let warmErr = '';
@@ -85,26 +84,29 @@ try {
   assert(await G(() => !!document.querySelector('.main-menu')), 'main menu offline');
   await page.goto(url + '?autostart=warehouse&mode=mission&gfx=min');
   await booted();
-  await page.waitForFunction(() => window.__app?.current?.enemyMgr, null, { timeout: 60000 });
+  // (load-latent-ui2) the match loads (shaders compile on the loading screen): 120 s, as the other match loads
+  await page.waitForFunction(() => window.__app?.current?.enemyMgr, null, { timeout: 120000 });
   await G(() => window.__app.loop.stepHeadless(8));
   const alive = await G(() => window.__app.current.enemyMgr.alive);
   assert(alive > 0, `a match runs offline (${alive} enemies)`);
   // (A109) the player's body is Wren, loaded from the cache with no network (LOD2 = bit 1 << 3)
+  // (load-latent-ui2) 120 s here and for the Infiltration player: the KTX2 transcode runs on the main thread, slow on a
+  // loaded CPU
   const wren = await page.waitForFunction(() => {
     const f = window.__app.current.player.figure;
     return (f.loaded & 8) !== 0 ? { loaded: f.loaded, current: f.current } : null;
-  }, null, { timeout: 30000, polling: 250 }).then((h) => h.jsonValue()).catch(() => null);
+  }, null, { timeout: 120000, polling: 250 }).then((h) => h.jsonValue()).catch(() => null);
   assert(!!wren, `the offline player is Wren, drawn from the cache (loaded ${wren ? wren.loaded.toString(2) : 'none'}, LOD2 bit set)`);
   // an Infiltration mission (Warehouse) offline: objectives, guards, the download runs at the terminal
   await page.goto(url + '?autostart=warehouse&mode=infiltration&gfx=min');
   await booted();
-  await page.waitForFunction(() => window.__app?.current?.mode?.id === 'infiltration', null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__app?.current?.mode?.id === 'infiltration', null, { timeout: 120000 });
   await G(() => window.__app.loop.stepHeadless(3));
   const inf = await G(() => ({ obj: window.__app.current.hud['objective'].textContent, guards: window.__app.current.enemyMgr.alive }));
   assert(inf.obj.length > 0 && inf.guards > 0, `an Infiltration mission runs offline ("${inf.obj}", ${inf.guards} guards)`);
   // (A109) Wren from the cache here too; her load (the KTX2 transcode runs on the main thread) is done before the
   // backgrounding check, so that check times the pause, not the transcode
-  const infWren = await page.waitForFunction(() => (window.__app.current.player.figure.loaded & 8) !== 0, null, { timeout: 30000, polling: 250 }).then(() => true).catch(() => false);
+  const infWren = await page.waitForFunction(() => (window.__app.current.player.figure.loaded & 8) !== 0, null, { timeout: 120000, polling: 250 }).then(() => true).catch(() => false);
   assert(infWren, 'the Infiltration player is Wren, drawn from the cache (LOD2)');
 
   console.log('backgrounding');
