@@ -211,7 +211,8 @@ export async function walk(t, n) {
   await until(A, () => window.__course.state.hasFlag('a2-east'), null, 10000, 'A2: the pass zone sets a2-east (both east of x 56)');
   assert(await gateOpen(), 'A2: the second crossing was inside the window');
   // route 1b: cabinet two lures the calm shunter from anywhere on his loop (all within 25 m): he walks toward it
-  if (!s0.alerted) await until(A, ([x, z, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (Math.hypot(e.pos.x - x, e.pos.z - z) < d - 2 || Math.hypot(e.pos.x - x, e.pos.z - z) < 4); }, [CAB2[0], CAB2[1], toCab2(s0)], 15000, `A2: the shunter heads for cabinet two (from ${toCab2(s0).toFixed(1)} m)`);
+  // (S2 check) only when the 25 m lure reaches him from where he stood (still lured to cabinet one he may be ~36 m off)
+  if (!s0.alerted && toCab2(s0) < 24.5) await until(A, ([x, z, d]) => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive); return !!e && (Math.hypot(e.pos.x - x, e.pos.z - z) < d - 2 || Math.hypot(e.pos.x - x, e.pos.z - z) < 4); }, [CAB2[0], CAB2[1], toCab2(s0)], 15000, `A2: the shunter heads for cabinet two (from ${toCab2(s0).toFixed(1)} m)`);
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a2-back"] td.done'), null, 15000, `A2: the ${tag} sees the way back ticked`);
   await sees(A, /holding room two/, 'A2: the host reads the closing line');
   await sees(B, /holding room two/, 'A2: the client reads the closing line');
