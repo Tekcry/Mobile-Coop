@@ -201,7 +201,7 @@ export class Enemy implements Damageable {
   /** Sight fill rate at the last think (/s) and seconds since the target was last in sight. */
   private rate = 0;
   sinceSeen = 99;
-  private sight: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1 };
+  private sight: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
   private alertIn = emptyAlertInput();
   private walker: PatrolWalker;
   /** Where the last stimulus (glimpse, noise) came from, and whether there is one. */
@@ -872,6 +872,8 @@ export class Enemy implements Damageable {
     // line of sight to the chest, head and hips: in combat any of them is enough to shoot at; the fraction
     // in view scales how fast an unaware enemy notices
     best.target.aimPoint(this.tmp);
+    // (G44) elevation of the chest above the eye line: the vertical view limit (perception `pitchFactor`)
+    const pitch = Math.atan2(this.tmp.y - eye.y, hyp2(this.tmp.x - eye.x, this.tmp.z - eye.z));
     const chest = this.losTo(eye, this.tmp, 0.3);
     if (chest) this.lastKnown.copyFrom(this.tmp);
     let head = false;
@@ -908,6 +910,8 @@ export class Enemy implements Damageable {
     si.speed = best.speed;
     si.exposure = this.alerted ? (this.los ? 1 : 0) : n / samples;
     si.sensitivity = this.aware.sensitivity * this.perceptionMul;
+    // in combat the guard tracks the target in 3D, and a dog's low eye looks up at everyone: no vertical limit
+    si.pitch = this.alerted || this.dog !== null ? 0 : pitch;
     this.rate = sightRate(si);
     // the dog smells what it cannot see (no light or line of sight needed)
     this.smelled = false;

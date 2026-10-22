@@ -6,8 +6,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Decided, not built yet (G41): guards close doors behind them on a calm patrol and notice any door open that should be
   shut; one 15% open threshold for light, sound and sight. Code: guards push doors open and leave them; the light cut is
   `DOOR_SHUT` 0.05 (`docs/systems/lighting.md`).
-- Decided, not built yet (G44): guards see poorly above them, as in CT. Code: the sight field is a horizontal cone only (a
-  player 4 m above a guard is seen as well as one at his height).
+- Decided, built (G44, g44-above): guards see poorly above them. `pitchFactor` (`PERCEPTION.up*` / `down*`) scales the
+  sight term by the chest's elevation from the eye line: 1 up to +22 deg, smoothstep to 0.15 by +48 deg; below, 1 to -40
+  deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
+  dogs; the close-range felt term (1.8 m, moving) is unchanged. The light meter is untouched (a view limit, not light).
+  Numbers are Night Shift's own: the CT research is silent on looking up.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only.
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
