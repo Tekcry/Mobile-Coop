@@ -17,3 +17,5 @@ kind: minor
   start.
 - Mocap locomotion (switch on): the crouched sneak plays the CMU crouch walk (136_09) as Wren's body over the usual
   steps; the faster crouch walk / run stay hand-keyed and are blended into. Crouched spins no longer hold the keyed pose.
+- Mocap locomotion (switch on): crouching, standing up or drawing while walking no longer snaps a foot as the clip's feet
+  hand the steps to the planner (ankle-toe 57 -> 17 deg a frame at worst, switch off 16.5).
