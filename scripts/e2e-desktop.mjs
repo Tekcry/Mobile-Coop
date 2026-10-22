@@ -212,7 +212,7 @@ try {
     // loaded CPU slows far past the old fixed 20 x 500 ms
     const result = { value: await count() };
     for (const t0 = Date.now(); result.value !== 0 && Date.now() - t0 < 60000; ) {
-      await frames(page, 2);
+      await Promise.race([frames(page, 2), page.waitForTimeout(1000)]); // rAF stops on a hidden page: never hang past the cap
       result.value = await count();
     }
     assert(result.value === 0, `no match is kept in memory after it ends (${result.value} left)`);
