@@ -42,7 +42,7 @@ branch below is committed and pushed; no agent is running (the three running at 
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
 | idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
 | anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (separate clone) | 1135bc41 | Jog 180 fix (REPORT-D), rule A2 (REPORT-E), master 4.56.0 merged, CHANGELOG section. No pre-run needed (laptop run cancelled). Fresh checker was running at the save: lost, rerun. PR body drafted: C:/NightShift/n1-pr.md. | Checker -> CHECK-3; on PASS the PR (train 7 / 8). |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 849c081b | Steps 2 + 3 + master 4.56.0 (b69e1a26; STATE 20:15). Step 3 checker and the run arm pop fix agent were running at the save: lost, rerun both (no uncommitted change, no lock held). | CHECK-4; run arm pop fix; PR; steps 4-5. |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 849c081b | Steps 2 + 3 + master 4.56.0 (b69e1a26; STATE 20:15). Step 3 checker PASS (CHECK-4.md, 2 should-fix). The run arm pop agent was stopped at the save before any key edit (partial test patch C:/NightShift/n2-pop-wip.patch). | Should-fix 1-2 + run arm pop fix; PR; steps 4-5. |
 | anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
@@ -71,15 +71,16 @@ agents were running and are lost (their results were not in): redo them.
    gh pr create --base master --head feature/anim-natural-n1 --title "anim-natural N1: feet in turns (turn step, ball
    pivot, contact hold)" --body-file C:/NightShift/n1-pr.md (drafted; add the checker line); message the orchestrator
    (train 7 or 8). On FAIL: one fix round.
-2. N2 (feature/anim-natural-n2, C:/NightShift/Mobile-Coop-anim-natural-n2, head 849c081b; steps 2 + 3 + master 4.56.0):
-   (a) rerun the step 3 fresh checker (diff 4028d386..4e974ea1 on feature/anim-natural-n2-s3, REPORT-3) -> CHECK-4.md;
-   (b) the run arm pop fix (orchestrator 19:45, a defect: the right wrist jumps 22 cm in one run clip frame at the half
-   wrap, frames 16 -> 17, chest peak 17.3 m/s): an implementer retimes / smooths that run key (not the A1 trunk keys,
-   legs or half), Blender -b rebake under the desktop lock (node --import ./scripts/operators/ts-resolve.mjs
-   scripts/anim-keys/build.mjs run), re-captures both Wren fixtures (expect keyed:run + partner:moves), pins arm
-   continuity in runKeyContinuity (a partial test edit from the stopped agent: C:/NightShift/n2-pop-wip.patch, optional),
-   appends "Run arm pop fix" to REPORT-3; then push. On CHECK-4 PASS + the pop fix:
-   open the PR (minor) and message the orchestrator; steps 4-5 after (PLAN), and the #128 alloc test (STATE 17:55).
+2. N2 (feature/anim-natural-n2, C:/NightShift/Mobile-Coop-anim-natural-n2; steps 2 + 3 + master 4.56.0): the step 3
+   checker PASSED (CHECK-4.md, ~20:30). Before the PR, one implementer round: (a) CHECK-4 should-fix 1 (armCap boxes 6
+   doubles: write them into armCapO, call armCap(si, cont); per-frame new_space back to 4028d386's 3284.16 B) and
+   should-fix 2 (no cap while graph.drive !== null, so studio keyed loops are exact); (b) the run arm pop fix
+   (orchestrator 19:45, a defect: the right wrist jumps 22 cm in one run clip frame at the half wrap, frames 16 -> 17,
+   chest peak 17.3 m/s): retime / smooth that run key (not the A1 trunk keys, legs or half), Blender -b rebake under the
+   desktop lock (node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs run), re-capture both
+   Wren fixtures (expect keyed:run + partner:moves), pin arm continuity in runKeyContinuity (a partial test edit from a
+   stopped agent: C:/NightShift/n2-pop-wip.patch, optional), append "Run arm pop fix" to REPORT-3; push. Then open the PR
+   (minor; no pre-run) and message the orchestrator; steps 4-5 after (PLAN), and the #128 alloc test (STATE 17:55).
 3. #123 anim-bake-all (ad967e39, master 4.56.0 merged): in train 6; nothing unless it fails.
 Message "Night Shift | Orchestrator" at each verdict and PR.
 ```
