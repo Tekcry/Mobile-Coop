@@ -8,6 +8,8 @@ Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25
 ## State at the switch (refreshed 2026-10-23 ~07:58 for the next swap; newest update block first)
 New account live 2026-10-23 ~00:57 (5-hour 0%, resets 05:50); all four sessions resumed ~01:05; full burn to 100% (Michael 01:05). See STATE "Now" top entry for the live state.
 
+**~10:06: 4.70.0 RELEASED (train 21 #197, 8e5dbd83; dev moved; laptop 39/39 616 s). Train 22 = #193 S4 -> #195 S5 -> #196 S7 (after the chain tip laptop GPU run) + #194 hostage-gait (ready). CT Core hang-down in a fix round (batch PR).**
+
 **~09:44: 4.69.0 RELEASED (train 20 #192, 8d2ce6ed; dev moved). Train 21 = origin/train/21 b5895388 (feature/menu docs + #189 + #190 + #191; S2 fragment dup dropped) on the laptop 4189 full run; release 4.70.0 on a pass. Train 22 candidates: guard-ai #193 S4 -> S5 -> S7 (stacked, one train), #194 hostage-gait (after laptop coop + netmove). Token rules applied (CLAUDE.md, ROADMAP Decided 09:40), all five sessions told. Swap at 99%.**
 
 **~09:30: swap back live (5-hour 0%, resets 14:30; weekly 0%, resets 2026-10-24 15:00). Locks clear, no node. Cron 7/27/47 recreated. Train 20 lightbake verdict not in yet (Character Build not resumed); release 4.69.0 when it reports a pass, then train 21. Prompts going out: CT Core, Menu Notes, Course Ready, Character Build, Guard AI.**
