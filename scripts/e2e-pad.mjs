@@ -676,6 +676,79 @@ try {
       await S.browser.close();
     }
   }
+  console.log('vent by pad (vent-kick M1: the pad matches the keyboard): Y held then A held unscrews, a Y tap kicks');
+  {
+    const V = await launch({ url, params: 'autostart=proving' });
+    try {
+      await V.page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 60000 });
+      const r = await V.page.evaluate(() => {
+        const a = window.__app;
+        const g = a.current;
+        const ac = g.traversal.attachCtl;
+        const P = window.__pad;
+        a.loop.manual = true;
+        P.connect();
+        const step = (n) => {
+          for (let i = 0; i < n; i++) a.loop.stepHeadless(1 / 60, 120);
+        };
+        const key = `grate:${g.world.level.anchors.ducts[0].id}:entry`;
+        // the Proving duct mouth (e2e-traverse's spot), facing the grate
+        const atVent = () => {
+          const c = g.player.controller;
+          c.teleport(new c.pos.constructor(21.75, 3.2, -5), Math.PI / 2);
+          c.clearCrouchToggle();
+          g.player.cam.yaw = Math.PI / 2;
+          g.player.cam.pitch = 0;
+          step(24);
+          return { prompt: ac.hint?.anchor.kind ?? null, closed: !g.world.breakables.isOpen(key) };
+        };
+        const out = {};
+        // 1. a fresh (never opened) grate: Y held 100 ms (past the old 33 ms kick window), then A held, Y let go; A
+        // let go part way stops it, so the grate stays closed (no kick, no unscrew) for the kick below
+        out.at1 = atVent();
+        P.set(3, 1);
+        step(6);
+        out.yHeld = { vent: !!ac.vent, open: g.world.breakables.isOpen(key) };
+        P.set(0, 1);
+        step(2);
+        P.set(3, 0);
+        let p = -1;
+        let noise = 0;
+        for (let k = 0; k < 60 && p < 0.2; k++) {
+          step(1);
+          p = Math.max(p, ac.vent ? ac.vent.progress : -1);
+          noise = Math.max(noise, g.noise);
+        }
+        out.unscrew = { p, noise, open: g.world.breakables.isOpen(key), att: ac.active };
+        P.set(0, 0);
+        step(4);
+        out.stop = { vent: !!ac.vent, att: ac.active, open: g.world.breakables.isOpen(key) };
+        // 2. the same grate, still closed: a Y tap (2 steps) kicks it in, quick and loud
+        out.at2 = atVent();
+        P.set(3, 1);
+        step(2);
+        P.set(3, 0);
+        let t = 2 / 60;
+        let kn = g.noise;
+        for (let k = 0; k < 60 && !ac.active; k++) {
+          step(1);
+          t += 1 / 60;
+          kn = Math.max(kn, g.noise);
+        }
+        out.kick = { att: ac.active, open: g.world.breakables.isOpen(key), t: +t.toFixed(2), noise: kn };
+        return out;
+      });
+      console.log(JSON.stringify(r));
+      assert(r.at1.prompt === 'duct' && r.at1.closed, `at the duct mouth: the vent is offered, its grate closed (${JSON.stringify(r.at1)})`);
+      assert(r.yHeld.vent && !r.yHeld.open, `Y held 100 ms: the vent is open, no kick (${JSON.stringify(r.yHeld)})`);
+      assert(r.unscrew.p > 0.2 && !r.unscrew.open && !r.unscrew.att && r.unscrew.noise < 3, `Y then A held unscrews: progress, quiet, no kick (${JSON.stringify(r.unscrew)})`);
+      assert(!r.stop.vent && !r.stop.att && !r.stop.open, `A let go part way stops the unscrew, no kick (${JSON.stringify(r.stop)})`);
+      assert(r.at2.prompt === 'duct' && r.at2.closed, `the grate is still closed before the kick (${JSON.stringify(r.at2)})`);
+      assert(r.kick.att && r.kick.open && r.kick.t < 0.3 && r.kick.noise >= 10, `a Y tap kicks the grate in: quick, loud (${JSON.stringify(r.kick)})`);
+    } finally {
+      await V.browser.close();
+    }
+  }
   console.log('remap (step 18, D7): Controls > Controller by pad: clear R3, draw X -> R3, play; onto B warns; reset; crouch and wall hold / toggle');
   {
     const R = await launch({ url });

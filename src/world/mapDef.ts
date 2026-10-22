@@ -6,6 +6,7 @@ import type { Surface } from './surfaces';
 import type { VoxelArt } from '../voxel/levelVoxels';
 import type { SecurityData } from '../security/data';
 import type { LaserDef } from '../game/jammer';
+import type { LaserPanelDef } from '../game/laserPanels';
 import type { PassZone } from '../game/ctDevices';
 import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
@@ -79,6 +80,9 @@ export interface MapLayout {
   security?: SecurityData;
   /** (CT prototype B3) Laser devices: a break raises the alarm, never damage (sector-fixes C); infrared, drawn only in night vision; the held jammer switches one off. */
   lasers?: LaserDef[];
+  /** (sector-fixes P) The lasers' power panels: each laser has exactly one; jamming a panel cuts every laser it powers
+   *  (`game/laserPanels.ts`; `checkPanels` in the map tests). */
+  laserPanels?: LaserPanelDef[];
   /** (CT prototype B3) Zones both players must fill to set a course flag (the camera pocket). */
   passZones?: PassZone[];
   /** (CT prototype B6) Paired scanners: both hacks in sync set a course flag. */
