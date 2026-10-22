@@ -33,6 +33,10 @@ export function inputs(n: number, f: (k: number) => number): Float64Array {
 
 v8.setFlagsFromString('--expose-gc');
 const gc = vm.runInNewContext('gc') as () => void;
+v8.setFlagsFromString('--allow-natives-syntax');
+// eslint-disable-next-line @typescript-eslint/no-implied-eval
+const optStatus = new Function('f', 'return %GetOptimizationStatus(f)') as (f: unknown) => number;
+const nsSize = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_size;
 const newSpace = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_used_size;
 
 export interface AllocOpts {
@@ -49,6 +53,7 @@ export async function bytesPerCall(fn: (n: number) => void, goal: number, opts: 
   const warm = opts.warm ?? 50 * n;
   for (let w = 0; w < warm; w += n) fn(n);
   let best = Infinity;
+  const trace: string[] = [];
   for (let k = 0; k < 40; k++) {
     gc();
     const r0 = newSpace();
@@ -57,8 +62,10 @@ export async function bytesPerCall(fn: (n: number) => void, goal: number, opts: 
     const r2 = newSpace();
     // a scavenge inside the round (r2 under r1) is not a reading
     if (r2 >= r1) best = Math.min(best, Math.max(0, r2 - r1 - (r1 - r0)) / n);
+    if (process.env.ALLOC_TRACE) trace.push(`${k}:${((r2 - r1 - (r1 - r0)) / n).toFixed(1)}/s${optStatus(fn).toString(16)}/ns${(nsSize() / 1048576).toFixed(1)}${r2 < r1 ? '/SCAV' : ''}`);
     if (k >= 4 && best <= goal) break;
     await new Promise((r) => setTimeout(r, 25));
   }
+  if (process.env.ALLOC_TRACE) console.info(`TRACE goal=${goal.toFixed(1)} best=${best.toFixed(1)} rounds ${trace.join(' ')}`);
   return best;
 }
