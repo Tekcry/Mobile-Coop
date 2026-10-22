@@ -1,80 +1,79 @@
 # Guard render: state
 
 ## Now
-Step 1 (analysis) done: `BRIEF.md` (ask, goal, limits, A1) and `PLAN.md` (what a guard is, constraints, slices S0-S7
-with expected ms, files, owners, measurement). No code changed. Branch `feature/guard-render`, on master d140e097
-(4.66.0).
+S1 (merged rigidly skinned guard body) implemented and pushed on `feature/guard-render` (commits a-f below), on master
+4.68.0. Unit + NullEngine tests pass; nothing measured or seen on a GPU yet. Guards (`enemyRig.ts`) and carried /
+fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts for comparisons.
 
-## S1 WIP (2026-10-23, stopped on the usage limit)
-Done: design only; no code written, characterRig.ts NOT touched (no hook yet, no line range). Master was still
-d140e097 at the stop (PR #182 / 4.67.0 open): merge origin/master before touching characterRig.ts.
-Not done: A2-A7 in BRIEF.md (orchestrator decisions 1-6), every S1 commit (a)-(f), build, tests.
-Design settled (Babylon 9.29 source read):
-- Pure `src/player/smoothBodyMerge.ts`: per part the unit mesh (pos, nrm, idx), its 16-float part->joint matrix
-  (Babylon row-vector, built on the Babylon side with Matrix.Compose so Euler order matches), bone index, color /
-  pattern / color2, patScale (row lengths of the instance world matrix). Out: joint-space positions, normals =
-  normalize(M3 * n) (NOT inverse-transpose: instances render without NONUNIFORMSCALING, so this matches today's
-  pixels), colours, pattern, color2, matricesIndices / weights (1.0), `ppos` = unit pos * patScale, `pnrm` = unit
-  normal, per-part vertex ranges; flash / heat / part-paint helpers; rest box + margins. Vitest in tests/.
-- Bones: one per joint node a part hangs on, bind = identity, local = node world * root inverse (VoxelBody.pose
-  pattern, no allocation) in skeleton.onBeforeComputeObservable. Shadow RTTs call scene._prepareSkeleton
-  (objectRenderer.js:769), so camera-culled guards still cast posed shadows.
-- One shared scene observer for all smooth bodies: bones[0].markAsDirty() + ragdoll check (any bone node's parent
-  changed -> alwaysSelectAsActiveMesh = true, sticky). Fixed root-local BoundingInfo on both LOD meshes (add
-  BoundingInfo export to src/core/babylon.ts). LOD mesh is skipped by the scene (isBlocked) and picked via getLOD.
-- Parity: PatternPlugin / SurfacePlugin use `position * scale(finalWorld)` and the raw `normal`, which differ on a
-  skinned merged mesh: a new tiny plugin (priority > 200, define when `ppos` present) on partSkinMat overwrites
-  vPatPos / vSurfPos = ppos and vSurfNrm = pnrm. Registered in partLibrary.ts before freeze. partLibrary also: base
-  metadata gains `library`, `low(base)` for the 16 m LOD geometry, `trackLod(hi, lo)` so setLodScale moves merged LODs.
-- characterRig hook (separate commit, ~4 lines, constructor + field only, nowhere near 1850-2010 / 2600-2700):
-  import, `merge?: boolean` in the opts type, `else if (opts.merge && this.style === 'detailed' && skin) this.voxel =
-  buildSmoothBody(...)` after the VoxelBody line, `voxel: VoxelBody | SmoothBody | null`. SmoothBody implements
-  meshes / setHeadVisible / setPartColor / setFlash / setHeat / dispose, so existing routing works; no per-frame call.
-- Opt-in: `merge: true` inside the existing CharacterRig opts in enemyRig.ts and body.ts (one line each).
-  `?guardmerge=0` via a `guardMerge` flag in src/core/flags.ts, read by buildSmoothBody (returns null when off).
-- Integration test possible under NullEngine (tests/voxel.test.ts pattern): build a guard rig with merge, pose it,
-  compare skinned vertex world positions with the parts' instance world positions.
-- Env: the worktree has no node_modules; a junction to another worktree's node_modules was refused by auto mode.
-  `npm ci` (or a permitted node_modules) is needed before build / vitest.
+## S1 done (2026-10-23)
+- (a) 63c5bdfe `src/player/smoothBodyMerge.ts` (pure) + `tests/smoothBodyMerge.test.ts`: joint-space positions,
+  normals = normalize(M3 * n), colour / pattern / color2, matricesIndices / weights, `ppos` / `pnrm`, per-part ranges,
+  `flashColors` / `heatPattern` / `paintPart`, `restBox`.
+- (b) 2901fde1 `src/player/smoothBody.ts`: one bone per joint node (bind identity), `onBeforeComputeObservable` pose
+  (no allocation), one scene observer per scene for all bodies (`markAsDirty` + sticky ragdoll check -> always
+  active), fixed root-local `BoundingInfo` on both meshes (rest box + PAD 1 m sideways, 0.3 m up / down), LOD via
+  `getLOD` (the low mesh is blocked as an LOD level), merged geometry cached per (joints, parts, instance values),
+  parts `setEnabled(false)`. `BoundingInfo` exported from `src/core/babylon.ts`.
+- (c) 00012998 `src/player/smoothBodyPlugin.ts` (priority 220, `SMOOTHBODY` when `ppos` present: vPatPos / vSurfPos
+  = ppos, vSurfNrm = pnrm) on `partSkinMat` before freeze; `src/world/partLibrary.ts`: base metadata `library`,
+  `low(base)`, `trackLod(hi, lo)` (setLodScale moves merged LODs). No `world.ts` hunk needed (setLodScale already
+  goes through the library).
+- (d) 09f329f7 characterRig hook (CT Core's file, its own commit): `src/player/characterRig.ts` line 3 (import),
+  1232 (`merge?: boolean` in the opts type), 1308-1309 (comment + `else if (opts.merge ...) this.voxel =
+  buildSmoothBody(...)`), 1315 (`voxel: VoxelBody | SmoothBody | null`). Constructor + field only, no per-frame code,
+  nothing in 1850-2010 / 2600-2700 or `src/anim`. Diff: `git show 09f329f7 -- src/player/characterRig.ts`.
+- (e) 3c559e43 `merge: true` in `src/ai/enemyRig.ts` and `src/ai/body.ts`; `guardMerge` in `src/core/flags.ts`
+  (`?guardmerge=0` off; `buildSmoothBody` returns null).
+- (f) ac088549 `tests/smoothBody.test.ts` (NullEngine): a grunt rig with merge, walked 20 frames, moved and turned:
+  every 7th vertex of every part, both LODs, skinned = instance world position (< 1e-4 m); colours; flash; ragdoll
+  re-parent -> always active; one shared observer; `guardMerge = false` -> parts. Also fixed in (f): the per-mesh
+  buffers were built lo-first while `meshes` is [hi, lo] (flash would have written the wrong buffer).
+- Checks run: `tsc --noEmit -p .`, eslint on every changed file, vitest single files: smoothBodyMerge, smoothBody,
+  voxel, animGear, coopTorches, enemyManagerDespawn, hearing, sectorRestart (all pass). No full check, no e2e.
+
+## S1 doubts (for the checker / the GPU run)
+- Not rendered on a GPU yet: the plugin's shader (PBR + SURF_OBJECT + BONES + VERTEXCOLOR) compiles only in the e2e /
+  GPU run; a compile error would show as missing guards in smoke.
+- LOD swap: the merged body switches as one at the body's sphere centre; the instances switched part by part (parts
+  ~1 m from the centre swap slightly earlier / later near 16 m x Detail).
+- `setHeadVisible` is a no-op (one mesh, no head split): only the player's camera fades a head, and the player keeps
+  its own figure. Pattern scale is fixed at build (a joint scaled at run time would not stretch the pattern).
+- Rest box margins (1 m / 0.3 m) are a guess: a keyed pose reaching further than 1 m past the rest box (takedown
+  victim, lying without a ragdoll: the root itself rotates, so `lay` is fine) could cull a frame early at the screen
+  edge. Ragdolls re-parent the joints, so they go always-active.
 
 ## Next
-0. S1: implement the design above (commits a-f per the orchestrator's brief), after merging origin/master.
-1. Orchestrator: answer the open questions below (or log assumed decisions A2+), and coordinate owners: CT Core for
-   S1 / S2 / S5 (rig, `src/player/characterRig.ts`, new `src/player/smoothBody*.ts`, `src/voxel/voxelBody.ts`,
-   `src/anim/*`), Guard AI Build for the one-line opt-ins and S3 (`src/ai/enemyRig.ts`, `src/ai/body.ts`,
-   `src/ai/enemy.ts`, `src/ai/hitboxes.ts`), the World owner for `src/world/partLibrary.ts` / `src/world/world.ts`.
-2. S0: bring `scripts/guard-cap.mjs` from `origin/feature/guard-cap` and take a 4.66.0 baseline on the laptop GPU.
-3. S1: the merged rigidly skinned guard body (expected -28 to -32 ms frame CPU at 24 facing), measured as S0.
+1. Fresh checker for S1 (session-method), then Character Build on the laptop (port 4189, GPU alone):
+   `E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs --maps=sectorops,ctcourse --counts=0,12,16,24 --cells=patrol,away,alert --out=docs/guard-render/run-s1`
+   and the same with the merge off (the script has no query option; `--maps` takes `<mapId>:<mode>` and appends it
+   raw): `--maps='warehouseOps:sector&sectorGuards=0&guardmerge=0,ctcourse:course&guardmerge=0' --out=docs/guard-render/run-s1-off`.
+   Compare render() CPU, evaluation, active meshes, GPU, frame CPU (PLAN section 5); look check screenshots (normal,
+   thermal, night vision) of one guard on and off.
+2. e2e on the pushed head: smoke, stealth-ai, sectorops, ctcourse, coop, netmove, anim, takedown.
+3. Send CT Core the hook (item d above) for `characterRig.ts`.
+4. Then re-plan after S1's numbers (PLAN section 4); S2 / S3 next.
 
 ## Open
-1. "Playable" at 24: assumed 60 Hz at Epic 1920x1080 (frame CPU p95 <= 12 ms, GPU p95 <= 15 ms) on the laptop; the
-   performance.md Epic line (main p95 5.5 ms, 10 guards) cannot hold at 24. Michael's number?
-2. The head hit volume reads the rig pose (`src/ai/enemy.ts:1815-1816` -> `hitboxes.sync`), and today's anim LOD
-   scales with the Detail setting (`characterRig.ts:370-372`): a latent graphics-to-gameplay leak. Fix by a sim-side
-   head (S3a) or fixed tiers + staleness cap (S3b)? Guard AI Build + CT Core to agree.
-3. Marlow Yard's live cap is `MAX_ALIVE = 12` (`src/ai/enemyManager.ts:26`); "with headroom" at 24 means raising it
-   for ctcourse, or headroom at 12?
-4. `guard-cap.mjs` is not on master: merge guard-cap first, or copy the script into this job?
-5. Owner of `src/world/partLibrary.ts` and `src/world/world.ts` (S1, S6, S7).
+1-5: answered (BRIEF.md M1-M6).
 6. GPU share (+1.1 ms a guard) is not explained by triangles; S1's run will show whether it was the per-pass
    instance-buffer uploads.
 
 ## Done
 - 2026-10-23: step-1 analysis, BRIEF / PLAN / STATE written.
+- 2026-10-23: S1 implemented (commits a-f, see "S1 done"); master 4.68.0 merged in before it.
 
 ## Resume prompt
 ```
 You are the job lead for the Night Shift Mobile-Coop job "guard-render" (Babylon.js 9 + Havok PWA, desktop).
-Worktree C:/NightShift/Mobile-Coop-guard-render, branch feature/guard-render. First: git fetch -q origin && git merge -q --ff-only origin/master.
-Read CLAUDE.md ("Sessions", "Hard rules", "Definition of done"), then docs/guard-render/BRIEF.md, PLAN.md and STATE.md.
+Worktree C:/NightShift/Mobile-Coop-guard-render, branch feature/guard-render. First: git fetch -q origin && git merge -q origin/master.
+Read CLAUDE.md ("Sessions", "Hard rules", "Definition of done"), then docs/guard-render/BRIEF.md (answers M1-M6), PLAN.md and STATE.md.
 Branch guard before every write:
 cd /c/NightShift/Mobile-Coop-guard-render && test "$(git rev-parse --abbrev-ref HEAD)" = feature/guard-render && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-guard-render"
 Assumed decision A1: the no-perf-tuning rule is lifted for guard render cost only (undo: revert the job).
-Do next, per STATE.md "Next": check the open questions' answers (orchestrator / docs/guard-render/BRIEF.md M-answers), do S0
-(bring scripts/guard-cap.mjs from origin/feature/guard-cap; request the 4.66.0 baseline run on the laptop GPU from
-Character Build: E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs --maps=sectorops,ctcourse --counts=0,12,16,24
---cells=patrol,away,alert --out=docs/guard-render/run-s0, alone), then S1 (the merged rigidly skinned guard body) with
-an implementer and a fresh checker per docs/systems/session-method.md. Coordinate files with CT Core (rig / anim) and
-Guard AI Build (src/ai) before editing theirs. Keep gameplay off graphics state and light parity (PLAN section 2).
+S1 (the merged rigidly skinned guard body) is implemented and pushed (STATE.md "S1 done", "S1 doubts").
+Do next, per STATE.md "Next": a fresh checker on S1 (docs/systems/session-method.md); ask Character Build for the S1
+guard-cap run on the laptop GPU (port 4189, alone), merge on and ?guardmerge=0, and the e2e suites smoke stealth-ai
+sectorops ctcourse coop netmove anim takedown on the pushed head; send CT Core the characterRig hook (STATE.md item d).
+Then re-plan from the numbers (PLAN section 4). Keep gameplay off graphics state and light parity (PLAN section 2).
 Update STATE.md, commit (end with "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"), push, report to the orchestrator.
 ```
