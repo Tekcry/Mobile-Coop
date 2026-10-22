@@ -14,11 +14,14 @@ runs JOBS=3 + a second single-suite slot on 4192, kept only if times within ~15%
 A PR enters a train only when every suite it touches ran to completion on the GPU. Stop runners with taskkill /T /F.
 Long runs go detached (scheduled tasks) so a session end does not kill them.
 
-Train 9 = train/9 765162a6 (#136 P, #139 N4c, #141 T1, #148 gpu-tests-3 touch-fling fix, #147 menus-tap-wait): e2e-menus
-alone PASS on the laptop; full run JOBS=3 started 22:12 as scheduled task ns-chain-1022z (results
-C:/NightShift/scratch/runs/train9c-765162a6, load runs/load-train9c.csv). On a pass, from C:/NightShift/Mobile-Coop-train:
-merge-train.mjs release 9 4.59.0 "<title>" with --dry-run first, then for real; also judge the JOBS=3 trial against the
-JOBS=2 run (740 s, CPU avg 35%).
+Train 9 = train/9 765162a6 (#136 P, #139 N4c, #141 T1, #148, #147): GREEN on its code (34/35 at JOBS=3; e2e-netmove's
+10 cm ankle compare read 10.7 cm under load, and it passed solo twice). Release 4.59.0 started ~22:30 as a detached process
+(log C:/NightShift/scratch/runs/release-train9.log): check it merged (gh pr list --head train/9 --state all), the
+v4.59.0 tag and dev; if it died, rerun merge-train.mjs release 9 4.59.0 "Sector Ops laser panels, hand swap and elbow
+strike, vent kick, touch and GPU test fixes" from C:/NightShift/Mobile-Coop-train. Then add the ROADMAP Done row.
+Laptop JOBS=3 trial: wall 443 s vs 740 s (-40%), times within 15%, CPU avg 40%, but a NEW load failure (the netmove
+compare), so per the rule the laptop went back to JOBS=2, one slot. Open for Michael: keep JOBS=3 and fix netmove's
+sampling as a test item?
 
 Train 8 next: #119 N4b e957db2f (ready) + #138 N2 (contains N1): fix round 2 running (run 180 planted contact 14 cm; then
 merge master 4.58.3, rerun its six GPU suites, send the sha). Build after train 9 merges, from C:/NightShift/Mobile-Coop-train:
