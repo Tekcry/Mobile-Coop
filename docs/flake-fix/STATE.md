@@ -62,6 +62,14 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   runs/marlowfinal-153db3e8/shots, perf via scratch/work/perf-with-server.mjs MAP=ctcourse STEALTH=1 --desktop --budget,
   e2e-ctcourse:1) -> then train 17 7fb372a9 (JOBS=3, 4189; verdict to orchestrator) + guard-ai S2 661c258a (4192, JOBS=2).
   Waiting: sector-redesign fix commit (sectorops:2 team doors), Menu Notes facilityProps fix commit.
+- ~03:45: train 17 7fb372a9 GREEN 39/39 (reported). mocap-trial-2 da86e8e7 GREEN (reported). guard-ai S2 661c258a:
+  stealth-ai 'light pair' stand-down FAIL (deterministic; Guard AI fixes after ~04:00, then e2e-stealth-ai solo).
+  marlow-final: 153db3e8 shots done (runs/marlowfinal-153db3e8/shots), perf.mjs cannot run ctcourse; guard-cap ctcourse
+  on 155fbec0 alone done (facility +1.2 ms CPU, +4 ms GPU, +110 draws; reported); e00f1d64 ctcourse:1 FAIL at the A1
+  relay restart assert (reported; waiting for their fix). sector-redesign sectorops:2 fix pending (Course Ready paused).
+  GUARD-RENDER job assigned (orchestrator): worktree C:/NightShift/Mobile-Coop-guard-render (feature/guard-render from
+  4fb8ea80, nothing written yet); step 1 = one Opus agent, report + docs/guard-render/BRIEF/PLAN/STATE only, START AT
+  ~05:30 (token pace) or when the orchestrator says. Both laptop slots idle at 03:45.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
