@@ -563,7 +563,7 @@ export class CoopClient implements NetAttachment {
         if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') g.checkpointReset();
         break;
       case 'feed':
-        g.hud.feedItem(e.text);
+        g.hud.barks.say('lantern', e.text, true);
         break;
       case 'pickup':
         if (e.player !== me) break;

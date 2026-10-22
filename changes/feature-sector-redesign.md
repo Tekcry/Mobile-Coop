@@ -10,3 +10,4 @@ kind: minor
 - Sector Ops co-op: the host's lights (switched circuits, shot lamps; jams as before) now match on the client's screen, light meter and guard reads; a client can shoot lamps out through the host (protocol 31, slice L).
 - Sector Ops: new map campusOps (Saltmarsh Park), S1 greybox playable; not yet listed.
 - Sector Ops team doors: pair bolts (open only while the partner pushes the door from the other side) and pair gates (two key switches turned within 1 s by both players), host-authoritative, reset on a restart; guards route round them while locked (engine only, no map uses them yet).
+- Sector Ops keypads: a keypad door stays locked until the team finds its code (overheard, a handover board, or an objective such as a hack); a section restart forgets the codes found in it.

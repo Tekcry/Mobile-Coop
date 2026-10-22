@@ -132,11 +132,20 @@ export class SectorTeamDoors {
     if (!door) return -1;
     const h = this.host;
     h.lockDoor(door, true);
-    if (!h.nav) return -1;
+    return this.navClosure(door, at);
+  }
+
+  /**
+   * (sector-fixes-r2 nav) A locked door's closure on the host's nav grid (shut now), so guards route round it; -1 none.
+   * The one helper for every locked door the mode adds: the team doors here, and the keypad doors (EW5, `SectorMode`).
+   */
+  navClosure(door: DoorState | null, at: readonly [number, number]): number {
+    const nav = this.host.nav;
+    if (!door || !nav) return -1;
     const a = door.anchor;
-    const nav = h.nav.addClosure(at[0], at[1], TEAM_NAV_ACROSS, (a.width + TEAM_NAV_ALONG) / 2, a.yaw, a.hinge.y);
-    h.nav.setClosed(nav, true);
-    return nav;
+    const id = nav.addClosure(at[0], at[1], TEAM_NAV_ACROSS, (a.width + TEAM_NAV_ALONG) / 2, a.yaw, a.hinge.y);
+    nav.setClosed(id, true);
+    return id;
   }
 
   /** The player ref `by` names ('local' or none: this machine's player; else a client's peer id). */
