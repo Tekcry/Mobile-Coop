@@ -27,6 +27,11 @@ v4.53.0 (train 2 #112 = #105 + #109, 5220f79c, ~13:05). 4.52.0 (train 1 #111 = #
   runs full speed: parallel agents where the work splits, spare jobs pulled in when idle (sector-fixes, N0 pass 2, N2).
   The 97 / 98 / 99% thresholds stay; the cron resumes every paused session after each 5-hour reset (day and night).
   At weekly ~98%: save and hand off (HANDOFF.md) as before.
+- Overflow session (Michael 2026-10-22 ~15:25: "Make sure one session still runs after 97% and uses up to 100%. Hitting
+  the session limit should not affect it and allow resuming once it resets."): CT Core ignores the 97 / 98 / 99% stops
+  and runs to 100%. It commits and pushes a WIP after every agent hand-back and keeps its resume file current, so a
+  cutoff loses at most the step in flight; scripts it started keep running (no tokens). After each reset the cron
+  messages it first to resume. The other sessions keep 97 / 98 / 99%.
 - Pace before 13:30 (history): one agent per session (since 09:45). 12:25: 5-hour 82% rising ~0.5%/min: flake-fix agent paused, desktop
   leads start no new agent and pause at 97% or their current agent's end; a one-shot cron at 14:13 resumes everyone.
 - Overnight: never leave a question dialog open (it blocks the turn and the cron); log assumed decisions instead.
