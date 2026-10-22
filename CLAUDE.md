@@ -33,6 +33,8 @@ until Michael lifts it.
 The only place for session, job, machine and test rules. `docs/systems/session-method.md` details the job lead's loop;
 `docs/ROADMAP.md` is state only (now, next, waiting on Michael, done).
 
+**Session titles** (Michael 2026-10-23 ~11:05, from the next account swap; titles are message addresses, so sessions never rename themselves mid-run): "Night Shift | Player Build" (formerly CT Core Build: movement, mocap, takedowns, co-op spare jobs), "Night Shift | Marlow Build" (formerly Menu Notes Build: marlow-final, then section-rating), "Night Shift | Sector Ops Build" (formerly Course Ready Build: sector-redesign, campus art), "Night Shift | Test Runner" (formerly Character Build: laptop GPU runs, guard-render), "Night Shift | Guard AI Build", "Night Shift | Orchestrator". Older docs use the former names; read them as these. Message the title ListAgents shows.
+
 **The orchestrator.** One session, "Night Shift | Orchestrator", runs the whole build: it owns `docs/ROADMAP.md` (the
 only session that edits it), plans and starts jobs, reviews PRs and merges green ones into master (Michael, 2026-10-19:
 "you can merge automatically without my permission. Just remember that i want to maintain the master as the most up to
