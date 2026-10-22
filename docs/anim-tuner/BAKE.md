@@ -11,7 +11,8 @@
   - prints one rebake command per touched clip
     (`node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs <clip>`). Blender is never run.
   - prints the table and the warnings.
-- `--only`: bake only these sections: body, gun, cam, speed, joint, hand, ik, weapon, step, keys, weight.
+- `--only`: bake only these sections: body, gun, cam, speed, joint, hand, ik, weapon, step, gear, keys, weight,
+  guardJoint, guardStep, guardWeight, clip.
 - `--allow-shared`: bake a shared target when exactly one group changed (the summary warns).
 - The script loads the repo's TypeScript itself (it imports `scripts/operators/ts-resolve.mjs`).
 - Code:
@@ -110,7 +111,9 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
 - Ladder, pipe, shimmy and crawl -> the ATTACH speeds (pipe: also the pipeH legs mode, which read the base speed
   without the tuner).
 
-**Stepping.** Every planner reads these, guards included.
+**Stepping.** Every planner reads these, guards included. (item 24) The Stepping sliders themselves are Wren's alone at
+run time (a guard's planner reads the guards' table, any other rig's an identity table); these baked constants stay
+shared.
 - Baked:
   - idle lift -> PLANNER.idleLift.
   - lock (the 5 moving gaits) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads
@@ -166,6 +169,26 @@ table)"; target `src/anim/animBase.ts: gear.<row>.<param> + (m)` or `+ (deg, wra
   `window.__animBase.setGear(row, param, value)`. Test: the literal export in `tests/animGear.test.ts`; the goggle rows
   in `tests/animGoggle.test.ts` (no bake code change: the bake keys by row id).
 
+**Guard joints, Guard stepping, Guard weight** (marlow-bays item 24, track A): baked into the guard base table, a
+generated file `src/anim/animBaseGuard.ts` that every guard rig reads (`CharacterRig.guardRows`, set in
+`buildEnemyRig`: the host's guards, the co-op client's puppets, the Anim Studio's guard puppet); no Wren rig ever reads
+it, and Wren's table never takes a guard row. Result "baked (guard base table)"; target
+`src/anim/animBaseGuard.ts: joints.<row>.<joint>[axis] + (deg, wrapped)`, `step.<gait>.<param> x`,
+`weight.<row>.<id> x` (a multiplier) or `+` (an amount).
+- The file: a header and the `AnimBaseGuardData` type, then the JSON between `// @anim-base-guard-begin` and
+  `// @anim-base-guard-end`. Shape `{ "version": 1, "joints": { row: { joint: [x, y, z] } }, "step": { gait: { param:
+  mul } }, "weight": { row: { id: v } } }`, keyed by row id (`idle`, `walk`, `run`, `aim`, `crouch`, `cover`; the
+  stepping gaits `idle` ... `crouchRun`), joint name and param id. Printed sorted, one row per line, about 4 significant
+  digits, identity left out (an identity re-bake gives the same text).
+- The rules, the same at run time (`tuneGuard.ts`: effective = base composed with the tuner's delta) and in the bake:
+  joint degrees add per axis then wrap; stepping multipliers multiply; weight multipliers multiply, amounts add. The
+  guard sliders stay deltas on the base: after the merge Reset baked resets them as for every section.
+- Own file, own markers: an export with no guard rows never reads or writes it, so it bakes byte-identically to before.
+- Code: `src/anim/tuneBakeGuard.ts` (parse, apply, print), wired in `tuneBake.ts` beside the Wren base table. Dev hook:
+  `window.__guardTune` (`base`, `load`, `reset`, `jointEffective`, `stepGet`). Tests: `tests/guardTune.test.ts`.
+- Not isolated by this: the Wren Stepping rules above (idle lift, lock) and the Body / keyed-clip rules write shared
+  constants every planner and rig reads, guards included (A5); a guard-only change goes in the guard rows.
+
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock). (marlow-bays item 23, track A) A key's
 `time` (bake frames, + later) moves its `phase` to frame / 48 (moved keys only, clamped as in the tuner; key 0 is fixed:
@@ -204,6 +227,17 @@ pelvis yaw does not move them, so it must not leak the fore / aft stride into th
 -0.020 in the world frame, the feet crossing the midline; with the swing removed 0.050). A constant stance
 yaw (the ready stance's 6 deg) is kept, so such a clip and the clips with no pelvis yaw bake their world-x half; every
 clip was rebaked in anim-run-half.
+
+**Clip speed** (clip-speed, track A; `src/anim/tuneClipSpeed.ts`, its own tab): a speed per timed clip (1 = today's
+timing, 2 = half the time) and an every-clip speed (`clip.all`). A speed divides a duration or multiplies a rate:
+`clip.gun` rifleDraw / pistolDraw / holster -> `src/weapons/drawState.ts` `DRAW_TIME_PRIMARY` / `DRAW_TIME_SIDEARM` /
+`HOLSTER_TIME` (div); swap / grenade -> `src/weapons/playerWeapons.ts` `SWAP_TIME` / `GRENADE_TIME` (div);
+`clip.body` startShift / stopSettle / land -> `src/anim/clips/actions.ts` `CLIP_RATE.<id>` (mul; the timed clips are
+keyed in seconds, so their clock rate bakes, not their keys). `all` edits every one of these; with a clip's own slider
+too both ops apply (the product, as in the game). The draw times are gameplay too: the draw state gates `fireReady`
+over the same time, so the gun can fire when the draw clip ends, tuned or baked. Not in it: the gait cycles (paced by
+speed), the traversal / co-op one-shots (their own Timing sliders, manual), reloads (weapon data). Test:
+`tests/tuneClipSpeed.test.ts`.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
 code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip

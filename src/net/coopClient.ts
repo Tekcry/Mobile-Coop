@@ -717,8 +717,11 @@ export class CoopClient implements NetAttachment {
     if (this.inCourse) this.s.toHost({ t: 'ctick', verb });
   }
   /** Course mode (CT prototype B3): the held jammer's target for the host. */
-  sendJam(tgt: string): void {
-    if (this.inCourse || this.sec) this.s.toHost({ t: 'jam', tgt });
+  sendJam(tgt: string, eye: { x: number; y: number; z: number }): void {
+    if (!this.inCourse && !this.sec) return;
+    // (jammer-fixes, 27) a claim carries the camera eye (cm), a release nothing (on change and the heartbeat only)
+    if (tgt === '') this.s.toHost({ t: 'jam', tgt });
+    else this.s.toHost({ t: 'jam', tgt, e: [Math.round(eye.x * 100) / 100, Math.round(eye.y * 100) / 100, Math.round(eye.z * 100) / 100] });
   }
   private get inCourse(): boolean {
     return this.g.opts.mode === 'course';
