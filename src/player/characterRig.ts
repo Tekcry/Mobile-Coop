@@ -1997,6 +1997,9 @@ export class CharacterRig {
       const mx = MOCAP_FEET.pitchRate * dt;
       this.footPitchL = this.planner.L.pitch = rateTo(this.footPitchL, this.planner.L.pitch, mx);
       this.footPitchR = this.planner.R.pitch = rateTo(this.footPitchR, this.planner.R.pitch, mx);
+      // (mt2-fixF) an anchored planted foot keeps its contact at the capped pitch
+      this.planner.holdPitch(this.planner.L);
+      this.planner.holdPitch(this.planner.R);
     } else {
       this.footPitchL = this.planner.L.pitch;
       this.footPitchR = this.planner.R.pitch;

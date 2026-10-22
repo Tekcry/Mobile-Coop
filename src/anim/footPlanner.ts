@@ -771,6 +771,20 @@ export class FootPlanner {
     void i;
   }
 
+  /**
+   * (mt2-fixF) The rig posed an anchored planted foot with another pitch than the update left (the switch on: the rig's
+   * MOCAP_FEET.pitchRate cap): its ankle is re-placed round the held contact for that pitch, as `anchorFeet` would (a clip
+   * landing's 0.52 rad pitch snap, capped over two frames, moved the held heel 2.1 cm). The rig calls it with the switch
+   * on only. No allocation.
+   */
+  holdPitch(f: FootState): void {
+    if (!f.contact || !f.anchored || f.pitch === f.ancP) return;
+    const b = ankleToBall(f.pitch);
+    f.x = f.ballX - b * Math.sin(f.yaw);
+    f.z = f.ballZ - b * Math.cos(f.yaw);
+    f.ancP = f.pitch;
+  }
+
   /** (A1.2) A planted foot never twists more than TURN_FOLLOW.twistMax from the body: it turns on the spot (counted). */
   private twistCap(i: PlannerInput): void {
     // (measured from the body yaw: a foot lands ~47 deg ahead and toes off ~47 deg behind in a full-rate spin; the pelvis
