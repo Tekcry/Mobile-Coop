@@ -13,7 +13,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   without "build" serves whatever dist the slot worktree holds: always build.
 - CHAIN (10:40, survives the swap: PowerShell, not bash): C:/NightShift/scratch/chain-1023p.ps1, log
   runs/chain-1023p.log (start / end per label). Order: marlowcap-5100141d DONE + SENT to Menu Notes ->
-  4192 sectorredesign-3796700d-ops6 -> guardaichain-62884858 -> hangdown-4072e2b9 -> wait no locks -> 4189 ALONE
+  4192 sectorredesign-3796700d-ops6 SENT (reception panel fail) -> guardaichain-62884858 SENT + PR #196 comment (stealth-ai lkp fail) -> hangdown-4072e2b9 -> wait no locks -> 4189 ALONE
   guardrender-s6cap-c181002e (guard-cap S6 sun rules on: work/guardrender-s6-on; ?guardsun=0: work/guardrender-s6-off).
   ALSO chain-1023r.ps1 (10:50, 4189 JOBS=3 at once): marlowfinal-45a74383 (Menu Notes: build; e2e-ctcourse (all 4 parts)
   e2e-coop e2e-netmove e2e-course). Expected: :2 may stop in A4 "the client gets the refusal" (a4GoodsShed.mjs:177);
