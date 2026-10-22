@@ -15,7 +15,7 @@ import { S1_LIGHT_PASS } from '../src/world/maps/warehouseS1';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
-import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE } from '../src/voxel/lampBake';
+import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampColumnDist, lampPlanReach } from '../src/voxel/lampBake';
 import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
 import { bakedLights, type LightBake } from '../src/world/lightBake';
 import { buildAmbientGrid } from '../src/world/ambientGrid';
@@ -62,8 +62,8 @@ const lampId = (x: number, y: number, z: number): number =>
     return Math.abs(l.x - x) < 0.01 && Math.abs(l.y - y) < 0.01 && Math.abs(l.z - z) < 0.01;
   }) ?? -1;
 
-/** The pass: the table in warehouseS1.ts plus the yard floodlight over shutter W (the crawl). */
-const NEW_LAMPS: (readonly [number, number, number])[] = [[-19, 5.6, -18.6], ...S1_LIGHT_PASS.map((p) => [p[0], p[1], p[2]] as const)];
+/** The pass: the pass rooms of `S1_LAMPS` in warehouseS1.ts (the yard floodlight over shutter W, the crawl, included). */
+const NEW_LAMPS: (readonly [number, number, number])[] = S1_LIGHT_PASS.map((p) => [p[0], p[1], p[2]] as const);
 const withNewOff = <T,>(fn: () => T): T => {
   const ids = NEW_LAMPS.map(([x, y, z]) => lampId(x, y, z));
   for (const id of ids) reg.setOn(id, false);
@@ -76,6 +76,14 @@ const READ = 0.4;
 const KEY = 0.45;
 /** The dark pockets: no brighter than the open-sky level (the moonlit yard, 0.30). */
 const DARK = 0.3;
+/**
+ * The roof (y 6) reads by the moon alone (sector-fixes L, Michael 2026-10-22: "Theres random lights on the roof": the roof
+ * lamps are gone): the open-sky level 0.30 less bake slack. Its points keep the route maximum.
+ */
+const MOON = 0.28;
+const ROOF_Y = 5.9;
+/** The band floor of a point: the moon on the roof, else the given one. */
+const atLeast = (y: number, min: number): number => (y >= ROOF_Y ? MOON : min);
 
 /** The most a stealth route point, decision point or takedown spot may read: under `LIGHT.lit` (0.6, full guard visibility) with a margin. */
 const CAP = 0.55;
@@ -84,7 +92,7 @@ const WORK = 0.8;
 /** Rounding and bake slack on every band edge. */
 const TOL = 0.02;
 interface Spot { name: string; x: number; y: number; z: number; min: number; max: number; shut?: boolean }
-const spot = (name: string, x: number, y: number, z: number, min = READ, isShut = false, max = CAP): Spot => ({ name, x, y, z, min, max, shut: isShut });
+const spot = (name: string, x: number, y: number, z: number, min = READ, isShut = false, max = CAP): Spot => ({ name, x, y, z, min: atLeast(y, min), max, shut: isShut });
 const read = (p: { x: number; y: number; z: number; shut?: boolean }): number => body(p.shut ? shut : open, p.x, p.y, p.z);
 
 const SEC = WAREHOUSE_SECTORS[0]!;
@@ -180,6 +188,18 @@ describe('Sector Ops section 1 lamp pass (warehouse-s23)', () => {
     expect(risen).toBeGreaterThan(SPOTS.length / 2);
   });
 
+  it('no lamp lights the roof: its points read the moon alone (no lamp adds over 0.02)', () => {
+    const roof = SPOTS.filter((p) => p.y >= ROOF_Y);
+    expect(roof.length).toBeGreaterThan(3);
+    for (const l of reg.lights) if (l.kind !== 'flashlight') expect(l.y, `light ${l.id}`).toBeLessThan(ROOF_Y);
+    const off = (() => {
+      const ids = reg.lights.filter((l) => l.kind !== 'flashlight' && l.on).map((l) => l.id);
+      for (const id of ids) reg.setOn(id, false);
+      try { return roof.map((p) => read(p)); } finally { for (const id of ids) reg.setOn(id, true); }
+    })();
+    roof.forEach((p, k) => expect(read(p) - off[k]!, p.name).toBeLessThanOrEqual(0.02));
+  });
+
   it('the dark pockets stay dark', () => {
     const lit: string[] = [];
     for (const p of POCKETS) {
@@ -214,16 +234,16 @@ describe('Sector Ops section 1 lamp pass (warehouse-s23)', () => {
     const cols = Math.ceil((bake.hi[0] - bake.lo[0]) / LAMP_GRID);
     const rows = Math.ceil((bake.hi[2] - bake.lo[2]) / LAMP_GRID);
     let worst = 0;
+    const reach = [0, 0, 0, 0, 0];
     for (let r = 0; r < rows; r++) {
       for (let q = 0; q < cols; q++) {
         const cx0 = bake.lo[0] + q * LAMP_GRID;
         const cz0 = bake.lo[2] + r * LAMP_GRID;
         let c = 0;
         for (let i = 0; i < n; i++) {
-          const o = i * LAMP_STRIDE;
-          const dx = Math.max(cx0 - L[o]!, 0, L[o]! - (cx0 + LAMP_GRID));
-          const dz = Math.max(cz0 - L[o + 2]!, 0, L[o + 2]! - (cz0 + LAMP_GRID));
-          if (Math.sqrt(dx * dx + dz * dz) < L[o + 3]!) c++;
+          // (the plan reach as `lampGrid` reads it: a cone's beam reaches less far than its radius)
+          lampPlanReach(L, i, reach);
+          if (lampColumnDist(L, i, reach, cx0, cz0, LAMP_GRID) >= 0) c++;
         }
         worst = Math.max(worst, c);
       }
