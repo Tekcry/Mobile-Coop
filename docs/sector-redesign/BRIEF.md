@@ -179,3 +179,14 @@ Lead, guard render budget (2026-10-23, orchestrator from guard-cap #180: render-
   Guards that may sleep when far from both players carry `dormant: true` as data (posts and patrols away from the
   live route; never a K choke guard, a talking pair mid-cycle or a dog's handler); guard-render reads it. Undo: drop
   the field and the screen-count rule.
+Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
+- A65 CR1 payoff: a hatch in the canopy slab at x -20.6..-19.4, z -36.4..-35.3 above the doorman's post (-20, -35)
+  (a maintenance hatch to the soffit's drainage, left open): takedown from above standing at (-20, 4.4, -36.7), or a
+  hang drop from its north lip; a fall through lands in front of him, so no bypass and K1 holds. The two east canopy
+  downlights move to x -18.5 with radius 4.5 so the CR1 boost point (-13.5, -38) is dark. Undo: close the hatch,
+  move the post to the east edge (then the leg-up loses its payoff).
+- A66 The S1 objective PC is at (19.3, -76) (was 18.5): 1.15 m from the open rear window, inside the 1.8 m reach.
+- A67 The voxel grid test limit (7705da07) is a loose-grid guard, not a budget (voxels are off in play): it now follows
+  each map's own bounds. A20 (load <= 2x Warehouse Ops) stays the real budget, measured on the laptop at slice 1 e2e.
+- A68 campusOps stays out of the Sector Ops op list until slice 3 (one filter in missionsScreen.ts). Guard #7 (fence
+  patrol) is `dormant`-tagged and the smoking shelter's east panel is longer, for A64 margin (worst view was exactly 6).
