@@ -8,8 +8,7 @@ Authority: BRIEF M1-M10 > DECISIONS > bible > `docs/level-design.md` (LS) > this
 gaps G1-G25 = its section 6), R2-PATHS.md (pair bolt), R2-JUMP.md (`soloTopLandingReach`), the lighting proposal
 (`docs/lighting-review/PROPOSAL.md` on origin/feature/marlow-final, items LR1-LR12), `docs/warehouse-redesign/SPEC.md`.
 Frame: x west to east, z south to north (+z north), y up, metres; yaw 0 = +z; camera `facing` in degrees, 0 = +z.
-G-numbers in this file that start with "G" and a gap table row are ENGINE.md gaps (EG1..EG25 below); DECISIONS items
-are written "DEC G155" etc.
+ENGINE.md gaps are written EG1-EG25; DECISIONS items "DEC G155"; engine work items EW1..; guard-ai items GA1..
 
 ---
 
@@ -196,7 +195,7 @@ and x -40 / x 26; the HQ south facade (z -30) and the lab block's west flank clo
 | smoke | Smoking shelter | 6..10, -50..-47 | roof 2.4 | Faces the car park |
 | forecourt | Drop-off bay and walkway | -30..6, -46..-34 | ground | Kerbed bay x -26..-14; no cars under the canopy (rule 2) |
 | canopy | Entrance canopy | -26..-14, -40..-34 | top 4.4 | Solid aluminium soffit 4.2, four round columns 0.3, no wall below the S / E / W edges |
-| plantroof | HQ ground-floor plant roof | -40..-26, -40..-34 | top 4.4 | Joins the canopy at x -26; caged ladder from the delivery yard at (-38, -41) |
+| plantroof | HQ ground-floor plant roof | -40..-26, -40..-34 | top 4.4 | Joins the canopy at x -26; caged ladder from the delivery yard at (-38, -41); 1.1 parapet on its S and W edges (no grab from the bin-store wall) |
 | dyard | Delivery yard | -40..-26, -46..-40 | ground | Dock door into HQ at (-33, -40) (locked: S2 side door, `sealUnlocks`) |
 | C1 | Staff entrance vestibule (connector) | -24..-16, -34..-30 | 3.0 | Near door (-20, -34) badge door; far door (-20, -30) into S2 reception; checkpoint, ambient 0.30 |
 

@@ -53,3 +53,39 @@ unanswered by ~02:05 -> assumed decisions below.
 
 ## Assumed decisions
 (A1, A2, ... with how to undo; added as the job goes.)
+Spec writer, 2026-10-23 ~03:00 (SPEC.md / PLAN.md; A1-A7 adopt CONCEPT.md section 6, refined):
+- A1 Names are new (Orrin Systems, Saltmarsh Park, Larchmont Guarding, Tidewater): a Sector Ops site, not a campaign
+  mission. Undo: rename, or move the site into a story district.
+- A2 Dogs in S4 (1) and S5 (2), each at an armed handler's heel; dogs stay melee (an animal: M1 "all armed" read as
+  every human guard). Against DEC G155 for Sector Ops only (M10 newer; Sector is not the campaign). Undo: each dog
+  becomes a grunt patrol.
+- A3 No runners, heavies, snipers or droneOps; armour only on enforcers (response team, supervisors). Undo: swap kinds.
+- A4 Keypad codes are found in the level (overheard, a handover board, the S2 BMS hack), never typed. Undo: keys.
+- A5 Every co-op lip meets SPEC "Co-op-only reach" rules 1-8 (tables, benches, cars kept >= 4 m off). Undo: none.
+- A6 No motion-sensor (PIR) lights in the first build; "PIR off" rooms are simply unlit. Undo: add PIR later.
+- A7 Guards 8 / 12 / 16 / 20 / 24, `perStage` 2, `alarmMax` 3 (S5 peak 30 <= 32). Undo: data.
+- A8 One map `campusOps` (new id, new stars record; main-menu stars at `src/main.ts:151` to point at it). Why: sections
+  are native data, one live at a time (ENGINE fact 1); per-section maps need an L-size swap system. Undo: chunks (EW-L1).
+- A9 Warehouse Ops stays listed until campusOps S1-S3 plays (PLAN slice 3), then is delisted from the Sector selector
+  and parked as the regression map (files and tests kept). Undo: keep both listed.
+- A10 Encounter spaces use a 0.14 standby fill (LR7's number), connectors / transit 0.30: a map choice, not an LS
+  change. Undo: ambient 0.30 (cut circuits then never read dark).
+- A11 Breakers and boards are `MapDef.switches` at the real board until EW8 builds an isolator device. Undo: n/a.
+- A12 The S5 roof marksman is a grunt with a rifle, not a sniper (no G155 / test exception needed). Undo: sniper kind.
+- A13 The element register (LS 16.9) is in SPEC for S1; S2-S5 registers are written in each slice's build sheet before
+  that slice builds. Undo: write them all now.
+- A14 SPEC fixes S2-S5 footprints, heights, rooms, guards and devices; exact coordinates go in each slice's build sheet.
+- A15 No lifts, hatches or roller doors (not in the engine): the S5 document lift is a shaft with a plant ladder,
+  roller doors are static dressing beside a plain door. Undo: build EG17-EG19.
+- A16 Talking pairs are two guards whose `PatrolRoute.loop` clocks meet and `faces` turn them together, until guard-ai
+  GA2 provides conversations. Undo: n/a (GA2 replaces it).
+- A17 The S1 co-op route (CR1) pays off as overwatch + a drop takedown at the exit pinch, not an entry into C1 (a player
+  inside the connector before the objective would break the connector cycle). Undo: a vent into C1 with an engine guard.
+- A18 Co-op routes that use the rope, hang-down, jam-and-pass or pair gates (CR4-CR7) depend on loosening P7 / P8;
+  SPEC names each fallback if Michael refuses. Undo: approve P7 / P8.
+- A19 Section times (6 / 7 / 8 / 9 / 10 min) are design targets, measured at the slice 5 full run.
+- A20 Map-size budget: campusOps load (build + nav + bake) under 2x Warehouse Ops on the laptop; over it -> EW-L1
+  chunks or the compact campus. Undo: change the budget.
+- A21 Plain `SectorBolt` team doors are not used (one player unbolts them); only pair bolts / pair gates. Undo: n/a.
+- A22 The lighting proposal is read from origin/feature/marlow-final (it exists there: LR1-LR12); the SPEC's P1-P6 and
+  P11 cite LR items; nothing applied. Undo: n/a.
