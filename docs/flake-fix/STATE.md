@@ -18,6 +18,19 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   runs/loadlatent-coop-c0ce5862. Checker on net/ui1/coop running.
 - feature/test-chores-13 (spare #13: run-e2e KILLED line in streamed mode, role-swapped netmove pass): agent running.
 - Guard-cap agent also has the orchestrator's G1-G6.
+- PROGRESS ~01:35: PR #170 load-audit OPEN (40f7aa79; stress 11/11 JOBS=5 231 s). Pacing (Michael 01:12): full burn to
+  100% now; after each reset pace to ~97-99% at the reset, save at 97% and idle.
+- Mediums final heads: net f69dffec (includes load-audit 40f7aa79), ui1 cff39539, ui2 35bf88d1, coop 6f4e6905 (all checker
+  PASS WITH NOTES, notes applied). Proof branch feature/load-latent-mediums da58a7f5 = all four -> runs/loadlatent-mediums-
+  da58a7f5 (15 suites JOBS=5). First proof d9ef1f0d: 11/12, e2e-desktop:4 governor wait (:614) timed out = GPU latent flake
+  (needs real missed frames; a 4090 rarely misses) -> fix proposal sent to the orchestrator, waiting for its decision.
+  coop c0ce5862 solo: 1 fail (log lost: runner now keeps a log per repeated step), 1 pass -> rerun x3 runs/loadlatent-coop-c0ce5862-r2.
+  PRs after proof: one PR per branch (net / ui1 / ui2 / coop), net and coop after #170.
+- feature/test-chores-13 df0e2775 (on load-audit db7b24f2): netmove x2 PASS (role-swapped leg-up), KILLED line OK -> PR after #170.
+- Requests on 4192 (Course Ready): sw-reload 890e8a05 (smoke offline coop netmove), g44-above d004c53d (stealth-ai stealth
+  takedown ct-warehouse coop); verdicts to Course Ready + orchestrator.
+- Guard-cap c707f7e4 (G1-G6 in): queued alone on 4189 when both slots idle (queue-1023b.sh) -> outputs copied to
+  scratch/work/guardcap-c707f7e4; then fill docs/guard-cap/REPORT.md on feature/guard-cap and PR.
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
