@@ -31,25 +31,27 @@ Marlow Yard (`ctcourse`) has no spot or flood: every light there is a cone-less 
 the beam. Its views (`marlow-s2-wall`, `marlow-s7-hall`) are a no-change control.
 
 ## Shots (`docs/vol-cone-fix/`, 960 px, Epic unless named)
-BEFORE = commit 533a1f30 (master 2f1961ad + the shot script). AFTER = round 2 (LED-only) once the laptop reshoots it;
-the table's "round 1" column is the general variant at db0ffadf (laptop GPU, `E2E_GPU=1`, port 4189).
+BEFORE = commit 533a1f30 (master 2f1961ad + the shot script). AFTER = round 2 (LED-only, 72102b7e; shots 3135a783);
+the table's "round 1" column is the general variant at db0ffadf (shots e4bd85ad) (laptop GPU, `E2E_GPU=1`, port 4189).
 
-| View | Map | Round 1 (general) vs before | Round 2 (LED-only) vs before |
+e2e on the GPU (laptop): db0ffadf and 72102b7e both pass smoke (7 s), e2e-darkness (11-12 s), e2e-desktop:3 (16 s).
+
+| View | Map | Round 1 (general) vs before | Round 2 (LED-only, shipped) vs before |
 | --- | --- | --- | --- |
-| s1-drainpipe | Sector Ops | none visible | pending |
-| s1-roof | Sector Ops | none visible | pending |
-| s1-goods-in (+ `-high`) | Sector Ops | the 4+ white ceiling-to-floor fog cones gone; strips, floor pools stay; frame darker | pending (expected: as round 1) |
-| s1-workshop (+ `-high`) | Sector Ops | the white cones gone; pools stay; darker | pending (expected: as round 1) |
-| s1-girder | Sector Ops | the two cones through the crane girder gone | pending (expected: as round 1) |
-| s2-aisle | Sector Ops | none visible | pending |
-| s2-cross-aisle | Sector Ops | none visible | pending |
-| s3-hall | Sector Ops | none visible | pending |
-| s3-deck-sheets | Sector Ops | none visible | pending |
-| s3-lobby | Sector Ops | none visible | pending |
-| marlow-s2-wall | Marlow Yard | none (control) | pending (expected: none) |
-| marlow-s7-hall | Marlow Yard | none (control) | pending (expected: none) |
-| wh-floods-dock | Warehouse | the two flood beams gone (only wall pools): FAILS the fallback rule | pending (expected: none) |
-| wh-flood-workshop | Warehouse | the flood haze reduced | pending (expected: none) |
+| s1-drainpipe | Sector Ops | none visible | none visible |
+| s1-roof | Sector Ops | none visible | none visible |
+| s1-goods-in (+ `-high`) | Sector Ops | the 4+ white ceiling-to-floor fog cones gone; strips, floor pools stay; frame darker | as round 1: the fog cones gone, strips and floor pools stay |
+| s1-workshop (+ `-high`) | Sector Ops | the white cones gone; pools stay; darker | as round 1: the cones gone, pools stay |
+| s1-girder | Sector Ops | the two cones through the crane girder gone | as round 1: no cone through the girder |
+| s2-aisle | Sector Ops | none visible | none visible |
+| s2-cross-aisle | Sector Ops | none visible | none visible |
+| s3-hall | Sector Ops | none visible | none visible |
+| s3-deck-sheets | Sector Ops | none visible | none visible |
+| s3-lobby | Sector Ops | none visible | none visible |
+| marlow-s2-wall | Marlow Yard | none (control) | none (control) |
+| marlow-s7-hall | Marlow Yard | none (control) | none (control) |
+| wh-floods-dock | Warehouse | the two flood beams gone (only wall pools): FAILS the fallback rule | none: both flood beams as before |
+| wh-flood-workshop | Warehouse | the flood haze reduced | none: the flood beam as before |
 
 Fallback (job brief): if Marlow Yard or the floods change visibly beyond a faint haze, switch to the look-4.58 NOTE's
 narrow LED-only variant (`volBeam` true for a torch or for a cone light without an LED fixture model:
