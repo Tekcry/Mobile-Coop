@@ -61,3 +61,9 @@ Feet / footPlanner / tuneStep / turnFollow (N1), draws / swap overlay / armed ar
   ready walk 3.51 -> 3.33 cm; walk lateral 3.6 -> 2.9 cm, e2e-anim's walk lateral band 3.2-4.2 -> 2.5-3.5 cm). Jog, run
   and crouch rows unchanged. Master's limits and the base table untouched. Undo: revert the A12 commit (sway 0.98, the
   crabFacing rows back on the audit limits, the lateral band 3.2-4.2).
+- A13 (job lead, 2026-10-22 ~18:20, after the desktop e2e-anim "rifle low ready jog: elbows in" 6.0 cm vs limit 6): with
+  the gun out the chest stays on the gun: bodyMotionStep scales the chest yaw by (1 - drawn) (PASS2 item 7's intent);
+  the pelvis still swings under it. Headless low ready jog elbows 6.01 -> 5.69 cm (master 5.7), low ready walk 5.17 ->
+  4.89; low ready walk shoulders = layer off (2.7 deg), head yaw 1.08 deg p2p (bodyMotion.test band 2-6 -> <= 2).
+  tests/crabFacing.test.ts gates the elbow wing on low ready walk / jog at e2e's 6 cm. Undo: drop the (1 - drawn) factor
+  (416184da).
