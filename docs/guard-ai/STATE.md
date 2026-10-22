@@ -9,10 +9,14 @@ S2 e2e (laptop GPU, 661c258a): 7 suites PASS; e2e-stealth-ai FAIL in the new 'li
 after the check (at -1.00, 29.80 s)": guard a (first investigator) stays 'investigating' for the whole 120 s window,
 guard b stands down at 29.8 s (sim-stepped, so not load). Log C:/NightShift/scratch/runs/guardai-s2-661c258a/ (laptop).
 
+S2 FIX ROUND done (~03:45, slices/S2.md "Fix round"): light-check ring point behind a wall sent guard a on an endless
+detour while the hold flag froze his alert timer -> new pure src/ai/lightCheck.ts (nav-line test per ring point, halfway
+fallback, timeout fires mid-path, RING_WALK 12 s, every stage bounded, 86 s worst case); patrol wait 0 = pass-through
+(src/ai/patrol.ts:113; side effect: warehouse Sector runner / officer no longer freeze at their 0-wait points). check
+green; e2e queued on the laptop.
+
 ## Next
-S2 fresh checker WITH the 'light pair' failure as evidence (diagnose why the first light investigator never stands
-down: stuck at an unreachable ring point, the stand-down only firing for one, or the light check timer), then the one
-fix round, then e2e-stealth-ai solo rerun on the fixed commit; (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
+After the 06:40 reset: S2 fresh checker (review 661c258a + the fix commit, the e2e result); (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
 S4-S10 in PLAN order.
 
 ## Open
@@ -30,6 +34,9 @@ S4-S10 in PLAN order.
   do NOT set it in a hook; body callback in src/security beside onEvent fine. Their branch also touches mapDef.ts
   (`MapLayout.props`, kit), spawnSquad uses `em.despawn`, `StealthSystems.isolate()` (timed light isolators = a
   lights-out lure), sliding doors (`leaf: 'slide'`): expect small merges.
+- Bug from Menu Notes (~03:05): `PatrolWalker.step` (src/ai/patrol.ts) freezes on a `waits` entry of 0 (waitT 0 never
+  reaches `advance`; the guard stands there for good). Fix in the S2 fix round: a wait of 0 = pass-through, + a unit
+  test (theirs: tests/ctcourse/a2CarriageShed.test.ts on feature/marlow-final; they use 0.1 s waits meanwhile).
 - Protocol 32 only if S9 is needed (marlow-final 30, sector-redesign 31).
 - A11: Sector Ops melee tour guards vs "every guard armed" (Course Ready's data).
 

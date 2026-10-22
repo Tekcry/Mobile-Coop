@@ -36,8 +36,9 @@ import type { LightField } from '../world/lightField';
 import { ARCHETYPE, carriesTorch, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate, torchRule, type DifficultyDef } from './archetypes';
 import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
-import { INCIDENT, lightRingPoint, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
+import { INCIDENT, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import type { GuardInfo } from './guardInfo';
+import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
 import { DogModel } from './dogModel';
 import type { InstancedMesh } from '../core/babylon';
 
@@ -150,10 +151,6 @@ export const PACE = {
   oldSearch: 1.3,
 } as const;
 const PATROL_PACE = PACE.patrol;
-/** (guard-ai S2) The light check gives up walking to the light after this (s; then looks from where he is), and to a
- *  ring point after `RING_WALK` s (the next point). */
-const LIGHT_WALK = 30;
-const RING_WALK = 8;
 /** Out of sight in combat: walking up on the last known position (x walk speed); a hold between bounds (s). */
 const ADVANCE_PACE = 1.15;
 const ADVANCE_HOLD = 2.5;
@@ -235,13 +232,17 @@ export class Enemy implements Damageable {
   incident = -1;
   /** What he was sent to do (`MODE_*` in `incidents.ts`). */
   private incMode = 0;
-  /** The light check: -1 none; 0 walking to the light, 1 looking at the fixture, 2.. the ring points; its clock, the
-   *  light's floor point, the ring's start direction and the pair slot (a partner sweeps the ring offset). */
-  private lightK = -1;
-  private lightT = 0;
-  private readonly lightC: P2 = [0, 0];
-  private lightBase = 0;
-  private lightSlot = 0;
+  /** The light check (`lightCheck.ts`, pure); `lightC` its light's floor point (the e2e reads it). */
+  private readonly lc = new LightCheck();
+  readonly lightC: P2 = this.lc.c;
+  /** The light check's walker: `goTo` and its A* path (made once). */
+  private readonly lcWalker: LightCheckWalker = {
+    walkTo: (p, dt) => this.goTo(p, dt),
+    following: () => this.routePath.length > 0,
+    dropPath: () => {
+      this.routePath.length = 0;
+    },
+  };
   private gunfire = false;
   private called = 0;
   /** Seconds until a spotter's radio call goes out (0 = none pending); taking them out first stops it. */
@@ -665,11 +666,7 @@ export class Enemy implements Damageable {
     this.incident = incident;
     this.incMode = MODE_LIGHT;
     this.turnT = 0;
-    this.lightK = 0;
-    this.lightT = 0;
-    this.lightSlot = slot;
-    this.lightC[0] = x;
-    this.lightC[1] = z;
+    this.lc.start(x, z, slot);
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
@@ -798,7 +795,7 @@ export class Enemy implements Damageable {
       const keep = to === 'suspicious' || to === 'investigating' ? !pair : to === 'searching' ? pair : false;
       if (!keep) this.incident = -1;
     }
-    if (to !== 'investigating') this.lightK = -1;
+    if (to !== 'investigating') this.lc.stop();
     if (to === 'alert') {
       this.meter = 1;
       if (this.state === 'idle') this.setState('chase');
@@ -1126,11 +1123,11 @@ export class Enemy implements Damageable {
     i.search = this.searchReq;
     // (guard-ai S2) a glimpse during the light check: he drops it and investigates what he saw (the board sees him off
     // its task and closes the light)
-    if (this.lightK >= 0 && this.meter >= PERCEPTION.investigate) {
-      this.lightK = -1;
+    if (this.lc.active && this.meter >= PERCEPTION.investigate) {
+      this.lc.stop();
       this.incident = -1;
     }
-    i.hold = this.lightK >= 0;
+    i.hold = this.lc.active;
     i.turning = this.turnT > 0;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
@@ -1235,7 +1232,7 @@ export class Enemy implements Damageable {
             return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * PACE.revive, face: null };
           }
         }
-        if (lvl === 'investigating' && this.lightK >= 0) return this.lightStep(dt);
+        if (lvl === 'investigating' && this.lc.active) return this.lightStep(dt);
         if (lvl === 'investigating') {
           // the latest stimulus is the spot
           this.spot[0] = this.stimulus[0];
@@ -1303,82 +1300,25 @@ export class Enemy implements Damageable {
     return this.coordinated ? PACE.search : PACE.oldSearch;
   }
 
-  /**
-   * (guard-ai S2) The light check, step by step (investigating): walk to the light's floor point, look at the fixture
-   * `INCIDENT.lightLook` s, then `ringN` points round it (`lightRingPoint`, 2-6 m), `ringLook` s at each; a point he
-   * cannot reach (or not within `RING_WALK` s) is skipped. Then he stands down: calm, back to his route.
-   */
+  /** (guard-ai S2) The light check, step by step (investigating; `LightCheck`): walk to the light, look, the ring,
+   *  then stand down. */
   private lightStep(dt: number): { point: P2 | null; speed: number; face: number | null } {
-    const L = INCIDENT;
-    const speed = this.def.walkSpeed * this.investigatePace;
-    const cx = this.lightC[0];
-    const cz = this.lightC[1];
-    if (this.lightK === 0) {
-      const d = hyp2(cx - this.pos.x, cz - this.pos.z);
-      this.lightT += dt;
-      // (a pair's second stops a little short: the first stands at the spot)
-      if (d >= (this.lightSlot ? 2.2 : 1.1) && this.lightT < LIGHT_WALK) {
-        const wp = this.goTo(this.lightC, dt);
-        if (wp || this.routePath.length > 0) return { point: wp, speed, face: null };
-      }
-      // there (or as near as he gets): the ring starts on the side he came from
-      this.lightK = 1;
-      this.lightT = 0;
-      this.lightBase = d > 0.05 ? Math.atan2(this.pos.x - cx, this.pos.z - cz) : this.yaw + Math.PI;
-    }
-    if (this.lightK === 1) {
-      this.spotArrived = true;
-      this.lightT += dt;
-      if (this.lightT >= L.lightLook) {
-        this.lightK = 2;
-        this.lightT = 0;
-        this.spotSet = false;
-      }
-      return { point: null, speed: 0, face: Math.atan2(cx - this.pos.x, cz - this.pos.z) };
-    }
-    const k = this.lightK - 2;
-    if (k >= L.ringN) {
+    const r = this.lc.step(dt, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.ctx.nav, this.lcWalker);
+    if (r === LC_DONE) {
       this.standDown();
       return { point: null, speed: 0, face: null };
     }
-    if (!this.spotSet) {
-      lightRingPoint(cx, cz, k, this.lightBase, this.lightSlot, this.spot);
-      const c = this.ctx.nav.nearestWalkable(this.spot[0], this.spot[1], 4, this.pos.y);
-      if (c >= 0) {
-        const cc = this.ctx.nav.center(c);
-        this.spot[0] = cc[0];
-        this.spot[1] = cc[1];
-      }
-      this.spotSet = true;
-      this.spotLookT = 0;
-      this.lightT = 0;
-    }
-    const d = hyp2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z);
-    if (d < 1.1) {
-      if (this.spotLookT === 0) this.lookBase = Math.atan2(this.spot[0] - cx, this.spot[1] - cz);
-      this.spotLookT += dt;
+    if (r === LC_FACE) {
       this.spotArrived = true;
-      if (this.spotLookT >= L.ringLook) {
-        this.lightK++;
-        this.spotSet = false;
-      }
-      // look outward from the light, a sweep either side
-      return { point: null, speed: 0, face: this.lookBase + Math.sin(this.spotLookT * 2.1) * 0.7 };
+      return { point: null, speed: 0, face: this.lc.face };
     }
-    this.lightT += dt;
-    const wp = this.lightT < RING_WALK ? this.goTo(this.spot, dt) : null;
-    if (!wp && this.routePath.length === 0) {
-      // unreachable (or too long): the next point
-      this.lightK++;
-      this.spotSet = false;
-      return { point: null, speed: 0, face: null };
-    }
-    return { point: wp, speed, face: null };
+    const p = this.lc.point;
+    return { point: p, speed: p ? this.def.walkSpeed * this.investigatePace : 0, face: null };
   }
 
   /** (guard-ai S2) The light check is done: "nothing here", back to his route calm (cautious only if he has fought). */
   private standDown(): void {
-    this.lightK = -1;
+    this.lc.stop();
     const to = this.aware.fought ? 'cooldown' : 'unaware';
     this.aware.set(to);
     this.onLevel('investigating', to);

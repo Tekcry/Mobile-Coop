@@ -19,6 +19,7 @@ import {
   type PathLen,
 } from '../src/ai/incidents';
 import { AlertMachine, ALERT, emptyAlertInput } from '../src/ai/alertState';
+import { LC_DONE, LC_FACE, LightCheck, RING_WALK, type LightCheckNav, type LightCheckWalker } from '../src/ai/lightCheck';
 import { PERCEPTION } from '../src/ai/perception';
 import { EnemyManager } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
@@ -581,5 +582,155 @@ describe('EnemyManager.lightsOut (coordinated): who saw it go', () => {
     em.lightsOut(0, 0, 5, 3);
     expect(b.hear).toHaveBeenCalledTimes(1);
     expect(b.checkLight).not.toHaveBeenCalled();
+  });
+});
+
+// (guard-ai S2 fix round) e2e 'light pair': the first of a pair stood investigating for good. His last ring point lay
+// past the wall at x -4 (6 m out, a three-quarter turn from the side he came from), so he walked an A* detour round it;
+// the 8 s ring timeout only fired with no path left, so he froze there and his incident never closed.
+
+/** Nav stand-in: open floor on a 0.5 m grid, a wall along x = WALL_X with one door at z = DOOR_Z (a long way round). */
+const WALL_X = -4;
+const DOOR_Z = 20;
+const CELL = 0.5;
+function wallNav(): LightCheckNav {
+  const side = (x: number): number => (x < WALL_X ? -1 : 1);
+  return {
+    nearestWalkable(x, z) {
+      return (Math.floor(x / CELL) + 1000) * 10000 + (Math.floor(z / CELL) + 1000);
+    },
+    center(c) {
+      return [(Math.floor(c / 10000) - 1000 + 0.5) * CELL, ((c % 10000) - 1000 + 0.5) * CELL];
+    },
+    lineClear(a, b) {
+      if (side(a[0]) === side(b[0])) return true;
+      const t = (WALL_X - a[0]) / (b[0] - a[0]);
+      return Math.abs(a[1] + (b[1] - a[1]) * t - DOOR_Z) < 1;
+    },
+  };
+}
+
+/** A guard walking at the grunt's investigate pace: straight when the line is clear, else through the door (the
+ *  enemy's `goTo`: the next waypoint, null when within 0.6 m; the path kept until dropped). `stuck`: he cannot move. */
+class SimGuard implements LightCheckWalker {
+  readonly lc = new LightCheck();
+  path: [number, number][] = [];
+  doneAt = -1;
+  stuck = false;
+  readonly ring: [number, number][] = [];
+  constructor(
+    public x: number,
+    public z: number,
+    private readonly nav: LightCheckNav,
+  ) {}
+  walkTo(p: [number, number]): [number, number] | null {
+    if (Math.hypot(p[0] - this.x, p[1] - this.z) < 0.6) return null;
+    if (this.nav.lineClear([this.x, this.z], p)) {
+      this.path.length = 0;
+      return p;
+    }
+    if (this.path.length === 0) {
+      const s = this.x < WALL_X ? -1 : 1;
+      this.path = [
+        [WALL_X + s * 0.5, DOOR_Z],
+        [WALL_X - s * 0.5, DOOR_Z],
+        [p[0], p[1]],
+      ];
+    }
+    if (Math.hypot(this.path[0]![0] - this.x, this.path[0]![1] - this.z) < 0.4) this.path.shift();
+    return this.path[0] ?? p;
+  }
+  following(): boolean {
+    return this.path.length > 0;
+  }
+  dropPath(): void {
+    this.path.length = 0;
+  }
+  step(dt: number, t: number): number {
+    const k0 = this.lc.k;
+    const r = this.lc.step(dt, this.x, 0, this.z, 0, this.nav, this);
+    if (r === LC_DONE) this.doneAt = t;
+    // a look at a ring point (not the look at the fixture that just ended)
+    if (r === LC_FACE && k0 >= 2) {
+      const last = this.ring[this.ring.length - 1];
+      if (!last || last[0] !== this.lc.spot[0] || last[1] !== this.lc.spot[1]) this.ring.push([this.lc.spot[0], this.lc.spot[1]]);
+    }
+    const p = this.lc.point;
+    if (r === 0 && p && !this.stuck) {
+      const d = Math.hypot(p[0] - this.x, p[1] - this.z);
+      const m = Math.min(d, 0.77 * dt);
+      this.x += ((p[0] - this.x) / d) * m;
+      this.z += ((p[1] - this.z) / d) * m;
+    }
+    return r;
+  }
+}
+
+describe('the light check (fix round: e2e light pair)', () => {
+  it('a 2-guard light incident: both check the light and the ring, both are released, the incident closes', () => {
+    const nav = wallNav();
+    const b = new IncidentBoard(paths());
+    // the e2e's lamp at (0, -3) and its two witnesses; the wall at x -4 like the racking hall's
+    const gs = [new SimGuard(4, 1, nav), new SimGuard(3, -6.5, nav)];
+    const v = view([
+      { id: 1, x: 4, z: 1 },
+      { id: 2, x: 3, z: -6.5 },
+    ]);
+    const inc = b.report('light', 0, -3, 0, 7, ids(1, 2), 2);
+    b.tick(0, v);
+    // the nearer (b) leads, slot 0; a is the pair's second (slot 1: stops short, ring an eighth on)
+    expect(sends(b)).toEqual([
+      [2, MODE_LIGHT, 0],
+      [1, MODE_LIGHT, 1],
+    ]);
+    const o = b.out;
+    for (let k = 0; k < o.n; k++) gs[o.guard[k]! - 1]!.lc.start(o.x[k]!, o.z[k]!, o.arg[k]!);
+    apply(b, v);
+    const dt = 0.1;
+    let t = 0;
+    for (let n = 0; n < 1200 && b.openCount > 0; n++) {
+      t += dt;
+      gs.forEach((g, i) => {
+        if (g.doneAt >= 0) return;
+        g.step(dt, t);
+        v.x[i] = g.x;
+        v.z[i] = g.z;
+        if (g.doneAt >= 0) v.task[i] = -1;
+      });
+      b.tick(dt, v);
+    }
+    // both released (a, the second, froze on his third ring point before), well inside the e2e's 120 s
+    expect(gs[0]!.doneAt).toBeGreaterThan(0);
+    expect(gs[1]!.doneAt).toBeGreaterThan(0);
+    expect(Math.max(gs[0]!.doneAt, gs[1]!.doneAt)).toBeLessThan(60);
+    expect(b.openCount).toBe(0);
+    expect(b.kindOf(inc)).toBeNull();
+    // the ring stays in the light's space: a's third point (past the wall) is pulled in, not walked round to
+    const p = [0, 0] as [number, number];
+    lightRingPoint(0, -3, 2, Math.atan2(gs[0]!.ring[0]![0], gs[0]!.ring[0]![1] + 3) - Math.PI / 4, 1, p);
+    expect(p[0]).toBeLessThan(WALL_X);
+    for (const g of gs) {
+      expect(g.ring.length).toBe(INCIDENT.ringN);
+      for (const q of g.ring) expect(q[0]).toBeGreaterThan(WALL_X);
+    }
+  });
+
+  it('a ring point he cannot get to (blocked on a path) is given up after RING_WALK s, path or not', () => {
+    const nav = wallNav();
+    const g = new SimGuard(2, -3, nav);
+    g.lc.start(0, -3, 0);
+    // at the light, then frozen in place on a path that never ends
+    let t = 0;
+    while (g.lc.k < 2 && t < 10) g.step(0.1, (t += 0.1));
+    g.stuck = true;
+    g.path = [[50, 50]];
+    g.following = () => true;
+    const k0 = g.lc.k;
+    while (g.lc.k === k0 && t < 30) g.step(0.1, (t += 0.1));
+    expect(g.lc.k).toBe(k0 + 1);
+    // and the whole check ends within the ring's bound
+    while (g.doneAt < 0 && t < 60) g.step(0.1, (t += 0.1));
+    expect(g.doneAt).toBeGreaterThan(0);
+    expect(g.doneAt).toBeLessThan(2 + INCIDENT.lightLook + INCIDENT.ringN * (RING_WALK + 0.2));
   });
 });

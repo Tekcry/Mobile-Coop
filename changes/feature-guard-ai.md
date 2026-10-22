@@ -12,3 +12,4 @@
   Back to it." and return to their routes calm. An investigator taken out (or held) who stays silent for 25 s brings
   two more as a pair. Investigating and searching guards now walk slower than their patrol, not faster. Hunter and
   Mission (parked) keep the old rules.
+  Fix: a patrol point with a wait of 0 is now walked straight through; before, the guard stopped there for good.
