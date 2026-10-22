@@ -3,7 +3,7 @@ import { GUARD_INFO_LINE_MAX, GUARD_INFO_NEAR, hasInfo, infoAtSpawn, takeInfo, t
 import { addGrabRows } from '../src/game/grabMenu';
 import { ContextMenu } from '../src/game/contextMenu';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { ctcourse, GUARD_INFO, GUARD_SLOT } from '../src/world/maps/ctcourse';
+import { ctcourse, GUARD_INFO, GUARD_SLOT, S3_SEC_GUARD } from '../src/world/maps/ctcourse';
 
 // (CT prototype PR 3, Michael 2026-10-20 08:40: "Add one in Marlow Yard") one training guard with information, so a held
 // guard can show INTERROGATE (08:10: "once they are grabbed it can show interrogate (if they have information)").
@@ -48,13 +48,18 @@ describe('Marlow Yard training guard (PR 3)', () => {
   const course = lay.course!;
   const slot = course.squads[GUARD_SLOT]!;
 
-  it('is one passive guard with information, spawned by station 1 only', () => {
-    expect(Object.keys(course.squads)).toEqual([GUARD_SLOT]);
+  // (sector-fixes S) station 3's security room adds a second passive guard with information (the duty guard at the
+  // monitors, PLAN.md section 2); station 1's guard stays the drill's own
+  it('is a passive guard with information, spawned by station 1 only (plus the station 3 security guard)', () => {
+    expect(Object.keys(course.squads)).toEqual([GUARD_SLOT, S3_SEC_GUARD]);
     expect(slot.kind).toBe('grunt');
     expect(slot.passive).toBe(true);
     expect(slot.info).toBe(GUARD_INFO);
     expect(hasInfo(slot)).toBe(true);
-    course.def.bays.forEach((b, i) => expect(b.squad).toEqual(i === 0 ? [GUARD_SLOT] : []));
+    course.def.bays.forEach((b, i) => expect(b.squad).toEqual(i === 0 ? [GUARD_SLOT] : i === 2 ? [S3_SEC_GUARD] : []));
+    const sec = course.squads[S3_SEC_GUARD]!;
+    expect(sec.passive).toBe(true);
+    expect(hasInfo(sec)).toBe(true);
   });
 
   it('stands in bay 1, clear of the door, the panel and the airlock pad, facing away from the start', () => {

@@ -146,3 +146,64 @@ export const remoteJoints = (A, names = JOINTS) =>
 
 /** Let the host's remotes jump (a teleport the next `n` snapshots) instead of reading it as rubber-banding. */
 export const allowTeleport = (A, n = 3) => A.evaluate((n) => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(n); }, n);
+
+/**
+ * (flake-fix) Record every team-move state page P passes through (`team.state` turned into an accessor on that match's
+ * controller: each change, from a fixed step or a network start, is logged with the page's sim time). A state that
+ * lasts less than a poll on a loaded page (the leg-up's 0.9 s `assist`: "timed out waiting for client assists", the
+ * client already back to `none`) is still seen. Call again to clear the log; `team.__log` holds it, `teamLog(P)` prints it.
+ */
+export const watchTeam = (P) =>
+  P.evaluate(() => {
+    const g = window.__app.current;
+    const t = g.team;
+    if (!t.__log) {
+      let v = t.state;
+      t.__log = [];
+      Object.defineProperty(t, 'state', {
+        configurable: true,
+        enumerable: true,
+        get: () => v,
+        set: (x) => {
+          if (x !== v) t.__log.push([+(window.__app.current?.time ?? 0).toFixed(2), x]);
+          v = x;
+        },
+      });
+    }
+    t.__log.length = 0;
+    t.__log.push([+(g.time ?? 0).toFixed(2), t.state]);
+  });
+/**
+ * The page's team-move view for a failure message: the state log, counts, the last refusal and the offer it sees, and
+ * (flake-fix) the gates that swallow the co-op press before `team.fixedUpdate` (GameState: `pistolAsk`, `wallWas`,
+ * `busy`, `carrying`), so a press that never reached the team code says why.
+ */
+export const teamLog = (P) =>
+  P.evaluate(() => {
+    const g = window.__app.current;
+    const t = g.team;
+    const c = g.player.controller;
+    const o = t.offer;
+    const mates = g.net?.teamMates?.() ?? [];
+    return JSON.stringify({
+      time: +(g.time ?? 0).toFixed(2),
+      log: t.__log ?? null,
+      st: t.state,
+      count: t.count,
+      denied: t.lastDenied,
+      room: t.lastThrowRoom,
+      prompt: t.prompt,
+      offer: o ? { toss: !!o.toss, boost: !!o.boost, relay: !!o.relay, mate: o.mate?.id } : null,
+      me: { pos: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(2)), yaw: +c.yaw.toFixed(2), grounded: c.grounded, crouched: c.crouched, ov: !!c.override },
+      mates: mates.map((m) => ({ mode: m.mode, sub: m.sub, pos: [m.pos.x, m.pos.y, m.pos.z].map((v) => +v.toFixed(2)), yaw: +m.yaw.toFixed(2) })),
+      busy: { td: !!g.takedown.active, strike: !!g.strike.active, attached: !!g.traversal.attached },
+      gates: {
+        wall: g.wallCore?.active ?? null,
+        doorPeek: g.doorPeek?.active ?? null,
+        doorOpen: g.doorOpen?.active ?? null,
+        pistolAim: g.pistolAimWanted ?? null,
+        weapon: g.weapons?.current?.def?.class ?? null,
+        carrying: g.stealth?.carrying ?? null,
+      },
+    });
+  });

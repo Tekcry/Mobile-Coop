@@ -825,6 +825,8 @@ try {
       P.connect();
       t.light(1);
       const segs = g.world.level.coverSegments;
+      // (flake-fix) why each tried segment gave no verified spot (printed when none does)
+      const diag = [];
       const L = g.wallCore.links;
       for (let i = 0; i < segs.length; i++) {
         const s = segs[i];
@@ -845,69 +847,145 @@ try {
         P.axis(0, 0);
         t.step(0.3);
         if (g.wallCore.edge !== 1) continue;
-        // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest
+        // a spot round the corner (past the end, behind the face plane) that sees the peeking head and not the chest.
+        // A guard's eye is its feet + a constant (enemy.ts `eye`): the offset is read from a grunt spawned on the floor
+        // here and cleared at once (the 1.55 m guess was 4 cm low and picked spots that showed a real guard the chest,
+        // #65 / #71)
         const pt = new V();
-        let gx = 0;
-        let gz = 0;
-        // a guard's eye at (gx, gz): clear static lines to the chest (aim point) and the head. (stealth-peek-wait) Once a
-        // guard stands there, its own eye (`eyeOf`): the 1.55 m guess is 4 cm below a grunt's eye, and a spot picked by
-        // the guess could show the real guard the chest too ("sees the peeking head only" failed, #65 / #71)
-        let eyeOf = null;
-        const see = () => {
-          const eye = eyeOf ? eyeOf(new V()) : new V(gx, s.y + 1.55, gz);
-          // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
+        const eye = new V();
+        let eyeUp = 1.55;
+        {
+          const probe = g.enemyMgr.spawn('grunt', new V(s.bx - s.nx * 2, s.y, s.bz - s.nz * 2), false, 0);
+          if (probe) eyeUp = probe['eye'](new V()).y - probe.pos.y;
+          g.enemyMgr.clear();
+        }
+        const place = (x, y, z) => eye.set(x, y + eyeUp, z);
+        // clear static lines from `eye` to the chest (aim point) and the head, as the guard's own test (perception
+        // losClear: a hit within the slack of the point, 0.3 m chest, 0.2 m head, is clear). `m` only ranks spots: the
+        // chest looked at `m` further out past the edge and the head `m` further in
+        const see = (m = 0) => {
           const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
-          return { chest: clear(g.target.aimPoint(pt).clone(), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
+          const chest = clear(g.target.aimPoint(pt).addInPlaceFromFloats(s.tx * m, 0, s.tz * m), 0.3);
+          return { chest, head: clear(g.target.headPoint(pt).addInPlaceFromFloats(-s.tx * m, 0, -s.tz * m), 0.2) };
         };
-        const place = (x, z) => {
-          gx = x;
-          gz = z;
-        };
+        // (flake-fix, fix round 2) candidate spots: floor points on a 5 cm grid where a guard can stand (a walkable nav
+        // cell on this storey; the cell's height is where a guard's feet settle, enemy.ts `move`). The guard is put on
+        // the exact point below, not on the cell's centre where the spawn snaps it: the cells are 0.5 m, the wedge that
+        // sees the head and not the chest is a few cm wide
+        const nav = g.enemyMgr.nav;
         const spots = [];
-        for (let a = 1; a <= 7; a += 0.25) for (let b = 0.5; b <= 4; b += 0.25) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
-        const hidden = spots.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && !v.head; });
+        for (let ia = 0; ia <= 120; ia++) {
+          for (let ib = 0; ib <= 70; ib++) {
+            const a = 1 + ia * 0.05;
+            const b = 0.5 + ib * 0.05;
+            const x = s.bx + s.tx * a - s.nx * b;
+            const z = s.bz + s.tz * a - s.nz * b;
+            const c = nav.cellOf(x, z, s.y);
+            if (!nav.isWalkable(c) || Math.abs(nav.height[c] - s.y) > 0.3) continue;
+            spots.push([x, nav.height[c], z]);
+          }
+        }
+        const hidden = spots.filter(([x, y, z]) => { place(x, y, z); const v = see(); return !v.chest && !v.head; });
         P.axis(0, 1);
         // (A3, G36) the peek is at once; the rig's hand switch and lean ease the head out past the edge over about 0.6 s
         t.step(0.9);
-        const peekOn = g.wallCore.peekOn;
-        const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
+        // (flake-fix) the held peek never stands quite still: the pose sways a few mm (the chest point x 3.443 - 3.457 at
+        // segment 149, over about 4 s), and a guard samples it at its think ticks (a random phase, 0.22 - 0.30 s apart).
+        // The one spot a single look found ([0.25, -11.75]) cleared the chest by about 5 mm, so the guard saw the chest
+        // whenever the sway crossed it: "sees the peeking head only" (los true, head false) under load, where the run's
+        // history moves the phase. So the target points are read after every fixed step (each is the pose the guards
+        // perceive at that step: target.sync runs before the enemies' update), and a spot counts only if it sees the head
+        // and not the chest at every step of 2 s of the held peek. Each is ranked by the largest margin (`see(m)`) it held
+        // at every step, so the guard goes to the middle of the wedge first
+        const MARGINS = [0.03, 0.02, 0.01, 0.005, 0];
+        let only = hidden.map((p) => ({ p, k: 0 }));
+        let peekOn = true;
+        for (let n = 0; n < 120 && only.length; n++) {
+          t.step(1 / 60);
+          peekOn &&= g.wallCore.peekOn;
+          only = only.filter((o) => {
+            place(o.p[0], o.p[1], o.p[2]);
+            const v = see();
+            if (v.chest || !v.head) return false;
+            while (o.k < MARGINS.length - 1) {
+              const w = see(MARGINS[o.k]);
+              if (!w.chest && w.head) break;
+              o.k++;
+            }
+            return true;
+          });
+        }
         if (!peekOn || !only.length) {
+          diag.push({ i, hidden: hidden.length, only: only.length, peekOn });
           P.axis(0, 0);
           t.reset();
           continue;
         }
-        // the guard's own perception there: head only
+        only.sort((a, b) => a.k - b.k);
+        // (flake-fix, fix round 2) the guard's own perception there, over 2 s more of the held peek. A calm grunt is put on
+        // the exact spot (spawned at its cell, then moved there with its post, so it stands still) and made passive: its
+        // meter stays at zero, so it never turns to look or walks off, while its think still runs `perceive`, which sets
+        // los / losHead as in play. At every step its own eye must see the head and not the chest (else the next spot),
+        // and at every one of its thinks over the window (at least 5) it must report the head only
         g.enemyMgr.clear();
         let e = null;
-        // the spawn settles the guard on the nav grid: keep one whose own eye (where it stands) sees the head only
-        for (const [x, z] of only) {
-          e = g.enemyMgr.spawn('grunt', new V(x, s.y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
-          if (!e) continue;
-          place(e.pos.x, e.pos.z);
-          eyeOf = (o) => e['eye'](o);
-          const v = see();
-          eyeOf = null;
-          if (!v.chest && v.head) break;
-          g.enemyMgr.clear();
-          e = null;
+        let peek = null;
+        let tried = 0;
+        for (; tried < Math.min(8, only.length) && !peek; tried++) {
+          const [x, y, z] = only[tried].p;
+          e = g.enemyMgr.spawn('grunt', new V(x, y, z), false, Math.atan2(g.player.position.x - x, g.player.position.z - z));
+          if (!e) break;
+          e.passive = true;
+          e.pos.set(x, nav.heightAt(x, z, y), z);
+          e['prevPos'].copyFrom(e.pos);
+          e['post'] = [x, z];
+          e.setPatrol(null);
+          const at = e.pos.asArray();
+          let held = true;
+          let thinks = 0;
+          let los = true;
+          let head = true;
+          let bad = null;
+          let lastT = e['thinkT'];
+          for (let n = 0; n < 120 && held; n++) {
+            t.step(1 / 60);
+            e['eye'](eye);
+            const v = see();
+            held = !v.chest && v.head && g.wallCore.peekOn;
+            const tt = e['thinkT'];
+            if (tt > lastT) {
+              thinks++;
+              los &&= e.los;
+              head &&= e.losHead;
+              if (!(e.los && e.losHead) && !bad) bad = { n, los: e.los, head: e.losHead, lines: v, chestP: g.target.aimPoint(new V()).asArray().map((q) => +q.toFixed(3)), headP: g.target.headPoint(new V()).asArray().map((q) => +q.toFixed(3)) };
+            }
+            lastT = tt;
+          }
+          if (held) {
+            const moved = Math.hypot(e.pos.x - at[0], e.pos.y - at[1], e.pos.z - at[2]);
+            peek = { los, head, thinks, bad, margin: MARGINS[only[tried].k], moved: +moved.toFixed(4), light: g.lightLevel, at: [+x.toFixed(3), +z.toFixed(3)] };
+          } else {
+            g.enemyMgr.clear();
+            e = null;
+          }
         }
-        if (!e) {
+        if (!peek) {
+          diag.push({ i, hidden: hidden.length, only: only.length, tried });
           P.axis(0, 0);
           t.reset();
           continue;
         }
-        t.step(0.3);
-        const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] };
         P.axis(0, 0);
         t.step(0.5);
         const back = { los: e.los };
         if (g.wallCore.active) g.wallCore.leave('test');
-        return { i, hidden: hidden.length, only: only.length, peek, back };
+        return { i, hidden: hidden.length, only: only.length, tried, peek, back };
       }
-      return null;
+      return { only: 0, segs: diag };
     });
+    console.log(`  wall peek: ${JSON.stringify(r)}`);
     assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
-    assert(r.peek.los && r.peek.head, `the guard there sees the peeking head only (${JSON.stringify(r.peek)})`);
+    assert(r.peek.los && r.peek.head && r.peek.thinks >= 5, `the guard there sees the peeking head only, at every think over 2 s of the held peek (${JSON.stringify(r.peek)})`);
     assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
   });
 
