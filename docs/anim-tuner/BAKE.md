@@ -118,9 +118,9 @@ spot (stride 'velocity' under 0.3 m/s): it reads the idle row for every slider.
     ball pivot's allowance and the turn rules' cap floor (without the turn rules, the touchdown lead).
   - (anim-natural N1) the turn rules, per gait into the gait's own entry of a table in `footPlanner.ts` (index = the
     gait in tuneStep STEP_GAITS order: idle 0, walk 1, jog 2, run 3, crouchWalk 4, crouchRun 5):
-    - turnTwist -> `TURN_STEP.twist[i]` (the twist a planted foot may reach before it steps round; also the cap
+    - turnTwist -> `FOOT_TURN_STEP.twist[i]` (the twist a planted foot may reach before it steps round; also the cap
       backstop, TURN_CAP x it).
-    - turnRate -> `TURN_STEP.rate[i]` (the body turn rate that arms the turn step).
+    - turnRate -> `FOOT_TURN_STEP.rate[i]` (the body turn rate that arms the turn step).
     - pivot -> `TURN_PIVOT.max[i]` (how far a planted foot turns on its ball in one plant; 0 locked).
     - pivotHeel -> `TURN_PIVOT.heel[i]` (the heel raise while it turns).
     - landTurn -> `LAND_TURN[i]` (the landing's yaw lead into the turn), the 5 moving gaits.
