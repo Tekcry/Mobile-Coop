@@ -19,3 +19,6 @@ kind: minor
 - Mocap locomotion: no more pelvis dips or foot pops where a turn hands Wren's steps between the capture and the foot
   planner (walking turns at 1-4 rad/s), no toe snap on the first step after starting from standing, and the start's
   arms swing at half strength (they ran out of step with the legs). Switch off unchanged.
+- Mocap locomotion on master 4.61.0: the new body motion layer (trunk twist, sway, head follow / nod, walk arm gain) is
+  off on the captured gait, which already moves that way; its arm speed cap and pelvis rate limit stay as pop guards.
+  Switch off identical to master.

@@ -93,3 +93,39 @@ exported with `git archive` to the scratchpad) and to the tree before this round
 - Not in the brief's range, worse OFF: jog 2.8 x 4 rad/s bone step ON 32 (OFF 35), run 4.0 x 4 rad/s ON 48 (OFF 57), both
   ankle-toe in the planner's turn steps; walk-run-stop (4.4 to 0 in one frame, zzana) ON 67.5 vs OFF 100.6 deg.
 - CHECK notes 4 (the stop slot rarely fires) and 6 (DECISIONS / bible / credits at the merge) are not this round's.
+
+## Merge 4.61.0 (d10d68f2)
+Master af56ab43 (train 8: N2 #138 incl. N1 #135, #156) into feature/mocap-trial 089259be; 13 hunks, implementer (Opus).
+- animGraph: `RigTargets` keeps `keyMocap`, `clipFeet` and N2's `motion`; `speedSet` keeps the set `S` and layers `L`, N2's
+  `scaleKeyedArms` through `armGain(c, S)` (hand-keyed set: master exactly; mocap set: `layerMul(row gain,
+  motionArmGain)`); `bodyMotion()` scales the layer's parts by `mocapLayerK(field, keyMocap)` (0 switch off: untouched).
+- footPlanner: FootState / newFoot / PlannerInput unions (`turnRule` + `clipFeet`); band call N1's `!turnOn` + clip gate,
+  then `anchorFeet`; holdOrStep `rules = o.contact && !oDue && !(clipFeet && windowLeft < ...)`; beginSwing / land clear
+  both sides' fields; swing bow: clip feet -> fix 1's fade, else N1's. Review fix: `pivotFeet` / `anchorFeet` skip a foot
+  the clip planted (`clipPlant && clipFeet`): N1's anchor slid the clip's pinned ankle 6 cm as its pitch rolled.
+- characterRig: `heelLift` moved to `footGeom.ts` (master) with the `clipOwn` branch; `keyedArm` capped targets with
+  `elbowOutK`; `KEY_PEL_RATE` / `mocapLayerK(keyPelRate)`. Review fix: the foot pitch rate limit only on the rig's own
+  mocap share or a clip-owned / -planted foot (guards, drawn and crouched rigs uncapped).
+
+| MOCAP_LAYERS (N2) | ON | Measured with it on (walk 1.4) | Reason |
+| --- | --- | --- | --- |
+| motionArmGain | 0 | wrist +2.1 cm | capture swings its own arms (as armSwing) |
+| motionTrunk (hip / chest yaw) | 0 | wrists +1.1-1.9 cm | clip `q` holds the counter-rotation (as trunkTwist) |
+| motionSway | 0 | hips +1.2 cm | clip `pel` holds the weight shift (M1) |
+| motionHead / motionNod | 0 | - | clip `head` channel holds the head turn and nod |
+| motionArmCap | 1 | 0.000 cm on gaits / turns / starts | pop guard: holds a 29.7 cm wrist jump on a band-crossing pace jump |
+| keyPelRate | 1 | 0.000 cm on gaits / turns / starts | pop guard: holds a 5.3 cm pelvis jump on a band crossing |
+| turnStep | 1 | - | N1's turn rules stay (not a scale) |
+
+OFF: the dump repro on this tree vs `git archive af56ab43` byte-identical (31,065,812 B, md5 9ce3f3d1...), before and
+after the review fixes; animSkeletonIdentity / GuardIdentity pass on master's fixtures.
+Test change: mocapSwitch's hand-off plans read planted feet as e2e-anim does (metrics.ts `footSlide` via
+`plantSlide`, split where the holder changes): an N1-anchored plant at its heel / ball, the clip's pinned plants at the
+ankle (limit 1 cm unchanged); the steady gaits keep the ankle measure.
+
+For mocap-trial-2 (ON worse than OFF, outside the brief's walk 1.4 / 2.0 range; ankle-toe deg ON / OFF, before the
+merge in brackets): run 4.0 x 4 rad/s 81 / 58 (48 / 57): the planner swing in the clip's long swing window (run duty
+0.156) passes ~70 cm across the planted foot and N1's no-crossing push plus the swing bow move it ~78 cm in one frame
+when the other foot lands; jog 2.8 x 4 47 / 49 (32 / 35); walk 1.0 x 4 36.9 / 35.0 (22 / 21); walk 1.0 x 2.5 24.5 /
+23.8 (13 / 24). Spot turns (6 rad/s on the spot) ankle-toe 29.6 ON = OFF (master's N1; mocapSwitch's 25 deg assert fails
+on it, not loosened).

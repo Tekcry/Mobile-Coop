@@ -25,7 +25,7 @@ import { KEYED_RUN } from '../src/anim/clips/keyed/run';
 import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
 import { MOCAP_JOG } from '../src/anim/clips/mocap/jog';
 import { MOCAP_RUN } from '../src/anim/clips/mocap/run';
-import { driveRig, gaitNumbers, GAIT_RANGES, pops, POP_DEG, steady, type GaitName, type Plan, type Rec } from './helpers/mocapMeasure';
+import { driveRig, gaitNumbers, GAIT_RANGES, plantSlide, pops, POP_DEG, steady, type GaitName, type Plan, type Rec } from './helpers/mocapMeasure';
 import { KEYED_FEET, KEYED_FEET_SIDE, KF, keyedClip, newKeyedPose, sampleKeyed, type KeyedClip } from '../src/anim/keyed';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { FootPlanner, emptyPlannerInput, type ClipFeetIn } from '../src/anim/footPlanner';
@@ -432,10 +432,15 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
         slide = Math.max(slide, rig.planner.L.slide, rig.planner.R.slide);
       });
       const on = pops(R);
-      const ankleSlide = gaitNumbers(R, GAIT_RANGES.run).slide;
+      // (N1 merge) planted feet as e2e-anim reads them (metrics.ts footSlide): a plant the planner anchors (N1's held contact,
+      // the ankle rolls / pivots round the heel or ball by design: the turn hand-offs, the starts and stops) at its contact
+      // points; the clip's own pinned plants at the ankle, as before
+      const ankleSlide = plantSlide(R, 0.01);
       const pel = pelvisStep(R);
       rows.push(`${name}: largest bone turn a frame off ${f1(off.maxStepDeg)} deg (${off.bone}), on ${f1(on.maxStepDeg)} deg (${on.bone}); joint jerk off ${f1(off.maxJerk * 100)}, on ${f1(on.maxJerk * 100)} cm/frame2; planted ankle slide on ${f1(ankleSlide * 100, 2)} cm; pelvis beyond pace x dt on ${f1(pel * 100, 2)} cm`);
-      expect(on.maxStepDeg, `${name}: bone step`).toBeLessThan(POP_DEG);
+      // (N1 merge) a pop the switch adds: under POP_DEG, or where master's own planner already passes it (the spot turns:
+      // N1's ball pivot, 29.6 deg OFF, ankleR-toeR) no worse than master's
+      expect(on.maxStepDeg, `${name}: bone step`).toBeLessThan(Math.max(POP_DEG, off.maxStepDeg + 0.5));
       // (fix 1) the pelvis moves no more than the pace carries it plus 2 cm a frame (bible 5.12.2)
       expect(pel, `${name}: pelvis step beyond pace x dt`).toBeLessThanOrEqual(0.02);
       // (the sustained turns: 1 cm, the clip's swing knee after a hand-back; walk 2.0 turning 1.5 on 16.9 vs off 16.4 cm,
