@@ -84,3 +84,9 @@ aimed 0.3 rad off level at a wall the muzzle pokes up to 9 cm through (visual on
 -1.2 aim pitch (89 deg down); CHANGELOG / movement.md say ~66 deg, measured 64.7; no pistol wall-block unit test;
 animN3b.test.ts:214 uses Math.hypot (test); two shots in one render frame give one kick; the partner's recoil follows
 the local `recoilMul`; pistol back kick small (0.8 cm).
+
+## PR checks (2026-10-22 ~15:40-15:52, desktop under heavy.lock, on 48cb9280)
+`npm run check` PASS (249 files, 2691 tests); e2e-anim ok (186 s), e2e-stealth-ai ok (137 s), e2e-coop ok (506 s),
+e2e-wall ok (104 s). GPU sheets in `docs/anim-natural/n3b/after/` (wall-block, fire-rifle, fire-pistol; before = the
+pass 2 sheets on feature/anim-natural). Wall block measured on the sheet: gun pitch 0 -> -65 deg (muzzle down) in ~0.4 s
+walking in, held, back to 0 stepping off; the audit's "stall" flag there is the held block, by design.
