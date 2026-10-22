@@ -30,8 +30,8 @@ below is committed and pushed. Agents that were running at the save are lost: th
 ## Open jobs (branch, folder, head, next step)
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | 6c0e3320 | Switch (Settings > Gameplay > "Mocap locomotion", tuner More > Panel, `?mocap=0/1`, default off; off = bit-identical) + clip-feet mode (7ac3b80e); CMU pipeline in node (`scripts/mocap/`, TAKES.md, 05c1ef15; emitted clips in `build/mocap/clips/`, gitignored: rerun with the commands at the end of TAKES.md). Integration agent was running at the save (clips into src, layer tuning, unit targets). | If its work is not committed: redo the integration (prompt below). Then GPU suites + current-vs-mocap GPU sheets, fresh checker, PR, message the orchestrator. Then the gaps (standing jog / run starts, full run turns, on-the-spot turns) with more CMU takes. |
-| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | f2f8e396 | Fix round DONE (both failures N1 planner: body-frame no-crossing push; crouch entry right foot first; REPORT-3 last section; fixtures partner:moves only). Six suites started ~21:53 on the desktop GPU, detached: /c/NightShift/n138-e2e.out + n138-e2e.log. Risk: crouch 90 first swing 10.7 m/s headless (limit 5) may fail next in e2e-anim. | Read n138-e2e.out / .log; all pass: list them in #138 body, send the sha. e2e-anim crouch 90 fails: one more round on the landing rules (N1 CHECK-3 risk a). |
+| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | edc4d573 (gap takes downloaded: STATE) | Switch (Settings > Gameplay > "Mocap locomotion", tuner More > Panel, `?mocap=0/1`, default off; off = bit-identical) + clip-feet mode (7ac3b80e); CMU pipeline in node (`scripts/mocap/`, TAKES.md, 05c1ef15; emitted clips in `build/mocap/clips/`, gitignored: rerun with the commands at the end of TAKES.md). Integration agent was running at the save (clips into src, layer tuning, unit targets). | If its work is not committed: redo the integration (prompt below). Then GPU suites + current-vs-mocap GPU sheets, fresh checker, PR, message the orchestrator. Then the gaps (standing jog / run starts, full run turns, on-the-spot turns) with more CMU takes. |
+| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | f2f8e396 | Fix round 1 (f2f8e396): run 90 + crouched clip FIXED. Desktop GPU on f2f8e396 (/c/NightShift/n138-e2e.log): coop, move, clip, netmove PASS; e2e-anim FAIL "run 180: the planted contact stays put (14.0 cm)" (log ~223; the new body-frame push moves a planted foot); e2e-studio FAIL "keyed walk: Step length greyed, Arm swing not" (log ~494; Arm swing now greyed on the keyed walk). Fix round 2 agent was running at the save (notes: C:/NightShift/scratch/n138-fix2/NOTES.md). | If round 2 is not committed past f2f8e396: redo it (prompt item 2). Then rerun all six suites on the desktop GPU (script /c/NightShift/n138-e2e.sh, detached), list them in #138 body, send the sha. |
 | vent-kick T1 #141 | `feature/vent-kick`, `C:/NightShift/Mobile-Coop-vent-kick` | ebce0da7 | Done: PR #141 open; checker PASS + fix round (M1 pad matches keyboard); e2e-traverse, e2e-pad, e2e-mouse, e2e-netmove pass on the desktop GPU (9fd7b5b6). | Nothing unless its train fails. DECISIONS at merge: M1, A1. |
 
 ## Test logs on the desktop
@@ -58,9 +58,12 @@ heavy2.lock naming CT Core Build with no node / bash process of ours running is 
    e2e-studio, e2e-coop, e2e-netmove fully on the desktop GPU (switch off: the default), GPU sheets current vs mocap
    (walk / jog / run, 90 / 180 turn, start, stop; anim-sheet or shot with ?mocap=0/1) for Michael, a fresh checker, the
    PR (minor; suites listed), message the orchestrator. Then the gaps with more CMU takes (standing OK).
-2. N2 #138 (C:/NightShift/Mobile-Coop-anim-natural-n2, head f2f8e396):
-   (fix round committed at f2f8e396; read /c/NightShift/n138-e2e.out and n138-e2e.log for the six GPU suites)
-   if all six pass, list them in #138 body, push, send the sha; if e2e-anim crouch 90 fails, one round on the landing rules.
+2. N2 #138 (C:/NightShift/Mobile-Coop-anim-natural-n2, head f2f8e396): fix round 1 done; GPU run: anim + studio FAIL.
+   If not committed past f2f8e396, one Opus implementer: (a) e2e-anim run 180 planted contact 14 cm: the body-frame push
+   in uncross / uncrossIn must never move a planted (held) foot; keep every turn plan least gap >= 5 cm and slide < 1 cm;
+   pin it in tests/turnCrossRig.test.ts. (b) e2e-studio keyed walk: Arm swing greyed (expected live): find the change
+   (c3a10b41 passed), restore it or update the stale expectation with the reason. Then bash /c/NightShift/n138-e2e.sh
+   detached (powershell Start-Process -WindowStyle Hidden bash), all six pass: list them in #138 body, send the sha.
 3. T1 #141: nothing unless its train fails.
 Message "Night Shift | Orchestrator" at each slice and PR.
 ```
