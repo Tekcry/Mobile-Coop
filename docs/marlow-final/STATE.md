@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 08:10 FULL BURN (Michael ~07:55: "Increase usage to hit 5 hour window ASAP, and I will swap account once it hits."):
+  up to 5 agents. Running: A3 + A4 greybox (Sonnet), A5 + A6 + A7 greybox (Opus), each in its own set files (reports
+  slices/S3-S7.md). Next: A8 greybox, then dressing per set as each lands, checkers, e2e parts :2-:4 on the desktop.
+  At 97%: start nothing new, save, reply "saved".
 - 08:05 A2 dressing IN (4827cc7d; 47 A2 tests, 140 map tests; stair underside filled, staging switch post; 685 skins
   but boxes are thin instances in one mesh, levelBuilder.ts:525, so ~8 k tris and no extra draws). Its check folds into
   the A3 checker. A4 greybox started on Sonnet beside A3 (slices/S4.md). Resume prompt below is current.
