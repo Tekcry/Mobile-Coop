@@ -57,7 +57,7 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
 - ~09:55 SAVED FOR THE ACCOUNT SWAP (window 91%). Commit "WIP A3-A6 dressing" holds the A3-A6 dressers' files as they
-  were mid-work (UNCHECKED; may not compile or pass; tests/ctcourse/a5Substation.scratch.test.ts left out, untracked,
+  were mid-work (A3 dressing then FINISHED in the next commit; A4-A6 UNCHECKED, may not compile or pass; tests/ctcourse/a5Substation.scratch.test.ts left out, untracked,
   delete it). A7 dressing complete (3ea78569, unchecked). A8 greybox complete (3dfc6e9a + d3ec16c3, unchecked). The
   dressing brief is in the repo: docs/marlow-final/DRESS-BRIEF.md (fill the <N> / <SET> / <NAME> / <PROPS HEADING> /
   <CHECK> / <EXTRA> slots per set; extras: S34-check.md / S567-check.md polish lists), and docs/marlow-final/mf-e2e.sh
@@ -67,7 +67,9 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
     relay variant (the main A1 leg passed). Probably the master merge (movement / traversal changes): investigate in
     scripts/e2e-ctcourse/a1Gate.mjs's variant and the hang-drop.
   - :2 timed out "A3: the pass zone sets a3-far1 (one player in the east lobby)" at 60 / 120 fps (not load). A solo :2
-    rerun was running (runs/marlowfinal-45458bbc-ct2solo on the laptop). Check the a3-far1 zone box vs the e2e's east
+    rerun (JOBS=1) FAILED earlier: "timed out waiting for A3 relay jam 1: the host jams the camera" (60 / 120 fps, not
+    load; laptop log runs/marlowfinal-45458bbc-ct2solo/e2e-ctcourse_2.err): the relay's first jam after the 3.5 s wait
+    I added - check the host's jam post / aim vs the 14 m camera and the jammer cooldown. Check the a3-far1 zone box vs the e2e's east
     lobby spot after the 14 m camera change (SEEN moved; the relay's waits).
   - :3 "A6: the holder's spot reads lit again (host 0.524, client 0.188)": a host / client light parity break after the
     hold panel restores (light parity is a hard rule): check the client's group restore path for A6's held isolator.
