@@ -14,7 +14,7 @@ Written 2026-10-22 ~09:10, updated ~17:50 (full burn; stop new agents at 97% of 
 | anim-natural N4 holds and carries | `feature/anim-n4` | merged | #113 merged in train/3 #114 as 4.54.0 (99f3e488) | Done |
 | sector-fixes slice S (security room) | `feature/sector-fixes-s` | merged | #115 in 4.55.0; guardInfo test patch #124 merged as 4.55.1 (master green) | Done (GPU look of the room still owed: scripts/shots-ctcourse.mjs s3-monitors) |
 | anim-n4b | `feature/anim-n4b`, `C:/NightShift/Mobile-Coop-anim-n4b` | 1e442236 | PR Tekcry/Mobile-Coop#119. Desktop 149003aa: vitest / lint / build / e2e-anim / studio / traverse ok; e2e-clip ladder drop failed (fixed in 1e442236: no legs-ahead fall straight off a wall hold), netmove / coop killed at 600 s and ctcourse station 3 setup check failed (load: same on other branches today), split breath now on a shared split-entry clock. GPU audit posted. Laptop asked: check + e2e-clip, netmove, coop, ctcourse SOLO on 1e442236 | Laptop verdict; then train 5 (orchestrator) |
-| heap-asserts (tests only) | `feature/heap-asserts`, `C:/NightShift/Mobile-Coop-heap-asserts` (from master 9287a095) | - | Assigned 16:30: heapUsed "never allocates" asserts (animSkeletonRows.test.ts:127, animSkeletonClip, keyCurve, animWeight) pass only when a GC lands in the window; move to the lightField gc() + new-space method with a per-call limit, or find the vitest-only boxing. Implementer agent started 16:38 (uncommitted work in the worktree if this session was cleared) | Review its diff, 5x stable runs, commit, PR (tests-only tier) |
+| heap-asserts (tests + one menu fix) | `feature/heap-asserts`, `C:/NightShift/Mobile-Coop-heap-asserts` | 48de5497 | PR Tekcry/Mobile-Coop#128: shared tests/helpers/allocPerCall.ts (gc + new space), all 8 heap asserts use it, 5x stable; src/world/menuShots.ts held() per-frame closure fixed. bodyMotion.test.ts patch sent to CT Core | Orchestrator: CI check + e2e-menus tier, merge |
 | studio-pairs (AUDIT fix 12) | `feature/studio-pairs`, `C:/NightShift/Mobile-Coop-studio-pairs` | 8091de94 | Stage lights only on Wren's own meshes (hold-pair guard no longer white); pair puppets hold LOD0 through the loop; `__studioStage.puppets()` readiness hook; boost vanish not reproduced on the CPU (likely a shader not ready on a fresh page). GPU script ready: `bash C:/NightShift/sp-gpu.sh` (audit.mjs copied untracked) | When the orchestrator gives the desktop lock (after Menu Notes): run sp-gpu.sh, read the pair sheets, PR (merge after #119 lands; both edit studioPairs.ts / studioStage.ts, dry-run merge clean) |
 
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
@@ -71,9 +71,7 @@ the orchestrator's lock queue, deleted only if it still names you; the laptop ("
 area suites and train e2e on request.
 
 Next (2026-10-22 ~17:50):
-1. heap-asserts (feature/heap-asserts, worktree C:/NightShift/Mobile-Coop-heap-asserts): if an agent is not running and
-   the worktree has uncommitted changes, review the diff, run each changed test file 5x, commit, PR (tests-only tier),
-   and send CT Core the bodyMotion.test.ts patch for feature/anim-natural-n2 using the new helper.
+1. #128 heap-asserts: open; act only if CI or e2e-menus fails.
 2. #119: act on the laptop verdict for 1e442236 (Open jobs row).
 3. studio-pairs: GPU look when the lock is handed to you, then PR.
 4. Then ask the orchestrator for the next job.
