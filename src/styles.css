@@ -4915,3 +4915,37 @@ body.tune-hide-hud .mouse-capture-hint {
 :root.phone .boot .boot-frame {
   width: calc(calc(100 * var(--vw)) / var(--ui-scale, 1));
 }
+
+/* (marlow-bays item 29) the on-screen pause button: in play, only while the last input was a touch (InputManager) */
+.touch-pause {
+  display: none;
+}
+body.touch-play .touch-pause {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  width: 52px;
+  height: 44px;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--line, rgba(214, 223, 219, 0.16));
+  border-radius: 4px;
+  background: rgba(4, 6, 7, 0.55);
+  color: var(--text, #d6dfdb);
+  font: 700 18px/1 var(--font-menu, system-ui, sans-serif);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+body.touch-play .touch-pause:active {
+  background: rgba(56, 224, 140, 0.25);
+}
+body.tt-studio .touch-pause {
+  display: none !important;
+}

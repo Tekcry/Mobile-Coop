@@ -1,6 +1,6 @@
 # jammer-fixes - state
 
-**Now:** implementer done (items 1-4, protocol 27, 10 new tests in tests/jammerFixes.test.ts); npm run check pass (2593 tests); e2e not run yet (laptop queue). Checker PASS (116a6efc; 144 targeted tests, tsc clean). PR open.
+**Now:** implementer done (items 1-4, protocol 28 (27 taken by #92), 10 new tests in tests/jammerFixes.test.ts); npm run check pass (2593 tests); e2e not run yet (laptop queue). Checker PASS (116a6efc; 144 targeted tests, tsc clean). PR open.
 **Next:** e2e-ctcourse + e2e-coop, full e2e, PR (patch), tell
 "Night Shift | Orchestrator".
 

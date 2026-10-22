@@ -53,6 +53,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   respawn runs `CoopHost.onRespawn`, which brings an alive partner back in Sector Ops and the course) and returns
   everyone to the lobby (`CoopController.backToLobby` -> `NetSession.backToLobby`, phase `lobby`; the client's lobby
   handler follows). The client's rows are disabled ("Host only"). No wire change.
+- (marlow-bays R, protocol 27) Rejoin: `NetSession` keeps a player id across connections (the hello's rejoin token from
+  `core/rejoin.ts`; the host's `alias` / `route` maps; `you` tells the client its id). A joiner dropping mid-match is
+  held (`PlayerInfo.away`, `RemotePlayer.held`, out of `remotePlayers()`) for `REJOIN_HOLD_S`; its rejoin gets a
+  `restore` event (where it was held). A client whose host drops keeps the session (`hostId` null) and takes the next
+  host of the room; `CoopController` keeps its match up ("waiting") and reloads it on that host's start. The main menu's
+  "Rejoin" / "Resume hosting" entry (main.ts) reads the record without importing `src/net`.
 - (marlow-bays item 1) A held hostage is never solid to its holder: the client's `EnemyPuppet.setSolid` (the takedown's
   `setSolid?.(false)` was a no-op there, so the puppet's capsule shoved the client's controller: slow, jittery movement
   while holding) and the partner's hostage seen there (`remoteHeld`). The host places a client's hostage from that
@@ -145,7 +151,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (`advanceDevJam`), so it draws the frozen camera, its flashing LED, the hidden grid, the buzz and the light flicker
   from host state (marlow-jammer). The client only moves a device's timeline forward (`mirrorDevJam`: a late host
   reboot it already ran down is dropped). The host checks a client's jam target with the static line of sight (0.4 m
-  slack) from the same point the client aimed from: (jammer-fixes, protocol 27) a claim carries the client's camera eye
+  slack) from the same point the client aimed from: (jammer-fixes, protocol 28) a claim carries the client's camera eye
   `e` ([x, y, z], cm, clamped to the world; a release has none). The host takes it only within `JAMMER.eyeTol` 1.5 m of
   the client's head with a clear static head-to-eye line (0.1 m slack; no eye through a wall), else checks from the head
   (`jammer.ts` `jamOrigin`). The course message's light groups carry each group's base state (`groupBaseOn`): a jam never

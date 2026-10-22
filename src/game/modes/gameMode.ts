@@ -93,6 +93,8 @@ export interface GameMode {
   /** (marlow-bays item 3) The pause menu's "Restart at checkpoint" (solo or the co-op host): the same clean retry as
    *  everyone down (Sector Ops: the section; Course: the bay), every player back at the checkpoint. False: not now. */
   restartCheckpoint?(): boolean;
+  /** (marlow-bays R3) The checkpoint a resumed co-op match starts from (course: the current bay, 1-based). */
+  resumeBay?(): number;
   blips(): Blip[];
   dispose(): void;
 }

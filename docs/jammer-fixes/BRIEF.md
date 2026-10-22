@@ -27,7 +27,7 @@ Tests for 1-3. Check, e2e-ctcourse and e2e-coop, then the full run, a PR (patch)
 - F3 (item 3): an eye claim beyond 1.5 m of the head (or without a clear head-to-eye line) falls back to the head
   check (the 4.48 rule) instead of refusing the jam, so a client whose camera is still blending into aim is not refused.
   Undo: refuse the claim instead (`jamOrigin` in `src/game/jammer.ts`).
-- F2 (item 3): if the claim carries the client's eye, the `jam` message changes, so `PROTOCOL_VERSION` 26 -> 27.
+- F2 (item 3): if the claim carries the client's eye, the `jam` message changes, so `PROTOCOL_VERSION` 26 -> 27, then 28 after #92 took 27 (merged master 4.51.1).
 
 ## Limits
 CLAUDE.md hard rules (light parity; gameplay never reads graphics state; hot paths allocate nothing). Do not touch the
