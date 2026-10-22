@@ -176,6 +176,16 @@ export class NavGrid {
   private cameLink: Int32Array;
   private stamp: Uint32Array;
   private gen = 1;
+  /**
+   * Bumped whenever a closure opens or shuts: an agent holding a path (or a cached flow field) compares it with the
+   * value it planned under and replans when it changed.
+   */
+  version = 0;
+  /** Closures holding each cell shut (allocated by the first `addClosure`). */
+  private closeCount: Uint8Array | null = null;
+  /** Each closure's cells (collected once by `addClosure`), and whether it is shut. */
+  private closureCells: Int32Array[] = [];
+  private closureOn: boolean[] = [];
 
   constructor(input: NavBuildInput) {
     this.cell = input.cell;
@@ -749,6 +759,73 @@ export class NavGrid {
       return wp;
     }
     return this.center(best);
+  }
+
+  /**
+   * A runtime closure (a bolted door): collects, once, the walkable cells whose centres lie in the rect (centre cx, cz;
+   * half extents hx across, hz along the yaw direction (sin yaw, cos yaw), the `NavBlocker` box convention) on the
+   * surface within `tol` of height y. Starts open; `setClosed` shuts and opens it. Build time only (allocates).
+   */
+  addClosure(cx: number, cz: number, hx: number, hz: number, yaw: number, y: number, tol = 0.6): number {
+    if (!this.closeCount) this.closeCount = new Uint8Array(this.walk.length);
+    const cnt = this.closeCount;
+    const ext = hyp2(hx, hz);
+    const ix0 = Math.max(0, Math.floor((cx - ext - this.ox) / this.cell));
+    const ix1 = Math.min(this.w - 1, Math.floor((cx + ext - this.ox) / this.cell));
+    const iz0 = Math.max(0, Math.floor((cz - ext - this.oz) / this.cell));
+    const iz1 = Math.min(this.h - 1, Math.floor((cz + ext - this.oz) / this.cell));
+    const c = Math.cos(-yaw);
+    const s = Math.sin(-yaw);
+    const cells: number[] = [];
+    for (let iz = iz0; iz <= iz1; iz++) {
+      for (let ix = ix0; ix <= ix1; ix++) {
+        const dx = this.ox + (ix + 0.5) * this.cell - cx;
+        const dz = this.oz + (iz + 0.5) * this.cell - cz;
+        const lx = c * dx + s * dz;
+        const lz = -s * dx + c * dz;
+        if (Math.abs(lx) > hx || Math.abs(lz) > hz) continue;
+        const col = iz * this.w + ix;
+        for (let l = 0; l < this.layers; l++) {
+          const i = l * this.cols + col;
+          // walkable, or walkable but held shut by another closure already
+          if (!this.surf[i] || (!this.walk[i] && !cnt[i])) continue;
+          if (Math.abs(this.height[i]! - y) > tol) continue;
+          cells.push(i);
+        }
+      }
+    }
+    this.closureCells.push(Int32Array.from(cells));
+    this.closureOn.push(false);
+    return this.closureCells.length - 1;
+  }
+
+  /** Shut (on) or open a closure; a cell stays blocked while any closure holding it is shut. No allocation. */
+  setClosed(id: number, on: boolean): void {
+    const cells = this.closureCells[id];
+    const cnt = this.closeCount;
+    if (!cells || !cnt || this.closureOn[id] === on) return;
+    this.closureOn[id] = on;
+    for (let k = 0; k < cells.length; k++) {
+      const i = cells[k]!;
+      const n = cnt[i]!;
+      if (on) {
+        cnt[i] = n + 1;
+        if (n === 0) this.walk[i] = 0;
+      } else if (n > 0) {
+        cnt[i] = n - 1;
+        if (n === 1) this.walk[i] = 1;
+      }
+    }
+    this.version++;
+  }
+
+  isClosed(id: number): boolean {
+    return this.closureOn[id] === true;
+  }
+
+  /** A closure's cells (tests and tooling). */
+  closureSize(id: number): number {
+    return this.closureCells[id]?.length ?? 0;
   }
 
   randomWalkable(rng: () => number): number {

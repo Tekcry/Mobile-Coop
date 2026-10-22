@@ -1,6 +1,7 @@
 import type { SquadSlot } from '../world/rooms';
 import type { DifficultyPreset } from '../ai/archetypes';
 import { AIRLOCK_DOORWAY_CLEAR } from '../config/course';
+import { ENEMIES } from '../ai/enemyDefs';
 
 /**
  * Sector Ops (feature/sector-ops): a map split into sections played in order. Each section has one objective (a hack,
@@ -71,6 +72,25 @@ export interface SectorRoute {
 /** A section guard (M8): its slot, and the spot [x, z] where a player can take it down out of every other guard's sight. */
 export interface SectorGuard extends SquadSlot {
   takedownSpot: [number, number];
+  /**
+   * (sector-redesign G20) A dog's handler: the index, in this section's `guards`, of the armed human guard it works with.
+   * Required for a dog (`checkSectors`); the mode does not read it yet (the heel behaviour is guard-ai's, ENGINE.md
+   * "Requests for guard-ai").
+   */
+  handler?: number;
+  // (sector-redesign) Placement data for guard-ai (ENGINE.md "Requests for guard-ai"); optional, not read by any code yet.
+  /** Squad id within the section (radio checks, the "missed" search, a dog's fallback handler). */
+  squad?: number;
+  /** Post / zone tags ('secure', 'perimeter', 'lobby', ...): what the guard's post protects. */
+  zone?: string;
+  /** Job ('gate', 'patrol', 'desk', 'handler', 'response', ...). */
+  role?: string;
+  /** Why the guard is there (M1 "have reason to what they are doing or protecting"); design text, may become a bark. */
+  reason?: string;
+  /** A talking-pair partner: the index in this section's `guards` of the guard he meets on his route. */
+  pair?: number;
+  /** A far guard that may sleep; read by guard-render (A64). */
+  dormant?: boolean;
 }
 
 export interface SectorDef {
@@ -87,8 +107,13 @@ export interface SectorDef {
   guards: SectorGuard[];
   /** Where alarm reinforcements come in (x, z; taken in turn), inside the section. */
   reinforce: [number, number][];
-  /** Guards each alarm stage sends in here (A3). */
+  /** Guards each alarm stage sends in here (A3): armed guards (`SECTOR_REINFORCE_KIND`, no heavies, G155). */
   perStage: number;
+  /**
+   * (sector-redesign G20, M10) How many dogs the section may have (default 0: none). Every dog needs a `handler`.
+   * Sector Ops only (M10 "Include guard dogs"); G155 (no dogs) still holds for the co-op missions elsewhere.
+   */
+  dogs?: number;
   /** The ways to the objective and on to the exit (M8: at least 2). */
   routes: SectorRoute[];
   /** (sector-fixes-r RT) Team doors: doors bolted from one side (the course's B2 rule); none when absent. */
@@ -105,6 +130,8 @@ export interface SectorDef {
 export interface SectorBolt {
   readonly at: readonly [number, number];
   readonly side: readonly [number, number];
+  /** (sector-fixes-r2) The door's width (m) along its plane; `BOLT_DOOR_W` when absent. */
+  readonly w?: number;
 }
 
 /** Reach (m) of a team door's "Unbolt" item (the course bolt's). */
@@ -113,6 +140,32 @@ export const BOLT_REACH = 1.6;
 /** Is (x, z) on a bolt's unbolting side: past the door plane through `at` along `side` (course F7)? */
 export function onBoltSide(b: SectorBolt, x: number, z: number): boolean {
   return (x - b.at[0]) * b.side[0] + (z - b.at[1]) * b.side[1] > 0;
+}
+
+/** (sector-fixes-r2) A team door's width (m) when its bolt gives none (the Warehouse's 1.2 doors). */
+export const BOLT_DOOR_W = 1.2;
+/** (sector-fixes-r2) How far (m) past the door's edge, along its plane, the "Unbolt" still reaches. */
+export const BOLT_SIDE_MARGIN = 0.3;
+/** (sector-fixes-r2) How far (m) out from the door plane, on the bolt side, the "Unbolt" reaches. */
+export const BOLT_DEPTH = 1.2;
+
+/** (sector-fixes-r2) Half the span (m) along the door plane from which a bolt can be worked: half the door plus the margin. */
+export function boltHalfSpan(b: SectorBolt): number {
+  return (b.w ?? BOLT_DOOR_W) / 2 + BOLT_SIDE_MARGIN;
+}
+
+/**
+ * (sector-fixes-r2) Can feet at (x, z) work the bolt: on its side (`onBoltSide`), within `BOLT_DEPTH` of the door
+ * plane and within `boltHalfSpan` of the door centre along the plane (so nobody unbolts it through the wall beside
+ * the door, from a corridor running past its end). `Interactables.nearest` applies the same test (`sideHalf`,
+ * `sideDepth`), so the prompt and the host agree.
+ */
+export function inBoltReach(b: SectorBolt, x: number, z: number): boolean {
+  const dx = x - b.at[0];
+  const dz = z - b.at[1];
+  const depth = dx * b.side[0] + dz * b.side[1];
+  const along = dz * b.side[0] - dx * b.side[1];
+  return depth > 0 && depth <= BOLT_DEPTH && Math.abs(along) <= boltHalfSpan(b);
 }
 
 const BOLT_ID = /^c-sbolt-(\d+)-(\d+)$/;
@@ -152,10 +205,10 @@ export class SectorBolts {
     return this.shut[sec]?.[k] === true;
   }
 
-  /** A player at (x, z) used bolt `k` of section `sec`: true when it unbolts (shut, and the feet on its side). */
+  /** A player at (x, z) used bolt `k` of section `sec`: true when it unbolts (shut, and the feet in reach, `inBoltReach`). */
   use(sec: number, k: number, x: number, z: number): boolean {
     const b = this.defs[sec]?.bolts?.[k];
-    if (!b || !this.isShut(sec, k) || !onBoltSide(b, x, z)) return false;
+    if (!b || !this.isShut(sec, k) || !inBoltReach(b, x, z)) return false;
     this.shut[sec]![k] = false;
     return true;
   }
@@ -244,7 +297,35 @@ export function checkSectors(defs: readonly SectorDef[]): string[] {
     d.bolts?.forEach((b, k) => {
       if (b.side[0] === 0 && b.side[1] === 0) out.push(`${d.id}: bolt ${k} side is zero`);
     });
+    out.push(...checkSectorGuards(d));
   }
+  return out;
+}
+
+/** (sector-redesign G3) The kind every alarm reinforcement spawns as: an armed guard, never a heavy (G155). */
+export const SECTOR_REINFORCE_KIND = 'grunt' as const;
+
+/**
+ * (sector-redesign G3 / G20) A section's guard list against the Sector Ops rules (empty when fine): every human guard
+ * carries a gun (M1 "they should all have weapons": no melee-only kinds such as the runner), no heavies (G155), at most
+ * `dogs` dogs (default 0), and each dog names a handler: another guard of the section, armed and human.
+ */
+export function checkSectorGuards(d: SectorDef): string[] {
+  const out: string[] = [];
+  let dogs = 0;
+  d.guards.forEach((g, k) => {
+    const def = ENEMIES[g.kind];
+    if (g.kind === 'heavy') out.push(`${d.id}: guard ${k} is a heavy (G155)`);
+    if (def.quadruped) {
+      dogs++;
+      const h = g.handler === undefined ? undefined : d.guards[g.handler];
+      if (!h) out.push(`${d.id}: dog ${k} has no handler`);
+      else if (g.handler === k || ENEMIES[h.kind].quadruped || !ENEMIES[h.kind].weapon) out.push(`${d.id}: dog ${k}'s handler ${g.handler} is not an armed human guard`);
+      return;
+    }
+    if (!def.weapon) out.push(`${d.id}: guard ${k} (${g.kind}) carries no gun (M1)`);
+  });
+  if (dogs > (d.dogs ?? 0)) out.push(`${d.id}: ${dogs} dogs, the section allows ${d.dogs ?? 0}`);
   return out;
 }
 

@@ -60,6 +60,32 @@ export function validateSecurity(d: SecurityData): string[] {
       if (span < 1) errs.push(`${dev.id}: sweep span under 1 deg`);
     }
   }
-  if (cams > SECURITY_LIMITS.cameras) errs.push(`${cams} cameras is over ${SECURITY_LIMITS.cameras} (SN60)`);
+  // (sector-redesign G1) SN60 caps the cameras live at once: per Sector Ops section (an untagged camera is live in
+  // every section), the whole map when none is tagged
+  const live = liveCameraPeak(d.devices);
+  if (live > SECURITY_LIMITS.cameras) errs.push(`${live} cameras live in one section is over ${SECURITY_LIMITS.cameras} (SN60)`);
+  if (cams > WIRE_CAMERAS) errs.push(`${cams} cameras on the map is over the co-op wire's ${WIRE_CAMERAS} (sec.ck)`);
   return errs;
+}
+
+/**
+ * (sector-redesign G1) The co-op `sec` field carries one sweep clock per camera of the map, at most this many
+ * (`SEC_CAMS` in `net/protocol.ts`; single player never imports `src/net`, so the number is mirrored here and a test
+ * holds the two equal). More cameras per map needs a wire change (clocks for the live section only) and a
+ * `PROTOCOL_VERSION` bump.
+ */
+export const WIRE_CAMERAS = 16;
+
+/** (sector-redesign G1) The most cameras live at once: untagged cameras plus the busiest section's own. */
+export function liveCameraPeak(devices: readonly SecurityDevice[]): number {
+  let always = 0;
+  const per = new Map<number, number>();
+  for (const dev of devices) {
+    if (dev.kind !== 'camera') continue;
+    if (dev.section === undefined) always++;
+    else per.set(dev.section, (per.get(dev.section) ?? 0) + 1);
+  }
+  let peak = 0;
+  for (const n of per.values()) peak = Math.max(peak, n);
+  return always + peak;
 }

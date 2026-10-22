@@ -1,10 +1,13 @@
-import type { SectorDef } from '../../game/sectors';
+import type { SectorBolt, SectorDef } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
 import type { LaserDef } from '../../game/jammer';
 import { S1_BOLTS } from './warehouseS1';
-import { S2_BOLTS } from './warehouseS2';
-import { S3_BOLTS } from './warehouseS3';
+import { S2_BOLTS, S2_THROUGH_BAY } from './warehouseS2';
+import { S3_BOLTS, S3_COOP } from './warehouseS3';
 import type { LaserPanelDef } from '../../game/laserPanels';
+
+/** (sector-fixes-r2) A section file's team doors with their door width (the unbolt reach spans the door, `inBoltReach`). */
+const withW = (bolts: readonly { at: readonly [number, number]; side: readonly [number, number] }[], w: number): SectorBolt[] => bolts.map((b) => ({ ...b, w }));
 
 /**
  * Sector Ops on the Warehouse (feature/sector-ops A12, M7, M8): three sections in a row from the Warehouse's own
@@ -36,7 +39,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       // 1 the gate officer: gate control for the 03:00 delivery
       { kind: 'officer', x: 9.0, z: -22.4, yaw: -2.53, takedownSpot: [9.0, -22.4] },
       // 2 the yard patrol: gatehouse to the front entrance, checking the entrance lock and the security window
-      { kind: 'runner', x: 10.5, z: -21.0, yaw: Math.PI, route: [[10.5, -21.0], [-6.5, -19.6]], wait: 3, waits: [4, 4], faces: [Math.PI, 0], takedownSpot: [-6.5, -19.9] },
+      { kind: 'grunt', x: 10.5, z: -21.0, yaw: Math.PI, route: [[10.5, -21.0], [-6.5, -19.6]], wait: 3, waits: [4, 4], faces: [Math.PI, 0], takedownSpot: [-6.5, -19.9] },
       // 3 the goods-in checker: staged pallets against the delivery notes (desk, east lane, the office door)
       { kind: 'officer', x: -21.6, z: -15.6, yaw: -Math.PI / 2, route: [[-21.6, -15.6], [-11.2, -15.4], [-19.0, -9.9]], wait: 4, waits: [5, 4, 4], faces: [-Math.PI / 2, 0, 0], takedownSpot: [-11.2, -15.4] },
       // 4 the CCTV operator: the monitors, the corridor, the kettle in the mess (under hatch h2)
@@ -53,7 +56,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     // alarm reinforcements come in at the vehicle gate
     reinforce: [[5.0, -25.0], [8.0, -25.0]],
     // (sector-fixes-r RT) team doors: bolted from one side (warehouseS1.ts builds the doors locked)
-    bolts: S1_BOLTS,
+    bolts: withW(S1_BOLTS, 1.2), // the mess back door (warehouseS1.ts MESS_DOOR.w)
     perStage: 2,
     routes: [
       {
@@ -106,7 +109,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       // 5 the picker: the 06:00 trade orders from R3's east face to the goods-out corner
       { kind: 'grunt', x: -7.4, z: 14.6, yaw: Math.PI, route: [[-7.4, 14.6], [-7.4, 0.5]], wait: 4, waits: [4, 4], faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [-7.4, 0.5] },
       // 6 the tour guard (a loop): clocks the west fire exit and the C2 lobby door, checks the VNA barrier; paused at (-14.6, 5.5) facing A2
-      { kind: 'runner', x: -23.2, z: 5.5, yaw: -Math.PI / 2, route: [[-23.2, 5.5], [-12.6, 5.5], [-12.6, -3.2], [-12.6, 5.5], [-14.6, 5.5]], wait: 4, waits: [4, 0, 2, 0, 7], faces: [-Math.PI / 2, 0, -2.4, 0, -Math.PI / 2], takedownSpot: [-14.6, 5.5] },
+      { kind: 'grunt', x: -23.2, z: 5.5, yaw: -Math.PI / 2, route: [[-23.2, 5.5], [-12.6, 5.5], [-12.6, -3.2], [-12.6, 5.5], [-14.6, 5.5]], wait: 4, waits: [4, 0, 2, 0, 12], faces: [-Math.PI / 2, 0, -2.4, 0, -Math.PI / 2], takedownSpot: [-14.6, 5.5] },
       // 7 the charge hand: night battery change for the reach and picking trucks (static)
       { kind: 'grunt', x: -5.3, z: -5.2, yaw: Math.PI / 2, takedownSpot: [-5.3, -5.2] },
       // 8 the loader: wraps and labels the picked orders for C3, facing the wrapper (static)
@@ -115,7 +118,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     // alarm reinforcements: the west fire exit and the charge bay
     reinforce: [[-22.5, 5.5], [-6.2, -5.0]],
     // (sector-fixes-r RT) team doors (warehouseS2.ts)
-    bolts: S2_BOLTS,
+    bolts: withW(S2_BOLTS, S2_THROUGH_BAY.z1 - S2_THROUGH_BAY.z0),
     perStage: 2,
     routes: [
       {
@@ -157,7 +160,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       // 3 the clerk: writes up the shift's job cards at his desk on the production office's north wall (static)
       { kind: 'officer', x: 18.6, z: 17.1, y: 3.3, yaw: 0, takedownSpot: [18.6, 17.1] },
       // 4 the tour guard (a loop): the stair foot, down the plant room's west side, clocks the east fire exit
-      { kind: 'runner', x: 21.5, z: 4.4, yaw: 0, route: [[21.5, 4.4], [14.9, 0.0], [15.0, -6.3], [23.0, -7.9], [15.0, -6.3], [14.9, 0.0]], wait: 4, waits: [4, 0, 0, 5, 0, 0], faces: [0, Math.PI, Math.PI / 2, Math.PI / 2, -Math.PI / 2, Math.PI / 2], takedownSpot: [23.0, -7.9] },
+      { kind: 'grunt', x: 21.5, z: 4.4, yaw: 0, route: [[21.5, 4.4], [14.9, 0.0], [15.0, -6.3], [23.0, -7.9], [15.0, -6.3], [14.9, 0.0]], wait: 4, waits: [4, 0, 0, 5, 0, 0], faces: [0, Math.PI, Math.PI / 2, Math.PI / 2, -Math.PI / 2, Math.PI / 2], takedownSpot: [23.0, -7.9] },
       // 5 the line supervisor: checks the CNC cell, pulls parts from the store for the next kit
       { kind: 'officer', x: 12.5, z: 4.9, yaw: Math.PI, route: [[12.5, 4.9], [17.0, 12.8], [15.6, 14.9], [12.0, 15.0], [15.6, 14.9], [17.0, 12.8]], wait: 5, waits: [5, 0, 0, 4, 0, 0], faces: [Math.PI, 0, -Math.PI / 2, -Math.PI / 2, Math.PI / 2, Math.PI], takedownSpot: [12.0, 15.0] },
       // 6 the fitter: runs the press (static); the press and its three screens hide him
@@ -171,7 +174,7 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     ],
     reinforce: [[-2.5, 10.5], [20.8, 6.5], [13, -7.0]],
     // (sector-fixes-r RT) team doors (warehouseS3.ts)
-    bolts: S3_BOLTS,
+    bolts: withW(S3_BOLTS, S3_COOP.lobbyDoor.w),
     perStage: 3,
     routes: [
       {

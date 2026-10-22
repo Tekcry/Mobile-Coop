@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { Vector3 } from '../src/core/babylon';
 import { Interactables, type Interactable } from '../src/game/interactables';
-import { BOLT_REACH, SectorBolts, boltById, boltItemId, checkSectors, onBoltSide, type SectorDef } from '../src/game/sectors';
+import { BOLT_DEPTH, BOLT_DOOR_W, BOLT_REACH, BOLT_SIDE_MARGIN, SectorBolts, boltById, boltHalfSpan, boltItemId, checkSectors, inBoltReach, onBoltSide, type SectorBolt, type SectorDef } from '../src/game/sectors';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
+import { LevelBuilder } from '../src/world/levelBuilder';
+import { warehouseOps } from '../src/world/maps/warehouseOps';
 
 /** (sector-fixes-r RT) Team doors in Sector Ops: the course's B2 bolt rule, host-authoritative. */
 
@@ -137,6 +139,59 @@ describe('data', () => {
           }
         }
       }
+    }
+  });
+});
+
+describe('(sector-fixes-r2) the unbolt reach spans the door only, not the wall beside it', () => {
+  const built = new LevelBuilder();
+  warehouseOps.build(built, 0);
+  const centre = (d: (typeof built.anchors.doors)[number]): [number, number] => [d.hinge.x + (Math.sin(d.yaw) * d.width) / 2, d.hinge.z + (Math.cos(d.yaw) * d.width) / 2];
+  const all: { s: number; k: number; b: SectorBolt }[] = [];
+  WAREHOUSE_SECTORS.forEach((d, s) => d.bolts?.forEach((b, k) => all.push({ s, k, b })));
+  /** The item the mode builds (findBolts) and the client mirrors (syncItems): side, span and depth from the bolt. */
+  const itemFor = (s: number, k: number, b: SectorBolt): Interactable => ({ id: boltItemId(s, k), kind: 'door', pos: new Vector3(b.at[0], 0, b.at[1]), label: 'Unbolt', holdTime: 0, enabled: true, done: false, progress: 0, node: null as never, parts: [], light: null, reach: BOLT_REACH, side: b.side, sideHalf: boltHalfSpan(b), sideDepth: BOLT_DEPTH });
+  /** Host and prompt agree at (x, z): both accept or both refuse; returns the verdict. */
+  const verdict = (s: number, k: number, b: SectorBolt, x: number, z: number): boolean => {
+    const host = new SectorBolts(WAREHOUSE_SECTORS).use(s, k, x, z);
+    const ints = new Interactables(null as never, null as never);
+    const it = itemFor(s, k, b);
+    ints.items.push(it);
+    expect(ints.nearest(new Vector3(x, 0, z)) === it, `prompt and host disagree at (${x}, ${z})`).toBe(host);
+    expect(inBoltReach(b, x, z)).toBe(host);
+    return host;
+  };
+
+  it('every Warehouse team door has three bolts in all, and each w is the built door width', () => {
+    expect(all.length).toBe(3);
+    for (const { b } of all) {
+      const door = built.anchors.doors.find((d) => Math.hypot(centre(d)[0] - b.at[0], centre(d)[1] - b.at[1]) < 0.05);
+      expect(door, `door at ${b.at.join(', ')}`).toBeTruthy();
+      expect(b.w, `bolt at ${b.at.join(', ')} has a width`).toBeDefined();
+      expect(b.w!).toBeCloseTo(door!.width, 6);
+    }
+  });
+
+  it('S1: the corridor past the mess door (through the z -10.8 wall) cannot unbolt it', () => {
+    const { s, k, b } = all.find((q) => q.s === 0)!;
+    expect(onBoltSide(b, 7.55, -11.15)).toBe(true);
+    expect(verdict(s, k, b, 7.55, -11.15)).toBe(false);
+  });
+
+  it('each door: straight in front unbolts; just past half the door + the margin does not; nor too far out', () => {
+    for (const { s, k, b } of all) {
+      const tx = -b.side[1];
+      const tz = b.side[0];
+      const half = boltHalfSpan(b);
+      expect(half).toBeCloseTo((b.w ?? BOLT_DOOR_W) / 2 + BOLT_SIDE_MARGIN, 9);
+      const at = (depth: number, along: number): [number, number] => [b.at[0] + b.side[0] * depth + tx * along, b.at[1] + b.side[1] * depth + tz * along];
+      expect(verdict(s, k, b, ...at(0.6, 0))).toBe(true);
+      expect(verdict(s, k, b, ...at(0.6, half - 0.05))).toBe(true);
+      expect(verdict(s, k, b, ...at(0.6, -(half - 0.05)))).toBe(true);
+      expect(verdict(s, k, b, ...at(0.6, half + 0.05))).toBe(false);
+      expect(verdict(s, k, b, ...at(0.6, -(half + 0.05)))).toBe(false);
+      expect(verdict(s, k, b, ...at(BOLT_DEPTH + 0.05, 0))).toBe(false);
+      expect(verdict(s, k, b, ...at(-0.6, 0))).toBe(false);
     }
   });
 });
