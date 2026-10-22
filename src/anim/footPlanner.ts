@@ -884,7 +884,8 @@ export class FootPlanner {
         }
       }
     }
-    for (const side of [-1, 1] as const) {
+    for (let si = 0; si < 2; si++) {
+      const side: -1 | 1 = si === 0 ? -1 : 1;
       const f = side < 0 ? this.L : this.R;
       const strike = side < 0 ? 0 : 0.5;
       const sinceStrike = (((i.phase - strike) % 1) + 1) % 1;
@@ -1077,7 +1078,8 @@ export class FootPlanner {
     // frame later: the two planted feet never stand wider than the band (a 120 Hz crouched flick 180 stood 24 cm wide for
     // that frame, master 19.6)
     if (this.turnOn && i.stride === 'facing' && Number.isNaN(i.wallD)) {
-      for (const side of [-1, 1] as const) {
+      for (let si = 0; si < 2; si++) {
+        const side: -1 | 1 = si === 0 ? -1 : 1;
         const f = side < 0 ? this.L : this.R;
         const o = side < 0 ? this.R : this.L;
         if (f.contact && !f.landed && o.landed && this.outOfBand(f, i, side) && !this.clipHeld(f, i, side)) {
@@ -1270,7 +1272,8 @@ export class FootPlanner {
     const dt = i.dt;
     // (G1, audit row 29) crouched the idle steps are slower and more deliberate (CT ~1 step per 0.5 s)
     const idleT = PLANNER.idleStepTime + (PLANNER.idleStepCrouch - PLANNER.idleStepTime) * (i.crouch < 0 ? 0 : i.crouch > 1 ? 1 : i.crouch);
-    for (const side of [-1, 1] as const) {
+    for (let si = 0; si < 2; si++) {
+      const side: -1 | 1 = si === 0 ? -1 : 1;
       const f = side < 0 ? this.L : this.R;
       // (G1) a heel raised at the end of a stance comes back down once still (~0.15 s)
       if (f.contact && f.roll <= 0 && f.pitch > 0) f.pitch = f.pitch < 1e-3 ? 0 : f.pitch * Math.exp(-dt / 0.05);
@@ -1295,7 +1298,8 @@ export class FootPlanner {
     if (!this.L.contact || !this.R.contact) return;
     // pinned (a remote's feet on the owner's): a planted foot off its pin steps onto it
     if (this.pinned(i, -1) || this.pinned(i, 1)) {
-      for (const side of [-1, 1] as const) {
+      for (let si = 0; si < 2; si++) {
+        const side: -1 | 1 = si === 0 ? -1 : 1;
         const f = side < 0 ? this.L : this.R;
         if (!this.pinned(i, side) || !f.contact) continue;
         const px = side < 0 ? i.pinLX : i.pinRX;
@@ -1331,7 +1335,8 @@ export class FootPlanner {
     let worstErr = 0;
     let errL = 0;
     let errR = 0;
-    for (const side of [-1, 1] as const) {
+    for (let si = 0; si < 2; si++) {
+      const side: -1 | 1 = si === 0 ? -1 : 1;
       const f = side < 0 ? this.L : this.R;
       this.ideal(i, side, i.rootX, i.rootZ, i.goalYaw);
       // a relaxed stance tolerates a front-back stagger (a stop's settling step leaves one), not a
