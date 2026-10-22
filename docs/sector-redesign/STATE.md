@@ -9,7 +9,7 @@
 - Lighting: the shared proposal docs/lighting-review/PROPOSAL.md lands on origin/feature/marlow-final (Menu Notes'
   lighting agent); add a Sector Ops section there once it lands.
 - Questions Q1-Q5 sent to Michael through the orchestrator ~01:50; unanswered by ~02:05 -> assumptions in BRIEF.
-- r2 findings for the spec: docs/sector-fixes/r/R2-PATHS.md (origin/feature/sector-fixes-r2-paths ff3442e1: the
+- r2 findings for the spec: R2-PATHS.md (origin/feature/sector-fixes-r2-paths ff3442e1: "pair bolt"; pockets do not fit the current halls) and R2-JUMP.md + the green soloTopLandingReach / soloTopLandingThreats helper (origin/feature/sector-fixes-r2-jump 7306dce9; take tests/helpers/soloJumpReach.ts + tests/soloJumpReach.test.ts from there, not the warehouseS2 change).
   "pair bolt" design, pockets do not fit the current halls) and R2-JUMP.md (origin/feature/sector-fixes-r2-jump).
 
 ## Next

@@ -38,6 +38,15 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
 - Hard rules (CLAUDE.md): no runtime network, light parity, gameplay never reads graphics state, hot paths allocate nothing.
 - Sector Ops stays low priority for the laptop behind Marlow Yard and mocap.
 
+## Michael's answers (2026-10-23, through the orchestrator; M2-M5 above are his 01:40 answers)
+- M6 (Q1 setting): "Corporate research campus".
+- M7 (Q2 run length): "30-45 min" (one co-op run).
+- M8 (Q3 guards): "up to 24, each section should gradually get harder with more guards and more security." S1 low,
+  rising to 24 in S5. Read the guard-cap report (12 / 16 / 24 awake) and flag perf risk; do not cut the count.
+- M9 (Q4 lighting, not asked; the orchestrator took it from M1 "there shouldnt always be shadows, the player may have
+  to make shadows (disabling lights etc)"): lit like a real site, players cut lights, dark zones only where believable.
+- M10 (Q5 security tools): "Include guard dogs": cameras, lasers, alarm panels, keypads, then dogs and armed response.
+
 ## Questions sent to Michael (~01:50, through the orchestrator)
 Q1 setting, Q2 run length, Q3 guards per section, Q4 lighting default, Q5 security tools. Answers land here as M6+;
 unanswered by ~02:05 -> assumed decisions below.
