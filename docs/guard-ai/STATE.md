@@ -8,7 +8,7 @@ own PR (node_modules junction -> C:/NightShift/Mobile-Coop/node_modules; remove 
 before `git worktree remove`):
 - S4 awareness / caution: C:/NightShift/Mobile-Coop-guard-ai-s4, feature/guard-ai-s4, Opus implementer RUNNING
   (report slices/S4.md, BRIEF A14-A16).
-- S5 posts + map data: C:/NightShift/Mobile-Coop-guard-ai-s5, feature/guard-ai-s5, Opus implementer RUNNING
+- S5 posts + map data: C:/NightShift/Mobile-Coop-guard-ai-s5, feature/guard-ai-s5, BUILT 80efb8b4 (pushed); fresh checker RUNNING (S5-CHECK.md); e2e asked of Character Build after s7; S5.md has the note for the map teams (send it after the check); open: revive loses the post (S4 merge carries postDef / postYaw / section / profile)
   (slices/S5.md, A17-A19).
 - S7 cameras see bodies: C:/NightShift/Mobile-Coop-guard-ai-s7, feature/guard-ai-s7, BUILT 084e373c (pushed); fresh checker RUNNING (S7-CHECK.md); e2e asked of Character Build (sectorops, ctcourse, stealth-ai, ct-warehouse)
   (slices/S7.md, A20-A22).
@@ -19,7 +19,7 @@ If the window cut them off: in each worktree `git status`, read slices/S<n>.md i
 finishes from the WIP (same brief: the module report's wiring list) or a checker if done. Then per slice: commit,
 push, fresh Opus checker, e2e on a free GPU lane (desktop 4192 heavy2.lock or laptop Character Build [06fe56],
 E2E_GPU=1, PLAN row suites), PR, message the orchestrator. S10 pairs after S5 (patrol overlap); S5b and S6 after S5;
-S9 only if needed (protocol 32).
+S9 only if needed (protocol 32). Next agents (when desktop CPU < 90%): S5b and S6 off feature/guard-ai-s5, then S10.
 
 (~08:40, account swap 2) #185 S2: master 4.68.0 merged (a0554459; conflict stealthSystems.shootLight = S2's
 `lightsOut(x, z, y, id)` before the noise + master's `return true`); no wire change, so no protocol (registry: master
