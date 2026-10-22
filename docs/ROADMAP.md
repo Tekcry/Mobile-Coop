@@ -30,6 +30,7 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Mocap locomotion (2026-10-22 ~23:20, after the side-by-side sheets and videos, feature/mocap-sheets-real docs/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to the old limits (walk pelvis bob 5.5-6.6 cm vs bible D2 4 cm, walk knee-out 3.5 cm, run wrist swing 24 cm vs his 85 cm hand-keyed tune); checkers report those as notes, not fails. Fix rounds still fix pops and slides.
 - Laptop 3 browsers (2026-10-22 ~22:32; trial: full run 443 s vs 740 s, one load-only netmove compare miss): "Keep 3, fix the test" (JOBS=3 plus the second slot; the netmove compare moves to sim time).
 - (Vent hold-jump to unscrew, T1 A1: pending Michael's walk, Waiting item 7.)
 Entries from 2026-10-21 ~07:30 to 2026-10-22 ~21:40 are now DECISIONS G229-G269 (PR #146, 4.58.3; its body maps each entry). New entries go above this line.
@@ -97,11 +98,11 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 ## Now
 | Session | Machine | Doing | Next |
 | --- | --- | --- | --- |
-| Orchestrator | desktop | trains, reviews, pacing (full burn), bottlenecks | train 6: #119, #122, #123, #127, #128, #129, #131 + orchestrator docs |
-| CT Core Build | desktop agents, overflow to 100% | anim-natural N1 feet (jog / run 180 timing), N2 body motion steps 3-5, #123 anim-bake-all | N1 and N2 PRs (train 7) |
-| Menu Notes Build | desktop agents | #122 N3b, #127 sector-fixes C, #129 sector-fixes L, N0 pass 2 leftovers | sector-fixes P (laser panels) |
-| Course Ready Build | desktop agents | #119 N4b (ladder fix), #128 heap asserts, studio-pairs (fix 12), sector-fixes R (co-op routes) | R PR |
-| Character Build | laptop: MAIN test machine, two logic slots (4191, 4192) + GPU (4189) | run requests, trains, GPU runs; gap job test-speed-2 | full run ~15 min |
+| Orchestrator | desktop | trains, reviews, pacing (full burn), bottlenecks | train 11 (#144, #150, #154) release; train 8 (#119 + #138) build |
+| CT Core Build | desktop agents, overflow to 100% | mocap-trial fix round (pops only; "Mocap, as captured"), #138 N2 fix round (e2e-anim knees, e2e-clip crouched holstered) | #138 sha for train 8; mocap-trial PR |
+| Menu Notes Build | desktop agents | vol-cone-fix (#152 general fix; checker PASS, flood reshoot), mocap-sheets (start / stop rows) | vol-cone-fix PR |
+| Course Ready Build | desktop agents | #144 R and #154 netmove-compare done (train 11) | lightField heap check under load; mocap checker on CT Core's fix sha |
+| Character Build | laptop: MAIN test machine, GPU full slot (4189, JOBS=3) + second slot (4192) | train 11 full run, vol-cone-fix shots, #149 master merge | train 8 full run |
 
 ## Next (in order)
 1. **Animation**: train 8 (train/8 4cc73665: #119 N4b, #135 N1, #138 N2) on the laptop GPU; the CMU **mocap-trial** (CT Core, top priority) with a side-by-side for Michael; N4c (Menu Notes). Michael calls the current animations broken (2026-10-22 ~20:45).
