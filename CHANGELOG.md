@@ -10,6 +10,9 @@
   clipped (its knees sit wider than the rig's proxy knees); only the capsules overlapped. Wren rigs only (guard and
   dog rigs unchanged, bit-identical). Headless 2.36 -> 0.3 cm. The 0.3 idle track tried first is reverted.
 
+## 4.54.1 - Load-flaky e2e asserts hold under E2E_JOBS=2 (test only) (2026-10-22, PR #117)
+- Four load-flaky e2e asserts hold under E2E_JOBS=2 (test only): e2e-stealth-ai head-only peek spot, e2e-netmove client assists, e2e-mouse capture timeout, e2e-ctcourse station 4 throw; details in `docs/backlog.md`.
+
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
 ### #103 Body sliders bake
