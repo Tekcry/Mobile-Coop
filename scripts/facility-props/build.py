@@ -137,9 +137,10 @@ def monitor_wall():
     p = 'monitorWall'
     box(p, 'steelDark', (-1.85, 0.0, 0.0), (1.85, 0.48, 0.35), 0.01)          # plinth / cable trunking
     box(p, 'plastic', (-1.80, 0.44, 0.30), (1.80, 0.46, 0.352))               # trunking lid line
+    # frame posts and head as deep as the screens' backs (the collision box behind the screens: PROP_COLLISION)
     for s in (-1, 1):
-        box(p, 'steelDark', (min(s * 1.85, s * 1.80), 0.48, 0.02), (max(s * 1.85, s * 1.80), 2.60, 0.20))
-    box(p, 'steelDark', (-1.85, 2.55, 0.02), (1.85, 2.60, 0.20))
+        box(p, 'steelDark', (min(s * 1.85, s * 1.80), 0.48, 0.0), (max(s * 1.85, s * 1.80), 2.60, 0.115))
+    box(p, 'steelDark', (-1.85, 2.55, 0.0), (1.85, 2.60, 0.115))
     w, h, gap = 1.21, 0.68, 0.006
     for col in range(3):
         for row in range(3):
@@ -188,11 +189,11 @@ def server_rack():
     box(p, 'plastic', (-w, 0.0, -d + 0.02), (w, 0.08, d - 0.02))              # plinth
     box(p, 'steelDark', (-w + 0.02, 0.08, -d), (w - 0.02, h - 0.04, -d + 0.02))   # rear door
     # front door: frame + perforated panel; the servers' faces sit behind it
-    box(p, 'plastic', (-w + 0.03, 0.12, d - 0.06), (w - 0.03, h - 0.08, d - 0.05))   # server faces / blanking
-    for k in range(9):   # LED lines (one per group of servers), staggered lengths
-        y = 0.30 + k * 0.2
+    box(p, 'plastic', (-w + 0.03, 0.12, d - 0.05), (w - 0.03, h - 0.08, d - 0.04))   # server faces / blanking
+    for k in range(6):   # LED lines (one per group of servers), staggered lengths
+        y = 0.35 + k * 0.3
         x1 = -0.22 + (0.08 if k % 3 == 0 else 0.16 if k % 3 == 1 else 0.12)
-        box(p, 'lamp', (-0.22, y, d - 0.05), (x1, y + 0.012, d - 0.047))
+        box(p, 'lamp', (-0.22, y, d - 0.04), (x1, y + 0.012, d - 0.037))
     for s in (-1, 1):
         box(p, 'steelDark', (min(s * (w - 0.02), s * (w - 0.06)), 0.08, d - 0.02), (max(s * (w - 0.02), s * (w - 0.06)), h - 0.04, d))
     box(p, 'steelDark', (-w + 0.06, 0.08, d - 0.02), (w - 0.06, 0.16, d))
@@ -205,7 +206,7 @@ RACK_PITCH = 2.7    # beam length + one frame (m)
 RACK_FRAME = 0.09   # upright face width (m)
 RACK_DEPTH = 1.1    # frame depth (m)
 RACK_H = 5.4
-RACK_BEAMS = (1.6, 3.2, 4.8)   # beam tops (m)
+RACK_BEAMS = (1.5, 3.0, 4.5)   # beam tops (m): three loaded levels over a floor level, loads to 5.4 under the frame top
 
 
 def rack_frame(p, x):
@@ -213,7 +214,7 @@ def rack_frame(p, x):
     hd = RACK_DEPTH / 2
     for s in (-1, 1):
         box(p, 'rackBlue', (x - RACK_FRAME / 2, 0.0, min(s * hd, s * (hd - 0.07))), (x + RACK_FRAME / 2, RACK_H, max(s * hd, s * (hd - 0.07))))
-        box(p, 'galv', (x - 0.09, 0.0, min(s * hd, s * (hd - 0.12)) - 0.02), (x + 0.09, 0.01, max(s * hd, s * (hd - 0.12)) + 0.02))  # foot plate
+        box(p, 'galv', (x - 0.05, 0.0, min(s * hd, s * (hd - 0.12)) - 0.02), (x + 0.05, 0.01, max(s * hd, s * (hd - 0.12)) + 0.02))  # foot plate
     inner = RACK_DEPTH - 0.14
     panel = 1.2
     n = int(RACK_H // panel)
@@ -252,8 +253,9 @@ def pallet_rack_bay(rng):
         for k, x in enumerate((-0.6, 0.6)):
             if li == len(levels) - 1 and k == 1:
                 continue   # one empty slot up top reads as a working warehouse
-            room = (RACK_BEAMS[li] - 0.12 - y if li < len(RACK_BEAMS) else RACK_H + 0.4 - y) - 0.29
-            h = min(room, 0.9 + 0.35 * rng.random())
+            # clear height to the next beam's underside (top level: the frame top), less the pallet and a 0.15 lift gap
+            room = (RACK_BEAMS[li] - 0.12 - y if li < len(RACK_BEAMS) else RACK_H - y) - 0.145 - 0.15
+            h = min(room, 0.75 + 0.35 * rng.random())
             pallet(p, x, y, 0.0, 'wrap' if rng.random() < 0.45 else 'cardboard', h)
 
 
@@ -348,11 +350,11 @@ def pump_unit():
     for sx in (-1, 1):                                                        # motor stool posts
         for sz in (-1, 1):
             box(p, 'pumpPaint', (sx * 0.36 - 0.05, 2.22, sz * 0.36 - 0.05), (sx * 0.36 + 0.05, 2.78, sz * 0.36 + 0.05))
-    box(p, 'safety', (-0.30, 2.30, -0.30), (0.30, 2.70, 0.30))                # coupling guard
+    box(p, 'safety', (-0.34, 2.22, -0.34), (0.34, 2.78, 0.34))                # coupling guard (covers the column box)
     cyl(p, 'pumpPaint', (0.0, 2.78 + 0.03, 0.0), 0.52, 0.06, segs=14)         # motor flange
     cyl(p, 'pumpPaint', (0.0, 2.84 + 0.48, 0.0), 0.50, 0.96, segs=14)         # motor
     cyl(p, 'steelDark', (0.0, 3.80 + 0.10, 0.0), 0.46, 0.20, segs=14, r2=0.40)  # fan cowl
-    box(p, 'pumpPaint', (-0.14, 3.0, 0.48), (0.14, 3.3, 0.66))                # terminal box (+z)
+    box(p, 'pumpPaint', (-0.14, 3.0, 0.46), (0.14, 3.3, 0.60))                # terminal box (+z)
     for sx in (-1, 1):
         box(p, 'safety', (sx * 0.30 - 0.03, 3.80, -0.03), (sx * 0.30 + 0.03, 3.95, 0.03))   # lifting eyes
 
@@ -376,71 +378,91 @@ def bank_counter():
     (low cover)."""
     p = 'bankCounter'
     box(p, 'oak', (-1.2, 0.10, -0.4), (1.2, 1.16, 0.38))                      # carcass
-    box(p, 'iron', (-1.2, 0.0, -0.38), (1.2, 0.10, 0.36))                     # plinth (recessed)
+    box(p, 'iron', (-1.2, 0.0, -0.39), (1.2, 0.10, 0.37))                     # plinth (recessed 1 cm)
     box(p, 'marble', (-1.2, 1.16, -0.4), (1.2, 1.2, 0.425), 0.006)            # top
     for k in range(3):                                                        # raised panels
         cx = (k - 1) * 0.78
         box(p, 'oak', (cx - 0.32, 0.25, 0.38), (cx + 0.32, 1.02, 0.40), 0.006)
     box(p, 'oak', (-1.2, 1.06, 0.38), (1.2, 1.12, 0.395))                     # top rail moulding
-    cyl(p, 'brass', (0.0, 0.17, 0.52), 0.022, 2.3, axis='x', segs=8)          # foot rail (12 cm out at the floor)
+    cyl(p, 'brass', (0.0, 0.17, 0.47), 0.022, 2.3, axis='x', segs=8)          # foot rail (9 cm out at the floor)
     for x in (-0.9, 0.9):
-        box(p, 'brass', (x - 0.015, 0.12, 0.40), (x + 0.015, 0.19, 0.52))
+        box(p, 'brass', (x - 0.015, 0.12, 0.38), (x + 0.015, 0.19, 0.47))
 
 
 VAULT_W, VAULT_H = 1.4, 2.2     # clear opening (m)
+VAULT_D = 0.35                  # frame half depth (m): 0.7 deep, centred on the wall's middle plane
 VAULT_T = 0.5                   # leaf thickness (m)
+# the leaf's hinge axis in the frame's frame (x, z): on the +z face, beside the -x jamb (facilityProps.ts VAULT_HINGE)
+VAULT_HINGE = (-0.78, 0.43)
 
 
 def vault_door():
-    """Vault door frame (A8): a heavy steel surround (2.4 x 2.8 outer, 0.7 deep) round a 1.4 x 2.2 opening with a
-    threshold plate and two hinge knuckles on the -x side; the leaf is `vaultLeaf`. Centred on the wall's middle
-    plane, opening centred on x 0."""
+    """Vault door frame (A8; a Victorian strongroom door is rectangular): a heavy steel surround (2.4 x 2.8 outer, 0.7
+    deep) round a 1.4 x 2.2 opening, a threshold plate, a bright steel reveal round the face opening, two hinge knuckles
+    on the -x side of the +z face (the leaf `vaultLeaf` turns about them), a brass maker's plate. Centred on the wall's
+    middle plane, opening centred on x 0."""
     p = 'vaultDoor'
-    hw, d = VAULT_W / 2, 0.35
+    hw, d = VAULT_W / 2, VAULT_D
     box(p, 'iron', (-1.2, 0.0, -d), (-hw, 2.8, d), 0.02)
     box(p, 'iron', (hw, 0.0, -d), (1.2, 2.8, d), 0.02)
     box(p, 'iron', (-hw, VAULT_H, -d), (hw, 2.8, d), 0.02)
     box(p, 'steel', (-hw, 0.0, -d), (hw, 0.02, d))                            # threshold
-    box(p, 'steel', (-hw - 0.06, -0.0, d), (hw + 0.06, VAULT_H + 0.06, d + 0.02))   # bright reveal round the face
-    for y in (0.45, 1.75):
-        cyl(p, 'steel', (-hw - 0.08, y, d + 0.08), 0.09, 0.34, segs=10)
-    box(p, 'brass', (-0.3, 2.42, d + 0.02), (0.3, 2.6, d + 0.03))             # maker's plate
+    for s in (-1, 1):                                                         # bright reveal round the face opening
+        box(p, 'steel', (min(s * hw, s * (hw + 0.06)), 0.0, d), (max(s * hw, s * (hw + 0.06)), VAULT_H + 0.06, d + 0.02))
+    box(p, 'steel', (-hw, VAULT_H, d), (hw, VAULT_H + 0.06, d + 0.02))
+    hx, hz = VAULT_HINGE
+    for y in (0.45, 1.75):                                                    # hinge knuckles
+        cyl(p, 'steel', (hx, y, hz), 0.07, 0.30, segs=10)
+        box(p, 'iron', (hx - 0.06, y - 0.12, d), (-hw - 0.06, y + 0.12, hz))  # knuckle plates on the face
+    box(p, 'brass', (-0.3, 2.42, d), (0.3, 2.6, d + 0.01))                    # maker's plate
 
 
 def vault_leaf():
-    """Vault door leaf (A8), hinge axis at the origin: the leaf runs along +x to 1.4, 0.5 thick centred on z 0, with a
-    stepped inner plug (the door's back, -z), five locking bolts on the lock edge, a spoked brass hand wheel and a dial
-    on the face (+z), the time-lock box on the back, hinge arms to the axis. The renderer turns it by its door's open
-    state about +y."""
+    """Vault door leaf (A8), its origin on the hinge axis (`VAULT_HINGE` of the frame), modelled shut in the frame's
+    frame and shifted: a 0.25 m face slab filling the opening, a stepped inner plug behind it, five locking bolts out of
+    the lock edge (+x, into the jamb when shut), a spoked brass hand wheel, a combination dial and a name plate on the
+    face (+z), the time-lock box with its ready lamp on the back (-z), hinge arms out to the knuckles. The renderer turns
+    it about +y by its door's open state (outward, to the frame's +z side: PROP_SWING)."""
     p = 'vaultLeaf'
-    w, h, t = VAULT_W, VAULT_H, VAULT_T
-    box(p, 'iron', (0.02, 0.02, 0.0), (w - 0.02, h - 0.02, t / 2), 0.03)       # face slab
-    box(p, 'steel', (0.10, 0.10, -t / 2), (w - 0.10, h - 0.10, 0.0))           # inner plug
-    for k in range(5):                                                       # locking bolts (out on the lock edge)
-        y = 0.35 + k * (h - 0.7) / 4
-        cyl(p, 'steel', (w - 0.08, y, -0.12), 0.05, 0.22, axis='x', segs=8)
-    cx, cy, cz = w / 2 + 0.08, 1.15, t / 2
-    cyl(p, 'brass', (cx, cy, cz + 0.05), 0.07, 0.10, axis='z', segs=10)       # wheel hub
-    for k in range(4):
-        obox(p, 'brass', (cx, cy, cz + 0.08), (0.5, 0.025, 0.025), roll=k * math.pi / 4)   # spokes
-    for k in range(8):                                                       # rim as an octagon of bars
+    hx, hz = VAULT_HINGE
+
+    def vb(mat, lo, hi, bevel=0.0):
+        box(p, mat, (lo[0] - hx, lo[1], lo[2] - hz), (hi[0] - hx, hi[1], hi[2] - hz), bevel)
+
+    def vc(mat, c, r, h, **kw):
+        cyl(p, mat, (c[0] - hx, c[1], c[2] - hz), r, h, **kw)
+
+    def vo(mat, c, s, **kw):
+        obox(p, mat, (c[0] - hx, c[1], c[2] - hz), s, **kw)
+
+    hw, t = VAULT_W / 2, VAULT_T / 2
+    vb('iron', (-hw + 0.02, 0.02, 0.0), (hw - 0.02, VAULT_H - 0.02, t), 0.03)          # face slab
+    vb('steel', (-hw + 0.10, 0.10, -t), (hw - 0.10, VAULT_H - 0.10, 0.0))              # inner plug
+    for k in range(5):                                                                 # locking bolts
+        y = 0.35 + k * (VAULT_H - 0.7) / 4
+        vc('steel', (hw - 0.03, y, -0.12), 0.05, 0.16, axis='x', segs=8)
+    cx, cy, cz = 0.0, 1.15, t
+    vc('brass', (cx, cy, cz + 0.05), 0.07, 0.10, axis='z', segs=10)                   # wheel hub
+    for k in range(4):                                                                 # spokes
+        vo('brass', (cx, cy, cz + 0.08), (0.5, 0.025, 0.025), roll=k * math.pi / 4)
+    for k in range(8):                                                                 # rim: an octagon of bars
         a = k * math.pi / 4 + math.pi / 8
-        obox(p, 'brass', (cx + 0.25 * math.cos(a), cy + 0.25 * math.sin(a), cz + 0.08), (0.035, 0.21, 0.035), roll=a)
-    cyl(p, 'steel', (cx, 1.62, cz + 0.02), 0.08, 0.04, axis='z', segs=12)    # combination dial
-    box(p, 'brass', (cx - 0.25, 0.55, cz), (cx + 0.25, 0.68, cz + 0.008))     # name plate
-    box(p, 'steel', (0.45, 1.2, -t / 2 - 0.12), (1.0, 1.65, -t / 2))          # time-lock box on the back
-    box(p, 'lamp', (0.55, 1.5, -t / 2 - 0.122), (0.6, 1.55, -t / 2 - 0.12))   # its ready lamp
-    for y in (0.45, 1.75):
-        box(p, 'iron', (-0.06, y - 0.08, 0.05), (0.06, y + 0.08, t / 2 + 0.08))   # hinge arms
+        vo('brass', (cx + 0.25 * math.cos(a), cy + 0.25 * math.sin(a), cz + 0.08), (0.035, 0.21, 0.035), roll=a)
+    vc('steel', (cx, 1.62, cz + 0.02), 0.08, 0.04, axis='z', segs=12)                  # combination dial
+    vb('brass', (cx - 0.25, 0.55, cz), (cx + 0.25, 0.68, cz + 0.008))                  # name plate
+    vb('steel', (-0.25, 1.2, -t - 0.12), (0.30, 1.65, -t))                              # time-lock box on the back
+    vb('lamp', (-0.15, 1.5, -t - 0.122), (-0.10, 1.55, -t - 0.12))                      # its ready lamp
+    for y in (0.45, 1.75):                                                             # hinge arms to the knuckles
+        vb('iron', (hx - 0.05, y - 0.08, t - 0.02), (-hw + 0.12, y + 0.08, hz + 0.05))
 
 
 def beam_tower():
     """IR beam tower (A5 cable gateway): a square aluminium column on a base plate, a black IR-pass window up both
     faces (+z, -z) with three lens heads each, a hood cap. 0.22 x 0.22 x 2.4."""
     p = 'beamTower'
-    box(p, 'galv', (-0.16, 0.0, -0.16), (0.16, 0.015, 0.16))                  # base plate
+    box(p, 'galv', (-0.13, 0.0, -0.13), (0.13, 0.015, 0.13))                  # base plate
     box(p, 'galv', (-0.09, 0.015, -0.09), (0.09, 2.32, 0.09), 0.008)          # column
-    box(p, 'plastic', (-0.11, 2.32, -0.11), (0.11, 2.40, 0.11), 0.01)         # hood cap
+    box(p, 'plastic', (-0.11, 2.32, -0.11), (0.11, 2.40, 0.11))               # hood cap
     for s in (-1, 1):
         z0, z1 = sorted((s * 0.09, s * 0.096))
         box(p, 'plastic', (-0.065, 0.25, z0), (0.065, 2.25, z1))              # IR-pass window

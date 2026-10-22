@@ -1,0 +1,308 @@
+{
+ "pieces": {
+  "monitorWall": {
+   "meshes": {
+    "steelDark": 80,
+    "plastic": 120,
+    "screen": 108,
+    "lamp": 24
+   },
+   "triangles": 332,
+   "bounds": {
+    "min": [
+     -1.85,
+     0.0,
+     -0.0
+    ],
+    "max": [
+     1.85,
+     2.6,
+     0.354
+    ]
+   }
+  },
+  "securityDesk": {
+   "meshes": {
+    "steelDark": 44,
+    "steel": 36,
+    "plastic": 176,
+    "screen": 36,
+    "lamp": 12
+   },
+   "triangles": 304,
+   "bounds": {
+    "min": [
+     -1.2,
+     0.0,
+     -0.45
+    ],
+    "max": [
+     1.2,
+     1.24,
+     0.45
+    ]
+   }
+  },
+  "serverRack": {
+   "meshes": {
+    "steelDark": 128,
+    "plastic": 36,
+    "lamp": 72,
+    "mesh": 12,
+    "steel": 12
+   },
+   "triangles": 260,
+   "bounds": {
+    "min": [
+     -0.3,
+     0.0,
+     -0.6
+    ],
+    "max": [
+     0.3,
+     2.202,
+     0.625
+    ]
+   }
+  },
+  "palletRackBay": {
+   "meshes": {
+    "rackBlue": 24,
+    "galv": 132,
+    "rackOrange": 72,
+    "timber": 336,
+    "wrap": 36,
+    "cardboard": 48
+   },
+   "triangles": 648,
+   "bounds": {
+    "min": [
+     -1.4,
+     0.0,
+     -0.6
+    ],
+    "max": [
+     1.305,
+     5.4,
+     0.6
+    ]
+   }
+  },
+  "palletRackEnd": {
+   "meshes": {
+    "rackBlue": 24,
+    "galv": 132
+   },
+   "triangles": 156,
+   "bounds": {
+    "min": [
+     -0.05,
+     0.0,
+     -0.57
+    ],
+    "max": [
+     0.05,
+     5.4,
+     0.57
+    ]
+   }
+  },
+  "boxVan": {
+   "meshes": {
+    "vanBody": 36,
+    "vanRoof": 20,
+    "iron": 888
+   },
+   "triangles": 944,
+   "bounds": {
+    "min": [
+     -5.0,
+     0.0,
+     -1.31
+    ],
+    "max": [
+     5.0,
+     3.4,
+     1.31
+    ]
+   }
+  },
+  "transformer": {
+   "meshes": {
+    "concrete": 72,
+    "transformer": 484,
+    "porcelain": 168,
+    "galv": 164,
+    "steel": 12,
+    "safety": 12
+   },
+   "triangles": 912,
+   "bounds": {
+    "min": [
+     -3.0,
+     0.0,
+     -2.5
+    ],
+    "max": [
+     3.0,
+     3.5,
+     2.5
+    ]
+   }
+  },
+  "pumpUnit": {
+   "meshes": {
+    "concrete": 44,
+    "iron": 12,
+    "pumpPaint": 356,
+    "safety": 36,
+    "steelDark": 52
+   },
+   "triangles": 500,
+   "bounds": {
+    "min": [
+     -1.2,
+     0.0,
+     -1.2
+    ],
+    "max": [
+     1.2,
+     4.0,
+     1.2
+    ]
+   }
+  },
+  "meshPanel": {
+   "meshes": {
+    "galv": 60,
+    "steel": 12,
+    "mesh": 12
+   },
+   "triangles": 84,
+   "bounds": {
+    "min": [
+     -0.75,
+     0.0,
+     -0.025
+    ],
+    "max": [
+     0.75,
+     2.4,
+     0.025
+    ]
+   }
+  },
+  "bankCounter": {
+   "meshes": {
+    "oak": 156,
+    "iron": 12,
+    "marble": 44,
+    "brass": 52
+   },
+   "triangles": 264,
+   "bounds": {
+    "min": [
+     -1.2,
+     0.0,
+     -0.4
+    ],
+    "max": [
+     1.2,
+     1.2,
+     0.492
+    ]
+   }
+  },
+  "vaultDoor": {
+   "meshes": {
+    "iron": 156,
+    "steel": 120,
+    "brass": 12
+   },
+   "triangles": 288,
+   "bounds": {
+    "min": [
+     -1.2,
+     0.0,
+     -0.35
+    ],
+    "max": [
+     1.2,
+     2.8,
+     0.5
+    ]
+   }
+  },
+  "vaultLeaf": {
+   "meshes": {
+    "iron": 68,
+    "steel": 208,
+    "brass": 192,
+    "lamp": 12
+   },
+   "triangles": 480,
+   "bounds": {
+    "min": [
+     -0.05,
+     0.02,
+     -0.802
+    ],
+    "max": [
+     1.53,
+     2.18,
+     0.05
+    ]
+   }
+  },
+  "beamTower": {
+   "meshes": {
+    "galv": 56,
+    "plastic": 36,
+    "lamp": 72
+   },
+   "triangles": 164,
+   "bounds": {
+    "min": [
+     -0.13,
+     0.0,
+     -0.13
+    ],
+    "max": [
+     0.13,
+     2.4,
+     0.13
+    ]
+   }
+  }
+ },
+ "materials": [
+  "steel",
+  "steelDark",
+  "galv",
+  "mesh",
+  "rackBlue",
+  "rackOrange",
+  "timber",
+  "cardboard",
+  "wrap",
+  "vanBody",
+  "vanRoof",
+  "iron",
+  "transformer",
+  "porcelain",
+  "concrete",
+  "pumpPaint",
+  "safety",
+  "oak",
+  "marble",
+  "brass",
+  "plastic",
+  "fabric",
+  "screen",
+  "lamp"
+ ],
+ "blender": "5.2.2 LTS",
+ "seed": 1015,
+ "bytes": 340524,
+ "triangles": 5336
+}
