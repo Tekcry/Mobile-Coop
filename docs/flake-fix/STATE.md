@@ -30,9 +30,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
     10 s sample), GPU 3D avg 9% max 20%, RAM free min 7.6 of 31.7 GB.
   - Sector-fixes R 2f40ed74 (Course Ready): sectorops FAIL (route geometry, S1 monorail stop, S3 headroom); Course
     Ready fixes on the desktop. P 66995a22 RED earlier; train 9's #136 P passed ctcourse.
-- NEXT (ask the orchestrator first): gputests2-6703e99a proof result (runs/gputests2-6703e99a, studio x2 on the GPU,
-  4192) -> if green open the PR "gpu-tests-2" (tests only); narrow train 9's menus failure per member if asked
-  (e2e-menus on each head, slot 4192); train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
+- PR #143 gpu-tests-2 OPEN (proof green: studio x2 on the GPU, 26 s each). RUNNING through the swap as scheduled task
+  ns-chain-1022w (C:/NightShift/scratch/chain-1022w.ps1): train 9 e2e-menus narrowing, GPU solo on 4189, stops at the
+  first failing head: #136 P d98262dc, #141 T1 ebce0da7, #139 N4c 5f6a0d9d (runs/t9narrow-*). Send the orchestrator the
+  result; if none fails alone, the P + T1 pair is next (needs a merge commit of both heads).
+- NEXT (ask the orchestrator first): train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
   the trial); d7571102 test-speed-2 proof (now on the GPU, re-ask). Worktrees: Mobile-Coop-gpu-tests (merged),
   Mobile-Coop-gpu-tests-2, Mobile-Coop-test-speed-2 (master merged, 36b5a270).
 
