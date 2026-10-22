@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.58.1 - GPU test fixes: studio keyed walk and lightbake waits (2026-10-22, PR #140)
+- Tests: e2e-studio and e2e-lightbake pass on a hardware GPU (the laptop's default for logic e2e, `E2E_GPU=1`). Both
+  waited a fixed number of rendered frames, which a GPU finishes in ~0.1 s: the studio's keyed-walk check now waits
+  for the tuner panel's keyed mode (re-read every 250 ms of wall time), the lamp-plugin check waits (5 s cap) until
+  every PBR material has the plugin. Software GL is unchanged.
+
 ## 4.58.0 - Train 7: Anim Studio co-op pairs, animation audit scripts (2026-10-22, PR #137; #132, #134)
 
 ### anim-natural N0: the full animation audit (docs and scripts only)

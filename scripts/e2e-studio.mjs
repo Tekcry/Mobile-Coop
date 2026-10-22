@@ -726,6 +726,9 @@ try {
   // tunes with the walk's rows (it was idle: no speed), and the Body tab greys the sliders that do nothing in it
   await G(() => window.__animTune.tab('body'));
   await frames(page, 20);
+  // (gpu-tests) the panel re-reads the mode at most every 250 ms of wall time: on a hardware GPU 20 frames can pass
+  // before that, so wait for the keyed mode (a miss falls through to the assert below)
+  await page.waitForFunction(() => window.__animTune.effect().mode === 'keyed', null, { timeout: 3000 }).catch(() => {});
   const ke1 = await G(() => ({ st: { ...window.__animTune.state }, eff: window.__animTune.effect() }));
   const kb1 = ke1.eff.sections.find((s) => s.id === 'body');
   assert(ke1.st.body === 'walk' && ke1.st.joint === 'joint.walk' && ke1.st.ik === 'ik.walk', `keyed walk: her rig tunes with the walk (${ke1.st.body}, ${ke1.st.joint}, ${ke1.st.ik})`);
