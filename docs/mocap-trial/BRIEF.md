@@ -45,3 +45,8 @@ fetched, one at a time.
   the orchestrator; confirmed in the CT Core session "Yes, CMU only"): standing jog / run starts, full run turns,
   on-the-spot turns. Same rules: official mocap.cs.cmu.edu, ASF/AMC, `.mocap-cache/` (gitignored), every take in
   SOURCES.md. First cut and side-by-side first, then the gaps.
+- A4 (orchestrator ~22:40): the capture is not bent to the old procedural limits (bible D2 4 cm walk bob, the 3.5 cm
+  knee-out line, Michael's 85 cm run arm swing: tuned for the hand-keyed clips Michael calls broken). They are logged as
+  "capture vs old limit" in the side-by-side notes for Michael to judge by eye. Checkers block only on broken things
+  (clipping, foot slide, pops, wrong speed). Suites pass with the switch off; with it on, an assert encoding an old limit
+  is a note until Michael decides.
