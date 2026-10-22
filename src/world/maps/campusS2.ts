@@ -166,7 +166,7 @@ export const S2_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
   { pos: new Vector3(-2, 8.4, 4.5) },
 ];
 
-export const S2_PICKUPS: NonNullable<MapLayout['pickups']> = [{ pos: new Vector3(-42.5, 0, -18.5), kind: 'ammo' }];
+export const S2_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /** Nav seeds: the foyer, the SW lobby (L1, L2), the east wing (L1), the bridge, the roof. */
 export const S2_NAV_SEEDS: Vector3[] = [new Vector3(-20, 0, -27.5), new Vector3(-34, 4.4, -26), new Vector3(-34, 8.4, -26), new Vector3(-4, 4.4, -14), new Vector3(7, 4.4, -14), new Vector3(-30, 12.3, 0)];

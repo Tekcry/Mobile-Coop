@@ -7,3 +7,4 @@ kind: minor
 - Sector Ops alarm stages: a section can now force lights to full, lock doors (never the only way through) and send its reinforcements along a response route at a stage; a restart undoes them (data only, no map uses it yet).
 - Sector Ops campusOps: S3 lab block greybox (16 guards, the first lasers las-gown and las-store with their power panels, cam-view and cam-dock, the prototype grab, CR3 chamber roof).
 - Sector Ops engine: security desks (`security.desks`): with the operator down or away, the console loops its cameras (they sweep but report nothing, default 30 s) or switches them off until a restart; a restart or section change puts them back, the co-op client follows (no map uses them yet).
+- Ammo pickups removed from inside sections (a between-section weapons crate refill follows; Michael, 2026-10-23).

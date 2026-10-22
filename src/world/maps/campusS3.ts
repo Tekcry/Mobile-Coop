@@ -190,7 +190,7 @@ export const S3_NAV_SEEDS: Vector3[] = [
   new Vector3(67, 0, -15),
 ];
 
-export const S3_PICKUPS: NonNullable<MapLayout['pickups']> = [{ pos: new Vector3(20.5, 0, -28.5), kind: 'ammo' }];
+export const S3_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /** Where a carried body can be hidden: the lobby's dark corners, behind the gas cage, the walkway's west end, the north corridor's east end. */
 export const S3_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [

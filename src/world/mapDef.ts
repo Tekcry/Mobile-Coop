@@ -55,7 +55,7 @@ export interface MapLayout {
   props: PropPlacement[];
   /** Mission objective sites (terminals, caches, extraction). */
   objectives: { id: string; pos: Vector3; kind: 'terminal' | 'cache' | 'extract' }[];
-  /** Supply crates (ammo / health pickups). */
+  /** Supply crates. No ammo pickups inside sections (`checkMapLayout`, Michael 2026-10-23); a between-section weapons crate refill comes later. */
   pickups: { pos: Vector3; kind: 'ammo' }[];
   /** Wall medkit stations (G20 / G98; test maps so far): hold to heal, single use. `yaw` faces the room. */
   medkitWalls?: { pos: Vector3; yaw: number }[];

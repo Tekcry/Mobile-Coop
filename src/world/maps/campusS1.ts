@@ -109,10 +109,7 @@ export const S1_SPAWNS: MapLayout['playerSpawns'] = [
 /** Nav seeds: the verge, the plant roof and the canopy top (joined to the ground by the ladder / by being flush). */
 export const S1_NAV_SEEDS: Vector3[] = [new Vector3(24, 0, -79), new Vector3(-33, 4.4, -37), new Vector3(-20, 4.4, -37), new Vector3(-20, 0, -32)];
 
-export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [
-  { pos: new Vector3(-35, 0, -50.5), kind: 'ammo' },
-  { pos: new Vector3(22.5, 0, -58), kind: 'ammo' },
-];
+export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /** Where a carried body can be hidden: the bin store, between the cars, the verge reeds, the bike shelter, the smoking shelter's end. */
 export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
