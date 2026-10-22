@@ -106,3 +106,22 @@ e2e-tuner-phone (per-event touch, one frame between moves); e2e-studio `panel()`
 2. #4 and #7 with the coop-offer-load pattern (land with PR #158's branch).
 3. #5, #20, #21 (e2e-mouse) and #24 (menus): game-time / frame budgets.
 4. Load-budget sweep: #6, #25-27, #30, #32, #46, #55 (one shared `LOAD_MS`), plus 4da742ce with `ctx.setDefaultTimeout`.
+
+## Status and planned fixes (2026-10-23 ~00:50)
+High findings: the three e2e-ctcourse highs (jam / lamp / camera windows on the host clock, new `waitHostSim` in
+e2e-net-lib.mjs), the e2e-coop grab and the e2e-mouse look are fixed on feature/load-audit (0067b5f5, da629375); the
+e2e-desktop:1 crash-log page and smoke's own context are covered there too (2746f123, 777a056e, 7d4dbc5f). Medium and
+low findings are deferred (orchestrator). Planned fixes for the e2e-ctcourse mediums (asserts and limits unchanged):
+- #11 station 8 (`waitSim(2500)` before "the 30 s window runs on the host (sim time)"): `waitHostSim(A, 2500)`; read the
+  host's `__app.current.time` and `reviveClock.remaining(id)` before and after; put the host time elapsed in the message.
+- #10 station 3 camera reboot: a host rAF hook installed before the cap ends records `{cool[0], jam, mode, frozen,
+  alarm}` once, in the first frame `cams[0].jam` goes 1 -> 2; assert on that record, not a late `dev(A)` poll.
+- #12 station 6 synced hack (1.5 s window): no `Promise.all`; a host rAF hook calls `onUse(it, 'local')` on
+  `c-sw-s6-a` in the first host frame where `debug().scan.ph[1] !== 'idle'` (the client's start reached the host), then
+  `use(B, 'c-sw-s6-b')`; read the host's result from the hook (same pattern as the existing `__s6` client hook).
+- #13 station 5 roof plates (`PAIR_WINDOW` 1.0 s): press `c-sw-s5-b` on the client, a host rAF hook presses `c-sw-s5-a`
+  in the first frame the client's press shows on the host (open: which host field shows it; see the pair-gate state in
+  src/game/course/courseState.ts around 689).
+- #15 station 5 "back on the roof, upright": `until(B, ...)` on `controller.pos.y > 4.2`, tumble 0 and
+  `team.state === 'none'` before reading.
+- #35, #36 transients read per poll: a page rAF hook latches the transient state every frame; assert on the latch.
