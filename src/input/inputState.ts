@@ -28,6 +28,9 @@ export class InputState {
   private moveBySource = new Map<string, Vec2>();
   /** Accumulated look delta in radians (yaw, pitch). Consumed per render frame. */
   readonly look: Vec2 = { x: 0, y: 0 };
+  /** (sector-fixes W) The pad's right stick position (after the dead zone, x right / y up, 0 when let go): the
+   *  selection wheel's cursor while the pad is the input mode. Written by the pad source. */
+  readonly stick: Vec2 = { x: 0, y: 0 };
   /** Analogue triggers 0..1 (gamepad), used for haptics/partial ADS if wanted. */
   fireAnalog = 0;
 

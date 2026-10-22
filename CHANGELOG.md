@@ -12,6 +12,64 @@
 - Wall block: no more muzzle-up swing (69 deg) and stall; the rifle comes off the eye and tips about 66 deg under the aim
   line about the butt, pulled in, in one eased 0.4 s move with hysteresis (no half-way hold).
 
+## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
+- `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
+
+## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
+
+### #110 The run's feet no longer cross
+- The run's feet no longer cross the midline: the keyed clips' track half-width (`half`) is measured with the
+  stride-locked pelvis yaw removed (`scripts/anim-keys/py/key_clip.py`: each frame's ankles turned back by that frame's
+  pelvis yaw minus the clip's mean pelvis yaw; the yaw read off the pelvis's lateral axis, which stays level in the
+  face-down frames of the knife collapse), not in the world x, so the run keys' +-25.5 deg pelvis yaw no longer leaks
+  the stride into it, and a constant stance yaw (the ready stance's 6 deg) keeps its world value. Run half -0.02039 ->
+  0.05042 (0.045 before the 2026-10-22 bake).
+- Every keyed clip rebaked (key JSONs unchanged); the clips whose pelvis yaw swings changed: walk 0.0466 -> 0.05188,
+  jog 0.04592 -> 0.05386, sneak 0.06355 -> 0.06519, crouch walk 0.06203 -> 0.06566, crouch run 0.06071 -> 0.06666,
+  glide fwd 0.05672 -> 0.05807, glide back 0.057 -> 0.05802, wall crouch slide 0.06195 -> 0.06564, guard held hands
+  0.09392 -> 0.09389, held stumble 0.07274 -> 0.07634, choke sag 0.10495 -> 0.10482, knife collapse 0.12162 ->
+  0.12164; crouch idle and wall crouch idle 0.12196 -> 0.12197, hold back 0.09363 -> 0.09365 (their crouch pitch and
+  breathing roll read as a +-0.03-0.4 deg yaw). The ready stance and the other clips keep their half.
+- Tests: the walk footage limit `half <= 0.05` -> 0.053; the skeleton identity fixtures re-captured (the swinging-yaw
+  keyed clips, crouch idle, wall crouch idle, hold back, skeleton_test, the partner path and the guards' walk / aim
+  walk); e2e-anim's run limits re-measured (track 0.16 -> 0.18, knee bow 0.09 -> 0.047; knee separation and elbows
+  kept).
+
+### #115 Marlow Yard security room (sector-fixes S)
+- Marlow Yard, station 3 (Michael: "If there are cameras, there should be a security room with a guard watching the
+  cameras. You can take him out and shut off cameras"): a security room off the far lobby, through a plain door behind
+  the camera. A duty guard stands at the monitor wall (a training guard like station 1's: he sees and hears nothing);
+  grabbed, INTERROGATE gets "All right! The desk console switches the hallway camera off."
+- The desk console refuses while he is up ("The guard is watching the monitors. Take him out first."). Knock him out or
+  kill him (takedown, strike or shot), then use it: the hallway camera goes off for both players (no detection, no
+  alarm, no send-back, its LED dark, its red view hidden) until the bay restarts, which brings the camera and the guard
+  back. LANTERN: "Cameras off. Your partner can walk the hallway." A second line at the station start names the room.
+- The jam handoff still works exactly as before: the first runner still needs the partner's jam to reach the far lobby,
+  and the second can still be jammed through. The room is an alternative to the second jam, not a replacement; a
+  camera switched off at the console is simply no longer a jam target.
+- The station's monitor wall moved from the hallway's south wall into the room, with a desk under it; the room has
+  its own ceiling panel (jammable and shootable like the other lamps).
+- Not in Sector Ops (Michael): its cameras have no console. Co-op: no protocol change.
+
+### #116 Wheel opens on the goggles (sector-fixes W)
+
+### The selection wheel defaults to the goggles (Michael item 8)
+- Michael: "Change goggles in inventory to the default selection so you can just hold l1 and press a to automatically
+  swap between them. Don't hold selections in the wheel, if analogue stick is let go it defaults to goggles/vision
+  selection."
+- The wheel opens on the vision slot: hold LB and press A to cycle night, thermal, electro with no stick; release LB
+  and the mode shown is selected.
+- The pad's right stick now places the wheel cursor where the stick points (it used to drift with the look rate and stay
+  put). Let go of the stick and the vision slot lights again, so nothing else stays picked. A stick and LB let go
+  together still pick the slot under the stick (a 0.08 s grace, `WHEEL_LETGO_S`); A with the stick centred always
+  cycles the vision.
+- Keyboard and mouse: hold Tab, the wheel opens on vision and E cycles; the mouse back in the centre lights vision.
+- Tests: `tests/selectionWheel.test.ts` (default slot, let go, grace, A centred), `tests/input.test.ts` (the stick
+  position); e2e-gadgets and e2e-pad assert the new behaviour; `scripts/wheel-shots.mjs` drives the stick.
+
+## 4.54.1 - Load-flaky e2e asserts hold under E2E_JOBS=2 (test only) (2026-10-22, PR #117)
+- Four load-flaky e2e asserts hold under E2E_JOBS=2 (test only): e2e-stealth-ai head-only peek spot, e2e-netmove client assists, e2e-mouse capture timeout, e2e-ctcourse station 4 throw; details in `docs/backlog.md`.
+
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
 ### #103 Body sliders bake
