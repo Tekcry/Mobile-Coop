@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Saved 2026-10-22 ~22:50 (99% save point) by the CT Core session (second account of the day) ahead of the 5-hour cut-off. Every branch
+Saved 2026-10-22 ~22:45 (resume after the clear; two fix-round agents running) by the CT Core session. Every branch
 below is committed and pushed. Agents that were running at the save are lost: the resume prompt says what to redo.
 
 ## Rules carried
@@ -30,8 +30,8 @@ below is committed and pushed. Agents that were running at the save are lost: th
 ## Open jobs (branch, folder, head, next step)
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | f873a6d5 | Real CMU clips in (a05bdde7). Fresh checker (Course Ready) FIX: docs/mocap-trial/CHECK.md (required 1 / 1b pelvis-drop pops at clip/planner hand-offs, 2 toe pop on the first clip swing; decide 3 start-slot arms). GPU suites (switch off) on a05bdde7: coop, move, netmove, clip, anim PASS; studio FAIL = master timing assert (needs master 4.58.3). Menu Notes runs the side-by-side on a05bdde7 (feature/mocap-sheets). Gap takes downloaded (SOURCES.md). | Merge origin/master 4.58.3; one Opus fix round on CHECK.md (required 1, 1b, 2; 3: cap start-slot arm weight 0.5; note 5); bash /c/NightShift/mt-e2e.sh detached (six suites GPU); REPORT.md; PR (minor; suites + sheets); orchestrator. Then the gap takes. |
-| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 362359a4 | Fix round 1 (f2f8e396: run 90 crossing, crouch entry) + fix round 2 (5e996cc1: KEY_PEL_RATE, run 180 planted contact 16.45 -> 0.01 cm) + master 4.58.3 merged (362359a4; studio timing fix). Six suites RUNNING on the desktop GPU since 22:31 (detached, heavy.lock): /c/NightShift/n138-e2e.out + n138-e2e.log. | All six pass: list them in #138 body (gh pr edit 138 --body-file), send the orchestrator 362359a4 (+ any docs commit). A fail: crouch 90 first swing (10.7 m/s headless, known) or crouched holstered (the pelvis rate) are the watch items: one more round. |
+| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | 82f43716 | Master 4.59.0 merged (82f43716, pushed). Fix-round agent (Opus) on CHECK.md started ~22:42: required 1, 1b, 2, start-slot arm cap 0.5, note 5; report docs/mocap-trial/FIX-1.md. Menu Notes runs the side-by-side on 82f43716 (send it the fix sha). | If the agent was lost (no FIX-1.md, src unchanged): redo it (prompt = items 1-5 of CHECK.md, done = pelvis beyond speed x dt <= 2 cm, bone < 25 deg ON, OFF bit-identical). Then commit + push, bash /c/NightShift/mt-e2e.sh detached (six suites GPU); REPORT.md; PR (minor; suites + sheets); orchestrator; Menu Notes the sha. Then the gap takes. |
+| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 1c6f06a3 | GPU run of 362359a4 (22:31): netmove, coop, studio, move PASS; e2e-anim FAIL "walk: knees over the toes (outside by 3.5 cm)", e2e-clip FAIL "crouched holstered: arms through thighs / trunk (min -3.0 cm)". Master 4.59.0 merged (1c6f06a3; characterRig conflict with N4c strike body: both kept). Fix-round agent (Opus) started ~22:42 (heavy2.lock / 4192 for e2e-anim + e2e-clip); report docs/anim-natural-n2/REPORT-4.md. Orchestrator told: not ready for train 8. | If the agent was lost: redo it. Then commit + push, rerun all six (bash /c/NightShift/n138-e2e.sh detached); all pass: #138 body, send the orchestrator the sha. |
 | vent-kick T1 #141 | `feature/vent-kick`, `C:/NightShift/Mobile-Coop-vent-kick` | ebce0da7 | Done: PR #141 open; checker PASS + fix round (M1 pad matches keyboard); e2e-traverse, e2e-pad, e2e-mouse, e2e-netmove pass on the desktop GPU (9fd7b5b6). | Nothing unless its train fails. DECISIONS at merge: M1, A1. |
 
 ## Test logs on the desktop
@@ -49,8 +49,8 @@ Night Shift | CT Core Build: RESUME (after the account swap, ~21:50 save). Model
 docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
 origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried". A C:/NightShift/heavy.lock or
 heavy2.lock naming CT Core Build with no node / bash process of ours running is stale: delete it.
-1. mocap-trial (top priority; C:/NightShift/Mobile-Coop-mocap-trial, feature/mocap-trial, head f873a6d5): read
-   docs/mocap-trial/STATE.md and CHECK.md. Merge origin/master 4.58.3. One Opus implementer (fix round) on CHECK.md:
+1. mocap-trial (top priority; C:/NightShift/Mobile-Coop-mocap-trial, feature/mocap-trial, head 82f43716, master 4.59.0 in): read
+   docs/mocap-trial/STATE.md and CHECK.md (and FIX-1.md if the fix agent finished). One Opus implementer (fix round) on CHECK.md:
    required 1 (clear FootState.clipOwn in beginSwing / land), 1b (ease a planner-planted foot's pitch into the clip's over
    ~0.15 s at the hand-back, or rate-limit pelvisDrop ~1 cm / frame when ON), 2 (fade fromPitch into the clip pitch over
    the first ~0.3 of the first clip swing, or pitchRate ~12), 3 (cap the start slot's arm weight at 0.5), note 5 (gate the
@@ -59,7 +59,7 @@ heavy2.lock naming CT Core Build with no node / bash process of ours running is 
    path in CHECK.md. Then bash /c/NightShift/mt-e2e.sh detached (powershell Start-Process -WindowStyle Hidden), all six
    pass: REPORT.md, PR (minor; suites listed; Menu Notes' sheets from feature/mocap-sheets linked; A4 notes for Michael),
    message the orchestrator. Then the gap takes (SOURCES.md "Downloaded ... not yet used") through scripts/mocap.
-2. N2 #138 (C:/NightShift/Mobile-Coop-anim-natural-n2, head 362359a4): read /c/NightShift/n138-e2e.out and n138-e2e.log
+2. N2 #138 (C:/NightShift/Mobile-Coop-anim-natural-n2, head 1c6f06a3): the 362359a4 GPU run failed e2e-anim knees-over-toes and e2e-clip crouched holstered; read docs/anim-natural-n2/REPORT-4.md (fix agent) or redo the round, then rerun n138-e2e.sh;
    (six suites on the GPU, started 22:31). All pass: list them in #138's body, send the orchestrator the sha. A fail: one
    round (watch: crouch 90 first swing, crouched holstered).
 3. T1 #141: nothing unless its train fails.
