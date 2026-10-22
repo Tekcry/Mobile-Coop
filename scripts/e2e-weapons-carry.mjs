@@ -195,7 +195,8 @@ try {
       s.tp(8, -14, -Math.PI / 2);
       // (step 09) swaps from the hands: aim (drawn) through the whole section
       const st = window.__app.input.state;
-      s.run(1.0, { ads: true });
+      // (anim-natural N3) the LT sling draw is 1.5 s (rifle) / 1.2 s (pistol) now: wait for it to finish
+      s.run(2.0, { ads: true });
       const out = [];
       for (let k = 0; k < w.slots.length; k++) {
         const from = w.slots[w.index].model;
@@ -207,6 +208,9 @@ try {
         let nearFrom = 9;
         let nearTo = 9;
         let dur = 0;
+        // (anim-natural N3) the incoming gun leaves its slot's parent as its travel starts and waits at the seat until the
+        // hand lifts it: count it as seated while it is within 3 cm of where it left the slot
+        const seat = { f: null, t: null };
         s.run(1 / 60, { ads: true, taps: { 1: 'swapNext' } });
         while (w.swapping && t < 2) {
           st.set('carry', 'ads', true);
@@ -216,9 +220,10 @@ try {
           const wr = rig.wristR.getAbsolutePosition();
           // distance from the hand to where the gun sits in its slot (the outgoing one once holstered)
           for (const [m, key] of [[from, 'f'], [to, 't']]) {
-            if (m.slot === null) continue;
             m.node.computeWorldMatrix(true);
             const c = m.node.getAbsolutePosition();
+            if (m.slot !== null) seat[key] = { x: c.x, y: c.y, z: c.z };
+            else if (!seat[key] || Math.hypot(c.x - seat[key].x, c.y - seat[key].y, c.z - seat[key].z) > 0.03) continue;
             // nearest point along the gun's length
             const dir = m.node.getDirection(new wr.constructor(0, 0, 1));
             let best = 9;

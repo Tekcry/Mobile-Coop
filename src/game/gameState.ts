@@ -44,7 +44,8 @@ import { Interactables, type Interactable } from './interactables';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
-import { TriggerTapHold } from '../player/weaponStance';
+import { StrikeTrigger } from '../player/weaponStance';
+import { DRAW_HOLSTERED } from '../weapons/drawState';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { MissionMode } from './modes/missionMode';
 import { ClearMode } from './modes/clearMode';
@@ -415,7 +416,7 @@ export class GameState implements AppState {
   private readonly ctxNav = new CtxNav();
   /** (anim-rework S1, M3) RT / LMB holstered or holding a guard: a tap knocks out, a hold kills (resolved once a step,
    *  first, from the real input; `rtRes` is this step's result). */
-  private readonly rtTap = new TriggerTapHold();
+  private readonly rtTap = new StrikeTrigger();
   /** Aiming the drawn pistol: the co-op button is the jammer (Michael 14:55). */
   private get pistolAim(): boolean {
     return this.player.ads && this.weapons.drawPhase === 2 && this.weapons.current.def.class === 'pistol';
@@ -1606,9 +1607,12 @@ export class GameState implements AppState {
     // (no aim), or holding a guard and not aiming the pistol
     {
       const pl = this.player;
-      const holstered = pl.alive && this.weapons.drawPhase === 0 && !pl.ads && !pl.adsWanted && pl.stance.base === 'holstered';
+      const free = pl.alive && !pl.ads && !pl.adsWanted && pl.stance.base === 'holstered';
       const holding = this.takedown.menuReady && !pl.ads && !pl.adsWanted;
-      this.rtRes = this.rtTap.update(real.down('fire'), dt, holstered || holding);
+      // (anim-natural N3 fix) pressed while holstering (X, the 0.9-1.0 s holster) it arms too: the strike waits for the
+      // slot, the holster finishing as a busy move (HOLSTER_TIME_MOVE); drawing or drawn RT stays the gun's
+      this.rtRes = this.rtTap.update(real.down('fire'), dt, this.weapons.drawPhase, free, holding);
+      this.weapons.strikePending = this.rtTap.pending;
     }
     // (G5) the context menu first: held open (this step or the last: the step it closes on is the release, or B) it
     // takes the input, the operator stands still (camera free)
@@ -1765,7 +1769,11 @@ export class GameState implements AppState {
     // (locomotion step 10) fire while holstered: the palm strike
     // (anim-rework S1, M3) holstered: RT / LMB tap = the knockout, held `STANCE.rtHold` = the lethal strike (KBM Z: the
     // knockout); drawn RT fires (aiming only, A3)
-    this.strike.fixedUpdate(dt, ((inp === real && this.rtRes !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === 0 && !this.player.ads && !this.player.adsWanted, this.rtRes === 'hold');
+    // (anim-natural N3 fix) a strike queued through the holster starts as the gun reaches its slot
+    {
+      const rt = this.rtTap.strike(this.weapons.drawPhase);
+      this.strike.fixedUpdate(dt, ((inp === real && rt !== null) || inp.pressed('altFire')) && this.weapons.drawPhase === DRAW_HOLSTERED && !this.player.ads && !this.player.adsWanted, rt === 'hold');
+    }
     // (anim-rework S1, M4) a traversal or a busy move holds the weapon state (the gun away for it, back after); holding a
     // guard locks it (X does nothing, LT is the pistol shield)
     {
