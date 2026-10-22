@@ -260,7 +260,7 @@ export class World {
     // (marlow-final M5) the props kit: drawn over the boxes the map builder wrote for them (the kit's rules)
     if (layout.facilityProps?.length && atlas && !opts.cheap) {
       try {
-        w.facilityProps = await PropRender.create(scene, layout.facilityProps, w.doors.list);
+        w.facilityProps = await PropRender.create(scene, layout.facilityProps, w.doors.list, level.lights);
       } catch (e) {
         console.warn('[props] the props kit failed to load; the greybox shows', e);
       }

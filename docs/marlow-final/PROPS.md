@@ -83,6 +83,8 @@ and their tests are in (11 tests pass). Not yet placed in any set (the slice bui
 | `screen` | screen faces (emissive, tinted per instance; dark when its device is off) |
 | `lamp` | status / ready LEDs and beam lenses (emissive, tinted per instance) |
 
+(S3-7 S1, light parity) A placement's `screen` and `lamp` follow its circuit (`group`: dim while no lamp of the group is on) or its powered device (`device`: the beam towers' lenses follow their laser, dark while the beams are off or jammed). Every lit prop in a set carries one; the only exception is `PROP_OWN_SUPPLY` (push station).
+
 ## 3. Prop list per set
 Size = W x D x H in metres (W along local x, D along local z, H up; the built size, from the build report). Collision:
 "builder" = the level builder places the listed boxes (`PROP_COLLISION`; props are visual over them); "none" = no

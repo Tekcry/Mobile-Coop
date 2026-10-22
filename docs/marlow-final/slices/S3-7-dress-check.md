@@ -149,3 +149,33 @@ e2e / playtest (laptop; not run here):
   on the L6 route.
 - A3 cleaner nav through the 1.2 m doors with the trolley in the corner (unit-tested on the leg lines, not on the nav grid); A4 D2's
   office door walk; A7 tech loop at walking pace with 1109 skins in view.
+
+## S1 done (prop emissives)
+Prop emissives now follow their light circuit and their powered device, as the kit's LED lines do (`kitRender.ts` ~:176-191).
+
+**What was wired**
+- `PropPlacement.group` (a `LightDef.group`) and `.device` (a laser id); `FacilityProps.add` / `propRow` carry them.
+- `PropRender.create(scene, placements, doors, reg)` takes the `LightRegistry`. `src/world/world.ts` now passes `level.lights`.
+- A grouped emissive is dim (`PROP_DARK` 0.06 of its colour) while no lamp of the group is `on` and not shot out (cut, jammed, destroyed). A frame observer repaints only when `reg.version` changes. Emissives stay thin-instanced (colour per instance); no allocation per frame.
+- `PropRender.setDevice(id, on)`: dark while the device is off. Hook: `src/game/ctDevices.ts` `applyJam`, where a laser's `on` changes (`laserLive`: panel jammed or rebooting, release switch, dead section), one call `world.facilityProps?.setDevice(l.def.id, on)`. Render side only; the sensor still reads `l.on`.
+- `PROP_EMISSIVE_PARTS`, `PROP_OWN_SUPPLY` (the A2 push stations: the lamp is the isolator's own status indicator, tinted by its state, on no lighting circuit) and `propGlows` in `facilityProps.ts`.
+
+**Per-set counts (lit props)**
+| Set | Props | Circuit / device |
+| --- | --- | --- |
+| A1 | 0 (checker desk screen is dark) | - |
+| A2 | 2 push stations | own supply (written reason) |
+| A3 | 5 sign plates | 30 (2), 34 (3); desk screens dark |
+| A4 | video wall, console desk, reach truck beacon | 40, 40, 41 |
+| A5 | 2 beam towers | `device` `laser-a5`, no group |
+| A6 | 0 (pipe runs only) | - |
+| A7 | 37 racks, 3 cooling units, 9 plates | 70, 72, plates 70 / 72 / 73 by the side they face |
+| Facility | lounge desk and case wall (10), 3 gallery plus bridge screens and consoles (90), hold and dock plates (hold group, 98) | house circuits |
+A8 (vault leaf lamp, plates) is set in `a8Strongroom.ts` by the A8 dresser.
+
+**Tests**
+- `tests/facilityProps.test.ts`: dim on a cut group, back on a switch, dim on a shot-out lamp, device on / off, explicit tint still wins, no registry means lit, thin-instancing kept; `PROP_EMISSIVE_PARTS` matches the GLB; `add` / `row` carry group and device.
+- `tests/laserPanels.test.ts`: a jam of the panel calls `setDevice(laser, false)` for each band, the reboot's end calls `true`.
+- `tests/ctcourse/a1-a7`: each set asserts every lit prop has a group (or device, or the own-supply reason).
+
+**Only GPU shots can show**: the video wall in the dark, the A5 lenses with the beams jammed, A7 rack LED glow with 70 cut; that 0.06 of the colour reads as dark against the bloom.

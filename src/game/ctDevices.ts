@@ -932,6 +932,8 @@ export class CtDevices {
       if (on === l.on) continue;
       l.on = on;
       this.showLaser(l);
+      // (S3-7 S1, light parity) the beam towers' lenses follow their laser (dark while jammed, rebooting, off or dead); render only
+      this.g.world.facilityProps?.setDevice(l.def.id, on);
     }
     for (let i = 0; i < this.panels.length; i++) this.showPanel(this.panels[i]!);
     const reg = this.g.world.level.lights;

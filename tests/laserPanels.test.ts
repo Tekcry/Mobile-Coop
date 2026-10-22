@@ -359,6 +359,21 @@ describe('(sector-fixes P) CtDevices: jamming the panel cuts its lasers', () => 
     m.dev.dispose();
   });
 
+  it('(S3-7 S1) the props renderer is told each laser\'s state on its change: dark while the panel is jammed and rebooting, lit again after (the beam towers\' lenses)', () => {
+    const w = world();
+    const calls: string[] = [];
+    (w.g.world as unknown as { facilityProps: unknown }).facilityProps = { setDevice: (id: string, on: boolean) => calls.push(`${id}:${on}`) };
+    const dev = new CtDevices(w.g as never, 'host', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+    step(dev, 0.2);
+    expect(calls).toEqual([]);
+    step(dev, 0.5, 'p1');
+    expect(calls.sort()).toEqual([`${L1.id}:false`, `${L2.id}:false`].sort());
+    calls.length = 0;
+    step(dev, JAMMER.reboot + 0.3);
+    expect(calls.sort()).toEqual([`${L1.id}:true`, `${L2.id}:true`].sort());
+    dev.dispose();
+  });
+
   it('Sector Ops: a panel of a section that is not live is dark like its lasers and no jam target', () => {
     const m = make('host', true);
     m.dev.setLive(0);
