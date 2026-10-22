@@ -50,12 +50,20 @@ means this session only; the session running a job is its **job lead**.
 4. Authority order (G86): Michael > `docs/DECISIONS.md` > `docs/design-bible.md` > job and map docs (`docs/level-design.md`,
    the map's documents) > these docs > code. Every decision is also written into the bible.
 
-**Machines** (Michael, 2026-10-19). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
+**Main test machine: the laptop** (Michael, 2026-10-22 ~17:50: "Laptop main"; "Yes, laptop GPU"; the laptop's CPU and
+GPU are far stronger, and the desktop sits near 99% CPU running every session's agents). This overrides the older
+machine wording below: full runs, merge trains, `e2e-coop` / `e2e-netmove` / `e2e-ctcourse` and GPU or visual work
+(anim-audit, anim-sheet, shots, `E2E_GPU=1` suites, port 4189) go to Character Build on the laptop (Normal priority,
+`E2E_JOBS=3`, its own `heavy.lock`). The desktop runs only quick single suites at `E2E_JOBS=1` under its lock, and the
+sessions' agents. Job leads send run requests (branch, commit, suites) to Character Build, not the desktop lock.
+
+**Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
 slot, or on the laptop (Character Build), the second slot, which Michael is still using: there at BelowNormal priority
 and `E2E_JOBS=1`, so it never takes all his bandwidth, and never GPU or visual checks. One heavy job at a time per
-machine: before a heavy run, check that machine's `C:/NightShift/heavy.lock`; if absent, write "<session> | <job> |
-<start>" and delete it when done; if present, wait and do light work. All work on both machines is headless and
+machine (a full `npm run check` or full `vitest run` counts as heavy; a single test file does not; 2026-10-22, after
+a full e2e ran at twice its time beside unlocked checks): before a heavy run, check that machine's `C:/NightShift/heavy.lock`; if absent, write "<session> | <job> |
+<start>" and delete it when done; if present, wait and do light work. Create it atomically, never overwrite it (2026-10-22, after collisions): `( set -o noclobber; echo "<session> | <job> | <start>" > C:/NightShift/heavy.lock )`, retry while it fails, and delete it only while it still names you. All work on both machines is headless and
 invisible (Michael: "dont allow my mouse to be taken or random windows terminals to be made, all works must be headless
 and it shouldnt affect me"): never `E2E_HEADED`, no new terminal or console windows, no pointer lock or mouse capture,
 Blender only with `-b`, nothing that takes focus. The orchestrator sets the order.
@@ -67,7 +75,9 @@ Build runs them on the laptop in its own worktree `C:/NightShift/Mobile-Coop-tes
 (`npm ci` only when `package-lock.json` changed), with `E2E_PORT=4191`, `E2E_JOBS=1`, BelowNormal and the laptop's
 `heavy.lock`, one request at a time, in the roadmap's priority order, then by arrival. It replies to the job lead with pass / fail per suite, the
 failing assert and the run time, and copies the orchestrator. Logic e2e only: GPU, perf and visual checks stay on the
-desktop. A result counts for the test tier only for the exact commit it ran on. Between requests Character Build works
+desktop. A result counts for the test tier only for the exact commit it ran on, or for a later commit whose only
+difference is docs, `CHANGELOG.md`, changelog fragments or test scripts (Michael, 2026-10-22 ~18:00). The laptop runs
+two requests at once, one per port (4191 and 4192; GPU on 4189), each with its own lock file. Between requests Character Build works
 its own small jobs from the roadmap. Cloud sessions run unit tests,
 logic e2e and design only; every GPU check there is "pending PC run".
 
@@ -99,7 +109,9 @@ logic e2e and design only; every GPU check there is "pending PC run".
 | Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
 | A step | `npm run check` once at the step's end + the suites the step names, or `npm run e2e:quick` | desktop, or the laptop test runner when the desktop lock is held |
 | A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
-| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
+| A PR touching only the tuner / Anim Studio (`src/ui/animTune*`, studio files) or tests (Michael, 2026-10-22) | CI `check` + the suites the change touches (e2e-anim, e2e-studio, or the edited suite) | desktop or laptop |
+| Merge train (Michael, 2026-10-22: "Batch when 2+ ready"; ~18:00 "Your picks") | a PR whose fresh checker passed goes straight into the next train with CI `check` only; a PR touching `src/net`, `PROTOCOL_VERSION` or the save shape first passes the suites its area names (the slice row); a failure in the train is narrowed down to its PR there; when 2+ are ready the orchestrator merges them into one `train/<n>` branch off master (no src conflicts; a PR with one waits for the next train) and runs ONE full `npm run e2e` there; on a pass the train merges as ONE PR with one version (minor if any PR in it is a minor; the CHANGELOG heading names every PR, each PR's entries under it) and GitHub marks the member PRs merged (Michael, 2026-10-22: "One PR per batch"); on a failure the failing suite's PR leaves the train and the rest rerun that suite only | desktop or laptop, whichever is free |
+| Any other PR / merge to master (a lone PR when nothing else is ready) | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
 | Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
 
 **Branches and previews.** Master is the live game and the only base (G83): one branch per job, cut from master, one
@@ -137,6 +149,7 @@ Ports on Michael's PC (G94). One runner per port at a time; jobs always pass `E2
 | Port | Use |
 | --- | --- |
 | 4191 | Software-GL logic e2e: `E2E_PORT=4191 E2E_JOBS=2 npm run e2e` (or `e2e:quick`, single suites); never with `E2E_GPU=1` |
+| 4192 | The laptop's second logic e2e queue (same rules as 4191) |
 | 4189 | GPU work: perf, perf-trend, anim-audit, anim-sheet, shot, `E2E_GPU=1` suites |
 | 4179, 4173 | Script defaults (`run-e2e.mjs`, `e2e-lib.mjs`); not used by jobs |
 | 5199 | `npm run editor` |
@@ -181,9 +194,11 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 - Pure logic lives in Babylon-free modules with Vitest tests; each new player-facing system extends the e2e suite that
   owns its area (a new suite only when none does).
 - New or changed animations match the CT footage (G1) and meet the bible's animation realism standard.
-- Docs updated: `CHANGELOG.md`, `TESTING.md` (the short desktop checklist, G92), the relevant `docs/systems/*.md`
+- Docs updated: the changelog fragment, `TESTING.md` (the short desktop checklist, G92), the relevant `docs/systems/*.md`
   (the orchestrator updates `docs/ROADMAP.md`).
-- Versions (G183): a job's CHANGELOG entries sit under "Unreleased - <job>" until its merge. Every merge to master gets
+- Versions (G183): a job never edits `CHANGELOG.md`; it writes its entries in one fragment `changes/<branch-with-dashes>.md`
+  (`changes/README.md`), which the orchestrator assembles into `CHANGELOG.md` at the version step
+  (`scripts/changelog-assemble.mjs`, or `scripts/merge-train.mjs`). Every merge to master gets
   the next `4.MINOR.PATCH`, set by the orchestrator in the PR just before it merges: a job or feature (game change) is a
   minor step, a fix or docs-only merge a patch. Jobs never bump `package.json` themselves.
 - A save-shape change bumps `SAVE_VERSION` with a migration and a test using a literal old save. A wire change bumps

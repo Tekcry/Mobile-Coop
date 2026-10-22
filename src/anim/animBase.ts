@@ -1,7 +1,8 @@
 /**
  * (anim-joints J1, COVERAGE gap 1) The animation base table: GENERATED. `scripts/anim-tune-bake.mjs` (logic
  * `src/anim/tuneBakeBase.ts`) rewrites the JSON between the `@anim-base-begin` / `@anim-base-end` lines when it bakes
- * Joints, Hands & feet, IK strength, Weapon, (anim-gear) Gear or (anim-bake-targets) Body values (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
+ * Joints, Hands & feet, IK strength, Weapon, (anim-gear) Gear or (anim-bake-targets) Body values, or (anim-bake-all) any
+ * other slider with no code value of its own (the `sections` key) (`docs/anim-tuner/BAKE.md`); do not edit that part by hand.
  *
  * Every Wren rig (`CharacterRig.tuneRows`) reads it: the tuner's Joints / Hands & feet / IK / Weapon values are deltas on
  * it (`tuneJoints.ts`, `tuneHands.ts`: joints add degrees per axis, offsets add, gun scale and IK strength multiply, the
@@ -29,6 +30,13 @@ export interface AnimBaseData {
    * printed only when a row is set.
    */
   body?: Record<string, Record<string, number>>;
+  /**
+   * (anim-bake-all, BA-A1) The generic table: section id (`cam`, `gun`, `step`, `weight`, `speed`, `team_boost`, `trav`,
+   * `body` for strideMul, ...) -> group -> slider id -> value, for every slider with no code value of its own. A mul
+   * slider's value multiplies, an add slider's adds; the registry composes it with the tuner's value for every consumer
+   * (`tuneRegistry.ts` `eff`), so it applies exactly where the slider does. Optional: printed only when a value is set.
+   */
+  sections?: Record<string, Record<string, Record<string, number>>>;
 }
 
 export const ANIM_BASE: AnimBaseData =

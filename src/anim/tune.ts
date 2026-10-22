@@ -102,7 +102,7 @@ export const BODY_FIELDS = [
 ] as const;
 export type BodyField = (typeof BODY_FIELDS)[number];
 
-export const GUN_FIELDS = ['gunFwd', 'gunUp', 'gunSide', 'gunPitch', 'gunYaw', 'gunCant', 'sightYAdd', 'headDropMul', 'tuckMul', 'glideTwistMul'] as const;
+export const GUN_FIELDS = ['gunFwd', 'gunUp', 'gunSide', 'gunPitch', 'gunYaw', 'gunCant', 'sightYAdd', 'headDropMul', 'tuckMul', 'glideTwistMul', 'recoilMul'] as const;
 export type GunField = (typeof GUN_FIELDS)[number];
 export const CAM_FIELDS = ['camBoomAdd', 'camHeightAdd', 'camSideAdd', 'camPivotAdd', 'camFovAdd', 'camZoomMul', 'camBlendMul', 'camFollowMul', 'camBoomRateMul', 'camPadAdd'] as const;
 export type CamField = (typeof CAM_FIELDS)[number];
@@ -181,6 +181,8 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'headDropMul', label: 'head drop to sights', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'characterRig: NECK_WELD (the neck flexes onto the stock)' },
   { id: 'tuckMul', label: 'elbow tuck (aim / low ready)', kind: 'mul', def: 1, min: 0, max: 1.6, step: 0.05, unit: 'x', groups: ALL_GUN, hook: 'characterRig solveArm: AIM_ELBOW_TUCK / READY_ELBOW_TUCK x WREN_TUCK (per gun state)' },
   { id: 'glideTwistMul', label: 'glide hip twist cut', kind: 'mul', def: 1, min: 0, max: 1.5, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'animGraph: GLIDE.yawCut (aimed glide: the hips twist less)' },
+  // (anim-n3b, PASS2 row 25) the per-shot body kick (gun back and up, muzzle rise, chest give); visual only
+  { id: 'recoilMul', label: 'recoil kick per shot (gun, hands, chest)', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'recoil.ts BodyRecoil: WREN_RECOIL_RIFLE / WREN_RECOIL_PISTOL amounts' },
   // (tuner-camera) the follow camera per state: visual only, the collision still applies after them
   { id: 'camBoomAdd', label: 'distance behind', kind: 'add', def: 0, min: -2, max: 3, step: 0.01, unit: 'm', groups: ALL_CAM, hook: 'shoulderCamera.update: the framing boom (framing() / ATTACH_FRAMING / WALL_CAMERA.peek.boom), before the min boom and the casts' },
   { id: 'camHeightAdd', label: 'height (over the look-at)', kind: 'add', def: 0, min: -1, max: 1.5, step: 0.01, unit: 'm', groups: ALL_CAM, hook: 'shoulderCamera.update: CAMERA.height (the shoulder point over the pivot)' },
@@ -627,8 +629,10 @@ export function tuneEnd(rig: TuneRigIn): void {
 
 /**
  * The Body sliders that bake into the base table's `body` key (`animBase.ts`): every Body slider but the two with a code
- * value of their own (strideMul: the motion constants; peekLeanMul: WALL.peekLean). kneeOutMul / kneeLiftMul keep their
- * climb constants for ladder and pipe (CLIMB_KNEE_OUT / CLIMB_KNEE_UP) and bake here for every other state.
+ * value of their own (peekLeanMul: WALL.peekLean) or that act on the local player only (strideMul: its motion step,
+ * `tuneSim`; (anim-bake-all, BA-A2) it bakes per state into the base table's generic `sections.body`, which the registry
+ * composes into the Body section's effective values). kneeOutMul / kneeLiftMul keep their climb constants for ladder
+ * and pipe (CLIMB_KNEE_OUT / CLIMB_KNEE_UP) and bake here for every other state.
  */
 export const BODY_BASE_FIELDS: readonly BodyField[] = BODY_FIELDS.filter((f) => f !== 'strideMul' && f !== 'peekLeanMul');
 const NBF = BODY_BASE_FIELDS.length;

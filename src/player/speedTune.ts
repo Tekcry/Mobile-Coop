@@ -12,7 +12,8 @@ import { WALL } from './wallController';
  *
  * Read by the local player's own instances only: `PlayerController` (free movement and the aimed glide), the game's
  * `WallCore` (the wall slide) and the local traversal's `AttachMachine` (ladder, pipe, shimmy, duct crawl). No
- * allocation on those paths. The bypass (TUNE_FLAGS.bypass) reads x1.
+ * allocation on those paths. The bypass (TUNE_FLAGS.bypass) reads the base table alone (x1 untuned). (anim-bake-all) A
+ * baked value (the base table's `sections.speed`) is a gameplay change, the same as a baked GEARS point.
  */
 export const SPEED_GROUPS = ['spd.stand', 'spd.crouch', 'spd.aim', 'spd.wall', 'spd.climb'] as const;
 export type SpeedGroup = (typeof SPEED_GROUPS)[number];
@@ -47,12 +48,20 @@ export const SPEED_SECTION = registerTuneSection({
   },
 });
 
-const V = SPEED_SECTION.values;
+// (anim-bake-all, BA-A1) the effective values (the base table's `sections.speed` composed with the tuner's, rebuilt by the
+// registry on an edit or a load); the bypass reads the base alone (the code defaults). No allocation here.
+const V = SPEED_SECTION.eff;
 const STAND = V['spd.stand']!;
 const CROUCH = V['spd.crouch']!;
 const AIM = V['spd.aim']!;
 const WALLV = V['spd.wall']!;
 const CLIMB = V['spd.climb']!;
+const VB = SPEED_SECTION.base;
+const STAND_B = VB['spd.stand']!;
+const CROUCH_B = VB['spd.crouch']!;
+const AIM_B = VB['spd.aim']!;
+const WALL_B = VB['spd.wall']!;
+const CLIMB_B = VB['spd.climb']!;
 
 /** The speed group for a body group (follow). */
 export function speedGroupFor(body: string): SpeedGroup | null {
@@ -137,8 +146,8 @@ function paceMulAt(vals: Record<string, number>, i: number): number {
  * points (creep .. run), interpolated between the two points around `v`. Exactly 1 at identity. No allocation.
  */
 export function speedPaceMul(v: number, crouched: boolean): number {
-  if (TUNE_FLAGS.bypass) return 1;
-  const vals = crouched ? CROUCH : STAND;
+  const by = TUNE_FLAGS.bypass;
+  const vals = crouched ? (by ? CROUCH_B : CROUCH) : by ? STAND_B : STAND;
   const pts = crouched ? GEARS.crouch : GEARS.stand;
   if (!(v > pts[0])) return vals.creepMul!;
   for (let i = 1; i < pts.length; i++) {
@@ -158,10 +167,11 @@ export function speedPaceMul(v: number, crouched: boolean): number {
  * code's (`movement.ts directionMult`). Exactly 1 at identity. No allocation.
  */
 export function speedGlideMul(lx: number, lz: number): number {
-  const f = AIM.glideFwdMul!;
-  const s = AIM.glideStrafeMul!;
-  const k = AIM.glideBackMul!;
-  if (TUNE_FLAGS.bypass || (f === 1 && s === 1 && k === 1)) return 1;
+  const a = TUNE_FLAGS.bypass ? AIM_B : AIM;
+  const f = a.glideFwdMul!;
+  const s = a.glideStrafeMul!;
+  const k = a.glideBackMul!;
+  if (f === 1 && s === 1 && k === 1) return 1;
   const M = MOVEMENT;
   const l = Math.sqrt(lx * lx + lz * lz) || 1;
   const x = Math.abs(lx) / l;
@@ -179,23 +189,23 @@ export function speedMoveMul(v: number, stance: 'stand' | 'crouch' | 'ads' | 'ad
 
 /** The wall slide multiplier (WallCore). */
 export function speedWallMul(crouch: boolean): number {
-  if (TUNE_FLAGS.bypass) return 1;
-  return crouch ? WALLV.slideCrouchMul! : WALLV.slideStandMul!;
+  const w = TUNE_FLAGS.bypass ? WALL_B : WALLV;
+  return crouch ? w.slideCrouchMul! : w.slideStandMul!;
 }
 
 /** The attach speed multiplier for an anchor kind (AttachMachine). */
 export function speedAttachMul(kind: AttachKind | 'none'): number {
-  if (TUNE_FLAGS.bypass) return 1;
+  const c = TUNE_FLAGS.bypass ? CLIMB_B : CLIMB;
   switch (kind) {
     case 'ladder':
-      return CLIMB.ladderMul!;
+      return c.ladderMul!;
     case 'pipeV':
     case 'pipeH':
-      return CLIMB.pipeMul!;
+      return c.pipeMul!;
     case 'ledge':
-      return CLIMB.shimmyMul!;
+      return c.shimmyMul!;
     case 'duct':
-      return CLIMB.crawlMul!;
+      return c.crawlMul!;
     default:
       return 1;
   }

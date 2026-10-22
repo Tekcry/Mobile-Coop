@@ -336,25 +336,6 @@ export const DROP = makeClip({
   },
 });
 
-/** Dash-in slide (normalized): low, lead leg forward, trail leg folded, brace with the off hand. */
-export const SLIDE = makeClip({
-  name: 'slide',
-  duration: 1,
-  keys: {
-    pelY: [0, -0.1, 0.25, -0.5, 0.7, -0.52, 1, -0.4],
-    pelPitch: [0, 0.3, 0.3, -0.12, 0.7, -0.08, 1, 0.15],
-    fLZ: [0, 0, 0.3, 0.45, 0.8, 0.35, 1, 0.25],
-    fLY: [0, 0, 0.2, 0.04, 1, 0],
-    fRZ: [0, 0, 0.3, -0.25, 1, -0.3],
-    fRY: [0, 0, 0.3, 0.06, 1, 0.07],
-    fRPitch: [0, 0, 0.3, 1.0, 1, 1.1],
-    offGrip: [0, 1, 0.3, 0.2, 0.8, 0.2, 1, 1],
-    hLX: [0, -0.3, 1, -0.3],
-    hLY: [0, 0.5, 1, 0.5],
-    hLZ: [0, 0.1, 1, 0.1],
-  },
-});
-
 /** Landing compression after a drop (timed). */
 /**
  * (CT prototype G1, audit row 18) A drop of a metre and more (110522 @ 71.5-72.1): the hips sink to near full crouch depth

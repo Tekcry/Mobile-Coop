@@ -77,8 +77,6 @@ export interface RigPose {
   armed?: boolean;
   /** Dash blend 0..1. */
   dash?: number;
-  /** Dash-in slide progress 0..1, or < 0. */
-  slide?: number;
   /** Landing recovery 0..1. */
   landing?: number;
   /** Back to a wall (the flat-back high stance). */
@@ -125,8 +123,6 @@ export interface RigPose {
   sway?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
-  /** Doorway check sweep 0..1, or < 0. */
-  check?: number;
   /** Reload is the empty one (charging handle). */
   reloadEmpty?: boolean;
   /** Weapon swap / grenade throw progress 0..1, or < 0. */
@@ -1714,7 +1710,6 @@ export class CharacterRig {
     i.keyedDrawn = this.carrier && !!this.heldWeapon && !((s.bend ?? 0) > 0) && !((s.bendDrop ?? 0) > 0) && !(s.wall ?? false) && !(s.settleFeet ?? false);
     i.thighGear = this.thighGear;
     i.dash = s.dash ?? 0;
-    i.slide = s.slide ?? -1;
     i.landing = s.landing ?? 0;
     i.wall = s.wall ?? false;
     i.wallSide = s.wallSide ?? 0;
@@ -1738,7 +1733,6 @@ export class CharacterRig {
     i.cqCarry = s.carryBody ? (s.carrySide ?? 0) : 0;
     i.sway = s.sway ?? 0;
     i.tumble = s.tumble ?? 0;
-    i.check = s.check ?? -1;
     i.phase = s.phase ?? -1;
     i.motion = s.motion ?? '';
     i.motionT = s.motionT ?? 0;

@@ -54,10 +54,6 @@ export interface PlayerPose {
    *  a move runs): the mantle's hand plant. */
   traverseH?: number;
   traverseD?: number;
-  /** Dash-in slide 0..1, or < 0. */
-  slide: number;
-  /** Doorway check 0..1, or < 0. */
-  check: number;
   /** Takedown strike progress 0..1, or < 0. */
   melee: number;
   /** (G7) Close quarters (a held guard, a body lifted / carried / put down): spine bend (rad), pelvis drop (m), the
@@ -159,7 +155,7 @@ export class Player {
   /** (G6) Seconds on the wall this time (the settled side-on turn rate). */
   private wallT = 0;
   private wallHandPt: Vector3 | null = null;
-  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0, bend: 0, bendDrop: 0, sway: 0, freeGait: false };
+  readonly pose: PlayerPose = { wall: false, wallSide: 0, wallNx: 0, wallNz: 0, wallTx: 0, wallTz: 0, wallGap: 0, wallFace: 0, lean: 0, headCap: NaN, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, bend: 0, bendDrop: 0, sway: 0, freeGait: false };
   /** Context flags for the ready position (set by the corner systems each step). */
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -487,8 +483,6 @@ export class Player {
     rp.traverseH = cp.traverseH ?? 0;
     rp.traverseD = cp.traverseD ?? 0;
     rp.tuneTeam = MOVE_TUNE_TEAM.group; // (anim-joints J2) this player's own team role: the tuner's team rows
-    rp.slide = cp.slide;
-    rp.check = cp.check;
     rp.melee = cp.melee;
     rp.bend = cp.bend;
     rp.bendDrop = cp.bendDrop;

@@ -1,6 +1,7 @@
 // (anim-rework S1, BRIEF section 1; Michael 2026-10-20 M1-M4, A2, A3) the three weapon states and the trigger's tap / hold
 import { describe, expect, it } from 'vitest';
 import { emptyStanceInput, STANCE, TriggerTapHold, WeaponStance, type StanceInput } from '../src/player/weaponStance';
+import { bytesPerCall, HEAP_NUMBER } from './helpers/allocPerCall';
 
 const dt = 1 / 60;
 /** Run `s` seconds with the input `i` (the gun is out once `outAfter` s of wanting it have passed). */
@@ -191,17 +192,21 @@ describe('the trigger tap / hold (M3)', () => {
     for (let i = 0; i < 60; i++) expect(t.update(true, dt, true)).toBeNull();
     expect(t.update(false, dt, true)).toBeNull();
   });
-  it('allocates nothing per update', () => {
+  it('allocates nothing per update', async () => {
     const w = new WeaponStance();
     const t = new TriggerTapHold();
     const a = inp({ gunOut: true });
-    const before = process.memoryUsage().heapUsed;
-    for (let i = 0; i < 200000; i++) {
-      a.xDown = (i & 31) < 8;
-      a.aimDown = (i & 63) > 40;
-      w.update(dt, a);
-      t.update((i & 15) < 3, dt, true);
-    }
-    expect(process.memoryUsage().heapUsed - before).toBeLessThan(2_000_000);
+    // gc() + new space per update (tests/helpers/allocPerCall.ts), not heapUsed (that read whatever a GC left in the
+    // window, no warm-up): even one boxed double an update reads 16 B
+    const per = await bytesPerCall((n) => {
+      for (let i = 0; i < n; i++) {
+        a.xDown = (i & 31) < 8;
+        a.aimDown = (i & 63) > 40;
+        w.update(dt, a);
+        t.update((i & 15) < 3, dt, true);
+      }
+    }, HEAP_NUMBER / 2);
+    console.info(`bytes per stance + trigger update: ${per.toFixed(1)}`);
+    expect(per).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   });
 });

@@ -376,6 +376,7 @@ const PLAIN: Readonly<Record<string, string>> = {
   headDropMul: 'Head down to the sights',
   tuckMul: 'Elbows in to the body',
   glideTwistMul: 'Hip twist aiming on the move',
+  recoilMul: 'Recoil kick per shot',
   // camera
   camBoomAdd: 'Distance',
   camHeightAdd: 'Height',

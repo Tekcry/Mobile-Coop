@@ -16,6 +16,7 @@ import type { TransformNode, Vector3 as V3 } from '../src/core/babylon';
 import type { StudioDrive } from '../src/anim/studioDrive';
 // @ts-expect-error plain .mjs build script without types
 import { clipSource } from '../scripts/anim-keys/build.mjs';
+import { bytesPerCall, HEAP_NUMBER, inputs } from './helpers/allocPerCall';
 
 const emit = clipSource as (name: string, clip: Record<string, unknown>) => string;
 
@@ -138,27 +139,29 @@ describe('anim-skeleton S3a: the clip channels (pure)', () => {
     expect([...p.leg]).toEqual(before.leg);
   });
 
-  it('sampling, mixing and mirroring the new channels never allocate', () => {
+  it('sampling, mixing and mirroring the new channels never allocate', async () => {
     const c = keyedClip(testDef({ clav: CLAV, fing: FING, leg: LEG_KICK }, [...LEG_KICK].reverse()));
     const a = newKeyedPose();
     const b = newKeyedPose();
-    let acc = 0;
-    const run = (): number => {
-      const before = process.memoryUsage().heapUsed;
-      for (let k = 0; k < 100000; k++) {
-        sampleKeyed(c, k * 0.013, 0.8, a);
-        sampleKeyed(c, k * 0.007, 1, b);
-        mirrorKeyed(b);
-        mixKeyed(a, b, 0.3, a);
-        acc += a.leg[KL.knee]! + a.fing[3]! + a.clav[3]!;
-      }
-      return process.memoryUsage().heapUsed - before;
-    };
-    run();
-    const grown = Math.min(run(), run(), run());
-    expect(Number.isFinite(acc)).toBe(true);
-    // a 16-byte allocation per iteration would grow ~1.6 MB a pass
-    expect(grown).toBeLessThan(1_000_000);
+    sampleKeyed(c, 0.3, 1, b);
+    // gc() + new space per call (tests/helpers/allocPerCall.ts): heapUsed over 100k calls passed only when a GC landed
+    // in the window. sampleKeyed leaves two boxed doubles (the phase and the frame fraction, 32 B); one more { x, y, z }
+    // a call would read 80 B. Mixing and mirroring leave nothing.
+    const PH = inputs(2000, (k) => k * 0.013);
+    const sample = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) sampleKeyed(c, PH[k]!, 0.8, a);
+    }, 3 * HEAP_NUMBER);
+    const mirror = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) mirrorKeyed(b);
+    }, HEAP_NUMBER / 2);
+    const mix = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) mixKeyed(a, b, 0.3, a);
+    }, HEAP_NUMBER / 2);
+    console.info(`bytes per call: sampleKeyed ${sample.toFixed(1)}, mirrorKeyed ${mirror.toFixed(1)}, mixKeyed ${mix.toFixed(1)}`);
+    expect(Number.isFinite(a.leg[KL.knee]! + a.fing[3]! + a.clav[3]!)).toBe(true);
+    expect(sample).toBeLessThanOrEqual(3 * HEAP_NUMBER);
+    expect(mirror).toBeLessThanOrEqual(HEAP_NUMBER / 2);
+    expect(mix).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   });
 });
 
