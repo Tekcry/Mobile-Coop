@@ -2540,9 +2540,10 @@ export class CharacterRig {
     // (mt2-fixB, CHECK-3 item 3) clip feet on hand: each knee pole's swing / stance share moves at most 1 / POLE_SWAP a
     // second (a landing swapped KNEE_SWING_SHARE for half way in a frame: in a 7.85 rad/s flick the knee swung round, the
     // hip / knee rate limit held it and the landed ankle missed its spot by 2.4 cm); off: -1, exactly as before
-    // (mt2-fixC, CHECK-3 item 4) and on the mocap share (a spot turn's turn-in-place slot: no clip feet, the hips do not
-    // follow the feet), until a swap under way has run out: a spot flick's landing missed its spot by 2.1 cm the same way
-    const poleM = LOCO.mocap && t.keyMocap > 0;
+    // (mt2-fixC, CHECK-3 item 4) and while the mocap share keeps the hips off the feet (MOCAP_LAYERS.pelvisFollow: a spot
+    // turn's turn-in-place slot, no clip feet), until a swap under way has run out: a spot flick's landing missed its spot
+    // by 2.1 cm the same way. Placeholder clips (every layer 1) are left as before
+    const poleM = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1;
     for (let k = 0; k < 2; k++) {
       if (this.pin.clipFeet === null && !poleM && !(this.poleShare[k]! >= 0 && this.poleShare[k] !== this.poleWant(k === 0 ? -1 : 1))) {
         this.poleShare[k] = -1;
