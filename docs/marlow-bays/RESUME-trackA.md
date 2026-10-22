@@ -1,6 +1,6 @@
 # Track A (Night Shift | Course Ready Build) - resume
 
-Written 2026-10-22 ~09:10, updated ~16:40 (full burn; stop new agents at 97% of the 5-hour window). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
+Written 2026-10-22 ~09:10, updated ~17:50 (full burn; stop new agents at 97% of the 5-hour window). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
 24, 29, 30 and "Tracks") and this file. Report to "Night Shift | Orchestrator".
 
 ## Open jobs
@@ -12,10 +12,10 @@ Written 2026-10-22 ~09:10, updated ~16:40 (full burn; stop new agents at 97% of 
 | Item 30 key tools | - | merged | #106 merged as 4.51.0 (d52d37a5); Menu Notes told | Done |
 | clip-speed | `feature/clip-speed` | merged | #109 merged in train/2 #112 as 4.53.0 (5220f79c) | Done. Menu Notes N3 splits holster per gun (agreed) |
 | anim-natural N4 holds and carries | `feature/anim-n4` | merged | #113 merged in train/3 #114 as 4.54.0 (99f3e488) | Done |
-| sector-fixes slice S (security room) | `feature/sector-fixes-s` | merged | #115 merged in train 4 #121 as 4.55.0; master CI then failed on a stale tests/guardInfo.test.ts: patch PR #124 (fix/guardinfo-s3, worktree C:/NightShift/Mobile-Coop-guardinfo-fix) CI green, 4.55.1, orchestrator merges | Done (GPU look of the room still owed: scripts/shots-ctcourse.mjs s3-monitors, when the lock is yours) |
-| anim-n4b (N4 pass 2 rows 3, 4, 6, 8 + fix 36) | `feature/anim-n4b`, `C:/NightShift/Mobile-Coop-anim-n4b` | 149003aa | PR Tekcry/Mobile-Coop#119 (train 5). Checker FIX -> fix round; tunerLayout fix (cq in the Body tab, labels < 30); master 4.55.0 + fix/guardinfo-s3 merged; GPU audit done and posted on the PR (roll grounded, mantle plant, holds corr -1, B pitch 17-23 deg). Laptop rerun of check + 7 suites queued (behind sector-fixes C and N1) | Orchestrator 16:35: run the suites on the DESKTOP after CT Core ctb8 (lock): build, then `E2E_PORT=4191 E2E_JOBS=2 node scripts/run-e2e.mjs e2e-anim e2e-studio e2e-coop e2e-netmove e2e-ctcourse e2e-clip e2e-traverse` + full vitest; post on #119; tell the laptop to drop its queued run |
+| sector-fixes slice S (security room) | `feature/sector-fixes-s` | merged | #115 in 4.55.0; guardInfo test patch #124 merged as 4.55.1 (master green) | Done (GPU look of the room still owed: scripts/shots-ctcourse.mjs s3-monitors) |
+| anim-n4b | `feature/anim-n4b`, `C:/NightShift/Mobile-Coop-anim-n4b` | 1e442236 | PR Tekcry/Mobile-Coop#119. Desktop 149003aa: vitest / lint / build / e2e-anim / studio / traverse ok; e2e-clip ladder drop failed (fixed in 1e442236: no legs-ahead fall straight off a wall hold), netmove / coop killed at 600 s and ctcourse station 3 setup check failed (load: same on other branches today), split breath now on a shared split-entry clock. GPU audit posted. Laptop asked: check + e2e-clip, netmove, coop, ctcourse SOLO on 1e442236 | Laptop verdict; then train 5 (orchestrator) |
 | heap-asserts (tests only) | `feature/heap-asserts`, `C:/NightShift/Mobile-Coop-heap-asserts` (from master 9287a095) | - | Assigned 16:30: heapUsed "never allocates" asserts (animSkeletonRows.test.ts:127, animSkeletonClip, keyCurve, animWeight) pass only when a GC lands in the window; move to the lightField gc() + new-space method with a per-call limit, or find the vitest-only boxing. Implementer agent started 16:38 (uncommitted work in the worktree if this session was cleared) | Review its diff, 5x stable runs, commit, PR (tests-only tier) |
-| studio-pairs (AUDIT fix 12) | `feature/studio-pairs`, `C:/NightShift/Mobile-Coop-studio-pairs` (from master 9287a095) | - | Assigned 16:30: Anim Studio pair puppets vanish (pair-boost 0.22-0.87 s) and the hold pairs' guard over-lit. Implementer agent started 16:38 (uncommitted work in the worktree if cleared). #119 also edits studioPairs.ts / studioStage.ts: merge it in after #119 lands | Review, commit, studio GPU look (`audit.mjs studio --only=pair-*` from origin/feature/anim-natural, lock), PR |
+| studio-pairs (AUDIT fix 12) | `feature/studio-pairs`, `C:/NightShift/Mobile-Coop-studio-pairs` | 8091de94 | Stage lights only on Wren's own meshes (hold-pair guard no longer white); pair puppets hold LOD0 through the loop; `__studioStage.puppets()` readiness hook; boost vanish not reproduced on the CPU (likely a shader not ready on a fresh page). GPU script ready: `bash C:/NightShift/sp-gpu.sh` (audit.mjs copied untracked) | When the orchestrator gives the desktop lock (after Menu Notes): run sp-gpu.sh, read the pair sheets, PR (merge after #119 lands; both edit studioPairs.ts / studioStage.ts, dry-run merge clean) |
 
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
 #89 items 26 / 26b 4.41.0, #91 item 25 4.43.0.
@@ -41,6 +41,7 @@ characterRig.ts, tuneStep.ts, footPlanner.ts, player.ts. Checker's two findings 
   from CT Core / Menu Notes (naturalness pass, docs/anim-natural/BRIEF.md) arrive through the registry and must bake.
 - Michael's tuner rules: one layout for every input (only hint glyphs follow the input), layout from viewport size only,
   no search / recent / pins / body map, plain-English labels, subtle highlight with an off switch.
+- Load rule (orchestrator 17:45): e2e-coop / e2e-netmove / e2e-ctcourse run on the laptop only; desktop e2e at E2E_JOBS=1 while agents run; GPU stays on the desktop.
 - Tell Menu Notes (track C) when key-file / tuneKeys PRs open and land.
 
 ## N4 checker (2026-10-22 ~12:55, verdict FIX) - fixed in a65a9496 (13:40)
@@ -69,11 +70,11 @@ work (full vitest, build, e2e, GPU) takes C:/NightShift/heavy.lock atomically
 the orchestrator's lock queue, deleted only if it still names you; the laptop ("Night Shift | Character Build") runs
 area suites and train e2e on request.
 
-Next (2026-10-22 ~16:40):
-1. If heap-asserts or studio-pairs have uncommitted changes in their worktrees (git status) and no agent is running,
-   review the diff, run the light checks named in their Open jobs rows, commit and continue from there.
-2. #119 (feature/anim-n4b 149003aa): when CT Core hands the desktop lock over after ctb8, run build + the 7 suites +
-   full vitest on the desktop (see its row), post on #119, report to the orchestrator.
-3. heap-asserts PR (tests only), then studio-pairs (GPU look, PR).
+Next (2026-10-22 ~17:50):
+1. heap-asserts (feature/heap-asserts, worktree C:/NightShift/Mobile-Coop-heap-asserts): if an agent is not running and
+   the worktree has uncommitted changes, review the diff, run each changed test file 5x, commit, PR (tests-only tier),
+   and send CT Core the bodyMotion.test.ts patch for feature/anim-natural-n2 using the new helper.
+2. #119: act on the laptop verdict for 1e442236 (Open jobs row).
+3. studio-pairs: GPU look when the lock is handed to you, then PR.
 4. Then ask the orchestrator for the next job.
 ```
