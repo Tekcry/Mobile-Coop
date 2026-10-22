@@ -35,6 +35,8 @@ export class SecurityView {
     const node = new TransformNode(`sec-cam-${c.def.id}`, this.scene);
     node.position.set(c.x, c.y, c.z);
     node.rotation.y = c.yaw;
+    // (sector-fixes C) the housing points down its pitch, at the floor patch it watches
+    node.rotation.x = c.pitch;
     const H = CAMERA.housing;
     const box = (hex: string, sx: number, sy: number, sz: number, x: number, y: number, z: number): InstancedMesh => {
       const m = this.parts.instance('box', hex, 'sec-cam');
@@ -61,7 +63,8 @@ export class SecurityView {
       }
       if (v.lastMode !== c.mode) {
         v.lastMode = c.mode;
-        v.node.rotation.x = c.mode === 'destroyed' ? 0.5 : 0;
+        // (sector-fixes C) the housing points down its pitch (a shot one hangs further)
+        v.node.rotation.x = c.pitch + (c.mode === 'destroyed' ? 0.5 : 0);
       }
       // (marlow-jammer, item 7) the LED flashes while the camera is jammed (dark while it reboots)
       const led = c.mode === 'online' ? LED_ON : c.jam === 1 && ((c.jamT * LED_FLASH_HZ * 2) | 0) % 2 === 0 ? LED_ON : LED_OFF;
