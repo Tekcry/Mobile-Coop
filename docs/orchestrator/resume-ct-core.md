@@ -57,6 +57,10 @@ Batch checker (Opus) for strike-pops + traverse-fix-2 when traverse-fix-2 hands 
 mocap-strafe desktop GPU: e2e-clip ok, e2e-anim FAIL anti-crab "rifle aimed strafe right speed 1: knee separation
 0.5-1.5 x hips (0.62 / 1.23 / 1.9)" (ms-e2e-anim.log); sent to the strafe checker for cause + fix.
 guard-render S5 1b895175 reviewed OK for Character Build (rebase after train 20).
+New spare jobs (orchestrator ~10:10, "stealth over shooting", ROADMAP "Next: stealth over shooting" + Decided), after
+hang-down / strafe, in order: 9 interrogation gives door codes / camera routes / patrol timing; 12 co-op synced takedowns
+rewarded; 7 limited suppressor ammo. Opus planner writing strict Sonnet briefs to scratch/ctcore/briefs/spare-<n>-*.md;
+then Sonnet builders (one worktree each, feature/<slug>), batch branch, one Opus checker. Save by 98% (~10:35).
 mocap-strafe DONE 842270f0 (MT2-STRAFE.md; ON stop pelvis 1.89 cm, swing jumps <= 11.3 cm, slide 0; OFF md5 match;
 open: aimed strafe ON +144 B/frame). Fresh checker running (-> scratch/msc-CHECK.md); desktop lane e2e-anim + e2e-clip
 on 842270f0 (scratch/ctcore/lane-strafe.sh, logs ms-*.log). Then PR (own PR, after #188). Back-to-wall next.
