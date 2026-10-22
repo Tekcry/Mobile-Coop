@@ -1,21 +1,29 @@
 # sector-redesign - state
 
-## Now (2026-10-23 ~01:55)
-- Branch feature/sector-redesign = sector-fixes-r2 5bfbf85d (nav closures + bolt reach cap) + master 4.63.1 (d21f4eda).
-- Research: CT-LEVELS.md (014f611d) and CONCEPT.md (b6c78d01: Saltmarsh Park, 5 sections 8/12/16/20/24 guards) landed; ENGINE.md (engine audit, gaps) still running; SPEC + PLAN writer started ~02:35 (reads ENGINE when it lands). Was: (engine audit,
-  gaps), CT-LEVELS.md (CT co-op level lessons, ten rules).
-- feature/camera-range (worktree C:/NightShift/Mobile-Coop-camera-range, from master): measure every camera's reach
-  vs its zone (docs/camera-range/MEASURE.md), one engine cut, own small PR. Off ctDevices.ts / securityRoom.ts.
-- Lighting: the shared proposal docs/lighting-review/PROPOSAL.md lands on origin/feature/marlow-final (Menu Notes'
-  lighting agent); add a Sector Ops section there once it lands.
-- Questions Q1-Q5 sent to Michael through the orchestrator ~01:50; unanswered by ~02:05 -> assumptions in BRIEF.
-- r2 findings for the spec: R2-PATHS.md (origin/feature/sector-fixes-r2-paths ff3442e1: "pair bolt"; pockets do not fit the current halls) and R2-JUMP.md + the green soloTopLandingReach / soloTopLandingThreats helper (origin/feature/sector-fixes-r2-jump 7306dce9; take tests/helpers/soloJumpReach.ts + tests/soloJumpReach.test.ts from there, not the warehouseS2 change).
-  "pair bolt" design, pockets do not fit the current halls) and R2-JUMP.md (origin/feature/sector-fixes-r2-jump).
+## Now (2026-10-23 ~03:10, 5h window 91%)
+- Branch feature/sector-redesign = sector-fixes-r2 5bfbf85d (nav closures + bolt reach cap) + master 4.63.1.
+- Research done: research/CT-LEVELS.md (ten rules), CONCEPT.md (Saltmarsh Park, 5 sections 8 / 12 / 16 / 20 / 24
+  guards), ENGINE.md (gaps G1-G25; "Requests for guard-ai" at its end, written by slice 0).
+- SPEC.md + PLAN.md done (c806bac4): one map campusOps, 5 SectorDef sections; loosenings applied as A23-A45
+  (MORNING-REVIEW below). Slices: 0 (engine smalls), L (light sync, protocol 31), 1 (S1 greybox), 2-5, E1-E7.
+- IN FLIGHT (check each branch log on resume; if an agent died, rerun its slice from PLAN.md):
+  - Slice 0 agent in THIS worktree (uncommitted at 03:10: warehouseSectors.ts, tests/sectors.test.ts,
+    tests/sectorSlice0.test.ts): arm everyone as data, reinforcement kind / count from SectorDef, dog allowance per
+    section, restart resets lamps / doors, camera cap per section, guard-ai data requests in ENGINE.md. No src/ai
+    behaviour (guard-ai owns it).
+  - Slice L agent: feature/sector-redesign-light (worktree C:/NightShift/Mobile-Coop-sector-redesign-light), Sector
+    light-state co-op sync, PROTOCOL_VERSION 31 (marlow-final takes 30; keep protocol.ts edits to the version line +
+    appended types).
+  - camera-range agent: feature/camera-range (worktree C:/NightShift/Mobile-Coop-camera-range), docs/camera-range/
+    MEASURE.md + one engine cut; off ctDevices.ts / securityRoom.ts (hunks for Menu Notes go to FOR-MENU-NOTES.md).
+- Guard-cap perf run (24 awake) requested on the laptop by the orchestrator; slice 4 waits on it.
 
 ## Next
-1. Research hand-backs -> SPEC.md (from docs/templates/map-spec.md) for up to 5 sections + PLAN.md (greybox slices).
-2. Greybox slices straight on (Michael reviews spec + greybox in the morning).
-3. camera-range PR: CI + area suites via Character Build (E2E_GPU=1), checker, PR.
+1. Slice 0 hand-back -> commit, merge slice L branch when done, full npm test (desktop at 100% CPU: send the full run
+   to Character Build instead), checker.
+2. Slice 1 (S1 greybox, PLAN.md) on this branch; after the reset at most 3 agents per desktop session (orchestrator).
+3. camera-range: checker, laptop suites (e2e-ctcourse, e2e-sectorops, e2e-coop; E2E_GPU=1), PR.
+4. Green slices merge to master in the next train (Michael: "Merge to master").
 
 ## Done
 - 2026-10-23 ~01:45: branch cut, BRIEF (M1-M5).
@@ -26,7 +34,7 @@
 Night Shift | Course Ready Build: RESUME sector-redesign. Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu for the
 live "Decided"), docs/sector-redesign/BRIEF.md and this STATE (origin/feature/sector-redesign), and
 docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays for the other open jobs (sw-reload, g44-above,
-camera-range). Carry on from "Next". Full burn to 100%; WIP pushed after every hand-back. Report to
+camera-range). Carry on from "Next". After the reset pace to ~97-99% per window, at most 3 agents (orchestrator); WIP pushed after every hand-back. Report to
 "Night Shift | Orchestrator".
 ```
 
