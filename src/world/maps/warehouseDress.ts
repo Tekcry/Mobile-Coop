@@ -4,6 +4,8 @@ import type { SecurityData } from '../../security/data';
 import type { LaserDef } from '../../game/jammer';
 import { mountEnd } from '../lampMount';
 import { hyp2 } from '../../core/mathx';
+import { cutRect } from './warehouse';
+import { S3_ROOF_HOODS } from './warehouseS3';
 
 /**
  * Sector Ops Warehouse dressing (warehouse-lamps; pure). Michael (2026-10-20): the open roof sections become "a opaque
@@ -57,16 +59,19 @@ const ROOF_Y1 = 6.28;
 /**
  * The hall roof's openings in Sector Ops [x0, x1, z0, z1]: the skylight gaps between the strips (`warehouse.ts`), the
  * slit over section 2's south wall and section 3's south strip (the base z -12 strip is skipped and section 1's roof
- * ends at z -8.95).
+ * ends at z -8.95). (sector-fixes-r e2e fix) Less the holes under the hoods over section 3's hung platforms
+ * (`S3_ROOF_HOODS`: each hood closes its hole).
  */
-export const ROOF_OPENINGS: readonly (readonly [number, number, number, number])[] = [
-  [-24, 24, -1.2, 0],
-  [-24, 24, 4.8, 6],
-  [-24, 24, 10.8, 12],
-  [-24, 24, 16.8, 18],
-  [-24, -4, -6.15, -6],
-  [-4, 24, -8.95, -6],
-];
+export const ROOF_OPENINGS: readonly (readonly [number, number, number, number])[] = (
+  [
+    [-24, 24, -1.2, 0],
+    [-24, 24, 4.8, 6],
+    [-24, 24, 10.8, 12],
+    [-24, 24, 16.8, 18],
+    [-24, -4, -6.15, -6],
+    [-4, 24, -8.95, -6],
+  ] as const
+).flatMap((r) => cutRect(r, S3_ROOF_HOODS));
 /** Openings that are routes and stay open [x0, x1, z0, z1, why] (SPEC 5.2: section 1's roof). */
 export const ROUTE_OPENINGS: readonly (readonly [number, number, number, number, string])[] = [
   [-20.6, -19.4, -8.0, -6.8, 'section 1 smoke vent (route R2: the roof to the lobby-block roof)'],

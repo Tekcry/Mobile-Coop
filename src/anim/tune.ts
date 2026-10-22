@@ -447,8 +447,11 @@ export const TUNE_BANDS = { idle: 0.15, walk: 2.2, jog: 3.7, sneak: 1.2, crouchR
 
 /** The body group for a pose (`ledge`: the hands hook a lip; `armed`: a weapon in hand). Null: no group (identity). */
 export function selectBodyGroup(p: TunePoseIn, ledge: boolean, armed: boolean): BodyGroup | null {
-  if ((p.bend ?? 0) > 0 || (p.bendDrop ?? 0) > 0) return p.carryBody ? 'carry' : 'hold';
   const tr = p.traverse ?? 'none';
+  // (N4b train-8 fix) a team holder's brace bends too (clips/team.ts `applyB`: the boost, throw, hang-down and rope
+  // holder, traverse 'brace'): not a hold or a carry, so no hold rows and no hold camera on it (as animGraph's `cqOn`);
+  // the brace has no group of its own (null, as before the team pose)
+  if (((p.bend ?? 0) > 0 || (p.bendDrop ?? 0) > 0) && tr !== 'brace') return p.carryBody ? 'carry' : 'hold';
   // (anim-bake-targets) in the air (a fall or a jump, speed ~0) the stance rows would read as `idle`: its narrow stance
   // (Michael's trackMul 0.05) carried into the landing roll's first frames (e2e-clip: the feet 2.1 cm apart); the air
   // has no group, so the values ease back to the untuned ones over the fall (BODY_TAU)

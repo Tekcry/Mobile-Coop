@@ -1,6 +1,9 @@
 import type { SectorDef } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
 import type { LaserDef } from '../../game/jammer';
+import { S1_BOLTS } from './warehouseS1';
+import { S2_BOLTS } from './warehouseS2';
+import { S3_BOLTS } from './warehouseS3';
 import type { LaserPanelDef } from '../../game/laserPanels';
 
 /**
@@ -49,6 +52,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     ],
     // alarm reinforcements come in at the vehicle gate
     reinforce: [[5.0, -25.0], [8.0, -25.0]],
+    // (sector-fixes-r RT) team doors: bolted from one side (warehouseS1.ts builds the doors locked)
+    bolts: S1_BOLTS,
     perStage: 2,
     routes: [
       {
@@ -109,6 +114,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
     ],
     // alarm reinforcements: the west fire exit and the charge bay
     reinforce: [[-22.5, 5.5], [-6.2, -5.0]],
+    // (sector-fixes-r RT) team doors (warehouseS2.ts)
+    bolts: S2_BOLTS,
     perStage: 2,
     routes: [
       {
@@ -163,6 +170,8 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       { kind: 'grunt', x: 19.4, z: -3.0, yaw: Math.PI, route: [[19.4, -3.0], [20.0, 0.6], [14.9, 0.6], [15.0, -3.3]], wait: 6, waits: [6, 2, 2, 2], faces: [Math.PI, 0, -Math.PI / 2, Math.PI / 2], takedownSpot: [19.4, -3.0] },
     ],
     reinforce: [[-2.5, 10.5], [20.8, 6.5], [13, -7.0]],
+    // (sector-fixes-r RT) team doors (warehouseS3.ts)
+    bolts: S3_BOLTS,
     perStage: 3,
     routes: [
       {
@@ -225,7 +234,8 @@ export const WAREHOUSE_OPS_LASERS: LaserDef[] = [
  *   The void's east wall hides it from the workshop floor; it is jammed from the catwalk (the east ladder) through the
  *   opening, about (10.5, 3.0, -9.55), or from inside the void.
  * - plant deck: in the 0.75 m slot behind the AHU, on the facade's inner face. The AHU hides it from the open deck; it
- *   is jammed round the corner from the deck's south-west corner, about (-3.2, 3.3, -17.3), west of the band.
+ *   is jammed round the corner from the deck's south-west corner, about (-3.6, 3.3, -17.2), west of the band
+ *   (re-merge with sector-fixes R: just west of R1's plant-room sill, x -3.2 to -2.0, which took the old spot).
  * - VNA aisle: on top of R2N's north end (4 m up). The rack hides it from the aisle and the gangway; it is jammed from
  *   R1N's top across the aisle (its ladder at the aisle's north end), about (-18.75, 4.0, 12.5).
  * - mezzanine deck (both deck bands): under the deck, low on the north wall behind the parts store's back shelving
