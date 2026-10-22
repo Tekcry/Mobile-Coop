@@ -326,6 +326,9 @@ const CLIP_TOE_OFF_NEED = 0.01;
 /** (mocap-trial-2, strafe) In the mocap strafe a swing target that moves more than this in a frame (m) fades in as the
  *  rest spot's re-aim does (OFF_FADE), not in one frame. */
 const STRAFE_REAIM = 0.05;
+/** (mocap-trial-2, strafe) The strafe share (keyStrafe) the re-aim fade and the takeover fade act from: a real strafe, not
+ *  the ~1e-6 a forward / back snap leaves (its fade outlived the touchdown: a 3.2 cm planted slide). */
+const STRAFE_ON = 0.05;
 /**
  * (mocap-trial-2, runturn) A fast jog / run turn hands the steps to the planner inside the clip's long swing window (the
  * gait clock keeps the clip's stance; run duty 0.156: ~0.55 s in the air, 126 deg of a 4 rad/s turn). Swung along the
@@ -1017,7 +1020,7 @@ export class FootPlanner {
         const wasClamped = side < 0 ? this.restL : this.restR;
         // (mocap-trial-2, strafe) and in the mocap strafe a target that jumps in a frame (a flip or a snap off the strafe
         // re-aims the long side-step: the swing foot moved 24-29 cm in a frame, knee-ankle 21-25 deg)
-        const reaim = (i.strafe ?? 0) > 0 && hyp2(f.toX - prevToX, f.toZ - prevToZ) > STRAFE_REAIM;
+        const reaim = (i.strafe ?? 0) > STRAFE_ON && hyp2(f.toX - prevToX, f.toZ - prevToZ) > STRAFE_REAIM;
         if ((clamped !== wasClamped || reaim) && !fresh && !takeover) {
           const h = smooth(sp);
           const k = f.offBase >= 0 ? 1 - smooth(f.offBase / OFF_FADE) : 0;

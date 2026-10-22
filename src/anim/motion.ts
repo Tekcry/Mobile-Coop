@@ -153,7 +153,9 @@ export function stepLength(speed: number, M: MotionTuning = MOVEMENT, lateral = 
   const l2 = lateral * lateral;
   // (mocap-trial-2, strafe) a carrier's mocap strafe side-step standing (GLIDE_SIDE; NaN or not `mside`: the glide's, as before)
   const sideG = GLIDE_STEP.lat0 + GLIDE_STEP.latK * v;
-  const sideM = mside ? sideStepAt(v) : Number.NaN;
+  // (sideStepAt written out: a call with a double boxes it, 16 B a frame per gaitRate)
+  const gs = GLIDE_SIDE.stride;
+  const sideM = mside && gs > 0 && v > 0 ? 0.5 * gs * Math.pow(v / (gs / GLIDE_SIDE.cycle), GLIDE_SIDE.exp) : Number.NaN;
   const side = Math.min(fwd, !Number.isNaN(sideM) ? sideG + (sideM - sideG) * (1 - Math.max(0, Math.min(1, crouch))) : sideG);
   const step = (fwd + (side - fwd) * l2) * (1 - GLIDE_STEP.back * back * back);
   return (old + (step - old) * g) * TUNE_CUR.strideMul;

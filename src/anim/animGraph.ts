@@ -17,7 +17,7 @@ import { rollRide } from '../player/traversePath';
 import { overClip, addClip, type Clip } from './clip';
 import { evalCurve } from './curves';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
-import { gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
+import { GLIDE_SIDE, gaitRate, TURN_GAIT_MIN, TURN_STEP, type MotionState } from './motion';
 import { MOVEMENT, TENSE } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import { TUNE_CUR, tuneMoveTwist } from './tune';
@@ -45,7 +45,7 @@ import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
 import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
-import { HAND_KEYED_SET, LOCO, mocapSideStep, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SLOT, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
+import { HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SLOT, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
@@ -856,6 +856,9 @@ export class AnimGraph {
   private stHip = 0;
   /** (mocap-trial-2, strafe) The captures' cycle amplitude (the glide's `amp`, eased: STRAFE_AMP_TAU). */
   private stAmp: number = GLIDE.ampMin;
+  /** (mocap-trial-2, strafe) This frame's dt and travel length for `strafeTrack` (fields: no boxed double arguments). */
+  private stDt = 0;
+  private stDl = 0;
   private mcK = 0;
   private cHalf = KEYED_CROUCH_WALK.half;
   private cKneeOut = 0;
@@ -1081,7 +1084,12 @@ export class AnimGraph {
     this.dirX /= dn;
     this.dirZ /= dn;
     // (mocap-trial-2, strafe) switch on: the mocap strafe's side, hips shift and amplitude (`strafeTrack`)
-    if (this.mOn) this.strafeTrack(i, dt, dl, locoSpeed);
+    // (dt and dl as fields, not arguments: a double passed to a call is boxed, 48 B a frame)
+    if (this.mOn) {
+      this.stDt = dt;
+      this.stDl = dl;
+      this.strafeTrack(i);
+    }
     this.raiseS = approach(this.raiseS, i.raise, 0.02, dt);
     this.dashS = approach(this.dashS, i.dash, 0.15, dt);
     this.wallS = approach(this.wallS, i.wallSide, 0.2, dt);
@@ -2262,6 +2270,8 @@ export class AnimGraph {
       if (SL !== null && SR !== null) {
         this.stIdleA = idleShare > this.stIdleA ? idleShare + (this.stIdleA - idleShare) * this.stIdleK : idleShare;
         this.stIdle = this.stIdleA > this.stIdle ? this.stIdleA + (this.stIdle - this.stIdleA) * this.stIdleK : this.stIdleA;
+        // (settled within 1e-4: exactly idleShare, so the mix below passes idleShare itself)
+        if (this.stIdle - idleShare < 1e-4 && this.stIdle - idleShare > -1e-4) this.stIdle = this.stIdleA = idleShare;
       }
       const sDuty = SL !== null && SR !== null ? SL.duty + (SR.duty - SL.duty) * stW : S.duty;
       this.stShare = SL !== null && SR !== null ? sk * aimK * (1 - this.stIdle) * (1 - this.kCk) : 0;
@@ -2280,13 +2290,16 @@ export class AnimGraph {
           // aimed head on the gun platform (no keyed head turn, as the trunk)
           // (its hips' own height kept: the captures sink 3.6 cm into the wide side-step, as captured)
           if (stW < 1) {
-            sampleKeyed(SL, ph, this.stAmp, this.kD);
+            // (the glide's own amp once the ease has settled on it: no new boxed double a frame)
+            if (this.stAmp === amp) sampleKeyed(SL, ph, amp, this.kD);
+            else sampleKeyed(SL, ph, this.stAmp, this.kD);
             this.dynPel(this.kD, SL, pose);
             this.kD.pel[1] = this.kD.pel[1]! + SL.meanPel[1]!;
           }
           if (stW > 0) {
             const k = stW < 1 ? this.kSt : this.kD;
-            sampleKeyed(SR, ph, this.stAmp, k);
+            if (this.stAmp === amp) sampleKeyed(SR, ph, amp, k);
+            else sampleKeyed(SR, ph, this.stAmp, k);
             this.dynPel(k, SR, pose);
             k.pel[1] = k.pel[1]! + SR.meanPel[1]!;
             if (stW < 1) mixKeyed(this.kD, this.kSt, stW, this.kD);
@@ -2312,7 +2325,11 @@ export class AnimGraph {
         sampleKeyed(R, rph, 1, this.kD);
         this.dynPel(this.kD, R, pose);
         // (the glide's share passed as it came: a merged double is boxed for the call, an allocation the switch off)
-        if (loco) mixKeyed(this.kE, this.kD, SL !== null && SR !== null ? this.stIdle : idleShare, this.kE);
+        // (the eased still share only while it differs: settled it is idleShare itself, no new boxed double a frame)
+        if (loco) {
+          if (SL === null || SR === null || this.stIdle === idleShare) mixKeyed(this.kE, this.kD, idleShare, this.kE);
+          else mixKeyed(this.kE, this.kD, this.stIdle, this.kE);
+        }
         else mixKeyed(this.kD, this.kD, 0, this.kE);
       }
       gHalf = mHalf + (R.half - mHalf) * idleShare;
@@ -2357,20 +2374,30 @@ export class AnimGraph {
   /** (mocap-trial-2, strafe) Switch on (`mOn`), once a frame: the mocap strafe's eased side, the hips' shift over its
    *  side-steps, the captures' eased amplitude and the still share's ease (a method of its own: in update() the aimed
    *  frame allocated more). The eases are written out: a double returned from a call is boxed. */
-  private strafeTrack(i: AnimInput, dt: number, dl: number, locoSpeed: number): void {
+  private strafeTrack(i: AnimInput): void {
+    const dt = this.stDt;
+    const dl = this.stDl;
+    const locoSpeed = this.locoSpeed;
     // the side of the travel the captures play (dirX holds its side through a pure flip: renormalised with no forward part it
     // never crosses 0), eased so a flip cross-fades the left and right captures
-    if (dl > 0.1 && i.speed > 0.05 && (i.localX > 0.1 * dl || i.localX < -0.1 * dl)) this.stSide = approach(this.stSide, i.localX > 0 ? 1 : 0, STRAFE_SIDE_TAU, dt);
+    if (dl > 0.1 && i.speed > 0.05 && (i.localX > 0.1 * dl || i.localX < -0.1 * dl)) {
+      const sw = i.localX > 0 ? 1 : 0;
+      this.stSide = sw + (this.stSide - sw) * Math.exp(-dt / STRAFE_SIDE_TAU);
+    }
     // the hips' shift against the travel: a quarter of the side-step's cycle travel, at most STRAFE_LEAD.rate m/s; aimed only
     // (the captures play under the raise): holstered it eases back to 0 at the rate
-    const st = this.raiseS > 1e-4 ? mocapSideStep(locoSpeed) : Number.NaN;
+    // (motion.ts sideStepAt written out, as mocapSideStep: no call with a double a frame)
+    const gs = GLIDE_SIDE.stride;
+    const st = this.raiseS > 1e-4 && this.mSide && gs > 0 && locoSpeed > 0 ? 0.5 * gs * Math.pow(locoSpeed / (gs / GLIDE_SIDE.cycle), GLIDE_SIDE.exp) : Number.NaN;
     const want = Number.isNaN(st) ? 0 : (2 * this.stSide - 1) * STRAFE_LEAD.hips * 2 * st;
     const dm = STRAFE_LEAD.rate * dt;
     this.stHip = want > this.stHip + dm ? this.stHip + dm : want < this.stHip - dm ? this.stHip - dm : want;
     // the captures' amplitude, eased: a CT stop's last pace step scaled their wide hips swing by 8 % in a frame
     const amp = GLIDE.ampMin + ((1 - GLIDE.ampMin) * locoSpeed) / GLIDE.full;
     const ampT = amp < 0 ? 0 : amp > 1 ? 1 : amp;
-    this.stAmp = ampT + (this.stAmp - ampT) * Math.exp(-dt / STRAFE_AMP_TAU);
+    // (settled onto the glide's amp exactly: keyedDrawnSet then passes its own `amp`, no new boxed double a frame)
+    const sa = ampT + (this.stAmp - ampT) * Math.exp(-dt / STRAFE_AMP_TAU);
+    this.stAmp = sa - ampT < 1e-4 && sa - ampT > -1e-4 ? ampT : sa;
     // the still share's ease a frame (keyedDrawnSet's stIdle)
     this.stIdleK = Math.exp(-dt / (STRAFE_IDLE_TAU * 0.5));
   }
