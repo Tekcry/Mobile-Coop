@@ -223,8 +223,13 @@ try {
   // 3.1.4 crash log: a page that dies while open leaves a note for the next start; a reload is a clean close
   await G(() => window.__app.crashLog.stage('crash test: run 2/9'));
   const cdp = await page.context().newCDPSession(page);
+  // (load-audit) wait for the crash itself (not a fixed 2 s) and close the dead page before the new one: under load
+  // the new page's goto hung past 120 s, the crashed renderer not yet torn down when it opened
+  const crashed = page.waitForEvent('crash', { timeout: 60000 }).catch(() => null);
   // (the command never answers: the page is gone)
   await Promise.race([cdp.send('Page.crash').catch(() => undefined), wait(2000)]);
+  await crashed;
+  await page.close().catch(() => undefined);
   const p2 = await page.context().newPage();
   await p2.goto(url + '?gfx=min');
   // (load-audit) the crash-log page's menu waits (after the load and the reload): 60 s, as smoke's boot wait
