@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Saved 2026-10-23 ~08:15 (5-hour ~80%, before the account swap) by the CT Core session (new account, after the ~00:55 swap). Every branch below is committed and
+Saved 2026-10-23 ~08:45 by the CT Core session (account after the ~08:20 swap). Every branch below is committed and
 pushed at each agent hand-back. Agents running at a cut-off are lost: the resume prompt says what to redo.
 
 ## Rules carried
@@ -34,31 +34,30 @@ pushed at each agent hand-back. Agents running at a cut-off are lost: the resume
 - Fresh checker: CT Core runs it itself (Course Ready moved to Sector Ops, orchestrator ~01:40): a NEW Opus agent with
   `C:/NightShift/scratch/mt-check/CHECK3-BRIEF.md`.
 
-## Open jobs (save ~08:15, 5-hour ~80%, before Michael's account swap)
-Released: mocap batch 1 = #182 (default OFF) in 4.67.0 (train 18, master 6c9b28d4).
+## Open jobs (save ~08:45, after the swap; Character Build live on the laptop [06fe56])
+Released: mocap batch 1 = #182 (default OFF) in 4.67.0. Master 4.68.0 (3950f3f8).
 
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-on (round F + the ON default) | `feature/mocap-on`, `C:/NightShift/Mobile-Coop-mocap-on` | 910ade91 | Round F (clip plants hold their contact; e2e turn feet now 0.0 cm / 14.3 deg) + the ON flip (d60f374f). ON suites on d60f374f: coop 108 s, netmove 180, studio 79, move 37, clip 20 PASS; e2e-anim FAIL at an M1 shape limit ("walk: knees over the toes 3.8 cm", limit 3.5). An Opus agent was making e2e-anim report M1 shape limits as notes when mocap is ON (asserts unchanged OFF; hook `__mocapOn`, env E2E_MOCAP) and running e2e-anim ON and OFF on heavy.lock: WIP 7144a03c; its report docs/mocap-trial/MT2-E2EANIM.md may be missing. CHECK-6 = FIX (copy C:/NightShift/scratch/mt2/CHECK-6.keep.md into docs/mocap-trial/CHECK-6.md): guards run the mocap set when ON. | 1. mt2-guardgate MERGED (910ade91: guards / non-carriers stay hand-keyed whatever the switch; guard identity ON 64 / 64; tests/mocapGuards; MT2-GUARDS.md). Open for the PR body: the Anim Studio stage Wren and the menu preview Wren are not carriers, so they show the hand-keyed set with the switch on (one-line carrier = true if the Studio should preview mocap; ask the orchestrator). 2. e2e-anim round DONE (55414af3, MT2-E2EANIM.md): e2e-anim passes on the desktop GPU ON (64 s, 317 asserts, 97 M1 notes, 20 past the old limit) and OFF (59 s, 414 asserts = the old script); shape(), __mocapOn hook, E2E_MOCAP; no slide / crossing / pop / timing assert touched. The re-check must judge the converted list (it includes body-mechanics rotation / sway / head yaw rows, not only knee-out). 3. Merge origin/master (4.67.0+). 4. Narrow fresh re-check (guards + e2e-anim notes). 5. Six suites ON (/c/NightShift/mon-e2e.sh on the desktop, or Character Build). 6. PR (minor): body = CHECK-6, round F, the measure change, A8 + the G toggle jog row (kneeL-ankleL 25.0 deg, CHECK-6 note), M4 flip + mocapV migration. Character Build agreed: their guard-render S1 characterRig hook is its own method outside ~1850-2010 / ~2600-2700; first ready merges first. |
-| mt2-guardgate | `feature/mt2-guardgate`, `C:/NightShift/Mobile-Coop-mt2-guardgate` | a2ac66b7 (WIP, agent may still be running) | Gate the mocap set on CharacterRig.carrier (player + remote partner only): guards bit-identical to OFF; test tests/mocapGuards.test.ts (64 / 64 guard identity ON). Report docs/mocap-trial/MT2-GUARDS.md. | If the report is in: merge into mocap-on; else finish it (brief in this row). |
-| mocap batch 2: strafe | `feature/mocap-strafe`, `C:/NightShift/Mobile-Coop-mocap-strafe` (from d60f374f) | not pushed at the save (work local in the worktree) | Opus agent: a sideways cycle in the clip format, CMU 69_59 / 69_56 strafe L / R behind the switch, tests/mocapStrafe, A10, report MT2-STRAFE.md. | Check the worktree (`git status`); commit + push its WIP; finish or redo. Then back-to-wall (139_14 / 139_15 crouched, 69_56 / 69_59 standing side-steps, 139_01 / 139_04 peek stand-ins) on the same format. |
-| spare #3 throw-ko | `feature/throw-ko` | 4ff5f19e | DONE: PR #186 open (master merged; unit 13 + teamMoves pass; e2e-coop 82 s, e2e-netmove 179 s on ad7956f8). e2e-ctcourse not run (the slice tier names it). | Nothing unless the orchestrator wants e2e-ctcourse first. |
-| spare #16 partner-seed | `feature/partner-seed` | f289fd29 | Code done (remote avatar seeds its speed / heading from the first MoveState and after a teleport; unit 8 / 8). e2e-coop / e2e-netmove NOT run (heavy2 held by Course Ready). | Merge master, run e2e-coop + e2e-netmove (desktop heavy2 lane or Character Build), PR. |
-| spare #8 traverse-fix | `feature/traverse-fix`, `C:/NightShift/Mobile-Coop-traverse-fix` | not pushed at the save | Opus agent: ledge-end hand fall-through, climb-up hands let go early, rifle draw -1.5 vs -2 cm; report docs/traverse-fix/REPORT.md. | Check the worktree; commit + push WIP; finish (e2e-traverse + e2e-clip one at a time), PR. |
+| mocap-on | `feature/mocap-on`, `C:/NightShift/Mobile-Coop-mocap-on` | 1673e924 | master 4.68.0 merged (d8830ba2; fragment now changes/feature-mocap-on.md), CHECK-6 in docs, guardgate + e2e-anim notes in. Orchestrator 08:30: Studio / menu Wren stay hand-keyed (assumed decision in the PR body, undo carrier=true on the Studio stage). Running: fresh re-check agent (CHECK-7, scratch/mt2/CHECK-7.md: guards, OFF dump vs master, e2e-anim notes, tsc); desktop heavy.lock e2e-anim / clip / move / studio ON (/c/NightShift/mon-e2e.sh, out mon-e2e.out); laptop asked for e2e-coop + e2e-netmove on 1673e924. | Verdict + suites -> copy CHECK-7 into docs/mocap-trial, PR (minor). |
+| spare #3 throw-ko | `feature/throw-ko` | 4ff5f19e | PR #186; laptop asked for e2e-ctcourse (08:32). | Result -> orchestrator for train 20. |
+| mocap batch 2: strafe | `feature/mocap-strafe`, `C:/NightShift/Mobile-Coop-mocap-strafe` | 8498843d | WIP pushed. Opus agent (08:40): merge mocap-on, fix start / stop pelvis PEL rows, tests/mocapStrafe, MT2-STRAFE.md, A10. | Then a fresh checker, GPU suites, PR. Back-to-wall after. |
+| spare #8 traverse-fix | `feature/traverse-fix`, `C:/NightShift/Mobile-Coop-traverse-fix` | 3add258d | Items 1 (lip-end hands) and 3 (sling draw waypoint) in; Opus agent (08:40): merge master, item 2 climb-up hands, e2e-traverse + e2e-clip on heavy2, REPORT.md. | PR. |
+| spare #16 partner-seed | `feature/partner-seed` | 5fa702d2 | master merged, unit 8 / 8, tsc clean; laptop asked for e2e-coop + e2e-netmove. | Result -> PR. |
 | vent-kick T1 #141 | `feature/vent-kick` | ebce0da7 | PR open, suites pass. | Nothing unless its train fails. |
 
 Scratch: agent rules C:/NightShift/scratch/mt2/COMMON.md (mocap) and COMMON-SPARE.md (spare jobs); checker probes
-C:/NightShift/scratch/mt2/c3out/repro/ (zzplayer, zzalloc2, ...); OFF dump C:/NightShift/scratch/mt-check/repro/dump.test.ts
-(md5 9ce3f3d1c70c299dca072d3a4f15f9ea, 31,065,812 B); desktop e2e scripts /c/NightShift/mt2-e2e.sh, mon-e2e.sh.
+C:/NightShift/scratch/mt2/c3out/repro/, c6out/; OFF dump C:/NightShift/scratch/mt-check/repro/dump.test.ts (compare
+against master's own dump since 4.68.0, not the old md5).
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME (after the ~08:20 account swap). Model Opus, effort high. Read CLAUDE.md (on
-origin/feature/menu) and docs/ROADMAP.md (top "Decided"), then docs/orchestrator/resume-ct-core.md on origin/feature/menu
-(git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried" and the
-pacing the orchestrator gives. A C:/NightShift/heavy.lock or heavy2.lock naming CT Core Build with no node / bash process
-of ours running is stale: tell the orchestrator. Work the "Open jobs" rows in order: mocap-on (merge mt2-guardgate,
-finish the e2e-anim M1-notes round, re-check, six suites ON, PR), then the strafe / traverse-fix worktrees (commit their
-WIP first), then partner-seed's e2e and PR. Michael's decisions: M1 "Mocap, as captured", M4 "On by default" (after the
-re-check and the six suites). Message "Night Shift | Orchestrator" at slice ends, PRs and blockers only.
+Night Shift | CT Core Build: RESUME. Model Opus, effort high. Read CLAUDE.md (on origin/feature/menu) and
+docs/ROADMAP.md (top "Decided"), then docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
+origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried". A heavy.lock / heavy2.lock naming
+CT Core Build with no node / bash process of ours running is stale: tell the orchestrator. Work the "Open jobs" rows in
+order: mocap-on (CHECK-7 verdict + the six suites ON -> PR), throw-ko ctcourse result, strafe and traverse-fix (agents may
+be lost at a cut-off: check the worktree, commit WIP, redo the step), partner-seed PR. e2e-coop / netmove / ctcourse go to
+Character Build on the laptop; desktop lanes single suites only; always E2E_GPU=1. Michael: M1 "Mocap, as captured", M4
+"On by default". Message "Night Shift | Orchestrator" at slice ends, PRs and blockers only.
 ```
