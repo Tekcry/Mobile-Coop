@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased - heap-asserts (track A)
+- Tests: every "allocates nothing" check now measures bytes per call deterministically (a garbage collection before each
+  round, the new-space size, rounds with a collection discarded; shared helper `tests/helpers/allocPerCall.ts`), so
+  they no longer pass or fail on when a collection happens to land.
+- Menus: the menu camera director no longer allocates every frame (`menuShots.ts` `held()`: a closure per frame in the
+  title, loadout and lobby menus; same shots chosen).
+
 ## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 
 ### #110 The run's feet no longer cross

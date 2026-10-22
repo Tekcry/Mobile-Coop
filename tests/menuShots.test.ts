@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CUT_S, IGNITE, IGNITE_S, SHOTS, XFADE_S, createDirector, easeInOut, goggleLevel, igniteGlow, igniteLit, parseShotHooks, type ShotDef } from '../src/world/menuShots';
+import { bytesPerCall, HEAP_NUMBER } from './helpers/allocPerCall';
 
 const DT = 1 / 60;
 
@@ -239,20 +240,17 @@ describe('menu shot director', () => {
     expect(f.t).toBe(0.7);
   });
 
-  it('does not allocate in update', () => {
+  it('does not allocate in update', async () => {
     const d = createDirector({ seed: 9, reducedMotion: false, context: 'main' });
     for (let i = 0; i < 1e5; i++) d.update(DT);
-    const gc = (globalThis as { gc?: () => void }).gc;
-    gc?.();
-    // the least growth over three runs (a GC between samples can only lower a run, never fake a pass for a real leak:
-    // 1e6 updates allocating even 16 bytes each would grow 16 MB)
-    let grew = Infinity;
-    for (let r = 0; r < 3; r++) {
-      const before = process.memoryUsage().heapUsed;
-      for (let i = 0; i < 1e6; i++) d.update(DT);
-      grew = Math.min(grew, process.memoryUsage().heapUsed - before);
-    }
-    expect(grew).toBeLessThan(2 * 1024 * 1024);
+    // gc() + new space per update (tests/helpers/allocPerCall.ts), not heapUsed: a scavenge inside the window freed
+    // short-lived garbage, so heapUsed could pass an update that allocates. Only an odd boxed double at a cut (well
+    // under 1 B an update); even one boxed double every update reads 16 B.
+    const per = await bytesPerCall((n) => {
+      for (let i = 0; i < n; i++) d.update(DT);
+    }, HEAP_NUMBER / 2);
+    console.info(`bytes per director update: ${per.toFixed(2)}`);
+    expect(per).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AnalogGear, GEAR_DOWN, GEAR_UP, GearState, MAX_ROCKER_GEAR, gearCap, stickCurve, stickMagFor, stickSpeed } from '../src/player/speedGears';
 import { GEARS, KBM_PACE, STICK_SPEED } from '../src/config/movement';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
 /** Stick magnitude that asks for speed v (the inverse of the analogue curve). */
 const magFor = (v: number, crouched: boolean): number => stickMagFor(v, crouched);
@@ -137,20 +138,20 @@ describe('analogue speed (anim-rework S1)', () => {
       }
     }
   });
-  it('allocates nothing per update', () => {
+  it('allocates nothing per update', async () => {
     const a = new AnalogGear();
-    let acc = 0;
-    const run = (): number => {
-      const before = process.memoryUsage().heapUsed;
-      for (let i = 0; i < 200000; i++) acc += a.update(5, (i & 1) === 0, (i % 100) / 100) + stickSpeed((i % 97) / 97, false);
-      return process.memoryUsage().heapUsed - before;
-    };
-    // (e2e-pad-fix) warm up first (JIT, lazy first-call allocations), then take the smallest of three passes: a single
-    // pass read 3.5 MB on a loaded CI runner from other work's garbage, not from the gear
-    run();
-    const grown = Math.min(run(), run(), run());
-    expect(acc).toBeGreaterThan(0);
-    // a per-call allocation of even 16 bytes would add ~3 MB in every pass
-    expect(grown).toBeLessThan(2_000_000);
+    // inputs precomputed, the result into a typed slot (+= on a captured let boxes 16 B an iteration)
+    const T = inputs(2000, (i) => (i % 100) / 100);
+    const S = inputs(2000, (i) => (i % 97) / 97);
+    sink[0] = 0;
+    // gc() + new space per iteration (tests/helpers/allocPerCall.ts): heapUsed read other work's garbage (3.5 MB on a
+    // loaded CI runner, e2e-pad-fix) or a GC's leftovers. An iteration leaves only boxed doubles (the stick values
+    // passed in and a speed returned, 48 B); one more { x, y, z } would read 96 B.
+    const per = await bytesPerCall((n) => {
+      for (let i = 0; i < n; i++) sink[0]! += a.update(5, (i & 1) === 0, T[i]!) + stickSpeed(S[i]!, false);
+    }, 4 * HEAP_NUMBER);
+    console.info(`bytes per AnalogGear.update + stickSpeed: ${per.toFixed(1)}`);
+    expect(sink[0]!).toBeGreaterThan(0);
+    expect(per).toBeLessThanOrEqual(4 * HEAP_NUMBER);
   });
 });
