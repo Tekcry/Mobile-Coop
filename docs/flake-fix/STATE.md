@@ -1,25 +1,31 @@
 # flake-fix - state
 
-**Now (2026-10-22 ~13:45, new account):** fixes verified except the final proof. Lint 0 errors, vitest 242 files
-pass. Checker (fresh): FIX - stealth-ai vetted grid spots, not the guard's real standing point; ctcourse cause
-overstated. Fix round 1 bd8e5ebf (snapped points, ctcourse cause "suspected", `teamLog` prints the press gates).
-Proof on 54c3576d (JOBS=2, two rounds): netmove, mouse, ctcourse 2/2 pass; stealth-ai 0/2 (the strict filter left no
-spot: the head-only wedge is a few cm wide). Fix round 2 e5211e02 (5 cm floor grid, per-step sway check, a passive
-grunt placed on the exact spot, the guard's own los + head at every think over 2 s): stealth-ai 2/2 at JOBS=2.
-**Next:** final proof on e5211e02 (label flakefix-e5211e02-proof: check + the four suites twice at JOBS=2, queued
-behind run requests); then PR (test-only tier: CI + the edited suites) and tell "Night Shift | Orchestrator".
+**Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
+ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
+
+**Character Build now (2026-10-22 ~16:20):**
+- Verdicts sent (CT Core, Course Ready, orchestrator copied): anim-bake-all a850e103 FAIL at check
+  (animSkeletonRows.test.ts:127 never-allocate, 7981152 bytes; solo fail, fail, pass; master pass 3/3: real regression).
+  N4b 0a6bc567 FAIL at check (tunerLayout.test.ts: sec:cq has no tab, cq:holdTwist label 33 chars; deterministic).
+  The train/4 e2e-pad solo rerun was dropped (#121 merged).
+- Laptop queue: sectorfixesc-6a144e53 (Menu Notes: build + e2e-ctcourse e2e-coop e2e-netmove, JOBS=1, running),
+  animn1-1e4556a8 (CT Core N1: check + e2e-clip e2e-anim e2e-move, JOBS=1, waiting), then chain-1022d.ps1: the
+  pad-wheel-wait proof on 27a54dfd (build + e2e-pad solo; e2e-pad e2e-move twice at JOBS=2).
+- Own job pad-wheel-wait: branch feature/pad-wheel-wait (C:/NightShift/Mobile-Coop-pad-wheel-wait, off master 9287a095,
+  node_modules a junction to the flake-fix worktree, never npm ci there). 27a54dfd: scripts/e2e-pad.mjs, the
+  (sector-fixes W) stick-right / let-go step waits 0.3 s of sim time (`__afterSim`) instead of 300 ms wall. Pushed,
+  PR not opened yet: open it once the proof passes (tests-only tier: CI + e2e-pad solo), tell the orchestrator.
 
 ## Done
-- 2026-10-22 ~13:45: lint, vitest, checker FIX, fix rounds 1 (bd8e5ebf) and 2 (e5211e02); proof partial.
-- 2026-10-22: BRIEF, STATE; implementer 1 (stopped for usage) -> WIP 58bb1b31; implementer 2 -> this WIP commit.
+- 2026-10-22 ~15:20: PR #117 merged (4.54.1).
+- 2026-10-22 ~13:45: lint, vitest, checker FIX, fix rounds 1 (bd8e5ebf) and 2 (e5211e02); proof on 2b05f423.
+- 2026-10-22: BRIEF, STATE; implementer 1 (stopped for usage) -> WIP 58bb1b31; implementer 2 -> WIP commit.
 
 ## Resume prompt
 ```
-Night Shift | Character Build (new account, LAPTOP). You are the laptop test runner plus small jobs. Read CLAUDE.md "Sessions" (esp. "The laptop is the test runner" and the merge-train test tiers on master), docs/ROADMAP.md, then message "Night Shift | Orchestrator" that you are up and ask for the queue.
+Night Shift | Character Build (laptop, the test runner). Read CLAUDE.md "Sessions" ("The laptop is the test runner"; the laptop is a full slot: Normal priority, E2E_JOBS=2), then the "Character Build now" section of docs/flake-fix/STATE.md on origin/feature/flake-fix. Message "Night Shift | Orchestrator" that you are back and ask for the queue.
 
-Test runner: worktree C:/NightShift/Mobile-Coop-testrun (detached at each requested commit). Runner script C:/NightShift/scratch/laptop-runner.ps1 (header explains: -Label -Commit -Steps "check;full" or "build;<suites>", RUN_JOBS env, results in C:/NightShift/scratch/runs/<Label>/summary.txt with DONE at the end). Launch hidden and headless:
-  powershell -NoProfile -Command "Start-Process powershell.exe -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','C:\NightShift\scratch\laptop-runner.ps1','-Label','<label>','-Commit','<sha>','-Steps','\"<steps>\"'"   (set RUN_JOBS=2 first; 1 for solo reruns)
-Rules: E2E_PORT 4191, E2E_JOBS=2 normal priority (laptop is a full slot until Michael says otherwise), one run at a time, C:/NightShift/heavy.lock created atomically (never overwrite; delete only your own line). Solo-rerun (RUN_JOBS=1) any JOBS=2 failure on the same commit before calling it real. Reply to the requester with pass / fail per suite, the failing assert, times and the commit; copy the orchestrator. A result counts only for the exact commit.
+Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results C:/NightShift/scratch/runs/<label>/summary.txt, DONE at the end; chain log C:/NightShift/scratch/runs/chain-1022.log). Launch hidden: set RUN_JOBS (2, or 1 for solo), then Start-Process powershell.exe -WindowStyle Hidden with -File laptop-runner.ps1 -Label <label> -Commit <sha> -Steps '"<steps>"'. Only one waiting runner at a time (two waiters race for heavy.lock): queue the next once the current holds the lock, or chain them in one script. Port 4191. Solo-rerun any JOBS=2 failure on the same commit before calling it real. Reply to the requester with pass / fail per suite, failing assert, times and commit; copy the orchestrator. Order: CT Core, Menu Notes, Course Ready requests, then own jobs.
 
-Own job in progress: flake-fix, branch feature/flake-fix in C:/NightShift/Mobile-Coop-flake-fix (branch guard before every write). Read docs/flake-fix/BRIEF.md and STATE.md and continue from STATE "Next" between test requests (test runs first). Opus implementer + fresh checker, one fix round. Usage rule (Michael): check get_usage before each agent; at 97% start no new agent, at 98% commit, push and update STATE, stopped by 99%. Native multiple choice only, hyphens not em dashes.
+First collect the queue's verdicts (sectorfixesc-6a144e53 to Menu Notes, animn1-1e4556a8 to CT Core, padwait-27a54dfd-{solo,j2a,j2b} for the own job) and send them. Own job: if the pad proof passes, open the PR for feature/pad-wheel-wait (test-only, tier CI + e2e-pad solo) and tell the orchestrator; on a fail, read the suite log and fix. Pacing: docs/orchestrator/STATE.md "Pacing" on origin/feature/menu (full burn; get_usage before each agent; 97% no new agent, 98% commit + push + STATE, stopped by 99%). Branch guard before every write. Native multiple choice only, hyphens not em dashes.
 ```
