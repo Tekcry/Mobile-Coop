@@ -6,7 +6,8 @@
  * game's, and pops (each bone's turn per frame against the bible's 25 deg, the joints' positional jerk). Node only
  * (NullEngine, no ground: the floor is y = 0).
  */
-import { elbowWing, footTrack, kneeBow, kneeSeparation, plantedSlide } from '../../src/anim/audit/metrics';
+import { elbowWing, footSlide, footTrack, kneeBow, kneeSeparation, plantedSlide } from '../../src/anim/audit/metrics';
+import { HEEL_BACK, HEEL_DOWN, TOE_BALL } from '../../src/anim/footGeom';
 import { CRAB, JOINT_DEG_PER_60HZ_FRAME } from '../../src/anim/audit/limits';
 import type { CharacterRig, RigPose } from '../../src/player/characterRig';
 
@@ -56,6 +57,14 @@ export interface Rec {
   clipOn: number[];
   share: number[];
   zk: number[];
+  /** (N1 merge) Each foot's rendered heel and ball (world, x y z per frame; footGeom's points under the ankle, as e2e-anim
+   *  records them) and whether the planner anchors it (N1's held contact). */
+  heelL: number[];
+  ballL: number[];
+  heelR: number[];
+  ballR: number[];
+  heldL: number[];
+  heldR: number[];
   /** The head's gaze pitch (deg, + down: its forward axis below the horizon). */
   gaze: number[];
 }
@@ -74,7 +83,7 @@ export async function driveRig(steps: number, plan: Plan, onStep?: (rig: Charact
   Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
   const pos = {} as Record<J, number[]>;
   for (const j of JOINTS) pos[j] = [];
-  const R: Rec = { n: 0, pos, root: [], yaw: [], speed: [], contactL: [], contactR: [], targetL: [], targetR: [], landL: [], landR: [], cycleTime: [], clipOn: [], share: [], zk: [], gaze: [] };
+  const R: Rec = { n: 0, pos, root: [], yaw: [], speed: [], contactL: [], contactR: [], targetL: [], targetR: [], landL: [], landR: [], cycleTime: [], clipOn: [], share: [], zk: [], gaze: [], heelL: [], ballL: [], heelR: [], ballR: [], heldL: [], heldR: [] };
   try {
     const op = operatorRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook(), 'measure');
     const rig: CharacterRig = op.rig;
@@ -110,6 +119,10 @@ export async function driveRig(steps: number, plan: Plan, onStep?: (rig: Charact
       R.targetR.push(PL.R.contact ? PL.R.x : NaN, PL.R.contact ? PL.R.z : NaN);
       if (PL.L.landed) R.landL.push(PL.L.x, PL.L.z);
       if (PL.R.landed) R.landR.push(PL.R.x, PL.R.z);
+      R.heldL.push(PL.L.anchored ? 1 : 0);
+      R.heldR.push(PL.R.anchored ? 1 : 0);
+      contactPts(rig.ankleL, R.heelL, R.ballL);
+      contactPts(rig.ankleR, R.heelR, R.ballR);
       const o = rig.graph.out;
       R.cycleTime.push(o.gait.cycleTime);
       R.clipOn.push(o.clipFeet.valid && o.clipFeet.on ? 1 : 0);
@@ -126,6 +139,42 @@ export async function driveRig(steps: number, plan: Plan, onStep?: (rig: Charact
     scene.dispose();
   }
   return R;
+}
+
+/** The ankle node's rendered heel and ball (footGeom's points along its own axes, as e2e-anim's `contactPts`) onto `heel` / `ball`. */
+function contactPts(n: CharacterRig['ankleL'], heel: number[], ball: number[]): void {
+  const m = n.computeWorldMatrix(true).m;
+  const ly = Math.hypot(m[4]!, m[5]!, m[6]!) || 1;
+  const lz = Math.hypot(m[8]!, m[9]!, m[10]!) || 1;
+  const y = -HEEL_DOWN;
+  for (const [z, out] of [[-HEEL_BACK, heel], [TOE_BALL, ball]] as const) out.push(m[12]! + (m[4]! / ly) * y + (m[8]! / lz) * z, m[13]! + (m[5]! / ly) * y + (m[9]! / lz) * z, m[14]! + (m[6]! / ly) * y + (m[10]! / lz) * z);
+}
+
+/**
+ * (N1 merge) The planted feet's slide as e2e-anim reads it (metrics.ts `footSlide`, N1 decisions 1 / 2): a plant the
+ * planner anchors (N1's held contact: the ankle rolls / pivots round the heel or ball by design) at its contact points,
+ * any other plant (the clip's pinned feet among them) at the ankle. A plant whose holder changes (the planner's anchored
+ * foot taken over by the clip at a turn's end, or handed back) is read in its parts, each by its own holder's measure.
+ * Worst over both feet (m).
+ */
+export function plantSlide(R: Rec, limit: number): number {
+  let worst = 0;
+  for (const s of ['L', 'R'] as const) {
+    const ankle = s === 'L' ? R.pos.ankleL : R.pos.ankleR;
+    const heel = s === 'L' ? R.heelL : R.heelR;
+    const ball = s === 'L' ? R.ballL : R.ballR;
+    const c = s === 'L' ? R.contactL : R.contactR;
+    const h = s === 'L' ? R.heldL : R.heldR;
+    for (let i = 0; i < c.length; i++) {
+      if (!c[i] || (i > 0 && c[i - 1] && h[i - 1] === h[i])) continue;
+      let j = i;
+      while (j < c.length && c[j] && h[j] === h[i]) j++;
+      const one = (a: number[]): number[] => a.slice(i * 3, j * 3);
+      const r = footSlide(one(ankle), one(heel), one(ball), new Array<number>(j - i).fill(1), new Array<number>(j - i).fill(h[i]!), limit);
+      if (r.worst > worst) worst = r.worst;
+    }
+  }
+  return worst;
 }
 
 /** A steady straight gait: `warm` s to settle, then `sec` s recorded. */

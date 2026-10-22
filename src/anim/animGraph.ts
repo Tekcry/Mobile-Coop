@@ -42,15 +42,18 @@ import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRA
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
-import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
+import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
 import { HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
 import { KEYED_WALK } from './clips/keyed/walk';
+import { KEYED_JOG } from './clips/keyed/jog';
+import { KEYED_RUN } from './clips/keyed/run';
 import { KEYED_IDLE } from './clips/keyed/idle';
 import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
+import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
@@ -344,6 +347,9 @@ export interface RigTargets {
   keyMocap: number;
   /** (mocap-trial, A3) The clip feet for the foot planner (valid only for a mocap clip with a `feet` channel). */
   clipFeet: ClipFeetFrame;
+  /** (anim-natural-n2) The body motion layer (`bodyMotion.ts`): Wren rigs on foot only, all 0 on every other rig.
+   *  (mocap-trial) Scaled on the mocap share by MOCAP_LAYERS (`motionTrunk` ... `motionArmCap`). */
+  motion: BodyMotion;
 }
 
 export function emptyTargets(): RigTargets {
@@ -382,6 +388,7 @@ export function emptyTargets(): RigTargets {
     kneeRest: 0,
     keyMocap: 0,
     clipFeet: { valid: false, on: false, f: new Float64Array(KEYED_FEET) },
+    motion: newBodyMotion(),
   };
 }
 
@@ -1701,7 +1708,64 @@ export class AnimGraph {
     o.readyShoulder.y = p.y.shoulder + this.readyFy * fw * k;
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
+    this.bodyMotion(i, o, dt);
     return o;
+  }
+
+  /** (anim-natural-n2) The body motion layer's inputs and eased gate (preallocated). */
+  private readonly motionIn = newBodyMotionIn();
+  private motionGate = 0;
+
+  /**
+   * (anim-natural-n2 step 2) The body motion layer into `o.motion` (`bodyMotion.ts`), on this frame's gait phase: a Wren
+   * rig (`wrenReady`) on foot (no wall, traversal, air, close-quarters hold / bend, melee, dash, tense sneak or
+   * kneel), the gate eased over KEYED_WALK_BAND.tau. Graph-internal inputs only (co-op parity). No allocation.
+   */
+  private bodyMotion(i: AnimInput, o: RigTargets, dt: number): void {
+    const onFoot = this.wrenReady && (i.keyedOk || i.keyedDrawn) && i.grounded && i.traverse === 'none' && !i.wall && i.melee < 0 ? 1 : 0;
+    const target = onFoot * (1 - this.wallW) * (1 - this.dashS) * (1 - this.tenseW) * (1 - smoothstep(this.kneelW));
+    this.motionGate = approach(this.motionGate, target, KEYED_WALK_BAND.tau, dt);
+    if (this.motionGate < 1e-4) this.motionGate = 0;
+    const m = this.motionIn;
+    m.gate = this.motionGate;
+    if (m.gate > 0) {
+      m.phase = o.gait.phase;
+      m.move = this.moveW;
+      m.crouch = clamp(i.crouch, 0, 1);
+      m.drawn = o.keyDrawn;
+      m.aim = this.raiseS;
+      bodyMotionBands(m, effortSpeed(this.locoSpeed, false), this.cPace, KEYED_GAITS, KEYED_CROUCH);
+    }
+    bodyMotionStep(m, o.motion);
+    // (CHECK-4 should-fix 2) the studio's loop player shows Michael's keys as keyed: no arm speed cap while it drives
+    // (the drive bypasses the pace bands, so the cap would read the walk's)
+    if (this.drive !== null) o.motion.armSpeed = Infinity;
+    // (mocap-trial) on the mocap share each part of the layer by its MOCAP_LAYERS scale (the capture holds its own trunk
+    // counter-rotation, sway, head motion and arm speed); 0 with the switch off, so the layer is exactly as above
+    if (o.keyMocap > 0) {
+      const L = MOCAP_LAYERS;
+      const s = o.keyMocap;
+      const mo = o.motion;
+      const kt = mocapLayerK(L.motionTrunk, s);
+      mo.hipYaw *= kt;
+      mo.chestYaw *= kt;
+      mo.pelX *= mocapLayerK(L.motionSway, s);
+      mo.headFollow *= mocapLayerK(L.motionHead, s);
+      mo.headPitch *= mocapLayerK(L.motionNod, s);
+      // the cap lets go on the share it is off on (cap / 1 - share, as the gate eases it: Infinity at the full share)
+      mo.armSpeed /= mocapLayerK(L.motionArmCap, s);
+    }
+  }
+
+  /**
+   * (anim-natural-n2 step 3) A keyed gait clip's arm gain (KEY_MOTION, A7): the speed set's walk / jog / run and the
+   * crouched set's sneak / crouch walk / crouch run; 1 for any other clip. (mocap-trial) A clip set with layer scales (the
+   * mocap set `S`): its walk / jog / run rows' gains by MOCAP_LAYERS.motionArmGain (0: the capture's own swing).
+   */
+  private armGain(c: KeyedClip, S: LocoClipSet = HAND_KEYED_SET): number {
+    const K = KEY_MOTION;
+    if (S.layers !== null) return layerMul(c === S.walk ? K.walk.armGain : c === S.jog ? K.jog.armGain : c === S.run ? K.run.armGain : 1, S.layers.motionArmGain);
+    return c === KEYED_WALK ? K.walk.armGain : c === KEYED_JOG ? K.jog.armGain : c === KEYED_RUN ? K.run.armGain : c === KEYED_SNEAK ? K.sneak.armGain : c === KEYED_CROUCH_WALK ? K.crouchWalk.armGain : c === KEYED_CROUCH_RUN ? K.crouchRun.armGain : 1;
   }
 
   /**
@@ -1798,8 +1862,10 @@ export class AnimGraph {
     const out = this.kCr;
     if (idleShare < 1) {
       sampleKeyed(c0, ph, c0 === KEYED_SNEAK ? C.ampMin + (1 - C.ampMin) * clamp(es / C.full, 0, 1) : 1, out);
+      scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0)); // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip
       if (t > 0) {
         sampleKeyed(c1, ph, 1, this.kF);
+        scaleKeyedArms(this.kF.arm, c1.meanArm, this.armGain(c1));
         mixKeyed(out, this.kF, t, out);
       }
       // the game's extra lean and drop (KEYED_CROUCH_POSE), the arms turned back by the lean
@@ -1905,8 +1971,11 @@ export class AnimGraph {
     if (!sample) return;
     const L = S.layers;
     sampleKeyed(c0, ph, c0 === S.walk ? B.ampMin + (1 - B.ampMin) * clamp(es / B.full, 0, 1) : 1, out, L);
+    // (anim-natural-n2 step 3) KEY_MOTION's arm gain per clip; (mocap-trial) on the mocap set's clips by MOCAP_LAYERS.motionArmGain
+    scaleKeyedArms(out.arm, c0.meanArm, this.armGain(c0, S));
     if (t > 0) {
       sampleKeyed(c1, ph, 1, tmp, L);
+      scaleKeyedArms(tmp.arm, c1.meanArm, this.armGain(c1, S));
       mixKeyed(out, tmp, t, out);
     }
   }

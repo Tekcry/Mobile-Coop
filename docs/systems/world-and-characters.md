@@ -56,6 +56,16 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
+- (anim-natural-n2) Wren's body motion layer (`src/anim/bodyMotion.ts`, pure): per tuner body row (`BODY_MOTION`,
+  one literal per field: hipTurn / hipTime, chestTurn / chestTime deg and cycles, sway / swayTime cm and cycles,
+  headFollow share, headNod deg) a pelvis yaw swing, a shoulder counter swing, a pelvis lateral sway and a head nod on
+  the gait phase, blended as phasors by the graph's own weights (moveW, crouch, drawn share, raise, the KEYED_GAITS /
+  KEYED_CROUCH speed shares: co-op parity). `AnimGraph.bodyMotion` writes `RigTargets.motion` after the studio drive,
+  gated on `wrenReady` and on foot (eased over KEYED_WALK_BAND.tau); the rig adds the sway to the pelvis before the
+  feet's reach, turns the pelvis and takes it back at the spine after the keyed trunk (`motionTrunk`), and lets
+  `headFollow` of the chest's yaw off the facing through the world-stabilised head (not aiming). Added only when
+  non-zero: guards and every other rig are unchanged bit for bit (`tests/bodyMotion.test.ts` pins amounts 0 to the
+  pre-layer Wren fixture).
 - (anim-weight) The local player's Weight layers (lean, bank, plant / landing load, chest / head / arm / gear springs,
   anticipation) sit after the graph's pose in `AnimGraph.writeTargets` (`weightApplyPose`) and on the carried guns
   (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`, `docs/anim-tuner/WEIGHT.md`).

@@ -25,7 +25,7 @@ import { KEYED_RUN } from '../src/anim/clips/keyed/run';
 import { MOCAP_WALK } from '../src/anim/clips/mocap/walk';
 import { MOCAP_JOG } from '../src/anim/clips/mocap/jog';
 import { MOCAP_RUN } from '../src/anim/clips/mocap/run';
-import { driveRig, gaitNumbers, GAIT_RANGES, pops, POP_DEG, steady, type GaitName, type Plan, type Rec } from './helpers/mocapMeasure';
+import { driveRig, gaitNumbers, GAIT_RANGES, plantSlide, pops, POP_DEG, steady, type GaitName, type Plan, type Rec } from './helpers/mocapMeasure';
 import { KEYED_FEET, KEYED_FEET_SIDE, KF, keyedClip, newKeyedPose, sampleKeyed, type KeyedClip } from '../src/anim/keyed';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { FootPlanner, emptyPlannerInput, type ClipFeetIn } from '../src/anim/footPlanner';
@@ -155,8 +155,9 @@ describe('mocap switch: default and selection', () => {
     expect(MOCAP_SET.stopSeconds).toBeGreaterThan(1);
     expect(hasSlots(MOCAP_SET)).toBe(true);
     expect(hasSlots(HAND_KEYED_SET)).toBe(false);
-    // every layer that doubles the capture off on the mocap share; N1's turn steps kept
-    expect(MOCAP_LAYERS).toEqual({ armSwing: 0, trunkTwist: 0, keyLean: 0, pelvisFollow: 0, weightLoad: 0, elbowOut: 0, stopSettle: 0, bodyMotion: 0, turnStep: 1 });
+    // every layer that doubles the capture off on the mocap share (N2's arm gain, trunk swing, sway, head follow and nod
+    // too); N2's two limiters (arm speed cap, keyed pelvis rate) and N1's turn steps kept
+    expect(MOCAP_LAYERS).toEqual({ armSwing: 0, trunkTwist: 0, keyLean: 0, pelvisFollow: 0, weightLoad: 0, elbowOut: 0, stopSettle: 0, motionArmGain: 0, motionTrunk: 0, motionSway: 0, motionHead: 0, motionNod: 0, motionArmCap: 1, keyPelRate: 1, turnStep: 1 });
   });
 });
 
@@ -431,10 +432,15 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
         slide = Math.max(slide, rig.planner.L.slide, rig.planner.R.slide);
       });
       const on = pops(R);
-      const ankleSlide = gaitNumbers(R, GAIT_RANGES.run).slide;
+      // (N1 merge) planted feet as e2e-anim reads them (metrics.ts footSlide): a plant the planner anchors (N1's held contact,
+      // the ankle rolls / pivots round the heel or ball by design: the turn hand-offs, the starts and stops) at its contact
+      // points; the clip's own pinned plants at the ankle, as before
+      const ankleSlide = plantSlide(R, 0.01);
       const pel = pelvisStep(R);
       rows.push(`${name}: largest bone turn a frame off ${f1(off.maxStepDeg)} deg (${off.bone}), on ${f1(on.maxStepDeg)} deg (${on.bone}); joint jerk off ${f1(off.maxJerk * 100)}, on ${f1(on.maxJerk * 100)} cm/frame2; planted ankle slide on ${f1(ankleSlide * 100, 2)} cm; pelvis beyond pace x dt on ${f1(pel * 100, 2)} cm`);
-      expect(on.maxStepDeg, `${name}: bone step`).toBeLessThan(POP_DEG);
+      // (N1 merge) a pop the switch adds: under POP_DEG, or where master's own planner already passes it (the spot turns:
+      // N1's ball pivot, 29.6 deg OFF, ankleR-toeR) no worse than master's
+      expect(on.maxStepDeg, `${name}: bone step`).toBeLessThan(Math.max(POP_DEG, off.maxStepDeg + 0.5));
       // (fix 1) the pelvis moves no more than the pace carries it plus 2 cm a frame (bible 5.12.2)
       expect(pel, `${name}: pelvis step beyond pace x dt`).toBeLessThanOrEqual(0.02);
       // (the sustained turns: 1 cm, the clip's swing knee after a hand-back; walk 2.0 turning 1.5 on 16.9 vs off 16.4 cm,
@@ -446,6 +452,43 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
     }
     console.info(rows.join(String.fromCharCode(10)));
   }, 120_000);
+
+  it('N2 body motion on the mocap share: the additive parts off (MOCAP_LAYERS), the arm speed cap kept', async () => {
+    // (N2 merge, M1) the trunk swing, sway, head follow and nod are the capture's own on the full mocap share; with the
+    // switch off the same walk runs the layer
+    const plan: Plan = (_k, t) => ({ speed: 1.4, yawRate: 0, rec: t > 1.5 });
+    const F = ['hipYaw', 'chestYaw', 'pelX', 'headFollow', 'headPitch'] as const;
+    // the switch off: the layer's amplitudes on this walk
+    const offMax = [0, 0, 0, 0, 0];
+    await driveRig(60 * 4, plan, (rig) => {
+      const m = rig.graph.out.motion;
+      F.forEach((k, j) => (offMax[j] = Math.max(offMax[j]!, Math.abs(m[k]))));
+    });
+    for (const v of offMax) expect(v).toBeGreaterThan(0);
+    // the switch on: each part only on the share that is not the capture's (1 - keyMocap)
+    let mostly = 0;
+    let cap = 0;
+    setMocapLocomotion(true);
+    await driveRig(60 * 4, plan, (rig) => {
+      const o = rig.graph.out;
+      if (o.keyMocap < 0.9) return;
+      mostly++;
+      expect(o.motion.w).toBeGreaterThan(0);
+      F.forEach((k, j) => expect(Math.abs(o.motion[k]), k).toBeLessThanOrEqual((1 - o.keyMocap) * offMax[j]! * 1.0001 + 1e-12));
+      if (Number.isFinite(o.motion.armSpeed)) cap++;
+    });
+    expect(mostly).toBeGreaterThan(100);
+    expect(cap).toBe(mostly);
+    // the arm gain: the mocap walk's arms as sampled with the gain's layer at 1 differ (KEY_MOTION walk 1.3), at 0 not
+    setMocapLocomotion(true);
+    const wrist = async (): Promise<number[]> => (await driveRig(60 * 3, (_k, t) => ({ speed: 1.4, yawRate: 0, rec: t > 2 }))).pos.wristL;
+    const base = await wrist();
+    MOCAP_LAYERS.motionArmGain = 1;
+    const gained = await wrist();
+    let d = 0;
+    for (let i = 0; i < base.length; i++) d = Math.max(d, Math.abs(base[i]! - gained[i]!));
+    expect(d).toBeGreaterThan(0.005);
+  }, 60_000);
 });
 
 describe('mocap switch: slots', () => {

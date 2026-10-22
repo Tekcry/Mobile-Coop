@@ -1,0 +1,402 @@
+{
+ "keyed:idle": {
+  "steps": 48,
+  "rig": "f7ddf662dfdb00d7",
+  "poser": {
+   "hero": "d9950b96da1ba2ca",
+   "lod0": "92dea67c4961ab39",
+   "lod1": "92dea67c4961ab39",
+   "lod2": "92dea67c4961ab39"
+  }
+ },
+ "keyed:walk": {
+  "steps": 48,
+  "rig": "17669188d62e0c87",
+  "poser": {
+   "hero": "8eb75aaece4d0b59",
+   "lod0": "86ba1f56c52d37af",
+   "lod1": "86ba1f56c52d37af",
+   "lod2": "86ba1f56c52d37af"
+  }
+ },
+ "keyed:jog": {
+  "steps": 48,
+  "rig": "1ff555df12a6f1dc",
+  "poser": {
+   "hero": "d98f086af1198026",
+   "lod0": "84cbecd1f9bd2a3c",
+   "lod1": "84cbecd1f9bd2a3c",
+   "lod2": "84cbecd1f9bd2a3c"
+  }
+ },
+ "keyed:run": {
+  "steps": 48,
+  "rig": "cc489bf11d1714d4",
+  "poser": {
+   "hero": "711df0dca80a7d32",
+   "lod0": "91d0dd9d853355d0",
+   "lod1": "91d0dd9d853355d0",
+   "lod2": "91d0dd9d853355d0"
+  }
+ },
+ "keyed:ready_stance": {
+  "steps": 48,
+  "rig": "53d64118b8711c4e",
+  "poser": {
+   "hero": "9d041710a9009fb4",
+   "lod0": "b78d1f1dac958116",
+   "lod1": "b78d1f1dac958116",
+   "lod2": "b78d1f1dac958116"
+  }
+ },
+ "keyed:glide_fwd": {
+  "steps": 48,
+  "rig": "61692ca44f3cc5e3",
+  "poser": {
+   "hero": "4a62bf9d355feb06",
+   "lod0": "0c9cbe2719364d1a",
+   "lod1": "0c9cbe2719364d1a",
+   "lod2": "0c9cbe2719364d1a"
+  }
+ },
+ "keyed:glide_strafe": {
+  "steps": 48,
+  "rig": "8dc01b15c819281d",
+  "poser": {
+   "hero": "23981cc3b9925917",
+   "lod0": "af73e6e01759c313",
+   "lod1": "af73e6e01759c313",
+   "lod2": "af73e6e01759c313"
+  }
+ },
+ "keyed:glide_back": {
+  "steps": 48,
+  "rig": "e7d74cadb3c70012",
+  "poser": {
+   "hero": "5125741d88a1844c",
+   "lod0": "b17b0ca2bcd50249",
+   "lod1": "b17b0ca2bcd50249",
+   "lod2": "b17b0ca2bcd50249"
+  }
+ },
+ "keyed:crouch_idle": {
+  "steps": 48,
+  "rig": "d2b8ee4d5c07228e",
+  "poser": {
+   "hero": "520c61c8b4880c48",
+   "lod0": "5e54fd6a92251dcf",
+   "lod1": "5e54fd6a92251dcf",
+   "lod2": "5e54fd6a92251dcf"
+  }
+ },
+ "keyed:sneak": {
+  "steps": 48,
+  "rig": "8cdaacfeaab504a0",
+  "poser": {
+   "hero": "811a758c7000d2d0",
+   "lod0": "1d5f646b14df9e6b",
+   "lod1": "1d5f646b14df9e6b",
+   "lod2": "1d5f646b14df9e6b"
+  }
+ },
+ "keyed:crouch_walk": {
+  "steps": 48,
+  "rig": "2becb00e2904f5c0",
+  "poser": {
+   "hero": "7760f5d30dcdabda",
+   "lod0": "cafb9b1b821a462e",
+   "lod1": "cafb9b1b821a462e",
+   "lod2": "cafb9b1b821a462e"
+  }
+ },
+ "keyed:crouch_run": {
+  "steps": 48,
+  "rig": "ccbfb228de636d80",
+  "poser": {
+   "hero": "d87593828135428e",
+   "lod0": "0c058c432ae17fae",
+   "lod1": "0c058c432ae17fae",
+   "lod2": "0c058c432ae17fae"
+  }
+ },
+ "keyed:wall_idle": {
+  "steps": 48,
+  "rig": "7cbff2385739c027",
+  "poser": {
+   "hero": "e9252c87cac2c8fd",
+   "lod0": "15f4397fadca585f",
+   "lod1": "15f4397fadca585f",
+   "lod2": "15f4397fadca585f"
+  }
+ },
+ "keyed:wall_slide": {
+  "steps": 48,
+  "rig": "37b5ccffca8a4074",
+  "poser": {
+   "hero": "9fe431aa039937be",
+   "lod0": "587efd55cc224051",
+   "lod1": "587efd55cc224051",
+   "lod2": "587efd55cc224051"
+  }
+ },
+ "keyed:wall_peek": {
+  "steps": 48,
+  "rig": "02fbfc33c3e33857",
+  "poser": {
+   "hero": "22be821696d3814c",
+   "lod0": "1021713e7098625b",
+   "lod1": "1021713e7098625b",
+   "lod2": "1021713e7098625b"
+  }
+ },
+ "keyed:wall_crouch_idle": {
+  "steps": 48,
+  "rig": "d2b8ee4d5c07228e",
+  "poser": {
+   "hero": "520c61c8b4880c48",
+   "lod0": "5e54fd6a92251dcf",
+   "lod1": "5e54fd6a92251dcf",
+   "lod2": "5e54fd6a92251dcf"
+  }
+ },
+ "keyed:wall_crouch_slide": {
+  "steps": 48,
+  "rig": "69b228309bdbf72c",
+  "poser": {
+   "hero": "599a697b523704fd",
+   "lod0": "29a6e369247f7236",
+   "lod1": "29a6e369247f7236",
+   "lod2": "29a6e369247f7236"
+  }
+ },
+ "keyed:wall_crouch_peek": {
+  "steps": 48,
+  "rig": "1935a51f334ddd81",
+  "poser": {
+   "hero": "8384ebab352cdb22",
+   "lod0": "6c89ba04dc58fe8a",
+   "lod1": "6c89ba04dc58fe8a",
+   "lod2": "6c89ba04dc58fe8a"
+  }
+ },
+ "keyed:hold_idle": {
+  "steps": 48,
+  "rig": "7cbff2385739c027",
+  "poser": {
+   "hero": "e9252c87cac2c8fd",
+   "lod0": "15f4397fadca585f",
+   "lod1": "15f4397fadca585f",
+   "lod2": "15f4397fadca585f"
+  }
+ },
+ "keyed:hold_fwd": {
+  "steps": 48,
+  "rig": "e936c9f90bb89a25",
+  "poser": {
+   "hero": "dbb8f3ba25b1f145",
+   "lod0": "19e4335d7cc24041",
+   "lod1": "19e4335d7cc24041",
+   "lod2": "19e4335d7cc24041"
+  }
+ },
+ "keyed:hold_back": {
+  "steps": 48,
+  "rig": "ba4f8d4b254e23f3",
+  "poser": {
+   "hero": "41c50578d491530e",
+   "lod0": "abb128253d0f1773",
+   "lod1": "abb128253d0f1773",
+   "lod2": "abb128253d0f1773"
+  }
+ },
+ "keyed:hold_side": {
+  "steps": 48,
+  "rig": "e01bee56e551a74e",
+  "poser": {
+   "hero": "5c96cdcbdd922ddb",
+   "lod0": "c599f5719f459e5b",
+   "lod1": "c599f5719f459e5b",
+   "lod2": "c599f5719f459e5b"
+  }
+ },
+ "keyed:hold_choke": {
+  "steps": 48,
+  "rig": "4c57594803f31b1f",
+  "poser": {
+   "hero": "eba6fbf4cb631802",
+   "lod0": "2050b8a7765bad40",
+   "lod1": "2050b8a7765bad40",
+   "lod2": "2050b8a7765bad40"
+  }
+ },
+ "keyed:hold_knife": {
+  "steps": 48,
+  "rig": "7cbff2385739c027",
+  "poser": {
+   "hero": "e9252c87cac2c8fd",
+   "lod0": "15f4397fadca585f",
+   "lod1": "15f4397fadca585f",
+   "lod2": "15f4397fadca585f"
+  }
+ },
+ "keyed:guard_held_hands": {
+  "steps": 48,
+  "rig": "523193ba57d2f377",
+  "poser": {
+   "hero": "d8beb41549a53bf5",
+   "lod0": "87178e49016052ee",
+   "lod1": "87178e49016052ee",
+   "lod2": "87178e49016052ee"
+  }
+ },
+ "keyed:guard_held_stumble": {
+  "steps": 48,
+  "rig": "550e4217972d86e6",
+  "poser": {
+   "hero": "5e3d79802deaaaf4",
+   "lod0": "e86becf4f15d4f52",
+   "lod1": "e86becf4f15d4f52",
+   "lod2": "e86becf4f15d4f52"
+  }
+ },
+ "keyed:guard_choke_sag": {
+  "steps": 48,
+  "rig": "005cf4a28df40b83",
+  "poser": {
+   "hero": "7cd0fa7bffa7fd32",
+   "lod0": "c4ed1db556b77b2f",
+   "lod1": "c4ed1db556b77b2f",
+   "lod2": "c4ed1db556b77b2f"
+  }
+ },
+ "keyed:guard_knife_collapse": {
+  "steps": 48,
+  "rig": "83a88c5899047fbd",
+  "poser": {
+   "hero": "3fa43d49922a3782",
+   "lod0": "678e8d6ac36051bd",
+   "lod1": "678e8d6ac36051bd",
+   "lod2": "678e8d6ac36051bd"
+  }
+ },
+ "keyed:skeleton_test": {
+  "steps": 48,
+  "rig": "f7ddf662dfdb00d7",
+  "poser": {
+   "hero": "d9950b96da1ba2ca",
+   "lod0": "92dea67c4961ab39",
+   "lod1": "92dea67c4961ab39",
+   "lod2": "92dea67c4961ab39"
+  }
+ },
+ "state:idle": {
+  "steps": 90,
+  "rig": "5f512c735b0fbe4e",
+  "poser": {
+   "hero": "8dd37bf77b8bfde2",
+   "lod0": "8a348d5e4c1ef9f2",
+   "lod1": "8a348d5e4c1ef9f2",
+   "lod2": "8a348d5e4c1ef9f2"
+  }
+ },
+ "state:walk": {
+  "steps": 120,
+  "rig": "c7ee922316398e80",
+  "poser": {
+   "hero": "8cf9ba2e6825b269",
+   "lod0": "fa6e6e064ff82919",
+   "lod1": "fa6e6e064ff82919",
+   "lod2": "fa6e6e064ff82919"
+  }
+ },
+ "state:run": {
+  "steps": 120,
+  "rig": "09418117ecff98fe",
+  "poser": {
+   "hero": "aad39a59239ad0d9",
+   "lod0": "302de6440d6b53f0",
+   "lod1": "302de6440d6b53f0",
+   "lod2": "302de6440d6b53f0"
+  }
+ },
+ "state:crouch": {
+  "steps": 90,
+  "rig": "1269f2fcbd805f8f",
+  "poser": {
+   "hero": "34330ee8c41dd317",
+   "lod0": "83045cbd87148d15",
+   "lod1": "83045cbd87148d15",
+   "lod2": "83045cbd87148d15"
+  }
+ },
+ "state:crouchWalk": {
+  "steps": 120,
+  "rig": "7960afe19fafe215",
+  "poser": {
+   "hero": "a6cf161ba527b0fc",
+   "lod0": "a7461087d6d7deb4",
+   "lod1": "a7461087d6d7deb4",
+   "lod2": "a7461087d6d7deb4"
+  }
+ },
+ "state:aimRifle": {
+  "steps": 90,
+  "rig": "35261397001a119c",
+  "poser": {
+   "hero": "de92473e8feb2b81",
+   "lod0": "66768702c56715f0",
+   "lod1": "66768702c56715f0",
+   "lod2": "66768702c56715f0"
+  }
+ },
+ "state:aimPistol": {
+  "steps": 90,
+  "rig": "1506cc118694b7c6",
+  "poser": {
+   "hero": "cbb2543ba3cef5d0",
+   "lod0": "54b57d57f74ae02c",
+   "lod1": "54b57d57f74ae02c",
+   "lod2": "54b57d57f74ae02c"
+  }
+ },
+ "state:vault": {
+  "steps": 60,
+  "rig": "c35661bbbeda1a31",
+  "poser": {
+   "hero": "316896965ef627b2",
+   "lod0": "759d7b1790a9d686",
+   "lod1": "759d7b1790a9d686",
+   "lod2": "759d7b1790a9d686"
+  }
+ },
+ "state:hang": {
+  "steps": 60,
+  "rig": "9d5ed97c176b25b7",
+  "poser": {
+   "hero": "8285a9630bcb8377",
+   "lod0": "fde42aa3ffc5dc6c",
+   "lod1": "fde42aa3ffc5dc6c",
+   "lod2": "fde42aa3ffc5dc6c"
+  }
+ },
+ "state:wall": {
+  "steps": 60,
+  "rig": "bbdd4ccce11e19f6",
+  "poser": {
+   "hero": "2b9794144d0e33b6",
+   "lod0": "f513935d49dcb881",
+   "lod1": "f513935d49dcb881",
+   "lod2": "f513935d49dcb881"
+  }
+ },
+ "partner:moves": {
+  "steps": 180,
+  "rig": "8f6ed924d4649828",
+  "poser": {
+   "hero": "99ad2865ae02b55e",
+   "lod0": "6bf9b2d52091b39e",
+   "lod1": "6bf9b2d52091b39e",
+   "lod2": "6bf9b2d52091b39e"
+  }
+ }
+}
