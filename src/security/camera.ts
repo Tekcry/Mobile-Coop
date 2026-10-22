@@ -2,13 +2,14 @@
  * CCTV camera logic (pure: no Babylon / DOM), unit-tested. S0 section 2.1.
  *
  * A camera sees the way a guard does (`sightRate` / `stepMeter`) but with one fixed cone: no peripheral field and no
- * close-range term. (marlow-jammer, M3) It sees by its own IR illuminator (`CAMERA.irLight`), not by the lamps: lamp
+ * close-range term, and (camera-range) a distance falloff over the camera's own range (`camRange`, `cameraRate`), so it
+ * picks a body up only inside the zone it watches. (marlow-jammer, M3) It sees by its own IR illuminator (`CAMERA.irLight`), not by the lamps: lamp
  * light (and its loss to a jam, an EMP or a shot) changes nothing for a camera. The sweep is a pure function of the camera's clock, so every tick rate
  * gives the same angles.
  */
 import { CAMERA } from '../config/security';
 import { SENSITIVITY } from '../ai/alertState';
-import { PERCEPTION, seenAt, sightRate, stepMeter } from '../ai/perception';
+import { PERCEPTION, lightFactor, motionFactor, seenAt, stepMeter } from '../ai/perception';
 import { hyp2, hyp3 } from '../core/mathx';
 import type { CameraDevice } from './data';
 
@@ -56,9 +57,14 @@ export function camPitch(def: Pick<CameraDevice, 'y' | 'aim'>): number {
   return def.aim !== undefined && def.aim > 0 ? Math.atan2(def.y, def.aim) : 0;
 }
 
-/** (sector-fixes C, item 3) The camera's detection range (m): its own `range`, else `CAMERA.range`, never more. */
-export function camRange(def: Pick<CameraDevice, 'range'>): number {
-  return Math.min(CAMERA.range, def.range ?? CAMERA.range);
+/**
+ * (sector-fixes C, item 3; camera-range) The camera's detection range (m), the edge of the zone it watches: its own
+ * `range`; else, aimed, `CAMERA.aimReach` x its `aim` (the floor patch centred on its aim point); else `CAMERA.range`.
+ * Never over `CAMERA.rangeMax`. Detection (`inFrame`, `cameraRate`) and the cue (`cueReach`, `cueEdge`) all read it.
+ */
+export function camRange(def: Pick<CameraDevice, 'range' | 'aim'>): number {
+  const own = def.range ?? (def.aim !== undefined && def.aim > 0 ? CAMERA.aimReach * def.aim : CAMERA.range);
+  return Math.min(CAMERA.rangeMax, own);
 }
 
 /**
@@ -77,11 +83,35 @@ export function inFrame(yaw: number, cx: number, cy: number, cz: number, px: num
 }
 
 /**
- * Meter fill rate (/s) for a body the camera has a clear ray to: the guard formula with the camera's fixed cone, at the
- * camera's own IR light (`CAMERA.irLight`; marlow-jammer M3: the lamps do not matter to a camera).
+ * Meter fill rate (/s) for a body the camera has a clear ray to, `dist` m from the lens: the guard formula's terms
+ * (`PERCEPTION` rate, stance, motion, exposure, the unaware sensitivity and the cap) at the camera's own IR light
+ * (`CAMERA.irLight`; marlow-jammer M3: the lamps do not matter to a camera), with one fixed cone (no periphery, no
+ * close-range term). (camera-range) The distance falloff runs over the camera's own `range` (`camRange`), not the
+ * guard's 25 m: 1 - (d / range)^`CAMERA.edgePow`, so the rate is 0 at the zone's edge and a body just inside it is
+ * not picked up at almost full speed. Pure and allocation-free; the host and the co-op client's cue both call it
+ * through `cameraSight`.
  */
-export function cameraRate(dist: number, crouched: boolean, speed: number, exposure = 1): number {
-  return sightRate({ dist, angle: 0, light: CAMERA.irLight, crouched, speed, exposure, sensitivity: SENSITIVITY.unaware });
+export function cameraRate(dist: number, crouched: boolean, speed: number, range: number = CAMERA.range, exposure = 1): number {
+  if (exposure <= 0 || range <= 0 || dist >= range) return 0;
+  const k = dist / range;
+  const df = 1 - (CAMERA.edgePow === 2 ? k * k : Math.pow(k, CAMERA.edgePow));
+  const rate = df * nearRate(crouched, speed, exposure);
+  return rate > PERCEPTION.maxRate ? PERCEPTION.maxRate : rate;
+}
+
+/** The camera rate at the lens before the falloff and the cap. */
+function nearRate(crouched: boolean, speed: number, exposure: number): number {
+  const P = PERCEPTION;
+  const exp = P.exposureMin + (1 - P.exposureMin) * Math.min(1, exposure);
+  return P.rate * lightFactor(CAMERA.irLight) * (crouched ? P.crouchMul : 1) * motionFactor(speed) * exp * SENSITIVITY.unaware;
+}
+
+/** (camera-range) The farthest distance (m, from the lens) at which `cameraRate` is over the leak (the body is "seen",
+ *  `seenAt`) for a body of this stance and speed, for a camera of range `range`: the inverse of the falloff. */
+export function cameraReach(crouched: boolean, speed: number, range: number = CAMERA.range): number {
+  const top = nearRate(crouched, speed, 1);
+  if (top <= PERCEPTION.leak) return 0;
+  return range * Math.pow(1 - PERCEPTION.leak / top, 1 / CAMERA.edgePow);
 }
 
 /** One player's awareness meter on one camera. */
