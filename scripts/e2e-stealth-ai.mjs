@@ -575,7 +575,9 @@ try {
       const reg = g.world.level.lights;
       t.light(0);
       t.tp(-22, -24, 0);
-      // shoot out the factory floor lamp at (0, -3): the nearest guard comes to look with a flashlight
+      // shoot out the factory floor lamp at (0, -3): the guard on the factory floor (its room goes dark; he faces away)
+      // comes to look with a flashlight. (guard-ai S2: only guards who saw the light go are told: the room they stand
+      // in, or the fixture in their sight with a clear line; no more 25 m through walls)
       const e = t.spawn('grunt', 6, 3, 0);
       const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
       const before = reg.countOn();
@@ -585,12 +587,15 @@ try {
       const lamp2 = reg.lights.find((l) => l.kind === 'lamp' && l.x === 9 && l.z === -9);
       g.weapons.onRay(new t.V(9, 1, -7.8), new t.V(9, 9, -7.8));
       const end = lamp2.destroyed;
-      // it looks for ALERT.hearLook (2.4 s), then walks over
+      // (guard-ai S2) the board sends him at once (a light check: investigating); the second lamp, in the corridor
+      // behind him, nobody saw: nobody is sent to it
       t.step(2.8);
       const lv = e.level;
+      const kind = e.incident >= 0 ? em.board.kindOf(e.incident) : null;
+      const goal = [e['lightC'][0], e['lightC'][1]];
       // (3.6: the torch comes on where it is dark at his head - the light field, lamps included - not where the ambient
-      // alone is. He walks to the second lamp shot out, at (9, -9), through the pool of the lamp at (9, 3) (0.44-0.51
-      // at his head: no torch) and lights it once he leaves the light, a few metres on at an investigating walk)
+      // alone is. He walks from the pool of the lamp at (9, 3) (0.44-0.51 at his head: no torch) to the dark lamp at
+      // (0, -3) and lights it once he leaves the light, a few metres on at the investigate pace)
       let torch = 0;
       let torchLevel = -1;
       for (let k = 0; k < 150 && !torch; k++) {
@@ -613,15 +618,81 @@ try {
       t.step(2.8);
       const lv2 = e2.level;
       t.light(null);
-      return { before, out, end, lv, torch, torchLevel, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
     });
     assert(r.out, 'a shot through a bulb puts the light out');
     assert(r.end, 'a shot at the end of a lamp strip puts it out too');
-    assert(r.lv === 'investigating', `the nearest guard comes to look (${r.lv})`);
+    assert(r.lv === 'investigating', `the guard who saw it go comes to look (${r.lv})`);
+    assert(r.kind === 'light' && Math.hypot(r.goal[0], r.goal[1] + 3) < 0.5, `a light check of the lamp in his room, not the one behind the wall (${r.kind}, to ${r.goal})`);
     assert(r.torch >= 1 && r.torchLevel < 0.35, `with a flashlight in the dark (${r.torch} on, light at his head ${r.torchLevel.toFixed(2)})`);
     assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
     assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
     assert(r.lv2 === 'investigating', `the room going dark is investigated (${r.lv2})`);
+  });
+
+  await scen('light pair', async () => {
+    // (guard-ai S2, M1 goal 4) three guards near the factory floor lamp at (0, -3); two can see it go (they stand on the
+    // floor: their room goes dark), the third is in the racking hall behind the x -4 wall, facing away, inside
+    // `INCIDENT.lightPairR` of it. Exactly the two go (a second witness within lightPairR: a pair), check the light
+    // and the ring round it, stand down and walk their routes again calm (unaware, not cooldown: "return back to
+    // normal"); the third never stirs.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const I = em.incidentTable;
+      const reg = g.world.level.lights;
+      t.light(0);
+      t.tp(-22, -24, 0);
+      const a = t.spawn('grunt', 4, 1, 0);
+      const b = t.spawn('grunt', 3, -6.5, Math.PI / 2);
+      const c = t.spawn('grunt', -14.5, -1, -Math.PI / 2);
+      const ra = [[a.pos.x, a.pos.z], [a.pos.x, a.pos.z + 5]];
+      const rb = [[b.pos.x, b.pos.z], [b.pos.x + 5, b.pos.z]];
+      a.setPatrol({ points: ra, wait: 1 });
+      b.setPatrol({ points: rb, wait: 1 });
+      t.step(0.5);
+      const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
+      const cDist = Math.hypot(c.pos.x - lamp.x, c.pos.z - lamp.z);
+      const cHome = [c.pos.x, c.pos.z];
+      g.weapons.onRay(new t.V(0, 1.5, -10), new t.V(0, 8.6, 4));
+      const out = lamp.destroyed;
+      t.step(0.3);
+      const sent = [a, b, c].map((e) => e.level === 'investigating' && e.incident >= 0);
+      const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+      const worst = ['unaware', 'unaware', 'unaware'];
+      const back = [-1, -1];
+      const onRoute = [false, false];
+      const near = (e, pts) => pts.some((p) => Math.hypot(e.pos.x - p[0], e.pos.z - p[1]) < 1.2);
+      let tt = 0.3;
+      const reachedLamp = [false, false];
+      let cMoved = 0;
+      for (let k = 0; k < 240 && !(onRoute[0] && onRoute[1]); k++) {
+        t.step(0.5);
+        tt += 0.5;
+        [a, b, c].forEach((e, i) => {
+          if (rank[e.level] > rank[worst[i]]) worst[i] = e.level;
+        });
+        [a, b].forEach((e, i) => {
+          if (Math.hypot(e.pos.x - lamp.x, e.pos.z - lamp.z) < 2.5) reachedLamp[i] = true;
+          if (back[i] < 0 && worst[i] === 'investigating' && e.level !== 'investigating') back[i] = tt;
+          if (back[i] >= 0 && near(e, i === 0 ? ra : rb)) onRoute[i] = true;
+        });
+        cMoved = Math.max(cMoved, Math.hypot(c.pos.x - cHome[0], c.pos.z - cHome[1]));
+      }
+      t.light(null);
+      return { out, cDist, pairR: I.lightPairR, sent, worst, back, onRoute, reachedLamp, cMoved, levels: [a.level, b.level, c.level], inc: [a.incident, b.incident], esc: em.board.escalations };
+    });
+    const f2 = (v) => v.toFixed(2);
+    assert(r.out, 'the lamp is shot out');
+    assert(r.cDist < r.pairR, `the third guard is inside lightPairR of the lamp (${f2(r.cDist)} < ${r.pairR} m)`);
+    assert(r.sent[0] && r.sent[1] && !r.sent[2], `exactly the two who saw it go (${JSON.stringify(r.sent)})`);
+    assert(r.worst[2] === 'unaware' && r.cMoved < 1, `the third never stirs (${r.worst[2]}, moved ${f2(r.cMoved)} m)`);
+    assert(r.reachedLamp[0] && r.reachedLamp[1], `both walk to the light (${JSON.stringify(r.reachedLamp)})`);
+    assert(r.back[0] > 0 && r.back[1] > 0, `both stand down after the check (at ${r.back.map(f2)} s)`);
+    assert(r.levels[0] === 'unaware' && r.levels[1] === 'unaware' && r.inc[0] === -1 && r.inc[1] === -1, `calm again, not cautious (${JSON.stringify(r.levels)}, incidents ${r.inc})`);
+    assert(r.onRoute[0] && r.onRoute[1], `and back on their routes (${JSON.stringify(r.onRoute)})`);
+    assert(r.esc === 0, `nobody went missing (${r.esc} escalations)`);
   });
 
   await scen('alarm', async () => {
@@ -739,6 +810,10 @@ try {
       // (guard-ai S1) 10 m of a 12.6 m suppressed report is outside half the reach: he only turns to look
       const supp = e.level;
       const suppTurn = e.turning;
+      // (S1 check fix 2) read again after ALERT.hearLook: the old "everyone walks over" rule would have him
+      // investigating by now
+      t.step(2.6);
+      const supp2 = e.level;
       stats.noise = n0;
       // (guard-ai S1) a loud report is combat only inside a quarter of its reach (`HEARING.combatDb`, 28 m -> ~7 m)
       const N = g.constructor.NOISE;
@@ -781,9 +856,10 @@ try {
       const impact = e3.level;
       const impactTurn = e3.turning;
       t.light(null);
-      return { supp, suppTurn, loud, loudFar, loudFar2, impact, impactTurn, quarter };
+      return { supp, suppTurn, supp2, loud, loudFar, loudFar2, impact, impactTurn, quarter };
     });
     assert(r.supp !== 'alert' && r.supp !== 'investigating' && (r.supp === 'suspicious' || r.suppTurn), `a suppressed shot 10 m off only makes a guard turn to look (${r.supp}, turning ${r.suppTurn})`);
+    assert(r.suppTurn && r.supp2 !== 'investigating' && r.supp2 !== 'alert', `...he turned, and 2.6 s later he still has not walked over (${r.supp2})`);
     assert(r.loud === 'alert', `a loud shot inside a quarter of its reach puts him in combat (${r.loud}, quarter ${r.quarter.toFixed(2)} m)`);
     assert(r.loudFar === 'suspicious' && r.loudFar2 === 'investigating', `a loud shot 10 m off sends him to look, not to a fight (${r.loudFar} -> ${r.loudFar2})`);
     assert(r.impact === 'suspicious' || r.impact === 'investigating' || r.impactTurn, `a round landing close by is heard (${r.impact}, turning ${r.impactTurn})`);

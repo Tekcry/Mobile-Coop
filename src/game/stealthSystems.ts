@@ -424,7 +424,7 @@ export class StealthSystems {
     this.g.events.emit('lightSwitch', { on: sw.on });
     if (!sw.on) {
       // the room going dark is noticed; someone comes to look at the switch
-      this.em.lightsOut(sw.it.pos.x, sw.it.pos.z);
+      this.em.lightsOut(sw.it.pos.x, sw.it.pos.z, sw.it.pos.y + 2.5, -1, sw.group);
     }
   }
 
@@ -466,8 +466,9 @@ export class StealthSystems {
     const at = new Vector3(l.x, l.y, l.z);
     this.g.vfx.sparks(at, Vector3.Down(), 10, '#fff1c8');
     this.g.events.emit('lightOut', { x: l.x, y: l.y, z: l.z, shot: true });
+    // (guard-ai S2) the light first: the bulb's pop (and the round's impact after this) merge into its incident
+    this.em.lightsOut(l.x, l.z, l.y, id);
     this.noise(SHOT_LIGHT_NOISE, at);
-    this.em.lightsOut(l.x, l.z);
     return true;
   }
 
