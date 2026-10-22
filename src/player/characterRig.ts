@@ -2283,6 +2283,9 @@ export class CharacterRig {
     if (kq.edOn && kw * (1 - t.keyTrunk) > 0) this.keyedTrunkEdit(kq, kw * (1 - t.keyTrunk));
     // (anim-natural-n2) the body motion layer's pelvis / shoulder counter-rotation over the keyed trunk and its edits
     if (t.motion.hipYaw !== 0 || t.motion.chestYaw !== 0) this.motionTrunk(t.motion.hipYaw, t.motion.chestYaw);
+    // (anim-natural-n2 step 3, A8) this frame's keyed arm speed cap (m per frame; Infinity: none) and the frame count
+    this.armStep = dt > 0 ? t.motion.armSpeed * dt : Infinity;
+    this.armTick++;
     if (JOINTS_CUR.on) this.jointOffsets(0); // (tuner-v2) per-joint offsets on the trunk, before the leg and arm IK
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
@@ -2645,6 +2648,76 @@ export class CharacterRig {
   }
 
   /**
+   * (anim-natural-n2 step 3, A8) The keyed arms as posed last frame (chest frame, from the shoulder joint, m): elbow L,
+   * wrist L, elbow R, wrist R; this call's elbow and wrist targets (`armCapO`); the frame (`armTick`) each side last
+   * ran (L, R; -2 never); the frame count and this frame's cap (m per frame), set in `applyTargets` from the layer.
+   */
+  private readonly armCapP = new Float64Array(12);
+  private readonly armCapO = new Float64Array(6);
+  private readonly armCapTick = new Float64Array([-2, -2]);
+  private armTick = 0;
+  private armStep = Infinity;
+
+  /**
+   * (anim-natural-n2 step 3, A8) One keyed arm's elbow and wrist targets (chest frame, m, from the shoulder joint) into
+   * `armCapO`, capped in speed: where the arm will pose them (the upper arm along the elbow target, the forearm from there
+   * toward the wrist target) may move at most `armStep` from where it posed them last frame (`cont`: this side ran last
+   * frame), both by the same share so the arm keeps its shape. Under the cap the targets are the keyed points exactly
+   * (bit for bit). No allocation.
+   */
+  private armCap(si: number, ex: number, ey: number, ez: number, wx: number, wy: number, wz: number, cont: boolean): void {
+    const O = this.armCapO;
+    O[0] = ex;
+    O[1] = ey;
+    O[2] = ez;
+    O[3] = wx;
+    O[4] = wy;
+    O[5] = wz;
+    const lu = this.p.upperArm.len;
+    const lf = this.p.forearm.len;
+    const le = Math.sqrt(ex * ex + ey * ey + ez * ez) || 1;
+    let px = (ex * lu) / le;
+    let py = (ey * lu) / le;
+    let pz = (ez * lu) / le;
+    const fx = wx - px;
+    const fy = wy - py;
+    const fz = wz - pz;
+    const lw = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1;
+    let qx = px + (fx * lf) / lw;
+    let qy = py + (fy * lf) / lw;
+    let qz = pz + (fz * lf) / lw;
+    const P = this.armCapP;
+    const o = si * 6;
+    const step = this.armStep;
+    if (cont && step < Infinity) {
+      const de = (px - P[o]!) ** 2 + (py - P[o + 1]!) ** 2 + (pz - P[o + 2]!) ** 2;
+      const dw = (qx - P[o + 3]!) ** 2 + (qy - P[o + 4]!) ** 2 + (qz - P[o + 5]!) ** 2;
+      const d2 = de > dw ? de : dw;
+      if (d2 > step * step) {
+        const k = step / Math.sqrt(d2);
+        px = P[o]! + (px - P[o]!) * k;
+        py = P[o + 1]! + (py - P[o + 1]!) * k;
+        pz = P[o + 2]! + (pz - P[o + 2]!) * k;
+        qx = P[o + 3]! + (qx - P[o + 3]!) * k;
+        qy = P[o + 4]! + (qy - P[o + 4]!) * k;
+        qz = P[o + 5]! + (qz - P[o + 5]!) * k;
+        O[0] = px;
+        O[1] = py;
+        O[2] = pz;
+        O[3] = qx;
+        O[4] = qy;
+        O[5] = qz;
+      }
+    }
+    P[o] = px;
+    P[o + 1] = py;
+    P[o + 2] = pz;
+    P[o + 3] = qx;
+    P[o + 4] = qy;
+    P[o + 5] = qz;
+  }
+
+  /**
    * (CT prototype G8) One keyed arm over the solved one by `w`: the upper arm turned onto the keyed elbow point and the
    * forearm onto the keyed wrist point (both from the shoulder joint in the chest frame), with the rig's own bone frames
    * (+Z toward the body's front), so the free hand keeps its orientation. No allocation.
@@ -2658,12 +2731,18 @@ export class CharacterRig {
     const kk = this.p.height / 1.75;
     const eo = side > 0 ? KA.elbowR : KA.elbowL;
     const wo = side > 0 ? KA.wristR : KA.wristL;
+    // (anim-natural-n2 step 3, A8) the speed cap's slots (elbow, wrist) and whether this side ran last frame
+    const si = side > 0 ? 1 : 0;
+    const cont = this.armCapTick[si] === this.armTick - 1;
+    this.armCapTick[si] = this.armTick;
     fresh(sh);
     const S = sh.getAbsolutePosition();
     const Rc = this.torso.absoluteRotationQuaternion;
     this.dirToWorld(0, 0, 1, kH);
+    this.armCap(si, a[eo]! * kk + side * TUNE_CUR.elbowOutAdd, a[eo + 1]! * kk, a[eo + 2]! * kk, a[wo]! * kk, a[wo + 1]! * kk, a[wo + 2]! * kk, cont);
+    const O = this.armCapO;
     // upper arm onto the keyed elbow
-    kV.set(a[eo]! * kk + side * TUNE_CUR.elbowOutAdd, a[eo + 1]! * kk, a[eo + 2]! * kk);
+    kV.set(O[0]!, O[1]!, O[2]!);
     kV.rotateByQuaternionToRef(Rc, kV);
     kSave.copyFrom(sh.rotationQuaternion!);
     boneRotation(kV, kH, tmpQ3);
@@ -2672,7 +2751,7 @@ export class CharacterRig {
     fresh(sh);
     fresh(el);
     // forearm from where the elbow is now onto the keyed wrist
-    kV.set(a[wo]! * kk, a[wo + 1]! * kk, a[wo + 2]! * kk);
+    kV.set(O[3]!, O[4]!, O[5]!);
     kV.rotateByQuaternionToRef(Rc, kV);
     kV.addInPlace(S).subtractInPlace(el.getAbsolutePosition());
     kSave.copyFrom(el.rotationQuaternion!);

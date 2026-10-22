@@ -3,14 +3,19 @@
  * edges, phase lock (the same output for the same phase at 60 / 120 / 240 Hz), no allocation, the layer at 0 amounts
  * bit-identical to the pre-layer Wren rig, and the measured trunk / sway / head ranges before and after on a headless
  * Wren rig (`tests/helpers/bodyMotionMeasure.ts`, the research harness's maths; the e2e-anim "body motion" block in
- * scripts/e2e-anim.mjs uses the same maths in the live game).
+ * scripts/e2e-anim.mjs uses the same maths in the live game). (step 3) The keyed arms: KEY_MOTION's literals, the speed
+ * cap's blend, and the wrists measured before / after on the gaits and turns (the drawn arms untouched).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  ARM_SPEED_MAX,
   BODY_MOTION,
   BODY_MOTION_FIELDS,
   BODY_MOTION_ROWS,
+  KEY_MOTION,
+  KEY_MOTION_FIELDS,
+  KEY_MOTION_ROWS,
   bodyMotionBands,
   bodyMotionStep,
   bodyMotionWeights,
@@ -21,7 +26,7 @@ import {
 } from '../src/anim/bodyMotion';
 import { KEYED_CROUCH, KEYED_GAITS } from '../src/anim/animGraph';
 import { BODY_GROUPS } from '../src/anim/tune';
-import { measureMotion, withBodyMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
+import { measureMotion, measureTurns, withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
 
 const OFF_FIXTURE = 'tests/fixtures/anim-skeleton-identity-motion-off.json';
@@ -41,6 +46,17 @@ describe('body motion: the rows', () => {
     // the source holds them as literals (step 5 bakes into BODY_MOTION.<row>.<field>)
     const src = readFileSync('src/anim/bodyMotion.ts', 'utf8');
     for (const r of BODY_MOTION_ROWS) expect(src, r).toMatch(new RegExp(`\\n  ${r}: \\{ hipTurn: -?[\\d.]+, hipTime: -?[\\d.]+, chestTurn: -?[\\d.]+, chestTime: -?[\\d.]+, sway: -?[\\d.]+, swayTime: -?[\\d.]+, headFollow: -?[\\d.]+, headNod: -?[\\d.]+ \\}`));
+  });
+
+  it('(step 3) KEY_MOTION: one numeric literal per field for every keyed gait row (body rows the keyed arms swing in)', () => {
+    for (const r of KEY_MOTION_ROWS) {
+      expect((BODY_MOTION_ROWS as readonly string[]).includes(r), r).toBe(true);
+      for (const f of KEY_MOTION_FIELDS) expect(typeof KEY_MOTION[r][f], `${r}.${f}`).toBe('number');
+      expect(KEY_MOTION[r].armSpeed, `${r} armSpeed`).toBeGreaterThan(0);
+      expect(KEY_MOTION[r].armSpeed, `${r} armSpeed`).toBeLessThanOrEqual(ARM_SPEED_MAX);
+    }
+    const src = readFileSync('src/anim/bodyMotion.ts', 'utf8');
+    for (const r of KEY_MOTION_ROWS) expect(src, r).toMatch(new RegExp(`\\n  ${r}: \\{ armGain: [\\d.]+, armSpeed: [\\d.]+ \\}`));
   });
 
   it('weights sum to 1 and never step across the band edges (pace, crouch, raise, drawn, moving)', () => {
@@ -121,6 +137,46 @@ describe('body motion: the rows', () => {
     i.phase = 0.3;
     const o = bodyMotionStep(i, newBodyMotion());
     expect([o.w, o.hipYaw, o.chestYaw, o.pelX, o.headFollow, o.headPitch]).toEqual([0, 0, 0, 0, 0, 0]);
+    // (step 3) no keyed arm speed cap with the gate closed
+    expect(o.armSpeed).toBe(Infinity);
+  });
+
+  it('(step 3) the arm speed cap blends by the keyed gait shares, never steps at a band edge, lets go with the gate', () => {
+    const i = newBodyMotionIn();
+    const o = newBodyMotion();
+    i.gate = 1;
+    i.move = 1;
+    const speeds = KEY_MOTION_ROWS.map((r) => KEY_MOTION[r].armSpeed);
+    const lo = Math.min(...speeds);
+    const hi = Math.max(...speeds);
+    let worst = 0;
+    for (const crouch of [0, 0.5, 1]) {
+      i.crouch = crouch;
+      let prev = Number.NaN;
+      for (let x = 0; x <= 1.0000001; x += 1e-3) {
+        bodyMotionBands(i, x * 6, x * 3, KEYED_GAITS, KEYED_CROUCH);
+        bodyMotionStep(i, o);
+        expect(o.armSpeed).toBeGreaterThanOrEqual(lo - 1e-9);
+        expect(o.armSpeed).toBeLessThanOrEqual(hi + 1e-9);
+        if (!Number.isNaN(prev)) worst = Math.max(worst, Math.abs(o.armSpeed - prev));
+        prev = o.armSpeed;
+      }
+    }
+    // m/s per 1e-3 of the sweep: the widest row gap (12) x the smoothstep slope 1.5 x 6 / 0.6 (the run band) ~0.18
+    expect(worst).toBeLessThan(0.3);
+    // each row's own cap at its pace (standing walk, run; crouched sneak, crouch run)
+    const at = (crouch: number, es: number, cp: number): number => {
+      i.crouch = crouch;
+      bodyMotionBands(i, es, cp, KEYED_GAITS, KEYED_CROUCH);
+      return bodyMotionStep(i, o).armSpeed;
+    };
+    expect(at(0, 1, 1)).toBeCloseTo(KEY_MOTION.walk.armSpeed, 9);
+    expect(at(0, 5, 1)).toBeCloseTo(KEY_MOTION.run.armSpeed, 9);
+    expect(at(1, 1, 0.5)).toBeCloseTo(KEY_MOTION.sneak.armSpeed, 9);
+    expect(at(1, 1, 3)).toBeCloseTo(KEY_MOTION.crouchRun.armSpeed, 9);
+    // the gate eases it in: cap / gate
+    i.gate = 0.5;
+    expect(bodyMotionStep(i, o).armSpeed).toBeCloseTo(KEY_MOTION.crouchRun.armSpeed * 2, 9);
   });
 
   it('allocates nothing per step', () => {
@@ -161,7 +217,8 @@ describe('body motion: amounts 0 are the pre-layer Wren rig bit for bit', () => 
   // after the A1 merge, equal on all 40 entries to feature/anim-n2-runkey 038e2519's fixture; re-captured after the master
   // 4.54.1 merge, equal to master's fixture but for keyed:run and partner:moves, the A1 rebake; re-captured after the master
   // 4.55.1 merge, equal to master's fixture but for partner:moves, the run taking #110's half): with every amount 0 the rig's
-  // world matrices, local TRS and the poser output on every LOD match it, so the layer adds only its own swings
+  // world matrices, local TRS and the poser output on every LOD match it, so the layer adds only its own swings. (step 3)
+  // The keyed arms at their identity too (KEY_MOTION armGain 1, armSpeed ARM_SPEED_MAX): unchanged, not re-captured
   it.skipIf(CAPTURE)('every clip, state and the partner path hash as before the layer', async () => {
     expect(existsSync(OFF_FIXTURE)).toBe(true);
     const want = JSON.parse(readFileSync(OFF_FIXTURE, 'utf8')) as IdentityFixture;
@@ -247,10 +304,67 @@ describe('body motion: measured on a headless Wren rig', () => {
     inR(on.run!.shoulderYaw, 27, 31, 'run shoulders (after A1)');
   }, 600000);
 
+  /**
+   * (step 3) The keyed arms (KEY_MOTION): the wrist's forward range and peak speed (root frame, the audit's
+   * wristFwdRangeCm / wristSpeedMax; and the chest frame the cap reads), before (`keyOff`: KEY_MOTION at its identity,
+   * the trunk layer on, the N2 step 2 head) and after. PLAN step 3: walk wrist 23 -> ~30 cm, jog ~35 (Michael's Body
+   * base already gives it), the turn / strafe whip (13-22 m/s in the audit) gone; the drawn arms untouched (the grip IK);
+   * AUDIT fix 35 (the low-ready run pelvis +-25 deg with 20 deg snaps) re-measured after A1 + A13.
+   */
+  it('(step 3) the keyed arms: the walk swings wider, the turns no longer whip, the drawn arms and the run keys untouched', async () => {
+    await get();
+    const keyOff = await withKeyMotionOff(() => measureMotion(60));
+    const turns = await measureTurns(60);
+    const turnsOff = await withKeyMotionOff(() => measureTurns(60));
+    const inR = (v: number, lo: number, hi: number, what: string) => {
+      expect(v, what).toBeGreaterThanOrEqual(lo);
+      expect(v, what).toBeLessThanOrEqual(hi);
+    };
+    // before: the research table's arms (the keyed clips alone; the jog with Michael's Body base armSwingMul 1.7)
+    inR(off.walk!.wristFwdCm, 22, 24, 'walk wrist range before');
+    inR(off.jog!.wristFwdCm, 33, 36, 'jog wrist range before');
+    // the walk's arm gain 1.3: 23 -> 29.9 cm (31.1 with the trunk layer); the jog keeps its 34-37 (gain 1)
+    const trunkOff = await withTrunkMotionOff(() => measureMotion(60, ['walk']));
+    inR(trunkOff.walk!.wristFwdCm, 28, 31, 'walk wrist range, the keyed arms alone (no trunk layer)');
+    inR(on.walk!.wristFwdCm, 29, 33, 'walk wrist range after');
+    inR(on.jog!.wristFwdCm, 34, 39, 'jog wrist range after');
+    expect(Math.abs(on.jog!.wristFwdCm - keyOff.jog!.wristFwdCm), 'jog wrist range (gain 1)').toBeLessThanOrEqual(0.3);
+    // (PASS2 item 9) the crouch run swings its own keyed clip, not the jog's arms (21.8 cm audit / 23.6 here vs 36.8)
+    expect(on.crouchRun!.wristFwdCm, 'crouch run wrist range').toBeLessThan(on.jog!.wristFwdCm * 0.75);
+    expect(on.crouchRun!.wristPeak, 'crouch run wrist peak').toBeLessThan(2);
+    // the jog's own keys under the cap (chest frame 6.9 -> 6.0 m/s, at most 1.7 cm off its keys)
+    expect(on.jog!.wristPeakChest, 'jog wrist peak, chest frame').toBeLessThanOrEqual(6.5);
+    expect(keyOff.jog!.wristPeakChest, 'jog wrist peak before, chest frame').toBeGreaterThan(6.5);
+    expect(on.walk!.wristPeak, 'walk wrist peak').toBeLessThan(1.5);
+    // the run's keys untouched at 4 m/s (KEY_MOTION.run.armSpeed 18: Michael's retimed back-to-front swing, 11-17 m/s)
+    expect(Math.abs(on.run!.wristFwdCm - keyOff.run!.wristFwdCm), 'run wrist range').toBeLessThanOrEqual(0.1);
+    expect(Math.abs(on.run!.wristPeak - keyOff.run!.wristPeak), 'run wrist peak').toBeLessThanOrEqual(0.05);
+    // the turns and the strafe start: the gait swap's whip capped (audit 13-16 / 22 m/s; here before 14.2 / 9.8)
+    for (const k of ['turn180Jog', 'strafe', 'curveJog']) {
+      expect(turns[k]!.wristPeak, `${k} wrist peak`).toBeLessThanOrEqual(7.5);
+      expect(turns[k]!.wristPeakChest, `${k} wrist peak, chest frame`).toBeLessThanOrEqual(7.5);
+    }
+    expect(turnsOff.turn180Jog!.wristPeak, 'turn180Jog wrist peak before').toBeGreaterThan(12);
+    expect(turnsOff.strafe!.wristPeak, 'strafe wrist peak before').toBeGreaterThan(9);
+    // (PASS2 item 7) drawn, the arms ride the gun's grip IK: the gain and the cap never reach them (and A13's low-ready
+    // head and chest stay as they were)
+    for (const k of ['lowReadyWalk', 'lowReadyJog', 'lowReadyRun']) expect(on[k], k).toEqual(keyOff[k]);
+    expect(turns.lowReadyTurn180, 'lowReadyTurn180').toEqual(turnsOff.lowReadyTurn180);
+    // the crouch rows (gain 1, their keys under the cap) and the stills as before
+    for (const k of ['sneak', 'crouchWalk', 'crouchRun', 'idle', 'aimStill']) expect(on[k], k).toEqual(keyOff[k]);
+    // (AUDIT fix 35, after A1 + A13) the low-ready run's pelvis is the run's: ~26 deg p2p (+-13), no snap (3.1 deg per
+    // frame at most; the audit read +-25 deg with ~20 deg snaps: A1's run key pop)
+    inR(on.lowReadyRun!.pelvisYaw, 22, 30, 'low ready run pelvis');
+    expect(on.lowReadyRun!.pelvisStep, 'low ready run pelvis step').toBeLessThan(5);
+    expect(Math.abs(on.lowReadyRun!.pelvisYaw - on.run!.pelvisYaw), 'low ready run pelvis = the run').toBeLessThanOrEqual(1);
+  }, 900000);
+
   it('the same ranges at 120 and 240 Hz (phase-locked, sim time)', async () => {
     await get();
     for (const hz of [120, 240]) {
       const r = await measureMotion(hz, ['walk', 'aimSide']);
+      // (step 3) the arm gain and the cap (m/s, per frame time) read the same at any rate
+      expect(Math.abs(r.walk!.wristFwdCm - on.walk!.wristFwdCm), `walk wrist range @${hz}`).toBeLessThanOrEqual(0.5);
       for (const k of ['walk', 'aimSide']) {
         expect(Math.abs(r[k]!.pelvisYaw - on[k]!.pelvisYaw), `${k} pelvis @${hz}`).toBeLessThanOrEqual(0.3);
         expect(Math.abs(r[k]!.shoulderYaw - on[k]!.shoulderYaw), `${k} shoulders @${hz}`).toBeLessThanOrEqual(0.3);

@@ -6,7 +6,7 @@
  * "body motion" block (scripts/e2e-anim.mjs) uses the same maths on the live game.
  */
 import type { CharacterRig, RigPose } from '../../src/player/characterRig';
-import { BODY_MOTION, BODY_MOTION_ROWS, type BodyMotionRow } from '../../src/anim/bodyMotion';
+import { ARM_SPEED_MAX, BODY_MOTION, BODY_MOTION_ROWS, KEY_MOTION, KEY_MOTION_ROWS, type BodyMotionRow } from '../../src/anim/bodyMotion';
 
 export interface MotionScenario {
   id: string;
@@ -32,6 +32,16 @@ export interface MotionMetrics {
   tLat: number;
   /** Mean chest yaw off the facing (deg). */
   chestMean: number;
+  /** (anim-natural-n2 step 3) The largest pelvis yaw step in one frame (deg; a snap reads here). */
+  pelvisStep: number;
+  /**
+   * (step 3) The wrists, the worse side: the forward range in the root frame (cm, as the audit's wristFwdRangeCm), the
+   * peak speed in the root frame (m/s, the audit's wristSpeedMax) and in the chest frame (the wrist off the shoulder
+   * joint on the torso's axes: what the keyed arm's speed cap sees).
+   */
+  wristFwdCm: number;
+  wristPeak: number;
+  wristPeakChest: number;
 }
 
 export const MOTION_SCENARIOS: readonly MotionScenario[] = [
@@ -42,6 +52,10 @@ export const MOTION_SCENARIOS: readonly MotionScenario[] = [
   { id: 'crouchWalk', speed: 1.7, crouch: 1 },
   { id: 'crouchRun', speed: 2.6, crouch: 1 },
   { id: 'lowReadyWalk', speed: 1.4, armed: 'rifle' },
+  // (anim-natural-n2 step 3) the low-ready jog and run (AUDIT fix 35: the low-ready run's pelvis) and the sprint pace
+  { id: 'lowReadyJog', speed: 3.0, armed: 'rifle' },
+  { id: 'lowReadyRun', speed: 4.0, armed: 'rifle' },
+  { id: 'sprint', speed: 5.0 },
   { id: 'aimFwd', speed: 1.0, armed: 'rifle', aim: 1 },
   { id: 'aimSide', speed: 1.0, dir: 'side', armed: 'rifle', aim: 1 },
   { id: 'aimBack', speed: 0.9, dir: 'back', armed: 'rifle', aim: 1 },
@@ -93,8 +107,30 @@ function fundamental(x: readonly number[], ph: readonly number[]): number {
   return +(t < 0 ? t + 1 : t).toFixed(3);
 }
 
-/** Runs `fn` with every BODY_MOTION amount set to 0 (the layer forced off), then restores the rows. */
+/**
+ * Runs `fn` with the layer forced off, then restores the rows: every BODY_MOTION amount 0 and (step 3) the keyed arms at
+ * their identity (KEY_MOTION armGain 1, armSpeed ARM_SPEED_MAX: no gain, the cap never engages).
+ */
 export async function withBodyMotionOff<T>(fn: () => Promise<T>): Promise<T> {
+  return withKeyMotionOff(() => withTrunkMotionOff(fn));
+}
+
+/** (step 3) Runs `fn` with the keyed arms at their identity (KEY_MOTION armGain 1, armSpeed ARM_SPEED_MAX), then restores them. */
+export async function withKeyMotionOff<T>(fn: () => Promise<T>): Promise<T> {
+  const saved = KEY_MOTION_ROWS.map((r) => ({ ...KEY_MOTION[r] }));
+  for (const r of KEY_MOTION_ROWS) {
+    KEY_MOTION[r].armGain = 1;
+    KEY_MOTION[r].armSpeed = ARM_SPEED_MAX;
+  }
+  try {
+    return await fn();
+  } finally {
+    KEY_MOTION_ROWS.forEach((r, k) => Object.assign(KEY_MOTION[r], saved[k]));
+  }
+}
+
+/** Runs `fn` with every BODY_MOTION amount set to 0 (the trunk / sway / head layer off), then restores the rows. */
+export async function withTrunkMotionOff<T>(fn: () => Promise<T>): Promise<T> {
   const saved = BODY_MOTION_ROWS.map((r) => ({ ...BODY_MOTION[r] }));
   for (const r of BODY_MOTION_ROWS) {
     const row = BODY_MOTION[r] as BodyMotionRow;
@@ -149,6 +185,7 @@ export async function measureMotion(hz = 60, only?: readonly string[]): Promise<
       const hy: number[] = [];
       const hp: number[] = [];
       const ph: number[] = [];
+      const wr = newWristRec();
       let chestSum = 0;
       for (let k = 0; k < N; k++) {
         const t = k * DT - warm;
@@ -166,8 +203,9 @@ export async function measureMotion(hz = 60, only?: readonly string[]): Promise<
         p.yawRate = 0;
         rig.animate(DT, p);
         if (t < 0) continue;
-        const nodes = [rig.root, rig.hips, rig.spine, rig.torso, rig.neck, rig.headNode, rig.shoulderL, rig.shoulderR, rig.hipL, rig.hipR];
+        const nodes = [rig.root, rig.hips, rig.spine, rig.torso, rig.neck, rig.headNode, rig.shoulderL, rig.shoulderR, rig.hipL, rig.hipR, rig.elbowL, rig.elbowR, rig.wristL, rig.wristR];
         for (const n of nodes) n.computeWorldMatrix(true);
+        sampleWrists(rig, wr);
         const rm = rig.root.getWorldMatrix().m;
         const rx = rm[12]!;
         const rz = rm[14]!;
@@ -199,7 +237,185 @@ export async function measureMotion(hz = 60, only?: readonly string[]): Promise<
         tSh: fundamental(sh, ph),
         tLat: fundamental(lat, ph),
         chestMean: r1(chestSum / Math.max(1, pel.length), 2),
+        pelvisStep: r1(maxStep(pel)),
+        ...wristMetrics(wr, DT),
       };
+      op.figure.dispose();
+      rig.dispose();
+    }
+  } finally {
+    Math.random = random;
+  }
+  scene.dispose();
+  return out;
+}
+
+const maxStep = (a: readonly number[]): number => {
+  let m = 0;
+  for (let i = 1; i < a.length; i++) m = Math.max(m, Math.abs(ang((a[i]! - a[i - 1]!) / D) * D));
+  return m;
+};
+
+/** (anim-natural-n2 step 3) Per wrist: root-frame positions [0, 1] and chest-frame offsets off the shoulder [2, 3] (xyz). */
+type WristRec = number[][];
+const newWristRec = (): WristRec => [[], [], [], []];
+
+/** Samples both wrists (the caller has computed the root, torso, shoulder and wrist world matrices this frame). */
+function sampleWrists(rig: CharacterRig, rec: WristRec): void {
+  const rm = rig.root.getWorldMatrix().m;
+  const ry = Math.atan2(rm[8]!, rm[10]!);
+  const c = Math.cos(ry);
+  const s = Math.sin(ry);
+  const tm = rig.torso.getWorldMatrix().m;
+  const ax = (o: number) => Math.sqrt(tm[o]! * tm[o]! + tm[o + 1]! * tm[o + 1]! + tm[o + 2]! * tm[o + 2]!) || 1;
+  const lx = ax(0);
+  const ly = ax(4);
+  const lz = ax(8);
+  for (let k = 0; k < 2; k++) {
+    const w = (k === 0 ? rig.wristL : rig.wristR).getWorldMatrix().m;
+    const sm = (k === 0 ? rig.shoulderL : rig.shoulderR).getWorldMatrix().m;
+    const dx = w[12]! - rm[12]!;
+    const dy = w[13]! - rm[13]!;
+    const dz = w[14]! - rm[14]!;
+    // root frame: right (cos, -sin), forward (sin, cos) on world x / z (Babylon rotation.y)
+    rec[k]!.push(dx * c - dz * s, dy, dx * s + dz * c);
+    const ex = w[12]! - sm[12]!;
+    const ey = w[13]! - sm[13]!;
+    const ez = w[14]! - sm[14]!;
+    rec[2 + k]!.push((ex * tm[0]! + ey * tm[1]! + ez * tm[2]!) / lx, (ex * tm[4]! + ey * tm[5]! + ez * tm[6]!) / ly, (ex * tm[8]! + ey * tm[9]! + ez * tm[10]!) / lz);
+  }
+}
+
+function wristMetrics(rec: WristRec, dt: number): Pick<MotionMetrics, 'wristFwdCm' | 'wristPeak' | 'wristPeakChest'> {
+  const fwd = (a: readonly number[]): number => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 2; i < a.length; i += 3) {
+      if (a[i]! < lo) lo = a[i]!;
+      if (a[i]! > hi) hi = a[i]!;
+    }
+    return a.length ? hi - lo : 0;
+  };
+  const peak = (a: readonly number[]): number => {
+    let m = 0;
+    for (let i = 3; i < a.length; i += 3) {
+      const x = a[i]! - a[i - 3]!;
+      const y = a[i + 1]! - a[i - 2]!;
+      const z = a[i + 2]! - a[i - 1]!;
+      m = Math.max(m, Math.sqrt(x * x + y * y + z * z) / dt);
+    }
+    return m;
+  };
+  return {
+    wristFwdCm: +(Math.max(fwd(rec[0]!), fwd(rec[1]!)) * 100).toFixed(1),
+    wristPeak: +Math.max(peak(rec[0]!), peak(rec[1]!)).toFixed(2),
+    wristPeakChest: +Math.max(peak(rec[2]!), peak(rec[3]!)).toFixed(2),
+  };
+}
+
+/** (anim-natural-n2 step 3) A turn: straight at `speed` (or still), then at t = 0 the stick turns `turn` rad (or sweeps `curve` rad/s). */
+export interface TurnScenario {
+  id: string;
+  speed: number;
+  turn?: number;
+  curve?: number;
+  /** Start from a standstill (the stick pushed at t = 0). */
+  still?: boolean;
+  crouch?: number;
+  armed?: 'rifle';
+}
+
+/**
+ * The audit's turn rows (docs/anim-natural/AUDIT.md finding 7: the wrist whip in turns and the strafe start), headless:
+ * the player's own motion driver (CT free movement, facing the travel) turns the root, the rig poses from it as the
+ * player feeds it (phase, state, yaw rate, velocity, goals). 2 s warm, then 2.5 s from the turn.
+ */
+export const TURN_SCENARIOS: readonly TurnScenario[] = [
+  { id: 'turn90Walk', speed: 1.4, turn: Math.PI / 2 },
+  { id: 'turn180Jog', speed: 3.0, turn: Math.PI },
+  { id: 'turn90Run', speed: 4.0, turn: Math.PI / 2 },
+  { id: 'turn180Run', speed: 4.0, turn: Math.PI },
+  { id: 'curveJog', speed: 3.0, curve: 1.2 },
+  { id: 'strafe', speed: 3.0, turn: Math.PI / 2, still: true },
+  { id: 'crouchTurn90', speed: 1.7, turn: Math.PI / 2, crouch: 1 },
+  { id: 'lowReadyTurn180', speed: 3.0, turn: Math.PI, armed: 'rifle' },
+];
+
+/** Measures each turn at `hz` (sim time): the wrists over the turn and after, the pelvis step. */
+export async function measureTurns(hz = 60, only?: readonly string[]): Promise<Record<string, Pick<MotionMetrics, 'pelvisStep' | 'wristFwdCm' | 'wristPeak' | 'wristPeakChest'>>> {
+  const DT = 1 / hz;
+  const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+  const { Scene } = await import('../../src/core/babylon');
+  const { PartLibrary } = await import('../../src/world/partLibrary');
+  const { defaultLook } = await import('../../src/cosmetics/avatarLook');
+  const { operatorRig } = await import('../../src/operators/runtime/playerFigure');
+  const { WeaponModel, DEFAULT_WEAPON_COLORS } = await import('../../src/weapons/weaponModel');
+  const { WEAPONS } = await import('../../src/weapons/weaponDefs');
+  const { MotionDriver, emptyMotionInput } = await import('../../src/anim/motion');
+  const scene = new Scene(new NullEngine());
+  const lib = new PartLibrary(scene);
+  const make = (a: Parameters<typeof lib.instance>[0], b: string, c?: Parameters<typeof lib.instance>[2]) => lib.instance(a, b, c);
+  const out: Record<string, Pick<MotionMetrics, 'pelvisStep' | 'wristFwdCm' | 'wristPeak' | 'wristPeakChest'>> = {};
+  const random = Math.random;
+  let seed = 12345;
+  Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  try {
+    for (const sc of TURN_SCENARIOS) {
+      if (only && !only.includes(sc.id)) continue;
+      seed = 12345;
+      const op = operatorRig(scene, make, defaultLook(), 'm');
+      const rig = op.rig as CharacterRig & { carrier: boolean };
+      if (sc.armed) new WeaponModel(scene, lib, WEAPONS.rifle, DEFAULT_WEAPON_COLORS, rig.root).hold(rig);
+      rig.carrier = true;
+      const d = new MotionDriver(0);
+      const mi = emptyMotionInput();
+      const p: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, stride: 'facing' };
+      const warm = 2;
+      const N = Math.round((warm + 2.5) * hz);
+      const pel: number[] = [];
+      const wr = newWristRec();
+      for (let k = 0; k < N; k++) {
+        const t = k * DT - warm;
+        const dir = t < 0 ? 0 : sc.curve !== undefined ? sc.curve * t : (sc.turn ?? 0);
+        const v = t < 0 && sc.still ? 0 : sc.speed;
+        mi.ct = true;
+        mi.faceTravel = true;
+        mi.aiming = false;
+        mi.yaw = d.yaw;
+        mi.vx = Math.sin(dir) * v;
+        mi.vz = Math.cos(dir) * v;
+        mi.crouch = sc.crouch ?? 0;
+        d.step(DT, mi);
+        rig.root.position.x += d.outX * DT;
+        rig.root.position.z += d.outZ * DT;
+        rig.root.rotation.y = d.yaw;
+        p.speed = d.speed;
+        p.localX = 0;
+        p.localZ = d.speed > 0.01 ? 1 : 0;
+        p.crouch = sc.crouch ?? 0;
+        p.armed = !!sc.armed;
+        p.weight = 1;
+        p.yawRate = d.yawRate;
+        p.phase = d.phase;
+        p.motion = d.state;
+        p.motionT = d.stateT;
+        p.velX = d.outX;
+        p.velZ = d.outZ;
+        p.goalYaw = d.goalYaw;
+        p.faceGoal = d.faceGoal;
+        p.stride = 'facing';
+        rig.animate(DT, p);
+        if (t < -0.25) continue;
+        const nodes = [rig.root, rig.hips, rig.spine, rig.torso, rig.shoulderL, rig.shoulderR, rig.hipL, rig.hipR, rig.elbowL, rig.elbowR, rig.wristL, rig.wristR];
+        for (const n of nodes) n.computeWorldMatrix(true);
+        const rm = rig.root.getWorldMatrix().m;
+        const rr = Math.atan2(rm[2]!, rm[0]!);
+        const hl = rig.hipL.getWorldMatrix().m;
+        const hr = rig.hipR.getWorldMatrix().m;
+        pel.push(ang(Math.atan2(hr[14]! - hl[14]!, hr[12]! - hl[12]!) - rr) * D);
+        sampleWrists(rig, wr);
+      }
+      out[sc.id] = { pelvisStep: +maxStep(pel).toFixed(1), ...wristMetrics(wr, DT) };
       op.figure.dispose();
       rig.dispose();
     }

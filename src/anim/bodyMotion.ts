@@ -17,6 +17,10 @@
  * the same from its MoveState): the moving share, the crouch, the drawn share, the raise and the keyed speed blends'
  * shares (KEYED_GAITS standing, KEYED_CROUCH crouched). Every weight is a product of eased values and smoothsteps, so
  * the layer never steps at a band edge.
+ *
+ * (step 3) The keyed arms (`KEY_MOTION`, per keyed gait clip): the arm swing gain the graph's speed / crouched sets apply
+ * to each clip about its mean (`scaleKeyedArms`), and the speed cap on the posed elbow / wrist the rig's `keyedArm` reads
+ * from `armSpeed` (blended by the same pace shares). Holstered free hands only: drawn arms stay on the grip IK.
  */
 
 /** The rows, in the tuner's body order (the `selectBodyGroup` ids this layer covers). */
@@ -74,6 +78,54 @@ export const BODY_MOTION: Record<BodyMotionRowId, BodyMotionRow> = {
 /** Where the nod peaks (cycles; it repeats every half cycle): just after each heel strike (left at 0, right at 0.5). */
 export const NOD_TIME = 0.05;
 
+/**
+ * (anim-natural-n2 step 3) The keyed gait rows: the holstered clips Wren's keyed arms swing in (walk, jog, run; sneak,
+ * crouch walk, crouch run). Drawn the gun's grip IK holds the arms (the speed set's arm keys are cleared), so these never
+ * touch a drawn arm.
+ */
+export const KEY_MOTION_ROWS = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun'] as const;
+export type KeyMotionRowId = (typeof KEY_MOTION_ROWS)[number];
+
+export interface KeyMotionRow {
+  armGain: number;
+  armSpeed: number;
+}
+
+/** The fields, in slider order. */
+export const KEY_MOTION_FIELDS = ['armGain', 'armSpeed'] as const satisfies readonly (keyof KeyMotionRow)[];
+
+/** The armSpeed top (m/s): no keyed arm point moves this fast, so at it the cap never engages (identity). */
+export const ARM_SPEED_MAX = 100;
+
+/**
+ * (step 3, A7 / A8) Per keyed gait row (bake-friendly literals, `KEY_MOTION.<row>.<field>`):
+ * - `armGain` (x) the keyed arm swing about the clip's mean, on top of the tuner's armSwingK (Michael's Body base and
+ *   sliders) and the clip's own amplitude: the walk 1.3 (wrist forward range 23 -> 30 cm); the jog 1 (A7 planned 1.6 on the
+ *   research's 21.5 cm, but Michael's Body base jog armSwingMul 1.7 already gives 34.3 cm, the ~35 target); the run 1
+ *   (after A1); the crouch rows 1 (the crouch run swings its own keyed clip: 23.6 cm, not the jog's 36.8; PASS2 item 9);
+ * - `armSpeed` (m/s) the speed cap on where the keyed arm poses the elbow and wrist, chest frame (the rig's `keyedArm`):
+ *   6 (A8): the gait swaps in turns (the walk and jog arm keys cross-faded in a few frames) and the strafe start whipped
+ *   the wrists at 9-15 m/s; the jog's own keys touch it on 4 frames in 180 (<= 1.7 cm). The run 18: Michael's retimed run
+ *   arm keys swing back to front in about one clip frame (chest frame 11-17 m/s); at 6 the hand trailed them by up to
+ *   18.5 cm on 34 frames in 180, at 18 the run at 4 m/s is untouched (the sprint 1.9 cm on 3 frames). Identity under the
+ *   cap; ARM_SPEED_MAX: off.
+ * Undo: armGain 1, armSpeed ARM_SPEED_MAX.
+ */
+export const KEY_MOTION: Record<KeyMotionRowId, KeyMotionRow> = {
+  walk: { armGain: 1.3, armSpeed: 6 },
+  jog: { armGain: 1, armSpeed: 6 },
+  run: { armGain: 1, armSpeed: 18 },
+  sneak: { armGain: 1, armSpeed: 6 },
+  crouchWalk: { armGain: 1, armSpeed: 6 },
+  crouchRun: { armGain: 1, armSpeed: 6 },
+};
+
+/** The keyed pose's arm points (`arm`, chest frame) about the clip's mean (`mean`) scaled by `g` (1: untouched). No allocation. */
+export function scaleKeyedArms(arm: Float32Array | Float64Array, mean: Float32Array | Float64Array, g: number): void {
+  if (g === 1) return;
+  for (let c = 0; c < arm.length; c++) arm[c] = mean[c]! + (arm[c]! - mean[c]!) * g;
+}
+
 /** The layer's inputs (the graph's own blends, written into a preallocated struct each frame). */
 export interface BodyMotionIn {
   /** Gait phase (cycles, left heel strike at 0). */
@@ -110,6 +162,11 @@ export interface BodyMotion {
   headFollow: number;
   /** Head pitch added (rad, + down). */
   headPitch: number;
+  /**
+   * (step 3) The speed cap on where the keyed arm poses its elbow and wrist (m/s, chest frame; Infinity: none): KEY_MOTION's
+   * armSpeed by the keyed gait blend, over the gate (no cap with the gate closed, the full cap with it open).
+   */
+  armSpeed: number;
 }
 
 export function newBodyMotionIn(): BodyMotionIn {
@@ -117,7 +174,7 @@ export function newBodyMotionIn(): BodyMotionIn {
 }
 
 export function newBodyMotion(): BodyMotion {
-  return { w: 0, hipYaw: 0, chestYaw: 0, pelX: 0, headFollow: 0, headPitch: 0 };
+  return { w: 0, hipYaw: 0, chestYaw: 0, pelX: 0, headFollow: 0, headPitch: 0, armSpeed: Infinity };
 }
 
 const N_ROWS = BODY_MOTION_ROWS.length;
@@ -198,6 +255,7 @@ export function bodyMotionStep(i: BodyMotionIn, out: BodyMotion): BodyMotion {
     out.pelX = 0;
     out.headFollow = 0;
     out.headPitch = 0;
+    out.armSpeed = Infinity;
     return out;
   }
   bodyMotionWeights(i, W);
@@ -237,5 +295,11 @@ export function bodyMotionStep(i: BodyMotionIn, out: BodyMotion): BodyMotion {
   out.pelX = (sc * pc + ss * ps) * 0.01 * g;
   out.headFollow = follow * g;
   out.headPitch = nod !== 0 ? nod * Math.cos(2 * TAU * (i.phase - NOD_TIME)) * DEG * g : 0;
+  // (step 3, A8) the keyed arms' speed cap by the keyed gait blend (standing / crouched, the pace shares as the clips
+  // cross-fade), eased in by the gate: cap / gate, so it lets go continuously as the gate closes
+  const K = KEY_MOTION;
+  const stand = K.walk.armSpeed * (1 - i.jog) + K.jog.armSpeed * (i.jog - i.run) + K.run.armSpeed * i.run;
+  const crch = K.sneak.armSpeed * (1 - i.cWalk) + K.crouchWalk.armSpeed * (i.cWalk - i.cRun) + K.crouchRun.armSpeed * i.cRun;
+  out.armSpeed = (stand + (crch - stand) * i.crouch) / g;
   return out;
 }

@@ -2,6 +2,11 @@
 
 ## Unreleased - anim-natural-n2
 
+### Arms (step 3)
+- Wren's walking arms swing wider (wrist range about 23 -> 30 cm), and turns and strafe starts no longer whip the
+  hands (the jog 180 turn 14 -> 7 m/s): a per-gait arm gain and a wrist / elbow speed cap in the chest frame (run cap
+  18 m/s keeps Michael's run keys as tuned). Drawn (low ready) arms are unchanged.
+
 ### Body motion layer (step 2)
 - Wren's walk, jog, run, sneak, crouch walk, crouch run and the aimed glides now move the whole body (Michael: "All
   movements must move naturally with twisting/swaying/balancing"): the hips and shoulders turn against each other with
