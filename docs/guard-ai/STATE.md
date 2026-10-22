@@ -1,6 +1,26 @@
 # Guard AI - state
 
 ## Now
+(~09:25) #185 S2 in train 20 (origin/train/20, with #186). #191 S3 radio OPEN (feature/guard-ai 7a4167b2; checker PASS
+slices/S3-CHECK.md; e2e GPU desktop 4192 all green: e2e-stealth-ai, e2e-sectorops 1-5, e2e-ct-warehouse, e2e-stealth,
+e2e-ctcourse 1-3), train 21 after train 20 releases. Parallel slices, each its own worktree + branch off 7a4167b2 +
+own PR (node_modules junction -> C:/NightShift/Mobile-Coop/node_modules; remove with `cmd /c rmdir node_modules`
+before `git worktree remove`):
+- S4 awareness / caution: C:/NightShift/Mobile-Coop-guard-ai-s4, feature/guard-ai-s4, Opus implementer RUNNING
+  (report slices/S4.md, BRIEF A14-A16).
+- S5 posts + map data: C:/NightShift/Mobile-Coop-guard-ai-s5, feature/guard-ai-s5, Opus implementer RUNNING
+  (slices/S5.md, A17-A19).
+- S7 cameras see bodies: C:/NightShift/Mobile-Coop-guard-ai-s7, feature/guard-ai-s7, Opus implementer RUNNING
+  (slices/S7.md, A20-A22).
+- S8 tactics: C:/NightShift/Mobile-Coop-guard-ai-s8, feature/guard-ai-s8, Opus implementer started ~09:25
+  (slices/S8.md, A23-A25).
+Implementers were told: no full npm run check (desktop CPU), tsc + eslint + single vitest files; no e2e; no commits.
+If the window cut them off: in each worktree `git status`, read slices/S<n>.md if present, then a fresh implementer
+finishes from the WIP (same brief: the module report's wiring list) or a checker if done. Then per slice: commit,
+push, fresh Opus checker, e2e on a free GPU lane (desktop 4192 heavy2.lock or laptop Character Build [06fe56],
+E2E_GPU=1, PLAN row suites), PR, message the orchestrator. S10 pairs after S5 (patrol overlap); S5b and S6 after S5;
+S9 only if needed (protocol 32).
+
 (~08:40, account swap 2) #185 S2: master 4.68.0 merged (a0554459; conflict stealthSystems.shootLight = S2's
 `lightsOut(x, z, y, id)` before the noise + master's `return true`); no wire change, so no protocol (registry: master
 31, guard-ai 32 if S9 needs it, marlow-final 33); CI running, then train 20 with #186. S3: the integration agent had
