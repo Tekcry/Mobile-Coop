@@ -1,5 +1,16 @@
 # anim-natural N2 - state
 
+## 2026-10-22 ~20:50: PR #138 open (head edabdc2c, contains N1), for train 8
+- CHECK-5 PASS (fresh checker on c0f6f9f9); fragment brought up to date; PR #138 opened (minor).
+- Desktop suites on c3a10b41 (software GL, JOBS=2): e2e-anim / move / studio / clip ok; e2e-coop / e2e-netmove killed at
+  600 s beside the checker at 100% CPU (orchestrator: no rerun, train 8's full run covers them).
+- N1 #135 merged master 4.58.0 (08023227; #123's bake table: N1's step manuals dropped, generic table). N1 and N2
+  conflicted (e2e-anim.mjs, identity header, Wren fixture): N1 merged into N2 (9e2a5c2c), fixtures re-captured on the
+  combined code (edabdc2c): N2 off = N1's fixture 40 / 40, turnRule 0 = N2's 40 / 40; moved partner:moves (+ keyed:run vs
+  N1). Clean merges with master and N1.
+- New rule (orchestrator ~20:35): desktop e2e with E2E_GPU=1 under the lock; a GPU-only failure reruns in software.
+- Next: nothing unless train 8 fails; then steps 4-5 (PLAN) in a new PR; polish list in CHECK-5.
+
 ## 2026-10-22 ~19:55: pre-PR round built (15921223, c0f6f9f9); fresh checker running (CHECK-5)
 - 15921223: CHECK-4 should-fix 1 (armCap via armCapO, 208 B a frame gone), 2 (no cap under the studio drive), and the
   alloc test on #128's allocPerCall (0.00 B). c0f6f9f9: run arm pop fixed (arm keys retimed, Blender -b rebake 19:49 under
