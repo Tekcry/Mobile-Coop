@@ -25,3 +25,5 @@ kind: minor
 - Mocap locomotion (switch on): speeding up or slowing down through the walk / run bands, also while turning, no longer
   pins a foot for a walk-length stance (the pelvis dropped up to 14 cm in a frame); a start after a short stand no longer
   skims a foot along unplanted.
+- Mocap locomotion (switch on): fast flick turns while walking no longer lurch the hips or snap the feet as the turn
+  ends; turning the switch on or off mid-move cross-fades the pose over 0.25 s instead of snapping it.
