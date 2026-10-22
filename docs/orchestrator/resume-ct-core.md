@@ -62,7 +62,8 @@ heavy2.lock naming CT Core Build with no node / bash process of ours running is 
    If not committed past f2f8e396, one Opus implementer: (a) e2e-anim run 180 planted contact 14 cm: the body-frame push
    in uncross / uncrossIn must never move a planted (held) foot; keep every turn plan least gap >= 5 cm and slide < 1 cm;
    pin it in tests/turnCrossRig.test.ts. (b) e2e-studio keyed walk: Arm swing greyed (expected live): find the change
-   (c3a10b41 passed), restore it or update the stale expectation with the reason. Then bash /c/NightShift/n138-e2e.sh
+   (orchestrator ~22:30: covered by master 4.58.1-4.58.2 GPU test fixes: merge origin/master 4.58.3 into N2 first, it
+   merges clean; only if Arm swing still reads greyed after the wait is it ours). Then bash /c/NightShift/n138-e2e.sh
    detached (powershell Start-Process -WindowStyle Hidden bash), all six pass: list them in #138 body, send the sha.
 3. T1 #141: nothing unless its train fails.
 Message "Night Shift | Orchestrator" at each slice and PR.
