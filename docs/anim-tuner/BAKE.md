@@ -12,7 +12,7 @@
     (`node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs <clip>`). Blender is never run.
   - prints the table and the warnings.
 - `--only`: bake only these sections: any registered or declared section id (body, gun, cam, speed, joint, hand, ik,
-  weapon, step, gear, weight, team_boost ... team_revive, trav) and keys.
+  weapon, step, gear, weight, clip, guardJoint, guardStep, guardWeight, team_boost ... team_revive, trav) and keys.
 - `--allow-shared`: bake a shared target into its shared code value when exactly one group changed (the summary warns;
   without it that group bakes per state into the generic table).
 - The script loads the repo's TypeScript itself (it imports `scripts/operators/ts-resolve.mjs`).
@@ -130,14 +130,18 @@ slider and group bakes into the base table's `body` key (below), strideMul into 
 - Ladder, pipe, shimmy and crawl -> the ATTACH speeds (pipe: also the pipeH legs mode, which read the base speed
   without the tuner).
 
-**Stepping.** Every planner reads these, guards included.
+**Stepping.** Every planner reads these, guards included. (item 24) The Stepping sliders themselves are Wren's alone at
+run time (a guard's planner reads the guards' table, any other rig's an identity table); these baked constants stay
+shared.
 - Baked:
   - idle lift -> PLANNER.idleLift.
   - lock (the 5 moving gaits) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads
     twistFree too.
 - Generic table (anim-bake-all): the moving gaits' lift (clip data), the idle lock, dur, slide, stride0..2, toeOff,
   heel, replant (inline literals, no per-pace constant) -> `sections.step.step.<gait>.<id>` x. `tuneStep.ts` composes
-  them into the planner rows (base x the tuner's value), so every planner reads them, guards included, as in the tuner.
+  them into Wren's planner rows (base x the tuner's value), so Wren's planners read them (the player, the partner, the
+  studio puppets), as in the tuner; the guards' rows (Guard stepping, the guard table) and the identity table never take
+  them.
 
 **Weight.**
 - Baked:
@@ -179,13 +183,15 @@ pair puppets; guards and other rigs never do). Result "baked (base table)"; targ
 **Gear** (anim-gear, marlow-bays item 22): baked into the same base table under the key `gear`. Result "baked (base
 table)"; target `src/anim/animBase.ts: gear.<row>.<param> + (m)` or `+ (deg, wrapped)`.
 - Shape: `"gear": { row: { param: v } }`, row = the group id after `gear.` (`holster`, `backL`, `backC`, `backR`,
-  `slingHip`, and each with `.crouch`: `gear.holster.crouch` -> `gear["holster.crouch"]`),
+  `slingHip`, (anim-goggle) `goggles` (the worn goggle, head frame), and each with `.crouch`: `gear.holster.crouch` ->
+  `gear["holster.crouch"]`),
   param = `x` / `y` / `z` (metres, the socket's own frame) or `pitch` / `yaw` / `roll` (degrees). Offsets add (angles
   wrapped to -180..180), the same at run time (base + the tuner's delta) and in the bake (old base + the export's value).
 - The key is optional and printed only when a row has an offset (sorted, about 4 significant digits, 0 left out): a
   table without it (every table before anim-gear) parses and prints exactly as before, and old exports bake as before.
 - Code: `src/anim/tuneBakeBase.ts`; the runtime table and the per-rig composition `src/anim/tuneGear.ts`. Dev hook:
-  `window.__animBase.setGear(row, param, value)`. Test: the literal export in `tests/animGear.test.ts`.
+  `window.__animBase.setGear(row, param, value)`. Test: the literal export in `tests/animGear.test.ts`; the goggle rows
+  in `tests/animGoggle.test.ts` (no bake code change: the bake keys by row id).
 
 **Body base** (anim-bake-targets, BT-A1 / A3): the same base table under the key `body`. Result "baked (base table)";
 target `src/anim/animBase.ts: body.<row>.<id> x` (mul) or `+` (add).
@@ -204,12 +210,38 @@ target `src/anim/animBase.ts: body.<row>.<id> x` (mul) or `+` (add).
   player's `player.ts` only; the partner's and the puppets' roots are placed elsewhere (`src/net`, the studio) and do
   not read them yet.
 
+**Guard joints, Guard stepping, Guard weight** (marlow-bays item 24, track A): baked into the guard base table, a
+generated file `src/anim/animBaseGuard.ts` that every guard rig reads (`CharacterRig.guardRows`, set in
+`buildEnemyRig`: the host's guards, the co-op client's puppets, the Anim Studio's guard puppet); no Wren rig ever reads
+it, and Wren's table never takes a guard row. Result "baked (guard base table)"; target
+`src/anim/animBaseGuard.ts: joints.<row>.<joint>[axis] + (deg, wrapped)`, `step.<gait>.<param> x`,
+`weight.<row>.<id> x` (a multiplier) or `+` (an amount).
+- The file: a header and the `AnimBaseGuardData` type, then the JSON between `// @anim-base-guard-begin` and
+  `// @anim-base-guard-end`. Shape `{ "version": 1, "joints": { row: { joint: [x, y, z] } }, "step": { gait: { param:
+  mul } }, "weight": { row: { id: v } } }`, keyed by row id (`idle`, `walk`, `run`, `aim`, `crouch`, `cover`; the
+  stepping gaits `idle` ... `crouchRun`), joint name and param id. Printed sorted, one row per line, about 4 significant
+  digits, identity left out (an identity re-bake gives the same text).
+- The rules, the same at run time (`tuneGuard.ts`: effective = base composed with the tuner's delta) and in the bake:
+  joint degrees add per axis then wrap; stepping multipliers multiply; weight multipliers multiply, amounts add. The
+  guard sliders stay deltas on the base: after the merge Reset baked resets them as for every section.
+- Own file, own markers: an export with no guard rows never reads or writes it, so it bakes byte-identically to before.
+- Code: `src/anim/tuneBakeGuard.ts` (parse, apply, print), wired in `tuneBake.ts` beside the Wren base table. Dev hook:
+  `window.__guardTune` (`base`, `load`, `reset`, `jointEffective`, `stepGet`). Tests: `tests/guardTune.test.ts`.
+- Not isolated by this: the Wren Stepping rules above (idle lift, lock) and the Body / keyed-clip rules write shared
+  constants every planner and rig reads, guards included (A5); a guard-only change goes in the guard rows.
+
 **Keys:** `key.<clip>.<n>` deltas -> `scripts/anim-keys/keys/<clip>.json` through the apply-tune functions. Then
 rebake each clip with build.mjs (Blender, headless, under the desktop heavy lock). (marlow-bays item 23, track A) A key's
 `time` (bake frames, + later) moves its `phase` to frame / 48 (moved keys only, clamped as in the tuner; key 0 is fixed:
-skipped) and regenerates `src/anim/tuneKeysMeta.ts`; an export with no timing edit bakes exactly as before. The live preview stretches the curve piecewise-linearly between
-the keys while the Blender bake interpolates with Bezier, so after a rebake the in-betweens differ slightly; the key
-poses match.
+skipped) and regenerates `src/anim/tuneKeysMeta.ts`; an export with no timing edit bakes exactly as before. (marlow-bays
+item 30e) The live preview now matches the rebake: once the clip's key file loads (on its first edit) the fields the
+bake keys on Blender's Bezier curve (trunk yaw / pitch / roll, pelvis shift, arm flex / abd / elbow / inward / upper arm
+twist, wrist) spread on that same curve (`src/anim/keyCurve.ts`), the trunk re-keyed in the bake's channel frames and
+the arms composed as its FK (`src/anim/tuneKeysCurve.ts`); a retimed key re-keys the clip at its new time. Measured
+against a Blender rebake (`tests/keyedExactPreview.test.ts`): pelvis and trunk exact (under 0.001 cm / 0.0001 deg), arms
+within 0.7 cm between the keys (exact at them); the lerped fields (head, shoulder, forearm twist, clavicle, fingers, leg
+deltas, FK weight) were exact already. Before the key file loads (the first frames after the first edit) the preview
+spreads linearly.
 (marlow-bays item 25, track A) Add / delete keys: `del` 1 removes the key (key 0 never: skipped; past the minimum of
 4 keys a cycle: skipped; with the Mirror box on the bake drops its mirror with it); an added-key group
 `key.<clip>.a<s>` adds a key at `at` / 48 whose fields are the original keys' blend there (every numeric field of the
@@ -218,11 +250,26 @@ on) outside the own half is skipped. A key file with an add / delete is written 
 the Mirror box off a mirrored file is written in full first), `src/anim/tuneKeysMeta.ts` is regenerated and the rebake
 printed; `key_clip.py` sorts any key list, so it needs no change. An export with no add / delete bakes exactly as
 before. The meta is regenerated whenever a key file is written (also a file written in full with no time edit: it
-holds the mirror flag and the own phases); unchanged files give byte-identical meta. Accepted difference (as item 23):
-the live preview blends an added or deleted key linearly between its neighbours while key_clip.py keys the bone
-rotations with Bezier (`py/key_clip.py` line 261), so after a rebake the in-betweens around an added or deleted key
-shift a little; the key poses match. Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
+holds the mirror flag and the own phases); unchanged files give byte-identical meta. (item 30e) The live preview keys
+an added or deleted key on the bake's curve too (an added key a knot on the original keys' blend plus its deltas, a
+deleted key no knot), so the in-betweens around it no longer shift after a rebake; "+ Add key" gives the new key the
+value the preview shows there, so nothing moves at its time (its curve-field deltas are small non-zero numbers: the
+curve minus the linear blend). Rules and tests: `src/anim/tuneKeysEdit.ts`, `tuneKeysFile.ts` (`keyEditPlan`, `keyEditRow`),
 `tests/tuneKeysEdit.test.ts`.
+(marlow-bays item 30, track A) The key tools (Wave, Apply to keys, Smooth between) only write the key sliders above
+(field deltas on keys with their own sliders; with the Mirror box on the mirrored half follows), so they bake exactly as
+those; no new bake format. Compare writes nothing.
+
+**Clip speed** (clip-speed, track A; `src/anim/tuneClipSpeed.ts`, its own tab): a speed per timed clip (1 = today's
+timing, 2 = half the time) and an every-clip speed (`clip.all`). A speed divides a duration or multiplies a rate:
+`clip.gun` rifleDraw / pistolDraw / holster -> `src/weapons/drawState.ts` `DRAW_TIME_PRIMARY` / `DRAW_TIME_SIDEARM` /
+`HOLSTER_TIME` (div); swap / grenade -> `src/weapons/playerWeapons.ts` `SWAP_TIME` / `GRENADE_TIME` (div);
+`clip.body` startShift / stopSettle / land -> `src/anim/clips/actions.ts` `CLIP_RATE.<id>` (mul; the timed clips are
+keyed in seconds, so their clock rate bakes, not their keys). `all` edits every one of these; with a clip's own slider
+too both ops apply (the product, as in the game). The draw times are gameplay too: the draw state gates `fireReady`
+over the same time, so the gun can fire when the draw clip ends, tuned or baked. Not in it: the gait cycles (paced by
+speed), the traversal / co-op one-shots (their own Timing sliders, manual), reloads (weapon data). Test:
+`tests/tuneClipSpeed.test.ts`.
 
 **Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): every slider is
 a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip clock); the moves' paths and
@@ -239,15 +286,18 @@ value of its own. Result "baked (base table)"; target `src/anim/animBase.ts: sec
   in the bake (old base composed with the export's value); a result at identity is dropped. Printed sorted, one group per
   line, about 4 significant digits, last in the table and only when a value is set: a table without it prints exactly
   as before, so the untuned rig and the Wren / guard skeleton fixtures are unchanged.
-- Never for the Joints / Hands & feet / IK / Weapon / Gear sections or Keys (their own keys), a Body base param (the
-  `body` key), or a slider whose default is not its op's identity (refused).
+- Never for the Joints / Hands & feet / IK / Weapon / Gear sections or Keys (their own keys), (item 24) the guard
+  sections (the guard table, taken first), (clip-speed) Clip speed (a code rule per slider; `clipSpeed` reads the
+  tuner's values), a Body base param (the `body` key), or a slider whose default is not its op's identity (refused:
+  `tuneBakeBase.ts` GENERIC_REFUSED).
 - Run time (`tuneRegistry.ts`): each section keeps `values` (the tuner's own: the panel, save and export), `base` (the
   table's values, the slider's default where unset) and `eff` (the two composed), rebuilt on an edit, a load, an import
   or a base load, never per frame. Every consumer reads `eff` where it read `values`: the eases into `cur` (Body, Gun,
   Camera, Weight), `speedTune.ts` (the Speed tables), `weightTune.ts` (weightSim), `moveTune.ts` (the move groups),
   and `tuneStep.ts` (the planner rows: base x the Stepping section's synced value). The bypass reads `base` (the code
   defaults, as for every baked constant). So each slider applies exactly where it applies in the tuner: the local
-  player for Camera, Gun aimed, Speed, Weight, strideMul and the moves; every planner for Stepping.
+  player for Camera, Gun aimed, Speed, Weight, strideMul and the moves; Wren's planners for Stepping (item 24: the guards
+  read Guard stepping, any other rig the identity table).
 - Dev hook: `window.__animBase.setSection(section, group, id, v)`; `load` takes the key too. Tests:
   `tests/animBakeAll.test.ts` (the runtime), `tests/animTuneBake.test.ts` (every slider of every section, a literal
   export, the print format).

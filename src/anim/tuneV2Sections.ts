@@ -125,10 +125,10 @@ function syncStep(): void {
 }
 
 /**
- * (anim-gear, G-A1) Gear: `gear.<socket>` (holster, backL, backC, backR, slingHip) and the crouched
- * variant `gear.<socket>.crouch` (applied over the standing one by the rig's crouch amount); x / y / z (m) and pitch /
- * yaw / roll (deg) in the socket's own frame, identity 0 (`tuneGear.ts`). Deltas on the base table's `gear` key; every
- * Wren rig reads them. No follow (the picker stays where it is put).
+ * (anim-gear, G-A1) Gear: `gear.<socket>` (holster, backL, backC, backR, slingHip; (anim-goggle) goggles, the worn
+ * goggle in the head frame) and the crouched variant `gear.<socket>.crouch` (applied over the standing one by the rig's
+ * crouch amount); x / y / z (m) and pitch / yaw / roll (deg) in the socket's own frame, identity 0 (`tuneGear.ts`).
+ * Deltas on the base table's `gear` key; every Wren rig reads them. No follow (the picker stays where it is put).
  */
 export const GEAR_GROUP_IDS: readonly string[] = GEAR_ROWS.map((r) => `gear.${r}`);
 export const GEAR_SECTION = registerTuneSection({
@@ -143,7 +143,7 @@ export const GEAR_SECTION = registerTuneSection({
 });
 const GEAR_KEYS: readonly string[] = GEAR_PARAMS.map((p) => p.id);
 
-/** (anim-gear) Registry -> Gear delta table, every row (84 keyed reads; setters only on a real difference). */
+/** (anim-gear) Registry -> Gear delta table, every row (72 keyed reads; setters only on a real difference). */
 function syncGear(): void {
   for (let g = 0; g < GEAR_ROWS.length; g++) {
     const row = GEAR_ROWS[g]!;

@@ -246,8 +246,12 @@ export function applyBaseEntries(base: AnimBaseData, entries: readonly BaseEntry
 // (anim-bake-all, BA-A1) The generic table: `sections.<section>.<group>.<id>`
 // ------------------------------------------------------------------------------------------
 
-/** Sections that never bake into the generic table (their own base keys, or the Keys section's key JSONs). */
-export const GENERIC_REFUSED: readonly string[] = ['joint', 'hand', 'ik', 'weapon', 'gear', 'keys'];
+/**
+ * Sections that never bake into the generic table: their own base keys (Wren's), the Keys section's key JSONs, (item 24,
+ * track A) the guard sections (the guard table, `tuneBakeGuard.ts` BAKE_GUARD_SECTIONS; a guard row never reaches Wren's
+ * table) and (clip-speed, track A) Clip speed (a code rule per slider; `clipSpeed` reads the tuner's values, never `eff`).
+ */
+export const GENERIC_REFUSED: readonly string[] = ['joint', 'hand', 'ik', 'weapon', 'gear', 'keys', 'guardJoint', 'guardStep', 'guardWeight', 'clip'];
 
 export interface SectionEntry {
   readonly section: string;
@@ -261,7 +265,7 @@ export interface SectionEntry {
 
 /** Where a generic entry goes (the bake's target column). Throws for an entry it cannot place. */
 export function sectionTarget(e: Omit<SectionEntry, 'value'>): string {
-  if (GENERIC_REFUSED.includes(e.section)) throw new Error(`${e.section} ${e.group} ${e.id}: the ${e.section} section has its own base key`);
+  if (GENERIC_REFUSED.includes(e.section)) throw new Error(`${e.section} ${e.group} ${e.id}: the ${e.section} section has its own base key or code rules (never the generic table)`);
   if (e.section === 'body' && BODY_FIELD_SET.has(e.id)) throw new Error(`${e.group} ${e.id}: a Body base param bakes into the body key`);
   if (e.def !== (e.kind === 'mul' ? 1 : 0)) throw new Error(`${e.section} ${e.group} ${e.id}: the default ${e.def} is not identity`);
   for (const k of [e.section, e.group, e.id]) if (k === '__proto__' || k === 'constructor' || k === 'prototype' || k === '') throw new Error(`${e.section} ${e.group} ${e.id}: not a key`);

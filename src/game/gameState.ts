@@ -120,7 +120,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
-import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_VIEW, FreeViewCore, freeSnap, type DemoOut, type FreeMode } from '../player/freeView';
+import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
 import { MOVE_TUNE_TEAM, teamContactK, teamRoleGroup } from '../anim/moveTune';
@@ -208,8 +208,12 @@ export interface NetAttachment {
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
-  /** Client, course mode (CT prototype B3): the held jammer's target ('' = released). */
-  sendJam?(tgt: string): void;
+  /** Client, course mode (CT prototype B3): the held jammer's target ('' = released) and (jammer-fixes) the camera eye
+   *  the aim was checked from. */
+  sendJam?(tgt: string, eye: { x: number; y: number; z: number }): void;
+  /** (marlow-jammer fix round 1) Host, course mode: move player `who` to (x, y, z) facing `yaw` (the camera hallway's
+   *  send-back; a `back` event, the client moves itself). */
+  sendBack?(who: string, x: number, y: number, z: number, yaw: number): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
@@ -221,6 +225,8 @@ export interface NetAttachment {
 
 export interface NetHooks {
   role: 'host' | 'client';
+  /** (marlow-bays R1) The room code, shown in the pause menu so either player can rejoin on it. */
+  code?: string;
   attach(g: GameState): NetAttachment;
 }
 
@@ -689,7 +695,7 @@ export class GameState implements AppState {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.security = new SecuritySystem(
         world.layout.security,
-        { ballistics: this.ballistics, players: () => this.playerRefs(), lightAt: (x, y, z) => world.lightField.totalAt(x, y, z) },
+        { ballistics: this.ballistics, players: () => this.playerRefs() },
         new SecurityView(this.scene, world.parts),
       );
       const prevRay = this.weapons.onRay;
@@ -1156,6 +1162,7 @@ export class GameState implements AppState {
           host: !this.puppet,
           restartCheckpoint: CHECKPOINT_MODES.has(this.opts.mode) ? () => this.restartCheckpoint() : undefined,
           lobby: this.net && this.cb.lobby ? () => this.cb.lobby?.() : undefined,
+          roomCode: this.opts.net?.code,
         },
       ),
     );
@@ -1565,10 +1572,6 @@ export class GameState implements AppState {
     return this.lightRay.hasHit;
   };
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
-  /** (camera-cue fix) A remote body's light as this side samples remotes (the co-op client's camera cue). */
-  bodyLight(x: number, feetY: number, z: number, height: number, crouched: boolean): number {
-    return this.world.lightField.bodyLevel(x, feetY, z, lightSampleHeight(height, crouched ? 1 : 0), this.lightOccluder);
-  }
 
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);
@@ -1923,17 +1926,26 @@ export class GameState implements AppState {
     const real = this.app.input.state;
     core.dt = rdt;
     // (anim-studio) a camera snap (once) and the turntable's spin
+    const by = this.player.rig.root.rotation.y;
     if (FREE_VIEW.snap) {
-      freeSnap(FREE_VIEW.snap, this.player.rig.root.rotation.y, core);
+      core.snapTo(FREE_VIEW.snap, by);
       FREE_VIEW.snap = '';
     }
-    // (tuner-ui) a held snap: the angle to her facing every frame (the look and the spin do not turn it)
+    // (marlow-bays item 29 phase 2) the View tab's orbit sliders (once), and what the orbit shows for them
+    if (mode === 'orbit' && (!Number.isNaN(FREE_SET.angle) || !Number.isNaN(FREE_SET.tilt) || !Number.isNaN(FREE_SET.dist))) core.setOrbit(FREE_SET.angle, FREE_SET.tilt, FREE_SET.dist, by);
+    FREE_SET.angle = FREE_SET.tilt = FREE_SET.dist = Number.NaN;
+    FREE_ORBIT.on = mode === 'orbit';
+    FREE_ORBIT.angle = orbitAngleDeg(core.yaw, by);
+    FREE_ORBIT.tilt = (-core.pitch * 180) / Math.PI;
+    FREE_ORBIT.dist = core.dist;
+    // (tuner-ui) a held snap: the angle to her facing every frame; (item 29 phase 2) the look turns that angle, the
+    // turntable's spin does not
     core.lock = FREE_VIEW.lock;
-    core.bodyYaw = this.player.rig.root.rotation.y;
-    const turn = core.lock ? 0 : 1;
+    core.bodyYaw = by;
+    const spin = core.lock ? 0 : FREE_VIEW.spin * rdt;
     // (marlow-bays item 26) the touch orbit adds to the look like the mouse drag
-    core.lookX = (look.x + FREE_IN.tlx + FREE_IN.rx * C.yawRate * rdt + FREE_VIEW.spin * rdt) * turn;
-    core.lookY = (look.y + FREE_IN.tly + FREE_IN.ry * C.pitchRate * rdt) * turn;
+    core.lookX = look.x + FREE_IN.tlx + FREE_IN.rx * C.yawRate * rdt + spin;
+    core.lookY = look.y + FREE_IN.tly + FREE_IN.ry * C.pitchRate * rdt;
     look.x = look.y = 0;
     const up = (real.down('jump') ? 1 : 0) - (real.down('crouch') ? 1 : 0);
     if (mode === 'fly') {

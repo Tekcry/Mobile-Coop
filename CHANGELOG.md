@@ -22,8 +22,148 @@
 - The tuner resets those 13 sliders once on the next load (they would otherwise apply twice): each bake now has its
   own id in the save, so a second bake of the same export is not mistaken for the one already applied.
 
+## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
+
+### #109 Clip speed
+- Animation tuner, Clip speed tab (Michael: "Can I fine tune the whole animation speed in anim tuner?"): a speed slider
+  per timed clip, 1 = today's timing, 2 = twice as fast. Draw, holster, swap and throw: rifle draw (every long gun),
+  pistol draw, holster, weapon swap, grenade throw. Start, stop and landing: the start-off weight shift, the stop
+  settle, the landings. Every clip: one slider that multiplies all of them. Each slider shows today's duration.
+- The draw speed is gameplay too: the gun can fire when the faster (or slower) draw ends, and the aim camera blends in
+  with it. Not the View tab's slow motion (that slows the whole game for viewing).
+- Bakes like the other sections (`node scripts/anim-tune-bake.mjs`, section `clip`): into the draw, holster, swap and
+  throw times and a new playback rate per timed body clip (`CLIP_RATE`). Untuned, nothing changes; the save is unchanged.
+
+### #105 Guard tuning
+- Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
+  guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
+  alert), run, aim, crouched, wall cover. Wren's sliders never change a guard and the guard sliders never change Wren.
+- Every guard (in single player and on a co-op client) reads a guard base table the bake writes from an export's guard
+  rows (`src/anim/animBaseGuard.ts`); untuned guards look and act exactly as before.
+- Anim Studio: Who = Guard (or a "Guard: ..." loop) plays a guard puppet (a real guard, no AI) where Wren stands:
+  idle, patrol walk, alert walk, run, aim, crouched aim and wall cover, moving loops on the spot; the camera, the
+  highlight, pause and speed work on it. Who = Wren brings her back.
+- Saves, exports, imports, presets and undo carry the guard rows; older saves and exports load as before.
+
+## 4.52.0 - Train 1: server browser and jammer fixes; protocol 28 (2026-10-22, PR #111; #99, #108)
+
+### #108 Jammer fixes
+- A jammed lamp comes back in the state its wall switch, EMP or a shot gives it at the end of the jam, not the state it
+  had when the jam started: a group switched off (or EMPed) during a jam stays dark through the flicker, on the host and
+  the client alike (light parity). The light registry keeps the switches' state under the jam.
+- Jamming Course Lab's mains lamp no longer opens the mains gate, and its flicker no longer toggles it: the gates read
+  the group's switch / EMP / shot state, never the jam.
+- Co-op: `PROTOCOL_VERSION` 28: the client's `jam` claim carries its camera eye; the host checks the jam's line of sight
+  from it (taken within 1.5 m of the client's head with a clear line between them, else from the head), so a client
+  that shows JAMMER READY now jams.
+- The jam buzz no longer allocates an object every frame while a device is jammed.
+- Not changed (Michael 2026-10-22): cameras keep their IR on every camera ("Cameras should still work in the dark").
+
+### #99 Server browser (prototype)
+- Co-op: public rooms (Michael: a server browser, "prototype only, quick and fast to build"). The host lobby has a
+  Room row, Private (default: only the code brings anyone in) or Public. A public room posts a notice (code, map, mode,
+  version, players, host name) on the same relays as every room, every 30 s and to anyone who opens the list; it is
+  taken off when the room is full, goes private or closes, and a notice not refreshed for 75 s drops out.
+- Co-op > Browse rooms: the public rooms of this exact version and protocol, live, with pad, keyboard and mouse; a pick
+  joins by its code as today. No quick match, no relay server, no game server.
+
+## 4.51.1 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22, PR #107)
+- The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
+  the takedown is done, as the grab step already does: on a slow page the guards alerted or turned between the host's
+  pin and the client's read, so the offer never came (the master-wide flake). The start, the reach check and the
+  knock-out are still the real code. A failure now prints both pages' view of the guard and the client.
+
+## 4.51.0 - Animation tuner: key tools (wave, apply to ticked keys, smooth between, compare) and the exact key preview (2026-10-22, PR #106)
+- Animation tuner, Keys tab: key tools for changing many keys at once, each one undo step and baked like any key edit.
+  "Key tools" fold: Wave (pick a slider by name, an amount and a timing; "Fill keys" puts a smooth sine over the cycle
+  on every key, the mirrored half following the Mirror rule), Apply to keys (the selected slider's value on this key
+  to the ticked keys, All / None) and Smooth between (the keys between two keys eased from one pose to the other, every
+  slider or the selected one).
+- Compare (off by default): a light ghost of the previous or a picked key over her in the Anim Studio, and a line of
+  how this key differs ("Key 2 vs key 1: Right forearm twist, palm in +12°, Chest turn -3°").
+- Exact preview: a key edit now previews the way the Blender rebake makes it (the same Bezier curve; the trunk exact,
+  the arms within 0.7 cm between the keys, the pelvis exact), also with retimed, added and deleted keys, so the
+  in-betweens no longer shift after a rebake. "+ Add key" keeps the pose where the key goes.
+
+## 4.50.0 - Co-op rejoin: a dropped player rejoins the match (held slot, Resume hosting, room code on pause and main menu); protocol 27 (2026-10-22, PR #92)
+- Co-op: rejoin a match you left or dropped out of (Michael: "There should also be a way to rejoin a match you have
+  left"). The room code shows in the pause menu, and for 10 minutes after a match was last live the main menu offers
+  "Rejoin <code>" (the joiner) or "Resume hosting <code>" (the host): one press.
+- A joiner who drops or leaves mid-match keeps its place: the host holds its body where it stood (frozen, unhurt, unseen
+  by the guards) with a "<name> disconnected - reconnecting... (room CODE)" line, for 10 minutes. Rejoining puts it
+  back as the same player, where it stood, with the health the host kept and the team's state.
+- If the host drops or leaves, the joiner stays in the match with "Host disconnected - waiting (CODE)". "Resume
+  hosting" reopens the same room and starts the match again from its last checkpoint (Marlow Yard: the bay they were
+  in); the waiting joiner takes it at once, or rejoins from its menu. No server: the same room on the same relays.
+- Protocol 27 (26 is the jammer slice): the hello's rejoin token, the held flag in the lobby, the host's `you` and the
+  `restore` event.
+
+## 4.49.1 - Animation tuner: worn-goggle offsets in the Gear tab, baked (2026-10-22, PR #102)
+- Goggles in the Gear tab (marlow-bays item 22's last socket): a `goggles` socket (and its crouched row) moves and
+  turns the worn goggle (night vision on) in the head frame: x / y / z in metres, pitch / yaw / roll in degrees, about
+  the goggle's own pivot. It bakes into the animation base table like the other Gear rows; your own Wren shows it
+  (the partner's and the studio puppets' rigs carry it too, but they always show the stowed goggle, so it shows on them once their vision mode is shown), guards never. At LOD1 / LOD2 only the lens moves (the housing
+  is part of the head there). The stowed goggle has no slider yet (it has no separate parts). Untuned, nothing changes.
+
+## 4.49.0 - Animation tuner v3: one simpler layout for pad, touch and mouse; analogue stick lists; plain labels; iPad and phone fit; touch camera; game touch for menus and camera (2026-10-22, PR #97)
+- Animation tuner, simpler: one layout for every input (pad, keyboard and mouse, touch; the input changes only the
+  button hints), the screen size alone picks the dock, the side drawer or the bottom sheet. One column: tabs, the
+  playback bar, Part and State, folding slider groups, then More. The body map, search, recent and pinned sliders, the
+  Settings tab and the edit mode are gone. Pad: the left stick scrolls the lists and changes values, the right stick is
+  always the camera, the triggers zoom, the D-pad is optional; the state list's Up bug is fixed.
+- The highlight on her is a small dot with an off switch; the studio's green skeleton and foot marks start off
+  (More > View aids).
+- On phones the tabs and the playback bar stay at the top of the drawer and sheet while the panel scrolls.
+- Keyed clips: with Keyed ticked the Body, Joints, Limb reach, Hands & feet and gun rows now reach the clip (they did
+  nothing: the clip on the spot tuned the idle). Feet apart and Knee lift work on the keyed clip on the spot. Sliders
+  that do nothing in the loop playing now are greyed with the reason ("procedural only: the keyed clip is playing").
+- Plain words: values in cm and degrees, the hands of a gun stance named "Gun hand" and "Support hand", "Gun in the gun
+  hand" says the support hand follows the gun.
+- Camera: "Around her" (360 degrees), "Camera tilt" and "Distance" sliders in the View tab, in step with the stick,
+  the drag, the touch orbit and the snaps; Side pressed again swaps to her other side.
+- Changing keys (back, forward, pick, add, delete) keeps the panel's scroll and the focused slider.
+- Pad: the left stick changes values and scrolls while "Pause game while tuning" holds the game (it ran on game
+  time, so it did nothing in play).
+- The studio shows a foot slide line when the rig reports it (amber over 0.5 cm).
+- Game touch: tap every menu and the pause menu, drag on the game view to look around, an on-screen pause button after
+  a touch. No touch movement or combat.
+
+## 4.48.0 - Marlow Yard bay 3: a jam-handoff hallway, the jammer's 5 s use / 5 s cooldown with a buzz, camera reboot and lamp flicker; cameras see in the dark (2026-10-22, PR #101)
+- Jammer rules (Michael 2026-10-21 item 7, A3, J1): each player jams for at most 5 s, then a 5 s cooldown; letting go
+  early (or moving: the stand-still rule) also starts the cooldown. The 20 s charge (drain / refill / minStart) is gone.
+- A jammed camera goes blind (its red grid fades out), stops sweeping where it is and flashes its LED; released (or at
+  5 s) it reboots for 1.5 s, still blind and frozen, and nobody can jam it again until it is back online. Lasers take the
+  same 1.5 s. A quiet buzz / interference synth voice plays at the jammed device on both pages (positional, no asset).
+- Lights are jam targets (item 8): a jammed lamp flickers off (0.5 s), stays off while held and 4 s after the release,
+  then flickers back on; the registry gameplay reads follows the same timeline (the meter and guards agree).
+- Only a target the aim has a clear line to can be jammed (no jamming through walls).
+- The jammer HUD: a line under the reticle (JAMMING 3.2 s / JAMMER COOLDOWN / TARGET REBOOTING / READY) and the gun
+  light: cyan pulse jamming, dim red cooling, amber on a rebooting target, green aimed (the old jamming colour was the
+  aimed green, so a jam did not show).
+- Marlow Yard station 3 is a camera hallway (item 5, A5): a 2.9 m hallway along the south wall, the camera at its far end
+  looking back down it with a +-8 deg sweep; its view stays inside the bay (no view into either airlock). One jam covers
+  one runner; the partner through jams it from the far lobby for the other. Both in the far lobby unlock airlock A3's
+  door. The painted sweep-edge floor lines are gone (Michael: the red view overlay shows the camera's area). New radio,
+  objective and panel text; the station's light levels re-taken for the hallway.
+- Co-op: `PROTOCOL_VERSION` 26: `sec` carries per-camera clocks, each player's jam left and cooldown, and the jammed /
+  recovering devices; the client draws the frozen camera, LED, grid, buzz and light flicker from it.
+- Station 3 hard rule (fix round 1, item 5 "impossible to pass without one player jamming"): a player the camera has
+  (its meter full) in the hallway, or still running in the far lobby, is sent back to the entry lobby facing the
+  hallway ("Camera saw you. Back to the start of the hallway."); the far lobby only counts players who got through
+  clean. Being seen still raises the alarm stage too. Co-op: a new `back` event moves the client (health kept).
+- Fix round 1: the host checks a client's jam target with the same static line of sight (from the client's head); the
+  client never blinks a camera back into its reboot on a late host message (device timelines only move forward); the
+  jammer HUD line and the buzz no longer rebuild a string or schedule audio every frame.
+- Fix round 2: a player the hallway camera sent back counts for the gate again only once seen back in the entry lobby
+  (a co-op client after the host's 3 s teleport grace): stale far-lobby positions sent before the `back` event arrived no
+  longer open it.
+- Security cameras see in the dark (Michael M3): each has its own IR illuminator, so inside its range and cone it reads
+  every body as fully lit whatever the lamps do. Putting lamps out (jam, EMP, shot) no longer hides anyone from a camera,
+  in Marlow Yard and Sector Ops alike; guards and the light meter still go by the lamps. Every station 3 lamp is jammable
+  again (the hardened bay x 6 hallway lamp of fix round 2 is undone).
 ## 4.47.1 - Tuner groundwork: a Blender-exact key curve evaluator for the coming exact key preview (not wired yet) (2026-10-22, PR #100)
 - `src/anim/keyCurve.ts`: a pure, allocation-free port of Blender 5.2.2's auto-clamped Bezier solve (within 2e-6 of Blender on 124 curves), with tests and fixtures. Course Ready wires it into the Keys preview in item 30.
+
 
 ## 4.47.0 - Animation tuner: collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys on every keyed clip (2026-10-22, PR #98)
 - Per-key collarbones, fingers and legs on every keyed clip (Michael: per-key legs, collarbones and fingers on the real
@@ -37,6 +177,7 @@
 - Joints tab: a collarbone row per side (shrug, push forward, tilt) for every state.
 - Clips can be keyed with whole legs (an FK takeover with a per-key weight over the foot planner); the studio-only test
   clip skeleton_test uses all of it (shrug, shoulder push, fingers one by one, a kick with the other foot planted).
+
 ## 4.46.0 - Michael's first tuner bake: jog and run keys, low-ready gun poses, Joints; Reset baked clears built-in values on load (2026-10-22, PR #96)
 - Animation tuner: after a bake merges, the tuner resets the sliders the code now holds by itself (each saved value that
   equals a value in the bundled bake ledger goes back to its default, once per bake), so a baked tune is never applied

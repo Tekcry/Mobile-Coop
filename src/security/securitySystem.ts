@@ -12,8 +12,6 @@ import type { SecurityView } from './securityView';
 export interface SecurityHost {
   ballistics: Ballistics;
   players(): readonly PlayerRef[];
-  /** Light level on a body when its owner has not sampled one (the same field the guards read). */
-  lightAt(x: number, y: number, z: number): number;
 }
 
 /** What a camera reports (S1 Part B turns these into desk responses). */
@@ -28,16 +26,15 @@ export interface SightRay {
 
 const LENS = new Vector3();
 
-/** (camera-cue fix) A body as the camera test reads it: head centre, crouch, speed and its light (undefined: sample). */
+/** (camera-cue fix) A body as the camera test reads it: head centre, crouch and speed (no light: the camera has its own IR). */
 export interface SeenBody {
   head: Vector3;
   crouched: boolean;
   speed: number;
-  light: number | undefined;
 }
 
 export function newSeenBody(): SeenBody {
-  return { head: new Vector3(), crouched: false, speed: 0, light: undefined };
+  return { head: new Vector3(), crouched: false, speed: 0 };
 }
 
 /** The standing / crouched head height the host gives a remote body (`RemotePlayer.headPoint` off a wall). */
@@ -48,23 +45,16 @@ export function remoteHeadY(feetY: number, crouched: boolean): number {
 /**
  * (camera-cue fix) One camera's per-player test, shared by the host's think and the co-op client's cue pulse: 0 unless
  * the head is in the camera's frame with a clear `G.STATIC` ray from the lens, else the meter rate (the guard formula
- * at the body's light). The camera "sees" the body when `seenAt(rate)` (the light lifts it over the leak level).
+ * at the camera's own IR light, `CAMERA.irLight`: lamps do not matter to a camera, marlow-jammer M3). The camera "sees"
+ * the body when `seenAt(rate)` (the rate is over the leak level).
  */
-export function cameraSight(
-  c: CameraUnit,
-  head: Vector3,
-  crouched: boolean,
-  speed: number,
-  light: number | undefined,
-  ray: SightRay,
-  lit: { lightAt(x: number, y: number, z: number): number },
-): number {
+export function cameraSight(c: CameraUnit, head: Vector3, crouched: boolean, speed: number, ray: SightRay): number {
   if (!c.covers(head.x, head.y, head.z)) return 0;
   LENS.set(c.x, c.y, c.z);
   const dist = hyp3(head.x - c.x, head.y - c.y, head.z - c.z);
   // a hit within 0.2 m of the head is the body's own surroundings, not an occluder (no hit returns the length)
   if (ray.hitDistance(LENS, head, G.STATIC) <= dist - 0.2) return 0;
-  return cameraRate(dist, light ?? lit.lightAt(head.x, head.y, head.z), crouched, speed);
+  return cameraRate(dist, crouched, speed);
 }
 
 /**
@@ -124,7 +114,7 @@ export class SecuritySystem {
         if (c.sees && p.target.alive) {
           if (p.target.headPoint) p.target.headPoint(this.head);
           else p.target.aimPoint(this.head);
-          rate = cameraSight(c, this.head, p.crouched, p.speed, p.light, this.host.ballistics, this.host);
+          rate = cameraSight(c, this.head, p.crouched, p.speed, this.host.ballistics);
         }
         const rose = stepCamMeter(m, rate, dt);
         if (rose) this.onEvent?.({ kind: 'stage', camera: c.def.id, player: p.id, stage: rose, x: p.feet.x, z: p.feet.z });

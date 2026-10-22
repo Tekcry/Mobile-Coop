@@ -2,7 +2,7 @@
  * (anim-joints J1, COVERAGE gap 1, A2 / A7) The per-rig window of the Joints, Hands & feet, IK strength and Weapon
  * tables (pure, Babylon-free). Every Wren rig (`CharacterRig.tuneRows`, set where the rig is made: `operatorRig`) owns
  * one `TuneRigState` (allocated once) and, inside its own `animate`, picks its own row from its own pose with the same
- * pick the local player's tuner uses (`selectBodyGroup`, `handsWeaponOf`, the gun's own Joints row in an armed state),
+ * pick the local player's tuner uses (`selectBodyGroup` via `tuneBodyGroup`: the studio's pin on her rig, `handsWeaponOf`, the gun's own Joints row in an armed state),
  * eases its own applied values toward the effective row (base table + tuner delta) and opens the window on them; the
  * rig hooks (`jointApply`, `HANDS_CUR`, `HANDS_GUN`, `ikStrength`, ...) then read that rig's applied state, never
  * another rig's. Non-Wren rigs (guards, the VIP, the dummy) have no state and never open a window.
@@ -22,7 +22,7 @@
  * composes the rig's own row onto TUNE_CUR, put back by `tuneRigEnd` (`tune.ts`).
  */
 import { ANIM_BASE, type AnimBaseData } from './animBase';
-import { BODY_BASE_FIELDS, BODY_GROUPS, bodyBaseLoad, bodyRigBegin, bodyRigEnd, bodyRigState, selectBodyGroup, type BodyField, type BodyRigState, type TunePoseIn, type TuneRigIn } from './tune';
+import { BODY_BASE_FIELDS, BODY_GROUPS, bodyBaseLoad, bodyRigBegin, bodyRigEnd, bodyRigState, tuneBodyGroup, type BodyField, type BodyRigState, type TunePoseIn, type TuneRigIn } from './tune';
 import { HAND_WEAPONS, handsBaseLoad, handsBeginRigRows, handsEnd, handsRigState, handsWeaponOf, type HandsRigIn, type HandsRigState } from './tuneHands';
 import { JOINT_ROWS, jointsBaseLoad, jointsBeginRigRows, jointsEnd, jointsRigState, type JointsRigState } from './tuneJoints';
 import { pickTuneRows, TUNE_MOVE_MAX, TUNE_ROW_IDS, tuneRowPick, type TuneActionWeights, type TuneMovePoseIn, type TuneRowPick } from './tuneMoveRows';
@@ -75,7 +75,7 @@ export const JOINT_OF_TUNE_ROW: readonly number[] = TUNE_ROW_IDS.map((r) => JOIN
 export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn, rig: TuneRigPick & TuneRigIn, dt: number): void {
   const armed = rig.heldWeapon !== null && rig.heldWeapon !== undefined;
   const ledge = rig.reachL.hook === 1 || rig.reachR.hook === 1;
-  const bg = selectBodyGroup(pose, ledge, armed);
+  const bg = tuneBodyGroup(pose, ledge, armed, rig); // (marlow-bays item 29) the studio's pin on her rig
   const gi = bg === null ? -1 : (BODY_INDEX[bg] ?? -1);
   const wi = WEAPON_INDEX[handsWeaponOf(rig)] ?? -1;
   st.body = bg ?? '';
