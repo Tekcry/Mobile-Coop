@@ -60,12 +60,13 @@ sessions' agents. Job leads send run requests (branch, commit, suites) to Charac
 **GPU for logic e2e** (Michael, 2026-10-22 ~20:30: "use gpu on any tests that would benefit"; overrides the
 software-GL wording below and in "Commands"): both machines run logic e2e with `E2E_GPU=1` (hardware GPU), which is
 4-14x faster than software GL and keeps CPU free. Measured on 4.58.0 on the desktop, GPU vs software: e2e-mouse 35 s vs
-225 s, e2e-menus 61 s vs ~13 min, e2e-coop 74 s vs ~10 min; laptop GPU full run 585 s vs 2025 s in software. A failure
-seen only on the GPU is rerun in software on the same commit before it counts, and is then fixed as a test bug. CI
-stays software GL (`npm run check` only). Ports stay as in the table; a GPU logic run may use 4191 / 4192.
+225 s, e2e-menus 61 s vs ~13 min, e2e-coop 74 s vs ~10 min; laptop GPU full run 585 s vs 2025 s in software.
+Always GPU (Michael, 2026-10-22 ~21:10: "Shouldn't we always use gpu"): every e2e run is `E2E_GPU=1`; a GPU failure
+counts (fix the test or the game). A software rerun is optional, only to tell a timing bug in the test from a game
+bug. CI stays software GL (`npm run check` only, no e2e). Ports stay as in the table; a GPU logic run may use 4191 / 4192.
 Desktop second lane (2026-10-22 21:06, a GPU run left the desktop at ~40% CPU): a second GPU-only e2e run may start
 under `C:/NightShift/heavy2.lock` (same atomic create and release rules) on port 4192, `E2E_GPU=1`, `E2E_JOBS=1`,
-only while desktop CPU is under 50% at the start. Software runs and full `npm run check` keep the single `heavy.lock`.
+only while desktop CPU is under 50% at the start. Full `npm run check` and any software run keep the single `heavy.lock`.
 
 **Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
