@@ -8,6 +8,15 @@ Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25
 ## State at the switch (2026-10-23 ~00:40, 97% save point; Michael: "I'd suggest stopping around 97% to allow sufficient usage to stop and save all sessions")
 New account live 2026-10-23 ~00:57 (5-hour 0%, resets 05:50); all four sessions resumed ~01:05; full burn to 100% (Michael 01:05). See STATE "Now" top entry for the live state.
 
+**Update 2026-10-23 ~03:21 (window since ~01:40 reset, resets 06:40; 62%, ~0.3-0.4%/min vs 0.19 pace; weekly 11%).**
+Master v4.65.0 (train 16 #178, 4fb8ea80). Train 17 = origin/train/17 7fb372a9 (#179 guard-ai S1) waits on the laptop
+full run; #177 camera-range held (pad light 1.00 -> 0.60 / 0.84 to explain first, Course Ready). Paused for pace:
+Course Ready (sector-redesign; e2e-sectorops:2 team-door nav regression to fix first), Guard AI (after S2), guard-render
+step 1 (Character Build, new job from guard-cap #180: render-bound, 12 visible awake guards 27 fps at Epic). Running:
+CT Core mocap-trial-2 da86e8e7 batch 1 (checker + six GPU suites, then default ON in this PR; strafe / wall -> mocap-trial-3),
+Menu Notes marlow-final slice 0 complete 153db3e8, slice 1 (A1) on Sonnet. Contexts: Menu Notes 40% (clear in the
+morning, resume block in docs/marlow-final/STATE.md), CT Core 33%, orchestrator 34%. JOBS=5 only while 4192 is idle.
+
 **Update 2026-10-23 ~01:33 (5-hour 73%, ~2.2%/min, 100% about 01:45; weekly 13%).** After Michael's reset: phase B, paced
 windows (STATE "Pacing" 01:12; cron 17/37/57 carries it). Master v4.64.0 (train 15 #167 = #159 mocap, ffade187; dev
 moved). JOBS back to 3 after train 15's JOBS=5 coop miss (fixed test-only in #170; JOBS=5 trial on the master after it).
