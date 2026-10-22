@@ -5,6 +5,9 @@ Step 1: audit of the current yard + co-op exercise inventory (two agents), then 
 any building. Branch feature/marlow-final from af56ab43.
 
 ## Next
+- Spec writer inputs: AUDIT.md, COOP-INVENTORY.md, ROUTE-DRAFT.md, CONSTRAINTS.md (this job's 4 agents) AND Course
+  Ready's independent second opinions in C:/NightShift/scratch/course-ready/marlow-final/ (MAP-AUDIT.md,
+  DEVICE-INVENTORY.md with placement APIs / wire hooks, SCENARIOS.md).
 - Spec (`SPEC.md`, from `docs/templates/map-spec.md`) and `PLAN.md` (slices, some whole slices for Course Ready).
 - Build slices: greybox, lights baked, guards, one e2e route per slice; checker + 1 fix round; GPU suites
   (e2e-ctcourse :1-:3, course, coop, netmove) via Character Build.
