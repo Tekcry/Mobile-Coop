@@ -2033,5 +2033,129 @@ if (want(6)) {
   await run(CAMPUS, async ({ page }) => campusS3Part(page));
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// (sector-redesign slice 5, `--part=6`) Saltmarsh Park, section 5: the Old House and the extraction
+// (docs/sector-redesign/briefs/SLICE5.md). A self-contained block, run only when the page's section 5 is the built one (24
+// guards): sections 1-4 are told done and their connectors cycled, then (a) index 4, 24 guards, the three cameras, las-shaft
+// with its panel, the item cap; (b) the keyholders stand at their posts; (c) the rota board gives the archive code and
+// kp-arch opens; (d) every walked leg of the three routes has a nav path; (e) one player cannot turn the pair gate's keys;
+// (f) the garden board cuts group 84 and it returns after its window; (g) the stealth route to the token and the grab
+// opens the extraction; (h) the alarm to stage 2 locks a door; (i) the jetty ends the run. Skipped (written, not run; the
+// slice 5 build sheet): CR6 with two players, the CR7 rope, the dual takedown.
+async function campusS5Part(page) {
+  const G = (f, a) => page.evaluate(f, a);
+  const sim = async (s) => { for (let t = 0; t < s; t += 0.5) await G((d) => window.__app.loop.stepHeadless(d), Math.min(0.5, s - t)); await frames(page, 1); };
+  const S = await sections(G);
+  if (!(S.length === 5 && S[4].id === 's5' && S[4].guards === 24)) {
+    console.log(`  campus ops (S5): section 5 is not the built one here (${JSON.stringify(S.map((s) => [s.id, s.guards]))}), skipped`);
+    return;
+  }
+  // frozen AI and no damage on the way in
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+  await sim(0.5);
+  for (let i = 0; i < 4; i++) {
+    await G(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+    await sim(0.3);
+    await tp(G, S[i].cp.x, S[i].cp.y, S[i].cp.z, S[i].cp.yaw);
+    await sim(4.6);
+  }
+  // (a) section 5 is live
+  const d5 = await G(() => ({ d: window.__sector.debug(), alive: window.__app.current.enemyMgr.alive, ct: window.__ctdev.debug(), items: window.__app.current.interactables.items.length }));
+  assert(d5.d.index === 4 && d5.d.id === 's5' && d5.d.phase === 'objective', `the run reaches section 5 (${JSON.stringify([d5.d.index, d5.d.id, d5.d.phase])})`);
+  assert(d5.alive === 24, `section 5 has 24 guards in (${d5.alive})`);
+  const live5 = d5.ct.cams.filter((c) => c.live).map((c) => c.id).sort();
+  assert(JSON.stringify(live5) === JSON.stringify(['cam-gallery', 'cam-hall', 'cam-terrace']), `the three S5 cameras are the live ones (${JSON.stringify(live5)})`);
+  const las5 = d5.ct.lasers.filter((l) => l.live);
+  assert(las5.length === 1 && las5[0].id === 'las-shaft' && las5[0].panel !== '', `las-shaft is live with its panel (${JSON.stringify(las5)})`);
+  assert(d5.items < 128, `the interactable list stays under the cap (${d5.items})`);
+
+  // (b) the keyholders stand at their posts
+  const keys = await G(() => {
+    const es = window.__app.current.enemyMgr.enemies.filter((e) => e.alive);
+    const near = (x, z) => es.reduce((a, e) => { const d = Math.hypot(e.pos.x - x, e.pos.z - z); return d < a ? d : a; }, 1e9);
+    return [near(-44, 34), near(-42, 34)];
+  });
+  assert(keys[0] < 0.5 && keys[1] < 0.5, `the two keyholders stand at (-44, 34) and (-42, 34) (${keys.map((k) => k.toFixed(2))})`);
+
+  // (c) the rota board gives the archive code; kp-arch opens
+  await tp(G, -27.5, 0, 37, -Math.PI / 2);
+  await sim(0.3);
+  const code = await G(() => {
+    const g = window.__app.current;
+    const it = g.interactables.items.find((x) => x.id === 'c-sintel-4-0');
+    if (!it) return { found: false };
+    it.onUse(it, 'local');
+    return { found: true, open: window.__sector.useKeypad(4, 0) };
+  });
+  assert(code.found && code.open === true, `the rota board gives the code and kp-arch opens (${JSON.stringify(code)})`);
+
+  // (d) every walked route leg has a path on the real grid
+  const nv = await G(() => {
+    const g = window.__app.current;
+    const fails = [];
+    let legs = 0;
+    for (const r of g.world.map.sectors[4].routes) {
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        if ((r.climbs ?? []).includes(i)) continue;
+        const a = r.pts[i];
+        const c = r.pts[i + 1];
+        legs++;
+        if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
+      }
+    }
+    return { legs, fails };
+  });
+  console.log(`  S5: ${nv.legs} route legs checked`);
+  assert(nv.fails.length === 0, `every walked S5 route leg has a nav path (${nv.fails.join('; ')})`);
+
+  // (e) one player alone: the pair gate's key turned, then the other, never opens it
+  const k1 = await G(() => window.__sector.turnKey(4, 0, true));
+  const k2 = await G(() => window.__sector.turnKey(4, 0, false));
+  assert(k1 === 'wait' && k2 === 'wait', `one player cannot open the pair gate (${k1}, ${k2})`);
+
+  // (f) the garden board: group 84 off, back after its 20 s window
+  const lampsOn = () => G(() => window.__app.current.world.level.lights.lights.filter((l) => l.group === 84 && l.on).length);
+  const n84 = await lampsOn();
+  await tp(G, -30.5, 0, 40, Math.PI / 2);
+  await sim(0.2);
+  await G(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'board-0'); it.onUse(it, 'local'); });
+  await sim(0.2);
+  const off84 = await lampsOn();
+  assert(off84 === 0 && n84 === 10, `the garden board cuts the ten lamps of group 84 (${n84} -> ${off84})`);
+  await sim(21);
+  assert((await lampsOn()) === n84, 'the garden circuit comes back after the window');
+
+  // (g) the stealth route to the token, the grab opens the extraction
+  const route = await G(() => window.__app.current.world.map.sectors[4].routes[0]);
+  for (let i = 1; i < route.obj; i++) {
+    const p = route.pts[i];
+    await tp(G, p[0], p[2] ?? 0, p[1], 0);
+    await sim(0.1);
+  }
+  const at = route.pts[route.obj];
+  await tp(G, at[0], at[2] ?? 0, at[1], 0);
+  await sim(0.4);
+  await press(page, BTN.A);
+  await sim(0.4);
+  const grab = await G(() => window.__sector.debug());
+  assert(grab.phase === 'extract', `the token grab opens the extraction (${JSON.stringify([grab.phase])})`);
+
+  // (h) the alarm to stage 2 locks a lockdown door (when the mode lets the test raise it)
+  const lock = await G(() => { const m = window.__sector; if (typeof m.onAlarm !== 'function') return null; m.onAlarm(); m.onAlarm(); return m.debug(); });
+  if (lock) assert(lock.stage === 2 && lock.lockdown === 1, `alarm stage 2 locks the garden door (${JSON.stringify([lock.stage, lock.lockdown])})`);
+  else console.log('  S5: no way to raise the alarm from here, the lockdown check skipped');
+
+  // (i) the jetty ends the run
+  await tp(G, -45, 0.4, 63, 0);
+  await sim(1);
+  const end = await G(() => window.__sector.debug());
+  assert(end.phase === 'done', `standing on the jetty ends the run (${end.phase})`);
+}
+
+if (want(6)) {
+  console.log('campus ops (S5): the Old House - the rota board, the garden board, the stealth grab, the jetty');
+  await run(CAMPUS, async ({ page }) => campusS5Part(page));
+}
+
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');
 process.exit(failed || all.length ? 1 : 0);
