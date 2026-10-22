@@ -25,11 +25,13 @@ run one file at a time with OUT=<file>; results/ has the outputs).
    24 deg. Fix: in clipFoot's lift branch (~781) do not lift a planted foot while the other foot's planner swing is in
    the air (like the windowLeft gate ~890), or land the leftover idle step at once when moving starts.
 
-## Decide (job lead)
+## Decide (orchestrator ~23:47: open the PR on 44d7c2a7, not broken - switch OFF byte-identical, opt-in, pops down from
+4.5-5 to 1.7-2.5 cm; required 1-3 + the turn-offset sweep in a follow-up PR feature/mocap-trial-2, allowed past the
+1-round rule because Michael judges mocap vs hand-keyed in game)
 4. Jog / run turns over 24 deg ON, OFF worse (jog 2.8 x 4: 31.8 vs 35.4; run 4.0 x 4: 47.9 vs 56.8): the planner's own
    steps. Accepted for the trial.
 5. The walk turn slot's arms run on their own clock (same-side sync 11 / 27 frames): apply the same 0.5 arm cap
-   (armMax, mocap.ts ~303). Job lead's pick: apply it in fix round 2.
+   (armMax, mocap.ts ~303). Orchestrator (~23:47): polish list, not in the follow-up.
 
 ## Notes
 - A walk started 1.0 s after spawn: ankle-toe 17.2 ON vs 14.6 OFF (under 24).
