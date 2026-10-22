@@ -30,7 +30,24 @@ try {
   // fly: W forward for a moment, E up
   await page.keyboard.down('KeyW');
   await page.keyboard.down('KeyE');
-  await wait(700);
+  // (load-latent-ui1) was a fixed 700 ms wall wait: under CPU load few frames ran and the camera moved less. Hold until
+  // the frames' own time (summed min(dt, 0.1), as the loop clamps it; the game is frozen, so not the match clock) reaches
+  // 0.7 s, 30 s real-time cap (also a timer, in case rAF stops)
+  await G(() => new Promise((res) => {
+    const w0 = performance.now();
+    let last = w0;
+    let sum = 0;
+    const cap = setTimeout(res, 30000);
+    const tick = (t) => {
+      sum += Math.min(Math.max(t - last, 0) / 1000, 0.1);
+      last = t;
+      if (sum >= 0.7 || t - w0 > 30000) {
+        clearTimeout(cap);
+        res();
+      } else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }));
   await page.keyboard.up('KeyW');
   await page.keyboard.up('KeyE');
   const flown = await G(() => window.__app.current.player.cam.camera.position.clone());

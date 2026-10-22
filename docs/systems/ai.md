@@ -6,8 +6,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Decided, not built yet (G41): guards close doors behind them on a calm patrol and notice any door open that should be
   shut; one 15% open threshold for light, sound and sight. Code: guards push doors open and leave them; the light cut is
   `DOOR_SHUT` 0.05 (`docs/systems/lighting.md`).
-- Decided, not built yet (G44): guards see poorly above them, as in CT. Code: the sight field is a horizontal cone only (a
-  player 4 m above a guard is seen as well as one at his height).
+- Decided, built (G44, g44-above): guards see poorly above them. `pitchFactor` (`PERCEPTION.up*` / `down*`) scales the
+  sight term by the chest's elevation from the eye line: 1 up to +22 deg, smoothstep to 0.15 by +48 deg; below, 1 to -40
+  deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
+  dogs; the close-range felt term (1.8 m, moving) is unchanged. The light meter is untouched (a view limit, not light).
+  Numbers are Night Shift's own: the CT research is silent on looking up.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only.
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
@@ -31,8 +34,18 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (`updateAwareness`), `calmDecide` drives patrol (`PatrolWalker`: `SquadSlot.route` / post with glances; per-point
   `waits`), looks at the stimulus, walks to it (`goTo`: straight or A*), search sweeps (`searchPoint`, `searchSlot`).
   Inputs: `hear(x, z, radius)`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies / lights), `alert()`.
-- Hearing: `EnemyManager.hear` muffles a noise to `MUFFLE` (0.45) of its reach when a wall is between it and the listener
-  (one ray at head height; low cover does not muffle). `noiseSuspicion` rises with the square of closeness.
+- Hearing (guard-ai S1, `ai/hearing.ts`, pure): a noise's reach becomes an effective reach per listener,
+  `reach x 10^(-(walls x 6.9 + ambientDb) / 20)`: one wall (head-height ray, cast only where it could change the tier;
+  low cover does not muffle) keeps 0.45 of it (the old `MUFFLE`), and a noisy thing near the guard (`NoisySource`,
+  `EnemyManager.setNoisy`; no map sets any yet) masks it (6 dB halves, 12 dB quarters). Tiers (`HEARING`): inside the
+  effective reach he turns to look (`Enemy.hearTurn`: stands facing it `hearLook`, meter floor `noiseSuspicion` capped
+  at 0.45, no `heard`); inside half of it he may be sent; loud gunfire (`EnemyManager.noise`) is combat only inside a
+  quarter of it. Coordinated managers (default) send one guard per noise, the nearest tier-2 hearer (`pickNearest`, a
+  stub until the incident board): `Enemy.hear` sets `heard` (suspicious, investigates after `hearLook`); the rest only
+  turn. A gunfire investigator (or any tier-3 / already fighting hearer) sets the shared LKP; turning guards do not.
+  Melee kinds (dogs, runners) keep `Enemy.hear` anywhere in reach. Hunter and Mission (parked) set
+  `coordinated = false`: everyone in reach hears and walks over, gunfire sends everyone in reach to combat.
+  `noiseSuspicion` rises with the square of closeness.
 - Pace and patience: `PATROL.wait` 5.5 s, glances every 10 s, `searchLook` 3 s, `hearLook` 2.4 s; `ENEMY_CALM_MOTION` (60
   deg/s turns while not in combat / searching). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
   never returns to unaware (`AlertMachine.fought`).
@@ -116,6 +129,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 ## Navigation
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only for cover moves,
   and are constrained to nav cells (no physics character controller per enemy).
+- Runtime closures (sector-fixes-r2): `addClosure(cx, cz, hx, hz, yaw, y)` collects a rect's walkable cells near height y
+  once; `setClosed(id, on)` toggles `walk` through a per-cell count (overlaps stay shut until all open) and bumps
+  `version`, which makes `goTo` routes and the manager's flow field replan. Sector Ops shuts each bolted team door's
+  doorway this way (`sectorMode.findBolts` / `unbolt` / `rebolt`; host and solo only, the client has no grid).
 - Multi-level: the grid is layered - up to 3 standing surfaces per column by default (`sampleLayers`; a surface needs
   `HEADROOM` 1.7 m; a map may raise `navLayers`), cell = `layer * cols + column`; columns join by height (`stepTo`). Links
   (`navLinks`): ladders both ways (`kind 'ladder'`), ledge drops 1-2.2 m one way; A* / Dijkstra take them, paths split at
@@ -138,3 +155,17 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   banner, slow beat, letterbox; one "Operation complete" reward line).
 - `?autostart=<mapId>&mode=<sandbox|mission|clear|infiltration|course>` boots straight into a match (`mode=hunter` is an
   alias of `clear`; dev and tests).
+- Sector Ops guard rules (sector-redesign slice 0): `checkSectorGuards` (`game/sectors.ts`, run by `checkSectors`)
+  fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
+  and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements spawn as
+  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage. `SectorGuard` also carries optional `squad`, `zone`, `role`,
+  `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
+  joins no squads, so radio checks do not run there.
+- Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact
+  (solo, host and a client's strike on the host). Dogs carry no flashlight (G201, `carriesTorch`).
+- Sector restart (G22): `SectionStartState` (`game/sectorReset.ts`) records the fixed lights (switched, shot, the base of
+  a jammed lamp; not torches) and the unlocked doors when a section begins, and a section restart puts them back
+  (`LightRegistry.resetTo`, `StealthSystems.syncSwitches` for the switch labels). Host / solo; Sector co-op does not
+  mirror lamps yet.
+- Camera cap (G1): `validateSecurity` caps cameras live at once (12 per Sector section, untagged ones counting in each)
+  and the map at 16 (`WIRE_CAMERAS`, the co-op `sec.ck` list).

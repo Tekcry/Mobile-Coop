@@ -20,7 +20,7 @@ A fully functional 2-player co-op training level, playable end to end, as soon a
 - A visual pass comes last, to make it prettier.
 
 Do not spend time refining (feel tuning, animation polish, perf tuning, detail art) until Michael has playtested the
-core gameplay loop. Checkers block only on broken or unplayable work; cosmetic notes go on a polish list in the job's
+core gameplay loop (detail art is lifted for marlow-final only, G278). Checkers block only on broken or unplayable work; cosmetic notes go on a polish list in the job's
 docs. At most 1 fix round per slice unless the work is broken. Tests follow the tiers in "Sessions". This holds
 until Michael lifts it.
 - A PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages, desktop only: pad first, then keyboard and mouse (G12).

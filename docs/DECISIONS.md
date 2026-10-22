@@ -1422,3 +1422,43 @@ behind the same toggle, checked by a fresh checker, no sheets. (Extends G264 and
 **G275. Train runs at JOBS=5.** Michael (2026-10-23 ~00:10): "Yes, if clean" (the load audit's three JOBS=5 runs had
 one load-only fail, e2e-desktop:1 navigation timeout, fixed in feature/load-audit; run 1 316 s vs ~490 s at JOBS=3).
 Train runs use JOBS=5; back to 3 the first time JOBS=5 causes a failure.
+
+**G276. CMU takes for the new mocap clips: download approved.** Michael (2026-10-23 ~00:15): "Yes, download them"
+(crouch walk, sprint, strafe, back-to-wall; named takes, one at a time, each recorded in SOURCES.md). The CLAUDE.md
+hard-rule exception covers them: CMU motion-capture takes for the mocap set, converted clips bundled, raw files not
+committed, credited in docs/art-credits.md. (Extends G264, G268 and G273.)
+
+**G277. Marlow Yard: the objective list guides, no explainer pads.** Michael (2026-10-23 ~00:30, marlow-final M4): "im
+happy to remove the pads in each section that explain things also, we can have the objective list update and keep the
+players guided throughout the yard". No explainer pads; the objective list updates per area and guides both players
+through the whole yard, with per-player lines where the team splits (docs/marlow-final/BRIEF.md). (Extends G272.)
+
+**G278. Marlow Yard: a believable, luxurious training facility, dressed straight after greybox.** Michael (2026-10-23
+~00:30, marlow-final M5): dressing and detail art straight after greybox (each area dressed as its greybox passes; he
+accepts ~3-5 h rework if his walk changes the layout); "make it a believable training facility that reproduces
+potential real level scenarios. Ensure lighting is sufficient, review the rule if needed. This facility should also be
+very expensive, and should adopt a design that is luxurious (LED strips, glass panel where an "instructor" can watch you
+train throughout the course, sliding doors, any suggestions you have, these do not have to be in the level, only giving
+examples) again you can ask me questions if needed". The no-detail-art rule (CLAUDE.md "Current goal") is lifted for
+marlow-final only. Art comes from a reusable kit built by in-repo Blender scripts (headless, CC0 textures only); any
+loosening of the light rules goes to Michael as a proposal in the spec, never applied. (Extends G272.)
+
+**G279. Marlow Yard: lit, the players cut it; a view-only gallery; normal guards.** Michael (2026-10-23 ~00:45,
+marlow-final M6): lighting "lit, players cut it, but you can also use mixed zones if it ends up being a better result. In
+game levels are quite dark and not realistic"; the instructor gallery is "View only"; guards: "normal guards. we will
+need to create a prototype guard avatar replacement eventually." Areas are brightly lit by default (the LED look) and the
+co-op exercises make darkness by isolating lights on timers, with mixed zones where they play better; a change to the
+light rules (G225's 0.30 open floor, docs/level-design.md) is proposed in the spec. The gallery is sight only, out of
+bounds for players. Guards stay normal guards; a prototype guard avatar replacement goes on the roadmap's Later list.
+(Extends G272 and G278.)
+
+**G280. Sector Ops team doors: true two-player pathways, solo play unbroken.** Michael (2026-10-23 ~00:45): "true
+2-player pathways that cannot be used solo, but doesnt break solo play". Team doors open only to two players working
+together; solo play keeps a working route past them. Course Ready builds it in feature/sector-fixes-r2. (The co-op
+routes of G238.)
+
+**G281. Pacing: hit the 5-hour limit as fast as possible.** Michael (2026-10-23 ~01:05; replaces the ~00:35 stop at
+97%): "I want to hit the 5 hour token limit as fast as possible. Can you push as hard as possible. I will reset as soon as
+you hit it." Every session runs at full speed to 100% with parallel agents; WIP is pushed after every agent hand-back, so
+a cutoff loses only the step in flight (docs/orchestrator/STATE.md "Pacing"). (Replaces the 97% and 99% stops of G245
+and G249.)

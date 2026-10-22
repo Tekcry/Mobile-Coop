@@ -1,6 +1,8 @@
 // Stealth AI on the night Warehouse (Clear mode, stealth rules): shadow vs light detection, the awareness arc
 // warning before detection, no sight through walls, noise -> suspicious -> investigating, the squad radio,
 // LKP set + ghost + search that converges and ends, patrols walking their routes.
+// (guard-ai S1) Hearing is the coordinated rule the live modes use (`EnemyManager.coordinated`; Clear mode, parked,
+// keeps the old one, so the suite turns it on): one guard is sent to a noise, the others turn.
 // `node scripts/e2e-stealth-ai.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
@@ -19,6 +21,7 @@ try {
     g.mode.pending.length = 0;
     const em = g.enemyMgr;
     em.clear();
+    em.coordinated = true;
     const V = g.player.position.constructor;
     const st = a.input.state;
     const c = g.player.controller;
@@ -27,6 +30,7 @@ try {
       V,
       reset() {
         em.clear();
+        em.coordinated = true;
         // (an alarm in an earlier scenario queues Hunter's reinforcements)
         g.mode.pending.length = 0;
         em.lkpValid = false;
@@ -266,16 +270,20 @@ try {
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
+      const H = g.enemyMgr.hearingTable;
+      // (guard-ai S1) a lone guard inside half the reach (the investigate tier, `HEARING.investigateDb`) is sent; the
+      // reach is 9 m, so half is ~4.5 m: he stands 0.6 of that from the player (was 6 m, now only a turn)
+      const half = 9 * Math.pow(10, -H.investigateDb / 20);
       t.light(0);
-      const e = t.spawn('grunt', -14.5, 10, 0);
+      const e = t.spawn('grunt', -14.5, 4 + half * 0.6, 0);
       t.tp(-14.5, 4, 0);
       t.step(0.3);
       g.enemyMgr.hear(g.player.position, 9);
       t.step(0.2);
       const l1 = e.level;
       const z0 = e.pos.z;
-      // it looks for ALERT.hearLook (1.8 s) before walking over
-      for (let k = 0; k < 9; k++) {
+      // it looks for ALERT.hearLook (2.4 s) before walking over
+      for (let k = 0; k < 11; k++) {
         g.enemyMgr.hear(g.player.position, 9);
         t.step(0.25);
       }
@@ -283,11 +291,60 @@ try {
       t.tp(-22, -24, 0);
       t.step(2);
       t.light(null);
-      return { l1, l2, moved: z0 - e.pos.z };
+      return { l1, l2, moved: z0 - e.pos.z, half };
     });
-    assert(r.l1 === 'suspicious', `a noise makes a guard suspicious (${r.l1})`);
+    assert(r.l1 === 'suspicious', `a noise makes a guard inside half its reach suspicious (${r.l1}, half ${r.half.toFixed(2)} m)`);
     assert(r.l2 === 'investigating', `more noise: it investigates (${r.l2})`);
-    assert(r.moved > 1, `it walks over to the noise (${r.moved.toFixed(2)} m)`);
+    assert(r.moved > 0.8, `it walks over to the noise (${r.moved.toFixed(2)} m)`);
+  });
+
+  await scen('one investigates', async () => {
+    // (guard-ai S1, M1 goal 1) four guards inside half the reach of a breaking bottle (15 m, the investigate tier):
+    // exactly one, the nearest, walks over; the others turn to look (at most suspicious) and stay at their posts
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const H = em.hearingTable;
+      const R = 15;
+      const half = R * Math.pow(10, -H.investigateDb / 20);
+      t.light(0);
+      t.tp(-22, -24, 0);
+      const P = new t.V(3, 0, 3);
+      const gs = [t.spawn('grunt', 3, 5.5, 0), t.spawn('grunt', 7.5, 4, Math.PI / 2), t.spawn('grunt', 0, 7, 0), t.spawn('grunt', 6, -2, Math.PI)];
+      t.step(0.3);
+      const home = gs.map((e) => [e.pos.x, e.pos.z]);
+      const dist = gs.map((e) => Math.hypot(e.pos.x - P.x, e.pos.y - P.y, e.pos.z - P.z));
+      let nearest = 0;
+      for (let k = 1; k < gs.length; k++) if (dist[k] < dist[nearest]) nearest = k;
+      em.hear(P, R);
+      t.step(0.1);
+      const reacted = gs.filter((e) => e.turning || e.level !== 'unaware').length;
+      let investigators = 0;
+      const moved = gs.map(() => 0);
+      const worst = gs.map(() => 'unaware');
+      const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+      // ALERT.hearLook (2.4 s) of looking, then the one sent walks over; the others calm down
+      for (let s = 0; s < 60; s++) {
+        t.step(0.1);
+        gs.forEach((e, k) => {
+          moved[k] = Math.max(moved[k], Math.hypot(e.pos.x - home[k][0], e.pos.z - home[k][1]));
+          if (rank[e.level] > rank[worst[k]]) worst[k] = e.level;
+        });
+      }
+      investigators = worst.filter((l) => l === 'investigating').length;
+      t.light(null);
+      return { half, dist, nearest, reacted, investigators, worst, moved, sent: worst[nearest] };
+    });
+    const f2 = (v) => v.toFixed(2);
+    assert(r.dist.every((d) => d < r.half), `all four guards are inside half the bottle's reach (${r.dist.map(f2)} < ${f2(r.half)} m)`);
+    assert(r.reacted >= 3, `they all hear it (${r.reacted} of 4 turn or look)`);
+    assert(r.investigators === 1 && r.sent === 'investigating', `exactly one investigates, the nearest (${JSON.stringify(r.worst)}, nearest #${r.nearest})`);
+    const others = r.worst.filter((_, k) => k !== r.nearest);
+    assert(others.every((l) => l === 'unaware' || l === 'suspicious' || l === 'cooldown'), `the others reach at most suspicious (${JSON.stringify(others)})`);
+    const otherMoves = r.moved.filter((_, k) => k !== r.nearest);
+    assert(otherMoves.every((m) => m < 1), `the others stay at their posts (${otherMoves.map(f2)} m)`);
+    assert(r.moved[r.nearest] > 0.5, `the one sent walks over (${f2(r.moved[r.nearest])} m)`);
   });
 
   await scen('radio', async () => {
@@ -679,21 +736,41 @@ try {
       stats.noise = 0.45;
       g.weapons.events.onShot(g.weapons.current.def);
       t.step(0.2);
+      // (guard-ai S1) 10 m of a 12.6 m suppressed report is outside half the reach: he only turns to look
       const supp = e.level;
+      const suppTurn = e.turning;
       stats.noise = n0;
+      // (guard-ai S1) a loud report is combat only inside a quarter of its reach (`HEARING.combatDb`, 28 m -> ~7 m)
+      const N = g.constructor.NOISE;
+      const H = g.enemyMgr.hearingTable;
+      const quarter = N.shot * Math.pow(10, -H.combatDb / 20);
+      const loudShot = () => {
+        // (an unsuppressed report: the issued Hush 9 SD is quiet)
+        const st2 = g.weapons.current.stats;
+        const n1 = st2.noise;
+        st2.noise = 1;
+        g.weapons.events.onShot(g.weapons.current.def);
+        st2.noise = n1;
+      };
       t.reset();
       t.light(0);
       t.tp(0, -5, Math.PI);
-      const e2 = t.spawn('grunt', 0, 5, 0);
+      const e2 = t.spawn('grunt', 0, -5 + quarter * 0.7, 0);
       t.step(0.3);
-      // (an unsuppressed report: the issued Hush 9 SD is quiet)
-      const st2 = g.weapons.current.stats;
-      const n1 = st2.noise;
-      st2.noise = 1;
-      g.weapons.events.onShot(g.weapons.current.def);
-      st2.noise = n1;
+      loudShot();
       t.step(0.2);
       const loud = e2.level;
+      // the same report 10 m off (inside half its reach, outside a quarter): he is sent to look, not to a fight
+      t.reset();
+      t.light(0);
+      t.tp(0, -5, Math.PI);
+      const e2b = t.spawn('grunt', 0, 5, 0);
+      t.step(0.3);
+      loudShot();
+      t.step(0.2);
+      const loudFar = e2b.level;
+      t.step(2.6);
+      const loudFar2 = e2b.level;
       t.reset();
       t.light(0);
       t.tp(-22, -24, 0);
@@ -702,12 +779,14 @@ try {
       g.weapons.onRay(new t.V(-5, 1, 5), new t.V(1.5, 1, 6));
       t.step(0.2);
       const impact = e3.level;
+      const impactTurn = e3.turning;
       t.light(null);
-      return { supp, loud, impact };
+      return { supp, suppTurn, loud, loudFar, loudFar2, impact, impactTurn, quarter };
     });
-    assert(r.supp === 'suspicious', `a suppressed shot only makes a guard suspicious (${r.supp})`);
-    assert(r.loud === 'alert', `a loud shot puts him in combat (${r.loud})`);
-    assert(r.impact === 'suspicious', `a round landing close by is heard (${r.impact})`);
+    assert(r.supp !== 'alert' && r.supp !== 'investigating' && (r.supp === 'suspicious' || r.suppTurn), `a suppressed shot 10 m off only makes a guard turn to look (${r.supp}, turning ${r.suppTurn})`);
+    assert(r.loud === 'alert', `a loud shot inside a quarter of its reach puts him in combat (${r.loud}, quarter ${r.quarter.toFixed(2)} m)`);
+    assert(r.loudFar === 'suspicious' && r.loudFar2 === 'investigating', `a loud shot 10 m off sends him to look, not to a fight (${r.loudFar} -> ${r.loudFar2})`);
+    assert(r.impact === 'suspicious' || r.impact === 'investigating' || r.impactTurn, `a round landing close by is heard (${r.impact}, turning ${r.impactTurn})`);
   });
 
   await scen('doors', async () => {

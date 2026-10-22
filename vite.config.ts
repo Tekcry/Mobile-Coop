@@ -52,7 +52,8 @@ export default defineConfig({
     // the level editor's endpoints (dev server only; editor.html is never built)
     kestrelEditor(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // (sw-reload) 'prompt': a new deploy's worker waits (no mid-match reload); src/pwa/pwa.ts activates it on the menu
+      registerType: 'prompt',
       injectRegister: null,
       manifest: {
         name: preview ? `Night Shift (Preview${previewId ? ' ' + previewId.toUpperCase() : ''})` : 'Night Shift',
@@ -77,6 +78,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json,ttf}', '**/music-*.mp3', 'assets/foley-*.mp3', 'assets/weapons-*.mp3'],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
+        // (sw-reload) the first install still claims the open page (offline warm-up, A109); updates wait (no skipWaiting)
+        clientsClaim: true,
+        skipWaiting: false,
         navigateFallback: 'index.html',
         // the live game's worker never answers for the preview builds under /preview/, /ct/ and /kestrel/ (their own workers do)
         navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/, /\/ct(\/|$)/, /\/kestrel(\/|$)/],

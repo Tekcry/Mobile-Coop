@@ -17,11 +17,14 @@ import {
   CONN_UNLOAD,
   CONN_UNLOCK_FAR,
   CONN_UNLOCK_NEAR,
+  BOLT_DEPTH,
   BOLT_REACH,
   SECTOR,
+  SECTOR_REINFORCE_KIND,
   SECTOR_RESTART_TITLE,
   SectorBolts,
   SectorRun,
+  boltHalfSpan,
   boltItemId,
   exitZone,
   inDoorway,
@@ -33,11 +36,11 @@ import {
   type SectorDef,
 } from '../sectors';
 import { killScore } from './score';
+import { SectionStartState } from '../sectorReset';
 import { markCompleted } from '../../save/sectorRecord';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
 const SPAWN_MIN_DIST = 7;
-const KINDS = ['grunt', 'heavy'] as const;
 /** Everyone down (M7, no lives): the section restarts at its checkpoint after this beat (s). */
 const RESTART_DELAY = 2.5;
 /** A door is found within this of its doorway centre (m). */
@@ -61,7 +64,12 @@ interface BoltIt {
   k: number;
   it: Interactable;
   door: DoorState | null;
+  /** (sector-fixes-r2 nav) Its closure on the host's nav grid (-1: none, a client or no door). */
+  nav: number;
 }
+/** (sector-fixes-r2 nav) A bolted door's nav closure: the door width plus this along (m), and this half depth across. */
+const BOLT_NAV_ALONG = 0.5;
+const BOLT_NAV_ACROSS = 0.35;
 
 /** Co-op: the devices' state goes to the client at least this often (s), and at once on a change. */
 const SEC_SEND = 0.5;
@@ -86,6 +94,8 @@ export class SectorMode implements GameMode {
   reinforced = 0;
   /** Section restarts (tests). */
   restarts = 0;
+  /** (G22) Lights and doors the last restart put back (tests). */
+  lastReset = { lights: 0, doors: 0 };
   private its: Interactable[] = [];
   private pending: Pending[] = [];
   private fillT = 0;
@@ -107,6 +117,9 @@ export class SectorMode implements GameMode {
   private infoSy = -2;
   /** Players, reused every tick (no allocation). */
   private readonly refs: PlayerRef[] = [];
+
+  /** (sector-redesign G22) The lamps and doors as the current section began (a restart puts them back). */
+  readonly startState = new SectionStartState();
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
@@ -175,14 +188,24 @@ export class SectorMode implements GameMode {
         const door = ds.nearest(b.at[0], b.at[1], DOOR_FIND);
         if (door) this.lockDoor(door, true);
         else console.warn(`[sector] ${s.id}: no door at bolt ${k} (${b.at[0]}, ${b.at[1]})`);
+        // (sector-fixes-r2 nav) guards route round a bolted door: its doorway is shut on the nav grid (host / solo)
+        let nav = -1;
+        if (door && g.nav) {
+          const a = door.anchor;
+          nav = g.nav.addClosure(b.at[0], b.at[1], BOLT_NAV_ACROSS, (a.width + BOLT_NAV_ALONG) / 2, a.yaw, a.hinge.y);
+          g.nav.setClosed(nav, true);
+        }
         if (!ints) return;
         const y = door ? door.anchor.hinge.y : 0;
         const it = ints.add(boltItemId(sec, k), 'door', new Vector3(b.at[0], y, b.at[1]), 'Unbolt', 0);
         it.reach = BOLT_REACH;
         it.side = b.side;
+        // (sector-fixes-r2) the door's span only, not through the wall beside it (inBoltReach, the host's test)
+        it.sideHalf = boltHalfSpan(b);
+        it.sideDepth = BOLT_DEPTH;
         it.onUse = (_it, by) => this.unbolt(sec, k, by);
         ints.setEnabled(it, true);
-        this.boltIts.push({ sec, k, it, door });
+        this.boltIts.push({ sec, k, it, door, nav });
       });
     });
   }
@@ -198,6 +221,7 @@ export class SectorMode implements GameMode {
     const b = this.boltIts.find((q) => q.sec === sec && q.k === k);
     if (!b) return true;
     if (b.door) this.lockDoor(b.door, false);
+    if (b.nav >= 0) this.g.nav?.setClosed(b.nav, false);
     this.g.interactables?.setEnabled(b.it, false);
     // (sector-fixes-r fix) the client's door lock rides the next sector send: send it now, not up to SEC_SEND later
     this.secT = 0;
@@ -211,6 +235,7 @@ export class SectorMode implements GameMode {
     for (const b of this.boltIts) {
       if (b.sec !== sec) continue;
       if (b.door) this.lockDoor(b.door, true);
+      if (b.nav >= 0) this.g.nav?.setClosed(b.nav, true);
       if (!b.it.enabled) this.g.interactables?.setEnabled(b.it, true);
     }
     // (sector-fixes-r fix) the re-bolted locks reach the client on the next step's sector send
@@ -274,7 +299,11 @@ export class SectorMode implements GameMode {
     const cp = this.run.checkpoint;
     this.checkpoint.set(cp.x, cp.y, cp.z);
     this.reinforceK = 0;
-    if (kit) this.g.weapons.markCheckpoint();
+    if (kit) {
+      this.g.weapons.markCheckpoint();
+      // (G22) the lamps (switched, shot, jammed) and doors as the section begins: a restart puts them back
+      this.startState.take(this.g.world.level.lights, this.g.world.doors);
+    }
     this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
     this.setup(s);
   }
@@ -429,7 +458,8 @@ export class SectorMode implements GameMode {
     if (!s || !send || s.reinforce.length === 0) return;
     for (let i = 0; i < send; i++) {
       const at = s.reinforce[this.reinforceK++ % s.reinforce.length]!;
-      this.pending.push({ slot: { kind: KINDS[i % KINDS.length]!, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
+      // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`
+      this.pending.push({ slot: { kind: SECTOR_REINFORCE_KIND, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
     }
     this.reinforced += send;
     this.fill();
@@ -485,6 +515,13 @@ export class SectorMode implements GameMode {
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
+    // (sector-redesign G22) the lamps and doors as the section began (after the connector and team door locks above)
+    // A restart during a cycle is of the next section, which never began: its start is now (nothing to put back).
+    if (ev & CONN_UNLOCK_FAR) {
+      this.startState.take(g.world.level.lights, g.world.doors);
+      this.lastReset = { lights: 0, doors: 0 };
+    } else this.lastReset = this.startState.apply(g.world.level.lights, g.world.doors);
+    g.stealth?.syncSwitches();
     if (this.ct) this.ct.alarm = this.run.alarm;
     this.beginSection(false);
     const cp = this.run.checkpoint;
@@ -618,6 +655,7 @@ export class SectorMode implements GameMode {
       camAlarms: this.camAlarms,
       pending: this.pending.length,
       restarts: this.restarts,
+      lastReset: { ...this.lastReset },
       restarting: this.restartT >= 0,
       checkpoint: { ...this.run.checkpoint },
       nearLocked: locked(d?.near),

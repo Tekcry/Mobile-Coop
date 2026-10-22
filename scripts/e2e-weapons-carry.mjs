@@ -247,29 +247,51 @@ try {
   // (the 2.x gaits: gear 4 = the 2.8 m/s jog; a crouch walk near 1 m/s grazes the thigh pistol with the right elbow pad,
   // as on 3.1 - an open issue in docs/ct-movement-progress.md)
   await checkLoadout('Free Roam', 2);
+  // (load-latent-ui2) the match loads below take up to 120 s (shaders compile on the loading screen), as elsewhere
   for (const lo of ['pistolSd,rifle']) {
     console.log(`loadout ${lo}`);
     await page.goto(`${url}?autostart=proving&loadout=${lo}&gfx=min&gear=4`);
-    await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
+    await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
     await frames(page, 10);
     await G(install);
     await checkLoadout(lo, lo.split(',').length);
   }
   await page.goto(`${url}?autostart=proving&gfx=min&gear=4`);
-  await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
   await G(install);
 
   console.log('backpack + detailed style');
   // both styles, with the deepest backpack: rebuild the match with the new look
-  await G(async () => {
+  await G(() => {
     const a = window.__app;
     a.settings.update((d) => void (d.video.avatarStyle = 'detailed'));
     a.save.update((d) => void (d.avatar.backpack = 'pack'));
-    // the save is debounced (200 ms)
-    await new Promise((res) => setTimeout(res, 600));
   });
+  // (load-latent-ui2) both saves are debounced (settings 250 ms, profile 200 ms) and written to IndexedDB: poll the stored
+  // records (up to 30 s) before the reload, not a fixed 600 ms that a loaded CPU can outrun
+  const persisted = () => G(() => new Promise((res) => {
+    const r = indexedDB.open('shoulder-strike');
+    r.onsuccess = () => {
+      try {
+        const tx = r.result.transaction(['kv', 'profile']);
+        const qs = tx.objectStore('kv').get('settings');
+        const qp = tx.objectStore('profile').get('main');
+        tx.oncomplete = () => {
+          r.result.close();
+          res(qs.result?.video?.avatarStyle === 'detailed' && qp.result?.avatar?.backpack === 'pack');
+        };
+        tx.onerror = () => { r.result.close(); res(false); };
+      } catch {
+        r.result.close();
+        res(false);
+      }
+    };
+    r.onerror = () => res(false);
+  }));
+  for (const t0 = Date.now(); !(await persisted()) && Date.now() - t0 < 30000; ) await page.waitForTimeout(250);
+  hard(await persisted(), 'the detailed style and the backpack are saved before the reload');
   await page.reload();
-  await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 120000 });
   await G(install);
   for (const [name, inp] of [
     ['jog', { y: 1 }],
