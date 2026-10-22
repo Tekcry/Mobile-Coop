@@ -13,13 +13,11 @@ can survive: kill its process tree (taskkill /T /F) and confirm.
   back. S is DONE by #115 (recorded in sector-fixes STATE). R is Course Ready's.
 - **anim-n4c: PR #139, in train 9 at 5f6a0d9d**; branch head 304450f7 = + master 4.58.1 merge only. Hand swap low
   across the chest, elbow strike from the hips, M1 "Faster arm" (Michael). Nothing to do unless train 9 sends it back.
-- **anim-n4d: feature/anim-n4d 018e3c77** (C:/NightShift/Mobile-Coop-anim-n4d, from n4c; 74cb0634 = the code, later
-  commits docs only). Takedown blow and grab kill land on the kill (M1 principle, A1-A5), strike accept never steps
-  back. Fresh checker PASS. At the save a desktop run (`npm run check` + GPU e2e takedown, netmove, coop, anim,
-  ctcourse) was running under heavy.lock "Menu Notes Build | n4d-e2e": if that lock still exists and no process of it
-  runs (Get-CimInstance Win32_Process, CommandLine match n4d), it is stale: remove it. Logs: C:/NightShift/n4d-check.log,
-  n4d-build.log, n4d-e2e.log; if incomplete, rerun. Then merge origin/master, open the PR (list every suite + result),
-  message the orchestrator. Next state: docs/anim-natural/n4d/STATE.md.
+- **anim-n4d: PR #142** (feature/anim-n4d 663a7016, C:/NightShift/Mobile-Coop-anim-n4d; code 74cb0634, later commits
+  docs + the 4.58.1 merge). Takedown blow and grab kill land on the kill (M1 principle, A1-A5), strike accept never
+  steps back. Fresh checker PASS; desktop GPU run on 74cb0634 complete and green (check 233 s; takedown, anim, coop,
+  netmove, ctcourse). Stacked on #139: once #139 merges (train 9), merge origin/master into feature/anim-n4d, push, tell
+  the orchestrator. Next state: docs/anim-natural/n4d/STATE.md.
 - After n4d: ask the orchestrator for the next N4 rows (the n4c / n4d polish lists are in their STATE files).
 
 ## Update 2026-10-22 ~19:10 (after the clear)
