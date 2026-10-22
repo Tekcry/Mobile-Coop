@@ -67,6 +67,12 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 03:20 Character Build on 153db3e8: 12 GPU shots on the LAPTOP at C:/NightShift/scratch/runs/marlowfinal-153db3e8/shots/
+  (a1-a8 stub halls, f-dock, f-gallery-from-a1, f-l1-holding, f-l7-model; not on the desktop); e2e-ctcourse:1 PASS 153 s.
+  Perf: scripts/perf.mjs has no Course-mode path (spawns Warehouse guards; crash at perf.mjs:81). Baseline from
+  guard-cap on master 4.64.0 (OLD Marlow, laptop, Epic 1080p): 0 guards 11.3 ms med, CPU 10.7, GPU 6.6, 115 draws,
+  sim p95 4.6 ms (budget Epic main p95 5.5, sim p95 2.9: sim already over before guards); 12 guards 29.6 ms. Asked for
+  the same guard-cap run on 155fbec0 (new facility) for the delta. Slice 9: a Course-mode path in perf.mjs.
 - 03:15 (clock) slice 1 A1 steps 2-4 IN (155fbec0; slices/S1.md): wall + 4.4 m lips via boostWall, wicket bolt
   from the yard, lounge with group-10 coves and closed 3.2 m ceiling, cabin (noLedge), 9 lamps, passive armed checker,
   steps / claim / pass zone, e2e route. 6 map test files 83 pass + 23 neighbours 310 pass. Opus checker running;
