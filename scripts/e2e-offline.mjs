@@ -47,9 +47,8 @@ try {
   assert(await G(() => !!navigator.serviceWorker.controller), 'page is controlled by the service worker');
   // (A109) once the worker controls the page, the game warms Wren's play LODs into its runtime cache (`?gfx=min`:
   // LOD2; the menu's own fetch ran before the worker took control, so it never reached the cache)
-  // (the worker's activation can reload the page once - vite-plugin-pwa reloads when the worker that activates came
-  // from another page load, e.g. the reload above - and a reload ends a wait: the warm runs again on the new page,
-  // so the wait is retried until its one 60 s deadline)
+  // (sw-reload: the worker no longer reloads the page on activation, registerType 'prompt'; the wait is still retried
+  // until its one 60 s deadline in case a reload ends it - the warm then runs again on the new page)
   const warmBy = Date.now() + 60000;
   let warm = null;
   let warmErr = '';
