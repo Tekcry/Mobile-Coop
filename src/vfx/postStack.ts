@@ -471,7 +471,7 @@ export class PostStack {
       const n = Math.min(this.volMax, nearest(reg, p.x, p.y, p.z, this.ids, this.dist));
       let k = 0;
       for (let i = 0; i < n; i++) {
-        // fixed lights (lamps, spots, floods) scatter under their shade (a short cone), flashlights along the beam
+        // lamps and LED fittings scatter under their shade (a short cone), torches and floods along the beam
         // (stopped by geometry): `volLights.ts` (vol-cone-fix)
         writeVolLight(reg.lights[this.ids[i]!]!, k, this.lPos, this.lDir, this.lCol);
         k++;

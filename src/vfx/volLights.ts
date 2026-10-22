@@ -2,10 +2,12 @@
  * The volumetric pass's per-light values (Babylon-free; `PostStack.frame`). Rendering only: the fog never feeds
  * gameplay (the meter and the guards read `LightField`).
  *
- * Only a torch (`kind: 'flashlight'`) draws a long beam: marched to its reach (stopped by geometry), its own cone, gain
- * 1.6. Every fixed light - a lamp, and a fixed spot (an LED strip or bulkhead with a beam optic, a flood) - scatters
- * under its shade: a short march, at most 3.2 m and half the radius, along its beam direction (straight down without a
- * cone), no wider than the lamp cone (cos 0.88), gain 1. (vol-cone-fix: before, any light with a cone took the
+ * A torch (`kind: 'flashlight'`) and a cone light without an LED fitting model (a flood housing box) draw a long beam:
+ * marched to the reach (stopped by geometry), their own cone, gain 1.6. Every other light - a lamp, and an LED fitting
+ * with a beam optic (`fixture.model`: the Sector Ops strips, panels and bulkheads) - scatters under its shade: a short
+ * march, at most 3.2 m and half the radius, along its beam direction (straight down without a cone), no wider than the
+ * lamp cone (cos 0.88), gain 1. (LED-only variant: the general one, every non-torch as a lamp, also took the visible
+ * beams off the base Warehouse's facade floods; the GPU before / after shots in `docs/vol-cone-fix/`.) (vol-cone-fix: before, any light with a cone took the
  * torch treatment, so the Sector Ops strips drew full ceiling-to-floor white cones, ~35x the scatter of a lamp.)
  */
 import type { LightDef } from '../world/lights';
@@ -19,9 +21,9 @@ export const VOL_BEAM_MAX = 14;
 /** A torch's in-scatter gain. */
 export const VOL_BEAM_GAIN = 1.6;
 
-/** Whether a light draws a long volumetric beam (only torches). */
-export function volBeam(l: Pick<LightDef, 'kind'>): boolean {
-  return l.kind === 'flashlight';
+/** Whether a light draws a long volumetric beam: a torch, or a cone light that is not an LED fitting. */
+export function volBeam(l: Pick<LightDef, 'kind' | 'cone' | 'fixture'>): boolean {
+  return l.kind === 'flashlight' || (!!l.cone && !l.fixture?.model);
 }
 
 /** Write light `l` into slot `k` of the pass's uniforms: pos (xyz, march radius), dir (xyz, cosOuter), colour (rgb x
