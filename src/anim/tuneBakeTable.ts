@@ -287,7 +287,8 @@ const ACT = 'src/anim/clips/actions.ts';
 const CLIP_EDITS: Readonly<Record<string, BakeEdit>> = {
   rifleDraw: e(DRAW, 'DRAW_TIME_PRIMARY', 'div'),
   pistolDraw: e(DRAW, 'DRAW_TIME_SIDEARM', 'div'),
-  holster: e(DRAW, 'HOLSTER_TIME', 'div'),
+  holsterPrimary: e(DRAW, 'HOLSTER_TIME_PRIMARY', 'div'), // (anim-natural N3) one holster row per gun
+  holsterSidearm: e(DRAW, 'HOLSTER_TIME_SIDEARM', 'div'),
   swap: e(WPN, 'SWAP_TIME', 'div'),
   grenade: e(WPN, 'GRENADE_TIME', 'div'),
   startShift: e(ACT, 'CLIP_RATE.startShift', 'mul'),
@@ -323,6 +324,24 @@ manuals.push(manual('joint', 'mirror', 'a panel option (the mirror lock), nothin
 export const TEAM_MOVE_IDS = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive'] as const;
 export const TRAV_KIND_IDS = ['vault', 'mantle', 'step', 'climbUp', 'windowVault', 'rappel', 'drop', 'hop', 'roll', 'wallKick', 'split'] as const;
 
+// ------------------------------------------------------------------------------------------
+// (anim-natural N3) Draw (weapons/drawTune.ts): the draw / holster / swap motion per weapon (the times are Clip speed's)
+// ------------------------------------------------------------------------------------------
+
+const DRAWM = 'src/anim/drawMotion.ts';
+for (const [g, k] of [['draw.rifle', 'rifle'], ['draw.pistol', 'pistol']] as const) {
+  rules.push(
+    rule('draw', 'reachAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.reach`, 'add')]),
+    rule('draw', 'gripAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.grip`, 'add')]),
+    rule('draw', 'handoverAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.handover`, 'add')]),
+    rule('draw', 'settleAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.settle`, 'add')]),
+    ...(['X', 'Y', 'Z'] as const).flatMap((a, i) => [
+      rule('draw', `out${a}`, [g], [e(DRAWM, `DRAW_MOTION.${k}.out[${i}]`, 'add', 0.01)]),
+      rule('draw', `via${a}`, [g], [e(DRAWM, `DRAW_MOTION.${k}.via[${i}]`, 'add', 0.01)]),
+    ]),
+  );
+}
+
 export const BAKE_RULES: readonly BakeRule[] = rules;
 export const BAKE_MANUAL: readonly ManualRule[] = manuals;
 
@@ -334,7 +353,7 @@ export const BAKE_LEDGER = 'src/anim/tuneBakeLog.json';
 export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
-export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (item 24, track A) the guard sections
+export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts', 'src/weapons/drawTune.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (anim-natural N3) drawTune; (item 24, track A) the guard sections
 /**
  * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
  * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file
