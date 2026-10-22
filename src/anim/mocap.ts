@@ -30,6 +30,7 @@ import { MOCAP_TURN_MOVE_R } from './clips/mocap/turn_move_r';
 import { MOCAP_START, MOCAP_START_SECONDS } from './clips/mocap/start';
 import { MOCAP_STOP, MOCAP_STOP_SECONDS } from './clips/mocap/stop';
 import { MOCAP_CROUCH_WALK } from './clips/mocap/crouch_walk';
+import { MOCAP_SPRINT } from './clips/mocap/sprint';
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -98,6 +99,8 @@ export interface LocoClipSet {
   readonly walk: KeyedClip;
   readonly jog: KeyedClip;
   readonly run: KeyedClip;
+  /** (mocap-trial-2, sprint) The sprint cycle crossed into past the run (animGraph `speedSet`, BRIEF A6; null: the run is the top). */
+  readonly sprint: KeyedClip | null;
   /** A 90 deg turn on the spot to the right (the left plays it mirrored), by the yaw turned. */
   readonly turnInPlace: KeyedClip | null;
   /** 90 deg turns while walking, left and right (an empty side plays the other mirrored), by the yaw turned. */
@@ -121,6 +124,7 @@ export const HAND_KEYED_SET: LocoClipSet = {
   walk: KEYED_WALK,
   jog: KEYED_JOG,
   run: KEYED_RUN,
+  sprint: null,
   turnInPlace: null,
   turnMoveL: null,
   turnMoveR: null,
@@ -138,6 +142,7 @@ export const MOCAP_SET: LocoClipSet = {
   walk: MOCAP_WALK,
   jog: MOCAP_JOG,
   run: MOCAP_RUN,
+  sprint: MOCAP_SPRINT,
   turnInPlace: MOCAP_TURN_IN_PLACE,
   turnMoveL: MOCAP_TURN_MOVE_L,
   turnMoveR: MOCAP_TURN_MOVE_R,

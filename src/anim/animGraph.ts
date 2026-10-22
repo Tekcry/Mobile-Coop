@@ -2115,6 +2115,15 @@ export class AnimGraph {
       c1 = S.run;
       t = wRun;
     }
+    // (mocap-trial-2, sprint, BRIEF A6) past the run: run -> sprint (the set's sprint clip; null: the run stays the top)
+    if (S.sprint !== null) {
+      const wSpr = smoothstep((es - G.runTo) / (G.sprintFrom - G.runTo));
+      if (wSpr > 0) {
+        c0 = S.run;
+        c1 = S.sprint;
+        t = wSpr;
+      }
+    }
     const B = KEYED_WALK_BAND;
     this.sWalk = c0 === S.walk ? 1 - t : 0;
     this.sHalf = c0.half + (c1.half - c0.half) * t;
@@ -2567,10 +2576,12 @@ export const KEYED_WALK_BAND = { from: 2.15, to: 2.75, full: 2.0, ampMin: 0.5, t
 /**
  * (anim-rework S2) The standing keyed speed blend in effort pace (GAIT_REF units, `effortSpeed`): the walk alone up to
  * `walkTo` (2.0: 2.1 m/s), cross-faded into the jog by `jogFrom` (2.6: ~2.6 m/s), the jog alone to `jogTo` (3.2: ~3.3
- * m/s), into the run by `runFrom` (3.8: ~4.2 m/s). Smoothstep fades: the gait never pops; the stride and cadence stay the
+ * m/s), into the run by `runFrom` (3.8: ~4.2 m/s). (mocap-trial-2, sprint) With the mocap set's sprint clip: the run alone to
+ * `runTo` (4.2), crossed into the sprint by `sprintFrom` (5.0: the game's sprint pace; above the top gear the effort pace is
+ * the real pace). Smoothstep fades: the gait never pops; the stride and cadence stay the
  * planner's, from the actual ground speed.
  */
-export const KEYED_GAITS = { walkTo: 2.0, jogFrom: 2.6, jogTo: 3.2, runFrom: 3.8 } as const;
+export const KEYED_GAITS = { walkTo: 2.0, jogFrom: 2.6, jogTo: 3.2, runFrom: 3.8, runTo: 4.2, sprintFrom: 5.0 } as const;
 /** (anim-rework S2) The keyed idle's cycle (s): three slow breaths, a weight shift each way and a head scan each way. */
 export const KEYED_IDLE_PERIOD = 12;
 /**

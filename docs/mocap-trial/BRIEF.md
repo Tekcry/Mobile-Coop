@@ -82,3 +82,13 @@ fetched, one at a time.
   filled turn-in-place slot kept it on; planted feet slid 4-5 cm in a 0.5 m/s x 3 rad/s spin); MOCAP_LAYERS also scale
   N2's body motion on the capture's share; the drawn set's crouched legs stay hand-keyed. Numbers: MT2-CROUCH.md.
   Undo: the switch off, or `crouchWalk: null` in MOCAP_SET (src/anim/mocap.ts).
+- A6 (mocap-trial-2, sprint implementer 2026-10-23; M2 / M3): with the switch on, the holstered standing gait crosses the run into
+  the CMU sprint 127_07 (one R-strike cycle 0.33-1.01 s, `clips/mocap/sprint.ts`, `LocoClipSet.sprint`) in the effort-pace
+  band `KEYED_GAITS.runTo` 4.2 -> `sprintFrom` 5.0 (animGraph `speedSet`, a fourth smoothstep stage after the run; effort pace
+  equals the real pace above the 4.0 m/s top gear, so the sprint is fully in at the game's sprint pace 5.0 m/s). The run stays
+  alone from its own 3.8 to 4.2. Feet stay the planner's / the clip-feet path as for the run (A3); the sprint clip's travel
+  (4.0 m/s at Wren) is scaled to the pace like the others (stride ratio 0.93-1.01). The drawn set and the hand-keyed set
+  have no sprint slot (null): the path is unchanged. Gate (ON no worse than OFF): ankle-toe and any-bone step at most OFF + 2
+  deg or both under 24 deg, planted slide under 1 cm, pelvis within 2 cm beyond pace x dt, over steady 4.0 / 4.5 / 5.0 m/s,
+  3 <-> 5 ramps over 0.5 s, 5 m/s x 2 / 3 / 4 rad/s turns and a braked stop (tests/mocapSprint.test.ts). Numbers: MT2-SPRINT.md.
+  Undo: the switch off, or `sprint: null` in MOCAP_SET (src/anim/mocap.ts).
