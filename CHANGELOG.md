@@ -1,41 +1,8 @@
 # Changelog
 
-## 4.54.1 - Load-flaky e2e asserts hold under E2E_JOBS=2 (test only) (2026-10-22, PR #117)
-- Four load-flaky e2e asserts hold under E2E_JOBS=2 (test only): e2e-stealth-ai head-only peek spot, e2e-netmove client assists, e2e-mouse capture timeout, e2e-ctcourse station 4 throw; details in `docs/backlog.md`.
+## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 
-## Unreleased - sector-fixes W (feature/sector-fixes-w)
-
-### The selection wheel defaults to the goggles (Michael item 8)
-- Michael: "Change goggles in inventory to the default selection so you can just hold l1 and press a to automatically
-  swap between them. Don't hold selections in the wheel, if analogue stick is let go it defaults to goggles/vision
-  selection."
-- The wheel opens on the vision slot: hold LB and press A to cycle night, thermal, electro with no stick; release LB
-  and the mode shown is selected.
-- The pad's right stick now places the wheel cursor where the stick points (it used to drift with the look rate and stay
-  put). Let go of the stick and the vision slot lights again, so nothing else stays picked. A stick and LB let go
-  together still pick the slot under the stick (a 0.08 s grace, `WHEEL_LETGO_S`); A with the stick centred always
-  cycles the vision.
-- Keyboard and mouse: hold Tab, the wheel opens on vision and E cycles; the mouse back in the centre lights vision.
-- Tests: `tests/selectionWheel.test.ts` (default slot, let go, grace, A centred), `tests/input.test.ts` (the stick
-  position); e2e-gadgets and e2e-pad assert the new behaviour; `scripts/wheel-shots.mjs` drives the stick.
-
-## Unreleased - sector-fixes S (security room)
-- Marlow Yard, station 3 (Michael: "If there are cameras, there should be a security room with a guard watching the
-  cameras. You can take him out and shut off cameras"): a security room off the far lobby, through a plain door behind
-  the camera. A duty guard stands at the monitor wall (a training guard like station 1's: he sees and hears nothing);
-  grabbed, INTERROGATE gets "All right! The desk console switches the hallway camera off."
-- The desk console refuses while he is up ("The guard is watching the monitors. Take him out first."). Knock him out or
-  kill him (takedown, strike or shot), then use it: the hallway camera goes off for both players (no detection, no
-  alarm, no send-back, its LED dark, its red view hidden) until the bay restarts, which brings the camera and the guard
-  back. LANTERN: "Cameras off. Your partner can walk the hallway." A second line at the station start names the room.
-- The jam handoff still works exactly as before: the first runner still needs the partner's jam to reach the far lobby,
-  and the second can still be jammed through. The room is an alternative to the second jam, not a replacement; a
-  camera switched off at the console is simply no longer a jam target.
-- The station's monitor wall moved from the hallway's south wall into the room, with a desk under it; the room has
-  its own ceiling panel (jammable and shootable like the other lamps).
-- Not in Sector Ops (Michael): its cameras have no console. Co-op: no protocol change.
-
-## Unreleased - anim-run-half: the run's feet no longer cross
+### #110 The run's feet no longer cross
 - The run's feet no longer cross the midline: the keyed clips' track half-width (`half`) is measured with the
   stride-locked pelvis yaw removed (`scripts/anim-keys/py/key_clip.py`: each frame's ankles turned back by that frame's
   pelvis yaw minus the clip's mean pelvis yaw; the yaw read off the pelvis's lateral axis, which stays level in the
@@ -52,6 +19,41 @@
   keyed clips, crouch idle, wall crouch idle, hold back, skeleton_test, the partner path and the guards' walk / aim
   walk); e2e-anim's run limits re-measured (track 0.16 -> 0.18, knee bow 0.09 -> 0.047; knee separation and elbows
   kept).
+
+### #115 Marlow Yard security room (sector-fixes S)
+- Marlow Yard, station 3 (Michael: "If there are cameras, there should be a security room with a guard watching the
+  cameras. You can take him out and shut off cameras"): a security room off the far lobby, through a plain door behind
+  the camera. A duty guard stands at the monitor wall (a training guard like station 1's: he sees and hears nothing);
+  grabbed, INTERROGATE gets "All right! The desk console switches the hallway camera off."
+- The desk console refuses while he is up ("The guard is watching the monitors. Take him out first."). Knock him out or
+  kill him (takedown, strike or shot), then use it: the hallway camera goes off for both players (no detection, no
+  alarm, no send-back, its LED dark, its red view hidden) until the bay restarts, which brings the camera and the guard
+  back. LANTERN: "Cameras off. Your partner can walk the hallway." A second line at the station start names the room.
+- The jam handoff still works exactly as before: the first runner still needs the partner's jam to reach the far lobby,
+  and the second can still be jammed through. The room is an alternative to the second jam, not a replacement; a
+  camera switched off at the console is simply no longer a jam target.
+- The station's monitor wall moved from the hallway's south wall into the room, with a desk under it; the room has
+  its own ceiling panel (jammable and shootable like the other lamps).
+- Not in Sector Ops (Michael): its cameras have no console. Co-op: no protocol change.
+
+### #116 Wheel opens on the goggles (sector-fixes W)
+
+### The selection wheel defaults to the goggles (Michael item 8)
+- Michael: "Change goggles in inventory to the default selection so you can just hold l1 and press a to automatically
+  swap between them. Don't hold selections in the wheel, if analogue stick is let go it defaults to goggles/vision
+  selection."
+- The wheel opens on the vision slot: hold LB and press A to cycle night, thermal, electro with no stick; release LB
+  and the mode shown is selected.
+- The pad's right stick now places the wheel cursor where the stick points (it used to drift with the look rate and stay
+  put). Let go of the stick and the vision slot lights again, so nothing else stays picked. A stick and LB let go
+  together still pick the slot under the stick (a 0.08 s grace, `WHEEL_LETGO_S`); A with the stick centred always
+  cycles the vision.
+- Keyboard and mouse: hold Tab, the wheel opens on vision and E cycles; the mouse back in the centre lights vision.
+- Tests: `tests/selectionWheel.test.ts` (default slot, let go, grace, A centred), `tests/input.test.ts` (the stick
+  position); e2e-gadgets and e2e-pad assert the new behaviour; `scripts/wheel-shots.mjs` drives the stick.
+
+## 4.54.1 - Load-flaky e2e asserts hold under E2E_JOBS=2 (test only) (2026-10-22, PR #117)
+- Four load-flaky e2e asserts hold under E2E_JOBS=2 (test only): e2e-stealth-ai head-only peek spot, e2e-netmove client assists, e2e-mouse capture timeout, e2e-ctcourse station 4 throw; details in `docs/backlog.md`.
 
 ## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
 
