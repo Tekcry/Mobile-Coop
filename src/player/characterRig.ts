@@ -12,7 +12,7 @@ import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner, type FootState } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
-import { newStrikeBody, strikeBodyAt, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
+import { newStrikeBody, strikeBodyAt, strikeBodyPhase, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import { LOCO, MOCAP_FEET, MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
 import type { MotionState } from '../anim/motion';
@@ -24,7 +24,7 @@ import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
 import { heelLift } from '../anim/footGeom';
 import { TUNE_CUR } from '../anim/tune';
-import { HAND_SWAP, handSwapK } from '../anim/handSwapPath'; // (anim-n4c)
+import { HAND_SWAP, handSwapK, handSwapPh } from '../anim/handSwapPath'; // (anim-n4c; strike-pops)
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
@@ -1113,6 +1113,8 @@ export class CharacterRig {
   private readonly liftCrouch = new CqLiftCrouch();
   /** (anim-natural N4c) The elbow strike's hips and trunk this frame (strikeBody.ts; rest on every non-Wren rig). */
   private readonly sb = newStrikeBody();
+  /** (strike-pops) The strike body layer's phase (`strikeBodyPhase`: the trunk's pace; -1 none). */
+  private sbPh = -1;
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
@@ -1896,7 +1898,9 @@ export class CharacterRig {
         this.handRate = 0;
       }
     }
-    i.handSwap = this.handSwap;
+    // (strike-pops, n4c polish 1) the graph's tuck bump and the gun's dip read the progress from the blend
+    // (`handSwapPh`): a reversal's rewind of `handSwap` flipped their rate in one frame
+    i.handSwap = this.handSwap < 0 ? -1 : handSwapPh(this.handBlend);
     i.hand = 1 - this.handBlend * 2;
 
     // (G1) the kneel keeps the lead foot planted: which foot is ahead (last frame's planted feet, body frame)
@@ -2428,7 +2432,9 @@ export class CharacterRig {
     // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
     // shifts back over the rear foot on the wind-up and onto the lead foot driving, on the feet only (attached, a takedown
     // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
-    const sb = strikeBodyAt(this.graph.wrenReady ? this.input.melee : -1, this.sb);
+    // (strike-pops) at the trunk's pace (`STRIKE_BODY_RATE`): the strike's drive over 3 frames, not on the arm's fastest 2
+    this.sbPh = strikeBodyPhase(this.sbPh, this.graph.wrenReady ? this.input.melee : -1, dt);
+    const sb = strikeBodyAt(this.sbPh, this.sb);
     if (!free) pex += sb.side;
     const peZ = pez + this.restShift + (free ? 0 : sb.fwd);
     const yc = Math.cos(yaw);
@@ -2735,7 +2741,7 @@ export class CharacterRig {
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
     // (anim-n4c, AUDIT row 29) changing hands aimed, the gun drops and comes forward under the chin (handSwapPath.ts)
-    const swapK = handSwapK(this.handSwap);
+    const swapK = handSwapK(this.input.handSwap);
     const swapDrop = swapK * t.aimW * TUNE_CUR.swapDropMul;
     this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x + TUNE_CUR.gunSide) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y + TUNE_CUR.gunUp - HAND_SWAP.drop * swapDrop, AIM_POCKET.z + w.z + TUNE_CUR.gunFwd + HAND_SWAP.fwd * swapDrop);
     // raised the weapon points along the aim; lowered (ready) it is carried with the body, so a lowered gun
