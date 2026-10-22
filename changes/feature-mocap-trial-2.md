@@ -19,3 +19,4 @@ kind: minor
   steps; the faster crouch walk / run stay hand-keyed and are blended into. Crouched spins no longer hold the keyed pose.
 - Mocap locomotion (switch on): crouching, standing up or drawing while walking no longer snaps a foot as the clip's feet
   hand the steps to the planner (ankle-toe 57 -> 17 deg a frame at worst, switch off 16.5).
+- Mocap locomotion (switch on): a CMU sprint cycle (127_07) fades in over the run between 4.2 and 5.0 m/s.
