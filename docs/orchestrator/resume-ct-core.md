@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Saved 2026-10-23 ~09:25 by the CT Core session (account after the ~08:20 swap). Every branch below is committed and
+Saved 2026-10-23 ~09:45 by the CT Core session, for the ~09:50 account swap (window 91%). Every branch below is committed and
 pushed at each agent hand-back. Agents running at a cut-off are lost: the resume prompt says what to redo.
 
 ## Rules carried
@@ -34,31 +34,35 @@ pushed at each agent hand-back. Agents running at a cut-off are lost: the resume
 - Fresh checker: CT Core runs it itself (Course Ready moved to Sector Ops, orchestrator ~01:40): a NEW Opus agent with
   `C:/NightShift/scratch/mt-check/CHECK3-BRIEF.md`.
 
-## Open jobs (save ~09:25; 5-hour ~65%, full burn per Michael 09:00, refresh after every hand-back)
+## Open jobs (save ~09:45, before the account swap; every branch committed + pushed)
 Master 4.68.0 (3950f3f8). Train 20 = #185 + #186 + #188. Protocol registry: 31 master, 32 guard-ai, 33 marlow-final, 34 hang-down.
+Agents running at the save are lost: their last state is the WIP commit below. Untracked zz probes stay in the worktrees (not pushed).
 
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-on #188 | `feature/mocap-on` | ab1cb6c6 | PR open, CHECK-7 PASS, all six GPU suites green on 1673e924 (head docs only). In train 20. | Nothing unless the train fails. |
-| throw-ko #186 | `feature/throw-ko` | 4ff5f19e | e2e-ctcourse GREEN on the head (laptop). In train 20. | Nothing unless the train fails. |
-| traverse-fix #189 | `feature/traverse-fix` | 6ca9ef6c | PR open, fresh check PASS, e2e-traverse + e2e-clip GPU ok. Train 21. | Nothing. |
-| partner-seed #190 | `feature/partner-seed` | f27268c4 | PR open, fresh check PASS, coop + netmove GPU ok. Train-ready. | Nothing. |
-| mocap-strafe | `feature/mocap-strafe`, `C:/NightShift/Mobile-Coop-mocap-strafe` | 8498843d+ | Opus agent: merge mocap-on, fix start / stop pelvis PEL rows, tests/mocapStrafe, MT2-STRAFE.md, A10. | Fresh checker, GPU suites (laptop), PR. Then back-to-wall; then spare #7 crouch pops (held until strafe lands). |
-| traverse-fix-2 (climb-up hands) | `feature/traverse-fix-2`, `C:/NightShift/Mobile-Coop-traverse-fix-2` | from 3950f3f8 | Opus agent: CLIMB_UP trunk pitch so palms stay on the lip; tests/climbHands. | Checker, laptop e2e-traverse / anim / clip, PR. |
-| spare #2 hang-down | `feature/hang-down`, `C:/NightShift/Mobile-Coop-hang-down` | from 3950f3f8 | Opus agent: sidearm, grab, neck-snap for the hanging player; protocol 34 if a wire change. | Checker, laptop e2e-coop / netmove / anim, PR. |
-| spare #5 strike-pops | `feature/strike-pops`, `C:/NightShift/Mobile-Coop-strike-pops` | from 3950f3f8 | Opus agent: n4c 1 dip reversal, n4c 9 wrist 31 cm step, n4d 1 follow-through after bay restart (+ n4c 7 if cheap). | Checker, laptop suites, PR. |
-| spare #10 hostage-gait | `feature/hostage-gait`, `C:/NightShift/Mobile-Coop-hostage-gait` | c581a9c4 | DONE (holdFeed.ts; gait spread 30 fps jitter 0.146 -> 0.004, mean 1.12 -> 1.40 m/s). Fresh checker running (scratch/hgc-CHECK.md); laptop asked for e2e-coop + netmove on c581a9c4. | PR (patch). |
+| mocap-on #188 | `feature/mocap-on` | ab1cb6c6 | PR, CHECK-7 PASS, six GPU suites green on 1673e924 (head docs only). Train 20. | Nothing unless the train fails. |
+| throw-ko #186 | `feature/throw-ko` | 4ff5f19e | e2e-ctcourse GREEN on the head. Train 20. | Nothing unless the train fails. |
+| traverse-fix #189 | `feature/traverse-fix` | 6ca9ef6c | PR, fresh check PASS, e2e-traverse + clip GPU ok. Train 21. | Nothing. |
+| partner-seed #190 | `feature/partner-seed` | f27268c4 | PR, fresh check PASS, coop + netmove GPU ok. Train-ready. | Nothing. |
+| spare #10 hostage-gait | `feature/hostage-gait`, `C:/NightShift/Mobile-Coop-hostage-gait` | c581a9c4 | DONE (src/net/holdFeed.ts; 30 fps jitter gait spread 0.146 -> 0.004, mean 1.12 -> 1.40 m/s; report docs/hostage-gait/REPORT.md). Fresh checker was running at the save (writes C:/NightShift/scratch/hgc-CHECK.md; if missing, rerun it: Opus, read-only scratch copy, scope = the src/net diff). Laptop queued e2e-coop + netmove on c581a9c4 (Character Build reports to CT Core + orchestrator). | Check + suites -> copy CHECK into docs/hostage-gait, PR (patch). |
+| mocap-strafe | `feature/mocap-strafe`, `C:/NightShift/Mobile-Coop-mocap-strafe` | 46333339 | WIP: mocap-on merged (9467c5c3), side-step only on carriers (6f10866a), stop pelvis <= 1.89 cm, swing foot jumps 24-29 -> <= 11 cm (c11e5455). Not yet: tests/mocapStrafe final, OFF dump vs mocap-on, MT2-STRAFE.md, A10, fragment. Probes tests/zz* untracked in the worktree. | New Opus agent finishes it (C:/NightShift/scratch/mt2/COMMON.md; brief = this row), then fresh checker, laptop GPU suites (e2e-anim, clip, move, studio, coop, netmove), PR. Then back-to-wall; then spare #7 crouch pops (orchestrator: after strafe lands). |
+| traverse-fix-2 (climb-up hands) | `feature/traverse-fix-2`, `C:/NightShift/Mobile-Coop-traverse-fix-2` | 6de30920 | WIP: CLIMB_UP trunk pitch so the palms stay on the lip until the right foot is on top (k ~0.52); tests/climbHands; edit only src/anim/clips/traverse.ts CLIMB_UP(_TEAM). Diagnosis: origin/feature/traverse-fix docs/traverse-fix/REPORT.md item 2. | Opus agent finishes, checker, laptop e2e-traverse / anim / clip, PR. |
+| spare #2 hang-down | `feature/hang-down`, `C:/NightShift/Mobile-Coop-hang-down` | abaaa6c8 | WIP (d7f47447): grab, neck snap and pistol for the hanging player. Plan docs/hang-down/BRIEF.md. Protocol 34 if a wire change. | Opus agent finishes (no animGraph / characterRig / footPlanner edits), checker, laptop e2e-coop / netmove / anim, PR. |
+| spare #5 strike-pops | `feature/strike-pops`, `C:/NightShift/Mobile-Coop-strike-pops` | 563b87f7 | WIP: n4c 1 dip reversal, n4c 9 wrist 31 cm step (spread over 2-3 frames, hit stays 80 ms), n4d 1 follow-through after a bay restart (courseMode.ts:641 / sectorMode.ts:173), n4c 7 if cheap. | Opus agent finishes, checker, laptop e2e-anim / clip / ctcourse / coop, PR. |
 
-Agents: no desktop e2e while desktop CPU is high (orchestrator 09:20); e2e goes to Character Build [06fe56]. Guard-render (Character Build) edits characterRig outside 1845-2015 / 2595-2710 (S1 3, 1231-1315; S5 L2 approved gated on !carrier).
+Character Build (guard-render): S1 characterRig hook 3, 1231-1315; S5 L2 approved gated on !carrier; L3 footPlanner loops only. No clash with mocap-on / strafe.
 Scratch: C:/NightShift/scratch/mt2/COMMON.md, COMMON-SPARE.md; checks CHECK-7.md, tfc-CHECK.md, psc-CHECK.md; OFF dump scratch/mt-check/repro/dump.test.ts (compare against master's own dump).
 
 ## Resume prompt
 ```
-Night Shift | CT Core Build: RESUME. Model Opus, effort high. Read CLAUDE.md (on origin/feature/menu) and
-docs/ROADMAP.md (top "Decided"), then docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
-origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried". A heavy.lock / heavy2.lock naming
-CT Core Build with no node / bash process of ours running is stale: tell the orchestrator. Agents running at a cut-off are
-lost: for each "Open jobs" row with an agent, check the worktree, commit + push its WIP, then redo the step (Opus for anim
-/ checkers, Sonnet 5.5 from strict briefs, Haiku chores). e2e goes to Character Build on the laptop; always E2E_GPU=1.
-Michael: M1 "Mocap, as captured", M4 "On by default". Message "Night Shift | Orchestrator" at slice ends, PRs and blockers.
+Night Shift | CT Core Build: RESUME after the ~09:50 account swap. Model Opus, effort high. Read CLAUDE.md (on
+origin/feature/menu) and docs/ROADMAP.md (top "Decided"), then docs/orchestrator/resume-ct-core.md on origin/feature/menu
+(git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its "Rules carried" and the
+orchestrator's pacing. A heavy.lock / heavy2.lock naming CT Core Build with no node / bash process of ours is stale: tell
+the orchestrator. Message "Night Shift | Orchestrator" that you resumed. Then work "Open jobs" top down: hostage-gait
+(checker result or rerun, laptop result, PR); restart one agent per WIP row from its last commit (strafe, traverse-fix-2,
+hang-down, strike-pops: Opus for anim / co-op code and every fresh checker, Sonnet 5.5 only from strict briefs, Haiku
+chores). e2e goes to Character Build on the laptop (ListAgents name with its [ref]); desktop lanes single GPU suites
+only when CPU allows; always E2E_GPU=1. Push WIP and refresh this file after every hand-back. Michael: M1 "Mocap, as
+captured", M4 "On by default". Message the orchestrator at slice ends, PRs and blockers.
 ```
