@@ -63,7 +63,10 @@ origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (f
 overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
 orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
 versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. N1: laptop verdict on 1135bc41 and CHECK-3 (rerun the checker if absent); then the PR for train 7.
+1. N1 (priority, train 7): no pre-run needed (orchestrator 20:00; the laptop run was cancelled). When CHECK-3 passes (rerun the
+   checker if absent): write CHECK-3.md, push, then open the PR: gh pr create --base master --head feature/anim-natural-n1
+   --title "anim-natural N1: feet in turns (turn step, ball pivot, contact hold)" --body-file C:/NightShift/n1-pr.md
+   (body drafted; add the checker verdict line), and message the orchestrator.
 2. N2: CHECK-4 (step 3 checker) and the s3 + 4.56.0 merge agent, or rerun; push; laptop suites; steps 4-5.
 3. #123 in train 6 (master 4.56.0 merged).
 Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
