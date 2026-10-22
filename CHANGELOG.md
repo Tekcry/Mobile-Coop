@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased - server browser (prototype)
+- Co-op: public rooms (Michael: a server browser, "prototype only, quick and fast to build"). The host lobby has a
+  Room row, Private (default: only the code brings anyone in) or Public. A public room posts a notice (code, map, mode,
+  version, players, host name) on the same relays as every room, every 30 s and to anyone who opens the list; it is
+  taken off when the room is full, goes private or closes, and a notice not refreshed for 75 s drops out.
+- Co-op > Browse rooms: the public rooms of this exact version and protocol, live, with pad, keyboard and mouse; a pick
+  joins by its code as today. No quick match, no relay server, no game server.
+
+## Unreleased - marlow-bays R (rejoin)
+
 ## Unreleased - marlow-bays item 24 (guard tuning)
 - Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
   guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
