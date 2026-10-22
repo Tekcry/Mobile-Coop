@@ -638,19 +638,28 @@ export class CourseState {
       if (a.def.nearDoor === doorId && (a.phase === 'sealed' || a.phase === 'cycling')) return true;
       if (a.def.farDoor === doorId && a.phase !== 'sealed') return true;
     }
-    // (marlow-final A8) a door named by several gates is locked only while none of them is open (A8's grille: the mains gate
-    // or the request-to-exit opens it)
-    let gated = false;
+    // every other gate on the door must be open (Fallow's L9 lift door: three keys and the pair); an open egress gate releases
+    // the door on its own (marlow-final A8: the grille's mains gate or its request-to-exit opens it)
+    let egress = false;
+    let other = false;
+    let otherShut = false;
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
       const doors = g.doors;
       for (let j = 0; j < doors.length; j++) {
         if (doors[j] !== doorId) continue;
-        if (this.gateOpen(g)) return false;
-        gated = true;
+        const open = this.gateOpen(g);
+        if (g.def.kind === 'egress') {
+          if (open) return false;
+          egress = true;
+        } else {
+          other = true;
+          if (!open) otherShut = true;
+        }
       }
     }
-    return gated;
+    // a door with only egress gates stays locked until one opens
+    return other ? otherShut : egress;
   }
 
   /** Is the anchor locked (an anchorLock gate whose flag is not set)? */

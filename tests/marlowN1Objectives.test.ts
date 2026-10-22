@@ -252,4 +252,25 @@ describe('marlow-final A8: a door named by two gates', () => {
     expect(st.locked('g-door')).toBe(false);
     expect(st.locked('L1-near')).toBe(false);
   });
+  it('the lever alone opens it too, with the request-to-exit shut', () => {
+    const st = new CourseState(def([], { gates: [
+      { kind: 'lever', id: 'g-lever', switchId: 'sw-1', doorId: 'g-door' },
+      { kind: 'egress', id: 'g-rte', switchId: 'sw-2', doorIds: ['g-door'] },
+    ] }));
+    st.press('sw-1', 0);
+    expect(st.locked('g-door')).toBe(false);
+  });
+  it("two non-egress gates on one door must both open (Fallow's L9 lift door: every key)", () => {
+    const st = new CourseState(def([], { gates: [
+      { kind: 'pickup', id: 'g-key-a', switchId: 'pk-a', flag: 'key-a', perPlayer: false },
+      { kind: 'pickup', id: 'g-key-b', switchId: 'pk-b', flag: 'key-b', perPlayer: false },
+      { kind: 'flag', id: 'g-lift-a', flag: 'key-a', doorId: 'g-door' },
+      { kind: 'flag', id: 'g-lift-b', flag: 'key-b', doorId: 'g-door' },
+    ] }));
+    expect(st.locked('g-door')).toBe(true);
+    st.press('pk-a', 0);
+    expect(st.locked('g-door')).toBe(true);
+    st.press('pk-b', 1);
+    expect(st.locked('g-door')).toBe(false);
+  });
 });
