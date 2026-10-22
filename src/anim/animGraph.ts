@@ -1874,19 +1874,30 @@ export class AnimGraph {
     // counter-rotation, sway, head motion and arm speed); 0 with the switch off, so the layer is exactly as above
     // (mocap-trial-2) and on the crouched capture's share (mcK, 0 with the switch off)
     const sM = o.keyMocap + this.mcK;
-    if (sM > 0) {
-      const L = MOCAP_LAYERS;
-      const s = sM;
-      const mo = o.motion;
-      const kt = mocapLayerK(L.motionTrunk, s);
-      mo.hipYaw *= kt;
-      mo.chestYaw *= kt;
-      mo.pelX *= mocapLayerK(L.motionSway, s);
-      mo.headFollow *= mocapLayerK(L.motionHead, s);
-      mo.headPitch *= mocapLayerK(L.motionNod, s);
-      // the cap lets go on the share it is off on (cap / 1 - share, as the gate eases it: Infinity at the full share)
-      mo.armSpeed /= mocapLayerK(L.motionArmCap, s);
-    }
+    if (sM > 0) this.mocapMotionLayer(o.motion, sM);
+  }
+
+  /**
+   * (mocap-trial) The mocap share `s` (> 0) of the motion layer: each part by its MOCAP_LAYERS scale (the capture holds its
+   * own trunk counter-rotation, sway, head motion and arm speed). (mocap-trial-2) Its own small method with the multipliers
+   * written out (`mocapLayerK`'s `scale === 1 ? 1 : layerMul`, as a ternary): in `bodyMotion`, past V8's inlining budget,
+   * each `mocapLayerK` call boxed its doubles, 6 a frame on the crouched capture (MT2-ALLOC.md). No allocation.
+   */
+  private mocapMotionLayer(mo: BodyMotion, s: number): void {
+    const L = MOCAP_LAYERS;
+    const aT = L.motionTrunk;
+    const kt = aT === 1 ? 1 : s === 1 ? aT : 1 + (aT - 1) * s;
+    mo.hipYaw *= kt;
+    mo.chestYaw *= kt;
+    const aS = L.motionSway;
+    mo.pelX *= aS === 1 ? 1 : s === 1 ? aS : 1 + (aS - 1) * s;
+    const aH = L.motionHead;
+    mo.headFollow *= aH === 1 ? 1 : s === 1 ? aH : 1 + (aH - 1) * s;
+    const aN = L.motionNod;
+    mo.headPitch *= aN === 1 ? 1 : s === 1 ? aN : 1 + (aN - 1) * s;
+    // the cap lets go on the share it is off on (cap / 1 - share, as the gate eases it: Infinity at the full share)
+    const aC = L.motionArmCap;
+    mo.armSpeed /= aC === 1 ? 1 : s === 1 ? aC : 1 + (aC - 1) * s;
   }
 
   /**
