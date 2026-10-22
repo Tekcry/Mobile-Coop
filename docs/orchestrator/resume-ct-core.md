@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~15:58 by the resumed CT Core session (overflow session). Every branch
+Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~16:03 by the resumed CT Core session (overflow session). Every branch
 below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
 
 ## Rules carried
@@ -31,10 +31,10 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
-| idle-shins | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | ef7246ea | Idle trackMul 0.05 kept (0.3 reverted, Michael). Cause: FootPlanner.reset (teleport) skipped the stance band, the feet crossed in-game until the first step. Fix: reset lifts each foot to the band floor (3 cm), widen only, Wren rigs only (4b2fe50f). Desktop anim-audit: frame-0 selfShanks rows gone (local 38 -> 8, remote 8 -> 3), fails 659 / 80 (#103 703 / 108); trade raise 60 selfThighs 2.52 at frame 0. /c/NightShift/ctb6.sh (a) runs check + e2e-anim e2e-move e2e-clip e2e-netmove (ctb6.out, ctb6-a*.log). | If ctb6 (a) green: PR (patch, train 4) with STATE's audit numbers; message the orchestrator. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | 2ea66da8 | Decision 5 built (e2e-move stop reads contactSlide, 2 cm kept, ankle printed). ctb6.sh (b) builds N1 and runs e2e-move, then e2e-clip --log (ctb6-clip-n1.log); (c) master origin/master e2e-clip --log in Mobile-Coop-master-audit (ctb6-clip-master.log). e2e-clip crouched arms -3.2 cm cause still open. | Read ctb6 (b)/(c): compare the LIMB frames N1 vs master; laptop: e2e-move e2e-anim e2e-clip then the 14 area suites; master 4.54.1 merge; GPU sheets (REPORT-B rows); PR (minor). Then STATE item 5. |
+| idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 555e7884 | PR #120 open (patch), master 4.54.1 merged. check 2684 ok; e2e-netmove / move / anim / clip ok; anim-audit frame-0 shins gone (659 / 80). Orchestrator: train 5. | Nothing unless train 5 fails. |
+| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | edb9bc23 | Decision 5 green (e2e-move 0.00 cm at the contact). e2e-clip FAILS crouched holstered -3.2 (right wrist / right thigh, crouched still t 5-16; master -2.7; N1 feet 1.1 cm wider). An agent (16:02) traces the cause headless and may commit a fix. | Agent result -> e2e-clip on the fix (desktop after Menu Notes and Course Ready, or laptop); laptop: e2e-move e2e-anim e2e-clip + the 14 area suites; master 4.54.1 merge; GPU sheets; PR (minor). Then STATE item 5. |
 | anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | e00fb62c | Step 2 (additive body layer, Wren only) built, checker FAIL, fix round done (A11 facing-frame crab reads, sway 0.7x). A1 (run key pop, Michael: "Only fix it if it will result in a more believable, realistic, less rigid run") KEPT and merged; run elbow key fixed (keyedWalk green). No desktop e2e on it yet. | STATE "Next": check + e2e-anim (new body motion block) + e2e-studio + e2e-netmove + e2e-clip; master merge (rebake run after #110 merges); steps 3-5 (arms + PASS2 items 7 / 9 + AUDIT fix 35, stills + PASS2 item 1 hit flinch, tuner section + bake). |
-| anim-bake-all | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ae0777ff | Master 4.54.1 merged (df512ab5); `cq` added to GENERIC_REFUSED (as clip; accepted, BAKE.md a850e103); tsc / lint / 9 test files ok. Laptop asked (15:55) for check + 11 logic suites on a850e103. | Laptop reply; desktop anim-audit; PR (minor, name the gameplay values). |
+| anim-bake-all | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ae0777ff | Master 4.54.1 merged; cq refused like clip (accepted). Laptop: check + 12 suites on a850e103 queued after train 4. Desktop anim-audit: /c/NightShift/ctb7.sh (16:00, frees the lock; ctb7.out, ctb7-audit.log). | Laptop verdict + ctb7 audit vs master; PR (minor, name the gameplay values). |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
 ## Test logs on the desktop
@@ -54,10 +54,11 @@ origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (f
 overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
 orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
 versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. idle-shins: read /c/NightShift/ctb6.out; if (a) is green, PR (patch) for train 4.
-2. N1: ctb6 (b)/(c) results (e2e-move with decision 5, e2e-clip --log N1 vs master: the crouched-arm cause), laptop
-   reruns, master merge, GPU sheets, PR.
+1. idle-shins: PR #120 open, in train 5. Nothing to do.
+2. N1: the crouched-arm e2e-clip fail (STATE "~16:00"; agent result or redo), then laptop reruns, master merge, GPU
+   sheets, PR.
 3. N2: step 2 desktop verification, then steps 3-5.
-4. anim-bake-all: the laptop reply (check + 11 suites on a850e103), desktop anim-audit, PR.
+4. anim-bake-all: the laptop verdict on a850e103 + /c/NightShift/ctb7-audit.log, then PR.
+Desktop lock order (orchestrator 16:02): Menu Notes, then Course Ready, then CT Core.
 Message "Night Shift | Orchestrator" at each slice, verdict and PR.
 ```
