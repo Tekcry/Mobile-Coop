@@ -47,6 +47,7 @@ import {
   DESK_HOLD,
   DESK_ITEM_Y,
   DESK_LOOP_END_LINE,
+  DESK_LOCKED_LINE,
   DESK_LOOP_LINE,
   DESK_MANNED_LINE,
   DESK_OFF,
@@ -133,6 +134,8 @@ export class SectorMode implements GameMode {
   private reinforceK = 0;
   private readonly connIn: ConnectorInput = { allInside: false, doorwayClear: true };
   private readonly doors: ConnDoors[] = [];
+  /** (E6 fix) The loaded section (its desks are the live ones); -1 while none is. Set before `run.index` moves on. */
+  private deskSec = -1;
   /** (sector-fixes-r RT; sector-redesign E3) The team doors: bolts, pair bolts and pair gates, their items and nav. */
   readonly team: SectorTeamDoors;
   /** (sector-redesign EW5, A4) The keypad codes the team holds (host / solo), the keypad items and the board items. */
@@ -437,11 +440,11 @@ export class SectorMode implements GameMode {
     const d = this.desks.defs[i];
     const it = this.deskIts[i] ?? null;
     const local = by === undefined || by === 'local';
-    if (!d || d.section !== this.run.index) return DESK_REFUSE_BAD;
+    if (!d || d.section !== this.deskSec) return DESK_REFUSE_BAD;
     const r = this.desks.use(i, this.deskManned(d));
     if (r < 0) {
       if (it) it.progress = 0;
-      if (local && r === DESK_REFUSE_MANNED) this.g.hud.feedItem(DESK_MANNED_LINE, 'warn');
+      if (local && r === DESK_REFUSE_MANNED) this.g.hud.feedItem(this.slotEnemy[d.operator!] ? DESK_MANNED_LINE : DESK_LOCKED_LINE, 'warn');
       return r;
     }
     this.deskApply();
@@ -461,7 +464,7 @@ export class SectorMode implements GameMode {
       const it = this.deskIts[i];
       if (!it) continue;
       it.label = deskLabel(m);
-      const on = d.section === this.run.index && m !== DESK_OFF;
+      const on = d.section === this.deskSec && m !== DESK_OFF;
       if (it.enabled !== on) this.g.interactables?.setEnabled(it, on);
       if (!on) it.progress = 0;
     }
@@ -508,6 +511,7 @@ export class SectorMode implements GameMode {
   /** Section `i` loads: its guards (unaware, on their routes; `?sectorGuards=N` caps them) and its devices. */
   private loadSection(i: number): void {
     const s = this.run.defs[i];
+    this.deskSec = s ? i : -1;
     this.ct?.setLive(s ? i : -1);
     // alarm panels: only this section's work, armed again; a panel alarm can be raised again (once per section load)
     this.g.stealth?.setLiveAlarms(s ? i : -1);
@@ -536,6 +540,7 @@ export class SectorMode implements GameMode {
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
     // (E6) the desks' loops and offs end with the section
+    this.deskSec = -1;
     this.desks.reset();
     this.deskApply();
   }

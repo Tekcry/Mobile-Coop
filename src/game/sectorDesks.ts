@@ -58,6 +58,8 @@ export const DESK_LABEL_LOOP = 'Loop cameras';
 export const DESK_LABEL_OFF = 'Switch cameras off';
 export const DESK_LABEL_DONE = 'Cameras off';
 export const DESK_MANNED_LINE = 'The operator is on watch. Take him out first.';
+/** (E6 fix) The refusal while the operator has not spawned yet (nobody to see at the desk). */
+export const DESK_LOCKED_LINE = "The console is locked from the operator's chair.";
 export const DESK_LOOP_LINE = 'Cameras looped.';
 export const DESK_OFF_LINE = 'Cameras switched off.';
 export const DESK_LOOP_END_LINE = 'Camera loop ended.';

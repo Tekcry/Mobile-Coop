@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Vector3 } from '../src/core/babylon';
-import { checkSectors, type SectorDef } from '../src/game/sectors';
+import { CONN_LOAD, CONN_UNLOCK_FAR, checkSectors, type SectorDef } from '../src/game/sectors';
 import {
   DESK_LABEL_DONE,
   DESK_LABEL_LOOP,
   DESK_LABEL_OFF,
   DESK_LOOP,
+  DESK_LOCKED_LINE,
   DESK_LOOP_END_LINE,
   DESK_LOOP_TIME,
   DESK_MANNED_LINE,
@@ -211,7 +212,8 @@ function stubGame() {
     interactables: ints,
     takedown: { active: null },
     nav: null,
-    hud: { barks: { say: () => undefined }, feedItem: (t: string) => feed.push(t) },
+    hud: { barks: { say: () => undefined }, feedItem: (t: string) => feed.push(t), banner: () => undefined },
+    events: { emit: () => undefined },
     net: { radioLine: (t: string) => net.push(t) },
     playerRefsInto: (out: unknown[]) => out,
   } as unknown as GameState;
@@ -222,6 +224,8 @@ interface ModeInternals {
   findDesks(): void;
   loadSection(i: number): void;
   unloadSection(): void;
+  connEvents(ev: number, prev: number): void;
+  beginSection(): void;
   slotEnemy: ({ alive: boolean; ko: boolean; pos: { x: number; z: number } } | null)[];
   pending: { k: number }[];
 }
@@ -268,10 +272,12 @@ describe('SectorMode desks (stub game)', () => {
   });
 
   it('an operator not spawned yet counts as at his post; a capped-out one as absent', () => {
-    const { m, mi } = setup();
+    const { m, mi, feed } = setup();
     mi.slotEnemy.length = 0;
     mi.pending.push({ k: 1 });
     expect(m.useDesk(0)).toBe(DESK_REFUSE_MANNED);
+    // (E6 fix, polish 2) nobody is at the desk yet: a neutral line, not "take him out"
+    expect(feed).toEqual([DESK_LOCKED_LINE]);
     mi.pending.length = 0;
     expect(m.useDesk(0)).toBe(DESK_USED_LOOP);
   });
@@ -290,6 +296,37 @@ describe('SectorMode desks (stub game)', () => {
     expect(items[0]!.enabled).toBe(false);
   });
 
+  it('(E6 fix) a connector change from section 0 to 1 makes desk 1 live and desk 0 dead', () => {
+    const { m, mi, items } = setup();
+    // the stub has none of the begin-section kit (weapons, lights, objective items): only the desk wiring is under test
+    mi.beginSection = () => undefined;
+    expect(m.run.objectiveDone()).toBe(true);
+    const IN = { allInside: true, doorwayClear: true };
+    let loaded = false;
+    let far = false;
+    for (let t = 0; t < 20 && !far; t += DT) {
+      const prev = m.run.index;
+      const ev = m.run.step(DT, IN);
+      if (!ev) continue;
+      mi.connEvents(ev, prev);
+      if (ev & CONN_LOAD) {
+        loaded = true;
+        // CONN_LOAD fires while run.index is still the previous section: the new section's desk is live already
+        expect(m.run.index).toBe(0);
+        expect(items[1]!.enabled).toBe(true);
+        expect(items[0]!.enabled).toBe(false);
+      }
+      if (ev & CONN_UNLOCK_FAR) far = true;
+    }
+    expect(loaded).toBe(true);
+    expect(far).toBe(true);
+    expect(m.run.index).toBe(1);
+    expect(items[1]!.enabled).toBe(true);
+    expect(items[0]!.enabled).toBe(false);
+    expect(m.useDesk(0)).toBe(DESK_REFUSE_BAD);
+    expect(m.useDesk(1)).toBe(DESK_USED_LOOP);
+  });
+
   it('a desk of a section that is not live refuses', () => {
     const { m } = setup();
     expect(m.useDesk(1)).toBe(DESK_REFUSE_BAD);
@@ -303,6 +340,10 @@ describe('SectorMode desks (stub game)', () => {
     // a restart: unload, then load the same section
     mi.unloadSection();
     expect(cams.get('cam-a')).toBe(DESK_NONE);
+    // (E6 fix) no section loaded: every desk refuses
+    expect(m.useDesk(0)).toBe(DESK_REFUSE_BAD);
+    mi.loadSection(0);
+    mi.pending.length = 0;
     m.useDesk(0);
     expect(cams.get('cam-a')).toBe(DESK_LOOP);
     mi.loadSection(0);
