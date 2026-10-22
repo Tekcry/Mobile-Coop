@@ -17,7 +17,9 @@ and their tests are in (11 tests pass). Not yet placed in any set (the slice bui
 - **Format.** Same as the facility kit (`build_kit.py`): one GLB, one mesh per (prop, material) named
   `<prop>.<material>`, triangulated, flat-shaded hard surface (sharp over 30 deg), no UVs. The game renderer owns the
   look by material name (`PROP_LOOK` in `src/world/props/facilityProps.ts`) and draws one thin-instanced mesh per
-  (prop, material), so a set of 40 racks is still one draw per material.
+  (prop, material), so a set of 40 racks is still one draw per material. (S9 perf: at run time every static opaque
+  pair - not screens, lamps, mesh / glass or a door-driven leaf - is baked into one mesh per material across the whole
+  map, `prop-static.<material>`; the 12-draw set budget stays as the authoring check. `slices/S9-perf.md`.)
 - **Frame.** Game metres: +X right, +Y up, +Z the prop's front. Free-standing props: origin at the footprint centre on
   the floor (y 0). Wall-mounted props (monitor wall): back on the wall face at z 0, facing +z. Hung props
   (`PROP_HUNG`: galleryScreen, signPlate, pushStation, timeLockPanel, wicketBolt, cableTray): origin at the bottom edge

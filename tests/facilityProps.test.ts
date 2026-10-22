@@ -33,6 +33,7 @@ import {
   snapPlacement,
   snapYaw,
   vaultDoorProps,
+  type PropMaterial,
   type PropPlacement,
 } from '../src/world/props/facilityProps';
 
@@ -260,7 +261,7 @@ describe('props build (facility-props.glb and its report)', () => {
     expect(props).toBeCloseTo(rifle > 0.5 ? 1 : 0, 2);
   });
 
-  it('draws one thin-instanced mesh per (prop, material) placed; lamps tint per instance; the vault leaf follows its door', async () => {
+  it('draws the static opaque props baked per material, the rest one thin-instanced mesh per (prop, material); lamps tint per instance; the vault leaf follows its door', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene } = await import('../src/core/babylon');
     const { Doors } = await import('../src/world/doors');
@@ -279,13 +280,21 @@ describe('props build (facility-props.glb and its report)', () => {
     const model = parseGlb(glb(path.join(ASSETS, 'facility-props.glb')));
     const r = PropRender.fromModel(scene, model, props.placements, doors.list);
     const placed = new Set(props.placements.map((p) => p.prop));
-    const want = Object.entries(report.pieces)
+    // (S9 perf) static (the leaf follows a door), opaque, one colour: baked into `prop-static.<material>`
+    const baked = (p: string, m: string): boolean => p !== 'vaultLeaf' && !PROP_LOOK[m as PropMaterial].emissive && PROP_LOOK[m as PropMaterial].alpha === undefined;
+    const pairs = Object.entries(report.pieces)
       .filter(([p]) => placed.has(p as never))
-      .flatMap(([p, rp]) => Object.keys(rp.meshes).map((m) => `prop-${p}.${m}`))
-      .sort();
+      .flatMap(([p, rp]) => Object.keys(rp.meshes).map((m) => [p, m] as const));
+    const want = [...pairs.filter(([p, m]) => !baked(p, m)).map(([p, m]) => `prop-${p}.${m}`), ...new Set(pairs.filter(([p, m]) => baked(p, m)).map(([, m]) => `prop-static.${m}`))].sort();
     expect(r.meshes.map((m) => m.name).sort()).toEqual(want);
     const mesh = (n: string) => r.meshes.find((m) => m.name === `prop-${n}`)!;
-    expect(mesh('serverRack.steelDark').thinInstanceCount).toBe(5);
+    // five racks' steelDark (and the other placed props' steelDark) in one baked mesh
+    const byName = new Map(model.meshes.map((g) => [g.name, g]));
+    const verts = pairs.filter(([p, m]) => m === 'steelDark' && baked(p, m)).reduce((s, [p]) => s + (byName.get(`${p}.steelDark`)!.positions.length / 3) * props.placements.filter((q) => q.prop === p).length, 0);
+    expect(props.placements.filter((q) => q.prop === 'serverRack').length).toBe(5);
+    expect(mesh('static.steelDark').getTotalVertices()).toBe(verts);
+    expect((mesh('static.steelDark').material!.metadata as { drawFirst?: boolean }).drawFirst).toBe(true);
+    expect(mesh('serverRack.mesh').material!.backFaceCulling).toBe(true);
     // lamps: green by default on the racks, red on the tower; a device state repaints one instance
     const lamps = r.colorsOf('prop-serverRack.lamp')!;
     expect(lamps[1]!).toBeGreaterThan(lamps[0]!);

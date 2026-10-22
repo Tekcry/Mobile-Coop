@@ -2,13 +2,18 @@
  * Draws a set's props (marlow-final M5 / A6; render side only, gameplay never reads it): the bundled props GLB
  * (scripts/facility-props, `npm run props:build`) read once with the operators' GLB reader, one thin-instanced mesh per
  * (prop, material) holding every placement of that prop (`facilityProps.ts` `propMatrix`), materials from `PROP_LOOK`
- * (PBR, lit by the baked lamps like the level; screens and lamps unlit emissive, coloured per instance). Props are not
+ * (PBR, lit by the baked lamps like the level; screens and lamps unlit emissive, coloured per instance). (S9 perf) The
+ * static opaque pairs (not the screens, lamps, see-through mesh / glass, or a prop that follows a door) are baked into one
+ * mesh per material (`kit/staticMerge.ts`: `prop-static.<material>`), drawn ahead of the level boxes inside them
+ * (`skinsFirst`); the see-through materials are back-face culled (one face of a closed slab per pixel). Props are not
  * shadow casters: the gameplay boxes under them cast (the canonical light shapes), so the picture's shadows match the
  * bake. Per frame (allocation-free) only the strongroom leaves move, following their `Door`'s drawn swing.
  */
 import { Color3, Mesh, PBRMaterial, StandardMaterial, VertexData, type Material, type Observer, type Scene } from '../../core/babylon';
 import { parseGlb, type GlbMesh, type GlbModel } from '../../operators/lab/glb';
 import { markLampLevel } from '../bakedLamps';
+import { bakedMesh } from '../kit/kitRender';
+import { markDrawFirst, useSkinsFirst, type BakePart } from '../kit/staticMerge';
 import { DOOR, leafFraction, type DoorState } from '../doors';
 import {
   PROP_LAMP_GAIN,
@@ -43,6 +48,8 @@ interface PropDraw {
 
 export class PropRender {
   private draws: PropDraw[] = [];
+  /** (S9 perf) The static opaque props, one baked mesh per material. */
+  private merged: Mesh[] = [];
   private materials: Material[] = [];
   private observer: Observer<Scene> | null = null;
   /** Per placement: the door state it follows (null: none) and its last drawn swing (-1: never drawn). */
@@ -74,6 +81,7 @@ export class PropRender {
   static fromModel(scene: Scene, model: GlbModel, placements: readonly PropPlacement[], doors: readonly DoorState[] = []): PropRender {
     const r = new PropRender(scene, placements, doors);
     if (scene.isDisposed) return r;
+    useSkinsFirst(scene);
     r.build(model.meshes);
     if (r.doorOf.some((d) => d)) r.observer = scene.onBeforeRenderObservable.add(() => r.frame());
     r.frame();
@@ -108,8 +116,11 @@ export class PropRender {
       if (look.alpha !== undefined) {
         pm.alpha = look.alpha;
         pm.transparencyMode = PBRMaterial.PBRMATERIAL_ALPHABLEND;
-        pm.backFaceCulling = false;
+        // (S9 perf) closed slabs: the front face only (as the kit's glass)
+        pm.backFaceCulling = true;
         pm.twoSidedLighting = true;
+      } else {
+        markDrawFirst(pm);
       }
       m = pm;
     }
@@ -119,6 +130,7 @@ export class PropRender {
   }
 
   private build(meshes: readonly GlbMesh[]): void {
+    const statics = new Map<PropMaterial, BakePart[]>();
     for (const g of meshes) {
       const dot = g.name.indexOf('.');
       const prop = g.name.slice(0, dot);
@@ -129,6 +141,16 @@ export class PropRender {
         if (p.prop === prop) list.push(i);
       });
       if (!list.length) continue;
+      const look = PROP_LOOK[mat];
+      // (S9 perf) static, opaque, one colour: baked with the rest of its material below
+      if (!look.emissive && look.alpha === undefined && !list.some((i) => this.doorOf[i])) {
+        const matrices = new Float32Array(list.length * 16);
+        for (let n = 0; n < list.length; n++) propMatrix(this.placements[list[n]!]!, matrices, n * 16);
+        let parts = statics.get(mat);
+        if (!parts) statics.set(mat, (parts = []));
+        parts.push({ geo: g, matrices, count: list.length });
+        continue;
+      }
       const idx = Int32Array.from(list);
       const mesh = new Mesh(`prop-${g.name}`, this.scene);
       const vd = new VertexData();
@@ -156,6 +178,7 @@ export class PropRender {
       this.draws.push(d);
       if (colors) this.paint(d);
     }
+    for (const [mat, parts] of statics) this.merged.push(bakedMesh(this.scene, `prop-static.${mat}`, parts, this.material(mat)));
   }
 
   private paint(d: PropDraw): void {
@@ -232,17 +255,19 @@ export class PropRender {
     return this.draws.find((d) => d.mesh.name === name)?.matrices ?? null;
   }
 
-  /** Every prop mesh (tests and the debug overlay count draws). */
+  /** Every prop mesh: the thin-instanced draws, then the baked static ones (tests and the debug overlay count draws). */
   get meshes(): Mesh[] {
-    return this.draws.map((d) => d.mesh);
+    return [...this.draws.map((d) => d.mesh), ...this.merged];
   }
 
   dispose(): void {
     if (this.observer) this.scene.onBeforeRenderObservable.remove(this.observer);
     this.observer = null;
     for (const d of this.draws) d.mesh.dispose();
+    for (const m of this.merged) m.dispose();
     for (const m of this.materials) m.dispose();
     this.draws = [];
+    this.merged = [];
     this.materials = [];
   }
 }

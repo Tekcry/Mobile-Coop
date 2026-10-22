@@ -112,6 +112,9 @@ return { ...layout, kit: kit.layout };       // MapLayout.kit: the drawn pieces
 
 - Draws: one thin-instanced mesh per (piece, material) placed: at most 33 for the whole map, whatever the instance
   count. No shadow-map draws (the skins are not casters) except the leaves' composite in the flashlights' lists.
+  (S9 perf: at run time the static opaque pairs - every piece but the leaves; not the LEDs, status bars or glass - are
+  baked into one mesh per material, `kit-static.<material>`, so the map draws ~16; the kit's opaque materials draw ahead
+  of the level boxes they clad; glass is back-face culled. `src/world/kit/staticMerge.ts`, `slices/S9-perf.md`.)
 - Triangles: 2100 for one of every piece; a typical 12 x 20 m area (clad walls both faces, 6 columns, 3 slots,
   2 sliding doors, a glazed side) is about 25-35 k. Area budget: <= 60 k kit triangles per area, checked with
   `kitTriangles(layout, report)`. The frame budget is 8 M triangles over every pass.

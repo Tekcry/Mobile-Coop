@@ -12,6 +12,7 @@ import { LevelBuilder } from '../src/world/levelBuilder';
 import {
   FacilityKit,
   KIT_BOX_COLOR,
+  KIT_LOOK,
   KIT_MATERIALS,
   KIT_MODULE,
   KIT_PIECES,
@@ -27,6 +28,7 @@ import {
   snapYaw,
   tileRun,
   type KitInstance,
+  type KitMaterial,
 } from '../src/world/kit/facilityKit';
 
 const ASSETS = path.resolve(__dirname, '../src/world/kit/assets');
@@ -329,7 +331,7 @@ describe('kit build (facility-kit.glb and its report)', () => {
     expect(kitShare).toBeCloseTo(rifle > 0.5 ? 1 : 0, 2);
   });
 
-  it('draws one thin-instanced mesh per (piece, material) placed; the leaves follow the door, the bar its lock', async () => {
+  it('draws the static opaque pieces baked per material, the rest one thin-instanced mesh per (piece, material); the leaves follow the door, the bar its lock', async () => {
     const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
     const { Scene } = await import('../src/core/babylon');
     const { Doors } = await import('../src/world/doors');
@@ -341,6 +343,7 @@ describe('kit build (facility-kit.glb and its report)', () => {
     const door = kit.slidingDoor(0, 0, 2, Math.PI / 2, { locked: true });
     kit.ledSlot(0, 3, 2, 4.8, 0, { light: { group: 1 } });
     kit.skirting(0, 4, 3, Math.PI, { group: 1 });
+    kit.glass(-6, 6, -2, 6, 3);
     const engine = new NullEngine();
     const scene = new Scene(engine);
     const doors = new Doors(scene, b.anchors);
@@ -349,14 +352,23 @@ describe('kit build (facility-kit.glb and its report)', () => {
     const r = KitRender.fromModel(scene, model, kit.layout, doors.list, b.lights, (m) => casters.push(m));
     const names = r.meshes.map((m) => m.name).sort();
     const placed = new Set(kit.instances.map((i) => i.piece));
-    const want = Object.entries(report.pieces)
+    // (S9 perf) static (not the leaves), opaque, one colour: baked into `kit-static.<material>`
+    const baked = (p: string, m: string): boolean => p !== 'doorLeaf' && !KIT_LOOK[m as KitMaterial].emissive && KIT_LOOK[m as KitMaterial].alpha === undefined;
+    const pairs = Object.entries(report.pieces)
       .filter(([p]) => placed.has(p as never))
-      .flatMap(([p, rp]) => Object.keys(rp.meshes).filter((m) => !(p === 'ledSlot' && m === 'led')).map((m) => `kit-${p}.${m}`))
-      .sort();
+      .flatMap(([p, rp]) => Object.keys(rp.meshes).filter((m) => !(p === 'ledSlot' && m === 'led')).map((m) => [p, m] as const));
+    const want = [...pairs.filter(([p, m]) => !baked(p, m)).map(([p, m]) => `kit-${p}.${m}`), ...new Set(pairs.filter(([p, m]) => baked(p, m)).map(([, m]) => `kit-static.${m}`))].sort();
     expect(names).toEqual(want);
     const mesh = (n: string) => r.meshes.find((m) => m.name === `kit-${n}`)!;
-    expect(mesh('wallPanel.composite').thinInstanceCount).toBe(kit.instances.filter((i) => i.piece === 'wallPanel').length);
+    // the baked composite holds every placed static composite piece's vertices once per instance
+    const byName = new Map(model.meshes.map((g) => [g.name, g]));
+    const verts = pairs.filter(([p, m]) => m === 'composite' && baked(p, m)).reduce((s, [p]) => s + (byName.get(`${p}.composite`)!.positions.length / 3) * kit.instances.filter((i) => i.piece === p).length, 0);
+    expect(mesh('static.composite').getTotalVertices()).toBe(verts);
+    expect(mesh('static.composite').thinInstanceCount).toBe(0);
     expect(casters).toEqual([mesh('doorLeaf.composite')]);
+    // the opaque skins draw ahead of the level boxes (their material is marked; the scene's opaque queue sorts them first)
+    expect((mesh('static.composite').material!.metadata as { drawFirst?: boolean }).drawFirst).toBe(true);
+    expect(mesh('glassClear.glass').material!.backFaceCulling).toBe(true);
     // the status bar is red while locked; green once unlocked (next frame)
     const status = mesh('doorFrame.status');
     const col = () => r.colorsOf(status.name)!;
@@ -392,6 +404,37 @@ describe('kit build (facility-kit.glb and its report)', () => {
     r.dispose();
     scene.dispose();
     engine.dispose();
+  });
+
+  it('(S9 perf) bakes instances as the instanced shader places them; the skins sort ahead of the opaque queue', async () => {
+    const { bakeParts, skinsFirst } = await import('../src/world/kit/staticMerge');
+    const g = parseGlb(glb(path.join(ASSETS, 'facility-kit.glb'))).meshes.find((m) => m.name === 'column.metal')!;
+    const inst = [
+      { x: 3, y: 0.5, z: -2, yaw: 0.7, sx: 1.3, sy: 0.8, sz: 1.1 },
+      { x: -10, y: 0, z: 40, yaw: Math.PI / 2, sx: 1, sy: 1, sz: 1 },
+    ];
+    const matrices = new Float32Array(32);
+    inst.forEach((p, n) => kitMatrix(p, matrices, n * 16));
+    const b = bakeParts([{ geo: g, matrices, count: 2 }, { geo: g, matrices: matrices.subarray(16), count: 1 }]);
+    const gv = g.positions.length / 3;
+    expect(b.positions.length).toBe(gv * 3 * 3);
+    expect(b.indices.length).toBe(g.indices.length * 3);
+    expect(Math.max(...b.indices)).toBe(gv * 3 - 1);
+    for (const [n, base] of [[0, 0], [1, gv], [1, 2 * gv]] as const) {
+      const m = Matrix.FromArray(matrices, n * 16);
+      for (const i of [0, 7, gv - 1]) {
+        const p = Vector3.TransformCoordinates(Vector3.FromArray(g.positions, i * 3), m);
+        const q = Vector3.TransformNormal(Vector3.FromArray(g.normals, i * 3), m).normalize();
+        for (let a = 0; a < 3; a++) {
+          expect(b.positions[(base + i) * 3 + a]).toBeCloseTo(p.asArray()[a]!, 4);
+          expect(b.normals[(base + i) * 3 + a]).toBeCloseTo(q.asArray()[a]!, 5);
+        }
+      }
+      expect(b.indices[(base / gv) * g.indices.length]).toBe(g.indices[0]! + base);
+    }
+    const sub = (id: number, first: boolean) => ({ getMesh: () => ({ uniqueId: id, material: { uniqueId: id, metadata: first ? { drawFirst: true } : null } }) }) as never;
+    const order = [sub(1, false), sub(9, true), sub(3, false), sub(5, true)].sort(skinsFirst).map((s) => (s as { getMesh(): { uniqueId: number } }).getMesh().uniqueId);
+    expect(order).toEqual([5, 9, 1, 3]);
   });
 
   it('counts a layout\'s triangles from the report (an area budget check)', () => {
