@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased - jammer-fixes (feature/jammer-fixes)
+## 4.52.0 - Train 1: server browser and jammer fixes; protocol 28 (2026-10-22, PR #111; #99, #108)
+
+### #108 Jammer fixes
 - A jammed lamp comes back in the state its wall switch, EMP or a shot gives it at the end of the jam, not the state it
   had when the jam started: a group switched off (or EMPed) during a jam stays dark through the flicker, on the host and
   the client alike (light parity). The light registry keeps the switches' state under the jam.
@@ -12,7 +14,7 @@
 - The jam buzz no longer allocates an object every frame while a device is jammed.
 - Not changed (Michael 2026-10-22): cameras keep their IR on every camera ("Cameras should still work in the dark").
 
-## Unreleased - server browser (prototype)
+### #99 Server browser (prototype)
 - Co-op: public rooms (Michael: a server browser, "prototype only, quick and fast to build"). The host lobby has a
   Room row, Private (default: only the code brings anyone in) or Public. A public room posts a notice (code, map, mode,
   version, players, host name) on the same relays as every room, every 30 s and to anyone who opens the list; it is
