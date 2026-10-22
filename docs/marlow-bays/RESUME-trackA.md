@@ -52,3 +52,34 @@ characterRig.ts, tuneStep.ts, footPlanner.ts, player.ts. Checker's two findings 
    the sim's fixed lift timeline and make "stay down until a foot lands" animation-only.
 3. (note) Remote carries get no N4 effect (body carry not on the wire, pre-existing); reword the tuner note "read by
    every rig holding or carrying". Minor: `cqRows()` once per frame rather than per rig; no bake re-run no-op test.
+
+## Resume prompt (new session, no history)
+
+```
+Night Shift | Course Ready Build (track A), resuming after an account handoff. Read CLAUDE.md, docs/ROADMAP.md and
+docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (its "Open jobs", "N4 checker" and "Rules carried"
+sections). Report to "Night Shift | Orchestrator" at each PR; one agent at a time; check get_usage before each agent
+(97%: start none; 98%: commit, push, update RESUME-trackA.md; stopped by 99%). Desktop: full vitest / check / e2e
+take C:/NightShift/heavy.lock atomically `( set -o noclobber; echo "<session> | <job> | <time>" > C:/NightShift/heavy.lock )`,
+delete only if it still names you; the laptop (Character Build) runs train / full suites.
+
+State at handoff (2026-10-22 ~13:00):
+- PR Tekcry/Mobile-Coop#105 (item 24 guard tuning, feature/guard-tune e8cdba4e, worktree C:/NightShift/Mobile-Coop-guard-tune)
+  and PR #109 (clip-speed, feature/clip-speed f92747c4, worktree C:/NightShift/Mobile-Coop-clip-speed, contains #105):
+  both green on the laptop, in merge train/2 (the orchestrator merges). Nothing to do unless the train fails.
+- anim-natural N4 holds and carries: feature/anim-n4 082be068 (from master 71ce1bff), worktree
+  C:/NightShift/Mobile-Coop-anim-n4, pushed, no PR. Checker verdict FIX. Next:
+  1. One fix round (one fresh Opus agent) on N4 checker items 1 and 2 in RESUME-trackA.md: (1) scale the carry lean
+     and hip shift by a load share (0 until the hoist, 1 carrying, easing out over dropHand on the drop) + a test that
+     lift t = 0.4 shows no lean; (2) keep the controller crouch on the sim's fixed lift timeline (no rig.planner read in
+     src/game/stealthSystems.ts) and make "stay down until a foot lands" animation-only; also reword the tuner note
+     (item 3). Then tsc, the cqGait test file, and under the heavy lock full vitest, build, e2e-anim and e2e-studio.
+  2. Merge origin/master into feature/anim-n4 (CHANGELOG / TESTING / tuneBakeTable / anim-tune-bake.mjs / tunerLayout
+     conflicts: keep both sides), push.
+  3. Open the PR to master (body: what changed, before/after counterCorr hold +0.85 -> -0.76, carry +0.95 -> -0.91,
+     lift slide 20.9 -> 0 cm, hooks in animGraph.ts / characterRig.ts marked "(anim-n4, track A)", carry-walk 8.7 cm
+     slide left for N1, remote carries get no N4 effect), ask Character Build for check + e2e-anim + e2e-studio +
+     e2e-menus, report the PR to the orchestrator, and tell CT Core the two N1 items (slow-walk late-stance toe slide;
+     start-turn pivot) if the orchestrator has not.
+  4. Update RESUME-trackA.md and wait for the orchestrator's next job (N4 rows in track A files after the N0 audit).
+```
