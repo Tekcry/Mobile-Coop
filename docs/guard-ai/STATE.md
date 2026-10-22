@@ -7,8 +7,13 @@ S1 Hearing (PLAN.md): Opus implementer, then a fresh checker.
 S2 incident board, S3 radio net, then S4-S10 in PLAN order.
 
 ## Open
-- Data shapes: proposed to Course Ready (sector-redesign, ENGINE.md section 7 read) and Menu Notes (marlow-final) by
-  message 2026-10-23 ~02:10; waiting on their replies (PLAN.md "Data shapes").
+- Data shapes: proposed to Course Ready (sector-redesign, ENGINE.md section 7 read) ~02:10; waiting on its reply.
+  Menu Notes AGREED ~02:15: `MapLayout.guardAi` yes (Marlow fills zones = one section per set A1-A8, noisy = A5
+  transformers / A6 pumps, once our types reach master); `SquadSlot.post` fine (A1 checker `post: { leash: 0 }`;
+  high-security posts in A4 security room, A8 strongroom); Course mode already sets `em.stealth = true` on their branch:
+  do NOT set it in a hook; body callback in src/security beside onEvent fine. Their branch also touches mapDef.ts
+  (`MapLayout.props`, kit), spawnSquad uses `em.despawn`, `StealthSystems.isolate()` (timed light isolators = a
+  lights-out lure), sliding doors (`leaf: 'slide'`): expect small merges.
 - Protocol 32 only if S9 is needed (marlow-final 30, sector-redesign 31).
 - A11: Sector Ops melee tour guards vs "every guard armed" (Course Ready's data).
 
