@@ -10,7 +10,7 @@ before `git worktree remove`):
   (report slices/S4.md, BRIEF A14-A16).
 - S5 posts + map data: C:/NightShift/Mobile-Coop-guard-ai-s5, feature/guard-ai-s5, Opus implementer RUNNING
   (slices/S5.md, A17-A19).
-- S7 cameras see bodies: C:/NightShift/Mobile-Coop-guard-ai-s7, feature/guard-ai-s7, Opus implementer RUNNING
+- S7 cameras see bodies: C:/NightShift/Mobile-Coop-guard-ai-s7, feature/guard-ai-s7, BUILT 084e373c (pushed); fresh checker RUNNING (S7-CHECK.md); e2e asked of Character Build (sectorops, ctcourse, stealth-ai, ct-warehouse)
   (slices/S7.md, A20-A22).
 - S8 tactics: C:/NightShift/Mobile-Coop-guard-ai-s8, feature/guard-ai-s8, Opus implementer started ~09:25
   (slices/S8.md, A23-A25).
