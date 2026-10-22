@@ -9,3 +9,4 @@ kind: minor
 - Camera limit: 12 cameras live per Sector section (was 12 per map), at most 16 per map.
 - Sector Ops co-op: the host's lights (switched circuits, shot lamps; jams as before) now match on the client's screen, light meter and guard reads; a client can shoot lamps out through the host (protocol 31, slice L).
 - Sector Ops: new map campusOps (Saltmarsh Park), S1 greybox playable; not yet listed.
+- Sector Ops engine: breaker and timed isolator boards (`MapLayout.boards`): cut light circuits until switched back or for a timed window (default 20 s), a guard comes to look, restart puts them back, co-op lamps follow (no map uses them yet).

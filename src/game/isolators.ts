@@ -1,0 +1,154 @@
+import type { Vector3 } from '../core/babylon';
+import { groupBaseOn, type LightRegistry } from '../world/lights';
+
+/**
+ * (sector-redesign E4, EW8, A11 / A37 / A38) Breaker and timed isolator boards: a board interactable that cuts one or
+ * more light circuits (`LightDef.group`). A breaker (`window` unset or 0) stays cut until a player switches it back; a
+ * timed isolator (`window` > 0 s) cuts for that window, then the circuit comes back on its own with a cue (the switch
+ * click, the board's indicator lit again, a feed line). A player-started window, never an area clock (A38).
+ *
+ * It drives the lamps only through `LightRegistry.setGroup`, the same path a wall switch takes, so the light field,
+ * the meter and the guards read the cut alike (light parity), a cut calls the sink's `cut` (the game sends the
+ * nearest calm armed guard via `EnemyManager.lightsOut`, as a wall switch does), and the co-op client's lamps follow
+ * through slice L's `lamps` message (the registry's base state; no wire change). Host / solo only: the client never
+ * builds boards (it mirrors the board items and sends `use`). Pure (no Babylon at runtime); `update` allocates nothing.
+ */
+
+/** A timed isolator's default window (s): data that wants a timed board without naming one uses this. */
+export const ISOLATOR_WINDOW = 20;
+/** Board reach from the feet (m): the wall switch's reach (`stealthSystems.ts`). */
+export const BOARD_REACH = 1.3;
+
+/** A board on a wall (facing `yaw`) in `MapLayout.boards` (what a map's `build` returns, next to `switches`). */
+export interface BoardDef {
+  pos: Vector3;
+  yaw: number;
+  /** The light circuits it cuts (`LightDef.group`), at least one. */
+  groups: readonly number[];
+  /** Seconds a timed isolator keeps them cut (> 0); unset or 0: a breaker (cut until switched back). */
+  window?: number;
+}
+
+/** What `use` did. */
+export const BOARD_NONE = 0;
+export const BOARD_CUT = 1;
+export const BOARD_BACK = 2;
+
+/** How a circuit came back (`BoardSink.back`). */
+export const BACK_HAND = 0;
+export const BACK_TIMER = 1;
+
+/** The game side of a board (labels, indicator, cue, the guards). */
+export interface BoardSink {
+  /** Board `i` cut its circuits (at x, z: the guards' `lightsOut`). */
+  cut(i: number, x: number, z: number): void;
+  /** Board `i` put its circuits back (`BACK_HAND` a player or a guard's switch-back, `BACK_TIMER` a window's end). */
+  back(i: number, how: number): void;
+}
+
+export class IsolatorBoards {
+  /** Per board: 1 its circuits are cut. */
+  readonly cut: Uint8Array;
+  /** Per board: seconds of a running window left (0: none). */
+  readonly left: Float64Array;
+  /** Windows that ran out and brought their circuits back (tests). */
+  returns = 0;
+  private running = 0;
+
+  constructor(
+    readonly defs: readonly BoardDef[],
+    private readonly reg: LightRegistry,
+    private readonly sink: BoardSink | null = null,
+  ) {
+    this.cut = new Uint8Array(defs.length);
+    this.left = new Float64Array(defs.length);
+    this.follow();
+  }
+
+  /** Board `i` is a timed isolator. */
+  timed(i: number): boolean {
+    return (this.defs[i]?.window ?? 0) > 0;
+  }
+
+  /** A player used board `i` (host: the local player or a client's checked `use`): cut, or (a breaker) switch back. */
+  use(i: number): number {
+    const d = this.defs[i];
+    if (!d) return BOARD_NONE;
+    if (!this.cut[i]) {
+      this.cut[i] = 1;
+      for (let k = 0; k < d.groups.length; k++) this.reg.setGroup(d.groups[k]!, false);
+      const w = d.window ?? 0;
+      if (w > 0) {
+        this.left[i] = w;
+        this.running++;
+      }
+      this.sink?.cut(i, d.pos.x, d.pos.z);
+      return BOARD_CUT;
+    }
+    // a running window is the player's: the board does nothing until it runs out
+    if (this.left[i]! > 0) return BOARD_NONE;
+    this.restore(i, BACK_HAND);
+    return BOARD_BACK;
+  }
+
+  /**
+   * GA4 hook point: guard-ai calls this when a guard who reached a cut board switches it back (the circuits on, a
+   * running window dropped). Nothing calls it yet: guards do not relight lamps until guard-ai provides it (SPEC
+   * "Lighting rules"); this slice adds no guard behaviour. False when the board is not cut.
+   */
+  switchBack(i: number): boolean {
+    if (!this.cut[i]) return false;
+    this.restore(i, BACK_HAND);
+    return true;
+  }
+
+  /** Fixed step: running windows count down; one that runs out brings its circuits back exactly once. Returns how many
+   *  came back this step. No allocation. */
+  update(dt: number): number {
+    if (this.running === 0) return 0;
+    let n = 0;
+    const left = this.left;
+    for (let i = 0; i < left.length; i++) {
+      const t = left[i]!;
+      if (t <= 0) continue;
+      const r = t - dt;
+      if (r > 0) {
+        left[i] = r;
+        continue;
+      }
+      this.restore(i, BACK_TIMER);
+      this.returns++;
+      n++;
+    }
+    return n;
+  }
+
+  /** (A50) A section restart, before the lamps are put back: every running window is dropped (nothing relit by it). */
+  cancel(): void {
+    this.left.fill(0);
+    this.running = 0;
+  }
+
+  /** Each idle board reads its circuits again (cut while none of its groups is on by its switches): after a restart's
+   *  lamps were put back, or a wall switch moved a shared circuit. A running window keeps its board cut. */
+  follow(): void {
+    for (let i = 0; i < this.defs.length; i++) {
+      if (this.left[i]! > 0) continue;
+      const gs = this.defs[i]!.groups;
+      let on = false;
+      for (let k = 0; k < gs.length && !on; k++) on = groupBaseOn(this.reg, gs[k]!);
+      this.cut[i] = on ? 0 : 1;
+    }
+  }
+
+  private restore(i: number, how: number): void {
+    const d = this.defs[i]!;
+    if (this.left[i]! > 0) {
+      this.left[i] = 0;
+      this.running--;
+    }
+    this.cut[i] = 0;
+    for (let k = 0; k < d.groups.length; k++) this.reg.setGroup(d.groups[k]!, true);
+    this.sink?.back(i, how);
+  }
+}
