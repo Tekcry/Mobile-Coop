@@ -26,7 +26,11 @@ export type BarkEvent =
   | 'standDown'
   | 'missing'
   // (guard-ai S3, design 5) a guard joining on a shout or a radio call
-  | 'joining';
+  | 'joining'
+  // (guard-ai S4, design 4 / 10) bodies: waking a knocked-out squadmate, the reports
+  | 'koFound'
+  | 'koReport'
+  | 'deadReport';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -52,12 +56,15 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   standDown: ['Nothing here. Back to it.'],
   missing: ["He's not answering. Two of us, go."],
   joining: ['Copy, moving!', 'On my way!', 'Coming to you!'],
+  koFound: ['Hey. Hey! Wake up.'],
+  koReport: ["Found him out cold. He's okay, checking around."],
+  deadReport: ['Man down. Stay sharp.', 'We lost one. Stay sharp.'],
 };
 
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport']);
 /** Urgent lines cut through a speaker's cooldown. */
-const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn']);
+const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport']);
 
 export const BARK = {
   /** Seconds between one speaker's lines; on screen this long. */

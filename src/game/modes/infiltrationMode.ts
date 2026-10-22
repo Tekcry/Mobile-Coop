@@ -93,6 +93,7 @@ export class InfiltrationMode implements GameMode {
       if (r && !q.slot.free) e.hold = r;
       em.joinSquad(e, q.room);
       if (q.slot.route) e.setPatrol({ points: q.slot.route, wait: q.slot.wait, waits: q.slot.waits, faces: q.slot.faces, start: q.slot.start, loop: q.slot.loop });
+      em.placeSlot(e, q.slot); // (guard-ai S5) post, profile, section
       this.pending.splice(i, 1);
     }
   }
