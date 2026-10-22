@@ -13,7 +13,7 @@ import { MOVEMENT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { hyp2 } from '../src/core/mathx';
 import { attachRange } from '../src/player/attach';
 import { TAKEDOWN } from '../src/game/takedown';
-import { LEAP_APEX, MANTLE, soloJumpThreats } from './helpers/soloJumpReach';
+import { LEAP_APEX, MANTLE, soloJumpThreats, soloTopLandingThreats } from './helpers/soloJumpReach';
 
 const b = new LevelBuilder();
 warehouseOps.build(b, 0);
@@ -74,6 +74,11 @@ describe('R1 plant-room service door (yard to the plant deck)', () => {
 
   it('(sector-fixes-r fix) no solo top on the yard side within a top-gear running jump of the sill (the in-air grab)', () => {
     expect(soloJumpThreats(solid, { y: d.sill, a: { x: d.x0, z: d.z0 }, b: { x: d.x1, z: d.z0 }, n: { x: 0, z: -1 } })).toEqual([]);
+  });
+
+  it('(sector-fixes-r2 jump) no solo top on the yard side lands a top-gear running jump on the sill (the step-up), 0.5 m to spare', () => {
+    // the deck and the plant room (north of the facade) are the planned solo way on from inside (the mantle back)
+    expect(soloTopLandingThreats(solid, { x0: d.x0, x1: d.x1, z0: d.z0, z1: d.z1, top: d.sill }, (p) => p.c[2] > d.z0, 0.5)).toEqual([]);
   });
 
   it('ways down alone: the deck 1.1 m under the sill (mantle back), the roof lips of the notch 1.6 m over it, the yard drop', () => {

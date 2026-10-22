@@ -13,7 +13,7 @@ import { findJumpTarget, generateLedges, type Ledge } from '../src/world/anchors
 import { MOVEMENT, SPLIT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { inBoostBand, ropeRoom } from '../src/game/teamMoves';
 import { hyp2 } from '../src/core/mathx';
-import { soloJumpReach, soloJumpThreats } from './helpers/soloJumpReach';
+import { soloJumpReach, soloJumpThreats, soloTopLandingReach, soloTopLandingThreats } from './helpers/soloJumpReach';
 
 const b = new LevelBuilder();
 warehouseOps.build(b, 0);
@@ -167,6 +167,26 @@ describe('R2 no unplanned solo access to the high bays', () => {
 
   it('out of a solo wall jump from the floor', () => {
     for (const l of coopLips) expect(l.top).toBeGreaterThan(WALL_JUMP.maxUp + 0.49);
+  });
+});
+
+// (sector-fixes-r2 jump) a running jump off a 4.0 rack top that meets a 4.4 top's face with the feet within the
+// controller's step (MOVEMENT.maxStep) of it steps up onto it: R3's west faces sit far enough across A3 for that
+describe('R2 no solo top landing on a co-op top (the step-up)', () => {
+  const R2_EAST = -14.65 + 2.3 / 2;
+  const tops = [
+    ...S2_COOP.map((r) => ({ name: r.name, x0: r.bay[0], z0: r.bay[1], x1: r.bay[2], z1: r.bay[3], top: S2_HIGH_TOP })),
+    { name: 'the landing (C2)', x0: L.x0, x1: L.x1, z0: L.z0, z1: L.z1, top: L.top },
+  ];
+
+  it('A3 between R2 (4.0) and R3 (4.4) clears the top-landing reach by 0.5 m (read from the movement tables)', () => {
+    const reach = soloTopLandingReach(4.0, S2_HIGH_TOP);
+    for (const r of S2_COOP) expect(r.bay[0] - R2_EAST - reach, r.name).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it('no solo top within a top-gear running jump that lands on a high bay or the landing, with 0.5 m to spare', () => {
+    const skip = (p: BoxPiece): boolean => bayPieces.includes(p) || !inHall(p.c[0], p.c[2], 3) || (bottom(p) > 4.0 && p.c[0] > L.x0 - 0.05);
+    for (const q of tops) expect(soloTopLandingThreats(solid, q, skip, 0.5), q.name).toEqual([]);
   });
 });
 

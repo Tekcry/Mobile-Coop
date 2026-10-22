@@ -13,7 +13,7 @@ import { MOVEMENT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { inBoostBand, ropeRoom } from '../src/game/teamMoves';
 import { hyp2 } from '../src/core/mathx';
 import facts from '../scripts/kestrel/facts.json';
-import { soloJumpThreats } from './helpers/soloJumpReach';
+import { soloJumpThreats, soloTopLandingThreats } from './helpers/soloJumpReach';
 
 const b = new LevelBuilder();
 warehouseOps.build(b, 0);
@@ -141,6 +141,10 @@ describe.each(PLATS)('R3 $name', ({ q, boost, railed }) => {
     const near: string[] = [];
     for (const l of lips) if (l.canHang) for (const t of soloJumpThreats(solid, { y: l.top, a: l.a, b: l.b, n: { x: l.nx, z: l.nz } }, (p) => own(p, q))) near.push(t);
     expect(near).toEqual([]);
+  });
+
+  it('(sector-fixes-r2 jump) no solo top lands a top-gear running jump on the platform (the step-up), 0.5 m to spare', () => {
+    expect(soloTopLandingThreats(solid, q, (p) => own(p, q), 0.5)).toEqual([]);
   });
 
   it('ways down alone: let go over open floor (nothing under the boost lip); a reviver reaches it alone along the main', () => {
