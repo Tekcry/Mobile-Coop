@@ -81,6 +81,9 @@ Train 1 merged as #111 (#99 + #108; #105 left on a real e2e-menus failure, fixed
 (`node <it> CHANGELOG.md`, incoming block first); drop stray "Unreleased - <job>" headings a member already released.
 
 ## Known
+- 2026-10-22 ~17:30 (full burn load): the desktop sits at ~99% CPU with every session's agents; e2e-coop / e2e-netmove /
+  e2e-ctcourse die at 600 s there. Rule until load drops: those three go to the laptop only; desktop e2e at JOBS=1 while
+  agents run; GPU work stays on the desktop.
 - e2e-netmove doorPeek fails on master-based branches until CT Core's remote-feet fix (e4d85253, on ct-prototype)
   reaches master with the anim-rework PR: count it as known.
 - Co-op suites time out under load; accept a full run where the load failures pass solo on the same commit (test-speed
