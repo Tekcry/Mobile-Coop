@@ -70,7 +70,7 @@ import {
 } from './scanners';
 import { passZoneNeed, type PassZone } from './passZones';
 import type { CourseDevice } from './course/courseDef';
-import { cameraOff } from './course/securityRoom';
+import { cameraOff, consoleCamMode } from './course/securityRoom';
 import {
   PANEL,
   PANEL_LED_PART,
@@ -900,13 +900,15 @@ export class CtDevices {
       if (fOff) this.flagOff.add(id);
       else this.flagOff.delete(id);
       if (ph !== DEV_IDLE || this.dead.has(id) || fOff) {
-        if (c.mode === 'online') {
-          c.setMode('off');
+        // (marlow-final N3) a console loops the feed ('looped', blind); a jam or a dead device switches it off
+        const m = ph === DEV_IDLE && !this.dead.has(id) ? consoleCamMode() : 'off';
+        if (c.mode === 'online' || (this.camOff.has(id) && c.mode !== m && c.mode !== 'destroyed')) {
+          c.setMode(m);
           this.camOff.add(id);
         }
       } else if (this.camOff.has(id)) {
         this.camOff.delete(id);
-        if (c.mode === 'off') c.setMode('online');
+        if (c.mode === 'off' || c.mode === 'looped') c.setMode('online');
       }
     }
     for (let i = 0; i < this.lasers.length; i++) {

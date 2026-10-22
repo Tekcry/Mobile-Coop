@@ -88,6 +88,12 @@ The template's "existing systems only" is the default (T12). This map is a proto
 7. Hyphens, never em dashes. British spelling in all game text. Text lines 90 characters or less (`COURSE_TEXT_MAX`).
 8. Branch guard before every write; no `npm run dev` or watch modes from agents; heavy runs take `heavy.lock`; GPU work
    and the slice e2e tier go to Character Build on the laptop (CLAUDE.md "Sessions").
+9. (Michael ~01:25, "Every map") No melee-only guards: every guard slot is an armed kind (`grunt`, `heavy`, `enforcer`,
+   `officer`, `sniper`; never `runner`). Data only. Guard behaviour belongs to the Guard AI Build session: no edits in
+   `src/ai/*` from this job; a needed AI change is reported to the job lead.
+10. (Michael ~01:25, cameras "Keep IR everywhere") G240 stands: darkness beats guards and the meter, never cameras.
+    Cameras are beaten by the jammer, a console loop or a shot only. Any proposal that assumes a dark camera is blind
+    is rejected.
 
 ## 5. Building brief: the fiction and the facility
 - **Building type and era.** A 2024 private rehearsal centre built inside the shells of a Victorian railway goods yard
