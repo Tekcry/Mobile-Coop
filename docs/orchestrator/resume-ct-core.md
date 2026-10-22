@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~16:48 by the resumed CT Core session (overflow session). Every branch
+Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~17:02 by the resumed CT Core session (overflow session). Every branch
 below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
 
 ## Rules carried
@@ -32,9 +32,9 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | --- | --- | --- | --- | --- |
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
 | idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | c25ab4ba | Desktop on 7955f883: check ok, e2e-move ok, e2e-clip ok (crouched -2.9). e2e-anim FAIL: turn feet block "jog 180 first swing frames 5.29 m/s (<= 5)" (/c/NightShift/ctb8.log:156). An implementer agent on the planner fix (headless, footTurnHarness) started 16:45; its report -> REPORT-D.md (lost on a clear: rerun it if no REPORT-D.md and no uncommitted planner change). Still on master 4.53.0: the 4.55.1 merge conflicts in both identity fixtures + animSkeletonIdentity.test.ts. | (1) fix result -> REPORT-D, commit, push; (2) agent: master 4.55.1 merge + fixture re-capture (data-only proof); (3) desktop e2e-anim e2e-clip e2e-move; laptop area suites; GPU sheets; PR (minor). |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | e7d0d7cd | Step 2 + A12 checker PASS (CHECK-3.md; should-fix: bodyMotion alloc test flaky by construction, thin knee-out margin -> one desktop e2e-anim). ctb9 (21106003): check 2696 ok; e2e-anim e2e-studio e2e-netmove e2e-clip running under the lock (read /c/NightShift/ctb9.out). Master 4.55.1 merge in a temp worktree `feature/anim-natural-n2-merge`, `C:/NightShift/Mobile-Coop-anim-natural-n2-merge` (npm ci, then a merge agent; fast-forward N2 to it after ctb9). | ctb9 result (walk / low ready walk knee-out > 3.4 in-browser -> cut walk sway, never widen); merge agent result -> ff N2, push; steps 3-5. |
-| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | 6f87bf8d | PR #123; master 4.55.1 merged. Laptop on cba9e371: all 12 suites PASS (16:28), in the PR body; CI check green. | Train 5. |
+| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | c25ab4ba | e2e-anim FAIL: turn feet "jog 180 first swing 5.29 m/s (<= 5)" (/c/NightShift/ctb8.log:156). Two agents (16:45 / 17:00): the planner fix in the N1 folder (report -> REPORT-D.md); the master 4.55.1 merge + fixture proof in the temp worktree `feature/anim-natural-n1-merge`, `C:/NightShift/Mobile-Coop-anim-natural-n1-merge`. Reports are lost on a clear: if absent, check each folder's `git status` / log and rerun. | Commit the fix; merge feature/anim-natural-n1-merge into N1 (re-capture fixtures if the fix moved them); desktop e2e-anim e2e-clip e2e-move; laptop area suites; GPU sheets; PR (minor). |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | c5871609 | Step 2 + A12 checker PASS (CHECK-3.md). ctb9 on 21106003: check ok, e2e-netmove / e2e-studio / e2e-clip ok; e2e-anim FAIL one assert: "rifle low ready jog: elbows in" 6.0 cm (limit 6.0; master base 5.7). Agent (16:50) in the temp worktree `feature/anim-natural-n2-merge`, `C:/NightShift/Mobile-Coop-anim-natural-n2-merge`: master 4.55.1 merge + fixture proof, then the elbow fix in the layer. bodyMotion alloc test -> Course Ready's heap-asserts (orchestrator). | Merge feature/anim-natural-n2-merge into N2, push; desktop e2e-anim; steps 3-5. |
+| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | 4cdaf1e4 | Laptop 12 suites PASS on cba9e371 (PR body). Out of train 5: conflicts with #118 in tuneRegistry.ts (only the tuneRows import line; STATE "17:00"). Train 6. | After train 5 lands: merge master, resolve, unit files + e2e-anim e2e-studio; train 6. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
 ## Test logs on the desktop
@@ -54,9 +54,9 @@ origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (f
 overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
 orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
 versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. N1: REPORT-D (the jog 180 swing fix agent) or rerun it; the 4.55.1 merge + fixture re-capture (agent); desktop e2e-anim.
-2. N2: /c/NightShift/ctb9.out; the 4.55.1 merge in feature/anim-natural-n2-merge (ff N2 to it); steps 3-5.
-3. #120 / #123 wait for train 5.
+1. N1: the fix agent (REPORT-D) and the merge agent (feature/anim-natural-n1-merge), or rerun them; merge both; desktop e2e-anim.
+2. N2: the merge + elbow fix agent in feature/anim-natural-n2-merge (or rerun); merge into N2; desktop e2e-anim; steps 3-5.
+3. #120 in train 5; #123 joins train 6 (merge master after train 5).
 Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
 Message "Night Shift | Orchestrator" at each slice, verdict and PR.
 ```
