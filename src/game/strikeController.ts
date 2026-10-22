@@ -247,7 +247,12 @@ export class StrikeController {
     return res;
   }
 
+  /** The respawn (a death, a bay or section restart): no strike, and the `melee` arc at rest. (strike-pops, n4d polish 1)
+   *  A kill's follow-through plays the same arc (`TakedownController.tailU`, up to 0.31 s after the kill); the restart
+   *  sites only reset a takedown still running, so a restart within the tail moved the player with the arm still
+   *  swinging: it ends here too. */
   reset(): void {
+    this.g.takedown.endTail();
     this.t = -1;
     this.lead = 0;
     this.back = -1;

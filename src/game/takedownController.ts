@@ -658,12 +658,17 @@ export class TakedownController {
     this.g.events.emit('takedown', { phase: 'abort', lethal: a.lethal, kind: a.plan.kind });
   }
 
+  /** (strike-pops, n4d polish 1) End a kill's follow-through now (the arc back to none): `reset`, and the respawn
+   *  through `StrikeController.reset` (a bay or section restart moves the player: no tail on the restarted player). */
+  endTail(): void {
+    if (this.tailU < 0) return;
+    this.tailU = -1;
+    this.g.player.pose.melee = -1;
+  }
+
   reset(): void {
     this.abort();
-    if (this.tailU >= 0) {
-      this.tailU = -1;
-      this.g.player.pose.melee = -1;
-    }
+    this.endTail();
     this.offer = null;
     this.holding = false;
     this.carryId = '';

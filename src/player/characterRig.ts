@@ -1113,6 +1113,7 @@ export class CharacterRig {
   private readonly liftCrouch = new CqLiftCrouch();
   /** (anim-natural N4c) The elbow strike's hips and trunk this frame (strikeBody.ts; rest on every non-Wren rig). */
   private readonly sb = newStrikeBody();
+  /** (strike-pops) The strike body layer's phase (`strikeBodyPhase`: the trunk's pace; -1 none). */
   private sbPh = -1;
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
@@ -2421,6 +2422,7 @@ export class CharacterRig {
     // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
     // shifts back over the rear foot on the wind-up and onto the lead foot driving, on the feet only (attached, a takedown
     // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
+    // (strike-pops) at the trunk's pace (`STRIKE_BODY_RATE`): the strike's drive over 3 frames, not on the arm's fastest 2
     this.sbPh = strikeBodyPhase(this.sbPh, this.graph.wrenReady ? this.input.melee : -1, dt);
     const sb = strikeBodyAt(this.sbPh, this.sb);
     if (!free) pex += sb.side;

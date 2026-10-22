@@ -224,11 +224,22 @@ export function strikeBodyAt(ph: number, out: StrikeBodyOut): StrikeBodyOut {
   return out;
 }
 
-/** (strike-pops) EXPERIMENT */
-export const STRIKE_BODY_FOLLOW = { rate: 6 };
+/**
+ * (strike-pops, n4c polish 9) The trunk's pace: the layer's phase follows the arc (`melee`) at most this much per second.
+ * The elbow strike plays the arc 0 -> contact in ~4 frames (`strikeWarp`), but the arm reaches contact ~2 frames later
+ * (the shoulder and elbow rate limits), so the trunk's load and drive (hips and shoulders through by arc 0.38 / 0.48)
+ * landed in 2 frames on top of the arm's own fastest frames: the right wrist moved 31.4 cm in one frame (a 19 deg
+ * chest turn in that frame). Held to this pace the drive spans 3 frames, the shoulders through a frame before the hit
+ * (83 ms), the hand still across at 100 ms: the wrist's largest frame 27.0 cm (30 Hz: 41.1 -> 38.2 cm). The kill blows
+ * (~0.8 / s before contact) and the recovery never reach it. Never ahead of the arc; a rewind (a denial's blend back)
+ * follows at once; it starts from rest (phase 0).
+ */
+export const STRIKE_BODY_RATE = 7;
+
+/** The layer's phase this frame from last frame's (`prev`, < 0 none) and the arc's (`arc`, < 0 none). Pure. */
 export function strikeBodyPhase(prev: number, arc: number, dt: number): number {
   if (arc < 0) return -1;
   const p = prev < 0 ? 0 : prev;
   if (arc <= p) return arc;
-  return Math.min(arc, p + STRIKE_BODY_FOLLOW.rate * dt);
+  return Math.min(arc, p + STRIKE_BODY_RATE * dt);
 }
