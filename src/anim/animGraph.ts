@@ -55,7 +55,7 @@ import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
 import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { WALL_KEYS, WallKeyed } from './wallKeyed';
-import { DRAW_CUR, drawRelease } from './drawMotion';
+import { DRAW_BEAT, DRAW_CUR, drawEnter, drawRelease } from './drawMotion';
 
 
 export const FADE = 0.2;
@@ -578,6 +578,8 @@ export function wallBlockK(dist: number): number {
 }
 /** (step 09) Fade rate (1/s) of the swap overlay: in as a swap / draw / holster starts, out when it stops mid-clip. */
 const SWAP_FADE = 8;
+/** (anim-natural N3) The overlay's fade-out rate (1/s) once a holster seats the gun: the hand lets go, no whip. */
+const SWAP_FADE_HOLSTER = 2;
 /** (anim-joints J2) The flinch spring's peak for a full hit (kick 4.5, omega 9: 4.5 / (9 e)) -> row weight 1. */
 const HIT_ROW_K = (9 * Math.E) / 4.5;
 /** (step 09) Carriage ease (s) during a weapon-to-weapon swap: out before the reach to the slot (~0.2 s in). */
@@ -694,6 +696,8 @@ export class AnimGraph {
   /** Swap overlay weight and its last clip time (fades out when a holster stops it mid-clip). */
   private swapW = 0;
   private swapLastT = 0;
+  /** (anim-natural N3) The clip time a draw from rest entered the overlay at (-1: not one; drawMotion.drawEnter). */
+  private swapInT = -1;
   /** Armed carriage weight (armed, or holstered with ready hands), eased ~0.25 s. */
   private carryW = 1;
   /** (G7) The close-quarters bend (rad), pelvis drop (m) and sway (m), eased. */
@@ -1391,17 +1395,22 @@ export class AnimGraph {
     // holstered beat, a swap), and a holster that settles in the slot before the clip's end (the overlay stops
     // mid-clip) fades out from its last time at the same rate instead of cutting
     const swapOn = i.swap >= 0 && !attachedPose;
+    // (anim-natural N3) a draw from rest (one slot, entering at the holstered beat) brings the clip in over its reach
+    // (drawEnter); a holster's overlay fades out slower once the gun is seated (the hand lets go, SWAP_FADE_HOLSTER)
+    const oneSlot = i.swapFrom === i.swapTo;
     if (swapOn) {
+      if (this.swapW === 0) this.swapInT = oneSlot && i.swap >= DRAW_BEAT - 1e-3 ? i.swap : -1;
       this.swapW = Math.min(1, this.swapW + SWAP_FADE * dt);
       this.swapLastT = i.swap;
-    } else this.swapW = Math.max(0, this.swapW - SWAP_FADE * dt);
+    } else this.swapW = Math.max(0, this.swapW - (oneSlot && this.swapLastT <= DRAW_BEAT + 1e-3 ? SWAP_FADE_HOLSTER : SWAP_FADE) * dt);
     if (this.swapW > 0) {
       const st = swapOn ? i.swap : this.swapLastT;
       // (anim-natural N3) eased in and out (the fade was linear: the hand left the slot at a constant speed and stopped
       // dead), and the incoming gun's part hands over to the ready / aim pose while it presents (drawMotion.drawRelease):
       // the clip's own end pose (a level pocket, the chest square, the support hand off) never shows, so nothing moves
       // again when the swap ends
-      const sw = smoothstep(this.swapW) * drawRelease(st, DRAW_CUR[i.swapTo === 'thigh' ? 'pistol' : 'rifle']);
+      const dm = DRAW_CUR[i.swapTo === 'thigh' ? 'pistol' : 'rifle'];
+      const sw = smoothstep(this.swapW) * drawEnter(st, this.swapInT, dm) * drawRelease(st, dm);
       overClip(src, swapClipFor(i.swapFrom, i.swapTo), st, sw);
       this.slot('swap', sw, st);
     }

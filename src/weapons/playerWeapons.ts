@@ -25,7 +25,7 @@ const modelLength = (d: WeaponDef): number => {
   return e.z1 - e.z0;
 };
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
-import { DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, holsterTimeFor, type DrawPhase } from './drawState';
+import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, HOLSTER_TIME_MOVE, holsterTimeFor, type DrawPhase } from './drawState';
 import { DRAW_BEAT, drawClass } from '../anim/drawMotion';
 import { DRAW_TIME_MUL, drawTuneApply } from './drawTune';
 import { STANCE } from '../player/weaponStance';
@@ -79,8 +79,10 @@ const SWAP_HOLD = 0.8;
  * was 0.5: the reach is its first part, the hand blending onto the grip) to the clip's end (was SWAP_HOLD 0.8: the gun
  * stopped at the clip's level pocket for the last 20 % and then moved again into the low ready as the overlay faded;
  * the "random stop"), settling in the final pose; SWAP_HOLD stays for a gun that does not travel (the sling hand-off).
+ * The outgoing travel starts at once (TRAVEL_OUT 0.06 -> 0): the gun moved with the overlay's pocket for 0.06 of the
+ * clip, then stopped as the travel took it from rest (and the pistol's muzzle tipped up 44 deg before going down).
  */
-const TRAVEL_OUT = 0.06;
+const TRAVEL_OUT = 0;
 const TRAVEL_IN = DRAW_BEAT;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
@@ -388,7 +390,9 @@ export class PlayerWeapons {
   private applyAimCamera(): void {
     const cam = this.player.cam;
     cam.adsZoom = this.current.scoped && this.zoomOn ? this.current.stats.adsZoom : 1;
-    cam.adsInTime = this.drawTime() * 0.9;
+    // (anim-natural N3) drawn, the aim from low ready keeps its pre-N3 blend (AIM_IN_*): the longer draws never slow it
+    const cls = this.current.def.class;
+    cam.adsInTime = (this.draw.phase === DRAW_DRAWN ? (cls === 'pistol' ? AIM_IN_SIDEARM : AIM_IN_PRIMARY) : this.drawTime()) * 0.9;
   }
 
   /** The current gun's draw time (s); (anim-rework S1, M2) the sling draw (LT from holstered) is slower. */
@@ -397,8 +401,12 @@ export class PlayerWeapons {
     return drawTimeFor(cls) * DRAW_TIME_MUL[drawClass(cls)].draw * (this.player.stance.slingDraw ? (cls === 'pistol' ? STANCE.slingDrawMult : STANCE.slingDrawLong) : 1);
   }
 
-  /** (anim-natural N3) The current gun's holster time (s), per class, with the Draw section's multiplier. */
+  /**
+   * (anim-natural N3) The current gun's holster time (s), per class, with the Draw section's multiplier; a traversal or a
+   * busy move (the stance suspended) holsters in HOLSTER_TIME_MOVE, as fast as before N3.
+   */
   private holsterTime(): number {
+    if (this.player.stance.suspended) return HOLSTER_TIME_MOVE;
     const cls = this.current.def.class;
     return holsterTimeFor(cls) * DRAW_TIME_MUL[drawClass(cls)].holster;
   }
@@ -467,7 +475,10 @@ export class PlayerWeapons {
     this.player.grenadeT = this.grenadeT >= 0 ? this.grenadeT / GRENADE_TIME : -1;
     this.player.sinceShot = this.sinceShot;
     this.player.weaponDrawn = this.draw.phase === DRAW_DRAWN;
-    this.player.weaponWeight = s.def.weight ?? classWeight(s.def.class);
+    // (anim-natural N3) the weight of the gun in the hands: through a swap's holster half the outgoing one (the next gun's
+    // weight picked the pistol's pocket for the rifle at the press: a 28 cm jump in one frame)
+    const inHand = this.swapT >= 0 && this.swapPhase === 0 && this.held >= 0 ? this.slots[this.held]!.def : s.def;
+    this.player.weaponWeight = inHand.weight ?? classWeight(inHand.class);
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.grenadeCd = Math.max(0, this.grenadeCd - dt);
     this.sinceShot += dt;
@@ -573,7 +584,8 @@ export class PlayerWeapons {
     if (this.swapT >= 0) {
       // stowing for a climb / hang is quick: both hands are wanted on the anchor
       if (this.aimDriven) {
-        // a draw / holster from aim keeps pace with the draw state (0.3 / 0.4 s draw, 0.4 s holster)
+        // a draw / holster from aim keeps pace with the draw state (drawTime / holsterTime: N3 1.1 / 0.75 s draws, 1.0 / 0.9 s
+        // holsters, a traversal's 0.15 s)
         const left = this.draw.remaining(this.drawTime(), this.holsterTime());
         const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
         this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);

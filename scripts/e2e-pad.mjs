@@ -406,7 +406,8 @@ try {
     window.__pad.set(2, 1);
     L.stepHeadless(0.6);
     window.__pad.set(2, 0);
-    const xFullHol = until(() => w.drawPhase === 0, 1) < 1 && !w.reloading;
+    // (anim-natural N3) the deliberate holster: 1.0 s rifle / 0.9 s pistol
+    const xFullHol = until(() => w.drawPhase === 0, 2) < 1.5 && !w.reloading;
     L.stepHeadless(0.2);
     // (M2) LT from holstered: straight to the aim through the sling draw, slower than X's draw
     window.__pad.set(6, 1);
@@ -440,19 +441,23 @@ try {
   });
   assert(dr.aNoReload, 'A at low ready does not reload (Michael: "Interact always")');
   assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
-  assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.65, // A2.1: holster 0.55 s (G103)
+  // (anim-natural N3, docs/anim-natural/n3/DRAW-TIMES.md) X draws to low ready in 1.1 s (rifle) / 0.75 s (pistol), the
+  // holster takes 1.0 / 0.9 s, the LT sling draw 1.5 / 1.2 s (undo: 0.3 / 0.5 s draws, 0.15 s holster)
+  const drawT = dr.cls === 'pistol' ? 0.75 : 1.1;
+  const holT = dr.cls === 'pistol' ? 0.9 : 1.0;
+  assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < holT + 0.1,
     `X (holster) mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
-  assert(dr.hDraw <= 1.2 && dr.hDrawn && dr.hFull && dr.hHol && dr.s4 === dr.s3, `reload while holstered (R): draws to low ready (${dr.hDraw.toFixed(2)} s, state low ready ${dr.hDrawn}), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), stays at low ready (${dr.hHol}), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.hDraw <= drawT + 0.3 && dr.hDrawn && dr.hFull && dr.hHol && dr.s4 === dr.s3, `reload while holstered (R): draws to low ready (${dr.hDraw.toFixed(2)} s, state low ready ${dr.hDrawn}), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), stays at low ready (${dr.hHol}), never fires (${dr.s3} -> ${dr.s4})`);
   assert(!dr.struck, 'RT while holstered with no guard in reach: no strike (F1b: no swing at nothing)');
   assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
-  assert(dr.tDraw <= 0.5 && dr.lowState === 'lowReady' && !dr.adsAfterDraw, `X draws to low ready within 0.5 s, no aim (anim-rework S1, M1) (${dr.tDraw.toFixed(2)} s, ${dr.cls}, ${dr.lowState})`);
+  assert(dr.tDraw <= drawT + 0.1 && dr.lowState === 'lowReady' && !dr.adsAfterDraw, `X draws to low ready within ${drawT} s, no aim (anim-rework S1, M1; N3) (${dr.tDraw.toFixed(2)} s, ${dr.cls}, ${dr.lowState})`);
   assert(dr.s1b === dr.s1, `low ready: RT fires nothing (A3) (${dr.s1} -> ${dr.s1b})`);
   assert(dr.aimState === 'aiming' && dr.s2 > dr.s1b, `LT held aims and RT fires (${dr.aimState}, ${dr.s1b} -> ${dr.s2})`);
   assert(dr.afterLt.st === 'lowReady' && dr.afterLt.dw === 2 && !dr.afterLt.ads, `LT let go: low ready, the gun stays out (${JSON.stringify(dr.afterLt)})`);
-  assert(dr.tHol <= 0.65 && !dr.adsAfterHolster, `X again holsters within 0.65 s (G103: 0.55) (${dr.tHol.toFixed(2)} s)`);
+  assert(dr.tHol <= holT + 0.1 && !dr.adsAfterHolster, `X again holsters within ${holT} s (N3) (${dr.tHol.toFixed(2)} s)`);
   assert(dr.xHoldT >= 0.35 && dr.xHoldT <= 0.6 && dr.xHoldStill && dr.xFull, `X held 0.4 s with the gun out reloads (A2) and stays drawn (${dr.xHoldT.toFixed(2)} s, full ${dr.xFull})`);
   assert(dr.xFullHol, 'X held with nothing to reload holsters');
-  assert(dr.slingState === 'slingDraw' && dr.slingAim && dr.tSling > dr.tDraw * 1.3 && dr.slingLow, `LT from holstered: the sling draw straight to the aim, slower (M2: ${dr.tSling.toFixed(2)} s vs X ${dr.tDraw.toFixed(2)} s); let go: low ready (${dr.slingLow})`);
+  assert(dr.slingState === 'slingDraw' && dr.slingAim && dr.tSling > dr.tDraw * 1.25 && dr.slingLow, `LT from holstered: the sling draw straight to the aim, slower (M2: ${dr.tSling.toFixed(2)} s vs X ${dr.tDraw.toFixed(2)} s); let go: low ready (${dr.slingLow})`);
   // (marlow-bays item 29) the on-screen pause button is a touch thing: never shown in pad play
   assert(!(await page.evaluate(() => document.body.classList.contains('touch-play') || getComputedStyle(document.querySelector('.touch-pause')).display !== 'none')), 'pad play: no on-screen pause button');
   await press(page, BTN.START);

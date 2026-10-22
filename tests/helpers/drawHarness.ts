@@ -15,6 +15,10 @@ export interface DrawSample {
   wx: number;
   wy: number;
   wz: number;
+  /** The trigger arm's elbow (world). */
+  ex: number;
+  ey: number;
+  ez: number;
   gx: number;
   gy: number;
   gz: number;
@@ -48,6 +52,10 @@ export interface DrawHarness {
   run(n: number, out?: DrawSample[]): DrawSample[];
   hold(action: 'ads' | 'draw', down: boolean): void;
   tap(action: 'swapNext' | 'draw'): void;
+  /** A traversal or busy move holding the weapon state (`Player.weaponSuspend`). */
+  suspend(on: boolean): void;
+  /** The aim camera's blend-in time (s) the weapons set. */
+  adsInTime(): number;
   dispose(): void;
 }
 
@@ -68,6 +76,8 @@ export async function drawHarness(): Promise<DrawHarness> {
   const lib = new PartLibrary(scene);
   const make = (shape: Parameters<typeof lib.instance>[0], hex: string, slot?: Parameters<typeof lib.instance>[2]) => lib.instance(shape, hex, slot);
   const { rig } = operatorRig(scene, make, defaultLook(), 'n3');
+  // the idle cycle starts at a random phase (AnimGraph.idleT): pinned, so every run samples the same poses
+  (rig.graph as unknown as { idleT: number }).idleT = 0;
   const stance = new WeaponStance();
   const si = emptyStanceInput();
   const carry = new WeaponCarry();
@@ -105,6 +115,7 @@ export async function drawHarness(): Promise<DrawHarness> {
   const inp = new InputState();
   const pose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, lookYaw: 0, lookPitch: 0 };
   let t = 0;
+  let suspended = false;
   const gp = new Vector3();
   const mp = new Vector3();
   const cg = new Vector3();
@@ -116,6 +127,7 @@ export async function drawHarness(): Promise<DrawHarness> {
     si.xDown = inp.down('draw') || inp.pressed('draw');
     si.aimDown = inp.down('ads');
     si.alive = true;
+    si.suspended = suspended;
     si.gunOut = player.weaponDrawn;
     stance.update(DT, si);
     player.ads = stance.aimWanted;
@@ -146,6 +158,7 @@ export async function drawHarness(): Promise<DrawHarness> {
   };
   const sample = (): DrawSample => {
     const w = rig.wristR.computeWorldMatrix(true).getTranslation();
+    const el = rig.elbowR.computeWorldMatrix(true).getTranslation();
     // the gun in the hands (or travelling), else the selected one
     const m = weapons.slots.find((s) => s.model.node === rig.heldWeapon)?.model ?? weapons.current.model;
     const wm = m.node.computeWorldMatrix(true);
@@ -155,7 +168,7 @@ export async function drawHarness(): Promise<DrawHarness> {
     rig.torso.computeWorldMatrix(true).invertToRef(inv);
     Vector3.TransformCoordinatesToRef(gp, inv, cg);
     Vector3.TransformCoordinatesToRef(mp, inv, cm);
-    return { t, gun: def.id, cgx: cg.x, cgy: cg.y, cgz: cg.z, cmx: cm.x, cmy: cm.y, cmz: cm.z, wx: w.x, wy: w.y, wz: w.z, gx: gp.x, gy: gp.y, gz: gp.z, mx: mp.x, my: mp.y, mz: mp.z, swap: player.swapT, raise: carry.raise, state: stance.state, phase: weapons.draw.phase, wpPitch: rig.graph.out.weapon.pitch, swapW: rig.graph.rowW.swap, spYaw: rig.graph.out.spine.yaw };
+    return { t, gun: def.id, ex: el.x, ey: el.y, ez: el.z, cgx: cg.x, cgy: cg.y, cgz: cg.z, cmx: cm.x, cmy: cm.y, cmz: cm.z, wx: w.x, wy: w.y, wz: w.z, gx: gp.x, gy: gp.y, gz: gp.z, mx: mp.x, my: mp.y, mz: mp.z, swap: player.swapT, raise: carry.raise, state: stance.state, phase: weapons.draw.phase, wpPitch: rig.graph.out.weapon.pitch, swapW: rig.graph.rowW.swap, spYaw: rig.graph.out.spine.yaw };
   };
   const h: DrawHarness = {
     rig,
@@ -175,6 +188,12 @@ export async function drawHarness(): Promise<DrawHarness> {
     hold(action, down) {
       inp.set('test', action, down);
     },
+    suspend(on) {
+      suspended = on;
+    },
+    adsInTime() {
+      return player.cam.adsInTime;
+    },
     tap(action) {
       inp.tap(action);
     },
@@ -186,12 +205,12 @@ export async function drawHarness(): Promise<DrawHarness> {
 }
 
 /** Speed (m/s) of a sampled point between consecutive samples (the gun's points: 0 across a change of gun). */
-export function speeds(s: readonly DrawSample[], k: 'w' | 'g' | 'm'): number[] {
+export function speeds(s: readonly DrawSample[], k: 'w' | 'g' | 'm' | 'e'): number[] {
   const out: number[] = [];
   for (let i = 1; i < s.length; i++) {
     const a = s[i - 1]!;
     const b = s[i]!;
-    if (k !== 'w' && a.gun !== b.gun) {
+    if ((k === 'g' || k === 'm') && a.gun !== b.gun) {
       out.push(out.length ? out[out.length - 1]! : 0);
       continue;
     }

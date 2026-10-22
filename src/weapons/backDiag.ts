@@ -31,9 +31,11 @@ export const BACK_DIAG = {
  *   AUDIT-AIM row 2), twists flat to the back and swings the last 38 deg into the sling.
  */
 export const DIAG_TURN = {
-  // (anim-natural N3) sweep 0.4 -> 0.5, twist 0.55 -> 0.62: the 218 deg sweep had 40 % of the turn (the muzzle swung
-  // at 36 m/s), the 90 deg tip onto the line 45 %
-  draw: { sweep: 0.5, twist: 0.62 },
+  // (anim-natural N3) sweep 0.4 -> 0.55, twist 0.55 -> 0.72: the 218 deg sweep had 40 % of the turn (the muzzle swung
+  // at 36 m/s), the 90 deg roll 15 % (the wrist swung 4 cm a frame round the bore), the 110 deg tip onto the line
+  // 45 %; now about in proportion to the angles, turned at an even rate
+  // (drawMotion.turnEase)
+  draw: { sweep: 0.55, twist: 0.72 },
   holster: { down: 0.4, twist: 0.6 },
 };
 

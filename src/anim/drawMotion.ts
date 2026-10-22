@@ -42,7 +42,7 @@ export interface DrawMotion {
 
 /** The tuned draw motion per class (identity of the Draw sliders). Starting values (N3). */
 export const DRAW_MOTION: Record<DrawClass, DrawMotion> = {
-  rifle: { reach: 0.38, grip: 0.8, handover: 0.35, settle: 5, out: [0, 0, 0], via: [0, 0, 0] },
+  rifle: { reach: 0.38, grip: 0.65, handover: 0.35, settle: 5, out: [0, 0, 0], via: [0, 0, 0] },
   pistol: { reach: 0.34, grip: 0.75, handover: 0.3, settle: 5, out: [0, 0, 0], via: [0, 0, 0] },
 };
 
@@ -125,7 +125,39 @@ export function drawRelease(st: number, m: DrawMotion, handover = m.handover): n
   return 1 - smooth((u - u0) / (u1 - u0));
 }
 
+/** The turn ends at this share of the lift / present (before the settle: the gun arrives turned). */
+export const TURN_END = 1;
+/** The turn's eased share at each end (the rest turns at a constant rate). */
+const TURN_RAMP = 0.2;
+/** The integral of the smoothstep from 0 to y (a ramp's distance). */
+const rampS = (y: number): number => y * y * y - 0.5 * y * y * y * y;
+
+/**
+ * The gun's turn (0..1, the travel's keyed or slerped turn) at `k` 0..1 of the lift / present: an even turn with eased
+ * ends (a trapezoid in angular speed, peak 1.25 x the mean), done at TURN_END. The path's own ease (`drawEase`) is
+ * front-loaded (peak 2.1 x the mean, about 30 % in) and the rifle's 218 deg sweep off the back sat on its peak: the
+ * muzzle swung -45 -> -85 -> +83 deg in 0.2 s at 17 m/s. Off the path's ease the gun leaves the back first, turning less.
+ */
+export function turnEase(k: number): number {
+  const x = sat(k / TURN_END);
+  const a = TURN_RAMP;
+  const v = 1 / (1 - a);
+  if (x < a) return v * a * rampS(x / a);
+  if (x <= 1 - a) return v * (0.5 * a + x - a);
+  return 1 - v * a * rampS((1 - x) / a);
+}
+
+/**
+ * The swap clip's weight multiplier at clip time `st` for a draw that entered the clip from rest at `t0` (-1: not one, 1):
+ * the clip's reach pose (the chest turn, the arm toward the slot) comes in over the reach with the hand's IK
+ * (`reachWeight`), not over the overlay's 0.125 s fade (that whipped the wrist to the slot at 10 m/s, then it crawled).
+ */
+export function drawEnter(st: number, t0: number, m: DrawMotion): number {
+  if (t0 < 0) return 1;
+  return smooth((st - t0) / Math.max(1e-3, m.reach * (1 - DRAW_BEAT)));
+}
+
 /** The fingers' closure on the grip at reach weight `w` (they close over its last part). */
 export function gripClose(w: number): number {
-  return smooth((w - 0.55) / 0.45);
+  return smooth((w - 0.4) / 0.6);
 }

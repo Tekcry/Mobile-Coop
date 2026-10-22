@@ -11,6 +11,8 @@ export interface DrawScenario {
   setup: (h: DrawHarness) => void;
   /** The input that starts the move (on the first recorded frame). */
   go: (h: DrawHarness) => void;
+  /** More input at recorded frame `at` (LT pressed mid-draw). */
+  then?: { at: number; act: (h: DrawHarness) => void };
 }
 
 const settle = (h: DrawHarness, n = 70): void => void h.run(n);
@@ -18,9 +20,10 @@ const pistol = (h: DrawHarness): void => {
   h.tap('swapNext');
   settle(h, 30);
 };
+/** Drawn to low ready and settled (the 1.1 s rifle draw, N3). */
 const drawn = (h: DrawHarness): void => {
   h.tap('draw');
-  settle(h);
+  settle(h, 100);
 };
 
 export const DRAW_SCENARIOS: readonly DrawScenario[] = [
@@ -33,6 +36,8 @@ export const DRAW_SCENARIOS: readonly DrawScenario[] = [
   { name: 'swap rifle to pistol', setup: drawn, go: (h) => h.tap('swapNext') },
   { name: 'swap pistol to rifle', setup: (h) => (pistol(h), drawn(h)), go: (h) => h.tap('swapNext') },
   { name: 'low ready to aim (rifle)', setup: drawn, go: (h) => h.hold('ads', true) },
+  { name: 'draw rifle (X, LT held mid-draw)', setup: () => {}, go: (h) => h.tap('draw'), then: { at: 20, act: (h) => h.hold('ads', true) } },
+  { name: 'swap rifle to pistol (aiming)', setup: (h) => (drawn(h), h.hold('ads', true), settle(h, 60)), go: (h) => h.tap('swapNext') },
 ];
 
 /** Runs a scenario: 40 settling frames, its setup, then `frames` recorded frames from the input. */
@@ -42,7 +47,12 @@ export async function runScenario(sc: DrawScenario, frames = 110): Promise<DrawS
     settle(h, 40);
     sc.setup(h);
     sc.go(h);
-    return h.run(frames);
+    const out: DrawSample[] = [];
+    for (let k = 0; k < frames; k++) {
+      if (sc.then && k === sc.then.at) sc.then.act(h);
+      out.push(h.step());
+    }
+    return out;
   } finally {
     h.dispose();
   }

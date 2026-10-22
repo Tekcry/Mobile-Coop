@@ -7,7 +7,7 @@ import { BACK_SPLAY, isBackSlot, type CarrySlot } from './carrySlots';
 import { loadWeaponMesh } from './weaponMesh';
 import { rotInto, type GunVisual } from '../anim/tuneHands';
 import { gearSocketOfSlot, GS } from '../anim/tuneGear';
-import { DRAW_CUR, drawClass, drawEase, drawPath, reachWeight, settleAt, type DrawClass } from '../anim/drawMotion';
+import { DRAW_CUR, drawClass, drawEase, drawPath, liftStart, reachWeight, settleAt, turnEase, type DrawClass } from '../anim/drawMotion';
 import { diagTurn, diagTurnSling, useDiagTurn, FRAME_DOWN, FRAME_UP, planeFrame, slungPosition, slungTheta, type DiagKey, type DiagTurnStep } from './backDiag';
 
 /** (feature/weapons) The built mesh instead of the primitive parts (A6, A7): the players' guns, not the guards'. */
@@ -277,11 +277,6 @@ export class WeaponModel {
     this.node.position.setAll(0);
     this.node.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     this.gripsOn(rig);
-    const e = this.ext;
-    rig.gunSpan.z0 = e.z0;
-    rig.gunSpan.z1 = e.z1;
-    rig.gunSpan.bore = this.def.muzzle[1];
-    rig.gunSpan.top = e.y1;
     if (this.def.magHold) rig.magPoint.set(...this.def.magHold);
     else if (this.magLocal) rig.magPoint.copyFrom(this.magLocal);
     else rig.magPoint.set(0, this.def.grip[1] - 0.08, (this.def.grip[2] + this.def.foregrip[2]) * 0.5);
@@ -297,6 +292,14 @@ export class WeaponModel {
     rig.foregrip.set(...this.def.foregrip);
     // (feature/weapons) the support hand under a long gun's handguard, cupping a pistol's grip
     rig.supportStyle = this.def.class === 'pistol' ? 'cup' : 'tube';
+    // (anim-natural N3) the gun's span for the sight weld and the body clearance from the travel's start (set only at the
+    // hold, a draw measured the pocket with the last gun held: the pistol's aim pocket sat 7 cm low through the LT draw,
+    // with the rifle's sight height, and jumped up when the travel ended)
+    const e = this.ext;
+    rig.gunSpan.z0 = e.z0;
+    rig.gunSpan.z1 = e.z1;
+    rig.gunSpan.bore = this.def.muzzle[1];
+    rig.gunSpan.top = e.y1;
   }
 
   private readonly ghost: TransformNode;
@@ -370,9 +373,13 @@ export class WeaponModel {
     const m = DRAW_CUR[this.trCls];
     const uc = u < 0 ? 0 : u > 1 ? 1 : u;
     let p: number;
+    // (anim-natural N3) a draw from the slot turns the gun at an even rate over its lift / present (drawMotion.turnEase)
+    let turn = -1;
     if (this.trReach) {
       rig.travelReach = reachWeight(uc, m);
       p = drawPath(uc, m, settleAt(m.settle, rig.aimWeight));
+      const s = liftStart(m);
+      turn = 0.05 + 0.95 * turnEase((uc - s) / (1 - s)); // (turnAt's draw r is then the eased turn itself)
     } else if (this.trDraw) {
       rig.travelReach = 1;
       p = drawEase(uc, settleAt(m.settle, rig.aimWeight));
@@ -383,8 +390,8 @@ export class WeaponModel {
     // the path at sm (0..1); past 1 (the settle) the end extrapolated by `over`
     const sm = p < 1 ? p : 1;
     const over = p > 1 ? p - 1 : 0;
-    this.turnAt(slot, sm, this.node.rotationQuaternion!);
-    if (over > 0) {
+    this.turnAt(slot, turn >= 0 ? turn : sm, this.node.rotationQuaternion!);
+    if (over > 0 && turn < 0) {
       // the turn carried on along its last stretch of the path (slerp past 1 extrapolates on the same arc)
       this.turnAt(slot, 1 - OVER_DT, trQPrev);
       Quaternion.SlerpToRef(trQPrev, this.node.rotationQuaternion!, 1 + over / OVER_DT, this.node.rotationQuaternion!);

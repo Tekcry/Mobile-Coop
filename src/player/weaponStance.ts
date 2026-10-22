@@ -28,7 +28,8 @@ export const STANCE = {
   slingDrawMult: 1.6,
   /** (anim-rework S3, M2) A long gun's sling draw: its own path (WeaponModel TRAVEL_VIA.sling, backDiag.diagTurnSling),
    *  2.5 x the 0.3 s draw = 0.75 s: off the sling round the right side, under the arm, swung up into the shoulder.
-   *  (anim-natural N3) 1.36 x the 0.55 s draw (DRAW_TIME_PRIMARY) = 0.75 s, unchanged. */
+   *  (anim-natural N3) 1.36 x the 1.1 s draw (DRAW_TIME_PRIMARY) = 1.5 s: the draw plus the raise to the shoulder
+   *  (`docs/anim-natural/n3/DRAW-TIMES.md`). Undo: 2.5 with the 0.3 s draw. */
   slingDrawLong: 1.36,
   /** (M3) RT / LMB held this long (s) holstered or holding a guard: the kill; released sooner: the knockout. */
   rtHold: 0.35,
@@ -66,6 +67,8 @@ export class WeaponStance {
   slingDraw = false;
   /** This step's state. */
   state: WeaponStateId = 'holstered';
+  /** (anim-natural N3) A traversal or busy move holds the state this step (the weapons holster quickly for it). */
+  suspended = false;
   /** X reached its hold time this step while drawn (A2): the weapons reload, or holster when nothing needs it. */
   holdAsk = false;
   /** X taps / holds seen (tests). */
@@ -93,6 +96,7 @@ export class WeaponStance {
     if (!this.aimLatch) this.aimBlock = false;
     const aimRaw = this.aimLatch && !this.aimBlock;
     const free = !i.suspended && !i.locked;
+    this.suspended = i.suspended;
     // X: a press from holstered draws now; else a tap holsters and a hold asks for the reload
     if (i.blank) {
       if (this.xT >= 0) this.xUsed = true;
@@ -154,6 +158,7 @@ export class WeaponStance {
     this.aimWanted = false;
     this.slingDraw = false;
     this.state = 'holstered';
+    this.suspended = false;
     this.holdAsk = false;
     this.xT = -1;
     this.xUsed = false;

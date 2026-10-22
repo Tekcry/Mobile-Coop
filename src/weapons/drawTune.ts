@@ -24,8 +24,8 @@ export const DRAW_SECTION = registerTuneSection({
   note: 'Draw / holster / swap per weapon: reach, grip, lift, present, settle. The two times are gameplay (the drawn / holstered phases), this machine only until baked.',
   groups: DRAW_GROUPS,
   tunables: [
-    mul('drawTimeMul', 'draw time (press to settled; gameplay)', 0.5, 2, 'drawState.ts DRAW_TIME_PRIMARY / DRAW_TIME_SIDEARM (the LT sling draw is STANCE.slingDrawLong / slingDrawMult x it)'),
-    mul('holsterTimeMul', 'holster time (gameplay)', 0.4, 2.5, 'drawState.ts HOLSTER_TIME_PRIMARY / HOLSTER_TIME_SIDEARM'),
+    mul('drawTimeMul', 'draw time (press to settled; gameplay; 0.27x rifle / 0.67x pistol = pre-N3)', 0.25, 2, 'drawState.ts DRAW_TIME_PRIMARY / DRAW_TIME_SIDEARM (the LT sling draw is STANCE.slingDrawLong / slingDrawMult x it)'),
+    mul('holsterTimeMul', 'holster time (gameplay; 0.15x rifle / 0.17x pistol = pre-N3)', 0.15, 2, 'drawState.ts HOLSTER_TIME_PRIMARY / HOLSTER_TIME_SIDEARM'),
     add('reachAdd', 'reach (share of the draw)', -0.2, 0.3, 0.01, '', 'drawMotion.ts DRAW_MOTION.<gun>.reach: the hand to the gun on the sling / in the holster'),
     add('gripAdd', 'grip: lift starts at (share of the reach)', -0.5, 0.4, 0.01, '', 'drawMotion.ts DRAW_MOTION.<gun>.grip: below 1 the gun leaves as the fingers close'),
     add('handoverAdd', 'hand-over to the ready pose (share of the present)', -0.3, 0.5, 0.01, '', 'drawMotion.ts DRAW_MOTION.<gun>.handover: where the reach pose starts blending into the low ready / aim'),

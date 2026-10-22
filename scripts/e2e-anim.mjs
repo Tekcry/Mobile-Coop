@@ -221,8 +221,9 @@ try {
     t.run(0.8, { y: 1 });
     const moving = t.run(0.5, { y: 1, taps: { 1: 'crouch' } }, () => p.controller.speed);
     t.run(0.5, { y: 1, taps: { 1: 'crouch' } });
-    // (step 09) holstered unless aiming: aim draws first (0.3-0.4 s), the raise runs from the drawn hands
-    const raise = t.run(1.6, { ads: true }, (s) => [s, p.carry.raise, window.__app.current.weapons.drawPhase]);
+    // (step 09) holstered unless aiming: aim draws first, the raise runs from the drawn hands; (anim-natural N3) the LT
+    // sling draw takes 1.5 s (rifle) / 1.2 s (pistol)
+    const raise = t.run(2.2, { ads: true }, (s) => [s, p.carry.raise, window.__app.current.weapons.drawPhase]);
     const lower = t.run(1.0, {}, (s) => [s, p.carry.raise]);
     return { down, up, minMoving: Math.min(...moving), raise, lower };
   });
@@ -232,7 +233,8 @@ try {
   // (step 22, M14 N6) gear 4 crouched is 1.5 m/s now (was 1.8): the pace eases down onto it, minus the stride dip
   assert(stance.minMoving > 1.3, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
   const drawnT = stance.raise.find(([, , d]) => d === 2)?.[0] ?? 99;
-  assert(drawnT <= 0.85, `aim draws first: drawn in ${f2(drawnT)} s (<= 0.85; G103: 0.6 pistol / 0.75 rifle)`);
+  // (anim-natural N3, docs/anim-natural/n3/DRAW-TIMES.md) the LT sling draw: rifle 1.5 s, pistol 1.2 s (was 0.75 / 0.8)
+  assert(drawnT <= 1.6, `aim draws first: drawn in ${f2(drawnT)} s (<= 1.6; N3: 1.5 rifle / 1.2 pistol)`);
   // the raise starts while the draw finishes: timed from the last frame the weapon was still low
   const lowT = [...stance.raise].reverse().find(([, v]) => v <= 0.1)?.[0] ?? 0;
   const raiseT = (stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99) - lowT;
