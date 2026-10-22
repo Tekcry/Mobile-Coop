@@ -1,5 +1,19 @@
 # anim-natural N2 - state
 
+## 2026-10-22 ~20:15: step 3 + master 4.56.0 merged (b69e1a26)
+- fd9a9c1a: merge of feature/anim-natural-n2-s3 (step 3 arms, 4e974ea1, REPORT-3), clean. b69e1a26: merge of master
+  4.56.0 (train 5: #118 N3 draws, #120 idle-shins, #125, #126); only CHANGELOG conflicted. keyedArm: N3's call site is
+  master's (`kaw = kw > 0 && gripW <= 0 && kneeHandW === 0 ? keyArmW : 0`): gripped or travelling, kaw 0 and keyedArm
+  returns before armCap, so drawn arms stay on N3's grip IK, never capped; KEY_MOTION gain only in speedSet / crouchSet.
+- Proof: amounts 0 + KEY_MOTION identity + master's run clip = master 4.56.0's Wren fixture 40 / 40; motion-off vs master
+  keyed:run + partner:moves; layer-on vs motion-off partner:moves. No re-capture needed; guard fixture = master's.
+- Single files green (both identity, bodyMotion, crabFacing, keyedWalk, runKeyContinuity, animAudit, n3DrawMotion,
+  idleShins, keyedDrawn, readyHands, animTuneBake, tuneV2Sections); tsc, eslint clean. crabFacing gated elbows low ready
+  walk / jog 4.89 / 5.69 (6).
+- Step 3 fresh checker: running (CHECK-4). Next: the run arm pop (orchestrator 19:45: right wrist 22 cm in one clip frame
+  at the half wrap, run frames 16 -> 17): retime / smooth the key, Blender rebake, before / after in REPORT-3; then the PR
+  once the checker passes (no pre-run: no src/net / protocol / save; the train's full run covers it).
+
 ## 2026-10-22 ~19:10: step 2 verified on the laptop (53e6dc03, JOBS=1, port 4192)
 check PASS (2714 passed, 8 skipped; bodyMotion alloc passed this time), e2e-anim PASS (no ASSERT), e2e-studio PASS,
 e2e-clip PASS. Rifle low ready jog elbows 5.7 / 6.0, knee-out 3.2 / 3.4; walk knee-out 3.4 / 3.5, elbows 7.5 / 8.3;
