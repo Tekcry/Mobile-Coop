@@ -1,9 +1,10 @@
 // 3.2.0 phase 1: networked movement state. Two pages over ?net=local, Free Roam on Proving Grounds: the client
 // climbs a ladder and a drainpipe, hangs from a pipe and a lip, crawls a
 // duct, rides a zipline and rolls; team moves (phase 5: brace + boost, the human ladder, a denial); the host's copy of the client is in the same mode with the hands, feet and head
-// within 10 cm of the client's own pose.
+// within 10 cm of the client's own pose. (test-chores-13) A role-swapped pass at the end: the client leads the leg-up
+// (climbs onto the lip) on a bracing host; the client's copy of the host within the same 10 cm.
 import { assert } from './e2e-lib.mjs';
-import { until, waitSim, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS, watchTeam, teamLog } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS, watchTeam, teamLog } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 // (co-op test fix) pauses are game time: the sim runs slower than real time on software GL (e2e-net-lib `waitSim`)
@@ -44,6 +45,8 @@ const PIN_IDLE = (on) => {
   const g = window.__app.current;
   pin(g.player?.rig);
   for (const r of g.net?.remotes?.values?.() ?? []) pin(r.avatar?.rig);
+  // (test-chores-13) the client's copies of the host (CoopClient.avatars), for the role-swapped compare
+  for (const a of g.net?.avatars?.values?.() ?? []) pin(a.rig);
 };
 const pinIdle = (on) => Promise.all([A.evaluate(PIN_IDLE, on), B.evaluate(PIN_IDLE, on)]);
 /** (netmove-compare) the worst joint error of every compare, printed at the end (the margin under the limit) */
@@ -101,6 +104,54 @@ async function compareAt(label, mode, tol, joints) {
     console.log('  client', JSON.stringify(b), '\n  host', JSON.stringify(a), '\n  joints', JSON.stringify(loc), JSON.stringify(rem.j));
   }
   assert(rem.mode === mode && worst <= tol, `${label}: host mode ${rem.mode}, joints within ${tol * 100} cm (${JSON.stringify(errs)})`);
+}
+
+/** (test-chores-13) The client's copy of the host (its first avatar): its move mode and the world positions of `names`. */
+const avatarJoints = (names = JOINTS) =>
+  GB((names) => {
+    const a = window.__app.current.net.avatars.values().next().value;
+    const rig = a.rig;
+    return { mode: a.mode, j: Object.fromEntries(names.map((n) => { rig[n].computeWorldMatrix(true); const p = rig[n].getAbsolutePosition(); return [n, [p.x, p.y, p.z]]; })) };
+  }, names);
+
+/**
+ * (test-chores-13) The role-swapped `compare`: the HOST's own pose mirrored on the client (same mode, joints within
+ * `tol`), with the same settles. Page A is in the background, stepped by its pump: every host-side wait is a Node-side
+ * poll of the host's clock (`waitHostSim`, wall capped), never a promise inside A.
+ */
+async function compareHost(label, mode, tol = 0.1, joints = JOINTS) {
+  await pinIdle(true);
+  try {
+    await until(B, (m) => window.__app.current.net.avatars.values().next().value?.mode === m, mode, 8000, `client sees the host ${label} (${mode})`);
+    // the host settled (its joints still for 0.3 s of its own clock)
+    let settled = false;
+    for (let k = 0; k < 30 && !settled; k++) {
+      const a = await lj(A, joints);
+      await waitHostSim(A, 300);
+      const b = await lj(A, joints);
+      const sp = await GA(() => window.__app.current.player.controller.speed);
+      settled = sp < 0.05 && Math.max(...joints.map((n) => err(a[n], b[n]))) < 0.01;
+    }
+    if (!settled) console.log('  (host never settled)', await GA(() => JSON.stringify({ sp: window.__app.current.player.controller.speed, ov: !!window.__app.current.player.controller.override })));
+    await wait(800);
+    // then the client's copy of it (still for 0.3 s of sim)
+    for (let k = 0; k < 20; k++) {
+      const a = (await avatarJoints(joints)).j;
+      await wait(300);
+      const b = (await avatarJoints(joints)).j;
+      if (Math.max(...joints.map((n) => err(a[n], b[n]))) < 0.01) break;
+    }
+    await wait(300);
+    const [loc, rem] = [await lj(A, joints), await avatarJoints(joints)];
+    const errs = Object.fromEntries(joints.map((n) => [n, +err(loc[n], rem.j[n]).toFixed(3)]));
+    const worst = Math.max(...Object.values(errs));
+    worstLog.push([label, worst]);
+    console.log(`  ${label}: worst joint ${(worst * 100).toFixed(1)} cm (limit ${tol * 100} cm)`);
+    if (worst > tol || process.env.LOG) console.log('  host', JSON.stringify(loc), '\n  client copy', JSON.stringify(rem));
+    assert(rem.mode === mode && worst <= tol, `${label}: client copy mode ${rem.mode}, joints within ${tol * 100} cm (${JSON.stringify(errs)})`);
+  } finally {
+    await pinIdle(false);
+  }
 }
 
 /** Attach the client to the first anchor of `kind` (optionally filtered) at its middle, wait until it is on. */
@@ -355,9 +406,9 @@ try {
   // the 4.2 m block north of Proving (south face z 27.5, x 2.5..5.5): the booster crouches facing it (Co-op action = pad RB)
   const placeTeam = async (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
   // a button held until `cond` holds on that page (software GL runs a few frames a second: a short press can fall between polls)
-  const holdUntil = async (P, btn, cond, what) => {
+  const holdUntil = async (P, btn, cond, what, arg = null) => {
     await P.evaluate((b) => window.__pad.set(b, 1), btn);
-    try { await until(P, cond, null, 5000, what); } finally { await P.evaluate((b) => window.__pad.set(b, 0), btn); }
+    try { await until(P, cond, arg, 5000, what); } finally { await P.evaluate((b) => window.__pad.set(b, 0), btn); }
   };
   const RB = 5;
   // (co-op test fix) stand first: a player still crouching reads as "crouches" before the B press lands (e2e-ctcourse)
@@ -661,7 +712,42 @@ try {
   await until(A, () => !window.__app.current.world.doors.list[0].cracked, null, 5000, 'host clears the crack on close');
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client back on the ground');
 
-  const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
+  // (test-chores-13) role-swapped: the leg-up of the team-moves section with the roles turned round. The host braces
+  // (the follower) and the CLIENT leads: it asks for the boost and climbs onto the 4.2 m lip. The same checks as that
+  // section, from the other page, plus the poses both ways: the host's brace on the client's copy, the client's hang on
+  // the host's copy (10 cm, as everywhere above). Host waits are Node-side polls (`until`, `waitHostSim`).
+  console.log('role-swapped team move: the client leads the leg-up, the host braces');
+  await reset();
+  await allowTeleport(A);
+  await placeTeam(A, 4, 27.05, 0);
+  await placeTeam(B, 4, 26.2, 0);
+  await waitHostSim(A, 600);
+  await wait(600);
+  await crouchOn(A);
+  await holdUntil(A, RB, () => window.__app.current.team.state === 'offer', 'host offers a leg-up (crouched + Co-op action)').catch(async (e) => { console.log('    host:', await teamLog(A)); throw e; });
+  assert((await GA(() => window.__app.current.team.prompt)) !== null, 'swapped: the offering host sees a prompt naming the move');
+  await until(B, () => { const m = window.__app.current.net.teamMates()[0]; return !!m && m.mode === 'brace'; }, null, 6000, 'client sees the host offering (crouched)');
+  await compareHost('host brace (offer)', 'brace');
+  await until(B, () => !!window.__app.current.team.offer?.boost, null, 4000, 'client is offered the leg-up').catch(async (e) => { console.log('    client:', await teamLog(B)); throw e; });
+  assert(/leg-up/i.test(await GB(() => window.__app.current.team.prompt ?? '')), 'swapped: the partner prompt names the leg-up');
+  // the host's `assist` lasts the boost's 0.9 s of its game time: recorded, not polled (watchTeam)
+  await watchTeam(A);
+  const boosts0 = await GB(() => window.__app.current.team.count.boosts);
+  await holdUntil(B, RB, (n) => window.__app.current.team.count.boosts > n, 'client boosted', boosts0).catch(async (e) => { console.log('    client:', await teamLog(B)); console.log('    host:', await teamLog(A)); throw e; });
+  await until(A, () => !!window.__app.current.team.__log?.some((e) => e[1] === 'assist'), null, 4000, 'host assists').catch(async (e) => {
+    console.log('    host:', await teamLog(A));
+    console.log('    client:', await teamLog(B));
+    throw e;
+  });
+  await until(B, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 20000, 'client on the 4.2 m lip').catch(async (e) => { console.log('    client:', await teamLog(B)); throw e; });
+  const lipY2 = await GB(() => window.__app.current.traversal.attach.anchor.top);
+  assert(Math.abs(lipY2 - 4.2) < 0.1, `swapped: the leg-up puts the client on the 4.2 m lip (${lipY2})`);
+  await until(A, () => window.__app.current.team.state === 'none', null, 4000, 'host free after the boost');
+  await compare('client hang after the swapped leg-up', 'ledge', 0.1, ['wristL', 'wristR', 'headNode']);
+  await reset();
+  await placeTeam(A, 3, 3, 0);
+
+  const errs =[...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
   assert(errs.length === 0, `no console errors (${errs.slice(0, 3).join(' | ')})`);
 } catch (e) {
   console.error(e);

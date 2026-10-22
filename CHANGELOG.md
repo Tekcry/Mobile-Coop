@@ -1,5 +1,161 @@
 # Changelog
 
+## 4.68.0 - Train 19: Sector Ops part 1: armed guards, reinforcements, dogs, co-op light sync; guard-cap report (2026-10-23, PR #187; #180, #184)
+
+### Guard cap measure
+- Tools: `scripts/guard-cap.mjs` measures what each awake guard costs per frame (sim split: AI brain, perception, rays, nav, physics; render: frame, GPU, draws, shadow passes) at 12 / 16 / 24 guards on Sector Ops and Marlow Yard, for the guard cap decision (`docs/guard-cap/REPORT.md`).
+
+### Unreleased - sector-fixes-r2
+- Sector Ops nav: a bolted team door shuts its doorway on the guards' nav grid (a runtime closure, `NavGrid.addClosure`
+  / `setClosed`), so guards route round it instead of stalling at the locked door; unbolting opens it, a restart's
+  re-bolt shuts it again, and guards mid-route and the flow field replan at once.
+- Sector Ops team doors: "Unbolt" now reaches only across the door itself (half its width + 0.3 m, up to 1.2 m out),
+  so the S1 mess back door can no longer be unbolted through the wall from the corridor; host and client prompts agree.
+
+### Unreleased - sector-redesign
+- Sector Ops guards are all armed: the Warehouse Ops runners are rifle guards, alarm reinforcements are rifle guards (no
+  heavies), and the section data check rejects melee-only guards and heavies.
+- Sector Ops dog rules: a section allows dogs only by its `dogs` count, and every dog names its handler; the palm strike
+  never knocks out a dog (every mode).
+- Sector Ops restart: a section restart also puts the lights (switched off, shot out, jammed) and the doors back as they
+  were when the section began.
+- Camera limit: 12 cameras live per Sector section (was 12 per map), at most 16 per map.
+- Sector Ops co-op: the host's lights (switched circuits, shot lamps; jams as before) now match on the client's screen, light meter and guard reads; a client can shoot lamps out through the host (protocol 31, slice L).
+- Sector Ops: new map campusOps (Saltmarsh Park), S1 greybox playable; not yet listed.
+
+## 4.67.0 - Train 18: Mocap batch 1 (pops, crouch walk, sprint; default off), shorter camera range on all maps (2026-10-23, PR #183; #177, #182)
+
+### Unreleased - camera-range
+- Cameras have less range (Michael 2026-10-23: "cameras need to have less range (they currently pick the player up
+  well outside of the intended area)"), on every map, one engine change: a camera's fill rate now falls off over its
+  own range (1 - (d / range)^2) instead of the guard's 25 m, so it is 0 at the zone's edge and nobody is picked up at
+  full speed at the range cut; an aimed camera with no range of its own watches the floor patch centred on its aim
+  (range 2 x aim); the default range is 12 m (was 18), 14 m at most.
+- Marlow Yard station 3's camera reaches 13 m (was 18): it covers the hallway but no longer the entry lobby (before it
+  picked a player up 2.6 m into the lobby); fill times in the hallway hold (still standing at bay x 6: 3.0 s, was 2.75).
+- Sector Ops cameras keep their zones; their far 5-15 % no longer picks anyone up (reach 0.5-2 m shorter by stance).
+  The Security Lab cameras reach their half of the room only (11.5 m, was 17.9).
+- Measured per camera before and after: docs/camera-range/MEASURE.md (`tests/cameraReach.test.ts`). No wire change.
+
+### Mocap locomotion: residual pops, review fixes, new clips
+- Mocap locomotion (switch on): a stop no longer pops the swinging foot: the clip's step in the air eases its pitch, height
+  and place onto the planner's (ankle-toe 40 -> 12-13.5 deg a frame, under master's own stop), and a landing mid-ease no
+  longer leaves the toe up.
+- Mocap locomotion (switch on): fast walking turns no longer sink the hips when the turn clip fades out: the trailing foot
+  steps off as the other lands; a leg the joint-speed limit holds back no longer flicks the foot round with it (also the
+  jog / run turn foot pops).
+- Mocap locomotion (switch on): fast jog and run turns no longer snap the swinging foot across the planted one: a swing
+  lifted at a flight gait follows the body round (run 4.0 m/s x 4 rad/s ankle-toe 81 -> 14-22 deg, under the switch-off
+  set's 57-59).
+- Mocap locomotion (switch on): a start after a short stand no longer pops: the leftover idle step lands first, a late
+  clip lift goes to the planner and a foot left behind steps off (worst bone step 37 -> 22 deg, no pelvis sink).
+- Mocap locomotion (switch on): a spin on the spot that reverses, slows or walks off plays on smoothly; the clip's short
+  jog / run stance eases in and out at every clip-feet edge (switch on mid-jog, a crouch or a draw); the switch turned
+  off mid-stop no longer leaves a foot toe up; the switch turned on mid-walk, or a partner first seen walking, plays no
+  start.
+- Mocap locomotion (switch on): the crouched sneak plays the CMU crouch walk (136_09) as Wren's body over the usual
+  steps; the faster crouch walk / run stay hand-keyed and are blended into. Crouched spins no longer hold the keyed pose.
+- Mocap locomotion (switch on): crouching, standing up or drawing while walking no longer snaps a foot as the clip's feet
+  hand the steps to the planner (ankle-toe 57 -> 17 deg a frame at worst, switch off 16.5).
+- Mocap locomotion (switch on): a CMU sprint cycle (127_07) fades in over the run between 4.2 and 5.0 m/s.
+- Mocap locomotion (switch on): a sudden stop from a jog, run or sprint eases the body down to the walk instead of
+  dropping the pelvis in a frame (5 m/s one-frame stop 10.5 -> 2.1 cm, switch off 8.9).
+- Mocap locomotion (switch on): speeding up or slowing down through the walk / run bands, also while turning, no longer
+  pins a foot for a walk-length stance (the pelvis dropped up to 14 cm in a frame); a start after a short stand no longer
+  skims a foot along unplanted.
+- Mocap locomotion (switch on): fast flick turns while walking no longer lurch the hips or snap the feet as the turn
+  ends; turning the switch on or off mid-move cross-fades the pose over 0.25 s instead of snapping it.
+- Mocap locomotion (switch on): spot turns, sprint and crouched sneak flicks keep the planted foot on its spot;
+  crouching mid-jog no longer snaps the swing leg; a stop's hold fades out softly and no longer jolts the hips when
+  moving again.
+- Mocap locomotion (switch on): a run start after a short stand no longer pops the first step's foot forward (knee
+  47 deg, hips 9 cm down at 4 m/s): the start's leftover step restarts its swing from where it is.
+
+## 4.66.0 - Train 17: Guards hear by range: one investigator per noise (guard-ai S1) (2026-10-23, PR #181; #179)
+- S1 hearing: not every guard hears every noise any more. A wall cuts a noise's reach to 0.45 and noisy machinery near a
+  guard masks it (map data, none placed yet). Of the guards a noise reaches, only the nearest one close enough walks over
+  to check; the others turn to look and stay at their posts. Loud gunfire puts guards in combat only close in (about
+  7 m in the open); farther, or behind walls, one guard is sent to look and the rest turn, and a shot behind walls far
+  off reaches nobody. Hunter and Mission (parked) keep the old everyone-hears rule.
+
+## 4.65.0 - Train 16: Guards see poorly above, deploy reload waits for the menu, load-robust e2e, decisions G276-G281 (2026-10-23, PR #178; #168, #169, #170, #171, #172, #173, #174, #175, #176)
+
+### Decisions fold G276-G281
+- docs/DECISIONS.md: roadmap decisions of 2026-10-23 ~00:15 to ~01:05 folded in as G276-G281 (CMU takes, Marlow Yard
+  final M4-M6, Sector Ops team doors, pacing).
+- docs/design-bible.md: dated notes at Sector Ops (team doors), the external-art line (CMU takes) and Marlow Yard
+  pointing at G276-G280; CLAUDE.md "Current goal" notes the detail-art lift for marlow-final (G278).
+
+### Unreleased - g44-above
+- Guards see poorly above them (G44): a player well above a guard's eye line (hanging, on a high ledge) is spotted far
+  slower or not at all; level and close targets are unchanged, and a guard in combat still tracks you overhead.
+
+### Load audit
+- Tests: load-only e2e failures fixed without weaker limits (load audit on 4.61.0 at E2E_JOBS=5, plus a static scan):
+  every page of an e2e context (and smoke's own) gets the 120 s navigation default; e2e-desktop's crash step waits for
+  the crash and closes the dead page before the crash-log page (it hung under load), with 60 s menu waits; e2e-move's
+  sideways pace is measured over a game-time window (pace and end speed both over 2.15 m/s); e2e-coop's client grab latches on the client's match clock (4.5 s) with a
+  per-frame host pin (the teleport window granted once per attempt, a generation token and try/finally end each
+  attempt's pin); e2e-coop's client takedown lets the host settle on its match clock before a retry (a late knock-out
+  no longer overwrites the start); e2e-mouse waits for frame-applied yaw, weapon swap and pace; e2e-ctcourse times its jam / lamp
+  windows on the host clock (`waitHostSim`, which returns the elapsed game time, asserted at every call), station 3's
+  camera freeze latched over 800 ms of each page's own clock with the host's jam still on at the client's last read,
+  the lamp-off window latching both pages, and up to 3 re-jams when too little jam is left.
+
+### Load fixes: e2e-coop strike and offline
+- Tests: e2e-coop's latent load failures fixed without weaker limits: the client elbow strike pins the host's guard on
+  every host sim step (a fixedUpdate wrapper with a generation token, always ended; the guard's brain restored in a
+  finally), strikes in the client frame its pick is that guard within 6 s of its match clock (a 90 s wall-cap timer
+  resolves the wait if the client's rAF stalls, and the assert then fails), and waits for the knock-out on the host's
+  clock; the denied strike is sent only once the client can strike and its start is asserted; the offline check waits
+  for the service worker to control the page (120 s polled every 100 ms, a timeout fails) and gives its screens 30 s.
+
+### Load fixes: host-step hooks
+- Tests: co-op waits that missed short host states under load now act on the host's own fixed sim step
+  (e2e-net-lib `onHostStep` / `hostStepResult` / `offHostStep`: a hook on the loop's `fixedUpdate`, which the pump's
+  headless steps also run; a hook nobody will read - the client's press failed, or `hostStepResult` timed out - is
+  dropped so it never fires late). e2e-ctcourse snapshots station 3's camera reboot on the step its jam goes 1 -> 2
+  (after load-audit's last freeze-window try; per step it reads only the camera's jam phase); station 6's synced hack
+  and station 5's roof plates have the client press its half and the host press its own on the step that first sees
+  it (station 5 needs the client's stamp, not a host one); station 8's 2.5 s pause runs on the host clock
+  (`waitHostSim`, host time logged, its elapsed time asserted >= 2.5 s like load-audit's windows); station 5 waits for
+  the client upright on the roof before the same check. e2e-course's pair gate: the host presses its half on the step
+  that first sees the client's stamp. No other assert, limit or window changed.
+
+### Load fixes (UI suites)
+- Tests: latent load-only e2e waits fixed without weaker limits: e2e-mouse's RMB draw and X holster polls run on the
+  match clock (4 s / 3 s, never shorter than the old 8 s / 5 s wall, 60 s real-time cap); e2e-feedback holds the
+  photo-mode fly keys for 0.7 s of frame time (summed clamped frame dt, 30 s real-time cap, also a timer if frames stop); e2e-lightbake waits up to
+  120 s for the lamp plugin on every PBR material and up to 60 s for the stack rebuilt at Ray traced (screen space
+  fallback) instead of a fixed 1.5 s; e2e-pad's remap captures press both buttons in one evaluate (new `pressPair` in
+  e2e-lib, one input poll each) and assert on the state recorded the frame after the first, so the wall-clock 5 s
+  capture timeout and countdown no longer race the test's round trips (a missed input poll is named in the assert); e2e-menus' `menuClock=fast` shot change and
+  fade waits count 8 s / 10 s of frame time (120 s real-time cap, also a timer if frames stop), and the touch pause / resume waits run at least 30
+  checks 2 frames apart and 3 s (60 s real-time cap).
+
+### Load fixes (latent UI waits)
+- Tests: more load-only e2e waits made correct under CPU load, no assertion, limit or window weakened:
+  e2e-desktop's Hor+ / HUD inset match load waits 120 s and the "no match kept in memory" count polls every 2 rendered
+  frames for up to 60 s.
+- Tests: e2e-offline's offline match and Infiltration loads and both "Wren from the cache (LOD2)" waits take up to
+  120 s.
+- Tests: e2e-traverse's keyboard ledge presses (Space grabs, C lets go) wait up to 0.7 s of game time per press (30 s
+  real-time cap), not 0.7 s of host time.
+- Tests: e2e-weapons-carry's loadout and backpack match loads take up to 120 s, and the detailed-avatar-with-backpack
+  step polls the stored settings and profile records (up to 30 s, asserted) before its reload instead of a fixed 600 ms.
+- e2e-desktop:4's frame governor check on a hardware GPU: up to 20 s of real frames, then missed frames fed through the quality manager's frame path (a fast GPU rarely misses; the check is now "missed frames step the detail down"); software GL keeps the real 300 s wait.
+
+### Unreleased - sw-reload
+- A new deploy no longer reloads the game mid-match or in a co-op lobby: it waits and restarts at the title / main
+  menu ("Update ready - restarts at the menu"), or on the next launch.
+
+### Test chores 13
+- Tests: `run-e2e` prints a timed-out suite's `KILLED` line in streamed mode (`--serial` / `--jobs=1`) too, as the
+  parallel mode does (before, a streamed suite killed for its timeout ended silently).
+- Tests: e2e-netmove gets a role-swapped team-move pass: the host braces and the client leads the leg-up onto the
+  4.2 m lip; the same checks as the host-led leg-up from the other page, the host's brace on the client's copy and the
+  client's hang on the host's copy both within 10 cm. Host waits are Node-side polls of the host clock.
+
 ## 4.64.0 - Train 15: Mocap locomotion trial behind a switch (default off) (2026-10-23, PR #167; #159)
 - Mocap locomotion switch (Settings > Gameplay > "Mocap locomotion", also in the animation tuner under More > Panel;
   `?mocap=1` / `?mocap=0` overrides it for a page; default off, saved with the settings): Wren's holstered walk / jog /

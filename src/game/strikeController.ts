@@ -7,7 +7,7 @@
  */
 import { Vector3 } from '../core/babylon';
 import { gearCap } from '../player/speedGears';
-import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeReach } from './elbowStrike';
+import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeReach, strikeTargetable } from './elbowStrike';
 import { strikeSimSet, strikeWarp } from '../anim/strikeBody';
 import type { CDenyReason } from './committedMoves';
 import type { GameState } from './gameState';
@@ -89,7 +89,8 @@ export class StrikeController {
     let best = '';
     let bestD = Infinity;
     for (const e of g.takedownVictims()) {
-      if (!e.alive || e.taken) continue;
+      // (G42) dogs cannot be palm-struck: never picked (the strike whiffs past them)
+      if (!e.alive || e.taken || !strikeTargetable(e.def)) continue;
       if (Math.abs(e.pos.y - pp.y) > 1) continue;
       const d = strikeReach(e.pos.x - pp.x, e.pos.z - pp.z, yaw);
       if (d >= 0 && d < bestD) {
@@ -227,7 +228,8 @@ export class StrikeController {
     const em = g.enemyMgr;
     let res: 'ko' | 'stagger' | 'miss' = 'miss';
     const e = tid && em ? em.enemies.find((x) => x.id === tid) : undefined;
-    if (e && e.alive && !e.taken && Math.abs(e.pos.y - at.y) <= 1) {
+    // (G42) a dog is never knocked out by the strike, whoever named it (a client's request too)
+    if (e && e.alive && !e.taken && strikeTargetable(e.def) && Math.abs(e.pos.y - at.y) <= 1) {
       const dx = e.pos.x - at.x;
       const dz = e.pos.z - at.z;
       if (strikeReach(dx, dz, bodyYaw, slack) >= 0 || strikeReach(dx, dz, aimYaw, slack) >= 0) {

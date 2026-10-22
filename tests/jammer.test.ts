@@ -392,7 +392,7 @@ describe('jam wire', () => {
   });
   it('(26) the sec field round-trips the jam state: camera clocks, use, cooldown, device timelines; junk is clamped or dropped', async () => {
     const { parseMessage, PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(29);
+    expect(PROTOCOL_VERSION).toBe(31);
     const sec = { ck: [12.5, 3], j: ['cam-s3', ''], ch: [2.5, 5], cd: [0, 3.2], dv: [['cam-s3', 1, 2.5], ['lt-4', 2, 1.25]], al: 1 };
     const msg = { t: 'sector', sec };
     expect(parseMessage(JSON.parse(JSON.stringify(msg)))).toEqual(msg);
@@ -515,8 +515,10 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
         }
       }
     }
-    // A2 lies in the camera's frame and range (behind the wall): the test really tested something
-    expect(tested).toBeGreaterThan(0);
+    // (camera-range) A2 lay in the camera's frame and its old 18 m range (behind the wall); with the zone range (2 x aim,
+    // 13 m) no point of either airlock is even in range: the walls are no longer needed to keep it inside the bay
+    expect(camRange(cam)).toBe(13);
+    expect(tested).toBe(0);
   });
 
   it('one jam covers one runner, never both: the covered stretch at the course speeds', async () => {

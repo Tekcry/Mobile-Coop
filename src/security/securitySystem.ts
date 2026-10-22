@@ -52,7 +52,8 @@ export function cameraSight(c: CameraUnit, head: Vector3, crouched: boolean, spe
   if (!c.covers(head.x, head.y, head.z)) return 0;
   // a hit within 0.2 m of the head is the body's own surroundings, not an occluder
   const dist = lensRay(c, head, 0.2, ray);
-  return dist < 0 ? 0 : cameraRate(dist, crouched, speed);
+  // (camera-range) the falloff runs over this camera's own range (`c.range`, `camRange`): host and client alike
+  return dist < 0 ? 0 : cameraRate(dist, crouched, speed, c.range);
 }
 
 /**

@@ -270,6 +270,8 @@ export class Enemy implements Damageable {
   private routePath: Waypoint[] = [];
   private routeGoal: P2 = [NaN, NaN];
   private routeT = 0;
+  /** The nav grid's `version` the route was planned under (a bolted door opened or shut since: replan). */
+  private routeVer = -1;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S2 fix 2) This search follows combat (alert -> searching: the walk on to the last known position and
@@ -1216,8 +1218,9 @@ export class Enemy implements Damageable {
     }
     this.routeT -= dt;
     const moved = !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 1.5);
-    if ((moved && this.routeT <= 0) || this.routePath.length === 0) {
+    if ((moved && this.routeT <= 0) || this.routePath.length === 0 || this.routeVer !== nav.version) {
       this.routeT = 1;
+      this.routeVer = nav.version;
       this.routeGoal[0] = p[0];
       this.routeGoal[1] = p[1];
       this.routePath = nav.findPath(me, p, 3000, this.pos.y, y) ?? [];

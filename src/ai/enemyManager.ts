@@ -45,6 +45,8 @@ export class EnemyManager {
   maxAlive = MAX_ALIVE;
   private flowField: Float32Array;
   private flowT = 0;
+  /** The nav grid's `version` the flow field was built under. */
+  private flowVer = -1;
   private coverOwner = new Map<number, Enemy>();
   private ctx: AiContext;
   onKilled: ((e: Enemy, h: HitInfo) => void) | null = null;
@@ -993,6 +995,7 @@ export class EnemyManager {
     // heights pick the storey (a roof, an upper floor) the goal is on
     const ys = this.stealth ? [this.lkp.y] : live.map((p) => p.feet.y);
     if (goals.length) this.nav.flowField(goals, this.flowField, ys);
+    this.flowVer = this.nav.version;
   }
 
   update(dt: number): void {
@@ -1000,7 +1003,8 @@ export class EnemyManager {
     // nobody hunting any more: the last known position is forgotten
     if (this.lkpValid && this.sightT > 2 && !this.hunting) this.lkpValid = false;
     this.flowT -= dt;
-    if (this.flowT <= 0) {
+    // (sector-fixes-r2 nav) a nav closure opened or shut (a team door): the flow field is rebuilt at once
+    if (this.flowT <= 0 || this.flowVer !== this.nav.version) {
       this.flowT = 0.5;
       this.refreshFlow();
       this.assignFlanker();

@@ -175,6 +175,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 ## Navigation
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only for cover moves,
   and are constrained to nav cells (no physics character controller per enemy).
+- Runtime closures (sector-fixes-r2): `addClosure(cx, cz, hx, hz, yaw, y)` collects a rect's walkable cells near height y
+  once; `setClosed(id, on)` toggles `walk` through a per-cell count (overlaps stay shut until all open) and bumps
+  `version`, which makes `goTo` routes and the manager's flow field replan. Sector Ops shuts each bolted team door's
+  doorway this way (`sectorMode.findBolts` / `unbolt` / `rebolt`; host and solo only, the client has no grid).
 - Multi-level: the grid is layered - up to 3 standing surfaces per column by default (`sampleLayers`; a surface needs
   `HEADROOM` 1.7 m; a map may raise `navLayers`), cell = `layer * cols + column`; columns join by height (`stepTo`). Links
   (`navLinks`): ladders both ways (`kind 'ladder'`), ledge drops 1-2.2 m one way; A* / Dijkstra take them, paths split at
@@ -197,3 +201,17 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   banner, slow beat, letterbox; one "Operation complete" reward line).
 - `?autostart=<mapId>&mode=<sandbox|mission|clear|infiltration|course>` boots straight into a match (`mode=hunter` is an
   alias of `clear`; dev and tests).
+- Sector Ops guard rules (sector-redesign slice 0): `checkSectorGuards` (`game/sectors.ts`, run by `checkSectors`)
+  fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
+  and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements spawn as
+  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage. `SectorGuard` also carries optional `squad`, `zone`, `role`,
+  `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
+  joins no squads, so radio checks do not run there.
+- Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact
+  (solo, host and a client's strike on the host). Dogs carry no flashlight (G201, `carriesTorch`).
+- Sector restart (G22): `SectionStartState` (`game/sectorReset.ts`) records the fixed lights (switched, shot, the base of
+  a jammed lamp; not torches) and the unlocked doors when a section begins, and a section restart puts them back
+  (`LightRegistry.resetTo`, `StealthSystems.syncSwitches` for the switch labels). Host / solo; Sector co-op does not
+  mirror lamps yet.
+- Camera cap (G1): `validateSecurity` caps cameras live at once (12 per Sector section, untagged ones counting in each)
+  and the map at 16 (`WIRE_CAMERAS`, the co-op `sec.ck` list).
