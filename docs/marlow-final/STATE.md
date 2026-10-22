@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 07:05 A2 greybox checker PASS + A1 dressing PASS (S2-check.md). A2 should-fix 1 (lure wait out of range) fixed by
+  the job lead (78589aac); should-fix 2 (walkable strip under the east stair) and the floating staging switch go into
+  A2 dressing, started on Sonnet. Course Ready: ours is the one switch fix; their Sector lamp sync (protocol 31,
+  feature/sector-redesign) touches the same net files, so our fix stays local to the use / switch path.
 - 06:45 NEW WINDOW (reset ~06:40, ends ~11:40): up to 2 agents; e2e on the DESKTOP lanes (Character Build down until
   Michael restarts it), heavy.lock + port 4191. Running: (1) Opus client wall-switch fix (stealthSystems / coopClient /
   coopHost; report slices/S-switch.md; it runs e2e-ctcourse:1 on the desktop), coordinated with Course Ready (they
