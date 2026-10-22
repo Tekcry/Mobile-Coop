@@ -314,9 +314,52 @@ export const LAMP_GRID = 2;
 /** Lights listed per grid cell (two RGBA8 texels). */
 export const LAMP_GRID_SLOTS = 8;
 
+const clamp1 = (c: number): number => (c < -1 ? -1 : c > 1 ? 1 : c);
+
 /**
- * Pure: per `LAMP_GRID` column of the map, the ids (+1; 0 = none) of up to `LAMP_GRID_SLOTS` lights whose reach
- * touches it, nearest first. Two RGBA8 texels per cell, `cols * 2` x `rows`.
+ * Plan reach of light `i` of a `LAMP_STRIDE` array (sector-fixes L): how far from the light, in plan, its formula can be
+ * above 0 (`lampMath`: 0 beyond the radius and outside a cone's outer angle), so a column it cannot light spends no slot
+ * on it. `out` gets the disc radius and the bounding box's extents towards -x, +x, -z, +z: a lamp without a cone, the
+ * radius each way; a cone, radius x cos(the angle from its axis to that direction less its outer angle) (0 behind it),
+ * and a disc of radius x sin(its widest angle from straight down) when it stays under the horizon. Lossless.
+ */
+export function lampPlanReach(L: ArrayLike<number>, i: number, out: number[] | Float64Array): void {
+  const o = i * LAMP_STRIDE;
+  const r = L[o + 3]!;
+  const cosOuter = L[o + 7]!;
+  if (cosOuter < -1.5) {
+    out[0] = out[1] = out[2] = out[3] = out[4] = r;
+    return;
+  }
+  const th = Math.acos(clamp1(cosOuter));
+  const down = Math.acos(clamp1(-L[o + 5]!)) + th;
+  out[0] = down >= Math.PI / 2 ? r : Math.min(r, r * Math.sin(down) + 0.01);
+  // (the extent towards a plan direction e: the cone's nearest direction to e makes max(0, angle(axis, e) - outer) with it)
+  const ext = (c: number): number => {
+    const a = Math.acos(clamp1(c)) - th;
+    return a <= 0 ? r : a >= Math.PI / 2 ? 0.01 : Math.min(r, r * Math.cos(a) + 0.01);
+  };
+  out[1] = ext(-L[o + 4]!);
+  out[2] = ext(L[o + 4]!);
+  out[3] = ext(-L[o + 6]!);
+  out[4] = ext(L[o + 6]!);
+}
+
+/** Plan distance from light `i` to the column [x0, x0 + g] x [z0, z0 + g] when its reach (`lampPlanReach`, in `reach`) touches it, else -1. */
+export function lampColumnDist(L: ArrayLike<number>, i: number, reach: ArrayLike<number>, x0: number, z0: number, g: number): number {
+  const o = i * LAMP_STRIDE;
+  const x = L[o]!;
+  const z = L[o + 2]!;
+  if (x + reach[2]! <= x0 || x - reach[1]! >= x0 + g || z + reach[4]! <= z0 || z - reach[3]! >= z0 + g) return -1;
+  const dx = Math.max(x0 - x, 0, x - (x0 + g));
+  const dz = Math.max(z0 - z, 0, z - (z0 + g));
+  const d = Math.sqrt(dx * dx + dz * dz);
+  return d < reach[0]! ? d : -1;
+}
+
+/**
+ * Pure: per `LAMP_GRID` column of the map, the ids (+1; 0 = none) of up to `LAMP_GRID_SLOTS` lights whose plan reach
+ * (`lampPlanReach`) touches it, nearest first. Two RGBA8 texels per cell, `cols * 2` x `rows`. Load time only.
  */
 export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly number[]): { data: Uint8Array; cols: number; rows: number } {
   const g = LAMP_GRID;
@@ -325,17 +368,20 @@ export function lampGrid(L: Float32Array, lo: readonly number[], hi: readonly nu
   const data = new Uint8Array(cols * 2 * rows * 4);
   const n = Math.min(255, L.length / LAMP_STRIDE);
   const near: { id: number; d: number }[] = [];
+  const reach = new Float64Array(n * 5);
+  const one = [0, 0, 0, 0, 0];
+  for (let i = 0; i < n; i++) {
+    lampPlanReach(L, i, one);
+    reach.set(one, i * 5);
+  }
   for (let r = 0; r < rows; r++) {
     for (let q = 0; q < cols; q++) {
       const x0 = lo[0]! + q * g;
       const z0 = lo[2]! + r * g;
       near.length = 0;
       for (let i = 0; i < n; i++) {
-        const o = i * LAMP_STRIDE;
-        const dx = Math.max(x0 - L[o]!, 0, L[o]! - (x0 + g));
-        const dz = Math.max(z0 - L[o + 2]!, 0, L[o + 2]! - (z0 + g));
-        const d = Math.sqrt(dx * dx + dz * dz);
-        if (d < L[o + 3]!) near.push({ id: i, d });
+        const d = lampColumnDist(L, i, reach.subarray(i * 5, i * 5 + 5), x0, z0, g);
+        if (d >= 0) near.push({ id: i, d });
       }
       near.sort((a, b) => a.d - b.d);
       for (let k = 0; k < Math.min(LAMP_GRID_SLOTS, near.length); k++) data[(r * cols * 2 + q * 2) * 4 + k] = near[k]!.id + 1;

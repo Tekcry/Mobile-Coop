@@ -1,7 +1,7 @@
 # Night Shift - roadmap
 
 State only: what is happening, what comes next, what waits on Michael, what is done. The rules (the orchestrator,
-machines, merges, versions, test tiers) live in CLAUDE.md "Sessions". Detail lives in each job's own docs (linked). Live page: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (new account, 2026-10-19 22:55; the old page belongs to the old account)
+machines, merges, versions, test tiers) live in CLAUDE.md "Sessions". Detail lives in each job's own docs (linked). The dashboard page belonged to an old account; git is the source (2026-10-22: no page republished).
 
 Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training level with Wren, basic animations, basic
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
@@ -14,15 +14,45 @@ runs only on spare capacity and yields the desktop lock whenever CT Core needs i
 
 Priority (Michael, 2026-10-20 10:30): "movement and animations are the top priority". CT Core (G8 keyframed clips, then movement gaps) has first claim on the desktop lock, the laptop runner and the orchestrator's reviews; everything else fits around it.
 
-Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restarted from git at 22:40).
+Last updated: 2026-10-22 18:30 Sydney (account switched 13:10; master 4.56.0).
 
 ## Waiting on Michael
-1. Walk slice F on /ct/ in the morning (CT Core, overnight).
-2. Prune old branches and worktrees when convenient (docs/process-audit/REPORT.md section 5). feature/ct-research is deleted.
-3. Before the campaign spec resumes (feature/campaign-spec 6ba3726e, STATE has the research): a rule clash, level-design
-   section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
+1. Walk 4.56.0+ on /preview/ (menus, the version label): weapon draws / holsters (LT mid-holster gun-through-trunk known), security room in bay 3, wheel opens on goggles; then the full anim tune once train 6 + N1 / N2 land.
+2. Prune: done 2026-10-22 ~16:35 (85 merged remote branches, 21 clean worktrees). Kept: dirty worktrees anim-cleanup, anim-joints, guard-tune, tuner-v3 (uncommitted files) and branches still in use.
+3. #67 S2b walk (step length vs the wall peek): Michael fixes it himself in animation dev (2026-10-21 13:20); stays parked.
+4. Review on the next walk (Menu Notes N3b, feature/anim-n3b): A2 wall block tips the gun muzzle-DOWN about the butt
+   (replaces G6's CT muzzle-up; real-world standard per the 2026-10-20 13:30 "ignore CT movement references"); A1 body
+   recoil above CT G2's "under 0.5 deg" (rifle grip 2.8 cm, chest 1.5 deg; Gun tuner recoilMul). Undo: constants /
+   recoilMul 0. W (#116): 0.08 s wheel let-go grace (WHEEL_LETGO_S).
+5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
-## Decided (Michael, 2026-10-19 dashboard)
+## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Machines and rules (2026-10-22 ~17:50-18:00): the laptop's CPU / GPU are far stronger: "Laptop main", "Yes, laptop GPU" (CLAUDE.md "Main test machine"). Rule review: chose "Your picks": (1) checker-passed PRs go straight into trains, src/net / protocol / save PRs keep their area suites; (2) a docs / CHANGELOG / fragments / test-script delta keeps a test result; (3) the laptop runs two queues (4191, 4192); (4) test-speed round 2 (full run ~27 -> ~15 min); (5) changelog fragments per PR, assembled at the version step; (6) one merge-train script that merges only on a passing check; (8) refresh stale roadmap and dashboard. (7) lock queue file skipped. Michael also: "if the desktop is a problem, why haven't you mentioned it? ... you should take initiative to identify bottlenecks and make recommendations to increase the speed and quality of the results."
+- 2026-10-22 ~16:25: firing body recoil above CT's 0.5 deg (N3b A1): "Keep it". Prune: "Delete merged ones" (merged branches and clean worktrees; dirty or in-use ones kept). #67 S2b walk: "Close it" (superseded by the tuner bakes, N1, N2).
+- Wall block (2026-10-22 ~16:20, N3b A2, #122): chose "Muzzle down" (tips down about the butt; replaces G6's CT muzzle-up).
+- Campaign rules (2026-10-22 ~14:45): solo first vs co-op only: chose "Co-op only" (level-design section 11's solo rules do not bind campaign maps; open item 1 there). Guard count, story 16 vs SQUAD_CAP 9: "Maximum amount of guards allowable. If there are ways to increase this cap (for example moving to webgpu) then let me know and make suggestions." Campaign spec: "Ignore campaign spec until Marlow yard and sector ops warehouse are fully completed".
+- Idle shins (2026-10-22 ~14:35, #103's baked idle trackMul 0.05 overlaps the shins ~1.2 cm in anim-audit): "Widen just enough. They didn't clip when I viewed it though". CT Core clamps the idle track only to clearance (patch, train 4).
+- Unused clips (2026-10-22 ~14:05, N0 pass 2): slide (pose.slide) and doorway sweep (pose.check) have no trigger and are not CT moves; chose "Delete them" (Menu Notes).
+- Run twist (2026-10-22 ~13:55, CT Core N2 A1: key 0 pelvis yaw 25.5 vs ~10 at his other keys, a ~21 deg snap twice a stride): "Only fix it if it will result in a more believable, realistic, less rigid run". CT Core applies it on a branch and keeps it only if the before / after sheet reads more natural.
+- Full burn (2026-10-22 ~13:30, new account): "using this account, i want to use all available weekly tokens before the reset. make sure each 5 hour token window hits 99%". All sessions full speed with parallel agents; the orchestrator resumes them after every 5-hour reset; 97 / 98 / 99% thresholds kept (STATE "Pacing").
+- Speed-ups (2026-10-22 ~11:40): chose "One PR per batch" (a train merges as one PR with one version) and "Fix load-flaky tests" (job flake-fix, Character Build: e2e-stealth-ai peek head, e2e-netmove client assists, e2e-mouse capture, e2e-ctcourse station 4; test-only tier).
+- Batching (2026-10-22 ~11:25): asked whether to batch updates into larger ones tested once; chose "Batch when 2+ ready": merge trains (CLAUDE.md test tiers, STATE "Merge procedure").
+- Models (2026-10-22 ~11:15): offered Sonnet for the test runner and light reviewers to stretch the 5-hour window; Michael chose "Keep all Opus". Sessions pause at 97% until the reset instead.
+- anim-natural N0 answers (2026-10-22 ~10:40): sway cap "Lift to ~5 cm" (SWAY_MAX, CT Core N2). Draw speed: "Research what is believable and realistic. Can I fine tune the whole animation speed in anim tuner?" (Menu Notes N3: real-world draw times with sources set the defaults; a baked per-clip speed slider in the tuner; today it has only view slow motion and per-key timing). Test tier: "Yes, tuner/tests only": a PR that touches only the tuner / Anim Studio or tests merges on CI + the suites it touches, no full e2e (CLAUDE.md test tiers).
+- Weekly (2026-10-22 ~09:20): weekly at 61% rising ~5.5%/h; Michael chose "Full speed, swap account": keep going, and at weekly ~98% save everything and hand off to another account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
+- Cameras (2026-10-22 ~09:05): "Cameras should still work in the dark." Every security camera sees in the dark (IR), every map including Sector Ops; light still matters for guards and the meter.
+- Animation pass (2026-10-22 ~09:00): "All movements must move naturally with twisting/swaying/balancing hands... The feet also need to get fixed... I want you to do a full pass over all animations and I will fine tune. Pulling any weapons out also should be believable, and there's a random stop animation when taking out the weapons". Job anim-natural (docs/anim-natural/BRIEF.md): N0 audit, N1 feet + N2 body motion (CT Core), N3 weapons (Menu Notes), N4 the rest. Top priority.
+- Sector Ops fixes (2026-10-22 ~01:40): Michael's list (warehouse lights, LED fittings, camera range and pitch, subtle grid, lasers in one vision mode and alarm-only, laser power panels, security room, wheel default goggles, more co-op routes); "Priority is still animations right now but any spare capacity can be used as you see fit." Job sector-fixes (docs/sector-fixes/BRIEF.md), spare capacity, after the 04:00 reset.
+- Overnight (2026-10-21 ~23:00): "Ignore the usage rule for this 5 hour session... The next 5 hour session I will be going to sleep, so monitor 5 hourly usage and reduce token usage when needed to keep the session running up until 99%. I'd rather usage as much as possible without hitting the limit". Overnight approvals: "Proceed, review AM" (steps waiting on his OK build on best judgement; screenshots kept for the morning). Pacing: the orchestrator projects the window; trims in order Bays Cloud, slice J, then lean tracks; sessions self-pause at 97% before starting an agent; all paused by 99%.
+- Usage update (2026-10-21 ~20:25): "Dont stop animation until 98% 5 hour, then pause them". The animation tracks run normally until the 5-hour window reaches 98%, then pause at a clean commit; slice J and the cloud stay paused until the reset or headroom.
+- Usage (2026-10-21 ~20:05): "I don't care about weekly, just don't hit 5 hour. Trim to animation until 5 hour reset clears, or there's spare headroom around 80%". At ~60% of the 5-hour window: slice J and the cloud (R / S) pause, the animation tracks run lean (one agent at a time); at ~85% pause the tracks too; resume everything after the reset or when the window has headroom (under ~80% projected).
+- Server browser (2026-10-21 ~19:50): "Yes add it to the pipeline. It can proceed as low priority whenever there is spare capacity. Must be prototype only, quick and fast to build." Public / Private rooms listed through the existing Nostr relays; no quick match, no TURN, no server (docs/marlow-bays/BRIEF.md item 28, Bays Cloud after rejoin).
+- Focus (2026-10-21 ~19:20): "We'll focus on fine tuning the animations, gameplay, and bunker for now." Dev tools + level editor on Later.
+- Phone tuner (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for phones only? Touch input and controller will be used." Chose "Yes, tuner only": the animation tuner and Anim Studio get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/marlow-bays/BRIEF.md item 26).
+- Laptop (2026-10-21 ~17:45): "I'm not on the laptop any more, it can be loaded up." Until Michael says otherwise the laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job lead's run when free).
+- Machines (2026-10-21 16:40): "i dont care about usage on the desktop, i use the laptop." Desktop = main test machine at full power (full e2e E2E_JOBS=2); laptop = overflow only (CLAUDE.md "Machines").
+- Animation focus (2026-10-21 16:10): three animation tracks at once (A tuner tools Course Ready, B joint bake CT Core, C skeleton Menu Notes; docs/marlow-bays/BRIEF.md "Tracks"); bays B + M in a cloud session; jammer / hallway (slice J) later.
+Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body maps each entry to its G number). Later entries stay here until the next fold.
 - Movement rebuild from the footage (23:15): "Catalogue them, audit, and update our movement system to match the recorded animatimations, movements camera angels, speeds, everything about movement. Must be exactly the same as the recorded movement, only made original by you." (23:20) "I expect a thorough audit of the movement system and have it replicated in my game using original code." This lifts the no-refining rule for movement. Footage: C:/NightShift/Mobile-Coop-ct-prototype/pc/ct-work/ (gitignored; 88 clip folders, 62 from 2026-10-17, 26 new from 2026-10-19). CT Core, after slice F.
 - Morning bar (23:45): "my expectation in the morning is that night shift movement and animations will operate identically to those recorded. It should feel the exact same when i play it. I expect prototype animations for all of it, with no clipping and must be believable." Told: identical everywhere overnight is not realistic; the biggest gaps closed plus a measured list of what remains.
 - Co-op training walkthrough (23:45): "I also want coop bunker/training fully prepared for a coop walkthrough test, including prototype/light visual pass over it to ensure theres sufficient lighting where required." New job course-ready (Night Shift | Course Ready Build, feature/course-ready); movement keeps first claim on the desktop GPU (23:47).
@@ -52,7 +82,8 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 - Movement feedback on 4.15.x (2026-10-20 ~19:10), to CT Core slice 2: "full speed is too quick, and the leg strides should be further apart with less steps, it's too many steps"; "walking forward on all gears leans too much, it shouldn't lean at all until full speed which should be similar to the lean it has now"; "the legs when walking are too far apart, bring knees and legs in line with the body, I would say almost completely vertical."; "arms go out in front of body when moving, it looks weird like a zombie. Arms should stay parallel the body and swing naturally increase slightly more each time you speed up."; "none of the movement feel weighted, but we will focus on these animations first."; "prototype quick passes only, must be believable, not perfect."
 - Marlow variety (2026-10-21 ~07:30): "Instead of the campaign spec, is there any outstanding work for Marlow yard? Were we looking into adding more variety, adding roof etc?"; chose "Marlow variety": job marlow-variety (the Marlow bunker session, feature/marlow-variety from feature/marlow-bunker 80d49dd3): the bunker pass's polish list (station dressing, plant rooms, instructor booths, S8 coffer, hazard stripes). campaign-spec parked on its branch (not reviewed).
 - Campaign spec (2026-10-21 ~07:10, parked 07:30, from the ~23:40 priorities and the 06:40 spare-capacity rule): job campaign-spec (Sector Ops Build session, feature/campaign-spec, docs only): the first campaign level's map spec, a greybox block plan and open questions for Michael. e2e-mouse on master passes solo on the laptop (62 s): the desktop timeout was load.
-- Full budget and account switch (2026-10-21 ~07:00): "No, use the remaining weekly usage as normal. Make more progress and we'll move all jobs to another account when you hit the limit. Set 98% weekly usage to pause everything, save, and set up orchestrator to deliver steps, prompts, models one at a time in the new account to resume everything". The 85% 5-hour trim is lifted; at weekly >= 98% the orchestrator runs docs/orchestrator/HANDOFF.md.
+- Tuner UI rework (2026-10-21 ~09:15, screenshot docs/orchestrator/shots/tuner-ui-2026-10-21.png): "Review the animation ui layout. Not practical for controller use. It's such a long list. Can you make l1/r1 cycle tabs horizontally, and make sure there's a drop down list that shows when I click into a list so I can see what I'm changing to. Also too many options at once, needs to be cycled through menus one at a time, ie select body state first then work through animations. Make ui adapt so it's not so big too. All values are missing until I click into the slider and move it." / "Menu/tab order must be logical and easy to navigate with controller. Setting the loop should automatically change the state to match also. Add an option to loop on the spot instead of actually moving." / "Character also moves in pause menu." / "Make sure all text is plain English, no filler, simplified. Use button symbols when controller is connected. Help text also shouldn't cover any UI." / "Selecting front/side views etc doesn't actually lock in that position. It should be able to be selected and locked so I can edit animation locked to that angle". Job tuner-ui (Course Ready; coop-torches parked behind it).
+- Full budget and account switch (2026-10-21 ~07:00): "No, use the remaining weekly usage as normal. Make more progress and we'll move all jobs to another account when you hit the limit. Set 98% weekly usage to pause everything, save, and set up orchestrator to deliver steps, prompts, models one at a time in the new account to resume everything". The 85% 5-hour trim is lifted; at weekly >= 98% the orchestrator runs docs/orchestrator/HANDOFF.md (moved to 99% at ~09:45: "Run to 99% capacity then do handoff prompts").
 - Tools first (2026-10-21 ~06:40): "Can you put all resources into finishing the tools, and any spare capacity into finishing jobs smallest to largest. Exclude warehouse rebuild and park it for now. We'll continue to use the existing." Lifts the 01:25 non-animation pause for spare capacity. Order after the tools (Anim Studio PR 2, Weight, the bake script): smooth-world #58 GPU reshoot, warehouse-lamps GPU look, e2e-mouse on master, camera-cue #63, S2b #67, Marlow bunker #62, then the campaign level. warehouse-redesign parked; the current Sector Ops warehouse stays.
 - Weekly budget (2026-10-21 ~01:25): weekly all-models 75% and rising ~2.4%/h with every job running; Michael chose "Pause non-anim": Marlow bunker pass paused at its next commit, warehouse-lamps holds (merge on a pass, no fix round, GPU look later), camera-cue GPU shots skipped. Finished PRs still merge; the laptop keeps testing. Then he went to sleep.
 - Tuner additions (2026-10-21 ~01:15-01:20): barrel marker bug ("Barrel marker also caused half the screen to go grey") fixed in tuner-camera's second pass. Michael chose: smooth state changes, Import JSON, wider ranges (double-range toggle, typed values), bake script (export into code defaults), bypass button (hold for the untuned animation), slow motion 0.1-1x in normal play, slider search: Course Ready. Per-limb targeting strength (hand / foot IK weight): Menu Notes, with tuner-v2 item 2. Copy state to state: not wanted.
@@ -83,29 +114,24 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
   kit labels, doc fixes): after the core-loop playtest.
 
 ## Now
-| Session | Machine | Branch | Doing | Next checkpoint |
-| --- | --- | --- | --- | --- |
-| Orchestrator | desktop | `docs/*`, reviews | New account (22:40): all sessions restarted; this roadmap, reviews and merges | Menu Notes PR; lightfield-heap and Sector Ops PRs as they turn green |
-| CT Core Build | desktop | `feature/ct-prototype` | First priority. Slice F (F1-F7) at 637d41d5: check green, laptop suites pass; e2e:quick, GPU sheets, check, /ct/. Then the footage catalogue, the movement audit and slices to match CT; the hold-A action menu | Slice F on /ct/; catalogue; audit |
-| Character Build | laptop (second heavy slot) | test runner | The laptop test runner; order CT Core, Menu Notes, Sector Ops. lightfield-heap merged (#26, 4.7.5) | Menu Notes full e2e (4ae2d2f2), then Sector Ops |
-| Menu Notes Build | desktop | `feature/menu-notes` | All notes and M1-M4 built; master 4.7.3 merged (c32eb324); CT Core's two menu fixes done (4ae2d2f2); check + full e2e on the laptop | PR (minor, 4.8.0) |
-| Course Ready Build | desktop | `feature/course-ready` | New (23:48). Marlow Yard walkthrough-ready for 2 players + a prototype lighting pass; src/world, src/game/course; CT Core merges it into ct-prototype for /ct/ | Slices to /ct/ via CT Core; PR (minor) |
-| Sector Ops Build | desktop | `feature/sector-restart` | Spare capacity. M9 clean checkpoint restart; fix round 839a3a07 in a fresh check; master merged (cb7e1061); suites queued on the laptop | PR (patch); then warehouse-redesign (spec all 3, greybox section 1; dog flashlight fix) |
+| Session | Machine | Doing | Next |
+| --- | --- | --- | --- |
+| Orchestrator | desktop | trains, reviews, pacing (full burn), bottlenecks | train 6: #119, #122, #123, #127, #128, #129, #131 + orchestrator docs |
+| CT Core Build | desktop agents, overflow to 100% | anim-natural N1 feet (jog / run 180 timing), N2 body motion steps 3-5, #123 anim-bake-all | N1 and N2 PRs (train 7) |
+| Menu Notes Build | desktop agents | #122 N3b, #127 sector-fixes C, #129 sector-fixes L, N0 pass 2 leftovers | sector-fixes P (laser panels) |
+| Course Ready Build | desktop agents | #119 N4b (ladder fix), #128 heap asserts, studio-pairs (fix 12), sector-fixes R (co-op routes) | R PR |
+| Character Build | laptop: MAIN test machine, two logic slots (4191, 4192) + GPU (4189) | run requests, trains, GPU runs; gap job test-speed-2 | full run ~15 min |
 
 ## Next (in order)
-1. **Playtest 2 slices B + C** (CT Core): aiming compared with the CT footage (view unchanged when crouched,
-   upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
-   crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
-2. **Playtest 2 slices D + E** (CT Core): rifle and pistol holstering; hanging shimmy (wider, slower hands); vertical
-   pipe climb; ledge climb-up onto the knees.
-3. **Michael's core-loop playtest** of the co-op training course on /ct/. Refining starts only after this (goal rule).
-4. **Selection wheel restyle**: slightly bigger, not just boxes, original (CT Core).
-5. **Menu notes** (started 2026-10-19 18:40, job `docs/menu-notes/`, from `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
-   a Night Shift load screen; no way back to "press any key"; confirm the hero LOD; the hand clipping the magazine in the
-   idle; rifle and pistol in the menu with holding and idle poses; merge Controls and Settings > Controls.
-6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
+1. **Train 6** (above), then N1 + N2 (train 7): the base for Michael's full anim tune.
+2. **Sector Ops complete**: sector-fixes P (laser panels), R (co-op routes), then S2 polish from the walk.
+3. **Marlow Yard complete**: Michael's end-to-end co-op walk of the training course; fixes from it.
+4. **Visual pass** on the training level (last, per the goal).
+5. **Guard cap** (after Marlow Yard + Sector Ops), then the **campaign spec**.
 
 ## Later (after the prototype)
+- **Guard cap** (Michael 2026-10-22 ~14:50: "After Marlow + Sector Ops"): before the campaign spec. Options given: dormant guards (all placed, at most `MAX_ALIVE` 12 awake), a desktop perf run at 12 / 16 / 24 awake (sim vs render), AI / perception LOD and shared raycasts if sim-bound, the WebGPU trial, guard LOD and fewer flashlight shadows if render-bound, guard snapshot trimming for co-op past ~16.
+- **Dev tools menu + general level editor** (Michael 2026-10-21 ~19:20: "Not yet, add to roadmap. We'll focus on fine tuning the animations, gameplay, and bunker for now"): a Dev tools menu (tuner, Anim Studio, level editor); Kestrel's editor generalised to load any map and edit its MapLayout (spawns, guards and patrols, props, lights with a rebake, cameras, lasers, pickups, hide spots) plus added blocks, saved as a per-map override file the game loads (medium, ~1-2 days). Moving or deleting coded walls needs a per-map conversion to the blocks format (large).
 - Moth as player 2's character (2-3 days; goggle purple; a scratch prototype first, when nothing urgent waits).
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
 - WebGPU (Michael, 2026-10-19: measure first): the Sector Ops perf run on the PC (full section, 20-25 guards) decides. If rendering is the bottleneck, a 1-day WebGPU trial behind a flag (Babylon 9 WebGPUEngine, snapshot rendering; shader conversion bundled, no CDN). If the sim is the bottleneck, WebGPU does not help. Not before the core-loop playtest.
@@ -126,6 +152,45 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 | 2026-10-19 | #7 | Weapons: rifle with launcher, pistol with jammer, knife, believable holds and carry |
 | 2026-10-19 | #6 | CLAUDE.md "Current goal" |
 | 2026-10-19 | #8 | Menu: Arkham-plan menus, dialog fixes, cinematic hero background |
+| 2026-10-21 | #78 | 4.32.3: e2e-stealth-ai wall peek picks its spot with the guard's own eye (test only; no render read in perception) |
+| 2026-10-21 | #80 | 4.33.0: animation tuner laid out for the pad (tabs, drop-downs, one step at a time) |
+| 2026-10-21 | #79 | 4.33.1: no GL program warnings when graphics settings change on a hardware GPU |
+| 2026-10-21 | #81 | 4.34.0: co-op partner sees guards' flashlights (protocol 25) |
+| 2026-10-21 | #82 | 4.35.0: tuner free mouse, selection highlight, Keyed tick box, on the spot from every tab, studio light |
+| 2026-10-21 | #83 | 4.36.0: tuner key stepping, playback bar on every tab, twist and mirror keys, aim stances, own rows (v2 tuner store) |
+| 2026-10-21 | #84 | 4.37.0: Joints, Hands & feet, IK and Weapon tuning bake into a base table every Wren reads (partner too) |
+| 2026-10-21 | #85 | 4.38.0: Marlow Yard co-op guard hold, station 2 bolt, camera cue grid only; pause menu restart at checkpoint and return to lobby (cloud) |
+| 2026-10-21 | #86 | 4.39.0: tuner redesign (docked menu-style panel, body map, pinned sliders, folding groups), brighter studio |
+| 2026-10-21 | #87 | 4.40.0: tuner key timing (slide a key in its clip, baked) |
+| 2026-10-21 | #89 | 4.41.0: tuner and Anim Studio on phones (compact drawer or sheet, pad mode, touch camera) |
+| 2026-10-21 | #88 | 4.42.0: Wren skeleton (collarbones, 30 finger bones, smoother glove fingers); hands close on weapons again |
+| 2026-10-21 | #91 | 4.43.0: tuner add / delete keys in a keyed clip (mirror kept, baked) |
+| 2026-10-22 | #93 | 4.43.1: co-op restart at checkpoint no longer crashes a joiner holding a guard |
+| 2026-10-22 | #94 | 4.43.2: tests: e2e-menus on sim time, e2e-levels ladder chase seeded, loop NaN guard (no Havok freeze after all) |
+| 2026-10-22 | #90 | 4.44.0: Joints, Hands & feet, IK and Weapon rows for every move and action |
+| 2026-10-22 | #95 | 4.45.0: tuner Gear offsets (holster, back guns, hip sling), baked |
+| 2026-10-22 | #96 | 4.46.0: Michael's first tuner bake (jog / run keys, low-ready gun poses, Joints); Reset baked on load |
+| 2026-10-22 | #98 | 4.47.0: tuner collarbone Joints, per-key legs (planted feet kept), collarbone and finger keys |
+| 2026-10-22 | #100 | 4.47.1: Blender-exact key curve evaluator (groundwork for the exact preview) |
+| 2026-10-22 | #101 | 4.48.0: Marlow bay 3 jam-handoff hallway, jammer rules (5 s use / 5 s cooldown, buzz, reboot, flicker), IR cameras; protocol 26 |
+| 2026-10-22 | #97 | 4.49.0: tuner v3 (one simpler layout for every input, stick lists, plain labels, iPad / phone fit, touch camera, game touch menus + camera) |
+| 2026-10-22 | #102 | 4.49.1: worn-goggle offsets in the Gear tab, baked |
+| 2026-10-22 | #92 | 4.50.0: co-op rejoin (held slot, Resume hosting, room code on pause and main menu); protocol 27 |
+| 2026-10-22 | #106 | 4.51.0: tuner key tools (wave, apply to ticked, smooth between, compare) and the exact key preview |
+| 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
+| 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
+| 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #130 | 4.56.0: train 5: believable weapon draws, holsters and swaps (#118, anim-natural N3), idle stance clears the shins (#120), co-op local channel closed guard (#125), e2e-pad wheel wait (#126) |
+| 2026-10-22 | #124 | 4.55.1: tests: guardInfo admits the station 3 security guard (master CI green again) |
+| 2026-10-22 | #121 | 4.55.0: train 4: Marlow Yard security room (#115), wheel opens on goggles (#116), run feet no longer cross (#110) |
+| 2026-10-22 | #117 | 4.54.1: tests: four load-flaky e2e asserts hold at E2E_JOBS=2 (stealth-ai head-only peek, netmove client assists, mouse capture, ctcourse station 4) |
+| 2026-10-22 | #114 | 4.54.0: train 3: every tuner Body slider and the gun tuck bake, Michael's 13 values built in (#103); holds and carries counter-rotation and load lean (#113, anim-natural N4) |
+| 2026-10-21 | #77 | 4.32.2: the last of pad aim assist removed (G16): the dead setting and test toggles |
+| 2026-10-21 | #75 | 4.32.1: GPU shot rows for Marlow low cells, airlock lids, dressing; warehouse s1 view re-aimed (scripts) |
+| 2026-10-21 | #62 | 4.32.0: Marlow Yard as an underground bunker (ceilings, lamp fittings, airlocks, lifts) plus the variety pass (station dressing, plant rooms, booths, coffer); GPU look green |
+| 2026-10-21 | #63 | 4.31.0: camera cue: faint red laser grid where a security camera looks (stronger in electro, pulses while seen, gone when jammed) |
+| 2026-10-21 | #76 | 4.30.2: decisions G192-G228 folded from the roadmap |
+| 2026-10-21 | #74 | 4.30.1: orchestrator docs, account handoff plan |
 | 2026-10-21 | #73 | 4.30.0: tuner bake script (scripts/anim-tune-bake.mjs): an export into the code defaults, dry-run diff, identity after bake; co-op / traversal sections manual |
 | 2026-10-21 | #71 | 4.29.0: Anim Studio PR 2: co-op pairs on one clock (leg-up, relay, throw, hang-down, rope, revive), guard hold pairs, traversal prop rig with 11 loops |
 | 2026-10-21 | #72 | 4.28.1: shots-ctcourse waits for sim time after each teleport (test script) |

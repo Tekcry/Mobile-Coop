@@ -302,6 +302,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - (anim-bake-targets) Every tuner slider bakes. The Body sliders without a code value are deltas on the base table's
   `body` key (each Wren rig composes its own row, `tune.ts` bodyRigBegin); the gun tuck bakes per gun state into
   `WREN_TUCK` (`animGraph.ts`). Hook: `__animBase.setBody(row, id, v)`.
+- (anim-bake-all) Every other slider with no code value (aimed gun, FOV / zoom / aim-in blend, glide forward, the
+  Stepping rest, Weight damping and amounts, strideMul per state, the co-op and traversal moves) bakes into the base
+  table's generic `sections` key; the registry composes it with the tuner's values (`TuneSection.eff`, rebuilt on an
+  edit or a load) for every consumer, the bypass reads the base. Never the guard sections (their own table, below) or
+  Clip speed (code rules). Hook: `__animBase.setSection(section, group, id, v)`.
 - (marlow-bays item 24, track A) Guard tuning (`anim/tuneGuard.ts`, the per-guard window `anim/tuneGuardRig.ts`; tests
   `tests/guardTune.test.ts`, e2e-studio): a "Who" list (Wren / Guard) heads the what-row of the Body, Stepping and Weight
   tabs (`AnimTunePanel.setWho`, `tunerLayout.whoSections`). Guard shows the guard sections in place of hers: Guard

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bakeLamps, BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_STRIDE, lampGrid, packLampAtlas, type LampJob, type LampResult } from '../src/voxel/lampBake';
+import { bakeLamps, BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_STRIDE, lampColumnDist, lampGrid, lampPlanReach, packLampAtlas, type LampJob, type LampResult } from '../src/voxel/lampBake';
+import { lampTerm, LAMP_CONE_COS, LAMP_EXP, SPOT_EXP } from '../src/world/lampMath';
 import { packShapes, ShapeMode, type VoxelShape } from '../src/voxel/shapes';
 import { canonicalLightSet, canonicalLightShapes } from '../src/voxel/lightShapes';
 import { lampVolumeGrid, lampVolumeRegion, unionRegion } from '../src/voxel/lampVolume';
@@ -101,6 +102,36 @@ describe('baked lamp visibility (3.2)', () => {
     expect(ids(4.5, 0.5)).toEqual([1, 0]);
     expect(ids(-9.5, 9.5)).toEqual([]);
     expect(L.length / LAMP_STRIDE).toBe(3);
+  });
+
+  it('(sector-fixes L) a cone reaches only as far in plan as its beam: fewer lights per column, none that light it left out', () => {
+    const c45 = Math.cos(Math.PI / 4);
+    const t = Math.SQRT1_2;
+    // a hemisphere lamp, a 45 degree downlight, a 30 degree spot tilted 45 degrees to -z (a wall pack)
+    const L = new Float32Array([...lamp(0, 5, 0, 6), 0, 5, 0, 6, 0, -1, 0, c45, 0, 0, 0, 5, 0, 6, 0, -t, -t, Math.cos(Math.PI / 6), 0, 0]);
+    const r = [0, 0, 0, 0, 0];
+    lampPlanReach(L, 0, r);
+    expect(r).toEqual([6, 6, 6, 6, 6]);
+    lampPlanReach(L, 1, r);
+    expect(r[0]).toBeCloseTo(6 * c45 + 0.01, 4);
+    expect(lampColumnDist(L, 0, [6, 6, 6, 6, 6], 5, -1, 2)).toBeGreaterThanOrEqual(0);
+    expect(lampColumnDist(L, 1, r, 5, -1, 2)).toBe(-1);
+    lampPlanReach(L, 2, r);
+    expect(r[4]).toBeLessThan(0.02); // nothing behind the wall pack (+z)
+    expect(r[3]).toBeCloseTo(6 * Math.cos(Math.PI / 12) + 0.01, 3);
+    expect(lampColumnDist(L, 2, r, -1, 1, 2)).toBe(-1);
+    expect(lampColumnDist(L, 2, r, -1, -5, 2)).toBeGreaterThanOrEqual(0);
+    // lossless: every point a light reaches lies in a column that lists it
+    for (let i = 0; i < 3; i++) {
+      const o = i * LAMP_STRIDE;
+      const spot = L[o + 7]! > -1.5;
+      lampPlanReach(L, i, r);
+      for (let x = -7; x <= 7; x += 0.25) for (let z = -7; z <= 7; z += 0.25) for (let y = 0; y <= 5; y += 0.5) {
+        const v = lampTerm(x - L[o]!, y - L[o + 1]!, z - L[o + 2]!, L[o + 3]!, L[o + 4]!, L[o + 5]!, L[o + 6]!, spot ? L[o + 7]! : LAMP_CONE_COS, spot ? SPOT_EXP : LAMP_EXP);
+        if (v <= 0) continue;
+        expect(lampColumnDist(L, i, r, Math.floor(x / 2) * 2, Math.floor(z / 2) * 2, 2), `light ${i} at ${x}, ${y}, ${z}`).toBeGreaterThanOrEqual(0);
+      }
+    }
   });
 });
 

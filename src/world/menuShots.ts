@@ -204,8 +204,9 @@ class ShotDirector implements Director {
   private held(c: MenuContext): ShotDef | null {
     if (this.forced && (c === 'main' || c === 'title')) return this.forced;
     if (c === 'main') return this.reduced ? this.mainShot : null;
-    if (c === 'title') return this.shots.find((s) => s.contexts.includes('title')) ?? this.mainShot;
-    return this.shots.find((s) => s.contexts.includes(c)) ?? this.mainShot;
+    // (heap-asserts) a plain loop: update() calls this every frame, and find()'s closure over `c` allocated ~96 B a frame
+    for (let i = 0; i < this.shots.length; i++) if (this.shots[i]!.contexts.includes(c)) return this.shots[i]!;
+    return this.mainShot;
   }
 
   private enter(c: MenuContext): void {
