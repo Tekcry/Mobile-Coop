@@ -142,6 +142,10 @@ function keyRow(id: string, out: TuneTarget): TuneTarget {
  */
 export function tuneTarget(section: string, id: string, out: TuneTarget = emptyTarget()): TuneTarget {
   if (!section) return set(out, 'none', '', '', false, '');
+  // (marlow-bays item 24, track A) a guard section targets the guard's body as the Wren section it mirrors
+  if (section === 'guardJoint') section = 'joint';
+  else if (section === 'guardStep') section = 'step';
+  else if (section === 'guardWeight') section = 'weight';
   if (section === 'cam') return set(out, 'camera', '', '', false, 'Camera');
   if (section === 'gun') return weapon(out, 'Gun hold (both hands)');
   if (section === 'step') return pair(out, 'ankleL', 'ankleR', 'Feet (stepping)');

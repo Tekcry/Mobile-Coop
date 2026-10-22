@@ -4,6 +4,7 @@
  * progress (and a press mid-holster draws again from where the hand is). The phase rides on the wire as
  * `MoveState.dw` (host-authoritative, D8).
  */
+import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 
 export const DRAW_HOLSTERED = 0;
 export const DRAW_DRAWING = 1;
@@ -19,7 +20,7 @@ export type DrawPhase = 0 | 1 | 2 | 3;
  * sources in `docs/anim-natural/n3/DRAW-TIMES.md`: pistol 0.75 s (the holster adds 0.75 s over low ready to the first
  * shot), rifle 1.1 s (a slung rifle on target in ~2 s, minus the raise to fire and the reaction). One move (reach, grip,
  * lift / clear, present, settle: `anim/drawMotion.ts`) whose phases scale with the time. Undo: primary 0.3, sidearm 0.5
- * (or the tuner's Draw / draw time multiplier, down to 0.25x).
+ * (or the tuner's Clip speed rifle / pistol draw sliders).
  */
 export const DRAW_TIME_SIDEARM = 0.75;
 export const DRAW_TIME_PRIMARY = 1.1;
@@ -27,7 +28,7 @@ export const DRAW_TIME_PRIMARY = 1.1;
  * Holster (lower) time (s), per class: the gun guided in, seated, then the hand lets go. History: (G2, AUDIT-AIM row 2)
  * 0.55 -> 0.15 both (CT's holster is instant).
  * (anim-natural N3, Michael 2026-10-22, `docs/anim-natural/n3/DRAW-TIMES.md`) pistol 0.9 s, rifle 1.0 s: no timed standard
- * exists and instructors teach it slow and deliberate, so slower than the draw. Undo: 0.15 both (or the tuner's Draw /
+ * exists and instructors teach it slow and deliberate, so slower than the draw. Undo: 0.15 both (or the tuner's Clip speed
  * holster time multiplier, down to 0.15x). A traversal's or a busy move's holster keeps 0.15 s (`HOLSTER_TIME_MOVE`).
  */
 export const HOLSTER_TIME_PRIMARY = 1.0;
@@ -47,6 +48,12 @@ export const HOLSTER_TIME_MOVE = 0.15;
 export const AIM_IN_PRIMARY = 0.3;
 export const AIM_IN_SIDEARM = 0.5;
 
+// (clip-speed, track A) the tuner's "today" lines read the durations from here
+CLIP_BASE.rifleDraw = DRAW_TIME_PRIMARY;
+CLIP_BASE.pistolDraw = DRAW_TIME_SIDEARM;
+CLIP_BASE.holsterPrimary = HOLSTER_TIME_PRIMARY;
+CLIP_BASE.holsterSidearm = HOLSTER_TIME_SIDEARM;
+
 /** A shot needs the aim this far in (`cam.ads`). */
 export const ADS_FIRE = 0.9;
 
@@ -55,14 +62,20 @@ export function fireReady(phase: DrawPhase, ads: number): boolean {
   return phase === DRAW_DRAWN && ads >= ADS_FIRE;
 }
 
-/** Draw time for a weapon class. */
+/**
+ * Draw time for a weapon class. (clip-speed, track A) Divided by the tuner's draw speed (1 at identity): the draw state
+ * reaches DRAW_DRAWN, the gate of `fireReady`, over this same time, so the gun can fire when the draw clip ends.
+ */
 export function drawTimeFor(cls: string): number {
-  return cls === 'pistol' ? DRAW_TIME_SIDEARM : DRAW_TIME_PRIMARY;
+  return cls === 'pistol' ? DRAW_TIME_SIDEARM / clipSpeed('pistolDraw') : DRAW_TIME_PRIMARY / clipSpeed('rifleDraw');
 }
 
-/** (anim-natural N3) Holster time for a weapon class. */
+/**
+ * (anim-natural N3) The deliberate (X) holster time for a weapon class, divided by the tuner's rifle / pistol holster
+ * speed (Clip speed; 1 at identity). A traversal's or a busy move's HOLSTER_TIME_MOVE is not scaled.
+ */
 export function holsterTimeFor(cls: string): number {
-  return cls === 'pistol' ? HOLSTER_TIME_SIDEARM : HOLSTER_TIME_PRIMARY;
+  return cls === 'pistol' ? HOLSTER_TIME_SIDEARM / clipSpeed('holsterSidearm') : HOLSTER_TIME_PRIMARY / clipSpeed('holsterPrimary');
 }
 
 export class DrawState {

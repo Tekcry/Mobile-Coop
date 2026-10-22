@@ -8,6 +8,7 @@ import { crabRanges } from '../anim/audit/limits';
 import type { GameLoop } from '../core/loop';
 import type { PacingSnapshot } from '../core/pacing';
 import { AnimTunePanel, type TuneRigView } from './animTunePanel';
+import { TUNE_WHO } from '../anim/tuneGuard';
 
 /** (anim-metrics-2) What the live crab readout reads from the player (set by the app; typed loosely, no player import). */
 export interface CrabPlayer {
@@ -122,7 +123,8 @@ export class DebugOverlay {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') this.toggle();
     });
-    this.animTune.rig = () => (this.crabPlayer?.() as unknown as { rig?: TuneRigView } | null)?.rig ?? null;
+    // (marlow-bays item 24, track A) the Anim Studio's guard puppet while it plays (the highlight and the picks on it)
+    this.animTune.rig = () => (TUNE_WHO.rig as TuneRigView | null) ?? (this.crabPlayer?.() as unknown as { rig?: TuneRigView } | null)?.rig ?? null;
     // (tuner-camera) the tuner's slow-motion picker sets the loop's time scale
     this.animTune.loop = this.loop;
     // (anim-tuner pass 2) opened from the pause menu or Settings too: the Anim button shows its state

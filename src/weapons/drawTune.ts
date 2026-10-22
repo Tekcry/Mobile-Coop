@@ -5,27 +5,24 @@ import { DRAW_CUR, DRAW_MOTION, type DrawClass } from '../anim/drawMotion';
 /**
  * (anim-natural N3) The tuner's Draw section: the draw / holster / swap motion per weapon (groups `draw.rifle`,
  * `draw.pistol`; `anim/drawMotion.ts` explains the phases). Identity at default: the code values are the tuned motion.
- * Every slider bakes (`tuneBakeTable.ts`): the times into `weapons/drawState.ts`, the rest into `DRAW_MOTION`.
+ * Every slider bakes (`tuneBakeTable.ts`) into `DRAW_MOTION`. The draw and holster times are the Clip speed section's
+ * (`anim/tuneClipSpeed.ts`: rifle / pistol draw, rifle / pistol holster; master 4.53.0 merge).
  *
- * Read by the local player only (`PlayerWeapons` calls `drawTuneApply` each step: `DRAW_CUR` and the time multipliers).
- * The two time sliders are GAMEPLAY (the draw state's drawn / holstered phases): local only until baked, as Speed.
+ * Read by the local player only (`PlayerWeapons` calls `drawTuneApply` each step: `DRAW_CUR`).
  * No allocation on the step. The bypass (TUNE_FLAGS.bypass) reads identity.
  */
 export const DRAW_GROUPS = ['draw.rifle', 'draw.pistol'] as const;
 
 const add = (id: string, label: string, min: number, max: number, step: number, unit: string, hook: string): TuneTunable => ({ id, label, kind: 'add', def: 0, min, max, step, unit, groups: DRAW_GROUPS, hook });
-const mul = (id: string, label: string, min: number, max: number, hook: string): TuneTunable => ({ id, label, kind: 'mul', def: 1, min, max, step: 0.01, unit: 'x', groups: DRAW_GROUPS, hook });
 const AXES = ['X', 'Y', 'Z'] as const;
 const AXIS_NAME = ['right', 'up', 'forward'] as const;
 
 export const DRAW_SECTION = registerTuneSection({
   id: 'draw',
   label: 'Draw',
-  note: 'Draw / holster / swap per weapon: reach, grip, lift, present, settle. The two times are gameplay (the drawn / holstered phases), this machine only until baked.',
+  note: 'Draw / holster / swap per weapon: reach, grip, lift, present, settle. The draw and holster times are in Clip speed.',
   groups: DRAW_GROUPS,
   tunables: [
-    mul('drawTimeMul', 'draw time (press to settled; gameplay; 0.27x rifle / 0.67x pistol = pre-N3)', 0.25, 2, 'drawState.ts DRAW_TIME_PRIMARY / DRAW_TIME_SIDEARM (the LT sling draw is STANCE.slingDrawLong / slingDrawMult x it)'),
-    mul('holsterTimeMul', 'holster time (gameplay; 0.15x rifle / 0.17x pistol = pre-N3)', 0.15, 2, 'drawState.ts HOLSTER_TIME_PRIMARY / HOLSTER_TIME_SIDEARM'),
     add('reachAdd', 'reach (share of the draw)', -0.2, 0.3, 0.01, '', 'drawMotion.ts DRAW_MOTION.<gun>.reach: the hand to the gun on the sling / in the holster'),
     add('gripAdd', 'grip: lift starts at (share of the reach)', -0.5, 0.4, 0.01, '', 'drawMotion.ts DRAW_MOTION.<gun>.grip: below 1 the gun leaves as the fingers close'),
     add('handoverAdd', 'hand-over to the ready pose (share of the present)', -0.3, 0.5, 0.01, '', 'drawMotion.ts DRAW_MOTION.<gun>.handover: where the reach pose starts blending into the low ready / aim'),
@@ -37,13 +34,10 @@ export const DRAW_SECTION = registerTuneSection({
 });
 TUNE_STATE_BAG.draw = '';
 
-/** The draw / holster time multipliers in use (the sliders; 1 at identity). */
-export const DRAW_TIME_MUL: Record<DrawClass, { draw: number; holster: number }> = { rifle: { draw: 1, holster: 1 }, pistol: { draw: 1, holster: 1 } };
-
 const CLASSES: readonly DrawClass[] = ['rifle', 'pistol'];
 const GROUP_OF: Record<DrawClass, string> = { rifle: 'draw.rifle', pistol: 'draw.pistol' };
 
-/** Writes `DRAW_CUR` and `DRAW_TIME_MUL` from the table and the Draw sliders (identity under the bypass); `follow`: the
+/** Writes `DRAW_CUR` from the table and the Draw sliders (identity under the bypass); `follow`: the
  *  local player's current gun (the panel's follow). No allocation. */
 export function drawTuneApply(follow: DrawClass | null): void {
   const V = DRAW_SECTION.values;
@@ -63,9 +57,6 @@ export function drawTuneApply(follow: DrawClass | null): void {
     o.via[0] = b.via[0] + v.viaX! * 0.01;
     o.via[1] = b.via[1] + v.viaY! * 0.01;
     o.via[2] = b.via[2] + v.viaZ! * 0.01;
-    const t = DRAW_TIME_MUL[k];
-    t.draw = v.drawTimeMul!;
-    t.holster = v.holsterTimeMul!;
   }
   TUNE_STATE_BAG.draw = follow ? GROUP_OF[follow] : '';
 }

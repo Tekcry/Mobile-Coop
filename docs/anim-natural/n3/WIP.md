@@ -136,3 +136,20 @@ the changed modules pass (444 tests). Not run: full vitest, `npm run check`, e2e
   a swap press during a rewind snaps the gun to its slot (the old mid-draw snap, kept for that corner); a rewind's quick
   return under a real traversal clip is not measured (the harness plays no traversal body); the G2 0.15 s holster itself
   (from drawn, for a vault) moves the gun several cm per frame, as before N3.
+
+## Master 4.53.0 merged (2026-10-22 ~14:45, branch feature/anim-n3-merge, then into feature/anim-n3)
+Conflicts in drawState.ts, playerWeapons.ts and tuneBakeTable.ts resolved. Assumed decisions (job lead):
+- A1: Clip speed (`anim/tuneClipSpeed.ts`, #109) is the only draw / holster time control. N3's Draw section keeps the
+  motion sliders (reach, grip, hand-over, settle, paths) and drops `drawTimeMul` / `holsterTimeMul` (and `DRAW_TIME_MUL`,
+  their bake rules). Undo: restore them from 96134b16 (two knobs for one time).
+- A2: the holster row splits per gun, as agreed with Course Ready: `clip.gun` `holsterPrimary` / `holsterSidearm`
+  ("Rifle / Pistol holster speed"), `holsterTimeFor(cls)` = HOLSTER_TIME_<cls> / clipSpeed (its row x `all`), CLIP_BASE
+  both, bake rules into HOLSTER_TIME_PRIMARY / _SIDEARM. HOLSTER_TIME_MOVE and AIM_IN_* stay unscaled.
+- A3: an older record's single `clip.gun` `holster` value is skipped as an unknown id (no id alias: the row shipped in
+  4.53.0 hours before the split, and the load / import / bake / history paths would each need it). Undo: an id alias.
+- A4: the draw and holster speed rows go up to 7x (others stay 3x) so the pre-N3 times stay reachable (rifle draw 3.7x,
+  holsters 6.7 / 6x); n3DrawMotion asserts it.
+- e2e-studio's Clip speed check read the aim camera's blend, which no longer follows the draw time from low ready (N3):
+  it reads PlayerWeapons.drawTime() / deliberateHolster() and checks the holster rows too.
+Checks: tsc clean; eslint clean on the changed files; n3DrawMotion, tuneClipSpeed, drawState, animTuneBake and the 10
+tuner-layout test files pass (208 tests).

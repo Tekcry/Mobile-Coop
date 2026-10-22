@@ -309,6 +309,33 @@ for (const id of ['stopSettle', 'accelLean', 'stopLean', 'bank', 'plantDrop', 'l
 }
 
 // ------------------------------------------------------------------------------------------
+// (clip-speed, track A) Clip speed (tuneClipSpeed.ts): a speed divides a duration or multiplies a rate. The every-clip
+// slider (`all`) edits every target; with a clip's own slider too both apply (the product, as in the game).
+// ------------------------------------------------------------------------------------------
+
+const DRAW = 'src/weapons/drawState.ts';
+const WPN = 'src/weapons/playerWeapons.ts';
+const ACT = 'src/anim/clips/actions.ts';
+const CLIP_EDITS: Readonly<Record<string, BakeEdit>> = {
+  rifleDraw: e(DRAW, 'DRAW_TIME_PRIMARY', 'div'),
+  pistolDraw: e(DRAW, 'DRAW_TIME_SIDEARM', 'div'),
+  holsterPrimary: e(DRAW, 'HOLSTER_TIME_PRIMARY', 'div'), // (anim-natural N3) one holster row per gun
+  holsterSidearm: e(DRAW, 'HOLSTER_TIME_SIDEARM', 'div'),
+  swap: e(WPN, 'SWAP_TIME', 'div'),
+  grenade: e(WPN, 'GRENADE_TIME', 'div'),
+  startShift: e(ACT, 'CLIP_RATE.startShift', 'mul'),
+  stopSettle: e(ACT, 'CLIP_RATE.stopSettle', 'mul'),
+  land: e(ACT, 'CLIP_RATE.land', 'mul'),
+};
+const CLIP_BODY_IDS = ['startShift', 'stopSettle', 'land'];
+for (const [id, edit] of Object.entries(CLIP_EDITS)) {
+  const body = CLIP_BODY_IDS.includes(id);
+  const note = id === 'rifleDraw' || id === 'pistolDraw' ? 'gameplay: the draw state gates fireReady over the same time' : body ? 'every rig reads it (guards too)' : undefined;
+  rules.push(rule('clip', id, [body ? 'clip.body' : 'clip.gun'], [edit], note));
+}
+rules.push(rule('clip', 'all', ['clip.all'], Object.values(CLIP_EDITS), 'every clip of the section (with a clip\'s own slider: both apply)'));
+
+// ------------------------------------------------------------------------------------------
 // Joints, Hands & feet, IK strength, Weapon (tuneV2Sections.ts): (anim-joints J1) the generated base table
 // ------------------------------------------------------------------------------------------
 
@@ -332,16 +359,12 @@ for (const m of TEAM_MOVE_IDS) manuals.push(manual(`team_${m}`, '*', MOVE_REASON
 manuals.push(manual('trav', '*', MOVE_REASON));
 
 // ------------------------------------------------------------------------------------------
-// (anim-natural N3) Draw (weapons/drawTune.ts): the draw / holster / swap motion per weapon
+// (anim-natural N3) Draw (weapons/drawTune.ts): the draw / holster / swap motion per weapon (the times are Clip speed's)
 // ------------------------------------------------------------------------------------------
 
-const DRAWST = 'src/weapons/drawState.ts';
 const DRAWM = 'src/anim/drawMotion.ts';
-const DRAW_TIME_NOTE = 'GAMEPLAY: the DrawState drawn / holstered phase times (the LT sling draw scales with the draw time)';
-for (const [g, k, draw, hol] of [['draw.rifle', 'rifle', 'DRAW_TIME_PRIMARY', 'HOLSTER_TIME_PRIMARY'], ['draw.pistol', 'pistol', 'DRAW_TIME_SIDEARM', 'HOLSTER_TIME_SIDEARM']] as const) {
+for (const [g, k] of [['draw.rifle', 'rifle'], ['draw.pistol', 'pistol']] as const) {
   rules.push(
-    rule('draw', 'drawTimeMul', [g], [e(DRAWST, draw, 'mul')], DRAW_TIME_NOTE),
-    rule('draw', 'holsterTimeMul', [g], [e(DRAWST, hol, 'mul')], DRAW_TIME_NOTE),
     rule('draw', 'reachAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.reach`, 'add')]),
     rule('draw', 'gripAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.grip`, 'add')]),
     rule('draw', 'handoverAdd', [g], [e(DRAWM, `DRAW_MOTION.${k}.handover`, 'add')]),
@@ -364,7 +387,7 @@ export const BAKE_LEDGER = 'src/anim/tuneBakeLog.json';
 export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
-export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/weapons/drawTune.ts'];
+export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/weapons/drawTune.ts']; // (clip-speed, track A) tuneClipSpeed; (item 24, track A) the guard sections; (anim-natural N3) drawTune
 /**
  * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
  * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file

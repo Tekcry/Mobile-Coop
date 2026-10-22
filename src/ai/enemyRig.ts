@@ -15,6 +15,7 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
     build: def.build,
     armor: def.plated,
   });
+  rig.guardRows = true; // (item 24, track A) the guard tables (tuneGuard.ts), never Wren's rows
   for (const m of rig.renderMeshes) world.addShadowCaster(m);
   let gun: WeaponModel | null = null;
   if (def.gun) {

@@ -6,9 +6,10 @@
 // (low ready, aim and holstered: chest-frame numbers captured on master ea3399ed).
 import { describe, expect, it } from 'vitest';
 import { DRAW_BEAT, DRAW_CUR, DRAW_MOTION, drawArrive, drawEase, drawEnter, drawPath, drawRelease, gripClose, liftStart, reachWeight, RELEASE_END, settleAt, turnEase } from '../src/anim/drawMotion';
-import { DRAW_SECTION, DRAW_TIME_MUL, drawTuneApply } from '../src/weapons/drawTune';
-import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
-import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM, HOLSTER_TIME_MOVE, HOLSTER_TIME_PRIMARY, HOLSTER_TIME_SIDEARM } from '../src/weapons/drawState';
+import { DRAW_SECTION, drawTuneApply } from '../src/weapons/drawTune';
+import { TUNE_FLAGS, tuneSet } from '../src/anim/tuneRegistry';
+import { CLIP_GUN, CLIP_SPEED_SECTION } from '../src/anim/tuneClipSpeed';
+import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, drawTimeFor, DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM, HOLSTER_TIME_MOVE, HOLSTER_TIME_PRIMARY, HOLSTER_TIME_SIDEARM, holsterTimeFor } from '../src/weapons/drawState';
 import { STANCE, StrikeTrigger } from '../src/player/weaponStance';
 import { drawHarness, DT, type DrawHarness, type DrawSample } from './helpers/drawHarness';
 import { DRAW_SCENARIOS, runScenario } from './helpers/drawScenarios';
@@ -138,23 +139,41 @@ describe('the Draw tuner section and the times', () => {
     const v = DRAW_SECTION.values['draw.pistol']!;
     v.reachAdd = 0.1;
     v.viaY = 5;
-    v.drawTimeMul = 1.5;
     try {
       drawTuneApply('pistol');
       expect(DRAW_CUR.pistol.reach).toBeCloseTo(DRAW_MOTION.pistol.reach + 0.1, 12);
       expect(DRAW_CUR.pistol.via[1]).toBeCloseTo(DRAW_MOTION.pistol.via[1] + 0.05, 12);
-      expect(DRAW_TIME_MUL.pistol.draw).toBe(1.5);
       expect(DRAW_CUR.rifle).toEqual(DRAW_MOTION.rifle);
       TUNE_FLAGS.bypass = true;
       drawTuneApply('pistol');
       expect(DRAW_CUR.pistol).toEqual(DRAW_MOTION.pistol);
-      expect(DRAW_TIME_MUL.pistol.draw).toBe(1);
     } finally {
       TUNE_FLAGS.bypass = false;
       v.reachAdd = 0;
       v.viaY = 0;
-      v.drawTimeMul = 1;
       drawTuneApply(null);
+    }
+  });
+
+  it('the draw and holster times are Clip speed\'s, per gun (master 4.53.0 merge); the bypass reads the code times', () => {
+    expect(DRAW_SECTION.tunables.some((t) => /time/i.test(t.id))).toBe(false);
+    expect(holsterTimeFor('rifle')).toBe(HOLSTER_TIME_PRIMARY);
+    expect(holsterTimeFor('pistol')).toBe(HOLSTER_TIME_SIDEARM);
+    try {
+      tuneSet(CLIP_GUN, 'pistolDraw', 1.5);
+      tuneSet(CLIP_GUN, 'holsterSidearm', 2);
+      expect(drawTimeFor('pistol')).toBeCloseTo(DRAW_TIME_SIDEARM / 1.5, 12);
+      expect(holsterTimeFor('pistol')).toBeCloseTo(HOLSTER_TIME_SIDEARM / 2, 12);
+      expect(drawTimeFor('rifle')).toBe(DRAW_TIME_PRIMARY);
+      expect(holsterTimeFor('rifle')).toBe(HOLSTER_TIME_PRIMARY);
+      tuneSet(CLIP_GUN, 'holsterPrimary', 4);
+      expect(holsterTimeFor('rifle')).toBeCloseTo(HOLSTER_TIME_PRIMARY / 4, 12);
+      TUNE_FLAGS.bypass = true;
+      expect(holsterTimeFor('rifle')).toBe(HOLSTER_TIME_PRIMARY);
+      expect(drawTimeFor('pistol')).toBe(DRAW_TIME_SIDEARM);
+    } finally {
+      TUNE_FLAGS.bypass = false;
+      for (const id of ['pistolDraw', 'holsterSidearm', 'holsterPrimary']) tuneSet(CLIP_GUN, id, 1);
     }
   });
 
@@ -172,11 +191,12 @@ describe('the Draw tuner section and the times', () => {
     expect(HOLSTER_TIME_MOVE).toBe(0.15);
     expect(AIM_IN_PRIMARY).toBe(0.3);
     expect(AIM_IN_SIDEARM).toBe(0.5);
-    const t = (id: string) => DRAW_SECTION.tunables.find((x) => x.id === id)!;
-    expect(t('drawTimeMul').min).toBeLessThanOrEqual(0.3 / DRAW_TIME_PRIMARY);
-    expect(t('drawTimeMul').min).toBeLessThanOrEqual(0.5 / DRAW_TIME_SIDEARM);
-    expect(t('holsterTimeMul').min).toBeLessThanOrEqual(0.15 / HOLSTER_TIME_PRIMARY);
-    expect(t('holsterTimeMul').min).toBeLessThanOrEqual(0.15 / HOLSTER_TIME_SIDEARM);
+    // Clip speed's draw / holster sliders reach the pre-N3 times (a speed divides the time)
+    const max = (id: string) => CLIP_SPEED_SECTION.byId.get(id)!.max;
+    expect(max('rifleDraw')).toBeGreaterThanOrEqual(DRAW_TIME_PRIMARY / 0.3);
+    expect(max('pistolDraw')).toBeGreaterThanOrEqual(DRAW_TIME_SIDEARM / 0.5);
+    expect(max('holsterPrimary')).toBeGreaterThanOrEqual(HOLSTER_TIME_PRIMARY / 0.15);
+    expect(max('holsterSidearm')).toBeGreaterThanOrEqual(HOLSTER_TIME_SIDEARM / 0.15);
   });
 });
 

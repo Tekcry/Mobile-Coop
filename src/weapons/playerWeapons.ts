@@ -27,7 +27,8 @@ const modelLength = (d: WeaponDef): number => {
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
 import { AIM_IN_PRIMARY, AIM_IN_SIDEARM, DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DrawState, drawTimeFor, fireReady, HOLSTER_TIME_MOVE, holsterTimeFor, type DrawPhase } from './drawState';
 import { DRAW_BEAT, DRAW_CUR, drawClass, liftStart } from '../anim/drawMotion';
-import { DRAW_TIME_MUL, drawTuneApply } from './drawTune';
+import { drawTuneApply } from './drawTune';
+import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, track A)
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 
@@ -99,6 +100,9 @@ const REWIND_DT = 1 / 60;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
 const GRENADE_RELEASE = 0.68;
+// (clip-speed, track A) the tuner's "today" lines; the swap and throw clocks run at the tuner's clip speed (1: as before)
+CLIP_BASE.swap = SWAP_TIME;
+CLIP_BASE.grenade = GRENADE_TIME;
 /** Reload durations relative to the weapon's base reload time: rifle 1.9 s -> 2.6 s / 3.1 s. */
 export const RELOAD_TACTICAL_MULT = 1.37;
 export const RELOAD_EMPTY_MULT = 1.63;
@@ -438,11 +442,11 @@ export class PlayerWeapons {
   /** The current gun's draw time (s); (anim-rework S1, M2) the sling draw (LT from holstered) is slower. */
   private drawTime(): number {
     const cls = this.current.def.class;
-    return drawTimeFor(cls) * DRAW_TIME_MUL[drawClass(cls)].draw * (this.player.stance.slingDraw ? (cls === 'pistol' ? STANCE.slingDrawMult : STANCE.slingDrawLong) : 1);
+    return drawTimeFor(cls) * (this.player.stance.slingDraw ? (cls === 'pistol' ? STANCE.slingDrawMult : STANCE.slingDrawLong) : 1);
   }
 
   /**
-   * (anim-natural N3) The current gun's holster time (s), per class, with the Draw section's multiplier; a traversal or a
+   * (anim-natural N3) The current gun's holster time (s), per class, with the tuner's Clip speed (rifle / pistol holster); a traversal or a
    * busy move (the stance suspended) holsters in HOLSTER_TIME_MOVE, as fast as before N3.
    * (anim-natural N3 fix) A queued strike too (`strikePending`); a holster already running eases onto the quicker time
    * (`holS`), and a rewound draw keeps its own (`rewHol`).
@@ -466,8 +470,7 @@ export class PlayerWeapons {
 
   /** (anim-natural N3) The deliberate (X) holster time of the current gun (s). */
   private deliberateHolster(): number {
-    const cls = this.current.def.class;
-    return holsterTimeFor(cls) * DRAW_TIME_MUL[drawClass(cls)].holster;
+    return holsterTimeFor(this.current.def.class);
   }
 
   /**
@@ -694,7 +697,7 @@ export class PlayerWeapons {
         const left = this.draw.remaining(this.drawTime(), this.holsterTime());
         const togo = (this.stowed ? SWAP_TIME * SWAP_HOLSTER : SWAP_TIME) - this.swapT;
         this.swapT += left > dt ? Math.max(0, togo) * (dt / left) : Math.max(0, togo);
-      } else this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
+      } else this.swapT += ((this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) * clipSpeed('swap')) / this.handsMul; // (clip-speed, track A) = SWAP_TIME / speed
       this.swapRate = (this.swapT - t0) / dt;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
@@ -755,7 +758,7 @@ export class PlayerWeapons {
     if (this.stowed && this.attachMode) return;
     // grenade: prep, pin, wind-up, release (thrown), recover
     if (this.grenadeT >= 0) {
-      this.grenadeT += dt;
+      this.grenadeT += dt * clipSpeed('grenade'); // (clip-speed, track A) = GRENADE_TIME / speed, the release with it
       if (!this.grenadeThrown && this.grenadeT >= GRENADE_TIME * GRENADE_RELEASE) {
         this.grenadeThrown = true;
         this.releaseGrenade();
