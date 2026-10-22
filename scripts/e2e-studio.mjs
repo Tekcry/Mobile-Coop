@@ -717,10 +717,12 @@ try {
   // (marlow-bays item 11) the Keyed box: the state's keyed clip, cleared the procedural state
   await G(() => window.__studio.pick('state:walk'));
   await frames(page, 4);
+  await page.waitForFunction(() => { const k = window.__studio.keyedState(); return !k.checked && !k.disabled; }, null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
   const k0 = await G(() => window.__studio.keyedState());
   assert(!k0.checked && !k0.disabled, `a state with a keyed clip: the box clear and enabled (${JSON.stringify(k0)})`);
   await G(() => window.__studio.keyed(true));
   await frames(page, 8);
+  await page.waitForFunction(() => { const k = window.__studio.keyedState(); const d = window.__app.current.player.rig.graph.drive; return k.checked && k.entry === 'keyed:walk' && d?.clip?.name === 'walk' && window.__studio.state().frames > 0; }, null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
   const k1 = await G(() => window.__studio.keyedState());
   const kd1 = await drive();
   const kf1 = (await st()).frames;
@@ -763,6 +765,7 @@ try {
   assert(!k2.checked && k2.entry === 'state:walk' && kd2 === null && kf2 === 0, `cleared: the procedural walk (${JSON.stringify(k2)}, drive ${JSON.stringify(kd2)}, ${kf2} keys)`);
   await G(() => window.__studio.pick('keyed:wall_idle'));
   await frames(page, 3);
+  await page.waitForFunction(() => { const k = window.__studio.keyedState(); return k.checked && k.disabled; }, null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
   const k3 = await G(() => window.__studio.keyedState());
   assert(k3.checked && k3.disabled, `a keyed-only clip: ticked and greyed (${JSON.stringify(k3)})`);
   await G(() => window.__studio.pick('state:idle'));
@@ -1021,6 +1024,7 @@ try {
   // the first key starts the cycle: its time is fixed
   await G(() => window.__animTune.pickLevel('keys', 1, '0'));
   await frames(page, 12);
+  await page.waitForFunction(() => { const t = window.__animTune.keysTime(); return !!t.info?.fixed && !!document.querySelector('.anim-tune-keys-early')?.disabled && !!document.querySelector('.anim-tune-keys-late')?.disabled && t.readout.includes('fixed'); }, null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
   const k23d = await G(() => ({ time: window.__animTune.keysTime(), early: document.querySelector('.anim-tune-keys-early')?.disabled, late: document.querySelector('.anim-tune-keys-late')?.disabled }));
   assert(k23d.time.info?.fixed && k23d.early && k23d.late && k23d.time.readout.includes('fixed'), `the first key's time is fixed (${JSON.stringify({ readout: k23d.time.readout, early: k23d.early, late: k23d.late })})`);
   const k25del0 = await G(() => ({ e: window.__animTune.keysEdit(), del: document.querySelector('.anim-tune-keys-del')?.disabled }));
@@ -1034,6 +1038,7 @@ try {
   await G((p) => window.__studio.seek(p), ADD / 48);
   await frames(page, 12);
   const p25a = await bones();
+  await page.waitForFunction((add) => { const e = window.__animTune.keysEdit(); return window.__studio.state().keys === 8 && e.key === 1 && e.info?.addAt === add && !document.querySelector('.anim-tune-keys-add')?.disabled; }, ADD, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
   const k25a = await G(() => ({ e: window.__animTune.keysEdit(), s: window.__studio.state(), add: document.querySelector('.anim-tune-keys-add')?.disabled }));
   assert(k25a.s.keys === 8 && k25a.e.key === 1 && k25a.e.info?.addAt === ADD && !k25a.add, `(item 25) walk has 8 keys; Add key on key 2 lands at bake frame ${ADD} (${JSON.stringify({ keys: k25a.s.keys, e: k25a.e })})`);
   await G(() => window.__animTune.settle());
@@ -1159,6 +1164,7 @@ try {
   // swaps her gun (a holstered loop plays the low ready), a climb move and a co-op role play their loops
   await G(() => window.__animTune.tab('body'));
   await frames(page, 3);
+  await page.waitForFunction(() => { const r = window.__studio.readout(); return r.shown && !!document.querySelector('.anim-tune-playbar .studio-play')?.offsetParent && !!document.querySelector('.anim-tune-playbar .anim-tune-spot')?.offsetParent && r.text.includes('walk - key'); }, null, { timeout: 3000 }).catch(() => {}); // (gpu-waits sweep) throttled panel readout
   const pb = await G(() => ({ r: window.__studio.readout(), play: !!document.querySelector('.anim-tune-playbar .studio-play')?.offsetParent, spot: !!document.querySelector('.anim-tune-playbar .anim-tune-spot')?.offsetParent, f: window.__studio.frozen() }));
   assert(pb.r.shown && pb.play && pb.spot && pb.r.text.includes('walk - key'), `the playback bar shows on the Body tab with the clip's key readout (${JSON.stringify(pb)})`);
   await page.keyboard.press('F9');
