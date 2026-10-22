@@ -30,6 +30,7 @@ import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
 import { stationHeal } from '../game/medkit';
@@ -701,6 +702,20 @@ export class CoopHost implements NetAttachment {
   private teamPairs = new Map<string, string>();
   private teamLast = new Map<string, number>();
   private teamMv = emptyMoveState();
+  /** (throw-ko) Partner throws in flight: the thrown player coming down on a guard knocks him out (host-authoritative). */
+  readonly throwKo = new ThrowKo<Enemy>(
+    (by) => (by === this.s.selfId ? this.g.player.alive : (this.remotes.get(by)?.alive ?? false)),
+    (by, e, at) => this.throwKnockOut(by, e, at),
+  );
+
+  /** (throw-ko) The thrown player `by` (feet at `at`) came down on `e`: knocked out through the game's own path. */
+  private throwKnockOut(by: string, e: Enemy, at: { readonly x: number; readonly y: number; readonly z: number }): void {
+    const src = new Vector3(at.x, at.y, at.z);
+    const dir = new Vector3(e.pos.x - at.x, 0, e.pos.z - at.z);
+    if (dir.lengthSquared() > 1e-6) dir.normalize();
+    e.knockOut({ amount: 9999, point: e.pos.clone(), dir, part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: by === this.s.selfId ? 'local' : by, sourcePos: src, impulse: 1, takedown: 'throw' });
+    this.g.enemyMgr?.hear(src, STRIKE.noise);
+  }
 
   private teamSide(id: string): TeamSide | null {
     const self = id === this.s.selfId;
@@ -756,6 +771,7 @@ export class CoopHost implements NetAttachment {
         this.teamPairs.set(partner, by);
       }
       const start = { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] };
+      if (kind === 'throw') this.throwKo.start(by, now, a.x, a.y, a.z, land.x, land.y, land.z);
       this.s.send({ t: 'tstart', ...start });
       if (by === self || partner === self) this.g.team.begin(start, self);
       this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
@@ -1120,6 +1136,7 @@ export class CoopHost implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     if (this.strikes.size) this.runStrikes();
+    if (this.throwKo.active && this.g.enemyMgr) this.throwKo.step(this.time, this.g.enemyMgr.enemies);
     this.itemsT -= dt;
     for (const r of this.remotes.values()) r.update(dt);
     // revive points follow the bodies; client-held enemies are let go if the client never finishes
