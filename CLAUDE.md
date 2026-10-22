@@ -75,7 +75,9 @@ Build runs them on the laptop in its own worktree `C:/NightShift/Mobile-Coop-tes
 (`npm ci` only when `package-lock.json` changed), with `E2E_PORT=4191`, `E2E_JOBS=1`, BelowNormal and the laptop's
 `heavy.lock`, one request at a time, in the roadmap's priority order, then by arrival. It replies to the job lead with pass / fail per suite, the
 failing assert and the run time, and copies the orchestrator. Logic e2e only: GPU, perf and visual checks stay on the
-desktop. A result counts for the test tier only for the exact commit it ran on. Between requests Character Build works
+desktop. A result counts for the test tier only for the exact commit it ran on, or for a later commit whose only
+difference is docs, `CHANGELOG.md`, changelog fragments or test scripts (Michael, 2026-10-22 ~18:00). The laptop runs
+two requests at once, one per port (4191 and 4192; GPU on 4189), each with its own lock file. Between requests Character Build works
 its own small jobs from the roadmap. Cloud sessions run unit tests,
 logic e2e and design only; every GPU check there is "pending PC run".
 
@@ -108,7 +110,7 @@ logic e2e and design only; every GPU check there is "pending PC run".
 | A step | `npm run check` once at the step's end + the suites the step names, or `npm run e2e:quick` | desktop, or the laptop test runner when the desktop lock is held |
 | A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
 | A PR touching only the tuner / Anim Studio (`src/ui/animTune*`, studio files) or tests (Michael, 2026-10-22) | CI `check` + the suites the change touches (e2e-anim, e2e-studio, or the edited suite) | desktop or laptop |
-| Merge train (Michael, 2026-10-22: "Batch when 2+ ready") | each PR first passes CI `check` + the suites its area names (the slice row); when 2+ are ready the orchestrator merges them into one `train/<n>` branch off master (no src conflicts; a PR with one waits for the next train) and runs ONE full `npm run e2e` there; on a pass the train merges as ONE PR with one version (minor if any PR in it is a minor; the CHANGELOG heading names every PR, each PR's entries under it) and GitHub marks the member PRs merged (Michael, 2026-10-22: "One PR per batch"); on a failure the failing suite's PR leaves the train and the rest rerun that suite only | desktop or laptop, whichever is free |
+| Merge train (Michael, 2026-10-22: "Batch when 2+ ready"; ~18:00 "Your picks") | a PR whose fresh checker passed goes straight into the next train with CI `check` only; a PR touching `src/net`, `PROTOCOL_VERSION` or the save shape first passes the suites its area names (the slice row); a failure in the train is narrowed down to its PR there; when 2+ are ready the orchestrator merges them into one `train/<n>` branch off master (no src conflicts; a PR with one waits for the next train) and runs ONE full `npm run e2e` there; on a pass the train merges as ONE PR with one version (minor if any PR in it is a minor; the CHANGELOG heading names every PR, each PR's entries under it) and GitHub marks the member PRs merged (Michael, 2026-10-22: "One PR per batch"); on a failure the failing suite's PR leaves the train and the rest rerun that suite only | desktop or laptop, whichever is free |
 | Any other PR / merge to master (a lone PR when nothing else is ready) | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
 | Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
 
@@ -147,6 +149,7 @@ Ports on Michael's PC (G94). One runner per port at a time; jobs always pass `E2
 | Port | Use |
 | --- | --- |
 | 4191 | Software-GL logic e2e: `E2E_PORT=4191 E2E_JOBS=2 npm run e2e` (or `e2e:quick`, single suites); never with `E2E_GPU=1` |
+| 4192 | The laptop's second logic e2e queue (same rules as 4191) |
 | 4189 | GPU work: perf, perf-trend, anim-audit, anim-sheet, shot, `E2E_GPU=1` suites |
 | 4179, 4173 | Script defaults (`run-e2e.mjs`, `e2e-lib.mjs`); not used by jobs |
 | 5199 | `npm run editor` |

@@ -100,6 +100,11 @@ Train 1 merged as #111 (#99 + #108; #105 left on a real e2e-menus failure, fixed
 - Start new sessions only from his own words in the desktop app; a session cannot start one from a peer message. When the app refuses a start (an answer from a question dialog does not count as his words), propose a card (own_initiative) and tell him to click it.
 - A paste-in prompt is the turn's LAST message, never paired with a question dialog in the same turn.
 - Check the usage meter (mcp__ccd_session_mgmt__get_usage) when pacing.
+- 2026-10-22 ~17:55 (Michael: "if the desktop is a problem, why haven't you mentioned it? These issues keep happening -
+  you should take initiative to identify bottlenecks and make recommendations"): I saw the desktop timeouts all afternoon
+  and fixed each run instead of questioning the machine split (the batching mistake again). Every cron check now names
+  the longest wait of the last period and its cause; when the cause is a rule or a setup choice (machine, port, tier,
+  model, tooling), bring Michael a concrete change with the time it saves, unasked.
 - Bottlenecks (Michael 2026-10-22 ~10:45: "You must review constantly for bottlenecks and advise if there's more efficient ways to progress"): every cron check also reviews idle sessions, the laptop queue, the desktop lock and waiting PRs; fix what is in my authority, advise Michael on the rest. The cron prompt carries this. Michael (~11:45) asked why batching was not proposed earlier: I treated CLAUDE.md's test and merge rules as fixed and only optimised inside them. The review now also questions the rules: where work waited longest, which rule caused it, and a cheaper rule to propose.
 - 10:45: Menu Notes cleared after N0 pass 1 (resume: C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md, plus N3 draw-time research). Course Ready got clip-speed (baked per-clip speed slider). CT Core got the N1 / N2 findings and the SWAY_MAX lift. Laptop order: #92 solo ctcourse, #103 solos, #106 (studio + anim), #107 (coop x2), #105 full, #99 full, #108 full.
 
