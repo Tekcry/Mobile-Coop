@@ -45,6 +45,10 @@ export async function walk(t, n) {
     await holdUntil(P, 1, () => window.__app.current.traversal.attached, `${what}: holding drop lowers into a hang on the yard face`, null, 20000);
     const a = await hanging(P);
     assert(!!a && a.kind === 'ledge' && a.nx > 0.9 && a.top >= 4.3 && a.top <= 4.5, `${what}: hangs from the yard-face lip, normal +x, 4.4 m (${JSON.stringify(a)})`);
+    // the let-go is a drop PRESS (an edge) read only once the hang has settled ('on'): a press during the lowering is
+    // spent there, and holding B gives no new edge
+    await until(P, () => window.__app.current.traversal.attach.phase === 'on', null, 10000, `${what}: the hang has settled`);
+    await waitSim(300);
     await holdUntil(P, 1, () => !window.__app.current.traversal.attached, `${what}: lets go`, null, 10000);
     await until(P, () => window.__app.current.player.controller.grounded, null, 20000, `${what}: lands in the yard`);
     const at = await P.evaluate(() => { const p = window.__app.current.player.controller.pos; return [p.x, p.y, p.z]; });
