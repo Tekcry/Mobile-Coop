@@ -53,6 +53,15 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~08:40 (clock; account swap, new window 2%, resets ~13:30 Sydney). Resumed by a fresh session. A1-A2 built,
+  dressed, checked; A3-A7 greybox committed, unchecked; A8 stub. Running (3 agents, lean windows): (1) master 4.68.0
+  merge in the side worktree C:/NightShift/Mobile-Coop-marlow-final-merge, branch merge/marlow-final-master (Opus;
+  PROTOCOL_VERSION 33 per the orchestrator: guard-ai #185 takes 32 in train 20); the job lead merges that branch into
+  feature/marlow-final once green; (2) A8 greybox (Sonnet, report slices/S8.md); (3) A3 + A4 checker (Opus,
+  slices/S34-check.md). Next: A5 + A6 and A7 checkers, then Sonnet dressing per checked set. e2e: Character Build
+  [06fe56] (live) runs e2e-ctcourse :1-:4 as one request, coop and netmove (E2E_GPU=1); asked :1-:4 on 9876f439.
+  Desktop only quick single suites (heavy.lock, E2E_JOBS=1, port 4189, script mf-e2e.sh in the session scratchpad:
+  detaches the clean run worktree at a ref, builds, runs).
 - Art kit CHECKED: tsc clean, eslint clean, tests/facilityKit.test.ts 17/17, neighbouring world tests 8 files green
   (dfff5877). Master a71c8c02 (train 14) merged clean, tsc clean after.
 - Running (3 Opus agents, started ~01:20): spec writer (finish SPEC.md, write PLAN.md with Course Ready slices),
