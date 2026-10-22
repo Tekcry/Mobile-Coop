@@ -59,7 +59,7 @@ present). e2e `e2e-sectorops` campus part 1:
   crouched still player at the verge vantage stays under suspicious for a full cycle; cam-walk does not see the canopy
   top and does not fill past 10 m.
 - EW16 measure: map build, nav build and bake times and memory vs Warehouse Ops on the laptop (logged in STATE).
-Done when: S1 plays solo and co-op end to end into the S2 stub; EW16 within A20's budget (or the fallback chosen and
+Done when: S1 plays solo and co-op end to end into the S2 stub (built to the applied loosenings A23-A45); EW16 within A20's budget (or the fallback chosen and
 logged); Michael's morning review has the greybox (M4).
 
 ## Slice 2 - S2 HQ atrium and offices

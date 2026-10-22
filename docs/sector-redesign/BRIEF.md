@@ -81,11 +81,42 @@ Spec writer, 2026-10-23 ~03:00 (SPEC.md / PLAN.md; A1-A7 adopt CONCEPT.md sectio
   GA2 provides conversations. Undo: n/a (GA2 replaces it).
 - A17 The S1 co-op route (CR1) pays off as overwatch + a drop takedown at the exit pinch, not an entry into C1 (a player
   inside the connector before the objective would break the connector cycle). Undo: a vent into C1 with an engine guard.
-- A18 Co-op routes that use the rope, hang-down, jam-and-pass or pair gates (CR4-CR7) depend on loosening P7 / P8;
-  SPEC names each fallback if Michael refuses. Undo: approve P7 / P8.
+- A18 Co-op routes that use the rope, hang-down, jam-and-pass or pair gates (CR4-CR7) rest on A29 / A30 (P7 / P8 applied);
+  SPEC names each fallback. Undo: undo A29 / A30.
 - A19 Section times (6 / 7 / 8 / 9 / 10 min) are design targets, measured at the slice 5 full run.
 - A20 Map-size budget: campusOps load (build + nav + bake) under 2x Warehouse Ops on the laptop; over it -> EW-L1
   chunks or the compact campus. Undo: change the budget.
 - A21 Plain `SectorBolt` team doors are not used (one player unbolts them); only pair bolts / pair gates. Undo: n/a.
 - A22 The lighting proposal is read from origin/feature/marlow-final (it exists there: LR1-LR12); the SPEC's P1-P6 and
-  P11 cite LR items; nothing applied. Undo: n/a.
+  P11 cite LR items. Superseded by A33-A44 (LR1-LR12 applied for this map). Undo: n/a.
+Applied loosenings (Michael ~01:42: "Apply, logged and undoable"; for campusOps only; `docs/level-design.md`, the
+template and the bible are NOT edited; table with per-item detail in SPEC "Applied loosenings"):
+- A23 (CONCEPT P1 = LR2) LS 3.1: an entry vantage is out of every guard's view by darkness OR occlusion. Undo: each
+  occlusion vantage (S2 SW stair door, S3 C2 landing) gets a dark pocket.
+- A24 (P2) LS 3.5: a light the player can cut from the route counts as a stepping stone. Undo: add cover / hide spots.
+- A25 (P3) LS 5.1: the lit default with a standby fill (with A33 / A39). Undo: darker default, ambient 0.30.
+- A26 (P4) LS 5.2: a deliberate lit test chokepoint may be darkened one way or crossed by timing. Undo: second way.
+- A27 (P5 = LR4) LS 4.4: isolation moment alone and unwatched, dark or darkenable from cover. Undo: dark pockets.
+- A28 (P6) LS 15: lit vantages tested for "out of sight". Undo: dark-only test.
+- A29 (P7) LS 11.6: co-op verbs add the two-person rope, hang-down, jam-and-pass and the pair gate. Undo: CR4 basket
+  overwatch only, CR5-CR6 pair bolts at a plain door, CR7 cut.
+- A30 (P8) LS 11.2: visible dual-control doors and a padlocked ladder guard are allowed. Undo: plain doors, no ladder.
+- A31 (P9) Warehouse L1-L15 (DEC G266) carried to the campus. Undo: per rule, back to LS.
+- A32 (P10) LS 4.2: no repeat of the patrol mix judged per section, not per space. Undo: re-mix adjacent spaces.
+- A33 (LR1) new LS 5.5 "lit by default; the players make the dark"; dark pockets named with reasons. Undo: dark default.
+- A34 (LR2) = A23.
+- A35 (LR3) LS 3.9: checkpoint in the dark OR in a quiet connector no guard enters (connectors at 0.30). Undo: 0.14.
+- A36 (LR4) = A27.
+- A37 (LR5) LS 5.2 / bible L8: ways to darken are switch, breaker / isolator, held jammer, shot; at least one not a
+  shot. Undo: LS wording.
+- A38 (LR6, also SPEC P11) LS 6.3 / bible 6: player-started device windows (jam, isolator, loop) allowed; no failing
+  area clock. Undo: no timed isolators.
+- A39 (LR7) fill: encounter spaces 0.14 standby, transit 0.30 (same as A10). Undo: 0.30 everywhere.
+- A40 (LR8) LS 15: darkness acceptance as A28 plus "a cut circuit drops the pool under 0.28 on host and client". Undo: A28.
+- A41 (LR9) bible L7 read as "darkness is the exception, and true dark". Undo: n/a.
+- A42 (LR10) template / space sheet: slice build sheets record the lit default, circuits, cut ways and dark pockets.
+  Undo: old field.
+- A43 (LR11) bible 7 light plan per space: same, in the build sheets. Undo: old field.
+- A44 (LR12) LS 12.1 fact recorded (Sector does not sync light state); slice L (protocol 31) closes it. Undo: n/a.
+- A45 (SPEC P12) template "existing systems only": this job builds the EW engine items in SPEC. Undo: map-only, the
+  EW items become Future.
