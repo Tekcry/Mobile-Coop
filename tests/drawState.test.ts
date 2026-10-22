@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DRAW_DRAWING, DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM, DrawState, drawTimeFor, fireReady, HOLSTER_TIME } from '../src/weapons/drawState';
+import { DRAW_DRAWING, DRAW_DRAWN, DRAW_HOLSTERED, DRAW_HOLSTERING, DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM, DrawState, drawTimeFor, fireReady, HOLSTER_TIME, HOLSTER_TIME_MOVE, holsterTimeFor } from '../src/weapons/drawState';
 
 const DT = 1 / 60;
 /** Seconds until `phase` (stepping at 60 Hz with aim held / released). */
@@ -28,9 +28,13 @@ describe('draw state (step 09)', () => {
     expect(d.update(DT, true, 0.4)).toBe(DRAW_DRAWING);
     timeTo(d, true, 0.4, DRAW_DRAWN);
     expect(d.update(DT, false, 0.4)).toBe(DRAW_HOLSTERING);
-    // (G2) one frame into the (now 0.15 s, CT instant) holster: nearly all of it still to go
+    // one frame into the holster: nearly all of it still to go
     expect(d.remaining(0.4)).toBeGreaterThan(HOLSTER_TIME - 2 * DT);
-    expect(HOLSTER_TIME).toBeLessThanOrEqual(0.2);
+    // (anim-natural N3, DRAW-TIMES.md) the deliberate holster per class; a traversal's keeps G2's 0.15 s
+    expect(holsterTimeFor('rifle')).toBe(1.0);
+    expect(holsterTimeFor('pistol')).toBe(0.9);
+    expect(HOLSTER_TIME_MOVE).toBe(0.15);
+    expect(d.remaining(0.4, HOLSTER_TIME_MOVE)).toBeLessThanOrEqual(HOLSTER_TIME_MOVE);
   });
   it('release mid-draw reverses from the current progress', () => {
     const d = new DrawState();

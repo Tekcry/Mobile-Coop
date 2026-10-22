@@ -349,6 +349,8 @@ export class FootPlanner {
   /** (item 24, track A) The stepping table this planner reads (null: the shared one, Wren's rows; a guard: the guards';
    *  any other rig: the identity table, set by `CharacterRig`). */
   stepRows: Float64Array | null = null;
+  /** (idle-shins) `reset` keeps the feet off the midline by the stance band's floor (a Wren rig, set by `CharacterRig`). */
+  resetBand = false;
   /** Moving on the last update (a quick stop acts on the change to still). */
   private wasMoving = false;
   /** (step 22, A79) Landings this frame roll heel to toe. */
@@ -408,9 +410,22 @@ export class FootPlanner {
 
   /** Reset both feet to their ideal stance (teleport, spawn). */
   reset(i: PlannerInput): void {
+    const c = Math.cos(i.yaw);
+    const s = Math.sin(i.yaw);
     for (const side of [-1, 1] as const) {
       const f = side < 0 ? this.L : this.R;
       this.ideal(i, side, i.rootX, i.rootZ, i.yaw);
+      // (idle-shins) free movement: the feet land no closer to the midline than the stance band's floor, as every landing
+      // does (`aim`): Michael's idle track 0.05 put the ideal 0.4 cm off the midline and the teleport left the shins
+      // 2.4-3.2 cm into each other (anim-audit selfShanks) until the first step. Widen only (a wider stance is kept).
+      if (this.resetBand && i.stride === 'facing' && Number.isNaN(i.wallD)) {
+        const lat = ((this.ix - i.rootX) * c - (this.iz - i.rootZ) * s) * side;
+        const lo = bandMin(i);
+        if (lat < lo) {
+          this.ix += (lo - lat) * side * c;
+          this.iz -= (lo - lat) * side * s;
+        }
+      }
       f.x = this.ix;
       f.z = this.iz;
       f.y = i.rootY;
