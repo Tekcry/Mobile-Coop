@@ -265,10 +265,11 @@ try {
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; g.player.forceAds = true; });
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return !!r && r.state?.mv?.dw === 2 && !!r.avatar.rig.heldWeapon; }, null, 6000, 'host remote has the weapon in hand');
   await compare('drawn', 'ground');
-  // timestamps taken inside the pages: the client's sim (release to holstered, its own 0.4 s); the host's receipt of
+  // timestamps taken inside the pages: the client's sim (release to holstered, its own class holster time); the host's receipt of
   // the first dw 0 state (stamped as the packet is buffered) and the frame its copy stows the weapon. Network delivery
   // (VM latency) is not the remote pose's behaviour: the check is the client's holster time plus the host's receipt
-  // to stow, against the 0.55 s holster (HOLSTER_TIME, CT draw timings A2.1) + 0.1 s interpolation + one host frame.
+  // to stow, against the class's holster (anim-natural N3: 1.0 s rifle / 0.9 s pistol, drawState holsterTimeFor) + 0.1 s
+  // interpolation + one host frame.
   await GA(() => {
     const r = window.__app.current.net.remotes.values().next().value;
     const av = r.avatar;
@@ -304,10 +305,11 @@ try {
   const haT = await GA(() => window.__holT);
   const remMs = haT.stow - haT.recv;
   const holMs = hbT.sim * 1000 + remMs;
-  const limit = 550 + 1000 / 60 + 100 + Math.max(1000 / 60, haT.frame);
+  const holClsMs = await GB(() => (window.__app.current.weapons.current.def.class === 'pistol' ? 900 : 1000));
+  const limit = holClsMs + 1000 / 60 + 100 + Math.max(1000 / 60, haT.frame);
   console.log(`    holster: client sim ${(hbT.sim * 1000).toFixed(0)} ms (wall ${hbT.dw0 - hbT.rel} ms), host receipt to stow ${remMs.toFixed(0)} ms (host frame ${haT.frame.toFixed(0)} ms, receipt ${haT.gap.toFixed(0)} ms after an update, stowed on update ${haT.frames})`);
   assert(remMs <= 100 + Math.max(1000 / 60, haT.frame) + 1, `the host's copy stows within 0.1 s + one frame of receiving dw 0 (${remMs.toFixed(0)} ms)`);
-  assert(holMs <= limit, `holstered: client holster + host receipt to stow ${holMs.toFixed(0)} ms <= ${limit.toFixed(0)} ms (0.55 s holster + one sim step + 0.1 s + one frame)`);
+  assert(holMs <= limit, `holstered: client holster + host receipt to stow ${holMs.toFixed(0)} ms <= ${limit.toFixed(0)} ms (${holClsMs / 1000} s holster + one sim step + 0.1 s + one frame)`);
   await compare('holstered', 'ground');
   await reset();
 

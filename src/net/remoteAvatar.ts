@@ -331,7 +331,10 @@ export class RemoteAvatar {
     // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
     // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
     // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top
-    // of the holster, HOLSTER_TIME 0.15 s since CT prototype G2, so the remote stows within ~0.3 s of the release)
+    // of the holster, so the remote stows within ~0.15 s of the owner's gun reaching its slot). (anim-natural N3) The
+    // owner's holster now takes 0.9 / 1.0 s (pistol / rifle; a traversal's still 0.15 s, HOLSTER_TIME_MOVE): `dw` stays
+    // 3 (holstering) through it, so the remote keeps the gun in hand that long and stows it in step with the owner
+    // (the owner's own draw / holster motion is local; the remote holds and glides, as before)
     this.setWeapon(st.w, mv ? mv.dw === 0 || this.buf.latest()?.mv?.dw === 0 : false);
     const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     const inst = dt > 0 ? moved / dt : 0;
