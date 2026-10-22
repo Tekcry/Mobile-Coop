@@ -1391,3 +1391,34 @@ on-the-spot turns): "Yes, CMU only"; no asking per download. (Extends G264.)
 CPU avg 35%, GPU 3D avg 9%, RAM free min 7.6 GB of 31.7): "trial 3 browsers + 2nd slot. monitor performance and ensure
 it doesnt affect eachother". Laptop full runs at E2E_JOBS=3 on the GPU plus a second single-suite GPU slot; kept only if
 suite times hold (within ~15%), no new load failures, and CPU stays under ~90% outside spikes.
+
+**G270. Laptop: keep three browsers, fix the test.** Michael (2026-10-22 ~22:32; the G269 trial: full run 443 s vs
+740 s, one load-only netmove compare miss): "Keep 3, fix the test". Laptop full runs stay at E2E_JOBS=3 plus the second
+slot; the netmove compare moves to sim time. (Keeps the G269 trial setup.)
+
+**G271. Mocap locomotion, as captured.** Michael (2026-10-22 ~23:20, after the side-by-side sheets and videos,
+feature/mocap-sheets-real docs/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to
+the old limits (walk pelvis bob 5.5-6.6 cm vs bible D2 4 cm, walk knee-out 3.5 cm, run wrist swing 24 cm vs his 85 cm
+hand-keyed tune); checkers report those as notes, not fails. Fix rounds still fix pops and slides. Applies to the mocap
+locomotion behind the G264 toggle. (Overrides the bible D2 limits for mocap clips.)
+
+**G272. Marlow Yard final: a flowing co-op training ground.** Michael (2026-10-23 ~00:10, overnight job marlow-final):
+"i would like the marlow yard audit to include finalising the map, finishing touches, making sure it flows well, not
+just simple square rooms with random walls/pipes/ladders in random places for the sake of using. areas should be well
+designed training areas designed to replicate real map coop scenarios (all the cool actions that players can do
+together). The yard must focus heavily on coop gameplay, including those discussed recently eg. timed isolation of
+lights, cameras, locks, accessing security room to disable cameras, timed jammer exercises, hacking devices in sync, and
+any other coop "wow thats cool" experience. Ask questions if needed." Answers: "Rebuild freely" (new layout and routes
+where the bays don't flow; keep what works, remove filler); "Plan, then build" (spec from his words, then build straight
+on; he reviews both in the morning); one co-op run "15-20 min". Applies to Marlow Yard (G200, G206, G225).
+
+**G273. Mocap: no sheets; clips go in once audited.** Michael (2026-10-23 ~00:10): "i dont need sheets for mocap. you
+can audit them and add to the game when ready." Overnight: more mocap clips (crouch walk, sprint, strafe, back-to-wall)
+behind the same toggle, checked by a fresh checker, no sheets. (Extends G264 and G268.)
+
+**G274. Overnight jobs, 2026-10-23.** Michael (2026-10-23 ~00:10): more mocap clips (G273), the Marlow Yard audit
+(G272) and a guard cap measure (12 / 16 / 24 awake, report only).
+
+**G275. Train runs at JOBS=5.** Michael (2026-10-23 ~00:10): "Yes, if clean" (the load audit's three JOBS=5 runs had
+one load-only fail, e2e-desktop:1 navigation timeout, fixed in feature/load-audit; run 1 316 s vs ~490 s at JOBS=3).
+Train runs use JOBS=5; back to 3 the first time JOBS=5 causes a failure.

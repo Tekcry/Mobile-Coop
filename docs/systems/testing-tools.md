@@ -42,7 +42,8 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   (`--part=N`; its sections are independent); part 3 (the Epic renderer) is in the GPU list. `e2e-ctcourse` runs as
   `e2e-ctcourse:1`, `:2`, `:3` (stations 1-3, 4-5, 6-8), each its own pair of pages started at its bay through the host
   session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight stations in sequence
-  (test-speed A3).
+  (test-speed A3). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
+  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
   cloud VMs (two suites at a time, G94).
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
@@ -197,7 +198,19 @@ behind a VPN adapter).
   after a restart; a two-page `?net=local` pair (the client mirrors the live section's devices, door locks and the
   syringes line, then section 2 after the connector). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
-  (software GL).
+  (software GL). (sector-fixes-r RE) It runs as five jobs, `e2e-sectorops:1` to `:5` (`--part=N`; named alone it runs
+  all five in sequence): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's co-op
+  routes: the game's boost search finds each planned 4.4 m lip from its spot and none at R3N's east face, one player
+  alone never holds a co-op lip (under it: grab / wall jump / jump; a running jump pressed at the face and in the air;
+  R2N's 4.0 top jumped at R3N), the links the routes rely on (S1 monorail up to the bay main and along it onto the
+  deck, the sill climb-up and the crouch-walk under 1.4 m onto the deck, S3's climb-ups under the 1.63 m roof, the
+  valve platform's west lip to the hall main and back, the drive platform's east lip to the branch and the main), every
+  way down alone, and each section's team door (the near side gets no Unbolt and stays locked, the far side's Unbolt
+  opens it and the partner walks through, a checkpoint restart bolts it again); parts 3, 4 and 5 are two pages (host
+  and client) in sections 1, 2 and 3: each co-op route walked with the real buttons (the client's leg-up, then the
+  host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
+  and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
+  re-bolted on both pages by the host's checkpoint restart.
 - `e2e-park` the legacy-off menus (title Night Shift, badge without level / credits, the main menu Sector Ops / Co-op / Loadout /
   Settings / Feedback, the Sector Ops briefing, Loadout root rows, every weapon selectable with nothing unlocked, the choice kept
   across a reload, a new co-op room on Campaign (Marlow Yard) with Campaign and Sector Ops listed, save export / import) and the

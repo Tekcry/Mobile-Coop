@@ -165,6 +165,37 @@ export interface WarehouseOpts {
   officeDesk?: boolean;
   /** More pieces after the Warehouse's own. */
   extra?: (b: LevelBuilder) => void;
+  /**
+   * (sector-fixes-r e2e fix) Holes [x0, x1, z0, z1] cut out of the hall roof's panels (Sector Ops: the raised hoods over
+   * section 3's hung platforms, `S3_ROOF_HOODS`; each hood closes its hole).
+   */
+  roofHoles?: readonly (readonly [number, number, number, number])[];
+}
+
+/**
+ * (sector-fixes-r e2e fix) The rectangle [x0, x1, z0, z1] less the `holes`: the pieces left, as rectangles (a hole splits a
+ * piece it overlaps into the strips west and east of it and the bits south and north of it).
+ */
+export function cutRect(r: readonly [number, number, number, number], holes: readonly (readonly [number, number, number, number])[]): [number, number, number, number][] {
+  let out: [number, number, number, number][] = [[r[0], r[1], r[2], r[3]]];
+  for (const [hx0, hx1, hz0, hz1] of holes) {
+    const next: [number, number, number, number][] = [];
+    for (const q of out) {
+      const [x0, x1, z0, z1] = q;
+      if (hx1 <= x0 || hx0 >= x1 || hz1 <= z0 || hz0 >= z1) {
+        next.push(q);
+        continue;
+      }
+      if (hx0 > x0) next.push([x0, hx0, z0, z1]);
+      if (hx1 < x1) next.push([hx1, x1, z0, z1]);
+      const mx0 = Math.max(x0, hx0);
+      const mx1 = Math.min(x1, hx1);
+      if (hz0 > z0) next.push([mx0, mx1, z0, hz0]);
+      if (hz1 < z1) next.push([mx0, mx1, hz1, z1]);
+    }
+    out = next;
+  }
+  return out;
 }
 
 /**
@@ -391,7 +422,8 @@ export function buildWarehouse(b: LevelBuilder, o: WarehouseOpts = {}): MapLayou
   for (let z = -18; z < 18; z += 6) {
     if (!sb && z <= -12) continue; // Sector Ops: section 1 has its own walkable roof at 6.0 (warehouseS1)
     if (z === -18) b.box(-23, 6.15, z + 2.4, 2, 0.25, 4.8, ROOF, 0, 0, false).box(22.5, 6.15, z + 2.4, 3, 0.25, 4.8, ROOF, 0, 0, false);
-    else b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);
+    // (sector-fixes-r e2e fix) less the given holes (Sector Ops: the hoods over section 3's platforms)
+    else for (const [x0, x1, z0, z1] of cutRect([-24, 24, z, z + 4.8], o.roofHoles ?? [])) b.box((x0 + x1) / 2, 6.15, (z0 + z1) / 2, x1 - x0, 0.25, z1 - z0, ROOF, 0, 0, false);
   }
   // lamps: only some are on (pools of light, dark aisles between); each room's lamps are one circuit
   for (let x = -18; x <= 18; x += 9) {

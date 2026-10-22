@@ -46,6 +46,12 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   tests only). Mode: `game/modes/sectorMode.ts` (doors by position, `loadSection` / `unloadSection`, `CtDevices.setLive`,
   alarm stage from the run, restart after `RESTART_DELAY` 2.5 s with everyone down, extraction and result). The live
   guard cap is `SECTOR.maxAlive` (32) for this mode only; `?sectorGuards=N` caps the guards per section.
+- Team doors (sector-fixes-r RT, the course's B2 bolt): `SectorDef.bolts` (`S1_BOLTS`..`S3_BOLTS` from the section
+  files: door centre `at`, unbolting `side`). The door stays locked (guards treat it as any locked door; no guard route
+  uses one, `tests/sectorBolt.test.ts`); a player with the feet past the door plane on `side` within 1.6 m gets
+  "Unbolt" (`Interactable.side`); using it unlocks the door for both. A section restart bolts its doors again.
+  Pure: `SectorBolts`, `onBoltSide`, `boltItemId` / `boltById`. Test hooks: `__sector.boltInfo()`,
+  `__sector.useBolt(sec, k)`, `debug().bolts`.
 - Difficulty stars (M7, A11): `save/sectorRecord.ts`, kv key `sector:ops` (per op id: the presets completed and the best
   time per preset; no profile change, no SAVE_VERSION bump). The extraction calls `markCompleted(map.id, difficulty,
   time)` (solo and co-op host; the co-op client on a won `end`, no time). The menu entry opens `SectorOpsScreen`
