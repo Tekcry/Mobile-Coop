@@ -67,6 +67,11 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 06:45 NEW WINDOW (reset ~06:40, ends ~11:40): up to 2 agents; e2e on the DESKTOP lanes (Character Build down until
+  Michael restarts it), heavy.lock + port 4191. Running: (1) Opus client wall-switch fix (stealthSystems / coopClient /
+  coopHost; report slices/S-switch.md; it runs e2e-ctcourse:1 on the desktop), coordinated with Course Ready (they
+  check Sector Ops after); (2) Opus checker on A2 greybox + A1 dressing (slices/S2-check.md). Michael may clear this
+  session after ~07:00: the resume block below is current.
 - 04:35 slice 2 A2 greybox / lights / guard / e2e IN (slices/S2.md): 4 circuits, neck isolator 15 s / 3 s, armed
   shunter loop (waits 0.1 s: PatrolWalker freezes on a 0 wait, reported to Guard AI), 35 A2 tests, 128 map tests.
   Its e2e is in part :1 after A1, which still stops at A1's client-switch step: run e2e-ctcourse:1 after the switch fix.
