@@ -57,6 +57,13 @@ machine wording below: full runs, merge trains, `e2e-coop` / `e2e-netmove` / `e2
 `E2E_JOBS=3`, its own `heavy.lock`). The desktop runs only quick single suites at `E2E_JOBS=1` under its lock, and the
 sessions' agents. Job leads send run requests (branch, commit, suites) to Character Build, not the desktop lock.
 
+**GPU for logic e2e** (Michael, 2026-10-22 ~20:30: "use gpu on any tests that would benefit"; overrides the
+software-GL wording below and in "Commands"): both machines run logic e2e with `E2E_GPU=1` (hardware GPU), which is
+4-14x faster than software GL and keeps CPU free. Measured on 4.58.0 on the desktop, GPU vs software: e2e-mouse 35 s vs
+225 s, e2e-menus 61 s vs ~13 min, e2e-coop 74 s vs ~10 min; laptop GPU full run 585 s vs 2025 s in software. A failure
+seen only on the GPU is rerun in software on the same commit before it counts, and is then fixed as a test bug. CI
+stays software GL (`npm run check` only). Ports stay as in the table; a GPU logic run may use 4191 / 4192.
+
 **Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
 slot, or on the laptop (Character Build), the second slot, which Michael is still using: there at BelowNormal priority
