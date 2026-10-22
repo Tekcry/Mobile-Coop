@@ -2,7 +2,8 @@
 
 Ranked list for idle agent slots during the full burn (Michael 01:05). Each job is its own branch from master and one PR
 (trains). Keep out of marlow-final's slice 0 files (courseDef / courseState / courseMode.ts, ctDevices.ts, scanners.ts,
-protocol.ts, coopUi.ts, courseHud.ts, securityRoom.ts, ctcourse.ts, src/world/{kit,props,lighting}) and the mocap
+protocol.ts, coopUi.ts, courseHud.ts, securityRoom.ts, ctcourse.ts, src/world/{kit,props,lighting}, src/game/course/*,
+stealthSystems.ts; Menu Notes 01:30: slice 0 also edits src/net/coopHost.ts SecWire encode, not teamController.ts) and the mocap
 files (animGraph, footPlanner, footGeom, keyed, tune, characterRig, animTunePanel, settings, flags, app.ts). Protocol:
 marlow-final takes 30; the next wire change takes 31. Check sector-fixes-r2's files (teamController.ts, coopHost.ts)
 before jobs 2, 3, 9.
