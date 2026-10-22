@@ -1,5 +1,20 @@
 # anim-natural N1 - state
 
+## 2026-10-22 ~17:45: master 4.55.1 merge (temp branch feature/anim-natural-n1-merge, pushed)
+- Merge bf1d860c (170ee701) + fixture re-capture 99867912, by an agent in C:/NightShift/Mobile-Coop-anim-natural-n1-merge.
+  Conflicts: only tests/animSkeletonIdentity.test.ts (header notes, both kept) and both identity fixtures (master's
+  taken, then re-captured). e2e-anim merged clean (master's BODY_* / RUN_TUNE widenings + N1's turn feet block, the
+  contact-point foot lock and crab slide); footPlanner.ts and e2e-move.mjs untouched by master. No limit where master
+  widened and N1 tightened; BODY_STATE.start slide 0.02 (master, ankle) now reads N1's contact point: unverified.
+- Proof (rig turnRule forced 0 by a temporary hook, removed): Wren 0 / 40 differ from master, turn rules on 1 / 40
+  (partner:moves, as before the merge); guards 0 / 64 off, 24 / 64 on (every kind's walk, dash, aimWalk: decision 4,
+  guards share the turn rules; the same 24 as before). The ANIM_SKELETON_CAPTURE=1 capture equals the proof run.
+- Single files green: animSkeletonIdentity, animSkeletonGuardIdentity, footPlanner, footTurn, turnFollow, tuneStep,
+  keyedWalk, animAudit, animTuneBake, animCrabMetrics, animBodyBase, animTune, tuneBakedReset; tsc clean; eslint 0.
+- Open: N1 has no "## Unreleased - anim-natural-n1" CHANGELOG section yet (add before the PR). Next: merge the
+  jog 180 fix (agent in this folder, REPORT-D) with feature/anim-natural-n1-merge, re-capture if the fix moved rows,
+  then desktop e2e-anim e2e-clip e2e-move.
+
 ## 2026-10-22 ~16:00: desktop runs on 2ea66da8 (/c/NightShift/ctb6.out)
 - e2e-move ok: "stopping: planted feet stay planted at the contact (0.00 cm, ankle 1.87 cm, 2 plants)" (decision 5).
 - e2e-clip --log: N1 FAILS "crouched holstered: arms / hands through the thighs" min -3.2 cm (limit -3.0?), the right
