@@ -40,7 +40,7 @@ export const S5_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 9, reason: 'Two-person rule: neither is alone with the token' },
   { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], role: 'posted', zone: 'token', squad: 2, pair: 8, reason: 'Two-person rule: neither is alone with the token' },
   // 11 the audit escort
-  { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 33.6]], waits: [4, 4, 4], takedownSpot: [-45.4, 33.3], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
+  { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 33.6]], waits: [4, 4, 4], takedownSpot: [-40.6, 33.8], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
   // 12 the front door
   { kind: 'officer', x: -44, z: 20.5, yaw: PI, takedownSpot: [-44, 20.0], role: 'door', zone: 'hall', squad: 0, reason: 'Front door, under the hall camera' },
   // 13-14 the gallery pair, opposite phases
@@ -58,11 +58,11 @@ export const S5_GUARDS: SectorGuard[] = [
   // 20 the terrace gate
   { kind: 'grunt', x: -44, z: 50.7, yaw: 0, takedownSpot: [-44, 51.2], role: 'gate', zone: 'terrace', squad: 1, reason: 'The terrace gate, lake side' },
   // 21 the service round
-  { kind: 'grunt', x: -29, z: 42.5, yaw: PI, route: [[-29, 42.5], [-29, 23.5]], waits: [3, 3], takedownSpot: [-29, 43.0], role: 'patrol', zone: 'wing', squad: 5, reason: 'Service round; answers the garden board' },
+  { kind: 'grunt', x: -29, z: 42.5, yaw: PI, route: [[-29, 42.5], [-29, 23.5]], waits: [3, 3], takedownSpot: [-30.4, 23.3], role: 'patrol', zone: 'wing', squad: 5, reason: 'Service round; answers the garden board' },
   // 22 the lobby officer, the C4 door 1.6 m behind him
   { kind: 'officer', x: -27.6, z: 29.0, yaw: -PI / 2, takedownSpot: [-27.1, 29.0], role: 'post', zone: 'lobby', squad: 5, reason: 'Checks anyone coming in from the data hall' },
   // 23 the van
-  { kind: 'grunt', x: -31.4, z: 53.5, yaw: -PI / 2, takedownSpot: [-30.9, 53.5], role: 'driver', zone: 'lane', squad: 4, reason: "The team's van; overlooks the jetty path" },
+  { kind: 'grunt', x: -31.4, z: 53.5, yaw: -PI / 2, takedownSpot: [-32.0, 54.3], role: 'driver', zone: 'lane', squad: 4, reason: "The team's van; overlooks the jetty path" },
   // 24 the clocking round
   { kind: 'officer', x: -35, z: 37.2, yaw: PI, route: [[-35, 37.2], [-35, 19.6]], waits: [3, 3], takedownSpot: [-35, 37.6], role: 'tour', zone: 'back', squad: 5, reason: 'Clocking round of the back stair door and the hall door' },
 ];
