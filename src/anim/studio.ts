@@ -296,6 +296,11 @@ export const STUDIO = {
   onKey: false,
   /** Bumped by the panel on every tuner change (the onion skin's cached keys are stale then). */
   poseVer: 0,
+  /** (marlow-bays item 30d) Compare keys: a light ghost of the compared key's pose over her (off by default; the Keys
+   *  tab's switch), the compared key's phase (NaN: none) and a counter the panel bumps when that key's pose changes. */
+  compare: false,
+  comparePhase: Number.NaN,
+  compareVer: 0,
 };
 
 const DEFAULTS = { ...STUDIO };

@@ -347,6 +347,18 @@ try {
   const menuKeys = await G(() => [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(','));
   // (anim-studio) the developer row Anim Studio (dev) last
   assert(menuKeys === 'sectorops,coop,loadout,settings,feedback,anim-studio', `the main menu is Sector Ops, Co-op, Loadout, Settings, Feedback, Anim Studio (dev) (${menuKeys})`);
+  // (marlow-bays R1) no rejoin row without a room; a room left in the last 10 minutes shows "Rejoin <code>" after Co-op
+  const rj = await G(() => {
+    sessionStorage.setItem('ns-rejoin', JSON.stringify({ code: 'ABCDE', role: 'client', at: Date.now(), mode: 'course', map: 'ctcourse', difficulty: 'normal', mission: '', weather: 'clear', bay: 2 }));
+    window.__app.screens.top.onShow();
+    const keys = [...document.querySelectorAll('.main-menu .ms-item')].map((b) => b.dataset.key).join(',');
+    const label = document.querySelector('.main-menu [data-key="rejoin"] .btn-label')?.textContent ?? '';
+    return { keys, label };
+  });
+  assert(rj.keys === 'sectorops,rejoin,coop,loadout,settings,feedback,anim-studio' && rj.label === 'Rejoin ABCDE', `a left room shows Rejoin <code> on the main menu (${JSON.stringify(rj)})`);
+  await G(() => {
+    sessionStorage.removeItem('ns-rejoin');
+  });
   await G(() => window.__app.nav.focus(document.querySelector('.main-menu [data-key="sectorops"]')));
   await key('Enter');
   // (sector-ops M7) Sector Ops opens the op list: the Warehouse with its four difficulty stars

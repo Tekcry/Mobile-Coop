@@ -46,6 +46,7 @@ import { download } from './fileOut';
 import { TunePadCtl } from './animTunePad';
 import { projectPoint } from './overlayProject';
 import { TuneSnapshotsUi, type PanelKit } from './tuneSnapshots';
+import { TunerKeyTools } from './tunerKeyTools';
 import { StudioPanel } from './studioPanel';
 import { keyGroupId } from '../anim/tuneKeysFile';
 import { keyClip, keyIsLive, keyPhase, keyRank, keyReadout, keyStep } from '../anim/keyTimeline';
@@ -503,6 +504,8 @@ export class AnimTunePanel {
   // --- (marlow-bays item 25) the Keys tab's "Add key" / "Delete key"
   private keyAddBtn: HTMLButtonElement | null = null;
   private keyDelBtn: HTMLButtonElement | null = null;
+  // --- (marlow-bays item 30) the Keys tab's key tools (wave, apply to keys, smooth between, compare)
+  private keyTools: TunerKeyTools | null = null;
   // --- (marlow-bays item 10) the selected row (its pad key), its target on the body and the scene marker
   private selKey = '';
   /** The pad focus last taken as the selection. */
@@ -1156,6 +1159,10 @@ export class AnimTunePanel {
           del: this.keyDelBtn ? { disabled: this.keyDelBtn.disabled, title: this.keyDelBtn.title } : null,
         };
       },
+      // (marlow-bays item 30) the key tools: their state, set as the controls would, a tool's button
+      keyTools: () => this.keyTools?.state() ?? null,
+      keyToolsSet: (o: Parameters<TunerKeyTools['set']>[0]) => this.keyTools?.set(o),
+      keyToolsRun: (t: 'wave' | 'apply' | 'smooth') => this.keyTools?.run(t),
       // (marlow-bays item 9) the mouse mode
       mouse: () => ({ mode: this.mouseCtl.mode, free: this.mouseCtl.free, locked: this.mouseHost?.locked() ?? false, dragging: this.mouseHost?.dragging() ?? false, button: this.mouseBtn.textContent ?? '' }),
       mouseMode: (m: TunerMouseMode) => {
@@ -3334,7 +3341,42 @@ export class AnimTunePanel {
     h.className = 'anim-tune-keys-hint anim-tune-keyhint tt-note';
     h.textContent = 'Key edits change one pose; whole-cycle changes go in the state tabs.';
     d.append(b, r, tb, te, eb, h);
+    // (marlow-bays item 30) the key tools: Compare (the ghost and the values diff) and the Key tools fold (Wave, Apply
+    // to keys, Smooth between), each one undo step
+    const tools = (this.keyTools = new TunerKeyTools(
+      { btn: (l, f, k, c) => this.mkBtn(l, f, k, c), check: (p, l, on, f, k, c) => this.mkCheck(p, l, on, f, k, c), sel: (p, l, o, f, k, c) => this.mkSel(p, l, o, f, k, c), bar: () => this.mkBar(), refresh: (s) => this.refreshSel2(s) },
+      {
+        shown: () => this.keysTimeKey(),
+        selField: () => {
+          const p = rowKeyParts(this.selKey);
+          return p && p.section === 'keys' ? p.id : '';
+        },
+        fieldName: (id) => plainLabel('keys', id, id),
+        info: (t) => this.flashInfo(t),
+        settle: () => this.snaps.history.settle(performance.now(), true),
+        rebuild: () => {
+          const sec = this.sections.find((s) => s.reg.id === 'keys');
+          if (sec) this.rebuild(sec);
+        },
+        showKey: (clip, k) => {
+          this.loopFromTab = this.keyPicking = true;
+          try {
+            this.studioUi.showKey(clip, k);
+          } finally {
+            this.loopFromTab = this.keyPicking = false;
+          }
+        },
+        ghostReady: () => this.studioUi.overlay.compareReady(),
+        frozen: () => this.frozen,
+      },
+    ));
+    d.append(tools.el);
     return d;
+  }
+
+  /** (item 30) A drop-down's button shows its select's choice again (its options changed). */
+  private refreshSel2(s: HTMLSelectElement): void {
+    for (const b of this.dropBtns) if (this.dropSel.get(b) === s) this.refreshDrop(b);
   }
 
   /**
@@ -3479,6 +3521,11 @@ export class AnimTunePanel {
     const n = c.phases.length;
     const mirrorOn = tuneKeysMirrorOn(p[0]);
     const playing = STUDIO.active && STUDIO.entry === `keyed:${p[0]}`;
+    // (item 30) the compare ghost's visit to the compared key moves the studio: the picker stays
+    if (this.keyTools?.priming) {
+      this.keyTools.frame();
+      return;
+    }
     if (playing && STUDIO.onKey && STUDIO.key >= 0 && (STUDIO.key !== this.keyShown || p[0] !== this.keyClipShown)) {
       this.keyShown = STUDIO.key;
       this.keyClipShown = p[0];
@@ -3499,6 +3546,7 @@ export class AnimTunePanel {
     if (box.checked !== mirrorOn) box.checked = mirrorOn;
     if (box.disabled !== !c.mirror) box.disabled = !c.mirror;
     this.keysTimeShow(p[0], playing && STUDIO.onKey && STUDIO.key >= 0 ? STUDIO.key : p[1]);
+    this.keyTools?.frame(); // (item 30)
   }
 
   /** (marlow-bays item 25) "Add key" / "Delete key" follow the key: off (with why in the tooltip) when they cannot. */
