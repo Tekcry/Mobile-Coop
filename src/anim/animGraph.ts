@@ -858,6 +858,9 @@ export class AnimGraph {
   private stAmp: number = GLIDE.ampMin;
   /** (mocap-trial-2, strafe) This frame's dt and travel length for `strafeTrack` (fields: no boxed double arguments). */
   private stDt = 0;
+  /** (mocap-trial-2 strafe fix) The switch last frame (mOn), and the still share easing both ways after it came on. */
+  private stWas = false;
+  private stIn = false;
   private stDl = 0;
   private mcK = 0;
   private cHalf = KEYED_CROUCH_WALK.half;
@@ -1086,10 +1089,18 @@ export class AnimGraph {
     // (mocap-trial-2, strafe) switch on: the mocap strafe's side, hips shift and amplitude (`strafeTrack`)
     // (dt and dl as fields, not arguments: a double passed to a call is boxed, 48 B a frame)
     if (this.mOn) {
+      // (strafe fix) the switch just on: its tracking was stale (stIdle 0 mid-strafe: the captures popped in at full share and
+      // the planted knee jumped 30-33 deg as the rig's switch fade ended): the hips hold from 0 and the pose eased in
+      if (!this.stWas) {
+        this.stHip = 0;
+        this.stIdle = this.stIdleA = 1;
+        this.stIn = true;
+      }
       this.stDt = dt;
       this.stDl = dl;
       this.strafeTrack(i);
     }
+    this.stWas = this.mOn;
     this.raiseS = approach(this.raiseS, i.raise, 0.02, dt);
     this.dashS = approach(this.dashS, i.dash, 0.15, dt);
     this.wallS = approach(this.wallS, i.wallSide, 0.2, dt);
@@ -2268,10 +2279,13 @@ export class AnimGraph {
       // stages, each STRAFE_IDLE_TAU / 2, falling at once (a CT stop fades the moving pose out in ~0.1 s, the captures' wide
       // hips swing popped it; written out here, not in update(): there the switch-off frame boxed a double)
       if (SL !== null && SR !== null) {
-        this.stIdleA = idleShare > this.stIdleA ? idleShare + (this.stIdleA - idleShare) * this.stIdleK : idleShare;
-        this.stIdle = this.stIdleA > this.stIdle ? this.stIdleA + (this.stIdle - this.stIdleA) * this.stIdleK : this.stIdleA;
+        this.stIdleA = idleShare > this.stIdleA || this.stIn ? idleShare + (this.stIdleA - idleShare) * this.stIdleK : idleShare;
+        this.stIdle = this.stIdleA > this.stIdle || this.stIn ? this.stIdleA + (this.stIdle - this.stIdleA) * this.stIdleK : this.stIdleA;
         // (settled within 1e-4: exactly idleShare, so the mix below passes idleShare itself)
-        if (this.stIdle - idleShare < 1e-4 && this.stIdle - idleShare > -1e-4) this.stIdle = this.stIdleA = idleShare;
+        if (this.stIdle - idleShare < 1e-4 && this.stIdle - idleShare > -1e-4) {
+          this.stIdle = this.stIdleA = idleShare;
+          this.stIn = false;
+        }
       }
       const sDuty = SL !== null && SR !== null ? SL.duty + (SR.duty - SL.duty) * stW : S.duty;
       this.stShare = SL !== null && SR !== null ? sk * aimK * (1 - this.stIdle) * (1 - this.kCk) : 0;
