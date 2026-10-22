@@ -1,6 +1,46 @@
 # sector-redesign - state
 
-## Now (2026-10-23 ~09:50, SAVED at ~91% for Michael's account swap; nothing uncommitted anywhere)
+## Now (2026-10-23 ~10:20, second window after the account swap)
+- feature/sector-redesign @ 88f5c33a+ (pushed) = the 09:50 state + part-6 fixes + campusOps listed + ammo removal + S4 / S5
+  briefs. Commits since 22e755bf: 7c2087ee part 6 fix (S3 SW stair half-landing collision lip campusS3.ts:350, navBuild
+  `navGridFromLevel`, tests/campusRuntimeNav.test.ts runs the e2e leg check on the runtime grid; checks/part6-fix.md);
+  c92fc53b e2e camera count 7; 07c96701 e2e moves the frozen S2 facilities officer off the BMS hack spot
+  (checks/part6-fix2.md); 25f22a9c campusOps listed (A68 filter gone, LISTED_MAP_IDS); 5a8973e6 briefs/SLICE4.md +
+  SLICE5.md, A78-A98; 88f5c33a no ammo inside sections on every map + src/world/mapCheck.ts checkMapLayout +
+  tests/noAmmoPickups.test.ts (checks/no-ammo-build.md).
+- e2e verdicts (all GPU): laptop 22e755bf e2e-coop PASS 66 s, e2e-netmove PASS 171 s. Part 6 at c92fc53b: all passed
+  (S1 40 + S2 71 + S3 99 legs, every S3 probe) except the C2 hack (stale test, fixed 07c96701). PENDING: Character Build
+  reruns e2e-sectorops:6 at 07c96701 on 4192 (~10:22). 88f5c33a changed src (map pickups): part 6 again on the PR head,
+  or the train's full run covers it.
+- IN FLIGHT: Sonnet S4 builder (worktree C:/NightShift/Mobile-Coop-sector-redesign-s4, branch feature/sector-redesign-s4)
+  and Sonnet S5 builder (-s5), both from 5a8973e6, told to commit + push WIP per step and keep checks/slice4-build.md /
+  slice5-build.md current. On resume: check each branch log and build file; rerun a builder from its brief if unfinished.
+- Desktop lane: heavy.lock was held by CT Core / Menu Notes all morning; send part 6 to Character Build.
+- Token rules (orchestrator ~10:00, CLAUDE.md "Heavy-usage throughput" on origin/feature/menu): message the orchestrator
+  only at PR open / train-ready / blocked / needs Michael; progress lives here; save at ~25-30% context; one checker per
+  batch (Sonnet checks S4 + S5 greybox / data together, Opus checks nav / net code); no polling turns; merge master into
+  this branch only when PR 2 is about to go to a train.
+- Stealth over shooting (Michael ~10:10 / ~10:15 / ~10:20): PLAN E8 (bulletproof / thermal cameras), E9-crate
+  (between-section weapons crate, once per player; no in-section ammo, done), E10 (armoured routes with a quiet bypass).
+  Guard AI owns helmets, armour, response teams.
+- Backlog note: `LevelBuilder.ramp` end-cap error (collision slab lowered vertically only; a one-cell-wide flight can
+  lose a nav cell; fixing it moves every map's ramps). Plus the 09:50 polish list below.
+
+## Next (in order)
+1. Part 6 verdict at 07c96701 (Character Build). Green -> PR 2 (feature/sector-redesign -> master: slices 2-3, E1 / E3 /
+   E4 / E5 / E6, lips, part-6 fixes, campusOps listed, no in-section ammo). Area suites: coop + netmove green at 22e755bf
+   (E6 touched src/net/coopClient.ts; nothing in src/net since); part 6 on the PR head or in the train. Merge master in
+   just before the train. Message the orchestrator when PR 2 opens. Red -> one Opus fix round, rerun part 6.
+2. Collect the S4 / S5 builders. Then ONE Sonnet checker for S4 + S5 data / greybox together (Opus on any nav code); one
+   fix round each; merge -s4 / -s5 into feature/sector-redesign (lead joins campusOps.ts / campusSectors.ts / test
+   counts / e2e / changelog per SLICE4.md's merge table). First S4 / S5 part-6 run on the laptop; the first part-6
+   asserts must count cameras / guards per section (13 cameras after S4 / S5).
+3. Opus plans E9-crate (net part first: per-player use on the host; ask the orchestrator for a protocol number if a
+   wire change is needed), Sonnet builds; then E8 camera flags (Opus, small); E10 after E2.
+4. When guard-ai's types reach master: merge master, CAMPUS_POSTS -> slot `post`, validatePosts in campus tests, E2 glass.
+   When guard-render lands: lift the A64 cap for S4 / S5 (20 / 24 guards).
+
+## History: the 09:50 save (superseded by "Now" above)
 - feature/sector-redesign @ 22e755bf = master 4.68.0 + S2 + S3 + int (E1 keypads, E3 pair bolt / gate, E4 isolator
   boards) + E5 alarm stages + lips join + E6 security desk. tsc + 192 campus / sector tests pass.
   Checkers: S2 PASS; S3 FIX -> fixed (A70 spandrel 6.2, A64 test rewritten, worst 6); E5 FIX -> fixed (door-side legs,
@@ -37,7 +77,7 @@
   suites when CPU allows; coop / netmove / ctcourse on the laptop. Opus plans / checks / engine; Sonnet builds sections
   from strict briefs; Haiku chores.
 
-## Next (in order)
+### Next at 09:50 (superseded)
 0. FIRST: fix e2e-sectorops:6 per "LAPTOP VERDICT" above (parallel with 1), rerun part 6; 22e755bf coop + netmove are still queued on the laptop.
 1. Rerun the Opus planner for briefs/SLICE4.md + SLICE5.md (prompt summary: strict Sonnet briefs in SLICE2.md's shape,
    exact files / lines / acceptance; S4 20 guards incl. 1 dog, S5 24 incl. 2 dogs; A64 <= 6 awake on screen with the
@@ -117,9 +157,11 @@ Night Shift | Course Ready Build: RESUME (cleared session / new account). Job: s
 feature/sector-redesign, worktree C:/NightShift/Mobile-Coop-sector-redesign. git fetch, then read: CLAUDE.md; docs/ROADMAP.md
 (the live "Decided" is on origin/feature/menu: Sector Ops redesign 01:08-01:25, unavoidable guards 01:50, lean windows
 01:45); docs/sector-redesign/BRIEF.md (M1-M12, A1-A77), STATE.md ("Now" and "Next" at the top), PLAN.md, SPEC.md,
-briefs/, all on origin/feature/sector-redesign. Nothing was in flight uncommitted at the save; the S4 / S5 brief planner
-was lost and is "Next" 1. First: message "Night Shift | Orchestrator" that you resumed, and ask "Night Shift | Character
-Build [06fe56]" for the sector-redesign laptop verdict at 22e755bf (4def7d24 is in STATE: part 6 failed). Then follow "Next". Opus plans, writes
+briefs/, all on origin/feature/sector-redesign; CLAUDE.md "Heavy-usage throughput" + token rules on origin/feature/menu
+until they reach master. In flight at the save: Sonnet S4 / S5 builders on feature/sector-redesign-s4 / -s5 (worktrees
+-s4 / -s5, WIP pushed per step; check their logs and checks/slice4-build.md / slice5-build.md, rerun from the brief if
+unfinished). Ask "Night Shift | Character Build" for the e2e-sectorops:6 verdict at 07c96701 if STATE has none. Message
+the orchestrator only at PR open / train-ready / blocked / needs Michael. Then follow "Next". Opus plans, writes
 strict briefs, runs every checker and engine work; Sonnet 5.5 builds sections from the briefs; Haiku chores; one fix
 round per slice. Agent count / pacing as the orchestrator says. Michael may be asleep: log assumptions, no question
 dialogs. Every e2e is E2E_GPU=1: coop / netmove / ctcourse on Character Build (laptop); single suites on a desktop lane
