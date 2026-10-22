@@ -187,10 +187,14 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 Night Shift | Guard AI Build - guard-ai: RESUME. Model Opus, effort high; clear context first.
 Folder C:/NightShift/Mobile-Coop-guard-ai, branch feature/guard-ai (git fetch; git status; branch guard before every
 write: CLAUDE.md "A job"). Read CLAUDE.md, docs/ROADMAP.md (origin/feature/menu if newer), docs/guard-ai/BRIEF.md,
-PLAN.md and this STATE.md. Continue from "Now" (saved at the swap): per slice worktree
-C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own guard), finish what was cut off (S4 / S5
-checkers, S4 e2e, S8 implementer), then the CHAIN ORDER #191 -> S4 -> S5 -> S7 -> S8 (merge each into the next, one e2e
-pass on the tip, one PR per slice), then S5b / S6 / S10. The loop in docs/systems/session-method.md (implementer, fresh
+PLAN.md and this STATE.md. Continue from "Now" (top entry first): per slice worktree
+C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own guard). Agents cut off by a swap leave
+WIP commits "WIP at the swap" on their branch: review `git show --stat HEAD` and the slice's report, then finish with a
+fresh Opus agent. Order: chain fix ('bodies' e2e) in s7 -> merge s5 (master) into s7 -> laptop GPU run on the s7 tip ->
+one "train-ready" message (S4 #193 / S5 #195 / S7 #196) -> s8 merges s7 -> S5b, S6, S10 stacked on S8 per the batch
+checker's merge plan (S5b-CHECK.md / S6-CHECK.md) -> one laptop GPU run on that tip -> one PR per slice (S8 stacked
+on #196). Token rules: origin/feature/menu CLAUDE.md "Heavy-usage throughput" (message the orchestrator only at
+PRs / train-ready / blocked; no new tsc / vitest agent while desktop CPU >= 80%). The loop in docs/systems/session-method.md (implementer, fresh
 checker, at most 1 fix round per slice; subagents start from docs/systems/agent-preamble.md; slice detail in
 research/tactics-design.md and slices/S<n>-module.md). AI behaviour code and checkers Opus; Sonnet 5.5 only for tests /
 data from strict briefs. Every e2e run E2E_GPU=1: desktop lane (heavy2.lock, 4192, E2E_JOBS=1) when CPU allows, else
