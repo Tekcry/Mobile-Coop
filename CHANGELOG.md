@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - local-transport-closed
+
+- Co-op over the local (same-device) transport: a message sent after leaving the room is dropped instead of throwing
+  "BroadcastChannel is closed" (`src/net/localTransport.ts`; a teardown race that failed e2e-coop console checks).
+  Test: `tests/localTransport.test.ts`.
+
 ## Unreleased - idle-shins
 
 - A teleport (spawn, respawn, checkpoint, the anim-audit's `tp`) plants Wren's feet no closer to the midline than the
