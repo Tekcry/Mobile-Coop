@@ -67,6 +67,34 @@ GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/coop-test
 (sim-clock waits), plus stale test numbers (the walk-off crouch, the medkit heal) and a crouch race; e2e-coop,
 e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop. `KNOWN_FLAKY` is e2e-pad only.
 
+- **Four load flakes (fixed in the tests, flake-fix 2026-10-22; `docs/flake-fix/`)** - each passed solo and failed under
+  `E2E_JOBS=2` on the laptop. Not on `KNOWN_FLAKY`.
+  - e2e-stealth-ai "the guard there sees the peeking head only" (los true, head false): the spot was picked from one
+    look at the held peek, but the pose sways a few mm and the picked spot cleared the chest by about 5 mm, so the
+    guard's think tick (a random phase) caught the chest. Fix (fix round 2): candidate spots are floor points on a 5 cm
+    grid where a guard can stand, judged with a real grunt's eye offset; a spot counts only if it hides chest and head
+    before the peek and sees the head and not the chest after every fixed step of 2 s of the held peek (each step's
+    target points are the pose the guards perceive that step), ranked by the largest margin it held. A calm grunt is then
+    put on the exact spot (not its 0.5 m nav cell's centre, where the spawn snaps it: a 1 cm margin and cell centres left
+    no spot, the head-only wedge is a few cm wide) and made passive (it never turns or walks; its think still sets
+    los / losHead). Over 2 s more its own eye must hold at every step (else the next spot, up to 8), and at every one of
+    its thinks (at least 5) it must report the head only; released, hidden again. A failure prints the first bad think
+    (lines, chest and head points) or why each segment gave no spot.
+  - e2e-netmove "timed out waiting for client assists": the client's `assist` lasts the boost's 0.9 s of game time and
+    began and ended between two polls on a slow page. Fix: `watchTeam` (e2e-net-lib) logs every team state with sim
+    time; the check reads whether the client went through `assist`; a failure prints both views (`teamLog`).
+  - e2e-mouse "the capture times out after 5 s": the screen's wall-clock 5 s timer fired after the test's fixed 5.6 s
+    look on a slow page. Fix: the page times it (click, a 4.5 s probe that must still be capturing, the moment
+    `cancelCapture` runs, a 5 s probe armed after the click); the give-up must come at 5 s and before that probe.
+  - e2e-ctcourse "station 4: the client is thrown": the cause is suspected, not proven. The old failure dump showed no
+    `lastThrowRoom` and no refusal, so `requestThrow` (teamController) never ran and the landing was never measured:
+    the press most likely never reached it, either because the offer dropped out at the press frame (and the client
+    began its own `throwOffer`) or because GameState's gates swallowed the press (`pistolAsk`, `wallWas`, `busy`).
+    Kept as a sound stabiliser: the press waits until the client's view of the host matches the host (10 cm, 0.05 rad),
+    the host still offers and the client stands free. Diagnosis: both pages' team logs print on a failure, and
+    `teamLog` (e2e-net-lib) now adds those gates (wall core, door peek and door open active, pistol aim asked, the
+    current weapon class, carrying), so the next failure says why.
+
 - **e2e-menus "stall" at (tuner-camera) on the desktop (fixed in the test, havok-stall 2026-10-21; `docs/havok-stall/REPORT.md`)** -
   the full suite failed 5 of 5 on the desktop (i7-7700K, software GL) right after "tuner: Menu closes it and the game
   runs". It was not a hang: the runner killed the suite at its 600 s limit (`E2E_SUITE_TIMEOUT`), and at `E2E_JOBS=1`

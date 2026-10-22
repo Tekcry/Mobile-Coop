@@ -125,9 +125,10 @@ describe('anim-bake table', () => {
           // (anim-bake-all) anything else: the generic table (a section with no base key of its own, or Body's strideMul);
           // a guard section never reaches it (the guard table takes every guard row) and the generic target refuses one
           // (clip-speed, track A) every Clip speed slider has its code rule (never the generic table, which it does not read)
-          if (s.id === 'clip') expect(r, `${s.id} ${t.id} ${g}: a Clip speed slider has a code rule`).toBe(true);
+          // (anim-n4) and every Holds and carries slider its CQ_GAIT rule
+          if (s.id === 'clip' || s.id === 'cq') expect(r, `${s.id} ${t.id} ${g}: a ${s.id} slider has a code rule`).toBe(true);
           if (guard) expect(r, `${s.id} ${t.id} ${g}: a guard section has no code rule`).toBe(false);
-          if (guard || s.id === 'clip') expect(() => sectionTarget({ section: s.id, group: g, id: t.id, kind: t.kind, def: t.def }), `${s.id} ${t.id} ${g}: never the generic table`).toThrow();
+          if (guard || s.id === 'clip' || s.id === 'cq') expect(() => sectionTarget({ section: s.id, group: g, id: t.id, kind: t.kind, def: t.def }), `${s.id} ${t.id} ${g}: never the generic table`).toThrow();
           let generic = false;
           if (!r && !base && m.length === 0) {
             expect(() => sectionTarget({ section: s.id, group: g, id: t.id, kind: t.kind, def: t.def }), `${s.id} ${t.id} ${g}`).not.toThrow();

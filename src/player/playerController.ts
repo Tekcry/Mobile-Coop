@@ -17,6 +17,7 @@ import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 import { tuneSim } from '../anim/tune';
+import { cqSim } from '../anim/cqGait';
 import { speedMoveMul } from './speedTune';
 import { weightSim, weightSimEnd } from './weightTune';
 
@@ -536,6 +537,7 @@ export class PlayerController {
     const wasMoving = this.motion.state === 'move';
     const spBefore = this.motion.speed;
     tuneSim(true); // (anim-tuner) the step-length slider on the local player's gait clock (identity by default)
+    cqSim(); // (anim-n4) holding / carrying: the walk's step length (a slower carry cadence)
     weightSim(this.crouched, this.weightDrawn, Math.max(this.analog.v, this.motion.speed)); // (anim-weight) momentum (identity by default)
     try {
       if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);

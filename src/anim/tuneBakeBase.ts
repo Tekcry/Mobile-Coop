@@ -249,9 +249,10 @@ export function applyBaseEntries(base: AnimBaseData, entries: readonly BaseEntry
 /**
  * Sections that never bake into the generic table: their own base keys (Wren's), the Keys section's key JSONs, (item 24,
  * track A) the guard sections (the guard table, `tuneBakeGuard.ts` BAKE_GUARD_SECTIONS; a guard row never reaches Wren's
- * table) and (clip-speed, track A) Clip speed (a code rule per slider; `clipSpeed` reads the tuner's values, never `eff`).
+ * table), (clip-speed, track A) Clip speed (a code rule per slider; `clipSpeed` reads the tuner's values, never `eff`)
+ * and (anim-n4) Holds and carries `cq` (a code rule per slider into CQ_GAIT; `cqRows` reads the tuner's values).
  */
-export const GENERIC_REFUSED: readonly string[] = ['joint', 'hand', 'ik', 'weapon', 'gear', 'keys', 'guardJoint', 'guardStep', 'guardWeight', 'clip'];
+export const GENERIC_REFUSED: readonly string[] = ['joint', 'hand', 'ik', 'weapon', 'gear', 'keys', 'guardJoint', 'guardStep', 'guardWeight', 'clip', 'cq'];
 
 export interface SectionEntry {
   readonly section: string;

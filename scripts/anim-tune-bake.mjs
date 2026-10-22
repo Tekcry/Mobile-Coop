@@ -6,9 +6,10 @@
 // its own into the generated base table src/anim/animBase.ts, anim-joints J1), the Keys section's key
 // JSONs (the apply-tune functions) and the ledger src/anim/tuneBakeLog.json, then prints the rebake commands (it never
 // runs Blender) and the table. (item 24, track A) Guard joints, Guard stepping and Guard weight go into the generated
-// guard table src/anim/animBaseGuard.ts instead (never Wren's); (clip-speed, track A) Clip speed through its code rules.
+// guard table src/anim/animBaseGuard.ts instead (never Wren's); (clip-speed, track A) Clip speed and (anim-n4) cq
+// (holds and carries, CQ_GAIT) through their code rules.
 // Sections (--only): every registered or declared section id (body, gun, cam, speed, joint, hand, ik, weapon, step, gear,
-// weight, clip, guardJoint, guardStep, guardWeight, team_boost ... team_revive, trav) and keys.
+// weight, clip, cq, guardJoint, guardStep, guardWeight, team_boost ... team_revive, trav) and keys.
 // The mapping is src/anim/tuneBakeTable.ts, the logic src/anim/tuneBake.ts; docs/anim-tuner/BAKE.md.
 import { readFileSync, writeFileSync, existsSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -62,8 +63,8 @@ const cat = bake.bakeCatalogue([
   ...table.DECLARED_SECTIONS,
 ]);
 
-// (anim-bake-all) every section the catalogue knows (the co-op and traversal move sections, (item 24) the guard sections
-// and (clip-speed) clip too), plus keys
+// (anim-bake-all) every section the catalogue knows (the co-op and traversal move sections, (item 24) the guard sections,
+// (clip-speed) clip and (anim-n4) cq too: cqGait.ts is a catalogue module), plus keys
 const SECTIONS = [...cat.bySection.keys(), 'keys'];
 for (const s of only) {
   if (!SECTIONS.includes(s)) {
