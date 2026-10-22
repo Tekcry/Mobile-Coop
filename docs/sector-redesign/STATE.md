@@ -1,22 +1,18 @@
 # sector-redesign - state
 
-## Now (2026-10-23 ~03:10, 5h window 91%)
-- Branch feature/sector-redesign = sector-fixes-r2 5bfbf85d (nav closures + bolt reach cap) + master 4.63.1.
-- Research done: research/CT-LEVELS.md (ten rules), CONCEPT.md (Saltmarsh Park, 5 sections 8 / 12 / 16 / 20 / 24
-  guards), ENGINE.md (gaps G1-G25; "Requests for guard-ai" at its end, written by slice 0).
-- SPEC.md + PLAN.md done (c806bac4): one map campusOps, 5 SectorDef sections; loosenings applied as A23-A45
-  (MORNING-REVIEW below). Slices: 0 (engine smalls), L (light sync, protocol 31), 1 (S1 greybox), 2-5, E1-E7.
-- IN FLIGHT (check each branch log on resume; if an agent died, rerun its slice from PLAN.md):
-  - Slice 0 agent in THIS worktree (uncommitted at 03:10: warehouseSectors.ts, tests/sectors.test.ts,
-    tests/sectorSlice0.test.ts): arm everyone as data, reinforcement kind / count from SectorDef, dog allowance per
-    section, restart resets lamps / doors, camera cap per section, guard-ai data requests in ENGINE.md. No src/ai
-    behaviour (guard-ai owns it).
-  - Slice L agent: feature/sector-redesign-light (worktree C:/NightShift/Mobile-Coop-sector-redesign-light), Sector
-    light-state co-op sync, PROTOCOL_VERSION 31 (marlow-final takes 30; keep protocol.ts edits to the version line +
-    appended types).
-  - camera-range agent: feature/camera-range (worktree C:/NightShift/Mobile-Coop-camera-range), docs/camera-range/
-    MEASURE.md + one engine cut; off ctDevices.ts / securityRoom.ts (hunks for Menu Notes go to FOR-MENU-NOTES.md).
-- Guard-cap perf run (24 awake) requested on the laptop by the orchestrator; slice 4 waits on it.
+## Now (2026-10-23, after the clear; orchestrator trim: at most 2 agents)
+- feature/sector-redesign d9a27c4f = slice 0 (b0b7bc24, checker PASS: docs/sector-redesign/checks/slice0-check.md) +
+  slice L final (536c1355, protocol 31, A52) + M12 chokes (A60-A63, SPEC "Unavoidable posted guards (M12)").
+- IN FLIGHT: slice 1 builder (Sonnet 5.5, brief docs/sector-redesign/briefs/SLICE1.md, report
+  checks/slice1-build.md; uncommitted files in this worktree); camera-range Opus checker (report
+  C:/NightShift/Mobile-Coop-camera-range/docs/camera-range/CHECK.md).
+- Laptop (Character Build, 4192 GPU): (1) sector-redesign d9a27c4f vitest + sectorops/coop/netmove/lightbake/levels/
+  anchors; (2) camera-range 8fda08b9 security/ctcourse/sectorops/coop. Waiting on verdicts.
+- Guard AI Build agreed the data shapes: `post: { leash, highSecurity?, guards }` and `profile` on SquadSlot (guard-ai
+  S5); guard-ai adds `noisy?` / `entries?` to SectorDef; a lured posted guard looks >= 5 s (guard-ai A12); protocol
+  32 is theirs. Until `post` lands, campus data uses `CAMPUS_POSTS`.
+- Slice L agent note: tests/sectors.test.ts "sections 1-3 A2 survive patrol phase drift" failed on its old base;
+  passes on this branch (slice 0 checker 54/54).
 
 ## Rules after the reset (Michael 01:45 "Lean windows", via the orchestrator)
 - Each 5-hour window to 99%, lean, no quality loss: no new agent at 97%, save at 98%, stop by 99%; a cron resumes the
@@ -27,18 +23,13 @@
   Sonnet slice gets its fix round from Opus.
 
 ## Next
-00. M12 (unavoidable posted guards, BRIEF): log the chokes as A-numbers, fold them into SPEC (which sections, which
-   guard, solo clear, co-op option, e2e nav-with-view-cone assert) and PLAN, and send Guard AI Build the posted-guard
-   data shape (ENGINE.md section 7: `role: 'posted'`, `zone`, allowed distractions).
-0. camera-range DONE at 8fda08b9 (feature/camera-range; range default 18 -> 12, falloff over the camera's own range, cap 14; MEASURE.md): owed a fresh Opus checker, laptop e2e-security, e2e-ctcourse, e2e-sectorops (E2E_GPU=1), PR. Slice 0 DONE at b0b7bc24 (A46-A51 in BRIEF; ENGINE.md section 7 = guard-ai requests;
-   docs/sector-redesign/FOR-CAMERA-RANGE.md = one hunk for camera-range). Owed: a fresh Opus checker, the full npm
-   test + e2e-sectorops (all parts), coop, netmove, lightbake, levels, anchors at E2E_GPU=1 via Character Build.
-   Open: co-op client lamps not reset on restart until slice L.
-1. Slice 0 hand-back -> commit, merge slice L branch when done, full npm test (desktop at 100% CPU: send the full run
-   to Character Build instead), checker.
-2. Slice 1 (S1 greybox, PLAN.md) on this branch; after the reset at most 3 agents per desktop session (orchestrator).
-3. camera-range: checker, laptop suites (e2e-ctcourse, e2e-sectorops, e2e-coop; E2E_GPU=1), PR.
-4. Green slices merge to master in the next train (Michael: "Merge to master").
+1. Slice L Opus checker (git diff 93496451 536c1355 on the light branch) when a slot frees.
+2. Slice 1: on the builder's hand-back, commit, Opus checker, laptop e2e-sectorops (campus part 1) + e2e-coop,
+   one fix round at most; then message the orchestrator (slice 1 on the branch).
+3. camera-range: checker verdict + laptop pass -> PR to master (orchestrator train); message the orchestrator.
+4. Slice 2 brief (S2 + K2) for Sonnet; needs EW13 (origin/feature/g44-above, #169 in train 16).
+5. Green slices go to master in a train (Michael: "Merge to master").
+Polish (not blocking): slice0-check.md (EMP-on-restart lamp edge case and five notes).
 
 ## Done
 - 2026-10-23 ~01:45: branch cut, BRIEF (M1-M5).
@@ -52,9 +43,7 @@ for the live "Decided"); docs/sector-redesign/BRIEF.md (Michael M1-M11, assumpti
 Rules after the reset, Next, MORNING-REVIEW), PLAN.md and SPEC.md, all on origin/feature/sector-redesign. Other open
 items are in docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (PRs #169 g44-above and #176 sw-reload in
 the orchestrator's train 16: post the laptop rerun of sw-reload 0a34662b on #176 when Character Build replies).
-In flight at the save (check each branch's log; an agent from the old session is gone, so rerun its slice from PLAN.md
-if its work is not committed): slice 0 (this branch), slice L (feature/sector-redesign-light, protocol 31),
-camera-range (feature/camera-range). Carry on from "Next" under "Rules after the reset" (99% windows, max 3 agents,
+In flight at the save: see STATE "Now" (check each branch log; an agent from the old session is gone, so rerun its slice from its brief or PLAN.md if its work is not committed). Carry on from "Next" under "Rules after the reset" (99% windows, max 3 agents,
 Opus briefs / checks, Sonnet 5.5 builds greyboxes, Opus for engine work). Michael is asleep: log assumptions, no
 question dialogs. Every e2e is E2E_GPU=1 and goes to Night Shift | Character Build on the laptop. Report to
 "Night Shift | Orchestrator" at each slice and PR.
