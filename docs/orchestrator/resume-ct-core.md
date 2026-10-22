@@ -54,8 +54,12 @@ strike-pops DONE c917c3d8 (docs/strike-pops/REPORT.md: wrist 31.4 -> 27.0 cm/fra
 hand-swap dip fixed in handSwapPath.ts + characterRig hand-swap (not strike-gated), revive -> strike.reset() in
 coopClient.ts (src/net, 1 line), n4c 7 already on master). Desktop lane e2e-takedown + e2e-anim running (sp-*.log).
 Batch checker (Opus) for strike-pops + traverse-fix-2 when traverse-fix-2 hands back.
-mocap-strafe desktop GPU: e2e-clip ok, e2e-anim FAIL anti-crab "rifle aimed strafe right speed 1: knee separation
-0.5-1.5 x hips (0.62 / 1.23 / 1.9)" (ms-e2e-anim.log); sent to the strafe checker for cause + fix.
+mocap-strafe desktop GPU: e2e-clip ok, e2e-anim FAIL anti-crab (ms-e2e-anim.log). Fresh checker FAIL
+(scratch/ctcore/msc-CHECK.md, probes scratch/mt-check/repro3/): OFF identical; ON snap pop (footPlanner ~1667 / ~980 /
+~1021), reaim slides (~1020), toggle mid-strafe knee jump (stale stIdle), knee outside ankle (pelvis over trailing foot,
+animGraph ~2278-2301 / ~2778, characterRig ~2423), +96-112 B/frame (animGraph ~1084 / ~2283 / ~2315). Lead A11: knee
+spread + track for mocap-ON strafe rows re-based to the capture (M1). Opus fix round RUNNING (pushes per item); then
+e2e-anim + e2e-clip on the desktop lane, recheck of the fixed items, PR.
 guard-render S5 1b895175 reviewed OK for Character Build (rebase after train 20).
 New spare jobs (orchestrator ~10:10, "stealth over shooting", ROADMAP "Next: stealth over shooting" + Decided), after
 hang-down / strafe, in order: 9 interrogation gives door codes / camera routes / patrol timing; 12 co-op synced takedowns
