@@ -24,6 +24,7 @@ Last updated: 2026-10-22 18:30 Sydney (account switched 13:10; master 4.56.0).
    (replaces G6's CT muzzle-up; real-world standard per the 2026-10-20 13:30 "ignore CT movement references"); A1 body
    recoil above CT G2's "under 0.5 deg" (rifle grip 2.8 cm, chest 1.5 deg; Gun tuner recoilMul). Undo: constants /
    recoilMul 0. W (#116): 0.08 s wheel let-go grace (WHEEL_LETGO_S).
+6. #119 (holds, traversal): a landing roll now needs about 1.5 m of room, otherwise she lands without it (ROLL_CLEAR 0.9 m): look on the walk.
 5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
