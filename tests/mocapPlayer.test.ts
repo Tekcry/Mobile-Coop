@@ -9,7 +9,7 @@
  */
 import { appendFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ctBoth, flickPlan, fmtPlayer, playerFails, startStopPlan, type Target } from './helpers/mocapPlayer';
+import { ctBoth, flickPlan, fmtPlayer, playerFails, startStopPlan, turnFeet, type Target } from './helpers/mocapPlayer';
 
 interface Case { label: string; target: Target; steps: number; recFrom: number; tgl?: boolean }
 
@@ -124,5 +124,31 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
   // (fix C) 6a: a clip swing handed to the planner as the crouch takes the jog's share kept its whole gap (23 cm a frame)
   it('6a: crouching while jogging', async () => {
     await check([{ label: 'crouch at 2.8 m/s', target: (t) => { const c = t > 2.51 && t < 4.51 ? 1 : 0; return { v: c ? 2.6 : 2.8, yr: 0, crouch: c }; }, steps: 360, recFrom: 1.5 }]);
+  }, 300_000);
+
+  // (fix E) e2e-anim's turn feet rows with the switch on (the default), each at 8 turn offsets, both ways. A clip-planted
+  // foot skipped N1's ball pivot and the cap's anchor, so it lifted at the twist cap (30.9 deg, e2e <= 30). The
+  // contact slide (< 1 cm in e2e-anim) is open: a clip plant pins the ankle while the clip's pitch rolls the foot, so its
+  // heel / ball move 1.2 / 2.6 cm even in a straight jog (docs/mocap-trial/MT2-FIXE.md); Both open: MOCAP_FIXE=1 runs the twist rows, MOCAP_FIXE_SLIDE=1 the slide rows.
+  const turnRows = async (slide: boolean): Promise<string[]> => {
+    const bad: string[] = [];
+    const rows = [['jog 90', 2.93, 90], ['jog 180', 2.93, 180], ['run 90', 4.2, 90], ['run 180', 4.2, 180]] as const;
+    for (const [name, v, ang] of rows) {
+      for (const sg of [1, -1]) {
+        for (let k = 0; k < 8; k++) {
+          const m = await turnFeet(v, ang, k * 0.09, 'on', sg);
+          const row = `${name} ${sg > 0 ? 'right' : 'left'} +${(k * 0.09).toFixed(2)} s: slide ${(m.slide * 100).toFixed(2)} cm (heel ${(m.heel * 100).toFixed(2)}, ball ${(m.ball * 100).toFixed(2)}) in ${m.plants} plants, twist at lift ${((m.lift * 180) / Math.PI).toFixed(1)} deg`;
+          if (process.env.MOCAP_PLAYER_LOG) appendFileSync(process.env.MOCAP_PLAYER_LOG, `${row}\n`);
+          if (m.plants < 2 || (slide && m.slide >= 0.01) || m.lift > (30 * Math.PI) / 180 + 1e-6) bad.push(row);
+        }
+      }
+    }
+    return bad;
+  };
+  it.skipIf(!process.env.MOCAP_FIXE)('fix E (open): CT 90 / 180 deg direction changes at a jog and a run: a planted foot lifts within 30 deg of the body', async () => {
+    expect(await turnRows(false)).toEqual([]);
+  }, 300_000);
+  it.skipIf(!process.env.MOCAP_FIXE_SLIDE)('fix E (open): the same turns keep the contact put (< 1 cm)', async () => {
+    expect(await turnRows(true)).toEqual([]);
   }, 300_000);
 });

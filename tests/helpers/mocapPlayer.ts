@@ -7,6 +7,8 @@
  */
 import { setMocapLocomotion } from '../../src/anim/mocap';
 import type { CharacterRig, RigPose } from '../../src/player/characterRig';
+import { FOOT_SLIDE } from '../../src/anim/audit/limits';
+import { contactSlide } from '../../src/anim/audit/metrics';
 import { driveRig, plantSlide, pops, type Plan, type Rec } from './mocapMeasure';
 
 const DT = 1 / 60;
@@ -139,4 +141,45 @@ export function flickPlan(v: number, ang: number, off: number): Target {
     const turning = ph < dur;
     return { v: turning ? v * (1 - (0.55 * ang) / 180) : v, yr: turning ? sg * r : 0 };
   };
+}
+
+/** (mt2-fixE) e2e-anim's turn feet numbers for one CT direction change: the planted feet's rendered contact slide (heel,
+ *  ball; metrics.ts contactSlide), and the largest planted foot's twist from the body as it lifts (rad). */
+export interface TurnFeet { slide: number; heel: number; ball: number; plants: number; lift: number }
+
+/** (mt2-fixE) A CT `ang` deg direction change at pace v (CT's turn rate and pace dip, `sg` the side) after 2 + `off` s,
+ *  recorded from 0.2 s before it for 1.6 s, as e2e-anim's turn feet rows measure it. */
+export async function turnFeet(v: number, ang: number, off: number, mode: Mode, sg = 1): Promise<TurnFeet> {
+  const r = rateAt(v);
+  const dur = ((ang * Math.PI) / 180) / r;
+  const t0 = 2 + off;
+  const tw = [0, 0];
+  const on = [false, false];
+  let lift = 0;
+  const R = await ctRun(
+    (t) => {
+      const turning = t >= t0 && t < t0 + dur;
+      return { v: turning ? v * (1 - (0.55 * ang) / 180) : v, yr: turning ? sg * r : 0 };
+    },
+    Math.round(60 * (t0 + 1.4)),
+    t0 - 0.2,
+    mode,
+    (rig, k) => {
+      if (k * DT < t0 - 0.2) return;
+      const yaw = (rig as unknown as { pin: { yaw: number } }).pin.yaw;
+      for (let s = 0; s < 2; s++) {
+        const f = s === 0 ? rig.planner.L : rig.planner.R;
+        if (f.contact) {
+          on[s] = true;
+          tw[s] = Math.abs(Math.atan2(Math.sin(f.yaw - yaw), Math.cos(f.yaw - yaw)));
+        } else {
+          if (on[s]) lift = Math.max(lift, tw[s]!);
+          on[s] = false;
+        }
+      }
+    },
+  );
+  const a = contactSlide(R.heelL, R.ballL, R.contactL, FOOT_SLIDE);
+  const b = contactSlide(R.heelR, R.ballR, R.contactR, FOOT_SLIDE);
+  return { slide: Math.max(a.worst, b.worst), heel: Math.max(a.heelWorst, b.heelWorst), ball: Math.max(a.ballWorst, b.ballWorst), plants: a.plants + b.plants, lift };
 }
