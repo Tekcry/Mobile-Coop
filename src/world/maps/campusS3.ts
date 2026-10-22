@@ -348,6 +348,12 @@ export function buildCampusS3(b: LevelBuilder): void {
   doorAt(b, true, -22.25, 13.4, L1, 1);
   bx(b, 13.25, 13.35, 0, 5.4, -26.8, -23.6, STEEL, { noLedge: true });
   slab(b, 12, 14.6, -28, -26.8, 2.25, STEEL);
+  // (part-6 fix) an invisible 0.2 m lip of the half landing over the G flight's top end: the flight's collision ramp
+  // ends there in its tilted end cap (normal 0.58, `LevelBuilder.ramp`), and the guards' nav cell at z -26.75 sampled the
+  // cap, unwalkable, which cut the one-cell-wide flight off the landing (no G <-> L1 path on the runtime grid)
+  b.box(12.625, 2.15, -26.7, 1.25, 0.2, 0.2, STEEL, 0, 0, true, false);
+  b.boxes[b.boxes.length - 1]!.overhead = true;
+  b.boxes[b.boxes.length - 1]!.noLedge = true;
   slab(b, 13.35, 14.6, -23.6, -22.4, L1, STEEL);
   // ---- the north stair (core x 40..42.6, z -6..-0.15 on L1; on G it opens south to the lobby z -8..-6)
   wall(b, false, 39.85, -7.85, -0.15, 0, R, [[-7.6, -6.4, 0, DOOR_H], [-7.85, -6, L1_UNDER, R]]);

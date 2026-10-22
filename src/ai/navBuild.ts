@@ -28,6 +28,38 @@ export function buildNavGrid(
   const res = new PhysicsRaycastResult();
   const from = new Vector3();
   const to = new Vector3();
+  const hit: NavDownHit = { y: 0, ny: 0 };
+  const castDown: NavDownCast = (x, y, z) => {
+    from.set(x, y, z);
+    to.set(x, -2, z);
+    res.reset();
+    eng.raycastToRef(from, to, res, { membership: G.PROJECTILE, collideWith: G.STATIC });
+    if (!res.hasHit) return null;
+    hit.y = res.hitPoint.y;
+    hit.ny = res.hitNormal.y;
+    return hit;
+  };
+  return navGridFromLevel(level, seed, layers, extraSeeds, castDown);
+}
+
+/** The first static hit of a ray cast straight down to y -2: its height and its normal's y. */
+export interface NavDownHit {
+  y: number;
+  ny: number;
+}
+export type NavDownCast = (x: number, y: number, z: number) => NavDownHit | null;
+
+/**
+ * The nav grid of a level from a down-cast: the runtime passes Havok's (`buildNavGrid`), the unit tests an analytic cast
+ * over the same pieces (`tests/helpers/runtimeNav.ts`), so a test checks the grid the guards really get.
+ */
+export function navGridFromLevel(
+  level: Pick<BuiltLevel, 'boxes' | 'cylinders' | 'anchors' | 'bounds'>,
+  seed: { x: number; z: number },
+  layers: number,
+  extraSeeds: readonly { x: number; y: number; z: number }[] | undefined,
+  castDown: NavDownCast,
+): NavGrid {
   const blockers: NavBlocker[] = [];
   for (const b of level.boxes) {
     if (!b.collide || Math.abs(b.pitch) > 1e-3) continue;
@@ -89,13 +121,10 @@ export function buildNavGrid(
       let y = top;
       let ceiling = Infinity;
       for (let k = 0; k < 8 && y > -1.5; k++) {
-        from.set(x, y, z);
-        to.set(x, -2, z);
-        res.reset();
-        eng.raycastToRef(from, to, res, { membership: G.PROJECTILE, collideWith: G.STATIC });
-        if (!res.hasHit) break;
-        const hy = res.hitPoint.y;
-        if (ceiling - hy >= HEADROOM) out.push({ h: hy, ok: res.hitNormal.y > 0.65 });
+        const h = castDown(x, y, z);
+        if (!h) break;
+        const hy = h.y;
+        if (ceiling - hy >= HEADROOM) out.push({ h: hy, ok: h.ny > 0.65 });
         // cast on from under the piece hit (a ray starting inside a solid would miss it)
         const b = pieceBottom(x, hy - 0.02, z);
         ceiling = b === b ? b : hy - 0.35;

@@ -1609,7 +1609,7 @@ if (want(6)) {
     assert(alive === 8, `campusOps section 1 has 8 guards in (${alive})`);
     await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
     const S = await sections(G);
-    assert(S.length === 5 && S[0].id === 's1' && S[0].kind === 'download' && S[0].guards === 8 && S[1].id === 's2' && S[1].kind === 'hack' && S[1].guards === 12 && S.slice(2).every((s) => s.guards === 0), `five sections, section 1 a download with 8 guards, section 2 a hack with 12, the other stubs none (${JSON.stringify(S.map((s) => [s.id, s.guards]))})`);
+    assert(S.length === 5 && S[0].id === 's1' && S[0].kind === 'download' && S[0].guards === 8 && S[1].id === 's2' && S[1].kind === 'hack' && S[1].guards === 12 && S[2].id === 's3' && S[2].guards === 16 && S.slice(3).every((s) => s.guards === 0), `five sections, section 1 a download with 8 guards, section 2 a hack with 12, section 3 built with 16, the S4 and S5 stubs none (${JSON.stringify(S.map((s) => [s.id, s.guards]))})`);
     const d0 = await G(() => window.__sector.debug());
     assert(d0.index === 0 && d0.phase === 'objective' && d0.nearLocked === true && d0.farLocked === true && d0.live === 0, `the run starts on section 1's objective, C1 locked (${JSON.stringify([d0.index, d0.phase, d0.nearLocked, d0.farLocked, d0.live])})`);
     const cams = await G(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live]));
