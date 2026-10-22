@@ -199,3 +199,25 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   saw 8 awake guards with 5.8; 6.0 left it at exactly 6 on the walkway, no margin). Corridor guards lose their look-down to the hall's far half. The
   A64 test now samples every 0.5 m nav cell, 32 facings, every 1 m of each route, the gallery door leaf shut. Undo: set
   `S3_VIEW_SPANDREL_TOP` back to `S3_SPANDREL_TOP` (or shorten the walkway's west end past x ~31, losing the SW ladder).
+- A71 (slice 2, L3) The goods door is in the west wall (locked, unbreachable): the HQ south face is the solid S1
+  pavilion, so S1's dock door cannot lead in. It opens on S1's fenced west side, no way out.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A72 (slice 2, L4) `reinforce` has no `y`: the L2 lift lobby point (-36, -7) spawns on the lowest surface there,
+  the G lift lobby under the L2 lobby; guards climb the SW stair.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A73 (slice 2, L5) C2 is built as the SPEC says (L1, x 4..10, floor slab at 4.4, walls 3.0, roof, card door in the
+  east wall); the ground stub room is gone from `campusOps.ts`. The stub S3 starts at the new checkpoint (y 4.4) and
+  its nav seed is (7, 4.4, -14), not (7, 0, -14).
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A74 (slice 2, L7) The kitchen is in the SW part of the south band (door onto the SW lobby), not over the foyer:
+  guards spawn only 7 m (plan) from every player, and the C1 checkpoint is 4.5 m from the foyer's north half.
+  Pair #5-#6 is the recorded M8 exception, as the S1 car-park pair.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A75 (slice 2, L8) The facilities glass is on the office's south wall (onto the wing corridor), not its west wall:
+  with the glass on the west wall the L1 north ring saw 8 awake guards (A64). #7 is seen from the wing corridor.
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A76 (slice 2, L12) The atrium roof light has a 0.9 rim (noLedge) round the void on the roof, the lid a visual box
+  with no collision. A player vaulting the rim falls 13 m (the void is open).
+  Undo: change the value in campusS2.ts back to the SPEC value.
+- A77 (slice 2, L15) `kp-fac` is not built (EW5): the facilities door is a plain door. The code beat is cut.
+  Undo: change the value in campusS2.ts back to the SPEC value.
