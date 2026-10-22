@@ -35,6 +35,7 @@
 ## Next
 0. FIRST at resume (orchestrator): #177 camera-range out of train 17. e2e-security pan pad light: master 1.00 (its spot x 14), branch 0.60 at x 16, 0.84 at x 15. Find why: compare the SAME spot on both (branch at x 14, master at x 16/15); check the dark-corner block's lamp off/restore loop (`for (i=0; reg.get(i); i++)` + setOn restore) leaves no lamp off or state changed; check the diff for any lamp / IR / cone mesh / occluder / light field change. A real light change = light-parity fix; a spot gradient = state it in the PR body with the numbers.
 0b. Then the e2e-sectorops:2 fix agent (Opus).
+0c. Client wall-switch press (orchestrator, from Menu Notes: Course mode, e2e-ctcourse:1 on 42a9b295): the client builds its own StealthSystems, so its local switch item may shadow the host-mirrored one and toggle only client lights. Check whether Sector does the same under slice L (slice L says switches go through the existing `use` item; its e2e asserts only a HOST switch), then agree ONE fix with Menu Notes Build before either side codes it.
 1. Slice 1: Opus checker (with the open items above), laptop e2e-sectorops (campus part 1) + e2e-coop,
    one fix round at most; then message the orchestrator (slice 1 on the branch).
 3. camera-range: checker verdict + laptop pass -> PR to master (orchestrator train); message the orchestrator.
