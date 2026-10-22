@@ -1,6 +1,12 @@
-# Morning walk on /preview/ (2026-10-23)
+# Morning walk on /preview/ (2026-10-23, refreshed 06:15)
 
-Start: main menu label "v4.63.1 PREVIEW · a71c8c0" (4.64.0+ = overnight work landed; older = reopen the tab once).
+Start: main menu label "v4.66.0 PREVIEW" (4.66.1+ or 4.67.0 = more landed after 06:40; older = reopen the tab once).
+Overnight on /preview/: 4.64.0 mocap switch (Settings > Gameplay > "Mocap locomotion", OFF by default), 4.65.0 guards see
+poorly above you + no reload mid-match after a deploy, 4.66.0 guards hear by range (walls muffle; one investigates, the
+rest turn and stay). Mocap batch 1 (pops, crouch walk, sprint) lands this morning as its own PR, still OFF by default.
+First, two chores for you: restart Night Shift | Character Build on the laptop (it dropped at ~04:58; prompt in
+docs/orchestrator/HANDOFF.md section 5), and clear Menu Notes (context 40%; resume block in docs/marlow-final/STATE.md).
+Decisions to review (applied overnight, each with its undo): docs/orchestrator/MORNING-REVIEW.md.
 Notes: Pause > Report feedback. "Waiting N" = docs/ROADMAP.md "Waiting on Michael" item N. Routes:
 - Marlow solo: Co-op > Host a room > Mode Campaign > Start mission (the host may start alone).
 - Two windows: A: Co-op > Host a room (Room: Public). B: Co-op > Browse rooms > pick it > Ready. A: Start mission.
