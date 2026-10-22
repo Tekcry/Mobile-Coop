@@ -654,6 +654,8 @@ const COOP = [
   { id: 'S1 C1 plant-room sill', sec: 0, spot: [-2.6, -18.9], yaw: 0, kind: 'ledge', lip: [-2.6, 4.4, -18.15], runFrom: [-2.6, -22.4] },
   { id: 'S1 C2 hoist monorail', sec: 0, spot: [-11.0, -16.6], yaw: 0, kind: 'pipeH', lip: [-11.0, 4.4, -16.6], runFrom: [-14.0, -16.6] },
   { id: 'S2 C1b high bay R3S from the gangway', sec: 1, spot: [-7.7, 2.2], yaw: -PI / 2, kind: 'ledge', lip: [-8.2, 4.4, 2.2], runFrom: [-5.2, 2.2] },
+  // (sector-fixes-r e2e fix, Michael M1 "Add another") S2 C2: the dispatch mezzanine's landing on the x -4 wall
+  { id: 'S2 C2 dispatch landing', sec: 1, spot: [-6.9, 2.65], yaw: PI / 2, kind: 'ledge', lip: [-6.4, 4.4, 2.65], runFrom: [-7.6, -1.2] },
   { id: 'S3 C1 valve platform', sec: 2, spot: [18.0, 6.1], yaw: PI, kind: 'ledge', lip: [18.0, 4.4, 5.5], runFrom: [18.0, 9.1] },
   { id: 'S3 C2 crane drive platform', sec: 2, spot: [11.8, 6.6], yaw: PI, kind: 'ledge', lip: [11.8, 4.4, 6.0], runFrom: [11.8, 9.6] },
 ];
@@ -877,6 +879,8 @@ if (want(2)) {
       // Off 0.15 there is no run off (a step down, never airborne) and from the floor the body stops at the stacks' face
       // (z -13.3) with its centre at -12.96: the take-offs there are measured from that stop (`edge` -12.95)
       { id: 'S1 E-lane single pallet (0.15) over the stacks to the monorail', from: [-11.0, 0.2, -11.2], yaw: PI, ax: 2, edge: -12.1, standMax: 1.9, offs: [0.6, 0.3, 0.05] },
+      // (sector-fixes-r e2e fix) S2 C2: the nearest solo top to the landing's lip, the empty-pallet stack (2.0), north at it
+      { id: 'S2 empty-pallet stack (2.0) to the landing (C2)', from: [-6.0, 2.05, -3.2], yaw: 0, ax: 2, edge: -2.2 },
       { id: 'S1 E-lane floor at the stacks (2.0) and the monorail', from: [-10.45, 0.05, -10.6], yaw: PI, ax: 2, edge: -12.95, standMax: 1.9, offs: [0.6, 0.3, 0.05] },
     ];
     for (const t of TOPS) {
@@ -1007,6 +1011,24 @@ if (want(2)) {
         d = await walk(-PI / 2, 3, (q) => q.grounded && q.y < 0.3);
       }
       assert(d.grounded && d.y < 0.3 && d.alive, `S2 C1: way down alone: off the west edge to the A3 floor (${JSON.stringify([d.x, d.y, d.z])})`);
+    });
+    // ---- (sector-fixes-r e2e fix) section 2, C2: the climb-up onto the landing and the way down alone (let go of the lip)
+    await check('S2 C2 landing climb-up and way down', async () => {
+      const c = route('S2 C2');
+      await put(c.spot[0], 0, c.spot[1], c.yaw);
+      const a = await attach('ledge', c.lip[0], 4.4, c.lip[2]);
+      assert(a.attached && a.kind === 'ledge' && Math.abs(a.grip - 4.4) < 0.05 && a.canClimb, `S2 C2: hanging on the landing's west lip, the climb-up offered (${JSON.stringify(a)})`);
+      await tap(BTN.Y);
+      await step(1.6);
+      const s = await info();
+      assert(!s.attached && s.grounded && Math.abs(s.y - 4.4) < 0.1 && s.x > -6.4, `S2 C2: the climb-up onto the landing (${JSON.stringify([s.x, s.y, s.z])})`);
+      await put(c.spot[0], 0, c.spot[1], c.yaw);
+      const h = await attach('ledge', c.lip[0], 4.4, c.lip[2]);
+      assert(h.attached, 'S2 C2: on the lip again');
+      await tap(BTN.B);
+      await step(1.5);
+      const d = await info();
+      assert(!d.attached && d.grounded && d.y < 0.2 && d.alive, `S2 C2: way down alone: let go, feet on the gangway floor (${JSON.stringify([d.x, d.y, d.z])})`);
     });
     // ---- section 3: the climb-up onto each hung platform (ending crouched; (sector-fixes-r e2e fix) standing room under the
     // hood, 1.9 m), the lip to the main (5.0)
@@ -1396,7 +1418,7 @@ if (want(3)) {
 
 if (want(4)) {
   // (sector-fixes-r fix) R3N's C2 is gone: R3S's C1b is walked twice, by the rope and by the relay
-  await coop('sector ops (R): co-op section 2 - R3S by the rope and by the relay, the VNA gate', async (h) => {
+  await coop('sector ops (R): co-op section 2 - R3S by the rope and by the relay, the landing (C2) by the relay, the VNA gate', async (h) => {
     const { A, B, legUp, relay, pullUp, rope, bothOnTop, advance, teamDoor, leg } = h;
     await advance(0);
     await leg('S2 C1b', async () => {
@@ -1410,6 +1432,15 @@ if (want(4)) {
       const c = route('S2 C1b');
       const a = await legUp(c);
       await relay(c, a.id, [-7.7, 2.2]);
+      await pullUp(A, `${c.id} host`);
+      await pullUp(B, `${c.id} client`);
+      await bothOnTop(c);
+    });
+    // (sector-fixes-r e2e fix, Michael M1 "Add another") C2: the landing on the x -4 wall, leg-up and relay
+    await leg('S2 C2', async () => {
+      const c = route('S2 C2');
+      const a = await legUp(c);
+      await relay(c, a.id, [-7.0, 2.65]);
       await pullUp(A, `${c.id} host`);
       await pullUp(B, `${c.id} client`);
       await bothOnTop(c);

@@ -6,13 +6,14 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
-import { S2_BOLTS, S2_COOP, S2_HIGH_TOP, S2_ROOMS, S2_THROUGH_BAY } from '../src/world/maps/warehouseS2';
+import { S2_BOLTS, S2_COOP, S2_HIGH_TOP, S2_LANDING, S2_ROOMS, S2_THROUGH_BAY } from '../src/world/maps/warehouseS2';
+import { TAKEDOWN } from '../src/game/takedown';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { findJumpTarget, generateLedges, type Ledge } from '../src/world/anchors';
 import { MOVEMENT, SPLIT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { inBoostBand, ropeRoom } from '../src/game/teamMoves';
 import { hyp2 } from '../src/core/mathx';
-import { soloJumpThreats } from './helpers/soloJumpReach';
+import { soloJumpReach, soloJumpThreats } from './helpers/soloJumpReach';
 
 const b = new LevelBuilder();
 warehouseOps.build(b, 0);
@@ -76,6 +77,10 @@ const plannedOf = (l: Ledge): { r: number; k: number } | null => {
   return null;
 };
 
+/** (sector-fixes-r e2e fix) C2's lip: the landing's west edge (S2_LANDING). */
+const L = S2_LANDING;
+const landingLip = (l: Ledge): boolean => Math.abs(l.a.x - L.x0) < 1e-3 && Math.abs(l.b.x - L.x0) < 1e-3 && l.nx < -0.5 && Math.abs(l.top - L.top) < 1e-3 && Math.min(l.a.z, l.b.z) > L.z0 - 1e-3 && Math.max(l.a.z, l.b.z) < L.z1 + 1e-3;
+
 describe('R2 the high-bay row (C1 R3S, C2 R3N): co-op lips in the band', () => {
   it('the tops sit in the co-op band read from the constants', () => {
     expect(S2_HIGH_TOP).toBeGreaterThanOrEqual(BAND_MIN);
@@ -102,7 +107,7 @@ describe('R2 the high-bay row (C1 R3S, C2 R3N): co-op lips in the band', () => {
   it('LD 11.5: every lip in the hall between solo reach and the boost is a planned co-op lip or a 4.0 rack top (SPEC 3)', () => {
     const odd = anchors.ledges.filter((l) => {
       if (!inHall((l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2) || l.top <= WALL_JUMP.maxUp || l.top > BAND_MAX) return false;
-      return Math.abs(l.top - 4.0) > 1e-3 && !plannedOf(l);
+      return Math.abs(l.top - 4.0) > 1e-3 && !plannedOf(l) && !landingLip(l);
     });
     expect(odd.map((l) => `(${l.a.x.toFixed(1)}, ${l.a.z.toFixed(1)}) ${l.top}`)).toEqual([]);
   });
@@ -272,5 +277,71 @@ describe('R2 the team door: the VNA escape gate in R1S, bolted from the A2 side'
     }
     // the way round: A1's and A2's south mouths onto the lane are open floor
     for (const x of [-21.4, -16.7]) for (const z of [-2.8, -1.0]) expect(solidAt(x, 0.5, z), `(${x}, ${z})`).toBe(false);
+  });
+});
+
+// (sector-fixes-r e2e fix; Michael M1 2026-10-22 ~21:20 "Add another") C2: the dispatch mezzanine's landing on the x -4
+// wall over the east gangway (S2_LANDING), a second co-op-only route in section 2
+describe('R2 C2 the landing on the x -4 wall', () => {
+  const lips = anchors.ledges.filter(landingLip);
+  const onLanding = anchors.ledges.filter((l) => {
+    const mx = (l.a.x + l.b.x) / 2;
+    const mz = (l.a.z + l.b.z) / 2;
+    return mx > L.x0 - 0.05 && mx < L.x1 + 0.05 && mz > L.z0 - 0.05 && mz < L.z1 + 0.05 && l.top > WALL_JUMP.maxUp;
+  });
+  const grip = (l: Ledge) => ({ y: l.top, a: l.a, b: l.b, n: { x: l.nx, z: l.nz } });
+
+  it('one lip, the west edge, in the band, hangable and climbable onto the top; the landing carries no other grip', () => {
+    expect(L.top).toBeGreaterThanOrEqual(BAND_MIN);
+    expect(L.top).toBeLessThanOrEqual(BAND_MAX);
+    expect(lips.length).toBeGreaterThan(0);
+    expect(lips.reduce((s, l) => s + l.len, 0)).toBeGreaterThan(1.0);
+    for (const l of lips) expect(l.canHang && l.canClimbUp).toBe(true);
+    expect(onLanding.filter((l) => !landingLip(l)).map((l) => `(${l.a.x}, ${l.a.z}) n ${l.nx}, ${l.nz} y ${l.top}`)).toEqual([]);
+  });
+
+  it('a leg-up from its spot (facing +x) finds it, with room for the offer and the run-in', () => {
+    const [x, z] = L.spot;
+    const t = findJumpTarget(anchors, { x, y: TEAM.boostMax - 1.15, z }, -1, 1, 0, 1, 2.2, 0.2);
+    expect(t).not.toBeNull();
+    expect(landingLip(t!.anchor as Ledge)).toBe(true);
+    for (let y = 0.1; y <= TEAM.roomUp; y += 0.1) expect(solidAt(x, y, z), `room at ${y.toFixed(1)}`).toBe(false);
+    for (let d = 0; d <= TEAM.roomSide; d += 0.25) expect(solidAt(x - d, 0.5, z)).toBe(false);
+  });
+
+  it('no solo top within a top-gear running jump of it, with 0.5 m to spare (tests/helpers/soloJumpReach.ts)', () => {
+    const skip = (p: BoxPiece): boolean => bayPieces.includes(p) || !inHall(p.c[0], p.c[2], 3) || (bottom(p) > 4.0 && p.c[0] > L.x0 - 0.05);
+    for (const l of lips) expect(soloJumpThreats(solid, grip(l), skip, 0.5)).toEqual([]);
+    // the nearest one, the empty-pallet stack (2.0): 4.1 m off against its reach
+    const stack = solid.find((p) => Math.abs(p.c[0] + 6.0) < 1e-3 && Math.abs(p.c[2] + 2.8) < 1e-3)!;
+    expect(L.z0 - (stack.c[2] + stack.s[2] / 2) - soloJumpReach(top(stack), L.top)).toBeGreaterThan(0.5);
+  });
+
+  it('no pipe, ladder or drainpipe within a hang\'s jump (2.5 m grip to grip) plus 0.5', () => {
+    for (const l of lips) {
+      for (const p of b.anchors.pipesH) {
+        const d = segToSeg(l.a.x, l.a.z, l.b.x, l.b.z, p.a.x, p.a.z, p.b.x, p.b.z);
+        expect(hyp2(d, p.a.y - l.top), `pipe at ${p.a.y}`).toBeGreaterThan(3.0);
+      }
+      for (const p of [...b.anchors.pipesV.map((v) => v.base), ...b.anchors.ladders.map((v) => v.base)]) expect(segToSeg(l.a.x, l.a.z, l.b.x, l.b.z, p.x, p.z, p.x, p.z)).toBeGreaterThan(3.0);
+    }
+  });
+
+  it('hung (overhead, nothing on the floor), a drop under the lip, standing room on top, the rope fits', () => {
+    for (const p of solid) if (p.c[0] > L.x0 - 0.01 && p.c[0] < L.x1 + 0.01 && p.c[2] > L.z0 - 0.05 && p.c[2] < L.z1 + 0.05 && top(p) > 4.0) expect(bottom(p) > 4.0 && !!p.overhead).toBe(true);
+    const zm = (L.z0 + L.z1) / 2;
+    for (let y = 0.1; y < L.top + 0.5; y += 0.2) expect(solidAt(L.x0 - 0.5, y, zm), `drop at ${y.toFixed(1)}`).toBe(false);
+    for (const z of [L.z0 + 0.4, zm, L.z1 - 0.4]) for (let y = L.top + 0.05; y <= L.top + MOVEMENT.standHeight + 0.05; y += 0.1) expect(solidAt(L.x0 + 0.6, y, z), `stand at ${z}, ${y.toFixed(2)}`).toBe(false);
+    expect(L.x1 - L.x0).toBeGreaterThanOrEqual(1.0);
+    expect(ropeRoom(L.top, 0)).toBe('ok');
+  });
+
+  it('off every guard path (only the overhead slab; the picker passes under its edge, inside a hang-drop of the lip)', () => {
+    const picker = SEC.guards[4]!;
+    const px = picker.route![0]![0];
+    expect(px).toBeLessThan(L.x0);
+    // the hanging body is HANG.out (0.22) out from the lip; the drop takedown reaches 1.0
+    expect(L.x0 - 0.22 - px).toBeLessThan(TAKEDOWN.dropReach);
+    for (let x = L.x0 - 0.3; x <= px + 0.3; x += 0.1) for (const y of [0.5, 1.5]) expect(solidAt(x, y, (L.z0 + L.z1) / 2)).toBe(false);
   });
 });

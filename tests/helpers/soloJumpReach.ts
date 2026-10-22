@@ -74,16 +74,17 @@ const nearestOn = (g: CoopGrip, x: number, z: number): { x: number; z: number; d
  * (nothing to climb it by), with crouch room over the spot it jumps from, on the lip's outer side, and with nothing solid
  * on the straight line from there to under the grip. A top is reported when that spot is within `soloJumpReach` of the
  * grip in plan. `skip` leaves out tops a route plans as a solo way on from above (LD A2: co-op-only from the floor it
- * starts on).
+ * starts on). (sector-fixes-r e2e fix) `extra` (m) is added to a reach over 0: the margin the grip must clear it by.
  */
-export function soloJumpThreats(solid: readonly BoxPiece[], g: CoopGrip, skip: (p: BoxPiece) => boolean = () => false): string[] {
+export function soloJumpThreats(solid: readonly BoxPiece[], g: CoopGrip, skip: (p: BoxPiece) => boolean = () => false, extra = 0): string[] {
   const out: string[] = [];
   for (const p of solid) {
     const t = top(p);
     if (t <= 0.3 || t >= g.y - 0.05 || skip(p)) continue;
     if (Math.min(p.s[0], p.s[2]) < LEDGE.climbDepth) continue;
     if (p.noLedge && t > MANTLE) continue;
-    const reach = soloJumpReach(t, g.y);
+    const reach0 = soloJumpReach(t, g.y);
+    const reach = reach0 > 0 ? reach0 + extra : 0;
     if (reach <= 0) continue;
     // broad phase: the footprint's centre within reach plus its half diagonal of the grip
     const half = hyp2(p.s[0], p.s[2]) / 2;

@@ -208,7 +208,8 @@ counter. The high-value cage holds the case.
   north block in the cross aisle (-14.65, 6.75), the riser, or the cage ladder. Co-op: a boost anywhere. (sector-fixes R,
   2026-10-22) R3 is a high-bay row (tops 4.4, co-op only, its rolling ladder at the south end removed): R3S is reached by
   a leg-up onto its east gangway lip only (C1b); R3N has no lip (a lip facing A3 is within a running jump of the R2 tops).
-  docs/sector-fixes/r/R2.md.
+  (Michael 2026-10-22 ~21:20, "Add another") C2: the dispatch mezzanine's landing, hung on the x -4 wall over the east
+  gangway (4.4, x -6.4..-4.15, z 1.9..3.4), its west lip reached by a leg-up from the gangway. docs/sector-fixes/r/R2.md.
 - Split jump: A2, along its whole length. It is a hide over the VNA beam and a drop on the cage officer.
 - Fence climb: the cage (CT fence climb; mesh does not block sight).
 - Dark: every aisle, the cross aisle, the rack tops, the lane's east half, the charge bay.
@@ -418,8 +419,9 @@ checkpoint respawn takes over).
 - The trailer is marked `noLedge`, so co-op cannot reach a surface solo cannot.
 
 **Section 2**
-- (sector-fixes R) Co-op only: the leg-up onto R3S's east gangway lip (4.4), then relay or rope; the VNA escape gate
-  (a team door, unbolted from A2). docs/sector-fixes/r/R2.md.
+- (sector-fixes R) Co-op only: the leg-up onto R3S's east gangway lip (4.4), then relay or rope; (Michael M1, 2026-10-22)
+  the leg-up onto the dispatch landing on the x -4 wall (4.4, C2), then relay or rope, a hang-drop onto the picker; the VNA
+  escape gate (a team door, unbolted from A2). docs/sector-fixes/r/R2.md.
 - Boost or human ladder onto any rack-end top (4.0, within `boostMax` 4.5 and `ladderGrab` 4.1). Solo: the rolling
   ladder at R2N, the riser, the cage ladder.
 - Boost over the cage fence (2.4). Solo: the fence climb.

@@ -43,3 +43,8 @@ built `locked: true, breachable: false` in the section file. RT reads the three 
 - A3: a player downed on a co-op-only top cannot be revived there (the partner has no way up alone); the revive
   window runs out and the checkpoint respawn takes over, so nothing softlocks. 11.4's revive half is waived for these
   surfaces only. Undo: add a one-way solo climb up (which makes the surface no longer co-op-only).
+
+## Michael's answers
+- M1: Michael 2026-10-22 ~21:20 (through the orchestrator, "Add another"): section 2 add another co-op route (only C1b +
+  the team door after the fix round). Done in the e2e fix round: C2, the dispatch mezzanine's landing on the x -4 wall
+  (`S2_LANDING`, R2.md), at least 0.5 m clear of a top-gear solo running jump (`tests/helpers/soloJumpReach.ts`; 0.85 m).

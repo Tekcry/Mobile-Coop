@@ -78,6 +78,22 @@ export const S2_COOP: readonly S2CoopRoute[] = [
 ];
 
 /**
+ * (sector-fixes-r e2e fix, Michael M1 2026-10-22 ~21:20: "Add another") C2, section 2's second co-op-only route: the old
+ * dispatch mezzanine's landing on the x -4 wall over the east gangway. A steel landing hung off the wall at 4.4 (the band),
+ * where a stair once came down to the gangway; the stair went when the picking trucks took the gangway, and the
+ * mezzanine beyond it was taken out with the wall's fire upgrade, so the landing is a dead end. Leg-up from the gangway
+ * floor at `spot` facing +x onto its west lip (x `x0`, z `z0`..`z1`), then the relay or the rope for the partner. A dark
+ * vantage over the lane's east end and the charge hand, and the picker's leg (x -7.4) passes 0.8 m off the hanging body:
+ * a hang-drop onto him. Way down alone: let go of the lip (open gangway floor under it). Hung (a 0.3 slab, `overhead`): the
+ * floor stays open to the nav grid and the picker walks past under its edge. Railed south and north (the rails cut those
+ * lips), the wall on the east: the west lip is the only grip. Solo reach (tests/helpers/soloJumpReach.ts, top gear): the
+ * nearest solo top is the empty-pallet stack (2.0, z -3.4..-2.2), 4.1 m from the lip against a reach of 3.45; the sprinkler
+ * main (z 6.4, 5.0) is 3.06 m grip to grip (a hang's jump spans 2.5). Under the hall roof's panel (visual only): standing
+ * room, as on R3S.
+ */
+export const S2_LANDING = { x0: -6.4, x1: -4.15, z0: 1.9, z1: 3.4, top: S2_HIGH_TOP, spot: [-6.9, 2.65] as const } as const;
+
+/**
  * (sector-fixes-r R2) The team door: the VNA aisle's escape gate in R1S's pedestrian through-bay (A1 <-> A2), bolted from
  * the VNA side so nobody walks into A2 while the truck runs. `at` the door's plan centre, `side` toward A2 (+x). Built
  * `locked: true, breachable: false`; `warehouseSectors.ts` hands the list to the mode (RT).
@@ -212,6 +228,18 @@ export function buildStorageS2(b: LevelBuilder): void {
   rack(b, -14.65, 11.0, 2.3, 8.0); // R2N
   // R3S and R3N: the high-bay row (sector-fixes-r R2, S2_COOP): tops 4.4, lips only where planned, no rolling ladder
   for (const r of S2_COOP) highBay(b, r);
+  // (sector-fixes-r e2e fix) C2: the dispatch mezzanine's landing on the x -4 wall (S2_LANDING): a hung slab (overhead),
+  // solid rails south and north (no lips there), visual hangers to the roof; its west edge is the co-op lip
+  const ld = S2_LANDING;
+  const lcx = (ld.x0 + ld.x1) / 2;
+  const lcz = (ld.z0 + ld.z1) / 2;
+  const l0 = b.boxes.length;
+  b.box(lcx, ld.top - 0.15, lcz, ld.x1 - ld.x0, 0.3, ld.z1 - ld.z0, STEEL);
+  b.mark(l0, { overhead: true });
+  const r0 = b.boxes.length;
+  for (const z of [ld.z0 + 0.02, ld.z1 - 0.02]) b.box(lcx, ld.top + 0.5, z, ld.x1 - ld.x0, 1.0, 0.04, HAZARD);
+  b.mark(r0, { overhead: true, noLedge: true });
+  for (const z of [ld.z0 + 0.1, ld.z1 - 0.1]) b.box(ld.x0 + 0.1, (ld.top + 6.03) / 2, z, 0.04, 6.03 - ld.top, 0.04, STEEL, 0, 0, false);
 
   // ---- the high-value cage (x -24 to -19.9, z 12 to 18; mesh 2.4 high, open top)
   b.fence(-22.9, 12, -21.9, 12, 2.4);
