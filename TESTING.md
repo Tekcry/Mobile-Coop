@@ -42,8 +42,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
 - [ ] (sector-fixes R) Co-op Sector Ops, each section: leg-up your partner onto a 4.4 m lip (section 1 the high door
   in the yard facade and the hoist rail in goods-in; section 2 the high-bay rack R3S from the east gangway; section 3 the valve platform
-  in the east bay and the crane drive over the CNC cell); they relay or drop the rope for you; alone, the lip cannot be
-  reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
+  in the east bay and the crane drive over the CNC cell, each climbable onto under its roof hood); they relay or drop the
+  rope for you; alone, the lip cannot be reached. Each team door is locked from your side; your partner unbolts it from the other side; a restart bolts it again.
 - [ ] Co-op: Host a room starts on Campaign (Marlow Yard); the Mode row offers Campaign and Sector Ops only.
 - [ ] Co-op guard torches (coop-torches): on a dark map, when a guard searching in the dark switches his flashlight on,
   the joiner sees the same beam from his head, aimed where he faces, and it goes off when the host's does; standing in

@@ -28,3 +28,18 @@ Unit checks on d85ce219: `npx tsc --noEmit -p .` clean; eslint clean on the chan
 - 6: `tests/sectorBolt.test.ts` does not cover the SectorMode / CoopHost wiring; e2e parts 2-5 do.
 - 8: a client unbolting gets no feed line (only the local user does), per RT.md.
 - 10: alarm / search nav vs bolted doors: the same exposure as the existing locked connectors; M8 is the backstop.
+
+## Laptop run on 2f40ed74 (Character Build, E2E_GPU=1)
+
+Log on the laptop: `C:/NightShift/scratch/runs/sectorfixesr-2f40ed74/`. Build ok; e2e-coop ok (111 s); e2e-netmove ok
+(130 s); e2e-sectorops FAIL (no console errors, sim x1.00), run as one job (see the runner fix below).
+
+| Failure | Cause | Fix |
+| --- | --- | --- |
+| S1 E-lane single pallet (1.0): "stood 2.06" off the 0.05 m take-off | Geometry. The jump's apex (1.87) was 0.13 m under the 2.0 stacks' top: the capsule rides up over an edge within the controller's step (0.42). A mantle from the pallet's edge also reached the top (1.0 up, 1.2 across, probe 1.3) | `warehouseS1.ts`: the pallet is an empty one, `S1_COOP.hoist.lanePallet` 0.15 (apex 1.02; the stacks 1.85 up, over the 1.8 mantle). Unit check in `warehouseCoopS1.test.ts` |
+| S1 E-lane floor: take-off never left | Test. The body stops at the stacks' face with its centre at z -12.96, so take-offs measured from the face (-13.3) at 0.3 / 0.05 m never trigger (and from x -10.5 it scraped the pallet) | Take-offs measured from the stop (-12.95), start (-10.45, -10.6); no "run off" for the floor and the 0.15 pallet (never airborne) |
+| S1 C2 way down: stops at z -16.05 | Test. The hands stop 0.45 m short of a pipe's end (`attachRange`); -16.05 is 0.7 m from the checker's stop, inside the drop takedown's 1.0 | Part 2 and part 3 use -16.05; unit check of the reachable end vs the checker |
+| S3 C1 / C2 climb-up: `canClimb` false (and parts 5's pull-ups) | Geometry. The climb-up needs a standing body's room (`AttachController.climbRoom`, 1.75); the hall roof left 1.63 | `warehouseS3.ts`: a raised hood over each platform (underside 6.3), the roof cut open under it (`S3_ROOF_HOODS`; `warehouse.ts` `roofHoles`, `warehouseDress.ts` `ROOF_OPENINGS`) |
+| S3 C1 lip to the main: took the branch | Test. Hanging, the camera stays within 2.2 rad of the body's facing, so "stick forward with the camera turned away" pointed north-west; and the main, 0.18 m out from the body, is only taken as a jump up (stick into the wall) | `hangJump` sets the stick against the camera's real yaw; the lip -> main jump uses the stick into the platform |
+| S3 C2 branch to the main: stops at x 16.55 | Test. The 0.45 m end stop | Threshold 16.5 (and the main's north end 12.15, not 12.3) |
+| Runner: e2e-sectorops ran as one job | `run-e2e.mjs` expanded PARTS only for the default list, never for named suites | `expand(named)`: `e2e-sectorops` runs as `:1`-`:5`, `e2e-sectorops:2` as itself |

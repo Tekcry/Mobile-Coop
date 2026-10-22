@@ -39,7 +39,7 @@ const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 // `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` =
-// `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; named alone it runs whole.
+// `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (test-speed) e2e-ctcourse = three station groups (1-3, 4-5, 6-8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3)
 const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3'], 'e2e-sectorops': ['1', '2', '3', '4', '5'] };
@@ -179,7 +179,9 @@ function quickSuites() {
   return expand(REQUIRED.filter((s) => picked.has(s))).concat(expand([...picked].filter((s) => !REQUIRED.includes(s) && !GPU.includes(s) && existsSync(`scripts/${s}.mjs`))));
 }
 
-const all = named.length ? named : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : quick ? quickSuites() : expand(REQUIRED);
+// (sector-fixes-r e2e fix) a named suite with parts expands too (`e2e-sectorops` -> `:1`-`:5`, one job each); `name:N`
+// names one part. Before, a named list ran the suite whole as one job.
+const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : quick ? quickSuites() : expand(REQUIRED);
 const fullRun = !named.length && !quick && !legacyRun && !audioRun && !gpuRun;
 // REPORT ONLY: anim-audit always; in a quick run every suite outside REQUIRED
 const report = (s) => REPORT.includes(s.split(':')[0]) || (quick && !REQUIRED_JOBS.has(s));

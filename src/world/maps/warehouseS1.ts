@@ -110,13 +110,17 @@ export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [{ pos: new Vec
  *   -17.0), which runs east to the plant deck (a solo way on from the deck, planned: A2). (sector-fixes-r fix) The east
  *   lane's two loads 1.3 m north of its end are stacked `laneStack` (2.0) high, `noLedge`: over the mantle (1.8) with
  *   nothing to grab, no one alone stands on them (their old 1.8 tops were in a top-gear running jump's reach of the pipe:
- *   the in-air grab, `FALL_GRAB`, tests/helpers/soloJumpReach.ts). The single pallet (1.0) is 3.5 m off, out of reach,
- *   and a jump off it peaks under the stacks' tops.
- *   Way down: let go.
+ *   the in-air grab, `FALL_GRAB`, tests/helpers/soloJumpReach.ts). (sector-fixes-r e2e fix) The single load north of
+ *   them is now an empty pallet (`lanePallet` 0.15): at 1.0 (1.2 m from the stacks' face) a running jump off it rode the
+ *   capsule up over the stacks' 2.0 edge (e2e: stood at 2.06; the apex 1.87 was 0.13 under it, inside the controller's
+ *   step, `MOVEMENT.maxStep` 0.42) and a mantle from its edge reached their top (1.0 up, 1.2 across, inside the probe's
+ *   1.3). Off 0.15 the apex is 1.02 and the stacks are 1.85 up, over the mantle (1.8). It stays 3.5 m off the pipe's end.
+ *   Way down: let go (the hands stop 0.45 m short of the pipe's ends, `attachRange`: at z -16.05, 0.7 m from the
+ *   checker's stop, inside the drop takedown's 1.0).
  */
 export const S1_COOP = {
   plantDoor: { x0: -3.2, x1: -2.0, z0: -18.15, z1: -17.35, sill: 4.4, deck: 3.3 },
-  hoist: { x: -11.0, z0: -17.5, z1: -15.6, y: 4.4, laneStack: 2.0 },
+  hoist: { x: -11.0, z0: -17.5, z1: -15.6, y: 4.4, laneStack: 2.0, lanePallet: 0.15 },
 } as const;
 
 /** (sector-fixes R1) The mess's back door into the workshop (x 8, z -10.6 to -9.4), bolted from the mess side. */
@@ -344,12 +348,13 @@ export function buildServiceS1(b: LevelBuilder): void {
   for (const x of [-19.8, -18.4, -17.0]) b.block(x, -14.4, 1.2, 1.6, 1.0, SHRINK); // the W lane pallets
   // the E lane: (sector-fixes-r fix) the two loads by the monorail are stacked `laneStack` (2.0) high without lips: over
   // the mantle, nothing to grab, so no one alone stands on them (a 1.8 top was in a running jump's reach of the pipe);
-  // they still screen the checker's stop from the forklift lane (M8). The single pallet (1.2 -> 1.0: a jump off it peaks
-  // under the stacks' tops) is 3.5 m off the monorail's end.
+  // they still screen the checker's stop from the forklift lane (M8). The single pallet (1.2 -> 1.0 -> (sector-fixes-r e2e
+  // fix) an empty pallet, `lanePallet` 0.15: off 1.0 a running jump rode up over the stacks' edge and a mantle reached
+  // their top) is 3.5 m off the monorail's end.
   const ls = b.boxes.length;
   b.block(-12.0, -13.8, 1.2, S1_COOP.hoist.laneStack, 1.0, CRATE).block(-10.8, -13.8, 1.2, S1_COOP.hoist.laneStack, 1.0, CRATE);
   b.mark(ls, { noLedge: true });
-  b.block(-11.4, -11.6, 1.2, 1.0, 1.0, CRATE);
+  b.block(-11.4, -11.6, 1.2, S1_COOP.hoist.lanePallet, 1.0, CRATE);
   b.block(-16.0, -11.8, 1.6, 0.15, 1.6, STEEL).block(-16.0, -12.75, 0.3, 2.4, 0.3, STEEL); // the wrapper
   b.block(-22.8, -15.6, 0.8, 1.05, 1.6, DESK);
   b.block(-23.4, -11.4, 1.0, 1.5, 1.2, CRATE).block(-23.4, -10.1, 1.0, 0.9, 1.2, CRATE); // empty stacks

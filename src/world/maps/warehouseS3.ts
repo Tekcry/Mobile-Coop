@@ -65,7 +65,11 @@ export const S3_PICKUPS: NonNullable<MapLayout['pickups']> = [{ pos: new Vector3
  *   west (the lamp under it).
  * Both are co-op-only from the hall floor (nothing a player alone stands on within reach) and reached alone only along the
  * main (the plant-room roof or the deck's north end): the way back for a reviver, and down: let go of any lip (4.4).
- * The hall roof is at 6.03, so both tops are crouch-height galleries (1.63 m of room).
+ * (sector-fixes-r e2e fix) The hall roof is at 6.03: 1.63 m over a 4.4 top, and a climb-up off a lip needs a standing
+ * body's room over the top (`AttachController.climbRoom`, `MOVEMENT.standHeight` 1.75; the e2e hung on the lip with
+ * `canClimb` false). So the roof over each platform is cut open and closed by a raised hood (`S3_ROOF_HOODS`, underside
+ * `hoodUnder` 6.3: 1.9 m of room), the roof-ventilator upstand the fitters reach the valve and the drive under, as section
+ * 1's weather hood over the plant-room door.
  */
 export const S3_COOP = {
   valve: { x0: 17.4, x1: 18.6, z0: 4.0, z1: 5.5, top: 4.4 },
@@ -73,7 +77,12 @@ export const S3_COOP = {
   branch: { x0: 12.45, x1: 17.0, z: 5.3, y: 5.0 },
   /** The team door: the plant room's service door into the fire-exit lobby (a 1.2 gap in the z -5.6 wall). */
   lobbyDoor: { x0: 22.6, x1: 23.8, z: -5.6, w: 1.1 },
+  /** (sector-fixes-r e2e fix) The underside of the hoods over the two platforms (m). */
+  hoodUnder: 6.3,
 } as const;
+
+/** (sector-fixes-r e2e fix) The holes in the hall roof [x0, x1, z0, z1] under the hoods: each platform's footprint. */
+export const S3_ROOF_HOODS: readonly (readonly [number, number, number, number])[] = [S3_COOP.valve, S3_COOP.drive].map((p) => [p.x0, p.x1, p.z0, p.z1] as const);
 
 /**
  * (sector-fixes R3, the team-door contract in docs/sector-fixes/r/PLAN.md) The plant room's service door into the fire-exit
@@ -382,11 +391,18 @@ export function buildAssemblyS3(b: LevelBuilder): void {
     p0 = b.boxes.length;
     b.box(cx, p.top - 0.15, cz, p.x1 - p.x0, 0.3, p.z1 - p.z0, GRATE);
     ov(p0);
-    for (const [x, z] of [[p.x0 + 0.1, p.z0 + 0.1], [p.x1 - 0.1, p.z0 + 0.1], [p.x0 + 0.1, p.z1 - 0.1], [p.x1 - 0.1, p.z1 - 0.1]] as const) b.box(x, (p.top + 6.03) / 2, z, 0.04, 6.03 - p.top, 0.04, STEEL, 0, 0, false);
-    // the hall roof (visual panels at 6.03-6.28, `warehouse.ts`) as collision over the platform: 1.63 m of room, a crouch
-    // (1.15) under it, as in the roof's skylight sheets; collision-only, so neither drawn nor baked
+    const hu = S3_COOP.hoodUnder;
+    for (const [x, z] of [[p.x0 + 0.1, p.z0 + 0.1], [p.x1 - 0.1, p.z0 + 0.1], [p.x0 + 0.1, p.z1 - 0.1], [p.x1 - 0.1, p.z1 - 0.1]] as const) b.box(x, (p.top + hu) / 2, z, 0.04, hu - p.top, 0.04, STEEL, 0, 0, false);
+    // (sector-fixes-r e2e fix) the hood over the roof's hole (S3_ROOF_HOODS; the roof panels and sheets are cut round it):
+    // upstands from the roof line (6.03) to the lid, the lid's underside at `hoodUnder` 6.3 (a standing body's room over
+    // the 4.4 top, for the climb-up); solid and drawn, so it closes the hole for the light bake as the roof did
+    const W = 0.1;
     p0 = b.boxes.length;
-    b.box(cx, 6.155, cz, p.x1 - p.x0, 0.25, p.z1 - p.z0, ROOF, 0, 0, true, false);
+    b.box(p.x0 - W / 2, (6.03 + hu) / 2, cz, W, hu - 6.03, p.z1 - p.z0 + 2 * W, ROOF);
+    b.box(p.x1 + W / 2, (6.03 + hu) / 2, cz, W, hu - 6.03, p.z1 - p.z0 + 2 * W, ROOF);
+    b.box(cx, (6.03 + hu) / 2, p.z0 - W / 2, p.x1 - p.x0, hu - 6.03, W, ROOF);
+    b.box(cx, (6.03 + hu) / 2, p.z1 + W / 2, p.x1 - p.x0, hu - 6.03, W, ROOF);
+    b.box(cx, hu + 0.1, cz, p.x1 - p.x0 + 2 * W, 0.2, p.z1 - p.z0 + 2 * W, ROOF);
     b.mark(p0, { overhead: true, noLedge: true });
   };
   const rail = (cx: number, cz: number, sx: number, sz: number, y: number): void => {

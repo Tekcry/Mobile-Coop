@@ -764,11 +764,22 @@ if (want(2)) {
       }
       return i;
     };
-    /** Stick (camera at `yaw`) held, then the traverse button: a jump from a hang where the stick points. */
+    /**
+     * The stick pointing the world way `yaw` faces, then the traverse button: a jump from a hang where the stick points.
+     * (sector-fixes-r e2e fix) The stick is set against the camera's real yaw: hanging on a lip the camera stays within
+     * the hang's cone (`ATTACH_FRAMING.hang.cone` 2.2 rad) of the body's facing, so it never looks straight out from the
+     * wall; the stick forward then pointed 0.6 rad off (from the valve platform's west lip: north-west, onto the branch).
+     */
     const hangJump = async (yaw) => {
       await face(yaw);
-      await step(0.3, 0, 1);
-      await step(0.1, 0, 1, [BTN.Y]);
+      const wx = Math.sin(yaw);
+      const wz = Math.cos(yaw);
+      const stick = async (s, b = []) => {
+        const c = await G(() => window.__re.st().player.cam.yaw);
+        await step(s, wx * Math.cos(c) - wz * Math.sin(c), wx * Math.sin(c) + wz * Math.cos(c), b);
+      };
+      for (let k = 0; k < 3; k++) await stick(0.1);
+      await stick(0.1, [BTN.Y]);
       await step(1.0);
       return info();
     };
@@ -862,15 +873,18 @@ if (want(2)) {
     const TOPS = [
       { id: 'S2 R2N to R3N', from: [-15.4, 4.05, 10.0], yaw: PI / 2, ax: 0, edge: -13.5 },
       { id: 'S2 R2S to R3S', from: [-15.4, 4.05, 1.8], yaw: PI / 2, ax: 0, edge: -13.5 },
-      { id: 'S1 E-lane single pallet (1.0) over the stacks to the monorail', from: [-11.0, 1.05, -11.2], yaw: PI, ax: 2, edge: -12.1, standMax: 1.9 },
-      { id: 'S1 E-lane floor at the stacks (2.0) and the monorail', from: [-10.5, 0.05, -11.0], yaw: PI, ax: 2, edge: -13.3, standMax: 1.9 },
+      // (sector-fixes-r e2e fix) the single pallet is an empty one (0.15): off 1.0 the jump rode up over the stacks' edge.
+      // Off 0.15 there is no run off (a step down, never airborne) and from the floor the body stops at the stacks' face
+      // (z -13.3) with its centre at -12.96: the take-offs there are measured from that stop (`edge` -12.95)
+      { id: 'S1 E-lane single pallet (0.15) over the stacks to the monorail', from: [-11.0, 0.2, -11.2], yaw: PI, ax: 2, edge: -12.1, standMax: 1.9, offs: [0.6, 0.3, 0.05] },
+      { id: 'S1 E-lane floor at the stacks (2.0) and the monorail', from: [-10.45, 0.05, -10.6], yaw: PI, ax: 2, edge: -12.95, standMax: 1.9, offs: [0.6, 0.3, 0.05] },
     ];
     for (const t of TOPS) {
       await check(`${t.id}: solo running jump refused`, async () => {
         const sg = t.ax === 0 ? Math.sign(Math.sin(t.yaw)) : Math.sign(Math.cos(t.yaw));
         const along = (i) => sg * (t.ax === 0 ? i.x : i.z);
         const edge = sg * t.edge;
-        for (const off of [0.6, 0.3, 0.05, null]) {
+        for (const off of t.offs ?? [0.6, 0.3, 0.05, null]) {
           await put(t.from[0], t.from[1], t.from[2], t.yaw);
           await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 5; });
           const top0 = (await info()).y;
@@ -919,12 +933,14 @@ if (want(2)) {
       await put(-11.0, 0, -17.0, 0);
       const a = await attach('pipeH', -11.0, 4.4, -17.0);
       assert(a.attached && a.kind === 'pipeH', 'S1 C2: on the monorail again');
-      const e = await walk(0, 8, (q) => q.z >= -15.8 || !q.attached);
-      assert(e.attached && e.z >= -15.8, `S1 C2: hand over hand north to the monorail's end over the checker's stop (z ${e.z})`);
+      // (sector-fixes-r e2e fix) the hands stop 0.45 m short of the pipe's end (`attachRange`): z -16.05, 0.7 m from the
+      // checker's stop (-11.2, -15.4), inside the drop takedown's 1.0
+      const e = await walk(0, 8, (q) => q.z >= -16.1 || !q.attached);
+      assert(e.attached && e.z >= -16.1, `S1 C2: hand over hand north to the monorail's end by the checker's stop (z ${e.z})`);
       await tap(BTN.B);
       await step(1.5);
       const d = await info();
-      assert(!d.attached && d.grounded && d.y < 0.2 && Math.hypot(d.x + 11.0, d.z + 15.7) < 0.6, `S1 C2: way down alone: let go, feet on the bay floor at (-11.0, -15.7) (${JSON.stringify([d.x, d.y, d.z])})`);
+      assert(!d.attached && d.grounded && d.y < 0.2 && Math.hypot(d.x + 11.0, d.z + 16.05) < 0.6, `S1 C2: way down alone: let go, feet on the bay floor at (-11.0, -16.05) (${JSON.stringify([d.x, d.y, d.z])})`);
     });
 
     // ---- section 1, C1: the climb-up onto the sill (the hood leaves standing room), the crouch-walk under the 1.4 m
@@ -992,7 +1008,8 @@ if (want(2)) {
       }
       assert(d.grounded && d.y < 0.3 && d.alive, `S2 C1: way down alone: off the west edge to the A3 floor (${JSON.stringify([d.x, d.y, d.z])})`);
     });
-    // ---- section 3: the climb-up onto each hung platform (a crouch under the 1.63 m roof), the lip to the main (5.0)
+    // ---- section 3: the climb-up onto each hung platform (ending crouched; (sector-fixes-r e2e fix) standing room under the
+    // hood, 1.9 m), the lip to the main (5.0)
     // and back, the branch to the main, the ways down alone (let go of the north lip)
     for (const c of [route('S3 C1'), route('S3 C2')]) {
       await check(`${c.id}: climb-up and way down`, async () => {
@@ -1002,7 +1019,7 @@ if (want(2)) {
         await tap(BTN.Y);
         await step(1.6);
         const s = await info();
-        assert(!s.attached && s.grounded && Math.abs(s.y - 4.4) < 0.1 && s.crouched, `${c.id}: the climb-up onto the platform ends crouched under the 1.63 m roof (canClimb ${a.canClimb}; ends ${JSON.stringify(s)})`);
+        assert(!s.attached && s.grounded && Math.abs(s.y - 4.4) < 0.1 && s.crouched, `${c.id}: the climb-up onto the platform under its hood ends crouched (canClimb ${a.canClimb}; ends ${JSON.stringify(s)})`);
       });
       await check(`${c.id}: way down`, async () => {
         await put(c.spot[0], 0, c.spot[1], c.yaw);
@@ -1018,11 +1035,14 @@ if (want(2)) {
       await put(16.9, 0, 4.75, PI / 2);
       const a = await attach('ledge', 17.4, 4.4, 4.75);
       assert(a.attached && a.kind === 'ledge' && Math.abs(a.grip - 4.4) < 0.05, `S3 C1: hanging on the valve platform's west lip (${JSON.stringify(a)})`);
-      let i = await hangJump(-PI / 2);
-      if (!(i.kind === 'pipeH')) i = await hangJump(PI / 2);
+      // (sector-fixes-r e2e fix) the main is 0.18 m out from the hanging body, almost straight over it: a jump along the
+      // stick away from the wall never takes it (`findJumpTarget` wants it 0.3 m off to the side; it took the branch), the
+      // stick into the wall is the jump up and takes it
+      const i = await hangJump(PI / 2);
       assert(i.attached && i.kind === 'pipeH' && Math.abs(i.grip - 5.0) < 0.05 && i.along === 'z', `S3 C1: from the west lip the jump up 0.6 m onto the hall main (${JSON.stringify(i)})`);
-      const e = await walk(0, 16, (q) => q.z >= 12.3 || !q.attached);
-      assert(e.attached && e.z >= 12.3, `S3 C1: hand over hand north along the main to z 12.4 (${JSON.stringify([e.x, e.y, e.z])})`);
+      // (sector-fixes-r e2e fix) the hands stop 0.45 m short of the main's end (z 12.6): 12.15, 0.3 m over the deck's edge
+      const e = await walk(0, 16, (q) => q.z >= 12.1 || !q.attached);
+      assert(e.attached && e.z >= 12.1, `S3 C1: hand over hand north along the main to its end over the deck (z 12.15) (${JSON.stringify([e.x, e.y, e.z])})`);
       await tap(BTN.B);
       await step(1.5);
       const d = await info();
@@ -1040,8 +1060,9 @@ if (want(2)) {
       assert(a.attached && a.kind === 'ledge' && Math.abs(a.grip - 4.4) < 0.05, `S3 C2: hanging on the drive platform's east lip (${JSON.stringify(a)})`);
       const i = await hangJump(PI / 2);
       assert(i.attached && i.kind === 'pipeH' && Math.abs(i.grip - 5.0) < 0.05 && i.along === 'x', `S3 C2: from the east lip the jump up onto the sprinkler branch (${JSON.stringify(i)})`);
-      const e = await walk(PI / 2, 10, (q) => q.x >= 16.6 || !q.attached);
-      assert(e.attached && e.x >= 16.6, `S3 C2: hand over hand east along the branch to the main (${JSON.stringify([e.x, e.y, e.z])})`);
+      // (sector-fixes-r e2e fix) the hands stop 0.45 m short of the branch's end at the main (x 17.0): 16.55
+      const e = await walk(PI / 2, 10, (q) => q.x >= 16.5 || !q.attached);
+      assert(e.attached && e.x >= 16.5, `S3 C2: hand over hand east along the branch to the main (${JSON.stringify([e.x, e.y, e.z])})`);
       const m = await hangJump(0);
       assert(m.attached && m.kind === 'pipeH' && Math.abs(m.grip - 5.0) < 0.05 && m.along === 'z', `S3 C2: from the branch's end onto the hall main (${JSON.stringify(m)})`);
     });
@@ -1360,13 +1381,14 @@ if (want(3)) {
       const c = route('S1 C2');
       await legUp(c);
       // over the checker's stop: hand over hand north to the monorail's end, then let go (the way down alone)
-      await walkP(A, 0, () => { const t = window.__app.current.traversal; return !t.attached || window.__app.current.player.controller.pos.z >= -15.85; }, null, `${c.id}: the host goes hand over hand north`);
+      // (sector-fixes-r e2e fix) the hands stop 0.45 m short of the pipe's end (z -16.05; the checker's stop is 0.7 m off)
+      await walkP(A, 0, () => { const t = window.__app.current.traversal; return !t.attached || window.__app.current.player.controller.pos.z >= -16.1; }, null, `${c.id}: the host goes hand over hand north`);
       const at = await hostFeet();
-      assert(at[2] >= -15.9, `${c.id}: the host over the checker's stop at the monorail's north end (${JSON.stringify(at)})`);
+      assert(at[2] >= -16.15, `${c.id}: the host over the checker's stop at the monorail's north end (${JSON.stringify(at)})`);
       await holdUntil(A, BTN.B, () => !window.__app.current.traversal.attached, `${c.id}: the host lets go`);
       await until(A, () => { const p = window.__app.current.player.controller; return p.grounded && p.pos.y < 0.3; }, null, 8000, `${c.id}: the host lands on the bay floor`);
       const d = await hostFeet();
-      assert(d[1] < 0.3 && Math.hypot(d[0] + 11.0, d[2] + 15.7) < 0.7, `${c.id}: way down alone: let go onto the bay floor by (-11.0, -15.7) (${JSON.stringify(d)})`);
+      assert(d[1] < 0.3 && Math.hypot(d[0] + 11.0, d[2] + 16.05) < 0.7, `${c.id}: way down alone: let go onto the bay floor by (-11.0, -16.05) (${JSON.stringify(d)})`);
     });
     await leg('S1 team door', () => teamDoor(0));
   });

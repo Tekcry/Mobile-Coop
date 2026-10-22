@@ -11,6 +11,8 @@ import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { generateLedges, REACH } from '../src/world/anchors';
 import { MOVEMENT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { hyp2 } from '../src/core/mathx';
+import { attachRange } from '../src/player/attach';
+import { TAKEDOWN } from '../src/game/takedown';
 import { LEAP_APEX, MANTLE, soloJumpThreats } from './helpers/soloJumpReach';
 
 const b = new LevelBuilder();
@@ -112,9 +114,13 @@ describe('R1 goods-in hoist monorail (over the east lane)', () => {
     const stacks = solid.filter((p) => boxToSeg(p, h.x, h.z0, h.x, h.z1) < 2.0 && Math.abs(top(p) - S1_COOP.hoist.laneStack) < 1e-3);
     expect(stacks.length).toBe(2);
     for (const p of stacks) expect(!!p.noLedge && top(p) > MANTLE && p.c[1] - p.s[1] / 2 < 0.05).toBe(true);
-    // nor from the single pallet north of them: a jump off it peaks under their tops (it is itself past the reach, below)
+    // nor from the single pallet north of them (it is itself past the reach, below). (sector-fixes-r e2e fix) A jump off
+    // it peaks more than the controller's step under their tops (the capsule rides up over an edge within the step: off
+    // 1.0 the e2e stood on them), and they are over the mantle from its top (a mantle from its edge crosses the gap)
     const single = solid.find((p) => Math.abs(p.c[0] + 11.4) < 1e-3 && Math.abs(p.c[2] + 11.6) < 1e-3)!;
-    expect(top(single) + LEAP_APEX).toBeLessThan(S1_COOP.hoist.laneStack);
+    expect(top(single)).toBeCloseTo(S1_COOP.hoist.lanePallet, 3);
+    expect(top(single) + LEAP_APEX).toBeLessThan(S1_COOP.hoist.laneStack - MOVEMENT.maxStep - 0.1);
+    expect(S1_COOP.hoist.laneStack - top(single)).toBeGreaterThan(MANTLE);
     const deck = S1_COOP.plantDoor.deck;
     expect(soloJumpThreats(solid, { y: h.y, a: { x: h.x, z: h.z0 }, b: { x: h.x, z: h.z1 } }, (p) => top(p) >= deck - 1e-3)).toEqual([]);
   });
@@ -124,6 +130,11 @@ describe('R1 goods-in hoist monorail (over the east lane)', () => {
     const stop = checker.route![1]!;
     const dz = Math.max(0, stop[1] - h.z1, h.z0 - stop[1]);
     expect(hyp2(stop[0] - h.x, dz)).toBeLessThan(0.5);
+    // (sector-fixes-r e2e fix) the hands stop 0.45 m short of the pipe's end (`attachRange`): the drop from there still
+    // lands within the drop takedown's reach of him
+    const lim = attachRange(pipe!);
+    const handZ = pipe!.a.z + ((pipe!.b.z - pipe!.a.z) / Math.abs(pipe!.b.z - pipe!.a.z)) * lim.max;
+    expect(hyp2(stop[0] - h.x, stop[1] - handZ)).toBeLessThan(TAKEDOWN.dropReach);
     // nothing solid between the pipe and the floor along it (only the hanging body's room)
     for (let z = h.z0; z <= h.z1 + 1e-6; z += 0.25) for (let y = 0.1; y < h.y - 0.1; y += 0.3) expect(solidAt(h.x, y, z), `${z}, ${y}`).toBe(false);
     // the bay main crosses over it (a jump up to it, then east to the plant deck)

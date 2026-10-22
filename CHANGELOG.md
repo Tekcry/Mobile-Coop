@@ -11,6 +11,10 @@
   gate, section 3 the plant room's lobby door). Only a player on the far side gets "Unbolt"; it opens for both; a
   checkpoint restart bolts it again. Host-authoritative, no wire change (protocol stays 28).
 - A player downed on a co-op-only top cannot be revived there; the checkpoint respawn takes over (PLAN A3).
+- (e2e fix) Section 3's two platforms sit under raised roof hoods, so you can climb up onto them (the roof left too little
+  room). Section 1's single east-lane pallet is now an empty pallet: a running jump or a mantle off the old one got a
+  player alone onto the stacks by the monorail. `run-e2e.mjs`: a named suite with parts (`e2e-sectorops`) now runs as its
+  parts.
 
 ## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
 - `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.

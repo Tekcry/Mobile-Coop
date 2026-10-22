@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
-import { S3_BOLTS, S3_COOP, S3_ROOMS } from '../src/world/maps/warehouseS3';
+import { S3_BOLTS, S3_COOP, S3_ROOF_HOODS, S3_ROOMS } from '../src/world/maps/warehouseS3';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { findJumpTarget, generateLedges, REACH, type Ledge } from '../src/world/anchors';
 import { MOVEMENT, TEAM, WALL_JUMP } from '../src/config/movement';
@@ -102,11 +102,14 @@ describe.each(PLATS)('R3 $name', ({ q, boost, railed }) => {
     expect(ropeRoom(q.top, floorAt(outX, outZ, q.top - 0.5))).toBe('ok');
   });
 
-  it('crouch room on top under the hall roof (6.03): a crouch clears, the roof is solid over a standing head', () => {
-    for (const [x, z] of [[cx, cz], [q.x0 + 0.3, q.z1 - 0.3], [q.x1 - 0.3, q.z0 + 0.3]] as const) {
-      for (let y = q.top + 0.05; y <= q.top + MOVEMENT.crouchHeight + 0.1; y += 0.1) expect(solidAt(x, y, z), `${x}, ${y.toFixed(2)}, ${z}`).toBe(false);
-      expect(solidAt(x, q.top + MOVEMENT.standHeight, z), `roof over ${x}, ${z}`).toBe(true);
+  // (sector-fixes-r e2e fix) was a crouch under the hall roof (6.03): the climb-up off a lip needs a standing body's room
+  // (`AttachController.climbRoom`), so the roof over the platform is cut open under a hood (underside 6.3)
+  it('standing room on top under its hood (the climb-up), the hood closed over it', () => {
+    for (const [x, z] of [[cx, cz], [q.x0 + 0.3, q.z1 - 0.3], [q.x1 - 0.3, q.z0 + 0.3], [q.x0 + 0.67, cz], [q.x1 - 0.67, cz], [cx, q.z0 + 0.67], [cx, q.z1 - 0.67]] as const) {
+      for (let y = q.top + 0.05; y <= q.top + MOVEMENT.standHeight + 0.1; y += 0.1) expect(solidAt(x, y, z), `${x}, ${y.toFixed(2)}, ${z}`).toBe(false);
+      expect(solidAt(x, S3_COOP.hoodUnder + 0.1, z), `hood over ${x}, ${z}`).toBe(true);
     }
+    expect(S3_ROOF_HOODS).toContainEqual([q.x0, q.x1, q.z0, q.z1]);
   });
 
   it('no unplanned solo access: nothing a player alone stands on within a jump-grab or a wall jump, no other anchor within a jump', () => {
