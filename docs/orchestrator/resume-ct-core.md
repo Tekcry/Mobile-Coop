@@ -37,10 +37,10 @@ pushed at each agent hand-back. Agents running at a cut-off are lost: the resume
   lane single GPU suites when CPU < 80%; PRs outside src/net / protocol / save -> train on CI + at most two area suites.
 
 ## Resumed ~10:00 (new account)
-Running: hostage-gait fresh checker (-> scratch/hgc-CHECK.md), mocap-strafe finish, traverse-fix-2 finish (all Opus);
-desktop heavy.lock lane: hang-down 0578d554 e2e-takedown + e2e-anim (script scratch/ctcore/lane-hangdown.sh, logs
-scratch/ctcore/hd-*.log). Queued: hang-down fresh checker, strike-pops finish. Character Build ("Night Shift | Character
-Build") not up yet at ~10:00: send it hostage-gait c581a9c4 coop + netmove; hang-down 0578d554 coop / ctcourse / netmove.
+hostage-gait: checker PASS (docs/hostage-gait/CHECK.md), PR #194 head 6cf3ec97; waits for laptop coop + netmove on c581a9c4.
+hang-down 0578d554: desktop GPU e2e-takedown ok 22 s, e2e-anim ok 47 s; fresh checker running (-> scratch/hdc-CHECK.md).
+Running: mocap-strafe finish, traverse-fix-2 finish (Opus). Queued: strike-pops finish. Character Build has (4189, after
+Guard AI S7): hang-down coop / ctcourse / netmove, then hostage-gait coop / netmove; verdicts come to CT Core.
 This file is pushed without a worktree: scratch/ctcore/push-resume.sh <file> <msg>.
 
 ## Open jobs (save ~09:45, before the account swap; every branch committed + pushed)
