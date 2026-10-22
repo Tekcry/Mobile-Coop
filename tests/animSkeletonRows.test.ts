@@ -27,6 +27,7 @@ import type { StudioDrive } from '../src/anim/studioDrive';
 import type { KeyedClip } from '../src/anim/keyed';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
 const D2R = Math.PI / 180;
 
@@ -101,7 +102,7 @@ describe('anim-skeleton S4: the legd channel (pure)', () => {
     expect(out.x).toBeGreaterThan(0.05);
   });
 
-  it('sampling, mixing and mirroring with the leg deltas and the S4 key offsets never allocate', () => {
+  it('sampling, mixing and mirroring with the leg deltas and the S4 key offsets never allocate', async () => {
     const c = keyedClip(legdDef([...A, ...A]));
     tuneSet(keyGroupId('jog', 0), 'legL_knee', 10);
     tuneSet(keyGroupId('jog', 1), 'armR_clavRoll', 8);
@@ -109,22 +110,31 @@ describe('anim-skeleton S4: the legd channel (pure)', () => {
     tuneKeysSync();
     const a = newKeyedPose();
     const b = newKeyedPose();
-    let acc = 0;
-    const run = (): number => {
-      const before = process.memoryUsage().heapUsed;
-      for (let k = 0; k < 100000; k++) {
-        sampleKeyed(c, k * 0.013, 0.8, a);
-        sampleKeyed(KEYED_JOG, k * 0.007, 1, b);
-        mirrorKeyed(b);
-        mixKeyed(a, b, 0.3, a);
-        acc += a.legd[3]! + a.fing[3]! + a.clav[3]!;
-      }
-      return process.memoryUsage().heapUsed - before;
-    };
-    run();
-    const grown = Math.min(run(), run(), run());
-    expect(Number.isFinite(acc)).toBe(true);
-    expect(grown).toBeLessThan(1_000_000);
+    sampleKeyed(KEYED_JOG, 0.3, 1, b);
+    // gc() + new space per call (tests/helpers/allocPerCall.ts): heapUsed over 100k calls passed only when a GC landed
+    // in the window. A call leaves only boxed doubles: the phase and the frame fraction (32 B), and with the jog key
+    // offsets at an amp other than 1 the two arm amplitudes passed on (64 B); one more
+    // { x, y, z } a call would read 80 / 112 B.
+    const PH = inputs(2000, (k) => k * 0.013);
+    const legd = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) sampleKeyed(c, PH[k]!, 0.8, a);
+    }, 3 * HEAP_NUMBER);
+    const keyed = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) sampleKeyed(KEYED_JOG, PH[k]!, 0.9, b);
+    }, 5 * HEAP_NUMBER);
+    const mirror = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) mirrorKeyed(b);
+    }, HEAP_NUMBER / 2);
+    const mix = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) mixKeyed(a, b, 0.3, a);
+    }, HEAP_NUMBER / 2);
+    console.info(`bytes per call: sampleKeyed legd ${legd.toFixed(1)}, jog with key offsets ${keyed.toFixed(1)}, mirrorKeyed ${mirror.toFixed(1)}, mixKeyed ${mix.toFixed(1)}`);
+    expect(Number.isFinite(a.legd[3]! + a.fing[3]! + a.clav[3]!)).toBe(true);
+    expect(b.hasClav).toBe(1);
+    expect(legd).toBeLessThanOrEqual(3 * HEAP_NUMBER);
+    expect(keyed).toBeLessThanOrEqual(5 * HEAP_NUMBER);
+    expect(mirror).toBeLessThanOrEqual(HEAP_NUMBER / 2);
+    expect(mix).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   });
 });
 
@@ -378,27 +388,26 @@ describe('anim-skeleton S4: the rig', () => {
   // The whole rig's heap already grows a few MB per 3000 frames before S4 (checker, 2026-10-22: plain walk and jog
   // alike), far above a per-frame leak in the leg stage, so the rig-level comparison was noise. The pure pieces the
   // leg stage runs every frame are measured here instead; keyedLegDeltas itself was read for allocations (none).
-  it('the planted-leg solve and the contact weight never allocate', () => {
+  it('the planted-leg solve and the contact weight never allocate', async () => {
     const H = { x: 0.1, y: 0.9, z: 0 };
     const A = { x: 0.12, y: 0.1, z: 0.15 };
     const K0 = { x: 0.11, y: 0.5, z: 0.1 };
     const Kr = { x: 0.13, y: 0.52, z: 0.14 };
     const out = { x: 0, y: 0, z: 0 };
-    // a typed slot, not a captured let: += on a captured number boxes a 16-byte HeapNumber every iteration
-    const acc = new Float64Array(1);
-    const pass = (): number => {
-      const before = process.memoryUsage().heapUsed;
-      for (let k = 0; k < 100000; k++) {
-        Kr.z = 0.1 + (k % 50) * 0.002;
+    // inputs precomputed, the result into a typed slot (+= on a captured let boxes a 16-byte HeapNumber an iteration)
+    const KZ = inputs(2000, (k) => 0.1 + (k % 50) * 0.002);
+    const CW = inputs(2000, (k) => (k % 100) / 100);
+    sink[0] = 0;
+    // gc() + new space per step (tests/helpers/allocPerCall.ts), not heapUsed (GC timing): one { x, y, z } a step reads 48 B
+    const step = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) {
+        Kr.z = KZ[k]!;
         plantKnee(H, A, K0, Kr, out);
-        acc[0]! += out.x + legdContactW(k % 3 !== 0, (k % 100) / 100);
+        sink[0]! += out.x + legdContactW(k % 3 !== 0, CW[k]!);
       }
-      return process.memoryUsage().heapUsed - before;
-    };
-    pass();
-    const grown = Math.min(pass(), pass(), pass());
-    expect(Number.isFinite(acc[0]!)).toBe(true);
-    // a 24-byte allocation per iteration would grow ~2.4 MB a pass
-    expect(grown).toBeLessThan(200_000);
+    }, HEAP_NUMBER / 2);
+    console.info(`bytes per step: plantKnee + legdContactW ${step.toFixed(1)}`);
+    expect(Number.isFinite(sink[0]!)).toBe(true);
+    expect(step).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   });
 });

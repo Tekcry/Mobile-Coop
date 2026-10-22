@@ -5,16 +5,16 @@
  *
  * Rows (`TUNE_ROW_IDS`): the body states (`BODY_GROUPS`, in order, so their indices are unchanged), then the move rows
  * `trav.<kind>` (moveTune's `TRAV_KINDS` plus `brace`, the booster's / holder's brace), `team.<move>.<a|b>` (moveTune's
- * `TEAM_MOVES`, role A and role B), then the action rows `air`, `land`, `slide`, `melee`, `reload`, `swap`, `throw`,
- * `hit`. Group ids: `joint.trav.vault`, `hand.rifle.reload`, `ik.air`, `weapon.pistol.throw`, `joint.team.boost.b`, ...
+ * `TEAM_MOVES`, role A and role B), then the action rows `air`, `land`, `melee`, `reload`, `swap`, `throw`, `hit`
+ * ((anim-n3b) the dash-in slide's row `slide` is gone with its move: `REMOVED_TUNE_ROWS`). Group ids: `joint.trav.vault`, `hand.rifle.reload`, `ik.air`, `weapon.pistol.throw`, `joint.team.boost.b`, ...
  *
  * The pick (`pickTuneRows`): the stance row (the body state, '' during a traversal move that has none) plus up to
  * `TUNE_MOVE_MAX` move / action rows with a weight 0..1 each, strongest first, into a preallocated result. Weights:
  * a traversal kind 1 while `traverse` is that kind; a team role 1 while `tuneTeam` names it; the actions the anim graph's
- * own blend weights (`AnimGraph.rowW`: air and slide its lower-state fades, land its landing clip's envelope, melee the
+ * own blend weights (`AnimGraph.rowW`: air its lower-state fade, land its landing clip's envelope, melee the
  * elbow arc's hand weight, reload / swap its overlay weights, throw its grenade hands weight, hit its flinch spring), or,
- * without a graph, 1 while the pose field is on (`grounded` false, `landing` > 0.5, `slide` / `melee` / `reload` / `swap`
- * / `grenade` >= 0). The panel follows the strongest move row while its weight is 0.5 or more, else the stance row.
+ * without a graph, 1 while the pose field is on (`grounded` false, `landing` > 0.5, `melee` / `reload` / `swap` /
+ * `grenade` >= 0). The panel follows the strongest move row while its weight is 0.5 or more, else the stance row.
  */
 import type { BodyGroup } from './tune';
 import type { TeamMoveId, TravKind } from './moveTune';
@@ -55,7 +55,22 @@ export const MOVE_TRAV_KINDS: readonly (TravKind | 'brace')[] = ['vault', 'mantl
 /** The team moves (moveTune `TEAM_MOVES`; a test keeps them equal). */
 export const MOVE_TEAM_MOVES: readonly TeamMoveId[] = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive'];
 /** The action rows, in the pick's priority order (a tie in weight keeps this order). */
-export const ACTION_ROWS = ['air', 'land', 'slide', 'melee', 'reload', 'swap', 'throw', 'hit'] as const;
+export const ACTION_ROWS = ['air', 'land', 'melee', 'reload', 'swap', 'throw', 'hit'] as const;
+/**
+ * (anim-n3b) Rows that existed once and were deleted with their move (the dash-in slide, Michael 2026-10-22). A save or
+ * an export from before still carries their groups (`joint.slide`, `ik.slide`, `hand.<gun>.slide`,
+ * `weapon.<gun>.slide`): the registry drops them on load and import (`isRemovedTuneGroup`) instead of keeping them as a
+ * section that never registers.
+ */
+export const REMOVED_TUNE_ROWS: readonly string[] = ['slide'];
+/** (anim-n3b) A group id of a removed row in the Joints / IK / Hands & feet / Weapon tables (the last segment after the
+ *  section and gun segments). Not hot: load and import only. */
+export function isRemovedTuneGroup(group: string): boolean {
+  const parts = group.split('.');
+  const sec = parts[0];
+  const row = sec === 'joint' || sec === 'ik' ? (parts.length === 2 ? parts[1] : '') : sec === 'hand' || sec === 'weapon' ? (parts.length === 3 ? parts[2] : '') : '';
+  return row !== undefined && row !== '' && REMOVED_TUNE_ROWS.includes(row);
+}
 export type ActionRow = (typeof ACTION_ROWS)[number];
 
 /** The move rows: traversal, then team (role A, role B per move). */
@@ -81,21 +96,19 @@ const ACTION_IDX: readonly number[] = ACTION_ROWS.map((a) => TUNE_ROW_INDEX[a]!)
 export interface TuneActionWeights {
   air: number;
   land: number;
-  slide: number;
   melee: number;
   reload: number;
   swap: number;
   throw: number;
   hit: number;
 }
-export const emptyActionWeights = (): TuneActionWeights => ({ air: 0, land: 0, slide: 0, melee: 0, reload: 0, swap: 0, throw: 0, hit: 0 });
+export const emptyActionWeights = (): TuneActionWeights => ({ air: 0, land: 0, melee: 0, reload: 0, swap: 0, throw: 0, hit: 0 });
 
 /** The RigPose fields the pick reads. */
 export interface TuneMovePoseIn {
   grounded: boolean;
   traverse?: string;
   landing?: number;
-  slide?: number;
   melee?: number;
   reload?: number;
   swap?: number;
@@ -167,20 +180,18 @@ export function pickTuneRows(pose: TuneMovePoseIn, wts: TuneActionWeights | null
   if (wts) {
     offer(out, ACTION_IDX[0]!, clamp01(wts.air));
     offer(out, ACTION_IDX[1]!, clamp01(wts.land));
-    offer(out, ACTION_IDX[2]!, clamp01(wts.slide));
-    offer(out, ACTION_IDX[3]!, clamp01(wts.melee));
-    offer(out, ACTION_IDX[4]!, clamp01(wts.reload));
-    offer(out, ACTION_IDX[5]!, clamp01(wts.swap));
-    offer(out, ACTION_IDX[6]!, clamp01(wts.throw));
-    offer(out, ACTION_IDX[7]!, clamp01(wts.hit));
+    offer(out, ACTION_IDX[2]!, clamp01(wts.melee));
+    offer(out, ACTION_IDX[3]!, clamp01(wts.reload));
+    offer(out, ACTION_IDX[4]!, clamp01(wts.swap));
+    offer(out, ACTION_IDX[5]!, clamp01(wts.throw));
+    offer(out, ACTION_IDX[6]!, clamp01(wts.hit));
   } else {
     if (!pose.grounded && (tr === undefined || tr === 'none')) offer(out, ACTION_IDX[0]!, 1);
     if ((pose.landing ?? 0) > 0.5) offer(out, ACTION_IDX[1]!, 1);
-    if ((pose.slide ?? -1) >= 0) offer(out, ACTION_IDX[2]!, 1);
-    if ((pose.melee ?? -1) >= 0) offer(out, ACTION_IDX[3]!, 1);
-    if ((pose.reload ?? -1) >= 0) offer(out, ACTION_IDX[4]!, 1);
-    if ((pose.swap ?? -1) >= 0) offer(out, ACTION_IDX[5]!, 1);
-    if ((pose.grenade ?? -1) >= 0) offer(out, ACTION_IDX[6]!, 1);
+    if ((pose.melee ?? -1) >= 0) offer(out, ACTION_IDX[2]!, 1);
+    if ((pose.reload ?? -1) >= 0) offer(out, ACTION_IDX[3]!, 1);
+    if ((pose.swap ?? -1) >= 0) offer(out, ACTION_IDX[4]!, 1);
+    if ((pose.grenade ?? -1) >= 0) offer(out, ACTION_IDX[5]!, 1);
   }
   const ids = out.ids;
   for (let k = 0; k < TUNE_MOVE_MAX; k++) {

@@ -8,8 +8,14 @@
  * (split halfway between the `GEARS.stand` walk, jog and run speeds), crouched walk / run (halfway between the crouched
  * jog and run speeds). (item 24, track A) Wren's planners (the player, the partner, the studio puppets) read this table;
  * a guard's reads the guards' (`tuneGuard.ts`), any other rig's the identity table `STEP_IDENTITY_ROWS`.
+ *
+ * (anim-bake-all, BA-A1) Wren's rows are the base table's `sections.step` (`animBase.ts`, through the registry's
+ * `tuneBaseValue`) times the tuner's values (`stepSet`, which the Stepping section syncs in): rebuilt on a set or a base
+ * load, never per frame. With no base value the rows are the tuner's values exactly (1 x v). The identity table never
+ * takes Wren's base; the guards' rows compose their own base (`animBaseGuard.ts`) in `tuneGuard.ts`.
  */
 import { GEARS } from '../config/movement';
+import { TUNE_BASE_HOOKS, tuneBaseValue } from './tuneRegistry';
 
 export const STEP_GAITS = ['idle', 'walk', 'jog', 'run', 'crouchWalk', 'crouchRun'] as const;
 export type StepGait = (typeof STEP_GAITS)[number];
@@ -34,8 +40,24 @@ export const STEP_PARAMS: readonly { id: StepParam; label: string; min: number; 
 ];
 
 const G = STEP_GAITS.length;
-/** `[gait * STEP_N + param]`, all 1 (identity). */
+/** `[gait * STEP_N + param]`: the composed rows (base x tuner) the planner reads, all 1 (identity) untuned. */
 const ROWS = new Float64Array(G * STEP_N).fill(1);
+/** (anim-bake-all) The tuner's values (`stepSet` / `stepGet`), all 1 at default. */
+const DELTA = new Float64Array(G * STEP_N).fill(1);
+/** (anim-bake-all) The base table's values (`sections.step`), all 1 where unset. */
+const BASE = new Float64Array(G * STEP_N).fill(1);
+
+/** (anim-bake-all) The base rows from the registry's table, and the composed rows. Not hot (a load). */
+export function stepBaseSync(): void {
+  for (let g = 0; g < G; g++) {
+    for (const p of STEP_PARAMS) {
+      const i = g * STEP_N + SP[p.id];
+      BASE[i] = tuneBaseValue('step', `step.${STEP_GAITS[g]!}`, p.id) ?? 1;
+      ROWS[i] = BASE[i]! * DELTA[i]!;
+    }
+  }
+}
+
 /**
  * (item 24, track A) A fixed identity table (never written): the planners of rigs that are neither Wren's nor a guard's
  * (the VIP, the training dummy, a carried body) read it, so Wren's Stepping rows reach Wren only. Shared, allocated once.
@@ -92,16 +114,29 @@ export function stepStride(speed: number): number {
   return t < 0.5 ? a + (b - a) * t * 2 : b + (c - b) * (t * 2 - 1);
 }
 
+/** The tuner's value (the Stepping section's, before the base). */
 export function stepGet(gait: number, p: number): number {
+  return DELTA[gait * STEP_N + p]!;
+}
+
+/** Set the tuner's value; the planner's row gets base x value. */
+export function stepSet(gait: number, p: number, v: number): void {
+  const i = gait * STEP_N + p;
+  DELTA[i] = v;
+  ROWS[i] = BASE[i]! * v;
+}
+
+/** (anim-bake-all) The row value the planner reads (base x tuner). */
+export function stepRowGet(gait: number, p: number): number {
   return ROWS[gait * STEP_N + p]!;
 }
 
-export function stepSet(gait: number, p: number, v: number): void {
-  ROWS[gait * STEP_N + p] = v;
-}
-
-/** Every gait back to identity (tests). */
+/** Every gait's tuner values back to identity (tests): the rows are the base again. */
 export function stepResetAll(): void {
-  ROWS.fill(1);
+  DELTA.fill(1);
+  ROWS.set(BASE);
   STEP.fill(1);
 }
+
+stepBaseSync();
+TUNE_BASE_HOOKS.push(stepBaseSync);

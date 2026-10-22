@@ -415,15 +415,30 @@ async function securityRoom(x0) {
 }
 const P5 =(P, b, v) => P.evaluate(([b, v]) => window.__pad.set(b, v), [b, v]);
 
-/** Station 4: a laser touch costs health and never ends the run; the held jammer switches the laser off. */
+/**
+ * Station 4: a laser break sets off the alarm and costs no health (sector-fixes C, item 5); its beams are infrared, drawn
+ * only in night vision (item 4); the held jammer switches the laser off.
+ */
 async function laserTest(x0) {
   const hp = () => GB(() => window.__app.current.target.health.hp);
+  const beams = (P) => P.evaluate(() => window.__ctdev.lasers[0].meshes.map((m) => m.isEnabled(false)));
+  const alarms = () => GA(() => window.__course.state.stats[3].alarms);
+  // IR: hidden in normal vision, drawn in night vision (render only, local), hidden again with the goggles off
+  assert((await beams(B)).every((v) => !v), 'station 4: the laser beams are invisible in normal vision');
+  await B.evaluate(() => window.__app.current.vision.set('night'));
+  await until(B, () => window.__ctdev.lasers[0].meshes.every((m) => m.isEnabled(false)), null, 3000, 'station 4: night vision shows the IR beams');
+  await B.evaluate(() => window.__app.current.vision.set('electro'));
+  await until(B, () => window.__ctdev.lasers[0].meshes.every((m) => !m.isEnabled(false)), null, 3000, 'station 4: electro does not show the beams');
+  await B.evaluate(() => window.__app.current.vision.set('off'));
   const hp0 = await hp();
+  const al0 = await alarms();
+  const hits0 = (await dev(A)).hits;
   await moveClient(x0 + 9 - 0.2, 7);
-  await until(B, (h) => window.__app.current.target.health.hp < h, hp0, 20000, 'station 4: touching the laser costs the client health');
+  await until(A, (n) => window.__ctdev.debug().hits > n, hits0, 20000, 'station 4: the host counts the client breaking the beam');
+  await until(A, (n) => window.__course.state.stats[3].alarms > n, al0, 5000, 'station 4: the break sets off the alarm (the course stat, on the camera path)');
+  await sleep(1500);
   const hp1 = await hp();
-  assert(hp1 > 0 && hp0 - hp1 >= 10, `station 4: the touch cost health (${hp0} -> ${hp1}) and the run goes on`);
-  assert((await dev(A)).hits >= 1, 'station 4: the host counted the touch');
+  assert(hp1 === hp0, `station 4: the break cost no health (${hp0} -> ${hp1}), alarms ${al0} -> ${await alarms()}`);
   // the host jams the laser from a few metres back
   await moveClient(x0 + 5, 12.4);
   await moveHost(x0 + 4, 7);
@@ -433,10 +448,11 @@ async function laserTest(x0) {
   await until(A, () => window.__ctdev.debug().jam[0] === 'laser-s4', null, 20000, 'station 4: the host jams the laser');
   await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
   const hp2 = await hp();
+  const hj = (await dev(A)).hits;
   await moveClient(x0 + 9 - 0.2, 7);
-  // (marlow-jammer) inside the 5 s jam (it then reboots 1.5 s): 2 s on the beam line costs nothing
+  // (marlow-jammer) inside the 5 s jam (it then reboots 1.5 s): 2 s on the beam line, no break (sector-fixes C: no alarm, no cost)
   await sleep(2000);
-  assert((await hp()) === hp2, 'station 4: no cost while the laser is jammed');
+  assert((await hp()) === hp2 && (await dev(A)).hits === hj, 'station 4: no break while the laser is jammed');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: released, the laser is on again');
   await until(B, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: the client page sees it on again');

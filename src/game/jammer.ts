@@ -281,7 +281,7 @@ export interface LaserDef {
   /** Beam heights above the floor (m). */
   ys: number[];
   floorY?: number;
-  /** Label for the radio line when it is touched. */
+  /** Label for the radio line and the alarm banner when it is broken. */
   label?: string;
   /** (CT prototype B4) A course flag that switches the laser off for good (a far-side release switch). */
   offFlag?: string;
@@ -289,15 +289,17 @@ export interface LaserDef {
   section?: number;
 }
 
+/**
+ * The laser sensor. (sector-fixes C, item 5, Michael 2026-10-22: "Lasers should set off alarms, not hurt you.") A break
+ * raises the alarm stage on the camera's path (`deviceAlarm`) and never deals damage (the old "Health hit (CT)" pick and
+ * its `damage` / `floorHp` are gone). (Item 4, Michael's answer "Night vision": the beams are infrared, drawn only in
+ * night vision; render only, the sensor works the same in every vision mode.)
+ */
 export const LASER = {
-  /** Health cost of one touch (of 100). Michael's pick: "Health hit (CT)". */
-  damage: 15,
-  /** Seconds before the same player can be hit again. */
+  /** Seconds before the same player can break it again (one alarm per break, not one per step). */
   cooldown: 2,
   /** Beam thickness plus body radius (m): a body within this of the beam line touches it. */
   reach: 0.3,
-  /** A touch never takes a player below this: it costs health and a radio line, it never ends the run. */
-  floorHp: 1,
   /** Body height (m) standing / crouched (the beams it can touch). */
   standHeight: 1.75,
   crouchHeight: 1.1,
@@ -327,12 +329,7 @@ export function laserTouch(def: LaserDef, px: number, py: number, pz: number, he
   return false;
 }
 
-/** Health a touch takes from a player at `hp`: `LASER.damage`, never below `LASER.floorHp` left. */
-export function laserDamage(hp: number): number {
-  return Math.max(0, Math.min(LASER.damage, hp - LASER.floorHp));
-}
-
-/** Per-player touch cooldown: true when a touch lands now (and arms the cooldown), false while it is cooling. */
+/** Per-player break cooldown: true when a break counts now (and arms the cooldown), false while it is cooling. */
 export function laserCooldown(cool: { t: number }, dt: number, touching: boolean): boolean {
   cool.t = Math.max(0, cool.t - dt);
   if (!touching || cool.t > 0) return false;
@@ -348,6 +345,14 @@ export const ALARM_GAP = 5;
 /** Next alarm stage after a camera has someone (capped at `ALARM_MAX`). */
 export function nextAlarm(stage: number): number {
   return Math.min(ALARM_MAX, stage + 1);
+}
+
+/**
+ * (sector-fixes C, item 5) The security devices' one alarm path (a camera at full awareness, a laser break): the stage
+ * after a trip `since` s after the last escalation, or -1 inside `ALARM_GAP` (no escalation).
+ */
+export function deviceAlarm(stage: number, since: number): number {
+  return since < ALARM_GAP ? -1 : nextAlarm(stage);
 }
 
 /** Is the foot point inside the plan box [x0, z0, x1, z1]? (the camera pocket, the pass zone) */

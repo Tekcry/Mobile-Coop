@@ -2,11 +2,14 @@
 // slider reads identity again once it is reset in the tuner.
 //   node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]
 // --dry-run prints the diff and the table and writes nothing. A real run writes the source files (Joints, Hands & feet,
-// IK strength, Weapon and (anim-gear) Gear into the generated base table src/anim/animBase.ts, anim-joints J1), the Keys section's key
+// IK strength, Weapon, (anim-gear) Gear, (anim-bake-targets) Body and (anim-bake-all) every slider with no code value of
+// its own into the generated base table src/anim/animBase.ts, anim-joints J1), the Keys section's key
 // JSONs (the apply-tune functions) and the ledger src/anim/tuneBakeLog.json, then prints the rebake commands (it never
-// runs Blender) and the table. Sections: body, gun, cam, speed, joint, hand, ik, weapon, step, gear, keys, weight,
-// (item 24, track A) guardJoint, guardStep, guardWeight (into the generated guard table src/anim/animBaseGuard.ts).
-// (clip-speed, track A) clip (Clip speed). (anim-n4) cq (holds and carries).
+// runs Blender) and the table. (item 24, track A) Guard joints, Guard stepping and Guard weight go into the generated
+// guard table src/anim/animBaseGuard.ts instead (never Wren's); (clip-speed, track A) Clip speed and (anim-n4) cq
+// (holds and carries, CQ_GAIT) through their code rules.
+// Sections (--only): every registered or declared section id (body, gun, cam, speed, joint, hand, ik, weapon, step, gear,
+// weight, clip, cq, guardJoint, guardStep, guardWeight, team_boost ... team_revive, trav) and keys.
 // The mapping is src/anim/tuneBakeTable.ts, the logic src/anim/tuneBake.ts; docs/anim-tuner/BAKE.md.
 import { readFileSync, writeFileSync, existsSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -54,19 +57,21 @@ const { TUNE_SECTIONS } = await load('src/anim/tuneRegistry.ts');
 const { WEIGHT_GROUPS, WEIGHT_TUNABLES } = await load('src/anim/weight.ts');
 const bake = await load('src/anim/tuneBake.ts');
 
-const SECTIONS = ['body', 'gun', 'cam', 'speed', 'joint', 'hand', 'ik', 'weapon', 'step', 'gear', 'keys', 'weight', 'guardJoint', 'guardStep', 'guardWeight', 'clip', 'cq']; // (clip-speed, track A) clip; (anim-n4) cq; (item 24, track A) the guard table
+const cat = bake.bakeCatalogue([
+  ...TUNE_SECTIONS.filter((s) => s.id !== 'keys'),
+  { id: 'weight', tunables: WEIGHT_TUNABLES.map((t) => ({ ...t, groups: WEIGHT_GROUPS })) },
+  ...table.DECLARED_SECTIONS,
+]);
+
+// (anim-bake-all) every section the catalogue knows (the co-op and traversal move sections, (item 24) the guard sections,
+// (clip-speed) clip and (anim-n4) cq too: cqGait.ts is a catalogue module), plus keys
+const SECTIONS = [...cat.bySection.keys(), 'keys'];
 for (const s of only) {
   if (!SECTIONS.includes(s)) {
     console.error(`anim-tune-bake: unknown section ${s} (${SECTIONS.join(', ')})`);
     process.exit(1);
   }
 }
-
-const cat = bake.bakeCatalogue([
-  ...TUNE_SECTIONS.filter((s) => s.id !== 'keys'),
-  { id: 'weight', tunables: WEIGHT_TUNABLES.map((t) => ({ ...t, groups: WEIGHT_GROUPS })) },
-  ...table.DECLARED_SECTIONS,
-]);
 
 let data;
 try {
