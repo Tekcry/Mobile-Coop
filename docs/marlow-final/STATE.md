@@ -14,6 +14,10 @@
 - Pacing (Michael 01:12 via the orchestrator): this window full burn to 100%. After his reset: pace each 5-hour
   window to ~97-99% at its reset; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~01:50 slice 0 devices IN (34cb5b52): N6 scanner pairs, PROTOCOL_VERSION 30, PassZone.any (src/game/passZones.ts);
+  tsc, eslint, 2 new test files 15 passed, 10 related files 226 passed. Report slices/S0-devices.md. Set builders:
+  every new zone / scanner flag goes in `def.externalFlags`. e2e for slice 0: e2e-coop, e2e-netmove, e2e-ctcourse
+  (after the course half lands). Greybox-helper tester started (tests/ctcourseGreybox.test.ts).
 - Gap list landed (COOP-GAPS.md), routed to the spec, slice 0 course and lighting agents (~01:40).
 - Michael 01:40 (via the orchestrator): Course Ready leads the Sector Ops redesign and is NO LONGER our second builder;
   marlow-final builds every slice (up to 6 agents). Lighting for ALL maps: "review lighting also, i think the rules
