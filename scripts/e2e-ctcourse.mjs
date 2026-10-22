@@ -5,7 +5,7 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser (sector-fixes P: jammed at its power panel); (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -334,6 +334,16 @@ async function station3(x0) {
   assert(fr.fz >= 800 && fr.fzB >= 800, `station 3: the freeze windows ran 800 ms on each page's clock (host ${fr.fz.toFixed(0)} ms, client ${fr.fzB.toFixed(0)} ms)`);
   assert(fr.jam === 1, `station 3: the host's jam is still on at the client's last read (jam phase ${fr.jam}, ${fr.left} s left)`);
   assert(fr.mA < 1e-6 && fr.mB < 1e-6 && !fr.thawB && fr.frozenB, `station 3: the jammed camera stops sweeping on both pages (host moved ${fr.mA}; client moved ${fr.mB}, thawed ${fr.thawB})`);
+  // (load-latent-net) the reboot (jam phase 2) is read on the host step it starts: polled from here, under load it could
+  // be over (or the cooldown run down) before the read. Installed after the last freeze-window try (the jam is on,
+  // asserted above), so it catches the 1 -> 2 step of this jam; per step it reads only the camera's jam phase and runs
+  // the full debug() on the hit step
+  const rebootKey = await onHostStep(A, (g, _a, st) => {
+    const j = window.__ctdev.cams[0].jam;
+    const hit = st.prev === 1 && j === 2;
+    st.prev = j;
+    return hit ? window.__ctdev.debug() : undefined;
+  });
   const buzz = (P) => P.evaluate(() => window.__ctdev.nearestJammed(0, 0, 0, { x: 0, y: 0, z: 0 }));
   assert((await buzz(A)) && (await buzz(B)), 'station 3: both pages have a jammed device to buzz at');
   await until(A, cueOff, null, 3000, "station 3: the jammed camera's grid fades out (host)");
@@ -346,7 +356,7 @@ async function station3(x0) {
   await aimAt(B, ...CAM);
   // the 5 s cap ends the host's jam (still held): the cooldown runs, the camera reboots, still blind and frozen
   await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, "station 3: the 5 s cap ends the host's held jam");
-  const dc = await dev(A);
+  const dc = await hostStepResult(A, rebootKey, 8000, 'station 3: the host step the camera starts its reboot');
   assert(dc.cool[0] > 3 && dc.cams[0].jam === 2 && dc.cams[0].mode === 'off' && dc.cams[0].frozen, `station 3: the host cools down (${dc.cool[0]}), the camera reboots blind (${dc.cams[0].jam}, ${dc.cams[0].mode})`);
   assert(dc.alarm === al, 'station 3: the client crossed without the camera reacting');
   // the reboot refuses a jam: the client holds Co-op on it now
@@ -675,6 +685,9 @@ async function hangDown(x0) {
   // pulled back up (the client's Co-op)
   await holdUntil(B, RB, () => window.__app.current.team.count.pulls >= 1, 'station 5: the client is pulled back up');
   await until(A, () => window.__app.current.team.state === 'none', null, 8000, 'station 5: the holder is free');
+  // (load-latent-net) the holder frees on the host step; the client's own pull-up still runs on its slower clock: wait for
+  // it there, then the same check
+  await until(B, () => { const g = window.__app.current; return g.player.controller.pos.y > 4.2 && g.player.pose.tumble === 0 && g.team.state === 'none'; }, null, 8000, 'station 5: the client is back on the roof, upright').catch(() => {});
   const up = await GB(() => { const g = window.__app.current; return { y: g.player.controller.pos.y, tumble: g.player.pose.tumble, st: g.team.state }; });
   assert(up.y > 4.2 && up.tumble === 0 && up.st === 'none', `station 5: the client is back on the roof, upright (y ${up.y.toFixed(2)})`);
 }
@@ -800,7 +813,18 @@ async function station6(x0) {
   assert(hp1 > 0 && hp0 - hp1 >= 9 && hp0 - hp1 <= 10, `station 6: the failed hack cost ${hp0 - hp1} HP (${hp0} -> ${hp1}), the run goes on`);
   await until(A, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (host)');
   await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'idle' && s.ph[1] === 'idle'; }, null, 8000, 'station 6: both scanners reset (client page)');
-  const [ra, rb] = await Promise.all([use(A, 'c-sw-s6-a'), use(B, 'c-sw-s6-b')]);
+  // (load-latent-net) the client starts scanner B; the host starts scanner A on its own fixed step that first sees B
+  // started (two presses from here landed seconds of host time apart under load, past the sync window)
+  const s6Key = await onHostStep(A, (g) => {
+    if (window.__ctdev.debug().scan.ph[1] === 'idle') return undefined;
+    const it = g.interactables?.items.find((i) => i.id === 'c-sw-s6-a');
+    if (!it) return 'missing';
+    if (!it.enabled) return 'disabled';
+    it.onUse(it, 'local');
+    return 'ok';
+  });
+  const rb = await use(B, 'c-sw-s6-b');
+  const ra = rb === 'ok' ? await hostStepResult(A, s6Key, 8000, 'station 6: the host sees scanner B started and starts scanner A') : (await offHostStep(A, s6Key), 'client not pressed');
   assert(ra === 'ok' && rb === 'ok', `station 6: both start the hacks together (${ra}, ${rb})`);
   await until(A, () => window.__course.debug().gates['g-s6'], null, 15000, 'station 6: both hacks inside the window open the door');
   await until(B, () => { const s = window.__ctdev.debug().scan; return s.ph[0] === 'done' && s.ph[1] === 'done'; }, null, 8000, 'station 6: the client page sees both scanners done');
@@ -844,7 +868,19 @@ async function openGate(n, i) {
     await pullUp(B, 'station 5 client');
     await moveHost(x0 + 11, 3.6, 4.5);
     await moveClient(x0 + 11, 10.4, 4.5);
-    const [ra, rb] = await Promise.all([use(A, 'c-sw-s5-a'), use(B, 'c-sw-s5-b')]);
+    // (load-latent-net) the client presses plate B; the host presses plate A on its own fixed step that first sees B's
+    // press stamped on the gate (PAIR_WINDOW is 1.0 s of host time; two presses from here could land further apart)
+    const s5Key = await onHostStep(A, (g) => {
+      const gt = window.__course.state.gates.find((x) => x.def.id === 'g-s5');
+      if (!(gt.tb >= 0 && gt.pb !== 0)) return undefined;
+      const it = g.interactables?.items.find((i) => i.id === 'c-sw-s5-a');
+      if (!it) return 'missing';
+      if (!it.enabled) return 'disabled';
+      it.onUse(it, 'local');
+      return 'ok';
+    });
+    const rb = await use(B, 'c-sw-s5-b');
+    const ra = rb === 'ok' ? await hostStepResult(A, s5Key, 8000, "station 5: the host sees the client's roof plate and presses its own") : (await offHostStep(A, s5Key), 'client not pressed');
     assert(ra === 'ok' && rb === 'ok', `station 5: both roof plates pressed (${ra}, ${rb})`);
     await until(A, () => window.__course.debug().gates['g-s5'], null, 8000, 'station 5: the roof pair gate opens');
   } else if (n === 3) {
@@ -892,10 +928,16 @@ async function station8(x0) {
     r.protectT = 0;
     r.applyDamage({ amount: 1000, point: r.feet.clone(), sourcePos: r.feet.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'explosion', attackerTeam: 'enemy', attackerId: '' });
   }, clientId);
+  const hostT = () => GA(() => window.__app.current.time);
+  const tDown = await hostT();
   await until(B, () => !window.__app.current.player.alive, null, 5000, 'station 8: the client is down');
   await until(B, () => /DOWN - revive in \d+ s/.test(document.querySelector('.hud-down-timer')?.textContent ?? ''), null, 8000, 'station 8: the downed client sees the revive countdown');
-  await waitSim(2500);
+  // (load-latent-net) 2.5 s of the host's clock (the window runs there; `waitSim` counts the slower client clock, and
+  // under load 3-5x more host time passed)
+  const w8 = await waitHostSim(A, 2500);
+  assert(w8 >= 2500, `station 8: the pause ran 2.5 s on the host's clock (${w8.toFixed(0)} ms)`);
   const left = await GA((id) => window.__app.current.net.reviveClock.remaining(id), clientId);
+  console.log(`  (station 8: ${((await hostT()) - tDown).toFixed(2)} s of host time from the downing to the read)`);
   assert(left > 15 && left < 30, `station 8: the 30 s window runs on the host (sim time) (${left.toFixed(1)} s left)`);
   await GA((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); it.onUse(it); }, clientId);
   await until(B, () => window.__app.current.player.alive, null, 8000, 'station 8: the host revives the client inside 30 s');
