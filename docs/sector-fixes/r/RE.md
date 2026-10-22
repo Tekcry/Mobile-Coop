@@ -43,3 +43,20 @@ Log on the laptop: `C:/NightShift/scratch/runs/sectorfixesr-2f40ed74/`. Build ok
 | S3 C1 lip to the main: took the branch | Test. Hanging, the camera stays within 2.2 rad of the body's facing, so "stick forward with the camera turned away" pointed north-west; and the main, 0.18 m out from the body, is only taken as a jump up (stick into the wall) | `hangJump` sets the stick against the camera's real yaw; the lip -> main jump uses the stick into the platform |
 | S3 C2 branch to the main: stops at x 16.55 | Test. The 0.45 m end stop | Threshold 16.5 (and the main's north end 12.15, not 12.3) |
 | Runner: e2e-sectorops ran as one job | `run-e2e.mjs` expanded PARTS only for the default list, never for named suites | `expand(named)`: `e2e-sectorops` runs as `:1`-`:5`, `e2e-sectorops:2` as itself |
+| (added scope) Michael M1 "Add another": S2 had only C1b + the team door | - | S2 C2, the dispatch landing (`S2_LANDING`, R2.md): unit tests, part 2 solo refusal / stack jump / climb-up / let go, part 4 leg-up + relay |
+
+## Desktop runs (e2e fix round, all E2E_GPU=1, port 4192, E2E_JOBS=1, the GPU lane `heavy2.lock`)
+
+| Commit | Suites | Result |
+| --- | --- | --- |
+| working tree (S1 / S3 fixes, before the test fixes) | e2e-sectorops:2 | FAIL 34 s: the pallet run off, the floor take-offs, S3 C1 lip -> main (branch taken); the S3 climb-ups, the S1 C2 end stop and the S3 C2 branch passed |
+| working tree (+ test fixes) | e2e-sectorops:2, :3, :5 | ok 27 s, 23 s, 37 s |
+| working tree (+ S2 C2) | e2e-sectorops:2, :4 | ok 35 s, 41 s |
+| ed2601d2 (final code) | e2e-sectorops:1-5, e2e-coop, e2e-netmove, e2e-lightbake, e2e-levels, e2e-anchors | all ok, each to completion: sectorops :1 48 s, :2 33 s, :3 24 s, :4 37 s, :5 34 s; coop 66 s; netmove 130 s; lightbake 63 s; levels 5 s; anchors 4 s (wall 446 s) |
+
+Unit checks on ed2601d2: `npx tsc --noEmit -p .` clean; eslint clean on the changed src / tests files (the two scripts are
+eslint-ignored); `npx vitest run tests/warehouse tests/sector tests/attach tests/anchors.test.ts`: 16 files, 190 passed,
+3 skipped. Not run: the CORE suites (e2e-move / combat / anim) that a `run-e2e.mjs` edit picks in a quick run.
+
+Polish (not blocking): R3S's and the S2 landing's tops are under the hall roof's visual panel (6.03, no collision), so a
+player standing up there (not crouched) clips about 0.1 m into the drawn roof; the S3 platforms have hoods instead.
