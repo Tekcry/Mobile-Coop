@@ -1,5 +1,10 @@
 # mocap-trial - state
 
+## 2026-10-22 ~22:50 SAVE: checker FIX (CHECK.md), suites 5 / 6 (studio = master timing)
+- Next: (1) merge origin/master 4.58.3 (clean expected); (2) one Opus fix round on CHECK.md required 1, 1b, 2, decide 3
+  (cap start-slot arm weight 0.5), note 5 (gate the pitch < 0 branch on clip feet); (3) rerun the six suites on the GPU
+  (/c/NightShift/mt-e2e.sh, detached); (4) REPORT.md, PR (minor; suites + Menu Notes sheets in the body).
+
 ## 2026-10-22 ~22:35: real CMU clips in (a05bdde7); six GPU suites running
 - Integration done: subject 16 walk / jog / run, walk turns 16_18 / 16_19, start 16_31, stop 16_34, turn in place 69_13;
   MOCAP_LAYERS tuned (the capture's own arms, twist, lean, follow); headless slide 0, stride 1.000; mocapSwitch 12 / 12.
