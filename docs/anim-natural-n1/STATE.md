@@ -1,5 +1,12 @@
 # anim-natural N1 - state
 
+## 2026-10-22 ~16:00: desktop runs on 2ea66da8 (/c/NightShift/ctb6.out)
+- e2e-move ok: "stopping: planted feet stay planted at the contact (0.00 cm, ankle 1.87 cm, 2 plants)" (decision 5).
+- e2e-clip --log: N1 FAILS "crouched holstered: arms / hands through the thighs" min -3.2 cm (limit -3.0?), the right
+  wrist vs the right thigh, crouched and still from t 5 to 16 (/c/NightShift/ctb6-clip-n1.log). Master 6c2d50a4 passes
+  at -2.7 (ctb6-clip-master.log). Row summary: N1 knees 11.6 / feet 10.8 cm vs master 11.2 / 9.7: N1's crouched
+  feet stand 1.1 cm wider. Cause being traced by an agent (16:00).
+
 ## Now (2026-10-22 ~14:30, new account)
 Fix round done (e3be8b36, REPORT-C.md: all 10 CHECK findings + Course Ready's two N4 inputs); master 4.53.0 merged
 (49c4eca4: footPlanner keeps a guard's GUARD_STEP_ROWS via stepSelectRows under the turn rules; tsc + 12 test files
