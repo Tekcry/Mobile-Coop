@@ -2,10 +2,10 @@
  * mocap-trial-2 fix A (CHECK-3): the rig driven the way player.ts drives it for a CT player (pace through CT's springs,
  * quickStop 0.12 always, the stop hold's holdSpeed, flicks at CT's 7.85 rad/s, the 0.22 s eased crouch; the helper is
  * tests/helpers/mocapPlayer.ts). Each plan runs switch OFF and ON; ON must hold the rules: bone and ankle-toe steps
- * <= OFF + 2 deg or <= 24 deg, planted slide < 2 cm, the pelvis step beyond pace x dt <= max(2 cm, OFF).
+ * <= OFF + 2 deg or <= 24 deg, planted slide < 2 cm (or no more than OFF's), the pelvis step beyond pace x dt <= max(2 cm, OFF).
  * Items 1 (pace changes while turning, pace swings) and 2 (CT starts after a short stand) are fixed in fix A, item 3
- * (walking flicks) in fix B; 5 (the switch toggled mid-move, partly fixed in fix B) and 4 and 6 are skipped
- * (MOCAP_PLAYER_ALL=1 runs them; MOCAP_PLAYER_LOG=<file> appends every row).
+ * (walking flicks) in fix B, items 4 and 6 in fix C; 5 (the switch toggled mid-move, partly fixed in fix B) is skipped
+ * (MOCAP_PLAYER_ALL=1 runs it; MOCAP_PLAYER_LOG=<file> appends every row).
  */
 import { appendFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -122,7 +122,8 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     ]);
   }, 300_000);
 
-  itOther('6a: crouching while jogging (open)', async () => {
+  // (fix C) 6a: a clip swing handed to the planner as the crouch takes the jog's share kept its whole gap (23 cm a frame)
+  it('6a: crouching while jogging', async () => {
     await check([{ label: 'crouch at 2.8 m/s', target: (t) => { const c = t > 2.51 && t < 4.51 ? 1 : 0; return { v: c ? 2.6 : 2.8, yr: 0, crouch: c }; }, steps: 360, recFrom: 1.5 }]);
   }, 300_000);
 });
