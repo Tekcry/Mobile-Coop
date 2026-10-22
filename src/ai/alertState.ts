@@ -53,7 +53,9 @@ export interface AlertInput {
   arrived: boolean;
   /** Seconds since the target was last seen. */
   sinceSeen: number;
-  /** A sound was heard this step (has a place to look at). */
+  /** A sound was heard this step that he is to check (has a place to look at): suspicious, then he walks over after
+   *  `hearLook`. (guard-ai S1) With coordinated hearing only the guard sent to the noise gets it (`Enemy.hear`); the
+   *  others only turn (`Enemy.hearTurn`: a meter floor below `investigate`, no `heard`). */
   heard: boolean;
   /** Hard triggers: shot at / hit, gunfire close by, a squadmate's alert call, a body found (search). */
   damaged: boolean;
