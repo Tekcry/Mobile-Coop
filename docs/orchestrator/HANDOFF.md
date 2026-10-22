@@ -17,7 +17,8 @@ Open work:
   e2e-studio, then a train.
 - anim-natural N1 feet (CT Core, feature/anim-natural-n1 bccc42e8): checker FAIL (heel scrub in the heel-first roll, 6
   should-fix; docs/anim-natural-n1/CHECK.md): one fix round, then check, e2e, GPU sheets.
-- anim-natural N3 draws (Menu Notes, feature/anim-n3 21235b53): checker PASS WITH FIXES; fix round (RT during holster
+- anim-natural N3 draws (Menu Notes, feature/anim-n3 5348f9be): checker PASS WITH FIXES; fix round half done, unverified
+  (fix 1 has no test; fix 2 fails 5 of 8 mid-draw scenarios, suspects in WIP.md) (RT during holster
   dropped; holster / traversal mid-draw snaps the gun), merge master (4.53.0 has #109 clip speed), area e2e, PR.
 - anim-natural N4 holds and carries (Course Ready, feature/anim-n4 082be068): checker FIX; fix round (load share on the
   carry lean; the lift crouch must not wait on animation foot contact in the sim), merge master, PR.
