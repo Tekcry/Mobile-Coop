@@ -6202,12 +6202,12 @@
  },
  "partner:moves": {
   "steps": 180,
-  "rig": "61e9031ea4aa3bbf",
+  "rig": "227baa495fb77417",
   "poser": {
-   "hero": "a65f6ded17db0f72",
-   "lod0": "809451f30e396bed",
-   "lod1": "809451f30e396bed",
-   "lod2": "809451f30e396bed"
+   "hero": "345e5d3521b2f496",
+   "lod0": "4ea5452a7feaac0d",
+   "lod1": "4ea5452a7feaac0d",
+   "lod2": "4ea5452a7feaac0d"
   },
   "last": [
    0,

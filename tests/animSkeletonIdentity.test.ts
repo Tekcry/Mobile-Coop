@@ -34,6 +34,9 @@
  * entries; with the planner forced to turnRule 0 it matched N2's on 40 of 40. Only partner:moves moved from N2's (1 of
  * 40: the turn rules on the layer); from N1's keyed:run (N2's A1 run keys) and partner:moves (2 of 40). The motion-off
  * fixture re-captured too (N2's but partner:moves); the guard fixture is N1's, unchanged.
+ * (anim-natural N2, #138 fix round: N1's planner pushes uncrossed feet in the body frame too, crouch entry re-steps the
+ * right foot first) Re-captured: partner:moves only (both fixtures); with the turn rules off (turnRule 0) the planner
+ * is bit-identical, so nothing else can move.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

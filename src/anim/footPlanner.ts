@@ -691,15 +691,33 @@ export class FootPlanner {
 
   /**
    * (A1.2) Hard no-crossing post-pass in the pelvis frame: an airborne foot within TURN_FOLLOW.nearAlong front to back of
-   * the other is pushed outward to at least TURN_FOLLOW.minGapAny from it; a planted foot is never moved.
+   * the other is pushed outward to at least TURN_FOLLOW.minGapAny from it; a planted foot is never moved. (n138 fix) With
+   * the turn rules, then the same in the body (root yaw) frame.
    */
   private uncross(i: PlannerInput): void {
-    const py = this.pelvis(i);
-    const c = Math.cos(py);
-    const s = Math.sin(py);
+    if (this.L.contact && this.R.contact) return;
+    this.ucYaw = this.pelvis(i);
+    this.uncrossIn();
+    // (anim-natural N1, n138 fix) with the turn rules the body frame too: a turn's crossing swing (a left foot swung into
+    // a right turn) sits across the planted foot, and with the hips trailing the facing the pelvis-frame window let it
+    // through on alternate frames as `along` hovered at its edge (e2e-anim run 90: -17.4 cm in the body frame, the frame
+    // the turn steps and the e2e measure in)
+    if (this.turnOn) {
+      this.ucYaw = i.yaw;
+      this.uncrossIn();
+    }
+  }
+
+  /** (n138 fix) The frame `uncrossIn` measures in (yaw, rad): a field, not an argument (a double passed to a call that
+   *  is not inlined is boxed). */
+  private ucYaw = 0;
+
+  /** One no-crossing push (the A1.2 rule) in the frame of yaw `ucYaw`. No allocation. */
+  private uncrossIn(): void {
+    const c = Math.cos(this.ucYaw);
+    const s = Math.sin(this.ucYaw);
     const L = this.L;
     const R = this.R;
-    if (L.contact && R.contact) return;
     const along = (L.x - R.x) * s + (L.z - R.z) * c;
     if (along > TURN_FOLLOW.nearAlong || along < -TURN_FOLLOW.nearAlong) return;
     const gap = (R.x - L.x) * c - (R.z - L.z) * s;
@@ -1165,7 +1183,17 @@ export class FootPlanner {
     // stance a turn's steps leave) is not always the left foot's: the foot planted longer steps first, the feet take
     // turns (the left foot's crouch-entry re-step right after its own step: the right wrist 3.2 cm into the right thigh,
     // e2e-clip crouched holstered)
-    if (this.turnOn && worst && Math.abs(errL - errR) < IDLE_TIE * worstErr && this.L.plantT !== this.R.plantT) {
+    // (n138 fix) Crouching down, the re-step out of the narrow standing stance (Michael's trackMul 0.05: the feet ~3 cm
+    // off the line) takes the right foot first whenever it has to step: Wren's right hand is the one nearer its thigh
+    // (the closest arm-to-leg point in every measured frame), and the left foot going first left the right leg narrow
+    // and loaded as the hands came down onto the knees (headless e2e-clip replay: the right wrist 2.83 cm into the right
+    // thigh, 2.4 cm with the right foot first, tests/crouchEntryRig.test.ts). Which foot went first had been the turn
+    // history's (plantT), so a different arrival flipped it (e2e-clip in-game -2.9 cm on N1, -3.2 after the master
+    // 4.58.0 merge).
+    if (this.turnOn && worst && this.restepT > 0 && i.crouch > 0.5 && errR > STEP[SP.replant]!) {
+      worstSide = 1;
+      worst = this.R;
+    } else if (this.turnOn && worst && Math.abs(errL - errR) < IDLE_TIE * worstErr && this.L.plantT !== this.R.plantT) {
       worstSide = this.L.plantT > this.R.plantT ? -1 : 1;
       worst = worstSide < 0 ? this.L : this.R;
     }

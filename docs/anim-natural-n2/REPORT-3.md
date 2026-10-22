@@ -110,3 +110,21 @@ The step 3 table above is the step's own measure; these rows supersede its run a
 ## For Michael (added)
 The run arms no longer snap back-to-front at each foot strike: they ease out of each extreme (his range and elbow bend
 kept; the mid-swing comes about 3/48 of a cycle later than his tune).
+
+## #138 fix round (2026-10-22 ~22:00): train 8's two failures, both N1's planner (fail at 08023227 alone)
+- e2e-anim run 90 "feet never cross" (-17.4 cm): N1's no-crossing push (`uncross`) measured only in the pelvis frame
+  with a hard 25 cm fore-aft window; in a run turn the swinging foot hovers at the window edge, the push flickers on and
+  off every other frame (20-23 cm sideways jumps) and e2e-anim (body frame) catches the unpushed frames. N2 never reaches
+  the planner (every layer / key / trunk switch reads the same). Fix (`uncross` / `uncrossIn`): with the turn rules on,
+  the same push in the body frame too (yaw via a field, no boxing); turnRule 0 bit-identical. e2e turn plans, 219 runs
+  each, least gap before -> after: jog 90 3.2 -> 8.0, jog 180 5.7 -> 8.0, run 90 -15.6 -> 8.0, run 180 5.9 -> 8.0, jog
+  sweep 3 -30.6 -> 8.0, crouch 90 1.9 -> 8.0 cm; first swing, plant time and twist at lift unchanged.
+- e2e-clip crouched holstered (-3.2 cm): the crouch-entry re-step out of the narrow standing stance; with the left foot
+  first the right wrist goes into the loaded right thigh (-2.83 headless). N1's tie rule picked the foot by arrival.
+  Fix (`updateIdle`): with the turn rules on, crouching down re-steps the right foot first; standing up keeps the
+  planted-longer rule. Headless: squat -2.83 -> -2.4, sequence -2.83 -> -2.62, 8 arrival facings -2.42 to -2.56 cm.
+- Tests: tests/turnCrossRig.test.ts (fails before at -15.6), tests/crouchEntryRig.test.ts (fails before at -2.84),
+  footPlanner's tie test split (crouching down: right first; standing up: planted longer). Fixtures: partner:moves only.
+- Open: crouch 90's first swing reads 10.73 m/s headless at the e2e timing (limit 5; N1 CHECK-3 risk a), likely next to
+  fail in e2e-anim (it never ran: run 90 threw first): the stance clamp beats the no-crossing rule at landing; needs
+  the landing rules reworked. Clip margin in-game expected ~-2.9 (master -2.7).
