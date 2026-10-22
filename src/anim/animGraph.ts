@@ -45,7 +45,7 @@ import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
 import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
-import { HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
+import { HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SLOT, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
@@ -697,6 +697,9 @@ export class AnimGraph {
   private breathW = 0;
   /** Pace the locomotion blend uses this frame (the speed, or the held stop's pace). */
   private locoSpeed = 0;
+  /** (mt2-qstop) Switch on: the standing pose's effort pace (the procedural stand's speed nodes and the mocap speed set),
+   *  falling at most MOCAP_SLOT.paceFall; the effort pace itself otherwise. */
+  private mPace = 0;
   private kneelW = 0;
   /** (G1) Tense sneak weight 0..1 (eased with TENSE.tau). */
   private tenseW = 0;
@@ -937,7 +940,7 @@ export class AnimGraph {
     const sw = Math.abs(this.dirX);
     const tot = fw + bw + sw || 1;
     // (step 22, D5.1) posed at the effort pace: each gear keeps its gait at the slower M14 caps
-    const s = effortSpeed(this.locoSpeed, crouched);
+    const s = LOCO.mocap && !crouched ? this.mPace : effortSpeed(this.locoSpeed, crouched); // (mt2-qstop)
     this.moveAcc = 0;
     this.tmpMove.set(out);
     // forward: between the neighbouring speed nodes of the posture's set
@@ -1012,7 +1015,15 @@ export class AnimGraph {
     // the feet stay where they froze
     const holding = i.holdSpeed > 0 && i.speed < 0.05;
     const moveTarget = holding ? 0 : smoothstep(locoSpeed / 0.22);
-    this.moveW = approach(this.moveW, moveTarget, holding ? 0.05 : i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : 0.08, dt);
+    // (mt2-qstop) switch on, the standing pose's pace (`mPace`: the procedural stand's speed nodes and the mocap speed set)
+    // falls at most MOCAP_SLOT.paceFall (a one-frame stop 5 -> 0 m/s posed the slowest gait at once: the run's pelvis rose
+    // 6.7 cm in the procedural stand and 5.5 cm in the mocap set in a frame; a braked stop crossed the jog band in under
+    // two frames); rising it follows at once (starts as before). A stop's fade to the idle (the moving share) is slower
+    // from a pace over the walk, by that pace (the run's pelvis is ~14 cm under the idle's: 0.19 of it a frame at 0.08 s)
+    const esNow = effortSpeed(locoSpeed, false);
+    this.mPace = LOCO.mocap && esNow < this.mPace ? Math.max(esNow, this.mPace - MOCAP_SLOT.paceFall * dt) : esNow;
+    const fadeTau = LOCO.mocap ? 0.08 * Math.max(1, this.mPace / MOCAP_SLOT.walkMax) : 0.08;
+    this.moveW = approach(this.moveW, moveTarget, holding ? 0.05 : i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : moveTarget < this.moveW ? fadeTau : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {
       this.dirX = approach(this.dirX, i.localX / dl, 0.18, dt);
@@ -1812,7 +1823,7 @@ export class AnimGraph {
         if (mcC !== null && dS > 1e-4) this.crouchSet(ph, this.cPace, this.cIdleS, this.kCrD, null);
         this.crouchSet(ph, this.cPace, this.cIdleS, this.kCr, mcC);
       }
-      this.keyedSet(ph, es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
+      this.keyedSet(ph, LOCO.mocap ? this.mPace : es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);

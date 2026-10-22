@@ -201,6 +201,10 @@ export function applyMocapSwitch(url: boolean | null, setting: boolean): boolean
  *   (50 / 242 moving frames). Phase-aligning the slot to the gait clock is the later fix.
  * - (fix 2 check) A turn's pass that follows another (a spin on the spot replaying its clip, a spin reversed, a turn
  *   started while the last one still shows) eases in from that one's pose over `easeFrom` s.
+ * - (mt2-qstop) Not a slot: the standing pose's pace (the graph's `mPace`, the procedural stand and the speed set) falls
+ *   at most `paceFall` m/s^2 (a one-frame stop or a hard brake crossed the speed set's bands in a frame or two: the pelvis
+ *   3-10 cm a frame), and a stop's fade to the idle is slower from over `walkMax` (0.08 s x the pace / walkMax). 4: about
+ *   the rate of a 5 -> 3 m/s ramp over 0.5 s (effort pace); 6 left a braked stop from 4 m/s at 2.9 cm a frame.
  */
 export const MOCAP_SLOT = {
   restSpeed: 0.05,
@@ -215,6 +219,7 @@ export const MOCAP_SLOT = {
   walkMax: 2.2,
   startArms: 0.5,
   easeFrom: 0.2,
+  paceFall: 4,
 };
 
 /** The planner values the slots blend (track half-width, knee pole, duty, lift). */

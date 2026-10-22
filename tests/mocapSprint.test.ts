@@ -124,7 +124,7 @@ describe('mocap sprint (switch ON no worse than OFF)', () => {
     expect(ok(W.toe[1]!, W.toe[0]!), 'ankle-toe').toBe(true);
     expect(ok(W.bone[1]!, W.bone[0]!), 'bone step').toBe(true);
     expect(W.slide[1]!, 'planted feet slide (m)').toBeLessThan(0.01);
-    // the braking pelvis: ON carries on 3.2 cm beyond pace x dt at 2.2 m/s mid-brake (the jog band), the same with the sprint slot null: the mocap jog/run set's, not the sprint's (a lead item, MT2-SPRINT.md)
-    expect(W.pel[1]!, 'pelvis beyond pace x dt (m)').toBeLessThanOrEqual(0.035);
+    // the braking pelvis: ON carried on 3.2 cm beyond pace x dt at 2.2 m/s mid-brake (the jog band crossed in under two frames; MT2-SPRINT.md), 1.9 since mt2-qstop (the standing pose's pace falls at most MOCAP_SLOT.paceFall)
+    expect(W.pel[1]!, 'pelvis beyond pace x dt (m)').toBeLessThanOrEqual(0.02);
   }, 60_000);
 });
