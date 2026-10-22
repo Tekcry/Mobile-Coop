@@ -48,6 +48,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   Menu Notes unit files on f315434f: 12/13 PASS (117 tests); tests/facilityProps.test.ts ran past 600 s -> rerun alone
   (30 min cap). sw-reload 0a34662b GREEN (reported). Guard-cap e2123367 stopped twice for priority; rerun ALONE after train 16
   and the Marlow suites.
+- ~02:25: train 16 45c9ebf0 GREEN 39/39 (JOBS=3, 559 s) -> 4.65.0 (4fb8ea80). JOBS=5 trial on 4fb8ea80 CLEAN 39/39 but
+  621 s (4192 busy) -> RULE (CLAUDE.md feature/menu): JOBS=5 for full runs only while 4192 is idle, else 3. Verdicts go
+  to the job lead only; copy the orchestrator only on trains, the JOBS=5 trial, guard-cap and failures.
+  marlow-final slice 0 8/8 GREEN (reported). Menu Notes facilityProps.test.ts hangs at collection (their bug; fixed
+  commit to come). sw-reload 0a34662b GREEN. sector-redesign d9a27c4f: all PASS except e2e-sectorops:2 team-door
+  asserts (reported, likely real). Running: camera-range 8fda08b9 (4192), guard-ai S1 cd37c3e8 (4189, JOBS=3); queued
+  marlow-final 3e41b859 (4189, JOBS=3); then guard-cap e2123367 ALONE (watcher waits for all three DONE + no locks).
 - schtasks creation is BLOCKED in this session (auto mode): runs are session-bound background commands and die on a swap.
   On resume check runs/<label>/summary.txt for DONE; a run without DONE died: rerun it.
 - Train 15 e1050e14: 38/39 GPU JOBS=5, 349 s; e2e-coop FAIL "client takedown offered on the host's guard (offer none)"
