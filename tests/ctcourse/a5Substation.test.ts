@@ -21,7 +21,7 @@ import { COURSE_TEXT_MAX } from '../../src/config/course';
 import { hyp2, hyp3 } from '../../src/core/mathx';
 import { DOOR } from '../../src/world/doors';
 import { KIT_BOX_COLOR, kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { layoutKnownIds, validateCourse } from '../../src/game/course/courseDef';
 import { CourseState } from '../../src/game/course/courseState';
