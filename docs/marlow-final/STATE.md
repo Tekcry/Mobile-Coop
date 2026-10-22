@@ -14,6 +14,12 @@
 - Pacing (Michael 01:12 via the orchestrator): this window full burn to 100%. After his reset: pace each 5-hour
   window to ~97-99% at its reset; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:45 slice 0 CODE ALL IN: 0a course (N1-N4, N8, A8 em.stealth, despawn, door occupancy), console loop sets
+  'looped', client hold-noise pulse (inside protocol 30), 1949764e. SPEC rules 9-10 (Michael ~01:25: armed guard
+  kinds only, no src/ai edits; cameras keep IR). Slice 0 e2e queued on Character Build 4189 (GPU): smoke,
+  ctcourse :1-:3, course, coop, netmove, stealth-ai on 1949764e. Running: fresh slice 0 checker (slices/S0-check.md),
+  0d scaffold (slices/S0d.md), greybox helper tests, set docs A1-A4 / A5-A8, props (status unclear: files on disk,
+  no hand-back yet). SPEC N4 / PLAN 0d text still says N4 ships without holdNoise: now built, fix in the next pass.
 - ~02:30 0g N9 slide doors IN (slices/S0g-doors.md; 6 files 43 tests). Engine answers folded into SPEC /
   CONSTRAINTS / PLAN. Set docs (slice step 1) started: A1-A4 and A5-A8 agents (docs/marlow-final/sets/, plans/*.svg).
   Still running: 0a course code, greybox tests, props, client hold noise.
