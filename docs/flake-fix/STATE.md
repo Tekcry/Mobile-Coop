@@ -20,6 +20,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   wall-edge-right,wall-edge-low,hand-swap-shoulder,elbow-strike-guard; outputs copied to
   C:/NightShift/scratch/work/animnatural-81102f93); then testspeed2-base-79216e49, testspeed2-d7571102-a / -b
   (software GL, JOBS=3, 4191).
+- Also running (19:07, outside the chain): sectorfixesp-db839845 on 4191 (Menu Notes: check + e2e-ctcourse
+  e2e-sectorops e2e-coop e2e-netmove, JOBS=1; touches src/net PROTOCOL_VERSION 29). Report it to Menu Notes after train 7.
 - On resume, report in this order: (1) train 7 to the orchestrator (pass / fail per suite; solo-rerun failures on the
   same commit, single suites on 4192; name the likely member for real fails). (2) GPU experiment: wall time and
   per-suite times vs a software-GL run, any GPU-only failures. (3) anim-natural: commit the copied outputs to
