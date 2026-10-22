@@ -20,6 +20,7 @@ import {
   BOLT_DEPTH,
   BOLT_REACH,
   SECTOR,
+  SECTOR_REINFORCE_KIND,
   SECTOR_RESTART_TITLE,
   SectorBolts,
   SectorRun,
@@ -35,11 +36,11 @@ import {
   type SectorDef,
 } from '../sectors';
 import { killScore } from './score';
+import { SectionStartState } from '../sectorReset';
 import { markCompleted } from '../../save/sectorRecord';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
 const SPAWN_MIN_DIST = 7;
-const KINDS = ['grunt', 'heavy'] as const;
 /** Everyone down (M7, no lives): the section restarts at its checkpoint after this beat (s). */
 const RESTART_DELAY = 2.5;
 /** A door is found within this of its doorway centre (m). */
@@ -93,6 +94,8 @@ export class SectorMode implements GameMode {
   reinforced = 0;
   /** Section restarts (tests). */
   restarts = 0;
+  /** (G22) Lights and doors the last restart put back (tests). */
+  lastReset = { lights: 0, doors: 0 };
   private its: Interactable[] = [];
   private pending: Pending[] = [];
   private fillT = 0;
@@ -114,6 +117,9 @@ export class SectorMode implements GameMode {
   private infoSy = -2;
   /** Players, reused every tick (no allocation). */
   private readonly refs: PlayerRef[] = [];
+
+  /** (sector-redesign G22) The lamps and doors as the current section began (a restart puts them back). */
+  readonly startState = new SectionStartState();
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
@@ -293,7 +299,11 @@ export class SectorMode implements GameMode {
     const cp = this.run.checkpoint;
     this.checkpoint.set(cp.x, cp.y, cp.z);
     this.reinforceK = 0;
-    if (kit) this.g.weapons.markCheckpoint();
+    if (kit) {
+      this.g.weapons.markCheckpoint();
+      // (G22) the lamps (switched, shot, jammed) and doors as the section begins: a restart puts them back
+      this.startState.take(this.g.world.level.lights, this.g.world.doors);
+    }
     this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
     this.setup(s);
   }
@@ -448,7 +458,8 @@ export class SectorMode implements GameMode {
     if (!s || !send || s.reinforce.length === 0) return;
     for (let i = 0; i < send; i++) {
       const at = s.reinforce[this.reinforceK++ % s.reinforce.length]!;
-      this.pending.push({ slot: { kind: KINDS[i % KINDS.length]!, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
+      // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`
+      this.pending.push({ slot: { kind: SECTOR_REINFORCE_KIND, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
     }
     this.reinforced += send;
     this.fill();
@@ -504,6 +515,13 @@ export class SectorMode implements GameMode {
     this.loadSection(this.run.index);
     // a camera shot out in the section comes back: the restart is a clean retry (step 3)
     this.ct?.repair(this.run.index);
+    // (sector-redesign G22) the lamps and doors as the section began (after the connector and team door locks above)
+    // A restart during a cycle is of the next section, which never began: its start is now (nothing to put back).
+    if (ev & CONN_UNLOCK_FAR) {
+      this.startState.take(g.world.level.lights, g.world.doors);
+      this.lastReset = { lights: 0, doors: 0 };
+    } else this.lastReset = this.startState.apply(g.world.level.lights, g.world.doors);
+    g.stealth?.syncSwitches();
     if (this.ct) this.ct.alarm = this.run.alarm;
     this.beginSection(false);
     const cp = this.run.checkpoint;
@@ -637,6 +655,7 @@ export class SectorMode implements GameMode {
       camAlarms: this.camAlarms,
       pending: this.pending.length,
       restarts: this.restarts,
+      lastReset: { ...this.lastReset },
       restarting: this.restartT >= 0,
       checkpoint: { ...this.run.checkpoint },
       nearLocked: locked(d?.near),

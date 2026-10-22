@@ -428,6 +428,28 @@ export class StealthSystems {
     }
   }
 
+  /**
+   * (sector-redesign G22) After the lights were put back (a section restart): each switch reads its circuit again (on
+   * while any unbroken light of its group is on by its switches) and its label and indicator follow. No guard reacts.
+   */
+  syncSwitches(): void {
+    const reg = this.g.world.level.lights;
+    for (const sw of this.switches) {
+      let on = false;
+      let live = 0;
+      for (const l of reg.lights) {
+        if (l.group !== sw.group || l.destroyed) continue;
+        live++;
+        if (reg.baseOn(l)) on = true;
+      }
+      // every lamp of the circuit shot out: the switch keeps its place
+      if (live === 0 || on === sw.on) continue;
+      sw.on = on;
+      sw.it.label = on ? 'Lights off' : 'Lights on';
+      this.ints.setIndicator(sw.it, on ? '#ffe08a' : '#3a3f45');
+    }
+  }
+
   /** A hitscan ray: shoot out the first bulb along it. */
   shotRay(from: Vector3, to: Vector3): void {
     const reg = this.g.world.level.lights;
