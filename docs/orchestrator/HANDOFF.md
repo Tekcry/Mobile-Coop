@@ -6,6 +6,7 @@ save tokens, i will reset usage as soon as you hit 100%": sessions run to 100% (
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
 ## State at the switch (2026-10-23 ~00:40, 97% save point; Michael: "I'd suggest stopping around 97% to allow sufficient usage to stop and save all sessions")
+New account live 2026-10-23 ~00:57 (5-hour 0%, resets 05:50); all four sessions resumed ~01:05; full burn to 100% (Michael 01:05). See STATE "Now" top entry for the live state.
 Master v4.63.0 (train 13 #164 = #144 + #161 + #162, 102e6f41; /preview/ = dev = 102e6f41). 4.62.0 = train 12 #160 (#119 N4b + #158). Tonight: 4.60.0 #153 (train 10),
 4.60.1 #155 (train 11), 4.61.0 #157 (train 8: #138 N2 + #135 N1 + #156 strip-light fix), 4.62.0 #160 (train 12).
 
@@ -56,7 +57,7 @@ uses the same table and prompts.
 
 ### 1. Orchestrator
 ```
-Night Shift | Orchestrator (account swap). Resume from docs/orchestrator/HANDOFF.md "State at the switch" and docs/orchestrator/STATE.md on feature/menu in C:/NightShift/Mobile-Coop-menu (git fetch; git pull; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (top "Decided" entries are tonight's answers). First: train 13 verdict and release 4.63.0; check C:/NightShift/heavy.lock and heavy2.lock (a lock with no live node process is stale; ask Michael to delete it). Then give Michael each session's prompt from HANDOFF "In the new account", one at a time, with session title, model and effort, as the last thing in the message. Recreate the usage and bottleneck cron (17, 37, 57 past) with the prompt in STATE "Cron prompt" and check get_usage now. Overnight: Michael is asleep, no question dialogs; marlow-final (Menu Notes lead, Course Ready builder), mocap #159 then mocap-trial-2 and new clips (CT Core), train 14, guard-cap and load-audit (Character Build). Stop and save at 97% of the 5-hour window (STATE "Pacing", Michael 00:35). Short replies, native multiple choice only, hyphens not em dashes.
+Night Shift | Orchestrator (account swap). Resume from docs/orchestrator/HANDOFF.md "State at the switch" and docs/orchestrator/STATE.md on feature/menu in C:/NightShift/Mobile-Coop-menu (git fetch; git pull; merge origin/master into feature/menu). Read CLAUDE.md "Sessions" and docs/ROADMAP.md (top "Decided" entries are tonight's answers). First: train 13 verdict and release 4.63.0; check C:/NightShift/heavy.lock and heavy2.lock (a lock with no live node process is stale; ask Michael to delete it). Then give Michael each session's prompt from HANDOFF "In the new account", one at a time, with session title, model and effort, as the last thing in the message. Recreate the usage and bottleneck cron (17, 37, 57 past) with the prompt in STATE "Cron prompt" and check get_usage now. Overnight: Michael is asleep, no question dialogs; marlow-final (Menu Notes lead, Course Ready builder), mocap #159 then mocap-trial-2 and new clips (CT Core), train 14, guard-cap and load-audit (Character Build). Full burn to 100% of the 5-hour window (STATE "Pacing", Michael 01:05); WIP pushed after every agent hand-back. Short replies, native multiple choice only, hyphens not em dashes.
 ```
 
 ### 2. CT Core Build
