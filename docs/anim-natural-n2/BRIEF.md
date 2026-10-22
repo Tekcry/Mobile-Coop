@@ -52,3 +52,12 @@ Feet / footPlanner / tuneStep / turnFollow (N1), draws / swap overlay / armed ar
   change: the root yaw sweeps ahead of the pelvis, they keep the pelvis frame) and the wall rows (no root yaw recorded,
   layer off); limits unchanged. With it the sway is cut to 0.7x (walk 1.4 -> 0.98, jog / sneak / crouch walk / crouch
   run 0.8 -> 0.56 cm; the run keeps 0.6) so the knee-out stays <= 2.9 cm.
+- A12 (job lead, after the master 4.54.1 merge): master's Body base (#103, Michael's 2026-10-22 trackMul 0.05: the feet
+  near one line) widens the knee-out on its own (walk 3.1, idle 3.4 cm headless), and master's e2e-anim widened its limits
+  for it per row (BODY_GAIT walk 3.5 / jog 3.4, BODY_STATE straight 3.7 / idle 9.3, BODY_DRAWN rifle readyWalk 3.5 /
+  readyJog 3.4 cm). tests/crabFacing.test.ts now checks the game (base + layer) against those same limits, read from
+  scripts/e2e-anim.mjs (rows with no widened limit keep 3 cm), and the walk's sway is cut just enough for a ~0.1 cm
+  margin: BODY_MOTION.walk.sway 0.98 -> 0.6 (headless facing knee-out walk 3.6 -> 3.41, walk 2.1 m/s 3.66 -> 3.47, low
+  ready walk 3.51 -> 3.33 cm; walk lateral 3.6 -> 2.9 cm, e2e-anim's walk lateral band 3.2-4.2 -> 2.5-3.5 cm). Jog, run
+  and crouch rows unchanged. Master's limits and the base table untouched. Undo: revert the A12 commit (sway 0.98, the
+  crabFacing rows back on the audit limits, the lateral band 3.2-4.2).

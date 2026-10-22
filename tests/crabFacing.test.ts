@@ -2,9 +2,11 @@
  * (anim-natural-n2 A11) The anti-crab facing frame (src/anim/audit/crabFacing.ts): the gated planted-foot track and
  * knee-out read through the hip midpoint along the root's right axis, so the body motion layer's added hip yaw does not
  * rotate the measuring line. Unit checks of the frame, then the gated rows on a headless Wren rig (operatorRig, 60 Hz,
- * sim time) against the unchanged limits (src/anim/audit/limits.ts): every gated crab row passes in the facing frame.
+ * sim time) against the audit limits (src/anim/audit/limits.ts), widened where e2e-anim widens them for the Body base (A12):
+ * every gated crab row passes in the facing frame.
  * CRABF_PRINT=1 prints the table (facing and pelvis frame).
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { CharacterRig, RigPose } from '../src/player/characterRig';
 import { facingHips } from '../src/anim/audit/crabFacing';
@@ -33,25 +35,57 @@ describe('crab facing frame: the synthetic hips', () => {
   });
 });
 
-interface Row { id: string; speed: number; crouch?: number; armed?: boolean; aim?: number; dir?: 'side' | 'back'; yaw?: number; ranges: L.CrabRanges | typeof L.CRAB_STRAFE | typeof L.CRAB_IDLE }
-/** The gated rows CHECK-2 finding 1 lists (game speeds), plus the aimed glide and the idle (the frame must not hurt them). */
+/** The crab limits a row reads (the fields this test asserts, plus the ones e2e-anim spreads in). */
+interface Ranges { readonly kneeSep: { readonly min: number; readonly max: number }; readonly trackHalf: number; readonly kneeBow: number }
+/**
+ * (A12, master 4.54.1 merge) e2e-anim's Body tune tables (master anim-bake-targets: Michael's 2026-10-22 Body base puts
+ * the feet near one line, which widens some rows' knee-out), read from scripts/e2e-anim.mjs itself so this test and
+ * e2e-anim gate a row on the same limits: the object literal after `const <name> = `, evaluated with the audit limits
+ * (`L`, `RUN_STAND` = L.crabRanges(false)) as the script does.
+ */
+function e2eTable(name: string): Record<string, Partial<Ranges>> {
+  const src = readFileSync('scripts/e2e-anim.mjs', 'utf8');
+  const at = src.indexOf(`const ${name} = {`);
+  if (at < 0) throw new Error(`scripts/e2e-anim.mjs: no table ${name}`);
+  const open = src.indexOf('{', at);
+  let depth = 0;
+  let end = open;
+  for (; end < src.length; end++) {
+    if (src[end] === '{') depth++;
+    else if (src[end] === '}' && --depth === 0) break;
+  }
+  const make = new Function('L', 'RUN_STAND', `return (${src.slice(open, end + 1)});`) as (l: typeof L, r: Ranges) => Record<string, Partial<Ranges>>;
+  return make(L, L.crabRanges(false));
+}
+const BODY_GAIT = e2eTable('BODY_GAIT');
+const BODY_STATE = e2eTable('BODY_STATE');
+const BODY_DRAWN = e2eTable('BODY_DRAWN');
+
+interface Row { id: string; speed: number; crouch?: number; armed?: boolean; aim?: number; dir?: 'side' | 'back'; yaw?: number; ranges: Ranges }
+/**
+ * The gated rows CHECK-2 finding 1 lists (game speeds), plus the aimed glide and the idle (the frame must not hurt them).
+ * (A12) The game (Body base + layer) against e2e-anim's limits for the same row: the walk its walk gait row
+ * (BODY_GAIT.walk), the 2.1 m/s walk its speed-3 straight sub-state (BODY_STATE.straight), the jog BODY_GAIT.jog, the low
+ * ready walk / jog the rifle's (BODY_DRAWN), the idle its idle sub-state (BODY_STATE.idle); every other row keeps the
+ * audit limits (knee-out 3 cm).
+ */
 const ROWS: Row[] = [
-  { id: 'walk', speed: 1.4, ranges: L.CRAB },
-  { id: 'walk yaw 0.7', speed: 1.4, yaw: 0.7, ranges: L.CRAB },
-  { id: 'walk 2.1', speed: 2.1, ranges: L.CRAB },
-  { id: 'jog', speed: 3.0, ranges: L.CRAB },
+  { id: 'walk', speed: 1.4, ranges: { ...L.CRAB, ...BODY_GAIT.walk } },
+  { id: 'walk yaw 0.7', speed: 1.4, yaw: 0.7, ranges: { ...L.CRAB, ...BODY_GAIT.walk } },
+  { id: 'walk 2.1', speed: 2.1, ranges: { ...L.CRAB, ...BODY_STATE.straight } },
+  { id: 'jog', speed: 3.0, ranges: { ...L.CRAB, ...BODY_GAIT.jog } },
   { id: 'crouch 1.7', speed: 1.7, crouch: 1, ranges: L.CRAB_CROUCH },
   { id: 'crouch 2.15', speed: 2.15, crouch: 1, ranges: L.CRAB_CROUCH },
   { id: 'crouch run 2.6', speed: 2.6, crouch: 1, ranges: L.CRAB_CROUCH },
   { id: 'sneak 0.85', speed: 0.85, crouch: 1, ranges: L.CRAB_CROUCH },
   { id: 'sneak 1.1', speed: 1.1, crouch: 1, ranges: L.CRAB_CROUCH },
-  { id: 'low ready walk', speed: 1.4, armed: true, ranges: L.CRAB },
-  { id: 'low ready jog', speed: 3.0, armed: true, ranges: L.CRAB },
+  { id: 'low ready walk', speed: 1.4, armed: true, ranges: { ...L.crabDrawnRanges('readyWalk'), ...BODY_DRAWN['rifle readyWalk'] } },
+  { id: 'low ready jog', speed: 3.0, armed: true, ranges: { ...L.crabDrawnRanges('readyJog'), ...BODY_DRAWN['rifle readyJog'] } },
   { id: 'crouched ready walk', speed: 1.7, crouch: 1, armed: true, ranges: L.CRAB_CROUCH },
   { id: 'aim fwd 1.4', speed: 1.4, armed: true, aim: 1, ranges: L.CRAB },
   { id: 'aim side 0.7', speed: 0.7, armed: true, aim: 1, dir: 'side', ranges: L.CRAB_STRAFE },
   { id: 'aim back 1.05', speed: 1.05, armed: true, aim: 1, dir: 'back', ranges: L.CRAB },
-  { id: 'idle', speed: 0, ranges: L.CRAB_IDLE },
+  { id: 'idle', speed: 0, ranges: { ...L.CRAB_IDLE, ...BODY_STATE.idle } },
   // the run reads against e2e-anim's RUN_TUNE (its track 16 cm, knee-out 9 cm): report-only here
   { id: 'run', speed: 4.0, ranges: L.CRAB },
 ];
@@ -143,7 +177,9 @@ async function measure(): Promise<Record<string, Out>> {
 }
 
 describe('crab facing frame: the gated rows on a headless Wren rig', () => {
-  it('every gated row keeps its track and knee-out within the unchanged limits in the facing frame', async () => {
+  it('every gated row keeps its track and knee-out within the e2e-anim limits in the facing frame', async () => {
+    // (A12) the tables e2e-anim reads are found (a renamed table fails here, not as a silent 3 cm)
+    for (const t of [BODY_GAIT.walk, BODY_GAIT.jog, BODY_STATE.straight, BODY_STATE.idle, BODY_DRAWN['rifle readyWalk'], BODY_DRAWN['rifle readyJog']]) expect(t?.kneeBow).toBeTypeOf('number');
     const r = await measure();
     if (process.env.CRABF_PRINT) {
       for (const sc of ROWS) {

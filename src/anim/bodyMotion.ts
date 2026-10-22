@@ -50,10 +50,14 @@ export const BODY_MOTION_FIELDS = ['hipTurn', 'hipTime', 'chestTurn', 'chestTime
  * The sneak's headFollow is 0.4 (0.35 left its head yaw at 1.9 deg p2p, under the 2-6 target). Times are in the rig's
  * yaw sense (+ about +Y): the hip-joint line's measured yaw (the e2e / harness metric) is the opposite sign, so it peaks
  * half a cycle on.
+ * (A12, master 4.54.1 merge) The walk's sway is 0.6 (was 0.98): master's Body base (Michael's 2026-10-22 trackMul 0.05,
+ * the feet near one line) alone reads walk knee-out 3.1 cm; with 0.98 the walk read 3.6 cm against e2e-anim's widened
+ * walk limit 3.5 (BODY_GAIT). At 0.6 headless (facing frame): walk 3.41, walk 2.1 m/s 3.47, low ready walk 3.33 cm;
+ * walk lateral 3.6 -> 2.9 cm. Undo: 0.98.
  */
 export const BODY_MOTION: Record<BodyMotionRowId, BodyMotionRow> = {
   idle: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },
-  walk: { hipTurn: 2.5, hipTime: 0.01, chestTurn: 2.5, chestTime: 0.51, sway: 0.98, swayTime: 0.75, headFollow: 0.35, headNod: 0.6 },
+  walk: { hipTurn: 2.5, hipTime: 0.01, chestTurn: 2.5, chestTime: 0.51, sway: 0.6, swayTime: 0.75, headFollow: 0.35, headNod: 0.6 },
   jog: { hipTurn: 3.5, hipTime: 0.96, chestTurn: 4.5, chestTime: 0.45, sway: 0.56, swayTime: 0.74, headFollow: 0.35, headNod: 0.6 },
   run: { hipTurn: 3, hipTime: 0.91, chestTurn: 4, chestTime: 0.38, sway: 0.6, swayTime: 0.69, headFollow: 0.18, headNod: 0.6 },
   crouchIdle: { hipTurn: 0, hipTime: 0, chestTurn: 0, chestTime: 0, sway: 0, swayTime: 0, headFollow: 0, headNod: 0 },

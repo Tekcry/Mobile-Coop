@@ -1160,8 +1160,9 @@ try {
     const inR = (v, lo, hi) => v >= lo && v <= hi;
     const w = B.walk;
     assert(inR(w.pelvis, 7, 9) && inR(w.shoulders, 7, 9), `walk: pelvis / shoulders counter-rotate ~8 / 8 deg p2p (${f2(w.pelvis)} / ${f2(w.shoulders)}; 7-9)`);
-    // (fix round, anim-natural-n2 A11) the sway at 0.7x: headless 3.6 cm
-    assert(inR(w.lateral, 0.032, 0.042), `walk: pelvis lateral sway 3.2-4.2 cm (${cm(w.lateral)})`);
+    // (fix round, anim-natural-n2 A11) the sway at 0.7x: headless 3.6 cm; (A12) the walk sway 0.6 (master's Body base
+    // narrows the feet: the knee-out margin under BODY_GAIT.walk): headless 2.9 cm, the band was 3.2-4.2
+    assert(inR(w.lateral, 0.025, 0.035), `walk: pelvis lateral sway 2.5-3.5 cm (${cm(w.lateral)})`);
     const j = B.jog;
     assert(inR(j.pelvis, 11, 13) && inR(j.shoulders, 14.5, 17), `jog: pelvis / shoulders ~12 / 16 deg p2p (${f2(j.pelvis)} / ${f2(j.shoulders)}; 11-13 / 14.5-17)`);
     const s = B.sneak;

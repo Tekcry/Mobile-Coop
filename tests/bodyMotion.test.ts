@@ -175,8 +175,8 @@ describe('body motion: amounts 0 are the pre-layer Wren rig bit for bit', () => 
 
 /**
  * Measured at 60 Hz (sim time), before (amounts 0) and after. Before: the N2 research table (PLAN.md "Measured now").
- * After: PLAN step 2's targets (fix round: the sway at 0.7x, A11, walk lateral 3.6 cm). The run after A1 (the key pop gone):
- * pinned as measured.
+ * After: PLAN step 2's targets (fix round: the sway at 0.7x, A11, walk lateral 3.6 cm; A12: the walk sway 0.6, 2.9 cm).
+ * The run after A1 (the key pop gone): pinned as measured.
  */
 describe('body motion: measured on a headless Wren rig', () => {
   let off: Record<string, MotionMetrics>;
@@ -212,7 +212,8 @@ describe('body motion: measured on a headless Wren rig', () => {
     };
     inR(on.walk!.pelvisYaw, 7, 9, 'walk pelvis');
     inR(on.walk!.shoulderYaw, 7, 9, 'walk shoulders');
-    inR(on.walk!.lateralCm, 3.3, 4, 'walk lateral');
+    // (A12) the walk sway 0.98 -> 0.6 (master's Body base narrows the feet: the knee-out margin): 3.6 -> 2.9 cm
+    inR(on.walk!.lateralCm, 2.6, 3.3, 'walk lateral');
     inR(on.jog!.pelvisYaw, 11, 13, 'jog pelvis');
     inR(on.jog!.shoulderYaw, 14.5, 17, 'jog shoulders');
     inR(on.sneak!.pelvisYaw, 4.5, 5.5, 'sneak pelvis');

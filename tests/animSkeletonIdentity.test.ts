@@ -16,6 +16,7 @@
  * (anim-natural-n2, merge of master 4.54.1) Re-captured on the merged code: first, with every BODY_MOTION amount 0 and
  * master's run clip at run time, all 40 entries matched master's fixture bit for bit; the moved entries are keyed:run and
  * partner:moves (the A1 run key rebake), plus partner:moves with the layer on. The motion-off fixture re-captured too.
+ * (anim-natural-n2 A12) Re-captured after the walk sway 0.98 -> 0.6: partner:moves only; the motion-off fixture unchanged.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
