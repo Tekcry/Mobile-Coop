@@ -92,6 +92,15 @@ describe('gamepad mapping', () => {
     const inv = mapPad(snap({}, [0, 0, 0, -1]), { ...tuning, invertY: true });
     expect(inv.look.y).toBeLessThan(-0.9);
   });
+  it('(sector-fixes W) the wheel stick: the right stick position, up = +y even inverted, no curve, 0 when let go', () => {
+    const curved = { ...tuning, curve: 'aggressive' as const, invertY: true };
+    const up = mapPad(snap({}, [0, 0, 0, -1]), curved);
+    expect(up.stick.y).toBeGreaterThan(0.9);
+    const half = mapPad(snap({}, [0, 0, 0.6, 0]), curved);
+    expect(half.stick.x).toBeGreaterThan(0.5);
+    const rest = mapPad(snap({}, [0, 0, 0.05, -0.05]), tuning);
+    expect(rest.stick.x === 0 && rest.stick.y === 0).toBe(true);
+  });
   it('left stick also produces menu directions', () => {
     expect(mapPad(snap({}, [0, 0.9, 0, 0]), tuning).buttons.uiDown).toBe(true);
     expect(mapPad(snap({}, [-0.9, 0.2, 0, 0]), tuning).buttons.uiLeft).toBe(true);
