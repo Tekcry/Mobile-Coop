@@ -57,6 +57,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   swap once the first player takes a job); a radio line follows each step; each holding room's pad cycles only with both
   on it (near door locks, far door opens); a bay restart brings an alive partner back; every glass wall, LED cove and
   sliding door (Open only, no swing-only verbs) reads as a rehearsal centre; every set is lit and the players make the dark.
+- [ ] Marlow Yard records: the old best times (bays S1-S8) no longer show. The bays are now A1-A8, so the record starts
+  again (no save migration). Co-op > Host > Start at lists A1-A8 once the bay before was finished.
 - [ ] Marlow Yard A1 Gate: no panel needed: the lounge door, the striped mark and the bolted wicket say what to do; the
   leg-up from the mark lands on the wall top, drop into the yard, unbolt (refused from the apron side); the relay variant
   works; no way over alone (cabin, wall end, gallery sill).
@@ -83,6 +85,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   from behind the counters so A crosses the gallery unseen; take the officer, loop the cameras (60 s); cut the hall lights
   at the board (25 s, 12 s to the grille), slip through, shut it; throw over the beam curtain; both time locks together;
   the vault opens onto the cash dock; both in the exit zone ends the run.
+- [ ] Marlow Yard timing: a first co-op run by a pair who know the controls takes 15-20 min (target 18 min, SPEC section
+  10). Note the time per set and any wait over about 30 s with nothing to do.
 - [ ] Marlow Yard GPU look (pending PC run): gallery glass reads as one clear layer; coves, rack and desk skins show no
   z-fighting; the frame time of each set (A2 685 skins, A4 667, A6 725 are the heaviest).
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
