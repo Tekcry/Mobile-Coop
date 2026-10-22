@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased - local-transport-closed
+
+- Co-op over the local (same-device) transport: a message sent after leaving the room is dropped instead of throwing
+  "BroadcastChannel is closed" (`src/net/localTransport.ts`; a teardown race that failed e2e-coop console checks).
+  Test: `tests/localTransport.test.ts`.
+
 ## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
 - `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.
 
