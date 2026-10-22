@@ -382,6 +382,8 @@ const REACH_HARD = 0.999;
 const CROUCH_REACH = 0.8;
 /** (G1 fix) Standing still, the hips settle at most this far (m) fore-aft toward the feet's midpoint. */
 const REST_SHIFT = 0.22;
+/** (mt2-fixC) While the mocap share keeps the hips off the feet, the settle moves at most this fast (m/s). */
+const REST_SHIFT_RATE = 0.6;
 /**
  * (anim-rework S3) Gliding aimed, the hips move `share` of the way across to the feet's centre (at most `max` m off the
  * capsule), eased over `tau` s: a side-step's weight goes onto the lead foot, then the trailing foot closes under it.
@@ -2397,7 +2399,11 @@ export class CharacterRig {
       const still = !free && !t.gait.moving && !this.input.wall && L.contact && R.contact && this.input.crouch < 0.5;
       const mid = ((L.x + R.x) * 0.5 - rp.x) * Math.sin(yaw) + ((L.z + R.z) * 0.5 - rp.z) * Math.cos(yaw);
       const target = still ? Math.max(-REST_SHIFT, Math.min(REST_SHIFT, mid)) : 0;
-      this.restShift = approachTo(this.restShift, target, dt, 0.06);
+      const rs = approachTo(this.restShift, target, dt, 0.06);
+      // (mt2-fixC, CHECK-3 item 6) and at most REST_SHIFT_RATE while the mocap share keeps the hips off the feet (the
+      // pelvis-follow layer, as the knee pole below): a CT stop hold's release let go of a 7 cm settle by 1.7 cm in a frame
+      const rm = REST_SHIFT_RATE * dt;
+      this.restShift = LOCO.mocap && mocapLayerK(MOCAP_LAYERS.pelvisFollow, t.keyMocap) < 1 && (rs > this.restShift + rm || rs < this.restShift - rm) ? this.restShift + (rs > this.restShift ? rm : -rm) : rs;
     }
     // (anim-rework S3, BRIEF 3 "the centre of mass over the base of support") gliding aimed (the drawn keyed set raised)
     // the hips ride over the feet's centre across the body (GLIDE_HIP: the weight moves onto the lead foot of a side-step

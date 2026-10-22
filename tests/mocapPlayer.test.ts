@@ -112,13 +112,17 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     await check([flick(5.0, 180, 0.83), sneakFlick(0), sneakFlick(0.5)]);
   }, 300_000);
 
-  itOther('6: smaller cases (other round)', async () => {
+  // (fix C) 6d: the hold's fade out of the stride (elbow-wrist 30.2 deg); the hold's release as the stick moves again (the
+  // hips' settle over the feet let go 1.7 cm in a frame: pelvis 2.05 cm); 6e (passes since fix A)
+  it('6d / 6e: a CT stop from 5 m/s, the stop hold released, a draw at 4 m/s', async () => {
     await check([
-      { label: 'crouch at 2.8 m/s', target: (t) => { const c = t > 2.51 && t < 4.51 ? 1 : 0; return { v: c ? 2.6 : 2.8, yr: 0, crouch: c }; }, steps: 360, recFrom: 1.5 },
       startStop(5.0, 2.0, 1.73),
-      // the hold's release as the stick moves again (the graph's locoSpeed holdSpeed 0.8 -> 0.03 in a frame): pelvis 2.05 cm
       startStop(1.4, 0.3, 1.99),
       { label: 'draw at 4.0 m/s', target: (t) => ({ v: 4.0, yr: 0, armed: t > 2.34 && t < 4.34 }), steps: 360, recFrom: 1.5 },
     ]);
+  }, 300_000);
+
+  itOther('6a: crouching while jogging (open)', async () => {
+    await check([{ label: 'crouch at 2.8 m/s', target: (t) => { const c = t > 2.51 && t < 4.51 ? 1 : 0; return { v: c ? 2.6 : 2.8, yr: 0, crouch: c }; }, steps: 360, recFrom: 1.5 }]);
   }, 300_000);
 });
