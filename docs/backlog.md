@@ -60,6 +60,7 @@ Format: `N. Item - destination - status`.
     lamps (a light parity break). Not seen in a run: found while fixing e2e-lightbake's GPU-only timing failure. Fix:
     track a material-added flag (the scene's new-material event, read next frame) instead of the count. Destination:
     unscheduled (the light parity work).
+    **Fixed (lamp-plugin-gap, 2026-10-22):** the new-material event marks the next frame beside the count check (`tests/lampPluginGap.test.ts`).
 31. **A fast look-drag may eat the next tap on a real touch device (low priority; phones are for testing only, G182;
     gpu-tests-3 2026-10-22).** In headless Chrome a 200 px CDP drag in ~80 ms became a fling, and the next touch only
     cancelled it: the on-screen pause button's first tap did nothing (#148 fixed the test by holding still before the
