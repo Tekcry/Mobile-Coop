@@ -45,6 +45,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   under load, PASS solo twice on the same commit (ankleL 0.078; 135 / 137 s). (a) times within 15% or faster: pass;
   (c) CPU avg 40%, max 93% one sample, GPU 3D avg 9% max 18%, RAM free min 5.8 GB: pass. Train 9 765162a6 is GREEN on
   its code (e2e-menus solo PASS 40 s). Runs: runs/train9c-765162a6 (+ -menus, -netmove), load runs/load-train9c.csv.
+- 4.59.0 merged (train 9, #151). Train 10 train/10 0c6bf0bd (#142 n4d, #145 lamp-plugin-gap): GREEN 35/35 (GPU, JOBS=3,
+  wall 465 s; CPU avg 35%, GPU 3D avg 37% max 84%, RAM free min 7.4 GB; runs/train10-0c6bf0bd, load-train10.csv).
+  #149 touch-fling-note: master merged in (1afdcd54), clean, waits for a later train. Slot 4192 free.
 - MONITOR RULE: never `tail -F` a file a chain appends to (it locks chain-1022.log; Add-Content fails and the chain
   dies; expired monitors leave the tail running). Poll summary.txt files instead.
 - NEXT (ask the orchestrator first): train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
