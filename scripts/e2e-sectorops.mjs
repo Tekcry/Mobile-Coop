@@ -361,7 +361,8 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(k1.music === 'calm', `the music is Calm again (${k1.music})`);
   // (check fix, polish 2 and 3) the shot spot discriminates: every guard's whole path (its post, its route's segments
   // and where it stands now) stays beyond a suppressed shot's reach, and the nearest guard's whole path inside a loud
-  // shot's reach, so a loud gun here would alert it; no point of any guard's path has a line of sight to the spot.
+  // shot's reach (guard-ai S1: within earshot, but beyond the loud shot's combat reach, so it alerts nobody either; the
+  // control below fires it close to the guard); no point of any guard's path has a line of sight to the spot.
   // The reaches come from the game's table (`GameState.NOISE`): suppressed at most shot x suppressed (16.8 m), loud
   // shot x 1 (28 m); the band keeps a margin each side.
   const spot = await G(() => {
@@ -459,8 +460,9 @@ await run(PARAMS, async ({ G, sim }) => {
   assert(after.alerted === 0 && !after.lkp, `no guard is alerted by the suppressed shot (${JSON.stringify(after.levels)})`);
   assert(after.stage === s0.stage && after.raised === s0.raised, `the alarm stage is unchanged (${s0.stage} -> ${after.stage})`);
   assert(after.music !== 'alert', `the music stays out of Alert (${after.music})`);
-  // the control: the same gun at the same spot with its suppression off (noise 1, the loud path) does alert the nearest
-  // guard, so the check above could fail
+  // (guard-ai S1) hearing tiers: loud gunfire is combat only inside a quarter of its reach (`HEARING.combatDb`, 28 m ->
+  // ~7 m), farther it sends one guard to look or only turns heads. So the same gun unsuppressed at this spot (every
+  // guard's path beyond the suppressed reach, out of sight) alerts nobody either...
   const loud = await G(() => {
     const w = window.__app.current.weapons;
     const s = w.current;
@@ -471,13 +473,48 @@ await run(PARAMS, async ({ G, sim }) => {
     return n0;
   });
   await sim(0.5);
+  const farShot = await G(() => {
+    const em = window.__app.current.enemyMgr;
+    const gs = em.enemies.filter((q) => q.alive);
+    return { alerted: gs.filter((q) => q.alerted).length, levels: gs.map((q) => q.level) };
+  });
+  assert(farShot.alerted === 0, `a loud shot this far off (>= ${spot.lo.toFixed(1)} m) alerts nobody: it is out of combat reach (${JSON.stringify(farShot.levels)}, noise back to ${loud})`);
+  // ...and the control: the loud report from just behind the nearest guard (0.35 of the combat reach: combat even
+  // through a wall) puts him in combat, so the suppressed check above could fail
+  const near = await G((id) => {
+    const g = window.__app.current;
+    const em = g.enemyMgr;
+    const e = em.enemies.find((q) => q.id === id);
+    if (!e) return null;
+    const q = g.constructor.NOISE.shot * Math.pow(10, -em.hearingTable.combatDb / 20);
+    const d = 0.35 * q;
+    const x = e.pos.x - Math.sin(e.yaw) * d;
+    const z = e.pos.z - Math.cos(e.yaw) * d;
+    const c = g.nav.nearestWalkable(x, z, 2, e.pos.y);
+    const cx = c >= 0 ? g.nav.center(c)[0] : x;
+    const cz = c >= 0 ? g.nav.center(c)[1] : z;
+    return { x: cx, y: c >= 0 ? g.nav.height[c] : e.pos.y, z: cz, yaw: e.yaw, d: Math.hypot(cx - e.pos.x, cz - e.pos.z), q };
+  }, spot.nearest);
+  assert(near && near.d < near.q * 0.45, `a spot just behind the nearest guard, inside the combat reach through a wall (${JSON.stringify(near)})`);
+  // facing the way he faces: away from him
+  await tp(G, near.x, near.y, near.z, near.yaw);
+  await sim(0.3);
+  await G(() => {
+    const g = window.__app.current;
+    const s = g.weapons.current.stats;
+    const n0 = s.noise;
+    s.noise = 1;
+    // the report only (no round towards him: a hit would alert him without hearing anything)
+    g.weapons.events.onShot(g.weapons.current.def);
+    s.noise = n0;
+  });
+  await sim(0.5);
   const ctl = await G((id) => {
     const em = window.__app.current.enemyMgr;
     const e = em.enemies.find((q) => q.id === id);
-    return { nearest: e ? e.alerted : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length, lkp: em.lkpValid };
+    return { nearest: e ? e.alerted : null, level: e ? e.level : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length };
   }, spot.nearest);
-  // (not lkp: with no sighting since the restart and nobody hunting yet, EnemyManager.update forgets it on the next tick)
-  assert(ctl.nearest === true, `control: the same shot unsuppressed alerts the nearest guard (${JSON.stringify(ctl)}, noise back to ${loud})`);
+  assert(ctl.nearest === true, `control: a loud shot inside the combat reach alerts the nearest guard (${JSON.stringify(ctl)})`);
 });
 
 console.log('sector ops: nav (M8 routes, sealed sections)');
