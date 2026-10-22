@@ -1,7 +1,8 @@
 # marlow-final - STATE
 
 ## Now (2026-10-23 ~00:55, save point before the account swap)
-Done and committed: AUDIT.md, COOP-INVENTORY.md, CONSTRAINTS.md. Running: ROUTE-DRAFT agent, KIT agent, and the SPEC WRITER
+Done and committed: AUDIT.md, COOP-INVENTORY.md, CONSTRAINTS.md, ROUTE-DRAFT.md (all 4 step-1 reports), BRIEF M1-M6.
+SPEC.md is WIP (committed partial at each save). Running: KIT agent and the SPEC WRITER
 (started ~00:55; writes SPEC.md section by section, then PLAN.md: commit whatever is on disk at the save). Course
 Ready's three prep notes are in (feature/marlow-bays docs/marlow-final-prep/).
 Step 1 (read-only research) ran as 4 agents: yard audit -> `AUDIT.md`, co-op mechanics inventory + CT scenarios +
