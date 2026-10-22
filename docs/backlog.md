@@ -46,11 +46,15 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   `E2E_JOBS=2` on the laptop. Not on `KNOWN_FLAKY`.
   - e2e-stealth-ai "the guard there sees the peeking head only" (los true, head false): the spot was picked from one
     look at the held peek, but the pose sways a few mm and the picked spot cleared the chest by about 5 mm, so the
-    guard's think tick (a random phase) caught the chest. Fix: each grid spot becomes the point a spawned guard really
-    stands at (the nav cell's centre and height, as `enemyMgr.spawn` snaps it), judged with a real grunt's eye offset;
-    a point counts only if it hides chest and head before the peek and sees the head and not the chest at every 0.1 s
-    look over 4 s of the held peek, with a 1 cm margin (chest further out, head further in); the spawned guard's own eye
-    must pass the same margin; a failure prints the guard's lines and the chest point.
+    guard's think tick (a random phase) caught the chest. Fix (fix round 2): candidate spots are floor points on a 5 cm
+    grid where a guard can stand, judged with a real grunt's eye offset; a spot counts only if it hides chest and head
+    before the peek and sees the head and not the chest after every fixed step of 2 s of the held peek (each step's
+    target points are the pose the guards perceive that step), ranked by the largest margin it held. A calm grunt is then
+    put on the exact spot (not its 0.5 m nav cell's centre, where the spawn snaps it: a 1 cm margin and cell centres left
+    no spot, the head-only wedge is a few cm wide) and made passive (it never turns or walks; its think still sets
+    los / losHead). Over 2 s more its own eye must hold at every step (else the next spot, up to 8), and at every one of
+    its thinks (at least 5) it must report the head only; released, hidden again. A failure prints the first bad think
+    (lines, chest and head points) or why each segment gave no spot.
   - e2e-netmove "timed out waiting for client assists": the client's `assist` lasts the boost's 0.9 s of game time and
     began and ended between two polls on a slow page. Fix: `watchTeam` (e2e-net-lib) logs every team state with sim
     time; the check reads whether the client went through `assist`; a failure prints both views (`teamLog`).
