@@ -14,6 +14,9 @@
 - Every Wren rig (the player, the co-op partner, the studio puppets walking a loop); guards are unchanged bit for bit.
   The amounts are per tuner body row (`BODY_MOTION` in `src/anim/bodyMotion.ts`); the stills come in a later step.
 - The animation audit's walk sway limit for Wren is 5 cm (Michael approved ~5 cm; guards keep 3 cm).
+- With the gun out (low ready walk / jog) the chest stays on the gun: the hips still swing under it, but the layer no
+  longer turns the shoulders, which carried the gun arms out (low ready jog elbows 6.0 -> 5.7 cm outside the shoulder,
+  limit 6; master's own reading). The low-ready head then follows only the keyed carry (1.1 deg peak to peak).
 
 ## 4.55.1 - Master CI green again: the guardInfo test admits station 3's security guard (test only) (2026-10-22, PR #124)
 - `tests/guardInfo.test.ts` expects both passive guards with information: `s1-guard` (bay 1) and `s3-sec-guard` (bay 3, the security room from #115, which has an INTERROGATE line by plan). Train 4 merged with this unit test red.

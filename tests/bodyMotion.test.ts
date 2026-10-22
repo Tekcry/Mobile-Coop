@@ -225,8 +225,14 @@ describe('body motion: measured on a headless Wren rig', () => {
     inR(on.run!.lateralCm, 2, 3, 'run lateral');
     for (const k of ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'lowReadyWalk']) {
       expect(on[k]!.counterCorr, `${k} corr`).toBeLessThan(-0.9);
-      inR(on[k]!.headYaw, 2, 6, `${k} head yaw`);
+      // (e2e-anim low ready jog elbows, PASS2 item 7) the gun out keeps the chest on the gun: the low-ready head follows
+      // only the keyed carry trunk (1.1 deg p2p; was 2-6 with the layer's chest swing, which winged the elbows 6.0 cm)
+      if (k === 'lowReadyWalk') expect(on[k]!.headYaw, `${k} head yaw`).toBeLessThanOrEqual(2);
+      else inR(on[k]!.headYaw, 2, 6, `${k} head yaw`);
     }
+    // the low-ready chest stays on the gun: the shoulders as with the layer off (the pelvis still swings under them)
+    expect(Math.abs(on.lowReadyWalk!.shoulderYaw - off.lowReadyWalk!.shoulderYaw), 'lowReadyWalk shoulders').toBeLessThanOrEqual(0.1);
+    inR(on.lowReadyWalk!.pelvisYaw, 7, 9, 'lowReadyWalk pelvis');
     for (const k of ['aimFwd', 'aimSide', 'aimBack', 'crouchAimFwd']) {
       expect(on[k]!.counterCorr, `${k} corr`).toBeLessThan(-0.8);
       expect(on[k]!.headYaw, `${k} head yaw (aiming)`).toBeLessThan(0.01);
