@@ -94,6 +94,7 @@ import {
   A8_RETURN,
 
   A8_RTE,
+  A8_RTE_GATE,
   A8_RTE_AT,
   A8_RTE_GATE_ON,
   A8_RUNNER,
@@ -428,10 +429,10 @@ describe('A8 the Strongroom: the doors, the night circuit and the grille', () =>
   });
 
   it("the gates are the doc's: isolator on the night group (25 s, re-arm 5 s from the circuit table), the mains grille, the grille's request-to-exit, the stair foot's push bar, the vault's flag gate, the console's pickup; validated with the course", () => {
-    expect(part.bay.gates.map((g) => g.id)).toEqual([A8_NIGHT_GATE, A8_GRILLE_GATE, A8_STAIR_GATE, A8_VAULT_GATE, A8_CONSOLE_GATE]);
-    // the grille is named by one gate only: `CourseState.locked` holds a door while ANY gate naming it is shut, so a second one (the request-to-exit) would keep the board from opening it (S8 request 1)
-    expect(A8_RTE_GATE_ON).toBe(false);
-    expect(part.bay.gates.filter((g) => (g.kind === "egress" && g.doorIds.includes(A8_GRILLE)) || (g.kind === "mains" && g.doorId === A8_GRILLE))).toHaveLength(1);
+    expect(part.bay.gates.map((g) => g.id)).toEqual([A8_RTE_GATE, A8_NIGHT_GATE, A8_GRILLE_GATE, A8_STAIR_GATE, A8_VAULT_GATE, A8_CONSOLE_GATE]);
+    // the grille has two gates: `CourseState.locked` holds a door only while none of its gates is open (S8 request 1), so the board and the request-to-exit each open it
+    expect(A8_RTE_GATE_ON).toBe(true);
+    expect(part.bay.gates.filter((g) => (g.kind === "egress" && g.doorIds.includes(A8_GRILLE)) || (g.kind === "mains" && g.doorId === A8_GRILLE))).toHaveLength(2);
     expect(gateOf<IsolatorGate>(A8_NIGHT_GATE)).toEqual({ kind: 'isolator', id: A8_NIGHT_GATE, switchIds: [A8_BOARD], group: A8_NIGHT_GROUP, seconds: 25, rearm: 5 });
     expect(circuitOf(81)!.timed).toEqual({ seconds: 25, rearm: 5 });
     expect(gateOf<MainsGate>(A8_GRILLE_GATE)).toEqual({ kind: 'mains', id: A8_GRILLE_GATE, group: A8_NIGHT_GROUP, doorId: A8_GRILLE });
@@ -520,8 +521,8 @@ describe('A8 the Strongroom: the doors, the night circuit and the grille', () =>
     // a player at the grille's inside walks to the button (the doc's request-to-exit is a walk from the gate)
     expect(hyp2(rte.x - 134.5, rte.z - 62)).toBeLessThan(7);
     expect(walkPath([[134.7, 62], [136.3, 57.0]])).toBeNull();
-    // the stair bar is the device the foot door gate reads (the course item exists even with the rte off)
-    expect(part.devices[A8_RTE]).toBeUndefined();
+    // the stair bar is the device the foot door gate reads (and the request-to-exit is a course device of its own)
+    expect(part.devices[A8_RTE]).toMatchObject({ label: 'Request to exit' });
   });
 
   it('the grille swings into the lobby; N2 stops at it (the grille spot is on his loop)', () => {

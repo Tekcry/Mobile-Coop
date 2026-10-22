@@ -83,7 +83,7 @@ export const A8_GRILLE_GATE = 'g-a8-grille';
 export const A8_RTE = 'a8-rte';
 export const A8_RTE_GATE = 'g-a8-rte';
 /** The request-to-exit's device and egress gate on the grille: off until `CourseState.locked` opens a door on any open gate (S8 request 1). */
-export const A8_RTE_GATE_ON: boolean = false;
+export const A8_RTE_GATE_ON: boolean = true;
 /** Where the request-to-exit stands when it is on: the lobby's south wall (136.3, 1.1, 56.15), 2.75 m from a body at the hall wall and out of the stairs' reach (A8-D13). */
 export const A8_RTE_AT = { x: 136.3, y: 1.1, z: 56.15, yaw: 0 } as const;
 export const A8_STAIR_BAR = 'a8-stair-bar';
@@ -341,8 +341,8 @@ export function buildA8Strongroom(b: LevelBuilder, _kit: FacilityKit): A8Part {
   p.devices[A8_BOARD] = { x: 127.0, y: 0.9, z: 77.6, yaw: Math.PI, label: 'Isolate the hall lights' };
   p.devices[A8_CONSOLE] = { x: 143.7, y: 5.6, z: 74.7, yaw: -Math.PI / 2, label: 'Loop the cameras' };
   p.devices[A8_STAIR_BAR] = { x: 135.8, y: 1.1, z: 71.2, yaw: Math.PI, label: 'Push the bar' };
-  // the request-to-exit (SPEC: the player inside opens the grille for good): a second gate on a door locks it until BOTH are open (`CourseState.locked`), so
-  // with the mains gate the board could never open the grille. Off until that rule is any-open (S8 request 1); then the device and the gate go in.
+  // the request-to-exit (SPEC: the player inside opens the grille for good): a second gate on the grille; `CourseState.locked` holds a door
+  // only while NONE of its gates is open (S8 request 1, done), so the board still opens it on the night cut.
   if (A8_RTE_GATE_ON) {
     p.devices[A8_RTE] = { ...A8_RTE_AT, label: 'Request to exit' };
     p.bay.gates.push({ kind: 'egress', id: A8_RTE_GATE, switchId: A8_RTE, doorIds: [A8_GRILLE] } satisfies EgressGate);

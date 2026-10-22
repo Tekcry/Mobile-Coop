@@ -638,12 +638,19 @@ export class CourseState {
       if (a.def.nearDoor === doorId && (a.phase === 'sealed' || a.phase === 'cycling')) return true;
       if (a.def.farDoor === doorId && a.phase !== 'sealed') return true;
     }
+    // (marlow-final A8) a door named by several gates is locked only while none of them is open (A8's grille: the mains gate
+    // or the request-to-exit opens it)
+    let gated = false;
     for (let i = 0; i < this.gates.length; i++) {
       const g = this.gates[i]!;
       const doors = g.doors;
-      for (let j = 0; j < doors.length; j++) if (doors[j] === doorId && !this.gateOpen(g)) return true;
+      for (let j = 0; j < doors.length; j++) {
+        if (doors[j] !== doorId) continue;
+        if (this.gateOpen(g)) return false;
+        gated = true;
+      }
     }
-    return false;
+    return gated;
   }
 
   /** Is the anchor locked (an anchorLock gate whose flag is not set)? */

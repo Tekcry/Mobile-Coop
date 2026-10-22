@@ -135,7 +135,7 @@ export function buildCtcourse(b: LevelBuilder): CtcourseBuild {
       ...facility.debugPoints.map((d) => ({ group: 'Facility', id: d.id, label: d.label, pos: v3(d.pos), yaw: d.yaw })),
       ...parts.flatMap((p) => p.debugPoints.map((d) => ({ group: setBay(p.id), id: d.id, label: d.label, pos: v3(d.pos), yaw: d.yaw }))),
     ],
-    security: { devices: all((p) => p.cameras) },
+    security: { devices: all((p) => p.cameras), levels: Object.assign({}, ...parts.map((p) => p.levels ?? {})) as Record<string, number> },
     lasers: all((p) => p.lasers),
     laserPanels: all((p) => p.laserPanels),
     passZones: all((p) => p.passZones),

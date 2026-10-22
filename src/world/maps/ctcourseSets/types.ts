@@ -282,6 +282,8 @@ export interface SetPart {
   /** SPEC 7: the set's standby zone (and its upper levels' zones, pockets' zones). */
   ambientZones: AmbientZoneDef[];
   cameras: CameraDevice[];
+  /** Camera levels by name (floor height, m) for cameras on an upper level (A8's gallery C2: `a8-gallery` 4.4). */
+  levels?: Record<string, number>;
   lasers: LaserDef[];
   laserPanels: LaserPanelDef[];
   scanners: ScannerDef[];

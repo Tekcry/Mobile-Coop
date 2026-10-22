@@ -240,3 +240,16 @@ describe('N8: registered course bays', () => {
     expect(registeredBayCount('n8-map')).toBe(2);
   });
 });
+
+describe('marlow-final A8: a door named by two gates', () => {
+  it('is locked only while neither gate is open (the grille: a lever here, the request-to-exit there)', () => {
+    const st = new CourseState(def([], { gates: [
+      { kind: 'lever', id: 'g-lever', switchId: 'sw-1', doorId: 'g-door' },
+      { kind: 'egress', id: 'g-rte', switchId: 'sw-2', doorIds: ['g-door'] },
+    ] }));
+    expect(st.locked('g-door')).toBe(true);
+    st.press('sw-2', 0);
+    expect(st.locked('g-door')).toBe(false);
+    expect(st.locked('L1-near')).toBe(false);
+  });
+});
