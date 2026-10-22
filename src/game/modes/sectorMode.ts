@@ -414,6 +414,14 @@ export class SectorMode implements GameMode {
       this.g.weapons.markCheckpoint();
       // (G22) the lamps (switched, shot, jammed) and doors as the section begins: a restart puts them back
       this.startState.take(this.g.world.level.lights, this.g.world.doors);
+      // (E4, I5) a timed window still running at the section change is not the section's state: its circuits count as on
+      const bs = this.g.stealth?.boards;
+      if (bs) {
+        for (let i = 0; i < bs.defs.length; i++) {
+          if (bs.left[i]! <= 0) continue;
+          for (const gp of bs.defs[i]!.groups) this.startState.markGroupOn(gp);
+        }
+      }
     }
     this.g.hud.banner(`SECTION ${this.run.index + 1}  ·  ${s.name.toUpperCase()}`, s.objective.label, 2600);
     this.setup(s);
