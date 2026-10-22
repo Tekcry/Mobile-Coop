@@ -6,3 +6,8 @@ kind: minor
 - Mocap locomotion (switch on): fast walking turns no longer sink the hips when the turn clip fades out: the trailing foot
   steps off as the other lands; a leg the joint-speed limit holds back no longer flicks the foot round with it (also the
   jog / run turn foot pops).
+- Mocap locomotion (switch on): fast jog and run turns no longer snap the swinging foot across the planted one: a swing
+  lifted at a flight gait follows the body round (run 4.0 m/s x 4 rad/s ankle-toe 81 -> 14-22 deg, under the switch-off
+  set's 57-59).
+- Mocap locomotion (switch on): a start after a short stand no longer pops: the leftover idle step lands first, a late
+  clip lift goes to the planner and a foot left behind steps off (worst bone step 37 -> 22 deg, no pelvis sink).
