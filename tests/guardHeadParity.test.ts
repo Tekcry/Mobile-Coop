@@ -348,6 +348,6 @@ describe('guard head: sim against the rig head node (NullEngine)', () => {
   }
 
   it('prints the table (GUARD_HEAD_PRINT=1)', () => {
-    if (PRINT) console.log(`\n${lines.join('\n')}`);
+    if (PRINT) console.info(`\n${lines.join('\n')}`);
   });
 });

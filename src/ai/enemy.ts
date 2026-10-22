@@ -41,6 +41,7 @@ import type { GuardInfo } from './guardInfo';
 import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
 import { DogModel } from './dogModel';
+import { guardHead, guardHeadRest, leanStep, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
 import type { InstancedMesh } from '../core/babylon';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
@@ -206,6 +207,13 @@ export class Enemy implements Damageable {
   private aimPitch = 0;
   private kick = 0;
   private head = new Vector3();
+  /** (guard-render S3a) The human guard's head hit volume comes from the sim (`guardHead`), not the rendered rig. */
+  private readonly headRest: GuardHeadRest;
+  private readonly headIn: GuardHeadIn = { x: 0, y: 0, z: 0, yaw: 0, crouch: 0, speed: 0, aim: 0, aimPitch: 0, wall: false, wallSide: 0, lean: 0, leanDrop: 0, held: null, heldK: 0, koK: 0, blind: 0, climb: false };
+  private readonly headLean = newLeanState();
+  private heldT = 0;
+  private heldW = 0;
+  private blindAge = 0;
   private tmp = new Vector3();
   private tmpEye = new Vector3();
   private tmpHead = new Vector3();
@@ -346,6 +354,7 @@ export class Enemy implements Damageable {
     this.rig = built.rig;
     this.gun = built.gun;
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
+    this.headRest = guardHeadRest(def.height, def.build, def.gun !== null, def.melee ? 0 : def.runSpeed);
     this.voice = new BarkVoice(this.num);
     const parts = ctx.world.parts;
     if (def.quadruped) {
@@ -392,6 +401,7 @@ export class Enemy implements Damageable {
     // (guard-ai S3) hands to his face: the call he was making is lost
     this.ctx.radioCut?.(this);
     this.blindT = Math.max(this.blindT, seconds);
+    this.blindAge = 0;
     this.bark('blind');
     this.burstLeft = 0;
     this.windup = 0;
@@ -414,6 +424,7 @@ export class Enemy implements Damageable {
     // (guard-ai S3) seized before the call got through: nobody else is told
     this.ctx.radioCut?.(this);
     this.taken = true;
+    this.heldT = 0;
     this.endLink();
     this.burstLeft = 0;
     this.windup = 0;
@@ -976,14 +987,15 @@ export class Enemy implements Damageable {
     this.prevYaw = this.yaw;
     // in a takedown: the attacker drives the body, the brain is off
     if (this.taken) {
-      this.syncHitboxes();
+      this.syncHitboxes(dt);
       return;
     }
     // flashbanged: no brain until the eyes clear, then combat
     if (this.blindT > 0) {
       this.blindT -= dt;
       this.vel.setAll(0);
-      this.syncHitboxes();
+      this.blindAge += dt;
+      this.syncHitboxes(dt);
       if (this.blindT <= 0) {
         this.blindT = 0;
         this.rig.emote = null;
@@ -1025,13 +1037,13 @@ export class Enemy implements Damageable {
     // on a ladder / dropping off a ledge: the route drives the body until it is off
     if (this.link) {
       this.runLink(dt);
-      this.syncHitboxes();
+      this.syncHitboxes(dt);
       return;
     }
     const goal = this.decide(dt);
     this.move(dt, goal.point, goal.speed, goal.face);
     this.crouch += ((this.wantCrouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
-    this.syncHitboxes();
+    this.syncHitboxes(dt);
   }
 
   private perceive(): void {
@@ -1976,9 +1988,43 @@ export class Enemy implements Damageable {
     return false;
   }
 
-  /** Hit volumes follow the body (fixed step; the head from the last rendered pose). */
-  private syncHitboxes(): void {
+  /** Hit volumes follow the body (fixed step). A human guard's head comes from the sim state (`guardHead`: the pose
+   *  fit tested against the rig in `tests/guardHeadParity.test.ts`), the dog's from its model. */
+  private syncHitboxes(dt: number): void {
+    if (!this.dog) {
+      const h = this.headIn;
+      leanStep(this.headLean, this.coverPeek, dt);
+      if (this.taken) this.heldT += dt;
+      // the rig's emote fades in over 0.2 s (the ramp below) and out over 0.2 s after a release / the flash ends
+      const heldOn = this.taken ? Math.max(0, Math.min(1, (this.heldT - this.cq.delay) * 5)) : 0;
+      this.heldW = this.taken ? heldOn : Math.max(0, this.heldW - dt * 5);
+      h.x = this.pos.x;
+      h.y = this.pos.y;
+      h.z = this.pos.z;
+      h.yaw = this.yaw;
+      h.crouch = this.crouch;
+      h.speed = hyp2(this.vel.x, this.vel.z);
+      h.climb = this.climbing;
+      h.aim = this.taken || this.climbing ? 0 : this.aimWeight();
+      h.aimPitch = this.aimPitch;
+      h.wall = this.coverPose === 'high';
+      h.wallSide = h.wall ? this.coverWallSide : 0;
+      h.lean = this.headLean.bd;
+      h.leanDrop = this.headLean.dr;
+      if (this.taken) h.held = this.cq.mode;
+      else if (this.heldW <= 0) h.held = null;
+      h.heldK = this.heldW;
+      h.koK = this.cq.mode === 'ko' ? this.cq.k : 0;
+      h.blind = this.blindT > 0 ? Math.min(1, this.blindAge * 6) : Math.max(0, h.blind - dt * 5);
+      guardHead(h, this.headRest, this.head);
+    }
     this.hitboxes.sync(this.pos, this.head);
+  }
+
+  /** The weapon-raise weight the rig gets (`frame`) and the head fit reads: 1 firing, down to 0.2 unaware. */
+  private aimWeight(): number {
+    const lvl = this.aware.level;
+    return this.def.melee ? 0 : this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0 ? 1 : lvl === 'investigating' || lvl === 'searching' ? 0.7 : lvl === 'suspicious' ? 0.4 : 0.2;
   }
 
   /** Render-rate animation with interpolation between fixed steps. */
@@ -1998,7 +2044,7 @@ export class Enemy implements Damageable {
     this.flash = Math.max(0, this.flash - dt * 9);
     this.rig.setFlash(this.flash * 0.75);
     const lvl = this.aware.level;
-    const aiming = this.def.melee ? 0 : this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0 ? 1 : lvl === 'investigating' || lvl === 'searching' ? 0.7 : lvl === 'suspicious' ? 0.4 : 0.2;
+    const aiming = this.aimWeight();
     const m = this.motion;
     const rp = this.rp;
     rp.speed = sp;
@@ -2034,8 +2080,6 @@ export class Enemy implements Damageable {
       this.head.copyFrom(this.dog.head);
     } else {
       this.rig.animate(dt, rp);
-      this.rig.headNode.computeWorldMatrix(true);
-      this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
     }
     if (this.laser) this.sniperFx();
   }
