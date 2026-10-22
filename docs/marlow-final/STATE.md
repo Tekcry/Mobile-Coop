@@ -14,6 +14,9 @@
 - Pacing (Michael 01:12 via the orchestrator): this window full burn to 100%. After his reset: pace each 5-hour
   window to ~97-99% at its reset; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:10 0c ENGINE-ANSWERS.md in. Routed: 0a also builds em.stealth true in Course mode (BRIEF A8), em.despawn in
+  spawnSquad, remote players in StealthSystems.occupied(); the spec writer folds the answers into SPEC / CONSTRAINTS.
+  Later small item: client holdNoise pulse (inside protocol 30), in PLAN 0d.
 - ~02:00 SPEC COMPLETE + PLAN.md written (slices 0a-0g, 1-8, 9; parallel waves). Running: 0a course code, 0c engine
   answers, 0g N9 slide doors (slices/S0g-doors.md), greybox helper tests, lighting, props. Next: 0d scaffold (one
   agent, gate for every set) once 0a lands; then waves per PLAN "Parallel order".

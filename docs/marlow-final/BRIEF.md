@@ -44,6 +44,9 @@ and any other coop "wow thats cool" experience. Ask questions if needed."
   new kit mesh). Mock-up areas inside it (a rail siding, an office floor, a server room) keep their own materials so the
   scenarios read as "real sites" built inside a luxury hall. Undo: retexture the kit.
 - A7 Guards in the training scenarios stay normal guards (live training targets in the fiction); no new archetype.
+- A8 (2026-10-23 ~02:10, ENGINE-ANSWERS Q2) Course mode runs guards with `em.stealth = true`: with it false a course
+  guard radios every guard within 22 m at once, chases the players' real positions and never searches or cools down,
+  which is not CT. "Normal guards" (M6) reads as the stealth-mode behaviour. Undo: one line in `courseMode.ts`.
 
 ## Goal
 Marlow Yard becomes a finished 2-player co-op training level: one route that flows, each area a purpose-built
