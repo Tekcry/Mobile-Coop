@@ -389,8 +389,10 @@ The door menu's Stealth open starts it (A3).
   (`GameState.anchorPrompts`): vault (Climb / Grab / Climb up), jumpTo, drop (Drop / Slide / Hang).
 - Landings (`player/movement.ts` `LANDING` / `landingKind` / `landingNoise`): a roll is a committed traversal, heavy =
   `landT` recovery; GameState makes landing / glass / kick noise. Falling past a lip: `fallProbe` (Y grabs). Windows:
-  `windowProbe` -> a vault through, breaking the glass. Ducts: `AttachController.vent` (tap kick / hold unscrew), crawl,
-  `ductEnd`. `Breakables` (`world/breakables.ts`): glass / grate panels. `anchorFirst`: ladder / drainpipe / duct / zipline
+  `windowProbe` -> a vault through, breaking the glass. Ducts: `AttachController.vent` (tap kick / hold unscrew; the pure classifier
+  `player/ventOpen.ts`: Y / Space starts it, A / E held unscrews, A must be down by the second step after Y on the pad;
+  vent-kick: on the keyboard Space still held is no kick and its hold carries on into E, so Space tap kicks and Space
+  held, or Space then E held, unscrews), crawl, `ductEnd`. `Breakables` (`world/breakables.ts`): glass / grate panels. `anchorFirst`: ladder / drainpipe / duct / zipline
   hints beat geometric moves.
 - `BoxPiece.overhead` (`LevelBuilder.mark`): ceiling slabs / ducts that never block the floor's nav cells.
 - Rig world targets: `reachL/R` (palm points) override the weapon / clip hands; `plantL/R` (sole points) override the feet.

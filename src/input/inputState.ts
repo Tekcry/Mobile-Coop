@@ -8,6 +8,8 @@ export const INTERACT_HOLD = 0.3;
 /** Seconds the gadget wheel button must be held before the wheel opens (pad / keyboard; a shorter D-pad left is a
  *  ping, 3.2.0). */
 export const WHEEL_HOLD = 0.15;
+/** The keyboard / mouse source's holder name (`KeyboardMouseSource`). */
+export const KBM_SOURCE = 'kbm';
 
 /**
  * Aggregated action state. Each source sets its own contribution per action;
@@ -131,6 +133,11 @@ export class InputState {
     this.look.x = 0;
     this.look.y = 0;
     return v;
+  }
+
+  /** (vent-kick) `a` is held by `source` (e.g. `KBM_SOURCE`): a scripted tap or another source does not count. */
+  downFrom(a: ButtonAction, source: string): boolean {
+    return this.holders[a].has(source);
   }
 
   pressed(a: ButtonAction): boolean {
