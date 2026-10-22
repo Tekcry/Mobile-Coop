@@ -5,7 +5,10 @@
  * skips the camera (the offices route needs the jam too), every lamp is on its circuit and the switches darken their offices (the
  * tuned light levels), the cleaner is an armed `grunt` on a walkable timed loop inside the lure range, the steps validate and read
  * per player, the B claim is the corridor. The map-wide frames (`tests/ctcourse.test.ts`, `tests/ctcourseLight.test.ts`) run the
- * contract, the register and the light bands over this part too.
+ * contract, the register and the light bands over this part too. The last block is the dressing (slice 3 step 5): the greybox pinned,
+ * hand-built skins out of the light shapes, the budgets, the desk props over the greybox desks, the cleaner's trolley and every route it
+ * leaves clear, the corridor's, recess's and posts' widths and sight lines, every kit glow on circuit 34, the lobbies' lifts and the register
+ * numbering gap and switch plates from S34-check.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -22,11 +25,15 @@ import { hyp2 } from '../../src/core/mathx';
 import { HALL_BACK, HALL_BACK_HOLD, HALL_IDLE, HALL_RUN, HALL_SENT, hallStep, JAMMER, newDevJam, newJam, DEV_IDLE, stepDevJam, stepJam } from '../../src/game/jammer';
 import { cameraRate, camPitch, camRange, inFrame, newMeter, stepCamMeter, sweepCycle, sweepYaw } from '../../src/security/camera';
 import { validateSecurity } from '../../src/security/data';
+import { kitTriangles } from '../../src/world/kit/facilityKit';
+import { FacilityProps, propCollisionBox, propDraws, propTriangles, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { JAM_HOP, JAM_WINDOW, jamRelay, SILENT_CROUCH } from '../../src/world/maps/ctcourseGreybox';
 import {
   A3_CAMERA,
   A3_CAMERA_RANGE,
+  A3_CHAIRS,
   A3_CLEANER,
   A3_CLEANER_FACES,
   A3_CLEANER_ROUTE,
@@ -34,6 +41,9 @@ import {
   A3_COMM_Z,
   A3_CORR_DOOR_X,
   A3_CORRIDOR,
+  A3_CUPBOARD_Z,
+  A3_DESK_LIFT,
+  A3_DESKS,
   A3_DOOR_COMM1,
   A3_DOOR_COMM2,
   A3_DOOR_CORR,
@@ -45,17 +55,21 @@ import {
   A3_HALL,
   A3_HALL_ID,
   A3_HIDE,
+  A3_LIFTS,
   A3_LOBBY_DOOR_Z,
+  A3_OFFICE_Z1,
   A3_OFFICES,
   A3_PARTITIONS,
   A3_PASS_WAIT,
   A3_POST_EAST,
   A3_POST_WEST,
   A3_RECESS_DOOR_X,
+  A3_RUNS,
   A3_SW_CORR,
   A3_SW_OFFICE,
+  A3_TROLLEY,
 } from '../../src/world/maps/ctcourseSets/a3OfficeRange';
-import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../src/world/maps/ctcourseSets/types';
+import { checkSetPart, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, setGroups } from '../../src/world/maps/ctcourseSets/types';
 import { circuitOf, LURE_RANGE, marlowCourseGroups } from '../../src/world/lighting/marlowCircuits';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
 
@@ -73,6 +87,8 @@ const lamps = b.lights.lights.filter((l) => l.kind !== 'flashlight' && inBox(box
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
 const bottom = (p: BoxPiece): number => p.c[1] - p.s[1] / 2;
 const cam = part.cameras[0]!;
+/** The greybox as S3 built it (slice 3 steps 2-4): its 33 boxes (30 solids, three floor marks), 14 lamps, 5 doors, no anchor. The dressing is appended after. */
+const GREY = { boxes: 33, solids: 30, lights: 14, doors: 5, anchors: 0, checksum: 5583.487499999999 };
 const tuned = (JSON.parse(readFileSync('tests/ctcourse/a3OfficeRange.light.json', 'utf8')) as { levels: Record<string, number> }).levels;
 const anchors = generateLedges(b.boxes, b.anchors);
 
@@ -939,7 +955,7 @@ describe('A3 the Office Range: map data the e2e and the modes read', () => {
     for (const s of part.navSeeds) expect(blockedAt(s.x, s.z, 0.3)).toEqual([]);
   });
 
-  it('shot vantages for the west archway and office 2 through its communicating door; no lasers, scanners, consoles, hide objects or props (a camera and a guard)', () => {
+  it('shot vantages for the west archway and office 2 through its communicating door; no lasers, scanners, consoles or hide objects (a camera and a guard)', () => {
     expect(part.shotVantages.map((v) => v.name)).toEqual(['a3-lobby', 'a3-office2']);
     expect(part.lasers).toEqual([]);
     expect(part.laserPanels).toEqual([]);
@@ -956,5 +972,291 @@ describe('A3 the Office Range: map data the e2e and the modes read', () => {
     expect(JAMMER.useMax).toBe(5);
     expect(JAMMER.cooldown).toBe(5);
     expect(JAMMER.reboot).toBe(1.5);
+  });
+});
+
+describe('A3 the Office Range: dressing (slice 3 step 5)', () => {
+  const kitReport = JSON.parse(readFileSync('src/world/kit/assets/facility-kit.json', 'utf8')) as { pieces: Record<string, { meshes: Record<string, number> }> };
+  const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
+  const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
+  const own = part.props;
+  const grey = mine.slice(0, GREY.boxes);
+  const dressing = mine.slice(GREY.boxes);
+  const skins = dressing.filter((p) => !p.collide);
+  const colliders = dressing.filter((p) => p.collide);
+  /** The props' own boxes (only the cleaner's trolley's is written; the desks' lie inside the greybox desks). */
+  const propBoxes = own.flatMap((p) => propCollisionBox(p) ?? []);
+  const trolleyBox = colliders[0]!;
+  const upright = (p: BoxPiece): BoxPiece => (Math.abs(Math.sin(p.yaw)) > 0.5 ? { ...p, s: [p.s[2], p.s[1], p.s[0]], yaw: 0 } : { ...p, yaw: 0 });
+  const tb = upright(trolleyBox);
+  /** Is (x, z) within `r` of the dressing collider's footprint? */
+  const dressNear = (x: number, z: number, r: number): boolean => hyp2(Math.max(Math.abs(x - tb.c[0]) - tb.s[0] / 2, 0), Math.max(Math.abs(z - tb.c[2]) - tb.s[2] / 2, 0)) < r;
+  const dressWalk = (x0: number, z0: number, x1: number, z1: number, r = MOVEMENT.radius): string | null => {
+    const n = Math.ceil(hyp2(x1 - x0, z1 - z0) / 0.1);
+    for (let i = 0; i <= n; i++) {
+      const x = x0 + ((x1 - x0) * i) / n;
+      const z = z0 + ((z1 - z0) * i) / n;
+      if (dressNear(x, z, r)) return `(${x.toFixed(2)}, ${z.toFixed(2)})`;
+    }
+    return null;
+  };
+  /** The skins whose centre lies in the plan box and under `y1` (what a region is dressed with). */
+  const near = (x0: number, x1: number, z0: number, z1: number, y1 = 3.1): number => skins.filter((p) => p.c[0] > x0 && p.c[0] < x1 && p.c[2] > z0 && p.c[2] < z1 && p.c[1] < y1).length;
+
+  it('the greybox is as S3 built it: its 33 boxes (checksum), 14 lamps, 5 doors, no anchor; the only new collision is the trolley\'s one box', () => {
+    let sum = 0;
+    for (const p of grey) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
+    expect(sum).toBeCloseTo(GREY.checksum, 3);
+    expect(grey.filter((p) => p.collide)).toHaveLength(GREY.solids);
+    expect(grey.every((p) => p.noLedge || !p.collide)).toBe(true);
+    // four desk boxes (inside the greybox desks, not written) and the trolley's (written)
+    expect(propBoxes).toHaveLength(5);
+    expect(colliders).toHaveLength(1);
+    expect(built.counts.sets.a3OfficeRange).toEqual({ lights: GREY.lights, solids: GREY.solids + 1, doors: GREY.doors, anchors: GREY.anchors });
+    expect(lamps).toHaveLength(GREY.lights);
+    expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(['A3-3', 'A3-13', 'A3-14', 'A3-15', 'A3-16', 'A3-17', 'A3-18']));
+    expect(Object.keys(part.doors)).toHaveLength(GREY.doors);
+    // S34-check polish: the register's numbering gap (A3-3, office 2's door reveal) is filled, with no pieces of its own
+    expect(part.register.find((r) => r.id === 'A3-3')).toEqual({ id: 'A3-3', element: expect.stringContaining('door reveal') });
+  });
+
+  it('every hand-built dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes, so the light is the greybox\'s); the one new collider is invisible and noLedge', () => {
+    expect(skins.length).toBeGreaterThan(300);
+    for (const p of skins) {
+      expect(p.noLedge, `skin at (${p.c.join(', ')})`).toBe(true);
+      expect(Math.min(...p.s), `skin at (${p.c.join(', ')}) size (${p.s.join(', ')})`).toBeLessThan(CANON_MIN_THICK);
+      expect(p.visible).not.toBe(false);
+      expect(p.overhead).toBeUndefined();
+    }
+    expect(dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK)).toEqual([]);
+    expect(trolleyBox.visible).toBe(false);
+    expect(trolleyBox.noLedge).toBe(true);
+    expect(top(trolleyBox)).toBeLessThan(1.9);
+    // the ceiling skins hang above every lamp's bottom (the lamps and the camera stay below the tile, so no skin is between a lamp and the floor)
+    const ceilingSkins = skins.filter((p) => bottom(p) > 2.9);
+    expect(ceilingSkins.length).toBeGreaterThan(40);
+    for (const l of lamps) for (const p of ceilingSkins) expect(bottom(p), `ceiling skin at (${p.c.join(', ')}) vs lamp at ${l.x}, ${l.z}`).toBeGreaterThanOrEqual(l.y + 0.019);
+    for (const p of ceilingSkins) expect(top(p)).toBeLessThanOrEqual(3.0 + 1e-9);
+    // the floor paint is under the greybox's floor marks (the hide spot and the jam posts, 2 cm), so those still read
+    const floorSkins = skins.filter((p) => top(p) < 0.02);
+    expect(floorSkins.length).toBeGreaterThan(40);
+    const marks = grey.filter((p) => !p.collide && top(p) > 0.02 && top(p) < 0.03);
+    expect(marks).toHaveLength(3);
+    for (const p of floorSkins) expect(top(p)).toBeLessThan(top(marks[0]!));
+  });
+
+  it('budgets (computed): kit triangles <= 60 k; the props pass FacilityProps.check against the set box at 60 k triangles and 12 draws, with the facility\'s set-side plate in the box counted', () => {
+    const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+    const kitTris = kitTriangles({ instances: kitIn, doors: [] }, kitReport);
+    expect(kitIn.some((i) => i.piece === 'wallPanel')).toBe(true);
+    expect(kitTris).toBeGreaterThan(0);
+    expect(kitTris, `${kitTris} kit triangles`).toBeLessThanOrEqual(60_000);
+    // any facility prop in the box (L2's far door's set-side plate) counts against the set's props
+    const facilityIn = built.facility.props.filter((p) => inBox(box, p.x, p.z));
+    expect(facilityIn.map((p) => p.prop)).toEqual(['signPlate']);
+    const counted = [...own, ...facilityIn];
+    const checker = (list: readonly PropPlacement[]): FacilityProps => {
+      const f = new FacilityProps();
+      f.placements.push(...list);
+      return f;
+    };
+    expect(checker(counted).check(area, propReport)).toEqual([]);
+    expect(propTriangles(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
+    expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
+    // officeDesk 4 (white, steel, plastic, screen) + officeChair 3 + cleanerTrolley 3 + the plates 2 (one draw per prop and material, however many instances)
+    expect(propDraws(counted, propReport)).toBe(12);
+    expect(own.map((p) => p.prop).sort()).toEqual([...Array<string>(4).fill('officeDesk'), ...Array<string>(5).fill('officeChair'), 'cleanerTrolley', ...Array<string>(5).fill('signPlate')].sort());
+  });
+
+  it('every kit glow in A3 carries a circuit: the lobby panels, coves and skirting are on the landlord\'s group 34 (a plan row of the set), floor to slab, only in the two lobbies; no lamp was added', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a3OfficeRange');
+    const kitIn = lay.kit!.instances.filter((i) => inBox(box, i.x, i.z));
+    const glowing = kitIn.filter((i) => ['wallPanel', 'skirting', 'column', 'handrail'].includes(i.piece) || (i.piece === 'ledSlot' && !i.noLed));
+    expect(glowing.length).toBeGreaterThan(30);
+    for (const i of glowing) {
+      expect(i.group, `${i.piece} at ${i.x}, ${i.y}, ${i.z}`).toBe(34);
+      expect(plan.has(i.group!)).toBe(true);
+      expect(i.group!).toBeGreaterThanOrEqual(g0);
+      expect(i.group!).toBeLessThanOrEqual(g1);
+      expect(i.y).toBeLessThan(3.0);
+      // the lobbies only: the corridor (x 79.5-97) and the offices keep their plaster
+      expect(i.x < 79.5 || i.x > 97, `${i.piece} at ${i.x}`).toBe(true);
+    }
+    const panels = glowing.filter((i) => i.piece === 'wallPanel');
+    expect(panels.filter((i) => i.x < 79.5).length).toBeGreaterThan(8);
+    expect(panels.filter((i) => i.x > 97).length).toBeGreaterThan(8);
+    // the hall over the set is a sealed void (slab 3.0-3.2, hall walls to 10 m, roof slab), so no panel there
+    const ceilingSlab = mine.find((p) => p.overhead)!;
+    expect(top(ceilingSlab)).toBeCloseTo(3.2, 9);
+    // the two sliding doors' 1.0 m frames stay clear (L2 on x 76 at z 10, L3 on x 100 at z 10), the corridor switch's plate is clear
+    for (const i of panels.filter((q) => Math.abs(q.x - 76.25) < 0.1)) expect(Math.abs(i.z - 10) - 0.6 * i.sx, `L2 panel at z ${i.z}`).toBeGreaterThanOrEqual(1.0 - 1e-6);
+    for (const i of panels.filter((q) => Math.abs(q.x - 99.75) < 0.1)) expect(Math.abs(i.z - 10) - 0.6 * i.sx, `L3 panel at z ${i.z}`).toBeGreaterThanOrEqual(1.0 - 1e-6);
+    for (const i of panels.filter((q) => Math.abs(q.z - 12.75) < 0.1 && q.x < 79.5)) expect(Math.abs(i.x - A3_SW_CORR.x) - 0.6 * i.sx, 'the corridor switch').toBeGreaterThanOrEqual(0.2);
+    // no lamp was added: the fourteen of the plan, each on its row
+    expect(lamps).toHaveLength(14);
+    for (const l of lamps) expect(l.group).toBeGreaterThanOrEqual(g0);
+  });
+
+  it('the four desk props stand over the greybox desks: each one\'s gameplay box (not written) lies inside a greybox desk box, 1 cm up, its front 5 cm inside the box front; screens dark; the far desk has no prop', () => {
+    const desks = own.filter((p) => p.prop === 'officeDesk');
+    expect(desks).toHaveLength(4);
+    const greyDesks = grey.filter((p) => p.collide && Math.abs(top(p) - 0.75) < 1e-6);
+    expect(greyDesks).toHaveLength(5);
+    expect(PROP_HUNG).not.toContain('officeDesk');
+    for (const [k, p] of desks.entries()) {
+      const wb = propCollisionBox(p)![0]!;
+      expect(p.y).toBeCloseTo(A3_DESK_LIFT, 9);
+      expect(p.tint).toEqual([0, 0, 0]);
+      const d = A3_DESKS[k]!;
+      const host = greyDesks.find((g) => Math.abs(g.c[0] - (d.x0 + d.x1) / 2) < 1e-9 && Math.abs(g.c[2] - (d.z0 + d.z1) / 2) < 1e-9)!;
+      expect(host, `greybox desk under desk prop ${k}`).toBeDefined();
+      expect(wb.c[0] - wb.s[0] / 2).toBeGreaterThanOrEqual(host.c[0] - host.s[0] / 2 - 1e-9);
+      expect(wb.c[0] + wb.s[0] / 2).toBeLessThanOrEqual(host.c[0] + host.s[0] / 2 + 1e-9);
+      expect(wb.c[2] - wb.s[2] / 2).toBeGreaterThanOrEqual(host.c[2] - host.s[2] / 2 - 1e-9);
+      expect(wb.c[2] + wb.s[2] / 2).toBeLessThanOrEqual(host.c[2] + host.s[2] / 2 - 0.05 + 1e-9);
+      expect(wb.c[1] + wb.s[1] / 2, 'the prop box is not above the greybox top').toBeLessThanOrEqual(top(host) + 1e-9);
+      // the prop's box was not written (the greybox desk is the collision): no dressing collider stands on it
+      expect(colliders.some((c) => Math.abs(c.c[0] - wb.c[0]) < 1e-6 && Math.abs(c.c[2] - wb.c[2]) < 1e-6)).toBe(false);
+    }
+    // the far desk (96.15-96.85 x 0.5-2.5) is skinned instead: top, panels and a screen on its stand; no desk or chair prop stands within it
+    expect(own.some((p) => ['officeDesk', 'officeChair'].includes(p.prop) && p.x > 96.1 && p.z > 0.4 && p.z < 2.6)).toBe(false);
+    expect(near(96.1, 96.9, 0.4, 2.6, 1.3)).toBeGreaterThan(8);
+    // the chairs have no collision (PROPS: none, small) and sit at the desks' open fronts; the fifth is pushed out, away from the cleaner's far stop
+    const chairs = own.filter((p) => p.prop === 'officeChair');
+    expect(chairs).toHaveLength(5);
+    for (const p of chairs) expect(propCollisionBox(p)).toBeNull();
+    for (const c of A3_CHAIRS.slice(0, 4)) expect(c.z).toBeGreaterThan(A3_DESKS.find((d) => Math.abs((d.x0 + d.x1) / 2 - c.x) < 1e-9)!.z1 - 0.2);
+    expect(hyp2(A3_CHAIRS[4]!.x - 95.5, A3_CHAIRS[4]!.z - 1.5)).toBeGreaterThan(1.5);
+  });
+
+  it('the cleaner\'s trolley is parked in office 2\'s south-west corner: one see-through 1.1 x 0.5 x 1.0 box, noLedge, clear of the communicating door\'s swing, his loop, his lured walks and both hide pockets (the bay stays free)', () => {
+    const trolleys = own.filter((p) => p.prop === 'cleanerTrolley');
+    expect(trolleys).toHaveLength(1);
+    expect(trolleys[0]!.x).toBeCloseTo(A3_TROLLEY.x, 9);
+    expect(trolleys[0]!.z).toBeCloseTo(A3_TROLLEY.z, 9);
+    // the prop's own box is see-through (collision-only); the builder marks the written copy noLedge (checked above)
+    expect(propCollisionBox(trolleys[0]!)).toEqual([expect.objectContaining({ visible: false })]);
+    expect(trolleyBox.noLedge).toBe(true);
+    expect(tb.s[0]).toBeCloseTo(0.5, 9);
+    expect(tb.s[2]).toBeCloseTo(1.1, 9);
+    expect(top(tb)).toBeCloseTo(1.0, 9);
+    // inside office 2 (x 85.45-91.15), against its south wall and the partition: no body fits in the 0.1 m beside it (so no new pocket)
+    const x0 = tb.c[0] - tb.s[0] / 2;
+    const z0 = tb.c[2] - tb.s[2] / 2;
+    const z1 = tb.c[2] + tb.s[2] / 2;
+    expect(x0 - 85.45).toBeLessThan(2 * MOVEMENT.radius);
+    expect(z0 - 0.25).toBeLessThan(2 * MOVEMENT.radius);
+    // the communicating door at x 85.4, z 1.8-3.0 swings into the room 1.2 m: the trolley ends 0.4 m short of its hinge
+    expect(A3_COMM_Z[0] - z1).toBeGreaterThanOrEqual(0.3);
+    // the pockets and every route the greybox tests rely on are open floor with the trolley written (the greybox cases above run on all the solids too)
+    for (const [x, z] of [[80.4, 7.8], [90.55, 7.9], [A3_HIDE.x, A3_HIDE.z], [83, 3], [88.3, 3], [95.5, 1.5], [88.3, 4.3], [82.5, 4.3], [94.1, 4.3]] as const) expect(dressNear(x, z, MOVEMENT.radius), `spot (${x}, ${z})`).toBe(false);
+    for (let i = 1; i < A3_CLEANER_ROUTE.length; i++) expect(dressWalk(A3_CLEANER_ROUTE[i - 1]![0], A3_CLEANER_ROUTE[i - 1]![1], A3_CLEANER_ROUTE[i]![0], A3_CLEANER_ROUTE[i]![1]), `loop leg ${i}`).toBeNull();
+    for (const sw of A3_SW_OFFICE) for (const [x, z] of A3_CLEANER_ROUTE) expect(dressWalk(x, z, sw.x, sw.z), `lured walk to ${sw.id} from (${x}, ${z})`).toBeNull();
+    // teeth: the same trolley parked in the bay (x 90.0-91.1, z 8.15-8.65) would close the pocket the greybox case stands a body in (0.25 m from its edge, under 0.3)
+    const parked = { cx: 90.55, cz: 8.4, w: 1.1, d: 0.5 };
+    expect(hyp2(Math.max(Math.abs(90.55 - parked.cx) - parked.w / 2, 0), Math.max(Math.abs(7.9 - parked.cz) - parked.d / 2, 0))).toBeLessThan(MOVEMENT.radius);
+    // the trolley bay (x 90.0-91.15, z 7.0-8.7) and the desk-run recess keep their size: the tested bodies still stand and walk out with every solid counted
+    for (const [x, z] of [[80.4, 7.8], [90.55, 7.9]] as const) {
+      expect(blockedAt(x, z, 0.3), `pocket (${x}, ${z})`).toEqual([]);
+      expect(walkBlocked(x, z, x, 5.0), `pocket (${x}, ${z}) out`).toBeNull();
+    }
+  });
+
+  it('the corridor, the recess, the archways, the doors and the lobbies keep their widths and sight lines: no collider was added there, the hide spot stays hidden, both jam posts keep their clear line to the lens', () => {
+    // the only dressing collider is in office 2's corner: nothing in the corridor box, the recess, the lobbies or on any door line
+    expect(colliders.every((p) => p.c[2] < 3 && p.c[0] > 85.4 && p.c[0] < 91.2)).toBe(true);
+    for (const id of [A3_DOOR_LOBBY, A3_DOOR_COMM1, A3_DOOR_COMM2, A3_DOOR_RECESS, A3_DOOR_CORR]) {
+      const d = doorAnchor(id);
+      expect(hyp2(d.hinge.x - tb.c[0], d.hinge.z - tb.c[2]), id).toBeGreaterThan(d.width / 2);
+    }
+    // widths: the corridor 3.5 m, the doors 1.2 m, the lobbies 3.1 and 2.6 m: a body of radius 0.3 walks each line with every solid
+    expect(walkBlocked(88.25, 9.3, 88.25, 12.1)).toBeNull();
+    expect(walkBlocked(79.0, 10.75, 97.6, 10.75)).toBeNull();
+    expect(walkBlocked(76.6, 4.6, 79.1, 4.6)).toBeNull();
+    expect(walkBlocked(97.4, 10.75, 99.4, 10.75)).toBeNull();
+    for (const [a, c] of [[[78.9, 4.6], [80.4, 4.6]], [[88.25, 8.6], [88.25, 6.5]], [[92.0, 9.6], [92.0, 7.6]], [[84.6, 2.4], [86.2, 2.4]], [[90.4, 2.4], [92.0, 2.4]]] as const) expect(walkBlocked(a[0], a[1], c[0], c[1])).toBeNull();
+    // the recess hide spot: still hidden from the lens for a crouched and a standing head, a body of 0.3 stands in it
+    for (const y of HEADS) expect(clearLine(A3_HIDE.x, y, A3_HIDE.z), `head ${y}`).toBe(false);
+    expect(blockedAt(A3_HIDE.x, A3_HIDE.z, 0.3)).toEqual([]);
+    // the west and east jam posts keep a clear line to the lens at head height (no dressing box stands on it)
+    for (const post of [A3_POST_WEST, A3_POST_EAST]) {
+      for (const y of [1.1, 1.6]) {
+        const hit = [...solid, ...leaves.map((l) => l.leaf)].find((p) => segHits([post.x, y, post.z], camPos, p));
+        expect(hit, `post (${post.x}, ${post.z}) at ${y}`).toBeUndefined();
+      }
+    }
+    // the camera still sees the corridor from x 84 east (range 14) as the greybox tests say; the offices and lobbies are unseen
+    for (const x of [84, 87, 90, 93]) expect(seenAt(x, A3_CORRIDOR.at.z), `corridor x ${x}`).toBe(true);
+    for (const [x, z] of [[82.5, 4.3], [88.3, 4.3], [94.1, 4.3], [77.8, 10.75], [98.5, 10.75]] as const) expect(seenAt(x, z), `(${x}, ${z})`).toBe(false);
+  });
+
+  it('nothing in the offices gives a new standing top or a solo way past the camera: every dressing box is a skin or the 1.0 m trolley; the desks and runs keep their 0.75 / 0.9 m greybox tops; no generated grip above 0.9 m in A3', () => {
+    for (const p of dressing) if (p.collide) expect(top(p) < 1.9 && p.noLedge, `collider at (${p.c.join(', ')})`).toBe(true);
+    // the greybox tops are unchanged: the desks and runs are the greybox's boxes, the skins on them stand at most 3 cm over
+    const desks = grey.filter((p) => p.collide && Math.abs(top(p) - 0.75) < 1e-6);
+    const runs = grey.filter((p) => p.collide && Math.abs(top(p) - 0.9) < 1e-6);
+    expect(desks).toHaveLength(5);
+    expect(runs).toHaveLength(4);
+    for (const p of skins) if (p.c[0] > 80 && p.c[0] < 97 && p.c[2] < 8.7 && top(p) > 0.5 && top(p) < 1.0) expect(top(p), `skin at (${p.c.join(', ')})`).toBeLessThanOrEqual(0.95 + 1e-9);
+    const generated = anchors.ledges.filter((l) => inBox(box, (l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2, 0.3) && l.top >= 0.9);
+    expect(generated.map((l) => `(${l.a.x}, ${l.a.z}) top ${l.top}`)).toEqual([]);
+    // the offices route still needs the camera's jam: the existing no-way-past cases run on every solid; here the dressing adds nothing beside the corridor doors
+    for (const id of [A3_DOOR_RECESS, A3_DOOR_CORR]) {
+      const d = doorAnchor(id);
+      expect(dressNear(d.hinge.x, d.hinge.z, 3.0), id).toBe(false);
+    }
+  });
+
+  it('the corridor, recess, offices, desks, runs, lifts, cupboard and switches are dressed: plaster on every face, door surrounds, ceiling tile in each room, floor sheets, the lifts and their plates, a back plate behind each switch', () => {
+    // the corridor and the recess
+    expect(near(79.5, 97, 9.0, 12.5, 3.05)).toBeGreaterThan(60);
+    expect(near(87.55, 88.95, 8.0, 9.0, 3.05)).toBeGreaterThan(8);
+    // plaster on the long walls: north face (z 12.47-12.5) and south face (z 9.0-9.03), floor to the slab
+    const wallRun = (lo: number, hi: number, zlo: number, zhi: number): number => skins.filter((p) => p.c[2] > zlo && p.c[2] < zhi && p.s[0] > 2 && p.c[0] - p.s[0] / 2 <= lo + 1e-9 && p.c[0] + p.s[0] / 2 >= hi - 1e-9 && top(p) >= 2.99).length;
+    expect(wallRun(79.5, 97, 12.46, 12.5)).toBe(1);
+    expect(wallRun(79.5, 87.55, 9.0, 9.04)).toBe(1);
+    expect(wallRun(92.6, 97, 9.0, 9.04)).toBe(1);
+    // each office: carpet sheet, ceiling sheet, plaster and wall furniture
+    for (const [x0, x1] of A3_OFFICES) {
+      expect(skins.some((p) => Math.abs(p.c[0] - (x0 + x1) / 2) < 1e-6 && Math.abs(p.s[0] - (x1 - x0)) < 1e-6 && Math.abs(p.s[2] - (A3_OFFICE_Z1 - 0.25)) < 1e-6 && top(p) < 0.02), `carpet ${x0}`).toBe(true);
+      expect(skins.some((p) => Math.abs(p.c[0] - (x0 + x1) / 2) < 1e-6 && Math.abs(p.s[0] - (x1 - x0)) < 1e-6 && Math.abs(p.s[2] - (A3_OFFICE_Z1 - 0.25)) < 1e-6 && bottom(p) > 2.9), `ceiling ${x0}`).toBe(true);
+      expect(near(x0, x1, 0.25, A3_OFFICE_Z1, 3.05), `office ${x0}`).toBeGreaterThan(40);
+    }
+    // the steel surrounds of the communicating doors (both faces of both partitions: two jambs and a head each)
+    for (const xp of A3_PARTITIONS) expect(skins.filter((p) => Math.abs(p.c[0] - xp) < 0.1 && p.c[2] > 1.6 && p.c[2] < 3.2 && p.s[0] < 0.05 && p.c[1] < 2.3).length).toBe(6);
+    // the desks and runs
+    for (const d of A3_DESKS) expect(near(d.x0 - 0.05, d.x1 + 0.05, d.z0 - 0.05, d.z1 + 0.05, 0.8), `desk x ${d.x0}`).toBeGreaterThanOrEqual(5);
+    for (const r of A3_RUNS) expect(near(r.x0 - 0.05, r.x1 + 0.05, r.z0 - 0.05, r.z1 + 0.05, 0.95), `run x ${r.x0}`).toBeGreaterThanOrEqual(r.z0 > 7.5 ? 6 : 8);
+    // lifts: two doors on each lobby's outer wall at z 1.4-2.5 and 2.9-4.0, each with its seam, frame and display; the call plates
+    for (const [lo, hi] of [[76.28, 76.43], [99.57, 99.72]] as const) {
+      for (const [a, e] of A3_LIFTS) expect(skins.filter((p) => p.c[0] > lo && p.c[0] < hi && p.c[2] > a - 0.1 && p.c[2] < e + 0.1 && p.c[1] < 2.5).length, `lift ${a}`).toBeGreaterThanOrEqual(6);
+      expect(skins.filter((p) => p.c[0] > lo && p.c[0] < hi && p.c[2] > 4.2 && p.c[2] < 4.6).length, 'call plate').toBeGreaterThanOrEqual(3);
+    }
+    // the services cupboard on the east lobby's office wall: frame, door, six louvres, lock, label
+    expect(skins.filter((p) => p.c[0] > 97.15 && p.c[0] < 97.3 && p.c[2] > A3_CUPBOARD_Z[0] - 0.1 && p.c[2] < A3_CUPBOARD_Z[1] + 0.1 && p.c[1] < 2.2).length).toBeGreaterThanOrEqual(10);
+    // S34-check polish: every wall switch has a back plate behind it (0.3 m tall at 1.2 m, centred on the switch)
+    const switches = lay.switches!.filter((s) => s.group >= 30 && s.group < 40);
+    expect(switches).toHaveLength(4);
+    for (const sw of switches) {
+      const plate = skins.find((p) => Math.abs(p.c[1] - 1.2) < 1e-9 && Math.abs(p.s[1] - 0.3) < 1e-9 && Math.abs(p.c[0] - sw.pos.x) < 0.06 && Math.abs(p.c[2] - sw.pos.z) < 0.06);
+      expect(plate, `back plate behind switch ${sw.group} at (${sw.pos.x}, ${sw.pos.z})`).toBeDefined();
+    }
+  });
+
+  it('the plates hang where the doors are: over office 3\'s corridor door, office 2\'s recess door and office 1\'s lobby door, 1.2 m wide over 1.2 m doors, and a lift display over each lobby\'s pair; none has a box', () => {
+    const plates = own.filter((p) => p.prop === 'signPlate');
+    expect(plates).toHaveLength(5);
+    expect(PROP_HUNG).toContain('signPlate');
+    for (const p of plates) expect(propCollisionBox(p)).toBeNull();
+    const at = (x: number, z: number): PropPlacement | undefined => plates.find((p) => hyp2(p.x - x, p.z - z) < 0.2);
+    for (const [x, z] of [[92.0, 9.05], [88.25, 8.05], [79.3, 4.6]] as const) expect(at(x, z)!.y, `plate at (${x}, ${z})`).toBeCloseTo(2.55, 9);
+    // the plate's top (y + 0.3) is under the 3.0 m slab and over the 2.1 m lintel's soffit
+    for (const p of plates) {
+      expect(p.y).toBeGreaterThan(2.1);
+      expect(p.y + 0.3).toBeLessThan(3.0);
+    }
+    // the recess plate stands 0.55 m clear of the hide spot's reach (it hangs 2.55 m up on the recess back)
+    expect(A3_HIDE.z - at(88.25, 8.05)!.z).toBeGreaterThan(0.3);
   });
 });

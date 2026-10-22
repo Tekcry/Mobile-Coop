@@ -13,7 +13,8 @@
 //   5. the gallery switch from the client at the stair head: group 61 off on both pages, the holder's spot dark on both, the
 //      attendant lured toward it; on again;
 //   6. both to the L6 door while the attendant is west of x 50;
-//   7. pass 2 (the host's checkpoint restart: the flag cleared, both doors locked again, the claim cleared): the client outside the
+//   7. pass 2 (the host's checkpoint restart: the flag cleared, both doors locked again, the claim cleared; the client damage-proof on the host
+//      and every attendant-sensitive step waited on: the cage-face loop and the floor hold while he is at his desk, the drop while he is east): the client outside the
 //      cage cannot reach either device (its own prompt never offers them; a forced press from the west face is refused by the host);
 //      the host claims B, is lowered and let go: lands in the cage, holds the panel 3 s from the floor (`a6-drive`), presses the exit
 //      release (the cage door unlocks on both pages), opens the door by hand and walks out; both to the L6 door.
@@ -288,6 +289,10 @@ export async function walk(t, n) {
   await until(B, (i) => window.__course.wire.locks.includes(i), await doorIndex(OUTFALL), 15000, 'A6: the restart locks the outfall door again on the client');
   assert(await lockedOnClient(CAGE_DOOR), 'A6: the cage door is locked again');
   assert(!(await claimed()) && !(await ticked(A, 'a6-up')), 'A6: the restart clears the claim and the steps');
+  // the client is kept unhurt on the host too (its remote body, whose spawn protection the restart just ran out), and the attendant is waited on:
+  // the cage-face loop below stands the client 0.45 m off his path along z 61.2, so it starts while he is at his desk (D 4 s, then 12 s from the cage)
+  await GA((id) => { const r = window.__app.current.net.remotes.get(id); r.damageMul = 0; r.protectT = 0; }, clientId);
+  await waitAttendant({ near: [POST[0], POST[1], 1.5], meterMax: 0.1 }, 150000, 'A6 pass 2: the attendant is at his desk, calm, before the client walks the cage faces');
   // the client outside the cage: its own prompt never offers the devices; a forced press from the west face is refused by the host
   for (const [x, z] of [[CAGE[0] - 0.35, 64.1], [51.5, CAGE[1] - 0.35], [51.5, CAGE[3] + 0.35], [CAGE[2] + 0.35, 64.1]]) {
     await moveClient(x, z, 0.1, 0);
@@ -310,6 +315,7 @@ export async function walk(t, n) {
   await moveHost(HOLDER[0], HOLDER[1] + 1.0, DECK_Y + 0.1, Math.PI);
   await waitSim(500);
   await lowerToPanel(B, A, 'A6 pass 2');
+  await waitAttendant({ minX: 55 }, 150000, 'A6 pass 2: the attendant is east of x 55 before the drop');
   // the holder lets go (B): the host drops into the cage; the let-go is read once the hang has settled at the panel
   await waitSim(300);
   const drops0 = await GB(() => window.__app.current.team.count.drops);
@@ -319,6 +325,8 @@ export async function walk(t, n) {
   assert(inCage(land), `A6 pass 2: the host is inside the cage (${land.map((v) => v.toFixed(2))})`);
   // the hold from the floor
   await until(A, (id) => { const g = window.__app.current; return g.interactables?.nearest(g.player.position)?.id === id; }, PANEL, 10000, 'A6 pass 2: the drive panel is in reach from the cage floor');
+  // the 3 s hold buzzes to 6 m: from the floor it starts only while he is at his desk (as pass 1's)
+  await waitAttendant({ near: [POST[0], POST[1], 1.2], meterMax: 0.1 }, 150000, 'A6 pass 2: the attendant is at his desk and calm before the hold from the cage floor');
   await padReady(A);
   await holdA(A, (f) => window.__course.state.hasFlag(f), DRIVE, 'A6 pass 2: the host holds the isolate key 3 s from the floor: a6-drive');
   await until(B, (i) => !window.__course.wire.locks.includes(i), await doorIndex(OUTFALL), 15000, 'A6 pass 2: the client sees the outfall door unlocked');

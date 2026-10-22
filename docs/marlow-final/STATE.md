@@ -56,6 +56,30 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~09:55 SAVED FOR THE ACCOUNT SWAP (window 91%). Commit "WIP A3-A6 dressing" holds the A3-A6 dressers' files as they
+  were mid-work (UNCHECKED; may not compile or pass; tests/ctcourse/a5Substation.scratch.test.ts left out, untracked,
+  delete it). A7 dressing complete (3ea78569, unchecked). A8 greybox complete (3dfc6e9a + d3ec16c3, unchecked). The
+  dressing brief is in the repo: docs/marlow-final/DRESS-BRIEF.md (fill the <N> / <SET> / <NAME> / <PROPS HEADING> /
+  <CHECK> / <EXTRA> slots per set; extras: S34-check.md / S567-check.md polish lists), and docs/marlow-final/mf-e2e.sh
+  (desktop single suites only; all e2e goes to Character Build).
+  Character Build verdict on 45458bbc (GPU): ctcourse:4 PASS, coop PASS, netmove PASS, course PASS. FAILS:
+  - :1 "A1 variant host: feet on the yard floor past the wall (12.52, 2.52, 7.00)": the host still at y 2.52 in the
+    relay variant (the main A1 leg passed). Probably the master merge (movement / traversal changes): investigate in
+    scripts/e2e-ctcourse/a1Gate.mjs's variant and the hang-drop.
+  - :2 timed out "A3: the pass zone sets a3-far1 (one player in the east lobby)" at 60 / 120 fps (not load). A solo :2
+    rerun was running (runs/marlowfinal-45458bbc-ct2solo on the laptop). Check the a3-far1 zone box vs the e2e's east
+    lobby spot after the 14 m camera change (SEEN moved; the relay's waits).
+  - :3 "A6: the holder's spot reads lit again (host 0.524, client 0.188)": a host / client light parity break after the
+    hold panel restores (light parity is a hard rule): check the client's group restore path for A6's held isolator.
+  ON RESUME: (1) for A3-A6 read slices/S<n>.md: if its "Dressing" section is missing or unfinished, rerun the dresser
+  (Sonnet, DRESS-BRIEF.md) telling it to continue from the committed WIP; (2) tsc and vitest on tests/ctcourse/,
+  tests/ctcourse.test.ts, tests/ctcourseLight.test.ts, tests/voxelFit.test.ts (voxelFit failed on A5 cover points at
+  x 58, z 33 / 39 mid-dressing); commit, push; (3) the three e2e fails above (Opus, one agent: e2e scripts and, for A6,
+  the client light path); (4) Opus checker on A8 greybox (S8-check.md) and dressing checkers (A3-A4, A5-A7), one fix
+  round; (5) A8 dressing (Sonnet, DRESS-BRIEF.md, N 8, props heading "A8 - The Strongroom (Victorian banking hall,
+  security office, vault)", extras: S8.md Undone, stair rails); (6) Character Build: ctcourse :1-:4, coop, netmove,
+  course on the head; (7) GPU shots + perf per set, the facility GPU perf pass (Opus, scripts/guard-cap.mjs), slice 9,
+  the PR.
 - ~09:45 (window 88%): A8 greybox IN (3dfc6e9a, slices/S8.md, 58 A8 tests, unchecked); its engine requests done by the job lead
   (d3ec16c3: a door with several gates is locked only while none is open, the grille request-to-exit on; camera levels merged
   from the set parts so C2 hangs over the gallery). Dressers A3-A7 still running. NEXT WINDOW FIRST: Opus checker on A8

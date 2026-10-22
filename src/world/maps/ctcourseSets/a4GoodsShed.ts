@@ -21,6 +21,20 @@
  * Devices: the console (N3, 60 s loop, 20 s re-arm) and its pickup gate `g-a4-console`; cameras C1-C3 on the console's flag; the push bar and
  * the egress gate `g-a4-wicket` on L4's east door. Lights (LIGHTING-PLAN 3, A4): security room 40, floor high-bays 41, aisle strips 42,
  * mezzanine strips 43 (two-way), the bulk-store row 49 is dead (no lamp: the back aisle stays dark).
+ *
+ * Dressing (slice 4 step 5, SPEC 6, M5: a port warehouse and its CCTV office inside the luxury hall, so it keeps its own materials - profiled
+ * sheeting on a concrete plinth, blue and orange pallet racking, chequer plate, a painted dispatch hut, a 1970s foreman's office - and only the
+ * hall above the set takes the kit's charcoal panels and coves):
+ * - the greybox's boxes, lamps, doors, devices, guards and steps are untouched; the dressing is appended after them (the one edit inside the
+ *   greybox is the mezzanine rails' circuit: their LED line now sits on group 43, no box moved);
+ * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK`, so it is out of the canonical light
+ *   shapes: the bake, the meter and the guards see the greybox as built): the room's, the passage's and the hut's linings, floor paint, the racking's
+ *   backing, end guards and aisle boards, the deck's plate, the stairs' rails, the stacks' pallets and wrap, the dock desk, the roller shutter, the push
+ *   bar's housing, the walls' sheeting and stanchions, roof ties and cables, the dead bulk-store fittings, camera brackets, oil stains;
+ * - the props kit's two areas are budgeted apart (the security room, the warehouse floor): the room takes the CCTV wall and the console desk, the floor
+ *   takes 24 racking bays with their 8 closing frames and one parked reach truck. The racking and the desk stand over greybox solids (their boxes are
+ *   the greybox's: nothing written); the video wall and the truck have their own boxes, written `noLedge` and kept off every tested line;
+ * - kit panels with accent coves above 7.5 m on the four floor walls, each on its circuit's group (floor 41; over the deck 43). No lamp is added.
  */
 import type { GuardInfo } from '../../../ai/guardInfo';
 import type { EgressGate, PickupGate } from '../../../game/course/courseDef';
@@ -30,8 +44,9 @@ import type { LevelBuilder } from '../../levelBuilder';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { marlowCourseGroups } from '../../lighting/marlowCircuits';
 import { stairSteps } from '../ctcourseGreybox';
+import { FacilityProps } from '../../props/facilityProps';
 import { L4_EAST_DOOR } from './facility';
-import { emptyPart, tally, type SetPart } from './types';
+import { emptyPart, HALL_H, tally, type SetPart } from './types';
 
 /** The three guards' squad slot ids: the duty officer, and the loaders by the dispatch desk (D1 the man nearest the office, D2 the kettle man). */
 export const A4_OFFICER = 'a4-officer';
@@ -103,6 +118,78 @@ export const A4_DOCK2_LOOP = { period: 40, leave: [17, 18.4, 24.0, 24.9, 31.3, 3
 /** At the desk he faces north across it at D1; at the kettle west at the counter (NaN: look along the next leg). */
 export const A4_DOCK2_FACES = [0, Number.NaN, Number.NaN, Number.NaN, -Math.PI / 2, Number.NaN, Number.NaN, Number.NaN];
 
+// ---- dressing (slice 4 step 5) ----
+/** The circuits the kit's accent coves follow: the floor high-bays (41) for the hall walls, the mezzanine strips (43) over the deck and on its rails. */
+const G_FLOOR = 41;
+const G_MEZZ = 43;
+/** A dressing skin's thickness (m) and the thinnest side a skin may have: under `CANON_MIN_THICK` (0.05, `voxel/lightShapes.ts`) the canonical light
+ *  shapes leave it out, so dressing never moves the bake, the meter or what a guard sees. */
+const SKIN = 0.03;
+const THIN = 0.05;
+/** Where the props kit's pieces stand. The video wall is on the room's east wall (the north wall's 3.7 m would cross the passage door's swing), the
+ *  console desk over the greybox desk (0.02 m up, its skin 5 cm proud of the greybox box at the front: no coplanar face), the reach truck parked
+ *  nose north in the east lane's south end (out of C1's frame, the shadow route and every tested line). */
+export const A4_PROPS = {
+  monitorWall: { x: 106.35, z: 15.2, yaw: -Math.PI / 2 },
+  securityDesk: { x: 105.15, z: 19.0, y: 0.02, yaw: Math.PI },
+  reachTruck: { x: 110.6, z: 25.85, yaw: -Math.PI / 2 },
+} as const;
+/** Each racking row's centre line (z) and fronts (the south rows face the aisle south of them): back to back, 0.2 m flue between the two 1.1 m bays. */
+export const A4_RACK_ROWS: readonly { z: number; flip: boolean }[] = [
+  { z: 27.85, flip: true },
+  { z: 29.15, flip: false },
+  { z: 33.75, flip: true },
+  { z: 35.05, flip: false },
+];
+/** The roller shutter on the dock's west face (the doc's z 37-40 straddles the office's south wall at z 38: moved south of it), the push bar's housing. */
+export const A4_SHUTTER = { z0: 35.0, z1: 37.8, h: 3.0 } as const;
+/** The hall walls' panel height line: the gallery glazing's top, the roof tie's height. */
+const EAVE = 7.5;
+/** Own materials (a warehouse's sheeting and racking, chequer plate, a painted dispatch hut, a foreman's office). */
+const LOOK = {
+  black: '#1d1f20',
+  white: '#e5e5de',
+  red: '#b5282d',
+  yellow: '#c9a227',
+  green: '#3f5a49',
+  cream: '#cdc6b3',
+  trim: '#d9d8cf',
+  concrete: '#46453f',
+  sheet: '#56626a',
+  sheetRail: '#46515a',
+  frame: '#3b4147',
+  steel: '#6a7077',
+  steelDark: '#3a3f44',
+  pipe: '#7d8286',
+  plate: '#585d61',
+  seam: '#2f3336',
+  stain: '#222527',
+  tie: '#2a2d30',
+  wood: '#6b5a43',
+  timber: '#8a6a43',
+  cork: '#a8763e',
+  carpet: '#38404a',
+  mat: '#2a2d30',
+  tile: '#d4d4cb',
+  vinyl: '#5d675f',
+  lino: '#4f433b',
+  rackBack: '#16181a',
+  rackTop: '#24272a',
+  rackBlue: '#27508c',
+  rackOrange: '#c0561a',
+  wrap: '#cfd6dc',
+  hut: '#d8d9d2',
+  hutBase: '#3a3f44',
+  door: '#4a6a8a',
+  shutter: '#7c858c',
+  coatA: '#2a3345',
+  coatB: '#4a4a35',
+  vest: '#c9651c',
+  laminate: '#8a7355',
+} as const;
+/** The 7-segment strokes of the aisle numbers 1-3 on the rack ends. */
+const DIGITS = { 1: 'bc', 2: 'abged', 3: 'abgcd' } as const;
+
 const WHITE: [number, number, number] = [0.96, 0.97, 1.0];
 const RACK = '#6a5a44';
 const CRATE = '#7a6b52';
@@ -154,7 +241,7 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
   tally(b, p.register, 'A4-4', 'Pick mezzanine: a solid 3.3 m block x 86-106, z 44-47.75 (noLedge, closed store below), chequer plate (metal, loud x1.6), 1.1 m rails on the three open edges; the two stairs (20 risers) with their ramp colliders and noLedge fillers under the flights', () => {
     slab(mz.x0, mz.x1, mz.z0, mz.z1, 0, mz.deck, PLATE);
     b.surface('metal', mz.x0, mz.x1, mz.z0, mz.z1, mz.deck);
-    const rail = { y: mz.deck, h: mz.rail };
+    const rail = { y: mz.deck, h: mz.rail, group: G_MEZZ };
     kit.handrail(mz.x0 + mz.inset, mz.z0 + mz.inset, mz.x1 - mz.inset, mz.z0 + mz.inset, rail);
     kit.handrail(mz.x0 + mz.inset, mz.z0 + mz.inset, mz.x0 + mz.inset, A4_STAIR.z0 - 0.1, rail);
     kit.handrail(mz.x1 - mz.inset, mz.z0 + mz.inset, mz.x1 - mz.inset, A4_STAIR.z0 - 0.1, rail);
@@ -393,5 +480,423 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
     { name: 'a4-mouth', feet: [102.5, 0, 24.6], cam: [103.6, 1.7, 25.4], target: [84, 1.2, 26.0] },
     { name: 'a4-main-aisle-east', feet: [110, 0, 40], cam: [110.8, 1.8, 40.6], target: [78, 1.5, 35.0] },
   );
+  // ---- dressing (slice 4 step 5; SPEC 6, PROPS.md 3 / 5, KIT.md): appended after the greybox, which it does not touch ----
+  /** A visual-only skin [x0, x1] x [y0, y1] x [z0, z1]: no collision, `noLedge`, one side under `THIN` (out of the light shapes). */
+  const skin = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, color: string): void => {
+    if (Math.min(x1 - x0, y1 - y0, z1 - z0) >= THIN) throw new Error(`a4GoodsShed: the dressing skin at (${x0}, ${y0}, ${z0}) is not thin`);
+    const from = b.boxes.length;
+    b.box((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, color, 0, 0, false);
+    b.mark(from, { noLedge: true });
+  };
+  type Side = 'n' | 's' | 'e' | 'w';
+  type Runs = readonly (readonly [number, number])[];
+  /** A skin on the face of an axis-aligned block: `side` is the face's outward direction ('s' -z, 'n' +z, 'w' -x, 'e' +x), `at` the face's plane (z for
+   *  n / s, x for e / w), [a0, a1] the run along it (x for n / s, z for e / w), `layer` how many skins out (each `SKIN` thick). */
+  const face = (side: Side, at: number, a0: number, a1: number, y0: number, y1: number, color: string, layer = 0): void => {
+    const o0 = layer * SKIN;
+    const o1 = (layer + 1) * SKIN;
+    if (side === 'n') skin(a0, a1, y0, y1, at + o0, at + o1, color);
+    else if (side === 's') skin(a0, a1, y0, y1, at - o1, at - o0, color);
+    else if (side === 'e') skin(at + o0, at + o1, y0, y1, a0, a1, color);
+    else skin(at - o1, at - o0, y0, y1, a0, a1, color);
+  };
+  /** Floor paint (a few mm proud, no collision). */
+  const paint = (x0: number, x1: number, z0: number, z1: number, color: string, top = 0.012): void => skin(x0, x1, 0, top, z0, z1, color);
+  /** A thin post (4 cm square) from y0 to y1 at (x, z). */
+  const post = (x: number, y0: number, y1: number, z: number, color: string): void => skin(x - 0.02, x + 0.02, y0, y1, z - 0.02, z + 0.02, color);
+  /** An aisle number 1-3 in 7-segment strokes (0.2 x 0.36 m) on a face: `centre` along the face, `dir` the way the reader's right runs along it. */
+  const digit = (n: 1 | 2 | 3, side: Side, at: number, centre: number, y0: number, dir: 1 | -1, color: string, layer: number): void => {
+    const w = 0.2;
+    const h = 0.36;
+    const s = 0.045;
+    const seg: Record<string, readonly [number, number, number, number]> = {
+      a: [0, w, h - s, h],
+      b: [w - s, w, h / 2, h],
+      c: [w - s, w, 0, h / 2],
+      d: [0, w, 0, s],
+      e: [0, s, 0, h / 2],
+      f: [0, s, h / 2, h],
+      g: [0, w, (h - s) / 2, (h + s) / 2],
+    };
+    for (const k of DIGITS[n]) {
+      const [u0, u1, v0, v1] = seg[k]!;
+      const a = centre + dir * (u0 - w / 2);
+      const e = centre + dir * (u1 - w / 2);
+      face(side, at, Math.min(a, e), Math.max(a, e), y0 + v0, y0 + v1, color, layer);
+    }
+  };
+  /** A white sign plate with a dark text bar (text waits for a texture, KIT.md 6) on a face. */
+  const sign = (side: Side, at: number, a0: number, a1: number, y0: number, y1: number, bar: string, layer = 0): void => {
+    face(side, at, a0, a1, y0, y1, LOOK.white, layer);
+    face(side, at, a0 + 0.08, a1 - 0.08, (y0 + y1) / 2 - 0.03, (y0 + y1) / 2 + 0.03, bar, layer + 1);
+  };
+  /** A wall's lining over each run: a skirting, a dado panel in `lower` to `dado`, a rail, then `upper` to `top`. */
+  const lining = (side: Side, at: number, runs: Runs, top: number, lower: string, upper: string, dado = 1.1): void => {
+    for (const [a, e] of runs) {
+      face(side, at, a, e, 0, 0.1, LOOK.frame);
+      face(side, at, a, e, 0.1, dado, lower);
+      face(side, at, a, e, dado, dado + 0.04, LOOK.trim, 1);
+      face(side, at, a, e, dado + 0.04, top, upper);
+    }
+  };
+  /** The two stairs' ramp colliders (the greybox's), west then east: the rails below are pitched like them. */
+  const ramps = b.boxes.filter((q) => q.collide && Math.abs(q.pitch) > 1e-3 && q.c[2] > 46 && q.c[0] > 76 && q.c[0] < 112).sort((q, r) => q.c[0] - r.c[0]);
+  /** A rail along a flight's slope (pitched like its collider), `lift` above the nosing line, [z0, z1] wide; thin in cross-section. */
+  const slopeRail = (ramp: (typeof ramps)[number], z0: number, z1: number, lift: number, color: string): void => {
+    const from = b.boxes.length;
+    b.box(ramp.c[0], mz.deck / 2 + lift, (z0 + z1) / 2, z1 - z0, 0.04, ramp.s[2], color, ramp.yaw, ramp.pitch, false);
+    b.mark(from, { noLedge: true });
+  };
+  const fl = A4_FLOOR;
+
+  // ---- A4-14: the security room: foreman's office lining, ceiling tiles, carpet, the notice boards, a chair ----
+  tally(b, p.register, 'A4-14', "Security room dressing (visual skins, no collision): carpet and door mat, green dado and cream upper walls with skirting and rail, ceiling tiles on a T-bar grid, the passage door's architrave and a plate over it, cable trunking, a whiteboard, notice board, clock, key cabinet, first-aid box, extinguisher and the room switch's back plate, the officer's chair beside the desk", () => {
+    const r = A4_ROOM;
+    paint(r.x0, r.x1, r.z0, r.z1, LOOK.carpet, 0.008);
+    paint(102.2, 103.8, r.z0, r.z0 + 0.7, LOOK.mat, 0.014);
+    paint(104.1, 106.2, 17.95, 18.45, LOOK.mat, 0.012);
+    lining('e', r.x0, [[r.z0, r.z1]], r.ceilY, LOOK.green, LOOK.cream);
+    lining('w', r.x1, [[17.1, r.z1]], r.ceilY, LOOK.green, LOOK.cream);
+    face('w', r.x1, r.z0, 17.1, 2.6, r.ceilY, LOOK.cream);
+    lining('n', r.z0, [[r.x0, 101.8], [105.65, r.x1]], r.ceilY, LOOK.green, LOOK.cream);
+    lining('s', r.z1, [[r.x0, A4_PASSAGE.x0], [A4_PASSAGE.x1, r.x1]], r.ceilY, LOOK.green, LOOK.cream);
+    // the passage door: architrave on the room side and a plate over it
+    face('s', r.z1, A4_PASSAGE.x0 - 0.06, A4_PASSAGE.x0, 0, A4_PASSAGE.h + 0.06, LOOK.trim, 1);
+    face('s', r.z1, A4_PASSAGE.x1, A4_PASSAGE.x1 + 0.06, 0, A4_PASSAGE.h + 0.06, LOOK.trim, 1);
+    face('s', r.z1, A4_PASSAGE.x0 - 0.06, A4_PASSAGE.x1 + 0.06, A4_PASSAGE.h, A4_PASSAGE.h + 0.06, LOOK.trim, 1);
+    sign('s', r.z1, 101.8, 102.8, 2.3, 2.55, LOOK.black, 1);
+    // the ceiling: tiles under the slab on a T-bar grid (the two panels stand flush in it)
+    skin(r.x0, r.x1, r.ceilY - 0.012, r.ceilY, r.z0, r.z1, LOOK.tile);
+    for (let x = r.x0 + 0.6; x < r.x1 - 0.1; x += 0.6) skin(x - 0.01, x + 0.01, r.ceilY - 0.022, r.ceilY - 0.012, r.z0, r.z1, LOOK.seam);
+    for (let z = r.z0 + 0.6; z < r.z1 - 0.1; z += 0.6) skin(r.x0, r.x1, r.ceilY - 0.022, r.ceilY - 0.012, z - 0.01, z + 0.01, LOOK.seam);
+    // the north wall: a trunking run and its drop behind the desk, the camera schedule board
+    face('s', r.z1, r.x0, r.x1, 2.5, 2.58, LOOK.pipe, 1);
+    face('s', r.z1, 104.0, 104.1, 0.78, 2.58, LOOK.pipe, 1);
+    face('s', r.z1, 104.4, 105.9, 1.55, 2.15, LOOK.white, 1);
+    for (const [e, y] of [[105.3, 1.7], [105.6, 1.85], [105.3, 2.0]] as const) face('s', r.z1, 104.5, e, y, y + 0.04, LOOK.black, 2);
+    // the west wall: whiteboard with its frame, notice board with notes, clock, key cabinet, extinguisher
+    face('e', r.x0, 14.0, 15.4, 1.25, 2.1, LOOK.white, 1);
+    for (const [a, e, y0, y1] of [[14.0, 15.4, 2.07, 2.1], [14.0, 15.4, 1.25, 1.28], [14.0, 14.03, 1.25, 2.1], [15.37, 15.4, 1.25, 2.1]] as const) face('e', r.x0, a, e, y0, y1, LOOK.steel, 2);
+    for (const [a, e, y] of [[14.15, 14.9, 1.8], [14.15, 15.1, 1.6], [14.15, 14.6, 1.4]] as const) face('e', r.x0, a, e, y, y + 0.03, y === 1.4 ? LOOK.red : LOOK.rackBlue, 2);
+    face('e', r.x0, 16.2, 17.4, 1.3, 2.0, LOOK.cork, 1);
+    for (const [a, e, y] of [[16.3, 16.55, 1.7], [16.7, 16.95, 1.45], [17.0, 17.25, 1.75], [16.75, 17.0, 1.85]] as const) face('e', r.x0, a, e, y, y + 0.2, LOOK.white, 2);
+    face('e', r.x0, 17.7, 17.98, 2.4, 2.68, LOOK.white, 1);
+    face('e', r.x0, 17.83, 17.85, 2.5, 2.62, LOOK.black, 2);
+    face('e', r.x0, 17.83, 17.92, 2.5, 2.52, LOOK.black, 2);
+    face('e', r.x0, 18.2, 18.9, 1.4, 2.0, LOOK.steel, 1);
+    face('e', r.x0, 18.54, 18.56, 1.4, 2.0, LOOK.seam, 2);
+    face('e', r.x0, 18.6, 18.66, 1.65, 1.75, LOOK.black, 2);
+    face('e', r.x0, 13.5, 13.7, 0.5, 1.0, LOOK.red, 1);
+    face('e', r.x0, 13.52, 13.68, 0.62, 0.8, LOOK.white, 2);
+    // the south wall: first-aid box with its cross, the room switch's back plate (the switch stands 5 cm off the face)
+    face('n', r.z0, 100.4, 100.85, 1.4, 1.8, LOOK.green, 1);
+    face('n', r.z0, 100.58, 100.67, 1.45, 1.75, LOOK.white, 2);
+    face('n', r.z0, 100.46, 100.79, 1.57, 1.63, LOOK.white, 2);
+    face('n', r.z0, 101.1, 101.3, 1.1, 1.3, LOOK.white, 1);
+    // the officer's chair beside the desk, turned to it (no seated pose in the engine: SPEC says seated, set doc self-critique 9)
+    const cx = 103.4;
+    const cz = 18.2;
+    skin(cx - 0.23, cx + 0.23, 0.46, 0.5, cz - 0.22, cz + 0.22, LOOK.black);
+    skin(cx - 0.22, cx + 0.22, 0.52, 1.0, cz - 0.24, cz - 0.2, LOOK.black);
+    post(cx, 0.08, 0.46, cz, LOOK.steel);
+    skin(cx - 0.28, cx + 0.28, 0.05, 0.08, cz - 0.02, cz + 0.02, LOOK.steelDark);
+    skin(cx - 0.02, cx + 0.02, 0.05, 0.08, cz - 0.28, cz + 0.28, LOOK.steelDark);
+    for (const [dx, dz] of [[-0.28, 0], [0.28, 0], [0, -0.28], [0, 0.28]] as const) skin(cx + dx - 0.02, cx + dx + 0.02, 0, 0.05, cz + dz - 0.02, cz + dz + 0.02, LOOK.black);
+  });
+
+  // ---- A4-15: the staff passage: vinyl floor, green and cream walls, a coat rail, extinguisher, signs, the mouth's header plate ----
+  tally(b, p.register, 'A4-15', 'Staff passage dressing (visual skins, no collision): vinyl floor with a hazard strip at the mouth, green dado and cream walls with a hi-vis band, a coat rail with four coats, an extinguisher and a notice on the east wall, a staff-only plate on the header over the mouth (both faces)', () => {
+    const x0 = 101.25;
+    const x1 = 103.75;
+    paint(x0, x1, 19.85, 24.25, LOOK.vinyl, 0.008);
+    paint(x0, x1, 23.9, 24.0, LOOK.yellow, 0.012);
+    lining('e', x0, [[19.85, 23.95]], 4.2, LOOK.green, LOOK.cream, 1.2);
+    lining('w', x1, [[19.85, 23.95]], 4.2, LOOK.green, LOOK.cream, 1.2);
+    face('e', x0, 19.85, 23.95, 1.3, 1.36, LOOK.yellow, 1);
+    face('w', x1, 19.85, 23.95, 1.3, 1.36, LOOK.yellow, 1);
+    face('e', x0, 21.0, 22.4, 1.75, 1.83, LOOK.wood, 1);
+    for (const [z, color] of [[21.05, LOOK.coatA], [21.4, LOOK.coatB], [21.75, LOOK.vest], [22.1, LOOK.coatA]] as const) face('e', x0, z, z + 0.25, 0.8, 1.75, color, 2);
+    face('w', x1, 20.4, 20.6, 0.5, 1.2, LOOK.red, 1);
+    face('w', x1, 20.42, 20.58, 0.7, 0.9, LOOK.white, 2);
+    sign('w', x1, 20.9, 21.9, 1.7, 2.1, LOOK.black, 1);
+    sign('n', 24.25, 101.4, 103.6, 4.22, 4.48, LOOK.black);
+    sign('s', 23.75, 101.4, 103.6, 4.22, 4.48, LOOK.black);
+  });
+
+  // ---- A4-16: the racking: dark backing on the greybox runs, end frames with beams and guards, aisle boards, a cap (the bays are props, A4-22) ----
+  tally(b, p.register, 'A4-16', "Racking dressing (visual skins, no collision) on the four 5.4 m runs: dark backing over the greybox brown on every face and a cap on top, the end frames' blue uprights and orange beams at 1.5 / 3.0 / 4.5 m, a yellow end guard with four hazard bars, a white aisle board with its number (1 on the R1 ends, 2 on R2); floor edge lines along the aisles", () => {
+    for (const [i, [z0, z1]] of A4_RACK_Z.entries()) {
+      for (const [x0, x1] of A4_RACK_X) {
+        face('s', z0, x0, x1, 0, A4_RACK_H, LOOK.rackBack);
+        face('n', z1, x0, x1, 0, A4_RACK_H, LOOK.rackBack);
+        skin(x0, x1, A4_RACK_H, A4_RACK_H + 0.01, z0, z1, LOOK.rackTop);
+        for (const [side, at, dir] of [['w', x0, -1], ['e', x1, 1]] as const) {
+          face(side, at, z0, z1, 0, A4_RACK_H, LOOK.rackBack);
+          for (const z of [z0, z1 - 0.1]) face(side, at, z, z + 0.1, 0, A4_RACK_H, LOOK.rackBlue, 1);
+          for (const y of [1.5, 3.0, 4.5]) face(side, at, z0, z1, y, y + 0.14, LOOK.rackOrange, 1);
+          face(side, at, z0 + 0.1, z1 - 0.1, 0, 0.45, LOOK.yellow, 2);
+          for (let k = 0; k < 4; k++) face(side, at, z0 + 0.3 + k * 0.5, z0 + 0.42 + k * 0.5, 0.05, 0.4, LOOK.black, 3);
+          sign(side, at, (z0 + z1) / 2 - 0.45, (z0 + z1) / 2 + 0.45, 2.55, 3.05, LOOK.black, 2);
+          digit((i + 1) as 1 | 2, side, at, (z0 + z1) / 2, 2.63, dir, LOOK.black, 4);
+        }
+      }
+    }
+    // floor edge lines (yellow, 10 cm) 0.15 m off each rack face, broken at the cross aisle
+    for (const [z0, z1] of A4_RACK_Z) {
+      for (const [x0, x1] of A4_RACK_X) {
+        paint(x0, x1, z0 - 0.25, z0 - 0.15, LOOK.yellow, 0.01);
+        paint(x0, x1, z1 + 0.15, z1 + 0.25, LOOK.yellow, 0.01);
+      }
+    }
+    paint(95.15, 95.25, 24.4, 44.0, LOOK.yellow, 0.01);
+    paint(98.25, 98.35, 24.4, 44.0, LOOK.yellow, 0.01);
+  });
+
+  // ---- A4-17: the pick mezzanine: plate sheet, fascia, the closed store below, the stairs' rails, the two switches' posts ----
+  const stN = fl.z1;
+  const stS = A4_STAIR.z0;
+  tally(b, p.register, 'A4-17', "Mezzanine dressing (visual skins, no collision): the deck's chequer-plate sheet with 1.2 m seams and a yellow edge band inside the rail, the fascia with a yellow stripe, the closed store below (plinth, sheeting, posts, a roller door and a steel door with keypad), its west and east faces, the stairs' rails (posts and a top and mid rail on the open south side, a wall rail) pitched with the flights, the C2 bracket, the switches' conduit posts", () => {
+    const deck = mz.deck;
+    skin(mz.x0, mz.x1, deck, deck + 0.005, mz.z0, mz.z1, LOOK.plate);
+    for (let x = mz.x0 + 1.2; x < mz.x1 - 0.1; x += 1.2) skin(x - 0.01, x + 0.01, deck + 0.005, deck + 0.01, mz.z0, mz.z1, LOOK.seam);
+    for (const z of [45.3, 46.5]) skin(mz.x0, mz.x1, deck + 0.005, deck + 0.01, z - 0.01, z + 0.01, LOOK.seam);
+    skin(mz.x0 + 0.3, mz.x1 - 0.3, deck + 0.005, deck + 0.012, mz.z0 + 0.3, mz.z0 + 0.45, LOOK.yellow);
+    // the south face (the store's front): plinth, sheeting with two rails, fascia, posts
+    face('s', mz.z0, mz.x0, mz.x1, 0, 0.9, LOOK.concrete);
+    face('s', mz.z0, mz.x0, mz.x1, 0.9, 3.0, LOOK.sheet);
+    for (const y of [1.6, 2.3]) face('s', mz.z0, mz.x0, mz.x1, y, y + 0.08, LOOK.sheetRail, 1);
+    face('s', mz.z0, mz.x0, mz.x1, 3.0, deck, LOOK.frame, 1);
+    face('s', mz.z0, mz.x0, mz.x1, 3.2, 3.26, LOOK.yellow, 2);
+    for (const x of [86.2, 93, 99, 105.8]) face('s', mz.z0, x - 0.15, x + 0.15, 0, 3.0, LOOK.frame, 1);
+    // the roller door (shut) with its hood, a sign, and a steel door with a keypad
+    face('s', mz.z0, 88.2, 91.2, 0, 2.6, LOOK.shutter, 1);
+    for (let y = 0.26; y < 2.55; y += 0.26) face('s', mz.z0, 88.2, 91.2, y, y + 0.03, LOOK.sheetRail, 2);
+    face('s', mz.z0, 88.0, 91.4, 2.6, 2.85, LOOK.frame, 1);
+    face('s', mz.z0, 88.0, 88.2, 0, 2.6, LOOK.frame, 2);
+    face('s', mz.z0, 91.2, 91.4, 0, 2.6, LOOK.frame, 2);
+    sign('s', mz.z0, 91.6, 92.4, 1.9, 2.2, LOOK.red, 1);
+    face('s', mz.z0, 99.4, 100.5, 0, 2.1, LOOK.door, 1);
+    face('s', mz.z0, 99.34, 99.4, 0, 2.16, LOOK.trim, 2);
+    face('s', mz.z0, 100.5, 100.56, 0, 2.16, LOOK.trim, 2);
+    face('s', mz.z0, 99.34, 100.56, 2.1, 2.16, LOOK.trim, 2);
+    face('s', mz.z0, 100.38, 100.46, 1.0, 1.1, LOOK.steel, 2);
+    face('s', mz.z0, 100.6, 100.75, 1.1, 1.3, LOOK.steelDark, 1);
+    face('s', mz.z0, 100.64, 100.71, 1.18, 1.22, LOOK.red, 2);
+    // C2's bracket (the camera hangs at (96.75, 3.0, 43.6), 0.4 m off the face)
+    face('s', mz.z0, 96.6, 96.9, 2.85, 3.15, LOOK.steelDark, 1);
+    skin(96.72, 96.78, 2.9, 2.94, mz.z0 - 0.4, mz.z0 - 0.06, LOOK.steelDark);
+    // the deck block's west and east faces (the strips' side): plinth and sheeting, an extinguisher on each
+    for (const [side, at] of [['w', mz.x0], ['e', mz.x1]] as const) {
+      face(side, at, mz.z0, stS, 0, 0.9, LOOK.concrete);
+      face(side, at, mz.z0, stS, 0.9, deck, LOOK.sheet);
+      face(side, at, mz.z0, stS, 1.6, 1.68, LOOK.sheetRail, 1);
+      face(side, at, mz.z0, stS, 2.4, 2.48, LOOK.sheetRail, 1);
+      face(side, at, 45.0, 45.2, 0.6, 1.3, LOOK.red, 1);
+      face(side, at, 45.02, 45.18, 0.9, 1.1, LOOK.white, 2);
+    }
+    // the stairs' rails: five posts on the open south side with a top and a mid rail, a wall rail with brackets on the north wall
+    for (const [k, f] of [
+      { foot: A4_STAIR.westFoot, up: 1 },
+      { foot: A4_STAIR.eastFoot, up: -1 },
+    ].entries()) {
+      const ramp = ramps[k]!;
+      const lineAt = (x: number): number => (deck * (f.up === 1 ? x - f.foot : f.foot - x)) / stairLen;
+      for (let i = 0; i < 5; i++) {
+        const x = f.foot + f.up * (0.2 + 1.35 * i);
+        post(x, lineAt(x), lineAt(x) + 1.0, stS + 0.04, LOOK.steelDark);
+        skin(x - 0.02, x + 0.02, lineAt(x) + 0.82, lineAt(x) + 0.9, stN - 0.06, stN, LOOK.steelDark);
+      }
+      slopeRail(ramp, stS + 0.02, stS + 0.06, 1.0, LOOK.steel);
+      slopeRail(ramp, stS + 0.02, stS + 0.06, 0.5, LOOK.steel);
+      slopeRail(ramp, stN - 0.04, stN, 0.9, LOOK.steel);
+    }
+    // the mezzanine switches float 5 cm off the north wall at 4.5 m: a conduit post from the deck and a back plate each
+    for (const x of [87.0, 105.0]) {
+      face('s', stN, x - 0.05, x + 0.05, deck, 4.65, LOOK.steelDark);
+      face('s', stN, x - 0.1, x + 0.1, 4.38, 4.62, LOOK.steel, 1);
+    }
+  });
+
+  // ---- A4-18: the dispatch office: painted hut outside, lining and the kettle counter inside (dark, behind its glazing) ----
+  tally(b, p.register, 'A4-18', "Dispatch office dressing (visual skins, no collision): outside, a dark base course and white panel cladding on the piers, lintel and north wall, sill and head bands round the glazing, door architrave and a sign, a roof edge and felt; inside (unlit), lino, green and cream lining, the kettle counter's top, front and a shelf with the kettle and mugs, a notice board, a clock, the floor switch's back plate", () => {
+    const o = A4_OFFICE;
+    const hw = o.t / 2;
+    const xe = o.x1 + hw;
+    const zs = o.z0 - hw;
+    const zn = o.z1 + hw;
+    const west = fl.x0;
+    // the south face z 37.9: west pier, lintel, east pier, then sill and head round the glazing
+    for (const [a, e] of [[west, A4_OFFICE_DOOR_X[0]], [A4_OFFICE_DOOR_X[1], A4_PIER_X]] as const) {
+      face('s', zs, a, e, 0, 0.15, LOOK.hutBase);
+      face('s', zs, a, e, 0.15, o.wallH, LOOK.hut);
+    }
+    face('s', zs, A4_OFFICE_DOOR_X[0], A4_OFFICE_DOOR_X[1], 2.1, o.wallH, LOOK.hut);
+    face('s', zs, A4_PIER_X, xe, 0, 0.15, LOOK.hutBase);
+    face('s', zs, A4_PIER_X, xe, 0.15, o.sill, LOOK.hut);
+    face('s', zs, A4_PIER_X, xe, o.head, o.wallH, LOOK.hut);
+    face('s', zs, A4_OFFICE_DOOR_X[0] - 0.06, A4_OFFICE_DOOR_X[0], 0, 2.16, LOOK.trim, 1);
+    face('s', zs, A4_OFFICE_DOOR_X[1], A4_OFFICE_DOOR_X[1] + 0.06, 0, 2.16, LOOK.trim, 1);
+    face('s', zs, A4_OFFICE_DOOR_X[0] - 0.06, A4_OFFICE_DOOR_X[1] + 0.06, 2.1, 2.16, LOOK.trim, 1);
+    sign('s', zs, 77.85, 78.75, 2.3, 2.6, LOOK.black, 1);
+    // the east face x 82.7 and the north face z 44.1
+    face('e', xe, o.z0 + hw, o.z1 - hw, 0, 0.15, LOOK.hutBase);
+    face('e', xe, o.z0 + hw, o.z1 - hw, 0.15, o.sill, LOOK.hut);
+    face('e', xe, o.z0 + hw, o.z1 - hw, o.head, o.wallH, LOOK.hut);
+    face('n', zn, west, xe, 0, 0.15, LOOK.hutBase);
+    face('n', zn, west, xe, 0.15, o.wallH, LOOK.hut);
+    sign('n', zn, 78.0, 79.4, 2.2, 2.6, LOOK.black, 1);
+    // the roof: an edge band all round the slab's 10 cm and a felt skin over it
+    face('s', zs, west, xe, o.wallH, o.wallH + o.roofT, LOOK.trim, 1);
+    face('n', zn, west, xe, o.wallH, o.wallH + o.roofT, LOOK.trim, 1);
+    face('e', xe, zs, zn, o.wallH, o.wallH + o.roofT, LOOK.trim, 1);
+    skin(west, xe, o.wallH + o.roofT, o.wallH + o.roofT + 0.005, zs, zn, LOOK.tie);
+    // inside: lino, lining on the west and north walls and the south piers, the kettle counter (x 76.25-76.6, z 39-40.2, 0.9 m)
+    paint(west, xe - hw, o.z0 + hw, o.z1 - hw, LOOK.lino, 0.008);
+    lining('e', west, [[o.z0 + hw, o.z1 - hw]], o.wallH, LOOK.green, LOOK.cream);
+    lining('s', o.z1 - hw, [[west, xe - hw]], o.wallH, LOOK.green, LOOK.cream);
+    lining('n', o.z0 + hw, [[west, A4_OFFICE_DOOR_X[0]], [A4_OFFICE_DOOR_X[1], A4_PIER_X]], o.wallH, LOOK.green, LOOK.cream);
+    skin(west, 76.65, 0.9, 0.915, 39.0, 40.2, LOOK.laminate);
+    face('e', 76.6, 39.0, 40.2, 0.1, 0.9, LOOK.steelDark);
+    face('e', 76.6, 39.6, 39.62, 0.12, 0.88, LOOK.black, 1);
+    for (const z of [39.2, 39.8]) face('e', 76.6, z, z + 0.12, 0.78, 0.82, LOOK.steel, 1);
+    // the kettle (crossed plates and a lid), two mugs, a tea tin, a shelf with four mugs above
+    skin(76.3, 76.5, 0.915, 1.1, 39.46, 39.5, LOOK.steel);
+    skin(76.38, 76.42, 0.915, 1.1, 39.38, 39.58, LOOK.steel);
+    skin(76.3, 76.5, 1.1, 1.13, 39.4, 39.56, LOOK.black);
+    for (const z of [39.75, 39.95]) skin(76.35, 76.43, 0.915, 1.0, z, z + 0.04, LOOK.white);
+    skin(76.33, 76.45, 0.915, 1.0, 39.15, 39.19, LOOK.red);
+    skin(west, 76.5, 1.5, 1.53, 39.0, 40.2, LOOK.wood);
+    for (const z of [39.1, 39.4, 39.7, 40.0]) skin(76.3, 76.38, 1.53, 1.61, z, z + 0.04, LOOK.white);
+    face('e', west, 40.6, 41.6, 1.2, 1.9, LOOK.cork, 1);
+    for (const [a, e, y] of [[40.7, 40.95, 1.6], [41.05, 41.3, 1.35], [41.15, 41.4, 1.6]] as const) face('e', west, a, e, y, y + 0.2, LOOK.white, 2);
+    face('e', west, 42.0, 42.28, 2.3, 2.58, LOOK.white, 1);
+    face('e', west, 42.13, 42.15, 2.4, 2.52, LOOK.black, 2);
+    // the floor switch's back plate on the pier (the switch stands 5 cm off the face)
+    face('s', zs, 79.32, 79.48, 1.1, 1.3, LOOK.white, 1);
+  });
+
+  // ---- A4-19: the dock: the two stacks' pallets and wrap, the booking desk, the roller shutter, the push bar's housing and exit sign, floor markings ----
+  tally(b, p.register, 'A4-19', "Dock dressing (visual skins, no collision): both 1.2 m stacks as a timber pallet under stretch wrap with strap bands, a label and a cap; the booking desk's laminate top, drawers and desk fittings (paper, clipboard, mugs, phone, a flat screen and keyboard); the closed roller shutter on the west face (slats, guides, hood) at z 35-37.8; the push bar's back plate and bar, a fire-exit sign over it; the wicket's keep-clear outline, and the dock's yellow lines", () => {
+    for (const s of [A4_STACK_N, A4_STACK_S]) {
+      for (const [side, at, a0, a1] of [['s', s.z0, s.x0, s.x1], ['n', s.z1, s.x0, s.x1], ['w', s.x0, s.z0, s.z1], ['e', s.x1, s.z0, s.z1]] as const) {
+        face(side, at, a0, a1, 0, 0.14, LOOK.timber);
+        for (const f of [0.3, 0.7]) face(side, at, a0 + (a1 - a0) * f - 0.06, a0 + (a1 - a0) * f + 0.06, 0.04, 0.1, LOOK.black, 1);
+        face(side, at, a0, a1, 0.14, s.h, LOOK.wrap);
+        for (const y of [0.5, 0.95]) face(side, at, a0, a1, y, y + 0.04, LOOK.black, 1);
+      }
+      skin(s.x0, s.x1, s.h, s.h + 0.01, s.z0, s.z1, LOOK.wrap);
+      face(s.z0 < 33 ? 's' : 'n', s.z0 < 33 ? s.z0 : s.z1, (s.x0 + s.x1) / 2 - 0.2, (s.x0 + s.x1) / 2 + 0.2, 0.6, 0.85, LOOK.white, 2);
+    }
+    // the booking desk (x 79.2-80.8, z 32.6-33.4, 1.0 m): laminate top, drawers on the south face, fittings on top
+    const d = A4_DESK;
+    skin(d.x0, d.x1, d.h, d.h + 0.006, d.z0, d.z1, LOOK.laminate);
+    face('s', d.z0, d.x0, d.x1, 0, 0.1, LOOK.black);
+    for (const [a, e] of [[d.x0 + 0.1, d.x0 + 0.7], [d.x0 + 0.85, d.x1 - 0.1]] as const) {
+      face('s', d.z0, a, e, 0.5, 0.95, LOOK.steelDark, 1);
+      face('s', d.z0, (a + e) / 2 - 0.08, (a + e) / 2 + 0.08, 0.86, 0.88, LOOK.steel, 2);
+    }
+    face('n', d.z1, d.x0, d.x1, 0.1, d.h, LOOK.steelDark);
+    skin(79.3, 79.6, 1.006, 1.026, 32.7, 32.92, LOOK.white);
+    skin(79.7, 79.95, 1.006, 1.016, 33.0, 33.2, LOOK.cork);
+    skin(79.72, 79.92, 1.016, 1.02, 33.03, 33.17, LOOK.white);
+    for (const x of [80.15, 80.3]) skin(x, x + 0.07, 1.006, 1.09, 32.7, 32.74, LOOK.white);
+    skin(80.4, 80.6, 1.006, 1.026, 32.75, 32.9, LOOK.steelDark);
+    skin(79.6, 80.0, 1.006, 1.016, 33.2, 33.32, LOOK.black);
+    skin(79.7, 79.9, 1.016, 1.3, 33.28, 33.31, LOOK.black);
+    skin(79.78, 79.82, 1.016, 1.1, 33.28, 33.34, LOOK.steelDark);
+    // the closed roller shutter on the west face (slats, guides, hood), south of the office
+    const sh = A4_SHUTTER;
+    face('e', fl.x0, sh.z0, sh.z1, 0, sh.h, LOOK.shutter, 1);
+    for (let y = 0.3; y < sh.h - 0.05; y += 0.3) face('e', fl.x0, sh.z0, sh.z1, y, y + 0.03, LOOK.sheetRail, 2);
+    for (const z of [sh.z0 - 0.12, sh.z1]) face('e', fl.x0, z, z + 0.12, 0, sh.h + 0.4, LOOK.frame, 1);
+    face('e', fl.x0, sh.z0 - 0.12, sh.z1 + 0.12, sh.h, sh.h + 0.4, LOOK.frame, 1);
+    face('e', fl.x0 + 0.15, sh.z0 - 0.12, sh.z1 + 0.12, sh.h, sh.h + 0.4, LOOK.frame);
+    skin(fl.x0 + 0.06, fl.x0 + 0.21, sh.h + 0.4, sh.h + 0.43, sh.z0 - 0.12, sh.z1 + 0.12, LOOK.frame);
+    face('e', fl.x0, sh.z0 + 0.1, sh.z0 + 0.5, 0.9, 1.0, LOOK.black, 2);
+    sign('e', fl.x0, sh.z0 + 0.9, sh.z1 - 0.9, 3.55, 3.85, LOOK.red, 2);
+    // the push bar at (76.5, 1.0, 34.6): a back plate, the bar itself, a fire-exit sign above (the device draws its own button)
+    face('e', fl.x0, 34.3, 34.9, 0.85, 1.15, LOOK.steelDark, 1);
+    skin(fl.x0 + 0.06, fl.x0 + 0.1, 0.97, 1.03, 34.34, 34.86, LOOK.red);
+    face('e', fl.x0, 34.3, 34.9, 2.2, 2.45, LOOK.green, 1);
+    face('e', fl.x0, 34.4, 34.8, 2.3, 2.35, LOOK.white, 2);
+    // the wicket's keep-clear outline (the door's swing) and the dock's yellow lines
+    for (const [x0, x1, z0, z1] of [[fl.x0, 78.2, 31.1, 31.2], [fl.x0, 78.2, 34.8, 34.9], [78.1, 78.2, 31.1, 34.9]] as const) paint(x0, x1, z0, z1, LOOK.yellow, 0.01);
+    paint(78.1, 78.2, 24.5, 31.1, LOOK.yellow, 0.01);
+    paint(78.1, 78.2, 34.9, 37.9, LOOK.yellow, 0.01);
+  });
+
+  // ---- A4-20: the hall's own walls (sheeting on a concrete plinth, stanchions on the 6 m grid), roof ties and cables, the dead bulk-store fittings, camera brackets, floor paint and stains ----
+  tally(b, p.register, 'A4-20', "Warehouse shell dressing (visual skins, no collision): concrete plinth, profiled sheeting, rails and frame stanchions on the south, west, east and north walls (4.5 m under the gallery glazing, 7.5 m on the east and north-east walls; the passage mouth, L4's door gap and the push bar left clear), the three camera brackets, a fire point, roof ties over the aisle strips, the high-bays and the back aisle with the strips' cables, six dead bulk-store fittings over the back aisle (group 49: no lamp, no light), oil stains", () => {
+    const wall = (side: Side, at: number, runs: Runs, y0: number, y1: number, posts: readonly number[]): void => {
+      const rails = [1.8, 2.7, 3.6, 4.5, 5.4, 6.3].filter((y) => y > y0 + 0.3 && y < y1 - 0.4);
+      for (const [a, e] of runs) {
+        if (y0 === 0) face(side, at, a, e, 0, 0.9, LOOK.concrete);
+        face(side, at, a, e, Math.max(y0, 0.9), y1, LOOK.sheet);
+        for (const y of rails) face(side, at, a, e, y, y + 0.08, LOOK.sheetRail, 1);
+        face(side, at, a, e, y1 - 0.12, y1, LOOK.frame, 1);
+        for (const q of posts) if (q - 0.15 >= a && q + 0.15 <= e) face(side, at, q - 0.15, q + 0.15, y0, y1 - 0.12, LOOK.frame, 1);
+      }
+    };
+    wall('n', fl.z0, [[fl.x0, 100.75], [104.25, fl.x1]], 0, 4.5, [78, 84, 90, 96, 108]);
+    wall('e', fl.x0, [[fl.z0, 31.0], [35.0, 37.9], [44.1, fl.z1]], 0, 4.5, [30, 36, 46]);
+    wall('e', fl.x0, [[31.0, 35.0]], 2.5, 4.5, []);
+    wall('w', fl.x1, [[fl.z0, fl.z1]], 0, EAVE, [30, 36, 42]);
+    wall('s', fl.z1, [[fl.x0, 86]], 0, 4.5, [78, 84]);
+    wall('s', fl.z1, [[86, 106]], A4_MEZZ.deck, 4.5, [90, 96, 102]);
+    wall('s', fl.z1, [[106, fl.x1]], 0, EAVE, [108]);
+    // a fire point on the south wall, camera brackets for C1 (east wall) and C3 (west wall above the wicket)
+    face('n', fl.z0, 79.85, 80.15, 0.9, 1.5, LOOK.red, 2);
+    face('n', fl.z0, 79.85, 80.15, 1.55, 1.85, LOOK.white, 2);
+    face('w', fl.x1, 39.65, 39.95, 2.85, 3.15, LOOK.steelDark, 2);
+    skin(111.5, fl.x1 - 0.06, 2.9, 2.94, 39.77, 39.83, LOOK.steelDark);
+    // the aisle switch's back plate on the west wall (the switch stands 5 cm off the face at z 28.0)
+    face('e', fl.x0, 27.9, 28.1, 1.1, 1.3, LOOK.white, 2);
+    face('e', fl.x0, 32.85, 33.15, 2.85, 3.15, LOOK.steelDark, 2);
+    skin(fl.x0 + 0.06, 76.4, 2.9, 2.94, 32.97, 33.03, LOOK.steelDark);
+    // the roof ties (I-beams over the lamps' lines) and the cables the strips and the dead fittings hang on
+    for (const z of [25.8, 31.45, 39.8, 46]) {
+      skin(fl.x0, fl.x1, 7.55, 7.85, z - 0.015, z + 0.015, LOOK.tie);
+      for (const y of [7.55, 7.83]) skin(fl.x0, fl.x1, y, y + 0.02, z - 0.1, z + 0.1, LOOK.tie);
+    }
+    const hung: [number, number, number][] = [
+      ...[87.5, 90.5, 93.5, 100, 103, 106].map((x): [number, number, number] => [x, 5.72, 31.45]),
+      ...[89, 94, 99, 104].map((x): [number, number, number] => [x, 6.42, 46]),
+    ];
+    for (const [x, y, z] of hung) for (const dx of [-0.7, 0.7]) post(x + dx, y, 7.55, z, LOOK.tie);
+    for (const x of [86, 90, 94, 98, 102, 106]) {
+      skin(x - 0.75, x + 0.75, 5.6, 5.64, 25.71, 25.89, LOOK.steelDark);
+      skin(x - 0.05, x + 0.05, 5.56, 5.6, 25.75, 25.85, LOOK.white);
+      for (const dx of [-0.6, 0.6]) post(x + dx, 5.64, 7.55, 25.8, LOOK.tie);
+    }
+    // floor paint: oil stains on the main aisle, the dock, the cross aisle
+    for (const [x0, x1, z0, z1] of [[88.2, 89.4, 38.4, 39.1], [94.6, 95.8, 41.2, 41.9], [101.2, 102.4, 37.1, 37.7], [83.0, 84.1, 40.2, 40.8], [80.6, 81.7, 33.6, 34.2], [96.0, 97.2, 30.8, 31.5], [106.8, 107.9, 42.0, 42.6], [90.2, 91.3, 31.0, 31.6]] as const) paint(x0, x1, z0, z1, LOOK.stain, 0.006);
+  });
+
+  // ---- A4-21: the hall above the set (kit panels with accent coves, each on its circuit; no lamp) ----
+  tally(b, p.register, 'A4-21', "Kit panels above the floor (visual): the hall's charcoal panels and coves from 7.5 m (the gallery glazing's top, the roof tie) to the roof on the south, west and east walls and the north wall's two ends (the floor high-bays, 41) and over the deck (the mezzanine strips, 43)", () => {
+    const c = 0.09;
+    const rise = HALL_H - EAVE;
+    kit.wallPanel((fl.x0 + fl.x1) / 2, fl.z0, fl.x1 - fl.x0 - 2 * c, 0, { h: rise, y: EAVE, tone: 'warm', group: G_FLOOR });
+    kit.wallPanel(fl.x0, (fl.z0 + fl.z1) / 2, fl.z1 - fl.z0 - 2 * c, Math.PI / 2, { h: rise, y: EAVE, tone: 'warm', group: G_FLOOR });
+    kit.wallPanel(fl.x1, (fl.z0 + fl.z1) / 2, fl.z1 - fl.z0 - 2 * c, -Math.PI / 2, { h: rise, y: EAVE, tone: 'warm', group: G_FLOOR });
+    for (const [a, e, g] of [[fl.x0 + c, 86, G_FLOOR], [86, 106, G_MEZZ], [106, fl.x1 - c, G_FLOOR]] as const) kit.wallPanel((a + e) / 2, fl.z1, e - a, Math.PI, { h: rise, y: EAVE, tone: 'warm', group: g });
+  });
+
+  // ---- A4-22: the props kit (PROPS.md 3 A4). Two areas, one budget each: the security room, the warehouse floor ----
+  const roomProps = new FacilityProps();
+  roomProps.add('monitorWall', A4_PROPS.monitorWall.x, A4_PROPS.monitorWall.z, A4_PROPS.monitorWall.yaw);
+  roomProps.add('securityDesk', A4_PROPS.securityDesk.x, A4_PROPS.securityDesk.z, A4_PROPS.securityDesk.yaw, { y: A4_PROPS.securityDesk.y });
+  const floorProps = new FacilityProps();
+  for (const row of A4_RACK_ROWS) for (const [x0, x1] of A4_RACK_X) floorProps.row('palletRackBay', x0, row.z, x1, row.z, { flip: row.flip });
+  floorProps.add('reachTruck', A4_PROPS.reachTruck.x, A4_PROPS.reachTruck.z, A4_PROPS.reachTruck.yaw);
+  tally(b, p.register, 'A4-22', "Props kit: the CCTV video wall (3 x 3 screens, its plinth and frame boxes against the room's east wall) and the console desk over the greybox desk (its box is the greybox's); in the warehouse 24 racking bays in eight back-to-back rows with their closing frames over the four greybox runs (the runs' boxes are the collision) and one reach truck parked in the east lane's south end (chassis solid, envelope see-through, both noLedge). The prop boxes written are the video wall's and the truck's only", () => {
+    const own = new FacilityProps();
+    own.placements.push(...roomProps.placements.filter((q) => q.prop === 'monitorWall'), ...floorProps.placements.filter((q) => q.prop === 'reachTruck'));
+    const from = b.boxes.length;
+    own.write(b);
+    b.mark(from, { noLedge: true });
+  });
+  p.props.push(...roomProps.placements, ...floorProps.placements);
+
   return p;
 }

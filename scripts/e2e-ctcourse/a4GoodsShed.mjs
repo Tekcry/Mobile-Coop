@@ -1,20 +1,24 @@
 // A4 the Goods Shed: the set's e2e steps for e2e-ctcourse (part 2; set doc `docs/marlow-final/sets/a4GoodsShed.md` section 11). Two pages:
 // A = the host (P1), B = the client (P2). The set is entered with the course at A4 (the even set: the lead is P2, so before any press the
-// client reads the A lines); the client presses the console and so takes B (the host is A).
+// client reads the A lines); the HOST presses the console and so takes B (the client is A and takes the officer: the roles swapped from the
+// default, which the first press makes), the client's later press leaves the claim where it stands.
 //   1. the start (both players still on L3's pad): the step lines, the console and the push bar, the three guards (an armed officer, two loaders),
 //      the back aisle and the passage mouth dark, the main aisle, the dock and the room lit and the same on both pages, the three cameras online;
 //   2. the lure and the restart: the host cuts the floor circuit (41) with D2 at the desk: both pages dark, D1 walks to the switch; then the
 //      host's checkpoint restart: the circuit back on, the squad respawned at its posts, the claim clear;
-//   3. the console: with the officer up the client's press is refused on both pages ("Take him out") and claims nothing, the host takes the
-//      officer down; the client's press loops the floor cameras on both pages ('looped', the cue hidden, the timer line, LANTERN's line) and
-//      claims B; a press while it loops is refused ("already off"); the client stands in C1's frame, unseen, the alarm unchanged;
-//   4. the floor: the pass zone needs both west of x 84 (one is not enough); `a4-floor` ticks on both pages;
+//   3. the console: with the officer up the host's press is refused on both pages ("Take him out") and claims nothing, the officer is taken
+//      down (the client stands behind him, he stays passive: the knock-out needs no awake officer beside a player); the host's press loops the
+//      floor cameras on both pages ('looped', the cue hidden, the timer line, LANTERN's line) and claims B (host B, client A); a press while it
+//      loops is refused ("already off"); the client stands in C1's frame, unseen, the alarm unchanged;
+//   4. the floor: the pass zone needs both west of x 84 (one is not enough; the client at stack N as A, the host at stack S as B); `a4-floor`
+//      ticks on both pages;
 //   5. the pair: both loaders go down together (the real takedown's pick is the unit test's, the dual counter the host's `takedownDone` as
 //      e2e-coop drives it): the DUAL TAKEDOWN banner on both pages;
 //   6. the wicket: L4's east door is locked until the client presses the push bar (within reach) on the floor side; then it is unlocked on both
 //      pages, `a4-dock` ticks and the closing line shows;
 //   7. the loop runs out (60 s after the press): the flag clears, the cameras are back online on both pages, the steps stay ticked, LANTERN's
-//      "Cameras back in five" reached the client; a press inside the re-arm is refused ("rebooting"); 20 s later it loops again;
+//      "Cameras back in five" reached the client; a press inside the re-arm is refused ("rebooting"); 20 s later the client's press loops it
+//      again and the claim stands (the host is still B);
 //   8. the medkit in L4, nobody hanging; the runner then puts both on the pad.
 // Teleport legs are allowed on the open floor; a door the route opens is opened by `use(P, 'door-<anchor id>')` and asserted open on both pages
 // before anyone is moved through it. The two loaders and the officer are made passive (they see and hear nothing) while the players are put
@@ -166,24 +170,24 @@ export async function walk(t, n) {
   console.log('  A4: the console, the officer, the loop');
   await setPassive([OFFICER, DOCK1, DOCK2], true);
   await openDoor(PASSAGE_DOOR, 'A4 passage');
-  await moveHost(BEHIND[0], BEHIND[1], 0.1, 0);
-  await moveClient(AT_CONSOLE[0], AT_CONSOLE[1], 0.1, 0);
-  assert((await use(B, CONSOLE)) === 'ok', 'A4: the client presses the console with the officer up');
+  await moveClient(BEHIND[0], BEHIND[1], 0.1, 0);
+  await moveHost(AT_CONSOLE[0], AT_CONSOLE[1], 0.1, 0);
+  assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console with the officer up');
   await until(A, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the console refuses while the officer is up (host)');
   await until(B, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the client gets the refusal');
   assert(!(await hasFlag(FLAG)) && !(await gateOpen(GATE)), 'A4: the refused press sets no flag and opens no gate');
   assert(!(await claimed()), 'A4: a refused press claims nothing (A4-C9)');
   await sees(B, /Take the officer from behind/, 'A4: the client still reads the A line after the refusal');
   for (const P of [A, B]) assert((await camModes(P)).every((m) => m === 'online'), 'A4: the cameras stay online after the refusal');
-  // the host takes the officer down (the takedown itself is the game's; a HitInfo as `CtDevices.touch` builds one, dir -x, toward the desk's west)
-  await setPassive([OFFICER], false);
+  // the officer goes down with the client behind him (the takedown itself is the game's; a HitInfo as `CtDevices.touch` builds one, dir -x,
+  // toward the desk's west). He stays passive: waking him with a player 0.8 m in front of him was a race (S34-check polish)
   const info0 = await GA(() => window.__course.squadOf('a4-officer').info?.lines?.length ?? 0);
   assert(info0 === 2, `A4: the officer carries his two interrogation lines (${info0})`);
   await knockOut([OFFICER]);
   assert(await GA(() => !window.__course.squadOf('a4-officer').alive), 'A4: the officer is down');
   // pressed again: the cameras loop on both pages, the cue hides, the timer line shows, LANTERN's line reaches the client, the press claims B
   const alarm0 = (await t.dev(A)).alarm;
-  assert((await use(B, CONSOLE)) === 'ok', 'A4: the client presses the console again');
+  assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console again');
   await until(A, ([f, g]) => window.__course.state.hasFlag(f) && window.__course.debug().gates[g], [FLAG, GATE], 8000, 'A4: the console sets the flag and opens its gate');
   await until(B, (f) => window.__course.wire.s.flags.includes(f), FLAG, 8000, 'A4: the client has the flag');
   await allCams(A, 'looped');
@@ -193,12 +197,14 @@ export async function walk(t, n) {
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await sees(P, /Cameras back in \d+ s/, `A4: the ${tag} reads the loop timer line`);
   await until(B, () => /Cameras looped/.test(window.__course.wire.rl ?? ''), null, 15000, "A4: LANTERN's line reaches the client");
   assert(await claimed(), 'A4: the press claims the job');
-  await sees(B, /Back aisle or mezzanine/, 'A4: the client has the B job (the floor step B line)');
-  await sees(A, /Main aisle: move fast/, 'A4: the host has the A job (the floor step A line)');
+  const roles = () => GA(() => [window.__course.state.roleOf(0), window.__course.state.roleOf(1)]);
+  assert(JSON.stringify(await roles()) === '["b","a"]', `A4: the host pressed first: host B, client A (${JSON.stringify(await roles())})`);
+  await sees(A, /Back aisle or mezzanine/, 'A4: the host has the B job (the floor step B line)');
+  await sees(B, /Main aisle: move fast/, 'A4: the client has the A job (the floor step A line)');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) assert(await ticked(P, 'a4-room'), `A4: the ${tag} sees the room step ticked`);
   // a press while it loops: "already off", the window is not reset
   const t0 = await GA((id) => window.__course.state.gateTimer(id), GATE);
-  assert((await use(B, CONSOLE)) === 'ok', 'A4: the client presses the console while it loops');
+  assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console while it loops');
   await until(A, () => /already off/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the console says the cameras are already off (host)');
   await until(B, () => /already off/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the client gets "already off"');
   const t1 = await GA((id) => window.__course.state.gateTimer(id), GATE);
@@ -220,15 +226,15 @@ export async function walk(t, n) {
 
   // ---- 4. the floor: the pass zone needs both players west of x 84 ----
   console.log('  A4: the pass zone, both west of x 84');
-  await moveHost(SPOT_N[0], SPOT_N[1], 0.1, Math.PI);
+  await moveClient(SPOT_N[0], SPOT_N[1], 0.1, Math.PI);
   await waitSim(800);
   assert(!(await hasFlag('a4-west')), 'A4: one player west of x 84 is not enough');
   assert(!(await ticked(A, 'a4-floor')), 'A4: the floor step is not done with one west');
-  await moveClient(SPOT_S[0], SPOT_S[1], 0.1, 0);
+  await moveHost(SPOT_S[0], SPOT_S[1], 0.1, 0);
   await until(A, () => window.__course.state.hasFlag('a4-west'), null, 10000, 'A4: the pass zone sets a4-west with both west');
   for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.course-hud tr[data-step="a4-floor"] td.done'), null, 15000, `A4: the ${tag} sees the floor step ticked`);
-  await sees(A, /Take the man nearest the office/, 'A4: the host (A) reads the dock step line');
-  await sees(B, /Take the man nearest the racking/, 'A4: the client (B) reads the dock step line');
+  await sees(B, /Take the man nearest the office/, 'A4: the client (A) reads the dock step line');
+  await sees(A, /Take the man nearest the racking/, 'A4: the host (B) reads the dock step line');
 
   // ---- 5. the pair goes down together: the dual takedown ----
   console.log('  A4: the dual takedown');
@@ -276,6 +282,7 @@ export async function walk(t, n) {
   await until(A, (f) => window.__course.state.hasFlag(f), FLAG, 8000, 'A4: the second loop starts');
   await allCams(A, 'looped');
   await allCams(B, 'looped');
+  assert(JSON.stringify(await roles()) === '["b","a"]', `A4: the client's press leaves the claim where it stood (${JSON.stringify(await roles())})`);
 
   // ---- 8. L4's medkit, nobody hanging (the runner then puts both on the pad) ----
   console.log('  A4: L4');

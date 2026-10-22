@@ -22,13 +22,29 @@
  *
  * Lights (LIGHTING-PLAN 3, A3): corridor 30 (six panels), offices 31-33 (two panels each, a switch inside each door), lobbies 34
  * (the landlord's timer circuit, no switch). The camera ignores light (IR, G240), so the corridor stays lit.
+ *
+ * Dressing (slice 3 step 5, SPEC 6, M5: a let office floor inside the luxury hall, so it keeps its own materials - plaster, ceiling tile,
+ * carpet tile, corridor vinyl, frosted partitions, laminate desks, brushed lift doors - and only the two lift lobbies, the landlord's front of
+ * house, take the kit's charcoal panels and coves; the hall over the set is a sealed void above the slab, nobody sees it, so it gets none):
+ * - the greybox's boxes, lamps, doors, switches, devices and steps are untouched; the dressing is appended after them (the register row
+ *   A3-3 that S34-check found missing included);
+ * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK`, so out of the canonical light
+ *   shapes: the bake, the meter and the guards see the greybox as built): floor sheets, plaster and skirting on every wall face, door surrounds,
+ *   ceiling tile and grid, the desks' laminate and panels, the runs' cabinet fronts and drawers, wall furniture, lift doors, the services
+ *   cupboard, switch back plates;
+ * - the only new collision is the cleaner's trolley's one invisible, `noLedge` box (the props kit's own, `FacilityProps.write`), parked in
+ *   office 2's south-west corner so the trolley bay (the hide pocket) stays free;
+ * - four `officeDesk` props stand over the greybox desks (visual: the greybox box is the collision; the test holds each prop's box inside it),
+ *   five `officeChair`s, the trolley and five hung `signPlate`s (draws: 4 + 3 + 3 + the facility's plate 2 = 12);
+ * - kit panels with accent coves in the lobbies, every one on circuit 34. No lamp is added.
  */
 import type { HallRule } from '../../../game/jammer';
 import type { CameraDevice } from '../../../security/data';
-import { KIT_BOX_COLOR, type FacilityKit } from '../../kit/facilityKit';
+import { KIT_BOX_COLOR, KIT_PANEL_DEPTH, type FacilityKit } from '../../kit/facilityKit';
 import type { LevelBuilder } from '../../levelBuilder';
 import { MARLOW_LEVEL } from '../../lighting/levels';
 import { marlowCourseGroups } from '../../lighting/marlowCircuits';
+import { FacilityProps, writePropBoxes } from '../../props/facilityProps';
 import { applyGreybox, jamRelay, type GreyBox } from '../ctcourseGreybox';
 import { emptyPart, tally, type SetPart } from './types';
 
@@ -106,6 +122,81 @@ const WHITE: [number, number, number] = [0.96, 0.97, 1.0];
 const WARM: [number, number, number] = [1.0, 0.82, 0.62];
 const DESK = '#3a3226';
 const RUN = '#4a4337';
+
+// ---- dressing (slice 3 step 5) ----
+/** The lobbies' circuit (the landlord's common-parts timer run, no switch): the kit's panels and coves in the lobbies follow it. */
+const G_LOBBY = 34;
+/** A dressing skin's thickness (m) and the thinnest side a skin may have: under `CANON_MIN_THICK` (0.05, `voxel/lightShapes.ts`) the
+ *  canonical light shapes leave it out, so dressing never moves the bake, the meter or what a guard sees. */
+const SKIN = 0.03;
+const THIN = 0.05;
+/** The corridor's inner faces (z) and its ends (x). */
+const CORR = { x0: 79.5, x1: 97, zS: 9.0, zN: 12.5 } as const;
+/** The recess's cheeks (x of the faces looking into it) and the lintel's span over the corridor door. */
+const RECESS = { x0: 87.55, x1: 88.95, z0: 8.0, z1: 9.0 } as const;
+/** The greybox desks the four desk props stand over (x0, x1, z0, z1; 0.75 m high) and the desk runs (0.9 m high); the far desk is skinned, not propped. */
+export const A3_DESKS = [
+  { x0: 80.0, x1: 81.6, z0: 0.25, z1: 1.5 },
+  { x0: 82.0, x1: 84.2, z0: 0.25, z1: 1.5 },
+  { x0: 87.1, x1: 89.5, z0: 0.25, z1: 1.5 },
+  { x0: 92.4, x1: 94.4, z0: 0.25, z1: 1.1 },
+] as const;
+export const A3_RUNS = [
+  { x0: 81.0, x1: 85.35, z0: 7.9, z1: 8.7 },
+  { x0: 85.45, x1: 87.25, z0: 7.9, z1: 8.7 },
+  { x0: 89.25, x1: 90.0, z0: 7.0, z1: 8.7 },
+  { x0: 93.4, x1: 96.85, z0: 7.9, z1: 8.7 },
+] as const;
+export const A3_FAR_DESK = { x0: 96.15, x1: 96.85, z0: 0.5, z1: 2.5 } as const;
+/** A desk prop stands on the greybox desk's centre line, its front 5 cm inside the box's front (z1 - 0.45 for the 0.8 m desk), 1 cm up so its top clears the box's. */
+export const A3_DESK_LIFT = 0.01;
+/** The task chairs: tucked at four desks, one pushed out at the far desk (free yaw, no collision). */
+export const A3_CHAIRS = [
+  { x: 80.8, z: 1.75, yaw: Math.PI + 0.25 },
+  { x: 83.1, z: 1.75, yaw: Math.PI - 0.2 },
+  { x: 88.3, z: 1.8, yaw: Math.PI + 0.1 },
+  { x: 93.4, z: 1.4, yaw: Math.PI - 0.3 },
+  { x: 95.2, z: 3.4, yaw: 2.2 },
+] as const;
+/** The cleaner's trolley parks in office 2's south-west corner (yaw pi / 2: 0.5 m across x, 1.1 m along z), clear of the communicating door's swing, his loop and the trolley bay. */
+export const A3_TROLLEY = { x: 85.8, z: 0.85 } as const;
+/** The lifts' doors (z spans on each lobby's outer wall, 1.1 m wide, 2.2 m tall), the call plate and the lobbies' kit-panel face offset. */
+export const A3_LIFTS: readonly (readonly [number, number])[] = [[1.4, 2.5], [2.9, 4.0]];
+export const A3_LIFT_H = 2.2;
+const LIFT_FACE = 0.065;
+/** The east lobby's services cupboard on the office wall's lobby face (x 97.15): z span of its door. */
+export const A3_CUPBOARD_Z: readonly [number, number] = [6.0, 7.0];
+/** The set's own look: plaster, ceiling tile, carpet tile, corridor vinyl, laminate, brushed lift steel. */
+const LOOK = {
+  plaster: '#b6b7b1',
+  skirt: '#2b2e31',
+  steel: '#9ea4aa',
+  steelDark: '#3a3f44',
+  frame: '#34383c',
+  carpet: '#3f444c',
+  carpetSeam: '#353a41',
+  vinyl: '#585d62',
+  vinylBand: '#44484c',
+  tile: '#c7c8c3',
+  grid: '#8f9291',
+  laminate: '#d8d8d2',
+  panel: '#2e3134',
+  cab: '#5c6166',
+  cabDark: '#3d4145',
+  black: '#1a1c1e',
+  screen: '#0b0e10',
+  board: '#e3e3dd',
+  cork: '#8d6a45',
+  paper: '#ecece6',
+  yellow: '#c9a227',
+  red: '#b5282d',
+  stone: '#2a2d31',
+  inlay: '#25282c',
+  lift: '#a9aeb3',
+  amber: '#d9a441',
+  louvre: '#6b7076',
+  print: '#4b5560',
+} as const;
 
 export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
   const p = emptyPart('a3OfficeRange');
@@ -279,5 +370,316 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
     { name: 'a3-lobby', feet: [A3_POST_WEST.x, 0, A3_POST_WEST.z], cam: [77.0, 1.7, 10.9], target: [96, 1.4, 10.75] },
     { name: 'a3-office2', feet: [87.0, 0, 2.4], cam: [85.9, 1.7, 2.4], target: [95, 1.2, 1.8] },
   );
+
+  // ---- dressing (slice 3 step 5; SPEC 6, PROPS.md 3 / 5, KIT.md): appended after the greybox, which it does not touch ----
+  /** A visual-only skin [x0, x1] x [y0, y1] x [z0, z1]: no collision, `noLedge`, one side under `THIN` (out of the light shapes). */
+  const skin = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, color: string): void => {
+    if (Math.min(x1 - x0, y1 - y0, z1 - z0) >= THIN) throw new Error(`a3OfficeRange: the dressing skin at (${x0}, ${y0}, ${z0}) is not thin`);
+    const from = b.boxes.length;
+    b.box((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, color, 0, 0, false);
+    b.mark(from, { noLedge: true });
+  };
+  /** A skin on the face of an axis-aligned block: `side` is the face's outward direction ('s' -z, 'n' +z, 'w' -x, 'e' +x), `at` the face's
+   *  plane (z for n / s, x for e / w), [a0, a1] the run along it (x for n / s, z for e / w), `layer` how many skins out (each `SKIN` thick). */
+  const face = (side: 'n' | 's' | 'e' | 'w', at: number, a0: number, a1: number, y0: number, y1: number, color: string, layer = 0): void => {
+    const o0 = layer * SKIN;
+    const o1 = (layer + 1) * SKIN;
+    if (side === 'n') skin(a0, a1, y0, y1, at + o0, at + o1, color);
+    else if (side === 's') skin(a0, a1, y0, y1, at - o1, at - o0, color);
+    else if (side === 'e') skin(at + o0, at + o1, y0, y1, a0, a1, color);
+    else skin(at - o1, at - o0, y0, y1, a0, a1, color);
+  };
+  /** Floor paint (a few mm proud, no collision). */
+  const paint = (x0: number, x1: number, z0: number, z1: number, color: string, top = 0.012): void => skin(x0, x1, 0, top, z0, z1, color);
+  /** Plaster on a wall face with a dark skirting under it (a lintel strip starting over 0.12 m has no skirting). */
+  const plaster = (side: 'n' | 's' | 'e' | 'w', at: number, a0: number, a1: number, y0 = 0.12, y1 = CEIL): void => {
+    face(side, at, a0, a1, y0, y1, LOOK.plaster);
+    if (y0 <= 0.12) face(side, at, a0, a1, 0, 0.12, LOOK.skirt);
+  };
+  /** A framed board or print: a dark frame and an inset face one skin further out. */
+  const framed = (side: 'n' | 's' | 'e' | 'w', at: number, a0: number, a1: number, y0: number, y1: number, inner: string, layer = 1): void => {
+    face(side, at, a0, a1, y0, y1, LOOK.frame, layer);
+    face(side, at, a0 + 0.03, a1 - 0.03, y0 + 0.03, y1 - 0.03, inner, layer + 1);
+  };
+  /** Ceiling tile: a sheet under the slab (above the lamps and the camera, which hang lower) with its 1.2 m grid below it. */
+  const ceiling = (x0: number, x1: number, z0: number, z1: number): void => {
+    skin(x0, x1, CEIL - 0.02, CEIL, z0, z1, LOOK.tile);
+    for (let x = x0 + 1.2; x < x1 - 0.1; x += 1.2) skin(x - 0.0125, x + 0.0125, CEIL - 0.03, CEIL - 0.02, z0, z1, LOOK.grid);
+    for (let z = z0 + 1.2; z < z1 - 0.1; z += 1.2) skin(x0, x1, CEIL - 0.03, CEIL - 0.02, z - 0.0125, z + 0.0125, LOOK.grid);
+  };
+  /** Carpet tile: a sheet with 1.2 m seams. */
+  const carpet = (x0: number, x1: number, z0: number, z1: number): void => {
+    paint(x0, x1, z0, z1, LOOK.carpet);
+    for (let x = x0 + 1.2; x < x1 - 0.1; x += 1.2) paint(x - 0.01, x + 0.01, z0, z1, LOOK.carpetSeam, 0.014);
+    for (let z = z0 + 1.2; z < z1 - 0.1; z += 1.2) paint(x0, x1, z - 0.01, z + 0.01, LOOK.carpetSeam, 0.014);
+  };
+  /** A desk's top as strips round a hole (the prop standing on it): back, front and the two sides. */
+  const ring = (x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, hole: readonly [number, number, number, number], color: string): void => {
+    const [hx0, hx1, hz0, hz1] = hole;
+    if (hz0 - z0 > 0.004) skin(x0, x1, y0, y1, z0, hz0, color);
+    if (z1 - hz1 > 0.004) skin(x0, x1, y0, y1, hz1, z1, color);
+    if (hx0 - x0 > 0.004) skin(x0, hx0, y0, y1, hz0, hz1, color);
+    if (x1 - hx1 > 0.004) skin(hx1, x1, y0, y1, hz0, hz1, color);
+  };
+  const { zS, zN } = CORR;
+
+  p.register.push({ id: 'A3-3', element: "Office 2's door reveal (the recess, 1.4 x 1.0 m on the corridor's south wall at x 88.25): built with the corridor (A3-1) and office 2's door (A3-11), no pieces of its own; dressed in A3-13 (plaster, skirting, jamb strips, sign plate)" });
+
+  // ---- A3-13: the corridor (vinyl, plaster and skirting, bumper rail, door surrounds, notices, ceiling tile, the camera's mount plate) ----
+  tally(b, p.register, 'A3-13', "Corridor dressing (visual skins, no collision): vinyl sheet and border bands, steel thresholds at both archways and both doors, plaster with a dark skirting and a bumper rail on both walls and the recess, the recess back's jamb strips, office 3's door surround, framed plans and prints, a notice board, a camera notice, a fire point, ceiling tile with its grid and the camera's mount plate", () => {
+    const { x0, x1 } = CORR;
+    // the floor: vinyl over the corridor and the recess, darker bands along both walls (not across the two doors), steel thresholds
+    paint(x0, x1, zS, zN, LOOK.vinyl);
+    paint(RECESS.x0, RECESS.x1, RECESS.z0, zS, LOOK.vinyl);
+    paint(x0, x1, zN - 0.18, zN, LOOK.vinylBand, 0.014);
+    for (const [a, e] of [[x0, RECESS.x0], [RECESS.x1, A3_CORR_DOOR_X[0]], [A3_CORR_DOOR_X[1], x1]] as const) paint(a, e, zS, zS + 0.18, LOOK.vinylBand, 0.014);
+    paint(x0 - 0.1, x0 + 0.1, zS, zN, LOOK.steel, 0.014);
+    paint(x1 - 0.1, x1 + 0.1, zS, zN, LOOK.steel, 0.014);
+    paint(A3_RECESS_DOOR_X[0], A3_RECESS_DOOR_X[1], A3_RECESS_BACK_Z - h, A3_RECESS_BACK_Z + h, LOOK.steel, 0.014);
+    paint(A3_CORR_DOOR_X[0], A3_CORR_DOOR_X[1], A3_OFFICE_Z1, zS, LOOK.steel, 0.014);
+    // the walls: plaster, skirting, a bumper rail at 0.9 m
+    plaster('s', zN, x0, x1);
+    face('s', zN, x0, x1, 0.9, 0.96, LOOK.steel, 1);
+    for (const [a, e] of [[x0, RECESS.x0], [RECESS.x1, A3_CORR_DOOR_X[0]], [A3_CORR_DOOR_X[1], x1]] as const) {
+      plaster('n', zS, a, e);
+      face('n', zS, a, e, 0.9, 0.96, LOOK.steel, 1);
+    }
+    // the cheeks' recess faces and the recess back (the door's sliver jambs in brushed steel, the lintel in plaster)
+    plaster('e', RECESS.x0, RECESS.z0, zS);
+    plaster('w', RECESS.x1, RECESS.z0, zS);
+    plaster('n', RECESS.z0, RECESS.x0, RECESS.x1, A3_DOOR_H, CEIL);
+    face('n', RECESS.z0, RECESS.x0, A3_RECESS_DOOR_X[0], 0, A3_DOOR_H, LOOK.steel);
+    face('n', RECESS.z0, A3_RECESS_DOOR_X[1], RECESS.x1, 0, A3_DOOR_H, LOOK.steel);
+    // office 3's corridor door: plaster over the lintel, a steel surround
+    plaster('n', zS, A3_CORR_DOOR_X[0], A3_CORR_DOOR_X[1], A3_DOOR_H, CEIL);
+    face('n', zS, A3_CORR_DOOR_X[0] - 0.1, A3_CORR_DOOR_X[0], 0, A3_DOOR_H, LOOK.steel, 1);
+    face('n', zS, A3_CORR_DOOR_X[1], A3_CORR_DOOR_X[1] + 0.1, 0, A3_DOOR_H, LOOK.steel, 1);
+    face('n', zS, A3_CORR_DOOR_X[0] - 0.1, A3_CORR_DOOR_X[1] + 0.1, A3_DOOR_H, A3_DOOR_H + 0.08, LOOK.steel, 1);
+    // north wall: a floor plan, a notice board with notes, a camera notice, a second print, the fire point
+    framed('s', zN, 82.0, 82.8, 1.35, 1.95, LOOK.paper);
+    framed('s', zN, 84.0, 85.4, 1.3, 1.9, LOOK.cork);
+    for (const [a, e, y0] of [[84.2, 84.45, 1.45], [84.6, 84.85, 1.6], [84.95, 85.2, 1.4]] as const) face('s', zN, a, e, y0, y0 + 0.25, LOOK.paper, 3);
+    face('s', zN, 80.3, 80.75, 1.7, 2.0, LOOK.yellow, 1);
+    face('s', zN, 80.4, 80.62, 1.78, 1.9, LOOK.black, 2);
+    face('s', zN, 80.62, 80.68, 1.82, 1.86, LOOK.black, 2);
+    framed('s', zN, 94.4, 95.2, 1.35, 1.95, LOOK.paper);
+    face('s', zN, 92.6, 93.1, 1.3, 1.6, LOOK.red, 1);
+    face('s', zN, 92.67, 93.03, 1.37, 1.53, LOOK.paper, 2);
+    face('s', zN, 92.8, 92.92, 0.35, 0.75, LOOK.red, 1);
+    face('s', zN, 92.8, 92.92, 0.72, 0.8, LOOK.black, 1);
+    face('s', zN, 92.72, 93.0, 0.3, 0.34, LOOK.steelDark, 1);
+    // south wall: prints
+    framed('n', zS, 81.2, 82.0, 1.4, 1.95, LOOK.paper);
+    framed('n', zS, 83.4, 84.4, 1.4, 1.9, LOOK.paper);
+    framed('n', zS, 85.4, 86.2, 1.4, 1.95, LOOK.paper);
+    framed('n', zS, 89.7, 90.6, 1.4, 1.9, LOOK.paper);
+    framed('n', zS, 93.6, 94.4, 1.4, 1.95, LOOK.paper);
+    // the ceiling: tile and grid over the corridor and the recess, the camera's mount plate at its lens
+    ceiling(x0, x1, zS, zN);
+    skin(RECESS.x0, RECESS.x1, CEIL - 0.02, CEIL, RECESS.z0, zS, LOOK.tile);
+    skin(camera.at[0] - 0.25, camera.at[0] + 0.25, CEIL - 0.03, CEIL, A3_CORRIDOR.at.z - 0.25, A3_CORRIDOR.at.z + 0.25, LOOK.steelDark);
+  });
+
+  // ---- A3-14: the offices (carpet tile, plaster and skirting, partition surrounds, ceiling tile, wall furniture) ----
+  tally(b, p.register, 'A3-14', 'Office dressing (visual skins, no collision): carpet tile with 1.2 m seams, plaster and skirting on every wall face, steel surrounds on the lobby door and both communicating doors, ceiling tile and grid, whiteboards, pin boards, prints, clocks and upper cupboards on the walls', () => {
+    const z0 = SHELL.south;
+    const z1 = A3_OFFICE_Z1;
+    const lobbyFace = A3_LOBBY_WALL_X + h;
+    const recessFace = A3_RECESS_BACK_Z - h;
+    for (const [ox0, ox1] of A3_OFFICES) {
+      carpet(ox0, ox1, z0, z1);
+      ceiling(ox0, ox1, z0, z1);
+      plaster('n', z0, ox0, ox1);
+    }
+    // office 1: the west wall (the lobby door's gap with its lintel) and the corridor wall; office 2: the corridor wall west of the recess, the recess back, east of it;
+    // office 3: the corridor wall either side of its door, the east wall
+    const [d0, d1] = A3_LOBBY_DOOR_Z;
+    plaster('e', lobbyFace, z0, d0);
+    plaster('e', lobbyFace, d1, z1);
+    plaster('e', lobbyFace, d0, d1, A3_DOOR_H, CEIL);
+    plaster('s', z1, A3_OFFICES[0][0], A3_OFFICES[0][1]);
+    plaster('s', z1, A3_OFFICES[1][0], 87.25);
+    plaster('s', recessFace, 87.25, A3_RECESS_DOOR_X[0]);
+    plaster('s', recessFace, A3_RECESS_DOOR_X[0], A3_RECESS_DOOR_X[1], A3_DOOR_H, CEIL);
+    plaster('s', recessFace, A3_RECESS_DOOR_X[1], 89.25);
+    plaster('s', z1, 89.25, A3_OFFICES[1][1]);
+    plaster('s', z1, A3_OFFICES[2][0], A3_CORR_DOOR_X[0]);
+    plaster('s', z1, A3_CORR_DOOR_X[0], A3_CORR_DOOR_X[1], A3_DOOR_H, CEIL);
+    plaster('s', z1, A3_CORR_DOOR_X[1], A3_OFFICES[2][1]);
+    plaster('w', A3_OFFICES[2][1], z0, z1);
+    // steel surrounds: the lobby door (office side), and each communicating door on both faces of its partition
+    face('e', lobbyFace, d0 - 0.1, d0, 0, A3_DOOR_H, LOOK.steel, 1);
+    face('e', lobbyFace, d1, d1 + 0.1, 0, A3_DOOR_H, LOOK.steel, 1);
+    face('e', lobbyFace, d0 - 0.1, d1 + 0.1, A3_DOOR_H, A3_DOOR_H + 0.08, LOOK.steel, 1);
+    for (const xp of A3_PARTITIONS) {
+      for (const [side, at] of [['w', xp - 0.05], ['e', xp + 0.05]] as const) {
+        face(side, at, A3_COMM_Z[0] - 0.1, A3_COMM_Z[0], 0, A3_DOOR_H, LOOK.steel);
+        face(side, at, A3_COMM_Z[1], A3_COMM_Z[1] + 0.1, 0, A3_DOOR_H, LOOK.steel);
+        face(side, at, A3_COMM_Z[0] - 0.1, A3_COMM_Z[1] + 0.1, A3_DOOR_H, A3_DOOR_H + 0.08, LOOK.steel);
+      }
+    }
+    // wall furniture. Office 1: a whiteboard, a print and a clock over the desks, a pin board on the west wall, upper cupboards and a pin board over the run
+    framed('n', z0, 80.2, 81.4, 1.3, 1.95, LOOK.board);
+    framed('n', z0, 82.6, 83.6, 1.4, 1.9, LOOK.paper);
+    face('n', z0, 84.2, 84.5, 2.15, 2.45, LOOK.board, 1);
+    framed('e', lobbyFace, 0.6, 1.8, 1.3, 1.9, LOOK.cork);
+    for (let k = 0; k < 4; k++) face('s', z1, 81.2 + 0.55 * k + 0.01, 81.2 + 0.55 * k + 0.54, 1.55, 2.25, LOOK.cab, 1);
+    framed('s', z1, 83.8, 85.0, 1.3, 1.9, LOOK.cork);
+    // office 2: a whiteboard over the trolley, a print over the desk, a clock, a whiteboard over the west run, a pin board over the bay's drawer unit
+    framed('n', z0, 85.6, 86.8, 1.3, 1.95, LOOK.board);
+    framed('n', z0, 87.5, 88.3, 1.4, 1.9, LOOK.paper);
+    face('n', z0, 89.7, 90.0, 2.15, 2.45, LOOK.board, 1);
+    framed('s', z1, 85.6, 87.1, 1.2, 1.9, LOOK.board);
+    framed('s', z1, 89.4, 90.8, 1.3, 1.9, LOOK.cork);
+    // office 3: a print over the desk, a clock, a whiteboard over the far desk, upper cupboards and a pin board over the run
+    framed('n', z0, 92.7, 93.5, 1.4, 1.9, LOOK.paper);
+    face('n', z0, 94.8, 95.1, 2.15, 2.45, LOOK.board, 1);
+    framed('w', A3_OFFICES[2][1], 0.6, 2.4, 1.3, 1.95, LOOK.board);
+    for (let k = 0; k < 3; k++) face('s', z1, 93.6 + 0.55 * k + 0.01, 93.6 + 0.55 * k + 0.54, 1.55, 2.25, LOOK.cab, 1);
+    framed('s', z1, 95.5, 96.7, 1.3, 1.9, LOOK.cork);
+  });
+
+  // ---- A3-15: the desks and runs (laminate tops round the props, panels, cabinet fronts, drawers, the far desk's own screen) ----
+  tally(b, p.register, 'A3-15', "Desk and run dressing (visual skins, no collision): laminate round each desk prop, dark end and front panels over the greybox desks, a skinned screen, keyboard and mouse on the far desk, worktops, cabinet fronts with handles on the three wall runs, a three-drawer unit on the bay's run", () => {
+    for (const d of A3_DESKS) {
+      const cx = (d.x0 + d.x1) / 2;
+      const pz = d.z1 - 0.45;
+      ring(d.x0, d.x1, d.z0, d.z1, 0.75, 0.75 + 0.01, [cx - 0.8, cx + 0.8, pz - 0.4, pz + 0.4], LOOK.laminate);
+      face('w', d.x0, d.z0, d.z1, 0, 0.75, LOOK.panel);
+      face('e', d.x1, d.z0, d.z1, 0, 0.75, LOOK.panel);
+      face('n', d.z1, d.x0, d.x1, 0, 0.1, LOOK.skirt);
+      face('n', d.z1, d.x0, d.x1, 0.1, 0.75, LOOK.panel);
+    }
+    // the far desk against the east wall: laminate, panels, a skinned monitor on its stand, keyboard and mouse (the cleaner's isolation stop)
+    const f = A3_FAR_DESK;
+    const zm = (f.z0 + f.z1) / 2;
+    skin(f.x0, f.x1, 0.75, 0.76, f.z0, f.z1, LOOK.laminate);
+    face('w', f.x0, f.z0, f.z1, 0.1, 0.75, LOOK.panel);
+    face('w', f.x0, f.z0, f.z1, 0, 0.1, LOOK.skirt);
+    face('s', f.z0, f.x0, f.x1, 0, 0.75, LOOK.panel);
+    face('n', f.z1, f.x0, f.x1, 0, 0.75, LOOK.panel);
+    skin(f.x1 - 0.2, f.x1 - 0.16, 0.76, 0.94, zm - 0.04, zm + 0.04, LOOK.steelDark);
+    skin(f.x1 - 0.23, f.x1 - 0.19, 0.94, 1.2, zm - 0.28, zm + 0.28, LOOK.black);
+    skin(f.x1 - 0.235, f.x1 - 0.225, 0.97, 1.17, zm - 0.25, zm + 0.25, LOOK.screen);
+    skin(f.x0 + 0.1, f.x0 + 0.3, 0.76, 0.775, zm - 0.2, zm + 0.2, LOOK.black);
+    skin(f.x0 + 0.12, f.x0 + 0.18, 0.76, 0.775, zm + 0.3, zm + 0.36, LOOK.black);
+    // the runs: worktop, plinth, cabinet fronts with handles (the bay's run is a drawer unit on two faces)
+    for (const r of A3_RUNS) {
+      skin(r.x0, r.x1, 0.9, 0.93, r.z0, r.z1, LOOK.laminate);
+      face('w', r.x0, r.z0, r.z1, 0, 0.9, LOOK.panel);
+      if (r.z0 > 7.5) {
+        face('s', r.z0, r.x0, r.x1, 0, 0.1, LOOK.skirt);
+        const n = Math.max(1, Math.round((r.x1 - r.x0) / 0.6));
+        const w = (r.x1 - r.x0) / n;
+        for (let k = 0; k < n; k++) {
+          face('s', r.z0, r.x0 + k * w + 0.01, r.x0 + (k + 1) * w - 0.01, 0.12, 0.88, LOOK.cab);
+          face('s', r.z0, r.x0 + (k + 0.5) * w - 0.01, r.x0 + (k + 0.5) * w + 0.01, 0.55, 0.78, LOOK.steel, 1);
+        }
+        face('e', r.x1, r.z0, r.z1, 0, 0.9, LOOK.panel);
+      } else {
+        // x 89.25-90.0, z 7.0-8.7: drawers face south (z 7.0) and east (x 90.0, into the bay)
+        face('s', r.z0, r.x0, r.x1, 0, 0.1, LOOK.skirt);
+        face('e', r.x1, r.z0, r.z1, 0, 0.1, LOOK.skirt);
+        for (const [y0, y1] of [[0.12, 0.36], [0.38, 0.62], [0.64, 0.88]] as const) {
+          face('s', r.z0, r.x0 + 0.02, r.x1 - 0.02, y0, y1, LOOK.cab);
+          face('s', r.z0, r.x0 + 0.25, r.x1 - 0.25, (y0 + y1) / 2 - 0.01, (y0 + y1) / 2 + 0.01, LOOK.steel, 1);
+          face('e', r.x1, r.z0 + 0.1, r.z1 - 0.1, y0, y1, LOOK.cabDark);
+          face('e', r.x1, (r.z0 + r.z1) / 2 - 0.2, (r.z0 + r.z1) / 2 + 0.2, (y0 + y1) / 2 - 0.01, (y0 + y1) / 2 + 0.01, LOOK.steel, 1);
+        }
+      }
+    }
+    // a printer's flat tray and a paper stack on the long run (flat skins on the worktop)
+    skin(83.2, 83.8, 0.93, 0.945, 8.0, 8.5, LOOK.print);
+    skin(84.1, 84.4, 0.93, 0.95, 8.1, 8.35, LOOK.paper);
+  });
+
+  // ---- A3-16 (with A3-10, the lift doors): the lobbies. Charcoal kit panels with warm coves on the landlord's circuit 34, brushed lift doors, the services cupboard, a stone inlay ----
+  tally(b, p.register, 'A3-16', "Lobby dressing (kit panels visual, skins no collision): the kit's charcoal panels and warm coves with skirting on both lobbies' walls (circuit 34; the doors' frames, the corridor archways and the corridor switch left clear), two brushed lift doors with a call plate on each lobby's outer wall (A3-10), the east lobby's services cupboard on the office wall, a dark stone inlay with steel edging on each floor", () => {
+    const run = (x: number, z: number, len: number, yaw: number): void => {
+      kit.wallPanel(x, z, len, yaw, { h: CEIL, tone: 'warm', group: G_LOBBY });
+      kit.skirting(x, z, len, yaw, { tone: 'warm', group: G_LOBBY, standoff: KIT_PANEL_DEPTH });
+    };
+    const alongZ = (x: number, yaw: number, a: number, e: number): void => run(x, (a + e) / 2, e - a, yaw);
+    const alongX = (z: number, yaw: number, a: number, e: number): void => run((a + e) / 2, z, e - a, yaw);
+    const lobbyX = A3_LOBBY_WALL_X - h;
+    // west lobby: the outer wall (south of the L2 door's frame), office 1's wall either side of its door, the south wall, the north wall short of the corridor switch
+    alongZ(SHELL.west, Math.PI / 2, 0.34, 8.9);
+    alongZ(lobbyX, -Math.PI / 2, 0.34, A3_LOBBY_DOOR_Z[0] - 0.1);
+    alongZ(lobbyX, -Math.PI / 2, A3_LOBBY_DOOR_Z[1] + 0.1, 8.9);
+    alongX(SHELL.south, 0, 76.34, 79.26);
+    alongX(SHELL.north, Math.PI, 76.34, 78.3);
+    // east lobby: the outer wall either side of the L3 door's frame, the office wall either side of the services cupboard, the south and north walls
+    const eastX = A3_EAST_WALL_X + h;
+    alongZ(SHELL.east, -Math.PI / 2, 0.34, 8.9);
+    alongZ(SHELL.east, -Math.PI / 2, 11.1, 12.66);
+    alongZ(eastX, Math.PI / 2, 0.34, A3_CUPBOARD_Z[0] - 0.3);
+    alongZ(eastX, Math.PI / 2, A3_CUPBOARD_Z[1] + 0.3, 8.9);
+    alongX(SHELL.south, 0, 97.24, 99.66);
+    alongX(SHELL.north, Math.PI, 97.24, 99.66);
+    // the lifts: a dark frame, two brushed leaves with a seam, a display over them, standing on the panels (0.065 m off the wall); a call plate beside the pair
+    const lift = (side: 'e' | 'w', at: number, [a, e]: readonly [number, number]): void => {
+      const mid = (a + e) / 2;
+      face(side, at, a - 0.08, e + 0.08, 0, A3_LIFT_H + 0.08, LOOK.steelDark, 0);
+      face(side, at, a, mid - 0.01, 0, A3_LIFT_H, LOOK.lift, 1);
+      face(side, at, mid + 0.01, e, 0, A3_LIFT_H, LOOK.lift, 1);
+      face(side, at, mid - 0.14, mid + 0.14, A3_LIFT_H + 0.1, A3_LIFT_H + 0.2, LOOK.black, 1);
+      face(side, at, mid - 0.03, mid + 0.03, A3_LIFT_H + 0.13, A3_LIFT_H + 0.17, LOOK.amber, 2);
+      face(side, at, a + 0.08, a + 0.12, 0, 0.1, LOOK.steelDark, 2);
+      face(side, at, e - 0.12, e - 0.08, 0, 0.1, LOOK.steelDark, 2);
+    };
+    const call = (side: 'e' | 'w', at: number): void => {
+      face(side, at, 4.3, 4.5, 0.95, 1.35, LOOK.steelDark, 0);
+      face(side, at, 4.37, 4.43, 1.2, 1.26, LOOK.amber, 1);
+      face(side, at, 4.37, 4.43, 1.05, 1.11, LOOK.steel, 1);
+    };
+    for (const z of A3_LIFTS) {
+      lift('e', SHELL.west + LIFT_FACE, z);
+      lift('w', SHELL.east - LIFT_FACE, z);
+    }
+    call('e', SHELL.west + LIFT_FACE);
+    call('w', SHELL.east - LIFT_FACE);
+    // the services cupboard: a dark frame in the plain wall, a steel door with louvres, a lock and a red riser label
+    const [c0, c1] = A3_CUPBOARD_Z;
+    face('e', eastX, c0 - 0.1, c1 + 0.1, 0, 2.1, LOOK.steelDark, 0);
+    face('e', eastX, c0, c1, 0, 2.0, LOOK.lift, 1);
+    for (let k = 0; k < 6; k++) face('e', eastX, c0 + 0.1, c1 - 0.1, 1.5 + k * 0.06, 1.53 + k * 0.06, LOOK.louvre, 2);
+    face('e', eastX, c1 - 0.2, c1 - 0.14, 0.95, 1.05, LOOK.steelDark, 2);
+    face('e', eastX, (c0 + c1) / 2 - 0.15, (c0 + c1) / 2 + 0.15, 1.15, 1.3, LOOK.red, 2);
+    // a stone inlay with steel edging under each lobby's lifts (clear of the send-back spot, the jam posts and both doors)
+    for (const [x0, x1] of [[76.6, 79.1], [97.3, 99.5]] as const) {
+      paint(x0, x1, 0.6, 8.4, LOOK.inlay);
+      paint(x0, x1, 0.6, 0.64, LOOK.steel, 0.014);
+      paint(x0, x1, 8.36, 8.4, LOOK.steel, 0.014);
+      paint(x0, x0 + 0.04, 0.6, 8.4, LOOK.steel, 0.014);
+      paint(x1 - 0.04, x1, 0.6, 8.4, LOOK.steel, 0.014);
+    }
+  });
+
+  // ---- A3-17: the switches' back plates (the four wall switches stood on bare walls) ----
+  tally(b, p.register, 'A3-17', 'Switch back plates (visual skins): a dark plate on the wall behind each of the four wall switches (corridor, offices 1-3), so none floats in front of its wall', () => {
+    face('s', SHELL.north, A3_SW_CORR.x - 0.1, A3_SW_CORR.x + 0.1, 1.05, 1.35, LOOK.steelDark, 0);
+    face('e', A3_LOBBY_WALL_X + h, A3_SW_OFFICE[0].z - 0.1, A3_SW_OFFICE[0].z + 0.1, 1.05, 1.35, LOOK.steelDark, 1);
+    face('s', A3_RECESS_BACK_Z - h, A3_SW_OFFICE[1].x - 0.1, A3_SW_OFFICE[1].x + 0.1, 1.05, 1.35, LOOK.steelDark, 1);
+    face('s', A3_OFFICE_Z1, A3_SW_OFFICE[2].x - 0.1, A3_SW_OFFICE[2].x + 0.1, 1.05, 1.35, LOOK.steelDark, 1);
+  });
+
+  // ---- A3-18: the props kit (PROPS.md 3 A3): four desks over the greybox desks, five chairs, the cleaner's trolley, five hung plates ----
+  const props = new FacilityProps();
+  for (const d of A3_DESKS) props.add('officeDesk', (d.x0 + d.x1) / 2, d.z1 - 0.45, 0, { y: A3_DESK_LIFT, tint: [0, 0, 0] });
+  for (const c of A3_CHAIRS) props.add('officeChair', c.x, c.z, c.yaw, { free: true });
+  const trolley = props.add('cleanerTrolley', A3_TROLLEY.x, A3_TROLLEY.z, Math.PI / 2);
+  // plates (hung, bottom edge at 2.55 m): over office 3's corridor door, office 2's recess door and office 1's lobby door, and a lift display over each lobby's pair
+  props.add('signPlate', (A3_CORR_DOOR_X[0] + A3_CORR_DOOR_X[1]) / 2, zS + SKIN * 2, 0, { y: 2.55 });
+  props.add('signPlate', A3_RECESS.x, RECESS.z0 + SKIN * 2, 0, { y: 2.55 });
+  props.add('signPlate', A3_LOBBY_WALL_X - h - SKIN, (A3_LOBBY_DOOR_Z[0] + A3_LOBBY_DOOR_Z[1]) / 2, -Math.PI / 2, { y: 2.55 });
+  props.add('signPlate', SHELL.west + 0.05, 2.7, Math.PI / 2, { y: 2.45 });
+  props.add('signPlate', SHELL.east - 0.05, 2.7, -Math.PI / 2, { y: 2.45 });
+  tally(b, p.register, 'A3-18', "Props kit: four officeDesk props over the greybox desks (visual: the greybox box is the collision, screens dark), five officeChairs (no collision), the cleaner's trolley parked in office 2's south-west corner (A3-7; its one see-through box via writePropBoxes, noLedge) and five hung signPlates (over the three suite doors and a display over each lobby's lifts)", () => {
+    const from = b.boxes.length;
+    writePropBoxes(b, [props.placements[trolley]!]);
+    b.mark(from, { noLedge: true });
+  });
+  p.props.push(...props.placements);
+
   return p;
 }

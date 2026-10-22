@@ -6,7 +6,10 @@
  * jammer reaches the flood and the beam panel through the gateway on a clear line, the jammed flood darkens the strip in the
  * field (the tuned levels), every lamp is on its circuit, the patrol is an armed `grunt` on a walkable timed loop, the steps
  * validate and read per player, the claim is the inner zone. The map-wide frames (`tests/ctcourse.test.ts`,
- * `tests/ctcourseLight.test.ts`) run the contract, the register and the light bands over this part too.
+ * `tests/ctcourseLight.test.ts`) run the contract, the register and the light bands over this part too. The last block is the
+ * dressing (slice 5 step 5): the greybox pinned (with its one deliberate edit, the switchgear run's end), hand-built skins out of
+ * the light shapes, the two beam towers and the end filler as the only new collision, the open door leaves clear of every visible
+ * piece, the openings and the panel left clear, the budgets, every kit glow on its circuit, the e2e polish items.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -16,6 +19,10 @@ import { PatrolWalker } from '../../src/ai/patrol';
 import { LEAP, MOVEMENT, TEAM } from '../../src/config/movement';
 import { COURSE_TEXT_MAX } from '../../src/config/course';
 import { hyp2, hyp3 } from '../../src/core/mathx';
+import { DOOR } from '../../src/world/doors';
+import { kitTriangles } from '../../src/world/kit/facilityKit';
+import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { layoutKnownIds, validateCourse } from '../../src/game/course/courseDef';
 import { CourseState } from '../../src/game/course/courseState';
 import { applyJamLight, DEV_IDLE, DEV_JAMMED, DEV_RECOVER, JAM_LIGHT, JAMMER, LASER, laserTouch, lightLit, newDevJam, pickJamTarget, stepDevJam, type DevPhase, type JamTarget } from '../../src/game/jammer';
@@ -32,19 +39,25 @@ import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctco
 import { BEAM_KEEP_CLEAR, COOP_BAND, INTERACT_REACH, JAM_WINDOW, throwGateway } from '../../src/world/maps/ctcourseGreybox';
 import {
   A5_BACK_DOOR,
+  A5_BULKHEADS,
   A5_BUND,
+  A5_CABLE,
+  A5_DRUM_ROWS,
   A5_DRUMS,
   A5_FLOOD,
   A5_FLOOD_JAM,
   A5_FRONT_DOOR,
   A5_GATEWAY,
+  A5_GEAR,
   A5_HIDE,
   A5_IN1_FLAG,
   A5_INNER_ZONE,
   A5_KIOSK,
+  A5_KIOSK_LAMP,
   A5_L5_GATE,
   A5_LANDING,
   A5_LASER,
+  A5_MAT,
   A5_PANEL,
   A5_PANEL_JAM,
   A5_PASS_WAIT,
@@ -59,12 +72,16 @@ import {
   A5_RELEASE_GATE,
   A5_ROOM,
   A5_RUNNER,
+  A5_SHELL,
   A5_THROW,
+  A5_TOWERS,
+  A5_TRAY,
   A5_TRENCH,
   A5_UNIT_H,
   A5_WALL,
 } from '../../src/world/maps/ctcourseSets/a5Substation';
-import { checkSetPart, holdDoorId, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX } from '../../src/world/maps/ctcourseSets/types';
+import { HALL_H, checkSetPart, holdDoorId, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, setGroups } from '../../src/world/maps/ctcourseSets/types';
+import { GAL_TOP } from '../../src/world/maps/ctcourseSets/facility';
 import { lastTimeAtOrOver, LEAP_APEX, MANTLE, SOLO_TOP_SPEED } from '../helpers/soloJumpReach';
 
 const b = new LevelBuilder();
@@ -75,6 +92,11 @@ const course = lay.course!;
 const def = course.def;
 const range = built.ranges.a5Substation;
 const mine = b.boxes.slice(range.boxes[0], range.boxes[1]);
+/** The greybox as S5 built it (slice 5 steps 2-4), bar the switchgear run's end (S567-check polish 3: it stops at z 44.6, the old end is the
+ *  dressing's invisible filler): its 25 boxes (24 solids and the throw mark), 9 lamps, 2 doors, no anchor. The dressing is appended after. */
+const GREY = { boxes: 25, solids: 24, lights: 9, doors: 2, anchors: 0, checksum: 5871.785 };
+const grey = mine.slice(0, GREY.boxes);
+const dressing = mine.slice(GREY.boxes);
 const solid = b.boxes.filter((p) => p.collide && Math.abs(p.yaw) < 1e-3 && Math.abs(p.pitch) < 1e-3);
 const box = SET_BOX.a5Substation[0]!;
 /** The set's lamps: inside the box and under the gallery's floor (the gallery's decor lamps hang over the box edges). */
@@ -239,13 +261,14 @@ describe('A5 the Substation: the part', () => {
 
   it("every register row is an A5 row; the lamps, solids, doors and anchors they count are the builder's", () => {
     expect(part.register.every((r) => r.id.startsWith('A5-'))).toBe(true);
-    expect(part.register.map((r) => r.id).sort()).toEqual(['A5-1', 'A5-10', 'A5-11', 'A5-12', 'A5-2', 'A5-3', 'A5-4', 'A5-5', 'A5-6', 'A5-7', 'A5-8', 'A5-9']);
+    expect(part.register.map((r) => r.id).sort()).toEqual(['A5-1', 'A5-10', 'A5-11', 'A5-12', ...Array.from({ length: 10 }, (_, i) => `A5-${13 + i}`), 'A5-2', 'A5-3', 'A5-4', 'A5-5', 'A5-6', 'A5-7', 'A5-8', 'A5-9'].sort());
     const sum = registerSum(part.register);
     expect(sum).toEqual(built.counts.sets.a5Substation);
-    // 9 lamps (LIGHTING-PLAN 3: apron 3, inner 4, flood 1, kiosk 1), the switchroom's two doors, no anchor; 24 solids: the wall's
-    // two runs and the header, the drums, two pens of four bund walls and a unit, the switchroom's nine pieces, the kiosk
+    // 9 lamps (LIGHTING-PLAN 3: apron 3, inner 4, flood 1, kiosk 1), the switchroom's two doors, no anchor; 24 greybox solids: the wall's
+    // two runs and the header, the drums, two pens of four bund walls and a unit, the switchroom's nine pieces, the kiosk; plus the
+    // dressing's colliders (the two beam towers' poles and the switchgear run's invisible end filler)
     expect(sum.lights).toBe(9);
-    expect(sum.solids).toBe(24);
+    expect(sum.solids).toBe(GREY.solids + dressing.filter((p) => p.collide).length);
     expect(sum.doors).toBe(2);
     expect(sum.anchors).toBe(0);
     for (const r of part.register) expect(/[–—]/.test(r.element), r.id).toBe(false);

@@ -57,11 +57,14 @@ import {
   A4_PASSAGE_DOOR,
   A4_PIER_X,
   A4_POST,
+  A4_PROPS,
   A4_PUSHBAR,
   A4_RACK_H,
+  A4_RACK_ROWS,
   A4_RACK_X,
   A4_RACK_Z,
   A4_ROOM,
+  A4_SHUTTER,
   A4_SPOT_N,
   A4_SPOT_S,
   A4_STACK_N,
@@ -74,6 +77,9 @@ import {
 import { L4_EAST_DOOR } from '../../src/world/maps/ctcourseSets/facility';
 import { checkSetPart, HOLD_BOX, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, setGroups } from '../../src/world/maps/ctcourseSets/types';
 import { soloJumpThreats, MANTLE, type CoopGrip } from '../helpers/soloJumpReach';
+import { kitTriangles } from '../../src/world/kit/facilityKit';
+import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_PROUD, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 
 const b = new LevelBuilder();
 const built = buildCtcourse(b);
@@ -175,7 +181,8 @@ describe('A4 the Goods Shed: the part', () => {
     expect(grey).toHaveLength(GREY.boxes);
     expect(sum).toBeCloseTo(GREY.checksum, 3);
     expect(grey.filter((p) => p.collide)).toHaveLength(GREY.solids);
-    expect(built.counts.sets.a4GoodsShed).toEqual({ lights: GREY.lights, solids: GREY.solids, doors: GREY.doors, anchors: GREY.anchors });
+    // the register's totals include the dressing's four written prop boxes (the video wall's two, the reach truck's two): the greybox's own are GREY.solids
+    expect(built.counts.sets.a4GoodsShed).toEqual({ lights: GREY.lights, solids: GREY.solids + 4, doors: GREY.doors, anchors: GREY.anchors });
   });
 });
 
@@ -237,7 +244,7 @@ describe('A4 the Goods Shed: the floor (racking, mezzanine, stairs; nothing clim
 
   it('two stairs of 20 risers (0.165 rise, 0.285 run, 1.2 m wide) along the north wall: the west one rising east from x 80.3, the east one rising west from x 111.7; the plates are metal', () => {
     expect(ramps).toHaveLength(2);
-    const risers = mine.filter((p) => !p.collide && p.visible !== false && p.s[1] > 0.1 && p.c[2] > A4_STAIR.z0 && p.c[2] < A4_STAIR.z1 && (p.c[0] < 86 || p.c[0] > 106));
+    const risers = grey.filter((p) => !p.collide && p.visible !== false && p.s[1] > 0.1 && p.c[2] > A4_STAIR.z0 && p.c[2] < A4_STAIR.z1 && (p.c[0] < 86 || p.c[0] > 106));
     expect(risers).toHaveLength(40);
     for (const x of [80.3, 111.7]) expect(risers.some((p) => Math.abs(p.c[0] - x) < 0.3)).toBe(true);
     expect(Math.max(...risers.map(top))).toBeCloseTo(A4_MEZZ.deck, 9);
@@ -951,3 +958,353 @@ describe('A4 the Goods Shed: the cameras and the map data the e2e and the modes 
   });
 });
 
+describe('A4 the Goods Shed: dressing (slice 4 step 5)', () => {
+  const kitReport = JSON.parse(readFileSync('src/world/kit/assets/facility-kit.json', 'utf8')) as { pieces: Record<string, { meshes: Record<string, number> }> };
+  const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
+  const dressing = mine.slice(GREY.boxes);
+  const skins = dressing.filter((p) => !p.collide);
+  const colliders = dressing.filter((p) => p.collide);
+  const own = part.props;
+  const roomBox = box[0]!;
+  const passageBox = box[1]!;
+  const areaOf = (bx: readonly number[]) => ({ x0: bx[0]!, z0: bx[1]!, x1: bx[2]!, z1: bx[3]! });
+  const facilityIn = (bx: readonly number[]): PropPlacement[] => built.facility.props.filter((q) => inBox(bx as [number, number, number, number], q.x, q.z));
+  const ownIn = (bx: readonly number[]): PropPlacement[] => own.filter((q) => inBox(bx as [number, number, number, number], q.x, q.z));
+  const kitIn = lay.kit!.instances.filter((i) => box.some((bx) => inBox(bx, i.x, i.z)));
+  /** The props whose own boxes the dressing writes: the video wall and the reach truck. The racking and the desk stand over greybox solids. */
+  const writers = own.filter((q) => q.prop === 'monitorWall' || q.prop === 'reachTruck');
+  const written = writers.flatMap((q) => propCollisionBox(q) ?? []);
+  const checker = (list: readonly PropPlacement[]): FacilityProps => {
+    const f = new FacilityProps();
+    f.placements.push(...list);
+    return f;
+  };
+  /** A written box's plan footprint (a quarter-turn prop swaps its sides). */
+  const footOf = (w: { c: [number, number, number]; s: [number, number, number]; yaw: number }) => {
+    const swap = Math.abs(Math.sin(w.yaw)) > 0.5;
+    const hx = (swap ? w.s[2] : w.s[0]) / 2;
+    const hz = (swap ? w.s[0] : w.s[2]) / 2;
+    return { x0: w.c[0] - hx, x1: w.c[0] + hx, z0: w.c[2] - hz, z1: w.c[2] + hz, y0: w.c[1] - w.s[1] / 2, y1: w.c[1] + w.s[1] / 2 };
+  };
+  /** The first written box within `r` of (x, z) on the plan, or null. */
+  const writtenNear = (x: number, z: number, r: number): string | null => {
+    for (const w of written) {
+      const f = footOf(w);
+      if (hyp2(Math.max(f.x0 - x, x - f.x1, 0), Math.max(f.z0 - z, z - f.z1, 0)) < r) return `box (${w.c.map((v) => v.toFixed(2)).join(', ')})`;
+    }
+    return null;
+  };
+  /** Whether the segment a-c passes through a written box (sampled every 5 cm). */
+  const writtenOnSight = (a: readonly [number, number, number], c: readonly [number, number, number]): string | null => {
+    const n = Math.ceil(Math.hypot(c[0] - a[0], c[1] - a[1], c[2] - a[2]) / 0.05);
+    for (let i = 1; i < n; i++) {
+      const x = a[0] + ((c[0] - a[0]) * i) / n;
+      const y = a[1] + ((c[1] - a[1]) * i) / n;
+      const z = a[2] + ((c[2] - a[2]) * i) / n;
+      for (const w of written) {
+        const f = footOf(w);
+        if (x >= f.x0 && x <= f.x1 && z >= f.z0 && z <= f.z1 && y >= f.y0 && y <= f.y1) return `box (${w.c.map((v) => v.toFixed(2)).join(', ')}) at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`;
+      }
+    }
+    return null;
+  };
+  /** Greybox solids (the dressing's four written boxes left out), upright: what the racking and the desk stand over. */
+  const base = b.boxes.filter((p) => p.collide && Math.abs(p.pitch) < 1e-3 && !colliders.includes(p)).map(upright);
+  const countIn = (x0: number, x1: number, z0: number, z1: number, y1 = 20, y0 = -1): number => skins.filter((p) => p.c[0] > x0 && p.c[0] < x1 && p.c[2] > z0 && p.c[2] < z1 && p.c[1] < y1 && p.c[1] > y0).length;
+
+  it("the greybox is as S4 built it: 92 boxes (checksum), 20 lamps, 2 doors, no anchor; the only new collision is four prop boxes (the video wall's plinth and frame, the reach truck's chassis and envelope), all noLedge, and every new register row is a dressing row", () => {
+    expect(grey).toHaveLength(GREY.boxes);
+    expect(colliders).toHaveLength(4);
+    expect(written).toHaveLength(4);
+    for (const w of written) {
+      const m = colliders.find((p) => p.c.every((v, k) => Math.abs(v - w.c[k]!) < 1e-6) && p.s.every((v, k) => Math.abs(v - w.s[k]!) < 1e-6) && Math.abs(p.yaw - w.yaw) < 1e-6);
+      expect(m, `written box at (${w.c.join(', ')})`).toBeDefined();
+      expect(m!.noLedge).toBe(true);
+    }
+    expect(built.counts.sets.a4GoodsShed).toEqual({ lights: GREY.lights, solids: GREY.solids + 4, doors: GREY.doors, anchors: GREY.anchors });
+    expect(lamps).toHaveLength(GREY.lights);
+    const ids = ['A4-14', 'A4-15', 'A4-16', 'A4-17', 'A4-18', 'A4-19', 'A4-20', 'A4-21', 'A4-22'];
+    expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(ids));
+    for (const id of ids.slice(0, 8)) expect(part.register.find((r) => r.id === id)!.solids, id).toBe(0);
+    expect(part.register.find((r) => r.id === 'A4-22')!.solids).toBe(4);
+    expect(part.doors).toEqual({ [A4_PASSAGE_DOOR]: expect.any(Number), [A4_OFFICE_DOOR]: expect.any(Number) });
+  });
+
+  it("every hand-built dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes, so the light is the greybox's); the only visible boxes of 5 cm or more are written prop boxes (the props kit's greybox, hidden by its prop)", () => {
+    expect(skins.length).toBeGreaterThan(600);
+    for (const p of skins) {
+      expect(p.noLedge, `skin at (${p.c.join(', ')})`).toBe(true);
+      expect(Math.min(...p.s), `skin at (${p.c.join(', ')}) size (${p.s.join(', ')})`).toBeLessThan(CANON_MIN_THICK);
+      expect(p.visible).not.toBe(false);
+    }
+    const thick = dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK);
+    expect(thick.every((p) => p.collide)).toBe(true);
+    expect(thick).toHaveLength(3);
+    for (const p of colliders) expect(p.noLedge).toBe(true);
+    // the one invisible collider is the truck's see-through envelope (light, the eye and the bake pass it, as the props kit's own rule)
+    expect(colliders.filter((p) => p.visible === false)).toHaveLength(1);
+  });
+
+  it("budgets (computed): kit triangles <= 60 k; the props are budgeted per area (the security room, the warehouse floor): each passes FacilityProps.check at 60 k triangles and 12 draws, with the facility's own plate on L3's far door counted in the room", () => {
+    const kitTris = kitTriangles({ instances: kitIn, doors: [] }, kitReport);
+    expect(kitIn.some((i) => i.piece === 'wallPanel')).toBe(true);
+    expect(kitTris).toBeGreaterThan(0);
+    expect(kitTris, `${kitTris} kit triangles`).toBeLessThanOrEqual(60_000);
+    // the facility's set-side plate on L3's far door is in the room; none in the passage or on the floor
+    expect(facilityIn(roomBox).map((q) => q.prop)).toEqual(['signPlate']);
+    expect(facilityIn(passageBox)).toEqual([]);
+    expect(facilityIn(floorBox)).toEqual([]);
+    expect(ownIn(passageBox)).toEqual([]);
+    expect(ownIn(roomBox).length + ownIn(floorBox).length).toBe(own.length);
+    const lists = [
+      { name: 'room', list: [...ownIn(roomBox), ...facilityIn(roomBox)], area: areaOf(roomBox) },
+      { name: 'floor', list: [...ownIn(floorBox), ...facilityIn(floorBox)], area: areaOf(floorBox) },
+    ];
+    for (const { name, list, area } of lists) {
+      expect(checker(list).check(area, propReport), name).toEqual([]);
+      expect(propTriangles(list, propReport), name).toBeLessThanOrEqual(PROP_SET_BUDGET.tris);
+      expect(propDraws(list, propReport), name).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
+    }
+    expect(propDraws(lists[0]!.list, propReport)).toBe(11);
+    expect(propDraws(lists[1]!.list, propReport)).toBe(12);
+    // together they would break the limit: the reason the two areas are measured apart (the room and the floor are separate rooms of the hall)
+    expect(propDraws([...lists[0]!.list, ...lists[1]!.list], propReport)).toBeGreaterThan(PROP_SET_BUDGET.draws);
+    const names = own.map((q) => q.prop);
+    expect(names.filter((n) => n === 'palletRackBay')).toHaveLength(24);
+    expect(names.filter((n) => n === 'palletRackEnd')).toHaveLength(8);
+    expect([...names].sort().filter((n) => n !== 'palletRackBay' && n !== 'palletRackEnd')).toEqual(['monitorWall', 'reachTruck', 'securityDesk']);
+  });
+
+  it("every kit glow in A4 carries a circuit: the hall panels are grouped on the floor high-bays (41) and, over the deck, the mezzanine strips (43), all from 7.5 m up; the deck's three rails now sit on 43; no lamp was added and the dead row 49 has none", () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a4GoodsShed');
+    const glowing = kitIn.filter((i) => ['wallPanel', 'skirting', 'column', 'handrail'].includes(i.piece) || (i.piece === 'ledSlot' && !i.noLed));
+    expect(glowing.length).toBeGreaterThan(90);
+    for (const i of glowing) {
+      expect(i.group, `${i.piece} at ${i.x}, ${i.y}, ${i.z}`).toBeDefined();
+      expect(plan.has(i.group!), `${i.piece} group ${i.group}`).toBe(true);
+      expect(i.group! >= g0 && i.group! <= g1, `${i.piece} group ${i.group}`).toBe(true);
+    }
+    const panels = glowing.filter((i) => i.piece === 'wallPanel');
+    for (const i of panels) expect(i.y, `panel at ${i.x}, ${i.z}`).toBeGreaterThanOrEqual(7.5 - 1e-9);
+    // the north wall's middle (x 86-106, over the deck) is on 43, every other panel on 41
+    for (const i of panels) expect(i.group, `panel at ${i.x}, ${i.z}`).toBe(Math.abs(i.z - 47.75) < 0.1 && i.x > 86 && i.x < 106 ? 43 : 41);
+    expect(panels.filter((i) => Math.abs(i.z - 24.25) < 0.1).length).toBeGreaterThan(25);
+    expect(panels.filter((i) => Math.abs(i.x - 76.25) < 0.1).length).toBeGreaterThan(15);
+    expect(panels.filter((i) => Math.abs(i.x - 111.75) < 0.1).length).toBeGreaterThan(15);
+    expect(panels.filter((i) => i.group === 43).length).toBeGreaterThan(10);
+    expect(panels.filter((i) => Math.abs(i.z - 47.75) < 0.1 && i.group === 41).length).toBeGreaterThan(5);
+    // the greybox's kit rails carry the mezzanine circuit now (they were an always-on accent line); 17 modules in the three rails
+    const rails = glowing.filter((i) => i.piece === 'handrail');
+    expect(rails).toHaveLength(17);
+    for (const i of rails) expect(i.group).toBe(43);
+    // no lamp added: the twenty of the plan, none on the dead row
+    expect(lamps).toHaveLength(20);
+    expect(lamps.filter((l) => l.group === 49)).toEqual([]);
+    expect(b.lights.lights.filter((l) => l.kind !== 'flashlight' && l.group !== 90 && box.some((bx) => inBox(bx, l.x, l.z)))).toHaveLength(20);
+  });
+
+  it("the props stand where planned and inside their area: the video wall flush on the room's east wall, the console desk over the greybox desk, three bays in each of the eight racking rows (fronts on the aisles, back to back with a 0.2 m flue) and a closing frame at each row's end, the reach truck at the east lane's south end", () => {
+    for (const q of own) {
+      const bx = inBox(roomBox, q.x, q.z) ? roomBox : floorBox;
+      const f = PROP_FOOTPRINT[q.prop];
+      for (const [lx, lz] of [[f[0], f[1]], [f[2], f[1]], [f[2], f[3]], [f[0], f[3]]] as const) {
+        const w = propToWorld(q, lx, 0, lz);
+        expect(inBox(bx, w[0], w[2], 1e-6), `${q.prop} at ${q.x}, ${q.z}`).toBe(true);
+      }
+    }
+    const [mw] = own.filter((q) => q.prop === 'monitorWall');
+    expect(mw!.x).toBeCloseTo(A4_PROPS.monitorWall.x, 9);
+    expect(mw!.z).toBeCloseTo(A4_PROPS.monitorWall.z, 9);
+    expect(mw!.x).toBeCloseTo(A4_ROOM.x1, 9);
+    const [sd] = own.filter((q) => q.prop === 'securityDesk');
+    expect([sd!.x, sd!.z, sd!.y].map((v) => Number(v.toFixed(2)))).toEqual([A4_PROPS.securityDesk.x, A4_PROPS.securityDesk.z, A4_PROPS.securityDesk.y]);
+    // racking: rows
+    const bays = own.filter((q) => q.prop === 'palletRackBay');
+    const ends = own.filter((q) => q.prop === 'palletRackEnd');
+    expect(A4_RACK_ROWS).toHaveLength(4);
+    for (const [r, row] of A4_RACK_ROWS.entries()) {
+      const [z0, z1] = A4_RACK_Z[Math.floor(r / 2)]!;
+      // a south row hugs the run's south face (its bays' fronts face -z), a north row the north face
+      expect(row.z).toBeCloseTo(row.flip ? z0 + 0.55 : z1 - 0.55, 9);
+      for (const [x0, x1] of A4_RACK_X) {
+        const inRun = bays.filter((q) => Math.abs(q.z - row.z) < 1e-6 && q.x > x0 && q.x < x1);
+        expect(inRun, `row ${r} run ${x0}`).toHaveLength(3);
+        for (const q of inRun) {
+          expect(Math.cos(q.yaw) * (row.flip ? -1 : 1), 'front on the aisle').toBeGreaterThan(0.99);
+          const f = footOf(propCollisionBox(q)![0]!);
+          expect(f.x0).toBeGreaterThanOrEqual(x0 - 1e-6);
+          expect(f.x1).toBeLessThanOrEqual(x1 + 1e-6);
+          expect(f.z0).toBeGreaterThanOrEqual(z0 - 1e-6);
+          expect(f.z1).toBeLessThanOrEqual(z1 + 1e-6);
+          expect(f.y1).toBeCloseTo(A4_RACK_H, 9);
+        }
+        expect(ends.filter((q) => Math.abs(q.z - row.z) < 1e-6 && q.x > x0 - 0.1 && q.x < x1 + 0.1), `row ${r} run ${x0} closing frame`).toHaveLength(1);
+      }
+    }
+    expect(A4_RACK_ROWS[1]!.z - A4_RACK_ROWS[0]!.z).toBeCloseTo(1.3, 9);
+    expect(A4_RACK_ROWS[3]!.z - A4_RACK_ROWS[2]!.z).toBeCloseTo(1.3, 9);
+    // the truck's footprint: nose north in the east lane's south end, a 1.95 m lane beside it and a sealed 0.5 m behind it
+    const [tr] = own.filter((q) => q.prop === 'reachTruck');
+    expect(tr!.x).toBeCloseTo(A4_PROPS.reachTruck.x, 9);
+    expect(tr!.z).toBeCloseTo(A4_PROPS.reachTruck.z, 9);
+    const env = footOf(written.find((w) => Math.abs(w.s[1] - 2.3) < 1e-6)!);
+    expect(env.x0 - A4_RACK_X[1]![1]).toBeGreaterThanOrEqual(1.9);
+    expect(A4_FLOOR.x1 - env.x1).toBeLessThan(2 * MOVEMENT.radius);
+    expect(A4_FLOOR.x1 - env.x1).toBeGreaterThan(0);
+    expect(env.z0).toBeGreaterThan(A4_FLOOR.z0);
+    expect(env.z1).toBeLessThan(A4_RACK_Z[0]![0] + 0.5);
+  });
+
+  it("nothing is written over the racking or the desk: every bay's box and the desk's box are inside greybox solids (within the 5 cm skin rule), so the runs and the desk stay the collision", () => {
+    const inside = (x: number, y: number, z: number): boolean => base.some((p) => Math.abs(x - p.c[0]) <= p.s[0] / 2 + PROP_PROUD && Math.abs(y - p.c[1]) <= p.s[1] / 2 + PROP_PROUD && Math.abs(z - p.c[2]) <= p.s[2] / 2 + PROP_PROUD);
+    let samples = 0;
+    for (const q of own.filter((p) => p.prop === 'palletRackBay' || p.prop === 'securityDesk')) {
+      for (const w of propCollisionBox(q)!) {
+        const f = footOf(w);
+        for (const y of [f.y0 + 0.05, (f.y0 + f.y1) / 2, f.y1 - 0.05]) {
+          for (let x = f.x0 + 0.02; x <= f.x1 - 0.02; x += 0.3) {
+            for (let z = f.z0 + 0.02; z <= f.z1 - 0.02; z += 0.2) {
+              samples++;
+              expect(inside(x, y, z), `${q.prop} at (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`).toBe(true);
+            }
+          }
+        }
+      }
+    }
+    expect(samples).toBeGreaterThan(2000);
+    // teeth: the written truck's envelope (open floor) finds air
+    const env = footOf(written.find((w) => Math.abs(w.s[1] - 2.3) < 1e-6)!);
+    expect(inside((env.x0 + env.x1) / 2, 1.0, (env.z0 + env.z1) / 2)).toBe(false);
+    // the desk's hull stands 4 cm off the greybox desk's front and west faces, no more
+    const hull = footOf(propCollisionBox(own.find((q) => q.prop === 'securityDesk')!)![0]!);
+    const gd = grey.find((p) => p.collide && Math.abs(top(p) - 0.75) < 1e-6 && p.c[2] > 18.5)!;
+    expect(gd.c[2] - gd.s[2] / 2 - hull.z0).toBeLessThanOrEqual(PROP_PROUD);
+    expect(gd.c[0] - gd.s[0] / 2 - hull.x0).toBeLessThanOrEqual(PROP_PROUD);
+  });
+
+  it('every written box is noLedge and none of 1.9 m or taller is not; with the boxes written no solo jump reaches a lip on the deck edge or over the racking (the check still bites)', () => {
+    for (const p of colliders) if (top(p) >= 1.9) expect(p.noLedge).toBe(true);
+    expect(solid.filter((p) => colliders.some((c) => Math.abs(c.c[0] - p.c[0]) < 1e-6 && Math.abs(c.c[1] - p.c[1]) < 1e-6 && Math.abs(c.c[2] - p.c[2]) < 1e-6))).toHaveLength(4);
+    const deckEdge: CoopGrip = { y: A4_MEZZ.deck, a: { x: A4_MEZZ.x0, z: A4_MEZZ.z0 }, b: { x: A4_MEZZ.x1, z: A4_MEZZ.z0 }, n: { x: 0, z: -1 } };
+    for (const y of [A4_MEZZ.deck, 4.4]) expect(soloJumpThreats(solid, { ...deckEdge, y })).toEqual([]);
+    for (const [z0, z1] of A4_RACK_Z) {
+      for (const [x0, x1] of A4_RACK_X) {
+        for (const y of [4.4, A4_RACK_H]) {
+          expect(soloJumpThreats(solid, { y, a: { x: x0, z: z0 }, b: { x: x1, z: z0 }, n: { x: 0, z: -1 } })).toEqual([]);
+          expect(soloJumpThreats(solid, { y, a: { x: x0, z: z1 }, b: { x: x1, z: z1 }, n: { x: 0, z: 1 } })).toEqual([]);
+        }
+      }
+    }
+    const crate: BoxPiece = { c: [96, 0.9, A4_MEZZ.z0 - 1.5], s: [1, 1.8, 1], yaw: 0, pitch: 0, color: '#888', collide: true, visible: true };
+    expect(soloJumpThreats([...solid, crate], deckEdge).length).toBeGreaterThan(0);
+    // no new grip: no generated ledge in A4 above 0.9 m on the new boxes' faces
+    expect(anchors.ledges.filter((l) => inBox(floorBox, (l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2, 0.3) && l.top >= 0.9)).toEqual([]);
+  });
+
+  it("nothing written stands on a tested point or line: the officer's post, the spot behind him, the console's standing points, the L3 door pad, the passage door, the crouch spots and posts at the dock, the hide spots, the nav seeds and debug points, the passage mouth and the back aisle's west end", () => {
+    const points: [number, number][] = [
+      [A4_POST.x, A4_POST.z], [104.8, 15.8], [AT_CONSOLE[0], AT_CONSOLE[1]], [105.6, 17.3], [103, 14.4], [102.3, 19.1], [102.3, 18.4], [101.2, 14.4],
+      [A4_SPOT_N.x, A4_SPOT_N.z], [A4_SPOT_S.x, A4_SPOT_S.z], [A4_D1.x, A4_D1.z], [A4_D2.x, A4_D2.z], [AT_PUSHBAR[0], AT_PUSHBAR[1]],
+      [102.5, 24.6], [84.5, 25.8], [96.75, 25.8], [90, 25.8],
+    ];
+    for (const [x, z] of points) expect(writtenNear(x, z, MOVEMENT.radius), `point (${x}, ${z})`).toBeNull();
+    for (const h of part.hideSpots) expect(writtenNear(h.x, h.z, MOVEMENT.radius), `hide spot (${h.x}, ${h.z})`).toBeNull();
+    for (const s of part.navSeeds.filter((q) => q.y < 1)) expect(writtenNear(s.x, s.z, MOVEMENT.radius), `seed (${s.x}, ${s.z})`).toBeNull();
+    for (const d of part.debugPoints) expect(writtenNear(d.pos.x, d.pos.z, MOVEMENT.radius), d.id).toBeNull();
+    // the console's standing point: the video wall's plinth corner is the closest, more than a body's width off
+    const plinth = footOf(written.find((w) => Math.abs(w.s[1] - 0.47) < 1e-6)!);
+    expect(hyp2(Math.max(plinth.x0 - 105.6, 0), Math.max(17.3 - plinth.z1, 0))).toBeGreaterThan(0.2);
+    // the lanes stay open: the officer's approach, and the east lane beside the truck
+    expect(pathBlocked([[103, 14.0], [104.8, 15.8]], 0.3)).toBeNull();
+    expect(pathBlocked([[109.0, 40], [109.0, 30], [109.0, 24.6], [102.5, 24.6]], 0.3)).toBeNull();
+    // teeth: a point on the truck's chassis is blocked
+    expect(writtenNear(110.6, 25.3, 0.01)).not.toBeNull();
+  });
+
+  it("no camera, no guard sight line and no jam line the greybox relies on crosses a written box: C1, C2 and C3 see their frames, the pair see each other, the officer sees the desk and the door", () => {
+    const cam = (id: string) => cams.find((c) => c.id === id)!;
+    const from = (id: string): [number, number, number] => [cam(id).at[0], cam(id).y, cam(id).at[1]];
+    const c1 = from('cam-a4-c1');
+    const c2 = from('cam-a4-c2');
+    const c3 = from('cam-a4-c3');
+    for (const h of [0.6, 1.2, 1.7]) {
+      for (const [x, z] of [[100, 39.8], [104, 39.8], [96.75, 38], [97.5, 40.5]] as const) expect(writtenOnSight(c1, [x, h, z]), `C1 to (${x}, ${z}) at ${h}`).toBeNull();
+      for (const z of [26, 28.5, 31.5, 36]) expect(writtenOnSight(c2, [96.75, h, z]), `C2 to z ${z} at ${h}`).toBeNull();
+      for (const [x, z] of [[84, 33], [88, 33], [90, 36], [82, 30]] as const) expect(writtenOnSight(c3, [x, h, z]), `C3 to (${x}, ${z}) at ${h}`).toBeNull();
+      // the jam lines: C1 from the cross aisle, C2 from the back aisle at x 92, C3 from the main aisle at x 88-94
+      expect(writtenOnSight(c1, [97, h, 33]), 'C1 jam from the cross aisle').toBeNull();
+      expect(writtenOnSight(c2, [92, h, 25.8]), 'C2 jam from the back aisle').toBeNull();
+      expect(writtenOnSight(c3, [91, h, 39.8]), 'C3 jam from the main aisle').toBeNull();
+      // the pair and the officer
+      expect(writtenOnSight([A4_D1.x, 1.6, A4_D1.z], [A4_D2.x, 1.6, A4_D2.z])).toBeNull();
+      expect(writtenOnSight([A4_POST.x, 1.6, A4_POST.z], [103, h, 13.5])).toBeNull();
+      expect(writtenOnSight([A4_POST.x, 1.6, A4_POST.z], [102.3, h, 19.3])).toBeNull();
+    }
+    // teeth: the truck blocks a line across it
+    expect(writtenOnSight([110.6, 1.0, 29], [110.6, 1.0, 24])).not.toBeNull();
+  });
+
+  it("the sheeting, signs and fittings are where the plan says: the south wall's sheeting leaves the passage mouth clear, L4's door gap carries only the push bar's plate, the roller shutter stands south of the office's wall, and the room, the passage, each rack run, each stack, the desk, the deck, the store front and the office are all dressed", () => {
+    // the south wall (x 76.25-100.75 and 104.25-111.75): sheeting skins stand clear of the passage mouth
+    const south = skins.filter((p) => Math.abs(p.c[2] - (24.25 + 0.015)) < 0.02 && p.s[1] > 3 && p.c[1] > 1.5);
+    expect(south.length).toBeGreaterThanOrEqual(2);
+    for (const p of south) expect(p.c[0] + p.s[0] / 2 < 100.8 || p.c[0] - p.s[0] / 2 > 104.2, `sheet at x ${p.c[0]}`).toBe(true);
+    // L4's door gap on the west face: nothing between the door frame's z 31-34.25 below 2.4 m (the push bar's plate starts at z 34.3)
+    const gap = skins.filter((p) => p.c[0] < 76.6 && p.c[2] > 31.05 && p.c[2] < 34.25 && p.c[1] < 2.4 && p.s[1] > 0.1 && p.c[1] > 0.1);
+    expect(gap).toEqual([]);
+    // the roller shutter: slats on the west face between z 35 and 37.8, clear of the office wall (z 37.9) and of the push bar's plate (z 34.9)
+    const slats = skins.filter((p) => p.c[0] > 76.25 && p.c[0] < 76.46 && p.c[2] > A4_SHUTTER.z0 + 0.2 && p.c[2] < A4_SHUTTER.z1 - 0.2 && p.s[0] < 0.05 && p.s[2] > 2 && p.s[1] < 0.05);
+    expect(slats.length).toBeGreaterThanOrEqual(8);
+    expect(A4_SHUTTER.z1).toBeLessThan(A4_OFFICE.z0);
+    expect(A4_SHUTTER.z0).toBeGreaterThan(34.9);
+    // counts per area: the room, the passage, each rack run, each stack, the desk, the deck sheet, the store front, the office
+    expect(countIn(100.25, 106.35, 13.25, 19.35, 3.1)).toBeGreaterThan(90);
+    expect(countIn(101.2, 103.8, 19.8, 24.3, 4.6)).toBeGreaterThan(20);
+    for (const [z0, z1] of A4_RACK_Z) for (const [x0, x1] of A4_RACK_X) expect(countIn(x0 - 0.2, x1 + 0.2, z0 - 0.3, z1 + 0.3, 5.5), `rack ${x0} ${z0}`).toBeGreaterThanOrEqual(20);
+    for (const s of [A4_STACK_N, A4_STACK_S]) expect(countIn(s.x0 - 0.1, s.x1 + 0.1, s.z0 - 0.1, s.z1 + 0.1, 1.3), `stack ${s.x0}`).toBeGreaterThanOrEqual(25);
+    expect(countIn(A4_DESK.x0, A4_DESK.x1, A4_DESK.z0 - 0.1, A4_DESK.z1 + 0.1, 1.4, 0.0)).toBeGreaterThanOrEqual(14);
+    expect(countIn(A4_MEZZ.x0, A4_MEZZ.x1, A4_MEZZ.z0 - 0.1, A4_MEZZ.z1, 3.4, 3.29)).toBeGreaterThanOrEqual(18);
+    expect(countIn(A4_MEZZ.x0, A4_MEZZ.x1, A4_MEZZ.z0 - 0.1, A4_MEZZ.z0, 3.3, 0)).toBeGreaterThanOrEqual(30);
+    expect(countIn(A4_FLOOR.x0, 82.9, A4_OFFICE.z0 - 0.2, A4_OFFICE.z1 + 0.2, 3.1)).toBeGreaterThan(55);
+  });
+
+  it("the five switches each have a back plate and the stairs' rails follow the flights: three pitched rails a flight, no collision, the same yaw and pitch as the ramps; the deck sheet covers the deck; the three cameras each have a bracket; six dead fittings and four roof ties", () => {
+    for (const s of part.switches) {
+      const near = skins.filter((p) => Math.abs(p.c[0] - s.pos.x) < 0.25 && Math.abs(p.c[2] - s.pos.z) < 0.12 && Math.abs(p.c[1] - s.pos.y) < 0.4);
+      expect(near.length, s.id).toBeGreaterThanOrEqual(1);
+    }
+    const ramps = grey.filter((p) => p.collide && Math.abs(p.pitch) > 1e-3).sort((p, q) => p.c[0] - q.c[0]);
+    const rails = skins.filter((p) => Math.abs(p.pitch) > 1e-3);
+    expect(rails).toHaveLength(6);
+    for (const [k, r] of ramps.entries()) {
+      const flight = rails.filter((p) => Math.abs(p.c[0] - r.c[0]) < 1e-6);
+      expect(flight).toHaveLength(3);
+      for (const p of flight) {
+        expect(p.collide).toBe(false);
+        expect(p.yaw).toBeCloseTo(r.yaw, 9);
+        expect(p.pitch).toBeCloseTo(r.pitch, 9);
+        expect(p.s[2]).toBeCloseTo(r.s[2], 9);
+        expect(p.c[1], `rail ${k} over the ramp's centre line`).toBeGreaterThan(A4_MEZZ.deck / 2 + 0.4);
+      }
+    }
+    const sheet = skins.find((p) => Math.abs(p.c[1] - (A4_MEZZ.deck + 0.0025)) < 1e-6 && p.s[0] > 19)!;
+    expect(sheet).toBeDefined();
+    expect([sheet.c[0] - sheet.s[0] / 2, sheet.c[0] + sheet.s[0] / 2]).toEqual([A4_MEZZ.x0, A4_MEZZ.x1]);
+    for (const c of cams) expect(skins.some((p) => hyp2(p.c[0] - c.at[0], p.c[2] - c.at[1]) < 0.5 && Math.abs(p.c[1] - c.y) < 0.2), `bracket for ${c.id}`).toBe(true);
+    // six dead fittings over the back aisle (group 49: skins, no lamp, no light)
+    const dead = skins.filter((p) => Math.abs(p.c[1] - 5.62) < 1e-6 && Math.abs(p.s[0] - 1.5) < 1e-6 && Math.abs(p.c[2] - 25.8) < 1e-6);
+    expect(dead).toHaveLength(6);
+    for (const p of dead) expect(lamps.some((l) => Math.abs(l.x - p.c[0]) < 0.8 && Math.abs(l.z - 25.8) < 0.5)).toBe(false);
+    // four roof ties (I-beams the length of the hall) over the back aisle, aisle 2, the main aisle and the deck's strips
+    expect(skins.filter((p) => p.s[0] > 35 && p.c[1] > 7.6 && p.c[1] < 7.9 && p.s[2] < 0.05)).toHaveLength(4);
+  });
+
+  it("nothing the dressing drew stands in a player's body at a tested standing point: no skin above the floor paint within 0.2 m of the crouch spots, the loaders' posts, the officer's post, the console's standing points, the push bar spot or the hide spots", () => {
+    const points: [number, number][] = [[A4_SPOT_N.x, A4_SPOT_N.z], [A4_SPOT_S.x, A4_SPOT_S.z], [A4_D1.x, A4_D1.z], [A4_D2.x, A4_D2.z], [A4_POST.x, A4_POST.z], [105.6, 17.85], [105.6, 17.3], [AT_PUSHBAR[0], AT_PUSHBAR[1]], ...part.hideSpots.map((h): [number, number] => [h.x, h.z])];
+    for (const [x, z] of points) {
+      const hit = skins.find((p) => p.c[1] - p.s[1] / 2 < 1.7 && p.c[1] + p.s[1] / 2 > 0.1 && Math.max(Math.abs(p.c[0] - x) - p.s[0] / 2, 0) ** 2 + Math.max(Math.abs(p.c[2] - z) - p.s[2] / 2, 0) ** 2 < 0.2 ** 2);
+      expect(hit === undefined ? null : `skin at (${hit.c.map((v) => v.toFixed(2)).join(', ')}) size (${hit.s.map((v) => v.toFixed(2)).join(', ')})`, `standing point (${x}, ${z})`).toBeNull();
+    }
+  });
+});
