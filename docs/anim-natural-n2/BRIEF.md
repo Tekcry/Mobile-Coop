@@ -26,10 +26,13 @@ Feet / footPlanner / tuneStep / turnFollow (N1), draws / swap overlay / armed ar
 - npm run check, e2e-anim, e2e-studio, e2e-netmove on the desktop; GPU sheets before / after (E2E_GPU=1).
 
 ## Assumed decisions (job lead 2026-10-22, from the research; undo for each)
-- A1 (NEEDS MICHAEL, via the orchestrator): the run's 50 deg "lag" is a key pop in his 2026-10-22 run tune (run.json key
-  0 pelvis yaw 25.5 / chest -26 vs his own keys at 0.0208 / 0.0625: 9.5 / -10, 0.5 / 7.5; with the mirror the pelvis
-  snaps ~21 deg in one clip frame twice a cycle). Fix: key 0 to pelvis ~10 / chest ~-10.5 and a Blender rebake. Not
-  applied until he agrees. Undo: revert run.json and run.ts.
+- A1 (Michael, 2026-10-22 ~14:20, via the orchestrator: "Only fix it if it will result in a more believable,
+  realistic, less rigid run"): the run's 50 deg "lag" is a key pop in his 2026-10-22 run tune (run.json key 0 pelvis
+  yaw 25.5 / chest -26 vs his own keys at 0.0208 / 0.0625: 9.5 / -10, 0.5 / 7.5; with the mirror the pelvis snaps ~21
+  deg in one clip frame twice a cycle). Fix on its own branch (`feature/anim-n2-runkey`, merged into N2 if kept): key 0
+  to pelvis ~10 / chest ~-10.5, a Blender rebake, then judged before / after (GPU run sheet side by side, pelvis /
+  shoulder p2p, wrist peak, no snap frames). Kept only if the run reads more natural and less rigid; otherwise reverted
+  with the reason logged here. The before / after sheet goes in the PR. Undo: revert run.json and run.ts.
 - A2: the sway lift is Wren-only, through the layer: SWAY_MAX and the guards' procedural clips unchanged; anim-audit's
   WALK_SWAY 5 cm for Wren only (Michael approved ~5 cm). Undo: sway amounts 0, WALK_SWAY back.
 - A3: head: keep the world stabilisation, let 35% of the chest yaw through when moving and 0 when aiming, nod <= 1.2 deg
