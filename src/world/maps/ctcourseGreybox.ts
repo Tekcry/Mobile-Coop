@@ -17,7 +17,7 @@ import { GEARS, MOVEMENT, TEAM, WALL_JUMP } from '../../config/movement';
 import { hyp2 } from '../../core/mathx';
 import { PAIR_WINDOW } from '../../config/course';
 import { CAMERA } from '../../config/security';
-import { JAMMER, type LaserDef } from '../../game/jammer';
+import { JAMMER, LASER, type LaserDef } from '../../game/jammer';
 import { SCANNER, type ScannerDef } from '../../game/scanners';
 import type { CourseDevice, GateDef } from '../../game/course/courseDef';
 import type { CameraDevice } from '../../security/data';
@@ -30,11 +30,26 @@ export const COOP_BAND = { min: WALL_JUMP.maxUp + 0.5, max: TEAM.boostMax } as c
 /** The booster's mark this far out from the lip's face (m): the current yard's tested `LEGUP_SPOT` standoff. */
 export const LEGUP_STANDOFF = 0.5;
 /**
+ * (greybox tests) The booster's mark off a free-standing wall's face (m). From 0.5 m the boost search
+ * (`findJumpTarget`: a lip under 0.8 m away in plan scores by the climb's steepness, a farther one by direction) takes
+ * the FAR face's lip of a wall under 0.76 m thick (the 0.6 m A1 wall): the boosted player hangs on the yard side and
+ * the near-side relay is lost. From 0.9 m both lips score by direction and the near one, closer, wins at any thickness.
+ */
+export const WALL_STANDOFF = 0.9;
+/**
  * Keep-clear radius (m, plan) round a planned co-op grip on its approach side: nothing a player alone can stand on
  * (a top over 0.3 m, under the grip) inside it. Over the solo running-jump grab (`tests/helpers/soloJumpReach.ts`,
- * pinned by the greybox tests) and the corner wall-jump reach.
+ * pinned by `tests/ctcourseGreybox.test.ts`) and the corner wall-jump reach. (greybox tests) 3.0 -> 4.7: the top-gear
+ * running jump off a top just under a 4.4 m grip carries 4.62 m (off a 1.8 m crate 3.30 m), so 3.0 was short.
  */
-export const GREY_KEEP_CLEAR = 3.0;
+export const GREY_KEEP_CLEAR = 4.7;
+/**
+ * (greybox tests) Keep-clear radius (m, plan) round a throw gateway's beam line on its approach side: nothing a player
+ * alone can stand on (a top over 0.3 m) inside it. A top-gear running jump off a top carries the feet over the top
+ * beam (1.45 m) across the beams' touch band (`LASER.reach`) from up to 3.97 m (a top just under the 4.8 m header; off a
+ * 1.8 m drum stack 2.72 m), pinned by the greybox tests. From the floor the jump peaks under the top beam.
+ */
+export const BEAM_KEEP_CLEAR = 4.0;
 /** The device / interactable reach (m, plan) from the feet (`Interactables.nearest`), and its height band (m). */
 export const INTERACT_REACH = 1.8;
 export const INTERACT_DY = 1.5;
@@ -257,7 +272,7 @@ export function boostWall(o: BoostWallOpts): Greybox {
     box('wall', 0, 0, 0, t, o.span, lipY, color);
   }
   const sv = o.spot ?? (wv === null ? 0 : wv - 3.5 > -half + 1 ? wv - 3.5 : wv + 3.5);
-  spot('legUp', -(t / 2 + LEGUP_STANDOFF), sv, 0);
+  spot('legUp', -(t / 2 + WALL_STANDOFF), sv, 0);
   // the planned grips: both faces (approach and far side), the hands kept off the ends
   const [p0, p1] = [-half + 0.25, half - 0.25];
   g.lips.push(...lipsOf(f, o.id, t, p0, p1, lipY));
@@ -392,6 +407,8 @@ export function throwGateway(o: ThrowGatewayOpts): Greybox {
   spot('runner', -stand - 1.0, 0, 0, false);
   spot('landing', TEAM.throwDist - stand, 0, 0, false);
   const rel = o.release ?? { u: TEAM.throwDist - stand + 3, v: 0 };
+  // (greybox tests) a player alone at the beams (feet just off their touch band) must not reach the release
+  if (rel.u + LASER.reach < INTERACT_REACH + 0.05) throw new Error(`${o.id}: the release at u ${rel.u} is in reach (${INTERACT_REACH} m) from the near side of the beams`);
   device(`sw-${o.id}-release`, rel.u, rel.v, 1.2, -1, 0, 'Beam release');
   g.gates.push({ kind: 'pickup', id: `g-${o.id}-release`, switchId: `sw-${o.id}-release`, flag, perPlayer: false });
   spot('press', rel.u - 0.6, rel.v, 0, false);
@@ -415,15 +432,18 @@ export interface HangPlateOpts {
   overhang?: number;
   /** The plate's opening (m, square): under a body's width so nobody drops through it. */
   hole?: number;
+  /** (greybox tests) The drive panel's hold (s, SPEC N4: `CourseDevice.hold`); 0 = a tap. */
+  hold?: number;
   color?: string;
 }
 
 /**
  * A bridge slab (`noLedge`: its edges are the map's) at the deck height over a mesh cage closed to the slab's underside,
  * a plate-sized opening over the cage, the drive panel on a cabinet inside (out of reach from outside the cage and from
- * the deck), the holder's mark beside the opening, the cage door locked with an `egress` push-bar inside. The panel is a
- * `pickup` gate (flag `<id>-done`; SPEC N4 makes it a hold). Way back: a dropped player presses the panel from the
- * floor and leaves by the push-bar door.
+ * the deck), the holder's mark beside the opening, the cage door locked with an `egress` exit release on the cabinet's
+ * back (also out of reach from outside). The panel is a `pickup` gate (flag `<id>-done`) held `hold` s (N4). Throws
+ * when the cage is too small to keep both devices out of reach from outside (at least 3.74 m along u, 3.1 m along v).
+ * Way back: a dropped player presses the panel from the floor, then the exit release, and leaves by the cage door.
  */
 export function hangPlate(o: HangPlateOpts): Greybox {
   const deck = o.deck ?? COOP_LIP;
@@ -458,19 +478,29 @@ export function hangPlate(o: HangPlateOpts): Greybox {
   box('cage wall', -cu / 2 + wt / 2, 0, 0, wt, cv, wallH, STEEL, { noLedge: true });
   box('cage wall', 0, -cv / 2 + wt / 2, 0, cu - 2 * wt, wt, wallH, STEEL, { noLedge: true });
   box('cage wall', 0, cv / 2 - wt / 2, 0, cu - 2 * wt, wt, wallH, STEEL, { noLedge: true });
-  box('cage wall', cu / 2 - wt / 2, (-cv / 2 + wt - dw / 2) / 2, 0, wt, cv / 2 - wt - dw / 2, wallH, STEEL, { noLedge: true });
-  box('cage wall', cu / 2 - wt / 2, (cv / 2 - wt + dw / 2) / 2, 0, wt, cv / 2 - wt - dw / 2, wallH, STEEL, { noLedge: true });
+  // (greybox tests) the door wall's pieces run to the corners (they stopped `wt` short: a 0.1 m open corner post)
+  box('cage wall', cu / 2 - wt / 2, (-cv / 2 - dw / 2) / 2, 0, wt, cv / 2 - dw / 2, wallH, STEEL, { noLedge: true });
+  box('cage wall', cu / 2 - wt / 2, (cv / 2 + dw / 2) / 2, 0, wt, cv / 2 - dw / 2, wallH, STEEL, { noLedge: true });
   box('cage door head', cu / 2 - wt / 2, 0, 2.1, wt, dw, wallH - 2.1, STEEL, { noLedge: true });
   const gf = greyFrame(o.at, o.facing);
   const [hx, hz] = gf.p(cu / 2 - wt / 2, -dw / 2);
   g.doors.push({ id: `${o.id}-cage`, hinge: [hx, 0, hz], width: dw, yaw: gf.doorYaw, height: 2.1, locked: true });
-  device(`sw-${o.id}-exit`, cu / 2 - wt - 0.05, dw / 2 + 0.5, 1.1, -1, 0, 'Push bar (exit)');
+  // (greybox tests) the exit release on the cabinet's back (door side), not by the door: course devices have no side
+  // and `Interactables.nearest` reaches through mesh, so a bar by the door was pressed from outside (a solo way in)
+  device(`sw-${o.id}-exit`, 0.32, 0, 1.1, 1, 0, 'Exit release (push)');
   g.gates.push({ kind: 'egress', id: `g-${o.id}-exit`, switchId: `sw-${o.id}-exit`, doorIds: [`${o.id}-cage`] });
   // the drive cabinet at the cage centre, its panel on the face toward the plate
   box('drive cabinet', 0, 0, 0, 0.6, 0.8, 1.6, PANEL_DARK, { noLedge: true });
-  device(`sw-${o.id}-panel`, -0.32, 0, 1.2, -1, 0, 'Drive panel (hang down through the plate)');
+  const panel = device(`sw-${o.id}-panel`, -0.32, 0, 1.2, -1, 0, 'Drive panel (hang down through the plate)');
+  const hold = o.hold ?? 3;
+  if (hold > 0) panel.hold = hold;
+  // (greybox tests) both devices out of reach from any body outside the cage (centre a radius off the outer face)
+  for (const [du, dv] of [[-0.32, 0], [0.32, 0]] as const) {
+    const out = Math.min(cu / 2 - Math.abs(du), cv / 2 - Math.abs(dv)) + MOVEMENT.radius;
+    if (out < INTERACT_REACH + 0.05) throw new Error(`${o.id}: a ${cu} x ${cv} m cage puts a device ${out.toFixed(2)} m from a body outside (reach ${INTERACT_REACH})`);
+  }
   g.gates.push({ kind: 'pickup', id: `g-${o.id}-panel`, switchId: `sw-${o.id}-panel`, flag: `${o.id}-done`, perPlayer: false });
-  g.wayBack = 'A dropped player presses the panel from the cage floor and leaves by the push-bar door (egress).';
+  g.wayBack = "A dropped player presses the panel from the cage floor, then the exit release on the cabinet's back (egress), and leaves by the cage door.";
   return g;
 }
 
@@ -503,7 +533,8 @@ export function syncStation(o: SyncStationOpts): Greybox {
   const y = o.y ?? 1.2;
   const d = Math.max(hyp2(o.b.x - o.a.x, o.b.z - o.a.z), o.walk ?? 0);
   const min = syncMinGap(o.kind);
-  if (d < min) throw new Error(`${o.id}: panels ${d.toFixed(2)} m apart, under ${min.toFixed(2)} (one player could serve both)`);
+  // (greybox tests) strict: at exactly the pair minimum a run fits the window to the frame (`pressPair` takes <=)
+  if (!(d > min + 1e-6)) throw new Error(`${o.id}: panels ${d.toFixed(2)} m apart, under ${min.toFixed(2)} (one player could serve both)`);
   const g: Greybox = { id: o.id, boxes: [], stairs: [], doors: [], ledges: [], devices: {}, gates: [], lips: [], spots: [], lasers: [], scanners: [], cameras: [], wayBack: 'Both panels are on ground level, open both ways.' };
   const flag = `${o.id}-sync`;
   const label = o.kind === 'scan' ? 'Terminal (hack with your partner)' : 'Plate (press with your partner)';
@@ -559,7 +590,18 @@ export function jamRelay(o: JamRelayOpts): Greybox {
   if (camY < CAMERA.mountMin || camY > CAMERA.mountMax) throw new Error(`${o.id}: camera at ${camY} m outside ${CAMERA.mountMin}-${CAMERA.mountMax}`);
   if (o.length + 1 > JAMMER.range) throw new Error(`${o.id}: the near post is over the jammer's ${JAMMER.range} m from the camera`);
   const { f, g, box, spot } = start(o.id, o.at, o.facing);
-  const n = Math.max(1, Math.ceil(o.length / JAM_HOP));
+  // the recesses one `JAM_HOP` or less apart along the corridor, and (greybox tests) every real leg inside one blind
+  // window at the silent crouch: along the corridor a body off the recess wall, then in to the hide spot
+  const hideU = rw / 2 - MOVEMENT.radius - 0.05;
+  const lane = w / 2 - MOVEMENT.radius;
+  const inset = rd / 2 + MOVEMENT.radius;
+  const longest = (k: number): number => {
+    if (k === 1) return o.length;
+    const s = o.length / k;
+    return Math.max(hyp2(s + hideU, lane) + inset, s + 2 * inset, hyp2(s - hideU, lane) + inset);
+  };
+  let n = Math.max(1, Math.ceil(o.length / JAM_HOP));
+  while (n > 1 && longest(n) > JAM_WINDOW * SILENT_CROUCH) n++;
   const rec: number[] = [];
   for (let k = 1; k < n; k++) rec.push((o.length * k) / n);
   // the plain wall and the recess wall (gaps at the recesses, each recess a reveal with a back and two cheeks)
@@ -570,7 +612,9 @@ export function jamRelay(o: JamRelayOpts): Greybox {
     box('recess back', r, side * (w / 2 + rd + 0.15), 0, rw + 0.6, 0.3, h, color, { noLedge: true });
     box('recess cheek', r - rw / 2 - 0.15, side * (w / 2 + rd / 2), 0, 0.3, rd, h, color, { noLedge: true });
     box('recess cheek', r + rw / 2 + 0.15, side * (w / 2 + rd / 2), 0, 0.3, rd, h, color, { noLedge: true });
-    spot('runner', r, side * (w / 2 + rd / 2), 0);
+    // (greybox tests) the hide spot against the camera-side cheek: a body in the recess's middle showed its edge to the
+    // camera past that cheek (a 19 m corridor's second recess)
+    spot('runner', r + hideU, side * (w / 2 + rd / 2), 0);
     u = r + rw / 2;
   }
   box('corridor wall', (u + o.length) / 2, side * (w / 2 + 0.15), 0, o.length - u, 0.3, h, color, { noLedge: true });
