@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased - anim-natural N4 (holds and carries)
+## 4.54.0 - Train 3: every tuner Body slider bakes, holds and carries (2026-10-22, PR #114; #103, #113)
+
+### #103 Body sliders bake
+- Animation tuner: every Body slider (but the shared stride length) and the gun tuck bake. The Body sliders with no
+  code value (track, arm swing, knee lift, elbow out, elbow pole and the rest) bake into the base table's new `body`
+  key, which every Wren rig reads (the player, the co-op partner, the Anim Studio puppets; guards never); the gun's
+  elbow tuck bakes per gun state (six Wren constants, the guards keep theirs). The stride length stays one shared
+  value (it bakes when every moving state agrees). Michael's 13 values from 2026-10-22 that stayed in his browser are
+  now built in: the feet on a narrow track at idle / walk / jog / run, the elbows out at idle / walk / jog, more arm
+  swing at jog / run, more knee lift at run, the elbows out at low ready and the rifle / pistol low ready tuck.
+- The tuner resets those 13 sliders once on the next load (they would otherwise apply twice): each bake now has its
+  own id in the save, so a second bake of the same export is not mistaken for the one already applied.
+
+### #113 Holds and carries (anim-natural N4)
 - Hostage walk and body carry: the hips and the shoulders now turn against each other with each step instead of as
   one block (pelvis about +-3 deg, the shoulders the other way, smaller than a free walk: the arms are busy). Carrying,
   the trunk leans about 6 deg away from the loaded shoulder, the hips sit a little under the load and each step dips a
@@ -16,17 +29,6 @@
   the hips, step weight (dip), step length (cadence; default x1), and for the carry the lean away from the load and the
   hips under the load. Every slider bakes into `CQ_GAIT` (`src/anim/cqGait.ts`) with `scripts/anim-tune-bake.mjs`
   (section `cq`).
-
-## Unreleased - anim-bake-targets
-- Animation tuner: every Body slider (but the shared stride length) and the gun tuck bake. The Body sliders with no
-  code value (track, arm swing, knee lift, elbow out, elbow pole and the rest) bake into the base table's new `body`
-  key, which every Wren rig reads (the player, the co-op partner, the Anim Studio puppets; guards never); the gun's
-  elbow tuck bakes per gun state (six Wren constants, the guards keep theirs). The stride length stays one shared
-  value (it bakes when every moving state agrees). Michael's 13 values from 2026-10-22 that stayed in his browser are
-  now built in: the feet on a narrow track at idle / walk / jog / run, the elbows out at idle / walk / jog, more arm
-  swing at jog / run, more knee lift at run, the elbows out at low ready and the rifle / pistol low ready tuck.
-- The tuner resets those 13 sliders once on the next load (they would otherwise apply twice): each bake now has its
-  own id in the save, so a second bake of the same export is not mistaken for the one already applied.
 
 ## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
 
