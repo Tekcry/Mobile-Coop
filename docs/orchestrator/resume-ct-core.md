@@ -3,6 +3,16 @@
 Saved 2026-10-23 ~10:30 by the CT Core session, for the ~10:45 account swap (window 98%). Branches are pushed at each
 agent milestone. Agents running at a cut-off are lost: their last pushed commit is the resume point (table below).
 
+## Live (resumed 10:48 on the new account; newest first, overrides the table)
+- 10:55 Batch branch `feature/ctcore-batch-22` (worktree `C:/NightShift/Mobile-Coop-ctcore-batch`, node_modules junction)
+  = master 8e5dbd83 + strike-pops c917c3d8 + hang-down 4072e2b9 (e6ffddff, clean, no protocol bump). Hang-down GREEN:
+  Character Build laptop GPU netmove + takedown PASS 161 s on 4072e2b9. Next into the batch: traverse-fix-2 when its
+  REPORT.md is final, then dual-reward / sd-rounds; then ONE Opus checker, CI, laptop coop + ctcourse, ONE PR.
+- 10:50 Agents restarted (3 tsc / vitest, the cap): mocap-strafe fix round 2 (Opus, from d504af7c + the lost agent's
+  untracked zz probes), traverse-fix-2 finish (Opus, from ebcafadc + uncommitted CLIMB_UP re-key / CLIMB_UP_HANDS
+  0.475 / 0.165), dual-reward finish (Sonnet, from ac1319e0; e2e-coop dual assert was being debugged). Spare 7
+  sd-rounds builder: next free slot. Spare 9: after #194 is on master.
+
 ## Rules carried
 - Pacing after the reset (Michael 01:45, ROADMAP Decided "Lean windows", CLAUDE.md "A job"): every 5-hour window to
   99%, lean, no quality loss. No new agent at 97%, save at 98% (WIP pushed, this file current), stop by 99%; the
