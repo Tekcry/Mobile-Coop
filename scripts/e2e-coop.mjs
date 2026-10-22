@@ -548,42 +548,102 @@ try {
   // the client's puppet; a strike on a guard the host already holds is refused (cdeny), no knock-out
   const skv = await GB((no) => [...window.__app.current.net.puppets.values()].find((p) => p.alive && p.id !== no && p.def.kind === 'grunt')?.id ?? '', tdv);
   assert(!!skv, `a second calm guard for the strike (${skv})`);
-  const pinSk = (id) => GA((id) => {
+  // (load-latent) the guard is placed once, then each attempt pins him on every host sim step (the host page is in the
+  // background and a pump steps it when its rAF did not run, so the pin wraps the loop's fixedUpdate hook, not rAF): the
+  // host calm, the client unspotted, the guard a statue on his spot (his brain off - the strike's approval, reach check
+  // and knock-out are the real code, `applyHit` does not need his brain). Each attempt's pin carries its own generation,
+  // so an earlier attempt's pin stops when the next starts, and the finally below always ends it
+  const placeSk = (id) => GA((id) => {
     const g = window.__app.current;
     for (const e of g.enemyMgr.enemies) e['stagger'] = 99;
-    for (const r of g.net.remotes.values()) r.allowTeleport(1);
     const v = g.enemyMgr.enemies.find((e) => e.id === id);
     if (v?.alive && !v.taken) {
       v.pos.set(8, 0, -6);
       v.yaw = 0;
     }
   }, id);
-  await pinSk(skv);
+  await placeSk(skv);
   await wait(600);
   await moveClient(B, 8, 0.1, -6.9, 0);
   let skKo = false;
   let skInfo = '';
+  const skKoNow = () => GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, skv);
   for (let attempt = 0; attempt < 6 && !skKo; attempt++) {
     // (step 10 check) a retry only after the client's strike ended and the host's record of it cleared
     if (attempt > 0) {
       await until(B, () => !window.__app.current.strike.active, null, 5000, 'client strike ended').catch(() => {});
       await until(A, () => window.__app.current.net['strikes'].size === 0, null, 10000, 'host strike record cleared').catch(() => {});
+      // (a late knock-out of the last attempt: no new strike on a guard who is already down)
+      if ((skKo = await skKoNow())) break;
     }
-    await pinSk(skv);
-    skInfo = await GB((id) => {
+    // (the teleport window once per attempt, before the client strikes: a grant every step would keep the host's reach
+    // check open for the whole wait)
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(1); });
+    await GA((id) => {
       const g = window.__app.current;
-      g.player.cam.yaw = 0;
-      if (g.strike.active) return `busy ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied} t ${g.strike.t.toFixed(2)} ok ${g.strike.approved}`;
-      const t = g.strike.pickTarget();
-      g.strike.begin();
-      return `target ${t || 'none'} want ${id} ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied}`;
+      const v = g.enemyMgr.enemies.find((e) => e.id === id);
+      const gen = (window.__skPinGen = (window.__skPinGen ?? 0) + 1);
+      const pin = () => {
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
+        for (const e of g.enemyMgr.enemies) {
+          e['stagger'] = 99;
+          if (e.alive && !e.taken) e.aware.set('unaware');
+        }
+        if (v?.alive && !v.taken) {
+          v.update = () => {};
+          v.pos.set(8, 0, -6);
+          v.yaw = 0;
+        }
+      };
+      const hooks = window.__app.loop['hooks'];
+      const orig = hooks.fixedUpdate;
+      const step = (dt) => {
+        if (window.__skPinGen !== gen || window.__app.current !== g) {
+          // (ended: unwrapped when no later wrapper sits on top, else a pass-through)
+          if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+          orig(dt);
+          return;
+        }
+        pin();
+        orig(dt);
+        pin();
+      };
+      hooks.fixedUpdate = step;
+      pin();
     }, skv);
-    for (let i = 0; i < 8 && !skKo; i++) {
-      await wait(300);
-      await pinSk(skv);
-      skKo = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, skv);
+    try {
+      // (load-latent) the client strikes in the frame its pick is the pinned guard (latched: the pick can come and go
+      // between two polls), within 6 s of the client's match clock (was one read per attempt, 300 ms polls in real
+      // time); 90 s real-time cap
+      skInfo = await GB((id) => new Promise((res) => {
+        const g = window.__app.current;
+        const t0 = g.time;
+        const w0 = performance.now();
+        const tick = () => {
+          g.player.cam.yaw = 0;
+          const t = g.strike.active ? '' : g.strike.pickTarget();
+          if (t === id && g.strike.begin()) res(`target ${t} want ${id} ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied}`);
+          else if (g.time - t0 > 6 || performance.now() - w0 > 90000) {
+            res(g.strike.active
+              ? `busy ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied} t ${g.strike.t.toFixed(2)} ok ${g.strike.approved}`
+              : `target ${g.strike.pickTarget() || 'none'} want ${id} ${JSON.stringify(g.strike.count)} ${g.strike.lastDenied} can ${g.strike.canStart()}`);
+          } else requestAnimationFrame(tick);
+        };
+        tick();
+      }), skv);
+      // (load-latent) the knock-out within 3 s of the host's match clock (the host runs the strike: contact 0.5 s, done
+      // 0.9 s after its start; was 8 polls 300 ms apart in real time); 30 s real-time cap
+      const h0 = await GA(() => window.__app.current.time);
+      const w0 = Date.now();
+      while (!(skKo = await skKoNow())) {
+        if ((await GA(() => window.__app.current.time)) - h0 > 3 || Date.now() - w0 > 30000) break;
+        await wait(100);
+      }
+    } finally {
+      await GA(() => { window.__skPinGen = (window.__skPinGen ?? 0) + 1; });
     }
   }
+  await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, skv);
   const hostSk = await GA(() => ({ last: window.__app.current.net.lastCommit, n: window.__app.current.strike.count }));
   assert(skKo, `a client elbow strike knocks the host's guard out (${skInfo}; host ${JSON.stringify(hostSk)})`);
   await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !p || !p.alive; }, skv, 8000, 'client puppet down');
