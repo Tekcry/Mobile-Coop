@@ -1,5 +1,9 @@
 # mocap-trial - state
 
+## 2026-10-22 ~21:50: switch + clip feet (7ac3b80e) and CMU pipeline (05c1ef15) in; integration agent running
+- If the integration is not committed past 6c0e3320, redo it (resume prompt in docs/orchestrator/resume-ct-core.md on
+  feature/menu, item 1). Standing OK for more CMU takes (BRIEF approval log).
+
 ## 2026-10-22 ~21:05: data in, two agents running
 - Download approved in the CT Core session (native question, "Yes, download"): 39 named takes from
   mocap.cs.cmu.edu (subjects 16, 35, 69; ASF/AMC, ~10 MB) in `.mocap-cache/` (gitignored), fetched one at a time
