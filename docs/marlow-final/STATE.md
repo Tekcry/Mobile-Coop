@@ -67,6 +67,15 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 03:45 PERF (guard-cap, laptop RTX 4090 alone, Epic 1080p, 155fbec0 = facility + A1 greybox, results on the laptop
+  C:/NightShift/scratch/runs/guardcap-155fbec0-out/RESULTS.md). frame med / CPU / GPU / draws / sim p95 ms:
+  0 guards facing 4.64.0 11.3 / 10.7 / 6.6 / 115 / 4.6 -> 12.7 / 11.9 / 10.9 / 224 / 2.9; 12 guards 29.6 / 28.8 /
+  17.9 / 133 / 9.1 -> 30.5 / 29.8 / 22.8 / 242 / 6.8. The facility adds ~+1.2 ms CPU, ~+4 ms GPU (now OVER the 7.5 ms
+  Epic GPU budget), ~+110 draws (fine). Frame CPU was already over the 5.5 ms main budget on master. DoD needs the
+  budgets for a rendering job: before the PR, an Opus perf pass on the facility GPU cost (suspects: gallery glass /
+  spill, kit and prop materials, lamp count per column, shadow casters) - queued after the sets are greyboxed.
+  A1 e2e: failed at the hang let-go (test helper: the drop press is an edge spent during the lowering); fixed e00f1d64,
+  rerun running. e2e-coop PASS on da79b984.
 - 03:25 slice 1 checker PASS (S1-check.md); its should-fix done by the job lead (da79b984: e2e opens the wicket by
   hand). A1 dressing started on Sonnet (a1Gate.ts dressing section + tests + S1.md "Dressing"). Laptop: A1 e2e on the
   newest commit, then guard-cap perf on 155fbec0. Usage 62% at 03:22, 3 h 18 left.
