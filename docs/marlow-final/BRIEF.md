@@ -29,6 +29,13 @@ and any other coop "wow thats cool" experience. Ask questions if needed."
   and GPU shots per area via Character Build. Lighting: sufficient to read the space; any loosening of the darkness /
   light rules goes to Michael as a proposal in the spec, never applied.
 
+- M6 (~00:45) Lighting: "lit, players cut it, but you can also use mixed zones if it ends up being a better result. In
+  game levels are quite dark and not realistic". So areas are brightly lit by default (the LED / luxury look) and the
+  co-op exercises create darkness by isolating lights on timers; mixed zones where they play better. His note that the
+  levels read too dark and unrealistic is the lighting rule review: any level-design rule change is proposed in the
+  spec. Gallery: "View only" (A5 holds). Guards: "normal guards. we will need to create a prototype guard avatar
+  replacement eventually." (A7 holds; the guard avatar is a later roadmap item, not this job).
+
 ## More assumed decisions (M5)
 - A5 One instructor gallery: a raised, glazed walkway / control room running along the course spine, so most areas have
   a glass wall onto it; the gallery is out of bounds for players (sight only). Undo: per-area observation windows.
