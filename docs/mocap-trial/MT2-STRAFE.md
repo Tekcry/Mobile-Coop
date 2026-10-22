@@ -2,7 +2,9 @@
 
 2026-10-23, Opus implementer, branch feature/mocap-strafe (cut from feature/mocap-trial-2 d60f374f; feature/mocap-on
 1673e924 merged in: master 4.68.0 and the carrier gate). Picks up a979a0ed / 8498843d (the previous agent, cut off at an
-account swap). Decision logged here as A10 (below) for the lead to copy into BRIEF.md.
+account swap). Decision logged here as A10 (below) for the lead to copy into BRIEF.md. Finished by a third agent after a
+second account swap (46333339 -> head): the cut-off's uncommitted animGraph.ts diff was a tsc fix (`stAmp: number`, GLIDE
+is `as const`): kept (c4df5773); the tests finalised; the OFF dump, allocation and the always-run files re-run on the head.
 
 ## Result
 Done. With the "Mocap locomotion" switch ON, the aimed glide's sideways share plays the CMU strafe captures (69_59 left,
@@ -18,8 +20,13 @@ keeps the captures' rhythm (motion.ts `GLIDE_SIDE` / `sideStepAt`: half their me
 0.50 m/s)^0.25: 0.23 / 0.27 / 0.29 m at 0.4 / 0.7 / 0.9 m/s, cycle 1.16 / 0.77 / 0.63 s; the glide's was 0.10-0.12 m), the
 hips held back over the steps (`STRAFE_LEAD.hips` 0.25 of a cycle's travel, at most 0.3 m/s), left and right cross-faded by
 the travel's side (`STRAFE_SIDE_TAU` 0.06 s). Forward / back glides, the crouched aimed glide (its shuffle, blended by the
-crouch), the holstered gait and the drawn low-ready legs are unchanged. Carriers only (the player and the co-op partner).
-Undo: the switch off, or `strafeL: null, strafeR: null` in `MOCAP_SET` (src/anim/mocap.ts).
+crouch), the holstered gait and the drawn low-ready legs are unchanged. Undo: the switch off, or `strafeL: null, strafeR:
+null` in `MOCAP_SET` (src/anim/mocap.ts).
+- Carriers only (a behaviour choice, following mocap-on's carrier gate): the mocap side-step and the captures reach the
+  player and the co-op partner only; a guard's aimed glide keeps the hand-keyed shuffle with the switch on (its gait clock
+  never gets `mside`). Undo (guards strafe on the captures too): set `mi.mocapSide` in the enemy's motion driver as
+  playerController.ts:523 does, and let the graph's `mOn` (animGraph.ts:1020, read by `mSide` at :1023) skip the carrier
+  test; then drop the non-carrier bit-identity case in tests/mocapStrafe.test.ts.
 
 ## The PEL rows (zz-strafe.txt), judged
 The previous agent's probe flagged startstop R 0.4 (ON pelvis 2.21 vs OFF 1.55 cm), L 0.9 (2.06 vs 1.59), R 0.9 (2.21 vs
@@ -63,12 +70,15 @@ After: start / stop worst 1.89 cm (OFF 1.59), every row under the 2 cm line; wha
 - Feet gap: the ankles' smallest sideways gap, ON and OFF: 9.0 cm everywhere (the planner's no-crossing gap; no crossing).
 - Switch OFF: the mt-check dump (repro/dump.test.ts, 7 plans x carrier / non-carrier) md5 9ce3f3d1c70c299dca072d3a4f15f9ea,
   31,065,812 B, equal to 1673e924's (run from a `git archive` copy); the aimed probe plans (28 plans, all joints, root,
-  contacts, cycle time) OFF md5 925ee8b8022d6f268d49d5409b05b559 at 1673e924 and at the head.
+  contacts, cycle time) OFF md5 925ee8b8022d6f268d49d5409b05b559 at 1673e924 and at the head. Re-run at the final head
+  (1a74e930 code) against origin/feature/mocap-on ab1cb6c6 (docs-only past 1673e924; `git archive` copy, node_modules
+  junction): both 31,065,812 B, md5 9ce3f3d1c70c299dca072d3a4f15f9ea. Match.
 - Guard (non-carrier) aimed, switch ON: md5 8ee379d292e613cf8acacc2e395ef242 = the same rig switch OFF = 1673e924's (before
   the gate fix the guard's joints moved 1.2 vs 1.19 m on the first frame of the steady strafe).
 - Allocation (bytes a frame, bare graph): mocapSwitch's frame off 1431.3 / on 1441.5 / filled 1503.7 / toggled 1473.9 (=
   1673e924; the strafe before: on 1489.5, failing); aimed strafe off 1446.3 (= 1673e924), on 1590.3 (1673e924's hand-keyed
-  glide strafe 1478.3: two capture samples and the side-step).
+  glide strafe 1478.3: two capture samples and the side-step). Re-run at the final head and at mocap-on ab1cb6c6: both
+  off 1431.3 / on 1441.5 / filled 1503.7 / toggled 1473.9 (no worse; the test passes on both).
 
 ## Files
 - `src/anim/animGraph.ts`: strafe reads through `mOn` / `mS` / new `mSide`; `strafeTrack` (side, hips shift, eased
@@ -88,7 +98,22 @@ After: start / stop worst 1.89 cm (OFF 1.59), every row under the 2 cm line; wha
   `scripts/mocap/emit.mjs` / `m3.mjs` sideways emit, TAKES.md rows.
 
 ## Tests
-TESTS_PLACEHOLDER
+`tests/mocapStrafe.test.ts` (new, 7 cases, pass, ~13 s). Asserts encode pops and slides (M1), not the old procedural shape
+limits; every ON run is compared with its OFF twin:
+- The sets: the mocap set carries the sideways captures (`travel` -x / +x), the hand-keyed set none; `mocapSideStep` NaN
+  OFF, 0.2-0.35 m at 0.7 m/s ON.
+- Carriers only: `stepLength` without `mside` is the same ON as OFF; with `mside` the side-step is > 5 cm longer.
+- A steady strafe plays the captures ON (keyStrafe mean > 0.9), never OFF (0).
+- Steady L / R 0.4 / 0.7 / 0.9, CT starts / stops L / R 0.4 / 0.7 / 0.9, 4 L <-> R flips, 4 snaps onto forward / back:
+  `playerFails` (pelvis beyond pace x dt <= max(2 cm, OFF); bone / ankle-toe <= 24 deg or OFF + 2), planted contact slide
+  < 0.5 cm (all 0), ankles >= 8 cm apart sideways (no crossing; all 9.0), swing-foot jump <= 11.5 cm a frame (worst 11.3,
+  snap R onto forward; before the re-aim fade 24-29), and CT start / stop pelvis <= 1.95 cm (worst 1.89, before 2.21).
+- A non-carrier (guard) rig strafing aimed (steady, flip) poses bit for bit as OFF with the switch on (all joints, cycle
+  time).
+Always-run files at the head: mocapSwitch 13/13, mocapFix2 11/11, footPlanner 12/12, animSkeletonIdentity and
+animSkeletonGuardIdentity 1 pass + 1 skip each (the capture case, skipped by design). `npx tsc --noEmit -p .` clean;
+`npx eslint` on the branch's .ts files clean (the two scripts/mocap .mjs files are eslint-ignored). No e2e, build or full
+vitest (the lead runs them).
 
 ## Not done / open
 - Toggling the switch mid-strafe is covered by the rig's switch cross-fade only (A8's residual applies; not probed here).
@@ -98,6 +123,8 @@ TESTS_PLACEHOLDER
   planner's own re-aim with the switch off; ON fades them (STRAFE_REAIM) only in the mocap strafe. Not changed OFF.
 - Back-to-wall (139_xx / wall side-steps) not started (brief).
 
-## Changelog entry (for the lead)
-- Mocap locomotion (switch on): aiming sideways, Wren plays captured strafe steps (CMU 69_59 / 69_56: left and right
-  side-steps at their own rhythm, hips over the steps) instead of the hand-keyed glide strafe. Guards keep the glide.
+## Changelog entry
+Written as the branch's own fragment, `changes/feature-mocap-strafe.md` (this branch is its own PR):
+- Mocap locomotion (switch on): aiming sideways, Wren plays captured strafe steps (CMU 69_59 / 69_56) at their own rhythm
+  instead of the hand-keyed glide strafe, with no pops or foot slides on starts, stops, flips and snaps; switch off and
+  guards unchanged. Clip format: a cycle can travel sideways (`travel` '+x' / '-x').
