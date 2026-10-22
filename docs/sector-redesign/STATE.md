@@ -20,6 +20,8 @@
   Haiku 5.5 for chores. Engine work (slice L protocol 31, camera-range, slice-0 engine items) stays Opus. A failed
   Sonnet slice gets its fix round from Opus.
 
+- FULL BURN (Michael ~07:55, via the orchestrator): 5 agents IN FLIGHT from 95097957 (master merged at f942df04): S2 builder (Sonnet, THIS worktree, brief briefs/SLICE2.md); S3 builder (Opus, feature/sector-redesign-s3, worktree -s3); E1 keypads EW5 (Opus, -e1); E3 pair bolt + pair gate EW3/EW4 (Opus, -e3); E4 isolator EW8 (Opus, -e4). Worktrees -s3/-e1/-e3/-e4 use a node_modules junction to this worktree. Each writes checks/<slice>.md; the lead commits each branch and merges into feature/sector-redesign. E2 glass (EW6) waits: sight through glass touches src/ai (guard-ai) - ask Guard AI first. Slice 1 e2e (sectorops 1-6, coop, netmove, ctcourse; GPU 4189, heavy2.lock) running from dist/ built at 267b299f.
+
 ## Next
 1. Slice 1: Opus checker (with the open items above), laptop e2e-sectorops (campus part 1) + e2e-coop,
    one fix round at most; then message the orchestrator (slice 1 on the branch).
