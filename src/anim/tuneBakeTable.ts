@@ -77,6 +77,7 @@ const WALLC = 'src/player/wallController.ts';
 const ATT = 'src/player/attach.ts';
 const PLAN = 'src/anim/footPlanner.ts';
 const WEIGHT = 'src/anim/weight.ts';
+const CQG = 'src/anim/cqGait.ts';
 
 const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
 const RIFLE_AIM = ['rifle.aim', 'rifle.aimCrouch'];
@@ -289,6 +290,18 @@ for (const id of ['stopSettle', 'accelLean', 'stopLean', 'bank', 'plantDrop', 'l
 }
 
 // ------------------------------------------------------------------------------------------
+// Holds and carries (cqGait.ts, anim-natural N4): one slider per walk, each into its own CQ_GAIT value
+// ------------------------------------------------------------------------------------------
+
+for (const [walk, ids] of [
+  ['hold', [['holdTwist', 'pelvis'], ['holdCounter', 'counter'], ['holdDip', 'dip'], ['holdStride', 'stride']]],
+  ['carry', [['carryTwist', 'pelvis'], ['carryCounter', 'counter'], ['carryShift', 'shift'], ['carryDip', 'dip'], ['carryStride', 'stride']]],
+] as const) {
+  for (const [id, f] of ids) rules.push(rule('cq', id, [`cq.${walk}`], [e(CQG, `CQ_GAIT.${walk}.${f}`, 'mul')], f === 'stride' ? 'the local player gait clock only (remote copies run their own)' : undefined));
+}
+rules.push(rule('cq', 'carryLean', ['cq.carry'], [e(CQG, 'CQ_GAIT.carry.lean', 'add', Math.PI / 180)]));
+
+// ------------------------------------------------------------------------------------------
 // (clip-speed, track A) Clip speed (tuneClipSpeed.ts): a speed divides a duration or multiplies a rate. The every-clip
 // slider (`all`) edits every target; with a clip's own slider too both apply (the product, as in the game).
 // ------------------------------------------------------------------------------------------
@@ -348,7 +361,7 @@ export const BAKE_LEDGER = 'src/anim/tuneBakeLog.json';
 export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
-export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts']; // (clip-speed, track A) tuneClipSpeed; (item 24, track A) the guard sections
+export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (item 24, track A) the guard sections
 /**
  * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
  * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file

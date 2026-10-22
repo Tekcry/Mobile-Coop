@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased - anim-natural N4 (holds and carries)
+- Hostage walk and body carry: the hips and the shoulders now turn against each other with each step instead of as
+  one block (pelvis about +-3 deg, the shoulders the other way, smaller than a free walk: the arms are busy). Carrying,
+  the trunk leans about 6 deg away from the loaded shoulder, the hips sit a little under the load and each step dips a
+  little deeper. Measured on Proving (desktop GPU): counterCorr hold-walk +0.85 -> -0.76, carry-walk +0.95 -> -0.91.
+  The lean and the hip shift scale by the body's weight on the shoulder: none kneeling at the body, in with the hoist,
+  out by the put down's hand-over (fix round).
+- Body lift: she walks in to the body standing and crouches once there (the crouched step-in dragged a planted foot
+  21 cm), and stays down until a stepping foot has landed before she stands with the body (at most 0.3 s). Animation
+  only (fix round): the controller crouch keeps the lift's fixed timeline, crouched from the start as before. Lift
+  planted slide 20.9 / 7.4 cm -> 0 / 5.4 cm (the 5.4 is the planted foot's twist in the 90 deg turn to the body: an N1
+  planner item, as is the carry-walk's 5-9 cm late-stance and start-turn slide, which a free walk at that pace shows too).
+- Animation tuner: a "Holds and carries" section (hold walk / carry rows): hip and shoulder twist, shoulders against
+  the hips, step weight (dip), step length (cadence; default x1), and for the carry the lean away from the load and the
+  hips under the load. Every slider bakes into `CQ_GAIT` (`src/anim/cqGait.ts`) with `scripts/anim-tune-bake.mjs`
+  (section `cq`).
+
 ## Unreleased - anim-bake-targets
 - Animation tuner: every Body slider (but the shared stride length) and the gun tuck bake. The Body sliders with no
   code value (track, arm swing, knee lift, elbow out, elbow pole and the rest) bake into the base table's new `body`
