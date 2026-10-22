@@ -290,6 +290,14 @@ export const FOOT_TURN_STEP = {
   maxAir: 0.45,
 } as const;
 /**
+ * (anim-natural N1, rule A2) While the body turns, a planted foot lifts early (a turn step) once waiting longer would start
+ * its clock swing faster than this (m/s^2, smooth's start: 6 x distance / air time^2). A straight run's swing starts at
+ * ~87 (2.1 m in 0.38 s), a run 180's foot left behind at ~170 (1.05 m in 0.19 s: 6.1 m/s by its third frame). Headless
+ * sweeps (tests/footTurn.test.ts): 80 crossed a 120 Hz run sweep 3 (-34 cm), 90 a 120 Hz spin 4.2 (-10.6), 110 narrowed
+ * a run 180 phase to 2.2 cm in the body frame; 100 none of these.
+ */
+const SWING_ACC = 100;
+/**
  * Rule B, the ball pivot: while the body turns (and BAND_TURN_TIME after), a planted foot more than `from` (rad) from the
  * body raises its heel toward `heel` (rad, toe down) and turns about its ball (footGeom) after the body, down to the
  * allowance (TURN_FOLLOW.twistFree), at most `rate` rad/s and `max` rad in one plant. In a heel-first landing's roll (toe
@@ -893,6 +901,31 @@ export class FootPlanner {
    * Returns whether the rest spot held it back.
    */
   private aimClock(f: FootState, i: PlannerInput, side: -1 | 1, toLand: number): boolean {
+    this.clockRoot(i, toLand);
+    let rx = this.cRx;
+    let rz = this.cRz;
+    const landYaw = this.cYaw;
+    let clamped = false;
+    if (i.rest) {
+      // distance matching: do not land beyond where the body will stop
+      const ahead = (rx - i.restX) * i.velX + (rz - i.restZ) * i.velZ;
+      if (ahead > 0) {
+        rx = i.restX;
+        rz = i.restZ;
+        clamped = true;
+      }
+    }
+    this.aim(f, i, side, rx, rz, landYaw);
+    return clamped;
+  }
+
+  /** (anim-natural N1) `clockRoot`'s output: the root at a clock landing `toLand` s from now (m) and its landing yaw (rad). */
+  private cRx = 0;
+  private cRz = 0;
+  private cYaw = 0;
+
+  /** The root and landing yaw of a clock swing landing `toLand` s from now (writes cRx, cRz, cYaw; `aimClock`'s prediction). */
+  private clockRoot(i: PlannerInput, toLand: number): void {
     // land ahead by at most what the leg can reach (at a sprint half a stance would overreach: the
     // foot lands nearer and toes off early instead)
     // (A1.2) facing mode: the stride runs along the facing at the facing-projected pace (backwards only on the slow
@@ -932,22 +965,27 @@ export class FootPlanner {
     // (G1) free movement: no more than TURN_FOLLOW.twistFree ahead of the body at touchdown (the feet turn with it)
     // (anim-natural N1) with the turn rules up to LAND_TURN (kLand) ahead, never past the face goal: a fresh foot was ~33
     // deg behind the body by mid-stance at 7.85 rad/s and the swing made up 90-180 deg in the air
-    const landYaw =
+    this.cYaw =
       i.stride === 'facing'
         ? wrap(i.yaw + clampAbs(clampAbs(i.yawRate * toLand, cap) + clampAbs(i.yawRate * 0.5 * i.duty * i.cycleTime, this.turnOn ? this.kLand : TURN_FOLLOW.twistFree), cap))
         : wrap(i.yaw + clampAbs(i.yawRate * (toLand + 0.5 * i.duty * i.cycleTime), cap));
-    let clamped = false;
-    if (i.rest) {
-      // distance matching: do not land beyond where the body will stop
-      const ahead = (rx - i.restX) * i.velX + (rz - i.restZ) * i.velZ;
-      if (ahead > 0) {
-        rx = i.restX;
-        rz = i.restZ;
-        clamped = true;
-      }
-    }
-    this.aim(f, i, side, rx, rz, landYaw);
-    return clamped;
+    this.cRx = rx;
+    this.cRz = rz;
+  }
+
+  /**
+   * (anim-natural N1, rule A2, e2e-anim run 180 first swing frames) Whether a planted foot `rem` s before its clock lift
+   * must lift now so its swing does not start faster than SWING_ACC: the clock's swing to its landing (the stance spot
+   * around `clockRoot`, the same landing time) starts at 6 x distance / air time^2 (smooth's start), which grows as the
+   * lift waits. A run's 180 lifts the foot left behind ~1.05 m from its landing with 0.19 s of swing (TURN_DUTY 0.52 of a
+   * 0.4 s cycle): 6.1 m/s by its third frame. Lifted now, it is an early clock swing (`turnStep`, landing on its strike).
+   */
+  private swingFast(f: FootState, i: PlannerInput, side: -1 | 1, rem: number): boolean {
+    if (!(rem > 0)) return false;
+    const air = rem + Math.min(0.6, (1 - i.duty) * i.cycleTime);
+    this.clockRoot(i, air);
+    this.ideal(i, side, this.cRx, this.cRz, this.cYaw);
+    return 6 * hyp2(this.ix - f.x, this.iz - f.z) > SWING_ACC * air * air;
   }
 
   /**
@@ -1127,6 +1165,9 @@ export class FootPlanner {
   private holdOrStep(f: FootState, i: PlannerInput, side: -1 | 1, rem: number): void {
     // (anim-natural N1, rule A) the turn step: the foot the turn would wind past its allowance steps round now
     if (this.pick === side && this.turnStep(f, i, side, rem)) return;
+    // (rule A2) and a foot whose clock swing would start too fast (a run's 180: the foot left behind, a short swing) lifts
+    // early enough to land on its strike at SWING_ACC
+    if (this.turnOn && this.rateT < BAND_TURN_TIME && f.plantT >= FOOT_TURN_STEP.minPlant && this.swingFast(f, i, side, rem) && this.turnStep(f, i, side, rem)) return;
     // (step 11) turned well away from the body (a turn onto a wall): step round with it, one foot at a time
     const o = side < 0 ? this.R : this.L;
     // (A1.2) the rules also fire while the other foot is nearly down: it lands now (an early swap, never both in the air)

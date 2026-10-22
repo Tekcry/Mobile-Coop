@@ -139,6 +139,24 @@ describe('foot turn harness (anim-natural N1)', () => {
     }
   });
 
+  it('rule A2: run 90 / 180 at every phase (0.8-2.0 s of travel): first swing frames under 5 m/s, the feet never cross in the body frame', () => {
+    // (anim-natural N1, after the master 4.55.1 merge) the run 180's foot left behind swung 1.05 m in 0.19 s (TURN_DUTY 0.52 of
+    // a 0.4 s cycle): 6.1 m/s by its third frame at 1.067 s (8.05 max over these phases, 6 of 73 over 5; the pre-merge pass
+    // at 1.067 s counted a still lift frame). It lifts early enough now (SWING_ACC): run 180 <= 3.4, run 90 <= 3.4
+    const S = GEARS.stand;
+    const rows: [string, number, number][] = [['run 90', S[4], 90], ['run 180', S[4], 179.9]];
+    for (const [name, v, deg] of rows) {
+      for (let k = 0; k <= 72; k++) {
+        const t0 = 0.4 + 0.8 + k / 60;
+        const sc: Scenario = { name, seconds: t0 + 1.2, t0, stick: (t) => (t < 0.4 ? null : { dir: t < t0 ? 0 : (deg * Math.PI) / 180, speed: v }) };
+        const r = runFootTurn(sc);
+        const at = `${name} after ${(t0 - 0.4).toFixed(3)} s`;
+        expect(r.snap, at).toBeLessThanOrEqual(5);
+        if (!Number.isNaN(r.minGapBodyCm)) expect(r.minGapBodyCm, at).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it('guards (they share the planner, CHECK finding 6): the floor contact slides less than master\'s in every guard row, no wind-up', () => {
     const lines: string[] = [];
     for (const hz of [60, 120]) {
