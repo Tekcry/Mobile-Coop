@@ -21,6 +21,18 @@ can survive: kill its process tree (taskkill /T /F) and confirm.
 - **menus-tap-wait: PR #147** (feature/menus-tap-wait 99a6330f, C:/NightShift/Mobile-Coop-menus-tap-wait): e2e-menus touch
   pause / Resume taps wait for the screen (test only; the train 9 laptop failure). e2e-menus GPU PASS. The orchestrator adds
   it to train 9. Nothing to do unless it comes back.
+- **mocap-sheets (for CT Core, ~22:25):** feature/mocap-sheets in C:/NightShift/Mobile-Coop-mocap-sheets (from
+  origin/feature/mocap-trial e90ddad3; scripts + docs only, CT Core merges it). New scripts/mocap-sheets.mjs: rows walk /
+  jog / run straight, 90 turn walk + jog, 180 walk, start, stop; side / front / 3/4; mocap=0 strip above mocap=1, plus
+  webm/gif (ffmpeg); docs/mocap-trial/sheets/ + index.md with the commit. First run on the placeholders (strips must be
+  identical), GPU lane 2 (heavy2.lock, 4192). Then message CT Core the sha; rerun when CT Core sends the clip commit.
+  On resume: git status in that worktree (uncommitted agent work), commit it, check whether heavy2.lock names
+  "Menu Notes Build | mocap-sheets" with no live process (stale: remove).
+- **sector-look (orchestrator, Waiting-on-Michael item 5):** feature/sector-look in C:/NightShift/Mobile-Coop-sector-look
+  (from master cb198a91; docs / shots only). GPU shots of s1-goods-in / s1-workshop (scripts/sector-lights-shots.mjs,
+  prefix `now`, docs/sector-fixes/l/look-4.58/) and NOTE.md: is the white strip-light fog cone a bug or intended (light
+  parity vs the light field)? heavy.lock "Menu Notes Build | sector-look", port 4189. On resume: same checks, commit,
+  PR (docs only), send the verdict to the orchestrator.
 - After n4d: ask the orchestrator for the next N4 rows (the n4c / n4d polish lists are in their STATE files).
 
 ## Update 2026-10-22 ~19:10 (after the clear)
