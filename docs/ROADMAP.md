@@ -23,7 +23,8 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 4. Before the campaign spec resumes (feature/campaign-spec 6ba3726e, STATE has the research): a rule clash, level-design
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
-## Decided (Michael, 2026-10-19 dashboard)
+## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Models (2026-10-22 ~11:15): offered Sonnet for the test runner and light reviewers to stretch the 5-hour window; Michael chose "Keep all Opus". Sessions pause at 97% until the reset instead.
 - anim-natural N0 answers (2026-10-22 ~10:40): sway cap "Lift to ~5 cm" (SWAY_MAX, CT Core N2). Draw speed: "Research what is believable and realistic. Can I fine tune the whole animation speed in anim tuner?" (Menu Notes N3: real-world draw times with sources set the defaults; a baked per-clip speed slider in the tuner; today it has only view slow motion and per-key timing). Test tier: "Yes, tuner/tests only": a PR that touches only the tuner / Anim Studio or tests merges on CI + the suites it touches, no full e2e (CLAUDE.md test tiers).
 - Weekly (2026-10-22 ~09:20): weekly at 61% rising ~5.5%/h; Michael chose "Full speed, swap account": keep going, and at weekly ~98% save everything and hand off to another account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
 - Cameras (2026-10-22 ~09:05): "Cameras should still work in the dark." Every security camera sees in the dark (IR), every map including Sector Ops; light still matters for guards and the meter.
