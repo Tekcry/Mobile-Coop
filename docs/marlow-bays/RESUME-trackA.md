@@ -72,8 +72,9 @@ work (full vitest, build, e2e, GPU) takes C:/NightShift/heavy.lock atomically
 the orchestrator's lock queue, deleted only if it still names you; the laptop ("Night Shift | Character Build") runs
 area suites and train e2e on request.
 
-Next (2026-10-22 ~21:50, account swap at 98%; resume when the orchestrator says so):
+Next (2026-10-22 ~22:05, account swap at 98% (~22:40); resume when the orchestrator says so):
 1. sector-fixes R: PR Tekcry/Mobile-Coop#144 at 8bc0f606, every touched suite green on the desktop GPU (PR body). Waiting for a train; act only on a failure.
 2. #119 (feature/anim-n4b): train 8 fix pushed at e957db2f (73f3d201 brace is not a hold + TeamPoser.jump on paused studio frames; 7068323f merge of master 4.58.1, master's keyed-walk wait kept; e957db2f the matching wait back to procedural). e2e-studio ok 37 s and e2e-anim ok 32 s on the desktop GPU (studio at e957db2f, anim at 6c0e162f). The orchestrator reruns e2e-studio in train 8. Act only on a failure.
-3. #128, #134: in trains; act only on a failure. Then ask the orchestrator for the next job.
+3. lamp-plugin-gap (backlog 30, the orchestrator's spare job): PR Tekcry/Mobile-Coop#145 at 3b34b7a3, `feature/lamp-plugin-gap`, `C:/NightShift/Mobile-Coop-lamp-plugin-gap`, patch. `BakedLamps` sets a flag from `onNewMaterialAddedObservable`, and `frame` re-attaches on the flag or a count change. New tests/lampPluginGap.test.ts fails on the old code. e2e-lightbake 26/26 on the desktop GPU (60 s). Waiting for a train; act only on a failure.
+4. #119 (train 8), #144 R (train 10), #128, #134: in trains; act only on a failure. Then ask the orchestrator for the next job.
 ```
