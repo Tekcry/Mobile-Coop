@@ -44,7 +44,7 @@ All three tasks built, tsc clean, eslint clean (changed files), the related test
 - A1 Recoil bigger than CT prototype G2's "< 0.5 deg" (PASS2 asked for a believable kick). Undo: Gun `recoilMul` 0, or
   `WREN_RECOIL_*` amounts to 0 (then `RECOIL` applies to guards only; to give Wren `RECOIL` again drop the
   `wrenReady` branch in animGraph's weapon layer).
-- A2 Wall block muzzle down, not CT's muzzle up (CT prototype G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3) (the job lead's spec). Undo: `WALL_BLOCK` tip sign and the old
+- A2 (ANSWERED, Michael "Muzzle down") Wall block muzzle down, not CT's muzzle up (CT prototype G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3) (the job lead's spec). Undo: `WALL_BLOCK` tip sign and the old
   `pitch` / `pull` values (git history of animGraph.ts, 4.53.0).
 - A3 Recoil is Wren only (brief: guards unchanged).
 
@@ -59,8 +59,8 @@ block after the `glideTwistMul` rule: `RECOIL_FILE`, `RECOIL_AMOUNTS`, two `reco
 `animMoveRows.test.ts`, `rig.test.ts`; docs CHANGELOG, `docs/systems/movement.md`, `docs/systems/combat.md`.
 
 ## Next / open
-- **Waiting on Michael (A2):** wall block muzzle DOWN vs CT's muzzle UP (CT prototype G6, AUDIT-WALLS row 12, 051917 @
-  10.9-12.3). CT is the authority (G1), so the PR asks him; undo is the old `WALL_BLOCK` values.
+- **A2 answered (Michael, 2026-10-22 ~16:20, via the orchestrator): "Muzzle down".** Kept; goes into DECISIONS at the merge
+  (wall block tips the muzzle down, replacing CT prototype G6 muzzle up).
 - GPU sheets on the desktop: `wall-block`, `fire-rifle`, `fire-pistol` before / after for Michael.
 - e2e: `e2e-anim`, `e2e-wall` / `e2e-stealth-ai` (wall aim), `e2e-coop` (partner recoil) on the laptop runner.
 - Polish list: pistol back kick is small (0.8 cm, the locked arms); the block release while walking back peaks at
