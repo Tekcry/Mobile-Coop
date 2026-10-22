@@ -31,13 +31,15 @@ can survive: kill its process tree (taskkill /T /F) and confirm.
 - **menus-tap-wait: PR #147** (feature/menus-tap-wait 99a6330f, C:/NightShift/Mobile-Coop-menus-tap-wait): e2e-menus touch
   pause / Resume taps wait for the screen (test only; the train 9 laptop failure). e2e-menus GPU PASS. The orchestrator adds
   it to train 9. Nothing to do unless it comes back.
-- **mocap-sheets (for CT Core, ~22:25):** feature/mocap-sheets in C:/NightShift/Mobile-Coop-mocap-sheets (from
-  origin/feature/mocap-trial e90ddad3; scripts + docs only, CT Core merges it). New scripts/mocap-sheets.mjs: rows walk /
-  jog / run straight, 90 turn walk + jog, 180 walk, start, stop; side / front / 3/4; mocap=0 strip above mocap=1, plus
-  webm/gif (ffmpeg); docs/mocap-trial/sheets/ + index.md with the commit. First run on the placeholders (strips must be
-  identical), GPU lane 2 (heavy2.lock, 4192). Then message CT Core the sha; rerun when CT Core sends the clip commit.
-  On resume: git status in that worktree (uncommitted agent work), commit it, check whether heavy2.lock names
-  "Menu Notes Build | mocap-sheets" with no live process (stale: remove).
+- **mocap-sheets (for CT Core): SECOND next step.** feature/mocap-sheets 79005dfd (pushed; worktree
+  C:/NightShift/Mobile-Coop-mocap-sheets; from origin/feature/mocap-trial e90ddad3; scripts + docs only, CT Core merges
+  it). scripts/mocap-sheets.mjs works; the placeholder proof ran on e90ddad3 (docs/mocap-trial/sheets/, index.md; the
+  capture-vs-limit notes are in). Proof result: walk / jog / run / turns near identical (<= 5 px over 8), but start (330
+  px) and stop (1718 px) differ between mocap=0 and mocap=1 on placeholders: find why first (non-determinism in the
+  event rows, or the placeholder slots were not identical). Then merge origin/feature/mocap-trial (CT Core's real CMU
+  clips: a05bdde7 or newer; ask CT Core for its current head), rerun all rows on GPU lane 2 (heavy2.lock, 4192,
+  CPU < 50%), commit, push, message CT Core the sha and the sheet paths. No detached runs: the agent was stopped at the
+  save, its processes killed, heavy2.lock released.
 - **sector-look: PR #152** (feature/sector-look e02e5edb, docs + script switch): the strip-light fog cones are a
   render-only bug (src/vfx/postStack.ts:475 `lamp = !l.cone`); fix proposed in docs/sector-fixes/l/look-4.58/NOTE.md, not
   applied. Asked the orchestrator whether to build the fix as its own PR (render only, GPU before / after).
