@@ -17,6 +17,18 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   the orchestrator (runs/train15-*/summary.txt + full.log). Stress pass 1 (loadstress1-0067b5f5) was GREEN: 9 suites at
   JOBS=5 + burner, CPU avg 52%, every fixed check passed (crash report, coop grab, move 2.88 m/s, mouse look, ctcourse
   lamp / laser windows).
+- LOAD-AUDIT REVIEW (orchestrator, on 0067b5f5) - must be done before the PR:
+  (1) BLOCKING e2e-move sidePace: no wall cap -> FIXED 887c7d4d (30 s real-time cap resolving 0 m/s).
+  (4) e2e-desktop: assert the crash wait (null on timeout was unchecked) -> FIXED 887c7d4d.
+  (5) fragment covers only the nav-timeout commits -> FIXED 887c7d4d (all fixes listed).
+  (2) BLOCKING e2e-ctcourse station 4 (~466-472) and station 3 (~288-292): the windows shrink to min(nominal, left - 0.3 s)
+      with floors 500 / 200 ms = a weaker check. Keep the original 2000 / 800 ms windows on the host clock; if too little
+      jam time is left, RE-JAM before measuring. An agent was on it at the save; check git log on feature/load-audit for
+      its commit, else do it.
+  (3) RECOMMENDED e2e-coop grab (~625-655): allowTeleport(2) once before moveClient (not every host frame), only the
+      awareness reset + statue per frame; a generation token for the rAF pin chain; clear the pin in finally. Same agent.
+  After (2)/(3): rerun the stress set on the new head (the remaining stress steps of ns-chain-1022ap run on 0067b5f5,
+  so they do NOT cover these fixes), then open the PR.
 - LOAD-AUDIT branch (worktree C:/NightShift/Mobile-Coop-load-audit), 7 commits on master af56ab43:
   4da742ce / 777a056e / 2746f123 (context-level 120 s navigation default, smoke's own context, 60 s menu waits on the
   crash-log page; fresh checker PASS WITH NOTES, applied), 7d4dbc5f (crash step waits for the 'crash' event and closes
