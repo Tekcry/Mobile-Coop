@@ -19,7 +19,12 @@ v4.53.0 (train 2 #112 = #105 + #109, 5220f79c, ~13:05). 4.52.0 (train 1 #111 = #
   push, STATE) at 98%, and are stopped by 99%. A recurring cron (17, 37, 57 past) checks it in this session; recreate it after a clear.
 - Weekly: "Full speed, swap account" (09:20): at weekly ~98% pause everything at clean commits, save, and hand off with
   docs/orchestrator/HANDOFF.md (prompts one at a time). Weekly 65% at 10:02 (pace slowed to ~3%/h with one agent per session).
-- Pace now: one agent per session (since 09:45). 12:25: 5-hour 82% rising ~0.5%/min: flake-fix agent paused, desktop
+- Full burn (Michael 2026-10-22 ~13:30, new account): "using this account, i want to use all available weekly tokens
+  before the reset. make sure each 5 hour token window hits 99%". Weekly resets 2026-10-24 15:00 Sydney. Every session
+  runs full speed: parallel agents where the work splits, spare jobs pulled in when idle (sector-fixes, N0 pass 2, N2).
+  The 97 / 98 / 99% thresholds stay; the cron resumes every paused session after each 5-hour reset (day and night).
+  At weekly ~98%: save and hand off (HANDOFF.md) as before.
+- Pace before 13:30 (history): one agent per session (since 09:45). 12:25: 5-hour 82% rising ~0.5%/min: flake-fix agent paused, desktop
   leads start no new agent and pause at 97% or their current agent's end; a one-shot cron at 14:13 resumes everyone.
 - Overnight: never leave a question dialog open (it blocks the turn and the cron); log assumed decisions instead.
 - Context: sessions over ~60% get cleared at clean points (Michael approved 09:30): save STATE, clear, send resume.
