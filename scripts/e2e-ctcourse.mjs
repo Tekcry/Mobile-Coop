@@ -386,8 +386,8 @@ async function securityRoom(x0) {
   await until(B, (f) => window.__course.wire.s.flags.includes(f), FLAG, 8000, 'security room: the client has the flag');
   await until(A, () => window.__ctdev.debug().cams[0].mode === 'off', null, 8000, 'security room: the camera is off (host)');
   await until(B, () => window.__ctdev.debug().cams[0].mode === 'off', null, 8000, 'security room: the camera is off (client)');
-  // the cue fades out over `CUE.fadeOut` (0.35 s): wait past it, then it must be hidden on both pages
-  await sleep(600);
+  // the cue fades out over `CUE.fadeOut` (0.35 s), then it must be hidden on both pages. (test-speed-2) No fixed 0.6 s
+  // first: `cueHidden` needs alpha 0 and not shown, which holds only once the fade is over (3 s each, as before)
   await until(A, cueHidden, null, 3000, 'security room: the camera cue is hidden (host)');
   await until(B, cueHidden, null, 3000, 'security room: the camera cue is hidden (client)');
   await until(B, () => /Cameras off/.test(window.__course.wire.rl ?? ''), null, 15000, "security room: LANTERN's line reaches the client");
