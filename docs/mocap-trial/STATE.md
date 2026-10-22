@@ -1,5 +1,13 @@
 # mocap-trial - state
 
+## 2026-10-22 ~22:35: real CMU clips in (a05bdde7); six GPU suites running
+- Integration done: subject 16 walk / jog / run, walk turns 16_18 / 16_19, start 16_31, stop 16_34, turn in place 69_13;
+  MOCAP_LAYERS tuned (the capture's own arms, twist, lean, follow); headless slide 0, stride 1.000; mocapSwitch 12 / 12.
+  Open (REPORT to write): walk bob 5.5-6.6 cm (bible D2 4 cm), walk knee-out at the 3.5 limit, run arms 24 vs 85 cm.
+- Desktop GPU suites (switch off) started 22:16, detached: /c/NightShift/mt-e2e.out + mt-e2e.log (anim, clip, move,
+  studio, coop, netmove). Menu Notes runs the side-by-side on a05bdde7 (feature/mocap-sheets).
+- Next: suites pass -> fresh checker -> PR (minor, suites listed, sheets linked) -> orchestrator; then the gap takes.
+
 ## 2026-10-22 ~22:25: gap takes downloaded (standing OK), not yet in SOURCES.md
 - `.mocap-cache/`: 104.asf + 104_06, 104_08 (StartJog), 104_53, 104_54, 104_55 (StartRun), 104_09, 104_10 (JogStop);
   69_16, 69_17, 69_18 (turn in place); 127.asf + 127_15, 127_16 (Run Turn L / R); 143.asf + 143_03 (Start to Run);
