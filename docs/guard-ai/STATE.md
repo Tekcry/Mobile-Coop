@@ -1,6 +1,16 @@
 # Guard AI - state
 
 ## Now
+(~08:40, account swap 2) #185 S2: master 4.68.0 merged (a0554459; conflict stealthSystems.shootLight = S2's
+`lightsOut(x, z, y, id)` before the noise + master's `return true`); no wire change, so no protocol (registry: master
+31, guard-ai 32 if S9 needs it, marlow-final 33); CI running, then train 20 with #186. S3: the integration agent had
+finished its code (no S3.md): committed as eb1f71de (tsc, lint, 92 unit tests green), feature/guard-ai merged with
+origin/feature/guard-ai-s2 (98cf4552; conflict sectors.ts = our noisy / entries + master's perStage comment; 214 AI /
+sector unit tests green), pushed. Fresh S3 checker RUNNING (writes slices/S3-CHECK.md); e2e requested from
+Character Build [06fe56] on 98cf4552 (E2E_GPU=1: e2e-stealth-ai, e2e-sectorops, e2e-ct-warehouse, e2e-stealth,
+e2e-ctcourse). S3 PR after both: its own PR from feature/guard-ai (carries S2 until #185 merges).
+
+Older (history):
 PAUSED at the orchestrator's TRIM 4 (usage pace) until it messages (~04:00). S2 incident board built (slices/S2.md,
 check green), e2e queued on the laptop; its fresh checker NOT run yet. S1 is PR #179 (feature/guard-ai-s1 5e019d9c,
 train 17).
