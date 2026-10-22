@@ -1222,3 +1222,172 @@ himself as needed, and the animation system and its tools come first. (The prior
 JSON, wider ranges (double-range toggle, typed values), a bake script (export into code defaults), a bypass button
 (hold for the untuned animation), slow motion 0.1-1x in normal play, slider search, and per-limb targeting strength
 (hand / foot IK weight). Copy state to state is not wanted.
+
+**G229. Three animation tracks at once.** Michael (2026-10-21 16:10; paraphrased): three animation tracks run in
+parallel (A tuner tools in Course Ready, B joint bake in CT Core, C skeleton in Menu Notes; docs/marlow-bays/BRIEF.md
+"Tracks"); bays B + M run in a cloud session; the jammer / hallway slice J comes later.
+
+**G230. The desktop is the main test machine.** Michael (2026-10-21 16:40): "i dont care about usage on the desktop, i
+use the laptop." The desktop runs full e2e at full power (E2E_JOBS=2); the laptop is overflow only (CLAUDE.md
+"Machines"). (Replaced by G259's laptop main.)
+
+**G231. The laptop is a full second test slot.** Michael (2026-10-21 ~17:45): "I'm not on the laptop any more, it can
+be loaded up." Until Michael says otherwise the laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job
+lead's run when free).
+
+**G232. Phone layout for the tuner only.** Michael (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for
+phones only? Touch input and controller will be used." He chose "Yes, tuner only": the animation tuner and Anim Studio
+get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/marlow-bays/BRIEF.md item 26).
+
+**G233. Focus on animations, gameplay and the bunker.** Michael (2026-10-21 ~19:20): "We'll focus on fine tuning the
+animations, gameplay, and bunker for now." Dev tools and the level editor move to Later.
+
+**G234. A prototype server browser on spare capacity.** Michael (2026-10-21 ~19:50): "Yes add it to the pipeline. It
+can proceed as low priority whenever there is spare capacity. Must be prototype only, quick and fast to build." Public /
+Private rooms listed through the existing Nostr relays; no quick match, no TURN, no server (docs/marlow-bays/BRIEF.md
+item 28, Bays Cloud after rejoin).
+
+**G235. Never hit the 5-hour limit; trim to animation.** Michael (2026-10-21 ~20:05): "I don't care about weekly, just
+don't hit 5 hour. Trim to animation until 5 hour reset clears, or there's spare headroom around 80%". At ~60% of the
+5-hour window slice J and the cloud (R / S) pause and the animation tracks run lean (one agent at a time); at ~85% the
+tracks pause too; everything resumes after the reset or when the window has headroom (under ~80% projected).
+(Thresholds refined by G236.)
+
+**G236. Animation runs until 98% of the 5-hour window.** Michael (2026-10-21 ~20:25): "Dont stop animation until 98% 5
+hour, then pause them". The animation tracks run normally until the 5-hour window reaches 98%, then pause at a clean
+commit; slice J and the cloud stay paused until the reset or headroom. (Refines G235.)
+
+**G237. Overnight: use the window up to 99%; proceed and review in the morning.** Michael (2026-10-21 ~23:00): "Ignore
+the usage rule for this 5 hour session... The next 5 hour session I will be going to sleep, so monitor 5 hourly usage
+and reduce token usage when needed to keep the session running up until 99%. I'd rather usage as much as possible
+without hitting the limit". Overnight approvals: "Proceed, review AM" (steps waiting on his OK build on best judgement;
+screenshots kept for the morning). The orchestrator projects the window and trims in order Bays Cloud, slice J, then
+lean tracks; sessions self-pause at 97% before starting an agent; all are paused by 99%.
+
+**G238. Sector Ops fixes on spare capacity.** Michael (2026-10-22 ~01:40): his list (warehouse lights, LED fittings,
+camera range and pitch, a subtle grid, lasers in one vision mode and alarm-only, laser power panels, a security room,
+wheel default goggles, more co-op routes); "Priority is still animations right now but any spare capacity can be used as
+you see fit." Job sector-fixes (docs/sector-fixes/BRIEF.md), spare capacity.
+
+**G239. A full natural pass over every animation.** Michael (2026-10-22 ~09:00): "All movements must move naturally with
+twisting/swaying/balancing hands... The feet also need to get fixed... I want you to do a full pass over all animations
+and I will fine tune. Pulling any weapons out also should be believable, and there's a random stop animation when
+taking out the weapons". Job anim-natural (docs/anim-natural/BRIEF.md): N0 audit, N1 feet and N2 body motion (CT Core),
+N3 weapons (Menu Notes), N4 the rest. Top priority.
+
+**G240. Cameras see in the dark.** Michael (2026-10-22 ~09:05): "Cameras should still work in the dark." Every security
+camera sees in the dark (IR) on every map, Sector Ops included; light still matters for guards and the meter.
+
+**G241. Full speed on the weekly; swap accounts at ~98%.** Michael (2026-10-22 ~09:20; weekly at 61%, rising ~5.5%/h):
+chose "Full speed, swap account": work keeps going, and at weekly ~98% everything is saved and handed off to another
+account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
+
+**G242. Sway cap lifted to ~5 cm.** Michael (2026-10-22 ~10:40, anim-natural N0 answers): "Lift to ~5 cm" (SWAY_MAX,
+CT Core N2).
+
+**G243. Draw speeds from real-world research; a per-clip speed slider.** Michael (2026-10-22 ~10:40, N0 answers):
+"Research what is believable and realistic. Can I fine tune the whole animation speed in anim tuner?" Real-world draw
+times with sources set the defaults; the tuner gains a baked per-clip speed slider (it had only view slow motion and
+per-key timing) (Menu Notes N3).
+
+**G244. Tuner and test-only PRs skip the full e2e.** Michael (2026-10-22 ~10:40, N0 answers): "Yes, tuner/tests only".
+A PR that touches only the tuner / Anim Studio or tests merges on CI plus the suites it touches, no full e2e (CLAUDE.md
+test tiers).
+
+**G245. All sessions stay on Opus.** Michael (2026-10-22 ~11:15; offered Sonnet for the test runner and light reviewers
+to stretch the 5-hour window): chose "Keep all Opus". Sessions pause at 97% until the reset instead.
+
+**G246. Merge trains: batch when two or more are ready.** Michael (2026-10-22 ~11:25; asked whether to batch updates
+into larger ones tested once): chose "Batch when 2+ ready" (CLAUDE.md test tiers, STATE "Merge procedure").
+
+**G247. A train merges as one PR with one version.** Michael (2026-10-22 ~11:40): chose "One PR per batch". (Refines
+G246.)
+
+**G248. Fix the load-flaky tests.** Michael (2026-10-22 ~11:40): chose "Fix load-flaky tests". Job flake-fix
+(Character Build; test-only tier): e2e-stealth-ai peek head, e2e-netmove client assists, e2e-mouse capture,
+e2e-ctcourse station 4.
+
+**G249. Full burn of the weekly tokens.** Michael (2026-10-22 ~13:30, new account): "using this account, i want to use
+all available weekly tokens before the reset. make sure each 5 hour token window hits 99%". All sessions run at full
+speed with parallel agents; the orchestrator resumes them after every 5-hour reset; the 97 / 98 / 99% thresholds stay
+(STATE "Pacing").
+
+**G250. The run twist is fixed only if it reads more natural.** Michael (2026-10-22 ~13:55; CT Core N2 A1: key 0 pelvis
+yaw 25.5 vs ~10 at the other keys, a ~21 deg snap twice a stride): "Only fix it if it will result in a more believable,
+realistic, less rigid run". CT Core applies it on a branch and keeps it only if the before / after sheet reads more
+natural.
+
+**G251. Unused slide and doorway-sweep clips deleted.** Michael (2026-10-22 ~14:05, N0 pass 2: slide (pose.slide) and
+doorway sweep (pose.check) have no trigger and are not CT moves): chose "Delete them" (Menu Notes).
+
+**G252. The idle track is clamped only to clearance.** Michael (2026-10-22 ~14:35; #103's baked idle trackMul 0.05
+overlaps the shins ~1.2 cm in anim-audit): "Widen just enough. They didn't clip when I viewed it though". CT Core
+clamps the idle track only to clearance.
+
+**G253. Campaign maps are co-op only.** Michael (2026-10-22 ~14:45; solo first vs co-op only): chose "Co-op only".
+level-design section 11's solo rules do not bind campaign maps (open item 1 there).
+
+**G254. As many guards as allowed; suggest ways past the cap.** Michael (2026-10-22 ~14:45; story 16 guards vs
+SQUAD_CAP 9): "Maximum amount of guards allowable. If there are ways to increase this cap (for example moving to webgpu)
+then let me know and make suggestions."
+
+**G255. The campaign spec waits.** Michael (2026-10-22 ~14:45): "Ignore campaign spec until Marlow yard and sector ops
+warehouse are fully completed".
+
+**G256. Wall block tips the muzzle down.** Michael (2026-10-22 ~16:20, N3b A2, #122): chose "Muzzle down": the gun tips
+muzzle-down about the butt. (Replaces the CT muzzle-up of CT Core audit slice G6, walls and doors.)
+
+**G257. Body recoil above CT's 0.5 deg stays.** Michael (2026-10-22 ~16:25, N3b A1): "Keep it" (rifle grip 2.8 cm,
+chest 1.5 deg; Gun tuner recoilMul).
+
+**G258. Prune merged branches; #67 closed.** Michael (2026-10-22 ~16:25): prune: "Delete merged ones" (merged branches
+and clean worktrees; dirty or in-use ones kept). #67 S2b walk: "Close it" (superseded by the tuner bakes, N1, N2).
+
+**G259. The laptop is the main test machine, on its GPU.** Michael (2026-10-22 ~17:50; the laptop's CPU / GPU are far
+stronger): chose "Laptop main" and "Yes, laptop GPU" (CLAUDE.md "Main test machine"). (Replaces G230.)
+
+**G260. Rule review: the orchestrator's picks.** Michael (2026-10-22 ~18:00): chose "Your picks": (1) checker-passed
+PRs go straight into trains, src/net / protocol / save PRs keep their area suites; (2) a docs / CHANGELOG / fragments /
+test-script delta keeps a test result; (3) the laptop runs two queues (4191, 4192); (4) test-speed round 2 (full run
+~27 -> ~15 min); (5) changelog fragments per PR, assembled at the version step; (6) one merge-train script that merges
+only on a passing check; (8) refresh the stale roadmap and dashboard. (7) the lock queue file was skipped. Michael also:
+"if the desktop is a problem, why haven't you mentioned it? ... you should take initiative to identify bottlenecks and
+make recommendations to increase the speed and quality of the results."
+
+**G261. Laptop: finish train 7, then the job area suites.** Michael (2026-10-22 ~19:30 / ~19:45; the laptop was slow
+while he used it): "Finish train 7 only"; asked whether it may then run the job area suites, chose "Yes, queue them"
+(P, R, N2 one at a time). Other laptop experiments stay off until he frees it.
+
+**G262. Elbow strike: a faster arm.** Michael (2026-10-22 ~20:05, Menu Notes N4c: knockout at STRIKE.hitAt 0.08 s, arm
+contact ~0.38 s): chose "Faster arm": the knockout timing stays and the strike animation reaches contact then.
+
+**G263. GPU for any test that benefits; question the rules.** Michael (2026-10-22 ~20:30): "use gpu on any tests that
+would benefit" (CLAUDE.md "GPU for logic e2e"). "Make sure you question rules and ask me if needed, you should be
+picking up these things earlier".
+
+**G264. Mocap trial with CMU locomotion, behind a toggle.** Michael (2026-10-22 ~20:45, after walking 4.58.0; walk / jog
+/ run, turns and starts / stops, and weapons look broken): "everything else doesn't look convincing". On free mocap:
+"Are there free mocap animations available? I don't want to record anything, and I don't want to impact releasing game
+in future commercially"; then "Trial and cmu animations first. I want to be able to roll back if they aren't good." Job
+mocap-trial (CT Core, top priority): CMU mocap only (free incl. commercial; an approved exception to the "no external
+art" hard rule for CMU mocap), raw BVH kept out of the public repo, locomotion retargeted onto Wren behind a toggle
+(default off), a side-by-side proof for Michael. Weapons stay hand-keyed for now; Mixamo only if he asks later.
+
+**G265. Vent kick: the pad matches the keyboard.** Michael (2026-10-22 ~21:00, T1 feature/vent-kick; the pad's Y then a
+late A also kicked, 33 ms): chose "Yes, match keyboard": holding Y does not kick, the hold carries into A, a Y tap still
+kicks.
+
+**G266. Warehouse redesign after Marlow Yard; all loosenings approved.** Michael (2026-10-22 ~21:20): warehouse-redesign
+restarts "After Marlow Yard" (finished and walked); its 15 level-standard loosenings L1-L15
+(docs/warehouse-redesign/SPEC.md on feature/warehouse-redesign): "Approve all". (Restarts the rebuild G224 parked.)
+
+**G267. R section 2 gets another co-op route.** Michael (2026-10-22 ~21:20; one co-op route left after two proved
+solo-reachable): "Add another", before R merges.
+
+**G268. More CMU takes without asking.** Michael (2026-10-22 ~21:40; more takes for the mocap trial: starts, run turns,
+on-the-spot turns): "Yes, CMU only"; no asking per download. (Extends G264.)
+
+**G269. Laptop trial: three browsers on the GPU plus a second slot.** Michael (2026-10-22 ~21:50; laptop GPU full run:
+CPU avg 35%, GPU 3D avg 9%, RAM free min 7.6 GB of 31.7): "trial 3 browsers + 2nd slot. monitor performance and ensure
+it doesnt affect eachother". Laptop full runs at E2E_JOBS=3 on the GPU plus a second single-suite GPU slot; kept only if
+suite times hold (within ~15%), no new load failures, and CPU stays under ~90% outside spikes.
