@@ -1,6 +1,15 @@
 # anim-bake-all - state
 
-## Now (2026-10-22 ~15:20)
+## Now (2026-10-22 ~17:00): train 6
+- Laptop on cba9e371: all 12 suites PASS (16:28; in the PR body). CI check green on 6f87bf8d.
+- Out of train 5 (orchestrator 16:50): #118 (anim-n3) conflicts in src/anim/tuneRegistry.ts. Trial merge of
+  origin/feature/anim-n3 (7c7c5884): the only src conflict is the tuneRows import line (keep `ANIM_BASE` and N3's
+  `aliasTuneChanged, aliasTuneValues, ...` list); N3's alias calls in tuneLoad / tuneImport sit inside the blocks that
+  already end in `effAll(sec)`, so eff follows. CHANGELOG: keep both Unreleased headings.
+- Next: after train 5 lands, merge master, resolve as above, run tuneRegistry / tuneBake / tuneBakeTable / tuneRows /
+  the coverage test files + tsc, then its area suites (e2e-anim, e2e-studio) on the new head; train 6.
+
+## Before (2026-10-22 ~15:20)
 Merged master 4.54.1 (origin/master 6c2d50a4: 4.54.0 train 3 #103 + #113, and the #117 flake fix) at df512ab5.
 Conflicts: CHANGELOG (Unreleased - anim-bake-all kept on top, #103's entries now under 4.54.0) and
 `scripts/anim-tune-bake.mjs` (kept the catalogue-derived section list; cq arrives via cqGait.ts). `cq` (holds and
