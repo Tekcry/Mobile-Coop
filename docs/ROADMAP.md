@@ -14,7 +14,7 @@ runs only on spare capacity and yields the desktop lock whenever CT Core needs i
 
 Priority (Michael, 2026-10-20 10:30): "movement and animations are the top priority". CT Core (G8 keyframed clips, then movement gaps) has first claim on the desktop lock, the laptop runner and the orchestrator's reviews; everything else fits around it.
 
-Last updated: 2026-10-22 18:30 Sydney (account switched 13:10; master 4.56.0).
+Last updated: 2026-10-22 19:25 Sydney (account swap at 19:25; master 4.57.0).
 
 ## Waiting on Michael
 1. Walk 4.56.0+ on /preview/ (menus, the version label): weapon draws / holsters (LT mid-holster gun-through-trunk known), security room in bay 3, wheel opens on goggles; then the full anim tune once train 6 + N1 / N2 land.
@@ -181,6 +181,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-22 | #133 | 4.57.0: train 6: Wren body recoil and wall block without the stall (#122), every tuner slider bakes (#123), Sector Ops cameras, lasers in night vision, alarm-only lasers (#127) and lights (#129), deterministic heap tests (#128), changelog fragments and the merge-train script (#131) |
 | 2026-10-22 | #130 | 4.56.0: train 5: believable weapon draws, holsters and swaps (#118, anim-natural N3), idle stance clears the shins (#120), co-op local channel closed guard (#125), e2e-pad wheel wait (#126) |
 | 2026-10-22 | #124 | 4.55.1: tests: guardInfo admits the station 3 security guard (master CI green again) |
 | 2026-10-22 | #121 | 4.55.0: train 4: Marlow Yard security room (#115), wheel opens on goggles (#116), run feet no longer cross (#110) |

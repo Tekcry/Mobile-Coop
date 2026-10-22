@@ -5,19 +5,16 @@ is reached on the other account". So: work moves to the other account now; when 
 ~98%, everything saves and moves back here (this account's window is fresh after 21:10). Repeat as long as it pays.
 Earlier handoffs (2026-10-21, 2026-10-22 13:10) are in git history.
 
-## State at the switch (2026-10-22 ~19:20)
-Master v4.56.0 (#130). Train 6 (train/6 54b92b62, version commit 4.57.0) passed the laptop full run; merge-train.mjs was
-waiting on CI run 39744259308 when the old session stopped. Check first: `gh pr list --head train/6 --state all`.
-- Merged: tag v4.57.0 and dev should exist (`git ls-remote origin refs/tags/v4.57.0 dev`); if not, tag the merge commit and push it to dev.
-- Open and CI green on 54b92b62: `gh pr merge <n> --merge`, then tag v4.57.0 and push the merge to dev (separate commands).
-- CI red: read the failure; nothing is merged.
-Then: ROADMAP Done row for 4.57.0, STATE Master line.
+## State at the switch (2026-10-22 ~19:25)
+Master v4.57.0 (train 6 #133 = #122 + #123 + #127 + #128 + #129 + #131 + orchestrator docs, merge 703b5063; tag v4.57.0;
+/preview/ = dev = 703b5063). Member PRs whose heads moved after train/6 may still show open: close each with a comment
+naming #133 if its head is not in master (`gh pr view <n> --json state`).
 
-Train 7 (build right after train 6 merges, from C:/NightShift/Mobile-Coop-phone-native):
-`node C:/NightShift/Mobile-Coop-merge-tools/scripts/merge-train.mjs build 7 feature/anim-n4b feature/anim-natural feature/studio-pairs` (+ feature/anim-natural-n1 if its PR is open).
-Members: #119 (aee3fd34), #132 N0 leftovers (docs + scripts), #134 studio-pairs (c30d3391). Pushing train/7 is enough:
-the laptop's unattended chain (C:/NightShift/scratch/chain-1022n.ps1) polls origin/train/7 until ~20:10 and runs its
-full e2e first; results land in C:/NightShift/scratch/runs/<label>. If the poll window has passed, ask Character Build to start it.
+Train 7 = train/7 9ff4542d (#132 N0 leftovers, #134 studio-pairs), pushed 19:25: the laptop's unattended chain picks it
+up and runs its full e2e first (results in C:/NightShift/scratch/runs/<label>). On a pass, from C:/NightShift/Mobile-Coop-phone-native:
+`node C:/NightShift/Mobile-Coop-merge-tools/scripts/merge-train.mjs release 7 4.58.0 "Anim Studio co-op pairs, animation audit scripts"`
+(--dry-run first). #119 N4b was LEFT OUT: src conflicts with 4.57.0 in src/anim/animGraph.ts and src/player/player.ts;
+Course Ready merges master into feature/anim-n4b, then train 8 with N1, N2, sector-fixes R and P.
 
 Open work (each job's own resume file has the detail):
 - CT Core: N1 (feature/anim-natural-n1 1135bc41, fresh checker was running, no laptop pre-run needed: PR -> train 7 or 8);
@@ -61,7 +58,7 @@ Night Shift | Menu Notes Build (account swap). Read CLAUDE.md and docs/ROADMAP.m
 
 ### 4. Course Ready Build
 ```
-Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (git fetch; git show origin/feature/marlow-bays:docs/marlow-bays/RESUME-trackA.md). Current job: sector-fixes R (C:/NightShift/Mobile-Coop-sector-fixes-r, uncommitted e2e WIP there). Message "Night Shift | Orchestrator" at each slice and PR.
+Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (git fetch; git show origin/feature/marlow-bays:docs/marlow-bays/RESUME-trackA.md). Current job: sector-fixes R (C:/NightShift/Mobile-Coop-sector-fixes-r, uncommitted e2e WIP there). A C:/NightShift/heavy.lock naming Course Ready with no node process running is stale; delete it. Message "Night Shift | Orchestrator" at each slice and PR.
 ```
 
 ### 5. Character Build (laptop)
