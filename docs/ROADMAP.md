@@ -24,6 +24,7 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
    section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Run twist (2026-10-22 ~13:55, CT Core N2 A1: key 0 pelvis yaw 25.5 vs ~10 at his other keys, a ~21 deg snap twice a stride): "Only fix it if it will result in a more believable, realistic, less rigid run". CT Core applies it on a branch and keeps it only if the before / after sheet reads more natural.
 - Full burn (2026-10-22 ~13:30, new account): "using this account, i want to use all available weekly tokens before the reset. make sure each 5 hour token window hits 99%". All sessions full speed with parallel agents; the orchestrator resumes them after every 5-hour reset; 97 / 98 / 99% thresholds kept (STATE "Pacing").
 - Speed-ups (2026-10-22 ~11:40): chose "One PR per batch" (a train merges as one PR with one version) and "Fix load-flaky tests" (job flake-fix, Character Build: e2e-stealth-ai peek head, e2e-netmove client assists, e2e-mouse capture, e2e-ctcourse station 4; test-only tier).
 - Batching (2026-10-22 ~11:25): asked whether to batch updates into larger ones tested once; chose "Batch when 2+ ready": merge trains (CLAUDE.md test tiers, STATE "Merge procedure").
