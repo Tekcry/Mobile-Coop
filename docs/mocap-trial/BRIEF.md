@@ -30,6 +30,13 @@ with Michael in the CT Core session before any download (see STATE).
 not resell this data directly, even in converted form." The site asks not to be crawled: only the named takes are
 fetched, one at a time.
 
+## Michael's answers
+- M1 (2026-10-22 ~22:55, after the side-by-side sheets and videos on 82f43716, feature/mocap-sheets-real 04598e9a;
+  relayed by the orchestrator): "Mocap, as captured". The capture stays as recorded and is not bent to the old limits
+  (walk pelvis bob 5.5-6.6 vs bible D2 4 cm, knee-out 3.5 cm, run wrist swing 24 vs his 85 cm tune): those are notes,
+  not fails (ROADMAP Decided; replaces A4's "until Michael decides"). Pops (walk-turn pelvis, start toe) and any foot
+  slide are still fixed. The bible D2 line is updated at the merge.
+
 ## Assumed decisions
 - A1: ASF/AMC from the official site (not the third-party BVH conversions); an in-repo Blender-headless importer.
   Undo: use the BVH conversions.
