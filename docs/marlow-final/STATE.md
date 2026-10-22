@@ -56,6 +56,21 @@ Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 sta
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
 
 ## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- ~09:25 (window ~65%+, 100% near ~09:30). Done this window: master 4.68.0 merged (42af9795, protocol 33); A3 + A4
+  check (S34-check.md) and A5-A7 check (S567-check.md): A5, A6 PASS; A3, A4, A7 fixed by the job lead (45458bbc:
+  cameras to the 14 m cap, claim zones hold ROLE_HOLD 2 s after a bay restart, A3 relay waits out the send-back hold, A4
+  e2e camera filter + passage door + host L4 check); shared requests folded (c23d8314, S-shared-fold.md). Character
+  Build on 9876f439: :1 PASS, :2 / :3 / :4 FAIL (the three findings fixed in 45458bbc); rerun of ctcourse :1-:4, coop,
+  netmove, course on 45458bbc queued after train 20 (verdict pending). IN FLIGHT (uncommitted in the working tree if
+  cut off): A8 greybox (Sonnet, slices/S8.md), dressing A3-A7 (Sonnet x5, Dressing sections in S3-S7.md; brief in the
+  session scratchpad dress-brief.md, same text as the A1 / A2 dressing step + checker polish). The A7 dresser was told
+  to change tests/ctcourse/a7DataHall.test.ts ~547 to `toBe(circuitOf(70)!.lamps)` (group 70 is 7 lamps now).
+  ON RESUME: `git status`; for each set file with uncommitted work read its S<n>.md Dressing / S8.md; if the section is
+  missing or says unfinished, rerun that agent (Sonnet) telling it to continue from the working tree; then light checks
+  (tsc + `npx vitest run tests/ctcourse/ tests/ctcourse.test.ts tests/ctcourseLight.test.ts`), commit, push, send
+  Character Build the commit. Then: Opus checker on A8 greybox, Opus checkers on the A3-A7 dressing (two agents: A3-A4,
+  A5-A7), A8 dressing (Sonnet), GPU shots + perf per set (Character Build; scripts/guard-cap.mjs measures Marlow), the
+  facility GPU perf pass (Opus), slice 9, PR.
 - ~08:40 (clock; account swap, new window 2%, resets ~13:30 Sydney). Resumed by a fresh session. A1-A2 built,
   dressed, checked; A3-A7 greybox committed, unchecked; A8 stub. Running (3 agents, lean windows): (1) master 4.68.0
   merge in the side worktree C:/NightShift/Mobile-Coop-marlow-final-merge, branch merge/marlow-final-master (Opus;
@@ -333,13 +348,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md and docs/ROADMAP.md (Decided:
-Michael's marlow-final words, "Overnight" ~01:42, "Lean windows" ~01:45), then in C:/NightShift/Mobile-Coop-marlow-final
-(git fetch; branch feature/marlow-final) docs/marlow-final/BRIEF.md, STATE.md (MORNING-REVIEW, Now, Pacing), PLAN.md.
-Slice 0 is complete and green; A1 and A2 are built, dressed and checked (their e2e-ctcourse:1 runs on the desktop via the
-scratchpad script mf-e2e1.sh in the clean run worktree); A3 and A4 greyboxes in flight (slices/S3.md, S4.md). Loop per set (PLAN slices 3-8):
-Sonnet builds greybox + lights + guards + e2e from a strict brief (copy the A1 / A2 briefs' shape: owned files, set
-doc, S1 as the worked example, the e2e lessons), a fresh Opus checker, laptop e2e (E2E_GPU=1, Character Build), then
-Sonnet dressing. Lean: 1 agent, 97 / 98 / 99% rule; message the orchestrator only at slice ends, PRs or blockers.
-Before the PR: the facility GPU perf pass (STATE 03:45 PERF), slice 9 docs, then the PR to master for the next train.
+Night Shift | Menu Notes Build: resume marlow-final (Marlow Yard redesign). Read CLAUDE.md and docs/ROADMAP.md on origin/feature/menu (Decided: marlow-final M1-M6, "Overnight" ~01:42, "Lean windows" ~01:45, Michael 09:00 "Aim to hit the cap ASAP, but be efficient"), then in C:/NightShift/Mobile-Coop-marlow-final (git fetch; branch feature/marlow-final) docs/marlow-final/BRIEF.md, STATE.md (MORNING-REVIEW, the newest Now entry: its ON RESUME list), PLAN.md.
+State: master 4.68.0 merged (protocol 33); A1-A2 built, dressed, checked; A3-A7 greybox checked and fixed, dressing in flight or done (S3-S7.md Dressing); A8 greybox in flight (S8.md). Loop: Sonnet builds / dresses from strict briefs, Opus checks (one fix round), Character Build [06fe56] runs every e2e (E2E_GPU=1; ctcourse :1-:4 as one request, coop, netmove, course). Desktop: tsc and single vitest files only; agents within the orchestrator's cap. Push WIP and refresh STATE after every hand-back; message "Night Shift | Orchestrator" at each slice end and the PR.
+Before the PR: A8 check + dressing, dressing checks, the facility GPU perf pass (STATE 03:45 PERF; scripts/guard-cap.mjs), slice 9 docs, full e2e, then the PR to master (Michael: "Merge to master").
 ```
