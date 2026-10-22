@@ -1,14 +1,18 @@
 # Guard cap: state
 
 ## Now (2026-10-23)
-Tooling written, never executed (WIP commit under a usage limit; laptop test slots busy). `scripts/guard-cap.mjs`
-passes `node --check`. No src change.
+Tooling written, never executed. Rebased on master a71c8c02; dry-reviewed against src (hooks, globals, URLs all real)
+and fixed (spawn height, cap = N, per-cell timeouts, sim-advance / shadow-counter flags, frame split by sim steps,
+re-alert per sample, 5 s warm-up minimum, GPU-or-`--software` gate, CSV + REPORT.md fill). `node --check` passes. No
+src change.
 
 ## Next
-1. Laptop, on this branch rebased on 4.62.0, `npm run build`, free port 4189, take the GPU lock, then:
-   `E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs --maps=sectorops,ctcourse --counts=0,12,16,24 --warm=3 --secs=10 --out=docs/guard-cap`
-   (~2-3 min per map x count). Output: `docs/guard-cap/guard-cap.json`, `docs/guard-cap/RESULTS.md`.
-2. Fill `REPORT.md` from `RESULTS.md`, apply its decision rule, commit, PR.
+1. Laptop, on this branch, `npm ci` (the worktree has no node_modules), `npm run build`, free port 4189, take the GPU
+   lock, then:
+   `E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs --maps=sectorops,ctcourse --counts=0,12,16,24 --warm=5 --secs=10 --out=docs/guard-cap`
+   (~2 min per map x count, ~15-20 min). Output: `docs/guard-cap/guard-cap.json`, `guard-cap.csv`, `RESULTS.md`, and
+   the results block of `REPORT.md` filled.
+2. Read the flags and errors in `RESULTS.md`, apply `REPORT.md`'s decision rule, commit, PR.
 
 ## Open / risks for the first run
 - Untested in a browser: a page-side mistake shows as a cell error (logged, the run continues); fix those first.

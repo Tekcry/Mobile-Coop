@@ -25,27 +25,40 @@
 // ray.torch / ray.ai (other guard rays) / ray.other (player, weapons): physics raycastToRef calls and ms; light.totalAt.
 // Render extras: the light rig's shadow pool size and the shadow casters lit, flashlights on, guards per alert level.
 //
-// Usage (the laptop, port 4189, after `npm run build`; headless, never headed; ~2-3 min per map x count):
-//   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=sectorops,ctcourse] [--counts=12,16,24] [--warm=3]
+// Usage (the laptop, port 4189, after `npm ci` + `npm run build`, from the repo root; headless, never headed; ~2 min per
+// map x count):
+//   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=sectorops,ctcourse] [--counts=12,16,24] [--warm=5]
 //     [--secs=10] [--out=docs/guard-cap] [--gfx=epic] [--viewport=1920x1080] [--kind=grunt] [--cells=patrol,away,alert]
 //   --counts=0,12,16,24 adds the no-guard baseline (recommended: per-guard cost = slope). --maps also takes `<mapId>:<mode>`.
-// Serves dist/ itself with `vite preview` on E2E_PORT when nothing answers there; reuses a server only when it serves
-// this dist/index.html. E2E_UNCAP=1 is set by default (no vsync / frame-rate cap: a frame's cost is not hidden by the
-// display rate); E2E_UNCAP=0 keeps the cap. Writes <out>/guard-cap.json (every number) and <out>/RESULTS.md (tables).
-// A failing cell or map is logged, recorded with its error, and the run goes on. Cloud / software GL: the numbers are
-// not a perf result (GPU and frame timings are SwiftShader's); run with E2E_GPU=1 on the laptop.
+//   Exits at once without E2E_GPU=1 unless --software is given (a software-GL dry run: not a perf result). --warm is
+//   raised to at least 5 s. The live cap `em.maxAlive` is set to N for the measure (MAX_ALIVE 12 / Sector Ops 32).
+// Serves dist/ itself with `vite preview` on E2E_PORT (as scripts/run-e2e.mjs) when nothing answers there; reuses a
+// server only when it serves this dist/index.html. Browser: e2e-lib's `launch` (headless, the e2e runner's GPU flags).
+// E2E_UNCAP=1 is set by default (no vsync / frame-rate cap: a frame's cost is not hidden by the display rate);
+// E2E_UNCAP=0 keeps the cap. Uncapped, most frames run no 60 Hz step: the render stats are split into frames with and
+// without a sim step, plus the CPU ms per 1/60 s of sim (all frame CPU over the steps run), which holds the AI cost.
+// Writes <out>/guard-cap.json (every number), <out>/guard-cap.csv (one row per cell), <out>/RESULTS.md (tables) and
+// fills the marked results block of <out>/REPORT.md. A failing cell or map is logged, recorded with its error, and the
+// run goes on; data-quality notes (sim clock off, shadow counter suspect) are recorded as per-cell flags.
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 if (process.env.E2E_UNCAP === undefined) process.env.E2E_UNCAP = '1';
+// run from the repo root with its packages installed (the preview server and Playwright come from node_modules)
+if (!existsSync('node_modules/vite/bin/vite.js') || !existsSync('node_modules/playwright-core')) {
+  console.error('guard-cap: run from the repo root after `npm ci` (node_modules/vite or node_modules/playwright-core missing)');
+  process.exit(2);
+}
 const { launch, GPU, waitOperator } = await import('./e2e-lib.mjs');
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3) ?? d;
 const MAPS = opt('maps', 'sectorops,ctcourse').split(',').filter(Boolean);
 const COUNTS = opt('counts', '12,16,24').split(',').filter(Boolean).map(Number);
-const WARM = Number(opt('warm', '3'));
+// (review G6) at least 5 s of warm-up before every cell (JIT, shader compiles, the guards settling on their beats)
+const WARM_ASKED = Number(opt('warm', '5'));
+const WARM = Math.max(5, WARM_ASKED);
 const SECS = Number(opt('secs', '10'));
 const OUT = opt('out', 'docs/guard-cap');
 const GFX = opt('gfx', 'epic');
@@ -56,7 +69,13 @@ const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 const PAGE_TIMEOUT = 15 * 60_000;
 if (COUNTS.some((n) => !Number.isInteger(n) || n < 0 || n > 40)) throw new Error(`bad --counts ${COUNTS}`);
-if (!(SECS > 0) || !(WARM >= 0)) throw new Error('bad --secs / --warm');
+if (!(SECS > 0) || !(WARM_ASKED >= 0)) throw new Error('bad --secs / --warm');
+// (review G4) a perf run needs the hardware GPU: software GL numbers are not a result unless asked for (--software)
+const SOFTWARE = argv.includes('--software');
+if (!GPU && !SOFTWARE) {
+  console.error('guard-cap: set E2E_GPU=1 (hardware GPU, the laptop) or pass --software for a software-GL dry run (its numbers are not a perf result)');
+  process.exit(2);
+}
 
 /** Map aliases: the URL query (each map's own guards are removed after boot). */
 const MAP_Q = {
@@ -101,7 +120,9 @@ function pageSpawn([n, kind]) {
   g.target.damageMul = 0;
   em.stealth = true;
   for (const e of [...em.enemies]) em.despawn(e);
-  em.maxAlive = Math.max(n, 1);
+  const capBefore = em.maxAlive;
+  // exactly n (0 included: the mode's own spawns, e.g. Sector Ops reinforcements or a Marlow bay squad, are refused)
+  em.maxAlive = n;
   const nav = em.nav;
   const p = g.player.position;
   const V = p.constructor;
@@ -121,7 +142,7 @@ function pageSpawn([n, kind]) {
     const sight = nav.lineClear(me, [cx, cz], p.y, nav.height[c]);
     if (needSight && !sight) return false;
     used.add(c);
-    picks.push({ x: cx, z: cz, sight, d });
+    picks.push({ x: cx, y: nav.height[c], z: cz, sight, d });
     return true;
   };
   // pass 1: the wedge in front of the camera (+-60 deg, 5-24 m), nav line of sight; pass 2: the wedge, any; pass 3: the ring
@@ -138,20 +159,25 @@ function pageSpawn([n, kind]) {
     }
     if (picks.length >= n) break;
   }
-  let spawned = 0;
-  for (let i = 0; i < picks.length && spawned < n; i++) {
+  const got = [];
+  let patrols = 0;
+  for (let i = 0; i < picks.length && got.length < n; i++) {
     const s = picks[i];
     const face = Math.atan2(p.x - s.x, p.z - s.z) + (i % 3 - 1) * 0.6;
-    const e = em.spawn(kind, new V(s.x, Number.NaN, s.z), false, face);
+    // the cell's own height: `spawn` re-picks the nearest walkable cell on that storey (a NaN height could pick another)
+    const e = em.spawn(kind, new V(s.x, s.y, s.z), false, face);
     if (!e) continue;
-    spawned++;
+    got.push(s);
     e.passive = true;
     // a short beat across the line of sight (3 m) when the nav says it is clear, else a post
     const ox = Math.cos(face) * 3, oz = -Math.sin(face) * 3;
     const q = [s.x + ox, s.z + oz];
-    if (nav.lineClear([s.x, s.z], q, p.y, p.y)) e.setPatrol({ points: [[s.x, s.z], q], wait: 1.2 });
+    if (nav.lineClear([s.x, s.z], q, s.y, s.y)) {
+      e.setPatrol({ points: [[s.x, s.z], q], wait: 1.2 });
+      patrols++;
+    }
   }
-  return { spawned, alive: em.alive, inSight: picks.slice(0, spawned).filter((s) => s.sight).length, meanDist: picks.length ? picks.slice(0, spawned).reduce((a, s) => a + s.d, 0) / Math.max(1, spawned) : 0, playerAt: [p.x, p.y, p.z], yaw };
+  return { spawned: got.length, alive: em.alive, capBefore, cap: em.maxAlive, candidates: picks.length, patrols, inSight: got.filter((s) => s.sight).length, meanDist: got.length ? got.reduce((a, s) => a + s.d, 0) / got.length : 0, playerAt: [p.x, p.y, p.z], yaw };
 }
 
 /** Install the wrappers once (gated by __gc.on: off, a wrapper is one flag check). */
@@ -252,6 +278,9 @@ function pageSim([steps, instrumented]) {
   const per = {};
   for (const k of keys) per[k] = new Array(steps);
   const prevMs = new Float64Array(keys.length);
+  // `stepHeadless` skips the step while the state is paused (pause menu, results): those numbers would be empty steps
+  const g = app.current;
+  const sim0 = g.time;
   S.on = instrumented;
   try {
     for (let i = 0; i < steps; i++) {
@@ -264,9 +293,12 @@ function pageSim([steps, instrumented]) {
   } finally {
     S.on = false;
   }
+  const advanced = g.time - sim0;
+  if (!(advanced > (steps / 60) * 0.5)) throw new Error(`the sim did not advance (${advanced} s over ${steps} steps; paused: ${app.loop.paused}, simulating: ${g.simulating})`);
   const calls = {};
   for (const k of keys) calls[k] = S.acc[k].n / steps;
-  return instrumented ? { total, per, calls } : { total };
+  // (review G5) the node side flags a sample whose sim clock moved other than steps / 60
+  return instrumented ? { total, per, calls, advanced } : { total, advanced };
 }
 
 /** Real frames for `secs`: clean timings, or (counted) draws / passes / active meshes. */
@@ -278,6 +310,11 @@ async function pageRender([secs, counted]) {
   const loop = app.loop;
   const frames = [];
   const gpu = [];
+  // (review G5) the match clock over the sample: an uncapped loop should simulate about the real time it ran
+  const sim0 = g.time;
+  const em0 = g.enemyMgr;
+  const levelsStart = {};
+  for (const e of em0.enemies) if (e.alive) levelsStart[e.level] = (levelsStart[e.level] ?? 0) + 1;
   // GPU time: one TIME_ELAPSED query at a time around scene.render (no nesting), read back frames later
   const gl = engine._gl;
   const ext = gl && gl.getExtension && gl.getExtension('EXT_disjoint_timer_query_webgl2');
@@ -323,7 +360,16 @@ async function pageRender([secs, counted]) {
   let de = null;
   let da = null;
   let o1 = null, o2 = null, o3 = null;
+  // (review G3) shadow-map renders counted a second way, from each light's shadow map itself (not its RT label)
+  let smRenders = 0;
+  const smObs = [];
   if (counted) {
+    for (const l of scene.lights) {
+      try {
+        const sm = l.getShadowGenerator?.()?.getShadowMap?.();
+        if (sm?.onBeforeRenderObservable) smObs.push([sm, sm.onBeforeRenderObservable.add(() => { smRenders++; })]);
+      } catch { /* a light without one */ }
+    }
     de = engine.drawElementsType;
     da = engine.drawArraysType;
     const pass = () => {
@@ -347,7 +393,8 @@ async function pageRender([secs, counted]) {
     o1 = scene.onBeforeActiveMeshesEvaluationObservable.add(() => { evalT = performance.now(); });
     o2 = scene.onAfterActiveMeshesEvaluationObservable.add(() => { evalMs += performance.now() - evalT; });
     o3 = scene.onAfterRenderObservable.add(() => {
-      counts.push([draws, tris, shadowRts.size, scene.getActiveMeshes().length, evalMs]);
+      counts.push([draws, tris, shadowRts.size, scene.getActiveMeshes().length, evalMs, smRenders]);
+      smRenders = 0;
       draws = 0;
       tris = 0;
       evalMs = 0;
@@ -357,7 +404,8 @@ async function pageRender([secs, counted]) {
   const t0 = performance.now();
   try {
     await new Promise((res) => {
-      const tick = () => (performance.now() - t0 >= secs * 1000 && frames.length >= 3 ? res() : setTimeout(tick, 50));
+      // (a hard stop 30 s past the sample: a loop that stopped rendering returns its few frames instead of hanging)
+      const tick = () => ((performance.now() - t0 >= secs * 1000 && frames.length >= 3) || performance.now() - t0 >= secs * 1000 + 30_000 ? res() : setTimeout(tick, 50));
       tick();
     });
     // the last query's result
@@ -374,6 +422,7 @@ async function pageRender([secs, counted]) {
       scene.onBeforeActiveMeshesEvaluationObservable.remove(o1);
       scene.onAfterActiveMeshesEvaluationObservable.remove(o2);
       scene.onAfterRenderObservable.remove(o3);
+      for (const [sm, o] of smObs) sm.onBeforeRenderObservable.remove(o);
     }
     if (q) gl.deleteQuery(q);
   }
@@ -383,8 +432,12 @@ async function pageRender([secs, counted]) {
   for (const e of em.enemies) if (e.alive) levels[e.level] = (levels[e.level] ?? 0) + 1;
   const nf = Math.max(1, counts.length);
   const byPass = counted ? [...passes].map(([k, v]) => [k.replace(/[0-9]+/g, '#'), v]).reduce((m, [k, v]) => m.set(k, (m.get(k) ?? 0) + v / nf), new Map()) : new Map();
+  const realSecs = (performance.now() - t0) / 1000;
   return {
     frames,
+    simAdvanced: g.time - sim0,
+    realSecs,
+    levelsStart,
     gpu,
     gpuTimer: !!ext,
     counts,
@@ -447,8 +500,24 @@ function renderSummary(clean, counted) {
   const col = (rows, i) => rows.map((r) => r[i]);
   // real frames that ran at least one sim step: the loop's sim ms per step
   const simRows = clean.frames.filter((f) => f[4] > 0);
+  const noSimRows = clean.frames.filter((f) => !(f[4] > 0));
+  // (review G1) uncapped, most frames run no 60 Hz step: the all-frame medians leave the AI out. Split by steps > 0 /
+  // steps == 0, and the CPU cost of one 1/60 s of sim: all frame CPU time over the steps those frames ran
+  const sum = (a) => a.reduce((x, y) => x + (Number.isFinite(y) ? y : 0), 0);
+  const steps = sum(col(clean.frames, 4));
   return {
     frames: clean.frames.length,
+    framesWithSim: simRows.length,
+    framesNoSim: noSimRows.length,
+    simSteps: steps,
+    cpuMsPerSimStep: steps > 0 ? r3(sum(col(clean.frames, 1)) / steps) : null,
+    frameMsWithSim: summary(col(simRows, 0)),
+    frameCpuMsWithSim: summary(col(simRows, 1)),
+    frameMsNoSim: summary(col(noSimRows, 0)),
+    frameCpuMsNoSim: summary(col(noSimRows, 1)),
+    simAdvanced: r3(clean.simAdvanced),
+    realSecs: r3(clean.realSecs),
+    levelsStart: clean.levelsStart,
     frameMs: summary(col(clean.frames, 0)),
     fps: (() => { const m = summary(col(clean.frames, 0)).med; return m ? +(1000 / m).toFixed(1) : null; })(),
     frameCpuMs: summary(col(clean.frames, 1)),
@@ -462,6 +531,7 @@ function renderSummary(clean, counted) {
     shadowPasses: counted ? summary(col(counted.counts, 2)) : null,
     activeMeshes: counted ? summary(col(counted.counts, 3)) : null,
     evalMs: counted ? summary(col(counted.counts, 4)) : null,
+    shadowMapRenders: counted ? summary(col(counted.counts, 5)) : null,
     passes: counted?.passes ?? [],
     state: clean.state,
   };
@@ -476,11 +546,14 @@ const results = {
   viewport: [VW, VH],
   kind: KIND,
   warm: WARM,
+  warmAsked: WARM_ASKED,
+  software: SOFTWARE,
   secs: SECS,
   port: PORT,
   build: (distIndex.match(/build[-_ ]?sha[^"']*["']([0-9a-f]{7,40})/i) ?? [])[1] ?? null,
   cells: [],
   errors: [],
+  flags: [],
 };
 let pkgVersion = null;
 try { pkgVersion = JSON.parse(readFileSync('package.json', 'utf8')).version; } catch { /* none */ }
@@ -489,11 +562,16 @@ if (!GPU) log('WARNING: E2E_GPU is not 1: software GL, the render numbers are no
 
 const withTimeout = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`${what} timed out after ${Math.round(ms / 1000)} s`)), ms))]);
 
-async function runPage(map, n) {
+// a cell's budget: warm-up, three sim passes and two render samples, with a wide margin (a hung page call ends the cell,
+// not the run)
+const CELL_TIMEOUT = (WARM + SECS * 4 + 120) * 1000;
+
+async function runPage(map, n, ctl) {
   const params = `${mapQuery(map)}&gfx=${GFX}`;
   log(`${map} x ${n}: boot (${params})`);
   const l = await launch({ url: URL, params, viewport: { width: VW, height: VH } });
   const { browser, page, errors } = l;
+  ctl.browser = browser;
   const base = { map, count: n, params };
   try {
     await page.waitForFunction(() => window.__app?.current?.player && window.__app.current.enemyMgr, null, { timeout: 180_000 });
@@ -509,8 +587,12 @@ async function runPage(map, n) {
     const cell = async (name, fn) => {
       const rec = { ...base, cell: name, spawn, wrenLoaded: opT >= 0, timer: info };
       try {
-        Object.assign(rec, await fn());
-        log(`${map} x ${n} ${name}: ${rec.sim ? `sim step med ${rec.sim.stepClean.med} p95 ${rec.sim.stepClean.p95} ms (ai ${rec.sim.buckets['ai.manager'].med}); ` : ''}frame med ${rec.render.frameMs.med} ms (${rec.render.fps} fps), cpu ${rec.render.frameCpuMs.med}, gpu ${rec.render.gpuMs?.med ?? 'n/a'}, draws ${rec.render.draws?.med}, shadow passes ${rec.render.shadowPasses?.med}`);
+        Object.assign(rec, await withTimeout(fn(), CELL_TIMEOUT, `${map} x ${n} ${name}`));
+        log(`${map} x ${n} ${name}: ${rec.sim ? `sim step med ${rec.sim.stepClean.med} p95 ${rec.sim.stepClean.p95} ms (ai ${rec.sim.buckets['ai.manager'].med}); ` : ''}frame med ${rec.render.frameMs.med} ms (${rec.render.fps} fps), cpu ${rec.render.frameCpuMs.med} (sim frames ${rec.render.frameCpuMsWithSim.med}, ${rec.render.cpuMsPerSimStep} per 1/60 s of sim), gpu ${rec.render.gpuMs?.med ?? 'n/a'}, draws ${rec.render.draws?.med}, shadow passes ${rec.render.shadowPasses?.med} / maps ${rec.render.shadowMapRenders?.med}`);
+        for (const fl of rec.flags ?? []) {
+          log(`${map} x ${n} ${name}: FLAG ${fl}`);
+          results.flags.push(`${map} x ${n} ${name}: ${fl}`);
+        }
       } catch (e) {
         rec.error = String(e?.message ?? e);
         results.errors.push(`${map} x ${n} ${name}: ${rec.error}`);
@@ -518,29 +600,63 @@ async function runPage(map, n) {
       }
       results.cells.push(rec);
     };
-    const measure = async (withSim) => {
+    // `prep` runs before every sample (review G2: the alert cell re-alerts its guards, so each sample is all-alert, not
+    // just the first); `flags` collects the cell's data-quality notes (review G3, G5)
+    const measure = async (withSim, prep = null) => {
+      const flags = [];
       await page.waitForTimeout(WARM * 1000);
       let sim = null;
+      const alerts = [];
+      const doPrep = async () => { if (prep) alerts.push(await page.evaluate(prep)); };
+      const checkSim = (r, what) => {
+        const want = steps / 60;
+        if (Math.abs(r.advanced - want) > want * 0.05) flags.push(`${what}: sim clock moved ${r3(r.advanced)} s over ${steps} steps (expected ${r3(want)})`);
+      };
       if (withSim) {
+        await doPrep();
         await page.evaluate(pageSim, [Math.min(steps, 120), false]); // JIT warm
+        await doPrep();
         const clean = await page.evaluate(pageSim, [steps, false]);
+        checkSim(clean, 'sim clean');
+        await doPrep();
         const inst = await page.evaluate(pageSim, [steps, true]);
+        checkSim(inst, 'sim instrumented');
         sim = simSummary(clean, inst);
+        sim.advancedClean = r3(clean.advanced);
+        sim.advancedInstrumented = r3(inst.advanced);
         await page.waitForTimeout(500);
       }
+      await doPrep();
       const rc = await page.evaluate(pageRender, [SECS, false]);
+      if (rc.frames.length < 3) throw new Error(`the loop rendered ${rc.frames.length} frame(s) in ${SECS} s`);
+      if (!(rc.simAdvanced >= rc.realSecs * 0.9)) flags.push(`render: sim clock moved ${r3(rc.simAdvanced)} s in ${r3(rc.realSecs)} real s (the loop fell behind or paused; MAX_STEPS drops)`);
+      await doPrep();
       const rk = await page.evaluate(pageRender, [2, true]);
-      return { sim, render: renderSummary(rc, rk) };
+      const render = renderSummary(rc, rk);
+      // (review G3) a label-based shadow pass count of 0 while the rig has shadowed lights lit is the counter, not the scene
+      if (render.shadowPasses && render.shadowPasses.med === 0 && (render.state.shadowLit ?? 0) > 0) {
+        render.shadowPassesSuspect = true;
+        flags.push(`shadow passes read 0 by RT label with ${render.state.shadowLit} shadowed light(s) lit: counter bug, use shadowMapRenders (${render.shadowMapRenders?.med ?? '-'})`);
+      }
+      return { sim, render, flags, ...(prep ? { alerts } : {}) };
     };
     if (CELLS.includes('patrol')) await cell('patrol/facing', () => measure(true));
     if (CELLS.includes('away')) {
-      await page.evaluate(pageTurn, Math.PI);
-      await cell('patrol/away', () => measure(false));
-      await page.evaluate(pageTurn, -Math.PI);
+      // (turn and turn back inside the cell: a failure there is this cell's error, the alert cell still runs)
+      await cell('patrol/away', async () => {
+        await page.evaluate(pageTurn, Math.PI);
+        try {
+          return await measure(false);
+        } finally {
+          await page.evaluate(pageTurn, -Math.PI).catch(() => {});
+        }
+      });
     }
     if (CELLS.includes('alert')) {
-      await page.evaluate(pageAlert);
-      await cell('alert/facing', () => measure(true));
+      await cell('alert/facing', async () => {
+        const alerted = await page.evaluate(pageAlert);
+        return { alerted, ...(await measure(true, pageAlert)) };
+      });
     }
     const pageErrors = errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
     if (pageErrors.length) results.errors.push(`${map} x ${n}: ${pageErrors.length} console error(s), first: ${pageErrors[0].slice(0, 300)}`);
@@ -553,24 +669,164 @@ mkdirSync(OUT, { recursive: true });
 const t0 = Date.now();
 for (const map of MAPS) {
   for (const n of COUNTS) {
+    const ctl = { browser: null };
     try {
-      await withTimeout(runPage(map, n), PAGE_TIMEOUT, `${map} x ${n}`);
+      await withTimeout(runPage(map, n, ctl), PAGE_TIMEOUT, `${map} x ${n}`);
     } catch (e) {
       const msg = `${map} x ${n}: ${String(e?.message ?? e).split('\n')[0]}`;
       results.errors.push(msg);
       results.cells.push({ map, count: n, cell: 'boot', error: msg });
       log(`FAILED ${msg}`);
+      // a timed-out page is still running: its browser goes now (runPage's own close waits on the hung call)
+      await ctl.browser?.close().catch(() => {});
     }
-    writeFileSync(join(OUT, 'guard-cap.json'), JSON.stringify(results, null, 1));
+    writeOutputs(false);
   }
 }
 results.finished = new Date().toISOString();
 results.minutes = +((Date.now() - t0) / 60000).toFixed(1);
-writeFileSync(join(OUT, 'guard-cap.json'), JSON.stringify(results, null, 1));
-writeFileSync(join(OUT, 'RESULTS.md'), resultsMd(results));
+writeOutputs(true);
 log(`done in ${results.minutes} min: ${results.cells.filter((c) => !c.error).length} cells ok, ${results.errors.length} error(s); ${join(OUT, 'RESULTS.md')}`);
 stopServer();
 process.exit(0);
+
+// ---------- outputs: guard-cap.json (every number), guard-cap.csv (one row per cell), RESULTS.md, REPORT.md's table ----------
+function writeOutputs(final) {
+  // each output on its own: one failing write never loses the others
+  const put = (name, fn) => {
+    try {
+      fn();
+    } catch (e) {
+      console.error(`guard-cap: writing ${name} failed: ${e?.message ?? e}`);
+    }
+  };
+  put('guard-cap.json', () => writeFileSync(join(OUT, 'guard-cap.json'), JSON.stringify(results, null, 1)));
+  put('guard-cap.csv', () => writeFileSync(join(OUT, 'guard-cap.csv'), resultsCsv(results)));
+  put('RESULTS.md', () => writeFileSync(join(OUT, 'RESULTS.md'), resultsMd(results)));
+  if (final) put('REPORT.md', () => fillReport(join(OUT, 'REPORT.md'), results));
+}
+
+// (a function, not a const: the run above calls the writers before a top-level const below it would be initialised)
+function csvCols() {
+  return [
+  ['map', (c) => c.map],
+  ['count', (c) => c.count],
+  ['cell', (c) => c.cell],
+  ['error', (c) => c.error ?? ''],
+  ['spawned', (c) => c.spawn?.spawned],
+  ['alive', (c) => c.spawn?.alive],
+  ['in_sight', (c) => c.spawn?.inSight],
+  ['mean_dist_m', (c) => r3(c.spawn?.meanDist)],
+  ['sim_step_clean_med_ms', (c) => c.sim?.stepClean.med],
+  ['sim_step_clean_p95_ms', (c) => c.sim?.stepClean.p95],
+  ['sim_step_instr_med_ms', (c) => c.sim?.stepInstrumented.med],
+  ...['step.fixed', 'step.physics', 'step.frame', 'ai.manager', 'ai.brain', 'ai.perceive', 'ai.decide', 'ai.move', 'ai.torches', 'ai.anim', 'nav.findPath', 'nav.lineClear', 'nav.flowField', 'ray.perceive', 'ray.torch', 'ray.ai', 'ray.other', 'light.totalAt'].flatMap((k) => [
+    [`${k}_mean_ms`, (c) => c.sim?.buckets[k]?.mean],
+    [`${k}_p95_ms`, (c) => c.sim?.buckets[k]?.p95],
+    [`${k}_calls_per_step`, (c) => c.sim?.callsPerStep[k]],
+  ]),
+  ['frame_med_ms', (c) => c.render?.frameMs.med],
+  ['frame_p95_ms', (c) => c.render?.frameMs.p95],
+  ['fps', (c) => c.render?.fps],
+  ['frame_cpu_med_ms', (c) => c.render?.frameCpuMs.med],
+  ['frame_cpu_p95_ms', (c) => c.render?.frameCpuMs.p95],
+  ['frames', (c) => c.render?.frames],
+  ['frames_with_sim', (c) => c.render?.framesWithSim],
+  ['frames_no_sim', (c) => c.render?.framesNoSim],
+  ['cpu_ms_per_sim_step', (c) => c.render?.cpuMsPerSimStep],
+  ['frame_with_sim_med_ms', (c) => c.render?.frameMsWithSim.med],
+  ['frame_cpu_with_sim_med_ms', (c) => c.render?.frameCpuMsWithSim.med],
+  ['frame_cpu_with_sim_p95_ms', (c) => c.render?.frameCpuMsWithSim.p95],
+  ['frame_no_sim_med_ms', (c) => c.render?.frameMsNoSim.med],
+  ['frame_cpu_no_sim_med_ms', (c) => c.render?.frameCpuMsNoSim.med],
+  ['render_sim_advanced_s', (c) => c.render?.simAdvanced],
+  ['render_real_s', (c) => c.render?.realSecs],
+  ['loop_sim_per_step_med_ms', (c) => c.render?.loopSimMsPerStep.med],
+  ['loop_physics_per_step_med_ms', (c) => c.render?.loopPhysicsMsPerStep.med],
+  ['render_cpu_med_ms', (c) => c.render?.renderCpuMs.med],
+  ['render_cpu_p95_ms', (c) => c.render?.renderCpuMs.p95],
+  ['gpu_med_ms', (c) => c.render?.gpuMs?.med],
+  ['gpu_p95_ms', (c) => c.render?.gpuMs?.p95],
+  ['draws_med', (c) => c.render?.draws?.med],
+  ['tris_m_med', (c) => c.render?.trisM?.med],
+  ['shadow_passes_med', (c) => c.render?.shadowPasses?.med],
+  ['shadow_passes_suspect', (c) => (c.render ? (c.render.shadowPassesSuspect ? 1 : 0) : '')],
+  ['shadow_map_renders_med', (c) => c.render?.shadowMapRenders?.med],
+  ['active_meshes_med', (c) => c.render?.activeMeshes?.med],
+  ['eval_med_ms', (c) => c.render?.evalMs?.med],
+  ['shadow_pool', (c) => c.render?.state.shadowPool],
+  ['shadow_lit', (c) => c.render?.state.shadowLit],
+  ['torches_on', (c) => c.render?.state.torchesOn],
+  ['torch_slots', (c) => c.render?.state.torchSlots],
+  ['levels_start', (c) => (c.render?.levelsStart ? Object.entries(c.render.levelsStart).map(([k, v]) => `${k}:${v}`).join(' ') : '')],
+  ['levels', (c) => (c.render ? Object.entries(c.render.state.levels).map(([k, v]) => `${k}:${v}`).join(' ') : '')],
+  ['flags', (c) => (c.flags ?? []).join(' | ')],
+  ];
+}
+
+function resultsCsv(R) {
+  const esc = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const COLS = csvCols();
+  const rows = [COLS.map(([h]) => h).join(',')];
+  for (const c of R.cells) rows.push(COLS.map(([, get]) => esc((() => { try { return get(c); } catch { return ''; } })())).join(','));
+  return rows.join('\n') + '\n';
+}
+
+/** REPORT.md's results table, between its markers (added under "## Results" when missing). */
+function fillReport(path, R) {
+  const START = '<!-- guard-cap:results:start (scripts/guard-cap.mjs fills this block) -->';
+  const END = '<!-- guard-cap:results:end -->';
+  const f = (s, k = 'med') => (s && s[k] !== null && s[k] !== undefined ? String(s[k]) : '-');
+  const mp = (s) => (s ? `${f(s)} / ${f(s, 'p95')}` : '-');
+  const L = [START, ''];
+  L.push(`Filled ${R.finished ?? new Date().toISOString()} (version ${R.version ?? '?'}, ${R.gpu ? 'hardware GPU' : 'SOFTWARE GL: not a perf result'}, ${R.uncapped ? 'uncapped' : 'display-capped'}, gfx=${R.gfx}, ${R.viewport.join('x')}). Medians / p95 in ms; AI / perceive / physics: mean ms per 60 Hz step. Full numbers: \`guard-cap.json\`, \`guard-cap.csv\`, \`RESULTS.md\`.`, '');
+  L.push('| Map | N | Cell | Sim step med / p95 | AI manager | Perceive | Rays / step | findPath / step | Physics | Frame ms med / p95 | fps | Frame CPU | Frame CPU, sim frames | CPU per 1/60 s sim | GPU ms | Draws | Shadow passes | Active meshes | Flags |');
+  L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  for (const c of R.cells) {
+    if (c.error || !c.render) {
+      L.push(`| ${c.map} | ${c.count} | ${c.cell} | ERROR: ${String(c.error ?? 'no render data').replace(/\|/g, '/').slice(0, 160)} | | | | | | | | | | | | | | | |`);
+      continue;
+    }
+    const b = c.sim?.buckets;
+    const cl = c.sim?.callsPerStep;
+    const rays = cl ? r3(['ray.perceive', 'ray.torch', 'ray.ai', 'ray.other'].reduce((a, k) => a + (cl[k] ?? 0), 0)) : null;
+    const r = c.render;
+    L.push(`| ${c.map} | ${c.count} | ${c.cell} | ${c.sim ? mp(c.sim.stepClean) : '-'} | ${b ? f(b['ai.manager'], 'mean') : '-'} | ${b ? f(b['ai.perceive'], 'mean') : '-'} | ${rays ?? '-'} | ${cl?.['nav.findPath'] ?? '-'} | ${b ? f(b['step.physics'], 'mean') : '-'} | ${mp(r.frameMs)} | ${r.fps ?? '-'} | ${mp(r.frameCpuMs)} | ${mp(r.frameCpuMsWithSim)} | ${r.cpuMsPerSimStep ?? '-'} | ${r.gpuMs ? mp(r.gpuMs) : 'n/a'} | ${f(r.draws)} | ${r.shadowPassesSuspect ? `? (maps ${f(r.shadowMapRenders)})` : f(r.shadowPasses)} | ${f(r.activeMeshes)} | ${(c.flags ?? []).length || ''} |`);
+  }
+  L.push('', 'Frame CPU, sim frames: frames that ran a 60 Hz step (uncapped, most frames run none). CPU per 1/60 s sim: all frame CPU ms over the steps run (the cost of a real-time second / 60, AI included). Flags: count of data-quality notes (listed in `RESULTS.md`).', '');
+  // per added guard: the slope between the smallest and largest N measured, per map and cell
+  const ok = R.cells.filter((c) => !c.error && c.render);
+  for (const m of [...new Set(ok.map((c) => c.map))]) {
+    for (const cellName of ['patrol/facing', 'alert/facing']) {
+      const cs = ok.filter((x) => x.map === m && x.cell === cellName).sort((a, b) => a.count - b.count);
+      if (cs.length < 2) continue;
+      const a = cs[0], z = cs[cs.length - 1];
+      const dn = z.count - a.count;
+      if (dn <= 0) continue;
+      const sl = (get) => { const va = get(a), vz = get(z); return va === null || vz === null || va === undefined || vz === undefined ? '-' : ((vz - va) / dn).toFixed(3); };
+      L.push(`Per added guard, ${m} ${cellName} (N ${a.count} -> ${z.count}): sim ${sl((c) => c.sim?.stepClean.med)} ms, of it AI ${sl((c) => c.sim?.buckets['ai.manager'].mean)} (perceive ${sl((c) => c.sim?.buckets['ai.perceive'].mean)}), frame CPU (sim frames) ${sl((c) => c.render.frameCpuMsWithSim?.med)}, CPU per 1/60 s sim ${sl((c) => c.render.cpuMsPerSimStep)}, GPU ${sl((c) => c.render.gpuMs?.med)}, draws ${sl((c) => c.render.draws?.med)}.`, '');
+    }
+  }
+  if (R.errors.length) L.push(`${R.errors.length} error(s): see \`RESULTS.md\` "Errors".`, '');
+  L.push(END);
+  const block = L.join('\n');
+  let text = existsSync(path) ? readFileSync(path, 'utf8') : '# Guard cap: report\n';
+  const i = text.indexOf(START);
+  const j = text.indexOf(END);
+  if (i >= 0 && j > i) text = text.slice(0, i) + block + text.slice(j + END.length);
+  else {
+    const h = text.indexOf('\n## Results');
+    if (h >= 0) {
+      const eol = text.indexOf('\n', h + 1);
+      text = text.slice(0, eol + 1) + '\n' + block + '\n' + text.slice(eol + 1);
+    } else text = `${text.trimEnd()}\n\n## Results\n\n${block}\n`;
+  }
+  writeFileSync(path, text);
+}
 
 // ---------- RESULTS.md ----------
 function resultsMd(R) {
@@ -578,7 +834,7 @@ function resultsMd(R) {
   const mp = (s) => (s ? `${f(s)} / ${f(s, 'p95')}` : '-');
   const L = [];
   L.push('# Guard cap: results', '');
-  L.push(`Run ${R.started} - ${R.finished ?? '?'} (${R.minutes ?? '?'} min), version ${R.version ?? '?'}, ${R.gpu ? 'hardware GPU (E2E_GPU=1)' : 'SOFTWARE GL: not a perf result'}, ${R.uncapped ? 'frame rate uncapped' : 'display-capped'}, gfx=${R.gfx}, ${R.viewport.join('x')}, guards: ${R.kind}, warm ${R.warm} s, sample ${R.secs} s.`);
+  L.push(`Run ${R.started} - ${R.finished ?? '?'} (${R.minutes ?? '?'} min), version ${R.version ?? '?'}, ${R.gpu ? 'hardware GPU (E2E_GPU=1)' : 'SOFTWARE GL: not a perf result'}, ${R.uncapped ? 'frame rate uncapped' : 'display-capped'}, gfx=${R.gfx}, ${R.viewport.join('x')}, guards: ${R.kind}, warm ${R.warm} s${R.warmAsked !== R.warm ? ` (asked ${R.warmAsked}, raised to the 5 s minimum)` : ''}, sample ${R.secs} s.`);
   L.push('Medians / p95 in ms unless named. Script: `scripts/guard-cap.mjs`; method and decision rule: `REPORT.md`.', '');
   const ok = R.cells.filter((c) => !c.error && c.render);
   const maps = [...new Set(R.cells.map((c) => c.map))];
@@ -595,12 +851,12 @@ function resultsMd(R) {
     }
     L.push('', '(bucket columns: mean ms per step; inclusive: brain holds perceive / decide / move, and those hold their rays and nav calls)', '');
     L.push('### Render (real frames)', '');
-    L.push('| N | cell | frame ms med / p95 | fps | frame CPU | loop sim / step | render() CPU | GPU ms | draws | tris M | shadow passes | active meshes | eval ms | shadow pool / lit | torches on | levels |');
-    L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+    L.push('| N | cell | frame ms med / p95 | fps | frame CPU | frames sim / no sim | frame ms, sim frames | frame CPU, sim frames | frame CPU, no-sim frames | CPU per 1/60 s sim | loop sim / step | render() CPU | GPU ms | draws | tris M | shadow passes (label) | shadow map renders | active meshes | eval ms | shadow pool / lit | torches on | levels start -> end |');
+    L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
     for (const c of ok.filter((x) => x.map === m)) {
       const r = c.render;
       const s = r.state;
-      L.push(`| ${c.count} | ${c.cell} | ${mp(r.frameMs)} | ${r.fps ?? '-'} | ${mp(r.frameCpuMs)} | ${f(r.loopSimMsPerStep)} | ${mp(r.renderCpuMs)} | ${r.gpuMs ? mp(r.gpuMs) : 'n/a'} | ${f(r.draws)} | ${f(r.trisM)} | ${f(r.shadowPasses)} | ${f(r.activeMeshes)} | ${f(r.evalMs)} | ${s.shadowPool ?? '-'} / ${s.shadowLit ?? '-'} | ${s.torchesOn ?? '-'} of ${s.torchSlots ?? '-'} | ${Object.entries(s.levels).map(([k, v]) => `${k} ${v}`).join(', ')} |`);
+      L.push(`| ${c.count} | ${c.cell} | ${mp(r.frameMs)} | ${r.fps ?? '-'} | ${mp(r.frameCpuMs)} | ${r.framesWithSim} / ${r.framesNoSim} | ${mp(r.frameMsWithSim)} | ${mp(r.frameCpuMsWithSim)} | ${mp(r.frameCpuMsNoSim)} | ${r.cpuMsPerSimStep ?? '-'} | ${f(r.loopSimMsPerStep)} | ${mp(r.renderCpuMs)} | ${r.gpuMs ? mp(r.gpuMs) : 'n/a'} | ${f(r.draws)} | ${f(r.trisM)} | ${f(r.shadowPasses)}${r.shadowPassesSuspect ? ' (suspect)' : ''} | ${f(r.shadowMapRenders)} | ${f(r.activeMeshes)} | ${f(r.evalMs)} | ${s.shadowPool ?? '-'} / ${s.shadowLit ?? '-'} | ${s.torchesOn ?? '-'} of ${s.torchSlots ?? '-'} | ${Object.entries(r.levelsStart ?? {}).map(([k, v]) => `${k} ${v}`).join(', ')} -> ${Object.entries(s.levels).map(([k, v]) => `${k} ${v}`).join(', ')} |`);
     }
     L.push('');
     // per-guard slopes between the smallest and largest count measured (patrol/facing and alert/facing)
@@ -610,7 +866,7 @@ function resultsMd(R) {
       const a = cs[0], z = cs[cs.length - 1];
       const dn = z.count - a.count;
       const sl = (get) => { const va = get(a), vz = get(z); return va === null || vz === null || va === undefined || vz === undefined ? '-' : ((vz - va) / dn).toFixed(3); };
-      L.push(`Per added guard, ${cellName}, N ${a.count} -> ${z.count}: sim step ${sl((c) => c.sim?.stepClean.med)} ms, AI manager ${sl((c) => c.sim?.buckets['ai.manager'].mean)} ms, perceive ${sl((c) => c.sim?.buckets['ai.perceive'].mean)} ms, frame ${sl((c) => c.render.frameMs.med)} ms, frame CPU ${sl((c) => c.render.frameCpuMs.med)} ms, GPU ${sl((c) => c.render.gpuMs?.med)} ms, draws ${sl((c) => c.render.draws?.med)}.`);
+      L.push(`Per added guard, ${cellName}, N ${a.count} -> ${z.count}: sim step ${sl((c) => c.sim?.stepClean.med)} ms, AI manager ${sl((c) => c.sim?.buckets['ai.manager'].mean)} ms, perceive ${sl((c) => c.sim?.buckets['ai.perceive'].mean)} ms, frame ${sl((c) => c.render.frameMs.med)} ms, frame CPU ${sl((c) => c.render.frameCpuMs.med)} ms, frame CPU (sim frames) ${sl((c) => c.render.frameCpuMsWithSim?.med)} ms, CPU per 1/60 s sim ${sl((c) => c.render.cpuMsPerSimStep)} ms, GPU ${sl((c) => c.render.gpuMs?.med)} ms, draws ${sl((c) => c.render.draws?.med)}.`);
     }
     L.push('');
     const passes = ok.filter((x) => x.map === m && x.render.passes.length);
@@ -625,6 +881,11 @@ function resultsMd(R) {
   }
   const t = ok[0]?.timer;
   if (t) L.push(`Timer resolution in the page: ${t.timerResMs} ms (cross-origin isolated: ${t.crossOriginIsolated}). Wrapped: ${t.wrapped.join(', ')}.`, '');
+  if (R.flags?.length) {
+    L.push('## Flags (data-quality notes: read the flagged numbers with care)', '');
+    for (const e of R.flags) L.push(`- ${e}`);
+    L.push('');
+  }
   if (R.errors.length) {
     L.push('## Errors', '');
     for (const e of R.errors) L.push(`- ${e}`);

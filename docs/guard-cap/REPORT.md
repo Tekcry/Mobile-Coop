@@ -8,7 +8,7 @@ GPU run (`docs/guard-cap/STATE.md` has the command).
 
 ## Method
 - Tool: `scripts/guard-cap.mjs` (header comment = full usage). Headless Chromium, `E2E_GPU=1` (ANGLE D3D11), port 4189,
-  `?gfx=epic` (governor off), 1920 x 1080, frame rate uncapped (`E2E_UNCAP=1`), `dist/` served via `vite preview`.
+  `?gfx=epic` (governor off), 1920 x 1080, frame rate uncapped (`E2E_UNCAP=1`), `dist/` served via `vite preview` (as `scripts/run-e2e.mjs`).
 - Maps: Sector Ops (`warehouseOps`, `mode=sector&sectorGuards=0`, section 1 start) and Marlow Yard (`ctcourse`,
   `mode=course`). Each map's own guards are removed (`EnemyManager.despawn`), the live cap `em.maxAlive` is set to N
   and N `grunt` guards are spawned with `em.spawn` in distinct walkable nav cells in a 120 degree wedge 5-24 m in front
@@ -20,7 +20,7 @@ GPU run (`docs/guard-cap/STATE.md` has the command).
   monkey-patches, `performance.now()` accumulators): fixed update, physics, frame update, `EnemyManager.update`,
   `Enemy.update` / `perceive` / `decide` / `move`, flashlights, guard animation, nav `findPath` / `lineClear` /
   `flowField`, every physics ray (charged to perception / torch / other AI / other), light-field reads.
-- Render: real rAF frames: interval, frame CPU, the loop's own sim / physics ms, `scene.render()` CPU, GPU ms
+- Render (after a 5 s minimum warm-up; the alert cell re-alerts before every sample): real rAF frames, split into frames with and without a 60 Hz step (uncapped, most run none), plus CPU ms per 1/60 s of sim (all frame CPU over the steps run: the AI-inclusive per-frame cost); interval, frame CPU, the loop's own sim / physics ms, `scene.render()` CPU, GPU ms
   (`EXT_disjoint_timer_query_webgl2` around `scene.render`; n/a when the driver hides it); then 2 s counted: draws and
   triangles over every pass, shadow-map passes per frame, active meshes, active-mesh evaluation ms; the light rig's
   shadow pool size and lit casters, flashlights on.
@@ -32,20 +32,11 @@ GPU run (`docs/guard-cap/STATE.md` has the command).
   dark maps (`src/world/torches.ts:15`): their count does not grow with N. Perception rays go through `Ballistics.ray`
   (allocates a hit object, `src/weapons/ballistics.ts:87`), one think per 0.22-0.30 s per guard (`src/ai/enemy.ts:823`).
 
-## Results (fill after the run; copy from `RESULTS.md`)
+## Results (the script fills the block below at the end of a run; full numbers in `RESULTS.md`, `guard-cap.json`, `guard-cap.csv`)
 
-| Map | N | Cell | Sim step med / p95 | AI manager | Perceive | Rays / step | findPath / step | Physics | Frame ms med / p95 | fps | Frame CPU | GPU ms | Draws | Shadow passes | Active meshes |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| sectorops | 12 | patrol/facing | | | | | | | | | | | | | |
-| sectorops | 16 | patrol/facing | | | | | | | | | | | | | |
-| sectorops | 24 | patrol/facing | | | | | | | | | | | | | |
-| sectorops | 12 / 16 / 24 | alert/facing | | | | | | | | | | | | | |
-| ctcourse | 12 | patrol/facing | | | | | | | | | | | | | |
-| ctcourse | 16 | patrol/facing | | | | | | | | | | | | | |
-| ctcourse | 24 | patrol/facing | | | | | | | | | | | | | |
-| ctcourse | 12 / 16 / 24 | alert/facing | | | | | | | | | | | | | |
-
-Per added guard (slope 12 -> 24): sim ___ ms, of it AI ___ (perceive ___), frame CPU ___, GPU ___, draws ___.
+<!-- guard-cap:results:start (scripts/guard-cap.mjs fills this block) -->
+Not run yet.
+<!-- guard-cap:results:end -->
 
 ## Which option fits (decision rule)
 Budgets (`docs/systems/performance.md`): main thread Epic p95 <= 5.5 ms, sim p95 <= 2.9 ms, GPU 7.5 ms at 120 Hz
