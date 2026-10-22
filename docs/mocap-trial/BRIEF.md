@@ -68,6 +68,12 @@ fetched, one at a time.
   0.25 s cross-fade covers the walk / jog). A deliberate Settings toggle: polish list, not fixed (needs a one-cycle stride
   hand-over); in the PR body with the numbers. tests/mocapPlayer item 5 stays it.skip for it.
 
+- A9 (orchestrator 2026-10-23 ~06:10): M4's ON default waits for a follow-up PR. Turned on, e2e-anim's turn feet rows
+  fail (jog 90: planted contact 2.7 cm, twist at lift 30.9 deg): clip-planted feet pin the ankle while the clip's stance
+  pitch rolls heel to toe, so the rendered heel / ball slide, and they skip N1's anchor / pivot (MT2-FIXE.md). Batch 1
+  ships with the default OFF (the flip b597053c reverted in 260f93eb); round F pins the contact like N1 and the flip
+  follows. Undo: none needed (the setting is opt-in).
+
 ## Polish list
 - Switch toggle at run / sprint (A8): one-cycle stride hand-over after a toggle.
 
