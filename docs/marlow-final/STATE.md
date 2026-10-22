@@ -67,6 +67,12 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~03:10 slice 0 fresh checker: PASS (slices/S0-check.md). Fixed its should-fix 1 (e2e-ctcourse expects 'looped',
+  5920cce5); Character Build reruns e2e-ctcourse on 5920cce5. Slice 0 follow-ups (Opus, small, next free slot):
+  unit test for ctDevices camera mode transitions (console -> looped, jam during loop -> off -> looped, flag clear ->
+  online, dead Sector Ops camera stays off); prune holdPulseAt on client leave; a refused press should not claim the
+  role; isolator lure point (cabinet vs lamps: SPEC wording). 0d takes registerCourse at load + map tests for scanner
+  pairs <= 8 and objective id length <= 48.
 - ~03:00 greybox helper tests IN (77 pass). Helper fixes override SPEC numbers (fold into SPEC at the next spec pass):
   A1 leg-up mark x 10.8; A3 first hop 10.0 m, hide x 88.6; A5 drum stack >= 2.8 m off the beam line or >= 1.9 m
   noLedge; A6 5 m bridge, overhang 0.4, exit release on the cabinet, panel 3 s hold; GREY_KEEP_CLEAR 4.7 m. Sent to
