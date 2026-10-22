@@ -4,14 +4,9 @@ Every open job this session leads, with branches, heads, next steps and rules. R
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
 
 ## LIVE 2026-10-22 ~23:00 (after the clear) - check these first
-- vol-cone-fix: worktree C:/NightShift/Mobile-Coop-vol-cone-fix, feature/vol-cone-fix from master 2f1961ad: BEFORE
-  533a1f30 (shot script, 14 views; Marlow has no spot or flood = no-change control), AFTER db0ffadf (src/vfx/volLights.ts
-  general variant: only kind 'flashlight' beams; tests/volLights.test.ts; changes/feature-vol-cone-fix.md; NOTE.md table
-  pending). Laptop main slot (Character Build, 4189) shoots both + --sheet + e2e smoke e2e-darkness e2e-desktop:3 on
-  db0ffadf, pushes the shots on top. Fresh checker PASS (exact equivalence for lamps / torches; no other beam light
-  exists); its wh-* row fix + torch-cone assert = 7414d280; round-1 shots e4bd85ad (general variant took the Warehouse flood beams off) -> LED-only variant 72102b7e; laptop reshoots AFTER + e2e on 72102b7e, then PR. Next: review the pairs (LED-only fallback
-  if Marlow / floods change: volBeam one-liner in volLights.ts), fill NOTE.md, PR, message the orchestrator. Master is
-  now 4.60.0 (d01300d3); keep the shots on the 2f1961ad base, merge master only before the PR if needed.
+- vol-cone-fix: PR #156 OPEN (feature/vol-cone-fix 85413567, master 4.60.1 merged; patch). LED-only variant 72102b7e
+  (round 1 general variant took the Warehouse flood beams off). Checker PASS, GPU e2e smoke / darkness / desktop:3 pass,
+  round 2 shots 3135a783. Orchestrator told; nothing to do unless the train sends it back.
 - mocap-sheets: real-clip sheets DONE and sent to the orchestrator + CT Core: feature/mocap-sheets-real 04598e9a
   (79005dfd + mocap-trial 82f43716; laptop GPU 354 s; VP9 webms; worktree C:/NightShift/Mobile-Coop-mocap-sheets-real).
   The laptop now has ffmpeg (Michael approved). CT Core fix 44d7c2a7 merged = f027fc98: laptop reruns turns + start
