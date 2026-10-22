@@ -1,7 +1,7 @@
 # Night Shift - roadmap
 
 State only: what is happening, what comes next, what waits on Michael, what is done. The rules (the orchestrator,
-machines, merges, versions, test tiers) live in CLAUDE.md "Sessions". Detail lives in each job's own docs (linked). Live page: https://claude.ai/artifact/XehBYx1Lm27txV29kjSoXh (new account, 2026-10-19 22:55; the old page belongs to the old account)
+machines, merges, versions, test tiers) live in CLAUDE.md "Sessions". Detail lives in each job's own docs (linked). The dashboard page belonged to an old account; git is the source (2026-10-22: no page republished).
 
 Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training level with Wren, basic animations, basic
 weapons, all co-op moves, lights and shadows, pure CT except Michael's decisions; a visual pass last. No refining before
@@ -14,16 +14,17 @@ runs only on spare capacity and yields the desktop lock whenever CT Core needs i
 
 Priority (Michael, 2026-10-20 10:30): "movement and animations are the top priority". CT Core (G8 keyframed clips, then movement gaps) has first claim on the desktop lock, the laptop runner and the orchestrator's reviews; everything else fits around it.
 
-Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restarted from git at 22:40).
+Last updated: 2026-10-22 18:30 Sydney (account switched 13:10; master 4.56.0).
 
 ## Waiting on Michael
-1. Walk slice F on /ct/ in the morning (CT Core, overnight).
+1. Walk 4.56.0+ on /preview/ (menus, the version label): weapon draws / holsters (LT mid-holster gun-through-trunk known), security room in bay 3, wheel opens on goggles; then the full anim tune once train 6 + N1 / N2 land.
 2. Prune: done 2026-10-22 ~16:35 (85 merged remote branches, 21 clean worktrees). Kept: dirty worktrees anim-cleanup, anim-joints, guard-tune, tuner-v3 (uncommitted files) and branches still in use.
 3. #67 S2b walk (step length vs the wall peek): Michael fixes it himself in animation dev (2026-10-21 13:20); stays parked.
 4. Review on the next walk (Menu Notes N3b, feature/anim-n3b): A2 wall block tips the gun muzzle-DOWN about the butt
    (replaces G6's CT muzzle-up; real-world standard per the 2026-10-20 13:30 "ignore CT movement references"); A1 body
    recoil above CT G2's "under 0.5 deg" (rifle grip 2.8 cm, chest 1.5 deg; Gun tuner recoilMul). Undo: constants /
    recoilMul 0. W (#116): 0.08 s wheel let-go grace (WHEEL_LETGO_S).
+5. Sector Ops lights (#129): s1-goods-in / s1-workshop show strong white volumetric cones under the new strip lights (fog only; meter and guards read the light field): look on the next walk.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
 - Machines and rules (2026-10-22 ~17:50-18:00): the laptop's CPU / GPU are far stronger: "Laptop main", "Yes, laptop GPU" (CLAUDE.md "Main test machine"). Rule review: chose "Your picks": (1) checker-passed PRs go straight into trains, src/net / protocol / save PRs keep their area suites; (2) a docs / CHANGELOG / fragments / test-script delta keeps a test result; (3) the laptop runs two queues (4191, 4192); (4) test-speed round 2 (full run ~27 -> ~15 min); (5) changelog fragments per PR, assembled at the version step; (6) one merge-train script that merges only on a passing check; (8) refresh stale roadmap and dashboard. (7) lock queue file skipped. Michael also: "if the desktop is a problem, why haven't you mentioned it? ... you should take initiative to identify bottlenecks and make recommendations to increase the speed and quality of the results."
@@ -113,27 +114,20 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
   kit labels, doc fixes): after the core-loop playtest.
 
 ## Now
-| Session | Machine | Branch | Doing | Next checkpoint |
-| --- | --- | --- | --- | --- |
-| Orchestrator | desktop | `docs/*`, reviews | New account (22:40): all sessions restarted; this roadmap, reviews and merges | Menu Notes PR; lightfield-heap and Sector Ops PRs as they turn green |
-| CT Core Build | desktop | `feature/ct-prototype` | First priority. Slice F (F1-F7) at 637d41d5: check green, laptop suites pass; e2e:quick, GPU sheets, check, /ct/. Then the footage catalogue, the movement audit and slices to match CT; the hold-A action menu | Slice F on /ct/; catalogue; audit |
-| Character Build | laptop (second heavy slot) | test runner | The laptop test runner; order CT Core, Menu Notes, Sector Ops. lightfield-heap merged (#26, 4.7.5) | Menu Notes full e2e (4ae2d2f2), then Sector Ops |
-| Menu Notes Build | desktop | `feature/menu-notes` | All notes and M1-M4 built; master 4.7.3 merged (c32eb324); CT Core's two menu fixes done (4ae2d2f2); check + full e2e on the laptop | PR (minor, 4.8.0) |
-| Course Ready Build | desktop | `feature/course-ready` | New (23:48). Marlow Yard walkthrough-ready for 2 players + a prototype lighting pass; src/world, src/game/course; CT Core merges it into ct-prototype for /ct/ | Slices to /ct/ via CT Core; PR (minor) |
-| Sector Ops Build | desktop | `feature/sector-restart` | Spare capacity. M9 clean checkpoint restart; fix round 839a3a07 in a fresh check; master merged (cb7e1061); suites queued on the laptop | PR (patch); then warehouse-redesign (spec all 3, greybox section 1; dog flashlight fix) |
+| Session | Machine | Doing | Next |
+| --- | --- | --- | --- |
+| Orchestrator | desktop | trains, reviews, pacing (full burn), bottlenecks | train 6: #119, #122, #123, #127, #128, #129, #131 + orchestrator docs |
+| CT Core Build | desktop agents, overflow to 100% | anim-natural N1 feet (jog / run 180 timing), N2 body motion steps 3-5, #123 anim-bake-all | N1 and N2 PRs (train 7) |
+| Menu Notes Build | desktop agents | #122 N3b, #127 sector-fixes C, #129 sector-fixes L, N0 pass 2 leftovers | sector-fixes P (laser panels) |
+| Course Ready Build | desktop agents | #119 N4b (ladder fix), #128 heap asserts, studio-pairs (fix 12), sector-fixes R (co-op routes) | R PR |
+| Character Build | laptop: MAIN test machine, two logic slots (4191, 4192) + GPU (4189) | run requests, trains, GPU runs; gap job test-speed-2 | full run ~15 min |
 
 ## Next (in order)
-1. **Playtest 2 slices B + C** (CT Core): aiming compared with the CT footage (view unchanged when crouched,
-   upper body tight, arms less outstretched, natural pistol aim); legs in line with the body walking, running, turning;
-   crouch hands and legs. `docs/ct-prototype/PLAYTEST-2.md`.
-2. **Playtest 2 slices D + E** (CT Core): rifle and pistol holstering; hanging shimmy (wider, slower hands); vertical
-   pipe climb; ledge climb-up onto the knees.
-3. **Michael's core-loop playtest** of the co-op training course on /ct/. Refining starts only after this (goal rule).
-4. **Selection wheel restyle**: slightly bigger, not just boxes, original (CT Core).
-5. **Menu notes** (started 2026-10-19 18:40, job `docs/menu-notes/`, from `docs/menu-ui/SLICES.md`): music from the title screen; preload shaders and the hero with
-   a Night Shift load screen; no way back to "press any key"; confirm the hero LOD; the hand clipping the magazine in the
-   idle; rifle and pistol in the menu with holding and idle poses; merge Controls and Settings > Controls.
-6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
+1. **Train 6** (above), then N1 + N2 (train 7): the base for Michael's full anim tune.
+2. **Sector Ops complete**: sector-fixes P (laser panels), R (co-op routes), then S2 polish from the walk.
+3. **Marlow Yard complete**: Michael's end-to-end co-op walk of the training course; fixes from it.
+4. **Visual pass** on the training level (last, per the goal).
+5. **Guard cap** (after Marlow Yard + Sector Ops), then the **campaign spec**.
 
 ## Later (after the prototype)
 - **Guard cap** (Michael 2026-10-22 ~14:50: "After Marlow + Sector Ops"): before the campaign spec. Options given: dormant guards (all placed, at most `MAX_ALIVE` 12 awake), a desktop perf run at 12 / 16 / 24 awake (sim vs render), AI / perception LOD and shared raycasts if sim-bound, the WebGPU trial, guard LOD and fewer flashlight shadows if render-bound, guard snapshot trimming for co-op past ~16.
