@@ -73,9 +73,10 @@ for (const [name, query] of MAPS) {
         let tried = 0;
         if (view === 'inside') {
           // candidate spots in the frame at this yaw (+-12 deg, 4..13 m), brightest first: the camera's own meters decide
-          const range = dev.debug().range;
+          // (camera-range) this camera's own range (`camRange`; the debug `range` is only the 12 m default), its inner 80 %
+          const range = cam.range ?? dev.debug().range;
           const spots = [];
-          for (let d = 4; d <= Math.min(13, range - 1); d += 1.5) {
+          for (let d = 4; d <= Math.min(13, range * 0.8); d += 1.5) {
             for (const off of [0, -0.2, 0.2]) {
               const x = cam.x + Math.sin(yaw + off) * d;
               const z = cam.z + Math.cos(yaw + off) * d;

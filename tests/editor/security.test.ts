@@ -187,12 +187,12 @@ describe('what a camera sees', () => {
     const v = camView(d, cam);
     const ray = wallRay([{ a: [9.9, 0], b: [9.9, 20], h: 4 }, { a: [10.1, 0], b: [10.1, 20], h: 4 }]);
     expect(camSees(v, 7, 10, 0, ray)).toBe(true);
-    expect(camSees(v, 13, 10, 0, ray)).toBe(false);
+    expect(camSees(v, 11.5, 10, 0, ray)).toBe(false);
     // same point with no wall: seen
-    expect(camSees(v, 13, 10, 0, wallRay([]))).toBe(true);
-    // out of the 70 degree frame (behind the camera) and out of range (SN03 18 m)
+    expect(camSees(v, 11.5, 10, 0, wallRay([]))).toBe(true);
+    // out of the 70 degree frame (behind the camera) and out of range (SN03 12 m, camera-range: was 18)
     expect(camSees(v, 7, 19.5, 0, wallRay([]))).toBe(false);
-    expect(camSees(v, 19.5, 10, 0, wallRay([]))).toBe(false);
+    expect(camSees(v, 12.5, 10, 0, wallRay([]))).toBe(false);
     // under the mount: below the 45 degree vertical frame (SN04)
     expect(camSees(v, 1.2, 10, 0, wallRay([]))).toBe(false);
     const g = levelCells(d.rooms, [], 'G')!;
