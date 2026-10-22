@@ -1,5 +1,53 @@
 # Changelog
 
+## 4.61.0 - Train 8: Wren's body moves with the gait, feet in turns, Sector Ops strip-light fog fix (2026-10-22, PR #157; #138, #156)
+
+### Wren's feet in turns (anim-natural N1)
+- Wren's feet in turns: a turn step lifts the planted foot before the legs wind up (the body's yaw rate and the
+  foot's twist decide it), the planted foot pivots on the ball with the heel coming up first, and no foot sticks to the
+  floor and snaps round late. Jog and run turns first, then walk turns, turns on the spot, starts, stops, strafes and
+  crouch turns. A foot left behind in a fast turn now lifts early instead of launching at 6 m/s (rule A2). Guards share
+  the turn rules. New Stepping sliders for the rule, identity by default, and they bake.
+- Tests: e2e-anim's foot locking, crab slide and turn block read the contact point (heel / ball while down); the turn
+  block asserts plant time <= 0.25 s and the first swing frames <= 5 m/s; e2e-move's stop check reads the contact
+  point (2 cm bar kept).
+
+### Wren's whole body moves with the gait (anim-natural N2)
+- Wren's walk, jog, run, sneak, crouch walk, crouch run and the aimed glides now move the whole body (Michael: "All
+  movements must move naturally with twisting/swaying/balancing"): the hips and shoulders turn against each other with
+  each step, the hips sway over the standing foot, and the head lets a little of the chest's turn through and nods with
+  the steps. Aiming, the hips swing under a steady chest and the head stays on the aim.
+- Added on top of the keyed clips and Michael's key edits (never rescaling them), timed onto the gait phase: no pops at
+  speed or stance changes, the same at every frame rate. Measured headless (pelvis / shoulders deg peak to peak): walk
+  3 / 3 -> 8 / 8, jog 5 / 7 -> 12 / 16, sneak 2 / 2.4 -> 5 / 5.4, crouch walk 4 / 4.8 -> 8 / 8.8; walk hip sway 1.7 ->
+  4.4 cm; aimed side-step counter-rotation -0.47 -> -0.99.
+- The run no longer pops at each foot strike. The trunk keys (A1) no longer snap the hips ~21 deg twice a stride, and
+  the arms no longer jump back to front in one frame (wrist 23.5 -> 6.5 cm per clip frame, peak 17.6 -> 5.5 m/s): Michael's
+  2026-10-22 run tune moved the key timings but kept arm values keyed for the old spacing. Only the arm keys were
+  retimed: his swing range and elbow bend are kept; the arms now ease out of each extreme and pass mid-swing about 3/48
+  of a cycle later than his tune.
+- Every Wren rig (the player, the co-op partner, the studio puppets walking a loop); guards are unchanged bit for bit.
+  The amounts are per tuner body row (`BODY_MOTION` in `src/anim/bodyMotion.ts`); the stills come in a later step.
+- The animation audit's walk sway limit for Wren is 5 cm (Michael approved ~5 cm; guards keep 3 cm).
+- With the gun out (low ready walk / jog) the chest stays on the gun: the hips still swing under it, but the layer no
+  longer turns the shoulders, which carried the gun arms out (low ready jog elbows 6.0 -> 5.7 cm outside the shoulder,
+  limit 6; master's own reading). The low-ready head then follows only the keyed carry (1.1 deg peak to peak).
+- Arms (step 3): Wren's walking arms swing wider (wrist range about 23 -> 30 cm), and turns and strafe starts no longer
+  whip the hands (the jog 180 turn 14 -> 7 m/s): a per-gait arm gain and a wrist / elbow speed cap in the chest frame
+  (the run's cap, 18 m/s, does not engage on its keys). Drawn (low ready) arms are unchanged. Anim Studio's loop player
+  is never capped: its keyed loops play exactly as keyed.
+- The walk's side-to-side weight shift peaks a little later in each step, with the same size (about 2.9 cm). The stance
+  knee no longer bows out past the foot as the hip reaches its widest point (walk knee-out 3.4 -> 3.2 cm, limit 3.5).
+- Crouched and still with the gun holstered, each palm now rests on the kneecap, slightly further forward than before. The
+  right wrist no longer sinks into the right thigh (up to 2.5 -> 1.9 cm of overlap, limit 3).
+
+### Volumetric cones under fixed spots
+- Fix (render only): the Sector Ops LED strips and bulkheads with a beam optic no longer draw full ceiling-to-floor
+  white fog cones at High / Ultra / Epic. In the volumetric pass the LED fittings (strips, panels, bulkheads) scatter under their shade like a lamp
+  (march at most 3.2 m, no wider than the lamp cone, gain 1), along their own beam direction; torches and the floods with a
+  plain housing (base Warehouse, parked maps) keep their beams. The floor light, the meter and the guards (`LightField`) are unchanged.
+  `src/vfx/volLights.ts` (pure, `tests/volLights.test.ts`); shots and notes in `docs/vol-cone-fix/`.
+
 ## 4.60.1 - Train 11: GPU test waits, netmove compare on sim time, touch fling note (2026-10-22, PR #155; #150, #154, #149)
 
 ### Tests: condition waits before UI-state asserts (GPU)
