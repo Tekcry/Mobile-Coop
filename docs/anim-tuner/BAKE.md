@@ -288,7 +288,8 @@ value of its own. Result "baked (base table)"; target `src/anim/animBase.ts: sec
   as before, so the untuned rig and the Wren / guard skeleton fixtures are unchanged.
 - Never for the Joints / Hands & feet / IK / Weapon / Gear sections or Keys (their own keys), (item 24) the guard
   sections (the guard table, taken first), (clip-speed) Clip speed (a code rule per slider; `clipSpeed` reads the
-  tuner's values), a Body base param (the `body` key), or a slider whose default is not its op's identity (refused:
+  tuner's values), (anim-bake-all, after #113) the holds and carries `cq` (a CQ_GAIT code rule per slider; `cqRows`
+  reads the tuner's values), a Body base param (the `body` key), or a slider whose default is not its op's identity (refused:
   `tuneBakeBase.ts` GENERIC_REFUSED).
 - Run time (`tuneRegistry.ts`): each section keeps `values` (the tuner's own: the panel, save and export), `base` (the
   table's values, the slider's default where unset) and `eff` (the two composed), rebuilt on an edit, a load, an import
