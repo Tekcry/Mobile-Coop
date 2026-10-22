@@ -18,6 +18,9 @@ can survive: kill its process tree (taskkill /T /F) and confirm.
   steps back. Fresh checker PASS; desktop GPU run on 74cb0634 complete and green (check 233 s; takedown, anim, coop,
   netmove, ctcourse). Stacked on #139: once #139 merges (train 9), merge origin/master into feature/anim-n4d, push, tell
   the orchestrator. Next state: docs/anim-natural/n4d/STATE.md.
+- **menus-tap-wait: PR #147** (feature/menus-tap-wait 99a6330f, C:/NightShift/Mobile-Coop-menus-tap-wait): e2e-menus touch
+  pause / Resume taps wait for the screen (test only; the train 9 laptop failure). e2e-menus GPU PASS. The orchestrator adds
+  it to train 9. Nothing to do unless it comes back.
 - After n4d: ask the orchestrator for the next N4 rows (the n4c / n4d polish lists are in their STATE files).
 
 ## Update 2026-10-22 ~19:10 (after the clear)
