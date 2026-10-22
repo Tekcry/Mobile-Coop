@@ -60,7 +60,8 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   if (td) {
     out.m = 'takedown';
     out.tid = td.e.id;
-    out.ph = Math.max(0, Math.min(1, pose.melee));
+    // (anim-n4d) the blow's own phase (posed warped onto the kill, `killWarp`, here and on remotes)
+    out.ph = Math.max(0, Math.min(1, g.takedown.blowPh));
     delete out.c;
     return out;
   }
