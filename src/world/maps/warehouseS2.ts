@@ -48,6 +48,15 @@ export const S2_PICKUPS: NonNullable<MapLayout['pickups']> = [{ pos: new Vector3
 export const S2_HIGH_TOP = 4.4;
 
 /**
+ * (sector-fixes-r2 jump) The high-bay row's west face (x): 3.7 m across A3 from the R2 rack tops (east face -13.5). A
+ * top-gear running jump off a 4.0 top lands on a 4.4 top by the step-up (`MOVEMENT.maxStep`) across up to 3.10 m
+ * (tests/helpers/soloJumpReach.ts `soloTopLandingReach`): the old 3.0 m aisle (face at -10.5) was in reach, 3.7 clears it
+ * by 0.6. Both blocks move (R2N to R3N is the same gap, and R3N to R3S is one jump on the top). The row is 1.6 m deep
+ * (was 2.3); the east face (C1b's lip, x -8.2) and the gangway are unchanged.
+ */
+export const S2_R3_WEST = -9.8;
+
+/**
  * (sector-fixes-r R2) Section 2's co-op-only routes: a leg-up onto a planned lip of the high-bay row, then the relay or
  * the two-person rope for the partner. (sector-fixes-r fix) Each entry is one high bay; a bay with no lip is a plain
  * `noLedge` block. `bay` is the block's plan box [x0, z0, x1, z1]; each lip is a run of one face
@@ -68,13 +77,13 @@ export interface S2CoopRoute {
 export const S2_COOP: readonly S2CoopRoute[] = [
   {
     name: 'C1 south high bay (R3S): leg-up from the east gangway, vantage over the lane, A3 and the picker',
-    bay: [-10.5, -3, -8.2, 4],
+    bay: [S2_R3_WEST, -3, -8.2, 4],
     lips: [{ x: -8.2, nx: 1, z0: 1.0, z1: 3.3, spot: [-7.7, 2.2] }],
   },
   {
     // (sector-fixes-r fix) no lip: A3's side is in a solo jump's reach from R2N, the gangway's within 2.2 m of the main (x -6)
     name: 'R3N north high bay: no co-op lip (C2 removed in the fix round)',
-    bay: [-10.5, 7, -8.2, 15],
+    bay: [S2_R3_WEST, 7, -8.2, 15],
     lips: [],
   },
 ];

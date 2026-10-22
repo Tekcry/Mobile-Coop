@@ -951,6 +951,45 @@ if (want(2)) {
       });
     }
 
+    // ---- (sector-fixes-r2 jump) solo running jumps off R2's 4.0 tops at R3's 4.4 tops: landing on a top by the step-up
+    // (the feet within MOVEMENT.maxStep of it as the body meets its face) reaches 3.10 m at the top gear
+    // (tests/helpers/soloJumpReach.ts `soloTopLandingReach`); A3 is now 3.7 m (R3's west face `S2_R3_WEST` -9.8). The plain
+    // press 0.8 m before the edge (a leap; within 0.75 the press is a drop), and the edge take-off: the stick swung along the
+    // edge for the press frame (the probe then sees the top ahead and leaps with the run's velocity) 0.3, 0.15 and 0.02 m
+    // before it, the stick forward again in the air. The body never stands on R3 and never holds a co-op grip.
+    const R3_WEST = -9.8;
+    for (const t of [{ id: 'S2 R2S to R3S top', z: 1.8 }, { id: 'S2 R2N to R3N top', z: 10.0 }]) {
+      await check(`${t.id}: a solo running jump never lands on it`, async () => {
+        for (const v of [{ off: 0.8, side: 0 }, { off: 0.3, side: 1 }, { off: 0.15, side: -1 }, { off: 0.02, side: 1 }]) {
+          await put(-15.6, 4.05, t.z, PI / 2);
+          await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 5; });
+          const top0 = (await info()).y;
+          let jumped = false;
+          let at = null;
+          let speed = 0;
+          let max = 0;
+          let landY = 0;
+          for (let k = 0; k < 160; k++) {
+            const i = await info();
+            if (!jumped && i.grounded && i.x > -13.5 - v.off) {
+              jumped = true;
+              at = [i.x, i.z];
+              speed = await G(() => { const w = window.__app.current.player.controller.vel; return Math.round(Math.hypot(w.x, w.z) * 100) / 100; });
+              await step(1 / 60, v.side, v.side ? 0 : 1, [BTN.Y]);
+            } else await step(i.x > -14.8 ? 1 / 60 : 0.05, 0, 1);
+            const j = await info();
+            if (j.attached && j.grip !== null) max = Math.max(max, j.grip);
+            if (j.grounded && j.x > R3_WEST - 0.1) landY = Math.max(landY, j.y);
+            if (jumped && j.grounded && j.y < 0.3) break;
+          }
+          await step(0.5);
+          const fin = await info();
+          assert(Math.abs(top0 - 4.0) < 0.15 && jumped, `${t.id}: on R2's top (y ${top0}) and the press at its edge (${v.off} m, take-off at ${at} at ${speed} m/s)`);
+          assert(landY < BAND_LO && max < BAND_LO && !(fin.y > BAND_LO), `${t.id}: alone, the running jump (${v.off} m before the edge, stick ${v.side ? 'along the edge' : 'forward'}, ${speed} m/s) never lands on R3 (stood ${landY}, held ${max}, ends ${JSON.stringify([fin.x, fin.y, fin.z])})`);
+        }
+      });
+    }
+
     // ---- section 1, C2: the monorail (4.4) up to the bay main (5.0) where it crosses 0.6 m under it, hand over hand
     // east, then let go onto the plant deck (3.3); and the monorail's way down alone (north end, let go)
     await check('S1 C2 monorail to the bay main', async () => {

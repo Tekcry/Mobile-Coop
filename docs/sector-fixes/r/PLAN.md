@@ -48,3 +48,10 @@ built `locked: true, breachable: false` in the section file. RT reads the three 
 - M1: Michael 2026-10-22 ~21:20 (through the orchestrator, "Add another"): section 2 add another co-op route (only C1b +
   the team door after the fix round). Done in the e2e fix round: C2, the dispatch mezzanine's landing on the x -4 wall
   (`S2_LANDING`, R2.md), at least 0.5 m clear of a top-gear solo running jump (`tests/helpers/soloJumpReach.ts`; 0.85 m).
+
+## Assumed decisions (sector-fixes-r2)
+- A4 (item 4, jump top-landing, 2026-10-23): a running jump that lands on a higher top by the step-up counts as solo
+  access (the reach model in `tests/helpers/soloJumpReach.ts` `soloTopLandingReach`: the edge take-off and an air-borne
+  step-up granted, unprobed in the game). R3's west face moves to x -9.8 for both R3S and R3N (the brief named the R2S /
+  R3S gap only; R2N / R3N is the same 3.0 m gap and R3N gives R3S with one jump on the top). Undo: set `S2_R3_WEST` back
+  to -10.5 in `warehouseS2.ts` (and drop the S2 top-landing tests), if the e2e probe shows the step-up never lands.
