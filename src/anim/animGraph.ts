@@ -700,6 +700,8 @@ export class AnimGraph {
   /** (mt2-qstop) Switch on: the standing pose's effort pace (the procedural stand's speed nodes and the mocap speed set),
    *  falling at most MOCAP_SLOT.paceFall; the effort pace itself otherwise. */
   private mPace = 0;
+  /** (mt2-qstop) `mPace` is falling at its limit (a stop from over a walking pace, until it meets the pace). */
+  private mEase = false;
   private kneelW = 0;
   /** (G1) Tense sneak weight 0..1 (eased with TENSE.tau). */
   private tenseW = 0;
@@ -1015,14 +1017,19 @@ export class AnimGraph {
     // the feet stay where they froze
     const holding = i.holdSpeed > 0 && i.speed < 0.05;
     const moveTarget = holding ? 0 : smoothstep(locoSpeed / 0.22);
-    // (mt2-qstop) switch on, the standing pose's pace (`mPace`: the procedural stand's speed nodes and the mocap speed set)
-    // falls at most MOCAP_SLOT.paceFall (a one-frame stop 5 -> 0 m/s posed the slowest gait at once: the run's pelvis rose
-    // 6.7 cm in the procedural stand and 5.5 cm in the mocap set in a frame; a braked stop crossed the jog band in under
-    // two frames); rising it follows at once (starts as before). A stop's fade to the idle (the moving share) is slower
-    // from a pace over the walk, by that pace (the run's pelvis is ~14 cm under the idle's: 0.19 of it a frame at 0.08 s)
+    // (mt2-qstop) switch on with the captured gaits (not the mocapSwitch placeholders: the hand-keyed run), a pace falling
+    // from over a walk (MOCAP_SLOT.walkMax) eases the standing pose's pace (`mPace`: the procedural stand's speed nodes and
+    // the mocap speed set) down at most MOCAP_SLOT.paceFall until it meets the pace (a one-frame stop 5 -> 0 m/s posed the
+    // slowest gait at once: the run's pelvis rose 6.7 cm in the procedural stand and 5.5 cm in the mocap set in a frame; a
+    // braked stop crossed the jog band in under two frames). Rising, and a walking stop, it is the frame's pace (as before:
+    // a walking stop's walk at its own pace faded 2.1 cm a frame). A stop's fade to the idle (the moving share) is slower
+    // from over a walk, by the pose's pace (the run's pelvis is ~14 cm under the idle's: 0.19 of it a frame at 0.08 s)
     const esNow = effortSpeed(locoSpeed, false);
-    this.mPace = LOCO.mocap && esNow < this.mPace ? Math.max(esNow, this.mPace - MOCAP_SLOT.paceFall * dt) : esNow;
-    const fadeTau = LOCO.mocap ? 0.08 * Math.max(1, this.mPace / MOCAP_SLOT.walkMax) : 0.08;
+    const capt = LOCO.mocap && LOCO.set.run !== HAND_KEYED_SET.run;
+    const fallTo = this.mPace - MOCAP_SLOT.paceFall * dt;
+    this.mEase = capt && esNow < fallTo && (this.mPace > MOCAP_SLOT.walkMax || this.mEase);
+    this.mPace = this.mEase ? fallTo : esNow;
+    const fadeTau = capt ? 0.08 * Math.max(1, this.mPace / MOCAP_SLOT.walkMax) : 0.08;
     this.moveW = approach(this.moveW, moveTarget, holding ? 0.05 : i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : moveTarget < this.moveW ? fadeTau : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {

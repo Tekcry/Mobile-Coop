@@ -4,13 +4,13 @@
  * nodes and the mocap speed set both read the pace of the frame, so the run's low pelvis rose 7-10 cm in a frame (8.7 cm
  * beyond pace x dt at 5 m/s, the switch off 2.5-8.9) with the arms swinging up to 47 deg, and a planted foot slid 2-5 cm
  * at some phases. A braked stop (0.25 s) crossed the speed set's jog band in under two frames: 3.0-3.2 cm beyond pace at
- * 2.2 m/s mid-brake (off 1.7). Now the standing pose's pace falls at most MOCAP_SLOT.paceFall and the fade to the idle is
- * slower from over a walking pace (animGraph `mPace`).
+ * 2.2 m/s mid-brake (off 1.7). Now, falling from over a walk, the standing pose's pace falls at most MOCAP_SLOT.paceFall and
+ * the fade to the idle is slower (animGraph `mPace`).
  *
  * One-frame stops from 1.4 / 2.8 / 4.0 / 5.0 m/s and 0.25 s braked stops from 2.8 / 4.0 / 5.0 m/s, six gait phases each,
  * worst of the six, ON against OFF (the hand-keyed set): the pelvis moves no more than pace x dt + max(2 cm, OFF's own) a
  * frame, the ankle-toe and any-bone steps are at most OFF + 2 deg (or both under 24), the planted feet do not slide (1 cm).
- * Measured (ON / OFF, pelvis cm): one-frame 1.2 / 1.8, 1.8 / 5.7, 1.6 / 5.8, 2.1 / 8.9; braked 1.3 / 1.6, 1.8 / 1.7,
+ * Measured (ON / OFF, pelvis cm): one-frame 1.3 / 1.8, 1.8 / 5.7, 1.6 / 5.8, 2.1 / 8.9; braked 1.3 / 1.6, 1.8 / 1.7,
  * 1.9 / 13.8; before (a7147e26) one-frame 1.3, 7.7, 8.9, 10.5 (slide 5.3 cm at 2.8), braked 1.6, 3.0, 3.2.
  */
 import { afterAll, describe, expect, it } from 'vitest';
