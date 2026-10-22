@@ -16,6 +16,7 @@
 import { mirrorKeyed, sampleKeyed, type KeyedClip } from './keyed';
 import type { RigTargets } from './animGraph';
 import { TUNE_CUR } from './tune';
+import { cqKeyedHold } from './cqGait';
 
 export interface StudioDrive {
   /** The clip played (null: the drive does nothing). */
@@ -42,10 +43,13 @@ export interface StudioDrive {
   /** The treadmill's contacts last frame (left, right): a heel strike sets the foot's `landed`. */
   inL: boolean;
   inR: boolean;
+  /** (anim-n4b) A hold clip: the game's close-quarters layer on its keyed trunk (`cqKeyedHold`): 'still' the hold's
+   *  brace (on the drive's time, phase x cycle), 'walk' the hold walk's counter-rotation; 'none' else. */
+  cq: 'none' | 'still' | 'walk';
 }
 
 export function newStudioDrive(): StudioDrive {
-  return { clip: null, inPlace: true, held: false, phase: 0, cycle: 1, mirror: false, drawn: false, crouch: false, pace: 0, dirX: 0, dirZ: 1, live: 0, inL: true, inR: true };
+  return { clip: null, inPlace: true, held: false, phase: 0, cycle: 1, mirror: false, drawn: false, crouch: false, pace: 0, dirX: 0, dirZ: 1, live: 0, inL: true, inR: true, cq: 'none' };
 }
 
 /** A phase wrapped into 0..1. */
@@ -66,6 +70,7 @@ export function studioDriveTargets(d: StudioDrive, o: RigTargets, dt: number): v
   d.live = d.phase;
   sampleKeyed(c, d.mirror ? d.phase + 0.5 : d.phase, 1, o.keyed);
   if (d.mirror) mirrorKeyed(o.keyed);
+  if (d.cq !== 'none') cqKeyedHold(o.keyed.pel, o.keyed.q, d.cq === 'walk', d.phase, d.phase * d.cycle); // (anim-n4b)
   o.keyW = 1;
   o.keyArmW = d.drawn ? 0 : 1;
   o.keyHol = d.drawn || d.crouch ? 0 : 1;
