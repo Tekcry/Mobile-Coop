@@ -67,6 +67,13 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 04:25 42a9b295 laptop: the restart fix holds (step clears, bolt shuts, relay variant ok); e2e-course PASS, e2e-coop
+  PASS; all 13 shots pass parity. e2e-ctcourse:1 FAIL at "A1: light": `use(B, 'switch-0')` (the client's yard switch)
+  never turns group 12 off on the host or the client (15 s, not load). NEXT WINDOW FIRST TASK (Opus, engine): a client
+  wall-switch press in Course mode must reach the host. Suspect: the client also builds StealthSystems
+  (gameState.ts:667), so its local `switch-0` (stealthSystems.ts:94) shadows the host-mirrored `switch-0` item and only
+  toggles the client's own registry; check how the client's use of a mirrored item is forwarded (coopClient) and whether
+  e2e-coop / netmove ever press a switch from the client. Core to M6 ("players cut it") in every set.
 - 04:10 8b260100 laptop: e2e-course PASS, e2e-coop PASS, e2e-ctcourse:1 FAIL again at the restart step-clear: the
   pause-menu restartCheckpoint() path ran the next device step (zones) before handle() saw bayRestart; fixed 42a9b295
   (holdZones in restartCheckpoint). Shots on the laptop (C:/NightShift/scratch/runs/marlowfinal-8b260100/shots/):
