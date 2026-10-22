@@ -131,7 +131,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     the header button "On the spot: on / off" (studio only), F8 (`TUNER_SPOT_KEY`) and L3 on the pad (`TunePadOut.spot`).
   - Stage light (studio only, rendering only): four point lights (key, fill, rim, a soft top "ambient";
     `anim/studio.ts` `STAGE_LIGHTS`, `stageLightPlace`) follow her root, (T2) turned toward the camera (`stageViewYaw`: key and fill on the camera's side, the rim beyond her, from any view; they were in front of her facing, so the view from behind saw only the rim and the top light), made once by `StudioStage`, light
-    only her meshes (`includedOnlyMeshes`, re-read once a second as the LODs load; once a second her materials are
+    only her own meshes, never an instance or its shared part base (`includedOnlyMeshes` from `stageLightMeshes`; fix 12: a part base in the list lit every instance in the scene, the hold-pair guard went white; GPU round: a base pushed into a list later, as the anim audit's pair rows do, is dropped on the once-a-second check, `stageLightKeep`, and the materials it lit re-frozen so they recompile), re-read once a second as the LODs load; once a second her materials are
     raised to every light on her mesh, `lightSources`, unfrozen and frozen again like `LightRig.fitMaterial`, so a later
     rig fit cannot leave the stage lights out), range falloff as the game's lamps. "Stage light" slider (View tab, Loop player; 0-2,
     default 1; `STUDIO_LIGHT.scale`, saved with the panel's `ui` settings as `stageLight`). The studio map's ambient
@@ -302,6 +302,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
 - (anim-bake-targets) Every tuner slider bakes. The Body sliders without a code value are deltas on the base table's
   `body` key (each Wren rig composes its own row, `tune.ts` bodyRigBegin); the gun tuck bakes per gun state into
   `WREN_TUCK` (`animGraph.ts`). Hook: `__animBase.setBody(row, id, v)`.
+- (anim-bake-all) Every other slider with no code value (aimed gun, FOV / zoom / aim-in blend, glide forward, the
+  Stepping rest, Weight damping and amounts, strideMul per state, the co-op and traversal moves) bakes into the base
+  table's generic `sections` key; the registry composes it with the tuner's values (`TuneSection.eff`, rebuilt on an
+  edit or a load) for every consumer, the bypass reads the base. Never the guard sections (their own table, below) or
+  Clip speed (code rules). Hook: `__animBase.setSection(section, group, id, v)`.
 - (marlow-bays item 24, track A) Guard tuning (`anim/tuneGuard.ts`, the per-guard window `anim/tuneGuardRig.ts`; tests
   `tests/guardTune.test.ts`, e2e-studio): a "Who" list (Wren / Guard) heads the what-row of the Body, Stepping and Weight
   tabs (`AnimTunePanel.setWho`, `tunerLayout.whoSections`). Guard shows the guard sections in place of hers: Guard

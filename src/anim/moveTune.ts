@@ -20,7 +20,7 @@
  */
 import '../player/speedTune'; // Body, Gun, Camera and Speed register first (the panel's section order)
 import './tuneKeys'; // then the tuner-v2 sections and Keys
-import { registerTuneSection, TUNE_FLAGS, TUNE_STATE_BAG, type TuneSection, type TuneTunable } from './tuneRegistry';
+import { registerTuneSection, TUNE_BASE_HOOKS, TUNE_FLAGS, TUNE_STATE_BAG, type TuneSection, type TuneTunable } from './tuneRegistry';
 
 /** The team moves the game has (`game/teamMoves.ts` TeamKind, plus the co-op revive). */
 export const TEAM_MOVES = ['boost', 'relay', 'throw', 'hang', 'rope', 'revive'] as const;
@@ -224,15 +224,47 @@ interface GroupRef {
   vals: Record<string, number>;
   /** The move's contact values (role A groups only), else null. */
   con: Record<string, number> | null;
+  /** (anim-bake-all) Base refs only: any value off identity (the bypass selects the base only then). */
+  live: boolean;
 }
+/**
+ * (anim-bake-all, BA-A3) The effective values (the base table's `sections.<team_move | trav>` composed with the tuner's,
+ * the registry's `eff`, rebuilt on an edit or a load) and, for the bypass, the base alone.
+ */
 const REFS = new Map<string, GroupRef>();
+const BASE_REFS = new Map<string, GroupRef>();
+const BASE_OF = new Map<GroupRef, TuneSection>();
 for (const m of TEAM_MOVES) {
   const sec = TEAM_SECTIONS[m];
-  const con = sec.values[teamGroup(m, 'contact')] as Record<string, number>;
-  REFS.set(teamGroup(m, 'a'), { vals: sec.values[teamGroup(m, 'a')] as Record<string, number>, con });
-  REFS.set(teamGroup(m, 'b'), { vals: sec.values[teamGroup(m, 'b')] as Record<string, number>, con: null });
+  const c = teamGroup(m, 'contact');
+  const a = teamGroup(m, 'a');
+  const b = teamGroup(m, 'b');
+  REFS.set(a, { vals: sec.eff[a] as Record<string, number>, con: sec.eff[c] as Record<string, number>, live: false });
+  REFS.set(b, { vals: sec.eff[b] as Record<string, number>, con: null, live: false });
+  BASE_REFS.set(a, { vals: sec.base[a] as Record<string, number>, con: sec.base[c] as Record<string, number>, live: false });
+  BASE_REFS.set(b, { vals: sec.base[b] as Record<string, number>, con: null, live: false });
+  BASE_OF.set(BASE_REFS.get(a)!, sec);
+  BASE_OF.set(BASE_REFS.get(b)!, sec);
 }
-for (const g of TRAV_GROUPS) REFS.set(g, { vals: TRAV_SECTION.values[g] as Record<string, number>, con: null });
+for (const g of TRAV_GROUPS) {
+  REFS.set(g, { vals: TRAV_SECTION.eff[g] as Record<string, number>, con: null, live: false });
+  const r: GroupRef = { vals: TRAV_SECTION.base[g] as Record<string, number>, con: null, live: false };
+  BASE_REFS.set(g, r);
+  BASE_OF.set(r, TRAV_SECTION);
+}
+/** Which base refs hold a value off identity (at start and after every base load; not hot). */
+function baseLiveSync(): void {
+  for (const [r, sec] of BASE_OF) {
+    let live = false;
+    for (const t of sec.tunables) {
+      if (r.vals[t.id] !== undefined && r.vals[t.id] !== t.def) live = true;
+      if (r.con && r.con[t.id] !== undefined && r.con[t.id] !== t.def) live = true;
+    }
+    r.live = live;
+  }
+}
+baseLiveSync();
+TUNE_BASE_HOOKS.push(baseLiveSync);
 
 /** The selection now: the group's values (null: identity), the contact values and weight. */
 const SEL: { ref: GroupRef | null; k: number; group: string } = { ref: null, k: 0, group: '' };
@@ -240,7 +272,8 @@ const SEL: { ref: GroupRef | null; k: number; group: string } = { ref: null, k: 
 /**
  * Select the group for the next root / begin / end calls: a team role group if given, else the traversal group of
  * `traverse`; `k` the contact weight (role A only). `follow` writes the panel's follow keys (the local player; the
- * studio's puppets pass false). The bypass (R3 held) selects nothing (identity). No allocation.
+ * studio's puppets pass false). The bypass (R3 held) selects the base table's values alone (nothing when the group has
+ * none: identity). No allocation.
  */
 export function moveTuneSelect(team: string, k: number, traverse: string, follow = true): string {
   const g = team !== '' ? team : travGroup(traverse);
@@ -249,7 +282,14 @@ export function moveTuneSelect(team: string, k: number, traverse: string, follow
     TUNE_STATE_BAG.team = shown;
     TUNE_STATE_BAG.trav = shown !== '' ? '' : g;
   }
-  const ref = g !== '' && !TUNE_FLAGS.bypass ? (REFS.get(g) ?? null) : null;
+  let ref: GroupRef | null = null;
+  if (g !== '') {
+    if (!TUNE_FLAGS.bypass) ref = REFS.get(g) ?? null;
+    else {
+      const b = BASE_REFS.get(g);
+      ref = b && b.live ? b : null;
+    }
+  }
   SEL.ref = ref;
   SEL.group = ref ? g : '';
   SEL.k = ref && ref.con ? Math.max(0, Math.min(1, k)) : 0;

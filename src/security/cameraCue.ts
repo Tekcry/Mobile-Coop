@@ -3,13 +3,14 @@
  *
  * A faint red scan grid on the surfaces a camera sees. The surfaces come from the camera's own perception: rays from
  * the lens along a fixed angular grid that spans the whole sweep (`cueSpan`), against the same static colliders and
- * the same `CAMERA` field of view and range as detection (`inFrame` + the `G.STATIC` ray in `securitySystem.ts`). The
+ * the same field of view, pitch and range as detection (`CAMERA` fields, `camPitch` / `camRange` of the camera's data:
+ * `inFrame` + the `G.STATIC` ray in `securitySystem.ts`; sector-fixes C, item 3). The
  * hits become one world-space mesh per camera (`cueMesh`); its shader keeps only the part inside the current yaw's
  * frame (`cueEdge`, mirrored in GLSL by `CUE_MASK_GLSL`), so the footprint sweeps with the pan for free. Render only:
  * gameplay never reads any of it, and it is never a light (light parity is unchanged).
  */
 import { CAMERA } from '../config/security';
-import type { CameraMode, CamMeter } from './camera';
+import { camPitch, type CameraMode, type CamMeter } from './camera';
 import type { CameraDevice } from './data';
 
 const DEG = Math.PI / 180;
@@ -28,9 +29,12 @@ export const CUE = {
   joinNear: 1,
   /** Projected grid cell (deg, in the camera's own angles: the lines slide over the surfaces as it pans). */
   gridDeg: 2.5,
-  /** Line strength normally (additive), and the faint fill between lines, in the red ink. */
-  line: 0.16,
-  fill: 0.025,
+  /** Line strength normally (additive), and the faint fill between lines, in the red ink. (sector-fixes C, item 4: "very
+   *  subtle": 0.16 / 0.025 -> 0.055 / 0.006, and the lines drawn thinner, `lineW`.) */
+  line: 0.055,
+  fill: 0.006,
+  /** Line width in pixels (the shader's anti-aliased line: 1 was the camera-cue look, under it is a hairline). */
+  lineW: 0.6,
   ink: [1.0, 0.07, 0.04] as const,
   /** (camera-cue fix) Electro: its post maps the scene's luma to navy and glows only above `ELECTRO.glowFrom` (0.5), so
    *  a red line (luma ~0.27 x strength) vanished. There the cue writes white ink (luma 1): the lines land in the glow
@@ -62,13 +66,13 @@ export interface CueSpan {
   rows: number;
 }
 
-/** The sample grid covering every yaw the camera can hold, plus half a field each side, and the vertical field. */
-export function cueSpan(def: Pick<CameraDevice, 'facing' | 'sweep'>, stepDeg: number = CUE.stepDeg): CueSpan {
+/** The sample grid covering every yaw the camera can hold, plus half a field each side, and the vertical field about its pitch. */
+export function cueSpan(def: Pick<CameraDevice, 'facing' | 'sweep' | 'y' | 'aim'>, stepDeg: number = CUE.stepDeg): CueSpan {
   const a = def.sweep ? Math.min(def.sweep[0], def.sweep[1]) * DEG : def.facing * DEG;
   const b = def.sweep ? Math.max(def.sweep[0], def.sweep[1]) * DEG : def.facing * DEG;
   const step = stepDeg * DEG;
   const az0 = a - CAMERA.hFov / 2;
-  const el0 = -CAMERA.vFov / 2;
+  const el0 = -camPitch(def) - CAMERA.vFov / 2;
   const cols = Math.ceil((b - a + CAMERA.hFov) / step - 1e-9) + 1;
   const rows = Math.ceil(CAMERA.vFov / step - 1e-9) + 1;
   return { az0, el0, step, cols, rows };
@@ -85,10 +89,11 @@ export function cueDir(s: CueSpan, col: number, row: number, out: [number, numbe
   return out;
 }
 
-/** How far each sample ray is cast (m). */
-export function cueReach(): number {
-  return CAMERA.range * CUE.over;
+/** How far each sample ray is cast (m) for a camera of detection range `range` (`camRange`). */
+export function cueReach(range: number = CAMERA.range): number {
+  return range * CUE.over;
 }
+
 
 const MESH_DIR: [number, number, number] = [0, 0, 0];
 
@@ -98,12 +103,11 @@ function joined(a: number, b: number, reach: number, tol: number): boolean {
 }
 
 /**
- * Fill the mesh from the hit distances (`dist[row * cols + col]`, `>= cueReach()` = no hit). `pos` holds 3 floats per
+ * Fill the mesh from the hit distances (`dist[row * cols + col]`, `>= reach` = no hit; `reach` = `cueReach(range)`). `pos` holds 3 floats per
  * sample, `idx` 6 per grid cell; a cell whose corners are not all joined surface writes degenerate triangles (fixed
  * buffer sizes, so a rebuild never reallocates). Returns the number of live triangles.
  */
-export function cueMesh(s: CueSpan, dist: Float32Array, lx: number, ly: number, lz: number, pos: Float32Array, idx: Uint32Array): number {
-  const reach = cueReach();
+export function cueMesh(s: CueSpan, dist: Float32Array, lx: number, ly: number, lz: number, pos: Float32Array, idx: Uint32Array, reach: number = cueReach()): number {
   const d = MESH_DIR;
   for (let r = 0; r < s.rows; r++) {
     for (let c = 0; c < s.cols; c++) {
@@ -151,28 +155,29 @@ function wrap(a: number): number {
 }
 
 /**
- * The shader's frame test (`CUE_MASK_GLSL`) in TS: -1 outside the camera's frame at `yaw` (exactly `inFrame`), else
- * how near the frame's edge the point is, 0 (deep inside) .. 1 (on the edge: field sides, top, bottom or range).
+ * The shader's frame test (`CUE_MASK_GLSL`) in TS: -1 outside the camera's frame at `yaw`, `pitch` and `range` (exactly
+ * `inFrame` with the same numbers), else how near the frame's edge the point is, 0 (deep inside) .. 1 (on the edge:
+ * field sides, top, bottom or range).
  */
-export function cueEdge(yaw: number, cx: number, cy: number, cz: number, px: number, py: number, pz: number): number {
+export function cueEdge(yaw: number, cx: number, cy: number, cz: number, px: number, py: number, pz: number, pitch = 0, range: number = CAMERA.range): number {
   const dx = px - cx;
   const dy = py - cy;
   const dz = pz - cz;
   const h = Math.sqrt(dx * dx + dz * dz);
   const dist = Math.sqrt(h * h + dy * dy);
-  if (dist > CAMERA.range || h < 1e-6) return -1;
+  if (dist > range || h < 1e-6) return -1;
   const ax = Math.abs(wrap(Math.atan2(dx, dz) - yaw)) / (CAMERA.hFov / 2);
-  const ay = Math.abs(Math.atan2(dy, h)) / (CAMERA.vFov / 2);
+  const ay = Math.abs(Math.atan2(dy, h) + pitch) / (CAMERA.vFov / 2);
   if (ax > 1 || ay > 1) return -1;
-  const e = Math.max(ax, ay, dist / CAMERA.range);
+  const e = Math.max(ax, ay, dist / range);
   const w = CUE.edgeWidth;
   const t = Math.min(1, Math.max(0, (e - (1 - w)) / w));
   return t * t * (3 - 2 * t);
 }
 
-/** GLSL mirror of `cueEdge` (uniforms: `lens` xyz, `cam` = yaw, half h-field, half v-field, range; `edgeW`). */
+/** GLSL mirror of `cueEdge` (uniforms: `lens` xyz, `cam` = yaw, half h-field, half v-field, range; `pitch` (+ down); `edgeW`). */
 export const CUE_MASK_GLSL = `
-float cueEdge(vec3 p, vec3 lens, vec4 cam, float edgeW) {
+float cueEdge(vec3 p, vec3 lens, vec4 cam, float pitch, float edgeW) {
   vec3 d = p - lens;
   float h = length(d.xz);
   float dist = length(d);
@@ -180,7 +185,7 @@ float cueEdge(vec3 p, vec3 lens, vec4 cam, float edgeW) {
   float a = atan(d.x, d.z) - cam.x;
   a = mod(a + 3.14159265, 6.2831853) - 3.14159265;
   float ax = abs(a) / cam.y;
-  float ay = abs(atan(d.y, h)) / cam.z;
+  float ay = abs(atan(d.y, h) + pitch) / cam.z;
   if (ax > 1.0 || ay > 1.0) return -1.0;
   float e = max(max(ax, ay), dist / cam.w);
   return smoothstep(1.0 - edgeW, 1.0, e);
@@ -210,15 +215,17 @@ export function cueStrength(c: CueState): number {
   return c.a;
 }
 
-/** The cue's ink: colour, line and fill strengths (normal: faint red; electro: white). */
+/** The cue's ink: colour, line and fill strengths (normal: very subtle red, thin lines; electro: white, the stronger look). */
 export interface CueInk {
   rgb: readonly [number, number, number];
   line: number;
   fill: number;
+  /** Line width (px). */
+  width: number;
 }
 
-const INK_NORMAL: CueInk = { rgb: CUE.ink, line: CUE.line, fill: CUE.fill };
-const INK_ELECTRO: CueInk = { rgb: CUE.electroInk, line: CUE.electroLine, fill: CUE.electroFill };
+const INK_NORMAL: CueInk = { rgb: CUE.ink, line: CUE.line, fill: CUE.fill, width: CUE.lineW };
+const INK_ELECTRO: CueInk = { rgb: CUE.electroInk, line: CUE.electroLine, fill: CUE.electroFill, width: 1 };
 
 export function cueInk(electro: boolean): CueInk {
   return electro ? INK_ELECTRO : INK_NORMAL;

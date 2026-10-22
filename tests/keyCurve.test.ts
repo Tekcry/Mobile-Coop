@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { keyCurveAt, keyCurveSet, newKeyCurve } from '../src/anim/keyCurve';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
 interface Curve {
   name?: string;
@@ -73,7 +74,7 @@ describe('anim-skeleton S4b: Blender keyframe curve', () => {
     expect(worst).toBeLessThan(2e-6);
   });
 
-  it('wraps by the period and never allocates', () => {
+  it('wraps by the period and never allocates', async () => {
     const t = Float64Array.of(0, 12, 24, 36);
     const v = Float64Array.of(0, 1, 2, 3);
     const k = keyCurveSet(newKeyCurve(8), t, v, 4, 1, 0, SPAN);
@@ -84,24 +85,18 @@ describe('anim-skeleton S4b: Blender keyframe curve', () => {
     expect(k.hr[1]).toBeCloseTo(0.4, 12);
     const add = Float64Array.of(0, 0.5, 0, 0);
     // A typed slot, not a captured let: += on a captured number boxes a 16-byte HeapNumber every iteration, which is
-    // exactly the ~1.6 MB CI measured (run 39669374229). Warm-up, a GC before each sample when exposed, the median.
-    const s = new Float64Array(1);
-    const gc = (globalThis as { gc?: () => void }).gc;
-    const run = (): number => {
-      gc?.();
-      const before = process.memoryUsage().heapUsed;
-      for (let r = 0; r < 100000; r++) {
+    // exactly the ~1.6 MB CI measured (run 39669374229). gc() + new space per iteration (tests/helpers/allocPerCall.ts),
+    // not heapUsed (that read whatever a GC left in the window): even one boxed double an iteration reads 16 B.
+    const X = inputs(2000, (r) => (r % 480) / 10);
+    sink[0] = 0;
+    const per = await bytesPerCall((n) => {
+      for (let r = 0; r < n; r++) {
         keyCurveSet(k, t, v, 4, 1, 0, SPAN, r & 1 ? add : null);
-        s[0]! += keyCurveAt(k, (r % 480) / 10);
+        sink[0]! += keyCurveAt(k, X[r]!);
       }
-      return process.memoryUsage().heapUsed - before;
-    };
-    run();
-    run();
-    const samples = [run(), run(), run(), run(), run()].sort((a, b) => a - b);
-    const grown = samples[2]!;
-    expect(Number.isFinite(s[0]!)).toBe(true);
-    // a 16-byte allocation per iteration would grow ~1.6 MB a pass
-    expect(grown).toBeLessThan(1_000_000);
+    }, HEAP_NUMBER / 2);
+    console.info(`bytes per keyCurveSet + keyCurveAt: ${per.toFixed(1)}`);
+    expect(Number.isFinite(sink[0]!)).toBe(true);
+    expect(per).toBeLessThanOrEqual(HEAP_NUMBER / 2);
   });
 });

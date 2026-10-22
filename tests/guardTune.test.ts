@@ -9,15 +9,17 @@ import type { Quaternion } from '../src/core/babylon';
 import '../src/anim/tune';
 import '../src/player/weightTune';
 import { tuneV2SyncAll } from '../src/anim/tuneV2Sections';
-import { TUNE_SECTIONS, tuneExport, tuneGet, tuneImport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
+import { TUNE_SECTIONS, tuneBaseLoad, tuneExport, tuneGet, tuneImport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
 import { presetFile, presetParse, presetPut, TuneHistory, tuneApplyValues, tuneValues } from '../src/anim/tuneHistory';
 import { GUARD_JOINT_GROUPS, GUARD_ROW_LIVE, GUARD_STEP_GROUPS, GUARD_STEP_ROWS, GUARD_WEIGHT_GROUPS, GUARD_WEIGHT_LIVE, guardBaseLoad, guardJointEffective, guardRowOf, guardStepGet, guardTuneResetTables, tuneGuardFrame } from '../src/anim/tuneGuard';
 import { guardRigBegin, guardRigState } from '../src/anim/tuneGuardRig';
 import { ANIM_BASE_GUARD } from '../src/anim/animBaseGuard';
 import { J, JOINTS_CUR } from '../src/anim/tuneJoints';
-import { STEP_GAITS, STEP_N, SP, stepGaitIndex } from '../src/anim/tuneStep';
+import { STEP_GAITS, STEP_IDENTITY_ROWS, STEP_N, SP, stepGaitIndex, stepRowGet } from '../src/anim/tuneStep';
 import { bakeCatalogue, tuneBake } from '../src/anim/tuneBake';
-import { BAKE_BASE_FILE } from '../src/anim/tuneBakeBase';
+import { BAKE_BASE_FILE, parseAnimBase } from '../src/anim/tuneBakeBase';
+import { ANIM_BASE } from '../src/anim/animBase';
+import '../src/anim/tuneClipSpeed'; // (anim-bake-all merge) the Clip speed section in the catalogue
 import { applyGuardBaseEntries, BAKE_GUARD_FILE, emptyGuardBase, guardBaseTarget, parseAnimBaseGuard, printAnimBaseGuard, spliceAnimBaseGuard } from '../src/anim/tuneBakeGuard';
 import { BAKE_RULES } from '../src/anim/tuneBakeTable';
 import { buildTabs, guardLoopGroups, levelName, loopForGroup, plainGroupWord, plainLabel, plainLoop, plainSection, tabOfSection, whoSections } from '../src/ui/tunerLayout';
@@ -291,6 +293,44 @@ describe('item 24: the bake writes the guard table', () => {
     expect(res.ok, res.error).toBe(true);
     expect(res.writes.some((w) => w.path === BAKE_GUARD_FILE)).toBe(false);
     expect(res.rows.every((r) => !r.target.includes(BAKE_GUARD_FILE))).toBe(true);
+  });
+
+  it('(anim-bake-all merge) guard rows, Wren\'s generic rows and Clip speed bake apart: each into its own target, once', () => {
+    const read = tree();
+    const res = tuneBake(
+      exp([
+        { group: 'guard.step.walk', id: 'lift', kind: 'mul', value: 1.3 }, // the guard table
+        { group: 'step.walk', id: 'lift', kind: 'mul', value: 1.2 }, // Wren's moving lift: no code value, the generic table
+        { group: 'clip.gun', id: 'rifleDraw', kind: 'mul', value: 1.25 }, // Clip speed: its code rule
+      ]),
+      cat(),
+      read,
+    );
+    expect(res.ok, res.error).toBe(true);
+    expect(res.baked).toBe(3);
+    expect(res.writes.map((w) => w.path).sort()).toEqual([BAKE_BASE_FILE, BAKE_GUARD_FILE, 'src/anim/tuneBakeLog.json', 'src/weapons/drawState.ts'].sort());
+    const row = (g: string) => res.rows.find((r) => r.group === g)!;
+    expect(row('guard.step.walk').result).toBe('baked (guard base table)');
+    expect(row('step.walk').target).toMatch(/sections\.step\.step\.walk\.lift/);
+    expect(row('clip.gun').target).toMatch(/DRAW_TIME_PRIMARY/);
+    expect(row('clip.gun').target).not.toMatch(/sections\./);
+    const guard = parseAnimBaseGuard(res.writes.find((w) => w.path === BAKE_GUARD_FILE)!.after);
+    expect(guard.step).toEqual({ walk: { lift: 1.3 } });
+    const wren = parseAnimBase(res.writes.find((w) => w.path === BAKE_BASE_FILE)!.after);
+    expect(wren.sections).toEqual({ step: { 'step.walk': { lift: 1.2 } } });
+    // the runtime: Wren's rows take her base, the guards' theirs, the identity table neither
+    const w = STEP_GAITS.indexOf('walk');
+    try {
+      tuneBaseLoad(wren.sections);
+      guardBaseLoad(guard);
+      tuneGuardFrame();
+      expect(stepRowGet(w, SP.lift)).toBe(1.2);
+      expect(guardStepGet('walk', 'lift')).toBe(1.3);
+      expect(GUARD_STEP_ROWS[w * STEP_N + SP.lift]).toBe(1.3);
+      expect([...STEP_IDENTITY_ROWS].every((v) => v === 1)).toBe(true);
+    } finally {
+      tuneBaseLoad(ANIM_BASE.sections);
+    }
   });
 });
 

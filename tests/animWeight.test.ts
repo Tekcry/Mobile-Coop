@@ -18,6 +18,7 @@ import {
   type WeightValues,
 } from '../src/anim/weight';
 import { WEIGHT_SECTION, weightSim, weightSimEnd } from '../src/player/weightTune';
+import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
 const T0 = 1_000_000;
 
@@ -206,7 +207,7 @@ describe('Weight section (anim-weight)', () => {
     expect(b.out.spine.roll - c.out.spine.roll).toBeCloseTo(0.1, 9);
   });
 
-  it('allocates nothing per step (the layers and the spring)', () => {
+  it('allocates nothing per step (the layers and the spring)', async () => {
     const L = new WeightLayers();
     const v = identity();
     v.chestLag = 5;
@@ -215,26 +216,31 @@ describe('Weight section (anim-weight)', () => {
     v.bank = 1;
     const i = weightFrameIn();
     i.dt = 1 / 60;
-    let acc = 0;
-    const run = (): number => {
-      const before = process.memoryUsage().heapUsed;
-      for (let k = 0; k < 200000; k++) {
-        i.x = Math.sin(k * 0.01) * 3;
-        i.z = k * 0.05;
-        i.yaw = k * 0.001;
+    // a typed slot, not a captured let (+= on a captured number boxes 16 B an iteration); gc() + new space per step
+    // (tests/helpers/allocPerCall.ts), not heapUsed (that read whatever a GC left in the window). A step leaves only
+    // boxed doubles, the springs' and the load pulse's arguments (V8's sampling heap profiler: every allocation in it
+    // is 16 B, heap-asserts 2026-10-22): about 100 B. One more { x, y, z } a step would read about 150 B.
+    const X = inputs(2000, (k) => Math.sin(k * 0.01) * 3);
+    const Z = inputs(2000, (k) => k * 0.05);
+    const YAW = inputs(2000, (k) => k * 0.001);
+    const ACC = inputs(2000, (k) => Math.sin(k * 0.1));
+    sink[0] = 0;
+    const per = await bytesPerCall((n) => {
+      for (let k = 0; k < n; k++) {
+        i.x = X[k]!;
+        i.z = Z[k]!;
+        i.yaw = YAW[k]!;
         i.speed = 3;
-        i.accelFwd = Math.sin(k * 0.1);
+        i.accelFwd = ACC[k]!;
         i.yawRate = 1;
         i.plant = (k & 15) === 0;
         L.step(i, v);
-        acc += WEIGHT_POSE.spPitch;
+        sink[0]! += WEIGHT_POSE.spPitch;
       }
-      return process.memoryUsage().heapUsed - before;
-    };
-    run();
-    const grown = Math.min(run(), run(), run());
-    expect(Number.isFinite(acc)).toBe(true);
-    expect(grown).toBeLessThan(2_000_000);
+    }, 8 * HEAP_NUMBER);
+    console.info(`bytes per WeightLayers.step: ${per.toFixed(1)}`);
+    expect(Number.isFinite(sink[0]!)).toBe(true);
+    expect(per).toBeLessThanOrEqual(8 * HEAP_NUMBER);
   });
 });
 
