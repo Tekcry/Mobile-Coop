@@ -7,7 +7,8 @@ Light parity (bible 5.1): what the player sees, the light meter and guard percep
 field (collision, the light bake, the noise model), never the render state.
 Security cameras are outside the light model (marlow-jammer, Michael M3): each has its own IR illuminator, so inside its
 range and cone it reads every body at `CAMERA.irLight` 1 (fully lit); lamps, jammed or shot lamps and dark corners do
-not change what a camera sees. Lights matter for guards and the meter only.
+not change what a camera sees. Lights matter for guards and the meter only. (camera-range) Only distance thins a camera's
+rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security cameras).
 
 ## Decided direction
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
