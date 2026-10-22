@@ -1,21 +1,24 @@
 // (anim-natural N4c, AUDIT row 49) The elbow strike driven from the hips and trunk, on the real rig maths (NullEngine):
 // the shoulder line's turn through the arc, the hips leading the shoulders, the head on the target, back to rest; the
-// pure layer's shape and the tuner section.
+// pure layer's shape and the tuner section. (anim-n4c M1, "Faster arm") The strike plays the arc warped onto the hit
+// (strikeWarp): the contact frame against STRIKE.hitAt, the hips still first, back to rest, the largest per-frame steps.
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RigPose } from '../src/player/characterRig';
-import { STRIKE_BODY, STRIKE_SECTION, newStrikeBody, strikeBodyAt } from '../src/anim/strikeBody';
-import { STRIKE_DUR, strikePhase } from '../src/game/elbowStrike';
+import { STRIKE_ARC_CONTACT, STRIKE_ARM_LAG, STRIKE_BODY, STRIKE_HIT_PH, STRIKE_SECTION, newStrikeBody, strikeBodyAt, strikeWarp } from '../src/anim/strikeBody';
+import { STRIKE, STRIKE_DUR, strikePhase } from '../src/game/elbowStrike';
 import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
 
 const DT = 1 / 60;
 const DEG = 180 / Math.PI;
 
-/** `wz`: the right wrist ahead of the chest (m, the chest's frame); `wx`: across it (+ right). */
-type Sample = { ph: number; sh: number; hip: number; head: number; pelX: number; pelZ: number; wz: number; wx: number };
+/** `ph` the strike's phase, `arc` the arc's (the pose input); `wz`: the right wrist ahead of the chest (m, the chest's
+ *  frame); `wx`: across it (+ right); `tq` / `hq` the chest's / pelvis' world rotation (x y z w); `wp` the right wrist's
+ *  world position. */
+type Sample = { ph: number; arc: number; sh: number; hip: number; head: number; pelX: number; pelZ: number; wz: number; wx: number; ez: number; ex: number; tq: number[]; hq: number[]; wp: number[] };
 
 /** Strike on a standing holstered rig: `wren` a Wren rig (tuneRows), else a plain carrier rig (the guards' / old path);
  *  `strike` false: the same frames standing (the control: the idle's own breathing, sway and head scan). */
-async function strikeRun(wren: boolean, strike = true): Promise<{ rest: Sample; arc: Sample[]; after: Sample; limited: number }> {
+async function strikeRun(wren: boolean, strike = true, warp = true): Promise<{ rest: Sample; arc: Sample[]; after: Sample; limited: number }> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Matrix, Scene, Vector3 } = await import('../src/core/babylon');
   const { PartLibrary } = await import('../src/world/partLibrary');
@@ -44,13 +47,19 @@ async function strikeRun(wren: boolean, strike = true): Promise<{ rest: Sample; 
   const fwd = new Vector3();
   const inv = new Matrix();
   const wr = new Vector3();
-  const sample = (ph: number): Sample => {
+  const sample = (ph: number, arcPh = ph): Sample => {
     settle();
     Vector3.TransformNormalToRef(new Vector3(0, 0, 1), rig.headNode.getWorldMatrix(), fwd);
     const hp = rig.hips.position;
     rig.torso.getWorldMatrix().invertToRef(inv);
     Vector3.TransformCoordinatesToRef(rig.wristR.getAbsolutePosition(), inv, wr);
-    return { ph, sh: yawOf(rig.shoulderL, rig.shoulderR), hip: yawOf(rig.hipL, rig.hipR), head: Math.atan2(fwd.x, fwd.z), pelX: hp.x, pelZ: hp.z, wz: wr.z, wx: wr.x };
+    const tq = rig.torso.absoluteRotationQuaternion;
+    const hq = rig.hips.absoluteRotationQuaternion;
+    const wp = rig.wristR.getAbsolutePosition();
+    const wz = wr.z;
+    const wx = wr.x;
+    Vector3.TransformCoordinatesToRef(rig.elbowR.getAbsolutePosition(), inv, wr);
+    return { ph, arc: arcPh, sh: yawOf(rig.shoulderL, rig.shoulderR), hip: yawOf(rig.hipL, rig.hipR), head: Math.atan2(fwd.x, fwd.z), pelX: hp.x, pelZ: hp.z, wz, wx, ez: wr.z, ex: wr.x, tq: [tq.x, tq.y, tq.z, tq.w], hq: [hq.x, hq.y, hq.z, hq.w], wp: [wp.x, wp.y, wp.z] };
   };
   const pose: RigPose = { speed: 0, localX: 0, localZ: 1, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, stride: 'facing', melee: -1 };
   rig.root.position.set(0, 0, 0);
@@ -60,10 +69,12 @@ async function strikeRun(wren: boolean, strike = true): Promise<{ rest: Sample; 
   const limited0 = rig.limited;
   const n = Math.ceil(STRIKE_DUR / DT);
   for (let k = 1; k <= n; k++) {
+    // (as StrikeController: the arc warped onto the hit; `warp` false: the arc time-linear, before anim-n4c M1)
     const ph = strikePhase(k * DT);
-    pose.melee = strike ? ph : -1;
+    const a = warp ? strikeWarp(ph) : ph;
+    pose.melee = strike ? a : -1;
     rig.animate(DT, pose);
-    arc.push(sample(ph));
+    arc.push(sample(ph, a));
   }
   pose.melee = -1;
   for (let k = 0; k < 60; k++) rig.animate(DT, pose);
@@ -73,14 +84,34 @@ async function strikeRun(wren: boolean, strike = true): Promise<{ rest: Sample; 
 
 /** The strike run less the control run, frame by frame (the idle's own motion cancels). */
 const minus = (a: readonly Sample[], b: readonly Sample[], f: (s: Sample) => number): number[] => a.map((s, i) => f(s) - f(b[i]!));
-/** The first frame a descending series crosses the middle of its range (the drive's mid-point). */
-const midCross = (a: readonly number[]): number => {
+const range = (a: readonly number[]): number => Math.max(...a) - Math.min(...a);
+/** Where a descending series first crosses the middle of its range after its top (the drive's mid-point), in fractional
+ *  frames (linear between the two frames either side; anim-n4c M1: the drive spans only a few frames). */
+const midCrossF = (a: readonly number[]): number => {
   const mid = (Math.max(...a) + Math.min(...a)) / 2;
   const top = a.indexOf(Math.max(...a));
-  for (let k = top; k < a.length; k++) if (a[k]! <= mid) return k;
+  for (let k = top + 1; k < a.length; k++) if (a[k]! <= mid) return k - 1 + (a[k - 1]! - mid) / (a[k - 1]! - a[k]!);
   return -1;
 };
-const range = (a: readonly number[]): number => Math.max(...a) - Math.min(...a);
+/** The angle (rad) between two rotations (x y z w). */
+const qAngle = (a: readonly number[], b: readonly number[]): number => 2 * Math.acos(Math.min(1, Math.abs(a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]! + a[3]! * b[3]!)));
+/** The largest step from one frame to the next (the rest pose before the first). */
+const maxStep = (rest: Sample, arc: readonly Sample[], f: (a: Sample, b: Sample) => number): number => {
+  let m = 0;
+  for (let k = 0; k < arc.length; k++) m = Math.max(m, f(k === 0 ? rest : arc[k - 1]!, arc[k]!));
+  return m;
+};
+const dist3 = (a: readonly number[], b: readonly number[]): number => Math.sqrt((a[0]! - b[0]!) ** 2 + (a[1]! - b[1]!) ** 2 + (a[2]! - b[2]!) ** 2);
+const argMin = (a: readonly number[]): number => a.indexOf(Math.min(...a));
+const argMax = (a: readonly number[]): number => a.indexOf(Math.max(...a));
+/** The rig runs, shared by the tests (each is a few hundred NullEngine frames). */
+const runs = new Map<string, ReturnType<typeof strikeRun>>();
+const run = (wren: boolean, strike = true, warp = true): ReturnType<typeof strikeRun> => {
+  const key = `${wren}-${strike}-${strike && warp}`;
+  let r = runs.get(key);
+  if (!r) runs.set(key, (r = strikeRun(wren, strike, warp)));
+  return r;
+};
 
 describe('anim-n4c: the elbow strike from the hips and trunk (AUDIT row 49)', () => {
   // the graph's idle clock starts at a random time: fixed, so the strike and control runs pose the same idle
@@ -138,26 +169,32 @@ describe('anim-n4c: the elbow strike from the hips and trunk (AUDIT row 49)', ()
   });
 
   it('a Wren rig turns the shoulders ~33 deg through the arc, hips first, head on the target, then back to rest', async () => {
-    const before = await strikeRun(false);
-    const beforeCtl = await strikeRun(false, false);
-    const r = await strikeRun(true);
-    const ctl = await strikeRun(true, false);
+    const before = await run(false);
+    const beforeCtl = await run(false, false);
+    const r = await run(true);
+    const ctl = await run(true, false);
     const shs = minus(r.arc, ctl.arc, (s) => s.sh);
     const hips = minus(r.arc, ctl.arc, (s) => s.hip);
     const shB = range(minus(before.arc, beforeCtl.arc, (s) => s.sh)) * DEG;
     const sh = range(shs) * DEG;
     const hip = range(hips) * DEG;
-    const hipAt = midCross(hips);
-    const shAt = midCross(shs);
+    // (anim-n4c M1: the drive now spans ~3 frames, so the mid-points are taken between frames)
+    const hipAt = midCrossF(hips);
+    const shAt = midCrossF(shs);
     const head = Math.max(...minus(r.arc, ctl.arc, (s) => s.head).map(Math.abs)) * DEG;
     const fwd = Math.max(...minus(r.arc, ctl.arc, (s) => s.pelZ));
     const backSh = (r.after.sh - ctl.after.sh) * DEG;
     const backHip = (r.after.hip - ctl.after.hip) * DEG;
-    const contact = r.arc.reduce((a, s) => (Math.abs(s.ph - 0.56) < Math.abs(a.ph - 0.56) ? s : a));
+    // contact: the hand's arrival across (anim-n4c M1: the arm lags the warped arc by about 2 frames, the joint limits)
+    const atArc = (a: readonly Sample[]): Sample => {
+      const m = Math.min(...a.map((s) => s.wx));
+      return a.find((s) => s.wx <= m + 0.01)!;
+    };
+    const contact = atArc(r.arc);
     const wzMin = Math.min(...r.arc.map((s) => s.wz));
     const wzMinB = Math.min(...before.arc.map((s) => s.wz));
-    console.info(`[n4c strike] right wrist (chest frame): nearest the chest ${(wzMin * 100).toFixed(1)} cm ahead (old path ${(wzMinB * 100).toFixed(1)}); at contact ${(contact.wz * 100).toFixed(1)} cm ahead, ${(contact.wx * 100).toFixed(1)} cm across (old path at contact ${(before.arc.reduce((a, s) => (Math.abs(s.ph - 0.56) < Math.abs(a.ph - 0.56) ? s : a)).wz * 100).toFixed(1)} cm ahead)`);
-    console.info(`[n4c strike] shoulder turn over the arc: plain carrier rig (the old path) ${shB.toFixed(1)} deg, Wren ${sh.toFixed(1)} deg; hips ${hip.toFixed(1)} deg; mid-drive: hips frame ${hipAt}, shoulders ${shAt}; head off target max ${head.toFixed(1)} deg; pelvis forward ${(fwd * 100).toFixed(1)} cm; rate-limited joint frames ${r.limited} (control ${ctl.limited}, old path ${before.limited}); 1 s after: shoulders ${backSh.toFixed(2)} deg, hips ${backHip.toFixed(2)} deg`);
+    console.info(`[n4c strike] right wrist (chest frame): nearest the chest ${(wzMin * 100).toFixed(1)} cm ahead (old path ${(wzMinB * 100).toFixed(1)}); at contact ${(contact.wz * 100).toFixed(1)} cm ahead, ${(contact.wx * 100).toFixed(1)} cm across (old path at contact ${(atArc(before.arc).wz * 100).toFixed(1)} cm ahead)`);
+    console.info(`[n4c strike] shoulder turn over the arc: plain carrier rig (the old path) ${shB.toFixed(1)} deg, Wren ${sh.toFixed(1)} deg; hips ${hip.toFixed(1)} deg; mid-drive: hips frame ${hipAt.toFixed(2)}, shoulders ${shAt.toFixed(2)}; head off target max ${head.toFixed(1)} deg; pelvis forward ${(fwd * 100).toFixed(1)} cm; rate-limited joint frames ${r.limited} (control ${ctl.limited}, old path ${before.limited}); 1 s after: shoulders ${backSh.toFixed(2)} deg, hips ${backHip.toFixed(2)} deg`);
     // the old path (the guards' code and Wren before): the keyed trunk wiped the graph's turn
     expect(shB).toBeLessThan(10);
     // Wren: a body-driven strike
@@ -175,6 +212,95 @@ describe('anim-n4c: the elbow strike from the hips and trunk (AUDIT row 49)', ()
     // back to rest
     expect(Math.abs(backSh)).toBeLessThan(0.5);
     expect(Math.abs(backHip)).toBeLessThan(0.5);
+  });
+
+  it('(M1, "Faster arm") the warp: the arc\'s contact a frame before the hit, monotonic, ends and "none" kept', () => {
+    expect(STRIKE_HIT_PH).toBeCloseTo(STRIKE.hitAt / STRIKE_DUR, 12);
+    expect(STRIKE_ARM_LAG).toBeCloseTo(DT, 12);
+    expect(strikeWarp(strikePhase(STRIKE.hitAt - STRIKE_ARM_LAG))).toBeCloseTo(STRIKE_ARC_CONTACT, 9);
+    expect(strikeWarp(STRIKE_HIT_PH)).toBeGreaterThan(STRIKE_ARC_CONTACT); // past contact at the hit
+    expect(strikeWarp(STRIKE_HIT_PH, STRIKE_HIT_PH)).toBeCloseTo(STRIKE_ARC_CONTACT, 9);
+    expect(strikeWarp(0)).toBe(0);
+    expect(strikeWarp(1)).toBe(1);
+    expect(strikeWarp(-1)).toBe(-1);
+    expect(strikeWarp(0.3, 0)).toBe(0.3); // no hit phase: unwarped
+    let prev = 0;
+    for (let k = 1; k <= 400; k++) {
+      const w = strikeWarp(k / 400);
+      expect(w).toBeGreaterThan(prev);
+      prev = w;
+    }
+  });
+
+  it('(M1, "Faster arm") the elbow reaches contact at the hit, the trunk through with it, hips first, then back to rest', async () => {
+    const r = await run(true);
+    const old = await run(true, true, false);
+    const ctl = await run(true, false);
+    const tOf = (i: number): number => (i + 1) * DT;
+    const stats = (x: { rest: Sample; arc: Sample[]; after: Sample; limited: number }) => {
+      const shs = minus(x.arc, ctl.arc, (s) => s.sh);
+      const hips = minus(x.arc, ctl.arc, (s) => s.hip);
+      // the striking hand arrives across at the midline (the sweep's peak: the first frame within 1 cm of its furthest)
+      const wxs = x.arc.map((s) => s.wx);
+      const wxMin = Math.min(...wxs);
+      const contact = wxs.findIndex((w) => w <= wxMin + 0.01);
+      // the striking elbow at its forward extreme (the same: within 1 cm)
+      const ezs = x.arc.map((s) => s.ez);
+      const ezMax = Math.max(...ezs);
+      const elbow = ezs.findIndex((z) => z >= ezMax - 0.01);
+      const shTop = argMin(shs); // the shoulders driven through
+      const hipTop = argMin(hips);
+      const wind = argMax(shs.slice(0, contact + 1)); // the rear shoulder's furthest back: the end of the load
+      return {
+        tContact: tOf(contact),
+        tElbow: tOf(elbow),
+        tSh: tOf(shTop),
+        tHip: tOf(hipTop),
+        tWind: tOf(wind),
+        lead: (midCrossF(shs) - midCrossF(hips)) * DT,
+        torso: maxStep(x.rest, x.arc, (a, b) => qAngle(a.tq, b.tq)) * DEG,
+        pelvis: maxStep(x.rest, x.arc, (a, b) => qAngle(a.hq, b.hq)) * DEG,
+        wrist: maxStep(x.rest, x.arc, (a, b) => dist3(a.wp, b.wp)),
+        sh: range(shs) * DEG,
+        backSh: (x.after.sh - ctl.after.sh) * DEG,
+        backHip: (x.after.hip - ctl.after.hip) * DEG,
+        backW: dist3(x.after.wp, ctl.after.wp),
+        limited: x.limited,
+      };
+    };
+    const a = stats(r);
+    const b = stats(old);
+    // the frame of the hit's step (StrikeController resolves contact on the first step at or past STRIKE.hitAt)
+    const hitK = Math.ceil(STRIKE.hitAt / DT - 1e-9) - 1;
+    const wxMin = Math.min(...r.arc.map((s) => s.wx));
+    const atHit = r.arc[hitK]!.wx - wxMin;
+    const ms = (s: number): string => `${(s * 1000).toFixed(0)} ms`;
+    for (const [k, s] of [['before (arc time-linear)', b], ['after (warped onto the hit)', a]] as const) {
+      console.info(`[n4c M1] ${k}: hand across ${ms(s.tContact)}, elbow forward ${ms(s.tElbow)}, shoulders through ${ms(s.tSh)}, hips through ${ms(s.tHip)}, load ends ${ms(s.tWind)}; hips lead (mid-drive) ${ms(s.lead)}; shoulder turn ${s.sh.toFixed(1)} deg; largest per-frame step: chest ${s.torso.toFixed(1)} deg, pelvis ${s.pelvis.toFixed(1)} deg, right wrist ${(s.wrist * 100).toFixed(1)} cm; rate-limited joint frames ${s.limited} (control ${ctl.limited}); 1 s after: shoulders ${s.backSh.toFixed(2)} deg, hips ${s.backHip.toFixed(2)} deg, wrist ${(s.backW * 100).toFixed(1)} cm`);
+    }
+    console.info(`[n4c M1] on the hit's step (${ms((hitK + 1) * DT)}) the hand is ${(atHit * 100).toFixed(1)} cm short of across`);
+    // before: the knockout (0.08 s) landed during the wind-up, contact ~0.37 s
+    expect(b.tContact).toBeGreaterThan(0.3);
+    // after: the hand across at the hit (within 2 frames; a hand's width short on the hit's step), the trunk through
+    expect(Math.abs(a.tContact - STRIKE.hitAt)).toBeLessThanOrEqual(2 * DT + 1e-9);
+    expect(Math.abs(a.tElbow - STRIKE.hitAt)).toBeLessThanOrEqual(2 * DT + 1e-9);
+    expect(atHit).toBeLessThan(0.12);
+    expect(a.tSh).toBeLessThanOrEqual(STRIKE.hitAt + DT + 1e-9);
+    expect(a.tWind).toBeLessThan(a.tContact); // a tight load before the drive
+    // the hips still first, the shoulders still turned through the same arc
+    expect(a.tHip).toBeLessThan(a.tSh);
+    expect(a.lead).toBeGreaterThan(0);
+    expect(a.sh).toBeGreaterThan(20);
+    // no snap: every trunk joint within its limit (the chest's world step within the chain's pelvis 8 + spine 8 +
+    // chest 9 rad/s, the pelvis within 8 rad/s), the wrist under 35 cm a frame (the trunk's turn and the arm's sweep,
+    // the shoulder and elbow at their 22 / 24 rad/s)
+    expect(a.torso).toBeLessThanOrEqual((8 + 8 + 9) * DT * DEG + 1e-6);
+    expect(a.pelvis).toBeLessThanOrEqual(8 * DT * DEG + 0.5);
+    expect(a.wrist).toBeLessThan(0.35);
+    // back to rest
+    expect(Math.abs(a.backSh)).toBeLessThan(0.5);
+    expect(Math.abs(a.backHip)).toBeLessThan(0.5);
+    expect(a.backW).toBeLessThan(0.02);
   });
 });
 

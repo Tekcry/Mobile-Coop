@@ -9,17 +9,52 @@
  * melee keeps the graph's own turn, unchanged):
  * - wind-up (phase 0 .. ~0.17): the hips and, further, the shoulders load to the right (the rear shoulder back), the
  *   weight back over the rear (right) foot;
- * - drive: the hips turn left first (`lead` of the phase ahead, ~3 frames), the shoulders follow through (about 33 deg
- *   of shoulder turn over the arc), the weight forward onto the lead (left) foot; the elbow arc (the graph's hand
- *   sweep, `meleeSweep`) finishes last, so the chain reads hips -> shoulders -> elbow;
+ * - drive: the hips turn left first (`lead` of the phase ahead: ~3 frames time-linear, ~1 on the strike's warp), the
+ *   shoulders follow through (about 33 deg of shoulder turn over the arc), the weight forward onto the lead (left)
+ *   foot; the elbow arc (the graph's hand sweep, `meleeSweep`) finishes last, so the chain reads hips -> shoulders ->
+ *   elbow;
  * - recovery (from 0.62): back to rest at phase 1.
  * The head stays on the target (the rig's head is world-stabilised; the neck takes back `neck` of the shoulder turn).
  * The rig turns the arm targets with the shoulders (about the shoulder), so the elbow drives through with the chest.
  *
  * The values are the code defaults (`STRIKE_BODY`); the tuner's "Elbow strike" section scales them (`STRIKE_SECTION`,
  * identity at default) and `scripts/anim-tune-bake.mjs` bakes a tune back into `STRIKE_BODY` (tuneBakeTable.ts).
+ *
+ * (anim-n4c M1, Michael: "Faster arm") The phases above are the ARC's. The elbow strike plays the arc through
+ * `strikeWarp`: the knockout resolves at `STRIKE.hitAt` (0.08 s), so the arc's contact (0.56) lands there (a frame early
+ * for the arm's lag, `STRIKE_ARM_LAG`), a one-frame load and the drive in ~4 frames, the follow-through and the return
+ * in the rest of the strike. Its producers apply it (the local `StrikeController`, a remote's `poseFromMoveState` and
+ * `RemoteAvatar`'s eased phase; the wire keeps the strike's own phase), so every consumer of `melee` (the graph's hand
+ * arc and weights, the rig's elbow pole, this layer, the tuner's row weight) stays in step. The lethal takedown blow and
+ * the grab kill play the arc unwarped (their kill lands at the arc's end, not at a contact time).
  */
+import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
 import { registerTuneSection, TUNE_FLAGS, type TuneTunable } from './tuneRegistry';
+
+/** The arc's contact phase: the elbow at its forward extreme (`meleeSweep` peaks at 0.556), the shoulders driven
+ *  through (their drive ends at 0.48, the hips' at 0.38). */
+export const STRIKE_ARC_CONTACT = 0.56;
+/** The elbow strike's hit phase (`STRIKE.hitAt` over `STRIKE_DUR`, ~0.118): the knockout resolves here. */
+export const STRIKE_HIT_PH = STRIKE.hitAt / STRIKE_DUR;
+/** (s) The arm's lag: at this pace the rig's shoulder and elbow rate limits (22 / 24 rad/s, `JOINT_RATE`) hold the hand
+ *  about 2 frames behind the arc, so the arc's contact is put a frame ahead of the hit: the hand is within ~8 cm of
+ *  contact on the hit's step (0.083 s) and fully across a frame later (0.1 s); the trunk is through by the hit. */
+export const STRIKE_ARM_LAG = 1 / 60;
+/** The strike phase `strikeWarp` puts the arc's contact at (~0.093). */
+export const STRIKE_WARP_PH = (STRIKE.hitAt - STRIKE_ARM_LAG) / STRIKE_DUR;
+
+/**
+ * (anim-n4c M1) The elbow strike's phase (0..1, time-linear; < 0 none) -> the arc's phase (the `melee` pose input):
+ * `hitPh` maps onto the arc's contact, linear on both sides (the arc's own curves ease it; they are at rest at contact,
+ * so the change of pace there shows no kink). Monotonic, 0 -> 0, 1 -> 1, < 0 passes through. Pure.
+ */
+export function strikeWarp(ph: number, hitPh = STRIKE_WARP_PH): number {
+  if (ph < 0) return ph;
+  if (ph >= 1) return 1;
+  if (!(hitPh > 0 && hitPh < 1)) return ph;
+  const C = STRIKE_ARC_CONTACT;
+  return ph <= hitPh ? (C * ph) / hitPh : C + ((1 - C) * (ph - hitPh)) / (1 - hitPh);
+}
 
 /** The strike's body amounts (Wren). Yaw + is a turn to the right (Babylon yaw), x + right, z + forward. */
 export const STRIKE_BODY = {

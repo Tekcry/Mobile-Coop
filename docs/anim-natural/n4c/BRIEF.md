@@ -35,6 +35,14 @@ leftovers (docs/anim-natural/PASS2.md on feature/anim-natural, "N0 leftovers"; A
   Undo: remove the `(1 - swapK)` factors and the `easePush` condition in `characterRig.ts`.
 - **A7** One swap bake target shared by rifle and pistol.
 
+- **A8** (M1) The arc's contact is aimed one frame before the hit (`STRIKE_ARM_LAG` 1/60 s): the rig's joint limits keep
+  the hand about 2 frames behind the arc. Undo: `STRIKE_ARM_LAG = 0`.
+- **A9** (M1) The warp is applied where the phase is produced (`StrikeController`, `moveState`, `remoteAvatar`), not in
+  the graph or rig, so every reader of `melee` stays in step; the wire keeps the raw phase. Undo: drop the
+  `strikeWarp` calls in those three places.
+
 ## Open (for the orchestrator, gameplay, not changed)
-- Strike timing: contact resolves at 0.08 s (`STRIKE.hitAt`, phase 0.12), the visual arc reaches contact at phase 0.56
-  (~0.38 s): the knockout lands during the wind-up.
+- Strike timing: fixed by M1 (faster arm).
+- The lethal takedown blow (kill at approach + 0.7 s, visual contact 0.39 s into the blow) and the grab kill
+  (`GRAB.killTime` 0.5 s, visual contact 0.28 s) are not warped: their kill lands at the end of the arc, so lining
+  them up would be a gameplay timing change.

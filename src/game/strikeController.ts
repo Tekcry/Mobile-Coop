@@ -8,7 +8,7 @@
 import { Vector3 } from '../core/babylon';
 import { gearCap } from '../player/speedGears';
 import { STRIKE, STRIKE_DUR, STRIKE_WHIFF_DUR, strikePhase, strikeReach } from './elbowStrike';
-import { strikeSimSet } from '../anim/strikeBody';
+import { strikeSimSet, strikeWarp } from '../anim/strikeBody';
 import type { CDenyReason } from './committedMoves';
 import type { GameState } from './gameState';
 
@@ -182,7 +182,8 @@ export class StrikeController {
       }
       if (this.t >= (this.tid ? STRIKE_DUR : STRIKE_WHIFF_DUR)) return this.end();
     }
-    g.player.pose.melee = this.ph;
+    // (anim-n4c M1) the pose plays the arc warped onto the hit (strikeWarp): the elbow lands at `STRIKE.hitAt`
+    g.player.pose.melee = strikeWarp(this.ph);
   }
 
   private wasActive = false;
@@ -237,5 +238,6 @@ export class StrikeController {
     this.lethal = false;
     this.wasActive = false;
     this.g.player.pose.melee = -1;
+    strikeSimSet(false); // (anim-n4c) the tuner's Elbow strike follow
   }
 }

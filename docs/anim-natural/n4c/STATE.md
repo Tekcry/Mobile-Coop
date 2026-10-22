@@ -11,6 +11,18 @@ e2e-netmove: src/player changed), GPU sheet rows (hand-swap-shoulder, wall-edge-
 PR with `changes/feature-anim-n4c.md`.
 Open: none.
 
+## Checker (fresh Opus, 2026-10-22 ~20:45, on a90ab77f): PASS
+tsc clean; eslint clean; Vitest 17 files / 286 tests pass. Fix round = M1 faster arm (Michael), on master 4.58.0 merged.
+
+## Polish list (checker, non-blocking)
+1. A mid-swap reversal flips the dip's vertical speed in one frame (position continuous; x keeps its speed).
+2. Test bounds loose: rig.test.ts y/z step 12.1 measured vs 13.8 limit with no y/z jerk check; animN4cHandSwap grip
+   jump limit 15 cm a frame. A y/z jerk limit would guard a real pop better.
+3. The `(1 - swapK)` aim-pitch release also applies to the lowered swap (pivot unchanged; harmless).
+4. `solveArm`'s free target turns about the shoulder's rest point, not the turned shoulder.
+5. `StrikeController.reset` does not clear `STRIKE_SIM` (tuner follow only).
+6. An aimed strike swings the gun with the 33 deg trunk turn (as master's procedural turn did): look on the GPU sheet.
+
 ## Done
 - 2026-10-22 ~20:05: BRIEF, worktree, implementers started.
 

@@ -486,6 +486,7 @@ describe('team moves (3.2.0 phase 5)', () => {
 import { clientForcedHolster, hostDrawPhase, hostShotAllowed, hostShotWeapon, hostWeapon } from '../src/net/validate';
 import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
 import { MOVE_MODES, dropBadWallMove, packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
+import { strikeWarp } from '../src/anim/strikeBody';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
   it('protocol 7 (step 12 raised it)', () => {
@@ -649,7 +650,7 @@ describe('step 10: committed-move messages (A5, PLAN H3)', () => {
     expect(back.m).toBe('strike');
     expect(back.tid).toBe('e3');
     const pose = poseFromMoveState(back, 0, emptyMovePose());
-    expect(pose.melee).toBeCloseTo(0.4);
+    expect(pose.melee).toBeCloseTo(strikeWarp(0.4)); // (anim-n4c M1) the strike's phase posed warped onto the hit
     expect(pose.drawn).toBe(false);
   });
 });

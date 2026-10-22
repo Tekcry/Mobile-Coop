@@ -8,5 +8,10 @@ kind: minor
   and rear shoulder, the hips lead the shoulders by about 3 frames through about 32 deg of turn (was 0.8; the keyed idle
   trunk wiped the graph's turn every frame), the weight shifts onto the lead foot, the head stays on the target. Wren
   rigs only (local and co-op partner); guards unchanged. `src/anim/strikeBody.ts` (`STRIKE_BODY`).
+- Elbow strike, faster arm (Michael M1): the strike plays its arc warped onto the hit, so the elbow lands as the
+  knockout resolves (`STRIKE.hitAt` 0.08 s unchanged; hand across by 0.1 s, was 0.37 s), the hips and shoulders drive
+  through first, and the follow-through and return fill the rest of the 0.68 s. Same on a co-op partner (the wire keeps
+  the raw phase; both sides warp). `strikeWarp` in `src/anim/strikeBody.ts`; the lethal takedown blow and the grab kill
+  are unchanged.
 - Tuner: Gun slider "Gun drop changing hands" (`swapDropMul`) and a new "Elbow strike" section (turn, hips lead,
   weight shift); all bake (`tuneBakeTable.ts`).
