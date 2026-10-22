@@ -33,6 +33,15 @@ pushed at each agent hand-back. Agents running at a cut-off are lost: the resume
   PR into a train.
 - Fresh checker: CT Core runs it itself (Course Ready moved to Sector Ops, orchestrator ~01:40): a NEW Opus agent with
   `C:/NightShift/scratch/mt-check/CHECK3-BRIEF.md`.
+- Heavy-usage throughput (Michael ~09:50, CLAUDE.md on feature/menu): CPU < ~80%, at most 3 tsc / vitest agents; heavy.lock
+  lane single GPU suites when CPU < 80%; PRs outside src/net / protocol / save -> train on CI + at most two area suites.
+
+## Resumed ~10:00 (new account)
+hostage-gait: checker PASS (docs/hostage-gait/CHECK.md), PR #194 head 6cf3ec97; waits for laptop coop + netmove on c581a9c4.
+hang-down 0578d554: desktop GPU e2e-takedown ok 22 s, e2e-anim ok 47 s; fresh checker running (-> scratch/hdc-CHECK.md).
+Running: mocap-strafe finish, traverse-fix-2 finish (Opus). Queued: strike-pops finish. Character Build has (4189, after
+Guard AI S7): hang-down coop / ctcourse / netmove, then hostage-gait coop / netmove; verdicts come to CT Core.
+This file is pushed without a worktree: scratch/ctcore/push-resume.sh <file> <msg>.
 
 ## Open jobs (save ~09:45, before the account swap; every branch committed + pushed)
 Master 4.68.0 (3950f3f8). Train 20 = #185 + #186 + #188. Protocol registry: 31 master, 32 guard-ai, 33 marlow-final, 34 hang-down.
