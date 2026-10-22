@@ -204,9 +204,12 @@ counter. The high-value cage holds the case.
 
 **Stealth tools.**
 - Pipes: the riser (solo way up to 5.0), the cross main and the north branch (5.0, over open floor only).
-- Rack tops (4.0): reached solo by two rolling ladders (`ladder` 0 to 4.0, fixed in the greybox) at R3's south end
-  (-9.35, -3.25) and R2's north block in the cross aisle (-14.65, 6.75), the riser, or the cage ladder. Co-op: a boost
-  anywhere.
+- Rack tops (4.0: R1, R2, W0): reached solo by the one rolling ladder (`ladder` 0 to 4.0, fixed in the greybox) at R2's
+  north block in the cross aisle (-14.65, 6.75), the riser, or the cage ladder. Co-op: a boost anywhere. (sector-fixes R,
+  2026-10-22) R3 is a high-bay row (tops 4.4, co-op only, its rolling ladder at the south end removed): R3S is reached by
+  a leg-up onto its east gangway lip only (C1b); R3N has no lip (a lip facing A3 is within a running jump of the R2 tops).
+  (Michael 2026-10-22 ~21:20, "Add another") C2: the dispatch mezzanine's landing, hung on the x -4 wall over the east
+  gangway (4.4, x -6.4..-4.15, z 1.9..3.4), its west lip reached by a leg-up from the gangway. docs/sector-fixes/r/R2.md.
 - Split jump: A2, along its whole length. It is a hide over the VNA beam and a drop on the cage officer.
 - Fence climb: the cage (CT fence climb; mesh does not block sight).
 - Dark: every aisle, the cross aisle, the rack tops, the lane's east half, the charge bay.
@@ -400,7 +403,10 @@ main). Walkway, lobby roof, plant roof, main, deck, floor. The plant room's two 
 - `e2e-sectorops`: three routes (R1-R3 above), with the forklift, shimmy, pipe, duct and hatch legs in `climbs`.
 
 ## 3. Co-op extras
-Each one is optional, and each surface also has a solo way (LD 11.4).
+Each one below is optional and its surface also has a solo way (LD 11.4). The co-op-only routes added by sector-fixes R
+(the 4.4 m lips and the team doors, docs/sector-fixes/r/PLAN.md, R1-R3.md) are the exception: PLAN A2 (co-op-only means no
+way up alone from the floor the route starts on; a way down alone always exists) and A3 (no revive on those tops; the
+checkpoint respawn takes over).
 
 **Section 1**
 - Leg-up onto the charging bay's open front (3.2). Solo: wall jump at the lobby-block wall.
@@ -413,8 +419,11 @@ Each one is optional, and each surface also has a solo way (LD 11.4).
 - The trailer is marked `noLedge`, so co-op cannot reach a surface solo cannot.
 
 **Section 2**
-- Boost or human ladder onto any rack-end top (4.0, within `boostMax` 4.5 and `ladderGrab` 4.1). Solo: the two
-  rolling ladders, the riser, the cage ladder.
+- (sector-fixes R) Co-op only: the leg-up onto R3S's east gangway lip (4.4), then relay or rope; (Michael M1, 2026-10-22)
+  the leg-up onto the dispatch landing on the x -4 wall (4.4, C2), then relay or rope, a hang-drop onto the picker; the VNA
+  escape gate (a team door, unbolted from A2). docs/sector-fixes/r/R2.md.
+- Boost or human ladder onto any rack-end top (4.0, within `boostMax` 4.5 and `ladderGrab` 4.1). Solo: the rolling
+  ladder at R2N, the riser, the cage ladder.
 - Boost over the cage fence (2.4). Solo: the fence climb.
 - Split and drop: one player braced in A2 over the VNA beam takes the cage officer while the other drops into the cage
   from R1.

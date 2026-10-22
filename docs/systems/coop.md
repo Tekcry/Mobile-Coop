@@ -186,6 +186,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
   snapshot's `info`. Objectives, markers and banners use the item and event mirror.
+- (sector-fixes-r RT) Team doors, no wire change: a section's `bolts` (`SectorDef.bolts`: door centre `at`, unbolting
+  `side`) are locked at the start and each gets an "Unbolt" item `c-sbolt-<section>-<k>` (kind `door`, reach 1.6 m;
+  the `c-` prefix sorts it with the course devices ahead of the item cap). `Interactable.side` makes `nearest` offer it
+  only with the feet past the door plane on `side` (the course F7 test); the client mirror sets the same `side` from its
+  own map data (`boltById`), so the near side sees no item. A client's use is the ordinary `use` request; the host's
+  `onUse` runs the side test again on the client's feet (`SectorBolts.use`), unlocks the door (it leaves `lk`) and turns
+  the item off (the item list's `on`). A section restart bolts its doors again (`SectorBolts.rebolt`).
 - Revives are the op's syringes (`CoopHost.reviveClock.cap = syringesFor(difficulty)`, `revivesLeft()`). `goOut`
   outside the course calls `GameMode.onPlayerOut` (Sector Ops restarts the section); `onRespawn` in Sector Ops also
   brings a partner still up to the checkpoint (`revive` event). Before a section unloads or restarts the mode calls

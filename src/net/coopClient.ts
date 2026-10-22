@@ -34,7 +34,7 @@ import { localMoveState } from '../game/localMoveState';
 import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
-import { SECTOR_RESTART_TITLE } from '../game/sectors';
+import { SECTOR_RESTART_TITLE, boltById } from '../game/sectors';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -360,6 +360,10 @@ export class CoopClient implements NetAttachment {
         it.reach = n.reach;
         const id = n.id;
         it.onUse = () => this.s.toHost({ t: 'use', id });
+        // (sector-fixes-r RT) a team door's "Unbolt" is offered on its side only: the side from this client's own map
+        // data (no wire change); the host checks the side again on the `use`
+        const bolt = boltById(this.g.world.map.sectors, id);
+        if (bolt) it.side = bolt.bolt.side;
         this.items.set(n.id, it);
       }
       it.pos.set(n.x, n.y, n.z);
