@@ -303,6 +303,9 @@ try {
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state) && !!window.__course?.state, null, 20000, 'host course running');
   await until(B, () => !!window.__course?.wire, null, 30000, 'client has the course state');
   assert((await hostDebug()).bay === FIRST - 1, `the course starts at set ${FIRST}`);
+  // a part starting past set 1 spawns at its bay: the spawn's 2 s protection ends at damageMul 1, so wait it out first
+  // (as the restart step below does; S-e2e-fix.md)
+  await waitSim(2200);
   await GA(() => { window.__app.current.target.damageMul = 0; });
   // (coop-fix) the joiner draws the host's character, and its objective line leaves "Connecting to host"
   await until(B, () => window.__app.current.net.avatars.size === 1, null, 10000, 'client has the host avatar');
