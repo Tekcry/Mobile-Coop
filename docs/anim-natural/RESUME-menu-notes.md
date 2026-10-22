@@ -104,7 +104,7 @@ N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: RESUME (new session or after a clear). START at the "~21:45" update. Read CLAUDE.md and docs/ROADMAP.md (latest on
+Night Shift | Menu Notes Build: RESUME (new session or after a clear). START at "FIRST NEXT STEP", then the "~21:45" update. Read CLAUDE.md and docs/ROADMAP.md (latest on
 origin/feature/menu, including the new "Machines" rules: the laptop is the main test machine, GPU included), then
 C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch feature/anim-natural; git pull
 first) and follow it. Message "Night Shift | Orchestrator" that you resumed.
