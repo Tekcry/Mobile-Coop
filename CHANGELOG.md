@@ -12,6 +12,9 @@
 - Holding a guard still: she braces, breathes and shifts her weight against him (the trunk no longer stays at 0 deg).
   Animation tuner (Holds and carries): brace, brace roll and breath sliders; they bake. Anim Studio: the hold walks
   travel with planted feet instead of sliding on the spot.
+- (PR fix) Letting go of a ladder, a drainpipe or a hang, the legs stay under her in the fall (the legs-ahead air pose is
+  for walking off a ledge or a jump; off a ladder it went into the wall). The split brace's breath runs from the moment
+  she braces, so the partner's copy breathes in step with her.
 
 ## 4.55.0 - Train 4: Marlow Yard security room, wheel opens on goggles, run feet no longer cross (2026-10-22, PR #121; #110, #115, #116)
 

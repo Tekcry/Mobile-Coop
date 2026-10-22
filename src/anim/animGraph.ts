@@ -692,6 +692,12 @@ export class AnimGraph {
    *  hand plant and the roll's body path this frame. */
   private landL = 1;
   private airT = 0;
+  /** (anim-n4b fix) This fall began by letting go of a hold with a wall or a hole's edge in front (`AIR_WALL_FROM`): the air
+   *  pose keeps the legs under the body (legs ahead went 30 cm into the ladder's wall, e2e-clip 'ladder down + slide'). */
+  private airWall = false;
+  /** (anim-n4b fix) Seconds braced in this split: the breath's clock (from the entry, so the owner and a remote copy
+   *  breathe in step; the per-rig idle clock put them out of phase). */
+  private splitT = 0;
   private travHandW = 0;
   private readonly plant: MantlePlantOut = { w: 0, x: 0, y: 0, z: 0, sink: 0 };
   private readonly rollB: RollBodyOut = { pitch: 0, spin: 0, drop: 0 };
@@ -1101,7 +1107,9 @@ export class AnimGraph {
       } else this.plant.w = 0;
       if (i.traverse === 'split') {
         // (anim-n4b, AUDIT fix 36) braced in the split the trunk breathes and balances over the legs (it was still)
-        const b = splitBreath(this.idleT, this.splitB);
+        // (fix) on the split's own clock from the entry: the owner and the remote copy in step (0 at the entry: no pop)
+        this.splitT += dt;
+        const b = splitBreath(this.splitT, this.splitB);
         src[CH.spPitch] = src[CH.spPitch]! + b.spPitch;
         src[CH.hdPitch] = src[CH.hdPitch]! + b.hdPitch;
         src[CH.pelRoll] = src[CH.pelRoll]! + b.pelRoll;
@@ -1116,7 +1124,13 @@ export class AnimGraph {
       overClip(src, SLIDE, clamp(i.slide, 0, 1), 1);
       this.slot('slide', 1, i.slide);
     }
+    if (i.traverse !== 'split') this.splitT = 0;
     this.airT = i.grounded || i.traverse !== 'none' ? 0 : this.airT + dt;
+    // (anim-n4b fix) a fall straight out of a wall-front hold (a ladder, a drainpipe, a hang, ...) keeps the legs under the
+    // body; a fall from anything else (a walk off a ledge, a jump) leads with them ('drop' keeps it: the vent drop's lower
+    // ends in it, and a walk off a ledge starts grounded)
+    if (i.traverse !== 'none' && i.traverse !== 'drop') this.airWall = AIR_WALL_FROM.includes(i.traverse);
+    else if (i.grounded) this.airWall = false;
     if (!i.grounded) {
       src[CH.fLY] = src[CH.fLY]! + 0.14;
       src[CH.fRY] = src[CH.fRY]! + 0.1;
@@ -1125,9 +1139,10 @@ export class AnimGraph {
       // out and up: freeHands, AIR_POSE)
       const aw = airPoseW(this.airT);
       if (aw > 0) {
-        src[CH.fLZ] = src[CH.fLZ]! + AIR_POSE.lead * aw;
-        src[CH.fRZ] = src[CH.fRZ]! + AIR_POSE.trail * aw;
-        src[CH.fLY] = src[CH.fLY]! + AIR_POSE.lift * aw;
+        const lw = this.airWall ? 0 : aw;
+        src[CH.fLZ] = src[CH.fLZ]! + AIR_POSE.lead * lw;
+        src[CH.fRZ] = src[CH.fRZ]! + AIR_POSE.trail * lw;
+        src[CH.fLY] = src[CH.fLY]! + AIR_POSE.lift * lw;
         src[CH.spPitch] = src[CH.spPitch]! + AIR_POSE.chest * aw;
       }
     }
@@ -2327,6 +2342,9 @@ export const LAND_ARMS = { out: 0.3, up: 0.3, hold: 0.3 } as const;
  *  right `trail` ahead (pose m), a little more knee (`lift`), the chest back (`chest` rad); free hands out to the sides
  *  and up for balance (`arm*`, root frame, pose m: about chest height, well out from the shoulders). */
 export const AIR_POSE = { lead: 0.14, trail: 0.06, lift: 0.04, chest: -0.06, armX: 0.55, armY: 1.2, armZ: 0.1 } as const;
+/** (anim-n4b fix) The holds with a wall or a hole's edge in front: a fall straight out of one (let go, slid off) keeps the
+ *  air pose's legs under the body (no `lead` / `trail` / `lift`); the arms and chest still take it. */
+export const AIR_WALL_FROM: readonly TraverseKind[] = ['hang', 'climb', 'pipeClimb', 'rappel', 'pipeLegs', 'pipeInv', 'wallKick', 'ventDrop', 'crawl', 'crawlOut'];
 
 /** Sideways share of the local movement direction (0 forward/back .. 1 pure strafe). */
 function lateralShare(i: AnimInput): number {
