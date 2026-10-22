@@ -68,9 +68,11 @@ const BOOST_CONTACT_K = 0.35;
 // ---------------------------------------------------------------- pure metrics for node
 const LIB = resolve('test-results/anim-audit/lib');
 // node + esbuild's JS entry, not node_modules/.bin/esbuild: on Windows .bin holds a .cmd shim execFileSync cannot spawn.
-execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', 'src/anim/footGeom.ts', '--bundle', '--format=esm', '--entry-names=[name]', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
 const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
 const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
+// (anim-natural N1) the foot's contact geometry the planner and the rig share (heel / ball under the ankle)
+const FG = await import(pathToFileURL(`${LIB}/footGeom.js`).href);
 
 // ---------------------------------------------------------------- server (only when none is up and no url given)
 let server = null;
@@ -104,7 +106,7 @@ const LOWER = ['locomotion', 'crouch', 'kneel', 'air', 'wall', 'traverse'];
 const names = ['t', 'tp'];
 for (const n of NODES) for (const k of ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']) names.push(`${n}.${k}`);
 names.push('cam.x', 'cam.y', 'cam.z', 'cap.x', 'cap.y', 'cap.z', 'fix.x', 'fix.y', 'fix.z', 'speed', 'gear', 'crouchBlend', 'crouched', 'yaw', 'grounded');
-for (const s of ['L', 'R']) for (const k of ['contact', 'landed', 'slide', 'x', 'y', 'z', 'yaw', 'gy', 'gyH', 'gyT']) names.push(`${s}.${k}`);
+for (const s of ['L', 'R']) for (const k of ['contact', 'landed', 'slide', 'x', 'y', 'z', 'yaw', 'gy', 'gyH', 'gyT', 'held']) names.push(`${s}.${k}`);
 names.push('lower', 'lowerW', 'grip.x', 'grip.y', 'grip.z', 'muz.x', 'muz.y', 'muz.z', 'hR.x', 'hR.y', 'hR.z', 'hL.x', 'hL.y', 'hL.z', 'wR', 'wL');
 names.push('raise', 'swapping', 'traverse', 'attached', 'ladderS', 'tgt');
 // the old medkit use's phase column (always -1 now: carried medkits are gone, G98; kept for the frame layout) and the anim
@@ -244,6 +246,8 @@ await G(([NODES, W, names, LOWER]) => {
       f[o++] = groundAt(an.x, an.y, an.z);
       f[o++] = groundUnder(an, ak.absoluteRotationQuaternion, sole[s][0]);
       f[o++] = groundUnder(an, ak.absoluteRotationQuaternion, sole[s][1]);
+      // (anim-natural N1) the planner holds this foot's contact (footPlanner HOLD_CONTACT)
+      f[o++] = fs.anchored ? 1 : 0;
     }
     const gr = rig.graph;
     f[o++] = LOWER.indexOf(gr.state);
@@ -861,7 +865,26 @@ function common(rec, hz, out, a, b, jumpLimit, balanceFrom = -1) {
     const gnd = { heel: col(rec, `${s}.gyH`, a, b), toe: col(rec, `${s}.gyT`, a, b) };
     const sole = M.soleLowY(an, quat(rec, s === 'L' ? 'ankleL' : 'ankleR', a, b), SOLE[s].fwd, SOLE[s].up, FOOT.len, L.FOOT_BACK, FOOT_REF, gnd);
     const fc = M.footContact(an, new Float64Array(b - a), ct, FOOT_REF, undefined, sole);
-    res(out, `footSlide${s}`, fc, L.FOOT_SLIDE, ':801 / :1273', 'm', a);
+    // (anim-natural N1, decisions 1 / 2) a plant the planner holds at its contact (free movement: the ankle rolls round the
+    // held heel / ball by design) reads the contact point, the others the ankle as before (was footContact's ankle slide
+    // for every plant). The heel / ball: footGeom's points along the foot's own axes (SOLE). Same limit (FOOT_SLIDE).
+    // (anim-natural-n1 fix round) each point over the frames it is down (the heel while down, the ball while down), no heel +
+    // 17 cm projection (it read a heel swept round the ball's spot as 0)
+    const aq = quat(rec, s === 'L' ? 'ankleL' : 'ankleR', a, b);
+    const heel = new Float64Array((b - a) * 3);
+    const ball = new Float64Array((b - a) * 3);
+    const U = SOLE[s].up;
+    const W = SOLE[s].fwd;
+    for (let i = 0; i < b - a; i++) {
+      const h = M.quatRotate(aq, i * 4, -U[0] * FG.HEEL_DOWN - W[0] * FG.HEEL_BACK, -U[1] * FG.HEEL_DOWN - W[1] * FG.HEEL_BACK, -U[2] * FG.HEEL_DOWN - W[2] * FG.HEEL_BACK);
+      const q = M.quatRotate(aq, i * 4, -U[0] * FG.HEEL_DOWN + W[0] * FG.TOE_BALL, -U[1] * FG.HEEL_DOWN + W[1] * FG.TOE_BALL, -U[2] * FG.HEEL_DOWN + W[2] * FG.TOE_BALL);
+      for (let j = 0; j < 3; j++) {
+        heel[i * 3 + j] = an[i * 3 + j] + h[j];
+        ball[i * 3 + j] = an[i * 3 + j] + q[j];
+      }
+    }
+    const fsl = M.footSlide(an, heel, ball, ct, col(rec, `${s}.held`, a, b), L.FOOT_SLIDE);
+    res(out, `footSlide${s}`, fsl, L.FOOT_SLIDE, ':801 / :1273', 'm', a);
     res(out, `footFloat${s}`, fc.float, L.FOOT_FLOAT, ':801', 'm', a);
     res(out, `footSink${s}`, fc.sink, L.FOOT_SINK, ':801', 'm', a);
   }
@@ -1663,6 +1686,7 @@ async function runRemote() {
           f[o++] = groundAt(an.x, an.y, an.z);
           f[o++] = groundUnder(an, ak.absoluteRotationQuaternion, sole[s][0]);
           f[o++] = groundUnder(an, ak.absoluteRotationQuaternion, sole[s][1]);
+          f[o++] = fs.anchored ? 1 : 0;
         }
         const gr = rig.graph;
         f[o++] = LOWER.indexOf(gr.state);
