@@ -5,7 +5,7 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser. At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS } from './e2e-net-lib.mjs';
+import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -389,14 +389,31 @@ async function throwOver(x0) {
   await padReady(B);
   const hp0 = await hp();
   const hits0 = (await dev(A)).hits;
-  await holdUntil(A, RB, () => window.__app.current.team.state === 'throwOffer', 'station 4: the standing host offers the throw');
-  await until(B, () => !!window.__app.current.team.offer?.toss, null, 8000, 'station 4: the client is offered the throw');
+  // (flake-fix) both pages' team states are recorded from here (e2e-net-lib `watchTeam`) and printed with both views on a
+  // failure: under load (6 fps) the client's held press once never became a throw (client `none`, no landing check, no
+  // refusal, 20 s of game later; the old dump could not say why)
+  await watchTeam(A);
+  await watchTeam(B);
+  const dump = async (e) => {
+    console.error('    host:', await teamLog(A));
+    console.error('    client:', await teamLog(B));
+    throw e;
+  };
+  await holdUntil(A, RB, () => window.__app.current.team.state === 'throwOffer', 'station 4: the standing host offers the throw').catch(dump);
+  await until(B, () => !!window.__app.current.team.offer?.toss, null, 8000, 'station 4: the client is offered the throw').catch(dump);
   const prompt = await GB(() => window.__app.current.team.prompt);
   assert(/throw/i.test(prompt ?? ''), `station 4: the prompt names the move (${prompt})`);
-  await holdUntil(B, RB, () => window.__app.current.team.count.throws >= 1, 'station 4: the client is thrown').catch(async (e) => {
-    console.error(await GB(() => { const g = window.__app.current; return JSON.stringify({ st: g.team.state, room: g.team.lastThrowRoom, denied: g.team.lastDenied, prompt: g.team.prompt }); }));
-    throw e;
-  });
+  // (flake-fix) the press goes in once the client's view has settled: the host's copy on the client is where the host
+  // stands (its yaw too: the landing is measured from it), the host still offers, and the client stands free
+  const host = await GA(() => { const c = window.__app.current.player.controller; return [c.pos.x, c.pos.z, c.yaw]; });
+  await until(B, ([hx, hz, hy]) => {
+    const g = window.__app.current;
+    const c = g.player.controller;
+    const m = g.team.offer?.toss ? g.team.offer.mate : null;
+    return !!m && Math.hypot(m.pos.x - hx, m.pos.z - hz) < 0.1 && Math.abs(Math.atan2(Math.sin(m.yaw - hy), Math.cos(m.yaw - hy))) < 0.05 && c.grounded && !c.override && !g.traversal.attached;
+  }, host, 8000, "station 4: the client's view of the offering host has settled").catch(dump);
+  assert((await GA(() => window.__app.current.team.state)) === 'throwOffer', 'station 4: the host still offers the throw at the press');
+  await holdUntil(B, RB, () => window.__app.current.team.count.throws >= 1, 'station 4: the client is thrown').catch(dump);
   // both views: the client's own arc and the host's view of it go over the beams (feet above the top beam at the line)
   let ownMax = 0;
   let hostMax = 0;

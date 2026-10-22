@@ -853,24 +853,44 @@ try {
         // guard stands there, its own eye (`eyeOf`): the 1.55 m guess is 4 cm below a grunt's eye, and a spot picked by
         // the guess could show the real guard the chest too ("sees the peeking head only" failed, #65 / #71)
         let eyeOf = null;
-        const see = () => {
-          const eye = eyeOf ? eyeOf(new V()) : new V(gx, s.y + 1.55, gz);
+        // (flake-fix) the spot search uses a real grunt's eye height (one spawned on the floor here and cleared at once)
+        let eyeY = s.y + 1.55;
+        {
+          const probe = g.enemyMgr.spawn('grunt', new V(s.bx - s.nx * 2, s.y, s.bz - s.nz * 2), false, 0);
+          if (probe) eyeY = probe['eye'](new V()).y;
+          g.enemyMgr.clear();
+        }
+        // (flake-fix) `m`: a margin (m) for the spot search: the chest is looked at `m` further out past the edge and the
+        // head `m` further in, so a spot that only just hides the chest (or only just sees the head) does not count
+        const see = (m = 0) => {
+          const eye = eyeOf ? eyeOf(new V()) : new V(gx, eyeY, gz);
           // as the guard's own test (perception losClear): a hit within the slack of the point (0.3 m chest, 0.2 m head) is clear
           const clear = (to, slack) => { const h = g.ballistics.ray(eye, to, 1); return !h.hit || h.distance > Math.hypot(to.x - eye.x, to.y - eye.y, to.z - eye.z) - slack; };
-          return { chest: clear(g.target.aimPoint(pt).clone(), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
+          return { chest: clear(g.target.aimPoint(pt).clone().addInPlaceFromFloats(s.tx * m, 0, s.tz * m), 0.3), head: clear(g.target.headPoint(pt).clone(), 0.2) };
         };
         const place = (x, z) => {
           gx = x;
           gz = z;
         };
         const spots = [];
-        for (let a = 1; a <= 7; a += 0.25) for (let b = 0.5; b <= 4; b += 0.25) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
+        for (let a = 1; a <= 7; a += 0.125) for (let b = 0.5; b <= 4; b += 0.125) spots.push([s.bx + s.tx * a - s.nx * b, s.bz + s.tz * a - s.nz * b]);
         const hidden = spots.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && !v.head; });
         P.axis(0, 1);
         // (A3, G36) the peek is at once; the rig's hand switch and lean ease the head out past the edge over about 0.6 s
         t.step(0.9);
-        const peekOn = g.wallCore.peekOn;
-        const only = hidden.filter(([x, z]) => { place(x, z); const v = see(); return !v.chest && v.head; });
+        // (flake-fix) the held peek never stands quite still: the pose sways a few mm (the chest point x 3.443 - 3.457 at
+        // segment 149, over about 4 s). The one spot the single look found ([0.25, -11.75]) cleared the chest by about
+        // 5 mm, so the guard's own sample (its think tick, a random phase) saw the chest whenever the sway crossed it:
+        // "sees the peeking head only" (los true, head false) under load, where the run's history moves the phase. A spot
+        // counts only if it sees the head and not the chest at every look over 4 s of the held peek (every 0.1 s), with a
+        // 1.5 cm margin (`see(0.01)`)
+        let only = hidden;
+        let peekOn = true;
+        for (let k = 0; k < 40 && only.length; k++) {
+          only = only.filter(([x, z]) => { place(x, z); const v = see(0.01); return !v.chest && v.head; });
+          peekOn &&= g.wallCore.peekOn;
+          t.step(0.1);
+        }
         if (!peekOn || !only.length) {
           P.axis(0, 0);
           t.reset();
@@ -885,7 +905,7 @@ try {
           if (!e) continue;
           place(e.pos.x, e.pos.z);
           eyeOf = (o) => e['eye'](o);
-          const v = see();
+          const v = see(0.01);
           eyeOf = null;
           if (!v.chest && v.head) break;
           g.enemyMgr.clear();
@@ -897,7 +917,10 @@ try {
           continue;
         }
         t.step(0.3);
-        const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)] };
+        eyeOf = (o) => e['eye'](o);
+        const now = see();
+        eyeOf = null;
+        const peek = { los: e.los, head: e.losHead, light: g.lightLevel, at: [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)], lines: now, chestP: g.target.aimPoint(new V()).asArray().map((v) => +v.toFixed(3)) };
         P.axis(0, 0);
         t.step(0.5);
         const back = { los: e.los };

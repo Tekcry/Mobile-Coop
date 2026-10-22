@@ -249,12 +249,35 @@ try {
       let k = await keys();
       v = await view();
       assert(k.crouch.join() === 'KeyC,ControlLeft' && k.reload.join() === 'KeyR' && v.rows === '' && !v.sum, `reset (confirmed) restores the keys (${k.crouch}, ${k.reload})`);
-      // a capture with no key gives up after 5 s
-      await click(slot('coop:0'));
-      await P.waitForTimeout(5600);
+      // a capture with no key gives up after 5 s. (flake-fix) The screen's timeout is a wall-clock `setTimeout`: on a
+      // loaded machine a long frame held it past the old fixed 5.6 s look ("the capture times out after 5 s", E2E_JOBS=2).
+      // Now the page itself times it: the click, a probe at 4.5 s (still capturing), the moment the screen's own timer
+      // gives up, and a 5 s probe timer armed right after the click (the same delay armed later fires after it, so the
+      // give-up must come at 5 s and no later than that probe, however late the page runs)
+      const capT = await G((s) => {
+        const kbm = window.__app.input.kbm;
+        const r = { cancelAt: -1, at45: null, probe: -1 };
+        window.__capT = r;
+        const orig = kbm.cancelCapture;
+        kbm.cancelCapture = function (...a) {
+          if (r.cancelAt < 0) r.cancelAt = performance.now() - t0;
+          kbm.cancelCapture = orig;
+          return orig.apply(this, a);
+        };
+        const t0 = performance.now();
+        [...document.querySelectorAll(s)].filter((e) => !e.closest('[hidden]'))[0].click();
+        const listening = kbm.capturing;
+        setTimeout(() => (r.at45 = kbm.capturing), 4500);
+        setTimeout(() => (r.probe = performance.now() - t0), 5000);
+        return { listening };
+      }, slot('coop:0'));
+      await P.waitForFunction(() => window.__capT.probe >= 0, null, { timeout: 60000, polling: 100 });
       v = await view();
       const pl = await G((s) => document.querySelector(s).classList.contains('listening'), slot('coop:0'));
-      assert(!v.cap && !pl && (await keys()).coop.join() === 'KeyF,PageDown', 'the capture times out after 5 s');
+      const ct = await G(() => window.__capT);
+      const ctMsg = JSON.stringify({ ...capT, ...ct, cap: v.cap, listening: pl, coop: (await keys()).coop });
+      assert(capT.listening && ct.at45 === true, `the capture listens until its 5 s timeout (${ctMsg})`);
+      assert(!v.cap && !pl && (await keys()).coop.join() === 'KeyF,PageDown' && ct.cancelAt >= 5000 && ct.cancelAt <= ct.probe, `the capture times out after 5 s (${ctMsg})`);
       await click(slot('crouch:0'));
       await P.keyboard.press('KeyU');
       await P.waitForTimeout(800);
