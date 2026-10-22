@@ -18,6 +18,7 @@
  * eased in by `tuneCamStep` once per render frame). Visual only: the collision still applies after them.
  */
 import { CH } from './pose';
+import { ANIM_BASE } from './animBase';
 import { ATTACH_FRAMING, CAMERA, WALL_CAMERA } from '../config/camera';
 import { registerTuneSection, TUNE_STATE_BAG, tuneSectionEase } from './tuneRegistry';
 
@@ -156,7 +157,7 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'leanAdd', label: 'forward lean', kind: 'add', def: 0, min: -0.4, max: 0.4, step: 0.01, unit: 'rad', groups: ALL_BODY, hook: 'animGraph writeTargets: spine.pitch; keyed clips: the keyed spine (keyed.ts sampleKeyed)' },
   { id: 'armSwingGrow', label: 'arm swing growth / speed', kind: 'add', def: 0, min: -0.5, max: 0.5, step: 0.01, unit: 'x per m/s', groups: SWING, hook: 'adds to the arm swing multiplier per m/s of speed' },
   { id: 'elbowOutAdd', label: 'elbow out (keyed arms)', kind: 'add', def: 0, min: -0.1, max: 0.15, step: 0.005, unit: 'm', groups: KEYED, hook: 'characterRig keyedArm: the keyed elbow point x' },
-  { id: 'elbowPoleMul', label: 'elbow out (IK pole)', kind: 'mul', def: 1, min: 0, max: 2.5, step: 0.05, unit: 'x', groups: ALL_BODY, hook: 'characterRig solveArm: the elbow pole outward share 0.55' },
+  { id: 'elbowPoleMul', label: 'elbow out (IK pole)', kind: 'mul', def: 1, min: 0, max: 2.5, step: 0.05, unit: 'x', groups: ALL_BODY, hook: 'characterRig solveArm: the elbow pole outward share ELBOW_POLE_OUT (0.55)' },
   { id: 'headTurnMul', label: 'head turn', kind: 'mul', def: 1, min: 0, max: 2, step: 0.05, unit: 'x', groups: ALL_BODY, hook: 'RigPose.lookYaw (the head glance / wall head turn)' },
   { id: 'peekLeanMul', label: 'peek lean', kind: 'mul', def: 1, min: 0, max: 2.5, step: 0.05, unit: 'x', groups: ['wallPeek', 'wallCrouchPeek'], hook: 'RigPose.lean (WALL.peekLean on the rig)' },
   { id: 'wallGapAdd', label: 'gap to wall', kind: 'add', def: 0, min: -0.1, max: 0.15, step: 0.005, unit: 'm', groups: WALL, hook: 'player.ts: wallRootPush (the rig root pushed onto the face)' },
@@ -178,7 +179,7 @@ export const TUNABLES: readonly Tunable[] = [
   { id: 'gunCant', label: 'cant (roll)', kind: 'add', def: 0, min: -0.8, max: 0.8, step: 0.01, unit: 'rad', groups: ALL_GUN, hook: 'characterRig: the weapon roll (mirrored)' },
   { id: 'sightYAdd', label: 'sight height vs eye', kind: 'add', def: 0, min: -0.1, max: 0.1, step: 0.002, unit: 'm', groups: AIM_GUN, hook: 'characterRig sightToEye: SIGHT_EYE' },
   { id: 'headDropMul', label: 'head drop to sights', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'characterRig: NECK_WELD (the neck flexes onto the stock)' },
-  { id: 'tuckMul', label: 'elbow tuck (aim / low ready)', kind: 'mul', def: 1, min: 0, max: 1.6, step: 0.05, unit: 'x', groups: ALL_GUN, hook: 'characterRig solveArm: AIM_ELBOW_TUCK / READY_ELBOW_TUCK' },
+  { id: 'tuckMul', label: 'elbow tuck (aim / low ready)', kind: 'mul', def: 1, min: 0, max: 1.6, step: 0.05, unit: 'x', groups: ALL_GUN, hook: 'characterRig solveArm: AIM_ELBOW_TUCK / READY_ELBOW_TUCK x WREN_TUCK (per gun state)' },
   { id: 'glideTwistMul', label: 'glide hip twist cut', kind: 'mul', def: 1, min: 0, max: 1.5, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'animGraph: GLIDE.yawCut (aimed glide: the hips twist less)' },
   // (anim-n3b, PASS2 row 25) the per-shot body kick (gun back and up, muzzle rise, chest give); visual only
   { id: 'recoilMul', label: 'recoil kick per shot (gun, hands, chest)', kind: 'mul', def: 1, min: 0, max: 3, step: 0.05, unit: 'x', groups: AIM_GUN, hook: 'recoil.ts BodyRecoil: WREN_RECOIL_RIFLE / WREN_RECOIL_PISTOL amounts' },
@@ -435,6 +436,8 @@ export interface TunePoseIn {
   lookYaw?: number;
   /** (T1a) A body lifted, carried or put down (not a held guard): the bend selects `carry`, else `hold`. */
   carryBody?: boolean;
+  /** (anim-bake-targets) False in the air off a traversal (a fall, a jump): no group, so a landing roll starts untuned. */
+  grounded?: boolean;
 }
 
 /** Speed bands (m/s), the same as the F3 crab readout's gait label; (T1a) `crouchRun` from the crouch's 4th gear down. */
@@ -444,6 +447,10 @@ export const TUNE_BANDS = { idle: 0.15, walk: 2.2, jog: 3.7, sneak: 1.2, crouchR
 export function selectBodyGroup(p: TunePoseIn, ledge: boolean, armed: boolean): BodyGroup | null {
   if ((p.bend ?? 0) > 0 || (p.bendDrop ?? 0) > 0) return p.carryBody ? 'carry' : 'hold';
   const tr = p.traverse ?? 'none';
+  // (anim-bake-targets) in the air (a fall or a jump, speed ~0) the stance rows would read as `idle`: its narrow stance
+  // (Michael's trackMul 0.05) carried into the landing roll's first frames (e2e-clip: the feet 2.1 cm apart); the air
+  // has no group, so the values ease back to the untuned ones over the fall (BODY_TAU)
+  if (p.grounded === false && tr === 'none') return null;
   if (tr !== 'none') {
     switch (tr) {
       case 'climb':
@@ -515,7 +522,7 @@ export interface TuneRigIn {
 }
 
 /** Saved grip targets (x y z cx cy cz) x 4, restored by `tuneEnd`. */
-const saved = new Float64Array(24);
+const SAVED_GRIPS = new Float64Array(24);
 let shifted = false;
 
 function copyBody(src: BodyValues, dst: CurValues): void {
@@ -531,7 +538,7 @@ function copyGun(src: Readonly<GunValues>, dst: CurValues): void {
   }
 }
 
-function shiftTarget(t: TuneTarget, slot: number, dx: number, dy: number, dz: number): void {
+function shiftTarget(t: TuneTarget, slot: number, dx: number, dy: number, dz: number, saved: Float64Array = SAVED_GRIPS): void {
   const o = slot * 6;
   saved[o] = t.x;
   saved[o + 1] = t.y;
@@ -547,7 +554,7 @@ function shiftTarget(t: TuneTarget, slot: number, dx: number, dy: number, dz: nu
   if (t.cz !== undefined) t.cz += dz;
 }
 
-function restoreTarget(t: TuneTarget, slot: number): void {
+function restoreTarget(t: TuneTarget, slot: number, saved: Float64Array = SAVED_GRIPS): void {
   const o = slot * 6;
   t.x = saved[o]!;
   t.y = saved[o + 1]!;
@@ -567,6 +574,7 @@ export function tuneBegin(p: TunePoseIn, rig: TuneRigIn, dt = 0): void {
   const ledge = rig.reachL.hook === 1 || rig.reachR.hook === 1;
   const bg = tuneBodyGroup(p, ledge, armed, rig);
   const gg = selectGunGroup(p, armed);
+  TUNE_OWNER.rig = rig; // (anim-bake-targets) this rig's Body base also lands in TUNE_LOCAL (bodyRigBegin)
   TUNE_STATE.body = bg ?? '';
   TUNE_STATE.gun = gg ?? '';
   const cur = TUNE_CUR;
@@ -612,6 +620,195 @@ export function tuneEnd(rig: TuneRigIn): void {
   copyBody(TUNE_IDENTITY, TUNE_CUR);
   copyGun(TUNE_IDENTITY, TUNE_CUR);
   TUNE_CUR.armSwingK = 1;
+  TUNE_OWNER.rig = null;
+}
+
+// ------------------------------------------------------------------------------------------
+// (anim-bake-targets, BT-A1 / A3) The Body base table: the base table's `body` key, per rig
+// ------------------------------------------------------------------------------------------
+
+/**
+ * The Body sliders that bake into the base table's `body` key (`animBase.ts`): every Body slider but the two with a code
+ * value of their own (strideMul: the motion constants; peekLeanMul: WALL.peekLean). kneeOutMul / kneeLiftMul keep their
+ * climb constants for ladder and pipe (CLIMB_KNEE_OUT / CLIMB_KNEE_UP) and bake here for every other state.
+ */
+export const BODY_BASE_FIELDS: readonly BodyField[] = BODY_FIELDS.filter((f) => f !== 'strideMul' && f !== 'peekLeanMul');
+const NBF = BODY_BASE_FIELDS.length;
+const NBG = BODY_GROUPS.length;
+/** Per base field: 1 = a mul slider (multiplies), 0 = an add slider (adds). */
+const BB_MUL = new Uint8Array(BODY_BASE_FIELDS.map((f) => (tunable(f).kind === 'mul' ? 1 : 0)));
+/** Per base field: its identity (1 or 0). */
+const BB_ID = new Float64Array(BODY_BASE_FIELDS.map((f) => tunable(f).def));
+const BB_INDEX = Object.fromEntries(BODY_BASE_FIELDS.map((f, i) => [f, i])) as Record<string, number>;
+const BG_INDEX = Object.fromEntries(BODY_GROUPS.map((g, i) => [g, i])) as Record<string, number>;
+const bbi = (f: BodyField): number => BB_INDEX[f]!;
+const BB_HEAD = bbi('headTurnMul');
+const BB_HU = bbi('handUpAdd');
+const BB_HF = bbi('handFwdAdd');
+const BB_HO = bbi('handOutAdd');
+const BB_FU = bbi('footUpAdd');
+const BB_FF = bbi('footFwdAdd');
+const BB_FO = bbi('footOutAdd');
+/** The table in use: [body group][base field], identity where the base has no value. */
+const BODY_BASE = new Float64Array(NBG * NBF);
+for (let g = 0; g < NBG; g++) BODY_BASE.set(BB_ID, g * NBF);
+/** Any base value off identity (false: no rig composes anything, bit-identical to the untuned rig). */
+const BODY_BASE_LIVE = { on: false };
+
+/** The rig whose `tuneBegin` window is open (the local player): its composed Body values also go to TUNE_LOCAL. */
+export const TUNE_OWNER: { rig: unknown } = { rig: null };
+
+/** Compose a Body base value with a tuner value (mul multiplies, add adds); the bake composes the same way. */
+export function bodyCompose(id: BodyField, base: number, delta: number): number {
+  return tunable(id).kind === 'mul' ? base * delta : base + delta;
+}
+
+/**
+ * Load the base table's `body` key (row = a Body group id, param = a slider id of BODY_BASE_FIELDS). Every rig eases to
+ * it from its applied values. Returns the names it skipped (`<row>.<param>`).
+ */
+export function bodyBaseLoad(t: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined): string[] {
+  const skipped: string[] = [];
+  for (let g = 0; g < NBG; g++) BODY_BASE.set(BB_ID, g * NBF);
+  let live = false;
+  for (const [row, ps] of Object.entries(t ?? {})) {
+    const g = BG_INDEX[row];
+    for (const [id, v] of Object.entries(ps ?? {})) {
+      const i = BB_INDEX[id];
+      if (g === undefined || i === undefined || typeof v !== 'number' || !Number.isFinite(v)) {
+        skipped.push(`${row}.${id}`);
+        continue;
+      }
+      BODY_BASE[g * NBF + i] = v;
+      if (v !== BB_ID[i]) live = true;
+    }
+  }
+  BODY_BASE_LIVE.on = live;
+  return skipped;
+}
+
+{
+  // the generated table at start (the dev hook `__animBase` may replace it until a reload)
+  const bad = bodyBaseLoad(ANIM_BASE.body);
+  if (bad.length) console.warn(`animBase: unknown Body rows / params skipped: ${bad.join(', ')}`);
+}
+
+/** A base value (identity where unset), for the tests and the dev hooks. */
+export function bodyBaseGet(row: BodyGroup, id: BodyField): number {
+  const i = BB_INDEX[id];
+  return i === undefined ? tunable(id).def : BODY_BASE[BG_INDEX[row]! * NBF + i]!;
+}
+
+/** One Wren rig's Body base state (allocated once per rig, `TuneRigState.bodyBase`). */
+export interface BodyRigState {
+  /** The applied base values per base field (eased toward the rig's row over BODY_TAU). */
+  readonly applied: Float64Array;
+  /** Any applied value off identity. */
+  live: boolean;
+  /** TUNE_CUR's values before the window (put back by `bodyRigEnd`); [last] = armSwingK. */
+  readonly saved: Float64Array;
+  /** The grip targets before the window's shift. */
+  readonly grips: Float64Array;
+  shifted: boolean;
+  /** The pose's lookYaw before the window (NaN: not changed). */
+  look: number;
+}
+
+export function bodyRigState(): BodyRigState {
+  return { applied: new Float64Array(BB_ID), live: false, saved: new Float64Array(NBF + 1), grips: new Float64Array(24), shifted: false, look: NaN };
+}
+
+let bodyOpen: BodyRigState | null = null;
+let bodyPose: TunePoseIn | null = null;
+let bodyRig: TuneRigIn | null = null;
+
+/**
+ * Inside a Wren rig's own `animate` (`tuneRigBegin`; for the local player inside its `tuneBegin` window): ease the rig's
+ * applied Body base toward row `gi` (a BODY_GROUPS index; -1 none = identity) over `dt` (0: at once) and compose it onto
+ * TUNE_CUR (the local player's tuner values; identity for every other rig), the pose's head turn and the grip targets,
+ * all put back by `bodyRigEnd`. The local player's rig (TUNE_OWNER) also gets the composed values in TUNE_LOCAL (the wall
+ * gap and the root offset read them outside the window). Nothing live: returns at once (bit-identical). No allocation.
+ */
+export function bodyRigBegin(st: BodyRigState, gi: number, p: TunePoseIn, rig: TuneRigIn, dt: number): void {
+  if (!BODY_BASE_LIVE.on && !st.live) return;
+  const a = st.applied;
+  const row = gi >= 0 && gi < NBG ? gi * NBF : -1;
+  const k = dt > 0 ? 1 - Math.exp(-dt / BODY_TAU) : 1;
+  let live = false;
+  for (let i = 0; i < NBF; i++) {
+    const t = row >= 0 ? BODY_BASE[row + i]! : BB_ID[i]!;
+    const d = t - a[i]!;
+    const v = k === 1 || (d > -1e-6 && d < 1e-6) ? t : a[i]! + d * k;
+    a[i] = v;
+    if (v !== BB_ID[i]) live = true;
+  }
+  st.live = live;
+  if (!live) return;
+  const cur = TUNE_CUR;
+  const sv = st.saved;
+  for (let i = 0; i < NBF; i++) {
+    const f = BODY_BASE_FIELDS[i]!;
+    sv[i] = cur[f];
+    cur[f] = BB_MUL[i] === 1 ? a[i]! * cur[f] : a[i]! + cur[f];
+  }
+  sv[NBF] = cur.armSwingK;
+  cur.armSwingK = Math.max(0, cur.armSwingMul + cur.armSwingGrow * Math.max(0, p.speed));
+  if (TUNE_OWNER.rig === rig) {
+    const l = TUNE_LOCAL;
+    for (let i = 0; i < NBF; i++) {
+      const f = BODY_BASE_FIELDS[i]!;
+      l[f] = cur[f];
+    }
+    l.armSwingK = cur.armSwingK;
+  }
+  bodyOpen = st;
+  bodyPose = p;
+  bodyRig = rig;
+  st.look = NaN;
+  if (p.lookYaw !== undefined && a[BB_HEAD] !== 1) {
+    st.look = p.lookYaw;
+    p.lookYaw *= a[BB_HEAD]!;
+  }
+  const hu = a[BB_HU]!;
+  const hf = a[BB_HF]!;
+  const ho = a[BB_HO]!;
+  const fu = a[BB_FU]!;
+  const ff = a[BB_FF]!;
+  const fo = a[BB_FO]!;
+  st.shifted = hu !== 0 || hf !== 0 || ho !== 0 || fu !== 0 || ff !== 0 || fo !== 0;
+  if (!st.shifted) return;
+  const yaw = rig.root.rotation.y;
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  const b = st.grips;
+  shiftTarget(rig.reachL, 0, fx * hf - fz * ho, hu, fz * hf + fx * ho, b);
+  shiftTarget(rig.reachR, 1, fx * hf + fz * ho, hu, fz * hf - fx * ho, b);
+  shiftTarget(rig.plantL, 2, fx * ff - fz * fo, fu, fz * ff + fx * fo, b);
+  shiftTarget(rig.plantR, 3, fx * ff + fz * fo, fu, fz * ff - fx * fo, b);
+}
+
+/** After the rig's `animate` frame (`tuneRigEnd`, in a `finally`): TUNE_CUR, the head turn and the grips put back. */
+export function bodyRigEnd(): void {
+  const st = bodyOpen;
+  if (st === null) return;
+  bodyOpen = null;
+  const cur = TUNE_CUR;
+  const sv = st.saved;
+  for (let i = 0; i < NBF; i++) cur[BODY_BASE_FIELDS[i]!] = sv[i]!;
+  cur.armSwingK = sv[NBF]!;
+  const p = bodyPose;
+  const rig = bodyRig;
+  bodyPose = null;
+  bodyRig = null;
+  if (p !== null && !Number.isNaN(st.look)) p.lookYaw = st.look;
+  if (rig !== null && st.shifted) {
+    const b = st.grips;
+    restoreTarget(rig.reachL, 0, b);
+    restoreTarget(rig.reachR, 1, b);
+    restoreTarget(rig.plantL, 2, b);
+    restoreTarget(rig.plantR, 3, b);
+    st.shifted = false;
+  }
 }
 
 /** Around the local player's motion driver step: its step length (stride) from the last selected group. */

@@ -77,6 +77,7 @@ const WALLC = 'src/player/wallController.ts';
 const ATT = 'src/player/attach.ts';
 const PLAN = 'src/anim/footPlanner.ts';
 const WEIGHT = 'src/anim/weight.ts';
+const CQG = 'src/anim/cqGait.ts';
 
 const MOVING = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
 const RIFLE_AIM = ['rifle.aim', 'rifle.aimCrouch'];
@@ -125,31 +126,8 @@ rules.push(
   rule('body', 'kneeLiftMul', ['ladder', 'pipe'], [e(RIG, 'CLIMB_KNEE_UP', 'mul')], RIG_NOTE),
   rule('body', 'peekLeanMul', ['wallPeek', 'wallCrouchPeek'], [e(WALLC, 'WALL.peekLean', 'mul')], 'the remote copy reads the same WALL.peekLean'),
 );
-manuals.push(
-  manual('body', 'armSwingMul', 'no code value: the keyed clips\' arm data (Keys section) and the READY_HANDS swing / pump terms together'),
-  manual('body', 'armSwingGrow', 'no code value: a term the tuner adds (arm swing per m/s)'),
-  manual('body', 'kneeFlexAdd', 'no code value in metres: SOFT_KNEE_STAND is a ratio of each character\'s leg length'),
-  manual('body', 'trunkTwistMul', 'clip data: the keyed spine / chest yaw and the gait clips\' spine yaw curves (Keys section)'),
-  manual('body', 'trackMul', 'no code value: the hip width (proportions) blended with each keyed clip\'s track `half`'),
-  manual('body', 'kneeOutMul', 'mostly the keyed clips\' own kneeOut (key JSON, needs a rebake) blended with KNEE_OUT / KNEEL_KNEE_OUT'),
-  manual('body', 'kneeLiftMul', 'gait liftH comes from the keyed clips\' liftH and the gait clips (clip data)'),
-  manual('body', 'pelvisYAdd', 'clip data: the pose channel pelY (procedural and keyed clips)'),
-  manual('body', 'leanAdd', 'clip data: the spine pitch channel and the keyed spine'),
-  manual('body', 'elbowOutAdd', 'clip data: the keyed elbow point'),
-  manual('body', 'elbowPoleMul', 'an inline literal (0.55 in characterRig solveArm), no named constant'),
-  manual('body', 'headTurnMul', 'no code value: RigPose.lookYaw is computed by several systems'),
-  manual('body', 'wallGapAdd', 'no named constant: wallRootPush max(0, standoff - reach - 0.015)'),
-  manual('body', 'bodyFwdAdd', 'no code value: a visual root offset the tuner adds'),
-  manual('body', 'bodyUpAdd', 'no code value: a visual root offset the tuner adds'),
-  manual('body', 'handUpAdd', 'no code value: the grip targets come from the anchors / level data'),
-  manual('body', 'handFwdAdd', 'no code value: the grip targets come from the anchors / level data'),
-  manual('body', 'handOutAdd', 'no code value: the grip targets come from the anchors / level data'),
-  manual('body', 'footUpAdd', 'no code value: the foot targets come from the anchors / level data'),
-  manual('body', 'footFwdAdd', 'no code value: the foot targets come from the anchors / level data'),
-  manual('body', 'footOutAdd', 'no code value: the foot targets come from the anchors / level data'),
-  manual('body', 'guardGapAdd', 'no code value: a visual root offset (GRAB.hold is gameplay and stays)'),
-  manual('body', 'guardSideAdd', 'no code value: a visual root offset (GRAB.side is gameplay and stays)'),
-);
+// (anim-bake-targets, BT-A1 / A3) every other Body slider and group (no rule above) bakes into the base table's `body`
+// key (`tuneBakeBase.ts`, read by every Wren rig: `tune.ts` BODY_BASE_FIELDS); none is manual
 
 // ------------------------------------------------------------------------------------------
 // Gun (tune.ts): the weapon pose offsets (animGraph) on the rig's weaponPivot; same units (m, rad)
@@ -185,8 +163,11 @@ for (const id of ['gunUp', 'gunPitch', 'gunYaw', 'gunCant']) {
 rules.push(
   rule('gun', 'sightYAdd', AIM_GUN, [e(RIG, 'SIGHT_EYE', 'add')], RIG_NOTE),
   rule('gun', 'headDropMul', AIM_GUN, [e(RIG, 'NECK_WELD', 'mul')], RIG_NOTE),
-  // (fix round B1) every gun state reads max(aim tuck, ready tuck) x tuckMul: one rule over all six, exact when they agree
-  rule('gun', 'tuckMul', ALL_GUN, [e(RIG, 'READY_ELBOW_TUCK', 'mul'), e(RIG, 'READY_ELBOW_TUCK_CROUCH', 'mul'), e(GRAPH, 'AIM_ELBOW_TUCK', 'mul')], `max(a m, b m) = m max(a, b): exact when all six gun states agree; ${RIG_NOTE}`),
+  // (anim-bake-targets, BT-A2) Wren's own elbow tuck multiplier per gun state (guards read none): exact per state
+  ...ALL_GUN.map((g) => {
+    const [w, st] = g.split('.') as [string, string];
+    return rule('gun', 'tuckMul', [g], [e(GRAPH, `WREN_TUCK.${w}.${st}`, 'mul')], 'Wren\'s copy (every Wren rig); the guards\' tuck stays');
+  }),
   rule('gun', 'glideTwistMul', AIM_GUN, [e(GRAPH, 'GLIDE.yawCut', 'mul')], RIG_NOTE),
 );
 // (anim-n3b) the per-shot body recoil: Wren's own amounts per gun (the springs' rates stay)
@@ -316,6 +297,18 @@ for (const id of ['stopSettle', 'accelLean', 'stopLean', 'bank', 'plantDrop', 'l
 }
 
 // ------------------------------------------------------------------------------------------
+// Holds and carries (cqGait.ts, anim-natural N4): one slider per walk, each into its own CQ_GAIT value
+// ------------------------------------------------------------------------------------------
+
+for (const [walk, ids] of [
+  ['hold', [['holdTwist', 'pelvis'], ['holdCounter', 'counter'], ['holdDip', 'dip'], ['holdStride', 'stride']]],
+  ['carry', [['carryTwist', 'pelvis'], ['carryCounter', 'counter'], ['carryShift', 'shift'], ['carryDip', 'dip'], ['carryStride', 'stride']]],
+] as const) {
+  for (const [id, f] of ids) rules.push(rule('cq', id, [`cq.${walk}`], [e(CQG, `CQ_GAIT.${walk}.${f}`, 'mul')], f === 'stride' ? 'the local player gait clock only (remote copies run their own)' : undefined));
+}
+rules.push(rule('cq', 'carryLean', ['cq.carry'], [e(CQG, 'CQ_GAIT.carry.lean', 'add', Math.PI / 180)]));
+
+// ------------------------------------------------------------------------------------------
 // (clip-speed, track A) Clip speed (tuneClipSpeed.ts): a speed divides a duration or multiplies a rate. The every-clip
 // slider (`all`) edits every target; with a clip's own slider too both apply (the product, as in the game).
 // ------------------------------------------------------------------------------------------
@@ -375,7 +368,7 @@ export const BAKE_LEDGER = 'src/anim/tuneBakeLog.json';
 export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
-export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts']; // (clip-speed, track A) tuneClipSpeed; (item 24, track A) the guard sections
+export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (item 24, track A) the guard sections
 /**
  * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
  * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file

@@ -350,19 +350,22 @@ export interface TuneSnapshot {
   version: 1 | 2;
   values: Record<string, Record<string, number>>;
   log: TuneChange[];
-  /** (anim-bake-1022) The bake ledger hashes whose baked sliders were reset (`tuneBakedReset.ts`); absent: none. */
+  /**
+   * (anim-bake-1022) The ledger bakes whose baked sliders were reset (`tuneBakedReset.ts`): `hash@at` ids; a bare hash
+   * (4.46.x saves) stands for the first ledger bake with that hash only. Absent: none.
+   */
   baked?: string[];
 }
 
-/** (anim-bake-1022) The applied bake hashes (loaded and saved with the snapshot; an import or a reset keeps them). */
+/** (anim-bake-1022) The applied bake ids (`hash@at`; a 4.46.x save may hold a bare hash) (loaded and saved with the snapshot; an import or a reset keeps them). */
 let bakedApplied: string[] = [];
 
 export function tuneBakedApplied(): readonly string[] {
   return bakedApplied;
 }
 
-export function tuneSetBakedApplied(hashes: readonly string[]): void {
-  bakedApplied = hashes.filter((h) => typeof h === 'string');
+export function tuneSetBakedApplied(ids: readonly string[]): void {
+  bakedApplied = ids.filter((h) => typeof h === 'string');
 }
 
 export function tuneSnapshot(): TuneSnapshot {

@@ -60,6 +60,10 @@ export interface PlayerPose {
   freeGait: boolean;
   /** (marlow-bays T1a) The bend is over a body (the stealth controller's lift / carry / drop), not a held guard. */
   carryBody?: boolean;
+  /** (anim-n4) The carried body's load: its shoulder (1 right, -1 left) x its weight on it (0..1, the hoist / put down). */
+  carrySide?: number;
+  /** (anim-n4 fix) The body lift's step-in 0..1, -1 no lift (the rig's lift crouch pose). */
+  liftStep?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad; pipe legs up / inverted), 0 = upright. */
   tumble: number;
   /** (G6) The rig root's step toward a wall edge while peeking (world XZ, m; `WallCore.stX`). Visual only. */
@@ -474,6 +478,8 @@ export class Player {
     rp.bend = cp.bend;
     rp.bendDrop = cp.bendDrop;
     rp.carryBody = cp.carryBody === true;
+    rp.carrySide = cp.carrySide ?? 0;
+    rp.liftStep = cp.liftStep ?? -1;
     rp.sway = cp.sway;
     rp.tumble = cp.tumble;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
