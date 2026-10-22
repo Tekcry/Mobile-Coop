@@ -26,6 +26,8 @@
 // (marlow-bays item 30) The key tools: Wave fills a channel with the sine (one undo step), Apply to keys reaches the
 // ticked keys only, Smooth between eases the keys between two keys, Compare shows the ghost and the values line.
 // (anim-bake-1022) Reset baked: a slider at a bundled ledger value resets, another change stays, the info line says so.
+// (marlow-bays item 24) Guard tuning: Who = Guard plays the guard puppet, a guard loop runs on the spot, a guard Joints
+// slider turns the guard's elbow and not Wren's, Who = Wren brings her back.
 import { readFileSync } from 'node:fs';
 import { launch, assert, frames, press, stick, BTN } from './e2e-lib.mjs';
 
@@ -1186,6 +1188,45 @@ try {
     rb.applied.length > 0 && rb.r.reset === 1 && rb.pitch === 0 && rb.knee === 1.2 && rb.info.startsWith('1 value is now built in; your other'),
     `Reset baked resets the baked slider and keeps the other (${JSON.stringify(rb)})`,
   );
+
+  // (marlow-bays item 24, track A) guard tuning: Who = Guard plays the guard puppet (a real guard rig, no AI) where she
+  // stands, the Body tab shows the Guard joints (plain labels), a guard loop runs on the spot; a guard Joints slider turns
+  // the puppet's elbow and not hers; Who = Wren brings her back and the puppet goes
+  {
+    await G(() => window.__animTune.tab('body'));
+    await G(() => window.__animTune.who('guard'));
+    await frames(page, 10);
+    const gw = await G(() => ({ who: window.__animTune.whoState(), puppet: !!window.__guardTune.puppet(), wrenShown: window.__app.current.player.figure.enabled, label: document.querySelector('.anim-tune-rows-guardJoint')?.textContent ?? '' }));
+    assert(gw.who.who === 'guard' && gw.who.entry === 'guard:idle' && gw.puppet && !gw.wrenShown && gw.who.section === 'guardJoint' && gw.who.shown, `Who = Guard: the guard puppet plays idle, the Body tab shows the Guard joints (${JSON.stringify(gw.who)}, puppet ${gw.puppet}, Wren shown ${gw.wrenShown})`);
+    assert(/Right elbow bend/.test(gw.label) && !/elbowR_x/.test(gw.label), 'the Guard joints rows have plain labels');
+    await G(() => window.__studio.pick('guard:patrol'));
+    const gk = () => G(() => { const q = window.__guardTune.puppet().kneeL.rotationQuaternion; const r = window.__guardTune.puppet().root.position; return [q.x, q.y, q.z, q.w, r.x, r.z]; });
+    await frames(page, 20);
+    const p0 = await gk();
+    await frames(page, 25);
+    const p1 = await gk();
+    const gs = await G(() => ({ joint: window.__animTune.state.guardJoint, step: window.__animTune.state.guardStep, entry: window.__studio.state().entry, read: window.__studio.readout().text }));
+    const kneeMoved = Math.max(...[0, 1, 2, 3].map((i) => Math.abs(p0[i] - p1[i])));
+    const rootMoved = Math.hypot(p0[4] - p1[4], p0[5] - p1[5]);
+    assert(gs.entry === 'guard:patrol' && gs.joint === 'guard.joint.walk' && gs.step === 'guard.step.walk' && kneeMoved > 0.01 && rootMoved < 0.05, `a guard loop on the spot: the patrol walk's gait runs (knee ${kneeMoved.toFixed(3)}), the root holds (${rootMoved.toFixed(3)} m), the guard rows follow (${JSON.stringify(gs)})`);
+    // paused at one pose: a guard Joints slider turns the puppet's elbow, Wren's stays
+    const elbows = () => G(() => { const a = window.__guardTune.puppet().elbowR.rotationQuaternion; const b = window.__app.current.player.rig.elbowR.rotationQuaternion; return [a.x, a.y, a.z, a.w, b.x, b.y, b.z, b.w]; });
+    await G(() => window.__studio.pause());
+    await frames(page, 4);
+    const q0 = await elbows();
+    await G(() => window.__animTune.set('guard.joint.walk', 'elbowR_x', 30));
+    await frames(page, 6);
+    const q1 = await elbows();
+    const tab = await G(() => ({ eff: window.__guardTune.jointEffective('walk', 'elbowR', 0), wren: window.__tuneV2.jointsGet('walk', window.__tuneV2.J.elbowR, 0) }));
+    const gTurn = Math.max(...[0, 1, 2, 3].map((i) => Math.abs(q0[i] - q1[i])));
+    const wTurn = Math.max(...[4, 5, 6, 7].map((i) => Math.abs(q0[i] - q1[i])));
+    assert(gTurn > 0.05 && wTurn < 1e-9 && tab.eff === 30 && tab.wren === 0, `a guard Joints slider turns the guard's elbow (${gTurn.toFixed(3)}) and not Wren's (${wTurn}; tables ${JSON.stringify(tab)})`);
+    await G(() => { window.__animTune.set('guard.joint.walk', 'elbowR_x', 0); window.__studio.play(); });
+    await G(() => window.__animTune.who('wren'));
+    await frames(page, 10);
+    const gb = await G(() => ({ who: window.__animTune.whoState(), puppet: !!window.__guardTune.puppet(), wrenShown: window.__app.current.player.figure.enabled }));
+    assert(gb.who.who === 'wren' && gb.who.entry === 'state:idle' && !gb.puppet && gb.wrenShown && gb.who.section !== 'guardJoint', `Who = Wren: she is back, the puppet gone, the Body tab shows her parts (${JSON.stringify(gb.who)})`);
+  }
 
   // pause: no studio row inside the studio; quit to the main menu
   await G(() => window.__app.current.pause());

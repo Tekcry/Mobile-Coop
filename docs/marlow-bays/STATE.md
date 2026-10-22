@@ -3,7 +3,9 @@
 B + M merged (4.38.0, PR #85). Slice R (rejoin, item 27, cloud): done, PR #92 open. Master 4.48.0 merged (2026-10-22):
 protocol 27 on top of the jammer's 26 (both `restore` and the jammer's `back` events kept). On that head check passes
 (2595 unit tests) and e2e-coop, e2e-menus and e2e-netmove pass (run on S's head, which carries it).
-Slice S (server browser, item 28): own branch `feature/server-browser` from R's head, own PR.
+Slice S (server browser, item 28): done on `feature/server-browser` (from R's head, master 4.48.0 merged), PR #99 to
+master. Its head passes check (2599 unit tests), e2e-coop (the browse steps and both rejoin blocks), e2e-menus and
+e2e-netmove (cloud, software GL). Pending PC: one real-relay check on two machines, and the full e2e.
 Track A (Course Ready Build), 2026-10-21 ~21:40:
 - Merged: slice T #82 (4.35.0), T1a #83 (4.36.0), T2 #86 (4.39.0), item 23 key timing #87 (4.40.0), items 26 + 26b
   tuner on phones #89 (4.41.0; M21 exception for the tuner and Anim Studio only).
@@ -98,7 +100,30 @@ the joiner's grabs and team moves (now let go / ended); a protocol test still re
 Notes (not done): the full-room fallback lets anyone with the code take the only held slot (by design, R2); the token
 uses Math.random; a waiting joiner has no timeout; Sector Ops resumes from section 1 (R5).
 
+## Slice S - server browser prototype (cloud, 2026-10-21)
+Branch `feature/server-browser`, cut from slice R's head (its PR carries R until R merges). Item 28, prototype only.
+- `net/roomDirectory.ts`: public rooms announce in one shared directory room on the same relays (Trystero / Nostr
+  signalling, P2P data), not raw Nostr events: no signing code, no server. Assumed S1 (undo: ask for raw Nostr notes):
+  the notice reaches browsers over the directory room's peer links, so a browser opening the list connects to the
+  public hosts in it (fine at prototype scale).
+- Host lobby: a Room row, Private (default) / Public (`CoopController.setPublic`); notice = code, map, mode, version
+  (`LISTED_VERSION` = game version + protocol), players (held slots not counted), cap, host name; every 30 s, at once
+  to an `ask` or a newcomer, `gone` when full, private or closed.
+- Co-op > Browse rooms (`BrowseScreen`): live list (on each notice, plus a 5 s refresh for the 75 s expiry), other
+  versions hidden, full rooms hidden, focus kept across refreshes; a pick joins by the code.
+- Tests: unit `tests/roomDirectory.test.ts` (validation, listing, other version hidden, gone on full / private /
+  close, refresh and expiry, on a fake relay); e2e-coop (local relay): a new room is Private, Public lists it in Browse
+  rooms (1 / 2, code and map), full takes it off. Pending PC: one real-relay check on two machines.
+- Checker (fresh): 5 defects, all fixed in the fix round: the Browse screen leaked a timer and kept its list open
+  through a join (one timer now, the list closed on a pick); fast Public toggles made two posters (one open / close at
+  a time now: Trystero shares one room per id); a lost `gone` left a closed room listed 75 s (a host leaving the
+  directory now drops its rooms, and close waits a moment after the gone); any peer could remove or fake another's
+  code (a code now belongs to its first poster); no cap on the list (50). Also: the Room row redrawn after a failed
+  open. Not done: every public host and browser shares one full-mesh room (prototype scale only); the notice does not
+  say a match is in progress.
+
 ## Done
+- 2026-10-22: slice S (cloud): item 28 server browser prototype; own PR.
 - 2026-10-21: slice R (cloud): item 27 rejoin; PR to master.
 - 2026-10-21: slices B + M (cloud): items 1, 2, 3, 4, 6; PR to master.
 - 2026-10-21: BRIEF.md (Michael's list after his co-op run to bay 3).
