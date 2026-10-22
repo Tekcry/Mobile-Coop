@@ -680,7 +680,7 @@ export class FootPlanner {
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? this.L : this.R;
       // (mocap-trial, N1 merge) a foot the clip planted (clipPlant, clip feet on hand) stays pinned: no ball pivot
-      if (!f.contact || (f.clipPlant && i.clipFeet)) continue;
+      if (!f.contact) continue;
       const d = wrap(f.yaw - i.yaw);
       const ad = d < 0 ? -d : d;
       // (fix round, CHECK finding 1) in a heel-first landing's roll with the toe still up the foot turns on its heel
@@ -735,7 +735,7 @@ export class FootPlanner {
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? this.L : this.R;
       // (mocap-trial, N1 merge) nor an anchor: the clip's pinned ankle stays where it landed (the anchor moved it 6 cm as the clip's pitch rolled)
-      if (!f.contact || !this.turnOn || (f.clipPlant && i.clipFeet)) {
+      if (!f.contact || !this.turnOn) {
         f.anchored = false;
         continue;
       }
@@ -778,7 +778,7 @@ export class FootPlanner {
       if (d > m || d < -m) {
         // (orchestrator review, mocap-trial-2) not a clip-planted foot (clip feet on hand): no anchor or heel lift, so it
         // does not yaw-scrub about the ankle
-        if (this.turnOn && !(f.clipPlant && i.clipFeet)) {
+        if (this.turnOn) {
           // (fix round, CHECK finding 1) the backstop turns the foot about its contact, never sweeping it: toe up on the
           // heel, else on the ball with the heel raised first (a flat foot, a roll's last frames: TURN_ON.heel at once)
           if (!f.anchored) this.anchor(f);
