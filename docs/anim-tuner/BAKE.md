@@ -11,9 +11,10 @@
   - prints one rebake command per touched clip
     (`node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/build.mjs <clip>`). Blender is never run.
   - prints the table and the warnings.
-- `--only`: bake only these sections: body, gun, cam, speed, joint, hand, ik, weapon, step, gear, keys, weight,
-  guardJoint, guardStep, guardWeight, clip.
-- `--allow-shared`: bake a shared target when exactly one group changed (the summary warns).
+- `--only`: bake only these sections: any registered or declared section id (body, gun, cam, speed, joint, hand, ik,
+  weapon, step, gear, weight, clip, guardJoint, guardStep, guardWeight, team_boost ... team_revive, trav) and keys.
+- `--allow-shared`: bake a shared target into its shared code value when exactly one group changed (the summary warns;
+  without it that group bakes per state into the generic table).
 - The script loads the repo's TypeScript itself (it imports `scripts/operators/ts-resolve.mjs`).
 - Code:
   - mapping: `src/anim/tuneBakeTable.ts` (pure data);
@@ -41,13 +42,22 @@ exports again. The ledger records every baked `group|id=value`. A later export (
 carries that value for that slider is reported "already baked (same value as the bake of <date>; reset this slider in
 the tuner)" and is never baked twice; a different value for the slider is a new tune and bakes.
 
+## The rule (anim-bake-all)
+Every slider the tuner shows bakes. The one manual result left is a pure option (the Joints mirror lock; the Keys
+Mirror box changes a key file only with key edits). `tests/animTuneBake.test.ts` exports a non-default value for every
+slider and group of every section (the groups differing, and all equal) and bakes it with 0 manual on a temp tree.
+
 ## Results
 - **baked:** written into the code value(s) named in the target column. A note in [] says where the bake is only
   close.
-- **manual: shared target (values per group):** the groups that read one code value differ. Michael or a job lead
-  picks, or a later job adds a per-state table. A slider and group covered by several rules bakes only when every one
-  of them bakes: a value is never half in the code and half in the tuner.
-- **manual: no code target:** there is no code value to absorb it; the reason is listed.
+- **baked (base table):** written into the generated `src/anim/animBase.ts`: the Joints / Hands & feet / IK / Weapon /
+  Gear / Body keys, or the generic `sections` key (below).
+- Shared targets: when the groups that read one code value differ, that code value stays and every changed group of
+  it bakes per state (a Body base param into the `body` key, anything else into the generic table; the target's []
+  note names the shared value and the values per group). A slider and group covered by several rules bakes into the
+  code only when every one of them can: a value is never half in the code and half in the tuner. (Before anim-bake-all
+  these were "manual: shared target".)
+- **manual: no code target:** a pure option (the Joints mirror lock): nothing to bake.
 - **baked (key JSON; rebake the clip):** the Keys section.
 - **skipped: no bake rule:** a slider this build does not know (e.g. PR #71's sections before their table entries).
   Counted in the summary's "manual or skipped".
@@ -55,15 +65,14 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
 
 ## Mapping per section
 **Body.** The rule (anim-bake-targets): every slider the tuner shows bakes, per state; one that does not is a bug.
-The one exception is strideMul (below). The constants below are the shared rig's, so every rig reads them: the partner
-and the guards too. Every other Body slider and group bakes into the base table's `body` key (below).
+The constants below are the shared rig's, so every rig reads them: the partner and the guards too. Every other Body
+slider and group bakes into the base table's `body` key (below), strideMul into the generic table.
+- strideMul (anim-bake-all, BA-A2): per state, each of the 13 moving groups (walk, jog, run, sneak, crouchWalk,
+  crouchRun, aim, aimCrouch, aimCrouchMove, wallSlide, wallCrouchSlide, hold, carry) apart ->
+  `sections.body.<state>.strideMul` x. It acts where the slider does: the local player's motion step (`tuneSim`, TUNE_LOCAL). The old shared
+  rule (MOVEMENT.stepLen0 / stepLenK / stepLenMax, CROUCH_STEP, WALK_STEP, TENSE.step, GLIDE_STEP, baked only when all
+  13 agreed) is gone: one path.
 - Baked:
-  - strideMul, the one Body exception: one shared code target for the 13 moving groups (MOVING: walk, jog, run, sneak,
-    crouchWalk, crouchRun, aim, aimCrouch, aimCrouchMove, wallSlide, wallCrouchSlide, hold, carry) -> MOVEMENT.stepLen0
-    / stepLenK / stepLenMax, CROUCH_STEP.k / max, WALK_STEP.k, TENSE.step, GLIDE_STEP (x). It bakes only when every
-    moving group agrees; when they disagree every row reports "manual: shared target (values per group)" and nothing is
-    written (`tests/animTuneBake.test.ts`, "Body strideMul"). A per-state stride table is a later job (backlog, "Tuner
-    sliders that do not bake yet").
   - kneeOutMul (ladder, pipe) -> CLIMB_KNEE_OUT x. Close: the climb pole is max(stance knee-out, CLIMB_KNEE_OUT).
   - kneeLiftMul (ladder, pipe) -> CLIMB_KNEE_UP x.
   - peekLeanMul (wallPeek) -> WALL.peekLean x.
@@ -90,7 +99,8 @@ and the guards too. Every other Body slider and group bakes into the base table'
     the guards keep READY_ELBOW_TUCK / _CROUCH / AIM_ELBOW_TUCK, which no bake touches. Exact per state (was one shared
     rule over all six, B1).
   - glideTwistMul -> GLIDE.yawCut x.
-- Manual: aimed gunUp, gunPitch, gunYaw and gunCant (the sight-to-eye solve and the aim hold them).
+- Generic table (anim-bake-all): aimed gunUp, gunPitch, gunYaw and gunCant (no code value: the sight-to-eye solve and
+  the aim hold them) -> `sections.gun.<weapon.state>.<id>` +, the local player's rig as in the tuner.
 
 **Camera** (`config/camera.ts`).
 - Boom, side, pivot and height bake into the per-state configs: the hip, open, crouch-open, ADS, wall, peek, climb
@@ -103,18 +113,19 @@ and the guards too. Every other Body slider and group bakes into the base table'
   climb or duct ran under the next state's slider and now follows the preset's baked blend; the peek-out can finish
   under cam.wall; an aim release at a wall ran under cam.wall's slider (adsOutRate); cam.hold runs the explore open /
   tight blend with no slider of its own.
-- Manual:
-  - FOV (a player setting);
-  - zoom (1 without a scope);
-  - the aim-in blend (it comes from the weapon's draw time).
+- Generic table (anim-bake-all, BA-A4), the local camera as in the tuner (TUNE_CAM_CUR):
+  - camFovAdd -> `sections.cam.<group>.camFovAdd` +: a delta on the player's FOV setting (video.fovH stays the
+    player's);
+  - camZoomMul (1 without a scope) and the aim groups' camBlendMul (the aim-in time is the weapon's draw time) ->
+    `sections.cam.<group>.<id>` x.
 
 **Speed** (per group, baked directly). All gameplay.
 - creep..run -> GEARS.stand / crouch points. Exact at the point. A GEARS point also drives the gait clip mix (effort),
   the integer gear bands (roll, fence rattle, wire pace), the stepping gait bands and the weapon's moving-spread
   speed; in the tuner those stayed, after the bake they move with the point.
 - glideStrafeMul -> strafeMult x; glideBackMul -> backMult x.
-- glideFwdMul: manual. The tuner scales the whole aimed glide and adsSpeed only caps it, so below the cap the forward
-  speed would lose it and the strafe / back shares would drop by 1/f.
+- glideFwdMul -> `sections.speed.spd.aim.glideFwdMul` x (anim-bake-all; GAMEPLAY, the local player as in the tuner).
+  No code value takes it: the tuner scales the whole aimed glide and adsSpeed only caps it.
 - Wall slide -> WALL.slide*.
 - Ladder, pipe, shimmy and crawl -> the ATTACH speeds (pipe: also the pipeH legs mode, which read the base speed
   without the tuner).
@@ -126,13 +137,18 @@ shared.
   - idle lift -> PLANNER.idleLift.
   - lock (the 5 moving gaits) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads
     twistFree too.
-- Manual: the idle lock (no effect while still) and the rest (clip data, inline literals).
+- Generic table (anim-bake-all): the moving gaits' lift (clip data), the idle lock, dur, slide, stride0..2, toeOff,
+  heel, replant (inline literals, no per-pace constant) -> `sections.step.step.<gait>.<id>` x. `tuneStep.ts` composes
+  them into Wren's planner rows (base x the tuner's value), so Wren's planners read them (the player, the partner, the
+  studio puppets), as in the tuner; the guards' rows (Guard stepping, the guard table) and the identity table never take
+  them.
 
 **Weight.**
 - Baked:
   - start / stop / turn timings -> CT.* (gameplay).
   - plant, landing, the spring rates and anticipation times -> WEIGHT_BASE.*.
-- Manual: the damping sliders (one zeta for four springs) and every add slider (the layer's amount is the slider).
+- Generic table (anim-bake-all): the damping sliders (one zeta for four springs) and every add slider (the layer's
+  amount is the slider) -> `sections.weight.<group>.<id>` x / +, the local player's weight as in the tuner.
 
 **Joints, Hands & feet, IK strength, Weapon** (anim-joints J1, COVERAGE gap 1): baked into the base table, a generated
 file `src/anim/animBase.ts` that every Wren rig reads (the local player, the co-op partner's avatar, the Anim Studio's
@@ -264,33 +280,62 @@ over the same time, so the gun can fire when the draw clip ends, tuned or baked.
 speed), the traversal / co-op one-shots (their own Timing sliders, manual), reloads (weapon data). Test:
 `tests/tuneClipSpeed.test.ts`.
 
-**Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): manual, no
-code target. Every slider is a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip
-clock); the moves' paths and timing stay TEAM / attach data. Folding them in needs per-move base offsets every rig reads
-(a later job). Declared in `DECLARED_SECTIONS` (moveTune imports speedTune, which plain Node cannot load); the test pins
-the declarations to the registry.
+**Co-op and Traversal moves** (`src/anim/moveTune.ts`, from #71: `team_boost` ... `team_revive`, `trav`): every slider is
+a visual offset on the local rig (root, grips, plants, lean, crouch, the one-shot clip clock); the moves' paths and
+timing stay TEAM / attach data. (anim-bake-all, BA-A3) They bake into the generic table
+(`sections.<team_move | trav>.<group>.<id>`), which the local rig reads as today (and the Anim Studio's pair puppets,
+which pose through the same calls); the remote partner reading them is a later job (it needs the role on the wire).
+Declared in `DECLARED_SECTIONS` (moveTune imports speedTune, which plain Node cannot load); the test pins the
+declarations to the registry.
 
-**New sections**: add rules or manual entries to `tuneBakeTable.ts`, and the file to
-`BAKE_CATALOGUE_MODULES` (plain-Node loadable) or `BAKE_OTHER_SECTION_FILES` (with a `DECLARED_SECTIONS` entry). The
-test finds every file under `src/` that calls `registerTuneSection`, imports it, and fails when the file is in neither
-list or when any registered slider and group has no rule or manual entry.
+**The generic table** (anim-bake-all, BA-A1): the base table's `sections` key, for every slider and group with no code
+value of its own. Result "baked (base table)"; target `src/anim/animBase.ts: sections.<section>.<group>.<id> x` (mul) or
+`+` (add), with a [] note: "no code value of its own", or "per state: the shared <value> has differing groups (...)".
+- Shape: `"sections": { section id: { group id: { slider id: v } } }`. Mul multiplies, add adds, the same at run time and
+  in the bake (old base composed with the export's value); a result at identity is dropped. Printed sorted, one group per
+  line, about 4 significant digits, last in the table and only when a value is set: a table without it prints exactly
+  as before, so the untuned rig and the Wren / guard skeleton fixtures are unchanged.
+- Never for the Joints / Hands & feet / IK / Weapon / Gear sections or Keys (their own keys), (item 24) the guard
+  sections (the guard table, taken first), (clip-speed) Clip speed (a code rule per slider; `clipSpeed` reads the
+  tuner's values), (anim-bake-all, after #113) the holds and carries `cq` (a CQ_GAIT code rule per slider; `cqRows`
+  reads the tuner's values), a Body base param (the `body` key), or a slider whose default is not its op's identity (refused:
+  `tuneBakeBase.ts` GENERIC_REFUSED).
+- Run time (`tuneRegistry.ts`): each section keeps `values` (the tuner's own: the panel, save and export), `base` (the
+  table's values, the slider's default where unset) and `eff` (the two composed), rebuilt on an edit, a load, an import
+  or a base load, never per frame. Every consumer reads `eff` where it read `values`: the eases into `cur` (Body, Gun,
+  Camera, Weight), `speedTune.ts` (the Speed tables), `weightTune.ts` (weightSim), `moveTune.ts` (the move groups),
+  and `tuneStep.ts` (the planner rows: base x the Stepping section's synced value). The bypass reads `base` (the code
+  defaults, as for every baked constant). So each slider applies exactly where it applies in the tuner: the local
+  player for Camera, Gun aimed, Speed, Weight, strideMul and the moves; Wren's planners for Stepping (item 24: the guards
+  read Guard stepping, any other rig the identity table).
+- Dev hook: `window.__animBase.setSection(section, group, id, v)`; `load` takes the key too. Tests:
+  `tests/animBakeAll.test.ts` (the runtime), `tests/animTuneBake.test.ts` (every slider of every section, a literal
+  export, the print format).
+
+**New sections**: their sliders bake into the generic table with no entry (add a rule to `tuneBakeTable.ts` only when a
+code value should take one; a manual entry only for a pure option), and the file goes to `BAKE_CATALOGUE_MODULES`
+(plain-Node loadable) or `BAKE_OTHER_SECTION_FILES` (with a `DECLARED_SECTIONS` entry). Its consumers read the section's
+`eff` (or `cur` through the registry's ease), never `values`. The test finds every file under `src/` that calls
+`registerTuneSection`, imports it, and fails when the file is in neither list or when any registered slider and group
+cannot bake.
 
 ## Assumed decisions (undo)
 - **A1** Sliders with no code value are reported manual. (anim-joints J1) Joints, Hands & feet, IK strength and Weapon
-  now bake into the base table `src/anim/animBase.ts` (above).
+  now bake into the base table `src/anim/animBase.ts` (above). (anim-bake-all, BA-A1) Every other slider with no code
+  value too: the generic `sections` key; only pure options are manual.
 - **A2** A ledger (`src/anim/tuneBakeLog.json`, `group|id=value` per baked value) makes any later export that still
   carries a baked value a no-op for it. Undo: delete the ledger and step 7 of `tuneBake()`.
 - **A3** Atomic per slider and group: a value bakes only when every rule covering it bakes. Undo: drop the blocking loop
   in `tuneBake()` step 3.
-- **A4** Some bakes are close rather than exact (the [] notes). Undo: turn any of those rules into a manual entry.
+- **A4** Some bakes are close rather than exact (the [] notes). Undo: drop any of those rules (its slider then bakes per state into the generic table).
 - **A5** Code that reads a baked constant without a slider follows the bake: other rigs (partner, guards), `cam.hold`'s
   blend, the remote's peekLean normaliser.
 - **A6** The rifle aim's position goes into SIGHT_RAISE, with the opposite into PISTOL_REACH so the pistol stays. Undo:
-  make those rules manual.
+  drop those rules (the generic table takes them).
 - **A7** The Speed section is declared in the table (plain Node cannot load speedTune); a test pins it to the registry.
 - **A8** Results are rounded to 4 significant digits.
 
-## Tests (`tests/animTuneBake.test.ts`, 24; temp copies in `os.tmpdir()`, never the real tree)
+## Tests (`tests/animTuneBake.test.ts`, 29; temp copies in `os.tmpdir()`, never the real tree)
 - **Coverage:** every registering file under `src/` is imported and listed; the table covers every slider and group of
   every registered section. Every target is found exactly once in the real tree (read only). The declared sections
   match the registry.
@@ -298,7 +343,7 @@ list or when any registered slider and group has no rule or manual entry.
   x 0.6, the others and the guards' constants unchanged); the six constants and `wrenTuckMul` (exactly 1 untuned).
 - **Body base:** every Body slider bakes (none manual); Michael's 13 literal values give 0 manual; the real ledger
   holds them.
-- **glideFwdMul:** manual.
+- **glideFwdMul:** (anim-bake-all) the generic table (was manual).
 - **Ledger by value:** a new export still carrying a baked value is "already baked"; a new value bakes.
 - **Editing:** units, object keys, indexes, folded forms, rounding, the diff format.
 - **A sample export with a slider per section:**
@@ -307,17 +352,22 @@ list or when any registered slider and group has no rule or manual entry.
   - formatting is kept.
 - **Keys:** a key JSON edit; the rebake command is printed.
 - **Re-runs:** the ledger no-op, `--only` staging.
-- **Shared targets:** one group changed is manual; `--allow-shared`; all equal bakes once; a partial change bakes
-  nothing.
+- **Shared targets:** (anim-bake-all) one group changed bakes per state into the generic table (the constant stays);
+  `--allow-shared` bakes the constant; all equal bakes once into the code; a partial change bakes per state; strideMul
+  per moving state.
+- **Every slider** (anim-bake-all): one non-default value for every slider and group of every section, the groups
+  differing and all equal, bakes with 0 manual (the mirror lock excepted) on a temp tree, and a re-run is spent; a
+  literal export of the old manual sliders and the printed `sections` key; the refusals.
 - **Refusals:** magic, version, malformed, doubled, beyond range, kind mismatch, target not found, outside the write
   roots, op against kind.
 
 ## A fresh export from Michael: what the job lead does
 1. Keep the export file outside `src/`. Cut `feature/<job>` from master.
 2. Run `--dry-run` and read the table.
-   - For any "manual: shared target" rows, ask Michael (native multiple choice) to pick one value per shared constant,
-     or log a job for a per-state table.
-   - "manual: no code target" rows stay in the tuner.
+   - Rows with a "per state: the shared ..." note bake per state into the generic table; if Michael wants the shared
+     constant moved instead (every rig, guards too), ask him (native multiple choice) and re-run with `--allow-shared`
+     or with the groups equal.
+   - "manual: no code target" rows (the mirror lock) are options, nothing to bake.
 3. Real run (`--only` for a staged bake if wanted).
 4. Rebake each printed key clip with build.mjs (desktop, under the heavy lock).
 5. Run `npm run check`; unit tests that pin constants (GEARS, CAMERA, WALL ...) may need their expected values updated.
@@ -353,7 +403,7 @@ list or when any registered slider and group has no rule or manual entry.
 ## Fix round (CHECK-BAKE.md)
 - **B1** tuckMul: one rule over all 6 gun groups (READY_ELBOW_TUCK, READY_ELBOW_TUCK_CROUCH, AIM_ELBOW_TUCK x), exact
   when they agree; test reproduces the checker's case.
-- **B2** glideFwdMul: manual (it scales the whole glide; adsSpeed only caps it). glideStrafeMul / glideBackMul stay.
+- **B2** glideFwdMul: manual (it scales the whole glide; adsSpeed only caps it). glideStrafeMul / glideBackMul stay. (anim-bake-all: now the generic table.)
 - **S1** camBlendMul: the preset, adsOutRate, peek and open / tight rules stay, marked "close" with the reason (the
   blend-out runs under the next state's slider). Chosen over listing destination groups, which would make every preset
   blend a shared target that never bakes.
@@ -362,6 +412,6 @@ list or when any registered slider and group has no rule or manual entry.
 - **S3** The ledger stores `group|id=value`; any later export with a baked value reports "already baked" for it.
 - **S4** The test imports every file that calls `registerTuneSection` and checks it is listed
   (`BAKE_CATALOGUE_MODULES` / `BAKE_OTHER_SECTION_FILES`).
-- Polish: the lock rule covers the moving gaits only (idle lock: manual); skipped rows counted; `--only` with no list
+- Polish: the lock rule covers the moving gaits only (idle lock: the generic table since anim-bake-all); skipped rows counted; `--only` with no list
   refused; writes go to `*.anim-bake.tmp` first, then rename; notes on pipeMul (legs mode) and camHeightAdd (low
   spaces).

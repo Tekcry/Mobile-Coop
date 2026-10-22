@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - anim-bake-all
+- Animation tuner: every slider bakes, also those with no code value of their own: the aimed gun's height and angles,
+  the camera FOV (a change on top of the player's FOV setting), aim zoom and aim-in blend, the aimed glide forward
+  speed, the rest of Stepping (lift on the moving gaits, idle lock, duration, slide, the three stride points, toe-off,
+  heel, replant), the Weight damping and every Weight amount, and every co-op and traversal move slider. They go into
+  the base table's new generic `sections` key, which the game composes with the tuner's values wherever the slider
+  acts today (the local player; Stepping: every foot planner). The step length bakes per moving state (13 apart; the
+  old shared step-length rule is gone). A slider whose states share one code value but were tuned apart now bakes per
+  state instead of staying in the tuner. Gameplay: a baked Speed value (the glide forward) changes the player's speed.
+- Untuned nothing changes (the table has no `sections` key yet).
+
 ## 4.56.0 - Train 5: believable weapon draws, idle stance clears the shins, co-op channel closed guard (2026-10-22, PR #130; #118, #120, #125, #126)
 
 ### #118 Believable draws, holsters and swaps (anim-natural N3)
