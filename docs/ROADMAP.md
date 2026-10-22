@@ -20,10 +20,9 @@ Last updated: 2026-10-19 23:25 Sydney (new Claude account: every session restart
 1. Walk slice F on /ct/ in the morning (CT Core, overnight).
 2. Prune old branches and worktrees when convenient (docs/process-audit/REPORT.md section 5). feature/ct-research is deleted.
 3. #67 S2b walk (step length vs the wall peek): Michael fixes it himself in animation dev (2026-10-21 13:20); stays parked.
-4. Before the campaign spec resumes (feature/campaign-spec 6ba3726e, STATE has the research): a rule clash, level-design
-   section 11 "solo first" vs G2 (co-op only); the story's 16 guards vs the cap of 9.
 
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
+- Campaign rules (2026-10-22 ~14:45): solo first vs co-op only: chose "Co-op only" (level-design section 11's solo rules do not bind campaign maps; open item 1 there). Guard count, story 16 vs SQUAD_CAP 9: "Maximum amount of guards allowable. If there are ways to increase this cap (for example moving to webgpu) then let me know and make suggestions." Campaign spec: "Ignore campaign spec until Marlow yard and sector ops warehouse are fully completed".
 - Idle shins (2026-10-22 ~14:35, #103's baked idle trackMul 0.05 overlaps the shins ~1.2 cm in anim-audit): "Widen just enough. They didn't clip when I viewed it though". CT Core clamps the idle track only to clearance (patch, train 4).
 - Unused clips (2026-10-22 ~14:05, N0 pass 2): slide (pose.slide) and doorway sweep (pose.check) have no trigger and are not CT moves; chose "Delete them" (Menu Notes).
 - Run twist (2026-10-22 ~13:55, CT Core N2 A1: key 0 pelvis yaw 25.5 vs ~10 at his other keys, a ~21 deg snap twice a stride): "Only fix it if it will result in a more believable, realistic, less rigid run". CT Core applies it on a branch and keeps it only if the before / after sheet reads more natural.
