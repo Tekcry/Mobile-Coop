@@ -35,6 +35,9 @@ const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
 const { browser, page, errors } = await launch({ url, params: 'autostart=studio' });
 const G = (f, a) => page.evaluate(f, a);
+// (gpu-tests-2) the tuner panel refreshes its effect mode every 250 ms and the Keys readout every 100 ms of wall
+// time; a few frames on a hardware GPU pass in ~50 ms, so a read of either waits out one refresh first
+const panel = () => new Promise((r) => setTimeout(r, 300));
 const st = () => G(() => window.__studio.state());
 // (anim-bake-1022) the clip the item 23 / 25 steps retime and add a key on (walk), read from the tuner meta: its bake frames
 // (of 48) and the readout's frame (of its own frames) as keyTimeline.keyFrame rounds them
@@ -751,6 +754,7 @@ try {
   await G(() => window.__animTune.tab('view'));
   await G(() => window.__studio.keyed(false));
   await frames(page, 8);
+  await panel();
   const ke2 = await G(() => window.__animTune.effect());
   assert(ke2.mode === 'procedural', `cleared: the procedural mode (${ke2.mode})`);
   const k2 = await G(() => window.__studio.keyedState());
@@ -846,6 +850,7 @@ try {
     window.__animTune.pickLevel('keys', 1, '1');
   });
   await frames(page, 4);
+  await panel();
   const k15 = await G(() => ({ s: window.__studio.state(), keys: window.__animTune.keys(), frozen: window.__studio.frozen(), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
   assert(
     k15.s.entry === 'keyed:jog' && k15.frozen && k15.s.spot && k15.s.key === 1 && k15.s.onKey && Math.abs(k15.d - 0.125) < 1e-6,
@@ -855,6 +860,7 @@ try {
   assert(k15.keys.mirror && k15.keys.list.join(',') === '0,1,2,3', `the Mirror box is on and the list shows the own keys (${k15.keys.list.join(',')})`);
   await G(() => window.__animTune.keysStep(1));
   await frames(page, 12);
+  await panel();
   const k15b = await G(() => ({ key: window.__studio.state().key, group: window.__animTune.keys().group }));
   assert(k15b.key === 2 && k15b.group === 'key.jog.2', `"Key ▶" steps a key and the picker follows (${JSON.stringify(k15b)})`);
   for (let i = 0; i < 3; i++) {
@@ -862,6 +868,7 @@ try {
     await frames(page, 3);
   }
   await frames(page, 12);
+  await panel();
   const k15c = await G(() => ({ key: window.__studio.state().key, keys: window.__animTune.keys() }));
   assert(k15c.key === 5 && k15c.keys.group === 'key.jog.1' && k15c.keys.readout.includes('key 6 of 8 (mirror of 2)'), `F2 steps on; on the mirrored half the picker shows the key it mirrors (${JSON.stringify({ key: k15c.key, group: k15c.keys.group, readout: k15c.keys.readout })})`);
   await page.keyboard.press('F1');
@@ -944,6 +951,7 @@ try {
   await G(() => window.__animTune.tab('keys'));
   await G(() => window.__animTune.keysMirror(false));
   await frames(page, 4);
+  await panel();
   const k18 = await G(() => window.__animTune.keys());
   assert(!k18.mirror && k18.list.length === 8, `Mirror off: every key of the cycle is listed (${JSON.stringify({ mirror: k18.mirror, list: k18.list })})`);
   await G(() => window.__animTune.set('key.walk.5', 'armR_elbow', 0));
@@ -973,6 +981,7 @@ try {
   await frames(page, 12);
   await G((p) => window.__studio.seek(p), KM.phases[1]);
   await frames(page, 12);
+  await panel();
   const k23a = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), s: window.__studio.state() }));
   assert(
     k23a.s.key === 1 && k23a.s.onKey && k23a.keys.readout.startsWith(`walk - key 2 of 8 (mirror of 6), frame ${KM.frame(P1)}`) && k23a.time.info?.pos === P1 && k23a.time.readout.includes('as baked'),
@@ -983,6 +992,7 @@ try {
   await G(() => window.__animTune.keysRetime(3));
   await G(() => window.__animTune.settle());
   await frames(page, 12);
+  await panel();
   const k23b = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), s: window.__studio.state(), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
   assert(
     k23b.keys.readout.startsWith(`walk - key 2 of 8 (mirror of 6), frame ${KM.frame(P1 + 3)}`) && k23b.time.info?.pos === P1 + 3 && k23b.time.info?.partner === 5 && k23b.time.readout.includes('moved +3'),
@@ -1000,6 +1010,7 @@ try {
   await G(() => window.__animTune.undo());
   await G((p) => window.__studio.seek(p), KM.phases[1]);
   await frames(page, 12);
+  await panel();
   const k23c = await G(() => ({ keys: window.__animTune.keys(), time: window.__animTune.keysTime(), t: window.__animTune.get('key.walk.1', 'time') }));
   const old2 = await bones();
   const back = Math.max(ang(foreDir(old2, 'L'), foreDir(old0, 'L')), ang(foreDir(old2, 'R'), foreDir(old0, 'R')));
@@ -1029,6 +1040,7 @@ try {
   await G(() => window.__animTune.keysAdd());
   await G(() => window.__animTune.settle());
   await frames(page, 12);
+  await panel();
   const k25b = await G(() => ({ keys: window.__animTune.keys(), s: window.__studio.state(), at: window.__animTune.get('key.walk.a0', 'at'), d: window.__app.current.player.rig.graph.drive?.phase ?? -1 }));
   const p25b = await bones();
   const addSame = Math.max(ang(foreDir(p25b, 'L'), foreDir(p25a, 'L')), ang(foreDir(p25b, 'R'), foreDir(p25a, 'R')));
@@ -1040,6 +1052,7 @@ try {
   await G(() => window.__animTune.keysDelete());
   await G(() => window.__animTune.settle());
   await frames(page, 12);
+  await panel();
   const k25c = await G(() => ({ keys: window.__animTune.keys(), s: window.__studio.state(), at: window.__animTune.get('key.walk.a0', 'at') }));
   assert(k25c.at === 0 && k25c.s.keys === 8 && !k25c.keys.list.includes('a0') && k25c.keys.group === 'key.walk.1', `(item 25) Delete key: 8 keys again, the picker on key 2 (${JSON.stringify({ at: k25c.at, keys: k25c.s.keys, group: k25c.keys.group })})`);
   await G(() => window.__animTune.undo());
@@ -1108,6 +1121,7 @@ try {
   let c30 = null;
   for (let i = 0; i < 40; i++) {
     await frames(page, 3);
+    await panel();
     c30 = await G(() => ({ st: window.__animTune.keyTools(), group: window.__animTune.keys().group, key: window.__studio.state().key }));
     if (c30.st.ghost && c30.key === 1) break;
   }
