@@ -2,6 +2,7 @@ import type { SquadSlot } from '../world/rooms';
 import type { DifficultyPreset } from '../ai/archetypes';
 import { AIRLOCK_DOORWAY_CLEAR } from '../config/course';
 import { ENEMIES } from '../ai/enemyDefs';
+import { checkStageActions, type SectorStageAction, type StageNavCheck } from './sectorStage';
 
 /**
  * Sector Ops (feature/sector-ops): a map split into sections played in order. Each section has one objective (a hack,
@@ -118,6 +119,8 @@ export interface SectorDef {
   routes: SectorRoute[];
   /** (sector-fixes-r RT) Team doors: doors bolted from one side (the course's B2 rule); none when absent. */
   bolts?: readonly SectorBolt[];
+  /** (sector-redesign E5, EW9) Alarm-stage extras: lights to full, lockdown doors, the response route, dog release (`sectorStage.ts`). */
+  stageActions?: readonly SectorStageAction[];
 }
 
 /**
@@ -284,8 +287,11 @@ export function exitZone(def: SectorDef): SectorZone | null {
   return def.connector ?? def.extract ?? null;
 }
 
-/** Problems with a run's data (empty when fine): every section but the last has a connector, the last an extraction. */
-export function checkSectors(defs: readonly SectorDef[]): string[] {
+/**
+ * Problems with a run's data (empty when fine): every section but the last has a connector, the last an extraction.
+ * (E5) With `nav` (the map's nav grid and doors), a stage lockdown that leaves no way through is rejected too.
+ */
+export function checkSectors(defs: readonly SectorDef[], nav?: StageNavCheck): string[] {
   const out: string[] = [];
   for (let i = 0; i < defs.length; i++) {
     const d = defs[i]!;
@@ -299,6 +305,7 @@ export function checkSectors(defs: readonly SectorDef[]): string[] {
     });
     out.push(...checkSectorGuards(d));
   }
+  out.push(...checkStageActions(defs, nav));
   return out;
 }
 

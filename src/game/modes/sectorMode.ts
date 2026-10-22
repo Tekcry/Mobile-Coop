@@ -37,6 +37,7 @@ import {
 } from '../sectors';
 import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
+import { SectorStageRun, addDoorClosure, reinforceSlot } from '../sectorStage';
 import { markCompleted } from '../../save/sectorRecord';
 
 /** Squads never pop in this close to a player (Hunter's rule). */
@@ -120,6 +121,8 @@ export class SectorMode implements GameMode {
 
   /** (sector-redesign G22) The lamps and doors as the current section began (a restart puts them back). */
   readonly startState = new SectionStartState();
+  /** (sector-redesign E5, EW9) The sections' alarm-stage extras (lights to full, lockdown doors, dog release stub). */
+  stageRun: SectorStageRun<DoorState> | null = null;
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
@@ -145,6 +148,7 @@ export class SectorMode implements GameMode {
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     this.findDoors();
     this.findBolts();
+    this.findStageDoors();
     const s = this.run.current;
     if (s) {
       g.player.controller.teleport(new Vector3(s.start.x, s.start.y, s.start.z), s.start.yaw);
@@ -242,6 +246,37 @@ export class SectorMode implements GameMode {
     this.secT = 0;
   }
 
+  /**
+   * (E5, EW9) The stage actions: each lockdown door found by position with its nav closure (host / solo), the lights
+   * through the registry (slice L mirrors them), the locks through `lk` (no wire change).
+   */
+  private findStageDoors(): void {
+    const g = this.g;
+    const ds = g.world.doors;
+    this.stageRun = new SectorStageRun<DoorState>(
+      this.run.defs,
+      {
+        groupOn: (gr) => g.world.level.lights.setGroup(gr, true),
+        lock: (d, on) => this.lockDoor(d, on),
+        navClosed: (id, on) => g.nav?.setClosed(id, on),
+      },
+      (_sec, x, z) => {
+        const d = ds.nearest(x, z, DOOR_FIND);
+        if (!d) return null;
+        const a = d.anchor;
+        return { door: d, nav: g.nav ? addDoorClosure(g.nav, { cx: d.cx, cz: d.cz, yaw: a.yaw, width: a.width, y: a.hinge.y }) : -1 };
+      },
+    );
+    for (const m of this.stageRun.missing) console.warn(`[sector] ${m}`);
+  }
+
+  /** (E5) The alarm went from stage `from` to `to` in the current section (or a section began at `to`): its stage actions. */
+  private stageActions(from: number, to: number): void {
+    const r = this.stageRun?.raise(this.run.index, from, to);
+    if (r?.lights) this.g.stealth?.syncSwitches();
+    if (r?.doors) this.secT = 0;
+  }
+
   /** Test hook (e2e): this machine's player uses section `sec`'s bolt `k` (the side test applies). */
   useBolt(sec: number, k: number): boolean {
     return this.unbolt(sec, k, 'local');
@@ -285,6 +320,8 @@ export class SectorMode implements GameMode {
     g.net?.releaseHolds?.();
     this.pending.length = 0;
     g.enemyMgr?.despawnAll();
+    // (E5) the section's lockdown doors open again (a restart applies its start stage's actions again)
+    if (this.stageRun?.release()) this.secT = 0;
     this.ct?.setLive(-1);
     g.stealth?.setLiveAlarms(-1);
   }
@@ -299,6 +336,8 @@ export class SectorMode implements GameMode {
     const cp = this.run.checkpoint;
     this.checkpoint.set(cp.x, cp.y, cp.z);
     this.reinforceK = 0;
+    // (E5) a section entered (or restarted) at an alarm stage starts with that stage's actions, before the start state
+    this.stageActions(0, this.run.alarm);
     if (kit) {
       this.g.weapons.markCheckpoint();
       // (G22) the lamps (switched, shot, jammed) and doors as the section begins: a restart puts them back
@@ -455,13 +494,19 @@ export class SectorMode implements GameMode {
     if (this.ct) this.ct.alarm = stage;
     if (stage > from && banner) g.hud.banner(`ALARM STAGE ${stage}`, send ? 'Reinforcements coming' : '', 2200);
     const s = this.run.current;
-    if (!s || !send || s.reinforce.length === 0) return;
+    if (s && stage > from) this.stageActions(from, stage);
+    if (!s || !send) return;
+    let n = 0;
     for (let i = 0; i < send; i++) {
-      const at = s.reinforce[this.reinforceK++ % s.reinforce.length]!;
-      // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`
-      this.pending.push({ slot: { kind: SECTOR_REINFORCE_KIND, x: at[0] + (i % 2) * 1.3, z: at[1], yaw: 0 }, alerted: true });
+      // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`; (E5) at the
+      // stage's response route (its patrol) when it has one
+      const slot = reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
+      if (!slot) break;
+      this.pending.push({ slot, alerted: true });
+      n++;
     }
-    this.reinforced += send;
+    if (!n) return;
+    this.reinforced += n;
     this.fill();
   }
 
@@ -663,6 +708,7 @@ export class SectorMode implements GameMode {
       doors: this.doors.map((k) => ({ near: locked(k.near), far: locked(k.far), seal: k.seal.map((x) => x.anchor.locked) })),
       live: this.ct?.liveSection ?? null,
       bolts: this.bolts.shut.map((row) => row.slice()),
+      lockdown: this.stageRun?.lockedCount() ?? 0,
       ...this.result(),
     };
   }
