@@ -10,8 +10,8 @@ tier, merge trains (one PR and one version per train), full check / vitest takes
 (97% no new agent, 98% save).
 
 Open work:
-- #103 anim-bake-targets (CT Core, head 41becc22): desktop full run had 7 load failures; solo reruns: 5 ok, ctcourse:1 FAIL
-  ("station 3: stale far-lobby positions reached the host (0 reports)", the jammer send-back test; may be real), ctcourse:2 was running on the
+- #103 anim-bake-targets (CT Core, head 41becc22): desktop full run had 7 load failures; solo reruns: 6 of 7 ok, only ctcourse:1 FAILS
+  ("station 3: stale far-lobby positions reached the host (0 reports)", the jammer send-back test; may be real: first step a rerun and a master comparison) on the
   desktop (CT Core reports the verdict). Pass -> it merges alone, or in the next train.
 - #110 anim-run-half (CT Core): after #103 merges: merge master, re-capture the identity fixture, check + e2e-anim +
   e2e-studio, then a train.
