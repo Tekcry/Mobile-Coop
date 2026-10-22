@@ -4,6 +4,7 @@ import type { LevelBuilder } from '../levelBuilder';
 import { buildCampusS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './campusS1';
 import { buildCampusS2, S2_HIDESPOTS, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './campusS2';
 import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors';
+import { buildCampusS3, S3_HIDESPOTS, S3_LASERS, S3_NAV_SEEDS, S3_PANELS, S3_PICKUPS, S3_ROOMS, S3_SWITCHES } from './campusS3';
 
 const PI = Math.PI;
 const T = 0.3;
@@ -92,8 +93,7 @@ function connector(b: LevelBuilder, o: { x0: number; x1: number; z0: number; z1:
  * z 18..48, 8.4. The doorways are the connectors' near and far doors (SPEC route table), at ground level in this slice.
  */
 function otherBuildings(b: LevelBuilder): void {
-  // S3 / labs: C2's far door west (ground level: the bridge ends on its solid L1 wall until slice 3), C3's near door north
-  shell(b, { x0: 10, x1: 64, z0: -30, z1: 0, h: 9.5, slabs: [4.5, 9.5], w: [[-14.6, -13.4]], n: [[23.4, 24.6]] });
+  // S2 / HQ and S3 / labs: built in full by `campusS2.ts` / `campusS3.ts` (called from `build`)
   // S4 / data hall: C3's far door south, C4's near door west
   shell(b, { x0: -10, x1: 40, z0: 16, z1: 48, h: 7.5, slabs: [7.5], s: [[23.4, 24.6]], w: [[28.4, 29.6]] });
   // S5 / old house: C4's far door east
@@ -149,6 +149,7 @@ export const campusOps: MapDef = {
     buildCampusS1(b);
     buildCampusS2(b);
     otherBuildings(b);
+    buildCampusS3(b);
     const alarms = CAMPUS_ALARMS.map((a) => ({ pos: new Vector3(a.at[0], a.y ?? 0, a.at[1]), yaw: a.yaw, section: a.section }));
     return {
       playerSpawns: S1_SPAWNS,
@@ -156,13 +157,15 @@ export const campusOps: MapDef = {
       enemySpawns: [],
       props: [],
       objectives: [],
-      pickups: [...S1_PICKUPS, ...S2_PICKUPS],
-      hideSpots: [...S1_HIDESPOTS, ...S2_HIDESPOTS],
-      switches: [...S1_SWITCHES, ...S2_SWITCHES],
-      rooms: [...S1_ROOMS, ...S2_ROOMS],
-      navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS],
+      pickups: [...S1_PICKUPS, ...S2_PICKUPS, ...S3_PICKUPS],
+      hideSpots: [...S1_HIDESPOTS, ...S2_HIDESPOTS, ...S3_HIDESPOTS],
+      switches: [...S1_SWITCHES, ...S2_SWITCHES, ...S3_SWITCHES],
+      rooms: [...S1_ROOMS, ...S2_ROOMS, ...S3_ROOMS],
+      navSeeds: [...S1_NAV_SEEDS, ...S2_NAV_SEEDS, ...STUB_NAV_SEEDS, ...S3_NAV_SEEDS],
       alarms,
       security: CAMPUS_SECURITY,
+      lasers: S3_LASERS,
+      laserPanels: S3_PANELS,
     };
   },
 };

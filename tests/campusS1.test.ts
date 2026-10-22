@@ -118,7 +118,8 @@ describe('Saltmarsh Park (campusOps), registration and shape', () => {
     expect(CAMPUS_SECTORS.length).toBe(5);
     expect(checkSectors(CAMPUS_SECTORS)).toEqual([]);
     for (let i = 1; i < 5; i++) expect(CAMPUS_SECTORS[i]!.start).toEqual(CAMPUS_SECTORS[i - 1]!.connector!.checkpoint);
-    for (const s of CAMPUS_SECTORS.slice(2)) expect(s.guards.length, s.id).toBe(0);
+    // (slice 3) the stubs have none; S3 is built in full (tests/campusS3.test.ts)
+    for (const s of CAMPUS_SECTORS.filter((q) => q.name.endsWith('(stub)'))) expect(s.guards.length, s.id).toBe(0);
     expect(CAMPUS_SECTORS[4]!.extract).toBeTruthy();
     // every stub and S1 connector's near / far doorway and the objective stand on the nav grid (S1 only: the stubs are outside this rectangle)
     expect(lay.playerSpawns.length).toBe(4);
@@ -489,7 +490,7 @@ describe('S1 element register E1-E12 (SPEC)', () => {
   });
   it('E3 weldmesh fences 2.4 round the site', () => {
     expect(b.anchors.fences.length).toBeGreaterThanOrEqual(7);
-    expect(b.anchors.fences.every((f) => f.height === 2.4)).toBe(true);
+    expect(b.anchors.fences.filter((f) => f.a.z < -30).every((f) => f.height === 2.4)).toBe(true);
   });
   it('E4 the bin-store walls 3.0 (west, north, east; open south)', () => {
     const walls = solid.filter((p) => Math.abs(p.s[1] - 3.0) < 1e-6 && p.c[0] > -40.2 && p.c[0] < -29.8 && p.c[2] > -52.2 && p.c[2] < -44.8);
