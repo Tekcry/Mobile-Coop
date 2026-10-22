@@ -76,6 +76,7 @@ C:/NightShift/Mobile-Coop-merge-tools): `build <n> <branch>...` (src conflicts l
 run, then `release <n> <version> "<title>"` (assembles changes/ fragments and legacy Unreleased blocks, versions,
 opens the train PR, waits for CI, merges ONLY on a pass, tags, moves dev; exit 2 = CI failed, nothing merged).
 `single <branch> <version> "<title>"` for a lone PR. `--dry-run` first when unsure. The manual steps below are the fallback.
+2026-10-22 23:00 (#149 left out twice on docs/backlog.md): a conflict only in docs/** or *.md is not a reason to leave a PR out; the orchestrator resolves it in the train worktree (keep both sides), commits, and pushes train/<n>. merge-train.mjs still stops on it, so finish such a PR by hand after `build`.
 Check the PR head equals the tested commit (or the delta is docs only). In the scratch worktree: checkout --detach the
 branch, merge origin/master resolving only CHANGELOG / package conflicts (on any src conflict abort and send it back to
 the job lead), npm version <v> --no-git-tag-version, rename the top "## Unreleased - <job>" heading to
