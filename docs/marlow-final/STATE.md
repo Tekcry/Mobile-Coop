@@ -10,7 +10,9 @@ hand back before the swap: rerun it (the prompts are in "Agent briefs" below).
 ## Next
 1. Spec writer (one Opus agent): merges AUDIT, COOP-INVENTORY, ROUTE-DRAFT, CONSTRAINTS AND Course Ready's independent
    second opinions in `C:/NightShift/scratch/course-ready/marlow-final/` (MAP-AUDIT.md, DEVICE-INVENTORY.md with
-   placement APIs / wire hooks, SCENARIOS.md) into `SPEC.md` (from `docs/templates/map-spec.md`) and `PLAN.md`
+   placement APIs / wire hooks, SCENARIOS.md; committed on origin/feature/marlow-bays docs/marlow-final-prep/,
+   489d7c04 or newer: SCENARIOS has a 37-entry CT set-piece catalogue, an 8-area route proposal and the rule clashes for
+   Michael - bible 5.8 no timers in stealth, G240 cameras see in the dark, G110 no rope climb) into `SPEC.md` (from `docs/templates/map-spec.md`) and `PLAN.md`
    (slices; whole slices marked for Course Ready, separate files). The spec must carry:
    - M4: no explainer pads; the objective list updates per area and guides both players (per-player lines on splits).
    - M5 + A5-A7: a facility look section (luxury training facility, instructor gallery behind glass, LED coves, sliding
