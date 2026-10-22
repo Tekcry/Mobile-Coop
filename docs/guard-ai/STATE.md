@@ -141,6 +141,14 @@ swap (~08:20): its WIP is uncommitted in this worktree if it did not finish - re
 feature/guard-ai itself still needs origin/master merged (same two conflicts) before its next PR.
 
 ## Next
+- STEALTH OVER SHOOTING (Michael, via orchestrator ~10:15; ROADMAP Decided + "Next: stealth over shooting" on
+  origin/feature/menu 31a4cee2). Guard AI owns items 2 helmets, 3 riot shields (response teams only), 4 alarm stages
+  add armour / helmets + a response team (no extra cameras), 6 missed check-ins / found bodies raise alert, 7 gunfire
+  alerts the section, 8 shot lamps investigated / breaker cuts cleaner, 11 response teams stay and sweep, 13 body armour
+  torso stagger. First thing next window: an Opus planner (docs only, allowed above the CPU cap) reads that ROADMAP
+  section, checks each item against what S2 / S3 / S4 / S5b / S6 / S7 already do (overlap: 6 vs S4 + S5b missing
+  partner, 7 vs S1 / S3, 8 vs S2 light check, 4 / 11 vs S6 reinforcements), and adds the remaining work as slices
+  S11+ to PLAN.md ordered after S8 (and S9 if needed); then build them in the usual loop.
 S3 integration finish + fresh checker, e2e-stealth-ai / e2e-sectorops on the desktop second lane; then S4, S5/S5b
 (+ glass sight read), S6, S7, S8, S10 wiring in order; (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
 S4-S10 in PLAN order.
@@ -191,7 +199,7 @@ PLAN.md and this STATE.md. Continue from "Now" (top entry first): per slice work
 C:/NightShift/Mobile-Coop-guard-ai-s<n> (branch feature/guard-ai-s<n>, its own guard). Agents cut off by a swap leave
 WIP commits "WIP at the swap" on their branch: review `git show --stat HEAD` and the slice's report, then finish with a
 fresh Opus agent. Order: chain fix ('bodies' e2e) in s7 -> merge s5 (master) into s7 -> laptop GPU run on the s7 tip ->
-one "train-ready" message (S4 #193 / S5 #195 / S7 #196) -> s8 merges s7 -> S5b, S6, S10 stacked on S8 per the batch
+one "train-ready" message (S4 #193 / S5 #195 / S7 #196) -> "Next": stealth-over-shooting planner -> s8 merges s7 -> S5b, S6, S10 stacked on S8 per the batch
 checker's merge plan (S5b-CHECK.md / S6-CHECK.md) -> one laptop GPU run on that tip -> one PR per slice (S8 stacked
 on #196). Token rules: origin/feature/menu CLAUDE.md "Heavy-usage throughput" (message the orchestrator only at
 PRs / train-ready / blocked; no new tsc / vitest agent while desktop CPU >= 80%). The loop in docs/systems/session-method.md (implementer, fresh
