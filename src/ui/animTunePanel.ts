@@ -2843,7 +2843,8 @@ export class AnimTunePanel {
 
   /** (T2) The first control of the tab itself (past the playback bar): a tab change's focus. */
   private firstTabItem(items: HTMLElement[]): HTMLElement | undefined {
-    return items.find((e) => !this.studioUi.bar.contains(e)) ?? items[0];
+    // (item 24, track A) the Who list heads the what-row, but the part picker keeps the first focus (Who is one D-pad up)
+    return items.find((e) => !this.studioUi.bar.contains(e) && e.dataset.pad !== 'who') ?? items[0];
   }
 
   /**
