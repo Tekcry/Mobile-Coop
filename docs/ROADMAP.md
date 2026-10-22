@@ -30,6 +30,11 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 9. Sector Ops team doors: answered 2026-10-23 ~00:45 (Decided): true 2-player pathways, solo play unbroken; Course Ready builds it in feature/sector-fixes-r2.
 5. Sector Ops lights: the strip-light fog cones are fixed in 4.61.0 (#156; before / after sheet sent 2026-10-22 ~23:30): S1 goods-in, workshop and girder read darker now; look on the next walk.
 
+## Spare jobs (full burn, 2026-10-23 ~01:25)
+Ranked list in docs/orchestrator/spare-jobs.md (15 items: sw-reload, hang-down moves, partner throw KO, G44, anim pops,
+partner pose parity, crouch pops, traversal, joint interrogation, test chores, ...). Idle agent slots take them in order,
+one branch and PR each, into the next train.
+
 ## Decided (Michael, 2026-10-22 ~11:15 unless dated)
 - Pacing (2026-10-23 ~01:05, replaces the 00:35 97% stop): "I want to hit the 5 hour token limit as fast as possible. Can you push as hard as possible. I will reset as soon as you hit it." Every session runs full speed to 100% with parallel agents; WIP pushed after every agent hand-back.
 - Sector Ops team doors (2026-10-23 ~00:45; Waiting 9): "true 2-player pathways that cannot be used solo, but doesnt break solo play" (Course Ready, feature/sector-fixes-r2).
