@@ -3,6 +3,44 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Character Build SAVE 5 (2026-10-23 ~10:35, swap at 99%; wins over all below):**
+- SENT since SAVE 4: train 21 b5895388 GREEN 39/39 (JOBS=3, 616 s) -> orchestrator. Guard AI S5 80efb8b4 9/10
+  (sectorops:1 posts site assert), S7 084e373c 10/10, chain tip ae1f1895 9/11 (sectorops:1 posts TypeError, stealth-ai
+  "the finder searches"), S8 54627243 8/9 (ran though dropped). Course Ready 22e755bf coop + netmove GREEN; c92fc53b
+  ops6 FAIL (C2 card-door hack); 07c96701 ops6 VOID (stale dist from S8: ALWAYS build). CT Core hostage-gait c581a9c4
+  GREEN; hang-down 0578d554 coop + ctcourse:2 FAIL (real; CT Core fixing, solo reruns dropped).
+- LESSONS: TaskStop / killing a chain's bash does NOT stop a powershell runner it already started (S8 ran). A step list
+  without "build" serves whatever dist the slot worktree holds: always build.
+- IN FLIGHT at the save (session-bound bash chains die in the swap; a runner already started keeps going). On resume
+  read each summary.txt; no DONE = rerun with the same steps:
+  4189 ALONE (queue-1023f.sh): guardrender-s0cap-0b4805a4 (4.68.0 baseline: build; scripts/guard-cap.mjs --counts=0,12,16,24
+  --cells=patrol,away,alert --maps=sectorops,ctcourse --out=C:/NightShift/scratch/work/guardrender-s0-base) -> then
+  marlowcap-5100141d (Menu Notes "before" baseline: build; node C:/NightShift/scratch/work/guard-cap-spots.mjs
+  --maps=ctcourse:course --counts=0,12 --gfx=epic --viewport=1920x1080 --warm=5 --secs=10 --spots=a8hall:112,0.05,69,90
+  --out=C:/NightShift/scratch/work/marlowcap-5100141d; same with --cells=none --spots=a7data:77.5,0.05,61.5,90
+  --out=...-a7). Reply Menu Notes with the table vs runs/guardcap-155fbec0-out/RESULTS.md (draws, tris, shadow passes /
+  maps, active meshes per cell). Both ALONE on 4189 (4192 idle).
+  4192 after marlowcap: sectorredesign-3796700d-ops6 (Course Ready PR 2 head: build;e2e-sectorops:6, JOBS=1) ->
+  guardaichain-8094c5b1 (Guard AI: build;e2e-stealth-ai e2e-sectorops;e2e-stealth-ai, JOBS=2; send every "DBG bodies"
+  line and the "posts site" line, to the Guard AI session AND as a comment on PR #196).
+- GUARD-RENDER:
+  S1 668d623d DONE + measured (f1bdb3ba docs/guard-render/run-s1, run-s1-off): 24 facing sectorops frame 9.7 -> 7.1 ms,
+  render CPU 7.6 -> 4.9, GPU 6.7 -> 5.5, active 1429 -> 493; ctcourse 9.2 -> 6.3. Next: compare with s0 base, look
+  check shots (normal / thermal / NV, one guard on vs off), changelog fragment, TESTING.md, systems doc, PR (merge
+  origin/master first).
+  S5 1b895175: checker PASS WITH NOTES (L2 dropped), CT Core OK. PR after S1 (stacked): merge master, rerun
+  animSkeletonGuardIdentity + footPlanner + guardPoseGolden (golden may need a re-capture on master base if mocap-on
+  changed guard poses: ask CT Core).
+  S3a: checker FIX (walking wall peek 30-39 cm, strafe not modelled, blind+seized keeps blind pitch, impossible lean
+  signs in tests). Opus fix round was running at the save on feature/guard-render-s3a (from 994e8405): check its
+  newest commits; if unfinished, restart the fix round from the checker findings (probe harness in this session's
+  scratchpad is lost; the findings are in the fix commits / re-derive). Then one Opus checker batch: S3a recheck + S6.
+  S6 c181002e (feature/guard-render-s6, brief briefs/S6.md): built, unchecked. Rule 2 (guards drop out of the sun
+  beyond 40 m) is a look change in its own commits S6c/S6d: decide after the checker + guardsun on/off guard-cap.
+  S2 skipped (only the dev-only ?voxels=1 path).
+- TOKEN RULES (orchestrator 10:05): one verdict message per request batch; orchestrator only for trains, guard-render
+  PRs, train-blocking failures, Michael; no polling turns; save at ~25-30% context; one checker per batch of slices.
+
 **Character Build SAVE 4 (2026-10-23 ~09:50, new account; wins over all below):**
 - SENT: train 20 cbff3050 GREEN (lightbake solo x2 PASS 129 / 127 s) -> orchestrator releases 4.69.0, train 21 full run
   comes next (jumps the 4189 queue). marlow-final 45458bbc ct2 solo FAIL (A3 relay jam 1 timeout; Menu Notes fixing
@@ -351,7 +389,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Character Build (laptop, the MAIN test machine, GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop"), then the newest "Character Build SAVE" block (SAVE 4 at the time of writing) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). It names the runs (C:/NightShift/scratch/runs/<label>/summary.txt; no DONE line = it died in the swap, rerun it) and the agent branches (check each branch's newest commit to see what landed; restart unfinished work from there). Message "Night Shift | Orchestrator" that you are back with any results, then continue the SAVE block's list: send any finished verdicts (train 20 lightbake solo first, to the orchestrator), keep both slots busy with the queue, and run the guard-render job (S1 e2e + guard-cap ALONE + PR; S3a / S5 Sonnet builders, Opus checkers; docs/guard-render/STATE.md). Sonnet 5.5 builds from strict Opus briefs, Opus checks. At most one full run at a time (4189), singles on 4192; a lock with no live node process is stale (taskkill /T /F).
+Night Shift | Character Build (laptop, the MAIN test machine, GPU for every e2e run). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop"), then the newest "Character Build SAVE" block (SAVE 5 at the time of writing) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). It names the runs (C:/NightShift/scratch/runs/<label>/summary.txt; no DONE line = it died in the swap, rerun it) and the agent branches (check each branch's newest commit to see what landed; restart unfinished work from there). Message "Night Shift | Orchestrator" that you are back with any results, then continue the SAVE block's list: send any finished verdicts (train 20 lightbake solo first, to the orchestrator), keep both slots busy with the queue, and run the guard-render job (S1 e2e + guard-cap ALONE + PR; S3a / S5 Sonnet builders, Opus checkers; docs/guard-render/STATE.md). Sonnet 5.5 builds from strict Opus briefs, Opus checks. At most one full run at a time (4189), singles on 4192; a lock with no live node process is stale (taskkill /T /F).
 
 Runner: C:/NightShift/scratch/laptop-runner.ps1 (header explains; results C:/NightShift/scratch/runs/<label>/summary.txt, DONE at the end). Every run RUN_GPU=1. Slots: full runs RUN_JOBS=3 on -Slot 4189 (the trial in STATE: keep the load sampler C:/NightShift/scratch/load-sampler.ps1 on and check the pass criteria); single suites RUN_JOBS=1 on -Slot 4192. Fetch in the slot's worktree before a new commit. Launch hidden; a run that may outlive the session goes through a scheduled task (schtasks, see STATE), never only Start-Process. Chain several runs in one script (C:/NightShift/scratch/chain-*.ps1 are examples). Reply to the requester with pass / fail per suite, the failing assert lines, times and commit; copy the orchestrator. Order: orchestrator, CT Core, Menu Notes, Course Ready, then own jobs (gpu-tests-2 PR, test-speed-2).
 
