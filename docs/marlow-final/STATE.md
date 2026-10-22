@@ -67,6 +67,12 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 04:00 A1 e2e restart failure was a REAL bug: a pass zone re-fired on the players' old positions during the respawn
+  delay and re-ticked the step; fixed in course code (944adbcb: pass zones hold 2 s after a bay restart; 108 tests
+  pass; unit test for holdZones still to add). A1 dressing IN (8b260100; 42 A1 tests, 93 map tests; budgets and the
+  no-solo-jump check re-proved with props). Lounge panel polish done. Laptop: ctcourse:1, course, coop + a1 / f shots
+  on 8b260100. Usage 70% at 03:43, 2 h 57 left: lean. The A1 dressing check is folded into the A2 checker. Slice 2 A2
+  greybox started on Sonnet (S1 as the worked example).
 - 03:45 PERF (guard-cap, laptop RTX 4090 alone, Epic 1080p, 155fbec0 = facility + A1 greybox, results on the laptop
   C:/NightShift/scratch/runs/guardcap-155fbec0-out/RESULTS.md). frame med / CPU / GPU / draws / sim p95 ms:
   0 guards facing 4.64.0 11.3 / 10.7 / 6.6 / 115 / 4.6 -> 12.7 / 11.9 / 10.9 / 224 / 2.9; 12 guards 29.6 / 28.8 /
