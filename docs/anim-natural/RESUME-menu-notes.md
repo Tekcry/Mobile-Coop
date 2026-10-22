@@ -9,7 +9,8 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
   Michael's words, M1-M3, A1-A4). Step 1 running: 4 read-only agents (yard audit, co-op inventory, route draft,
   standard constraints) -> AUDIT.md, COOP-INVENTORY.md, ROUTE-DRAFT.md, CONSTRAINTS.md -> spec writer -> SPEC.md +
   PLAN.md -> greybox slices + kit dressing (M5) (Course Ready joins as second builder). Art-kit agent also ran.
-  If any step-1 file is missing after a swap, rerun it from STATE "Agent briefs". Save at 97%.
+  SAVED ~01:10 at the swap (STATE "Now" lists what is in and what is WIP: SPEC partial, kit code UNCHECKED, lighting /
+  props partial). On resume: tsc + kit test first, rerun the spec writer to finish SPEC + PLAN, then build slices.
 - mocap-sheets STOPPED (Michael: no sheets needed); the start / stop agent was told to stop and report; its finding goes
   in docs/mocap-trial (note) on feature/mocap-sheets.
 - vol-cone-fix: PR #156 open, nothing to do.
