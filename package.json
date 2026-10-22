@@ -28,6 +28,7 @@
     "operators:sheet": "node --import ./scripts/operators/ts-resolve.mjs scripts/operator-sheet.mjs",
     "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs",
     "weapons:build": "node scripts/weapons/build.mjs",
+    "kit:build": "node scripts/facility-kit/build.mjs",
     "weapons:shots": "node scripts/weapons/shots.mjs",
     "music:fetch": "node scripts/music/fetch-samples.mjs",
     "music:render": "node scripts/music/render.mjs",

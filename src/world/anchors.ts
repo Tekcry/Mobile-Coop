@@ -118,6 +118,9 @@ export interface Door extends AnchorBase {
   swing: 1 | -1;
   locked: boolean;
   breachable: boolean;
+  /** (marlow-final kit) How the leaf is drawn: the hinged leaf (default) or none ('slide': the facility kit draws two
+   *  sliding leaves from the same open state; collision, light, sight and sound are the hinged door's, unchanged). */
+  leaf?: 'swing' | 'slide';
 }
 
 /** A zipline from `a` (high end) to `b`, at the cable. */

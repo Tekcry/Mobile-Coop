@@ -1,0 +1,237 @@
+{
+ "pieces": {
+  "wallPanel": {
+   "meshes": {
+    "composite": 132,
+    "metal": 88,
+    "reveal": 12,
+    "led": 12
+   },
+   "triangles": 244,
+   "bounds": {
+    "min": [
+     -0.6,
+     0.0,
+     0.004
+    ],
+    "max": [
+     0.6,
+     3.0,
+     0.06
+    ]
+   }
+  },
+  "wallUpper": {
+   "meshes": {
+    "composite": 44
+   },
+   "triangles": 44,
+   "bounds": {
+    "min": [
+     -0.594,
+     0.006,
+     0.004
+    ],
+    "max": [
+     0.594,
+     1.494,
+     0.03
+    ]
+   }
+  },
+  "glassClear": {
+   "meshes": {
+    "metalDark": 88,
+    "metal": 88,
+    "glass": 12,
+    "frosted": 12
+   },
+   "triangles": 200,
+   "bounds": {
+    "min": [
+     -0.75,
+     0.0,
+     -0.04
+    ],
+    "max": [
+     0.75,
+     3.0,
+     0.04
+    ]
+   }
+  },
+  "glassFrosted": {
+   "meshes": {
+    "metalDark": 88,
+    "metal": 88,
+    "frosted": 12
+   },
+   "triangles": 188,
+   "bounds": {
+    "min": [
+     -0.75,
+     0.0,
+     -0.04
+    ],
+    "max": [
+     0.75,
+     3.0,
+     0.04
+    ]
+   }
+  },
+  "doorFrame": {
+   "meshes": {
+    "metal": 132,
+    "metalDark": 44,
+    "reveal": 12,
+    "status": 12
+   },
+   "triangles": 200,
+   "bounds": {
+    "min": [
+     -1.1,
+     0.0,
+     -0.0
+    ],
+    "max": [
+     1.1,
+     2.42,
+     0.092
+    ]
+   }
+  },
+  "doorJamb": {
+   "meshes": {
+    "metal": 36
+   },
+   "triangles": 36,
+   "bounds": {
+    "min": [
+     -1.0,
+     0.0,
+     -0.5
+    ],
+    "max": [
+     1.0,
+     2.1,
+     0.5
+    ]
+   }
+  },
+  "doorLeaf": {
+   "meshes": {
+    "composite": 44,
+    "metal": 48,
+    "reveal": 48
+   },
+   "triangles": 140,
+   "bounds": {
+    "min": [
+     -0.5,
+     0.01,
+     -0.022
+    ],
+    "max": [
+     0.5,
+     2.08,
+     0.022
+    ]
+   }
+  },
+  "ledSlot": {
+   "meshes": {
+    "metalDark": 100,
+    "reveal": 12,
+    "led": 12
+   },
+   "triangles": 124,
+   "bounds": {
+    "min": [
+     -0.5,
+     -0.045,
+     -0.04
+    ],
+    "max": [
+     0.5,
+     0.0,
+     0.04
+    ]
+   }
+  },
+  "skirting": {
+   "meshes": {
+    "reveal": 12,
+    "led": 12,
+    "metal": 44
+   },
+   "triangles": 68,
+   "bounds": {
+    "min": [
+     -0.5,
+     0.0,
+     -0.0
+    ],
+    "max": [
+     0.5,
+     0.12,
+     0.022
+    ]
+   }
+  },
+  "column": {
+   "meshes": {
+    "composite": 352,
+    "led": 48,
+    "metal": 264
+   },
+   "triangles": 664,
+   "bounds": {
+    "min": [
+     -0.525,
+     0.0,
+     -0.525
+    ],
+    "max": [
+     0.525,
+     3.0,
+     0.525
+    ]
+   }
+  },
+  "handrail": {
+   "meshes": {
+    "metal": 124,
+    "led": 12,
+    "metalDark": 44,
+    "glass": 12
+   },
+   "triangles": 192,
+   "bounds": {
+    "min": [
+     -0.75,
+     0.0,
+     -0.035
+    ],
+    "max": [
+     0.75,
+     1.0238,
+     0.035
+    ]
+   }
+  }
+ },
+ "materials": [
+  "composite",
+  "metal",
+  "metalDark",
+  "reveal",
+  "glass",
+  "frosted",
+  "led",
+  "status"
+ ],
+ "blender": "5.2.2 LTS",
+ "bytes": 154856,
+ "triangles": 2100
+}

@@ -12,6 +12,7 @@ import type { ScannerDef } from '../game/scanners';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
 import type { CamSize, CamSpace } from './camSpaces';
+import type { KitLayout } from './kit/facilityKit';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -93,6 +94,9 @@ export interface MapLayout {
    *  `camSize`; neither given: the camera's probes decide (`world/camSpaces.ts`). Local only. */
   camSpaces?: CamSpace[];
   camSize?: CamSize;
+  /** (marlow-final M5) The facility kit's drawn pieces (`world/kit/facilityKit.ts` `FacilityKit.layout`): visual only,
+   *  the kit wrote their gameplay boxes into the builder itself. */
+  kit?: KitLayout;
 }
 
 export interface MapDef {

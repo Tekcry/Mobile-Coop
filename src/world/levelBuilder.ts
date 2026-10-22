@@ -281,8 +281,11 @@ export class LevelBuilder {
     return this.anchors.add<WindowAnchor>({ kind: 'window', c: { x: cx, y: cy, z: cz }, w, h, yaw, sillHeight: opts.sill ?? cy - h / 2, breakable: opts.breakable ?? true, open: opts.open ?? false });
   }
 
-  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean } = {}): Door {
-    return this.anchors.add<Door>({ kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true });
+  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean; leaf?: 'swing' | 'slide' } = {}): Door {
+    const d: Omit<Door, 'id'> = { kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true };
+    // (marlow-final kit) only a sliding door carries the field: every other anchor stays as it was
+    if (opts.leaf === 'slide') d.leaf = 'slide';
+    return this.anchors.add<Door>(d);
   }
 
   /**
