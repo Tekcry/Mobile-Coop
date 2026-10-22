@@ -165,6 +165,8 @@ rules.push(
   rule('gun', 'recoilMul', RIFLE_AIM, RECOIL_AMOUNTS.map((f) => e(RECOIL_FILE, `WREN_RECOIL_RIFLE.${f}`, 'mul'))),
   rule('gun', 'recoilMul', PISTOL_AIM, RECOIL_AMOUNTS.map((f) => e(RECOIL_FILE, `WREN_RECOIL_PISTOL.${f}`, 'mul'))),
 );
+// (anim-n4c, AUDIT row 29) the aimed hand swap's drop and forward carry: one pair for both guns (a shared target)
+rules.push(rule('gun', 'swapDropMul', AIM_GUN, [e('src/anim/handSwapPath.ts', 'HAND_SWAP.drop', 'mul'), e('src/anim/handSwapPath.ts', 'HAND_SWAP.fwd', 'mul')], 'every rig that changes hands (the player, the partner)'));
 
 // ------------------------------------------------------------------------------------------
 // Camera (tune.ts): config/camera.ts, same units (m, s, 1/s)
@@ -299,6 +301,13 @@ for (const [walk, ids] of [
   for (const [id, f] of ids) rules.push(rule('cq', id, [`cq.${walk}`], [e(CQG, `CQ_GAIT.${walk}.${f}`, 'mul')], f === 'stride' ? 'the local player gait clock only (remote copies run their own)' : undefined));
 }
 rules.push(rule('cq', 'carryLean', ['cq.carry'], [e(CQG, 'CQ_GAIT.carry.lean', 'add', Math.PI / 180)]));
+// (anim-natural N4c) the elbow strike's body (strikeBody.ts): each slider into its STRIKE_BODY amounts
+const STRIKE_FILE = 'src/anim/strikeBody.ts';
+rules.push(
+  rule('strike', 'turn', ['strike.elbow'], ['pelWind', 'pelDrive', 'chestWind', 'chestDrive'].map((f) => e(STRIKE_FILE, `STRIKE_BODY.${f}`, 'mul'))),
+  rule('strike', 'hipLead', ['strike.elbow'], [e(STRIKE_FILE, 'STRIKE_BODY.lead', 'mul')]),
+  rule('strike', 'shift', ['strike.elbow'], [e(STRIKE_FILE, 'STRIKE_BODY.fwd', 'mul'), e(STRIKE_FILE, 'STRIKE_BODY.side', 'mul')]),
+);
 
 // ------------------------------------------------------------------------------------------
 // (clip-speed, track A) Clip speed (tuneClipSpeed.ts): a speed divides a duration or multiplies a rate. The every-clip
@@ -377,7 +386,7 @@ export const BAKE_LEDGER = 'src/anim/tuneBakeLog.json';
 export const BAKE_KEYS_DIR = 'scripts/anim-keys/keys/';
 
 /** Modules plain Node can load that register sections (the script imports them for the catalogue). */
-export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts', 'src/weapons/drawTune.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (anim-natural N3) drawTune; (item 24, track A) the guard sections
+export const BAKE_CATALOGUE_MODULES: readonly string[] = ['src/anim/tune.ts', 'src/anim/tuneV2Sections.ts', 'src/anim/tuneGuard.ts', 'src/anim/tuneClipSpeed.ts', 'src/anim/cqGait.ts', 'src/weapons/drawTune.ts', 'src/anim/strikeBody.ts']; // (clip-speed, track A) tuneClipSpeed; (anim-n4) cqGait; (anim-natural N3) drawTune; (item 24, track A) the guard sections; (anim-natural N4c) strikeBody
 /**
  * (fix round S4) Every other file that registers a section, and how the catalogue gets it: `declared`
  * (DECLARED_SECTIONS), `weight` (weight.ts's WEIGHT_TUNABLES) or `keys` (built in). The coverage test fails for a file

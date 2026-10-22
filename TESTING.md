@@ -80,7 +80,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   RT fires only while aiming (each shot kicks her hands and chest a little, settled in 0.3 s; aimed into a wall up close
   the gun tips muzzle-down and comes back up when you step off, no stall); holstered, RT tap knocks a guard out, RT hold kills. Hold X with the gun out to reload.
   Y over a wall at low ready or aiming: the gun goes away for the climb and comes back after. A opens doors and uses
-  things at low ready and aiming too. Aim the pistol at a camera or a laser and hold RB (keyboard F) to jam it; aiming
+  things at low ready and aiming too. Aim the pistol at a camera, a light or a laser's power panel and hold RB (keyboard F) to jam it; aiming
   alone does not jam, and RB not aiming the pistol is still the co-op action.
 - [ ] Body motion (anim-natural-n2): walk, jog, sneak and crouch walk holstered: the hips and shoulders turn against each
   other with each step, the hips sway over the standing foot, the head turns a little with the chest and nods; aiming
@@ -271,6 +271,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   in front of it; its red grid is faint (thin lines) and covers only that patch, never far walls or the ceiling, and it
   catches you only there. Lasers are invisible until night vision (not in thermal or electro); walking through one
   raises the alarm stage (banner, radio) and costs no health.
+- [ ] Laser power panels (sector-fixes P): every laser has a small wall panel nearby, hidden (Sector Ops: in the office
+  void off the workshop catwalk, behind the plant deck's AHU, on R2N's rack top by the VNA sensor, under the mezzanine
+  behind the parts store's back shelf; Marlow Yard station 4: high on the far side's south wall, seen through the gap).
+  Electro shows it; its LED is green. Jam it from its vantage (pistol, RB / F, stand still): the LED blinks cyan and its
+  lasers are off (walk through: no alarm), amber for the 1.5 s reboot, then the lasers are back. Aiming at the beams
+  jams nothing. In co-op the partner's page shows the same.
 - [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
   10 HP.
 - [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the

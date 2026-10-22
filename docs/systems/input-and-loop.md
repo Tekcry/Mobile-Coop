@@ -124,7 +124,7 @@ Edit the table and the code together.
 | Reload | `reload` | X (hold, gun out) | Square / Y (hold) | `reload` (R) | A2 (Michael 14:55): X held only on the pad; A always interacts |
 | Zoom | `zoom` | R3 | R3 / RS | `zoom` (B) | Aiming with a scoped weapon only; normal aim never zooms (G29) |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
-| Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | Team move > traversal. M4: a gun out goes away for the move and comes back after |
+| Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | Team move > traversal. M4: a gun out goes away for the move and comes back after. A closed vent: the press starts it, a tap kicks, a hold unscrews (vent-kick, M1, pad and keyboard alike: Y / Space held is no kick and carries into A / E, so Y / Space held, or Y / Space then A / E held, unscrews; A / E let go mid-way stops) |
 | Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | G5: the context action menu (hold = the list, release = run the highlighted row; below). Every weapon state ("Interact always") |
 | Back to wall | `cover` | L3 | L3 / LS | `wall` (Caps Lock) | G18, entry by button only (G34); not while aiming; the button again or aiming leaves. KBM moved off Left Shift (the run, A1) |
 | Context menu highlight | `ctxUp` `ctxDown` | D-pad up (menu held); D-pad down (menu held) | D-pad up / down | Mouse wheel | Fixed. In play D-pad up / down and = / - are unbound (no speed gears) |
