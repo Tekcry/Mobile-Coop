@@ -3,33 +3,33 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Character Build SAVE (2026-10-23 ~00:35, account swap at ~97%; this block wins over everything below):**
-- RUNNING through the swap: scheduled task ns-chain-1022an = train/13 d2be5f6c (#144 R 53e72a11, #161 ct-rattle a8af5535,
-  #162 decisions docs; master 4.62.0), build + full, E2E_GPU=1, JOBS=5, 4189, no burner. Results:
-  C:/NightShift/scratch/runs/train13-d2be5f6c/summary.txt (DONE at the end) and full.log; load runs/load-train13.csv.
-  FIRST THING on resume: send the orchestrator train 13's per-suite verdict. If e2e-desktop:1 (crash-log page goto
-  timeout) or e2e-move ("pushing sideways ... (0.00 m/s)") fail, they are the known load-audit pair: rerun solo on 4192.
-- LOAD AUDIT (feature/load-audit, worktree C:/NightShift/Mobile-Coop-load-audit): NOT DONE, no PR yet. Audit on master
-  af56ab43 found e2e-desktop:1 (crash-log page.goto timeout under load). Fix 1 (context-level 120 s navigation default,
-  smoke's own context, 60 s menu waits; 2746f123) did NOT fix it: the proof run timed out at 120 s = a hang. Fix 2
-  (7d4dbc5f): wait for Playwright's 'crash' event and close the dead page before opening the next; UNPROVEN. The proof
-  also found e2e-move :109 sideways speed 0.00 m/s under load; an Opus agent was converting e2e-move's speed checks to
-  game-time windows on the same branch (check git log for its commit). NEXT: when no requested run is going, a stress
-  run on the branch head: JOBS=5 set "e2e-desktop:1 e2e-ctcourse e2e-course e2e-netmove e2e-coop e2e-menus e2e-move"
-  twice with scratch/cpu-burner.ps1 -N 4 (keep CPU under ~90%; stop the burner if any requested run starts), then the
-  full JOBS=5 audit run; PR only when desktop:1 and move hold. Checker on fix 1: PASS WITH NOTES (applied).
-- AGENT WORK (each pushes its own branch; check git log, finish or continue):
-  feature/guard-cap (Mobile-Coop-guard-cap): scripts/guard-cap.mjs + docs/guard-cap/{REPORT,STATE}.md, report-only
-  tooling for 12/16/24 awake guards on warehouseOps (Sector Ops) and ctcourse (Marlow). Then run it on master 4.62.0:
-  E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs (see its header), fill REPORT.md, open the PR (report only).
-  feature/slow-suites (docs/slow-suites/REPORT.md) and feature/load-latent (docs/load-latent/REPORT.md): report-only
-  docs; open PRs when finished, send the orchestrator the headline levers / high-risk findings.
+**Character Build SAVE (2026-10-23 ~00:45, account swap at ~97%; this block wins over everything below):**
+- RUNNING through the swap: scheduled task ns-chain-1022ao = load-audit stress proof on feature/load-audit 0067b5f5
+  (GPU, 4189): loadstress1-0067b5f5 and loadstress2-0067b5f5 (JOBS=5 over e2e-desktop:1 e2e-move e2e-coop e2e-mouse
+  e2e-ctcourse e2e-netmove e2e-course e2e-menus smoke, a 4-core burner), then loadaudit-full-0067b5f5 (clean full run
+  JOBS=5). Results in C:/NightShift/scratch/runs/<label>/ (summary.txt DONE; the suite log), load
+  runs/load-stress-0067b5f5.csv. FIRST THING on resume: read those three and tell the orchestrator. Any failure that
+  passes solo is a load miss to fix (tests only, never a weaker limit); if all green, open the load-audit PR.
+- LOAD-AUDIT branch (worktree C:/NightShift/Mobile-Coop-load-audit), 7 commits on master af56ab43:
+  4da742ce / 777a056e / 2746f123 (context-level 120 s navigation default, smoke's own context, 60 s menu waits on the
+  crash-log page; fresh checker PASS WITH NOTES, applied), 7d4dbc5f (crash step waits for the 'crash' event and closes
+  the dead page: the desktop:1 hang), de5df759 (e2e-move sideways pace on a game-time window), da629375 (e2e-coop grab
+  latch + per-frame host pin; e2e-mouse waits for frame-applied yaw / weapon swap / pace), 0067b5f5 (e2e-ctcourse jam /
+  lamp windows on the host clock, new waitHostSim in e2e-net-lib.mjs). move + desktop:1 PASS solo on de5df759; the rest
+  syntax-checked only. Source list: docs/load-latent/REPORT.md on feature/load-latent e1368ac6 (59 findings: 6 high, 26
+  medium, 27 low); mediums left in e2e-ctcourse: #10, #11, #12, #13, #15, #35, #36, #38 (see that report). The PR body
+  should list the audit failures (desktop:1 hang, move 0.00 m/s) and each fix with its proof.
+- Train 13 d2be5f6c GREEN 39/39 (JOBS=5, 357 s) - reported. Lightfield #163 deb5211d loaded proof 20/20 - reported.
+- Agent branches pushed (no PRs yet): feature/slow-suites aa271739 (docs/slow-suites/REPORT.md: stale
+  scripts/e2e-times.json start order costs 15-22 s per JOBS=5 run, a no-risk fix; JOBS=6 est. 30-40 s, needs measured
+  runs), feature/load-latent e1368ac6 (the scan), feature/guard-cap 7d93f064 (scripts/guard-cap.mjs WIP, never run: rebase
+  on master 4.62.0, npm run build, then E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs --maps=sectorops,ctcourse
+  --counts=0,12,16,24 --warm=3 --secs=10 --out=docs/guard-cap; fix cell errors; fill docs/guard-cap/REPORT.md; PR).
+  Open docs PRs for slow-suites and load-latent when the orchestrator wants them.
 - Tonight's rules: E2E_GPU=1 for every run; full runs and trains JOBS=5 (back to 3 the first time 5 causes a failure);
-  laptop CPU under ~90% while any run is going; two slots (4189 full runs, 4192 singles); runs survive a swap only as
-  scheduled tasks (schtasks); never tail -F a file a chain appends to.
-- Done since 23:45: train 12 1ff138e8 GREEN 35/35; #144 R 53e72a11 green (10 suites); ct-rattle a8af5535 green solo x2
-  + JOBS=3 trio; N4b 560752d1 studio + anim green; train 8 fc2e8bd3 GREEN; mocap rerun ce76361a; vol-cone round 2
-  3135a783; PR #158 coop-offer-load (merged in train 12).
+  laptop CPU under ~90% while any requested run is going (stop the burner first); slots 4189 full runs, 4192 singles;
+  runs that may outlive a session go through scheduled tasks (schtasks); never tail -F a file a chain appends to;
+  untracked files a target commit tracks block the runner's checkout (move them to scratch/work first).
 
 **Character Build now (2026-10-22 ~21:50, stopped for the ~22:04 account swap; this block wins over the older ones):**
 - RULES (Michael): every e2e run is `E2E_GPU=1` (runner `RUN_GPU=1`); a GPU failure counts (fix the test or the game);
