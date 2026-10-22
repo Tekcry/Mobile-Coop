@@ -21,7 +21,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 26 (26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 27 (27: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -155,8 +155,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   flicker back) and sends them in `sec`; the client takes the phases and times and runs them on between messages
   (`advanceDevJam`), so it draws the frozen camera, its flashing LED, the hidden grid, the buzz and the light flicker
   from host state (marlow-jammer). The client only moves a device's timeline forward (`mirrorDevJam`: a late host
-  reboot it already ran down is dropped). The host checks a client's jam target with the static line of sight from the
-  client's head (0.4 m slack), as the client does from its camera.
+  reboot it already ran down is dropped). The host checks a client's jam target with the static line of sight (0.4 m
+  slack) from the same point the client aimed from: (jammer-fixes, protocol 28) a claim carries the client's camera eye
+  `e` ([x, y, z], cm, clamped to the world; a release has none). The host takes it only within `JAMMER.eyeTol` 1.5 m of
+  the client's head with a clear static head-to-eye line (0.1 m slack; no eye through a wall), else checks from the head
+  (`jammer.ts` `jamOrigin`). The course message's light groups carry each group's base state (`groupBaseOn`): a jam never
+  switches a group off on the client.
 - (marlow-jammer fix round 1) The camera hallway's send-back (`PassZone.hall`, `hallStep`, Marlow Yard station 3): the
   host moves its own player, and a client with the `back` event (`{ e: 'back', player, x, y, z, yaw }`, protocol 26):
   the host's copy moves at once (`RemotePlayer.moveTo`, a teleport allowed), the client teleports itself facing `yaw`,

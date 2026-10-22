@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased - jammer-fixes (feature/jammer-fixes)
+- A jammed lamp comes back in the state its wall switch, EMP or a shot gives it at the end of the jam, not the state it
+  had when the jam started: a group switched off (or EMPed) during a jam stays dark through the flicker, on the host and
+  the client alike (light parity). The light registry keeps the switches' state under the jam.
+- Jamming Course Lab's mains lamp no longer opens the mains gate, and its flicker no longer toggles it: the gates read
+  the group's switch / EMP / shot state, never the jam.
+- Co-op: `PROTOCOL_VERSION` 28: the client's `jam` claim carries its camera eye; the host checks the jam's line of sight
+  from it (taken within 1.5 m of the client's head with a clear line between them, else from the head), so a client
+  that shows JAMMER READY now jams.
+- The jam buzz no longer allocates an object every frame while a device is jammed.
+- Not changed (Michael 2026-10-22): cameras keep their IR on every camera ("Cameras should still work in the dark").
+
 ## Unreleased - server browser (prototype)
 - Co-op: public rooms (Michael: a server browser, "prototype only, quick and fast to build"). The host lobby has a
   Room row, Private (default: only the code brings anyone in) or Public. A public room posts a notice (code, map, mode,
