@@ -3,6 +3,25 @@
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
 
+## Update 2026-10-22 ~21:45 (save before the account swap) - START HERE
+Rules added tonight (orchestrator; CLAUDE.md on feature/menu): e2e ALWAYS on the GPU (`E2E_GPU=1`), a GPU failure
+counts; desktop lanes: heavy.lock (checks + e2e, port 4191, E2E_JOBS=2, CPU < 60%) and the GPU-only heavy2.lock (port
+4192, E2E_JOBS=1, CPU < 50%), both atomic noclobber; a PR enters a train only when every suite it touches ran to
+completion and passed on the GPU (a train's full run counts for its members); a stopped background runner on Windows
+can survive: kill its process tree (taskkill /T /F) and confirm.
+- **sector-fixes P: PR #136, head d98262dc, in train 9** (train/9 b0cb16b6). Nothing to do unless train 9 sends it
+  back. S is DONE by #115 (recorded in sector-fixes STATE). R is Course Ready's.
+- **anim-n4c: PR #139, in train 9 at 5f6a0d9d**; branch head 304450f7 = + master 4.58.1 merge only. Hand swap low
+  across the chest, elbow strike from the hips, M1 "Faster arm" (Michael). Nothing to do unless train 9 sends it back.
+- **anim-n4d: feature/anim-n4d 018e3c77** (C:/NightShift/Mobile-Coop-anim-n4d, from n4c; 74cb0634 = the code, later
+  commits docs only). Takedown blow and grab kill land on the kill (M1 principle, A1-A5), strike accept never steps
+  back. Fresh checker PASS. At the save a desktop run (`npm run check` + GPU e2e takedown, netmove, coop, anim,
+  ctcourse) was running under heavy.lock "Menu Notes Build | n4d-e2e": if that lock still exists and no process of it
+  runs (Get-CimInstance Win32_Process, CommandLine match n4d), it is stale: remove it. Logs: C:/NightShift/n4d-check.log,
+  n4d-build.log, n4d-e2e.log; if incomplete, rerun. Then merge origin/master, open the PR (list every suite + result),
+  message the orchestrator. Next state: docs/anim-natural/n4d/STATE.md.
+- After n4d: ask the orchestrator for the next N4 rows (the n4c / n4d polish lists are in their STATE files).
+
 ## Update 2026-10-22 ~19:10 (after the clear)
 - N0 leftovers committed: feature/anim-natural 81102f93 (rows 29 / 39 / 49 script problems, no game bug; logic check passed; stage-light !ms.sourceMesh fix in). GPU sheets requested from Character Build (5 rows, docs/anim-natural/audit/).
 - #122 / #127 / #129 are in train/6 (6551afe9): no master merges unless train 6 sends one back.
@@ -64,7 +83,7 @@ N4 rows (co-op role B, mantle / drop, roll, guard-hold trunk).
 
 ## Resume prompt
 ```
-Night Shift | Menu Notes Build: RESUME (new session or after a clear). Read CLAUDE.md and docs/ROADMAP.md (latest on
+Night Shift | Menu Notes Build: RESUME (new session or after a clear). START at the "~21:45" update. Read CLAUDE.md and docs/ROADMAP.md (latest on
 origin/feature/menu, including the new "Machines" rules: the laptop is the main test machine, GPU included), then
 C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch feature/anim-natural; git pull
 first) and follow it. Message "Night Shift | Orchestrator" that you resumed.
