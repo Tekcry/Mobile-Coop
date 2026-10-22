@@ -223,3 +223,12 @@ export function strikeBodyAt(ph: number, out: StrikeBodyOut): StrikeBodyOut {
   out.neck = -B.neck * out.chest;
   return out;
 }
+
+/** (strike-pops) EXPERIMENT */
+export const STRIKE_BODY_FOLLOW = { rate: 6 };
+export function strikeBodyPhase(prev: number, arc: number, dt: number): number {
+  if (arc < 0) return -1;
+  const p = prev < 0 ? 0 : prev;
+  if (arc <= p) return arc;
+  return Math.min(arc, p + STRIKE_BODY_FOLLOW.rate * dt);
+}

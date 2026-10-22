@@ -12,7 +12,7 @@ import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner, type FootState } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
-import { newStrikeBody, strikeBodyAt, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
+import { newStrikeBody, strikeBodyAt, strikeBodyPhase, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import { LOCO, MOCAP_FEET, MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
 import type { MotionState } from '../anim/motion';
@@ -1113,6 +1113,7 @@ export class CharacterRig {
   private readonly liftCrouch = new CqLiftCrouch();
   /** (anim-natural N4c) The elbow strike's hips and trunk this frame (strikeBody.ts; rest on every non-Wren rig). */
   private readonly sb = newStrikeBody();
+  private sbPh = -1;
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
@@ -2420,7 +2421,8 @@ export class CharacterRig {
     // (anim-natural N4c, AUDIT row 49) a Wren rig's elbow strike: the hips and trunk drive it (strikeBody.ts); the weight
     // shifts back over the rear foot on the wind-up and onto the lead foot driving, on the feet only (attached, a takedown
     // blow from a hang or a pipe, the turn alone); the turn goes on after the keyed trunk
-    const sb = strikeBodyAt(this.graph.wrenReady ? this.input.melee : -1, this.sb);
+    this.sbPh = strikeBodyPhase(this.sbPh, this.graph.wrenReady ? this.input.melee : -1, dt);
+    const sb = strikeBodyAt(this.sbPh, this.sb);
     if (!free) pex += sb.side;
     const peZ = pez + this.restShift + (free ? 0 : sb.fwd);
     const yc = Math.cos(yaw);
