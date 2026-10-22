@@ -299,9 +299,10 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 - Remote yaw: the host's copy of a wall body eases toward the face normal plus the side-on offset at the owner's
   `wallTurnRate` (the side from WALL_SUB: `wallSideFromSub`), and steps toward the edge with the peek bit as the owner.
 - Aiming at a wall (G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3): one ray from the shoulder along the aim (`player/wallBlock.ts`
-  `muzzleBlock`; the local player each fixed step, the remote copy each frame while raised); from 0.65 m to 0.45 m the rifle
-  comes up muzzle-high and 0.15 m back (`WALL_BLOCK`, `AnimInput.wallBlock`), no cheek weld. Pose only: firing is not
-  blocked yet.
+  `muzzleBlock`; the local player each fixed step, the remote copy each frame while raised); (anim-n3b, replaces the G6
+  muzzle-up swing) blocked from an amount of 0.35 (about 0.58 m), clear under 0.1, the weapon comes off the eye and tips
+  about 66 deg below the aim line about the butt, pulled in (`WALL_BLOCK`, `AnimInput.wallBlock`), one eased 0.4 s move
+  each way. Pose only: firing is not blocked yet.
 - Light parity (bible 5.1): the light meter samples the chest and the head at its real place (`LightField.bodyLevel`): the
   local body's peek offset; a remote's from its MoveState (`wallPeekOffset`, conservative). On the wall the meter's head
   sample and perception's exposure points are the posed rig's head and chest (`CharacterRig.posedHead` / `posedChest`), the

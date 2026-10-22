@@ -100,7 +100,7 @@ if (!(await up())) {
 // ---------------------------------------------------------------- page recorder + driver
 const NODES = ['hips', 'spine', 'torso', 'neck', 'headNode', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'weaponPivot'];
 /** The record layout (one Float32 row per rendered frame), local and remote alike; remote rows add REMOTE_EXTRA. */
-const LOWER = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'wall', 'traverse'];
+const LOWER = ['locomotion', 'crouch', 'kneel', 'air', 'wall', 'traverse'];
 const names = ['t', 'tp'];
 for (const n of NODES) for (const k of ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']) names.push(`${n}.${k}`);
 names.push('cam.x', 'cam.y', 'cam.z', 'cap.x', 'cap.y', 'cap.z', 'fix.x', 'fix.y', 'fix.z', 'speed', 'gear', 'crouchBlend', 'crouched', 'yaw', 'grounded');

@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { CAMERA } from '../src/config/security';
-import { CameraUnit, inFrame, newMeter, sweepYaw } from '../src/security/camera';
-import { CUE, camSeesAny, cueDir, cueEdge, cueInk, cueMesh, cueReach, cueSpan, cueStrength, luma709, newCue, stepCue } from '../src/security/cameraCue';
+import { CameraUnit, camPitch, camRange, inFrame, newMeter, sweepYaw } from '../src/security/camera';
+import { CUE, CUE_MASK_GLSL, camSeesAny, cueDir, cueEdge, cueInk, cueMesh, cueReach, cueSpan, cueStrength, luma709, newCue, stepCue } from '../src/security/cameraCue';
 import { cameraSight } from '../src/security/securitySystem';
 import { seenAt } from '../src/ai/perception';
 import { ELECTRO } from '../src/vfx/visionLook';
 import { Vector3 } from '../src/core/babylon';
-import type { CameraDevice } from '../src/security/data';
+import { validateSecurity, type CameraDevice } from '../src/security/data';
+import { WAREHOUSE_OPS_SECURITY } from '../src/world/maps/warehouseSectors';
 
 const DEG = Math.PI / 180;
 const fixed: CameraDevice = { id: 'f', kind: 'camera', level: 'ground', at: [0, 0], y: 3, facing: 30, reason: 't' };
 const pan: CameraDevice = { id: 'p', kind: 'camera', level: 'ground', at: [0, 0], y: 3, facing: 0, sweep: [90, -30], reason: 't' };
+/** (sector-fixes C) A camera pitched down to the floor 5 m out, seeing 10 m. */
+const aimed: CameraDevice = { id: 'a', kind: 'camera', level: 'ground', at: [0, 0], y: 3, facing: 0, sweep: [-30, 30], aim: 5, range: 10, reason: 't' };
 
 /** Ray onto a flat floor `h` m below the lens (the reach when the ray points up or level). */
 function floorDist(d: [number, number, number], h: number): number {
@@ -49,6 +52,65 @@ describe('camera cue: the sample grid', () => {
       }
       expect(inside).toBeGreaterThan(100);
     }
+  });
+
+  it('(sector-fixes C) a pitched camera: the grid spans its pitched field, and every sample the cue keeps is a point its detection counts in frame (and no other)', () => {
+    const pt = camPitch(aimed);
+    const rg = camRange(aimed);
+    const s = cueSpan(aimed);
+    expect(s.el0).toBeCloseTo(-pt - CAMERA.vFov / 2, 9);
+    expect(s.el0 + (s.rows - 1) * s.step).toBeGreaterThanOrEqual(-pt + CAMERA.vFov / 2 - 1e-9);
+    const d: [number, number, number] = [0, 0, 0];
+    for (const t of [0, 2.5, 5]) {
+      const yaw = sweepYaw(aimed, t);
+      let inside = 0;
+      for (let r = 0; r < s.rows; r++) {
+        for (let c = 0; c < s.cols; c++) {
+          cueDir(s, c, r, d);
+          for (const k of [4, 9.5, 11]) {
+            const p = [d[0] * k, 3 + d[1] * k, d[2] * k] as const;
+            const e = cueEdge(yaw, 0, 3, 0, p[0], p[1], p[2], pt, rg);
+            expect(e >= 0).toBe(inFrame(yaw, 0, 3, 0, p[0], p[1], p[2], pt, rg));
+            if (e >= 0) inside++;
+            // beyond its range nothing is drawn
+            if (k > rg) expect(e).toBe(-1);
+          }
+        }
+      }
+      expect(inside).toBeGreaterThan(100);
+    }
+    // the camera unit reads the same numbers for detection
+    const u = new CameraUnit(aimed, 0);
+    expect(u.pitch).toBe(pt);
+    expect(u.range).toBe(rg);
+    // the shader mirror takes the pitch the same way
+    expect(CUE_MASK_GLSL).toContain('atan(d.y, h) + pitch');
+  });
+
+  it('(sector-fixes C) the footprint on a flat floor lies inside the range, and the walls past it get nothing', () => {
+    const s = cueSpan(aimed);
+    const n = s.cols * s.rows;
+    const reach = cueReach(camRange(aimed));
+    const dist = new Float32Array(n);
+    const d: [number, number, number] = [0, 0, 0];
+    for (let i = 0; i < n; i++) {
+      cueDir(s, i % s.cols, (i / s.cols) | 0, d);
+      dist[i] = d[1] < -1e-6 ? Math.min(reach, 3 / -d[1]) : reach;
+    }
+    const pos = new Float32Array(n * 3);
+    const idx = new Uint32Array((s.cols - 1) * (s.rows - 1) * 6);
+    expect(cueMesh(s, dist, 0, 3, 0, pos, idx, reach)).toBeGreaterThan(50);
+    // every live vertex is on the floor and no further than the drawn reach (the shader cuts at the range itself)
+    for (let k = 0; k < idx.length; k += 3) {
+      if (idx[k] === 0 && idx[k + 1] === 0) continue;
+      for (let j = 0; j < 3; j++) {
+        const v = idx[k + j]!;
+        expect(Math.abs(pos[v * 3 + 1]!)).toBeLessThan(0.05);
+        expect(Math.hypot(pos[v * 3]!, pos[v * 3 + 1]! - 3, pos[v * 3 + 2]!)).toBeLessThanOrEqual(reach);
+      }
+    }
+    // a wall 14 m out (past the 10 m range) at any height is outside the frame
+    for (const y of [0.2, 1.7, 3, 5]) expect(cueEdge(0, 0, 3, 0, 0, y, 14, camPitch(aimed), camRange(aimed))).toBe(-1);
   });
 
   it('cueEdge is -1 outside the range and rises to 1 at the frame edge', () => {
@@ -109,6 +171,52 @@ describe('camera cue: the footprint mesh', () => {
   });
 });
 
+describe('(sector-fixes C) the camera aim', () => {
+  it('pitches down to its floor point: the frame centre lands on the floor at aim, the ceiling is out of frame', () => {
+    const pt = camPitch(aimed);
+    expect(pt).toBeCloseTo(Math.atan2(3, 5), 9);
+    expect(camPitch(fixed)).toBe(0);
+    expect(camRange(fixed)).toBe(CAMERA.range);
+    expect(camRange({ range: 99 })).toBe(CAMERA.range);
+    const u = new CameraUnit(aimed, 0);
+    // the floor point straight ahead at aim, and a head there, are in frame; a point 1 m over the lens 5 m out is not
+    expect(u.covers(0, 0.01, 5)).toBe(true);
+    expect(u.covers(0, 1.7, 5)).toBe(true);
+    expect(u.covers(0, 4, 5)).toBe(false);
+    // a level camera sees that ceiling point (the old look that item 3 fixed)
+    expect(new CameraUnit(fixed, 0).covers(Math.sin(30 * DEG) * 5, 4, Math.cos(30 * DEG) * 5)).toBe(true);
+    // a head past its range is not seen
+    expect(u.covers(0, 1.7, 10.5)).toBe(false);
+  });
+
+  it('every Sector Ops camera watches a floor patch: aimed, ranged, its frame centre on the floor at aim, 1 m over its lens out of frame', () => {
+    expect(validateSecurity(WAREHOUSE_OPS_SECURITY)).toEqual([]);
+    const levels = WAREHOUSE_OPS_SECURITY.levels ?? {};
+    for (const d of WAREHOUSE_OPS_SECURITY.devices) {
+      expect(d.aim, d.id).toBeGreaterThan(0);
+      expect(d.range, d.id).toBeLessThan(CAMERA.range);
+      const fy = levels[d.level] ?? 0;
+      const u = new CameraUnit(d, fy);
+      // at its sweep centre (the frame there faces the facing the data names)
+      u.clock = d.sweep ? CAMERA.sweepPause + Math.abs(d.sweep[1] - d.sweep[0]) * DEG / CAMERA.sweepSpeed / 2 : 0;
+      u.yaw = sweepYaw(d, u.clock);
+      const f = d.facing * DEG;
+      expect(u.covers(u.x + Math.sin(f) * d.aim!, fy + 0.01, u.z + Math.cos(f) * d.aim!), d.id).toBe(true);
+      expect(u.covers(u.x + Math.sin(f) * 6, u.y + 1, u.z + Math.cos(f) * 6), d.id).toBe(false);
+      expect(u.covers(u.x + Math.sin(f) * (d.range! + 0.5), fy + 1.7, u.z + Math.cos(f) * (d.range! + 0.5)), d.id).toBe(false);
+    }
+  });
+
+  it('the map data rule: aim and range within their limits', () => {
+    const bad = (x: Partial<CameraDevice>): string[] => validateSecurity({ devices: [{ ...aimed, ...x }] });
+    expect(bad({})).toEqual([]);
+    expect(bad({ range: CAMERA.range + 1 }).length).toBe(1);
+    expect(bad({ range: CAMERA.rangeMin - 1, aim: 2 }).length).toBe(1);
+    expect(bad({ aim: 11 }).length).toBe(1);
+    expect(bad({ aim: 1 }).length).toBe(1);
+  });
+});
+
 describe('camera cue: state follows the camera', () => {
   it('fades in online, out when jammed / off / looped / shot', () => {
     const c = newCue();
@@ -139,6 +247,17 @@ describe('camera cue: state follows the camera', () => {
     expect(luma709(n.rgb) * (n.line + n.fill)).toBeLessThan(ELECTRO.glowFrom);
   });
 
+  it('(sector-fixes C, item 4) normal vision is very subtle: low strength, a hairline under 1 px; electro keeps its stronger look', () => {
+    const n = cueInk(false);
+    const e = cueInk(true);
+    expect(luma709(n.rgb) * n.line).toBeLessThan(0.02);
+    expect(n.line).toBeLessThan(0.16 / 2);
+    expect(n.fill).toBeLessThan(0.01);
+    expect(n.width).toBeLessThan(1);
+    expect(e.width).toBe(1);
+    expect(e.line).toBe(CUE.electroLine);
+  });
+
   it('is the grid only: no edge pulse while the camera sees a player (marlow-bays item 6), the seen state still kept', () => {
     const c = newCue();
     for (let i = 0; i < 120; i++) stepCue(c, 1 / 60, 'online', false);
@@ -147,7 +266,7 @@ describe('camera cue: state follows the camera', () => {
     for (let i = 0; i < 60; i++) stepCue(c, 1 / 60, 'online', true);
     expect(c.seen).toBe(true);
     expect(cueStrength(c)).toBe(1);
-    expect(Object.keys(cueInk(false)).sort()).toEqual(['fill', 'line', 'rgb']);
+    expect(Object.keys(cueInk(false)).sort()).toEqual(['fill', 'line', 'rgb', 'width']);
     stepCue(c, 1 / 60, 'off', true);
     expect(c.seen).toBe(false);
   });

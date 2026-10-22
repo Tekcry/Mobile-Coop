@@ -1,27 +1,75 @@
 # Changelog
 
-## Unreleased - anim-natural-n2
+## 4.57.0 - Train 6: body recoil and wall block, every tuner slider bakes, Sector Ops cameras, lasers and lights, steady heap tests, merge-train script (2026-10-22, PR #133; #123, #128, #129, #127, #122, #131)
 
-### Arms (step 3)
-- Wren's walking arms swing wider (wrist range about 23 -> 30 cm), and turns and strafe starts no longer whip the
-  hands (the jog 180 turn 14 -> 7 m/s): a per-gait arm gain and a wrist / elbow speed cap in the chest frame (run cap
-  18 m/s keeps Michael's run keys as tuned). Drawn (low ready) arms are unchanged.
+### Process: changelog fragments and a merge-train script
+- Changelog fragments: each PR adds one `changes/<branch>.md` (`# title`, optional `kind: minor|patch`, the entries)
+  instead of a "## Unreleased - <job>" block in `CHANGELOG.md`, so merges stop conflicting there.
+  `scripts/changelog-assemble.mjs <version> <title> <date> <PR> [members...]` writes them as one released section at
+  the version step, folds any legacy "Unreleased" blocks on top (dropping ones already released) and deletes the
+  fragments. Format: `changes/README.md`.
+- `scripts/merge-train.mjs`: `build <n> <branch>...` makes `train/<n>` from origin/master and the branches (CHANGELOG /
+  fragment conflicts resolved keeping both sides; a branch with any other conflict is left out and listed);
+  `release <n> <version> "<title>"` and `single <branch> <version> "<title>"` merge master in, open the train PR,
+  assemble the changelog, set the version, push and wait for CI on that exact commit, and only on a pass merge, tag and
+  move `dev` (exit 2 on red CI with the failing log tail, 3 on a source conflict). `--dry-run` moves nothing.
+- Tests: `tests/changelogAssemble.test.ts`, `tests/mergeTrain.test.ts` (tool only, no game change).
 
-### Body motion layer (step 2)
-- Wren's walk, jog, run, sneak, crouch walk, crouch run and the aimed glides now move the whole body (Michael: "All
-  movements must move naturally with twisting/swaying/balancing"): the hips and shoulders turn against each other with
-  each step, the hips sway over the standing foot, and the head lets a little of the chest's turn through and nods with
-  the steps. Aiming, the hips swing under a steady chest and the head stays on the aim.
-- Added on top of the keyed clips and Michael's key edits (never rescaling them), timed onto the gait phase: no pops at
-  speed or stance changes, the same at every frame rate. Measured headless (pelvis / shoulders deg peak to peak): walk
-  3 / 3 -> 8 / 8, jog 5 / 7 -> 12 / 16, sneak 2 / 2.4 -> 5 / 5.4, crouch walk 4 / 4.8 -> 8 / 8.8; walk hip sway 1.7 ->
-  4.4 cm; aimed side-step counter-rotation -0.47 -> -0.99. The run keeps its keyed hip pop (waiting on Michael, A1).
-- Every Wren rig (the player, the co-op partner, the studio puppets walking a loop); guards are unchanged bit for bit.
-  The amounts are per tuner body row (`BODY_MOTION` in `src/anim/bodyMotion.ts`); the stills come in a later step.
-- The animation audit's walk sway limit for Wren is 5 cm (Michael approved ~5 cm; guards keep 3 cm).
-- With the gun out (low ready walk / jog) the chest stays on the gun: the hips still swing under it, but the layer no
-  longer turns the shoulders, which carried the gun arms out (low ready jog elbows 6.0 -> 5.7 cm outside the shoulder,
-  limit 6; master's own reading). The low-ready head then follows only the keyed carry (1.1 deg peak to peak).
+### anim-n3b
+- Deleted the dash-in slide and the doorway check sweep animations (Michael 2026-10-22: "Delete them"; never set in
+  play, CT has neither): the `slide` lower state and clip, `AnimInput` / `RigPose` / `PlayerPose` `slide` and `check`, the
+  tuner's `slide` action row. Old tuner saves and exports that still carry `joint.slide` / `ik.slide` /
+  `hand.<gun>.slide` / `weapon.<gun>.slide` load with those rows dropped (`isRemovedTuneGroup`).
+- Firing: Wren's body kicks per shot (`src/anim/recoil.ts`): rifle about 3 cm back at the hands, 1.1 deg muzzle rise, 1.5
+  deg chest give; pistol 1.8 cm lift, 3.6 deg flip; settled within 0.3 s. Local and co-op partner alike (from the kick, no
+  wire change). New Gun slider `recoilMul` (aim states) with a bake rule. Guards unchanged.
+- Wall block: no more muzzle-up swing (69 deg) and stall; the rifle comes off the eye and tips about 66 deg under the aim
+  line about the butt, pulled in, in one eased 0.4 s move with hysteresis (no half-way hold).
+
+### sector-fixes
+#### Slice C: cameras and lasers (Michael 2026-10-22, items 3-5)
+- Security cameras pitch down to a floor patch (`aim` in the map data, `camPitch`) and see only their own `range`
+  (`camRange`, at most 18 m). Detection (`CameraUnit.covers`) and the red grid cue read the same pitch and range, so the
+  grid is drawn only where the camera can detect. Sector Ops: cam-yard aim 5 / range 10, cam-floor 7 / 14, the others
+  6 / 12. Marlow Yard cam-s3: aim 6.5 (pitch 20 deg), range 18. The housing points down its pitch.
+- The camera grid is very subtle in normal vision (line 0.16 -> 0.055, fill 0.025 -> 0.006, 0.6 px hairlines); electro
+  keeps the stronger white lattice.
+- Lasers are infrared: drawn (glowing) only in night vision, invisible in normal, thermal and electro. Render only: the
+  sensor works the same in every mode.
+- A laser break raises the alarm stage (the camera alarm path: one stage per `ALARM_GAP`, the course stat / Sector Ops
+  alarm, banner, radio line) and never deals damage (`LASER.damage`, `floorHp` and `laserDamage` removed). Station 4
+  panel text updated. No wire change (protocol unchanged).
+
+#### Slice L: Sector Ops lights (Michael 2026-10-22: "light fittings in same rooms are different heights and locations. Theres random lights on the roof. Theres a light in the middle of a climbing pipe." / "All lights should look like LED designs.")
+- Every Sector Ops lamp is laid out by room (`world/maps/lampRooms.ts`): one LED model, one height and a regular grid or
+  row per room; flush LED panels in the rooms, LED strips on short wires under the hall roofs (on the solid roof strips,
+  never under a sheet), slim LED bulkheads on 0.3 m wall brackets. No lamp on the roof (the roof reads by the moon), none
+  within 0.8 m of a climbing pipe, ladder or duct (the drainpipe's lamp moved 1 m east). Dead fittings keep the grids
+  regular over the dark pockets. The three fitting models are rebuilt as flat LED housings with opal diffusers.
+- Light parity: every fitting is a registry light (the bake, the meter and the guards read it); radius and intensity per
+  fitting are tuned so the light tests' route, objective and pocket bands still hold (sections 1 to 3).
+- The light grid lists a cone light only in the columns its beam can reach (`lampPlanReach`, lossless), so a 2 m column
+  stays within its 8 lights with the hall strips' and wall packs' beams.
+- Section 2's two roof rafters are dressing (out of the light shapes): they no longer cut the hall strips' light off the
+  rack tops.
+
+### heap-asserts (track A)
+- Tests: every "allocates nothing" check now measures bytes per call deterministically (a garbage collection before each
+  round, the new-space size, rounds with a collection discarded; shared helper `tests/helpers/allocPerCall.ts`), so
+  they no longer pass or fail on when a collection happens to land.
+- Menus: the menu camera director no longer allocates every frame (`menuShots.ts` `held()`: a closure per frame in the
+  title, loadout and lobby menus; same shots chosen).
+
+### anim-bake-all
+- Animation tuner: every slider bakes, also those with no code value of their own: the aimed gun's height and angles,
+  the camera FOV (a change on top of the player's FOV setting), aim zoom and aim-in blend, the aimed glide forward
+  speed, the rest of Stepping (lift on the moving gaits, idle lock, duration, slide, the three stride points, toe-off,
+  heel, replant), the Weight damping and every Weight amount, and every co-op and traversal move slider. They go into
+  the base table's new generic `sections` key, which the game composes with the tuner's values wherever the slider
+  acts today (the local player; Stepping: every foot planner). The step length bakes per moving state (13 apart; the
+  old shared step-length rule is gone). A slider whose states share one code value but were tuned apart now bakes per
+  state instead of staying in the tuner. Gameplay: a baked Speed value (the glide forward) changes the player's speed.
+- Untuned nothing changes (the table has no `sections` key yet).
 
 ## 4.56.0 - Train 5: believable weapon draws, idle stance clears the shins, co-op channel closed guard (2026-10-22, PR #130; #118, #120, #125, #126)
 

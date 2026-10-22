@@ -3,8 +3,8 @@
  *
  * Lower body: a 2D blend space (speed x direction) over keyed locomotion cycles, standing and
  * crouched, all sampled at the gait clock so blends never fight the feet; a timed kneel pose; start
- * weight shift, stop settle and pivot clips driven by the motion driver's state; back-to-wall, traversal,
- * slide and air poses. Switches between these are inertialized (the jump decays through a critically
+ * weight shift, stop settle and pivot clips driven by the motion driver's state; back-to-wall, traversal
+ * and air poses. Switches between these are inertialized (the jump decays through a critically
  * damped curve per joint group), never cut or linearly faded.
  * Upper body: weapon ready positions blended to the raised aim pose; reload (tactical / empty), swap and
  * grenade clips; head-first peek and lean sequencing; recoil absorbed through the spine; spine/head
@@ -36,7 +36,7 @@ import {
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
+import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
 import { CLIP_BASE, clipSpeed } from './tuneClipSpeed'; // (clip-speed, track A)
 import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
@@ -59,12 +59,14 @@ import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
 import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { WALL_KEYS, WallKeyed } from './wallKeyed';
 import { DRAW_BEAT, DRAW_CUR, drawEnter, drawRelease } from './drawMotion';
+import { BodyRecoil, RECOIL_SIGHT_ARM } from './recoil';
 
 
 export const FADE = 0.2;
 /** (locomotion step 21) Crouch -> kneel cross-fade (s), inside the Inertializer's 0.1-0.25 s (bible 5.12.2). */
 export const KNEEL_FADE = 0.22;
-export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'wall', 'traverse'] as const;
+// (anim-n3b) no 'slide' state: the dash-in slide was deleted (Michael 2026-10-22: CT has no such move)
+export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'wall', 'traverse'] as const;
 export type LowerState = (typeof LOWER_STATES)[number];
 /** Committed moves (vault .. hop) and the attached pose family (hang, climb, crawl: keyed over the climb
  *  cadence, `traverseT`). */
@@ -128,8 +130,6 @@ export interface AnimInput {
   thighGear: boolean;
   /** Dash blend 0..1. */
   dash: number;
-  /** Dash-in slide progress 0..1, or < 0. */
-  slide: number;
   /** Landing recovery 0..1. */
   landing: number;
   /** Back to a wall (the flat-back high stance; back-to-wall, step 11 / A6). */
@@ -150,8 +150,6 @@ export interface AnimInput {
   melee: number;
   /** (3.2.0) Whole-body tumble about the hips (rad) set by the caller (pipe legs up / inverted). */
   tumble: number;
-  /** Doorway check sweep 0..1, or < 0. */
-  check: number;
   /** Gait clock from the motion driver (0..1), or < 0 to integrate from speed. */
   phase: number;
   /** Motion driver state and time in it ('' when there is no driver: enemies, remotes). */
@@ -238,7 +236,6 @@ export function defaultInput(): AnimInput {
     ready: false,
     thighGear: false,
     dash: 0,
-    slide: -1,
     landing: 0,
     wall: false,
     wallSide: 0,
@@ -249,7 +246,6 @@ export function defaultInput(): AnimInput {
     traverseT: 0,
     melee: -1,
     tumble: 0,
-    check: -1,
     phase: -1,
     motion: '',
     motionT: 0,
@@ -390,7 +386,6 @@ export function emptyTargets(): RigTargets {
 /** Choose the lower-body state (priority order). */
 export function pickLower(i: AnimInput): LowerState {
   if (i.traverse !== 'none') return 'traverse';
-  if (i.slide >= 0) return 'slide';
   if (!i.grounded) return 'air';
   if (i.wall) return 'wall';
   if (i.crouch > 0.5) return i.kneel ? 'kneel' : 'crouch';
@@ -438,6 +433,8 @@ export const SIGHT_HEAD = { roll: 0.15, peekFull: 0.2 };
  * shows no visible flip: the front sight and head move < 1 % of the frame (< 0.5 deg) on the shot frames (111953 3.87,
  * 6.27-6.33, 30 fps). flip 0.12 -> 0.02 (about 7 deg was 7x CT), back 0.05 -> 0.015 m, spine 0.05 -> 0.01, pelvis 0.015
  * -> 0.003. Starting values.
+ * (anim-n3b, PASS2 row 25) The guards' (every non-Wren rig's) recoil only: a Wren rig takes the per-shot body kick of
+ * `recoil.ts` (WREN_RECOIL_RIFLE / WREN_RECOIL_PISTOL).
  */
 export const RECOIL = { flip: 0.02, back: 0.015, spine: 0.01, pelvis: 0.003 };
 
@@ -599,10 +596,17 @@ export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.
 export const WALL_SIDE_POSE = { spine: 0.14, turnFrom: 0.35, turnTo: 0.85, handAt: 0.15, handIn: 0.3, leanFwd: 1.2, narrow: 0.35 };
 /** (G6, AUDIT-WALLS row 9) The peek's hip shift onto the outer foot (m per rad of lean; was 0.17). */
 export const PEEK_HIP = 0.7;
-/** (G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3) Aiming at a wall 0.4-0.5 m away CT brings the rifle up near vertical,
- *  muzzle up and pulled in: from `far` m to `near` m from the shoulder the weapon pitches up `pitch` rad and comes
- *  `pull` m back, eased over about `time` s. The caller's ray: `wallBlockK`. Starting values. */
-export const WALL_BLOCK = { far: 0.65, near: 0.45, pitch: 1.2, pull: 0.15, time: 0.12 };
+/** (G6, AUDIT-WALLS row 12) A wall right in front of the raised weapon: `far` m to `near` m from the shoulder along the aim
+ *  is the block amount 0..1 (the caller's ray: `wallBlockK`).
+ *  (anim-n3b, PASS2 row 24; replaces G6's muzzle-up swing: 1.2 rad up and 0.15 m back, a linear 0.12 s ease, which flipped
+ *  the rifle to 69 deg muzzle-up and held it there) Blocked, the weapon is shortened the way a trained shooter does at a
+ *  wall: off the eye (no weld), the muzzle tipped `tip` rad below the aim line (at most `maxDown` rad below level, at least
+ *  `minTip` under the aim line: aiming down it never points into the feet) about the butt in the shoulder (`butt` m
+ *  behind the grip; a pistol about the wrists, `buttPistol`), pulled `pull` m back (`pullPistol` for a pistol, in to
+ *  the chest), canted `cant` rad: about 0.3 m of reach in front of the body, so the rifle fits at the wall (the capsule stops the body 0.3 m off it). One eased
+ *  move of `time` s each way. Hysteresis: blocked from an amount of `on`, clear again under `off`, so standing part-way
+ *  into the band never holds the gun half-way. Starting values. */
+export const WALL_BLOCK = { far: 0.65, near: 0.45, on: 0.35, off: 0.1, time: 0.4, tip: 1.15, maxDown: 1.13, minTip: 0.35, butt: 0.33, buttPistol: 0.08, pull: 0.06, pullPistol: 0.15, cant: 0.1 };
 /** (G6) The block amount 0..1 for the distance (m) to the first wall hit along the aim from the shoulder. */
 export function wallBlockK(dist: number): number {
   return clamp((WALL_BLOCK.far - dist) / (WALL_BLOCK.far - WALL_BLOCK.near), 0, 1);
@@ -638,7 +642,7 @@ export interface ClipSlot {
 const SLOTS = 10;
 
 export class AnimGraph {
-  readonly weights: Record<LowerState, number> = { locomotion: 1, crouch: 0, kneel: 0, air: 0, slide: 0, wall: 0, traverse: 0 };
+  readonly weights: Record<LowerState, number> = { locomotion: 1, crouch: 0, kneel: 0, air: 0, wall: 0, traverse: 0 };
   /**
    * (anim-joints J2, row plumbing) The action weights 0..1 the tuner's action rows read (`tuneMoveRows.ts`), written at
    * the end of each `update` from the graph's own blends: read only, nothing in the graph reads them back.
@@ -695,8 +699,12 @@ export class AnimGraph {
   /** (G6) The side-on crouched wall stance's share (eased) and the knee hand's weight. */
   private sideS = 0;
   private kneeW = 0;
-  /** (G6) The eased weapon block at a wall (row 12). */
+  /** (G6) The weapon block at a wall (row 12): (anim-n3b) its move 0..1 (linear in time; the pose eases it) and its
+   *  hysteresis state. */
   private blockS = 0;
+  private blockOn = false;
+  /** (anim-n3b) A Wren rig's per-shot body recoil (`recoil.ts`). */
+  private readonly bodyRecoil = new BodyRecoil();
 
   /** How far the body / weapon is leaned out (signed, follows the lean target). */
   get leanOut(): number {
@@ -912,7 +920,7 @@ export class AnimGraph {
     // --- lower state (inertialized on change)
     const target = pickLower(i);
     if (target !== this.state) trigger = true;
-    this.fade(target, dt, target === 'slide' || target === 'traverse' ? 0.12 : target === 'kneel' ? KNEEL_FADE : FADE);
+    this.fade(target, dt, target === 'traverse' ? 0.12 : target === 'kneel' ? KNEEL_FADE : FADE);
 
     // --- clocks and smoothed parameters
     const still = i.speed < 0.05;
@@ -1064,7 +1072,7 @@ export class AnimGraph {
       src[CH.width] = src[CH.width]! - WALL_SIDE_POSE.narrow * sideK * wallW;
     }
 
-    // --- traversal, slide, air, landing
+    // --- traversal, air, landing
     if (i.traverse !== 'none') {
       // (ct-prototype D+E fix r1) a team climb-up (no ledge grips) keeps the old one-rise clip
       const tc = i.traverse === 'climbUp' && !i.ledgeClimb ? CLIMB_UP_TEAM : TRAVERSE_CLIP[i.traverse];
@@ -1073,10 +1081,6 @@ export class AnimGraph {
       this.slot(i.traverse, 1, i.traverseT);
       // (3.2.0) a sidearm aimed one-handed from a split / hanging inverted: the weapon hand takes the grip
       if ((i.traverse === 'split' || i.traverse === 'pipeInv' || i.traverse === 'rappel') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
-    }
-    if (i.slide >= 0) {
-      overClip(src, SLIDE, clamp(i.slide, 0, 1), 1);
-      this.slot('slide', 1, i.slide);
     }
     if (!i.grounded) {
       src[CH.fLY] = src[CH.fLY]! + 0.14;
@@ -1182,7 +1186,7 @@ export class AnimGraph {
     if (action !== this.prevAction) trigger = true;
     this.prevAction = action;
 
-    // --- upper body: aim, lean (head first), checks
+    // --- upper body: aim, lean (head first)
     const aimPitch = clamp(i.aimPitch, -1.2, 1.2);
     const raise = this.raiseS;
     // (locomotion step 21, D2) breathing only after BREATH.still s still (idle, crouch idle, kneel); none moving or aiming
@@ -1225,12 +1229,10 @@ export class AnimGraph {
     src[CH.pelX] = src[CH.pelX]! + bd * PEEK_HIP * k * latK;
     src[CH.spPitch] = src[CH.spPitch]! + Math.abs(bd) * 0.52 * WALL_SIDE_POSE.leanFwd * sideK;
     src[CH.pelZ] = src[CH.pelZ]! + Math.abs(bd) * PEEK_HIP * k * sideK;
-    const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
     src[CH.hdPitch] = src[CH.hdPitch]! - aimPitch * 0.45;
-    src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 * handS + check + hd * 0.12;
+    src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 * handS + hd * 0.12;
     src[CH.hdRoll] = src[CH.hdRoll]! + hd * 0.22;
     if (Math.abs(i.lean) > 0.01 || Math.abs(hd) > 0.01) this.slot('lean', Math.abs(hd), bd);
-    if (i.check >= 0) this.slot('check', 1, i.check);
 
     // --- weapon layer: ready positions blended by weight, raised by `raise`; edge prep tucks it in
     const swapBump = i.handSwap >= 0 ? Math.sin(Math.PI * clamp(i.handSwap, 0, 1)) : 0;
@@ -1252,7 +1254,29 @@ export class AnimGraph {
     const rh = READY_POSES.high;
     const rc = READY_POSES.compressed;
     // (locomotion step 21, D2) no free-running weapon sway: the only idle weapon motion is what the chest breathing carries
-    const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
+    // (anim-n3b, PASS2 row 25) a Wren rig: the per-shot body kick (recoil.ts); every other rig: the G2 envelope spring
+    let rcBack: number, rcUp: number, rcFlip: number, rcSpine: number, rcYaw: number, rcPel: number;
+    // (the sight-to-eye hold would take the kick's lift straight back out: the sight is let rise with it, `RECOIL_SIGHT_ARM`)
+    let rcSight = 0;
+    if (this.wrenReady) {
+      const br = this.bodyRecoil;
+      br.step(i.kick, pistolW, TUNE_CUR.recoilMul, dt);
+      rcBack = br.back;
+      rcUp = br.up;
+      rcFlip = br.flip;
+      rcSpine = br.spine;
+      rcYaw = br.yaw * handS;
+      rcPel = br.pelvis;
+      rcSight = rcUp + rcFlip * RECOIL_SIGHT_ARM;
+    } else {
+      const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
+      rcBack = (rec * RECOIL.back) / Math.sqrt(mass);
+      rcUp = 0;
+      rcFlip = (rec * RECOIL.flip) / mass;
+      rcSpine = (rec * RECOIL.spine) / mass;
+      rcYaw = 0;
+      rcPel = (rec * RECOIL.pelvis) / mass;
+    }
     // raised: up to the eye
     const sight = raiseW;
     // (playtest 2) the sight raise position is carried down with the hand swap: at the mid-point the weapon is on the
@@ -1275,8 +1299,8 @@ export class AnimGraph {
     chh *= nw;
     cc *= nw;
     src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + sightPos * SIGHT_RAISE.x;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sightPos * SIGHT_RAISE.y;
-    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * RECOIL.back) / Math.sqrt(mass) + sightPos * SIGHT_RAISE.z;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + rcUp + sightPos * SIGHT_RAISE.y;
+    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - rcBack + sightPos * SIGHT_RAISE.z;
     const pistolK = pistolW * sightPos;
     if (pistolK > 0) {
       src[CH.wpX] = src[CH.wpX]! + pistolK * PISTOL_REACH.x;
@@ -1290,10 +1314,15 @@ export class AnimGraph {
     // e2e-stealth-ai wall peek), eased in with the head's lean
     const peekHeadK = smoothstep(Math.abs(hd) / SIGHT_HEAD.peekFull);
     src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS * (1 - pistolW * (1 - peekHeadK));
-    // (G6, row 12) blocked by a wall in front: no weld (the rifle is up off the eye)
-    this.blockS += clamp(i.wallBlock * raise - this.blockS, -dt / WALL_BLOCK.time, dt / WALL_BLOCK.time);
-    this.out.weld = sightPos * (1 - this.blockS);
-    this.out.sightDrop = -PISTOL_REACH.y * pistolW;
+    // (G6, row 12) blocked by a wall in front (WALL_BLOCK): no weld. (anim-n3b, PASS2 row 24) hysteresis, then one move
+    // eased in time; the gun keeps pointing along the aim (out.aimW), so the tip puts the muzzle below the aim line
+    const blockWant = i.wallBlock * raise;
+    if (blockWant >= WALL_BLOCK.on) this.blockOn = true;
+    else if (blockWant <= WALL_BLOCK.off) this.blockOn = false;
+    this.blockS = clamp(this.blockS + (this.blockOn ? dt : -dt) / WALL_BLOCK.time, 0, 1);
+    const blockK = smoothstep(this.blockS);
+    this.out.weld = sightPos * (1 - blockK);
+    this.out.sightDrop = -PISTOL_REACH.y * pistolW - rcSight;
     // (G2 fix) and the neck dips onto the raised pistol at the peek (the head out past the edge with the gun, as before G2)
     this.out.stockWeld = 1 - pistolW * (1 - peekHeadK);
     this.out.aimW = raiseW;
@@ -1301,14 +1330,18 @@ export class AnimGraph {
     this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
     const crPitch = cr.pitch * (1 - 0.6 * Math.min(1, Math.abs(bd)));
-    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * RECOIL.flip) / mass;
-    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + cr.yaw * cw * awayYaw) + check * 0.6 * ready;
+    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - rcFlip;
+    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + cr.yaw * cw * awayYaw);
     src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
-    if (this.blockS > 0) {
-      // (G6, row 12) the muzzle up (pitch + is muzzle down) and the weapon pulled back toward the chest
-      src[CH.wpPitch] = src[CH.wpPitch]! - WALL_BLOCK.pitch * this.blockS;
-      src[CH.wpZ] = src[CH.wpZ]! - WALL_BLOCK.pull * this.blockS;
-      src[CH.wpY] = src[CH.wpY]! - 0.05 * this.blockS;
+    if (blockK > 0) {
+      // (anim-n3b) the muzzle tipped down about the butt (the grip goes down and back on that arc), pulled in, canted
+      const tip = clamp(WALL_BLOCK.maxDown + i.aimPitch, WALL_BLOCK.minTip, WALL_BLOCK.tip) * blockK;
+      const butt = WALL_BLOCK.butt + (WALL_BLOCK.buttPistol - WALL_BLOCK.butt) * pistolW;
+      const pull = WALL_BLOCK.pull + (WALL_BLOCK.pullPistol - WALL_BLOCK.pull) * pistolW;
+      src[CH.wpPitch] = src[CH.wpPitch]! + tip;
+      src[CH.wpY] = src[CH.wpY]! - butt * Math.sin(tip);
+      src[CH.wpZ] = src[CH.wpZ]! - butt * (1 - Math.cos(tip)) - pull * blockK;
+      src[CH.wpRoll] = src[CH.wpRoll]! + WALL_BLOCK.cant * blockK;
     }
     // bent over in a crouch the lowered muzzle comes up with the chest and the gun sits further out, clear of
     // the thighs (the lowered weapon is oriented with the body, not the spine)
@@ -1317,9 +1350,10 @@ export class AnimGraph {
     src[CH.wpPitch] = src[CH.wpPitch]! - bendK * 1.1;
     src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.08;
     src[CH.wpY] = src[CH.wpY]! + bendK * 0.06;
-    // recoil absorbed through the shoulder and spine
-    src[CH.spPitch] = src[CH.spPitch]! - (rec * RECOIL.spine) / mass;
-    src[CH.pelPitch] = src[CH.pelPitch]! - (rec * RECOIL.pelvis) / mass;
+    // recoil absorbed through the shoulder and spine ((anim-n3b) a Wren rig: the shooting shoulder pushed back too)
+    src[CH.spPitch] = src[CH.spPitch]! - rcSpine;
+    src[CH.spYaw] = src[CH.spYaw]! + rcYaw;
+    src[CH.pelPitch] = src[CH.pelPitch]! - rcPel;
     // grip and off hand defaults (at a wall: off hand to the wall when settled and lowered)
     src[CH.grip] = i.armed ? 1 : 0;
     // (P1b, ct-measure-walls-doors-combat-vision.md s.1) back to the wall the arms HANG at the sides, hands mid-thigh and
@@ -1568,13 +1602,13 @@ export class AnimGraph {
     }
     // (G1) free-hand poses over the ready hands, in root space after the follow (pose units at 1.75 m)
     if (fw > 0.0001) this.freeHands(pose, fw, k, ph);
-    // (CT prototype G8) the keyed walk: standing, moving at walk pace, on foot (no wall, traversal, air, slide), not
+    // (CT prototype G8) the keyed walk: standing, moving at walk pace, on foot (no wall, traversal, air), not
     // raised to aim or dashing; its arms only with free hands (holstered, no reload / swap / throw, no melee)
     {
       const es = effortSpeed(locoSpeed, false);
       const B = KEYED_WALK_BAND;
       const band = 1 - smoothstep((es - B.from) / (B.to - B.from));
-      const onFoot = i.keyedOk && i.grounded && i.traverse === 'none' && i.slide < 0 && !i.wall ? 1 : 0;
+      const onFoot = i.keyedOk && i.grounded && i.traverse === 'none' && !i.wall ? 1 : 0;
       // (not turning on the spot: the turn's own stepping, last frame's turning share; a walking turn keeps it: its low
       // pelvis let go mid-turn lifted the head 8 cm, g1Locomotion)
       const spin = o.gait.turning * (1 - smoothstep((i.speed - 0.3) / 0.4));
@@ -1591,7 +1625,7 @@ export class AnimGraph {
       // (anim-rework S3) drawn (a carrier with the gun out, standing on foot): the drawn set at every pace and still
       // (ready stance; the low ready on the walk / jog / run legs; aiming the glide by direction), in place of the old
       // walk band; (anim-rework S4) crouched the crouched set's legs under the procedural gun upper body
-      const dOn = i.keyedDrawn && i.grounded && i.traverse === 'none' && i.slide < 0 && !i.wall ? 1 - fw : 0;
+      const dOn = i.keyedDrawn && i.grounded && i.traverse === 'none' && !i.wall ? 1 - fw : 0;
       const gateD = dOn * (1 - wallW) * (1 - this.dashS) * crouchOn;
       const locoD = this.moveW * (1 - spin);
       const stillD = 1 - this.moveW;
@@ -1599,7 +1633,7 @@ export class AnimGraph {
       const kDr = gateD * (locoD + stillD);
       // (anim-rework S5) back to a wall: the wall keyed set (wallKeyed.ts), holstered (free hands) on foot and not
       // aiming; a drawn weapon keeps the procedural wall pose (WALL_READY, the edge lean-outs)
-      const kWl = i.wall && i.grounded && i.traverse === 'none' && i.slide < 0 ? wallW * fw * (1 - this.raiseS) : 0;
+      const kWl = i.wall && i.grounded && i.traverse === 'none' ? wallW * fw * (1 - this.raiseS) : 0;
       const kT = kH + kDr + kWl;
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
@@ -1646,11 +1680,11 @@ export class AnimGraph {
 
   /**
    * (anim-natural-n2 step 2) The body motion layer into `o.motion` (`bodyMotion.ts`), on this frame's gait phase: a Wren
-   * rig (`wrenReady`) on foot (no wall, traversal, air, slide, close-quarters hold / bend, melee, dash, tense sneak or
+   * rig (`wrenReady`) on foot (no wall, traversal, air, close-quarters hold / bend, melee, dash, tense sneak or
    * kneel), the gate eased over KEYED_WALK_BAND.tau. Graph-internal inputs only (co-op parity). No allocation.
    */
   private bodyMotion(i: AnimInput, o: RigTargets, dt: number): void {
-    const onFoot = this.wrenReady && (i.keyedOk || i.keyedDrawn) && i.grounded && i.traverse === 'none' && i.slide < 0 && !i.wall && i.melee < 0 ? 1 : 0;
+    const onFoot = this.wrenReady && (i.keyedOk || i.keyedDrawn) && i.grounded && i.traverse === 'none' && !i.wall && i.melee < 0 ? 1 : 0;
     const target = onFoot * (1 - this.wallW) * (1 - this.dashS) * (1 - this.tenseW) * (1 - smoothstep(this.kneelW));
     this.motionGate = approach(this.motionGate, target, KEYED_WALK_BAND.tau, dt);
     if (this.motionGate < 1e-4) this.motionGate = 0;
@@ -2159,14 +2193,13 @@ export class AnimGraph {
   }
 
   /**
-   * (anim-joints J2) The tuner's action row weights from this frame's blends (read only): air and slide the lower-state
-   * fades, land the landing clip's envelope (in over 0.1 s, out over its last part), melee the elbow arc's hand weight,
+   * (anim-joints J2) The tuner's action row weights from this frame's blends (read only): air the lower-state
+   * fade, land the landing clip's envelope (in over 0.1 s, out over its last part), melee the elbow arc's hand weight,
    * reload / swap the overlay weights, throw the grenade hands weight, hit the flinch spring (1 at a full hit's peak).
    */
   private writeRowW(i: AnimInput, hx: number): void {
     const r = this.rowW;
     r.air = this.weights.air;
-    r.slide = this.weights.slide;
     if (this.landT >= 0) {
       const dur = this.landK > 0 ? LAND_DEEP.duration : LAND.duration;
       r.land = smoothstep(this.landT / 0.1) * (1 - smoothstep((this.landT - 0.3) / Math.max(0.05, dur - 0.3)));

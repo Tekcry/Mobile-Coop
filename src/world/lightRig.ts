@@ -13,7 +13,7 @@ interface FittingDraw {
   ids: Int32Array;
   colors: Float32Array;
 }
-const MODELS: readonly FittingModel[] = ['dome', 'batten', 'bulkhead'];
+const MODELS: readonly FittingModel[] = ['panel', 'strip', 'bulkhead'];
 
 /** Most real lights the rig can hold (`QualityLevel.realLights`, Settings > Graphics). */
 export const MAX_REAL_LIGHTS = 48;
@@ -178,7 +178,7 @@ export class LightRig {
     this.buildFittings(scene, mat);
   }
 
-  /** (warehouse-lamps) The three fitting models, merged per type and thin-instanced, and every mount's links (rods, hangers, arms, struts, masts) as one box mesh. Load time only. */
+  /** (warehouse-lamps; the LED family since sector-fixes L) The three fitting models, merged per type and thin-instanced, and every mount's links (strip wires, bulkhead stand-offs) as one box mesh. Load time only. */
   private buildFittings(scene: Scene, faceMat: StandardMaterial): void {
     const ls = this.reg.lights;
     const segs: number[] = [];
@@ -236,16 +236,16 @@ export class LightRig {
     this.links = links;
   }
 
-  /** The fittings' one body material: dark painted steel, lit like the level (the lamp bake attaches to every PBR material). */
+  /** The fittings' one body material: pale powder-coated aluminium (LED housings), lit like the level (the lamp bake attaches to every PBR material). */
   private bodyMaterial(scene: Scene): PBRMaterial {
     if (this.bodyMat) return this.bodyMat;
     const bm = new PBRMaterial('lampBodyMat', scene);
-    bm.albedoColor = Color3.FromHexString('#4a4e52').toLinearSpace();
-    bm.metallic = 0;
-    bm.roughness = 0.6;
+    bm.albedoColor = Color3.FromHexString('#b4b8bc').toLinearSpace();
+    bm.metallic = 0.2;
+    bm.roughness = 0.45;
     bm.usePhysicalLightFalloff = false;
     bm.directIntensity = Math.PI;
-    // a dome's shade is seen from inside, from below
+    // thin frames and wires are seen edge-on and from below: both sides lit
     bm.backFaceCulling = false;
     bm.twoSidedLighting = true;
     bm.freeze();
