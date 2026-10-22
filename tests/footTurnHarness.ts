@@ -15,6 +15,7 @@
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { emptyPlannerInput, FootPlanner, type FootState } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver } from '../src/anim/motion';
+import { HEEL_BACK, HEEL_DOWN, TOE_BALL } from '../src/anim/footGeom';
 import { PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
 import { CT, GEARS } from '../src/config/movement';
 import { hyp2 } from '../src/core/mathx';
@@ -63,9 +64,15 @@ export interface FootTurnRow {
   plantYawDeg: number;
   /** Planted ankle (planner spot) drift in one plant (cm). */
   ankleSlideCm: number;
-  /** Rendered: audit slide (min of heel / toe travel in one plant, cm), and the same with the pitch taken out. */
+  /** Rendered: contact-point slide (min of heel / ball travel in one plant, cm; decision 1), and the same with the pitch taken out. */
   renderSlideCm: number;
   flatSlideCm: number;
+  /**
+   * (anim-natural N1, decision 1) Contact slide (cm): per plant the travel of the foot's contact on the floor, read as
+   * the ball's spot (the ball; toe up, the heel's spot on along the foot), as metrics.ts contactSlide and e2e-anim's turn
+   * block: a plant that rolls off the heel and then turns on its ball reads the contact it actually had.
+   */
+  contactCm: number;
   /** Totals over the window: twist-cap turn of planted feet (deg), band scrub (cm), drag (cm). */
   capDeg: number;
   bandCm: number;
@@ -106,12 +113,21 @@ interface PlantTrack {
   pz: number;
   pyaw: number;
   prevTwist: number;
+  /** Contact slide: the rig's heel and ball last frame, and the plant's sum. */
+  chx: number;
+  chz: number;
+  cbx: number;
+  cbz: number;
+  cAcc: number;
 }
 
-const track = (): PlantTrack => ({ on: false, ax: 0, az: 0, hx: 0, hz: 0, tx: 0, tz: 0, fhx: 0, fhz: 0, ftx: 0, ftz: 0, turnT: 0, yaw0: 0, swingN: 0, px: 0, pz: 0, pyaw: 0, prevTwist: 0 });
+const track = (): PlantTrack => ({ on: false, ax: 0, az: 0, hx: 0, hz: 0, tx: 0, tz: 0, fhx: 0, fhz: 0, ftx: 0, ftz: 0, turnT: 0, yaw0: 0, swingN: 0, px: 0, pz: 0, pyaw: 0, prevTwist: 0, chx: 0, chz: 0, cbx: 0, cbz: 0, cAcc: 0 });
 
 /** Run one scenario at 60 Hz; returns the metrics row. */
-export function runFootTurn(sc: Scenario): FootTurnRow {
+/** Optional per-frame probe (debugging): sim time, the planner and its input after the update. */
+export type FootTurnProbe = (t: number, p: FootPlanner, pi: ReturnType<typeof emptyPlannerInput>) => void;
+
+export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRule?: number } = {}): FootTurnRow {
   const hz = 60;
   const dt = 1 / hz;
   const d = new MotionDriver(0);
@@ -122,7 +138,6 @@ export function runFootTurn(sc: Scenario): FootTurnRow {
   const pi = emptyPlannerInput();
   const mi = emptyMotionInput();
   const ankleH = pr.y.ankle;
-  const toeZ = pr.foot.len * 0.43;
   const heelZ = -pr.foot.len * 0.25;
   let x = 0;
   let z = 0;
@@ -143,6 +158,7 @@ export function runFootTurn(sc: Scenario): FootTurnRow {
     ankleSlideCm: 0,
     renderSlideCm: 0,
     flatSlideCm: 0,
+    contactCm: 0,
     capDeg: 0,
     bandCm: 0,
     dragCm: 0,
@@ -163,9 +179,12 @@ export function runFootTurn(sc: Scenario): FootTurnRow {
   const yaws: number[] = [];
   let yaw0 = 0;
   // heel / toe world points of a foot (pitch optional)
-  const pt = (f: FootState, lz: number, withPitch: boolean, pitchAdd: number): [number, number] => {
+  // (anim-natural N1, decision 1) the contact point: the heel (the audit's point) and the ball the rig keeps on the floor
+  // (footGeom TOE_BALL ahead at HEEL_DOWN under the ankle; the audit's toe point, 0.43 of the foot at the ankle height, sat
+  // 4-5 mm off it, which a ball pivot reads as slide)
+  const pt = (f: FootState, lz: number, withPitch: boolean, pitchAdd: number, depth = ankleH): [number, number] => {
     const pitch = withPitch ? f.pitch + pitchAdd : 0;
-    const ly = -ankleH;
+    const ly = -depth;
     // Babylon RotationYawPitchRoll(yaw, pitch, 0): pitch about x (+ toe down), then yaw about y
     const zz = ly * Math.sin(pitch) + lz * Math.cos(pitch);
     return [f.x + zz * Math.sin(f.yaw), f.z + zz * Math.cos(f.yaw)];
@@ -246,6 +265,7 @@ export function runFootTurn(sc: Scenario): FootTurnRow {
     pi.quickStop = CT.stopBlend;
     pi.hold = false;
     pi.turnStep = 0.9;
+    pi.turnRule = opts.turnRule ?? 1;
     pi.yawRate = yr;
     pi.faceGoal = d.faceGoal;
     pi.stride = stride;
@@ -254,6 +274,7 @@ export function runFootTurn(sc: Scenario): FootTurnRow {
     pi.crouch = sc.crouch ? 1 : 0;
     pi.ground = null;
     p.update(pi);
+    if (probe) probe(t, p, pi);
     const L = p.L;
     const R = p.R;
     follow = pelvisFollow(follow, yaw, L.yaw, R.yaw, stride === 'facing' && L.contact, stride === 'facing' && R.contact, dt, PELVIS_FOLLOW_MAX + (PELVIS_FOLLOW_KEYED - PELVIS_FOLLOW_MAX) * tg.keyHol);
@@ -282,9 +303,11 @@ export function runFootTurn(sc: Scenario): FootTurnRow {
       const st2 = k === 0 ? tg.stance.lPitch : tg.stance.rPitch;
       if (f.contact) {
         const [hx, hz] = pt(f, heelZ, true, st2);
-        const [tx, tz] = pt(f, toeZ, true, st2);
+        const [tx, tz] = pt(f, TOE_BALL, true, st2, HEEL_DOWN);
         const [fhx, fhz] = pt(f, heelZ, false, 0);
-        const [ftx, ftz] = pt(f, toeZ, false, 0);
+        const [ftx, ftz] = pt(f, TOE_BALL, false, 0, HEEL_DOWN);
+        // the rig's contact points (footGeom): the heel HEEL_BACK behind, the ball TOE_BALL ahead, HEEL_DOWN under the ankle
+        const [chx, chz] = pt(f, -HEEL_BACK, true, st2, HEEL_DOWN);
         if (!s.on) {
           s.on = true;
           s.ax = f.x;
@@ -299,6 +322,19 @@ export function runFootTurn(sc: Scenario): FootTurnRow {
           s.ftz = ftz;
           s.turnT = 0;
           s.yaw0 = yaw;
+          s.cAcc = -1;
+        }
+        {
+          // as metrics.ts contactSlide: the ball's spot (toe up: the heel's spot HEEL_BACK + TOE_BALL on along the foot)
+          const toeUp = f.pitch + st2 < -1e-3;
+          const cx = toeUp ? chx + (HEEL_BACK + TOE_BALL) * Math.sin(f.yaw) : tx;
+          const cz = toeUp ? chz + (HEEL_BACK + TOE_BALL) * Math.cos(f.yaw) : tz;
+          if (s.cAcc < 0) {
+            s.cbx = cx;
+            s.cbz = cz;
+            s.cAcc = 0;
+          }
+          row.contactCm = Math.max(row.contactCm, hyp2(cx - s.cbx, cz - s.cbz) * 100);
         }
         if (Math.abs(yr) > 1) s.turnT += dt;
         row.plantTurnS = Math.max(row.plantTurnS, s.turnT);
@@ -395,6 +431,9 @@ export const FOOT_TURN_SCENARIOS: Scenario[] = [
   // turns on the spot: from a standstill the stick pulled behind at a sneak (e2e-anim 'turn round (standstill)'), and
   // aiming still, the aim swung 90 / 180 deg (the body follows at the aim rate; the feet step round)
   { name: 'stand turn 180', seconds: 2.0, t0: 0.6, stick: (t) => (t < 0.6 ? null : { dir: Math.PI - 1e-3, speed: paceOf(0.3) }) },
+  // (anim-natural N1) the same to the left (the gait clock lifts the right foot first either way)
+  { name: 'stand turn L', seconds: 2.0, t0: 0.6, stick: (t) => (t < 0.6 ? null : { dir: -Math.PI + 1e-3, speed: paceOf(0.3) }) },
+  { name: 'jog 90 L', seconds: PRE + 1.2, t0: PRE, stick: turn(S[3], -90) },
   { name: 'aim spot 90', seconds: 2.0, t0: 0.5, stick: () => null, aim: (t) => (t < 0.5 ? 0 : Math.PI / 2) },
   { name: 'aim spot 180', seconds: 2.4, t0: 0.5, stick: () => null, aim: (t) => (t < 0.5 ? 0 : Math.PI - 1e-3) },
   // starts, stops, a strafe (no turn: the planted-foot baseline)
@@ -417,6 +456,7 @@ const COLS: [keyof FootTurnRow, string, number][] = [
   ['ankleSlideCm', 'ankle cm', 1],
   ['renderSlideCm', 'render cm', 1],
   ['flatSlideCm', 'flat cm', 1],
+  ['contactCm', 'contact', 1],
   ['capDeg', 'cap deg', 0],
   ['bandCm', 'band cm', 1],
   ['dragCm', 'drag cm', 1],

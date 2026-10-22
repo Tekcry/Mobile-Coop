@@ -12,9 +12,13 @@ import { launch, assert as hard } from './e2e-lib.mjs';
 // (anim-metrics) the pure audit metrics and limits for node (as anim-audit: bundled with esbuild at start; node + its JS
 // entry, not .bin, which is a .cmd shim on Windows)
 const LIB = resolve('test-results/e2e-anim/lib');
-execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
+execFileSync(process.execPath, ['node_modules/esbuild/bin/esbuild', 'src/anim/audit/metrics.ts', 'src/anim/audit/limits.ts', 'src/anim/footGeom.ts', '--bundle', '--format=esm', `--outdir=${LIB}`, '--log-level=warning'], { windowsHide: true, stdio: 'inherit' });
 const M = await import(pathToFileURL(`${LIB}/metrics.js`).href);
 const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
+// (anim-natural N1) the foot's contact geometry (heel / ball under the ankle) the planner and the rig share
+const FG = await import(pathToFileURL(`${LIB}/footGeom.js`).href);
+const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
+const LEVER = FG.HEEL_BACK + FG.TOE_BALL;
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -76,6 +80,19 @@ await G(() => {
       const n = side < 0 ? p.rig.ankleL : p.rig.ankleR;
       n.computeWorldMatrix(true);
       return n.getAbsolutePosition();
+    },
+    /**
+     * (anim-natural N1) The rendered foot's heel and ball (world [hx, hy, hz, bx, by, bz]): footGeom's points under the
+     * ankle (HEEL_DOWN down, HEEL_BACK behind, TOE_BALL ahead) along the ankle's own axes (unit: the rig's sizes are metres).
+     */
+    contactPts(side, F) {
+      const n = side < 0 ? p.rig.ankleL : p.rig.ankleR;
+      n.computeWorldMatrix(true);
+      const m = n.getWorldMatrix().m;
+      const ly = Math.hypot(m[4], m[5], m[6]) || 1;
+      const lz = Math.hypot(m[8], m[9], m[10]) || 1;
+      const pt = (y, z) => [m[12] + (m[4] / ly) * y + (m[8] / lz) * z, m[13] + (m[5] / ly) * y + (m[9] / lz) * z, m[14] + (m[6] / ly) * y + (m[10] / lz) * z];
+      return [...pt(-F.down, -F.back), ...pt(-F.down, F.ball)];
     },
   };
 });
@@ -322,7 +339,7 @@ try {
     ['aim back', { y: -1, ads: true }],
   ];
   for (const [name, inp, mode] of gaits) {
-    const r = await G(([inp, mode]) => {
+    const r = await G(([inp, mode, F, lever]) => {
       const t = window.__t;
       const p = window.__app.current.player;
       t.tp(12, -14, -Math.PI / 2);
@@ -332,25 +349,144 @@ try {
       const lock = { L: null, R: null };
       let maxSlide = 0;
       let plants = 0;
+      let held = 0;
       t.run(1.6, keep, () => {
         for (const side of [-1, 1]) {
           const k = side < 0 ? 'L' : 'R';
           const f = p.rig.planner[k];
           const an = t.ankle(side);
+          // (anim-natural N1, decisions 1 / 2) a plant the planner anchors (free movement: the heel-first roll about the
+          // heel, the heel raise about the ball, footPlanner HOLD_CONTACT) reads its contact point, the ball's spot
+          // (metrics.ts contactSlide); was the ankle's travel for every plant (the ankle now rolls round the held
+          // contact by design). The aimed rows are not anchored and read the ankle as before. Limit unchanged (1 cm).
+          const c = t.contactPts(side, F);
+          const toeUp = c[4] - c[1] > 0.005;
+          const dl = Math.hypot(c[3] - c[0], c[5] - c[2]) || 1;
+          const sx = toeUp ? c[0] + ((c[3] - c[0]) / dl) * lever : c[3];
+          const sz = toeUp ? c[2] + ((c[5] - c[2]) / dl) * lever : c[5];
           if (f.contact) {
             if (!lock[k]) {
-              lock[k] = { x: an.x, z: an.z };
+              lock[k] = { x: an.x, z: an.z, sx, sz, held: !!f.anchored };
               plants++;
+              if (f.anchored) held++;
             }
-            maxSlide = Math.max(maxSlide, Math.hypot(an.x - lock[k].x, an.z - lock[k].z));
+            const q = lock[k];
+            maxSlide = Math.max(maxSlide, q.held ? Math.hypot(sx - q.sx, sz - q.sz) : Math.hypot(an.x - q.x, an.z - q.z));
           } else lock[k] = null;
         }
         return 0;
       });
       p.controller['crouchToggled'] = false;
-      return { maxSlide, plants, speed: p.controller.speed };
-    }, [inp, mode ?? null]);
-    assert(r.plants >= 3 && r.maxSlide < 0.01, `${name} (${f2(r.speed)} m/s): planted feet locked (${(r.maxSlide * 100).toFixed(2)} cm, ${r.plants} plants)`);
+      return { maxSlide, plants, held, speed: p.controller.speed };
+    }, [inp, mode ?? null, FOOT, LEVER]);
+    assert(r.plants >= 3 && r.maxSlide < 0.01, `${name} (${f2(r.speed)} m/s): planted feet locked (${(r.maxSlide * 100).toFixed(2)} cm, ${r.plants} plants, ${r.held} read at the contact)`);
+  }
+
+  // ---------------------------------------------------------------- turn feet (anim-natural N1)
+  // The foot planner's turn rules (footPlanner TURN_STEP / TURN_PIVOT / LAND_TURN / HOLD_CONTACT; harness
+  // tests/footTurnHarness.ts): holstered on Proving, jog (gear 4) and run (gear 5) 90 / 180 deg direction changes, a jog
+  // stick sweep, a crouched 90, the turn round from a standstill and an aimed turn on the spot. Asserted: the contact point
+  // (the ball's spot, metrics.ts contactSlide) moves < 1.5 cm in any plant (target 1), a planted foot lifts within 30 deg
+  // of the body (no wind-up) and the feet never cross (>= 2 cm side by side). Report-only (REPORT-A targets the harness
+  // does not reach): the longest plant while the body turns > 1 rad/s (<= 0.12 s at jog / run) and the first swing
+  // frames' foot speed against the straight jog's (<= 2x).
+  console.log('turn feet (anim-natural N1)');
+  {
+    const cmT = (v) => (v * 100).toFixed(1);
+    const turnRec = (plan) =>
+      G(([plan, F, lever]) => {
+        const t = window.__t;
+        const g = window.__app.current;
+        const p = g.player;
+        const c = p.controller;
+        const rig = p.rig;
+        p.stance.holster();
+        t.run(0.4, {});
+        t.tp(12, -14, -Math.PI / 2);
+        c.gears.set(plan.gear ?? 4);
+        c['crouchToggled'] = !!plan.crouch;
+        rig.planner.L.init = rig.planner.R.init = false;
+        const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+        t.run(plan.pre ?? 1.0, plan.from ?? { y: 1 });
+        if (plan.aimTurn) p.cam.yaw += plan.aimTurn;
+        const res = { slide: 0, lift: 0, plantTurn: 0, snap: 0, gap: Infinity, plants: 0, lifts: 0, speed: c.speed };
+        const st = [0, 1].map(() => ({ on: false, sx: 0, sz: 0, turnT: 0, tw: 0, n: 0, px: 0, pz: 0 }));
+        const inp = { ...plan.to };
+        let tt = 0;
+        t.run(plan.sec ?? 1.2, inp, () => {
+          tt += 1 / 60;
+          if (plan.sweep) {
+            // the stick swept round at `sweep` rad/s from straight ahead (camera space: x right, y forward)
+            inp.x = Math.sin(tt * plan.sweep);
+            inp.y = Math.cos(tt * plan.sweep);
+          }
+          const pin = rig['pin'];
+          const yaw = pin.yaw;
+          const yr = Math.abs(pin.yawRate);
+          for (let k = 0; k < 2; k++) {
+            const f = k === 0 ? rig.planner.L : rig.planner.R;
+            const s = st[k];
+            const q = t.contactPts(k === 0 ? -1 : 1, F);
+            const toeUp = q[4] - q[1] > 0.005;
+            const dl = Math.hypot(q[3] - q[0], q[5] - q[2]) || 1;
+            const sx = toeUp ? q[0] + ((q[3] - q[0]) / dl) * lever : q[3];
+            const sz = toeUp ? q[2] + ((q[5] - q[2]) / dl) * lever : q[5];
+            if (f.contact) {
+              if (!s.on) {
+                s.on = true;
+                s.sx = sx;
+                s.sz = sz;
+                s.turnT = 0;
+                res.plants++;
+              }
+              res.slide = Math.max(res.slide, Math.hypot(sx - s.sx, sz - s.sz));
+              if (yr > 1) s.turnT += 1 / 60;
+              res.plantTurn = Math.max(res.plantTurn, s.turnT);
+              s.tw = Math.abs(wrap(f.yaw - yaw));
+              s.n = 0;
+            } else {
+              if (s.on) {
+                res.lift = Math.max(res.lift, s.tw);
+                res.lifts++;
+              }
+              s.on = false;
+              s.n++;
+              if (s.n <= 3) res.snap = Math.max(res.snap, Math.hypot(f.x - s.px, f.z - s.pz) * 60);
+            }
+            s.px = f.x;
+            s.pz = f.z;
+          }
+          // the feet side by side (within 25 cm front to back in the body frame): their lateral gap
+          const L = rig.planner.L;
+          const R = rig.planner.R;
+          const along = (L.x - R.x) * Math.sin(yaw) + (L.z - R.z) * Math.cos(yaw);
+          if (Math.abs(along) < 0.25) res.gap = Math.min(res.gap, (R.x - L.x) * Math.cos(yaw) - (R.z - L.z) * Math.sin(yaw));
+          return 0;
+        });
+        c['crouchToggled'] = false;
+        c.gears.set(4);
+        if (!Number.isFinite(res.gap)) res.gap = null;
+        return res;
+      }, [plan, FOOT, LEVER]);
+    const straight = await turnRec({ to: { y: 1 } });
+    const plans = [
+      ['jog 90', { to: { x: 1, y: 0 } }, true],
+      ['jog 180', { to: { y: -1 } }, true],
+      ['run 90', { gear: 5, to: { x: 1, y: 0 } }, true],
+      ['run 180', { gear: 5, to: { y: -1 } }, true],
+      ['jog sweep (3 rad/s)', { to: { y: 1 }, sweep: 3, sec: 1.5 }, true],
+      ['crouch 90', { crouch: true, to: { x: 1, y: 0 } }, false],
+      ['turn round (standstill)', { from: {}, pre: 0.6, to: { y: -0.3 }, sec: 0.8 }, false],
+      ['aimed turn on the spot (90)', { from: { ads: true }, pre: 0.6, to: { ads: true }, aimTurn: Math.PI / 2, sec: 1.0 }, false],
+    ];
+    for (const [name, plan, jogRun] of plans) {
+      const r = await turnRec(plan);
+      const gap = r.gap ?? NaN;
+      console.log(`  ${name} (${f2(r.speed)} m/s): contact slide max ${cmT(r.slide)} cm in ${r.plants} plants (< 1.5, target 1), twist at lift max ${((r.lift * 180) / Math.PI).toFixed(1)} deg (<= 30), least gap ${Number.isNaN(gap) ? '-' : cmT(gap)} cm (>= 2); report-only: plant while turning ${f2(r.plantTurn)} s${jogRun ? ' (<= 0.12)' : ''}, first swing frames ${f2(r.snap)} m/s (straight ${f2(straight.snap)}, <= 2x)`);
+      assert(r.plants >= 2 && r.slide < 0.015, `${name}: the planted contact stays put (${cmT(r.slide)} cm, ${r.plants} plants)`);
+      assert(r.lift <= (30 * Math.PI) / 180 + 1e-6, `${name}: no wind-up, a planted foot lifts within 30 deg of the body (${((r.lift * 180) / Math.PI).toFixed(1)} deg)`);
+      assert(Number.isNaN(gap) || gap >= 0.02, `${name}: the feet never cross (${cmT(gap)} cm)`);
+    }
   }
 
   // ---------------------------------------------------------------- anti-crab (anim-metrics, anim-rework BRIEF 5)
@@ -362,7 +498,7 @@ try {
   /** Plays `segs` ({ sec, inp, rec }) from a standstill at speed `gear`, crouched or not; records the crab joints and the
    *  foot contacts on the `rec` segments (each 60 Hz step). */
   const crabRecord = (gear, crouch, segs, weapon) =>
-    G(([gear, crouch, segs, weapon]) => {
+    G(([gear, crouch, segs, weapon, F]) => {
       const t = window.__t;
       const g = window.__app.current;
       const p = g.player;
@@ -402,9 +538,22 @@ try {
       const out = Object.fromEntries(joints.map((j) => [j, []]));
       out.contactL = [];
       out.contactR = [];
+      // (anim-natural N1) the rendered heel / ball per foot and whether the planner holds the contact (footSlide)
+      out.heelL = [];
+      out.ballL = [];
+      out.heelR = [];
+      out.ballR = [];
+      out.heldL = [];
+      out.heldR = [];
       let speed = 0;
       for (const sg of segs) {
         t.run(sg.sec, sg.inp, sg.rec ? () => {
+          for (const side of [-1, 1]) {
+            const q = t.contactPts(side, F);
+            (side < 0 ? out.heelL : out.heelR).push(q[0], q[1], q[2]);
+            (side < 0 ? out.ballL : out.ballR).push(q[3], q[4], q[5]);
+            (side < 0 ? out.heldL : out.heldR).push((side < 0 ? rig.planner.L : rig.planner.R).anchored ? 1 : 0);
+          }
           for (const j of joints) {
             const n = rig[j];
             n.computeWorldMatrix(true);
@@ -421,7 +570,7 @@ try {
       c.gears.set(4);
       out.speed = speed / Math.max(1, out.contactL.length);
       return out;
-    }, [gear ?? null, !!crouch, segs, weapon ?? null]);
+    }, [gear ?? null, !!crouch, segs, weapon ?? null, FOOT]);
   const cm = (v) => (v * 100).toFixed(1);
   /** The crab numbers of a recording against the stance's ranges (`L.crabRanges`). */
   const crabRow = (name, rec, crouch, idle, ranges) => {
@@ -432,8 +581,11 @@ try {
     const anyPlant = rec.contactL.some(Boolean) || rec.contactR.some(Boolean);
     const track = M.footTrack(rec.hipL, rec.hipR, rec.ankleL, rec.ankleR, C.trackHalf, anyPlant ? rec.contactL : undefined, anyPlant ? rec.contactR : undefined);
     const bow = M.kneeBow(rec.hipL, rec.hipR, rec.kneeL, rec.kneeR, rec.ankleL, rec.ankleR, C.kneeBow);
-    const slL = M.plantedSlide(rec.ankleL, rec.contactL, C.slide);
-    const slR = M.plantedSlide(rec.ankleR, rec.contactR, C.slide);
+    // (anim-natural N1, decisions 1 / 2) a plant the planner holds at its contact (free movement, footPlanner HOLD_CONTACT:
+    // the ankle rolls round the held heel / ball by design) reads the contact point; the others the ankle as before (was
+    // plantedSlide on the ankle for every plant). Same limit (C.slide).
+    const slL = rec.heelL ? M.footSlide(rec.ankleL, rec.heelL, rec.ballL, rec.contactL, rec.heldL, C.slide, LEVER) : M.plantedSlide(rec.ankleL, rec.contactL, C.slide);
+    const slR = rec.heelR ? M.footSlide(rec.ankleR, rec.heelR, rec.ballR, rec.contactR, rec.heldR, C.slide, LEVER) : M.plantedSlide(rec.ankleR, rec.contactR, C.slide);
     const wing = M.elbowWing(rec.shoulderL, rec.shoulderR, rec.elbowL, rec.elbowR, C.elbowWing);
     const slide = Math.max(slL.worst, slR.worst);
     const wide = [!knee.pass && 'knees', !track.pass && 'track', !bow.pass && 'knee-out', slide >= C.slide && 'slide', !wing.pass && 'elbows'].filter(Boolean);

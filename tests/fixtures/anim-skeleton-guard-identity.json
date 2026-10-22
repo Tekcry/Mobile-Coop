@@ -5,11 +5,11 @@
  },
  "grunt:walk": {
   "steps": 90,
-  "rig": "f409abdfae5c48b4"
+  "rig": "233abb85f4de281a"
  },
  "grunt:dash": {
   "steps": 90,
-  "rig": "0d5fa2b7e2820fd7"
+  "rig": "8ccb2e77703b75c9"
  },
  "grunt:crouchAim": {
   "steps": 90,
@@ -17,7 +17,7 @@
  },
  "grunt:aimWalk": {
   "steps": 90,
-  "rig": "e40f58e0524488a7"
+  "rig": "d108125d49e9970f"
  },
  "grunt:climb": {
   "steps": 120,
@@ -37,11 +37,11 @@
  },
  "runner:walk": {
   "steps": 90,
-  "rig": "870e65310f86915b"
+  "rig": "8da38059fa9401b5"
  },
  "runner:dash": {
   "steps": 90,
-  "rig": "1cdec6154990fbf2"
+  "rig": "1dec585816b84e7f"
  },
  "runner:crouchAim": {
   "steps": 90,
@@ -49,7 +49,7 @@
  },
  "runner:aimWalk": {
   "steps": 90,
-  "rig": "65118533c8182775"
+  "rig": "a5f1fb2627a38bf0"
  },
  "runner:climb": {
   "steps": 120,
@@ -69,11 +69,11 @@
  },
  "heavy:walk": {
   "steps": 90,
-  "rig": "d7aa1b10a6d1fcef"
+  "rig": "4a238290e042128f"
  },
  "heavy:dash": {
   "steps": 90,
-  "rig": "dadc9a311b5e402c"
+  "rig": "1a173d6930c7cf67"
  },
  "heavy:crouchAim": {
   "steps": 90,
@@ -81,7 +81,7 @@
  },
  "heavy:aimWalk": {
   "steps": 90,
-  "rig": "8997568663da7683"
+  "rig": "e425a4ed41c89fce"
  },
  "heavy:climb": {
   "steps": 120,
@@ -101,11 +101,11 @@
  },
  "sniper:walk": {
   "steps": 90,
-  "rig": "9041bd8166482fb1"
+  "rig": "451d435f2095c03c"
  },
  "sniper:dash": {
   "steps": 90,
-  "rig": "d0cf87a962b2af7b"
+  "rig": "2fba932ff01ee68e"
  },
  "sniper:crouchAim": {
   "steps": 90,
@@ -113,7 +113,7 @@
  },
  "sniper:aimWalk": {
   "steps": 90,
-  "rig": "522dedda5a8d49f5"
+  "rig": "9b8eaee1adb1e9ab"
  },
  "sniper:climb": {
   "steps": 120,
@@ -133,11 +133,11 @@
  },
  "enforcer:walk": {
   "steps": 90,
-  "rig": "6714643272f55d3e"
+  "rig": "f04fa8e05e2284e0"
  },
  "enforcer:dash": {
   "steps": 90,
-  "rig": "21fc643eb3fae7f2"
+  "rig": "94e2dc7521457f4d"
  },
  "enforcer:crouchAim": {
   "steps": 90,
@@ -145,7 +145,7 @@
  },
  "enforcer:aimWalk": {
   "steps": 90,
-  "rig": "5095f29cf54af281"
+  "rig": "7c05677854744d03"
  },
  "enforcer:climb": {
   "steps": 120,
@@ -165,11 +165,11 @@
  },
  "dog:walk": {
   "steps": 90,
-  "rig": "87cfb1edaae8bdb8"
+  "rig": "81d83073bd2b80f6"
  },
  "dog:dash": {
   "steps": 90,
-  "rig": "a4c5f125bd103351"
+  "rig": "4d5ab38fd4e163be"
  },
  "dog:crouchAim": {
   "steps": 90,
@@ -177,7 +177,7 @@
  },
  "dog:aimWalk": {
   "steps": 90,
-  "rig": "a9086d9195884828"
+  "rig": "058f7a3c44e865c1"
  },
  "dog:climb": {
   "steps": 120,
@@ -197,11 +197,11 @@
  },
  "droneOp:walk": {
   "steps": 90,
-  "rig": "0bfea9443fbb41aa"
+  "rig": "c3b7205af11e24cb"
  },
  "droneOp:dash": {
   "steps": 90,
-  "rig": "bc95a4fbdeb1f9ff"
+  "rig": "f9776c4a8af2ec55"
  },
  "droneOp:crouchAim": {
   "steps": 90,
@@ -209,7 +209,7 @@
  },
  "droneOp:aimWalk": {
   "steps": 90,
-  "rig": "0e312d9dcdef422e"
+  "rig": "2d4017cbc1481f1f"
  },
  "droneOp:climb": {
   "steps": 120,
@@ -229,11 +229,11 @@
  },
  "officer:walk": {
   "steps": 90,
-  "rig": "f387f83884137796"
+  "rig": "e08bcb22843e6cde"
  },
  "officer:dash": {
   "steps": 90,
-  "rig": "ec745a04ac282dda"
+  "rig": "dd1f77aa3143c7bc"
  },
  "officer:crouchAim": {
   "steps": 90,
@@ -241,7 +241,7 @@
  },
  "officer:aimWalk": {
   "steps": 90,
-  "rig": "1e6a2cbe8665643e"
+  "rig": "27951e28d6364bea"
  },
  "officer:climb": {
   "steps": 120,

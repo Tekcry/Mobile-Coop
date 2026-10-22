@@ -270,12 +270,27 @@ rules.push(
 // ------------------------------------------------------------------------------------------
 
 rules.push(
-  rule('step', 'lift', ['step.idle'], [e(PLAN, 'PLANNER.idleLift', 'mul')], 'the idle and stop-close steps'),
-  rule('step', 'lock', STEP_MOVING, [e(PLAN, 'TURN_FOLLOW.twistFree', 'mul'), e(PLAN, 'TURN_FOLLOW.twistMax', 'mul'), e(PLAN, 'TURN_FOLLOW.scrubSpeed', 'div')], 'close: the touchdown twist cap reads twistFree too'),
+  rule('step', 'lift', ['step.idle'], [e(PLAN, 'PLANNER.idleLift', 'mul')], 'the idle and stop-close steps; close: the aimed turn on the spot (anim-natural N1) reads the idle row on its gait liftH too'),
+  // (anim-natural N1) the aimed turn on the spot reads the idle row: its pivot allowance and twist cap read twistFree / twistMax
+  rule('step', 'lock', [...STEP_MOVING, 'step.idle'], [e(PLAN, 'TURN_FOLLOW.twistFree', 'mul'), e(PLAN, 'TURN_FOLLOW.twistMax', 'mul'), e(PLAN, 'TURN_FOLLOW.scrubSpeed', 'div')], 'close: twistFree is also the ball pivot\'s allowance and the turn rules\' cap floor; without the turn rules (an opt-out) the touchdown lead reads it too'),
 );
+// (anim-natural N1) the turn rules' per gait tables: each gait's slider bakes into its own entry (the idle entry is the
+// aimed turn on the spot)
+{
+  const STEP_ROW = ['step.idle', 'step.walk', 'step.jog', 'step.run', 'step.crouchWalk', 'step.crouchRun'];
+  STEP_ROW.forEach((g, k) => {
+    rules.push(
+      rule('step', 'turnTwist', [g], [e(PLAN, `TURN_STEP.twist[${k}]`, 'mul')], 'also the twist cap\'s backstop (TURN_CAP x it)'),
+      rule('step', 'turnRate', [g], [e(PLAN, `TURN_STEP.rate[${k}]`, 'mul')]),
+      rule('step', 'pivot', [g], [e(PLAN, `TURN_PIVOT.max[${k}]`, 'mul')]),
+      rule('step', 'pivotHeel', [g], [e(PLAN, `TURN_PIVOT.heel[${k}]`, 'mul')]),
+    );
+    if (k > 0) rules.push(rule('step', 'landTurn', [g], [e(PLAN, `LAND_TURN[${k}]`, 'mul')]));
+  });
+}
 manuals.push(
   manual('step', 'lift', 'the moving gaits\' lift is the gait liftH (clip data)'),
-  manual('step', 'lock', 'no effect while still (the plant lock runs only while moving)', ['step.idle']),
+  manual('step', 'landTurn', 'no effect: the aimed turn on the spot lands along its own yaw prediction (stride velocity)', ['step.idle']),
   manual('step', 'dur', 'no single constant: the step duration comes from several planner terms'),
   manual('step', 'slide', 'inline literals (footPlanner holdOrStep reach, + 0.3)'),
   manual('step', 'stride0', 'no per-pace constant (LAND_AHEAD is one share for every pace)'),

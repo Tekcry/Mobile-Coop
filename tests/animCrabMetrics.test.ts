@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CRAB, CRAB_CROUCH, CRAB_CROUCH_CHECKS, CRAB_CROUCH_GATES, CRAB_CROUCH_IDLE, CRAB_GATES, CRAB_IDLE, CRAB_STATE_CHECKS, CRAB_STATE_GATES, CRAB_STRAFE, CROUCH_POP_GATE, KNEE_HAND, crabCrouchRanges, crabRanges } from '../src/anim/audit/limits';
-import { CRAB_JOINTS, crabFrame, elbowWing, footTrack, kneeBow, kneeSeparation, pelvisFrame, plantedSlide, type CrabNow } from '../src/anim/audit/metrics';
+import { contactSlide, CRAB_JOINTS, footSlide, crabFrame, elbowWing, footTrack, kneeBow, kneeSeparation, pelvisFrame, plantedSlide, type CrabNow } from '../src/anim/audit/metrics';
+import { ankleToBall, HEEL_BACK, HEEL_DOWN, heelLift, TOE_BALL } from '../src/anim/footGeom';
 
 /** A stream of `n` frames of the same point. */
 const hold = (n: number, x: number, y: number, z: number): number[] => Array.from({ length: n }, () => [x, y, z]).flat();
@@ -76,6 +77,50 @@ describe('anti-crab metrics (anim-rework BRIEF 5)', () => {
     expect(r.plants).toBe(2);
     expect(r.pass).toBe(false);
     expect(plantedSlide(ankle, [1, 1, 0, 0, 1, 1], CRAB.slide).pass).toBe(true);
+  });
+
+  it('(anim-natural N1) contact slide: a heel-first roll, a heel raise and a turn on the ball read 0; a scrub reads its travel', () => {
+    // the rig's foot (footGeom): heel 5 cm behind, ball 12 cm ahead of the ankle, 8 cm under it; the planner keeps the
+    // contact (the heel while toe up, the ball while heel up or turning), so the ankle itself moves
+    const lever = HEEL_BACK + TOE_BALL;
+    const heel: number[] = [];
+    const ball: number[] = [];
+    const ankle: number[] = [];
+    const contact: number[] = [];
+    const pose = (bx: number, bz: number, yaw: number, p: number): void => {
+      const a = ankleToBall(p);
+      const ax = bx - a * Math.sin(yaw);
+      const az = bz - a * Math.cos(yaw);
+      const ay = 0.08 + heelLift({ contact: true, pitch: p, swing: -1 });
+      ankle.push(ax, ay, az);
+      // local (0, -HEEL_DOWN, lz) turned by the pitch (toe down +) and the yaw
+      for (const lz of [-HEEL_BACK, TOE_BALL]) {
+        const fz = -HEEL_DOWN * Math.sin(p) + lz * Math.cos(p);
+        const fy = -HEEL_DOWN * Math.cos(p) - lz * Math.sin(p);
+        (lz < 0 ? heel : ball).push(ax + fz * Math.sin(yaw), ay + fy, az + fz * Math.cos(yaw));
+      }
+      contact.push(1);
+    };
+    // a heel-first landing rolls flat (pitch -0.3 -> 0), the heel rises (0 -> 0.6) and the foot turns 60 deg on its ball
+    for (let k = 0; k <= 6; k++) pose(0.3, 1, 0, -0.3 + 0.05 * k);
+    for (let k = 1; k <= 6; k++) pose(0.3, 1, 0, 0.1 * k);
+    for (let k = 1; k <= 6; k++) pose(0.3, 1, (k * Math.PI) / 18, 0.6);
+    const r = contactSlide(heel, ball, contact, CRAB.slide, lever);
+    expect(r.plants).toBe(1);
+    expect(r.worst).toBeLessThan(1e-9);
+    // the ankle reads the same plant as several cm of slide
+    expect(plantedSlide(ankle, contact, CRAB.slide).worst).toBeGreaterThan(0.03);
+    // a flat foot scrubbed 2 cm sideways reads 2 cm
+    const s = contactSlide([0, 0, 0, 0.02, 0, 0], [0, 0, 0.17, 0.02, 0, 0.17], [1, 1], CRAB.slide, lever);
+    expect(s.worst).toBeCloseTo(0.02, 6);
+    expect(s.pass).toBe(false);
+    // footSlide: the anchored plant reads its contact (0), an unanchored one its ankle (the 1 cm drift of the plant after)
+    const m = contact.length;
+    const drift = [0, 0, 0, 0.005, 0, 0, 0.01, 0, 0];
+    const f = footSlide([...ankle, 9, 9, 9, ...drift], [...heel, 9, 9, 9, ...drift], [...ball, 9, 9, 9, ...drift], [...contact, 0, 1, 1, 1], [...new Array<number>(m).fill(1), 0, 0, 0, 0], CRAB.slide, lever);
+    expect(f.plants).toBe(2);
+    expect(f.contactPlants).toBe(1);
+    expect(f.worst).toBeCloseTo(0.01, 9);
   });
 
   it('elbow wing: elbows close to the ribs pass, winged elbows fail', () => {

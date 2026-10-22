@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { emptyMotionInput, gaitRate, MotionDriver, stepLength, TURN_STEP } from '../src/anim/motion';
 import { kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
-import { CROUCH_BAND, TURN_FOLLOW } from '../src/anim/footPlanner';
+import { CROUCH_BAND, TURN_CAP, TURN_FOLLOW, TURN_STEP as FOOT_TURN_STEP } from '../src/anim/footPlanner';
+
+/**
+ * (anim-natural N1) With the turn rules a planted foot is not scrubbed round to TURN_FOLLOW.twistFree any more: it turns on
+ * its ball down to twistFree (TURN_PIVOT) or steps round (TURN_STEP), lands up to LAND_TURN into the turn, and the
+ * ankle-centred cap is a backstop at TURN_CAP x the turn step's allowance. The bound on a planted foot's twist from the
+ * body is that backstop (was TURN_FOLLOW.twistFree, 0.25 rad).
+ */
+const PLANTED_TWIST = TURN_CAP * Math.max(...FOOT_TURN_STEP.twist);
 import { proportions } from '../src/player/proportions';
 import { flick, run, SCENARIOS, spin, TAU, wrap } from './turnHarness';
 
@@ -100,15 +108,20 @@ describe('foot planner: legs follow the body (A1.2)', () => {
         expect(r.minGapPlanted, 'gap planted').toBeGreaterThanOrEqual(stand ? 0.03 : 0.11);
         // 2. (G1, audit row 1) free movement turns the legs with the body as CT does: a planted foot stays within
         // TURN_FOLLOW.twistFree of the body (it scrubs round with it; was a 52 deg world lock), the pelvis with the chest
-        expect(r.maxPlantedTwistBody, 'planted twist (body)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + 1e-6);
-        expect(r.maxPlantedTwist, 'planted twist (pelvis)').toBeLessThanOrEqual(TURN_FOLLOW.twistFree + (stand ? PELVIS_FOLLOW_KEYED : PELVIS_FOLLOW_MAX) + 1e-6);
+        // (anim-natural N1) the turn rules' bound (PLANTED_TWIST; was TURN_FOLLOW.twistFree) and no band scrub (scrubPos 0)
+        expect(r.maxPlantedTwistBody, 'planted twist (body)').toBeLessThanOrEqual(PLANTED_TWIST + 1e-6);
+        expect(r.maxPlantedTwist, 'planted twist (pelvis)').toBeLessThanOrEqual(PLANTED_TWIST + (stand ? PELVIS_FOLLOW_KEYED : PELVIS_FOLLOW_MAX) + 1e-6);
+        expect(r.scrubPos, 'band scrub').toBe(0);
         // (G1, audit row 2) no lateral splay: planted feet inside the stance band either side of the midline
         // (the capped scrub lets a foot out by a few cm in a held 400 deg/s spin before it steps back in)
         // (anim-rework S2) standing the planted feet stay locked through the first SPIN_SCRUB s of a turn (no scrub: they
         // step), so a tight 450 deg/s spin or flick at 2-4 m/s leaves a planted foot up to ~0.3 m out before it steps;
         // never crossed under the body (within a cm of the midline on the narrow track)
         // (anim-rework S4) crouched inside the crouched band (CROUCH_BAND: the keyed crouch's narrow track)
-        expect(r.latMax, 'planted lateral').toBeLessThanOrEqual(stand ? 0.32 : CROUCH_BAND.max + 0.05);
+        // (anim-natural N1, rule C) crouched no band scrub either: a planted foot stays put (turning on its ball) and steps
+        // back in, so a held crouched spin leaves it up to ~18 cm out first (was CROUCH_BAND.max + 0.05, held by the scrub,
+        // which slid it 5-6.5 cm a turn)
+        expect(r.latMax, 'planted lateral').toBeLessThanOrEqual(stand ? 0.32 : CROUCH_BAND.max + 0.09);
         expect(r.latMin, 'planted lateral (no crossing under the body)').toBeGreaterThanOrEqual(stand ? -0.01 : CROUCH_BAND.min - 0.04);
         // 3. knees never backwards
         expect(r.maxKnee).toBeLessThanOrEqual(0.6 + 1e-6);
@@ -170,7 +183,8 @@ describe('remote parity (A1.2): a co-op partner posed from snapshots', () => {
       expect(r.minGapNear).toBeGreaterThanOrEqual(0.04);
       expect(r.maxPlantedTwist).toBeLessThanOrEqual(1.25);
       // (G1) the remote copy's legs turn with its body too, inside the same stance band (anim-rework S2: standing as above)
-      expect(r.maxPlantedTwistBody).toBeLessThanOrEqual(TURN_FOLLOW.twistFree + 1e-6);
+      // (anim-natural N1) the turn rules' bound (was TURN_FOLLOW.twistFree)
+      expect(r.maxPlantedTwistBody).toBeLessThanOrEqual(PLANTED_TWIST + 1e-6);
       expect(r.latMax).toBeLessThanOrEqual(!sc.o.crouch ? 0.32 : TURN_FOLLOW.maxLateral + 0.05);
       expect(r.maxKnee).toBeLessThanOrEqual(0.6 + 1e-6);
       for (const l of r.landings) {

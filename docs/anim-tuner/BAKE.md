@@ -110,12 +110,22 @@ the tuner)" and is never baked twice; a different value for the slider is a new 
 - Ladder, pipe, shimmy and crawl -> the ATTACH speeds (pipe: also the pipeH legs mode, which read the base speed
   without the tuner).
 
-**Stepping.** Every planner reads these, guards included.
+**Stepping.** Every planner reads these, guards included. (anim-natural N1) The idle row is also the aimed turn on the
+spot (stride 'velocity' under 0.3 m/s): it reads the idle row for every slider.
 - Baked:
-  - idle lift -> PLANNER.idleLift.
-  - lock (the 5 moving gaits) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: the touchdown twist cap reads
-    twistFree too.
-- Manual: the idle lock (no effect while still) and the rest (clip data, inline literals).
+  - idle lift -> PLANNER.idleLift. Close: the aimed spot turn's swings read the idle lift on the gait liftH.
+  - lock (all 6 gaits, a shared target) -> TURN_FOLLOW.twistFree / twistMax / scrubSpeed. Close: twistFree is also the
+    ball pivot's allowance and the turn rules' cap floor (without the turn rules, the touchdown lead).
+  - (anim-natural N1) the turn rules, per gait into the gait's own entry of a table in `footPlanner.ts` (index = the
+    gait in tuneStep STEP_GAITS order: idle 0, walk 1, jog 2, run 3, crouchWalk 4, crouchRun 5):
+    - turnTwist -> `TURN_STEP.twist[i]` (the twist a planted foot may reach before it steps round; also the cap
+      backstop, TURN_CAP x it).
+    - turnRate -> `TURN_STEP.rate[i]` (the body turn rate that arms the turn step).
+    - pivot -> `TURN_PIVOT.max[i]` (how far a planted foot turns on its ball in one plant; 0 locked).
+    - pivotHeel -> `TURN_PIVOT.heel[i]` (the heel raise while it turns).
+    - landTurn -> `LAND_TURN[i]` (the landing's yaw lead into the turn), the 5 moving gaits.
+- Manual: idle landTurn (the aimed spot turn lands along its own yaw prediction) and the rest (clip data, inline
+  literals).
 
 **Weight.**
 - Baked:

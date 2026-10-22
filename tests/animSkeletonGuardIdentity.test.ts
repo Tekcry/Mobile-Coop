@@ -5,6 +5,9 @@
  * by `tests/helpers/animSkeletonGuardIdentity.ts` on the pre-S2 code (39b97591) with `ANIM_SKELETON_CAPTURE=1`.
  * (anim-bake-1022) Michael's 2026-10-22 gun tune is Wren's alone (WREN_READY_LOW / WREN_PISTOL_READY, "Wren's rows never
  * touch guards"): guards keep READY_POSES.low / PISTOL_READY, so this fixture is master's (39b97591 capture) unchanged.
+ * (anim-natural N1) Re-captured for the foot planner's turn rules (the turn step, the ball pivot, the held contact),
+ * which guards share (turnRule 1): 24 of 64 moved, every kind's walk, dash and aimWalk. Before the re-capture the run with
+ * the planner forced to turnRule 0 matched the old fixture bit for bit: only the turn rules moved them.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';

@@ -17,6 +17,7 @@ import { hyp2 } from '../core/mathx';
 import { KA, KD, KE, KEYED_LEG_SIDE, KEYED_LEGD_SIDE, KL, KQ, KW, type KeyedPose } from '../anim/keyed';
 import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
+import { heelLift } from '../anim/footGeom';
 import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
@@ -140,6 +141,8 @@ export interface RigPose {
    * 'velocity' (aiming, wall, cover; the default): the stride follows the velocity.
    */
   stride?: 'facing' | 'velocity';
+  /** (anim-natural N1) The foot planner's turn rules (turn step, ball pivot, held contact): 1 on (absent), 0 off (an opt-out). */
+  turnRule?: number;
   /** (A1.2) Where a free turn is heading (the stick, rad); absent: the planner caps its turn prediction at +-90 deg. */
   faceGoal?: number;
   /** Predicted rest position while stopping (the last steps land there). */
@@ -193,26 +196,8 @@ export function avatarStyle(): AvatarStyle {
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
 
-/**
- * (locomotion step 22, A79) A planted foot rolling heel to toe (toe up, `pitch` < 0) turns about its heel, not the
- * ankle: the ankle rises by the heel's lever behind it so the heel stays on the floor.
- */
-const HEEL_BACK = 0.05;
-/** (step 22) The sole's depth under the ankle: turning about the ankle drops the heel by it times (1 - cos pitch) too. */
-const HEEL_DOWN = 0.08;
-/** (G1) The ball of the foot ahead of the ankle (m): a planted foot rising onto its toes (`pitch` > 0) turns about it. */
-const TOE_BALL = 0.12;
-function heelLift(f: { contact: boolean; pitch: number; swing: number }): number {
-  // (G1 fix) also in the air: the heel-first landing's toe-up (terminal swing) lifts the ankle as it will on the floor, and
-  // the toe-off's raised heel fades over the first 0.3 of the swing (the ankle target jumped 1-5 cm at strike and toe-off)
-  if (f.pitch < 0) return f.contact || f.swing > 0.5 ? -Math.sin(f.pitch) * HEEL_BACK + (1 - Math.cos(f.pitch)) * HEEL_DOWN : 0;
-  if (f.pitch <= 0) return 0;
-  // (G1, footPlanner HEEL_RAISE) heel up, toe on the floor: the ankle rises by the ball's lever
-  const toe = Math.sin(f.pitch) * TOE_BALL - (1 - Math.cos(f.pitch)) * HEEL_DOWN;
-  if (f.contact) return toe;
-  const u = f.swing < 0 ? 1 : Math.min(1, f.swing / 0.3);
-  return toe * (1 - u * u * (3 - 2 * u));
-}
+// (anim-natural N1) the foot's contact geometry (HEEL_BACK, HEEL_DOWN, TOE_BALL) and the raised heel's ankle lift
+// (`heelLift`) moved to the pure `anim/footGeom.ts`: the foot planner's ball pivot turns about the same ball.
 
 /**
  * Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. (locomotion step 21)
@@ -1792,6 +1777,7 @@ export class CharacterRig {
     pin.glide = i.keyedDrawn && i.raise > 0.5;
     pin.pelvisYaw = yaw + this.follow;
     pin.crouch = i.crouch;
+    pin.turnRule = s.turnRule ?? 1;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
