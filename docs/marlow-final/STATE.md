@@ -67,6 +67,10 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- 07:40 back to 2 agents (orchestrator): A2 dressing + A3 greybox (Sonnet, slices/S3.md). e2e now runs in a CLEAN
+  run worktree C:/NightShift/Mobile-Coop-marlow-final-run (detached at origin/feature/marlow-final, node_modules is a
+  junction to this worktree's) via the scratchpad script mf-e2e1.sh <suites> (heavy.lock, port 4191, E2E_GPU=1), so
+  builders' in-progress edits never reach a run. e2e-ctcourse:1 (A1 + A2) queued behind train 18.
 - 07:20 client switch: NOT an engine bug (slices/S-switch.md): the host's reach rule refused a client press from 8.8 m;
   the A1 e2e now stands the client at the switch; reach unit test added. e2e-ctcourse:1 (A1 + A2) still to run on the
   desktop (both locks held now: train 18 to ~07:35, Course Ready heavy2.lock). Orchestrator trim: 1 agent (A2 dressing).
