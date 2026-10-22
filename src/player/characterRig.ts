@@ -1927,7 +1927,8 @@ export class CharacterRig {
     // (orchestrator review #159) only on this rig's mocap share or a clip-owned / clip-planted foot: guards and the drawn /
     // crouched rigs keep the planner's landings uncapped with the switch on
     const PL = this.planner;
-    if (LOCO.mocap && (t.keyMocap > 0 || PL.L.clipOwn || PL.L.clipPlant || PL.R.clipOwn || PL.R.clipPlant)) {
+    // (orchestrator review, mocap-trial-2) the clip flags count only with clip feet on the input
+    if (LOCO.mocap && (t.keyMocap > 0 || (pin.clipFeet !== null && (PL.L.clipOwn || PL.L.clipPlant || PL.R.clipOwn || PL.R.clipPlant)))) {
       const mx = MOCAP_FEET.pitchRate * dt;
       this.footPitchL = this.planner.L.pitch = rateTo(this.footPitchL, this.planner.L.pitch, mx);
       this.footPitchR = this.planner.R.pitch = rateTo(this.footPitchR, this.planner.R.pitch, mx);
@@ -2908,13 +2909,13 @@ export class CharacterRig {
     P[o + 5] = qz;
   }
 
+  /** (mocap-trial) This frame's share of the Body tune's elbow-out on the keyed arms (MOCAP_LAYERS.elbowOut; 1: as is). */
+  private elbowOutK = 1;
   /**
    * (CT prototype G8) One keyed arm over the solved one by `w`: the upper arm turned onto the keyed elbow point and the
    * forearm onto the keyed wrist point (both from the shoulder joint in the chest frame), with the rig's own bone frames
    * (+Z toward the body's front), so the free hand keeps its orientation. No allocation.
    */
-  /** (mocap-trial) This frame's share of the Body tune's elbow-out on the keyed arms (MOCAP_LAYERS.elbowOut; 1: as is). */
-  private elbowOutK = 1;
   private keyedArm(side: 1 | -1, w: number, kq: KeyedPose): void {
     if (w <= 0) return;
     const sh = side > 0 ? this.shoulderR : this.shoulderL;

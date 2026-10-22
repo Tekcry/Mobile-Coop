@@ -688,7 +688,9 @@ export class FootPlanner {
       const d = wrap(f.yaw - py);
       const m = back > 0 ? back : (i.stride === 'facing' && this.turnT < BAND_TURN_TIME ? TURN_FOLLOW.twistFree : TURN_FOLLOW.twistMax) * STEP[SP.lock]!;
       if (d > m || d < -m) {
-        if (this.turnOn) {
+        // (orchestrator review, mocap-trial-2) not a clip-planted foot (clip feet on hand): no anchor or heel lift, so it
+        // does not yaw-scrub about the ankle
+        if (this.turnOn && !(f.clipPlant && i.clipFeet)) {
           // (fix round, CHECK finding 1) the backstop turns the foot about its contact, never sweeping it: toe up on the
           // heel, else on the ball with the heel raised first (a flat foot, a roll's last frames: TURN_ON.heel at once)
           if (!f.anchored) this.anchor(f);
@@ -737,7 +739,8 @@ export class FootPlanner {
    * the turn rules, then the same in the body (root yaw) frame.
    */
   private uncross(i: PlannerInput): void {
-    if (this.L.contact && this.R.contact) return;    this.ucYaw = this.pelvis(i);
+    if (this.L.contact && this.R.contact) return;
+    this.ucYaw = this.pelvis(i);
     this.uncrossIn();
     // (anim-natural N1, n138 fix) with the turn rules the body frame too: a turn's crossing swing (a left foot swung into
     // a right turn) sits across the planted foot, and with the hips trailing the facing the pelvis-frame window let it
@@ -1071,7 +1074,8 @@ export class FootPlanner {
   private turnOver(f: FootState, i: PlannerInput, rem: number): number {
     const cap = Number.isNaN(i.faceGoal) ? Math.PI / 2 : Math.abs(wrap(i.faceGoal - i.yaw));
     const pred = wrap(f.yaw - i.yaw) - clampAbs(i.yawRate * rem, cap);
-    const left = this.kPivot - f.pivot;
+    // (orchestrator review, mocap-trial-2) a clip-planted foot (clip feet on hand) never ball-pivots: no budget left
+    const left = f.clipPlant && i.clipFeet ? 0 : this.kPivot - f.pivot;
     return (pred < 0 ? -pred : pred) - (left > 0 ? left : 0) - this.kTwist;
   }
 
