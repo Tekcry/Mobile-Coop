@@ -63,4 +63,25 @@ patrols. G190 guard pairs are the double-takedown beat. Every map's guards are a
 ## Assumed decisions (Michael asleep; each with how to undo)
 - **A1** M1-M6 are the brief; the review's shortlist (one investigator, paces, barks) is folded in where it serves them.
   Undo: drop the slice.
-(More are logged in PLAN.md and STATE.md as they are taken.)
+- **A2** A completed dead-body radio report makes the section cautious (held) but does not raise the alarm or bring
+  reinforcements; only an alarm panel or a completed "contact, send backup" command call does (M4 read literally; CT
+  counts a seen body as an alarm, research C1). Undo: `ALARM_ON_BODY_REPORT = true`.
+- **A3** "Eliminate any that are aware" counts knocked out as eliminated until he is woken; a woken aware guard brings the
+  hold back. Undo: count only dead.
+- **A4** KO caution: the waker and the woken guard search 60 s round the spot, then stay cautious 180 s, then normal
+  (M3 "a few minutes"). Undo: the `CAUTION` table.
+- **A5** Sector Ops cameras and lasers that see a player keep raising the alarm (they are the security system's alarm,
+  like a panel); camera body sightings only send guards (M6). Undo: route camera / laser alarms through a command call.
+- **A6** "Own section" (M5) = the live Sector Ops section (`SectorDef`); other maps are one section unless
+  `MapLayout.guardAi.zones` splits them. Radio reaches the whole live section, staggered by distance, max 4.5 s.
+- **A7** Choices (investigator, radio order, roles) are by path distance then guard key, never random (G143); combat
+  variation uses a seeded RNG per guard per incident in place of `Math.random`. Undo: none needed (replayable).
+- **A8** Cautious music: the held caution does not hold the Cautious music (G67) for its whole length; music follows the
+  existing alert levels. Undo: map caution to the music tier.
+- **A9** Paces: patrol 1.1 (unchanged, keeps the Sector pace checks), cautious patrol 0.95, investigate 0.85, search 0.75
+  x walkSpeed; runs only between covers, to a panel, or for aggressive profiles. Undo: `enemy.ts` pace table.
+- **A10** Posted high-security guards: a distraction pulls them to the edge of their leash circle (which map authors size
+  so the edge is off the choke), they look, then return facing their post; they never join a search or run to a panel
+  outside the leash. Undo: `highSecurity: false` on the slot.
+- **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
+  passed to Course Ready, not changed here.
