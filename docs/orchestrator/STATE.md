@@ -90,6 +90,7 @@ Train 1 merged as #111 (#99 + #108; #105 left on a real e2e-menus failure, fixed
 (`node <it> CHANGELOG.md`, incoming block first); drop stray "Unreleased - <job>" headings a member already released.
 
 ## Known
+- 2026-10-22 21:00: on Windows a "stopped" background runner can survive, wait on heavy.lock and run later (CT Core's N2 rerun took the lock 30 min after its stop). Stop runners with taskkill /T /F on the PID and confirm the tree is gone.
 - 2026-10-22 ~17:30 (full burn load): the desktop sits at ~99% CPU with every session's agents; e2e-coop / e2e-netmove /
   e2e-ctcourse die at 600 s there. Rule until load drops: those three go to the laptop only; desktop e2e at JOBS=1 while
   agents run; GPU work stays on the desktop.
