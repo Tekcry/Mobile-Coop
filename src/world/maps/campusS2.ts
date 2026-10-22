@@ -3,7 +3,7 @@ import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import type { MapLayout } from '../mapDef';
 import { makeCone } from '../lights';
-import { C1_GAP, CAMPUS_COOP_LIPS, type CoopLip } from './campusS1';
+import { C1_GAP, type CoopLip } from './campusS1';
 
 /**
  * Saltmarsh Park (`campusOps`) section 2 - the HQ atrium and offices (`docs/sector-redesign/SPEC.md` "S2", slice 2). A
@@ -136,8 +136,6 @@ export const CR2: CoopLip = {
   solo: 'the SW fire stair (post room, stairs, the L1 open plan)',
 };
 export const S2_COOP_LIPS: readonly CoopLip[] = [CR2];
-// the campus co-op lip list slice 1 started (one constant for every section's lips)
-if (!(CAMPUS_COOP_LIPS as CoopLip[]).some((l) => l.id === CR2.id)) (CAMPUS_COOP_LIPS as CoopLip[]).push(CR2);
 
 /** Section 2's rooms (HUD tags; no squads: the mode spawns the guards from the sector data). Plan boxes per floor; none overlap. */
 export const S2_ROOMS: RoomDef[] = [

@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { campusOps } from '../src/world/maps/campusOps';
-import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusS1';
+import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import {
   S3_BOX,
   S3_COOP_LIPS,

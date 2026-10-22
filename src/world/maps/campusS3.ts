@@ -5,7 +5,7 @@ import type { MapLayout } from '../mapDef';
 import type { LaserDef } from '../../game/jammer';
 import type { LaserPanelDef } from '../../game/laserPanels';
 import { makeCone } from '../lights';
-import { CAMPUS_COOP_LIPS, type CoopLip } from './campusS1';
+import type { CoopLip } from './campusS1';
 
 /**
  * Saltmarsh Park (`campusOps`) section 3 - the lab block (`docs/sector-redesign/SPEC.md` "S3", slice 3). A greybox: boxes,
@@ -133,8 +133,8 @@ export const S3_ROOMS: RoomDef[] = [
  * The co-op-only lip of section 3 (CR3): the environmental chamber's west face, 4.4 over the hall floor (a leg-up from
  * the floor west of it). Smooth insulated panels, no bench or rack at 1.2 or higher within 4 m, its own ladder not
  * built (behind the padlocked anti-climb guard, A30). The top is also reached alone from above: the escape gallery's
- * service spur ends 0.5 m off its north face, and the gallery is the north stair's (LS 11.4, rule 7). `CAMPUS_COOP_LIPS`
- * lives in `campusS1.ts` (not this slice's file): the campus list is `[...CAMPUS_COOP_LIPS, ...S3_COOP_LIPS]`.
+ * service spur ends 0.5 m off its north face, and the gallery is the north stair's (LS 11.4, rule 7). The campus list
+ * `CAMPUS_COOP_LIPS` is built once in `campusLips.ts`.
  */
 export const S3_COOP_LIPS: readonly CoopLip[] = [
   {
@@ -146,8 +146,6 @@ export const S3_COOP_LIPS: readonly CoopLip[] = [
     solo: 'the stealth route round the EMC room to the north stair (the gallery from the north stair reaches the chamber roof from above)',
   },
 ];
-// (merge, L1) joins the campus co-op lip list as S2's CR2 does (polish: build the list once in campusOps)
-for (const l of S3_COOP_LIPS) if (!(CAMPUS_COOP_LIPS as CoopLip[]).some((q) => q.id === l.id)) (CAMPUS_COOP_LIPS as CoopLip[]).push(l);
 
 /**
  * The laser bands (R5: an alarm stage, never damage; drawn in night vision): las-gown, three beams across the gowning
