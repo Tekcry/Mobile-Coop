@@ -8,7 +8,8 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
   from master af56ab43 (merge 4.62.0 when train 12 lands). Resume from docs/marlow-final/STATE.md there (BRIEF has
   Michael's words, M1-M3, A1-A4). Step 1 running: 4 read-only agents (yard audit, co-op inventory, route draft,
   standard constraints) -> AUDIT.md, COOP-INVENTORY.md, ROUTE-DRAFT.md, CONSTRAINTS.md -> spec writer -> SPEC.md +
-  PLAN.md -> greybox slices (Course Ready joins as second builder). MAX BURN: up to 6 Opus agents; save at 99%.
+  PLAN.md -> greybox slices + kit dressing (M5) (Course Ready joins as second builder). Art-kit agent also ran.
+  If any step-1 file is missing after a swap, rerun it from STATE "Agent briefs". Save at 97%.
 - mocap-sheets STOPPED (Michael: no sheets needed); the start / stop agent was told to stop and report; its finding goes
   in docs/mocap-trial (note) on feature/mocap-sheets.
 - vol-cone-fix: PR #156 open, nothing to do.
