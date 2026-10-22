@@ -67,6 +67,12 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
+- ~02:40 set docs A1-A8 + plan SVGs IN (sets/*.md, plans/*.svg). Spec contradictions logged per doc (section 13,
+  ids A<n>-C<k>); the set docs win over SPEC for their set. Follow-ups for set slices: MARLOW_POCKETS /
+  MARLOW_CIRCUITS rows for A5 / A6 / A8 (lighting file, src/world/lighting/marlowCircuits.ts); coopDeck `gaps` and
+  slab `solid: false` options (A6, A8); facility.ts south corridor break x 101-104 + L4 east door locked (sent to 0d);
+  refused press must not claim a role (A4-C9, slice 0 polish). Trim: orchestrator messages only at slice ends / PRs /
+  blockers; 1 agent (Sonnet from a strict brief) after 0d finishes.
 - ~02:25 0f IN (30b89647): props batch 2, 55 props / 11420 tris; the facilityProps hang was an infinite loop in
   `propRow` (fixed, 11/11 in 1.4 s); hook `MapLayout.facilityProps` + `World.facilityProps` (PA7: `props` names were
   taken). A4 dressing: check the security room and warehouse floor as separate areas (26 draws together vs 12).
