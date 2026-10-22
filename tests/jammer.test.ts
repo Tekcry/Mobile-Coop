@@ -515,8 +515,10 @@ describe('station 3 camera hallway (marlow-jammer item 5, A5)', () => {
         }
       }
     }
-    // A2 lies in the camera's frame and range (behind the wall): the test really tested something
-    expect(tested).toBeGreaterThan(0);
+    // (camera-range) A2 lay in the camera's frame and its old 18 m range (behind the wall); with the zone range (2 x aim,
+    // 13 m) no point of either airlock is even in range: the walls are no longer needed to keep it inside the bay
+    expect(camRange(cam)).toBe(13);
+    expect(tested).toBe(0);
   });
 
   it('one jam covers one runner, never both: the covered stretch at the course speeds', async () => {
