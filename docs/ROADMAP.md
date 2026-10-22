@@ -197,6 +197,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-23 | #164 | 4.63.0: train 13: Sector Ops co-op-only routes and team doors (#144), fence rattle test latched (#161), decisions G270-G275 (#162) |
 | 2026-10-23 | #166 | 4.63.1: train 14: lightField heap check (#163), e2e start order (#165), tests only |
 | 2026-10-23 | #167 | 4.64.0: train 15: mocap locomotion trial behind a switch, default off (#159) |
+| 2026-10-23 | #178 | 4.65.0: train 16: guards see poorly above (#169), deploy reload waits for the menu (#176), load-robust e2e (#170-#175), decisions G276-G281 (#168) |
 | 2026-10-23 | #160 | 4.62.0: train 12: co-op holders, mantle / drop / roll and split brace, holds that breathe (#119 N4b), co-op takedown offer test steady under load (#158) |
 | 2026-10-22 | #157 | 4.61.0: train 8: Wren's body moves with the gait (twist, sway, head, arms) and run pops fixed (#138), feet in turns (#135, inside #138), Sector Ops strip lights no longer throw fog cones; floods and torches keep their beams (#156; closes Waiting item 5) |
 | 2026-10-22 | #155 | 4.60.1: train 11: GPU condition waits before UI asserts (#150), netmove compare on the same idle phase (#154), backlog note on touch look-drag (#149); #144 left out on a voxelFit CI fail |

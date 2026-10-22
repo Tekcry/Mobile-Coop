@@ -11,6 +11,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
+v4.65.0 (train 16 #178 = #168-#176, 4fb8ea80, ~02:10; dev moved; laptop GPU 39/39 JOBS=3 559 s). Train 17 next: #177 camera-range.
 v4.64.0 (train 15 #167 = #159 mocap-trial, ffade187, ~01:20; /preview/ = dev = ffade187; laptop GPU 38/39 at JOBS=5 + e2e-coop solo x2; JOBS back to 3). Train 16 next: #168 decisions G276-G281, #169 g44-above (laptop GPU suites green), #170 load-audit (test-only, holds the coop fix; then a JOBS=5 trial). New job guard-ai (new session Night Shift | Guard AI Build, Michael ~01:35); sector-redesign (Course Ready, protocol 31); marlow-final took protocol 30.
 v4.61.0 (train 8 #157 = #138 N2 (+ #135 N1) + #156 vol-cone-fix, af56ab43, ~23:45; /preview/ = dev = af56ab43; laptop GPU 35/35, 490 s). Train 12 next: #119 560752d1 (ready), #158 coop-offer-load (ready), #144 (voxelFit fix), mocap-trial (checker).
 v4.60.1 (train 11 #155 = #150 + #154 + #149, 62d80c02, ~23:30; /preview/ = dev = 62d80c02). #144 R out (voxelFit: 8 cover points in the air on its S2 C2 landing; Course Ready fixing). Train 8 = #119 + #138 7667b681 (six GPU suites on the laptop). Mocap-trial 44d7c2a7: suites + checker running.
