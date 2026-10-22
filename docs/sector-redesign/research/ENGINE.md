@@ -349,3 +349,29 @@ Size: S = under a day, data or a small pure module; M = 1-3 days or a wire chang
 Campus specifics (M6): glass (G14), multi-storey nav and stairs (G16), lifts (G17, fake as shaft), card readers (G24),
 a security desk (G13) and lab airlocks (Course airlock logic `config/course.ts` could be reused: M). Dogs (M10) exist;
 they need G20 and a G155 decision.
+
+## 7. Requests for guard-ai (slice 0, 2026-10-23)
+Guard behaviour in `src/ai/*` belongs to the guard-ai job (Night Shift | Guard AI Build). The redesign places guards as
+data in `SectorDef.guards` (`SectorGuard`, `src/game/sectors.ts`). Slice 0 added these fields as optional data that no
+code reads yet (except `handler`, which `checkSectorGuards` validates). Each line: the field, then the behaviour it
+should drive.
+- `squad?: number` (squad id within the section): `sectorMode.fill` (or a guard-ai hook it calls) joins the guard to
+  that squad (`EnemyManager.joinSquad`, an id unique per section, e.g. section x 100 + squad) so squad radio checks run in
+  Sector Ops and a silent (down) partner is missed and searched for (ENGINE G4). Default when absent: one squad per
+  cluster of posts (posts within ~12 m), or per room. Today Sector never joins squads, so radio checks never run there.
+- `handler?: number` (a dog's handler, index in the section's `guards`; required for a dog): the dog heels on that
+  guard (`Enemy.leader` set at spawn, the dog in the handler's squad), not on whichever humanoid is nearest within 10 m
+  (`findLeader`); if the handler goes down the dog alerts / searches by him. The dog spawns after its handler.
+- `zone?: string` (post / zone tags: `secure`, `perimeter`, `lobby`, `lab`, ...): what the post protects. Drives where
+  a guard returns after a search, who answers a disturbance in a secure zone first, and (with G12) lockdown posts.
+- `role?: string` (`gate`, `patrol`, `desk`, `handler`, `response`, `supervisor`, ...): the job. Drives the alarm
+  runner choice (a supervisor before an officer), who checks a light that went out, who does radio checks (a desk role
+  calls them), and barks matched to the job.
+- `reason?: string` (why he is there, M1 "have reason to what they are doing or protecting"): design text now; later a
+  bark or an interrogation line (`info`).
+- `pair?: number` (talking-pair partner, index in the section's `guards`): the two meet on their routes (loop clocks),
+  face each other and exchange barks (G5, GA2); interrupted by a disturbance; one missing at the meeting time makes the
+  other look for him (a meeting is a radio check in person).
+- `SectorDef.dogs?: number` (dogs allowed in the section, default 0) is data the tests enforce; no behaviour.
+Also asked: dogs carry no flashlight (G201) holds today (`carriesTorch`, tested in `enemyManagerDespawn.test.ts`); keep
+it in any torch rework. The palm strike dog exclusion (G42) lives in `src/game` (`strikeTargetable`), not in `src/ai`.

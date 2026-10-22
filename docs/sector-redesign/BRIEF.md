@@ -122,3 +122,23 @@ template and the bible are NOT edited; table with per-item detail in SPEC "Appli
 - A44 (LR12) LS 12.1 fact recorded (Sector does not sync light state); slice L (protocol 31) closes it. Undo: n/a.
 - A45 (SPEC P12) template "existing systems only": this job builds the EW engine items in SPEC. Undo: map-only, the
   EW items become Future.
+Slice 0 implementer (engine prerequisites), 2026-10-23:
+- A46 (G3) Sector Ops uses no runners: the three Warehouse Ops runners are grunts (data, `warehouseSectors.ts`); the
+  runner archetype stays melee for Mission / legacy and the e2e that test it. `checkSectorGuards` fails any human guard
+  without a gun and any heavy. The S2 tour guard now waits 12 s (was 7) at his takedown spot so M8 isolation still holds
+  at the grunt's slower pace. Undo: kinds back to `runner`, the wait back to 7.
+- A47 (G3) Alarm reinforcements always spawn as grunts (`SECTOR_REINFORCE_KIND`, no heavies, G155); the count per stage
+  is the section's existing `perStage`. Undo: the old grunt / heavy alternation in `sectorMode.raised`.
+- A48 (G20) `SectorDef.dogs` (default 0) caps a section's dogs and every dog names `handler` (an armed human guard's
+  index); data and checks only, the heel behaviour stays guard-ai's (ENGINE.md "Requests for guard-ai"). Undo: drop the
+  fields and the check.
+- A49 (G20 / G42) The palm strike never picks or knocks out a dog, in every mode (G42 says so for every mode). Undo:
+  remove `strikeTargetable` from `strikeController.ts`.
+- A50 (G22) A section restart puts lamps (switched, shot, EMP, the base of a jammed lamp) and unlocked doors (open,
+  shut, cracked) back to the state recorded when the section began (lamps cut in earlier sections stay cut); guard
+  torches and locked doors are left out; a jam still running at the restart flickers out its seconds, then the lamp
+  takes its start state. Host / solo only: the co-op client's lamps are not reset (Sector has no light sync, ENGINE G8;
+  doors reach the client through the snapshot). Undo: remove the `startState` take / apply in `sectorMode.ts`.
+- A51 (G1) The camera cap is 12 live at once per Sector section (untagged cameras count in every section) instead of 12
+  per map, plus 16 per map, the co-op wire's per-camera clock list (`SEC_CAMS`); more than 16 per map needs a wire change
+  (clocks for the live section only, protocol 31). Undo: the old per-map line in `security/data.ts`.
