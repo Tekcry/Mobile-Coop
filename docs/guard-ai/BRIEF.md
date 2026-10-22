@@ -29,8 +29,9 @@ all walk over, aimless patrols, speeds backwards).
   investigate if so."
 
 Related standing decisions: G240 cameras keep IR everywhere (cutting lights beats guards and the light meter, never
-cameras; Answers 3 ~01:25). G11 impromptu search pairs. G44 guards see poorly above (#169). G143 no randomness in
-patrols. G190 guard pairs are the double-takedown beat. Every map's guards are armed (Answers 3).
+cameras; Answers 3 ~01:25). G11 impromptu search pairs. G44 guards see poorly above (#169). Bible "No randomness that
+defeats planning. Patrol cycles are fixed per map" (G143 is the per-run randomised codes / items / rooms). G190 room to
+manoeuvre beats guard count. Every map's guards are armed (Answers 3).
 
 ## The asks, as testable goals
 1. Hearing by range with masking: a noise reaches a guard only within its range, cut by walls, and less near a noisy
