@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation)
 
-Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~18:47 by the resumed CT Core session (overflow session). Every branch
+Written 2026-10-22 ~14:55 at the 5-hour pause; updated ~19:12 by the resumed CT Core session (overflow session). Every branch
 below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the detail; this is the index.
 
 ## Rules carried
@@ -39,9 +39,9 @@ below is committed and pushed. Each job's own `docs/<job>/STATE.md` has the deta
 | --- | --- | --- | --- | --- |
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
 | idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` | 9a8bcb54 | e2e-anim FAIL: turn feet "jog 180 first swing 5.29 m/s (<= 5)". Master 4.55.1 merge DONE on `feature/anim-natural-n1-merge` (99867912, pushed; fixture proof clean, STATE 17:45). The planner fix agent still runs in the N1 folder (uncommitted footPlanner.ts; report -> REPORT-D.md; lost on a clear: rerun if absent). | Commit the fix; merge feature/anim-natural-n1-merge into N1 (re-capture if the fix moved rows); CHANGELOG Unreleased section; desktop e2e-anim e2e-clip e2e-move; laptop area suites; GPU sheets; PR (minor). |
-| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | see STATE (tested head 53e6dc03) | Master 4.55.1 merged; A13 (low ready elbows 5.69 / 6 headless); A1 run rebaked (half 0.04997, fixtures re-captured: keyed:run + partner:moves). Laptop asked 18:45: check + e2e-anim e2e-studio e2e-clip on 53e6dc03. Step 3 (arms) implementer agent (18:30) in branch feature/anim-natural-n2-s3, folder C:/NightShift/Mobile-Coop-anim-natural-n2-merge (uncommitted until its report -> REPORT-3.md; lost on a clear: check git status there). | Laptop verdict; step 3 report -> REPORT-3, fresh checker; merge s3 into N2 (re-capture); steps 4-5; #128 alloc test. |
-| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | 4cdaf1e4 | Laptop 12 suites PASS on cba9e371 (PR body). Out of train 5: conflicts with #118 in tuneRegistry.ts (only the tuneRows import line; STATE "17:00"). Train 6. | After train 5 lands: merge master, resolve, unit files + e2e-anim e2e-studio; train 6. |
+| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (a separate clone: use origin/ refs) | 50acdc7e | Jog 180 fix f8e98b26 (REPORT-D) + the 4.55.1 merge branch merged (50acdc7e). After the merge footTurn's new timing test fails: run 180 at 1.067 s 6.11 m/s (<= 5). Agent (19:10) in the N1 folder: run 180 fix (task 1) + master 4.56.0 merge and fixture proof (task 2), commits locally; report -> REPORT-E.md (lost on a clear: check git log / status there). | Push; laptop: e2e-anim e2e-clip e2e-move on the head; fresh checker; CHANGELOG Unreleased section; PR (minor; checker pass -> train with CI only). GPU sheets on the laptop. |
+| anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 77b21ea4 | Step 2 DONE: laptop on 53e6dc03 check / e2e-anim / e2e-studio / e2e-clip PASS (STATE 19:10). Step 3 (arms) implementer agent (18:30) in branch feature/anim-natural-n2-s3, folder C:/NightShift/Mobile-Coop-anim-natural-n2-merge (from 4028d386; uncommitted until its report -> REPORT-3.md; lost on a clear: check git status there). | Step 3 report -> REPORT-3, fresh checker; merge s3 + master 4.56.0 into N2 (fixture proof); steps 4-5; #128 alloc test. |
+| anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
 
 ## Test logs on the desktop
@@ -61,9 +61,9 @@ origin/feature/menu:docs/orchestrator/resume-ct-core.md) and follow its rules (f
 overflow session: works to 100%, WIP pushed after each agent hand-back; the atomic heavy.lock and the
 orchestrator's lock queue; the laptop runner "Night Shift | Character Build" when the lock is held; merge trains,
 versions at merge). Work the "Open jobs" table top to bottom, each from its own docs/<job>/STATE.md:
-1. N1: the fix agent (REPORT-D) and the merge agent (feature/anim-natural-n1-merge), or rerun them; merge both; desktop e2e-anim.
-2. N2: ctb10 (run rebake) result, commit; laptop e2e-anim e2e-studio e2e-clip; steps 3-5.
-3. #120 in train 5; #123 joins train 6 (merge master after train 5).
+1. N1: the run 180 + 4.56.0 merge agent (REPORT-E) or rerun; push; laptop e2e-anim e2e-clip e2e-move; checker; PR.
+2. N2: step 3 agent (REPORT-3) or rerun; checker; merge s3 + master 4.56.0; steps 4-5.
+3. #123 in train 6 (master 4.56.0 merged).
 Desktop lock: ask the orchestrator for the current order; scripts take it atomically and free it themselves.
 Message "Night Shift | Orchestrator" at each slice, verdict and PR.
 ```
