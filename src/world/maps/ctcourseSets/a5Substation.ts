@@ -31,8 +31,10 @@
  *   flanges and lagging, the transformers' radiators, bushings and conservators, the bunds' copings, the switchroom's rendering,
  *   roof, louvres, door trims, signs, interior lining, switchgear fronts and rubber mat, the kiosk's keypad and hood, the trench
  *   lids and the floor paint;
- * - the only new collision is the props kit's two beam towers (`FacilityProps.write`, thin `noLedge` poles at the gateway's
- *   posts) and the invisible filler above. No greybox box is covered by a prop: the 12 cable trays are hung props over the trench;
+ * - the only new collision is the invisible filler above. The two beam towers are visual props (their poles' collision boxes are
+ *   not written: the greybox's posts and beam line are the gateway, and a 0.26 m tower's skin 3 cm off a post's end face made the
+ *   voxel fit read air where the art is solid). No greybox box is covered by a prop: the 13 props are the two towers and the
+ *   cable trays hung over the trench;
  * - kit panels with accent coves, every one on its circuit's group: the hall's west wall above 4.4 m and the south, north and
  *   east walls over the gallery glazing (inner zone 51 west of the security wall, apron 50 east of it). No lamp is added.
  */
@@ -153,10 +155,12 @@ export const A5_SHELL = { west: 40.25, east: 69.75, south: 24.25, north: 47.75 }
 const CORNER = 0.09;
 /** The wall dressing's top (just under the gallery floor's underside, 4.2 m, and the glazing's sill, 4.5 m). */
 const WALL_TOP = 4.4;
-/** The two beam towers (props kit): on the gateway's posts, facing each other across the opening. */
+/** The two beam towers (props kit, visual only): at the gateway's posts, facing each other across the opening. Each stands 0.07 m
+ *  off its post's end face (z 33 / 39): the tower's 0.26 m skin must stay clear of the 3 cm probe the voxel fit makes off that
+ *  end face (`voxelFit.test.ts`: the cover face there is air outside it). */
 export const A5_TOWERS = [
-  { x: 58, z: 33.1, yaw: 0 },
-  { x: 58, z: 38.9, yaw: Math.PI },
+  { x: 58, z: 33.2, yaw: 0 },
+  { x: 58, z: 38.8, yaw: Math.PI },
 ] as const;
 /** The cable-tray run over the trench (hung props, 1 m modules, bottom edge at `y`, centre line `z` on the north wall's face). */
 export const A5_TRAY = { x0: 46.5, x1: 57.5, z: 47.55, y: 3.0 } as const;
@@ -834,14 +838,12 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
     kit.wallPanel(S.west, (wz0 + wz1) / 2, wz1 - wz0, Math.PI / 2, { h: HALL_H - WALL_TOP, y: WALL_TOP, tone: 'warm', group: G_INNER });
   });
 
-  // ---- A5-21: the props kit (PROPS.md 3 A5): the two beam towers on the gateway's posts (their poles' boxes via `write`), twelve cable trays over the trench ----
+  // ---- A5-21: the props kit (PROPS.md 3 A5): the two beam towers at the gateway's posts (visual only, no collision written), eleven cable trays over the trench ----
   const props = new FacilityProps();
   for (const t of A5_TOWERS) props.add('beamTower', t.x, t.z, t.yaw);
   props.row('cableTray', A5_TRAY.x0, A5_TRAY.z, A5_TRAY.x1, A5_TRAY.z, { y: A5_TRAY.y });
-  tally(b, p.register, 'A5-21', "Props kit: the two beam towers at (58, 33.1) and (58, 38.9) facing each other across the gateway (thin noLedge poles via FacilityProps.write, 0.16 m, each 0.18 m into the opening), and eleven cable trays hung 3.0 m up on the north wall over the trench (no collision). The transformers, drums, switchgear and kiosk props are not placed: the greybox's visible boxes would hide them (skins instead, A5-15 to A5-18)", () => {
-    const from = b.boxes.length;
-    props.write(b);
-    b.mark(from, { noLedge: true });
+  tally(b, p.register, 'A5-21', "Props kit: the two beam towers at (58, 33.2) and (58, 38.8) facing each other across the gateway, visual only (no collision written: the greybox's posts, beam line and 6 m gap are untouched; each tower's skin stands 0.07 m off its post's end face so the voxel fit's 3 cm probe there stays air), and eleven cable trays hung 3.0 m up on the north wall over the trench (no collision). The transformers, drums, switchgear and kiosk props are not placed: the greybox's visible boxes would hide them (skins instead, A5-15 to A5-18)", () => {
+    // (placements only: `props.write(b)` is deliberately not called)
   });
   p.props.push(...props.placements);
 

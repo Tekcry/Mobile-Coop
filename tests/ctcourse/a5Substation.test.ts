@@ -8,7 +8,7 @@
  * validate and read per player, the claim is the inner zone. The map-wide frames (`tests/ctcourse.test.ts`,
  * `tests/ctcourseLight.test.ts`) run the contract, the register and the light bands over this part too. The last block is the
  * dressing (slice 5 step 5): the greybox pinned (with its one deliberate edit, the switchgear run's end), hand-built skins out of
- * the light shapes, the two beam towers and the end filler as the only new collision, the open door leaves clear of every visible
+ * the light shapes, the end filler as the only new collision (the two beam towers are visual props), the open door leaves clear of every visible
  * piece, the openings and the panel left clear, the budgets, every kit glow on its circuit, the e2e polish items.
  */
 import { readFileSync } from 'node:fs';
@@ -266,7 +266,7 @@ describe('A5 the Substation: the part', () => {
     expect(sum).toEqual(built.counts.sets.a5Substation);
     // 9 lamps (LIGHTING-PLAN 3: apron 3, inner 4, flood 1, kiosk 1), the switchroom's two doors, no anchor; 24 greybox solids: the wall's
     // two runs and the header, the drums, two pens of four bund walls and a unit, the switchroom's nine pieces, the kiosk; plus the
-    // dressing's colliders (the two beam towers' poles and the switchgear run's invisible end filler)
+    // dressing's one collider (the switchgear run's invisible end filler; the beam towers are visual)
     expect(sum.lights).toBe(9);
     expect(sum.solids).toBe(GREY.solids + dressing.filter((p) => p.collide).length);
     expect(sum.doors).toBe(2);
@@ -928,10 +928,10 @@ describe('A5 the Substation: dressing (slice 5 step 5)', () => {
   const propReport = JSON.parse(readFileSync('src/world/props/assets/facility-props.json', 'utf8')) as PropReport;
   const area = { x0: box[0], z0: box[1], x1: box[2], z1: box[3] };
   const own = part.props;
-  /** The props' own boxes as written (matched by centre and size). */
-  const propBoxes = own.flatMap((p) => propCollisionBox(p) ?? []);
-  const written = propBoxes.map((w) => mine.find((p) => p.collide && p.c.every((v, k) => Math.abs(v - w.c[k]!) < 1e-6) && p.s.every((v, k) => Math.abs(v - w.s[k]!) < 1e-6) && Math.abs(p.yaw - w.yaw) < 1e-6)!);
-  const filler = dressing.filter((p) => p.collide && !written.includes(p));
+  /** The props write no boxes (the beam towers are visual; the trays hang): the dressing's only collider is the end filler. */
+  const filler = dressing.filter((p) => p.collide);
+  /** The towers' footprints as virtual boxes (the prop's 0.26 m skin, `PROP_FOOTPRINT`) for the clearance checks below. */
+  const towerSkins = own.filter((p) => p.prop === 'beamTower').map((t) => ({ x0: t.x - 0.13, x1: t.x + 0.13, z0: t.z - 0.13, z1: t.z + 0.13 }));
   const skins = dressing.filter((p) => !p.collide);
   const doorOf = (id: string): Door => b.anchors.doors.find((d) => d.id === course.doors[id])!;
   const lo = (p: BoxPiece, k: 0 | 1 | 2): number => p.c[k] - p.s[k] / 2;
@@ -961,25 +961,23 @@ describe('A5 the Substation: dressing (slice 5 step 5)', () => {
     return [...out];
   };
 
-  it("the greybox is as S5 built it (25 boxes by checksum, 9 lamps, 2 doors, no anchor) bar the switchgear run's end; the only new collision is the two beam towers' poles and the end filler", () => {
+  it("the greybox is as S5 built it (25 boxes by checksum, 9 lamps, 2 doors, no anchor) bar the switchgear run's end; the only new collision is the end filler (the two beam towers write no box)", () => {
     let sum = 0;
     for (const p of grey) sum += (p.c[0] + 2 * p.c[1] + 3 * p.c[2] + 5 * p.s[0] + 7 * p.s[1] + 11 * p.s[2] + p.yaw) * (p.collide ? 1 : 1.5) * (p.visible === false ? 1.25 : 1) * (p.overhead ? 1.1 : 1);
     expect(sum).toBeCloseTo(GREY.checksum, 3);
     expect(grey.filter((p) => p.collide)).toHaveLength(GREY.solids);
-    expect(propBoxes).toHaveLength(2);
-    expect(written.every((p) => p !== undefined)).toBe(true);
     expect(filler).toHaveLength(1);
-    expect(built.counts.sets.a5Substation).toEqual({ lights: GREY.lights, solids: GREY.solids + propBoxes.length + filler.length, doors: GREY.doors, anchors: GREY.anchors });
-    // after the greybox: the poles, the filler and visual skins; nothing else collides
-    expect(dressing.filter((p) => p.collide)).toHaveLength(propBoxes.length + filler.length);
+    expect(built.counts.sets.a5Substation).toEqual({ lights: GREY.lights, solids: GREY.solids + filler.length, doors: GREY.doors, anchors: GREY.anchors });
+    // after the greybox: the filler and visual skins; nothing else collides
+    expect(dressing.filter((p) => p.collide)).toHaveLength(filler.length);
     expect(lamps).toHaveLength(GREY.lights);
     expect(part.register.map((r) => r.id)).toEqual(expect.arrayContaining(Array.from({ length: 10 }, (_, i) => `A5-${13 + i}`)));
     expect(part.doors).toEqual({ [A5_FRONT_DOOR]: expect.any(Number), [A5_BACK_DOOR]: expect.any(Number) });
-    // per row: only A5-21 (two poles) and A5-22 (the filler) hold dressing solids; no new lamp, door or anchor
-    for (const r of part.register.filter((x) => Number(x.id.slice(3)) >= 13)) expect([r.id, r.solids, r.lights, r.doors, r.anchors]).toEqual([r.id, r.id === 'A5-21' ? 2 : r.id === 'A5-22' ? 1 : 0, 0, 0, 0]);
+    // per row: only A5-22 (the filler) holds a dressing solid; no new lamp, door or anchor
+    for (const r of part.register.filter((x) => Number(x.id.slice(3)) >= 13)) expect([r.id, r.solids, r.lights, r.doors, r.anchors]).toEqual([r.id, r.id === 'A5-22' ? 1 : 0, 0, 0, 0]);
   });
 
-  it("every hand-built dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes, so the light is the greybox's); the towers' poles are the only visible box over 5 cm, the filler is invisible", () => {
+  it("every hand-built dressing box is a visual skin: no collision, noLedge, a side under 5 cm (out of the canonical light shapes, so the light is the greybox's); no visible box is over 5 cm, the filler is invisible", () => {
     expect(skins.length).toBeGreaterThan(600);
     for (const p of skins) {
       expect(p.noLedge, `skin at (${p.c.join(', ')})`).toBe(true);
@@ -987,12 +985,12 @@ describe('A5 the Substation: dressing (slice 5 step 5)', () => {
       expect(p.visible).not.toBe(false);
       expect(p.overhead).toBeFalsy();
     }
-    expect(dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK)).toEqual(written);
+    expect(dressing.filter((p) => p.visible !== false && Math.min(...p.s) >= CANON_MIN_THICK)).toEqual([]);
     for (const p of filler) {
       expect(p.visible).toBe(false);
       expect(p.noLedge).toBe(true);
     }
-    for (const p of [...written, ...filler]) expect(p.noLedge, `collider at (${p.c.join(', ')})`).toBe(true);
+    for (const p of filler) expect(p.noLedge, `collider at (${p.c.join(', ')})`).toBe(true);
   });
 
   it("S567-check polish 3: the switchgear run ends at z 44.6, so the back door's open leaf clears every visible piece (the front door's too); the old footprint to z 45 keeps its collision as an invisible filler (teeth: the old end clips the leaf)", () => {
@@ -1097,44 +1095,41 @@ describe('A5 the Substation: dressing (slice 5 step 5)', () => {
     expect(HALL_H).toBe(10);
   });
 
-  it("the two beam towers (props): thin noLedge poles on the gateway posts, facing each other across the opening, each 0.18 m into the 6 m gap; the throw, the jam lines and the gap's clearance are the greybox's", () => {
+  it("the two beam towers (props): visual only, no box written, standing 0.07 m off the gateway posts' end faces and facing each other across the opening; the throw, the jam lines and the gap's clearance are the greybox's", () => {
     const towers = own.filter((p) => p.prop === 'beamTower');
     expect(towers).toHaveLength(2);
     towers.forEach((p, i) => {
       expect(p.x).toBeCloseTo(A5_TOWERS[i]!.x, 9);
       expect(p.z).toBeCloseTo(A5_TOWERS[i]!.z, 9);
+      // on the beam line (the wall's centre line)
+      expect(Math.abs(p.x - A5_WALL.x)).toBeLessThan(1e-6);
     });
     // each tower's front (+z) looks across the gap: the first north, the second south
     for (const t of towers) {
       const front = propToWorld(t, 0, 0, 1);
       expect(Math.sign(front[2] - t.z)).toBe(Math.sign(A5_GATEWAY.at.z - t.z));
     }
-    expect(written).toHaveLength(2);
-    for (const w of written) {
-      expect(w.noLedge).toBe(true);
-      expect(Math.min(w.s[0], w.s[2])).toBeLessThan(LEDGE.climbDepth);
-      expect(top(w)).toBeLessThan(2.4);
-      // the pole stands on the wall's centre line, beside the beams' ends (z 33 and 39)
-      expect(Math.abs(w.c[0] - A5_WALL.x)).toBeLessThan(1e-6);
-    }
-    const zs = written.map((w) => [lo(w, 2), hi(w, 2)] as const).sort((p, q) => p[0] - q[0]);
-    expect(zs[0]![1] - 33).toBeGreaterThan(0.1);
-    expect(zs[0]![1] - 33).toBeLessThan(0.25);
-    expect(39 - zs[1]![0]).toBeGreaterThan(0.1);
-    // the open width between the poles stays over 5.6 m, and the beam line's ends are still the wall's
-    expect(zs[1]![0] - zs[0]![1]).toBeGreaterThan(5.6);
+    // no collision is written for them: nothing in the dressing collides inside the gateway's strip (x 57-59, z 33-39) but the greybox
+    expect(dressing.filter((p) => p.collide && lo(p, 0) < 59 && hi(p, 0) > 57 && lo(p, 2) < 39 && hi(p, 2) > 33)).toEqual([]);
+    expect(solid.filter((p) => lo(p, 0) < 59 && hi(p, 0) > 57 && lo(p, 2) < 38.99 && hi(p, 2) > 33.01 && hi(p, 1) > 0.2 && lo(p, 1) < 2.4).map((p) => [lo(p, 2), hi(p, 2)])).toEqual([]);
+    // the skin stands clear of the posts' end faces (z 33 and 39) by over 0.06 m: the voxel fit probes 3 cm off a cover face, and that air must stay air
+    const zs = towerSkins.map((t) => [t.z0, t.z1] as const).sort((p, q) => p[0] - q[0]);
+    expect(zs[0]![0] - 33).toBeGreaterThan(0.06);
+    expect(zs[0]![0] - 33).toBeLessThan(0.1);
+    expect(39 - zs[1]![1]).toBeGreaterThan(0.06);
+    expect(39 - zs[1]![1]).toBeLessThan(0.1);
+    // the gap's clear width is the greybox's (the full 6 m between the posts' ends), and the beam line's ends are still the wall's
     expect(laser).toMatchObject({ z1: 33, z2: 39 });
-    // a pole is no threat to the beams and no top to stand on
     expect(beamThreats(solid)).toEqual([]);
     expect(anchors.ledges.filter((l) => Math.abs((l.a.x + l.b.x) / 2 - A5_WALL.x) < 0.5 && inBox(box, (l.a.x + l.b.x) / 2, (l.a.z + l.b.z) / 2))).toEqual([]);
-    // the throw's arc from every start passes the poles by over 0.5 m (the arc tests above read the same solids)
+    // the throw's arc from every start passes the towers' skins by over 0.5 m (the arc tests above read the same solids)
     const o = { x: 0, y: 0, z: 0 };
     const land = { x: 0, z: 0, dx: 0, dz: 0 };
     for (let d = 0.3; d <= 1.6 + 1e-9; d += 0.1) {
       throwLanding(A5_THROW.x + d, A5_THROW.z, A5_THROW.x, A5_THROW.z, -Math.PI / 2, land);
       for (let k = 0; k <= 100; k++) {
         throwArc((TEAM.throwTime * k) / 100, A5_THROW.x + d, 0, A5_THROW.z, land.x, 0, land.z, o);
-        for (const w of written) expect(hyp2(Math.max(Math.abs(o.x - w.c[0]) - w.s[0] / 2, 0), Math.max(Math.abs(o.z - w.c[2]) - w.s[2] / 2, 0)), `d ${d.toFixed(1)} k ${k}`).toBeGreaterThan(0.5);
+        for (const w of towerSkins) expect(hyp2(Math.max(w.x0 - o.x, o.x - w.x1, 0), Math.max(w.z0 - o.z, o.z - w.z1, 0)), `d ${d.toFixed(1)} k ${k}`).toBeGreaterThan(0.5);
       }
     }
   });
