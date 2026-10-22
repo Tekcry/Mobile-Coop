@@ -9,6 +9,7 @@ import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, ty
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
+import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
@@ -108,8 +109,11 @@ export interface RigPose {
   bendDrop?: number;
   /** (marlow-bays T1a) The bend is over a body (lift, carry, put down), not a held guard: the tuner's `carry` row. */
   carryBody?: boolean;
-  /** (anim-n4, track A) The carried body's shoulder (1 right, -1 left): the carry's lean away from the load. */
+  /** (anim-n4, track A) The carried body's load: its shoulder (1 right, -1 left) x its weight on it (0..1): the carry's
+   *  lean away from the load and the hips under it scale by it (none kneeling at the body). Absent: no load. */
   carrySide?: number;
+  /** (anim-n4, track A) The body lift's step-in 0..1 (absent / -1: no lift): the rig's lift crouch pose (`CqLiftCrouch`). */
+  liftStep?: number;
   sway?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
@@ -989,6 +993,8 @@ export class CharacterRig {
   groundProbe: ((x: number, z: number, yFrom: number) => number | null) | null = null;
   /** World-space foot placement (contacts, locking, swing arcs, idle stepping). */
   readonly planner = new FootPlanner();
+  /** (anim-n4, track A) The body lift's crouch pose (cqGait.ts). */
+  private readonly liftCrouch = new CqLiftCrouch();
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
@@ -1587,7 +1593,9 @@ export class CharacterRig {
       i.localZ = back ? -1 : 1;
     }
     i.grounded = s.grounded;
-    i.crouch = s.crouch;
+    // (anim-n4, track A) the body lift: the step-in posed standing, kneeling once it is done, standing up only once both
+    // feet are planted (the planner's last frame; animation only)
+    i.crouch = this.liftCrouch.step(s.crouch, s.liftStep ?? -1, this.planner.L.contact && this.planner.R.contact, dt);
     i.kneel = s.kneel ?? false;
     i.tense = s.tense ?? false;
     // (G8) the keyed walk: free movement along the facing, not holding / carrying / lowering a body (the hostage walk
@@ -1637,7 +1645,8 @@ export class CharacterRig {
     i.melee = s.melee ?? -1;
     i.bend = s.bend ?? 0;
     i.bendDrop = s.bendDrop ?? 0;
-    i.cqCarry = s.carryBody ? (s.carrySide ?? 1) : 0; // (anim-n4, track A)
+    i.cqBody = s.carryBody === true; // (anim-n4, track A)
+    i.cqCarry = s.carryBody ? (s.carrySide ?? 0) : 0;
     i.sway = s.sway ?? 0;
     i.tumble = s.tumble ?? 0;
     i.check = s.check ?? -1;

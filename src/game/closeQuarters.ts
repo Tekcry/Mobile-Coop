@@ -37,12 +37,14 @@ export const CQ = {
   liftBend: 0.55,
   /** The crouch is held this long into the lift (s; the stand up then takes the controller's standTime). */
   liftCrouch: 0.9,
-  /** (anim-n4) The step-in to the body takes this long (s, eased), standing: he crouches once it is (nearly) done. A
-   *  step-in crouched from the start let the crouched stance band drag a planted foot along with the body (lift slide
-   *  21 cm); standing, the feet step in. */
+  /** (anim-n4) The step-in to the body takes this long (s, eased). The controller crouches from t = 0 (the sim's fixed
+   *  timeline); the rig poses the step-in standing and kneels once the step is `liftCrouchStep` done (cqGait.ts
+   *  `CqLiftCrouch`, animation only): a step-in posed crouched let the crouched stance band drag a planted foot along
+   *  with the body (lift slide 21 cm). */
   liftStepTime: 0.5,
   liftCrouchStep: 0.97,
-  /** (anim-n4) At most this long (s) past `liftCrouch` he stays down while a foot is still stepping. */
+  /** (anim-n4) Standing up, the rig's crouch pose stays down at most this long (s) while a foot is still stepping
+   *  (animation only: the planner's contacts, never read by the sim). */
   liftCrouchWait: 0.3,
   /** The hero steps in to kneel this far from the body's chest (m), at most this far from where he stood (m). */
   liftSide: 0.5,
@@ -115,6 +117,8 @@ export interface LiftState {
   hands: number;
   /** The step-in to the body 0..1 (eased, over the crouch). */
   step: number;
+  /** (anim-n4 fix) The body's weight on his shoulder 0..1 (the hoist): the carry's lean and hip shift scale by it. */
+  load: number;
 }
 
 export function liftCurve(t: number, out: LiftState): LiftState {
@@ -128,8 +132,9 @@ export function liftCurve(t: number, out: LiftState): LiftState {
   const up = ease(out.hoist / 0.35);
   out.bend = CQ.liftBend * down * (1 - up) + CQ.carryBend * up;
   out.drop = CQ.carryDrop * out.hoist;
-  out.crouch = t < CQ.liftCrouch && out.step >= CQ.liftCrouchStep;
+  out.crouch = t < CQ.liftCrouch;
   out.hands = ease(t / 0.5);
+  out.load = out.hoist;
   return out;
 }
 
@@ -142,6 +147,8 @@ export interface DropState {
   drop: number;
   /** The hands' weight on the body. */
   hands: number;
+  /** (anim-n4 fix) The body's weight still on his shoulder 0..1: gone at the hand-over (`dropHand`). */
+  load: number;
 }
 
 export function dropCurve(t: number, out: DropState): DropState {
@@ -151,6 +158,7 @@ export function dropCurve(t: number, out: DropState): DropState {
   out.bend = CQ.carryBend * (1 - ease(t / CQ.drop)) + CQ.dropBend * dip * 0.6;
   out.drop = CQ.dropDip * dip;
   out.hands = 1 - ease((t - CQ.dropHand) / (CQ.drop - CQ.dropHand));
+  out.load = 1 - out.slide;
   return out;
 }
 

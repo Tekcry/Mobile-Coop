@@ -195,13 +195,11 @@ export class StealthSystems {
   private liftT = -1;
   private dropT = -1;
   private hoisting = false;
-  private lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0 };
-  private dc: DropState = { slide: 0, bend: 0, drop: 0, hands: 0 };
+  private lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0, load: 0 };
+  private dc: DropState = { slide: 0, bend: 0, drop: 0, hands: 0, load: 0 };
   private liftFrom = new Vector3();
   private liftTo = new Vector3();
   private liftYaw = 0;
-  /** (anim-n4) Crouched at the body this lift step. */
-  private liftDown = false;
   private liftChest = new Vector3();
   private liftL = new Vector3();
   private liftR = new Vector3();
@@ -216,6 +214,11 @@ export class StealthSystems {
   bendDrop = 0;
   /** (G7) Stepping in to the body under the override this step. */
   stepping = false;
+  /** (anim-n4 fix) The body's weight on the shoulder this step, 0..1: the hoist in the lift, 1 carrying, easing out to the
+   *  hand-over in the put down (the carry's lean and hip shift scale by it). */
+  loadShare = 0;
+  /** (anim-n4 fix) The lift's step-in to the body 0..1 this step, -1 no lift (the rig's lift crouch pose, cqGait.ts). */
+  liftStepK = -1;
 
   /** (G7) The shoulder the body goes on: 1 right (CT 110936, 052704), -1 left when it lies head to his left (a hoist
    *  over the right shoulder swung the head through his back: tests/g7CloseQuarters). */
@@ -246,7 +249,6 @@ export class StealthSystems {
     const c = g.player.controller;
     this.carry = b;
     this.liftT = 0;
-    this.liftDown = false;
     // (G7 fix round) CT stands up with the body: a crouch toggle from before the lift is cleared (one pressed while
     // carrying stays)
     c.standUp();
@@ -357,12 +359,12 @@ export class StealthSystems {
     }
     const f = this.liftFrom;
     const to = this.liftTo;
-    // (anim-n4) a foot still stepping when the crouch ends: he stays down until it lands (at most CQ.liftCrouchWait s), so
-    // he never stands up on a foot stretched wide (the stand-up dragged it 6 cm)
-    const pl = this.g.player.rig.planner;
-    this.liftDown = lc.crouch || (this.liftDown && t < CQ.liftCrouch + CQ.liftCrouchWait && !(pl.L.contact && pl.R.contact));
-    this.holdStill(f.x + (to.x - f.x) * lc.step, f.y, f.z + (to.z - f.z) * lc.step, this.liftYaw, this.liftDown);
+    // (anim-n4 fix) the controller crouch stays on this fixed timeline (from t = 0); the standing step-in and "down until a
+    // foot lands" are the rig's (cqGait.ts CqLiftCrouch, from `liftStepK`): gameplay never reads the animation
+    this.holdStill(f.x + (to.x - f.x) * lc.step, f.y, f.z + (to.z - f.z) * lc.step, this.liftYaw, lc.crouch);
     this.stepping = lc.step < 1;
+    this.liftStepK = lc.step;
+    this.loadShare = lc.load;
     this.bend = lc.bend;
     this.bendDrop = lc.drop;
     if (!lc.atBody && !this.hoisting && !b.carried) {
@@ -384,6 +386,7 @@ export class StealthSystems {
     this.holdStill(c.pos.x, c.pos.y, c.pos.z, c.yaw, false);
     this.bend = dc.bend;
     this.bendDrop = dc.drop;
+    this.loadShare = this.carry ? dc.load : 0;
     if (this.carry && t >= CQ.dropHand) this.handOver();
     if (t >= CQ.drop) {
       this.endMotion();
@@ -545,6 +548,8 @@ export class StealthSystems {
   fixedUpdate(crouchPressed = false): void {
     this.bend = this.bendDrop = 0;
     this.stepping = false;
+    this.loadShare = 0;
+    this.liftStepK = -1;
     for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
@@ -592,6 +597,7 @@ export class StealthSystems {
     c.speedCap = Math.min(c.speedCap, BODY.carrySpeed);
     this.bend = CQ.carryBend;
     this.bendDrop = CQ.carryDrop;
+    this.loadShare = 1;
   }
 
   /** Render frame (before the player animates): the hands on the body (its shoulders as he reaches for it, then its

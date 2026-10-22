@@ -176,7 +176,9 @@ export interface AnimInput {
   bend: number;
   bendDrop: number;
   sway: number;
-  /** (anim-n4, track A) Carrying a body: the loaded shoulder (1 right, -1 left); 0 a held guard or nothing. */
+  /** (anim-n4, track A) The bend is over a body (lift, carry, put down), not a held guard: the carry walk. */
+  cqBody: boolean;
+  /** (anim-n4, track A) The body's load: the loaded shoulder (1 right, -1 left) x its weight on it (0..1); 0 none. */
   cqCarry: number;
 }
 
@@ -257,6 +259,7 @@ export function defaultInput(): AnimInput {
     hand: 1,
     bend: 0,
     bendDrop: 0,
+    cqBody: false,
     cqCarry: 0,
     sway: 0,
   };
@@ -1464,7 +1467,7 @@ export class AnimGraph {
       src[CH.pelY] = src[CH.pelY]! - this.bendDropS;
       src[CH.pelX] = src[CH.pelX]! + this.swayS;
     }
-    this.cqGait.apply(src, i.bend > 0 || i.bendDrop > 0, i.cqCarry, this.phase, this.moveW, dt); // (anim-n4, track A)
+    this.cqGait.apply(src, i.bend > 0 || i.bendDrop > 0, i.cqBody, i.cqCarry, this.phase, this.moveW, dt); // (anim-n4, track A)
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot
     const hx = this.hit.step(0, 9, dt);

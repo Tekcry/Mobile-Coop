@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { CHEST_OF_PELVIS, CQ_GAIT, CQ_SECTION, CQ_SIM, cqGaitAt, CqGaitLayer, cqSim, cqSimSet, type CqGaitOut, type CqGaitRow } from '../src/anim/cqGait';
+import { CHEST_OF_PELVIS, CQ_GAIT, CQ_SECTION, CQ_SIM, cqGaitAt, CqGaitLayer, CqLiftCrouch, cqSim, cqSimSet, type CqGaitOut, type CqGaitRow } from '../src/anim/cqGait';
+import { CQ, dropCurve, liftCurve, type DropState, type LiftState } from '../src/game/closeQuarters';
 import { CH, newPose } from '../src/anim/pose';
 import { TUNE_CUR } from '../src/anim/tune';
 import { TUNE_FLAGS } from '../src/anim/tuneRegistry';
@@ -84,15 +85,15 @@ describe('cqGait (anim-natural N4: hold and carry walk trunk)', () => {
     const L = new CqGaitLayer();
     const src = newPose();
     const before = Float32Array.from(src);
-    L.apply(src, false, 0, 0, 1, 1 / 60);
+    L.apply(src, false, false, 0, 0, 1, 1 / 60);
     expect(Array.from(src)).toEqual(Array.from(before));
-    L.apply(src, true, 1, 0, 1, 1 / 60);
+    L.apply(src, true, true, 1, 0, 1, 1 / 60);
     const w = L.w;
     expect(w).toBeGreaterThan(0);
     expect(w).toBeLessThan(0.2);
     for (let i = 0; i < 120; i++) {
       src.fill(0);
-      L.apply(src, true, 1, 0, 1, 1 / 60);
+      L.apply(src, true, true, 1, 0, 1, 1 / 60);
     }
     expect(src[CH.pelYaw]!).toBeCloseTo(CQ_GAIT.carry.pelvis, 3);
     expect(src[CH.spRoll]!).toBeCloseTo(CQ_GAIT.carry.lean, 3);
@@ -105,7 +106,7 @@ describe('cqGait (anim-natural N4: hold and carry walk trunk)', () => {
       L.w = 1;
       L.carryK = 0;
       src.fill(0);
-      L.apply(src, true, 0, 0, 1, 0);
+      L.apply(src, true, false, 0, 0, 1, 0);
       return src[CH.pelYaw]!;
     };
     expect(run()).toBeCloseTo(CQ_GAIT.hold.pelvis, 6);
@@ -140,6 +141,80 @@ describe('cqGait (anim-natural N4: hold and carry walk trunk)', () => {
       const [, walk, field] = ed.path.split('.') as [string, 'hold' | 'carry', keyof CqGaitRow];
       expect(typeof CQ_GAIT[walk][field]).toBe('number');
       expect(ed.op).toBe(t.kind === 'mul' ? 'mul' : 'add');
+    }
+  });
+});
+
+describe('cqGait: the body on the shoulder (anim-n4 fix round)', () => {
+  const dt = 1 / 60;
+  const lift = (): LiftState => ({ atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0, load: 0 });
+
+  beforeEach(() => {
+    resetSliders();
+    TUNE_FLAGS.bypass = false;
+  });
+
+  it('the carry lean and hip shift follow the weight on the shoulder: none kneeling (lift t = 0.4), full carrying, gone by the hand-over', () => {
+    const L = new CqGaitLayer();
+    const src = newPose();
+    const lc = lift();
+    // the sim's load (StealthSystems.loadShare) x the right shoulder, as GameState hands it to the rig (carrySide)
+    const frame = (load: number): void => {
+      src.fill(0);
+      L.apply(src, true, true, 1 * load, 0.3, 0, dt);
+    };
+    let n = 1;
+    for (; n <= 24; n++) frame(liftCurve(n * dt, lc).load);
+    expect((n - 1) * dt).toBeCloseTo(0.4, 9);
+    expect(L.carryK).toBeGreaterThan(0.9); // the carry walk's row, with nothing on the shoulder yet
+    expect(Math.abs(src[CH.spRoll]!)).toBeLessThan(1e-6);
+    expect(Math.abs(src[CH.pelX]!)).toBeLessThan(1e-6);
+    // the hoist brings it in; carrying it is full
+    for (; n <= 60 * CQ.lift; n++) frame(liftCurve(n * dt, lc).load);
+    for (let k = 0; k < 60; k++) frame(1);
+    expect(src[CH.spRoll]!).toBeCloseTo(CQ_GAIT.carry.lean, 4);
+    expect(src[CH.pelX]!).toBeCloseTo(CQ_GAIT.carry.shift, 5);
+    // the put down: half way to the ragdoll's hand-over (dropHand) half the lean, none once it has the body
+    const dc: DropState = { slide: 0, bend: 0, drop: 0, hands: 1, load: 1 };
+    const half = Math.round(CQ.dropHand * 30);
+    for (let k = 1; k <= half; k++) frame(dropCurve(k * dt, dc).load);
+    expect(src[CH.spRoll]!).toBeCloseTo(CQ_GAIT.carry.lean * 0.5, 2);
+    for (let k = half + 1; k <= 2 * half; k++) frame(dropCurve(k * dt, dc).load);
+    expect(dc.load).toBe(0);
+    expect(Math.abs(src[CH.spRoll]!)).toBeLessThan(1e-6);
+    expect(Math.abs(src[CH.pelX]!)).toBeLessThan(1e-6);
+  });
+
+  it('the lift crouch: the controller crouches from t = 0 (the sim timeline); the pose steps in standing, kneels before the hoist, stays down for a stepping foot (capped)', () => {
+    for (const planted of [false, true]) {
+      const P = new CqLiftCrouch();
+      const lc = lift();
+      let crouch = 0;
+      let at03 = -1;
+      let atReach = -1;
+      let at11 = -1;
+      let at16 = -1;
+      for (let n = 0; n <= 60 * CQ.lift; n++) {
+        const t = n * dt;
+        liftCurve(t, lc);
+        if (n === 0) expect(lc.crouch).toBe(true);
+        // the controller's stance ease (crouch held, then standTime ~0.25 s)
+        crouch = lc.crouch ? Math.min(1, crouch + dt / 0.22) : Math.max(0, crouch - dt / 0.25);
+        const c = P.step(crouch, lc.step, planted, dt);
+        if (n === 18) at03 = c;
+        if (n === Math.round(CQ.liftReach * 60)) atReach = c;
+        if (n === 66) at11 = c;
+        if (n === 96) at16 = c;
+      }
+      expect(at03).toBe(0); // the step-in standing (the controller is down by now)
+      expect(atReach).toBeGreaterThan(0.99); // kneeling at the body before the hoist
+      // a foot still stepping holds the kneel (at most CQ.liftCrouchWait); both planted, it follows the controller up
+      if (planted) expect(at11).toBeLessThan(0.5);
+      else expect(at11).toBe(1);
+      expect(at16).toBe(0);
+      // after the lift (back on the controller's crouch) it passes it through
+      expect(P.step(0, -1, true, dt)).toBe(0);
+      expect(P.step(0.4, -1, true, dt)).toBe(0.4);
     }
   });
 });

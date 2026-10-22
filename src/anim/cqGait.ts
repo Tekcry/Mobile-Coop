@@ -16,6 +16,7 @@
 import { registerTuneSection, TUNE_FLAGS, type TuneTunable } from './tuneRegistry';
 import { CH } from './pose';
 import { TUNE_CUR } from './tune';
+import { CQ } from '../game/closeQuarters';
 
 /** One walk's natural values. */
 export interface CqGaitRow {
@@ -75,7 +76,7 @@ export const CQ_SIM = { group: '' as CqGroup | '' };
 export const CQ_SECTION = registerTuneSection({
   id: 'cq',
   label: 'Holds and carries',
-  note: 'The hostage walk and the body carry (anim-natural N4). Read by every rig holding or carrying; the step length is the local player only.',
+  note: 'The hostage walk and the body carry (anim-natural N4). Applies to the local player holding or carrying and to a remote partner holding a guard (a remote body carry is not on the wire); the step length is the local player only.',
   groups: CQ_GROUPS,
   tunables: CQ_TUNABLES,
   select: () => CQ_SIM.group || null,
@@ -149,22 +150,25 @@ export function cqGaitAt(row: CqGaitRow, ph: number, move: number, side: number,
 export class CqGaitLayer {
   /** Eased 0..1: holding or carrying. */
   w = 0;
-  /** Eased 0 (hold) .. 1 (carry), and the eased load side. */
+  /** Eased 0 (hold) .. 1 (carry), and the load (side x weight on the shoulder; held while fading out). */
   carryK = 0;
   side = 0;
   private readonly a: CqGaitOut = { pelYaw: 0, spYaw: 0, spRoll: 0, pelX: 0, pelY: 0 };
   private readonly b: CqGaitOut = { pelYaw: 0, spYaw: 0, spRoll: 0, pelX: 0, pelY: 0 };
 
   /**
-   * `on`: a held guard or a body (the graph's bend inputs), `carry` the load side (1 right shoulder, -1 left, 0 the
-   * hold), `ph` the gait phase, `move` the graph's moving share. Adds to `src` (the graph's pose). No allocation.
+   * `on`: a held guard or a body (the graph's bend inputs), `body` the bend is over a body (the carry walk), `load` the
+   * body's load (1 right shoulder .. -1 left, x its weight on it 0..1: 0 kneeling at the body and after the put down's
+   * hand-over), `ph` the gait phase, `move` the graph's moving share. The carry's lean and hip shift follow the load as
+   * given (the sim eases it; a body hidden or dropped at once ends `on`, and the layer fades out on the last load). Adds
+   * to `src` (the graph's pose). No allocation.
    */
-  apply(src: Float32Array, on: boolean, carry: number, ph: number, move: number, dt: number): void {
+  apply(src: Float32Array, on: boolean, body: boolean, load: number, ph: number, move: number, dt: number): void {
     const k = dt > 0 ? 1 - Math.exp(-dt / 0.15) : 1;
     this.w += ((on ? 1 : 0) - this.w) * k;
     if (on) {
-      this.carryK += ((carry !== 0 ? 1 : 0) - this.carryK) * k;
-      if (carry !== 0) this.side += (carry - this.side) * k;
+      this.carryK += ((body ? 1 : 0) - this.carryK) * k;
+      this.side = load;
     }
     if (this.w < 1e-4) {
       this.w = 0;
@@ -181,6 +185,57 @@ export class CqGaitLayer {
     src[CH.spRoll] = src[CH.spRoll]! + (a.spRoll + (b.spRoll - a.spRoll) * ck) * w;
     src[CH.pelX] = src[CH.pelX]! + (a.pelX + (b.pelX - a.pelX) * ck) * w;
     src[CH.pelY] = src[CH.pelY]! + (a.pelY + (b.pelY - a.pelY) * ck) * w;
+  }
+}
+
+// ------------------------------------------------------------------------------------------
+// The body lift's crouch pose (animation only)
+// ------------------------------------------------------------------------------------------
+
+/** The rig's lift crouch pose moves at most 1 / this per second (s, the controller's crouch time). */
+export const LIFT_CROUCH_POSE_TIME = 0.22;
+
+/**
+ * (hot path) The body lift's crouch pose, on the rig. The controller crouches from the lift's start (the sim's fixed
+ * timeline, `liftCurve`); the pose walks the step-in to the body standing and kneels once the step is
+ * `CQ.liftCrouchStep` done (a step-in posed crouched let the crouched stance band drag a planted foot along with the
+ * body: lift slide 21 cm), and standing up it stays down while a foot is still stepping, at most `CQ.liftCrouchWait` s
+ * (a stand-up on a foot stretched wide dragged it 6 cm). Outside a lift it passes the controller's crouch through.
+ */
+export class CqLiftCrouch {
+  /** The posed crouch 0..1. */
+  cr = 0;
+  private wait = 0;
+  /** Easing back onto the controller's crouch after a lift. */
+  private tail = false;
+
+  /**
+   * `crouch` the controller's eased stance (0..1), `step` the lift's step-in 0..1 (< 0 no lift), `planted` both feet
+   * in contact (the planner's last frame). Returns the crouch to pose.
+   */
+  step(crouch: number, step: number, planted: boolean, dt: number): number {
+    if (step < 0 && !this.tail) {
+      this.cr = crouch;
+      this.wait = 0;
+      return crouch;
+    }
+    let goal = crouch;
+    if (step >= 0) {
+      this.tail = true;
+      if (step < CQ.liftCrouchStep) goal = 0;
+      else if (goal < this.cr && !planted && this.wait < CQ.liftCrouchWait) {
+        goal = this.cr;
+        this.wait += dt;
+      }
+    }
+    const r = dt / LIFT_CROUCH_POSE_TIME;
+    this.cr = goal > this.cr ? Math.min(goal, this.cr + r) : Math.max(goal, this.cr - r);
+    if (step < 0 && Math.abs(this.cr - crouch) < 1e-3) {
+      this.tail = false;
+      this.wait = 0;
+      this.cr = crouch;
+    }
+    return this.cr;
   }
 }
 
