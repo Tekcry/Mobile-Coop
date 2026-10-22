@@ -1,6 +1,16 @@
 # marlow-final - STATE
 
-## Now (2026-10-23 ~01:10, SAVED at the account swap, usage 94%)
+## Now (2026-10-23 ~01:20, new account; FULL BURN to 100% per Michael ~01:05 via the orchestrator)
+- Art kit CHECKED: tsc clean, eslint clean, tests/facilityKit.test.ts 17/17, neighbouring world tests 8 files green
+  (dfff5877). Master a71c8c02 (train 14) merged clean, tsc clean after.
+- Running (3 Opus agents, started ~01:20): spec writer (finish SPEC.md, write PLAN.md with Course Ready slices),
+  lighting (LIGHTING-PLAN.md + pure modules src/world/lighting/ + tests/marlowLighting*.test.ts), props (build.py
+  fixed, facility-props.glb, src/world/props/ helper + renderer, tests/facilityProps.test.ts). If cut off, rerun the
+  same agent; each owns only its files.
+- Waiting: the orchestrator's Marlow co-op engine gap list (fold into SPEC / slice 0 when it lands).
+- After the spec: slice 0 (scaffold + section 14 code), then sets in parallel with Course Ready, dressing after each.
+
+### At the swap (~01:10, history)
 In, committed: AUDIT.md, COOP-INVENTORY.md, CONSTRAINTS.md, ROUTE-DRAFT.md (all 4 step-1 reports), BRIEF M1-M6.
 WIP, committed partial (the agents may have been mid-work at the swap; check each file's last section):
 - SPEC.md (spec writer): partial; rerun the spec writer to finish SPEC.md and write PLAN.md (Next 1).
@@ -33,7 +43,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 3. Course Ready joins as the second builder (whole slices from PLAN.md).
 
 ## Open
-- Merge master once train 12 (4.62.0) lands (branch is on af56ab43).
+- (done ~01:15) master merged at a71c8c02.
 
 ## Done
 - 2026-10-23 ~00:20 job started: BRIEF.md (Michael's words, M1-M5, A1-A7), STATE.md; npm ci done in the worktree.
