@@ -68,6 +68,12 @@ Desktop second lane (2026-10-22 21:06, a GPU run left the desktop at ~40% CPU): 
 under `C:/NightShift/heavy2.lock` (same atomic create and release rules) on port 4192, `E2E_GPU=1`, `E2E_JOBS=1`,
 only while desktop CPU is under 50% at the start. Full `npm run check` and any software run keep the single `heavy.lock`.
 
+**Heavy-usage throughput** (Michael, 2026-10-23 ~09:50: "update with your token suggestions to accomodate heavy usage (desktop e2e and merge PRs)"; full burn showed the laptop queue and desktop CPU, not tokens, as the limit):
+- Desktop agent budget: CPU target under ~80%, so one desktop e2e lane always has room. At most 3 agents per desktop session running tsc / vitest at once (more may run docs, briefs and checks that only read); agents run single vitest files and tsc, never a full `npm run check` (CI runs it). The orchestrator trims the heaviest session when CPU is over 90% at a check.
+- Desktop e2e lane: heavy.lock (4191) runs `E2E_GPU=1 E2E_JOBS=1` single suites whenever desktop CPU is under ~80% at the start (was 60%); heavy2.lock (4192) keeps the 50% rule. A desktop-lane timeout under load is not a verdict: rerun that suite on the laptop. The laptop keeps full runs, trains and the e2e-coop / e2e-netmove / e2e-ctcourse group.
+- Fewer per-PR runs: a PR with a fresh checker PASS whose change is outside `src/net`, `PROTOCOL_VERSION` and the save shape goes straight into the next train on CI `check` plus at most the one or two suites its own area names, run on the desktop lane; the train's full run covers the rest. Stacked series (one job's chained PRs, e.g. guard-ai S4 -> S5 -> S7) enter one train together.
+- Bigger trains: build a train when 3+ PRs are ready, or when the oldest ready PR has waited 2 hours, whichever comes first (was "2+ ready"). One full laptop run per train.
+
 **Machines** (Michael, 2026-10-19; 2026-10-21 16:40: "i dont care about usage on the desktop, i use the laptop": the desktop is the main test machine at full power, full e2e there with E2E_JOBS=2; the laptop is overflow only, BelowNormal, E2E_JOBS=1). Two heavy slots. CPU or GPU heavy work (e2e, full test runs, builds in loops, GPU
 shots, Blender, heavy subagents) runs on the desktop (orchestrator, CT Core and the other desktop job leads), the main
 slot, or on the laptop (Character Build), the second slot, which Michael is still using: there at BelowNormal priority
