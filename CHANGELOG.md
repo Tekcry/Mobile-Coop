@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased - clip-speed (tuner)
+## 4.53.0 - Train 2: guard tuning and clip speed in the animation tuner (2026-10-22, PR #112; #105, #109)
+
+### #109 Clip speed
 - Animation tuner, Clip speed tab (Michael: "Can I fine tune the whole animation speed in anim tuner?"): a speed slider
   per timed clip, 1 = today's timing, 2 = twice as fast. Draw, holster, swap and throw: rifle draw (every long gun),
   pistol draw, holster, weapon swap, grenade throw. Start, stop and landing: the start-off weight shift, the stop
@@ -10,7 +12,7 @@
 - Bakes like the other sections (`node scripts/anim-tune-bake.mjs`, section `clip`): into the draw, holster, swap and
   throw times and a new playback rate per timed body clip (`CLIP_RATE`). Untuned, nothing changes; the save is unchanged.
 
-## Unreleased - marlow-bays item 24 (guard tuning)
+### #105 Guard tuning
 - Animation tuner: a "Who" list (Wren / Guard) at the head of the Body, Stepping and Weight tabs. Guard tunes every
   guard's Joints, Stepping and Weight (lean, step load, springs, the start dip) per guard state: idle, walk (patrol and
   alert), run, aim, crouched, wall cover. Wren's sliders never change a guard and the guard sliders never change Wren.
