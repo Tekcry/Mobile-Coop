@@ -36,7 +36,7 @@ Body mechanics (holstered gaits the mocap set plays):
 - 1360 run head yaw follows the chest (2-6 deg)
 - 1362 walk / jog / sneak / crouch walk pelvis-shoulder counter-rotation correlation (< -0.9)
 - 1363 walk / jog / sneak / crouch walk head yaw follows the chest (2-6 deg)
-- 1366 head pitch p2p <= 2 deg for walk / jog / run / sneak / crouch walk (the aim glide rows still assert)
+- 1371 head pitch p2p <= 2 deg for walk / jog / run / sneak / crouch walk (the aim glide rows still assert)
 
 Not touched (still asserts ON and OFF): every planted-slide / foot-lock assert, turn-feet contact / wind-up / crossing
 / plant time / snap, responsiveness and timing, stance / aim / weapon clip timings, the wall rows (incl. never cross),
