@@ -7,7 +7,12 @@ kind: minor
 - Added on top of the keyed clips and Michael's key edits (never rescaling them), timed onto the gait phase: no pops at
   speed or stance changes, the same at every frame rate. Measured headless (pelvis / shoulders deg peak to peak): walk
   3 / 3 -> 8 / 8, jog 5 / 7 -> 12 / 16, sneak 2 / 2.4 -> 5 / 5.4, crouch walk 4 / 4.8 -> 8 / 8.8; walk hip sway 1.7 ->
-  4.4 cm; aimed side-step counter-rotation -0.47 -> -0.99. The run keeps its keyed hip pop (waiting on Michael, A1).
+  4.4 cm; aimed side-step counter-rotation -0.47 -> -0.99.
+- The run no longer pops at each foot strike. The trunk keys (A1) no longer snap the hips ~21 deg twice a stride, and
+  the arms no longer jump back to front in one frame (wrist 23.5 -> 6.5 cm per clip frame, peak 17.6 -> 5.5 m/s): Michael's
+  2026-10-22 run tune moved the key timings but kept arm values keyed for the old spacing. Only the arm keys were
+  retimed: his swing range and elbow bend are kept; the arms now ease out of each extreme and pass mid-swing about 3/48
+  of a cycle later than his tune.
 - Every Wren rig (the player, the co-op partner, the studio puppets walking a loop); guards are unchanged bit for bit.
   The amounts are per tuner body row (`BODY_MOTION` in `src/anim/bodyMotion.ts`); the stills come in a later step.
 - The animation audit's walk sway limit for Wren is 5 cm (Michael approved ~5 cm; guards keep 3 cm).
@@ -16,4 +21,5 @@ kind: minor
   limit 6; master's own reading). The low-ready head then follows only the keyed carry (1.1 deg peak to peak).
 - Arms (step 3): Wren's walking arms swing wider (wrist range about 23 -> 30 cm), and turns and strafe starts no longer
   whip the hands (the jog 180 turn 14 -> 7 m/s): a per-gait arm gain and a wrist / elbow speed cap in the chest frame
-  (run cap 18 m/s keeps Michael's run keys as tuned). Drawn (low ready) arms are unchanged.
+  (the run's cap, 18 m/s, does not engage on its keys). Drawn (low ready) arms are unchanged. Anim Studio's loop player
+  is never capped: its keyed loops play exactly as keyed.

@@ -26,7 +26,7 @@ import {
 } from '../src/anim/bodyMotion';
 import { KEYED_CROUCH, KEYED_GAITS } from '../src/anim/animGraph';
 import { BODY_GROUPS } from '../src/anim/tune';
-import { measureMotion, measureStudioArms, measureTurns,withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
+import { measureMotion, measureStudioArms, measureTurns, withBodyMotionOff, withKeyMotionOff, withTrunkMotionOff, type MotionMetrics } from './helpers/bodyMotionMeasure';
 import { runIdentity, type IdentityFixture } from './helpers/animSkeletonIdentity';
 import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
@@ -346,7 +346,7 @@ describe('body motion: measured on a headless Wren rig', () => {
     expect(on.jog!.wristPeakChest, 'jog wrist peak, chest frame').toBeLessThanOrEqual(6.5);
     expect(keyOff.jog!.wristPeakChest, 'jog wrist peak before, chest frame').toBeGreaterThan(6.5);
     expect(on.walk!.wristPeak, 'walk wrist peak').toBeLessThan(1.5);
-    // the run's keys untouched at 4 m/s (KEY_MOTION.run.armSpeed 18: Michael's retimed back-to-front swing, 11-17 m/s)
+    // the run's keys untouched at 4 m/s (KEY_MOTION.run.armSpeed 18; since the run arm pop fix the keys peak at 5.5 m/s)
     expect(Math.abs(on.run!.wristFwdCm - keyOff.run!.wristFwdCm), 'run wrist range').toBeLessThanOrEqual(0.1);
     expect(Math.abs(on.run!.wristPeak - keyOff.run!.wristPeak), 'run wrist peak').toBeLessThanOrEqual(0.05);
     // the turns and the strafe start: the gait swap's whip capped (audit 13-16 / 22 m/s; here before 14.2 / 9.8)
