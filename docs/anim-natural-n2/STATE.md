@@ -1,5 +1,14 @@
 # anim-natural N2 - state
 
+## 2026-10-22 ~19:55: pre-PR round built (15921223, c0f6f9f9); fresh checker running (CHECK-5)
+- 15921223: CHECK-4 should-fix 1 (armCap via armCapO, 208 B a frame gone), 2 (no cap under the studio drive), and the
+  alloc test on #128's allocPerCall (0.00 B). c0f6f9f9: run arm pop fixed (arm keys retimed, Blender -b rebake 19:49 under
+  the lock; wrist step per clip frame 23.5 -> 6.5 cm; run wrist peak 17.6 -> 5.5 m/s); identity fixtures unchanged, no
+  re-capture. REPORT-3 has both sections. Single files green, tsc / eslint clean.
+- Next: CHECK-5.md from the checker; on PASS open the PR (minor; no pre-run), message the orchestrator, send the
+  laptop area suites (e2e-anim e2e-studio e2e-clip) to Character Build, copy the orchestrator. Then steps 4-5 (PLAN) and
+  the #128 alloc follow-up (done here: the helper is used).
+
 ## 2026-10-22 ~19:45 (new account): master 4.57.0 merged (02187841), pre-PR round running
 - Merge of master 4.57.0 (train 6): CHANGELOG.md is master's; N2's entries moved into
   `changes/feature-anim-natural-n2.md` (fragments, G183). Master's #122 removed `AnimInput.slide`, which switched the body
