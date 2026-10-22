@@ -1613,7 +1613,7 @@ if (want(6)) {
     const d0 = await G(() => window.__sector.debug());
     assert(d0.index === 0 && d0.phase === 'objective' && d0.nearLocked === true && d0.farLocked === true && d0.live === 0, `the run starts on section 1's objective, C1 locked (${JSON.stringify([d0.index, d0.phase, d0.nearLocked, d0.farLocked, d0.live])})`);
     const cams = await G(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live]));
-    assert(cams.length === 5 && JSON.stringify(cams.filter((c) => c[1]).map((c) => c[0])) === '["cam-gate","cam-walk"]', `five cameras on the map, cam-gate and cam-walk live in section 1 (${JSON.stringify(cams)})`);
+    assert(cams.length === 7 && JSON.stringify(cams.filter((c) => c[1]).map((c) => c[0])) === '["cam-gate","cam-walk"]', `seven cameras on the map (S1 2, S2 3, S3 2), cam-gate and cam-walk live in section 1 (${JSON.stringify(cams)})`);
     // nav: every walked leg of the three routes has a path on the guards' real grid (the climbs are the ladder and the drop)
     const nv = await G(() => {
       const g = window.__app.current;
