@@ -93,6 +93,44 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   and 2.5 s contact call as a sighting, instead of the old instant 22 m fan-out: taking out a guard who was just shot
   at also stops his call. Undo: in `Enemy.onLevel` (src/ai/enemy.ts, the `netOn` branch) route `loudAlert || gunfire`
   to an immediate `radioCall` completion (hold 0).
+- **A14** (S4) A knockout seen by a calm guard is a knockout found: he goes to wake him (both get the timed caution), not
+  a held "witnessed kill" (design 4 had the witness unable to tell; M1 "wake them up (if knocked out)" read literally).
+  A kill seen is a dead body found at once (every witness held, the nearest shouts and radios it). Undo: in
+  `EnemyManager.witnessKill` (src/ai/enemyManager.ts) open a `witness` hold with the mask for a knockout too.
+- **A15** (S4) Guard keys are given at spawn: the lowest key not held by a guard on the list or a knocked-out body (the
+  live section; deterministic, as spawn order is), not the map's squad-slot index; a woken guard keeps his, a dead
+  guard's key is reused (clean slate). Undo: S5 `placeSlot` / a `SquadSlot.key` override sets `Enemy.key`.
+- **A16** (S4) Caution is the cooldown level: a cautious calm guard sits in `cooldown` (sight x1.3 =
+  `SENSITIVITY.cooldown` = `CAUTION.sens`, never unaware while it lasts), patrols at 0.95, pauses x0.6, torch rule as
+  searching; investigating or searching he keeps that level's own sensitivity (no x1.3 on top). Only death holds
+  (`dead`, `witness`) are wired; contact and missing holds are not (combat keeps `AlertMachine.fought` as each guard's
+  permanent caution, as before). Undo: x`CAUTION.sens` in `Enemy.perceive` while `caution > 0`; open `contact` /
+  `missing` holds from the board.
+- **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
+  passed to Course Ready, not changed here.
+- **A17** (S5) A high-security post is lured (not sent) by a noise or gunfire at his investigate tier (inside half its
+  effective reach) and by a light he sees go out; at the turn tier he only turns, as anyone. He is never reported to the
+  board, so a noise only he heard opens no incident (nobody else is sent in his place). Undo: in `EnemyManager.hear` /
+  `noise` / `lightsOut` (src/ai/enemyManager.ts, the `e.secure` branches) also add him to the perceivers, so the board's
+  `callR` fallback sends a free guard.
+- **A18** (S5) A high-security post in combat fights from inside his leash: chase and strafe points are clamped into it,
+  cover outside it is skipped, and a target (or the last known position) more than 1.5 m outside it is held from his post
+  facing it, like `Enemy.hold` for a room (design 6 "radios rather than chases"). Undo: drop the `inLeash` / `leashed`
+  checks in `Enemy.decide`, `chasePoint`, `pickCover` and `pickAdvance` (he then fights and chases like anyone).
+- **A19** (S5) The post's centre is the guard's spawn point (the slot's x, z snapped to the nav cell) and the post yaw is
+  the slot's yaw; after a lure he faces the post yaw for `POST.returnFace` 0.8 s, then his normal standing post takes
+  over (the calm turn is 60 deg/s, so a turn back of more than ~50 deg finishes after the lure ends). Undo: raise
+  `POST.returnFace`, or give `PostDef` its own centre.
+- **A20** (S7) A guard sent to a body a camera saw goes straight to investigating (an order over the radio, no 2.4 s
+  look first) and, once within `BODY.close` with a clear line, the existing body-found path runs (wake a KO'd guard,
+  search; the squad within 22 m searches until S4). Undo: in `Enemy.checkBody` call `sendTo` (the look, then the walk).
+- **A21** (S7) No calm guard within `INCIDENT.callR` 25 m of the body: nobody is sent; the report waits `camWait` 30 s
+  for one to come in range, then lapses. Design 9's "section turns cautious" waits for S4's caution. Undo: raise
+  `camWait`, or send the nearest calm guard of the section at any range (drop `M.callR` in the `camBody` branch).
+- **A22** (S7) The radio line is the security desk's, once per body: "Camera N has a man down, {room}." + "Nearest
+  unit, check on him." (KO) or "He's not moving. Two of you, go." (dead); N = the camera's place in the map's security
+  list (1-based), {room} the `RoomRect.name` under the body (dropped when none); a radio bark over the camera, text
+  only (G82). Undo: `camBodyLine` (src/ai/barks.ts) and the label in `GameState`'s `onBody`.
 - **A23** (S8) Squad roles run for one engaged group per guard set (the one shared last known position): every alerted,
   free, cover-using guard (not melee, dog, sniper, enforcer, a room holder, passive, held, on an alarm run or closing in)
   when there are at least 2 of them; a lone guard and the parked modes keep today's tactics and today's single flanker
@@ -110,5 +148,3 @@ manoeuvre beats guard count. Every map's guards are armed (Answers 3).
   out after 5 peeks; the point instead walks the last stretch (`closing`, out of the group, `ADVANCE_PACE`) when he has
   no cover left to bound to or after 5 peeks with no sight. The reporter stays crouched and holds his fire while his
   contact call is open. Undo: `holds` in `Enemy.decide` (`inCover`).
-- **A11** Sector Ops tour guards that are melee-only conflict with "every map's guards are armed" (Answers 3): map data,
-  passed to Course Ready, not changed here.

@@ -27,6 +27,10 @@ export type BarkEvent =
   | 'missing'
   // (guard-ai S3, design 5) a guard joining on a shout or a radio call
   | 'joining'
+  // (guard-ai S4, design 4 / 10) bodies: waking a knocked-out squadmate, the reports
+  | 'koFound'
+  | 'koReport'
+  | 'deadReport'
   // (guard-ai S8, design 8) squad tactics: the point bounds, the overwatch covers it, the flanker goes round
   | 'moving'
   | 'covering'
@@ -56,15 +60,18 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   standDown: ['Nothing here. Back to it.'],
   missing: ["He's not answering. Two of us, go."],
   joining: ['Copy, moving!', 'On my way!', 'Coming to you!'],
+  koFound: ['Hey. Hey! Wake up.'],
+  koReport: ["Found him out cold. He's okay, checking around."],
+  deadReport: ['Man down. Stay sharp.', 'We lost one. Stay sharp.'],
   moving: ['Moving up!', 'Moving!', 'Cover me!'],
   covering: ['Covering!', 'Got you covered!', 'Go, go!'],
   flanking: ['Flanking!', 'Going round!', 'Taking the side!'],
 };
 
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn', 'ack', 'checking', 'lightOut', 'standDown', 'missing', 'koReport', 'deadReport']);
 /** Urgent lines cut through a speaker's cooldown. */
-const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn']);
+const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn', 'koFound', 'koReport', 'deadReport']);
 
 export const BARK = {
   /** Seconds between one speaker's lines; on screen this long. */
@@ -98,4 +105,14 @@ export class BarkVoice {
     this.next = this.t + BARK.cooldown;
     return line;
   }
+}
+
+/**
+ * (guard-ai S7, design 10 `camBody`) The security desk's radio line when a camera sees a downed guard: the camera's
+ * label ("Camera 2"), the room it is in (`RoomRect.name`; '' drops it), and who should go (one for a knocked-out guard,
+ * two for a dead one). Original text, under 90 characters with a short room name, written to be voiced later (G82).
+ */
+export function camBodyLine(camera: string, room: string, lethal: boolean): string {
+  const where = room ? `, ${room}` : '';
+  return lethal ? `${camera} has a man down${where}. He's not moving. Two of you, go.` : `${camera} has a man down${where}. Nearest unit, check on him.`;
 }

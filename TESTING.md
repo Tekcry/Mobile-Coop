@@ -101,6 +101,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
   nearest first. Take the spotter down before his radio line and nobody beyond shouting range comes.
+- [ ] Bodies and caution (guard-ai S4): kill a guard in view of another: he shouts "Man down!", searches and radios it;
+  take him out within ~2 s and the rest stay normal; let it through and the section stays on edge until everyone who
+  knows is down. Knock one out and let him be found: the finder wakes him, both search ~1 min, stay on edge ~3 min,
+  then normal; nobody else changes.
+- [ ] Posted guards (guard-ai S5; once a map has a high-security post, e.g. the campus keyholders): throw a bottle or cut
+  the light near him: he walks to the edge of his area, looks toward it ~5 s, walks back and faces his post; he never
+  follows a search or chases you out of his area.
+- [ ] Cameras see bodies (guard-ai S7, Sector Ops): knock a guard out where a camera sweeps (lit or dark): the desk
+  radios "Camera N has a man down..." and the nearest guard walks over and wakes him; loop or jam the camera first and
+  nobody comes.
 - [ ] Guard tactics (guard-ai S8): get spotted by 4 guards and break line of sight: the caller drops back into cover,
   one moves up cover to cover ("Moving up!"), one covers from cover ("Covering!"), one goes round the side
   ("Flanking!"); never more than one of them moving up at once, nobody runs at you in the open.

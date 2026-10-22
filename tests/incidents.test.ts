@@ -748,6 +748,7 @@ describe('search pace: after combat vs calm (fix round 2: e2e lkp)', () => {
       ctx: { coordinated: () => coordinated, stealth: () => true },
       incident: -1,
       lc: { stop() {} },
+      lure: { cancel() {} }, // (guard-ai S5) the post lure
       bark() {},
       setState() {},
       walker: { rejoin() {} },
