@@ -22,6 +22,7 @@ import type { LightRegistry } from '../world/lights';
 import { RtReflections, type RtSource } from './rtReflections';
 import { depthWanted, fStopFor, stepAperture } from './dofAperture';
 import { pauseAperture } from './pauseLook';
+import { writeVolLight } from './volLights';
 import { Taau, VIEW_Z_GLSL, type DepthSource } from './taau';
 import { PaniniPass } from './paniniPass';
 
@@ -470,30 +471,9 @@ export class PostStack {
       const n = Math.min(this.volMax, nearest(reg, p.x, p.y, p.z, this.ids, this.dist));
       let k = 0;
       for (let i = 0; i < n; i++) {
-        const l = reg.lights[this.ids[i]!]!;
-        // lamps scatter under their shade (a short cone), flashlights along the beam (stopped by geometry)
-        const lamp = !l.cone;
-        const r = lamp ? Math.min(3.2, l.radius * 0.5, Math.max(0.8, l.y)) : Math.min(l.reach ?? l.radius, 14);
-        this.lPos[k * 4] = l.x;
-        this.lPos[k * 4 + 1] = l.y;
-        this.lPos[k * 4 + 2] = l.z;
-        this.lPos[k * 4 + 3] = r;
-        if (l.cone) {
-          this.lDir[k * 4] = l.cone.dx;
-          this.lDir[k * 4 + 1] = l.cone.dy;
-          this.lDir[k * 4 + 2] = l.cone.dz;
-          this.lDir[k * 4 + 3] = l.cone.cosOuter;
-        } else {
-          this.lDir[k * 4] = 0;
-          this.lDir[k * 4 + 1] = -1;
-          this.lDir[k * 4 + 2] = 0;
-          this.lDir[k * 4 + 3] = 0.88;
-        }
-        const g = l.intensity * (lamp ? 1 : 1.6);
-        this.lCol[k * 4] = l.color[0] * g;
-        this.lCol[k * 4 + 1] = l.color[1] * g;
-        this.lCol[k * 4 + 2] = l.color[2] * g;
-        this.lCol[k * 4 + 3] = 1;
+        // fixed lights (lamps, spots, floods) scatter under their shade (a short cone), flashlights along the beam
+        // (stopped by geometry): `volLights.ts` (vol-cone-fix)
+        writeVolLight(reg.lights[this.ids[i]!]!, k, this.lPos, this.lDir, this.lCol);
         k++;
       }
       this.volCount = k;

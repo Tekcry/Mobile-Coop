@@ -119,6 +119,8 @@ change.
   proves the light shapes and the light field are the same with voxels on or off.
 - No light cones: a beam is not seen in clean air, only where it lands. The volumetric haze (post stack) stays. Research:
   `docs/research/night-vision-and-lamps.md`.
+- Volumetric beams (post stack, `src/vfx/volLights.ts`, vol-cone-fix): only torches (`kind: 'flashlight'`) draw a long
+  beam; every fixed light (lamps, spots, floods, strips with a beam optic) scatters a short haze under its shade.
 - Brightness calibration (`BrightnessScreen`, Settings > Display): an exposure multiplier in the grade, `BRIGHTNESS_MIN` ..
   `MAX`. `GameState.brightnessLocked` (nothing sets it now; its mission was the Confrontation, removed by G9).
 
