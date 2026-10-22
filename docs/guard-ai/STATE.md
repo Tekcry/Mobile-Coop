@@ -5,8 +5,14 @@ PAUSED at the orchestrator's TRIM 4 (usage pace) until it messages (~04:00). S2 
 check green), e2e queued on the laptop; its fresh checker NOT run yet. S1 is PR #179 (feature/guard-ai-s1 5e019d9c,
 train 17).
 
+S2 e2e (laptop GPU, 661c258a): 7 suites PASS; e2e-stealth-ai FAIL in the new 'light pair' scenario: "both stand down
+after the check (at -1.00, 29.80 s)": guard a (first investigator) stays 'investigating' for the whole 120 s window,
+guard b stands down at 29.8 s (sim-stepped, so not load). Log C:/NightShift/scratch/runs/guardai-s2-661c258a/ (laptop).
+
 ## Next
-S2 fresh checker (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
+S2 fresh checker WITH the 'light pair' failure as evidence (diagnose why the first light investigator never stands
+down: stuck at an unreachable ring point, the stand-down only firing for one, or the light check timer), then the one
+fix round, then e2e-stealth-ai solo rerun on the fixed commit; (slices/S2.md, review the S2 commit diff), then S2 as its own PR when green; then S3 radio net, then
 S4-S10 in PLAN order.
 
 ## Open
