@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { CLIP_ALL, CLIP_BASE, CLIP_BODY, CLIP_GUN, CLIP_SPEED_IDS, CLIP_SPEED_SECTION, clipSpeed } from '../src/anim/tuneClipSpeed';
-import { DRAW_DRAWN, DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM, DrawState, drawTimeFor, fireReady, HOLSTER_TIME, holsterTime } from '../src/weapons/drawState';
+import { DRAW_DRAWN, DRAW_TIME_PRIMARY, DRAW_TIME_SIDEARM, DrawState, drawTimeFor, fireReady, HOLSTER_TIME_PRIMARY, HOLSTER_TIME_SIDEARM, holsterTimeFor } from '../src/weapons/drawState';
 import { CLIP_RATE } from '../src/anim/clips/actions';
 import { TUNE_FLAGS, TUNE_SECTIONS, tuneExport, tuneGet, tuneImport, tuneLoad, tuneResetAll, tuneSet, tuneSnapshot } from '../src/anim/tuneRegistry';
 import { bakeCatalogue, tuneBake } from '../src/anim/tuneBake';
@@ -40,19 +40,21 @@ describe('clip speed values', () => {
       expect(clipSpeed(id)).toBe(1);
     }
     expect(CLIP_SPEED_SECTION.byId.get('all')!.groups).toEqual([CLIP_ALL]);
-    // the draws, holster and swap come first
-    expect(CLIP_SPEED_SECTION.tunables.slice(0, 4).map((t) => t.id)).toEqual(['rifleDraw', 'pistolDraw', 'holster', 'swap']);
+    // the draws, the holsters (one per gun, anim-natural N3) and swap come first
+    expect(CLIP_SPEED_SECTION.tunables.slice(0, 5).map((t) => t.id)).toEqual(['rifleDraw', 'pistolDraw', 'holsterPrimary', 'holsterSidearm', 'swap']);
   });
 
   it('untuned is bit-identical: the draw and holster times are the code constants', () => {
     expect(drawTimeFor('rifle')).toBe(DRAW_TIME_PRIMARY);
     expect(drawTimeFor('smg')).toBe(DRAW_TIME_PRIMARY);
     expect(drawTimeFor('pistol')).toBe(DRAW_TIME_SIDEARM);
-    expect(holsterTime()).toBe(HOLSTER_TIME);
+    expect(holsterTimeFor('rifle')).toBe(HOLSTER_TIME_PRIMARY);
+    expect(holsterTimeFor('pistol')).toBe(HOLSTER_TIME_SIDEARM);
     expect(CLIP_RATE).toEqual({ startShift: 1, stopSettle: 1, land: 1 });
     // the "today" lines read the owners' values
     expect(CLIP_BASE.rifleDraw).toBe(DRAW_TIME_PRIMARY);
-    expect(CLIP_BASE.holster).toBe(HOLSTER_TIME);
+    expect(CLIP_BASE.holsterPrimary).toBe(HOLSTER_TIME_PRIMARY);
+    expect(CLIP_BASE.holsterSidearm).toBe(HOLSTER_TIME_SIDEARM);
   });
 
   it('a draw speed scales the draw time, and the fire gate opens when the draw ends', () => {
@@ -72,8 +74,9 @@ describe('clip speed values', () => {
   });
 
   it('the holster speed scales the holster, and the every-clip slider multiplies each clip', () => {
-    tuneSet(CLIP_GUN, 'holster', 0.5);
-    expect(holsterTime()).toBeCloseTo(HOLSTER_TIME * 2, 12);
+    tuneSet(CLIP_GUN, 'holsterPrimary', 0.5);
+    expect(holsterTimeFor('rifle')).toBeCloseTo(HOLSTER_TIME_PRIMARY * 2, 12);
+    expect(holsterTimeFor('pistol')).toBe(HOLSTER_TIME_SIDEARM);
     tuneSet(CLIP_GUN, 'pistolDraw', 1.5);
     tuneSet(CLIP_ALL, 'all', 2);
     expect(clipSpeed('pistolDraw')).toBeCloseTo(3, 12);
@@ -82,7 +85,8 @@ describe('clip speed values', () => {
     // the bypass reads the untuned timing
     TUNE_FLAGS.bypass = true;
     expect(drawTimeFor('pistol')).toBe(DRAW_TIME_SIDEARM);
-    expect(holsterTime()).toBe(HOLSTER_TIME);
+    expect(holsterTimeFor('rifle')).toBe(HOLSTER_TIME_PRIMARY);
+    expect(holsterTimeFor('pistol')).toBe(HOLSTER_TIME_SIDEARM);
   });
 
   it('survives the save and the export / import round trip', () => {
@@ -104,6 +108,25 @@ describe('clip speed values', () => {
     // a save from before this section (no clip groups) loads at identity
     tuneLoad({ version: 2, values: { walk: { strideMul: 1.1 } }, log: [] });
     for (const id of CLIP_SPEED_IDS) expect(clipSpeed(id)).toBe(1);
+  });
+
+  it('(anim-natural N3) a 4.53.0 save, preset or export with the single holster row sets both gun holsters', () => {
+    // literal records as 4.53.0 wrote them (one `holster` row in clip.gun)
+    tuneLoad({ version: 2, values: { 'clip.gun': { holster: 0.5, swap: 1.2 } }, log: [] });
+    expect(tuneGet(CLIP_GUN, 'holsterPrimary')).toBe(0.5);
+    expect(tuneGet(CLIP_GUN, 'holsterSidearm')).toBe(0.5);
+    expect(tuneGet(CLIP_GUN, 'swap')).toBe(1.2);
+    expect(holsterTimeFor('rifle')).toBeCloseTo(HOLSTER_TIME_PRIMARY * 2, 12);
+    expect(holsterTimeFor('pistol')).toBeCloseTo(HOLSTER_TIME_SIDEARM * 2, 12);
+    tuneResetAll();
+    const old = { magic: 'night-shift-anim-tune', version: 2, exported: '2026-10-22T12:00:00.000Z', changed: [{ group: 'clip.gun', id: 'holster', value: 1.5, kind: 'mul' }], log: [] };
+    expect(tuneImport(old, 'old.json').ok).toBe(true);
+    expect(tuneGet(CLIP_GUN, 'holsterPrimary')).toBe(1.5);
+    expect(tuneGet(CLIP_GUN, 'holsterSidearm')).toBe(1.5);
+    // a record that already has its own per-gun value keeps it
+    tuneLoad({ version: 2, values: { 'clip.gun': { holster: 0.5, holsterSidearm: 2 } }, log: [] });
+    expect(tuneGet(CLIP_GUN, 'holsterPrimary')).toBe(0.5);
+    expect(tuneGet(CLIP_GUN, 'holsterSidearm')).toBe(2);
   });
 
   it('shows in its own tab with plain names', () => {
@@ -151,9 +174,9 @@ describe('clip speed bake', () => {
     expect(r.writes.map((w) => w.path).sort()).toEqual([BAKE_LEDGER, ACT, DRAW].sort());
     t.write(r.writes);
     const draw = t.read(DRAW)!;
-    expect(draw).toContain('export const DRAW_TIME_PRIMARY = 0.24;');
-    expect(draw).toContain('export const DRAW_TIME_SIDEARM = 0.5;');
-    expect(draw).toContain('export const HOLSTER_TIME = 0.15;');
+    expect(draw).toContain('export const DRAW_TIME_PRIMARY = 0.88;');
+    expect(draw).toContain('export const DRAW_TIME_SIDEARM = 0.75;');
+    expect(draw).toContain('export const HOLSTER_TIME_PRIMARY = 1.0;');
     expect(t.read(ACT)).toContain('export const CLIP_RATE = { startShift: 1, stopSettle: 1, land: 2 };');
     expect(t.read(WPN)).toBe(readFileSync(path.join(ROOT, WPN), 'utf8'));
     // the diff names only the changed lines; a re-run of the same export is a no-op (identity after the bake)
@@ -168,13 +191,25 @@ describe('clip speed bake', () => {
     expect(r.ok, r.error).toBe(true);
     t.write(r.writes);
     const draw = t.read(DRAW)!;
-    expect(draw).toContain('export const DRAW_TIME_PRIMARY = 0.15;');
-    expect(draw).toContain('export const DRAW_TIME_SIDEARM = 0.25;');
-    expect(draw).toContain('export const HOLSTER_TIME = 0.075;');
+    expect(draw).toContain('export const DRAW_TIME_PRIMARY = 0.55;');
+    expect(draw).toContain('export const DRAW_TIME_SIDEARM = 0.375;');
+    expect(draw).toContain('export const HOLSTER_TIME_PRIMARY = 0.5;');
+    expect(draw).toContain('export const HOLSTER_TIME_SIDEARM = 0.45;');
     const wpn = t.read(WPN)!;
     expect(wpn).toContain('const SWAP_TIME = 0.3;');
     expect(wpn).toContain('const GRENADE_TIME = 0.6;');
     expect(t.read(ACT)).toContain('export const CLIP_RATE = { startShift: 2, stopSettle: 2, land: 2 };');
+  });
+
+  it('(anim-natural N3) a 4.53.0 export\'s single holster row bakes into both gun holsters', () => {
+    const t = tree();
+    const r = tuneBake(exp([entry(CLIP_GUN, 'holster', 2)]), cat, t.read);
+    expect(r.ok, r.error).toBe(true);
+    t.write(r.writes);
+    const draw = t.read(DRAW)!;
+    expect(draw).toContain('export const HOLSTER_TIME_PRIMARY = 0.5;');
+    expect(draw).toContain('export const HOLSTER_TIME_SIDEARM = 0.45;');
+    expect(draw).toContain('export const DRAW_TIME_PRIMARY = 1.1;');
   });
 
   it('a dry run (no write) changes nothing and identity bakes nothing', () => {
@@ -182,8 +217,8 @@ describe('clip speed bake', () => {
     const before = t.read(DRAW);
     const r = tuneBake(exp([entry(CLIP_GUN, 'pistolDraw', 1.25)]), cat, t.read);
     expect(r.ok).toBe(true);
-    expect(r.diff).toContain('-export const DRAW_TIME_SIDEARM = 0.5;');
-    expect(r.diff).toContain('+export const DRAW_TIME_SIDEARM = 0.4;');
+    expect(r.diff).toContain('-export const DRAW_TIME_SIDEARM = 0.75;');
+    expect(r.diff).toContain('+export const DRAW_TIME_SIDEARM = 0.6;');
     expect(t.read(DRAW)).toBe(before);
     const none = tuneBake(exp([entry(CLIP_GUN, 'pistolDraw', 1)]), cat, t.read);
     expect(none.writes).toHaveLength(0);

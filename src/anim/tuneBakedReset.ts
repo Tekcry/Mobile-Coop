@@ -12,7 +12,7 @@
  * The panel's Y menu "Reset baked" runs it again ignoring that record. Not hot (a load-time step).
  * Docs: `docs/anim-tuner/BAKE.md` step 7.
  */
-import { migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
+import { aliasTuneValues, migrateTuneRows, TUNE_ROWS_VERSION } from './tuneRows';
 import { sectionOf, tuneBakedApplied, tuneReset, tuneSetBakedApplied, tuneSnapshot } from './tuneRegistry';
 
 /** One bake of the ledger (the fields this step reads). */
@@ -129,7 +129,7 @@ export function bakedResetPlan(
   const plan: BakedResetPlan = { reset: [], kept: 0, fresh, ids };
   const snap = saved && typeof saved === 'object' ? (saved as { version?: unknown; values?: unknown }) : {};
   const raw = snap.values && typeof snap.values === 'object' ? (snap.values as Record<string, Record<string, number>>) : {};
-  const values = snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw);
+  const values = aliasTuneValues(snap.version === TUNE_ROWS_VERSION ? raw : migrateTuneRows(raw)); // (anim-natural N3) split sliders
   for (const [group, vals] of Object.entries(values)) {
     if (!vals || typeof vals !== 'object') continue;
     for (const [id, value] of Object.entries(vals)) {
