@@ -410,9 +410,17 @@ try {
   /** Move a client (the host grants a teleport window first). */
   async function moveClient(P, x, y, z, yaw) {
     await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
-    await P.evaluate(([x, y, z, yaw]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, y, z), yaw); }, [x, y, z, yaw]);
-    await wait(500);
+    const t0 = await P.evaluate(([x, y, z, yaw]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, y, z), yaw); return g.time; }, [x, y, z, yaw]);
+    // (test-speed-2) was a fixed 0.5 s of sim: the host has the client at the spot (its reach checks read that copy) and
+    // the client stands (>= 0.15 s of its sim: `grounded` is stale right after a teleport); a miss waits out the old 0.5 s
+    const ok = await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.4; }, [x, z], 5000, 'the host has the client at the spot')
+      .then(() => until(P, (t0) => { const g = window.__app.current; return g.time - t0 >= 0.15 && g.player.controller.grounded; }, t0, 3000, 'the client stands after the teleport'))
+      .then(() => true, () => false);
+    const left = 0.5 - ((await P.evaluate(() => window.__app.current.time)) - t0);
+    if (!ok && left > 0) await wait(left * 1000);
   }
+  /** (test-speed-2) The client's puppet of host guard `id` is at (x, z) (was a fixed 0.6 s after the host moved it). */
+  const puppetAt = (id, x, z) => until(B, ([id, x, z]) => { const p = window.__app.current.net.puppets.get(id); return !!p && Math.hypot(p.pos.x - x, p.pos.z - z) < 0.3; }, [id, x, z], 3000, 'the client puppet follows the moved guard').catch(() => wait(600));
 
   console.log('co-op on the guards: calm puppets, doors, mirrored items, a client takedown, a client revive');
   await startMode(...MISSION);
@@ -456,7 +464,7 @@ try {
     v.pos.set(6, 0, -6);
     v.yaw = 0;
   }, tdv);
-  await wait(600);
+  await puppetAt(tdv, 6, -6);
   await moveClient(B, 6, 0.1, -7.1, 0);
   // (the guard is held on its spot while the client's offer comes round: a calm patrol would walk it off; the host
   // checks reach against the client's latest state, which can lag under load - a denied start is retried)
@@ -526,7 +534,7 @@ try {
     }
   }, id);
   await pinSk(skv);
-  await wait(600);
+  await puppetAt(skv, 8, -6);
   await moveClient(B, 8, 0.1, -6.9, 0);
   let skKo = false;
   let skInfo = '';
@@ -781,8 +789,11 @@ try {
       const n0 = [eA.length, eB.length];
       assert(await GA(() => window.__course.restartCheckpoint()), `the host restarts at the checkpoint (${tag} holding)`);
       await until(A, (id) => window.__app.current.enemyMgr.enemies.some((e) => e.alive && e.id !== id), old, 8000, 'the squad respawns on the host');
-      // frames on both pages past the client's stale-puppet drop (0.5 s) and the respawn
-      await wait(3000);
+      // frames on both pages past the client's stale-puppet drop (0.5 s) and the respawn. (test-speed-2) Was a fixed 3 s
+      // of sim: wait for the drop and the respawned squad on the client (8 s), then 1 s more of frames on both pages for
+      // the old crash (the disposed puppet's rig read every frame) to show in the error check
+      await until(B, (id) => { const n = window.__app.current.net; return !n.puppets.has(id) && [...n.puppets.values()].some((p) => p.alive); }, old, 8000, 'the client drops the old puppet and has the respawned squad').catch(() => {});
+      await wait(1000);
       const errsNow = [...realErr(eA.slice(n0[0])), ...realErr(eB.slice(n0[1]))];
       const free = await GB((id) => { const g = window.__app.current; return { active: !!g.takedown.active, hostage: g.takedown.hostage?.id ?? null, old: g.net.puppets.has(id) }; }, old);
       const hostFree = await GA(() => { const g = window.__app.current; return { active: !!g.takedown.active, seized: g.net.seized.size, taken: g.enemyMgr.enemies.filter((e) => e.taken).length }; });
