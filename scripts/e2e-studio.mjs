@@ -416,6 +416,74 @@ try {
   const gearP2 = await gearPupOf();
   assert(gearP2.live === 0 && gearP2.sh.every((v, i) => v === gearP0.sh[i]), "reset: the puppet's sling node is back exactly");
   assert(gearP2.gg.every((v) => v === 0), "(anim-goggle) reset: the puppet's goggle offset is identity again");
+
+  // (anim-bake-targets) the Body base key: `body` rows set through the dev hook (the tuner at identity) on role B's own
+  // stance row (paused in the boost pair) change the puppet's pose (leanAdd: its spine; pelvisYAdd: its hips; paused, its
+  // planted feet do not re-step, so a trackMul row would not show), and a reset puts the base and the pose back exactly; in
+  // the hold pair the same rows on Wren's row move her spine and leave the guard (not a Wren rig) as it was
+  const bodyPup = () => G(() => {
+    const r = window.__app.current.studio.puppets[1].rig;
+    const st = r.tuneSt;
+    const a = r.ankleL.getAbsolutePosition();
+    const b = r.ankleR.getAbsolutePosition();
+    const y = r.root.rotation.y;
+    // the feet's spread along the puppet's own right axis
+    const w = Math.abs((b.x - a.x) * Math.cos(y) - (b.z - a.z) * Math.sin(y));
+    const q = (n) => { const x = r[n].rotationQuaternion; return [x.x, x.y, x.z, x.w]; };
+    return { body: st?.body ?? null, w, hy: r.hips.getAbsolutePosition().y - r.root.position.y, sp: q('spine'), bones: ['spine', 'neck', 'shoulderR', 'shoulderL', 'elbowR', 'hipL', 'hipR', 'kneeL', 'kneeR'].map(q), applied: st ? Array.from(st.bodyBase.applied) : null, live: st ? st.bodyBase.live : null };
+  });
+  const BODY_SET = [['leanAdd', 0.3], ['pelvisYAdd', -0.06]];
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.pick('pair:boost'));
+  await frames(page, 4);
+  await G(() => window.__studio.pause());
+  // role B's stance rows over the cycle (a standing row preferred)
+  const bodySeen = [];
+  for (let k = 0; k < 10; k++) {
+    await G((v) => window.__studio.seek(v), k / 10);
+    await frames(page, 6);
+    const p = await bodyPup();
+    if (p.body) bodySeen.push([k / 10, p.body]);
+  }
+  const bodyPick = bodySeen.find(([, r]) => !/^crouch/.test(r)) ?? bodySeen[0];
+  assert(!!bodyPick, `the boost pair's role B picks a Body row (${bodySeen.map(([t, r]) => `${t}: ${r}`).join(', ')})`);
+  const [bodyT, bodyRow] = bodyPick;
+  await G((v) => window.__studio.seek(v), bodyT);
+  await frames(page, 6);
+  const bodyBaked = await G((row) => window.__animBase.get().body?.[row] ?? {}, bodyRow);
+  const bp0 = await bodyPup();
+  for (const [id, v] of BODY_SET) await G(([row, i, x]) => window.__animBase.setBody(row, i, x), [bodyRow, id, v]);
+  await frames(page, 30);
+  const bp1 = await bodyPup();
+  console.log(`  (role B's body row ${bodyRow} at ${bodyT}: baked ${JSON.stringify(bodyBaked)}; spine ${jang(bp0.sp, bp1.sp).toFixed(2)} deg, hips ${(bp1.hy - bp0.hy).toFixed(4)} m, track ${bp0.w.toFixed(4)} -> ${bp1.w.toFixed(4)} m)`);
+  assert(bp1.live === true && bp1.body === bodyRow, `role B's puppet takes the body rows (${bodyRow}: live ${bp1.live})`);
+  assert(jang(bp0.sp, bp1.sp) > 4, `a body.${bodyRow}.leanAdd row (0.3 rad) leans role B's spine (${jang(bp0.sp, bp1.sp).toFixed(1)} deg)`);
+  assert(bp1.hy - bp0.hy < -0.03, `a body.${bodyRow}.pelvisYAdd row (-6 cm) lowers role B's hips (${((bp1.hy - bp0.hy) * 100).toFixed(1)} cm)`);
+  await G(() => window.__animBase.reset());
+  await frames(page, 30);
+  const bp2 = await bodyPup();
+  // (the bones within 0.1 deg: a paused rig's own smoothing drifts a few hundredths, as the guard's ~0.02 deg in J1)
+  const bpMax = Math.max(...bp0.bones.map((q, i) => jang(q, bp2.bones[i])));
+  assert(bp2.applied.every((v, i) => v === bp0.applied[i]) && bp2.live === bp0.live, `reset: the puppet's Body base is back exactly (live ${bp2.live})`);
+  assert(Math.abs(bp2.w - bp0.w) < 1e-6 && Math.abs(bp2.hy - bp0.hy) < 1e-6 && bpMax < 0.1, `reset: the puppet's pose is back (track ${Math.abs(bp2.w - bp0.w).toExponential(1)} m, hips ${Math.abs(bp2.hy - bp0.hy).toExponential(1)} m, bones ${bpMax.toExponential(1)} deg)`);
+  await G(() => window.__studio.play());
+  // the guard: the same rows on Wren's own row in the hold pair
+  const spineOf = () => G(() => { const x = window.__app.current.player.rig.spine.rotationQuaternion; return [x.x, x.y, x.z, x.w]; });
+  await G(() => window.__studio.pick('pair:hold_idle'));
+  await frames(page, 6);
+  await G(() => window.__studio.pause());
+  await frames(page, 6);
+  const bg1 = await jbones();
+  const bs1 = await spineOf();
+  for (const [id, v] of BODY_SET) await G(([row, i, x]) => window.__animBase.setBody(row, i, x), [bg1.body, id, v]);
+  await frames(page, 30);
+  const bg2 = await jbones();
+  const bs2 = await spineOf();
+  const bgMax = Math.max(...bg1.guard.map((q, i) => jang(q, bg2.guard[i])));
+  assert(jang(bs1, bs2) > 4, `the hold pair: a body.${bg1.body}.leanAdd row leans Wren's spine (${jang(bs1, bs2).toFixed(1)} deg)`);
+  assert(bgMax < 1, `and leaves the guard untouched (${bgMax.toFixed(3)} deg)`);
+  await G(() => window.__animBase.reset());
+  await G(() => window.__studio.play());
   await G(() => window.__studio.pick('state:idle'));
   await frames(page, 4);
 

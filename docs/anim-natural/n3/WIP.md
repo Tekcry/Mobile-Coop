@@ -153,3 +153,26 @@ Conflicts in drawState.ts, playerWeapons.ts and tuneBakeTable.ts resolved. Assum
   it reads PlayerWeapons.drawTime() / deliberateHolster() and checks the holster rows too.
 Checks: tsc clean; eslint clean on the changed files; n3DrawMotion, tuneClipSpeed, drawState, animTuneBake and the 10
 tuner-layout test files pass (208 tests).
+
+## Fresh checker on the fix round (2026-10-22 ~14:35): PASS WITH FIXES, no must-fix
+Both must-fixes work in the game path; co-op remotes stow in step (`dw` held at 3 until the gun seats), no wire change.
+Mutations caught: rewind off, relW = 1, no reachStart, no slot re-place, no strike queue, strikePending off, REWIND_QUICK
+4 / 6. Not caught: REWIND_QUICK = 1, the `holS` ease removed, `rewHol` ignored.
+Should-fix (test gaps and narrow pops; the fix round is spent, so these are the next N3 follow-up's):
+1. Assert the quick rewind (a traversal mid-draw reaches phase 0 within a set time).
+2. Assert phase 0 within 1-2 frames of the gun seating in the mid-draw scenarios (`rewHol` sync).
+3. A motion check for a holster sped up mid-way (RT queued, or a traversal during an X holster) with its own limit
+   (measured 4.1 cm, over the 3.5 cm rule).
+4. RT during an X rewind waits for the whole rewind (up to ~1 s): re-time the rewind to quick when strikePending turns on.
+5. Older than N3 (same on 21235b53): releasing LT halfway through the pistol's LT draw jumps the grip 7.0 cm.
+Polish: a swap press mid-rewind snaps (20 cm; rare input order); X / LT mid-rewind pops 2-6 cm; the sidearm attach mid
+rifle draw keeps the old snap; a mid-draw traversal keeps the gun in hand 0.4-0.8 s (vs 0.15 s from drawn: check under a
+real traversal clip); a queued strike survives death; `swapRate` NaN at dt = 0; test line ~335 fixed muzzle limit
+(20 m/s) instead of 10 x REWIND_QUICK; the RT test drives StrikeTrigger directly.
+
+## Master 4.54.0 merged (2026-10-22 ~14:40)
+Conflicts: tuneBake.ts imports, tuneBakeTable.ts catalogue (cqGait + drawTune), characterRig.ts imports and the elbow
+tuck / pole (master's per-gun `wrenTuckMul` and `ELBOW_POLE_OUT` with N3's release weight and travel pole). n3DrawMotion's
+holstered-pistol tolerance 5 -> 7 mm (#103's body bake moved the thigh ~1.3 mm against the ea3399ed numbers).
+Orchestrator change to A3: an old single `holster` value now maps to both gun holsters (tuneRows.ts ID_ALIASES) on load,
+import, presets, the baked reset and the bake, with literal 4.53.0 records in tuneClipSpeed.test.ts.

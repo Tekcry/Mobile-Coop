@@ -376,7 +376,9 @@ describe('the real rig: draw, holster, swap and low ready to aim are one continu
       }
       // the final pose as on master (chest frame): the low ready, the aim, the holstered gun unchanged
       const m = MASTER_FINAL[sc.final ?? sc.name]!;
-      const tolG = sc.name.startsWith('holster pistol') ? 0.005 : 0.004;
+      // (master 4.54.0 merge) #103's body bake moved the thigh holster ~1.3 mm in the chest frame against these ea3399ed
+      // numbers (a rewound pistol ends 6.3 mm off them, the same spot for every mid-draw case)
+      const tolG = sc.name.startsWith('holster pistol') ? 0.007 : 0.004;
       expect(Math.hypot(f.cgx - m[0]!, f.cgy - m[1]!, f.cgz - m[2]!), `${sc.name}: final grip`).toBeLessThan(tolG);
       expect(Math.hypot(f.cmx - m[3]!, f.cmy - m[4]!, f.cmz - m[5]!), `${sc.name}: final muzzle`).toBeLessThan(2 * tolG);
     });
