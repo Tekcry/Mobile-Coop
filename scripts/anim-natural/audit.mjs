@@ -8,7 +8,7 @@
 //   draw: draw progress, carry raise and the held gun's world speed (a stall = speed ~0 before the settle)
 // Groups: `studio` (Anim Studio loops, ?autostart=studio&gfx=high, on the spot, front 3/4 view), `proving` (scenarios on
 // Proving Grounds at ?gfx=high: gait turns with a top-down foot plot, draws, starts / stops, one-shots), `all` (both).
-//   E2E_GPU=1 node scripts/anim-natural/audit.mjs <studio|proving|all> [--pass=1|2] [--only=a,b]
+//   E2E_GPU=1 node scripts/anim-natural/audit.mjs <studio|proving|all> [--pass=1|2] [--only=a,b] [--dtmul=2.5]
 // `--pass=2` runs only the second pass's rows (AUDIT.md "Pass 2": the rows pass 1 did not capture, the co-op pairs framed
 // on the puppets, the hit flinch, the aimed turn in place); no `--pass` runs every row of the group. Each row's metrics
 // entry carries `pass` and `row` (the COVERAGE # it covers). (pass 2) Proving cameras sit on the sun side (the theme's
@@ -24,6 +24,7 @@ const group = process.argv[2] ?? 'studio';
 const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split('=')[1] ?? d;
 const only = arg('only', '') ? arg('only', '').split(',') : null;
 const pass = arg('pass', '') ? Number(arg('pass', '')) : 0;
+const dtMul = Number(arg('dtmul', '1')) || 1; // (N3) stretch every scenario's tile spacing (the slower draws span 1.1-1.5 s)
 const SUN = process.env.NAT_SUN !== '0';
 const KEY = Number(process.env.NAT_KEY ?? 6);
 /** A row runs: in `--only` when given, else of the asked pass (none asked: every row). */
@@ -914,7 +915,7 @@ async function runProving() {
       const tiles = [];
       const labels = [];
       const at = sc.at ?? {};
-      const perFrame = Math.max(1, Math.round(sc.dt * 60));
+      const perFrame = Math.max(1, Math.round(sc.dt * dtMul * 60));
       let t = 0;
       const total = sc.f * perFrame + (sc.top ? 60 : 0);
       for (let i = 0; i <= total; i++) {
