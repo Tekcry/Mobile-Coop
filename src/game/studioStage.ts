@@ -733,6 +733,8 @@ export class StudioStage {
     moveTuneRoot(root.position, root.rotation);
     // (anim-n4b, track A) the team pose (B's working body, A's push) on the pose and the grips, as in real play
     p.bend = p.bendDrop = p.sway = 0;
+    // (N4b train-8 fix) paused (dt 0: a scrub, a key step) the team pose shows this phase's, not the weight it was paused at
+    if (dt <= 0) tp.jump(r.tp);
     tp.begin(dt, r.tp, p, rig);
     moveTuneBegin(p, rig);
     try {

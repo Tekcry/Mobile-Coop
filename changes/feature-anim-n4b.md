@@ -18,3 +18,6 @@ kind: minor
 - (PR fix 2) Stepping onto a ladder from its top no longer sinks her legs 30 cm through the rim (the mantle's hand plant
   is off for that backward climb-on). A landing or forward roll needs 0.9 m clear past its end (was 0.4): the shoulder
   roll's dive put her head 30 cm into the wall after the vent drop; with less room she lands without the roll.
+- (Train 8 fix) A co-op holder's braced pose (boost, throw, hang-down, rope) no longer counts as a hostage hold: the hold
+  Body rows and the hold camera stay off it, as before the team pose. In the Anim Studio, a paused scrub of a team pair
+  shows that phase's team pose at once (it kept the weight it was paused at).

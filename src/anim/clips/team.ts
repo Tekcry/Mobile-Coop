@@ -522,6 +522,15 @@ export class TeamPoser {
   private hands = false;
   private foot = false;
 
+  /**
+   * (N4b train-8 fix) A jump (the Anim Studio's paused scrub): the weight straight to where `i` wants it (1 on, 0 off),
+   * no ease. Paused, `begin` runs at dt 0 and the ease never moves, so a scrubbed pair kept the weight it was paused at
+   * (role B's working body a third in at every phase, or still on past the move's end).
+   */
+  jump(i: TeamPoseIn): void {
+    this.w = i.move !== '' && i.role !== '' ? 1 : 0;
+  }
+
   begin(dt: number, i: TeamPoseIn, p: TeamRigPose, rig: TeamRigIn): void {
     this.hands = false;
     this.foot = false;
