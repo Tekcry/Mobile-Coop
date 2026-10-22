@@ -2656,8 +2656,11 @@ export class CharacterRig {
     // (mt2-fixC, CHECK-3 item 6) and on the mocap share (`poleM`), a leg on its landing frame (plantT 0): the knee leaves
     // the swing's bow and pole there, and the limit held a 5 m/s flick's landed ankle 2.2 cm off its plant for the frame
     const xf = this.xfT >= 0 || this.xfStart;
-    const xl = (xf || (poleM && L.plantT === 0)) && L.contact ? 1e9 : undefined;
-    const xrr = (xf || (poleM && R.plantT === 0)) && R.contact ? 1e9 : undefined;
+    // (mt2-fixF) and a clip-planted leg holding its contact (clip feet on hand, anchored): the limit lagged it as the clip's
+    // heel rose through a crouch's hand-over and the held ball slid 2.0 cm in the frame
+    const cfOn = this.pin.clipFeet !== null;
+    const xl = (xf || (poleM && L.plantT === 0) || (cfOn && L.clipPlant && L.anchored)) && L.contact ? 1e9 : undefined;
+    const xrr = (xf || (poleM && R.plantT === 0) || (cfOn && R.clipPlant && R.anchored)) && R.contact ? 1e9 : undefined;
     const lHip = this.limitJoint(this.hipL, dt, xl);
     const lh = this.limitJoint(this.kneeL, dt, xl) || lHip;
     const rHip = this.limitJoint(this.hipR, dt, xrr);

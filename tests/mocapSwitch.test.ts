@@ -399,7 +399,8 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
         // the mocap set drives it: its share and its clip feet all the way
         expect(m.share, at).toBeGreaterThan(0.99);
         expect(m.clipOn, at).toBeGreaterThan(0.99);
-        // planted feet locked (e2e-anim foot locking, < 1 cm) and e2e-anim's anti-crab ranges for the gait
+        // planted feet locked (e2e-anim foot locking, < 1 cm; mt2-fixF: read as e2e-anim reads it, the clip's anchored plants
+        // at the heel / ball, gaitNumbers) and e2e-anim's anti-crab ranges for the gait
         expect(m.plants, at).toBeGreaterThanOrEqual(3);
         expect(m.slide, `${at}: slide`).toBeLessThan(C.slide);
         expect(m.pinErr, `${at}: planted ankle on its pin`).toBeLessThan(0.005);
@@ -469,7 +470,8 @@ describe('mocap switch: the CMU clips on the rig (integration)', () => {
       const on = pops(R);
       // (N1 merge) planted feet as e2e-anim reads them (metrics.ts footSlide): a plant the planner anchors (N1's held contact,
       // the ankle rolls / pivots round the heel or ball by design: the turn hand-offs, the starts and stops) at its contact
-      // points; the clip's own pinned plants at the ankle, as before
+      // points; (mt2-fixF) the clip's own plants are anchored too now (their ankle travels with the clip's heel-to-toe roll),
+      // so they read at the contact as well; an unanchored plant at the ankle. Limit kept
       const ankleSlide = plantSlide(R, 0.01);
       const pel = pelvisStep(R);
       rows.push(`${name}: largest bone turn a frame off ${f1(off.maxStepDeg)} deg (${off.bone}), on ${f1(on.maxStepDeg)} deg (${on.bone}); joint jerk off ${f1(off.maxJerk * 100)}, on ${f1(on.maxJerk * 100)} cm/frame2; planted ankle slide on ${f1(ankleSlide * 100, 2)} cm; pelvis beyond pace x dt on ${f1(pel * 100, 2)} cm`);

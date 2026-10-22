@@ -415,6 +415,8 @@ const SWING_YAW_BY = 0.7;
  * heel-first landing rolls flat, the ball as the heel rises and lowers); false: only a foot turning on its ball does.
  */
 export const HOLD_CONTACT: boolean = true;
+/** (mt2-fixF) The front-to-back stretch (m) before the no-crossing window over which a clip swing's push eases in (`uncrossIn`). */
+const UNCROSS_RAMP = 0.12;
 /** The fastest a swinging foot turns with the turn rules (rad/s, ~690 deg/s). */
 const SWING_YAW_RATE = 12;
 /**
@@ -873,10 +875,18 @@ export class FootPlanner {
     const L = this.L;
     const R = this.R;
     const along = (L.x - R.x) * s + (L.z - R.z) * c;
-    if (along > TURN_FOLLOW.nearAlong || along < -TURN_FOLLOW.nearAlong) return;
+    // (mt2-fixF) a clip swing passing a planted foot (clipOwn: placed afresh from the clip every frame) is eased out over
+    // UNCROSS_RAMP front to back before the window, not pushed all at once as it enters: with its contact held the planted
+    // ankle rolls forward, the passing knees met a frame sooner, the knee-gap bow flicked the swing knee 6 cm out and back
+    // and the push took it out again (a walk's start: the joint jerk 12.9 against the hand-keyed set's 9.5 cm/frame2)
+    const mv = L.contact ? R : R.contact ? L : null;
+    const ramp = mv !== null && mv.clipOwn;
+    const aa = along < 0 ? -along : along;
+    if (aa > TURN_FOLLOW.nearAlong && !(ramp && aa < TURN_FOLLOW.nearAlong + UNCROSS_RAMP)) return;
     const gap = (R.x - L.x) * c - (R.z - L.z) * s;
-    const bad = TURN_FOLLOW.minGapAny - gap;
+    let bad = TURN_FOLLOW.minGapAny - gap;
     if (bad <= 0) return;
+    if (aa > TURN_FOLLOW.nearAlong) bad *= (TURN_FOLLOW.nearAlong + UNCROSS_RAMP - aa) / UNCROSS_RAMP;
     // the airborne foot moves (both airborne: each half)
     const kL = L.contact ? 0 : R.contact ? 1 : 0.5;
     const kR = 1 - kL;
