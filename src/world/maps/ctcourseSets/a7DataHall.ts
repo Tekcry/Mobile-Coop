@@ -11,7 +11,7 @@
  *   hall's west wall runs straight;
  * - the rack hall: rows 1-3 west of the cage (x 78.8-83.0) and row 1's east part along the cage's south face, all 2.2 m and
  *   `noLedge`, 3.0 m aisles; the technician's loop round rows 1-2;
- * - the cage x 86-96, z 60-66: `b.fence` mesh on all four faces over 1.2 m kick-panel boxes, a `noLedge` lid at 2.4-2.45, its
+ * - the cage x 86-96, z 60-66: `b.fence` mesh on all four faces over 1.2 m kick-panel boxes, a `noLedge` lid at 2.4-2.5, its
  *   six fence anchors locked by `anchorLock` gates on a flag nothing sets (ENGINE-ANSWERS Q8), two 1.2 m doors on the sync;
  *   terminals `a7-t1` (west face, in the hall) and `a7-t2` (east face, in the pod), 10.1 m apart (`syncStation`, kind 'scan');
  * - the containment pod x 96-100, z 55.95-68 (2.6 m roof): reached only from the plant corridor by its south door `A7-pod-s`
@@ -63,8 +63,9 @@ export const A7_SYNC_WALK = 26;
 export const A7_T1_SPOT: [number, number] = [85.35, 61.5];
 export const A7_T2_SPOT: [number, number] = [96.65, 61.5];
 
-/** The cage: plan box (fence lines), mesh height, kick-panel height, lid, door span (z) on the west and east faces. */
-export const A7_CAGE = { x0: 86, z0: 60, x1: 96, z1: 66, mesh: 2.4, kick: 1.2, lidT: 0.05, panelT: 0.1, door: [63.9, 65.1] as [number, number] } as const;
+/** The cage: plan box (fence lines), mesh height, kick-panel height, the lid's thickness (0.1: a 5 cm slab is off the 5 cm voxel
+ *  grid's parity, `tests/voxelFit.test.ts`), the panels' thickness, door span (z) on the west and east faces. */
+export const A7_CAGE = { x0: 86, z0: 60, x1: 96, z1: 66, mesh: 2.4, kick: 1.2, lidT: 0.1, panelT: 0.1, door: [63.9, 65.1] as [number, number] } as const;
 /** Course doors: the cage's two, the lobby's two glazed doors, the pod's south door; the pod's east door is the facility's L7
  *  near door (SPEC's `A7-east`). */
 export const A7_CAGE_W = 'A7-cage-w';
@@ -214,7 +215,7 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
     for (const x of [cx0, cx1]) slab(x - panelT / 2, x + panelT / 2, door[0], door[1], DOOR_H, mesh, KICK);
     applyGreybox(b, station);
   });
-  tally(b, p.register, 'A7-10', 'Cage lid 2.4-2.45 (noLedge, roofed as real colocation cages) and the fence anchor lock (anchorLock gates on a flag nothing sets)', () => {
+  tally(b, p.register, 'A7-10', 'Cage lid 2.4-2.5 (noLedge, roofed as real colocation cages) and the fence anchor lock (anchorLock gates on a flag nothing sets)', () => {
     slab(cx0 - panelT / 2, cx1 + panelT / 2, cz0 - panelT / 2, cz1 + panelT / 2, mesh, mesh + lidT, LID, { overhead: true });
   });
   tally(b, p.register, 'A7-7', 'Cage doors A7-cage-w and A7-cage-e (1.2 x 2.1, locked; flag gates on a7-sync) and the pod\'s east door (the facility\'s L7 near door, a flag gate on a7-sync)', () => {

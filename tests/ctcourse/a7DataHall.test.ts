@@ -246,7 +246,7 @@ describe('A7 the Data Hall: the cage (the sync is the only way in)', () => {
     }
   });
 
-  it('solid 1.2 m kick panels under every mesh run, lintels over both doors to the mesh top, and a noLedge lid over the whole cage at 2.4-2.45', () => {
+  it('solid 1.2 m kick panels under every mesh run, lintels over both doors to the mesh top, and a noLedge lid over the whole cage at 2.4-2.5', () => {
     const kicks = mine.filter((p) => p.collide && Math.abs(top(p) - cage.kick) < 1e-6 && p.c[1] - p.s[1] / 2 < 1e-6);
     expect(kicks).toHaveLength(6);
     for (const k of kicks) {
