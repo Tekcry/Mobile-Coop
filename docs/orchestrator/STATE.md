@@ -42,6 +42,11 @@ the job lead), npm version <v> --no-git-tag-version, rename the top "## Unreleas
 "## <v> - <title> (<date>, PR #<n>)", commit "<v>: version at merge (G183)", push HEAD:<branch>, watch CI in the
 background (gh run watch <id> --exit-status), gh pr merge <n> --merge, then tag v<v> and push <merge>:refs/heads/dev as
 separate commands; update this file's Master line and the ROADMAP Done table.
+Merge train (Michael 2026-10-22 ~11:25, CLAUDE.md test tiers): in the scratch worktree, `git checkout -B train/<n> origin/master`,
+merge each ready PR head in order (CHANGELOG / package / PROTOCOL_VERSION conflicts resolved there; abort a PR on any
+other src conflict), push train/<n>, run one full e2e on it (desktop lock or the laptop runner). On a pass, merge each
+PR by the procedure above in the same order (its src then equals the train's: check `git diff train/<n> origin/master
+-- src scripts tests` is empty at the end), then move dev once.
 
 ## Known
 - e2e-netmove doorPeek fails on master-based branches until CT Core's remote-feet fix (e4d85253, on ct-prototype)
