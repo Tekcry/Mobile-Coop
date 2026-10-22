@@ -513,19 +513,22 @@ try {
         // (load-audit) the client's takedown ended, but its 'done' can still be on its way to the host: under load the
         // next attempt started first, the late knock-out removed the guard, and the retry found no guard (host
         // found:false, client offer null) and overwrote the start. Before a retry the host settles on its match clock:
-        // the knock-out, or the guard free (not held) for 1.5 s of host time (a denied start); 30 s real-time cap
-        knocked = await GA((id) => new Promise((res) => {
-          const g = window.__app.current;
-          const t0 = g.time;
-          const w0 = performance.now();
-          const tick = () => {
-            const e = g.enemyMgr.enemies.find((x) => x.id === id);
-            if (!e || (!e.alive && e.ko)) res(true);
-            else if ((!e.taken && g.time - t0 > 1.5) || performance.now() - w0 > 30000) res(false);
-            else requestAnimationFrame(tick);
-          };
-          tick();
-        }), tdv);
+        // the knock-out, or the guard free (not held) for 1.5 s of host time (a denied start); 30 s real-time cap.
+        // (polled from here, as waitHostSim: the host page is in the background, where rAF stops but its clock runs on)
+        const hostTd = (id) => GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); return { t: g.time, ko: !e || (!e.alive && e.ko), taken: !!e?.taken }; }, id);
+        const w0 = Date.now();
+        let lastTakenT = (await hostTd(tdv)).t;
+        for (;;) {
+          const s = await hostTd(tdv);
+          if (s.ko) {
+            knocked = true;
+            break;
+          }
+          if (s.taken) lastTakenT = s.t;
+          else if (s.t - lastTakenT > 1.5) break;
+          if (Date.now() - w0 > 30000) break;
+          await new Promise((r) => setTimeout(r, 50));
+        }
         break;
       }
     }
@@ -657,10 +660,9 @@ try {
     for (let attempt = 0; attempt < 6 && !grabbed; attempt++) {
       // (load-audit, as coop-offer-load's takedown fix) the pin holds on every host frame until the grab starts, not once
       // per attempt: under load the host ran frames between the pin and the client's read in which the guard alerted or
-      // turned again. (load-audit review) The teleport window is granted once per attempt, before the client moves (a
-      // grant every frame kept the host's reach check open for the whole wait); each attempt's pin carries its own
-      // generation, so a pin from an earlier attempt stops when the next one starts, and the finally below always ends it
-      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
+      // turned again. (load-audit review) The teleport window is granted once per attempt, by moveClient (a grant every
+      // frame kept the host's reach check open for the whole wait); each attempt's pin carries its own generation, so a
+      // pin from an earlier attempt stops when the next one starts, and the finally below always ends it
       await GA((id) => {
         const g = window.__app.current;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
@@ -704,7 +706,8 @@ try {
           tick();
         }), gg);
       } finally {
-        await GA(() => { window.__grabPinGen = (window.__grabPinGen ?? 0) + 1; });
+        // (a crashed page's own error is the one reported)
+        await GA(() => { window.__grabPinGen = (window.__grabPinGen ?? 0) + 1; }).catch(() => {});
       }
     }
     if (!grabbed) {
