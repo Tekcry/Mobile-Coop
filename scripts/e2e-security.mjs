@@ -15,7 +15,7 @@ const G = (f, a) => page.evaluate(f, a);
 // S0 section 5: SN08 lit detection walking at 10 m, SN09 crouched still lit at 10 m, SN67 test tolerance. (camera-range)
 // The cameras' range is 12 m now (was 18) with the falloff over it (`cameraRate`): the strip spot moves from 11 to 9 m
 // out (8.5 m from the lens, 0.72 of the range) and the dark spot in from (10, 1.5) (11 m, outside the crouched reach of
-// ~10 m) to (7.5, 2.5) with the lamps put out; the pan pad spot from 9.5 to 7.5 m. The times stay under these bounds
+// ~10 m) to (7.5, 2.5) with the lamps put out; the pan pad spot from 9.5 to 8.5 m. The times stay under these bounds
 // (docs/camera-range/MEASURE.md: walking ~0.7 s, standing still ~2.6 s at the new spot).
 const SN08 = 1.3;
 const SN09 = 9;
@@ -178,7 +178,7 @@ try {
   console.log('panning camera');
   await S((s) => {
     s.reset();
-    s.tp(16, 12, Math.PI / 2);
+    s.tp(15, 12, Math.PI / 2); // 8.5 m from the lens: at 16 the pad light sat on the 0.6 line (laptop GPU run)
     s.step(0.6);
     // restart the sweep: the first pause (2 s) is at the far end (yaw 190), looking south of the pad
     const pan = s.sec.camera('cam-pan');
