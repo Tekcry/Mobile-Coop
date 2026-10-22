@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+USAGE LIMIT (~10:50). s7 62884858 laptop GPU: e2e-sectorops 1-5 PASS (posts block green); e2e-stealth-ai FAIL at the
+OLD 'lkp' scenario "the LKP ghost shows once they lose sight" (passed on ae1f1895 and the S8 tip; only the 'bodies'
+scenario changed): likely timing-flaky; rerun 2x requested from Character Build. If it repeats, diagnose (ghost =
+g.ghost.visible during the 25 s lost-sight loop, scripts/e2e-stealth-ai.mjs ~485). Then train-ready message.
+Stopped at the limit: the stealth-over-shooting planner (rerun it first, brief in "Next") and the S8 stack merge
+(S8 <- s7, S5b rename, S10, S6 must-dos; wait for CPU < 80%) and the S10 fresh checker were NOT started.
+
 SAVED ~10:30 (98% window). Top items for the resume:
 - Chain 'bodies' FIXED (test only, s7 62884858: bodiesFound baseline + finder must be w; cause in S7.md "Chain fix"); laptop run requested on 62884858 (stealth-ai + sectorops all; verdict also as a PR #196 comment). Green -> train-ready message. (old:) s7 head 8094c5b1 =
   WIP diagnostic logs ("DBG bodies": who found the body, levels) in e2e-stealth-ai; laptop run requested (stealth-ai
