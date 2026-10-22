@@ -1,16 +1,27 @@
 # sector-redesign - state
 
-## Now (2026-10-23, after the clear; orchestrator trim: at most 2 agents)
-- feature/sector-redesign d9a27c4f = slice 0 (b0b7bc24, checker PASS: docs/sector-redesign/checks/slice0-check.md) +
-  slice L final (536c1355, protocol 31, A52) + M12 chokes (A60-A63, SPEC "Unavoidable posted guards (M12)").
-- Slice 1: built (Sonnet), Opus checker PASS (checks/slice1-check.md), fix round done (A65 canopy hatch over the doorman + east downlights moved; A66 objective (19.3, -76); A67 voxel limit from map bounds; A68 campusOps off the op list until slice 3, #7 dormant, smoking shelter panel longer). Polish: CR1-south lip is one point; the 4.4 pavilion facade lip untested (planters 1.2 m off vs rule 3); SPEC calls the canopy light cuttable but its switch is in C1; wallX/wallZ quarter-turn boxes dropped by the Warehouse jump tests.
-- Laptop (Character Build, 4192 GPU): (1) sector-redesign d9a27c4f vitest + sectorops/coop/netmove/lightbake/levels/
-  anchors; (2) camera-range 8fda08b9 security/ctcourse/sectorops/coop. Waiting on verdicts.
-- Guard AI Build agreed the data shapes: `post: { leash, highSecurity?, guards }` and `profile` on SquadSlot (guard-ai
-  S5); guard-ai adds `noisy?` / `entries?` to SectorDef; a lured posted guard looks >= 5 s (guard-ai A12); protocol
-  32 is theirs. Until `post` lands, campus data uses `CAMPUS_POSTS`.
-- Slice L agent note: tests/sectors.test.ts "sections 1-3 A2 survive patrol phase drift" failed on its old base;
-  passes on this branch (slice 0 checker 54/54).
+## Now (2026-10-23 ~08:15, SAVED at ~80% for Michael's account swap)
+- PR #184 (part 1 = slices 0 + L + 1) open from feature/sector-redesign-p1 @ d21399f5, in train 19 with #180 (orchestrator).
+  All checkers PASS; GPU e2e green on 267b299f. campusOps registered, not listed.
+- feature/sector-redesign (this worktree) @ 2dc95081 + uncommitted S2 work: master merged at f942df04.
+- Engine branches, each built + Opus checker PASS + one fix round, pushed:
+  - E1 keypads (EW5): feature/sector-redesign-e1 @ 0986b109 (checks/e1-keypads.md, e1-check.md).
+  - E3 pair bolt + pair gate (EW3/EW4): feature/sector-redesign-e3 @ ae6131ca (no fix round needed).
+  - E4 breaker / isolator boards (EW8): feature/sector-redesign-e4 @ 4aa0a462.
+- IN FLIGHT at the save (agents die with the session; WIP snapshots pushed as refs wip/sector-redesign-<x>):
+  - S2 builder (Sonnet, THIS worktree, briefs/SLICE2.md): WIP wip/sector-redesign-s2 acef9dc4 (uncommitted here too).
+  - S3 builder (Opus, worktree -s3, branch feature/sector-redesign-s3): WIP wip/sector-redesign-s3 5444a3e7.
+  - E5 alarm-stage extras (EW9, Opus, worktree -e5, feature/sector-redesign-e5): WIP wip/sector-redesign-e5 (little or nothing yet).
+  - Integrator (Opus, worktree -int, branch feature/sector-redesign-int, local only): merging E1 + E4 into E3 (conflicts in
+    sectorMode.ts nav-closure helper, sectors.ts, the changes fragment). Report checks/int-e1-e3-e4.md.
+  On resume: for each, check the worktree's `git status` / the branch log; if the agent's report file exists and checks
+  pass, commit; else rerun that agent from its brief (S2: briefs/SLICE2.md; S3 / E5 / int: the prompts are summarised
+  in this file's "Next").
+- Agreed with peers: Guard AI types (post, noisy, entries, glass) on feature/guard-ai 971711c4, to master after #185;
+  glass split (guard-ai sight; ours: skip glass in canonicalLightShapes; Menu Notes reviews). Client switch press was not
+  a bug (Menu Notes S-switch.md).
+- Guard-cap: render-bound (24 awake ~17 fps at Epic); A64 keeps <= 6 awake on screen + `dormant` tags; Character Build
+  builds guard-render.
 
 ## Rules after the reset (Michael 01:45 "Lean windows", via the orchestrator)
 - Each 5-hour window to 99%, lean, no quality loss: no new agent at 97%, save at 98%, stop by 99%; a cron resumes the
@@ -27,12 +38,19 @@
 - Guard AI types on feature/guard-ai 971711c4 (types only; to master with its PR after #185): SquadSlot `post?: PostDef` / `profile?`, SectorDef `noisy?` / `entries?`, BoxPiece `glass?` (levelBuilder.ts:61); src/ai/posts.ts (POST.lureLook 5 s, lureSweep 0.6 rad), src/ai/guardAiData.ts (validateGuardAi / validatePosts). When it lands on master: merge master, move CAMPUS_POSTS onto each slot's `post`, call validatePosts in the campus tests, then build E2 (skip glass in canonicalLightShapes).
 
 ## Next
-1. Slice 1: Opus checker (with the open items above), laptop e2e-sectorops (campus part 1) + e2e-coop,
-   one fix round at most; then message the orchestrator (slice 1 on the branch).
-3. camera-range: checker verdict + laptop pass -> PR to master (orchestrator train); message the orchestrator.
-4. Slice 2 brief (S2 + K2) for Sonnet; needs EW13 (origin/feature/g44-above, #169 in train 16).
-5. Green slices go to master in a train (Michael: "Merge to master").
-Polish (not blocking): slice0-check.md (EMP-on-restart lamp edge case and five notes).
+1. Collect the in-flight work above (S2, S3, E5, integrator). S3 builder prompt: build S3 like briefs/SLICE2.md (SPEC S3,
+   16 guards, las-gown / las-store with near-side panels, CR3, no choke, A64 screen count), only campusS3.ts, the S3
+   block of campusSectors.ts / campusOps.ts, tests/campusS3.test.ts, an appended e2e block in part 6. E5 prompt:
+   `stageActions` on SectorDef (lightsFull, lockDoors never softlocking, responseRoute, releaseDogs stub), restart
+   undoes, tests/sectorStageActions.test.ts, no protocol change.
+2. Opus checkers for S2 and S3 (one fix round each), then merge S2 + S3 + int (E1/E3/E4) + E5 into feature/sector-redesign;
+   tsc + campus / sector tests; then laptop GPU e2e (sectorops 1-6, coop, netmove, ctcourse).
+3. Slice 3 end: list campusOps (remove the A68 filter in missionsScreen.ts, add to LISTED_MAP_IDS as PLAN says), PR 2
+   (slices 2-3 + E1/E3/E4/E5) to master; message the orchestrator.
+4. When guard-ai's types reach master: merge master, CAMPUS_POSTS -> slot `post`, validatePosts in campus tests, E2 glass.
+5. Slices 4-5 (S4 data hall + first dog; S5 Old House) need guard-render (dormancy / LOD) for 20 / 24 guards; E6
+   security desk (EW10).
+Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md polish lists.
 
 ## Done
 - 2026-10-23 ~01:45: branch cut, BRIEF (M1-M5).
