@@ -16,7 +16,7 @@
  */
 import { TURN_GAIT_MIN } from './motion';
 import type { ClipFeetIn } from './footPlanner';
-import { layerMul, mirrorKeyed, mixKeyed, mixKeyedArms, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
+import { layerMul, mirrorKeyed, mixKeyed, mixKeyedArms, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedLayerScale, type KeyedPose } from './keyed';
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
@@ -192,10 +192,11 @@ export interface SlotLegValues {
 
 const QUARTER = Math.PI / 2;
 
-function envelope(p: number): number {
+/** A one-shot's weight at progress `p`; `holdIn` / `holdOut` skip its fade in / out (a spin on the spot playing on). */
+function envelope(p: number, holdIn = false, holdOut = false): number {
   const M = MOCAP_SLOT;
-  const a = p <= 0 ? 0 : p >= M.fadeIn ? 1 : p / M.fadeIn;
-  const b = p >= 1 ? 0 : p <= 1 - M.fadeOut ? 1 : (1 - p) / M.fadeOut;
+  const a = holdIn ? 1 : p <= 0 ? 0 : p >= M.fadeIn ? 1 : p / M.fadeIn;
+  const b = holdOut ? 1 : p >= 1 ? 0 : p <= 1 - M.fadeOut ? 1 : (1 - p) / M.fadeOut;
   const u = a < b ? a : b;
   return u * u * (3 - 2 * u);
 }
@@ -220,22 +221,37 @@ export class MocapSlots {
   wStop = 0;
   wTurn = 0;
   private still = true;
+  /** (fix 2) `still` is seeded from the pace on the first update after a reset (the switch turned on mid-walk, a partner
+   *  rig first seen already walking): only a rig that really starts from standing plays the start. */
+  private seeded = false;
   private stopArmed = true;
+  /** (fix 2) A spin on the spot has passed 90 deg and replays the turn clip (its next pass eases in from the last one's
+   *  end pose, at full weight: no dip every 90 deg). */
+  private turnWrap = false;
   /** The turn clip `pickTurn` chose and whether it plays mirrored. */
   private tc: KeyedClip | null = null;
   private tm = false;
+  /** (fix 2) Scratch: the turn clip's end pose a wrapped spin eases from. */
+  private readonly tail: KeyedPose = newKeyedPose();
 
   reset(): void {
     this.startT = this.stopT = this.turnT = -1;
     this.startP = this.stopP = this.turnP = 0;
     this.wStart = this.wStop = this.wTurn = 0;
     this.still = true;
+    this.seeded = false;
     this.stopArmed = true;
+    this.turnWrap = false;
   }
 
   /** One frame: the pace (m/s), the forward acceleration (m/s^2) and the yaw rate (rad/s, + to the right). */
   update(dt: number, S: LocoClipSet, speed: number, accelFwd: number, yawRate: number): void {
     const M = MOCAP_SLOT;
+    // (fix 2) the first frame after a reset: standing only if the pace is at rest now (already walking: no start)
+    if (!this.seeded) {
+      this.seeded = true;
+      this.still = speed < M.restSpeed;
+    }
     // a start from standing
     if (speed < M.restSpeed) this.still = true;
     else if (this.still && speed > M.moveSpeed) {
@@ -277,18 +293,26 @@ export class MocapSlots {
           this.turnT = 0;
           this.turnSide = side;
           this.turnSpot = spot;
+          this.turnWrap = false;
         }
       }
     } else if ((side !== this.turnSide && ay > M.turnRate) || ay < M.turnRate * 0.5 || speed > M.walkMax) this.turnT = -1;
     else {
       this.turnT += (ay * dt) / QUARTER;
-      if (this.turnT >= 1) this.turnT = this.turnSpot ? this.turnT - 1 : -1;
+      if (this.turnT >= 1) {
+        // (fix 2) a spin on the spot replays the clip, the progress carried across the wrap
+        this.turnWrap = this.turnSpot;
+        this.turnT = this.turnSpot ? this.turnT - 1 : -1;
+      }
     }
     if (this.turnT >= 0) this.turnP = this.turnT;
     const k = 1 - Math.exp(-dt / M.tau);
     this.wStart += ((this.startT >= 0 ? envelope(this.startT) : 0) - this.wStart) * k;
     this.wStop += ((this.stopT >= 0 ? envelope(this.stopT) : 0) - this.wStop) * k;
-    this.wTurn += ((this.turnT >= 0 ? envelope(this.turnT) : 0) - this.wTurn) * k;
+    // (fix 2) a spin on the spot keeps its full weight: no fade in after a wrap, no fade out while it still spins (a turn
+    // that stops is cut off and eases out by `tau`, about as fast as the fade over its last 22 deg at a spin's rate)
+    const spinOn = this.turnSpot && ay > M.turnRate;
+    this.wTurn += ((this.turnT >= 0 ? envelope(this.turnT, this.turnWrap, spinOn) : 0) - this.wTurn) * k;
     if (this.wStart < 1e-4 && this.startT < 0) this.wStart = 0;
     if (this.wStop < 1e-4 && this.stopT < 0) this.wStop = 0;
     if (this.wTurn < 1e-4 && this.turnT < 0) this.wTurn = 0;
@@ -301,7 +325,11 @@ export class MocapSlots {
   apply(S: LocoClipSet, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues): number {
     let share = this.mix(S.start, false, this.wStart, this.startP, S.layers, pose, tmp, v, 0, MOCAP_SLOT.startArms);
     share = this.mix(S.stop, false, this.wStop, this.stopP, S.layers, pose, tmp, v, share, 1);
-    if (this.wTurn > 0 && this.pickTurn(S, this.turnSpot, this.turnSide)) share = this.mix(this.tc, this.tm, this.wTurn, this.turnP, S.layers, pose, tmp, v, share, 1);
+    if (this.wTurn > 0 && this.pickTurn(S, this.turnSpot, this.turnSide)) {
+      // (fix 2) a wrapped spin's new pass eases in from the clip's end pose over the first `fadeIn` of its progress
+      const u = this.turnWrap && this.turnP < MOCAP_SLOT.fadeIn ? this.turnP / MOCAP_SLOT.fadeIn : 1;
+      share = this.mix(this.tc, this.tm, this.wTurn, this.turnP, S.layers, pose, tmp, v, share, 1, 1 - u * u * (3 - 2 * u));
+    }
     return share;
   }
 
@@ -320,11 +348,16 @@ export class MocapSlots {
     return this.tc !== null;
   }
 
-  private mix(c: KeyedClip | null, mirror: boolean, w: number, p: number, L: KeyedLayerScale | null, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues, share: number, armMax: number): number {
+  private mix(c: KeyedClip | null, mirror: boolean, w: number, p: number, L: KeyedLayerScale | null, pose: KeyedPose, tmp: KeyedPose, v: SlotLegValues, share: number, armMax: number, fromEnd = 0): number {
     if (c === null || w <= 0) return share;
     // a one-shot: progress 0..1 over its frames, the last frame held (never wrapping back to the first)
     const q = p <= 0 ? 0 : p >= 1 ? 1 : p;
     sampleKeyed(c, (q * (c.frames - 1)) / c.frames, 1, tmp, L);
+    // (fix 2) `fromEnd` of the way back toward its end pose (a wrapped spin's replay easing in)
+    if (fromEnd > 0) {
+      sampleKeyed(c, (c.frames - 1) / c.frames, 1, this.tail, L);
+      mixKeyed(tmp, this.tail, fromEnd, tmp);
+    }
     if (mirror) mirrorKeyed(tmp);
     // (fix 1) its arms at most `armMax` of the weight: the clip's arms drawn back toward the pose's first
     if (w > armMax) mixKeyedArms(pose, tmp, armMax / w, tmp);

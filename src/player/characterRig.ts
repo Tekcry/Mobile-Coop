@@ -9,7 +9,7 @@ import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, wrenTuckMul, type 
 import { gripClose, smoothInv } from '../anim/drawMotion';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
-import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
+import { emptyPlannerInput, FootPlanner, type FootState } from '../anim/footPlanner';
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { newStrikeBody, strikeBodyAt, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
@@ -211,6 +211,13 @@ const HEEL_BACK = 0.05;
 const HEEL_DOWN = 0.08;
 /** (G1) The ball of the foot ahead of the ankle (m): a planted foot rising onto its toes (`pitch` > 0) turns about it. */
 const TOE_BALL = 0.12;
+/** (mocap-trial, fix 2) A foot's clip feet state back to the planner's (`newFoot`'s values). */
+function clipFootOff(f: FootState): void {
+  f.clipOwn = false;
+  f.clipPlant = false;
+  f.clipPitchT = -1;
+  f.clipPitchOff = 0;
+}
 function heelLift(f: { contact: boolean; pitch: number; swing: number; clipOwn?: boolean }): number {
   // (mocap-trial, A3) a clip feet swing carries the clip's own ankle lift (its pitch's rise included); (integration) over
   // its last fifth it eases in the heel the planted foot takes on landing (a heel-first strike lifted the ankle target
@@ -1096,6 +1103,8 @@ export class CharacterRig {
   /** (mocap-trial) Each foot's pitch as last posed (the switch on: rate-limited, MOCAP_FEET.pitchRate). */
   private footPitchL = 0;
   private footPitchR = 0;
+  /** (mocap-trial, fix 2) The switch as last frame (turned off: the planner gets its feet back clean, `clipFootOff`). */
+  private mocapWas = false;
   /** (locomotion step 21, A80) Per foot 0..1: how far a planted foot has eased from full leg length to the soft knee. */
   /** Soft-knee share per foot [L, R] (0..1). (operators step 11e) A Float64Array, not two fields: the fields started as
    *  the integer 1 and turned fractional mid-match, a representation change that deoptimised the rig's hot update. */
@@ -1901,6 +1910,15 @@ export class CharacterRig {
     pin.ground = free ? null : this.groundProbe;
     // (mocap-trial, A3) the mocap clip's feet place the steps (graph `clipFeet`; null: the planner's, as always)
     pin.clipFeet = t.clipFeet.valid && !free ? t.clipFeet : null;
+    // (mocap-trial, fix 2) the switch turned off mid-game: no clip feet state is left on the feet (a clip-planted foot kept
+    // its flag, read at a stop), so the planner has them as if the switch had never been on
+    if (LOCO.mocap !== this.mocapWas) {
+      this.mocapWas = LOCO.mocap;
+      if (!LOCO.mocap) {
+        clipFootOff(this.planner.L);
+        clipFootOff(this.planner.R);
+      }
+    }
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
     if (free) this.planner.L.init = this.planner.R.init = false;
     this.planner.update(pin);

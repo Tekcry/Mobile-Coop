@@ -800,6 +800,9 @@ export class AnimGraph {
   private mFeet = false;
   private mStride = 0;
   private mDuty = 0;
+  /** (fix 2) The duty the gait clock took last frame with clip feet on hand (-1: none) and that frame's gait phase. */
+  private mDutyGait = -1;
+  private mPh = 0;
   private kCk = 0;
   /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
   private keyWallS = 0;
@@ -2198,7 +2201,10 @@ export class AnimGraph {
     const CF = o.clipFeet;
     CF.valid = LOCO.mocap && this.mFeet && this.mStride > 0 && o.keyMocap > 0 && o.gait.moving;
     CF.on = false;
-    if (!CF.valid) return;
+    if (!CF.valid) {
+      this.mDutyGait = -1;
+      return;
+    }
     const zk = (speed * o.gait.cycleTime) / this.mStride;
     const src = this.kA.feet;
     for (let s = 0; s < KEYED_FEET; s += KEYED_FEET_SIDE) {
@@ -2217,8 +2223,20 @@ export class AnimGraph {
     // (integration) the gait clock keeps the clip's stance window whenever clip feet are on hand (by the mocap share), on
     // or handed to the planner: a hand-off never moves the windows under a foot in the air (it landed mid-swing, 18 cm
     // down in a frame, or jumped half its swing)
+    // (fix 2) the clip's own duty (outside the planner's 0.40-0.75) only while its feet are on or handed to the planner by
+    // a turn alone; off for a part share or a crawl, the planner's steps take its clamp. (A turn hand-off keeps the clip's
+    // window: clamped there, the jog / run turns' planner steps popped worse, jog 2.8 m/s x 2.5-4 rad/s ankle-toe 24-32 ->
+    // 37-44 deg, run 4.0 x 4 48 -> 70 deg; the walk's 0.56 is inside the clamp either way.) The duty moves at most half
+    // the gait clock's advance a frame, so a foot in its swing window never falls back into its stance window (the jog's
+    // 0.21 -> 0.40 in one frame set the swing down mid-air)
     const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
-    o.gait.duty += (this.mDuty - o.gait.duty) * w;
+    const duty = o.gait.duty + (this.mDuty - o.gait.duty) * w;
+    const want = o.keyMocap >= M.share && speed > M.minSpeed ? duty : clamp(duty, 0.4, 0.75);
+    let dPh = o.gait.phase - this.mPh;
+    if (dPh < 0) dPh += 1;
+    o.gait.duty = this.mDutyGait < 0 ? want : this.mDutyGait + clamp(want - this.mDutyGait, -0.5 * dPh, 0.5 * dPh);
+    this.mDutyGait = o.gait.duty;
+    this.mPh = o.gait.phase;
   }
 
   /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */
