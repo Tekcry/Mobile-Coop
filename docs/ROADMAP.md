@@ -129,6 +129,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 6. **Visual pass** on the training level: lighting, materials, dressing (last, per the goal).
 
 ## Later (after the prototype)
+- **Guard cap** (Michael 2026-10-22 ~14:50: "After Marlow + Sector Ops"): before the campaign spec. Options given: dormant guards (all placed, at most `MAX_ALIVE` 12 awake), a desktop perf run at 12 / 16 / 24 awake (sim vs render), AI / perception LOD and shared raycasts if sim-bound, the WebGPU trial, guard LOD and fewer flashlight shadows if render-bound, guard snapshot trimming for co-op past ~16.
 - **Dev tools menu + general level editor** (Michael 2026-10-21 ~19:20: "Not yet, add to roadmap. We'll focus on fine tuning the animations, gameplay, and bunker for now"): a Dev tools menu (tuner, Anim Studio, level editor); Kestrel's editor generalised to load any map and edit its MapLayout (spawns, guards and patrols, props, lights with a rebake, cameras, lasers, pickups, hide spots) plus added blocks, saved as a per-map override file the game loads (medium, ~1-2 days). Moving or deleting coded walls needs a per-map conversion to the blocks format (large).
 - Moth as player 2's character (2-3 days; goggle purple; a scratch prototype first, when nothing urgent waits).
 - GPU perf checks on the PC: the menu void, the weapon meshes, the `?gfx=min` budgets.
