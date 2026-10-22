@@ -233,6 +233,16 @@ export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
  *  audit rows 5 / 6) 0.7 -> 0.06: the held drop kept the walk on 30-60 deg knees all cycle; the toe raise (HEEL_RAISE) now
  *  keeps the dip small instead. Starting value. */
 export const PELVIS_HOLD = 0;
+/**
+ * (anim-natural N2, n138 fix 2) The keyed pelvis offset's top speed (m/s, height and forward each). The keyed run's pelvis
+ * sits 21 cm higher and 10 cm further forward than the jog's (run.ts / jog.ts means), cross-faded over 3.2-3.8 m/s
+ * (KEYED_GAITS): a run's 180 brake (~22 m/s2) crossed most of that band in one frame, the hips dropped 10 cm, the planted
+ * knee needed 44 deg in a frame, its joint rate (25 rad/s) held it and the planted foot slid 14 cm (e2e-anim run 180,
+ * 16.5 cm headless); the re-acceleration's rise slid the next plant 6.9 cm. A clip's own bob stays under ~0.6 m/s (the
+ * run's ~1 cm a frame), so only a band crossing is eased. Headless (tests/turnCrossRig.test.ts): 1.8 left 7.0 cm, 1.5
+ * 1.7 cm, 1.2 every turn row <= 0.01 cm; the identity fixtures move on partner:moves only.
+ */
+export const KEY_PEL_RATE = 1.2;
 /** (G1 fix) The 3.2.0 hold for the aimed / wall gaits (stride 'velocity'). */
 export const PELVIS_HOLD_AIM = 0.7;
 /** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
@@ -1075,6 +1085,10 @@ export class CharacterRig {
   private kneeLift = 0;
   /** (G1 fix) The hips' fore-aft shift over the still feet (m, body frame). */
   private restShift = 0;
+  /** (n138 fix 2) The keyed pelvis offset applied last frame (m: height, forward; KEY_PEL_RATE). */
+  private keyPelY = 0;
+  private keyPelZ = 0;
+  private keyPelOn = false;
   /** (anim-rework S3) The glide's lateral hip shift over the feet (m, eased; GLIDE_HIP). */
   private glideShift = 0;
   /** (locomotion step 21, M14) The ready-hands share this frame and the graph's shoulder for it (RigTargets). */
@@ -2207,8 +2221,21 @@ export class CharacterRig {
     const kk = p.height / 1.75;
     let pex = pe.x + (kq.pel[0]! * kk - pe.x) * kw;
     // (the height adds to the procedural one: the posture's knee bend and the legs' reach stay; the clip shapes the step)
-    const pey = pe.y + kq.pel[1]! * kk * kw;
-    const pez = pe.z + (kq.pel[2]! * kk - pe.z) * kw;
+    // (n138 fix 2) the keyed offsets (height, forward) change at most KEY_PEL_RATE m/s (unchanged when under it)
+    const kpm = KEY_PEL_RATE * dt;
+    let kpy = kq.pel[1]! * kk * kw;
+    let kpz = (kq.pel[2]! * kk - pe.z) * kw;
+    if (this.keyPelOn) {
+      if (kpy > this.keyPelY + kpm) kpy = this.keyPelY + kpm;
+      else if (kpy < this.keyPelY - kpm) kpy = this.keyPelY - kpm;
+      if (kpz > this.keyPelZ + kpm) kpz = this.keyPelZ + kpm;
+      else if (kpz < this.keyPelZ - kpm) kpz = this.keyPelZ - kpm;
+    }
+    this.keyPelOn = true;
+    this.keyPelY = kpy;
+    this.keyPelZ = kpz;
+    const pey = pe.y + kpy;
+    const pez = pe.z + kpz;
     // (anim-rework S4) the free kneel's knees over the toes (KNEEL_KNEE_OUT)
     const kneeOut0 = KNEE_OUT + (KNEEL_KNEE_OUT - KNEE_OUT) * t.kneel;
     this.kneeOutNow = (kneeOut0 + (t.keyKneeOut - kneeOut0) * kw) * TUNE_CUR.kneeOutMul;

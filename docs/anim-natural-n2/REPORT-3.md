@@ -128,3 +128,17 @@ kept; the mid-swing comes about 3/48 of a cycle later than his tune).
 - Open: crouch 90's first swing reads 10.73 m/s headless at the e2e timing (limit 5; N1 CHECK-3 risk a), likely next to
   fail in e2e-anim (it never ran: run 90 threw first): the stance clamp beats the no-crossing rule at landing; needs
   the landing rules reworked. Clip margin in-game expected ~-2.9 (master -2.7).
+
+## #138 fix round 2 (2026-10-22 ~22:45): e2e-anim run 180 planted contact 14 cm
+- Cause (not the body-frame push: with it off the slide is the same): the keyed run clip's pelvis sits ~19 cm higher and
+  ~10 cm further forward than the jog's; a run 180 brakes at ~22 m/s^2 across most of the run / jog band (3.2-3.8 m/s)
+  in one frame, so the keyed pelvis offset fell 14 cm (y) / 7 cm (z) in a frame; the planted knee needed +44 deg at once,
+  its joint rate limit (25 rad/s) held it and dragged the planted ankle 13 cm, then 4 cm. Hidden in train 8 (run 90 threw
+  first). run 90 at 0.98 of the pace showed the same (2.63 cm).
+- Fix (`src/player/characterRig.ts`): `KEY_PEL_RATE` 1.2 m/s, the keyed pelvis height / forward offsets change at most
+  that fast (a clip's own bob is ~0.6 m/s, so it bites only on a band crossing); untouched below the rate (guards bit-
+  identical). Headless: run 180 16.45 -> 0.01 cm, run 90 x0.98 2.63 -> 0.01; every turn plan least gap 8.0 cm; first
+  swing unchanged. tests/turnCrossRig.test.ts pins the rendered contact slide (< 1 cm) and adds a crouch 90 row.
+- e2e-studio "Arm swing greyed": master 4.58.1-4.58.2's tuner-panel refresh fixes (the merge below), not changed here.
+- Watch on the GPU run: crouched holstered (the crouch depth rides the same pelvis channel), crouch 90's first swing
+  (10.73 m/s headless, known).

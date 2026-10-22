@@ -37,6 +37,8 @@
  * (anim-natural N2, #138 fix round: N1's planner pushes uncrossed feet in the body frame too, crouch entry re-steps the
  * right foot first) Re-captured: partner:moves only (both fixtures); with the turn rules off (turnRule 0) the planner
  * is bit-identical, so nothing else can move.
+ * (anim-natural N2, #138 fix round 2: the keyed pelvis offsets change at most 1.2 m/s, KEY_PEL_RATE) Re-captured:
+ * partner:moves only (both fixtures); under the rate the rig is unchanged (the guard fixture never moves).
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
