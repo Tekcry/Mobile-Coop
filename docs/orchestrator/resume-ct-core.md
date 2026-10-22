@@ -36,6 +36,12 @@ pushed at each agent hand-back. Agents running at a cut-off are lost: the resume
 - Heavy-usage throughput (Michael ~09:50, CLAUDE.md on feature/menu): CPU < ~80%, at most 3 tsc / vitest agents; heavy.lock
   lane single GPU suites when CPU < 80%; PRs outside src/net / protocol / save -> train on CI + at most two area suites.
 
+- Token rules (Michael ~10:05, CLAUDE.md "Token rules"): message the orchestrator only at PR open / train-ready / blocked /
+  Michael needed (progress lives here); clear at ~25-30% context at a clean point; spare jobs ride ONE batch PR per train
+  (branch `feature/ctcore-batch-<train>`, one checker, one CI): traverse-fix-2 + strike-pops (+ next spares) merge into
+  it at hand-back; #194 stays its own PR; mocap-strafe keeps its own PR (mocap job). Merge master only on train entry.
+  Save at 98%, swap at 99%.
+
 ## Resumed ~10:00 (new account)
 hostage-gait: checker PASS (docs/hostage-gait/CHECK.md), PR #194 head 6cf3ec97; waits for laptop coop + netmove on c581a9c4.
 hang-down 0578d554: desktop GPU e2e-takedown ok 22 s, e2e-anim ok 47 s; fresh checker running (-> scratch/hdc-CHECK.md).
