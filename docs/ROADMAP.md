@@ -173,6 +173,7 @@ Entries up to 2026-10-21 ~07:00 are now DECISIONS G192-G228 (PR #76; its body ma
 | 2026-10-22 | #107 | 4.51.1: e2e-coop client takedown steady under load (test only) |
 | 2026-10-22 | #111 | 4.52.0: train 1: server browser (#99, public rooms, Co-op > Browse rooms), jammer fixes (#108); protocol 28 |
 | 2026-10-22 | #112 | 4.53.0: train 2: guard tuning in the tuner and Anim Studio (#105), Clip speed tab (#109) |
+| 2026-10-23 | #160 | 4.62.0: train 12: co-op holders, mantle / drop / roll and split brace, holds that breathe (#119 N4b), co-op takedown offer test steady under load (#158) |
 | 2026-10-22 | #157 | 4.61.0: train 8: Wren's body moves with the gait (twist, sway, head, arms) and run pops fixed (#138), feet in turns (#135, inside #138), Sector Ops strip lights no longer throw fog cones; floods and torches keep their beams (#156; closes Waiting item 5) |
 | 2026-10-22 | #155 | 4.60.1: train 11: GPU condition waits before UI asserts (#150), netmove compare on the same idle phase (#154), backlog note on touch look-drag (#149); #144 left out on a voxelFit CI fail |
 | 2026-10-22 | #153 | 4.60.0: train 10: takedown blow and grab kill land on the kill, co-op strike accept never steps back (#142 n4d), baked lamps get the plugin on a material added the frame another is disposed (#145) |

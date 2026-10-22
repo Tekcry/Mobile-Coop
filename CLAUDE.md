@@ -171,7 +171,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
-- No external art, except CC0 textures for desktop detail and the CC0 base body of the operator pipeline (bible 5.14);
+- No external art, except CC0 textures for desktop detail, the CC0 base body of the operator pipeline (bible 5.14), and CMU motion-capture takes for the mocap set (Michael 2026-10-22 ~20:45 mocap-trial, 2026-10-23 ~00:15 "Yes, download them"; converted clips bundled, raw files not committed, credited in `docs/art-credits.md`);
   operator meshes are generated offline by in-repo scripts (Blender, headless) and bundled. CC0 recordings may be used for any sound (G58): bundled,
   never fetched at runtime, each source credited in `docs/audio-credits.md` (the score's samples in
   `docs/audio/samples.md`). WebAudio synthesis stays where it sounds better.
