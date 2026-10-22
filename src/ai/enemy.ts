@@ -147,7 +147,6 @@ export interface AiContext {
 }
 
 let nextId = 1;
-const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 /**
  * Calm paces (x the combat walk, which is a slow aimed walk). (guard-ai S2, A9) Coordinated guards investigate at 0.85
  * and search at 0.75 (they were faster than the patrol: backwards); the parked modes (Hunter, Mission) keep the old
@@ -171,6 +170,11 @@ const EXPOSE_HIPS = 0.52;
 
 export class Enemy implements Damageable {
   readonly num = nextId++;
+  /** (guard-ai S8, A7) Seeded combat dice (bursts, strafes, cover-first, spread, grenade timing; mulberry32): seeded
+   *  by `num` at spawn, reseeded per guard per engagement when he goes to combat (`AiContext.combatSeed`). Declared
+   *  first: the field initialisers below draw from it. The think cadence (`thinkT`) stays on `Math.random`: it is
+   *  perception, not combat. */
+  readonly rng = new Rng(Math.imul(this.num, 2654435761));
   readonly id = `e${this.num}`;
   readonly team = 'enemy' as const;
   readonly health: Health;
@@ -199,13 +203,13 @@ export class Enemy implements Damageable {
   coverIdx = -1;
   private burstLeft = 0;
   private fireT = 0;
-  private pauseT = rand(0.6, 1.4);
+  private pauseT = this.rng.range(0.6, 1.4);
   private windup = 0;
   private meleeCd = 0;
   private crouch = 0;
   private wantCrouch = false;
   private peekCycles = 0;
-  private strafe = Math.random() < 0.5 ? 1 : -1;
+  private strafe = this.rng.next() < 0.5 ? 1 : -1;
   private strafeT = 0;
   private stagger = 0;
   private aimPitch = 0;
@@ -297,7 +301,7 @@ export class Enemy implements Damageable {
   private lastKnown = new Vector3();
   private lastSeenT = 99;
   private blindPlan = false;
-  private grenadeCd = rand(5, 10);
+  private grenadeCd = this.rng.range(5, 10);
   /** Assigned to flank a player holding cover (debug / tests). */
   flanking = false;
   /**
@@ -1395,9 +1399,11 @@ export class Enemy implements Damageable {
   }
 
   // ---- (guard-ai S8, design 8) squad tactics: the role the manager gives him in an engaged group ----
-  /** Behaviour profile (`P_STANDARD` / `P_AGGRESSIVE` / `P_POST`, squadRoles.ts). Standard by default; S5 posts and S6
-   *  reinforcements set it. */
-  profile = P_STANDARD;
+  /** Behaviour profile code for the squad roles (`P_STANDARD` / `P_AGGRESSIVE` / `P_POST`, squadRoles.ts). Standard for
+   *  everyone until S5 / S6 are wired: S5's `placeSlot` sets `P_POST` for a guard with a post (and `P_AGGRESSIVE` for
+   *  `profile: 'aggressive'`), S6 reinforcements `P_AGGRESSIVE`. (A numeric code, not S5's string `profile`, so the two
+   *  fields can sit side by side when the slices merge.) */
+  tacticsProfile = P_STANDARD;
   /** Role in the engaged group (`R_*`, the manager's 2 Hz `assignRoles`); `R_NONE` outside one, or in the parked
    *  modes: today's tactics. `R_SEARCH` also keeps today's tactics. */
   role = R_NONE;
@@ -1414,8 +1420,8 @@ export class Enemy implements Damageable {
   /** Point with no cover left to bound to: walking the last stretch to the last known position (out of the group;
    *  the manager clears it when he leaves combat). */
   closing = false;
-  /** Seeded combat RNG (bursts, strafes, cover-first, spread): reseeded per guard per engagement (`combatSeed`). */
-  readonly rng = new Rng(Math.imul(this.num, 2654435761));
+  /** `roleStep`'s goal, reused (decide runs every frame: no allocation). */
+  private readonly roleGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
 
   /** The role's name (tests, e2e, debug). */
   get roleName(): Role {
@@ -1447,26 +1453,35 @@ export class Enemy implements Damageable {
     if (this.closing) return null;
     const role = this.role;
     const c = this.roleCover;
-    const aggressive = this.profile === P_AGGRESSIVE;
+    const aggressive = this.tacticsProfile === P_AGGRESSIVE;
     const there = c >= 0 && c === this.coverIdx && (this.state === 'inCover' || this.state === 'seekCover');
     const travelling = this.state === 'seekCover' && this.coverPicked;
+    const g = this.roleGoal;
+    g.point = null;
+    g.speed = 0;
+    g.face = toTarget;
     if (c >= 0 && !there && !travelling && this.roleMoving && this.stagger <= 0) {
-      const go = role !== R_POINT || aggressive || (!this.los && (this.state !== 'inCover' || this.stateT >= profileOf(this.profile).advanceHold));
-      if (go && this.boundTo(c, role === R_POINT)) {
-        if (role === R_POINT) this.bark('moving');
-        else if (role === R_FLANK) this.bark('flanking');
-        return { point: null, speed: 0, face: toTarget };
+      const go = role !== R_POINT || aggressive || (!this.los && (this.state !== 'inCover' || this.stateT >= profileOf(this.tacticsProfile).advanceHold));
+      if (go) {
+        if (this.boundTo(c, role === R_POINT)) {
+          if (role === R_POINT) this.bark('moving');
+          else if (role === R_FLANK) this.bark('flanking');
+          return g;
+        }
+        // no path (blocked for a while) or taken: no new A* every frame until the next roles tick
+        this.roleCover = -1;
       }
     }
     if (this.los || (this.state !== 'chase' && this.state !== 'idle')) return null;
-    // out of sight in the open: an aggressive point with no cover runs it down; the rest wait for the group
+    // out of sight in the open with no cover to bound to: the point walks the last stretch (out of the group, today's
+    // advance at ADVANCE_PACE, a jog if aggressive); the rest wait for the group
     if (role === R_POINT && c < 0) {
       this.closing = true;
       return null;
     }
     this.wantCrouch = this.onRadio;
-    if (role === R_OVERWATCH && this.mateMoving && profileOf(this.profile).suppress) this.suppressLkp(dt);
-    return { point: null, speed: 0, face: toTarget };
+    if (role === R_OVERWATCH && this.mateMoving && profileOf(this.tacticsProfile).suppress) this.suppressLkp(dt);
+    return g;
   }
 
   /** Path to cover `idx`, reserve it and go (`seekCover`); a point's bound is an advance. False: no path (blocked for
@@ -1485,6 +1500,7 @@ export class Enemy implements Damageable {
     this.advancing = advance;
     this.coverIdx = idx;
     this.path = path;
+    this.peekCycles = 0;
     return true;
   }
 
@@ -1587,7 +1603,7 @@ export class Enemy implements Damageable {
         if (this.los && this.dist <= def.engageMax) {
           // in a fight they get behind something first (guard-ai S8: the profile's weight against the seeded dice)
           this.advancing = false;
-          this.setState(def.usesCover && this.rng.next() < profileOf(this.profile).coverFirst ? 'seekCover' : 'attack');
+          this.setState(def.usesCover && this.rng.next() < profileOf(this.tacticsProfile).coverFirst ? 'seekCover' : 'attack');
           return { point: null, speed: 0, face: toTarget };
         }
         if (outside) {
@@ -1610,7 +1626,7 @@ export class Enemy implements Damageable {
             this.advanceCd = 1.5;
           }
           // (guard-ai S8) an aggressive guard (reinforcements) closes at a jog
-          return { point: this.chasePoint(tp, false), speed: this.profile === P_AGGRESSIVE ? def.runSpeed * 0.75 : def.walkSpeed * ADVANCE_PACE, face: null };
+          return { point: this.chasePoint(tp, false), speed: this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * 0.75 : def.walkSpeed * ADVANCE_PACE, face: null };
         }
         return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
@@ -1631,7 +1647,7 @@ export class Enemy implements Damageable {
           this.strafeT = this.rng.range(2, 4);
           this.strafe = this.rng.next() < 0.5 ? 1 : -1;
         }
-        const away = this.dist < def.engageMin ? -1 : this.profile === P_AGGRESSIVE && this.dist > def.engageMin + 3 ? 1 : 0;
+        const away = this.dist < def.engageMin ? -1 : this.tacticsProfile === P_AGGRESSIVE && this.dist > def.engageMin + 3 ? 1 : 0;
         const dx = t.feet.x - this.pos.x;
         const dz = t.feet.z - this.pos.z;
         const len = hyp2(dx, dz) || 1;
@@ -1673,7 +1689,7 @@ export class Enemy implements Damageable {
           this.coverPose = cp.low ? 'low' : 'high';
           this.wantCrouch = cp.low;
           const roled = this.role === R_POINT;
-          if (this.stateT > (roled ? profileOf(this.profile).advanceHold : ADVANCE_HOLD)) {
+          if (this.stateT > (roled ? profileOf(this.tacticsProfile).advanceHold : ADVANCE_HOLD)) {
             if (!roled) this.setState('chase');
             else if (this.roleCover < 0 || this.roleCover === this.coverIdx) {
               this.closing = true;
@@ -1689,6 +1705,14 @@ export class Enemy implements Damageable {
         const l = hyp2(dirX, dirZ) || 1;
         const protects = (cp.normal.x * dirX + cp.normal.z * dirZ) / l;
         const holds = this.role !== R_NONE && this.role !== R_SEARCH;
+        // (guard-ai S8) a point that has held its cover 5 peeks without a sight of him walks the last stretch (out of
+        // the group: the next tick picks a new point), so a held group still closes in
+        if (holds && this.role === R_POINT && this.peekCycles >= 5 && !this.los) {
+          this.peekCycles = 0;
+          this.closing = true;
+          this.setState('chase');
+          return { point: null, speed: 0, face: toTarget };
+        }
         if (protects < 0.2 || (this.peekCycles >= 5 && !holds) || this.dist < def.engageMin * 0.7) {
           this.peekCycles = 0;
           this.setState('attack');
@@ -1702,7 +1726,7 @@ export class Enemy implements Damageable {
           this.coverPeek = 0;
           return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
         }
-        if (this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.profile).suppress) this.suppressLkp(dt);
+        if (this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.tacticsProfile).suppress) this.suppressLkp(dt);
         // hide / peek cycle; some hide phases blind-fire over/around the cover at the last position
         const cycle = this.stateT % 4.2;
         const peeking = cycle > 2.4;

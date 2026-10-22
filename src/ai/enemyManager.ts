@@ -213,6 +213,11 @@ export class EnemyManager {
   private roleWho: (Enemy | null)[] = new Array<Enemy | null>(32).fill(null);
   private roleMember = new Int16Array(32);
   private roleT = 0;
+  /** The last roles tick had an engaged group: its flank role replaces the single `flanker` (else a lone guard keeps
+   *  today's flanker). */
+  private rolesActive = false;
+  /** (guard-ai S8, A7) Squad radio checks so far: the check period's spread is a fixed sequence, not dice. */
+  private radioSeq = 0;
   /** The match's combat seed: `combatSeed(matchSeed, engagement, guard)` seeds each guard's dice. Modes / tests may
    *  set it. */
   matchSeed = 0x5eed;
@@ -406,7 +411,9 @@ export class EnemyManager {
   reinforce(kind: EnemyKind, at: Vector3, n: number): Enemy[] {
     const out: Enemy[] = [];
     for (let i = 0; i < n; i++) {
-      const e = this.spawn(kind, at.add(new Vector3((i - (n - 1) / 2) * 1.2, 0, (i % 2) * 1.1)), true, Math.random() * 6);
+      // (guard-ai S8, A7) facing the last known position (else +z), not a random yaw
+      const yaw = this.lkpValid ? Math.atan2(this.lkp.x - at.x, this.lkp.z - at.z) : 0;
+      const e = this.spawn(kind, at.add(new Vector3((i - (n - 1) / 2) * 1.2, 0, (i % 2) * 1.1)), true, yaw);
       if (e) out.push(e);
     }
     return out;
@@ -597,7 +604,8 @@ export class EnemyManager {
   /** Wake a knocked-out victim: back on their feet, searching. */
   private revive(b: Body): void {
     if (!b.present || b.lethal) return;
-    const e = new Enemy(this.ctx, b.def, b.pos.clone(), Math.random() * 6);
+    // (guard-ai S8, A7) a fixed yaw, not a random one (he turns to search at once)
+    const e = new Enemy(this.ctx, b.def, b.pos.clone(), 0);
     e.health.damage(e.health.maxHp * 0.4);
     this.enemies.push(e);
     this.removeBody(b);
@@ -685,6 +693,7 @@ export class EnemyManager {
     this.buffT = 0;
     this.grenadeT = 0;
     this.radioT = ARCHETYPE.radio.period;
+    this.radioSeq = 0;
     const ps = this.players();
     for (let i = 0; i < ps.length; i++) ps[i]!.spotted = false;
   }
@@ -1069,13 +1078,14 @@ export class EnemyManager {
         inp.z[n] = e.pos.z;
         inp.seesTarget[n] = e.seesTarget ? 1 : 0;
         inp.inCover[n] = e.state === 'inCover' && e.coverIdx >= 0 ? 1 : 0;
-        inp.profile[n] = e.profile;
+        inp.profile[n] = e.tacticsProfile;
         inp.coverIdx[n] = e.coverIdx;
         n++;
       }
     }
     if (n < TACTICS.minGroup) n = 0;
     inp.n = n;
+    this.rolesActive = n > 0;
     let mates = false;
     if (n > 0) {
       inp.lkpX = this.lkp.x;
@@ -1218,8 +1228,9 @@ export class EnemyManager {
     if (this.flowT <= 0 || this.flowVer !== this.nav.version) {
       this.flowT = 0.5;
       this.refreshFlow();
-      // (guard-ai S8) coordinated: the group's flank role replaces the single flanker
-      if (this.coordinated) this.flanker = null;
+      // (guard-ai S8) coordinated with an engaged group: its flank role replaces the single flanker (a lone guard and
+      // the parked modes keep it; e2e-wall's flanker-after-4 s runs in Clear, uncoordinated)
+      if (this.coordinated && this.rolesActive) this.flanker = null;
       else this.assignFlanker();
     }
     this.alarmT -= dt;
@@ -1237,7 +1248,9 @@ export class EnemyManager {
     if (this.stealth && this.squads.size) {
       this.radioT -= dt;
       if (this.radioT <= 0) {
-        this.radioT = ARCHETYPE.radio.period + (Math.random() * 2 - 1) * ARCHETYPE.radio.jitter;
+        // (guard-ai S8, A7) +- jitter from a fixed low-discrepancy sequence (golden ratio), not dice: replayable
+        this.radioSeq++;
+        this.radioT = ARCHETYPE.radio.period + (((this.radioSeq * 0.618034) % 1) * 2 - 1) * ARCHETYPE.radio.jitter;
         this.radioCheckNow();
       }
     }
@@ -1377,5 +1390,6 @@ export class EnemyManager {
     this.coverSet.block.fill(0);
     this.coverBlockT.fill(0);
     this.contactCaller = -1;
+    this.rolesActive = false;
   }
 }

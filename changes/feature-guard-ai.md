@@ -16,3 +16,10 @@
   Light checks, "nothing here" and the missing-guard call are radio calls too, answered with one "Copy.". A guard sent to
   a noise that turns out to be nothing goes back to normal instead of staying on edge for 45 s (gunfire still keeps
   them on edge). Hunter and Mission (parked) keep the old radio.
+- S8 tactics: guards in a fight now work as a team instead of each doing his own thing. With two or more in it, the one
+  who called you in takes cover further back and stays down until his radio call is through; one guard (the point)
+  moves up from cover to cover ("Moving up!"), another covers him from cover with a view of where you were seen and
+  fires at that spot while a squadmate moves ("Covering!"), and with three or more one goes round the side
+  ("Flanking!"). Only one of the point and the flanker moves at a time, guards run only between covers, and nobody walks
+  out into the open at you. Their shooting (bursts, spread, strafes, going for cover) uses a fixed seed per guard and
+  fight, so the same fight plays the same way. A lone guard and Hunter / Mission (parked) keep the old tactics.

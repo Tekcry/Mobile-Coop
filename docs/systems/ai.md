@@ -94,6 +94,19 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet
   to the head kills any guard but a heavy (`Enemy.applyDamage`). The close-range sense from behind ignores a sneak /
   crouched approach.
+- Squad roles (guard-ai S8, coordinated modes; `squadRoles.ts`, `coverGrid.ts`): `EnemyManager.rolesStep` at 2 Hz
+  (`TACTICS.tick`) fills one reused `RoleInput` from the engaged group (alerted, free, cover-using guards; >= 2,
+  `TACTICS.minGroup`), runs `assignRoles` against the level cover as typed arrays (`coverSet`, mirrored from
+  `reserveCover`; `coverGrid` 4 m buckets) and calls `Enemy.setRole(role, cover, moving, run, mateMoving, onRadio)`.
+  Reporter = the engagement's first contact caller (`contactCaller`), held crouched and silent while his call is open;
+  point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
+  when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
+  blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
+  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
+  the open a role guard waits for the group. A path failure blocks the cover. While a group has roles the single
+  `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
+- Combat dice (S8, A24): `Enemy.rng` (mulberry32) reseeded `combatSeed(matchSeed, engagement, num)` on going to
+  combat; `tacticsProfile` (`P_STANDARD` until S5 / S6 set posts and reinforcements) weights cover-first (0.85).
 - `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
   enemies, located gunfire), a flow field to the LKP (never the real position), arriving with nothing there starts the
   search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does not relay; the live modes use
