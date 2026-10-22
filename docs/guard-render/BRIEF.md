@@ -29,3 +29,14 @@ The no-perf-tuning rule ("Definition of done": performance work waits until Mich
 lifted for guard render cost only, because the 24-guard ask needs it. Nothing else is tuned under it.
 Undo: revert the job (revert the merge commit(s) of `feature/guard-render` on master, or close the PR unmerged);
 no save, wire or map data depends on it.
+
+## Orchestrator answers (2026-10-23 ~08:15, relayed by Character Build; these close PLAN / STATE open questions 1-5)
+- M1 (open 1): target 60 Hz at Epic on the laptop 4090: frame CPU p95 <= 12 ms, GPU p95 <= 15 ms at 24 facing guards;
+  also report the desktop default preset.
+- M2 (open 2): S3a, a sim-side head hit volume (no rig-pose read for gameplay).
+- M3 (open 3): Marlow Yard headroom is at its 12 alive guards; the alive cap is per map (Marlow 12, campusOps 24).
+- M4 (open 4): guard-cap #180 merges first (train 19, done: 4.68.0); `scripts/guard-cap.mjs` comes from master.
+- M5 (open 5): `src/world/partLibrary.ts` is this job's; `src/world/world.ts` hunks go to Menu Notes.
+- M6: CT Core agreed the characterRig hook: a private method of its own (build at rig creation + one per-frame skin
+  update after the final pose), outside lines ~1850-2010 and ~2600-2700, no per-frame allocation, nothing in
+  `src/anim`; whichever PR is ready first merges first; send CT Core the hook's line range + diff.
