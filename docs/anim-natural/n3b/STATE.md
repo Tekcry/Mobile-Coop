@@ -15,7 +15,7 @@ All three tasks built, tsc clean, eslint clean (changed files), the related test
    slide doors, the guards' AI doorway pause.
    Old tuner data: the registry kept unknown groups (`joint.slide` ...) as "pending" forever; now `isRemovedTuneGroup`
    (`tuneMoveRows.ts`) drops them in `tuneLoad` / `tuneImport` (`tuneRegistry.ts`). Test: a literal old export and save.
-2. **Body recoil** (PASS2 row 25). Cause: the graph's recoil was the CT G2 "no visible flip" values (0.015 m, 0.02 rad)
+2. **Body recoil** (PASS2 row 25). Cause: the graph's recoil was the CT prototype G2 "no visible flip" values (0.015 m, 0.02 rad)
    on a spring that follows the kick envelope; the rig's sight-to-eye hold cancelled the rest. New `src/anim/recoil.ts`
    (`BodyRecoil`: a per-shot impulse on two critically damped springs, gun 28 rad/s, trunk 22 rad/s; rifle / pistol
    amounts `WREN_RECOIL_RIFLE` / `WREN_RECOIL_PISTOL`, blended by the pistol weight). Wren rigs only (`graph.wrenReady`:
@@ -23,7 +23,7 @@ All three tasks built, tsc clean, eslint clean (changed files), the related test
    The sight is let rise with the kick (`RECOIL_SIGHT_ARM`, via `out.sightDrop`). Tuner: Gun `recoilMul` (aim states,
    identity 1) + bake rule (`tuneBakeTable.ts`). Aim, reticle, camera untouched (the shot ray starts at the visual
    muzzle as before but points at the camera's aim point).
-3. **Wall block** (PASS2 row 24). Cause: G6's design (`WALL_BLOCK.pitch` 1.2 rad muzzle UP, 0.15 m back) on a linear
+3. **Wall block** (PASS2 row 24). Cause: the CT prototype G6 design (`WALL_BLOCK.pitch` 1.2 rad muzzle UP, 0.15 m back) on a linear
    rate-limited follow of a continuous distance ramp, so the gun stopped part-way while walking in and then held 69 deg
    muzzle-up. Now: hysteresis (on 0.35 / off 0.1), one smoothstep move of 0.4 s each way, no weld, the muzzle tipped
    1.15 rad below the aim line (capped at 1.13 rad below level, at least 0.35 under the aim) about the butt (0.33 m
@@ -41,10 +41,10 @@ All three tasks built, tsc clean, eslint clean (changed files), the related test
 | Muzzle ahead of the root when held (wall 0.3 m) | 0.31 m (up) | 0.25 m |
 
 ## Assumed decisions (undo)
-- A1 Recoil bigger than CT G2's "< 0.5 deg" (PASS2 asked for a believable kick). Undo: Gun `recoilMul` 0, or
+- A1 Recoil bigger than CT prototype G2's "< 0.5 deg" (PASS2 asked for a believable kick). Undo: Gun `recoilMul` 0, or
   `WREN_RECOIL_*` amounts to 0 (then `RECOIL` applies to guards only; to give Wren `RECOIL` again drop the
   `wrenReady` branch in animGraph's weapon layer).
-- A2 Wall block muzzle down, not CT G6's muzzle up (the job lead's spec). Undo: `WALL_BLOCK` tip sign and the old
+- A2 Wall block muzzle down, not CT's muzzle up (CT prototype G6, AUDIT-WALLS row 12, 051917 @ 10.9-12.3) (the job lead's spec). Undo: `WALL_BLOCK` tip sign and the old
   `pitch` / `pull` values (git history of animGraph.ts, 4.53.0).
 - A3 Recoil is Wren only (brief: guards unchanged).
 
@@ -59,6 +59,8 @@ block after the `glideTwistMul` rule: `RECOIL_FILE`, `RECOIL_AMOUNTS`, two `reco
 `animMoveRows.test.ts`, `rig.test.ts`; docs CHANGELOG, `docs/systems/movement.md`, `docs/systems/combat.md`.
 
 ## Next / open
+- **Waiting on Michael (A2):** wall block muzzle DOWN vs CT's muzzle UP (CT prototype G6, AUDIT-WALLS row 12, 051917 @
+  10.9-12.3). CT is the authority (G1), so the PR asks him; undo is the old `WALL_BLOCK` values.
 - GPU sheets on the desktop: `wall-block`, `fire-rifle`, `fire-pistol` before / after for Michael.
 - e2e: `e2e-anim`, `e2e-wall` / `e2e-stealth-ai` (wall aim), `e2e-coop` (partner recoil) on the laptop runner.
 - Polish list: pistol back kick is small (0.8 cm, the locked arms); the block release while walking back peaks at
@@ -70,3 +72,15 @@ Resume anim-natural N3b on feature/anim-n3b (C:/NightShift/Mobile-Coop-anim-n3b)
 Built: slide / doorway sweep deleted, Wren per-shot recoil (src/anim/recoil.ts), wall block muzzle-down. Next: GPU
 sheets wall-block / fire-rifle / fire-pistol, then e2e-anim, e2e-wall, e2e-coop; then the PR.
 ```
+
+## Fresh checker (2026-10-22 ~15:15, on 40bf9c3d): PASS, no must-fix
+Slide / sweep deletion complete (no references left; `isRemovedTuneGroup` drops only exact groups, negatives tested);
+recoil springs exact (frame-rate independent), Wren rigs only, no wire change, aim / camera / shot ray untouched; wall
+block hysteresis and one 0.4 s move, bore never above the aim line, gameplay unchanged (a blocked shot still starts at the
+head). 76 + 92 tests pass, eslint clean. No e2e script needs changing. Should-fix done: A2 marked waiting on Michael; the
+G2 / G6 references named as CT prototype G numbers (not DECISIONS). TESTING line added.
+Polish: lowering the gun at a wall drops the muzzle ~100 deg for ~0.2 s (tip not scaled by raise; animGraph ~1325);
+aimed 0.3 rad off level at a wall the muzzle pokes up to 9 cm through (visual only); WALL_BLOCK comment on `minTip` vs
+-1.2 aim pitch (89 deg down); CHANGELOG / movement.md say ~66 deg, measured 64.7; no pistol wall-block unit test;
+animN3b.test.ts:214 uses Math.hypot (test); two shots in one render frame give one kick; the partner's recoil follows
+the local `recoilMul`; pistol back kick small (0.8 cm).

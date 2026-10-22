@@ -15,7 +15,7 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   lower 0.2 s. Recoil (row 11): no visible flip (weapon flip 0.02 rad per kick, rifle recoilPitch 0.6, no shot shake).
   (anim-n3b) Wren's body takes a per-shot kick (`anim/recoil.ts`, visual only: the camera and the aim do not move): rifle
   about 3 cm back at the hands, 1.1 deg muzzle rise, 1.5 deg chest; pistol 1.8 cm up, 3.6 deg flip; settled in 0.3 s.
-  Tuner: Gun `recoilMul`. Guards keep the G2 values.
+  Tuner: Gun `recoilMul`. Guards keep the CT prototype G2 values.
 - Decided, not built yet (G104): normal aiming has no zoom; the marksman (sniper) attachment's scope has hold breath.
 - Decided, not built yet (G105): loadouts are Stealth / Assault / Recommended. Code: Silent / Flash / Loud.
 - Decided and built (G16): no aim assist on any input. The pad's aim assist code and its `gamepad.aimAssist` setting are
