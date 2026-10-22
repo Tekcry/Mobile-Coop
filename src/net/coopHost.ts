@@ -34,6 +34,7 @@ import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMove
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
+import { DualClock } from '../game/dualTakedown';
 import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
@@ -56,8 +57,6 @@ const SHOT_NOISE = 28;
 /** A client takedown: the victim within this of the client (m), and let go after this long without an outcome (s). */
 const TD_REACH = 3;
 const TD_MAX = 6;
-/** Two takedowns by different players this close together (s) make a dual takedown. */
-const DUAL_WINDOW = 1.5;
 
 interface Hist {
   t: number;
@@ -272,23 +271,21 @@ export class CoopHost implements NetAttachment {
     );
   }
 
-  /** Takedowns finished by two players within `DUAL_WINDOW` s: a dual takedown. */
-  private lastTd: { by: string; t: number } | null = null;
+  /** Takedowns finished by two players within `DUAL_WINDOW` s: a dual takedown (`DualClock`). */
+  private readonly dualClock = new DualClock();
   /** Dual takedowns this match (tests). */
   duals = 0;
 
   private takedownDone(by: string): void {
-    const l = this.lastTd;
-    if (l && l.by !== by && this.time - l.t <= DUAL_WINDOW) {
-      const sub = `${this.name(l.by)} + ${this.name(by)}`;
-      this.g.hud.banner('DUAL TAKEDOWN', sub, 1800);
-      this.push({ e: 'banner', title: 'DUAL TAKEDOWN', sub });
-      this.duals++;
-      this.g.style.record('takedownNonLethal', this.g.detected);
-      this.lastTd = null;
-      return;
-    }
-    this.lastTd = { by, t: this.time };
+    const first = this.dualClock.note(by, this.time);
+    if (first === null) return;
+    const sub = `${this.name(first)} + ${this.name(by)}`;
+    this.g.hud.banner('DUAL TAKEDOWN', sub, 1800);
+    this.push({ e: 'banner', title: 'DUAL TAKEDOWN', sub });
+    this.duals++;
+    // (spare 12, A3) counted as its own event for section-rating (no extra knockout)
+    this.g.style.record('dualTakedown', this.g.detected);
+    this.g.events.emit('dualTakedown', { a: first, b: by, detected: this.g.detected });
   }
 
   private push(e: NetEvent): void {

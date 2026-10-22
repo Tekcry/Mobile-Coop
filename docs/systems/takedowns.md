@@ -14,6 +14,7 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   side on every human guard, recovery about 1.4 s; dogs cannot be palm-struck. How heavies are taken out follows the CT
   co-op research (G49). Code: the elbow strike below (aware facing guards and heavies from the front only stagger).
 - Decided (G52): the dual takedown is one of the four co-op team moves; it waits for the co-op phase.
+  The host counts each dual takedown (`StealthRating.duals`, `dualTakedown` event; `game/dualTakedown.ts`) as section-rating's input (spare 12).
 - Interrogation is part of the grab (G23); its spec is `docs/systems/ct-toolkit.md` 3.9 (not built).
 
 ## Takedowns

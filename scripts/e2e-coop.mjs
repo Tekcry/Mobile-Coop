@@ -818,8 +818,12 @@ try {
     assert(true, "the grab menu's Knock out knocks the client's hostage out on the host");
   }
   // dual takedown: two players finishing takedowns together
+  const k0 = await GA(() => { const g = window.__app.current; window.__duals = []; g.events.on('dualTakedown', (e) => window.__duals.push(e)); return g.style.knockouts; });
   await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
   assert((await GA(() => window.__app.current.net.duals)) === 1, 'two takedowns together count as a dual takedown');
+  const dv = await GA(() => { const g = window.__app.current; const d = window.__duals; return { n: g.style.duals, k: g.style.knockouts, ev: d.length, a: d[0]?.a, b: d[0]?.b }; });
+  assert(dv.n === 1 && dv.ev === 1 && dv.a === hostId0 && dv.b === clientId, `the dual takedown is counted and evented for section-rating (${JSON.stringify(dv)})`);
+  assert(dv.k === k0, `a dual takedown adds no knockout of its own (${k0} -> ${dv.k})`);
   await until(B, () => /DUAL TAKEDOWN/.test(document.querySelector('.hud')?.textContent ?? document.body.textContent), null, 4000, 'client sees the dual takedown');
   assert(true, 'the dual takedown banner reaches the client');
   // the host goes down: a team-mate can revive (the client, through its mirrored revive point)
