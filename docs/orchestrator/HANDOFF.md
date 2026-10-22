@@ -10,11 +10,13 @@ tier, merge trains (one PR and one version per train), full check / vitest takes
 (97% no new agent, 98% save).
 
 Open work:
-- #103 anim-bake-targets (CT Core): desktop full run had 7 load failures; solo reruns on 769fc26e were running on the
+- #103 anim-bake-targets (CT Core, head 41becc22): desktop full run had 7 load failures; solo reruns: 5 ok, ctcourse:1 FAIL
+  ("station 3: stale far-lobby positions reached the host (0 reports)", the jammer send-back test; may be real), ctcourse:2 was running on the
   desktop (CT Core reports the verdict). Pass -> it merges alone, or in the next train.
 - #110 anim-run-half (CT Core): after #103 merges: merge master, re-capture the identity fixture, check + e2e-anim +
   e2e-studio, then a train.
-- anim-natural N1 feet (CT Core, feature/anim-natural-n1 ccc1a14d): built, unverified; check, e2e, GPU sheets, checker.
+- anim-natural N1 feet (CT Core, feature/anim-natural-n1 bccc42e8): checker FAIL (heel scrub in the heel-first roll, 6
+  should-fix; docs/anim-natural-n1/CHECK.md): one fix round, then check, e2e, GPU sheets.
 - anim-natural N3 draws (Menu Notes, feature/anim-n3 21235b53): checker PASS WITH FIXES; fix round (RT during holster
   dropped; holster / traversal mid-draw snaps the gun), merge master (4.53.0 has #109 clip speed), area e2e, PR.
 - anim-natural N4 holds and carries (Course Ready, feature/anim-n4 082be068): checker FIX; fix round (load share on the
@@ -44,7 +46,7 @@ Night Shift | Orchestrator (new account). Resume from docs/orchestrator/STATE.md
 
 ### 2. CT Core Build
 ```
-Night Shift | CT Core Build (new account). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt at the end of CT_CORE_RESUME. Message "Night Shift | Orchestrator" with the #103 verdict and at each slice and PR.
+Night Shift | CT Core Build (new account). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md). Detached test scripts from the old session may have died: a C:/NightShift/heavy.lock naming CT Core Build with no node process running is stale; delete it. Message "Night Shift | Orchestrator" with the #103 verdict and at each slice and PR.
 ```
 
 ### 3. Menu Notes Build
