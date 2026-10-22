@@ -3,7 +3,7 @@
 // order: station 1 read the three panels, then each station's gate opens and both pages see its door unlock (station 2:
 // the real leg-up, station 5: leg-up + ledge relay onto the roof, then the roof plates; the others are still placeholder
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
-// next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser; (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
+// next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser (sector-fixes P: jammed at its power panel); (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
 import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog } from './e2e-net-lib.mjs';
 
@@ -417,7 +417,7 @@ const P5 =(P, b, v) => P.evaluate(([b, v]) => window.__pad.set(b, v), [b, v]);
 
 /**
  * Station 4: a laser break sets off the alarm and costs no health (sector-fixes C, item 5); its beams are infrared, drawn
- * only in night vision (item 4); the held jammer switches the laser off.
+ * only in night vision (item 4); (sector-fixes P) jamming its power panel switches the laser off on both pages.
  */
 async function laserTest(x0) {
   const hp = () => GB(() => window.__app.current.target.health.hp);
@@ -439,14 +439,20 @@ async function laserTest(x0) {
   await sleep(1500);
   const hp1 = await hp();
   assert(hp1 === hp0, `station 4: the break cost no health (${hp0} -> ${hp1}), alarms ${al0} -> ${await alarms()}`);
-  // the host jams the laser from a few metres back
-  await moveClient(x0 + 5, 12.4);
-  await moveHost(x0 + 4, 7);
+  // (sector-fixes P) the host jams the laser's power panel (the beams are no jam target, A1): from the near side's north
+  // half (S4_PANEL_JAM, x0 + 5.5, 10.5), diagonally through the gap to the far side's south wall, 4 m up (x0 + 12)
+  const panel = await GA(() => window.__ctdev.debug().panels[0]);
+  assert(panel && panel.id === 'panel-s4' && panel.lasers.includes('laser-s4') && panel.led === 1, `station 4: the laser has its power panel, powered (${JSON.stringify(panel)})`);
+  assert((await dev(A)).lasers[0].panel === 'panel-s4' && !(await GA(() => window.__ctdev.targets.some((t) => t.id === 'laser-s4'))), 'station 4: the panel is the jam target, not the beams');
+  await moveClient(x0 + 5, 12.6);
+  await moveHost(x0 + 5.5, 10.5);
   await drawPistol(A);
   await lt(A, true);
-  await aimAt(A, x0 + 9, 0.9, 7); // (anim-rework S1) aim once the aim camera is in
-  await until(A, () => window.__ctdev.debug().jam[0] === 'laser-s4', null, 20000, 'station 4: the host jams the laser');
+  await aimAt(A, panel.at[0], panel.at[1], panel.at[2]); // (anim-rework S1) aim once the aim camera is in
+  await until(A, () => window.__ctdev.debug().jam[0] === 'panel-s4', null, 20000, 'station 4: the host jams the power panel');
+  await until(A, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the panel jam cuts the band (host)');
   await until(B, () => window.__ctdev.debug().lasers[0].on === false, null, 8000, 'station 4: the client page sees the laser off');
+  await until(B, () => window.__ctdev.debug().panels[0].ph === 1, null, 8000, 'station 4: the client page sees the panel jammed');
   const hp2 = await hp();
   const hj = (await dev(A)).hits;
   await moveClient(x0 + 9 - 0.2, 7);
@@ -891,7 +897,7 @@ try {
     console.log(`station ${n}: ${n === 8 ? 'final beat (B8): revive, then both in the exit zone' : [2, 3, 4, 5, 6, 7].includes(n) ? 'real moves' : 'placeholder gate'}`);
     if (n === 7) console.log('  (B7) leg-up, the two-person rope: let go part way (slide down), then climbed to the top');
     if (n === 5) console.log('  (B5) leg-up, relay, roof plates, then the hang-down through the hatch: hack the panel, pulled back up');
-    if (n === 4) console.log('  (B4) laser touch, jammer, then the partner throw over the band and the far-side release');
+    if (n === 4) console.log('  (B4) laser touch, the power panel jam, then the partner throw over the band and the far-side release');
     await openGate(n, i);
     if (n < 8) await throughAirlock(i);
   }
