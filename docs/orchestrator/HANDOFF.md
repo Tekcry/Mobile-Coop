@@ -66,12 +66,12 @@ Night Shift | CT Core Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, 
 
 ### 3. Menu Notes Build
 ```
-Night Shift | Menu Notes Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of C:/NightShift/Mobile-Coop-anim-natural/docs/anim-natural/RESUME-menu-notes.md (branch feature/anim-natural; git pull first). Current job: anim-n4d in C:/NightShift/Mobile-Coop-anim-n4d (feature/anim-n4d, docs/anim-natural/n4d/): its GPU suites, then the PR (stacked on #139). Every e2e run is E2E_GPU=1. Message "Night Shift | Orchestrator" at each slice and PR.
+Night Shift | Menu Notes Build (account swap). Read CLAUDE.md and docs/ROADMAP.md (top "Decided" entries: Michael's marlow-final words M1-M6), then follow the resume prompt in the last fenced block of docs/marlow-final/STATE.md on origin/feature/marlow-final (git fetch; worktree C:/NightShift/Mobile-Coop-marlow-final). Current job: marlow-final lead (Marlow Yard redesign: SPEC.md and LIGHTING-PLAN partial, art kit WIP unchecked; then greybox slices, then dressing straight after each slice; Course Ready is the second builder). Michael is asleep: log assumptions, no question dialogs. Every e2e run is E2E_GPU=1 via Character Build when desktop CPU is over ~60%. Message "Night Shift | Orchestrator" at the spec and each slice.
 ```
 
 ### 4. Course Ready Build
 ```
-Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (git fetch; git show origin/feature/marlow-bays:docs/marlow-bays/RESUME-trackA.md). Current jobs: the sector-fixes R fix round (C:/NightShift/Mobile-Coop-sector-fixes-r: S1 / S3 route fixes plus a second S2 co-op route) and the #119 N4b studio reset fix (feature/anim-n4b). Every e2e run is E2E_GPU=1. A C:/NightShift/heavy.lock or heavy2.lock naming Course Ready with no node process running is stale; tell the orchestrator. Message "Night Shift | Orchestrator" at each slice and PR.
+Night Shift | Course Ready Build (account swap). Read CLAUDE.md and docs/ROADMAP.md, then follow the resume prompt in the last fenced block of docs/marlow-bays/RESUME-trackA.md on origin/feature/marlow-bays (git fetch; git show origin/feature/marlow-bays:docs/marlow-bays/RESUME-trackA.md). Current jobs: feature/sector-fixes-r2 (four agent branches r2-nav / r2-bolt / r2-jump / r2-paths; Michael: true 2-player team-door pathways), then marlow-final second builder (Menu Notes' PLAN), then the mocap-trial-2 checker. Every e2e run is E2E_GPU=1. A C:/NightShift/heavy.lock or heavy2.lock naming Course Ready with no node process running is stale; tell the orchestrator. Message "Night Shift | Orchestrator" at each slice and PR.
 ```
 
 ### 5. Character Build (laptop)
