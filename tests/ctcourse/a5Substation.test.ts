@@ -1315,9 +1315,10 @@ describe('A5 the Substation: dressing (slice 5 step 5)', () => {
     expect(src).toContain('window.__app.current.target.damageMul = 0');
     expect(src).toContain('r.damageMul = 0');
     expect(src).toMatch(/net\.remotes\.values\(\)/);
-    // 3: the arc samples inside the band are counted and the assert fails on none
-    expect(src).toContain('bandSamples');
-    expect(src).toMatch(/assert\(bandSamples > 0,/);
+    // 3: the height at the line is interpolated at the crossing, so an arc never measured there leaves ownMax 0 and fails
+    // (S3-7-dress-check S2: no separate band-sample count, which could miss under load)
+    expect(src).toMatch(/ownMax = Math\.max\(ownMax, prev\[1\] \+/);
+    expect(src).toMatch(/assert\(ownMax > 1\.45,/);
     expect(src).not.toContain('ownMax === 0');
   });
 });

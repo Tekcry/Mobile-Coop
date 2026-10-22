@@ -131,7 +131,6 @@ export async function walk(t, n) {
     await until(B, () => window.__app.current.player.controller.grounded, null, 8000, `${what}: the client lands on its feet`);
     const land = await GB(() => { const c = window.__app.current.player.controller; return { x: c.pos.x, y: c.pos.y, z: c.pos.z, crouched: c.crouched }; });
     assert(Math.hypot(land.x - LANDING[0], land.z - LANDING[1]) <= 0.5 && Math.abs(land.y) < 0.3, `${what}: the client lands within 0.5 m of the landing (${JSON.stringify(land)})`);
-    assert(bandSamples > 0, `${what}: the arc was sampled inside the beam band (${bandSamples} samples within 0.3 m of the line)`);
     assert(ownMax > 1.45, `${what}: the client's arc clears the top beam at the line (${ownMax.toFixed(2)} over ${bandSamples} samples)`);
     await waitSim(600);
     const d1 = await dev(A);
