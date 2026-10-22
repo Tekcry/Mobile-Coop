@@ -53,8 +53,8 @@ uses the same table and prompts.
 | 2 | Night Shift \| CT Core Build | Opus 5.5 | high | desktop |
 | 3 | Night Shift \| Menu Notes Build | Opus 5.5 | high | desktop |
 | 4 | Night Shift \| Course Ready Build | Opus 5.5 | medium | desktop |
-| 5 | Night Shift 
-| 6 | Night Shift | Guard AI Build | Opus 5.5 | high | desktop |\| Character Build | Opus 5.5 | medium | laptop (Remote Control) |
+| 5 | Night Shift \| Character Build | Opus 5.5 | medium | laptop (Remote Control) |
+| 6 | Night Shift \| Guard AI Build | Opus 5.5 | high | desktop |
 
 ### 1. Orchestrator
 ```
