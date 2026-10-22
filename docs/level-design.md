@@ -150,8 +150,10 @@ against them, and re-confirm against the code when the prototype lands.
   door crack (0.12) counts as closed. Guards push doors open as they walk through (`Doors.pushOpen`) and never close
   them; only players close doors. A door is bashed open at a sprint.
 - A hold can make noise per object (`Interactable.holdNoise`, pulses every 0.5 s; no current map sets one; the cast-iron
-  manhole constant `MANHOLE_LIFT_NOISE_RADIUS` is 10 m). A heard noise only pushes a guard past suspicious (0.3) within
-  about 44% of its radius (`noiseSuspicion`): a 10 m noise alarms a guard within about 4.4 m and makes farther ones turn.
+  manhole constant `MANHOLE_LIFT_NOISE_RADIUS` is 10 m). Hearing (guard-ai S1, `ai/hearing.ts`): a wall cuts a noise's
+  reach to 0.45 and a noisy thing near the guard masks it (6 dB halves, 12 dB quarters); every guard inside the
+  effective reach turns to look, and one guard per noise, the nearest inside half of it, walks over. Loud gunfire is
+  combat only inside a quarter of its effective reach (28 m in the open -> ~7 m); farther, one guard is sent to look.
 - Health comes back only at wall medkit stations (`MapDef.medkitWalls`: hold 0.6 s, +40, single use); there are no
   carried medkits and no medkit crates. Health does not regenerate.
 - The camera is the shoulder camera; corridor widths, bend lengths and the 1.5 m crouch height in 16.7.3 and the scale
@@ -191,6 +193,9 @@ against them, and re-confirm against the code when the prototype lands.
 - Kestrel's maps are paused (G53): its facts sheet (`docs/kestrel/00-facts.md`), time budget and sensor rules rely on
   the old speeds, silent gears and camera; they are refreshed after the CT co-op research and the prototype.
 - The Fallow bunker: its drills and every jump and reach are re-checked when it is rebuilt after the prototype (G79).
+- Hearing (guard-ai S1): one guard walks over per noise and loud gunfire is combat only close in (a quarter of its
+  reach). Map decisions that relied on "a loud shot alerts every guard within 28 m": the Sector Ops suppressed-shot spot
+  check (`e2e-sectorops`, its control now fires from beside the guard). No map spec relies on everyone walking over.
 
 ## 13. Required design deliverables (templates)
 Phase 1 and 2 of every map produce these in `docs/prompts/<map>-design.md` and `docs/prompts/<map>-plans/*.svg`.

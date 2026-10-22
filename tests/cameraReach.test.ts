@@ -1,0 +1,175 @@
+/**
+ * (camera-range, Michael 2026-10-23: "cameras need to have less range (they currently pick the player up well outside
+ * of the intended area)") Every camera of every live map, scanned with its map's own pieces (`cameraReachScan.ts`):
+ * the 4.63.1 engine ("before": the guard's 25 m falloff cut at an 18 m range) against the engine now (`camRange`,
+ * `cameraRate`). `CAMERA_REACH_WRITE=1` also writes the table to docs/camera-range/MEASURE.md.
+ */
+import { describe, expect, it } from 'vitest';
+import { writeFileSync } from 'node:fs';
+import { buildMap, floorPatch, scanCamera, STANCES, zones, type CamModel, type CamScan, type MapWorld } from './cameraReachScan';
+import { warehouseOps } from '../src/world/maps/warehouseOps';
+import { ctcourse, S3_HALL, S3_CAMERA, bayX } from '../src/world/maps/ctcourse';
+import { seclab } from '../src/world/maps/seclab';
+import { sightRate } from '../src/ai/perception';
+import { SENSITIVITY } from '../src/ai/alertState';
+import { camRange, cameraRate } from '../src/security/camera';
+import type { CameraDevice } from '../src/security/data';
+import type { MapDef } from '../src/world/mapDef';
+
+const DEG = Math.PI / 180;
+
+/** 4.63.1: `CAMERA.range` 18 (a camera's own `range` shorter), the guard formula (25 m focus falloff) at the IR light. */
+const BEFORE: CamModel = {
+  range: (d) => Math.min(18, d.range ?? 18),
+  rate: (dist, crouched, speed) => sightRate({ dist, angle: 0, light: 1, crouched, speed, exposure: 1, sensitivity: SENSITIVITY.unaware }),
+};
+/** The engine now. */
+const AFTER: CamModel = { range: (d) => camRange(d), rate: (dist, crouched, speed, range) => cameraRate(dist, crouched, speed, range) };
+
+const X0 = bayX(2);
+/** Marlow Yard station 3: the hallway the camera watches, the entry lobby before it, the far lobby (under / behind the camera). */
+const s3Zone = (x: number, z: number): string => {
+  if (x < X0 || x > X0 + 16.5) return 'outside bay 3';
+  if (x < S3_HALL.x0) return 'entry lobby';
+  if (x < S3_HALL.x1) return z >= S3_HALL.z0 - 0.2 && z <= S3_HALL.z1 + 0.2 ? 'hallway' : 'void';
+  return 'far lobby';
+};
+/** The Security Lab: the fixed camera covers the west half (x < 12), the panning camera the east end (x > 12). */
+const labZone = (x: number): string => (x < 12 ? 'west half' : 'east half');
+
+interface MapCase {
+  map: MapDef;
+  zoneOf?: (x: number, z: number, y: number) => string;
+  /** What each camera is meant to watch (its map docs / data), the zone's names, and its far edge (m from the mount). */
+  intent: Record<string, { what: string; zones: string[]; far: number }>;
+}
+
+const sectorIntent = (d: CameraDevice, rooms: string[]): { what: string; zones: string[]; far: number } => ({ what: `${d.reason} (sector-fixes C: aim ${d.aim} m, the patch to ${d.range} m)`, zones: rooms, far: d.range ?? 0 });
+
+const CASES: MapCase[] = [
+  {
+    map: ctcourse,
+    zoneOf: (x, z) => s3Zone(x, z),
+    intent: { 'cam-s3': { what: "station 3's hallway, its mouth to the camera (ctcourse.ts: \"covers the hallway end to end\")", zones: ['hallway', 'far lobby'], far: S3_CAMERA.x - S3_HALL.x0 } },
+  },
+  { map: warehouseOps, intent: {} },
+  {
+    map: seclab,
+    zoneOf: (x) => labZone(x),
+    intent: {
+      'cam-fixed': { what: 'covers the west half of the room (seclab.ts)', zones: ['west half'], far: 12 - 0.5 },
+      'cam-pan': { what: 'sweeps the east end (seclab.ts)', zones: ['east half'], far: 23.5 - 12 },
+    },
+  },
+];
+
+/** The Sector Ops rooms each camera's reason names (warehouseSectors.ts; S1-S3 rooms). */
+const OPS_ROOMS: Record<string, string[]> = {
+  'cam-yard': ['yard'],
+  'cam-bay': ['goodsIn'],
+  'cam-rack-sw': ['storage'],
+  'cam-rack-ne': ['storage'],
+  'cam-floor': ['assembly', 'plant'],
+  'cam-stairs': ['assembly', 'partsStore'],
+  'cam-mezz': ['mezzDeck'],
+};
+
+interface Row {
+  map: string;
+  before: CamScan;
+  after: CamScan;
+  intent: { what: string; zones: string[]; far: number };
+}
+
+const built = new Map<string, MapWorld>();
+function rows(): Row[] {
+  const out: Row[] = [];
+  for (const c of CASES) {
+    let mw = built.get(c.map.id);
+    if (!mw) {
+      mw = buildMap(c.map);
+      built.set(c.map.id, mw);
+    }
+    for (const d of mw.security.devices) {
+      const intent = c.intent[d.id] ?? sectorIntent(d, OPS_ROOMS[d.id] ?? []);
+      out.push({ map: c.map.id, before: scanCamera(mw, d, BEFORE, c.zoneOf), after: scanCamera(mw, d, AFTER, c.zoneOf), intent });
+    }
+  }
+  return out;
+}
+
+let cached: Row[] | null = null;
+const all = (): Row[] => (cached ??= rows());
+
+const f1 = (v: number): string => (Number.isFinite(v) ? v.toFixed(1) : 'never');
+const outside = (s: CamScan, ok: string[]): string => {
+  const z = [...zones(s)].filter(([k]) => !ok.includes(k));
+  return z.length ? z.map(([k, v]) => `${k} ${v.n} cells to ${f1(v.far)} m`).join('; ') : 'none';
+};
+
+function report(rs: Row[]): string {
+  const L: string[] = [];
+  L.push('# Camera reach, measured (camera-range)');
+  L.push('');
+  L.push('Generated by `CAMERA_REACH_WRITE=1 npx vitest run tests/cameraReach.test.ts` (scan: `tests/cameraReachScan.ts`). Every');
+  L.push("camera of every live map with cameras, its map built from the map's own pieces, swept over its whole pan (2 deg steps,");
+  L.push('1 deg across the frame, 0.1 m along it). A head (standing 1.6 m, crouched 1.05 m over the feet) is picked up where it is in');
+  L.push('the frame, the lens has a clear line to it, the body stands free (on the floor of its level) and the rate is over the leak');
+  L.push('(0.2 /s). Door leaves are not pieces: every door counts as open (worst case). Kestrel ships no cameras (its campus file');
+  L.push('has no devices); Fallow (`bunker`, parked) is not live.');
+  L.push('');
+  L.push('Before = 4.63.1 (range 18 m unless the map sets one; the guard falloff over 25 m, so the full rate right up to the range');
+  L.push('cut). After = this branch (`camRange`: own range, else 2 x aim, else 12 m, at most 14 m; falloff 1 - (d / range)^2).');
+  L.push('Speeds: walk 2.1, run 4.0, crouched move 1.3 m/s (GEARS). Reach = horizontal metres from the mount.');
+  L.push('');
+  L.push('| Map | Camera | Mount y / aim / pitch | Floor patch near / centre / top edge (m) | Range before -> after (m) | Reach stand still | walk | run | crouch still | crouch move | Intended zone (far edge m) | Picked up outside it, before | after |');
+  L.push('|' + ' --- |'.repeat(14));
+  for (const r of rs) {
+    const d = r.before.def;
+    const fp = floorPatch(d);
+    const st = STANCES.map((s) => `${f1(r.before.reach[s.id])} -> ${f1(r.after.reach[s.id])}`);
+    L.push(
+      `| ${r.map} | ${d.id} | ${d.y} / ${d.aim ?? '-'} / ${(r.before.pitch / DEG).toFixed(1)} deg | ${f1(fp.near)} / ${f1(fp.centre)} / ${f1(fp.far)} | ${r.before.range} -> ${r.after.range} | ${st.join(' | ')} | ${r.intent.what}: ${r.intent.zones.join(', ')} (${f1(r.intent.far)}) | ${outside(r.before, r.intent.zones)} | ${outside(r.after, r.intent.zones)} |`,
+    );
+  }
+  L.push('');
+  L.push('Zones: Marlow Yard by station 3 geometry (`S3_HALL`); Sector Ops by the S1-S3 rooms each camera\'s reason names (the');
+  L.push('rooms are coarse: the 20 x 24 m storage hall is one room); the Security Lab by its halves. A "cell" is a 0.5 m floor cell');
+  L.push('where a running standing body is picked up.');
+  return L.join('\n') + '\n';
+}
+
+describe('camera reach on every live map (camera-range)', () => {
+  it('writes the table on request', () => {
+    const rs = all();
+    expect(rs.length).toBe(10);
+    if (process.env.CAMERA_REACH_WRITE === '1') writeFileSync('docs/camera-range/MEASURE.md', report(rs));
+  });
+
+  it('Marlow Yard cam-s3: never picks anyone up in the entry lobby (it did to its west wall), still covers the hallway', () => {
+    const r = all().find((x) => x.before.id === 'cam-s3')!;
+    // before: a runner was picked up in the entry lobby, 15 m out
+    expect(zones(r.before).get('entry lobby')?.n ?? 0).toBeGreaterThan(0);
+    expect(zones(r.after).get('entry lobby')).toBeUndefined();
+    for (const s of STANCES) expect(r.after.reach[s.id], s.id).toBeLessThan(S3_CAMERA.x - S3_HALL.x0);
+    // the hallway is still watched: a runner from 12 m out, a standing walker from 11.5 m, a crouched mover from 10 m
+    expect(r.after.reach.standRun).toBeGreaterThan(12);
+    expect(r.after.reach.standWalk).toBeGreaterThan(11.5);
+    expect(r.after.reach.crouchMove).toBeGreaterThan(10);
+  });
+
+  it('every camera: reach never longer than before, always inside its range, and nothing picked up outside its zone that was not before', () => {
+    for (const r of all()) {
+      for (const s of STANCES) {
+        expect(r.after.reach[s.id], `${r.before.id} ${s.id}`).toBeLessThanOrEqual(r.before.reach[s.id] + 1e-9);
+        expect(r.after.reach[s.id], `${r.before.id} ${s.id}`).toBeLessThan(r.after.range);
+      }
+      const was = zones(r.before);
+      for (const [k] of zones(r.after)) if (!r.intent.zones.includes(k)) expect(was.has(k), `${r.before.id}: ${k}`).toBe(true);
+    }
+  });
+
+  it('a body at the zone edge is no longer picked up: the far 10 % of every range stays under the leak, even running', () => {
+    for (const r of all()) expect(r.after.reach.standRun, r.before.id).toBeLessThan(0.97 * r.after.range);
+  });
+});

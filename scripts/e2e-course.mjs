@@ -10,7 +10,7 @@
 // T2: `?autostart=bunker&mode=course` boots the course solo; two pages at `?net=local&autostart=courselab&mode=course` host / join one
 // course session with no clicks (the walk URLs).
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
-import { until, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
+import { until, setSimPages, LOAD_MS, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -277,7 +277,21 @@ try {
     // pair: both halves, two players, inside the window
     await move(36.6, 1.5);
     await moveO(36.6, 6.5);
-    await Promise.all([use(P, 'c-sw-pa'), use(O, 'c-sw-pb')]);
+    // (load-latent-net) the client presses its half from here; the host presses its half on its own fixed step that
+    // first sees the client's press stamped on the gate (two presses from here could land outside the window under load)
+    const cHalf = who === 'A' ? 'b' : 'a';
+    const pairKey = await onHostStep(A, (g, c) => {
+      const gt = window.__course.state.gates.find((x) => x.def.id === 'g-pair');
+      if (!((c === 'a' ? gt.ta : gt.tb) >= 0 && (c === 'a' ? gt.pa : gt.pb) !== 0)) return undefined;
+      const it = g.interactables?.items.find((i) => i.id === (c === 'a' ? 'c-sw-pb' : 'c-sw-pa'));
+      if (!it) return 'missing';
+      if (!it.enabled) return 'disabled';
+      it.onUse(it, 'local');
+      return 'ok';
+    }, cHalf);
+    const rc = await use(B, `c-sw-p${cHalf}`);
+    const rh = rc === 'ok' ? await hostStepResult(A, pairKey, 8000, `${tag}: the host sees the client's pair half and presses its own`) : (await offHostStep(A, pairKey), 'client not pressed');
+    assert(rc === 'ok' && rh === 'ok', `${tag}: both pair halves pressed (client ${rc}, host ${rh})`);
     await until(A, () => window.__course.debug().gates['g-pair'], null, 3000, 'pair open');
     assert(true, `${tag}: pair gate opens with both halves`);
     // egress
