@@ -48,7 +48,15 @@ hang-down 0578d554: desktop GPU e2e-takedown ok 22 s, e2e-anim ok 47 s; fresh ch
 8b748164 docs only). Laptop GPU on 0578d554: ctcourse:1/:3 + netmove PASS; FAIL e2e-coop hang-down section ("timed out
 waiting for hang-down: the second guard offered", client hanging, offer null, td false) and e2e-ctcourse:2 station 5
 (e2e-ctcourse.mjs:681 taps A to hack; the hack moved into the hold-A menu). Log C:/NightShift/scratch/runs/hangdown-0578d554/
-(laptop). Next: Opus fix round (queued for a free slot), then laptop coop + ctcourse. strike-pops agent running.
+(laptop). Opus fix round RUNNING (A9: tap-A hack in reach vs menu), then laptop coop + ctcourse.
+hostage-gait #194 TRAIN-READY (laptop coop 58 s + netmove 158 s PASS on c581a9c4; orchestrator told).
+strike-pops DONE c917c3d8 (docs/strike-pops/REPORT.md: wrist 31.4 -> 27.0 cm/frame, trunk reversal 12.1 -> 0.4 deg/frame,
+hand-swap dip fixed in handSwapPath.ts + characterRig hand-swap (not strike-gated), revive -> strike.reset() in
+coopClient.ts (src/net, 1 line), n4c 7 already on master). Desktop lane e2e-takedown + e2e-anim running (sp-*.log).
+Batch checker (Opus) for strike-pops + traverse-fix-2 when traverse-fix-2 hands back.
+mocap-strafe desktop GPU: e2e-clip ok, e2e-anim FAIL anti-crab "rifle aimed strafe right speed 1: knee separation
+0.5-1.5 x hips (0.62 / 1.23 / 1.9)" (ms-e2e-anim.log); sent to the strafe checker for cause + fix.
+guard-render S5 1b895175 reviewed OK for Character Build (rebase after train 20).
 mocap-strafe DONE 842270f0 (MT2-STRAFE.md; ON stop pelvis 1.89 cm, swing jumps <= 11.3 cm, slide 0; OFF md5 match;
 open: aimed strafe ON +144 B/frame). Fresh checker running (-> scratch/msc-CHECK.md); desktop lane e2e-anim + e2e-clip
 on 842270f0 (scratch/ctcore/lane-strafe.sh, logs ms-*.log). Then PR (own PR, after #188). Back-to-wall next.
