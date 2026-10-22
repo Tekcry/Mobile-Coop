@@ -11,6 +11,7 @@ docs batch; a docs PR when convenient). Scratch worktree for version / merge ste
 (detached checkouts; reset --hard there is safe).
 
 ## Master
+v4.60.1 (train 11 #155 = #150 + #154 + #149, 62d80c02, ~23:30; /preview/ = dev = 62d80c02). #144 R out (voxelFit: 8 cover points in the air on its S2 C2 landing; Course Ready fixing). Train 8 = #119 + #138 7667b681 (six GPU suites on the laptop). Mocap-trial 44d7c2a7: suites + checker running.
 v4.60.0 (train 10 #153 = #142 n4d + #145 lamp gap, d01300d3, ~22:50; /preview/ = dev = d01300d3; laptop GPU 35/35, 465 s at JOBS=3). Train 11 = #144 R (running its suites), #150 (50c5f5e9 ready), #149 (1afdcd54). Train 8 = #119 + #138 (fix round: e2e-anim knees, e2e-clip crouched holstered).
 v4.58.1 (#140 gpu-tests, 2016e063, ~21:25; /preview/ = dev = 2016e063).
 Train 8 = train/8 4cc73665 (#119 N4b c22b6719, #135 N1 08023227, #138 N2 e6274d36 which contains N1), built 20:50, laptop GPU full run after R's run (known GPU-only test bugs: studio keyed walk, lightbake 7/10, fixed on feature/gpu-tests 130cf522 -> train 9). P #136 red (ctcourse station 3, Menu Notes diagnosing). R 2f40ed74 suites on the laptop. CT Core's new top job: mocap-trial (CMU, toggle, side-by-side; ROADMAP Decided 20:45). Laptop GPU full run on 4.58.0: 842 s at JOBS=2 (vs 2025 s software at JOBS=3).

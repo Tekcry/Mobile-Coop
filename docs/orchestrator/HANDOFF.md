@@ -6,7 +6,7 @@ save tokens, i will reset usage as soon as you hit 100%": sessions run to 100% (
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
 ## State at the switch (2026-10-22 ~22:29, 99% save point; Michael: "make 99% a save point and we can run a clear on all sessions again")
-Update 22:50: master v4.60.0 (train 10 #153, d01300d3, dev moved); STATE "Now" top entry has the live state.
+Update 23:30: master v4.60.1 (train 11 #155, 62d80c02, dev moved); STATE "Now" top entry has the live state.
 Master v4.58.3 (#146 decisions G229-G269, cb198a91; 4.58.2 #143, 4.58.1 #140, 4.58.0 train 7). /preview/ = dev = cb198a91.
 
 Rules today (CLAUDE.md on feature/menu "GPU for logic e2e"; STATE "Known"): every e2e run E2E_GPU=1, a GPU failure counts;
