@@ -3,6 +3,16 @@
 Every open job this session leads, with branches, heads, next steps and rules. Read CLAUDE.md and docs/ROADMAP.md
 first, then this file. Message "Night Shift | Orchestrator" at each slice and PR.
 
+## FIRST NEXT STEP after the ~22:30 save (orchestrator ~22:35)
+**vol-cone-fix** (patch, render only, its own PR): branch feature/vol-cone-fix from master in
+C:/NightShift/Mobile-Coop-vol-cone-fix. The general fix from docs/sector-fixes/l/look-4.58/NOTE.md (PR #152): only
+flashlights get the volumetric shaft (src/vfx/postStack.ts:475 `const lamp = l.kind !== 'flashlight';`) plus the cone
+floor `Math.max(l.cone.cosOuter, 0.88)` for lamps (~:485). GPU before / after shots (scripts/sector-lights-shots.mjs has
+GFX / VOL / SUFFIX / PROBE / VOLFIX switches; extend or add views): Sector Ops S1-S3, Marlow Yard (a spot-lit station), the
+base Warehouse floods, and the workshop crane-girder parity spot (x 16, warehouseS1.ts:334). If Marlow or the floods
+change visibly beyond a faint haze, fall back to NOTE.md's narrow LED-only variant. Implementer, fresh checker, PR with
+the shots, message the orchestrator. GPU lanes: heavy.lock / 4189 or heavy2.lock / 4192 (CPU < 50%).
+
 ## Update 2026-10-22 ~21:45 (save before the account swap) - START HERE
 Rules added tonight (orchestrator; CLAUDE.md on feature/menu): e2e ALWAYS on the GPU (`E2E_GPU=1`), a GPU failure
 counts; desktop lanes: heavy.lock (checks + e2e, port 4191, E2E_JOBS=2, CPU < 60%) and the GPU-only heavy2.lock (port
