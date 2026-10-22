@@ -1,5 +1,28 @@
 # Changelog
 
+## 4.70.0 - Train 21: Guard AI radio net, ledge-end hands, partner seed walk (2026-10-23, PR #197; #189, #190, #191)
+
+### Guard AI
+- S3 radio: guards no longer alert everyone within 22 m at once. A guard who spots you shouts "Contact!", and only
+  guards close enough to hear it (about 6 m in the open, less through a wall or by loud machinery) join straight away.
+  He then takes 2.5 s to call it in on the radio; when the call gets through, the rest of his section hears it one at a
+  time, nearest first, over up to 4.5 s, and other sections stay calm. Take the spotter out (or grab or flash him)
+  before the call gets through and nobody else is told. The same goes for a guard who is shot or hears gunfire close by.
+  Light checks, "nothing here" and the missing-guard call are radio calls too, answered with one "Copy.". A guard sent to
+  a noise that turns out to be nothing goes back to normal instead of staying on edge for 45 s (gunfire still keeps
+  them on edge). Hunter and Mission (parked) keep the old radio.
+
+### Partner rig first seen walking
+- Co-op: a partner first seen already walking slowly (under about 0.3 m/s at 60 Hz, 1.2 m/s at 240 Hz) no longer plays
+  a start one-shot with the mocap switch on. `RemoteAvatar` seeds its eased speed and stride heading from the first
+  received state, and again after a teleport (bay start, checkpoint reset, respawn), instead of easing up from 0.
+
+### Traversal fixes (spare job 8)
+- Ledge shimmy: a hand never re-grips on or through the other hand at a lip's end (12 cm minimum gap, `LEDGE_HAND_GAP`);
+  it stays put when the leading hand is clamped at the end.
+- Rifle draw from the diagonal sling: the grip waypoint passes further out from the hip (`TRAVEL_VIA.sling`
+  [0.4, -0.22, 0.04]), so the gun clears the trunk (e2e-clip "sling draw + glide" trunk -1.5 -> +0.9 cm, legs 2.8 cm).
+
 ## 4.69.0 - Train 20: Guard AI incident board, partner throw KO, mocap on by default (2026-10-23, PR #192; #185, #186, #188)
 
 ### Guard AI

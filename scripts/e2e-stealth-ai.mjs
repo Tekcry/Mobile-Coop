@@ -348,9 +348,14 @@ try {
   });
 
   await scen('radio', async () => {
+    // (guard-ai S3, M5) the spotter's call goes to his whole section (this map is one section), staggered by distance
+    // once it completes: the near squadmate (~11 m, out of voice) first, the far one (~24 m: the old 22 m radio range
+    // did not reach him) later; nobody before the call completes
     const r = await G(() => {
       const t = window.__t;
       const g = window.__app.current;
+      const em = g.enemyMgr;
+      const R = em.radioTable;
       t.light(1);
       const a = t.spawn('grunt', 0, 5, Math.PI);
       const b = t.spawn('grunt', 10, 9, Math.PI);
@@ -359,24 +364,34 @@ try {
       let k = 0;
       while (!a.alerted && k++ < 300) t.step(1 / 60);
       const bBefore = b.alerted;
-      const pending = a.radioT;
-      t.step(1.5);
-      const bMid = b.alerted;
-      const farMid = far.level;
-      t.step(3);
+      const pending = em.radioLeft(a);
+      let time = 0;
+      let bT = -1;
+      let farT = -1;
+      let done = -1;
+      while (time < pending + R.staggerMax + 1.5) {
+        t.step(0.05);
+        time += 0.05;
+        if (done < 0 && em.radioLeft(a) === 0) done = time;
+        if (bT < 0 && b.alerted) bT = time;
+        if (farT < 0 && far.alerted) farT = time;
+      }
       t.light(null);
-      return { a: a.alerted, bBefore, bMid, pending, b: b.alerted, far: farMid, lkp: g.enemyMgr.lkpValid };
+      return { a: a.alerted, bBefore, pending, done, bT, farT, max: R.staggerMax, d: [Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z), Math.hypot(far.pos.x - a.pos.x, far.pos.z - a.pos.z)], lkp: em.lkpValid };
     });
+    const f = (v) => v.toFixed(2);
     assert(r.a, 'the guard who sees the player is alerted');
-    assert(r.pending > 1.5 && !r.bMid, `the spotter takes a moment to radio it in (${r.pending.toFixed(1)} s)`);
-    assert(r.b && !r.bBefore, 'a squadmate within radio range joins once it is called in');
-    assert(r.far !== 'alert', `a guard out of radio range is not told (${r.far})`);
+    assert(r.pending > 1.5 && !r.bBefore, `the spotter takes a moment to radio it in (${f(r.pending)} s)`);
+    assert(r.bT > 0 && r.bT >= r.pending - 0.05, `a squadmate out of voice range joins only once it is called in (at ${f(r.bT)} s, call ${f(r.pending)} s)`);
+    assert(r.farT > r.bT, `the far guard of the same section is told too, after the nearer one (${f(r.farT)} > ${f(r.bT)} s; ${r.d.map(f)} m)`);
+    assert(r.farT <= r.pending + r.max + 0.3, `everyone within the call + ${r.max} s (${f(r.farT)} s)`);
     assert(r.lkp, 'the sighting sets the last known position');
   });
 
   await scen('radio window', async () => {
     const r = await G(() => {
       const t = window.__t;
+      const em = window.__app.current.enemyMgr;
       t.light(1);
       const a = t.spawn('grunt', 0, 5, Math.PI);
       const b = t.spawn('grunt', 10, 9, Math.PI);
@@ -384,19 +399,68 @@ try {
       t.tp(-0.5, 0, 0);
       let k = 0;
       while (!a.alerted && k++ < 300) t.step(1 / 60);
-      // the guard close by hears the shout at once
+      // the guard close by (~4 m, in the open) hears the shout at once (voice: +0.3 s)
       t.step(0.8);
       const nearOn = near.alerted;
-      // the spotter is taken out (silently) before the call goes out
+      const left = em.radioLeft(a);
+      const lost0 = em.radioNet.lost;
+      // the spotter is taken out (silently) before the call gets through
       a.knockOut({ amount: 999, point: a.pos.clone(), dir: new t.V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: a.pos.clone(), impulse: 0 });
       near.knockOut({ amount: 999, point: near.pos.clone(), dir: new t.V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: near.pos.clone(), impulse: 0 });
       t.tp(-21, -24, 0);
-      t.step(5);
+      t.step(7);
       t.light(null);
-      return { nearOn, b: b.level };
+      return { nearOn, left, lost: em.radioNet.lost - lost0, b: b.level };
     });
     assert(r.nearOn, 'a squadmate close by joins at once (the shout)');
+    assert(r.left > 0.5, `the call is still going out when he is taken out (${r.left.toFixed(2)} s left)`);
+    assert(r.lost >= 1, `his call is lost (${r.lost})`);
     assert(r.b !== 'alert', `the spotter taken out before calling it in: nobody else is told (${r.b})`);
+  });
+
+  await scen('radio stagger', async () => {
+    // (guard-ai S3, M5) five squadmates of one section, out of voice range and facing away: when the spotter's call
+    // completes they hear it one at a time, nearest first, over more than a second, all within the call + staggerMax;
+    // never all at once
+    const r = await G(() => {
+      const t = window.__t;
+      const em = window.__app.current.enemyMgr;
+      const R = em.radioTable;
+      t.light(1);
+      const a = t.spawn('grunt', 0, 5, Math.PI);
+      const os = [t.spawn('grunt', 4, 13, 0), t.spawn('grunt', -7, 14, 0), t.spawn('grunt', 9, 17, 0), t.spawn('grunt', -14, 17, 0), t.spawn('grunt', -21, 17, 0)];
+      t.tp(-0.5, 0, 0);
+      let k = 0;
+      while (!a.alerted && k++ < 300) t.step(1 / 60);
+      const before = os.filter((e) => e.alerted).length;
+      const pending = em.radioLeft(a);
+      const at = os.map(() => -1);
+      let dist = null;
+      let time = 0;
+      while (time < pending + R.staggerMax + 1.5) {
+        t.step(0.05);
+        time += 0.05;
+        // distances from the spotter where the call completes (the net sorts by them)
+        if (!dist && em.radioLeft(a) === 0) dist = os.map((e) => Math.hypot(e.pos.x - a.pos.x, e.pos.y - a.pos.y, e.pos.z - a.pos.z));
+        os.forEach((e, i) => {
+          if (at[i] < 0 && e.alerted) at[i] = time;
+        });
+      }
+      t.light(null);
+      return { before, pending, at, dist, max: R.staggerMax, voice: os.map((e) => Math.hypot(e.pos.x - 0, e.pos.z - 5)) };
+    });
+    const f = (v) => v.toFixed(2);
+    assert(r.before === 0 && r.dist, `nobody else knows at the sighting; the call completes (${r.before}, ${f(r.pending)} s)`);
+    assert(r.at.every((x) => x > 0), `all five are told (${r.at.map(f)})`);
+    const order = r.dist.map((d, i) => [d, r.at[i]]).sort((p, q) => p[0] - q[0]);
+    let ordered = true;
+    for (let i = 1; i < order.length; i++) if (!(order[i][1] > order[i - 1][1])) ordered = false;
+    assert(ordered, `nearest first, each later than the one before (${order.map((p) => `${f(p[0])} m @ ${f(p[1])} s`).join(', ')})`);
+    const first = Math.min(...r.at);
+    const last = Math.max(...r.at);
+    assert(first >= r.pending, `nobody before the call completes (${f(first)} >= ${f(r.pending)} s)`);
+    assert(last - first > 1, `spread over more than a second (${f(last - first)} s)`);
+    assert(last <= r.pending + r.max + 0.3, `all within the call + ${r.max} s (${f(last)} <= ${f(r.pending + r.max + 0.3)} s)`);
   });
 
   await scen('lkp', async () => {
