@@ -1,5 +1,58 @@
 # Changelog
 
+## 4.70.0 - Train 21: Guard AI radio net, ledge-end hands, partner seed walk (2026-10-23, PR #197; #189, #190, #191)
+
+### Guard AI
+- S3 radio: guards no longer alert everyone within 22 m at once. A guard who spots you shouts "Contact!", and only
+  guards close enough to hear it (about 6 m in the open, less through a wall or by loud machinery) join straight away.
+  He then takes 2.5 s to call it in on the radio; when the call gets through, the rest of his section hears it one at a
+  time, nearest first, over up to 4.5 s, and other sections stay calm. Take the spotter out (or grab or flash him)
+  before the call gets through and nobody else is told. The same goes for a guard who is shot or hears gunfire close by.
+  Light checks, "nothing here" and the missing-guard call are radio calls too, answered with one "Copy.". A guard sent to
+  a noise that turns out to be nothing goes back to normal instead of staying on edge for 45 s (gunfire still keeps
+  them on edge). Hunter and Mission (parked) keep the old radio.
+
+### Partner rig first seen walking
+- Co-op: a partner first seen already walking slowly (under about 0.3 m/s at 60 Hz, 1.2 m/s at 240 Hz) no longer plays
+  a start one-shot with the mocap switch on. `RemoteAvatar` seeds its eased speed and stride heading from the first
+  received state, and again after a teleport (bay start, checkpoint reset, respawn), instead of easing up from 0.
+
+### Traversal fixes (spare job 8)
+- Ledge shimmy: a hand never re-grips on or through the other hand at a lip's end (12 cm minimum gap, `LEDGE_HAND_GAP`);
+  it stays put when the leading hand is clamped at the end.
+- Rifle draw from the diagonal sling: the grip waypoint passes further out from the hip (`TRAVEL_VIA.sling`
+  [0.4, -0.22, 0.04]), so the gun clears the trunk (e2e-clip "sling draw + glide" trunk -1.5 -> +0.9 cm, legs 2.8 cm).
+
+## 4.69.0 - Train 20: Guard AI incident board, partner throw KO, mocap on by default (2026-10-23, PR #192; #185, #186, #188)
+
+### Guard AI
+- S2 incident board: one event, one response. A noise, distant gunfire or a lure sends one guard (the nearest by walking
+  distance; an officer sends someone else), says "Checking it out." on the radio, and the others who heard it answer
+  "Copy." and look a moment; more noise in the same spot never pulls a second guard. A light shot out or switched off is
+  noticed only by guards who can see it go (in their view with a clear line, or the room they stand in goes dark): one
+  checks it, two if a second witness is close. They look at the light, sweep the area round it, say "Nothing here.
+  Back to it." and return to their routes calm. An investigator taken out (or held) who stays silent for 25 s brings
+  two more as a pair. Investigating and searching guards now walk slower than their patrol, not faster. Hunter and
+  Mission (parked) keep the old rules.
+  Fix: a patrol point with a wait of 0 is now walked straight through; before, the guard stopped there for good.
+
+### Mocap locomotion on by default
+- Settings > Gameplay > Mocap locomotion is now ON by default (Michael: "On by default"); a save from before keeps the
+  new default once, after that the player's choice stays. Off uses the hand-keyed animations.
+- Mocap locomotion (switch on): the clip's planted feet hold their contact through turns and straights (contact slide
+  0.01 cm, twist at lift 14.3 deg).
+- Mocap locomotion: the switch now drives Wren only (the player and the co-op partner); guards keep their hand-keyed
+  walk and the planner's feet with it on (they took the mocap walk and its clip feet before). The menu and Anim Studio
+  Wren keep the hand-keyed set too.
+- Tests: e2e-anim reads the mocap switch (`window.__mocapOn`, `E2E_MOCAP=0/1`); with mocap on, the old shape / style
+  bars (knee-out, knee separation, track width, elbows, pelvis / shoulder rotation, sway, head yaw / pitch) print as
+  "M1 as captured" notes; slides, crossings, pops and timings still fail. OFF asserts unchanged.
+
+### Partner throw onto a guard
+- Co-op partner throw onto a guard (throw-ko, spare job 3; CT: the thrown partner landing on a guard knocks him out):
+  the host replays each throw's arc and the guard the thrown player comes down on (head / shoulders, descending) is
+  knocked out through the existing knockout path; the joiner sees it through the guard sync. No wire change.
+
 ## 4.68.0 - Train 19: Sector Ops part 1: armed guards, reinforcements, dogs, co-op light sync; guard-cap report (2026-10-23, PR #187; #180, #184)
 
 ### Guard cap measure

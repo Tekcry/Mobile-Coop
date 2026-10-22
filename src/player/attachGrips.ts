@@ -42,6 +42,8 @@ export const PIPE_FEET = { off: 0.28, ahead: 0.22, low: -0.08, slack: 0.1, trail
  * overshoot on a stop. Rad, s. Starting values.
  */
 export const HANG_SWING = { gain: 1.4, max: 0.3, period: 0.7, zeta: 0.4, idle: 0.1, idleLate: 0.06, idlePeriod: 1.7, idleSettle: 3 } as const;
+/** (traverse-fix) The closest a ledge hand re-grips to the other hand's grip (m): a palm's width (~9 cm) and a little room. */
+export const LEDGE_HAND_GAP = 0.12;
 /** (G4) `traverseT` of the hang (a looping HANG clip): the swing angle over this is a quarter turn of the clip. */
 export const HANG_SWING_CLIP = 0.25;
 /** Dropping through a ceiling vent: the share of the exit spent lowering on the hands. */
@@ -196,6 +198,7 @@ export class AttachGrips {
     h.overlap = true;
     h.leadTime = 0;
     h.alternate = undefined;
+    h.minGap = undefined;
     f.lead = 1;
     f.leadTime = 0;
     switch (a.kind) {
@@ -237,6 +240,9 @@ export class AttachGrips {
         h.leadTime = 0.6;
         h.overlap = false;
         h.alternate = 0.02;
+        // (traverse-fix, ct-prototype STATE "a hand clamped at the lip end falls through to the other hand") at a lip's end
+        // the leading hand is clamped at `max`: the trailing hand's speed lead landed it on (or through) that hand
+        h.minGap = LEDGE_HAND_GAP;
         break;
       }
       case 'ladder':
