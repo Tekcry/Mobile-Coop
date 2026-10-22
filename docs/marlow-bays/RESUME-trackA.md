@@ -1,6 +1,6 @@
 # Track A (Night Shift | Course Ready Build) - resume
 
-Written 2026-10-22 ~09:10, updated ~13:50 (new account; full burn per the orchestrator). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
+Written 2026-10-22 ~09:10, updated ~14:45 (new account; full burn per the orchestrator). Read CLAUDE.md, docs/ROADMAP.md, docs/marlow-bays/BRIEF.md (items
 24, 29, 30 and "Tracks") and this file. Report to "Night Shift | Orchestrator".
 
 ## Open jobs
@@ -11,8 +11,9 @@ Written 2026-10-22 ~09:10, updated ~13:50 (new account; full burn per the orches
 | Item 24 guard tuning | `feature/guard-tune` | merged | #105 merged in train/2 #112 as 4.53.0 (5220f79c) | Done |
 | Item 30 key tools | - | merged | #106 merged as 4.51.0 (d52d37a5); Menu Notes told | Done |
 | clip-speed | `feature/clip-speed` | merged | #109 merged in train/2 #112 as 4.53.0 (5220f79c) | Done. Menu Notes N3 splits holster per gun (agreed) |
-| anim-natural N4 holds and carries | `feature/anim-n4`, `C:/NightShift/Mobile-Coop-anim-n4` | e3f63c4f (fix a65a9496 + master 5220f79c) | PR Tekcry/Mobile-Coop#113. Fix round done (load share, crouch on sim timeline, tuner note); tsc, lint, cqGait / g7 / bake tests pass. Desktop full vitest + build + e2e-anim + e2e-studio running (an4-run.sh, logs C:/NightShift/an4-*.log); laptop asked for check + full e2e. N1 items sent to CT Core | Orchestrator merges when green. Re-measure lift slide / counterCorr in the next desktop GPU slot |
-| sector-fixes slice S (security room) | `feature/sector-fixes-s`, `C:/NightShift/Mobile-Coop-sector-fixes-s` | - | Assigned 13:50: a security room with a guard at monitors on every map with cameras except Sector Ops (Marlow Yard). Brief docs/sector-fixes/BRIEF.md slice S (origin/feature/sector-fixes); own STATE in docs/sector-fixes/s/. Menu Notes owns L and C, Character Build W: stay out of lasers / camera cue | Start |
+| anim-natural N4 holds and carries | `feature/anim-n4` | e3f63c4f | PR Tekcry/Mobile-Coop#113: desktop vitest / build / e2e-anim / e2e-studio pass; laptop check pass; train/3 2680c766 (#103 + #113) full e2e 35/35 pass; GPU re-measure after the fix: counterCorr hold -0.76, carry -0.91, lift slide 5.4 / 0 cm | Orchestrator merges train/3 |
+| sector-fixes slice S (security room) | `feature/sector-fixes-s`, `C:/NightShift/Mobile-Coop-sector-fixes-s` | a070e504 | PR Tekcry/Mobile-Coop#115; checker PASS, notes applied; unit tests pass; A11 (jam handoff unchanged). docs/sector-fixes/s/STATE.md | Laptop check + full e2e (queued after CT Core N1); GPU look of the room (shots-ctcourse s3-monitors) |
+| anim-n4b (N4 pass 2 rows 3, 4, 6, 8) | `feature/anim-n4b` (`C:/NightShift/Mobile-Coop-anim-n4b`; items 4+6 traverse.ts, 8 holds) + `feature/anim-n4b-team` (`C:/NightShift/Mobile-Coop-anim-n4b-team`; item 3 co-op holders), both from feature/anim-n4 e3f63c4f | - | Assigned 14:10 (orchestrator, from Menu Notes N0 pass 2: feature/anim-natural docs/anim-natural/PASS2.md). Three implementers building. Stay out of animGraph.hitReact (CT Core) and playerWeapons.ts (Menu Notes) | Merge -team into anim-n4b, merge master (after train/3), checker, one fix round, GPU audit rows (scripts/anim-natural/audit.mjs from feature/anim-natural: mantle, drop-ledge, drop-hang, roll, hold-still, pair-*), PR |
 
 Merged tonight (track A): #81 coop-torches 4.34.0, #82 T 4.35.0, #83 T1a 4.36.0, #86 T2 4.39.0, #87 item 23 4.40.0,
 #89 items 26 / 26b 4.41.0, #91 item 25 4.43.0.
@@ -64,10 +65,9 @@ sections). Report to "Night Shift | Orchestrator" at each PR; one agent at a tim
 take C:/NightShift/heavy.lock atomically `( set -o noclobber; echo "<session> | <job> | <time>" > C:/NightShift/heavy.lock )`,
 delete only if it still names you; the laptop (Character Build) runs train / full suites.
 
-State (2026-10-22 ~13:50):
-- #105 and #109 merged (4.53.0). Full burn: parallel agents where work splits (orchestrator 13:30).
-- PR Tekcry/Mobile-Coop#113 anim-n4 (e3f63c4f): fix round done; desktop and laptop suites were running. If no result
-  is recorded here, rerun under the heavy lock: full vitest, build, e2e-anim, e2e-studio (bash C:/NightShift/an4-run.sh),
-  post results on the PR, message the orchestrator. Then re-measure lift slide / counterCorr in a desktop GPU slot.
-- sector-fixes slice S (security room): see the Open jobs row and docs/sector-fixes/s/STATE.md on feature/sector-fixes-s.
+State (2026-10-22 ~14:45): see Open jobs. #113 in train/3 (passed). #115 (slice S) waits on the laptop's check + full
+e2e. anim-n4b: if the implementers' work is uncommitted in the two worktrees, review it (git diff), run light checks,
+commit, then merge feature/anim-n4b-team into feature/anim-n4b, merge master, one Opus checker, one fix round, GPU audit
+under the desktop lock (copy scripts/anim-natural/audit.mjs from origin/feature/anim-natural; E2E_GPU=1, port 4189;
+remove the copy and docs/anim-natural/audit after), full vitest / build / e2e-anim / e2e-studio, PR, laptop full e2e.
 ```
