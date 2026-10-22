@@ -32,7 +32,8 @@ void main(void) {
   gl_Position = viewProjection * vec4(position, 1.0);
 }`;
 
-// look: x shown amount, y unused, z grid cell (rad), w edge width (the frame mask); ink: rgb colour, w unused; wt: x line, y fill
+// look: x shown amount, y pitch (rad, + down: the camera's own, sector-fixes C), z grid cell (rad), w edge width (the frame
+// mask); ink: rgb colour, w unused; wt: x line, y fill, z line width (px)
 Effect.ShadersStore['cameraCueFragmentShader'] = `
 #extension GL_OES_standard_derivatives : enable
 precision highp float;
@@ -44,14 +45,14 @@ uniform vec4 ink;
 uniform vec4 wt;
 ${CUE_MASK_GLSL}
 void main(void) {
-  float e = cueEdge(vW, lens, cam, look.w);
+  float e = cueEdge(vW, lens, cam, look.y, look.w);
   if (e < 0.0) discard;
   vec3 d = vW - lens;
   float a = atan(d.x, d.z) - cam.x;
   a = mod(a + 3.14159265, 6.2831853) - 3.14159265;
   vec2 g = vec2(a, atan(d.y, length(d.xz))) / look.z;
   vec2 q = abs(fract(g + 0.5) - 0.5) / max(fwidth(g), vec2(1e-5));
-  float line = 1.0 - min(min(q.x, q.y), 1.0);
+  float line = max(1.0 - min(q.x, q.y) / wt.z, 0.0) * min(wt.z, 1.0);
   float k = look.x * (wt.x * line + wt.y);
   gl_FragColor = vec4(ink.rgb * k, 1.0);
 }`;
@@ -59,8 +60,10 @@ void main(void) {
 interface CueCam {
   cam: CameraUnit;
   span: CueSpan;
-  /** Hit distance per sample (m; `cueReach()` = no hit). */
+  /** Hit distance per sample (m; `reach` = no hit). */
   dist: Float32Array;
+  /** How far its rays are cast (m): `cueReach(cam.range)`. */
+  reach: number;
   pos: Float32Array;
   idx: Uint32Array;
   /** Next sample to cast. */
@@ -79,7 +82,8 @@ interface CueCam {
 
 /**
  * The security camera vision cue (camera-cue): per camera one world-space mesh of the surfaces its lens can reach over
- * its whole sweep (rays against `G.STATIC`, the detection ray's colliders), drawn additive and depth-tested with a
+ * its whole sweep within its own range and about its own pitch (rays against `G.STATIC`, the detection ray's colliders;
+ * `CameraUnit.range` / `pitch`, sector-fixes C), drawn additive and depth-tested with a
  * projected red scan grid (grid only, no frame edge: marlow-bays item 6); the shader keeps only the current yaw's frame
  * (`cueEdge`). Render only: never a light, gameplay never reads it. The rays are spread over frames (a first bake, then a slow refresh for doors).
  */
@@ -101,10 +105,10 @@ export class CameraCueView {
     private ray: CueRay,
     private minimal: boolean,
   ) {
-    const reach = cueReach();
     for (const cam of cams) {
       const span = cueSpan(cam.def);
       const n = span.cols * span.rows;
+      const reach = cueReach(cam.range);
       const dist = new Float32Array(n).fill(reach);
       this.list.push({
         cam,
@@ -118,8 +122,10 @@ export class CameraCueView {
         mesh: null,
         mat: null,
         lens: new Vector3(cam.x, cam.y, cam.z),
-        frame: new Vector4(cam.yaw, CAMERA.hFov / 2, CAMERA.vFov / 2, CAMERA.range),
-        look: new Vector4(0, 0, CUE.gridDeg * (Math.PI / 180), CUE.edgeWidth),
+        // (sector-fixes C) the camera's own pitch and range: the same numbers its detection (`covers`) reads
+        frame: new Vector4(cam.yaw, CAMERA.hFov / 2, CAMERA.vFov / 2, cam.range),
+        look: new Vector4(0, cam.pitch, CUE.gridDeg * (Math.PI / 180), CUE.edgeWidth),
+        reach,
         st: newCue(),
         tris: 0,
       });
@@ -139,7 +145,7 @@ export class CameraCueView {
     }
     const ink = cueInk(electro);
     this.ink.set(ink.rgb[0], ink.rgb[1], ink.rgb[2], 0);
-    this.wt.set(ink.line, ink.fill, 0, 0);
+    this.wt.set(ink.line, ink.fill, ink.width, 0);
     for (let i = 0; i < this.list.length; i++) {
       const c = this.list[i]!;
       stepCue(c.st, dt, c.cam.mode, seen ? seen[i] === 1 : camSeesAny(c.cam.meters));
@@ -161,7 +167,6 @@ export class CameraCueView {
     if (n === 0) return;
     let budget = this.allBaked ? (this.minimal ? CUE.refreshRaysMin : CUE.refreshRays) : CUE.bakeRays;
     let idle = 0;
-    const reach = cueReach();
     while (budget > 0 && idle < n) {
       const c = this.list[this.cur]!;
       // the refresh only follows cameras that see (a blind one draws nothing)
@@ -172,6 +177,7 @@ export class CameraCueView {
       }
       idle = 0;
       const s = c.span;
+      const reach = c.reach;
       const total = s.cols * s.rows;
       while (budget > 0 && c.next < total) {
         const i = c.next++;
@@ -198,7 +204,7 @@ export class CameraCueView {
   }
 
   private build(c: CueCam): void {
-    c.tris = cueMesh(c.span, c.dist, c.lens.x, c.lens.y, c.lens.z, c.pos, c.idx);
+    c.tris = cueMesh(c.span, c.dist, c.lens.x, c.lens.y, c.lens.z, c.pos, c.idx, c.reach);
     const mesh = new Mesh(`cam-cue-${c.cam.def.id}`, this.scene);
     const vd = new VertexData();
     vd.positions = c.pos;
@@ -230,7 +236,7 @@ export class CameraCueView {
 
   private rebuild(c: CueCam): void {
     if (!c.mesh) return;
-    c.tris = cueMesh(c.span, c.dist, c.lens.x, c.lens.y, c.lens.z, c.pos, c.idx);
+    c.tris = cueMesh(c.span, c.dist, c.lens.x, c.lens.y, c.lens.z, c.pos, c.idx, c.reach);
     c.mesh.updateVerticesData(VertexBuffer.PositionKind, c.pos);
     c.mesh.updateIndices(c.idx);
     c.mesh.refreshBoundingInfo();

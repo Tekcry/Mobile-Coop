@@ -4,6 +4,7 @@ import { LightRegistry } from '../src/world/lights';
 import { bakeMoon, MOON_CELL, type MoonJob } from '../src/voxel/skyBake';
 import { packShapes, type VoxelShape } from '../src/voxel/shapes';
 import { lightBakeHash, type LightBake } from '../src/world/lightBake';
+import { bytesPerCall } from './helpers/allocPerCall';
 
 describe('ambient grid (3.6)', () => {
   const reg = new LightRegistry();
@@ -268,11 +269,6 @@ describe('light field (3.6)', async () => {
     const door = { anchor: { hinge: { x: 0, y: 0, z: 0 }, yaw: 0, width: 1.2, height: 2.2 }, open: 0 };
     const f = new LightField(bake, reg, [door]);
     const occ = (): boolean => false;
-    const v8 = await import('node:v8');
-    const vm = await import('node:vm');
-    v8.setFlagsFromString('--expose-gc');
-    const gc = vm.runInNewContext('gc') as () => void;
-    const newSpace = (): number => v8.getHeapSpaceStatistics().find((x) => x.space_name === 'new_space')!.space_used_size;
     const out = new Float64Array(1);
     // Under load (an e2e run alongside, a low-priority laptop) the old 5-round reading skewed: the background compiler
     // had not installed the optimized loop yet, so the field's doubles were still boxed (35-42 B a query, optimized
@@ -280,21 +276,8 @@ describe('light field (3.6)', async () => {
     // fit in new space after a gc() (the control 2000 x 272 B, about 0.5 MB, under the 1 MB minimum semi-space), and up
     // to 40 of them with a short yield between, so the compiler can finish. Each keeps its smallest round (the optimized
     // code). The control runs all 40; each field query stops once its smallest meets its limit (a query that allocates
-    // an object never gets there).
-    const N = 5000;
-    const per = async (fn: (n: number) => void, goal = -Infinity, n = N): Promise<number> => {
-      for (let k = 0; k < 5; k++) fn(100000);
-      let v = Infinity;
-      for (let k = 0; k < 40; k++) {
-        gc();
-        const b0 = newSpace();
-        fn(n);
-        v = Math.min(v, (newSpace() - b0) / n);
-        if (k >= 4 && v <= goal) break;
-        await new Promise((r) => setTimeout(r, 25));
-      }
-      return v;
-    };
+    // an object never gets there). The method is shared: tests/helpers/allocPerCall.ts (heap-asserts).
+    const per = (fn: (n: number) => void, goal = -Infinity, n = 5000): Promise<number> => bytesPerCall(fn, goal, { n, warm: 500000 });
     // a control that makes one 3-vector per query: what a real allocation looks like (kept in a small ring so it
     // escapes: a fully optimized loop otherwise scalar-replaces part of it and the control read 63 B instead of 272)
     const ring: Float64Array[] = new Array<Float64Array>(64);

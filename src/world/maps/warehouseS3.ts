@@ -2,6 +2,8 @@ import { Vector3 } from '../../core/babylon';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import type { MapLayout } from '../mapDef';
+import { makeCone } from '../lights';
+import { addLampRooms, EXIT_GREEN, passLamps, type LampRoom } from './lampRooms';
 
 /**
  * Sector Ops section 3 of the Warehouse (warehouse-s23, SPEC 2.3, BUILD-S3.md): the assembly hall, the mezzanine with the
@@ -69,59 +71,40 @@ export const S3_NAV_SEEDS: Vector3[] = [
   new Vector3(13.5, 2.2, 10.8),
 ];
 
+/** A wall bulkhead's forward-down beam (35 degrees out from straight down, 55 degree half angle): facing +z (the south wall). */
+const WALL_N = makeCone(0, -0.819, 0.574, 0.96);
+// <lamps:S3>
 /**
- * Section 3's lamp pass (BUILD-S3.md 3.7: small lamps under the structure so the route and objective points read without night
- * vision, warehouse-s23 M1). [x, y, z, radius, intensity, group, colour]. Circuits: 50 C3, 51 the floor, 52 the deck and high lamps,
- * 53 the production office, 54 the plant room, 55 the lobby, 56 the cage counter, 57 the manager's office, 58 the exit signs.
- * `tests/warehouseS3Light.test.ts` pins the levels.
+ * Section 3's lamps by room (sector-fixes L, Michael 2026-10-22: one height and a regular layout per room, LED fittings;
+ * the levels of warehouse-s23 M1 kept: `tests/warehouseS3Light.test.ts`). The hall: LED strips at 5.8 under the solid
+ * roof strips, a 6 x 3 grid (x every 5.2 m from -2.8, rows z -2.6, 3.4, 9.4), clear of the sprinkler main (x 17); the
+ * mezzanine deck: a row of strips at z 13.2 every 2.75 m; the south wall: LED bulkheads at 5.0 on 0.3 m brackets with a
+ * forward-down beam, over the walkway and the lobby roof; the rooms: LED panels flush under their ceilings; the exit
+ * signs: LED bulkheads. Radius and intensity per fitting tuned against the light test's bands; dead fittings (intensity
+ * 0) keep the grids regular over the dark pockets. [x, z, radius, intensity].
  */
-export type S3Lamp = readonly [x: number, y: number, z: number, radius: number, intensity: number, group: number, colour?: readonly [number, number, number]];
-const GREEN = [0.5, 1, 0.6] as const;
-const MONITOR = [0.55, 0.7, 1] as const;
-export const S3_LIGHT_PASS: readonly S3Lamp[] = [
-  [-2.0, 2.8, 13.8, 4.5, 0.65, 50], // ladder 8.4: sheet (-1.8, 14.2, r 4.0, i 0.60); moved 0.45 m, r +0.5, i +0.05 (doorway and C3 near door)
-  [0.6, 2.8, 15.6, 2.5, 0.6, 50],
-  [-1.0, 3.6, 10.8, 4.0, 0.6, 51],
-  [4.0, 3.6, 7.0, 4.5, 0.6, 51],
-  [7.2, 3.6, 9.6, 4.0, 0.85, 51],
-  [5.0, 4.4, 10.6, 3.5, 0.62, 51],
-  [11.4, 3.4, 11.3, 3.5, 1.05, 51],
-  [13.2, 5.4, 10.8, 3.0, 0.6, 52],
-  [13.8, 5.8, 12.6, 2.5, 0.47, 52],
-  [16.9, 5.6, 12.9, 3.0, 0.65, 52],
-  [19.6, 5.6, 13.8, 2.5, 0.31, 52],
-  [20.4, 5.6, 12.4, 2.5, 0.51, 52],
-  [18.2, 5.6, 15.3, 3.0, 0.69, 53],
-  [18.8, 5.6, 17.4, 2.5, 0.74, 53],
-  [23.4, 5.6, 16.8, 4.0, 0.85, 53, MONITOR], // ladder 8.4: sheet (22.6, 16.4, i 0.87); moved 0.9 m away from (22.9, 15.6), i -0.02
-  [19.5, 4.0, 10.0, 4.0, 0.83, 51],
-  [18.0, 4.0, 3.5, 4.5, 0.8, 51],
-  [18.2, 5.6, 6.0, 3.5, 0.8, 52],
-  [15.0, 3.4, -1.8, 3.0, 1.4, 51],
-  [15.0, 3.0, -5.4, 3.0, 0.8, 51],
-  [17.6, 3.3, -3.3, 2.4, 1.28, 54],
-  [19.4, 3.3, -3.4, 2.4, 1.37, 54],
-  [22.2, 2.75, -2.4, 2.5, 0.67, 54],
-  [18.2, 2.75, -6.9, 2.6, 0.72, 55],
-  [22.2, 2.75, -7.4, 2.0, 0.65, 55],
-  [23.8, 2.4, -7.2, 3.0, 0.4, 58, GREEN],
-  [16.8, 5.8, -6.6, 2.5, 0.43, 52], // ladder 8.4: sheet i 0.60; two -15% steps (the lobby roof west edge)
-  [21.7, 5.8, -7.2, 2.5, 0.58, 52],
-  [18.0, 5.7, -1.4, 2.5, 1.23, 52],
-  [-2.6, 3.6, 8.0, 4.0, 0.6, 51],
-  [-2.6, 3.6, 1.0, 4.0, 0.7, 51],
-  [-2.6, 3.6, -4.5, 4.0, 0.7, 51],
-  [-3.2, 2.6, -6.6, 3.0, 0.35, 51],
-  [-3.0, 5.0, -8.0, 3.0, 0.4, 52],
-  [4.0, 5.0, -8.0, 3.0, 0.4, 52],
-  [12.0, 5.0, -8.0, 1.9, 0.43, 52],
-  [4.2, 2.8, 14.5, 4.0, 1.22, 57],
-  [11.0, 3.6, 5.5, 4.5, 1.14, 51],
-  [10.8, 3.6, -4.8, 3.0, 0.9, 51],
-  [7.8, 3.6, 1.4, 4.0, 0.8, 51],
-  [4.2, 2.6, -5.4, 3.0, 0.8, 56],
-  [22.7, 5.4, 12.2, 3.0, 0.4, 58, GREEN],
+export const S3_LAMPS: readonly LampRoom[] = [
+  // the hall floor (circuit 51) and the deck (52)
+  { id: 'hall', model: 'strip', y: 5.8, group: 51, yaw: 0, pass: true, lamps: [[-2.8, -2.6, 7.98, 1.609], [2.4, -2.6, 6.97, 1.496], [7.6, -2.6, 6.8, 0.321], [12.8, -2.6, 7.77, 0.884], [18, -2.6, 4.5, 0.588], [23.2, -2.6, 6.5, 0], [-2.8, 3.4, 4.5, 0.7], [2.4, 3.4, 4.5, 0.7], [7.6, 3.4, 6.39, 1.429], [12.8, 3.4, 4.66, 0.7], [18, 3.4, 5.96, 0.555], [23.2, 3.4, 4.5, 0.7], [-2.8, 9.4, 9, 0.683], [2.4, 9.4, 6.5, 0], [7.6, 9.4, 6.34, 0.861], [12.8, 9.4, 8.3, 0.502], [18, 9.4, 8.7, 0.646], [23.2, 9.4, 6.5, 0]] },
+  { id: 'deck', model: 'strip', y: 5.8, group: 52, yaw: 0, pass: true, lamps: [[-2, 13.2, 3.5, 0], [0.75, 13.2, 3.5, 0], [3.5, 13.2, 3.5, 0], [6.25, 13.2, 3.5, 0], [9, 13.2, 3.5, 0], [11.75, 13.2, 3.5, 0], [14.5, 13.2, 3.15, 0.521], [17.25, 13.2, 4.04, 0.287], [20, 13.2, 3.4, 0.216], [22.75, 13.2, 3.5, 0]] },
+  // the south wall (section 1's z -8.8 wall, north face): over the crane walkway and the lobby roof
+  { id: 'southWall', model: 'bulkhead', y: 5.0, group: 52, yaw: 0, cone: WALL_N, pass: true, lamps: [[-3, -8.35, 1.98, 0.399], [1, -8.35, 4.5, 0], [5, -8.35, 3.36, 0.613], [9, -8.35, 4.5, 0], [13, -8.35, 5.68, 0.584], [17, -8.35, 2.5, 0.895], [21, -8.35, 2.5, 1.056]] },
+  // under the deck (ceiling 3.0): the office C3 (circuit 50), the manager's office (57); on the deck: the production office (53, ceiling 5.8)
+  { id: 'office', model: 'panel', y: 2.95, group: 50, yaw: 0, pass: true, lamps: [[-2.5, 13.5, 4.25, 0.438], [0.5, 13.5, 5.49, 0.45], [-2.5, 16.5, 4.5, 0], [0.5, 16.5, 3.45, 0.278]] },
+  { id: 'partsStore', model: 'panel', y: 2.95, group: 51, yaw: 0, pass: true, lamps: [[10, 12.8, 2.98, 0.213], [14, 12.8, 3, 0], [18, 12.8, 3, 0], [22, 12.8, 3, 0]] },
+  { id: 'manager', model: 'panel', y: 2.95, group: 57, yaw: 0, pass: true, lamps: [[5, 15, 7, 0.906]] },
+  { id: 'prodOffice', model: 'panel', y: 5.75, group: 53, yaw: 0, pass: true, lamps: [[17.6, 15.4, 1.5, 0.278], [20.4, 15.4, 4.22, 0.282], [23.2, 15.4, 1.84, 0.25], [17.6, 17.1, 5.28, 0.578], [20.4, 17.1, 3.5, 0], [23.2, 17.1, 5.31, 0.626]] },
+  // the plant room (54, ceiling 3.6) and the east fire-exit lobby (55, ceiling 3.0)
+  { id: 'plant', model: 'panel', y: 3.55, group: 54, yaw: 0, pass: true, lamps: [[18, -3.3, 2.96, 1.296], [20, -3.3, 2.54, 1.143], [22, -3.3, 3.36, 1.366]] },
+  { id: 'fireLobby', model: 'panel', y: 2.95, group: 55, yaw: 0, pass: true, lamps: [[18, -7.2, 2, 1.184], [21, -7.2, 3, 0]] },
+  // the exit signs (58): the fire exit (the east wall), the deck's stair head (the production office's south wall)
+  { id: 'fireLobby', model: 'bulkhead', y: 2.4, group: 58, yaw: -PI / 2, colour: EXIT_GREEN, pass: true, lamps: [[23.7, -7.2, 3.69, 0.71]] },
+  { id: 'deck', model: 'bulkhead', y: 5.6, group: 58, yaw: PI, colour: EXIT_GREEN, pass: true, lamps: [[22.7, 14.05, 0.6, 0.15]] },
 ];
+
+/** The section's lamp pass (the light test switches these off to compare): every lit lamp of section 3. */
+export const S3_LIGHT_PASS = passLamps(S3_LAMPS);
+// </lamps:S3>
 
 /** A lintel (a head over a gap): an overhead box, so the floor under it stays open to the nav grid. */
 function lintel(b: LevelBuilder, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, color = WALL): void {
@@ -336,19 +319,6 @@ export function buildAssemblyS3(b: LevelBuilder): void {
   b.duct(path, inGrate, outGrate);
   b.duct([...path].reverse(), outGrate, inGrate);
 
-  // ---- lights
-  for (const [x, y, z, radius, intensity, group, colour] of S3_LIGHT_PASS) {
-    const sign = group === 58;
-    b.light({
-      kind: 'lamp',
-      x,
-      y,
-      z,
-      radius,
-      intensity,
-      color: colour ? [colour[0], colour[1], colour[2]] : [1, 0.92, 0.75],
-      group,
-      fixture: sign ? { sx: 0.3, sy: 0.12, sz: 0.06, oy: 0.06 } : { sx: 0.5, sy: 0.08, sz: 0.5, oy: 0.1 },
-    });
-  }
+  // ---- lights (sector-fixes L: by room, `S3_LAMPS`)
+  addLampRooms(b, S3_LAMPS);
 }

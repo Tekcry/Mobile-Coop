@@ -144,7 +144,7 @@ describe('gait and blending', () => {
     expect(h.weights.crouch).toBeGreaterThan(0.2);
     expect(h.weights.locomotion).toBeGreaterThan(0.2);
   });
-  it('state priority: traverse > slide > air > wall > kneel/crouch > locomotion', () => {
+  it('state priority: traverse > air > wall > kneel/crouch > locomotion', () => {
     const i = defaultInput();
     expect(pickLower(i)).toBe('locomotion');
     i.crouch = 1;
@@ -155,8 +155,6 @@ describe('gait and blending', () => {
     expect(pickLower(i)).toBe('wall');
     i.grounded = false;
     expect(pickLower(i)).toBe('air');
-    i.slide = 0.2;
-    expect(pickLower(i)).toBe('slide');
     i.traverse = 'vault';
     expect(pickLower(i)).toBe('traverse');
   });

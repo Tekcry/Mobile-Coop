@@ -15,7 +15,7 @@ import { WEIGHT_GROUPS, WEIGHT_TUNABLES } from '../src/anim/weight';
 import { bakeCatalogue, bakeDiff, bakeFmt, bakeTable, editValue, locate, tuneBake, wideRange, type BakeResult } from '../src/anim/tuneBake';
 import { BAKE_CATALOGUE_MODULES, BAKE_LEDGER, BAKE_MANUAL, BAKE_OTHER_SECTION_FILES, BAKE_RULES, DECLARED_SECTIONS, type BakeRule } from '../src/anim/tuneBakeTable';
 import { readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
-import { BAKE_BASE_FILE, BAKE_BASE_SECTIONS, parseAnimBase } from '../src/anim/tuneBakeBase';
+import { BAKE_BASE_FILE, BAKE_BASE_SECTIONS, parseAnimBase, sectionTarget } from '../src/anim/tuneBakeBase';
 import { BAKE_GUARD_FILE, BAKE_GUARD_SECTIONS } from '../src/anim/tuneBakeGuard';
 import { BODY_BASE_FIELDS, type BodyField } from '../src/anim/tune';
 import { WREN_TUCK, wrenTuckMul } from '../src/anim/animGraph';
@@ -107,7 +107,9 @@ describe('anim-bake table', () => {
     for (const s of TUNE_SECTIONS) if (s.id !== 'keys') expect(SCRIPT_CAT.bySection.has(s.id), `section ${s.id}`).toBe(true);
   });
 
-  it('covers every slider of every section and group exactly once (a rule, a manual entry, or the base table)', () => {
+  it('covers every slider of every section and group (a rule, a pure option, a base key or the generic table); manual = pure options only', () => {
+    // (anim-bake-all) BAKE_MANUAL holds the pure options only (the Joints mirror lock; the Keys Mirror box is built in)
+    expect(BAKE_MANUAL.map((m) => `${m.section}.${m.id}`)).toEqual(['joint.mirror']);
     for (const s of TUNE_SECTIONS) {
       if (s.id === 'keys') continue;
       for (const t of s.tunables) {
@@ -117,16 +119,30 @@ describe('anim-bake table', () => {
           // (anim-joints J1) Joints, Hands & feet, IK and Weapon bake into the base table (no rule; joint.options manual)
           // (anim-bake-targets) and every Body slider and group no rule covers (the `body` key);
           // (item 24, track A) the guard sections bake into the guard base table the same way
-          const base = (BAKE_BASE_SECTIONS.includes(s.id) || BAKE_GUARD_SECTIONS.includes(s.id)) && !r && m.length === 0
+          const guard = BAKE_GUARD_SECTIONS.includes(s.id);
+          const base = (BAKE_BASE_SECTIONS.includes(s.id) || guard) && !r && m.length === 0
             && (s.id !== 'body' || BODY_BASE_FIELDS.includes(t.id as BodyField));
-          expect(r || m.length > 0 || base, `${s.id} ${t.id} ${g}`).toBe(true);
+          // (anim-bake-all) anything else: the generic table (a section with no base key of its own, or Body's strideMul);
+          // a guard section never reaches it (the guard table takes every guard row) and the generic target refuses one
+          // (clip-speed, track A) every Clip speed slider has its code rule (never the generic table, which it does not read)
+          // (anim-n4) and every Holds and carries slider its CQ_GAIT rule
+          if (s.id === 'clip' || s.id === 'cq') expect(r, `${s.id} ${t.id} ${g}: a ${s.id} slider has a code rule`).toBe(true);
+          if (guard) expect(r, `${s.id} ${t.id} ${g}: a guard section has no code rule`).toBe(false);
+          if (guard || s.id === 'clip' || s.id === 'cq') expect(() => sectionTarget({ section: s.id, group: g, id: t.id, kind: t.kind, def: t.def }), `${s.id} ${t.id} ${g}: never the generic table`).toThrow();
+          let generic = false;
+          if (!r && !base && m.length === 0) {
+            expect(() => sectionTarget({ section: s.id, group: g, id: t.id, kind: t.kind, def: t.def }), `${s.id} ${t.id} ${g}`).not.toThrow();
+            generic = true;
+          }
+          expect(r || m.length > 0 || base || generic, `${s.id} ${t.id} ${g}`).toBe(true);
           if (BAKE_BASE_SECTIONS.includes(s.id) && s.id !== 'body') expect(r, `${s.id} ${t.id} ${g}: a base table section has no code rule`).toBe(false);
-          // (anim-bake-targets) the rule "every slider bakes": no Body slider is manual
-          if (s.id === 'body') expect(m.length, `${s.id} ${t.id} ${g}: a Body slider is never manual`).toBe(0);
+          if (s.id !== 'joint') expect(m.length, `${s.id} ${t.id} ${g}: only the Joints mirror lock is manual`).toBe(0);
           if (r) expect(BAKE_MANUAL.some((x) => x.section === s.id && x.id === t.id && x.groups?.includes(g)), `${s.id} ${t.id} ${g}: rule and manual`).toBe(false);
         }
       }
     }
+    // (anim-bake-all, BA-A2) strideMul has no code rule: the 13 moving states bake apart
+    expect(BAKE_RULES.some((x) => x.id === 'strideMul')).toBe(false);
   });
 
   it('names only real sliders and groups, with ops that fit the slider kind', () => {
@@ -242,13 +258,15 @@ describe('anim-bake on a sample export (temp copies)', () => {
     expect(num(old(G), 'READY_POSES.low.z')).toBe(num(before[G]!, 'READY_POSES.low.z'));
     for (const p of ['hang', 'ladder', 'pipe', 'fence', 'rappel']) close(num(old(C), `ATTACH_FRAMING.${p}.boom`), num(before[C]!, `ATTACH_FRAMING.${p}.boom`) + 0.3);
     close(num(old(C), 'ATTACH_FRAMING.wall.pivot'), num(before[C]!, 'ATTACH_FRAMING.wall.pivot') + 0.1);
-    // speed: the point; the aimed glide's strafe share (the glide forward is manual: it scales the whole glide)
+    // speed: the point; the aimed glide's strafe share (the glide forward scales the whole glide: no code value, the
+    // generic table, anim-bake-all)
     close(num(old(M), 'GEARS.stand[4]'), num(before[M]!, 'GEARS.stand[4]') * 1.1);
     close(num(old(M), 'MOVEMENT.strafeMult'), num(before[M]!, 'MOVEMENT.strafeMult') * 0.8);
     expect(num(old(M), 'MOVEMENT.adsSpeed')).toBe(num(before[M]!, 'MOVEMENT.adsSpeed'));
     expect(num(old(M), 'ENEMY_MOTION.strafeMult')).toBe(num(before[M]!, 'ENEMY_MOTION.strafeMult'));
-    expect(res('spd.aim', 'glideFwdMul')).toBe('manual: no code target');
-    expect(r.rows.find((x) => x.id === 'glideFwdMul')!.target).toMatch(/adsSpeed only caps it/);
+    expect(res('spd.aim', 'glideFwdMul')).toBe('baked (base table)');
+    expect(r.rows.find((x) => x.id === 'glideFwdMul')!.target).toMatch(/^src\/anim\/animBase\.ts: sections\.speed\.spd\.aim\.glideFwdMul x/);
+    expect(parseAnimBase(old(BAKE_BASE_FILE)).sections?.speed?.['spd.aim']?.glideFwdMul).toBe(1.2);
     expect(locate(old('src/player/attach.ts'), 'ATTACH.ladder.speed').text).toBe('LADDER_RUNG_RATE * 0.36');
     // stepping, weight (all five groups equal: once, not five times)
     close(num(old('src/anim/footPlanner.ts'), 'PLANNER.idleLift'), num(before['src/anim/footPlanner.ts']!, 'PLANNER.idleLift') * 1.4);
@@ -266,7 +284,10 @@ describe('anim-bake on a sample export (temp copies)', () => {
       ['ik.walk', 'handL'],
       ['weapon.rifle.aim', 'gunScale'],
     ]) expect(res(g!, id!)).toBe('baked (base table)');
-    expect(res('weight.walk', 'chestHzMul')).toMatch(/^manual: shared target \(weight\.walk 1\.3, weight\.jog 1, /);
+    // (anim-bake-all) a shared value whose groups differ: the shared constant stays, the state's value goes per state
+    expect(res('weight.walk', 'chestHzMul')).toBe('baked (base table)');
+    expect(r.rows.find((x) => x.id === 'chestHzMul')!.target).toMatch(/sections\.weight\.weight\.walk\.chestHzMul x \[per state: the shared src\/anim\/weight\.ts: WEIGHT_BASE\.chestHz x has differing groups \(weight\.walk 1\.3, weight\.jog 1, /);
+    expect(parseAnimBase(old(BAKE_BASE_FILE)).sections?.weight?.['weight.walk']?.chestHzMul).toBe(1.3);
     expect(res('weight.jog', 'startMul')).toBe('baked');
     expect(res('key.walk.0', 'spine_pitch')).toMatch(/^baked \(key JSON/);
     // only the rows' files changed, the file's formatting kept (one line per edit)
@@ -301,8 +322,8 @@ describe('anim-bake on a sample export (temp copies)', () => {
     expect(r2.rows.find((x) => x.id === 'peekLeanMul')!.result).toMatch(/^already baked/);
     // (anim-bake-targets) the body key is in the ledger too
     expect(r2.rows.find((x) => x.id === 'trackMul')!.result).toMatch(/^already baked/);
-    // the manual ones are still reported (nothing to write for them)
-    expect(r2.rows.find((x) => x.id === 'glideFwdMul')!.result).toBe('manual: no code target');
+    // (anim-bake-all) and the generic table
+    expect(r2.rows.find((x) => x.id === 'glideFwdMul')!.result).toMatch(/^already baked/);
     const r3 = tuneBake(exportOf([]), SCRIPT_CAT, t.read);
     expect(r3.ok).toBe(true);
     expect(r3.writes).toEqual([]);
@@ -393,55 +414,59 @@ describe('anim-bake tuckMul per gun state (anim-bake-targets, BT-A2; was fix rou
   });
 });
 
-describe('anim-bake shared targets', () => {
-  it('one group of a shared constant: manual with the values per group; --allow-shared bakes it and warns', () => {
+describe('anim-bake shared targets (anim-bake-all: groups that differ bake per state into the generic table)', () => {
+  it('one group of a shared constant: per state into the generic table (the constant stays); --allow-shared bakes the constant and warns', () => {
     const t = tempTree();
     const C = 'src/config/camera.ts';
     const exp = exportOf([entry('cam.explore', 'camBoomAdd', 'add', 0.2)]);
     const r = tuneBake(exp, SCRIPT_CAT, t.read);
     expect(r.ok).toBe(true);
-    expect(r.rows[0]!.result).toBe('manual: shared target (cam.explore 0.2, cam.exploreCrouch 0, cam.lowReady 0, cam.hold 0)');
-    expect(r.writes).toEqual([]);
-    const s = tuneBake(exp, SCRIPT_CAT, t.read, { allowShared: true });
+    expect(r.manual).toBe(0);
+    expect(r.rows[0]!.result).toBe('baked (base table)');
+    expect(r.rows[0]!.target).toMatch(/^src\/anim\/animBase\.ts: sections\.cam\.cam\.explore\.camBoomAdd \+ \[per state: the shared src\/config\/camera\.ts: CAMERA\.boomHip \+ has differing groups \(cam\.explore 0\.2, cam\.exploreCrouch 0, cam\.lowReady 0, cam\.hold 0\)\]$/);
+    expect(r.writes.map((w) => w.path).sort()).toEqual([BAKE_BASE_FILE, BAKE_LEDGER].sort());
+    t.write(r);
+    expect(parseAnimBase(t.read(BAKE_BASE_FILE)!).sections).toEqual({ cam: { 'cam.explore': { camBoomAdd: 0.2 } } });
+    expect(t.read(C)).toBe(real(C));
+    const t2 = tempTree();
+    const s = tuneBake(exp, SCRIPT_CAT, t2.read, { allowShared: true });
     expect(s.rows[0]!.result).toMatch(/^baked \(--allow-shared: changes cam\.explore, cam\.exploreCrouch, cam\.lowReady, cam\.hold/);
     expect(s.warnings.join('\n')).toMatch(/now applies to every state reading it/);
-    t.write(s);
-    expect(num(t.read(C)!, 'CAMERA.boomHip')).toBeCloseTo(num(real(C), 'CAMERA.boomHip') + 0.2, 6);
-    expect(num(t.read(C)!, 'CAMERA.boomOpen')).toBeCloseTo(num(real(C), 'CAMERA.boomOpen') + 0.2, 6);
+    t2.write(s);
+    expect(num(t2.read(C)!, 'CAMERA.boomHip')).toBeCloseTo(num(real(C), 'CAMERA.boomHip') + 0.2, 6);
+    expect(num(t2.read(C)!, 'CAMERA.boomOpen')).toBeCloseTo(num(real(C), 'CAMERA.boomOpen') + 0.2, 6);
   });
 
-  it('every group equal: baked once; two of four changed: manual, and the slider\'s other rules wait too', () => {
+  it('every group equal: baked once into the code; two of four changed: both per state, and the slider\'s other rules wait too', () => {
     const t = tempTree();
     const C = 'src/config/camera.ts';
     const all = tuneBake(exportOf(['cam.explore', 'cam.exploreCrouch', 'cam.lowReady', 'cam.hold'].map((g) => entry(g, 'camSideAdd', 'add', 0.05))), SCRIPT_CAT, t.read);
     expect(all.rows.every((x) => x.result === 'baked')).toBe(true);
     expect(locate(all.writes.find((w) => w.path === C)!.after, 'CAMERA.shoulderHip').text).toBe(bakeFmt(num(real(C), 'CAMERA.shoulderHip') + 0.05));
-    // exploreCrouch has its own rule (boomCrouchOpen) but shares boomHip: with explore at another value nothing bakes
-    const two = tuneBake(exportOf([entry('cam.explore', 'camBoomAdd', 'add', 0.2), entry('cam.exploreCrouch', 'camBoomAdd', 'add', 0.2)]), SCRIPT_CAT, t.read, { allowShared: true });
-    expect(two.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
-    expect(two.writes).toEqual([]);
+    // exploreCrouch has its own rule (boomCrouchOpen) but shares boomHip: with explore at another value no code value moves
+    const two = tuneBake(exportOf([entry('cam.explore', 'camBoomAdd', 'add', 0.2), entry('cam.exploreCrouch', 'camBoomAdd', 'add', 0.2)]), SCRIPT_CAT, t.read);
+    expect(two.rows.every((x) => x.result === 'baked (base table)')).toBe(true);
+    expect(two.writes.some((w) => w.path === C)).toBe(false);
+    expect(parseAnimBase(two.writes.find((w) => w.path === BAKE_BASE_FILE)!.after).sections?.cam).toEqual({ 'cam.explore': { camBoomAdd: 0.2 }, 'cam.exploreCrouch': { camBoomAdd: 0.2 } });
   });
 
-  // (anim-bake-targets fix) the one Body exception (BAKE.md): strideMul stays one shared code target (MOVEMENT's step
-  // lengths), so moving states that disagree are manual and the bake waits until they agree
-  it('Body strideMul: disagreeing moving groups give "manual: shared target", every moving group agreeing bakes', () => {
+  // (anim-bake-all, BA-A2) strideMul: no shared MOVEMENT rule any more; each moving state bakes apart (one path)
+  it('Body strideMul: each of the 13 moving states bakes apart into sections.body; MOVEMENT never moves', () => {
     const t = tempTree();
     const MOVING13 = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
-    const one = tuneBake(exportOf([entry('walk', 'strideMul', 'mul', 1.1)]), SCRIPT_CAT, t.read);
-    expect(one.ok, one.error).toBe(true);
-    expect(one.rows[0]!.result).toMatch(/^manual: shared target \(walk 1\.1, jog 1, run 1, sneak 1, /);
-    expect(one.writes).toEqual([]);
-    const two = tuneBake(exportOf([entry('walk', 'strideMul', 'mul', 1.1), entry('jog', 'strideMul', 'mul', 1.2)]), SCRIPT_CAT, t.read);
-    expect(two.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
-    expect(two.writes).toEqual([]);
-    // a version 2 export (a version 1 one also gets the aimStill row copied from aim, which strideMul does not have)
-    const all = tuneBake({ ...exportOf(MOVING13.map((g) => entry(g, 'strideMul', 'mul', 1.1))), version: 2 }, SCRIPT_CAT, t.read);
-    expect(all.rows.length).toBe(13);
-    expect(all.rows.every((x) => x.result === 'baked')).toBe(true);
     const M = 'src/config/movement.ts';
-    const after = all.writes.find((w) => w.path === M)!.after;
-    expect(num(after, 'MOVEMENT.stepLen0')).toBeCloseTo(num(real(M), 'MOVEMENT.stepLen0') * 1.1, 3);
-    expect(num(after, 'MOVEMENT.stepLenMax')).toBeCloseTo(num(real(M), 'MOVEMENT.stepLenMax') * 1.1, 3);
+    const two = tuneBake(exportOf([entry('walk', 'strideMul', 'mul', 1.1), entry('jog', 'strideMul', 'mul', 1.2)]), SCRIPT_CAT, t.read);
+    expect(two.ok, two.error).toBe(true);
+    expect(two.manual).toBe(0);
+    expect(two.rows.map((x) => x.target)).toEqual(['src/anim/animBase.ts: sections.body.walk.strideMul x [no code value of its own]', 'src/anim/animBase.ts: sections.body.jog.strideMul x [no code value of its own]']);
+    expect(two.writes.some((w) => w.path === M)).toBe(false);
+    // a version 2 export, every moving state at its own value
+    const all = tuneBake({ ...exportOf(MOVING13.map((g, i) => entry(g, 'strideMul', 'mul', 0.82 + i * 0.05))), version: 2 }, SCRIPT_CAT, t.read);
+    expect(all.rows.length).toBe(13);
+    expect(all.rows.every((x) => x.result === 'baked (base table)')).toBe(true);
+    expect(all.writes.some((w) => w.path === M)).toBe(false);
+    const body = parseAnimBase(all.writes.find((w) => w.path === BAKE_BASE_FILE)!.after).sections?.body ?? {};
+    MOVING13.forEach((g, i) => expect(body[g]?.strideMul, g).toBeCloseTo(0.82 + i * 0.05, 6));
   });
 });
 
@@ -537,5 +562,154 @@ describe('anim-bake-targets: Michael\'s 13 values that were manual (the literal 
     expect(r.ok, r.error).toBe(true);
     expect(r.writes).toEqual([]);
     expect(r.rows.every((x) => x.result.startsWith('already baked'))).toBe(true);
+  });
+});
+
+describe('anim-bake-all: every slider of every section bakes (0 manual, pure options excepted)', () => {
+  /** A non-default value on the slider's step grid inside its normal range (n steps off the default, either side). */
+  const off = (t: { def: number; min: number; max: number; step: number }, n: number): number => {
+    const up = Math.min(t.max, t.def + t.step * n);
+    const v = up !== t.def ? up : Math.max(t.min, t.def - t.step * n);
+    return Number(v.toFixed(6));
+  };
+  /** Every slider and group of every registered section (Keys excepted: its key JSONs have their own tests). */
+  const everySlider = (perGroup: boolean) =>
+    TUNE_SECTIONS.filter((s) => s.id !== 'keys').flatMap((s) => s.tunables.flatMap((t) => t.groups.map((g, gi) => entry(g, t.id, t.kind, off(t, perGroup ? 1 + (gi % 3) : 1)))));
+
+  for (const perGroup of [true, false]) {
+    it(`one non-default value for every slider and group (${perGroup ? 'the groups differ' : 'every group equal'}): 0 manual on a temp tree, a re-run spent`, () => {
+      const t = tempTree();
+      const changed = everySlider(perGroup);
+      expect(changed.length).toBeGreaterThan(1000);
+      const r = tuneBake({ ...exportOf(changed), version: 2 }, SCRIPT_CAT, t.read, { now: new Date('2026-10-22T09:00:00Z') });
+      expect(r.ok, r.error).toBe(true);
+      const manual = r.rows.filter((x) => !x.result.startsWith('baked'));
+      // the one pure option: the Joints mirror lock
+      expect(manual.map((x) => `${x.group}|${x.id}|${x.result}`)).toEqual(['joint.options|mirror|manual: no code target']);
+      expect(r.manual).toBe(1);
+      expect(r.baked).toBe(changed.length - 1);
+      t.write(r);
+      // every generic entry landed composed on identity (the temp tree's table has no sections yet)
+      const sec = parseAnimBase(t.read(BAKE_BASE_FILE)!).sections ?? {};
+      for (const x of r.rows.filter((y) => y.target.includes(': sections.'))) {
+        const v = sec[x.section]?.[x.group]?.[x.id];
+        expect(v, `${x.section} ${x.group} ${x.id}`).toBe(Number(bakeFmt(x.value)));
+      }
+      // the previously manual sliders (backlog item 29) are among them
+      for (const [s, g, id] of [
+        ['gun', 'rifle.aim', 'gunUp'],
+        ['gun', 'pistol.aimCrouch', 'gunCant'],
+        ['cam', 'cam.explore', 'camFovAdd'],
+        ['cam', 'cam.aimRifle', 'camZoomMul'],
+        ['cam', 'cam.aimPistol', 'camBlendMul'],
+        ['speed', 'spd.aim', 'glideFwdMul'],
+        ['step', 'step.walk', 'lift'],
+        ['step', 'step.idle', 'lock'],
+        ['step', 'step.run', 'replant'],
+        ['weight', 'weight.jog', 'chestDampMul'],
+        ['weight', 'weight.drawn', 'camDip'],
+        ['team_boost', 'team.boost.contact', 'cFwd'],
+        ['team_revive', 'team.revive.b', 'handUp'],
+        ['trav', 'trav.vault', 'time'],
+        ['body', 'walk', 'strideMul'],
+      ] as const) expect(sec[s]?.[g]?.[id], `${s} ${g} ${id}`).toBeDefined();
+      const again = tuneBake({ ...exportOf(changed), version: 2 }, SCRIPT_CAT, t.read);
+      expect(again.ok, again.error).toBe(true);
+      expect(again.writes).toEqual([]);
+      expect(again.rows.filter((x) => !x.result.startsWith('already baked')).map((x) => x.id)).toEqual(['mirror']);
+    }, 60_000);
+  }
+
+  // a literal export (the style of the tuner's own file): one value per backlog item 29 bullet
+  const LITERAL = {
+    magic: 'night-shift-anim-tune',
+    version: 2,
+    exported: '2026-10-22T09:30:00.000Z',
+    changed: [
+      entry('walk', 'strideMul', 'mul', 1.08),
+      entry('jog', 'strideMul', 'mul', 0.95),
+      entry('rifle.aim', 'gunUp', 'add', 0.01),
+      entry('pistol.aim', 'gunPitch', 'add', -0.05),
+      entry('cam.explore', 'camFovAdd', 'add', -4),
+      entry('cam.aimRifle', 'camZoomMul', 'mul', 0.9),
+      entry('cam.aimRifle', 'camBlendMul', 'mul', 1.5),
+      entry('spd.aim', 'glideFwdMul', 'mul', 1.1),
+      entry('step.walk', 'stride1', 'mul', 1.2),
+      entry('step.idle', 'lock', 'mul', 2),
+      entry('weight.walk', 'chestDampMul', 'mul', 0.8),
+      entry('weight.run', 'bank', 'add', 0.5),
+      entry('team.boost.a', 'bodyFwd', 'add', 0.05),
+      entry('trav.mantle', 'time', 'mul', 1.25),
+    ],
+    log: [],
+  };
+
+  it('the literal export: 0 manual, the generic table printed sorted, one group per line', () => {
+    const t = tempTree();
+    const r = tuneBake(LITERAL, SCRIPT_CAT, t.read);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.manual).toBe(0);
+    expect(r.baked).toBe(14);
+    expect(r.writes.map((w) => w.path).sort()).toEqual([BAKE_BASE_FILE, BAKE_LEDGER].sort());
+    t.write(r);
+    const text = t.read(BAKE_BASE_FILE)!.replace(/\r\n/g, '\n');
+    expect(text).toContain(
+      [
+        '  "sections": {',
+        '    "body": {',
+        '      "jog": { "strideMul": 0.95 },',
+        '      "walk": { "strideMul": 1.08 }',
+        '    },',
+        '    "cam": {',
+        '      "cam.aimRifle": { "camBlendMul": 1.5, "camZoomMul": 0.9 },',
+        '      "cam.explore": { "camFovAdd": -4 }',
+        '    },',
+        '    "gun": {',
+        '      "pistol.aim": { "gunPitch": -0.05 },',
+        '      "rifle.aim": { "gunUp": 0.01 }',
+        '    },',
+        '    "speed": {',
+        '      "spd.aim": { "glideFwdMul": 1.1 }',
+        '    },',
+        '    "step": {',
+        '      "step.idle": { "lock": 2 },',
+        '      "step.walk": { "stride1": 1.2 }',
+        '    },',
+        '    "team_boost": {',
+        '      "team.boost.a": { "bodyFwd": 0.05 }',
+        '    },',
+        '    "trav": {',
+        '      "trav.mantle": { "time": 1.25 }',
+        '    },',
+        '    "weight": {',
+        '      "weight.run": { "bank": 0.5 },',
+        '      "weight.walk": { "chestDampMul": 0.8 }',
+        '    }',
+        '  }',
+        '}',
+      ].join('\n'),
+    );
+    // the rest of the table is as it was (the generic key is appended last)
+    const b0 = parseAnimBase(real(BAKE_BASE_FILE));
+    const b1 = parseAnimBase(text);
+    expect({ ...b1, sections: undefined }).toEqual({ ...b0, sections: undefined });
+    // an export of the opposite add values (the bank's range has no negative side) composes them back to identity:
+    // dropped from the key, an emptied group or section with it
+    const back = { ...LITERAL, exported: '2026-10-22T10:00:00.000Z', changed: LITERAL.changed.filter((c) => c.kind === 'add' && c.id !== 'bank').map((c) => ({ ...c, value: -c.value })) };
+    const r2 = tuneBake(back, SCRIPT_CAT, t.read);
+    expect(r2.ok, r2.error).toBe(true);
+    t.write(r2);
+    const left = parseAnimBase(t.read(BAKE_BASE_FILE)!).sections ?? {};
+    expect(left.gun).toBeUndefined();
+    expect(left.cam).toEqual({ 'cam.aimRifle': { camBlendMul: 1.5, camZoomMul: 0.9 } });
+    expect(left.team_boost).toBeUndefined();
+    expect(left.weight).toEqual({ 'weight.run': { bank: 0.5 }, 'weight.walk': { chestDampMul: 0.8 } });
+  });
+
+  it('refuses a generic entry for a section with its own base key, or a non-identity default', () => {
+    expect(() => sectionTarget({ section: 'joint', group: 'joint.walk', id: 'elbowR_x', kind: 'add', def: 0 })).toThrow(/own base key/);
+    expect(() => sectionTarget({ section: 'body', group: 'walk', id: 'trackMul', kind: 'mul', def: 1 })).toThrow(/body key/);
+    expect(() => sectionTarget({ section: 'cam', group: 'cam.explore', id: 'camFovAdd', kind: 'add', def: 1 })).toThrow(/not identity/);
+    expect(sectionTarget({ section: 'cam', group: 'cam.explore', id: 'camFovAdd', kind: 'add', def: 0 })).toBe('src/anim/animBase.ts: sections.cam.cam.explore.camFovAdd +');
   });
 });

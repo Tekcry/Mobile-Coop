@@ -108,9 +108,14 @@ export const S3_FLAG = 's3-clear';
  * sweep: it covers the hallway end to end, and its walls keep its view inside the bay (the entry airlock is behind the
  * lobby's wall, the exit airlock behind the camera). One jam (5 s, then the 1.5 s reboot) covers one runner; the jammer
  * must stand still, so the partner who got through jams it from the far lobby for the other.
+ * (sector-fixes C, item 3) It pitches down to the hallway floor 6.5 m in front of it (`aim`, pitch 20 deg): the frame
+ * still covers standing and crouched heads from the hallway's mouth to the camera, but its top edge stays under the
+ * 4.5 m ceiling, so the cue and detection watch the hallway, not the roof. Its range stays 18 m (the walls bound it).
  */
 export const S3_HALL = { x0: bayX(2) + 3, x1: bayX(2) + 13.6, z0: 0.15, z1: 3.05, wallZ: 3.2 } as const;
 export const S3_CAMERA = { x: bayX(2) + 15.6, z: 1.6, y: 2.4, facing: 270, sweep: [262, 278] as [number, number] };
+/** (sector-fixes C, item 3) The floor point (m in front of the mount) station 3's camera pitches down to. */
+export const S3_CAMERA_AIM = 6.5;
 /**
  * (marlow-jammer fix round 1, Michael item 5: "impossible to pass without one player jamming") The hallway's hard rule
  * (`hallStep`, this station only): a player the camera has (its meter full) in the hallway, or still running in the far
@@ -173,7 +178,7 @@ const S3_SEC_INFO: GuardInfo = { lines: ['All right! The desk console switches t
 const S3_ROOM_LAMP = { x: bayX(2) + 10.6, z: 11.0, intensity: 0.8, radius: 6 };
 
 const SECURITY: SecurityData = {
-  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: S3_CAMERA.y, facing: S3_CAMERA.facing, sweep: S3_CAMERA.sweep, reason: 'Training camera for the jam handoff hallway', offFlag: S3_CAMS_OFF }],
+  devices: [{ id: 'cam-s3', kind: 'camera', level: 'ground', at: [S3_CAMERA.x, S3_CAMERA.z], y: S3_CAMERA.y, aim: S3_CAMERA_AIM, facing: S3_CAMERA.facing, sweep: S3_CAMERA.sweep, reason: 'Training camera for the jam handoff hallway', offFlag: S3_CAMS_OFF }],
 };
 
 /**
@@ -224,7 +229,7 @@ export const PANEL_TEXT: readonly string[] = [
   'Step onto the airlock pad at the end with your partner to go on',
   'Wall: crouch + Co-op (RB / F) boosts your partner; Y / Space climbs up. They unbolt the door (A / E) on the far side',
   'Seen in the hallway: back to the start. LB / Tab to the pistol, X draws; aim LT / RMB, stand still, hold Co-op (RB / F)',
-  'Laser: a beam costs health. Stand, Co-op (RB / F) throws your partner over; they press the red release on the left wall',
+  'Laser: a beam trips the alarm (NV shows it). Co-op (RB / F) throws your partner; press the red release on the left wall',
   'Annex: leg-up and relay onto the roof (Y / Space climbs up). Press both roof plates (A / E) together',
   'Scanners: one each. Press A / E at your scanner and stay; both hacks must finish within 1.5 s. Start on two green lights',
   'High wall: leg-up one; on top, face back down and Co-op (RB / F) drops a rope. Partner: climb it, Y / Space at the top',

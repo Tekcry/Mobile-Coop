@@ -77,7 +77,7 @@ export interface MapLayout {
   debugPoints?: { group: string; id: string; label: string; pos: Vector3; yaw: number }[];
   /** Security devices (Kestrel S0-S3): the match builds a `SecuritySystem` when present (cameras so far). */
   security?: SecurityData;
-  /** (CT prototype B3) Laser devices: a touch costs health; the held jammer switches one off. */
+  /** (CT prototype B3) Laser devices: a break raises the alarm, never damage (sector-fixes C); infrared, drawn only in night vision; the held jammer switches one off. */
   lasers?: LaserDef[];
   /** (CT prototype B3) Zones both players must fill to set a course flag (the camera pocket). */
   passZones?: PassZone[];
