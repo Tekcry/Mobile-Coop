@@ -6,6 +6,16 @@
   wrist vs the right thigh, crouched and still from t 5 to 16 (/c/NightShift/ctb6-clip-n1.log). Master 6c2d50a4 passes
   at -2.7 (ctb6-clip-master.log). Row summary: N1 knees 11.6 / feet 10.8 cm vs master 11.2 / 9.7: N1's crouched
   feet stand 1.1 cm wider. Cause being traced by an agent (16:00).
+- Cause (agent, 16:15, headless repro: N1 -3.0 at crouch frame 5, master planner / turnRule 0 -2.7): the audit-style
+  `tp` to yaw pi/2 leaves visYaw at 0, so the body spins 90 deg at 12 rad/s; N1's ball pivot (pivotFeet) swings the
+  right foot across the midline and three idle steps re-square the feet (+-5.9 cm). On the crouch the RESTEP window
+  steps the foot with the larger error; tied on the square stance, the loop order picked the left (just stepped), the
+  right leg loads and the right wrist sinks into the thigh. Not N1-only: master from a square stance reads -3.0 too.
+- Fix 1e4556a8 (assumed decision 6, undo: IDLE_TIE 0): with the turn rules on, idle errors within 10% (IDLE_TIE) -> the
+  foot planted longer steps first (plantT); turnRule 0 unchanged; unit test in tests/footPlanner.test.ts. Headless
+  -3.0 -> -2.7. Laptop asked (16:15) for check + e2e-clip e2e-anim e2e-move on 1e4556a8.
+- Side issue (polish list): after a teleport visYaw is not snapped, so the body spins to the new yaw and the ball pivot
+  sweeps the inside foot across the midline (three steps to undo).
 
 ## Now (2026-10-22 ~14:30, new account)
 Fix round done (e3be8b36, REPORT-C.md: all 10 CHECK findings + Course Ready's two N4 inputs); master 4.53.0 merged
