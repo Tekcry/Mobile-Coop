@@ -16,6 +16,12 @@ up and runs its full e2e first (results in C:/NightShift/scratch/runs/<label>). 
 (--dry-run first). #119 N4b was LEFT OUT: src conflicts with 4.57.0 in src/anim/animGraph.ts and src/player/player.ts;
 Course Ready merges master into feature/anim-n4b, then train 8 with N1, N2, sector-fixes R and P.
 
+Laptop (Michael 2026-10-22 ~19:30, the laptop was very slow while he used it): "Finish train 7 only". After the train 7 full run
+the chain stops; nothing else runs on the laptop (GPU experiment, anim-natural GPU audit, test-speed-2, P singles) until
+Michael frees it: ask him before queueing laptop work.
+N1 PR #135 (feature/anim-natural-n1 af4347d7, checker PASS) is ready for train 8; if e2e-anim fails past jog 180, N1 leaves
+for one fix round. N2: step 3 checker PASS; fix round (armCap boxing, studio cap, run arm pop) then its PR.
+
 Open work (each job's own resume file has the detail):
 - CT Core: N1 (feature/anim-natural-n1 1135bc41, fresh checker was running, no laptop pre-run needed: PR -> train 7 or 8);
   N2 step 3 arms (feature/anim-natural-n2-s3 4e974ea1) being merged into N2 with master 4.56.0; then fix the run arm
