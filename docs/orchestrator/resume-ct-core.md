@@ -1,6 +1,6 @@
 # Resume - Night Shift | CT Core Build (track B, animation; overflow session)
 
-Saved 2026-10-22 ~23:37 (N2 in train 8; mocap suites pass, waiting on Course Ready) by the CT Core session. Every branch
+Saved 2026-10-23 ~00:00 (#138 merged; #159 open, merging 4.61.0) by the CT Core session. Every branch
 below is committed and pushed. Agents that were running at the save are lost: the resume prompt says what to redo.
 
 ## Rules carried
@@ -30,8 +30,8 @@ below is committed and pushed. Agents that were running at the save are lost: th
 ## Open jobs (branch, folder, head, next step)
 | Job | Branch / folder | Head | State | Next step |
 | --- | --- | --- | --- | --- |
-| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | cc32b3c7 | Fix round in (30c8ee3c, FIX-1.md) + master 4.60.0 (44d7c2a7); REPORT.md (cc32b3c7). Six GPU suites on 44d7c2a7: anim, clip, move, studio, netmove PASS; coop FAIL under load, PASS solo (mt-coop.log). Sheets: feature/mocap-sheets-real ce76361a (turn / start on 44d7c2a7), 04598e9a (rest). Course Ready re-checking 44d7c2a7. PR body ready: /c/NightShift/mt-pr.md (fill CHECK_RESULT). | Course Ready PASS: gh pr create (base master, title "mocap-trial: CMU mocap locomotion behind a switch (default off)", body mt-pr.md), message the orchestrator. FIX: one more round. Then the gap takes. |
-| anim-natural N2 #138 (contains N1) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 7667b681 | DONE: fix round 4 (REPORT-4.md) + master 4.60.0; six GPU suites PASS on the laptop (knee-out 3.4 / 3.5, crouched holstered -2.0 / -3); #138 body updated; in train 8 (train/8 fc2e8bd3 with #156). | Nothing unless train 8 fails. |
+| mocap-trial (TOP PRIORITY) | `feature/mocap-trial`, `C:/NightShift/Mobile-Coop-mocap-trial` | 089259be | PR #159 open (train 12 per the orchestrator; CHECK-2 FIX residuals accepted as not broken). #159 CONFLICTS with master 4.61.0 (N1 + N2): merge IN PROGRESS in the worktree, Opus agent resolving (13 hunks animGraph / footPlanner / characterRig; OFF byte-identical to af56ab43 via the dump repro; N2 layers gated on the mocap set). | Agent lost: redo the merge (prompt: CHECK-2 / FIX-1 / N2 REPORT-4 intent). Then commit + push, GPU six suites (mt-e2e.sh detached), update #159 body, orchestrator. Then feature/mocap-trial-2 (worktree C:/NightShift/Mobile-Coop-mocap-trial-2, npm ci done, at 089259be: fast-forward to the merged head first): CHECK-2 required 1-3 + mocapSwitch turn-offset sweep; walk-turn slot arms on the polish list. Then the gap takes. |
+| anim-natural N2 #138 | merged | af56ab43 | MERGED in train 8 (master 4.61.0). | Nothing. |
 | vent-kick T1 #141 | `feature/vent-kick`, `C:/NightShift/Mobile-Coop-vent-kick` | ebce0da7 | Done: PR #141 open; checker PASS + fix round (M1 pad matches keyboard); e2e-traverse, e2e-pad, e2e-mouse, e2e-netmove pass on the desktop GPU (9fd7b5b6). | Nothing unless its train fails. DECISIONS at merge: M1, A1. |
 
 ## Test logs on the desktop
