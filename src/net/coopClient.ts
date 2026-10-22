@@ -235,7 +235,6 @@ export class CoopClient implements NetAttachment {
       b.crouched = (a.flags & PF.crouch) !== 0;
       b.speed = a.moveSpeed;
       b.head.set(a.pos.x, remoteHeadY(a.pos.y, b.crouched), a.pos.z);
-      b.light = this.g.bodyLight(a.pos.x, a.pos.y, a.pos.z, a.rig.height, b.crouched);
     }
     return n;
   }
@@ -544,6 +543,15 @@ export class CoopClient implements NetAttachment {
         g.app.sfx.playerHurt();
         break;
       }
+      case 'back':
+        // (marlow-jammer fix round 1) the camera hallway sent us back to the entry lobby, facing the hallway
+        if (e.player !== me) break;
+        g.team.end(true);
+        g.player.controller.override = null;
+        g.traversal.reset();
+        g.player.controller.teleport(new Vector3(e.x, e.y, e.z), e.yaw);
+        g.player.cam.yaw = e.yaw;
+        break;
       case 'revive':
         if (e.player !== me) break;
         g.player.controller.override = null;
@@ -552,6 +560,14 @@ export class CoopClient implements NetAttachment {
         g.target.revive();
         g.hud.setDownTimer(null);
         g.hud.banner('BACK IN', '', 1500);
+        break;
+      case 'restore':
+        // (marlow-bays R2) rejoined: back where the host held us (health, down state and the team's state come as usual)
+        if (e.player !== me) break;
+        g.player.controller.override = null;
+        g.traversal.reset();
+        g.player.controller.teleport(new Vector3(e.x, e.y, e.z), e.yaw);
+        g.player.cam.yaw = e.yaw;
         break;
       case 'hitConfirm':
         break;
@@ -701,8 +717,11 @@ export class CoopClient implements NetAttachment {
     if (this.inCourse) this.s.toHost({ t: 'ctick', verb });
   }
   /** Course mode (CT prototype B3): the held jammer's target for the host. */
-  sendJam(tgt: string): void {
-    if (this.inCourse || this.sec) this.s.toHost({ t: 'jam', tgt });
+  sendJam(tgt: string, eye: { x: number; y: number; z: number }): void {
+    if (!this.inCourse && !this.sec) return;
+    // (jammer-fixes, 27) a claim carries the camera eye (cm), a release nothing (on change and the heartbeat only)
+    if (tgt === '') this.s.toHost({ t: 'jam', tgt });
+    else this.s.toHost({ t: 'jam', tgt, e: [Math.round(eye.x * 100) / 100, Math.round(eye.y * 100) / 100, Math.round(eye.z * 100) / 100] });
   }
   private get inCourse(): boolean {
     return this.g.opts.mode === 'course';

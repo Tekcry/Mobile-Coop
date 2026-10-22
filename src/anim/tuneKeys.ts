@@ -15,15 +15,30 @@
  * (the key timeline reads it). Live: an added key is one more knot of the offset tables (its deltas: zero change at
  * its time when added with the offset the preview shows there, `tuneKeysAdd`); a deleted key's knot takes the pose its
  * live neighbours blend to there minus its own (the key files' field values, loaded on the clip's first delete).
+ * (marlow-bays item 30e, the exact preview) The key file's values load on a clip's first edit; once loaded, the fields
+ * the bake interpolates on Blender's curve (`CURVE_J`: trunk yaw / pitch / roll, the pelvis shift, arm flex / abd /
+ * elbow / inward / upper arm twist, the wrist) spread on that curve (`keyCurve.ts`): each frame's offset is the curve of
+ * the live keys (key file + edit at their live times; an added key on the original keys' blend, a deleted key no knot)
+ * minus the curve of the baked keys at the phase the sampler reads the baked clip (retimed: warped). The trunk is
+ * re-keyed in the bake's channel frames (each segment's local quaternion on the curve, `tuneKeysCurve.ts`) and its
+ * offsets chained so each segment lands on that local; the arms are composed as the bake's FK (the upper arm and the
+ * forearm turned from their baked directions to the edited ones). The rest stay linear, as the bake lerps them (head,
+ * shoulder, forearm twist, clavicle, fingers, leg deltas, FK weight). Until the file loads: the linear spread.
  */
 import './tuneV2Sections'; // the tuner-v2 sections register first (the panel order ends Stepping, then Keys)
 import type { KeyedClip, KeyedOffsets, KeyedTime } from './keyed';
+import { KEYED_LEGD_SIDE, LEGD_SIGN } from './keyed'; // (anim-skeleton S4) the leg deltas' key -> rig signs
 import { KEY_CLIPS } from './tuneKeysMeta';
 import { KEY_FIELDS, KEY_FIELD_INDEX, keyGroupId, keyMirrorGroupId, mirrorDelta, parseKeyGroup, readKeys, type KeyFile } from './tuneKeysFile';
-import { registerTuneSection, TUNE_LOG, tuneSet, type TuneChange, type TuneTunable } from './tuneRegistry';
+import { KEY_FINGERS, KEY_LEGD, keySidePartner } from './tuneKeysFile'; // (anim-skeleton S4)
+import { registerTuneSection, TUNE_LOG, tuneGet, tuneSet, type TuneChange, type TuneTunable } from './tuneRegistry';
+import { keySmoothWeight, keysBetween, keyWaveValue } from './tuneKeysTools'; // (item 30)
 import { keyCount, keyPhase, keyRank } from './keyTimeline';
 import { KEY_SPAN, KEY_TIME_ID, KEY_TIME_MAX, KEY_TIMES, keyBasePos, keyRetimeRange, keyTimeCount, keyTimeSolve, type KeyRetimeRange } from './tuneKeysTime';
 import { KEY_ADD_SLOTS, KEY_AT_ID, KEY_DEL_ID, KEY_LIVE, KEY_MIN, keyAddedGroupId, keyInsertPos, keyKnotsAt, keyLivePartner, keyLiveSolve, newKeyLive, parseKeyAdded, type KeyLive } from './tuneKeysEdit';
+import { keyCurveAt, keyCurveSet, newKeyCurve, type KeyCurve } from './keyCurve'; // (item 30e) the bake's curve
+import { keyWarpPhase } from './tuneKeysTime';
+import { armForeInto, armUpInto, betweenInto, qconjMulInto, qmulInto, trunkChannelsInto, trunkLocalInto } from './tuneKeysCurve';
 
 const NF = KEY_FIELDS.length;
 const S = KEY_ADD_SLOTS;
@@ -109,6 +124,13 @@ KEY_FIELDS.forEach((f, j) => {
   MIR_IDX[j] = partner;
   MIR_SGN[j] = !arm && (f.field === 'yaw' || f.field === 'roll' || f.field === 'dx') ? -1 : 1;
 });
+// (anim-skeleton S4) the hands and legs swap side for side like the arms (their key fields read the same on both sides)
+KEY_FIELDS.forEach((f, j) => {
+  const p = f.seg.startsWith('hand') || f.seg.startsWith('leg') ? keySidePartner(f.seg) : '';
+  if (!p) return;
+  MIR_IDX[j] = KEY_FIELD_INDEX[`${p}${f.id.slice(f.seg.length)}`]!;
+  MIR_SGN[j] = 1;
+});
 const FI = (id: string): number => KEY_FIELD_INDEX[id]!;
 const TRUNK4 = ['pelvis', 'spine', 'chest', 'neck'] as const;
 const T_IDX = TRUNK4.map((s) => [FI(`${s}_yaw`), FI(`${s}_pitch`), FI(`${s}_roll`)] as const);
@@ -148,6 +170,11 @@ const ON_WRIST = both((a) => [a.wp, a.wy, a.wr]);
 const ON_FORE = both((a) => [a.tw]);
 const ON_SH = both((a) => [a.sp, a.sy, a.sr]);
 const ON_TWU = both((a) => [a.twU]);
+/** (item 30e) The fields the bake interpolates on Blender's curve (the bone channels); the others it lerps. */
+const CURVE_J: readonly number[] = [...T_IDX.flat(), ...PEL, ...both((a) => [a.fl, a.ab, a.el, a.inw, a.twU, a.wp, a.wy, a.wr])];
+const NC = CURVE_J.length;
+const TRUNK_J: readonly number[] = T_IDX.flat();
+const ARM_FK: readonly (readonly number[])[] = ARMS.map((a) => [a.fl, a.ab, a.el, a.inw]);
 /** The mirror image of field row `src` (at `so`) into `dst` (at `d0`). */
 function mirrorRow(src: ArrayLike<number>, so: number, dst: Float64Array, d0: number): void {
   for (let j = 0; j < NF; j++) dst[d0 + j] = MIR_SGN[j]! * src[so + MIR_IDX[j]!]!;
@@ -167,6 +194,20 @@ interface ClipEdit {
   readonly kph: Float64Array;
   readonly kval: Float64Array;
   readonly off: KeyedOffsets;
+  // (item 30e) the curve spread: the live knots (no deleted key) with their key-file base and deltas, the new and the
+  // baked curve per frame (curve fields), the warped phase per frame, the trunk's channel quaternions per knot and frame
+  cn: number;
+  readonly cT: Float64Array;
+  readonly cB: Float64Array;
+  readonly cK: Float64Array;
+  readonly CN: Float64Array;
+  readonly CO: Float64Array;
+  readonly WP: Float64Array;
+  readonly QK: Float64Array;
+  readonly EQ: Float64Array;
+  /** The key-file load state the tables were built with, and whether they are on the curve. */
+  fver: number;
+  curve: boolean;
 }
 const EDITS: (ClipEdit | null)[] = KEY_CLIPS.map(() => null);
 
@@ -197,6 +238,9 @@ const LIVES: (ClipLive | null)[] = KEY_CLIPS.map(() => null);
 const FVALS: (Float64Array | null)[] = KEY_CLIPS.map(() => null);
 const FLOADS: (Promise<void> | null)[] = KEY_CLIPS.map(() => null);
 let fileVer = 0;
+/** (item 30e) Per clip, once its key file loaded: the baked keys' curve per curve field (CURVE_J order), the elbow carry. */
+const OLDC: (KeyCurve[] | null)[] = KEY_CLIPS.map(() => null);
+const CARRY = new Float64Array(KEY_CLIPS.length).fill(5);
 
 /**
  * Registry -> one clip's key positions (`KEY_TIMES`, `KeyedClip.keyTime`); allocates only on the clip's first retime.
@@ -248,7 +292,10 @@ function origPosInto(ci: number, out: Int16Array): void {
   for (let k = 0; k < out.length; k++) out[k] = t && t.on ? t.pos[k]! : keyBasePos(meta, k);
 }
 
-/** (item 25) Load a clip's key file (once; a deleted key's live pose needs its field values). */
+/**
+ * (item 25) Load a clip's key file (once; a deleted key's live pose needs its field values). (item 30e) Also on a clip's
+ * first edit of any kind: the exact preview spreads on the curve of the key file's values (`OLDC`, built here once).
+ */
 function needFile(ci: number): void {
   if (FVALS[ci] || FLOADS[ci]) return;
   const meta = KEY_CLIPS[ci]!;
@@ -260,6 +307,15 @@ function needFile(ci: number): void {
       if (keys.length !== keyTimeCount(meta)) return;
       const v = new Float64Array(keys.length * NF);
       keys.forEach((k, i) => v.set(k.v, i * NF));
+      // (item 30e) the baked keys' curves (at their baked times, the key order the phase order) and the elbow carry
+      const T = keys.length;
+      const t = new Float64Array(T);
+      for (let k = 0; k < T; k++) t[k] = keyBasePos(meta, k) / SPAN;
+      let sorted = true;
+      for (let k = 1; k < T; k++) if (!(t[k]! > t[k - 1]!)) sorted = false;
+      if (sorted) OLDC[ci] = CURVE_J.map((j) => keyCurveSet(newKeyCurve(Math.max(2, T)), t, v, T, NF, j, 1));
+      const carry = (f as { carry?: unknown }).carry;
+      CARRY[ci] = typeof carry === 'number' && Number.isFinite(carry) ? carry : 5;
       FVALS[ci] = v;
       fileVer++;
       syncClip(ci);
@@ -267,9 +323,17 @@ function needFile(ci: number): void {
     .catch(() => undefined);
 }
 
-/** (item 25) Every key file a delete asked for is loaded (tests, the e2e). */
+/** (item 25) Every key file a delete (item 30e: an edit) asked for is loaded (tests, the e2e). */
 export async function tuneKeysFilesReady(): Promise<void> {
   await Promise.all(FLOADS.filter((p): p is Promise<void> => !!p));
+}
+
+/** (item 30) Load `clip`'s key file now (the key tools' Smooth and the compare line read its values; the exact preview). */
+export function tuneKeysLoadFile(clip: string): Promise<void> {
+  const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
+  if (ci < 0) return Promise.resolve();
+  needFile(ci);
+  return FLOADS[ci] ?? Promise.resolve();
 }
 
 /**
@@ -456,13 +520,220 @@ function absInto(ci: number, live: KeyLive, id: number, ph: number, r: number, k
   for (let j = 0; j < NF; j++) out[j] = out[j]! + kv[r * NF + j]!;
 }
 
-/** The edit's values spread over the clip's frames, as offset tables (into the preallocated tables). */
-function build(e: ClipEdit): void {
+/** (item 30e) The original keys' blend (key file values; deleted keys too: the clip as baked) at phase `ph`, into out[oo]: an added key's base, as the bake writes it. */
+function baseBlendInto(ci: number, ph: number, F: Float64Array, out: Float64Array, oo: number): void {
+  const meta = KEY_CLIPS[ci]!;
+  const T = keyTimeCount(meta);
+  let m = 0;
+  for (let i = 0; i < T; i++) {
+    const p = Math.round((keyPhase(meta, i) % 1) * SPAN);
+    let j = m++;
+    while (j > 0 && OPOS[j - 1]! > p) {
+      OPOS[j] = OPOS[j - 1]!;
+      FB.copyWithin(j * NF, (j - 1) * NF, j * NF);
+      j--;
+    }
+    OPOS[j] = p;
+    for (let f = 0; f < NF; f++) FB[j * NF + f] = F[i * NF + f]!;
+  }
+  keyKnotsAt(OPOS, FB, m, NF, ph * SPAN, D3);
+  for (let j = 0; j < NF; j++) out[oo + j] = D3[j]!;
+}
+const D3 = new Float64Array(NF);
+const ROW = new Float64Array(NF);
+/** (item 30e) The curve scratch (one curve solved at a time; build and the add's pose). */
+const KC = newKeyCurve(64);
+
+/**
+ * (item 30e) The curve spread's inputs for `e` (its knots just set by `knots`): the live knots with their key-file base
+ * and deltas, the phase the sampler reads the baked clip at per frame, the new and the baked curve of every curve field
+ * per frame, and (`trunk`) the trunk's channel quaternions per knot and their curves per frame. No allocation.
+ */
+function curvePrep(e: ClipEdit, ci: number, F: Float64Array, old: readonly KeyCurve[]): void {
+  const { meta } = e;
+  const N = meta.frames;
+  const T = keyTimeCount(meta);
+  const L = LIVES[ci];
+  const live = L && L.live.edited ? L.live : null;
+  let n = 0;
+  for (let r = 0; r < e.kn; r++) {
+    const id = KNOT_IDS[r]!;
+    if (live && id < T && live.dead[id]) continue; // a deleted key is no knot of the bake
+    e.cT[n] = e.kph[r]!;
+    if (id < T) for (let j = 0; j < NF; j++) e.cB[n * NF + j] = F[id * NF + j]!;
+    else baseBlendInto(ci, e.kph[r]!, F, e.cB, n * NF);
+    for (let j = 0; j < NF; j++) e.cK[n * NF + j] = e.kval[r * NF + j]!;
+    n++;
+  }
+  e.cn = n;
+  const kt = e.clip.keyTime;
+  for (let f = 0; f < N; f++) e.WP[f] = kt ? keyWarpPhase(kt.newPos, kt.oldPos, kt.n, f / N) : f / N;
+  for (let s = 0; s < NC; s++) {
+    const j = CURVE_J[s]!;
+    keyCurveSet(KC, e.cT, e.cB, n, NF, j, 1, e.cK);
+    for (let f = 0; f < N; f++) e.CN[f * NF + j] = keyCurveAt(KC, f / N);
+    const oc = old[s]!;
+    for (let f = 0; f < N; f++) e.CO[f * NF + j] = keyCurveAt(oc, e.WP[f]!);
+  }
+}
+
+/** (item 30, track A) Each live knot's trunk segment locals in the bake's channel frames, into `e.QK` (curveTrunk, the add). */
+function trunkKnots(e: ClipEdit): void {
+  for (let r = 0; r < e.cn; r++) {
+    for (let j = 0; j < NF; j++) ROW[j] = e.cB[r * NF + j]! + e.cK[r * NF + j]!;
+    trunkChannelsInto(ROW, 0, T_IDX, e.QK, r * 16, r > 0 ? e.QK : null, (r - 1) * 16);
+  }
+}
+
+/** (item 30e) The trunk re-keyed: each live knot's segment locals in the bake's channel frames, their curves per frame. */
+function curveTrunk(e: ClipEdit): void {
+  const N = e.meta.frames;
+  const n = e.cn;
+  trunkKnots(e);
+  for (let c = 0; c < 16; c++) {
+    keyCurveSet(KC, e.cT, e.QK, n, 16, c, 1);
+    for (let f = 0; f < N; f++) e.EQ[f * 16 + c] = keyCurveAt(KC, f / N);
+  }
+}
+
+/**
+ * (item 30, track A) The trunk's absolute yaw / pitch / roll (deg, Babylon's RotationYawPitchRoll, as `eul`) the curve
+ * shows at phase p: the 16 channel curves read there, each segment back to its local, chained W_s = W_s-1 L_s (the
+ * sampler's trunk, so an added key there moves nothing), each W_s decomposed into `out` at T_IDX. Needs `e.cn` > 1.
+ */
+function trunkAtInto(e: ClipEdit, p: number, out: Float64Array): void {
+  trunkKnots(e);
+  for (let c = 0; c < 16; c++) {
+    keyCurveSet(KC, e.cT, e.QK, e.cn, 16, c, 1);
+    EQ1[c] = keyCurveAt(KC, p);
+  }
+  QW[0] = 0;
+  QW[1] = 0;
+  QW[2] = 0;
+  QW[3] = 1;
+  for (let s = 0; s < 4; s++) {
+    trunkLocalInto(EQ1, s * 4, s, QL, 0);
+    qmulInto(QW, 0, QL, 0, QW, 0);
+    const ix = T_IDX[s]!;
+    const iy = ix[0];
+    const ip = ix[1];
+    const ir = ix[2];
+    const x = QW[0]!;
+    const y = QW[1]!;
+    const z = QW[2]!;
+    const w = QW[3]!;
+    // Babylon's toEulerAngles (q = Ry Rx Rz): pitch from the z axis' y, yaw and roll from the rest (gimbal lock: no roll)
+    const zy = y * z - x * w;
+    if (zy < -0.4999999 || zy > 0.4999999) {
+      out[iy] = (2 * Math.atan2(y, w)) / D2R;
+      out[ip] = zy < 0 ? 90 : -90;
+      out[ir] = 0;
+    } else {
+      out[iy] = Math.atan2(2 * (z * x + y * w), z * z - x * x - y * y + w * w) / D2R;
+      out[ip] = Math.asin(-2 * zy) / D2R;
+      out[ir] = Math.atan2(2 * (x * y + z * w), -z * z - x * x + y * y + w * w) / D2R;
+    }
+  }
+}
+const EQ1 = new Float64Array(16);
+const QW = new Float64Array(4);
+const QL = new Float64Array(4);
+
+const QB = new Float64Array(4);
+const QE = new Float64Array(4);
+const QP = new Float64Array(4);
+const VA = new Float64Array(3);
+const VB = new Float64Array(3);
+
+/**
+ * (item 30e) Frame f's trunk offsets on the curve: the sampler turns each segment by its offset and counter-turns its
+ * child (keyed.ts `keyOffTrunk`), so o_0 = Q_0^-1 E_0, o_s = Q_s^-1 o_s-1 E_s lands every segment on its re-keyed local
+ * E_s (the baked local Q_s read where the sampler reads it: the warped phase, nlerp between frames).
+ */
+function trunkExact(e: ClipEdit, f: number): void {
+  const clip = e.clip;
+  const N = clip.frames;
+  const g = (((e.WP[f]! % 1) + 1) % 1) * N;
+  const i0 = Math.floor(g) % N;
+  const i1 = (i0 + 1) % N;
+  const u = g - Math.floor(g);
+  const Q = clip.q;
+  QP[0] = 0;
+  QP[1] = 0;
+  QP[2] = 0;
+  QP[3] = 1;
+  for (let s = 0; s < 4; s++) {
+    const a = i0 * 16 + s * 4;
+    const b = i1 * 16 + s * 4;
+    const sg = Q[a]! * Q[b]! + Q[a + 1]! * Q[b + 1]! + Q[a + 2]! * Q[b + 2]! + Q[a + 3]! * Q[b + 3]! < 0 ? -1 : 1;
+    let l = 0;
+    for (let c = 0; c < 4; c++) {
+      QB[c] = Q[a + c]! + (sg * Q[b + c]! - Q[a + c]!) * u;
+      l += QB[c]! * QB[c]!;
+    }
+    l = Math.sqrt(l) || 1;
+    for (let c = 0; c < 4; c++) QB[c] = QB[c]! / l;
+    trunkLocalInto(e.EQ, f * 16 + s * 4, s, QE, 0);
+    // o = Q^-1 prev E
+    qmulInto(QP, 0, QE, 0, QE, 0);
+    qconjMulInto(QB, 0, QE, 0, QP, 0);
+    const t = f * 16 + s * 4;
+    for (let c = 0; c < 4; c++) e.off.trunk[t + c] = QP[c]!;
+  }
+}
+
+/** (item 30e) Frame f's arm offsets of side `side` as the bake's FK: the baked directions (curve of the baked keys) turned to the edited ones (curve of the live keys). */
+function armExact(e: ClipEdit, ci: number, f: number, side: number): void {
+  const sg = side === 0 ? -1 : 1;
+  const ix = ARM_FK[side]!;
+  const o = f * NF;
+  const bo = e.CO;
+  const bn = e.CN;
+  const fl0 = bo[o + ix[0]!]!;
+  const ab0 = bo[o + ix[1]!]!;
+  const fl1 = bn[o + ix[0]!]!;
+  const ab1 = bn[o + ix[1]!]!;
+  armUpInto(fl0, ab0, sg, VA, 0);
+  armUpInto(fl1, ab1, sg, VB, 0);
+  betweenInto(VA, 0, VB, 0, e.off.arm, f * 16 + side * 8);
+  const carry = CARRY[ci]!;
+  armForeInto(fl0, ab0, bo[o + ix[2]!]!, bo[o + ix[3]!]!, sg, carry, VA, 0);
+  armForeInto(fl1, ab1, bn[o + ix[2]!]!, bn[o + ix[3]!]!, sg, carry, VB, 0);
+  betweenInto(VA, 0, VB, 0, e.off.arm, f * 16 + side * 8 + 4);
+}
+
+/** Any of the fields `ix` off zero at a curve knot. */
+function curveOn(e: ClipEdit, ix: readonly number[]): boolean {
+  for (let r = 0; r < e.cn; r++) for (let k = 0; k < ix.length; k++) if (e.cK[r * NF + ix[k]!] !== 0) return true;
+  return false;
+}
+
+/**
+ * The edit's values spread over the clip's frames, as offset tables (into the preallocated tables). (item 30e) With the
+ * key file loaded (`OLDC`): the curve fields on the bake's curve, the trunk re-keyed, the arms as FK; `structural` (a key
+ * added, deleted or retimed) moves the curve even where no value changed.
+ */
+function build(e: ClipEdit, ci: number, structural: boolean): void {
   const { meta, off } = e;
   const N = meta.frames;
   const kph = e.kph;
   const kv = e.kval;
   const m = e.kn;
+  const F = FVALS[ci];
+  const old = OLDC[ci];
+  const curve = !!F && !!old;
+  e.curve = curve;
+  e.fver = fileVer;
+  let trunkOn = false;
+  let armOn0 = false;
+  let armOn1 = false;
+  if (curve) {
+    curvePrep(e, ci, F, old); // (knots() just ran: KNOT_IDS holds this clip's knot ids)
+    trunkOn = structural || curveOn(e, TRUNK_J);
+    if (trunkOn) curveTrunk(e);
+    armOn0 = structural || curveOn(e, ARM_FK[0]!);
+    armOn1 = structural || curveOn(e, ARM_FK[1]!);
+  }
   for (let f = 0; f < N; f++) {
     const p = f / N;
     let a = m - 1;
@@ -477,10 +748,15 @@ function build(e: ClipEdit): void {
       const va = kv[a * NF + j]!;
       D[j] = va + (kv[b * NF + j]! - va) * t;
     }
-    for (let s = 0; s < 4; s++) {
-      const ix = T_IDX[s]!;
-      eul(off.trunk, f * 16 + s * 4, D[ix[0]]!, D[ix[1]]!, D[ix[2]]!);
-    }
+    // (item 30e) the curve fields: the live keys' curve minus the baked keys' curve where the sampler reads the clip
+    if (curve) for (let s = 0; s < NC; s++) D[CURVE_J[s]!] = e.CN[f * NF + CURVE_J[s]!]! - e.CO[f * NF + CURVE_J[s]!]!;
+    if (curve && trunkOn) trunkExact(e, f);
+    else if (curve) for (let s = 0; s < 16; s++) off.trunk[f * 16 + s] = (s & 3) === 3 ? 1 : 0;
+    else
+      for (let s = 0; s < 4; s++) {
+        const ix = T_IDX[s]!;
+        eul(off.trunk, f * 16 + s * 4, D[ix[0]]!, D[ix[1]]!, D[ix[2]]!);
+      }
     eul(off.head, f * 4, D[HEAD[0]]!, D[HEAD[1]]!, D[HEAD[2]]!);
     off.pel[f * 3] = D[PEL[0]]! * CM;
     off.pel[f * 3 + 1] = D[PEL[1]]! * CM;
@@ -492,8 +768,14 @@ function build(e: ClipEdit): void {
       const ab = D[A.ab]!;
       const el = D[A.el]!;
       const inw = D[A.inw]!;
-      eul(off.arm, f * 16 + side * 8, 0, -fl, sg * ab);
-      eul(off.arm, f * 16 + side * 8 + 4, -sg * inw, -(fl + el), sg * ab);
+      if (curve) {
+        // (item 30e) as the bake's FK (identity when the side has no arm edit and nothing structural)
+        if (side === 0 ? armOn0 : armOn1) armExact(e, ci, f, side);
+        else for (let s = 0; s < 8; s++) off.arm[f * 16 + side * 8 + s] = (s & 3) === 3 ? 1 : 0;
+      } else {
+        eul(off.arm, f * 16 + side * 8, 0, -fl, sg * ab);
+        eul(off.arm, f * 16 + side * 8 + 4, -sg * inw, -(fl + el), sg * ab);
+      }
       eul(off.wrist, f * 8 + side * 4, sg * D[A.wy]!, D[A.wp]!, sg * D[A.wr]!);
       // (T1a) the forearm twist about the bone (the elbow node's y), the shoulder in the chest frame (+ pitch forward,
       // as the flex), the upper arm twist about the shoulder-elbow line
@@ -514,12 +796,81 @@ function build(e: ClipEdit): void {
     for (let r = 0; r < m; r++) for (const j of ix) if (kv[r * NF + j] !== 0) return 1;
     return 0;
   };
-  off.wristOn = on(ON_WRIST);
+  // (item 30e) a structural change moves the curve fields even with no value edit
+  const cs = curve && structural ? 1 : 0;
+  off.wristOn = on(ON_WRIST) || cs;
   off.foreOn = on(ON_FORE);
   off.shOn = on(ON_SH);
-  off.twUOn = on(ON_TWU);
+  off.twUOn = on(ON_TWU) || cs;
   off.headOn = on(HEAD);
-  off.pelOn = on(PEL);
+  off.pelOn = on(PEL) || cs;
+  buildSkeleton(e); // (anim-skeleton S4)
+}
+
+// (anim-skeleton S4) the clavicle, finger, leg delta and FK weight fields per side (KEY_FIELDS indexes)
+const SIDES = ['L', 'R'] as const;
+const CLAV_IX = SIDES.map((s) => [FI(`arm${s}_clavYaw`), FI(`arm${s}_clavPitch`), FI(`arm${s}_clavRoll`)] as const);
+const FING_IX = SIDES.map((s) => KEY_FINGERS.flatMap((fn) => [FI(`hand${s}_${fn}Curl`), FI(`hand${s}_${fn}Spread`)]));
+const LEGD_IX = SIDES.map((s) => KEY_LEGD.map((f) => FI(`leg${s}_${f}`)));
+const LEGW_IX = SIDES.map((s) => FI(`leg${s}_w`));
+const ON_CLAV = CLAV_IX.flat();
+const ON_FING = FING_IX.flat();
+const ON_LEGD = LEGD_IX.flat();
+/** fingers.ts SPREAD_MAX_DEG: a key's spread (deg) -> the clip's spread (1 = 30 deg), as key_clip.py writes it. */
+const SPREAD_DEG = 30;
+
+/**
+ * (anim-skeleton S4) The skeleton fields' offset tables, spread over the frames exactly as `build` spreads the others:
+ * the clavicles (chest frame, right as written and the left mirrored, key_clip.py `clav_local`), the fingers (curl as
+ * keyed, spread / 30), the leg deltas (key degrees -> the rig frame, `LEGD_SIGN`) and the FK weights; their flags.
+ */
+function buildSkeleton(e: ClipEdit): void {
+  const { meta, off } = e;
+  const N = meta.frames;
+  const kph = e.kph;
+  const kv = e.kval;
+  const m = e.kn;
+  for (let f = 0; f < N; f++) {
+    const p = f / N;
+    let a = m - 1;
+    for (let s = 0; s < m; s++) if (kph[s]! <= p) a = s;
+    const b = (a + 1) % m;
+    let pa = kph[a]!;
+    let pb = kph[b]!;
+    if (pa > p) pa -= 1;
+    if (pb <= pa) pb += 1;
+    const t = pb > pa ? (p - pa) / (pb - pa) : 0;
+    for (let j = 0; j < NF; j++) {
+      const va = kv[a * NF + j]!;
+      D[j] = va + (kv[b * NF + j]! - va) * t;
+    }
+    for (let side = 0; side < 2; side++) {
+      const sg = side === 0 ? -1 : 1;
+      const c = CLAV_IX[side]!;
+      eul(off.clav, f * 8 + side * 4, sg * D[c[0]]!, D[c[1]]!, sg * D[c[2]]!);
+      const fi = FING_IX[side]!;
+      for (let k = 0; k < fi.length; k += 2) {
+        off.fing[f * 20 + side * 10 + k] = D[fi[k]!]!;
+        off.fing[f * 20 + side * 10 + k + 1] = D[fi[k + 1]!]! / SPREAD_DEG;
+      }
+      const li = LEGD_IX[side]!;
+      const sgn = LEGD_SIGN[side]!;
+      for (let k = 0; k < li.length; k++) off.legd[f * 14 + side * KEYED_LEGD_SIDE + k] = sgn[k]! * D[li[k]!]! * D2R;
+      off.legW[f * 2 + side] = D[LEGW_IX[side]!]!;
+    }
+  }
+  meanInto(off.clav, N, 8, off.clavMean);
+  meanLin(off.fing, N, 20, off.fingMean);
+  meanLin(off.legd, N, 14, off.legdMean);
+  meanLin(off.legW, N, 2, off.legWMean);
+  const on = (ix: readonly number[]): number => {
+    for (let r = 0; r < m; r++) for (const j of ix) if (kv[r * NF + j] !== 0) return 1;
+    return 0;
+  };
+  off.clavOn = on(ON_CLAV);
+  off.fingOn = on(ON_FING);
+  off.legdOn = on(ON_LEGD);
+  off.legWOn = on(LEGW_IX);
 }
 
 /** (T1a) The Mirror box of clip `ci` in the registry (1 on, 0 off; a clip keyed in full: 1). */
@@ -542,8 +893,12 @@ function syncClip(ci: number): void {
   // (item 25) then the added / deleted keys (on the retimed positions)
   const liveMoved = syncLive(ci, mir, timeMoved);
   const L = LIVES[ci];
-  const structural = !!L && L.live.edited;
-  let diff = timeMoved || liveMoved || (!!e && e.mirror !== mir);
+  const live = !!L && L.live.edited;
+  // (item 30e) with the key file loaded a retime alone moves the curve too (the bake re-keys at the new times)
+  const timeOn = !!TIMES[ci]?.on;
+  const curveReady = !!FVALS[ci] && !!OLDC[ci];
+  const structural = live || (curveReady && timeOn);
+  let diff = timeMoved || liveMoved || (!!e && (e.mirror !== mir || e.fver !== fileVer));
   let any = false;
   for (let k = 0; k < groups.length; k++) {
     const vals = KEYS_SECTION.values[groups[k]!] as Record<string, number>;
@@ -562,6 +917,9 @@ function syncClip(ci: number): void {
       if (e ? v !== e.add[s * NF + j] : v !== 0) diff = true;
     }
   }
+  // (item 30e) the clip's first edit of any kind loads its key file (the exact preview spreads on its values)
+  if (any || live || timeOn) needFile(ci);
+  if (!e && structural) diff = true;
   if (!diff || (!e && !any && !structural)) return;
   const clip = CLIPS.get(meta.name);
   if (!clip) return;
@@ -583,6 +941,18 @@ function syncClip(ci: number): void {
       kn: 0,
       kph: new Float64Array(cap),
       kval: new Float64Array(cap * NF),
+      // (item 30e) the curve spread's tables (once per clip)
+      cn: 0,
+      cT: new Float64Array(cap),
+      cB: new Float64Array(cap * NF),
+      cK: new Float64Array(cap * NF),
+      CN: new Float64Array(N * NF),
+      CO: new Float64Array(N * NF),
+      WP: new Float64Array(N),
+      QK: new Float64Array(cap * 16),
+      EQ: new Float64Array(N * 16),
+      fver: -1,
+      curve: false,
       off: {
         trunk: new Float32Array(N * 16),
         trunkMean: new Float32Array(16),
@@ -606,6 +976,19 @@ function syncClip(ci: number): void {
         twU: new Float32Array(N * 2),
         twUMean: new Float32Array(2),
         twUOn: 0,
+        // (anim-skeleton S4)
+        clav: idq(N * 8),
+        clavMean: idq(8),
+        clavOn: 0,
+        fing: new Float32Array(N * 20),
+        fingMean: new Float32Array(20),
+        fingOn: 0,
+        legd: new Float32Array(N * 14),
+        legdMean: new Float32Array(14),
+        legdOn: 0,
+        legW: new Float32Array(N * 2),
+        legWMean: new Float32Array(2),
+        legWOn: 0,
       },
     };
     EDITS[ci] = ed;
@@ -621,11 +1004,12 @@ function syncClip(ci: number): void {
   }
   // the knots (no added key, no delete: the original keys alone, as before item 25)
   const nonzero = knots(ed, ci);
-  if (!(any || structural) || !nonzero) {
+  if (!(any || structural) || !(nonzero || (structural && curveReady))) {
     clip.keyOff = null; // back to the baked clip, bit for bit (the tables stay for the next edit)
+    ed.fver = fileVer;
     return;
   }
-  build(ed);
+  build(ed, ci, structural && curveReady);
   clip.keyOff = ed.off;
 }
 
@@ -926,6 +1310,32 @@ export function tuneKeysAdd(clip: string, k: number): number {
   // the offset the preview shows at that time (no table live: none)
   if (e && clipObj?.keyOff && e.kn > 0) keyKnotsAt(e.kph, e.kval, e.kn, NF, info.addAt / KEY_SPAN, D, 1);
   else D.fill(0);
+  // (item 30e) with the key file loaded the curve fields show the bake's curve: the added key (the original keys' linear
+  // blend + its deltas, as the bake writes it) takes the value the preview shows there, so nothing moves at its time
+  const F = FVALS[ci];
+  const old = OLDC[ci];
+  if (F && old && clipObj) {
+    const p = info.addAt / KEY_SPAN;
+    baseBlendInto(ci, p, F, D2, 0);
+    const kt = clipObj.keyTime;
+    const wp = kt ? keyWarpPhase(kt.newPos, kt.oldPos, kt.n, p) : p;
+    const onCurve = !!(e && clipObj.keyOff && e.curve && e.cn > 1);
+    for (let s = 0; s < NC; s++) {
+      const j = CURVE_J[s]!;
+      let v: number;
+      if (onCurve) {
+        keyCurveSet(KC, e.cT, e.cB, e.cn, NF, j, 1, e.cK);
+        v = keyCurveAt(KC, p);
+      } else v = keyCurveAt(old[s]!, wp);
+      D[j] = v - D2[j]!;
+    }
+    // (item 30, track A) the trunk as the preview shows it: the channel quaternions on the curve, not each Euler field
+    // on its own curve (they differ at second order with edits on more than one axis)
+    if (onCurve) {
+      trunkAtInto(e, p, D3);
+      for (let k = 0; k < TRUNK_J.length; k++) D[TRUNK_J[k]!] = D3[TRUNK_J[k]!]! - D2[TRUNK_J[k]!]!;
+    }
+  }
   const vals = KEYS_SECTION.values[added[s]!] as Record<string, number>;
   for (let j = 0; j < NF; j++) vals[FIELD_IDS[j]!] = Math.round(D[j]! * 1000) / 1000 + 0;
   tuneSet(added[s]!, KEY_AT_ID, info.addAt);
@@ -955,6 +1365,188 @@ export function tuneKeysDelete(clip: string, k: number): boolean {
   }
   syncClip(ci);
   return true;
+}
+
+// ------------------------------------------------------------------------------------------
+// (marlow-bays item 30, track A) The key tools: wave, apply to keys, smooth between, compare (tuneKeysTools.ts).
+// Each writes the key sliders through `tuneSet` (the bake path; the panel makes it one undo step). UI rate: allocates.
+// ------------------------------------------------------------------------------------------
+
+/** A key of a clip as the key tools list it: its id, the group whose sliders edit it ('' none: it follows its mirror), phase, number. */
+export interface KeyToolKey {
+  id: number;
+  group: string;
+  phase: number;
+  /** 1-based, phase order over every live key. */
+  num: number;
+  /** It has its own sliders (with the Mirror box on, a mirrored-half key follows its own key). */
+  editable: boolean;
+}
+
+/** Every live key of `clip` in phase order (the mirrored half too); `editable` the keys the Keys picker lists. */
+export function tuneKeysToolKeys(clip: string): KeyToolKey[] {
+  const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
+  const meta = KEY_CLIPS[ci];
+  if (!meta) return [];
+  syncClip(ci);
+  const T = keyTimeCount(meta);
+  const n = meta.phases.length;
+  const on = meta.mirror && mirrorOf(ci) === 1;
+  const { live } = liveNow(ci);
+  const out: KeyToolKey[] = [];
+  for (let id = 0; id < live.at.length; id++) {
+    if (live.at[id]! < 0) continue;
+    const own = id < T ? !on || id < n : id < T + S;
+    out.push({ id, group: own ? tuneKeysGroupOf(clip, id) : '', phase: keyPhase(meta, id), num: 0, editable: own });
+  }
+  out.sort((a, b) => a.phase - b.phase || a.id - b.id);
+  out.forEach((k, i) => (k.num = i + 1));
+  return out;
+}
+
+/** Key `id`'s slider deltas (every field; a mirrored key with the Mirror box on: its own key's mirrored) into `out`. */
+function keyDeltaRow(ci: number, id: number, out: Float64Array): void {
+  const meta = KEY_CLIPS[ci]!;
+  const T = keyTimeCount(meta);
+  const n = meta.phases.length;
+  const on = meta.mirror && mirrorOf(ci) === 1;
+  const row = (g: string, o: Float64Array, at: number): void => {
+    const vals = KEYS_SECTION.values[g] as Record<string, number> | undefined;
+    for (let j = 0; j < NF; j++) o[at + j] = vals?.[FIELD_IDS[j]!] ?? 0;
+  };
+  if (id < T) {
+    if (on && id >= n) {
+      row(KEY_GROUP_IDS[ci]![id - n]!, ROW, 0);
+      mirrorRow(ROW, 0, out, 0);
+    } else row(KEY_GROUP_IDS[ci]![id]!, out, 0);
+    return;
+  }
+  const s = id - T;
+  if (s < S) row(KEY_ADDED_IDS[ci]![s]!, out, 0);
+  else {
+    row(KEY_ADDED_IDS[ci]![s - S]!, ROW, 0);
+    mirrorRow(ROW, 0, out, 0);
+  }
+}
+
+/** Key `id`'s key-file pose (no edits; an added key the original keys' blend there) into `out`; false when the file is not loaded (zeros). */
+function keyBaseRow(ci: number, id: number, out: Float64Array): boolean {
+  const F = FVALS[ci];
+  if (!F) {
+    out.fill(0);
+    return false;
+  }
+  const meta = KEY_CLIPS[ci]!;
+  const T = keyTimeCount(meta);
+  if (id < T) for (let j = 0; j < NF; j++) out[j] = F[id * NF + j]!;
+  else baseBlendInto(ci, keyPhase(meta, id), F, out, 0);
+  return true;
+}
+
+/**
+ * Key `id` of `clip`: its pose as the bake will key it (key file + slider deltas, every field, KEY_FIELDS order) into
+ * `out`. False: the key file is not loaded yet (`tuneKeysLoadFile`): `out` holds the deltas alone.
+ */
+export function tuneKeysPose(clip: string, id: number, out: Float64Array): boolean {
+  const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
+  if (ci < 0) return false;
+  const base = new Float64Array(NF);
+  const ok = keyBaseRow(ci, id, base);
+  keyDeltaRow(ci, id, out);
+  for (let j = 0; j < NF; j++) out[j] = out[j]! + base[j]!;
+  return ok;
+}
+
+/**
+ * Wave: field `field` of every key with its own sliders set to `amount` x sin(2 pi (phase + timing)) (with the Mirror box
+ * on the mirrored half follows: the arms swapped, the trunk's yaw, roll and side shift negated). Returns how many keys
+ * changed (-1: not a key field).
+ */
+export function tuneKeysWave(clip: string, field: string, amount: number, timing: number): number {
+  if (!(field in KEY_FIELD_INDEX) || !Number.isFinite(amount) || !Number.isFinite(timing)) return -1;
+  let n = 0;
+  for (const k of tuneKeysToolKeys(clip)) {
+    if (!k.editable || !k.group) continue;
+    const v = keyWaveValue(amount, k.phase, timing);
+    if (tuneGet(k.group, field) !== v && tuneSet(k.group, field, v)) n++;
+  }
+  syncClip(KEY_CLIPS.findIndex((c) => c.name === clip));
+  return n;
+}
+
+/**
+ * Apply to keys: the value of slider `field` on key `from` given to the keys `ids` (key ids with their own sliders; `from`
+ * itself skipped), so every one of them carries the same change from its baked pose. Returns how many changed.
+ */
+export function tuneKeysApply(clip: string, from: number, field: string, ids: readonly number[]): number {
+  if (!(field in KEY_FIELD_INDEX)) return -1;
+  const g0 = tuneKeysGroupOf(clip, from);
+  if (!g0) return -1;
+  const v = tuneGet(g0, field);
+  const keys = tuneKeysToolKeys(clip);
+  let n = 0;
+  for (const id of ids) {
+    const k = keys.find((x) => x.id === id);
+    if (!k || !k.editable || !k.group || k.group === g0) continue;
+    if (tuneGet(k.group, field) !== v && tuneSet(k.group, field, v)) n++;
+  }
+  syncClip(KEY_CLIPS.findIndex((c) => c.name === clip));
+  return n;
+}
+
+/**
+ * Smooth between: the keys between key `a` and key `b` (going forward from a, wrapping; the keys with their own
+ * sliders) posed on an eased blend (smoothstep in time) from a's pose to b's, every field or only `field` (null: all).
+ * Poses are the bake's (key file + deltas): needs the key file (`tuneKeysLoadFile`; -1 until it loads). Returns how many
+ * keys changed.
+ */
+export function tuneKeysSmooth(clip: string, a: number, b: number, field: string | null): number {
+  const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
+  if (ci < 0 || !FVALS[ci]) return -1;
+  if (field !== null && !(field in KEY_FIELD_INDEX)) return -1;
+  const keys = tuneKeysToolKeys(clip).filter((k) => k.editable);
+  const ia = keys.findIndex((k) => k.id === a);
+  const ib = keys.findIndex((k) => k.id === b);
+  if (ia < 0 || ib < 0) return -1;
+  const A = new Float64Array(NF);
+  const B = new Float64Array(NF);
+  const base = new Float64Array(NF);
+  tuneKeysPose(clip, a, A);
+  tuneKeysPose(clip, b, B);
+  const js = field === null ? KEY_FIELDS.map((_, j) => j) : [KEY_FIELD_INDEX[field]!];
+  let n = 0;
+  for (const i of keysBetween(keys.length, ia, ib)) {
+    const k = keys[i]!;
+    const w = keySmoothWeight(keys[ia]!.phase, keys[ib]!.phase, k.phase);
+    keyBaseRow(ci, k.id, base);
+    let changed = false;
+    for (const j of js) {
+      const v = Math.round((A[j]! + (B[j]! - A[j]!) * w - base[j]!) * 1000) / 1000 + 0;
+      if (tuneGet(k.group, FIELD_IDS[j]!) !== v && tuneSet(k.group, FIELD_IDS[j]!, v)) changed = true;
+    }
+    if (changed) n++;
+  }
+  syncClip(ci);
+  return n;
+}
+
+/**
+ * Compare keys: key `a`'s pose minus key `b`'s (every field, KEY_FIELDS order; `abs` false: the key file not loaded,
+ * the slider deltas compared).
+ */
+export function tuneKeysDiff(clip: string, a: number, b: number): { d: Float64Array; abs: boolean } {
+  const A = new Float64Array(NF);
+  const B = new Float64Array(NF);
+  const abs = tuneKeysPose(clip, a, A) && tuneKeysPose(clip, b, B);
+  if (!abs) {
+    const ci = KEY_CLIPS.findIndex((c) => c.name === clip);
+    if (ci >= 0) {
+      keyDeltaRow(ci, a, A);
+      keyDeltaRow(ci, b, B);
+    }
+  }
+  for (let j = 0; j < NF; j++) A[j] = A[j]! - B[j]!;
+  return { d: A, abs };
 }
 
 /** The runtime clip by name (tests). */

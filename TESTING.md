@@ -135,6 +135,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Animation tuner Weight (anim-weight): every Weight slider at its default leaves the walk, jog, run, crouch and
   drawn movement exactly as before; momentum sliders change the local player only (time to speed, stop, turn rate),
   the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
+- [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
+  "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
+  twice as slow and it cannot fire until it is up. Holster, swap (LB), grenade throw and Every clip speed change their
+  clip the same way; Start / Stop / Landing speed change the start-off shift, stop settle and landing dip. All at 1:
+  exactly as before. Export, bake (`--only clip`), reset: same timing.
 - [ ] Animation tuner Camera (tuner-camera): the Camera section's picker follows explore / crouched / low ready / aim
   rifle / aim pistol / wall / peek / climb / vent / hold; each slider shows "today: ..." in grey. In the yard move
   "distance behind" - the camera moves back live and glides; walk into a wall and it still pulls in (never through);
@@ -154,6 +159,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   `node scripts/anim-tune-bake.mjs <export>` (rows "baked (base table)", `src/anim/animBase.ts` gets a `gear` key),
   rebuild, reset the Gear sliders: the same look. With a partner (or role B of a pair loop) the partner's sling socket
   and gear take the same rows; a guard does not.
+- [ ] Goggles (anim-goggle): in the Anim Studio (or a match, the tuner open) turn night vision on (the goggles come
+  down over her eyes), open the
+  Gear tab, pick `goggles`, slide y / z and pitch until the worn goggle sits off the brow and clear of the face, no
+  clipping; pick `goggles` > `crouch`, crouch: it follows. Vision off: the stowed goggle does not move (no stowed
+  socket yet). Zoom out to LOD1 / LOD2: only the lens moves there (the housing is fused into the head), a known limit.
+  Bake and reset as above: the same look; a guard never takes it (the partner and the studio puppets carry it but show the stowed goggle).
 - [ ] Anim Studio (anim-studio): Main menu > Anim Studio (dev) (or Pause > Anim Studio (dev)): a dark stage with a floor
   grid, the tuner docked on its View tab with the Loop player on top, the crab readout top left, the pad on the loop
   list. Pick "Walk clip": she walks in place, the feet stepping (green dots planted, orange rings swinging, short
@@ -173,12 +184,23 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   goes again; the same for the vault, ledge, drainpipe, pipe, hang bar, vent, window, door, rappel and wall loops.
   Pick "state: idle": she is back in the middle.
 
+### Every tuner slider bakes (anim-bake-targets)
+- [ ] Open the tuner: the info line says the baked values are built in (none of the 2026-10-22 values left as changes).
+- [ ] Walk, jog and run: the feet land close to one line, the arms swing more at jog and run, the knees lift more at
+  run; at low ready the elbows sit out and the rifle tuck is lighter, the pistol elbows untucked.
+- [ ] Co-op: the partner shows the same track, swing and elbows. Guards look as before.
+
 ### Wren's hands and joints (anim-skeleton S1+S2)
 - [ ] Draw the rifle, then the pistol, close to the camera (third person, zoomed in): her fingers wrap the grip and
   the foregrip, with no fingers sticking straight out; the knuckles bend round, not in sharp folds.
 - [ ] In the tuner, Hands & feet: move one finger's curl, then its spread: only that finger moves.
 - [ ] Co-op: the partner's hands also close on their gun.
 - [ ] Nothing else changed: walk, run, crouch, aim, a ladder; shoulders, arms and legs look as before.
+- [ ] (S3+S4) Anim Studio: play skeleton_test: shrug, right shoulder forward, fingers curl one by one then spread, a
+  left kick with the right foot planted.
+- [ ] (S3+S4) Keys tab on jog: on a contact key raise the knee: the leg bends but the planted foot does not slide (foot
+  slide readout under 0.5 cm); on a swing key the leg moves as keyed. A collarbone or finger field changes that key.
+- [ ] (S3+S4) Joints tab: the collarbone row shrugs and pushes the shoulder forward; reset returns it exactly.
 
 ### Playtest 2 changes (controller, CT prototype; /ct/)
 - [ ] (Replaced by anim-rework S1: the stick sets the speed, no d-pad speed.) Aiming looks noticeably slower than
@@ -208,6 +230,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Hang from a ledge and shimmy: slow, one hand at a time, wide reaches. Drainpipe climb: knees bend up and forward.
   Ledge climb-up (1.3 s): pull up, the hands stay on the lip until a knee is on the top, then a smooth stand (no hop).
   A team boost climb-up still works.
+- [ ] Marlow Yard station 3 (co-op, marlow-jammer): the camera hallway. Aim the pistol at the camera, hold RB / F and
+  stand still: the red grid goes, the camera stops turning, its LED flashes, a quiet buzz plays (both hear it); the HUD
+  counts 5 s, then COOLDOWN 5 s; released, the camera stays blind 1.5 s and cannot be jammed meanwhile. One jams while
+  the other runs; from the far lobby, the one through jams for the other; both there unlock the airlock door. The camera's
+  grid never shows inside an airlock. Jam a hallway lamp: it flickers off, stays off 4 s after you let go, flickers on.
+  Run the hallway without a jam: the camera catches you and you are put back at the hallway's start (radio line); the
+  airlock door stays locked until both got through under a jam.
 - [ ] Scanners (co-op course): a lone hack with the partner never started costs nothing; a late or abandoned hack costs
   10 HP.
 - [ ] Footage pass (G1-G4): walk, jog, run and turn on the spot: feet stay under the hips and turn with the body, the
@@ -260,6 +289,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "Aim standing" / "Aim crouched, still" / "Aim crouched, moving" as the state.
 - [ ] An older tuner save (or export) with walk / aim / wall values loads: Crouch run, Aim standing and the crouched wall
   states show the values of the rows they shared.
+- [ ] (anim-bake-1022) After a bake merges, open the tuner with your old save: the info line says how many values are
+  now built in and that your other changes are kept; the baked sliders sit at their defaults, the rest as tuned, and she
+  looks as before the merge. Reload: nothing resets again. Y menu > Reset baked gives the line again.
 - [ ] (marlow-bays T2) Anim Studio at 1920 x 1080: the tuner sits on the right in the menus' look (their font, green
   focus bar), readable without leaning in; she stands in the middle of the space left of it, never under it; no health,
   compass, objective or ammo on screen. She reads clearly lit (suit detail and face visible, not washed out).
@@ -291,6 +323,48 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] A controller paired to the phone: the pad works as on desktop (tabs, rows, edit, View hands the pad over).
 - [ ] On the desktop the panel looks as before (docked right, no handle).
 
+### Tuner v3 and game touch (marlow-bays item 29)
+- [ ] The tuner looks the same with the pad, the mouse and touch (only the hints change); on a phone (844 x 390 and
+  390 x 844) scroll the Body tab to the end: the tabs and the playback bar stay at the top.
+- [ ] Anim Studio, jog, Keyed ticked: Body > Lean and a Joints slider move her; Step length is greyed with
+  "procedural only: the keyed clip is playing". Untick Keyed: Arm swing greys ("keyed clip only").
+- [ ] No green skeleton over her at start; More > View aids turns it on.
+- [ ] Weapon tab with a rifle: "Support hand ..." moves only the left hand; "Gun ... in the gun hand" moves the gun and
+  the left hand stays on it; values read in cm and degrees.
+- [ ] View tab: Side, then Side again: her right, then her left. "Around her" at 90 / 180: her right / her front; the
+  right stick moves the slider.
+- [ ] Keys tab: scroll down, focus a slider, step the key twice: the panel stays where it was.
+- [ ] Touch screen, main menu: tap Settings, tap Back; in a match drag on the view to look round (she does not move),
+  the pause button appears top centre, tap it, tap Resume; press a key: the button hides.
+
+### Guard tuning (marlow-bays item 24)
+- [ ] Anim Studio, Body tab: Who = Guard. A guard stands where Wren stood (she is hidden), idle; the what-row shows
+  Who, then the guard state; the rows read "Right elbow bend" and the like.
+- [ ] Loop list: Guard: patrol walk, run, aim, crouched aim, wall cover: each plays on the spot; the guard state list
+  follows (walk, run, aim, crouched, wall cover). Pause and Speed work; the highlight dot sits on the guard.
+- [ ] Patrol walk, a Guard joints elbow slider: the guard's elbow turns. Who = Wren, walk: her elbow is as before.
+- [ ] Stepping tab, Who = Guard: Foot lift on the walk lifts the guard's feet; Weight tab, Who = Guard, patrol walk:
+  Hip drop per step dips the guard's hips at each step (the lean and spring sliders need real travel: a match).
+- [ ] A Hands & feet tab with Who = Guard shows "Wren's sliders: guards have ..." over her rows.
+- [ ] Export with guard rows, Import it back: the guard values return. A Warehouse match: guards patrol with the tune.
+
+### Key tools and the exact preview (marlow-bays item 30)
+- [ ] Anim Studio, Keys tab, jog key 2: open "Key tools", Wave, Channel "Chest turn", Amount 8, "Fill keys": the chest
+  turns side to side over the run (the other half mirrored); Undo once takes all of it back.
+- [ ] Select a Keys slider (Right forearm twist), set it on key 2, Apply to keys with keys 3 and 4 ticked: only those
+  change. Smooth between key 1 and key 4: keys 2 and 3 ease between the two poses.
+- [ ] Tick Compare: a light grey ghost of the previous key shows over her (paused, she flicks to that key and back
+  once) and a line "Key 2 vs key 1: ..." names the largest differences; untick: both go.
+- [ ] Pad only: reach Compare, the fold, the tool list, Amount (left / right), the ticks and the buttons; keyboard and
+  touch the same.
+- [ ] Edit a jog key, export and rebake (BAKE.md): the in-betweens look as they did in the preview (no shift).
+
+### Holds and carries (anim-natural N4)
+- [ ] Warehouse: grab a guard, walk: her hips and shoulders turn against each other with each step (not as one block).
+  Carry a body (grab menu Carry): she leans away from the shoulder the body is on and each step dips a little; she
+  walks in to the body standing, crouches, and her feet step (no slide) before she stands with it. F3 tuner, "Holds
+  and carries": each slider moves only its walk; reset puts it back.
+
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.
@@ -310,6 +384,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Joiner: Start > Restart at checkpoint and Return to lobby are greyed "Host only"; Quit to menu still works.
 - [ ] Host: Start > Return to lobby > Return: both tabs land in the room lobby (ready cleared), a new match starts.
 - [ ] Solo Sector Ops: Start > Restart at checkpoint > Restart: the section starts again from its checkpoint.
+- [ ] (marlow-bays R) Rejoin: in a co-op match, Start shows "Room CODE". Joiner: Start > Quit to menu; the host sees
+  "<name> disconnected - reconnecting..." and the joiner's body stays put. Joiner: Main menu > "Rejoin CODE": back in,
+  where you stood, same health.
+- [ ] (server browser) Host: Co-op > Host a room, Room: Public. Other tab / PC: Co-op > Browse rooms shows the room
+  (code, Marlow Yard, 1 / 2) within a few seconds; pick it to join. Once both are in, it leaves the list. One real-relay
+  check on the PC (two machines, not `?net=local`).
+- [ ] Host: Start > Quit to menu; the joiner shows "Host disconnected - waiting (CODE)". Host: Main menu > "Resume
+  hosting CODE": the match restarts at the bay you were in and the joiner is pulled in.
 
 ## Release checklist (before a job merges)
 

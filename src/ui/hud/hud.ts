@@ -382,6 +382,24 @@ export class Hud {
     if (this.downEl.textContent !== text) this.downEl.textContent = text;
   }
 
+  /** (marlow-bays R2-R3) A co-op connection line that stays up ("Wren - reconnecting...", "Host disconnected -
+   *  waiting (CODE)"); null hides it. Test hook: `.hud-net-notice`. */
+  private netEl: HTMLElement | null = null;
+  setNetNotice(text: string | null): void {
+    if (!text) {
+      if (this.netEl) this.netEl.style.display = 'none';
+      return;
+    }
+    if (!this.netEl) {
+      this.netEl = h('div', { class: 'hud-net-notice', attrs: { role: 'status' } });
+      this.netEl.style.cssText =
+        'position:absolute;left:50%;top:14%;transform:translateX(-50%);padding:6px 14px;background:rgba(0,0,0,.6);color:#ffd27a;font:600 17px/1.2 sans-serif;letter-spacing:.05em;border-radius:4px;pointer-events:none;';
+      this.el.appendChild(this.netEl);
+    }
+    this.netEl.style.display = '';
+    if (this.netEl.textContent !== text) this.netEl.textContent = text;
+  }
+
   dispose(): void {
     this.el.remove();
     this.world.dispose();

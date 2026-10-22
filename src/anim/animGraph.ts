@@ -20,6 +20,7 @@ import { MOVEMENT, TENSE } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import { TUNE_CUR, tuneMoveTwist } from './tune';
 import { WEIGHT_POSE, weightApplyPose } from './weight';
+import { CqGaitLayer } from './cqGait'; // (anim-n4, track A) the hold / carry walk trunk
 import {
   CROUCH_BACK,
   CROUCH_IDLE,
@@ -35,7 +36,8 @@ import {
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
+import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
+import { CLIP_BASE, clipSpeed } from './tuneClipSpeed'; // (clip-speed, track A)
 import { CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
@@ -175,6 +177,10 @@ export interface AnimInput {
   bend: number;
   bendDrop: number;
   sway: number;
+  /** (anim-n4, track A) The bend is over a body (lift, carry, put down), not a held guard: the carry walk. */
+  cqBody: boolean;
+  /** (anim-n4, track A) The body's load: the loaded shoulder (1 right, -1 left) x its weight on it (0..1); 0 none. */
+  cqCarry: number;
 }
 
 /** (locomotion step 10) The elbow arc's hand overlay weight at melee phase `ph` 0..1 (in by 0.17, out from 0.62). */
@@ -254,6 +260,8 @@ export function defaultInput(): AnimInput {
     hand: 1,
     bend: 0,
     bendDrop: 0,
+    cqBody: false,
+    cqCarry: 0,
     sway: 0,
   };
 }
@@ -504,6 +512,7 @@ export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
   // (anim-rework S3, BRIEF 3) muzzle ~40 deg down in front of the feet (pitch 0.8 -> 0.68), only a little inboard (yaw
   // -0.6 -> -0.22: it pointed 34 deg across the body), roll 0.2 -> 0.08
+  // (anim-bake-1022) the guards' (every non-Wren rig's) low ready; Wren's is WREN_READY_LOW
   low: { x: 0, y: -0.08, z: -0.02, pitch: 0.68, yaw: -0.22, roll: 0.08 },
   high: { x: -0.03, y: 0.07, z: -0.12, pitch: -1.0, yaw: -0.08, roll: 0 },
   // pulled in tight to the chest, muzzle forward and down (never swung across into a wall beside you)
@@ -519,6 +528,43 @@ export const READY_POSES = {
  * gun in toward the centre line and in close at the lower chest, muzzle ~40 deg down, straight ahead.
  */
 export const PISTOL_READY = { x: -0.08, y: -0.05, z: -0.1, pitch: 0.7, yaw: -0.05, roll: 0 } as const;
+/** (anim-bake-1022) A ready pose of the weapon layer (m, rad). */
+export interface ReadyPose {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly pitch: number;
+  readonly yaw: number;
+  readonly roll: number;
+}
+/**
+ * (anim-bake-1022, "Wren's rows never touch guards") Wren's own rifle low ready and pistol low ready: every Wren rig
+ * (`CharacterRig.tuneRows`: the player, the co-op partner, the studio puppets) reads these, every other rig (guards,
+ * VIP, dummy) READY_POSES.low and PISTOL_READY. The tuner's gun bake targets these (`tuneBakeTable.ts`). Michael's
+ * 2026-10-22 tune: low pitch / yaw / roll 0.68 / -0.22 / 0.08 -> 0.75 / -0.63 / 0.54; pistol y / z / pitch -0.05 / -0.1
+ * / 0.7 -> -0.34 / 0.08 / 1.16.
+ */
+export const WREN_READY_LOW = { x: 0, y: -0.08, z: -0.02, pitch: 0.75, yaw: -0.63, roll: 0.54 } as const;
+export const WREN_PISTOL_READY = { x: -0.08, y: -0.34, z: 0.08, pitch: 1.16, yaw: -0.05, roll: 0 } as const;
+/**
+ * (anim-bake-targets, BT-A2) Wren's elbow tuck multiplier per gun state (the tuner's gun groups; the bake writes each,
+ * `tuneBakeTable.ts`): a Wren rig's tuck (max(AIM_ELBOW_TUCK x aimK, READY_ELBOW_TUCK .. _CROUCH)) times this, every other
+ * rig (guards, VIP, dummy) times 1. Identity 1 everywhere = the old shared tuck, bit-identical.
+ */
+export const WREN_TUCK = {
+  rifle: { lowReady: 0.75, aim: 1, aimCrouch: 1 },
+  pistol: { lowReady: 0, aim: 1, aimCrouch: 1 },
+};
+/**
+ * A Wren rig's tuck multiplier: the low ready's at aimK 0, the aim's (crouched by `crouch` 0..1) at aimK 1, blended
+ * between (no pop on raise); exact per state in the steady states. No allocation.
+ */
+export function wrenTuckMul(pistol: boolean, aimK: number, crouch: number): number {
+  const t = pistol ? WREN_TUCK.pistol : WREN_TUCK.rifle;
+  if (aimK <= 0) return t.lowReady;
+  const aim = crouch <= 0 ? t.aim : crouch >= 1 ? t.aimCrouch : t.aim + (t.aimCrouch - t.aim) * crouch;
+  return aimK >= 1 ? aim : t.lowReady + (aim - t.lowReady) * aimK;
+}
 export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
 /**
  * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine
@@ -568,6 +614,10 @@ const HOLSTER_TAU = 0.06;
 const GRIP_RATE = 5;
 /** Seconds the support hand takes to settle onto the wall. */
 const WALL_HAND_TIME = 0.42;
+// (clip-speed, track A) the tuner's "today" lines: each timed body clip's duration at its code rate
+CLIP_BASE.startShift = START_SHIFT.duration / CLIP_RATE.startShift;
+CLIP_BASE.stopSettle = STOP_SETTLE.duration / CLIP_RATE.stopSettle;
+CLIP_BASE.land = LAND.duration / CLIP_RATE.land;
 
 const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, pipeClimb: PIPE_CLIMB, crawl: CRAWL, crawlOut: CRAWL_OUT, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
 
@@ -680,6 +730,8 @@ export class AnimGraph {
   private bendS = 0;
   private bendDropS = 0;
   private swayS = 0;
+  /** (anim-n4, track A) The hold / carry walk's counter-rotation, lean and step weight (cqGait.ts). */
+  private readonly cqGait = new CqGaitLayer();
   /** Ready-hands weight (A42), eased ~0.25 s. */
   private readyW = 0;
   /** (G8) The keyed walk's eased weight. */
@@ -950,13 +1002,13 @@ export class AnimGraph {
     if (this.startT >= 0) {
       addClip(src, START_SHIFT, this.startT, 1 - crouchK * 0.5);
       this.slot('start', 1, this.startT);
-      this.startT += dt;
+      this.startT += dt * CLIP_RATE.startShift * clipSpeed('startShift'); // (clip-speed, track A)
       if (this.startT > START_SHIFT.duration) this.startT = -1;
     }
     if (this.settleT >= 0) {
       addClip(src, STOP_SETTLE, this.settleT, 1);
       this.slot('settle', 1, this.settleT);
-      this.settleT += dt;
+      this.settleT += dt * CLIP_RATE.stopSettle * clipSpeed('stopSettle'); // (clip-speed, track A)
       if (this.settleT > STOP_SETTLE.duration) this.settleT = -1;
     }
     if (i.motion === 'pivot') {
@@ -1035,7 +1087,7 @@ export class AnimGraph {
       // (a traversal taking over, the landing roll started on the next frame: the deep landing gives way to it)
       if (i.traverse !== 'none') this.landK = 0;
       if (lk > 0 && i.traverse === 'none') addClip(src, LAND_DEEP, this.landT, lk * (1 - 0.75 * crouchK));
-      this.landT += dt;
+      this.landT += dt * CLIP_RATE.land * clipSpeed('land'); // (clip-speed, track A)
       if (this.landT > (lk > 0 ? LAND_DEEP.duration : LAND.duration)) this.landT = -1;
     }
     // dash: low, driving rush (the dash cycle is in the blend space; this adds the wind-up crouch)
@@ -1183,7 +1235,7 @@ export class AnimGraph {
     const ready = 1 - raiseW * (1 - swapBump);
     // (anim-rework S3) the pistol's low ready is its compressed ready (PISTOL_READY), by the light gun's weight
     const pistolW = clamp((0.85 - mass) / 0.15, 0, 1);
-    const rl = pistolW > 0 ? this.pistolLow(pistolW) : READY_POSES.low;
+    const rl = pistolW > 0 ? this.pistolLow(pistolW) : this.readyLow;
     const rh = READY_POSES.high;
     const rc = READY_POSES.compressed;
     // (locomotion step 21, D2) no free-running weapon sway: the only idle weapon motion is what the chest breathing carries
@@ -1439,6 +1491,7 @@ export class AnimGraph {
       src[CH.pelY] = src[CH.pelY]! - this.bendDropS;
       src[CH.pelX] = src[CH.pelX]! + this.swayS;
     }
+    this.cqGait.apply(src, i.bend > 0 || i.bendDrop > 0, i.cqBody, i.cqCarry, this.phase, this.moveW, dt); // (anim-n4, track A)
 
     // --- additive: hit flinch, heel-strike compression, weight over the support foot
     const hx = this.hit.step(0, 9, dt);
@@ -2011,11 +2064,26 @@ export class AnimGraph {
     ly.inert = this.inert.maxOffset;
   }
 
-  /** (anim-rework S3) READY_POSES.low toward PISTOL_READY by the pistol weight, into a scratch pose (no allocation). */
+  /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */
+  private readyLow: ReadyPose = READY_POSES.low;
+  private readyPistol: ReadyPose = PISTOL_READY;
+  /**
+   * (anim-bake-1022) A Wren rig's ready poses (WREN_READY_LOW / WREN_PISTOL_READY) or every other rig's (READY_POSES.low
+   * / PISTOL_READY). Set where the rig is made (`CharacterRig.tuneRows`); the per-frame pick reads the references only.
+   */
+  set wrenReady(on: boolean) {
+    this.readyLow = on ? WREN_READY_LOW : READY_POSES.low;
+    this.readyPistol = on ? WREN_PISTOL_READY : PISTOL_READY;
+  }
+  get wrenReady(): boolean {
+    return this.readyLow === WREN_READY_LOW;
+  }
+
+  /** (anim-rework S3) The low ready toward the pistol's by the pistol weight, into a scratch pose (no allocation). */
   private readonly pLow = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 };
   private pistolLow(w: number): { x: number; y: number; z: number; pitch: number; yaw: number; roll: number } {
-    const a = READY_POSES.low;
-    const b = PISTOL_READY;
+    const a = this.readyLow;
+    const b = this.readyPistol;
     const o = this.pLow;
     o.x = a.x + (b.x - a.x) * w;
     o.y = a.y + (b.y - a.y) * w;

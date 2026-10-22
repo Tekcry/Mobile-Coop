@@ -97,7 +97,9 @@ const res = await page.evaluate(([only, log]) => {
     const kd = V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition());
     if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.pose.traverse}`);
     acc.minKnees = Math.min(acc.minKnees, kd);
-    acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
+    // (anim-bake-targets) Michael's 2026-10-22 tune (idle trackMul 0.05): the first frame after a teleport still shows the
+    // standing stance of the scenario before (ankles ~3 cm apart), not the climb: the feet count from the second frame
+    if (acc.n > 0) acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
     acc.n++;
     acc.maxBody = Math.max(acc.maxBody ?? 0, pen);
     if (pen > 0.03) { acc.body = (acc.body ?? 0) + 1; if (window.__dbg) acc.log.push(`t ${acc.n} BODY ${(pen * 100).toFixed(1)} at ${where} feet ${c.pos.x.toFixed(2)},${c.pos.y.toFixed(2)},${c.pos.z.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} kind ${g.traversal.kind} wall ${g.wallCore?.phase ?? '-'}`); }

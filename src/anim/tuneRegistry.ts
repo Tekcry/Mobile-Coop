@@ -349,6 +349,22 @@ export interface TuneSnapshot {
   version: 1 | 2;
   values: Record<string, Record<string, number>>;
   log: TuneChange[];
+  /**
+   * (anim-bake-1022) The ledger bakes whose baked sliders were reset (`tuneBakedReset.ts`): `hash@at` ids; a bare hash
+   * (4.46.x saves) stands for the first ledger bake with that hash only. Absent: none.
+   */
+  baked?: string[];
+}
+
+/** (anim-bake-1022) The applied bake ids (`hash@at`; a 4.46.x save may hold a bare hash) (loaded and saved with the snapshot; an import or a reset keeps them). */
+let bakedApplied: string[] = [];
+
+export function tuneBakedApplied(): readonly string[] {
+  return bakedApplied;
+}
+
+export function tuneSetBakedApplied(ids: readonly string[]): void {
+  bakedApplied = ids.filter((h) => typeof h === 'string');
 }
 
 export function tuneSnapshot(): TuneSnapshot {
@@ -356,7 +372,9 @@ export function tuneSnapshot(): TuneSnapshot {
   for (const c of tuneChanged()) (values[c.group] ??= {})[c.id] = c.value;
   // a saved section that has not registered yet keeps its values
   for (const [g, vals] of Object.entries(pending)) if (!values[g]) values[g] = { ...vals };
-  return { version: TUNE_ROWS_VERSION, values, log: TUNE_LOG.slice() };
+  const snap: TuneSnapshot = { version: TUNE_ROWS_VERSION, values, log: TUNE_LOG.slice() };
+  if (bakedApplied.length) snap.baked = bakedApplied.slice();
+  return snap;
 }
 
 function validChange(c: unknown): c is TuneChange {
@@ -398,6 +416,7 @@ export function tuneLoad(s: unknown): void {
     TUNE_LOG.length = 0;
     if (Array.isArray(snap.log)) for (const c of snap.log.slice(-LOG_MAX)) if (validChange(c)) TUNE_LOG.push(c);
     lastLogAt = 0;
+    bakedApplied = Array.isArray(snap.baked) ? (snap.baked as unknown[]).filter((h): h is string => typeof h === 'string') : [];
   } finally {
     TUNE_HOOKS.changed = hook;
   }

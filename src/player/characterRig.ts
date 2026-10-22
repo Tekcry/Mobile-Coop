@@ -5,26 +5,31 @@ import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
-import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, type AnimInput, type TraverseKind } from '../anim/animGraph';
+import { AIM_ELBOW_TUCK, AnimGraph, defaultInput, meleePoleW, wrenTuckMul, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { elbowSwivelClear, solveTwoBone } from '../anim/rigMath';
 import { HOLDS, holdInto, solveHold, type HandFrame, type HoldName } from './handHold';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
+import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
-import { KA, KE, KQ, KW, type KeyedPose } from '../anim/keyed';
+import { KA, KD, KE, KEYED_LEG_SIDE, KEYED_LEGD_SIDE, KL, KQ, KW, type KeyedPose } from '../anim/keyed';
+import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
 import { TUNE_CUR } from '../anim/tune';
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
 import { tuneRigBegin, tuneRigEnd, tuneRigState, type TuneRigState } from '../anim/tuneJointsRig';
+import { guardRigBegin, guardRigEnd, guardRigState, type GuardRigState } from '../anim/tuneGuardRig';
+import { GUARD_STEP_ROWS } from '../anim/tuneGuard';
+import { STEP_IDENTITY_ROWS } from '../anim/tuneStep';
 import { gearCompose, GS } from '../anim/tuneGear';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
-import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavPoint, clavQuat } from '../anim/clavicle';
-import { GOGGLE_OFFSET } from '../operators/runtime/goggle';
+import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
+import { GOGGLE_OFFSET, setGoggleOffset } from '../operators/runtime/goggle';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 /** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
@@ -107,6 +112,11 @@ export interface RigPose {
   bendDrop?: number;
   /** (marlow-bays T1a) The bend is over a body (lift, carry, put down), not a held guard: the tuner's `carry` row. */
   carryBody?: boolean;
+  /** (anim-n4, track A) The carried body's load: its shoulder (1 right, -1 left) x its weight on it (0..1): the carry's
+   *  lean away from the load and the hips under it scale by it (none kneeling at the body). Absent: no load. */
+  carrySide?: number;
+  /** (anim-n4, track A) The body lift's step-in 0..1 (absent / -1: no lift): the rig's lift crouch pose (`CqLiftCrouch`). */
+  liftStep?: number;
   sway?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
@@ -264,6 +274,21 @@ const protV = new Vector3();
 const clavBuf = new Float64Array(4);
 const clavV = new Vector3();
 const scTmp = { x: 0, y: 0, z: 0 };
+/** (anim-skeleton S4) Scratch for the leg deltas: the hip, solved knee, plant, raw and planted knee, a direction; the
+ *  planted foot, the ankle delta, the raw hip / knee / ankle locals. */
+const ldH = new Vector3();
+const ldK0 = new Vector3();
+const ldA0 = new Vector3();
+const ldKr = new Vector3();
+const ldKp = new Vector3();
+const ldV = new Vector3();
+const ldX = new Vector3();
+const ldN = new Vector3();
+const ldF0 = new Quaternion();
+const ldD = new Quaternion();
+const ldQh = new Quaternion();
+const ldQk = new Quaternion();
+const ldQa = new Quaternion();
 /** (S2) The tuner's per-finger rows (Hands & feet): each hand's thumb curl index (spread next, then the next finger). */
 const HP_FING_L = HP.thumbLCurl!;
 const HP_FING_R = HP.thumbRCurl!;
@@ -320,6 +345,9 @@ export const READY_ELBOW_TUCK = 0.5;
 /** (anim-rework S4) Crouched the low ready elbows tuck this much (the crouched trunk leans the shoulders over the gun:
  *  READY_ELBOW_TUCK left them 6.7 cm out in the crouched low ready walk, the leaning trunk 5.9 at 0.7). */
 export const READY_ELBOW_TUCK_CROUCH = 0.8;
+/** (anim-bake-targets) The arm IK pole's outward share (was the inline 0.55 in solveArm); the Body slider elbowPoleMul
+ *  scales it, per state through the base table's `body` key. */
+export const ELBOW_POLE_OUT = 0.55;
 /** (anim-rework S4) The knee pole's outward share in the free kneel (KNEE_OUT 0.12 put the front knee 4.7 cm outside its
  *  ankle): the knees track over the toes. */
 export const KNEEL_KNEE_OUT = 0.03;
@@ -453,6 +481,8 @@ const tmpQ3 = new Quaternion();
 /** (21w) Weapon glide scratch. */
 /** (anim-gear) `gearPlace`'s result (position, rotation). */
 const gearRes = new Float64Array(7);
+/** (anim-goggle) `GOGGLE_OFFSET.inUse` kept across a Wren rig's goggle write (x, y, z, pitch, yaw, roll). */
+const goggleSave = new Float64Array(6);
 const glideInv = new Matrix();
 const glideLocal = new Matrix();
 const glideS = new Vector3();
@@ -528,12 +558,30 @@ export class CharacterRig {
   readonly clavL: TransformNode;
   readonly clavR: TransformNode;
   /**
-   * (S2) Clavicle input (anim/clavicle.ts layout: per side pitch, yaw, roll in degrees, chest frame): the slot S3's clip
-   * channel and S4's Joints row write; a test or dev tool may set it directly. Zero: identity, nothing moves.
+   * (S2) Clavicle input (anim/clavicle.ts layout: per side pitch, yaw, roll in degrees, chest frame) for a test or dev
+   * tool; (S3) the clip channel and (S4) the Joints clavicle rows turn on the node beside it (`clavFrame`). Zero: identity.
    */
   readonly clavIn = new Float64Array(CLAV_LEN);
   /** (S2) Per side whether the clavicle is turned this frame. */
   private readonly clavOn = new Uint8Array(2);
+  /**
+   * (anim-skeleton S3) The clip's clavicle channel this frame (L, R quaternions in the chest frame, already weighted),
+   * a quaternion path beside the Euler `clavIn` (no Euler round trip); per side whether it turns (0: not keyed).
+   */
+  private readonly clavKey = new Float64Array(8);
+  private readonly clavKeyOn = new Uint8Array(2);
+  /** (S3) 1 while the clip's finger channel is in `fingerClip` (cleared once when it stops; else the slot is untouched). */
+  private fingClipOn = 0;
+  /**
+   * (anim-skeleton S4) Per side, cm the planted foot (its ankle) moved off the planner's solved plant during its current
+   * contact (the most this contact), by the clip's FK legs or leg deltas; 0 when the foot is not planted or nothing
+   * keyed turns the leg. The studio shows it (Course Ready's line); the re-solve keeps it ~0. Written each frame, no
+   * allocation.
+   */
+  readonly footSlide = { l: 0, r: 0 };
+  /** (S4) The planted ankles before the keyed leg stages (world, L then R) and last frame's contacts (footSlide). */
+  private readonly plantAt = new Float64Array(6);
+  private readonly slideContact = new Uint8Array(2);
   /**
    * (S2, A9) The hands' per-finger curl and spread (anim/fingers.ts layout), composed at the end of each frame: the grip
    * closure's shape (`handGrip`), this rig's own Hands & feet finger rows (tuner), and `fingerClip`. The figure turns
@@ -633,6 +681,25 @@ export class CharacterRig {
   set tuneRows(on: boolean) {
     if (on && !this.tuneSt) this.tuneSt = tuneRigState();
     else if (!on) this.tuneSt = null;
+    // (anim-bake-1022) a Wren rig holds Wren's low ready / pistol ready, every other rig the guards' (a reference swap)
+    this.graph.wrenReady = on;
+    // (item 24, track A) a Wren rig's planner reads Wren's Stepping rows (the shared table), any other the identity table
+    if (!this.guardSt) this.planner.stepRows = on ? null : STEP_IDENTITY_ROWS;
+  }
+  /** (item 24, track A) This guard rig's window state on the guard tables (`guardRows`); null: not a guard rig. */
+  guardSt: GuardRigState | null = null;
+  /**
+   * (item 24, track A) A guard rig reads the guard base table and the tuner's guard rows (Guard joints, Guard stepping,
+   * Guard weight; `tuneGuard.ts`), never Wren's: set where a guard's rig is made (`buildEnemyRig`: the host's guards
+   * and the co-op client's puppets). Its planner reads the guards' stepping table. Off for every other rig.
+   */
+  get guardRows(): boolean {
+    return this.guardSt !== null;
+  }
+  set guardRows(on: boolean) {
+    if (on && !this.guardSt) this.guardSt = guardRigState();
+    else if (!on) this.guardSt = null;
+    this.planner.stepRows = on ? GUARD_STEP_ROWS : this.tuneSt ? null : STEP_IDENTITY_ROWS;
   }
   /**
    * (anim-gear, marlow-bays item 22) The version of this rig's gear offsets (`tuneGear.ts`; 0 on a rig without
@@ -949,6 +1016,8 @@ export class CharacterRig {
   groundProbe: ((x: number, z: number, yFrom: number) => number | null) | null = null;
   /** World-space foot placement (contacts, locking, swing arcs, idle stepping). */
   readonly planner = new FootPlanner();
+  /** (anim-n4, track A) The body lift's crouch pose (cqGait.ts). */
+  private readonly liftCrouch = new CqLiftCrouch();
   /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
   readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
@@ -1041,6 +1110,8 @@ export class CharacterRig {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
     this.graph = new AnimGraph(p);
+    // (item 24, track A) neither Wren's nor a guard's until `tuneRows` / `guardRows` says so: the identity stepping table
+    this.planner.stepRows = STEP_IDENTITY_ROWS;
     const n = (nm: string, parent: TransformNode | null, x = 0, y = 0, z = 0): TransformNode => {
       const t = new TransformNode(`${name}-${nm}`, scene);
       t.parent = parent;
@@ -1520,7 +1591,17 @@ export class CharacterRig {
     // (anim-joints J1) a Wren rig (`tuneRows`) opens its own tuner window: its rows of the base table + the tuner deltas
     const ts = this.tuneSt;
     if (ts === null) {
-      this.animateFrame(dt, s);
+      // (item 24, track A) a guard rig (`guardRows`) opens its own window on the guard tables; nothing live: untouched
+      const gs = this.guardSt;
+      if (gs === null || !guardRigBegin(gs, s, this, dt)) {
+        this.animateFrame(dt, s);
+        return;
+      }
+      try {
+        this.animateFrame(dt, s);
+      } finally {
+        guardRigEnd(gs, this);
+      }
       return;
     }
     tuneRigBegin(ts, s, this, dt);
@@ -1547,7 +1628,9 @@ export class CharacterRig {
       i.localZ = back ? -1 : 1;
     }
     i.grounded = s.grounded;
-    i.crouch = s.crouch;
+    // (anim-n4, track A) the body lift: the step-in posed standing, kneeling once it is done, standing up only once both
+    // feet are planted (the planner's last frame; animation only)
+    i.crouch = this.liftCrouch.step(s.crouch, s.liftStep ?? -1, this.planner.L.contact && this.planner.R.contact, dt);
     i.kneel = s.kneel ?? false;
     i.tense = s.tense ?? false;
     // (G8) the keyed walk: free movement along the facing, not holding / carrying / lowering a body (the hostage walk
@@ -1597,6 +1680,8 @@ export class CharacterRig {
     i.melee = s.melee ?? -1;
     i.bend = s.bend ?? 0;
     i.bendDrop = s.bendDrop ?? 0;
+    i.cqBody = s.carryBody === true; // (anim-n4, track A)
+    i.cqCarry = s.carryBody ? (s.carrySide ?? 0) : 0;
     i.sway = s.sway ?? 0;
     i.tumble = s.tumble ?? 0;
     i.check = s.check ?? -1;
@@ -1814,8 +1899,36 @@ export class CharacterRig {
     for (let i = 0; i < FING_LEN; i++) f[i] = f[i]! + c[i]!;
   }
 
-  /** (S2) This window's goggle gear offsets into `goggleOff` (the figure applies its own pose's). No allocation. */
+  /**
+   * (S2) This window's goggle gear offsets into `goggleOff` (the figure applies its own pose's). (anim-goggle) A Wren rig
+   * with a `goggles` gear offset writes it into `GOGGLE_OFFSET.inUse` (over the table's own value) for the copy and puts
+   * the old value back after, so the global never leaks to the next rig. No offset: the table copied as it stands. No
+   * allocation.
+   */
   private goggleFrame(): void {
+    const ts = this.tuneSt;
+    const gOn = ts !== null && ts.gear.live[GS.goggles] === 1;
+    if (gOn) {
+      const u = GOGGLE_OFFSET.inUse;
+      const v = ts.gear.goggle;
+      const w = goggleSave;
+      w[0] = u.x;
+      w[1] = u.y;
+      w[2] = u.z;
+      w[3] = u.pitch;
+      w[4] = u.yaw;
+      w[5] = u.roll;
+      setGoggleOffset('inUse', u.x + v[0]!, u.y + v[1]!, u.z + v[2]!, u.pitch + v[3]!, u.yaw + v[4]!, u.roll + v[5]!);
+    }
+    this.goggleCopy();
+    if (gOn) {
+      const w = goggleSave;
+      setGoggleOffset('inUse', w[0]!, w[1]!, w[2]!, w[3]!, w[4]!, w[5]!);
+    }
+  }
+
+  /** (S2) `GOGGLE_OFFSET` (stowed, then in use) into `goggleOff`. */
+  private goggleCopy(): void {
     const g = this.goggleOff;
     for (let k = 0; k < 2; k++) {
       const o = k === 0 ? GOGGLE_OFFSET.stowed : GOGGLE_OFFSET.inUse;
@@ -1830,21 +1943,33 @@ export class CharacterRig {
   }
 
   /**
-   * (anim-skeleton S2) The clavicle nodes from `clavIn` (before the arms: a turned clavicle carries its shoulder's rest
-   * about the SC point in `solveArm`). An untouched side stays at the identity it was built with. No allocation.
+   * (anim-skeleton S2) The clavicle nodes from `clavIn` and (S3) the clip's clavicle channel (`clavKey`: the Joints / tool
+   * input turns on top of it in the chest frame), before the arms: a turned clavicle carries its shoulder's rest about
+   * the SC point in `solveArm`. (S3, the S2 polish note) `applyTargets` has no early return: this and both `solveArm`
+   * calls run as a pair on every animated frame, and nothing else writes the clavicle nodes or the shoulders' positions
+   * after them, so the node's turn and the shoulder's carry always agree and `readRig`'s un-carry is exact (an LOD-skipped
+   * frame changes neither). An untouched side stays at the identity it was built with. No allocation.
    */
   private clavFrame(): void {
     for (let k = 0; k < 2; k++) {
       const o = k === 0 ? CLAV_L : CLAV_R;
       const q = (k === 0 ? this.clavL : this.clavR).rotationQuaternion!;
-      if (clavActive(this.clavIn, o)) {
-        clavQuat(this.clavIn, o, clavBuf, 0);
+      const tuned = clavActive(this.clavIn, o);
+      const keyed = this.clavKeyOn[k] === 1;
+      if (tuned || keyed) {
+        if (tuned) {
+          clavQuat(this.clavIn, o, clavBuf, 0);
+          if (keyed) clavCompose(clavBuf, 0, this.clavKey, k * 4);
+        } else for (let c = 0; c < 4; c++) clavBuf[c] = this.clavKey[k * 4 + c]!;
         q.set(clavBuf[0]!, clavBuf[1]!, clavBuf[2]!, clavBuf[3]!);
         this.clavOn[k] = 1;
       } else if (this.clavOn[k] === 1) {
         q.set(0, 0, 0, 1);
         this.clavOn[k] = 0;
       }
+      // (anim-skeleton S4) the Joints clavicle row (this rig's composed base + tuner delta, eased; outside a tuner window
+      // or at zero: no-op) on top in the chest frame, as the shoulder rows turn in their parent's frame
+      if (jointApply(q, k === 0 ? J.clavicleL : J.clavicleR, true)) this.clavOn[k] = 1;
     }
   }
 
@@ -2258,6 +2383,12 @@ export class CharacterRig {
       }
     }
     if (HANDS_CUR.ikOn) this.ikStrengthLimbs(2); // (tuner-v2 item 2) IK targeting strength, before the joint offsets
+    // (anim-skeleton S4) the planted ankles before the keyed leg stages (footSlide), then the deltas over the planner
+    const legKeyed = kw > 0 && (kq.hasLeg === 1 || kq.hasLegd === 1);
+    if (legKeyed) this.plantMark();
+    if (kw > 0 && kq.hasLeg) this.keyedLegs(kq, kw); // (anim-skeleton S3, A7) the clip's FK legs over the IK legs
+    if (kw > 0 && kq.hasLegd === 1) this.keyedLegDeltas(kq, kw);
+    this.footSlideStep(legKeyed);
     if (JOINTS_CUR.on) this.jointOffsets(1); // (tuner-v2) per-joint offsets on the solved legs
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
@@ -2359,6 +2490,12 @@ export class CharacterRig {
     const hm = this.heldModel;
     if (hm) hm.tuneVisual(HANDS_CUR.on && HANDS_GUN.on && hm.node === this.heldWeapon ? HANDS_GUN : null);
     this.triggerTune = HANDS_CUR.on ? HANDS_CUR.trigger : 0;
+    // (anim-skeleton S3) the clip's clavicle and finger channels by the keyed arms' weight (free hands), else the drawn
+    // set's edit weight (a gun in hand), as the shoulder channel
+    {
+      const kaw0 = kw > 0 && gripW <= 0 && this.kneeHandW === 0 ? t.keyArmW : 0;
+      this.keyedUpper(kq, kaw0 > 0 ? kaw0 : kw * t.keyDrawn);
+    }
     this.clavFrame(); // (anim-skeleton S2) the clavicles before the arms reach from the shoulders
     this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
     this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : offWall, leftGrips, leftGrips ? 0 : t.offMag);
@@ -2524,6 +2661,197 @@ export class CharacterRig {
       Quaternion.SlerpToRef(wr.rotationQuaternion!, kT, w, wr.rotationQuaternion!);
     }
     fresh(wr);
+  }
+
+  /**
+   * (anim-skeleton S3) The clip's clavicle channel into `clavKey` (each side by `w`, as `keyPow`; a side left at the
+   * identity is off) and its finger channel into `fingerClip` (x `w`). Without the channel (or `w` 0) the clavicle path
+   * is off and `fingerClip` is cleared once, then left to whoever else writes it (a test, a tool). No allocation.
+   */
+  private keyedUpper(kq: KeyedPose, w: number): void {
+    const clav = w > 0 && kq.hasClav === 1;
+    for (let k = 0; k < 2; k++) {
+      this.clavKeyOn[k] = 0;
+      if (!clav) continue;
+      keyPow(kq.clav, k * 4, w, kT);
+      if (kT.x === 0 && kT.y === 0 && kT.z === 0) continue;
+      const b = k * 4;
+      this.clavKey[b] = kT.x;
+      this.clavKey[b + 1] = kT.y;
+      this.clavKey[b + 2] = kT.z;
+      this.clavKey[b + 3] = kT.w;
+      this.clavKeyOn[k] = 1;
+    }
+    const c = this.fingerClip;
+    if (w > 0 && kq.hasFing === 1) {
+      for (let i = 0; i < FING_LEN; i++) c[i] = kq.fing[i]! * w;
+      this.fingClipOn = 1;
+    } else if (this.fingClipOn === 1) {
+      c.fill(0);
+      this.fingClipOn = 0;
+    }
+  }
+
+  /**
+   * (anim-skeleton S3, A7) The clip's FK legs over the solved IK legs, per side by its keyed weight (0..1) x `kw`: the
+   * hip (local to the pelvis), the knee flex (about its local X), the ankle (local to the knee) and the toe slerped from
+   * the IK solution toward the clip's. Runs after the legs' solves and the IK strength, before the Joints offsets and
+   * the rate limits; at weight 0 the planner's leg is untouched (a planted foot stays planted). No allocation.
+   */
+  private keyedLegs(kq: KeyedPose, kw: number): void {
+    const g = kq.leg;
+    for (let k = 0; k < 2; k++) {
+      const b = k * KEYED_LEG_SIDE;
+      const lw = g[b + KL.w]!;
+      const w = (lw < 0 ? 0 : lw > 1 ? 1 : lw) * kw;
+      if (!(w > 0)) continue;
+      const hip = k === 0 ? this.hipL : this.hipR;
+      const knee = k === 0 ? this.kneeL : this.kneeR;
+      const ankle = k === 0 ? this.ankleL : this.ankleR;
+      const toe = k === 0 ? this.toeL : this.toeR;
+      const h = b + KL.hip;
+      kT.set(g[h]!, g[h + 1]!, g[h + 2]!, g[h + 3]!);
+      Quaternion.SlerpToRef(hip.rotationQuaternion!, kT, w, hip.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, g[b + KL.knee]!, 0, kT);
+      Quaternion.SlerpToRef(knee.rotationQuaternion!, kT, w, knee.rotationQuaternion!);
+      const a = b + KL.ankle;
+      kT.set(g[a]!, g[a + 1]!, g[a + 2]!, g[a + 3]!);
+      Quaternion.SlerpToRef(ankle.rotationQuaternion!, kT, w, ankle.rotationQuaternion!);
+      Quaternion.RotationYawPitchRollToRef(0, g[b + KL.toe]!, 0, kT);
+      Quaternion.SlerpToRef(toe.rotationQuaternion!, kT, w, toe.rotationQuaternion!);
+      freshBelow(toe, this.hips);
+    }
+  }
+
+  /** (anim-skeleton S4) Each ankle's world position into `plantAt` (the plant footSlide measures from). No allocation. */
+  private plantMark(): void {
+    for (let k = 0; k < 2; k++) {
+      const an = k === 0 ? this.ankleL : this.ankleR;
+      freshBelow(an, this.hips);
+      const a = an.getAbsolutePosition();
+      this.plantAt[k * 3] = a.x;
+      this.plantAt[k * 3 + 1] = a.y;
+      this.plantAt[k * 3 + 2] = a.z;
+    }
+  }
+
+  /**
+   * (anim-skeleton S4) `footSlide` per side: in contact, the most the ankle moved off `plantAt` this contact (cm; this
+   * frame's offset counts only when `active`, the keyed leg stages ran); not in contact, 0. No allocation.
+   */
+  private footSlideStep(active: boolean): void {
+    for (let k = 0; k < 2; k++) {
+      const f = k === 0 ? this.planner.L : this.planner.R;
+      let s = k === 0 ? this.footSlide.l : this.footSlide.r;
+      if (!f.contact) s = 0;
+      else {
+        let e = 0;
+        if (active) {
+          const an = k === 0 ? this.ankleL : this.ankleR;
+          freshBelow(an, this.hips);
+          const a = an.getAbsolutePosition();
+          const dx = a.x - this.plantAt[k * 3]!;
+          const dy = a.y - this.plantAt[k * 3 + 1]!;
+          const dz = a.z - this.plantAt[k * 3 + 2]!;
+          e = Math.sqrt(dx * dx + dy * dy + dz * dz) * 100;
+        }
+        s = this.slideContact[k] === 1 && s > e ? s : e;
+      }
+      this.slideContact[k] = f.contact ? 1 : 0;
+      if (k === 0) this.footSlide.l = s;
+      else this.footSlide.r = s;
+    }
+  }
+
+  /**
+   * (anim-skeleton S4) The clip's leg deltas (`legd`, rad, rig frame, x `kw`) over the solved legs, right after the FK
+   * blend: raw, each joint's local rotation turned by its delta (hip yaw / pitch / roll, the knee and ankle and toe
+   * about their hinges). A planted leg (the planner's contact weight, `legdContactW`) is re-solved onto its plant: the
+   * knee moves to the plant's circle on the raw knee's side (`plantKnee`), the hip and the shin turned by the shortest
+   * arcs onto it and back onto the plant, the foot keeps its planted world rotation turned by the ankle delta, the toe
+   * takes its delta; raw and planted are slerped per joint by that weight. Zero deltas leave a side untouched.
+   * No allocation.
+   */
+  private keyedLegDeltas(kq: KeyedPose, kw: number): void {
+    const d = kq.legd;
+    for (let k = 0; k < 2; k++) {
+      const b = k * KEYED_LEGD_SIDE;
+      let any = false;
+      for (let c = 0; c < KEYED_LEGD_SIDE; c++) if (d[b + c] !== 0) any = true;
+      if (!any) continue;
+      const hip = k === 0 ? this.hipL : this.hipR;
+      const knee = k === 0 ? this.kneeL : this.kneeR;
+      const ankle = k === 0 ? this.ankleL : this.ankleR;
+      const toe = k === 0 ? this.toeL : this.toeR;
+      const f = k === 0 ? this.planner.L : this.planner.R;
+      const wc = LEGD_OPT.resolve ? legdContactW(f.contact, f.swing) : 0;
+      freshBelow(ankle, this.hips);
+      // the plant: the solved leg as it stands
+      ldH.copyFrom(hip.getAbsolutePosition());
+      ldK0.copyFrom(knee.getAbsolutePosition());
+      ldA0.copyFrom(ankle.getAbsolutePosition());
+      ldF0.copyFrom(ankle.absoluteRotationQuaternion);
+      // raw: each joint turned in its own frame
+      Quaternion.RotationYawPitchRollToRef(d[b + KD.hipYaw]! * kw, d[b + KD.hipPitch]! * kw, d[b + KD.hipRoll]! * kw, kT);
+      hip.rotationQuaternion!.multiplyInPlace(kT);
+      Quaternion.RotationYawPitchRollToRef(0, d[b + KD.knee]! * kw, 0, kT);
+      knee.rotationQuaternion!.multiplyInPlace(kT);
+      Quaternion.RotationYawPitchRollToRef(0, d[b + KD.anklePitch]! * kw, d[b + KD.ankleRoll]! * kw, ldD);
+      ankle.rotationQuaternion!.multiplyInPlace(ldD);
+      Quaternion.RotationYawPitchRollToRef(0, d[b + KD.toe]! * kw, 0, kT);
+      toe.rotationQuaternion!.multiplyInPlace(kT);
+      if (!(wc > 0)) {
+        freshBelow(toe, this.hips);
+        continue;
+      }
+      freshBelow(ankle, this.hips);
+      ldQh.copyFrom(hip.rotationQuaternion!);
+      ldQk.copyFrom(knee.rotationQuaternion!);
+      ldQa.copyFrom(ankle.rotationQuaternion!);
+      // planted: the raw leg swung about the hip onto the plant line gives the knee's side (a hip yaw or roll swivels
+      // the knee about the hip-ankle line); the knee onto the plant's circle there (`plantKnee`)
+      ldKr.copyFrom(knee.getAbsolutePosition()).subtractInPlace(ldH);
+      ankle.getAbsolutePosition().subtractToRef(ldH, ldX).normalize();
+      ldA0.subtractToRef(ldH, ldV).normalize();
+      Quaternion.FromUnitVectorsToRef(ldX, ldV, kF);
+      ldKr.rotateByQuaternionToRef(kF, ldX).addInPlace(ldH);
+      plantKnee(ldH, ldA0, ldK0, ldX, ldKp);
+      // the thigh: the shortest arc from the raw knee onto the planted one, then twisted about itself so its hinge (local
+      // x) is normal to the hip-knee-ankle plane (the knee stays a hinge; on the side the hinge already faced)
+      ldKr.normalize();
+      ldKp.subtractToRef(ldH, ldV).normalize();
+      Quaternion.FromUnitVectorsToRef(ldKr, ldV, kF);
+      kF.multiplyToRef(hip.absoluteRotationQuaternion, tmpQ3);
+      ldA0.subtractToRef(ldKp, ldX);
+      Vector3.CrossToRef(ldV, ldX, ldN);
+      if (ldN.lengthSquared() > 1e-10) {
+        ldN.normalize();
+        ldX.set(1, 0, 0).rotateByQuaternionToRef(tmpQ3, ldX);
+        if (Vector3.Dot(ldN, ldX) < 0) ldN.scaleInPlace(-1);
+        ldX.subtractInPlace(ldV.scaleToRef(Vector3.Dot(ldX, ldV), ldKr));
+        if (ldX.lengthSquared() > 1e-10) {
+          Quaternion.FromUnitVectorsToRef(ldX.normalize(), ldN, kF);
+          kF.multiplyToRef(tmpQ3, tmpQ3);
+        }
+      }
+      this.setWorldRot(hip, hip.parent as TransformNode, tmpQ3);
+      freshBelow(ankle, this.hips);
+      const K = knee.getAbsolutePosition();
+      ankle.getAbsolutePosition().subtractToRef(K, ldKr).normalize();
+      ldA0.subtractToRef(K, ldV).normalize();
+      Quaternion.FromUnitVectorsToRef(ldKr, ldV, kF);
+      kF.multiplyToRef(knee.absoluteRotationQuaternion, tmpQ3);
+      this.setWorldRot(knee, hip, tmpQ3);
+      // the foot: its planted world rotation turned by the ankle delta (the ankle stays on the plant)
+      ldF0.multiplyToRef(ldD, tmpQ3);
+      this.setWorldRot(ankle, knee, tmpQ3);
+      if (wc < 1) {
+        Quaternion.SlerpToRef(ldQh, hip.rotationQuaternion!, wc, hip.rotationQuaternion!);
+        Quaternion.SlerpToRef(ldQk, knee.rotationQuaternion!, wc, knee.rotationQuaternion!);
+        Quaternion.SlerpToRef(ldQa, ankle.rotationQuaternion!, wc, ankle.rotationQuaternion!);
+      }
+      freshBelow(toe, this.hips);
+    }
   }
 
   /** (T1a, item 17) The keyed shoulder (chest frame, the arm with it) and the forearm twist (about the bone) by `w`. */
@@ -2903,8 +3231,8 @@ export class CharacterRig {
     // (anim-rework S3) the gun in the hands tucks the elbows at low ready too (READY_ELBOW_TUCK)
     // (anim-rework S4) crouched more (READY_ELBOW_TUCK_CROUCH)
     const cr = Math.max(0, Math.min(1, this.input.crouch));
-    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK + (READY_ELBOW_TUCK_CROUCH - READY_ELBOW_TUCK) * cr : 0) * TUNE_CUR.tuckMul;
-    this.dirToWorld(side * (0.55 * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
+    const tuck = Math.max(AIM_ELBOW_TUCK * this.aimK, this.heldWeapon ? READY_ELBOW_TUCK + (READY_ELBOW_TUCK_CROUCH - READY_ELBOW_TUCK) * cr : 0) * TUNE_CUR.tuckMul * (this.tuneSt ? wrenTuckMul(this.supportStyle === 'cup', this.aimK, cr) : 1); // (anim-bake-targets) Wren's tuck per gun state
+    this.dirToWorld(side * (ELBOW_POLE_OUT * TUNE_CUR.elbowPoleMul * (1 - tuck) + 0.65 * mw + holsterOut), -1 + 0.9 * mw, -0.35 + 0.35 * mw, tmpPole);
     // (feature/weapons) shoulder protraction towards a weapon hand point out of reach (in the torso frame; the shoulder's
     // height stays the weld's)
     {

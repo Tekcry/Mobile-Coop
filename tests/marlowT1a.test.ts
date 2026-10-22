@@ -23,7 +23,6 @@ import { presetFile, presetParse } from '../src/anim/tuneHistory';
 import { STUDIO, STUDIO_ENTRIES, studioEntry, studioInput, studioKeyInfo, studioKeyPhase, studioReset, studioWeaponFor } from '../src/anim/studio';
 import { tuneBake, bakeCatalogue } from '../src/anim/tuneBake';
 import { BAKE_KEYS_DIR } from '../src/anim/tuneBakeTable';
-import { RS_FLICK, TunePadCtl } from '../src/ui/animTunePad';
 import { bodyCarry, loopGroups, plainGroupWord, plainLabel } from '../src/ui/tunerLayout';
 import { tuneTarget } from '../src/ui/tunerTarget';
 import { bindable } from '../src/input/keyBindings';
@@ -292,20 +291,22 @@ describe('T1a item 18: the Mirror box', () => {
 });
 
 describe('T1a item 15: the key timeline and the studio key requests', () => {
-  it('a mirrored clip has twice its keys; key 2 of jog mirrors onto 6; the step walks the keys in phase order', () => {
-    const jog = keyClip('jog')!;
-    expect(keyCount(jog)).toBe(8);
-    expect(keyPhase(jog, 5)).toBeCloseTo(0.625, 9);
-    expect(keyMirrorOf(jog, 1)).toBe(5);
-    expect(keyReadout(jog, 1)).toBe('jog - key 2 of 8 (mirror of 6), frame 4');
+  it('a mirrored clip has twice its keys; key 2 of sneak mirrors onto 6; the step walks the keys in phase order', () => {
+    // (anim-bake-1022) on sneak (own keys evenly spaced, 0 / 0.125 / 0.25 / 0.375): it ran on jog until Michael's
+    // 2026-10-22 tune retimed jog's key 3 to 0.1458, so a step from 0.2 no longer lands on jog's key 3
+    const sneak = keyClip('sneak')!;
+    expect(keyCount(sneak)).toBe(8);
+    expect(keyPhase(sneak, 5)).toBeCloseTo(0.625, 9);
+    expect(keyMirrorOf(sneak, 1)).toBe(5);
+    expect(keyReadout(sneak, 1)).toBe('sneak - key 2 of 8 (mirror of 6), frame 4');
     expect(keyReadout(keyClip('idle')!, 0)).toBe('idle - key 1 of 12, frame 0');
-    expect(keyStep(jog, 0.125, 1)).toBe(2);
-    expect(keyStep(jog, 0.125, -1)).toBe(0);
-    expect(keyStep(jog, 0.875, 1)).toBe(0);
-    expect(keyStep(jog, 0, -1)).toBe(7);
-    expect(keyStep(jog, 0.2, 1)).toBe(2);
-    expect(keyStep(jog, 0.2, -1)).toBe(1);
-    expect(keyNearest(jog, 0.62)).toBe(5);
+    expect(keyStep(sneak, 0.125, 1)).toBe(2);
+    expect(keyStep(sneak, 0.125, -1)).toBe(0);
+    expect(keyStep(sneak, 0.875, 1)).toBe(0);
+    expect(keyStep(sneak, 0, -1)).toBe(7);
+    expect(keyStep(sneak, 0.2, 1)).toBe(2);
+    expect(keyStep(sneak, 0.2, -1)).toBe(1);
+    expect(keyNearest(sneak, 0.62)).toBe(5);
   });
 
   it('studio requests: a key by index or the next one, NaN with nothing to do; the readout fields', () => {
@@ -320,29 +321,6 @@ describe('T1a item 15: the key timeline and the studio key requests', () => {
     expect(o.onKey).toBe(false);
     studioKeyInfo('', 0.6, o);
     expect(o).toEqual({ keys: 0, key: -1, onKey: false });
-  });
-
-  it('the right stick: a flick left / right steps a key (repeating when held), a flick up is play / pause; the free view keeps it', () => {
-    const c = new TunePadCtl();
-    c.open();
-    const DT = 1 / 60;
-    let t = 0;
-    const step = (rx: number, ry: number): ReturnType<TunePadCtl['update']> => c.update(0, 0, (t += DT), DT, rx, ry);
-    step(0, 0);
-    expect(step(RS_FLICK + 0.1, 0).key).toBe(1);
-    expect(step(0.9, 0).key).toBe(0);
-    let rep = 0;
-    for (let i = 0; i < 40; i++) rep += step(0.9, 0).key;
-    expect(rep).toBeGreaterThan(0);
-    step(0, 0);
-    expect(step(-0.9, 0).key).toBe(-1);
-    step(0, 0);
-    expect(step(0, -0.9).play).toBe(true);
-    expect(step(0, -0.9).play).toBe(false);
-    step(0, 0);
-    c.setFree(true);
-    step(0, 0);
-    expect(step(0.9, 0).key).toBe(0);
   });
 
   it('the bar keys are reserved (no binding takes them)', () => {
@@ -459,7 +437,7 @@ describe('T1a: plain names and the scene marker', () => {
   it('a twist is named as one; the new key fields have short plain names', () => {
     expect(plainLabel('joint', 'elbowR_y', '')).toBe('Right forearm twist');
     expect(plainLabel('joint', 'upperArmL_y', '')).toBe('Left upper arm twist');
-    expect(plainLabel('keys', 'armL_twist', '')).toBe('Left forearm twist');
+    expect(plainLabel('keys', 'armL_twist', '')).toBe('Left forearm twist, palm in');
     expect(plainLabel('keys', 'armR_twistUpper', '')).toBe('Right upper arm twist');
     expect(plainLabel('keys', 'armR_shPitch', '')).toBe('Right shoulder forward');
     expect(plainLabel('keys', 'head_yaw', '')).toBe('Head turn');

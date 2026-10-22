@@ -15,7 +15,10 @@ import { WEIGHT_GROUPS, WEIGHT_TUNABLES } from '../src/anim/weight';
 import { bakeCatalogue, bakeDiff, bakeFmt, bakeTable, editValue, locate, tuneBake, wideRange, type BakeResult } from '../src/anim/tuneBake';
 import { BAKE_CATALOGUE_MODULES, BAKE_LEDGER, BAKE_MANUAL, BAKE_OTHER_SECTION_FILES, BAKE_RULES, DECLARED_SECTIONS, type BakeRule } from '../src/anim/tuneBakeTable';
 import { readKeys, type KeyFile } from '../src/anim/tuneKeysFile';
-import { BAKE_BASE_FILE, BAKE_BASE_SECTIONS } from '../src/anim/tuneBakeBase';
+import { BAKE_BASE_FILE, BAKE_BASE_SECTIONS, parseAnimBase } from '../src/anim/tuneBakeBase';
+import { BAKE_GUARD_FILE, BAKE_GUARD_SECTIONS } from '../src/anim/tuneBakeGuard';
+import { BODY_BASE_FIELDS, type BodyField } from '../src/anim/tune';
+import { WREN_TUCK, wrenTuckMul } from '../src/anim/animGraph';
 
 const ROOT = path.join(__dirname, '..');
 const real = (p: string): string => readFileSync(path.join(ROOT, p), 'utf8');
@@ -52,7 +55,7 @@ const dirs: string[] = [];
 function tempTree(): { dir: string; read: (p: string) => string | null; write: (r: BakeResult) => void } {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'anim-bake-'));
   dirs.push(dir);
-  for (const f of [...TABLE_FILES, BAKE_BASE_FILE, 'scripts/anim-keys/keys/walk.json']) {
+  for (const f of [...TABLE_FILES, BAKE_BASE_FILE, BAKE_GUARD_FILE, 'scripts/anim-keys/keys/walk.json']) {
     mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     cpSync(path.join(ROOT, f), path.join(dir, f));
   }
@@ -76,7 +79,7 @@ const WEIGHT5 = ['weight.walk', 'weight.jog', 'weight.run', 'weight.crouch', 'we
 /** One slider (or more) per section. */
 const SAMPLE = exportOf([
   entry('wallPeek', 'peekLeanMul', 'mul', 1.5), // body: per state
-  entry('walk', 'trackMul', 'mul', 1.2), // body: manual, no code target
+  entry('walk', 'trackMul', 'mul', 1.2), // body: (anim-bake-targets) the base table's body key
   entry('rifle.lowReady', 'gunFwd', 'add', 0.02), // gun: per weapon x state
   entry('cam.climb', 'camBoomAdd', 'add', 0.3), // cam: every climb preset
   entry('cam.wall', 'camPivotAdd', 'add', 0.1), // cam: shared by wall and peek, equal: baked
@@ -112,9 +115,14 @@ describe('anim-bake table', () => {
           const r = BAKE_RULES.some((x) => x.section === s.id && x.id === t.id && x.groups.includes(g));
           const m = BAKE_MANUAL.filter((x) => x.section === s.id && (x.id === t.id || x.id === '*') && (x.groups ? x.groups.includes(g) : !r));
           // (anim-joints J1) Joints, Hands & feet, IK and Weapon bake into the base table (no rule; joint.options manual)
-          const base = BAKE_BASE_SECTIONS.includes(s.id) && !r && m.length === 0;
+          // (anim-bake-targets) and every Body slider and group no rule covers (the `body` key);
+          // (item 24, track A) the guard sections bake into the guard base table the same way
+          const base = (BAKE_BASE_SECTIONS.includes(s.id) || BAKE_GUARD_SECTIONS.includes(s.id)) && !r && m.length === 0
+            && (s.id !== 'body' || BODY_BASE_FIELDS.includes(t.id as BodyField));
           expect(r || m.length > 0 || base, `${s.id} ${t.id} ${g}`).toBe(true);
-          if (BAKE_BASE_SECTIONS.includes(s.id)) expect(r, `${s.id} ${t.id} ${g}: a base table section has no code rule`).toBe(false);
+          if (BAKE_BASE_SECTIONS.includes(s.id) && s.id !== 'body') expect(r, `${s.id} ${t.id} ${g}: a base table section has no code rule`).toBe(false);
+          // (anim-bake-targets) the rule "every slider bakes": no Body slider is manual
+          if (s.id === 'body') expect(m.length, `${s.id} ${t.id} ${g}: a Body slider is never manual`).toBe(0);
           if (r) expect(BAKE_MANUAL.some((x) => x.section === s.id && x.id === t.id && x.groups?.includes(g)), `${s.id} ${t.id} ${g}: rule and manual`).toBe(false);
         }
       }
@@ -229,7 +237,9 @@ describe('anim-bake on a sample export (temp copies)', () => {
     const close = (a: number, b: number): void => expect(a).toBeCloseTo(b, 3);
     // body (mul), gun (add, metres), camera (add, metres) every climb preset, the shared wall pivot once
     close(num(old(W), 'WALL.peekLean'), num(before[W]!, 'WALL.peekLean') * 1.5);
-    close(num(old(G), 'READY_POSES.low.z'), num(before[G]!, 'READY_POSES.low.z') + 0.02);
+    close(num(old(G), 'WREN_READY_LOW.z'), num(before[G]!, 'WREN_READY_LOW.z') + 0.02);
+    // (anim-bake-1022) the guards' low ready is never a bake target
+    expect(num(old(G), 'READY_POSES.low.z')).toBe(num(before[G]!, 'READY_POSES.low.z'));
     for (const p of ['hang', 'ladder', 'pipe', 'fence', 'rappel']) close(num(old(C), `ATTACH_FRAMING.${p}.boom`), num(before[C]!, `ATTACH_FRAMING.${p}.boom`) + 0.3);
     close(num(old(C), 'ATTACH_FRAMING.wall.pivot'), num(before[C]!, 'ATTACH_FRAMING.wall.pivot') + 0.1);
     // speed: the point; the aimed glide's strafe share (the glide forward is manual: it scales the whole glide)
@@ -246,7 +256,10 @@ describe('anim-bake on a sample export (temp copies)', () => {
     expect(num(old('src/anim/weight.ts'), 'WEIGHT_BASE.chestHz')).toBe(num(before['src/anim/weight.ts']!, 'WEIGHT_BASE.chestHz'));
     // results per section
     expect(res('wallPeek', 'peekLeanMul')).toBe('baked');
-    expect(res('walk', 'trackMul')).toBe('manual: no code target');
+    // (anim-bake-targets) the base table's body key: the old base value x 1.2
+    expect(res('walk', 'trackMul')).toBe('baked (base table)');
+    expect(r.rows.find((x) => x.id === 'trackMul')!.target).toBe(`${BAKE_BASE_FILE}: body.walk.trackMul x`);
+    expect(parseAnimBase(old(BAKE_BASE_FILE)).body?.walk?.trackMul).toBeCloseTo((parseAnimBase(real(BAKE_BASE_FILE)).body?.walk?.trackMul ?? 1) * 1.2, 6);
     for (const [g, id] of [
       ['joint.walk', 'elbowR_x'],
       ['hand.rifle.aim', 'handLFwd'],
@@ -286,8 +299,10 @@ describe('anim-bake on a sample export (temp copies)', () => {
     expect(r2.ok).toBe(true);
     expect(r2.writes).toEqual([]);
     expect(r2.rows.find((x) => x.id === 'peekLeanMul')!.result).toMatch(/^already baked/);
+    // (anim-bake-targets) the body key is in the ledger too
+    expect(r2.rows.find((x) => x.id === 'trackMul')!.result).toMatch(/^already baked/);
     // the manual ones are still reported (nothing to write for them)
-    expect(r2.rows.find((x) => x.id === 'trackMul')!.result).toBe('manual: no code target');
+    expect(r2.rows.find((x) => x.id === 'glideFwdMul')!.result).toBe('manual: no code target');
     const r3 = tuneBake(exportOf([]), SCRIPT_CAT, t.read);
     expect(r3.ok).toBe(true);
     expect(r3.writes).toEqual([]);
@@ -326,35 +341,55 @@ describe('anim-bake on a sample export (temp copies)', () => {
   });
 });
 
-describe('anim-bake tuckMul (fix round B1)', () => {
+describe('anim-bake tuckMul per gun state (anim-bake-targets, BT-A2; was fix round B1)', () => {
   const RIG = 'src/player/characterRig.ts';
   const GRAPH = 'src/anim/animGraph.ts';
   const GUN6 = ['rifle.lowReady', 'rifle.aim', 'rifle.aimCrouch', 'pistol.lowReady', 'pistol.aim', 'pistol.aimCrouch'];
-  /** characterRig.ts:2577: max(AIM_ELBOW_TUCK x aimK, READY + (READY_CROUCH - READY) x cr). */
-  const tuck = (rig: string, graph: string, aimK: number, cr: number): number => {
+  const at = (g: string): [boolean, number, number] => [g.startsWith('pistol'), g.endsWith('lowReady') ? 0 : 1, g.endsWith('aimCrouch') ? 1 : 0];
+  /** characterRig solveArm: max(AIM_ELBOW_TUCK x aimK, READY + (READY_CROUCH - READY) x cr), times WREN_TUCK on a Wren rig. */
+  const tuck = (rig: string, graph: string, g: string): number => {
+    const [pistol, aimK, cr] = at(g);
     const R = num(rig, 'READY_ELBOW_TUCK');
-    return Math.max(num(graph, 'AIM_ELBOW_TUCK') * aimK, R + (num(rig, 'READY_ELBOW_TUCK_CROUCH') - R) * cr);
+    const w = num(graph, `WREN_TUCK.${pistol ? 'pistol' : 'rifle'}.${aimK === 0 ? 'lowReady' : cr === 1 ? 'aimCrouch' : 'aim'}`);
+    return Math.max(num(graph, 'AIM_ELBOW_TUCK') * aimK, R + (num(rig, 'READY_ELBOW_TUCK_CROUCH') - R) * cr) * w;
   };
 
-  it('the 4 aim groups at 0.6 (low ready at 1): manual, nothing written', () => {
-    const t = tempTree();
-    const r = tuneBake(exportOf(GUN6.filter((g) => !g.endsWith('lowReady')).map((g) => entry(g, 'tuckMul', 'mul', 0.6))), SCRIPT_CAT, t.read);
-    expect(r.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
-    expect(r.writes).toEqual([]);
+  it('the six named constants (Michael\'s 2026-10-22 low readies baked, the aims 1); wrenTuckMul reads the one per steady state, exactly 1 untuned', () => {
+    const want: Record<string, number> = { 'rifle.lowReady': 0.75, 'rifle.aim': 1, 'rifle.aimCrouch': 1, 'pistol.lowReady': 0, 'pistol.aim': 1, 'pistol.aimCrouch': 1 };
+    const saved: Record<string, number> = {};
+    for (const g of GUN6) {
+      const [w, s] = g.split('.') as ['rifle' | 'pistol', 'lowReady' | 'aim' | 'aimCrouch'];
+      expect(num(real(GRAPH), `WREN_TUCK.${w}.${s}`), g).toBe(want[g]);
+      expect(WREN_TUCK[w][s], g).toBe(want[g]);
+      const [pistol, aimK, cr] = at(g);
+      expect(wrenTuckMul(pistol, aimK, cr), g).toBe(want[g]);
+      saved[g] = WREN_TUCK[w][s];
+      WREN_TUCK[w][s] = 1;
+    }
+    try {
+      // untuned (every constant 1): exactly 1 at any blend, so the rig is bit-identical
+      for (const pistol of [false, true]) for (const aimK of [0, 0.37, 1]) for (const cr of [0, 0.5, 1]) expect(wrenTuckMul(pistol, aimK, cr)).toBe(1);
+    } finally {
+      for (const g of GUN6) {
+        const [w, s] = g.split('.') as ['rifle' | 'pistol', 'lowReady' | 'aim' | 'aimCrouch'];
+        WREN_TUCK[w][s] = saved[g]!;
+      }
+    }
   });
 
-  it('all 6 at 0.6: baked, and the max for aim, crouched aim and low ready is the old max x 0.6', () => {
-    const t = tempTree();
-    const r = tuneBake(exportOf(GUN6.map((g) => entry(g, 'tuckMul', 'mul', 0.6))), SCRIPT_CAT, t.read);
-    expect(r.rows.every((x) => x.result === 'baked')).toBe(true);
-    t.write(r);
-    const [rig0, graph0, rig1, graph1] = [real(RIG), real(GRAPH), t.read(RIG)!, t.read(GRAPH)!];
-    for (const [aimK, cr] of [
-      [1, 0], // aim
-      [1, 1], // crouched aim
-      [0, 0], // low ready
-      [0, 1], // crouched low ready
-    ] as const) expect(tuck(rig1, graph1, aimK, cr), `aimK ${aimK} cr ${cr}`).toBeCloseTo(tuck(rig0, graph0, aimK, cr) * 0.6, 3);
+  it('one gun state at 0.6: baked into its own constant only; the guards\' constants never move', () => {
+    for (const g of GUN6) {
+      const t = tempTree();
+      const r = tuneBake(exportOf([entry(g, 'tuckMul', 'mul', 0.6)]), SCRIPT_CAT, t.read);
+      expect(r.ok, r.error).toBe(true);
+      expect(r.rows.find((x) => x.group === g)!.result, g).toBe('baked');
+      t.write(r);
+      const [rig0, graph0, rig1, graph1] = [real(RIG), real(GRAPH), t.read(RIG)!, t.read(GRAPH)!];
+      for (const o of GUN6) expect(tuck(rig1, graph1, o), `${g} -> ${o}`).toBeCloseTo(tuck(rig0, graph0, o) * (o === g ? 0.6 : 1), 6);
+      expect(num(graph1, 'AIM_ELBOW_TUCK')).toBe(num(graph0, 'AIM_ELBOW_TUCK'));
+      expect(num(rig1, 'READY_ELBOW_TUCK')).toBe(num(rig0, 'READY_ELBOW_TUCK'));
+      expect(num(rig1, 'READY_ELBOW_TUCK_CROUCH')).toBe(num(rig0, 'READY_ELBOW_TUCK_CROUCH'));
+    }
   });
 });
 
@@ -385,6 +420,28 @@ describe('anim-bake shared targets', () => {
     const two = tuneBake(exportOf([entry('cam.explore', 'camBoomAdd', 'add', 0.2), entry('cam.exploreCrouch', 'camBoomAdd', 'add', 0.2)]), SCRIPT_CAT, t.read, { allowShared: true });
     expect(two.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
     expect(two.writes).toEqual([]);
+  });
+
+  // (anim-bake-targets fix) the one Body exception (BAKE.md): strideMul stays one shared code target (MOVEMENT's step
+  // lengths), so moving states that disagree are manual and the bake waits until they agree
+  it('Body strideMul: disagreeing moving groups give "manual: shared target", every moving group agreeing bakes', () => {
+    const t = tempTree();
+    const MOVING13 = ['walk', 'jog', 'run', 'sneak', 'crouchWalk', 'crouchRun', 'aim', 'aimCrouch', 'aimCrouchMove', 'wallSlide', 'wallCrouchSlide', 'hold', 'carry'];
+    const one = tuneBake(exportOf([entry('walk', 'strideMul', 'mul', 1.1)]), SCRIPT_CAT, t.read);
+    expect(one.ok, one.error).toBe(true);
+    expect(one.rows[0]!.result).toMatch(/^manual: shared target \(walk 1\.1, jog 1, run 1, sneak 1, /);
+    expect(one.writes).toEqual([]);
+    const two = tuneBake(exportOf([entry('walk', 'strideMul', 'mul', 1.1), entry('jog', 'strideMul', 'mul', 1.2)]), SCRIPT_CAT, t.read);
+    expect(two.rows.every((x) => x.result.startsWith('manual: shared target'))).toBe(true);
+    expect(two.writes).toEqual([]);
+    // a version 2 export (a version 1 one also gets the aimStill row copied from aim, which strideMul does not have)
+    const all = tuneBake({ ...exportOf(MOVING13.map((g) => entry(g, 'strideMul', 'mul', 1.1))), version: 2 }, SCRIPT_CAT, t.read);
+    expect(all.rows.length).toBe(13);
+    expect(all.rows.every((x) => x.result === 'baked')).toBe(true);
+    const M = 'src/config/movement.ts';
+    const after = all.writes.find((w) => w.path === M)!.after;
+    expect(num(after, 'MOVEMENT.stepLen0')).toBeCloseTo(num(real(M), 'MOVEMENT.stepLen0') * 1.1, 3);
+    expect(num(after, 'MOVEMENT.stepLenMax')).toBeCloseTo(num(real(M), 'MOVEMENT.stepLenMax') * 1.1, 3);
   });
 });
 
@@ -428,5 +485,57 @@ describe('anim-bake refusals (nothing written)', () => {
     expect(r.rows[0]!.result).toMatch(/^skipped: no bake rule/);
     expect(r.manual).toBe(1); // counted in the summary's "manual or skipped"
     expect(r.writes).toEqual([]);
+  });
+});
+
+describe('anim-bake-targets: Michael\'s 13 values that were manual (the literal 2026-10-22 entries)', () => {
+  // the literal export entries (docs/anim-tuner/exports/anim-tune-2026-10-22.json), version 2
+  const LITERAL = {
+    magic: 'night-shift-anim-tune',
+    version: 2,
+    exported: '2026-10-21T14:01:52.215Z',
+    changed: [
+      entry('idle', 'trackMul', 'mul', 0.05),
+      entry('idle', 'elbowOutAdd', 'add', 0.03),
+      entry('walk', 'trackMul', 'mul', 0.05),
+      entry('walk', 'elbowOutAdd', 'add', 0.03),
+      entry('jog', 'armSwingMul', 'mul', 1.7),
+      entry('jog', 'trackMul', 'mul', 0.05),
+      entry('jog', 'elbowOutAdd', 'add', 0.03),
+      entry('run', 'armSwingMul', 'mul', 1.6),
+      entry('run', 'trackMul', 'mul', 0.05),
+      entry('run', 'kneeLiftMul', 'mul', 1.55),
+      entry('lowReady', 'elbowPoleMul', 'mul', 2.25),
+      entry('rifle.lowReady', 'tuckMul', 'mul', 0.75),
+      entry('pistol.lowReady', 'tuckMul', 'mul', 0),
+    ],
+    log: [],
+  };
+
+  it('0 manual: 11 into the body key, 2 into WREN_TUCK, composed onto the tree\'s values', () => {
+    const t = tempTree();
+    const r = tuneBake(LITERAL, SCRIPT_CAT, t.read);
+    expect(r.ok, r.error).toBe(true);
+    expect(r.manual).toBe(0);
+    expect(r.baked).toBe(13);
+    expect(r.rows.filter((x) => x.result === 'baked (base table)').length).toBe(11);
+    t.write(r);
+    const b0 = parseAnimBase(real(BAKE_BASE_FILE)).body ?? {};
+    const b1 = parseAnimBase(t.read(BAKE_BASE_FILE)!).body ?? {};
+    for (const c of LITERAL.changed.slice(0, 11)) {
+      const old = b0[c.group]?.[c.id] ?? c.default;
+      expect(b1[c.group]?.[c.id], `${c.group} ${c.id}`).toBeCloseTo(c.kind === 'mul' ? old * c.value : old + c.value, 3); // (4 significant digits)
+    }
+    const G = 'src/anim/animGraph.ts';
+    expect(num(t.read(G)!, 'WREN_TUCK.rifle.lowReady')).toBeCloseTo(num(real(G), 'WREN_TUCK.rifle.lowReady') * 0.75, 6);
+    expect(num(t.read(G)!, 'WREN_TUCK.pistol.lowReady')).toBe(0);
+    expect(num(t.read(G)!, 'WREN_TUCK.rifle.aim')).toBe(num(real(G), 'WREN_TUCK.rifle.aim'));
+  });
+
+  it('the real tree has them baked: the real ledger reports every one "already baked"', () => {
+    const r = tuneBake(LITERAL, SCRIPT_CAT, (p) => (existsSync(path.join(ROOT, p)) ? real(p) : null));
+    expect(r.ok, r.error).toBe(true);
+    expect(r.writes).toEqual([]);
+    expect(r.rows.every((x) => x.result.startsWith('already baked'))).toBe(true);
   });
 });

@@ -213,6 +213,12 @@ export const GRENADE = makeClip({
   events: { pin: 0.32, release: 0.68 },
 });
 
+/**
+ * (clip-speed, track A) Playback rate of the timed body clips below (1: as keyed; 2: twice as fast, half the time). The
+ * animation graph's clip clocks run at this x the tuner's Clip speed slider; the bake writes a tuned speed in here.
+ */
+export const CLIP_RATE = { startShift: 1, stopSettle: 1, land: 1 };
+
 /** Start from standstill (0.3 s shift, then fades during the first step): load the support foot. */
 export const START_SHIFT = makeClip({
   name: 'startShift',

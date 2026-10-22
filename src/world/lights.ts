@@ -108,6 +108,10 @@ export interface AmbientZone {
 /** Occlusion test: true when something blocks the light from reaching the point. */
 export type Occluder = (l: LightDef, x: number, y: number, z: number) => boolean;
 
+/** (jammer-fixes) `LightRegistry` jam bits: the base on state (switches, EMP, shots) and the jam's flicker. */
+const JAM_BASE = 1;
+const JAM_LIT = 2;
+
 /** Every light of a level plus the ambient (moonlight / sky fill) level. */
 export class LightRegistry {
   readonly lights: LightDef[] = [];
@@ -119,6 +123,10 @@ export class LightRegistry {
   readonly zones: AmbientZone[] = [];
   /** Lights switched off for a while (EMP): id -> seconds left. */
   private outFor = new Map<number, number>();
+  /** (jammer-fixes) Jammed lights: id -> bits (`JAM_BASE` the on state its switches / EMP / shots give now, `JAM_LIT`
+   *  the jam's own flicker). Its `on` is both; the switches and the EMP move the base, the jam only the lit bit, so a
+   *  lamp switched off during a jam stays off after it (light parity: host and client run the same rule). */
+  private jamBits = new Map<number, number>();
 
   add(init: LightInit): LightDef {
     const l: LightDef = {
@@ -182,11 +190,61 @@ export class LightRegistry {
     this.version++;
   }
 
+  /** (jammer-fixes) A jam starts on a light: its present on state becomes the base the switches and the EMP own. */
+  jamStart(id: number): void {
+    const l = this.lights[id];
+    if (!l || this.jamBits.has(id)) return;
+    this.jamBits.set(id, (l.on ? JAM_BASE : 0) | JAM_LIT);
+  }
+
+  /** (jammer-fixes) The jam's flicker: the light is on only while its base is on and the jam has it lit. No allocation. */
+  jamLit(id: number, lit: boolean): void {
+    const b = this.jamBits.get(id);
+    const l = this.lights[id];
+    if (b === undefined || !l) return;
+    const nb = (b & JAM_BASE) | (lit ? JAM_LIT : 0);
+    if (nb !== b) this.jamBits.set(id, nb);
+    if (!l.destroyed) this.setOn(id, nb === (JAM_BASE | JAM_LIT));
+  }
+
+  /** (jammer-fixes) The jam is over: the light takes the state its switches / EMP / shots give it now. */
+  jamEnd(id: number): void {
+    const b = this.jamBits.get(id);
+    if (b === undefined) return;
+    this.jamBits.delete(id);
+    const l = this.lights[id];
+    if (l && !l.destroyed) this.setOn(id, (b & JAM_BASE) !== 0);
+  }
+
+  /** The on state a light's switches, EMP and shots give it, a jam left out (the course's mains gates read this). */
+  baseOn(l: LightDef): boolean {
+    if (l.destroyed) return false;
+    const b = this.jamBits.get(l.id);
+    return b === undefined ? l.on : (b & JAM_BASE) !== 0;
+  }
+
+  /** A jammed light's base moves (a switch, an EMP); its `on` follows unless the jam has it dark. True on a change. */
+  private jamBase(l: LightDef, on: boolean): boolean {
+    const b = this.jamBits.get(l.id);
+    if (b === undefined) return false;
+    const nb = (b & JAM_LIT) | (on ? JAM_BASE : 0);
+    if (nb !== b) this.jamBits.set(l.id, nb);
+    const lit = nb === (JAM_BASE | JAM_LIT);
+    if (l.destroyed || l.on === lit) return false;
+    l.on = lit;
+    return true;
+  }
+
   /** Switch a whole group (a wall switch / breaker). Returns how many lights changed. */
   setGroup(group: number, on: boolean): number {
     let n = 0;
     for (const l of this.lights) {
-      if (l.group !== group || l.destroyed || l.on === on) continue;
+      if (l.group !== group || l.destroyed) continue;
+      if (this.jamBits.has(l.id)) {
+        if (this.jamBase(l, on)) n++;
+        continue;
+      }
+      if (l.on === on) continue;
       l.on = on;
       n++;
     }
@@ -210,6 +268,12 @@ export class LightRegistry {
     if (!l || !l.destroyed) return;
     l.destroyed = false;
     l.on = true;
+    // a jammed lamp comes back with its group and keeps the jam's flicker
+    const b = this.jamBits.get(id);
+    if (b !== undefined) {
+      this.jamBits.set(id, b | JAM_BASE);
+      l.on = (b & JAM_LIT) !== 0;
+    }
     this.version++;
   }
 
@@ -226,8 +290,9 @@ export class LightRegistry {
   disrupt(x: number, y: number, z: number, radius: number, seconds: number): number {
     let n = 0;
     for (const l of this.lights) {
-      if (!l.electric || l.destroyed || !l.on) continue;
+      if (!l.electric || l.destroyed || !this.baseOn(l)) continue;
       if (hyp3(l.x - x, l.y - y, l.z - z) > radius) continue;
+      this.jamBase(l, false);
       l.on = false;
       this.outFor.set(l.id, seconds);
       n++;
@@ -248,7 +313,9 @@ export class LightRegistry {
       this.outFor.delete(id);
       const l = this.lights[id];
       if (l && !l.destroyed) {
-        l.on = true;
+        // a jammed lamp: the EMP gives its base back, the jam keeps it dark
+        if (this.jamBits.has(id)) this.jamBase(l, true);
+        else l.on = true;
         this.version++;
       }
     }
@@ -260,6 +327,17 @@ export class LightRegistry {
     for (const l of this.lights) if (l.on && !l.destroyed) n++;
     return n;
   }
+}
+
+/** (jammer-fixes) A light group is on: one of its lamps is on by its switches, EMP and shots (`baseOn`); a jam never
+ *  counts as the group being switched off (the course's mains gates read this). No allocation. */
+export function groupBaseOn(reg: LightRegistry, group: number): boolean {
+  const ls = reg.lights;
+  for (let i = 0; i < ls.length; i++) {
+    const l = ls[i]!;
+    if (l.group === group && reg.baseOn(l)) return true;
+  }
+  return false;
 }
 
 /** Visibility factor for perception from a light level: shadow keeps a body hard to see, never invisible

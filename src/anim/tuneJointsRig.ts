@@ -2,7 +2,7 @@
  * (anim-joints J1, COVERAGE gap 1, A2 / A7) The per-rig window of the Joints, Hands & feet, IK strength and Weapon
  * tables (pure, Babylon-free). Every Wren rig (`CharacterRig.tuneRows`, set where the rig is made: `operatorRig`) owns
  * one `TuneRigState` (allocated once) and, inside its own `animate`, picks its own row from its own pose with the same
- * pick the local player's tuner uses (`selectBodyGroup`, `handsWeaponOf`, the gun's own Joints row in an armed state),
+ * pick the local player's tuner uses (`selectBodyGroup` via `tuneBodyGroup`: the studio's pin on her rig, `handsWeaponOf`, the gun's own Joints row in an armed state),
  * eases its own applied values toward the effective row (base table + tuner delta) and opens the window on them; the
  * rig hooks (`jointApply`, `HANDS_CUR`, `HANDS_GUN`, `ikStrength`, ...) then read that rig's applied state, never
  * another rig's. Non-Wren rigs (guards, the VIP, the dummy) have no state and never open a window.
@@ -17,9 +17,12 @@
  *
  * (anim-gear) The rig's gear offsets (`TuneRigState.gear`, `tuneGear.ts`) are composed here too, by its crouch amount;
  * `CharacterRig.gearPlace` and its sling nodes read them. The base table's `gear` key loads with the rest.
+ *
+ * (anim-bake-targets, BT-A1) And its Body base (`TuneRigState.bodyBase`, the base table's `body` key): `bodyRigBegin`
+ * composes the rig's own row onto TUNE_CUR, put back by `tuneRigEnd` (`tune.ts`).
  */
 import { ANIM_BASE, type AnimBaseData } from './animBase';
-import { BODY_GROUPS, selectBodyGroup, type TunePoseIn } from './tune';
+import { BODY_BASE_FIELDS, BODY_GROUPS, bodyBaseLoad, bodyRigBegin, bodyRigEnd, bodyRigState, tuneBodyGroup, type BodyField, type BodyRigState, type TunePoseIn, type TuneRigIn } from './tune';
 import { HAND_WEAPONS, handsBaseLoad, handsBeginRigRows, handsEnd, handsRigState, handsWeaponOf, type HandsRigIn, type HandsRigState } from './tuneHands';
 import { JOINT_ROWS, jointsBaseLoad, jointsBeginRigRows, jointsEnd, jointsRigState, type JointsRigState } from './tuneJoints';
 import { pickTuneRows, TUNE_MOVE_MAX, TUNE_ROW_IDS, tuneRowPick, type TuneActionWeights, type TuneMovePoseIn, type TuneRowPick } from './tuneMoveRows';
@@ -30,6 +33,8 @@ export interface TuneRigState {
   readonly hands: HandsRigState;
   /** (anim-gear) This rig's gear offsets (base table + Gear deltas, standing + crouch x crouched). */
   readonly gear: GearRigState;
+  /** (anim-bake-targets, BT-A1) This rig's Body base values (the base table's `body` key, eased per rig). */
+  readonly bodyBase: BodyRigState;
   /** The body state row picked last ('' none), for the dev hooks and tests. */
   body: string;
   /** (J2) The stance and move / action rows picked last (the panel follow, the dev hooks, the tests). */
@@ -39,7 +44,7 @@ export interface TuneRigState {
 }
 
 export function tuneRigState(): TuneRigState {
-  return { joints: jointsRigState(), hands: handsRigState(), gear: gearRigState(), body: '', pick: tuneRowPick(), jRows: new Int16Array(TUNE_MOVE_MAX).fill(-1) };
+  return { joints: jointsRigState(), hands: handsRigState(), gear: gearRigState(), bodyBase: bodyRigState(), body: '', pick: tuneRowPick(), jRows: new Int16Array(TUNE_MOVE_MAX).fill(-1) };
 }
 
 /** What the pick reads from the rig (a `CharacterRig` fits). */
@@ -66,10 +71,10 @@ export const JOINT_OF_TUNE_ROW: readonly number[] = TUNE_ROW_IDS.map((r) => JOIN
  * Before the rig's own `animate` frame (after its LOD skip): pick its rows from its pose and open both windows on `st`
  * (eased over `dt`). Close with `tuneRigEnd` in a `finally`. No allocation.
  */
-export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn, rig: TuneRigPick, dt: number): void {
+export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn, rig: TuneRigPick & TuneRigIn, dt: number): void {
   const armed = rig.heldWeapon !== null && rig.heldWeapon !== undefined;
   const ledge = rig.reachL.hook === 1 || rig.reachR.hook === 1;
-  const bg = selectBodyGroup(pose, ledge, armed);
+  const bg = tuneBodyGroup(pose, ledge, armed, rig); // (marlow-bays item 29) the studio's pin on her rig
   const gi = bg === null ? -1 : (BODY_INDEX[bg] ?? -1);
   const wi = WEAPON_INDEX[handsWeaponOf(rig)] ?? -1;
   st.body = bg ?? '';
@@ -80,10 +85,13 @@ export function tuneRigBegin(st: TuneRigState, pose: TunePoseIn & TuneMovePoseIn
   handsBeginRigRows(st.hands, gi, wi, p.idx, p.w, p.n, dt);
   // (anim-gear) the gear offsets by this rig's crouch amount (nothing live: returns at once)
   gearRigUpdate(st.gear, pose.crouch);
+  // (anim-bake-targets, BT-A1) the Body base of this rig's row onto TUNE_CUR (the local player's tuner values or identity)
+  bodyRigBegin(st.bodyBase, gi, pose, rig, dt);
 }
 
 /** After the rig's `animate` frame: both windows off. */
 export function tuneRigEnd(): void {
+  bodyRigEnd();
   handsEnd();
   jointsEnd();
 }
@@ -98,7 +106,7 @@ let baseNow: AnimBaseData = clone(ANIM_BASE);
 /** Load a base table object into the Joints / Hands / IK tables (every rig jumps). Returns the unknown names skipped. */
 export function animBaseLoad(b: AnimBaseData): string[] {
   baseNow = clone(b);
-  return [...jointsBaseLoad(baseNow.joints), ...handsBaseLoad(baseNow.hands, baseNow.ik), ...gearBaseLoad(baseNow.gear).map((n) => `gear.${n}`)];
+  return [...jointsBaseLoad(baseNow.joints), ...handsBaseLoad(baseNow.hands, baseNow.ik), ...gearBaseLoad(baseNow.gear).map((n) => `gear.${n}`), ...bodyBaseLoad(baseNow.body).map((n) => `body.${n}`)];
 }
 
 /** The base table in use (a copy). */
@@ -122,6 +130,13 @@ if (typeof window !== 'undefined') {
       if (!GEAR_PARAMS.some((p) => p.id === param)) return [`gear.${row}.${param}`];
       const b = clone(baseNow);
       ((b.gear ??= {})[row] ??= {})[param] = v;
+      return animBaseLoad(b);
+    },
+    /** (anim-bake-targets) One Body slider's base value in one Body row (mul sliders multiply, add sliders add). */
+    setBody: (row: string, param: string, v: number): string[] => {
+      if (!(BODY_BASE_FIELDS as readonly string[]).includes(param as BodyField)) return [`body.${row}.${param}`];
+      const b = clone(baseNow);
+      ((b.body ??= {})[row] ??= {})[param] = v;
       return animBaseLoad(b);
     },
     /** Back to the generated table. */

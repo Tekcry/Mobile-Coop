@@ -11,7 +11,7 @@ import '../src/anim/tuneV2Sections';
 import { TUNE_SECTIONS, tuneResetAll, tuneSet } from '../src/anim/tuneRegistry';
 import { GEAR_GROUP_IDS, GEAR_SECTION, tuneV2SyncAll } from '../src/anim/tuneV2Sections';
 import { bakeCatalogue, tuneBake, type BakeResult } from '../src/anim/tuneBake';
-import { BAKE_BASE_FILE, parseAnimBase, printAnimBase } from '../src/anim/tuneBakeBase';
+import { BAKE_BASE_FILE, emptyBase, parseAnimBase, printAnimBase, spliceAnimBase } from '../src/anim/tuneBakeBase';
 import { ANIM_BASE, type AnimBaseData } from '../src/anim/animBase';
 import { animBaseLoad } from '../src/anim/tuneJointsRig';
 import { eulerQuat } from '../src/anim/tuneJoints';
@@ -38,6 +38,8 @@ function tempTree(): { read: (p: string) => string | null; write: (r: BakeResult
   dirs.push(dir);
   mkdirSync(path.dirname(path.join(dir, BAKE_BASE_FILE)), { recursive: true });
   cpSync(path.join(ROOT, BAKE_BASE_FILE), path.join(dir, BAKE_BASE_FILE));
+  // (anim-bake-1022) the generated table is no longer empty: the literal GEAR_BASE assumes an untuned base
+  writeFileSync(path.join(dir, BAKE_BASE_FILE), spliceAnimBase(readFileSync(path.join(dir, BAKE_BASE_FILE), "utf8"), emptyBase()));
   const read = (p: string): string | null => (existsSync(path.join(dir, p)) ? readFileSync(path.join(dir, p), 'utf8') : null);
   const write = (r: BakeResult): void => {
     for (const w of r.writes) {
@@ -64,7 +66,7 @@ describe('anim-gear: the Gear section', () => {
   it('registers a socket group and a crouched group per socket, six identity sliders, in its own tuner tab', () => {
     expect(GEAR_SECTION.id).toBe('gear');
     expect(GEAR_SECTION.label).toBe('Gear');
-    expect(GEAR_SOCKETS).toEqual(['holster', 'backL', 'backC', 'backR', 'slingHip']);
+    expect(GEAR_SOCKETS).toEqual(['holster', 'backL', 'backC', 'backR', 'slingHip', 'goggles']); // (anim-goggle) goggles last
     expect(GEAR_SECTION.groups).toEqual([...GEAR_SOCKETS.map((s) => `gear.${s}`), ...GEAR_SOCKETS.map((s) => `gear.${s}.crouch`)]);
     expect(GEAR_GROUP_IDS).toEqual(GEAR_SECTION.groups);
     expect(GEAR_SECTION.tunables.map((t) => t.id)).toEqual(['x', 'y', 'z', 'pitch', 'yaw', 'roll']);

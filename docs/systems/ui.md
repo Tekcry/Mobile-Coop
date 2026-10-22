@@ -181,6 +181,26 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     timing control moves an added key's `at` and keeps every key between its live neighbours. Undo, reset, presets,
     export and import work as for every slider. The bake writes the key file with the new key list (phase order),
     regenerates `tuneKeysMeta.ts` and prints the rebake; buttons `k:add` / `k:del` (pad focus, no new binding).
+  - Key tools (marlow-bays item 30; `ui/tunerKeyTools.ts`, pure parts `anim/tuneKeysTools.ts`, registry glue
+    `tuneKeysWave` / `tuneKeysApply` / `tuneKeysSmooth` / `tuneKeysDiff` / `tuneKeysToolKeys` in `anim/tuneKeys.ts`),
+    under the key buttons. The Compare row (always shown): "Compare" (off by default) with "Previous key" or a picked
+    key; on, the studio overlay draws a light ghost of that key's skeleton over her (`STUDIO.compare`,
+    `STUDIO.comparePhase`; recorded root-local while she stands on that key: paused, the tools visit the key once and
+    come back, the picker waits) and a line "Key 2 vs key 1: Right forearm twist, palm in +12°, Chest turn -3°" (the bake's
+    poses, the key file's values plus the deltas; the four largest, "+N more"). The "Key tools" fold holds one tool at
+    a time: Wave (Channel: any key slider by its plain name, a newly selected Keys slider by default; Amount; Timing, a
+    share of the cycle; "Fill keys" sets that slider on every key with its own sliders to amount x sin(2 pi (phase +
+    timing)), Mirror on: the mirrored half follows the mirror rule), Apply to keys (the selected slider's value on this
+    key given to the ticked keys; a tick per key, All / None) and Smooth between (From / to keys, every slider or the
+    selected one: the keys between, going forward, on a smoothstep blend of the two keys' poses; loads the key file
+    first). Each tool closes the undo run before and after (one undo step) and writes only key sliders (bakes as
+    them). Pad keys `kt:*` (ranges by left / right, drop-downs, ticks, buttons), no new binding; hooks
+    `__animTune.keyTools()`, `keyToolsSet(o)`, `keyToolsRun(tool)`.
+  - Exact preview (marlow-bays item 30e, `anim/tuneKeys.ts` `build`, `anim/tuneKeysCurve.ts`): a clip's key file loads
+    on its first edit; then the Bezier-keyed fields spread on Blender's curve (`keyCurve.ts`), the trunk re-keyed in
+    the bake's channel frames and the arms composed as the bake's FK, against the baked keys' curve read where the
+    sampler reads the clip (retimed: warped). Retimed, added and deleted keys re-key the curve. Allocation: the curve
+    tables once per clip (on its first edit), the baked keys' curves once per clip (on its file load).
   - New key fields (item 17; `anim/tuneKeysFile.ts` `KEY_FIELDS`, plain names in `tunerLayout.plainLabel`): head pitch /
     yaw / roll (`head.*`), pelvis shift (`pelvis.dx / dy / dz`, cm, now a slider), per arm the shoulder
     (`armX.sh.{pitch,yaw,roll}`, "shoulder forward / turn / out"), the upper arm twist (`armX.twistUpper`) and the
@@ -205,6 +225,40 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     channels are cleared, `clearKeyedArms`).
   - Hooks: `__studio.step(dir)` (a key), `showKey(clip, k)`, `weapon(w)`, `readout()`; `__animTune.pickLevel(sec, level,
     v)`, `keys()`, `keysStep(dir)`, `keysMirror(on)`.
+- (marlow-bays item 29: tuner v3, simpler; the current tuner layout, the item 26 / 26b, T2 and tuner-ui bullets below
+  are history where they differ) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerPhone.ts`,
+  `ui/tunerEffect.ts`, `ui/animTunePad.ts`; tests `tests/tunerV3.test.ts`, `tests/tunerEffect.test.ts`,
+  `tests/tunerHands.test.ts`, `tests/tunerLayout.test.ts`, `tests/tunerPhone.test.ts`, `tests/animTunePad.test.ts`):
+  - One layout for every input (Michael: "consistent between touch, controller, and k&m"): the input changes only the
+    hint glyphs; the viewport size alone picks the dock, the drawer (landscape, short side <= 600 px) or the sheet
+    (portrait, width <= 900 px). Body map, search, recent and pinned sliders, the Settings tab, the edit mode and 26b's
+    pad density are gone.
+  - One column: the top block (header, tabs, the studio's playback bar), the tab's "what" row (Part, State / Weapon),
+    folding slider groups, then a collapsed More (time and speed, View aids, panel settings with "Highlight on her" and
+    the Debug readout, presets, files). (Phase 2) On a drawer / sheet the top block is sticky as a whole (the tabs and
+    the playback bar scrolled away under the header before: Michael's 844 x 390 screenshots); the tabs and the playback
+    bar are one row that scrolls sideways; a row brought into view stops under it (`scroll-padding-top`).
+  - Highlight: a 3 px dot (a hairline along a bone), off with More > "Highlight on her". (Phase 2) The studio's green
+    skeleton and foot marks start off; More > View aids (studio only) turns Skeleton, Feet and Ghost poses on.
+  - (Phase 2) Keyed clips: the studio pins a keyed clip's own state on her rig (`anim/tune.ts` `TUNE_PIN`,
+    `tuneBodyGroup`; `anim/studio.ts` `studioBodyPin`), so the Body, Joints, Limb reach, Hands & feet and Gun rows of
+    that state reach the clip (on the spot her pose had no speed and picked `idle`: every jog slider did nothing). The
+    treadmill applies Feet apart and Knee lift (`studioDrive.ts`). The Body tab greys the sliders that do nothing in the
+    loop playing now (keyed clip, procedural, gun in hand) with a one-line reason: data from the effect probe
+    (`tests/helpers/tuneEffectProbe.ts`, table `ui/tunerEffect.ts`, the test fails when they disagree).
+  - (Phase 2) Plain words: units shown as cm (metres x 100), degrees (radians), ×, frames, per m/s (display only: ids,
+    stored values, saves and exports unchanged; `tunerLayout.shownUnit`); an armed row names the hands "Gun hand" and
+    "Support hand" (`handRoles`, `roleWords`); "Gun in the gun hand" moves the gun about her grip, the support hand
+    follows it (the report "gun in hand and support modified the same hand").
+  - (Phase 2) Camera: the View tab's "Around her" (0 behind, 90 her right, 180 front), "Camera tilt" and "Distance"
+    sliders set the orbit and follow the stick, drag, touch orbit and snaps (`player/freeView.ts` `FREE_SET`,
+    `FREE_ORBIT`, `FreeViewCore.setOrbit` / `snapTo`); a held snap keeps its angle to her facing and the look turns that
+    angle; Side pressed again swaps sides (`FreeSnap` `left`).
+  - (Phase 2) A rebuild (a key stepped, picked, added or deleted; another state) keeps the panel's scroll and the
+    focused slider. The studio's playback bar has the foot slide line ("Foot slide L 0.0 cm  R 0.0 cm", amber over
+    0.5 cm) from her rig's optional `footSlide` (track C), hidden while the field is absent. The pad controller runs on
+    real time (`padPoll`): the left stick and the repeats worked off the game's time, which is 0 while the tuner holds
+    the game.
 - (marlow-bays item 26: the tuner on a phone; Michael's written exception to M21 for the animation tuner and the Anim
   Studio only. The game stays desktop only: no phone look, no mobile path, no new work outside these two tools.) Pure
   parts `ui/tunerPhone.ts` (tests `tests/tunerPhone.test.ts`), suite `e2e-tuner-phone`:
@@ -245,6 +299,34 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   (`CharacterRig.tuneRows`, set in `operatorRig`: the player, the co-op partner, the studio's pair puppets), each picking
   its own row from its own pose inside its `animate` (`anim/tuneJointsRig.ts`); guards and other rigs never. `tuneV2Frame`
   copies the panel's rows into the tables (the active row, plus a few background rows a frame). Hook: `__animBase`.
+- (anim-bake-targets) Every tuner slider bakes. The Body sliders without a code value are deltas on the base table's
+  `body` key (each Wren rig composes its own row, `tune.ts` bodyRigBegin); the gun tuck bakes per gun state into
+  `WREN_TUCK` (`animGraph.ts`). Hook: `__animBase.setBody(row, id, v)`.
+- (marlow-bays item 24, track A) Guard tuning (`anim/tuneGuard.ts`, the per-guard window `anim/tuneGuardRig.ts`; tests
+  `tests/guardTune.test.ts`, e2e-studio): a "Who" list (Wren / Guard) heads the what-row of the Body, Stepping and Weight
+  tabs (`AnimTunePanel.setWho`, `tunerLayout.whoSections`). Guard shows the guard sections in place of hers: Guard
+  joints `guard.joint.<row>` (Body tab), Guard stepping `guard.step.<gait>` (Stepping), Guard weight
+  `guard.weight.<row>` (Weight: lean, step load, springs, the start dip; no momentum, landing, jump, gear or camera
+  slider), rows idle, walk (patrol and alert), run, aim, crouch, cover (`guardRowOf`); plain labels and targets as
+  the Wren section each mirrors (`GUARD_BASE_SECTION`). A tab with no guard rows keeps hers under a grey line. Every
+  guard rig (`CharacterRig.guardRows`, set in `buildEnemyRig`) picks its own row in its own `animate`, eases its joint
+  offsets and opens the joints window on the guard table only (`tuneJoints.jointsOpen`), steps its own Weight layers
+  (`WEIGHT_POSE` for its frame only, the camera signal put back) and its planner reads `GUARD_STEP_ROWS`
+  (`FootPlanner.stepRows`); no Wren rig reads them, and Wren's Joints / Stepping rows never reach a guard; the plain rigs
+  (the VIP, the training dummy, a carried body) read a fixed identity stepping table (`tuneStep.STEP_IDENTITY_ROWS`),
+  so Wren's Stepping rows reach Wren only. The guard loops' Stepping gait is the planner's own pick for the loop's pace
+  (`tunerLayout.GUARD_LOOP_GAIT` from `stepGaitIndex`: the run at 3.2 m/s steps in the jog gait). `tuneGuardFrame` (player.ts) copies the rows in once a
+  frame. Deltas on the generated guard base table `anim/animBaseGuard.ts` (BAKE.md). Saves, exports, imports, presets
+  and undo carry them through the registry (additive group ids; old records load with the guard rows at identity).
+  Anim Studio: Who = Guard (or a `guard:<loop>` pick) plays the guard puppet (`studioStage` `makePuppet`: a grunt from
+  `buildEnemyRig`, its gun, no AI) where Wren stands (she is hidden; the camera, the highlight via the panel's rig
+  getter, the view aids and pause / speed work on it): loops idle, patrol walk, alert walk, run, aim, crouched aim,
+  wall cover (`anim/studio.ts` `GuardLoop`), moving ones on the spot (`shiftWorld` treadmill); the guard sections
+  follow the puppet's row. Who = Wren plays her idle again. Hooks: `__animTune.who(w)`, `whoState()`, `__guardTune`.
+- (anim-bake-1022) Reset baked (`anim/tuneBakedReset.ts`): when the tuner's save loads, the sliders at a value the
+  bundled bake ledger (`anim/tuneBakeLog.json`) says is now in the code reset to their defaults, once per bake (hashes in
+  the save, `TuneSnapshot.baked`); the info line gives the count (on the next open when closed). Y menu "Reset baked"
+  reruns it over every bake. Hooks: `__animTune.bakedReset()`, `bakedApplied()`, `infoText()`; BAKE.md step 7.
 - (anim-joints J2, COVERAGE gap 2) Move and action rows in Joints, Hands & feet, IK strength and Weapon: the tables are
   keyed by the row list `TUNE_ROW_IDS` (`anim/tuneMoveRows.ts`): the body states (ids unchanged), then `trav.<kind>`
   (the traversal moves without a body state, plus `brace`), `team.<move>.<a|b>` (each co-op move per role) and the
@@ -263,7 +345,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   row. The per-gun Joints rows stay for the armed states only.
 - (anim-gear, marlow-bays item 22) Gear (`anim/tuneV2Sections.ts` `GEAR_SECTION`, tables `anim/tuneGear.ts`): worn-gear
   offsets per socket, its own tuner tab (`sec:gear`, "Gear": the panel builds it from the registry, no UI change).
-  Groups `gear.<socket>` (holster, backL, backC, backR, slingHip) and `gear.<socket>.crouch` (added
+  Groups `gear.<socket>` (holster, backL, backC, backR, slingHip, (anim-goggle) goggles) and `gear.<socket>.crouch` (added
   over the standing row by the rig's crouch amount 0..1); sliders x / y / z (m, -0.1..0.1) and pitch / yaw / roll (deg,
   -45..45), identity 0, no follow. Deltas on the base table's `gear` key; every Wren rig composes its own
   (`TuneRigState.gear`, in `tuneRigBegin`). Where each applies: holster -> the thigh pistol (`WeaponModel.place`, the
@@ -273,6 +355,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   pouches socket: Wren's kit draws her grenade pouches (the GrenadePouches meshes are hidden on her rig), so it would
   move nothing (dropped until they can move). A gun's frame is its own in the slot (x right, y top, z toward the muzzle); a node's is its
   parent's. A draw / holster's travel targets the moved slot (it places its end through `place`). Visual only (G-A3).
+  (anim-goggle) goggles -> the worn goggle (track C's `GOGGLE_OFFSET.inUse`, head frame: x right, y up, z forward, about
+  its own pivot): each Wren rig writes its composed value there inside its tuner window just before `goggleFrame()`
+  copies it into `rig.goggleOff`, and puts the old value back after (guards never); on LOD1 / LOD2 only the lens moves
+  (the housing is fused into the head); no stowed socket (the stowed goggle has no vertices yet).
   Hook: `__animBase.setGear(row, param, v)`.
 - (marlow-bays slice T2, item 12: the tuner redesign; the current layout, the tuner-ui bullet below is history where it
   differs) The panel (`ui/animTunePanel.ts`; pure parts `ui/tunerLayout.ts`, `ui/tunerTarget.ts`; tests

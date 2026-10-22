@@ -50,6 +50,10 @@ export const JOINTS = [
   'ankleR',
   'toeL',
   'toeR',
+  // (anim-skeleton S4) the clavicles (the rig's clavL / clavR nodes, chest frame: a shrug, a shoulder pushed forward),
+  // appended so every older joint keeps its index
+  'clavicleL',
+  'clavicleR',
 ] as const;
 export type Joint = (typeof JOINTS)[number];
 /** Joint index by name (the rig hook passes these). */
@@ -430,6 +434,16 @@ export function jointsBeginRigRows(st: JointsRigState, g: number, rows: ArrayLik
 /** After the rig's `animate` (closes whichever window is open). */
 export function jointsEnd(): void {
   JOINTS_CUR.on = false;
+}
+
+/**
+ * (item 24, track A) Open the window on a rig state whose applied offsets another table eased (a guard rig: the guard
+ * table of `tuneGuard.ts`, never this module's Wren rows). On only while `st` has a live offset. Close with
+ * `jointsEnd`. No allocation.
+ */
+export function jointsOpen(st: JointsRigState): void {
+  act = st;
+  JOINTS_CUR.on = st.any;
 }
 
 /** A writable quaternion (Babylon's `Quaternion` fits). */

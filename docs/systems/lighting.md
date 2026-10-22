@@ -5,6 +5,9 @@ Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G100-G102), then docs/d
 
 Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
 field (collision, the light bake, the noise model), never the render state.
+Security cameras are outside the light model (marlow-jammer, Michael M3): each has its own IR illuminator, so inside its
+range and cone it reads every body at `CAMERA.irLight` 1 (fully lit); lamps, jammed or shot lamps and dark corners do
+not change what a camera sees. Lights matter for guards and the meter only.
 
 ## Decided direction
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
@@ -32,6 +35,14 @@ field (collision, the light bake, the noise model), never the render state.
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
   `totalAt`; `bodyLevel` = brighter of chest / head. Allocation-free (a unit test bounds the bytes per query). Without a
   bake: registry ambient, every light dynamic.
+- (marlow-jammer) Jammed lamps: the pistol jammer switches a fixed electric lamp (`lamp` / `spot`) through
+  `LightRegistry.setOn` from one timeline (`jammer.ts` `lightLit`: a 0.5 s flicker off, off while held, 4 s off after the
+  release, a 0.5 s flicker on), so the bake's lamp term, the meter, the guards and the picture agree on every frame; the
+  co-op client runs the host's timeline (`sec.dv`) on its own registry. (jammer-fixes) The registry keeps a jammed lamp's
+  base state under the jam (`jamStart` / `jamLit` / `jamEnd`, `jammer.ts` `applyJamLight`): wall switches (`setGroup`), the
+  EMP and shots move the base, the jam only its flicker; at the end of the jam the lamp takes its base as it is then (a
+  group switched off or EMPed during the jam stays off). `baseOn` / `groupBaseOn` leave the jam out: the course's mains
+  gates read them, so a jam never counts as the group switched off.
 - Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote player's
   `PlayerRef.light`), `Enemy.perceive`, body light (`EnemyManager`, 1 Hz), `Enemy.torchWanted`.
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,

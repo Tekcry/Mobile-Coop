@@ -507,7 +507,8 @@ Implementation: `docs/systems/ai.md`.
   shut. One 15% threshold covers light, sound and sight through a door.
 - **Guards see poorly above them (G44):** a player well above a guard is hard to spot, as in CT.
 - **Glass (L15, G45).**
-- **Sensors:** security cameras (sweep cone, light-dependent like guards, raise an alarm, can be shot or disrupted,
+- **Sensors:** security cameras (sweep cone; they see by their own IR illuminator, not by the lamps, so darkness does not
+  hide a body in their cone (marlow-jammer, Michael M3); raise an alarm, can be shot or disrupted,
   visible in electro vision; a faint red laser grid always shows on the surfaces a camera watches, stronger in
   electro, Michael's decision, not CT, G222) and laser trip beams; the research confirms the set. Lethal automated
   defences appear only at military or private compounds; elsewhere security responds realistically (G128).

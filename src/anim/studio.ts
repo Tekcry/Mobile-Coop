@@ -8,6 +8,7 @@
  * input; leaving the studio resets it all (`studioReset`).
  */
 import type { KeyedClip } from './keyed';
+import type { BodyGroup } from './tune';
 import { stickMagFor } from '../player/speedGears';
 import { KEYED_CROUCH_IDLE } from './clips/keyed/crouch_idle';
 import { KEYED_CROUCH_RUN } from './clips/keyed/crouch_run';
@@ -29,6 +30,7 @@ import { KEYED_IDLE } from './clips/keyed/idle';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_RUN } from './clips/keyed/run';
+import { KEYED_SKELETON_TEST } from './clips/keyed/skeleton_test';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_WALL_CROUCH_IDLE } from './clips/keyed/wall_crouch_idle';
@@ -59,7 +61,7 @@ export interface StudioEntry {
   /** `off`, `state:<name>`, `keyed:<clip name>`, `pair:<move>` (anim-studio-2: both roles of a co-op move, or a hold with the guard) or `trav:<move>` (a traversal loop on a prop). */
   id: string;
   label: string;
-  kind: 'off' | 'state' | 'keyed' | 'pair' | 'trav';
+  kind: 'off' | 'state' | 'keyed' | 'pair' | 'trav' | 'guard';
   /** Keyed: the clip. */
   clip: KeyedClip | null;
   /** Speed (m/s) of the loop: the treadmill and the root-motion circle (keyed), the circle (a state). */
@@ -82,12 +84,26 @@ export interface StudioEntry {
   guardClip: KeyedClip | null;
   /** (anim-studio-2) A traversal loop (`studioTraversal.ts`), else null. */
   trav: TravEntry | null;
+  /** (marlow-bays item 24, track A) A guard puppet's loop (`guard:<name>`: a real guard rig, no AI), else null. */
+  gloop: GuardLoop | null;
 }
 
-const off: StudioEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null };
+/**
+ * (item 24, track A) What a guard puppet's loop feeds the guard rig, as `Enemy.frame` would: the pace (m/s, on the spot:
+ * a treadmill), the aim raise (0.2 unaware .. 0.7 alert .. 1 attacking), crouched, back to a wall, the dash.
+ */
+export interface GuardLoop {
+  speed: number;
+  aim: number;
+  crouch: boolean;
+  wall: boolean;
+  dash: boolean;
+}
+
+const off: StudioEntry = { id: 'off', label: 'off (you drive)', kind: 'off', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: null };
 
 function state(name: string, label: string, pace: number, move: StudioMove, crouch = false, drawn = false, aim = false): StudioEntry {
-  return { id: `state:${name}`, label: `state: ${label}`, kind: 'state', clip: null, pace, cycle: 1, move, crouch, drawn, aim, circle: pace > 0, guard: false, team: null, guardClip: null, trav: null };
+  return { id: `state:${name}`, label: `state: ${label}`, kind: 'state', clip: null, pace, cycle: 1, move, crouch, drawn, aim, circle: pace > 0, guard: false, team: null, guardClip: null, trav: null, gloop: null };
 }
 
 /**
@@ -113,22 +129,23 @@ function keyed(clip: KeyedClip, o: { pace?: number; step?: number; cycle?: numbe
     team: null,
     guardClip: null,
     trav: null,
+    gloop: null,
   };
 }
 
 /** (anim-studio-2) A co-op pair: both roles of a team move on one clock (`studioPairs.ts`). */
 function teamPair(m: TeamMoveId): StudioEntry {
-  return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null };
+  return { id: `pair:${m}`, label: `pair: ${TEAM_MOVE_LABEL[m].replace('Co-op: ', '')} (${TEAM_ROLE_LABEL[m][0]}, ${TEAM_ROLE_LABEL[m][1]})`, kind: 'pair', clip: null, pace: 0, cycle: pairCycle(m), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: m, guardClip: null, trav: null, gloop: null };
 }
 
 /** (anim-studio-2) A hold pair: Wren's hold clip and the guard's clip in place on one clock (Wren's keyed cycle). */
 function holdPair(name: string, wren: StudioEntry, guard: StudioEntry): StudioEntry {
-  return { ...wren, id: `pair:${name}`, label: `pair: ${wren.clip!.name} + ${guard.clip!.name}`, kind: 'pair', circle: false, guard: false, team: null, guardClip: guard.clip, trav: null };
+  return { ...wren, id: `pair:${name}`, label: `pair: ${wren.clip!.name} + ${guard.clip!.name}`, kind: 'pair', circle: false, guard: false, team: null, guardClip: guard.clip, trav: null, gloop: null };
 }
 
 /** (anim-studio-2) A traversal loop on a prop. */
 function travel(t: TravEntry): StudioEntry {
-  return { id: t.id, label: t.label, kind: 'trav', clip: null, pace: 0, cycle: travCycle(t), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: t };
+  return { id: t.id, label: t.label, kind: 'trav', clip: null, pace: 0, cycle: travCycle(t), move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: t, gloop: null };
 }
 
 /**
@@ -180,11 +197,15 @@ const BASE_ENTRIES: readonly StudioEntry[] = [
   keyed(KEYED_GUARD_HELD_STUMBLE, { pace: 0.8, step: 0.26, move: 'back', guard: true }),
   keyed(KEYED_GUARD_CHOKE_SAG, { cycle: 5.5, guard: true }),
   keyed(KEYED_GUARD_KNIFE_COLLAPSE, { cycle: 3, guard: true }),
+  keyed(KEYED_SKELETON_TEST, { cycle: 2 }), // (anim-skeleton S3b) studio only: clavicles, fingers, an FK leg kick
 ];
 
 function base(id: string): StudioEntry {
   return BASE_ENTRIES.find((e) => e.id === id)!;
 }
+
+/** (item 24, track A) The guard puppet's paces (m/s): the grunt's walk x the patrol / investigate paces, its run. */
+export const GUARD_PACE = { patrol: 0.99, alert: 1.08, run: 3.2 } as const;
 
 /**
  * The loop player's list: off, the procedural states, every keyed clip, then (anim-studio-2) the pairs (each co-op team
@@ -198,7 +219,21 @@ export const STUDIO_ENTRIES: readonly StudioEntry[] = [
   holdPair('hold_choke', base('keyed:hold_choke'), base('keyed:guard_choke_sag')),
   holdPair('hold_knife', base('keyed:hold_knife'), base('keyed:guard_knife_collapse')),
   ...TRAV_ENTRIES.map(travel),
+  // (marlow-bays item 24, track A) the guard puppet's loops (a real guard rig on the spot; Wren stands by, hidden)
+  guardLoop('idle', 'idle', { speed: 0, aim: 0.2, crouch: false, wall: false, dash: false }),
+  guardLoop('patrol', 'patrol walk', { speed: GUARD_PACE.patrol, aim: 0.2, crouch: false, wall: false, dash: false }),
+  guardLoop('alert', 'alert walk', { speed: GUARD_PACE.alert, aim: 0.7, crouch: false, wall: false, dash: false }),
+  guardLoop('run', 'run', { speed: GUARD_PACE.run, aim: 0.2, crouch: false, wall: false, dash: true }),
+  guardLoop('aim', 'aim', { speed: 0, aim: 1, crouch: false, wall: false, dash: false }),
+  guardLoop('crouchAim', 'crouched aim', { speed: 0, aim: 1, crouch: true, wall: false, dash: false }),
+  guardLoop('cover', 'wall cover', { speed: 0, aim: 1, crouch: false, wall: true, dash: false }),
 ];
+
+/** (item 24, track A) A guard puppet's loop: on the guard rig, on the spot (no key table: frames 0). Wren gets no input
+ *  (she stands by, hidden): the loop's own stance is in `gloop`. */
+function guardLoop(name: string, label: string, g: GuardLoop): StudioEntry {
+  return { id: `guard:${name}`, label: `guard: ${label}`, kind: 'guard', clip: null, pace: 0, cycle: 1, move: 'none', crouch: false, drawn: false, aim: false, circle: false, guard: false, team: null, guardClip: null, trav: null, gloop: g };
+}
 
 export function studioEntry(id: string): StudioEntry {
   // a plain loop: called every fixed step and frame (no closure allocation)
@@ -209,6 +244,44 @@ export function studioEntry(id: string): StudioEntry {
 /** (marlow-bays T1a, item 19) The studio's gun pick for every armed loop. */
 export type StudioWeapon = 'rifle' | 'pistol';
 export const STUDIO_WEAPONS: readonly StudioWeapon[] = ['rifle', 'pistol'];
+
+/** The tuner's body state of each keyed clip of Wren (the Keyed box's clip, a hold pair's clip). */
+export const CLIP_BODY: Readonly<Record<string, BodyGroup>> = {
+  idle: 'idle',
+  walk: 'walk',
+  jog: 'jog',
+  run: 'run',
+  ready_stance: 'lowReady',
+  glide_fwd: 'aim',
+  glide_strafe: 'aim',
+  glide_back: 'aim',
+  crouch_idle: 'crouchIdle',
+  sneak: 'sneak',
+  crouch_walk: 'crouchWalk',
+  crouch_run: 'crouchRun',
+  wall_idle: 'wallIdle',
+  wall_slide: 'wallSlide',
+  wall_peek: 'wallPeek',
+  wall_crouch_idle: 'wallCrouchIdle',
+  wall_crouch_slide: 'wallCrouchSlide',
+  wall_crouch_peek: 'wallCrouchPeek',
+  hold_idle: 'hold',
+  hold_fwd: 'hold',
+  hold_back: 'hold',
+  hold_side: 'hold',
+  hold_choke: 'hold',
+  hold_knife: 'hold',
+};
+
+/**
+ * (marlow-bays item 29) The body state Wren's rig tunes with while a loop plays ('' : chosen from her pose): a keyed clip
+ * of hers (and a hold pair) its own state, so the panel's sliders for that state reach the clip (on the spot the pose
+ * has no speed and alone would pick `idle`). A guard clip ('' : Wren stands by) and the procedural states are not pinned.
+ */
+export function studioBodyPin(e: StudioEntry): BodyGroup | '' {
+  if (e.guard || !e.clip || e.team || (e.kind !== 'keyed' && e.kind !== 'pair')) return '';
+  return CLIP_BODY[e.clip.name] ?? '';
+}
 
 /** (T1a) The weapon class a loop wants in hand ('' : holstered loops keep whatever is selected). */
 export function studioWeaponFor(e: StudioEntry, weapon: StudioWeapon): string {
@@ -233,8 +306,10 @@ export const STUDIO = {
   turntable: false,
   turnRate: 20 as number,
   guard: false,
-  skeleton: true,
-  feet: true,
+  /** (marlow-bays item 29 phase 2) The viewing aids start off (Michael: the green skeleton over her "is too distracting
+   *  and blocks the animation"); More > View aids turns them on. */
+  skeleton: false,
+  feet: false,
   onion: false,
   seek: Number.NaN,
   step: 0,
@@ -253,6 +328,11 @@ export const STUDIO = {
   onKey: false,
   /** Bumped by the panel on every tuner change (the onion skin's cached keys are stale then). */
   poseVer: 0,
+  /** (marlow-bays item 30d) Compare keys: a light ghost of the compared key's pose over her (off by default; the Keys
+   *  tab's switch), the compared key's phase (NaN: none) and a counter the panel bumps when that key's pose changes. */
+  compare: false,
+  comparePhase: Number.NaN,
+  compareVer: 0,
 };
 
 const DEFAULTS = { ...STUDIO };
