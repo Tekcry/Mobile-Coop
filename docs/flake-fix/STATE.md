@@ -84,7 +84,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   frame CPU p95 <= 12 ms, GPU p95 <= 15 ms at 24 facing (+ desktop default preset report); S3a (hit volumes from the
   sim); Marlow headroom at 12, alive cap per map (Marlow 12, campusOps 24); #180 merges first (train 19); partLibrary.ts
   ours, world.ts hunks go to Menu Notes. S1 (merge each guard into one rigidly skinned mesh, src/player/smoothBody*.ts,
-  ?guardmerge=0 to A/B) implementer stopped at the save: WIP on feature/guard-render (see docs/guard-render/STATE.md).
+  ?guardmerge=0 to A/B) implementer stopped at the save: design only, NO code yet, bf5c9a31 (docs/guard-render/STATE.md
+  has the S1 design). Run `npm ci` in C:/NightShift/Mobile-Coop-guard-render first (no node_modules; a junction was refused).
   CT Core agreed the characterRig hook: own private method (build at rig creation + one per-frame skin update after the
   final pose), outside ~1850-2010 and ~2600-2700, no per-frame allocation, nothing in src/anim; first PR ready merges
   first; send CT Core the hook line range + diff. Then measure S1 with guard-cap (alone, 4189; ?guardmerge=0 vs default)
