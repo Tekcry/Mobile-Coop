@@ -89,3 +89,14 @@ Budgets (`docs/systems/performance.md`): main thread Epic p95 <= 5.5 ms, sim p95
 3. Both cheap per guard but the total breaks past some N -> dormant guards: small linear slopes, budget crossed only at
    large N: place all, keep awake at most the N that fits (MAX_ALIVE from the numbers).
 4. Nothing breaks at 24 -> raise `MAX_ALIVE` to 24 (the co-op snapshot trimming item stays for > 16).
+
+## Reading of the first run (2026-10-23, 4.64.0, laptop RTX 4090, alone, Epic 1920x1080, uncapped)
+- Option 2, render-bound, with a sim share: every guard costs about 2.0-2.3 ms of frame CPU in Sector Ops (1.65 in
+  Marlow Yard) and about 1.1 ms of GPU, but only about 0.02-0.06 ms of AI (perceive 0.005). The growth is `render()` CPU
+  (1.5 ms at 0 guards, 40 ms at 24 facing), active meshes (123 -> 1429) and the sim's `anim` bucket (0 -> 4.2 ms at 24,
+  about 0.17 ms a guard). Flashlight shadows are flat (capped pool), so they are not the per-guard cost.
+- Budgets are broken already at 12 awake guards facing: frame CPU 35.6 ms (Epic main p95 budget 5.5), sim p95 9.6 ms
+  (2.9), 27.5 fps (Sector Ops); at 24: 57-60 ms, 16-17 fps. Facing away halves it (the visible guards' share).
+- So AI / perception LOD would not help; guard render LOD (cheaper far skeletons / skinning, culling off-screen
+  guards' bones) and the animation cost per guard are the levers. Until then, more than ~4-6 awake guards on screen at
+  Epic does not fit 60 Hz on this machine.
