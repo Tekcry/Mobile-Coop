@@ -4105,6 +4105,9 @@ export class CharacterRig {
       // (on while anything is still held back, up to SWITCH_HOLD + SWITCH_FADE s more)
       if (this.xfT >= SWITCH_HOLD + SWITCH_FADE && (!lim || this.xfT >= 2 * (SWITCH_HOLD + SWITCH_FADE))) this.xfT = -1;
     }
+    // (guard-render S5 L2, CT Core OK) a guard rig (`guardSt`) with no fade running keeps no snapshot: it is read only on a
+    // `LOCO.mocap` toggle frame (`xfSeen` stays 0, so `xfStart` never arms for it)
+    if (!on && this.guardSt !== null) return;
     // the posed frame, for the next toggle (reads only)
     Q2.set(Q1);
     for (let j = 0; j < N.length; j++) {
