@@ -27,6 +27,10 @@
   Sonnet slice gets its fix round from Opus.
 
 ## Next
+0. (99% stop, ~03:45) Slice 0 DONE at b0b7bc24 (A46-A51 in BRIEF; ENGINE.md section 7 = guard-ai requests;
+   docs/sector-redesign/FOR-CAMERA-RANGE.md = one hunk for camera-range). Owed: a fresh Opus checker, the full npm
+   test + e2e-sectorops (all parts), coop, netmove, lightbake, levels, anchors at E2E_GPU=1 via Character Build.
+   Open: co-op client lamps not reset on restart until slice L.
 1. Slice 0 hand-back -> commit, merge slice L branch when done, full npm test (desktop at 100% CPU: send the full run
    to Character Build instead), checker.
 2. Slice 1 (S1 greybox, PLAN.md) on this branch; after the reset at most 3 agents per desktop session (orchestrator).
