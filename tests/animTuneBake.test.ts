@@ -246,8 +246,8 @@ describe('anim-bake on a sample export (temp copies)', () => {
     // stepping, weight (all five groups equal: once, not five times)
     close(num(old('src/anim/footPlanner.ts'), 'PLANNER.idleLift'), num(before['src/anim/footPlanner.ts']!, 'PLANNER.idleLift') * 1.4);
     // (anim-natural N1) the jog's turn step allowance: its own entry of the per gait table, the other gaits' kept
-    close(num(old('src/anim/footPlanner.ts'), 'TURN_STEP.twist[2]'), num(before['src/anim/footPlanner.ts']!, 'TURN_STEP.twist[2]') * 1.2);
-    expect(num(old('src/anim/footPlanner.ts'), 'TURN_STEP.twist[3]')).toBe(num(before['src/anim/footPlanner.ts']!, 'TURN_STEP.twist[3]'));
+    close(num(old('src/anim/footPlanner.ts'), 'FOOT_TURN_STEP.twist[2]'), num(before['src/anim/footPlanner.ts']!, 'FOOT_TURN_STEP.twist[2]') * 1.2);
+    expect(num(old('src/anim/footPlanner.ts'), 'FOOT_TURN_STEP.twist[3]')).toBe(num(before['src/anim/footPlanner.ts']!, 'FOOT_TURN_STEP.twist[3]'));
     expect(res('step.jog', 'turnTwist')).toBe('baked');
     close(num(old(M), 'CT.startTime'), num(before[M]!, 'CT.startTime') * 1.2);
     expect(num(old('src/anim/weight.ts'), 'WEIGHT_BASE.chestHz')).toBe(num(before['src/anim/weight.ts']!, 'WEIGHT_BASE.chestHz'));

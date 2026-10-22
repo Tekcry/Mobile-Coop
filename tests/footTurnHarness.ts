@@ -11,13 +11,16 @@
  * Not modelled: the IK's reach limit (an overstretched leg drags the rendered ankle), the keyed trunk (the rig slerps the
  * hips to the keyed pelvis by keyW, so `pelvisRange` / `windPelvis` here use the procedural pelvis + the follow), the
  * bank's projection on the hip line, ground probes (flat floor). Run: `npx vitest run tests/footTurn.test.ts --silent=false`.
+ * (fix round) Options: `hz` (another sim rate, 120 = a render-rate rig), `turnRule` 0 (master's planner); scenarios may pose a
+ * co-op remote (`remote`) or a guard (`guard`, GUARD_SCENARIOS). Contact slide per point (metrics.ts contactSlide).
  */
 import { AnimGraph, defaultInput } from '../src/anim/animGraph';
 import { emptyPlannerInput, FootPlanner, type FootState } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver } from '../src/anim/motion';
-import { HEEL_BACK, HEEL_DOWN, TOE_BALL } from '../src/anim/footGeom';
+import { HEEL_BACK, HEEL_DOWN, heelLift, TOE_BALL } from '../src/anim/footGeom';
+import { contactSlide } from '../src/anim/audit/metrics';
 import { PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
-import { CT, GEARS } from '../src/config/movement';
+import { CT, ENEMY_CALM_MOTION, ENEMY_MOTION, GEARS } from '../src/config/movement';
 import { hyp2 } from '../src/core/mathx';
 import { proportions } from '../src/player/proportions';
 import { stickCurve, stickSpeed } from '../src/player/speedGears';
@@ -46,6 +49,13 @@ export interface Scenario {
   crouch?: boolean;
   /** Aiming (strafe-locked, stride 'velocity'): the aim yaw at time t (the body follows it at the aim turn rate). */
   aim?: (t: number) => number;
+  /**
+   * (anim-natural N1 fix round) Posed as a co-op remote (tests/turnHarness.ts's model): 20 Hz snapshots rendered 0.1 s
+   * behind, velocity and yaw rate measured from them, no driver phase or motion state, no face goal.
+   */
+  remote?: boolean;
+  /** (fix round, CHECK finding 6) A guard (enemy.ts): its motion tuning, calm (a patrol) or alert. */
+  guard?: 'calm' | 'alert';
 }
 
 export interface FootTurnRow {
@@ -68,11 +78,15 @@ export interface FootTurnRow {
   renderSlideCm: number;
   flatSlideCm: number;
   /**
-   * (anim-natural N1, decision 1) Contact slide (cm): per plant the travel of the foot's contact on the floor, read as
-   * the ball's spot (the ball; toe up, the heel's spot on along the foot), as metrics.ts contactSlide and e2e-anim's turn
-   * block: a plant that rolls off the heel and then turns on its ball reads the contact it actually had.
+   * (anim-natural N1, decision 1; fix round finding 1a) Contact slide (cm): per plant each contact point's travel over
+   * the frames it is down (metrics.ts contactSlide, as e2e-anim's foot lock and turn block): the heel while the heel is
+   * down (`heelCm`), the ball while the ball is down (`ballCm`), both while flat; `contactCm` the larger. Heel and ball as
+   * the rig poses them (footGeom: HEEL_DOWN under the ankle, HEEL_BACK behind, TOE_BALL ahead; the ankle raised by
+   * `heelLift`, the foot turned by the planner's yaw and pitch + the stance pitch).
    */
   contactCm: number;
+  heelCm: number;
+  ballCm: number;
   /** Totals over the window: twist-cap turn of planted feet (deg), band scrub (cm), drag (cm). */
   capDeg: number;
   bandCm: number;
@@ -113,22 +127,23 @@ interface PlantTrack {
   pz: number;
   pyaw: number;
   prevTwist: number;
-  /** Contact slide: the rig's heel and ball last frame, and the plant's sum. */
-  chx: number;
-  chz: number;
-  cbx: number;
-  cbz: number;
-  cAcc: number;
+  /** Contact slide: the rig's heel and ball per frame in the window (world x, y, z) and the contact flags. */
+  heel: number[];
+  ball: number[];
+  contact: number[];
 }
 
-const track = (): PlantTrack => ({ on: false, ax: 0, az: 0, hx: 0, hz: 0, tx: 0, tz: 0, fhx: 0, fhz: 0, ftx: 0, ftz: 0, turnT: 0, yaw0: 0, swingN: 0, px: 0, pz: 0, pyaw: 0, prevTwist: 0, chx: 0, chz: 0, cbx: 0, cbz: 0, cAcc: 0 });
+const track = (): PlantTrack => ({ on: false, ax: 0, az: 0, hx: 0, hz: 0, tx: 0, tz: 0, fhx: 0, fhz: 0, ftx: 0, ftz: 0, turnT: 0, yaw0: 0, swingN: 0, px: 0, pz: 0, pyaw: 0, prevTwist: 0, heel: [], ball: [], contact: [] });
 
-/** Run one scenario at 60 Hz; returns the metrics row. */
-/** Optional per-frame probe (debugging): sim time, the planner and its input after the update. */
-export type FootTurnProbe = (t: number, p: FootPlanner, pi: ReturnType<typeof emptyPlannerInput>) => void;
+/** Optional per-frame probe (debugging): sim time, the planner and its input after the update, the rendered pelvis yaw. */
+export type FootTurnProbe = (t: number, p: FootPlanner, pi: ReturnType<typeof emptyPlannerInput>, pelvisYaw: number) => void;
 
-export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRule?: number } = {}): FootTurnRow {
-  const hz = 60;
+/**
+ * Run one scenario (60 Hz, the game's rate; `hz` another sim rate); returns the metrics row. `turnRule` 0: the planner
+ * without the turn rules (master's).
+ */
+export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRule?: number; hz?: number } = {}): FootTurnRow {
+  const hz = opts.hz ?? 60;
   const dt = 1 / hz;
   const d = new MotionDriver(0);
   const pr = proportions();
@@ -159,6 +174,8 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
     renderSlideCm: 0,
     flatSlideCm: 0,
     contactCm: 0,
+    heelCm: 0,
+    ballCm: 0,
     capDeg: 0,
     bandCm: 0,
     dragCm: 0,
@@ -178,6 +195,13 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
   let base = { scrub: 0, scrubPos: 0, slide: 0 };
   const yaws: number[] = [];
   let yaw0 = 0;
+  // (fix round) a remote's view: 20 Hz snapshots rendered 0.1 s behind (tests/turnHarness.ts)
+  const snaps: { t: number; x: number; z: number; yaw: number }[] = [];
+  let rvx = 0;
+  let rvz = 0;
+  let rPrevX = 0;
+  let rPrevZ = 0;
+  const snapEvery = Math.max(1, Math.round(hz / 20));
   // heel / toe world points of a foot (pitch optional)
   // (anim-natural N1, decision 1) the contact point: the heel (the audit's point) and the ball the rig keeps on the floor
   // (footGeom TOE_BALL ahead at HEEL_DOWN under the ankle; the audit's toe point, 0.43 of the foot at the ankle height, sat
@@ -199,25 +223,56 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
     }
     const st = sc.stick(t);
     const aiming = !!sc.aim;
-    mi.ct = true;
-    mi.faceTravel = true;
+    // (fix round) a guard: the enemy driver (enemy.ts: not CT, faces its travel by the guard turn rates, sprinting over
+    // 1.2 x walk), the rest as the player's rig
+    mi.ct = !sc.guard;
+    mi.faceTravel = !sc.guard;
+    mi.sprinting = !!sc.guard && !!st && st.speed > 1.2 * 1.3;
     mi.aiming = aiming;
     mi.slowest = false;
     mi.crouch = sc.crouch ? 1 : 0;
-    mi.yaw = aiming ? sc.aim!(t) : d.yaw;
+    mi.yaw = aiming ? sc.aim!(t) : sc.guard && st ? st.dir : d.yaw;
     mi.vx = st ? Math.sin(st.dir) * st.speed : 0;
     mi.vz = st ? Math.cos(st.dir) * st.speed : 0;
-    d.step(dt, mi);
+    if (sc.guard) d.step(dt, mi, sc.guard === 'alert' ? ENEMY_MOTION : ENEMY_CALM_MOTION);
+    else d.step(dt, mi);
     x += d.outX * dt;
     z += d.outZ * dt;
-    const yaw = d.yaw;
+    let rx = x;
+    let rz = z;
+    let yaw = d.yaw;
+    let vx = d.outX;
+    let vz = d.outZ;
+    if (sc.remote) {
+      if (n % snapEvery === 0) snaps.push({ t, x, z, yaw: d.yaw });
+      const rt = t - 0.1;
+      let a = snaps[0]!;
+      let b = a;
+      for (let k = 0; k < snaps.length; k++) {
+        if (snaps[k]!.t <= rt) a = snaps[k]!;
+        if (snaps[k]!.t >= rt) {
+          b = snaps[k]!;
+          break;
+        }
+      }
+      const kk = b.t > a.t ? (rt - a.t) / (b.t - a.t) : 0;
+      rx = a.x + (b.x - a.x) * kk;
+      rz = a.z + (b.z - a.z) * kk;
+      yaw = a.yaw + wrap(b.yaw - a.yaw) * kk;
+      if (n > 0) {
+        rvx = approachTo(rvx, (rx - rPrevX) / dt, dt, 0.06);
+        rvz = approachTo(rvz, (rz - rPrevZ) / dt, dt, 0.06);
+      }
+      rPrevX = rx;
+      rPrevZ = rz;
+      vx = rvx;
+      vz = rvz;
+    }
     // the rig's own measured yaw rate (RigPose.yawRate unset for the local player)
     if (prevYaw !== null) yawRateS = approachTo(yawRateS, wrap(yaw - prevYaw) / dt, dt, 0.05);
     prevYaw = yaw;
     const yr = yawRateS;
-    const vx = d.outX;
-    const vz = d.outZ;
-    const sp = d.speed;
+    const sp = sc.remote ? hyp2(vx, vz) : d.speed;
     gi.speed = sp;
     const stride = aiming ? 'velocity' : 'facing';
     if (stride === 'facing') {
@@ -237,19 +292,19 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
     gi.armed = false;
     gi.raise = aiming ? 1 : 0;
     gi.yawRate = yr;
-    gi.phase = d.phase;
-    gi.motion = d.state;
+    gi.phase = sc.remote ? -1 : d.phase;
+    gi.motion = sc.remote ? '' : d.state;
     gi.motionT = d.stateT;
     gi.quickStop = CT.stopBlend;
     gi.accelFwd = d.ax * Math.sin(yaw) + d.az * Math.cos(yaw);
     gi.accelSide = d.ax * Math.cos(yaw) - d.az * Math.sin(yaw);
     const tg = g.update(dt, gi);
     pi.dt = dt;
-    pi.rootX = x;
+    pi.rootX = rx;
     pi.rootY = 0;
-    pi.rootZ = z;
+    pi.rootZ = rz;
     pi.yaw = yaw;
-    pi.goalYaw = d.goalYaw;
+    pi.goalYaw = sc.remote ? yaw : d.goalYaw;
     pi.velX = vx;
     pi.velZ = vz;
     pi.moving = tg.gait.moving;
@@ -267,19 +322,19 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
     pi.turnStep = 0.9;
     pi.turnRule = opts.turnRule ?? 1;
     pi.yawRate = yr;
-    pi.faceGoal = d.faceGoal;
+    pi.faceGoal = sc.remote ? Number.NaN : d.faceGoal;
     pi.stride = stride;
     pi.glide = aiming;
     pi.pelvisYaw = yaw + follow;
     pi.crouch = sc.crouch ? 1 : 0;
     pi.ground = null;
     p.update(pi);
-    if (probe) probe(t, p, pi);
     const L = p.L;
     const R = p.R;
     follow = pelvisFollow(follow, yaw, L.yaw, R.yaw, stride === 'facing' && L.contact, stride === 'facing' && R.contact, dt, PELVIS_FOLLOW_MAX + (PELVIS_FOLLOW_KEYED - PELVIS_FOLLOW_MAX) * tg.keyHol);
     const pelOff = tg.pelvis.yaw + follow;
     const pelYaw = yaw + pelOff;
+    if (probe) probe(t, p, pi, pelYaw);
     if (!inWin) {
       // keep the plant trackers current before the window
       for (let k = 0; k < 2; k++) {
@@ -301,13 +356,26 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
       const f = k === 0 ? L : R;
       const s = tr[k]!;
       const st2 = k === 0 ? tg.stance.lPitch : tg.stance.rPitch;
+      {
+        // the rig's contact points (footGeom): the heel HEEL_BACK behind, the ball TOE_BALL ahead, HEEL_DOWN under the
+        // ankle, the ankle HEEL_DOWN + heelLift over the floor, the foot turned by the planner's pitch + the stance pitch
+        const p0 = f.pitch + st2;
+        const ay = HEEL_DOWN + heelLift(f);
+        const sy = Math.sin(f.yaw);
+        const cy = Math.cos(f.yaw);
+        for (let q = 0; q < 2; q++) {
+          const lz = q === 0 ? -HEEL_BACK : TOE_BALL;
+          const fz = -HEEL_DOWN * Math.sin(p0) + lz * Math.cos(p0);
+          const fy = -HEEL_DOWN * Math.cos(p0) - lz * Math.sin(p0);
+          (q === 0 ? s.heel : s.ball).push(f.x + fz * sy, f.y + ay + fy, f.z + fz * cy);
+        }
+        s.contact.push(f.contact ? 1 : 0);
+      }
       if (f.contact) {
         const [hx, hz] = pt(f, heelZ, true, st2);
         const [tx, tz] = pt(f, TOE_BALL, true, st2, HEEL_DOWN);
         const [fhx, fhz] = pt(f, heelZ, false, 0);
         const [ftx, ftz] = pt(f, TOE_BALL, false, 0, HEEL_DOWN);
-        // the rig's contact points (footGeom): the heel HEEL_BACK behind, the ball TOE_BALL ahead, HEEL_DOWN under the ankle
-        const [chx, chz] = pt(f, -HEEL_BACK, true, st2, HEEL_DOWN);
         if (!s.on) {
           s.on = true;
           s.ax = f.x;
@@ -322,19 +390,6 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
           s.ftz = ftz;
           s.turnT = 0;
           s.yaw0 = yaw;
-          s.cAcc = -1;
-        }
-        {
-          // as metrics.ts contactSlide: the ball's spot (toe up: the heel's spot HEEL_BACK + TOE_BALL on along the foot)
-          const toeUp = f.pitch + st2 < -1e-3;
-          const cx = toeUp ? chx + (HEEL_BACK + TOE_BALL) * Math.sin(f.yaw) : tx;
-          const cz = toeUp ? chz + (HEEL_BACK + TOE_BALL) * Math.cos(f.yaw) : tz;
-          if (s.cAcc < 0) {
-            s.cbx = cx;
-            s.cbz = cz;
-            s.cAcc = 0;
-          }
-          row.contactCm = Math.max(row.contactCm, hyp2(cx - s.cbx, cz - s.cbz) * 100);
         }
         if (Math.abs(yr) > 1) s.turnT += dt;
         row.plantTurnS = Math.max(row.plantTurnS, s.turnT);
@@ -386,6 +441,12 @@ export function runFootTurn(sc: Scenario, probe?: FootTurnProbe, opts: { turnRul
   const want = Math.abs(acc) * 0.9;
   const hit = cum.findIndex((v) => Math.abs(v) >= want);
   row.yaw90 = hit < 0 ? 0 : (hit + 1) * dt;
+  for (const s of tr) {
+    const c = contactSlide(s.heel, s.ball, s.contact, 0.01);
+    row.heelCm = Math.max(row.heelCm, c.heelWorst * 100);
+    row.ballCm = Math.max(row.ballCm, c.ballWorst * 100);
+  }
+  row.contactCm = Math.max(row.heelCm, row.ballCm);
   row.capDeg = (p.L.scrub + p.R.scrub - base.scrub) * D;
   row.bandCm = (p.L.scrubPos + p.R.scrubPos - base.scrubPos) * 100;
   row.dragCm = (p.L.slide + p.R.slide - base.slide) * 100;
@@ -408,6 +469,8 @@ const PRE = 1.8;
 const turn = (speed: number, deg: number): Stick => (t) => ({ dir: t < PRE ? 0 : (deg * Math.PI) / 180, speed });
 /** Straight, then the stick swept round at `rate` rad/s (a continuous circle). */
 const sweep = (speed: number, rate: number): Stick => (t) => ({ dir: t < PRE ? 0 : (t - PRE) * rate, speed });
+/** A held spin (tests/turnHarness.ts `spin`): the stick rotating at `rate` rad/s from 0.5 s. */
+const spinAt = (speed: number, rate: number): Stick => (t) => ({ dir: t < 0.5 ? 0 : (t - 0.5) * rate, speed });
 
 export const FOOT_TURN_SCENARIOS: Scenario[] = [
   // jog / run turns at the GEARS speeds (the audit's turn90-jog / -run, turn180-jog / -run: gear 4 / 5, stick 1)
@@ -442,6 +505,29 @@ export const FOOT_TURN_SCENARIOS: Scenario[] = [
   { name: 'stop run', seconds: PRE + 1.0, t0: PRE, stick: (t) => (t < PRE ? { dir: 0, speed: S[4] } : null) },
   { name: 'straight jog', seconds: PRE + 1.2, t0: PRE, stick: () => ({ dir: 0, speed: S[3] }) },
   { name: 'aim strafe', seconds: 2.2, t0: 0.8, stick: () => ({ dir: Math.PI / 2, speed: 1.4 }), aim: () => 0 },
+  // (anim-natural N1 fix round, CHECK finding 1d) held spins (tests/turnHarness.ts SCENARIOS): the stick swept round at 7
+  // rad/s (5.5 at 4.2 m/s) from 0.5 s, measured from 1 s; crouched; and a co-op remote's copy (20 Hz snapshots)
+  ...([0.75, 2, 3, 4.2] as const).map((v) => ({ name: `spin ${v}`, seconds: 3.5, t0: 1.0, stick: spinAt(v, v > 4 ? 5.5 : 7) })),
+  ...([0.85, 2.1] as const).map((v) => ({ name: `crouch spin ${v}`, seconds: 3.5, t0: 1.0, crouch: true, stick: spinAt(v, 7) })),
+  ...([0.75, 2] as const).map((v) => ({ name: `remote spin ${v}`, seconds: 3.5, t0: 1.0, remote: true, stick: spinAt(v, 7) })),
+  // (fix round, Course Ready anim-n4 inputs) the slow walk's late stance (a carry walk's pace, 0.75 m/s: the toe slid back
+  // as the heel rose) and a start that turns 90 deg (the carry-walk start turn: the planted foot wound and slid)
+  { name: 'slow walk', seconds: PRE + 1.6, t0: PRE, stick: () => ({ dir: 0, speed: 0.75 }) },
+  { name: 'start 90 slow', seconds: 2.0, t0: 0.5, stick: (t) => (t < 0.5 ? null : { dir: Math.PI / 2, speed: 0.75 }) },
+  { name: 'start 90', seconds: 2.0, t0: 0.5, stick: (t) => (t < 0.5 ? null : { dir: Math.PI / 2, speed: S[2] }) },
+];
+
+/**
+ * (anim-natural N1 fix round, CHECK finding 6) Guard rows: the enemy motion driver (config/enemies.json walk 0.9 / 1.3,
+ * run 3.2 m/s; patrol turns at the guard turn rates, 300-540 deg/s) through the same rig path (stride 'facing', the gait
+ * clock from the driver). Measured with the turn rules and with turnRule 0 (master's planner).
+ */
+export const GUARD_SCENARIOS: Scenario[] = [
+  ...([0.9, 1.3] as const).flatMap((v) => [90, 180].map((deg) => ({ name: `guard ${v} ${deg}`, seconds: PRE + 1.6, t0: PRE, guard: 'calm' as const, stick: turn(v, deg === 180 ? 179.9 : deg) }))),
+  { name: 'guard run 3.2 90', seconds: PRE + 1.4, t0: PRE, guard: 'alert', stick: turn(3.2, 90) },
+  { name: 'guard alert 1.3 180', seconds: PRE + 1.6, t0: PRE, guard: 'alert', stick: turn(1.3, 179.9) },
+  { name: 'guard spin 1.3', seconds: 3.5, t0: 1.0, guard: 'calm', stick: spinAt(1.3, 7) },
+  { name: 'guard straight 1.3', seconds: PRE + 1.2, t0: PRE, guard: 'calm', stick: () => ({ dir: 0, speed: 1.3 }) },
 ];
 
 const COLS: [keyof FootTurnRow, string, number][] = [
@@ -457,6 +543,8 @@ const COLS: [keyof FootTurnRow, string, number][] = [
   ['renderSlideCm', 'render cm', 1],
   ['flatSlideCm', 'flat cm', 1],
   ['contactCm', 'contact', 1],
+  ['heelCm', 'heel', 1],
+  ['ballCm', 'ball', 1],
   ['capDeg', 'cap deg', 0],
   ['bandCm', 'band cm', 1],
   ['dragCm', 'drag cm', 1],

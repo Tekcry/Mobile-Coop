@@ -280,8 +280,8 @@ rules.push(
   const STEP_ROW = ['step.idle', 'step.walk', 'step.jog', 'step.run', 'step.crouchWalk', 'step.crouchRun'];
   STEP_ROW.forEach((g, k) => {
     rules.push(
-      rule('step', 'turnTwist', [g], [e(PLAN, `TURN_STEP.twist[${k}]`, 'mul')], 'also the twist cap\'s backstop (TURN_CAP x it)'),
-      rule('step', 'turnRate', [g], [e(PLAN, `TURN_STEP.rate[${k}]`, 'mul')]),
+      rule('step', 'turnTwist', [g], [e(PLAN, `FOOT_TURN_STEP.twist[${k}]`, 'mul')], 'also the twist cap\'s backstop (TURN_CAP x it)'),
+      rule('step', 'turnRate', [g], [e(PLAN, `FOOT_TURN_STEP.rate[${k}]`, 'mul')]),
       rule('step', 'pivot', [g], [e(PLAN, `TURN_PIVOT.max[${k}]`, 'mul')]),
       rule('step', 'pivotHeel', [g], [e(PLAN, `TURN_PIVOT.heel[${k}]`, 'mul')]),
     );

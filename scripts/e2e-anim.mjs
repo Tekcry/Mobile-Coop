@@ -18,7 +18,6 @@ const L = await import(pathToFileURL(`${LIB}/limits.js`).href);
 // (anim-natural N1) the foot's contact geometry (heel / ball under the ankle) the planner and the rig share
 const FG = await import(pathToFileURL(`${LIB}/footGeom.js`).href);
 const FOOT = { back: FG.HEEL_BACK, down: FG.HEEL_DOWN, ball: FG.TOE_BALL };
-const LEVER = FG.HEEL_BACK + FG.TOE_BALL;
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -339,62 +338,62 @@ try {
     ['aim back', { y: -1, ads: true }],
   ];
   for (const [name, inp, mode] of gaits) {
-    const r = await G(([inp, mode, F, lever]) => {
+    const rec = await G(([inp, mode, F]) => {
       const t = window.__t;
       const p = window.__app.current.player;
       t.tp(12, -14, -Math.PI / 2);
       if (mode === 'crouch') p.controller['crouchToggled'] = true;
       t.run(1.0, inp);
       const keep = { ...inp, taps: undefined };
-      const lock = { L: null, R: null };
-      let maxSlide = 0;
-      let plants = 0;
-      let held = 0;
+      // per frame and foot: the ankle, the rendered heel / ball (footGeom points), contact and the planner's anchor
+      const out = { speed: 0, L: { ankle: [], heel: [], ball: [], contact: [], held: [] }, R: { ankle: [], heel: [], ball: [], contact: [], held: [] } };
       t.run(1.6, keep, () => {
         for (const side of [-1, 1]) {
           const k = side < 0 ? 'L' : 'R';
           const f = p.rig.planner[k];
           const an = t.ankle(side);
-          // (anim-natural N1, decisions 1 / 2) a plant the planner anchors (free movement: the heel-first roll about the
-          // heel, the heel raise about the ball, footPlanner HOLD_CONTACT) reads its contact point, the ball's spot
-          // (metrics.ts contactSlide); was the ankle's travel for every plant (the ankle now rolls round the held
-          // contact by design). The aimed rows are not anchored and read the ankle as before. Limit unchanged (1 cm).
           const c = t.contactPts(side, F);
-          const toeUp = c[4] - c[1] > 0.005;
-          const dl = Math.hypot(c[3] - c[0], c[5] - c[2]) || 1;
-          const sx = toeUp ? c[0] + ((c[3] - c[0]) / dl) * lever : c[3];
-          const sz = toeUp ? c[2] + ((c[5] - c[2]) / dl) * lever : c[5];
-          if (f.contact) {
-            if (!lock[k]) {
-              lock[k] = { x: an.x, z: an.z, sx, sz, held: !!f.anchored };
-              plants++;
-              if (f.anchored) held++;
-            }
-            const q = lock[k];
-            maxSlide = Math.max(maxSlide, q.held ? Math.hypot(sx - q.sx, sz - q.sz) : Math.hypot(an.x - q.x, an.z - q.z));
-          } else lock[k] = null;
+          const o = out[k];
+          o.ankle.push(an.x, an.y, an.z);
+          o.heel.push(c[0], c[1], c[2]);
+          o.ball.push(c[3], c[4], c[5]);
+          o.contact.push(f.contact ? 1 : 0);
+          o.held.push(f.anchored ? 1 : 0);
         }
         return 0;
       });
       p.controller['crouchToggled'] = false;
-      return { maxSlide, plants, held, speed: p.controller.speed };
-    }, [inp, mode ?? null, FOOT, LEVER]);
+      out.speed = p.controller.speed;
+      return out;
+    }, [inp, mode ?? null, FOOT]);
+    // (anim-natural N1, decisions 1 / 2) a plant the planner anchors (free movement: the heel-first roll about the heel,
+    // the heel raise about the ball, footPlanner HOLD_CONTACT) reads its contact points; was the ankle's travel for every
+    // plant (the ankle now rolls round the held contact by design). The aimed rows are not anchored and read the ankle as
+    // before. (anim-natural-n1 fix round, CHECK finding 1a) the contact points are each measured over the frames they are
+    // down (metrics.ts contactSlide: the heel while the heel is down, the ball while the ball is down, both while flat;
+    // was the ball's spot, a toe-up foot's heel + 17 cm along the foot, which read a heel swept round it as 0). Limit
+    // unchanged (1 cm).
+    const fl = ['L', 'R'].map((k) => M.footSlide(rec[k].ankle, rec[k].heel, rec[k].ball, rec[k].contact, rec[k].held, 0.01));
+    const r = { maxSlide: Math.max(fl[0].worst, fl[1].worst), plants: fl[0].plants + fl[1].plants, held: fl[0].contactPlants + fl[1].contactPlants, speed: rec.speed };
     assert(r.plants >= 3 && r.maxSlide < 0.01, `${name} (${f2(r.speed)} m/s): planted feet locked (${(r.maxSlide * 100).toFixed(2)} cm, ${r.plants} plants, ${r.held} read at the contact)`);
   }
 
   // ---------------------------------------------------------------- turn feet (anim-natural N1)
-  // The foot planner's turn rules (footPlanner TURN_STEP / TURN_PIVOT / LAND_TURN / HOLD_CONTACT; harness
+  // The foot planner's turn rules (footPlanner FOOT_TURN_STEP / TURN_PIVOT / LAND_TURN / HOLD_CONTACT; harness
   // tests/footTurnHarness.ts): holstered on Proving, jog (gear 4) and run (gear 5) 90 / 180 deg direction changes, a jog
-  // stick sweep, a crouched 90, the turn round from a standstill and an aimed turn on the spot. Asserted: the contact point
-  // (the ball's spot, metrics.ts contactSlide) moves < 1.5 cm in any plant (target 1), a planted foot lifts within 30 deg
-  // of the body (no wind-up) and the feet never cross (>= 2 cm side by side). Report-only (REPORT-A targets the harness
-  // does not reach): the longest plant while the body turns > 1 rad/s (<= 0.12 s at jog / run) and the first swing
-  // frames' foot speed against the straight jog's (<= 2x).
+  // stick sweep, a crouched 90, the turn round from a standstill and an aimed turn on the spot. Asserted: each contact
+  // point moves < 1 cm (FOOT_SLIDE) over the frames it is down in any plant (metrics.ts contactSlide: the heel while down,
+  // the ball while down), a planted foot lifts within 30 deg of the body (no wind-up), the feet never cross (>= 5 cm side
+  // by side), and, no worse than master (the harness's measured values, tests/footTurn.test.ts): the longest plant while
+  // the body turns > 1 rad/s <= 0.25 s at jog / run, the first swing frames' foot speed <= 5 m/s. Report-only: REPORT-A's
+  // targets the harness does not reach (plant while turning <= 0.12 s, first swing frames <= 2x the straight jog's).
+  // (anim-natural-n1 fix round, CHECK finding 5) the slide limit 1.5 -> 1 cm and the gap 2 -> 5 cm, backed by the harness:
+  // contact 0.0 cm, body-frame gap >= 7.0 cm, plantTurn <= 0.25 s, first swing frames <= 4.9 m/s at 60 Hz in these rows.
   console.log('turn feet (anim-natural N1)');
   {
     const cmT = (v) => (v * 100).toFixed(1);
     const turnRec = (plan) =>
-      G(([plan, F, lever]) => {
+      G(([plan, F]) => {
         const t = window.__t;
         const g = window.__app.current;
         const p = g.player;
@@ -409,8 +408,8 @@ try {
         const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
         t.run(plan.pre ?? 1.0, plan.from ?? { y: 1 });
         if (plan.aimTurn) p.cam.yaw += plan.aimTurn;
-        const res = { slide: 0, lift: 0, plantTurn: 0, snap: 0, gap: Infinity, plants: 0, lifts: 0, speed: c.speed };
-        const st = [0, 1].map(() => ({ on: false, sx: 0, sz: 0, turnT: 0, tw: 0, n: 0, px: 0, pz: 0 }));
+        const res = { lift: 0, plantTurn: 0, snap: 0, gap: Infinity, plants: 0, lifts: 0, speed: c.speed, pts: [0, 1].map(() => ({ heel: [], ball: [], contact: [] })) };
+        const st = [0, 1].map(() => ({ on: false, turnT: 0, tw: 0, n: 0, px: 0, pz: 0 }));
         const inp = { ...plan.to };
         let tt = 0;
         t.run(plan.sec ?? 1.2, inp, () => {
@@ -426,20 +425,18 @@ try {
           for (let k = 0; k < 2; k++) {
             const f = k === 0 ? rig.planner.L : rig.planner.R;
             const s = st[k];
+            // the rendered heel / ball per frame (contact slide in node: metrics.ts contactSlide)
             const q = t.contactPts(k === 0 ? -1 : 1, F);
-            const toeUp = q[4] - q[1] > 0.005;
-            const dl = Math.hypot(q[3] - q[0], q[5] - q[2]) || 1;
-            const sx = toeUp ? q[0] + ((q[3] - q[0]) / dl) * lever : q[3];
-            const sz = toeUp ? q[2] + ((q[5] - q[2]) / dl) * lever : q[5];
+            const pt = res.pts[k];
+            pt.heel.push(q[0], q[1], q[2]);
+            pt.ball.push(q[3], q[4], q[5]);
+            pt.contact.push(f.contact ? 1 : 0);
             if (f.contact) {
               if (!s.on) {
                 s.on = true;
-                s.sx = sx;
-                s.sz = sz;
                 s.turnT = 0;
                 res.plants++;
               }
-              res.slide = Math.max(res.slide, Math.hypot(sx - s.sx, sz - s.sz));
               if (yr > 1) s.turnT += 1 / 60;
               res.plantTurn = Math.max(res.plantTurn, s.turnT);
               s.tw = Math.abs(wrap(f.yaw - yaw));
@@ -467,7 +464,12 @@ try {
         c.gears.set(4);
         if (!Number.isFinite(res.gap)) res.gap = null;
         return res;
-      }, [plan, FOOT, LEVER]);
+      }, [plan, FOOT]).then((res) => {
+        // (anim-natural-n1 fix round, CHECK finding 1a) each contact point over the frames it is down: the heel while the
+        // heel is down, the ball while the ball is down (was the ball's spot, a toe-up heel + 17 cm along the foot)
+        const cs = res.pts.map((q) => M.contactSlide(q.heel, q.ball, q.contact, L.FOOT_SLIDE));
+        return { ...res, slide: Math.max(cs[0].worst, cs[1].worst), heel: Math.max(cs[0].heelWorst, cs[1].heelWorst), ball: Math.max(cs[0].ballWorst, cs[1].ballWorst) };
+      });
     const straight = await turnRec({ to: { y: 1 } });
     const plans = [
       ['jog 90', { to: { x: 1, y: 0 } }, true],
@@ -482,10 +484,12 @@ try {
     for (const [name, plan, jogRun] of plans) {
       const r = await turnRec(plan);
       const gap = r.gap ?? NaN;
-      console.log(`  ${name} (${f2(r.speed)} m/s): contact slide max ${cmT(r.slide)} cm in ${r.plants} plants (< 1.5, target 1), twist at lift max ${((r.lift * 180) / Math.PI).toFixed(1)} deg (<= 30), least gap ${Number.isNaN(gap) ? '-' : cmT(gap)} cm (>= 2); report-only: plant while turning ${f2(r.plantTurn)} s${jogRun ? ' (<= 0.12)' : ''}, first swing frames ${f2(r.snap)} m/s (straight ${f2(straight.snap)}, <= 2x)`);
-      assert(r.plants >= 2 && r.slide < 0.015, `${name}: the planted contact stays put (${cmT(r.slide)} cm, ${r.plants} plants)`);
+      console.log(`  ${name} (${f2(r.speed)} m/s): contact slide max ${cmT(r.slide)} cm (heel ${cmT(r.heel)}, ball ${cmT(r.ball)}) in ${r.plants} plants (< 1), twist at lift max ${((r.lift * 180) / Math.PI).toFixed(1)} deg (<= 30), least gap ${Number.isNaN(gap) ? '-' : cmT(gap)} cm (>= 5); plant while turning ${f2(r.plantTurn)} s${jogRun ? ' (<= 0.25; target 0.12)' : ''}, first swing frames ${f2(r.snap)} m/s (<= 5; straight ${f2(straight.snap)}, target <= 2x)`);
+      assert(r.plants >= 2 && r.slide < L.FOOT_SLIDE, `${name}: the planted contact stays put (${cmT(r.slide)} cm, ${r.plants} plants)`);
       assert(r.lift <= (30 * Math.PI) / 180 + 1e-6, `${name}: no wind-up, a planted foot lifts within 30 deg of the body (${((r.lift * 180) / Math.PI).toFixed(1)} deg)`);
-      assert(Number.isNaN(gap) || gap >= 0.02, `${name}: the feet never cross (${cmT(gap)} cm)`);
+      assert(Number.isNaN(gap) || gap >= 0.05, `${name}: the feet never cross (${cmT(gap)} cm)`);
+      if (jogRun) assert(r.plantTurn <= 0.25 + 1e-6, `${name}: a plant while turning lasts no longer than master's (${f2(r.plantTurn)} s <= 0.25)`);
+      assert(r.snap <= 5, `${name}: no snap at lift, the first swing frames under 5 m/s (${f2(r.snap)} m/s)`);
     }
   }
 
@@ -584,8 +588,8 @@ try {
     // (anim-natural N1, decisions 1 / 2) a plant the planner holds at its contact (free movement, footPlanner HOLD_CONTACT:
     // the ankle rolls round the held heel / ball by design) reads the contact point; the others the ankle as before (was
     // plantedSlide on the ankle for every plant). Same limit (C.slide).
-    const slL = rec.heelL ? M.footSlide(rec.ankleL, rec.heelL, rec.ballL, rec.contactL, rec.heldL, C.slide, LEVER) : M.plantedSlide(rec.ankleL, rec.contactL, C.slide);
-    const slR = rec.heelR ? M.footSlide(rec.ankleR, rec.heelR, rec.ballR, rec.contactR, rec.heldR, C.slide, LEVER) : M.plantedSlide(rec.ankleR, rec.contactR, C.slide);
+    const slL = rec.heelL ? M.footSlide(rec.ankleL, rec.heelL, rec.ballL, rec.contactL, rec.heldL, C.slide) : M.plantedSlide(rec.ankleL, rec.contactL, C.slide);
+    const slR = rec.heelR ? M.footSlide(rec.ankleR, rec.heelR, rec.ballR, rec.contactR, rec.heldR, C.slide) : M.plantedSlide(rec.ankleR, rec.contactR, C.slide);
     const wing = M.elbowWing(rec.shoulderL, rec.shoulderR, rec.elbowL, rec.elbowR, C.elbowWing);
     const slide = Math.max(slL.worst, slR.worst);
     const wide = [!knee.pass && 'knees', !track.pass && 'track', !bow.pass && 'knee-out', slide >= C.slide && 'slide', !wing.pass && 'elbows'].filter(Boolean);

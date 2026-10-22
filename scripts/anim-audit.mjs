@@ -868,6 +868,8 @@ function common(rec, hz, out, a, b, jumpLimit, balanceFrom = -1) {
     // (anim-natural N1, decisions 1 / 2) a plant the planner holds at its contact (free movement: the ankle rolls round the
     // held heel / ball by design) reads the contact point, the others the ankle as before (was footContact's ankle slide
     // for every plant). The heel / ball: footGeom's points along the foot's own axes (SOLE). Same limit (FOOT_SLIDE).
+    // (anim-natural-n1 fix round) each point over the frames it is down (the heel while down, the ball while down), no heel +
+    // 17 cm projection (it read a heel swept round the ball's spot as 0)
     const aq = quat(rec, s === 'L' ? 'ankleL' : 'ankleR', a, b);
     const heel = new Float64Array((b - a) * 3);
     const ball = new Float64Array((b - a) * 3);
@@ -881,7 +883,7 @@ function common(rec, hz, out, a, b, jumpLimit, balanceFrom = -1) {
         ball[i * 3 + j] = an[i * 3 + j] + q[j];
       }
     }
-    const fsl = M.footSlide(an, heel, ball, ct, col(rec, `${s}.held`, a, b), L.FOOT_SLIDE, FG.HEEL_BACK + FG.TOE_BALL);
+    const fsl = M.footSlide(an, heel, ball, ct, col(rec, `${s}.held`, a, b), L.FOOT_SLIDE);
     res(out, `footSlide${s}`, fsl, L.FOOT_SLIDE, ':801 / :1273', 'm', a);
     res(out, `footFloat${s}`, fc.float, L.FOOT_FLOAT, ':801', 'm', a);
     res(out, `footSink${s}`, fc.sink, L.FOOT_SINK, ':801', 'm', a);

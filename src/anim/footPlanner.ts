@@ -1,6 +1,8 @@
 import { hyp2 } from '../core/mathx';
 import { SP, STEP, stepGaitNow, stepSelect, stepStride } from './tuneStep';
-import { ankleToBall } from './footGeom';
+import { ankleToBall, HEEL_BACK, TOE_BALL } from './footGeom';
+/** (anim-natural N1) Heel to ball along the foot (m): toe up, the heel's spot is this far behind the ball's flat spot. */
+const HEEL_BALL = HEEL_BACK + TOE_BALL;
 /**
  * World-space foot planner (pure, allocation-free, unit-tested).
  *
@@ -255,6 +257,8 @@ const START_TOE_OFF = 1.2;
 const BAND_TURN_TIME = 0.25;
 /** (G1 fix) A planted foot this far (m) outside the stance band steps back into it. */
 const BAND_STEP = 0.02;
+/** (anim-natural N1 fix round) The same crouched with the turn rules (m). */
+const BAND_STEP_CROUCH = 0.004;
 /** (G1) A turn's after-effect (s): a foot it left behind may toe off early this long after the body stops turning. */
 const TURN_LEFT_TIME = 0.6;
 /** (fix 21-2) Still this long (s) before a move counts as a new start. */
@@ -271,7 +275,7 @@ const STAGGER = { min: 0.4, hold: 0.3 } as const;
 /*
  * (anim-natural N1) The feet in turns. Per gait arrays are in the Stepping gaits' order (tuneStep STEP_GAITS: idle, walk,
  * jog, run, crouchWalk, crouchRun; the idle entry is the aimed turn on the spot, which reads the idle row); the tuner's
- * Stepping sliders multiply them (identity 1) and the bake writes them (`TURN_STEP.twist[2]` ...).
+ * Stepping sliders multiply them (identity 1) and the bake writes them (`FOOT_TURN_STEP.twist[2]` ...).
  */
 /**
  * Rule A, the turn step: while the body turns faster than `rate` (rad/s), a planted foot whose twist from the body at its
@@ -279,7 +283,7 @@ const STAGGER = { min: 0.4, hold: 0.3 } as const;
  * clock swing that lands on its clock strike (no longer in the air than `maxAir` s), after at least `minPlant` s down.
  * At a walk never with the other foot in the air.
  */
-export const TURN_STEP = {
+export const FOOT_TURN_STEP = {
   rate: [1.5, 1.5, 1.5, 1.5, 1.5, 1.5],
   twist: [0.35, 0.4, 0.4, 0.4, 0.4, 0.4],
   minPlant: 0.06,
@@ -288,14 +292,18 @@ export const TURN_STEP = {
 /**
  * Rule B, the ball pivot: while the body turns (and BAND_TURN_TIME after), a planted foot more than `from` (rad) from the
  * body raises its heel toward `heel` (rad, toe down) and turns about its ball (footGeom) after the body, down to the
- * allowance (TURN_FOLLOW.twistFree), at most `rate` rad/s and `max` rad in one plant. The ankle-centred twist cap stays as
- * a backstop (counted in `scrub`; about the ball once a foot is anchored).
+ * allowance (TURN_FOLLOW.twistFree), at most `rate` rad/s and `max` rad in one plant. In a heel-first landing's roll (toe
+ * up) it turns on its heel instead (TURN_ON). The twist cap stays as a backstop (counted in `scrub`), turning the foot
+ * about its contact too.
+ * (fix round) The walk and the crouched walk pivot up to 1.7 rad a plant (was 1.2): a held spin at a walk (0.75-2 m/s, 7
+ * rad/s) turns the body ~2 rad over one plant and its double support is a frame or two, so the turn step rarely gets
+ * its chance; 1.2 left the last 2-7 deg of a plant to the backstop (31.8 deg over a 3.5 s spin at 60 Hz).
  */
 export const TURN_PIVOT = {
   from: 0.12,
   heel: [0.35, 0.35, 0.35, 0.35, 0.35, 0.35],
   rate: 12,
-  max: [1.2, 1.2, 1.2, 1.2, 1.2, 1.2],
+  max: [1.2, 1.7, 1.2, 1.2, 1.7, 1.2],
 } as const;
 /** The landing yaw's lead from the body over half a stance (rad, per gait; was TURN_FOLLOW.twistFree): clamped to the face goal. */
 export const LAND_TURN = [0.45, 0.45, 0.45, 0.45, 0.45, 0.45] as const;
@@ -312,6 +320,15 @@ const SWING_YAW_BY = 0.7;
 export const HOLD_CONTACT: boolean = true;
 /** The fastest a swinging foot turns with the turn rules (rad/s, ~690 deg/s). */
 const SWING_YAW_RATE = 12;
+/**
+ * (anim-natural N1 fix round, CHECK finding 1) Which point a planted foot turns about, so the point on the floor never
+ * sweeps: toe up past `toe` (rad; a heel-first landing's roll, the ball over 8 mm up) it turns on its heel; otherwise only
+ * with the heel up at least `lift` (rad, the heel ~7 mm up) on its ball. A flat foot (heel and ball both down) never
+ * turns: the pivot raises the heel first (at least `heel` rad whatever the pivotHeel slider, so the heel clears the
+ * floor), and the twist cap's backstop raises it to `heel` in one go before it turns the foot (ending a roll's last few
+ * frames early). The round before turned a toe-up foot about the virtual ball spot (the heel swept 4.6 cm at 60 Hz).
+ */
+const TURN_ON = { toe: 0.05, lift: 0.04, heel: 0.1 } as const;
 
 export class FootPlanner {
   readonly L = newFoot();
@@ -348,6 +365,8 @@ export class FootPlanner {
   private kLand = 0;
   /** (anim-natural N1) The foot the turn step may lift this update (-1 L, 1 R, 0 none). */
   private pick = 0;
+  /** (anim-natural N1 fix round) Time (s) since the body last turned faster than kRate (the turn step's arming). */
+  private rateT = 9;
 
   /**
    * (tuner-ui) Move both feet (planted spots and swing ends) by (dx, dz) in the world: the world slid under the body (the
@@ -405,18 +424,25 @@ export class FootPlanner {
   update(i: PlannerInput): void {
     if (!this.L.init) this.reset(i);
     // (anim-natural N1) the aimed turn on the spot (moving only by its turn) reads the idle row
+    // (fix round, CHECK finding 2) only with the turn rules on and the body turning (faster than 1 rad/s, or within
+    // BAND_TURN_TIME after, as the pivot's own window, so its raised heels come down under the same rules): an aimed walk's
+    // start or stop under SPOT_SPEED is not a spot turn, and turnRule 0 selects the stepping rows as before
     const v0 = hyp2(i.velX, i.velZ);
-    this.spot = i.stride === 'velocity' && Number.isNaN(i.wallD) && v0 < SPOT_SPEED;
+    this.spot = i.turnRule > 0 && i.stride === 'velocity' && Number.isNaN(i.wallD) && v0 < SPOT_SPEED && (Math.abs(i.yawRate) > 1 || this.turnT < BAND_TURN_TIME);
     stepSelect(i.moving && !this.spot, v0, i.crouch); // (tuner-v2 item 3) this gait's stepping row (tuneStep)
     {
       // (anim-natural N1) the turn rules: free movement and the aimed spot turn, off a wall, unless the planner opts out
       const g = stepGaitNow;
       this.turnOn = i.turnRule > 0 && Number.isNaN(i.wallD) && (i.stride === 'facing' || this.spot);
-      this.kRate = TURN_STEP.rate[g]! * STEP[SP.turnRate]!;
-      this.kTwist = TURN_STEP.twist[g]! * STEP[SP.turnTwist]!;
+      this.kRate = FOOT_TURN_STEP.rate[g]! * STEP[SP.turnRate]!;
+      this.kTwist = FOOT_TURN_STEP.twist[g]! * STEP[SP.turnTwist]!;
       this.kPivot = TURN_PIVOT.max[g]! * STEP[SP.pivot]!;
       this.kHeel = TURN_PIVOT.heel[g]! * STEP[SP.pivotHeel]!;
       this.kLand = LAND_TURN[g]! * STEP[SP.landTurn]!;
+      // (fix round) the turn step stays armed BAND_TURN_TIME after the rate last passed kRate: a body turning in fits and
+      // starts (a 60 Hz spin's frames alternate 0 and 7.85 rad/s; a remote's 20 Hz yaw) left a foot past its allowance
+      // with its pivot used up to the cap's backstop on the frames that read 0 (31 deg in a held 0.75 m/s spin)
+      this.rateT = Math.abs(i.yawRate) > this.kRate ? 0 : this.rateT + i.dt;
     }
     this.L.landed = this.R.landed = false;
     for (let k = 0; k < 2; k++) {
@@ -486,21 +512,36 @@ export class FootPlanner {
   private pivotFeet(i: PlannerInput): void {
     const turning = this.turnT < BAND_TURN_TIME;
     const allow = TURN_FOLLOW.twistFree * STEP[SP.lock]!;
+    // (fix round) the heel always clears the floor while the foot turns on its ball (TURN_ON.heel at the least)
+    const kHeel = this.kHeel > TURN_ON.heel ? this.kHeel : TURN_ON.heel;
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? this.L : this.R;
       if (!f.contact) continue;
       const d = wrap(f.yaw - i.yaw);
       const ad = d < 0 ? -d : d;
-      // (not in a heel-first landing's roll: the toe is still up, the foot turns about nothing)
-      const live = turning && f.roll <= 0 && this.kPivot > 0;
-      const want = live && ad > TURN_PIVOT.from ? this.kHeel : 0;
+      // (fix round, CHECK finding 1) in a heel-first landing's roll with the toe still up the foot turns on its heel
+      // (anchorFeet: the heel's spot is held); the round before left it to the cap's backstop, which turned it about the
+      // ball's flat spot so the heel swept round on a 17 cm lever (4.6 cm at 60 Hz in a held spin)
+      const toeUp = f.pitch < -TURN_ON.toe;
+      const live = turning && this.kPivot > 0;
+      const want = live && !toeUp && ad > TURN_PIVOT.from ? kHeel : 0;
       f.heelP = want > f.heelP ? Math.min(want, f.heelP + HEEL_RISE * i.dt) : Math.max(want, f.heelP - HEEL_RISE * i.dt);
-      if (f.heelP > f.pitch && f.roll <= 0) f.pitch = f.heelP;
-      if (!live || ad <= allow || f.pivot >= this.kPivot) continue;
-      // the heel comes up first: the turn eases in over the first half of the raise
-      const ease = this.kHeel > 0 ? Math.min(1, f.heelP / (0.5 * this.kHeel)) : 1;
+      // (a roll near its end, the toe nearly down: the raised heel takes over and the roll ends)
+      if (f.heelP > 0 && f.heelP > f.pitch && !toeUp) {
+        f.pitch = f.heelP;
+        f.roll = 0;
+      }
+      // (fix round) on the heel only down to the turn step's allowance (kTwist): the ankle swings round the heel ahead of
+      // it, so a roll turned all the way to twistFree put a crouched spin's planted ankle 1.3 cm further out; the ball
+      // pivot after the roll takes the rest
+      const al = toeUp && this.kTwist > allow ? this.kTwist : allow;
+      if (!live || ad <= al || f.pivot >= this.kPivot) continue;
+      // a flat foot does not turn (the heel and the ball are both on the floor): its heel comes up first
+      if (!toeUp && f.pitch < TURN_ON.lift) continue;
+      // the heel comes up first: the turn eases in over the first half of the raise (on the heel: at once)
+      const ease = toeUp ? 1 : Math.min(1, f.heelP / (0.5 * kHeel));
       const m = Math.min(TURN_PIVOT.rate * ease * i.dt, this.kPivot - f.pivot);
-      const dy = clampAbs(d > 0 ? allow - d : -allow - d, m);
+      const dy = clampAbs(d > 0 ? al - d : -al - d, m);
       if (dy === 0) continue;
       if (!f.anchored) this.anchor(f);
       f.yaw = wrap(f.yaw + dy);
@@ -539,6 +580,12 @@ export class FootPlanner {
       }
       // (a flat foot that has not turned keeps its ankle exactly: no rounding from the round trip through the ball)
       if (f.pitch !== f.ancP || f.yaw !== f.ancYaw) {
+        // (fix round, CHECK finding 1) toe up the heel is the contact: a turn there keeps the heel's spot (HEEL_BACK +
+        // TOE_BALL behind the ball's flat spot along the foot) and moves the ball's spot round it
+        if (f.pitch < 0 && f.yaw !== f.ancYaw) {
+          f.ballX += HEEL_BALL * (Math.sin(f.yaw) - Math.sin(f.ancYaw));
+          f.ballZ += HEEL_BALL * (Math.cos(f.yaw) - Math.cos(f.ancYaw));
+        }
         const b = ankleToBall(f.pitch);
         f.x = f.ballX - b * Math.sin(f.yaw);
         f.z = f.ballZ - b * Math.cos(f.yaw);
@@ -564,6 +611,16 @@ export class FootPlanner {
       const d = wrap(f.yaw - py);
       const m = back > 0 ? back : (i.stride === 'facing' && this.turnT < BAND_TURN_TIME ? TURN_FOLLOW.twistFree : TURN_FOLLOW.twistMax) * STEP[SP.lock]!;
       if (d > m || d < -m) {
+        if (this.turnOn) {
+          // (fix round, CHECK finding 1) the backstop turns the foot about its contact, never sweeping it: toe up on the
+          // heel, else on the ball with the heel raised first (a flat foot, a roll's last frames: TURN_ON.heel at once)
+          if (!f.anchored) this.anchor(f);
+          if (f.pitch >= -TURN_ON.toe && f.pitch < TURN_ON.lift) {
+            f.pitch = TURN_ON.heel;
+            f.roll = 0;
+            if (f.heelP < f.pitch) f.heelP = f.pitch;
+          }
+        }
         const to = py + (d > 0 ? m : -m);
         f.scrub += Math.abs(wrap(to - f.yaw));
         f.yaw = wrap(to);
@@ -627,12 +684,12 @@ export class FootPlanner {
     // (anim-natural N1, rule A) which planted foot the turn step may lift: the larger predicted overrun, a tie the
     // inside foot (the side the body turns to)
     this.pick = 0;
-    if (this.turnOn && Math.abs(i.yawRate) > this.kRate) {
+    if (this.turnOn && this.rateT < BAND_TURN_TIME) {
       let best = 0;
       for (let k = 0; k < 2; k++) {
         const side = k === 0 ? -1 : 1;
         const f = k === 0 ? this.L : this.R;
-        if (!f.contact || f.plantT < TURN_STEP.minPlant) continue;
+        if (!f.contact || f.plantT < FOOT_TURN_STEP.minPlant) continue;
         const since = (((i.phase - (side < 0 ? 0 : 0.5)) % 1) + 1) % 1;
         if (since >= i.duty) continue;
         const over = this.turnOver(f, i, (i.duty - since) * i.cycleTime);
@@ -778,6 +835,29 @@ export class FootPlanner {
         }
       }
     }
+    // (anim-natural N1 fix round, CHECK finding 4) with the turn rules: a planted foot the turn left outside the stance band
+    // (it could not step back in while the other foot was in the air) steps in on the frame the other foot lands, not a
+    // frame later: the two planted feet never stand wider than the band (a 120 Hz crouched flick 180 stood 24 cm wide for
+    // that frame, master 19.6)
+    if (this.turnOn && i.stride === 'facing' && Number.isNaN(i.wallD)) {
+      for (const side of [-1, 1] as const) {
+        const f = side < 0 ? this.L : this.R;
+        const o = side < 0 ? this.R : this.L;
+        if (f.contact && !f.landed && o.landed && this.outOfBand(f, i, side)) {
+          this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
+          this.ruleAim(f, i, side);
+        }
+      }
+    }
+  }
+
+  /** (G1 fix) A planted foot further than BAND_STEP outside the free-movement stance band (root frame, its own side). */
+  private outOfBand(f: FootState, i: PlannerInput, side: -1 | 1): boolean {
+    const latF = ((f.x - i.rootX) * Math.cos(i.yaw) - (f.z - i.rootZ) * Math.sin(i.yaw)) * side;
+    // (anim-natural N1 fix round) crouched with the turn rules (no band scrub to hold it) within BAND_STEP_CROUCH: the crouched
+    // planted stance stays as wide as master's scrubbed one (+1 cm at most)
+    const m = this.turnOn && i.crouch > 0.5 ? BAND_STEP_CROUCH : BAND_STEP;
+    return latF > bandMax(i) + m || latF < bandMin(i) - m;
   }
 
   /**
@@ -858,16 +938,20 @@ export class FootPlanner {
   /**
    * (anim-natural N1, rule A) The turn step: an early start of the foot's own clock swing, timed to land on its clock
    * strike (`rem` s of stance left plus the clock's swing), aimed as the clock's swing (`aimClock`). Not when that is
-   * longer than TURN_STEP.maxAir (the pivot and the cap hold it), and at a walk (no flight phase) never with the other
+   * longer than FOOT_TURN_STEP.maxAir (the pivot and the cap hold it), and at a walk (no flight phase) never with the other
    * foot in the air (nearly down from a rule step, it lands now). Returns whether it lifted.
    */
   private turnStep(f: FootState, i: PlannerInput, side: -1 | 1, rem: number): boolean {
     const air = rem + Math.min(0.6, (1 - i.duty) * i.cycleTime);
-    if (!(rem > 0) || air > TURN_STEP.maxAir) return false;
+    if (!(rem > 0) || air > FOOT_TURN_STEP.maxAir) return false;
     const o = side < 0 ? this.R : this.L;
-    if (!o.contact && hyp2(i.velX, i.velZ) <= 2) {
-      if (o.swBase < 0 && o.swing >= TURN_FOLLOW.earlySwap && !this.quick) this.land(o);
-      else return false;
+    if (hyp2(i.velX, i.velZ) <= 2) {
+      if (!o.contact) {
+        if (o.swBase < 0 && o.swing >= TURN_FOLLOW.earlySwap && !this.quick) this.land(o);
+        else return false;
+      }
+      // (fix round) nor while the other foot's own clock swing is due (`otherDue`)
+      if (this.otherDue(i, side)) return false;
     }
     // (jog / run: both feet in the air) not while the swinging foot is still passing this one (front to back within
     // PLANNER.swingNear in the facing): with neither foot planted the no-crossing pass pushed both apart, a jitter
@@ -882,6 +966,19 @@ export class FootPlanner {
     f.turnSteps++;
     this.aimClock(f, i, side, air);
     return true;
+  }
+
+  /**
+   * (anim-natural N1 fix round) With the turn rules at a walk (no flight phase): the other foot is planted but its own clock
+   * swing is due (past its stance), held down only because this foot is in the air. A step this foot takes now keeps it
+   * planted through the whole step: it wound past its pivot into the cap's backstop and the feet took turns at it.
+   */
+  private otherDue(i: PlannerInput, side: -1 | 1): boolean {
+    if (!this.turnOn || hyp2(i.velX, i.velZ) > 2) return false;
+    const o = side < 0 ? this.R : this.L;
+    if (!o.contact) return false;
+    const since = (((i.phase - (side < 0 ? 0.5 : 0)) % 1) + 1) % 1;
+    return since >= i.duty;
   }
 
   /**
@@ -1006,14 +1103,17 @@ export class FootPlanner {
     if ((o.contact || swap) && (turned || crossed)) {
       if (!o.contact) this.land(o);
     }
-    if (o.contact && turned) {
+    // (anim-natural N1 fix round) with the turn rules at a walk, no rule step while the other foot's own clock swing is due:
+    // it waited planted through the whole step (past its pivot, into the backstop: a 120 Hz jog flick 180)
+    const oDue = this.otherDue(i, side);
+    if (o.contact && turned && !oDue) {
       this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
       this.ruleAim(f, i, side);
       return;
     }
     // (A1.1) the body has turned round the planted feet until they are side by side or crossed in its frame (a tight
     // circle): this foot steps round to its own side
-    if (o.contact) {
+    if (o.contact && !oDue) {
       const gap = ((f.x - o.x) * c - (f.z - o.z) * sn) * side;
       if (gap < PLANNER.minGap * 0.5) {
         this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
@@ -1022,8 +1122,7 @@ export class FootPlanner {
       }
       // (G1 fix) free movement: a planted foot the capped scrub cannot keep inside the stance band steps back into it
       if (i.stride === 'facing' && Number.isNaN(i.wallD)) {
-        const latF = ((f.x - i.rootX) * c - (f.z - i.rootZ) * sn) * side;
-        if (latF > bandMax(i) + BAND_STEP || latF < bandMin(i) - BAND_STEP) {
+        if (this.outOfBand(f, i, side)) {
           this.beginSwing(f, i, PLANNER.idleStepTime * 0.75, i.liftH);
           this.ruleAim(f, i, side);
           return;
@@ -1161,6 +1260,21 @@ export class FootPlanner {
         const d = (cl - lat) * side;
         tx += d * c;
         tz -= d * s;
+      }
+      // (anim-natural N1 fix round, CHECK finding 4) crouched with the turn rules the landing leads the body by up to
+      // LAND_TURN, so inside the band in its own frame it landed up to 2 cm outside it in the body's (no band scrub
+      // brings it back): the planted crouched stance stood 20.8-20.9 cm wide in 120 Hz spins (master 19.6). The body's
+      // frame about the root now too
+      if (this.turnOn && i.crouch > 0.5) {
+        const bc = Math.cos(i.yaw);
+        const bs = Math.sin(i.yaw);
+        const latB = ((tx - i.rootX) * bc - (tz - i.rootZ) * bs) * side;
+        const clB = latB < lo ? lo : latB > hi ? hi : latB;
+        if (clB !== latB) {
+          const d = (clB - latB) * side;
+          tx += d * bc;
+          tz -= d * bs;
+        }
       }
       // (anim-natural N1) with the turn rules a landing leads the body by up to LAND_TURN, so its frame and the pelvis
       // frame part: the band clamp (landing frame) put it across the planted foot in the pelvis frame, the no-crossing

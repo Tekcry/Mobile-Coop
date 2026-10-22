@@ -235,8 +235,12 @@ describe('tuner-v2 item 3: feet stuck while running', () => {
       // (anim-natural N1, HOLD_CONTACT) crouched, the planted foot keeps its ball on the floor as the heel rises to
       // HEEL_RAISE.pitchCrouch (1 rad), so its ankle comes ~12 cm forward over the late stance: the clock lifts it before
       // the leg reaches the stretch limit (0.52 m behind, limit 0.6). Was: worstBehind > thr - 0.03 for both paths
+      // (fix round, CHECK finding 3) pinned to the measurement (0.52 m behind; `over` 0 made `<= thr` alone vacuous)
       if (!crouch) expect(m.worstBehind).toBeGreaterThan(m.thr - 0.03);
-      else expect(m.worstBehind).toBeLessThanOrEqual(m.thr);
+      else {
+        expect(m.worstBehind).toBeGreaterThan(0.49);
+        expect(m.worstBehind).toBeLessThanOrEqual(m.thr - 0.05);
+      }
       expect(m.over).toBe(0);
       expect(m.slide).toBe(0);
     }

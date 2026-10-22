@@ -32,8 +32,8 @@ export const STEP_PARAMS: readonly { id: StepParam; label: string; min: number; 
   { id: 'heel', label: 'heel-strike roll (toe up at landing)', min: 0, max: 2, step: 0.05, hook: 'footPlanner swingTo pre-landing toe up 0.22; land / roll HEEL_ROLL.pitch' },
   { id: 'replant', label: 'replant threshold (moving: trailing-foot toe-off reach; still: idle step error)', min: 0.4, max: 1.5, step: 0.01, hook: 'footPlanner holdOrStep: reach * 0.92; updateIdle: idle error > 1' },
   // (anim-natural N1) the feet in turns; the idle row is the aimed turn on the spot
-  { id: 'turnTwist', label: 'turn step: twist a planted foot may reach before it steps round (lower: steps sooner)', min: 0.4, max: 2.5, step: 0.05, hook: 'footPlanner turnStepOver: TURN_STEP.twist[gait]' },
-  { id: 'turnRate', label: 'turn step: body turn rate that arms it (lower: steps in gentler turns)', min: 0.5, max: 3, step: 0.05, hook: 'footPlanner turn rules: TURN_STEP.rate[gait]' },
+  { id: 'turnTwist', label: 'turn step: twist a planted foot may reach before it steps round (lower: steps sooner)', min: 0.4, max: 2.5, step: 0.05, hook: 'footPlanner turnOver: FOOT_TURN_STEP.twist[gait]' },
+  { id: 'turnRate', label: 'turn step: body turn rate that arms it (lower: steps in gentler turns)', min: 0.5, max: 3, step: 0.05, hook: 'footPlanner turn rules: FOOT_TURN_STEP.rate[gait]' },
   { id: 'pivot', label: 'ball pivot: how far a planted foot turns on its ball in one plant (0: locked)', min: 0, max: 2, step: 0.05, hook: 'footPlanner pivotFeet: TURN_PIVOT.max[gait]' },
   { id: 'pivotHeel', label: 'ball pivot: heel raise while it turns', min: 0, max: 2, step: 0.05, hook: 'footPlanner pivotFeet: TURN_PIVOT.heel[gait]' },
   { id: 'landTurn', label: 'landing turned into the turn (yaw lead at touchdown)', min: 0, max: 2, step: 0.05, hook: 'footPlanner aimClock: LAND_TURN[gait]' },

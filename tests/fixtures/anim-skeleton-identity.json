@@ -5248,12 +5248,12 @@
  },
  "state:aimRifle": {
   "steps": 90,
-  "rig": "927f807ec691fbe4",
+  "rig": "3df83bbc4c9333a3",
   "poser": {
-   "hero": "67da600792458c45",
-   "lod0": "d4841beffb7fb636",
-   "lod1": "d4841beffb7fb636",
-   "lod2": "d4841beffb7fb636"
+   "hero": "cdd521054dd3efa7",
+   "lod0": "f5c398267245e5a8",
+   "lod1": "f5c398267245e5a8",
+   "lod2": "f5c398267245e5a8"
   },
   "last": [
    0,
@@ -6043,12 +6043,12 @@
  },
  "partner:moves": {
   "steps": 180,
-  "rig": "a3c2239f56d1da26",
+  "rig": "88e3bc83dc370609",
   "poser": {
-   "hero": "83eb1d4bab56c5bb",
-   "lod0": "684fb38678111261",
-   "lod1": "684fb38678111261",
-   "lod2": "684fb38678111261"
+   "hero": "283cde04872e99d6",
+   "lod0": "0a17686bca55bc74",
+   "lod1": "0a17686bca55bc74",
+   "lod2": "0a17686bca55bc74"
   },
   "last": [
    0,

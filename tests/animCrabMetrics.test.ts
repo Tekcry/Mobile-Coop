@@ -105,22 +105,37 @@ describe('anti-crab metrics (anim-rework BRIEF 5)', () => {
     for (let k = 0; k <= 6; k++) pose(0.3, 1, 0, -0.3 + 0.05 * k);
     for (let k = 1; k <= 6; k++) pose(0.3, 1, 0, 0.1 * k);
     for (let k = 1; k <= 6; k++) pose(0.3, 1, (k * Math.PI) / 18, 0.6);
-    const r = contactSlide(heel, ball, contact, CRAB.slide, lever);
+    const r = contactSlide(heel, ball, contact, CRAB.slide);
     expect(r.plants).toBe(1);
     expect(r.worst).toBeLessThan(1e-9);
     // the ankle reads the same plant as several cm of slide
     expect(plantedSlide(ankle, contact, CRAB.slide).worst).toBeGreaterThan(0.03);
     // a flat foot scrubbed 2 cm sideways reads 2 cm
-    const s = contactSlide([0, 0, 0, 0.02, 0, 0], [0, 0, 0.17, 0.02, 0, 0.17], [1, 1], CRAB.slide, lever);
+    const s = contactSlide([0, 0, 0, 0.02, 0, 0], [0, 0, 0.17, 0.02, 0, 0.17], [1, 1], CRAB.slide);
     expect(s.worst).toBeCloseTo(0.02, 6);
+    expect(s.heelWorst).toBeCloseTo(0.02, 6);
+    expect(s.ballWorst).toBeCloseTo(0.02, 6);
     expect(s.pass).toBe(false);
     // footSlide: the anchored plant reads its contact (0), an unanchored one its ankle (the 1 cm drift of the plant after)
     const m = contact.length;
     const drift = [0, 0, 0, 0.005, 0, 0, 0.01, 0, 0];
-    const f = footSlide([...ankle, 9, 9, 9, ...drift], [...heel, 9, 9, 9, ...drift], [...ball, 9, 9, 9, ...drift], [...contact, 0, 1, 1, 1], [...new Array<number>(m).fill(1), 0, 0, 0, 0], CRAB.slide, lever);
+    const f = footSlide([...ankle, 9, 9, 9, ...drift], [...heel, 9, 9, 9, ...drift], [...ball, 9, 9, 9, ...drift], [...contact, 0, 1, 1, 1], [...new Array<number>(m).fill(1), 0, 0, 0, 0], CRAB.slide);
     expect(f.plants).toBe(2);
     expect(f.contactPlants).toBe(1);
     expect(f.worst).toBeCloseTo(0.01, 9);
+    // (fix round, CHECK finding 1a) toe up (a heel-first landing) turned 0.3 rad about the ball's flat spot: the heel, the
+    // only point down, sweeps 0.17 x 0.3 ~ 5 cm (the round before projected the heel 17 cm on along the foot and read 0)
+    heel.length = ball.length = ankle.length = contact.length = 0;
+    for (let k = 0; k <= 6; k++) pose(0.3, 1, 0.05 * k, -0.3);
+    const sw = contactSlide(heel, ball, contact, CRAB.slide);
+    expect(sw.heelWorst).toBeCloseTo(lever * 2 * Math.sin(0.15), 3);
+    expect(sw.ballWorst).toBe(0);
+    expect(sw.pass).toBe(false);
+    // the same turn about the heel (the planner's roll pivot): the heel stays put, the raised ball is not counted
+    heel.length = ball.length = ankle.length = contact.length = 0;
+    for (let k = 0; k <= 6; k++) pose(0.3 + lever * (Math.sin(0.05 * k) - 0), 1 + lever * (Math.cos(0.05 * k) - 1), 0.05 * k, -0.3);
+    const hp = contactSlide(heel, ball, contact, CRAB.slide);
+    expect(hp.worst).toBeLessThan(1e-9);
   });
 
   it('elbow wing: elbows close to the ribs pass, winged elbows fail', () => {

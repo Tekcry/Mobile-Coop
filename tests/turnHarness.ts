@@ -4,6 +4,8 @@ import { emptyPlannerInput, FootPlanner } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver } from '../src/anim/motion';
 import { kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../src/anim/turnFollow';
 import { proportions } from '../src/player/proportions';
+import { HEEL_BACK, HEEL_DOWN, heelLift, TOE_BALL } from '../src/anim/footGeom';
+import { contactSlide } from '../src/anim/audit/metrics';
 
 export const TAU = Math.PI * 2;
 export const wrap = (a: number): number => {
@@ -20,6 +22,8 @@ export interface Opts {
   stick: (t: number) => { dir: number; speed: number } | null;
   /** Pose as a co-op remote does: 20 Hz snapshots interpolated, velocity and yaw rate measured, no driver phase. */
   remote?: boolean;
+  /** (anim-natural N1) The planner's turn rules (1, the default; 0 off: the planner as on master). */
+  turnRule?: number;
 }
 
 interface Landing {
@@ -66,12 +70,21 @@ export function run(o: Opts) {
     latMin: Infinity,
     drag: 0,
     scrubPos: 0,
+    /**
+     * (anim-natural N1 fix round) Contact-point slide (m, metrics.ts contactSlide): the heel's travel while the heel is
+     * down and the ball's while the ball is down, per plant (footGeom points, the ankle raised by heelLift).
+     */
+    heelSlide: 0,
+    ballSlide: 0,
+    /** (fix round) The widest both-planted stance: the two planted feet's lateral distances from the midline summed (m). */
+    widthPlanted: 0,
     yawAt: [] as number[],
     yawRateAt: [] as number[],
     feetYawAt: [] as number[],
   };
   let prevL = { x: 0, z: 0, c: false };
   let prevR = { x: 0, z: 0, c: false };
+  const cpt = [0, 1].map(() => ({ heel: [] as number[], ball: [] as number[], contact: [] as number[] }));
   for (let n = 0; n < o.seconds * hz; n++) {
     const t = n * dt;
     const st = o.stick(t);
@@ -163,6 +176,7 @@ export function run(o: Opts) {
     pi.stride = 'facing';
     pi.pelvisYaw = yaw + follow;
     pi.crouch = o.crouch ? 1 : 0;
+    pi.turnRule = o.turnRule ?? 1;
     p.update(pi);
     const L = p.L;
     const R = p.R;
@@ -176,6 +190,24 @@ export function run(o: Opts) {
     const gap = (R.x - L.x) * c - (R.z - L.z) * s;
     if (Math.abs(gapAlong) < 0.25) out.minGapNear = Math.min(out.minGapNear, gap);
     if (L.contact && R.contact && Math.abs(gapAlong) < 0.25) out.minGapPlanted = Math.min(out.minGapPlanted, gap);
+    for (let k = 0; k < 2; k++) {
+      // the rig's heel and ball (footGeom), as tests/footTurnHarness.ts
+      const f = k === 0 ? L : R;
+      const c = cpt[k]!;
+      const ay = HEEL_DOWN + heelLift(f);
+      for (let q = 0; q < 2; q++) {
+        const lz = q === 0 ? -HEEL_BACK : TOE_BALL;
+        const fz = -HEEL_DOWN * Math.sin(f.pitch) + lz * Math.cos(f.pitch);
+        const fy = -HEEL_DOWN * Math.cos(f.pitch) - lz * Math.sin(f.pitch);
+        (q === 0 ? c.heel : c.ball).push(f.x + fz * Math.sin(f.yaw), ay + fy, f.z + fz * Math.cos(f.yaw));
+      }
+      c.contact.push(f.contact ? 1 : 0);
+    }
+    if (L.contact && R.contact && pi.moving) {
+      const latL = (L.x - rx) * Math.cos(yaw) - (L.z - rz) * Math.sin(yaw);
+      const latR = (R.x - rx) * Math.cos(yaw) - (R.z - rz) * Math.sin(yaw);
+      out.widthPlanted = Math.max(out.widthPlanted, Math.abs(latL) + Math.abs(latR));
+    }
     for (const f of [L, R]) {
       if (f.contact) out.maxPlantedTwist = Math.max(out.maxPlantedTwist, Math.abs(wrap(f.yaw - py)));
       if (f.contact) out.maxPlantedTwistBody = Math.max(out.maxPlantedTwistBody, Math.abs(wrap(f.yaw - yaw)));
@@ -201,6 +233,11 @@ export function run(o: Opts) {
   out.scrub = p.L.scrub + p.R.scrub;
   out.drag = p.L.slide + p.R.slide;
   out.scrubPos = p.L.scrubPos + p.R.scrubPos;
+  for (const c of cpt) {
+    const r = contactSlide(c.heel, c.ball, c.contact, 0.01);
+    out.heelSlide = Math.max(out.heelSlide, r.heelWorst);
+    out.ballSlide = Math.max(out.ballSlide, r.ballWorst);
+  }
   return out;
 }
 
