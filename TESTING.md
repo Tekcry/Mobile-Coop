@@ -337,6 +337,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   touch the same.
 - [ ] Edit a jog key, export and rebake (BAKE.md): the in-betweens look as they did in the preview (no shift).
 
+### Holds and carries (anim-natural N4)
+- [ ] Warehouse: grab a guard, walk: her hips and shoulders turn against each other with each step (not as one block).
+  Carry a body (grab menu Carry): she leans away from the shoulder the body is on and each step dips a little; she
+  walks in to the body standing, crouches, and her feet step (no slide) before she stands with it. F3 tuner, "Holds
+  and carries": each slider moves only its walk; reset puts it back.
+
 ### Co-op (two browser tabs)
 - [ ] Two tabs with `?net=local` (or two PCs with a room code): Co-op > Host in one, Join in the other. The lobby shows
   both players and the host's difficulty read-only on the client.

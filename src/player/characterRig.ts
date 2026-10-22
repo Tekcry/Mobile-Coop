@@ -108,6 +108,8 @@ export interface RigPose {
   bendDrop?: number;
   /** (marlow-bays T1a) The bend is over a body (lift, carry, put down), not a held guard: the tuner's `carry` row. */
   carryBody?: boolean;
+  /** (anim-n4, track A) The carried body's shoulder (1 right, -1 left): the carry's lean away from the load. */
+  carrySide?: number;
   sway?: number;
   /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
   tumble?: number;
@@ -1635,6 +1637,7 @@ export class CharacterRig {
     i.melee = s.melee ?? -1;
     i.bend = s.bend ?? 0;
     i.bendDrop = s.bendDrop ?? 0;
+    i.cqCarry = s.carryBody ? (s.carrySide ?? 1) : 0; // (anim-n4, track A)
     i.sway = s.sway ?? 0;
     i.tumble = s.tumble ?? 0;
     i.check = s.check ?? -1;

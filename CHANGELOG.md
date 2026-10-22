@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased - anim-natural N4 (holds and carries)
+- Hostage walk and body carry: the hips and the shoulders now turn against each other with each step instead of as
+  one block (pelvis about +-3 deg, the shoulders the other way, smaller than a free walk: the arms are busy). Carrying,
+  the trunk leans about 6 deg away from the loaded shoulder, the hips sit a little under the load and each step dips a
+  little deeper. Measured on Proving (desktop GPU): counterCorr hold-walk +0.85 -> -0.76, carry-walk +0.95 -> -0.91.
+- Body lift: she walks in to the body standing and crouches once there (the crouched step-in dragged a planted foot
+  21 cm), and stays down until a stepping foot has landed before she stands with the body (at most 0.3 s). Lift
+  planted slide 20.9 / 7.4 cm -> 0 / 5.4 cm (the 5.4 is the planted foot's twist in the 90 deg turn to the body: an N1
+  planner item, as is the carry-walk's 5-9 cm late-stance and start-turn slide, which a free walk at that pace shows too).
+- Animation tuner: a "Holds and carries" section (hold walk / carry rows): hip and shoulder twist, shoulders against
+  the hips, step weight (dip), step length (cadence; default x1), and for the carry the lean away from the load and the
+  hips under the load. Every slider bakes into `CQ_GAIT` (`src/anim/cqGait.ts`) with `scripts/anim-tune-bake.mjs`
+  (section `cq`).
+
 ## 4.51.1 - e2e-coop: the client-takedown step holds steady under load (test only) (2026-10-22, PR #107)
 - The client-takedown step in `scripts/e2e-coop.mjs` calms the host's guards and holds the picked guard still until
   the takedown is done, as the grab step already does: on a slow page the guards alerted or turned between the host's

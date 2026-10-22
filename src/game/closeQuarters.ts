@@ -37,6 +37,13 @@ export const CQ = {
   liftBend: 0.55,
   /** The crouch is held this long into the lift (s; the stand up then takes the controller's standTime). */
   liftCrouch: 0.9,
+  /** (anim-n4) The step-in to the body takes this long (s, eased), standing: he crouches once it is (nearly) done. A
+   *  step-in crouched from the start let the crouched stance band drag a planted foot along with the body (lift slide
+   *  21 cm); standing, the feet step in. */
+  liftStepTime: 0.5,
+  liftCrouchStep: 0.97,
+  /** (anim-n4) At most this long (s) past `liftCrouch` he stays down while a foot is still stepping. */
+  liftCrouchWait: 0.3,
   /** The hero steps in to kneel this far from the body's chest (m), at most this far from where he stood (m). */
   liftSide: 0.5,
   liftStepMax: 1.0,
@@ -113,7 +120,7 @@ export interface LiftState {
 export function liftCurve(t: number, out: LiftState): LiftState {
   out.atBody = t < CQ.liftReach;
   out.hoist = ease((t - CQ.liftReach) / (CQ.liftRise - CQ.liftReach));
-  out.step = ease(t / (CQ.liftReach * 0.7));
+  out.step = ease(t / CQ.liftStepTime);
   const down = ease(t / 0.45);
   // bent over the body, then the carry's bend as he rises under it
   // (he straightens over the first third of the hoist, before the body comes in over the shoulder: a bent trunk met
@@ -121,7 +128,7 @@ export function liftCurve(t: number, out: LiftState): LiftState {
   const up = ease(out.hoist / 0.35);
   out.bend = CQ.liftBend * down * (1 - up) + CQ.carryBend * up;
   out.drop = CQ.carryDrop * out.hoist;
-  out.crouch = t < CQ.liftCrouch;
+  out.crouch = t < CQ.liftCrouch && out.step >= CQ.liftCrouchStep;
   out.hands = ease(t / 0.5);
   return out;
 }

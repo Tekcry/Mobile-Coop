@@ -200,6 +200,8 @@ export class StealthSystems {
   private liftFrom = new Vector3();
   private liftTo = new Vector3();
   private liftYaw = 0;
+  /** (anim-n4) Crouched at the body this lift step. */
+  private liftDown = false;
   private liftChest = new Vector3();
   private liftL = new Vector3();
   private liftR = new Vector3();
@@ -218,6 +220,10 @@ export class StealthSystems {
   /** (G7) The shoulder the body goes on: 1 right (CT 110936, 052704), -1 left when it lies head to his left (a hoist
    *  over the right shoulder swung the head through his back: tests/g7CloseQuarters). */
   private carrySide = 1;
+  /** (anim-n4) The shoulder the body is on (1 right, -1 left): the carry walk leans away from it. */
+  get loadSide(): number {
+    return this.carrySide;
+  }
 
   /** The carry socket's shoulder point in the operator's chest frame (x out to the right, y up from the chest node). */
   private shoulderX(): number {
@@ -240,6 +246,7 @@ export class StealthSystems {
     const c = g.player.controller;
     this.carry = b;
     this.liftT = 0;
+    this.liftDown = false;
     // (G7 fix round) CT stands up with the body: a crouch toggle from before the lift is cleared (one pressed while
     // carrying stays)
     c.standUp();
@@ -350,7 +357,11 @@ export class StealthSystems {
     }
     const f = this.liftFrom;
     const to = this.liftTo;
-    this.holdStill(f.x + (to.x - f.x) * lc.step, f.y, f.z + (to.z - f.z) * lc.step, this.liftYaw, lc.crouch);
+    // (anim-n4) a foot still stepping when the crouch ends: he stays down until it lands (at most CQ.liftCrouchWait s), so
+    // he never stands up on a foot stretched wide (the stand-up dragged it 6 cm)
+    const pl = this.g.player.rig.planner;
+    this.liftDown = lc.crouch || (this.liftDown && t < CQ.liftCrouch + CQ.liftCrouchWait && !(pl.L.contact && pl.R.contact));
+    this.holdStill(f.x + (to.x - f.x) * lc.step, f.y, f.z + (to.z - f.z) * lc.step, this.liftYaw, this.liftDown);
     this.stepping = lc.step < 1;
     this.bend = lc.bend;
     this.bendDrop = lc.drop;

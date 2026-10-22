@@ -4,7 +4,7 @@
 // --dry-run prints the diff and the table and writes nothing. A real run writes the source files (Joints, Hands & feet,
 // IK strength, Weapon and (anim-gear) Gear into the generated base table src/anim/animBase.ts, anim-joints J1), the Keys section's key
 // JSONs (the apply-tune functions) and the ledger src/anim/tuneBakeLog.json, then prints the rebake commands (it never
-// runs Blender) and the table. Sections: body, gun, cam, speed, joint, hand, ik, weapon, step, gear, keys, weight.
+// runs Blender) and the table. Sections: body, gun, cam, speed, joint, hand, ik, weapon, step, gear, keys, weight, cq (holds and carries).
 // The mapping is src/anim/tuneBakeTable.ts, the logic src/anim/tuneBake.ts; docs/anim-tuner/BAKE.md.
 import { readFileSync, writeFileSync, existsSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -52,7 +52,7 @@ const { TUNE_SECTIONS } = await load('src/anim/tuneRegistry.ts');
 const { WEIGHT_GROUPS, WEIGHT_TUNABLES } = await load('src/anim/weight.ts');
 const bake = await load('src/anim/tuneBake.ts');
 
-const SECTIONS = ['body', 'gun', 'cam', 'speed', 'joint', 'hand', 'ik', 'weapon', 'step', 'gear', 'keys', 'weight'];
+const SECTIONS = ['body', 'gun', 'cam', 'speed', 'joint', 'hand', 'ik', 'weapon', 'step', 'gear', 'keys', 'weight', 'cq'];
 for (const s of only) {
   if (!SECTIONS.includes(s)) {
     console.error(`anim-tune-bake: unknown section ${s} (${SECTIONS.join(', ')})`);
