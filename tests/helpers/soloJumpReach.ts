@@ -122,3 +122,85 @@ export function soloJumpThreats(solid: readonly BoxPiece[], g: CoopGrip, skip: (
   }
   return out;
 }
+
+/**
+ * (sector-fixes-r2 jump) Landing on a higher top: a running jump off a top at `from` lands on a top at `to` when the
+ * capsule meets the far top's face with the feet still at or over `to - MOVEMENT.maxStep` (the controller steps up the
+ * rest, `playerController` `maxStepHeight`). The plan gap (m) closed: the run's pace (`SOLO_TOP_SPEED`) times the last
+ * time the feet are at or over that height, plus a radius past the take-off edge (the feet leave the top up to a radius
+ * past it) and a radius to the far face (the capsule meets it a radius early). 0 when the jump never lifts the feet that
+ * high. Conservative: the take-off at the very edge (a press within 0.75 m of it is a drop unless the stick points along
+ * the edge, `TraversalController.probe`) and an air-borne step-up are both granted.
+ */
+export function soloTopLandingReach(from: number, to: number): number {
+  const t = lastTimeAtOrOver(from, to - MOVEMENT.maxStep);
+  if (t === null) return 0;
+  return SOLO_TOP_SPEED * t + 2 * MOVEMENT.radius;
+}
+
+/** A co-op-only top: its plan box and height. */
+export interface CoopTop {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  top: number;
+}
+
+/** Plan gap between a point and a top's footprint, and the footprint's nearest point. */
+const nearestOnTop = (q: CoopTop, x: number, z: number): { x: number; z: number; d: number } => {
+  const qx = Math.max(q.x0, Math.min(q.x1, x));
+  const qz = Math.max(q.z0, Math.min(q.z1, z));
+  return { x: qx, z: qz, d: hyp2(x - qx, z - qz) };
+};
+
+/**
+ * (sector-fixes-r2 jump) The solo-standable tops (as `soloJumpThreats`: over 0.3 m and under the co-op top, deep enough to
+ * stand on, not a `noLedge` piece over the mantle, crouch room over the take-off spot) a top-gear running jump off which
+ * lands on the co-op top `q` (`soloTopLandingReach`), with nothing solid on the way at body height over the co-op top.
+ * `skip` leaves out the co-op top's own pieces and planned solo ways on; `extra` (m) is the margin the gap must clear.
+ */
+export function soloTopLandingThreats(solid: readonly BoxPiece[], q: CoopTop, skip: (p: BoxPiece) => boolean = () => false, extra = 0): string[] {
+  const out: string[] = [];
+  const qcx = (q.x0 + q.x1) / 2;
+  const qcz = (q.z0 + q.z1) / 2;
+  for (const p of solid) {
+    const t = top(p);
+    if (t <= 0.3 || t >= q.top - 0.05 || skip(p)) continue;
+    if (Math.min(p.s[0], p.s[2]) < LEDGE.climbDepth) continue;
+    if (p.noLedge && t > MANTLE) continue;
+    const reach0 = soloTopLandingReach(t, q.top);
+    if (reach0 <= 0) continue;
+    const reach = reach0 + extra;
+    // broad phase: the footprints' plan gap
+    const gx = Math.max(0, Math.abs(p.c[0] - qcx) - p.s[0] / 2 - (q.x1 - q.x0) / 2);
+    const gz = Math.max(0, Math.abs(p.c[2] - qcz) - p.s[2] / 2 - (q.z1 - q.z0) / 2);
+    if (hyp2(gx, gz) >= reach) continue;
+    const r0 = hyp2(p.s[0], p.s[2]) / 2 + reach + hyp2(q.x1 - q.x0, q.z1 - q.z0) + 1;
+    const near = solid.filter((o) => o !== p && hyp2(o.c[0] - p.c[0], o.c[2] - p.c[2]) < r0 + hyp2(o.s[0], o.s[2]) / 2);
+    let best: { x: number; z: number; d: number } | null = null;
+    const nx = Math.max(1, Math.ceil(p.s[0] / 0.2));
+    const nz = Math.max(1, Math.ceil(p.s[2] / 0.2));
+    for (let i = 0; i <= nx; i++)
+      for (let k = 0; k <= nz; k++) {
+        const x = p.c[0] - p.s[0] / 2 + Math.min(p.s[0] - 0.01, Math.max(0.01, (p.s[0] * i) / nx));
+        const z = p.c[2] - p.s[2] / 2 + Math.min(p.s[2] - 0.01, Math.max(0.01, (p.s[2] * k) / nz));
+        const e = nearestOnTop(q, x, z);
+        if (e.d >= reach || (best && e.d >= best.d)) continue;
+        let room = true;
+        for (let y = t + 0.05; y <= t + MOVEMENT.crouchHeight && room; y += 0.1) if (near.some((o) => inside(o, x, y, z, BODY))) room = false;
+        if (!room) continue;
+        // the flight: over the co-op top's height (the feet arrive within the step of it), nothing solid in the way
+        let clear = true;
+        for (let s = 1; s <= 20 && clear; s++) {
+          const f = s / 20;
+          const fx = x + (e.x - x) * f;
+          const fz = z + (e.z - z) * f;
+          for (const dy of [0.1, 0.5, 0.9]) if (near.some((o) => inside(o, fx, q.top + dy, fz))) clear = false;
+        }
+        if (clear) best = { x, z, d: e.d };
+      }
+    if (best) out.push(`top ${t.toFixed(2)} at (${p.c[0]}, ${p.c[2]}): ${best.d.toFixed(2)} m from the co-op top at ${q.top}, a running jump lands up to ${reach.toFixed(2)}`);
+  }
+  return out;
+}

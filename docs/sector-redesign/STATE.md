@@ -3,9 +3,17 @@
 ## Now (2026-10-23, after the clear; orchestrator trim: at most 2 agents)
 - feature/sector-redesign d9a27c4f = slice 0 (b0b7bc24, checker PASS: docs/sector-redesign/checks/slice0-check.md) +
   slice L final (536c1355, protocol 31, A52) + M12 chokes (A60-A63, SPEC "Unavoidable posted guards (M12)").
-- IN FLIGHT: slice 1 builder (Sonnet 5.5, brief docs/sector-redesign/briefs/SLICE1.md, report
-  checks/slice1-build.md; uncommitted files in this worktree); camera-range Opus checker (report
-  C:/NightShift/Mobile-Coop-camera-range/docs/camera-range/CHECK.md).
+- Slice 1 BUILT (Sonnet 5.5, uncommitted -> committed after this line; report checks/slice1-build.md): campusOps registered
+  (not listed), S1 full, S2-S5 stubs, 43 unit tests, e2e part 6 (`e2e-sectorops:6`). Checks: tsc 0, 77 vitest, eslint.
+  camera-range PR #177 open (checker PASS); slice L checker PASS (checks/sliceL-check.md).
+- PAUSED by the orchestrator (TRIM 3, 02:11): no checker, no agent until it messages (~04:00).
+- Slice 1 open items for the checker / fix round (Opus): (1) objective moved to (19.3, -76) for the 1.8 m reach;
+  (2) CR1 drop takedown impossible (doorman 5-6 m inside the canopy lips under a solid slab): design call, likely move
+  the post to the canopy's east edge or open a soffit gap (log as A64); (3) builder edited rooms / detailPass / voxelFit
+  tests to pass a 154 x 154 m voxel grid vs a 110 limit: check it is not a real budget break (A20 load budget);
+  (4) campusOps shows in the Sector op list now (sectorOps() filters MAPS, ignores LISTED_MAP_IDS): must hide until
+  slice 3; (5) part 6 only as `e2e-sectorops:6`; (6) M8 isolation exceptions for pairs #1/#2, #3/#4; (7) wallX/wallZ
+  quarter-turn boxes are dropped by the Warehouse jump tests (latent gap there).
 - Laptop (Character Build, 4192 GPU): (1) sector-redesign d9a27c4f vitest + sectorops/coop/netmove/lightbake/levels/
   anchors; (2) camera-range 8fda08b9 security/ctcourse/sectorops/coop. Waiting on verdicts.
 - Guard AI Build agreed the data shapes: `post: { leash, highSecurity?, guards }` and `profile` on SquadSlot (guard-ai
@@ -23,8 +31,7 @@
   Sonnet slice gets its fix round from Opus.
 
 ## Next
-1. Slice L Opus checker (git diff 93496451 536c1355 on the light branch) when a slot frees.
-2. Slice 1: on the builder's hand-back, commit, Opus checker, laptop e2e-sectorops (campus part 1) + e2e-coop,
+1. Slice 1: Opus checker (with the open items above), laptop e2e-sectorops (campus part 1) + e2e-coop,
    one fix round at most; then message the orchestrator (slice 1 on the branch).
 3. camera-range: checker verdict + laptop pass -> PR to master (orchestrator train); message the orchestrator.
 4. Slice 2 brief (S2 + K2) for Sonnet; needs EW13 (origin/feature/g44-above, #169 in train 16).
