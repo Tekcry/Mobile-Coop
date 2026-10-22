@@ -64,6 +64,20 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   rerun f027fc98 pushed ce76361a (webms from the script). #119 N4b 560752d1: studio + anim PASS. Train 8 fc2e8bd3
   (#138 + #156) GREEN 35/35 (JOBS=3, 490 s). Gap job: PR #158 coop-offer-load (e2e-coop takedown offer on the client's
   match clock + per-frame host pin), green solo x2 and at JOBS=3 with netmove + menus. Both slots free.
+- RULES (2026-10-23 ~00:20, Michael via the orchestrator): full runs and trains at E2E_JOBS=5 (back to 3 the first time 5
+  causes a failure); keep laptop CPU under ~90% while any run is going (pause an agent or a burner, never the run); max
+  token burn with up to 6 parallel Opus agents; WIP committed and pushed after each hand-back.
+- ~23:45-00:30: train 12 1ff138e8 (#119 N4b + #158) GREEN 35/35 (JOBS=3, 530 s; N4b x N2 watch items fine). Load audit
+  on master af56ab43 (3 full runs JOBS=5; runs 2-3 + 6-core burner): ONE load-only failure, e2e-desktop:1 crash-log
+  page page.goto 30 s timeout (passes solo twice) -> feature/load-audit 2746f123 (context-level 120 s navigation default,
+  smoke's own context too, 60 s menu waits on the crash-log page; checker PASS WITH NOTES, notes applied). Proof: full
+  run JOBS=5 on 4da742ce (burner stopped at 00:23 for the 90% rule) + smoke/desktop:1 on 2746f123; PR next.
+  ct-rattle-sample a8af5535 (Course Ready) green solo x2 + JOBS=3 trio. #144 R 53e72a11 green (10 suites, 398 s).
+  Agents running: guard-cap script (feature/guard-cap, report-only tooling: scripts/guard-cap.mjs, docs/guard-cap/),
+  slow-suite audit (feature/slow-suites, docs/slow-suites/REPORT.md), latent load-sensitive check scan
+  (feature/load-latent, docs/load-latent/REPORT.md). Guard-cap measure runs on master 4.62.0 once it lands (12/16/24
+  awake guards, Sector Ops warehouseOps + Marlow ctcourse; MAX_ALIVE 12 needs em.maxAlive raised; flashlight shadows
+  capped at 4 by design).
 - MONITOR RULE: never `tail -F` a file a chain appends to (it locks chain-1022.log; Add-Content fails and the chain
   dies; expired monitors leave the tail running). Poll summary.txt files instead.
 - NEXT (ask the orchestrator first): train 8 rebuild once the #119 / #135 fixes land (full GPU JOBS=3 on 4189,
