@@ -41,3 +41,7 @@ fetched, one at a time.
 
 ## Approval log
 - 2026-10-22 ~21:00: download approved in the CT Core session ("Yes, download"): the named takes in SOURCES.md only.
+- 2026-10-22 ~21:45: standing OK for further named CMU takes for this trial (Michael "Yes, CMU only" ~21:40, relayed by
+  the orchestrator; confirmed in the CT Core session "Yes, CMU only"): standing jog / run starts, full run turns,
+  on-the-spot turns. Same rules: official mocap.cs.cmu.edu, ASF/AMC, `.mocap-cache/` (gitignored), every take in
+  SOURCES.md. First cut and side-by-side first, then the gaps.
