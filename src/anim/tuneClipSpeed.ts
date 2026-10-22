@@ -54,7 +54,7 @@ export const CLIP_SPEED_SECTION = registerTuneSection({
   tunables: [...ROWS.map((r) => speed(r.id, r.label, [r.group], r.hook)), speed('all', 'Every clip speed (all of the above)', [CLIP_ALL], 'multiplies every clip speed slider of this section')],
   notes: (_g, id) => {
     const b = CLIP_BASE[id as ClipSpeedId];
-    return b !== undefined ? [`today: ${fmt(b)} at 1`] : [];
+    return b !== undefined ? [`today: ${fmt(b)} at 1${id === 'land' ? ' (the soft landing)' : ''}`] : [];
   },
 });
 
