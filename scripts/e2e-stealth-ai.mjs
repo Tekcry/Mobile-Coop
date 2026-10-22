@@ -983,6 +983,7 @@ try {
       }
       return { only: 0, segs: diag };
     });
+    console.log(`  wall peek: ${JSON.stringify(r)}`);
     assert(!!r && r.only > 0, `a peek past the edge exposes the head alone to spots round the corner (${JSON.stringify(r)})`);
     assert(r.peek.los && r.peek.head && r.peek.thinks >= 5, `the guard there sees the peeking head only, at every think over 2 s of the held peek (${JSON.stringify(r.peek)})`);
     assert(!r.back.los, `peek released: hidden again (${JSON.stringify(r.back)})`);
