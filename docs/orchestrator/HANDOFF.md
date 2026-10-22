@@ -7,6 +7,28 @@ Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25
 
 ## State at the switch (2026-10-23 ~00:40, 97% save point; Michael: "I'd suggest stopping around 97% to allow sufficient usage to stop and save all sessions")
 New account live 2026-10-23 ~00:57 (5-hour 0%, resets 05:50); all four sessions resumed ~01:05; full burn to 100% (Michael 01:05). See STATE "Now" top entry for the live state.
+
+**Update 2026-10-23 ~01:33 (5-hour 73%, ~2.2%/min, 100% about 01:45; weekly 13%).** After Michael's reset: phase B, paced
+windows (STATE "Pacing" 01:12; cron 17/37/57 carries it). Master v4.64.0 (train 15 #167 = #159 mocap, ffade187; dev
+moved). JOBS back to 3 after train 15's JOBS=5 coop miss (fixed test-only in #170; JOBS=5 trial on the master after it).
+- Train 16 (build when CI green, from C:/NightShift/Mobile-Coop-train): #168 decisions G276-G281 (docs, CI pass), #169
+  g44-above (laptop GPU suites green, CI pending), #170 load-audit (test-only, CI pending), then the Character Build
+  test-only PRs #171 net (contains #170), #172 ui1, #173 ui2 (+ GPU governor check), #174 coop (contains #170), #175
+  chores (on #170). Full run on the laptop at JOBS=3 after the guard-cap run; release as 4.65.0 (minor: #169).
+- New tonight (Michael 01:08-01:37, ROADMAP Decided): Sector Ops redesign = job sector-redesign (Course Ready lead;
+  research campus "Saltmarsh Park", 5 sections 8 / 12 / 16 / 20 / 24 guards, 30-45 min, dogs; protocol 31 for Sector
+  light sync; r2 folded in; Course Ready dropped the marlow-final builder role and the mocap checker). Guard AI = job
+  guard-ai, NEW session Night Shift | Guard AI Build (prompt in section 6 below; Michael was given it ~01:40; owns src/ai/*;
+  protocol 32 if needed). Cameras keep IR (G240). All guards armed on every map. Warehouse kept beside the new map. Mocap
+  on by default once mocap-trial-2 + new clips pass the checker. Camera-range cut and lighting review for all maps
+  (proposal docs/lighting-review/PROPOSAL.md on feature/marlow-final; Course Ready's camera-range branch).
+- marlow-final (Menu Notes, builds alone): SPEC + PLAN done (8 sets A1-A8, proposals P1-P17 for Michael), slice 0 in
+  parts 0a-0g running, protocol 30 taken.
+- mocap-trial-2 (CT Core): 6 agents (pops 1-3, run turn, fix2, crouch clip 136_09); sprint / strafe / wall next; CT Core
+  runs the fresh checker (C:/NightShift/scratch/mt-check/CHECK3-BRIEF.md).
+- Character Build: guard-cap on the laptop GPU next (Course Ready needs it for 24 guards), then train 16.
+- Orchestrator docs: docs/orchestrator/spare-jobs.md (ranked), marlow-coop-gaps.md, MORNING-WALK.md (refresh before
+  Michael wakes).
 Master v4.63.0 (train 13 #164 = #144 + #161 + #162, 102e6f41; /preview/ = dev = 102e6f41). 4.62.0 = train 12 #160 (#119 N4b + #158). Tonight: 4.60.0 #153 (train 10),
 4.60.1 #155 (train 11), 4.61.0 #157 (train 8: #138 N2 + #135 N1 + #156 strip-light fix), 4.62.0 #160 (train 12).
 
