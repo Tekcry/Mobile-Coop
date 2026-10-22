@@ -6,7 +6,7 @@ save tokens, i will reset usage as soon as you hit 100%": sessions run to 100% (
 Repeat as long as it pays. Earlier handoffs (2026-10-21, 2026-10-22 13:10, 19:25) are in git history.
 
 ## State at the switch (2026-10-23 ~00:40, 97% save point; Michael: "I'd suggest stopping around 97% to allow sufficient usage to stop and save all sessions")
-Master v4.62.0 (train 12 #160 = #119 N4b + #158, 52e9d0a6; /preview/ = dev = 52e9d0a6). Tonight: 4.60.0 #153 (train 10),
+Master v4.63.0 (train 13 #164 = #144 + #161 + #162, 102e6f41; /preview/ = dev = 102e6f41). 4.62.0 = train 12 #160 (#119 N4b + #158). Tonight: 4.60.0 #153 (train 10),
 4.60.1 #155 (train 11), 4.61.0 #157 (train 8: #138 N2 + #135 N1 + #156 strip-light fix), 4.62.0 #160 (train 12).
 
 Rules (CLAUDE.md on feature/menu; STATE "Merge procedure" / "Known"): every e2e E2E_GPU=1; laptop full runs and trains
@@ -16,7 +16,7 @@ failures"). Before a train build: `gh pr checks <n>` green for every member. Doc
 by the orchestrator. A load-only failure that passes solo on the same commit counts as known. Trains: merge-train.mjs from
 C:/NightShift/Mobile-Coop-train. CLAUDE.md now allows CMU mocap takes (credited in docs/art-credits.md).
 
-Train 13 = train/13 d2be5f6c (#144 R 53e72a11, #161 ct-rattle a8af5535, #162 decisions G270-G275 docs): laptop full run
+Train 13 RELEASED as 4.63.0 (#164). Train 14 next: #163 lightfield-heap (deb5211d) + #165 e2e-start-order (tests only, CI check only), then #159 mocap when its six GPU suites pass, load-audit PR when proven.
 requested (JOBS=5). On a pass: `node scripts/merge-train.mjs release 13 4.63.0 "Sector Ops co-op routes and team doors, fence
 rattle test, decisions G270-G275"` from C:/NightShift/Mobile-Coop-train. If e2e-desktop:1 or e2e-move fail, they are the
 known load-audit pair (solo rerun). Pending review of #144 / #161 (orchestrator agent) - read its findings if it reported.
