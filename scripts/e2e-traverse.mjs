@@ -560,9 +560,13 @@ try {
   await page.evaluate(() => { window.__app.loop.manual = false; window.__pad.disconnect(); });
   await frames(page, 6);
   assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'keyboard: the vent prompt is on screen');
-  // (vent-kick) Space (jump) starts the vent; while Space is still down it is no kick, so E, pressed in a later frame
-  // on these real frames, carries the hold on
+  // (vent-kick) Space (jump) starts the vent; while Space is still down it is no kick, so E, pressed a few frames later
+  // (>= 3 frames and >= 0.1 s of match time: past the old 33 ms kick window, so a return of that bug kicks and fails
+  // the asserts below), carries the hold on
   await page.keyboard.down('Space');
+  const spaceAt = await page.evaluate(() => window.__app.current.time);
+  await frames(page, 3);
+  for (let k = 0; k < 30 && (await page.evaluate(() => window.__app.current.time)) - spaceAt < 0.1; k++) await frames(page, 1);
   await page.keyboard.down('KeyE');
   await frames(page, 2);
   await page.keyboard.up('Space');

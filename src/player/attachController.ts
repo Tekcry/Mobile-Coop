@@ -44,7 +44,8 @@ export interface AttachInput {
   /** The use control (Y / E) is down, and for how long (hold to unscrew a grate). */
   useHeld: boolean;
   useHeldT: number;
-  /** (vent-kick) The keyboard's jump key (Space) is down: held on from the press that starts a vent, no kick yet. */
+  /** (vent-kick) The jump control (Y / Space, any held source) is down: held on from the press that starts a vent, no
+   *  kick yet. */
   startHeld: boolean;
   /** Sprint held: climb ladders / drainpipes faster. */
   sprintHeld: boolean;
@@ -356,7 +357,7 @@ export class AttachController {
     if (a.kind === 'duct') {
       // a closed grate is opened first: a tap kicks it in, a hold unscrews it
       if (this.breakables?.isOpen(`grate:${a.id}:entry`) === false) {
-        this.vent = { duct: a, t: 0, progress: 0, kb: false };
+        this.vent = { duct: a, t: 0, progress: 0, carried: false };
         return true;
       }
       return this.attachTo(a, 0, 'side', 1, 0.55);

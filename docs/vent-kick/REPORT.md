@@ -40,3 +40,18 @@ Trace (real AttachController + InputState, 60 Hz frames, Space held, E 100 ms la
    changed (BRIEF: no pad change); Michael's call.
 2. Duct grates' open state is not synced in co-op (each peer keeps its own; pre-existing).
 3. The keyboard control "Space tap kicks, Space held (or into E) unscrews" may want a DECISIONS entry at the merge.
+
+## Fix round (2026-10-22 ~21:30): M1 + CHECK should-fix 1-3
+- M1: `ti.startHeld = inp.down('jump')` (every held source: pad, keyboard, a mouse-bound jump; a scripted tap holds
+  nothing and keeps the old rule). `KBM_SOURCE` / `downFrom` removed (src/input byte-identical to 00d7a653).
+  `VentHold.kb` renamed `carried`.
+- tests/ventOpen.test.ts rewritten (15): keyboard, pad and pad Y + keyboard E identical over a 5x5x3 grid at 60 Hz and
+  33 ms frames; taps kick; holds into interact unscrew; early release stops; scripted taps keep the old rule.
+- e2e-traverse: E waits >= 3 frames and >= 0.1 s of match time after Space (the old code would kick and fail).
+- e2e-pad: new "vent by pad" block at the Proving duct (Y held 100 ms then A: progress > 0.2, quiet, no kick; A released
+  stops, grate closed; then a Y tap kicks: attached, open, t < 0.3, noise >= 10).
+- Checker's harness on the new code: hold into use at 0.05-0.15 s gaps unscrews 50 / 50 in all 4 input configs; taps
+  0.05-0.32 s kick; identical counts across configs.
+- BRIEF A1 logged; docs (input-and-loop, movement) describe pad and keyboard alike; fragment kind minor (pad behaviour
+  changes too). Unit files 79 / 79 + ventOpen 15 / 15 (3x), tsc, eslint, build.
+- Suites: e2e-traverse, e2e-pad (known flaky: counts on a solo rerun), e2e-mouse, e2e-netmove.

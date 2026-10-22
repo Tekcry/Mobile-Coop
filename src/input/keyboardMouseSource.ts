@@ -1,11 +1,11 @@
 import type { ButtonAction } from './actions';
-import { KBM_SOURCE, type InputState } from './inputState';
+import type { InputState } from './inputState';
 import type { Settings } from '../core/settings';
 import { hyp2 } from '../core/mathx';
 import { keyActionMap, menuNavTap, type KeyBinds } from './keyBindings';
 import { KBM_PACE } from '../config/movement';
 
-const SRC = KBM_SOURCE;
+const SRC = 'kbm';
 
 const MOUSE_RAD_PER_PX = 0.0024;
 /** Mouse wheel steps (the held context menu's highlight) are spaced at least this far apart (ms): one notch, one row. */

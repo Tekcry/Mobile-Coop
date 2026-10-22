@@ -28,7 +28,8 @@ syncs; check). Single test files in agents; e2e-traverse (+ e2e-mouse / e2e-pad 
 lock at E2E_JOBS=1 or on the laptop.
 
 ## Assumed decisions
-(none yet)
+- A1 (implementer, CHECK should-fix 3): Space (jump) held alone at a vent unscrews (no E needed); a tap kicks. Since M1
+  the same holds for the pad's Y. Undo: require interact for the unscrew in `ventStep` (`player/ventOpen.ts`).
 
 ## Michael's answers
 - M1 (2026-10-22 ~21:00, relayed by the orchestrator; REPORT open item 1, the pad's 33 ms window): "Yes, match

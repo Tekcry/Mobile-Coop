@@ -121,7 +121,7 @@ import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats
 import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
-import { InputState, KBM_SOURCE } from '../input/inputState';
+import { InputState } from '../input/inputState';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
@@ -1653,8 +1653,9 @@ export class GameState implements AppState {
     ti.dropHeldT = inp.heldTime('drop');
     ti.useHeld = aFree && inp.down('interact');
     ti.useHeldT = aFree ? inp.heldTime('interact') : 0;
-    // (vent-kick) the keyboard's Space held on from a vent start: no kick yet, the hold runs on into E (the pad: false)
-    ti.startHeld = inp.downFrom('jump', KBM_SOURCE);
+    // (vent-kick, M1) jump (Y / Space, any held source) held on from a vent start: no kick yet, the hold runs on into
+    // interact (A / E); a scripted tap('jump') holds nothing (a kick)
+    ti.startHeld = inp.down('jump');
     ti.sprintHeld = inp.down('dash');
     // (3.2.0 phase 5) team moves come before traversal
     // (A3) a jump press on a wall does not traverse in the same step (a traversal that starts leaves the wall)
