@@ -12,6 +12,7 @@ export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: st
   const rig = new CharacterRig(scene, (shape, hex, slot) => world.parts.instance(shape, hex, `enemy-${slot}`), def.look, def.height, name, {
     build: def.build,
     armor: def.plated,
+    merge: true, // (guard-render S1) one merged smooth mesh (`?guardmerge=0`: the parts)
   });
   for (const m of rig.renderMeshes) world.addShadowCaster(m);
   return rig;

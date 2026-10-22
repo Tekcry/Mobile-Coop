@@ -1,4 +1,5 @@
 import { Bone, BoundingInfo, Matrix, Mesh, Quaternion, Skeleton, Vector3, VertexBuffer, type AbstractMesh, type Color4, type InstancedMesh, type Material, type Observer, type Scene, type TransformNode } from '../core/babylon';
+import { flags } from '../core/flags';
 import { flashColors, heatPattern, mergeParts, paintPart, restBox, type MergedBody, type MergePart } from './smoothBodyMerge';
 
 /**
@@ -38,8 +39,9 @@ function partLocal(part: AbstractMesh): Matrix {
   return Matrix.Compose(part.scaling, q, part.position);
 }
 
-/** The merged body of `parts` (all on nodes under `root`), or null when they come from no smooth library. */
+/** The merged body of `parts` (all on nodes under `root`), or null when off (`?guardmerge=0`) or they come from no smooth library. */
 export function buildSmoothBody(scene: Scene, root: TransformNode, parts: readonly AbstractMesh[], name: string): SmoothBody | null {
+  if (!flags.guardMerge) return null;
   const src = (parts[0] as InstancedMesh | undefined)?.sourceMesh;
   const lib = (src?.metadata as { library?: SmoothBodyLibrary } | null | undefined)?.library;
   if (!lib) return null;
