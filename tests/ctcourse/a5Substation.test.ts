@@ -21,7 +21,7 @@ import { COURSE_TEXT_MAX } from '../../src/config/course';
 import { hyp2, hyp3 } from '../../src/core/mathx';
 import { DOOR } from '../../src/world/doors';
 import { KIT_BOX_COLOR, kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { layoutKnownIds, validateCourse } from '../../src/game/course/courseDef';
 import { CourseState } from '../../src/game/course/courseState';
@@ -1052,6 +1052,21 @@ describe('A5 the Substation: dressing (slice 5 step 5)', () => {
     expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
     expect(propDraws(counted, propReport)).toBeGreaterThan(4);
     expect(own.map((p) => p.prop).sort()).toEqual([...Array<string>(2).fill('beamTower'), ...Array<string>(11).fill('cableTray')].sort());
+  });
+
+  it('every prop with an emissive part follows its power (S3-7 S1, light parity): the two beam towers\' lenses are the beams\' emitters, so each names the A5 laser as its device (dark while the panel is jammed or the beams are off) and carries no lighting group; the cable trays have no emissive', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a5Substation');
+    const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    expect(glowing.map((p) => p.prop)).toEqual(['beamTower', 'beamTower']);
+    expect(A5_PANEL.lasers).toContain(A5_LASER);
+    for (const p of glowing) {
+      expect(p.device).toBe(A5_LASER);
+      expect(p.group).toBeUndefined();
+    }
+    expect(plan.size).toBeGreaterThan(0);
+    expect(g1 - g0).toBe(9);
+    expect(own.filter((p) => p.prop === 'cableTray').some((p) => propGlows(p))).toBe(false);
   });
 
   it("every kit glow in A5 carries a circuit: the hall panels are on the plan's A5 rows (inner zone 51 west of the security wall and on the west wall, apron 50 east of it and on the east wall); never 52 or 53, no lamp added", () => {

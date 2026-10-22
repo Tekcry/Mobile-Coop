@@ -840,7 +840,8 @@ export function buildA5Substation(b: LevelBuilder, kit: FacilityKit): SetPart {
 
   // ---- A5-21: the props kit (PROPS.md 3 A5): the two beam towers at the gateway's posts (visual only, no collision written), eleven cable trays over the trench ----
   const props = new FacilityProps();
-  for (const t of A5_TOWERS) props.add('beamTower', t.x, t.z, t.yaw);
+  // (S3-7 S1) the lenses are the beams' emitters, not lamps of a light circuit: they follow the laser's own state (`PropPlacement.device`: dark while the panel is jammed or the beams are off)
+  for (const t of A5_TOWERS) props.add('beamTower', t.x, t.z, t.yaw, { device: A5_LASER });
   props.row('cableTray', A5_TRAY.x0, A5_TRAY.z, A5_TRAY.x1, A5_TRAY.z, { y: A5_TRAY.y });
   tally(b, p.register, 'A5-21', "Props kit: the two beam towers at (58, 33.2) and (58, 38.8) facing each other across the gateway, visual only (no collision written: the greybox's posts, beam line and 6 m gap are untouched; each tower's skin stands 0.07 m off its post's end face so the voxel fit's 3 cm probe there stays air), and eleven cable trays hung 3.0 m up on the north wall over the trench (no collision). The transformers, drums, switchgear and kiosk props are not placed: the greybox's visible boxes would hide them (skins instead, A5-15 to A5-18)", () => {
     // (placements only: `props.write(b)` is deliberately not called)

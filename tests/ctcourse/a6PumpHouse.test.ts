@@ -28,7 +28,7 @@ import { hyp2 } from '../../src/core/mathx';
 import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { coopDeck, COOP_BAND, GREY_KEEP_CLEAR, hangPlate, INTERACT_DY, INTERACT_REACH } from '../../src/world/maps/ctcourseGreybox';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_SET_BUDGET, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { GAL_TOP } from '../../src/world/maps/ctcourseSets/facility';
 import {
@@ -927,6 +927,17 @@ describe('A6 the Pump House: dressing (slice 6 step 5)', () => {
     for (const d of part.debugPoints.filter((q) => q.pos.y < 1)) expect(bodyHits(d.pos.x, 0, d.pos.z), d.id).toBeNull();
     for (const x of [48.8, 57.2]) expect(bodyWalk(x, 57.0, x, 59.0), `kerb opening x ${x}`).toBeNull();
     expect(bodyWalk(54.2, 62.9, 54.2, 61.2)).toBeNull();
+  });
+
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): A6 places only pipe runs, which have none', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a6PumpHouse');
+    const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((p) => p.prop === 'pipeRun')).toBe(true);
+    expect(glowing).toEqual([]);
+    expect(plan.size).toBeGreaterThan(0);
+    expect(g1 - g0).toBe(9);
   });
 
   it('every kit glow in A6 carries a circuit: hall panels on the pump floor (60) south and east, the gallery strip (61) north, the tagged-out circuit (69, no lamp: dark) west; all over 4.4 m (the south wall over its glazing); the north wall leaves the switch column; no lamp was added', () => {

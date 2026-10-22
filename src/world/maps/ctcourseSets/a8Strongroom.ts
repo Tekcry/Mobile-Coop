@@ -28,6 +28,23 @@
  * Lights (LIGHTING-PLAN 3, A8; `MARLOW_CIRCUITS` 81-84): the hall night circuit 81 (three chandeliers, three counter lamps, the desk lamp;
  * the board is its isolator, the grille reads it), gallery wall lights 82 (switch at the stair head), office 83 (switch by its door), vault
  * lobby 84 (the time lock's circuit, no switch). The vestibule and the west bays have no fitting.
+ *
+ * Dressing (slice 8 step 5, SPEC 6, M5: a Victorian banking hall mock-up inside the luxury hall, so it keeps its own materials - oak
+ * panelling, plaster, stone pilasters and cornices, a black-and-cream marble floor, brass bars, a vault company's steel plate - and
+ * only the hall above the set takes the kit's charcoal panels):
+ * - the greybox's boxes, lamps, doors, anchors, devices and guards are untouched; the dressing is appended after them (the test pins the
+ *   greybox: 138 boxes, 81 of them solid, 16 lamps);
+ * - everything built by hand is a thin visual skin (no collision, `noLedge`, one side under `CANON_MIN_THICK`, so out of the canonical
+ *   light shapes: the bake, the meter, the guards and the cameras see the greybox as built): the hall's wall finish (oak dado, plaster,
+ *   pilasters, windows, cornice), floors (chequer, plank seams, plate seams, carpet seams, the two striped marks), the gallery's coping,
+ *   panels, frieze, column bases and capitals, newels and drop chain, rails on both stairs (visual: the flights' open sides stay open),
+ *   the counters' back panels and lamp stems, the grille's stone surround and two brass bar panels, the lighting board's cabinet, the
+ *   office, the stairwell, the lobby, the beam curtain's plates, the time locks' cases and dials, the vault's inner surround;
+ * - the props kit: 8 bank counters and the night desk stand over their greybox boxes (no box written), 5 sign plates hang on the walls,
+ *   and the vault's 6 deposit walls are the dressing's only collision (their own six `noLedge` boxes, 0.56 m deep on the two flanks: the
+ *   vault stays 6.5 m wide and the door's axis and swing are clear);
+ * - kit panels with accent coves from the 9.2 m slab's top to the roof on the four walls (81, 83, 84), accent slots under the gallery's
+ *   front (82), on the office roof (83), the lobby's ceiling and the vault's roof (84). No lamp is added.
  */
 import type { GuardInfo } from '../../../ai/guardInfo';
 import { hyp2 } from '../../../core/mathx';
@@ -702,7 +719,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
       faceH(side, at, a, e, y0, y0 + 0.2, LOOK.stoneDark, 1, holes);
       faceH(side, at, a, e, y0 + 0.24, y0 + 0.3, LOOK.oakDark, 1, holes);
       faceH(side, at, a, e, dadoTop - 0.3, dadoTop - 0.24, LOOK.oakDark, 1, holes);
-      faceH(side, at, a, e, dadoTop - 0.04, dadoTop + 0.04, LOOK.oakDark, 2, holes);
+      faceH(side, at, a, e, dadoTop - 0.04, dadoTop + 0.04, LOOK.oakDark, 1, holes);
       if (ceil - dadoTop > 1.5) faceH(side, at, a, e, ceil - 0.75, ceil - 0.7, LOOK.oakDark, 1, holes);
       for (const [s0, s1] of bays(a, e, pil)) {
         const n = Math.max(1, Math.round((s1 - s0) / 1.8));
@@ -722,14 +739,14 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
       faceH(side, at, a, e, dadoTop - 0.03, dadoTop + 0.03, LOOK.steel, 1, holes);
     }
   };
-  /** A stone pilaster (0.36 m) on a wall face from `y0` to `y1`: base and capital blocks, a shaft (up to 9 cm out). */
+  /** A stone pilaster (0.36 m) on a wall face from `y0` to `y1`: base and capital blocks, a shaft (up to 12 cm out: over the finish's layers 0-1). */
   const pilaster = (side: Side, at: number, c: number, y0: number, y1: number): void => {
-    for (const layer of [1, 2]) {
+    for (const layer of [2, 3]) {
       face(side, at, c - 0.25, c + 0.25, y0, y0 + 0.3, LOOK.stoneDark, layer);
       face(side, at, c - 0.25, c + 0.25, y1 - 0.3, y1, LOOK.stone, layer);
     }
-    face(side, at, c - 0.17, c + 0.17, y0 + 0.3, y1 - 0.3, LOOK.stoneDark, 1);
-    face(side, at, c - 0.18, c + 0.18, y0 + 0.3, y1 - 0.3, LOOK.stone, 2);
+    face(side, at, c - 0.17, c + 0.17, y0 + 0.3, y1 - 0.3, LOOK.stoneDark, 2);
+    face(side, at, c - 0.18, c + 0.18, y0 + 0.3, y1 - 0.3, LOOK.stone, 3);
   };
   /** A stepped plaster and stone cornice along a wall face under the ceiling (8.62 to 9.0). */
   const cornice = (side: Side, at: number, a: number, e: number): void => {
@@ -737,17 +754,18 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     face(side, at, a, e, 8.78, A8_H.hall, LOOK.stone, 2);
     face(side, at, a, e, 8.9, A8_H.hall, LOOK.stone, 3);
   };
-  /** A tall window: dark glass with a mullion and a transom in a stone surround (jambs, sill, head, keystone). */
+  /** A tall window: dark glass with a mullion and a transom in a stone surround (jambs, sill, head, keystone), 15 cm out at most. */
   const win = (side: Side, at: number, c: number, y0: number, y1: number, w = 1.8): void => {
-    face(side, at, c - w / 2, c + w / 2, y0, y1, LOOK.glass, 1);
-    face(side, at, c - 0.02, c + 0.02, y0, y1, LOOK.glassBar, 2);
+    // (layers 2-4: the glass stands over the finish's picture rail, the surround and the sill over the glass; 15 cm out at most)
+    face(side, at, c - w / 2, c + w / 2, y0, y1, LOOK.glass, 2);
+    face(side, at, c - 0.02, c + 0.02, y0, y1, LOOK.glassBar, 3);
     const tr = y0 + (y1 - y0) * 0.62;
-    face(side, at, c - w / 2, c + w / 2, tr, tr + 0.04, LOOK.glassBar, 2);
-    for (const s of [-1, 1]) face(side, at, s < 0 ? c - w / 2 - 0.12 : c + w / 2, s < 0 ? c - w / 2 : c + w / 2 + 0.12, y0 - 0.08, y1 + 0.14, LOOK.stone, 2);
-    face(side, at, c - w / 2 - 0.15, c + w / 2 + 0.15, y0 - 0.1, y0 - 0.02, LOOK.stone, 2);
-    face(side, at, c - w / 2 - 0.2, c + w / 2 + 0.2, y0 - 0.14, y0 - 0.1, LOOK.stoneDark, 3);
-    face(side, at, c - w / 2 - 0.12, c + w / 2 + 0.12, y1, y1 + 0.14, LOOK.stone, 2);
-    face(side, at, c - 0.15, c + 0.15, y1, y1 + 0.32, LOOK.stoneDark, 3);
+    face(side, at, c - w / 2, c + w / 2, tr, tr + 0.04, LOOK.glassBar, 3);
+    for (const s of [-1, 1]) face(side, at, s < 0 ? c - w / 2 - 0.12 : c + w / 2, s < 0 ? c - w / 2 : c + w / 2 + 0.12, y0 - 0.08, y1 + 0.14, LOOK.stone, 3);
+    face(side, at, c - w / 2 - 0.15, c + w / 2 + 0.15, y0 - 0.1, y0 - 0.02, LOOK.stone, 3);
+    face(side, at, c - w / 2 - 0.2, c + w / 2 + 0.2, y0 - 0.14, y0 - 0.1, LOOK.stoneDark, 4);
+    face(side, at, c - w / 2 - 0.12, c + w / 2 + 0.12, y1, y1 + 0.14, LOOK.stone, 3);
+    face(side, at, c - 0.15, c + 0.15, y1, y1 + 0.32, LOOK.stoneDark, 4);
   };
   /** A door's architrave on one face: two jambs and a head (`w` wide) round the opening [a0, a1] from `y0` up to its height `h`. */
   const architrave = (side: Side, at: number, a0: number, a1: number, y0: number, h: number, layer = 1, w = 0.12, color: string = LOOK.stone): void => {
@@ -760,7 +778,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   const WS = S.west;
   const WN = S.north;
   const WSo = S.south;
-  tally(b, p.register, 'A8-16', "Hall wall finish (visual skins, no collision): oak panelled dado and plaster with a picture rail, stone pilasters (south x 108.5-131.5, north, east, west), a stepped cornice under the 9.0 ceiling, five tall windows in stone surrounds on the south wall and four over the gallery on the north wall (dark glass), on the south, west, north and east faces (the vestibule and the strip under the gallery to 3.85 m, the deck level above 4.4, the L7 door, the glazed end bay, the board's place, the grille's opening, the office door and C2's mount left bare)", () => {
+  tally(b, p.register, 'A8-16', "Hall wall finish (visual skins, no collision): oak panelled dado and plaster with a picture rail, stone pilasters (south x 108.5-131.5, north, east, west; 12 cm out), a stepped cornice under the 9.0 ceiling, five tall windows in stone surrounds on the south wall and four over the gallery on the north wall (dark glass), on the south, west, north and east faces (the vestibule and the strip under the gallery to 3.85 m, the deck level above 4.4, the L7 door, the glazed end bay, the board's place, the grille's opening, the office door and C2's mount left bare)", () => {
     // south wall (z 50.25): the whole hall width; C1's mount (120, 3.2) stays clear of the sill (3.4)
     panelled('n', WSo, WS, heW, 0, DADO_FLOOR, A8_CORNICE, A8_SOUTH_P);
     cornice('n', WSo, WS, heW);
@@ -772,6 +790,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     cornice('e', WS, 52.1, 56.0);
     panelled('e', WS, 56.0, WN, 0, DADO_LOW, 3.85, A8_WEST_P, [[58.6, 63.0]]);
     faceH('e', WS, 56.0, WN, 3.85, 3.97, LOOK.plasterShade, 1);
+    faceH('e', WS, 58.6, 63.0, 2.6, 3.85, LOOK.plaster, 0);
     panelled('e', WS, 56.2, WN, A8_H.gallery, A8_H.gallery + DADO_DECK, A8_CORNICE, A8_WEST_P);
     cornice('e', WS, 56.2, WN);
     for (const c of A8_WEST_P) {
@@ -784,7 +803,8 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     // north wall (z 77.75): the strip under the gallery (the lighting board's place bare) and the deck level above 4.4 with its windows
     panelled('s', WN, WS, heW, 0, DADO_LOW, 3.85, A8_NORTH_P, [[A8_BOARD_FIT[0], A8_BOARD_FIT[1]]]);
     faceH('s', WN, WS, heW, 3.85, 3.97, LOOK.plasterShade, 1);
-    panelled('s', WN, WS, heW, A8_H.gallery, A8_H.gallery + DADO_DECK, A8_CORNICE, A8_NORTH_P);
+    const sconceHoles: Hole[] = [126.0, 129.5, 133.0].map((x) => [x - 0.14, x + 0.14, 6.42, 7.0] as const);
+    panelled('s', WN, WS, heW, A8_H.gallery, A8_H.gallery + DADO_DECK, A8_CORNICE, A8_NORTH_P, [], sconceHoles);
     cornice('s', WN, WS, heW);
     for (const c of A8_NORTH_P) {
       pilaster('s', WN, c, 0, 3.85);
@@ -794,7 +814,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     // east wall, the hall face (x 133.85): the floor part to the cornice (the grille's opening bare to its 3.0 lintel, C2's mount bare), the strip under the gallery,
     // the deck level (the office door bare to 6.6)
     const c2: Hole = [72.6, 73.4, 6.9, 7.9];
-    const bays: Hole[] = A8_BAYS.map((q) => [q.fill[0], q.fill[1], 0.1, 3.05]);
+    const bays: Hole[] = A8_BAYS.map((q) => [q.fill[0], q.fill[1], 0, 3.05]);
     panelled('w', heW, WSo, 75.0, 0, DADO_FLOOR, A8_CORNICE, A8_EAST_P, [[grille.z0, grille.z1]], [c2, ...bays]);
     faceH('w', heW, grille.z0, grille.z1, grille.h, A8_CORNICE, LOOK.plaster, 0);
     cornice('w', heW, WSo, 75.0);
@@ -841,19 +861,19 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   });
 
   // ---- A8-18: the gallery: a stone coping and raised panels on the balustrade, a frieze and brass line on the slab's front, column bases and capitals, newels at the stair head, an LED line under the front, the drop chain ----
-  tally(b, p.register, 'A8-18', "Gallery dressing (visual skins and kit accent slots, no collision): a stone coping on the 1.2 m balustrade (4 cm proud each side) and raised panels (2 m pitch) on both its faces and its south end, a stone base moulding, the slab's front frieze (4.0-4.4, the stair head's opening and the open loading edge left bare) with a brass line, bases and capitals on the eight columns, newels with caps at the two ends of the stair head's gap, a warm accent line under the slab's front edge on circuit 82 (kit, no light), and the drop chain across the open loading edge (SPEC P13: eye plates on the two balustrade ends and 24 links in a swag 0.75-0.95 m over the deck, no collision)", () => {
+  tally(b, p.register, 'A8-18', "Gallery dressing (visual skins and kit accent slots, no collision): a stone coping on the 1.2 m balustrade (4 cm proud each side, none past the ends of the stair head's gap and the open loading edge) and raised panels (2 m pitch) on both its faces and its south end, a stone base moulding, the slab's front frieze (4.0-4.4, the stair head's opening and the open loading edge left bare) with a brass line, bases and capitals on the eight columns, newels with caps at the two ends of the stair head's gap, a warm accent line under the slab's front edge on circuit 82 (kit, no light), and the drop chain across the open loading edge (SPEC P13: eye plates on the two balustrade ends and 24 links in a swag 0.75-0.95 m over the deck, no collision)", () => {
     const top = A8_H.gallery + bal;
-    const BAL: { hall: [Side, number]; deck: [Side, number]; a0: number; a1: number }[] = [
-      { hall: ['s', 75.0], deck: ['n', 75.2], a0: 108.8, a1: 130.5 },
-      { hall: ['s', 75.0], deck: ['n', 75.2], a0: 131.7, a1: n.x1 },
-      { hall: ['e', 109.0], deck: ['w', 108.8], a0: 56.2, a1: A8_OPEN_EDGE[0] },
-      { hall: ['e', 109.0], deck: ['w', 108.8], a0: A8_OPEN_EDGE[1], a1: 75.0 },
+    const BAL: { hall: [Side, number]; deck: [Side, number]; a0: number; a1: number; o0: number; o1: number }[] = [
+      { hall: ['s', 75.0], deck: ['n', 75.2], a0: 108.8, a1: 130.5, o0: 0.04, o1: 0 },
+      { hall: ['s', 75.0], deck: ['n', 75.2], a0: 131.7, a1: n.x1, o0: 0, o1: 0 },
+      { hall: ['e', 109.0], deck: ['w', 108.8], a0: 56.2, a1: A8_OPEN_EDGE[0], o0: 0.04, o1: 0 },
+      { hall: ['e', 109.0], deck: ['w', 108.8], a0: A8_OPEN_EDGE[1], a1: 75.0, o0: 0, o1: 0.04 },
     ];
     for (const run of BAL) {
       const alongX = run.hall[0] === 's';
       // the coping over the whole thickness
-      if (alongX) skin(run.a0 - 0.04, run.a1 + 0.04, top, top + SKIN, 74.96, 75.24, LOOK.stone);
-      else skin(108.76, 109.04, top, top + SKIN, run.a0 - 0.04, run.a1 + 0.04, LOOK.stone);
+      if (alongX) skin(run.a0 - run.o0, run.a1 + run.o1, top, top + SKIN, 74.96, 75.24, LOOK.stone);
+      else skin(108.76, 109.04, top, top + SKIN, run.a0 - run.o0, run.a1 + run.o1, LOOK.stone);
       for (const [side, at] of [run.hall, run.deck]) {
         face(side, at, run.a0, run.a1, A8_H.gallery, A8_H.gallery + 0.16, LOOK.stoneDark, 1);
         const len = run.a1 - run.a0;
@@ -978,7 +998,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     face('w', heW, 60.3, 63.7, 4.12, 4.2, LOOK.stoneDark, 3);
     paint(heW, heE, grille.z0, grille.z1, LOOK.brass, 0.012);
     for (const { bars: [a, e], fill } of A8_BAYS) {
-      face('w', heW, fill[0], fill[1], 0.1, 3.05, LOOK.black, 0);
+      face('w', heW, fill[0], fill[1], 0, 3.05, LOOK.black, 0);
       face('w', heW, a, a + 0.08, 0.1, 3.05, LOOK.brass, 1);
       face('w', heW, e - 0.08, e, 0.1, 3.05, LOOK.brass, 1);
       for (const [y0, y1] of [[0.1, 0.17], [1.45, 1.5], [2.95, 3.05]] as const) face('w', heW, a + 0.08, e - 0.08, y0, y1, LOOK.brass, 1);
@@ -992,7 +1012,7 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   });
 
   // ---- A8-22: the lighting board and the strip under the gallery: the cabinet on the north wall, its dado, the soffit's beams ----
-  tally(b, p.register, 'A8-22', "Lighting board and the strip under the gallery (visual skins, no collision): the board's cabinet on the north wall (1.2 x 1.8 m, steel, two doors with a seam, hinges, six vent slats a door, a yellow plate with the red rotary at the device (127, 0.9), three indicator squares, a label plate with a black bar, a hazard square, a conduit to the soffit) with the dado and plaster either side, and cross beams under the gallery's soffit over the strip and the vestibule (the device and the hide spot untouched)", () => {
+  tally(b, p.register, 'A8-22', "Lighting board and the strip under the gallery (visual skins, no collision): the board's cabinet on the north wall (1.2 x 1.8 m, steel, two doors with a seam, hinges, six vent slats a door, a yellow plate with the red rotary knob at the device (127, 0.9), 3 cm behind it, three indicator squares, a label plate with a black bar, a hazard square, a conduit to the soffit) with the dado and plaster either side, and cross beams under the gallery's soffit over the strip and the vestibule (the device and the hide spot untouched)", () => {
     const [f0, f1] = A8_BOARD_FIT;
     const bx0 = 126.4;
     const bx1 = 127.6;
@@ -1004,22 +1024,20 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     face('s', WN, f0, bx0, 0, 0.2, LOOK.stoneDark, 1);
     face('s', WN, bx1, f1, 0, 0.2, LOOK.stoneDark, 1);
     face('s', WN, bx0, bx1, 0, 0.05, LOOK.stoneDark, 1);
-    // the cabinet: body and door panels, the seam, hinges, vents
+    // the cabinet (layers 0-3, 12 cm deep: the device at z 77.6 is 3 cm in front of the deepest): the body, the two door faces (layer 1), then hinges, vents, the
+    // yellow plate, indicators, the label and the hazard square (layer 2), the red rotary knob and the label's bar (layer 3)
     face('s', WN, bx0, bx1, 0.05, 1.85, LOOK.steel, 0);
-    face('s', WN, bx0 + 0.04, bx1 - 0.04, 0.1, 1.8, LOOK.steelDark, 1);
-    for (const [a, e] of [[bx0 + 0.04, 126.985], [127.015, bx1 - 0.04]] as const) face('s', WN, a + 0.02, e - 0.02, 0.14, 1.76, LOOK.paint, 1);
-    for (const y of [0.3, 1.1, 1.6]) for (const x of [bx0 + 0.03, bx1 - 0.07]) face('s', WN, x, x + 0.04, y, y + 0.12, LOOK.black, 1);
+    for (const [a, e] of [[bx0 + 0.04, 126.985], [127.015, bx1 - 0.04]] as const) face('s', WN, a, e, 0.1, 1.8, LOOK.paint, 1);
+    for (const y of [0.3, 1.1, 1.6]) for (const x of [bx0 + 0.05, bx1 - 0.09]) face('s', WN, x, x + 0.04, y, y + 0.12, LOOK.black, 2);
     for (const x0 of [126.5, 127.1]) for (let k = 0; k < 6; k++) face('s', WN, x0, x0 + 0.4, 0.2 + 0.07 * k, 0.23 + 0.07 * k, LOOK.black, 2);
-    // the isolator: a yellow plate and the red rotary (at the device (127, 0.9): nothing nearer than 9 cm to the wall's face stands out past layer 2)
-    face('s', WN, 126.87, 127.13, 0.72, 1.08, LOOK.yellow, 1);
-    face('s', WN, 126.94, 127.06, 0.84, 0.96, LOOK.red, 2);
-    // three indicator squares, a label plate, a hazard square
+    face('s', WN, 126.87, 127.13, 0.72, 1.08, LOOK.yellow, 2);
+    face('s', WN, 126.94, 127.06, 0.84, 0.96, LOOK.red, 3);
     for (const [x, c] of [[126.55, LOOK.green], [126.69, LOOK.amber], [126.83, LOOK.red]] as const) face('s', WN, x, x + 0.08, 1.4, 1.48, c, 2);
-    face('s', WN, 126.55, 127.45, 1.56, 1.74, LOOK.white, 1);
-    face('s', WN, 126.6, 127.2, 1.62, 1.68, LOOK.black, 2);
-    face('s', WN, 127.28, 127.48, 1.12, 1.32, LOOK.yellow, 1);
-    face('s', WN, 127.36, 127.4, 1.15, 1.29, LOOK.black, 2);
-    face('s', WN, 127.43, 127.47, 1.85, 3.97, LOOK.steel, 1);
+    face('s', WN, 126.55, 127.45, 1.56, 1.74, LOOK.white, 2);
+    face('s', WN, 126.6, 127.2, 1.62, 1.68, LOOK.black, 3);
+    face('s', WN, 127.28, 127.48, 1.12, 1.32, LOOK.yellow, 2);
+    face('s', WN, 127.36, 127.4, 1.15, 1.29, LOOK.black, 3);
+    face('s', WN, 127.43, 127.47, 1.85, 3.85, LOOK.steel, 1);
     // the soffit's cross beams over the strip (x every 2.75 m) and the vestibule's (z every 2.75 m)
     for (let x = 108.0; x < heW; x += 2.75) skin(x - 0.1, x + 0.1, A8_H.slab - 0.04, A8_H.slab, A8_NORTH.z0, WN, LOOK.oakDark);
     skin(WS, heW, A8_H.slab - 0.04, A8_H.slab, 76.35, 76.55, LOOK.oakDark);
@@ -1032,13 +1050,13 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     const top = 7.25;
     const dado = A8_H.gallery + 1.2;
     // west wall (x 134.15): the door z 76.0-77.2 with its architrave; the office switch's plate at z 75.6
-    plainWall('e', heE, 71.55, WN, A8_H.gallery, dado, top, officePal, [[officeDoor.z0, officeDoor.z1]], [[75.45, 75.75, 5.45, 5.75]]);
-    faceH('e', heE, officeDoor.z0, officeDoor.z1, A8_H.gallery + DOOR_H + 0.1, top, officePal[1], 0);
+    plainWall('e', heE, 71.55, WN, A8_H.gallery, dado, top, officePal, [[officeDoor.z0 - 0.1, officeDoor.z1 + 0.1]], [[75.45, 75.75, 5.45, 5.75]]);
+    faceH('e', heE, officeDoor.z0 - 0.1, officeDoor.z1 + 0.1, A8_H.gallery + DOOR_H + 0.1, top, officePal[1], 0);
     architrave('e', heE, officeDoor.z0, officeDoor.z1, A8_H.gallery, DOOR_H, 1, 0.1, LOOK.steelDark);
     face('e', heE, 75.5, 75.7, 5.5, 5.7, LOOK.steel, 0);
     // south wall (z 71.55): the stair-top door x 142.6-143.8
-    plainWall('n', 71.55, heE, 143.85, A8_H.gallery, dado, top, officePal, [[topDoor.x0, topDoor.x1]]);
-    faceH('n', 71.55, topDoor.x0, topDoor.x1, A8_H.gallery + DOOR_H + 0.1, top, officePal[1], 0);
+    plainWall('n', 71.55, heE, 143.85, A8_H.gallery, dado, top, officePal, [[topDoor.x0 - 0.1, topDoor.x1 + 0.1]]);
+    faceH('n', 71.55, topDoor.x0 - 0.1, topDoor.x1 + 0.1, A8_H.gallery + DOOR_H + 0.1, top, officePal[1], 0);
     architrave('n', 71.55, topDoor.x0, topDoor.x1, A8_H.gallery, DOOR_H, 1, 0.1, LOOK.steelDark);
     // east wall (x 143.85): the console's place bare (z 74.2-75.2 over the desk)
     plainWall('w', 143.85, 71.55, WN, A8_H.gallery, dado, top, officePal, [], [[72.1, 77.1, 5.2, 6.7]]);
@@ -1079,9 +1097,9 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   const osLine = (x: number): number => (A8_H.gallery * (x - os.foot)) / stO.len;
   const osPitch = -Math.atan2(A8_H.gallery, stO.len);
   const wallP: readonly [string, string] = [LOOK.plate, LOOK.paint];
-  tally(b, p.register, 'A8-24', "Office stair and stairwell dressing (visual skins, no collision: the walls stay walls): painted walls on a dark dado with a skirting and a rail round the stairwell (the flight's north wall z 71.25 with the push bar's and the stair-top door's places bare, the closed block's face z 70.0, the foot landing, the head landing), a brass handrail 0.9 m over the nosing line on both walls with a bracket every 1.3 m (pitched like the flight: z 71.2 along the whole flight and z 70.03 along the block, x 135.2-142.2), architraves on the foot door's stairwell side and the stair-top door's", () => {
+  tally(b, p.register, 'A8-24', "Office stair and stairwell dressing (visual skins, no collision: the walls stay walls): painted walls on a dark dado with a skirting and a rail round the stairwell (the flight's north wall z 71.25 with the push bar's and the stair-top door's places bare, the closed block's face z 70.0, the foot landing, the head landing), a brass handrail 0.9 m over the nosing line on both walls with a bracket every 1.3 m (pitched like the flight: z 71.18 along the whole flight and z 70.07 along the block, x 135.2-142.2), architraves on the foot door's stairwell side and the stair-top door's", () => {
     const hallTop = A8_H.stairwell;
-    plainWall('s', 71.25, heE, 144.15, 0, 1.2, hallTop, wallP, [], [[topDoor.x0, topDoor.x1, A8_H.gallery, 6.6], [135.45, 136.15, 0.8, 1.4]]);
+    plainWall('s', 71.25, heE, 144.15, 0, 1.2, hallTop, wallP, [], [[topDoor.x0 - 0.1, topDoor.x1 + 0.1, A8_H.gallery, 6.6], [135.45, 136.15, 0.8, 1.4]]);
     architrave('s', 71.25, topDoor.x0, topDoor.x1, A8_H.gallery, DOOR_H, 1, 0.1, LOOK.steelDark);
     plainWall('n', os.z0, A8_STAIR_BLOCK_X0, 142.2, 0, 1.2, hallTop, wallP);
     plainWall('e', heE, 68.15, 71.25, 0, 1.2, hallTop, wallP);
@@ -1094,14 +1112,14 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
     // the handrails: the north wall's along the whole flight, the block face's along x 135.2-142.2
     const flightLen = hyp2(stO.len, A8_H.gallery);
     const midX = os.foot + stO.len / 2;
-    slope(midX, A8_H.gallery / 2 + A8_RAIL_LIFT.wall, 71.2, 0.04, 0.04, flightLen, Math.PI / 2, osPitch, LOOK.brass);
+    slope(midX, A8_H.gallery / 2 + A8_RAIL_LIFT.wall, 71.18, 0.04, 0.04, flightLen, Math.PI / 2, osPitch, LOOK.brass);
     const bx0 = A8_STAIR_BLOCK_X0;
     const bx1 = os.foot + stO.len;
     const blockMid = (bx0 + bx1) / 2;
-    slope(blockMid, osLine(blockMid) + A8_RAIL_LIFT.wall, os.z0 + 0.03, 0.04, 0.04, hyp2(bx1 - bx0, osLine(bx1) - osLine(bx0)), Math.PI / 2, osPitch, LOOK.brass);
+    slope(blockMid, osLine(blockMid) + A8_RAIL_LIFT.wall, os.z0 + 0.07, 0.04, 0.04, hyp2(bx1 - bx0, osLine(bx1) - osLine(bx0)), Math.PI / 2, osPitch, LOOK.brass);
     for (let x = os.foot + 0.4; x < bx1 - 0.2; x += 1.3) {
-      skin(x - 0.02, x + 0.02, osLine(x) + A8_RAIL_LIFT.wall - 0.1, osLine(x) + A8_RAIL_LIFT.wall - 0.02, 71.2, 71.25, LOOK.brassDark);
-      if (x >= bx0) skin(x - 0.02, x + 0.02, osLine(x) + A8_RAIL_LIFT.wall - 0.1, osLine(x) + A8_RAIL_LIFT.wall - 0.02, os.z0, os.z0 + 0.03, LOOK.brassDark);
+      skin(x - 0.02, x + 0.02, osLine(x) + A8_RAIL_LIFT.wall - 0.1, osLine(x) + A8_RAIL_LIFT.wall - 0.02, 71.2, 71.22, LOOK.brassDark);
+      if (x >= bx0) skin(x - 0.02, x + 0.02, osLine(x) + A8_RAIL_LIFT.wall - 0.1, osLine(x) + A8_RAIL_LIFT.wall - 0.02, os.z0 + 0.03, os.z0 + 0.05, LOOK.brassDark);
     }
   });
 
@@ -1117,9 +1135,9 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
       for (let c = lo + 1.2; c < hi - 0.3; c += 1.2) faceH(side, at, c - 0.01, c + 0.01, 0.3, top - 0.1, LOOK.seam, 1, holes);
     };
     // north wall (z 67.85): the foot door and T1
-    plainWall('s', 67.85, 134.15, 145.85, 0, 1.2, top, lobbyPal, [[foot.x0, foot.x1]], [T1_HOLE]);
-    seams('s', 67.85, 134.15, 145.85, [T1_HOLE, [foot.x0 - 0.1, foot.x1 + 0.1, 0, top]]);
-    faceH('s', 67.85, foot.x0, foot.x1, DOOR_H + 0.1, top, lobbyPal[1], 0);
+    plainWall('s', 67.85, 134.15, 145.85, 0, 1.2, top, lobbyPal, [[foot.x0 - 0.1, foot.x1 + 0.1]], [T1_HOLE]);
+    seams('s', 67.85, 134.15, 145.85, [T1_HOLE, [foot.x0 - 0.2, foot.x1 + 0.2, 0, top]]);
+    faceH('s', 67.85, foot.x0 - 0.1, foot.x1 + 0.1, DOOR_H + 0.1, top, lobbyPal[1], 0);
     architrave('s', 67.85, foot.x0, foot.x1, 0, DOOR_H, 1, 0.1, LOOK.steelDark);
     // south wall (z 56.15): the request-to-exit's place bare
     plainWall('n', 56.15, 134.15, 145.85, 0, 1.2, top, lobbyPal, [], [RTE_HOLE]);

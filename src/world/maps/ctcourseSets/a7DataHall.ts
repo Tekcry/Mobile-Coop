@@ -551,7 +551,7 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
       const front = A7_RACK_FRONT[i]!;
       const zc = (front > 0 ? z1 : z0) + front * A7_RACK_PROUD - front * 0.6;
       const n = Math.floor((x1 - x0) / A7_RACK_PITCH + 1e-6);
-      for (let k = 0; k < n; k++) props.add('serverRack', x0 + A7_RACK_PITCH / 2 + A7_RACK_PITCH * k, zc, front > 0 ? 0 : Math.PI, { y: A7_PROP_LIFT });
+      for (let k = 0; k < n; k++) props.add('serverRack', x0 + A7_RACK_PITCH / 2 + A7_RACK_PITCH * k, zc, front > 0 ? 0 : Math.PI, { y: A7_PROP_LIFT, group: G_ROWS });
       const zs0 = Math.min(z0, zc - 0.6);
       const zs1 = Math.max(z1, zc + 0.6);
       // the rear (the greybox box's hot-side face, 5 cm proud of the rack's back): a panel, door seams every module and handles; the east run's rear is on the cage
@@ -691,7 +691,7 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
   // ---- A7-17: the plant corridor: cooling units' sides, the trench grating, pipes, wall plant ----
   tally(b, p.register, 'A7-17', "Plant corridor (props kit coolingUnit over the three greybox boxes, visual skins, no collision): side panels with seams and louvres capping each unit's flanks (the west lee included), the 6 m trench grating as a dark pit under 60 longitudinal bars, cross bearers, an angle frame and hazard edge strips, chilled-water flow and return pipes with brackets and valves along the north wall, a gas bottle rack and an electrical board at the west end, a fire point", () => {
     for (const x of A7_UNITS) {
-      props.add('coolingUnit', x, A7_UNIT_Z, Math.PI, { y: A7_PROP_LIFT });
+      props.add('coolingUnit', x, A7_UNIT_Z, Math.PI, { y: A7_PROP_LIFT, group: G_PLANT });
       const zs0 = A7_UNIT_Z - 0.45;
       for (const [side, at] of [['w', x - A7_UNIT.w / 2], ['e', x + A7_UNIT.w / 2]] as const) {
         face(side, at, zs0, A7_UNIT.z1, 0, A7_UNIT.h, LOOK.unit);
@@ -900,16 +900,17 @@ export function buildA7DataHall(b: LevelBuilder, kit: FacilityKit): SetPart {
   // ---- A7-23: the props kit (PROPS.md 3 A7): 37 racks and 3 cooling units over the greybox boxes, the trays, the door signs. NO collision is written: the boxes are the greybox's ----
   tally(b, p.register, 'A7-23', 'Props kit: 37 serverRack over the four rack runs and 3 coolingUnit over the corridor boxes (visual over the greybox boxes: no collision written, 5 cm proud on the fronts), cableTray modules over the rows, the west cross aisle and the corridor (hung, none), signPlate stand-ins over the hall, plant, pod and riser doors (hung, none)', () => {
     for (const [x0, z0, x1, z1, y] of A7_TRAYS) props.row('cableTray', x0, z0, x1, z1, { y });
-    const plate = (x: number, z: number, yaw: number, y = 2.2): void => void props.add('signPlate', x, z, yaw, { y });
-    plate(LOBBY_E - T / 2, 61.6, -Math.PI / 2);
-    plate(LOBBY_E + T / 2, 61.6, Math.PI / 2);
-    plate(73.0, CORR_N.z1, 0);
-    plate(73.0, CORR_N.z0, Math.PI);
-    plate(98.0, CORR_N.z1, 0);
-    plate(98.0, CORR_N.z0, Math.PI);
-    plate(R.x1, 67.0, Math.PI / 2, 2.2);
-    plate(R.x1, 70.4, Math.PI / 2, 2.2);
-    plate(71.35, R.z0, Math.PI, 2.2);
+    // (S3-7 S1) each plate's face is on the circuit that lights the side it faces: the lobby and the hall on the rack rows (70), the corridor on 72, the pod on 73
+    const plate = (x: number, z: number, yaw: number, group: number, y = 2.2): void => void props.add('signPlate', x, z, yaw, { y, group });
+    plate(LOBBY_E - T / 2, 61.6, -Math.PI / 2, G_ROWS);
+    plate(LOBBY_E + T / 2, 61.6, Math.PI / 2, G_ROWS);
+    plate(73.0, CORR_N.z1, 0, G_ROWS);
+    plate(73.0, CORR_N.z0, Math.PI, G_PLANT);
+    plate(98.0, CORR_N.z1, 0, G_POD);
+    plate(98.0, CORR_N.z0, Math.PI, G_PLANT);
+    plate(R.x1, 67.0, Math.PI / 2, G_ROWS, 2.2);
+    plate(R.x1, 70.4, Math.PI / 2, G_ROWS, 2.2);
+    plate(71.35, R.z0, Math.PI, G_ROWS, 2.2);
   });
   p.props.push(...props.placements);
 

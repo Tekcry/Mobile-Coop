@@ -884,11 +884,12 @@ export function buildA4GoodsShed(b: LevelBuilder, kit: FacilityKit): SetPart {
 
   // ---- A4-22: the props kit (PROPS.md 3 A4). Two areas, one budget each: the security room, the warehouse floor ----
   const roomProps = new FacilityProps();
-  roomProps.add('monitorWall', A4_PROPS.monitorWall.x, A4_PROPS.monitorWall.z, A4_PROPS.monitorWall.yaw);
-  roomProps.add('securityDesk', A4_PROPS.securityDesk.x, A4_PROPS.securityDesk.z, A4_PROPS.securityDesk.yaw, { y: A4_PROPS.securityDesk.y });
+  // (S3-7 S1) the room's screens and lamps are on the security room's panels (40), the truck's beacon on the floor high-bays (41)
+  roomProps.add('monitorWall', A4_PROPS.monitorWall.x, A4_PROPS.monitorWall.z, A4_PROPS.monitorWall.yaw, { group: 40 });
+  roomProps.add('securityDesk', A4_PROPS.securityDesk.x, A4_PROPS.securityDesk.z, A4_PROPS.securityDesk.yaw, { y: A4_PROPS.securityDesk.y, group: 40 });
   const floorProps = new FacilityProps();
   for (const row of A4_RACK_ROWS) for (const [x0, x1] of A4_RACK_X) floorProps.row('palletRackBay', x0, row.z, x1, row.z, { flip: row.flip });
-  floorProps.add('reachTruck', A4_PROPS.reachTruck.x, A4_PROPS.reachTruck.z, A4_PROPS.reachTruck.yaw);
+  floorProps.add('reachTruck', A4_PROPS.reachTruck.x, A4_PROPS.reachTruck.z, A4_PROPS.reachTruck.yaw, { group: G_FLOOR });
   tally(b, p.register, 'A4-22', "Props kit: the CCTV video wall (3 x 3 screens, its plinth and frame boxes against the room's east wall) and the console desk over the greybox desk (its box is the greybox's); in the warehouse 24 racking bays in eight back-to-back rows with their closing frames over the four greybox runs (the runs' boxes are the collision) and one reach truck parked in the east lane's south end (chassis solid, envelope see-through, both noLedge). The prop boxes written are the video wall's and the truck's only", () => {
     const own = new FacilityProps();
     own.placements.push(...roomProps.placements.filter((q) => q.prop === 'monitorWall'), ...floorProps.placements.filter((q) => q.prop === 'reachTruck'));

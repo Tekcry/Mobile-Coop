@@ -33,7 +33,7 @@ import { hyp2 } from '../../src/core/mathx';
 import { buildCtcourse, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { SILENT_CROUCH, syncMinGap, syncStation } from '../../src/world/maps/ctcourseGreybox';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import {
   A7_CAGE,
@@ -1005,6 +1005,26 @@ describe('A7 the Data Hall: dressing (slice 7 step 5)', () => {
     // three of them on the riser block's two faces, over its doors
     expect(plates.filter((p) => Math.abs(p.x - A7_RISER.x1) < 1e-9 && p.z > A7_RISER.z0).length).toBe(2);
     expect(plates.filter((p) => Math.abs(p.z - A7_RISER.z0) < 1e-9 && p.x < A7_RISER.x1).length).toBe(1);
+  });
+
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): the 37 racks\' LEDs are on the rack-row strips (70), the three cooling units\' screens on the plant corridor (72), each sign plate on the circuit of the side it faces (70 lobby and hall, 72 corridor, 73 pod)', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a7DataHall');
+    const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    const of = (prop: string): PropPlacement[] => glowing.filter((p) => p.prop === prop);
+    expect(of('serverRack')).toHaveLength(37);
+    expect(of('coolingUnit')).toHaveLength(3);
+    expect(of('signPlate')).toHaveLength(9);
+    expect(glowing).toHaveLength(49);
+    for (const p of glowing) {
+      expect(p.group, `${p.prop} at ${p.x}, ${p.y}, ${p.z}`).toBeDefined();
+      expect(plan.has(p.group!), `${p.prop} group ${p.group}`).toBe(true);
+      expect(p.group!).toBeGreaterThanOrEqual(g0);
+      expect(p.group!).toBeLessThanOrEqual(g1);
+    }
+    for (const p of of('serverRack')) expect(p.group).toBe(70);
+    for (const p of of('coolingUnit')) expect(p.group).toBe(72);
+    expect(of('signPlate').map((p) => p.group).sort()).toEqual([70, 70, 70, 70, 70, 70, 72, 72, 73]);
   });
 
   it("every kit glow in A7 carries a circuit of the plan's A7 rows: hall panels on 70 from the slab's top (4.2 m), the wall over the gallery glazing on 72 from 7.5 m, the accent slots on 70 / 72 / 73 (no light); no lamp was added", () => {

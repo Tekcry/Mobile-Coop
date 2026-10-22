@@ -12,12 +12,15 @@ import { LevelBuilder } from '../src/world/levelBuilder';
 import {
   FacilityProps,
   PROP_COLLISION,
+  PROP_DARK,
+  PROP_EMISSIVE_PARTS,
   PROP_FOOTPRINT,
   PROP_HUNG,
   PROP_IDS,
   PROP_LOOK,
   PROP_MATERIALS,
   PROP_OVERHANG,
+  PROP_OWN_SUPPLY,
   PROP_PROUD,
   PROP_SET_BUDGET,
   PROP_TRI_BUDGET,
@@ -26,6 +29,7 @@ import {
   checkPropLayout,
   propCollisionBox,
   propDraws,
+  propGlows,
   propMatrix,
   propRow,
   propToWorld,
@@ -320,5 +324,123 @@ describe('props build (facility-props.glb and its report)', () => {
     r.dispose();
     scene.dispose();
     engine.dispose();
+  });
+
+  it('(S3-7 S1) emissive props follow their light circuit and device: dim while no lamp of the group is on, back on a switch, dark while a device is off; the emissive pieces stay thin-instanced and the static opaque ones stay merged', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { PropRender } = await import('../src/world/props/propRender');
+    const { LightRegistry } = await import('../src/world/lights');
+    const reg = new LightRegistry();
+    const lamp = reg.add({ x: 0, y: 3, z: 0, group: 70 });
+    reg.add({ x: 4, y: 3, z: 0, group: 71 });
+    const props = new FacilityProps();
+    props.add('serverRack', 0, 0, 0, { group: 70 });
+    props.add('serverRack', 2, 0, 0, { group: 71 });
+    props.add('serverRack', 4, 0, 0);
+    props.add('serverRack', 6, 0, 0, { group: 99 });
+    const tower = props.add('beamTower', 9, 3, 0, { device: 'laser-x' });
+    props.add('monitorWall', 14, 3, 0, { group: 70 });
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const model = parseGlb(glb(path.join(ASSETS, 'facility-props.glb')));
+    const r = PropRender.fromModel(scene, model, props.placements, [], reg);
+    const racks = (): Float32Array => r.colorsOf('prop-serverRack.lamp')!;
+    const lit = [racks()[1]!, racks()[5]!, racks()[9]!];
+    // on at the start: the groups with a lamp on and the ungrouped rack are lit; the group with no lamp at all (99) is dark
+    expect(lit.every((v) => v > 0.3)).toBe(true);
+    expect(racks()[13]!).toBeCloseTo(lit[0]! * PROP_DARK, 6);
+    const full = lit[0]!;
+    // cut circuit 70: its rack and the video wall's screens dim, 71 and the ungrouped rack stay lit (a registry change repaints on the frame)
+    const wall = (): Float32Array => r.colorsOf('prop-monitorWall.screen')!;
+    const wallLit = wall()[0]!;
+    expect(wallLit).toBeGreaterThan(0.1);
+    reg.setGroup(70, false);
+    r.frame();
+    expect(racks()[1]!).toBeCloseTo(full * PROP_DARK, 6);
+    expect(racks()[5]!).toBeCloseTo(full, 6);
+    expect(racks()[9]!).toBeCloseTo(full, 6);
+    expect(wall()[0]!).toBeCloseTo(wallLit * PROP_DARK, 6);
+    expect(r.colorsOf('prop-monitorWall.lamp')![1]!).toBeLessThan(0.1);
+    // back on: lit again; a shot-out lamp is dark too
+    reg.setGroup(70, true);
+    r.frame();
+    expect(racks()[1]!).toBeCloseTo(full, 6);
+    reg.destroy(lamp.id);
+    r.frame();
+    expect(racks()[1]!).toBeCloseTo(full * PROP_DARK, 6);
+    // a device: the tower's lens is lit until its device is off
+    const red = (): Float32Array => r.colorsOf('prop-beamTower.lamp')!;
+    const redLit = red()[0]!;
+    expect(redLit).toBeGreaterThan(0.5);
+    r.setDevice('laser-x', false);
+    expect(red()[0]!).toBeCloseTo(redLit * PROP_DARK, 6);
+    r.setDevice('laser-x', true);
+    expect(red()[0]!).toBeCloseTo(redLit, 6);
+    // an explicit tint still wins its colour (the device state), scaled by the circuit
+    r.setTint(tower, undefined, [0, 0, 0]);
+    expect(red()[0]!).toBe(0);
+    // the emissive meshes are the thin-instanced ones (one per prop and material), the opaque statics stay merged
+    const names = r.meshes.map((m) => m.name);
+    expect(names).toContain('prop-serverRack.lamp');
+    expect(names).toContain('prop-monitorWall.screen');
+    expect(names.some((n) => n.startsWith('prop-static.'))).toBe(true);
+    expect(names.some((n) => n === 'prop-serverRack.steelDark')).toBe(false);
+    r.dispose();
+    scene.dispose();
+    engine.dispose();
+  });
+
+  it('(S3-7 S1) without a registry the groups are ignored (every emissive lit), as before', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene } = await import('../src/core/babylon');
+    const { PropRender } = await import('../src/world/props/propRender');
+    const props = new FacilityProps();
+    props.add('serverRack', 0, 0, 0, { group: 70 });
+    const engine = new NullEngine();
+    const scene = new Scene(engine);
+    const r = PropRender.fromModel(scene, parseGlb(glb(path.join(ASSETS, 'facility-props.glb'))), props.placements);
+    expect(r.colorsOf('prop-serverRack.lamp')![1]!).toBeGreaterThan(0.3);
+    r.dispose();
+    scene.dispose();
+    engine.dispose();
+  });
+});
+
+describe('props emissive circuits (S3-7 S1)', () => {
+  it('PROP_EMISSIVE_PARTS lists exactly the props whose GLB has a screen or lamp mesh, with the parts it has', () => {
+    const model = parseGlb(glb(path.join(ASSETS, 'facility-props.glb')));
+    const real: Record<string, string[]> = {};
+    for (const g of model.meshes) {
+      const dot = g.name.indexOf('.');
+      const mat = g.name.slice(dot + 1);
+      if (mat === 'screen' || mat === 'lamp') (real[g.name.slice(0, dot)] ??= []).push(mat);
+    }
+    const listed = Object.fromEntries(Object.entries(PROP_EMISSIVE_PARTS).map(([k, v]) => [k, [...v!].sort()]));
+    const want = Object.fromEntries(Object.entries(real).map(([k, v]) => [k, v.sort()]));
+    expect(listed).toEqual(want);
+    expect(PROP_IDS.length).toBeGreaterThan(Object.keys(listed).length);
+    for (const id of PROP_OWN_SUPPLY) expect(PROP_EMISSIVE_PARTS[id]).toBeDefined();
+  });
+
+  it('propGlows: a lamp part always glows unless its colour is black; a screen glows unless dark; props with no emissive part never', () => {
+    expect(propGlows({ prop: 'serverRack' })).toBe(true);
+    expect(propGlows({ prop: 'serverRack', lamp: [0, 0, 0] })).toBe(false);
+    expect(propGlows({ prop: 'officeDesk' })).toBe(true);
+    expect(propGlows({ prop: 'officeDesk', tint: [0, 0, 0] })).toBe(false);
+    expect(propGlows({ prop: 'securityDesk', tint: [0, 0, 0] })).toBe(true);
+    expect(propGlows({ prop: 'palletRackBay' })).toBe(false);
+  });
+
+  it('add and row carry the group, and add the device; a snapped placement keeps them', () => {
+    const p = new FacilityProps();
+    const i = p.add('beamTower', 1.01, 2.02, 0.1, { device: 'laser-a5', group: 51 });
+    expect(p.placements[i]!.device).toBe('laser-a5');
+    expect(p.placements[i]!.group).toBe(51);
+    const first = p.row('serverRack', 0, 0, 3, 0, { group: 70 });
+    expect(p.placements.slice(first).every((q) => q.group === 70)).toBe(true);
+    expect(snapPlacement({ prop: 'signPlate', x: 0, y: 0, z: 0, yaw: 0, group: 34 }).group).toBe(34);
+    expect(p.add('bollard', 0, 0, 0)).toBeGreaterThan(i);
+    expect(p.placements[p.placements.length - 1]!.group).toBeUndefined();
   });
 });

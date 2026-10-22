@@ -80,7 +80,7 @@ import { L4_EAST_DOOR } from '../../src/world/maps/ctcourseSets/facility';
 import { checkSetPart, HOLD_BOX, inBox, OBJECTIVE_ID_MAX, registerSum, SET_BOX, setGroups } from '../../src/world/maps/ctcourseSets/types';
 import { soloJumpThreats, MANTLE, type CoopGrip } from '../helpers/soloJumpReach';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_PROUD, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_PROUD, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 
 const b = new LevelBuilder();
@@ -1075,6 +1075,24 @@ describe('A4 the Goods Shed: dressing (slice 4 step 5)', () => {
     expect(names.filter((n) => n === 'palletRackBay')).toHaveLength(24);
     expect(names.filter((n) => n === 'palletRackEnd')).toHaveLength(8);
     expect([...names].sort().filter((n) => n !== 'palletRackBay' && n !== 'palletRackEnd')).toEqual(['monitorWall', 'reachTruck', 'securityDesk']);
+  });
+
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): the video wall and the console desk on the security room\'s panels (40), the truck\'s beacon on the floor high-bays (41)', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a4GoodsShed');
+    const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    expect(glowing.map((p) => p.prop).sort()).toEqual(['monitorWall', 'reachTruck', 'securityDesk']);
+    for (const p of glowing) {
+      expect(p.group, `${p.prop} at ${p.x}, ${p.y}, ${p.z}`).toBeDefined();
+      expect(plan.has(p.group!), `${p.prop} group ${p.group}`).toBe(true);
+      expect(p.group!).toBeGreaterThanOrEqual(g0);
+      expect(p.group!).toBeLessThanOrEqual(g1);
+    }
+    expect(glowing.find((p) => p.prop === 'monitorWall')!.group).toBe(40);
+    expect(glowing.find((p) => p.prop === 'securityDesk')!.group).toBe(40);
+    expect(glowing.find((p) => p.prop === 'reachTruck')!.group).toBe(41);
+    // the racking has no emissive part
+    expect(own.filter((p) => p.prop === 'palletRackBay' || p.prop === 'palletRackEnd').some((p) => propGlows(p))).toBe(false);
   });
 
   it("every kit glow in A4 carries a circuit: the hall panels are grouped on the floor high-bays (41) and, over the deck, the mezzanine strips (43), all from 7.5 m up; the deck's three rails now sit on 43; no lamp was added and the dead row 49 has none", () => {

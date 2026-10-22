@@ -25,7 +25,7 @@ import { checkSetPart, inBox, LOUNGE_BOX, OBJECTIVE_ID_MAX, SET_BOX, setGroups, 
 import { circuitOf, marlowCourseGroups } from '../../src/world/lighting/marlowCircuits';
 import { MARLOW_LEVEL } from '../../src/world/lighting/levels';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { soloJumpThreats } from '../helpers/soloJumpReach';
 
@@ -563,6 +563,29 @@ describe('A1 the Gate: dressing (slice 1 step 5)', () => {
     // footprints inside the box and no two gameplay boxes overlapping, the lounge's props too
     expect(checker([...own, ...facilityIn]).check(area)).toEqual([]);
     expect(own.map((p) => p.prop).sort()).toEqual(['barrierPost', 'bollard', 'bollard', 'bollard', 'bollard', 'checkerDesk', 'wicketBolt']);
+  });
+
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): A1 places no lit one (the checker\'s screen is dark), and every lit prop of the facility (lounge desk and cases, gallery screens, holding-room and dock plates) is on a house circuit of the plan', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a1Gate');
+    const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    // A1's own: the counter's screen is dark (no light to cut); an ungrouped lit one would be found (teeth)
+    expect(glowing).toEqual([]);
+    expect(own.filter((p) => p.prop === 'checkerDesk').every((p) => p.tint![0] === 0 && p.tint![1] === 0 && p.tint![2] === 0)).toBe(true);
+    expect(propGlows({ prop: 'checkerDesk' })).toBe(true);
+    // the facility's (built in A1's file: the lounge is A1's): every lit prop is on a house circuit 10 or 90-98
+    const fac = built.facility.props.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    expect(fac.length).toBeGreaterThan(30);
+    const houses = new Set([10, 90, 91, 92, 93, 94, 95, 96, 97, 98]);
+    for (const p of fac) {
+      expect(p.group, `${p.prop} at ${p.x}, ${p.y}, ${p.z}`).toBeDefined();
+      expect(plan.has(p.group!), `${p.prop} group ${p.group}`).toBe(true);
+      expect(houses.has(p.group!), `${p.prop} group ${p.group}`).toBe(true);
+    }
+    expect(fac.filter((p) => p.prop === 'receptionDesk' || p.prop === 'kitCaseWall').every((p) => p.group === 10)).toBe(true);
+    expect(fac.filter((p) => p.prop === 'galleryConsole' || p.prop === 'galleryScreen' || p.prop === 'monitorWall').every((p) => p.group === 90)).toBe(true);
+    expect(g0).toBe(10);
+    expect(g1).toBe(19);
   });
 
   it('every kit glow in A1 carries a circuit: panels, skirting and unlit slots are grouped on the plan\'s A1 rows (10 the lounge, 12 the hall coves, never 10 above the wall); no lamp was added', () => {

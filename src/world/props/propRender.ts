@@ -7,7 +7,10 @@
  * mesh per material (`kit/staticMerge.ts`: `prop-static.<material>`), drawn ahead of the level boxes inside them
  * (`skinsFirst`); the see-through materials are back-face culled (one face of a closed slab per pixel). Props are not
  * shadow casters: the gameplay boxes under them cast (the canonical light shapes), so the picture's shadows match the
- * bake. Per frame (allocation-free) only the strongroom leaves move, following their `Door`'s drawn swing.
+ * bake. Per frame (allocation-free) only the strongroom leaves move, following their `Door`'s drawn swing. (S3-7 S1, light
+ * parity) A placement's emissives follow its light circuit (`PropPlacement.group`: dim while no lamp of the group is on,
+ * repainted when the registry changes, as the kit's LED lines) and its powered device (`PropPlacement.device`, `setDevice`:
+ * the beam tower's lens while its beams are off); the emissive pieces stay thin-instanced (colour per instance).
  */
 import { Color3, Mesh, PBRMaterial, StandardMaterial, VertexData, type Material, type Observer, type Scene } from '../../core/babylon';
 import { parseGlb, type GlbMesh, type GlbModel } from '../../operators/lab/glb';
@@ -15,8 +18,10 @@ import { markLampLevel } from '../bakedLamps';
 import { bakedMesh } from '../kit/kitRender';
 import { markDrawFirst, useSkinsFirst, type BakePart } from '../kit/staticMerge';
 import { DOOR, leafFraction, type DoorState } from '../doors';
+import type { LightRegistry } from '../lights';
 import {
   PROP_LAMP_GAIN,
+  PROP_DARK,
   PROP_LAMP_TINT,
   PROP_LOOK,
   PROP_SCREEN_GAIN,
@@ -56,12 +61,19 @@ export class PropRender {
   private doorOf: (DoorState | null)[];
   private swing: Float32Array;
   private scratch: PropPlacement = { prop: 'vaultLeaf', x: 0, y: 0, z: 0, yaw: 0 };
+  /** Registry version last painted (-1: never) and whether any placement is grouped (the frame observer repaints on a change). */
+  private regVersion = -1;
+  private grouped: boolean;
+  /** Devices that are off (`setDevice`), by id; a device never set is on. */
+  private deviceOff = new Set<string>();
 
   private constructor(
     private scene: Scene,
     private placements: readonly PropPlacement[],
     doors: readonly DoorState[],
+    private reg: LightRegistry | null,
   ) {
+    this.grouped = !!reg && placements.some((p) => p.group !== undefined);
     // only the strongroom leaf follows a door, and it swings (a hinged leaf): a prop tied to a sliding door would have
     // to translate as kitRender's leaves do, which no prop needs yet (PROPS.md section 6)
     this.doorOf = placements.map((p) => (p.door === undefined || p.prop !== 'vaultLeaf' ? null : (doors.find((d) => d.anchor.id === p.door) ?? null)));
@@ -69,21 +81,21 @@ export class PropRender {
   }
 
   /** Loads the props GLB and builds the draws (`doors`: the map's door states, for the strongroom leaves). */
-  static async create(scene: Scene, placements: readonly PropPlacement[], doors: readonly DoorState[] = []): Promise<PropRender> {
+  static async create(scene: Scene, placements: readonly PropPlacement[], doors: readonly DoorState[] = [], reg: LightRegistry | null = null): Promise<PropRender> {
     const url = propsUrl();
     if (!url) throw new Error('facility props GLB missing (npm run props:build)');
     const res = await fetch(url);
     if (!res.ok) throw new Error(`facility props GLB: HTTP ${res.status}`);
-    return PropRender.fromModel(scene, parseGlb(await res.arrayBuffer()), placements, doors);
+    return PropRender.fromModel(scene, parseGlb(await res.arrayBuffer()), placements, doors, reg);
   }
 
   /** The draws from a read props GLB (`create` after its fetch; tests on a NullEngine). */
-  static fromModel(scene: Scene, model: GlbModel, placements: readonly PropPlacement[], doors: readonly DoorState[] = []): PropRender {
-    const r = new PropRender(scene, placements, doors);
+  static fromModel(scene: Scene, model: GlbModel, placements: readonly PropPlacement[], doors: readonly DoorState[] = [], reg: LightRegistry | null = null): PropRender {
+    const r = new PropRender(scene, placements, doors, reg);
     if (scene.isDisposed) return r;
     useSkinsFirst(scene);
     r.build(model.meshes);
-    if (r.doorOf.some((d) => d)) r.observer = scene.onBeforeRenderObservable.add(() => r.frame());
+    if (r.grouped || r.doorOf.some((d) => d)) r.observer = scene.onBeforeRenderObservable.add(() => r.frame());
     r.frame();
     return r;
   }
@@ -181,6 +193,22 @@ export class PropRender {
     for (const [mat, parts] of statics) this.merged.push(bakedMesh(this.scene, `prop-static.${mat}`, parts, this.material(mat)));
   }
 
+  /** Lit share of a lamp circuit: any of its lamps on and not shot out (a lampless group is dark, as the kit's). */
+  private groupLit(group: number): boolean {
+    const ls = this.reg!.lights;
+    for (let i = 0; i < ls.length; i++) {
+      const l = ls[i]!;
+      if (l.group === group && l.on && !l.destroyed) return true;
+    }
+    return false;
+  }
+
+  /** Is the placement's emissive lit now: its circuit has a lamp on (when the registry is known) and its device is on. */
+  private litNow(p: PropPlacement): boolean {
+    if (p.device !== undefined && this.deviceOff.has(p.device)) return false;
+    return p.group === undefined || !this.reg || this.groupLit(p.group);
+  }
+
   private paint(d: PropDraw): void {
     const c = d.colors;
     if (!c) return;
@@ -188,7 +216,7 @@ export class PropRender {
       const p = this.placements[d.idx[n]!]!;
       const screen = d.mat === 'screen';
       const t = screen ? (p.tint ?? PROP_SCREEN_TINT) : (p.lamp ?? PROP_LAMP_TINT[p.prop] ?? PROP_LAMP_TINT.default);
-      const k = screen ? PROP_SCREEN_GAIN : PROP_LAMP_GAIN;
+      const k = (screen ? PROP_SCREEN_GAIN : PROP_LAMP_GAIN) * (this.litNow(p) ? 1 : PROP_DARK);
       c[n * 4] = t[0] * k;
       c[n * 4 + 1] = t[1] * k;
       c[n * 4 + 2] = t[2] * k;
@@ -215,8 +243,42 @@ export class PropRender {
     }
   }
 
-  /** Per render frame: the strongroom leaves follow their door's drawn swing (only while it changes). */
+  /** A powered device's state (`PropPlacement.device`: a laser id): its props' emissives go dark while it is off (render only;
+   *  the caller reads the device's own state, never the reverse). Allocation-free. */
+  setDevice(id: string, on: boolean): void {
+    if (on === !this.deviceOff.has(id)) return;
+    if (on) this.deviceOff.delete(id);
+    else this.deviceOff.add(id);
+    for (const d of this.draws) {
+      if (!d.colors) continue;
+      for (let n = 0; n < d.idx.length; n++) {
+        if (this.placements[d.idx[n]!]!.device === id) {
+          this.paint(d);
+          break;
+        }
+      }
+    }
+  }
+
+  /** Every grouped emissive repainted against the registry (on a version change). */
+  private repaintGroups(): void {
+    for (const d of this.draws) {
+      if (!d.colors) continue;
+      for (let n = 0; n < d.idx.length; n++) {
+        if (this.placements[d.idx[n]!]!.group !== undefined) {
+          this.paint(d);
+          break;
+        }
+      }
+    }
+  }
+
+  /** Per render frame: grouped emissives on a light registry change; the strongroom leaves follow their door's drawn swing (only while it changes). */
   frame(): void {
+    if (this.grouped && this.reg!.version !== this.regVersion) {
+      this.regVersion = this.reg!.version;
+      this.repaintGroups();
+    }
     let moved = false;
     for (let i = 0; i < this.doorOf.length; i++) {
       const ds = this.doorOf[i];

@@ -570,6 +570,46 @@ export const PROP_LAMP_TINT: Partial<Record<PropId, Rgb>> & { default: Rgb } = {
 /** Emissive gains: accents only, never brighter than the baked lamps (light parity). */
 export const PROP_SCREEN_GAIN = 1.0;
 export const PROP_LAMP_GAIN = 1.2;
+/** The share of its colour an emissive instance keeps when its circuit is cut (as the kit's LED lines, `kitRender` LED_DARK). */
+export const PROP_DARK = 0.06;
+
+/** The emissive parts each prop's mesh has (the GLB's `<prop>.screen` / `<prop>.lamp` meshes; a test reads them from the GLB). */
+export const PROP_EMISSIVE_PARTS: Partial<Record<PropId, readonly ('screen' | 'lamp')[]>> = {
+  monitorWall: ['screen', 'lamp'],
+  securityDesk: ['screen', 'lamp'],
+  serverRack: ['lamp'],
+  vaultLeaf: ['lamp'],
+  beamTower: ['lamp'],
+  galleryConsole: ['screen'],
+  galleryScreen: ['screen'],
+  receptionDesk: ['lamp'],
+  kitCaseWall: ['lamp'],
+  signPlate: ['lamp'],
+  checkerDesk: ['screen'],
+  pushStation: ['lamp'],
+  officeDesk: ['screen'],
+  reachTruck: ['lamp'],
+  zoneKiosk: ['screen', 'lamp'],
+  switchgearPanel: ['lamp'],
+  driveCabinet: ['screen', 'lamp'],
+  coolingUnit: ['screen'],
+  timeLockPanel: ['lamp'],
+  lightingBoard: ['lamp'],
+  nightDesk: ['screen', 'lamp'],
+};
+
+/** Props whose lamp is the device's own status indicator, tinted by the device's state (`PropRender.setTint`), on the device's
+ *  own control supply and on no lighting circuit (the isolator push station shows the contactor's state while its circuit is cut). */
+export const PROP_OWN_SUPPLY: readonly PropId[] = ['pushStation'];
+
+/** Does the placement show any light: a lamp part or a screen part whose colour is not black (a dark screen is `tint: [0, 0, 0]`). */
+export function propGlows(p: Pick<PropPlacement, 'prop' | 'tint' | 'lamp'>): boolean {
+  const parts = PROP_EMISSIVE_PARTS[p.prop];
+  if (!parts) return false;
+  const lit = (t: Rgb): boolean => t[0] > 0 || t[1] > 0 || t[2] > 0;
+  if (parts.includes('screen') && lit(p.tint ?? PROP_SCREEN_TINT)) return true;
+  return parts.includes('lamp') && lit(p.lamp ?? PROP_LAMP_TINT[p.prop] ?? PROP_LAMP_TINT.default);
+}
 
 /** Positions snap to this grid (m, x and z), heights to `PROP_SNAP_Y`. */
 export const PROP_SNAP = 0.05;
@@ -597,6 +637,12 @@ export interface PropPlacement {
   free?: boolean;
   /** `vaultLeaf`: the `Door` anchor it follows (swings by its open state; the door's own leaf is not drawn). */
   door?: number;
+  /** (S3-7 S1, light parity) The light circuit (`LightDef.group`) the placement's emissives sit on: they dim while no lamp of
+   *  the group is on (cut by a switch, a jam, a shot), as the kit's grouped LED lines do. Unset: always lit. */
+  group?: number;
+  /** (S3-7 S1) A powered device (a laser id: the beam tower's lens) whose state the emissives follow: dark while it is
+   *  off (`PropRender.setDevice`; render side, gameplay never reads it). Unset: no device. */
+  device?: string;
 }
 
 /** A world-space gameplay box (`LevelBuilder.box` arguments). */
@@ -710,7 +756,7 @@ export function propRow(
   z1: number,
   x2: number,
   z2: number,
-  opts: { y?: number; flip?: boolean; free?: boolean; tint?: Rgb; lamp?: Rgb; pitch?: number } = {},
+  opts: { y?: number; flip?: boolean; free?: boolean; tint?: Rgb; lamp?: Rgb; pitch?: number; group?: number } = {},
 ): PropPlacement[] {
   x1 = snap(x1);
   z1 = snap(z1);
@@ -734,6 +780,7 @@ export function propRow(
     const p: PropPlacement = { prop, x: x1 + ux * t, y, z: z1 + uz * t, yaw, free: opts.free };
     if (opts.tint) p.tint = opts.tint;
     if (opts.lamp) p.lamp = opts.lamp;
+    if (opts.group !== undefined) p.group = opts.group;
     out.push(p);
   }
   if (prop === 'palletRackBay') {
@@ -896,11 +943,13 @@ export class FacilityProps {
   readonly placements: PropPlacement[] = [];
 
   /** One prop; returns its index (the renderer's handle for `setTint`). */
-  add(prop: PropId, x: number, z: number, yaw: number, opts: { y?: number; free?: boolean; tint?: Rgb; lamp?: Rgb; door?: number } = {}): number {
+  add(prop: PropId, x: number, z: number, yaw: number, opts: { y?: number; free?: boolean; tint?: Rgb; lamp?: Rgb; door?: number; group?: number; device?: string } = {}): number {
     const p: PropPlacement = snapPlacement({ prop, x, y: opts.y ?? 0, z, yaw, free: opts.free });
     if (opts.tint) p.tint = opts.tint;
     if (opts.lamp) p.lamp = opts.lamp;
     if (opts.door !== undefined) p.door = opts.door;
+    if (opts.group !== undefined) p.group = opts.group;
+    if (opts.device !== undefined) p.device = opts.device;
     this.placements.push(p);
     return this.placements.length - 1;
   }

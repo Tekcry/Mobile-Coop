@@ -24,7 +24,7 @@ import { hyp2 } from '../../src/core/mathx';
 import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { coopDeck, COOP_BAND, GREY_KEEP_CLEAR } from '../../src/world/maps/ctcourseGreybox';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propToWorld, propTriangles, PROP_FOOTPRINT, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import {
   A2_BACK_DOOR,
@@ -817,6 +817,19 @@ describe('A2 the Carriage Shed: dressing (slice 2 step 5)', () => {
     expect(propDraws(counted, propReport)).toBeLessThanOrEqual(PROP_SET_BUDGET.draws);
     expect(propDraws(counted, propReport)).toBeGreaterThan(8);
     expect(own.map((p) => p.prop).sort()).toEqual([...Array<string>(12).fill('trackPanel'), 'permitGate', 'pushStation', 'pushStation'].sort());
+  });
+
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): A2 places only the two push stations, whose status lamp is the isolator\'s own indicator (own supply, no circuit), so no lit prop is left ungrouped', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a2CarriageShed');
+    const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    expect(glowing).toEqual([]);
+    const stations = own.filter((p) => p.prop === 'pushStation');
+    expect(stations).toHaveLength(2);
+    expect(PROP_OWN_SUPPLY).toEqual(['pushStation']);
+    for (const p of stations) expect(propGlows(p), 'the lamp is lit').toBe(true);
+    expect(plan.size).toBeGreaterThan(0);
+    expect(g1 - g0).toBe(9);
   });
 
   it('every kit glow in A2 carries a circuit: the hall panels are grouped on the plan\'s A2 rows (shed general 20 on the walls round the shed, staging 23 over the glazing), all from 4.4 m up; no lamp was added', () => {

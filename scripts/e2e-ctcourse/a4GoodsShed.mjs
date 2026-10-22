@@ -6,7 +6,7 @@
 //      the back aisle and the passage mouth dark, the main aisle, the dock and the room lit and the same on both pages, the three cameras online;
 //   2. the lure and the restart: the host cuts the floor circuit (41) with D2 at the desk: both pages dark, D1 walks to the switch; then the
 //      host's checkpoint restart: the circuit back on, the squad respawned at its posts, the claim clear;
-//   3. the console: with the officer up the host's press is refused on both pages ("Take him out") and claims nothing, the officer is taken
+//   3. the console: with the officer up the host's press is refused on the host page and the client's own press on its page ("Take him out"), neither claims, the officer is taken
 //      down (the client stands behind him, he stays passive: the knock-out needs no awake officer beside a player); the host's press loops the
 //      floor cameras on both pages ('looped', the cue hidden, the timer line, LANTERN's line) and claims B (host B, client A); a press while it
 //      loops is refused ("already off"); the client stands in C1's frame, unseen, the alarm unchanged;
@@ -39,6 +39,8 @@ const FLOOR_GROUP = 41;
 /** The players' spots (the debug points of the set): behind the officer, the console's standing point, the crouch spots against the two stacks, the push bar. */
 const BEHIND = [104.8, 15.8];
 const AT_CONSOLE = [105.6, 17.85];
+/** (S-e2e-fix) The client's press spot in the room: 1.4 m from the console (inside its reach), 1 m from the host, 1.3 m from the officer. */
+const CLIENT_PRESS = [105.9, 16.9];
 const SPOT_N = [80.4, 36.2];
 const SPOT_S = [79.6, 29.8];
 const AT_PUSHBAR = [77.6, 34.6];
@@ -172,9 +174,18 @@ export async function walk(t, n) {
   await openDoor(PASSAGE_DOOR, 'A4 passage');
   await moveClient(BEHIND[0], BEHIND[1], 0.1, 0);
   await moveHost(AT_CONSOLE[0], AT_CONSOLE[1], 0.1, 0);
+  // (S-e2e-fix) a refusal goes to whoever pressed (`CourseMode.refuse`: the host's own banner; the `course` message's `ref` / `rn` carry the
+  // client's refusals only), so the host's refused press never reaches the client: its refusal count stays. The client's own press, from a spot
+  // in the console's reach (the host takes a client's `use` within reach 1.4 + 0.75 m, `inUseReach`; BEHIND is 2.6 m off), is refused on its page.
+  const rnB0 = await GB(() => window.__course.wire.rn);
   assert((await use(A, CONSOLE)) === 'ok', 'A4: the host presses the console with the officer up');
   await until(A, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the console refuses while the officer is up (host)');
-  await until(B, () => /Take him out/.test(window.__course.debug().refusal ?? ''), null, 8000, 'A4: the client gets the refusal');
+  await waitSim(600);
+  assert((await GB(() => window.__course.wire.rn)) === rnB0, "A4: the host's refusal is the host's own (the client's refusal count does not move)");
+  await moveClient(CLIENT_PRESS[0], CLIENT_PRESS[1], 0.1, 0);
+  assert((await use(B, CONSOLE)) === 'ok', 'A4: the client presses the console with the officer up');
+  await until(B, (n0) => window.__course.wire.rn > n0 && /Take him out/.test(window.__course.debug().refusal ?? ''), rnB0, 8000, 'A4: the client gets the refusal for its own press');
+  await moveClient(BEHIND[0], BEHIND[1], 0.1, 0);
   assert(!(await hasFlag(FLAG)) && !(await gateOpen(GATE)), 'A4: the refused press sets no flag and opens no gate');
   assert(!(await claimed()), 'A4: a refused press claims nothing (A4-C9)');
   await sees(B, /Take the officer from behind/, 'A4: the client still reads the A line after the refusal');

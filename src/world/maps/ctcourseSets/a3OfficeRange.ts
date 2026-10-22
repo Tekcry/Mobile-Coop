@@ -669,11 +669,12 @@ export function buildA3OfficeRange(b: LevelBuilder, kit: FacilityKit): SetPart {
   for (const c of A3_CHAIRS) props.add('officeChair', c.x, c.z, c.yaw, { free: true });
   const trolley = props.add('cleanerTrolley', A3_TROLLEY.x, A3_TROLLEY.z, Math.PI / 2);
   // plates (hung, bottom edge at 2.55 m): over office 3's corridor door, office 2's recess door and office 1's lobby door, and a lift display over each lobby's pair
-  props.add('signPlate', (A3_CORR_DOOR_X[0] + A3_CORR_DOOR_X[1]) / 2, zS + SKIN * 2, 0, { y: 2.55 });
-  props.add('signPlate', A3_RECESS.x, RECESS.z0 + SKIN * 2, 0, { y: 2.55 });
-  props.add('signPlate', A3_LOBBY_WALL_X - h - SKIN, (A3_LOBBY_DOOR_Z[0] + A3_LOBBY_DOOR_Z[1]) / 2, -Math.PI / 2, { y: 2.55 });
-  props.add('signPlate', SHELL.west + 0.05, 2.7, Math.PI / 2, { y: 2.45 });
-  props.add('signPlate', SHELL.east - 0.05, 2.7, -Math.PI / 2, { y: 2.45 });
+  // (S3-7 S1) each plate's backlit face is on the circuit that lights its wall: the corridor panels (30) for the two in the corridor, the landlord's lobby circuit (34) for the three in the lobbies
+  props.add('signPlate', (A3_CORR_DOOR_X[0] + A3_CORR_DOOR_X[1]) / 2, zS + SKIN * 2, 0, { y: 2.55, group: 30 });
+  props.add('signPlate', A3_RECESS.x, RECESS.z0 + SKIN * 2, 0, { y: 2.55, group: 30 });
+  props.add('signPlate', A3_LOBBY_WALL_X - h - SKIN, (A3_LOBBY_DOOR_Z[0] + A3_LOBBY_DOOR_Z[1]) / 2, -Math.PI / 2, { y: 2.55, group: G_LOBBY });
+  props.add('signPlate', SHELL.west + 0.05, 2.7, Math.PI / 2, { y: 2.45, group: G_LOBBY });
+  props.add('signPlate', SHELL.east - 0.05, 2.7, -Math.PI / 2, { y: 2.45, group: G_LOBBY });
   tally(b, p.register, 'A3-18', "Props kit: four officeDesk props over the greybox desks (visual: the greybox box is the collision, screens dark), five officeChairs (no collision), the cleaner's trolley parked in office 2's south-west corner (A3-7; its one see-through box via writePropBoxes, noLedge) and five hung signPlates (over the three suite doors and a display over each lobby's lifts)", () => {
     const from = b.boxes.length;
     writePropBoxes(b, [props.placements[trolley]!]);

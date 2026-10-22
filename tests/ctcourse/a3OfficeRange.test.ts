@@ -26,7 +26,7 @@ import { HALL_BACK, HALL_BACK_HOLD, HALL_IDLE, HALL_RUN, HALL_SENT, hallStep, JA
 import { cameraRate, camPitch, camRange, inFrame, newMeter, stepCamMeter, sweepCycle, sweepYaw } from '../../src/security/camera';
 import { validateSecurity } from '../../src/security/data';
 import { kitTriangles } from '../../src/world/kit/facilityKit';
-import { FacilityProps, propCollisionBox, propDraws, propTriangles, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
+import { FacilityProps, propGlows, PROP_OWN_SUPPLY, propCollisionBox, propDraws, propTriangles, PROP_HUNG, PROP_SET_BUDGET, type PropPlacement, type PropReport } from '../../src/world/props/facilityProps';
 import { CANON_MIN_THICK } from '../../src/voxel/lightShapes';
 import { buildCtcourse, COOP_LIPS, LIGHT_SPOTS } from '../../src/world/maps/ctcourse';
 import { JAM_HOP, JAM_WINDOW, jamRelay, SILENT_CROUCH } from '../../src/world/maps/ctcourseGreybox';
@@ -1066,6 +1066,22 @@ describe('A3 the Office Range: dressing (slice 3 step 5)', () => {
     // officeDesk 4 (white, steel, plastic, screen) + officeChair 3 + cleanerTrolley 3 + the plates 2 (one draw per prop and material, however many instances)
     expect(propDraws(counted, propReport)).toBe(12);
     expect(own.map((p) => p.prop).sort()).toEqual([...Array<string>(4).fill('officeDesk'), ...Array<string>(5).fill('officeChair'), 'cleanerTrolley', ...Array<string>(5).fill('signPlate')].sort());
+  });
+
+  it('every prop with an emissive part carries a circuit group (S3-7 S1, light parity): the five sign plates are on the corridor panels (30, the two in the corridor) and the landlord\'s lobby circuit (34, the three in the lobbies); the desk screens are dark', () => {
+    const plan = new Set(Object.values(marlowCourseGroups()));
+    const [g0, g1] = setGroups('a3OfficeRange');
+    const glowing = own.filter((p) => propGlows(p) && !PROP_OWN_SUPPLY.includes(p.prop));
+    expect(glowing.map((p) => p.prop)).toEqual(['signPlate', 'signPlate', 'signPlate', 'signPlate', 'signPlate']);
+    for (const p of glowing) {
+      expect(p.group, `${p.prop} at ${p.x}, ${p.y}, ${p.z}`).toBeDefined();
+      expect(plan.has(p.group!), `${p.prop} group ${p.group}`).toBe(true);
+      expect(p.group!).toBeGreaterThanOrEqual(g0);
+      expect(p.group!).toBeLessThanOrEqual(g1);
+    }
+    expect(glowing.filter((p) => p.x >= 79.5 && p.x <= 97).map((p) => p.group)).toEqual([30, 30]);
+    expect(glowing.filter((p) => p.x < 79.5 || p.x > 97).map((p) => p.group)).toEqual([34, 34, 34]);
+    for (const d of own.filter((p) => p.prop === 'officeDesk')) expect(propGlows(d)).toBe(false);
   });
 
   it('every kit glow in A3 carries a circuit: the lobby panels, coves and skirting are on the landlord\'s group 34 (a plan row of the set), floor to slab, only in the two lobbies; no lamp was added', () => {

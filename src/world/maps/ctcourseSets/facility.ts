@@ -524,8 +524,9 @@ function dressHold(kit: FacilityKit, props: FacilityProps, h: HoldId): void {
   const bz = side.axis === 'x' ? side.face + side.nz * 0.24 : bench.at;
   props.add('holdingBench', bx, bz, Math.atan2(side.nx, side.nz));
   // signage stand-ins over both doors on the room side, and one on the set side of the far door (SET n - NAME: text waits for a texture, KIT.md 6)
-  for (const end of ['near', 'far'] as const) props.add('signPlate', ...plateAt(HOLD_DOORS[h][end], 'room'), { y: PLATE_Y });
-  props.add('signPlate', ...plateAt(HOLD_DOORS[h].far, 'set'), { y: PLATE_Y });
+  // (S3-7 S1) the plates are fed from the door's holding room (its house circuit), the set-side one too
+  for (const end of ['near', 'far'] as const) props.add('signPlate', ...plateAt(HOLD_DOORS[h][end], 'room'), { y: PLATE_Y, group: g });
+  props.add('signPlate', ...plateAt(HOLD_DOORS[h].far, 'set'), { y: PLATE_Y, group: g });
   if (h === 'L7') {
     // A8's model on the plinth 0d built (1.6 x 0.6 x 0.9 on the south wall): the vitrine's own plinth is 0.74 high, so it stands 0.16 up and its
     // top skin (0.91) clears the old box's top (0.90); the old box shows under it as a recessed foot
@@ -538,9 +539,10 @@ function dressHold(kit: FacilityKit, props: FacilityProps, h: HoldId): void {
  *  green wall behind it, the kit cases, two seats, and the hall's upper panels with their cove on circuit 10. */
 function dressLounge(kit: FacilityKit, props: FacilityProps): void {
   const face = FAC_T / 2;
-  props.add('receptionDesk', 1.0, 10.2, Math.PI / 2);
+  // (S3-7 S1) the desk's and the cases' LED lines are on the lounge coves' circuit (10)
+  props.add('receptionDesk', 1.0, 10.2, Math.PI / 2, { group: LOUNGE_GROUP });
   props.row('greenWall', face, 12.0, face, 8.4);
-  props.add('kitCaseWall', face, 12.75, Math.PI / 2);
+  props.add('kitCaseWall', face, 12.75, Math.PI / 2, { group: LOUNGE_GROUP });
   props.add('loungeSeat', 4.2, 9.1, -Math.PI / 2);
   props.add('loungeSeat', 4.2, 12.9, -Math.PI / 2);
   kit.wallPanel(face, 11.0, 5.6, Math.PI / 2, { h: HALL_H - 3.2, y: 3.2, tone: 'warm', group: LOUNGE_GROUP });
@@ -550,7 +552,7 @@ function dressLounge(kit: FacilityKit, props: FacilityProps): void {
 function dressDock(kit: FacilityKit, props: FacilityProps): void {
   for (const f of roomFaces(DOCK_BOX, null)) if (f.at !== DOCK_BOX[0]) cladFace(kit, f, DOCK_H, 0, 'warm', DOCK_GROUP);
   const z = (DOCK_BOX[1] + DOCK_BOX[3]) / 2;
-  for (const dz of [-1.2, 0, 1.2]) props.add('signPlate', DOCK_BOX[2] - FAC_T / 2, z + dz, -Math.PI / 2, { y: 2.6 });
+  for (const dz of [-1.2, 0, 1.2]) props.add('signPlate', DOCK_BOX[2] - FAC_T / 2, z + dz, -Math.PI / 2, { y: 2.6, group: DOCK_GROUP });
 }
 
 /** A chair `d` m out of the front of console `p`, facing it: [x, z, yaw]. */
@@ -569,7 +571,7 @@ function dressGallery(kit: FacilityKit, visual: FacilityKit, gal: FacilityProps)
   const g = GALLERY_GROUP;
   /** A console run from (x1, z) to (x2, z) with a chair behind every second console. */
   const run = (x1: number, x2: number, z: number, chairs = true): void => {
-    const first = gal.row('galleryConsole', x1, z, x2, z, { y });
+    const first = gal.row('galleryConsole', x1, z, x2, z, { y, group: g });
     const n = gal.placements.length;
     if (chairs) for (let i = first; i < n; i += 2) gal.add('galleryChair', ...seatAt(gal.placements[i]!, 1.15), { y });
   };
@@ -582,7 +584,7 @@ function dressGallery(kit: FacilityKit, visual: FacilityKit, gal: FacilityProps)
   run(63, 41, 53.0);
   for (const x of [72, 78, 84, 90, 96]) gal.add('galleryChair', x, 51.0, 0, { y });
   // the bridge: the monitor wall facing the desk, the desk, two operators and LANTERN's chair behind them
-  gal.add('monitorWall', 73, 26.0, 0, { y });
+  gal.add('monitorWall', 73, 26.0, 0, { y, group: g });
   run(70.6, 75.4, 29.5, false);
   for (const x of [71.8, 74.2]) gal.add('galleryChair', x, 30.65, Math.PI, { y });
   gal.add('galleryChair', 73, 32.1, Math.PI, { y });
@@ -592,7 +594,7 @@ function dressGallery(kit: FacilityKit, visual: FacilityKit, gal: FacilityProps)
     [22, 16, [0.12, 0.26, 0.2]],
     [34, 28, [0.28, 0.22, 0.12]],
   ];
-  for (const [a, e, tint] of FEEDS) gal.row('galleryScreen', a, 23.7, e, 23.7, { y: y + 0.9, tint });
+  for (const [a, e, tint] of FEEDS) gal.row('galleryScreen', a, 23.7, e, 23.7, { y: y + 0.9, tint, group: g });
   // the back wall's panels with their cove and skirting line, then the balustrade and the ceiling strips
   kit.wallPanel(20.2, 23.75, 39.65, Math.PI, { h: GAL_TOP - GAL_FLOOR, y, tone: 'warm', group: g });
   kit.skirting(20.2, 23.75, 39.65, Math.PI, { y, tone: 'warm', group: g, standoff: KIT_PANEL_DEPTH });
