@@ -34,7 +34,7 @@ import { JAMMER } from '../src/game/jammer';
 import { CAMERA } from '../src/config/camera';
 import { checkPanels, panelTarget } from '../src/game/laserPanels';
 import { soloJumpThreats, soloTopLandingThreats, soloTopLandingReach, MANTLE } from './helpers/soloJumpReach';
-import { SightWorld, isolatedInTime, longestIsolation, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
+import { SightWorld, guardPoints, isolatedInTime, longestIsolation, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 
 const PI = Math.PI;
 const b = new LevelBuilder();
@@ -554,42 +554,53 @@ describe('M8: isolation in time at each takedown spot (sectorCheck, as slice 1 r
 });
 
 describe('A64: the screen count (no player point sees more than 6 awake guards)', () => {
-  const world = new SightWorld(b.boxes, b.cylinders);
-  /** The camera's horizontal field of view (deg, CT's 86) and the facings sampled at each point (every 22.5 deg). */
+  /** The gallery door leaf on L1 (x 40.7..41.9 at z -8) counted as shut: a real leaf in play, closed by default. */
+  const galleryLeaf: BoxPiece = { c: [41.3, S3_L1 + 1.05, -8], s: [1.2, 2.1, 0.1], yaw: 0, pitch: 0, color: '#000', collide: true };
+  /** Only the pieces near the S3 footprint (every awake guard and every sample is inside it): the same sight model, faster. */
+  const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 2 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
+  const world = new SightWorld([...b.boxes.filter(near), galleryLeaf], b.cylinders);
+  /** The camera's horizontal field of view (deg, CT's 86) and the facings sampled at each point (32, every 11.25 deg). */
   const HALF = ((CAMERA.fov / 2) * PI) / 180;
-  const YAWS = Array.from({ length: 16 }, (_, k) => (k * PI) / 8);
-  it('on a 2 m grid over every walkable S3 floor, any facing: at most 6 awake, non-dormant guards (post or a route point) in the 86 deg view with a clear line within 40 m', () => {
+  const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
+  it('at every walkable nav cell centre (0.5 m) on every S3 level, 32 facings: at most 6 awake guards anywhere on their routes in the 86 deg view with a clear line within 40 m', () => {
     const awake = G.map((g, i) => ({ g, i })).filter((q) => !q.g.dormant);
-    const pts = awake.map(({ g }) => {
-      const y = (g.y ?? 0) + 1.2;
-      return [[g.x, y, g.z], ...(g.route ?? []).map((p) => [p[0], y, p[1]])];
-    });
+    // every point a guard stands on or walks through (the post, then each route leg every 1 m): guards start out of
+    // phase in play, so any combination of positions can line up
+    const pts = awake.map(({ g }) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));
     let worst = { n: -1, at: '', who: [] as number[] };
     let samples = 0;
-    for (let x = FOOT.x0 + 1; x < FOOT.x1; x += 2)
-      for (let z = FOOT.z0 + 1; z < FOOT.z1; z += 2) {
-        const col = nav.cellOf(x, z, 0) % nav.cols;
-        for (let l = 0; l < 5; l++) {
-          const i = l * nav.cols + col;
-          if (!nav.walk[i]) continue;
-          const h = nav.height[i]!;
-          if (h > 7) continue;
-          samples++;
-          const eye = h + 1.6;
-          // each guard's visible points as bearings (yaw: 0 = +z)
-          const seen = awake.map(({ i: gi }, k) => ({
-            n: gi + 1,
-            at: pts[k]!.filter(([px, py, pz]) => hyp2(px! - x, pz! - z) <= 40 && world.clear(x, eye, z, px!, py!, pz!)).map(([px, , pz]) => Math.atan2(px! - x, pz! - z)),
-          }));
-          for (const yaw of YAWS) {
-            const who = seen.filter((s) => s.at.some((a) => Math.abs(Math.atan2(Math.sin(a - yaw), Math.cos(a - yaw))) <= HALF)).map((s) => s.n);
-            if (who.length > worst.n) worst = { n: who.length, at: `(${x}, ${h}, ${z}) facing ${((yaw * 180) / PI).toFixed(0)}`, who };
-          }
+    let walkway = 0;
+    let over = 0;
+    for (let col = 0; col < nav.cols; col++) {
+      const [x, z] = nav.center(col);
+      if (!inFoot(x, z)) continue;
+      for (let l = 0; l < nav.layers; l++) {
+        const i = l * nav.cols + col;
+        if (!nav.walk[i]) continue;
+        const h = nav.height[i]!;
+        if (h > 7) continue;
+        samples++;
+        if (Math.abs(h - S3_BOX.walkwayTop) < 0.05 && x > 24 && x < 50) walkway++;
+        const eye = h + 1.6;
+        // each guard's visible points as bearings (yaw: 0 = +z)
+        const seen = awake.map(({ i: gi }, k) => ({
+          n: gi + 1,
+          at: pts[k]!.filter(([px, py, pz]) => hyp2(px - x, pz - z) <= 40 && world.clear(x, eye, z, px, py, pz)).map(([px, , pz]) => Math.atan2(px - x, pz - z)),
+        }));
+        let best = 0;
+        for (const yaw of YAWS) {
+          const who = seen.filter((s) => s.at.some((a) => Math.abs(Math.atan2(Math.sin(a - yaw), Math.cos(a - yaw))) <= HALF)).map((s) => s.n);
+          if (who.length > best) best = who.length;
+          if (who.length > worst.n) worst = { n: who.length, at: `(${x}, ${h.toFixed(2)}, ${z}) facing ${((yaw * 180) / PI).toFixed(0)}`, who };
         }
+        if (best > 6) over++;
       }
+    }
     // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points)`);
-    expect(samples).toBeGreaterThan(300);
+    if (process.env.CAMPUS_PRINT) console.log(`A64 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${walkway} on the walkway interior, ${over} over 6)`);
+    expect(samples).toBeGreaterThan(3000);
+    // the crane walkway's interior (between its ladders, past the rail's ends) is sampled: the old 2 m grid missed it
+    expect(walkway).toBeGreaterThan(50);
     expect(worst.n, `worst ${worst.at}: #${worst.who.join(', #')}`).toBeLessThanOrEqual(6);
-  });
+  }, 300_000);
 });

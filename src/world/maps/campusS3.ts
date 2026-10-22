@@ -45,6 +45,9 @@ const L1_UNDER = 4.3;
 const DOOR_H = 2.1;
 /** The solid spandrel under the L1 glass (corridor and landing): 1.3 over the L1 floor. */
 export const S3_SPANDREL_TOP = 5.8;
+/** The viewing corridor's spandrel (the hall's north wall on L1, x 22..52): 1.7 over the L1 floor, so the crane walkway
+ *  cannot see the corridor guards over it (A64 render budget; BRIEF A70). Undo: use `S3_SPANDREL_TOP` there again. */
+export const S3_VIEW_SPANDREL_TOP = 6.2;
 
 /** The lamp circuits of section 3 (the SPEC's ids: `s3-hb-1..3`, the viewing corridor, the burn-in task lights, the dock ...). */
 export const S3_GROUPS = { hb1: 60, hb2: 61, hb3: 62, view: 63, burn: 64, dock: 65, office: 66, sec: 67 } as const;
@@ -364,10 +367,10 @@ export function buildCampusS3(b: LevelBuilder): void {
   wall(b, true, -8, 22, 52, 0, L1_UNDER, [doorHole(25.4, 0), doorHole(40.7, 0)]);
   doorAt(b, true, -8, 25.4, 0, -1);
   doorAt(b, true, -8, 40.7, 0, -1);
-  wall(b, true, -8, 22, 52, L1, R, [[22, 40.7, S3_SPANDREL_TOP, R], [40.7, 41.9, L1, L1 + DOOR_H], [41.9, 52, S3_SPANDREL_TOP, R]]);
+  wall(b, true, -8, 22, 52, L1, R, [[22, 40.7, S3_VIEW_SPANDREL_TOP, R], [40.7, 41.9, L1, L1 + DOOR_H], [41.9, 52, S3_VIEW_SPANDREL_TOP, R]]);
   doorAt(b, true, -8, 40.7, L1, 1);
-  b.fence(22, -8, 40.7, -8, R - S3_SPANDREL_TOP, S3_SPANDREL_TOP);
-  b.fence(41.9, -8, 52, -8, R - S3_SPANDREL_TOP, S3_SPANDREL_TOP);
+  b.fence(22, -8, 40.7, -8, R - S3_VIEW_SPANDREL_TOP, S3_VIEW_SPANDREL_TOP);
+  b.fence(41.9, -8, 52, -8, R - S3_VIEW_SPANDREL_TOP, S3_VIEW_SPANDREL_TOP);
   wall(b, false, 52, -30, -8, 0, R, []);
   // the east annex (x 52..64, z -30..-8): closed plant; its north wall runs to the roof (the security room's south wall on L1)
   wall(b, true, -8, 52, 64, 0, R, []);

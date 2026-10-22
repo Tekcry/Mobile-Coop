@@ -190,3 +190,8 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
   each map's own bounds. A20 (load <= 2x Warehouse Ops) stays the real budget, measured on the laptop at slice 1 e2e.
 - A68 campusOps stays out of the Sector Ops op list until slice 3 (one filter in missionsScreen.ts). Guard #7 (fence
   patrol) is `dormant`-tagged and the smoking shelter's east panel is longer, for A64 margin (worst view was exactly 6).
+- A70 S3's viewing-corridor spandrel (the hall's north wall on L1, x 22..52) is 6.2, not 5.8 (`S3_VIEW_SPANDREL_TOP`;
+  the landing glass at x 22 stays 5.8), so the crane walkway cannot see the corridor guards over it (A64: the walkway
+  saw 8 awake guards with 5.8; 6.0 left it at exactly 6 on the walkway, no margin). Corridor guards lose their look-down to the hall's far half. The
+  A64 test now samples every 0.5 m nav cell, 32 facings, every 1 m of each route, the gallery door leaf shut. Undo: set
+  `S3_VIEW_SPANDREL_TOP` back to `S3_SPANDREL_TOP` (or shorten the walkway's west end past x ~31, losing the SW ladder).

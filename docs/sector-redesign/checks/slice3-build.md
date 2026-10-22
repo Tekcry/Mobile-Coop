@@ -105,10 +105,10 @@ clean, not run. campusOps is NOT listed (the lead's step).
 - L16 The M8 recorded exception is the viewing-corridor pair #2-#3 only (walking together); every other guard has its 3 s.
 
 ## A64 worst point
-6 awake guards (the limit, no margin) from the crane walkway's SE end (51, 6.0, -29) facing north-west: #1 (across the
-hall through the landing glass), #3 and #13 (through the corridor glass), #6, #7, #8. 571 floor points sampled on the 2 m
-grid. Margin options for the lead: raise the corridor spandrel to 6.0 (it hides #3 / #13 from the walkway; the corridor
-loses its look-down), or shorten the walkway's east end.
+Superseded by the fix round (slice3-check.md F1, BRIEF A70; L15's sampling is replaced): the corridor spandrel is 6.2
+and the test samples every 0.5 m nav cell (7645, the walkway interior included), 32 facings, every 1 m of each route,
+the gallery door shut. Worst 6 at (50.25, 0, -12.75) on the hall floor facing 259 deg: #6, #7, #8, #9, #10, #11; none
+over 6. (The old 2 m grid skipped the walkway interior, where 5.8 gave 8.)
 
 ## M8 (longest isolated run at each takedown spot, 180 s)
 #1 180 s, #4 24, #5 9, #6 5.75, #7 5.75, #8 23.25, #9 4.75, #10 5.25, #11 5.75, #12 7.5, #13 29, #14 6.25, #15 7.75, #16 28;
