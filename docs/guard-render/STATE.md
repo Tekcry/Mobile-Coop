@@ -52,13 +52,16 @@ fresh bodies (`body.ts`) opt in; `?guardmerge=0` gives the old instanced parts f
   edge. Ragdolls re-parent the joints, so they go always-active.
 
 ## Next
-1. Fresh checker for S1 (session-method), then Character Build on the laptop (port 4189, GPU alone):
-   `E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs --maps=sectorops,ctcourse --counts=0,12,16,24 --cells=patrol,away,alert --out=docs/guard-render/run-s1`
-   and the same with the merge off (the script has no query option; `--maps` takes `<mapId>:<mode>` and appends it
-   raw): `--maps='warehouseOps:sector&sectorGuards=0&guardmerge=0,ctcourse:course&guardmerge=0' --out=docs/guard-render/run-s1-off`.
-   Compare render() CPU, evaluation, active meshes, GPU, frame CPU (PLAN section 5); look check screenshots (normal,
-   thermal, night vision) of one guard on and off.
-2. e2e on the pushed head: smoke, stealth-ai, sectorops, ctcourse, coop, netmove, anim, takedown.
+S1 is checked (PASS WITH NOTES), master merged in (4.68.0 + later), the GPU runs are in (`run-s1`, `run-s1-off`,
+`run-s0-base`: 24 guards facing, sectorops frame 9.7 -> 7.1 ms), the changelog fragment (`changes/feature-guard-render.md`),
+TESTING.md line and `docs/systems/world-and-characters.md` section are written.
+1. Look-check shots on port 4189 (merge on and `?guardmerge=0`, normal / thermal / night vision, one guard close up),
+   output `C:/NightShift/scratch/runs/s1-look/`; the snippet is `docs/guard-render/look-shot.js` (untested: camera and
+   guard spot on Marlow Yard bay S1 are a guess), run through `scripts/shot.mjs`. Needs `npm run build` and a
+   `vite preview` on 4189 (shot.mjs does not serve `dist/`). Compare the pairs by eye (shadows of heads, hands, feet are
+   the accepted change).
+2. Then the PR to master (no e2e / GPU suites run yet on the pushed head: smoke, stealth-ai, sectorops, ctcourse, coop,
+   netmove, anim, takedown go before the PR).
 3. Send CT Core the hook (item d above) for `characterRig.ts`.
 4. Then re-plan after S1's numbers (PLAN section 4); S2 / S3 next.
 
