@@ -2300,10 +2300,12 @@ export class AnimGraph {
     // 0.21 -> 0.40 in one frame set the swing down mid-air)
     const w = o.keyMocap >= M.share ? 1 : o.keyMocap / M.share;
     const duty = o.gait.duty + (this.mDuty - o.gait.duty) * w;
-    const want = o.keyMocap >= M.share && speed > M.minSpeed ? duty : clamp(duty, 0.4, 0.75);
+    const want = o.keyMocap >= M.share && speed > M.minSpeed ? duty : duty < 0.4 ? 0.4 : duty > 0.75 ? 0.75 : duty;
     let dPh = o.gait.phase - this.mPh;
     if (dPh < 0) dPh += 1;
-    o.gait.duty = this.mDutyGait < 0 ? want : this.mDutyGait + clamp(want - this.mDutyGait, -0.5 * dPh, 0.5 * dPh);
+    const dd = want - this.mDutyGait;
+    const dm = 0.5 * dPh;
+    o.gait.duty = this.mDutyGait < 0 ? want : this.mDutyGait + (dd < -dm ? -dm : dd > dm ? dm : dd);
     this.mDutyGait = o.gait.duty;
     this.mPh = o.gait.phase;
   }
