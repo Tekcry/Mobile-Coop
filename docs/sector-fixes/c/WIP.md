@@ -77,3 +77,10 @@ Polish: cam-yard (warehouseSectors.ts:763, y 3.5, aim 5, range 10) draws its gri
 the frame at ~8.1-8.6 m (range 9 or aim 5.5 would match); `segmentHitsHousing` tests an unpitched box (~0.1 m off at
 the tips); the client shows no ALARM STAGE banner (older than the slice); station 4's alarm assert could flake if a
 station 3 alarm lands within ALARM_GAP 5 s; Kestrel `camSees` still level at 18 m (Kestrel paused).
+
+## Desktop run (2026-10-22 15:52-16:15, on 2c76d3da, E2E_JOBS=2)
+`npm run check` PASS. e2e-sectorops ok (539 s), e2e-security ok (28 s). FAIL: e2e-coop ("client takedown offered on
+the host's guard (offer none)": the host's guard had spotted the client), e2e-ctcourse station 3 ("stale far-lobby
+positions reached the host (0 reports, 0 frames there)": no client report in 0.8 s), e2e-netmove killed at 600 s.
+All three look like load (no client reports, a timeout); a solo rerun (E2E_JOBS=1) decides. After shots and the sheet
+retaken on this head (cam-s3 pitch 20.3 deg, range 18; laser-s4 hidden normally, shown in night vision).
