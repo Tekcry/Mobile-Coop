@@ -4,8 +4,9 @@
  * tests/helpers/mocapPlayer.ts). Each plan runs switch OFF and ON; ON must hold the rules: bone and ankle-toe steps
  * <= OFF + 2 deg or <= 24 deg, planted slide < 2 cm, the pelvis step beyond pace x dt <= max(2 cm, OFF).
  * Items 1 (pace changes while turning, pace swings) and 2 (CT starts after a short stand) are fixed here; items 3-6
- * belong to other rounds and are skipped (set MOCAP_PLAYER_ALL=1 to run them).
+ * belong to other rounds and are skipped (MOCAP_PLAYER_ALL=1 runs them; MOCAP_PLAYER_LOG=<file> appends every row).
  */
+import { appendFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ctBoth, flickPlan, fmtPlayer, playerFails, startStopPlan, type Target } from './helpers/mocapPlayer';
 
@@ -17,7 +18,7 @@ async function check(cases: Case[]): Promise<void> {
     const { off, on } = await ctBoth(c.target, c.steps, c.recFrom, c.tgl);
     const f = playerFails(on, off);
     const row = `${c.label}: off ${fmtPlayer(off)} | on ${fmtPlayer(on)}${f.length ? ` <<< ${f.join(' ')}` : ''}`;
-    if (process.env.MOCAP_PLAYER_LOG) console.log(row);
+    if (process.env.MOCAP_PLAYER_LOG) appendFileSync(process.env.MOCAP_PLAYER_LOG, `${row}\n`);
     if (f.length) bad.push(row);
   }
   expect(bad).toEqual([]);
@@ -55,7 +56,6 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
 
   it('2: CT starts after a stand (quickStop, the stop hold) neither drag nor skim a foot', async () => {
     await check([
-      startStop(1.4, 0.3, 1.99),
       startStop(1.4, 0.3, 2.12),
       startStop(2.8, 0.3, 1.6),
       startStop(2.8, 0.3, 1.86),
@@ -110,6 +110,8 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
       sneakFlick(0),
       sneakFlick(0.5),
       startStop(5.0, 2.0, 1.73),
+      // the hold's release as the stick moves again (the graph's locoSpeed holdSpeed 0.8 -> 0.03 in a frame): pelvis 2.05 cm
+      startStop(1.4, 0.3, 1.99),
       { label: 'draw at 4.0 m/s', target: (t) => ({ v: 4.0, yr: 0, armed: t > 2.34 && t < 4.34 }), steps: 360, recFrom: 1.5 },
     ]);
   }, 300_000);

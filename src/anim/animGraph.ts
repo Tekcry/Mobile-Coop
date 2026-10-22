@@ -2509,6 +2509,11 @@ export class AnimGraph {
     const dd = want - from;
     const dm = 0.5 * dPh;
     o.gait.duty = from + (dd < -dm ? -dm : dd > dm ? dm : dd);
+    // (mt2-fixA, CHECK-3 required 1) the clip feet wait (the planner keeps the steps, as in a turn hand-off) while the duty
+    // is still easing more than MOCAP_DUTY_GAP from the clip's: a pace change through CT's spring (1.4 -> 5.0 m/s) put the
+    // pose in a run on a walk's duty, the clip pinned a planted foot for a walk-length stance at 4.4 m/s (its reach need
+    // 2 -> 43 cm in 4 frames, the pelvis 46 cm down)
+    if (CF.on && Math.abs(o.gait.duty - want) > MOCAP_DUTY_GAP) CF.on = false;
     // (clip feet gone: carried until the planner's duty is met)
     this.mCarry = CF.valid || o.gait.duty !== want;
     this.mDutyGait = o.gait.duty;
@@ -2700,6 +2705,9 @@ function backShare(i: AnimInput): number {
 const LEAN_GAIN = 0.012;
 /** (A1.2) Stance share of the gait cycle in a full-rate turn (shorter stance: less body yaw over a planted foot). */
 const TURN_DUTY = 0.52;
+/** (mt2-fixA) The clip feet wait while the gait duty is further than this from the clip's (`clipFeet`; 0.05-0.1 left an
+ *  accelerating 3 rad/s turn to the planner's steps under a run pose: an anchored landing slid 7.7-7.9 cm). */
+const MOCAP_DUTY_GAP = 0.15;
 /**
  * (P1 posture) Extra spine pitch (rad, forward +) for the Chaos Theory carriage: `crouchLean` crouched (total ~38 deg
  * with the pelvis tilt), `runLean` at the run (total ~23 deg at 4.2 m/s), easing in from `runFrom` to `runTo` m/s;

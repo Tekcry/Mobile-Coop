@@ -65,8 +65,8 @@ export function playerFails(on: PlayerM, off: PlayerM): string[] {
   return f;
 }
 
-/** Run a CT-driven plan from a stick target for `steps` 60 Hz steps, recording from `recFrom` s. */
-export function ctRun(target: Target, steps: number, recFrom: number, mode: Mode): Promise<Rec> {
+/** Run a CT-driven plan from a stick target for `steps` 60 Hz steps, recording from `recFrom` s (`onStep`: a probe). */
+export function ctRun(target: Target, steps: number, recFrom: number, mode: Mode, onStep?: (rig: CharacterRig, k: number) => void): Promise<Rec> {
   let pace = 0, pv = 0, hold = false, holdSpeed = 0, holdT = 0, easeT = -1, wasMoving = false, holdCrouch = 0;
   let cur: Stick = { v: 0, yr: 0 };
   let crouchK = 0;
@@ -98,7 +98,8 @@ export function ctRun(target: Target, steps: number, recFrom: number, mode: Mode
   };
   setMocapLocomotion(mode === 'tgl' ? (target(0).mocap ?? true) : mode === 'on');
   let patched = false;
-  const hook = (rig: CharacterRig): void => {
+  const hook = (rig: CharacterRig, k: number): void => {
+    onStep?.(rig, k);
     if (patched) return;
     patched = true;
     const animate = rig.animate.bind(rig);

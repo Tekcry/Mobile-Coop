@@ -349,6 +349,9 @@ const CLIP_IDLE_LAND = 0.05;
 const CLIP_IDLE_RATE = 0.4;
 /** (mocap-trial-2, pop3) A start's planted foot this far (m) behind the clip's own stays the planner's (`clipFoot`). */
 const CLIP_TAKE_BEHIND = 0.2;
+/** (mt2-fixA) A foot the clip pinned toes off (as CLIP_TAKE_BEHIND) once its reach need passes this (m; `clipFoot`): a
+ *  backstop to MOCAP_DUTY_GAP; 0.03-0.06 toed off a steady walk's own late stance (mocapSwitch track / jerk). */
+const CLIP_PIN_NEED = 0.1;
 /** (step 22) Shares of a step tried, in turn, when its landing spot has no ground under it (0: back where it left). */
 const EDGE_PULL = [0.6, 0.3, 0] as const;
 /** (step 22) A stance staggered more than `min` m front to back: its front foot holds up to `hold` m short of its spot. */
@@ -446,6 +449,8 @@ export class FootPlanner {
   private clipWait = 0;
   /** (mocap-trial-2, pop3) Per foot (bit 1 L, 2 R): an idle step still in the air when the move began. */
   private clipIdle = 0;
+  /** (mt2-fixA) The first moving frame after a still one (a start, whether or not the planner restarts its start window). */
+  private firstMove = false;
   /** (fix 21-2) Time since the last move (s). */
   private stillT = 0;
   /** A quick stop's swings are still setting down. */
@@ -597,6 +602,7 @@ export class FootPlanner {
       }
       this.quick = true;
     }
+    this.firstMove = i.moving && !this.wasMoving;
     this.wasMoving = i.moving;
     this.turnT = Math.abs(i.yawRate) > 1 ? 0 : this.turnT + i.dt;
     this.spinT = Math.abs(i.yawRate) > 1 ? this.spinT + i.dt : 0;
@@ -886,6 +892,14 @@ export class FootPlanner {
           f.toZ = f.z;
           this.land(f);
         }
+        // (mt2-fixA, CHECK-3 required 2) clip feet on: a planner swing nearly down (>= 0.9) as the clock's swing window opens
+        // lands where it is; taken over from there (`sp` from a swBase of 0.9-1.0 stays ~1) it rode along with the root
+        // unplanted for the whole window (a CT start after a 0.3 s stand: the ankle 40 cm in a frame, the pelvis 8 + 3 cm)
+        if (i.clipFeet && !f.contact && f.swing >= 0.9 && f.swBase < 0) {
+          f.toX = f.x;
+          f.toZ = f.z;
+          this.land(f);
+        }
         const fresh = f.contact || f.swing < 0;
         // (anim-rework S2) at a walk (no flight phase) the clock's swing waits while the other foot is still in the air
         // from a rule step (a turn's step round, a start's first step): a turn from a standstill lifted both feet (a hop).
@@ -1000,7 +1014,13 @@ export class FootPlanner {
           if (sw >= own) this.land(f);
           else this.swingTo(f, i, sw);
         } else if (f.swing >= 0.9) this.land(f);
-        else this.swingTo(f, i, Math.min(1, f.swing + i.dt / f.stepDur));
+        else {
+          const sw = Math.min(1, f.swing + i.dt / f.stepDur);
+          // (mt2-fixA, CHECK-3 required 2) clip feet on: it lands as its progress reaches 0.9 (a start's leftover idle step,
+          // sped up, went 0.88 -> 1.00 in a frame and was still in the air when its swing window opened)
+          if (i.clipFeet && sw >= 0.9) this.land(f);
+          else this.swingTo(f, i, sw);
+        }
       } else {
         this.holdOrStep(f, i, side, (i.duty - sinceStrike) * i.cycleTime);
         // (G1) late stance: the heel comes up, the foot rolls onto its toes (after the heel-first roll has ended)
@@ -1348,7 +1368,9 @@ export class FootPlanner {
     // (mocap-trial-2, pop3) an idle step still in the air as the move starts (a short stand) is the planner's: where the
     // clock wants the foot down it lands within CLIP_IDLE_LAND instead of at idle pace, so the clip's lifts wait at most that.
     // (`clipIdle`); the clip lifts no foot while the other is still in it
-    if (this.moveT < i.dt * 1.5 && !f.contact && !f.clipOwn) this.clipIdle |= wb;
+    // (mt2-fixA, CHECK-3 required 2) also on a move after a stand shorter than START_STILL (CT's stop and start springs:
+    // the planner's start window runs on): the idle step at idle pace was taken over by the clock at 0.59, 47 cm in a frame
+    if ((this.moveT < i.dt * 1.5 || this.firstMove) && !f.contact && !f.clipOwn) this.clipIdle |= wb;
     if (this.clipIdle & wb) {
       if (f.contact || f.swBase >= 0) this.clipIdle &= ~wb;
       else if (wantContact && f.swing < 0.9) {
@@ -1425,7 +1447,13 @@ export class FootPlanner {
     // air it waits planted); the clip takes it from that landing. Pinned for the rest of the clip's stance it stretched
     // the leg (a late first step at 2.0 m/s: pelvis 82 -> 19 cm); left to the planner's own toe-off it was dragged 3.6 cm
     // once the clip lifted the other foot (no flight at a walk)
-    if (f.clipPitchT < 0 && this.moveT < START_TOE_OFF && C.f[o + 2]! - ((f.x - i.rootX) * Math.sin(i.yaw) + (f.z - i.rootZ) * Math.cos(i.yaw)) > CLIP_TAKE_BEHIND) {
+    // (mt2-fixA, CHECK-3 required 1) also, at any time, a foot the clip pinned whose leg the rig already drops the pelvis
+    // more than CLIP_PIN_NEED for (`reachNeedL` / `R`, last frame's): a pace change through CT's spring left it pinned for
+    // a walk-length stance at run pace (its need 2 -> 11 -> 23 -> 43 cm in 4 frames, the pelvis 46 cm down)
+    if (
+      (f.clipPlant && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) > CLIP_PIN_NEED) ||
+      (f.clipPitchT < 0 && this.moveT < START_TOE_OFF && C.f[o + 2]! - ((f.x - i.rootX) * Math.sin(i.yaw) + (f.z - i.rootZ) * Math.cos(i.yaw)) > CLIP_TAKE_BEHIND)
+    ) {
       if (!(side < 0 ? this.R : this.L).contact) return false;
       this.beginSwing(f, i, Math.min(0.6, (1 - i.duty) * i.cycleTime), i.liftH);
       if (this.turnOn) {
