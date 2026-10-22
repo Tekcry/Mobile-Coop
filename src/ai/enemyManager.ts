@@ -24,11 +24,19 @@ import { MUFFLE } from '../config/noise';
 import { CMD_ACK, CMD_SEND, GuardView, GV_BUSY, GV_DOWN, GV_HELD, GV_MELEE, GV_OFFICER, INCIDENT, IncidentBoard, LEVEL, lightInView, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT, type IncidentKind, type PathLen } from './incidents';
 import { EYE_STAND, PERCEPTION } from './perception';
 import { roomAt } from '../world/rooms';
+import { CALL_KIND, callHold, hearsVoice, RADIO, RadioNet, type CallKind, type RadioSink } from './radioNet';
 import type { P2 } from './navGrid';
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
 // player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
 export const MAX_ALIVE = 12;
+
+/** (guard-ai S3) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
+ *  Off until S6 starts command calls and finishes the alarm; nothing starts one yet. */
+export const RADIO_ALARM = false;
+
+/** (guard-ai S3) The radio net's tick (s): 10 Hz. */
+const RADIO_TICK = 0.1;
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
@@ -64,7 +72,8 @@ export class EnemyManager {
   lkpValid = false;
   /** Seconds since an alerted enemy last had a player in sight. */
   sightT = 99;
-  /** Radio range for a detection call (m). */
+  /** Radio range for a detection call (m): the parked modes' call (`callAlert`) and, until S4, the body-found
+   *  call. (guard-ai S3) The live modes' contact call reaches the whole section (`radioNet`), not a circle. */
   static readonly RADIO = 22;
   /** Downed enemies lying in the world (findable, carriable). */
   readonly bodies: Body[] = [];
@@ -149,6 +158,32 @@ export class EnemyManager {
   private boardT = 0;
   /** The incident table (tests / e2e read the numbers from here). */
   readonly incidentTable = INCIDENT;
+  /**
+   * (guard-ai S3, design 5, M5) The section radio net: one per section. Sector Ops loads one section at a time, so the
+   * live section is this one net (cleared with the guards on every unload / restart: `despawnAll` -> `clear`); other
+   * maps are one section (A6). Its `section` stays 0 (the manager is not told the Sector index; only the S6 alarm call
+   * would use it). Coordinated modes only; ticked at 10 Hz with the board's view and the reaction lane.
+   */
+  readonly radioNet = new RadioNet(0);
+  /** The radio table (tests / e2e read the numbers from here). */
+  readonly radioTable = RADIO;
+  private netT = 0;
+  /** Per view index: the guard's reaction (difficulty x officer buff), the old `callAlert` factor. */
+  private rxReaction = new Float32Array(32);
+  /** The last few calls acknowledged (caller, incident, kind): one "Copy." per report, from its first receiver. */
+  private readonly ackCaller = new Int32Array(8).fill(-1);
+  private readonly ackInc = new Int32Array(8);
+  private readonly ackKind = new Int32Array(8);
+  private ackK = 0;
+  /** Where completed calls go (made once). */
+  private readonly sink: RadioSink = {
+    deliver: (gid, inc, kind, caller) => this.radioDeliver(gid, inc, kind, caller),
+    alarm: (_section, caller) => this.radioAlarm(caller),
+    completed: (caller, _inc, kind) => {
+      // the spotter's radio line, as the section hears it
+      if (kind === 'contact') this.byNum(caller)?.bark('callIn');
+    },
+  };
 
   constructor(
     private scene: Scene,
@@ -229,10 +264,21 @@ export class EnemyManager {
         }
       },
       shout: (e) => {
+        // (guard-ai S3) coordinated: the voice model (walls, masking); the parked modes: the old 8 m with jitter
+        if (this.coordinated) {
+          this.voice(e);
+          return;
+        }
         for (const o of this.enemies) {
           if (o === e || !o.alive || o.alerted) continue;
           if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3);
         }
+      },
+      radioCall: (e, inc, kind) => {
+        if (this.coordinated) this.radioNet.startCall(e.num, inc, kind, callHold(kind, this.reactionOf(e)));
+      },
+      radioCut: (e) => {
+        this.radioNet.cut(e.num);
       },
       searchSlot: (e) => {
         let n = 0;
@@ -548,6 +594,8 @@ export class EnemyManager {
       if (j >= 0) roster.splice(j, 1);
     }
     this.silent.delete(e);
+    // (guard-ai S3) gone mid-call: the call is lost (his queued receptions are skipped: he is out of the view)
+    this.radioNet.cut(e.num);
     if (this.alarmRunner === e) this.alarmRunner = null;
     if (this.flanker === e) this.flanker = null;
     for (let i = 0; i < this.torchOwner.length; i++) {
@@ -705,10 +753,91 @@ export class EnemyManager {
         const m = o.mode[k]!;
         if (m === MODE_LIGHT) e.checkLight(o.x[k]!, o.z[k]!, inc, o.arg[k]!);
         else if (m === MODE_LEAD || m === MODE_COVER) e.pairSearch(o.x[k]!, o.z[k]!, inc, m === MODE_LEAD);
-        else if (m === MODE_INVESTIGATE) e.sendTo(o.x[k]!, o.z[k]!, inc);
+        // (guard-ai S3, S2 check polish 2) a plain noise or a lure that finds nothing ends calm; gunfire keeps the cooldown
+        else if (m === MODE_INVESTIGATE) e.sendTo(o.x[k]!, o.z[k]!, inc, b.kindOf(inc) !== 'shots');
       } else if (o.cmd[k] === CMD_ACK) e.ack(o.x[k]!, o.z[k]!, o.arg[k] === 1);
     }
     o.n = 0;
+  }
+
+  /** (guard-ai S3) A guard's reaction factor: the difficulty's, x the officer's when one is near (the old `callAlert`
+   *  factor, no random term). */
+  private reactionOf(e: Enemy): number {
+    return this.diff.reaction * (e.buff ? ARCHETYPE.officer.reaction : 1);
+  }
+
+  /**
+   * (guard-ai S3, design 5) The spotter's shout: every calm guard who hears it at the investigate tier of a
+   * `RADIO.voice` reach (6 m in the open, ~2.7 m through one wall, less by a noisy machine) joins `RADIO.voiceDelay`
+   * s later. Voice ignores sections. One wall ray per listener, only where one wall decides it.
+   */
+  private voice(e: Enemy): void {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i]!;
+      if (o === e || !o.alive || o.alerted || o.taken) continue;
+      const d = hyp3(o.pos.x - e.pos.x, o.pos.y - e.pos.y, o.pos.z - e.pos.z);
+      if (d >= RADIO.voice) continue;
+      const amb = this.noisy.length ? ambientDb(this.noisy, o.pos.x, o.pos.z, o.pos.y) : 0;
+      if (!hearsVoice(d, 0, amb)) continue;
+      if (!hearsVoice(d, 1, amb)) {
+        // a wall between them would stop it: one ray, head to head
+        this.earA.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+        this.earB.set(o.pos.x, o.pos.y + 1.6, o.pos.z);
+        if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) continue;
+      }
+      o.radio(RADIO.voiceDelay);
+    }
+  }
+
+  /** (guard-ai S3) One radio net tick (10 Hz): the board's view and the reaction lane, then complete / deliver. */
+  private radioStep(dt: number): void {
+    this.fillView();
+    const v = this.view;
+    if (this.rxReaction.length < v.n) {
+      let c = this.rxReaction.length;
+      while (c < v.n) c *= 2;
+      this.rxReaction = new Float32Array(c);
+    }
+    const list = this.enemies;
+    for (let i = 0; i < v.n; i++) this.rxReaction[i] = this.reactionOf(list[i]!);
+    this.radioNet.tick(dt, v, this.sink, this.rxReaction, null);
+  }
+
+  /**
+   * (guard-ai S3) A completed call reaches guard `gid`: a contact puts him in combat on the next step (the shared last
+   * known position; he does not relay it); a report (light, stand down, missing, ...) is acknowledged by its first
+   * receiver only ("Copy.": a bark, nothing more).
+   */
+  private radioDeliver(gid: number, inc: number, kind: CallKind, caller: number): void {
+    const e = this.byNum(gid);
+    if (!e || !e.alive || e.taken) return;
+    if (kind === 'contact') {
+      e.radio(0);
+      return;
+    }
+    const k = CALL_KIND.indexOf(kind);
+    for (let j = 0; j < this.ackCaller.length; j++) if (this.ackCaller[j] === caller && this.ackInc[j] === inc && this.ackKind[j] === k) return;
+    const j = this.ackK;
+    this.ackK = (j + 1) % this.ackCaller.length;
+    this.ackCaller[j] = caller;
+    this.ackInc[j] = inc;
+    this.ackKind[j] = k;
+    e.bark('ack');
+  }
+
+  /** (guard-ai S3) A `command` call got through: the alarm (reinforcements, M4), behind `RADIO_ALARM` until S6. */
+  private radioAlarm(caller: number): void {
+    if (!RADIO_ALARM || this.alarmRaised) return;
+    const e = this.byNum(caller);
+    if (!e) return;
+    const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, Infinity, e.pos.y) ?? this.alarms[0];
+    if (p) this.raiseAlarm(e, p);
+  }
+
+  /** (guard-ai S3) Seconds until this guard's open radio call gets through (0: none). Tests / e2e / debug. */
+  radioLeft(e: Enemy): number {
+    return this.radioNet.pendingFor(e.num);
   }
 
   /** The guard with this id (`Enemy.num`), null. */
@@ -903,6 +1032,13 @@ export class EnemyManager {
         if (this.boardT <= 0) this.boardT = 0.2;
         this.boardStep(0.2);
       }
+      // (guard-ai S3) the section radio net at 10 Hz: calls complete, receivers hear them staggered
+      this.netT -= dt;
+      if (this.netT <= 0) {
+        this.netT += RADIO_TICK;
+        if (this.netT <= 0) this.netT = RADIO_TICK;
+        this.radioStep(RADIO_TICK);
+      }
     }
     this.updateDrones(dt);
     const doors = this.world.doors;
@@ -998,8 +1134,10 @@ export class EnemyManager {
     this.drones.length = 0;
     this.squads.clear();
     this.silent.clear();
-    // (guard-ai S2) nobody left to send: the incidents go too
+    // (guard-ai S2) nobody left to send: the incidents go too; (S3) and every call and queued reception
     this.board.clear();
+    this.radioNet.clear();
+    this.ackCaller.fill(-1);
     for (const b of [...this.bodies]) this.removeBody(b);
     // nobody left to hold a job: the alarm run, the flank, the flashlights
     this.alarmRunner = null;

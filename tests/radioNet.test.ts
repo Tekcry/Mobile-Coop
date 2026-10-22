@@ -317,3 +317,33 @@ describe('radio net: helpers', () => {
     expect(hearsVoice(2, 0, 12)).toBe(false);
   });
 });
+
+describe('radio net: integration hooks (S3)', () => {
+  it('completed(): called once per call that gets through, before its receivers; not for a lost call', () => {
+    const { net, v } = setup(EIGHT);
+    const order: string[] = [];
+    const sink: RadioSink = {
+      deliver: (g) => order.push(`rx${g}`),
+      alarm: () => order.push('alarm'),
+      completed: (caller, inc, kind) => order.push(`done${caller}:${inc}:${kind}`),
+    };
+    net.startCall(1, 3, 'light', RADIO.callIn);
+    net.startCall(20, 3, 'contact', RADIO.callIn);
+    net.cut(20);
+    for (let k = 0; k < 80; k++) net.tick(DT, v, sink);
+    expect(order[0]).toBe('done1:3:light');
+    expect(order.filter((o) => o.startsWith('done'))).toEqual(['done1:3:light']);
+    expect(order.length).toBe(1 + EIGHT.length - 1);
+  });
+  it('pendingFor(): seconds to his earliest open call, 0 with none or after it completes', () => {
+    const { net, v, s } = setup(EIGHT);
+    expect(net.pendingFor(1)).toBe(0);
+    net.startCall(1, -1, 'contact', 2.5);
+    net.startCall(1, 4, 'light', 1.5);
+    expect(net.pendingFor(1)).toBeCloseTo(1.5, 6);
+    run(net, v, s, 1);
+    expect(net.pendingFor(1)).toBeCloseTo(0.5, 5);
+    run(net, v, s, 2);
+    expect(net.pendingFor(1)).toBe(0);
+  });
+});

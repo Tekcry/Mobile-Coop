@@ -38,6 +38,7 @@ import { placeTorch } from '../world/torches';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { INCIDENT, MODE_COVER, MODE_INVESTIGATE, MODE_LEAD, MODE_LIGHT } from './incidents';
 import type { GuardInfo } from './guardInfo';
+import type { CallKind } from './radioNet';
 import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightCheck';
 import { DogModel } from './dogModel';
 import type { InstancedMesh } from '../core/babylon';
@@ -124,10 +125,16 @@ export interface AiContext {
   lkpValid(): boolean;
   /** An alerted enemy sees the target: the shared last known position follows it. */
   reportSighting(p: PlayerRef): void;
-  /** Detected: radio the squad. */
+  /** Detected: radio the squad (the parked modes: at once, 22 m). */
   callAlert(e: Enemy): void;
-  /** The spotter's shout: squadmates close by join at once (no radio needed). */
+  /** The spotter's shout: squadmates close by join at once (no radio needed). (guard-ai S3) Coordinated: the voice
+   *  model (`RADIO.voice` through walls and masking, +`RADIO.voiceDelay`); parked modes: the old 8 m. */
   shout?(e: Enemy): void;
+  /** (guard-ai S3) Start a radio call on the section net (coordinated modes): nothing is sent until it completes
+   *  (`callHold`); `inc` the board's incident (-1: a contact). */
+  radioCall?(e: Enemy, inc: number, kind: CallKind): void;
+  /** (guard-ai S3) He went down, was grabbed or blinded: his open radio calls are lost. */
+  radioCut?(e: Enemy): void;
   /** This enemy's slot among the searchers (fans the sweep out). */
   searchSlot(e: Enemy): number;
   /** A callout (shown near the speaker; radio lines chirp). */
@@ -232,6 +239,8 @@ export class Enemy implements Damageable {
   incident = -1;
   /** What he was sent to do (`MODE_*` in `incidents.ts`). */
   private incMode = 0;
+  /** (guard-ai S3) Sent to a plain noise or a lure (not gunfire): an empty investigation ends calm (`calmEnd`). */
+  private incCalm = false;
   /** The light check (`lightCheck.ts`, pure); `lightC` its light's floor point (the e2e reads it). */
   private readonly lc = new LightCheck();
   readonly lightC: P2 = this.lc.c;
@@ -245,7 +254,8 @@ export class Enemy implements Damageable {
   };
   private gunfire = false;
   private called = 0;
-  /** Seconds until a spotter's radio call goes out (0 = none pending); taking them out first stops it. */
+  /** Seconds until a spotter's radio call goes out (0 = none pending); taking them out first stops it. The parked modes
+   *  only: (guard-ai S3) the live modes' call is on the radio net (`EnemyManager.radioLeft`). */
   radioT = 0;
   /** The alert being raised is loud (shot, hit, a flashbang): it is called in at once. */
   private loudAlert = false;
@@ -377,6 +387,8 @@ export class Enemy implements Damageable {
   /** Blinded by a flashbang: hands to the face, staggering on the spot, then straight to combat. */
   blind(seconds: number): void {
     if (!this.alive || this.taken) return;
+    // (guard-ai S3) hands to his face: the call he was making is lost
+    this.ctx.radioCut?.(this);
     this.blindT = Math.max(this.blindT, seconds);
     this.bark('blind');
     this.burstLeft = 0;
@@ -397,6 +409,8 @@ export class Enemy implements Damageable {
   /** Grabbed: the brain stops; (G7) the body struggles once the attacker reaches him, `delay` s after the press (arms up
    *  to the attacker's hold, head back; the old pose started at the press and sank the feet 8 cm with a pelvis offset). */
   beginTakedown(choke: boolean, delay = 0): void {
+    // (guard-ai S3) seized before the call got through: nobody else is told
+    this.ctx.radioCut?.(this);
     this.taken = true;
     this.endLink();
     this.burstLeft = 0;
@@ -458,7 +472,9 @@ export class Enemy implements Damageable {
     // (G7) the held yaw is his facing now (the driver kept the one from before the seize)
     this.motion.reset(this.yaw);
     this.stagger = stagger;
-    this.alert();
+    // (guard-ai S3) already in combat when seized (his call was cut): he calls it in again
+    if (this.alerted && this.netOn) this.callContact();
+    else this.alert();
   }
 
   /** (locomotion step 10) Seconds left of an elbow strike's stagger (a second strike inside it knocks out). */
@@ -646,10 +662,11 @@ export class Enemy implements Damageable {
    * (guard-ai S2) The board sends him to a noise, gunfire heard far off or a lure at (x, z): he says so on the radio,
    * looks (`ALERT.hearLook`), then walks over and looks round (the `heard` path), and is back to his route after.
    */
-  sendTo(x: number, z: number, incident: number): void {
+  sendTo(x: number, z: number, incident: number, calm = false): void {
     if (!this.sendable) return;
     this.incident = incident;
     this.incMode = MODE_INVESTIGATE;
+    this.incCalm = calm;
     this.turnT = 0;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
@@ -673,7 +690,9 @@ export class Enemy implements Damageable {
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
+    // (guard-ai S3) his report is a radio call: the section hears it once it completes (an ack, nothing more)
     this.bark('lightOut');
+    this.ctx.radioCall?.(this, incident, 'light');
     const from = this.aware.level;
     if (from !== 'investigating') {
       this.aware.set('investigating');
@@ -688,7 +707,10 @@ export class Enemy implements Damageable {
    */
   pairSearch(x: number, z: number, incident: number, lead: boolean): void {
     if (!this.sendable) return;
-    if (lead) this.bark('missing');
+    if (lead) {
+      this.bark('missing');
+      this.ctx.radioCall?.(this, incident, 'missing');
+    }
     this.searchAt(x, z, null);
     this.incident = incident;
     this.incMode = lead ? MODE_LEAD : MODE_COVER;
@@ -720,7 +742,20 @@ export class Enemy implements Damageable {
   /** A squadmate radioed a detection: alert after a short reaction delay. */
   radio(delay: number): void {
     if (!this.alive || this.alerted) return;
-    if (this.called <= 0) this.called = delay;
+    // (guard-ai S3) 0: the next step (the radio net's stagger already holds his reaction)
+    if (this.called <= 0) this.called = delay > 0 ? delay : 1e-6;
+  }
+
+  /** (guard-ai S3) The radio net runs (coordinated modes with a manager that wires it). */
+  private get netOn(): boolean {
+    return this.ctx.radioCall !== undefined && (this.ctx.coordinated?.() ?? false);
+  }
+
+  /** (guard-ai S3, M5) In combat and not told by anyone: shout (voice range joins at once) and start the contact call
+   *  (the section hears it, staggered, once it completes; take him out first and only the voice hearers know). */
+  private callContact(): void {
+    this.ctx.shout?.(this);
+    this.ctx.radioCall?.(this, -1, 'contact');
   }
 
   /** Something to search for without a sighting (a body, lights cut) around (x, z); with `revive`, wake that
@@ -788,10 +823,13 @@ export class Enemy implements Damageable {
   private onLevel(from: AlertLevel, to: AlertLevel): void {
     if (to === 'suspicious') this.bark('suspicious');
     else if (to === 'investigating') this.bark('investigate');
-    else if (to === 'alert') this.bark('contact');
+    // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
+    else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
     else if (to === 'cooldown') this.bark(this.incident >= 0 ? 'standDown' : 'clear');
     else if (to === 'unaware' && this.incident >= 0) this.bark('standDown');
+    // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
+    if ((to === 'cooldown' || to === 'unaware') && this.incident >= 0) this.ctx.radioCall?.(this, this.incident, 'standDown');
     // (guard-ai S2) off the board's task: back (calm), in combat, or on another search (a body, a call)
     if (this.incident >= 0) {
       const pair = this.incMode === MODE_LEAD || this.incMode === MODE_COVER;
@@ -805,7 +843,13 @@ export class Enemy implements Damageable {
       // a radioed alert is not relayed (no chain across the map). A loud alert (gunfire, a hit) is called in at
       // once; a sighting is shouted to guards close by and radioed after `ALERT.callIn` - take the spotter out
       // before that and nobody else hears of it
-      if (!this.alertIn.called) {
+      // (guard-ai S3, M5) coordinated: every alert of his own (a sighting, a hit, gunfire close by, spawned alerted) is
+      // shouted (the voice model) and called in over the section net (2.5 s x reaction, then staggered by distance);
+      // a guard told by a shout or the radio does not relay. Proposal A13: loud alerts take the same call.
+      if (!this.alertIn.called && this.netOn) {
+        if (!this.loudAlert && !this.gunfire && this.ctx.stealth() && this.target && this.los) this.target.spotted = true;
+        this.callContact();
+      } else if (!this.alertIn.called) {
         if (this.loudAlert || this.gunfire || !this.ctx.stealth()) this.ctx.callAlert(this);
         else {
           if (this.target && this.los) this.target.spotted = true;
@@ -880,6 +924,8 @@ export class Enemy implements Damageable {
   }
 
   private die(h: HitInfo, lethal = true): void {
+    // (guard-ai S3) killed or knocked out before his call got through: it is lost
+    this.ctx.radioCut?.(this);
     this.setState('dead');
     this.hitboxes.dispose();
     this.ctx.registry.removeTarget(this);
@@ -939,7 +985,9 @@ export class Enemy implements Damageable {
       if (this.blindT <= 0) {
         this.blindT = 0;
         this.rig.emote = null;
-        this.alert();
+        // (guard-ai S3) in combat before the flash (his call was cut): he calls it in again
+        if (this.alerted && this.netOn) this.callContact();
+        else this.alert();
       }
       return;
     }
@@ -1133,6 +1181,8 @@ export class Enemy implements Damageable {
     }
     i.hold = this.lc.active;
     i.turning = this.turnT > 0;
+    // (guard-ai S3, S2 check polish 2) sent to a plain noise / lure: nothing found -> back to normal, no cooldown
+    i.calmEnd = this.incident >= 0 && this.incMode === MODE_INVESTIGATE && this.incCalm;
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search

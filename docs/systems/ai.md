@@ -66,9 +66,29 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Pace and patience: `PATROL.wait` 5.5 s, glances every 10 s, `searchLook` 3 s, `hearLook` 2.4 s; `ENEMY_CALM_MOTION` (60
   deg/s turns while not in combat; parked modes: not searching either). Combat: `ALERT.lostSight` 12 s, `searchTime` 60 s; after combat a guard
   never returns to unaware (`AlertMachine.fought`).
-- Radio window: a sighting is shouted to guards within `ALERT.shout` 8 m at once and radioed after `ALERT.callIn` 2.5 s (x
-  reaction; bark `callIn`); a spotter taken out first tells nobody; gunfire / a hit / a flashbang (`loudAlert`) calls in at
-  once. `PlayerRef.spotted`: set when a guard in combat sees that player, cleared when nobody is in combat.
+- Alerts and the radio (guard-ai S3, design 5, M5; `ai/radioNet.ts` pure, `EnemyManager.radioNet`, coordinated modes):
+  a guard who goes to combat on his own (a sighting, a hit, gunfire close by, the end of a flashbang, spawned alerted)
+  first shouts: every calm guard who hears it at the investigate tier of a `RADIO.voice` 12 m reach (6 m in the open,
+  ~2.7 m through one wall, less by a noisy machine; one wall ray only where it decides it; any section) joins
+  `RADIO.voiceDelay` 0.3 s later. He then holds his radio for a `contact` call, `RADIO.callIn` 2.5 s x reaction (x the
+  officer factor near an officer). When it completes (bark `callIn`, e.g. "Control, I have contact.") every other live
+  guard of the SAME section is queued nearest first at `min(4.5, 0.6 + rank x 0.5 + d x 0.02)` s x his reaction
+  (`staggerDelay`), joins on the next step (bark `joining`) and chases the shared LKP; no relay, no `Math.random`, other
+  sections untouched. A call is a timer the caller must survive: `cut` from `Enemy.die` (kill, knockout), `beginTakedown`
+  (grab, choke, hostage, interrogation), `blind` and `EnemyManager.despawn` (and a held caller at completion) loses it,
+  so only the voice hearers know; a blinded or released guard still in combat calls again. Reports are calls of their
+  kind: `checkLight` -> `light`, the pair lead -> `missing`, a board task ending calm -> `standDown`; their first receiver
+  says "Copy." (bark only). `command` calls (S6) raise the alarm through `raiseAlarm` only with `RADIO_ALARM` (false).
+  One net: Sector Ops loads one section at a time, so the live section is the whole cast (cleared by `despawnAll` /
+  `resetMemory` via `clear`); other maps are one section (A6). Ticked at 10 Hz from `update` with the board's
+  `GuardView` and a reaction lane (no allocation). `EnemyManager.radioLeft(e)` reads a pending call (e2e).
+  Parked modes (`coordinated = false`): the old window: a sighting shouted within `ALERT.shout` 8 m (0.3-0.6 s) and
+  radioed after `ALERT.callIn` (`Enemy.radioT`, bark `callIn`) to everyone within `RADIO` 22 m (0.4 + 0.03 d + random
+  0.3 s); gunfire / a hit / a flashbang (`loudAlert`) calls in at once. `PlayerRef.spotted`: set when a guard in combat
+  sees that player, cleared when nobody is in combat.
+- Noise investigations (guard-ai S3, S2 check polish 2): a guard the board sent to a plain noise or a lure who finds
+  nothing goes back to unaware (`AlertInput.calmEnd`); gunfire keeps the 45 s cooldown, and so does a guard who has
+  fought.
 - Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s, peek cycles (4.2 s, up to 5); out of sight
   an `advancing` bound to cover closer to the believed position (`pickAdvance`), a 2.5 s hold, then the next; the last
   stretch is walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet
@@ -76,7 +96,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   crouched approach.
 - `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): shared `lkp` (sightings by alerted
   enemies, located gunfire), a flow field to the LKP (never the real position), arriving with nothing there starts the
-  search; `callAlert` radios within `RADIO` 22 m (a radioed alert does not relay); `sightT`, `hunting`.
+  search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does not relay; the live modes use
+  the radio net above); `sightT`, `hunting`.
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (only for enemies `inSight` or within `ARC_NEAR` 2.5 m),
   `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette) shown at the LKP while hunted unseen
   (`GameState.updateStealthHud`).
