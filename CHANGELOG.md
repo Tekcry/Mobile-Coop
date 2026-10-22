@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.58.3 - Decisions G229-G269 folded from the roadmap (2026-10-22, PR #146)
+- docs/DECISIONS.md: roadmap decisions of 2026-10-21 16:10 to 2026-10-22 ~21:50 folded in as G229-G269.
+
+## 4.58.2 - GPU test waits for the tuner panel reads (2026-10-22, PR #143)
+- Tests: e2e-studio's reads of the tuner panel's effect mode and Keys readout wait 300 ms of wall time first (the
+  panel refreshes them every 250 / 100 ms; a few frames on a hardware GPU pass in ~50 ms), so the suite no longer
+  fails at a shifting spot (:755, :854) on the GPU. Software GL is unchanged apart from the waits (~3.3 s total).
+
+## 4.58.1 - GPU test fixes: studio keyed walk and lightbake waits (2026-10-22, PR #140)
+- Tests: e2e-studio and e2e-lightbake pass on a hardware GPU (the laptop's default for logic e2e, `E2E_GPU=1`). Both
+  waited a fixed number of rendered frames, which a GPU finishes in ~0.1 s: the studio's keyed-walk check now waits
+  for the tuner panel's keyed mode (re-read every 250 ms of wall time), the lamp-plugin check waits (5 s cap) until
+  every PBR material has the plugin. Software GL is unchanged.
+
 ## 4.58.0 - Train 7: Anim Studio co-op pairs, animation audit scripts (2026-10-22, PR #137; #132, #134)
 
 ### anim-natural N0: the full animation audit (docs and scripts only)
