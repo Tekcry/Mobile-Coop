@@ -1541,8 +1541,11 @@ export class FootPlanner {
     // (anim-rework S2) at a walk (no flight phase) never with the other foot in the air: a turn from a standstill lifted both
     // feet at once (a hop)
     // (mt2-pop1) clip feet on hand: or the other foot nearly down and this leg already at its reach (CLIP_TOE_OFF_SWING), a
-    // short double flight instead of the pelvis sinking
-    const flight = o.contact || hyp2(i.velX, i.velZ) > 2 || (!!i.clipFeet && o.swing >= CLIP_TOE_OFF_SWING && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) > CLIP_TOE_OFF_NEED);
+    // short double flight instead of the pelvis sinking. (mt2-integ) Not in a start's first START_TOE_OFF s: there pop3's
+    // left-behind toe-off (clipFoot) waits for the other foot to land; lifted mid-air instead, the clock's takeover of
+    // that early swing froze it a frame and its narrow landing put the next clip swing 4.3 cm inside the uncross gap
+    // (mocapSwitch "starts and stops" joint jerk 14.6 cm/frame2 vs 9.0 off)
+    const flight = o.contact || hyp2(i.velX, i.velZ) > 2 || (!!i.clipFeet && this.moveT >= START_TOE_OFF && o.swing >= CLIP_TOE_OFF_SWING && ((side < 0 ? i.reachNeedL : i.reachNeedR) ?? 0) > CLIP_TOE_OFF_NEED);
     if (i.moving && flight && (turnLeft || startOff || (dl > i.reach * 0.92 * STEP[SP.replant]! && (hyp2(i.velX, i.velZ) > 2 || i.quickStop > 0)))) {
       // accelerating (a sprint or a walk start): the trailing foot toes off early instead of sliding or pulling the
       // pelvis down; the clock's contact window then lands it ahead
