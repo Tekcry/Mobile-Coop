@@ -2,7 +2,7 @@
 
 ## Now (2026-10-23 ~01:55)
 - Branch feature/sector-redesign = sector-fixes-r2 5bfbf85d (nav closures + bolt reach cap) + master 4.63.1 (d21f4eda).
-- Research agents running, each writing one file in docs/sector-redesign/research/: ENGINE.md (engine audit,
+- Research: CT-LEVELS.md (014f611d) and CONCEPT.md (b6c78d01: Saltmarsh Park, 5 sections 8/12/16/20/24 guards) landed; ENGINE.md (engine audit, gaps) still running; SPEC + PLAN writer started ~02:35 (reads ENGINE when it lands). Was: (engine audit,
   gaps), CT-LEVELS.md (CT co-op level lessons, ten rules).
 - feature/camera-range (worktree C:/NightShift/Mobile-Coop-camera-range, from master): measure every camera's reach
   vs its zone (docs/camera-range/MEASURE.md), one engine cut, own small PR. Off ctDevices.ts / securityRoom.ts.
