@@ -9,7 +9,7 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
   general variant: only kind 'flashlight' beams; tests/volLights.test.ts; changes/feature-vol-cone-fix.md; NOTE.md table
   pending). Laptop main slot (Character Build, 4189) shoots both + --sheet + e2e smoke e2e-darkness e2e-desktop:3 on
   db0ffadf, pushes the shots on top. Fresh checker PASS (exact equivalence for lamps / torches; no other beam light
-  exists); its wh-* row fix + torch-cone assert = 7414d280; laptop reshoots the 2 wh-* views (both sets) at 7414d280. Next: review the pairs (LED-only fallback
+  exists); its wh-* row fix + torch-cone assert = 7414d280; laptop reshoots wh-* + marlow-s7-hall (both sets) at e6e70b48 (s7 row fix), task ns-chain-1022ad. Next: review the pairs (LED-only fallback
   if Marlow / floods change: volBeam one-liner in volLights.ts), fill NOTE.md, PR, message the orchestrator. Master is
   now 4.60.0 (d01300d3); keep the shots on the 2f1961ad base, merge master only before the PR if needed.
 - mocap-sheets: real-clip sheets DONE and sent to the orchestrator + CT Core: feature/mocap-sheets-real 04598e9a
