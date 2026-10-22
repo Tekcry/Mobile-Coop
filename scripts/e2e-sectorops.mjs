@@ -1691,6 +1691,18 @@ if (want(6)) {
     // (b) the stealth walk C1 far door -> post room -> SW stair -> L1 north open plan -> facilities office (teleported point by point, the legs are the nav check above), then the 3 s hack at the BMS terminal
     const r2 = await G(() => window.__app.current.world.map.sectors[1].routes[0].pts);
     const objI = await G(() => window.__app.current.world.map.sectors[1].routes[0].obj);
+    // #7, the facilities officer, spawns at (-6.5, 2.9) on L1: the very spot the hacker stands on, and the guards are frozen
+    // here. A player hacks while he is at his patrol's other stop (-2.5, 4.2; waits 28 / 6), so put him there; left on the
+    // spot he is a takedown offer ("Grab character", row 1 of the context menu above the hack) and the hold grabs him.
+    const op7 = await G(() => {
+      const g = window.__app.current;
+      const e = g.enemyMgr.enemies.find((q) => q.alive && q.pos.y > 2 && Math.hypot(q.pos.x + 6.5, q.pos.z - 2.9) < 0.6);
+      if (!e) return false;
+      e.pos.set(-2.5, e.pos.y, 4.2);
+      e.yaw = 0;
+      return true;
+    });
+    assert(op7, 'S2 #7 (the facilities officer) stands at the BMS desk on load');
     for (let i = 0; i <= objI; i++) {
       await tp(G, r2[i][0], r2[i][2] ?? 0, r2[i][1], 0);
       await sim(0.1);
@@ -1698,6 +1710,8 @@ if (want(6)) {
     await sim(0.3);
     const near2 = await G(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 's2-obj'); return it ? Math.hypot(it.pos.x - g.player.position.x, it.pos.z - g.player.position.z) : -1; });
     assert(near2 > 0 && near2 < 1.8, `the BMS terminal is inside the interact reach from the desk's south side (${near2.toFixed(2)} m)`);
+    const row1 = await G(() => { const g = window.__app.current; return { offer: !!g.takedown.offer, rows: g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label) }; });
+    assert(!row1.offer && row1.rows[0] === 'Hack', `the hack is row 1 of the context menu, no takedown on offer (${JSON.stringify(row1)})`);
     await G(() => window.__pad.set(0, 1));
     await sim(3.4);
     await G(() => window.__pad.set(0, 0));
