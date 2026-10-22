@@ -14,6 +14,10 @@
   Opus E9-crate planner -> briefs/E9-CRATE.md (commits only that file). On resume: check each file / branch; rerun if
   missing.
 
+- Swap rule (Michael 10:55, via the orchestrator; CLAUDE.md "Account swap" on feature/menu): at 95% no new agents,
+  finish those in flight, queue long runs; save by 98%; small work to 100%; Michael swaps at 100%. The orchestrator
+  messages at 95%.
+
 ## Now at ~10:20 (superseded)
 - feature/sector-redesign @ 88f5c33a+ (pushed) = the 09:50 state + part-6 fixes + campusOps listed + ammo removal + S4 / S5
   briefs. Commits since 22e755bf: 7c2087ee part 6 fix (S3 SW stair half-landing collision lip campusS3.ts:350, navBuild
