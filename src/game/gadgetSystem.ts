@@ -85,6 +85,10 @@ export class GadgetSystem {
   get wheelOpen(): boolean {
     return this.sel.open;
   }
+  /** (sector-fixes W) The pad is the input mode: its right stick's position is the wheel cursor. */
+  private get padWheel(): boolean {
+    return this.g.app.input.mode === 'gamepad';
+  }
   get wheelSlot(): number {
     return this.sel.seg;
   }
@@ -177,7 +181,13 @@ export class GadgetSystem {
     // the wheel: the button held opens it (release picks); a tap of it switches weapon
     if (inp.pressed('gadgetWheel')) this.lbOpened = false;
     if (this.wheelOpen) {
+      // (sector-fixes W, Michael item 8) the pad's right stick places the cursor absolutely: let go and it is back on the
+      // vision slot (no pick is held); the mouse moves it by deltas (`look`), its centre also the vision slot
       this.refreshRing();
+      if (this.padWheel) {
+        this.sel.place(inp.stick.x, inp.stick.y);
+        this.sel.settle(this.ring.length, dt);
+      } else this.sel.update(this.ring.length);
       // (nv-pass slice 3, Michael) A / E on the vision slot steps the mode like a carousel; the press is the wheel's
       // (cleared here so nothing after this step reads it: the context menu stands aside while the wheel is open)
       if (inp.pressed('interact') && this.sel.cycle(this.ring)) inp.buttons.interact.pressed = false;
@@ -208,7 +218,8 @@ export class GadgetSystem {
   /** Look delta for the wheel cursor / remote view (radians, from the render frame). */
   look(dx: number, dy: number): void {
     if (this.wheelOpen) {
-      if (dx === 0 && dy === 0) return;
+      // (sector-fixes W) under the pad the stick's position drives the cursor (`fixedUpdate`), not its look rate
+      if ((dx === 0 && dy === 0) || this.padWheel) return;
       this.sel.look(dx, dy);
       this.sel.update(this.ring.length);
       return;
@@ -232,7 +243,6 @@ export class GadgetSystem {
     const kit: WheelGadget[] = [];
     for (const id of GADGET_IDS) kit.push({ id, name: GADGETS[id].name, count: w.gadgets.counts[id] });
     this.ring = buildWheel(guns, kit);
-    this.sel.update(this.ring.length);
   }
 
   openWheel(): void {

@@ -1,6 +1,6 @@
 // (F1a, G181) the selection wheel: segment from the stick angle, the vision stack, the cursor and the pick
 import { describe, expect, it } from 'vitest';
-import { buildWheel, nextVision, segmentAt, SelectionWheel, wheelLabel, WHEEL_DEAD } from '../src/game/selectionWheel';
+import { buildWheel, nextVision, segmentAt, SelectionWheel, wheelLabel, wheelSegment, WHEEL_DEAD, WHEEL_HOME, WHEEL_LETGO_S } from '../src/game/selectionWheel';
 import { VisionState } from '../src/game/vision';
 
 const guns = [
@@ -42,12 +42,12 @@ describe('selection wheel (F1a)', () => {
     const w = new SelectionWheel();
     w.begin('thermal');
     expect(w.mode).toBe('thermal');
-    w.update(ring.length);
-    expect(w.cycle(ring)).toBe(false);
-    w.place(0, 0.45);
+    // (sector-fixes W) the vision slot is lit on open: A steps the mode with no stick
     w.update(ring.length);
     expect(w.cycle(ring)).toBe(true);
     expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'electro' });
+    w.place(0, 0.45);
+    w.update(ring.length);
     expect(w.cycle(ring)).toBe(true);
     expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
     // the cursor length no longer picks: out to the rim keeps the carousel's mode
@@ -63,13 +63,15 @@ describe('selection wheel (F1a)', () => {
     expect(w.mode).toBe('night');
   });
 
-  it('cursor and pick: the vision slot, a gun, a gadget, nothing in the dead zone', () => {
+  it('cursor and pick: the vision slot, a gun, a gadget; the dead zone is the vision slot (sector-fixes W)', () => {
     const ring = buildWheel(guns, kit);
     const w = new SelectionWheel();
     w.begin();
     expect(w.open).toBe(true);
+    expect(w.seg).toBe(WHEEL_HOME);
     w.update(ring.length);
-    expect(w.pick(ring)).toBeNull();
+    expect(w.seg).toBe(0);
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
     w.place(0, 0.45);
     w.update(ring.length);
     expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
@@ -88,6 +90,80 @@ describe('selection wheel (F1a)', () => {
     expect(w.pick(ring)).toEqual({ kind: 'gadget', id: 'gas' });
     w.end();
     expect(w.open).toBe(false);
+  });
+
+  it('no pick is held (sector-fixes W, item 8): the stick let go or the mouse back in the centre lights the vision slot', () => {
+    const ring = buildWheel(guns, kit);
+    expect(wheelSegment(0, 0, ring.length)).toBe(WHEEL_HOME);
+    expect(wheelSegment(0.2, -0.2, ring.length)).toBe(WHEEL_HOME);
+    expect(wheelSegment(1, 0, ring.length)).toBe(segmentAt(1, 0, ring.length));
+    expect(wheelSegment(0, 0, 0)).toBe(-1);
+    const w = new SelectionWheel();
+    w.begin('thermal');
+    // pad: the stick on the rifle (segment 2 of 5), then let go: back on vision, the release picks the vision mode
+    const a = (2 / 5) * Math.PI * 2;
+    w.place(Math.sin(a), Math.cos(a));
+    w.update(ring.length);
+    expect(w.pick(ring)).toEqual({ kind: 'gun', index: 1 });
+    w.place(0, 0);
+    w.update(ring.length);
+    expect(w.seg).toBe(WHEEL_HOME);
+    expect(w.cycle(ring)).toBe(true);
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'electro' });
+    // mouse: deltas out to the frag (segment 3), then back to the centre: vision again
+    const b = (3 / 5) * Math.PI * 2;
+    w.look(Math.sin(b) * 0.12, Math.cos(b) * 0.12);
+    w.update(ring.length);
+    expect(w.pick(ring)).toEqual({ kind: 'gadget', id: 'frag' });
+    w.look(-Math.sin(b) * 0.12, -Math.cos(b) * 0.12);
+    w.update(ring.length);
+    expect(w.seg).toBe(WHEEL_HOME);
+    // a fresh open never keeps the last highlight
+    w.place(Math.sin(a), Math.cos(a));
+    w.update(ring.length);
+    w.end();
+    w.begin('night');
+    expect(w.seg).toBe(WHEEL_HOME);
+  });
+
+  it('pad let-go grace (sector-fixes W): the slot stays lit a moment, then vision; A with the stick centred skips it', () => {
+    const ring = buildWheel(guns, kit);
+    const n = ring.length;
+    const dt = 1 / 60;
+    const a = (2 / 5) * Math.PI * 2;
+    const w = new SelectionWheel();
+    w.begin('night');
+    w.place(0, 0);
+    w.settle(n, dt);
+    expect(w.seg).toBe(WHEEL_HOME);
+    w.place(Math.sin(a), Math.cos(a));
+    w.settle(n, dt);
+    expect(w.seg).toBe(2);
+    // stick and LB let go together: the release still picks the rifle
+    w.place(0, 0);
+    w.settle(n, dt);
+    expect(w.pick(ring)).toEqual({ kind: 'gun', index: 1 });
+    // held centred past the grace: back on vision
+    for (let t = dt; t < WHEEL_LETGO_S + dt; t += dt) w.settle(n, dt);
+    expect(w.seg).toBe(WHEEL_HOME);
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'night' });
+    // A inside the grace: the centred stick is the vision slot, the carousel steps
+    w.place(Math.sin(a), Math.cos(a));
+    w.settle(n, dt);
+    w.place(0, 0);
+    w.settle(n, dt);
+    expect(w.seg).toBe(2);
+    expect(w.cycle(ring)).toBe(true);
+    expect(w.seg).toBe(WHEEL_HOME);
+    expect(w.pick(ring)).toEqual({ kind: 'vision', mode: 'thermal' });
+    // A with the stick out on a gun does nothing
+    w.place(Math.sin(a), Math.cos(a));
+    w.settle(n, dt);
+    expect(w.cycle(ring)).toBe(false);
+    // an empty ring lights nothing
+    w.place(0, 0);
+    for (let t = 0; t < 1; t += dt) w.settle(0, dt);
+    expect(w.seg).toBe(-1);
   });
 
   it('look deltas move the cursor and clamp it to the rim', () => {

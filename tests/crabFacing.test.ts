@@ -36,7 +36,7 @@ describe('crab facing frame: the synthetic hips', () => {
 });
 
 /** The crab limits a row reads (the fields this test asserts, plus the ones e2e-anim spreads in). */
-interface Ranges { readonly kneeSep: { readonly min: number; readonly max: number }; readonly trackHalf: number; readonly kneeBow: number }
+interface Ranges { readonly kneeSep: { readonly min: number; readonly max: number }; readonly trackHalf: number; readonly kneeBow: number; readonly elbowWing: number }
 /**
  * (A12, master 4.54.1 merge) e2e-anim's Body tune tables (master anim-bake-targets: Michael's 2026-10-22 Body base puts
  * the feet near one line, which widens some rows' knee-out), read from scripts/e2e-anim.mjs itself so this test and
@@ -92,8 +92,11 @@ const ROWS: Row[] = [
 /** Rows whose track is not asserted (CRAB_DRAWN_CHECKS.aimFwd: report-only). */
 const TRACK_REPORT_ONLY = new Set(['aim fwd 1.4', 'run']);
 const REPORT_ONLY = new Set(['run']);
+/** (e2e-anim low ready jog elbows) Rows whose elbow wing is asserted: e2e-anim's CRAB_DRAWN_CHECKS 'elbows' (readyWalk /
+ *  readyJog, the rifle) at their limit; the others report only. */
+const WING_GATED = new Set(['low ready walk', 'low ready jog']);
 
-interface Out { latCm: number; trackF: [number, number]; bowF: number; track: [number, number]; bow: number; trackPass: boolean; bowPass: boolean }
+interface Out { latCm: number; trackF: [number, number]; bowF: number; track: [number, number]; bow: number; trackPass: boolean; bowPass: boolean; wing: number; wingPass: boolean }
 
 async function measure(): Promise<Record<string, Out>> {
   const DT = 1 / 60;
@@ -125,7 +128,7 @@ async function measure(): Promise<Record<string, Out>> {
       // local (lx, lz) -> world: x = lx cos + lz sin, z = -lx sin + lz cos (Babylon rotation.y)
       const wx = lx * Math.cos(yaw) + lz * Math.sin(yaw);
       const wz = -lx * Math.sin(yaw) + lz * Math.cos(yaw);
-      const J = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'] as const;
+      const J = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR'] as const;
       const rec: Record<string, number[]> = Object.fromEntries(J.map((j) => [j, []]));
       const cL: number[] = [];
       const cR: number[] = [];
@@ -164,8 +167,10 @@ async function measure(): Promise<Record<string, Out>> {
       const bowF = M.kneeBow(f.hipL, f.hipR, rec.kneeL!, rec.kneeR!, rec.ankleL!, rec.ankleR!, C.kneeBow);
       const track = M.footTrack(rec.hipL!, rec.hipR!, rec.ankleL!, rec.ankleR!, C.trackHalf, anyPlant ? cL : undefined, anyPlant ? cR : undefined);
       const bow = M.kneeBow(rec.hipL!, rec.hipR!, rec.kneeL!, rec.kneeR!, rec.ankleL!, rec.ankleR!, C.kneeBow);
+      // (e2e-anim crabRow) the elbows outside the shoulders, on the shoulder line
+      const wing = M.elbowWing(rec.shoulderL!, rec.shoulderR!, rec.elbowL!, rec.elbowR!, C.elbowWing);
       const cm = (x: number) => +(x * 100).toFixed(1);
-      res[sc.id] = { latCm: cm(latHi - latLo), trackF: [cm(trackF.min), cm(trackF.max)], bowF: cm(bowF.max), track: [cm(track.min), cm(track.max)], bow: cm(bow.max), trackPass: trackF.pass, bowPass: bowF.pass };
+      res[sc.id] = { latCm: cm(latHi - latLo), trackF: [cm(trackF.min), cm(trackF.max)], bowF: cm(bowF.max), track: [cm(track.min), cm(track.max)], bow: cm(bow.max), trackPass: trackF.pass, bowPass: bowF.pass, wing: +(wing.max * 100).toFixed(2), wingPass: wing.pass };
       op.figure.dispose();
       rig.dispose();
     }
@@ -184,13 +189,14 @@ describe('crab facing frame: the gated rows on a headless Wren rig', () => {
     if (process.env.CRABF_PRINT) {
       for (const sc of ROWS) {
         const x = r[sc.id]!;
-        console.info(`${sc.id.padEnd(20)} lateral ${x.latCm} cm, facing track ${x.trackF.join(' / ')} cm (<= ${sc.ranges.trackHalf * 100}), knee-out ${x.bowF} cm (<= ${sc.ranges.kneeBow * 100}) | pelvis frame track ${x.track.join(' / ')}, knee-out ${x.bow}`);
+        console.info(`${sc.id.padEnd(20)} lateral ${x.latCm} cm, facing track ${x.trackF.join(' / ')} cm (<= ${sc.ranges.trackHalf * 100}), knee-out ${x.bowF} cm (<= ${sc.ranges.kneeBow * 100}) | pelvis frame track ${x.track.join(' / ')}, knee-out ${x.bow} | elbows out ${x.wing} cm (<= ${+(sc.ranges.elbowWing * 100).toFixed(1)}${WING_GATED.has(sc.id) ? '' : ', report-only'})`);
       }
     }
     for (const sc of ROWS) {
       const x = r[sc.id]!;
       if (!TRACK_REPORT_ONLY.has(sc.id)) expect(x.trackPass, `${sc.id}: facing track ${x.trackF.join(' / ')} cm`).toBe(true);
       if (!REPORT_ONLY.has(sc.id)) expect(x.bowPass, `${sc.id}: facing knee-out ${x.bowF} cm`).toBe(true);
+      if (WING_GATED.has(sc.id)) expect(x.wingPass, `${sc.id}: elbows ${x.wing} cm outside the shoulder`).toBe(true);
     }
     // the frame follows the root's yaw: a walk facing 0.7 rad reads as the walk facing 0
     expect(Math.abs(r['walk yaw 0.7']!.trackF[1] - r.walk!.trackF[1])).toBeLessThanOrEqual(0.2);

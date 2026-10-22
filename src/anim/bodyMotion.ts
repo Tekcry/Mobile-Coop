@@ -231,7 +231,9 @@ export function bodyMotionStep(i: BodyMotionIn, out: BodyMotion): BodyMotion {
   const pc = Math.cos(TAU * i.phase);
   const ps = Math.sin(TAU * i.phase);
   out.hipYaw = (hc * pc + hs * ps) * DEG * g;
-  out.chestYaw = (cc * pc + cs * ps) * DEG * g;
+  // (anim-natural-n2, e2e-anim low ready jog elbows) the gun out keeps the chest on the gun (PASS2 item 7: the low-ready
+  // arms locked to the gun): the drawn share takes the rows' chest swing out, the pelvis still counter-rotates under it
+  out.chestYaw = (cc * pc + cs * ps) * DEG * g * (1 - i.drawn);
   out.pelX = (sc * pc + ss * ps) * 0.01 * g;
   out.headFollow = follow * g;
   out.headPitch = nod !== 0 ? nod * Math.cos(2 * TAU * (i.phase - NOD_TIME)) * DEG * g : 0;

@@ -55,6 +55,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Marlow Yard variety: each cell reads as what it is (sentry desk, monitor wall, kill-house plywood, scanner frames
   and racks, training-block stair, the exit coffer); nothing new to climb or bump into but the S6 racks; the guard grab
   at station 1 and every door work as before.
+- [ ] Marlow Yard station 3 security room (co-op): the first runner crosses under the partner's jam, opens the door
+  off the far lobby; the console refuses while the duty guard stands; take him down, use it: the camera goes dark and
+  the second player walks the hallway unseen on both screens. Restart the bay: the camera and the guard are back. The
+  second jam still works if you skip the room.
 - [ ] Loadout: primary (Heron Carbine) and sidearm (Hush 9 SD), attachments, gadget, presets; nothing to buy.
 - [ ] Settings > Controller: vibration on / off and strength. Settings > Controls is the only Controls place (Pause has
   no Controls item): Remap controls rebinds a verb (A), clears a slot (Y), a conflict shows a warning, reset restores
@@ -92,6 +96,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   clear, a soft dark band only at the edges and corners).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
+- [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode
+  cycles. Push the stick onto a gun, then let go of the stick: the vision slot lights again (nothing stays picked). Push
+  onto a gun and let go of the stick and LB together: the gun is picked. Keys: hold Tab, E cycles; move the mouse out to
+  a slot and back to the centre, the vision slot lights.
 - [ ] The rifle hangs flat on Wren's back (stud on the back plate), the pistol sits in her thigh holster; aiming, her
   fingers wrap the grips, the support hand is under the launcher (rifle) or cups the trigger hand (pistol, arms out).
 - [ ] Draw and holster: the current gun goes away (rifle over the right shoulder onto the back stud, pistol into the thigh
