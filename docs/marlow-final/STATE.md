@@ -43,6 +43,11 @@ All maps (`docs/lighting-review/PROPOSAL.md`; undo per item in its section 6):
 | LR11 | Bible 7: light plan per space names what cuts each circuit and for how long | Remove the line |
 | LR12 | LD 12.1 engine fact: light sync is Course mode only, named groups only | Remove the fact |
 
+Open for you (found while building; built as below, each undoable):
+| Item | Built as | Options |
+| --- | --- | --- |
+| A5 solo laser crossing (slices/S5.md) | The beams stay off for the laser panel's 1.5 s reboot after a jam, so one player can jam the panel, let go and walk through: the throw is then optional. Accepted for the prototype (walking the beams stays the loud route) | (a) beams back on the moment the jam is released (`src/game/laserPanels.ts`; changes Sector Ops panels and A8's curtain too), (b) move A5's panel to the inner wall's far face (drops the jam route) |
+
 Rejected by you (~01:25): anything that assumes a dark camera is blind (G240 stands, cameras keep IR). Also your
 ~01:25 rule: every guard armed (SPEC rule 9).
 Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN section 6; slice reports S0-*.md.
@@ -67,7 +72,7 @@ Other assumed decisions tonight: BRIEF A1-A8; PROPS PA1-PA6; LIGHTING-PLAN secti
   routes); Haiku for chores; engine pieces (course code, devices, lighting modules) stay Opus; a failed Sonnet slice
   gets its fix round from Opus; at 97% start no new agent, save (WIP pushed, STATE current) and idle; the
   orchestrator's cron resumes this session after each reset.
-- 08:40 SAVED for the account swap (window ~79%+). 08:50: A7 greybox COMPLETE after the save (slices/S7.md, 40 tests, unchecked by Opus). WIP commit "WIP A4-A7 greybox (agents mid-work, UNCHECKED)" holds
+- 08:40 SAVED for the account swap (window ~79%+). After the save: A7 (slices/S7.md, 40 tests) and A5 (S5.md, 44 tests) greybox COMPLETE, not yet Opus-checked; A5 solo laser crossing in MORNING-REVIEW. WIP commit "WIP A4-A7 greybox (agents mid-work, UNCHECKED)" holds
   a4GoodsShed / a5Substation / a6PumpHouse / a7DataHall .ts + tests + light.json as the agents left them; A8 had not
   written yet. On resume: for each of A4-A8 read the set file and its test; if the agent's report (slices/S4-S8.md) is
   missing, rerun that set's builder with the SET BRIEF below (A4 Sonnet ok; A5-A8 Opus), telling it to continue from
