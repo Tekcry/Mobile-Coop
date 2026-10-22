@@ -5,7 +5,7 @@
 // pair plates, hold consoles, the annex's grid lever), then both stand on the airlock pad and the course moves to the
 // next bay. (B3, marlow-jammer) station 3 is the camera hallway (the jam handoff, the 5 s cap, the reboot, a jammed lamp), station 4 has a real laser (sector-fixes P: jammed at its power panel); (sector-fixes S) station 3 ends in its security room (the console refuses while the duty guard is up; with him down it switches the camera off on both pages). At the end the course refuses with ONE player in the exit zone and completes only when BOTH are in it (G138).
 import { launch, openPage, assert } from './e2e-lib.mjs';
-import { until, waitSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog } from './e2e-net-lib.mjs';
+import { until, waitSim, waitHostSim, setSimPages, NET_VIEWPORT, LOAD_MS, watchTeam, teamLog } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -285,7 +285,11 @@ async function station3(x0) {
   // frozen: the sweep stands still on both pages; the LED flashes (jam phase 1), the buzz plays at it on both pages
   const yA = dj.cams[0].yaw;
   const yB = (await dev(B)).cams[0].yaw;
-  await sleep(800);
+  // (load-audit) timed on the host's clock, inside the jam's 5 s cap (the client clock runs x0.2-0.3 under load)
+  const left3 = (await dev(A)).left[0];
+  const win3 = Math.min(800, left3 * 1000 - 300);
+  assert(win3 >= 200, `station 3: the freeze check runs inside the jam (${left3} s of it left)`);
+  await waitHostSim(A, win3);
   const [fA, fB] = [await dev(A), await dev(B)];
   assert(fA.cams[0].jam === 1 && Math.abs(fA.cams[0].yaw - yA) < 1e-6 && Math.abs(fB.cams[0].yaw - yB) < 1e-6 && fB.cams[0].frozen, `station 3: the jammed camera stops sweeping on both pages (${yA} -> ${fA.cams[0].yaw}; client ${yB} -> ${fB.cams[0].yaw})`);
   const buzz = (P) => P.evaluate(() => window.__ctdev.nearestJammed(0, 0, 0, { x: 0, y: 0, z: 0 }));
@@ -343,8 +347,10 @@ async function station3(x0) {
   assert(!(await lit(A)) && !(await lit(B)), 'station 3: the jammed lamp is off in the light registry on both pages (after its flicker)');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().jam[0] === '', null, 8000, 'station 3: the host lets go of the lamp');
-  await sleep(2000);
-  assert(!(await lit(A)) && !(await lit(B)), 'station 3: the lamp stays off after the release');
+  // (load-audit) 2 s of the HOST's clock (JAM_LIGHT.offHold 4 s runs there), the host's lamp latched every poll
+  let litSeen = false;
+  await waitHostSim(A, 2000, async () => { if (await lit(A)) litSeen = true; });
+  assert(!litSeen && !(await lit(A)) && !(await lit(B)), `station 3: the lamp stays off after the release (lit seen on the host: ${litSeen})`);
   await until(A, (i) => window.__app.current.world.level.lights.get(i).on && window.__ctdev.debug().devs.length === 0, reg, 10000, 'station 3: the lamp flickers back on after its 4 s');
   await until(B, (i) => window.__app.current.world.level.lights.get(i).on, reg, 10000, 'station 3: the client page sees the lamp on again');
   await holster(A);
@@ -460,7 +466,14 @@ async function laserTest(x0) {
   const hj = (await dev(A)).hits;
   await moveClient(x0 + 9 - 0.2, 7);
   // (marlow-jammer) inside the 5 s jam (it then reboots 1.5 s): 2 s on the beam line, no break (sector-fixes C: no alarm, no cost)
-  await sleep(2000);
+  // (load-audit) the window is timed on the HOST's clock and kept inside what is left of the jam (the client clock runs
+  // x0.2-0.3 under load, so a client-timed 2 s let the host's jam and reboot end); the band latched off every poll
+  const left4 = (await dev(A)).left[0];
+  const win4 = Math.min(2000, left4 * 1000 - 300);
+  assert(win4 >= 500, `station 4: the client is on the beam line inside the jam (${left4} s of it left)`);
+  let bandOn = false;
+  await waitHostSim(A, win4, async () => { if ((await dev(A)).lasers[0].on) bandOn = true; });
+  assert(!bandOn, 'station 4: the band stays off over the check window (host)');
   assert((await hp()) === hp2 && (await dev(A)).hits === hj, 'station 4: no break while the laser is jammed');
   await lt(A, false);
   await until(A, () => window.__ctdev.debug().lasers[0].on === true, null, 8000, 'station 4: released, the laser is on again');

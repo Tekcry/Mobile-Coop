@@ -77,6 +77,25 @@ export async function waitSim(ms) {
   }
 }
 
+/**
+ * (load-audit) Let `ms` of ONE page's game clock pass (the host's, for windows the host times: a jam, a hold, a lamp's
+ * off time). `waitSim` counts the slowest clock page, and under load the client runs at x0.2-0.3 while the pumped host
+ * runs near real time, so a client-timed wait lets 3-5x more host time pass. `sample()` (optional) runs every poll,
+ * to latch a state over the window. Wall time when the page is in no match; the same wall cap.
+ */
+export async function waitHostSim(P, ms, sample) {
+  const wall0 = Date.now();
+  const t0 = await simNow(P);
+  const cap = Math.max(ms * SIM_WALL_CAP, 60000);
+  for (;;) {
+    if (sample) await sample();
+    const t = await simNow(P);
+    const wall = Date.now() - wall0;
+    if ((t === null || t0 === null ? wall : (t - t0) * 1000) >= ms || wall > cap) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
 /** (test-speed) A match load (map build, light bake, both pages joining) runs outside the sim clock, in wall time: on a
  * loaded machine two pages build at 2-3 frames/s and took over 50 s (e2e-coop, 2026-10-20). The load waits use this
  * (ms; `E2E_LOAD_MS`); a hang still ends there. */
