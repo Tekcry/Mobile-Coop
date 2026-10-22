@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.66.0 - Train 17: Guards hear by range: one investigator per noise (guard-ai S1) (2026-10-23, PR #181; #179)
+- S1 hearing: not every guard hears every noise any more. A wall cuts a noise's reach to 0.45 and noisy machinery near a
+  guard masks it (map data, none placed yet). Of the guards a noise reaches, only the nearest one close enough walks over
+  to check; the others turn to look and stay at their posts. Loud gunfire puts guards in combat only close in (about
+  7 m in the open); farther, or behind walls, one guard is sent to look and the rest turn, and a shot behind walls far
+  off reaches nobody. Hunter and Mission (parked) keep the old everyone-hears rule.
+
 ## 4.65.0 - Train 16: Guards see poorly above, deploy reload waits for the menu, load-robust e2e, decisions G276-G281 (2026-10-23, PR #178; #168, #169, #170, #171, #172, #173, #174, #175, #176)
 
 ### Decisions fold G276-G281
