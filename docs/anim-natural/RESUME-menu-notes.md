@@ -29,7 +29,7 @@ orchestrator routes AUDIT.md findings 1, 3-7 and 9 to CT Core.
   flinch 79 (the helper called the wrong method; fixed for pass 2). Proving sheets are back-lit: use the studio stage
   light where possible. Re-run e2e-anim / anim-audit for the metrics.
 - **N3 weapons** (draw, holster, swap, low ready -> aim): branch `feature/anim-n3`, worktree
-  C:/NightShift/Mobile-Coop-anim-n3 (a worktree of the C:/NightShift/Mobile-Coop clone), head c4487232, UNVERIFIED WIP;
+  C:/NightShift/Mobile-Coop-anim-n3 (a worktree of the C:/NightShift/Mobile-Coop clone), head 21235b53 (2026-10-22 ~12:45: implemented, checker PASS WITH FIXES, paused for the 5-hour window; resume = WIP.md "Paused" section: one fix round, #109 merge with per-gun holster rows, area e2e, GPU sheets, PR; times in docs/anim-natural/n3/DRAW-TIMES.md); history below:
   read docs/anim-natural/n3/WIP.md there. Built: src/anim/drawMotion.ts, src/weapons/drawTune.ts, edits in
   src/weapons/{drawState, playerWeapons, weaponModel, backDiag}.ts, src/player/{characterRig, weaponStance}.ts, and
   (approved, minimal and additive) src/anim/animGraph.ts (the draw hand-off) and src/anim/tuneBakeTable.ts (the draw
