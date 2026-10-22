@@ -188,6 +188,8 @@ export interface PlannerInput {
   /** (mt2-pop1) The rig's reach need per planted leg last frame (m: how far the pelvis drops for it; read with clip feet only). */
   reachNeedL?: number;
   reachNeedR?: number;
+  /** (mocap-trial-2, crouchpop) The mocap switch (LOCO.mocap): a clip-planted foot's hand-off rules (clipHeld, beginSwing). */
+  mocap?: boolean;
 }
 
 /**
@@ -613,9 +615,11 @@ export class FootPlanner {
         // flat at the rig's pitch cap, the ankle-toe bone 35-41 deg in a frame at a stop); a planner swing in the air
         // keeps its ease running. Its place eases over too (swingTo: the gap to the planner's swing fades out over
         // OFF_FADE; it dropped the clip's 13 cm lift or jumped 21 cm back in a frame), with the planner's lift.
-        // A quick stop's set-down already starts from the foot, its pitch too (setDown, swingTo's quick ease); moving
-        // (clip feet gone: a part mocap share) the clock's swing takes it as before (eased there the walk 2.0 x 2.5 turn
-        // sweep's joint jerk rose 14.8 -> 29.7 cm/frame2)
+        // A quick stop's set-down already starts from the foot, its pitch too (setDown, swingTo's quick ease).
+        // (mocap-trial-2, crouchpop) Moving too (clip feet gone as a crouch or a draw took the mocap share to 0): the clock's
+        // takeover snapped a 0.66 rad toe-off flat and jumped the swing 0.36 -> 0.61 (ankle-toe 35, knee-ankle 44-46 deg a
+        // frame). The fix-1 note (eased moving, the walk 2.0 x 2.5 turn sweep's jerk 14.8 -> 29.7 cm/frame2) no longer holds:
+        // mocapSwitch's turn sweeps pass with it
         if (f.clipOwn && !f.contact && !this.quick) {
           f.clipPitchT = 0;
           f.clipPitchOff = f.pitch;
@@ -1453,10 +1457,10 @@ export class FootPlanner {
    * rule step unless both stance windows outlast it: its own clock swing comes first and lands it on the planner's track.
    * The crouched band read the clip's narrow track as out of band and stepped the foot just landed: the other foot held
    * planted on its raised heel past its window, then lifted late (s 0.6) and flattened 1 rad in 0.15 s; or the clock took
-   * the rule step over mid-air (the ankle 31 cm on in a frame). Never with the switch off (clipPlant is the clip's).
+   * the rule step over mid-air (the ankle 31 cm on in a frame). Never with the switch off.
    */
   private clipHeld(f: FootState, i: PlannerInput, side: -1 | 1): boolean {
-    return !i.clipFeet && f.clipPlant && Math.min(this.windowLeft(i, side < 0 ? 1 : -1), this.windowLeft(i, side)) < PLANNER.idleStepTime * 0.75;
+    return !i.clipFeet && !!i.mocap && f.clipPlant && Math.min(this.windowLeft(i, side < 0 ? 1 : -1), this.windowLeft(i, side)) < PLANNER.idleStepTime * 0.75;
   }
 
   /** (mocap-trial, fix 1) Seconds left of a side's stance window on the gait clock (0: in its swing window). */
@@ -1602,12 +1606,13 @@ export class FootPlanner {
     f.fromPitch = f.pitch > 0 ? f.pitch : 0;
     // (mocap-trial, fix 1) every swing starts as the planner's: clipFoot claims its own after this (a turn step left
     // flagged as the clip's was set down again by clipFoot and lifted once more: lift, land, lift in 3 frames)
-    // (mocap-trial-2, crouchpop) a foot the clip planted that the planner lifts (clip feet gone as a crouch or a draw took
-    // the mocap share) eases from its pitch then onto the planner's swing over CLIP_PITCH_EASE (swingTo, as a taken-over
-    // clip swing): fromPitch read the clip's heel-strike toe-up as 0, and a lift held while the other foot finished a rule
+    // (mocap-trial-2, crouchpop) a foot the clip planted that the planner lifts while moving, clip feet gone (a crouch or a
+    // draw took the mocap share), eases from its pitch then onto the planner's swing over CLIP_PITCH_EASE (swingTo, as a
+    // taken-over clip swing): fromPitch read the clip's heel-strike toe-up as 0, and a lift held while the other foot finished a rule
     // step started past the toe-off's ease (s 0.3: a 1.0 rad raised heel flat in a frame), ankle-toe 32-57 deg a frame.
-    // Never with the switch off (clipPlant is the clip's)
-    if (f.clipPlant) {
+    // Not with clip feet on hand (a start's toe-off: the clip takes the swing, eased there the knee popped 39 deg), and never
+    // with the switch off (a toe-up plant's flag kept through a switch off mid-stop: the planner's lift as before)
+    if (f.clipPlant && i.mocap && i.moving && !i.clipFeet) {
       f.clipPitchT = 0;
       f.clipPitchOff = f.pitch;
     } else f.clipPitchT = -1;
