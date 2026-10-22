@@ -436,6 +436,9 @@ export class GameState implements AppState {
   private readonly ctxIn = emptyCtxInput();
   /** The menu owns A this step (a list is up, or its press is still held): the other A readers see it up. */
   private ctxOwnsA = false;
+  /** (hang-down fix, A9) Hanging settled with no guard on offer or held: A uses the item in reach directly (tap uses it,
+   *  a hold fills a hold item, as before the menu), the menu lists nothing; set by `contextMenuStep` for the step. */
+  private hangDirectA = false;
   /** (A3, G19; G5) The door set and (A4, G23; G5) the grab set as seen from outside (tests, tools). */
   readonly doorMenu = new DoorMenuView(this.ctxMenu);
   readonly grabMenu = new GrabMenuView(this.ctxMenu);
@@ -1201,8 +1204,9 @@ export class GameState implements AppState {
     const ints = this.interactables;
     if (!ints) return;
     ints.update(dt);
-    // (hang-down, A1) hanging settled, the context menu uses the items (a hold row for the hack)
-    if (!this.team.active || this.team.hangActs) {
+    // (hang-down, A1) hanging settled by a guard (on offer or held), the context menu uses the items (a hold row for the
+    // hack); (A9) with no guard there, A uses the item in reach here as before the menu
+    if (!this.team.active || (this.team.hangActs && !this.hangDirectA)) {
       this.hud.setInteract(null);
       return;
     }
@@ -1227,7 +1231,8 @@ export class GameState implements AppState {
       return;
     }
     // held actions: hold the button, or (Settings > Accessibility) tap to start and tap again to stop
-    let holding = this.app.input.state.down('interact');
+    // (A9) hanging: an A still held from a menu list (a guard left reach under it) fills nothing
+    let holding = this.app.input.state.down('interact') && !(this.team.hangActs && this.ctxOwnsA);
     if (it.holdTime > 0 && this.app.settings.get().access.holdToggle) {
       if (this.app.input.state.pressed('interact')) this.holdLatch = this.holdLatch === it ? null : it;
       holding = this.holdLatch === it;
@@ -1269,7 +1274,11 @@ export class GameState implements AppState {
     const td = this.takedown;
     // (hang-down, A1) hanging settled under the partner's hands the menu is live (a guard to grab, the hack in reach)
     const hangActs = this.team.hangActs;
-    const aside = !this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
+    // (hang-down fix, A9) no guard to grab or held: the item in reach is A's own (`updateInteract`), not a menu row, so
+    // one press never runs both
+    const hangDirect = hangActs && td.offer === null && td.active === null;
+    this.hangDirectA = hangDirect;
+    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
     // (Michael 08:10 / 08:20; anim-rework S1, M3) a held guard: RT tap knocks him out, RT hold kills (KBM Z knocks out
     // too; not aiming: LT aims the pistol over his shoulder and RT then fires); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
     // B, Y and BACK TO GAME only close the list.
@@ -1300,7 +1309,7 @@ export class GameState implements AppState {
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts);
         // (hang-down) no body is picked up from the hang
-        it = (hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null;
+        it = hangDirect ? null : ((hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
         let label = it ? it.label : '';
         if (it && it.kind === 'door' && it.id.startsWith('door-')) {
           // a door's own item: the door set covers the closed door faced; else it opens or closes the door
@@ -1312,7 +1321,7 @@ export class GameState implements AppState {
       }
     }
     m.end();
-    if ((!this.team.active || hangActs) && it !== this.interactTarget) {
+    if ((!this.team.active || (hangActs && !hangDirect)) && it !== this.interactTarget) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = it;
     }

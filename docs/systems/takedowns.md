@@ -93,8 +93,9 @@ the pistol. Live only while hanging settled (`TeamController.hangActs`); lowerin
   (`TAKEDOWN.hangReach` / `hangBelow` / `hangAbove`, `hangInReach`); any awareness or facing; line of sight from the
   head; no dog; no archetype rule (from over the head). The body never moves: the team move keeps its override (the
   takedown's `release` clears only its own).
-- The grab (A1, A3): the hold-A menu works while hanging (rows: GRAB CHARACTER for the guard in reach, the item in reach:
-  the hack as a hold row); `GRAB_KINDS` holds `hangDown`. `runHangGrab`: the hands reach down (`HANG_GRAB.reach` 0.3 s, his
+- The grab (A1, A3): the hold-A menu works while hanging by a guard (rows: GRAB CHARACTER for the guard in reach, the
+  item in reach); with no guard on offer or held, A uses the item in reach directly as before (A9: press uses it, a
+  hold fills a hold item; `GameState.hangDirectA`, one consumer of A per step); `GRAB_KINDS` holds `hangDown`. `runHangGrab`: the hands reach down (`HANG_GRAB.reach` 0.3 s, his
   struggle from there), he is lifted to them (`HANG_GRAB.lift` 0.5 s; `hangHoldPoint`: `HANG_GRAB.hold` 0.3 m out along
   the way to him, his neck `HANG_GRAB.hands` 0.35 m under the head, at most `liftMax` 0.6 m off his floor, following the
   holder's depth), then held with the held rules: RT tap / KBM Z knock out (`CQ.koTime`, let down limp onto his floor),

@@ -547,8 +547,8 @@ export class TeamController {
     } else this.kin.set(h.x, ry, h.z);
     c.override = { kinematic: this.kin, yaw: h.yaw, turnRate: 20, crouch: false };
     g.player.pose.tumble = Math.PI;
-    // (hang-down) the hold-A menu (the hack, a guard to grab), RT the neck snap, LT the pistol
-    this.prompt = h.sent ? null : 'Hanging: hold A for actions, RT takes a guard down, LT aims; Co-op to be pulled up';
+    // (hang-down) A the item in reach (A9), the hold-A menu by a guard (grab), RT the neck snap, LT the pistol
+    this.prompt = h.sent ? null : 'Hanging: A to use what is in reach, hold A by a guard to grab, RT takes him down, LT aims; Co-op to be pulled up';
     this.promptAt.set(c.pos.x, c.pos.y + 0.4, c.pos.z);
     const k = hangEndOf(false, coopPressed, bPressed);
     if (k && !h.sent) {

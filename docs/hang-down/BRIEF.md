@@ -48,6 +48,14 @@ no edits to animGraph / characterRig / footPlanner; hot paths never allocate.
   `CoopHost.update` and the `HANG_SUB` line in `hostHandsFree`.
 - A8. Animation: the hands go to the guard's neck and shoulder (the takedown's reach IK); no new clip tonight (the
   team-pose and graph files belong to another agent). The upside-down neck-snap and grab poses go on the polish list.
+- A9. (fix round, laptop e2e-ctcourse station 5) Playability: a hanging player beside a panel hacks it with A as before
+  (the station prompt names A). Hanging settled with no guard on offer or held, A is the item's own again
+  (`updateInteract`: a press uses it, a hold fills a hold item) and the menu lists nothing; with a guard by the head
+  (offered or held) the hold-A menu takes A (GRAB CHARACTER, the item as its row). One consumer of A per step (the
+  flag `hangDirectA` is set once in `contextMenuStep`), and an A still held from a list fills nothing, so one press
+  never runs both (the no-double-fire rule). The hanging prompt reads "A to use what is in reach, hold A by a guard to
+  grab". Undo: drop `hangDirectA` (`GameState`: its field, its use in `contextMenuStep` and `updateInteract`) and the
+  prompt line in `TeamController.runHang`; then station 5 of `e2e-ctcourse` must release A (a tap) to run the menu row.
 
 ## Michael's answers
 None asked.
