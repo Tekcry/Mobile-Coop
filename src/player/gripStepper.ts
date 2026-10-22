@@ -46,6 +46,12 @@ export interface GripConfig {
    * waiting limb drifting a whole reach past its spot. A limb ahead of its spot never steps while moving. Unset: off.
    */
   alternate?: number;
+  /**
+   * (traverse-fix) Limbs either side of the body (a ledge's hands): a re-grip never lands nearer than this (m) to the
+   * other limb's grip, nor past it. At a lip's end the leading hand sits clamped at `max`; the trailing hand's lead put it
+   * onto (or through) that hand. Unset: off (a ladder's and a drainpipe's hands pass each other by design).
+   */
+  minGap?: number;
 }
 
 const snap = (v: number, c: GripConfig): number => {
@@ -131,7 +137,20 @@ export class GripStepper {
 
   /** Sets a limb off towards `want` (snapped); false when that is where it already is. */
   private start(g: GripLimb, k: number, want: number): boolean {
-    const to = snap(want, this.cfg);
+    const c = this.cfg;
+    let to = snap(want, c);
+    const gap = c.minGap;
+    const off = k === 0 ? c.offL : c.offR;
+    const ooff = k === 0 ? c.offR : c.offL;
+    if (gap !== undefined && off * ooff < 0) {
+      // (traverse-fix) stay this limb's side of the other one's grip (its landing spot while it swings)
+      const o = k === 0 ? this.R : this.L;
+      const lim = off < ooff ? o.at - gap : o.at + gap;
+      const kept = off < ooff ? Math.min(to, lim) : Math.max(to, lim);
+      // pinned back behind where it is now (the other hand clamped at the lip's end): no reach, it stays put
+      if ((kept - g.at) * (to - g.at) <= 0 || kept < c.min || kept > c.max) return false;
+      to = kept;
+    }
     if (Math.abs(to - g.at) < 1e-6) return false;
     g.from = g.at;
     g.at = to;
