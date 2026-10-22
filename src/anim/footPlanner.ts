@@ -64,6 +64,8 @@ export interface FootState {
   offZ: number;
   /** (fix 21-2) Time (s) since the offset was taken (-1: none). */
   offBase: number;
+  /** (mt2-fixB) The seconds that offset fades over (0: OFF_FADE). */
+  offDur: number;
   /** (mocap-trial, A3) The swing in the air is the clip's (clip feet mode), not the planner's. */
   clipOwn: boolean;
   /** (mocap-trial, fix 1) Planted under the clip: landed by it, or its pitch taken over from the planner's. */
@@ -103,7 +105,7 @@ export interface FootState {
 }
 
 function newFoot(): FootState {
-  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, fromPitch: 0, roll: 0, landed: false, slide: 0, scrub: 0, scrubPos: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, edgeK: 1, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, clipOwn: false, clipPlant: false, clipPitchT: -1, clipPitchOff: 0, liftYaw: 0, liftX: 0, liftZ: 0, liftW: 0, early: false, turn: false, plantT: 0, anchored: false, ballX: 0, ballZ: 0, ancP: 0, ancYaw: 0, pivot: 0, heelP: 0, turnSteps: 0, init: false };
+  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, fromPitch: 0, roll: 0, landed: false, slide: 0, scrub: 0, scrubPos: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, edgeK: 1, swBase: -1, offX: 0, offY: 0, offZ: 0, offBase: -1, offDur: 0, clipOwn: false, clipPlant: false, clipPitchT: -1, clipPitchOff: 0, liftYaw: 0, liftX: 0, liftZ: 0, liftW: 0, early: false, turn: false, plantT: 0, anchored: false, ballX: 0, ballZ: 0, ancP: 0, ancYaw: 0, pivot: 0, heelP: 0, turnSteps: 0, init: false };
 }
 
 export interface PlannerInput {
@@ -335,6 +337,8 @@ const CLIP_TOE_OFF_NEED = 0.01;
 const CLIP_SWING = { carry: 0.15, set0: 0.55, set1: 0.85, full: 0.35, none: 0.45 } as const;
 /** (step 22) A fresh swing the clock starts further into its window than this fades in from the foot (`OFF_FADE`). */
 const FRESH_LATE = 0.2;
+/** (mt2-fixB) A flick: turning faster than this (rad/s; CT turns at 7.85, 6.1 over 4 m/s). */
+const FLICK_RATE = 5;
 /**
  * (mocap-trial-2, pop3) In a start's first START_TOE_OFF s a clip lift further into its swing window than this, or while
  * the other foot is still in a planner step, goes to the planner instead (`clipWait`): a short stand's leftover idle step
@@ -918,10 +922,10 @@ export class FootPlanner {
             continue;
           }
         }
-        // (mt2-fixB, CHECK-3 item 3) clip feet on: a foot planted (a clip step just set down as a turn takes the feet) as its
+        // (mt2-fixB, CHECK-3 item 3) clip feet on: a foot just planted (a clip step set down as a turn takes the feet) as its
         // swing window is nearly over (>= 0.9) stays down: the clock lifted it for a two-frame step to its landing spot and
         // set it down with the turn's landing yaw (the ankle-toe 25-36 deg in a frame at 2 m/s flicks)
-        if (fresh && f.contact && i.clipFeet && sinceStrike - i.duty >= 0.9 * (1 - i.duty)) {
+        if (fresh && f.contact && i.clipFeet && f.plantT < 0.05 && Math.abs(i.yawRate) > FLICK_RATE && sinceStrike - i.duty >= 0.9 * (1 - i.duty)) {
           this.holdOrStep(f, i, side, 0);
           continue;
         }
@@ -978,6 +982,7 @@ export class FootPlanner {
           f.offY = f.offY * k;
           f.offZ = f.offZ * k - (f.toZ - prevToZ) * h;
           f.offBase = 0;
+          f.offDur = 0;
         }
         if (side < 0) this.restL = clamped;
         else this.restR = clamped;
@@ -990,6 +995,7 @@ export class FootPlanner {
           f.offY = 0;
           f.offZ = f.fromZ - f.z;
           f.offBase = 0;
+          f.offDur = 0;
           f.x = f.fromX;
           f.z = f.fromZ;
         }
@@ -1012,6 +1018,9 @@ export class FootPlanner {
           f.offY -= f.y;
           f.offZ -= f.z;
           f.offBase = 0;
+          // (mt2-fixB) the switch off: over the swing left (it lands on its target, not short of it: a run's next stance
+          // started 30 cm behind and the pelvis dropped 34 cm for it), at least OFF_FADE
+          f.offDur = this.mocapOff ? Math.max(OFF_FADE, toLand) : 0;
           f.x += f.offX;
           f.y += f.offY;
           f.z += f.offZ;
@@ -1950,16 +1959,20 @@ export class FootPlanner {
       f.offY = hy - f.y;
       f.offZ = hz - f.z;
       f.offBase = 0;
+      f.offDur = 0;
     }
     if (f.offBase >= 0) {
       // (fix 21-2) a taken-over early toe-off: the gap to the clock's swing fades out over OFF_FADE s (a landing
       // before then lands where the foot is)
       f.offBase += i.dt;
-      const k = 1 - smooth(f.offBase / OFF_FADE);
+      const k = 1 - smooth(f.offBase / (f.offDur > 0 ? f.offDur : OFF_FADE));
       f.x += f.offX * k;
       f.y += f.offY * k;
       f.z += f.offZ * k;
-      if (k <= 0) f.offBase = -1;
+      if (k <= 0) {
+        f.offBase = -1;
+        f.offDur = 0;
+      }
     }
     // passing the planted foot (a side-step back across, a reversal) the swing bows out sideways to `swingGap` from
     // it, so the feet never brush; the ends of the swing stay where they are
@@ -2049,6 +2062,7 @@ export class FootPlanner {
       f.toX = f.x;
       f.toZ = f.z;
       f.offBase = -1;
+      f.offDur = 0;
     }
     f.x = f.toX;
     f.y = f.toY;

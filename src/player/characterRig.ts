@@ -274,6 +274,11 @@ const SWITCH_FADE = 0.25;
 const SWITCH_HOLD = 0.05;
 /** (mt2-fixB) `switchFade`'s node list: the legs (hip, knee, ankle, toe; L, R alternating) from this index. */
 const XF_LEG0 = 13;
+/** (mt2-fixB) `switchFade`: the most a node turns (rad) and the hips move (m: side, height, forward) a 60 Hz frame while it runs. */
+const SWITCH_STEP = 0.35;
+/** (mt2-fixB) `switchFade`: the most a swinging ankle moves (m, root frame) a 60 Hz frame while it runs. */
+const SWITCH_FOOT = 0.16;
+const SWITCH_HIPS = [0.015, 0.03, 0.01] as const;
 /** (mt2-fixB) `switchFade` scratch: the planted ankles and feet, the hip, two directions and the knee. */
 const xfAL = new Vector3();
 const xfAR = new Vector3();
@@ -283,6 +288,7 @@ const xfH = new Vector3();
 const xfV = new Vector3();
 const xfX = new Vector3();
 const xfK = new Vector3();
+const xfHint = new Vector3();
 /** (G1 fix) The 3.2.0 hold for the aimed / wall gaits (stride 'velocity'). */
 export const PELVIS_HOLD_AIM = 0.7;
 /** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
@@ -1136,8 +1142,8 @@ export class CharacterRig {
   private xfQ2 = new Float64Array(0);
   private xfD = new Float64Array(0);
   private readonly xfP = new Float64Array(9);
-  /** (mt2-fixB) The ankles in the root frame (x, y, z; L, R): this frame, last frame, the offsets eased out. */
-  private readonly xfA = new Float64Array(18);
+  /** (mt2-fixB) The ankles in the root frame (x, y, z; L, R): this frame, last frame, the offsets eased out; the knees. */
+  private readonly xfA = new Float64Array(24);
   private xfSeen = 0;
   private xfStart = false;
   private xfT = -1;
@@ -2632,10 +2638,15 @@ export class CharacterRig {
     this.footSlideStep(legKeyed);
     if (JOINTS_CUR.on) this.jointOffsets(1); // (tuner-v2) per-joint offsets on the solved legs
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
-    const lHip = this.limitJoint(this.hipL, dt);
-    const lh = this.limitJoint(this.kneeL, dt) || lHip;
-    const rHip = this.limitJoint(this.hipR, dt);
-    const rh = this.limitJoint(this.kneeR, dt) || rHip;
+    // (mt2-fixB) while the switch's cross-fade runs (`switchFade`) a planted leg goes unlimited: the new pose's legs jump at the
+    // toggle and the limit held a planted ankle 3.6 cm off its plant; the fade eases what is seen (undefined: as before)
+    const xf = this.xfT >= 0 || this.xfStart;
+    const xl = xf && L.contact ? 1e9 : undefined;
+    const xrr = xf && R.contact ? 1e9 : undefined;
+    const lHip = this.limitJoint(this.hipL, dt, xl);
+    const lh = this.limitJoint(this.kneeL, dt, xl) || lHip;
+    const rHip = this.limitJoint(this.hipR, dt, xrr);
+    const rh = this.limitJoint(this.kneeR, dt, xrr) || rHip;
     if (lh) {
       fresh(this.hipL);
       fresh(this.kneeL);
@@ -3961,6 +3972,9 @@ export class CharacterRig {
         const rem = (1 - (f.swing > 0 ? f.swing : 0)) * f.stepDur;
         W[k] = f.contact ? 0 : W[k]! * (rem > dt ? 1 - dt / rem : 0);
       }
+      let lim = false;
+      // (past its time the limits below open up, 1 + 10 x the seconds over: what is still held back catches up smoothly)
+      const f60 = dt * 60 * (1 + 10 * Math.max(0, this.xfT - SWITCH_HOLD - SWITCH_FADE));
       // the offsets' shares (slerp from identity) times the pose (a leg by its own share; its hip and knee solved below)
       for (let j = 0; j < N.length; j++) {
         const leg = j >= XF_LEG0;
@@ -3972,10 +3986,64 @@ export class CharacterRig {
         const k = s < 1e-6 ? wj : Math.sin(wj * h) / s;
         const ox = D[b]! * k, oy = D[b + 1]! * k, oz = D[b + 2]! * k, ow = s < 1e-6 ? 1 : Math.cos(wj * h);
         const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
-        q.set(ow * qx + ox * qw + oy * qz - oz * qy, ow * qy - ox * qz + oy * qw + oz * qx, ow * qz + ox * qy - oy * qx + oz * qw, ow * qw - ox * qx - oy * qy - oz * qz);
+        let rx = ow * qx + ox * qw + oy * qz - oz * qy;
+        let ry = ow * qy - ox * qz + oy * qw + oz * qx;
+        let rz = ow * qz + ox * qy - oy * qx + oz * qw;
+        let rw = ow * qw - ox * qx - oy * qy - oz * qz;
+        // at most SWITCH_STEP rad a frame from what was shown (the new pose's own late jumps: the planner's hand-off, the
+        // legs unlimited); a planted leg's hip, knee and ankle are solved onto the plant below instead
+        const side = (j - XF_LEG0) & 1;
+        if (!(leg && j < XF_LEG0 + 6 && (side === 0 ? this.planner.L : this.planner.R).contact)) {
+          const px = Q1[b]!, py = Q1[b + 1]!, pz = Q1[b + 2]!, pw = Q1[b + 3]!;
+          let dt4 = px * rx + py * ry + pz * rz + pw * rw;
+          if (dt4 < 0) {
+            rx = -rx;
+            ry = -ry;
+            rz = -rz;
+            rw = -rw;
+            dt4 = -dt4;
+          }
+          const ang = 2 * Math.acos(Math.min(1, dt4));
+          const mx = SWITCH_STEP * f60;
+          if (ang > mx) {
+            // slerp from the shown rotation by mx / ang
+            const t = mx / ang, hh = ang / 2, sh = Math.sin(hh);
+            const a0 = Math.sin((1 - t) * hh) / sh, a1 = Math.sin(t * hh) / sh;
+            rx = px * a0 + rx * a1;
+            ry = py * a0 + ry * a1;
+            rz = pz * a0 + rz * a1;
+            rw = pw * a0 + rw * a1;
+            lim = true;
+          }
+        }
+        q.set(rx, ry, rz, rw);
       }
-      hp.set(hp.x + P[6]! * w, hp.y + P[7]! * w, hp.z + P[8]! * w);
+      let hx = hp.x + P[6]! * w, hy = hp.y + P[7]! * w, hz = hp.z + P[8]! * w;
+      // the hips at most SWITCH_HIPS m a frame (side, height, forward: the forward step adds to the pace's) from where
+      // they were shown
+
+      const lx = SWITCH_HIPS[0] * f60, ly = SWITCH_HIPS[1] * f60, lz = SWITCH_HIPS[2] * f60;
+      if (hx > P[0]! + lx || hx < P[0]! - lx || hy > P[1]! + ly || hy < P[1]! - ly || hz > P[2]! + lz || hz < P[2]! - lz) lim = true;
+      hx = hx > P[0]! + lx ? P[0]! + lx : hx < P[0]! - lx ? P[0]! - lx : hx;
+      hy = hy > P[1]! + ly ? P[1]! + ly : hy < P[1]! - ly ? P[1]! - ly : hy;
+      hz = hz > P[2]! + lz ? P[2]! + lz : hz < P[2]! - lz ? P[2]! - lz : hz;
+      hp.set(hx, hy, hz);
       for (let j = 0; j < N.length; j++) fresh(N[j]!);
+      // a planted leg reaches its plant: the faded hips come down as far as it needs (the new pose's sat lower)
+      let drop = 0;
+      for (let k = 0; k < 2; k++) {
+        if (!(k === 0 ? this.planner.L : this.planner.R).contact) continue;
+        const a = k === 0 ? xfAL : xfAR;
+        const hj = (k === 0 ? this.hipL : this.hipR).getAbsolutePosition();
+        const reach = ((k === 0 ? this.kneeL : this.kneeR).position.length() + (k === 0 ? this.ankleL : this.ankleR).position.length()) * 0.999;
+        const hd = hyp2(hj.x - a.x, hj.z - a.z);
+        const need = hj.y - a.y - Math.sqrt(Math.max(0, reach * reach - hd * hd));
+        if (need > drop) drop = need;
+      }
+      if (drop > 0) {
+        hp.y -= drop;
+        for (let j = 0; j < N.length; j++) fresh(N[j]!);
+      }
       // the legs: each ankle onto the new pose's plus its share of the offset (root frame), its foot as faded (planted:
       // the new pose's)
       for (let k = 0; k < 2; k++) {
@@ -3983,16 +4051,36 @@ export class CharacterRig {
         const F = k === 0 ? xfFL : xfFR;
         const an = k === 0 ? this.ankleL : this.ankleR;
         const wl = W[k]!;
-        if (wl > 0) {
+        const planted = (k === 0 ? this.planner.L : this.planner.R).contact;
+        if (!planted) {
           const o = 12 + k * 3;
-          a.set(a.x + (A[o]! * c + A[o + 2]! * sn) * wl, a.y + A[o + 1]! * wl, a.z + (-A[o]! * sn + A[o + 2]! * c) * wl);
+          // the swinging ankle (root frame): the new pose's plus its share of the offset, at most SWITCH_FOOT m a frame
+          // from where it was shown
+          const x = a.x - rp.x, z = a.z - rp.z;
+          let fx = x * c - z * sn + A[o]! * wl, fy = a.y - rp.y + A[o + 1]! * wl, fz = x * sn + z * c + A[o + 2]! * wl;
+          const ex = fx - A[k * 3]!, ey = fy - A[k * 3 + 1]!, ez = fz - A[k * 3 + 2]!;
+          const e = Math.sqrt(ex * ex + ey * ey + ez * ez);
+          const em = SWITCH_FOOT * f60;
+          if (e > em) {
+            fx = A[k * 3]! + (ex * em) / e;
+            fy = A[k * 3 + 1]! + (ey * em) / e;
+            fz = A[k * 3 + 2]! + (ez * em) / e;
+            lim = true;
+          }
+          a.set(rp.x + fx * c + fz * sn, rp.y + fy, rp.z - fx * sn + fz * c);
           F.copyFrom(an.absoluteRotationQuaternion);
         }
+        // the knee's side: planted, where it was shown last frame (its leg unlimited, the new pose's knee flips as it
+        // jumps); swinging, its own
+        const ko = 18 + k * 3;
+        if (planted) xfHint.set(rp.x + A[ko]! * c + A[ko + 2]! * sn, rp.y + A[ko + 1]!, rp.z - A[ko]! * sn + A[ko + 2]! * c);
+        else xfHint.copyFrom((k === 0 ? this.kneeL : this.kneeR).getAbsolutePosition());
         if (k === 0) this.xfPlant(this.hipL, this.kneeL, an, a, F);
         else this.xfPlant(this.hipR, this.kneeR, an, a, F);
       }
       this.xfT += dt;
-      if (this.xfT >= SWITCH_HOLD + SWITCH_FADE) this.xfT = -1;
+      // (on while anything is still held back, up to SWITCH_HOLD + SWITCH_FADE s more)
+      if (this.xfT >= SWITCH_HOLD + SWITCH_FADE && (!lim || this.xfT >= 2 * (SWITCH_HOLD + SWITCH_FADE))) this.xfT = -1;
     }
     // the posed frame, for the next toggle (reads only)
     Q2.set(Q1);
@@ -4022,6 +4110,11 @@ export class CharacterRig {
       A[o] = x * c - z * sn;
       A[1 + o] = a.y - rp.y;
       A[2 + o] = x * sn + z * c;
+      const kn = (k === 0 ? this.kneeL : this.kneeR).getAbsolutePosition();
+      const kx = kn.x - rp.x, kz = kn.z - rp.z;
+      A[18 + o] = kx * c - kz * sn;
+      A[19 + o] = kn.y - rp.y;
+      A[20 + o] = kx * sn + kz * c;
     }
     if (this.xfSeen < 2) this.xfSeen++;
   }
@@ -4040,15 +4133,15 @@ export class CharacterRig {
     if (d > (lt + ls) * 0.9999) d = (lt + ls) * 0.9999;
     const a = (lt * lt - ls * ls + d * d) / (2 * d);
     const r = Math.sqrt(Math.max(0, lt * lt - a * a));
-    // the knee's side: the faded knee off the hip-ankle line
-    xfK.copyFrom(knee.getAbsolutePosition()).subtractInPlace(xfH);
-    xfX.copyFrom(xfK);
+    // the knee's side: the hint (where it was shown) off the hip-ankle line
+    xfX.copyFrom(xfHint).subtractInPlace(xfH);
     const along = Vector3.Dot(xfX, xfV);
     xfX.set(xfX.x - xfV.x * along, xfX.y - xfV.y * along, xfX.z - xfV.z * along);
     const n = xfX.length();
     if (n < 1e-6) return;
     xfX.scaleInPlace(r / n);
     // the hip: the knee's direction onto the planted knee's
+    xfK.copyFrom(knee.getAbsolutePosition()).subtractInPlace(xfH);
     xfK.normalize();
     xfV.scaleInPlace(a).addInPlace(xfX).normalize();
     Quaternion.FromUnitVectorsToRef(xfK, xfV, kF);

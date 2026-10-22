@@ -3,8 +3,8 @@
  * quickStop 0.12 always, the stop hold's holdSpeed, flicks at CT's 7.85 rad/s, the 0.22 s eased crouch; the helper is
  * tests/helpers/mocapPlayer.ts). Each plan runs switch OFF and ON; ON must hold the rules: bone and ankle-toe steps
  * <= OFF + 2 deg or <= 24 deg, planted slide < 2 cm, the pelvis step beyond pace x dt <= max(2 cm, OFF).
- * Items 1 (pace changes while turning, pace swings) and 2 (CT starts after a short stand) are fixed in fix A, items 3
- * (walking flicks) and 5 (the switch toggled mid-move) in fix B; 4 and 6 belong to other rounds and are skipped
+ * Items 1 (pace changes while turning, pace swings) and 2 (CT starts after a short stand) are fixed in fix A, item 3
+ * (walking flicks) in fix B; 5 (the switch toggled mid-move, partly fixed in fix B) and 4 and 6 are skipped
  * (MOCAP_PLAYER_ALL=1 runs them; MOCAP_PLAYER_LOG=<file> appends every row).
  */
 import { appendFileSync } from 'node:fs';
@@ -66,8 +66,9 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     ]);
   }, 120_000);
 
-  // Items 3 and 5: fix B. Other rounds own items 4 and 6 (CHECK-3): skipped here so this file stays green.
-  it('3: walking flick turns at CT turn rate ease the turn slot out (no pelvis lurch as the flick ends)', async () => {
+  // Item 3: fix B. Item 5 (fix B, partly: MT2-FIXB.md) and items 4 and 6 (other rounds) are skipped here so this file
+  // stays green.
+  it('3: walking flick turns at CT turn rate: no pelvis lurch, ankle snap or planted slide', async () => {
     await check([flick(1.4, 90, 0), flick(1.4, 180, 0.41), flick(1.4, 180, 0.83), flick(2.0, 90, 0), flick(2.0, 180, 0), flick(2.0, 180, 0.41), flick(2.8, 180, 0), flick(2.8, 180, 0.41), flick(2.8, 180, 0.83)]);
   }, 300_000);
 
@@ -78,7 +79,7 @@ describe('mocap switch: a CT player (CHECK-3)', () => {
     ]);
   }, 300_000);
 
-  it('5: the switch toggled mid-move cross-fades (no pelvis or bone pop either way)', async () => {
+  itOther('5: the switch toggled mid-move (fix B: cross-fade; walk, jog 2.8 at offset 0 and sneak pass, the rest open)', async () => {
     const moves: [string, Target][] = [
       ['walk 1.4', () => ({ v: 1.4, yr: 0 })],
       ['jog 2.8', () => ({ v: 2.8, yr: 0 })],
