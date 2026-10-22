@@ -12,7 +12,7 @@ import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { S3_DOORS } from '../src/world/maps/campusS3';
 import { S4_BASKET, S4_BOX, S4_DECK, S4_DOORS, S4_FLIGHT, S4_GROUPS, S4_NOC, S4_PANEL_NEAR, S4_PANELS, S4_LASERS, S4_ROOMS, S4_COOP_LIPS, S4_PODS, S4_BOARDS } from '../src/world/maps/campusS4';
 import { S4_AMMO_CRATE, S4_ARMOURED, S4_CAMERA_FLAGS } from '../src/world/maps/campusS4Data';
-import { CAMPUS_ALARMS, CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_POSTS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { checkStageActions, doorFinder, addDoorClosure } from '../src/game/sectorStage';
 import { DESK_POST_RADIUS } from '../src/game/sectorDesks';

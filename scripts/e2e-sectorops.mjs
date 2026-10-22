@@ -2033,5 +2033,243 @@ if (want(6)) {
   await run(CAMPUS, async ({ page }) => campusS3Part(page));
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// (sector-redesign slice 4, `--part=6`) Saltmarsh Park, section 4: the data hall (docs/sector-redesign/briefs/SLICE4.md).
+// Written, not run (the build sheet lists it). Run only when the page's section 4 is the built one (20 guards): S1-S3 are
+// told done and their connectors cycled, then (a) 20 guards, the three cameras and las-tray with its panel are live, (b) the
+// dock board gives the codes and both keypads open, (c) every walked route leg has a path on the real grid, (d) the desk
+// refuses while #5 stands and loops the cameras once he is down, (e) one player cannot open the cage's pair gate, (f) the
+// stealth route to the cage download opens C4, (g) the hall panel's lure draws a guard, (h) C4 cycles into section 5, and
+// solo probes at CR4 never hold or stand on a basket. Skipped (log): the co-op leg-up, jam-and-pass, the pair gate opening for two.
+/** Section 4 of the campus run on one page (`run`'s page): the checks above. */
+async function campusS4Part(page) {
+  const G = (f, a) => page.evaluate(f, a);
+  const sim = async (s) => { for (let t = 0; t < s; t += 0.5) await G((d) => window.__app.loop.stepHeadless(d), Math.min(0.5, s - t)); await frames(page, 1); };
+  const S = await sections(G);
+  if (!(S.length >= 4 && S[3].id === 's4' && S[3].guards === 20)) {
+    console.log(`  campus ops (S4): section 4 is not the built one here (${JSON.stringify(S.map((s) => [s.id, s.guards]))}), skipped`);
+    return;
+  }
+  // frozen AI and no damage on the way in (the AI comes back on for the lure)
+  await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+  await sim(0.5);
+  for (let i = 0; i < 3; i++) {
+    await G(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+    await sim(0.3);
+    await tp(G, S[i].cp.x, S[i].cp.y, S[i].cp.z, S[i].cp.yaw);
+    await sim(4.6);
+  }
+  // (a) section 4 is live
+  const d4 = await G(() => ({ d: window.__sector.debug(), alive: window.__app.current.enemyMgr.alive, ct: window.__ctdev.debug(), items: window.__app.current.interactables.items.length }));
+  assert(d4.d.index === 3 && d4.d.id === 's4' && d4.d.phase === 'objective', `the run reaches section 4 (${JSON.stringify([d4.d.index, d4.d.id, d4.d.phase])})`);
+  assert(d4.alive === 20, `section 4 has 20 guards in (${d4.alive})`);
+  const live4 = d4.ct.cams.filter((c) => c.live).map((c) => c.id).sort();
+  assert(JSON.stringify(live4) === JSON.stringify(['cam-cage', 'cam-dock4', 'cam-mantrap']), `the three S4 cameras are the live ones (${JSON.stringify(live4)})`);
+  const las = d4.ct.lasers.filter((l) => l.live);
+  assert(las.length === 1 && las[0].id === 'las-tray' && las[0].on && las[0].panel !== '', `las-tray is live with its panel (${JSON.stringify(las)})`);
+  assert(d4.items < 128, `the interactables stay under 128 (${d4.items})`);
+
+  // (b) the dock board gives the codes: both keypads open
+  const codes = await G(() => {
+    const g = window.__app.current;
+    const it = g.interactables.items.find((x) => x.id === 'c-sintel-3-0');
+    if (!it) return { board: false };
+    it.onUse(it, 'local');
+    return { board: true, a: window.__sector.useKeypad(3, 0), b: window.__sector.useKeypad(3, 1) };
+  });
+  assert(codes.board && codes.a === true && codes.b === true, `the dock board opens kp-batt and kp-deck (${JSON.stringify(codes)})`);
+
+  // (c) the route legs on the guards' real grid (the basket and ladder legs are the routes' climbs)
+  const nv = await G(() => {
+    const g = window.__app.current;
+    const fails = [];
+    let legs = 0;
+    for (const r of g.world.map.sectors[3].routes) {
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        if ((r.climbs ?? []).includes(i)) continue;
+        const a = r.pts[i];
+        const c = r.pts[i + 1];
+        legs++;
+        if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
+      }
+    }
+    return { legs, fails };
+  });
+  console.log(`  S4: ${nv.legs} route legs checked`);
+  assert(nv.fails.length === 0, `every walked S4 route leg has a nav path (${nv.fails.join('; ')})`);
+
+  // (d) the desk: refused while #5 (the guard nearest (-2.5, 44.6)) stands, then he is knocked out and the console loops the cameras
+  const refused = await G(() => window.__sector.useDesk(0));
+  assert(refused < 0, `the desk is refused while the operator stands (${refused})`);
+  await G(() => {
+    const g = window.__app.current;
+    let best = null;
+    let bd = 1e9;
+    for (const e of g.enemyMgr.enemies) {
+      const d = Math.hypot(e.pos.x + 2.5, e.pos.z - 44.6);
+      if (e.alive && d < bd) { bd = d; best = e; }
+    }
+    best.knockOut({ amount: 9999, point: best.pos.clone(), dir: best.pos.clone().normalize(), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 });
+  });
+  await sim(0.3);
+  const used = await G(() => ({ r: window.__sector.useDesk(0), mode: window.__sector.debug().desks[0] }));
+  assert(used.r === 1 && used.mode === 1, `the console loops the cameras once #5 is down (${JSON.stringify(used)})`);
+
+  // (e) one player cannot open the cage's rear gate
+  const pg = await G(() => { const m = window.__sector; const a = m.turnKey(3, 0, true); const c = m.turnKey(3, 0, false); return { a, c, open: m.debug().pairGates[3][0] }; });
+  assert(pg.c === 'wait' && pg.open === false, `one player alone cannot open pg-cage (${JSON.stringify(pg)})`);
+
+  // (f) the stealth route to the cage terminal, the download, C4's near door opens
+  const route = await G(() => window.__app.current.world.map.sectors[3].routes[0]);
+  for (let i = 1; i < route.obj; i++) {
+    const p = route.pts[i];
+    await tp(G, p[0], p[2] ?? 0, p[1], Math.PI / 2);
+    await sim(0.1);
+  }
+  const at = route.pts[route.obj];
+  await tp(G, at[0], at[2] ?? 0, at[1], Math.PI);
+  await sim(0.4);
+  await press(page, BTN.A);
+  await sim(10.8);
+  const dl = await G(() => window.__sector.debug());
+  assert(dl.phase === 'connector' && dl.nearLocked === false, `the download opens C4's near door (${JSON.stringify([dl.phase, dl.nearLocked])})`);
+
+  // (g) the lure: the player hidden in the riser, the AI on, the hall panel's group-70 switch used
+  await tp(G, 32.2, 0, 46.5, 0);
+  const lure = await G(() => {
+    const g = window.__app.current;
+    delete g.enemyMgr.update;
+    const sws = g.world.layout.switches;
+    const k = sws.findIndex((s) => s.group === 70);
+    const sw = sws[k];
+    window.__s4before = g.enemyMgr.enemies.filter((e) => e.alive).map((e) => ({ e, d: Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z) }));
+    const it = g.interactables.items.find((x) => x.id === `switch-${k}`);
+    it.onUse(it, 'local');
+    return { k, sw: [sw.pos.x, sw.pos.z] };
+  });
+  await sim(15);
+  const lured = await G((sw) => {
+    const g = window.__app.current;
+    let best = 0;
+    for (const q of window.__s4before) best = Math.max(best, q.d - Math.hypot(q.e.pos.x - sw[0], q.e.pos.z - sw[1]));
+    return { best, on: g.world.level.lights.lights.filter((l) => l.group === 70 && l.on).length };
+  }, lure.sw);
+  assert(lured.on === 0 && lured.best >= 4, `the cut s4-cold-1 draws a guard >= 4 m closer to the hall panel within 15 s (${JSON.stringify(lured)})`);
+  await G(() => { const g = window.__app.current; g.enemyMgr.update = () => {}; });
+
+  // (h) the exit legs, C4's checkpoint, the cycle, section 5 loads
+  for (let i = route.obj + 1; i < route.pts.length; i++) {
+    const p = route.pts[i];
+    await tp(G, p[0], p[2] ?? 0, p[1], -Math.PI / 2);
+    await sim(0.1);
+  }
+  await tp(G, S[3].cp.x, S[3].cp.y, S[3].cp.z, S[3].cp.yaw);
+  await sim(1.3);
+  const cyc = await G(() => ({ d: window.__sector.debug(), n: window.__app.current.enemyMgr.enemies.length }));
+  assert(cyc.d.conn === 'cycling' && cyc.d.nearLocked === true && cyc.n === 0, `C4 cycles: the colonnade door locks, section 4 unloads (${JSON.stringify([cyc.d.conn, cyc.d.nearLocked, cyc.n])})`);
+  await sim(3.2);
+  const s5 = await G(() => window.__sector.debug());
+  assert(s5.index === 4 && s5.id === 's5', `section 5 loads behind C4 (${JSON.stringify([s5.index, s5.id])})`);
+}
+
+if (want(6)) {
+  console.log('campus ops (S4): the data hall - the dock board codes, the desk, the pair gate, the hall panel lure, the cage download, C4');
+  await run(CAMPUS, async ({ page }) => campusS4Part(page));
+
+  console.log('campus ops (S4, CR4): solo probes at the cable basket B1 never hold or stand on a basket');
+  await run(CAMPUS, async ({ G }) => {
+    await G(() => {
+      const g = window.__app.current;
+      g.target.damageMul = 0;
+      g.enemyMgr.update = () => {};
+      if (g.security) g.security.fixedUpdate = () => {};
+      if (window.__ctdev) window.__ctdev.fixedUpdate = () => {};
+      window.__app.settings.update((d) => { d.gamepad.curve = 'linear'; d.gamepad.deadzoneLeft = 0; });
+      const H = {
+        st: () => window.__app.current,
+        step(s, sx = 0, sy = 0, btns = []) {
+          const pad = window.__pad;
+          pad.axis(0, sx);
+          pad.axis(1, -sy);
+          for (const b of btns) pad.set(b, 1);
+          window.__app.loop.stepHeadless(s, 120);
+          pad.axis(0, 0);
+          pad.axis(1, 0);
+          for (const b of btns) pad.set(b, 0);
+        },
+        tap(b) {
+          window.__pad.set(b, 1);
+          window.__app.loop.stepHeadless(2 / 60, 120);
+          window.__pad.set(b, 0);
+          window.__app.loop.stepHeadless(2 / 60, 120);
+        },
+        tp(x, y, z, yaw) {
+          const st = H.st();
+          st.team.end(true);
+          st.traversal.reset();
+          const c = st.player.controller;
+          c.clearCrouchToggle();
+          c.teleport(new c.pos.constructor(x, y, z), yaw);
+          st.player.cam.yaw = yaw;
+          st.player.cam.pitch = 0;
+          H.step(0.3);
+        },
+        info() {
+          const st = H.st();
+          const c = st.player.controller;
+          const ac = st.traversal.attachCtl;
+          const a = ac.active ? ac.m.anchor : null;
+          const grip = !a ? null : a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : null;
+          const r = (v) => Math.round(v * 100) / 100;
+          return { x: r(c.pos.x), y: r(c.pos.y), z: r(c.pos.z), grounded: c.grounded, attached: ac.active, grip };
+        },
+      };
+      window.__re = H;
+      window.__app.loop.manual = true;
+    });
+    const step = (s, sx = 0, sy = 0, btns = []) => G(([s, sx, sy, b]) => window.__re.step(s, sx, sy, b), [s, sx, sy, btns]);
+    const tap = (b) => G((b) => window.__re.tap(b), b);
+    const put = (x, y, z, yaw) => G(([x, y, z, w]) => window.__re.tp(x, y, z, w), [x, y, z, yaw]);
+    const info = () => G(() => window.__re.info());
+    await step(0.5);
+    const probe = async (name, spot, yaw, runFrom, y0 = 0) => {
+      let max = 0;
+      let topY = 0;
+      const track = (i) => {
+        if (i.attached && i.grip !== null) max = Math.max(max, i.grip);
+        if (i.grounded) topY = Math.max(topY, i.y);
+      };
+      await put(spot[0], y0, spot[1], yaw);
+      await step(0.4);
+      await tap(BTN.Y);
+      for (let k = 0; k < 15; k++) {
+        await step(0.1);
+        track(await info());
+      }
+      const [rx, rz] = runFrom;
+      const ry = Math.atan2(spot[0] - rx, spot[1] - rz);
+      const fx = Math.sin(ry);
+      const fz = Math.cos(ry);
+      await put(rx, y0, rz, ry);
+      await G(() => { const gs = window.__app.current.player.controller.gears; if (gs) gs.gear = 5; });
+      let jumped = -1;
+      for (let k = 0; k < 60; k++) {
+        const i = await info();
+        const d = (spot[0] - i.x) * fx + (spot[1] - i.z) * fz;
+        if (jumped < 0 && (d < 0.3 || k === 40)) jumped = k;
+        await step(0.05, 0, 1, jumped >= 0 && (k - jumped) % 2 === 0 ? [BTN.Y] : []);
+        track(await info());
+      }
+      await step(1.0);
+      track(await info());
+      const fin = await info();
+      assert(max < BAND_LO && topY < BAND_LO && fin.y < BAND_LO, `${name}: alone, never holds a 4.25+ grip nor stands that high (held ${max}, stood ${topY}, ends y ${fin.y})`);
+    };
+    await probe('CR4 east face from the floor at (5.6, 34)', [5.6, 34.0], -PI / 2, [10.6, 34.0]);
+    await probe('CR4-west face from the floor at (1.6, 34)', [1.6, 34.0], PI / 2, [-3.4, 34.0]);
+    await probe('CR4 wall jump off the pod P2 west face', [4.2, 30.0], PI / 2, [2.9, 30.0]);
+  });
+}
+
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');
 process.exit(failed || all.length ? 1 : 0);
