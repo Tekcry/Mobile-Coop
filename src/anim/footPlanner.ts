@@ -679,21 +679,28 @@ export class FootPlanner {
     const kHeel = this.kHeel > TURN_ON.heel ? this.kHeel : TURN_ON.heel;
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? this.L : this.R;
-      // (mocap-trial, N1 merge) a foot the clip planted (clipPlant, clip feet on hand) stays pinned: no ball pivot
-      if (!f.contact || (f.clipPlant && i.clipFeet)) continue;
+      // (mt2-fixF) a foot the clip planted (clipPlant, clip feet on hand) pivots on its ball too (it held its ankle and
+      // lifted at the cap's 30.9 deg, its ball scrubbing 6-10 cm in a jog 90)
+      if (!f.contact) continue;
       const d = wrap(f.yaw - i.yaw);
       const ad = d < 0 ? -d : d;
       // (fix round, CHECK finding 1) in a heel-first landing's roll with the toe still up the foot turns on its heel
       // (anchorFeet: the heel's spot is held); the round before left it to the cap's backstop, which turned it about the
       // ball's flat spot so the heel swept round on a 17 cm lever (4.6 cm at 60 Hz in a held spin)
-      const toeUp = f.pitch < -TURN_ON.toe;
+      let toeUp = f.pitch < -TURN_ON.toe;
       const live = turning && this.kPivot > 0;
       const want = live && !toeUp && ad > TURN_PIVOT.from ? kHeel : 0;
       f.heelP = want > f.heelP ? Math.min(want, f.heelP + HEEL_RISE * i.dt) : Math.max(want, f.heelP - HEEL_RISE * i.dt);
       // (a roll near its end, the toe nearly down: the raised heel takes over and the roll ends)
-      if (f.heelP > 0 && f.heelP > f.pitch && !toeUp) {
+      // (mt2-fixF) a clip-planted foot's pitch is the clip's again every frame (clipFoot): the planner's raised heel stays on
+      // top of it until it is down, toe up or not (the pitch is the larger of the two, the raise easing at HEEL_RISE); let go
+      // at a toe-up clip frame it dropped 0.35 -> -0.09 rad in a frame, past the rig's MOCAP_FEET.pitchRate, and the held
+      // ball slid 7.4 cm (a walking flick 90 at 2 m/s)
+      const clipP = f.clipPlant && !!i.clipFeet;
+      if (f.heelP > 0 && f.heelP > f.pitch && (!toeUp || clipP)) {
         f.pitch = f.heelP;
         f.roll = 0;
+        if (clipP) toeUp = false;
       }
       // (fix round) on the heel only down to the turn step's allowance (kTwist): the ankle swings round the heel ahead of
       // it, so a roll turned all the way to twistFree put a crouched spin's planted ankle 1.3 cm further out; the ball
@@ -734,8 +741,10 @@ export class FootPlanner {
   private anchorFeet(i: PlannerInput): void {
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? this.L : this.R;
-      // (mocap-trial, N1 merge) nor an anchor: the clip's pinned ankle stays where it landed (the anchor moved it 6 cm as the clip's pitch rolled)
-      if (!f.contact || !this.turnOn || (f.clipPlant && i.clipFeet)) {
+      // (mt2-fixF) a clip-planted foot is held at its contact too, as N1's: the heel while the clip's stance pitch is toe up,
+      // the ball once its heel rises, the ankle travelling with the roll (pinned at the ankle, the heel / ball slid 1.2 / 2.6
+      // cm in a straight jog)
+      if (!f.contact || !this.turnOn) {
         f.anchored = false;
         continue;
       }
@@ -776,9 +785,8 @@ export class FootPlanner {
       const d = wrap(f.yaw - py);
       const m = back > 0 ? back : (i.stride === 'facing' && this.turnT < BAND_TURN_TIME ? TURN_FOLLOW.twistFree : TURN_FOLLOW.twistMax) * STEP[SP.lock]!;
       if (d > m || d < -m) {
-        // (orchestrator review, mocap-trial-2) not a clip-planted foot (clip feet on hand): no anchor or heel lift, so it
-        // does not yaw-scrub about the ankle
-        if (this.turnOn && !(f.clipPlant && i.clipFeet)) {
+        // (mt2-fixF) a clip-planted foot as well (skipped, it yaw-scrubbed about the ankle)
+        if (this.turnOn) {
           // (fix round, CHECK finding 1) the backstop turns the foot about its contact, never sweeping it: toe up on the
           // heel, else on the ball with the heel raised first (a flat foot, a roll's last frames: TURN_ON.heel at once)
           if (!f.anchored) this.anchor(f);
@@ -1421,7 +1429,8 @@ export class FootPlanner {
         }
         // (fix 1) a pitch the planner left on the foot (a start's first clip swing, a turn's hand-back mid-ease) fades into
         // the clip's over the swing's first CLIP_PITCH_SWING; a foot the clip had fully lifts on the clip's own pitch
-        const off = f.clipPlant && f.clipPitchT >= CLIP_PITCH_EASE ? 0 : f.pitch - C.f[o + 3]!;
+        // (mt2-fixF) a clip plant's raised heel (the planner's, on top of the clip's pitch) fades out the same way
+        const off = f.clipPlant && f.clipPitchT >= CLIP_PITCH_EASE && !(f.heelP > 0) ? 0 : f.pitch - C.f[o + 3]!;
         this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, 0);
         f.clipOwn = true;
         f.clipPitchT = 0;
