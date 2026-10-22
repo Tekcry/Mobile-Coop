@@ -41,7 +41,7 @@ branch below is committed and pushed; no agent is running (the three running at 
 | --- | --- | --- | --- | --- |
 | anim-run-half (#110) | `feature/anim-run-half`, `C:/NightShift/Mobile-Coop-anim-run-half` | 16b1a044 | Master 4.54.0 merged, fixture re-captured; check 2682 ok, e2e-anim ok, e2e-studio ok solo (a JOBS=2 phase-sampling flake). In train 4. | Nothing unless train 4 fails. |
 | idle-shins (#120) | `feature/idle-shins`, `C:/NightShift/Mobile-Coop-idle-shins` | 741da1da | PR #120; master 4.55.1 merged. Train 5. | Nothing unless train 5 fails. |
-| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (separate clone) | 1135bc41 | Jog 180 fix (REPORT-D), rule A2 (REPORT-E), master 4.56.0 merged, CHANGELOG section. No pre-run needed (laptop run cancelled). Fresh checker was running at the save: lost, rerun. PR body drafted: C:/NightShift/n1-pr.md. | Checker -> CHECK-3; on PASS the PR (train 7 / 8). |
+| anim-natural N1 (feet) | `feature/anim-natural-n1`, `C:/NightShift/Mobile-Coop-anim-natural-n1` (separate clone) | af4347d7 | Fresh checker PASS (CHECK-3). PR #135 open for train 7 (~20:40). | Nothing unless train 7 fails (CHECK-3 should-fix 1). |
 | anim-natural N2 (body motion) | `feature/anim-natural-n2`, `C:/NightShift/Mobile-Coop-anim-natural-n2` | 849c081b | Steps 2 + 3 + master 4.56.0 (b69e1a26; STATE 20:15). Step 3 checker PASS (CHECK-4.md, 2 should-fix). The run arm pop agent was stopped at the save before any key edit (partial test patch C:/NightShift/n2-pop-wip.patch). | Should-fix 1-2 + run arm pop fix; PR; steps 4-5. |
 | anim-bake-all (#123) | `feature/anim-bake-all`, `C:/NightShift/Mobile-Coop-anim-bake-all` | ad967e39 | Master 4.56.0 merged (tuneRegistry: both imports; 146 tests + tsc green). Told the orchestrator: train 6 once CI is green. | Nothing unless train 6 fails. |
 | anim-n2-runkey | `feature/anim-n2-runkey` | 038e2519 | A1 branch, merged into N2. | None (history; sheets in docs/anim-natural-n2/sheets/). |
@@ -65,12 +65,11 @@ WIP pushed after each agent hand-back, atomic desktop heavy.lock for Blender / q
 "Night Shift | Character Build" for check / e2e / GPU, only touched suites, PRs straight to a train once the fresh
 checker passes, no pre-run without src/net / protocol / save). Everything was committed and pushed at the save; three
 agents were running and are lost (their results were not in): redo them.
-1. N1 (feature/anim-natural-n1, C:/NightShift/Mobile-Coop-anim-natural-n1, a separate clone: use origin/ refs; head
-   1135bc41): rerun the fresh checker (scope: REPORT-D jog 180 fix f8e98b26, REPORT-E rule A2 1b6c6d8e, the master
-   4.56.0 merge; CHECK-2's open items; whole job vs master) -> CHECK-3.md, push. On PASS open the PR:
-   gh pr create --base master --head feature/anim-natural-n1 --title "anim-natural N1: feet in turns (turn step, ball
-   pivot, contact hold)" --body-file C:/NightShift/n1-pr.md (drafted; add the checker line); message the orchestrator
-   (train 7 or 8). On FAIL: one fix round.
+1. N1 (feature/anim-natural-n1, C:/NightShift/Mobile-Coop-anim-natural-n1, a separate clone): fresh checker PASS
+   (CHECK-3.md, af4347d7); PR #135 OPEN (https://github.com/Tekcry/Mobile-Coop/pull/135) for train 7. Nothing to do
+   unless the train's e2e-anim fails: then one fix round on CHECK-3 should-fix 1 (crouch 90 first swing 10.76 m/s
+   headless: the no-crossing push on a crouched rule step; jog sweep 3 plant at exactly 0.250 s), the planner, never
+   the limit. GPU sheets before / after on the laptop later.
 2. N2 (feature/anim-natural-n2, C:/NightShift/Mobile-Coop-anim-natural-n2; steps 2 + 3 + master 4.56.0): the step 3
    checker PASSED (CHECK-4.md, ~20:30). Before the PR, one implementer round: (a) CHECK-4 should-fix 1 (armCap boxes 6
    doubles: write them into armCapO, call armCap(si, cont); per-frame new_space back to 4028d386's 3284.16 B) and
