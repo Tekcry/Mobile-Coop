@@ -225,16 +225,19 @@ export function strikeBodyAt(ph: number, out: StrikeBodyOut): StrikeBodyOut {
 }
 
 /**
- * (strike-pops, n4c polish 9) The trunk's pace: the layer's phase follows the arc (`melee`) at most this much per second.
- * The elbow strike plays the arc 0 -> contact in ~4 frames (`strikeWarp`), but the arm reaches contact ~2 frames later
- * (the shoulder and elbow rate limits), so the trunk's load and drive (hips and shoulders through by arc 0.38 / 0.48)
- * landed in 2 frames on top of the arm's own fastest frames: the right wrist moved 31.4 cm in one frame (a 19 deg
- * chest turn in that frame). Held to this pace the drive spans 3 frames, the shoulders through a frame before the hit
- * (83 ms), the hand still across at 100 ms: the wrist's largest frame 27.0 cm (30 Hz: 41.1 -> 38.2 cm). The kill blows
- * (~0.8 / s before contact) and the recovery never reach it. Never ahead of the arc; a rewind (a denial's blend back)
- * follows at once; it starts from rest (phase 0).
+ * (strike-pops, n4c polish 9 and the trunk's reversal) The trunk's pace: the layer's phase follows the arc (`melee`) at
+ * most this much per second. The elbow strike plays the arc 0 -> contact in ~4 frames (`strikeWarp`), but the arm
+ * reaches contact ~2 frames later (the shoulder and elbow rate limits), so the trunk's one-frame load and its drive (hips
+ * and shoulders through by arc 0.38 / 0.48) landed in 2 frames on top of the arm's own fastest frames: the shoulder line
+ * turned 12.6 deg right then 12.1 deg left on the next frame (a reversal at full speed), then 18.9 deg in one frame, and
+ * the right wrist moved 31.4 cm in one frame (the pelvis 2.9 cm). Held to this pace the load eases out before the drive
+ * (the shoulders 9.2 -> -0.4 -> -13.3 -> -12.1 deg a frame), the drive over 2 frames instead of 1, the shoulders through
+ * on the hit's step (83 ms) and the hand across at 100 ms as before: the wrist's largest frame 27.0 cm, the pelvis'
+ * 2.0 cm (60 Hz, `tests/strikePops.test.ts`). 6 / s puts the hand's arrival a frame late; 6.75 / s and up leave a
+ * reversal at speed (7: 10.6 -> -4.6 deg a frame). The kill blows (~0.8 / s before contact) and the recovery never
+ * reach it. Never ahead of the arc; a rewind (a denial's blend back) follows at once; it starts from rest (phase 0).
  */
-export const STRIKE_BODY_RATE = 7;
+export const STRIKE_BODY_RATE = 6.25;
 
 /** The layer's phase this frame from last frame's (`prev`, < 0 none) and the arc's (`arc`, < 0 none). Pure. */
 export function strikeBodyPhase(prev: number, arc: number, dt: number): number {

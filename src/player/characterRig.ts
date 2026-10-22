@@ -24,7 +24,7 @@ import { LEGD_OPT, legdContactW, plantKnee } from '../anim/legDelta';
 import { toePitch } from '../anim/toeRoll';
 import { heelLift } from '../anim/footGeom';
 import { TUNE_CUR } from '../anim/tune';
-import { HAND_SWAP, handSwapK } from '../anim/handSwapPath'; // (anim-n4c)
+import { HAND_SWAP, handSwapK, handSwapPh } from '../anim/handSwapPath'; // (anim-n4c; strike-pops)
 import { studioFeet } from '../anim/studioDrive';
 import { J, JOINTS_CUR, jointApply, mulInto } from '../anim/tuneJoints';
 import { HANDS_CUR, HANDS_GUN, HP, gunVisualPoint, handsRotApply, ikStrength, type GunVisual } from '../anim/tuneHands';
@@ -1893,7 +1893,9 @@ export class CharacterRig {
         this.handRate = 0;
       }
     }
-    i.handSwap = this.handSwap;
+    // (strike-pops, n4c polish 1) the graph's tuck bump and the gun's dip read the progress from the blend
+    // (`handSwapPh`): a reversal's rewind of `handSwap` flipped their rate in one frame
+    i.handSwap = this.handSwap < 0 ? -1 : handSwapPh(this.handBlend);
     i.hand = 1 - this.handBlend * 2;
 
     // (G1) the kneel keeps the lead foot planted: which foot is ahead (last frame's planted feet, body frame)
@@ -2728,7 +2730,7 @@ export class CharacterRig {
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
     // (anim-n4c, AUDIT row 29) changing hands aimed, the gun drops and comes forward under the chin (handSwapPath.ts)
-    const swapK = handSwapK(this.handSwap);
+    const swapK = handSwapK(this.input.handSwap);
     const swapDrop = swapK * t.aimW * TUNE_CUR.swapDropMul;
     this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x + TUNE_CUR.gunSide) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y + TUNE_CUR.gunUp - HAND_SWAP.drop * swapDrop, AIM_POCKET.z + w.z + TUNE_CUR.gunFwd + HAND_SWAP.fwd * swapDrop);
     // raised the weapon points along the aim; lowered (ready) it is carried with the body, so a lowered gun
