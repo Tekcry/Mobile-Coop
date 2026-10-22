@@ -11,9 +11,9 @@ first, then this file. Message "Night Shift | Orchestrator" at each slice and PR
   db0ffadf, pushes the shots on top. Fresh checker agent running (read-only). Next: review the pairs (LED-only fallback
   if Marlow / floods change: volBeam one-liner in volLights.ts), fill NOTE.md, PR, message the orchestrator. Master is
   now 4.60.0 (d01300d3); keep the shots on the 2f1961ad base, merge master only before the PR if needed.
-- mocap-sheets: real-clip rerun sent to Character Build (laptop slot 2, 4192 GPU) on feature/mocap-sheets-real 8cb4d26c
-  (79005dfd + mocap-trial 82f43716, CT Core's ok; worktree C:/NightShift/Mobile-Coop-mocap-sheets-real); it pushes the
-  regenerated docs/mocap-trial/sheets/ to that branch. Send the orchestrator the sheet paths at once (Michael waits).
+- mocap-sheets: real-clip sheets DONE and sent to the orchestrator + CT Core: feature/mocap-sheets-real 04598e9a
+  (79005dfd + mocap-trial 82f43716; laptop GPU 354 s; VP9 webms; worktree C:/NightShift/Mobile-Coop-mocap-sheets-real).
+  The laptop now has ffmpeg (Michael approved). Later: fold -real into feature/mocap-sheets with the start / stop fix.
   Start / stop cause: agent running in C:/NightShift/Mobile-Coop-mocap-sheets (may commit there: script fix, merge of
   82f43716, start / stop rerun). CT Core's fix sha comes later: rerun turn + start rows on it if cheap.
 
